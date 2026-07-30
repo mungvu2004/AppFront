@@ -4,8 +4,8 @@ import { describe, it, expect } from 'vitest';
 import App from './App';
 
 describe('App', () => {
-  it('renders success message', () => {
+  it('renders app title', () => {
     render(<App />);
-    expect(screen.getByText('Khởi tạo thành công')).toBeInTheDocument();
+    expect(screen.getByText('Quiet Blueprint v1.1')).toBeInTheDocument();
   });
 });
