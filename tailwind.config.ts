@@ -46,6 +46,19 @@ const config: Config = {
         'violation-text': 'var(--state-violation-text)',
         'violation-tint': 'var(--state-violation-tint)',
       },
+      wall: {
+        110: 'var(--wall-110)',
+        220: 'var(--wall-220)',
+        330: 'var(--wall-330)',
+        idle: 'var(--wall-idle)',
+      },
+      canvas: {
+        '2d': 'var(--canvas-2d)',
+        '2d-grid': 'var(--canvas-2d-grid)',
+        '3d': 'var(--canvas-3d)',
+        '3d-ground': 'var(--canvas-3d-ground)',
+        '3d-horizon': 'var(--canvas-3d-horizon)',
+      },
     },
     extend: {
       transitionDuration: {
@@ -58,6 +71,7 @@ const config: Config = {
       boxShadow: {
         'rest': '0 1px 3px rgba(0,0,0,0.1)',
         'float': '0 4px 12px rgba(0,0,0,0.15)',
+        'overlay': '0 8px 24px rgba(43,42,40,0.07)',
         'panel': '0 1px 2px rgba(43,42,40,0.04)',
         'modal': '0 12px 32px rgba(0,0,0,0.15)',
       },

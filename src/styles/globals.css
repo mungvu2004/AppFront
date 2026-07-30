@@ -38,6 +38,17 @@
     
     --bg-selected: #edf2f6;
     --bg-flash: #eef4ef;
+
+    --wall-110: #B3ACA1;
+    --wall-220: #8A8377;
+    --wall-330: #5C564D;
+    --wall-idle: #CFCAC1;
+
+    --canvas-2d: #FFFFFF;
+    --canvas-2d-grid: #F2EFEA;
+    --canvas-3d: #EDEBE6;
+    --canvas-3d-ground: #E4E1DA;
+    --canvas-3d-horizon: #D9D5CD;
   }
 
   body {
