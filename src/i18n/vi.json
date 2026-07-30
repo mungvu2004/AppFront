@@ -1,0 +1,15 @@
+{
+  "common": {
+    "save": "Lưu",
+    "saved_at": "Đã lưu lúc {{time}}",
+    "undo": "Hoàn tác"
+  },
+  "pipeline": {
+    "step_1": "Tiền xử lý ảnh",
+    "step_2": "Nhận diện tường (SegFormer)",
+    "step_3": "Nhận diện cửa và nội thất (YOLOv8)",
+    "step_4": "Đọc kích thước (PaddleOCR)",
+    "step_5": "Chuẩn hóa độ dày tường",
+    "step_6": "Dựng Spatial JSON"
+  }
+}
