@@ -11,6 +11,7 @@ const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder nam
 const RouteDesignSystem = lazy(() => import('./screens/DesignSystem'));
 const RouteDataEntryDemo = lazy(() => import('./screens/DataEntryDemo').then(m => ({ default: m.DataEntryDemo })));
 const RouteListReviewDemo = lazy(() => import('./screens/ListReviewDemo').then(m => ({ default: m.ListReviewDemo })));
+const RouteShellDemo = lazy(() => import('./screens/ShellDemo').then(m => ({ default: m.ShellDemo })));
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Placeholder name="/login" /> },
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
   { path: '/design-system/states', element: <Placeholder name="/design-system/states" /> },
   { path: '/data-entry-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteDataEntryDemo /></React.Suspense> },
   { path: '/list-review-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteListReviewDemo /></React.Suspense> },
+  { path: '/shell-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteShellDemo /></React.Suspense> },
   { path: '*', element: <Placeholder name="404" /> }
 ]);
 

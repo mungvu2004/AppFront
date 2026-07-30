@@ -15,9 +15,11 @@ const config: Config = {
         wash: 'var(--accent-wash)',
       },
       bg: {
+        app: 'var(--bg-app)',
         surface: 'var(--bg-surface)',
         sunken: 'var(--bg-sunken)',
         hover: 'var(--bg-hover)',
+        overlay: 'var(--bg-overlay)',
         selected: 'var(--bg-selected)',
         flash: 'var(--bg-flash)',
       },
@@ -56,6 +58,8 @@ const config: Config = {
       boxShadow: {
         'rest': '0 1px 3px rgba(0,0,0,0.1)',
         'float': '0 4px 12px rgba(0,0,0,0.15)',
+        'panel': '0 1px 2px rgba(43,42,40,0.04)',
+        'modal': '0 12px 32px rgba(0,0,0,0.15)',
       },
       keyframes: {
         'focus-ring': {

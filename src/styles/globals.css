@@ -9,9 +9,11 @@
     --accent-active: #3f5d74;
     --accent-wash: #edf2f6;
 
+    --bg-app: #f6f4f0;
     --bg-surface: #ffffff;
     --bg-sunken: #f1eee8;
     --bg-hover: rgba(43, 42, 40, 0.035);
+    --bg-overlay: rgba(43, 42, 40, 0.28);
 
     --border-default: #e3ded6;
 
@@ -39,6 +41,6 @@
   }
 
   body {
-    @apply bg-bg-surface text-text-primary antialiased;
+    @apply bg-bg-app text-text-primary antialiased;
   }
 }
