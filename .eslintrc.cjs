@@ -40,6 +40,7 @@ module.exports = {
     {
       files: ['src/store/**/*'],
       rules: {
+        'local/no-direct-set': 'off',
         'no-restricted-imports': ['error', {
           patterns: [
             { group: ['**/hooks/*', '**/hooks'], message: 'store KHÔNG được import hooks.' },
