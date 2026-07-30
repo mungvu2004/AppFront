@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '../ui/Button';
 
 export type AlertState = 'verified' | 'attention' | 'violation';
 
@@ -53,26 +54,22 @@ export function InlineAlert({
       {(primaryButton || secondaryButton) && (
         <div className="flex gap-3 mt-1">
           {primaryButton && (
-            <button
+            <Button
+              variant="danger"
+              size="sm"
               onClick={primaryButton.onClick}
-              className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                state === 'violation'
-                  ? 'bg-state-violation text-white hover:bg-state-violation/90 focus:ring-state-violation'
-                  : state === 'attention'
-                  ? 'bg-state-attention text-white hover:bg-state-attention/90 focus:ring-state-attention'
-                  : 'bg-state-verified text-white hover:bg-state-verified/90 focus:ring-state-verified'
-              }`}
             >
               {primaryButton.text}
-            </button>
+            </Button>
           )}
           {secondaryButton && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={secondaryButton.onClick}
-              className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${styles.text} hover:bg-black/5 focus:ring-black/10`}
             >
               {secondaryButton.text}
-            </button>
+            </Button>
           )}
         </div>
       )}

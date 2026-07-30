@@ -9,6 +9,7 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { Kbd } from '../components/ui/Kbd';
 import { Modal } from '../components/overlay/Modal';
 import { Drawer } from '../components/overlay/Drawer';
+import { Button } from '../components/ui/Button';
 import { ArrowLeft, ArrowRight, DoorOpen } from 'lucide-react';
 
 export function DemoSharedControls() {
@@ -148,11 +149,11 @@ export function DemoSharedControls() {
         <h2 className="text-xl font-medium border-b border-border-default pb-2">7 & 8. Tooltip & Kbd</h2>
         <div className="flex gap-8 items-center">
           <Tooltip label="Save Draft" kbd="⌘ S">
-            <button className="px-4 py-2 bg-bg-sunken rounded hover:bg-bg-hover">Hover me</button>
+            <Button variant="secondary">Hover me</Button>
           </Tooltip>
 
           <Tooltip label="Disabled Tooltip" disabled>
-            <button className="px-4 py-2 bg-bg-sunken rounded opacity-50 cursor-not-allowed">Disabled</button>
+            <Button variant="secondary" disabled>Disabled</Button>
           </Tooltip>
           
           <div className="flex items-center gap-2">
@@ -166,18 +167,18 @@ export function DemoSharedControls() {
       <section className="space-y-4">
         <h2 className="text-xl font-medium border-b border-border-default pb-2">9 & 10. Overlays (Modal & Drawer)</h2>
         <div className="flex gap-4">
-          <button 
+          <Button
+            variant="primary"
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover"
           >
             Open Modal
-          </button>
-          <button 
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => setIsDrawerOpen(true)}
-            className="px-4 py-2 bg-bg-sunken rounded border border-border-default hover:bg-bg-hover"
           >
             Open Drawer
-          </button>
+          </Button>
         </div>
 
         <Modal 
@@ -201,12 +202,12 @@ export function DemoSharedControls() {
             <p className="text-text-secondary mb-8">
               This drawer slides in from the right on desktop, and becomes a bottom sheet with spring physics on screens below 1024px.
             </p>
-            <button 
+            <Button
+              variant="secondary"
               onClick={() => setIsDrawerOpen(false)}
-              className="px-4 py-2 bg-bg-sunken rounded border border-border-default"
             >
               Close Drawer
-            </button>
+            </Button>
           </div>
         </Drawer>
       </section>

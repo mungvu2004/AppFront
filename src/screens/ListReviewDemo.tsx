@@ -6,6 +6,8 @@ import { TreeItem } from '../components/ui/TreeItem';
 import { Table, TableHeader, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { useListReview, WallData } from '../hooks/useListReview';
 import { Button } from '../components/ui/Button';
+import { Skeleton } from '../components/feedback/Skeleton';
+import { EmptyState } from '../components/feedback/EmptyState';
 
 const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
   const num = i + 1;
@@ -34,22 +36,21 @@ export function ListReviewDemo() {
 
   const isCollapsed = demoState === 'collapsed';
 
-  const renderSkeletons = () => (
+  const renderSkeletons = () =>
     Array.from({ length: 8 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
-        <TableCell><div className="h-4 w-4 bg-bg-hover rounded animate-pulse" /></TableCell>
-        <TableCell><div className="h-4 w-20 bg-bg-hover rounded animate-pulse" /></TableCell>
+        <TableCell><Skeleton className="h-4 w-4 rounded" /></TableCell>
+        <TableCell><Skeleton className="h-4 w-20 rounded" /></TableCell>
         {!isCollapsed && (
           <>
-            <TableCell><div className="h-4 w-12 bg-bg-hover rounded animate-pulse" /></TableCell>
-            <TableCell><div className="h-4 w-24 bg-bg-hover rounded animate-pulse" /></TableCell>
-            <TableCell><div className="h-4 w-16 bg-bg-hover rounded animate-pulse" /></TableCell>
-            <TableCell><div className="h-6 w-24 bg-bg-hover rounded animate-pulse" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-12 rounded" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-24 rounded" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-16 rounded" /></TableCell>
+            <TableCell><Skeleton className="h-6 w-24 rounded" /></TableCell>
           </>
         )}
       </TableRow>
-    ))
-  );
+    ));
 
   return (
     <div className="flex flex-col h-screen bg-bg-surface overflow-hidden">
@@ -108,15 +109,13 @@ export function ListReviewDemo() {
           )}
 
           {demoState === 'empty' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-bg-surface z-20">
-              <div className="w-32 h-32 bg-bg-sunken rounded-full flex items-center justify-center">
-                <span className="text-text-muted">No Data</span>
-              </div>
-              <div className="text-center">
-                <h3 className="text-base font-semibold">Chưa có kết quả AI</h3>
-                <p className="text-sm text-text-secondary mt-1">Bắt đầu chạy nhận diện để xem kết quả tại đây.</p>
-              </div>
-              <Button variant="primary">Chạy AI</Button>
+            <div className="absolute inset-0 flex items-center justify-center bg-bg-surface z-20">
+              <EmptyState
+                title="Chưa có kết quả AI"
+                description="Bắt đầu chạy nhận diện để xem kết quả tại đây."
+                buttonText="Chạy AI"
+                onButtonClick={() => {}}
+              />
             </div>
           )}
 
@@ -252,12 +251,14 @@ export function ListReviewDemo() {
         )}
       >
         <span className="text-sm font-medium">Đã xóa {review.selectedIds.size > 0 ? review.selectedIds.size : 'các'} cấu kiện</span>
-        <button 
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={review.handleUndo}
-          className="text-sm font-bold text-accent-wash hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-wash rounded"
+          className="text-accent-wash hover:text-accent-wash font-bold"
         >
           Hoàn tác
-        </button>
+        </Button>
       </div>
     </div>
   );

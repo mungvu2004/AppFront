@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
+import { Button } from '../ui/Button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,12 +108,14 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
             {toast.message}
           </span>
           {toast.onUndo && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleUndo}
-              className="text-accent hover:text-accent-hover font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 rounded"
+              className="text-accent hover:text-accent-hover shrink-0"
             >
               Hoàn tác
-            </button>
+            </Button>
           )}
         </div>
 

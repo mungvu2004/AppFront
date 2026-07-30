@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Button } from '../ui/Button';
 
 export interface EmptyStateProps {
   title: string;
@@ -61,22 +62,21 @@ export function EmptyState({
         {description}
       </p>
       
-      <button
-        type="button"
+      <Button
+        variant="primary"
         onClick={onButtonClick}
-        className="px-4 py-2 bg-accent text-bg-surface font-medium rounded-lg hover:bg-accent-hover active:bg-accent-active transition-colors duration-120 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 mb-4"
+        className="mb-4"
       >
         {buttonText}
-      </button>
+      </Button>
 
       {linkText && onLinkClick && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           onClick={onLinkClick}
-          className="text-sm font-medium text-accent hover:text-accent-hover transition-colors duration-120 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded"
         >
           {linkText}
-        </button>
+        </Button>
       )}
     </div>
   );

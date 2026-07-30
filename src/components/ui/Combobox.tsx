@@ -13,6 +13,7 @@ import { ChevronDown, Check, Search } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SelectOption } from './Select';
+import { Skeleton } from '../feedback/Skeleton';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -351,7 +352,7 @@ const ComboboxSkeleton = forwardRef<HTMLDivElement, { label?: React.ReactNode; c
   ({ label, className }, ref) => (
     <div ref={ref} className={cn('flex flex-col', className)}>
       {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
-      <div className="h-[38px] w-full rounded-lg bg-bg-hover animate-pulse" />
+      <Skeleton className="h-[38px] w-full rounded-lg" />
     </div>
   )
 );
