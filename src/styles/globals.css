@@ -21,7 +21,11 @@
 
     --danger-tint: #f9efed;
     --danger-border: #e8cfc9;
+    --state-violation: #d93025;
     --state-violation-text: #9a4034;
+    
+    --bg-selected: #edf2f6;
+    --bg-flash: #eef4ef;
   }
 
   body {

@@ -18,6 +18,8 @@ const config: Config = {
         surface: 'var(--bg-surface)',
         sunken: 'var(--bg-sunken)',
         hover: 'var(--bg-hover)',
+        selected: 'var(--bg-selected)',
+        flash: 'var(--bg-flash)',
       },
       border: {
         default: 'var(--border-default)',
@@ -32,6 +34,7 @@ const config: Config = {
         border: 'var(--danger-border)',
       },
       state: {
+        'violation': 'var(--state-violation)',
         'violation-text': 'var(--state-violation-text)',
       },
     },
@@ -51,10 +54,15 @@ const config: Config = {
         'focus-ring': {
           '0%': { transform: 'scale(0.96)' },
           '100%': { transform: 'scale(1)' },
+        },
+        'dropdown-open': {
+          '0%': { opacity: '0', transform: 'scale(0.98) translateY(4px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
         }
       },
       animation: {
         'focus-ring': 'focus-ring 120ms ease-out forwards',
+        'dropdown-open': 'dropdown-open 180ms ease-out forwards',
       }
     },
   },
