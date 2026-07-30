@@ -83,11 +83,31 @@ const config: Config = {
         'dropdown-open': {
           '0%': { opacity: '0', transform: 'scale(0.98) translateY(4px)' },
           '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'skeleton-scan': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(400%)' },
+        },
+        'toast-enter': {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'empty-icon-draw': {
+          '0%': { strokeDashoffset: '100' },
+          '100%': { strokeDashoffset: '0' },
+        },
+        'progress-overlay-scan': {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100vh)' },
         }
       },
       animation: {
         'focus-ring': 'focus-ring 120ms ease-out forwards',
         'dropdown-open': 'dropdown-open 180ms ease-out forwards',
+        'skeleton-scan': 'skeleton-scan 1400ms linear infinite',
+        'toast-enter': 'toast-enter 260ms ease-out forwards',
+        'empty-icon-draw': 'empty-icon-draw 600ms ease-out forwards',
+        'progress-overlay-scan': 'progress-overlay-scan 1600ms linear infinite',
       }
     },
   },

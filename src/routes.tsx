@@ -13,6 +13,7 @@ const RouteDataEntryDemo = lazy(() => import('./screens/DataEntryDemo').then(m =
 const RouteListReviewDemo = lazy(() => import('./screens/ListReviewDemo').then(m => ({ default: m.ListReviewDemo })));
 const RouteShellDemo = lazy(() => import('./screens/ShellDemo').then(m => ({ default: m.ShellDemo })));
 const RouteCanvasOverlaysDemo = lazy(() => import('./screens/CanvasOverlaysDemo').then(m => ({ default: m.CanvasOverlaysDemo })));
+const RouteFeedbackDemo = lazy(() => import('./screens/FeedbackDemo').then(m => ({ default: m.FeedbackDemo })));
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Placeholder name="/login" /> },
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
   { path: '/list-review-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteListReviewDemo /></React.Suspense> },
   { path: '/shell-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteShellDemo /></React.Suspense> },
   { path: '/demo/canvas-overlays', element: <React.Suspense fallback={<div>Loading...</div>}><RouteCanvasOverlaysDemo /></React.Suspense> },
+  { path: '/feedback-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteFeedbackDemo /></React.Suspense> },
   { path: '*', element: <Placeholder name="404" /> }
 ]);
 
