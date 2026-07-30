@@ -2,10 +2,13 @@ import React from 'react';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 import { ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
-// ─── TreeItem (unchanged logic, added aria-expanded) ──────────────────────────
+// ─── TreeItem ─────────────────────────────────────────────────────────────────
+// Outer element là div[role="treeitem"] vì <button> không được chứa
+// interactive elements con theo HTML spec.
 
-interface TreeItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface TreeItemProps {
   level?: number;
   expanded?: boolean;
   onToggleExpand?: () => void;
@@ -14,11 +17,16 @@ interface TreeItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   colorChip?: string;
   count?: number;
   label: string;
-  /** Whether this item has children (affects aria-expanded rendering) */
   hasChildren?: boolean;
+  selected?: boolean;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
+  tabIndex?: number;
+  className?: string;
+  id?: string;
 }
 
-export const TreeItem = React.forwardRef<HTMLButtonElement, TreeItemProps>((
+export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
   {
     level = 0,
     expanded = false,
@@ -29,32 +37,57 @@ export const TreeItem = React.forwardRef<HTMLButtonElement, TreeItemProps>((
     count,
     label,
     hasChildren = true,
+    selected = false,
+    onClick,
+    onKeyDown,
+    tabIndex = 0,
     className,
-    ...props
+    id,
   },
   ref
 ) => {
+  const handleRowKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
+    }
+    onKeyDown?.(e);
+  };
+
   return (
-    <button
+    <div
       ref={ref}
-      type="button"
+      id={id}
+      role="treeitem"
       aria-expanded={hasChildren ? expanded : undefined}
-      className={twMerge(
-        'group flex items-center w-full h-8 px-2 rounded-lg text-sm text-text-primary hover:bg-bg-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+      aria-selected={selected}
+      tabIndex={tabIndex}
+      onClick={onClick}
+      onKeyDown={handleRowKeyDown}
+      className={cn(
+        'group flex items-center w-full h-8 px-2 rounded-lg text-sm text-text-primary',
+        'hover:bg-bg-hover outline-none',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+        selected && 'bg-bg-selected',
         className
       )}
       style={{ paddingLeft: `${(level * 16) + 8}px` }}
-      {...props}
     >
-      <div
-        role="button"
+      {/* Expand toggle — standalone button, không lồng trong interactive parent */}
+      <button
+        type="button"
         tabIndex={-1}
         aria-label={expanded ? 'Thu gọn' : 'Mở rộng'}
+        aria-hidden={!hasChildren}
         onClick={(e) => {
           e.stopPropagation();
           onToggleExpand?.();
         }}
-        className="flex items-center justify-center w-5 h-5 mr-1 rounded hover:bg-accent-wash text-text-secondary shrink-0"
+        className={twMerge(
+          'flex items-center justify-center w-5 h-5 mr-1 rounded',
+          'hover:bg-accent-wash text-text-secondary shrink-0',
+          !hasChildren && 'pointer-events-none opacity-0'
+        )}
       >
         <ChevronRight
           size={18}
@@ -63,7 +96,7 @@ export const TreeItem = React.forwardRef<HTMLButtonElement, TreeItemProps>((
             expanded ? 'rotate-90' : 'rotate-0'
           )}
         />
-      </div>
+      </button>
 
       {colorChip && (
         <div
@@ -73,16 +106,20 @@ export const TreeItem = React.forwardRef<HTMLButtonElement, TreeItemProps>((
         />
       )}
 
-      <span className="truncate mr-auto text-left">{label}</span>
+      <span className="truncate mr-auto text-left select-none">{label}</span>
 
       {count !== undefined && (
-        <span className="ml-2 font-mono text-[13px] text-text-muted shrink-0" aria-label={`${count} phần tử`}>
+        <span
+          className="ml-2 font-mono text-[13px] text-text-muted shrink-0"
+          aria-label={`${count} phần tử`}
+        >
           {count}
         </span>
       )}
 
-      <div
-        role="button"
+      {/* Visibility toggle — standalone button */}
+      <button
+        type="button"
         tabIndex={-1}
         aria-label={visible ? 'Ẩn layer' : 'Hiện layer'}
         onClick={(e) => {
@@ -90,13 +127,14 @@ export const TreeItem = React.forwardRef<HTMLButtonElement, TreeItemProps>((
           onToggleVisible?.();
         }}
         className={clsx(
-          'ml-2 flex items-center justify-center w-6 h-6 rounded hover:bg-accent-wash text-text-secondary transition-opacity shrink-0',
+          'ml-2 flex items-center justify-center w-6 h-6 rounded',
+          'hover:bg-accent-wash text-text-secondary transition-opacity shrink-0',
           visible ? 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100' : 'opacity-100'
         )}
       >
         {visible ? <Eye size={14} /> : <EyeOff size={14} />}
-      </div>
-    </button>
+      </button>
+    </div>
   );
 });
 

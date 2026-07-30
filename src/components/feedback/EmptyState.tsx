@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export interface EmptyStateProps {
   title: string;
@@ -17,15 +17,25 @@ export function EmptyState({
   linkText,
   onLinkClick,
 }: EmptyStateProps) {
-  const [mounted, setMounted] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
 
+  // Trigger CSS animation sau một microtask — không cần state, không gây extra render
   useEffect(() => {
-    setMounted(true);
+    const el = svgRef.current;
+    if (!el) return;
+    // setAttribute trick để restart CSS animation mà không cần layout reflow
+    el.classList.remove('animate-empty-icon-draw');
+    el.setAttribute('data-anim', '0');
+    requestAnimationFrame(() => {
+      el.removeAttribute('data-anim');
+      el.classList.add('animate-empty-icon-draw');
+    });
   }, []);
 
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center max-w-sm mx-auto">
       <svg
+        ref={svgRef}
         width="32"
         height="32"
         viewBox="0 0 24 24"
@@ -34,11 +44,9 @@ export function EmptyState({
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className={`text-text-muted mb-4 ${mounted ? 'animate-empty-icon-draw' : ''}`}
-        style={{ 
-          strokeDasharray: 100,
-          strokeDashoffset: mounted ? 0 : 100 
-        }}
+        className="text-text-muted mb-4"
+        aria-hidden="true"
+        style={{ strokeDasharray: 100, strokeDashoffset: 0 }}
       >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
@@ -54,16 +62,18 @@ export function EmptyState({
       </p>
       
       <button
+        type="button"
         onClick={onButtonClick}
-        className="px-4 py-2 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover active:bg-accent-active transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 mb-4"
+        className="px-4 py-2 bg-accent text-bg-surface font-medium rounded-lg hover:bg-accent-hover active:bg-accent-active transition-colors duration-120 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 mb-4"
       >
         {buttonText}
       </button>
 
       {linkText && onLinkClick && (
         <button
+          type="button"
           onClick={onLinkClick}
-          className="text-sm font-medium text-accent hover:text-accent-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 rounded"
+          className="text-sm font-medium text-accent hover:text-accent-hover transition-colors duration-120 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded"
         >
           {linkText}
         </button>

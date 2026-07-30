@@ -69,7 +69,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               )}
             >
               {prefix && (
-                <div className="pl-3 pr-1 text-text-muted flex items-center justify-center pointer-events-none">
+                <div className="pl-3 pr-1 text-text-muted flex items-center justify-center">
                   {prefix}
                 </div>
               )}
@@ -77,6 +77,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 id={inputId}
                 ref={ref}
                 disabled={disabled}
+                aria-invalid={isError || undefined}
+                aria-describedby={isError ? `${inputId}-error` : undefined}
                 className={cn(
                   'flex-1 h-full min-w-0 bg-transparent px-3 text-text-primary outline-none placeholder:text-text-muted',
                   prefix && 'pl-1',
@@ -98,8 +100,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <div className="mt-1.5 flex items-start">
             {error ? (
               <>
-                <span className="mt-[6px] mr-2 h-[6px] w-[6px] flex-shrink-0 rounded-full bg-state-violation" />
-                <p className="text-[13px] leading-[18px] text-state-violation-text">{error}</p>
+                <span className="mt-[6px] mr-2 h-[6px] w-[6px] flex-shrink-0 rounded-full bg-state-violation" aria-hidden="true" />
+                <p id={`${inputId}-error`} role="alert" className="text-[13px] leading-[18px] text-state-violation-text">{error}</p>
               </>
             ) : hint ? (
               <p className="text-[13px] leading-[18px] text-text-muted">{hint}</p>

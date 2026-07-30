@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useRef, useEffect, useCallback } from 'react';
 import { cn } from '../../lib/utils';
 import { ContextMenuItem } from './useContextMenu';
 
@@ -13,21 +13,84 @@ export interface ContextMenuRootProps {
 }
 
 const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
-  ({ isVisible, position, children, className, ...props }, ref) => {
+  ({ isVisible, position, children, onClose, className }, ref) => {
+    const internalRef = useRef<HTMLDivElement>(null);
+    const menuRef = (ref as React.RefObject<HTMLDivElement>) ?? internalRef;
+
+    // Viewport boundary clamping: đảm bảo menu không vượt ra ngoài màn hình
+    const safeLeft = Math.min(position.x, window.innerWidth - 180);
+    const safeTop  = Math.min(position.y, window.innerHeight - 40); // 40 = min height estimate
+
+    // ArrowUp/ArrowDown/Home/End navigation (ARIA Menu Pattern)
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+      const menu = menuRef.current;
+      if (!menu) return;
+      const items = Array.from(
+        menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')
+      );
+      const active = document.activeElement as HTMLElement;
+      const idx = items.indexOf(active);
+
+      switch (e.key) {
+        case 'ArrowDown': {
+          e.preventDefault();
+          const next = items[(idx + 1) % items.length];
+          next?.focus();
+          break;
+        }
+        case 'ArrowUp': {
+          e.preventDefault();
+          const prev = items[(idx - 1 + items.length) % items.length];
+          prev?.focus();
+          break;
+        }
+        case 'Home': {
+          e.preventDefault();
+          items[0]?.focus();
+          break;
+        }
+        case 'End': {
+          e.preventDefault();
+          items[items.length - 1]?.focus();
+          break;
+        }
+        case 'Escape': {
+          e.preventDefault();
+          onClose?.();
+          break;
+        }
+        case 'Tab': {
+          // Ngăn focus thoát ra ngoài menu
+          e.preventDefault();
+          break;
+        }
+      }
+    }, [menuRef, onClose]);
+
+    // Focus item đầu tiên khi menu mở
+    useEffect(() => {
+      if (!isVisible || !menuRef.current) return;
+      const first = menuRef.current.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])');
+      // Delay nhỏ để animation hoàn tất trước khi focus
+      const raf = requestAnimationFrame(() => first?.focus());
+      return () => cancelAnimationFrame(raf);
+    }, [isVisible, menuRef]);
+
     if (!isVisible) return null;
 
     return (
       <div
-        ref={ref}
+        ref={menuRef}
         role="menu"
         aria-label="Tùy chọn"
+        tabIndex={-1}
         className={cn(
-          'absolute bg-bg-surface rounded-[12px] shadow-float py-1 z-50 flex flex-col min-w-[160px] animate-dropdown-open',
+          'fixed bg-bg-surface rounded-[12px] shadow-float py-1 z-[9999] flex flex-col min-w-[160px] animate-dropdown-open outline-none',
           className
         )}
-        style={{ left: position.x, top: position.y }}
+        style={{ left: safeLeft, top: safeTop }}
+        onKeyDown={handleKeyDown}
         onContextMenu={(e) => e.preventDefault()}
-        {...props}
       >
         {children}
       </div>
@@ -56,10 +119,11 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
     return (
       <button
         ref={ref}
+        type="button"
         role="menuitem"
         onClick={handleClick}
         className={cn(
-          'h-[36px] px-4 flex items-center gap-2 text-sm transition-colors',
+          'h-[36px] px-4 flex items-center gap-2 text-sm transition-colors duration-120',
           'hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent text-left w-full',
           isDestructive ? 'text-state-violation-text' : 'text-text-primary',
           className
@@ -81,6 +145,7 @@ const ContextMenuSeparator = forwardRef<HTMLDivElement, React.HTMLAttributes<HTM
     <div
       ref={ref}
       role="separator"
+      aria-orientation="horizontal"
       className={cn('my-1 h-px bg-border-default mx-2', className)}
       {...props}
     />

@@ -3,7 +3,10 @@ import React, {
   useContext,
   forwardRef,
   useImperativeHandle,
+  useState,
+  useEffect,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useSelect } from '../../hooks/useSelect';
 import { useCompoundId } from '../../hooks/useCompoundId';
 import { ChevronDown, Check } from 'lucide-react';
@@ -81,9 +84,7 @@ function SelectRoot({
         listboxId,
       }}
     >
-      <div className={cn('relative flex flex-col', className)}>
-        {children}
-      </div>
+      <div className={cn('relative flex flex-col', className)}>{children}</div>
     </SelectContext.Provider>
   );
 }
@@ -104,29 +105,22 @@ const SelectLabel = forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
         {children}
       </label>
     );
-  }
+  },
 );
 SelectLabel.displayName = 'Select.Label';
 
 // ─── Select.Trigger ───────────────────────────────────────────────────────────
 
-export interface SelectTriggerProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface SelectTriggerProps
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   placeholder?: string;
   options?: SelectOption[];
 }
 
 const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
   ({ placeholder = 'Chọn...', options = [], className, ...props }, ref) => {
-    const {
-      isOpen,
-      value,
-      disabled,
-      toggle,
-      handleKeyDown,
-      triggerRef,
-      triggerId,
-      listboxId,
-    } = useSelectContext('Select.Trigger');
+    const { isOpen, value, disabled, toggle, handleKeyDown, triggerRef, triggerId, listboxId } =
+      useSelectContext('Select.Trigger');
 
     useImperativeHandle(ref, () => triggerRef.current as HTMLButtonElement);
 
@@ -149,7 +143,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
           !disabled && 'hover:border-text-secondary',
           disabled && 'opacity-50 cursor-not-allowed bg-bg-sunken',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
-          className
+          className,
         )}
         {...props}
       >
@@ -159,12 +153,12 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
         <ChevronDown
           className={cn(
             'ml-2 h-[18px] w-[18px] flex-shrink-0 text-text-secondary transition-transform duration-180',
-            isOpen && 'rotate-180'
+            isOpen && 'rotate-180',
           )}
         />
       </button>
     );
-  }
+  },
 );
 SelectTrigger.displayName = 'Select.Trigger';
 
@@ -172,7 +166,22 @@ SelectTrigger.displayName = 'Select.Trigger';
 
 const SelectContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ children, className }, ref) => {
-    const { isOpen, listboxRef, listboxId, triggerId } = useSelectContext('Select.Content');
+    const { isOpen, listboxRef, listboxId, triggerId, triggerRef } =
+      useSelectContext('Select.Content');
+    const [rect, setRect] = useState<DOMRect | null>(null);
+
+    // Đo trigger mỗi khi dropdown mở hoặc window resize/scroll
+    useEffect(() => {
+      if (!isOpen || !triggerRef.current) return;
+      const measure = () => setRect(triggerRef.current!.getBoundingClientRect());
+      measure();
+      window.addEventListener('resize', measure);
+      window.addEventListener('scroll', measure, true);
+      return () => {
+        window.removeEventListener('resize', measure);
+        window.removeEventListener('scroll', measure, true);
+      };
+    }, [isOpen, triggerRef]);
 
     const mergedRef = (node: HTMLDivElement | null) => {
       (listboxRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
@@ -180,31 +189,38 @@ const SelectContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEle
       else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
     };
 
-    return (
+    const dropdown = (
       <AnimatePresence>
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 z-50 pt-1">
-            <motion.div
-              ref={mergedRef}
-              id={listboxId}
-              role="listbox"
-              aria-labelledby={triggerId}
-              initial={{ opacity: 0, scaleY: 0.96 }}
-              animate={{ opacity: 1, scaleY: 1 }}
-              exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.12 } }}
-              transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-              className={cn(
-                'max-h-[300px] overflow-auto rounded-xl bg-bg-surface p-2 shadow-float border border-border-default origin-top',
-                className
-              )}
-            >
-              {children}
-            </motion.div>
-          </div>
+        {isOpen && rect && (
+          <motion.div
+            ref={mergedRef}
+            id={listboxId}
+            role="listbox"
+            aria-labelledby={triggerId}
+            initial={{ opacity: 0, scaleY: 0.96 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.12 } }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+            className={cn(
+              'max-h-[300px] overflow-auto rounded-xl bg-bg-surface p-2 shadow-float border border-border-default origin-top',
+              className,
+            )}
+            style={{
+              position: 'fixed',
+              top: rect.bottom + 4,
+              left: rect.left,
+              width: rect.width,
+              zIndex: 9999,
+            }}
+          >
+            {children}
+          </motion.div>
         )}
       </AnimatePresence>
     );
-  }
+
+    return typeof document !== 'undefined' ? createPortal(dropdown, document.body) : null;
+  },
 );
 SelectContent.displayName = 'Select.Content';
 
@@ -241,7 +257,7 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>(
             ? 'bg-bg-selected text-accent font-medium'
             : 'text-text-primary hover:bg-bg-hover',
           isHighlighted && !isSelected && 'bg-bg-hover',
-          className
+          className,
         )}
         onClick={() => selectOption(itemValue)}
         onMouseEnter={() => index >= 0 && setHighlightedIndex(index)}
@@ -251,7 +267,7 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>(
         {isSelected && <Check className="ml-2 h-4 w-4 flex-shrink-0" />}
       </div>
     );
-  }
+  },
 );
 SelectItem.displayName = 'Select.Item';
 
@@ -266,7 +282,7 @@ const SelectEmpty = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
     >
       {children ?? 'Không có lựa chọn'}
     </div>
-  )
+  ),
 );
 SelectEmpty.displayName = 'Select.Empty';
 
@@ -278,7 +294,7 @@ const SelectSkeleton = forwardRef<HTMLDivElement, { label?: React.ReactNode; cla
       {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
       <div className="h-[38px] w-full rounded-lg bg-bg-hover animate-pulse" />
     </div>
-  )
+  ),
 );
 SelectSkeleton.displayName = 'Select.Skeleton';
 
@@ -298,7 +314,7 @@ export const Select = Object.assign(
       isLoading = false,
       label,
     },
-    ref
+    ref,
   ) {
     if (isLoading) return <SelectSkeleton label={label} />;
 
@@ -306,7 +322,9 @@ export const Select = Object.assign(
       const selectedOption = options.find((o) => o.value === value);
       return (
         <div className="flex flex-col">
-          {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
+          {label && (
+            <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>
+          )}
           <div className="flex h-[38px] w-full items-center px-3 text-text-primary">
             {selectedOption ? selectedOption.label : placeholder}
           </div>
@@ -346,7 +364,7 @@ export const Select = Object.assign(
     Item: SelectItem,
     Empty: SelectEmpty,
     Skeleton: SelectSkeleton,
-  }
+  },
 );
 
 Select.displayName = 'Select';

@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useRef,
   useId,
+  useLayoutEffect,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
@@ -85,12 +86,13 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
   ({ id, children, className, ...props }, ref) => {
     const { activeId, onChange, tabIds, groupId } = useTabsContext('Tabs.Tab');
 
-    // Register tab ID (idempotent)
-    const registered = useRef(false);
-    if (!registered.current) {
+    // Register/deregister tab ID trong layout effect — tránh side effect trong render
+    useLayoutEffect(() => {
       if (!tabIds.current.includes(id)) tabIds.current.push(id);
-      registered.current = true;
-    }
+      return () => {
+        tabIds.current = tabIds.current.filter((tid) => tid !== id);
+      };
+    }, [id, tabIds]);
 
     const isActive = activeId === id;
 

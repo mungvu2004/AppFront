@@ -51,7 +51,22 @@ function DrawerRoot({ isOpen, onClose, children }: DrawerRootProps) {
     containerRef.current?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab' && containerRef.current) {
+        const focusable = containerRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
+        } else {
+          if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => {

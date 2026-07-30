@@ -31,7 +31,7 @@ export function useToast() {
 export interface ToastItemProps {
   toast: ToastMessage;
   index: number;
-  onRemove: () => void;
+  onRemove: (id: string) => void;
 }
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
@@ -39,8 +39,8 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     const [isHovered, setIsHovered] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const [progress, setProgress] = useState(100);
-    const rafRef = useRef<number>();
-    const lastTimeRef = useRef<number>();
+    const rafRef = useRef<number | null>(null);
+    const lastTimeRef = useRef<number | undefined>(undefined);
     const timeLeftRef = useRef(8000);
 
     useEffect(() => {
@@ -59,7 +59,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         if (timeLeftRef.current <= 0) {
           setProgress(0);
           setIsExiting(true);
-          setTimeout(() => onRemove(), 180);
+          setTimeout(() => onRemove(toast.id), 180);
         } else {
           setProgress((timeLeftRef.current / 8000) * 100);
           rafRef.current = requestAnimationFrame(animate);
@@ -67,13 +67,15 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       };
 
       rafRef.current = requestAnimationFrame(animate);
-      return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-    }, [isHovered, isExiting, onRemove]);
+      return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
+    // onRemove is a stable useCallback from ToastProvider — safe to omit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isHovered, isExiting]);
 
     const handleUndo = () => {
       toast.onUndo?.();
       setIsExiting(true);
-      setTimeout(() => onRemove(), 180);
+      setTimeout(() => onRemove(toast.id), 180);
     };
 
     const isPeek = index > 0;
@@ -155,7 +157,7 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
             key={toast.id}
             toast={toast}
             index={index}
-            onRemove={() => removeToast(toast.id)}
+            onRemove={removeToast}
           />
         ))}
       </div>

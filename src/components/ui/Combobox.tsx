@@ -3,7 +3,10 @@ import React, {
   useContext,
   forwardRef,
   useImperativeHandle,
+  useState,
+  useEffect,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useCombobox } from '../../hooks/useCombobox';
 import { useCompoundId } from '../../hooks/useCompoundId';
 import { ChevronDown, Check, Search } from 'lucide-react';
@@ -161,29 +164,49 @@ ComboboxTrigger.displayName = 'Combobox.Trigger';
 
 const ComboboxContent = forwardRef<HTMLDivElement, { children: React.ReactNode; className?: string }>(
   ({ children, className }, ref) => {
-    const { isOpen } = useComboboxContext('Combobox.Content');
+    const { isOpen, triggerRef } = useComboboxContext('Combobox.Content');
+    const [rect, setRect] = useState<DOMRect | null>(null);
 
-    return (
+    useEffect(() => {
+      if (!isOpen || !triggerRef.current) return;
+      const measure = () => setRect(triggerRef.current!.getBoundingClientRect());
+      measure();
+      window.addEventListener('resize', measure);
+      window.addEventListener('scroll', measure, true);
+      return () => {
+        window.removeEventListener('resize', measure);
+        window.removeEventListener('scroll', measure, true);
+      };
+    }, [isOpen, triggerRef]);
+
+    const dropdown = (
       <AnimatePresence>
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 z-50 pt-1">
-            <motion.div
-              ref={ref}
-              initial={{ opacity: 0, scaleY: 0.96 }}
-              animate={{ opacity: 1, scaleY: 1 }}
-              exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.12 } }}
-              transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-              className={cn(
-                'flex flex-col rounded-xl bg-bg-surface shadow-float border border-border-default origin-top',
-                className
-              )}
-            >
-              {children}
-            </motion.div>
-          </div>
+        {isOpen && rect && (
+          <motion.div
+            ref={ref}
+            initial={{ opacity: 0, scaleY: 0.96 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.12 } }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+            className={cn(
+              'flex flex-col rounded-xl bg-bg-surface shadow-float border border-border-default origin-top',
+              className
+            )}
+            style={{
+              position: 'fixed',
+              top: rect.bottom + 4,
+              left: rect.left,
+              width: rect.width,
+              zIndex: 9999,
+            }}
+          >
+            {children}
+          </motion.div>
         )}
       </AnimatePresence>
     );
+
+    return typeof document !== 'undefined' ? createPortal(dropdown, document.body) : null;
   }
 );
 ComboboxContent.displayName = 'Combobox.Content';

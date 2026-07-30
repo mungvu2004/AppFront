@@ -82,8 +82,6 @@ export function Slider({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      role="group"
-      aria-disabled={disabled}
     >
       {endLabels && (
         <span className="font-mono text-[13px] leading-none text-text-secondary mr-3 select-none">
