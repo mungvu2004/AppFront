@@ -8,6 +8,7 @@ const Placeholder = ({ name }: { name: string }) => <div>{name}</div>;
 // Lazy load 3D and canvas routes
 const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3D View" /> }));
 const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
+const RouteDesignSystem = lazy(() => import('./screens/DesignSystem'));
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Placeholder name="/login" /> },
@@ -30,7 +31,7 @@ export const router = createBrowserRouter([
   { path: '/admin/users', element: <Placeholder name="/admin/users" /> },
   { path: '/account', element: <Placeholder name="/account" /> },
   { path: '/billing', element: <Placeholder name="/billing" /> },
-  { path: '/design-system', element: <Placeholder name="/design-system" /> },
+  { path: '/design-system', element: <React.Suspense fallback={<div>Loading...</div>}><RouteDesignSystem /></React.Suspense> },
   { path: '/design-system/states', element: <Placeholder name="/design-system/states" /> },
   { path: '*', element: <Placeholder name="404" /> }
 ]);

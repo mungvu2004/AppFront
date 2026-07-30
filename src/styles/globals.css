@@ -1,1 +1,30 @@
-/* placeholder */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --accent: #567a96;
+    --accent-hover: #4a6b85;
+    --accent-active: #3f5d74;
+    --accent-wash: #edf2f6;
+
+    --bg-surface: #ffffff;
+    --bg-sunken: #f1eee8;
+    --bg-hover: rgba(43, 42, 40, 0.035);
+
+    --border-default: #e3ded6;
+
+    --text-primary: #33322f;
+    --text-secondary: #6b6862;
+    --text-muted: #999691; /* Used for shortcut kbd */
+
+    --danger-tint: #f9efed;
+    --danger-border: #e8cfc9;
+    --state-violation-text: #9a4034;
+  }
+
+  body {
+    @apply bg-bg-surface text-text-primary antialiased;
+  }
+}

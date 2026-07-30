@@ -1,5 +1,8 @@
+import React from 'react';
+import DesignSystem from './screens/DesignSystem';
+import './styles/globals.css';
+
 export default function App() {
-  return (
-    <div>Khởi tạo thành công</div>
-  );
+  return <DesignSystem />;
 }
+
