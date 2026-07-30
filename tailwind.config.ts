@@ -34,8 +34,15 @@ const config: Config = {
         border: 'var(--danger-border)',
       },
       state: {
+        'verified': 'var(--state-verified)',
+        'verified-text': 'var(--state-verified-text)',
+        'verified-tint': 'var(--state-verified-tint)',
+        'attention': 'var(--state-attention)',
+        'attention-text': 'var(--state-attention-text)',
+        'attention-tint': 'var(--state-attention-tint)',
         'violation': 'var(--state-violation)',
         'violation-text': 'var(--state-violation-text)',
+        'violation-tint': 'var(--state-violation-tint)',
       },
     },
     extend: {

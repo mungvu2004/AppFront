@@ -10,6 +10,7 @@ const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3
 const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
 const RouteDesignSystem = lazy(() => import('./screens/DesignSystem'));
 const RouteDataEntryDemo = lazy(() => import('./screens/DataEntryDemo').then(m => ({ default: m.DataEntryDemo })));
+const RouteListReviewDemo = lazy(() => import('./screens/ListReviewDemo').then(m => ({ default: m.ListReviewDemo })));
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Placeholder name="/login" /> },
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
   { path: '/design-system', element: <React.Suspense fallback={<div>Loading...</div>}><RouteDesignSystem /></React.Suspense> },
   { path: '/design-system/states', element: <Placeholder name="/design-system/states" /> },
   { path: '/data-entry-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteDataEntryDemo /></React.Suspense> },
+  { path: '/list-review-demo', element: <React.Suspense fallback={<div>Loading...</div>}><RouteListReviewDemo /></React.Suspense> },
   { path: '*', element: <Placeholder name="404" /> }
 ]);
 

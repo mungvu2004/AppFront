@@ -21,8 +21,18 @@
 
     --danger-tint: #f9efed;
     --danger-border: #e8cfc9;
-    --state-violation: #d93025;
+    
+    --state-verified: #6b9a79;
+    --state-verified-text: #3e6b4c;
+    --state-verified-tint: #eef4ef;
+
+    --state-attention: #be9b4f;
+    --state-attention-text: #7a5f16;
+    --state-attention-tint: #fcf6e6;
+
+    --state-violation: #c0685a;
     --state-violation-text: #9a4034;
+    --state-violation-tint: #f9efed;
     
     --bg-selected: #edf2f6;
     --bg-flash: #eef4ef;
