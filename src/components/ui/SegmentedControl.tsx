@@ -1,4 +1,4 @@
-import React, { useId, useState, forwardRef } from 'react';
+import React, { useState, useId, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
@@ -13,13 +13,16 @@ export interface SegmentedControlOption<T extends string = string> {
 
 export interface SegmentedControlProps<T extends string = string> {
   options: SegmentedControlOption<T>[];
-  value?: T;
-  defaultValue?: T;
-  onChange?: (value: T) => void;
-  className?: string;
+  value?: T | undefined;
+  defaultValue?: T | undefined;
+  onChange?: ((value: T) => void) | undefined;
+  className?: string | undefined;
+  'aria-label'?: string | undefined;
+  disabled?: boolean | undefined;
+  isLoading?: boolean | undefined;
 }
 
-// ─── Logic hook (unchanged) ───────────────────────────────────────────────────
+// ─── Logic hook ───────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useSegmentedControl<T extends string>({
@@ -52,7 +55,7 @@ export interface SegmentedItemProps extends Omit<React.ButtonHTMLAttributes<HTML
   layoutId?: string;
 }
 
-const SegmentedItem = forwardRef<HTMLButtonElement, SegmentedItemProps>(
+const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
   ({ value, swatch, isActive = false, layoutId, children, className, ...props }, ref) => (
     <button
       ref={ref}
@@ -72,7 +75,7 @@ const SegmentedItem = forwardRef<HTMLButtonElement, SegmentedItemProps>(
         <motion.div
           layoutId={layoutId}
           className="absolute inset-0 rounded bg-bg-surface shadow-rest"
-          transition={{ type: 'tween', ease: [0.32, 0.72, 0, 1], duration: 0.34 }}
+          transition={{ type: 'tween', ease: [0.32, 0.72, 0, 1], duration: 0.18 }}
         />
       )}
       <span className="relative z-10 flex items-center justify-center gap-1.5">
@@ -96,12 +99,12 @@ export interface SegmentedRootProps extends React.HTMLAttributes<HTMLDivElement>
   children: React.ReactNode;
 }
 
-const SegmentedRoot = forwardRef<HTMLDivElement, SegmentedRootProps>(
+const SegmentedRoot = React.forwardRef<HTMLDivElement, SegmentedRootProps>(
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
       role="radiogroup"
-      className={cn('relative flex h-[38px] items-center rounded-lg bg-bg-sunken p-1', className)}
+      className={cn('relative flex h-9 items-center rounded-lg bg-bg-sunken p-1', className)}
       {...props}
     >
       {children}
@@ -114,12 +117,38 @@ SegmentedRoot.displayName = 'SegmentedControl.Root';
 
 export const SegmentedControl = Object.assign(
   function SegmentedControlLegacy<T extends string = string>(props: SegmentedControlProps<T>) {
-    const { options, className } = props;
+    const { options, className, 'aria-label': ariaLabel, disabled, isLoading } = props;
     const { currentValue, handleChange } = useSegmentedControl(props);
     const layoutId = useId();
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Keyboard: ArrowLeft / ArrowRight navigate between segments
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      const activeIndex = options.findIndex((o) => o.value === currentValue);
+      let nextIndex = -1;
+      if (e.key === 'ArrowRight') nextIndex = (activeIndex + 1) % options.length;
+      else if (e.key === 'ArrowLeft') nextIndex = (activeIndex - 1 + options.length) % options.length;
+      if (nextIndex !== -1) {
+        e.preventDefault();
+        const opt = options[nextIndex];
+        if (opt && !opt.disabled) handleChange(opt.value, opt.disabled);
+        // Move focus to the button
+        const btns = containerRef.current?.querySelectorAll<HTMLButtonElement>('button');
+        btns?.[nextIndex]?.focus();
+      }
+    };
+
+    if (isLoading) {
+      return <div className={cn('h-9 w-full rounded-lg bg-bg-sunken animate-pulse', className)} />;
+    }
 
     return (
-      <SegmentedRoot className={className}>
+      <SegmentedRoot
+        className={className}
+        aria-label={ariaLabel}
+        ref={containerRef}
+        onKeyDown={handleKeyDown}
+      >
         {options.map((option) => {
           const isActive = currentValue === option.value;
           return (
@@ -129,7 +158,7 @@ export const SegmentedControl = Object.assign(
               swatch={option.swatch}
               isActive={isActive}
               layoutId={`thumb-${layoutId}`}
-              disabled={option.disabled}
+              disabled={disabled || option.disabled}
               onClick={() => handleChange(option.value, option.disabled)}
             >
               {option.label}

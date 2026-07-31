@@ -1,18 +1,64 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+import { Skeleton } from '../feedback/Skeleton';
 
 export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
   label: string;
   children: React.ReactNode;
   isLast?: boolean;
+  /** Show "—" dash for mixed/undefined value */
+  isMixed?: boolean;
+  /** Read-only: disable interaction, show tooltip explaining why */
+  isReadOnly?: boolean;
+  readOnlyReason?: string;
+  isLoading?: boolean;
+  /** Flash accent-wash background after a write (400ms) */
+  flash?: boolean;
+  /** Collapsed state — renders nothing */
+  collapsed?: boolean;
 }
 
-export const FieldRow = ({ label, children, isLast, className, ...props }: FieldRowProps) => {
+export const FieldRow = ({
+  label,
+  children,
+  isLast,
+  isMixed,
+  isReadOnly,
+  isLoading,
+  flash,
+  collapsed,
+  className,
+  ...props
+}: FieldRowProps) => {
+  if (collapsed) return null;
+
+  if (isLoading) {
+    return (
+      <div
+        className={cn(
+          'flex items-start min-h-[36px] py-2',
+          !isLast && 'border-b border-border-default',
+          className
+        )}
+        {...props}
+      >
+        <div className="w-[40%] flex-shrink-0 pr-4 pt-[9px]">
+          <Skeleton className="h-4 w-24 rounded" />
+        </div>
+        <div className="w-[60%] flex-shrink-0 pt-[9px]">
+          <Skeleton className="h-4 w-full rounded" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        'flex items-start min-h-[36px] py-2',
+        'flex items-start min-h-[36px] py-2 transition-colors duration-[400ms]',
         !isLast && 'border-b border-border-default',
+        flash && 'bg-accent-wash',
+        isReadOnly && 'opacity-60',
         className
       )}
       {...props}
@@ -23,8 +69,11 @@ export const FieldRow = ({ label, children, isLast, className, ...props }: Field
         </span>
       </div>
       <div className="w-[60%] flex-shrink-0">
-        {/* We use a wrapper to override the child's label if any, but ideally the child shouldn't have a label in FieldRow */}
-        {children}
+        {isMixed ? (
+          <span className="flex h-[36px] items-center text-[14px] text-text-muted">—</span>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );

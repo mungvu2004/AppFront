@@ -132,6 +132,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
         ref={triggerRef}
         id={triggerId}
         type="button"
+        role="combobox"
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

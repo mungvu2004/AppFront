@@ -15,7 +15,6 @@ import { cn } from '../../lib/utils';
 interface TabsContextValue {
   activeId: string;
   onChange: (id: string) => void;
-  /** ordered list of tab IDs — used for keyboard arrow navigation */
   tabIds: React.MutableRefObject<string[]>;
   groupId: string;
 }
@@ -43,9 +42,7 @@ function TabsRoot({ activeId, onChange, children, className }: TabsRootProps) {
 
   return (
     <TabsContext.Provider value={{ activeId, onChange, tabIds, groupId }}>
-      <div className={cn('w-full', className)}>
-        {children}
-      </div>
+      <div className={cn('w-full', className)}>{children}</div>
     </TabsContext.Provider>
   );
 }
@@ -80,13 +77,14 @@ TabsList.displayName = 'Tabs.List';
 export interface TabsTabProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'id'> {
   id: string;
   children: React.ReactNode;
+  /** Optional badge count displayed to the right of label */
+  badge?: number | undefined;
 }
 
 const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
-  ({ id, children, className, ...props }, ref) => {
+  ({ id, children, badge, className, ...props }, ref) => {
     const { activeId, onChange, tabIds, groupId } = useTabsContext('Tabs.Tab');
 
-    // Register/deregister tab ID trong layout effect — tránh side effect trong render
     useLayoutEffect(() => {
       if (!tabIds.current.includes(id)) tabIds.current.push(id);
       return () => {
@@ -112,7 +110,6 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
           const nextId = ids[nextIndex];
           if (nextId) {
             onChange(nextId);
-            // Move focus to sibling tab button
             const tabEl = document.getElementById(`tab-${groupId}-${nextId}`);
             tabEl?.focus();
           }
@@ -132,20 +129,32 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
         onClick={() => onChange(id)}
         onKeyDown={handleKeyDown}
         className={cn(
-          'relative h-[36px] px-4 flex items-center justify-center text-[14px] font-medium',
-          'transition-colors duration-120 outline-none lowercase first-letter:uppercase',
+          'relative h-9 px-4 flex items-center justify-center gap-1.5 text-[14px] font-medium',
+          'transition-colors duration-120 outline-none',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-[4px]',
           isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
           className
         )}
         {...props}
       >
-        {children}
+        <span>{children}</span>
+        {badge !== undefined && badge > 0 && (
+          <span
+            className={cn(
+              'inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full px-1 text-[11px] font-medium tabular-nums',
+              isActive
+                ? 'bg-accent text-bg-surface'
+                : 'bg-bg-sunken text-text-secondary'
+            )}
+          >
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
         {isActive && (
           <motion.div
             layoutId={`tab-indicator-${groupId}`}
             className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-accent"
-            transition={{ duration: 0.26, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.18 }}
           />
         )}
       </button>
@@ -180,7 +189,7 @@ const TabsPanel = forwardRef<HTMLDivElement, TabsPanelProps>(
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18, ease: 'linear' }}
             className={cn(
-              'w-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-[8px]',
+              'w-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-lg',
               className
             )}
           >
@@ -196,7 +205,6 @@ TabsPanel.displayName = 'Tabs.Panel';
 // ─── Namespace ────────────────────────────────────────────────────────────────
 
 export const Tabs = Object.assign(
-  // Legacy API — backward compatible: <Tabs tabs={[]} activeId="" onChange={...} />
   function TabsLegacy({ tabs, activeId, onChange, className, 'aria-label': ariaLabel }: LegacyTabsProps) {
     if (!tabs || tabs.length === 0) return null;
 
@@ -204,7 +212,7 @@ export const Tabs = Object.assign(
       <TabsRoot activeId={activeId} onChange={onChange} className={className}>
         <TabsList aria-label={ariaLabel ?? 'Tabs'}>
           {tabs.map((tab) => (
-            <TabsTab key={tab.id} id={tab.id}>
+            <TabsTab key={tab.id} id={tab.id} {...(tab.badge !== undefined ? { badge: tab.badge } : {})}>
               {tab.label}
             </TabsTab>
           ))}
@@ -233,6 +241,7 @@ export interface Tab {
   id: string;
   label: string;
   content: React.ReactNode;
+  badge?: number;
 }
 
 export interface LegacyTabsProps {

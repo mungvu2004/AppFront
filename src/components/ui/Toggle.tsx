@@ -11,6 +11,12 @@ export interface ToggleProps {
   className?: string;
   id?: string;
   'aria-label'?: string;
+  /** Optional label displayed beside the toggle */
+  label?: React.ReactNode;
+  /** Optional description below the label */
+  description?: React.ReactNode;
+  isLoading?: boolean;
+  isReadOnly?: boolean;
 }
 
 // Tách logic và giao diện
@@ -24,29 +30,21 @@ export function useToggle({
   const isControlled = checked !== undefined;
   const [internalChecked, setInternalChecked] = useState(defaultChecked ?? false);
   const [optimisticState, setOptimisticState] = useState<{ value: boolean } | null>(null);
-  
+
   const baseChecked = isControlled ? checked : internalChecked;
   const currentChecked = optimisticState ? optimisticState.value : baseChecked;
 
   const toggle = async () => {
     const nextState = !currentChecked;
-
-    // Start optimistic update
     setOptimisticState({ value: nextState });
-
-    if (!isControlled) {
-      setInternalChecked(nextState);
-    }
+    if (!isControlled) setInternalChecked(nextState);
 
     if (onChange) {
       try {
         await onChange(nextState);
         setOptimisticState(null);
       } catch (error) {
-        // Rollback
-        if (!isControlled) {
-          setInternalChecked(baseChecked);
-        }
+        if (!isControlled) setInternalChecked(baseChecked);
         setOptimisticState(null);
         onError?.(error);
       }
@@ -59,36 +57,72 @@ export function useToggle({
 }
 
 export function Toggle(props: ToggleProps) {
-  const { disabled, className, id, 'aria-label': ariaLabel } = props;
+  const { disabled, isReadOnly, isLoading, className, id, 'aria-label': ariaLabel, label, description } = props;
   const { currentChecked, toggle } = useToggle(props);
 
-  return (
+  const defaultId = React.useId();
+  const toggleId = id || defaultId;
+  const descId = description ? `${toggleId}-desc` : undefined;
+
+  if (isLoading) {
+    return (
+      <div className={cn('flex items-center gap-3', className)}>
+        <div className="h-5 w-9 rounded-full bg-bg-sunken animate-pulse" />
+        {label && <div className="h-4 w-20 rounded bg-bg-sunken animate-pulse" />}
+      </div>
+    );
+  }
+
+  const btn = (
     <button
       type="button"
-      id={id}
+      id={toggleId}
       role="switch"
       aria-checked={currentChecked}
-      aria-label={ariaLabel}
-      disabled={disabled}
+      aria-label={!label ? ariaLabel : undefined}
+      aria-labelledby={label ? `${toggleId}-label` : undefined}
+      aria-describedby={descId}
+      disabled={disabled || isReadOnly}
       onClick={() => {
-        if (!disabled) toggle();
+        if (!disabled && !isReadOnly) toggle();
       }}
       className={cn(
-        'group relative flex h-6 w-11 items-center rounded-full p-0.5 outline-none transition-colors duration-180',
+        'relative flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 outline-none transition-colors duration-180',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
         currentChecked ? 'bg-accent' : 'bg-bg-sunken',
-        disabled && 'cursor-not-allowed opacity-40',
-        className
+        (disabled || isReadOnly) && 'cursor-not-allowed opacity-40',
       )}
     >
       <motion.span
         layout
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        className={cn(
-          'block h-5 w-5 rounded-full bg-bg-surface shadow-rest',
-          currentChecked ? 'translate-x-5' : 'translate-x-0'
-        )}
+        transition={{ type: 'tween', ease: [0.32, 0.72, 0, 1], duration: 0.18 }}
+        className="block h-4 w-4 rounded-full bg-bg-surface shadow-rest"
       />
     </button>
+  );
+
+  if (!label && !description) {
+    return <div className={className}>{btn}</div>;
+  }
+
+  return (
+    <div className={cn('flex items-start gap-3', className)}>
+      {btn}
+      <div className="flex flex-col">
+        {label && (
+          <span
+            id={`${toggleId}-label`}
+            className="text-[14px] font-medium leading-[20px] text-text-primary select-none cursor-default"
+          >
+            {label}
+          </span>
+        )}
+        {description && (
+          <span id={descId} className="text-[13px] leading-[18px] text-text-secondary select-none">
+            {description}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

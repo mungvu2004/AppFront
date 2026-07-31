@@ -5,10 +5,16 @@ import { getButtonStyles, ButtonVariant, ButtonSize } from './button-variants';
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** Icon placed before label */
+  iconBefore?: React.ReactNode;
+  /** Icon placed after label */
+  iconAfter?: React.ReactNode;
+  /** @deprecated use iconBefore */
   icon?: React.ReactNode;
   iconOnly?: boolean;
   loading?: boolean;
   shortcut?: string;
+  fullWidth?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -17,17 +23,21 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       className,
       variant = 'primary',
       size = 'md',
+      iconBefore,
+      iconAfter,
       icon,
       iconOnly = false,
       loading = false,
       disabled,
       shortcut,
+      fullWidth = false,
       children,
       ...props
     },
     ref
   ) => {
     const isDisabled = disabled || loading;
+    const leadIcon = iconBefore ?? icon;
 
     return (
       <button
@@ -38,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           size,
           iconOnly,
           disabled: isDisabled,
-          className,
+          className: `${fullWidth ? 'w-full' : ''} ${className ?? ''}`.trim(),
         })}
         title={shortcut ? `${props.title || ''} (${shortcut})`.trim() : props.title}
         {...props}
@@ -48,15 +58,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin" />
           ) : (
             <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-              {icon}
+              {leadIcon}
             </span>
           )
         ) : (
           <span className="relative inline-grid place-items-center w-full">
             {/* Invisible layout constraint to prevent width shifting on loading */}
             <span className="invisible flex items-center gap-[8px]">
-              {icon && <span className="w-[18px] shrink-0" />}
+              {leadIcon && <span className="w-[18px] shrink-0" />}
               <span className="whitespace-nowrap">{children}</span>
+              {iconAfter && <span className="w-[18px] shrink-0" />}
               {shortcut && <kbd className="text-[13px] font-mono">{shortcut}</kbd>}
             </span>
 
@@ -65,13 +76,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               {loading ? (
                 <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin" />
               ) : (
-                icon && (
+                leadIcon && (
                   <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                    {icon}
+                    {leadIcon}
                   </span>
                 )
               )}
               <span className="whitespace-nowrap">{children}</span>
+              {!loading && iconAfter && (
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+                  {iconAfter}
+                </span>
+              )}
               {shortcut && !loading && (
                 <kbd className="text-[13px] font-mono text-text-muted">{shortcut}</kbd>
               )}
