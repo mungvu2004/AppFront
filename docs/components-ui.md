@@ -253,14 +253,162 @@ Gạch dưới 2px accent trượt 180ms. Huy hiệu số đếm bên phải nh�
 
 ---
 
+## 16. Table *(nâng cấp)*
+
+Compound API: `Table.Root`, `Table.Header`, `Table.Body`, `Table.Row`, `Table.Head`, `Table.Cell`, `Table.Skeleton`, `Table.Empty`, `Table.Error`, `Table.CheckboxHead`, `Table.CheckboxCell`, `Table.Virtual`.
+
+| Prop (Root) | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `sortKey` | `string` | — | Cột đang sắp xếp |
+| `sortDir` | `'asc' \| 'desc' \| null` | — | Hướng sắp xếp |
+| `onSort` | `(key: string) => void` | — | Callback sắp xếp |
+
+| Prop (Row) | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `selected` | `boolean` | `false` | bg-selected + vệt accent 2px |
+| `isAttention` | `boolean` | `false` | Sọc chéo 45° 6% opacity |
+| `isFlash` | `boolean` | `false` | bg-flash animation |
+| `layoutId` | `string` | — | Framer layout animation |
+
+| Prop (Head) | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `sortKey` | `string` | — | Key để sort |
+| `sticky` | `boolean` | `false` | Cột dính trái |
+
+| Prop (Virtual) | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `rows` | `TRow[]` | **bắt buộc** | Dữ liệu có trường `id` |
+| `estimateSize` | `number` | `40` | Chiều cao ước tính mỗi dòng (px) |
+| `renderRow` | `(row, idx) => ReactNode` | **bắt buộc** | Render mỗi dòng |
+| `colSpan` | `number` | **bắt buộc** | Số cột (cho padding rows) |
+
+**Ảo hóa**: kích hoạt tự động qua `Table.Virtual` khi > 100 dòng.
+**Header**: viết thường kiểu câu — KHÔNG bao giờ in hoa.
+
+**7 trạng thái**:
+- Rỗng: `<Table.Empty colSpan={n} message="..." />`
+- Đang tải: `<Table.Skeleton columns={n} rows={8} />`
+- Một phần: render bình thường với subset dữ liệu
+- Lỗi: `<Table.Error colSpan={n} onRetry={fn} />`
+- Thành công: render đầy đủ
+- Không quyền: opacity-60 + message
+- Thu gọn: `null`
+
+---
+
+## 17. TableActionBar *(mới)*
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `selectedCount` | `number` | **bắt buộc** | Số dòng được chọn |
+| `entityName` | `string` | `'mục'` | Tên thực thể, VD: "tường" |
+| `onApprove` | `() => void` | — | Nút duyệt |
+| `onReject` | `() => void` | — | Nút từ chối |
+| `onChangeThickness` | `() => void` | — | Nút đổi độ dày |
+| `onDeselect` | `() => void` | — | Nút bỏ chọn |
+| `isApproving` | `boolean` | `false` | Loading trạng thái duyệt |
+| `isRejecting` | `boolean` | `false` | Loading trạng thái từ chối |
+
+Trượt lên 180ms. Esc gọi `onDeselect`. Ẩn khi `selectedCount = 0`.
+
+---
+
+## 18. TreeItem *(nâng cấp)*
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `label` | `string` | **bắt buộc** | Nhãn node |
+| `level` | `number` | `0` | Cấp thụt lề (×16px) |
+| `expanded` | `boolean` | `false` | Mở rộng |
+| `onToggleExpand` | `() => void` | — | Callback mở/đóng |
+| `visible` | `boolean` | `true` | Hiển thị layer |
+| `onToggleVisible` | `() => void` | — | Callback ẩn/hiện |
+| `typeIcon` | `ReactNode` | — | Icon loại đối tượng |
+| `colorChip` | `string` | — | Màu chip (legacy, ưu tiên typeIcon) |
+| `count` | `number` | — | Số đếm con |
+| `hasChildren` | `boolean` | `true` | Có node con |
+| `selected` | `boolean` | `false` | Trạng thái chọn |
+
+Cao 32px. Mũi tam giác quay 120ms. Esc đóng qua caller.
+
+---
+
+## 19. Badge *(nâng cấp)*
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `variant` | `'verified' \| 'attention' \| 'violation' \| 'neutral'` | **bắt buộc** | Biến thể |
+| `noDot` | `boolean` | `false` | Bỏ chấm chỉ thị |
+
+Cao 22px, bo 6px, chữ 13px. Nền nhạt + chữ đậm (tint token). Không dùng màu đặc.
+
+---
+
+## 20. ConfidenceMeter *(nâng cấp)*
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `value` | `number` | **bắt buộc** | 0 đến 1 |
+| `noTooltip` | `boolean` | `false` | Bỏ tooltip |
+
+Track 4px × 48px. Số mono 13px. Dưới 0,75: màu attention + sọc chéo 45° 6%.
+Tooltip: "Độ tin cậy AI 0,71 — cần kiểm tra". Dấu thập phân là dấu phẩy.
+
+---
+
+## 21. Avatar *(nâng cấp)*
+
+### Avatar.Root
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `initials` | `string` | — | Tối đa 2 ký tự (không in hoa) |
+| `src` | `string` | — | URL ảnh |
+| `size` | `'default' \| 'profile'` | `'default'` | 28px / 64px |
+| `presence` | `boolean` | `false` | Ring accent 2px |
+| `alt` | `string` | — | Alt text |
+
+### Avatar.Stack
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `avatars` | `AvatarProps[]` | **bắt buộc** | Danh sách |
+| `max` | `number` | `3` | Tối đa hiển thị + "+N" |
+
+---
+
+## 22. Tooltip *(nâng cấp)*
+
+| Prop | Kiểu | Mặc định | Mô tả |
+|---|---|---|---|
+| `label` | `string` | **bắt buộc** | Nội dung |
+| `kbd` | `string` | — | Phím tắt kèm theo |
+| `side` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'top'` | Hướng hiển thị |
+| `disabled` | `boolean` | `false` | Tắt tooltip |
+
+Trễ 400ms. Nền text-primary, chữ trắng, 13px, bo 6px, bóng overlay, mũi nhọn.
+
+---
+
+## 23. Kbd
+
+| Prop | Kiểu | Mô tả |
+|---|---|---|
+| `children` | `ReactNode` | Ký tự/phím |
+| `className` | `string` | Ghi đè class |
+
+h-20px, bo 6px, bg-sunken, border-default hairline, mono 13px, text-muted.
+
+---
+
 ## Token animation (5 mốc)
 
 | ms | Dùng cho |
 |---|---|
-| 120 | Nút nhấn, hover, check |
-| 180 | Toggle, tab, segment slider, dropdown |
+| 120 | Nút nhấn, hover, check, chevron TreeItem |
+| 180 | Toggle, tab, segment slider, dropdown, TableActionBar |
 | 260 | Toast |
-| 340 | Transition vừa |
+| 340 | Transition vừa, ConfidenceMeter fill |
 | 700 | Skeleton scan |
 
 `prefers-reduced-motion`: tắt scale, giữ color transition.
@@ -273,3 +421,6 @@ Gạch dưới 2px accent trượt 180ms. Huy hiệu số đếm bên phải nh�
 - Không gọi store/API trong component
 - Không màu thô (hex/rgb/hsl) trong src/components
 - Focus ring: ring-2 ring-accent ring-offset-2 trên mọi phần tử tương tác
+- Nhãn header bảng: viết thường kiểu câu — **KHÔNG BAO GIỜ in hoa**
+- Số liệu mẫu chuẩn: 48/21/34/14/4 và 248,60 m²
+- Dấu thập phân: dấu phẩy (vi-VN locale)

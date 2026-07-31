@@ -1,8 +1,10 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion } from 'framer-motion';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, AlertCircle, Inbox } from 'lucide-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Checkbox } from './Checkbox';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -12,14 +14,18 @@ interface TableContextValue {
   onSort: ((key: string) => void) | undefined;
 }
 
-const TableContext = createContext<TableContextValue>({ sortKey: undefined, sortDir: undefined, onSort: undefined });
+const TableContext = createContext<TableContextValue>({
+  sortKey: undefined,
+  sortDir: undefined,
+  onSort: undefined,
+});
 
 // ─── Table.Root ───────────────────────────────────────────────────────────────
 
 export interface TableRootProps extends React.HTMLAttributes<HTMLDivElement> {
-  sortKey?: string;
-  sortDir?: 'asc' | 'desc' | null;
-  onSort?: (key: string) => void;
+  sortKey?: string | undefined;
+  sortDir?: 'asc' | 'desc' | null | undefined;
+  onSort?: ((key: string) => void) | undefined;
 }
 
 function TableRoot({ className, children, sortKey, sortDir, onSort, ...props }: TableRootProps) {
@@ -67,16 +73,10 @@ interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
   layoutId?: string;
 }
 
-const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(({
-  selected,
-  focused,
-  isAttention,
-  isFlash,
-  layoutId,
-  className,
-  children,
-  ...props
-}, ref) => {
+const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
+  { selected, focused, isAttention, isFlash, layoutId, className, children, ...props },
+  ref
+) => {
   const Component = (layoutId ? motion.tr : 'tr') as React.ElementType;
 
   return (
@@ -87,13 +87,15 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(({
       transition={{ duration: 0.26, ease: 'easeOut' }}
       aria-selected={selected}
       className={twMerge(
-        'group h-10 border-b border-border-default/50 last:border-0 outline-none transition-colors',
+        'group h-10 border-b border-border-default/50 last:border-0 outline-none transition-colors duration-120',
         'hover:bg-bg-hover focus-visible:bg-bg-hover',
         selected && 'bg-bg-selected hover:bg-bg-selected',
         isFlash && 'bg-bg-flash hover:bg-bg-flash',
         focused && 'ring-2 ring-inset ring-accent',
+        // Accent 2px left edge via before pseudo on first-child td
         '[&>td:first-child]:relative [&>td:first-child]:before:absolute [&>td:first-child]:before:left-0 [&>td:first-child]:before:top-0 [&>td:first-child]:before:bottom-0 [&>td:first-child]:before:w-[2px] [&>td:first-child]:before:bg-accent [&>td:first-child]:before:origin-center [&>td:first-child]:before:transition-transform [&>td:first-child]:before:duration-120 [&>td:first-child]:before:ease-out',
         selected ? '[&>td:first-child]:before:scale-y-100' : '[&>td:first-child]:before:scale-y-0 group-hover:[&>td:first-child]:before:scale-y-100',
+        // Diagonal stripe overlay for attention rows
         isAttention && '[&>td]:relative [&>td]:after:absolute [&>td]:after:inset-0 [&>td]:after:pointer-events-none [&>td]:after:opacity-[0.06] [&>td]:after:bg-[image:repeating-linear-gradient(45deg,#000_0,#000_2px,transparent_2px,transparent_8px)]',
         className
       )}
@@ -113,6 +115,7 @@ interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
   sortKey?: string;
   sortDirection?: 'asc' | 'desc' | null;
   onSort?: () => void;
+  sticky?: boolean;
 }
 
 function TableHead({
@@ -122,11 +125,11 @@ function TableHead({
   sortKey: colKey,
   sortDirection,
   onSort,
+  sticky,
   ...props
 }: TableHeadProps) {
   const ctx = useContext(TableContext);
 
-  // Support both local onSort and Context-driven onSort
   const handleSort = onSort ?? (ctx.onSort && colKey ? () => ctx.onSort!(colKey) : undefined);
   const activeDir = sortDirection ?? (ctx.sortKey === colKey ? ctx.sortDir : null);
   const isSortable = sortable || (!!ctx.onSort && !!colKey);
@@ -136,8 +139,10 @@ function TableHead({
   return (
     <th
       className={twMerge(
-        'h-10 px-3 align-middle font-semibold text-[13px] leading-[18px] text-text-primary whitespace-nowrap',
+        // "section-label" style: normal sentence case, NOT uppercase
+        'h-10 px-3 align-middle font-semibold text-[13px] leading-[18px] text-text-secondary whitespace-nowrap bg-bg-sunken',
         isSortable && 'cursor-pointer select-none hover:bg-bg-hover/50 group',
+        sticky && 'sticky left-0 z-20',
         className
       )}
       aria-sort={ariaSort}
@@ -148,7 +153,7 @@ function TableHead({
         {children}
         {isSortable && (
           <span className={clsx(
-            'flex flex-col opacity-0 group-hover:opacity-50 transition-opacity',
+            'flex flex-col opacity-0 group-hover:opacity-50 transition-opacity duration-120',
             activeDir && 'opacity-100 group-hover:opacity-100 text-accent'
           )}>
             {activeDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -162,19 +167,217 @@ TableHead.displayName = 'Table.Head';
 
 // ─── Table.Cell ───────────────────────────────────────────────────────────────
 
-function TableCell({ className, children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
+interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
+  sticky?: boolean;
+}
+
+function TableCell({ className, children, sticky, ...props }: TableCellProps) {
   return (
-    <td className={twMerge('h-10 px-3 align-middle text-text-primary whitespace-nowrap', className)} {...props}>
+    <td
+      className={twMerge(
+        'h-10 px-3 align-middle text-text-primary whitespace-nowrap',
+        sticky && 'sticky left-0 z-10 bg-inherit',
+        className
+      )}
+      {...props}
+    >
       {children}
     </td>
   );
 }
 TableCell.displayName = 'Table.Cell';
 
+// ─── Table.Skeleton ───────────────────────────────────────────────────────────
+
+interface TableSkeletonProps {
+  columns: number;
+  rows?: number;
+}
+
+function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
+  return (
+    <>
+      {Array.from({ length: rows }, (_, r) => (
+        <tr key={r} className="h-10 border-b border-border-default/50">
+          {Array.from({ length: columns }, (_, c) => (
+            <td key={c} className="h-10 px-3 align-middle">
+              <div className="relative h-4 rounded-md bg-bg-sunken overflow-hidden">
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,var(--tw-gradient-stops),transparent_100%)] from-transparent via-border-default/50 to-transparent animate-skeleton-scan motion-reduce:animate-none" />
+              </div>
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+TableSkeleton.displayName = 'Table.Skeleton';
+
+// ─── Table.Empty ──────────────────────────────────────────────────────────────
+
+interface TableEmptyProps {
+  colSpan: number;
+  message?: string;
+}
+
+function TableEmpty({ colSpan, message = 'Không có dữ liệu' }: TableEmptyProps) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="py-12 text-center">
+        <div className="flex flex-col items-center gap-2 text-text-muted">
+          <Inbox size={32} strokeWidth={1.5} aria-hidden="true" />
+          <span className="text-[13px]">{message}</span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+TableEmpty.displayName = 'Table.Empty';
+
+// ─── Table.Error ──────────────────────────────────────────────────────────────
+
+interface TableErrorProps {
+  colSpan: number;
+  message?: string;
+  onRetry?: () => void;
+}
+
+function TableError({ colSpan, message = 'Đã xảy ra lỗi', onRetry }: TableErrorProps) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="py-12 text-center">
+        <div className="flex flex-col items-center gap-3 text-state-violation-text">
+          <AlertCircle size={32} strokeWidth={1.5} aria-hidden="true" />
+          <span className="text-[13px]">{message}</span>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="text-[13px] text-accent underline underline-offset-2 hover:text-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded outline-none"
+            >
+              Thử lại
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+TableError.displayName = 'Table.Error';
+
+// ─── Table.CheckboxHead ───────────────────────────────────────────────────────
+// Header checkbox for select-all / deselect-all
+
+interface TableCheckboxHeadProps {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+function TableCheckboxHead({ checked, indeterminate, onChange }: TableCheckboxHeadProps) {
+  return (
+    <th className="h-10 w-10 px-3 align-middle bg-bg-sunken sticky left-0 z-20" aria-label="Chọn tất cả">
+      <Checkbox
+        checked={checked}
+        indeterminate={indeterminate}
+        onChange={onChange}
+        aria-label="Chọn tất cả"
+      />
+    </th>
+  );
+}
+TableCheckboxHead.displayName = 'Table.CheckboxHead';
+
+// ─── Table.CheckboxCell ───────────────────────────────────────────────────────
+
+interface TableCheckboxCellProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  rowId: string;
+}
+
+function TableCheckboxCell({ checked, onChange, rowId }: TableCheckboxCellProps) {
+  return (
+    <td className="h-10 w-10 px-3 align-middle sticky left-0 z-10 bg-inherit">
+      <Checkbox
+        checked={checked}
+        onChange={onChange}
+        aria-label={`Chọn dòng ${rowId}`}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </td>
+  );
+}
+TableCheckboxCell.displayName = 'Table.CheckboxCell';
+
+// ─── Table.Virtual ────────────────────────────────────────────────────────────
+// Virtualized body — enables when rows > 100
+
+interface TableVirtualProps<TRow extends { id: string }> {
+  rows: TRow[];
+  estimateSize?: number;
+  renderRow: (row: TRow, virtualIndex: number) => React.ReactNode;
+  colSpan: number;
+}
+
+function TableVirtual<TRow extends { id: string }>({
+  rows,
+  estimateSize = 40,
+  renderRow,
+  colSpan,
+}: TableVirtualProps<TRow>) {
+  const parentRef = useRef<HTMLTableSectionElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: useCallback(() => {
+      // Scroll on the nearest scrolling ancestor (Table.Root wrapper)
+      let el: HTMLElement | null = parentRef.current;
+      while (el) {
+        const overflow = getComputedStyle(el).overflow + getComputedStyle(el).overflowY;
+        if (/auto|scroll/.test(overflow)) return el;
+        el = el.parentElement;
+      }
+      return document.scrollingElement as HTMLElement;
+    }, []),
+    estimateSize: () => estimateSize,
+    overscan: 5,
+  });
+
+  const totalHeight = rowVirtualizer.getTotalSize();
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const firstItem = virtualItems[0];
+  const lastItem = virtualItems[virtualItems.length - 1];
+  const paddingTop = firstItem ? firstItem.start : 0;
+  const paddingBottom = lastItem ? totalHeight - lastItem.end : 0;
+
+  return (
+    <tbody ref={parentRef} data-testid="table-virtual-body">
+      {paddingTop > 0 && (
+        <tr>
+          <td colSpan={colSpan} style={{ height: `${paddingTop}px`, padding: 0 }} />
+        </tr>
+      )}
+      {virtualItems.map((virtualRow) => {
+        const row = rows[virtualRow.index];
+        if (!row) return null;
+        return (
+          <React.Fragment key={row.id}>
+            {renderRow(row, virtualRow.index)}
+          </React.Fragment>
+        );
+      })}
+      {paddingBottom > 0 && (
+        <tr>
+          <td colSpan={colSpan} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+        </tr>
+      )}
+    </tbody>
+  );
+}
+
 // ─── Namespace ────────────────────────────────────────────────────────────────
 
 export const Table = Object.assign(
-  // Legacy API: <Table> wraps a native <table>
   function TableLegacy({ className, children, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
     return (
       <div className="w-full h-full overflow-auto relative">
@@ -191,9 +394,15 @@ export const Table = Object.assign(
     Row: TableRow,
     Head: TableHead,
     Cell: TableCell,
+    Skeleton: TableSkeleton,
+    Empty: TableEmpty,
+    Error: TableError,
+    CheckboxHead: TableCheckboxHead,
+    CheckboxCell: TableCheckboxCell,
+    Virtual: TableVirtual,
   }
 );
 
-// ─── Legacy named exports (backward compat) ───────────────────────────────────
+// ─── Legacy named exports ─────────────────────────────────────────────────────
 
-export { TableHeader, TableRow, TableHead, TableCell, TableBody };
+export { TableHeader, TableRow, TableHead, TableCell, TableBody, TableSkeleton, TableEmpty, TableError };

@@ -3,13 +3,15 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Kbd } from './Kbd';
 
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+// Delay: 400ms. Nền text-primary, chữ trắng, 13px, bo 6px, bóng md, mũi nhọn.
+
 export interface TooltipProps {
   label: string;
   kbd?: string;
   children: React.ReactElement;
   disabled?: boolean;
-  /** Hướng hiển thị tooltip. Mặc định: 'top' */
-  side?: 'top' | 'bottom';
+  side?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }: TooltipProps) {
@@ -19,15 +21,29 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
   const timeoutRef = useRef<number | null>(null);
   const tooltipId = useId();
 
+  const ARROW_SIZE = 6;
+  const GAP = 8;
+
   const updateCoords = () => {
     if (!wrapperRef.current) return;
     const rect = wrapperRef.current.getBoundingClientRect();
-    setCoords({
-      top: side === 'top'
-        ? rect.top + window.scrollY - 8        // sẽ bị offset thêm bởi mb-2 trong motion
-        : rect.bottom + window.scrollY + 8,
-      left: rect.left + window.scrollX + rect.width / 2,
-    });
+    const cx = rect.left + window.scrollX + rect.width / 2;
+    const cy = rect.top + window.scrollY + rect.height / 2;
+
+    switch (side) {
+      case 'top':
+        setCoords({ top: rect.top + window.scrollY - GAP, left: cx });
+        break;
+      case 'bottom':
+        setCoords({ top: rect.bottom + window.scrollY + GAP, left: cx });
+        break;
+      case 'left':
+        setCoords({ top: cy, left: rect.left + window.scrollX - GAP });
+        break;
+      case 'right':
+        setCoords({ top: cy, left: rect.right + window.scrollX + GAP });
+        break;
+    }
   };
 
   const handleShow = () => {
@@ -41,13 +57,39 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
     setIsVisible(false);
   };
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
+  useEffect(() => () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
   }, []);
 
   if (disabled) return children;
+
+  const getTransform = () => {
+    switch (side) {
+      case 'top':    return 'translate(-50%, -100%)';
+      case 'bottom': return 'translate(-50%, 0)';
+      case 'left':   return 'translate(-100%, -50%)';
+      case 'right':  return 'translate(0, -50%)';
+    }
+  };
+
+  const getMotionY = () => {
+    if (side === 'top') return 4;
+    if (side === 'bottom') return -4;
+    return 0;
+  };
+  const getMotionX = () => {
+    if (side === 'left') return 4;
+    if (side === 'right') return -4;
+    return 0;
+  };
+
+  // Arrow pseudo-element position
+  const arrowClass = {
+    top:    'bottom-[-5px] left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-b-0 border-t-text-primary',
+    bottom: 'top-[-5px] left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-t-0 border-b-text-primary',
+    left:   'right-[-5px] top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-r-0 border-l-text-primary',
+    right:  'left-[-5px] top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-0 border-r-text-primary',
+  }[side];
 
   const tooltipEl = (
     <AnimatePresence>
@@ -55,8 +97,8 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
         <motion.div
           id={tooltipId}
           role="tooltip"
-          initial={{ opacity: 0, y: side === 'top' ? 4 : -4 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: getMotionY(), x: getMotionX() }}
+          animate={{ opacity: 1, y: 0, x: 0 }}
           exit={{ opacity: 0, transition: { duration: 0 } }}
           transition={{ duration: 0.12 }}
           className="pointer-events-none z-[9999]"
@@ -64,16 +106,21 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
             position: 'absolute',
             top: coords.top,
             left: coords.left,
-            transform: side === 'top'
-              ? 'translate(-50%, -100%) translateY(-8px)'
-              : 'translate(-50%, 0)',
+            transform: getTransform(),
           }}
         >
-          <div className="flex items-center gap-2 bg-bg-surface rounded-[12px] shadow-float px-[12px] py-[8px] whitespace-nowrap">
-            <span className="text-[13px] leading-[18px] text-text-primary">
-              {label}
-            </span>
-            {kbd && <Kbd>{kbd}</Kbd>}
+          {/* Tooltip body */}
+          <div className="relative flex items-center gap-1.5 bg-text-primary text-white rounded-[6px] shadow-overlay px-2.5 py-1.5 whitespace-nowrap">
+            <span className="text-[13px] leading-[18px]">{label}</span>
+            {kbd && <Kbd className="bg-white/10 border-white/20 text-white">{kbd}</Kbd>}
+            {/* Arrow */}
+            <span
+              className={`absolute w-0 h-0 border-[${ARROW_SIZE}px] border-solid ${arrowClass}`}
+              aria-hidden="true"
+              style={{
+                borderWidth: ARROW_SIZE,
+              }}
+            />
           </div>
         </motion.div>
       )}

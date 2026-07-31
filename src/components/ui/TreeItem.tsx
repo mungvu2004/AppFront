@@ -5,8 +5,8 @@ import { ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 // ─── TreeItem ─────────────────────────────────────────────────────────────────
-// Outer element là div[role="treeitem"] vì <button> không được chứa
-// interactive elements con theo HTML spec.
+// Outer element is div[role="treeitem"] because <button> cannot contain
+// interactive child elements per HTML spec.
 
 interface TreeItemProps {
   level?: number;
@@ -14,6 +14,9 @@ interface TreeItemProps {
   onToggleExpand?: () => void;
   visible?: boolean;
   onToggleVisible?: () => void;
+  /** Icon element for the item type (e.g. wall, room, floor) */
+  typeIcon?: React.ReactNode;
+  /** Legacy color chip (kept for backward compat) */
   colorChip?: string;
   count?: number;
   label: string;
@@ -33,6 +36,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
     onToggleExpand,
     visible = true,
     onToggleVisible,
+    typeIcon,
     colorChip,
     count,
     label,
@@ -73,7 +77,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
       )}
       style={{ paddingLeft: `${(level * 16) + 8}px` }}
     >
-      {/* Expand toggle — standalone button, không lồng trong interactive parent */}
+      {/* Expand toggle — standalone button, must not nest in interactive parent */}
       <button
         type="button"
         tabIndex={-1}
@@ -90,15 +94,23 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
         )}
       >
         <ChevronRight
-          size={18}
+          size={14}
           className={clsx(
-            'transition-transform duration-180 ease-out',
+            'transition-transform duration-120 ease-out',
             expanded ? 'rotate-90' : 'rotate-0'
           )}
         />
       </button>
 
-      {colorChip && (
+      {/* Type icon (preferred over colorChip) */}
+      {typeIcon && (
+        <span className="w-4 h-4 flex items-center justify-center mr-1.5 shrink-0 text-text-secondary" aria-hidden="true">
+          {typeIcon}
+        </span>
+      )}
+
+      {/* Legacy colorChip (only shown when no typeIcon) */}
+      {!typeIcon && colorChip && (
         <div
           className="w-3 h-3 rounded-sm mr-2 shrink-0 border border-border-default/50"
           style={{ backgroundColor: colorChip }}
@@ -128,8 +140,10 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
         }}
         className={clsx(
           'ml-2 flex items-center justify-center w-6 h-6 rounded',
-          'hover:bg-accent-wash text-text-secondary transition-opacity shrink-0',
-          visible ? 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100' : 'opacity-100'
+          'hover:bg-accent-wash text-text-secondary transition-opacity duration-120 shrink-0',
+          visible
+            ? 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+            : 'opacity-100 text-text-muted'
         )}
       >
         {visible ? <Eye size={14} /> : <EyeOff size={14} />}
