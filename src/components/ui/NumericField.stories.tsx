@@ -6,7 +6,7 @@ const meta: Meta<typeof NumericField> = {
   component: NumericField,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 200 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 200 }}><Story /></div>],
 };
 export default meta;
 type Story = StoryObj<typeof NumericField>;

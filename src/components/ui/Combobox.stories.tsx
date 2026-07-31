@@ -15,7 +15,7 @@ const meta: Meta<typeof Combobox> = {
   component: Combobox,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 300 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 300 }}><Story /></div>],
 };
 export default meta;
 type Story = StoryObj<typeof Combobox>;

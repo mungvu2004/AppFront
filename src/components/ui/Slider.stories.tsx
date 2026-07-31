@@ -6,7 +6,7 @@ const meta: Meta<typeof Slider> = {
   component: Slider,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 320, padding: '16px 0' }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 320, padding: '16px 0' }}><Story /></div>],
 };
 export default meta;
 type Story = StoryObj<typeof Slider>;

@@ -14,7 +14,7 @@ const meta: Meta<typeof Select> = {
   component: Select,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 280 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 280 }}><Story /></div>],
 };
 export default meta;
 type Story = StoryObj<typeof Select>;

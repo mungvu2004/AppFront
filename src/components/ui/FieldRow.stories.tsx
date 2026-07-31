@@ -9,7 +9,7 @@ const meta: Meta<typeof FieldRow> = {
   parameters: { layout: 'padded' },
   tags: ['autodocs'],
   decorators: [
-    (Story) => (
+    (Story: any) => (
       <div style={{ width: 360, background: 'var(--bg-surface)', borderRadius: 8, overflow: 'hidden' }}>
         <Story />
       </div>

@@ -82,7 +82,7 @@ export const Disabled: Story = {
 
 export const FullWidth: Story = {
   args: { children: 'Đăng nhập', variant: 'primary', fullWidth: true },
-  decorators: [(Story) => <div style={{ width: 320 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 320 }}><Story /></div>],
 };
 
 // ── 5. With shortcut ─────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ const meta: Meta = {
   title: 'ui/Tabs',
   parameters: { layout: 'padded' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 480 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 480 }}><Story /></div>],
 };
 export default meta;
 

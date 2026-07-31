@@ -6,7 +6,7 @@ const meta: Meta<typeof ThicknessField> = {
   component: ThicknessField,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 400 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 400 }}><Story /></div>],
 };
 export default meta;
 type Story = StoryObj<typeof ThicknessField>;

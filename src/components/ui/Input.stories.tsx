@@ -7,7 +7,7 @@ const meta: Meta<typeof Input> = {
   component: Input,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-  decorators: [(Story) => <div style={{ width: 320 }}><Story /></div>],
+  decorators: [(Story: any) => <div style={{ width: 320 }}><Story /></div>],
 };
 export default meta;
 type Story = StoryObj<typeof Input>;
