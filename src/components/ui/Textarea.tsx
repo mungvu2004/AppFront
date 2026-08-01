@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { cn } from '../../lib/utils';
-import { Skeleton } from '../feedback/Skeleton';
+// import { Skeleton } from '../feedback/Skeleton';
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   maxLength?: number;
@@ -76,7 +76,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       )}
       <div className="relative">
         {isLoading ? (
-          <Skeleton className="h-[72px] w-full rounded-lg" />
+          <div className="h-[72px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
         ) : (
           <textarea
             ref={setRef}

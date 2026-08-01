@@ -35,7 +35,7 @@ describe('Textarea', () => {
 
   it('renders loading skeleton', () => {
     const { container } = render(<Textarea isLoading />);
-    expect(container.querySelector('.animate-skeleton-scan')).toBeInTheDocument();
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('marks as read-only', () => {

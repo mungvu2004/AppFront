@@ -32,7 +32,7 @@ describe('Input', () => {
 
   it('renders loading skeleton when isLoading', () => {
     const { container } = render(<Input isLoading />);
-    expect(container.querySelector('.animate-skeleton-scan')).toBeInTheDocument();
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('renders prefix content', () => {

@@ -1,84 +1,81 @@
 import React from 'react';
-import { Button } from '../ui/Button';
+import { cn } from '../../lib/utils';
+import { Button, ButtonProps } from '../ui/Button';
+import { CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 
-export type AlertState = 'verified' | 'attention' | 'violation';
+export type InlineAlertLevel = 'verified' | 'attention' | 'violation';
 
-export interface InlineAlertProps {
-  state: AlertState;
-  title: string;
-  cause: string;
-  errorCode: string;
-  primaryButton?: {
-    text: string;
+export interface InlineAlertProps extends React.HTMLAttributes<HTMLDivElement> {
+  level: InlineAlertLevel;
+  title?: string;
+  message: string;
+  action?: {
+    label: string;
     onClick: () => void;
-  };
-  secondaryButton?: {
-    text: string;
-    onClick: () => void;
+    variant?: ButtonProps['variant'];
   };
 }
 
 export function InlineAlert({
-  state,
+  level,
   title,
-  cause,
-  errorCode,
-  primaryButton,
-  secondaryButton,
+  message,
+  action,
+  className,
+  ...props
 }: InlineAlertProps) {
-  const styles = {
-    verified: {
-      bg: 'bg-state-verified-tint',
-      border: 'border-state-verified/30',
-      text: 'text-state-verified-text',
-    },
-    attention: {
-      bg: 'bg-state-attention-tint',
-      border: 'border-state-attention/30',
-      text: 'text-state-attention-text',
-    },
-    violation: {
-      bg: 'bg-state-violation-tint',
-      border: 'border-state-violation/30',
-      text: 'text-state-violation-text',
-    },
-  }[state];
+  const isVerified = level === 'verified';
+  const isAttention = level === 'attention';
+  const isViolation = level === 'violation';
+
+  const bgClass = isVerified ? 'bg-state-verified-tint' : isAttention ? 'bg-state-attention-tint' : 'bg-state-violation-tint';
+  const borderClass = isVerified ? 'border-state-verified' : isAttention ? 'border-state-attention' : 'border-state-violation';
+  const textClass = isVerified ? 'text-state-verified-text' : isAttention ? 'text-state-attention-text' : 'text-state-violation-text';
+  const iconColorClass = isVerified ? 'text-state-verified' : isAttention ? 'text-state-attention' : 'text-state-violation';
+
+  const Icon = isVerified ? CheckCircle2 : isAttention ? AlertTriangle : AlertCircle;
 
   return (
-    <div className={`p-4 rounded-xl border ${styles.bg} ${styles.border} flex flex-col gap-3 relative`}>
-      <div>
-        <h4 className={`font-medium ${styles.text} mb-1`}>{title}</h4>
-        <p className={`text-[15px] ${styles.text} opacity-90`}>{cause}</p>
+    <div
+      role="alert"
+      className={cn(
+        'flex items-start gap-3 p-3 rounded-[8px] border',
+        bgClass,
+        borderClass,
+        className
+      )}
+      {...props}
+    >
+      <Icon className={cn('shrink-0 mt-0.5', iconColorClass)} size={18} strokeWidth={2} aria-hidden="true" />
+      
+      <div className="flex-1 flex flex-col gap-1 min-w-0">
+        {title && (
+          <h4 className={cn('text-[14px] font-semibold leading-tight', textClass)}>
+            {title}
+          </h4>
+        )}
+        <p className={cn('text-[14px] leading-relaxed', textClass, !title && 'mt-[1px]')}>
+          {message}
+        </p>
       </div>
 
-      {(primaryButton || secondaryButton) && (
-        <div className="flex gap-3 mt-1">
-          {primaryButton && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={primaryButton.onClick}
-            >
-              {primaryButton.text}
-            </Button>
-          )}
-          {secondaryButton && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={secondaryButton.onClick}
-            >
-              {secondaryButton.text}
-            </Button>
-          )}
+      {action && (
+        <div className="shrink-0 ml-2">
+          <Button
+            size="sm"
+            variant={action.variant || 'secondary'}
+            onClick={action.onClick}
+            className={cn(
+              'h-8 text-[13px]',
+              isVerified && 'border-state-verified text-state-verified-text hover:bg-state-verified/10',
+              isAttention && 'border-state-attention text-state-attention-text hover:bg-state-attention/10',
+              isViolation && 'border-state-violation text-state-violation-text hover:bg-state-violation/10'
+            )}
+          >
+            {action.label}
+          </Button>
         </div>
       )}
-
-      <div className="absolute bottom-4 right-4">
-        <span className={`font-mono text-xs ${styles.text} opacity-70 uppercase`}>
-          {errorCode}
-        </span>
-      </div>
     </div>
   );
 }

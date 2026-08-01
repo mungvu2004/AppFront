@@ -60,6 +60,6 @@ describe('Combobox', () => {
 
   it('renders loading skeleton', () => {
     const { container } = render(<Combobox options={options} isLoading />);
-    expect(container.querySelector('.animate-skeleton-scan')).toBeInTheDocument();
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import { useCompoundId } from '../../hooks/useCompoundId';
 import { ChevronDown, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Skeleton } from '../feedback/Skeleton';
+// import { Skeleton } from '../feedback/Skeleton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -294,7 +294,7 @@ const SelectSkeleton = forwardRef<HTMLDivElement, { label?: React.ReactNode; cla
   ({ label, className }, ref) => (
     <div ref={ref} className={cn('flex flex-col', className)}>
       {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
-      <Skeleton className="h-[38px] w-full rounded-lg" />
+      <div className="h-[38px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
     </div>
   ),
 );

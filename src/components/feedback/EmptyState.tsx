@@ -1,81 +1,51 @@
-import React, { useEffect, useRef } from 'react';
-import { Button } from '../ui/Button';
+import React from 'react';
+import { cn } from '../../lib/utils';
+import { Button, ButtonProps } from '../ui/Button';
 
-export interface EmptyStateProps {
+export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
+  icon: React.ReactNode;
   title: string;
   description: string;
-  buttonText: string;
-  onButtonClick: () => void;
-  linkText?: string;
-  onLinkClick?: () => void;
+  action?: {
+    label: string;
+    onClick: () => void;
+    variant?: ButtonProps['variant'];
+  };
 }
 
 export function EmptyState({
+  icon,
   title,
   description,
-  buttonText,
-  onButtonClick,
-  linkText,
-  onLinkClick,
+  action,
+  className,
+  ...props
 }: EmptyStateProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  // Trigger CSS animation sau một microtask — không cần state, không gây extra render
-  useEffect(() => {
-    const el = svgRef.current;
-    if (!el) return;
-    // setAttribute trick để restart CSS animation mà không cần layout reflow
-    el.classList.remove('animate-empty-icon-draw');
-    el.setAttribute('data-anim', '0');
-    requestAnimationFrame(() => {
-      el.removeAttribute('data-anim');
-      el.classList.add('animate-empty-icon-draw');
-    });
-  }, []);
-
   return (
-    <div className="flex flex-col items-center justify-center p-8 text-center max-w-sm mx-auto">
-      <svg
-        ref={svgRef}
-        width="32"
-        height="32"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-text-muted mb-4"
+    <div
+      className={cn('flex flex-col items-center justify-center text-center p-8 w-full h-full', className)}
+      {...props}
+    >
+      <div
+        className="w-12 h-12 rounded-full bg-bg-sunken flex items-center justify-center text-text-muted mb-4"
         aria-hidden="true"
-        style={{ strokeDasharray: 100, strokeDashoffset: 0 }}
       >
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="12" y1="18" x2="12" y2="12" />
-        <line x1="9" y1="15" x2="15" y2="15" />
-      </svg>
-      
-      <h3 className="text-lg font-medium text-text-primary mb-2">
-        {title}
-      </h3>
-      <p className="text-[15px] text-text-secondary mb-6">
+        {/* We assume the icon passed has size 32, strokeWidth 1.5, or we clone it to force it */}
+        {React.isValidElement(icon)
+          ? React.cloneElement(icon as React.ReactElement, {
+              size: 32,
+              strokeWidth: 1.5,
+              className: cn('text-text-muted', (icon.props as { className?: string }).className),
+            })
+          : icon}
+      </div>
+      <h3 className="text-[16px] font-semibold text-text-primary mb-2">{title}</h3>
+      <p className="text-[14px] text-text-secondary max-w-sm mb-6 leading-relaxed">
         {description}
       </p>
-      
-      <Button
-        variant="primary"
-        onClick={onButtonClick}
-        className="mb-4"
-      >
-        {buttonText}
-      </Button>
-
-      {linkText && onLinkClick && (
-        <Button
-          variant="ghost"
-          onClick={onLinkClick}
-        >
-          {linkText}
+      {action && (
+        <Button variant={action.variant || 'primary'} onClick={action.onClick}>
+          {action.label}
         </Button>
       )}
     </div>

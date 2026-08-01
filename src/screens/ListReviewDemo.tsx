@@ -6,7 +6,6 @@ import { TreeItem } from '../components/ui/TreeItem';
 import { Table, TableHeader, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { useListReview, WallData } from '../hooks/useListReview';
 import { Button } from '../components/ui/Button';
-import { Skeleton } from '../components/feedback/Skeleton';
 import { EmptyState } from '../components/feedback/EmptyState';
 
 const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
@@ -39,14 +38,14 @@ export function ListReviewDemo() {
   const renderSkeletons = () =>
     Array.from({ length: 8 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
-        <TableCell><Skeleton className="h-4 w-4 rounded" /></TableCell>
-        <TableCell><Skeleton className="h-4 w-20 rounded" /></TableCell>
+        <TableCell><div className="h-4 w-4 rounded bg-bg-sunken animate-pulse" /></TableCell>
+        <TableCell><div className="h-4 w-20 rounded bg-bg-sunken animate-pulse" /></TableCell>
         {!isCollapsed && (
           <>
-            <TableCell><Skeleton className="h-4 w-12 rounded" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-24 rounded" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-16 rounded" /></TableCell>
-            <TableCell><Skeleton className="h-6 w-24 rounded" /></TableCell>
+            <TableCell><div className="h-4 w-12 rounded bg-bg-sunken animate-pulse" /></TableCell>
+            <TableCell><div className="h-4 w-24 rounded bg-bg-sunken animate-pulse" /></TableCell>
+            <TableCell><div className="h-4 w-16 rounded bg-bg-sunken animate-pulse" /></TableCell>
+            <TableCell><div className="h-6 w-24 rounded bg-bg-sunken animate-pulse" /></TableCell>
           </>
         )}
       </TableRow>
@@ -111,10 +110,10 @@ export function ListReviewDemo() {
           {demoState === 'empty' && (
             <div className="absolute inset-0 flex items-center justify-center bg-bg-surface z-20">
               <EmptyState
-                title="Chưa có kết quả AI"
-                description="Bắt đầu chạy nhận diện để xem kết quả tại đây."
-                buttonText="Chạy AI"
-                onButtonClick={() => {}}
+                icon={<div />}
+                title="Chưa có dữ liệu"
+                description="Hãy thử thay đổi bộ lọc hoặc thêm dự án mới."
+                action={{ label: 'Thêm mới', onClick: () => {} }}
               />
             </div>
           )}

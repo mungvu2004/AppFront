@@ -2,33 +2,35 @@
 import React, { useEffect, useState, forwardRef } from 'react';
 import { useNumberTween } from '../../hooks/useNumberTween';
 import { cn } from '../../lib/utils';
+import { Button } from '../ui/Button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type PipelineStepStatus = 'pending' | 'running' | 'completed' | 'error';
+export type PipelineStepStatus = 'queued' | 'running' | 'done' | 'failed';
 
 export interface PipelineStepData {
   id: string;
   name: string;
   status: PipelineStepStatus;
   progress: number;
-  elapsedMs?: number;
-  estimatedMs?: number;
-  isIndented?: boolean;
+  eta_seconds?: number;
+  errorCode?: string; // e.g. "SEG-2041"
+  errorMessage?: string; // e.g. "Không thể đọc dữ liệu do ảnh quá mờ"
+  onRetry?: () => void;
 }
 
 export interface PipelineStepperProps {
   steps: PipelineStepData[];
 }
 
-// ─── Internal hook (unchanged) ────────────────────────────────────────────────
+// ─── Internal hook ────────────────────────────────────────────────────────────
 
 function usePipelineStep(step: PipelineStepData) {
   const [flash, setFlash] = useState(false);
   const [prevStatus, setPrevStatus] = useState(step.status);
 
   useEffect(() => {
-    if (step.status === 'completed' && prevStatus !== 'completed') {
+    if (step.status === 'done' && prevStatus !== 'done') {
       setFlash(true);
       const timer = setTimeout(() => setFlash(false), 400);
       setPrevStatus(step.status);
@@ -38,10 +40,8 @@ function usePipelineStep(step: PipelineStepData) {
   }, [step.status, prevStatus]);
 
   const tweenedProgress = useNumberTween(step.progress, 260) ?? 0;
-  const displayMs = step.status === 'completed' || step.status === 'running' ? step.elapsedMs : step.estimatedMs;
-  const tweenedMs = useNumberTween(displayMs, 260);
 
-  return { flash, tweenedProgress, tweenedMs };
+  return { flash, tweenedProgress };
 }
 
 // ─── Pipeline.Step ────────────────────────────────────────────────────────────
@@ -52,22 +52,21 @@ export interface PipelineStepProps {
 
 const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
   ({ step }, ref) => {
-    const { flash, tweenedProgress, tweenedMs } = usePipelineStep(step);
+    const { flash, tweenedProgress } = usePipelineStep(step);
 
-    const formatTime = (ms?: number) => {
-      if (ms === undefined) return '--:--';
-      const totalSec = Math.floor(ms / 1000);
-      const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
-      const s = (totalSec % 60).toString().padStart(2, '0');
-      return `${m}:${s}`;
+    const formatETA = (seconds?: number) => {
+      if (seconds === undefined) return '';
+      const m = Math.floor(seconds / 60);
+      if (m > 0) return `Còn khoảng ${m} phút`;
+      return `Còn khoảng ${seconds} giây`;
     };
 
-    const isCompleted = step.status === 'completed';
+    const isDone = step.status === 'done';
     const isRunning = step.status === 'running';
-    const isError = step.status === 'error';
+    const isFailed = step.status === 'failed';
 
-    const textColor = isCompleted ? 'text-state-verified-text' : isError ? 'text-state-violation-text' : 'text-text-primary';
-    const iconColor = isCompleted ? 'text-state-verified' : isError ? 'text-state-violation' : isRunning ? 'text-accent' : 'text-text-muted';
+    const textColor = isDone ? 'text-state-verified-text' : isFailed ? 'text-state-violation-text' : 'text-text-primary';
+    const iconColor = isDone ? 'text-state-verified' : isFailed ? 'text-state-violation' : isRunning ? 'text-accent' : 'text-text-muted';
 
     return (
       <div
@@ -75,25 +74,24 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
         role="listitem"
         aria-label={`${step.name} — ${step.status}`}
         className={cn(
-          'relative flex flex-col px-4 py-3 transition-colors duration-400',
-          flash ? 'bg-bg-flash' : 'bg-transparent',
-          step.isIndented && 'ml-6 border-l border-border-default'
+          'relative flex flex-col px-4 py-3 transition-colors duration-260',
+          flash ? 'bg-bg-flash' : 'bg-transparent'
         )}
       >
-        <div className="flex items-center gap-3">
-          <div className={cn('w-5 h-5 flex items-center justify-center shrink-0', iconColor)} aria-hidden="true">
-            {isCompleted ? (
+        <div className="flex items-start gap-3">
+          <div className={cn('w-5 h-5 mt-0.5 flex items-center justify-center shrink-0 transition-colors duration-260', iconColor)} aria-hidden="true">
+            {isDone ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className="w-full h-full animate-[empty-icon-draw_260ms_ease-out_forwards]"
-                style={{ strokeDasharray: 24, strokeDashoffset: 24 }}>
+                className="w-full h-full animate-[empty-icon-draw_260ms_ease-out_forwards] motion-reduce:animate-none"
+                style={{ strokeDasharray: 24, strokeDashoffset: 0 }}>
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-            ) : isError ? (
+            ) : isFailed ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
                 <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
               </svg>
             ) : isRunning ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full animate-spin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full animate-spin motion-reduce:animate-none">
                 <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
               </svg>
@@ -102,17 +100,46 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
             )}
           </div>
 
-          <span className={cn('text-[15px] font-medium flex-1', textColor)}>{step.name}</span>
-          <span className="font-mono text-sm text-text-secondary w-12 text-right" aria-label={`Thời gian: ${formatTime(tweenedMs)}`}>
-            {formatTime(tweenedMs)}
-          </span>
+          <div className="flex-1 flex flex-col gap-1 min-w-0">
+            <div className="flex justify-between items-baseline gap-2">
+              <span className={cn('text-[15px] font-medium leading-tight', textColor)}>{step.name}</span>
+              {isRunning && step.eta_seconds !== undefined && (
+                <span className="text-[13px] text-text-secondary whitespace-nowrap">
+                  {formatETA(step.eta_seconds)}
+                </span>
+              )}
+            </div>
+            
+            {isFailed && step.errorMessage && (
+              <div className="mt-1 flex flex-col gap-2 items-start">
+                <p className="text-[14px] text-state-violation-text leading-snug">
+                  {step.errorMessage}
+                </p>
+                {step.errorCode && (
+                  <span className="text-[11px] font-mono font-medium text-state-violation uppercase">
+                    {step.errorCode}
+                  </span>
+                )}
+                {step.onRetry && (
+                  <Button variant="secondary" size="sm" onClick={step.onRetry} className="mt-1 border-state-violation text-state-violation-text hover:bg-state-violation-tint">
+                    Thử lại
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {isRunning && (
-          <div className="mt-2 ml-8 h-1 bg-bg-sunken rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.round(tweenedProgress)} aria-valuemin={0} aria-valuemax={100}>
+          <div className="mt-2.5 ml-8 h-[3px] bg-bg-sunken rounded-full overflow-hidden relative" role="progressbar" aria-valuenow={Math.round(tweenedProgress)} aria-valuemin={0} aria-valuemax={100}>
+            {/* Base progress */}
             <div
-              className="h-full bg-accent transition-all duration-120"
+              className="absolute left-0 top-0 h-full bg-accent transition-all duration-260"
               style={{ width: `${Math.max(0, Math.min(100, tweenedProgress))}%` }}
+            />
+            {/* Sweeping animation 1.6s */}
+            <div 
+              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 blur-[2px] animate-[pipeline-sweep_1.6s_infinite] motion-reduce:animate-none"
             />
           </div>
         )}
@@ -133,9 +160,16 @@ const PipelineRoot = forwardRef<HTMLDivElement, PipelineRootProps>(
     <div
       ref={ref}
       role="list"
-      className={cn('flex flex-col border border-border-default rounded-xl bg-bg-surface overflow-hidden py-2 w-full max-w-md', className)}
+      className={cn('flex flex-col border border-border-default rounded-xl bg-bg-surface overflow-hidden py-2 w-full max-w-md shadow-sm', className)}
       {...props}
     >
+      {/* We inject the sweep keyframes directly here for convenience if not in tailwind.config */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes pipeline-sweep {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(300%); }
+        }
+      `}} />
       {children}
     </div>
   )

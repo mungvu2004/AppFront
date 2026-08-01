@@ -21,18 +21,18 @@ function DemoContent() {
   };
 
   const steps: PipelineStepData[] = [
-    { id: '1', name: 'Tiền xử lý ảnh', status: 'completed', progress: 100, elapsedMs: 1200 },
-    { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'completed', progress: 100, elapsedMs: 4500, isIndented: true },
-    { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'running', progress: 65, elapsedMs: 2300, isIndented: true },
-    { id: '4', name: 'Đọc kích thước (PaddleOCR)', status: 'pending', progress: 0, estimatedMs: 3000, isIndented: true },
-    { id: '5', name: 'Chuẩn hoá độ dày tường', status: 'pending', progress: 0, estimatedMs: 800 },
-    { id: '6', name: 'Dựng Spatial JSON', status: 'pending', progress: 0, estimatedMs: 500 },
+    { id: '1', name: 'Tiền xử lý ảnh', status: 'done', progress: 100 },
+    { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'done', progress: 100 },
+    { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'running', progress: 65, eta_seconds: 120 },
+    { id: '4', name: 'Đọc kích thước (PaddleOCR)', status: 'queued', progress: 0 },
+    { id: '5', name: 'Chuẩn hoá độ dày tường', status: 'queued', progress: 0 },
+    { id: '6', name: 'Dựng Spatial JSON', status: 'queued', progress: 0 },
   ];
 
   const stepsError: PipelineStepData[] = [
-    { id: '1', name: 'Tiền xử lý ảnh', status: 'completed', progress: 100, elapsedMs: 1200 },
-    { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'error', progress: 100, elapsedMs: 4500, isIndented: true },
-    { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'pending', progress: 0, estimatedMs: 2300, isIndented: true },
+    { id: '1', name: 'Tiền xử lý ảnh', status: 'done', progress: 100 },
+    { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'failed', progress: 100, errorCode: 'SEG-2041', errorMessage: 'Lỗi OOM' },
+    { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'queued', progress: 0 },
   ];
 
   return (
@@ -62,26 +62,24 @@ function DemoContent() {
         {/* View States */}
         {viewState === 'empty' && (
           <EmptyState
+            icon={<div />}
             title="Chưa có tầng nào"
             description="Tải lên một bản vẽ mặt bằng (.png, .jpg, .pdf, .dwg) để bắt đầu."
-            buttonText="Tải lên bản vẽ"
-            onButtonClick={() => {}}
-            linkText="Tìm hiểu cách chuẩn bị file"
-            onLinkClick={() => {}}
+            action={{ label: 'Tải lên bản vẽ', onClick: () => {} }}
           />
         )}
 
         {viewState === 'loading' && (
           <div className="space-y-4">
             <div className="relative w-full h-[400px] bg-bg-sunken rounded-xl overflow-hidden">
-              <ProgressOverlay />
+              <ProgressOverlay progress={45} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <PipelineStepper steps={steps} />
               </div>
             </div>
             <div className="flex gap-4">
-              <Skeleton className="h-[200px] flex-1 rounded-xl" />
-              <Skeleton className="h-[200px] w-64 rounded-xl" />
+              <Skeleton preset="canvas" className="h-[200px] flex-1 rounded-xl" />
+              <Skeleton preset="property-panel" className="h-[200px] w-64 rounded-xl" />
             </div>
           </div>
         )}
@@ -89,11 +87,10 @@ function DemoContent() {
         {viewState === 'partial' && (
           <div className="space-y-4">
             <InlineAlert
-              state="attention"
+              level="attention"
               title="Thiếu kích thước tổng"
-              cause="Hệ thống chỉ nhận được một phần kích thước. Bạn nên dùng thước để xác nhận chiều dài tường."
-              errorCode="ERR_DIM_PARTIAL"
-              primaryButton={{ text: 'Thêm thước đo', onClick: () => {} }}
+              message="Hệ thống chỉ nhận được một phần kích thước. Bạn nên dùng thước để xác nhận chiều dài tường."
+              action={{ label: 'Thêm thước đo', onClick: () => {} }}
             />
             <div className="h-64 bg-bg-sunken rounded-xl flex items-center justify-center text-text-muted">Content</div>
           </div>
@@ -102,11 +99,10 @@ function DemoContent() {
         {viewState === 'error' && (
           <div className="space-y-4">
             <InlineAlert
-              state="violation"
+              level="violation"
               title="Lỗi phân tích bản vẽ"
-              cause="Chất lượng ảnh quá thấp hoặc độ phân giải không đủ để nhận diện tường. Vui lòng tải lên ảnh sắc nét hơn."
-              errorCode="ERR_AI_OOM"
-              primaryButton={{ text: 'Tải ảnh khác', onClick: () => {} }}
+              message="Chất lượng ảnh quá thấp hoặc độ phân giải không đủ để nhận diện tường. Vui lòng tải lên ảnh sắc nét hơn."
+              action={{ label: 'Tải ảnh khác', onClick: () => {} }}
             />
             <PipelineStepper steps={stepsError} />
           </div>
@@ -115,10 +111,9 @@ function DemoContent() {
         {viewState === 'success' && (
           <div className="space-y-4">
             <InlineAlert
-              state="verified"
+              level="verified"
               title="Đã xử lý xong"
-              cause="Mô hình 3D đã sẵn sàng."
-              errorCode="OK_DONE"
+              message="Mô hình 3D đã sẵn sàng."
             />
             <div className="h-64 bg-bg-sunken rounded-xl flex items-center justify-center text-text-muted">Content</div>
           </div>
@@ -127,11 +122,10 @@ function DemoContent() {
         {viewState === 'unprivileged' && (
           <div className="space-y-4">
             <InlineAlert
-              state="attention"
+              level="attention"
               title="Quyền truy cập hạn chế"
-              cause="Bạn chỉ có quyền xem dự án này. Các thay đổi sẽ không được lưu."
-              errorCode="ERR_READ_ONLY"
-              primaryButton={{ text: 'Yêu cầu quyền sửa', onClick: () => {} }}
+              message="Bạn chỉ có quyền xem dự án này. Các thay đổi sẽ không được lưu."
+              action={{ label: 'Yêu cầu quyền sửa', onClick: () => {} }}
             />
           </div>
         )}

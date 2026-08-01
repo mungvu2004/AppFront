@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
+import { useUndoableToast, UndoableToastState } from '../../hooks/useUndoableToast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,16 +34,24 @@ export interface ToastItemProps {
   toast: ToastMessage;
   index: number;
   onRemove: (id: string) => void;
+  resetKey?: number; // Used to trigger timer reset for grouped toast
 }
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
-  ({ toast, index, onRemove }, ref) => {
+  ({ toast, index, onRemove, resetKey = 0 }, ref) => {
     const [isHovered, setIsHovered] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const [progress, setProgress] = useState(100);
     const rafRef = useRef<number | null>(null);
     const lastTimeRef = useRef<number | undefined>(undefined);
     const timeLeftRef = useRef(8000);
+
+    // Reset timer when resetKey changes (e.g. new item grouped or item popped)
+    useEffect(() => {
+      timeLeftRef.current = 8000;
+      setProgress(100);
+      lastTimeRef.current = undefined;
+    }, [resetKey]);
 
     useEffect(() => {
       if (isHovered || isExiting) {
@@ -69,14 +78,12 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
 
       rafRef.current = requestAnimationFrame(animate);
       return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-    // onRemove is a stable useCallback from ToastProvider — safe to omit
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isHovered, isExiting]);
+    }, [isHovered, isExiting, onRemove, toast.id, resetKey]);
 
-    const handleUndo = () => {
-      toast.onUndo?.();
-      setIsExiting(true);
-      setTimeout(() => onRemove(toast.id), 180);
+    const onUndoClick = () => {
+      if (toast.onUndo) {
+        toast.onUndo();
+      }
     };
 
     const isPeek = index > 0;
@@ -111,7 +118,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleUndo}
+              onClick={onUndoClick}
               className="text-accent hover:text-accent-hover shrink-0"
             >
               Hoàn tác
@@ -131,20 +138,81 @@ ToastItem.displayName = 'Toast.Item';
 
 // ─── Toast.Provider ───────────────────────────────────────────────────────────
 
-function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [queue, setQueue] = useState<ToastMessage[]>([]);
+  const [summaryResetKey, setSummaryResetKey] = useState(0);
 
   const addToast = useCallback((toast: Omit<ToastMessage, 'id'>) => {
-    setToasts((prev) => {
+    setQueue((prev) => {
       const newToast = { ...toast, id: Math.random().toString(36).substring(2, 9) };
-      const next = [newToast, ...prev];
-      return next.length > 3 ? next.slice(0, 3) : next;
+      setSummaryResetKey(k => k + 1);
+      return [newToast, ...prev];
     });
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setQueue((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // Strict dedupe mechanism listening to useUndoableToast
+  const undoableToast = useUndoableToast();
+  const prevToastRef = useRef<UndoableToastState | null>(null);
+
+  useEffect(() => {
+    if (undoableToast && undoableToast.isVisible && undoableToast !== prevToastRef.current) {
+      prevToastRef.current = undoableToast;
+      addToast({
+        message: undoableToast.label,
+        state: 'verified',
+        onUndo: undoableToast.onUndo,
+      });
+    }
+  }, [undoableToast, addToast]);
+
+  // Compute UI slots based on locked logic
+  let displaySlots: (ToastMessage & { resetKey?: number })[] = [];
+
+  if (queue.length <= 3) {
+    displaySlots = queue;
+  } else if (queue.length > 0) {
+    // 4 or more toasts
+    const slot1 = queue[0] as ToastMessage;
+    const slot2 = queue[1] as ToastMessage;
+    const groupedItems = queue.slice(2);
+    
+    // Safe Domain Extraction Fallback
+    const isAllTuong = groupedItems.every(t => t.message.toLowerCase().endsWith('tường'));
+    const isAllCua = groupedItems.every(t => t.message.toLowerCase().endsWith('cửa'));
+    
+    let summaryMessage = `Đã thực hiện ${groupedItems.length} thay đổi`;
+    if (isAllTuong) summaryMessage = `Đã sửa ${groupedItems.length} tường`;
+    else if (isAllCua) summaryMessage = `Đã sửa ${groupedItems.length} cửa`;
+
+    const handleSummaryUndo = () => {
+      const target = groupedItems[0];
+      if (target && target.onUndo) target.onUndo();
+      setQueue(prev => target ? (prev.filter(t => t.id !== target.id) as ToastMessage[]) : prev);
+      setSummaryResetKey(k => k + 1);
+    };
+
+    const summaryToast: ToastMessage & { resetKey: number } = {
+      id: 'summary-toast-group',
+      message: summaryMessage,
+      state: 'verified',
+      onUndo: handleSummaryUndo,
+      resetKey: summaryResetKey,
+    };
+
+    displaySlots = [slot1, slot2, summaryToast];
+  }
+
+  const handleRemoveSlot = (id: string) => {
+    if (id === 'summary-toast-group') {
+      setQueue(prev => prev.length <= 3 ? prev : [prev[0] as ToastMessage, prev[1] as ToastMessage]);
+    } else {
+      removeToast(id);
+    }
+  };
 
   return (
     <ToastContext.Provider value={{ addToast, removeToast }}>
@@ -155,12 +223,13 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-label="Thông báo"
         aria-live="polite"
       >
-        {toasts.map((toast, index) => (
+        {displaySlots.map((toast, index) => (
           <ToastItem
             key={toast.id}
             toast={toast}
             index={index}
-            onRemove={removeToast}
+            onRemove={handleRemoveSlot}
+            resetKey={toast.resetKey ?? 0}
           />
         ))}
       </div>
@@ -175,7 +244,3 @@ export const Toast = {
   Provider: ToastProvider,
   Item: ToastItem,
 };
-
-// ─── Legacy named exports (backward compat) ───────────────────────────────────
-
-export { ToastProvider };

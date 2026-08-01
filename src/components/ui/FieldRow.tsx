@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { Skeleton } from '../feedback/Skeleton';
+// import { Skeleton } from '../feedback/Skeleton';
 
 export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
   label: string;
@@ -42,11 +42,11 @@ export const FieldRow = ({
         )}
         {...props}
       >
-        <div className="w-[40%] flex-shrink-0 pr-4 pt-[9px]">
-          <Skeleton className="h-4 w-24 rounded" />
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="h-4 w-24 rounded bg-bg-sunken animate-pulse motion-reduce:animate-none" />
         </div>
-        <div className="w-[60%] flex-shrink-0 pt-[9px]">
-          <Skeleton className="h-4 w-full rounded" />
+        <div className="flex-1">
+          <div className="h-4 w-full rounded bg-bg-sunken animate-pulse motion-reduce:animate-none" />
         </div>
       </div>
     );

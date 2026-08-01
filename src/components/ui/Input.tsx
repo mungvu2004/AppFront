@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { cn } from '../../lib/utils';
-import { Skeleton } from '../feedback/Skeleton';
+// import { Skeleton } from '../feedback/Skeleton';
 
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label?: React.ReactNode | undefined;
@@ -50,7 +50,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative flex items-center group">
           {isLoading ? (
-            <Skeleton className="h-[38px] w-full rounded-lg" />
+            <div className="h-[38px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
           ) : isReadOnly ? (
             <div className="flex h-[38px] w-full items-center px-3 text-text-primary">
               {prefix && <span className="mr-2 flex-shrink-0 text-text-muted">{prefix}</span>}

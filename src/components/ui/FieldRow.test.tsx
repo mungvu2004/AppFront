@@ -17,7 +17,7 @@ describe('FieldRow', () => {
 
   it('renders loading skeleton', () => {
     const { container } = render(<FieldRow label="Test" isLoading><span /></FieldRow>);
-    expect(container.querySelectorAll('.animate-skeleton-scan').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('returns null when collapsed', () => {

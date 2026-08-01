@@ -45,7 +45,7 @@ describe('Select', () => {
 
   it('renders loading skeleton', () => {
     const { container } = render(<Select options={options} isLoading />);
-    expect(container.querySelector('.animate-skeleton-scan')).toBeInTheDocument();
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('closes on Escape key', () => {

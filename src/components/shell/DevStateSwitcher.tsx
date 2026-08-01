@@ -1,39 +1,58 @@
 import React from 'react';
-import { useDevStateSwitcher } from '../../hooks/useDevStateSwitcher';
-import { Settings2 } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import { Button } from '../ui/Button';
 
-export function DevStateSwitcher() {
-  const { isDev, expanded, toggle } = useDevStateSwitcher();
+export type ComponentState = 'empty' | 'loading' | 'partial' | 'error' | 'success' | 'unauthorized' | 'collapsed';
 
-  if (!isDev) return null;
+export interface DevStateSwitcherProps extends React.HTMLAttributes<HTMLDivElement> {
+  currentState: ComponentState;
+  onStateChange: (state: ComponentState) => void;
+}
+
+export function DevStateSwitcher({
+  currentState,
+  onStateChange,
+  className,
+  ...props
+}: DevStateSwitcherProps) {
+  const states: { value: ComponentState; label: string }[] = [
+    { value: 'empty', label: 'Rỗng (Empty)' },
+    { value: 'loading', label: 'Đang tải (Loading)' },
+    { value: 'partial', label: 'Một phần (Partial)' },
+    { value: 'error', label: 'Lỗi (Error)' },
+    { value: 'success', label: 'Thành công (Success)' },
+    { value: 'unauthorized', label: 'Không có quyền (Unauthorized)' },
+    { value: 'collapsed', label: 'Thu gọn (Collapsed)' },
+  ];
 
   return (
-    <div className="fixed bottom-0 right-0 z-50 pointer-events-none p-4">
-      <div className="pointer-events-auto">
-        {expanded ? (
-          <div className="bg-bg-surface border border-border-default shadow-float rounded-[8px] p-4 w-64 flex flex-col gap-3">
-             <div className="flex justify-between items-center">
-                <span className="text-[13px] font-semibold text-text-primary">Dev state</span>
-                <button 
-                  onClick={toggle} 
-                  className="text-[12px] text-text-muted hover:text-text-primary active:scale-98 transition-all"
-                >
-                  Close
-                </button>
-             </div>
-             <div className="text-[12px] text-text-secondary">
-               Use this panel to force UI states during development.
-             </div>
-          </div>
-        ) : (
-          <button 
-            onClick={toggle}
-            className="w-8 h-8 bg-bg-surface border border-border-default shadow-rest rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary transition-all duration-120 hover:shadow-float active:scale-98"
-            title="Dev state switcher"
+    <div
+      className={cn('flex flex-col gap-2 p-4 bg-bg-surface border border-state-attention rounded-xl shadow-lg', className)}
+      {...props}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-[13px] font-bold text-state-attention uppercase tracking-wide">
+          Dev Tools: State Switcher
+        </h3>
+        <span className="text-[11px] font-mono bg-state-attention-tint text-state-attention-text px-2 py-0.5 rounded-full">
+          QA USE ONLY
+        </span>
+      </div>
+      <p className="text-[12px] text-text-secondary mb-2">
+        Điều khiển trạng thái của các component bên dưới để test 7 trạng thái chuẩn.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {states.map((state) => (
+          <Button
+            key={state.value}
+            size="sm"
+            variant={currentState === state.value ? 'primary' : 'secondary'}
+            onClick={() => onStateChange(state.value)}
+            className="text-[12px]"
           >
-            <Settings2 className="w-4 h-4" />
-          </button>
-        )}
+            {state.label}
+          </Button>
+        ))}
       </div>
     </div>
   );

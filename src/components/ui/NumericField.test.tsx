@@ -20,7 +20,7 @@ describe('NumericField', () => {
 
   it('renders loading skeleton', () => {
     const { container } = render(<NumericField value={0} unit="mm" isLoading />);
-    expect(container.querySelector('.animate-skeleton-scan')).toBeInTheDocument();
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('is disabled when prop set', () => {
