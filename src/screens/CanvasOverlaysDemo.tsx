@@ -3,46 +3,48 @@ import { WallThicknessLegend } from '../components/canvas/WallThicknessLegend';
 import { ZoomCluster } from '../components/canvas/ZoomCluster';
 import { MiniMap } from '../components/canvas/MiniMap';
 import { MeasurementLabel } from '../components/canvas/MeasurementLabel';
-import { useMeasurementLabel } from '../components/canvas/useMeasurementLabel';
+import { useMeasurementLabel } from '../hooks/useMeasurementLabel';
 import { TransformGizmo } from '../components/canvas/TransformGizmo';
 import { SelectionHalo } from '../components/canvas/SelectionHalo';
-import { useSelectionHalo } from '../components/canvas/useSelectionHalo';
+import { useSelectionHalo } from '../hooks/useSelectionHalo';
 import { ContextMenu } from '../components/canvas/ContextMenu';
-import { useContextMenu } from '../components/canvas/useContextMenu';
+import { useContextMenu } from '../hooks/useContextMenu';
 import { Button } from '../components/ui/Button';
 
 export function CanvasOverlaysDemo() {
   const [is3D, setIs3D] = useState(false);
-  
+
   // Measurement hooks
   const {
     state: measState,
     startPoint,
     currentPoint,
-    distance,
+    midPoint,
+    distanceFormatted,
     startMeasurement,
     updateMeasurement,
     commitMeasurement,
     resetMeasurement,
   } = useMeasurementLabel();
 
-  // Halo hook
-  const { isSelected, isPulsing, selectObject, deselectObject } = useSelectionHalo();
+  // Halo hook — new API: select/hover/deselect + variant
+  const { isVisible: haloVisible, variant: haloVariant, hasEntered, select, deselect } =
+    useSelectionHalo();
 
-  // Context menu hook
-  const { isVisible: ctxVisible, position: ctxPos, items: ctxItems, openMenu, closeMenu } = useContextMenu();
+  // Context menu hook — new API: groups
+  const { isVisible: ctxVisible, position: ctxPos, groups: ctxGroups, openMenuFlat, closeMenu } =
+    useContextMenu();
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button === 2) return; // Right click handled by context menu
-    
-    // For demo: click to measure
+    if (e.button === 2) return;
+
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      
+
       if (measState === 'idle') {
         startMeasurement(x, y);
       } else if (measState === 'committed') {
@@ -65,14 +67,11 @@ export function CanvasOverlaysDemo() {
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      openMenu(e.clientX - rect.left, e.clientY - rect.top, [
-        { id: 'edit', label: 'Edit Properties', action: () => console.log('edit') },
-        { id: 'isolate', label: 'Isolate', action: () => console.log('isolate') },
-        { id: 'delete', label: 'Delete Element', isDestructive: true, action: () => console.log('delete') },
-      ]);
-    }
+    openMenuFlat(e.clientX, e.clientY, [
+      { id: 'edit',    label: 'Chỉnh sửa thuộc tính', kbd: '⌘E',  action: () => console.log('edit') },
+      { id: 'isolate', label: 'Cô lập',                kbd: 'I',   action: () => console.log('isolate') },
+      { id: 'delete',  label: 'Xoá phần tử',           kbd: '⌫',  isDestructive: true, action: () => console.log('delete') },
+    ]);
   };
 
   return (
@@ -81,26 +80,22 @@ export function CanvasOverlaysDemo() {
         <h1 className="text-xl font-medium">Canvas Overlays Demo</h1>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setIs3D(!is3D)}>
-            Toggle {is3D ? '2D' : '3D'} Mode
+            Chế độ {is3D ? '2D' : '3D'}
           </Button>
-          <Button variant="secondary" onClick={() => (isSelected ? deselectObject() : selectObject())}>
-            Toggle Selection Halo
-          </Button>
-          <Button variant="secondary" onClick={() => selectObject(true)}>
-            Trigger Violation Pulse
+          <Button variant="secondary" onClick={() => (haloVisible ? deselect() : select())}>
+            Bật/tắt Selection Halo
           </Button>
         </div>
       </div>
 
       <div className="flex-1 relative p-8">
-        {/* The "Canvas" area */}
-        <div 
+        <div
           ref={canvasRef}
           className="relative w-full h-full rounded shadow-panel overflow-hidden cursor-crosshair select-none"
           style={{
             backgroundColor: is3D ? 'var(--canvas-3d)' : 'var(--canvas-2d)',
-            backgroundImage: is3D 
-              ? 'none' 
+            backgroundImage: is3D
+              ? 'none'
               : 'linear-gradient(to right, var(--canvas-2d-grid) 1px, transparent 1px), linear-gradient(to bottom, var(--canvas-2d-grid) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
           }}
@@ -108,42 +103,43 @@ export function CanvasOverlaysDemo() {
           onPointerMove={handlePointerMove}
           onContextMenu={handleContextMenu}
         >
-          {/* Mock 3D Ground/Horizon if needed */}
+          {/* Mock 3D Ground/Horizon */}
           {is3D && (
             <div className="absolute inset-0 pointer-events-none flex flex-col">
               <div className="flex-1" />
-              <div className="flex-1 bg-[var(--canvas-3d-ground)] border-t border-[var(--canvas-3d-horizon)]" />
+              <div className="flex-1 bg-canvas-3d-ground border-t border-canvas-3d-horizon" />
             </div>
           )}
 
           {/* Overlays */}
-          <WallThicknessLegend />
+          <WallThicknessLegend state="success" />
           <ZoomCluster />
           <MiniMap />
-          
-          {is3D && <TransformGizmo />}
 
-          <MeasurementLabel 
+          {is3D && <TransformGizmo cx={200} cy={200} />}
+
+          <MeasurementLabel
             state={measState}
             startPoint={startPoint}
             currentPoint={currentPoint}
-            distance={distance}
+            midPoint={midPoint}
+            distanceFormatted={distanceFormatted}
           />
 
-          <SelectionHalo 
-            isSelected={isSelected}
-            isPulsing={isPulsing}
+          <SelectionHalo
+            isVisible={haloVisible}
+            variant={haloVariant}
+            hasEntered={hasEntered}
             width={200}
             height={150}
             x={200}
             y={200}
-            isViolation={isPulsing}
           />
 
-          <ContextMenu 
+          <ContextMenu
             isVisible={ctxVisible}
             position={ctxPos}
-            items={ctxItems}
+            groups={ctxGroups}
             onClose={closeMenu}
           />
         </div>

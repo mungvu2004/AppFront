@@ -1,33 +1,56 @@
 import React from 'react';
-
+import { cn } from '../../lib/utils';
+import { selectionBorderToken, selectionFillToken } from './materialMap';
+import type { SelectionVariant } from '../../hooks/useSelectionHalo';
 
 interface SelectionHaloProps {
-  isSelected: boolean;
-  isPulsing: boolean;
-  width: number;
-  height: number;
+  /** Vị trí và kích thước trong canvas (px) */
   x: number;
   y: number;
-  isViolation?: boolean;
+  width: number;
+  height: number;
+  /** Trạng thái hiển thị */
+  isVisible: boolean;
+  /** Biến thể: selected (1,5px + fill) hay hover (1px, không fill) */
+  variant?: SelectionVariant;
+  /** Đã qua 120ms animation enter */
+  hasEntered?: boolean;
+  className?: string;
 }
 
+/**
+ * SelectionHalo — viền chọn canvas.
+ * - selected: viền accent 1,5px + nền accent-wash
+ * - hover: viền accent 1px, không fill
+ * - Xuất hiện 120ms ease-out
+ * - Màu từ materialMap
+ */
 export function SelectionHalo({
-  isSelected,
-  isPulsing,
-  width,
-  height,
   x,
   y,
-  isViolation = false,
+  width,
+  height,
+  isVisible,
+  variant = 'selected',
+  hasEntered = false,
+  className,
 }: SelectionHaloProps) {
-  if (!isSelected) return null;
+  if (!isVisible) return null;
 
-  const outlineColor = isViolation ? 'var(--state-violation)' : 'var(--accent)';
-  const fillColor = isViolation ? 'var(--state-violation)' : 'var(--accent)';
+  const isSelected = variant === 'selected';
+  const borderToken = selectionBorderToken();
+  const fillToken = selectionFillToken();
 
   return (
     <div
-      className="absolute pointer-events-none z-10"
+      role="presentation"
+      aria-hidden="true"
+      className={cn(
+        'absolute pointer-events-none',
+        // Animation: fade + scale khi mới xuất hiện
+        !hasEntered ? 'animate-[dropdown-open_120ms_ease-out_forwards]' : '',
+        className
+      )}
       style={{
         left: x,
         top: y,
@@ -35,24 +58,20 @@ export function SelectionHalo({
         height,
       }}
     >
-      <style>
-        {`
-          @keyframes violationPulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.45; }
-            100% { opacity: 1; }
-          }
-          .halo-pulse {
-            animation: violationPulse 1.8s ease-in-out;
-            animation-iteration-count: 3;
-          }
-        `}
-      </style>
+      {/* Lớp fill (chỉ khi selected) */}
+      {isSelected && (
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: fillToken, opacity: 0.12 }}
+        />
+      )}
+
+      {/* Viền accent */}
       <div
-        className={`w-full h-full border-2 ${isPulsing ? 'halo-pulse' : ''}`}
+        className="absolute inset-0"
         style={{
-          borderColor: outlineColor,
-          backgroundColor: `color-mix(in srgb, ${fillColor} 6%, transparent)`,
+          outline: `${isSelected ? 1.5 : 1}px solid ${borderToken}`,
+          outlineOffset: 0,
         }}
       />
     </div>

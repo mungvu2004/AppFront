@@ -1,57 +1,102 @@
 import React from 'react';
-import { Minus, Plus, Maximize, RotateCcw } from 'lucide-react';
-import { useZoomCluster } from './useZoomCluster';
+import { Minus, Plus, Maximize2 } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import { useZoomCluster } from '../../hooks/useZoomCluster';
 
 interface ZoomClusterProps {
   isVisible?: boolean;
+  className?: string;
 }
 
-export function ZoomCluster({ isVisible = true }: ZoomClusterProps) {
-  const { zoomLevel, zoomIn, zoomOut, resetZoom, fitToScreen } = useZoomCluster();
+/**
+ * ZoomCluster — nút zoom nổi góc dưới phải.
+ * Nền bg-surface, bóng shadow-float, bo-12.
+ * Mờ 60% khi không hover.
+ * Phần trăm mono bấm được để về 100%.
+ */
+export function ZoomCluster({ isVisible = true, className }: ZoomClusterProps) {
+  const { zoomIn, zoomOut, resetZoom, fitToScreen, zoomLabel } =
+    useZoomCluster();
 
   if (!isVisible) return null;
 
+  const btnBase = cn(
+    'flex items-center justify-center w-7 h-7 rounded-[8px]',
+    'text-text-secondary hover:text-text-primary hover:bg-bg-hover',
+    'transition-colors duration-120',
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  );
+
   return (
-    <div className="absolute bottom-4 right-4 z-10 flex items-center justify-center p-[120px] -m-[120px] group pointer-events-none">
-      <div className="flex items-center bg-bg-surface rounded-full shadow-overlay p-2 gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-180 pointer-events-auto">
+    /* Wrapper vô hình mở rộng hover area */
+    <div
+      className={cn(
+        'absolute bottom-4 right-4 z-20 pointer-events-none',
+        'p-[40px] -m-[40px]', // ghost padding để hover dễ hơn
+        'group',
+        className
+      )}
+    >
+      <div
+        className={cn(
+          'flex items-center bg-bg-surface rounded-[12px] shadow-float px-2 py-1.5 gap-0.5',
+          'pointer-events-auto',
+          // Mờ 60% khi không hover
+          'opacity-60 group-hover:opacity-100 transition-opacity duration-180'
+        )}
+        role="group"
+        aria-label="Điều khiển zoom"
+      >
+        {/* Thu nhỏ */}
         <button
+          id="zoom-out-btn"
           onClick={zoomOut}
-          className="p-1.5 rounded-full hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          aria-label="Zoom out"
+          className={btnBase}
+          aria-label="Thu nhỏ"
+          title="Thu nhỏ (−)"
         >
-          <Minus size={16} />
-        </button>
-        
-        <div className="w-12 text-center">
-          <span className="font-mono text-sm text-text-primary">
-            {zoomLevel}%
-          </span>
-        </div>
-
-        <button
-          onClick={zoomIn}
-          className="p-1.5 rounded-full hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          aria-label="Zoom in"
-        >
-          <Plus size={16} />
+          <Minus size={14} strokeWidth={2} />
         </button>
 
-        <div className="w-[1px] h-4 bg-border-default mx-1" />
-
+        {/* Phần trăm — bấm để về 100% */}
         <button
-          onClick={fitToScreen}
-          className="p-1.5 rounded-full hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          aria-label="Fit to screen"
-        >
-          <Maximize size={16} />
-        </button>
-
-        <button
+          id="zoom-reset-btn"
           onClick={resetZoom}
-          className="p-1.5 rounded-full hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          aria-label="Reset zoom to 1:1"
+          className={cn(
+            'min-w-[52px] h-7 px-1 rounded-[8px]',
+            'font-mono text-sm text-text-primary',
+            'hover:bg-bg-hover transition-colors duration-120',
+            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+          )}
+          aria-label={`Zoom hiện tại ${zoomLabel}. Bấm để về 100%`}
+          title="Bấm để về 100%"
         >
-          <RotateCcw size={16} />
+          {zoomLabel}
+        </button>
+
+        {/* Phóng to */}
+        <button
+          id="zoom-in-btn"
+          onClick={zoomIn}
+          className={btnBase}
+          aria-label="Phóng to"
+          title="Phóng to (+)"
+        >
+          <Plus size={14} strokeWidth={2} />
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-4 bg-border-default mx-1 shrink-0" aria-hidden="true" />
+
+        {/* Vừa khung */}
+        <button
+          id="zoom-fit-btn"
+          onClick={fitToScreen}
+          className={btnBase}
+          aria-label="Vừa khung nhìn"
+          title="Vừa khung (F)"
+        >
+          <Maximize2 size={14} strokeWidth={2} />
         </button>
       </div>
     </div>
