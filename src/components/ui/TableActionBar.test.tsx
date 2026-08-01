@@ -39,7 +39,7 @@ describe('TableActionBar', () => {
         <TableActionBar selectedCount={1} onApprove={onApprove} />
       </div>
     );
-    fireEvent.click(screen.getAllByText('Duyệt')[0]);
+    fireEvent.click(screen.getAllByText('Duyệt')[0]!);
     expect(onApprove).toHaveBeenCalledOnce();
   });
 
@@ -50,7 +50,7 @@ describe('TableActionBar', () => {
         <TableActionBar selectedCount={1} onReject={onReject} />
       </div>
     );
-    fireEvent.click(screen.getAllByText('Từ chối')[0]);
+    fireEvent.click(screen.getAllByText('Từ chối')[0]!);
     expect(onReject).toHaveBeenCalledOnce();
   });
 
@@ -61,7 +61,7 @@ describe('TableActionBar', () => {
         <TableActionBar selectedCount={1} onDeselect={onDeselect} />
       </div>
     );
-    fireEvent.click(screen.getAllByText('Bỏ chọn')[0]);
+    fireEvent.click(screen.getAllByText('Bỏ chọn')[0]!);
     expect(onDeselect).toHaveBeenCalledOnce();
   });
 

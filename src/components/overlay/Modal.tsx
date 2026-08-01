@@ -2,6 +2,10 @@ import React, { createContext, useContext, useEffect, useRef, forwardRef } from 
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { Z_INDEX } from '../../lib/zIndex';
+import { DURATION, EASE } from '../../lib/motion';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -24,8 +28,8 @@ export interface ModalRootProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  width?: 480 | 560 | 640;
-  /** ID cho aria-labelledby — mặc định tạo tự động */
+  /** Chiều rộng: 480 (nhỏ) | 560 (vừa) | 720 (lớn) */
+  width?: 480 | 560 | 720;
   titleId?: string;
 }
 
@@ -36,11 +40,13 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
   const autoTitleId = React.useId();
   const titleId = externalTitleId || `modal-title-${autoTitleId}`;
 
+  // Focus management + keyboard trap
   useEffect(() => {
     if (!isOpen) return;
 
     previousFocusRef.current = document.activeElement as HTMLElement;
-    modalRef.current?.focus();
+    // Delay để animation bắt đầu trước khi focus
+    const raf = requestAnimationFrame(() => modalRef.current?.focus());
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -49,7 +55,7 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
       }
       if (e.key === 'Tab' && modalRef.current) {
         const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -63,31 +69,49 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener('keydown', handleKeyDown);
       previousFocusRef.current?.focus();
     };
   }, [isOpen, onClose]);
 
-  const overlayVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
-  const modalVariants = {
-    hidden: prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 },
-    visible: prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 },
-    exit: prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 },
+  // Animation variants — slide lên 8px + fade, đúng spec
+  const overlayVariants = {
+    hidden:  { opacity: 0 },
+    visible: { opacity: 1 },
   };
+
+  const modalVariants = prefersReducedMotion
+    ? {
+        hidden:  { opacity: 0 },
+        visible: { opacity: 1 },
+        exit:    { opacity: 0 },
+      }
+    : {
+        hidden:  { opacity: 0, y: 8 },
+        visible: { opacity: 1, y: 0 },
+        exit:    { opacity: 0, y: 8 },
+      };
 
   return (
     <ModalContext.Provider value={{ onClose, titleId }}>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4">
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
+            style={{ zIndex: Z_INDEX.modal }}
+          >
+            {/* Lớp phủ */}
             <motion.div
               initial="hidden" animate="visible" exit="hidden"
               variants={overlayVariants}
-              transition={{ duration: 0.26 }}
+              transition={{ duration: DURATION.default, ease: EASE.out }}
               className="absolute inset-0 bg-bg-overlay pointer-events-auto"
               onClick={onClose}
               aria-hidden="true"
             />
+
+            {/* Modal */}
             <motion.div
               ref={modalRef}
               role="dialog"
@@ -96,7 +120,10 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
               tabIndex={-1}
               initial="hidden" animate="visible" exit="exit"
               variants={modalVariants}
-              transition={{ duration: prefersReducedMotion ? 0.12 : 0.26 }}
+              transition={{
+                duration: prefersReducedMotion ? DURATION.fast : DURATION.default,
+                ease: EASE.out,
+              }}
               className="relative bg-bg-surface rounded-[16px] shadow-modal pointer-events-auto flex flex-col max-h-[90vh] outline-none"
               style={{ width: `${width}px` }}
             >
@@ -114,7 +141,6 @@ ModalRoot.displayName = 'Modal.Root';
 
 export interface ModalHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  /** Nếu true, render close button ở phải */
   showClose?: boolean;
 }
 
@@ -124,22 +150,24 @@ const ModalHeader = forwardRef<HTMLDivElement, ModalHeaderProps>(
     return (
       <div
         ref={ref}
-        className={cn('flex items-center justify-between px-[32px] pt-[32px] pb-[16px]', className)}
+        className={cn('flex items-center justify-between px-8 pt-8 pb-4', className)}
         {...props}
       >
-        <h2 id={titleId} className="text-[20px] font-semibold text-text-primary">
+        <h2 id={titleId} className="text-[18px] font-semibold text-text-primary leading-tight">
           {children}
         </h2>
         {showClose && (
-          <button
-            onClick={onClose}
+          <IconButton
+            size="sm"
+            icon={<X size={18} aria-hidden="true" />}
             aria-label="Đóng hộp thoại"
-            className="w-[32px] h-[32px] flex items-center justify-center rounded-full text-text-secondary hover:bg-bg-hover transition-colors duration-120 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 -mr-2"
-          >
-            <X size={20} />
-          </button>
+            onClick={onClose}
+            tooltip={false}
+            className="-mr-2"
+          />
         )}
       </div>
+
     );
   }
 );
@@ -151,7 +179,7 @@ const ModalBody = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-[32px] overflow-y-auto flex-1', className)}
+      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed', className)}
       {...props}
     >
       {children}
@@ -166,7 +194,10 @@ const ModalFooter = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex items-center justify-between px-[32px] py-[24px] mt-4 border-t border-border-hairline', className)}
+      className={cn(
+        'flex items-center justify-end gap-3 px-8 py-6 mt-2 border-t border-border-default',
+        className
+      )}
       {...props}
     >
       {children}
@@ -181,20 +212,16 @@ const ModalCloseButton = forwardRef<HTMLButtonElement, React.ButtonHTMLAttribute
   ({ children, className, ...props }, ref) => {
     const { onClose } = useModalContext('Modal.CloseButton');
     return (
-      <button
+      <Button
         ref={ref}
         type="button"
+        variant="ghost"
         onClick={onClose}
-        className={cn(
-          'px-4 py-2 rounded-[8px] text-[14px] font-medium text-text-secondary hover:bg-bg-hover',
-          'transition-colors duration-120 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          className
-        )}
+        className={className}
         {...props}
       >
         {children}
-      </button>
+      </Button>
     );
   }
 );
@@ -204,45 +231,51 @@ ModalCloseButton.displayName = 'Modal.CloseButton';
 
 export const Modal = Object.assign(
   // Legacy API — backward compatible
-  function ModalLegacy({ isOpen, onClose, title, width = 480, children, primaryAction, secondaryAction }: LegacyModalProps) {
+  function ModalLegacy({
+    isOpen,
+    onClose,
+    title,
+    width = 480,
+    children,
+    primaryAction,
+    secondaryAction,
+  }: LegacyModalProps) {
     return (
       <ModalRoot isOpen={isOpen} onClose={onClose} width={width}>
         <ModalHeader>{title}</ModalHeader>
         <ModalBody>{children}</ModalBody>
         {(primaryAction || secondaryAction) && (
           <ModalFooter>
-            <div>
-              {secondaryAction && (
-                <button
-                  onClick={secondaryAction.onClick}
-                  disabled={secondaryAction.disabled}
-                  className="px-4 py-2 rounded-[8px] text-[14px] font-medium text-text-secondary hover:bg-bg-hover transition-colors duration-120 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {secondaryAction.label}
-                </button>
-              )}
-            </div>
-            <div>
-              {primaryAction && (
-                <button
-                  onClick={primaryAction.onClick}
-                  disabled={primaryAction.disabled || primaryAction.loading}
-                  className="px-4 py-2 rounded-[8px] text-[14px] font-medium bg-accent text-white hover:bg-accent-hover transition-colors duration-120 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {primaryAction.label}
-                </button>
-              )}
-            </div>
+            {secondaryAction && (
+              <Button
+                variant="ghost"
+                onClick={secondaryAction.onClick}
+                disabled={secondaryAction.disabled}
+              >
+                {secondaryAction.label}
+              </Button>
+            )}
+            {primaryAction && (
+              <Button
+                variant="primary"
+                onClick={primaryAction.onClick}
+                disabled={primaryAction.disabled ?? false}
+                loading={primaryAction.loading ?? false}
+              >
+
+                {primaryAction.label}
+              </Button>
+            )}
           </ModalFooter>
         )}
       </ModalRoot>
     );
   },
   {
-    Root: ModalRoot,
-    Header: ModalHeader,
-    Body: ModalBody,
-    Footer: ModalFooter,
+    Root:        ModalRoot,
+    Header:      ModalHeader,
+    Body:        ModalBody,
+    Footer:      ModalFooter,
     CloseButton: ModalCloseButton,
   }
 );
@@ -253,7 +286,7 @@ export interface LegacyModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  width?: 480 | 560 | 640;
+  width?: 480 | 560 | 720;
   children: React.ReactNode;
   primaryAction?: { label: string; onClick: () => void; disabled?: boolean; loading?: boolean };
   secondaryAction?: { label: string; onClick: () => void; disabled?: boolean };
