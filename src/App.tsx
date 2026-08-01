@@ -7,6 +7,7 @@ import { FeedbackDemo } from './screens/FeedbackDemo';
 import { ListReviewDemo } from './screens/ListReviewDemo';
 import { ShellDemo } from './screens/ShellDemo';
 import { StateGallery } from './screens/system/StateGallery';
+import { Toast } from './components/feedback/Toast';
 import './styles/globals.css';
 
 type ScreenId = 'design-system' | 'canvas' | 'data-entry' | 'shared' | 'feedback' | 'list-review' | 'shell' | 'states';
@@ -48,7 +49,9 @@ export default function App() {
         </div>
       </div>
       <div className="flex-1 relative overflow-hidden bg-bg-app">
-        <ActiveComponent />
+        <Toast.Provider>
+          <ActiveComponent />
+        </Toast.Provider>
       </div>
     </div>
   );

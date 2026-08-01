@@ -17,7 +17,10 @@ type SortConfig = {
 
 let undoBackup: WallData[] | null = null;
 
-export function useListReview(initialData: WallData[]) {
+export function useListReview(
+  initialData: WallData[],
+  onToast?: (toast: { message: string; onUndo: () => void }) => void
+) {
   const [data, setData] = useState<WallData[]>(initialData);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -102,32 +105,25 @@ export function useListReview(initialData: WallData[]) {
   }, [selectedIds]);
 
   // Undo delete toast logic simulation
-  const [showUndo, setShowUndo] = useState(false);
-  
   const handleDeleteSelected = useCallback(() => {
-    // Instead of confirmation, show 8s toast and allow undo
     const backup = [...data];
+    const count = selectedIds.size;
+    
     setData(current => current.filter(item => !selectedIds.has(item.id)));
     setSelectedIds(new Set());
-    setShowUndo(true);
     
-    // Auto hide toast after 8s
-    setTimeout(() => {
-      setShowUndo(false);
-    }, 8000);
-    
-    // We would store the backup and action in a ref or real undo manager.
-    // For demo purposes:
     undoBackup = backup;
-  }, [data, selectedIds]);
-
-  const handleUndo = useCallback(() => {
-    if (undoBackup) {
-      setData(undoBackup);
-      undoBackup = null;
-    }
-    setShowUndo(false);
-  }, []);
+    
+    onToast?.({
+      message: `Đã xóa ${count > 0 ? count : 'các'} cấu kiện`,
+      onUndo: () => {
+        if (undoBackup) {
+          setData(undoBackup);
+          undoBackup = null;
+        }
+      }
+    });
+  }, [data, selectedIds, onToast]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!focusedId) return;
@@ -159,8 +155,6 @@ export function useListReview(initialData: WallData[]) {
     handleSelectAll,
     batchApprove,
     handleDeleteSelected,
-    showUndo,
-    handleUndo,
     handleKeyDown,
     rawCount: data.length,
     verifiedCount: data.filter(d => d.status === 'verified').length

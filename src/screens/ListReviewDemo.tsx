@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { clsx } from 'clsx';
 import { Badge } from '../components/ui/Badge';
 import { ConfidenceMeter } from '../components/ui/ConfidenceMeter';
 import { TreeItem } from '../components/ui/TreeItem';
 import { Table, TableHeader, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { useListReview, WallData } from '../hooks/useListReview';
 import { Button } from '../components/ui/Button';
+import { Skeleton } from '../components/feedback/Skeleton';
 import { EmptyState } from '../components/feedback/EmptyState';
+import { useToast } from '../components/feedback/Toast';
 
 const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
   const num = i + 1;
@@ -27,9 +28,11 @@ const DEMO_STATES: DemoState[] = ['default', 'empty', 'loading', 'partial', 'err
 export function ListReviewDemo() {
   const [demoState, setDemoState] = useState<DemoState>('default');
   
+  const { addToast } = useToast();
+
   // Use mock data if not empty/error/permission
   const initialData = (demoState === 'empty' || demoState === 'error' || demoState === 'permission') ? [] : mockData;
-  const review = useListReview(initialData);
+  const review = useListReview(initialData, addToast);
 
   const [layerVisible, setLayerVisible] = useState(true);
 
@@ -38,16 +41,9 @@ export function ListReviewDemo() {
   const renderSkeletons = () =>
     Array.from({ length: 8 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
-        <TableCell><div className="h-4 w-4 rounded bg-bg-sunken animate-pulse" /></TableCell>
-        <TableCell><div className="h-4 w-20 rounded bg-bg-sunken animate-pulse" /></TableCell>
-        {!isCollapsed && (
-          <>
-            <TableCell><div className="h-4 w-12 rounded bg-bg-sunken animate-pulse" /></TableCell>
-            <TableCell><div className="h-4 w-24 rounded bg-bg-sunken animate-pulse" /></TableCell>
-            <TableCell><div className="h-4 w-16 rounded bg-bg-sunken animate-pulse" /></TableCell>
-            <TableCell><div className="h-6 w-24 rounded bg-bg-sunken animate-pulse" /></TableCell>
-          </>
-        )}
+        <TableCell colSpan={isCollapsed ? 2 : 6} className="p-0">
+          <Skeleton preset="table-row" />
+        </TableCell>
       </TableRow>
     ));
 
@@ -242,23 +238,6 @@ export function ListReviewDemo() {
         </div>
       )}
 
-      {/* Undo Toast */}
-      <div 
-        className={clsx(
-          "fixed bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-text-primary text-bg-surface px-4 py-3 rounded-lg shadow-float transition-all duration-340 z-50",
-          review.showUndo ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8 pointer-events-none"
-        )}
-      >
-        <span className="text-sm font-medium">Đã xóa {review.selectedIds.size > 0 ? review.selectedIds.size : 'các'} cấu kiện</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={review.handleUndo}
-          className="text-accent-wash hover:text-accent-wash font-bold"
-        >
-          Hoàn tác
-        </Button>
-      </div>
     </div>
   );
 }

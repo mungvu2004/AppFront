@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { ChevronUp, ChevronDown, AlertCircle, Inbox } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Checkbox } from './Checkbox';
+import { EmptyState } from '../feedback/EmptyState';
+import { Skeleton } from '../feedback/Skeleton';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -198,14 +200,10 @@ function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
   return (
     <>
       {Array.from({ length: rows }, (_, r) => (
-        <tr key={r} className="h-10 border-b border-border-default/50">
-          {Array.from({ length: columns }, (_, c) => (
-            <td key={c} className="h-10 px-3 align-middle">
-              <div className="relative h-4 rounded-md bg-bg-sunken overflow-hidden">
-                <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,var(--tw-gradient-stops),transparent_100%)] from-transparent via-border-default/50 to-transparent animate-skeleton-scan motion-reduce:animate-none" />
-              </div>
-            </td>
-          ))}
+        <tr key={r} className="border-b border-border-default/50">
+          <td colSpan={columns} className="p-0">
+            <Skeleton preset="table-row" className="h-10" />
+          </td>
         </tr>
       ))}
     </>
@@ -223,11 +221,12 @@ interface TableEmptyProps {
 function TableEmpty({ colSpan, message = 'Không có dữ liệu' }: TableEmptyProps) {
   return (
     <tr>
-      <td colSpan={colSpan} className="py-12 text-center">
-        <div className="flex flex-col items-center gap-2 text-text-muted">
-          <Inbox size={32} strokeWidth={1.5} aria-hidden="true" />
-          <span className="text-[13px]">{message}</span>
-        </div>
+      <td colSpan={colSpan} className="py-12">
+        <EmptyState
+          icon={<Inbox className="text-text-tertiary" />}
+          title="Không có dữ liệu"
+          description={message}
+        />
       </td>
     </tr>
   );
@@ -245,19 +244,13 @@ interface TableErrorProps {
 function TableError({ colSpan, message = 'Đã xảy ra lỗi', onRetry }: TableErrorProps) {
   return (
     <tr>
-      <td colSpan={colSpan} className="py-12 text-center">
-        <div className="flex flex-col items-center gap-3 text-state-violation-text">
-          <AlertCircle size={32} strokeWidth={1.5} aria-hidden="true" />
-          <span className="text-[13px]">{message}</span>
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className="text-[13px] text-accent underline underline-offset-2 hover:text-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded outline-none"
-            >
-              Thử lại
-            </button>
-          )}
-        </div>
+      <td colSpan={colSpan} className="py-4">
+        <EmptyState
+          icon={<AlertCircle className="text-state-violation-text" />}
+          title="Đã xảy ra lỗi"
+          description={message}
+          {...(onRetry ? { action: { label: 'Thử lại', onClick: onRetry, variant: 'secondary' } } : {})}
+        />
       </td>
     </tr>
   );

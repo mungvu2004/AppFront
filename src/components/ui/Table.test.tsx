@@ -238,7 +238,7 @@ describe('Table — trạng thái rỗng và lỗi', () => {
       </Table.Root>
     );
     expect(screen.getByText('Lỗi kết nối')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Thử lại'));
+    fireEvent.click(screen.getAllByText('Thử lại')[0]!);
     expect(retry).toHaveBeenCalledOnce();
   });
 });

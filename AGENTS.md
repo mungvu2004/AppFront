@@ -41,7 +41,7 @@ D. KIẾN TRÚC TÁCH LOGIC VÀ GIAO DIỆN (bắt buộc)
 - Hook không được chứa JSX, không import token, không biết về Tailwind.
 - Nhờ vậy view test được bằng props, hook test được không cần DOM.
 
-E. DEFINITION OF DONE — 9 điều, áp dụng cho mọi lượt sau
+E. DEFINITION OF DONE — 10 điều, áp dụng cho mọi lượt sau
 1. Không có hex/rgb/hsl trong src/components và src/screens.
 2. Bảy trạng thái đều có story hoặc test.
 3. Bàn phím 100%, focus ring đúng, Esc đóng lớp trên.
@@ -51,6 +51,7 @@ E. DEFINITION OF DONE — 9 điều, áp dụng cho mọi lượt sau
 7. Dùng đúng bộ dữ liệu mẫu chuẩn.
 8. Có ảnh chụp ở 1440px kèm trong phần báo cáo.
 9. CI xanh: lint, typecheck, unit, build, visual snapshot.
+10. Cấm báo cáo pass/thành công cho các lệnh kiểm tra (lint, typecheck, test, build...) nếu chưa thực sự chạy lệnh và có kết quả cuối cùng. Bắt buộc phải có log chứng minh.
 
 F. CHECKLIST TỰ KIỂM TRƯỚC KHI TRẢ LỜI
-Mỗi lượt, trước khi kết thúc, agent phải in ra bảng 9 dòng của mục E kèm đạt/không đạt và bằng chứng (lệnh đã chạy, số dòng grep).
+Mỗi lượt, trước khi kết thúc, agent phải in ra bảng 10 dòng của mục E kèm đạt/không đạt và bằng chứng (lệnh đã chạy, số dòng grep).
