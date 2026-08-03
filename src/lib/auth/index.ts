@@ -18,7 +18,6 @@ export {
 } from './events';
 export { can, permissionCapabilities, permissionMatrix } from './permissions';
 export { REFRESH_LEAD_TIME_MS, defaultParseRefreshResponse, refreshSingleFlight } from './refresh';
-export { useSession } from './useSession';
 export type {
   AuthConfig,
   AuthEventDetail,

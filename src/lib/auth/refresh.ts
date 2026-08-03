@@ -199,7 +199,7 @@ export const defaultParseRefreshResponse = async (
 ): Promise<RefreshSessionPayload> => {
   const payload = await response.json();
   const parsed = refreshResponseSchema.parse(payload);
-  const root = 'data' in parsed ? parsed.data : parsed;
+  const root = ('data' in parsed ? parsed.data : parsed) as z.infer<typeof refreshPayloadSchema>;
   const accessToken = root.accessToken ?? root.access_token;
 
   if (!accessToken) {
@@ -249,8 +249,9 @@ export const refreshSingleFlight = async (
       scheduleRefreshFromSession();
 
       if (previousStatus !== 'authenticated') {
+        const reason = options.reason === 'bootstrap' ? options.reason : 'bootstrap';
         emitAuthSignedIn({
-          reason: options.reason ?? 'bootstrap',
+          reason,
           source: options.source ?? 'local',
         });
 
@@ -277,6 +278,7 @@ export const resetRefreshState = (): void => {
   clearRefreshTimer();
   removeVisibilityHandler?.();
 };
+
 
 
 

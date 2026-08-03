@@ -16,5 +16,6 @@ export const endAnonymousSession = ({
 }): void => {
   clearTimer();
   setAnonymousSession({ refreshFailed });
-  emitSignedOut({ reason, source });
+  emitSignedOut(reason ? { reason, source } : { source });
 };
+

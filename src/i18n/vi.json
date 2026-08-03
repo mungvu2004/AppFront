@@ -2,7 +2,65 @@
   "common": {
     "save": "Lưu",
     "saved_at": "Đã lưu lúc {{time}}",
-    "undo": "Hoàn tác"
+    "undo": "Hoàn tác",
+    "close": "Đóng",
+    "retry": "Thử lại",
+    "reload": "Tải lại",
+    "contact_admin": "Liên hệ quản trị"
+  },
+  "errors": {
+    "network": {
+      "title": "Mất kết nối",
+      "description": "Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại."
+    },
+    "timeout": {
+      "title": "Phản hồi chậm",
+      "description": "Máy chủ phản hồi quá lâu. Bạn có thể thử lại sau vài giây."
+    },
+    "unauthenticated": {
+      "title": "Cần xác thực",
+      "description": "Phiên làm việc đã hết hạn. Tải lại để tiếp tục."
+    },
+    "forbidden": {
+      "title": "Không có quyền",
+      "description": "Bạn không có quyền thực hiện thao tác này. Liên hệ quản trị dự án."
+    },
+    "notFound": {
+      "title": "Không tìm thấy",
+      "description": "Nội dung này không còn ở vị trí hiện tại. Tải lại để xem phiên bản mới nhất."
+    },
+    "conflict": {
+      "title": "Bản vẽ đã đổi",
+      "description": "Bản vẽ đã được người khác cập nhật. Tải lại để xem phiên bản mới nhất."
+    },
+    "validation": {
+      "title": "Dữ liệu chưa phù hợp",
+      "description": "Kiểm tra lại các trường được đánh dấu rồi thử lại."
+    },
+    "rateLimited": {
+      "title": "Đang bị giới hạn",
+      "description": "Hệ thống đang bận. Đợi một lát rồi thử lại."
+    },
+    "upload": {
+      "title": "Tải tệp chưa xong",
+      "description": "Tệp tải lên chưa xong. Kiểm tra kết nối rồi thử lại với tệp khác nếu cần."
+    },
+    "processing": {
+      "title": "Xử lý đang gián đoạn",
+      "description": "Xử lý AI thất bại ở bước {{step}}. Bạn có thể chạy lại riêng bước này."
+    },
+    "geometry": {
+      "title": "Không dựng được hình",
+      "description": "Không dựng được hình cho {{count}} tường. Kiểm tra lại lớp tường ở tầng {{floor}}."
+    },
+    "export": {
+      "title": "Xuất dữ liệu chưa xong",
+      "description": "Xuất dữ liệu chưa xong. Kiểm tra tệp đích rồi thử lại."
+    },
+    "unknown": {
+      "title": "Có trục trặc",
+      "description": "Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại."
+    }
   },
   "pipeline": {
     "step_1": "Tiền xử lý ảnh",

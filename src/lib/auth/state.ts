@@ -20,13 +20,9 @@ let requestAbortController = new AbortController();
 const listeners = new Set<() => void>();
 
 const createAbortReason = (message: string): Error => {
-  try {
-    return new DOMException(message, 'AbortError');
-  } catch {
-    const error = new Error(message);
-    error.name = 'AbortError';
-    return error;
-  }
+  const error = new Error(message);
+  error.name = 'AbortError';
+  return error;
 };
 
 const notify = (): void => {
@@ -138,4 +134,5 @@ export const resetAuthState = (): void => {
   requestAbortController.abort(createAbortReason('Auth state reset'));
   requestAbortController = new AbortController();
 };
+
 

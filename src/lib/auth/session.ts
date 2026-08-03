@@ -204,7 +204,7 @@ const clearSession = async ({
   }
 };
 
-const handleAuthError = async (_error: HttpError): Promise<void> => {
+const handleAuthError = async (): Promise<void> => {
   const sessionState = getSessionState();
   if (sessionState.refreshFailed || sessionState.status === 'anonymous') {
     return;
@@ -306,3 +306,4 @@ export const __resetAuthForTests = (): void => {
   resetRefreshState();
   resetAuthState();
 };
+
