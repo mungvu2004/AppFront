@@ -24,9 +24,9 @@ let refreshTimerId: ReturnType<typeof setTimeout> | null = null;
 let removeVisibilityHandler: (() => void) | null = null;
 
 const roleSchema = z.union([
-  z.literal('Quản trị'),
-  z.literal('Kỹ sư'),
-  z.literal('Người xem'),
+  z.literal('admin'),
+  z.literal('engineer'),
+  z.literal('viewer'),
 ]);
 
 const refreshUserSchema = z
@@ -83,8 +83,8 @@ const normalizeUser = (value: unknown): AuthUser | null => {
   }
 
   if (Array.isArray(record.roles)) {
-    user.roles = record.roles.filter((role): role is 'Quản trị' | 'Kỹ sư' | 'Người xem' =>
-      role === 'Quản trị' || role === 'Kỹ sư' || role === 'Người xem',
+    user.roles = record.roles.filter((role): role is 'admin' | 'engineer' | 'viewer' =>
+      role === 'admin' || role === 'engineer' || role === 'viewer',
     );
   }
 

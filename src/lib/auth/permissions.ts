@@ -1,6 +1,6 @@
 import type { ProjectRole } from '@/types/project';
 
-export const AUTH_ROLES = ['Quản trị', 'Kỹ sư', 'Người xem'] as const satisfies readonly ProjectRole[];
+export const AUTH_ROLES = ['admin', 'engineer', 'viewer'] as const satisfies readonly ProjectRole[];
 
 export type PermissionAction = 'create' | 'edit' | 'export' | 'manage' | 'upload';
 
@@ -77,44 +77,44 @@ const viewerPermissions: Record<PermissionKey, boolean> = {
 
 export const permissionMatrix: PermissionMatrix = {
   'floor.upload': {
-    'Kỹ sư': engineerPermissions['floor.upload'],
-    'Người xem': viewerPermissions['floor.upload'],
-    'Quản trị': adminPermissions['floor.upload'],
+    admin: adminPermissions['floor.upload'],
+    engineer: engineerPermissions['floor.upload'],
+    viewer: viewerPermissions['floor.upload'],
   },
   'layer.edit': {
-    'Kỹ sư': engineerPermissions['layer.edit'],
-    'Người xem': viewerPermissions['layer.edit'],
-    'Quản trị': adminPermissions['layer.edit'],
+    admin: adminPermissions['layer.edit'],
+    engineer: engineerPermissions['layer.edit'],
+    viewer: viewerPermissions['layer.edit'],
   },
   'library.manage': {
-    'Kỹ sư': engineerPermissions['library.manage'],
-    'Người xem': viewerPermissions['library.manage'],
-    'Quản trị': adminPermissions['library.manage'],
+    admin: adminPermissions['library.manage'],
+    engineer: engineerPermissions['library.manage'],
+    viewer: viewerPermissions['library.manage'],
   },
   'model.export': {
-    'Kỹ sư': engineerPermissions['model.export'],
-    'Người xem': viewerPermissions['model.export'],
-    'Quản trị': adminPermissions['model.export'],
+    admin: adminPermissions['model.export'],
+    engineer: engineerPermissions['model.export'],
+    viewer: viewerPermissions['model.export'],
   },
   'project.create': {
-    'Kỹ sư': engineerPermissions['project.create'],
-    'Người xem': viewerPermissions['project.create'],
-    'Quản trị': adminPermissions['project.create'],
+    admin: adminPermissions['project.create'],
+    engineer: engineerPermissions['project.create'],
+    viewer: viewerPermissions['project.create'],
   },
   'project.settings.edit': {
-    'Kỹ sư': engineerPermissions['project.settings.edit'],
-    'Người xem': viewerPermissions['project.settings.edit'],
-    'Quản trị': adminPermissions['project.settings.edit'],
+    admin: adminPermissions['project.settings.edit'],
+    engineer: engineerPermissions['project.settings.edit'],
+    viewer: viewerPermissions['project.settings.edit'],
   },
   'share.create': {
-    'Kỹ sư': engineerPermissions['share.create'],
-    'Người xem': viewerPermissions['share.create'],
-    'Quản trị': adminPermissions['share.create'],
+    admin: adminPermissions['share.create'],
+    engineer: engineerPermissions['share.create'],
+    viewer: viewerPermissions['share.create'],
   },
   'user.manage': {
-    'Kỹ sư': engineerPermissions['user.manage'],
-    'Người xem': viewerPermissions['user.manage'],
-    'Quản trị': adminPermissions['user.manage'],
+    admin: adminPermissions['user.manage'],
+    engineer: engineerPermissions['user.manage'],
+    viewer: viewerPermissions['user.manage'],
   },
 };
 

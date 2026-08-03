@@ -9,7 +9,7 @@ const MAX_INVALID_RATIO = 0.2;
 export interface DecodeWarning {
   index: number;
   message: string;
-  nguon: string;
+  source: string;
 }
 
 export interface SafeParseListOptions {
@@ -42,8 +42,8 @@ const typeLabels: Record<string, string> = {
 
 const labelType = (typeName: string): string => typeLabels[typeName] ?? typeName;
 
-const formatPath = (nguon: string, path: ReadonlyArray<string | number>): string => {
-  let formatted = nguon;
+const formatPath = (source: string, path: ReadonlyArray<string | number>): string => {
+  let formatted = source;
 
   for (const segment of path) {
     if (typeof segment === 'number') {
@@ -58,17 +58,17 @@ const formatPath = (nguon: string, path: ReadonlyArray<string | number>): string
 };
 
 const getIssuePath = (
-  nguon: string,
+  source: string,
   issue: ZodIssue,
   prefix: ReadonlyArray<string | number>,
-): string => formatPath(nguon, [...prefix, ...issue.path]);
+): string => formatPath(source, [...prefix, ...issue.path]);
 
 const formatInvalidTypeIssue = (
-  nguon: string,
+  source: string,
   issue: Extract<ZodIssue, { code: 'invalid_type' }>,
   prefix: ReadonlyArray<string | number>,
 ): string => {
-  const field = getIssuePath(nguon, issue, prefix);
+  const field = getIssuePath(source, issue, prefix);
 
   if (issue.received === 'undefined') {
     return `Trường '${field}' là bắt buộc.`;
@@ -78,14 +78,14 @@ const formatInvalidTypeIssue = (
 };
 
 const formatIssue = (
-  nguon: string,
+  source: string,
   issue: ZodIssue,
   prefix: ReadonlyArray<string | number> = [],
 ): string => {
-  const field = getIssuePath(nguon, issue, prefix);
+  const field = getIssuePath(source, issue, prefix);
 
   if (issue.code === 'invalid_type') {
-    return formatInvalidTypeIssue(nguon, issue, prefix);
+    return formatInvalidTypeIssue(source, issue, prefix);
   }
 
   if (issue.code === 'invalid_string' && issue.validation === 'email') {
@@ -121,15 +121,15 @@ const formatIssue = (
 
 const formatIssues = (
   issues: readonly ZodIssue[],
-  nguon: string,
+  source: string,
   prefix: ReadonlyArray<string | number> = [],
 ): string =>
   issues
     .slice(0, MAX_ISSUES)
-    .map((issue) => formatIssue(nguon, issue, prefix))
+    .map((issue) => formatIssue(source, issue, prefix))
     .join(' ');
 
-const createContractError = (nguon: string, message: string, count: number): AppError => {
+const createContractError = (source: string, message: string, count: number): AppError => {
   const config = APP_ERROR_KIND_CONFIG.validation;
 
   return {
@@ -139,7 +139,7 @@ const createContractError = (nguon: string, message: string, count: number): App
     params: {
       count,
       message,
-      nguon,
+      source,
     },
     recovery: config.recovery,
     requestId: '',
@@ -152,40 +152,40 @@ const defaultWarn = (warning: DecodeWarning): void => {
   console.warn(warning.message);
 };
 
-export function decode<T>(schema: z.ZodType<T>, data: unknown, nguon: string): Result<T, AppError> {
+export function decode<S extends z.ZodTypeAny>(schema: S, data: unknown, source: string): Result<z.output<S>, AppError> {
   const parsed = schema.safeParse(data);
 
   if (parsed.success) {
     return { data: parsed.data, ok: true };
   }
 
-  const message = formatIssues(parsed.error.issues, nguon);
+  const message = formatIssues(parsed.error.issues, source);
 
   return {
-    error: createContractError(nguon, message, parsed.error.issues.length),
+    error: createContractError(source, message, parsed.error.issues.length),
     ok: false,
   };
 }
 
-export function safeParseList<T>(
-  schema: z.ZodType<T>,
+export function safeParseList<S extends z.ZodTypeAny>(
+  schema: S,
   data: unknown,
-  nguon: string,
+  source: string,
   options: SafeParseListOptions = {},
-): Result<T[], AppError> {
+): Result<z.output<S>[], AppError> {
   const list = z.array(z.unknown()).safeParse(data);
 
   if (!list.success) {
-    const message = formatIssues(list.error.issues, nguon);
+    const message = formatIssues(list.error.issues, source);
 
     return {
-      error: createContractError(nguon, message, list.error.issues.length),
+      error: createContractError(source, message, list.error.issues.length),
       ok: false,
     };
   }
 
   const warn = options.warn ?? defaultWarn;
-  const validItems: T[] = [];
+  const validItems: z.output<S>[] = [];
   const invalidMessages: string[] = [];
   const invalidIssueMessages: string[] = [];
 
@@ -197,10 +197,10 @@ export function safeParseList<T>(
       return;
     }
 
-    const message = formatIssues(parsed.error.issues, nguon, [index]);
+    const message = formatIssues(parsed.error.issues, source, [index]);
     invalidMessages.push(message);
-    invalidIssueMessages.push(...parsed.error.issues.map((issue) => formatIssue(nguon, issue, [index])));
-    warn({ index, message, nguon });
+    invalidIssueMessages.push(...parsed.error.issues.map((issue) => formatIssue(source, issue, [index])));
+    warn({ index, message, source });
   });
 
   const maxInvalidRatio = options.maxInvalidRatio ?? MAX_INVALID_RATIO;
@@ -209,7 +209,7 @@ export function safeParseList<T>(
 
   if (invalidRatio > maxInvalidRatio) {
     const message = [
-      `${invalidCount}/${list.data.length} phần tử từ '${nguon}' hỏng, vượt quá ${Math.round(
+      `${invalidCount}/${list.data.length} phần tử từ '${source}' hỏng, vượt quá ${Math.round(
         maxInvalidRatio * 100,
       )}%.`,
       invalidIssueMessages.slice(0, MAX_ISSUES).join(' '),
@@ -218,12 +218,11 @@ export function safeParseList<T>(
       .join(' ');
 
     return {
-      error: createContractError(nguon, message, invalidCount),
+      error: createContractError(source, message, invalidCount),
       ok: false,
     };
   }
 
   return { data: validItems, ok: true };
 }
-
 

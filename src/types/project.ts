@@ -1,4 +1,4 @@
-export type ProjectRole = 'Quản trị' | 'Kỹ sư' | 'Người xem';
+export type ProjectRole = 'admin' | 'engineer' | 'viewer';
 
 export interface ProjectMember {
   id: string;

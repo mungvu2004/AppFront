@@ -1,43 +1,43 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { BanVeSchema, TangSchema } from '@/api/schemas';
+import { DrawingSchema, FloorSchema } from '@/api/schemas';
 import { decode, safeParseList } from '@/api/schemas/decode';
 
-const validBanVe = {
-  chieuCao: 20_000,
-  chieuRong: 30_000,
-  id: 'ban-ve-1',
-  nguoiTaiLenId: 'nguoi-dung-1',
-  taiLenLuc: '2026-08-03T08:00:00.000Z',
-  ten: 'mặt bằng tầng 1',
-  url: 'https://example.com/ban-ve-1.png',
+const validDrawing = {
+  heightMm: 20_000,
+  id: 'drawing-1',
+  name: 'floor plan 1',
+  uploadedAt: '2026-08-03T08:00:00.000Z',
+  uploaderId: 'user-1',
+  url: 'https://example.com/drawing-1.png',
+  widthMm: 30_000,
 };
 
-const createTang = (id: string) => ({
-  banVe: [validBanVe],
-  caoDo: 0,
-  chieuCao: 3_600,
+const createFloor = (id: string) => ({
+  drawings: [validDrawing],
+  elevationMm: 0,
+  heightMm: 3_600,
   id,
-  ten: `tầng ${id}`,
-  thuTu: 1,
+  name: `floor ${id}`,
+  order: 1,
 });
 
 describe('decode', () => {
   it('trả lỗi có tên trường khi phản hồi thiếu trường bắt buộc', () => {
-    const result = decode(BanVeSchema, { ...validBanVe, ten: undefined }, 'banVe');
+    const result = decode(DrawingSchema, { ...validDrawing, name: undefined }, 'drawing');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.params.message).toContain("Trường 'banVe.ten' là bắt buộc.");
+      expect(result.error.params.message).toContain("Trường 'drawing.name' là bắt buộc.");
     }
   });
 
   it('từ chối số thực cho trường độ dài milimét', () => {
-    const result = decode(TangSchema, { ...createTang('1'), chieuCao: 3_600.5 }, 'tang');
+    const result = decode(FloorSchema, { ...createFloor('1'), heightMm: 3_600.5 }, 'floor');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.params.message).toContain("Trường 'tang.chieuCao' cần số nguyên");
+      expect(result.error.params.message).toContain("Trường 'floor.heightMm' cần số nguyên");
     }
   });
 });
@@ -45,11 +45,11 @@ describe('decode', () => {
 describe('safeParseList', () => {
   it('loại phần tử hỏng và vẫn trả danh sách khi tỷ lệ hỏng không quá 20%', () => {
     const input = Array.from({ length: 10 }, (_value, index) =>
-      index === 2 ? { ...createTang(String(index)), caoDo: '0' } : createTang(String(index)),
+      index === 2 ? { ...createFloor(String(index)), elevationMm: '0' } : createFloor(String(index)),
     );
     const warn = vi.fn();
 
-    const result = safeParseList(TangSchema, input, 'tang', { warn });
+    const result = safeParseList(FloorSchema, input, 'floors', { warn });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -59,21 +59,21 @@ describe('safeParseList', () => {
     expect(warn).toHaveBeenCalledWith(
       expect.objectContaining({
         index: 2,
-        message: "Trường 'tang[2].caoDo' cần số, nhận được chuỗi.",
+        message: "Trường 'floors[2].elevationMm' cần số, nhận được chuỗi.",
       }),
     );
   });
 
   it('trả lỗi khi danh sách có hơn 20% phần tử hỏng', () => {
     const input = Array.from({ length: 10 }, (_value, index) =>
-      index < 3 ? { ...createTang(String(index)), caoDo: '0' } : createTang(String(index)),
+      index < 3 ? { ...createFloor(String(index)), elevationMm: '0' } : createFloor(String(index)),
     );
 
-    const result = safeParseList(TangSchema, input, 'tang', { warn: vi.fn() });
+    const result = safeParseList(FloorSchema, input, 'floors', { warn: vi.fn() });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.params.message).toContain("3/10 phần tử từ 'tang' hỏng");
+      expect(result.error.params.message).toContain("3/10 phần tử từ 'floors' hỏng");
     }
   });
 });

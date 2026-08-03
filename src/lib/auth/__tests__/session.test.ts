@@ -94,10 +94,10 @@ describe('src/lib/auth/session', () => {
       if (url.pathname === '/auth/refresh') {
         refreshCalls += 1;
         return makeJsonResponse({
-          accessToken: refreshCalls === 1 ? 'fresh-token' : `fresh-token-${refreshCalls}`,
+          accessToken: refreshCalls === 2 ? 'fresh-token' : 'initial-token',
           expiresIn: 3600,
-          roles: ['Kỹ sư'],
-          user: { id: 'user-1', name: 'Kỹ sư' },
+          roles: ['engineer'],
+          user: { id: 'user-1', name: 'engineer' },
         });
       }
 
@@ -119,7 +119,6 @@ describe('src/lib/auth/session', () => {
     expect(getSession().status).toBe('authenticated');
     expect(refreshCalls).toBe(1);
 
-    refreshCalls = 0;
     fetchMock.mockClear();
 
     const client = createAuthHttpClient({ baseUrl: 'https://api.example.com' });
@@ -131,7 +130,7 @@ describe('src/lib/auth/session', () => {
       ),
     );
 
-    expect(refreshCalls).toBe(1);
+    expect(refreshCalls).toBe(2);
     expect(fetchMock.mock.calls).toHaveLength(11);
     expect(results.every((result) => result.ok)).toBe(true);
   });
@@ -150,7 +149,7 @@ describe('src/lib/auth/session', () => {
           return makeJsonResponse({
             accessToken: 'fresh-token',
             expiresIn: 3600,
-            roles: ['Kỹ sư'],
+            roles: ['engineer'],
             user: { id: 'user-1' },
           });
         }
@@ -170,7 +169,6 @@ describe('src/lib/auth/session', () => {
     await bootstrapSession();
     expect(getSession().status).toBe('authenticated');
 
-    refreshCalls = 0;
     fetchMock.mockClear();
     signedOutSpy.mockClear();
 
@@ -183,7 +181,7 @@ describe('src/lib/auth/session', () => {
       ),
     );
 
-    expect(refreshCalls).toBe(1);
+    expect(refreshCalls).toBe(2);
     expect(getSession().status).toBe('anonymous');
     expect(signedOutSpy).toHaveBeenCalledTimes(1);
     expect(results.every((result) => !result.ok && result.error.kind === 'unauthenticated')).toBe(true);
@@ -204,7 +202,7 @@ describe('src/lib/auth/session', () => {
       return makeJsonResponse({
         accessToken: `token-${refreshCalls}`,
         expiresIn: 120,
-        roles: ['Quản trị'],
+        roles: ['admin'],
         user: { id: 'user-1' },
       });
     });
@@ -237,7 +235,7 @@ describe('src/lib/auth/session', () => {
       return makeJsonResponse({
         accessToken: `token-${refreshCalls}`,
         expiresIn: 120,
-        roles: ['Quản trị'],
+        roles: ['admin'],
         user: { id: 'user-1' },
       });
     });
@@ -279,7 +277,7 @@ describe('src/lib/auth/session', () => {
         return makeJsonResponse({
           accessToken: 'fresh-token',
           expiresIn: 3600,
-          roles: ['Quản trị'],
+          roles: ['admin'],
           user: { id: 'user-1' },
         });
       }
@@ -339,7 +337,7 @@ describe('src/lib/auth/session', () => {
       return makeJsonResponse({
         accessToken: `token-${refreshCalls}`,
         expiresIn: 3600,
-        roles: ['Kỹ sư'],
+        roles: ['engineer'],
         user: { id: 'user-1' },
       });
     });
