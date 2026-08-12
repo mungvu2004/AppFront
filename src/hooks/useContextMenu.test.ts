@@ -3,13 +3,13 @@ import { renderHook, act } from '@testing-library/react';
 import { useContextMenu } from './useContextMenu';
 
 describe('useContextMenu', () => {
-  it('khởi tạo isVisible = false', () => {
+  it('initializes with isVisible set to false', () => {
     const { result } = renderHook(() => useContextMenu());
     expect(result.current.isVisible).toBe(false);
     expect(result.current.groups).toHaveLength(0);
   });
 
-  it('openMenu đặt isVisible = true và position', () => {
+  it('sets isVisible and position when openMenu is called', () => {
     const { result } = renderHook(() => useContextMenu());
     act(() =>
       result.current.openMenu(200, 300, [
@@ -20,7 +20,7 @@ describe('useContextMenu', () => {
     expect(result.current.position).toEqual({ x: 200, y: 300 });
   });
 
-  it('openMenu lưu đúng groups', () => {
+  it('stores groups when openMenu is called', () => {
     const { result } = renderHook(() => useContextMenu());
     act(() =>
       result.current.openMenu(0, 0, [
@@ -33,7 +33,7 @@ describe('useContextMenu', () => {
     expect(result.current.groups[1]!.items[0]!.isDestructive).toBe(true);
   });
 
-  it('openMenuFlat tạo một group duy nhất với id=default', () => {
+  it('creates one default group when openMenuFlat is called', () => {
     const { result } = renderHook(() => useContextMenu());
     act(() =>
       result.current.openMenuFlat(0, 0, [
@@ -44,14 +44,14 @@ describe('useContextMenu', () => {
     expect(result.current.groups[0]!.id).toBe('default');
   });
 
-  it('closeMenu đặt isVisible = false', () => {
+  it('sets isVisible to false when closeMenu is called', () => {
     const { result } = renderHook(() => useContextMenu());
     act(() => result.current.openMenuFlat(0, 0, [{ id: 'x', label: 'X', action: () => {} }]));
     act(() => result.current.closeMenu());
     expect(result.current.isVisible).toBe(false);
   });
 
-  it('kbd field được lưu đúng', () => {
+  it('stores the kbd field', () => {
     const { result } = renderHook(() => useContextMenu());
     act(() =>
       result.current.openMenuFlat(0, 0, [{ id: 'c', label: 'Copy', kbd: '⌘C', action: () => {} }])

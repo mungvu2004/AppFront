@@ -26,14 +26,15 @@ B. DANH SÁCH CẤM
 - Cấm thêm dependency mới mà không nêu lý do trong phần báo cáo.
 - Cấm tạo component mới nếu đã có component chung phù hợp trong src/components.
 - Cấm để lại chip/nút dành cho lập trình viên (ví dụ "Toggle Empty State") trên màn hình sản phẩm; công cụ đó chỉ nằm ở route /design-system/states.
+- Cấm dùng tiếng Việt hoặc tiếng Việt không dấu cho tên biến, hàm, type, interface, enum, hằng, field, file test, mô tả test, mock, fixture, id kỹ thuật, action, hook, component, story; tất cả phải dùng tiếng Anh.
 
 C. QUY ƯỚC ĐẶT TÊN
 - Component: PascalCase, một component một file, export named.
-- Hook logic: useTênViệc, đặt cạnh component hoặc trong src/hooks nếu dùng chung.
+- Hook logic: useTaskName, đặt cạnh component hoặc trong src/hooks nếu dùng chung.
 - Hàm thuần: camelCase trong src/lib, không import React.
-- Store slice: tênSlice.ts, action là động từ tiếng Anh ngắn.
+- Store slice: nameSlice.ts, action là động từ tiếng Anh ngắn.
 - Test: cùng tên file kèm .test.ts(x); e2e trong e2e/.
-- Story: TênComponent.stories.tsx, mỗi trạng thái một story.
+- Story: ComponentName.stories.tsx, mỗi trạng thái một story.
 
 D. KIẾN TRÚC TÁCH LOGIC VÀ GIAO DIỆN (bắt buộc)
 - Mỗi component phức tạp gồm hai phần: hook useX chứa toàn bộ trạng thái và tính toán, và view nhận props thuần rồi chỉ render.

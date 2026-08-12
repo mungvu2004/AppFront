@@ -224,7 +224,7 @@ describe('mergeEvents', () => {
       incoming: [
         makePatchEvent('event-3', 3, { status: 'running' }),
         makePatchEvent('event-1', 1, { progressPercent: 10 }),
-        makePatchEvent('event-2', 2, { step: 'nhan dien tuong' }),
+        makePatchEvent('event-2', 2, { step: 'wall detection' }),
       ],
       lastAppliedSequence: 1,
     });
@@ -234,7 +234,7 @@ describe('mergeEvents', () => {
       id: 'progress-1',
       progressPercent: 20,
       status: 'running',
-      step: 'nhan dien tuong',
+      step: 'wall detection',
     });
     expect(result.lastAppliedSequence).toBe(3);
   });

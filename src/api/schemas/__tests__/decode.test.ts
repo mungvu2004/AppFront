@@ -23,7 +23,7 @@ const createFloor = (id: string) => ({
 });
 
 describe('decode', () => {
-  it('trả lỗi có tên trường khi phản hồi thiếu trường bắt buộc', () => {
+  it('returns an error with the field name when a required response field is missing', () => {
     const result = decode(DrawingSchema, { ...validDrawing, name: undefined }, 'drawing');
 
     expect(result.ok).toBe(false);
@@ -32,7 +32,7 @@ describe('decode', () => {
     }
   });
 
-  it('từ chối số thực cho trường độ dài milimét', () => {
+  it('rejects decimal numbers for millimeter length fields', () => {
     const result = decode(FloorSchema, { ...createFloor('1'), heightMm: 3_600.5 }, 'floor');
 
     expect(result.ok).toBe(false);
@@ -43,7 +43,7 @@ describe('decode', () => {
 });
 
 describe('safeParseList', () => {
-  it('loại phần tử hỏng và vẫn trả danh sách khi tỷ lệ hỏng không quá 20%', () => {
+  it('drops invalid items and still returns the list when the invalid ratio is at most 20%', () => {
     const input = Array.from({ length: 10 }, (_value, index) =>
       index === 2 ? { ...createFloor(String(index)), elevationMm: '0' } : createFloor(String(index)),
     );
@@ -64,7 +64,7 @@ describe('safeParseList', () => {
     );
   });
 
-  it('trả lỗi khi danh sách có hơn 20% phần tử hỏng', () => {
+  it('returns an error when the list has more than 20% invalid items', () => {
     const input = Array.from({ length: 10 }, (_value, index) =>
       index < 3 ? { ...createFloor(String(index)), elevationMm: '0' } : createFloor(String(index)),
     );

@@ -3,54 +3,54 @@ import { renderHook, act } from '@testing-library/react';
 import { useZoomCluster } from './useZoomCluster';
 
 describe('useZoomCluster', () => {
-  it('khởi tạo với zoom 100%', () => {
+  it('initializes with 100% zoom', () => {
     const { result } = renderHook(() => useZoomCluster());
     expect(result.current.zoomLevel).toBe(100);
     expect(result.current.zoomLabel).toBe('100%');
   });
 
-  it('khởi tạo với giá trị tuỳ chỉnh', () => {
+  it('initializes with a custom value', () => {
     const { result } = renderHook(() => useZoomCluster(150));
     expect(result.current.zoomLevel).toBe(150);
   });
 
-  it('zoomIn tăng 10%', () => {
+  it('increases zoom by 10%', () => {
     const { result } = renderHook(() => useZoomCluster());
     act(() => result.current.zoomIn());
     expect(result.current.zoomLevel).toBe(110);
   });
 
-  it('zoomOut giảm 10%', () => {
+  it('decreases zoom by 10%', () => {
     const { result } = renderHook(() => useZoomCluster());
     act(() => result.current.zoomOut());
     expect(result.current.zoomLevel).toBe(90);
   });
 
-  it('resetZoom về 100', () => {
+  it('resets zoom to 100', () => {
     const { result } = renderHook(() => useZoomCluster(200));
     act(() => result.current.resetZoom());
     expect(result.current.zoomLevel).toBe(100);
   });
 
-  it('fitToScreen về 85', () => {
+  it('fits zoom to 85', () => {
     const { result } = renderHook(() => useZoomCluster());
     act(() => result.current.fitToScreen());
     expect(result.current.zoomLevel).toBe(85);
   });
 
-  it('không vượt quá 400', () => {
+  it('does not exceed 400', () => {
     const { result } = renderHook(() => useZoomCluster(400));
     act(() => result.current.zoomIn());
     expect(result.current.zoomLevel).toBe(400);
   });
 
-  it('không xuống dưới 10', () => {
+  it('does not go below 10', () => {
     const { result } = renderHook(() => useZoomCluster(10));
     act(() => result.current.zoomOut());
     expect(result.current.zoomLevel).toBe(10);
   });
 
-  it('zoomLabel cập nhật theo zoomLevel', () => {
+  it('updates zoomLabel from zoomLevel', () => {
     const { result } = renderHook(() => useZoomCluster(75));
     expect(result.current.zoomLabel).toBe('75%');
   });

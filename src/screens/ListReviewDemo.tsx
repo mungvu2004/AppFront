@@ -18,7 +18,7 @@ const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
     thickness: 220,
     confidence: isLowConf ? 0.71 : 0.85 + (Math.random() * 0.1),
     level: 'Tầng 01',
-    status: 'neutral' // Chua duyet
+    status: 'neutral' // Not reviewed
   };
 });
 

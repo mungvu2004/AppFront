@@ -16,7 +16,7 @@ const walls: WallRow[] = MOCK_SPATIAL_PROJECT.geometry.L1?.walls
 
 // ── Sorting ───────────────────────────────────────────────────────────────────
 
-describe('Table — sắp xếp', () => {
+describe('Table sorting', () => {
   function SortableTable() {
     const [sortKey, setSortKey] = useState<string | undefined>();
     const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
@@ -109,7 +109,7 @@ describe('Table — sắp xếp', () => {
 
 // ── Multi-select ──────────────────────────────────────────────────────────────
 
-describe('Table — chọn nhiều', () => {
+describe('Table multi selection', () => {
   function SelectableTable() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const allChecked = selected.size === walls.length;
@@ -216,7 +216,7 @@ describe('Table — skeleton', () => {
 
 // ── Empty & Error states ──────────────────────────────────────────────────────
 
-describe('Table — trạng thái rỗng và lỗi', () => {
+describe('Table empty and error states', () => {
   it('renders empty state message', () => {
     render(
       <Table.Root>
@@ -245,7 +245,7 @@ describe('Table — trạng thái rỗng và lỗi', () => {
 
 // ── Virtualization DOM node count ─────────────────────────────────────────────
 
-describe('Table.Virtual — số node DOM', () => {
+describe('Table.Virtual DOM node count', () => {
   const rows500 = Array.from({ length: 500 }, (_, i) => ({
     id: `#W-${String(i + 1).padStart(3, '0')}`,
     from: `#V-${i}`,
@@ -283,7 +283,7 @@ describe('Table.Virtual — số node DOM', () => {
 
 // ── No uppercase in header ────────────────────────────────────────────────────
 
-describe('Table — không IN HOA header', () => {
+describe('Table header casing', () => {
   it('header text is not all uppercase', () => {
     render(
       <Table.Root>

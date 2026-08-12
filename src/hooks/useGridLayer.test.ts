@@ -6,14 +6,14 @@ import { useGridLayer } from './useGridLayer';
 describe('useGridLayer', () => {
   const scaleRatio = 12; // 12 mm/px
 
-  it('tính minorStepPx đúng ở zoom 1', () => {
+  it('calculates minorStepPx at zoom 1', () => {
     const result = useGridLayer(1, scaleRatio);
     // 100mm / 12mm/px * 1 = 8.33px
     expect(result.minorStepPx).toBeCloseTo(100 / 12, 2);
     expect(result.majorStepPx).toBeCloseTo(1000 / 12, 2);
   });
 
-  it('tính bước theo scaleRatio', () => {
+  it('calculates steps from scaleRatio', () => {
     const result = useGridLayer(1, 10);
     expect(result.minorStepPx).toBeCloseTo(10, 2);
     expect(result.majorStepPx).toBeCloseTo(100, 2);
@@ -29,7 +29,7 @@ describe('useGridLayer', () => {
     expect(useGridLayer(0.1, scaleRatio).showMinorGrid).toBe(false);
   });
 
-  it('trả về 0 nếu scaleRatio = 0', () => {
+  it('returns 0 when scaleRatio is 0', () => {
     const result = useGridLayer(1, 0);
     expect(result.minorStepPx).toBe(0);
     expect(result.majorStepPx).toBe(0);

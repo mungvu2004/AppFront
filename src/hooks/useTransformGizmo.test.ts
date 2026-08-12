@@ -3,19 +3,19 @@ import { renderHook, act } from '@testing-library/react';
 import { useTransformGizmo } from './useTransformGizmo';
 
 describe('useTransformGizmo', () => {
-  it('khởi tạo activeAxis = null, delta = 0', () => {
+  it('initializes with activeAxis set to null and delta set to 0', () => {
     const { result } = renderHook(() => useTransformGizmo());
     expect(result.current.activeAxis).toBeNull();
     expect(result.current.delta).toEqual({ x: 0, y: 0, z: 0 });
   });
 
-  it('startDrag đặt activeAxis', () => {
+  it('sets activeAxis when startDrag is called', () => {
     const { result } = renderHook(() => useTransformGizmo());
     act(() => result.current.startDrag('x'));
     expect(result.current.activeAxis).toBe('x');
   });
 
-  it('endDrag xoá activeAxis và reset delta', () => {
+  it('clears activeAxis and resets delta when endDrag is called', () => {
     const { result } = renderHook(() => useTransformGizmo());
     act(() => result.current.startDrag('y'));
     act(() => result.current.endDrag());
@@ -23,7 +23,7 @@ describe('useTransformGizmo', () => {
     expect(result.current.delta).toEqual({ x: 0, y: 0, z: 0 });
   });
 
-  it('startDrag mới reset delta về 0', () => {
+  it('resets delta to 0 when a new drag starts', () => {
     const { result } = renderHook(() => useTransformGizmo());
     act(() => result.current.startDrag('x'));
     act(() => result.current.updateDrag(10, 0));
@@ -32,7 +32,7 @@ describe('useTransformGizmo', () => {
     expect(result.current.delta.x).toBe(0);
   });
 
-  it('hỗ trợ trục x, y, z', () => {
+  it('supports the x, y, and z axes', () => {
     const { result } = renderHook(() => useTransformGizmo());
     for (const axis of ['x', 'y', 'z'] as const) {
       act(() => result.current.startDrag(axis));

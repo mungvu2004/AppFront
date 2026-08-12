@@ -3,21 +3,21 @@ import { renderHook, act } from '@testing-library/react';
 import { useMiniMap } from './useMiniMap';
 
 describe('useMiniMap', () => {
-  it('khởi tạo với giá trị mặc định', () => {
+  it('initializes with default values', () => {
     const { result } = renderHook(() => useMiniMap());
     expect(result.current.viewport).toEqual({ x: 20, y: 20, width: 40, height: 30 });
     expect(result.current.isDragging).toBe(false);
     expect(result.current.isHovered).toBe(false);
   });
 
-  it('khởi tạo với initialViewport', () => {
+  it('initializes with initialViewport', () => {
     const { result } = renderHook(() =>
       useMiniMap({ initialViewport: { x: 10, y: 10, width: 20, height: 20 } })
     );
     expect(result.current.viewport).toEqual({ x: 10, y: 10, width: 20, height: 20 });
   });
 
-  it('handleMouseEnter và handleMouseLeave đổi isHovered', () => {
+  it('updates isHovered on mouse enter and leave', () => {
     const { result } = renderHook(() => useMiniMap());
     act(() => result.current.handleMouseEnter());
     expect(result.current.isHovered).toBe(true);
@@ -25,7 +25,7 @@ describe('useMiniMap', () => {
     expect(result.current.isHovered).toBe(false);
   });
 
-  it('clampViewport giữ tọa độ trong giới hạn 0-100%', () => {
+  it('keeps viewport coordinates within 0-100%', () => {
     // Để test logic clampViewport, ta có thể gọi jumpTo hoặc xem code internal
     // Mock mapRef bounding client rect
     const { result } = renderHook(() => useMiniMap({ initialViewport: { width: 40, height: 30 } }));
@@ -68,7 +68,7 @@ describe('useMiniMap', () => {
     expect(result.current.viewport.y).toBe(70);
   });
 
-  it('gọi onViewportChange khi jumpTo', () => {
+  it('calls onViewportChange when jumpTo is called', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useMiniMap({ onViewportChange: onChange }));
 

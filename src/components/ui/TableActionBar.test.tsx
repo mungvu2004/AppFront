@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { TableActionBar } from './TableActionBar';
 
 describe('TableActionBar', () => {
-  it('không hiển thị khi selectedCount = 0', () => {
+  it('does not render when selectedCount is 0', () => {
     const { container } = render(
       <div className="relative">
         <TableActionBar selectedCount={0} entityName="tường" />
@@ -13,7 +13,7 @@ describe('TableActionBar', () => {
     expect(container.querySelector('[role="toolbar"]')).not.toBeInTheDocument();
   });
 
-  it('hiển thị khi selectedCount > 0', () => {
+  it('renders when selectedCount is greater than 0', () => {
     render(
       <div className="relative">
         <TableActionBar selectedCount={3} entityName="tường" />
@@ -22,7 +22,7 @@ describe('TableActionBar', () => {
     expect(screen.getByRole('toolbar')).toBeInTheDocument();
   });
 
-  it('hiển thị số đúng và tên entity', () => {
+  it('renders the expected count and entity name', () => {
     render(
       <div className="relative">
         <TableActionBar selectedCount={12} entityName="tường" />
@@ -32,7 +32,7 @@ describe('TableActionBar', () => {
     expect(screen.getByText(/tường/)).toBeInTheDocument();
   });
 
-  it('gọi onApprove khi nhấn Duyệt', () => {
+  it('calls onApprove when the approve button is pressed', () => {
     const onApprove = vi.fn();
     render(
       <div className="relative">
@@ -43,7 +43,7 @@ describe('TableActionBar', () => {
     expect(onApprove).toHaveBeenCalledOnce();
   });
 
-  it('gọi onReject khi nhấn Từ chối', () => {
+  it('calls onReject when the reject button is pressed', () => {
     const onReject = vi.fn();
     render(
       <div className="relative">
@@ -54,7 +54,7 @@ describe('TableActionBar', () => {
     expect(onReject).toHaveBeenCalledOnce();
   });
 
-  it('gọi onDeselect khi nhấn Bỏ chọn', () => {
+  it('calls onDeselect when the deselect button is pressed', () => {
     const onDeselect = vi.fn();
     render(
       <div className="relative">
@@ -65,7 +65,7 @@ describe('TableActionBar', () => {
     expect(onDeselect).toHaveBeenCalledOnce();
   });
 
-  it('gọi onDeselect khi nhấn Escape', () => {
+  it('calls onDeselect when Escape is pressed', () => {
     const onDeselect = vi.fn();
     render(
       <div className="relative">
@@ -76,7 +76,7 @@ describe('TableActionBar', () => {
     expect(onDeselect).toHaveBeenCalledOnce();
   });
 
-  it('hiển thị nút Đổi độ dày khi có onChangeThickness', () => {
+  it('renders the change thickness button when onChangeThickness is provided', () => {
     render(
       <div className="relative">
         <TableActionBar selectedCount={1} onChangeThickness={() => {}} />

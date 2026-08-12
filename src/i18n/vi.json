@@ -63,11 +63,11 @@
     }
   },
   "pipeline": {
-    "step_1": "Tiền xử lý ảnh",
-    "step_2": "Nhận diện tường (SegFormer)",
-    "step_3": "Nhận diện cửa và nội thất (YOLOv8)",
-    "step_4": "Đọc kích thước (PaddleOCR)",
-    "step_5": "Chuẩn hóa độ dày tường",
-    "step_6": "Dựng Spatial JSON"
+    "preprocess": "tiền xử lý",
+    "wallSegmentation": "tách lớp tường",
+    "openingAndFurnitureDetection": "nhận diện cửa và đồ đạc",
+    "dimensionReading": "đọc kích thước",
+    "spatialDataBuild": "dựng dữ liệu không gian",
+    "qualityCheck": "kiểm tra chất lượng"
   }
 }
