@@ -22,6 +22,8 @@ const TableContext = createContext<TableContextValue>({
   onSort: undefined,
 });
 
+const motionDuration260Ms = 260;
+
 // ─── Table.Root ───────────────────────────────────────────────────────────────
 
 export interface TableRootProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -79,33 +81,48 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
   { selected, focused, isAttention, isFlash, layoutId, className, children, ...props },
   ref
 ) => {
-  const Component = (layoutId ? motion.tr : 'tr') as React.ElementType;
+  const rowClassName = twMerge(
+    'group h-10 border-b border-border-default/50 last:border-0 outline-none transition-colors duration-120',
+    'hover:bg-bg-hover focus-visible:bg-bg-hover',
+    selected && 'bg-bg-selected hover:bg-bg-selected',
+    isFlash && 'bg-bg-flash hover:bg-bg-flash',
+    isAttention && 'bg-state-attention-tint',
+    focused && 'ring-2 ring-inset ring-accent',
+    // Accent 2px left edge via before pseudo on first-child td
+    '[&>td:first-child]:relative [&>td:first-child]:before:absolute [&>td:first-child]:before:left-0 [&>td:first-child]:before:top-0 [&>td:first-child]:before:bottom-0 [&>td:first-child]:before:w-[2px] [&>td:first-child]:before:bg-accent [&>td:first-child]:before:origin-center [&>td:first-child]:before:transition-transform [&>td:first-child]:before:duration-120 [&>td:first-child]:before:ease-out',
+    selected ? '[&>td:first-child]:before:scale-y-100' : '[&>td:first-child]:before:scale-y-0 group-hover:[&>td:first-child]:before:scale-y-100',
+    className
+  );
+
+  if (layoutId) {
+    const MotionTableRow = motion.tr as React.ElementType;
+
+    return (
+      <MotionTableRow
+        ref={ref}
+        layout
+        layoutId={layoutId}
+        transition={{ duration: motionDuration260Ms / 1000, ease: 'easeOut' }}
+        aria-selected={selected}
+        className={rowClassName}
+        tabIndex={-1}
+        {...props}
+      >
+        {children}
+      </MotionTableRow>
+    );
+  }
 
   return (
-    <Component
+    <tr
       ref={ref}
-      layout={!!layoutId}
-      layoutId={layoutId}
-      transition={{ duration: 0.26, ease: 'easeOut' }}
       aria-selected={selected}
-      className={twMerge(
-        'group h-10 border-b border-border-default/50 last:border-0 outline-none transition-colors duration-120',
-        'hover:bg-bg-hover focus-visible:bg-bg-hover',
-        selected && 'bg-bg-selected hover:bg-bg-selected',
-        isFlash && 'bg-bg-flash hover:bg-bg-flash',
-        focused && 'ring-2 ring-inset ring-accent',
-        // Accent 2px left edge via before pseudo on first-child td
-        '[&>td:first-child]:relative [&>td:first-child]:before:absolute [&>td:first-child]:before:left-0 [&>td:first-child]:before:top-0 [&>td:first-child]:before:bottom-0 [&>td:first-child]:before:w-[2px] [&>td:first-child]:before:bg-accent [&>td:first-child]:before:origin-center [&>td:first-child]:before:transition-transform [&>td:first-child]:before:duration-120 [&>td:first-child]:before:ease-out',
-        selected ? '[&>td:first-child]:before:scale-y-100' : '[&>td:first-child]:before:scale-y-0 group-hover:[&>td:first-child]:before:scale-y-100',
-        // Diagonal stripe overlay for attention rows
-        isAttention && '[&>td]:relative [&>td]:after:absolute [&>td]:after:inset-0 [&>td]:after:pointer-events-none [&>td]:after:opacity-[0.06] [&>td]:after:bg-[image:repeating-linear-gradient(45deg,#000_0,#000_2px,transparent_2px,transparent_8px)]',
-        className
-      )}
+      className={rowClassName}
       tabIndex={-1}
       {...props}
     >
       {children}
-    </Component>
+    </tr>
   );
 });
 TableRow.displayName = 'Table.Row';

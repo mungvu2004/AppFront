@@ -12,7 +12,7 @@ export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
   isReadOnly?: boolean;
   readOnlyReason?: string;
   isLoading?: boolean;
-  /** Flash accent-wash background after a write (400ms) */
+  /** Flash accent-wash background after a write (340ms) */
   flash?: boolean;
   /** Collapsed state — renders nothing */
   collapsed?: boolean;
@@ -55,7 +55,7 @@ export const FieldRow = ({
   return (
     <div
       className={cn(
-        'flex items-start min-h-[36px] py-2 transition-colors duration-[400ms]',
+        'flex items-start min-h-[36px] py-2 transition-colors duration-340',
         !isLast && 'border-b border-border-default',
         flash && 'bg-accent-wash',
         isReadOnly && 'opacity-60',

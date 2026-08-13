@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test",
-    "e2e:visual": "playwright test --update-snapshots",
+    "e2e": "node scripts/run-playwright.mjs --reporter=line",
+    "e2e:visual": "node scripts/run-playwright.mjs --update-snapshots --reporter=line",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },

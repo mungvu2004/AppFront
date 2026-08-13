@@ -41,16 +41,6 @@ function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: Conf
           style={{ width: `${percentage}%` }}
         />
         {/* Diagonal stripe for attention state — 6% opacity 45° pattern */}
-        {isAttention && (
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(45deg, currentColor 0, currentColor 1px, transparent 1px, transparent 4px)',
-              opacity: 0.06,
-            }}
-            aria-hidden="true"
-          />
-        )}
       </div>
       <span
         className={clsx(

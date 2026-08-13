@@ -73,17 +73,9 @@ export function MiniMap({ isVisible = true, children, className }: MiniMapProps)
         }}
       >
         {/* Lưới nền nhỏ (không dùng inline style màu — dùng CSS var) */}
-        <div
-          className="absolute inset-0 opacity-30 pointer-events-none"
-          style={{
-            backgroundImage: [
-              `linear-gradient(to right, var(--border-default) 1px, transparent 1px)`,
-              `linear-gradient(to bottom, var(--border-default) 1px, transparent 1px)`,
-            ].join(', '),
-            backgroundSize: '20px 20px',
-          }}
-          aria-hidden="true"
-        />
+        <div 
+          className="absolute inset-0 pointer-events-none border border-border-default/50" 
+          aria-hidden="true" />
 
         {/* Nội dung bản vẽ (tuỳ chọn) */}
         {children && (

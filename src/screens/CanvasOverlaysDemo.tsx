@@ -94,10 +94,6 @@ export function CanvasOverlaysDemo() {
           className="relative w-full h-full rounded shadow-panel overflow-hidden cursor-crosshair select-none"
           style={{
             backgroundColor: is3D ? 'var(--canvas-3d)' : 'var(--canvas-2d)',
-            backgroundImage: is3D
-              ? 'none'
-              : 'linear-gradient(to right, var(--canvas-2d-grid) 1px, transparent 1px), linear-gradient(to bottom, var(--canvas-2d-grid) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
