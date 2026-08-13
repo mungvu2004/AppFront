@@ -3,6 +3,7 @@
     "save": "Lưu",
     "saved_at": "Đã lưu lúc {{time}}",
     "undo": "Hoàn tác",
+    "undo_group": "Hoàn tác {{count}} thay đổi",
     "close": "Đóng",
     "retry": "Thử lại",
     "reload": "Tải lại",
