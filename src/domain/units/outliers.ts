@@ -99,9 +99,10 @@ export function splitOutliers(values: readonly number[], threshold: number): Out
   const rejectedIndices: number[] = [];
   values.forEach((value, index) => {
     const distance = Math.abs(value - centre);
-    // With no spread at all every sample is identical, so nothing can be an
-    // outlier; `distance` is then zero for all of them anyway.
-    const withinThreshold = spread > 0 ? distance / spread <= threshold : distance === 0;
+    // A spread of zero means the mean absolute deviation was zero too, which
+    // only happens when every sample equals the median; nothing can be an
+    // outlier among samples that all agree.
+    const withinThreshold = spread > 0 ? distance / spread <= threshold : true;
     if (withinThreshold) {
       keptIndices.push(index);
     } else {
