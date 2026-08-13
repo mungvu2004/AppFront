@@ -63,6 +63,14 @@
       "description": "Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại."
     }
   },
+  "autosave": {
+    "idle": "Chưa có thay đổi",
+    "dirty": "Có thay đổi chưa lưu",
+    "saving": "Đang lưu…",
+    "failed": "Lưu thất bại sau nhiều lần thử. Chỉnh sửa hoặc lưu lại thủ công.",
+    "offline": "Ngoại tuyến — sẽ lưu khi có mạng",
+    "savedRelative": "Đã lưu {{minutes}} phút trước"
+  },
   "pipeline": {
     "preprocess": "tiền xử lý",
     "wallSegmentation": "tách lớp tường",
