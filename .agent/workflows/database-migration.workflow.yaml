@@ -1,0 +1,27 @@
+name: database-migration
+description: Version and migrate persisted client state (store/IndexedDB) safely.
+version: 1
+steps:
+  - id: design_migration
+    agent: architect-planner
+    skill: database-ops
+    description: Design the versioned migration and rollback path.
+    depends_on: []
+  - id: seed_fixtures
+    agent: qa-test-engineer
+    skill: database-ops
+    description: Build fixtures using the standard sample dataset.
+    depends_on: [design_migration]
+  - id: implement_migration
+    agent: software-engineer
+    skill: database-ops
+    description: Implement the version-guarded migrate function.
+    depends_on: [design_migration]
+  - id: test_migration
+    agent: qa-test-engineer
+    description: Test read-back against fake-indexeddb; assert no data loss.
+    depends_on: [seed_fixtures, implement_migration]
+  - id: report
+    agent: orchestrator
+    description: Report migration coverage and rollback verification.
+    depends_on: [test_migration]

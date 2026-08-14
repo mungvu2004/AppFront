@@ -1,0 +1,16 @@
+# Isolation sandbox for running unallowlisted/untrusted commands.
+# Non-root, minimal, no build tools that could exfiltrate.
+FROM node:20-alpine
+
+# Create a non-root user; the container must never run as root.
+RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+
+# Writable scratch area. Source is mounted read-only at /workspace by compose;
+# only /workspace/tmp is writable.
+RUN mkdir -p /workspace/tmp && chown -R sandbox:sandbox /workspace/tmp
+
+WORKDIR /workspace
+USER sandbox
+
+# Default to a shell; the compose file constrains network, caps, and mounts.
+CMD ["node", "--version"]

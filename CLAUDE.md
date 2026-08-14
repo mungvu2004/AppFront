@@ -57,3 +57,9 @@ E. DEFINITION OF DONE — 11 điều, áp dụng cho mọi lượt sau
 
 F. CHECKLIST TỰ KIỂM TRƯỚC KHI TRẢ LỜI
 Mỗi lượt, trước khi kết thúc, agent phải in ra bảng 11 dòng của mục E kèm đạt/không đạt và bằng chứng (lệnh đã chạy, số dòng grep).
+
+G. AGENT HARNESS (Phase 1 — guardrail)
+- Lệnh chuẩn: `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build` · e2e: `pnpm e2e`.
+- Guardrail 2 lớp: (1) `permissions.deny` trong .claude/settings.json — lớp cứng, không phụ thuộc hook; (2) hook PreToolUse `.agent/hooks/pre_tool_use.py` — phân tích token qua `.agent/runtime/policy.py`, FAIL-CLOSED (exit 2). Cấu hình: `.agent/HARNESS.yaml`. Smoke test: `bash .agent/tests/smoke_guardrail.sh`.
+- Nới lỏng luật (thêm allow, gỡ protected_paths, thêm binary) = sửa HARNESS.yaml/settings.json qua PR có người duyệt. Agent không tự sửa được: các file này nằm trong permissions.deny và protected_paths.
+- KILL SWITCH: khi guardrail chặn nhầm lúc khẩn cấp, tắt tạm hook bằng `claude --settings '{"disableAllHooks": true}'`. Chỉ người vận hành (không phải agent) được tắt; ghi lý do + thời điểm vào `.agent/telemetry/killswitch.log`. Khi hook tắt, các lớp CÒN hiệu lực: `permissions.deny` (settings.json vẫn được nạp), và từ Phase 4 thêm sandbox Docker. Bật lại ngay sau khi xong việc.

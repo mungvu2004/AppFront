@@ -1,0 +1,5 @@
+# Domains the updater is allowed to collect from. One host per line.
+# collect.py refuses any URL whose host is not listed here.
+nvd.nist.gov
+github.com
+osv.dev

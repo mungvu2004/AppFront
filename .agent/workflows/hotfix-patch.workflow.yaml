@@ -1,0 +1,26 @@
+name: hotfix-patch
+description: Reproduce, fix, and verify an urgent regression on a feature branch.
+version: 1
+steps:
+  - id: reproduce
+    agent: qa-test-engineer
+    skill: tdd-refactoring
+    description: Write a failing test that reproduces the regression.
+    depends_on: []
+  - id: locate
+    agent: software-engineer
+    skill: git-advanced
+    description: Bisect / trace to the offending change.
+    depends_on: [reproduce]
+  - id: fix
+    agent: software-engineer
+    description: Apply the minimal fix; keep the repro test green.
+    depends_on: [locate]
+  - id: verify
+    agent: qa-test-engineer
+    description: Run pnpm lint + typecheck + test; confirm green.
+    depends_on: [fix]
+  - id: report
+    agent: orchestrator
+    description: Summarize root cause, fix, and verification.
+    depends_on: [verify]
