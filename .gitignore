@@ -42,3 +42,7 @@ storybook-static/
 .env.production.local
 
 __pycache__/
+.agent/*
+.claude/
+.githooks/
+settings.json
