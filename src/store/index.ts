@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { devtools, persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
+import { isStateTrackingEnabled, nameActions, STATE_TRACKING_NAME } from './devtools';
 import { createProjectSlice, ProjectSlice } from './projectSlice';
 import { createSpatialSlice, SpatialSlice } from './spatialSlice';
 import { createDraftSlice, DraftSlice } from './draftSlice';
@@ -25,46 +26,51 @@ export type RootState = ProjectSlice &
 export const PERSIST_STORAGE_KEY = 'appfront-view-ui';
 
 export const useStore = create<RootState>()(
-  persist(
-    temporal(
-      (...a) => ({
-        ...createProjectSlice(...a),
-        ...createSpatialSlice(...a),
-        ...createDraftSlice(...a),
-        ...createSelectionSlice(...a),
-        ...createToolSlice(...a),
-        ...createViewSlice(...a),
-        ...createHistorySlice(...a),
-        ...createUiSlice(...a),
-        ...createPipelineSlice(...a),
-      }),
-      {
-        partialize: (state) => {
-          // Only spatial data is tracked for undo/redo
-          return { spatial: state.spatial };
-        },
-        equality: (a, b) => a.spatial === b.spatial,
-        limit: 100, // keep last 100 states
-      }
+  devtools(
+    nameActions(
+      persist(
+        temporal(
+          (...a) => ({
+            ...createProjectSlice(...a),
+            ...createSpatialSlice(...a),
+            ...createDraftSlice(...a),
+            ...createSelectionSlice(...a),
+            ...createToolSlice(...a),
+            ...createViewSlice(...a),
+            ...createHistorySlice(...a),
+            ...createUiSlice(...a),
+            ...createPipelineSlice(...a),
+          }),
+          {
+            partialize: (state) => {
+              // Only spatial data is tracked for undo/redo
+              return { spatial: state.spatial };
+            },
+            equality: (a, b) => a.spatial === b.spatial,
+            limit: 100, // keep last 100 states
+          }
+        ),
+        {
+          name: PERSIST_STORAGE_KEY,
+          version: 1,
+          // Only the view and ui slices survive a reload. `openDialog` stays out:
+          // a blocking dialog must never reopen uninvited after a reload.
+          partialize: (state) => ({
+            zoom: state.zoom,
+            viewCenter: state.viewCenter,
+            viewMode: state.viewMode,
+            hiddenLayers: state.hiddenLayers,
+            colorMode: state.colorMode,
+            theme: state.theme,
+            leftPanelOpen: state.leftPanelOpen,
+            rightPanelOpen: state.rightPanelOpen,
+            leftPanelWidthPx: state.leftPanelWidthPx,
+            rightPanelWidthPx: state.rightPanelWidthPx,
+          }),
+        }
+      )
     ),
-    {
-      name: PERSIST_STORAGE_KEY,
-      version: 1,
-      // Only the view and ui slices survive a reload. `openDialog` stays out:
-      // a blocking dialog must never reopen uninvited after a reload.
-      partialize: (state) => ({
-        zoom: state.zoom,
-        viewCenter: state.viewCenter,
-        viewMode: state.viewMode,
-        hiddenLayers: state.hiddenLayers,
-        colorMode: state.colorMode,
-        theme: state.theme,
-        leftPanelOpen: state.leftPanelOpen,
-        rightPanelOpen: state.rightPanelOpen,
-        leftPanelWidthPx: state.leftPanelWidthPx,
-        rightPanelWidthPx: state.rightPanelWidthPx,
-      }),
-    }
+    { name: STATE_TRACKING_NAME, enabled: isStateTrackingEnabled() }
   )
 );
 

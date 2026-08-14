@@ -15,7 +15,8 @@ module.exports = {
       { allowConstantExport: true },
     ],
     'local/no-raw-color': 'error',
-    'local/no-direct-set': 'error'
+    'local/no-direct-set': 'error',
+    'local/no-draft-write-outside-commands': 'error'
   },
   overrides: [
     {
