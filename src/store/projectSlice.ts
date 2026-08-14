@@ -1,27 +1,37 @@
 import { StateCreator } from 'zustand';
-import { Project, ProjectMember } from '../types/project';
-import { ProjectMetadata } from '../types/spatial';
+import type { Level, LevelId } from '../domain/spatial/types';
+import type { Project, ProjectRole } from '../types/project';
 
+/**
+ * Project context: which project is open, its floors, the floor being viewed,
+ * and what the signed-in user is allowed to do on it.
+ *
+ * Permission checks are derived data and stay out of the store: call
+ * `can(action, resource, { roles })` from `lib/auth` with `userRoles`.
+ */
 export interface ProjectSlice {
+  /** Project currently open; null when none is. */
   project: Project | null;
-  metadata: ProjectMetadata | null;
-  setProject: (project: Project) => void;
-  setMetadata: (metadata: ProjectMetadata) => void;
-  updateMemberRole: (memberId: string, role: ProjectMember['role']) => void;
+  /** Floors of the open project, ordered bottom-up. */
+  floors: readonly Level[];
+  /** Floor being viewed; null until one is picked. */
+  activeFloorId: LevelId | null;
+  /** Roles of the signed-in user on the open project. */
+  userRoles: readonly ProjectRole[];
+  /** Opens a project (or closes it with null); floors and the viewed floor reset with it. */
+  setProject: (project: Project | null) => void;
+  setFloors: (floors: readonly Level[]) => void;
+  setActiveFloor: (activeFloorId: LevelId | null) => void;
+  setUserRoles: (userRoles: readonly ProjectRole[]) => void;
 }
 
 export const createProjectSlice: StateCreator<ProjectSlice> = (set) => ({
   project: null,
-  metadata: null,
-  setProject: (project) => set({ project }),
-  setMetadata: (metadata) => set({ metadata }),
-  updateMemberRole: (memberId, role) => set((state) => {
-    if (!state.project) return state;
-    return {
-      project: {
-        ...state.project,
-        members: state.project.members.map(m => m.id === memberId ? { ...m, role } : m)
-      }
-    };
-  }),
+  floors: [],
+  activeFloorId: null,
+  userRoles: [],
+  setProject: (project) => set({ project, floors: [], activeFloorId: null }),
+  setFloors: (floors) => set({ floors }),
+  setActiveFloor: (activeFloorId) => set({ activeFloorId }),
+  setUserRoles: (userRoles) => set({ userRoles }),
 });
