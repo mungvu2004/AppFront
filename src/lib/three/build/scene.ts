@@ -32,7 +32,7 @@ import { Vector2, Vector3, type Object3D } from 'three';
 
 import type { PointMm } from '@/domain/units/compare';
 import { millimetresToMetres, type Millimetres } from '@/domain/units/types';
-import type { LevelId, OpeningId, RoomId, WallId } from '@/domain/spatial/types';
+import type { FurnitureId, LevelId, OpeningId, RoomId, WallId } from '@/domain/spatial/types';
 
 /* -------------------------------------------------------------------------- */
 /* Units.                                                                      */
@@ -80,11 +80,17 @@ export function scenePoint(point: PointMm, elevationMm: Millimetres): Vector3 {
 /* Tracing a mesh back to the model.                                           */
 /* -------------------------------------------------------------------------- */
 
-/** What a built object stands for. */
-export type BuildPartKind = 'level' | 'wall' | 'floorSlab' | 'ceiling' | 'opening';
+/**
+ * What a built object stands for.
+ *
+ * `furniture` is not built by this package — a chair comes from a library rather
+ * than from arithmetic on a plan — but it is tagged the same way as everything
+ * else so that batching, picking and highlighting treat it no differently.
+ */
+export type BuildPartKind = 'level' | 'wall' | 'floorSlab' | 'ceiling' | 'opening' | 'furniture';
 
 /** The model ids a built object can point back at. */
-export type BuildEntityId = LevelId | WallId | RoomId | OpeningId;
+export type BuildEntityId = LevelId | WallId | RoomId | OpeningId | FurnitureId;
 
 /**
  * The tag every built object carries.
