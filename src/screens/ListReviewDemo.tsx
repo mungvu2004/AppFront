@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/feedback/Skeleton';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { useToast } from '../components/feedback/Toast';
+import { confidenceLevel } from '../lib/format/semantic';
 
 const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
   const num = i + 1;
@@ -16,7 +17,9 @@ const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
     id: `wall-${num}`,
     code: `W-${num.toString().padStart(3, '0')}`,
     thickness: 220,
-    confidence: isLowConf ? 0.71 : 0.85 + (Math.random() * 0.1),
+    // 0,62 nằm dưới mức "cần kiểm tra" (0,70) nên hàng vẫn tô attention như demo
+    // này muốn thể hiện; 0,71 trước đây rơi vào dải "AI đề xuất" và sẽ không tô.
+    confidence: isLowConf ? 0.62 : 0.85 + (Math.random() * 0.1),
     level: 'Tầng 01',
     status: 'neutral' // Not reviewed
   };
@@ -166,7 +169,7 @@ export function ListReviewDemo() {
               {demoState === 'loading' ? renderSkeletons() : review.data.map(item => {
                 const isSelected = review.selectedIds.has(item.id);
                 const isFocused = review.focusedId === item.id;
-                const isAttention = item.confidence < 0.75;
+                const isAttention = confidenceLevel(item.confidence) === 'needsReview';
                 const badgeText = item.status === 'verified' ? 'Đã duyệt' : item.status === 'neutral' ? 'Chưa duyệt' : item.status;
 
                 return (

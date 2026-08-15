@@ -1,12 +1,17 @@
 import React from 'react';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
+import { confidenceLevel } from '@/lib/format/semantic';
 import { Tooltip } from './Tooltip';
 
 // ─── ConfidenceMeter ──────────────────────────────────────────────────────────
 // Track: 4px tall, 48px wide.
-// Value < 0.75 → attention color + diagonal stripe overlay (6% opacity 45°).
-// Tooltip: "Độ tin cậy AI 0,71 — cần kiểm tra"
+// Mức "cần kiểm tra" → attention color + diagonal stripe overlay (6% opacity 45°).
+// Tooltip: "Độ tin cậy AI 0,62 — cần kiểm tra"
+//
+// Ngưỡng lấy từ `confidenceLevel`, không đặt số riêng: tooltip đã nói "cần kiểm
+// tra" nên nét vẽ phải đổi đúng ở ranh giới của mức đó (< 0,70). Con số 0,75 cũ
+// nằm giữa dải "AI đề xuất" nên 0,72 và 0,78 hiển thị khác nhau dù cùng nhãn.
 
 interface ConfidenceMeterProps extends React.HTMLAttributes<HTMLDivElement> {
   /** 0 to 1 */
@@ -17,7 +22,7 @@ interface ConfidenceMeterProps extends React.HTMLAttributes<HTMLDivElement> {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: ConfidenceMeterProps) {
-  const isAttention = value < 0.75;
+  const isAttention = confidenceLevel(value) === 'needsReview';
   const percentage = Math.min(100, Math.max(0, value * 100));
   // Format with Vietnamese decimal separator (comma)
   const displayValue = value.toFixed(2).replace('.', ',');
@@ -56,7 +61,7 @@ function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: Conf
 }
 
 export function ConfidenceMeter({ value, noTooltip = false, ...props }: ConfidenceMeterProps) {
-  const isAttention = value < 0.75;
+  const isAttention = confidenceLevel(value) === 'needsReview';
   const displayValue = value.toFixed(2).replace('.', ',');
   const tooltipLabel = isAttention
     ? `Độ tin cậy AI ${displayValue} — cần kiểm tra`

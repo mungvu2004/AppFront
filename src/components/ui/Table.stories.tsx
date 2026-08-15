@@ -6,6 +6,7 @@ import { Badge } from './Badge';
 import { ConfidenceMeter } from './ConfidenceMeter';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import { formatMm } from '../../lib/format';
+import { confidenceLevel } from '../../lib/format/semantic';
 
 // ── Extract wall data from mock ───────────────────────────────────────────────
 
@@ -177,7 +178,7 @@ export const WallsTable: Story = {
               <Table.Row
                 key={row.id}
                 selected={selected.has(row.id)}
-                isAttention={row.confidence < 0.75}
+                isAttention={confidenceLevel(row.confidence) === 'needsReview'}
                 onClick={() => toggleRow(row.id, !selected.has(row.id))}
               >
                 <Table.CheckboxCell
@@ -247,7 +248,7 @@ export const Virtualized500: Story = {
                 <Table.Row
                   key={row.id}
                   selected={selected.has(row.id)}
-                  isAttention={row.confidence < 0.75}
+                  isAttention={confidenceLevel(row.confidence) === 'needsReview'}
                   onClick={() => toggleRow(row.id, !selected.has(row.id))}
                 >
                   <Table.Cell className="font-mono text-[13px]">{row.id}</Table.Cell>

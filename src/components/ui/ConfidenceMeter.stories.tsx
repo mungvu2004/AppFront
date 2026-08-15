@@ -11,18 +11,23 @@ export default meta;
 type Story = StoryObj<typeof ConfidenceMeter>;
 
 export const High: Story = {
-  name: 'Cao (≥ 0,75)',
+  name: 'AI chắc chắn (≥ 0,90)',
   args: { value: 0.90 },
 };
 
+export const Suggested: Story = {
+  name: 'AI đề xuất (0,70–0,90)',
+  args: { value: 0.78 },
+};
+
 export const AttentionState: Story = {
-  name: 'Cần kiểm tra (< 0,75)',
-  args: { value: 0.71 },
+  name: 'Cần kiểm tra (< 0,70)',
+  args: { value: 0.62 },
 };
 
 export const Borderline: Story = {
-  name: 'Biên giới (0,75)',
-  args: { value: 0.75 },
+  name: 'Biên giới (0,70)',
+  args: { value: 0.70 },
 };
 
 export const VeryLow: Story = {

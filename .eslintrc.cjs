@@ -15,10 +15,25 @@ module.exports = {
       { allowConstantExport: true },
     ],
     'local/no-raw-color': 'error',
+    'local/no-raw-number': 'error',
     'local/no-direct-set': 'error',
     'local/no-draft-write-outside-commands': 'error'
   },
   overrides: [
+    {
+      // Nợ kỹ thuật có sẵn từ trước khi local/no-raw-number ra đời. Danh sách này
+      // chỉ được ngắn đi: chuyển màn hình sang ViewModel của src/lib/viewmodel rồi
+      // xoá dòng tương ứng. Cấm thêm file mới vào đây.
+      files: [
+        'src/components/shell/StatusBar.tsx',
+        'src/components/ui/ConfidenceMeter.tsx',
+        'src/components/ui/Slider.tsx',
+        'src/screens/ListReviewDemo.tsx'
+      ],
+      rules: {
+        'local/no-raw-number': 'off'
+      }
+    },
     {
       files: ['src/components/**/*'],
       rules: {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { describeChange, describeChanges, diffVersions, type EntityRecord, type VersionSnapshot } from '../diff';
+import { formatChange } from '@/lib/format/semantic';
+
+import { describeChanges, diffVersions, type EntityRecord, type VersionSnapshot } from '../diff';
 import {
   appendVersionToHistory,
   MAX_FULL_VERSIONS,
@@ -154,9 +156,9 @@ describe('diffVersions', () => {
   });
 });
 
-describe('describeChange', () => {
+describe('a diff entry, put into words', () => {
   it('describes a wall thickness change exactly as the product spec requires', () => {
-    const description = describeChange({
+    const description = formatChange({
       entityId: 'W-014',
       entityType: 'wall',
       field: 'thickness_mm',
@@ -169,7 +171,7 @@ describe('describeChange', () => {
   });
 
   it('always includes a unit for measurement fields', () => {
-    const elevation = describeChange({
+    const elevation = formatChange({
       entityId: 'WM-042',
       entityType: 'window',
       field: 'elevation_m',
@@ -177,7 +179,7 @@ describe('describeChange', () => {
       newValue: 1.2,
       oldValue: 0.9,
     });
-    const area = describeChange({
+    const area = formatChange({
       entityId: 'R-005',
       entityType: 'room',
       field: 'area_m2',
@@ -185,7 +187,7 @@ describe('describeChange', () => {
       newValue: 20.1,
       oldValue: 18.4,
     });
-    const rotation = describeChange({
+    const rotation = formatChange({
       entityId: 'F-012',
       entityType: 'furniture',
       field: 'rotation_deg',
@@ -200,8 +202,37 @@ describe('describeChange', () => {
     expect(rotation).toContain('°');
   });
 
+  // The copy of this renderer that used to live in `../diff` picked a unit per
+  // side, so a change across one metre read "980 mm → 1,02 m". One unit for the
+  // pair is the whole reason the shared renderer exists.
+  it('writes both sides of a length change in one unit, even across the metre mark', () => {
+    expect(
+      formatChange({
+        entityId: 'D-007',
+        entityType: 'door',
+        field: 'width_mm',
+        kind: 'changed',
+        newValue: 1020,
+        oldValue: 980,
+      }),
+    ).toBe('Cửa đi D-007 rộng 0,98 m → 1,02 m');
+  });
+
+  it('writes a measurement that never arrived as a dash rather than NaN', () => {
+    expect(
+      formatChange({
+        entityId: 'W-014',
+        entityType: 'wall',
+        field: 'thickness_mm',
+        kind: 'changed',
+        newValue: 220,
+        oldValue: null,
+      }),
+    ).toBe('Tường W-014 dày — → 220 mm');
+  });
+
   it('falls back to a generic phrasing without inventing a unit for non-measurement fields', () => {
-    const description = describeChange({
+    const description = formatChange({
       entityId: 'W-014',
       entityType: 'wall',
       field: 'review_state',
@@ -215,13 +246,13 @@ describe('describeChange', () => {
 
   it('describes an added entity', () => {
     expect(
-      describeChange({ entityId: 'D-007', entityType: 'door', kind: 'added', newValue: { width_mm: 800 } }),
+      formatChange({ entityId: 'D-007', entityType: 'door', kind: 'added', newValue: { width_mm: 800 } }),
     ).toBe('Thêm cửa đi D-007');
   });
 
   it('describes a removed entity', () => {
     expect(
-      describeChange({ entityId: 'D-007', entityType: 'door', kind: 'removed', oldValue: { width_mm: 800 } }),
+      formatChange({ entityId: 'D-007', entityType: 'door', kind: 'removed', oldValue: { width_mm: 800 } }),
     ).toBe('Xoá cửa đi D-007');
   });
 

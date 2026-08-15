@@ -1,4 +1,4 @@
-import { formatM, formatM2, formatMm, formatNumberVi } from '@/lib/format';
+import { formatChanges } from '@/lib/format/semantic';
 
 import type { EntityKind } from './mergeStrategies';
 
@@ -118,77 +118,20 @@ export function diffVersions(previous: VersionSnapshot, next: VersionSnapshot): 
   return { added, changed, removed };
 }
 
-interface FieldDescriptor {
-  format: (value: unknown) => string;
-  phrase: string;
-}
-
-const FIELD_DESCRIPTORS: Partial<Record<string, FieldDescriptor>> = {
-  area_m2: { format: (value) => formatM2(Number(value)), phrase: 'diện tích' },
-  elevation_m: { format: (value) => formatM(Number(value)), phrase: 'cao độ' },
-  height_mm: { format: (value) => formatMm(Number(value)), phrase: 'cao' },
-  rotation_deg: { format: (value) => `${formatNumberVi(Number(value), 0)}°`, phrase: 'xoay' },
-  thickness_mm: { format: (value) => formatMm(Number(value)), phrase: 'dày' },
-  value_mm: { format: (value) => formatMm(Number(value)), phrase: 'kích thước' },
-  width_mm: { format: (value) => formatMm(Number(value)), phrase: 'rộng' },
-};
-
-const ENTITY_LABELS: Record<EntityKind, string> = {
-  dimension: 'kích thước',
-  door: 'cửa đi',
-  furniture: 'nội thất',
-  room: 'phòng',
-  vertex: 'điểm',
-  wall: 'tường',
-  window: 'cửa sổ',
-};
-
-const capitalize = (label: string): string => (label.length > 0 ? `${label[0]!.toUpperCase()}${label.slice(1)}` : label);
-
-const describeGenericValue = (value: unknown): string => {
-  if (value === undefined) {
-    return '(trống)';
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => describeGenericValue(item)).join(', ');
-  }
-
-  if (typeof value === 'number') {
-    return formatNumberVi(value, Number.isInteger(value) ? 0 : 2);
-  }
-
-  return String(value);
-};
-
 /**
- * Renders one diff entry as a Vietnamese sentence, e.g. "Tường W-014 dày 200
- * mm → 220 mm". Measurement fields (mm/m/m²/°) always carry their unit via
- * `FIELD_DESCRIPTORS`; fields with no known unit fall back to a generic
- * "đổi field từ X sang Y" phrasing instead of inventing one.
+ * Renders every entry of a diff, added first, then removed, then changed.
+ *
+ * The sentences come from `formatChange` in `@/lib/format/semantic`, which is
+ * the single place a change is put into words; a {@link DiffEntry} satisfies its
+ * `ChangeEntry` shape without a cast. This module used to carry its own copy of
+ * that renderer, and the copy had already drifted: it wrote both sides of a
+ * length change in whichever unit each side fell into — `"rộng 980 mm → 1,02 m"`
+ * — and printed `"NaN"` for a measurement that never arrived. The shared one
+ * picks one unit for the pair and writes a missing value as a dash.
+ *
+ * What belongs here, and the only reason this wrapper still exists, is the order
+ * a version diff reads in: what was added, what went, then what moved.
  */
-export function describeChange(entry: DiffEntry): string {
-  const label = ENTITY_LABELS[entry.entityType];
-
-  if (entry.kind === 'added') {
-    return `Thêm ${label} ${entry.entityId}`;
-  }
-
-  if (entry.kind === 'removed') {
-    return `Xoá ${label} ${entry.entityId}`;
-  }
-
-  const field = entry.field ?? '';
-  const descriptor = FIELD_DESCRIPTORS[field];
-
-  if (descriptor) {
-    return `${capitalize(label)} ${entry.entityId} ${descriptor.phrase} ${descriptor.format(entry.oldValue)} → ${descriptor.format(entry.newValue)}`;
-  }
-
-  return `${capitalize(label)} ${entry.entityId} đổi ${field} từ ${describeGenericValue(entry.oldValue)} sang ${describeGenericValue(entry.newValue)}`;
-}
-
-/** Renders every entry of a diff, added first, then removed, then changed. */
 export function describeChanges(diff: VersionDiff): string[] {
-  return [...diff.added, ...diff.removed, ...diff.changed].map(describeChange);
+  return formatChanges([...diff.added, ...diff.removed, ...diff.changed]);
 }

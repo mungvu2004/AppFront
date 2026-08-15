@@ -7,13 +7,16 @@
  * Cấm gọi `color=` tự do ngoài file này.
  */
 
+import { confidenceLevel } from '@/lib/format/semantic';
+import type { MaybeNumber } from '@/lib/format/number';
+
 import type { WallThickness } from '../../types/spatial';
 
 // ─── Wall ──────────────────────────────────────────────────────────────────
 
 /**
  * Trả về CSS custom property token cho stroke của tường theo độ dày.
- * confidence < 0.75 → caller phải thêm gạch chéo 45° 6%.
+ * Mức "cần kiểm tra" → caller phải thêm gạch chéo 45° 6%; xem `isLowConfidence`.
  */
 export function wallStrokeToken(thickness: WallThickness): string {
   switch (thickness) {
@@ -126,9 +129,18 @@ export function selectionFillToken(): string {
 // ─── Confidence ────────────────────────────────────────────────────────────
 
 /**
- * Phần tử có confidence < 0.75 phải hiển thị gạch chéo 45° 6%.
+ * Phần tử ở mức "cần kiểm tra" phải hiển thị gạch chéo 45° 6%.
+ *
+ * Ngưỡng lấy từ `confidenceLevel` trong `@/lib/format/semantic` chứ không tự đặt
+ * con số. Trước đây file này dùng 0,75 riêng, nằm giữa dải "AI đề xuất"
+ * (0,70–0,90), nên một phần tử ghi "AI đề xuất" ở 0,72 thì có gạch chéo còn 0,78
+ * thì không — cùng một nhãn, hai cách vẽ. Nay ranh giới của nét vẽ trùng đúng
+ * ranh giới của nhãn: chỉ mức `needsReview` (< 0,70) mới bị gạch.
+ *
+ * Không có điểm số nào là `verified` — màu xanh đó thuộc về người duyệt (A5).
+ * Thiếu điểm số (`undefined`, `null`, `NaN`) là mức `unknown`, không gạch chéo:
+ * "chưa có điểm" khác với "điểm thấp".
  */
-export function isLowConfidence(confidence: number | undefined): boolean {
-  if (confidence === undefined) return false;
-  return confidence < 0.75;
+export function isLowConfidence(confidence: MaybeNumber): boolean {
+  return confidenceLevel(confidence) === 'needsReview';
 }
