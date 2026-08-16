@@ -1,0 +1,35 @@
+{
+  "rules": [
+    {
+      "effect": "deny",
+      "expires_at": "2027-01-01",
+      "hits": 0,
+      "id": "deny-rm-rf-root",
+      "match_kind": "substring",
+      "pattern": "rm -rf /",
+      "reason": "Recursive delete of filesystem root.",
+      "state": "enforce"
+    },
+    {
+      "effect": "deny",
+      "expires_at": "2027-01-01",
+      "hits": 0,
+      "id": "deny-curl-pipe-sh",
+      "match_kind": "substring",
+      "pattern": "curl | sh",
+      "reason": "Download-and-execute pattern.",
+      "state": "enforce"
+    },
+    {
+      "effect": "warn",
+      "expires_at": "2027-01-01",
+      "hits": 0,
+      "id": "warn-chmod-777",
+      "match_kind": "substring",
+      "pattern": "chmod 777",
+      "reason": "World-writable permissions are almost never intended.",
+      "state": "shadow"
+    }
+  ],
+  "version": 1
+}

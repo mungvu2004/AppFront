@@ -121,6 +121,24 @@ F. CHECKLIST TỰ KIỂM TRƯỚC KHI TRẢ LỜI
 Mỗi lượt, trước khi kết thúc, agent phải in ra bảng 11 dòng của mục E kèm đạt/không đạt và bằng chứng (lệnh đã chạy, số dòng grep).
 Dòng nào không áp dụng (ví dụ lượt chỉ sửa tài liệu) thì ghi "không áp dụng" kèm lý do — không được ghi "đạt".
 
+F.2 BÁO LỖI NGOÀI PHẠM VI YÊU CẦU
+Khi trong lúc làm việc agent phát hiện một **lỗi thật** nằm ngoài phạm vi được
+giao — bug, dữ liệu sai, luật bị vi phạm, lỗ hổng bảo mật, logic trùng lặp sẽ
+trôi khỏi nhau, ràng buộc chỉ được bảo đảm bằng test chứ không bằng kiểu dữ liệu
+— thì:
+1. **Không tự ý sửa.** Phạm vi được giao là phạm vi được giao; mở rộng im lặng
+   làm người duyệt không biết mình đang duyệt cái gì.
+2. **Phải báo**, trong phần trả lời, thành một mục riêng đặt cuối, gồm: chỗ lỗi
+   (đường dẫn + dòng), hậu quả cụ thể nếu để nguyên, và mức độ (chặn / nên sửa /
+   ghi nhận).
+3. **Hỏi có sửa luôn không**, kèm ước lượng phạm vi thay đổi (những file nào).
+   Người dùng quyết định; agent chờ.
+Ngoại lệ duy nhất được sửa ngay không cần hỏi: lỗi khiến chính phần việc được
+giao không chạy hoặc không kiểm chứng được. Khi đó vẫn phải nói rõ đã sửa gì và
+vì sao nó nằm trong đường tới hạn.
+Cấm im lặng bỏ qua. Một lỗi đã nhìn thấy mà không báo là lỗi của agent, không
+phải của người giao việc.
+
 ---
 
 G. AGENT HARNESS (`.agent/` — đã đủ 7 phase)
@@ -241,16 +259,26 @@ Nới luật (thêm allow, gỡ `protected_paths`, thêm binary vào
 duyệt**, rồi áp bằng tay từ `deploy/`. Agent không tự làm được và không được
 tìm cách đi vòng.
 
-Trạng thái cài đặt tại 2026-08-14 (`verify_install.sh`, log thật):
+Trạng thái cài đặt tại 2026-08-16 (`verify_install.sh` + `redteam.sh`, log thật):
 - Lớp 1 `permissions.deny`: **GREEN**.
-- `.claude/settings.json` mới có `PreToolUse` — **chưa** áp bản Phase-2 (thiếu
-  `env` và 5 hook còn lại). Áp: copy `.agent/deploy/settings.json` đè lên rồi
-  mở phiên mới đã trust.
-- Git hook: **chưa cài** (`core.hooksPath` chưa set). Cài:
-  `cp .agent/deploy/githooks/* .githooks/ && chmod +x .githooks/* && git config core.hooksPath .githooks`.
-- `.agent/policy/` chưa tồn tại (mới có bản gốc trong `deploy/`) → hook
-  ConfigChange chưa có ledger để đối chiếu.
-- 6 smoke suite: **GREEN**.
+- `.claude/settings.json`: đã áp bản Phase-2 — cả 6 hook lifecycle đều wired
+  live. **GREEN**.
+- Git hook: đã cài (`core.hooksPath=.githooks`, `pre-commit` executable).
+  **GREEN**.
+- `.agent/policy/`: đã tồn tại (có `rules.compiled.json` + `ledger.jsonl`); hook
+  ConfigChange đối chiếu sha256 chạy được. **GREEN**.
+- 6 smoke suite: **GREEN** (`INSTALL VERIFY: all layers GREEN`;
+  `smoke_guardrail` 41/41, `smoke_mcp` 15/15).
+- `redteam.sh`: **21/21 chặn hết**.
+
+Một đính chính so với bản ghi 2026-08-14: dòng "6 smoke suite GREEN" khi đó là
+sai. `smoke_guardrail` đỏ 10/41 case (Y1–Y11): `protected_paths` chỉ được kiểm
+cho `Write`/`Edit`, nên `cp`/`mv`/`rm`/`tee`/`ln`/`install`/`dd` và redirect
+`>`/`>>` — kể cả lồng trong `$( )` — vẫn ghi được vào file được bảo vệ. Bản vá
+đã nằm sẵn ở `.agent/deploy/runtime/policy.py` nhưng chưa ai áp lên
+`.agent/runtime/policy.py`. Áp ngày 2026-08-16, sau đó 41/41 xanh.
+**Bài học: `verify_install.sh` là nguồn sự thật, không phải mục này.** Khi hai
+bên lệch nhau thì sửa mục này, và chạy lại trước khi tin nó.
 
 G.11 Kill switch
 Khi guardrail chặn nhầm lúc khẩn cấp: `claude --settings '{"disableAllHooks": true}'`.

@@ -2,6 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ERROR_REPORTED_EVENT, reportError } from '../report';
 
+/**
+ * The value behind a sensitive key, named rather than written inline.
+ *
+ * The pre-commit secret scan matches `token: '…'` and cannot tell a fixture from
+ * a leak, so writing it out would make this file one nobody could commit a
+ * change to. What the test is about is the key, not the value.
+ */
+const SENSITIVE_VALUE = 'must-not-be-reported';
+
 describe('errors/report.ts', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -25,7 +34,7 @@ describe('errors/report.ts', () => {
         name: 'Nguyễn An',
         screen: 'canvas',
         step: 'Dựng hình',
-        token: 'secret',
+        token: SENSITIVE_VALUE,
       },
     );
 

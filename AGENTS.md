@@ -84,6 +84,13 @@ liệu mẫu chuẩn · (8) ảnh chụp 1440px · (9) CI xanh · (10) **cấm b
 chưa chạy lệnh thật** · (11) định danh tiếng Anh.
 Dòng không áp dụng thì ghi "không áp dụng" kèm lý do, không ghi "đạt".
 
+## 6.1 Báo lỗi ngoài phạm vi (bản chuẩn: CLAUDE.md mục F.2)
+
+Thấy lỗi thật nằm ngoài việc được giao thì **không tự sửa** — báo thành một mục
+riêng cuối câu trả lời (chỗ lỗi + hậu quả + mức độ), rồi hỏi có sửa luôn không
+kèm ước lượng file bị đụng. Chỉ được sửa ngay khi lỗi đó chặn chính phần việc
+được giao, và vẫn phải nói rõ đã sửa gì. Im lặng bỏ qua là lỗi của agent.
+
 ## 7. Harness — điều agent cần biết
 
 - Hook `PreToolUse` (`.agent/hooks/pre_tool_use.py`) chạy **fail-closed**: lệnh

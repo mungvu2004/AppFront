@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telemetry record (.agent/telemetry/events.jsonl, one object per line)",
+  "type": "object",
+  "required": ["event", "epoch_s"],
+  "properties": {
+    "event": { "type": "string" },
+    "epoch_s": { "type": "integer", "minimum": 0 },
+    "session_id": { "type": "string" },
+    "detail": { "type": "string" },
+    "tool": { "type": "string" },
+    "reason": { "type": "string" }
+  }
+}

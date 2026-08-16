@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Layer-2 post-commit: append a masked audit record to telemetry. Never fails
+# the commit (post-commit cannot abort anyway); best-effort logging only.
+set -euo pipefail
+IFS=$'\n\t'
+
+ROOT="$(git rev-parse --show-toplevel)"
+TELEMETRY_DIR="$ROOT/.agent/telemetry"
+mkdir -p "$TELEMETRY_DIR"
+
+sha="$(git rev-parse HEAD)"
+subject="$(git log -1 --pretty=%s | tr -d '\r' | cut -c1-120)"
+epoch="$(git log -1 --pretty=%ct)"
+
+# Minimal JSON; no env values, no secrets.
+printf '{"event":"post_commit","epoch_s":%s,"detail":"%s %s"}\n' \
+  "$epoch" "$sha" "$(printf '%s' "$subject" | sed 's/"/\\"/g')" \
+  >> "$TELEMETRY_DIR/events.jsonl" 2>/dev/null || true
+
+exit 0

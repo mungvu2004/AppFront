@@ -147,19 +147,30 @@ export interface OrbitCameraSettings {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Top.                                                                        */
+/* The flat views: the plan and the four elevations.                           */
 /* -------------------------------------------------------------------------- */
 
-/** Straight down, orthographic — the drawing the plan was measured as. */
-export interface TopCameraSettings {
-  /** As {@link OrbitCameraSettings.damping}, so sliding feels the same in both modes. */
+/**
+ * A measured drawing: locked angle, locked heading, orthographic, pan and zoom.
+ *
+ * Two views share this shape because they are the same view at different angles.
+ * A plan is the building seen from directly above; an elevation is the building
+ * seen dead level. Both exist for the same reason — **two walls of the same
+ * length must be the same length on screen**, whichever end of the building they
+ * are at — and a perspective camera is exactly the thing that breaks that. The
+ * only difference between them is `polarDeg`.
+ */
+export interface FlatCameraSettings {
+  /** As {@link OrbitCameraSettings.damping}, so sliding feels the same in every mode. */
   readonly damping: number;
   /**
-   * Vertical angle, in degrees from vertical. Zero, and there is no input that
-   * changes it: a plan read at a tilt is a plan whose dimensions are foreshortened.
+   * Vertical angle, in degrees from vertical, and there is no input that changes
+   * it: a drawing read at a tilt is a drawing whose dimensions are foreshortened.
+   *
+   * `0` is the plan, straight down. `90` is an elevation, dead level.
    */
   readonly polarDeg: number;
-  /** Multiplies the natural drag mapping, where the plan follows the pointer exactly. */
+  /** Multiplies the natural drag mapping, where the drawing follows the pointer exactly. */
   readonly panSpeedFactor: number;
   /** One wheel notch multiplies the visible half-height by this. */
   readonly zoomFactorPerNotch: number;
@@ -170,19 +181,25 @@ export interface TopCameraSettings {
   /**
    * The largest half-height as a multiple of the building radius.
    *
-   * At 1,5 the whole plan sits in the middle half of the viewport, which is as
-   * far out as a plan is still legible.
+   * At 1,5 the whole drawing sits in the middle half of the viewport, which is as
+   * far out as it is still legible.
    */
   readonly maxHalfHeightFactor: number;
   /**
-   * How far above the roof the camera is parked, in metres.
+   * How far clear of the building the camera is parked, in metres.
    *
-   * An orthographic projection does not change size with distance, so this
-   * number decides nothing about the picture — only that the near plane is above
-   * the tallest thing in the model rather than slicing through it.
+   * An orthographic projection does not change size with distance, so this number
+   * decides nothing about the picture — only that the near plane is outside the
+   * tallest or widest thing in the model rather than slicing through it.
    */
   readonly clearanceM: number;
 }
+
+/** Straight down — the drawing the plan was measured as. */
+export type TopCameraSettings = FlatCameraSettings;
+
+/** Dead level — the drawing a facade was measured as. */
+export type ElevationCameraSettings = FlatCameraSettings;
 
 /* -------------------------------------------------------------------------- */
 /* Walk.                                                                       */
@@ -244,6 +261,7 @@ export interface CameraSettings {
   readonly shared: SharedCameraSettings;
   readonly orbit: OrbitCameraSettings;
   readonly top: TopCameraSettings;
+  readonly elevation: ElevationCameraSettings;
   readonly walk: WalkCameraSettings;
 }
 
@@ -284,6 +302,19 @@ export const CAMERA_SETTINGS: CameraSettings = Object.freeze({
   top: Object.freeze({
     damping: 0.08,
     polarDeg: 0,
+    panSpeedFactor: 1,
+    zoomFactorPerNotch: 1.12,
+    minHalfHeightM: 0.5,
+    minHalfHeightFactor: 0.04,
+    maxHalfHeightFactor: 1.5,
+    clearanceM: 5,
+  }),
+
+  // The plan's numbers at the other angle. Ninety degrees, and everything else
+  // identical, because a facade is read the same way a plan is.
+  elevation: Object.freeze({
+    damping: 0.08,
+    polarDeg: 90,
     panSpeedFactor: 1,
     zoomFactorPerNotch: 1.12,
     minHalfHeightM: 0.5,

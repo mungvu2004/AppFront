@@ -1,0 +1,40 @@
+# rules.source.yaml — SOURCE OF TRUTH for adaptive guardrail rules.
+# HUMAN-EDITED ONLY. The updater writes to candidates/, never here.
+# Protected by permissions.deny (Edit/Write .agent/policy/**) + guardrail hook.
+# compile.py turns this into rules.compiled.json (+ sha256 recorded in ledger.jsonl).
+#
+# Rule grammar (compile.py rejects any file that violates it):
+#   id:         kebab-case string, unique
+#   effect:     "deny" | "warn"        # NEVER "allow" from the updater path
+#   match_kind: "substring" | "binary" # how `pattern` is applied
+#   pattern:    string
+#   state:      "candidate" | "shadow" | "enforce" | "retired"
+#   reason:     human-readable string
+#   expires_at: ISO date (YYYY-MM-DD); every rule MUST have a TTL
+#   hits:       integer >= 0
+version: 1
+rules:
+  - id: deny-rm-rf-root
+    effect: deny
+    match_kind: substring
+    pattern: "rm -rf /"
+    state: enforce
+    reason: "Recursive delete of filesystem root."
+    expires_at: "2027-01-01"
+    hits: 0
+  - id: deny-curl-pipe-sh
+    effect: deny
+    match_kind: substring
+    pattern: "curl | sh"
+    state: enforce
+    reason: "Download-and-execute pattern."
+    expires_at: "2027-01-01"
+    hits: 0
+  - id: warn-chmod-777
+    effect: warn
+    match_kind: substring
+    pattern: "chmod 777"
+    state: shadow
+    reason: "World-writable permissions are almost never intended."
+    expires_at: "2027-01-01"
+    hits: 0

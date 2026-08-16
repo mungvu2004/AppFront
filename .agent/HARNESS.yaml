@@ -1,0 +1,98 @@
+# HARNESS.yaml — cấu hình trung tâm của agent harness.
+# Được đọc bởi: .agent/runtime/policy.py (load_config), engine.py và các hook.
+# Schema: .agent/schema/harness.schema.json (policy.py tự validate khi nạp).
+# Thay đổi NỚI LỎNG (thêm allow, gỡ protected) phải qua PR có người duyệt — xem CLAUDE.md mục G.
+
+version: 1
+
+project:
+  name: app-front
+  package_manager: pnpm
+
+guardrail:
+  # fail_mode "closed": payload hỏng / config hỏng / phân tích lỗi => chặn (exit 2).
+  fail_mode: closed
+
+  # Watchdog nội bộ của hook (ms). Phải nhỏ hơn timeout khai báo trong settings.json (5s)
+  # để hook tự chặn trước khi runtime timeout — vì PreToolUse bị timeout sẽ KHÔNG chặn gì.
+  budget_ms: 3000
+
+  protected_branches:
+    - master
+    - main
+
+  # Đường dẫn tương đối từ gốc repo mà agent KHÔNG được ghi/sửa qua Write/Edit.
+  # Phải khớp với các rule Edit/Write trong permissions.deny của .claude/settings.json (lớp 1).
+  protected_paths:
+    - .claude/settings.json
+    - .claude/settings.local.json
+    - .agent/policy
+    - .agent/HARNESS.yaml
+    - .agent/schema/harness.schema.json
+    - .agent/runtime/policy.py
+    - .agent/hooks/pre_tool_use.py
+    - .githooks
+    - .env
+
+  # File chứa bí mật: cấm đọc qua cat/head/... và cấm ghi.
+  secret_globs:
+    - ".env"
+    - ".env.*"
+    - "*.pem"
+    - "*.key"
+    - "id_rsa*"
+    - "id_ed25519*"
+
+  # Allowlist-first: binary trong danh sách này (sau khi qua các rule nguy hiểm)
+  # được hook cho qua ở trạng thái trung lập (exit 0) — hệ thống permission của
+  # Claude Code vẫn là người quyết cuối. Binary KHÔNG có trong danh sách cũng
+  # trung lập trừ khi khớp rule nguy hiểm => rơi về permission prompt.
+  allowed_binaries:
+    - ls
+    - cat
+    - head
+    - tail
+    - wc
+    - sort
+    - uniq
+    - cut
+    - tr
+    - grep
+    - find
+    - pwd
+    - echo
+    - printf
+    - dirname
+    - basename
+    - date
+    - which
+    - command
+    - test
+    - mkdir
+    - touch
+    - cp
+    - mv
+    - diff
+    - stat
+    - du
+    - sed
+    - awk
+    - node
+    - npx
+    - pnpm
+    - npm
+    - git
+    - python
+    - tsc
+    - eslint
+    - vitest
+    - prettier
+    - bash
+    - sh
+
+# Trần chi phí (BLOCK 9#4). Đọc bởi .agent/hooks/session_end.py (ghi so sánh vào
+# telemetry) và .agent/evals/runner.py (in xu hướng).
+budgets:
+  max_tool_calls_per_session: 400
+  max_session_minutes: 240
+  max_sessions_per_day: 30

@@ -1,10 +1,12 @@
 /**
- * Three ways of looking at a building, and the one thing all three agree about.
+ * Four ways of looking at a building, and the one thing all four agree about.
  *
- * A reviewer does three different things with a model and needs a different
- * camera for each: turn it over to see how it is put together, read it flat to
- * check a dimension, and stand inside it to find out whether a door opens into a
- * corridor somebody can actually use. Those are the orbit, top and walk modes.
+ * A reviewer does different things with a model and needs a different camera for
+ * each: turn it over to see how it is put together, read the plan flat to check a
+ * dimension, read a facade the same way, and stand inside it to find out whether
+ * a door opens into a corridor somebody can actually use. Those are the orbit,
+ * top, elevation and walk modes — and the middle two are one implementation at
+ * two angles, because a plan and an elevation are the same drawing turned.
  *
  * ## Why these are written out rather than configured
  *
@@ -21,7 +23,7 @@
  * ## The viewpoint is the currency
  *
  * Switching mode must not throw the reviewer somewhere else in the building.
- * The three modes cannot agree about where the *camera* goes — a walker's eye is
+ * The modes cannot agree about where the *camera* goes — a walker's eye is
  * pinned 1,6 m off the floor, an orthographic plan view has no meaningful eye
  * distance at all — but they can agree about **the point being looked at**. So
  * {@link Viewpoint} is that point, plus the heading, vertical angle and framing
@@ -59,7 +61,7 @@ import { Vector3, type Box3, type OrthographicCamera, type PerspectiveCamera } f
 
 import { degrees, degreesToRadians, RADIANS_PER_TURN } from '@/domain/units/types';
 
-import { CAMERA_SETTINGS } from './settings';
+import { CAMERA_SETTINGS, type FlatCameraSettings } from './settings';
 
 /* -------------------------------------------------------------------------- */
 /* Angles, resolved once from the settings.                                    */
@@ -76,8 +78,6 @@ const ORBIT_MIN_POLAR_RAD = toRadians(CAMERA_SETTINGS.orbit.minPolarDeg);
 const ORBIT_MAX_POLAR_RAD = toRadians(CAMERA_SETTINGS.orbit.maxPolarDeg);
 const ORBIT_RAD_PER_PIXEL = RADIANS_PER_TURN / CAMERA_SETTINGS.orbit.rotatePixelsPerTurn;
 
-const TOP_POLAR_RAD = toRadians(CAMERA_SETTINGS.top.polarDeg);
-
 const WALK_MAX_PITCH_RAD = toRadians(CAMERA_SETTINGS.walk.maxPitchDeg);
 const WALK_RAD_PER_PIXEL = RADIANS_PER_TURN / CAMERA_SETTINGS.walk.lookPixelsPerTurn;
 
@@ -88,8 +88,8 @@ const HALF_FIELD_OF_VIEW_RAD = toRadians(CAMERA_SETTINGS.shared.fieldOfViewDeg /
 /* Public types.                                                               */
 /* -------------------------------------------------------------------------- */
 
-/** Which of the three ways of looking is in use. */
-export type CameraMode = 'orbit' | 'top' | 'walk';
+/** Which way of looking is in use. */
+export type CameraMode = 'orbit' | 'top' | 'elevation' | 'walk';
 
 /**
  * What every mode can say, and every mode can be built from.
@@ -324,14 +324,24 @@ export function orbitDistanceLimits(extent: BuildingExtent): LengthLimits {
   return { minM, maxM: Math.max(minM, radius * CAMERA_SETTINGS.orbit.maxRadiusFactor) };
 }
 
-/** How far in and out the top view may zoom, as half-heights of the frustum. */
-export function topHalfHeightLimits(extent: BuildingExtent): LengthLimits {
+/** How far in and out a flat view may zoom, as half-heights of the frustum. */
+export function flatHalfHeightLimits(
+  extent: BuildingExtent,
+  settings: FlatCameraSettings,
+): LengthLimits {
   const radius = boundingRadiusM(extent);
-  const minM = Math.max(
-    CAMERA_SETTINGS.top.minHalfHeightM,
-    radius * CAMERA_SETTINGS.top.minHalfHeightFactor,
-  );
-  return { minM, maxM: Math.max(minM, radius * CAMERA_SETTINGS.top.maxHalfHeightFactor) };
+  const minM = Math.max(settings.minHalfHeightM, radius * settings.minHalfHeightFactor);
+  return { minM, maxM: Math.max(minM, radius * settings.maxHalfHeightFactor) };
+}
+
+/** The zoom range of the plan view. */
+export function topHalfHeightLimits(extent: BuildingExtent): LengthLimits {
+  return flatHalfHeightLimits(extent, CAMERA_SETTINGS.top);
+}
+
+/** The zoom range of an elevation. */
+export function elevationHalfHeightLimits(extent: BuildingExtent): LengthLimits {
+  return flatHalfHeightLimits(extent, CAMERA_SETTINGS.elevation);
 }
 
 /** Clip planes wide enough for the far limit of a building this size. */
@@ -592,29 +602,40 @@ export class OrbitCameraMode implements CameraModeController {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Top.                                                                        */
+/* The flat views: the plan and the four elevations.                           */
 /* -------------------------------------------------------------------------- */
 
 /**
- * The plan, read flat.
+ * A measured drawing: locked angle, locked heading, orthographic, pan and zoom.
  *
- * Orthographic, because a plan is a measured drawing: two walls of the same
- * length must be the same length on screen whichever end of the building they
- * are at, and a perspective view is exactly the thing that breaks that.
+ * The plan and the elevations are the same view at two angles, so they are one
+ * class taking two settings rather than two classes that would have to be kept
+ * in step by hand. Everything that distinguishes them is `polarDeg`: at 0 the
+ * camera looks straight down and screen-up lies along the plan; at 90 it looks
+ * dead level and screen-up is world up. Both fall out of {@link screenUp} and
+ * {@link eyeOffset} without a special case.
+ *
+ * Orthographic, because these are the drawings dimensions are checked against:
+ * two walls of the same length must be the same length on screen whichever end
+ * of the building they are at, and a perspective camera is exactly the thing
+ * that breaks that.
  *
  * There is no method here that changes the vertical angle or the heading. The
- * lock is structural rather than a clamp — an input that does not exist cannot be
- * called by mistake — and the heading is the one inherited on entry, so arriving
- * from the orbit view leaves the building pointing the same way on screen as it
- * did a frame earlier.
+ * lock is structural rather than a clamp — an input that does not exist cannot
+ * be called by mistake — and the heading is the one inherited on entry, so
+ * arriving from the orbit view leaves the building pointing the same way on
+ * screen as it did a frame earlier.
  */
-export class TopCameraMode implements CameraModeController {
-  readonly mode = 'top';
+export abstract class FlatCameraMode implements CameraModeController {
+  abstract readonly mode: CameraMode;
 
   private readonly extent: BuildingExtent;
+  private readonly settings: FlatCameraSettings;
   private readonly limits: LengthLimits;
+  private readonly lockedPolarRad: number;
   private readonly azimuthRad: number;
-  private readonly parkedHeightM: number;
+  /** How far back the camera sits. Nothing to do with the picture; see `pose`. */
+  private readonly parkedDistanceM: number;
 
   private readonly goalTarget = new Vector3();
   private readonly liveTarget = new Vector3();
@@ -622,12 +643,19 @@ export class TopCameraMode implements CameraModeController {
   private goalHalfHeightM: number;
   private liveHalfHeightM: number;
 
-  constructor(viewpoint: Viewpoint, context: CameraModeContext) {
+  protected constructor(
+    viewpoint: Viewpoint,
+    context: CameraModeContext,
+    settings: FlatCameraSettings,
+  ) {
     this.extent = context.extent;
-    this.limits = topHalfHeightLimits(context.extent);
+    this.settings = settings;
+    this.limits = flatHalfHeightLimits(context.extent, settings);
+    this.lockedPolarRad = toRadians(settings.polarDeg);
     this.azimuthRad = viewpoint.azimuthRad;
-    this.parkedHeightM =
-      context.extent.centre.y + context.extent.sizeM.y / 2 + CAMERA_SETTINGS.top.clearanceM;
+    // Outside the bounding sphere, so the near plane never slices the model
+    // whichever way the drawing faces.
+    this.parkedDistanceM = boundingRadiusM(context.extent) + settings.clearanceM;
 
     this.goalTarget.copy(viewpoint.target);
     this.liveTarget.copy(viewpoint.target);
@@ -645,34 +673,34 @@ export class TopCameraMode implements CameraModeController {
     return this.limits;
   }
 
-  /** Half the visible height of the plan, in metres — the zoom, stated as a length. */
+  /** Half the visible height of the drawing, in metres — the zoom, as a length. */
   get halfHeightM(): number {
     return this.liveHalfHeightM;
   }
 
   /**
-   * Slide the plan under the pointer.
+   * Slide the drawing under the pointer.
    *
-   * Both directions are horizontal, so the height of the point being looked at
-   * is untouched however far the reviewer slides: a plan view stays on its
-   * storey.
+   * Both directions lie in the plane the camera faces, so a plan view slides
+   * across its storey without leaving it, and an elevation slides along the
+   * facade and up it — which is what scrolling an elevation has to mean.
    */
   pan(deltaXPx: number, deltaYPx: number, viewportHeightPx: number): void {
     const perPixel =
       orthographicMetresPerPixel(this.liveHalfHeightM, viewportHeightPx) *
-      CAMERA_SETTINGS.top.panSpeedFactor;
+      this.settings.panSpeedFactor;
     if (perPixel === 0) {
       return;
     }
 
     const right = horizontalRight(this.azimuthRad).multiplyScalar(-deltaXPx * perPixel);
-    const up = horizontalForward(this.azimuthRad).multiplyScalar(deltaYPx * perPixel);
+    const up = screenUp(this.azimuthRad, this.lockedPolarRad).multiplyScalar(deltaYPx * perPixel);
     this.goalTarget.add(right).add(up);
   }
 
   /** Wheel notches out and in, held to the limits the building size sets. */
   zoom(notches: number): void {
-    const scaled = this.goalHalfHeightM * Math.pow(CAMERA_SETTINGS.top.zoomFactorPerNotch, notches);
+    const scaled = this.goalHalfHeightM * Math.pow(this.settings.zoomFactorPerNotch, notches);
     this.goalHalfHeightM = clamp(scaled, this.limits.minM, this.limits.maxM);
   }
 
@@ -680,23 +708,24 @@ export class TopCameraMode implements CameraModeController {
     return {
       target: this.liveTarget.clone(),
       azimuthRad: this.azimuthRad,
-      polarRad: TOP_POLAR_RAD,
+      polarRad: this.lockedPolarRad,
       distanceM: frameDistanceM(this.liveHalfHeightM),
     };
   }
 
   pose(): CameraPose {
-    const eyeY = Math.max(this.parkedHeightM, this.liveTarget.y + CAMERA_SETTINGS.top.clearanceM);
     return {
-      eye: new Vector3(this.liveTarget.x, eyeY, this.liveTarget.z),
+      eye: eyeOffset(this.azimuthRad, this.lockedPolarRad, this.parkedDistanceM).add(
+        this.liveTarget,
+      ),
       target: this.liveTarget.clone(),
-      up: screenUp(this.azimuthRad, TOP_POLAR_RAD),
+      up: screenUp(this.azimuthRad, this.lockedPolarRad),
       orthographicHalfHeightM: this.liveHalfHeightM,
     };
   }
 
   update(dtSeconds: number): boolean {
-    const alpha = dampingAlpha(CAMERA_SETTINGS.top.damping, dtSeconds);
+    const alpha = dampingAlpha(this.settings.damping, dtSeconds);
     if (alpha === 0) {
       return !this.atRest();
     }
@@ -726,6 +755,34 @@ export class TopCameraMode implements CameraModeController {
       this.liveTarget.distanceTo(this.goalTarget) <= epsilon &&
       Math.abs(this.goalHalfHeightM - this.liveHalfHeightM) <= epsilon
     );
+  }
+}
+
+/** The plan: straight down, orthographic. */
+export class TopCameraMode extends FlatCameraMode {
+  readonly mode = 'top';
+
+  constructor(viewpoint: Viewpoint, context: CameraModeContext) {
+    super(viewpoint, context, CAMERA_SETTINGS.top);
+  }
+}
+
+/**
+ * An elevation: dead level, orthographic.
+ *
+ * The view a facade is dimensioned in. It is a mode of its own rather than an
+ * orbit camera turned sideways for two reasons the orbit mode cannot give up:
+ * the orbit camera stops 5° short of level, and it is perspective, so the near
+ * end of a long facade would measure longer than the far end.
+ *
+ * The heading is whatever it is built with — the four standard elevations are
+ * the four quarter turns — and no input changes it.
+ */
+export class ElevationCameraMode extends FlatCameraMode {
+  readonly mode = 'elevation';
+
+  constructor(viewpoint: Viewpoint, context: CameraModeContext) {
+    super(viewpoint, context, CAMERA_SETTINGS.elevation);
   }
 }
 
@@ -941,6 +998,8 @@ export function createCameraMode(
       return new OrbitCameraMode(viewpoint, context);
     case 'top':
       return new TopCameraMode(viewpoint, context);
+    case 'elevation':
+      return new ElevationCameraMode(viewpoint, context);
     case 'walk':
       return new WalkCameraMode(viewpoint, context);
   }

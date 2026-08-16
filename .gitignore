@@ -42,8 +42,44 @@ storybook-static/
 .env.production.local
 
 __pycache__/
-.agent/deploy/runtime/
+
+# The agent harness. CLAUDE.md describes it as reviewable -- section G.10 calls
+# .agent/deploy/** the "bản gốc" of the protected files and requires changes to
+# go through a reviewed PR -- but `.agent/*` alone kept every line of it out of
+# git, so there was nothing for a reviewer to review and a fix to the guardrail
+# could not travel past the machine it was made on.
+#
+# So: ignore the tree by default, then name what is source. Order matters twice
+# over. A negation cannot re-include a file whose parent directory is excluded,
+# which is why each directory is un-ignored by name; and the last matching
+# pattern wins, which is why deploy/runtime/ is re-excluded below rather than
+# above.
 .agent/*
+!.agent/ARCHITECTURE.md
+!.agent/HARNESS.yaml
+!.agent/deploy/
+!.agent/evals/
+!.agent/hooks/
+!.agent/mcp/
+!.agent/policy/
+!.agent/runtime/
+!.agent/sandboxes/
+!.agent/schema/
+!.agent/tests/
+!.agent/tools/
+!.agent/workflows/
+
+# Nothing is re-excluded under deploy/. It looks like it should be -- there is a
+# .agent/deploy/runtime/ and the name reads like session state -- but it holds
+# the patched policy engine an operator is meant to copy over the live one, and
+# smoke_guardrail's Y1-Y11 stay RED until they do. That is the single file in
+# this repository most in need of a reviewer, and __pycache__/ above already
+# keeps the compiled bytecode beside it out.
+#
+# What stays ignored is what `.agent/*` above already covers and no negation
+# names: memory/ and telemetry/ (state and counters, rewritten every run) and
+# vendor/ (140 third-party files, a separate decision).
+
 .claude/
 .githooks/
 settings.json

@@ -14,6 +14,8 @@ import {
   boundingRadiusM,
   buildingExtent,
   createCameraMode,
+  ElevationCameraMode,
+  elevationHalfHeightLimits,
   extentFloorM,
   frameDistanceM,
   frameHalfHeightM,
@@ -86,7 +88,10 @@ function run(
   }
 }
 
-const ALL_MODES: readonly CameraMode[] = ['orbit', 'top', 'walk'];
+const ALL_MODES: readonly CameraMode[] = ['orbit', 'top', 'elevation', 'walk'];
+
+/** The two flat drawings, whose eye distance is a framing distance, not a real one. */
+const FLAT_MODES: readonly CameraMode[] = ['top', 'elevation'];
 
 /** The tolerance the brief sets for a mode change: one centimetre. */
 const SWITCH_TOLERANCE_M = 0.01;
@@ -417,6 +422,87 @@ describe('the top mode', () => {
 
   it('gives a bigger building a wider view to zoom out to', () => {
     expect(topHalfHeightLimits(BIG_EXTENT).maxM).toBeGreaterThan(topHalfHeightLimits(EXTENT).maxM);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Elevation: dead level, orthographic.                                        */
+/* -------------------------------------------------------------------------- */
+
+describe('the elevation mode', () => {
+  it('reads dead level: the eye is at the height of what it looks at', () => {
+    const mode = new ElevationCameraMode(sampleViewpoint(), CONTEXT);
+    const pose = mode.pose();
+
+    expect(toDeg(mode.viewpoint().polarRad)).toBeCloseTo(90, 12);
+    expect(pose.eye.y).toBeCloseTo(pose.target.y, 12);
+  });
+
+  it('is orthographic, which is what makes a facade measurable', () => {
+    const mode = new ElevationCameraMode(sampleViewpoint(), CONTEXT);
+
+    expect(mode.pose().orthographicHalfHeightM).toBeCloseTo(mode.halfHeightM, 12);
+    expect(mode.halfHeightM).toBeGreaterThan(0);
+  });
+
+  it('stands the right way up, unlike the plan view', () => {
+    expect(new ElevationCameraMode(sampleViewpoint(), CONTEXT).pose().up.y).toBeCloseTo(1, 12);
+  });
+
+  it('parks clear of the building, whichever facade it is reading', () => {
+    for (const azimuthDeg of [0, 90, 180, 270]) {
+      const mode = new ElevationCameraMode(sampleViewpoint({ azimuthRad: toRad(azimuthDeg) }), CONTEXT);
+      const pose = mode.pose();
+
+      expect(pose.eye.distanceTo(pose.target)).toBeGreaterThan(EXTENT.sizeM.length() / 2);
+    }
+  });
+
+  it('cannot be tilted or turned by any input it has', () => {
+    const mode = new ElevationCameraMode(sampleViewpoint(), CONTEXT);
+    const before = mode.viewpoint();
+
+    mode.pan(300, -200, 900);
+    mode.zoom(-4);
+    run(mode, 2);
+
+    expect(mode.viewpoint().polarRad).toBe(before.polarRad);
+    expect(mode.viewpoint().azimuthRad).toBe(before.azimuthRad);
+  });
+
+  it('slides along the facade and up it, but never off it', () => {
+    const mode = new ElevationCameraMode(sampleViewpoint({ azimuthRad: 0 }), CONTEXT);
+    const before = mode.viewpoint().target.clone();
+
+    mode.pan(240, 160, 900);
+    mode.settle();
+    const after = mode.viewpoint().target;
+
+    // Along the facade and up it — and not through it.
+    expect(Math.abs(after.x - before.x)).toBeGreaterThan(0.1);
+    expect(Math.abs(after.y - before.y)).toBeGreaterThan(0.1);
+    expect(after.z).toBeCloseTo(before.z, 12);
+  });
+
+  it('holds the zoom inside the limits the building size sets', () => {
+    const mode = new ElevationCameraMode(sampleViewpoint(), CONTEXT);
+    const limits = elevationHalfHeightLimits(EXTENT);
+
+    for (let notch = 0; notch < 80; notch += 1) {
+      mode.zoom(1);
+      mode.update(FRAME_SECONDS);
+      expect(mode.halfHeightM).toBeLessThanOrEqual(limits.maxM + 1e-9);
+    }
+    mode.settle();
+    expect(mode.halfHeightM).toBeCloseTo(limits.maxM, 9);
+
+    for (let notch = 0; notch < 160; notch += 1) {
+      mode.zoom(-1);
+      mode.update(FRAME_SECONDS);
+      expect(mode.halfHeightM).toBeGreaterThanOrEqual(limits.minM - 1e-9);
+    }
+    mode.settle();
+    expect(mode.halfHeightM).toBeCloseTo(limits.minM, 9);
   });
 });
 
@@ -756,9 +842,9 @@ describe('switching mode', () => {
       const built = createCameraMode(mode, sampleViewpoint(), CONTEXT);
       const eye = viewpointEye(built.viewpoint());
 
-      // The top view is the exception, and says so: its projection has no eye
-      // distance, so the framing distance stands in for one.
-      if (mode !== 'top') {
+      // The flat drawings are the exception, and say so: an orthographic
+      // projection has no eye distance, so the framing distance stands in for one.
+      if (!FLAT_MODES.includes(mode)) {
         expect(eye.distanceTo(built.pose().eye)).toBeLessThan(1e-9);
       }
     }
