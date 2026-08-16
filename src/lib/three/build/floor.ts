@@ -40,6 +40,7 @@ import { isAttached, type AttachedOpening, type Opening } from '@/domain/opening
 import type { Wall } from '@/domain/walls/types';
 import type { LevelId, OpeningId, RoomId } from '@/domain/spatial/types';
 
+import { OPENING_PANEL_THICKNESS_MM, SLAB_THICKNESS_MM } from './plan';
 import { sceneVector2, tagPart, toSceneLength, type PartUserData } from './scene';
 import { buildWallMesh, wallFrame, type WallPartData } from './wall';
 
@@ -47,18 +48,15 @@ import { buildWallMesh, wallFrame, type WallPartData } from './wall';
 /* Constants.                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/** How thick a generated slab is, floor and ceiling alike. */
-export const SLAB_THICKNESS_MM: Millimetres = millimetres(150);
-
 /**
- * How thick the panel hung in an opening is.
+ * Slab and panel thickness, defined in `plan.ts` and re-exported here.
  *
- * A door leaf and a sealed unit are not the same thickness in life, but the panel
- * is a handle to click and a surface to shade, not a joinery drawing, and one
- * number keeps it from pretending to be more than that. Forty millimetres always
- * fits: the thinnest wall the model accepts is 60 mm.
+ * They live there because the worker needs them too, and the worker cannot reach
+ * through this module to get them: importing anything from here at runtime would
+ * pull three.js into a thread that has nothing to render on. One definition, read
+ * from both sides of the thread boundary.
  */
-export const OPENING_PANEL_THICKNESS_MM: Millimetres = millimetres(40);
+export { OPENING_PANEL_THICKNESS_MM, SLAB_THICKNESS_MM };
 
 /* -------------------------------------------------------------------------- */
 /* Public types.                                                               */
