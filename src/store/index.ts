@@ -7,7 +7,7 @@ import { createSpatialSlice, SpatialSlice } from './spatialSlice';
 import { createDraftSlice, DraftSlice } from './draftSlice';
 import { createSelectionSlice, SelectionSlice } from './selectionSlice';
 import { createToolSlice, ToolSlice } from './toolSlice';
-import { createViewSlice, ViewSlice } from './viewSlice';
+import { createViewSlice, migrateColorMode, ViewSlice } from './viewSlice';
 import { createHistorySlice, HistorySlice } from './historySlice';
 import { createUiSlice, UiSlice } from './uiSlice';
 import { createPipelineSlice, PipelineSlice } from './pipelineSlice';
@@ -24,6 +24,15 @@ export type RootState = ProjectSlice &
 
 /** localStorage key the view and ui slices are persisted under. */
 export const PERSIST_STORAGE_KEY = 'appfront-view-ui';
+
+/**
+ * Shape version of what is persisted. Bumped when a stored field changes
+ * meaning, so `migrate` below can tell an old entry from a current one.
+ *
+ * 2 — `colorMode` moved off this slice's own four ids onto the seven
+ * `src/lib/coloring` owns.
+ */
+export const PERSIST_VERSION = 2;
 
 export const useStore = create<RootState>()(
   devtools(
@@ -52,7 +61,21 @@ export const useStore = create<RootState>()(
         ),
         {
           name: PERSIST_STORAGE_KEY,
-          version: 1,
+          version: PERSIST_VERSION,
+          // A reload must not be the thing that loses somebody's session. An
+          // entry written before PERSIST_VERSION 2 carries a colouring id from a
+          // vocabulary this build no longer has; it is translated rather than
+          // dropped, and anything unreadable falls back to the default.
+          migrate: (persisted, version) => {
+            const stored = (persisted ?? {}) as Record<string, unknown>;
+            if (version >= PERSIST_VERSION) {
+              return stored as unknown as RootState;
+            }
+            return {
+              ...stored,
+              colorMode: migrateColorMode(stored.colorMode),
+            } as unknown as RootState;
+          },
           // Only the view and ui slices survive a reload. `openDialog` stays out:
           // a blocking dialog must never reopen uninvited after a reload.
           partialize: (state) => ({

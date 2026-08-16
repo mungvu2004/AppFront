@@ -2,9 +2,17 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { create } from 'zustand';
 import { createSelectionSlice, type SelectionSlice } from '../selectionSlice';
 import { createToolSlice, type ToolSlice } from '../toolSlice';
-import { createViewSlice, MAX_ZOOM, MIN_ZOOM, type ViewSlice } from '../viewSlice';
+import {
+  createViewSlice,
+  DEFAULT_COLOR_MODE,
+  MAX_ZOOM,
+  migrateColorMode,
+  MIN_ZOOM,
+  type ViewSlice,
+} from '../viewSlice';
 import { createUiSlice, type UiSlice } from '../uiSlice';
-import { PERSIST_STORAGE_KEY, useStore } from '../index';
+import { PERSIST_STORAGE_KEY, PERSIST_VERSION, useStore } from '../index';
+import { COLORING_MODE_IDS } from '../../lib/coloring/modes';
 import type { WallId } from '../../domain/spatial/types';
 
 const wallIdA: WallId = 'W-TESTWALL0A';
@@ -87,13 +95,59 @@ describe('viewSlice', () => {
 
     store.getState().setViewMode('3d');
     store.getState().setViewCenter({ x: 4800, y: 2100 });
-    store.getState().setColorMode('byReviewState');
+    store.getState().setColorMode('reviewState');
 
     const state = store.getState();
 
     expect(state.viewMode).toBe('3d');
     expect(state.viewCenter).toEqual({ x: 4800, y: 2100 });
-    expect(state.colorMode).toBe('byReviewState');
+    expect(state.colorMode).toBe('reviewState');
+  });
+
+  it('starts on a colouring mode the renderer knows', () => {
+    const store = create<ViewSlice>()(createViewSlice);
+
+    expect(COLORING_MODE_IDS).toContain(store.getState().colorMode);
+    expect(store.getState().colorMode).toBe(DEFAULT_COLOR_MODE);
+  });
+
+  it('speaks the renderer vocabulary of colouring, and no second one', () => {
+    const store = create<ViewSlice>()(createViewSlice);
+
+    for (const id of COLORING_MODE_IDS) {
+      store.getState().setColorMode(id);
+      expect(store.getState().colorMode).toBe(id);
+    }
+  });
+});
+
+describe('migrateColorMode', () => {
+  it('translates every id older builds persisted', () => {
+    expect(migrateColorMode('plain')).toBe('default');
+    expect(migrateColorMode('byReviewState')).toBe('reviewState');
+    expect(migrateColorMode('byConfidence')).toBe('aiConfidence');
+  });
+
+  it('lands byKind on the default, since no colouring mode answers that question', () => {
+    expect(migrateColorMode('byKind')).toBe('default');
+  });
+
+  it('leaves a current id alone', () => {
+    for (const id of COLORING_MODE_IDS) {
+      expect(migrateColorMode(id)).toBe(id);
+    }
+  });
+
+  it('falls back rather than refusing to start, on anything unreadable', () => {
+    for (const stored of [undefined, null, 42, {}, [], '', 'nonsense']) {
+      expect(migrateColorMode(stored)).toBe(DEFAULT_COLOR_MODE);
+    }
+  });
+
+  it('always answers with an id the renderer knows', () => {
+    for (const stored of ['plain', 'byKind', 'byConfidence', 'nonsense', 7]) {
+      expect(COLORING_MODE_IDS).toContain(migrateColorMode(stored));
+    }
   });
 });
 
@@ -175,5 +229,54 @@ describe('persistence between sessions', () => {
       'viewMode',
       'zoom',
     ]);
+  });
+
+  it('stamps what it writes with the shape version, so it can be migrated later', () => {
+    useStore.getState().setPanelWidth('left', 360);
+
+    const raw = window.localStorage.getItem(PERSIST_STORAGE_KEY);
+    const persisted = JSON.parse(raw ?? '{}') as { version?: number };
+
+    expect(persisted.version).toBe(PERSIST_VERSION);
+  });
+
+  it('opens a session stored before the colouring vocabularies were merged', async () => {
+    window.localStorage.setItem(
+      PERSIST_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        state: { zoom: 1.5, colorMode: 'byConfidence', leftPanelWidthPx: 400 },
+      }),
+    );
+
+    await useStore.persist.rehydrate();
+
+    expect(useStore.getState().colorMode).toBe('aiConfidence');
+    // The rest of the entry is carried across untouched: a migration is not a
+    // reason to lose somebody's zoom.
+    expect(useStore.getState().zoom).toBe(1.5);
+    expect(useStore.getState().leftPanelWidthPx).toBe(400);
+  });
+
+  it('opens one whose colouring id no longer has a home, on the default', async () => {
+    window.localStorage.setItem(
+      PERSIST_STORAGE_KEY,
+      JSON.stringify({ version: 1, state: { colorMode: 'byKind' } }),
+    );
+
+    await useStore.persist.rehydrate();
+
+    expect(useStore.getState().colorMode).toBe(DEFAULT_COLOR_MODE);
+  });
+
+  it('leaves an entry already on the current shape alone', async () => {
+    window.localStorage.setItem(
+      PERSIST_STORAGE_KEY,
+      JSON.stringify({ version: PERSIST_VERSION, state: { colorMode: 'violationSeverity' } }),
+    );
+
+    await useStore.persist.rehydrate();
+
+    expect(useStore.getState().colorMode).toBe('violationSeverity');
   });
 });

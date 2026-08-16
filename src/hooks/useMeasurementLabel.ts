@@ -1,8 +1,16 @@
 import { useState, useCallback } from 'react';
-import { getWallMidpoint } from '../lib/geometry/wall';
 import { formatMm } from '../lib/format';
 
 export type MeasurementState = 'idle' | 'measuring' | 'committed';
+
+/**
+ * Millimetres one pixel of the measuring overlay stands for.
+ *
+ * Named rather than written into the arithmetic below, because a bare `12` in a
+ * distance calculation reads as a typo and is the one number in this hook that
+ * decides whether a measurement is right.
+ */
+const MM_PER_PIXEL = 12;
 
 export interface Point {
   x: number;
@@ -24,7 +32,10 @@ export interface MeasurementLabelState {
 
 /**
  * Hook thuần — quản lý trạng thái đo khoảng cách.
- * Gọi getWallMidpoint từ lib/geometry/wall và formatMm từ lib/format.
+ * Toạ độ ở đây là pixel của lớp phủ, không phải milimét của mô hình, nên phép
+ * tính nằm tại chỗ thay vì gọi hình học của domain: đưa pixel vào một hàm nhận
+ * `PointMm` chính là kiểu nhầm đơn vị mà `src/domain/units` sinh ra để chặn.
+ * Định dạng chuỗi vẫn lấy formatMm từ lib/format.
  */
 export function useMeasurementLabel(): MeasurementLabelState {
   const [state, setState] = useState<MeasurementState>('idle');
@@ -58,14 +69,14 @@ export function useMeasurementLabel(): MeasurementLabelState {
   let midPoint: Point | null = null;
 
   if (startPoint && currentPoint) {
-    const p1 = { id: 'start', x: startPoint.x, y: startPoint.y };
-    const p2 = { id: 'end', x: currentPoint.x, y: currentPoint.y };
-    const mid = getWallMidpoint(p1, p2);
-    midPoint = { x: mid.x, y: mid.y };
+    midPoint = {
+      x: (startPoint.x + currentPoint.x) / 2,
+      y: (startPoint.y + currentPoint.y) / 2,
+    };
 
     const dx = currentPoint.x - startPoint.x;
     const dy = currentPoint.y - startPoint.y;
-    distanceMm = Math.round(Math.sqrt(dx * dx + dy * dy) * 12);
+    distanceMm = Math.round(Math.sqrt(dx * dx + dy * dy) * MM_PER_PIXEL);
   }
 
   return {
