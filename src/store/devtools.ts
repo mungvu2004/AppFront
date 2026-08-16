@@ -17,6 +17,8 @@
 
 import type { StateCreator, StoreMutatorIdentifier } from 'zustand';
 
+import { readKindFromId, type EntityKind } from '../domain/spatial/ids';
+
 /** Name the store connects to Redux DevTools under. */
 export const STATE_TRACKING_NAME = 'AppFront';
 
@@ -58,12 +60,64 @@ const ACTION_NAME_BY_FIELD: Readonly<Record<string, string>> = {
   zoom: 'khung-nhin/thu-phong',
 };
 
-const draftOperationKind = (operation: unknown): unknown =>
-  typeof operation === 'object' && operation !== null && 'kind' in operation
-    ? (operation as { kind?: unknown }).kind
-    : undefined;
+/**
+ * Timeline prefix per entity kind, so a draft says what is being drafted.
+ *
+ * A complete record rather than a lookup with a fallback: adding an entity kind
+ * fails the build here instead of quietly labelling it "nhap/cap-nhat".
+ */
+const DRAFT_LABEL_BY_KIND: Readonly<Record<EntityKind, string>> = {
+  axis: 'truc',
+  dimension: 'kich-thuoc',
+  furniture: 'do-dac',
+  level: 'tang',
+  opening: 'lo-mo',
+  room: 'phong',
+  wall: 'tuong',
+};
 
-/** Drafting distinguishes staging, dragging a wall, drawing one, discarding. */
+/**
+ * The id a staged operation is about, read defensively.
+ *
+ * This runs inside a middleware looking at whatever a `set()` produced, so it
+ * cannot assume the value is a `DraftOperation` and reads it as the unknown it
+ * is typed as.
+ */
+const draftOperationId = (operation: unknown): string | null => {
+  if (typeof operation !== 'object' || operation === null) {
+    return null;
+  }
+
+  const staged = operation as { kind?: unknown; entityId?: unknown; entity?: unknown };
+
+  if (staged.kind === 'editEntity') {
+    return typeof staged.entityId === 'string' ? staged.entityId : null;
+  }
+
+  if (staged.kind === 'createEntity' && typeof staged.entity === 'object' && staged.entity !== null) {
+    const id = (staged.entity as { id?: unknown }).id;
+
+    return typeof id === 'string' ? id : null;
+  }
+
+  return null;
+};
+
+/** `ve` for something being drawn, `sua` for something being changed. */
+const draftOperationVerb = (operation: unknown): string =>
+  typeof operation === 'object' &&
+  operation !== null &&
+  (operation as { kind?: unknown }).kind === 'createEntity'
+    ? 've'
+    : 'sua';
+
+/**
+ * Drafting distinguishes staging, discarding, and amending one entity.
+ *
+ * An amendment is named after the entity it touches — `tuong/sua`, `do-dac/sua`
+ * — read from the id prefix, so every entity kind reads sensibly in the timeline
+ * without this file listing the edits anybody can make to one.
+ */
 const draftActionName = (previous: readonly unknown[], next: readonly unknown[]): string => {
   if (next.length > previous.length) {
     return 'nhap/them';
@@ -78,17 +132,10 @@ const draftActionName = (previous: readonly unknown[], next: readonly unknown[])
   }
 
   const changed = next.find((operation, index) => !Object.is(operation, previous[index]));
-  const kind = draftOperationKind(changed);
+  const id = draftOperationId(changed);
+  const kind = id === null ? null : readKindFromId(id);
 
-  if (kind === 'moveWall') {
-    return 'tuong/keo';
-  }
-
-  if (kind === 'drawWall') {
-    return 'tuong/ve';
-  }
-
-  return 'nhap/cap-nhat';
+  return kind === null ? 'nhap/cap-nhat' : `${DRAFT_LABEL_BY_KIND[kind]}/${draftOperationVerb(changed)}`;
 };
 
 const selectionActionName = (previous: readonly unknown[], next: readonly unknown[]): string => {

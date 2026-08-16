@@ -2,16 +2,19 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { create } from 'zustand';
 import {
   createDraftSlice,
+  draftEntityId,
+  type CreateEntityDraft,
   type DraftOperation,
   type DraftSlice,
-  type MoveWallDraft,
+  type EditEntityDraft,
 } from '../draftSlice';
+import { deriveActionName } from '../devtools';
 import { createProjectSlice, type ProjectSlice } from '../projectSlice';
 import { createSpatialSlice, type SpatialSlice } from '../spatialSlice';
 import { useStore } from '../index';
 import { readEntity } from '../../domain/spatial/applyPatch';
 import { normalizeSpatial } from '../../domain/spatial/normalize';
-import type { LevelId, SpatialGraph, Wall } from '../../domain/spatial/types';
+import type { Furniture, LevelId, SpatialGraph, Wall } from '../../domain/spatial/types';
 import type { Project } from '../../types/project';
 import {
   createSampleBuilding,
@@ -40,18 +43,48 @@ const firstSampleWall = (): Wall => {
   return wall;
 };
 
-const moveWallDraft = (): MoveWallDraft => {
+/** A wall dragged 100 mm sideways, staged as the whole wall it would become. */
+const moveWallDraft = (): EditEntityDraft => {
   const wall = firstSampleWall();
 
   return {
-    kind: 'moveWall',
-    wallId: wall.id,
-    centreline: {
-      start: { x: wall.centreline.start.x + 100, y: wall.centreline.start.y },
-      end: { x: wall.centreline.end.x + 100, y: wall.centreline.end.y },
+    kind: 'editEntity',
+    entityId: wall.id,
+    preview: {
+      ...wall,
+      centreline: {
+        start: { x: wall.centreline.start.x + 100, y: wall.centreline.start.y },
+        end: { x: wall.centreline.end.x + 100, y: wall.centreline.end.y },
+      },
     },
   };
 };
+
+const firstSampleFurniture = (): Furniture => {
+  const item = sampleGraph.furniture.at(0);
+
+  if (item === undefined) {
+    throw new Error('sample building has no furniture');
+  }
+
+  return item;
+};
+
+/** The edit a gizmo makes that the old wall-shaped draft had no room for. */
+const turnFurnitureDraft = (): EditEntityDraft => {
+  const item = firstSampleFurniture();
+
+  return {
+    kind: 'editEntity',
+    entityId: item.id,
+    preview: { ...item, rotationDeg: 90 },
+  };
+};
+
+const drawWallDraft = (): CreateEntityDraft => ({
+  kind: 'createEntity',
+  entity: { ...firstSampleWall(), id: 'W-NEWWALLAAA' },
+});
 
 const sampleProject = (id: string): Project => ({
   id,
@@ -151,7 +184,7 @@ describe('draftSlice', () => {
     store.getState().stageDraftOperation(draft);
     expect(store.getState().draftOperations).toHaveLength(1);
 
-    const amended: DraftOperation = { ...draft, centreline: firstSampleWall().centreline };
+    const amended: DraftOperation = { ...draft, preview: firstSampleWall() };
 
     store.getState().amendDraftOperation(0, amended);
     expect(store.getState().draftOperations.at(0)).toBe(amended);
@@ -161,6 +194,75 @@ describe('draftSlice', () => {
 
     store.getState().discardDraft();
     expect(store.getState().draftOperations).toHaveLength(0);
+  });
+
+  it('stages an edit to any kind of entity, not only to a wall', () => {
+    const store = create<DraftSlice>()(createDraftSlice);
+
+    store.getState().stageDraftOperation(turnFurnitureDraft());
+    store.getState().stageDraftOperation(moveWallDraft());
+    store.getState().stageDraftOperation(drawWallDraft());
+
+    expect(store.getState().draftOperations.map((operation) => operation.kind)).toEqual([
+      'editEntity',
+      'editEntity',
+      'createEntity',
+    ]);
+  });
+
+  it('amends the same operation on every frame of a drag, staging one entry', () => {
+    const store = create<DraftSlice>()(createDraftSlice);
+    const item = firstSampleFurniture();
+
+    store.getState().stageDraftOperation(turnFurnitureDraft());
+
+    // Two hundred pointer frames of turning: one staged operation throughout.
+    for (let frame = 1; frame <= 200; frame += 1) {
+      store.getState().amendDraftOperation(0, {
+        entityId: item.id,
+        kind: 'editEntity',
+        preview: { ...item, rotationDeg: frame },
+      });
+    }
+
+    const staged = store.getState().draftOperations;
+
+    expect(staged).toHaveLength(1);
+
+    const only = staged[0];
+
+    expect(only?.kind === 'editEntity' ? only.preview : null).toMatchObject({ rotationDeg: 200 });
+  });
+
+  it('names the entity a staged operation is about, whichever kind it is', () => {
+    expect(draftEntityId(moveWallDraft())).toBe(firstSampleWall().id);
+    expect(draftEntityId(turnFurnitureDraft())).toBe(firstSampleFurniture().id);
+    expect(draftEntityId(drawWallDraft())).toBe('W-NEWWALLAAA');
+  });
+});
+
+describe('draft labels on the devtools timeline', () => {
+  const labelFor = (before: readonly DraftOperation[], after: readonly DraftOperation[]): string =>
+    deriveActionName({ draftOperations: before }, { draftOperations: after });
+
+  it('names an amendment after the entity kind it touches', () => {
+    expect(labelFor([moveWallDraft()], [moveWallDraft()])).toBe('tuong/sua');
+    expect(labelFor([turnFurnitureDraft()], [turnFurnitureDraft()])).toBe('do-dac/sua');
+    expect(labelFor([drawWallDraft()], [drawWallDraft()])).toBe('tuong/ve');
+  });
+
+  it('still tells staging, dropping and discarding apart', () => {
+    expect(labelFor([], [moveWallDraft()])).toBe('nhap/them');
+    expect(labelFor([moveWallDraft(), drawWallDraft()], [moveWallDraft()])).toBe('nhap/bot');
+    expect(labelFor([moveWallDraft()], [])).toBe('nhap/huy');
+  });
+
+  it('falls back rather than guessing when the id says nothing', () => {
+    const unreadable = [
+      { entityId: 'nonsense', kind: 'editEntity', preview: firstSampleWall() },
+    ] as unknown as readonly DraftOperation[];
+
+    expect(labelFor(unreadable, [{ ...unreadable[0] } as DraftOperation])).toBe('nhap/cap-nhat');
   });
 });
 
