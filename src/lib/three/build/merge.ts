@@ -523,8 +523,17 @@ export function partAtVertex(batch: MergedBatch, vertexIndex: number): MergedPar
 /** The least a raycast hit has to say for the entity behind it to be found. */
 export interface HitLike {
   readonly object: Object3D;
-  /** The face that was hit; `a` is the first of its three vertices. */
-  readonly face?: { readonly a: number } | null;
+  /**
+   * The face that was hit; `a` is the first of its three vertices.
+   *
+   * `| undefined` is written out rather than left to the `?`, and it has to be:
+   * this repository compiles with `exactOptionalPropertyTypes`, three declares
+   * `Intersection.face` as `Face | null | undefined`, and without the explicit
+   * `undefined` here a real raycast result is not assignable to `HitLike` — so
+   * the one type this interface exists to accept would be the one type it turned
+   * away.
+   */
+  readonly face?: { readonly a: number } | null | undefined;
   /** Which placement of an instanced batch was hit. */
   readonly instanceId?: number | undefined;
 }

@@ -5,6 +5,7 @@ import {
   Matrix4,
   Mesh,
   MeshStandardMaterial,
+  Raycaster,
   Vector3,
   type Material,
   type Object3D,
@@ -15,7 +16,13 @@ import { millimetres, type Millimetres } from '@/domain/units/types';
 import type { PointMm } from '@/domain/units/compare';
 import type { AttachedOpening } from '@/domain/openings/types';
 import type { Wall } from '@/domain/walls/types';
-import type { FurnitureId, OpeningId, RoomId, WallId } from '@/domain/spatial/types';
+import {
+  sampleDoorId,
+  sampleFurnitureId,
+  sampleLevelId,
+  sampleRoomId,
+  sampleWallId,
+} from '@/domain/spatial/__fixtures__/sampleBuilding';
 
 import { readPartData, tagPart, type BuildPartKind } from '../scene';
 import { buildWallMesh } from '../wall';
@@ -55,7 +62,7 @@ const OPENING_COUNT = 34;
 const ROOM_COUNT = 14;
 
 const LEVEL: BuildableLevel = {
-  id: 'L-01',
+  id: sampleLevelId(0),
   elevationMm: millimetres(0),
   heightMm: millimetres(3000),
 };
@@ -64,9 +71,15 @@ function pointAt(x: number, y: number): PointMm {
   return { x: millimetres(x), y: millimetres(y) };
 }
 
-function twoDigits(value: number): string {
-  return value < 10 ? `0${String(value)}` : String(value);
-}
+/*
+ * Ids come from the shared sample fixture rather than being spelt out here.
+ * `domain/spatial/ids` will only name a kind for an id whose body is at least
+ * ten characters of `[0-9A-Z]`, and everything downstream that speaks the
+ * selection vocabulary — `selectableKindOf`, `isSelectable`, the hit test over
+ * this very range table — asks it. A hand-shortened `W-01` batches and reads
+ * back perfectly here and then resolves to no layer at all out there, which
+ * looks exactly like a broken range table and is not one.
+ */
 
 /** How the forty-eight wall runs are laid out: eight bays of six. */
 const WALL_ROWS = 6;
@@ -80,7 +93,7 @@ const WALLS: readonly Wall[] = Array.from({ length: WALL_COUNT }, (_unused, inde
   const acrossMm = (index % WALL_ROWS) * BAY_DEPTH_MM;
 
   return {
-    id: `W-${twoDigits(index + 1)}` as WallId,
+    id: sampleWallId(index),
     kind: 'partition',
     centreline: {
       start: pointAt(alongMm, acrossMm),
@@ -96,13 +109,13 @@ const WALLS: readonly Wall[] = Array.from({ length: WALL_COUNT }, (_unused, inde
 const OPENINGS: readonly AttachedOpening[] = Array.from(
   { length: OPENING_COUNT },
   (_unused, index): AttachedOpening => ({
-    id: `D-${twoDigits(index + 1)}` as OpeningId,
+    id: sampleDoorId(index),
     kind: 'door',
     widthMm: millimetres(900),
     heightMm: millimetres(2100),
     sillHeightMm: millimetres(0),
     swing: 'left',
-    wallId: `W-${twoDigits(index + 1)}` as WallId,
+    wallId: sampleWallId(index),
     relativePosition: 0.5,
   }),
 );
@@ -113,7 +126,7 @@ const ROOMS: readonly BuildableRoom[] = Array.from(
   (_unused, index): BuildableRoom => {
     const offsetMm = index * 6000;
     return {
-      id: `R-${twoDigits(index + 1)}` as RoomId,
+      id: sampleRoomId(index),
       outline: [
         pointAt(offsetMm, 0),
         pointAt(offsetMm + 5000, 0),
@@ -182,7 +195,7 @@ function buildChairs(count: number): {
     mesh.position.set(index * 1.5, 0, 2);
     return tagPart(mesh, {
       kind: 'furniture',
-      entityId: `F-${twoDigits(index + 1)}` as FurnitureId,
+      entityId: sampleFurnitureId(index),
       levelId: LEVEL.id,
     });
   });
@@ -330,7 +343,7 @@ describe('mergeByMaterial', () => {
 
   it('finds both meshes a room is drawn by', () => {
     const result = mergeByMaterial(paintByKind(collectMeshes(buildFloorMesh(STOREY))));
-    const parts = locateParts(result, 'R-01');
+    const parts = locateParts(result, sampleRoomId(0));
 
     expect(parts.map((entry) => entry.part.kind).sort()).toEqual(['ceiling', 'floorSlab']);
   });
@@ -390,12 +403,12 @@ describe('mergeByMaterial', () => {
       namedMaterial('wall'),
       namedMaterial('opening'),
     ]);
-    tagPart(twoMaterials, { kind: 'wall', entityId: 'W-99', levelId: 'L-01' });
+    tagPart(twoMaterials, { kind: 'wall', entityId: sampleWallId(98), levelId: sampleLevelId(0) });
 
     const empty = tagPart(new Mesh(new BufferGeometry(), namedMaterial('wall')), {
       kind: 'wall',
-      entityId: 'W-98',
-      levelId: 'L-01',
+      entityId: sampleWallId(97),
+      levelId: sampleLevelId(0),
     });
 
     const result = mergeByMaterial([untagged, twoMaterials, empty]);
@@ -435,7 +448,12 @@ describe('mergeByMaterial instancing', () => {
     // The very same geometry object: nothing was duplicated into a buffer.
     expect(batch.mesh.geometry).toBe(geometry);
     expect(batch.mesh.count).toBe(4);
-    expect(batch.parts.map((part) => part.entityId)).toEqual(['F-01', 'F-02', 'F-03', 'F-04']);
+    expect(batch.parts.map((part) => part.entityId)).toEqual([
+      sampleFurnitureId(0),
+      sampleFurnitureId(1),
+      sampleFurnitureId(2),
+      sampleFurnitureId(3),
+    ]);
   });
 
   it('carries each placement across as its own matrix', () => {
@@ -469,7 +487,7 @@ describe('mergeByMaterial instancing', () => {
       return;
     }
 
-    expect(entityAtHit(result, { object: batch.mesh, instanceId: 2 })).toBe('F-03');
+    expect(entityAtHit(result, { object: batch.mesh, instanceId: 2 })).toBe(sampleFurnitureId(2));
     expect(entityAtHit(result, { object: batch.mesh, instanceId: 9 })).toBeNull();
   });
 
@@ -498,7 +516,7 @@ describe('mergeByMaterial instancing', () => {
     expect(result.batches.map((batch) => batch.kind).sort()).toEqual(['instanced', 'merged']);
     expect(result.index.size).toBe(WALL_COUNT + 4);
     expect(entityAtHit(result, { object: result.batches[0]?.mesh as Mesh, instanceId: 0 })).toBe(
-      'F-01',
+      sampleFurnitureId(0),
     );
   });
 });
@@ -516,7 +534,7 @@ describe('selectionRanges', () => {
       return;
     }
 
-    const neighbours = selectionRanges(batch, ['W-01', 'W-02', 'W-03']);
+    const neighbours = selectionRanges(batch, [sampleWallId(0), sampleWallId(1), sampleWallId(2)]);
     expect(neighbours).toHaveLength(1);
 
     const first = batch.parts[0];
@@ -535,9 +553,9 @@ describe('selectionRanges', () => {
       return;
     }
 
-    expect(selectionRanges(batch, ['W-01', 'W-06'])).toHaveLength(2);
+    expect(selectionRanges(batch, [sampleWallId(0), sampleWallId(5)])).toHaveLength(2);
     expect(selectionRanges(batch, [])).toEqual([]);
-    expect(selectionRanges(batch, ['R-01'])).toEqual([]);
+    expect(selectionRanges(batch, [sampleRoomId(0)])).toEqual([]);
   });
 
   it('reads a vertex back to its part, and nothing outside the buffer', () => {
@@ -548,9 +566,9 @@ describe('selectionRanges', () => {
       return;
     }
 
-    expect(partAtVertex(batch, 0)?.entityId).toBe('W-01');
+    expect(partAtVertex(batch, 0)?.entityId).toBe(sampleWallId(0));
     expect(partAtVertex(batch, vertexCountOf(batch.mesh) - 1)?.entityId).toBe(
-      `W-${twoDigits(WALL_COUNT)}`,
+      sampleWallId(WALL_COUNT - 1),
     );
     expect(partAtVertex(batch, vertexCountOf(batch.mesh))).toBeNull();
     expect(partAtVertex(batch, -1)).toBeNull();
@@ -560,7 +578,36 @@ describe('selectionRanges', () => {
     const result = mergeByMaterial([]);
     const loose = buildWallMesh(WALLS[0] as Wall, { levelId: LEVEL.id });
 
-    expect(entityAtHit(result, { object: loose, face: { a: 0 } })).toBe('W-01');
+    expect(entityAtHit(result, { object: loose, face: { a: 0 } })).toBe(sampleWallId(0));
+  });
+
+  it('takes what a Raycaster hands back, with nothing reshaped on the way', () => {
+    const result = mergeByMaterial(buildWallMeshes());
+    const batch = mergedBatchesOf(result)[0];
+
+    if (batch === undefined) {
+      expect.unreachable('there should be a merged batch');
+      return;
+    }
+
+    const caster = new Raycaster();
+
+    // Straight down onto the first wall, which runs along x at z = 0. The door
+    // cut into it stops at 2.1 m, so the top of the 3 m wall is solid here.
+    caster.set(new Vector3(2, 10, 0), new Vector3(0, -1, 0));
+
+    const nearest = caster.intersectObject(batch.mesh, false)[0];
+
+    if (nearest === undefined) {
+      expect.unreachable('the ray should have met the wall');
+      return;
+    }
+
+    // The assertion that matters is the line itself: `nearest` is a real
+    // `THREE.Intersection` and is passed with no cast and no rebuilt object.
+    // Narrow `HitLike.face` back to `… | null` and this stops compiling, which
+    // is the only way to catch it — every caller could still paper over it.
+    expect(entityAtHit(result, nearest)).toBe(sampleWallId(0));
   });
 });
 
@@ -610,7 +657,7 @@ describe('buildFloorAtDetail', () => {
     expect(counts.get('ceiling')).toBe(ROOM_COUNT);
 
     // A wall with a door cut in it has more triangles than a solid one.
-    expect(triangleCount(meshFor(reduced, 'W-01'))).toBeGreaterThan(12);
+    expect(triangleCount(meshFor(reduced, sampleWallId(0)))).toBeGreaterThan(12);
   });
 
   it('draws the massing only, with solid walls, at block detail', () => {
@@ -623,14 +670,14 @@ describe('buildFloorAtDetail', () => {
     expect(counts.get('opening')).toBeUndefined();
 
     // No opening cut: a plain box of twelve triangles.
-    expect(triangleCount(meshFor(block, 'W-01'))).toBe(12);
+    expect(triangleCount(meshFor(block, sampleWallId(0)))).toBe(12);
   });
 
   it('keeps the level name and the reverse lookup at every rung', () => {
     for (const detail of ['full', 'reduced', 'block'] as const) {
       const group = buildFloorAtDetail(STOREY, detail);
 
-      expect(group.name).toBe('L-01');
+      expect(group.name).toBe(sampleLevelId(0));
       expect(readDetail(group)).toBe(detail);
       for (const mesh of collectMeshes(group)) {
         expect(readPartData(mesh)?.entityId).toMatch(/^[WRD]-/);
@@ -657,7 +704,7 @@ describe('buildFloorLod', () => {
   it('hands three.js the rung that matches the distance', () => {
     const lod = buildFloorLod(STOREY);
 
-    expect(lod.name).toBe('L-01');
+    expect(lod.name).toBe(sampleLevelId(0));
     expect(lod.levels).toHaveLength(3);
     expect(rungAt(lod, 0)).toBe('full');
     expect(rungAt(lod, 24.999)).toBe('full');
