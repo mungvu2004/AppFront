@@ -6,6 +6,7 @@ import { ChevronUp, ChevronDown, AlertCircle, Inbox } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Checkbox } from './Checkbox';
 import { EmptyState } from '../feedback/EmptyState';
+import { durationSeconds } from '../../lib/motion';
 import { Skeleton } from '../feedback/Skeleton';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -21,8 +22,6 @@ const TableContext = createContext<TableContextValue>({
   sortDir: undefined,
   onSort: undefined,
 });
-
-const motionDuration260Ms = 260;
 
 // ─── Table.Root ───────────────────────────────────────────────────────────────
 
@@ -102,7 +101,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
         ref={ref}
         layout
         layoutId={layoutId}
-        transition={{ duration: motionDuration260Ms / 1000, ease: 'easeOut' }}
+        transition={{ duration: durationSeconds('standard'), ease: 'easeOut' }}
         aria-selected={selected}
         className={rowClassName}
         tabIndex={-1}

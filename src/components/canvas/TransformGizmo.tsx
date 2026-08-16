@@ -2,6 +2,7 @@ import React, { useCallback, useRef } from 'react';
 import { cn } from '../../lib/utils';
 import { axisStrokeToken } from './materialMap';
 import { formatMm } from '../../lib/format';
+import { cssDurationMs } from '../../lib/motion';
 import { useTransformGizmo, type Axis } from '../../hooks/useTransformGizmo';
 
 interface TransformGizmoProps {
@@ -98,7 +99,7 @@ export function TransformGizmo({
               className="pointer-events-auto cursor-grab active:cursor-grabbing"
               style={{
                 opacity: isOtherActive ? 0.25 : 1,
-                transition: 'opacity 180ms ease',
+                transition: `opacity ${cssDurationMs('fast')} ease`,
               }}
               onPointerDown={(e) => handlePointerDown(e, axis.id)}
               onPointerMove={handlePointerMove}
@@ -124,7 +125,7 @@ export function TransformGizmo({
                 stroke={strokeColor}
                 strokeWidth={isActive ? 2 : 1}
                 strokeLinecap="round"
-                style={{ transition: 'stroke-width 120ms ease' }}
+                style={{ transition: `stroke-width ${cssDurationMs('instant')} ease` }}
               />
 
               {/* Handle: 8×8 bo 6 */}
@@ -137,7 +138,9 @@ export function TransformGizmo({
                 fill="var(--bg-surface)"
                 stroke={isActive ? 'var(--accent)' : strokeColor}
                 strokeWidth={isActive ? 1.5 : 1}
-                style={{ transition: 'stroke 120ms ease, stroke-width 120ms ease' }}
+                style={{
+                  transition: `stroke ${cssDurationMs('instant')} ease, stroke-width ${cssDurationMs('instant')} ease`,
+                }}
               />
 
               {/* Nhãn trục */}

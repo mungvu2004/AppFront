@@ -48,7 +48,7 @@ export function SelectionHalo({
       className={cn(
         'absolute pointer-events-none',
         // Animation: fade + scale khi mới xuất hiện
-        !hasEntered ? 'animate-[dropdown-open_120ms_ease-out_forwards]' : '',
+        !hasEntered ? 'animate-selection-enter' : '',
         className
       )}
       style={{

@@ -1,9 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 
-// Easing function
-const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
+import { MOTION_DURATIONS_MS, MOTION_EASINGS } from '@/lib/motion';
 
-export function useNumberTween(targetValue: number | undefined, durationMs: number = 260) {
+/**
+ * The shared decelerating curve, not a private one.
+ *
+ * This used to be a local `easeOutQuart` — a fourth curve in a repository that
+ * allows three. It was more aggressive than `enter` (0.94 against 0.84 at the
+ * halfway point), so a counter now settles a shade more gently. That is the
+ * intended cost of having one motion vocabulary instead of four.
+ */
+const easeEnter = MOTION_EASINGS.enter.at;
+
+export function useNumberTween(
+  targetValue: number | undefined,
+  durationMs: number = MOTION_DURATIONS_MS.standard,
+) {
   const [displayValue, setDisplayValue] = useState<number | undefined>(targetValue);
   const startTime = useRef<number | null>(null);
   const startValue = useRef<number | undefined>(targetValue);
@@ -40,7 +52,7 @@ export function useNumberTween(targetValue: number | undefined, durationMs: numb
       const progress = Math.min(elapsed / durationMs, 1);
       
       const currentStart = startValue.current ?? 0;
-      const eased = easeOutQuart(progress);
+      const eased = easeEnter(progress);
       
       const currentDisplay = currentStart + (targetValue - currentStart) * eased;
       

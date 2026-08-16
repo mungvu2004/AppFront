@@ -1,6 +1,7 @@
 import React, { forwardRef, useId } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { durationSeconds } from '../../lib/motion';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -100,13 +101,13 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
               isChecked ? 'border-accent' : 'border-border-default bg-bg-surface'
             )}
             whileTap={!isDisabled ? { scale: 0.94 } : {}}
-            transition={{ duration: 0.12 }}
+            transition={{ duration: durationSeconds('instant') }}
           >
             <motion.div
               className="w-[6px] h-[6px] rounded-full bg-accent"
               initial={{ scale: 0 }}
               animate={{ scale: isChecked ? 1 : 0 }}
-              transition={{ duration: 0.12, ease: 'easeOut' }}
+              transition={{ duration: durationSeconds('instant'), ease: 'easeOut' }}
             />
           </motion.div>
         </div>

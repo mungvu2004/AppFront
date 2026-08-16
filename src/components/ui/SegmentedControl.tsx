@@ -1,6 +1,7 @@
 import React, { useState, useId, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { durationSeconds, EASE } from '../../lib/motion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
         <motion.div
           layoutId={layoutId}
           className="absolute inset-0 rounded bg-bg-surface shadow-rest"
-          transition={{ type: 'tween', ease: [0.32, 0.72, 0, 1], duration: 0.18 }}
+          transition={{ type: 'tween', ease: EASE.default, duration: durationSeconds('fast') }}
         />
       )}
       <span className="relative z-10 flex items-center justify-center gap-1.5">

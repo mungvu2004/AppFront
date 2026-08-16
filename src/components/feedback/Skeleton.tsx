@@ -8,7 +8,9 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function Skeleton({ preset, className, ...props }: SkeletonProps) {
-  // Use duration-700 * 2 = 1400ms for shimmer (which is standard 700ms repeated)
+  // Tailwind's built-in pulse, overridden in tailwind.config.ts to three ambient
+  // beats so it sits on the duration ladder. (A comment here once described a
+  // 1400ms shimmer; no such animation was ever wired up.)
   // motion-reduce:animate-none ensures it stops on reduced motion preference
   const baseClass = 'bg-bg-sunken rounded-[8px] animate-pulse motion-reduce:animate-none';
 

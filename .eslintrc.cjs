@@ -16,6 +16,7 @@ module.exports = {
     ],
     'local/no-raw-color': 'error',
     'local/no-raw-number': 'error',
+    'local/no-raw-duration': 'error',
     'local/no-direct-set': 'error',
     'local/no-draft-write-outside-commands': 'error'
   },

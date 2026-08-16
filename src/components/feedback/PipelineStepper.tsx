@@ -82,7 +82,7 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
           <div className={cn('w-5 h-5 mt-0.5 flex items-center justify-center shrink-0 transition-colors duration-260', iconColor)} aria-hidden="true">
             {isDone ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className="w-full h-full animate-[empty-icon-draw_260ms_ease-out_forwards] motion-reduce:animate-none"
+                className="w-full h-full animate-step-icon-draw motion-reduce:animate-none"
                 style={{ strokeDasharray: 24, strokeDashoffset: 0 }}>
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -137,9 +137,9 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
               className="absolute left-0 top-0 h-full bg-accent transition-all duration-260"
               style={{ width: `${Math.max(0, Math.min(100, tweenedProgress))}%` }}
             />
-            {/* Sweeping animation 1.6s */}
-            <div 
-              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 blur-[2px] animate-[pipeline-sweep_1.6s_infinite] motion-reduce:animate-none"
+            {/* Sweeping highlight, two ambient beats per pass. */}
+            <div
+              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 blur-[2px] animate-pipeline-sweep motion-reduce:animate-none"
             />
           </div>
         )}

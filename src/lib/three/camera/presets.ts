@@ -50,6 +50,7 @@
 import type { Object3D } from 'three';
 
 import { degrees, degreesToRadians, RADIANS_PER_TURN } from '@/domain/units/types';
+import { MOTION_DURATIONS_MS } from '@/lib/motion';
 
 import { CAMERA_SETTINGS } from './settings';
 import {
@@ -72,7 +73,7 @@ import {
 
 /** Every parameter of the presets, the move, and the framing. */
 export interface PresetSettings {
-  /** How long a move takes. One of the five durations the repository allows. */
+  /** How long a move takes. Read from the motion table, never written here. */
   readonly transitionMs: number;
   /** How much of the viewport is left empty around a framed object. */
   readonly framePaddingFraction: number;
@@ -94,7 +95,7 @@ export interface PresetSettings {
 }
 
 export const PRESET_SETTINGS: PresetSettings = Object.freeze({
-  transitionMs: 340,
+  transitionMs: MOTION_DURATIONS_MS.slow,
   framePaddingFraction: 0.15,
   clearanceMarginM: 0.5,
   elevationPolarDeg: CAMERA_SETTINGS.elevation.polarDeg,

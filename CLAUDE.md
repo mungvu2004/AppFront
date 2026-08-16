@@ -32,7 +32,7 @@ này thắng**.
 | `src/styles/globals.css`, `tailwind.config.ts` | **nguồn token duy nhất** (màu, thời lượng, bóng) |
 | `docs/**` | master-brief, architecture, đặc tả component/domain |
 | `e2e/**` | Playwright spec + snapshot 1440px |
-| `eslint-rules/` | rule ESLint nội bộ ép các bất biến |
+| `eslint-rules/` | rule ESLint nội bộ ép các bất biến — xem cảnh báo ở 0.3 |
 | `.agent/`, `.claude/` | agent harness — xem mục G |
 
 0.3 Lệnh chuẩn (chỉ dùng pnpm)
@@ -40,6 +40,12 @@ này thắng**.
 `pnpm e2e` · `pnpm e2e:visual` (cập nhật snapshot) · `pnpm storybook`.
 CI (`.github/workflows/ci.yml`) chạy tuần tự: lint → typecheck → unit → build →
 visual. Không có lệnh nào được coi là "pass" nếu chưa chạy thật (mục E.10).
+
+**Sửa `eslint-rules/` thì phải chạy lại `pnpm install`.** `eslint-plugin-local`
+khai bằng `file:eslint-rules`, và pnpm **sao chép cứng** thư mục đó vào
+`node_modules/.pnpm/` chứ không symlink. Thêm rule mới mà quên bước này thì
+ESLint báo `Definition for rule 'local/...' was not found` trên *mọi* file — 440
+lỗi trông như hỏng cấu hình, thực ra chỉ là bản sao cũ.
 
 0.4 Ranh giới import — ESLint chặn cứng, đừng thử lách
 - `src/lib/**` KHÔNG import `react`, `store`, `hooks`, `components`, `screens`.
@@ -54,7 +60,7 @@ visual. Không có lệnh nào được coi là "pass" nếu chưa chạy thật
 | A1, B "cấm hex/rgb/hsl" | `local/no-raw-color` (eslint-rules/no-raw-color.js) |
 | A10 "mọi thay đổi qua commit()" | `local/no-direct-set`, `local/no-draft-write-outside-commands` (tắt trong `src/store/**`) |
 | D "tách logic/giao diện" | `no-restricted-imports` theo mục 0.4 |
-| B "thời lượng animation" | chỉ 120/180/260/340/700 có trong `tailwind.config.ts` |
+| B "thời lượng animation" | `local/no-raw-duration` (số, chuỗi CSS, arbitrary value trong `src/components`+`src/screens`) **và** guard rule-B trong `src/lib/motion/__tests__/motion.test.ts` (đọc mọi animation của `tailwind.config.ts`, ép về 4 tốc độ hoặc bội số nguyên của 700ms) |
 | A4 ba màu trạng thái | token `state.verified|attention|violation` |
 | A11 bảy trạng thái, A12 bàn phím, A13 tương phản | story/test + review người — chưa có rule tự động |
 

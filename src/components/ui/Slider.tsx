@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { durationSeconds } from '../../lib/motion';
 
 export interface SliderProps {
   min?: number;
@@ -161,7 +162,7 @@ export function Slider({
                 initial={{ opacity: 0, y: 4, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.9 }}
-                transition={{ duration: 0.12 }}
+                transition={{ duration: durationSeconds('instant') }}
                 className="absolute bottom-6 font-mono text-[13px] bg-bg-surface text-text-primary px-2 py-1 rounded shadow-float whitespace-nowrap pointer-events-none select-none border border-border-default"
               >
                 {Number.isInteger(value) ? value : value.toFixed(2)}

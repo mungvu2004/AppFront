@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { useCombobox } from '../../hooks/useCombobox';
 import { useCompoundId } from '../../hooks/useCompoundId';
 import { ChevronDown, Check, Search } from 'lucide-react';
+import { durationSeconds, EASE } from '../../lib/motion';
 import { cn } from '../../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SelectOption } from './Select';
@@ -187,8 +188,8 @@ const ComboboxContent = forwardRef<HTMLDivElement, { children: React.ReactNode; 
             ref={ref}
             initial={{ opacity: 0, scaleY: 0.96 }}
             animate={{ opacity: 1, scaleY: 1 }}
-            exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.12 } }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+            exit={{ opacity: 0, scaleY: 0.96, transition: { duration: durationSeconds('instant') } }}
+            transition={{ duration: durationSeconds('fast'), ease: EASE.standard }}
             className={cn(
               'flex flex-col rounded-xl bg-bg-surface shadow-float border border-border-default origin-top',
               className

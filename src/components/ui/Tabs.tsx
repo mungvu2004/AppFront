@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { durationSeconds, EASE } from '../../lib/motion';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -154,7 +155,7 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
           <motion.div
             layoutId={`tab-indicator-${groupId}`}
             className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-accent"
-            transition={{ type: 'tween', ease: [0.4, 0, 0.2, 1], duration: 0.18 }}
+            transition={{ type: 'tween', ease: EASE.standard, duration: durationSeconds('fast') }}
           />
         )}
       </button>
@@ -187,7 +188,7 @@ const TabsPanel = forwardRef<HTMLDivElement, TabsPanelProps>(
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: 'linear' }}
+            transition={{ duration: durationSeconds('fast'), ease: 'linear' }}
             className={cn(
               'w-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-lg',
               className

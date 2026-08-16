@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Kbd } from './Kbd';
+import { durationSeconds } from '../../lib/motion';
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 // Delay: 400ms. Nền text-primary, chữ trắng, 13px, bo 6px, bóng md, mũi nhọn.
@@ -100,7 +101,7 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
           initial={{ opacity: 0, y: getMotionY(), x: getMotionX() }}
           animate={{ opacity: 1, y: 0, x: 0 }}
           exit={{ opacity: 0, transition: { duration: 0 } }}
-          transition={{ duration: 0.12 }}
+          transition={{ duration: durationSeconds('instant') }}
           className="pointer-events-none z-[9999]"
           style={{
             position: 'absolute',

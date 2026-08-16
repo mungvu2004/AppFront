@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
+import { durationSeconds, EASE } from '../../lib/motion';
 
 export interface ToggleProps {
   checked?: boolean;
@@ -95,7 +96,7 @@ export function Toggle(props: ToggleProps) {
     >
       <motion.span
         layout
-        transition={{ type: 'tween', ease: [0.32, 0.72, 0, 1], duration: 0.18 }}
+        transition={{ type: 'tween', ease: EASE.default, duration: durationSeconds('fast') }}
         className="block h-4 w-4 rounded-full bg-bg-surface shadow-rest"
       />
     </button>

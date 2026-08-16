@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { useSelect } from '../../hooks/useSelect';
 import { useCompoundId } from '../../hooks/useCompoundId';
 import { ChevronDown, Check } from 'lucide-react';
+import { durationSeconds, EASE } from '../../lib/motion';
 import { cn } from '../../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 // import { Skeleton } from '../feedback/Skeleton';
@@ -201,8 +202,8 @@ const SelectContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEle
             aria-labelledby={triggerId}
             initial={{ opacity: 0, scaleY: 0.96 }}
             animate={{ opacity: 1, scaleY: 1 }}
-            exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.12 } }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+            exit={{ opacity: 0, scaleY: 0.96, transition: { duration: durationSeconds('instant') } }}
+            transition={{ duration: durationSeconds('fast'), ease: EASE.standard }}
             className={cn(
               'max-h-[300px] overflow-auto rounded-xl bg-bg-surface p-2 shadow-float border border-border-default origin-top',
               className,

@@ -1,5 +1,21 @@
 import type { Config } from 'tailwindcss';
 
+import { AMBIENT_LOOP_MS, MOTION_DURATIONS_MS, MOTION_EASINGS } from './src/lib/motion/tokens';
+
+/**
+ * Motion durations come from `src/lib/motion/tokens.ts` — this file no longer
+ * writes any of them down.
+ *
+ * The four interaction speeds are the ladder rule B allows. The looping
+ * animations below are paced in whole {@link AMBIENT_LOOP_MS} beats instead:
+ * a skeleton sweep is not a transition, nothing arrives at the end of it, and
+ * the previous 600 / 1400 / 1600 ms were three numbers off the ladder that no
+ * rule and no token justified.
+ */
+const beats = (count: number): string => `${AMBIENT_LOOP_MS * count}ms`;
+const speed = (name: keyof typeof MOTION_DURATIONS_MS): string =>
+  `${MOTION_DURATIONS_MS[name]}ms`;
+
 const config: Config = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
@@ -62,11 +78,22 @@ const config: Config = {
     },
     extend: {
       transitionDuration: {
-        '120': '120ms',
-        '180': '180ms',
-        '260': '260ms',
-        '340': '340ms',
-        '700': '700ms',
+        // The numeric names the existing views already use.
+        '120': speed('instant'),
+        '180': speed('fast'),
+        '260': speed('standard'),
+        '340': speed('slow'),
+        '700': beats(1),
+        // The semantic names, for new work: `duration-standard`.
+        instant: speed('instant'),
+        fast: speed('fast'),
+        standard: speed('standard'),
+        slow: speed('slow'),
+      },
+      transitionTimingFunction: {
+        enter: MOTION_EASINGS.enter.css,
+        exit: MOTION_EASINGS.exit.css,
+        'in-out': MOTION_EASINGS.inOut.css,
       },
       boxShadow: {
         'rest': '0 1px 3px rgba(0,0,0,0.1)',
@@ -99,15 +126,47 @@ const config: Config = {
         'progress-overlay-scan': {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100vh)' },
-        }
+        },
+        // PipelineStepper named this in an arbitrary value for a long time while
+        // it was never declared here, so the sweep it asks for had never once
+        // run. Declaring it is what makes that element do anything at all.
+        'pipeline-sweep': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(300%)' },
+        },
       },
       animation: {
-        'focus-ring': 'focus-ring 120ms ease-out forwards',
-        'dropdown-open': 'dropdown-open 180ms ease-out forwards',
-        'skeleton-scan': 'skeleton-scan 1400ms linear infinite',
-        'toast-enter': 'toast-enter 260ms ease-out forwards',
-        'empty-icon-draw': 'empty-icon-draw 600ms ease-out forwards',
-        'progress-overlay-scan': 'progress-overlay-scan 1600ms linear infinite',
+        'focus-ring': `focus-ring ${speed('instant')} ease-out forwards`,
+        'dropdown-open': `dropdown-open ${speed('fast')} ease-out forwards`,
+        // The same shape at the instant speed, for a selection halo appearing
+        // under the pointer. Replaces an arbitrary value in SelectionHalo.
+        'selection-enter': `dropdown-open ${speed('instant')} ease-out forwards`,
+        'toast-enter': `toast-enter ${speed('standard')} ease-out forwards`,
+        'empty-icon-draw': `empty-icon-draw ${beats(1)} ease-out forwards`,
+        // The same stroke draw at the standard speed, for a pipeline step tick.
+        // Replaces an arbitrary value in PipelineStepper.
+        'step-icon-draw': `empty-icon-draw ${speed('standard')} ease-out forwards`,
+        /**
+         * Tailwind's own pulse, brought onto the ladder.
+         *
+         * `animate-pulse` is how every loading state in the design system is
+         * drawn — some fifteen components — so its 2000 ms default was the one
+         * live breach of rule B, not a dead config entry like the three above.
+         *
+         * Three beats rather than two: 2100 ms is the legal value nearest the
+         * 2000 ms that ships today, so a calm loader stays calm. Two beats would
+         * be 1400 ms, thirty per cent faster, which is a design change to every
+         * loading screen and not one anybody asked for.
+         *
+         * The curve is unchanged in substance — Tailwind's default pulse easing
+         * is `cubic-bezier(0.4, 0, 0.6, 1)`, which is precisely this repository's
+         * `inOut`, so it is now written as the token rather than as four numbers.
+         */
+        pulse: `pulse ${beats(3)} ${MOTION_EASINGS.inOut.css} infinite`,
+        // Loops, paced in ambient beats rather than on the interaction ladder.
+        'skeleton-scan': `skeleton-scan ${beats(2)} linear infinite`,
+        'progress-overlay-scan': `progress-overlay-scan ${beats(2)} linear infinite`,
+        'pipeline-sweep': `pipeline-sweep ${beats(2)} linear infinite`,
       }
     },
   },

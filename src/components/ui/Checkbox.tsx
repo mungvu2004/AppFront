@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import { durationSeconds } from '../../lib/motion';
 
 export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
   checked?: boolean;
@@ -66,7 +67,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
             error && 'border-state-violation'
           )}
           whileTap={!disabled && !readOnly ? { scale: 0.94 } : {}}
-          transition={{ duration: 0.12 }}
+          transition={{ duration: durationSeconds('instant') }}
         >
           {indeterminate ? (
             <div className="w-[10px] h-[2px] bg-white rounded-full" />
@@ -86,7 +87,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
                 strokeLinejoin="round"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: checked ? 1 : 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+                transition={{ duration: durationSeconds('fast'), ease: 'easeOut' }}
               />
             </svg>
           )}
