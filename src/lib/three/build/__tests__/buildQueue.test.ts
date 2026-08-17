@@ -273,13 +273,19 @@ describe('build.worker', () => {
   }
 
   it('imports nothing at runtime that would pull three.js into the thread', () => {
-    const atRuntime = runtimeImportsOf('build.worker.ts');
+    // The entry point only reaches for the pure core; the core reaches pure
+    // domain modules and `./plan`, and nothing else. `./scene`, `./floor` and
+    // `./wall` all import three, so the worker may only reach them for their
+    // types.
+    const entryImports = runtimeImportsOf('build.worker.ts');
+    expect(entryImports.length).toBeGreaterThan(0);
+    for (const specifier of entryImports) {
+      expect(specifier).toBe('./buildCore');
+    }
 
-    // Pure domain modules and `./plan` survive into the bundle, and nothing else.
-    // `./scene`, `./floor` and `./wall` all import three, so the worker may only
-    // reach them for their types.
-    expect(atRuntime.length).toBeGreaterThan(0);
-    for (const specifier of atRuntime) {
+    const coreImports = runtimeImportsOf('buildCore.ts');
+    expect(coreImports.length).toBeGreaterThan(0);
+    for (const specifier of coreImports) {
       expect(specifier).toMatch(/^(@\/domain\/|\.\/plan$)/);
     }
   });
