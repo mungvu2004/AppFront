@@ -1,7 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createNotificationBus, type NotificationInput } from '../notificationBus';
-import { createUndoTicket } from '../undoTicket';
+import { UNDO_WINDOW_MS, createUndoTicket } from '../undoTicket';
+
+/**
+ * Invariant A8 is a number three modules read, so it is pinned here rather than
+ * only implied by the timing tests below. It was written out four separate times
+ * before — once in this module, once in `useUndoableToast`, and three times over
+ * in `components/feedback/Toast` — so a change in one place could have left the
+ * countdown bar emptying at a speed that no longer matched when the undo really
+ * stopped working.
+ */
+describe('the undo window', () => {
+  it('is invariant A8’s eight seconds, in one place', () => {
+    expect(UNDO_WINDOW_MS).toBe(8000);
+  });
+
+  it('is what an undo ticket expires by when nobody says otherwise', () => {
+    vi.useFakeTimers();
+    const ticket = createUndoTicket({ description: 'Xoá tường', undo: vi.fn() });
+
+    vi.advanceTimersByTime(UNDO_WINDOW_MS - 1);
+    expect(ticket.getStatus()).toBe('active');
+
+    vi.advanceTimersByTime(1);
+    expect(ticket.getStatus()).toBe('expired');
+    vi.useRealTimers();
+  });
+});
 
 describe('createUndoTicket', () => {
   beforeEach(() => {

@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
+import { durationMs } from '../lib/motion';
+
 export type SelectionVariant = 'selected' | 'hover';
 
 export interface SelectionHaloState {
@@ -31,7 +33,7 @@ export function useSelectionHalo(): SelectionHaloState {
     setVariant(v);
     setHasEntered(false);
     clearTimer();
-    timerRef.current = setTimeout(() => setHasEntered(true), 120);
+    timerRef.current = setTimeout(() => setHasEntered(true), durationMs('instant'));
   }, []);
 
   const select = useCallback(() => triggerEnter('selected'), [triggerEnter]);

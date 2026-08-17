@@ -2,6 +2,7 @@
 import React, { useEffect, useState, forwardRef } from 'react';
 import { useCountUp } from '../../hooks/useCountUp';
 import { cn } from '../../lib/utils';
+import { durationMs } from '../../lib/motion';
 import { Button } from '../ui/Button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,7 +33,7 @@ function usePipelineStep(step: PipelineStepData) {
   useEffect(() => {
     if (step.status === 'done' && prevStatus !== 'done') {
       setFlash(true);
-      const timer = setTimeout(() => setFlash(false), 400);
+      const timer = setTimeout(() => setFlash(false), durationMs('slow'));
       setPrevStatus(step.status);
       return () => clearTimeout(timer);
     }

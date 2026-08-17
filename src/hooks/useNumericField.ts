@@ -1,8 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { formatNumber, parseNumber } from '@/lib/format/number';
+import { durationMs } from '@/lib/motion';
 
 import { useCountUp } from './useCountUp';
+
+/**
+ * How long typing must stop before the value is committed.
+ *
+ * The same 800 ms as invariant A7's autosave, and for the same reason: it is how
+ * long a person is given to keep typing, not how fast anything moves.
+ */
+const COMMIT_DEBOUNCE_MS = 800;
 
 export interface UseNumericFieldProps {
   value?: number | undefined;
@@ -50,7 +59,9 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
       lastCommittedRef.current = parsed;
       onChange?.(parsed);
       setFlash(true);
-      setTimeout(() => setFlash(false), 400);
+      // The same off-ladder 400 ms `useListReview` carried, for the same kind
+      // of commit flash. Both are now the ladder's slowest speed.
+      setTimeout(() => setFlash(false), durationMs('slow'));
     }
     setIsTyping(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,7 +72,7 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => {
         commit(localValue);
-      }, 800);
+      }, COMMIT_DEBOUNCE_MS);
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

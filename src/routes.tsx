@@ -14,6 +14,7 @@ const RouteListReviewDemo = lazy(() => import('./screens/ListReviewDemo').then(m
 const RouteShellDemo = lazy(() => import('./screens/ShellDemo').then(m => ({ default: m.ShellDemo })));
 const RouteCanvasOverlaysDemo = lazy(() => import('./screens/CanvasOverlaysDemo').then(m => ({ default: m.CanvasOverlaysDemo })));
 const RouteFeedbackDemo = lazy(() => import('./screens/FeedbackDemo').then(m => ({ default: m.FeedbackDemo })));
+const RouteShare = lazy(() => import('./screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Placeholder name="/login" /> },
@@ -31,7 +32,7 @@ export const router = createBrowserRouter([
   { path: '/projects/:id/3d', element: <Route3D /> },
   { path: '/projects/:id/rules', element: <Placeholder name="/projects/:id/rules" /> },
   { path: '/projects/:id/export', element: <Placeholder name="/projects/:id/export" /> },
-  { path: '/projects/:id/share', element: <Placeholder name="/projects/:id/share" /> },
+  { path: '/projects/:id/share', element: <React.Suspense fallback={<div>Loading...</div>}><RouteShare /></React.Suspense> },
   { path: '/admin/models', element: <Placeholder name="/admin/models" /> },
   { path: '/admin/users', element: <Placeholder name="/admin/users" /> },
   { path: '/account', element: <Placeholder name="/account" /> },

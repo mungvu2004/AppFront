@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
+import { durationMs } from '../../lib/motion';
+import { UNDO_WINDOW_MS } from '../../lib/mutations/undoTicket';
 import { Button } from '../ui/Button';
 import { useUndoableToast, UndoableToastState } from '../../hooks/useUndoableToast';
 
@@ -44,11 +46,11 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     const [progress, setProgress] = useState(100);
     const rafRef = useRef<number | null>(null);
     const lastTimeRef = useRef<number | undefined>(undefined);
-    const timeLeftRef = useRef(8000);
+    const timeLeftRef = useRef(UNDO_WINDOW_MS);
 
     // Reset timer when resetKey changes (e.g. new item grouped or item popped)
     useEffect(() => {
-      timeLeftRef.current = 8000;
+      timeLeftRef.current = UNDO_WINDOW_MS;
       setProgress(100);
       lastTimeRef.current = undefined;
     }, [resetKey]);
@@ -69,9 +71,9 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         if (timeLeftRef.current <= 0) {
           setProgress(0);
           setIsExiting(true);
-          setTimeout(() => onRemove(toast.id), 180);
+          setTimeout(() => onRemove(toast.id), durationMs('fast'));
         } else {
-          setProgress((timeLeftRef.current / 8000) * 100);
+          setProgress((timeLeftRef.current / UNDO_WINDOW_MS) * 100);
           rafRef.current = requestAnimationFrame(animate);
         }
       };

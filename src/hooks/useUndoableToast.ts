@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store';
+import { UNDO_WINDOW_MS } from '../lib/mutations/undoTicket';
 
 export interface UndoableToastState {
   isVisible: boolean;
@@ -29,7 +30,7 @@ export function useUndoableToast(): UndoableToastState | null {
 
       const timer = setTimeout(() => {
         setToast((current) => current?.label === lastCommitLabel ? { ...current, isVisible: false } : current);
-      }, 8000);
+      }, UNDO_WINDOW_MS);
 
       return () => clearTimeout(timer);
     }

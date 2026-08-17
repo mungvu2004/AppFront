@@ -1,4 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+
+import { durationMs } from '@/lib/motion';
 
 export interface WallData {
   id: string;
@@ -15,13 +17,17 @@ type SortConfig = {
   direction: 'asc' | 'desc' | null;
 }
 
-let undoBackup: WallData[] | null = null;
-
 export function useListReview(
   initialData: WallData[],
   onToast?: (toast: { message: string; onUndo: () => void }) => void
 ) {
   const [data, setData] = useState<WallData[]>(initialData);
+  // Per-instance, not per-module. Held at module scope this was one buffer
+  // shared by every list on the page: undoing a delete in one list restored
+  // the other list's rows into it, and the second delete overwrote the first
+  // list's backup so its toast silently undid nothing. A ref rather than state
+  // because nothing renders from it.
+  const undoBackup = useRef<WallData[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null });
@@ -92,7 +98,10 @@ export function useListReview(
       return item;
     }));
     
-    // reset flash after 400ms
+    // Hold the flash for the ladder's slowest speed, then clear it. Written as
+    // 400 ms until now, which is not one of the five durations rule B allows —
+    // it escaped `local/no-raw-duration` only because that rule watches
+    // src/components and src/screens, and this is a hook.
     setTimeout(() => {
       setData(current => current.map(item => {
         if (selectedIds.has(item.id)) {
@@ -101,7 +110,7 @@ export function useListReview(
         return item;
       }));
       setSelectedIds(new Set());
-    }, 400);
+    }, durationMs('slow'));
   }, [selectedIds]);
 
   // Undo delete toast logic simulation
@@ -112,14 +121,14 @@ export function useListReview(
     setData(current => current.filter(item => !selectedIds.has(item.id)));
     setSelectedIds(new Set());
     
-    undoBackup = backup;
-    
+    undoBackup.current = backup;
+
     onToast?.({
       message: `Đã xóa ${count > 0 ? count : 'các'} cấu kiện`,
       onUndo: () => {
-        if (undoBackup) {
-          setData(undoBackup);
-          undoBackup = null;
+        if (undoBackup.current) {
+          setData(undoBackup.current);
+          undoBackup.current = null;
         }
       }
     });

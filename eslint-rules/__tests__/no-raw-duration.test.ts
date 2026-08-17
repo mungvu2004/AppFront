@@ -78,6 +78,25 @@ ruleTester.run('no-raw-duration', rule, {
 
     // Outside src/ the rule is silent.
     { code: 'const t = { duration: 0.18 };', filename: CONFIG_FILE },
+
+    // A timer delay that names its slot, or names itself.
+    {
+      code: 'setTimeout(() => setFlash(false), durationMs("slow"));',
+      filename: HOOK_FILE,
+    },
+    {
+      code: 'const AUTOSAVE_DEBOUNCE_MS = 800; setTimeout(save, AUTOSAVE_DEBOUNCE_MS);',
+      filename: HOOK_FILE,
+    },
+    // Zero yields to the event loop; it does not animate.
+    { code: 'setTimeout(resolve, 0);', filename: LIBRARY_FILE },
+    // Not a timer, however much it looks like one.
+    { code: 'schedule(fn, 400);', filename: HOOK_FILE },
+    { code: 'const t = setTimeout(fn);', filename: HOOK_FILE },
+    // A test waiting for a microtask is scaffolding, not product motion.
+    { code: 'setTimeout(resolve, 50);', filename: 'src/hooks/__tests__/sample.test.ts' },
+    { code: 'setTimeout(resolve, 50);', filename: 'src/components/ui/Sample.test.tsx' },
+    { code: 'setTimeout(resolve, 50);', filename: 'src/components/ui/Sample.stories.tsx' },
   ],
   invalid: [
     // A duration typed straight into a framer-motion transition.
@@ -167,6 +186,37 @@ ruleTester.run('no-raw-duration', rule, {
     {
       code: 'const t = { duration: 340 };',
       filename: LIBRARY_FILE,
+      errors: 1,
+    },
+
+    // The shape that got away: a timer delay is a call argument, so none of the
+    // three property-and-string checks above ever looked at it. Two hooks held a
+    // flash for an off-ladder 400 ms for as long as this rule had existed.
+    {
+      code: 'setTimeout(() => setFlash(false), 400);',
+      filename: HOOK_FILE,
+      errors: [{ message: /durationMs\(\)/u }],
+    },
+    {
+      code: 'const timer = setTimeout(clear, 400);',
+      filename: COMPONENT_FILE,
+      errors: 1,
+    },
+    // Through the host object too — `window.setTimeout` is the same function.
+    {
+      code: 'timerRef.current = window.setTimeout(show, 400);',
+      filename: COMPONENT_FILE,
+      errors: 1,
+    },
+    {
+      code: 'setInterval(tick, 700);',
+      filename: SCREEN_FILE,
+      errors: 1,
+    },
+    // Even a value that *is* on the ladder: the point is that it is named.
+    {
+      code: 'setTimeout(() => setHasEntered(true), 120);',
+      filename: HOOK_FILE,
       errors: 1,
     },
   ],

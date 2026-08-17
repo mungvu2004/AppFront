@@ -5,16 +5,19 @@ import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Toggle } from '../components/ui/Toggle';
 import { Settings, Save, Trash2, Check, RefreshCw } from 'lucide-react';
 
+/** Fake network latency for the demo buttons. Not motion; nothing moves for it. */
+const DEMO_LATENCY_MS = 800;
+
 export default function DesignSystem() {
   const [toggleChecked, setToggleChecked] = useState(false);
 
   const simulateAsync = async (val: boolean) => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, DEMO_LATENCY_MS));
     setToggleChecked(val);
   };
 
   const simulateAsyncError = async () => {
-    await new Promise((resolve, reject) => setTimeout(reject, 800));
+    await new Promise((resolve, reject) => setTimeout(reject, DEMO_LATENCY_MS));
     throw new Error('Simulated failure');
   };
 

@@ -60,4 +60,25 @@ describe('Button', () => {
     const btn = screen.getByRole('button');
     expect(btn.className).toMatch(/focus-visible:ring-2/);
   });
+
+  // The label is drawn twice — once in a hidden copy that reserves the width so
+  // a spinner cannot resize the button, once visibly. Without aria-hidden on the
+  // copy, anything reading the DOM before the stylesheet applies computes the
+  // name as the label twice over, which quietly breaks every
+  // `getByRole('button', { name })` in the repo.
+  it('is named once, not twice, despite drawing its label twice', () => {
+    render(<Button>Thu hồi</Button>);
+
+    expect(screen.getByRole('button', { name: 'Thu hồi' })).toBeInTheDocument();
+  });
+
+  it('keeps a single name when it also carries an icon and a shortcut', () => {
+    render(
+      <Button iconBefore={<Plus />} shortcut="⌘K">
+        Thêm tường
+      </Button>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Thêm tường ⌘K' })).toBeInTheDocument();
+  });
 });

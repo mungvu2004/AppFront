@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store';
+import { durationMs } from '../lib/motion';
 
 /**
  * Provides a transient boolean that is true for 400ms after any commit.
@@ -14,7 +15,7 @@ export function useCommitFlash(): boolean {
       setIsFlashing(true);
       const timer = setTimeout(() => {
         setIsFlashing(false);
-      }, 400);
+      }, durationMs('slow'));
 
       return () => clearTimeout(timer);
     }

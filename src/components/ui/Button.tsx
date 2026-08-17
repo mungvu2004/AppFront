@@ -63,8 +63,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           )
         ) : (
           <span className="relative inline-grid place-items-center w-full">
-            {/* Invisible layout constraint to prevent width shifting on loading */}
-            <span className="invisible flex items-center gap-[8px]">
+            {/* Invisible layout constraint to prevent width shifting on loading.
+                aria-hidden because it is a copy of the label: `visibility: hidden`
+                already keeps it out of the accessibility tree in a browser, but
+                only once a stylesheet has said so. Anything reading this markup
+                without the CSS — jsdom in a unit test, an extension parsing the
+                DOM — otherwise computes the button's name as its label twice
+                over ("Thu hồi Thu hồi"). Saying it here makes the two agree. */}
+            <span aria-hidden="true" className="invisible flex items-center gap-[8px]">
               {leadIcon && <span className="w-[18px] shrink-0" />}
               <span className="whitespace-nowrap">{children}</span>
               {iconAfter && <span className="w-[18px] shrink-0" />}

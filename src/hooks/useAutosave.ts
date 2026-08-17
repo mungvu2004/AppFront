@@ -3,6 +3,13 @@ import { useStore, RootState } from '../store';
 import { formatTime } from '../lib/format';
 
 /**
+ * Invariant A7: there is no save button, and the system saves 800 ms after the
+ * last edit. This is the invariant itself, not a movement — it must never be
+ * pulled onto the motion ladder.
+ */
+const AUTOSAVE_DEBOUNCE_MS = 800;
+
+/**
  * Debounces spatial data changes and auto-saves.
  * Triggers after 800ms of inactivity.
  * Returns a localized label like "Đã lưu lúc 14:32".
@@ -28,7 +35,7 @@ export function useAutosave(onSave: (data: RootState['spatial']) => Promise<void
         console.error('Autosave failed', err);
         setSaveLabel('Lưu thất bại');
       }
-    }, 800);
+    }, AUTOSAVE_DEBOUNCE_MS);
 
     return () => {
       if (timeoutRef.current) {

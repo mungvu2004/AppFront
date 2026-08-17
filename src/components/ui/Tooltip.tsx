@@ -4,6 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Kbd } from './Kbd';
 import { durationSeconds } from '../../lib/motion';
 
+/**
+ * How long a pointer must rest before the tooltip appears.
+ *
+ * A dwell time, not a movement: it is the pause before the animation, so it is
+ * not on the four-speed ladder and must not be shortened to one. Named rather
+ * than typed inline so the number is a decision somebody can find and argue with.
+ */
+const TOOLTIP_DWELL_MS = 400;
+
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 // Delay: 400ms. Nền text-primary, chữ trắng, 13px, bo 6px, bóng md, mũi nhọn.
 
@@ -50,7 +59,7 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
   const handleShow = () => {
     if (disabled) return;
     updateCoords();
-    timeoutRef.current = window.setTimeout(() => setIsVisible(true), 400);
+    timeoutRef.current = window.setTimeout(() => setIsVisible(true), TOOLTIP_DWELL_MS);
   };
 
   const handleHide = () => {

@@ -21,7 +21,7 @@
  * Neither was caught by reading the config, because neither was in the config.
  * A grep found them; a grep is not a gate.
  *
- * ## Three things are refused, and only inside the two view folders
+ * ## Four things are refused
  *
  * - A numeric `duration` in an object literal — `transition={{ duration: 0.18 }}`.
  *   Zero is allowed: it means *no animation*, which is a decision rather than a
@@ -31,6 +31,13 @@
  *   that happens to read "Optimistic Async (800ms)" is left alone.
  * - A Tailwind arbitrary timing utility — `animate-[…]`, `duration-[…]`,
  *   `delay-[…]`. These bypass the theme entirely, which is the whole problem.
+ * - A numeric delay on `setTimeout` / `setInterval` — `setTimeout(clear, 400)`.
+ *   Added after two hooks were found holding a flash for 400 ms, a figure rule B
+ *   does not allow. Both had been there since before this rule existed and
+ *   neither was ever reported, because a timer delay is a **call argument**, and
+ *   the three checks above all look at properties and strings. The path scope was
+ *   never the gap; the shape scope was. Zero is allowed, for the same reason as
+ *   above — `setTimeout(fn, 0)` yields to the event loop, it does not animate.
  *
  * ## Where it applies
  *
@@ -65,6 +72,19 @@ const TIME_LITERAL = /\d+(?:\.\d+)?\s*m?s\b/;
 /** Tailwind arbitrary values that set a time, with any variant prefix. */
 const ARBITRARY_TIMING = /\b(?:animate|duration|delay)-\[/;
 
+/** Timer functions whose second argument is a duration wearing a disguise. */
+const TIMER_CALLEES = new Set(['setTimeout', 'setInterval']);
+
+/**
+ * Files whose timers are scaffolding rather than product motion.
+ *
+ * A test that waits 50 ms for a microtask to settle is not choosing how fast the
+ * interface moves, and making every such line carry a disable comment is how a
+ * rule teaches people to reach for the disable comment. The other three checks
+ * still apply here — none of them has ever fired on a test.
+ */
+const SCAFFOLDING_FILE = /(?:\.test\.|\.stories\.|__tests__\/|__mocks__\/)/;
+
 /** Properties whose string value is CSS that can carry a time. */
 const TIMED_CSS_PROPERTIES = new Set([
   'animation',
@@ -86,6 +106,9 @@ const CSS_TIME_MESSAGE =
 const ARBITRARY_MESSAGE =
   'Cấm arbitrary value cho animate/duration/delay. Khai animation có tên trong tailwind.config.ts rồi dùng tên đó.';
 
+const TIMER_MESSAGE =
+  'Cấm viết thẳng số mili-giây cho setTimeout/setInterval. Nếu đây là chuyển động, dùng durationMs() từ src/lib/motion. Nếu đây là thời gian chờ chứ không phải chuyển động, hãy tắt rule kèm lý do.';
+
 /** The name a property is written under, ignoring computed keys. */
 function propertyName(node) {
   if (node.computed) {
@@ -98,6 +121,28 @@ function propertyName(node) {
 
   if (node.key.type === 'Literal' && typeof node.key.value === 'string') {
     return node.key.value;
+  }
+
+  return null;
+}
+
+/**
+ * The name a call is made under, seeing through the host object.
+ *
+ * `setTimeout(…)` and `window.setTimeout(…)` are the same function, and a rule
+ * that caught only the bare form would be one rename away from useless.
+ */
+function calleeName(node) {
+  if (node.callee.type === 'Identifier') {
+    return node.callee.name;
+  }
+
+  if (
+    node.callee.type === 'MemberExpression' &&
+    !node.callee.computed &&
+    node.callee.property.type === 'Identifier'
+  ) {
+    return node.callee.property.name;
   }
 
   return null;
@@ -148,7 +193,29 @@ module.exports = {
       }
     };
 
+    const checksTimers = !SCAFFOLDING_FILE.test(normalizedFilename);
+
     return {
+      CallExpression(node) {
+        if (!checksTimers) {
+          return;
+        }
+
+        const name = calleeName(node);
+        if (name === null || !TIMER_CALLEES.has(name)) {
+          return;
+        }
+
+        const delay = node.arguments[1];
+        if (
+          delay !== undefined &&
+          delay.type === 'Literal' &&
+          typeof delay.value === 'number' &&
+          delay.value !== 0
+        ) {
+          context.report({ node: delay, message: TIMER_MESSAGE });
+        }
+      },
       Property(node) {
         const name = propertyName(node);
 
