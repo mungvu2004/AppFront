@@ -45,7 +45,7 @@
  *
  * Two shapes stay legal everywhere, and deliberately:
  *
- * - A duration as a *parameter default* — `useNumberTween(value, ms = FOO)`.
+ * - A duration as a *parameter default* — `(value, ms = MOTION_DURATIONS_MS.standard)`.
  *   That is a caller-supplied duration, not a hardcoded one, and the default is
  *   read off the table anyway.
  * - `duration: 0`, which means *no animation*.

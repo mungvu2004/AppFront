@@ -72,7 +72,7 @@ ruleTester.run('no-raw-duration', rule, {
     { code: 'const s = { transition: "opacity 180ms ease" };', filename: MOTION_MODULE_FILE },
 
     // A duration as a parameter default is caller-supplied, not hardcoded —
-    // this is the `useNumberTween(value, durationMs)` shape and it stays legal.
+    // this is the `(value, durationMs = ...)` parameter shape and it stays legal.
     { code: 'export const tween = (ms = MOTION_DURATIONS_MS.standard) => ms;', filename: HOOK_FILE },
     { code: 'export const tween = (ms = 260) => ms;', filename: HOOK_FILE },
 

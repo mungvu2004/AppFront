@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNumberTween } from './useNumberTween';
+
+import { formatNumber, parseNumber } from '@/lib/format/number';
+
+import { useCountUp } from './useCountUp';
 
 export interface UseNumericFieldProps {
   value?: number | undefined;
@@ -15,7 +18,9 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
 
-  const tweenedValue = useNumberTween(value, 260);
+  // `from: value` mounts at rest; an external change then runs from the shown
+  // value. A missing value maps to NaN, which the count-up treats as "no run".
+  const { value: animatedValue } = useCountUp(value ?? Number.NaN, { from: value ?? Number.NaN });
   const timerRef = useRef<number | null>(null);
   const lastCommittedRef = useRef<number | undefined>(value);
 
@@ -31,18 +36,10 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
     return null;
   };
 
-  const parseNumber = (str: string): number | undefined => {
-    if (!str.trim()) return undefined;
-    // Handle Vietnamese locale: "4.250,50" -> "4250.50", or raw "4250"
-    const normalized = str.replace(/\./g, '').replace(',', '.');
-    const parsed = parseFloat(normalized);
-    return isNaN(parsed) ? undefined : parsed;
-  };
-
-  const formatNumber = (num: number | undefined): string => {
-    if (num === undefined) return '';
-    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(num);
-  };
+  // The shared formatter, with one field-specific reading: an editable input
+  // shows a missing value as an empty box, not as the read-only `—` placeholder.
+  const displayText = (num: number | undefined): string =>
+    num === undefined ? '' : formatNumber(num, { maxFractionDigits: 2 });
 
   const commit = useCallback((valStr: string) => {
     const parsed = parseNumber(valStr);
@@ -86,7 +83,7 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
       // When focusing without typing, just show the raw value of what was last committed, or keep formatted?
       // For editing, usually it's better to show raw or just let them edit the formatted one.
       // We will set local to formatted for simplicity of editing.
-      setLocalValue(formatNumber(lastCommittedRef.current));
+      setLocalValue(displayText(lastCommittedRef.current));
     }
   };
 
@@ -102,7 +99,7 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
     if (e.key === 'Escape') {
       if (timerRef.current) clearTimeout(timerRef.current);
       setIsTyping(false);
-      setLocalValue(formatNumber(lastCommittedRef.current));
+      setLocalValue(displayText(lastCommittedRef.current));
       setError(null);
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
@@ -115,7 +112,7 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
       if (min !== undefined) current = Math.max(min, current);
       if (max !== undefined) current = Math.min(max, current);
       
-      const newStr = formatNumber(current);
+      const newStr = displayText(current);
       setLocalValue(newStr);
       setIsTyping(true);
       setError(validate(current));
@@ -131,7 +128,7 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
     if (min !== undefined) current = Math.max(min, current);
     if (max !== undefined) current = Math.min(max, current);
     
-    setLocalValue(formatNumber(current));
+    setLocalValue(displayText(current));
     setIsTyping(true);
     setError(validate(current));
     // Keep focus
@@ -139,7 +136,10 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
     input?.focus();
   };
 
-  const displayValue = isTyping || isFocused ? localValue : formatNumber(tweenedValue);
+  const displayValue =
+    isTyping || isFocused
+      ? localValue
+      : displayText(Number.isFinite(animatedValue) ? animatedValue : undefined);
 
   return {
     displayValue,

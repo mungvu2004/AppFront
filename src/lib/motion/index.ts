@@ -85,6 +85,49 @@ export {
   type StaggerScheduleOptions,
 } from './stagger';
 
+export {
+  diffListKeys,
+  LIST_MOTION_ITEM_LIMIT,
+  planListMotion,
+  preservedScrollTopPx,
+  scrollAnchorOf,
+  type ListDiff,
+  type ListEnterMotion,
+  type ListExitMotion,
+  type ListItemLayout,
+  type ListKey,
+  type ListKeyMove,
+  type ListKeyPlacement,
+  type ListMotionPlan,
+  type ListMoveMotion,
+  type ScrollAnchor,
+} from './listMotion';
+
+export {
+  createSidePanelResizeDrag,
+  planSidePanelSnapBack,
+  planSidePanelToggle,
+  SIDE_PANEL_SNAP_MODES,
+  SIDE_PANEL_WIDTHS_PX,
+  sidePanelEdgeOffsetPx,
+  sidePanelWidthPx,
+  snapSidePanelMode,
+  type SidePanelMode,
+  type SidePanelMotionPlan,
+  type SidePanelResizeDrag,
+  type SidePanelSettle,
+} from './sidePanel';
+
+export {
+  COUNT_UP_DURATION,
+  COUNT_UP_EASING,
+  createCountUp,
+  sampleCountUp,
+  type CountUp,
+  type CountUpSample,
+  type CountUpSpec,
+} from './useCountUp';
+
 /**
  * The framer-motion shaped constants the shipped overlays already import.
  * Deprecated for new code — see `framer.ts`.

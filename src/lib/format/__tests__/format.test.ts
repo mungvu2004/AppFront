@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { formatArea, formatAngle, formatLength, METRE_THRESHOLD_MM } from '../measure';
-import { formatNumber, formatPercent, isFormattable, MISSING_VALUE } from '../number';
+import { formatNumber, formatPercent, isFormattable, MISSING_VALUE, parseNumber } from '../number';
 
 /**
  * Every value the formatters are expected to survive, in one place.
@@ -263,5 +263,34 @@ describe('format — invariants that hold for every entry point', () => {
     for (const input of HOSTILE_INPUTS) {
       expect(formatNumber(input) === MISSING_VALUE).toBe(!isFormattable(input));
     }
+  });
+});
+
+describe('parseNumber', () => {
+  it('reads Vietnamese notation back into a number', () => {
+    expect(parseNumber('4.250,50')).toBe(4250.5);
+    expect(parseNumber('1.234.567,89')).toBe(1234567.89);
+    expect(parseNumber('248,60')).toBe(248.6);
+    expect(parseNumber('4250')).toBe(4250);
+    expect(parseNumber('-3,45')).toBe(-3.45);
+  });
+
+  it('round-trips what formatNumber writes', () => {
+    for (const value of [0, 220, 3450, 248.6, -3.45, 1234567.89]) {
+      expect(parseNumber(formatNumber(value, { maxFractionDigits: 2 }))).toBe(value);
+    }
+  });
+
+  it('ignores surrounding space and tolerates a stray trailing character', () => {
+    expect(parseNumber('  220  ')).toBe(220);
+    // Keystroke-lenient, the way parseFloat is: a prefix is still a number.
+    expect(parseNumber('12a')).toBe(12);
+  });
+
+  it('reads nothing readable as undefined, never NaN', () => {
+    expect(parseNumber('')).toBeUndefined();
+    expect(parseNumber('   ')).toBeUndefined();
+    expect(parseNumber('abc')).toBeUndefined();
+    expect(parseNumber('—')).toBeUndefined();
   });
 });

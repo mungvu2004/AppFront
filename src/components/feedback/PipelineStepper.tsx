@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { useEffect, useState, forwardRef } from 'react';
-import { useNumberTween } from '../../hooks/useNumberTween';
+import { useCountUp } from '../../hooks/useCountUp';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
 
@@ -39,7 +39,9 @@ function usePipelineStep(step: PipelineStepData) {
     setPrevStatus(step.status);
   }, [step.status, prevStatus]);
 
-  const tweenedProgress = useNumberTween(step.progress, 260) ?? 0;
+  // `from` mounts the bar at rest; progress updates then run from the shown
+  // value, and reduced motion cuts straight to the reported figure.
+  const { value: tweenedProgress } = useCountUp(step.progress, { from: step.progress });
 
   return { flash, tweenedProgress };
 }

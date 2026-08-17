@@ -237,3 +237,30 @@ export function formatPercent(value: MaybeNumber, options: PercentFormatOptions 
   const ratio = (options.source ?? 'ratio') === 'percent' ? value / 100 : value;
   return percentFormatter(digits).format(withoutNegativeZero(ratio));
 }
+
+/**
+ * Read a number a person typed in Vietnamese notation: `"4.250,50"` is `4250.5`.
+ *
+ * The inverse of {@link formatNumber}, and the only place the separators are
+ * ever taken apart: a dot is a thousands group and is dropped, a comma is the
+ * decimal mark and becomes one. Assembling this per input field is how
+ * `"3,45"` ends up read as `345` somewhere.
+ *
+ * Deliberately lenient, because it reads keystrokes rather than data: leading
+ * and trailing space is ignored, and a numeric prefix is accepted the way
+ * `parseFloat` accepts it (`"12a"` reads as `12`), so a stray character does
+ * not blank a field mid-edit. Anything with no readable number at all —
+ * including the empty string — comes back `undefined`, never `NaN`.
+ */
+export function parseNumber(text: string): number | undefined {
+  const trimmed = text.trim();
+
+  if (trimmed === '') {
+    return undefined;
+  }
+
+  const normalized = trimmed.replace(/\./gu, '').replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
