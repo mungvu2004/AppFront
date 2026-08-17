@@ -7,6 +7,7 @@ import { IconButton } from '../ui/IconButton';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE } from '../../lib/motion';
 import { useShortcut } from '../../hooks/useShortcut';
+import { createFocusTrap } from '../../lib/input/focusTrap';
 
 
 // ─── Dữ liệu phím tắt ────────────────────────────────────────────────────────
@@ -76,27 +77,21 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
     { enabled: isOpen },
   );
 
-  // Đưa focus vào dialog khi mở
+  // Bẫy tiêu điểm dùng chung (src/lib/input/focusTrap): Tab vòng trong
+  // dialog, Esc gọi onClose rồi dừng lan, đóng thì trả tiêu điểm về nơi mở.
   useEffect(() => {
     if (!isOpen) return;
-    const raf = requestAnimationFrame(() => dialogRef.current?.focus());
-    return () => cancelAnimationFrame(raf);
-  }, [isOpen]);
+    const container = dialogRef.current;
+    if (!container) return;
 
-  // Bẫy Tab xử lý tại chính dialog
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Tab' || !dialogRef.current) return;
-    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey) {
-      if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
-    } else {
-      if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
-    }
-  };
+    const trap = createFocusTrap(container, { onEscape: onClose });
+    const raf = requestAnimationFrame(() => trap.activate());
+
+    return () => {
+      cancelAnimationFrame(raf);
+      trap.release();
+    };
+  }, [isOpen, onClose]);
 
   const overlayVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
   const dialogVariants = prefersReducedMotion
@@ -127,7 +122,6 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            onKeyDown={handleKeyDown}
             initial="hidden" animate="visible" exit="exit"
             variants={dialogVariants}
             transition={{ duration: prefersReducedMotion ? DURATION.fast : DURATION.default, ease: EASE.out }}

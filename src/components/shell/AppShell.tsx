@@ -13,6 +13,8 @@ import type { BreadcrumbItem } from '../../hooks/useBreadcrumb';
 import { ShortcutHelp } from './ShortcutHelp';
 import { useShortcutHelp } from '../../hooks/useShortcutHelp';
 import { useKeyboardMap } from '../../hooks/useKeyboardMap';
+import { FOCUS_REGIONS, SKIP_LINK } from '../../lib/input/focusOrder';
+import { Z_INDEX } from '../../lib/zIndex';
 import { CommandPalette } from '../overlay/CommandPalette';
 import { Drawer } from '../overlay/Drawer';
 import { IconButton } from '../ui/IconButton';
@@ -168,9 +170,23 @@ export function AppShell({
   });
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-bg-app overflow-hidden">
+    <div className="relative h-screen w-screen flex flex-col bg-bg-app overflow-hidden">
+      {/* ── Liên kết bỏ qua — phần tử focus đầu tiên của trang ─────────── */}
+      <a
+        href={`#${SKIP_LINK.targetDomId}`}
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:px-3 focus:py-2 focus:rounded-[8px] focus:bg-bg-surface focus:text-text-primary focus:shadow-panel focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 outline-none text-[13px]"
+        style={{ zIndex: Z_INDEX.toast }}
+      >
+        {SKIP_LINK.label}
+      </a>
+
       {/* ── Top bar ─────────────────────────────────────────────── 56px ── */}
-      <header className="h-[56px] shrink-0 flex items-center px-4 gap-3 w-full">
+      <header
+        className="h-[56px] shrink-0 flex items-center px-4 gap-3 w-full"
+        data-region="topBar"
+        id={FOCUS_REGIONS.topBar.domId}
+        aria-label={FOCUS_REGIONS.topBar.label}
+      >
         {/* Logo */}
         <div
           className="w-8 h-8 bg-accent rounded-[8px] flex items-center justify-center shrink-0"
@@ -219,7 +235,9 @@ export function AppShell({
         <div
           className="w-[56px] shrink-0 flex flex-col items-center py-2 gap-1"
           role="toolbar"
-          aria-label="Bộ công cụ canvas"
+          data-region="toolbar"
+          id={FOCUS_REGIONS.toolbar.domId}
+          aria-label={FOCUS_REGIONS.toolbar.label}
           aria-orientation="vertical"
         >
           {TOOLS.map(tool => (
@@ -241,28 +259,47 @@ export function AppShell({
 
         {/* ── Canvas ── flex-1 min-w-[640px] ── */}
         <main
-          className="flex-1 min-w-[640px] bg-bg-surface rounded-[12px] shadow-panel overflow-hidden relative"
-          aria-label="Vùng canvas"
+          className="flex-1 min-w-[640px] bg-bg-surface rounded-[12px] shadow-panel overflow-hidden relative outline-none"
+          data-region="canvas"
+          id={FOCUS_REGIONS.canvas.domId}
+          aria-label={FOCUS_REGIONS.canvas.label}
+          tabIndex={-1}
         >
           {canvasContent}
         </main>
 
         {/* ── Panel phải ── 344px ── chỉ desktop >= 1280 */}
+        {/* display:contents — landmark không tham gia layout flex */}
         {!rightAsOverlay && (
-          <PanelWrapper collapsed={rightCollapsed} width={344} side="right">
-            {rightPanelContent}
-          </PanelWrapper>
+          <aside
+            className="contents"
+            data-region="rightPanel"
+            id={FOCUS_REGIONS.rightPanel.domId}
+            aria-label={FOCUS_REGIONS.rightPanel.label}
+          >
+            <PanelWrapper collapsed={rightCollapsed} width={344} side="right">
+              {rightPanelContent}
+            </PanelWrapper>
+          </aside>
         )}
       </div>
 
       {/* ── Status bar ── 32px ── */}
-      <StatusBar
-        x={cursorX}
-        y={cursorY}
-        scaleRatio={scaleRatio}
-        scaleDensity={scaleDensity}
-        saveText={saveText}
-      />
+      {/* display:contents — landmark không tham gia layout flex */}
+      <footer
+        className="contents"
+        data-region="statusBar"
+        id={FOCUS_REGIONS.statusBar.domId}
+        aria-label={FOCUS_REGIONS.statusBar.label}
+      >
+        <StatusBar
+          x={cursorX}
+          y={cursorY}
+          scaleRatio={scaleRatio}
+          scaleDensity={scaleDensity}
+          saveText={saveText}
+        />
+      </footer>
 
       {/* ── Overlays ──────────────────────────────────────────────────────── */}
 

@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE } from '../../lib/motion';
 import { useShortcut } from '../../hooks/useShortcut';
+import { createFocusTrap } from '../../lib/input/focusTrap';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
@@ -37,23 +38,26 @@ export interface ModalRootProps {
 function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTitleId }: ModalRootProps) {
   const prefersReducedMotion = useReducedMotion();
   const modalRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const autoTitleId = React.useId();
   const titleId = externalTitleId || `modal-title-${autoTitleId}`;
 
-  // Focus management: lưu focus cũ, đưa focus vào modal, trả lại khi đóng
+  // Bẫy tiêu điểm dùng chung (src/lib/input/focusTrap): Tab vòng trong
+  // modal, Esc gọi onClose rồi dừng lan để trọng tài không xử lý lần hai,
+  // đóng thì trả tiêu điểm về đúng nơi đã mở.
   useEffect(() => {
     if (!isOpen) return;
+    const container = modalRef.current;
+    if (!container) return;
 
-    previousFocusRef.current = document.activeElement as HTMLElement;
+    const trap = createFocusTrap(container, { onEscape: onClose });
     // Delay để animation bắt đầu trước khi focus
-    const raf = requestAnimationFrame(() => modalRef.current?.focus());
+    const raf = requestAnimationFrame(() => trap.activate());
 
     return () => {
       cancelAnimationFrame(raf);
-      previousFocusRef.current?.focus();
+      trap.release();
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   // Esc khi focus nằm ngoài modal (trường hợp hiếm) — qua trọng tài phím tắt.
   // Binding scope 'dialog' cũng là thứ làm tầng dialog thành modal: phím công
@@ -62,29 +66,6 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
     { id: 'modal.close', combo: 'Escape', scope: 'dialog', preventDefault: false, onTrigger: onClose },
     { enabled: isOpen },
   );
-
-  // Esc + bẫy Tab xử lý tại chính modal: focus đang ở trong modal (kể cả trong
-  // ô nhập liệu) thì Esc vẫn đóng được, và stopPropagation để trọng tài không
-  // xử lý cùng một phím lần thứ hai.
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onClose();
-      return;
-    }
-    if (e.key === 'Tab' && modalRef.current) {
-      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
-      } else {
-        if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
-      }
-    }
-  };
 
   // Animation variants — slide lên 8px + fade, đúng spec
   const overlayVariants = {
@@ -129,7 +110,6 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
               aria-modal="true"
               aria-labelledby={titleId}
               tabIndex={-1}
-              onKeyDown={handleKeyDown}
               initial="hidden" animate="visible" exit="exit"
               variants={modalVariants}
               transition={{
