@@ -28,18 +28,27 @@ const mountKeyboardMap = () => {
 };
 
 describe('useKeyboardMap', () => {
-  it('activates each tool from its key', () => {
+  it('activates each tool from the key the canonical table declares', () => {
     const { handlers, unmount } = mountKeyboardMap();
 
     pressKey('v');
     pressKey('w');
     pressKey('m');
-    pressKey('l');
+    pressKey('d');
 
     expect(handlers.onActivateTool).toHaveBeenNthCalledWith(1, 'select');
-    expect(handlers.onActivateTool).toHaveBeenNthCalledWith(2, 'wall');
-    expect(handlers.onActivateTool).toHaveBeenNthCalledWith(3, 'dimension');
-    expect(handlers.onActivateTool).toHaveBeenNthCalledWith(4, 'door');
+    expect(handlers.onActivateTool).toHaveBeenNthCalledWith(2, 'drawWall');
+    expect(handlers.onActivateTool).toHaveBeenNthCalledWith(3, 'measure');
+    expect(handlers.onActivateTool).toHaveBeenNthCalledWith(4, 'placeOpening');
+    unmount();
+  });
+
+  it('leaves the keys of tools the shell does not offer unbound', () => {
+    const { handlers, unmount } = mountKeyboardMap();
+
+    pressKey('l');
+
+    expect(handlers.onActivateTool).not.toHaveBeenCalled();
     unmount();
   });
 

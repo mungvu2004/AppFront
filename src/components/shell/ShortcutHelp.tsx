@@ -8,6 +8,7 @@ import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE } from '../../lib/motion';
 import { useShortcut } from '../../hooks/useShortcut';
 import { createFocusTrap } from '../../lib/input/focusTrap';
+import { shortcutForTool } from '../../lib/tools/shortcuts';
 
 
 // ─── Dữ liệu phím tắt ────────────────────────────────────────────────────────
@@ -25,11 +26,13 @@ interface ShortcutGroup {
 const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Công cụ',
+    // Phím đọc từ bảng chuẩn lib/tools/shortcuts — đổi bảng là bảng trợ giúp
+    // tự đổi theo, không có bản chép tay thứ hai để trôi.
     entries: [
-      { keys: ['V'],   description: 'Chọn đối tượng' },
-      { keys: ['W'],   description: 'Vẽ tường' },
-      { keys: ['M'],   description: 'Thêm kích thước' },
-      { keys: ['L'],   description: 'Cửa / lỗ mở' },
+      { keys: [shortcutForTool('select')],       description: 'Chọn đối tượng' },
+      { keys: [shortcutForTool('drawWall')],     description: 'Vẽ tường' },
+      { keys: [shortcutForTool('measure')],      description: 'Thêm kích thước' },
+      { keys: [shortcutForTool('placeOpening')], description: 'Cửa / lỗ mở' },
     ],
   },
   {

@@ -12,8 +12,10 @@ import { Breadcrumb } from './Breadcrumb';
 import type { BreadcrumbItem } from '../../hooks/useBreadcrumb';
 import { ShortcutHelp } from './ShortcutHelp';
 import { useShortcutHelp } from '../../hooks/useShortcutHelp';
-import { useKeyboardMap } from '../../hooks/useKeyboardMap';
+import { useKeyboardMap, type ShellToolId } from '../../hooks/useKeyboardMap';
 import { FOCUS_REGIONS, SKIP_LINK } from '../../lib/input/focusOrder';
+import { cursorCssFor } from '../../lib/input/cursors';
+import { shortcutForTool } from '../../lib/tools/shortcuts';
 import { Z_INDEX } from '../../lib/zIndex';
 import { CommandPalette } from '../overlay/CommandPalette';
 import { Drawer } from '../overlay/Drawer';
@@ -43,21 +45,21 @@ export interface AppShellProps {
 }
 
 // ─── Tool types ───────────────────────────────────────────────────────────────
-
-type ToolId = 'select' | 'wall' | 'dimension' | 'door';
+// Từ vựng tool là ToolId chuẩn của lib/tools/toolMachine (qua ShellToolId);
+// phím hiển thị đọc từ bảng chuẩn lib/tools/shortcuts, không tự chế lại.
 
 interface Tool {
-  id: ToolId;
+  id: ShellToolId;
   icon: LucideIcon;
   label: string;
   shortcut: string;
 }
 
 const TOOLS: Tool[] = [
-  { id: 'select',    icon: MousePointer2, label: 'Chọn',       shortcut: 'V' },
-  { id: 'wall',      icon: Square,        label: 'Tường',       shortcut: 'W' },
-  { id: 'dimension', icon: Ruler,         label: 'Kích thước',  shortcut: 'M' },
-  { id: 'door',      icon: DoorOpen,      label: 'Cửa / lỗ mở', shortcut: 'L' },
+  { id: 'select',       icon: MousePointer2, label: 'Chọn',        shortcut: shortcutForTool('select') },
+  { id: 'drawWall',     icon: Square,        label: 'Tường',       shortcut: shortcutForTool('drawWall') },
+  { id: 'measure',      icon: Ruler,         label: 'Kích thước',  shortcut: shortcutForTool('measure') },
+  { id: 'placeOpening', icon: DoorOpen,      label: 'Cửa / lỗ mở', shortcut: shortcutForTool('placeOpening') },
 ];
 
 // ─── ToolButton (internal view) ───────────────────────────────────────────────
@@ -152,7 +154,7 @@ export function AppShell({
   } = useAppShell();
 
 
-  const [activeTool, setActiveTool] = useState<ToolId>('select');
+  const [activeTool, setActiveTool] = useState<ShellToolId>('select');
   const { isOpen: helpOpen, open: openHelp, close: closeHelp } = useShortcutHelp();
 
   // Drawer state cho panel trái khi < 1024px
@@ -264,6 +266,7 @@ export function AppShell({
           id={FOCUS_REGIONS.canvas.domId}
           aria-label={FOCUS_REGIONS.canvas.label}
           tabIndex={-1}
+          style={{ cursor: cursorCssFor({ tool: activeTool }) }}
         >
           {canvasContent}
         </main>

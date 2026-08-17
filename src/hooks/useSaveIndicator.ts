@@ -1,7 +1,8 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { Autosave, AutosaveState } from '@/lib/autosave/createAutosave';
 import { formatTime } from '@/lib/format';
+import { getAppAnnouncer, type Announcer } from '@/lib/input/announcer';
 import viMessages from '@/i18n/vi.json';
 
 export interface SaveIndicatorResult {
@@ -13,6 +14,8 @@ export interface SaveIndicatorResult {
 export interface UseSaveIndicatorOptions {
   now?: () => number;
   tickIntervalMs?: number;
+  /** Screen-reader announcer; defaults to the application's shared one. */
+  announcer?: Announcer;
 }
 
 const SAVED_RELATIVE_THRESHOLD_MS = 60_000;
@@ -79,6 +82,47 @@ export function useSaveIndicator(autosave: Autosave, options: UseSaveIndicatorOp
 
     return () => clearInterval(intervalId);
   }, [tickIntervalMs]);
+
+  // The autosave state spoken for a screen reader (invariant A7 says the
+  // save happens with no button, so the voice is the only feedback a
+  // non-sighted user gets): a completed save is polite, a failure or going
+  // offline interrupts. `dirty` and `saving` stay silent — announcing every
+  // keystroke's consequence would drown the reader. Only transitions speak;
+  // the state already on screen at mount does not.
+  const optionsRef = useRef(options);
+  const previousStateRef = useRef<AutosaveState | null>(null);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  });
+
+  useEffect(() => {
+    const previous = previousStateRef.current;
+
+    previousStateRef.current = state;
+
+    if (previous === null || previous === state) {
+      return;
+    }
+
+    const current = optionsRef.current;
+    const announcer = current.announcer ?? getAppAnnouncer();
+    const result = buildSaveIndicatorResult(
+      state,
+      autosave.getLastSavedAt(),
+      (current.now ?? Date.now)(),
+    );
+
+    if (state === 'saved') {
+      announcer.announce(result.detail);
+
+      return;
+    }
+
+    if (state === 'failed' || state === 'offline') {
+      announcer.announce(result.label, 'assertive');
+    }
+  }, [state, autosave]);
 
   return buildSaveIndicatorResult(state, autosave.getLastSavedAt(), now());
 }

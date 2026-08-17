@@ -15,14 +15,29 @@
  * keyboard.
  */
 
+import type { ToolId } from '../lib/tools/toolMachine';
+import { shortcutForTool } from '../lib/tools/shortcuts';
 import { useShortcut, useShortcutListener } from './useShortcut';
 
-/** The tools the shell toolbar can put in hand. */
-export type ShellTool = 'select' | 'wall' | 'dimension' | 'door';
+/**
+ * The tools the shell toolbar offers today, in toolbar order — a subset of
+ * the canonical `ToolId` roster of the tool machine, so the shell and the
+ * tool layer speak one vocabulary and nothing needs translating between
+ * them. Their keys are read from `TOOL_SHORTCUTS` (the keyboard declared
+ * once, lib/tools/shortcuts), never restated here.
+ */
+export const SHELL_TOOL_IDS = [
+  'select',
+  'drawWall',
+  'measure',
+  'placeOpening',
+] as const satisfies readonly ToolId[];
+
+export type ShellToolId = (typeof SHELL_TOOL_IDS)[number];
 
 /** What the shell does when its keys fire. */
 export interface ShellKeyboardHandlers {
-  onActivateTool: (tool: ShellTool) => void;
+  onActivateTool: (tool: ShellToolId) => void;
   onOpenHelp: () => void;
   onToggleLeftPanel: () => void;
   onToggleRightPanel: () => void;
@@ -33,27 +48,27 @@ export function useKeyboardMap(handlers: ShellKeyboardHandlers): void {
 
   useShortcut({
     id: 'shell.tool.select',
-    combo: 'V',
+    combo: shortcutForTool('select'),
     scope: 'canvas',
     onTrigger: () => handlers.onActivateTool('select'),
   });
   useShortcut({
-    id: 'shell.tool.wall',
-    combo: 'W',
+    id: 'shell.tool.drawWall',
+    combo: shortcutForTool('drawWall'),
     scope: 'canvas',
-    onTrigger: () => handlers.onActivateTool('wall'),
+    onTrigger: () => handlers.onActivateTool('drawWall'),
   });
   useShortcut({
-    id: 'shell.tool.dimension',
-    combo: 'M',
+    id: 'shell.tool.measure',
+    combo: shortcutForTool('measure'),
     scope: 'canvas',
-    onTrigger: () => handlers.onActivateTool('dimension'),
+    onTrigger: () => handlers.onActivateTool('measure'),
   });
   useShortcut({
-    id: 'shell.tool.door',
-    combo: 'L',
+    id: 'shell.tool.placeOpening',
+    combo: shortcutForTool('placeOpening'),
     scope: 'canvas',
-    onTrigger: () => handlers.onActivateTool('door'),
+    onTrigger: () => handlers.onActivateTool('placeOpening'),
   });
 
   useShortcut({

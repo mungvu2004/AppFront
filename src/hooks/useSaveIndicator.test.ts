@@ -118,6 +118,53 @@ describe('useSaveIndicator', () => {
     expect(result.current.detail).toBe('Đã lưu lúc 14:32');
   });
 
+  it('announces a completed save politely', () => {
+    const autosave = createFakeAutosave();
+    const announcer = { announce: vi.fn(), destroy: vi.fn() };
+    const savedAt = new Date(2026, 7, 13, 14, 32).getTime();
+
+    autosave.emit('saving');
+    renderHook(() => useSaveIndicator(autosave, { now: () => savedAt, announcer }));
+
+    act(() => {
+      autosave.setLastSavedAt(savedAt);
+      autosave.emit('saved');
+    });
+
+    expect(announcer.announce).toHaveBeenCalledWith('Đã lưu lúc 14:32');
+  });
+
+  it('announces a failed save assertively', () => {
+    const autosave = createFakeAutosave();
+    const announcer = { announce: vi.fn(), destroy: vi.fn() };
+
+    autosave.emit('saving');
+    renderHook(() => useSaveIndicator(autosave, { announcer }));
+
+    act(() => {
+      autosave.emit('failed');
+    });
+
+    expect(announcer.announce).toHaveBeenCalledWith(
+      'Lưu thất bại sau nhiều lần thử. Chỉnh sửa hoặc lưu lại thủ công.',
+      'assertive',
+    );
+  });
+
+  it('stays silent about the state already on screen at mount and about dirty typing', () => {
+    const autosave = createFakeAutosave();
+    const announcer = { announce: vi.fn(), destroy: vi.fn() };
+
+    renderHook(() => useSaveIndicator(autosave, { announcer }));
+
+    act(() => {
+      autosave.emit('dirty');
+      autosave.emit('saving');
+    });
+
+    expect(announcer.announce).not.toHaveBeenCalled();
+  });
+
   it('never calls into the autosave engine itself', () => {
     const autosave = createFakeAutosave();
     autosave.emit('dirty');

@@ -128,3 +128,22 @@ export function createAnnouncer(doc: Document = document): Announcer {
 
   return { announce, destroy };
 }
+
+/* -------------------------------------------------------------------------- */
+/* The application instance.                                                   */
+/* -------------------------------------------------------------------------- */
+
+let appAnnouncer: Announcer | null = null;
+
+/**
+ * The one announcer the application shares, created on first use rather
+ * than at import so loading this module stays free of DOM side effects —
+ * a test that injects its own announcer never touches this one.
+ */
+export function getAppAnnouncer(): Announcer {
+  if (appAnnouncer === null) {
+    appAnnouncer = createAnnouncer();
+  }
+
+  return appAnnouncer;
+}
