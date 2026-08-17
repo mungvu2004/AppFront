@@ -2,6 +2,8 @@ import React from 'react';
 
 import { STAGGER_BUDGET_MS, STAGGER_STEP_MS } from '@/lib/motion';
 
+import { Button } from '../components/ui/Button';
+
 import { useMotionDemo, type DemoLayer, type MotionDemoScene } from '../hooks/useMotionDemo';
 
 /**
@@ -123,13 +125,9 @@ export function MotionDemo() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={demo.swapScene}
-              className={chipClass(false)}
-            >
+            <Button type="button" variant="secondary" size="sm" onClick={demo.swapScene}>
               Đổi cảnh
-            </button>
+            </Button>
             <span className="text-[13px] text-text-secondary" aria-live="polite">
               {PHASE_LABELS[demo.phase] ?? demo.phase} · tổng {demo.totalMs}ms · chồng{' '}
               {demo.overlapMs}ms
@@ -156,9 +154,9 @@ export function MotionDemo() {
                 {count} mục
               </button>
             ))}
-            <button type="button" onClick={demo.replayRows} className={chipClass(false)}>
+            <Button type="button" variant="secondary" size="sm" onClick={demo.replayRows}>
               Chạy lại
-            </button>
+            </Button>
           </div>
 
           {demo.rows.length === 0 ? (
