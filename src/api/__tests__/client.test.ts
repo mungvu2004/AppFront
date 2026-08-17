@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { HttpClient, HttpError, Result } from '@/lib/http';
+import { parseFeatureFlagPayload } from '@/lib/telemetry/flags';
 import { createApiClient } from '../client';
 import { ENDPOINTS } from '../endpoints';
 import { createMockApiClient } from '../__mocks__/client';
@@ -206,6 +207,31 @@ describe('api client', () => {
     if (versionResult.ok) {
       expect(versionResult.data.projectId).toBe('project-1');
     }
+  });
+
+  it('hands the feature-flag body over undecoded, so one bad flag cannot lose the rest', async () => {
+    const payload = { flags: { 'scene.soft-shadows': true, 'scene.ray-tracing': true, 'rules.parallel-run': 'yes' } };
+    const http = createHttpMock({ [`GET ${ENDPOINTS.featureFlags.read}`]: payload });
+    const client = createApiClient(http);
+
+    const result = await client.featureFlags.read();
+
+    expect(http.get).toHaveBeenCalledWith(ENDPOINTS.featureFlags.read, undefined);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Untouched: `parseFeatureFlagPayload` is the one that judges each entry.
+      expect(result.data).toEqual(payload);
+    }
+  });
+
+  it('reads feature flags through the parser the store uses', async () => {
+    const client = createMockApiClient();
+
+    const parsed = parseFeatureFlagPayload(await client.featureFlags.read());
+
+    expect(parsed.readable).toBe(true);
+    expect(parsed.values['scene.instanced-walls']).toBe(true);
+    expect(parsed.values['scene.soft-shadows']).toBe(false);
   });
 
   it('mock client returns sample data with the same signature', async () => {

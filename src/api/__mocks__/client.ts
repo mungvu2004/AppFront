@@ -1,4 +1,5 @@
 import type { Result } from '@/lib/http';
+import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type {
   ApiClient,
@@ -33,6 +34,21 @@ const makeProgress = (overrides: Partial<Progress> = {}): Progress => ({
   step: 'Upload drawing',
   ...overrides,
 });
+
+/**
+ * One heavy feature switched on for the mock group, the rest off.
+ *
+ * Typed against the whole key union rather than left partial, so a flag added
+ * to the table stops this file from compiling instead of quietly never being
+ * exercised by anything that runs against the mock.
+ */
+const MOCK_SERVER_FEATURE_FLAGS: Readonly<Record<FeatureFlagKey, boolean>> = {
+  'scene.instanced-walls': true,
+  'scene.soft-shadows': false,
+  'rules.parallel-run': false,
+  'export.pdf-vector': false,
+  'qc.live-collaboration': false,
+};
 
 const makeVersion = (): Version => ({
   createdAt: '2026-08-03T08:00:00.000Z',
@@ -136,6 +152,9 @@ export const createMockApiClient = (): ApiClient => {
         uploads.set(key, next);
         return ok(next);
       },
+    },
+    featureFlags: {
+      read: async () => ok({ flags: { ...MOCK_SERVER_FEATURE_FLAGS } }),
     },
     floors: {
       create: async ({ body }) => {

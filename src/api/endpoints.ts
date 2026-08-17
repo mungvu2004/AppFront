@@ -1,6 +1,7 @@
 const PROJECTS_ROOT = '/projects';
 const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
+const FEATURE_FLAGS_ROOT = '/feature-flags';
 
 export const ENDPOINTS = {
   drawings: {
@@ -12,6 +13,9 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${DRAWINGS_ROOT}/uploads`,
     progress: (projectId: string, uploadId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/progress`,
+  },
+  featureFlags: {
+    read: FEATURE_FLAGS_ROOT,
   },
   floors: {
     create: FLOORS_ROOT,

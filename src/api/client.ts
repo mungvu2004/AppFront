@@ -132,6 +132,24 @@ export interface ProjectsApi {
   update(input: UpdateProjectInput): Promise<ApiResult<Project>>;
 }
 
+/**
+ * Which heavy features are on for the person holding this session.
+ *
+ * The one read in this file that is deliberately **not** decoded with a schema.
+ * Every other endpoint models a resource where a field of the wrong type means
+ * the answer is unusable; a flag payload is a bag of independent switches, and
+ * `decode` would turn one unknown flag — a sixth flag rolled out by a newer
+ * server — into zero flags for a client that understood the other five.
+ *
+ * So the body travels as `unknown` to `parseFeatureFlagPayload` in
+ * `src/lib/telemetry/flags.ts`, which drops bad entries one at a time and
+ * leaves each surviving flag on the table's default. The `Result` envelope is
+ * understood there too, so a failed request can be handed over as-is.
+ */
+export interface FeatureFlagsApi {
+  read(options?: RequestOptions): Promise<ApiResult<unknown>>;
+}
+
 export interface FloorsApi {
   create(input: CreateFloorInput): Promise<ApiResult<Floor>>;
   delete(input: DeleteFloorInput): Promise<ApiResult<Floor>>;
@@ -154,6 +172,7 @@ export interface SpatialApi {
 
 export interface ApiClient {
   drawings: DrawingsApi;
+  featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   projects: ProjectsApi;
   spatial: SpatialApi;
@@ -247,6 +266,10 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
         'drawings.sendChunk',
       );
     },
+  },
+  featureFlags: {
+    read: async (options) =>
+      asApiResult(await callGet<unknown>(http, ENDPOINTS.featureFlags.read, options?.signal)),
   },
   floors: {
     create: async (input) => {
