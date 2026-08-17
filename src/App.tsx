@@ -5,12 +5,13 @@ import { DataEntryDemo } from './screens/DataEntryDemo';
 import { DemoSharedControls } from './screens/DemoSharedControls';
 import { FeedbackDemo } from './screens/FeedbackDemo';
 import { ListReviewDemo } from './screens/ListReviewDemo';
+import { MotionDemo } from './screens/MotionDemo';
 import { ShellDemo } from './screens/ShellDemo';
 import { StateGallery } from './screens/system/StateGallery';
 import { Toast } from './components/feedback/Toast';
 import './styles/globals.css';
 
-type ScreenId = 'design-system' | 'canvas' | 'data-entry' | 'shared' | 'feedback' | 'list-review' | 'shell' | 'states';
+type ScreenId = 'design-system' | 'canvas' | 'data-entry' | 'shared' | 'feedback' | 'list-review' | 'shell' | 'motion' | 'states';
 
 const screens: Record<ScreenId, { name: string; component: React.FC }> = {
   'design-system': { name: 'Design System', component: DesignSystem },
@@ -20,6 +21,7 @@ const screens: Record<ScreenId, { name: string; component: React.FC }> = {
   'feedback': { name: 'Feedback & States', component: FeedbackDemo },
   'list-review': { name: 'List & Review', component: ListReviewDemo },
   'shell': { name: 'App Shell', component: ShellDemo },
+  'motion': { name: 'Motion & Transitions', component: MotionDemo },
   'states': { name: 'State Gallery (QA)', component: StateGallery },
 };
 
