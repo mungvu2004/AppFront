@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useShortcut } from './useShortcut';
 
 export interface ContextMenuItem {
   id: string;
@@ -58,12 +59,19 @@ export function useContextMenu(): ContextMenuState {
     };
   }, [isVisible, closeMenu]);
 
-  useEffect(() => {
-    if (!isVisible) return;
-    const handle = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMenu(); };
-    window.addEventListener('keydown', handle);
-    return () => window.removeEventListener('keydown', handle);
-  }, [isVisible, closeMenu]);
+  // Esc đóng menu qua trọng tài phím tắt — menu ngữ cảnh là lớp trên cùng
+  // nên đăng ký ở scope 'dialog'; chừng nào menu mở, phím công cụ phía sau
+  // cũng bị nuốt như một dialog.
+  useShortcut(
+    {
+      id: 'contextMenu.close',
+      combo: 'Escape',
+      scope: 'dialog',
+      preventDefault: false,
+      onTrigger: closeMenu,
+    },
+    { enabled: isVisible },
+  );
 
   return { isVisible, position, groups, openMenu, openMenuFlat, closeMenu };
 }

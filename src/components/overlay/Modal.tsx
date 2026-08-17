@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE } from '../../lib/motion';
+import { useShortcut } from '../../hooks/useShortcut';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
@@ -40,7 +41,7 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
   const autoTitleId = React.useId();
   const titleId = externalTitleId || `modal-title-${autoTitleId}`;
 
-  // Focus management + keyboard trap
+  // Focus management: lưu focus cũ, đưa focus vào modal, trả lại khi đóng
   useEffect(() => {
     if (!isOpen) return;
 
@@ -48,32 +49,42 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
     // Delay để animation bắt đầu trước khi focus
     const raf = requestAnimationFrame(() => modalRef.current?.focus());
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
-        } else {
-          if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       cancelAnimationFrame(raf);
-      document.removeEventListener('keydown', handleKeyDown);
       previousFocusRef.current?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
+
+  // Esc khi focus nằm ngoài modal (trường hợp hiếm) — qua trọng tài phím tắt.
+  // Binding scope 'dialog' cũng là thứ làm tầng dialog thành modal: phím công
+  // cụ (V/W/M/L…) phía sau bị nuốt chừng nào modal còn mở.
+  useShortcut(
+    { id: 'modal.close', combo: 'Escape', scope: 'dialog', preventDefault: false, onTrigger: onClose },
+    { enabled: isOpen },
+  );
+
+  // Esc + bẫy Tab xử lý tại chính modal: focus đang ở trong modal (kể cả trong
+  // ô nhập liệu) thì Esc vẫn đóng được, và stopPropagation để trọng tài không
+  // xử lý cùng một phím lần thứ hai.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+    if (e.key === 'Tab' && modalRef.current) {
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
+      } else {
+        if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
+      }
+    }
+  };
 
   // Animation variants — slide lên 8px + fade, đúng spec
   const overlayVariants = {
@@ -118,6 +129,7 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
               aria-modal="true"
               aria-labelledby={titleId}
               tabIndex={-1}
+              onKeyDown={handleKeyDown}
               initial="hidden" animate="visible" exit="exit"
               variants={modalVariants}
               transition={{

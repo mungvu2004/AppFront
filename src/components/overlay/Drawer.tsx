@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE, SPRING } from '../../lib/motion';
+import { useShortcut } from '../../hooks/useShortcut';
 
 // ─── Media Query (private) ───────────────────────────────────────────────────
 
@@ -64,44 +65,53 @@ function DrawerRoot({ isOpen, onClose, children, size }: DrawerRootProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [snapLevel, setSnapLevel] = useState<SnapLevel>(2); // mở full mặc định
 
-  // Focus trap + Esc
+  // Focus management: lưu focus cũ, đưa focus vào drawer, trả lại khi đóng
   useEffect(() => {
     if (!isOpen) return;
     previousFocusRef.current = document.activeElement as HTMLElement;
     const raf = requestAnimationFrame(() => containerRef.current?.focus());
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab' && containerRef.current) {
-        const focusable = containerRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            last?.focus();
-            e.preventDefault();
-          }
-        } else {
-          if (document.activeElement === last) {
-            first?.focus();
-            e.preventDefault();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       cancelAnimationFrame(raf);
-      document.removeEventListener('keydown', handleKeyDown);
       previousFocusRef.current?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
+
+  // Esc khi focus nằm ngoài drawer — qua trọng tài phím tắt. Binding scope
+  // 'dialog' cũng làm tầng dialog thành modal chừng nào drawer còn mở.
+  useShortcut(
+    { id: 'drawer.close', combo: 'Escape', scope: 'dialog', preventDefault: false, onTrigger: onClose },
+    { enabled: isOpen },
+  );
+
+  // Esc + bẫy Tab xử lý tại chính drawer: focus đang ở trong (kể cả trong ô
+  // nhập liệu) thì Esc vẫn đóng được; stopPropagation để trọng tài không xử lý
+  // cùng một phím lần thứ hai.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+    if (e.key === 'Tab' && containerRef.current) {
+      const focusable = containerRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          last?.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first?.focus();
+          e.preventDefault();
+        }
+      }
+    }
+  };
 
   // Reset snap level khi đóng
   useEffect(() => {
@@ -122,6 +132,7 @@ function DrawerRoot({ isOpen, onClose, children, size }: DrawerRootProps) {
           <div
             className="fixed inset-0 pointer-events-none flex justify-end"
             style={{ zIndex: Z_INDEX.drawer }}
+            onKeyDown={handleKeyDown}
           >
             {/* Overlay */}
             <motion.div

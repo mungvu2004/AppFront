@@ -6,6 +6,7 @@ import { Kbd } from '../ui/Kbd';
 import { IconButton } from '../ui/IconButton';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE } from '../../lib/motion';
+import { useShortcut } from '../../hooks/useShortcut';
 
 
 // ─── Dữ liệu phím tắt ────────────────────────────────────────────────────────
@@ -63,45 +64,39 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = React.useId();
 
-  // Mở bằng phím ?
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
-      if (e.key === '?' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        isOpen ? onClose() : onClose(); // toggle từ AppShell
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
+  // Việc MỞ bảng bằng phím ? thuộc về shell (AppShell đăng ký '?' scope
+  // global). Ở đây chỉ đăng ký các phím ĐÓNG khi bảng đang mở; hai binding
+  // scope 'dialog' này đồng thời làm tầng dialog thành modal.
+  useShortcut(
+    { id: 'shortcutHelp.close', combo: 'Escape', scope: 'dialog', preventDefault: false, onTrigger: onClose },
+    { enabled: isOpen },
+  );
+  useShortcut(
+    { id: 'shortcutHelp.toggleClose', combo: '?', scope: 'dialog', onTrigger: onClose },
+    { enabled: isOpen },
+  );
 
-  // Focus trap + Esc
+  // Đưa focus vào dialog khi mở
   useEffect(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => dialogRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen]);
 
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return; }
-      if (e.key === 'Tab' && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
-        );
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
-        } else {
-          if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
-        }
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener('keydown', handler);
-    };
-  }, [isOpen, onClose]);
+  // Bẫy Tab xử lý tại chính dialog
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { last?.focus(); e.preventDefault(); }
+    } else {
+      if (document.activeElement === last) { first?.focus(); e.preventDefault(); }
+    }
+  };
 
   const overlayVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
   const dialogVariants = prefersReducedMotion
@@ -132,6 +127,7 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
+            onKeyDown={handleKeyDown}
             initial="hidden" animate="visible" exit="exit"
             variants={dialogVariants}
             transition={{ duration: prefersReducedMotion ? DURATION.fast : DURATION.default, ease: EASE.out }}

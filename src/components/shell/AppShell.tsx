@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   MousePointer2, Ruler, Square, DoorOpen, Box,
@@ -12,6 +12,7 @@ import { Breadcrumb } from './Breadcrumb';
 import type { BreadcrumbItem } from '../../hooks/useBreadcrumb';
 import { ShortcutHelp } from './ShortcutHelp';
 import { useShortcutHelp } from '../../hooks/useShortcutHelp';
+import { useKeyboardMap } from '../../hooks/useKeyboardMap';
 import { CommandPalette } from '../overlay/CommandPalette';
 import { Drawer } from '../overlay/Drawer';
 import { IconButton } from '../ui/IconButton';
@@ -156,28 +157,15 @@ export function AppShell({
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
   const [rightOverlayOpen, setRightOverlayOpen] = useState(false);
 
-  // Keyboard shortcuts (công cụ + help)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-      const map: Record<string, () => void> = {
-        'v': () => setActiveTool('select'),
-        'w': () => setActiveTool('wall'),
-        'm': () => setActiveTool('dimension'),
-        'l': () => setActiveTool('door'),
-        '?': () => openHelp(),
-        '[': leftAsDrawer ? () => setLeftDrawerOpen(v => !v) : toggleLeft,
-        ']': rightAsOverlay ? () => setRightOverlayOpen(v => !v) : toggleRight,
-      };
-
-      const action = map[e.key.toLowerCase()];
-      if (action) { e.preventDefault(); action(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [leftAsDrawer, rightAsOverlay, toggleLeft, toggleRight, openHelp]);
+  // Bản đồ phím của shell nằm trọn trong useKeyboardMap; ở đây chỉ truyền
+  // hành vi. Hook đó cũng giữ listener duy nhất và chạy audit đè phím lúc
+  // khởi động (chế độ phát triển).
+  useKeyboardMap({
+    onActivateTool: setActiveTool,
+    onOpenHelp: openHelp,
+    onToggleLeftPanel: () => (leftAsDrawer ? setLeftDrawerOpen(v => !v) : toggleLeft()),
+    onToggleRightPanel: () => (rightAsOverlay ? setRightOverlayOpen(v => !v) : toggleRight()),
+  });
 
   return (
     <div className="h-screen w-screen flex flex-col bg-bg-app overflow-hidden">

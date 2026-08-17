@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Layers, SlidersHorizontal } from 'lucide-react';
 import { Button } from './Button';
 import { durationSeconds } from '../../lib/motion';
+import { useShortcut } from '../../hooks/useShortcut';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -34,17 +35,18 @@ export function TableActionBar({
   isApproving,
   isRejecting,
 }: TableActionBarProps) {
-  // Accessibility: close on Escape
-  useEffect(() => {
-    if (selectedCount === 0) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onDeselect?.();
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [selectedCount, onDeselect]);
+  // Accessibility: Esc bỏ chọn, qua trọng tài phím tắt — scope 'sidePanel'
+  // nên tự động nhường khi có dialog mở phía trên.
+  useShortcut(
+    {
+      id: 'tableActionBar.deselect',
+      combo: 'Escape',
+      scope: 'sidePanel',
+      preventDefault: false,
+      onTrigger: () => onDeselect?.(),
+    },
+    { enabled: selectedCount > 0 && onDeselect !== undefined },
+  );
 
   return (
     <AnimatePresence>

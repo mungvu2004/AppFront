@@ -1,80 +1,78 @@
-import { useEffect } from 'react';
-import { useStore } from '../store';
-
 /**
- * Global keyboard shortcuts mapping.
- * V: Chọn (Select)
- * W: Tường (Wall)
- * M: Kích thước (Dimension/Measure)
- * L: Lớp (Layer)
- * 2: 2D View
- * 3: 3D View
- * [: Zoom out
- * ]: Zoom in
- * Cmd/Ctrl+K: Command Palette (simulate focus)
- * Cmd/Ctrl+Z: Undo
- * ?: Help
+ * The shell's keyboard map, declared in one place.
+ *
+ * Every key the application shell owns — the four tool keys, the help key,
+ * the two panel toggles — is listed here and nowhere else, so adding or
+ * changing a shell key is one edit in one file. The hook registers each key
+ * on `appShortcutRegistry` (the one arbiter) and holds the window listener
+ * lease through `useShortcutListener`, which also runs the development-mode
+ * overlap audit at startup.
+ *
+ * What each key *does* is injected by the caller: this hook knows the map,
+ * the shell knows the behaviour. Keys owned by an overlay stay with the
+ * overlay — Cmd/Ctrl+K lives in CommandPalette, Escape lives with each
+ * layer — so this file never grows a second copy of another component's
+ * keyboard.
  */
-export function useKeyboardMap(
-  onCommandPalette: () => void,
-  onHelp: () => void,
-  onZoom: (delta: number) => void,
-  onSwitchView: (view: '2d' | '3d') => void
-) {
-  const setActiveLayer = useStore(state => state.setActiveLayer);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in input
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+import { useShortcut, useShortcutListener } from './useShortcut';
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+/** The tools the shell toolbar can put in hand. */
+export type ShellTool = 'select' | 'wall' | 'dimension' | 'door';
 
-      if (cmdOrCtrl) {
-        if (e.key.toLowerCase() === 'z') {
-          e.preventDefault();
-          useStore.temporal.getState().undo();
-        } else if (e.key.toLowerCase() === 'k') {
-          e.preventDefault();
-          onCommandPalette();
-        }
-        return; // Don't trigger single keys if modifier is pressed
-      }
+/** What the shell does when its keys fire. */
+export interface ShellKeyboardHandlers {
+  onActivateTool: (tool: ShellTool) => void;
+  onOpenHelp: () => void;
+  onToggleLeftPanel: () => void;
+  onToggleRightPanel: () => void;
+}
 
-      switch (e.key.toLowerCase()) {
-        case 'v':
-          setActiveLayer(null);
-          break;
-        case 'w':
-          setActiveLayer('wall');
-          break;
-        case 'm':
-          setActiveLayer('dimension');
-          break;
-        case 'l':
-          // could be something else, default to wall or custom
-          setActiveLayer('door'); 
-          break;
-        case '2':
-          onSwitchView('2d');
-          break;
-        case '3':
-          onSwitchView('3d');
-          break;
-        case '[':
-          onZoom(-1);
-          break;
-        case ']':
-          onZoom(1);
-          break;
-        case '?':
-          onHelp();
-          break;
-      }
-    };
+export function useKeyboardMap(handlers: ShellKeyboardHandlers): void {
+  useShortcutListener();
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCommandPalette, onHelp, onZoom, onSwitchView, setActiveLayer]);
+  useShortcut({
+    id: 'shell.tool.select',
+    combo: 'V',
+    scope: 'canvas',
+    onTrigger: () => handlers.onActivateTool('select'),
+  });
+  useShortcut({
+    id: 'shell.tool.wall',
+    combo: 'W',
+    scope: 'canvas',
+    onTrigger: () => handlers.onActivateTool('wall'),
+  });
+  useShortcut({
+    id: 'shell.tool.dimension',
+    combo: 'M',
+    scope: 'canvas',
+    onTrigger: () => handlers.onActivateTool('dimension'),
+  });
+  useShortcut({
+    id: 'shell.tool.door',
+    combo: 'L',
+    scope: 'canvas',
+    onTrigger: () => handlers.onActivateTool('door'),
+  });
+
+  useShortcut({
+    id: 'shell.shortcutHelp.open',
+    combo: '?',
+    scope: 'global',
+    onTrigger: () => handlers.onOpenHelp(),
+  });
+
+  useShortcut({
+    id: 'shell.panel.left',
+    combo: '[',
+    scope: 'global',
+    onTrigger: () => handlers.onToggleLeftPanel(),
+  });
+  useShortcut({
+    id: 'shell.panel.right',
+    combo: ']',
+    scope: 'global',
+    onTrigger: () => handlers.onToggleRightPanel(),
+  });
 }

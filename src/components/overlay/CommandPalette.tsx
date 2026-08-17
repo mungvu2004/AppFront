@@ -10,6 +10,7 @@ import {
   groupCommands,
 } from '../../hooks/useCommandPalette';
 import type { CommandItem } from '../../hooks/useCommandPalette';
+import { useShortcut } from '../../hooks/useShortcut';
 import { DURATION, EASE } from '../../lib/motion';
 
 // Re-export để consumers dùng từ đây
@@ -53,17 +54,22 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
   const prefersReducedMotion = useReducedMotion();
   const titleId = React.useId();
 
-  // Mở bằng Cmd/Ctrl+K
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        isOpen ? close() : open();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, open, close]);
+  // Cmd/Ctrl+K qua trọng tài phím tắt: mở là binding global, đóng là binding
+  // scope 'dialog' (chỉ chạy khi focus không nằm trong ô nhập liệu — trường
+  // hợp đang gõ trong ô tìm kiếm do handleKeyDown bên dưới xử lý). Binding
+  // 'dialog' đồng thời làm tầng dialog thành modal khi palette mở.
+  useShortcut(
+    { id: 'commandPalette.open', combo: 'Ctrl+K', scope: 'global', onTrigger: open },
+    { enabled: !isOpen },
+  );
+  useShortcut(
+    { id: 'commandPalette.close', combo: 'Ctrl+K', scope: 'dialog', onTrigger: close },
+    { enabled: isOpen },
+  );
+  useShortcut(
+    { id: 'commandPalette.closeOnEscape', combo: 'Escape', scope: 'dialog', preventDefault: false, onTrigger: close },
+    { enabled: isOpen },
+  );
 
   // Focus input khi mở
   useEffect(() => {
@@ -86,6 +92,14 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
   }, [selectedIndex]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Đóng bằng Cmd/Ctrl+K ngay cả khi đang gõ trong ô tìm kiếm — trọng tài
+    // vô hiệu phím tắt trong ô nhập liệu nên lớp này tự xử lý phím của mình.
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+      return;
+    }
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -102,6 +116,7 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
         break;
       case 'Escape':
         e.preventDefault();
+        e.stopPropagation();
         close();
         break;
     }
