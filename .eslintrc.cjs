@@ -82,6 +82,35 @@ module.exports = {
       }
     },
     {
+      // `src/lib/testing/**` là bộ kiểm mà màn hình được test qua, nên nó phải
+      // dựng được một cây React. Lệnh cấm React KHÔNG được nới: `react` và
+      // `react-dom` vẫn bị chặn, chỉ chặn đích danh theo tên thay vì theo mẫu —
+      // vì mẫu `react` là gitignore-style nên nó bắt luôn đoạn cuối của
+      // `@testing-library/react`, thứ duy nhất mục này cần cho qua. Ranh giới
+      // thật sự — lib không được biết tới store, hooks, components, screens —
+      // giữ nguyên từng dòng.
+      files: ['src/lib/testing/**/*'],
+      rules: {
+        // Đưa store về trạng thái ban đầu giữa hai lần render là thao tác ghi
+        // duy nhất KHÔNG được vào lịch sử hoàn tác — đúng thứ commit() sẽ làm
+        // nếu đi qua nó. Ngoài thư mục harness này, A10 vẫn có hiệu lực khắp nơi.
+        'local/no-direct-set': 'off',
+        'no-restricted-imports': ['error', {
+          paths: [
+            { name: 'react', message: 'lib TUYỆT ĐỐI không import React.' },
+            { name: 'react-dom', message: 'lib TUYỆT ĐỐI không import React.' }
+          ],
+          patterns: [
+            { group: ['react/*', 'react-dom', 'react-dom/*'], message: 'lib TUYỆT ĐỐI không import React.' },
+            { group: ['**/store/*', '**/store'], message: 'lib KHÔNG được import store.' },
+            { group: ['**/hooks/*', '**/hooks'], message: 'lib KHÔNG được import hooks.' },
+            { group: ['**/components/*', '**/components'], message: 'lib KHÔNG được import components.' },
+            { group: ['**/screens/*', '**/screens'], message: 'lib KHÔNG được import screens.' }
+          ]
+        }]
+      }
+    },
+    {
       files: ['src/types/**/*'],
       rules: {
         'no-restricted-imports': ['error', {
