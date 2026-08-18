@@ -1,3 +1,5 @@
+import { getPlatformFetch } from '@/lib/http';
+
 export interface NetworkMonitorStatus {
   browserOnline: boolean;
   checkedAt: number;
@@ -29,7 +31,6 @@ export interface CreateNetworkMonitorOptions {
     | 'addEventListener'
     | 'clearInterval'
     | 'clearTimeout'
-    | 'fetch'
     | 'removeEventListener'
     | 'setInterval'
     | 'setTimeout'
@@ -42,17 +43,23 @@ const DEFAULT_PING_TIMEOUT_MS = 5_000;
 const resolveBrowserOnline = (navigatorObject: Pick<Navigator, 'onLine'> | undefined): boolean =>
   navigatorObject?.onLine ?? true;
 
+/**
+ * Ping mặc định: một HEAD với `signal`, KHÔNG qua client của `src/lib/http`.
+ *
+ * Cố ý không qua đó: client có retry, mà retry đúng là thứ làm hỏng phép đo này
+ * — thử lại ba lần rồi báo "online" thì đã trả lời sai câu hỏi đang hỏi. Nơi gọi
+ * muốn thay hẳn cách đo thì truyền `ping`, đó mới là chỗ nối.
+ */
 const createDefaultPing =
-  (
-    windowObject: Pick<Window, 'fetch'> | undefined,
-    pingUrl: string,
-  ): NetworkPing =>
+  (pingUrl: string): NetworkPing =>
   async (signal) => {
-    if (!windowObject?.fetch) {
+    const platformFetch = getPlatformFetch();
+
+    if (platformFetch === null) {
       return false;
     }
 
-    const response = await windowObject.fetch(pingUrl, {
+    const response = await platformFetch(pingUrl, {
       cache: 'no-store',
       method: 'HEAD',
       signal,
@@ -67,7 +74,7 @@ export const createNetworkMonitor = (options: CreateNetworkMonitorOptions = {}):
   const now = options.now ?? Date.now;
   const pingTimeoutMs = options.pingTimeoutMs ?? DEFAULT_PING_TIMEOUT_MS;
   const windowObject = options.windowObject ?? globalThis.window;
-  const ping = options.ping ?? createDefaultPing(windowObject, options.pingUrl ?? '/');
+  const ping = options.ping ?? createDefaultPing(options.pingUrl ?? '/');
   const listeners = new Set<NetworkStatusListener>();
 
   let intervalId: ReturnType<typeof setInterval> | number | null = null;

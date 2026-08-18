@@ -17,6 +17,17 @@ variable) · zustand + zundo · @tanstack/react-query · zod · three +
 
 `pnpm dev` · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build` ·
 `pnpm e2e` · `pnpm e2e:visual` · `pnpm storybook`
+
+**`pnpm verify` — lệnh kiểm tổng.** Chạy tuần tự và dừng ở bước hỏng đầu tiên:
+typecheck → lint → test + độ phủ → build → kích thước gói. Đây là lệnh phải xanh
+trước khi gộp mã; các lệnh lẻ ở trên là để chạy nhanh lúc đang làm.
+Lệnh con: `pnpm coverage` (test + ngưỡng độ phủ) · `pnpm size` (ngân sách gzip,
+cần `pnpm build` trước).
+
+Bước "test" và "độ phủ" là **một** lượt `vitest run --coverage`, không phải hai:
+tách ra thì bộ test chạy hai lần, gấp đôi thời gian CI mà không biết thêm gì.
+Bước này hỏng khi có test đỏ **hoặc** độ phủ dưới ngưỡng.
+
 CI chạy tuần tự: lint → typecheck → unit → build → visual.
 
 ## 3. Bản đồ thư mục
@@ -90,6 +101,64 @@ Thấy lỗi thật nằm ngoài việc được giao thì **không tự sửa**
 riêng cuối câu trả lời (chỗ lỗi + hậu quả + mức độ), rồi hỏi có sửa luôn không
 kèm ước lượng file bị đụng. Chỉ được sửa ngay khi lỗi đó chặn chính phần việc
 được giao, và vẫn phải nói rõ đã sửa gì. Im lặng bỏ qua là lỗi của agent.
+
+## 6.2 Danh sách tự kiểm trước khi gộp mã
+
+Chạy trước khi mở PR hoặc gộp vào `master`. Mục 6 ở trên là **báo cáo cuối
+lượt** cho từng thay đổi; danh sách này là **cổng vào nhánh chính** — không có
+dòng nào ở đây được đánh dấu bằng trí nhớ.
+
+Luật chung của cả danh sách: một dòng chỉ được ghi "đạt" khi đã chạy lệnh thật
+và có kết quả cuối cùng. Không suy ra từ "lượt trước xanh", không suy ra từ
+"chỗ tôi sửa không liên quan". Không áp dụng thì ghi "không áp dụng" kèm lý do.
+
+**A. Máy kiểm — một lệnh**
+
+- [ ] `pnpm verify` xanh **toàn bộ**, chạy lại sau lần sửa cuối cùng. Dán bảng
+      tổng kết 5 dòng vào PR. Xanh từng phần không tính; xanh trước lần sửa cuối
+      cũng không tính.
+- [ ] Có đụng `eslint-rules/**` thì đã chạy lại `pnpm install` trước khi lint —
+      pnpm sao chép cứng thư mục đó, không symlink, nên bản cũ vẫn được dùng cho
+      tới khi cài lại (CLAUDE.md 0.3).
+
+**B. Ngưỡng và luật — không được nới để cho qua**
+
+- [ ] Độ phủ: `src/domain` ≥ 90%, `src/lib` ≥ 80%. Dưới ngưỡng thì **viết thêm
+      test**, không sửa số trong `vitest.config.ts`.
+- [ ] Kích thước gói trong ngân sách gzip. Vượt thì tách chunk, bỏ dependency,
+      hoặc lazy-load màn hình — không nới `BUDGETS_KIB`.
+- [ ] Không thêm `eslint-disable` mới. Nếu buộc phải có: cùng dòng phải có lý do
+      viết ra chữ (vì sao luật sai ở đúng chỗ này), và nó phải nằm hẹp nhất có
+      thể — `eslint-disable-next-line <tên-rule>`, không `/* eslint-disable */`
+      cả file, không tắt trống tên rule.
+- [ ] Không thêm dòng nào vào sổ nợ trong `eslint-rules/configs/project.js`. Sổ
+      đó chỉ được ngắn đi; dài thêm là quyết định của người duyệt, không phải của
+      người đang vội.
+- [ ] Không hạ mức rule từ `error` xuống `warn`. `pnpm lint` chạy với
+      `--max-warnings 0`, nên `warn` chỉ là `error` viết vòng.
+
+**C. Luật sản phẩm — cái máy chưa kiểm được**
+
+- [ ] Bảy trạng thái (rỗng, đang tải, một phần, lỗi, thành công, không có quyền,
+      thu gọn) đều có story hoặc test cho component đã đụng tới.
+- [ ] Bàn phím đi hết được luồng mới; focus ring 2px offset 2px; Esc đóng lớp
+      trên cùng.
+- [ ] Tương phản chữ ≥ 4,5:1, caption ≥ 3:1.
+- [ ] Không gradient/neon/bóng màu, không khối màu đặc > 120px, không nhãn IN
+      HOA, không chip công cụ lập trình viên lọt ra màn hình sản phẩm.
+- [ ] Số liệu mẫu dùng bộ chuẩn 48/21/34/14/4 và 248,60 m²; dấu thập phân là dấu
+      phẩy.
+- [ ] Mọi định danh bằng tiếng Anh (biến, hàm, type, test, story, id kỹ thuật).
+      Văn xuôi tài liệu thì tiếng Việt.
+- [ ] Có ảnh chụp 1440px cho thay đổi chạm vào giao diện.
+
+**D. Phạm vi và tính trung thực**
+
+- [ ] Diff đúng bằng việc được giao. Sửa thêm cái tiện tay thì tách PR khác.
+- [ ] Dependency mới có lý do viết trong PR.
+- [ ] Lỗi thật thấy được nhưng ngoài phạm vi đã **báo** theo mục 6.1, không im
+      lặng bỏ qua và cũng không tự sửa.
+- [ ] Không có file bị bỏ dở nửa chừng, không `console.log` sót, không mã chết.
 
 ## 7. Harness — điều agent cần biết
 

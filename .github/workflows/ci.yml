@@ -1,10 +1,13 @@
 name: CI
 
 on:
+  # `master` là nhánh chính thật của repo này. Trước đây chỉ khai `main`, nên
+  # không job nào từng chạy — CI xanh vì không có CI, không phải vì mã đúng.
+  # Giữ cả hai để lần đổi tên nhánh (nếu có) không lại làm tắt CI lần nữa.
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   lint:
@@ -49,7 +52,10 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - run: pnpm install
-      - run: pnpm test
+      # `coverage` chứ không phải `test`: cùng một lượt vitest, nhưng có đối
+      # chiếu ngưỡng độ phủ (domain 90% / lib 80%). `pnpm test` chạy đúng bộ test
+      # đó mà bỏ qua ngưỡng, nên ngưỡng sẽ chỉ là số nằm trong file config.
+      - run: pnpm coverage
 
   build:
     needs: unit
@@ -65,6 +71,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install
       - run: pnpm build
+      # Ngân sách gzip, đọc từ `dist/` mà bước trên vừa dựng.
+      - run: pnpm size
 
   visual:
     needs: build

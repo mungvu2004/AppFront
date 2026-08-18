@@ -53,6 +53,7 @@
  */
 
 import { ERROR_REPORTED_EVENT, type ErrorTelemetryDetail } from '@/lib/errors';
+import { getPlatformBeacon, getPlatformFetch, type PlatformBeacon } from '@/lib/http';
 
 import {
   TELEMETRY_SCHEMA_VERSION,
@@ -171,14 +172,8 @@ export interface CreateBeaconTransportOptions {
 
 const JSON_CONTENT_TYPE = 'application/json';
 
-function resolveBeacon(): ((url: string, body: BodyInit) => boolean) | null {
-  if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
-    return null;
-  }
-
-  // Bound: `sendBeacon` is a method on `navigator` and throws if called loose.
-  return navigator.sendBeacon.bind(navigator);
-}
+/* Bound, and null where the browser has none — see `src/lib/http/platform`. */
+const resolveBeacon = (): PlatformBeacon | null => getPlatformBeacon();
 
 /** A payload the beacon can label as JSON, or a plain string where it cannot. */
 function toBeaconBody(payload: string): BodyInit {
@@ -201,7 +196,7 @@ export function createBeaconTransport(options: CreateBeaconTransportOptions): Te
 
   return {
     send: async (batch) => {
-      const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+      const fetchImpl = options.fetchImpl ?? getPlatformFetch();
       if (typeof fetchImpl !== 'function') {
         throw new Error('telemetry: no fetch available');
       }

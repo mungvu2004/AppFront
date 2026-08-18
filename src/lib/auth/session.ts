@@ -1,5 +1,6 @@
 import {
   createHttpClient,
+  requirePlatformFetch,
   type CreateHttpClientOptions,
   type HttpError,
   type HttpRequestOptions,
@@ -40,13 +41,8 @@ const DEFAULT_BROADCAST_CHANNEL_NAME = 'auth';
 const DEFAULT_LOGOUT_PATH = '/auth/logout';
 const DEFAULT_REFRESH_PATH = '/auth/refresh';
 
-const getDefaultFetch = (): AuthFetch => {
-  if (!globalThis.fetch) {
-    throw new Error('globalThis.fetch is required to configure auth.');
-  }
-
-  return globalThis.fetch.bind(globalThis) as AuthFetch;
-};
+const getDefaultFetch = (): AuthFetch =>
+  requirePlatformFetch('globalThis.fetch is required to configure auth.') as AuthFetch;
 
 const isConfigured = (): boolean => getOptionalAuthConfig() !== null;
 
