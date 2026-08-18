@@ -1,3 +1,4 @@
+import { SAMPLE_BUILDING, SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
@@ -60,7 +61,8 @@ const makeVersion = (): Version => ({
 });
 
 const makeFloor = (levelId: string, name: string, elevationM: number, heightM: number, order: number): Floor => ({
-  ...(levelId === 'L1' ? { areaM2: 248.6 } : {}),
+  // The standard sample total, read from the one fixture that owns it (A14).
+  ...(levelId === 'L1' ? { areaM2: SAMPLE_TOTAL_AREA_M2 } : {}),
   drawings: levelId === 'L1' ? [makeDrawing('L1-drawing-1')] : [],
   elevationMm: Math.round(elevationM * 1000),
   heightMm: Math.round(heightM * 1000),
@@ -83,8 +85,12 @@ const buildProject = (): Project => {
     makeFloor(level.level_id, level.name, level.elevation_m, level.height_m, index),
   );
 
+  // Name and address come from the domain sample building, so the project the
+  // mock API serves is the same project every other sample dataset describes.
+  const { building } = SAMPLE_BUILDING;
+
   return {
-    address: '12 Vo Van Tan, District 3',
+    ...(building.address === undefined ? {} : { address: building.address }),
     createdAt: '2026-08-03T08:00:00.000Z',
     currentVersion: makeVersion(),
     floors,
@@ -93,7 +99,7 @@ const buildProject = (): Project => {
       { email: 'admin@example.com', id: 'user-1', name: 'Admin', role: 'admin' },
       { email: 'engineer@example.com', id: 'user-2', name: 'Engineer', role: 'engineer' },
     ],
-    name: 'Sample project',
+    name: building.name,
     progress: makeProgress({ id: 'ai-1', progressPercent: 100, status: 'completed' }),
     status: 'approved',
     updatedAt: '2026-08-03T08:30:00.000Z',
