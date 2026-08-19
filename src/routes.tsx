@@ -15,9 +15,10 @@ const RouteShellDemo = lazy(() => import('./screens/ShellDemo').then(m => ({ def
 const RouteCanvasOverlaysDemo = lazy(() => import('./screens/CanvasOverlaysDemo').then(m => ({ default: m.CanvasOverlaysDemo })));
 const RouteFeedbackDemo = lazy(() => import('./screens/FeedbackDemo').then(m => ({ default: m.FeedbackDemo })));
 const RouteShare = lazy(() => import('./screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
+const RouteAuth = lazy(() => import('./screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <Placeholder name="/login" /> },
+  { path: '/login', element: <React.Suspense fallback={<div>Loading...</div>}><RouteAuth /></React.Suspense> },
   { path: '/', element: <Placeholder name="dashboard" /> },
   { path: '/projects/:id/settings', element: <Placeholder name="/projects/:id/settings" /> },
   { path: '/projects/:id/upload', element: <Placeholder name="/projects/:id/upload" /> },

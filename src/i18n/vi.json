@@ -78,5 +78,54 @@
     "dimensionReading": "đọc kích thước",
     "spatialDataBuild": "dựng dữ liệu không gian",
     "qualityCheck": "kiểm tra chất lượng"
+  },
+  "auth": {
+    "hero": {
+      "headline": "Soát bản vẽ mặt bằng trước khi sai sót kịp ra công trường.",
+      "support": "Tải bản vẽ lên, chạy chuỗi xử lý, rồi đối chiếu tường, trục, phòng và ô mở theo bộ quy tắc của đội bạn."
+    },
+    "tabs": {
+      "signIn": "Đăng nhập",
+      "register": "Đăng ký"
+    },
+    "fields": {
+      "email": "thư điện tử",
+      "password": "mật khẩu",
+      "fullName": "họ và tên",
+      "rememberMe": "ghi nhớ máy này"
+    },
+    "actions": {
+      "signIn": "Đăng nhập",
+      "register": "Tạo tài khoản",
+      "submitting": "Đang gửi…",
+      "expand": "Mở lại biểu mẫu"
+    },
+    "problems": {
+      "emailRequired": "Chưa nhập thư điện tử.",
+      "emailInvalid": "Thư điện tử chưa đúng dạng. Kiểm tra lại phần trước và sau dấu a còng.",
+      "passwordRequired": "Chưa nhập mật khẩu.",
+      "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
+      "fullNameRequired": "Chưa nhập họ và tên."
+    },
+    "errors": {
+      "invalidCredentials": {
+        "title": "Sai thư điện tử hoặc mật khẩu",
+        "description": "Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên."
+      },
+      "tooManyAttempts": {
+        "title": "Đã thử quá nhiều lần",
+        "description": "Đợi {{seconds}} giây rồi đăng nhập lại."
+      },
+      "accountDisabled": {
+        "title": "Tài khoản đã bị vô hiệu",
+        "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."
+      }
+    },
+    "notices": {
+      "partial": "Đã có thư điện tử, còn thiếu mật khẩu.",
+      "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
+      "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",
+      "gatewayUnavailable": "Chưa kết nối được máy chủ xác thực, nên chưa đăng nhập được. Tải lại trang rồi thử lại."
+    }
   }
 }
