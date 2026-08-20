@@ -1,4 +1,8 @@
-import { ZodError } from 'zod';
+// `import type` chứ KHÔNG phải import giá trị: `ZodError` chỉ cần ở vị trí kiểu.
+// Nhập nó làm giá trị để dùng `instanceof` kéo TOÀN BỘ thư viện zod vào mọi gói
+// chạm tới module này — đo được 17,4 KiB gzip khi `ScreenErrorBoundary` được gắn
+// vào `src/App.tsx`, đủ để vỡ ngân sách `chunk JS lớn nhất`.
+import type { ZodError } from 'zod';
 
 import type { HttpError } from '@/lib/http';
 import { APP_ERROR_KIND_CONFIG, type AppError, type AppErrorKind, type AppErrorParams } from './kinds';
@@ -120,8 +124,17 @@ const isHttpError = (value: unknown): value is HttpError =>
   typeof value.retryable === 'boolean' &&
   'raw' in value;
 
+/**
+ * Nhận ra lỗi của zod bằng HÌNH DẠNG, không bằng `instanceof`.
+ *
+ * Nhánh cấu trúc này vốn đã có sẵn bên cạnh `instanceof` như phương án dự phòng
+ * cho trường hợp hai bản zod cùng tồn tại. Nó không phải phương án dự phòng yếu
+ * hơn: `ZodError` của zod 3 đặt `this.name = 'ZodError'` trong hàm dựng và luôn
+ * mang `issues` là mảng, nên hai vế nhận cùng một tập giá trị. Bỏ vế `instanceof`
+ * vì nó là vế duy nhất bắt module này phải nhập zod lúc chạy.
+ */
 const isZodError = (value: unknown): value is ZodError =>
-  value instanceof ZodError || (isRecord(value) && Array.isArray(value.issues) && value.name === 'ZodError');
+  isRecord(value) && Array.isArray(value.issues) && value.name === 'ZodError';
 
 const isWebGlError = (value: unknown): boolean => {
   const text = readErrorText(value).toLowerCase();
