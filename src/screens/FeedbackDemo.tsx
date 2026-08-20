@@ -15,7 +15,7 @@ function DemoContent() {
   const handleTriggerToast = (state: 'verified' | 'attention' | 'violation', message: string, undoable: boolean = false) => {
     const toastOptions: Omit<import('../components/feedback/Toast').ToastMessage, 'id'> = { message, state };
     if (undoable) {
-      toastOptions.onUndo = () => console.log('Undo triggered');
+      toastOptions.onUndo = () => addToast({ message: 'Đã hoàn tác thao tác.', state: 'verified' });
     }
     addToast(toastOptions);
   };

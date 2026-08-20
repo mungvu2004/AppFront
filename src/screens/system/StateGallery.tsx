@@ -8,6 +8,12 @@ import {
   PlaySquare, Lock, Settings, WifiOff 
 } from 'lucide-react';
 
+/**
+ * Placeholder — the "Thử lại" action on every empty-state card in this QA
+ * gallery is not wired to real retry behaviour; the gallery only shows layout.
+ */
+function demoRetryAction(): void {}
+
 export function StateGallery() {
   const [globalState, setGlobalState] = useState<ComponentState>('empty');
 
@@ -83,7 +89,7 @@ export function StateGallery() {
                   description={state.desc}
                   action={{
                     label: 'Thử lại',
-                    onClick: () => console.log('Clicked', state.title)
+                    onClick: demoRetryAction
                   }}
                 />
               </div>

@@ -37,6 +37,13 @@ export function CanvasOverlaysDemo() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Placeholder — this demo screen only illustrates the context menu's
+   * layout; the menu items below are not wired to real edit/isolate/delete
+   * behaviour.
+   */
+  const demoContextMenuAction = (): void => {};
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button === 2) return;
 
@@ -68,9 +75,9 @@ export function CanvasOverlaysDemo() {
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     openMenuFlat(e.clientX, e.clientY, [
-      { id: 'edit',    label: 'Chỉnh sửa thuộc tính', kbd: '⌘E',  action: () => console.log('edit') },
-      { id: 'isolate', label: 'Cô lập',                kbd: 'I',   action: () => console.log('isolate') },
-      { id: 'delete',  label: 'Xoá phần tử',           kbd: '⌫',  isDestructive: true, action: () => console.log('delete') },
+      { id: 'edit',    label: 'Chỉnh sửa thuộc tính', kbd: '⌘E',  action: demoContextMenuAction },
+      { id: 'isolate', label: 'Cô lập',                kbd: 'I',   action: demoContextMenuAction },
+      { id: 'delete',  label: 'Xoá phần tử',           kbd: '⌫',  isDestructive: true, action: demoContextMenuAction },
     ]);
   };
 
