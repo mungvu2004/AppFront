@@ -155,6 +155,25 @@ module.exports = {
       },
     },
 
+    // -- R-13: kiểu trả về, chỉ ở hai tầng nó mang thông tin ------------------
+    // `src/lib` và `src/domain` là tầng thuần: hàm ở đây trả dữ liệu nghiệp vụ,
+    // và kiểu suy ra được thì đổi lặng lẽ khi thân hàm đổi — lỗi hiện ở chỗ gọi
+    // chứ không ở chỗ sửa. Tầng giao diện KHÔNG bật: hàm component trả
+    // `JSX.Element`, khai ra thêm rất ít thông tin mà thêm nhiều nhiễu.
+    //
+    // Bỏ test ra ngoài: một `it()` không phải ranh giới module của ai cả.
+    //
+    // Mức 'error' ngay chứ không qua 'warn': `pnpm lint` chạy với
+    // `--max-warnings 0` nên 'warn' chỉ là 'error' viết vòng, và ở phạm vi này
+    // repo chỉ còn đúng MỘT vi phạm, đã sửa cùng lượt.
+    {
+      files: ['src/lib/**/*.ts', 'src/domain/**/*.ts'],
+      excludedFiles: ['**/__tests__/**', '**/*.test.ts'],
+      rules: {
+        '@typescript-eslint/explicit-module-boundary-types': 'error',
+      },
+    },
+
     // -- 3. SỔ NỢ --------------------------------------------------------------
     // Mỗi mục dưới đây là một luật ĐANG bật cho toàn repo, tạm tắt trên đúng
     // những file có sẵn từ trước khi luật ra đời. Không mục nào được dài thêm.
