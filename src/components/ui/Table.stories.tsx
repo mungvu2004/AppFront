@@ -5,7 +5,7 @@ import { TableActionBar } from './TableActionBar';
 import { Badge } from './Badge';
 import { ConfidenceMeter } from './ConfidenceMeter';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
-import { formatMm } from '../../lib/format';
+import { formatLength } from '../../lib/format/measure';
 import { confidenceLevel } from '../../lib/format/semantic';
 
 // ── Extract wall data from mock ───────────────────────────────────────────────
@@ -189,7 +189,7 @@ export const WallsTable: Story = {
                   onChange={(c) => toggleRow(row.id, c)}
                 />
                 <Table.Cell className="font-mono text-[13px]">{row.id}</Table.Cell>
-                <Table.Cell>{formatMm(row.thickness_mm)}</Table.Cell>
+                <Table.Cell>{formatLength(row.thickness_mm, { unit: 'mm' })}</Table.Cell>
                 <Table.Cell>
                   <ConfidenceMeter value={row.confidence} />
                 </Table.Cell>
@@ -254,7 +254,7 @@ export const Virtualized500: Story = {
                   onClick={() => toggleRow(row.id, !selected.has(row.id))}
                 >
                   <Table.Cell className="font-mono text-[13px]">{row.id}</Table.Cell>
-                  <Table.Cell>{formatMm(row.thickness_mm)}</Table.Cell>
+                  <Table.Cell>{formatLength(row.thickness_mm, { unit: 'mm' })}</Table.Cell>
                   <Table.Cell>
                     <ConfidenceMeter value={row.confidence} noTooltip />
                   </Table.Cell>

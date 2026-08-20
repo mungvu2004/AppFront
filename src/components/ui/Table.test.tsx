@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Table } from './Table';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
-import { formatMm } from '../../lib/format';
+import { formatLength } from '../../lib/format/measure';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ describe('Table sorting', () => {
           {sorted.map((row) => (
             <Table.Row key={row.id}>
               <Table.Cell>{row.id}</Table.Cell>
-              <Table.Cell>{formatMm(row.thickness_mm)}</Table.Cell>
+              <Table.Cell>{formatLength(row.thickness_mm, { unit: 'mm' })}</Table.Cell>
             </Table.Row>
           ))}
         </Table.Body>

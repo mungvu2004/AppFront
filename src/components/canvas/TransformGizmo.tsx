@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from 'react';
 import { cn } from '../../lib/utils';
 import { axisStrokeToken } from './materialMap';
-import { formatMm } from '../../lib/format';
+import { formatLength } from '../../lib/format/measure';
 import { cssDurationMs } from '../../lib/motion';
 import { useTransformGizmo, type Axis } from '../../hooks/useTransformGizmo';
 
@@ -33,7 +33,7 @@ const HANDLE_SIZE = 8;
  * - Handle: 8×8, bo 6, nền bg-surface, viền accent
  * - Trục X/Y/Z: thang xám ấm từ materialMap (không đỏ/xanh bão hòa)
  * - Nhãn trục font-mono
- * - Số delta mm khi kéo dùng formatMm()
+ * - Số delta mm khi kéo dùng formatLength(…, { unit: 'mm' })
  */
 export function TransformGizmo({
   isVisible = true,
@@ -188,7 +188,7 @@ export function TransformGizmo({
           aria-label={`Delta trục ${activeAxis.toUpperCase()}`}
         >
           <span className="font-mono text-xs text-text-primary">
-            {activeAxis.toUpperCase()}: {formatMm(delta[activeAxis])}
+            {activeAxis.toUpperCase()}: {formatLength(delta[activeAxis], { unit: 'mm' })}
           </span>
         </div>
       )}

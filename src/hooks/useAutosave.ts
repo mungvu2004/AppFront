@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import type { RootState } from '../store';
 import { useStore } from '../store';
-import { formatTime } from '../lib/format';
+import { formatClockTime } from '../lib/format/datetime';
 
 /**
  * Invariant A7: there is no save button, and the system saves 800 ms after the
@@ -31,7 +31,7 @@ export function useAutosave(onSave: (data: RootState['spatial']) => Promise<void
       try {
         await onSave(spatial);
         const now = new Date();
-        setSaveLabel(`Đã lưu lúc ${formatTime(now)}`);
+        setSaveLabel(`Đã lưu lúc ${formatClockTime(now)}`);
       } catch (err) {
         console.error('Autosave failed', err);
         setSaveLabel('Lưu thất bại');

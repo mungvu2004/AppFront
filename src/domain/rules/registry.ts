@@ -37,7 +37,8 @@ import {
 import type { LevelId, RoomUsage } from '../spatial/types';
 import type { EntityKind } from '../spatial/ids';
 import { MILLIMETRES_PER_METRE } from '../units/types';
-import { formatM2, formatMm, formatNumberVi } from '../../lib/format';
+import { formatArea, formatLength } from '../../lib/format/measure';
+import { formatNumber } from '../../lib/format/number';
 
 /* -------------------------------------------------------------------------- */
 /* Public types.                                                               */
@@ -403,7 +404,7 @@ export const ROOM_USAGE_LABELS: Readonly<Record<RoomUsage, string>> = {
 
 /** Elevations read in metres, three decimals, as the drawing shows them. */
 function metreText(valueMm: number): string {
-  return `${formatNumberVi(valueMm / MILLIMETRES_PER_METRE, 3)} m`;
+  return `${formatNumber(valueMm / MILLIMETRES_PER_METRE, { fractionDigits: 3 })} m`;
 }
 
 function segmentLengthMm(start: { x: number; y: number }, end: { x: number; y: number }): number {
@@ -430,11 +431,11 @@ const wallThicknessRule: Rule = {
         {
           entityId: wall.id,
           message:
-            `Tường ${wall.id} dày ${formatMm(wall.thicknessMm)}, ngoài khoảng ` +
-            `${formatMm(MIN_WALL_THICKNESS_MM)} đến ${formatMm(MAX_WALL_THICKNESS_MM)}.`,
+            `Tường ${wall.id} dày ${formatLength(wall.thicknessMm, { unit: 'mm' })}, ngoài khoảng ` +
+            `${formatLength(MIN_WALL_THICKNESS_MM, { unit: 'mm' })} đến ${formatLength(MAX_WALL_THICKNESS_MM, { unit: 'mm' })}.`,
           suggestion: tooThin
-            ? `Tăng bề dày lên tối thiểu ${formatMm(MIN_WALL_THICKNESS_MM)}, hoặc xoá nếu đây là nét thừa.`
-            : `Giảm bề dày xuống tối đa ${formatMm(MAX_WALL_THICKNESS_MM)}, hoặc tách thành hai tường.`,
+            ? `Tăng bề dày lên tối thiểu ${formatLength(MIN_WALL_THICKNESS_MM, { unit: 'mm' })}, hoặc xoá nếu đây là nét thừa.`
+            : `Giảm bề dày xuống tối đa ${formatLength(MAX_WALL_THICKNESS_MM, { unit: 'mm' })}, hoặc tách thành hai tường.`,
         },
       ];
     }),
@@ -459,8 +460,8 @@ const wallLengthRule: Rule = {
         {
           entityId: wall.id,
           message:
-            `Tường ${wall.id} chỉ dài ${formatMm(lengthMm)}, ngắn hơn mức dựng được ` +
-            `${formatMm(MIN_WALL_LENGTH_MM)}.`,
+            `Tường ${wall.id} chỉ dài ${formatLength(lengthMm, { unit: 'mm' })}, ngắn hơn mức dựng được ` +
+            `${formatLength(MIN_WALL_LENGTH_MM, { unit: 'mm' })}.`,
           suggestion: 'Kéo dài tường tới nút giao gần nhất, hoặc xoá đoạn thừa này.',
         },
       ];
@@ -495,12 +496,12 @@ const openingInWallRule: Rule = {
         {
           entityId: opening.id,
           message:
-            `Lỗ mở ${opening.id} trải từ ${formatMm(opening.offsetMm)} đến ${formatMm(endMm)} ` +
-            `trên tường ${wall.id} chỉ dài ${formatMm(wallLengthMm)}.`,
+            `Lỗ mở ${opening.id} trải từ ${formatLength(opening.offsetMm, { unit: 'mm' })} đến ${formatLength(endMm, { unit: 'mm' })} ` +
+            `trên tường ${wall.id} chỉ dài ${formatLength(wallLengthMm, { unit: 'mm' })}.`,
           suggestion:
             roomToMoveMm > 0
-              ? `Dời lỗ mở về khoảng 0 đến ${formatMm(roomToMoveMm)}, hoặc thu hẹp bề rộng.`
-              : `Thu hẹp lỗ mở xuống tối đa ${formatMm(wallLengthMm)}, hoặc chuyển sang tường dài hơn.`,
+              ? `Dời lỗ mở về khoảng 0 đến ${formatLength(roomToMoveMm, { unit: 'mm' })}, hoặc thu hẹp bề rộng.`
+              : `Thu hẹp lỗ mở xuống tối đa ${formatLength(wallLengthMm, { unit: 'mm' })}, hoặc chuyển sang tường dài hơn.`,
         },
       ];
     }),
@@ -523,9 +524,9 @@ const doorWidthRule: Rule = {
         {
           entityId: opening.id,
           message:
-            `Cửa đi ${opening.id} rộng ${formatMm(opening.widthMm)}, hẹp hơn mức lọt người ` +
-            `${formatMm(MIN_DOOR_WIDTH_MM)}.`,
-          suggestion: `Mở rộng cửa lên tối thiểu ${formatMm(MIN_DOOR_WIDTH_MM)}.`,
+            `Cửa đi ${opening.id} rộng ${formatLength(opening.widthMm, { unit: 'mm' })}, hẹp hơn mức lọt người ` +
+            `${formatLength(MIN_DOOR_WIDTH_MM, { unit: 'mm' })}.`,
+          suggestion: `Mở rộng cửa lên tối thiểu ${formatLength(MIN_DOOR_WIDTH_MM, { unit: 'mm' })}.`,
         },
       ];
     }),
@@ -550,9 +551,9 @@ const roomMinAreaRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${room.id} rộng ${formatM2(room.areaM2)}, dưới mức tối thiểu ` +
-            `${formatM2(minimumM2)} của ${ROOM_USAGE_LABELS[room.usage]}.`,
-          suggestion: `Mở rộng phòng lên ${formatM2(minimumM2)}, hoặc đổi công năng cho phù hợp.`,
+            `Phòng ${room.id} rộng ${formatArea(room.areaM2)}, dưới mức tối thiểu ` +
+            `${formatArea(minimumM2)} của ${ROOM_USAGE_LABELS[room.usage]}.`,
+          suggestion: `Mở rộng phòng lên ${formatArea(minimumM2)}, hoặc đổi công năng cho phù hợp.`,
         },
       ];
     }),
@@ -589,7 +590,7 @@ const roomHasDoorRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${room.id} không có cửa đi nào trên ${formatNumberVi(room.wallIds.length, 0)} ` +
+            `Phòng ${room.id} không có cửa đi nào trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} ` +
             'tường bao của nó.',
           suggestion: 'Thêm một cửa đi vào một tường bao, hoặc gộp phòng này với phòng bên cạnh.',
         },
