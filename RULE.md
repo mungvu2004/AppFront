@@ -16,9 +16,9 @@ cấu hình dự án đã ép buộc.
 | NÊN | Nhắc khi review. Vi phạm phải giải thích được. |
 | KHUYẾN NGHỊ | Không chặn. Chỉ dấu để soi kỹ hơn. |
 
-**Nguồn thực thi đã có sẵn:** `eslint-rules/configs/project.js` (sáu luật nội bộ +
+**Nguồn thực thi đã có sẵn:** `eslint-rules/configs/project.js` (bảy luật nội bộ +
 ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo tầng),
-`scripts/verify.mjs` (năm cổng tuần tự), `.github/workflows/ci.yml`.
+`scripts/verify.mjs` (bảy cổng tuần tự), `.github/workflows/ci.yml`.
 
 ---
 
@@ -64,10 +64,11 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 
 ### R-05 — Không tạo import vòng.
 - **Vì sao:** Một trong hai module trong vòng sẽ nhận `undefined` lúc nạp, và triệu chứng hiện ra ở chỗ khác hẳn nguyên nhân. `src/lib` có 212 file / 62.372 dòng — chỗ dễ sinh vòng nhất, và ranh giới tầng không ngăn được vòng *bên trong* một tầng.
-- **Đúng:** chưa đo được — chưa luật `import/*` nào được bật.
-- **Sai:** chưa đo được.
-- **Kiểm bằng:** `import/no-cycle` ở mức `warn`. **Chỉ chạy trong `pnpm verify` và CI**, không đưa vào vòng lint lúc phát triển — luật này chậm thấy rõ trên 503 file. `eslint-plugin-import` đã có trong `devDependencies` và đã nạp ở `.eslintrc.cjs:24`, hiện chưa bật luật nào.
-- **Mức:** NÊN
+- **Đúng:** toàn bộ `src/` — 0 vòng, đo 2026-08-21.
+- **Sai:** chưa có vi phạm trong repo — đo 2026-08-21, `import/no-cycle` báo 0. Cổng `pnpm cycles` giữ nguyên con số đó.
+- **Kiểm bằng:** `pnpm cycles` (`scripts/check-import-cycles.mjs`), chạy như **bước thứ ba của `pnpm verify`** và trong job `lint` của CI. **Cố ý KHÔNG bật trong `.eslintrc.cjs`**: luật phải dựng đồ thị phụ thuộc của hơn 500 file nên nó làm hỏng vòng lặp sửa-lint lúc phát triển.
+- **BẪY, đã dính một lần:** `eslint-plugin-import` mặc định dùng resolver của Node, mà resolver đó không biết `.ts`, `.tsx` hay alias `@/`. Thiếu `settings['import/resolver']` VÀ `settings['import/parsers']` trong `.eslintrc.cjs` thì luật thấy một đồ thị RỖNG và báo "không có vấn đề gì" — một cổng xanh vô điều kiện. Thử bằng một vòng cố ý trước khi tin nó.
+- **Mức:** BẮT BUỘC
 
 ---
 
@@ -128,12 +129,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   ```ts
   export const PERSIST_STORAGE_KEY = 'appfront-view-ui';
   ```
-- **Sai:** `src/hooks/useAppShell.ts:38,43,50,58` — bốn chuỗi viết thẳng, mỗi khoá lặp hai lần:
-  ```ts
-  const saved = localStorage.getItem('appshell:left-collapsed');
-  // ...
-  localStorage.setItem('appshell:left-collapsed', String(next));
-  ```
+- **Sai:** chưa có vi phạm trong repo. Hai khoá của AppShell nay là hằng số xuất khẩu trong chính module sở hữu chúng.
 - **Kiểm bằng:** `rg "(local|session)Storage\.(get|set|remove)Item\('" src`
 - **Mức:** NÊN
 
@@ -149,7 +145,8 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ## C. Kiểu dữ liệu TypeScript
 
 ### R-12 — Dùng `interface` cho hình dạng đối tượng; dùng `type` cho union, tuple và kiểu nhãn.
-- **Vì sao:** Hiện là 935 `interface` / 445 `type`, trộn lẫn không theo quy tắc nào. Chọn `interface` cho hình-dạng-thuần vì luật ESLint tương ứng chỉ chạm đúng nhóm đó — kiểu nhãn như `Quantity<'mm'>` nằm ngoài tầm luật và không bị đụng tới.
+- **Vì sao:** Trộn lẫn không theo quy tắc nào. Chọn `interface` cho hình-dạng-thuần vì luật ESLint tương ứng chỉ chạm đúng nhóm đó — kiểu nhãn như `Quantity<'mm'>` nằm ngoài tầm luật và không bị đụng tới.
+- **CẢNH BÁO VỀ CÁCH ĐẾM:** trường này từng ghi "445 chỗ vi phạm". 445 là số **mọi** type alias trong `src`; union, tuple và kiểu nhãn dùng `type` là **đúng theo chính luật này**. Đếm như vậy là đếm cả phía đúng. Số vi phạm thật lúc đo là 7.
 - **Đúng:** `src/components/ui/Button.tsx:5`
   ```ts
   export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -161,9 +158,9 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   ```ts
   export type Millimetres = Quantity<'mm'>;
   ```
-- **Sai:** 445 chỗ dùng `type X = { … }` cho hình dạng thuần.
-- **Kiểm bằng:** `@typescript-eslint/consistent-type-definitions: ['error', 'interface']` — có bộ sửa tự động.
-- **Mức:** NÊN
+- **Sai:** chưa có vi phạm trong repo.
+- **Kiểm bằng:** `@typescript-eslint/consistent-type-definitions: ['error', 'interface']` — có bộ sửa tự động, đã bật ở `eslint-rules/configs/project.js`.
+- **Mức:** BẮT BUỘC
 
 ### R-13 — Hàm xuất khẩu phải khai kiểu trả về.
 - **Vì sao:** 93,5% hàm xuất khẩu đã làm vậy (630/674). Kiểu suy ra được thì đổi lặng lẽ khi thân hàm đổi; kiểu khai ra thì lỗi hiện ngay tại chỗ sửa chứ không ở chỗ gọi.
@@ -172,31 +169,29 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   chunk: (projectId: string, uploadId: string): string =>
     `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/chunks`,
   ```
-- **Sai:** 44 hàm xuất khẩu còn thiếu — `rg "^export (async )?function \w+(<[^>]*>)?\([^)]*\)\s*\{" src`
-- **Kiểm bằng:** `@typescript-eslint/explicit-module-boundary-types`
-- **Mức:** NÊN
+- **Sai:** chưa có vi phạm trong repo trong `src/lib/**` và `src/domain/**`. Ngoài hai tầng đó luật cố ý không chạy — xem **Mức**.
+- **Kiểm bằng:** `@typescript-eslint/explicit-module-boundary-types`, bật ở mức `error` trong `eslint-rules/configs/project.js` **chỉ cho `src/lib/**` và `src/domain/**`, trừ test**.
+- **Mức:** BẮT BUỘC *trong hai tầng đó*. Tầng giao diện cố ý không bật: hàm component trả `JSX.Element`, khai ra thêm rất ít thông tin mà thêm nhiều nhiễu.
 
 ### R-14 — Nhập kiểu bằng `import type`.
 - **Vì sao:** `isolatedModules: true` đang bật (`tsconfig.json:14`). Import kiểu không đánh dấu có thể còn lại trong bundle như một phụ thuộc chạy thật.
 - **Đúng:** 604 chỗ đang làm đúng, ví dụ `.storybook/main.ts:1` và `tailwind.config.ts:1`.
-- **Sai:** **45 chỗ / 33 file**, nhiều nhất `src/store/index.ts` (9).
+- **Sai:** chưa có vi phạm trong repo.
 - **CẢNH BÁO VỀ CÁCH ĐẾM:** trường này từng ghi "chưa tìm thấy vi phạm rõ ràng". Kết luận
   đó rút ra từ một phép `rg "import type"` — phép đo ấy **chỉ nhìn thấy phía ĐÚNG**. Vi
   phạm của R-14 là chỗ **thiếu** `import type`, và không mẫu grep nào phân biệt được
   `import { Foo }` nhập kiểu với `import { foo }` nhập giá trị: phải phân giải kiểu mới
   biết. Grep KHÔNG thay thế được luật ở đây.
-- **Kiểm bằng:** `@typescript-eslint/consistent-type-imports` — có bộ sửa tự động.
-  Chỉ luật này phát hiện được; đừng thay bằng grep.
-- **Mức:** NÊN
+- **Kiểm bằng:** `@typescript-eslint/consistent-type-imports` — có bộ sửa tự động, đã bật ở `eslint-rules/configs/project.js`. Chỉ luật này phát hiện được; đừng thay bằng grep.
+- **Mức:** BẮT BUỘC
 
 ### R-15 — Không dùng `any`.
 - **Vì sao:** `tsconfig.json` bật `strict`, `noUncheckedIndexedAccess` và `exactOptionalPropertyTypes` — ba mức chặt hơn mặc định. Một `any` xoá sạch cả ba trên đường nó đi qua.
 - **Đúng:** 486/503 file không có `any` nào.
-- **Sai:** 19 chỗ / 17 file; nặng nhất là 10 file `.stories.tsx` tắt luật ở dòng đầu file:
-  ```ts
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  ```
-  (`src/components/ui/Button.stories.tsx:1`, `Input.stories.tsx:1`, `Select.stories.tsx:1`, …)
+- **Sai:** **14 chỗ / 12 file**, toàn bộ nằm trong `.stories.tsx` — `any` chỉ ở `args`, nơi
+  `Meta<typeof X>` đòi đủ props mà story lại dựng cây riêng trong `render`. Không chỗ nào vào
+  bản dựng sản phẩm. Đây là món nợ đã ghi ở mục 3 của `BAO_CAO_DO_LECH.md`; trả nó khi viết
+  được một type helper cho `args`. Ngoài file story: **chưa có vi phạm trong repo**.
 - **Kiểm bằng:** `@typescript-eslint/no-explicit-any` (đã bật qua preset; `pnpm lint --max-warnings 0` biến cảnh báo thành lỗi).
 - **Mức:** BẮT BUỘC
 
@@ -214,10 +209,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   // eslint-disable-next-line local/no-direct-set -- React's own component state,
   // not the zustand store; invariant A10 is about commit(patch, label).
   ```
-- **Sai:** `src/hooks/useNumericField.ts:67`
-  ```ts
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ```
+- **Sai:** chưa có vi phạm trong repo — cả 30 chỗ tắt luật đều đã ghi lý do sau `--`.
 - **Kiểm bằng:** `rg "eslint-disable" src | rg -v " -- "`
 - **Mức:** NÊN
 
@@ -235,21 +227,21 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   ```tsx
   export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ```
-- **Sai:** `src/components/ui/FieldRow.tsx:21` và `src/screens/DataEntryDemo.tsx:16` — arrow không có lý do bắt buộc.
+- **Sai:** chưa có vi phạm trong repo.
 - **Kiểm bằng:** `rg "^export const [A-Z]\w+ = \(" src --glob '*.tsx'` — mỗi kết quả phải giải thích được vì sao không dùng `function`.
 - **Mức:** NÊN
 
 ### R-19 — Xuất component bằng tên, không xuất mặc định.
 - **Vì sao:** 67 xuất có tên / 2 xuất mặc định. Xuất mặc định cho phép mỗi nơi import đặt một tên khác nhau, làm hỏng việc grep và việc đổi tên tự động. Ngoại lệ duy nhất là `export default meta` mà Storybook bắt buộc.
 - **Đúng:** `src/screens/DataEntryDemo.tsx` — `export const DataEntryDemo`.
-- **Sai:** `src/App.tsx:28` (`export default function App()`) và `src/screens/DesignSystem.tsx`.
+- **Sai:** chưa có vi phạm trong repo.
 - **Kiểm bằng:** `rg "^export default" src --glob '*.tsx' --glob '!*.stories.tsx'`
 - **Mức:** NÊN
 
 ### R-20 — File xuất component đặt tên PascalCase; mọi file khác camelCase.
 - **Vì sao:** 502/503 file đã theo quy ước này. Nhìn tên file là biết bên trong có component hay không, không cần mở.
 - **Đúng:** `src/components/ui/Button.tsx`, `src/hooks/useAppShell.ts`, `src/lib/http/singleFlight.ts`.
-- **Sai:** `src/components/ui/button-variants.ts` — file kebab-case duy nhất trong repo.
+- **Sai:** chưa có vi phạm trong repo.
 - **Kiểm bằng:** `rg --files src -g '*-*.ts' -g '*-*.tsx'`
 - **Mức:** NÊN
 
@@ -262,6 +254,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 - **Sai:** **8 file** vượt — dài nhất: `src/screens/project/ShareScreen.tsx` (460),
   `src/components/ui/Combobox.tsx` (403), `src/components/ui/Table.tsx` (367),
   `src/components/ui/Select.tsx` (346), `src/screens/auth/AuthScreen/AuthScreen.tsx` (340).
+  Hai file đầu chính là hai file R-22 đang hoãn, nên R-21 không về 0 trước R-22.
 - **Kiểm bằng:** `node scripts/check-file-length.mjs`. Script **đã tồn tại**; ở ngưỡng 250
   nó chỉ *nhắc*, không làm hỏng lệnh — đó là lý do R-21 ở mức NÊN còn R-22 ở mức BẮT BUỘC.
 - **Mức:** NÊN
@@ -295,11 +288,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-24 — `key` phải là định danh ổn định của phần tử, không dùng chỉ số mảng.
 - **Vì sao:** Khi danh sách được chèn, xoá hay sắp xếp lại, chỉ số dịch đi và React gán nhầm state cũ cho phần tử mới — ô nhập giữ nguyên giá trị của hàng vừa bị xoá.
 - **Đúng:** `src/App.tsx:42` — `key={id}`.
-- **Sai:** `src/components/canvas/WallThicknessLegend.tsx:70`
-  ```tsx
-  <div key={i} className="flex items-center gap-2 px-2 py-1">
-  ```
-  cùng `src/components/feedback/Skeleton.tsx:40`, `src/components/ui/Avatar.tsx:75`, `src/components/shell/ShortcutHelp.tsx:170`, `src/screens/ShellDemo.tsx:22`.
+- **Sai:** chưa có vi phạm trong repo.
 - **Kiểm bằng:** `rg "key=\{(i|idx|index|\w*Index)\}" src`
 - **Mức:** NÊN (miễn trừ hợp lệ: danh sách tĩnh không bao giờ đổi thứ tự, như khung xương `Skeleton`)
 
@@ -323,7 +312,9 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-26 — Không dùng `useEffect` để lấy dữ liệu.
 - **Vì sao:** Effect lấy dữ liệu phải tự lo huỷ bỏ, tranh chấp thứ tự trả về, đệm, và thử lại — bốn thứ mà `src/lib/query` đã cài sẵn và đã test. Viết lại tại chỗ nghĩa là viết lại cả bốn, thường thiếu ba.
 - **Đúng:** `src/lib/query/prefetch.ts`, `src/lib/mutations/createOptimisticMutation.ts`.
-- **Sai:** `src/hooks/useShareLinks.ts:314-338` — 1/57 effect trong repo. Xem R-09.
+- **Sai:** **1** — `src/hooks/useShareLinks.ts:314-318`. Đang hoãn có chủ ý (mục 3 của
+  `BAO_CAO_DO_LECH.md`): chuyển cùng lúc màn thật đầu tiên dùng `lib/query`, để repo chỉ có
+  một khuôn mẫu chứ không phải hai.
 - **Kiểm bằng:** soi tay khi review. Dấu hiệu: `await`/`.then(` trong thân `useEffect`.
 - **Mức:** NÊN
 
@@ -333,14 +324,17 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   ```tsx
   const ActiveComponent = screens[activeScreen].component;
   ```
-- **Sai:** `src/components/overlay/Drawer.tsx:93-96`
-  ```tsx
-  // Reset snap level khi đóng
-  useEffect(() => {
-    if (!isOpen) setSnapLevel(2);
-  }, [isOpen]);
-  ```
-  Có 9 chỗ cùng dạng, gồm `src/hooks/useCommitFlash.ts:13`, `src/components/feedback/Toast.tsx:163`, `src/hooks/useUndoableToast.ts:20`.
+- **Sai:** **4**, còn lại sau khi `src/components/overlay/Drawer.tsx` và
+  `src/components/feedback/SaveIndicator.tsx` chuyển sang khuôn "so với giá trị trước ngay
+  trong lúc render". Bốn chỗ còn lại, mỗi chỗ một lý do:
+  - `src/hooks/useCommitFlash.ts:13` và `src/hooks/useUndoableToast.ts:20` — **không phải**
+    đồng bộ state sang state: giá trị chúng tính phụ thuộc THỜI GIAN (400 ms và 8 s), thứ
+    không tính được lúc render. Tính lúc render còn phải gọi `Date.now()` trong thân render,
+    đúng thứ R-29 cấm.
+  - `src/hooks/useCombobox.ts:67` — kẹp chỉ số ở tầng đọc là suy ra được, nhưng `useSelect`
+    dùng chỉ số nội bộ của nó khi bấm Enter; kẹp một phía làm Enter không chọn gì.
+  - `src/components/feedback/Toast.tsx:52` — sửa đúng đòi ghi vào ref ngay trong lúc render,
+    mà ghi ref lúc render thì phá tính thuần dưới `StrictMode`.
 - **Kiểm bằng:** soi tay. Dấu hiệu: thân effect chỉ gồm `if (…) setX(…)` và mảng phụ thuộc là state khác.
 - **Mức:** NÊN
 - **Ngoại lệ đã dùng có chủ ý:** khuôn "ref mới nhất" (`ref.current = value`, không có mảng phụ thuộc) ở `src/hooks/useShortcut.ts:180-182` và 6 chỗ tương tự — đây là cách giữ callback mới nhất mà không phải đăng ký lại listener, không phải đồng bộ state.
@@ -381,7 +375,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-30 — Không tắt `react-hooks/exhaustive-deps` mà không ghi lý do.
 - **Vì sao:** 6 chỗ đang tắt luật này. Mỗi chỗ là một mảng phụ thuộc mà trình biên dịch cho là sai; nếu người viết đúng thì phải nói vì sao, nếu sai thì đó là một effect chạy thiếu lần.
 - **Đúng:** dùng khuôn "ref mới nhất" (`src/hooks/useShortcut.ts:180-182`) thay vì tắt luật.
-- **Sai:** `src/hooks/useNumericField.ts:67`, `src/hooks/useSelect.ts:103`, `src/components/canvas/SelectionHalo.stories.tsx:17,32`.
+- **Sai:** chưa có vi phạm trong repo — sáu chỗ tắt luật còn lại đều đã ghi lý do, và mỗi lý do nói rõ vì sao mảng phụ thuộc đang kê là đúng.
 - **Kiểm bằng:** `rg "exhaustive-deps" src | rg -v " -- "`
 - **Mức:** NÊN
 
@@ -391,7 +385,13 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
   ```ts
   const canCreate = useMemo(() => can('create', 'share', { roles }), [roles]);
   ```
-- **Sai:** `src/hooks/useAppShell.ts:47-53` — `toggleLeft` bọc `useCallback` nhưng chỉ được gắn thẳng vào `onClick` của một component không `memo`.
+- **Sai:** **74** trong 99 `useCallback`/`useMemo` của mã sản phẩm không có người tiêu thụ nào
+  — đo bằng cách gom mọi tên xuất hiện trong bất kỳ mảng phụ thuộc nào của toàn repo, kể cả
+  test và story, cộng mọi đối số của `useSyncExternalStore`. `src/hooks/useAppShell.ts` đã sửa.
+- **VÌ SAO KHÔNG QUÉT NỐT:** phép đo theo tên có một lỗ — một callback có thể đổi tên ở ranh
+  giới prop rồi mới rơi vào mảng phụ thuộc của component con (`onRetry={reload}` rồi
+  `useEffect(…, [onRetry])`). Phép đo thấy `onRetry` mà không thấy `reload`, tức báo "an toàn"
+  cho một chỗ không an toàn. Với 74 chỗ thì khả năng dính ít nhất một ca là đáng kể.
 - **Kiểm bằng:** soi tay. Câu hỏi khi review: "ai đang cần tham chiếu này ổn định?" — không trả lời được thì bỏ.
 - **Mức:** KHUYẾN NGHỊ
 
@@ -465,8 +465,9 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-39 — `motion`, `AnimatePresence` và `useAnimation` chỉ được nhập từ `@/lib/motion`.
 - **Vì sao:** Ba tên này là đường duy nhất mà chuyển động lọt qua được `useReducedMotion`. 16 file trong `src/components` hiện nhập thẳng từ `framer-motion`, nên hoạt ảnh vẫn chạy khi người dùng đã tắt chuyển động trong hệ điều hành. Đây là lỗi khả năng tiếp cận, không phải chuyện thẩm mỹ mã. Phần còn lại của API framer (`useScroll`, `useDragControls`, kiểu dữ liệu…) vẫn nhập thẳng được — cổng chỉ đóng đúng ba tên rò.
 - **Đúng:** khuôn tương đương đã chạy được cho mạng — `src/lib/http/platform.ts` là chỗ duy nhất chạm transport, nhờ đó `local/no-fetch-outside-http` cấm được toàn repo mà không cần miễn trừ file nào.
-- **Sai:** `src/components/overlay/Modal.tsx`, `Drawer.tsx`, `CommandPalette.tsx`, `src/components/ui/Table.tsx`, `Tabs.tsx`, `Select.tsx`, `Combobox.tsx`, `Slider.tsx`, `Toggle.tsx`, `Radio.tsx`, `Checkbox.tsx`, `SegmentedControl.tsx`, `Tooltip.tsx`, `TableActionBar.tsx`, `src/components/shell/AppShell.tsx`, `ShortcutHelp.tsx` — 16 file.
-- **Kiểm bằng:** luật nội bộ mới `local/no-framer-outside-motion`, dựng theo khuôn `eslint-rules/no-fetch-outside-http.js`. Trước khi bật, `src/lib/motion/index.ts` phải tái xuất ba tên này. Lệnh tạm: `rg "from 'framer-motion'" src --glob '!src/lib/motion/**'`
+- **Sai:** chưa có vi phạm trong repo.
+- **Kiểm bằng:** `local/no-framer-outside-motion`, đã viết và bật ở mức `error`.
+- **SỬA LẠI MỘT ĐIỀU LUẬT NÀY TỪNG NÓI SAI:** bản trước ghi cửa nằm ở `src/lib/motion/index.ts`. **Không đặt ở đó được.** `framer-motion` nhập React, mà `src/lib/**` tuyệt đối không được import React (CLAUDE.md mục 0.4) — tái xuất từ đó sẽ kéo React vào 36 nơi đang nhập barrel ấy, gồm cả mã chạy trong worker. Thêm nữa, thứ thật sự đóng lỗ hổng là `useReducedMotion`, một HOOK, nên nó phải ở tầng React. Cửa là **`src/components/motion`**, và `MotionProvider` ở đó đặt `reducedMotion="user"` một lần cho toàn ứng dụng ở `src/App.tsx`.
 - **Mức:** BẮT BUỘC (sau khi lớp bọc tái xuất xong và sổ nợ tạm được lập — xem lộ trình)
 
 ### R-40 — Viết style bằng lớp Tailwind; `style={{}}` chỉ dành cho giá trị tính lúc chạy.
@@ -545,7 +546,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 - **Vì sao:** Tìm theo vai trò kiểm luôn khả năng tiếp cận: nút mất nhãn hay mất `role` thì test đỏ. Tìm theo `data-testid` thì nút có thể hỏng hoàn toàn với người dùng bàn phím mà test vẫn xanh, đồng thời buộc mã sản phẩm mang thuộc tính chỉ tồn tại vì test. Hiện là 148 `ByRole` / 77 `ByText` / 23 `ByTestId` / 16 `ByLabelText`.
 - **Miễn trừ theo đường dẫn:** `src/components/canvas/**` và `src/lib/three/**` — vùng vẽ và cảnh 3D thật sự không có vai trò ARIA để bám vào.
 - **Đúng:** `src/screens/auth/AuthScreen/AuthScreen.test.tsx` — 8 lần `getByRole` trong một file.
-- **Sai:** `src/components/feedback/Toast.test.tsx` — 4 lần `getByTestId`; tổng 23 chỗ ở 7 file.
+- **Sai:** chưa có vi phạm trong repo.
 - **Kiểm bằng:** `rg "ByTestId|data-testid" src --glob '!src/components/canvas/**' --glob '!src/lib/three/**'`
 - **Mức:** BẮT BUỘC
 
@@ -580,18 +581,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-50 — Component mới phải có story và đi qua `expectSevenStates` cùng `expectAccessible`.
 - **Vì sao:** Repo đã bỏ công viết 728 dòng `expectAccessible`, 138 dòng `expectSevenStates` và bật `@storybook/addon-a11y`. Component không đi qua chúng thì khoản đầu tư đó không bảo vệ được gì.
 - **Đúng:** 47 file `.stories.tsx` hiện có; `src/lib/testing/expectSevenStates.ts`, `expectAccessible.ts`.
-- **Sai:** **đúng 5 file** trong `src/components/**` chưa có `*.stories.tsx` đi kèm:
-  ```
-  src/components/ui/Kbd.tsx
-  src/components/shell/CommandPalette.tsx
-  src/components/shell/DevStateSwitcher.tsx
-  src/components/canvas/GridLayer.tsx
-  src/components/feedback/ScreenErrorBoundary.tsx
-  ```
-  Trường này từng kể tên `Textarea.tsx`, `TreeItem.tsx`, `ThicknessField.tsx` — **cả ba đều
-  CÓ story** (`src/components/ui/Textarea.stories.tsx`, `TreeItem.stories.tsx`,
-  `ThicknessField.stories.tsx`). Danh sách trên đối chiếu thật `*.tsx` với `*.stories.tsx`,
-  không đoán.
+- **Sai:** chưa có vi phạm trong repo — mọi component trong `src/components/**` đều có `*.stories.tsx` đi kèm.
 - **Kiểm bằng:** soi tay khi review; `pnpm build-storybook` chưa nằm trong CI.
 - **Mức:** NÊN
 
@@ -602,17 +592,20 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-51 — Không để khối `catch` rỗng và không chỉ ghi log rồi đi tiếp.
 - **Vì sao:** Nuốt lỗi biến một sự cố thành một màn hình im lặng không đúng. Người dùng không biết thao tác của mình đã hỏng.
 - **Đúng:** `src/lib/errors/toAppError.ts`, `describeError.ts`, `kinds.ts` — lỗi được quy về hình dạng mà giao diện đọc được.
-- **Sai:** 0 khối `catch` rỗng. Nhưng 12 lời gọi `console.*` trong mã sản phẩm — nặng nhất `src/screens/CanvasOverlaysDemo.tsx` (3 lần).
+- **Sai:** `catch` rỗng: **chưa có vi phạm trong repo**. `console.*` trong mã sản phẩm: **6**,
+  và cả sáu đã soi từng cái rồi GIỮ có chủ ý — một là dòng chú thích
+  (`shortcutRegistry.ts:269`), năm còn lại là kênh chẩn đoán của hạ tầng, mỗi chỗ đều có xử lý
+  thật đứng cạnh chứ không nuốt lỗi rồi đi tiếp: `decode.ts:152` vẫn trả `AppError` khi quá tỉ
+  lệ hỏng, `useAutosave.ts:35` kèm nhãn "Lưu thất bại" cho người dùng thấy,
+  `shortcutRegistry.ts:361` có giá trị trả về thật, `eventChannel.ts:63` chỉ bỏ một message SSE
+  hỏng, `screenErrorBoundary.ts:99` chỉ bọc nhánh telemetry.
 - **Kiểm bằng:** `rg -U "catch\s*(\([^)]*\))?\s*\{\s*\}" src` và `rg "console\.(log|warn|error)" src --glob '!*.test.*' --glob '!*.stories.*'`
 - **Mức:** NÊN
 
 ### R-52 — Không dùng `alert`, `confirm` hay `prompt` của trình duyệt.
 - **Vì sao:** Chúng chặn luồng, không theo chủ đề, không dịch được, và không kiểm được bằng test. Repo đã có `Modal`, `Drawer` và `Toast` làm đúng việc đó.
 - **Đúng:** `src/components/overlay/Modal.tsx`, `src/components/feedback/Toast.tsx`.
-- **Sai:** `src/components/ui/Table.stories.tsx:111,206-208` — 4 lần, đều trong file story:
-  ```tsx
-  onApprove={() => alert('Duyệt')}
-  ```
+- **Sai:** chưa có vi phạm trong repo. Hai kết quả còn lại của lệnh kiểm là chuỗi dữ liệu test XSS ở `src/lib/export/__tests__/shareLink.test.ts:308,473` — dữ liệu, không phải lời gọi.
 - **Kiểm bằng:** `rg "\b(window\.)?(alert|confirm|prompt)\(" src`
 - **Mức:** BẮT BUỘC
 
@@ -632,21 +625,14 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
     { enabled: isOpen },
   );
   ```
-- **Sai:** 4 chỗ còn gắn tay (`addEventListener('keydown'…)`), 1 trong số đó là test.
+- **Sai:** chưa có vi phạm trong repo. Kết quả duy nhất của lệnh kiểm là một dòng **chú thích** ở `src/hooks/useShortcut.ts:10`.
 - **Kiểm bằng:** `rg "addEventListener\(['\"]key(down|up|press)['\"]" src --glob '!src/lib/input/**'`
 - **Mức:** NÊN
 
 ### R-55 — Mỗi màn được bọc trong `ScreenErrorBoundary`.
 - **Vì sao:** Không có ranh giới lỗi thì một ngoại lệ trong bất kỳ component nào làm trắng toàn bộ trang. Repo đã có sẵn 92 dòng cài đặt và 167 dòng test cho nó, xanh hoàn toàn — nhưng **không màn nào gắn**, nên bộ test đang chứng minh một thứ chưa được dùng.
 - **Đúng:** `src/components/feedback/ScreenErrorBoundary.tsx` (cài đặt) và `src/lib/screen-state/screenErrorBoundary.ts`.
-- **Sai:** `src/App.tsx:53-57` — bọc `Toast.Provider` nhưng không bọc ranh giới lỗi:
-  ```tsx
-  <div className="flex-1 relative overflow-hidden bg-bg-app">
-    <Toast.Provider>
-      <ActiveComponent />
-    </Toast.Provider>
-  </div>
-  ```
+- **Sai:** chưa có vi phạm trong repo — `src/App.tsx` bọc màn đang hiện, có `key={activeScreen}` để ranh giới gắn lại mỗi lần đổi màn.
 - **Kiểm bằng:** `rg "<ScreenErrorBoundary" src` — số kết quả phải bằng số màn.
 - **Mức:** NÊN
 
@@ -690,16 +676,16 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 | R-02 | `hooks`/`components` không import tầng trên | BẮT BUỘC | `no-restricted-imports` |
 | R-03 | `types` không import gì | BẮT BUỘC | `no-restricted-imports` |
 | R-04 | Import xuyên thư mục dùng `@/` | NÊN | `no-relative-import-paths` |
-| R-05 | Không import vòng | NÊN | `import/no-cycle` (chỉ verify/CI) — đo 2026-08-20: **0** |
+| R-05 | Không import vòng | **BẮT BUỘC** | `pnpm cycles`, bước 3 của `pnpm verify` + CI |
 | R-06 | Mạng đi qua `src/lib/http` | BẮT BUỘC | `local/no-fetch-outside-http` |
 | R-07 | Đường dẫn API ở `src/api/endpoints.ts` | BẮT BUỘC | `rg` |
 | R-08 | Dữ liệu ngoài qua `zod` | NÊN | soi tay |
 | R-09 | Trạng thái máy chủ qua `lib/query`+`lib/mutations` | NÊN | soi tay |
 | R-10 | Khoá storage là hằng số xuất khẩu | NÊN | `rg` |
 | R-11 | Số nghiệp vụ là hằng số có tên | NÊN | `local/no-raw-number` + soi tay |
-| R-12 | `interface` cho hình dạng, `type` cho union | NÊN | `consistent-type-definitions` |
-| R-13 | Hàm xuất khẩu khai kiểu trả về | NÊN | `explicit-module-boundary-types` |
-| R-14 | Nhập kiểu bằng `import type` | NÊN | `consistent-type-imports` *(grep không thấy)* |
+| R-12 | `interface` cho hình dạng, `type` cho union | **BẮT BUỘC** | `consistent-type-definitions`, đã bật |
+| R-13 | Hàm xuất khẩu khai kiểu trả về *(chỉ `lib` + `domain`)* | **BẮT BUỘC** | `explicit-module-boundary-types`, đã bật |
+| R-14 | Nhập kiểu bằng `import type` | **BẮT BUỘC** | `consistent-type-imports`, đã bật *(grep không thấy)* |
 | R-15 | Không dùng `any` | BẮT BUỘC | `no-explicit-any` |
 | R-16 | Không thêm dòng vào sổ nợ | BẮT BUỘC | `git diff` |
 | R-17 | `eslint-disable` phải có lý do sau `--` | NÊN | `rg` |
@@ -724,7 +710,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 | R-36 | Màu lấy từ token | BẮT BUỘC | `local/no-raw-color` |
 | R-37 | Thời lượng trong thang 120/180/260/340/700 | BẮT BUỘC | `local/no-raw-duration` |
 | R-38 | Không định dạng số ở tầng view | BẮT BUỘC | `local/no-raw-number` |
-| R-39 | `motion`/`AnimatePresence`/`useAnimation` qua `@/lib/motion` | BẮT BUỘC | `local/no-framer-outside-motion` (cần viết) |
+| R-39 | `motion`/`AnimatePresence`/`useAnimation` qua `@/components/motion` | BẮT BUỘC | `local/no-framer-outside-motion`, đã viết và bật |
 | R-40 | Style bằng class Tailwind | NÊN | `rg` |
 | R-41 | Màu trong tailwind.config phải là `var(--…)` | NÊN | `rg` |
 | R-42 | Chuỗi hiển thị tiếng Việt có dấu | BẮT BUỘC | `expectVietnamese` |
