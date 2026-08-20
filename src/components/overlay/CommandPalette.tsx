@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from '../motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '../../lib/utils';
 import { Kbd } from '../ui/Kbd';
 import { Input } from '../ui/Input';

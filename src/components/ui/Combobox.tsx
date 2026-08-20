@@ -12,7 +12,7 @@ import { useCompoundId } from '../../hooks/useCompoundId';
 import { ChevronDown, Check, Search } from 'lucide-react';
 import { durationSeconds, EASE } from '../../lib/motion';
 import { cn } from '../../lib/utils';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from '../motion';
 import type { SelectOption } from './Select';
 // import { Skeleton } from '../feedback/Skeleton';
 

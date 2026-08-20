@@ -1,6 +1,6 @@
 import React from 'react';
 import { twMerge } from 'tailwind-merge';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '../motion';
 import { Check, X, Layers, SlidersHorizontal } from 'lucide-react';
 import { Button } from './Button';
 import { durationSeconds } from '../../lib/motion';

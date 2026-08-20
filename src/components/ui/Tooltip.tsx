@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '../motion';
 import { Kbd } from './Kbd';
 import { durationSeconds } from '../../lib/motion';
 

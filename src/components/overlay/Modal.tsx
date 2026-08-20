@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, forwardRef } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence } from '../motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Z_INDEX } from '../../lib/zIndex';

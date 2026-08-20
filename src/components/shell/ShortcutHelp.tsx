@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from '../motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Kbd } from '../ui/Kbd';

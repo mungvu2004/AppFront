@@ -9,6 +9,7 @@ import { MotionDemo } from './screens/MotionDemo';
 import { ShellDemo } from './screens/ShellDemo';
 import { StateGallery } from './screens/system/StateGallery';
 import { Toast } from './components/feedback/Toast';
+import { MotionProvider } from './components/motion';
 import { EmptyState } from './components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
@@ -58,47 +59,53 @@ export function App() {
   const ActiveComponent = screens[activeScreen].component;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-bg-app text-text-primary font-sans">
-      <div className="w-[240px] border-r border-border-default bg-bg-surface flex flex-col shrink-0">
-        <div className="p-4 border-b border-border-default">
-          <h1 className="text-[14px] font-semibold">Demo App</h1>
+    // `MotionProvider` bọc TOÀN BỘ vỏ, không bọc riêng phần màn: nó đặt
+    // `reducedMotion="user"` một lần cho mọi hoạt ảnh framer-motion trong cây,
+    // kể cả bảng chọn màn bên trái. Đây mới là thứ đóng lỗ hổng R-39; việc dồn
+    // import về `@/components/motion` chỉ dựng cái cửa để chỗ này với tới.
+    <MotionProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-bg-app text-text-primary font-sans">
+        <div className="w-[240px] border-r border-border-default bg-bg-surface flex flex-col shrink-0">
+          <div className="p-4 border-b border-border-default">
+            <h1 className="text-[14px] font-semibold">Demo App</h1>
+          </div>
+          <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-0.5 px-2">
+            {Object.entries(screens).map(([id, screen]) => (
+              <button
+                key={id}
+                className={`w-full text-left px-2 py-1.5 rounded-[6px] text-[14px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface ${
+                  activeScreen === id ? 'bg-bg-selected font-medium text-text-primary' : 'text-text-secondary hover:bg-bg-hover'
+                }`}
+                onClick={() => setActiveScreen(id as ScreenId)}
+              >
+                {screen.name}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-0.5 px-2">
-          {Object.entries(screens).map(([id, screen]) => (
-            <button
-              key={id}
-              className={`w-full text-left px-2 py-1.5 rounded-[6px] text-[14px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface ${
-                activeScreen === id ? 'bg-bg-selected font-medium text-text-primary' : 'text-text-secondary hover:bg-bg-hover'
-              }`}
-              onClick={() => setActiveScreen(id as ScreenId)}
-            >
-              {screen.name}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 relative overflow-hidden bg-bg-app">
-        {/*
-          `key={activeScreen}` để ranh giới lỗi gắn lại mỗi lần đổi màn: nếu không,
-          một màn hỏng sẽ giữ trạng thái lỗi và màn được chọn tiếp theo cũng chỉ
-          hiện lại phần dự phòng.
+        <div className="flex-1 relative overflow-hidden bg-bg-app">
+          {/*
+            `key={activeScreen}` để ranh giới lỗi gắn lại mỗi lần đổi màn: nếu không,
+            một màn hỏng sẽ giữ trạng thái lỗi và màn được chọn tiếp theo cũng chỉ
+            hiện lại phần dự phòng.
 
-          Ranh giới nằm NGOÀI `Toast.Provider` là cố ý — màn hỏng thì kéo theo cả
-          provider của nó, và phần dự phòng không được phụ thuộc vào thứ vừa sập.
-        */}
-        <ScreenErrorBoundary
-          key={activeScreen}
-          screenId={activeScreen}
-          renderFallback={({ report, retry }) => (
-            <ScreenCrashFallback report={report} retry={retry} />
-          )}
-        >
-          <Toast.Provider>
-            <ActiveComponent />
-          </Toast.Provider>
-        </ScreenErrorBoundary>
+            Ranh giới nằm NGOÀI `Toast.Provider` là cố ý — màn hỏng thì kéo theo cả
+            provider của nó, và phần dự phòng không được phụ thuộc vào thứ vừa sập.
+          */}
+          <ScreenErrorBoundary
+            key={activeScreen}
+            screenId={activeScreen}
+            renderFallback={({ report, retry }) => (
+              <ScreenCrashFallback report={report} retry={retry} />
+            )}
+          >
+            <Toast.Provider>
+              <ActiveComponent />
+            </Toast.Provider>
+          </ScreenErrorBoundary>
+        </div>
       </div>
-    </div>
+    </MotionProvider>
   );
 }
 

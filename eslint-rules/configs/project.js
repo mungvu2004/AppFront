@@ -9,7 +9,7 @@
  * Giờ có: `.eslintrc.cjs` chỉ `extends: ['plugin:local/project']`, còn toàn bộ nội
  * dung nằm ở đây, chia làm ba tầng, đọc từ trên xuống:
  *
- *   1. LUẬT — sáu rule nội bộ ép các bất biến của CLAUDE.md mục A/B.
+ *   1. LUẬT — bảy rule nội bộ ép các bất biến của CLAUDE.md mục A/B.
  *   2. RANH GIỚI — ai được import ai (CLAUDE.md mục 0.4).
  *   3. SỔ NỢ — file cũ tạm được miễn, mỗi mục có lý do và cách trả nợ.
  *
@@ -47,7 +47,7 @@ module.exports = {
   plugins: ['local'],
 
   // -- 1. LUẬT ---------------------------------------------------------------
-  // Sáu rule, mỗi rule ép một bất biến, tất cả ở mức 'error'. Không rule nào ở
+  // Bảy rule, mỗi rule ép một bất biến, tất cả ở mức 'error'. Không rule nào ở
   // mức 'warn': `pnpm lint` chạy với `--max-warnings 0`, nên 'warn' chỉ là
   // 'error' viết vòng, mà viết vòng thì người đọc tưởng nó không quan trọng.
   rules: {
@@ -70,6 +70,12 @@ module.exports = {
     // Mọi truy cập mạng đi qua src/lib/http — nơi duy nhất có timeout, retry,
     // single-flight và hình dạng lỗi mà phần còn lại của ứng dụng đọc được.
     'local/no-fetch-outside-http': 'error',
+
+    // R-39: framer-motion nhập ở đúng một chỗ, src/components/motion, nơi
+    // MotionProvider đặt reducedMotion="user" một lần cho toàn ứng dụng. Lỗ hổng
+    // luật này chặn là chuyện THIẾU một lời gọi useReducedMotion, và thứ thiếu
+    // thì không hiện ra trong diff — nên nó phải đóng bằng cấu trúc.
+    'local/no-framer-outside-motion': 'error',
   },
 
   overrides: [
