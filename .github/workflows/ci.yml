@@ -88,4 +88,26 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install
       - run: npx playwright install --with-deps
-      - run: pnpm e2e:visual
+      # `pnpm e2e` SO SÁNH ảnh chuẩn. `pnpm e2e:visual` thì KHÔNG — nó chạy với
+      # `--update-snapshots`, tức ghi đè ảnh chuẩn rồi báo đạt. Job này từng gọi
+      # lệnh đó, nên nó hiển thị dấu tích mà không kiểm gì: đúng thứ mục E.10 của
+      # CLAUDE.md cấm. `e2e:visual` vẫn giữ, nhưng là lệnh cập nhật ảnh chạy tại máy.
+      - run: pnpm e2e
+      # Ảnh chuẩn phụ thuộc nền tảng. Repo hiện chỉ có bản `win32`, còn job này chạy
+      # `ubuntu-latest`, nên lượt chạy đầu tiên sẽ ĐỎ với "snapshot doesn't exist" —
+      # Playwright ghi ảnh linux ra đĩa rồi vẫn báo hỏng. Bước dưới đẩy đúng những
+      # ảnh đó ra artifact để người duyệt tải về và commit một lần. Sau lần đó job
+      # này so sánh thật.
+      #
+      # Không sinh ảnh linux tại máy Windows được, và ảnh sinh trong container khác
+      # phiên bản ubuntu vẫn có thể lệch phông chữ — commit ảnh đoán mò còn tệ hơn
+      # không có ảnh nào.
+      - name: Đẩy ảnh chuẩn linux ra artifact khi hỏng
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-snapshots-linux
+          path: |
+            e2e/**/*-snapshots/**
+            playwright-report/**
+          retention-days: 14
