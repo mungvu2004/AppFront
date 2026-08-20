@@ -30,7 +30,6 @@ describe('Toast.Provider and Toast.Item', () => {
     const { addToast } = useToast();
     return (
       <Button
-        data-testid="trigger"
         onClick={() => addToast({ message: 'Test message', onUndo: () => {} })}
       >
         Add Toast
@@ -42,7 +41,6 @@ describe('Toast.Provider and Toast.Item', () => {
     const { addToast } = useToast();
     return (
       <Button
-        data-testid="trigger-group"
         onClick={() => {
           addToast({ message: 'Item 1 tường', onUndo: vi.fn() });
           addToast({ message: 'Item 2 tường', onUndo: vi.fn() });
@@ -62,8 +60,8 @@ describe('Toast.Provider and Toast.Item', () => {
       </Toast.Provider>
     );
 
-    fireEvent.click(screen.getByTestId('trigger'));
-    
+    fireEvent.click(screen.getByRole('button', { name: 'Add Toast' }));
+
     expect(screen.getByText('Test message')).toBeInTheDocument();
 
     // Advance by 8 seconds (8000ms)
@@ -84,7 +82,7 @@ describe('Toast.Provider and Toast.Item', () => {
       </Toast.Provider>
     );
 
-    fireEvent.click(screen.getByTestId('trigger-group'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 Toasts' }));
 
     // We should see Item 4 and Item 3 (since index 0 and 1 are the newest).
     // Item 1 and 2 are grouped into the 3rd slot.

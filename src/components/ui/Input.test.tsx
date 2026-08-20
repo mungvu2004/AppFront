@@ -36,13 +36,13 @@ describe('Input', () => {
   });
 
   it('renders prefix content', () => {
-    render(<Input prefix={<span data-testid="pre">@</span>} />);
-    expect(screen.getByTestId('pre')).toBeInTheDocument();
+    render(<Input prefix={<span>@</span>} />);
+    expect(screen.getByText('@')).toBeInTheDocument();
   });
 
   it('renders suffix content', () => {
-    render(<Input suffix={<span data-testid="suf">mm</span>} />);
-    expect(screen.getByTestId('suf')).toBeInTheDocument();
+    render(<Input suffix={<span>mm</span>} />);
+    expect(screen.getByText('mm')).toBeInTheDocument();
   });
 
   it('has focus ring class', () => {

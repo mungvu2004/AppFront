@@ -360,7 +360,7 @@ function TableVirtual<TRow extends { id: string }>({
   const paddingBottom = lastItem ? totalHeight - lastItem.end : 0;
 
   return (
-    <tbody ref={parentRef} data-testid="table-virtual-body">
+    <tbody ref={parentRef}>
       {paddingTop > 0 && (
         <tr>
           <td colSpan={colSpan} style={{ height: `${paddingTop}px`, padding: 0 }} />
