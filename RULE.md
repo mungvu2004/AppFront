@@ -248,31 +248,36 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 ### R-21 — File component không quá 250 dòng.
 - **Vì sao:** Trung vị file `.tsx` sản phẩm là ~110 dòng; phân vị 90 là ~330. Trên 250 dòng thì một component đang làm nhiều hơn một việc, và diff của nó không còn review được trong một lượt.
 - **ĐƠN VỊ ĐẾM: dòng có nội dung**, tức `line.trim() !== ''`. Dòng trống không tính. Đơn
-  vị phải nói ra chứ không để người đọc đoán: trên cùng cây mã này, đếm cả dòng trống cho
-  ra 12 file vượt, đếm dòng có nội dung cho ra 8. Chênh lệch là dòng chỉ có khoảng trắng.
+  vị phải nói ra chứ không để người đọc đoán: ở lần đo đầu, trên cùng cây mã này, đếm cả
+  dòng trống cho ra 12 file vượt, đếm dòng có nội dung cho ra 8. Chênh lệch là dòng chỉ
+  có khoảng trắng.
 - **Đúng:** `src/components/ui/Badge.tsx` (51), `src/components/feedback/EmptyState.tsx` (51), `src/components/shell/StatusBar.tsx` (51).
-- **Sai:** **8 file** vượt — dài nhất: `src/screens/project/ShareScreen.tsx` (460),
-  `src/components/ui/Combobox.tsx` (403), `src/components/ui/Table.tsx` (367),
-  `src/components/ui/Select.tsx` (346), `src/screens/auth/AuthScreen/AuthScreen.tsx` (340).
-  Hai file đầu chính là hai file R-22 đang hoãn, nên R-21 không về 0 trước R-22.
+- **Sai:** **6 file** vượt — `src/components/ui/Table.tsx` (367),
+  `src/components/ui/Select.tsx` (346), `src/screens/auth/AuthScreen/AuthScreen.tsx` (340),
+  `src/components/shell/AppShell.tsx` (292), `src/components/overlay/Drawer.tsx` (287),
+  `src/components/overlay/Modal.tsx` (257). Con số này là 8 cho tới khi R-22 tách xong hai
+  file vượt 400; R-21 là tập cha của R-22, nên nó chỉ về 0 sau.
 - **Kiểm bằng:** `node scripts/check-file-length.mjs`. Script **đã tồn tại**; ở ngưỡng 250
   nó chỉ *nhắc*, không làm hỏng lệnh — đó là lý do R-21 ở mức NÊN còn R-22 ở mức BẮT BUỘC.
 - **Mức:** NÊN
 
 ### R-22 — File component không được vượt 400 dòng.
-- **Vì sao:** Trên mức này thì tách là bắt buộc chứ không còn là gợi ý. Đúng hai file trong repo đang ở đó, nên luật này không biến mã cũ thành bãi lỗi.
+- **Vì sao:** Trên mức này thì tách là bắt buộc chứ không còn là gợi ý. Hai file từng ở đó đã tách, nên ngưỡng này hiện **không** biến mã cũ thành bãi lỗi — nó chỉ giữ nguyên con số 0.
 - **ĐƠN VỊ ĐẾM:** như R-21 — dòng có nội dung, `line.trim() !== ''`.
-- **Đúng:** `src/components/overlay/Modal.tsx` (256) — đã tách sẵn thành `ModalRoot`/`ModalHeader`/`ModalBody` gộp bằng `Object.assign`.
-- **Sai:** **2 file** — `src/screens/project/ShareScreen.tsx` (460), `src/components/ui/Combobox.tsx` (403).
-  `src/components/ui/Table.tsx` KHÔNG còn trong danh sách: 417 dòng thô nhưng **367 dòng
-  có nội dung**, tức dưới ngưỡng.
-- **Kiểm bằng:** `node scripts/check-file-length.mjs --max 400`, chạy như **bước thứ sáu
+- **Đúng:** `src/components/overlay/Modal.tsx` (257) — đã tách sẵn thành `ModalRoot`/`ModalHeader`/`ModalBody` gộp bằng `Object.assign`. Và hai thư mục vừa tách:
+  `src/screens/project/ShareScreen/` (460 → khung 178 + `ShareForm` + `ShareList`) và
+  `src/components/ui/Combobox/` (403 → `context` + `ComboboxRoot` + `ComboboxDropdown` +
+  file gộp tên). Cả hai giữ nguyên đường nhập cũ nhờ `index.ts`, nên không nơi gọi nào
+  phải sửa — tách file là quyết định xếp chỗ, không phải đổi API.
+- **Sai:** **0 file.** `src/components/ui/Table.tsx` KHÔNG trong danh sách: 417 dòng thô
+  nhưng **367 dòng có nội dung**, tức dưới ngưỡng.
+- **Kiểm bằng:** `node scripts/check-file-length.mjs --max 400`, chạy như **bước thứ bảy
   của `pnpm verify`**.
 - **Mức:** BẮT BUỘC — và từ lần đo thứ hai thì mức này mới **thật**. Trước đó R-22 ghi
   BẮT BUỘC nhưng lệnh kiểm trỏ vào một script **chưa từng tồn tại**, tức một luật chặn
-  merge mà không có gì chặn được — đúng thứ R-56 cấm. Script đã dựng và đã vào `pnpm
-  verify`; bước đó **hiện đang HỎNG** vì đúng hai file trên. Cách xử lý là tách file,
-  không phải nới ngưỡng (R-49).
+  merge mà không có gì chặn được — đúng thứ R-56 cấm. Script đã dựng, đã vào `pnpm
+  verify`, và bước đó đã ĐỎ thật vì đúng hai file trên trước khi chúng được tách. Cách
+  xử lý đã dùng là tách file, không phải nới ngưỡng (R-49).
 
 ### R-23 — Không định nghĩa component bên trong thân của component khác.
 - **Vì sao:** Component định nghĩa lại mỗi lần render là một kiểu component mới với React, nên React huỷ và dựng lại cả cây con, mất sạch state và focus bên trong.
@@ -693,7 +698,7 @@ ranh giới import + sổ nợ), `vitest.config.ts` (ngưỡng độ phủ theo 
 | R-19 | Xuất component bằng tên | NÊN | `rg` |
 | R-20 | File component PascalCase | NÊN | `rg --files` |
 | R-21 | File component ≤250 dòng *(dòng có nội dung)* | NÊN | `pnpm length` |
-| R-22 | File component ≤400 dòng *(dòng có nội dung)* | BẮT BUỘC | `pnpm length`, bước 6 của `pnpm verify` |
+| R-22 | File component ≤400 dòng *(dòng có nội dung)* | BẮT BUỘC | `pnpm length`, bước 7 của `pnpm verify` |
 | R-23 | Không lồng component trong component | NÊN | `rg` + soi tay |
 | R-24 | `key` là định danh ổn định | NÊN | `rg` |
 | R-25 | Không gọi hook có điều kiện | BẮT BUỘC | `rules-of-hooks` |
