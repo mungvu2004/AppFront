@@ -88,7 +88,7 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
 | A6 | Nhãn giao diện tiếng Việt, **viết thường, kiểu câu**. Ngoại lệ chữ hoa: mã trục, mã lỗi, tên phím | `toolMachine.ts:120,326`, `shortcuts.ts:106`, `gizmo.ts:81` |
 | A7 | **Không có nút lưu.** Hệ thống tự lưu 800 ms sau thao tác cuối, và nói ra trạng thái đó cho trình đọc màn hình | `hooks/useAutosave.ts:6`, `useSaveIndicator.ts:86` |
 | A8 | Mọi thay đổi hoàn tác được, kèm toast hoàn tác | `useShareLinks.ts:225,415`, `lib/telemetry/events.ts:214` |
-| A9 | Hành động mà A8 **không** hoàn tác được thì phải hỏi trước bằng hộp thoại | `screens/project/ShareScreen.tsx:12-15,448` |
+| A9 | Hành động mà A8 **không** hoàn tác được thì phải hỏi trước bằng hộp thoại | `screens/project/ShareScreen/ShareScreen.tsx:20-26,127` |
 | A10 | Ghi vào store qua `commit(patch, label)`, không gọi `set()` | `project.js:65`, `lib/tools/toolMachine.ts:37` |
 | A11 | **Bảy trạng thái màn hình.** Màn trắng là thất bại duy nhất mà A11 tồn tại để chặn | `useShareLinks.ts:172`, `AuthScreen.container.tsx:129` |
 | A12 | Bàn phím là đường đi hạng nhất, không phải phương án dự phòng. **Esc đóng lớp trên cùng** — lời hứa không tính năng nào được lấy mất | `lib/input/shortcutRegistry.ts:21,108,573`, `lib/input/dragDrop.ts:23` |
@@ -105,7 +105,7 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
   duy nhất là `MOTION_DURATIONS_MS` trong `src/lib/motion/tokens.ts`.
 - **Định danh trong mã viết bằng tiếng Anh**, kể cả khi đặc tả nghiệp vụ đặt tên tiếng Việt.
   Đặc tả gọi màn này là `manHinhChiaSe`, mã gọi nó là `ShareScreen`; chuỗi người đọc vẫn
-  là tiếng Việt. Xem `ShareScreen.tsx:31`, `lib/coloring/modes.ts:52`, `lib/export/screenshot.ts:65`.
+  là tiếng Việt. Xem `ShareScreen/ShareScreen.tsx:39`, `lib/coloring/modes.ts:52`, `lib/export/screenshot.ts:65`.
 - **Tính toán không nằm trong màn hình.** Đưa xuống hook hoặc `src/lib` —
   `hooks/useShareLinkGateway.ts:8-9`.
 - **Điều khiển dành cho lập trình viên không xuất hiện trên màn sản phẩm** (ví dụ chip
@@ -114,8 +114,11 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
 ## Mục D — tách màn phức tạp làm hai
 
 View thuần, **test được chỉ từ props**, không chạm store và không chạm mạng; toàn bộ logic
-nằm trong một hook đi kèm. Khuôn mẫu đang chạy: `screens/project/ShareScreen.tsx` +
+nằm trong một hook đi kèm. Khuôn mẫu đang chạy: `screens/project/ShareScreen/` +
 `hooks/useShareLinks.ts`, và `screens/auth/AuthScreen/` (view / container / hook tách sẵn).
+Cả hai màn này là **thư mục**, không phải file: khi view vượt trần 400 dòng của R-22 thì
+phần con tách ra file anh em, và `index.ts` giữ nguyên đường nhập để không nơi gọi nào
+phải sửa theo.
 Xem `useShareLinks.ts:4`, `viewmodel/types.ts:20`, `ShareScreen.stories.tsx:12`.
 
 Ngoại lệ được ghi nhận: `components/feedback/ScreenErrorBoundary.tsx:22` phải là class
