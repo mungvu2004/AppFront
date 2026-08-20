@@ -95,6 +95,18 @@ export const COLOR_TOKEN_NAMES = [
   '--canvas-3d',
   '--canvas-3d-ground',
   '--canvas-3d-horizon',
+
+  // Hai màu tuyệt đối và năm màu bóng đổ, vào đây khi R-41 gỡ giá trị cứng khỏi
+  // `tailwind.config.ts`. Chúng là MÀU thật — `--shadow-color-rest` là
+  // `rgba(0,0,0,0.1)`, không phải cả câu `0 1px 3px rgba(0,0,0,0.1)` — nên chúng
+  // ở đúng chỗ và `ColorTokenName` vẫn chỉ chứa được tên của một màu.
+  '--white',
+  '--black',
+  '--shadow-color-rest',
+  '--shadow-color-float',
+  '--shadow-color-overlay',
+  '--shadow-color-panel',
+  '--shadow-color-modal',
 ] as const;
 
 /**
