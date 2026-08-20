@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import DesignSystem from './screens/DesignSystem';
+import { DesignSystem } from './screens/DesignSystem';
 import { CanvasOverlaysDemo } from './screens/CanvasOverlaysDemo';
 import { DataEntryDemo } from './screens/DataEntryDemo';
 import { DemoSharedControls } from './screens/DemoSharedControls';
@@ -52,7 +52,7 @@ const screens: Record<ScreenId, { name: string; component: React.FC }> = {
   'states': { name: 'State Gallery (QA)', component: StateGallery },
 };
 
-export default function App() {
+export function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenId>('design-system');
 
   const ActiveComponent = screens[activeScreen].component;

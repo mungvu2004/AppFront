@@ -8,7 +8,7 @@ import { Settings, Save, Trash2, Check, RefreshCw } from 'lucide-react';
 /** Fake network latency for the demo buttons. Not motion; nothing moves for it. */
 const DEMO_LATENCY_MS = 800;
 
-export default function DesignSystem() {
+export function DesignSystem() {
   const [toggleChecked, setToggleChecked] = useState(false);
 
   const simulateAsync = async (val: boolean) => {
