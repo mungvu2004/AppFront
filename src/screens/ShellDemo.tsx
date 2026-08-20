@@ -19,7 +19,7 @@ export function ShellDemo() {
           <h4 className="text-[13px] font-semibold leading-[18px] text-text-secondary mb-3">Layers</h4>
           <div className="space-y-1 text-[14px]">
              {Array.from({ length: 20 }).map((_, i) => (
-               <div key={i} className="px-2 py-1.5 rounded-[6px] hover:bg-bg-hover">
+               <div key={`layer-${i + 1}`} className="px-2 py-1.5 rounded-[6px] hover:bg-bg-hover">
                  Layer {i + 1}
                </div>
              ))}

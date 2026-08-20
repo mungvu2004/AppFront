@@ -167,7 +167,7 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
                         <dt className="text-[13px] text-text-primary">{entry.description}</dt>
                         <dd className="flex items-center gap-1">
                           {entry.keys.map((key, i) => (
-                            <React.Fragment key={i}>
+                            <React.Fragment key={key}>
                               <Kbd>{key}</Kbd>
                               {i < entry.keys.length - 1 && (
                                 <span className="text-[11px] text-text-muted mx-0.5" aria-hidden="true">+</span>

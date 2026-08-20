@@ -78,7 +78,7 @@ export const Loading: Story = {
   render: () => (
     <div className="w-64 space-y-1">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-8 rounded-lg bg-bg-sunken overflow-hidden relative" style={{ paddingLeft: i * 16 + 8 }}>
+        <div key={`tree-skeleton-${i}`} className="h-8 rounded-lg bg-bg-sunken overflow-hidden relative" style={{ paddingLeft: i * 16 + 8 }}>
           <div className="absolute left-2 right-2 top-1/2 h-2 -translate-y-1/2 rounded bg-border-default/50 animate-pulse motion-reduce:animate-none" />
         </div>
       ))}

@@ -37,7 +37,7 @@ export function Skeleton({ preset, className, ...props }: SkeletonProps) {
         <div className={cn('flex flex-col gap-4 p-4 w-full', className)} {...props}>
           <div className={cn(baseClass, 'h-6 w-1/3 mb-2')} />
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex justify-between items-center">
+            <div key={`property-skeleton-${i}`} className="flex justify-between items-center">
               <div className={cn(baseClass, 'h-4 w-24')} />
               <div className={cn(baseClass, 'h-8 w-32')} />
             </div>
