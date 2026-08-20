@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUTH_SIGNED_OUT_EVENT, __resetAuthForTests, bootstrapSession, configureAuth, createAuthHttpClient, getSession, signOut } from '../index';
 import type { AuthFetch } from '../types';
 
-type BroadcastMessage = { data: unknown };
+interface BroadcastMessage { data: unknown }
 
 class MockBroadcastChannel {
   private static channels = new Map<string, Set<MockBroadcastChannel>>();

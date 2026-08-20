@@ -38,7 +38,7 @@ import {
   type Millimetres,
   type SquareMetres,
 } from '../units/types';
-import { formatNumberVi } from '../../lib/format';
+import { formatNumber } from '../../lib/format/number';
 
 /* -------------------------------------------------------------------------- */
 /* Public types.                                                               */
@@ -509,7 +509,7 @@ export function explainArea(outline: readonly PointMm[]): AreaBreakdown {
 
 /** Whole numbers read as whole numbers; the rest keep two decimals. */
 function formatLength(value: number): string {
-  return Number.isInteger(value) ? formatNumberVi(value, 0) : formatNumberVi(value, AREA_DECIMALS);
+  return Number.isInteger(value) ? formatNumber(value, { fractionDigits: 0 }) : formatNumber(value, { fractionDigits: AREA_DECIMALS });
 }
 
 function formatPoint(point: PointMm): string {
@@ -530,15 +530,15 @@ export function explainRoom(room: ExplainableRoom): string {
   if (room.outline.length < MIN_POLYGON_VERTICES) {
     return (
       `${heading} — chưa có diện tích.\n\n` +
-      `Ranh phòng mới có ${formatNumberVi(room.outline.length, 0)} đỉnh. ` +
+      `Ranh phòng mới có ${formatNumber(room.outline.length, { fractionDigits: 0 })} đỉnh. ` +
       'Dưới ba đỉnh thì hình chưa khép, nên chưa bao lấy mặt sàn nào để đo.'
     );
   }
 
   const lines: string[] = [
-    `${heading} — ${formatNumberVi(breakdown.areaM2, AREA_DECIMALS)} m²`,
+    `${heading} — ${formatNumber(breakdown.areaM2, { fractionDigits: AREA_DECIMALS })} m²`,
     '',
-    `Diện tích lấy theo công thức dây giày trên ${formatNumberVi(room.outline.length, 0)} đỉnh ` +
+    `Diện tích lấy theo công thức dây giày trên ${formatNumber(room.outline.length, { fractionDigits: 0 })} đỉnh ` +
       'của mép thông thuỷ. Mỗi cạnh góp một tích chéo x1 × y2 − x2 × y1; các tích chéo ' +
       'cộng dồn ở đơn vị mm², chia đôi, rồi mới đổi sang m².',
     '',
@@ -554,7 +554,7 @@ export function explainRoom(room: ExplainableRoom): string {
 
   breakdown.terms.forEach((term, index) => {
     lines.push(
-      `Cạnh ${formatNumberVi(index + 1, 0)}: ${formatPoint(term.from)} → ${formatPoint(term.to)}` +
+      `Cạnh ${formatNumber(index + 1, { fractionDigits: 0 })}: ${formatPoint(term.from)} → ${formatPoint(term.to)}` +
         ` — tích chéo ${formatLength(term.crossMm2)} mm²`,
     );
   });
@@ -564,8 +564,8 @@ export function explainRoom(room: ExplainableRoom): string {
     `Tổng tích chéo: ${formatLength(breakdown.doubleAreaMm2)} mm²`,
     `Chia đôi: ${formatLength(breakdown.areaMm2)} mm²`,
     `Đổi sang mét vuông: ${formatLength(breakdown.areaMm2)} ÷ ` +
-      `${formatNumberVi(SQUARE_MILLIMETRES_PER_SQUARE_METRE, 0)} = ` +
-      `${formatNumberVi(breakdown.areaM2, AREA_DECIMALS)} m²`,
+      `${formatNumber(SQUARE_MILLIMETRES_PER_SQUARE_METRE, { fractionDigits: 0 })} = ` +
+      `${formatNumber(breakdown.areaM2, { fractionDigits: AREA_DECIMALS })} m²`,
   );
 
   if (!breakdown.counterClockwise) {
@@ -580,7 +580,7 @@ export function explainRoom(room: ExplainableRoom): string {
     '',
     `Chu vi ${formatLength(breakdown.perimeterMm)} mm. ` +
       `Trọng tâm tại ${formatPoint(breakdown.centroid)} mm.`,
-    `Chỉ làm tròn đúng một lần, ở bước cuối, lấy ${formatNumberVi(AREA_DECIMALS, 0)} chữ số thập phân.`,
+    `Chỉ làm tròn đúng một lần, ở bước cuối, lấy ${formatNumber(AREA_DECIMALS, { fractionDigits: 0 })} chữ số thập phân.`,
   );
 
   return lines.join('\n');

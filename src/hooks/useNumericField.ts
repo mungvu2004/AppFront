@@ -64,7 +64,11 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
       setTimeout(() => setFlash(false), durationMs('slow'));
     }
     setIsTyping(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- thân hàm gọi `validate`,
+       một hàm thường được dựng lại mỗi render và chỉ đọc `min` với `max`. Mảng phụ
+       thuộc kê thẳng hai giá trị đó, tức ĐÚNG tập phụ thuộc thật mà luật không nhìn
+       xuyên qua `validate` để thấy. Kê `validate` vào thì `commit` đổi định danh mỗi
+       render và `useCallback` mất tác dụng. */
   }, [min, max, onChange]);
 
   useEffect(() => {

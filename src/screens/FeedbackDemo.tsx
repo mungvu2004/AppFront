@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { ToastProvider, useToast } from '../components/feedback/Toast';
+import type { ToastMessage } from '../components/feedback/Toast';
 import { Skeleton } from '../components/feedback/Skeleton';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { InlineAlert } from '../components/feedback/InlineAlert';
-import { PipelineStepper, PipelineStepData } from '../components/feedback/PipelineStepper';
+import type { PipelineStepData } from '../components/feedback/PipelineStepper';
+import { PipelineStepper } from '../components/feedback/PipelineStepper';
 import { ProgressOverlay } from '../components/feedback/ProgressOverlay';
 
 export type ViewState = 'empty' | 'loading' | 'partial' | 'error' | 'success' | 'unprivileged' | 'collapsed';
@@ -13,9 +15,9 @@ function DemoContent() {
   const { addToast } = useToast();
 
   const handleTriggerToast = (state: 'verified' | 'attention' | 'violation', message: string, undoable: boolean = false) => {
-    const toastOptions: Omit<import('../components/feedback/Toast').ToastMessage, 'id'> = { message, state };
+    const toastOptions: Omit<ToastMessage, 'id'> = { message, state };
     if (undoable) {
-      toastOptions.onUndo = () => console.log('Undo triggered');
+      toastOptions.onUndo = () => addToast({ message: 'Đã hoàn tác thao tác.', state: 'verified' });
     }
     addToast(toastOptions);
   };

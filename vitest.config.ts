@@ -44,6 +44,16 @@ export default defineConfig({
         // chạy trong mọi test nhưng không có gì để bảo đảm về nó ngoài việc các
         // test khác xanh.
         'src/lib/testing/**',
+        // Dữ liệu demo cho 9 màn demo, không phải mã sản phẩm. `spatial.ts` là
+        // 1.612 dòng hằng số: chỉ cần một file import nó là toàn bộ được tính
+        // "đã phủ 100%", nên nó bơm 1.610 câu lệnh dễ dãi vào tử số và làm con
+        // số độ phủ tổng đẹp hơn sự thật. Loại ra thì số còn lại nói đúng phần
+        // mã có nhánh để test.
+        //
+        // Ngưỡng theo tầng (`src/domain` 90%, `src/lib` 80%) không đổi vì
+        // `src/mocks` không nằm trong hai tầng đó — đây là sửa cho số trung thực,
+        // không phải nới ngưỡng.
+        'src/mocks/**',
         // Khai báo kiểu không sinh mã chạy được.
         'src/types/**',
         '**/*.d.ts',

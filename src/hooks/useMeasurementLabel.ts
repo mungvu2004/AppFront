@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { formatMm } from '../lib/format';
+import { formatLength } from '../lib/format/measure';
 
 export type MeasurementState = 'idle' | 'measuring' | 'committed';
 
@@ -84,7 +84,7 @@ export function useMeasurementLabel(): MeasurementLabelState {
     startPoint,
     currentPoint,
     distanceMm,
-    distanceFormatted: distanceMm > 0 ? formatMm(distanceMm) : '—',
+    distanceFormatted: distanceMm > 0 ? formatLength(distanceMm, { unit: 'mm' }) : '—',
     midPoint,
     startMeasurement,
     updateMeasurement,

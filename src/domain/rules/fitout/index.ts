@@ -39,7 +39,7 @@ import { outlineContains } from '../../rooms/area';
 import type { BoundingBox, FurnitureKind, Point, Room, RoomUsage } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
-import { formatMm } from '../../../lib/format';
+import { formatLength } from '../../../lib/format/measure';
 import {
   defaultRuleRegistry,
   entitiesInScope,
@@ -135,7 +135,7 @@ function finding(
 
 /** A length, rounded to the millimetre: `1.500 mm`. */
 function lengthText(valueMm: number): string {
-  return formatMm(Math.round(valueMm));
+  return formatLength(Math.round(valueMm), { unit: 'mm' });
 }
 
 /** "phòng ngủ P-3 (Ngủ 1)", for the middle of a sentence. */

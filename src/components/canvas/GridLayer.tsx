@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { useGridLayer, GridConfig } from '../../hooks/useGridLayer';
+import type { GridConfig } from '../../hooks/useGridLayer';
+import { useGridLayer } from '../../hooks/useGridLayer';
 import { gridMinorToken, gridMajorToken } from './materialMap';
 
 interface GridLayerProps {

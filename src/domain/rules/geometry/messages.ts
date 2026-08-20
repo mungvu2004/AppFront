@@ -20,7 +20,8 @@
  * elevations, square metres for areas, and a comma for the decimal separator.
  */
 
-import { formatMm, formatNumberVi } from '../../../lib/format';
+import { formatLength } from '../../../lib/format/measure';
+import { formatNumber } from '../../../lib/format/number';
 
 /** A finished pair of sentences: what is wrong, and what to do about it. */
 export interface RuleText {
@@ -34,22 +35,22 @@ export interface RuleText {
 
 /** A length, rounded to the millimetre: `1.500 mm`. */
 export function lengthText(valueMm: number): string {
-  return formatMm(Math.round(valueMm));
+  return formatLength(Math.round(valueMm), { unit: 'mm' });
 }
 
 /** A plan coordinate: `(3.000; 4.000)`, in millimetres. */
 export function pointText(point: { readonly x: number; readonly y: number }): string {
-  return `(${formatNumberVi(Math.round(point.x), 0)}; ${formatNumberVi(Math.round(point.y), 0)})`;
+  return `(${formatNumber(Math.round(point.x), { fractionDigits: 0 })}; ${formatNumber(Math.round(point.y), { fractionDigits: 0 })})`;
 }
 
 /** A fraction read as a whole percentage: `80%`. */
 export function shareText(share: number): string {
-  return `${formatNumberVi(Math.round(share * 100), 0)}%`;
+  return `${formatNumber(Math.round(share * 100), { fractionDigits: 0 })}%`;
 }
 
 /** A count, so a sentence never shows a bare JavaScript number. */
 export function countText(value: number): string {
-  return formatNumberVi(value, 0);
+  return formatNumber(value, { fractionDigits: 0 });
 }
 
 /* -------------------------------------------------------------------------- */

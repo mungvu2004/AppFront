@@ -4,6 +4,20 @@
 
 @layer base {
   :root {
+    --white: #ffffff;
+    --black: #000000;
+
+    /* Chỉ MÀU của bóng đổ nằm ở đây. Phần hình học — độ lệch và độ nhoè — ở lại
+       `tailwind.config.ts`, vì nó không đổi theo chủ đề còn màu thì có. Tách như
+       vậy cũng giữ đúng lời hứa của `src/lib/coloring/scales.ts`: mọi custom
+       property trong file này là một MÀU, nên `ColorTokenName` không bao giờ nhận
+       phải một chuỗi `0 1px 3px …`. */
+    --shadow-color-rest: rgba(0, 0, 0, 0.1);
+    --shadow-color-float: rgba(0, 0, 0, 0.15);
+    --shadow-color-overlay: rgba(43, 42, 40, 0.07);
+    --shadow-color-panel: rgba(43, 42, 40, 0.04);
+    --shadow-color-modal: rgba(0, 0, 0, 0.15);
+
     --accent: #567a96;
     --accent-hover: #4a6b85;
     --accent-active: #3f5d74;

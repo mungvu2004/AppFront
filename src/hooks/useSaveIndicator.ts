@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { Autosave, AutosaveState } from '@/lib/autosave/createAutosave';
-import { formatTime } from '@/lib/format';
+import { formatClockTime } from '@/lib/format/datetime';
 import { getAppAnnouncer, type Announcer } from '@/lib/input/announcer';
 import viMessages from '@/i18n/vi.json';
 
@@ -29,7 +29,7 @@ const buildSavedResult = (lastSavedAt: number | undefined, now: number): SaveInd
     return { detail: viMessages.autosave.idle, label: viMessages.autosave.idle, state: 'saved' };
   }
 
-  const absoluteLabel = interpolate(viMessages.common.saved_at, { time: formatTime(new Date(lastSavedAt)) });
+  const absoluteLabel = interpolate(viMessages.common.saved_at, { time: formatClockTime(new Date(lastSavedAt)) });
   const elapsedMs = now - lastSavedAt;
 
   if (elapsedMs <= SAVED_RELATIVE_THRESHOLD_MS) {

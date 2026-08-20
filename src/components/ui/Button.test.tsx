@@ -46,8 +46,9 @@ describe('Button', () => {
   });
 
   it('renders iconBefore', () => {
-    render(<Button iconBefore={<Plus data-testid="icon" />}>Thêm</Button>);
-    expect(screen.getByTestId('icon')).toBeInTheDocument();
+    render(<Button iconBefore={<Plus />}>Thêm</Button>);
+    const button = screen.getByRole('button', { name: 'Thêm' });
+    expect(button.querySelector('svg')).toBeInTheDocument();
   });
 
   it('renders fullWidth button', () => {

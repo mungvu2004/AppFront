@@ -1,10 +1,14 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components -- file này xuất hook `useToast`
+ * và đối tượng gộp `Toast` bên cạnh `ToastProvider`. Người dùng toast cần cả ba từ một
+ * chỗ; tách ra ba file để Fast Refresh giữ được state là đổi API lấy tiện nghi. */
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
+import { createUuid } from '../../lib/http/ids';
 import { durationMs } from '../../lib/motion';
 import { UNDO_WINDOW_MS } from '../../lib/mutations/undoTicket';
 import { Button } from '../ui/Button';
-import { useUndoableToast, UndoableToastState } from '../../hooks/useUndoableToast';
+import type { UndoableToastState } from '../../hooks/useUndoableToast';
+import { useUndoableToast } from '../../hooks/useUndoableToast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -144,12 +148,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<ToastMessage[]>([]);
   const [summaryResetKey, setSummaryResetKey] = useState(0);
 
+  // Hàm cập nhật state phải THUẦN: `src/main.tsx` bật StrictMode, nên React gọi
+  // nó hai lần lúc phát triển. Trước đây id sinh bằng số ngẫu nhiên NGAY TRONG
+  // hàm cập nhật, và `setSummaryResetKey` cũng gọi từ trong đó — hai lượt gọi cho
+  // hai id khác nhau và tăng resetKey hai lần, nên toast thỉnh thoảng nhân đôi
+  // hoặc mất. Sinh id trước, rồi để hàm cập nhật chỉ còn việc ghép mảng.
   const addToast = useCallback((toast: Omit<ToastMessage, 'id'>) => {
-    setQueue((prev) => {
-      const newToast = { ...toast, id: Math.random().toString(36).substring(2, 9) };
-      setSummaryResetKey(k => k + 1);
-      return [newToast, ...prev];
-    });
+    const newToast = { ...toast, id: createUuid() };
+
+    setQueue((prev) => [newToast, ...prev]);
+    setSummaryResetKey((k) => k + 1);
   }, []);
 
   const removeToast = useCallback((id: string) => {

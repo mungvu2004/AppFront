@@ -1,4 +1,4 @@
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import type { EntityId } from '../domain/spatial/types';
 
 /** Layer a pointer pick or keyboard shortcut is restricted to; null picks from every layer. */

@@ -2,7 +2,7 @@
  * The share screen's whole mind: what is on it, what it says, what a click does.
  *
  * Invariant D splits every complex screen in two. This is the half that holds
- * state and does arithmetic; `src/screens/project/ShareScreen.tsx` is the half
+ * state and does arithmetic; `src/screens/project/ShareScreen/` is the half
  * that only renders. The split is worth naming here because of what it buys on
  * *this* screen specifically: every string a person reads about a link — the
  * permission, the countdown, the notice about rows that would not parse — is

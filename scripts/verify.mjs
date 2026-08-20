@@ -2,9 +2,9 @@
  * Lệnh kiểm tổng — `pnpm verify`.
  *
  * Một lệnh chạy hết những gì quyết định "xong": kiểu, luật, test, độ phủ, kích
- * thước gói. Chạy TUẦN TỰ và dừng ở bước hỏng đầu tiên, vì bước sau đọc kết quả
- * bước trước (đo kích thước gói cần bản dựng) và vì một trang log toàn lỗi từ
- * năm bước cùng lúc thì không ai đọc.
+ * thước gói, độ dài file, import vòng. Chạy TUẦN TỰ và dừng ở bước hỏng đầu tiên, vì bước sau
+ * đọc kết quả bước trước (đo kích thước gói cần bản dựng) và vì một trang log
+ * toàn lỗi từ bảy bước cùng lúc thì không ai đọc.
  *
  * Vì sao "test" và "độ phủ" là MỘT bước: `vitest run --coverage` chạy đúng bộ
  * test đó một lần rồi đối chiếu ngưỡng trong `vitest.config.ts`. Tách làm hai
@@ -16,7 +16,7 @@
  */
 import { spawnSync } from 'node:child_process';
 
-/** Năm bước, đúng thứ tự phụ thuộc. */
+/** Bảy bước, đúng thứ tự phụ thuộc. */
 const STEPS = [
   {
     name: 'typecheck',
@@ -29,6 +29,15 @@ const STEPS = [
     description: 'bộ luật dự án, --max-warnings 0',
     command: 'pnpm',
     args: ['lint'],
+  },
+  {
+    // Đặt ngay sau `lint` chứ không đặt cuối: `verify` DỪNG ở bước hỏng đầu
+    // tiên, nên một cổng xếp sau một bước đang đỏ sẽ mãi mãi hiện "chưa chạy".
+    // Cổng này chỉ cần mã nguồn, không cần bản dựng, nên nó đứng được ở đây.
+    name: 'import vòng',
+    description: 'import/no-cycle — chỉ chạy ở verify/CI vì chậm trên 500+ file',
+    command: 'pnpm',
+    args: ['cycles'],
   },
   {
     name: 'test + độ phủ',
@@ -47,6 +56,12 @@ const STEPS = [
     description: 'ngân sách gzip',
     command: 'pnpm',
     args: ['size'],
+  },
+  {
+    name: 'độ dài file',
+    description: 'R-21/R-22 — dòng có nội dung, nhắc 250, hỏng 400',
+    command: 'pnpm',
+    args: ['length'],
   },
 ];
 

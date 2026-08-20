@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { PipelineStepper, PipelineStepData } from './PipelineStepper';
+import type { PipelineStepData } from './PipelineStepper';
+import { PipelineStepper } from './PipelineStepper';
 
 const meta = {
   title: 'Feedback/PipelineStepper',

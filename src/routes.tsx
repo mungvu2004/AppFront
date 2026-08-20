@@ -1,4 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components -- file này KHÔNG xuất component
+ * nào: nó xuất `router`, tức bảng route. Luật hiểu nhầm vì trong file có định nghĩa
+ * `Placeholder`. Xoá được dòng này ngay khi `Placeholder` chuyển đi nơi khác. */
 import React, { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 
@@ -8,7 +10,7 @@ const Placeholder = ({ name }: { name: string }) => <div>{name}</div>;
 // Lazy load 3D and canvas routes
 const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3D View" /> }));
 const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
-const RouteDesignSystem = lazy(() => import('./screens/DesignSystem'));
+const RouteDesignSystem = lazy(() => import('./screens/DesignSystem').then(m => ({ default: m.DesignSystem })));
 const RouteDataEntryDemo = lazy(() => import('./screens/DataEntryDemo').then(m => ({ default: m.DataEntryDemo })));
 const RouteListReviewDemo = lazy(() => import('./screens/ListReviewDemo').then(m => ({ default: m.ListReviewDemo })));
 const RouteShellDemo = lazy(() => import('./screens/ShellDemo').then(m => ({ default: m.ShellDemo })));

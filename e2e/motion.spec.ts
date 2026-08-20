@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * The motion demo, driven rather than photographed.
@@ -8,7 +9,7 @@ import { expect, test } from '@playwright/test';
  * and change when the conditions do, rather than being text somebody typed.
  */
 
-const openMotionScreen = async (page: import('@playwright/test').Page): Promise<void> => {
+const openMotionScreen = async (page: Page): Promise<void> => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Motion & Transitions' }).click();

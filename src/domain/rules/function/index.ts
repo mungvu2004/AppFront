@@ -37,7 +37,8 @@ import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area'
 import type { BoundingBox, Opening, Point, Room, RoomUsage, Wall } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
-import { formatMm, formatNumberVi } from '../../../lib/format';
+import { formatLength } from '../../../lib/format/measure';
+import { formatNumber } from '../../../lib/format/number';
 import {
   defaultRuleRegistry,
   entitiesInScope,
@@ -182,21 +183,21 @@ function finding(
 
 /** A length, rounded to the millimetre: `1.500 mm`. */
 function lengthText(valueMm: number): string {
-  return formatMm(Math.round(valueMm));
+  return formatLength(Math.round(valueMm), { unit: 'mm' });
 }
 
 /** An area with two decimals and a comma: `8,50 m²`. */
 function areaText(valueM2: number): string {
-  return `${formatNumberVi(valueM2, 2)} m²`;
+  return `${formatNumber(valueM2, { fractionDigits: 2 })} m²`;
 }
 
 /** A length read in metres, as an escape distance is quoted: `31,4 m`. */
 function metreText(valueMm: number): string {
-  return `${formatNumberVi(valueMm / 1000, 1)} m`;
+  return `${formatNumber(valueMm / 1000, { fractionDigits: 1 })} m`;
 }
 
 function countText(value: number): string {
-  return formatNumberVi(value, 0);
+  return formatNumber(value, { fractionDigits: 0 });
 }
 
 /** "phòng ngủ P-3 (Ngủ 1)", for the start of a sentence. */

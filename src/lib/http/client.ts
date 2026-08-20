@@ -32,10 +32,10 @@ const MAX_REQUEST_LOG_SIZE = 50;
 const MAX_TEXT_RESPONSE_BYTES = 30 * 1024 * 1024;
 const SENSITIVE_QUERY_PARAM_RE = /(token|secret|jwt|api[_-]?key)/i;
 
-type RequestLogBuffer = {
+interface RequestLogBuffer {
   push: (entry: RequestLogEntry) => void;
   snapshot: () => RequestLogEntry[];
-};
+}
 
 const resolveClientVersion = (): string =>
   import.meta.env.VITE_APP_VERSION ??

@@ -2,11 +2,15 @@ import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConnectedSaveIndicator } from './SaveIndicator';
 import { useStore } from '../../store';
+import { normalizeSpatial } from '../../domain/spatial/normalize';
+import { CLEAN_BUILDING_SCENARIO } from '../../lib/testing/fixtures';
 
 describe('SaveIndicator', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    // eslint-disable-next-line local/no-direct-set
+    /* eslint-disable-next-line local/no-direct-set -- đưa store về trạng thái đầu giữa
+       hai test là thao tác ghi DUY NHẤT không được vào lịch sử hoàn tác, đúng thứ
+       `commit()` sẽ làm nếu đi qua nó. A10 vẫn có hiệu lực trong mã sản phẩm. */
     useStore.setState({ spatial: null });
   });
 
@@ -27,8 +31,9 @@ describe('SaveIndicator', () => {
 
     // Trigger spatial change
     act(() => {
-      // eslint-disable-next-line local/no-direct-set, @typescript-eslint/no-explicit-any
-      useStore.setState({ spatial: { metadata: { name: 'test' } } } as any);
+      /* eslint-disable-next-line local/no-direct-set -- ghi thẳng như trên, để dựng
+         cảnh giữa hai lần render chứ không phải một thay đổi của người dùng. */
+      useStore.setState({ spatial: normalizeSpatial(CLEAN_BUILDING_SCENARIO.graph) });
     });
 
     // Should immediately become pending

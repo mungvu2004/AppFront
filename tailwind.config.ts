@@ -22,8 +22,8 @@ const config: Config = {
     colors: {
       transparent: 'transparent',
       current: 'currentColor',
-      white: '#ffffff',
-      black: '#000000',
+      white: 'var(--white)',
+      black: 'var(--black)',
       accent: {
         DEFAULT: 'var(--accent)',
         hover: 'var(--accent-hover)',
@@ -96,11 +96,11 @@ const config: Config = {
         'in-out': MOTION_EASINGS.inOut.css,
       },
       boxShadow: {
-        'rest': '0 1px 3px rgba(0,0,0,0.1)',
-        'float': '0 4px 12px rgba(0,0,0,0.15)',
-        'overlay': '0 8px 24px rgba(43,42,40,0.07)',
-        'panel': '0 1px 2px rgba(43,42,40,0.04)',
-        'modal': '0 12px 32px rgba(0,0,0,0.15)',
+        'rest': '0 1px 3px var(--shadow-color-rest)',
+        'float': '0 4px 12px var(--shadow-color-float)',
+        'overlay': '0 8px 24px var(--shadow-color-overlay)',
+        'panel': '0 1px 2px var(--shadow-color-panel)',
+        'modal': '0 12px 32px var(--shadow-color-modal)',
       },
       keyframes: {
         'focus-ring': {

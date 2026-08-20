@@ -1,7 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- `any` trong file này chỉ nằm ở
+ * `args` của story, nơi `Meta<typeof X>` đòi đủ props mà story lại dựng cây riêng trong
+ * `render`. Không chỗ nào trong đây vào bản dựng sản phẩm. Đây là món nợ đã ghi ở mục 3
+ * của BAO_CAO_DO_LECH.md: xoá dòng này khi có type helper cho `args`. */
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
-import { Tabs, Tab } from './Tabs';
+import type { Tab } from './Tabs';
+import { Tabs } from './Tabs';
 
 const meta: Meta = {
   title: 'ui/Tabs',

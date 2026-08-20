@@ -2,15 +2,24 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { isStateTrackingEnabled, nameActions, STATE_TRACKING_NAME } from './devtools';
-import { createProjectSlice, ProjectSlice } from './projectSlice';
-import { createSpatialSlice, SpatialSlice } from './spatialSlice';
-import { createDraftSlice, DraftSlice } from './draftSlice';
-import { createSelectionSlice, SelectionSlice } from './selectionSlice';
-import { createToolSlice, ToolSlice } from './toolSlice';
-import { createViewSlice, migrateColorMode, ViewSlice } from './viewSlice';
-import { createHistorySlice, HistorySlice } from './historySlice';
-import { createUiSlice, UiSlice } from './uiSlice';
-import { createPipelineSlice, PipelineSlice } from './pipelineSlice';
+import type { ProjectSlice } from './projectSlice';
+import { createProjectSlice } from './projectSlice';
+import type { SpatialSlice } from './spatialSlice';
+import { createSpatialSlice } from './spatialSlice';
+import type { DraftSlice } from './draftSlice';
+import { createDraftSlice } from './draftSlice';
+import type { SelectionSlice } from './selectionSlice';
+import { createSelectionSlice } from './selectionSlice';
+import type { ToolSlice } from './toolSlice';
+import { createToolSlice } from './toolSlice';
+import type { ViewSlice } from './viewSlice';
+import { createViewSlice, migrateColorMode } from './viewSlice';
+import type { HistorySlice } from './historySlice';
+import { createHistorySlice } from './historySlice';
+import type { UiSlice } from './uiSlice';
+import { createUiSlice } from './uiSlice';
+import type { PipelineSlice } from './pipelineSlice';
+import { createPipelineSlice } from './pipelineSlice';
 
 export type RootState = ProjectSlice &
   SpatialSlice &

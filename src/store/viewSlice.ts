@@ -1,4 +1,4 @@
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { COLORING_MODE_IDS, type ColoringModeId } from '../lib/coloring/modes';
 import type { Point } from '../domain/spatial/types';
 

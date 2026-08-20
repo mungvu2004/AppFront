@@ -12,7 +12,7 @@ export interface WallData {
   isFlash?: boolean;
 }
 
-type SortConfig = {
+interface SortConfig {
   key: keyof WallData | null;
   direction: 'asc' | 'desc' | null;
 }

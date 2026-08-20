@@ -20,7 +20,9 @@ interface ConfidenceMeterProps extends React.HTMLAttributes<HTMLDivElement> {
   noTooltip?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars -- `noTooltip: _` được rút
+   ra CHỈ để nó không lọt vào `...props` rồi thành thuộc tính DOM không hợp lệ. Biến
+   không dùng ở đây là mục đích, không phải sơ suất. */
 function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: ConfidenceMeterProps) {
   const isAttention = confidenceLevel(value) === 'needsReview';
   const percentage = Math.min(100, Math.max(0, value * 100));

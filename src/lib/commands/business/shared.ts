@@ -29,7 +29,7 @@
  * the two are translated.
  */
 
-import { describeOpeningKind } from '@/domain/openings/types';
+import { describeOpeningKind, clampRelativePosition } from '@/domain/openings/types';
 import type { AttachedOpening, RelativePosition } from '@/domain/openings/types';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { EntityKind, IdByKind } from '@/domain/spatial/ids';
@@ -44,11 +44,10 @@ import type {
   WallId,
   WallKind,
 } from '@/domain/spatial/types';
-import { clampRelativePosition } from '@/domain/openings/types';
 import type { PointMm } from '@/domain/units/compare';
 import { millimetres, MILLIMETRES_PER_METRE } from '@/domain/units/types';
 import { centrelineLength, type Wall as SolidWall, type WallKind as SolidWallKind } from '@/domain/walls/types';
-import { formatNumberVi } from '@/lib/format';
+import { formatNumber } from '@/lib/format/number';
 import { err, ok, type Result } from '@/lib/http/types';
 
 import { createCommand } from '../createCommand';
@@ -234,15 +233,15 @@ export const nameOfOpening = (opening: GraphOpening): string =>
 export const formatLengthMm = (valueMm: number): string => {
   const rounded = Math.round(valueMm * 10) / 10;
 
-  return `${formatNumberVi(rounded, Number.isInteger(rounded) ? 0 : 1)} mm`;
+  return `${formatNumber(rounded, { fractionDigits: Number.isInteger(rounded) ? 0 : 1 })} mm`;
 };
 
 /** An area in square metres, always two decimals. */
-export const formatAreaM2 = (valueM2: number): string => `${formatNumberVi(valueM2, 2)} m²`;
+export const formatAreaM2 = (valueM2: number): string => `${formatNumber(valueM2, { fractionDigits: 2 })} m²`;
 
 /** A height or a difference of heights, in metres. */
 export const formatMetres = (valueMm: number): string =>
-  `${formatNumberVi(valueMm / MILLIMETRES_PER_METRE, 3)} m`;
+  `${formatNumber(valueMm / MILLIMETRES_PER_METRE, { fractionDigits: 3 })} m`;
 
 /** An elevation above the datum, signed the way a section drawing writes it. */
 export const formatElevationM = (valueMm: number): string =>
@@ -252,11 +251,11 @@ export const formatElevationM = (valueMm: number): string =>
 export const formatAngleDeg = (valueDeg: number): string => {
   const rounded = Math.round(valueDeg * 10) / 10;
 
-  return `${formatNumberVi(rounded, Number.isInteger(rounded) ? 0 : 1)}°`;
+  return `${formatNumber(rounded, { fractionDigits: Number.isInteger(rounded) ? 0 : 1 })}°`;
 };
 
 /** A plain count. */
-export const formatCount = (value: number): string => formatNumberVi(value, 0);
+export const formatCount = (value: number): string => formatNumber(value, { fractionDigits: 0 });
 
 /** A plan coordinate, both axes in millimetres, with the unit written once. */
 export const formatPoint = (point: Point): string =>

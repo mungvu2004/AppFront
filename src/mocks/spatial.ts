@@ -1,4 +1,4 @@
-import { SpatialProject } from '../types/spatial';
+import type { SpatialProject } from '../types/spatial';
 
 export const MOCK_SPATIAL_PROJECT: SpatialProject = {
   "project_metadata": {

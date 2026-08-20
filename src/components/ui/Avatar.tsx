@@ -72,7 +72,7 @@ const AvatarStack = forwardRef<HTMLDivElement, AvatarStackProps>(
       >
         {displayAvatars.map((avatar, index) => (
           <div
-            key={index}
+            key={avatar.initials ?? avatar.alt ?? avatar.src ?? `avatar-${index}`}
             className="relative ring-2 ring-bg-surface rounded-full shrink-0"
             style={{ marginLeft: index > 0 ? '-8px' : '0', zIndex: 10 - index }}
           >

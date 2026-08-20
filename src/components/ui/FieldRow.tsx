@@ -18,7 +18,7 @@ export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
   collapsed?: boolean;
 }
 
-export const FieldRow = ({
+export function FieldRow({
   label,
   children,
   isLast,
@@ -29,7 +29,7 @@ export const FieldRow = ({
   collapsed,
   className,
   ...props
-}: FieldRowProps) => {
+}: FieldRowProps) {
   if (collapsed) return null;
 
   if (isLoading) {
@@ -77,5 +77,5 @@ export const FieldRow = ({
       </div>
     </div>
   );
-};
+}
 FieldRow.displayName = 'FieldRow';

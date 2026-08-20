@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '../../lib/utils';
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { durationSeconds, EASE } from '../../lib/motion';
 
 export interface ToggleProps {
@@ -21,7 +21,8 @@ export interface ToggleProps {
 }
 
 // Tách logic và giao diện
-// eslint-disable-next-line react-refresh/only-export-components
+/* eslint-disable-next-line react-refresh/only-export-components -- như SegmentedControl:
+   hook logic đứng cạnh view theo mục D, không tách chỉ vì Fast Refresh. */
 export function useToggle({
   checked,
   defaultChecked,

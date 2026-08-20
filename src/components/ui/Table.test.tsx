@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Table } from './Table';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
-import { formatMm } from '../../lib/format';
+import { formatLength } from '../../lib/format/measure';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -43,15 +43,15 @@ describe('Table sorting', () => {
       <Table.Root sortKey={sortKey ?? undefined} sortDir={sortDir ?? null} onSort={handleSort}>
         <Table.Header>
           <tr>
-            <Table.Head sortKey="id" data-testid="col-id">Mã tường</Table.Head>
-            <Table.Head sortKey="thickness_mm" data-testid="col-thickness">Độ dày</Table.Head>
+            <Table.Head sortKey="id">Mã tường</Table.Head>
+            <Table.Head sortKey="thickness_mm">Độ dày</Table.Head>
           </tr>
         </Table.Header>
         <Table.Body>
           {sorted.map((row) => (
             <Table.Row key={row.id}>
-              <Table.Cell data-testid={`cell-id-${row.id}`}>{row.id}</Table.Cell>
-              <Table.Cell data-testid={`cell-thickness-${row.id}`}>{formatMm(row.thickness_mm)}</Table.Cell>
+              <Table.Cell>{row.id}</Table.Cell>
+              <Table.Cell>{formatLength(row.thickness_mm, { unit: 'mm' })}</Table.Cell>
             </Table.Row>
           ))}
         </Table.Body>
@@ -66,7 +66,7 @@ describe('Table sorting', () => {
 
   it('sorts ascending on first click', () => {
     render(<SortableTable />);
-    const colId = screen.getByTestId('col-id');
+    const colId = screen.getByRole('columnheader', { name: 'Mã tường' });
     fireEvent.click(colId);
     const rows = screen.getAllByRole('row').slice(1);
     const textContent = rows[0]?.querySelector('td')?.textContent;
@@ -77,7 +77,7 @@ describe('Table sorting', () => {
 
   it('sorts descending on second click', () => {
     render(<SortableTable />);
-    const colId = screen.getByTestId('col-id');
+    const colId = screen.getByRole('columnheader', { name: 'Mã tường' });
     fireEvent.click(colId);
     fireEvent.click(colId);
     const rows = screen.getAllByRole('row').slice(1);
@@ -87,7 +87,7 @@ describe('Table sorting', () => {
 
   it('clears sort on third click', () => {
     render(<SortableTable />);
-    const colId = screen.getByTestId('col-id');
+    const colId = screen.getByRole('columnheader', { name: 'Mã tường' });
     fireEvent.click(colId);
     fireEvent.click(colId);
     fireEvent.click(colId);
@@ -98,7 +98,7 @@ describe('Table sorting', () => {
 
   it('sets aria-sort attribute correctly', () => {
     render(<SortableTable />);
-    const colThickness = screen.getByTestId('col-thickness');
+    const colThickness = screen.getByRole('columnheader', { name: 'Độ dày' });
     expect(colThickness).toHaveAttribute('aria-sort', 'none');
     fireEvent.click(colThickness);
     expect(colThickness).toHaveAttribute('aria-sort', 'ascending');
@@ -256,7 +256,7 @@ describe('Table.Virtual DOM node count', () => {
   }));
 
   it('renders far fewer than 500 DOM rows (virtualization working)', () => {
-    const { container } = render(
+    render(
       <div style={{ height: 400, overflow: 'auto' }}>
         <table>
           <Table.Virtual
@@ -273,7 +273,12 @@ describe('Table.Virtual DOM node count', () => {
         </table>
       </div>
     );
-    const bodyRows = container.querySelectorAll('[data-testid="table-virtual-body"] tr');
+    // The virtualized body is the sole rowgroup in this table (no header rendered).
+    // jsdom reports zero layout size, so the virtualizer may render no rows at
+    // all here — queryAllByRole (not getAllByRole) tolerates that, matching what
+    // the plain DOM query this replaced also tolerated.
+    const virtualBody = screen.getByRole('rowgroup');
+    const bodyRows = within(virtualBody).queryAllByRole('row');
     // With 400px height and 40px rows, expect ~10-20 rendered rows + padding rows (not 500)
     // Padding rows add 2, visible rows add ~15 (10 visible + 5 overscan = 15 + padding = ≤ 20)
     expect(bodyRows.length).toBeLessThan(50);

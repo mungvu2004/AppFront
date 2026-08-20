@@ -100,7 +100,11 @@ export function useSelect<T>({ value, onChange, options, isOpen: controlledIsOpe
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- `handleClose` được dựng
+       lại mỗi render nhưng thân nó chỉ gồm `setIsOpen(false)` và `triggerRef.current
+       ?.focus()` — cả hai đều bền, nên bản cũ hay bản mới đều làm đúng một việc. Kê nó
+       vào mảng phụ thuộc sẽ gỡ rồi gắn lại listener `mousedown` trên `document` sau
+       MỖI lần render, đắt hơn hẳn thứ nó bảo vệ. */
   }, [isOpen]);
 
   return {

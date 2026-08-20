@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { Button, ButtonProps } from '../ui/Button';
+import type { ButtonProps } from '../ui/Button';
+import { Button } from '../ui/Button';
 
 export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   icon: React.ReactNode;

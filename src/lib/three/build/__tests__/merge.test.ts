@@ -1,14 +1,12 @@
+import type { LOD, Material, Object3D } from 'three';
 import {
   BoxGeometry,
   BufferGeometry,
-  LOD,
   Matrix4,
   Mesh,
   MeshStandardMaterial,
   Raycaster,
   Vector3,
-  type Material,
-  type Object3D,
 } from 'three';
 import { describe, expect, it } from 'vitest';
 

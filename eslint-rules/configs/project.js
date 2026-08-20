@@ -9,7 +9,7 @@
  * Giờ có: `.eslintrc.cjs` chỉ `extends: ['plugin:local/project']`, còn toàn bộ nội
  * dung nằm ở đây, chia làm ba tầng, đọc từ trên xuống:
  *
- *   1. LUẬT — sáu rule nội bộ ép các bất biến của CLAUDE.md mục A/B.
+ *   1. LUẬT — bảy rule nội bộ ép các bất biến của CLAUDE.md mục A/B.
  *   2. RANH GIỚI — ai được import ai (CLAUDE.md mục 0.4).
  *   3. SỔ NỢ — file cũ tạm được miễn, mỗi mục có lý do và cách trả nợ.
  *
@@ -47,7 +47,7 @@ module.exports = {
   plugins: ['local'],
 
   // -- 1. LUẬT ---------------------------------------------------------------
-  // Sáu rule, mỗi rule ép một bất biến, tất cả ở mức 'error'. Không rule nào ở
+  // Bảy rule, mỗi rule ép một bất biến, tất cả ở mức 'error'. Không rule nào ở
   // mức 'warn': `pnpm lint` chạy với `--max-warnings 0`, nên 'warn' chỉ là
   // 'error' viết vòng, mà viết vòng thì người đọc tưởng nó không quan trọng.
   rules: {
@@ -70,6 +70,20 @@ module.exports = {
     // Mọi truy cập mạng đi qua src/lib/http — nơi duy nhất có timeout, retry,
     // single-flight và hình dạng lỗi mà phần còn lại của ứng dụng đọc được.
     'local/no-fetch-outside-http': 'error',
+
+    // R-12 và R-14: hai luật của typescript-eslint, không phải luật nội bộ, nhưng
+    // khai ở đây cho cùng một chỗ. Cả hai đã về 0 trong lượt sửa này và cả hai
+    // đều CÓ bộ sửa tự động, nên bật ở mức 'error' không tốn gì và giữ cho công
+    // vừa làm không trôi ngược. Không bật thì R-12 và R-14 là hai luật NÊN không
+    // có cổng nào — đúng thứ R-56 nói là không được.
+    '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+    '@typescript-eslint/consistent-type-imports': 'error',
+
+    // R-39: framer-motion nhập ở đúng một chỗ, src/components/motion, nơi
+    // MotionProvider đặt reducedMotion="user" một lần cho toàn ứng dụng. Lỗ hổng
+    // luật này chặn là chuyện THIẾU một lời gọi useReducedMotion, và thứ thiếu
+    // thì không hiện ra trong diff — nên nó phải đóng bằng cấu trúc.
+    'local/no-framer-outside-motion': 'error',
   },
 
   overrides: [
@@ -152,6 +166,25 @@ module.exports = {
             })),
           },
         ],
+      },
+    },
+
+    // -- R-13: kiểu trả về, chỉ ở hai tầng nó mang thông tin ------------------
+    // `src/lib` và `src/domain` là tầng thuần: hàm ở đây trả dữ liệu nghiệp vụ,
+    // và kiểu suy ra được thì đổi lặng lẽ khi thân hàm đổi — lỗi hiện ở chỗ gọi
+    // chứ không ở chỗ sửa. Tầng giao diện KHÔNG bật: hàm component trả
+    // `JSX.Element`, khai ra thêm rất ít thông tin mà thêm nhiều nhiễu.
+    //
+    // Bỏ test ra ngoài: một `it()` không phải ranh giới module của ai cả.
+    //
+    // Mức 'error' ngay chứ không qua 'warn': `pnpm lint` chạy với
+    // `--max-warnings 0` nên 'warn' chỉ là 'error' viết vòng, và ở phạm vi này
+    // repo chỉ còn đúng MỘT vi phạm, đã sửa cùng lượt.
+    {
+      files: ['src/lib/**/*.ts', 'src/domain/**/*.ts'],
+      excludedFiles: ['**/__tests__/**', '**/*.test.ts'],
+      rules: {
+        '@typescript-eslint/explicit-module-boundary-types': 'error',
       },
     },
 

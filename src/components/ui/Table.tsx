@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { motion } from 'framer-motion';
+import { motion } from '../motion';
 import { ChevronUp, ChevronDown, AlertCircle, Inbox } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Checkbox } from './Checkbox';
@@ -360,7 +360,7 @@ function TableVirtual<TRow extends { id: string }>({
   const paddingBottom = lastItem ? totalHeight - lastItem.end : 0;
 
   return (
-    <tbody ref={parentRef} data-testid="table-virtual-body">
+    <tbody ref={parentRef}>
       {paddingTop > 0 && (
         <tr>
           <td colSpan={colSpan} style={{ height: `${paddingTop}px`, padding: 0 }} />

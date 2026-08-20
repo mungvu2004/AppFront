@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from '../motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   MousePointer2, Ruler, Square, DoorOpen, Box,
   HelpCircle, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,

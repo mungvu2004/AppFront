@@ -14,10 +14,10 @@ export const REFRESH_LEAD_TIME_MS = 60_000;
 
 type RefreshSource = 'broadcast' | 'local';
 
-type RefreshOptions = {
+interface RefreshOptions {
   reason?: 'bootstrap' | 'proactive';
   source?: RefreshSource;
-};
+}
 
 const refreshSingleFlightRunner = createSingleFlight();
 let refreshTimerId: ReturnType<typeof setTimeout> | null = null;

@@ -1,5 +1,5 @@
-import { StateCreator } from 'zustand';
-import { PipelineStep } from '../types/pipeline';
+import type { StateCreator } from 'zustand';
+import type { PipelineStep } from '../types/pipeline';
 
 export interface PipelineSlice {
   steps: PipelineStep[];

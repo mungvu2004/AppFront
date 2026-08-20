@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from '../motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Kbd } from '../ui/Kbd';
@@ -167,7 +168,7 @@ export function ShortcutHelp({ isOpen, onClose }: ShortcutHelpProps) {
                         <dt className="text-[13px] text-text-primary">{entry.description}</dt>
                         <dd className="flex items-center gap-1">
                           {entry.keys.map((key, i) => (
-                            <React.Fragment key={i}>
+                            <React.Fragment key={key}>
                               <Kbd>{key}</Kbd>
                               {i < entry.keys.length - 1 && (
                                 <span className="text-[11px] text-text-muted mx-0.5" aria-hidden="true">+</span>

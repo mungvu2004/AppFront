@@ -1,4 +1,4 @@
-import { WallThickness } from '../../types/spatial';
+import type { WallThickness } from '../../types/spatial';
 
 export interface StandardizeResult {
   original_mm: number;

@@ -86,9 +86,9 @@ function describeStep(element: Element): string {
     return `${tag}#${id}`;
   }
 
-  const testId = element.getAttribute('data-testid');
+  const label = element.getAttribute('aria-label');
 
-  return testId !== null && testId !== '' ? `${tag}[data-testid=${testId}]` : tag;
+  return label !== null && label !== '' ? `${tag}[aria-label=${label}]` : tag;
 }
 
 /**

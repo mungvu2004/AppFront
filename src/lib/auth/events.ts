@@ -5,10 +5,10 @@ export const AUTH_SIGNED_OUT_EVENT = 'auth:signed-out';
 
 type AuthBroadcastIntent = 'signed-in' | 'signed-out';
 
-type BroadcastCallbacks = {
+interface BroadcastCallbacks {
   onSignedIn: (detail: AuthEventDetail) => void;
   onSignedOut: (detail: AuthEventDetail) => void;
-};
+}
 
 let fallbackEventTarget: EventTarget | null = null;
 let broadcastChannel: BroadcastChannel | null = null;

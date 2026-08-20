@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // ─── Breakpoint hook (private) ─────────────────────────────────────────────
 
@@ -18,6 +18,11 @@ function useBreakpoint(query: string): boolean {
 
 // ─── useAppShell ─────────────────────────────────────────────────────────────
 
+/** localStorage key for the left panel's collapsed state. */
+export const APPSHELL_LEFT_COLLAPSED_STORAGE_KEY = 'appshell:left-collapsed';
+/** localStorage key for the right panel's collapsed state. */
+export const APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY = 'appshell:right-collapsed';
+
 export interface AppShellState {
   /** Panel trái đang thu gọn */
   leftCollapsed: boolean;
@@ -35,30 +40,33 @@ export interface AppShellState {
 
 export function useAppShell(): AppShellState {
   const [leftCollapsed, setLeftCollapsed] = useState(() => {
-    const saved = localStorage.getItem('appshell:left-collapsed');
+    const saved = localStorage.getItem(APPSHELL_LEFT_COLLAPSED_STORAGE_KEY);
     return saved === 'true';
   });
 
   const [rightCollapsed, setRightCollapsed] = useState(() => {
-    const saved = localStorage.getItem('appshell:right-collapsed');
+    const saved = localStorage.getItem(APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY);
     return saved === 'true';
   });
 
-  const toggleLeft = useCallback(() => {
+  // Không bọc `useCallback`: hai hàm này chỉ được gắn vào `onClick` của
+  // `AppShell`, một component không `memo`. Không ai cần tham chiếu của chúng ổn
+  // định, nên lần bọc chỉ thêm một mảng phụ thuộc phải bảo trì (R-31).
+  const toggleLeft = (): void => {
     setLeftCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('appshell:left-collapsed', String(next));
+      localStorage.setItem(APPSHELL_LEFT_COLLAPSED_STORAGE_KEY, String(next));
       return next;
     });
-  }, []);
+  };
 
-  const toggleRight = useCallback(() => {
+  const toggleRight = (): void => {
     setRightCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('appshell:right-collapsed', String(next));
+      localStorage.setItem(APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY, String(next));
       return next;
     });
-  }, []);
+  };
 
   // Breakpoints
   const isBelowMd   = useBreakpoint('(max-width: 1023px)');

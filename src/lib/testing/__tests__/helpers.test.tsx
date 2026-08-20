@@ -204,7 +204,7 @@ describe('expectVietnamese', () => {
 
   it('reads the attributes a person hears, not the ones only a machine reads', () => {
     const container = mount(`
-      <div data-testid="close-english" class="Toggle Empty State">
+      <div data-analytics-id="close-english" class="Toggle Empty State">
         <button aria-label="Close">×</button>
         <img alt="Ban ve tang 1" />
       </div>

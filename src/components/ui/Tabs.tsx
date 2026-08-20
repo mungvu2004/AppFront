@@ -7,7 +7,7 @@ import React, {
   useId,
   useLayoutEffect,
 } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '../motion';
 import { cn } from '../../lib/utils';
 import { durationSeconds, EASE } from '../../lib/motion';
 

@@ -5,7 +5,7 @@ import { TableActionBar } from './TableActionBar';
 import { Badge } from './Badge';
 import { ConfidenceMeter } from './ConfidenceMeter';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
-import { formatMm } from '../../lib/format';
+import { formatLength } from '../../lib/format/measure';
 import { confidenceLevel } from '../../lib/format/semantic';
 
 // ── Extract wall data from mock ───────────────────────────────────────────────
@@ -40,6 +40,8 @@ const stateVariant = (s: ReviewState) =>
 
 const stateLabel = (s: ReviewState) =>
   s === 'approved' ? 'Đã duyệt' : s === 'rejected' ? 'Từ chối' : 'Chờ duyệt';
+
+const noop = (): void => undefined;
 
 // ── Storybook meta ────────────────────────────────────────────────────────────
 
@@ -108,7 +110,7 @@ export const Error: Story = {
           </tr>
         </Table.Header>
         <Table.Body>
-          <Table.Error colSpan={2} message="Không thể tải dữ liệu" onRetry={() => alert('Thử lại')} />
+          <Table.Error colSpan={2} message="Không thể tải dữ liệu" onRetry={noop} />
         </Table.Body>
       </Table.Root>
     </div>
@@ -187,7 +189,7 @@ export const WallsTable: Story = {
                   onChange={(c) => toggleRow(row.id, c)}
                 />
                 <Table.Cell className="font-mono text-[13px]">{row.id}</Table.Cell>
-                <Table.Cell>{formatMm(row.thickness_mm)}</Table.Cell>
+                <Table.Cell>{formatLength(row.thickness_mm, { unit: 'mm' })}</Table.Cell>
                 <Table.Cell>
                   <ConfidenceMeter value={row.confidence} />
                 </Table.Cell>
@@ -203,9 +205,9 @@ export const WallsTable: Story = {
         <TableActionBar
           selectedCount={selected.size}
           entityName="tường"
-          onApprove={() => alert('Duyệt')}
-          onReject={() => alert('Từ chối')}
-          onChangeThickness={() => alert('Đổi độ dày')}
+          onApprove={noop}
+          onReject={noop}
+          onChangeThickness={noop}
           onDeselect={() => setSelected(new Set())}
         />
       </div>
@@ -252,7 +254,7 @@ export const Virtualized500: Story = {
                   onClick={() => toggleRow(row.id, !selected.has(row.id))}
                 >
                   <Table.Cell className="font-mono text-[13px]">{row.id}</Table.Cell>
-                  <Table.Cell>{formatMm(row.thickness_mm)}</Table.Cell>
+                  <Table.Cell>{formatLength(row.thickness_mm, { unit: 'mm' })}</Table.Cell>
                   <Table.Cell>
                     <ConfidenceMeter value={row.confidence} noTooltip />
                   </Table.Cell>

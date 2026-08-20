@@ -1,5 +1,5 @@
-/* eslint-disable react-refresh/only-export-components --
- * This file exports `AuthRoute` alongside three things that are not components:
+/* eslint-disable react-refresh/only-export-components -- file này xuất `AuthRoute`
+ * bên cạnh ba thứ không phải component:
  * `safeDestination`, `createHttpAuthGateway` and the unavailable notice. Fast
  * refresh therefore reloads `/login` fully instead of preserving its state
  * while it is being edited — a real cost, and a small one on a screen whose

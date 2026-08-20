@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 
-import { APP_ERROR_KINDS } from '../kinds';
+import type { APP_ERROR_KINDS } from '../kinds';
 import { toAppError } from '../toAppError';
 
 const makeHttpError = (overrides: Partial<{

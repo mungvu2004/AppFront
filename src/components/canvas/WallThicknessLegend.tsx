@@ -67,7 +67,7 @@ export function WallThicknessLegend({
         aria-label="Đang tải chú giải"
       >
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex items-center gap-2 px-2 py-1">
+          <div key={`wall-thickness-skeleton-${i}`} className="flex items-center gap-2 px-2 py-1">
             <div className="w-4 h-4 rounded-[4px] bg-bg-sunken animate-pulse" />
             <div className="w-16 h-3 rounded bg-bg-sunken animate-pulse" />
           </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 import { SegmentedControl } from './SegmentedControl';
-import { formatMm } from '../../lib/format';
+import { formatLength } from '../../lib/format/measure';
 
 // The four allowed wall thickness values
 export type WallThickness = '110' | '220' | '330' | 'btct';
@@ -58,7 +58,7 @@ export function ThicknessField({
       {aiOriginalMm !== undefined && !isLoading && (
         <p className="text-[12px] leading-[16px] text-text-muted">
           Giá trị AI gốc:{' '}
-          <span className="font-mono">{formatMm(aiOriginalMm)}</span>
+          <span className="font-mono">{formatLength(aiOriginalMm, { unit: 'mm' })}</span>
         </p>
       )}
 
