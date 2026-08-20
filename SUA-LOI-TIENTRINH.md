@@ -59,10 +59,10 @@ Dừng ở bước "độ dài file" (mã thoát 1).
 
 | Mã | Việc | Giai đoạn | Lệnh kiểm | Số vi phạm trước | Số sau | Trạng thái | Commit |
 |---|---|---|---|---:|---:|---|---|
-| D1 | Phục hồi cổng "visual" của CI: bỏ `--update-snapshots` khỏi lệnh CI chạy, thêm `e2e:ci`, sinh ảnh chuẩn `linux` | GĐ1 | `grep -n "e2e" .github/workflows/ci.yml` | 1 — `ci.yml:91` chạy `pnpm e2e:visual`; 2 ảnh chuẩn, cả hai chỉ có bản `win32` | — | `chưa chạy` | — |
-| R-29 | `Math.random()` trong hàm cập nhật state dưới `StrictMode`; `setSummaryResetKey` gọi trong updater | GĐ1 | `grep -rnE "Math\.random\(\|Date\.now\(\|new Date\(\)" src/components src/screens src/hooks` | 6 khớp / **2** (`Toast.tsx:149`, `ListReviewDemo.tsx:22`) | — | `chưa chạy` | — |
-| R-55 | Bọc màn trong `ScreenErrorBoundary` (`App.tsx:53-57`) | GĐ1 | `grep -rn "<ScreenErrorBoundary" src` | 8 khớp / **0 màn được bọc** (6 trong test, 2 trong chính file định nghĩa) | — | `chưa chạy` | — |
-| R-47 | **Phần làm ngay:** thêm `src/mocks/**` vào `coverage.exclude` của `vitest.config.ts`. **Phần hoãn:** xoá hẳn `src/mocks/spatial.ts` | GĐ1 | `grep -n "src/mocks" vitest.config.ts` · `wc -l src/mocks/spatial.ts` | 0 dòng loại trừ; `spatial.ts` **1.612 dòng** đang tính vào mẫu số độ phủ như mã sản phẩm | — | `chưa chạy` *(chỉ phần coverage.exclude; phần xoá hẳn hoãn theo Mục 3 — đợi màn thật thay demo)* | — |
+| D1 | Phục hồi cổng "visual" của CI: bỏ `--update-snapshots` khỏi lệnh CI chạy, thêm `e2e:ci`, sinh ảnh chuẩn `linux` | GĐ1 | `grep -n "e2e" .github/workflows/ci.yml` | 1 — `ci.yml:91` chạy `pnpm e2e:visual`; 2 ảnh chuẩn, cả hai chỉ có bản `win32` | **0** lần chạy `e2e:visual` trong CI *(ảnh chuẩn linux vẫn chưa sinh — xem commit)* | `xong` | `b598e98` |
+| R-29 | `Math.random()` trong hàm cập nhật state dưới `StrictMode`; `setSummaryResetKey` gọi trong updater | GĐ1 | `grep -rnE "Math\.random\(\|Date\.now\(\|new Date\(\)" src/components src/screens src/hooks` | 6 khớp / **2** (`Toast.tsx:149`, `ListReviewDemo.tsx:22`) | 4 khớp / **0** | `xong` | `9662528` |
+| R-55 | Bọc màn trong `ScreenErrorBoundary` (`App.tsx:53-57`) | GĐ1 | `grep -rn "<ScreenErrorBoundary" src` | 8 khớp / **0 màn được bọc** | 9 khớp / **9 màn demo được bọc** | `xong` | `3d4bf51` |
+| R-47 | **Phần làm ngay:** thêm `src/mocks/**` vào `coverage.exclude` của `vitest.config.ts`. **Phần hoãn:** xoá hẳn `src/mocks/spatial.ts` | GĐ1 | `grep -n "src/mocks" vitest.config.ts` · `wc -l src/mocks/spatial.ts` | **0** dòng loại trừ; `spatial.ts` 1.612 dòng tính vào mẫu số độ phủ | **2** dòng loại trừ; độ phủ tổng 85,08% → 84,42%, `pnpm coverage` vẫn thoát 0 | `xong` *(phần coverage.exclude; phần xoá hẳn vẫn hoãn theo Mục 3)* | `304e548` |
 
 ---
 
@@ -212,6 +212,18 @@ là để R-14 ở GĐ5 cùng R-04 thì nói, tôi chuyển lại.
    vượt ngưỡng cảnh báo 500 kB của Vite. Ngân sách gzip vẫn đạt (155,7 / 175 KiB) nên bước
    "kích thước gói" không hỏng.
 
-4. **`BAO_CAO_DO_LECH.md` mục 4.2 vẫn đề xuất cài `eslint-plugin-no-relative-import-paths`
+4. **`ProgressOverlay.stories.tsx:34` là ứng viên R-29 thứ ba.**
+   `setProgress((p) => Math.min(100, p + (Math.random() * 5 + 1)))` — số ngẫu nhiên nằm
+   ngay trong hàm cập nhật state, đúng loại lỗi mà R-29 mô tả, và dưới `StrictMode` thanh
+   tiến trình nhảy bước đôi. Không tự sửa: trường "Sai" của R-29 chỉ kể `Toast.tsx` và
+   `ListReviewDemo.tsx`, đây là file story cố ý chạy hoạt ảnh, và sửa nó là đổi hành vi
+   demo. Đề nghị xử lý cùng lúc với R-50 hoặc khi có người chạm vào story đó.
+
+5. **`src/App.test.tsx` khẳng định một chuỗi không thuộc `App.tsx`.** Test tìm
+   `'Quiet Blueprint v1.1'` nhưng `App.tsx` render `<h1>Demo App</h1>`; chuỗi kia đến từ
+   màn `DesignSystem` được render mặc định. Test vẫn xanh nhưng nó đang kiểm màn con chứ
+   không kiểm vỏ, nên nếu đổi màn mặc định thì test đỏ vì lý do không liên quan.
+
+6. **`BAO_CAO_DO_LECH.md` mục 4.2 vẫn đề xuất cài `eslint-plugin-no-relative-import-paths`
    nhưng plugin chưa có trong `package.json`.** Vì vậy R-04 là mục **duy nhất** trong sổ
    chưa đo được bằng luật thật; con số 646 đến từ grep và có thể lệch với số luật báo.
