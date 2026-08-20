@@ -18,6 +18,11 @@ function useBreakpoint(query: string): boolean {
 
 // ─── useAppShell ─────────────────────────────────────────────────────────────
 
+/** localStorage key for the left panel's collapsed state. */
+export const APPSHELL_LEFT_COLLAPSED_STORAGE_KEY = 'appshell:left-collapsed';
+/** localStorage key for the right panel's collapsed state. */
+export const APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY = 'appshell:right-collapsed';
+
 export interface AppShellState {
   /** Panel trái đang thu gọn */
   leftCollapsed: boolean;
@@ -35,19 +40,19 @@ export interface AppShellState {
 
 export function useAppShell(): AppShellState {
   const [leftCollapsed, setLeftCollapsed] = useState(() => {
-    const saved = localStorage.getItem('appshell:left-collapsed');
+    const saved = localStorage.getItem(APPSHELL_LEFT_COLLAPSED_STORAGE_KEY);
     return saved === 'true';
   });
 
   const [rightCollapsed, setRightCollapsed] = useState(() => {
-    const saved = localStorage.getItem('appshell:right-collapsed');
+    const saved = localStorage.getItem(APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY);
     return saved === 'true';
   });
 
   const toggleLeft = useCallback(() => {
     setLeftCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('appshell:left-collapsed', String(next));
+      localStorage.setItem(APPSHELL_LEFT_COLLAPSED_STORAGE_KEY, String(next));
       return next;
     });
   }, []);
@@ -55,7 +60,7 @@ export function useAppShell(): AppShellState {
   const toggleRight = useCallback(() => {
     setRightCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('appshell:right-collapsed', String(next));
+      localStorage.setItem(APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY, String(next));
       return next;
     });
   }, []);
