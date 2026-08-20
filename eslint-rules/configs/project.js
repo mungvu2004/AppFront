@@ -71,6 +71,14 @@ module.exports = {
     // single-flight và hình dạng lỗi mà phần còn lại của ứng dụng đọc được.
     'local/no-fetch-outside-http': 'error',
 
+    // R-12 và R-14: hai luật của typescript-eslint, không phải luật nội bộ, nhưng
+    // khai ở đây cho cùng một chỗ. Cả hai đã về 0 trong lượt sửa này và cả hai
+    // đều CÓ bộ sửa tự động, nên bật ở mức 'error' không tốn gì và giữ cho công
+    // vừa làm không trôi ngược. Không bật thì R-12 và R-14 là hai luật NÊN không
+    // có cổng nào — đúng thứ R-56 nói là không được.
+    '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+    '@typescript-eslint/consistent-type-imports': 'error',
+
     // R-39: framer-motion nhập ở đúng một chỗ, src/components/motion, nơi
     // MotionProvider đặt reducedMotion="user" một lần cho toàn ứng dụng. Lỗ hổng
     // luật này chặn là chuyện THIẾU một lời gọi useReducedMotion, và thứ thiếu
