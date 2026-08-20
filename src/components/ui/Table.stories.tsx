@@ -41,6 +41,8 @@ const stateVariant = (s: ReviewState) =>
 const stateLabel = (s: ReviewState) =>
   s === 'approved' ? 'Đã duyệt' : s === 'rejected' ? 'Từ chối' : 'Chờ duyệt';
 
+const noop = (): void => undefined;
+
 // ── Storybook meta ────────────────────────────────────────────────────────────
 
 const meta: Meta = {
@@ -108,7 +110,7 @@ export const Error: Story = {
           </tr>
         </Table.Header>
         <Table.Body>
-          <Table.Error colSpan={2} message="Không thể tải dữ liệu" onRetry={() => alert('Thử lại')} />
+          <Table.Error colSpan={2} message="Không thể tải dữ liệu" onRetry={noop} />
         </Table.Body>
       </Table.Root>
     </div>
@@ -203,9 +205,9 @@ export const WallsTable: Story = {
         <TableActionBar
           selectedCount={selected.size}
           entityName="tường"
-          onApprove={() => alert('Duyệt')}
-          onReject={() => alert('Từ chối')}
-          onChangeThickness={() => alert('Đổi độ dày')}
+          onApprove={noop}
+          onReject={noop}
+          onChangeThickness={noop}
           onDeselect={() => setSelected(new Set())}
         />
       </div>
