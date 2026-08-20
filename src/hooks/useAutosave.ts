@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { useStore, RootState } from '../store';
+import type { RootState } from '../store';
+import { useStore } from '../store';
 import { formatTime } from '../lib/format';
 
 /**

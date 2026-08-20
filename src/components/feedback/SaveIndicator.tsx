@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '../../lib/utils';
-import { useStore, RootState } from '../../store';
+import type { RootState } from '../../store';
+import { useStore } from '../../store';
 import { useAutosave } from '../../hooks/useAutosave';
 import { useCommitFlash } from '../../hooks/useCommitFlash';
 import { Cloud, CloudUpload, CheckCircle2, AlertCircle } from 'lucide-react';

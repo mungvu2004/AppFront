@@ -1,4 +1,4 @@
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import type { Level, LevelId } from '../domain/spatial/types';
 import type { Project, ProjectRole } from '../types/project';
 

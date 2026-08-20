@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { Button, ButtonProps } from '../ui/Button';
+import type { ButtonProps } from '../ui/Button';
+import { Button } from '../ui/Button';
 import { CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 
 export type InlineAlertLevel = 'verified' | 'attention' | 'violation';

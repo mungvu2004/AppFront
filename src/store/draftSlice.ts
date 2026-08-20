@@ -27,7 +27,7 @@
  * composition so no slice has to know about another.
  */
 
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import type { SpatialEntity } from '../domain/spatial/normalize';
 import type { EntityId } from '../domain/spatial/types';
 

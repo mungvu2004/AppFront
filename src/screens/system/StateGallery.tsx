@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { Skeleton } from '../../components/feedback/Skeleton';
-import { DevStateSwitcher, ComponentState } from '../../components/shell/DevStateSwitcher';
+import type { ComponentState } from '../../components/shell/DevStateSwitcher';
+import { DevStateSwitcher } from '../../components/shell/DevStateSwitcher';
 import { 
   Home, Search, Table, Settings2, Box, Cuboid, 
   ShieldCheck, History, ClipboardCheck, LayoutDashboard, 

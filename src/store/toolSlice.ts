@@ -1,4 +1,4 @@
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import type { Millimetres, WallKind } from '../domain/spatial/types';
 
 /** Tool the user is working with on the canvas. */

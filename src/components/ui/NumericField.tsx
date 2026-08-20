@@ -1,6 +1,8 @@
 import React, { forwardRef } from 'react';
-import { Input, InputProps } from './Input';
-import { useNumericField, UseNumericFieldProps } from '../../hooks/useNumericField';
+import type { InputProps } from './Input';
+import { Input } from './Input';
+import type { UseNumericFieldProps } from '../../hooks/useNumericField';
+import { useNumericField } from '../../hooks/useNumericField';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 

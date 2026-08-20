@@ -1,7 +1,8 @@
+import type {
+  LOD} from 'three';
 import {
   BoxGeometry,
   BufferGeometry,
-  LOD,
   Matrix4,
   Mesh,
   MeshStandardMaterial,

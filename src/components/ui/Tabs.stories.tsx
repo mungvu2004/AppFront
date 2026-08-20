@@ -4,7 +4,8 @@
  * của BAO_CAO_DO_LECH.md: xoá dòng này khi có type helper cho `args`. */
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
-import { Tabs, Tab } from './Tabs';
+import type { Tab } from './Tabs';
+import { Tabs } from './Tabs';
 
 const meta: Meta = {
   title: 'ui/Tabs',

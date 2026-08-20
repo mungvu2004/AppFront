@@ -1,4 +1,4 @@
-import { Point2D } from '../../types/spatial';
+import type { Point2D } from '../../types/spatial';
 
 /**
  * Calculates the area of a polygon using the shoelace formula.

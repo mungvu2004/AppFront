@@ -7,7 +7,8 @@ import { createUuid } from '../../lib/http/ids';
 import { durationMs } from '../../lib/motion';
 import { UNDO_WINDOW_MS } from '../../lib/mutations/undoTicket';
 import { Button } from '../ui/Button';
-import { useUndoableToast, UndoableToastState } from '../../hooks/useUndoableToast';
+import type { UndoableToastState } from '../../hooks/useUndoableToast';
+import { useUndoableToast } from '../../hooks/useUndoableToast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

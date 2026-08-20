@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../store';
-import { ThemeMode } from '../store/uiSlice';
+import type { ThemeMode } from '../store/uiSlice';
 
 const THEME_KEY = 'app-theme-mode';
 

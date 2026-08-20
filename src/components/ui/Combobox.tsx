@@ -13,7 +13,7 @@ import { ChevronDown, Check, Search } from 'lucide-react';
 import { durationSeconds, EASE } from '../../lib/motion';
 import { cn } from '../../lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { SelectOption } from './Select';
+import type { SelectOption } from './Select';
 // import { Skeleton } from '../feedback/Skeleton';
 
 // ─── Context ──────────────────────────────────────────────────────────────────

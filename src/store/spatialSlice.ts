@@ -1,4 +1,4 @@
-import { StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { applyPatch, type SpatialPatch } from '../domain/spatial/applyPatch';
 import type { NormalizedSpatial } from '../domain/spatial/normalize';
 
