@@ -94,19 +94,19 @@ Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 ch�
 
 | Mã | Việc | Giai đoạn | Lệnh kiểm | Số vi phạm trước | Số sau | Trạng thái | Commit |
 |---|---|---|---|---:|---:|---|---|
-| R-10 | Khoá storage viết thẳng → hằng số xuất khẩu (`useAppShell.ts:38-58`) | GĐ2 | `grep -rnE "(local\|session)Storage\.(get\|set\|remove)Item\('" src` | **4** (1 file) | — | `chưa chạy` | — |
-| R-12 | `type` cho hình dạng đối tượng → `interface` | GĐ2 | `npx eslint src --ext ts,tsx --rule '{"@typescript-eslint/consistent-type-definitions":["warn","interface"]}'` | **7** (7 file) — *rời GĐ5 và rời Mục 3: tiền đề "445 chỗ, diff lớn" sai* | — | `chưa chạy` | — |
-| R-13 | Bật `explicit-module-boundary-types` cho `src/lib/**` + `src/domain/**`, trừ test | GĐ2 | `npx eslint src/lib src/domain --ext ts --rule '{"@typescript-eslint/explicit-module-boundary-types":"warn"}'` | **1** trong phạm vi đó (`src/lib/utils.ts`); 99 / 71 file nếu tính toàn `src` — *rời GĐ4 và rời Mục 3* | — | `chưa chạy` | — |
-| R-14 | Nhập kiểu bằng `import type` | GĐ2 | `npx eslint src --ext ts,tsx --rule '{"@typescript-eslint/consistent-type-imports":"warn"}'` | **45** (33 file), nhiều nhất `src/store/index.ts` (9) — *xem QUYẾT ĐỊNH #2* | — | `chưa chạy` | — |
-| R-17 | `eslint-disable` không ghi lý do sau `--` | GĐ2 | `grep -rn "eslint-disable" src \| grep -v " -- "` | **30** | — | `chưa chạy` | — |
-| R-18 | Component khai bằng arrow không lý do → `export function` | GĐ2 | `grep -rnE "^export const [A-Z]\w+ = \(" src --include='*.tsx'` | **2** (`FieldRow.tsx:21`, `DataEntryDemo.tsx:16`) | — | `chưa chạy` | — |
-| R-19 | `export default` cho component → xuất bằng tên | GĐ2 | `grep -rn "^export default" src --include='*.tsx' \| grep -v '\.stories\.tsx'` | **2** (`App.tsx:28`, `DesignSystem.tsx:11`) | — | `chưa chạy` | — |
-| R-20 | File kebab-case → đặt lại tên | GĐ2 | `git ls-files src \| grep -E "/[^/]*-[^/]*\.(ts\|tsx)$"` | **1** (`src/components/ui/button-variants.ts`) | — | `chưa chạy` | — |
-| R-24 | `key` là chỉ số mảng → định danh ổn định | GĐ2 | `grep -rnE "key=\{(i\|idx\|index\|\w*Index)\}" src` | **6** (6 file) | — | `chưa chạy` | — |
-| R-31 | `useCallback`/`useMemo` không có người tiêu thụ | GĐ2 | soi tay; đối chiếu `grep -rn "useCallback(" src \| grep -v '\.test\.' \| wc -l` với `grep -rn "\bmemo(" src \| wc -l` | **110 `useCallback` : 1 `memo`** | — | `chưa chạy` | — |
-| R-41 | `rgba()` + hex trong `tailwind.config.ts` → biến CSS | GĐ2 | `grep -nE "rgba?\(\|#[0-9a-fA-F]{3,8}" tailwind.config.ts` | **7** — 5 `rgba()` (dòng 99-103) + 2 hex `white`/`black` (dòng 25-26). Quyết định **không miễn trừ** hai hex, ghi trong R-41 | — | `chưa chạy` | — |
-| R-51 | `console.*` còn trong mã sản phẩm | GĐ2 | `grep -rnE "console\.(log\|warn\|error)" src \| grep -v '\.test\.' \| grep -v '\.stories\.'` | **11**; `catch` rỗng: **0** | — | `chưa chạy` | — |
-| R-52 | `alert()` trong story | GĐ2 | `grep -rnE "\b(window\.)?(alert\|confirm\|prompt)\(" src` | 6 khớp / **4** (`Table.stories.tsx:111,206,207,208`); 2 khớp còn lại là chuỗi dữ liệu test XSS trong `shareLink.test.ts` | — | `chưa chạy` | — |
+| R-10 | Khoá storage viết thẳng → hằng số xuất khẩu (`useAppShell.ts:38-58`) | GĐ2 | `grep -rnE "(local\|session)Storage\.(get\|set\|remove)Item\('" src` | **4** (1 file) | **0** | `xong` | `76227e0` |
+| R-12 | `type` cho hình dạng đối tượng → `interface` | GĐ2 | `npx eslint src --ext ts,tsx --rule '{"@typescript-eslint/consistent-type-definitions":["warn","interface"]}'` | **7** (7 file) | **0** | `xong` | `1c6226d` |
+| R-13 | Bật `explicit-module-boundary-types` cho `src/lib/**` + `src/domain/**`, trừ test | GĐ2 | `npx eslint src/lib src/domain --ext ts --rule '{"@typescript-eslint/explicit-module-boundary-types":"warn"}'` | **1** trong phạm vi đó (`src/lib/utils.ts`) | **0**, và luật nay bật ở mức `error` | `xong` | `830834f` |
+| R-14 | Nhập kiểu bằng `import type` | GĐ2 | `npx eslint src --ext ts,tsx --rule '{"@typescript-eslint/consistent-type-imports":"warn"}'` | **45** (33 file) | **0** | `xong` | `c3e64e9` |
+| R-17 | `eslint-disable` không ghi lý do sau `--` | GĐ2 | `grep -rn "eslint-disable" src \| grep -v " -- "` | **30** | **0** *(6 chỗ cuối do commit R-30 đóng)* | `xong` | `7e3e78b` |
+| R-18 | Component khai bằng arrow không lý do → `export function` | GĐ2 | `grep -rnE "^export const [A-Z]\w+ = \(" src --include='*.tsx'` | **2** | **0** | `xong` | `8c19fc2` |
+| R-19 | `export default` cho component → xuất bằng tên | GĐ2 | `grep -rn "^export default" src --include='*.tsx' \| grep -v '\.stories\.tsx'` | **2** | **0** | `xong` | `136d53f` |
+| R-20 | File kebab-case → đặt lại tên | GĐ2 | `git ls-files src \| grep -E "/[^/]*-[^/]*\.(ts\|tsx)$"` | **1** | **0** | `xong` | `b7348e7` |
+| R-24 | `key` là chỉ số mảng → định danh ổn định | GĐ2 | `grep -rnE "key=\{(i\|idx\|index\|\w*Index)\}" src` | **6** | **0** | `xong` | `4b73ef3` |
+| R-31 | `useCallback`/`useMemo` không có người tiêu thụ | GĐ2 | soi tay; đối chiếu `grep -rn "useCallback(" src \| grep -v '\.test\.' \| wc -l` với `grep -rn "\bmemo(" src \| wc -l` | 101 useCallback/useMemo, **76 không có người tiêu thụ** | 99, **74 không có người tiêu thụ** | `hoãn (đã sửa ví dụ mà luật chỉ đích danh — useAppShell. 74 chỗ còn lại chưa quét: phép đo theo tên có lỗ ở ranh giới prop, xem commit d55ef26. R-31 ở mức KHUYẾN NGHỊ)` | `d55ef26` |
+| R-41 | `rgba()` + hex trong `tailwind.config.ts` → biến CSS | GĐ2 | `grep -nE "rgba?\(\|#[0-9a-fA-F]{3,8}" tailwind.config.ts` | **7** | **0** | `xong` | `f81e5e4` |
+| R-51 | `console.*` còn trong mã sản phẩm | GĐ2 | `grep -rnE "console\.(log\|warn\|error)" src \| grep -v '\.test\.' \| grep -v '\.stories\.'` | **11**; `catch` rỗng 0 | **6** *(1 chú thích + 5 chỗ hạ tầng có xử lý thật, xem commit)*; `catch` rỗng vẫn 0 | `xong` | `4e9607e` |
+| R-52 | `alert()` trong story | GĐ2 | `grep -rnE "\b(window\.)?(alert\|confirm\|prompt)\(" src` | 6 khớp / **4** | 2 khớp / **0** | `xong` | `c033d06` |
 | R-54 | Listener bàn phím gắn tay ngoài `shortcutRegistry` | GĐ2 | `grep -rnE "addEventListener\(['\"]key(down\|up\|press)['\"]" src \| grep -v '^src/lib/input/'` | 1 khớp / **0** | **0** | `xong` *(chưa từng vi phạm — xem ghi chú dưới bảng)* | — |
 
 > **R-54 — vì sao là `xong` mà không có commit.** Lệnh kiểm của R-54 loại trừ
@@ -124,7 +124,7 @@ Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 ch�
 | R-15 | Bỏ `any` **ngoài** 10 file story | GĐ3 | `npx eslint src --ext ts,tsx --no-inline-config --rule '{"@typescript-eslint/no-explicit-any":"warn"}'` | **15 / 13 file** — 12 file là `.stories.tsx`, **1** ngoài story (`SaveIndicator.test.tsx:30`). Phần thuộc GĐ3: **1** | — | `chưa chạy` *(12 chỗ trong story hoãn theo Mục 3 — đợi type helper cho `args`)* | — |
 | R-26 | `useEffect` lấy dữ liệu → `lib/query` | GĐ3 | soi tay; dấu hiệu `await`/`.then(` trong thân `useEffect` | **1** (`useShareLinks.ts:314-318`) | — | `hoãn (Mục 3: đợi màn thật đầu tiên dùng lib/query rồi chuyển cùng lúc, để repo chỉ có một khuôn mẫu)` | — |
 | R-27 | `useEffect` đồng bộ state → state | GĐ3 | soi tay; dấu hiệu thân effect chỉ gồm `if (…) setX(…)`, phụ thuộc là state khác | 7 ứng viên / **6**: `Toast.tsx:52`, `Toast.tsx:163`, `SaveIndicator.tsx:85`, `Drawer.tsx:94`, `useCombobox.ts:67`, `useAuthScreen.ts:411` | — | `chưa chạy` | — |
-| R-30 | Tắt `exhaustive-deps` không ghi lý do | GĐ3 | `grep -rn "exhaustive-deps" src \| grep -v " -- "` | **6** | — | `chưa chạy` | — |
+| R-30 | Tắt `exhaustive-deps` không ghi lý do | GĐ3 | `grep -rn "exhaustive-deps" src \| grep -v " -- "` | **6** | **0** | `xong` | `c5298f8` |
 | R-45 | `getByTestId` ngoài vùng miễn trừ | GĐ3 | `grep -rnE "ByTestId\|data-testid" src \| grep -v '^src/components/canvas/' \| grep -v '^src/lib/three/'` | **23** (7 file) | — | `chưa chạy` | — |
 | R-50 | Component chưa có story | GĐ3 | đối chiếu `*.tsx` với `*.stories.tsx` trong `src/components/**` | **5**: `ui/Kbd.tsx`, `shell/CommandPalette.tsx`, `shell/DevStateSwitcher.tsx`, `canvas/GridLayer.tsx`, `feedback/ScreenErrorBoundary.tsx` | — | `chưa chạy` | — |
 
