@@ -9,9 +9,36 @@ import { MotionDemo } from './screens/MotionDemo';
 import { ShellDemo } from './screens/ShellDemo';
 import { StateGallery } from './screens/system/StateGallery';
 import { Toast } from './components/feedback/Toast';
+import { EmptyState } from './components/feedback/EmptyState';
+import {
+  ScreenErrorBoundary,
+  type ScreenErrorFallback,
+} from './components/feedback/ScreenErrorBoundary';
 import './styles/globals.css';
 
 type ScreenId = 'design-system' | 'canvas' | 'data-entry' | 'shared' | 'feedback' | 'list-review' | 'shell' | 'motion' | 'states';
+
+/**
+ * Thứ người dùng thấy thay cho một màn đã sập.
+ *
+ * `ScreenErrorBoundary` cố ý không vẽ gì — nó không giữ màu, không giữ chữ. Chỗ
+ * quyết định màn hỏng trông ra sao là ở đây. Chữ lấy thẳng từ `report.description`,
+ * đã là tiếng Việt có dấu; nút "thử lại" chỉ hiện khi lỗi thuộc loại đáng thử lại.
+ */
+function ScreenCrashFallback({ report, retry }: ScreenErrorFallback) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+      <EmptyState
+        icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+        title={report.description.title}
+        description={report.description.description}
+        {...(report.retryable
+          ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
+          : {})}
+      />
+    </div>
+  );
+}
 
 const screens: Record<ScreenId, { name: string; component: React.FC }> = {
   'design-system': { name: 'Design System', component: DesignSystem },
@@ -51,9 +78,25 @@ export default function App() {
         </div>
       </div>
       <div className="flex-1 relative overflow-hidden bg-bg-app">
-        <Toast.Provider>
-          <ActiveComponent />
-        </Toast.Provider>
+        {/*
+          `key={activeScreen}` để ranh giới lỗi gắn lại mỗi lần đổi màn: nếu không,
+          một màn hỏng sẽ giữ trạng thái lỗi và màn được chọn tiếp theo cũng chỉ
+          hiện lại phần dự phòng.
+
+          Ranh giới nằm NGOÀI `Toast.Provider` là cố ý — màn hỏng thì kéo theo cả
+          provider của nó, và phần dự phòng không được phụ thuộc vào thứ vừa sập.
+        */}
+        <ScreenErrorBoundary
+          key={activeScreen}
+          screenId={activeScreen}
+          renderFallback={({ report, retry }) => (
+            <ScreenCrashFallback report={report} retry={retry} />
+          )}
+        >
+          <Toast.Provider>
+            <ActiveComponent />
+          </Toast.Provider>
+        </ScreenErrorBoundary>
       </div>
     </div>
   );
