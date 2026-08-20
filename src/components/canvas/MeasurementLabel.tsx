@@ -1,8 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 import { dimensionStrokeToken } from './materialMap';
-import type { useMeasurementLabel} from '../../hooks/useMeasurementLabel';
-import { type Point } from '../../hooks/useMeasurementLabel';
+import type { useMeasurementLabel, Point } from '../../hooks/useMeasurementLabel';
 
 /** Tick mark length (px) tại đầu/cuối đường đo */
 const TICK_LENGTH = 8;

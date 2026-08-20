@@ -29,7 +29,7 @@
  * the two are translated.
  */
 
-import { describeOpeningKind } from '@/domain/openings/types';
+import { describeOpeningKind, clampRelativePosition } from '@/domain/openings/types';
 import type { AttachedOpening, RelativePosition } from '@/domain/openings/types';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { EntityKind, IdByKind } from '@/domain/spatial/ids';
@@ -44,7 +44,6 @@ import type {
   WallId,
   WallKind,
 } from '@/domain/spatial/types';
-import { clampRelativePosition } from '@/domain/openings/types';
 import type { PointMm } from '@/domain/units/compare';
 import { millimetres, MILLIMETRES_PER_METRE } from '@/domain/units/types';
 import { centrelineLength, type Wall as SolidWall, type WallKind as SolidWallKind } from '@/domain/walls/types';

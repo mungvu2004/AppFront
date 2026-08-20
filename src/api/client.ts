@@ -1,7 +1,6 @@
 import type { AppError } from '@/lib/errors';
 import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/http';
-import type { z} from 'zod';
-import { type ZodTypeAny } from 'zod';
+import type { z, ZodTypeAny } from 'zod';
 import {
   FloorSchema,
   ProgressSchema,

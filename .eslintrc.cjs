@@ -36,5 +36,17 @@ module.exports = {
   },
   rules: {
     'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+
+    // `eslint-plugin-import` từng được nạp mà KHÔNG bật luật nào — mỗi lần lint
+    // trả tiền thời gian khởi động cho một plugin không kiểm gì (khiếm khuyết D6).
+    // Năm luật dưới đây đều rẻ: chúng chỉ nhìn từng file một, không dựng đồ thị
+    // phụ thuộc như `import/no-cycle` — luật đó nằm riêng ở `pnpm cycles` đúng vì
+    // nó đắt. Cả năm đo được 0 vi phạm lúc bật, nên chúng chặn cái sắp tới chứ
+    // không biến mã cũ thành bãi lỗi.
+    'import/no-duplicates': 'error',
+    'import/no-self-import': 'error',
+    'import/no-useless-path-segments': 'error',
+    'import/no-absolute-path': 'error',
+    'import/export': 'error',
   },
 };

@@ -65,10 +65,9 @@ import type {
 import type {
   AddFurnitureInput,
   AddOpeningInput,
+  OPENING_COMMAND_TYPES,
 } from '@/lib/commands/business/openingCommands';
-import type { OPENING_COMMAND_TYPES } from '@/lib/commands/business/openingCommands';
-import type { DrawWallInput, SplitWallInput } from '@/lib/commands/business/wallCommands';
-import type { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
+import type { DrawWallInput, SplitWallInput, WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 
 /* -------------------------------------------------------------------------- */
 /* The roster.                                                                 */
