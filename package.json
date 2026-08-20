@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "size": "node scripts/check-bundle-size.mjs",
+    "length": "node scripts/check-file-length.mjs",
     "verify": "node scripts/verify.mjs",
     "e2e": "node scripts/run-playwright.mjs --reporter=line",
     "e2e:visual": "node scripts/run-playwright.mjs --update-snapshots --reporter=line",
