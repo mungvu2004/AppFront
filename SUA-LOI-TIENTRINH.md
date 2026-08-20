@@ -121,12 +121,12 @@ Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 ch�
 
 | Mã | Việc | Giai đoạn | Lệnh kiểm | Số vi phạm trước | Số sau | Trạng thái | Commit |
 |---|---|---|---|---:|---:|---|---|
-| R-15 | Bỏ `any` **ngoài** 10 file story | GĐ3 | `npx eslint src --ext ts,tsx --no-inline-config --rule '{"@typescript-eslint/no-explicit-any":"warn"}'` | **15 / 13 file** — 12 file là `.stories.tsx`, **1** ngoài story (`SaveIndicator.test.tsx:30`). Phần thuộc GĐ3: **1** | — | `chưa chạy` *(12 chỗ trong story hoãn theo Mục 3 — đợi type helper cho `args`)* | — |
+| R-15 | Bỏ `any` **ngoài** 10 file story | GĐ3 | `npx eslint src --ext ts,tsx --no-inline-config --rule '{"@typescript-eslint/no-explicit-any":"warn"}'` | **15 / 13 file**; ngoài story **1** | **14 / 12 file**, toàn bộ trong `.stories.tsx`; ngoài story **0** | `xong` *(phần story vẫn hoãn theo Mục 3)* | `b6f2a56` |
 | R-26 | `useEffect` lấy dữ liệu → `lib/query` | GĐ3 | soi tay; dấu hiệu `await`/`.then(` trong thân `useEffect` | **1** (`useShareLinks.ts:314-318`) | — | `hoãn (Mục 3: đợi màn thật đầu tiên dùng lib/query rồi chuyển cùng lúc, để repo chỉ có một khuôn mẫu)` | — |
-| R-27 | `useEffect` đồng bộ state → state | GĐ3 | soi tay; dấu hiệu thân effect chỉ gồm `if (…) setX(…)`, phụ thuộc là state khác | 7 ứng viên / **6**: `Toast.tsx:52`, `Toast.tsx:163`, `SaveIndicator.tsx:85`, `Drawer.tsx:94`, `useCombobox.ts:67`, `useAuthScreen.ts:411` | — | `chưa chạy` | — |
+| R-27 | `useEffect` đồng bộ state → state | GĐ3 | soi tay; dấu hiệu thân effect chỉ gồm `if (…) setX(…)`, phụ thuộc là state khác | 7 ứng viên / **6** | **4** | `hoãn (đã sửa 2 chỗ suy ra được sạch — Drawer.tsx:93, SaveIndicator.tsx:85. Bốn chỗ còn lại có lý do từng chỗ ở commit 6dd65ee: 2 chỗ phụ thuộc THỜI GIAN nên effect đúng là công cụ của nó, 2 chỗ sửa đúng sẽ phải ghi ref lúc render hoặc chạm hai hook cùng lúc)` | `6dd65ee` |
 | R-30 | Tắt `exhaustive-deps` không ghi lý do | GĐ3 | `grep -rn "exhaustive-deps" src \| grep -v " -- "` | **6** | **0** | `xong` | `c5298f8` |
-| R-45 | `getByTestId` ngoài vùng miễn trừ | GĐ3 | `grep -rnE "ByTestId\|data-testid" src \| grep -v '^src/components/canvas/' \| grep -v '^src/lib/three/'` | **23** (7 file) | — | `chưa chạy` | — |
-| R-50 | Component chưa có story | GĐ3 | đối chiếu `*.tsx` với `*.stories.tsx` trong `src/components/**` | **5**: `ui/Kbd.tsx`, `shell/CommandPalette.tsx`, `shell/DevStateSwitcher.tsx`, `canvas/GridLayer.tsx`, `feedback/ScreenErrorBoundary.tsx` | — | `chưa chạy` | — |
+| R-45 | `getByTestId` ngoài vùng miễn trừ | GĐ3 | `grep -rnE "ByTestId\|data-testid" src \| grep -v '^src/components/canvas/' \| grep -v '^src/lib/three/'` | **23** (7 file) | **0** | `xong` | `d80074e` |
+| R-50 | Component chưa có story | GĐ3 | đối chiếu `*.tsx` với `*.stories.tsx` trong `src/components/**` | **5** | **0** *(4 story mới; `shell/CommandPalette.tsx` bị xoá ở D8 nên không còn cần story)* | `xong` | `d2c230e` |
 
 ---
 
@@ -134,8 +134,8 @@ Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 ch�
 
 | Mã | Việc | Giai đoạn | Lệnh kiểm | Số vi phạm trước | Số sau | Trạng thái | Commit |
 |---|---|---|---|---:|---:|---|---|
-| R-39 | Mở rộng `src/lib/motion` tái xuất `motion`/`AnimatePresence`/`useAnimation`, viết `local/no-framer-outside-motion`, rồi chuyển 16 file | GĐ4 | tạm: `grep -rln "from 'framer-motion'" src \| grep -v '^src/lib/motion/'`; sau khi có luật: `local/no-framer-outside-motion` | **16 file** | — | `chưa chạy` | — |
-| R-05 | Bật `import/no-cycle` trong `pnpm verify` và CI. **Mục tiêu là ĐO và dựng cổng, không phải sửa mã** | GĐ4 | `npx eslint src --ext ts,tsx --rule '{"import/no-cycle":"warn"}'` | **0** — không có import vòng nào | 0 | `chưa chạy` *(số đã 0; việc còn lại là bật luật lên `error` để giữ nó ở 0)* | — |
+| R-39 | Mở rộng `src/lib/motion` tái xuất `motion`/`AnimatePresence`/`useAnimation`, viết `local/no-framer-outside-motion`, rồi chuyển 16 file | GĐ4 | tạm: `grep -rln "from 'framer-motion'" src \| grep -v '^src/lib/motion/'`; sau khi có luật: `local/no-framer-outside-motion` | **16 file** | **0** | `xong` | `4fc47c7` |
+| R-05 | Bật `import/no-cycle` trong `pnpm verify` và CI. **Mục tiêu là ĐO và dựng cổng, không phải sửa mã** | GĐ4 | `npx eslint src --ext ts,tsx --rule '{"import/no-cycle":"warn"}'` | **0** vi phạm, **0** cổng | **0** vi phạm, **1** cổng (`pnpm cycles` — bước 3 của verify và job lint của CI) | `xong` | `0bbea23` |
 
 ---
 
@@ -151,7 +151,7 @@ Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 ch�
 
 | Mã | Việc | Giai đoạn | Lệnh kiểm | Số vi phạm trước | Số sau | Trạng thái | Commit |
 |---|---|---|---|---:|---:|---|---|
-| R-21 | File component ≤ 250 dòng có nội dung | GĐ6 | `node scripts/check-file-length.mjs` | **8** file | — | `chưa chạy` | — |
+| R-21 | File component ≤ 250 dòng có nội dung | GĐ6 | `node scripts/check-file-length.mjs` | **8** file | **8** | `hoãn (R-21 là tập CHA của R-22: hai file dài nhất — ShareScreen 460, Combobox 403 — chính là hai file R-22 đang hoãn theo Mục 3, nên R-21 không thể về 0 trước R-22. Sáu file còn lại 256–367 dòng; tách chúng đúng là loại tái cấu trúc Mục 3 hoãn)` | — |
 | R-22 | File component ≤ 400 dòng có nội dung | GĐ6 | `node scripts/check-file-length.mjs --max 400` | **2** — `ShareScreen.tsx` (460), `Combobox.tsx` (403) | — | `hoãn (Mục 3) — NHƯNG XEM QUYẾT ĐỊNH #1: hoãn mục này giờ đồng nghĩa pnpm verify đỏ suốt giai đoạn B` | — |
 
 ---
@@ -162,11 +162,11 @@ Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 ch�
 |---|---|---|---|---:|---:|---|---|
 | D2 | Hook chặn toàn bộ công cụ | GĐ7 | `grep -c "hooks" .claude/settings.json` · `ls .agent` | **0** — file không còn khối `hooks`, `.agent/` không tồn tại | **0** | `xong` *(tự hết; bằng chứng: typecheck/lint/coverage đều chạy được ở lần đo thứ hai)* | — |
 | D3 | `src/routes.tsx` chưa được gắn | GĐ7 | `grep -rn "RouterProvider" src` | 0 `RouterProvider`; `routes.tsx` 50 dòng, 17 lần `Placeholder` | — | `hoãn (Mục 3: là bản đồ route đã thiết kế, có giá trị tham chiếu. Xử lý khi dựng vỏ ứng dụng thật)` | — |
-| D4 | `src/lib/format.ts` che khuất `src/lib/format/` | GĐ7 | `ls src/lib/format.ts` phải báo không có; `grep -rn "from '@/lib/format'" src` | file 30 dòng tồn tại cạnh thư mục 4 file / ~874 dòng; **2** chỗ import qua `@/lib/format` | — | `chưa chạy` | — |
-| D5 | Hai cấu hình vitest — khối `test` ở `vite.config.ts` bị che | GĐ7 | `grep -n "test:" vite.config.ts` | **1** (`vite.config.ts:11-14`) | — | `chưa chạy` | — |
-| D6 | `eslint-plugin-import` nạp nhưng 0 luật bật | GĐ7 | `grep -n "'import'" .eslintrc.cjs` đối chiếu số luật `import/*` đang bật | plugin nạp ở `.eslintrc.cjs:24`, **0** luật `import/*` bật *(D6 và R-05 nên làm cùng nhau — bật `import/no-cycle` trả lời cả hai)* | — | `chưa chạy` | — |
+| D4 | `src/lib/format.ts` che khuất `src/lib/format/` | GĐ7 | `ls src/lib/format.ts` phải báo không có; `grep -rn "from '@/lib/format'" src` | file 37 dòng che khuất thư mục; **13** nơi import | **0** — file đã xoá, 13 nơi chuyển sang module cụ thể | `xong` | `9760cc4` |
+| D5 | Hai cấu hình vitest — khối `test` ở `vite.config.ts` bị che | GĐ7 | `grep -n "test:" vite.config.ts` | **1** | **0** | `xong` | `3017257` |
+| D6 | `eslint-plugin-import` nạp nhưng 0 luật bật | GĐ7 | `grep -n "'import'" .eslintrc.cjs` đối chiếu số luật `import/*` đang bật | plugin nạp, **0** luật bật | **5** luật bật, cộng `import/no-cycle` ở `pnpm cycles` | `xong` | `d1a7f32` |
 | D7 | Bốn phụ thuộc khai mà 0 lần dùng | GĐ7 | `for d in @react-three/fiber @react-three/drei react-hook-form d3-zoom; do grep -rn "from '$d" src; done` | 4 phụ thuộc, **0 import** mỗi cái | — | `hoãn (Mục 3: không tốn gì lúc chạy vì không được import, tree-shaking bỏ hết. Quyết khi có người thật sự định dùng react-three-fiber; nếu sáu tháng nữa vẫn 0 import thì gỡ)` | — |
-| D8 | Module trùng lặp — 4 cặp | GĐ7 | `ls src/lib/scale.ts src/lib/geometry/area.ts src/hooks/useCountUp.ts src/components/shell/CommandPalette.tsx` | 4 cặp: `lib/scale.ts` (708 B) ↔ `domain/units/scale.ts` (11 KB) · `lib/geometry/area.ts` (1,1 KB) ↔ `domain/rooms/area.ts` (21 KB) · `hooks/useCountUp.ts` (6 KB) ↔ `lib/motion/useCountUp.ts` (6,4 KB) · `shell/CommandPalette.tsx` (323 B) ↔ `overlay/CommandPalette.tsx` (11 KB) | — | `chưa chạy` | — |
+| D8 | Module trùng lặp — 4 cặp | GĐ7 | `ls src/lib/scale.ts src/lib/geometry/area.ts src/hooks/useCountUp.ts src/components/shell/CommandPalette.tsx` | 4 cặp báo cáo nêu | **3 cặp xoá** — `lib/scale.ts`, `lib/geometry/area.ts`, `shell/CommandPalette.tsx`, cả ba đều 0 nơi dùng. Cặp thứ tư `hooks/useCountUp` ↔ `lib/motion/useCountUp` **không phải trùng lặp**: engine thuần và lớp bọc React, đúng ranh giới mục 0.4 — GIỮ cả hai | `xong` | `9e28035` |
 
 ---
 
