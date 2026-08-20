@@ -19,7 +19,12 @@ const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
     thickness: 220,
     // 0,62 nằm dưới mức "cần kiểm tra" (0,70) nên hàng vẫn tô attention như demo
     // này muốn thể hiện; 0,71 trước đây rơi vào dải "AI đề xuất" và sẽ không tô.
-    confidence: isLowConf ? 0.62 : 0.85 + (Math.random() * 0.1),
+    //
+    // Nhánh còn lại rải trong dải 0,85–0,94 theo chỉ số hàng chứ KHÔNG theo
+    // số ngẫu nhiên. Ngẫu nhiên ở cấp module làm 48 hàng đổi mỗi lần nạp, tức
+    // ảnh chuẩn Playwright không lặp lại được và một lỗi chỉ hiện ở vài giá trị
+    // thì không tái hiện được theo yêu cầu.
+    confidence: isLowConf ? 0.62 : 0.85 + (i % 10) / 100,
     level: 'Tầng 01',
     status: 'neutral' // Not reviewed
   };
