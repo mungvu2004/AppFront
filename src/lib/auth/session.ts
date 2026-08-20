@@ -46,10 +46,10 @@ const getDefaultFetch = (): AuthFetch =>
 
 const isConfigured = (): boolean => getOptionalAuthConfig() !== null;
 
-type CombinedSignal = {
+interface CombinedSignal {
   cleanup: () => void;
   signal?: AbortSignal;
-};
+}
 
 const isAbortSignal = (signal: AbortSignal | null | undefined): signal is AbortSignal =>
   signal instanceof AbortSignal;

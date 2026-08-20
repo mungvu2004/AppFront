@@ -3,7 +3,7 @@ import type { HttpError, Result } from '@/lib/http';
 import { createQueueStore, type QueueStore } from '../queueStore';
 import { createReplayer } from '../replayer';
 
-type BroadcastMessage = { data: unknown };
+interface BroadcastMessage { data: unknown }
 
 class MockBroadcastChannel {
   private static channels = new Map<string, Set<MockBroadcastChannel>>();
