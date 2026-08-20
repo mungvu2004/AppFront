@@ -32,7 +32,9 @@ function AutoOpenPalette({ query = '' }: { query?: string }) {
       if (query) handleQueryChange(query);
     });
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- mở bảng lệnh đúng một lần
+       sau khung hình đầu, và effect đã có hàm dọn `cancelAnimationFrame`. `open` cùng
+       `handleQueryChange` đổi định danh mỗi render nên kê vào sẽ mở lại liên tục. */
   }, []);
 
   return (

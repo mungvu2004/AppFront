@@ -20,7 +20,9 @@ function MeasurementLabelDemo({ autoCommit }: { autoCommit?: boolean }) {
     startMeasurement(100, 100);
     updateMeasurement(300, 200);
     if (autoCommit) commitMeasurement();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  /* eslint-disable-next-line react-hooks/exhaustive-deps -- story dựng cảnh đúng MỘT
+     lần lúc gắn. Ba hàm trong thân đến từ hook và đổi định danh mỗi lần render; kê
+     chúng vào mảng phụ thuộc sẽ dựng lại phép đo liên tục. `[]` là ý định, không sót. */
   }, []);
 
   return (

@@ -14,7 +14,9 @@ export default meta;
 
 function SelectionHaloSelectedDemo() {
   const { isVisible, variant, hasEntered, select } = useSelectionHalo();
-  useEffect(() => { select(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  /* eslint-disable-next-line react-hooks/exhaustive-deps -- chọn sẵn đúng một lần lúc
+     gắn để story có gì mà xem; `select` đổi định danh mỗi render. */
+  useEffect(() => { select(); }, []);
   return (
     <div className="relative bg-canvas-2d" style={{ width: 400, height: 300 }}>
       <div
@@ -29,7 +31,9 @@ function SelectionHaloSelectedDemo() {
 
 function SelectionHaloHoverDemo() {
   const { isVisible, variant, hasEntered, hover } = useSelectionHalo();
-  useEffect(() => { hover(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  /* eslint-disable-next-line react-hooks/exhaustive-deps -- như trên, nhưng cho trạng
+     thái di chuột. */
+  useEffect(() => { hover(); }, []);
   return (
     <div className="relative bg-canvas-2d" style={{ width: 400, height: 300 }}>
       <div
