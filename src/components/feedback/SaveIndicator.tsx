@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '../../lib/utils';
 import type { RootState } from '../../store';
 import { useStore } from '../../store';
@@ -77,18 +77,19 @@ export function ConnectedSaveIndicator({ onSave, ...props }: ConnectedSaveIndica
   const [isPending, setIsPending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const spatial = useStore(state => state.spatial);
-  const prevSpatialRef = useRef(spatial);
-  
   // Flash triggers when a commit happens in the store
   const flash = useCommitFlash();
 
-  // Detect pending changes
-  useEffect(() => {
-    if (spatial !== prevSpatialRef.current) {
-      setIsPending(true);
-      prevSpatialRef.current = spatial;
-    }
-  }, [spatial]);
+  // Nhận ra thay đổi chưa lưu bằng cách so với giá trị trước NGAY TRONG lúc
+  // render, không qua effect (R-27). Effect sẽ đẩy "đang chờ lưu" sang lượt
+  // render sau, tức có một khung hình mà mô hình đã đổi còn chỉ báo vẫn nói
+  // "đã lưu" — đúng loại nguồn sự thật thứ hai bị lệch mà R-27 nói tới.
+  const [prevSpatial, setPrevSpatial] = useState(spatial);
+
+  if (spatial !== prevSpatial) {
+    setPrevSpatial(spatial);
+    setIsPending(true);
+  }
 
   const handleSave = useCallback(async (data: RootState['spatial']) => {
     setIsSaving(true);

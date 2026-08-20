@@ -90,10 +90,21 @@ function DrawerRoot({ isOpen, onClose, children, size }: DrawerRootProps) {
     { enabled: isOpen },
   );
 
-  // Reset snap level khi đóng
-  useEffect(() => {
-    if (!isOpen) setSnapLevel(2);
-  }, [isOpen]);
+  // Reset snap level khi đóng — điều chỉnh NGAY TRONG lúc render, không qua
+  // effect. Effect đồng bộ state sang state luôn tốn thêm một lượt render với
+  // dữ liệu cũ trên màn hình: drawer đã đóng nhưng snapLevel vẫn là mức cũ cho
+  // tới lượt sau (R-27). Khuôn "so với giá trị trước" dưới đây là cách React
+  // khuyến nghị cho đúng tình huống này; React bỏ luôn kết quả render dở và
+  // chạy lại trước khi vẽ, nên không có khung hình nào lệch.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+
+    if (!isOpen) {
+      setSnapLevel(2);
+    }
+  }
 
   const overlayVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 
