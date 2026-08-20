@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // ─── Breakpoint hook (private) ─────────────────────────────────────────────
 
@@ -49,21 +49,24 @@ export function useAppShell(): AppShellState {
     return saved === 'true';
   });
 
-  const toggleLeft = useCallback(() => {
+  // Không bọc `useCallback`: hai hàm này chỉ được gắn vào `onClick` của
+  // `AppShell`, một component không `memo`. Không ai cần tham chiếu của chúng ổn
+  // định, nên lần bọc chỉ thêm một mảng phụ thuộc phải bảo trì (R-31).
+  const toggleLeft = (): void => {
     setLeftCollapsed(prev => {
       const next = !prev;
       localStorage.setItem(APPSHELL_LEFT_COLLAPSED_STORAGE_KEY, String(next));
       return next;
     });
-  }, []);
+  };
 
-  const toggleRight = useCallback(() => {
+  const toggleRight = (): void => {
     setRightCollapsed(prev => {
       const next = !prev;
       localStorage.setItem(APPSHELL_RIGHT_COLLAPSED_STORAGE_KEY, String(next));
       return next;
     });
-  }, []);
+  };
 
   // Breakpoints
   const isBelowMd   = useBreakpoint('(max-width: 1023px)');
