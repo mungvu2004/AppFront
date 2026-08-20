@@ -22,6 +22,18 @@ module.exports = {
   ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', 'local', 'import'],
+  settings: {
+    // `eslint-plugin-import` mặc định dùng resolver của Node, và resolver đó
+    // KHÔNG biết `.ts`, `.tsx` hay alias `@/` của `tsconfig.json`. Thiếu dòng
+    // này thì mọi luật `import/*` nhìn thấy một đồ thị phụ thuộc RỖNG và báo
+    // "không có vấn đề gì" — một cổng xanh vô điều kiện, đúng thứ mục E.10 cấm.
+    // Đã kiểm bằng một vòng import cố ý: không có resolver thì `import/no-cycle`
+    // im lặng, có resolver thì nó bắt.
+    'import/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx'] },
+    'import/resolver': {
+      typescript: { alwaysTryTypes: true, project: './tsconfig.json' },
+    },
+  },
   rules: {
     'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
   },

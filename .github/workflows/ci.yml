@@ -23,6 +23,10 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install
       - run: pnpm lint
+      # `import/no-cycle` không nằm trong `pnpm lint` vì nó phải dựng đồ thị phụ
+      # thuộc của hơn 500 file và làm chậm vòng lặp sửa-lint lúc phát triển.
+      # Chỗ của nó là đây và trong `pnpm verify` (R-05).
+      - run: pnpm cycles
 
   typecheck:
     needs: lint
