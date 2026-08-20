@@ -13,7 +13,7 @@ const MOCK_OPTIONS = [
   { label: 'Vách gỗ công nghiệp', value: '4' },
 ];
 
-export const DataEntryDemo = () => {
+export function DataEntryDemo() {
   const [val1, setVal1] = useState<number | undefined>(248.60);
   const [val2, setVal2] = useState<number | undefined>(48);
   const [sel1, setSel1] = useState<string>('34');
@@ -98,4 +98,4 @@ export const DataEntryDemo = () => {
       </section>
     </div>
   );
-};
+}
