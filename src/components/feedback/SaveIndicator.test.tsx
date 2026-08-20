@@ -6,7 +6,9 @@ import { useStore } from '../../store';
 describe('SaveIndicator', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    // eslint-disable-next-line local/no-direct-set
+    /* eslint-disable-next-line local/no-direct-set -- đưa store về trạng thái đầu giữa
+       hai test là thao tác ghi DUY NHẤT không được vào lịch sử hoàn tác, đúng thứ
+       `commit()` sẽ làm nếu đi qua nó. A10 vẫn có hiệu lực trong mã sản phẩm. */
     useStore.setState({ spatial: null });
   });
 
@@ -27,7 +29,9 @@ describe('SaveIndicator', () => {
 
     // Trigger spatial change
     act(() => {
-      // eslint-disable-next-line local/no-direct-set, @typescript-eslint/no-explicit-any
+      /* eslint-disable-next-line local/no-direct-set, @typescript-eslint/no-explicit-any -- ghi
+         thẳng như trên; `any` vì test chỉ dựng đúng mẩu `spatial` mà SaveIndicator đọc,
+         không dựng cả mô hình không gian chỉ để đổi một nhãn. */
       useStore.setState({ spatial: { metadata: { name: 'test' } } } as any);
     });
 

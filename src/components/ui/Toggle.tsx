@@ -21,7 +21,8 @@ export interface ToggleProps {
 }
 
 // Tách logic và giao diện
-// eslint-disable-next-line react-refresh/only-export-components
+/* eslint-disable-next-line react-refresh/only-export-components -- như SegmentedControl:
+   hook logic đứng cạnh view theo mục D, không tách chỉ vì Fast Refresh. */
 export function useToggle({
   checked,
   defaultChecked,

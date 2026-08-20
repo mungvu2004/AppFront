@@ -1,4 +1,7 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components -- file này xuất `Pipeline`
+ * (một đối tượng gộp) và bốn interface bên cạnh component `PipelineStepper`, nên
+ * Fast Refresh nạp lại cả trang thay vì giữ state khi sửa. Đổi lại là các phần của
+ * stepper dùng được qua một tên duy nhất; chi phí chỉ chạm người đang sửa chính file này. */
 import React, { useEffect, useState, forwardRef } from 'react';
 import { useCountUp } from '../../hooks/useCountUp';
 import { cn } from '../../lib/utils';

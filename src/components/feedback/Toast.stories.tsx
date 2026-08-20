@@ -56,7 +56,9 @@ function ToastTrigger() {
 }
 
 export const Default: Story = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- story dựng cây riêng
+     trong `render` nên không có `args` để khai, nhưng `Meta` vẫn đòi đủ props. `any`
+     nằm trong story, không vào bản dựng sản phẩm. */
   args: {} as any,
   render: () => (
     <Toast.Provider>
@@ -66,7 +68,9 @@ export const Default: Story = {
 };
 
 export const Grouping: Story = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- story dựng cây riêng
+     trong `render` nên không có `args` để khai, nhưng `Meta` vẫn đòi đủ props. `any`
+     nằm trong story, không vào bản dựng sản phẩm. */
   args: {} as any,
   render: () => (
     <Toast.Provider>
@@ -77,7 +81,9 @@ export const Grouping: Story = {
 
 function StoreTrigger() {
   const triggerCommit = () => {
-    // eslint-disable-next-line local/no-direct-set
+    /* eslint-disable-next-line local/no-direct-set -- story cần dựng sẵn một trạng thái
+       để xem, không phải thực hiện một thay đổi của người dùng. A10 nói về đường ghi
+       trong mã sản phẩm, không nói về chỗ dựng cảnh. */
     useStore.setState({
       lastCommitTimestamp: Date.now(),
       lastCommitLabel: 'Cập nhật thuộc tính',
@@ -97,7 +103,9 @@ function StoreTrigger() {
 }
 
 export const StoreIntegration: Story = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- story dựng cây riêng
+     trong `render` nên không có `args` để khai, nhưng `Meta` vẫn đòi đủ props. `any`
+     nằm trong story, không vào bản dựng sản phẩm. */
   args: {} as any,
   render: () => (
     <Toast.Provider>

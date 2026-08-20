@@ -47,7 +47,9 @@ function AnimatedProgress() {
 }
 
 export const Default: Story = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- story này dựng cây
+     riêng trong `render` nên không có `args` nào để khai, nhưng `Meta` vẫn đòi đủ props
+     của component. `any` nằm trong story, không vào bản dựng sản phẩm. */
   args: {} as any,
   render: () => <AnimatedProgress />,
 };

@@ -1,4 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components -- file này xuất hook `useToast`
+ * và đối tượng gộp `Toast` bên cạnh `ToastProvider`. Người dùng toast cần cả ba từ một
+ * chỗ; tách ra ba file để Fast Refresh giữ được state là đổi API lấy tiện nghi. */
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { cn } from '../../lib/utils';
 import { createUuid } from '../../lib/http/ids';

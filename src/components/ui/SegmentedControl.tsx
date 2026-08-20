@@ -25,7 +25,9 @@ export interface SegmentedControlProps<T extends string = string> {
 
 // ─── Logic hook ───────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line react-refresh/only-export-components
+/* eslint-disable-next-line react-refresh/only-export-components -- hook logic đứng
+   cạnh view của nó là khuôn tách logic/giao diện của mục D. Tách sang file riêng chỉ
+   để làm vừa lòng Fast Refresh thì đổi kiến trúc lấy tiện nghi lúc phát triển. */
 export function useSegmentedControl<T extends string>({
   value,
   defaultValue,

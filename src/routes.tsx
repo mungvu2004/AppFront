@@ -1,4 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components -- file này KHÔNG xuất component
+ * nào: nó xuất `router`, tức bảng route. Luật hiểu nhầm vì trong file có định nghĩa
+ * `Placeholder`. Xoá được dòng này ngay khi `Placeholder` chuyển đi nơi khác. */
 import React, { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 
