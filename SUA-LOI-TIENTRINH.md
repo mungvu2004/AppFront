@@ -43,6 +43,30 @@ Dừng ở bước "độ dài file" (mã thoát 1).
 > cấm. Script đã dựng, đã vào `pnpm verify`, và nó đang chỉ vào hai file thật.
 > **Xem QUYẾT ĐỊNH #1 bên dưới — cần người duyệt chốt trước khi vào giai đoạn B.**
 
+## Checkpoint cuối GĐ1
+
+Bốn mục xong: D1 `b598e98` · R-29 `9662528` · R-55 `3d4bf51` · R-47 `304e548`.
+
+**Một hồi quy do chính GĐ1 gây ra, đã sửa** (`R-55 sửa hồi quy`): việc gắn
+`ScreenErrorBoundary` kéo `@/lib/errors → toAppError.ts → import { ZodError } from 'zod'`
+vào gói sản phẩm. Đó là nhập **giá trị** chỉ để dùng `instanceof`, nên nó lôi cả thư viện
+zod theo: chunk JS lớn nhất 155,7 → **173,4 KiB** gzip, vỡ ngân sách 170 KiB.
+Đổi sang `import type` và giữ nhánh kiểm theo hình dạng vốn đã có sẵn cạnh `instanceof`
+→ **160,5 KiB**, đạt, còn dư 9,5 KiB. Không nới ngân sách.
+
+`pnpm verify` cuối GĐ1:
+
+```
+  đạt       typecheck
+  đạt       lint
+  đạt       test + độ phủ
+  đạt       build
+  đạt       kích thước gói
+  HỎNG      độ dài file      ← R-22, đang `hoãn`. Xem QUYẾT ĐỊNH #1.
+```
+
+Năm bước đầu đạt. Bước sáu đỏ vì đúng hai file mà R-22 chỉ ra, không phải vì hồi quy.
+
 ## Quy ước
 
 - Trạng thái nhận đúng bốn giá trị: `chưa chạy` · `đang làm` · `xong` · `hoãn (lý do)`.
