@@ -1,0 +1,84 @@
+/* eslint-disable react-refresh/only-export-components -- file này KHÔNG xuất component
+ * nào: nó chỉ xuất `router`, tức bảng route. Luật hiểu nhầm vì trong file có định
+ * nghĩa `Placeholder`. Xoá được dòng này ngay khi `Placeholder` chuyển đi nơi khác. */
+import React, { lazy } from 'react';
+import { createBrowserRouter, type RouteObject } from 'react-router-dom';
+
+import { ROUTE_PATTERNS } from './paths';
+
+// Placeholder components
+const Placeholder = ({ name }: { name: string }) => <div>{name}</div>;
+
+/** Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu. */
+const suspended = (node: React.ReactNode) => (
+  <React.Suspense fallback={<div>Loading...</div>}>{node}</React.Suspense>
+);
+
+// Lazy load 3D and canvas routes
+const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3D View" /> }));
+const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
+const RouteShare = lazy(() => import('../screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
+const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
+
+/**
+ * Bảy màn demo, và **chỉ trong bản dev**.
+ *
+ * Không phải chuyện gọn gàng. Trước lượt này `routes.tsx` chưa nơi nào import,
+ * nên Vite không dựng route nào cả. Vừa gắn `RouterProvider` là bảy màn demo —
+ * bảng chọn, design system, bốn màn demo tính năng — đi thẳng vào gói người dùng
+ * tải về: gần 50 KiB gzip điều khiển dành cho lập trình viên, đúng thứ mục B nói
+ * không được xuất hiện trên màn sản phẩm.
+ *
+ * `lazy(...)` nằm **trong** hàm này chứ không ở cấp module, và đó là điểm mấu
+ * chốt: Rollup coi một lời gọi hàm ở cấp module là có thể có tác dụng phụ nên
+ * không dám bỏ, và bảy chunk vẫn được dựng dù không route nào trỏ tới — đã đo,
+ * đúng như vậy. Nằm trong hàm thì khi `import.meta.env.DEV` bị Vite thay bằng
+ * `false`, cả hàm thành mã không ai gọi và bảy chunk biến mất cùng nó.
+ */
+function buildDevOnlyRoutes(): RouteObject[] {
+  const RouteDemoGallery = lazy(() => import('../App').then(m => ({ default: m.App })));
+  const RouteDesignSystem = lazy(() => import('../screens/DesignSystem').then(m => ({ default: m.DesignSystem })));
+  const RouteDataEntryDemo = lazy(() => import('../screens/DataEntryDemo').then(m => ({ default: m.DataEntryDemo })));
+  const RouteListReviewDemo = lazy(() => import('../screens/ListReviewDemo').then(m => ({ default: m.ListReviewDemo })));
+  const RouteShellDemo = lazy(() => import('../screens/ShellDemo').then(m => ({ default: m.ShellDemo })));
+  const RouteCanvasOverlaysDemo = lazy(() => import('../screens/CanvasOverlaysDemo').then(m => ({ default: m.CanvasOverlaysDemo })));
+  const RouteFeedbackDemo = lazy(() => import('../screens/FeedbackDemo').then(m => ({ default: m.FeedbackDemo })));
+
+  return [
+    { path: ROUTE_PATTERNS.demoGallery, element: suspended(<RouteDemoGallery />) },
+    { path: ROUTE_PATTERNS.designSystem, element: suspended(<RouteDesignSystem />) },
+    { path: ROUTE_PATTERNS.dataEntryDemo, element: suspended(<RouteDataEntryDemo />) },
+    { path: ROUTE_PATTERNS.listReviewDemo, element: suspended(<RouteListReviewDemo />) },
+    { path: ROUTE_PATTERNS.shellDemo, element: suspended(<RouteShellDemo />) },
+    { path: ROUTE_PATTERNS.canvasOverlaysDemo, element: suspended(<RouteCanvasOverlaysDemo />) },
+    { path: ROUTE_PATTERNS.feedbackDemo, element: suspended(<RouteFeedbackDemo />) },
+  ];
+}
+
+const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes() : [];
+
+export const router = createBrowserRouter([
+  ...DEV_ONLY_ROUTES,
+  { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
+  { path: ROUTE_PATTERNS.dashboard, element: <Placeholder name="dashboard" /> },
+  { path: ROUTE_PATTERNS.projectSettings, element: <Placeholder name="/projects/:id/settings" /> },
+  { path: ROUTE_PATTERNS.projectUpload, element: <Placeholder name="/projects/:id/upload" /> },
+  { path: ROUTE_PATTERNS.projectPipeline, element: <Placeholder name="/projects/:id/pipeline" /> },
+  { path: ROUTE_PATTERNS.projectScale, element: <Placeholder name="/projects/:id/scale" /> },
+  { path: ROUTE_PATTERNS.projectWalls, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.layerObjects, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.layerDimensions, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.layerGrids, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.floors, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.layerRooms, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.projectViewer, element: <Route3D /> },
+  { path: ROUTE_PATTERNS.projectRules, element: <Placeholder name="/projects/:id/rules" /> },
+  { path: ROUTE_PATTERNS.projectExport, element: <Placeholder name="/projects/:id/export" /> },
+  { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
+  { path: ROUTE_PATTERNS.adminModels, element: <Placeholder name="/admin/models" /> },
+  { path: ROUTE_PATTERNS.adminUsers, element: <Placeholder name="/admin/users" /> },
+  { path: ROUTE_PATTERNS.account, element: <Placeholder name="/account" /> },
+  { path: ROUTE_PATTERNS.billing, element: <Placeholder name="/billing" /> },
+  { path: ROUTE_PATTERNS.designSystemStates, element: <Placeholder name="/design-system/states" /> },
+  { path: ROUTE_PATTERNS.notFound, element: <Placeholder name="404" /> }
+]);

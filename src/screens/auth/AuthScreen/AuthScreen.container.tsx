@@ -56,7 +56,7 @@ import {
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { bootstrapSession, createAuthHttpClientOptions } from '@/lib/auth';
 import { createHttpClient, type Result } from '@/lib/http';
-import { ROUTES } from '@/routePaths';
+import { ROUTES } from '@/routes/paths';
 
 import viMessages from '@/i18n/vi.json';
 

@@ -410,6 +410,84 @@ describe('expectAccessible', () => {
     expect(issues[0]?.reason).toContain('offset');
   });
 
+  /**
+   * The shape `components/ui/Input` uses: a bordered box draws the ring for the
+   * input inside it, and the input switches its own outline off so there are not
+   * two rings a pixel apart.
+   */
+  it('accepts a ring an ancestor draws with focus-within', () => {
+    expect(
+      inspectAccessibility(
+        mount(`
+          <div class="focus-within:ring-2 focus-within:ring-offset-2">
+            <label for="email">Thư điện tử</label>
+            <input id="email" class="outline-none" />
+          </div>
+        `),
+      ).issues,
+    ).toEqual([]);
+  });
+
+  it('still catches a wrapper that draws a ring and forgets the offset', () => {
+    const issues = inspectAccessibility(
+      mount(`
+        <div class="focus-within:ring-2">
+          <label for="email">Thư điện tử</label>
+          <input id="email" class="outline-none" />
+        </div>
+      `),
+    ).issues;
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.reason).toContain('offset');
+  });
+
+  it('does not mistake a static ring on an ancestor for a focus ring', () => {
+    const issues = inspectAccessibility(
+      mount(`
+        <div class="ring-2 ring-offset-2">
+          <label for="email">Thư điện tử</label>
+          <input id="email" class="outline-none" />
+        </div>
+      `),
+    ).issues;
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.reason).toContain('tắt viền tiêu điểm');
+  });
+
+  /**
+   * The roving shape `components/ui/Tabs` uses: Tab steps past the whole strip in
+   * one press and the arrow keys move between tabs, so every tab but the current
+   * one carries tabindex -1 on purpose.
+   */
+  it('recognises the roving-focus shape without being told', () => {
+    expect(
+      inspectAccessibility(
+        mount(`
+          <div role="tablist" aria-label="Xác thực">
+            <button role="tab" tabindex="0" aria-selected="true">Đăng nhập</button>
+            <button role="tab" tabindex="-1" aria-selected="false">Đăng ký</button>
+          </div>
+        `),
+      ).issues,
+    ).toEqual([]);
+  });
+
+  it('still catches a roving group with no way into it', () => {
+    const issues = inspectAccessibility(
+      mount(`
+        <div role="tablist" aria-label="Xác thực">
+          <button role="tab" tabindex="-1" aria-selected="false">Đăng nhập</button>
+          <button role="tab" tabindex="-1" aria-selected="false">Đăng ký</button>
+        </div>
+      `),
+    ).issues;
+
+    expect(issues).toHaveLength(2);
+    expect(issues[0]).toMatchObject({ kind: 'unreachable' });
+  });
+
   it('measures text against its background, and says by how much it missed', () => {
     const container = mount(`
       <div style="background-color: white">

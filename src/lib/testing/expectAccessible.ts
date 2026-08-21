@@ -633,6 +633,106 @@ function hasClassToken(element: Element, token: string): boolean {
   return false;
 }
 
+/**
+ * The class an ancestor wears when it draws the ring for whatever is focused
+ * inside it.
+ *
+ * Matched exactly rather than through {@link hasClassToken}, because the variant
+ * is the whole point: a bare `ring-2` on a parent is a static border that is
+ * there all the time and says nothing about focus. Only `focus-within:` follows
+ * focus down into a descendant.
+ */
+const FOCUS_WITHIN_RING = 'focus-within:ring-2';
+
+/**
+ * Which element draws this one's focus ring — itself, or an ancestor.
+ *
+ * A text input inside a bordered box is the common case and the reason this
+ * exists: the box owns the border, so it must own the ring too, and the input
+ * carries `outline-none` precisely so there are not two rings drawn a pixel
+ * apart. Judging the input alone reads that as a ring switched off and never
+ * replaced, which is the opposite of what the markup says.
+ *
+ * @returns the element carrying the ring, or null when nothing does.
+ */
+function focusRingOwner(element: Element): Element | null {
+  if (hasClassToken(element, 'ring-2')) {
+    return element;
+  }
+
+  for (let parent = element.parentElement; parent !== null; parent = parent.parentElement) {
+    if (parent.classList.contains(FOCUS_WITHIN_RING)) {
+      return parent;
+    }
+  }
+
+  return null;
+}
+
+/** Containers whose children move under the arrow keys rather than under Tab. */
+const ROVING_CONTAINER_SELECTOR = [
+  'tablist',
+  'listbox',
+  'menu',
+  'menubar',
+  'tree',
+  'treegrid',
+  'grid',
+  'radiogroup',
+  'toolbar',
+]
+  .map((role) => `[role="${role}"]`)
+  .join(', ');
+
+/** The roles that appear as the items inside one of those containers. */
+const ROVING_ITEM_ROLES = new Set([
+  'tab',
+  'option',
+  'menuitem',
+  'menuitemcheckbox',
+  'menuitemradio',
+  'treeitem',
+  'row',
+  'gridcell',
+  'radio',
+]);
+
+/**
+ * Is this `tabindex="-1"` the roving-focus pattern rather than a control that
+ * fell out of the keyboard's reach?
+ *
+ * In a tab strip, a listbox or a tree, Tab moves past the *whole group* in one
+ * press and the arrow keys move within it — so every item except the current
+ * one is deliberately not a tab stop. {@link ROVING_FOCUS_ATTRIBUTE} is the way
+ * to say so by hand; this is the way to notice it without anyone having to.
+ *
+ * It verifies the pattern rather than assuming it. A group where *no* item
+ * carries `tabindex="0"` has no way in at all, and that is still reported — which
+ * is the bug this rule is really looking for, and the one a blanket exemption
+ * for `role="tab"` would have hidden.
+ */
+function isRovingFocusItem(element: Element): boolean {
+  const role = element.getAttribute('role');
+
+  if (role === null || !ROVING_ITEM_ROLES.has(role)) {
+    return false;
+  }
+
+  const group = element.closest(ROVING_CONTAINER_SELECTOR) ?? element.parentElement;
+
+  if (group === null) {
+    return false;
+  }
+
+  for (const peer of group.querySelectorAll(`[role="${role}"]`)) {
+    if (peer.getAttribute('tabindex') === '0') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /** Has the browser's own focus outline been switched off? */
 function suppressesOutline(element: Element): boolean {
   if (hasClassToken(element, 'outline-none')) {
@@ -765,7 +865,8 @@ export function inspectAccessibility(
       tabIndex < 0 &&
       element.matches(INTERACTIVE_SELECTOR) &&
       !isDisabled(element) &&
-      !element.hasAttribute(ROVING_FOCUS_ATTRIBUTE)
+      !element.hasAttribute(ROVING_FOCUS_ATTRIBUTE) &&
+      !isRovingFocusItem(element)
     ) {
       report(
         'unreachable',
@@ -775,7 +876,11 @@ export function inspectAccessibility(
       );
     }
 
-    if (suppressesOutline(element) && !hasClassToken(element, 'ring-2')) {
+    // The ring may be drawn by an ancestor on `focus-within:`, so the offset has
+    // to be looked for on whichever element actually draws it.
+    const ringOwner = focusRingOwner(element);
+
+    if (suppressesOutline(element) && ringOwner === null) {
       report(
         'focus-ring',
         element,
@@ -785,7 +890,7 @@ export function inspectAccessibility(
       continue;
     }
 
-    if (hasClassToken(element, 'ring-2') && !hasClassToken(element, 'ring-offset-2')) {
+    if (ringOwner !== null && !hasClassToken(ringOwner, 'ring-offset-2')) {
       report(
         'focus-ring',
         element,

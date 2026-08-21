@@ -6,17 +6,17 @@
  * — a path written at the call site is a string nothing checks, and it fails at
  * runtime, in the one environment you did not click through.
  *
- * ## Why this is not inside `src/routes.tsx`
+ * ## Why this is its own file, not part of the router
  *
- * R-65 names `src/routes.tsx` as the home for these constants, and that is where
- * they are read from — the router builds its table out of `ROUTE_PATTERNS`
- * below, and re-exports both objects, so `import { ROUTES } from '@/routes'`
- * answers. But a screen cannot import from `src/routes.tsx` itself: that module
- * lazily imports every screen, so a screen reaching back for a constant closes
- * an import cycle, and `pnpm cycles` runs `import/no-cycle` at unlimited depth
- * with dynamic imports counted. The remedy is the one the cycle gate prints in
- * its own failure message — move the shared part down to a lower module. This
- * file imports nothing at all, so nothing can cycle through it.
+ * R-65 names `src/routes.tsx` as the home for these constants, and `@/routes`
+ * still answers for them — `./index.ts` re-exports this module. But a screen
+ * cannot import the *router*: that module lazily imports every screen, so a
+ * screen reaching back for a constant closes an import cycle, and `pnpm cycles`
+ * runs `import/no-cycle` at unlimited depth with dynamic imports counted. Tried
+ * it: three cycle points. The remedy is the one the cycle gate prints in its own
+ * failure message — move the shared part down to a lower module. This file
+ * imports nothing at all, so nothing can cycle through it, and that is why
+ * **screens import `@/routes/paths`** rather than `@/routes`.
  *
  * ## Two tables, because a route is written twice
  *
@@ -41,6 +41,7 @@ export const ROUTE_PATTERNS = {
   canvasOverlaysDemo: '/demo/canvas-overlays',
   dashboard: '/',
   dataEntryDemo: '/data-entry-demo',
+  demoGallery: '/demo',
   designSystem: DESIGN_SYSTEM_ROOT,
   designSystemStates: `${DESIGN_SYSTEM_ROOT}/states`,
   feedbackDemo: '/feedback-demo',
@@ -77,6 +78,7 @@ export const ROUTES = {
   billing: ROUTE_PATTERNS.billing,
   /** Where a visitor lands when nothing more specific was asked for. */
   dashboard: ROUTE_PATTERNS.dashboard,
+  demoGallery: ROUTE_PATTERNS.demoGallery,
   designSystem: ROUTE_PATTERNS.designSystem,
   floors: ROUTE_PATTERNS.floors,
   layerDimensions: ROUTE_PATTERNS.layerDimensions,

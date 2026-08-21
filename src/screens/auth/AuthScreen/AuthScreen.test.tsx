@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import viMessages from '@/i18n/vi.json';
 import { findPositiveTabIndexes } from '@/lib/input/focusOrder';
 import { durationMs } from '@/lib/motion';
+import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -159,8 +160,8 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => AuthScreenViewProps>> = 
   collapsed: () => ({ ...baseProps(), state: 'collapsed', isCollapsed: true }),
 };
 
-describe('AuthScreenView — bảy trạng thái', () => {
-  it('dựng được cả bảy trạng thái, không trạng thái nào ra màn hình trắng', () => {
+describe('AuthScreenView — the seven states', () => {
+  it('renders all seven states, and not one of them comes out blank', () => {
     expect(() => {
       expectSevenStates(
         (scenario) => render(<AuthScreenView {...PROPS_BY_STATE[scenario.state]()} />),
@@ -169,7 +170,7 @@ describe('AuthScreenView — bảy trạng thái', () => {
     }).not.toThrow();
   });
 
-  it('ghi trạng thái hiện tại lên thuộc tính dữ liệu, không đọc thành chữ', () => {
+  it('puts the current state on a data attribute rather than reading it aloud', () => {
     for (const state of Object.keys(PROPS_BY_STATE) as SevenState[]) {
       const { container, unmount } = render(<AuthScreenView {...PROPS_BY_STATE[state]()} />);
 
@@ -178,14 +179,14 @@ describe('AuthScreenView — bảy trạng thái', () => {
     }
   });
 
-  it('bỏ hẳn biểu mẫu khi tài khoản bị vô hiệu, thay bằng một dải cảnh báo', () => {
+  it('drops the form entirely when the account is disabled, leaving a strip in its place', () => {
     render(<AuthScreenView {...PROPS_BY_STATE.forbidden()} />);
 
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.email)).toBeNull();
     expect(screen.getByRole('alert')).toHaveTextContent(AUTH_MESSAGES.errors.accountDisabled.title);
   });
 
-  it('thu gọn thì chỉ còn một câu và một nút mở lại', () => {
+  it('collapses to one sentence and a button that opens it again', () => {
     render(<AuthScreenView {...PROPS_BY_STATE.collapsed()} />);
 
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.email)).toBeNull();
@@ -197,8 +198,8 @@ describe('AuthScreenView — bảy trạng thái', () => {
 /* Wording and tokens.                                                         */
 /* -------------------------------------------------------------------------- */
 
-describe('AuthScreenView — chữ và màu', () => {
-  it('mọi chuỗi hiển thị đều là tiếng Việt có dấu', () => {
+describe('AuthScreenView — wording and colour', () => {
+  it('writes every visible string in Vietnamese, diacritics and all', () => {
     for (const state of Object.keys(PROPS_BY_STATE) as SevenState[]) {
       const { container, unmount } = render(<AuthScreenView {...PROPS_BY_STATE[state]()} />);
 
@@ -209,7 +210,7 @@ describe('AuthScreenView — chữ và màu', () => {
     }
   });
 
-  it('không có mã màu thô trong ba tệp nguồn của màn hình', () => {
+  it('holds no raw colour in any of the three source files', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/AuthScreen/AuthScreen.tsx');
       expectNoRawColor('src/screens/auth/AuthScreen/useAuthScreen.ts');
@@ -219,23 +220,52 @@ describe('AuthScreenView — chữ và màu', () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* Accessibility.                                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('AuthScreenView — accessibility', () => {
+  /**
+   * R-72, run over all seven states rather than the empty one alone.
+   *
+   * The other six are where this breaks: fields disabled mid-send, the form gone
+   * when the account is disabled, a strip standing where the inputs were. Each
+   * one is a different element tree, so each one has to hold up on its own.
+   *
+   * Contrast is not measured here. jsdom cannot resolve `var(--…)`, and
+   * `requireResolvedContrast` is left at its default of off, so this pass checks
+   * names, labels and the keyboard path. Colour is `expectNoRawColor`'s job and
+   * the token set's.
+   */
+  it('keeps every state usable by keyboard and readable by a screen reader', () => {
+    for (const state of Object.keys(PROPS_BY_STATE) as SevenState[]) {
+      const { container, unmount } = render(<AuthScreenView {...PROPS_BY_STATE[state]()} />);
+
+      expect(() => {
+        expectAccessible(container);
+      }, `state: ${state}`).not.toThrow();
+      unmount();
+    }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Keyboard.                                                                   */
 /* -------------------------------------------------------------------------- */
 
-describe('AuthScreen — bàn phím', () => {
-  it('đặt tiêu điểm vào ô đầu tiên ngay khi mở', () => {
+describe('AuthScreen — keyboard', () => {
+  it('puts focus in the first field as soon as it opens', () => {
     renderScreen();
 
     expect(document.activeElement).toBe(emailField());
   });
 
-  it('không dùng tabindex dương, nên thứ tự tiêu điểm đúng bằng thứ tự trong tài liệu', () => {
+  it('uses no positive tabindex, so tab order is document order', () => {
     const { container } = renderScreen();
 
     expect(findPositiveTabIndexes(container)).toHaveLength(0);
   });
 
-  it('Enter gửi biểu mẫu từ mọi ô, kể cả ô đánh dấu', () => {
+  it('submits on Enter from every field, the checkbox included', () => {
     const { gateway, signIn } = stubGateway();
     renderScreen({ gateway });
 
@@ -264,7 +294,7 @@ describe('AuthScreen — bàn phím', () => {
     expect(third.signIn).toHaveBeenCalledTimes(1);
   });
 
-  it('chỉ dùng Tab và Enter là đăng nhập được: ô đầu có tiêu điểm, ô sau nối tiếp, Enter gửi', () => {
+  it('signs in with Tab and Enter alone: first field focused, the rest in order, Enter sends', () => {
     const { gateway, signIn } = stubGateway();
     const { container } = renderScreen({ gateway });
 
@@ -293,8 +323,8 @@ describe('AuthScreen — bàn phím', () => {
 /* Validation.                                                                 */
 /* -------------------------------------------------------------------------- */
 
-describe('AuthScreen — kiểm tra ô', () => {
-  it('kiểm tra ô lúc rời ô, bằng câu lấy từ bó chuỗi', () => {
+describe('AuthScreen — field validation', () => {
+  it('validates a field on the way out of it, in a sentence from the bundle', () => {
     renderScreen();
 
     type(emailField(), 'thu.ha');
@@ -303,7 +333,7 @@ describe('AuthScreen — kiểm tra ô', () => {
     expect(screen.getByText(AUTH_MESSAGES.problems.emailInvalid)).toBeInTheDocument();
   });
 
-  it('bỏ lời phàn nàn ngay khi người dùng sửa lại ô đó', () => {
+  it('drops a complaint the moment that field is edited again', () => {
     renderScreen();
 
     type(emailField(), 'thu.ha');
@@ -314,7 +344,7 @@ describe('AuthScreen — kiểm tra ô', () => {
     expect(screen.queryByText(AUTH_MESSAGES.problems.emailInvalid)).toBeNull();
   });
 
-  it('không gửi khi mật khẩu ngắn hơn mức tối thiểu, và nói rõ mức đó', () => {
+  it('refuses to send a password below the minimum, and says what the minimum is', () => {
     const { gateway, signIn } = stubGateway();
     renderScreen({ gateway });
 
@@ -330,7 +360,7 @@ describe('AuthScreen — kiểm tra ô', () => {
     ).toBeInTheDocument();
   });
 
-  it('đứng ở trạng thái một phần khi đã có thư điện tử mà chưa có mật khẩu', () => {
+  it('sits in the partial state once there is an address and no password', () => {
     const { container } = renderScreen();
 
     type(emailField(), EMAIL);
@@ -344,8 +374,8 @@ describe('AuthScreen — kiểm tra ô', () => {
 /* Submitting.                                                                 */
 /* -------------------------------------------------------------------------- */
 
-describe('AuthScreen — gửi', () => {
-  it('khoá lần gửi thứ hai khi lần thứ nhất còn đang bay', () => {
+describe('AuthScreen — submitting', () => {
+  it('refuses a second submit while the first is still in flight', () => {
     const signIn = vi.fn(() => new Promise<never>(() => undefined));
     const gateway = { signIn, register: vi.fn() } as unknown as AuthGateway;
     renderScreen({ gateway });
@@ -360,7 +390,7 @@ describe('AuthScreen — gửi', () => {
     expect(signIn).toHaveBeenCalledTimes(1);
   });
 
-  it('giữ nguyên chiều rộng nút và đổi nhãn trong lúc gửi', async () => {
+  it('keeps the button width and swaps only its label while sending', async () => {
     const signIn = vi.fn(() => new Promise<never>(() => undefined));
     const gateway = { signIn, register: vi.fn() } as unknown as AuthGateway;
     renderScreen({ gateway });
@@ -378,7 +408,7 @@ describe('AuthScreen — gửi', () => {
     expect(sending).toBeDisabled();
   });
 
-  it('sai mật khẩu thì hiện dải cảnh báo trong biểu mẫu và giữ nguyên chữ đã nhập', async () => {
+  it('shows a strip inside the form on a wrong password, and keeps what was typed', async () => {
     const { gateway } = stubGateway({
       ok: false,
       error: { kind: 'http', status: UNAUTHORIZED_STATUS, retryable: false, requestId: 'req-1', raw: null },
@@ -398,7 +428,7 @@ describe('AuthScreen — gửi', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('quá nhiều lần thử thì đếm ngược và khoá nút gửi', async () => {
+  it('counts the lockout down and shuts the submit button', async () => {
     const { gateway } = stubGateway({
       ok: false,
       error: {
@@ -426,7 +456,7 @@ describe('AuthScreen — gửi', () => {
     expect(submitButton()).toBeDisabled();
   });
 
-  it('tài khoản bị vô hiệu thì chuyển sang trạng thái không có quyền', async () => {
+  it('moves to the forbidden state when the account is disabled', async () => {
     const { gateway } = stubGateway({
       ok: false,
       error: { kind: 'http', status: FORBIDDEN_STATUS, retryable: false, requestId: 'req-3', raw: null },
@@ -443,7 +473,7 @@ describe('AuthScreen — gửi', () => {
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.email)).toBeNull();
   });
 
-  it('lỗi mạng thì mượn câu của src/lib/errors chứ không tự viết', async () => {
+  it('borrows the sentence from src/lib/errors on a transport failure rather than writing one', async () => {
     const { gateway } = stubGateway({
       ok: false,
       error: { kind: 'network', retryable: true, requestId: 'req-4', raw: null },
@@ -457,7 +487,7 @@ describe('AuthScreen — gửi', () => {
     expect(await screen.findByText(viMessages.errors.network.description)).toBeInTheDocument();
   });
 
-  it('gửi xong thì nháy nhẹ rồi mới chuyển trang', async () => {
+  it('flashes once before it changes the page', async () => {
     vi.useFakeTimers();
     const onAuthenticated = vi.fn();
     const { gateway } = stubGateway();
@@ -477,7 +507,7 @@ describe('AuthScreen — gửi', () => {
     expect(onAuthenticated).toHaveBeenCalledTimes(1);
   });
 
-  it('bỏ hẳn nhịp nháy khi người dùng đã xin bớt chuyển động', async () => {
+  it('skips the flash entirely for someone who asked for less motion', async () => {
     const onAuthenticated = vi.fn();
     const { gateway } = stubGateway();
     renderScreen({ gateway, onAuthenticated, reducedMotion: true });
@@ -496,8 +526,8 @@ describe('AuthScreen — gửi', () => {
 /* Tabs.                                                                       */
 /* -------------------------------------------------------------------------- */
 
-describe('AuthScreen — đổi thẻ', () => {
-  it('giữ lại thư điện tử đã nhập khi đổi sang thẻ đăng ký', async () => {
+describe('AuthScreen — changing tab', () => {
+  it('keeps the typed address when the register tab opens', async () => {
     renderScreen();
 
     type(emailField(), EMAIL);
@@ -511,7 +541,7 @@ describe('AuthScreen — đổi thẻ', () => {
     expect(emailField().value).toBe(EMAIL);
   });
 
-  it('bỏ lời phàn nàn của thẻ cũ khi đổi thẻ', async () => {
+  it('drops the outgoing tab complaints when the tab changes', async () => {
     renderScreen();
 
     type(emailField(), 'thu.ha');
@@ -530,8 +560,8 @@ describe('AuthScreen — đổi thẻ', () => {
 /* Boundaries.                                                                 */
 /* -------------------------------------------------------------------------- */
 
-describe('AuthScreen — ranh giới tầng', () => {
-  it('không gọi mạng trực tiếp ở đâu trong màn hình', async () => {
+describe('AuthScreen — layer boundaries', () => {
+  it('reaches no network directly anywhere in the screen', async () => {
     const { readFileSync, readdirSync } = await import('node:fs');
     const directory = 'src/screens/auth/AuthScreen';
 
@@ -542,7 +572,7 @@ describe('AuthScreen — ranh giới tầng', () => {
     }
   });
 
-  it('phần giao diện không chạm tới src/api hay src/store', async () => {
+  it('keeps the view clear of src/api and src/store', async () => {
     const { readFileSync } = await import('node:fs');
     const view = readFileSync('src/screens/auth/AuthScreen/AuthScreen.tsx', 'utf8');
 

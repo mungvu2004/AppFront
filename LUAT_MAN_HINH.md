@@ -145,12 +145,19 @@ Bảy trạng thái: `Rỗng` · `Đang tải` · `Một phần` · `Lỗi` · `
 
 - **Vì sao:** Đây là hình dạng cụ thể của ca hard-code đã xảy ra một lần. Đường dẫn API
   sống ở `src/api/endpoints.ts` (R-07). Đường dẫn điều hướng lấy từ hằng `ROUTES` trong
-  `src/routes.tsx`. Chuỗi rải rác trong màn là loại lỗi chỉ lộ ra lúc chạy, và lộ ở môi
-  trường khác với môi trường bạn thử.
+  **`src/routes/paths.ts`**. Chuỗi rải rác trong màn là loại lỗi chỉ lộ ra lúc chạy, và lộ
+  ở môi trường khác với môi trường bạn thử.
+
+  > **Sửa 21-08-2026.** Bản trước ghi `src/routes.tsx`. Làm đúng thế thì tạo vòng import:
+  > router lazy-import mọi màn, màn nhập ngược hằng đường dẫn — đã thử, `pnpm cycles` ra
+  > ba điểm vòng. Nay `src/routes/` là thư mục: `paths.ts` (lá, không import gì) ·
+  > `router.tsx` · `index.ts`. **Màn nhập `@/routes/paths`**, phần vỏ nhập `@/routes`.
 - **Đúng:** `src/api/endpoints.ts` — mỗi đường dẫn là một hàm có kiểu trả về, gom trong
   `ENDPOINTS ... as const`.
 - **Sai:** `navigate('/du-an/' + id)`, `http.post('/api/v1/auth/login', ...)`.
-- **Kiểm bằng:** `rg "['\"\`](/|https?://)" src/screens` → phải rỗng.
+- **Kiểm bằng:** `rg "['\"\`](/|https?://)" src/screens` → phải rỗng. Lệnh này quét cả
+  chú thích, nên đọc kết quả phải bỏ qua dòng nằm trong `/* */` và `//`; thứ bị cấm là
+  đường dẫn trong **mã chạy được**, không phải trong câu văn giải thích.
 - **Mức:** BẮT BUỘC
 
 ---
@@ -317,9 +324,15 @@ R-58 áp ở đây: **cấm báo "đạt" cho bước chưa chạy.**
 
 ---
 
-## Phần 3 — Luật ESLint thứ tám
+## Phần 3 — Luật ESLint thứ tám ✅ ĐÃ CÀI (21-08-2026)
 
-R-60 hiện không có gì thực thi. Chép khuôn `no-fetch-outside-http` đã có sẵn.
+Đã có ở `eslint-rules/no-data-layer-in-view.js`, khai trong `configs/project.js`, mức
+`error`, **0 vi phạm nên không phải mở sổ nợ**. Đã thử bằng file mồi: bắt cả bốn dạng —
+alias `@/api`, đường dẫn tương đối, `import()` động, và `export * from`. Bỏ qua
+`import type` (bị xoá lúc biên dịch nên không kéo được gì vào gói) và ba file
+`*.container.tsx` · `*.test.tsx` · `*.stories.tsx`.
+
+Đặc tả gốc giữ lại bên dưới để đối chiếu.
 
 **Tên:** `local/no-data-layer-in-view`
 **Áp cho:** `src/screens/**/*.tsx`, **trừ** `*.container.tsx`, `*.test.tsx`, `*.stories.tsx`
@@ -346,7 +359,7 @@ Thay `<area>/<Name>` rồi chạy. Dán nguyên kết quả vào báo cáo G6.
 SCREEN=src/screens/<area>/<Name>
 
 echo "R-59 sáu file:";        ls $SCREEN
-echo "R-60 view chạm dữ liệu:"; rg "from '@/(api|store|domain|lib/http)" $SCREEN --glob '!*.container.tsx' --glob '!*.test.tsx' --glob '!*.stories.tsx'
+echo "R-60 view chạm dữ liệu:"; rg "from '@/(api|store|domain|lib/http)" $SCREEN --glob '*.tsx' --glob '!*.container.tsx' --glob '!*.test.tsx' --glob '!*.stories.tsx'
 echo "R-62 ranh giới lỗi:";   rg "<ScreenErrorBoundary" $SCREEN
 echo "R-63 bảy trạng thái:";  rg "expectSevenStates" $SCREEN
 echo "R-64 tự viết loading:"; rg "useState.*([Ll]oading|error)" $SCREEN
@@ -361,6 +374,10 @@ pnpm verify
 
 Sáu lệnh đầu phải **rỗng** (trừ `ls`, `<ScreenErrorBoundary` và `expectSevenStates` — ba
 lệnh đó phải **có** kết quả).
+
+> **Sửa 21-08-2026.** Lệnh R-60 thêm `--glob '*.tsx'`. Bản trước quét cả `.ts` nên báo
+> nhầm `use<Name>.ts` — mà R-60 nói rõ view là `<Name>.tsx`, còn hook thì **được** biết
+> dữ liệu đến từ đâu; đó chính là nửa mà mục D tách ra để nó được phép biết.
 
 ---
 
