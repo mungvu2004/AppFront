@@ -9,7 +9,7 @@
  * Giờ có: `.eslintrc.cjs` chỉ `extends: ['plugin:local/project']`, còn toàn bộ nội
  * dung nằm ở đây, chia làm ba tầng, đọc từ trên xuống:
  *
- *   1. LUẬT — bảy rule nội bộ ép các bất biến của CLAUDE.md mục A/B.
+ *   1. LUẬT — tám rule nội bộ ép các bất biến của CLAUDE.md mục A/B.
  *   2. RANH GIỚI — ai được import ai (CLAUDE.md mục 0.4).
  *   3. SỔ NỢ — file cũ tạm được miễn, mỗi mục có lý do và cách trả nợ.
  *
@@ -47,7 +47,7 @@ module.exports = {
   plugins: ['local'],
 
   // -- 1. LUẬT ---------------------------------------------------------------
-  // Bảy rule, mỗi rule ép một bất biến, tất cả ở mức 'error'. Không rule nào ở
+  // Tám rule, mỗi rule ép một bất biến, tất cả ở mức 'error'. Không rule nào ở
   // mức 'warn': `pnpm lint` chạy với `--max-warnings 0`, nên 'warn' chỉ là
   // 'error' viết vòng, mà viết vòng thì người đọc tưởng nó không quan trọng.
   rules: {
@@ -84,6 +84,13 @@ module.exports = {
     // luật này chặn là chuyện THIẾU một lời gọi useReducedMotion, và thứ thiếu
     // thì không hiện ra trong diff — nên nó phải đóng bằng cấu trúc.
     'local/no-framer-outside-motion': 'error',
+
+    // R-60: `<Name>.tsx` của một màn là view thuần — không import src/api,
+    // src/store, src/domain hay src/lib/http. Luật tự khoanh phạm vi (chỉ file
+    // view trong `src/screens`, bỏ container/test/stories), nên khai một dòng ở
+    // đây là đủ. Lỗ hổng nó chặn giống hệt R-39: thứ THIẾU — một view test được
+    // chỉ từ props — không hiện ra trong diff, nên phải đóng bằng cấu trúc.
+    'local/no-data-layer-in-view': 'error',
   },
 
   overrides: [

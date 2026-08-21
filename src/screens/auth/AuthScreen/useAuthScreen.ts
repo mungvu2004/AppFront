@@ -12,8 +12,9 @@
  * - **The transport is a port, not an import.** {@link AuthGateway} is two
  *   async functions handed in by the container. That is what lets the whole
  *   screen — including its failure paths — be tested without a network, a
- *   router or a configured session, and it is why nothing in this file imports
- *   `src/api`.
+ *   router or a configured session. The schemas below come from `src/api`
+ *   because a *shape* is a value with no behaviour; a *client* is not, and that
+ *   is the one this file never reaches for.
  * - **Sentences come from the bundle, never from here.** Field complaints and
  *   the three auth-specific failures are read out of `src/i18n/vi.json` under
  *   `auth.*`; anything else that can go wrong on the wire is handed to
@@ -23,25 +24,38 @@
  *   cleared on failure and not cleared when the tab changes. Retyping an address
  *   because the server said no is the failure this screen exists to avoid.
  *
- * ## What is missing upstream
+ * ## Where the field rules live
  *
- * The brief points at a sign-in function in `src/lib/auth` and login/register
- * schemas in `src/api/schemas`. Neither exists in this repository yet, and both
- * paths are ones this change is not allowed to write. So {@link SignInSchema}
- * and {@link RegisterSchema} are declared here and the credential call is a
- * port. Both are shaped to move: when the shared versions land, this file
- * re-exports them and deletes its own.
+ * In `src/api/schemas`, with every other schema (R-61, R-69). This file used to
+ * declare its own, back when that module had no credential schemas to call; it
+ * re-exports them now so the screen's public surface is unchanged, and holds
+ * none of its own. What stays here is the *mapping* from a failed check to the
+ * sentence a person reads, because the shape belongs to the data layer and the
+ * wording belongs to `vi.json`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { z } from 'zod';
+import type { z } from 'zod';
 
+import {
+  EmailSchema,
+  FullNameSchema,
+  MIN_PASSWORD_LENGTH,
+  PasswordSchema,
+  RegisterSchema,
+  SignInSchema,
+  type RegisterInput,
+  type SignInInput,
+} from '@/api/schemas';
 import { describeError, toAppError } from '@/lib/errors';
 import type { Result } from '@/lib/http';
 import { durationMs } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import viMessages from '@/i18n/vi.json';
+
+export { MIN_PASSWORD_LENGTH, RegisterSchema, SignInSchema };
+export type { RegisterInput, SignInInput };
 
 /* -------------------------------------------------------------------------- */
 /* Wording.                                                                    */
@@ -60,52 +74,6 @@ const AUTH_MESSAGES = viMessages.auth;
 function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => values[key] ?? whole);
 }
-
-/* -------------------------------------------------------------------------- */
-/* Field rules.                                                                */
-/* -------------------------------------------------------------------------- */
-
-/** Shortest password the form will send. Anything shorter is a typo, not an attempt. */
-export const MIN_PASSWORD_LENGTH = 8;
-
-const emailSchema = z
-  .string()
-  .min(1, AUTH_MESSAGES.problems.emailRequired)
-  .email(AUTH_MESSAGES.problems.emailInvalid);
-
-const passwordSchema = z
-  .string()
-  .min(1, AUTH_MESSAGES.problems.passwordRequired)
-  .min(
-    MIN_PASSWORD_LENGTH,
-    fillTemplate(AUTH_MESSAGES.problems.passwordTooShort, {
-      count: String(MIN_PASSWORD_LENGTH),
-    }),
-  );
-
-const fullNameSchema = z.string().trim().min(1, AUTH_MESSAGES.problems.fullNameRequired);
-
-/**
- * What `/login` posts.
- *
- * Belongs in `src/api/schemas` beside `UserSchema`; see the note at the top of
- * this file for why it is here instead.
- */
-export const SignInSchema = z
-  .object({
-    email: emailSchema,
-    password: passwordSchema,
-    rememberMe: z.boolean(),
-  })
-  .strict();
-
-/** What the register tab posts. Same two credentials, plus a name to greet. */
-export const RegisterSchema = SignInSchema.extend({
-  fullName: fullNameSchema,
-}).strict();
-
-export type SignInInput = z.infer<typeof SignInSchema>;
-export type RegisterInput = z.infer<typeof RegisterSchema>;
 
 /* -------------------------------------------------------------------------- */
 /* The port.                                                                   */
@@ -294,11 +262,58 @@ function noticeFor(failure: AuthFailure, secondsLeft: number): AuthNotice {
 /* Validation.                                                                 */
 /* -------------------------------------------------------------------------- */
 
-/** The first complaint a schema has about one value, or nothing. */
-function firstProblem(schema: z.ZodType<unknown>, value: unknown): string | undefined {
-  const parsed = schema.safeParse(value);
+/**
+ * What each field says when it is simply not filled in.
+ *
+ * Three of the four complaints this screen can make are this one, said about a
+ * different box.
+ */
+const MISSING_BY_FIELD: Readonly<Record<AuthField, string>> = {
+  email: AUTH_MESSAGES.problems.emailRequired,
+  password: AUTH_MESSAGES.problems.passwordRequired,
+  fullName: AUTH_MESSAGES.problems.fullNameRequired,
+};
 
-  return parsed.success ? undefined : parsed.error.issues[0]?.message;
+/**
+ * A failed check, as a sentence.
+ *
+ * The schemas in `src/api/schemas` carry no messages — they describe a shape,
+ * and a shape has no language. This is where a shape that did not hold becomes
+ * something a person can act on, and the two cases worth telling apart from
+ * "chưa nhập" are the only two the schemas can produce:
+ *
+ * - `invalid_string`, which only `EmailSchema` can raise, and only for the
+ *   address format.
+ * - `too_small` at exactly {@link MIN_PASSWORD_LENGTH}, which is the password
+ *   being short rather than absent. An empty box raises `too_small` too, at a
+ *   minimum of one, and falls through to the missing sentence — which is why
+ *   the `.min(1)` in `PasswordSchema` is declared before the `.min(8)`.
+ */
+function sentenceFor(field: AuthField, issue: z.ZodIssue): string {
+  if (issue.code === 'invalid_string') {
+    return AUTH_MESSAGES.problems.emailInvalid;
+  }
+
+  if (issue.code === 'too_small' && issue.minimum === MIN_PASSWORD_LENGTH) {
+    return fillTemplate(AUTH_MESSAGES.problems.passwordTooShort, {
+      count: String(MIN_PASSWORD_LENGTH),
+    });
+  }
+
+  return MISSING_BY_FIELD[field];
+}
+
+/** The first complaint a schema has about one value, or nothing. */
+function firstProblem(field: AuthField, value: unknown): string | undefined {
+  const parsed = SCHEMA_BY_FIELD[field].safeParse(value);
+
+  if (parsed.success) {
+    return undefined;
+  }
+
+  const issue = parsed.error.issues[0];
+
+  return issue === undefined ? undefined : sentenceFor(field, issue);
 }
 
 /** Which fields the open tab asks for. */
@@ -307,9 +322,9 @@ function fieldsOf(tab: AuthTab): readonly AuthField[] {
 }
 
 const SCHEMA_BY_FIELD: Readonly<Record<AuthField, z.ZodType<unknown>>> = {
-  email: emailSchema,
-  password: passwordSchema,
-  fullName: fullNameSchema,
+  email: EmailSchema,
+  password: PasswordSchema,
+  fullName: FullNameSchema,
 };
 
 function valueOf(values: AuthValues, field: AuthField): string {
@@ -457,7 +472,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   }, []);
 
   const blurField = useCallback((field: AuthField) => {
-    const problem = firstProblem(SCHEMA_BY_FIELD[field], valueOf(valuesRef.current, field));
+    const problem = firstProblem(field, valueOf(valuesRef.current, field));
 
     setProblems((current) => {
       if (problem === undefined) {
@@ -508,7 +523,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     const found: Partial<Record<AuthField, string>> = {};
 
     for (const field of fieldsOf(tab)) {
-      const problem = firstProblem(SCHEMA_BY_FIELD[field], valueOf(current, field));
+      const problem = firstProblem(field, valueOf(current, field));
 
       if (problem !== undefined) {
         found[field] = problem;

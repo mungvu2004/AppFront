@@ -136,6 +136,19 @@ export const createMockApiClient = (): ApiClient => {
   const uploads = new Map<string, Progress>();
 
   return {
+    /**
+     * Accepts whatever it is given, like every other group in this file.
+     *
+     * A mock that refused some passwords would be modelling a policy no test
+     * here asserts, and the screen's own failure paths are driven through its
+     * gateway port instead — see `AuthScreen.test.tsx`. `undefined` rather than
+     * a token because the real client returns none either: the session arrives
+     * through `bootstrapSession()`, not through this response.
+     */
+    auth: {
+      register: async () => ok(undefined),
+      signIn: async () => ok(undefined),
+    },
     drawings: {
       complete: async ({ body, projectId }) => {
         const completed = makeProgress({ id: body.uploadId, progressPercent: 100, status: 'completed' });

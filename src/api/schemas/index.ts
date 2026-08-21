@@ -29,6 +29,68 @@ const wireUserRoleSchema = z.enum(['admin', 'engineer', 'viewer']);
 const wireProgressStatusSchema = z.enum(['pending', 'running', 'completed', 'failed']);
 const wireProjectStatusSchema = z.enum(['draft', 'processing', 'approved', 'error']);
 
+/* -------------------------------------------------------------------------- */
+/* Credentials.                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What `/auth/login` and `/auth/register` post.
+ *
+ * These are the only schemas in this file that describe something going *out*.
+ * Everything below decodes a wire payload the server sent; these two check a
+ * form before it is allowed to become a request, which is the same job done in
+ * the other direction — R-08 in both cases.
+ *
+ * **They carry no messages.** Every other rule in this file is a shape, and a
+ * shape is all these are too: `src/api` owns what a valid address looks like,
+ * `src/i18n/vi.json` owns the sentence a person reads when theirs is not one.
+ * The screen maps an issue back to its sentence — see `useAuthScreen.ts` — so a
+ * reworded complaint never means touching the data layer, and this module never
+ * ends up holding Vietnamese prose it has no way to test.
+ *
+ * The field schemas are exported one by one because validation happens per
+ * field, on the way out of it, long before there is a whole form to check.
+ */
+
+/** Shortest password the form will send. Anything shorter is a typo, not an attempt. */
+export const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * `.min(1)` before `.email()` on purpose.
+ *
+ * zod collects every failing check on a string rather than stopping at the
+ * first, and reports them in declaration order — so an empty box yields
+ * "chưa nhập" ahead of "sai dạng", which is the complaint worth showing. The
+ * order of these two lines is load-bearing.
+ */
+export const EmailSchema = z.string().min(1).email();
+
+/** Same ordering, same reason: empty reads as missing, four characters reads as short. */
+export const PasswordSchema = z.string().min(1).min(MIN_PASSWORD_LENGTH);
+
+/** Trimmed first, so a name of three spaces is missing rather than present. */
+export const FullNameSchema = z.string().trim().min(1);
+
+export const SignInSchema = z
+  .object({
+    email: EmailSchema,
+    password: PasswordSchema,
+    rememberMe: z.boolean(),
+  })
+  .strict();
+
+/** The register tab posts the same two credentials, plus a name to greet. */
+export const RegisterSchema = SignInSchema.extend({
+  fullName: FullNameSchema,
+}).strict();
+
+export type SignInInput = z.infer<typeof SignInSchema>;
+export type RegisterInput = z.infer<typeof RegisterSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Resources.                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export const UserSchema = z
   .object({
     avatarUrl: z.string().url().optional(),

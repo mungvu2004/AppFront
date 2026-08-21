@@ -2,8 +2,30 @@ const PROJECTS_ROOT = '/projects';
 const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
 const FEATURE_FLAGS_ROOT = '/feature-flags';
+const AUTH_ROOT = '/auth';
+
+/**
+ * Where the API lives when the build does not say.
+ *
+ * `createHttpClient` resolves each path with `new URL(path, baseUrl)`, which
+ * needs an absolute base — so a caller with no `VITE_API_BASE_URL` resolves this
+ * against the page's own origin rather than passing `/api` through as-is. It
+ * sits here because it is the same kind of thing as the paths below: API
+ * routing, owned by `src/api`, not retyped at each call site (R-07, R-65).
+ */
+export const API_BASE_PATH = '/api';
 
 export const ENDPOINTS = {
+  /**
+   * The credential exchange, and the only two paths a signed-out visitor posts to.
+   *
+   * Flat strings rather than functions because neither takes a parameter: the
+   * address and password travel in the body, never in the path.
+   */
+  auth: {
+    login: `${AUTH_ROOT}/login`,
+    register: `${AUTH_ROOT}/register`,
+  },
   drawings: {
     chunk: (projectId: string, uploadId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/chunks`,

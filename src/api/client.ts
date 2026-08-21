@@ -20,9 +20,11 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
+import type { RegisterInput, SignInInput } from './schemas';
 import { decode, safeParseList } from './schemas/decode';
 
 export type { Drawing, Floor, Progress, Project, User, Version } from './contracts';
+export type { RegisterInput, SignInInput } from './schemas';
 
 export type ApiError = HttpError | AppError;
 export type ApiResult<T> = Result<T, ApiError>;
@@ -54,6 +56,14 @@ export interface DeleteProjectInput extends WriteRequestOptions {
 
 export interface ReadProjectInput extends RequestOptions {
   projectId: string;
+}
+
+export interface SignInApiInput extends WriteRequestOptions {
+  body: SignInInput;
+}
+
+export interface RegisterApiInput extends WriteRequestOptions {
+  body: RegisterInput;
 }
 
 export interface FloorWriteBody extends Omit<FloorPayload, 'elevationMm' | 'heightMm' | 'name' | 'order'> {
@@ -170,7 +180,30 @@ export interface SpatialApi {
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
 }
 
+/**
+ * The credential exchange.
+ *
+ * Two things make this group unlike every other one in this file.
+ *
+ * **It is the only group a signed-out caller uses.** Everything else needs a
+ * session to be worth calling; these two are how one starts.
+ *
+ * **It decodes nothing, and that is deliberate rather than unfinished.** The
+ * session in this application is refresh-cookie based — `src/lib/auth` holds the
+ * access token, renews it and hands it to the transport, and it obtains one by
+ * calling the refresh path, not by reading a login response. So a successful
+ * post here means "the server accepted these credentials and set the cookie";
+ * turning that into a session is `bootstrapSession()`'s job, one layer up. There
+ * is no token in the body for this module to model, which is why the result is
+ * `void` rather than a schema nobody could write yet.
+ */
+export interface AuthApi {
+  register(input: RegisterApiInput): Promise<ApiResult<void>>;
+  signIn(input: SignInApiInput): Promise<ApiResult<void>>;
+}
+
 export interface ApiClient {
+  auth: AuthApi;
   drawings: DrawingsApi;
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
@@ -231,7 +264,30 @@ const callPatch = async <T, TBody>(
   options: WriteRequestOptions,
 ): Promise<Result<T, HttpError>> => http.patch<T, TBody>(path, { body, ...toRequestOptions(options) });
 
+/**
+ * A post whose only interesting answer is whether it worked.
+ *
+ * `decodeSingle` cannot be reused here: it needs a schema, and there is nothing
+ * in either response this client models. Discarding the body keeps that explicit
+ * — the alternative is `ApiResult<unknown>`, which invites a caller to reach
+ * into a payload nothing has validated.
+ */
+const postWithoutBody = async <TBody>(
+  http: HttpClient,
+  path: string,
+  body: TBody,
+  options: WriteRequestOptions,
+): Promise<ApiResult<void>> => {
+  const result = await callPost<unknown, TBody>(http, path, body, options);
+
+  return result.ok ? { ok: true, data: undefined } : asApiResult(result);
+};
+
 export const createApiClient = (http: HttpClient): ApiClient => ({
+  auth: {
+    register: async (input) => postWithoutBody(http, ENDPOINTS.auth.register, input.body, input),
+    signIn: async (input) => postWithoutBody(http, ENDPOINTS.auth.login, input.body, input),
+  },
   drawings: {
     complete: async (input) => {
       const { body, projectId } = input;

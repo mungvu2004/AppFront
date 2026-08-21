@@ -1,0 +1,99 @@
+/**
+ * Every URL the application has, in one table. (R-65, R-66)
+ *
+ * The counterpart to `src/api/endpoints.ts`: that file owns where the *server*
+ * lives, this one owns where the *screens* live. Both exist for the same reason
+ * — a path written at the call site is a string nothing checks, and it fails at
+ * runtime, in the one environment you did not click through.
+ *
+ * ## Why this is not inside `src/routes.tsx`
+ *
+ * R-65 names `src/routes.tsx` as the home for these constants, and that is where
+ * they are read from — the router builds its table out of `ROUTE_PATTERNS`
+ * below, and re-exports both objects, so `import { ROUTES } from '@/routes'`
+ * answers. But a screen cannot import from `src/routes.tsx` itself: that module
+ * lazily imports every screen, so a screen reaching back for a constant closes
+ * an import cycle, and `pnpm cycles` runs `import/no-cycle` at unlimited depth
+ * with dynamic imports counted. The remedy is the one the cycle gate prints in
+ * its own failure message — move the shared part down to a lower module. This
+ * file imports nothing at all, so nothing can cycle through it.
+ *
+ * ## Two tables, because a route is written twice
+ *
+ * `ROUTE_PATTERNS` is what `createBrowserRouter` registers: `:id` is a hole the
+ * router fills. `ROUTES` is what `navigate()` is given: the hole is already
+ * filled. Keeping them apart means a screen cannot accidentally navigate to the
+ * literal string `/projects/:id/export`, which renders a page that looks almost
+ * right and is entirely wrong.
+ */
+
+const PROJECTS_ROOT = '/projects';
+const LAYERS_ROOT = '/layers';
+const ADMIN_ROOT = '/admin';
+const DESIGN_SYSTEM_ROOT = '/design-system';
+
+/** What `createBrowserRouter` registers. `:id` and `:floorId` are the router's holes. */
+export const ROUTE_PATTERNS = {
+  account: '/account',
+  adminModels: `${ADMIN_ROOT}/models`,
+  adminUsers: `${ADMIN_ROOT}/users`,
+  billing: '/billing',
+  canvasOverlaysDemo: '/demo/canvas-overlays',
+  dashboard: '/',
+  dataEntryDemo: '/data-entry-demo',
+  designSystem: DESIGN_SYSTEM_ROOT,
+  designSystemStates: `${DESIGN_SYSTEM_ROOT}/states`,
+  feedbackDemo: '/feedback-demo',
+  floors: '/floors',
+  layerDimensions: `${LAYERS_ROOT}/dimensions`,
+  layerGrids: `${LAYERS_ROOT}/grids`,
+  layerObjects: `${LAYERS_ROOT}/objects`,
+  layerRooms: `${LAYERS_ROOT}/rooms`,
+  listReviewDemo: '/list-review-demo',
+  login: '/login',
+  notFound: '*',
+  projectExport: `${PROJECTS_ROOT}/:id/export`,
+  projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
+  projectRules: `${PROJECTS_ROOT}/:id/rules`,
+  projectScale: `${PROJECTS_ROOT}/:id/scale`,
+  projectSettings: `${PROJECTS_ROOT}/:id/settings`,
+  projectShare: `${PROJECTS_ROOT}/:id/share`,
+  projectUpload: `${PROJECTS_ROOT}/:id/upload`,
+  projectViewer: `${PROJECTS_ROOT}/:id/3d`,
+  projectWalls: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/walls`,
+  shellDemo: '/shell-demo',
+} as const;
+
+/**
+ * What `navigate()` is given.
+ *
+ * Parameterised routes are functions, exactly as in `ENDPOINTS` — a function
+ * cannot be handed to `navigate` by mistake, whereas a template string can.
+ */
+export const ROUTES = {
+  account: ROUTE_PATTERNS.account,
+  adminModels: ROUTE_PATTERNS.adminModels,
+  adminUsers: ROUTE_PATTERNS.adminUsers,
+  billing: ROUTE_PATTERNS.billing,
+  /** Where a visitor lands when nothing more specific was asked for. */
+  dashboard: ROUTE_PATTERNS.dashboard,
+  designSystem: ROUTE_PATTERNS.designSystem,
+  floors: ROUTE_PATTERNS.floors,
+  layerDimensions: ROUTE_PATTERNS.layerDimensions,
+  layerGrids: ROUTE_PATTERNS.layerGrids,
+  layerObjects: ROUTE_PATTERNS.layerObjects,
+  layerRooms: ROUTE_PATTERNS.layerRooms,
+  login: ROUTE_PATTERNS.login,
+  project: {
+    export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
+    pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
+    rules: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rules`,
+    scale: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/scale`,
+    settings: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
+    share: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/share`,
+    upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,
+    viewer: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d`,
+    walls: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,
+  },
+} as const;
