@@ -93,6 +93,15 @@ export { createMaterials, disposeMaterials, type SceneMaterials, type SurfaceMat
 export { concatGeometries, isBatchable, mergeStatic, type MergeReport } from './merge';
 export { MAX_PIXEL_RATIO, mountPresentation, type PresentationHandle, type PresentationOptions } from './mount';
 export {
+  bakeVertexOcclusion,
+  boxOcclusion,
+  ensureWhiteVertexColors,
+  meshOccluders,
+  OCCLUSION_REACH,
+  occlusionToShade,
+  type Occluder,
+} from './occlusion';
+export {
   documentTokenReader,
   PALETTE_TOKENS,
   readPalette,
@@ -136,13 +145,17 @@ export {
 } from './plan';
 export { loadPlan, type PlanLoaderOptions } from './planLoader';
 export { watchPresence, type PresenceHandle, type PresenceReporter } from './presence';
+export { boardCells, createReliefTexture, gridCells, heightField, normalsFromHeights, RELIEF_PX } from './relief';
+export { fitTrim, roomedSides, skirtingRuns, type TrimReport } from './trim';
 export {
   contactShadowFalloff,
   createContactShadowTexture,
   createDeckingTexture,
+  createEdgeShadeTexture,
   createLightPoolTexture,
   createMosaicTexture,
   createPlankTexture,
   createTileTexture,
+  edgeShadeFalloff,
   lightPoolFalloff,
 } from './textures';

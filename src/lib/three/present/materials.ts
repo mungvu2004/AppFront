@@ -21,6 +21,11 @@
  * white it buys nothing anyone can see. The walls are most of the pixels, and
  * the difference is a fifth of the frame on an integrated GPU. Anything with
  * a sheen — floors, metal, porcelain, glass — stays standard.
+ *
+ * Every lit surface but glass multiplies by its vertex colour: that is where
+ * `occlusion.ts` writes the baked ambient occlusion, and a geometry with no
+ * such attribute draws black, so `dressing.ts` gives the built parts a white
+ * one and the merge pass carries the attribute into every batch.
  */
 
 import {
@@ -29,14 +34,17 @@ import {
   MeshBasicMaterial,
   MeshLambertMaterial,
   MeshStandardMaterial,
+  Vector2,
   type Color,
   type Texture,
 } from 'three';
 
 import type { ScenePalette } from './palette';
+import { boardCells, createReliefTexture, gridCells } from './relief';
 import {
   createContactShadowTexture,
   createDeckingTexture,
+  createEdgeShadeTexture,
   createLightPoolTexture,
   createMosaicTexture,
   createPlankTexture,
@@ -53,7 +61,7 @@ export interface SurfaceMaterials {
   /** The outside face of an external wall: rendered grey, so the box reads as a box. */
   readonly exterior: MeshLambertMaterial;
   /** Painted joinery — doors, frames, fitted wardrobes, balcony rails. */
-  readonly paint: MeshStandardMaterial;
+  readonly paint: MeshLambertMaterial;
   readonly cut: MeshLambertMaterial;
   readonly woodFloor: MeshStandardMaterial;
   readonly tileFloor: MeshStandardMaterial;
@@ -87,6 +95,8 @@ export interface SceneMaterials extends SurfaceMaterials {
    * additively so it brightens whatever finish is there; `null` without a canvas.
    */
   readonly lightPool: MeshBasicMaterial | null;
+  /** The dark strip a floor keeps along the foot of a wall; `null` without a canvas. */
+  readonly edgeShade: MeshBasicMaterial | null;
   readonly textures: readonly Texture[];
 }
 
@@ -103,16 +113,29 @@ const CONTACT_SHADOW_OPACITY = 0.42;
 /** How much a drawn lamp brightens the centre of its pool. */
 const LIGHT_POOL_OPACITY = 1;
 
+/** How dark the floor gets right at the foot of a wall. */
+const EDGE_SHADE_OPACITY = 0.38;
+
+/** How strongly a floor's relief bends the light at its joints. */
+const RELIEF_SCALE = 0.7;
+
+/** The board and tile layouts the colour textures paint, for the relief to match. */
+const PLANK_LAYOUT = { rows: 6, seed: 1 } as const;
+const DECKING_LAYOUT = { rows: 8, seed: 5 } as const;
+const TILE_COLUMNS = 3;
+const MOSAIC_COLUMNS = 8;
+
 /** A diffuse-only surface: nothing to reflect, so nothing spent reflecting. */
-const matte = (color: Color): MeshLambertMaterial => new MeshLambertMaterial({ color });
+const matte = (color: Color): MeshLambertMaterial => new MeshLambertMaterial({ color, vertexColors: true });
 
 /** A dielectric with a sheen the environment shows in. */
 const satin = (color: Color, roughness: number): MeshStandardMaterial =>
-  new MeshStandardMaterial({ color, roughness, metalness: 0 });
+  new MeshStandardMaterial({ color, roughness, metalness: 0, vertexColors: true });
 
-/** A floor material: the texture when the canvas could draw one, a flat tint otherwise. */
+/** A floor material: the texture and its relief when the canvas could draw them, a flat tint otherwise. */
 function floorMaterial(
   map: Texture | null,
+  relief: Texture | null,
   tintWithMap: Color,
   tintWithout: Color,
   roughness: number,
@@ -121,7 +144,9 @@ function floorMaterial(
     color: map === null ? tintWithout : tintWithMap,
     roughness,
     metalness: 0,
+    vertexColors: true,
     ...(map === null ? {} : { map }),
+    ...(relief === null ? {} : { normalMap: relief, normalScale: new Vector2(RELIEF_SCALE, RELIEF_SCALE) }),
   });
 }
 
@@ -133,17 +158,22 @@ export function createMaterials(palette: ScenePalette): SceneMaterials {
   const mosaicMap = createMosaicTexture(palette);
   const shadowMap = createContactShadowTexture(palette);
   const poolMap = createLightPoolTexture(palette);
+  const edgeMap = createEdgeShadeTexture(palette);
+  const plankRelief = createReliefTexture(boardCells(PLANK_LAYOUT.rows, PLANK_LAYOUT.seed));
+  const deckingRelief = createReliefTexture(boardCells(DECKING_LAYOUT.rows, DECKING_LAYOUT.seed));
+  const tileRelief = createReliefTexture(gridCells(TILE_COLUMNS));
+  const mosaicRelief = createReliefTexture(gridCells(MOSAIC_COLUMNS));
 
   const surfaces: SurfaceMaterials = {
     plaster: matte(palette.plaster),
     exterior: matte(palette.exterior),
-    paint: satin(palette.plaster, 0.5),
+    paint: matte(palette.plaster),
     cut: matte(palette.cut),
     // Lacquered parquet: low enough roughness to catch the lamps in the boards.
-    woodFloor: floorMaterial(plankMap, palette.plaster, palette.wood, 0.4),
-    decking: floorMaterial(deckingMap, palette.plaster, palette.decking, 0.85),
-    tileFloor: floorMaterial(tileMap, palette.plaster, palette.tile, 0.22),
-    mosaicFloor: floorMaterial(mosaicMap, palette.plaster, palette.mosaic, 0.3),
+    woodFloor: floorMaterial(plankMap, plankRelief, palette.plaster, palette.wood, 0.4),
+    decking: floorMaterial(deckingMap, deckingRelief, palette.plaster, palette.decking, 0.85),
+    tileFloor: floorMaterial(tileMap, tileRelief, palette.plaster, palette.tile, 0.22),
+    mosaicFloor: floorMaterial(mosaicMap, mosaicRelief, palette.plaster, palette.mosaic, 0.3),
     wood: satin(palette.wood, 0.5),
     woodDark: satin(palette.woodDark, 0.45),
     fabric: matte(palette.fabric),
@@ -151,10 +181,16 @@ export function createMaterials(palette: ScenePalette): SceneMaterials {
     accent: matte(palette.ochre),
     linen: matte(palette.plaster),
     stone: satin(palette.stone, 0.25),
-    // Brushed rather than mirror: with the backdrop dark, a shinier metal would
-    // reflect nothing but the environment's few bright patches.
-    metal: new MeshStandardMaterial({ color: palette.metal, roughness: 0.45, metalness: 0.5 }),
-    mirror: new MeshStandardMaterial({ color: palette.plaster, roughness: 0.04, metalness: 1 }),
+    // Polished enough to catch the studio's panels on a handle or a tap, not
+    // so mirror-like that a dark backdrop turns it black.
+    metal: new MeshStandardMaterial({
+      color: palette.metal,
+      roughness: 0.3,
+      metalness: 0.8,
+      envMapIntensity: 1.6,
+      vertexColors: true,
+    }),
+    mirror: new MeshStandardMaterial({ color: palette.plaster, roughness: 0.04, metalness: 1, vertexColors: true }),
     porcelain: satin(palette.plaster, 0.15),
     foliage: matte(palette.foliage),
     clay: matte(palette.clay),
@@ -162,6 +198,7 @@ export function createMaterials(palette: ScenePalette): SceneMaterials {
       color: palette.glass,
       roughness: 0.05,
       metalness: 0,
+      envMapIntensity: 2.2,
       transparent: true,
       opacity: 0.22,
       side: DoubleSide,
@@ -172,6 +209,7 @@ export function createMaterials(palette: ScenePalette): SceneMaterials {
       emissiveIntensity: LAMP_EMISSIVE_INTENSITY,
       roughness: 1,
       metalness: 0,
+      vertexColors: true,
     }),
     screen: satin(palette.screen, 0.35),
   };
@@ -198,25 +236,42 @@ export function createMaterials(palette: ScenePalette): SceneMaterials {
           depthWrite: false,
         });
 
+  const edgeShade =
+    edgeMap === null
+      ? null
+      : new MeshBasicMaterial({ map: edgeMap, transparent: true, opacity: EDGE_SHADE_OPACITY, depthWrite: false });
+
   return {
     ...surfaces,
     contactShadow,
     lightPool,
-    textures: [plankMap, deckingMap, tileMap, mosaicMap, shadowMap, poolMap].filter(
-      (map): map is Texture => map !== null,
-    ),
+    edgeShade,
+    textures: [
+      plankMap,
+      deckingMap,
+      tileMap,
+      mosaicMap,
+      shadowMap,
+      poolMap,
+      edgeMap,
+      plankRelief,
+      deckingRelief,
+      tileRelief,
+      mosaicRelief,
+    ].filter((map): map is Texture => map !== null),
   };
 }
 
 /** Release every material and texture the set holds. Safe to call once. */
 export function disposeMaterials(materials: SceneMaterials): void {
-  const { contactShadow, lightPool, textures, ...surfaces } = materials;
+  const { contactShadow, lightPool, edgeShade, textures, ...surfaces } = materials;
 
   for (const material of Object.values(surfaces)) {
     material.dispose();
   }
   contactShadow?.dispose();
   lightPool?.dispose();
+  edgeShade?.dispose();
   for (const texture of textures) {
     texture.dispose();
   }

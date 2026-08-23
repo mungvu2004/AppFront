@@ -53,6 +53,9 @@ interface Batch {
 /** The attributes every primitive in `pieces/` carries, and so every batch. */
 const ATTRIBUTES = ['position', 'normal', 'uv'] as const;
 
+/** Carried when any source has it — the baked occlusion — and white where one does not. */
+const COLOR = 'color';
+
 /* -------------------------------------------------------------------------- */
 /* Deciding what merges.                                                       */
 /* -------------------------------------------------------------------------- */
@@ -112,14 +115,21 @@ export function concatGeometries(sources: readonly { geometry: BufferGeometry; m
   let vertexOffset = 0;
   let indexOffset = 0;
 
-  for (const name of ATTRIBUTES) {
-    const itemSize = moved[0]?.getAttribute(name).itemSize ?? 3;
+  const names: readonly string[] = moved.some((geometry) => geometry.hasAttribute(COLOR))
+    ? [...ATTRIBUTES, COLOR]
+    : ATTRIBUTES;
+  for (const name of names) {
+    const itemSize = moved.find((geometry) => geometry.hasAttribute(name))?.getAttribute(name).itemSize ?? 3;
     const array = new Float32Array(vertexCount * itemSize);
     let offset = 0;
     for (const geometry of moved) {
-      const attribute = geometry.getAttribute(name);
-      array.set(attribute.array.subarray(0, attribute.count * itemSize), offset);
-      offset += attribute.count * itemSize;
+      const count = geometry.getAttribute('position').count;
+      if (geometry.hasAttribute(name)) {
+        array.set(geometry.getAttribute(name).array.subarray(0, count * itemSize), offset);
+      } else {
+        array.fill(1, offset, offset + count * itemSize);
+      }
+      offset += count * itemSize;
     }
     merged.setAttribute(name, new BufferAttribute(array, itemSize));
   }

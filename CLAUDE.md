@@ -154,7 +154,11 @@ component, và D không cản đường ở đó.
    **KHÔNG phải trùng lặp, đừng gộp:** `hooks/useCountUp.ts` ↔ `lib/motion/useCountUp.ts` —
    một bên là engine thuần, bên kia là lớp bọc React của chính nó.
 
-5. **Cổng "visual" của CI: đã cho so sánh thật, nhưng CHƯA có ảnh chuẩn `linux`.** CI nay
+5. **Bản dựng minify bằng terser, không phải esbuild** (`vite.config.ts`): chậm hơn vài
+   giây, đổi lấy ~9,6 KiB gzip trên tổng JS. Đừng gỡ để "dựng nhanh hơn" — cổng kích
+   thước gói đo bản dựng này.
+
+6. **Cổng "visual" của CI: đã cho so sánh thật, nhưng CHƯA có ảnh chuẩn `linux`.** CI nay
    gọi `pnpm e2e` (so sánh) chứ không `pnpm e2e:visual` (ghi đè). Ảnh chuẩn hiện có vẫn chỉ
    có bản `win32` còn CI chạy `ubuntu-latest`, nên lượt chạy đầu sẽ ĐỎ và đẩy ảnh linux ra
    artifact để commit một lần. `pnpm e2e:visual` giờ chỉ là lệnh cập nhật ảnh tại máy.
@@ -179,16 +183,25 @@ component, và D không cản đường ở đó.
   phòng dựng bằng `EmptyState` từ `report.description`. Màn thật đầu tiên chép khuôn đó.
 - **`src/lib/three/present` là tầng trình diễn** — biến một plan JSON thành mặt bằng 3D
   cắt mở: tô vật liệu theo phòng/loại tường, mặt ngoài tường bao sơn xám (`dressing`),
-  cửa mở sẵn + khung cửa trắng + lan can thanh (`joinery`), nội thất thủ tục chia theo
+  cửa mở sẵn + khung cửa trắng + lan can thanh (`joinery`), len chân tường + chỉ trần +
+  bậu cửa + ngưỡng cửa lùa + dải tối chân tường (`trim`), nội thất thủ tục chia theo
   phòng trong `pieces/` + `.glb` tải muộn có dự phòng (`catalogue`/`assets`/`placement`),
   camera phối cảnh ống kính dài + đung đưa + khung hình cân theo phối cảnh (`director`),
-  đèn rọi trần dạng spot + đèn bàn/tường, môi trường PMREM, bóng tiếp xúc, và bước gộp
-  mesh tĩnh theo vật liệu (`merge`: ~750 mesh → ~70, đồ có `modelUrl` được chừa ra).
+  đèn theo **ngân sách 8 đèn thật** — đèn nhỏ được "vẽ" thành vũng sáng cộng thêm
+  (`lighting.budgetLights`), AO nướng vào màu đỉnh lúc lắp (`occlusion`), normal map vẽ
+  bằng canvas cho sàn (`relief`), môi trường studio tự dựng qua PMREM (`environment`),
+  bóng tiếp xúc, và bước gộp mesh tĩnh + decal theo vật liệu (`merge`).
+  **Vòng vẽ theo nhu cầu** (`frameLoop` + `presence`): chỉ vẽ khi mô hình dịch đủ một
+  pixel, trần 30 fps, dừng hẳn khi tab ẩn / canvas ngoài màn / mất focus / reduced
+  motion; đèn key + shadow map tĩnh (camera quay quanh nhà, map vẽ đúng một lần);
+  `dispose()` trả cả GL context (`forceContextLoss`).
   `mountPresentation(canvas, plan)` là cửa vào; `/login` chỉ là một người gọi
-  (`AuthScreen/houseScene.ts`). Plan có ba trường tuỳ chọn mà builder không có: `liftMm`
-  (đồ đặt trên đồ khác, tranh trên tường), `opensTowards` (phía cánh cửa mở), và
-  `ceilingLights.positionsMm` (đèn rọi thêm cho phòng dài). Mô hình `.glb` nén Draco cần
-  `pnpm draco` (chép bộ giải mã vào `public/draco/`, đã gitignore).
+  (`AuthScreen/houseScene.ts`) và **fetch bản vẽ như một asset** qua `loadPlan`
+  (`houseModel.json?url` — bản vẽ là nội dung, không nằm trong gói JS). Plan có ba
+  trường tuỳ chọn mà builder không có: `liftMm` (đồ đặt trên đồ khác, tranh trên tường),
+  `opensTowards` (phía cánh cửa mở), và `ceilingLights.positionsMm` (đèn rọi thêm cho
+  phòng dài). Mô hình `.glb` nén Draco cần `pnpm draco` (chép bộ giải mã vào
+  `public/draco/`, đã gitignore).
 - **`src/components/motion` là chỗ DUY NHẤT được nhập `framer-motion`.** `MotionProvider`
   ở đó đặt `reducedMotion="user"` một lần cho toàn ứng dụng, và `local/no-framer-outside-motion`
   chặn mọi đường vòng. **Không** đặt ở `src/lib/motion`: `framer-motion` nhập React, mà

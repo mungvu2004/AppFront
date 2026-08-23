@@ -23,6 +23,7 @@ import { fitJoinery } from './joinery';
 import { addCeilingLights, budgetLights, DEFAULT_LIGHT_BUDGET, type LightBudgetReport } from './lighting';
 import type { SceneMaterials } from './materials';
 import { mergeStatic } from './merge';
+import { bakeVertexOcclusion, meshOccluders } from './occlusion';
 import type { ScenePalette } from './palette';
 import { placeFurniture, type PlacedPiece, type PlacementOptions } from './placement';
 import {
@@ -33,6 +34,7 @@ import {
   type PlanFurniture,
   type PresentationPlan,
 } from './plan';
+import { fitTrim } from './trim';
 
 /** What came out of assembling a plan. */
 export interface AssembledHouse {
@@ -58,6 +60,8 @@ export interface AssembleOptions extends PlacementOptions {
   readonly batch?: boolean;
   /** How many of the plan's lights stay real; the rest are drawn. See `lighting.ts`. */
   readonly lightBudget?: number;
+  /** Bake ambient occlusion into the static meshes' vertex colours. On by default. */
+  readonly occlusion?: boolean;
 }
 
 /**
@@ -103,11 +107,12 @@ export function assembleHouse(
     const dressingPlan = { walls: planWalls, openings: plan.openings, rooms: planRooms };
     const dressing = dressStorey(storey, dressingPlan, materials);
     const joinery = fitJoinery(storey, dressingPlan, materials);
+    const trim = fitTrim(storey, dressingPlan, level, materials);
     for (const part of [...dressing.removed, ...joinery.removed]) {
       part.geometry.dispose();
     }
     unknownFinishes.push(...dressing.unknownFinishes);
-    staticRoots.push(...joinery.added.filter((piece): piece is Group => piece instanceof Group));
+    staticRoots.push(...joinery.added.filter((piece): piece is Group => piece instanceof Group), ...trim.added);
 
     house.add(storey);
 
@@ -137,6 +142,12 @@ export function assembleHouse(
     if (pool !== null && pool.parent === house) {
       staticRoots.push(pool);
     }
+  }
+
+  // Occlusion is read off every solid thing in the house and written onto the
+  // static meshes only, before they are folded — a batch keeps its colours.
+  if (options.occlusion !== false) {
+    bakeVertexOcclusion(staticRoots, meshOccluders(house));
   }
 
   if (options.batch !== false) {

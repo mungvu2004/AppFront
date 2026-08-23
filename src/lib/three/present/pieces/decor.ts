@@ -8,7 +8,16 @@
  * built standing on `y = 0` like everything else and lifted by the plan.
  */
 
-import { box, cylinder, lampOn, pointLight, CEILING_HEIGHT, LAMP_INTENSITY, type PieceBuilder } from './primitives';
+import {
+  box,
+  cylinder,
+  glow,
+  lampOn,
+  pointLight,
+  CEILING_HEIGHT,
+  LAMP_INTENSITY,
+  type PieceBuilder,
+} from './primitives';
 
 /**
  * What each lamp is worth when the light budget in `lighting.ts` is short, in
@@ -68,6 +77,10 @@ export const pendant: PieceBuilder = (group, { w, h }, m) => {
 
   group.add(cylinder(0.005, CEILING_HEIGHT - h, m.metal, 0, h));
   group.add(cylinder(w * 0.6, shadeHeight, m.lampShade, 0, h - shadeHeight, 0, w * 0.2));
+  const halo = glow(m, w, 0, h - shadeHeight - 0.02, 0);
+  if (halo !== null) {
+    group.add(halo);
+  }
   group.add(
     pointLight(m, 0, h - shadeHeight - 0.05, 0, LAMP_INTENSITY * 1.5, {
       surface: 'floor',
@@ -82,6 +95,10 @@ export const pendant: PieceBuilder = (group, { w, h }, m) => {
 export const sconce: PieceBuilder = (group, { w, d, h }, m) => {
   group.add(box(w * 0.3, h * 0.3, d * 0.4, m.metal, 0, h * 0.35, -d * 0.3));
   group.add(cylinder(w / 2, h, m.lampShade, 0, 0, 0, w * 0.4));
+  const halo = glow(m, h * 0.8, 0, h / 2, d / 2 + 0.02, true);
+  if (halo !== null) {
+    group.add(halo);
+  }
   group.add(
     pointLight(m, 0, h / 2, d / 2 + 0.05, LAMP_INTENSITY * 0.7, {
       surface: 'wall',

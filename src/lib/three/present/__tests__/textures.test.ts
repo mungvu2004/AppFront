@@ -135,7 +135,9 @@ describe('createMaterials', () => {
     expect(materials.lightPool?.transparent).toBe(true);
     expect(materials.lightPool?.depthWrite).toBe(false);
     expect(materials.lightPool?.blending).toBe(AdditiveBlending);
-    expect(materials.textures).toHaveLength(6);
+    expect(materials.edgeShade?.transparent).toBe(true);
+    expect(materials.woodFloor.normalMap).not.toBeNull();
+    expect(materials.textures).toHaveLength(11);
     expect(materials.glass.transparent).toBe(true);
     expect(materials.lampShade.emissiveIntensity).toBeGreaterThan(0);
   });

@@ -76,13 +76,15 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Tuned together against a measured frame: mean luminance ≈ 138/255, bright
- * pixels ≈ 17 %, red-to-blue ≈ 1,24 over the model. Move one and re-measure.
+ * Tuned together against a measured frame — mean luminance ≈ 138/255, bright
+ * pixels ≈ 16 %, red-to-blue ≈ 1,23 over the model — with the matte surfaces
+ * on Lambert, which samples no environment: the ambient and hemisphere carry
+ * what the studio map used to. Move one and re-measure.
  */
-const HEMISPHERE_INTENSITY = 0.4;
+const HEMISPHERE_INTENSITY = 0.45;
 const KEY_LIGHT_INTENSITY = 1.4;
 const FILL_LIGHT_INTENSITY = 0.3;
-const AMBIENT_INTENSITY = 0.65;
+const AMBIENT_INTENSITY = 0.85;
 /** How far the ambient leans from the plaster white towards the lamp colour. */
 const AMBIENT_WARMTH = 0.35;
 

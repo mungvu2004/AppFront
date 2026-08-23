@@ -221,32 +221,28 @@ export function createContactShadowTexture(palette: ScenePalette): Texture | nul
 }
 
 /**
- * A disc of `tint`, solid at the centre and fading to clear by `falloff` of
- * the distance from it. Written pixel by pixel so no colour string is ever
- * composed here. Magnified far more than minified, so it carries no mipmaps.
+ * A tint with an alpha decided per pixel — the shape of every decal here.
+ * Written pixel by pixel so no colour string is ever composed. Magnified far
+ * more than minified, so it carries no mipmaps.
  */
-function paintRadial(sizePx: number, tint: Color, falloff: (distance: number) => number): Texture | null {
+function paintAlpha(sizePx: number, tint: Color, alphaAt: (x: number, y: number) => number): Texture | null {
   const context = createContext(sizePx);
 
   if (context === null) {
     return null;
   }
 
-  const half = sizePx / 2;
   const image = context.createImageData(sizePx, sizePx);
   const srgb = tint.clone().convertLinearToSRGB();
   const channels = [srgb.r, srgb.g, srgb.b].map((value) => Math.round(value * 255));
 
   for (let y = 0; y < sizePx; y += 1) {
     for (let x = 0; x < sizePx; x += 1) {
-      const distance = Math.hypot(x + 0.5 - half, y + 0.5 - half) / half;
-      const alpha = falloff(distance);
       const offset = (y * sizePx + x) * 4;
-
       image.data[offset] = channels[0] ?? 0;
       image.data[offset + 1] = channels[1] ?? 0;
       image.data[offset + 2] = channels[2] ?? 0;
-      image.data[offset + 3] = Math.round(alpha * 255);
+      image.data[offset + 3] = Math.round(alphaAt(x, y) * 255);
     }
   }
 
@@ -257,6 +253,12 @@ function paintRadial(sizePx: number, tint: Color, falloff: (distance: number) =>
   texture.generateMipmaps = false;
   texture.minFilter = LinearFilter;
   return texture;
+}
+
+/** A disc of `tint`, solid at the centre and fading to clear by `falloff` of the distance from it. */
+function paintRadial(sizePx: number, tint: Color, falloff: (distance: number) => number): Texture | null {
+  const half = sizePx / 2;
+  return paintAlpha(sizePx, tint, (x, y) => falloff(Math.hypot(x + 0.5 - half, y + 0.5 - half) / half));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -284,6 +286,28 @@ export function lightPoolFalloff(distance: number): number {
   }
 
   const remaining = 1 - distance * distance;
+  return remaining * remaining;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Edge shade.                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Pixels down the edge-shade gradient. */
+const EDGE_TEXTURE_PX = 64;
+
+/**
+ * A strip that is dark along its top edge and clear by its bottom: the
+ * shadow a floor keeps along the foot of a wall. `trim.ts` lays it flat
+ * against every roomed wall base.
+ */
+export function createEdgeShadeTexture(palette: ScenePalette): Texture | null {
+  return paintAlpha(EDGE_TEXTURE_PX, palette.cut, (_x, y) => edgeShadeFalloff((y + 0.5) / EDGE_TEXTURE_PX));
+}
+
+/** Solid at the wall, falling off as the square of the distance from it. */
+export function edgeShadeFalloff(distance: number): number {
+  const remaining = Math.max(0, 1 - distance);
   return remaining * remaining;
 }
 

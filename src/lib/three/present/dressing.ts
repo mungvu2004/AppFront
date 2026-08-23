@@ -27,6 +27,7 @@ import { Mesh, Vector3, type BufferGeometry, type Group, type Material } from 't
 import { readPartData } from '../build/scene';
 
 import type { SceneMaterials } from './materials';
+import { ensureWhiteVertexColors } from './occlusion';
 import { isFinish, type Finish, type PlanOpening, type PlanRoom, type PlanWall } from './plan';
 
 /* -------------------------------------------------------------------------- */
@@ -191,6 +192,8 @@ export function dressStorey(storey: Group, plan: DressingPlan, materials: SceneM
     const part = readPartData(object);
     object.castShadow = true;
     object.receiveShadow = true;
+    // The lit materials multiply by a vertex colour; a built part carries none.
+    ensureWhiteVertexColors(object);
 
     switch (part?.kind) {
       case 'wall': {

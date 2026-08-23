@@ -5,7 +5,9 @@
  * question of silhouette rather than leaves: a few flattened, overlapping
  * heads at different heights, leaning out from a stem, do it; one sphere does
  * not. Bamboo is the opposite — thin stems with small heads near the top — and
- * the two together are most of what makes a balcony look planted. Every
+ * the two together are most of what makes a balcony look planted. A canopy
+ * is two tiers — a ring of heads round the crown and a smaller ring above
+ * it — so it has an inside and an outside rather than one silhouette. Every
  * canopy is clamped so a squat, wide plant never dips below its own pot.
  */
 
@@ -13,7 +15,11 @@ import { noise } from '../textures';
 
 import { box, cone, cylinder, sphere, type PieceBuilder } from './primitives';
 
-/** Heads of foliage around a stem, leaning outwards, each a squashed sphere. */
+/** How much smaller, and how much higher, the upper tier of a canopy is. */
+const UPPER_TIER_SCALE = 0.55;
+const UPPER_TIER_LIFT = 0.45;
+
+/** Heads of foliage around a stem in two tiers, leaning outwards, each a squashed sphere. */
 function canopy(
   group: Parameters<PieceBuilder>[0],
   m: Parameters<PieceBuilder>[2],
@@ -34,6 +40,21 @@ function canopy(
         m.foliage,
         x + Math.cos(angle) * reach,
         crown - radius * 0.15 - noise(seed + head * 7) * radius * 0.35,
+        z + Math.sin(angle) * reach,
+        0.7,
+      ),
+    );
+  }
+  const upper = Math.max(2, Math.ceil(heads / 2));
+  for (let head = 0; head < upper; head += 1) {
+    const angle = (head / upper) * Math.PI * 2 + noise(seed + 11 + head) * 1.2;
+    const reach = radius * (0.3 + noise(seed + head * 5) * 0.2);
+    group.add(
+      sphere(
+        radius * UPPER_TIER_SCALE,
+        m.foliage,
+        x + Math.cos(angle) * reach,
+        crown + radius * UPPER_TIER_LIFT - noise(seed + head * 9) * radius * 0.2,
         z + Math.sin(angle) * reach,
         0.7,
       ),
@@ -77,22 +98,28 @@ export const plant: PieceBuilder = (group, { w, h }, m) => {
   pot(group, m, potRadius, potHeight);
   group.add(cylinder(0.02, crown - potHeight, m.woodDark, 0, potHeight));
 
-  // A few long leaves leaning out low on the stem, like a palm's fronds.
-  for (let leaf = 0; leaf < 5; leaf += 1) {
-    const angle = (leaf / 5) * Math.PI * 2 + 0.4;
-    const length = radius * 1.1;
-    group.add(
-      cone(
-        radius * 0.16,
-        length,
-        m.foliage,
-        Math.cos(angle) * length * 0.35,
-        potHeight + (crown - potHeight) * 0.55,
-        Math.sin(angle) * length * 0.35,
-        -1.1,
-        angle + Math.PI / 2,
-      ),
-    );
+  // Long leaves leaning out from the stem like a palm's fronds: a low ring
+  // of five and a shorter, steeper ring of four between them.
+  for (const [count, lengthScale, heightScale, tilt, turn] of [
+    [5, 1.1, 0.55, -1.1, 0.4],
+    [4, 0.8, 0.75, -0.8, 1.2],
+  ] as const) {
+    for (let leaf = 0; leaf < count; leaf += 1) {
+      const angle = (leaf / count) * Math.PI * 2 + turn;
+      const length = radius * lengthScale;
+      group.add(
+        cone(
+          radius * 0.16,
+          length,
+          m.foliage,
+          Math.cos(angle) * length * 0.35,
+          potHeight + (crown - potHeight) * heightScale,
+          Math.sin(angle) * length * 0.35,
+          tilt,
+          angle + Math.PI / 2,
+        ),
+      );
+    }
   }
 
   canopy(group, m, 0, crown, 0, radius, 4, 3);

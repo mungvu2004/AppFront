@@ -15,6 +15,12 @@ import path from 'path';
  */
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // terser thay vì esbuild: chậm hơn vài giây mỗi lần dựng, đổi lấy ~1,5%
+    // gzip trên toàn bộ JS — đúng tinh thần cổng kích thước gói: sửa cách dựng,
+    // không nới ngưỡng. Cấu hình mặc định, không mangle property nào.
+    minify: 'terser',
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

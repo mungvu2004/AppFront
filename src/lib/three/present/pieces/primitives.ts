@@ -12,6 +12,7 @@ import {
   ConeGeometry,
   CylinderGeometry,
   Mesh,
+  PlaneGeometry,
   PointLight,
   SphereGeometry,
   type Group,
@@ -45,12 +46,32 @@ export interface LightPoolSpec {
 /** The key under which a light carries its pool on `userData`. */
 export const LIGHT_POOL_KEY = 'lightPool';
 
+/** How far a lamp's glow reaches past its shade, as a factor of the shade's radius. */
+const GLOW_SPREAD = 1.7;
+
+/** A glow disc sits this far off the shade it haloes. */
+const GLOW_LIFT = 0.01;
+
 /** Where the ceiling would be, for things that hang from it or reach up to it. */
 export const CEILING_HEIGHT = 2.4;
 
+/**
+ * How finely a box is divided along an edge: a vertex every third of a
+ * metre or so, and never more than this many. The baked occlusion in
+ * `../occlusion.ts` is stored at vertices, and a carcass with vertices only
+ * at its corners would smear its floor shadow up its whole face.
+ */
+const BOX_SEGMENT_LENGTH = 0.4;
+const BOX_SEGMENTS_MAX = 4;
+
+/** Segments along an edge of `length`: one for anything small. */
+export function boxSegments(length: number): number {
+  return Math.min(BOX_SEGMENTS_MAX, Math.max(1, Math.ceil(length / BOX_SEGMENT_LENGTH)));
+}
+
 /** A box with its **base** at `y`, centred on `x` and `z`. */
 export function box(w: number, h: number, d: number, material: Material, x = 0, y = 0, z = 0): Mesh {
-  const mesh = new Mesh(new BoxGeometry(w, h, d), material);
+  const mesh = new Mesh(new BoxGeometry(w, h, d, boxSegments(w), boxSegments(h), boxSegments(d)), material);
   mesh.position.set(x, y + h / 2, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -84,7 +105,7 @@ export function sphere(
   scaleY = 1,
   scaleX = 1,
 ): Mesh {
-  const mesh = new Mesh(new SphereGeometry(radius, 14, 10), material);
+  const mesh = new Mesh(new SphereGeometry(radius, 12, 8), material);
   mesh.position.set(x, y, z);
   mesh.scale.set(scaleX, scaleY, 1);
   mesh.castShadow = true;
@@ -147,8 +168,38 @@ export function doorFronts(
 }
 
 /**
- * A pole standing at `baseY`, a shade on top of it, and the light the shade
- * gives. Drawn rather than lit, it pools on the surface it stands on.
+ * The halo a lit shade has: an additive disc of the lamp's colour, lying
+ * flat over the shade so that from above it reads as bloom without a
+ * post-process. `vertical` stands it up facing `+z`, for a wall light. `null`
+ * where no canvas could draw the disc.
+ */
+export function glow(m: SceneMaterials, radius: number, x: number, y: number, z: number, vertical = false): Mesh | null {
+  if (m.lightPool === null) {
+    return null;
+  }
+
+  const halo = new Mesh(new PlaneGeometry(radius * 2, radius * 2), m.lightPool);
+  halo.position.set(x, y, z);
+  if (!vertical) {
+    halo.rotation.x = -Math.PI / 2;
+  }
+  halo.renderOrder = 1;
+  halo.castShadow = false;
+  halo.receiveShadow = false;
+  return halo;
+}
+
+/** Add `mesh` to `group` unless there was none to add. */
+function addIfDrawn(group: Group, mesh: Mesh | null): void {
+  if (mesh !== null) {
+    group.add(mesh);
+  }
+}
+
+/**
+ * A pole standing at `baseY`, a shade on top of it, the light the shade
+ * gives and the halo over it. Drawn rather than lit, it pools on the surface
+ * it stands on.
  */
 export function lampOn(
   group: Group,
@@ -161,6 +212,7 @@ export function lampOn(
 ): void {
   group.add(cylinder(0.015, poleHeight, m.metal, 0, baseY));
   group.add(cylinder(shadeRadius, shadeHeight, m.lampShade, 0, baseY + poleHeight, 0, shadeRadius * 0.8));
+  addIfDrawn(group, glow(m, shadeRadius * GLOW_SPREAD, 0, baseY + poleHeight + shadeHeight + GLOW_LIFT, 0));
   group.add(
     pointLight(m, 0, baseY + poleHeight + shadeHeight / 2, 0, LAMP_INTENSITY, {
       surface: 'floor',
