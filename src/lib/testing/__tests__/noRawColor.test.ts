@@ -23,12 +23,16 @@ const SCANNED_ROOTS: readonly string[] = ['src', 'e2e'];
 /**
  * The only files allowed to hold a colour literal, and why.
  *
- * Both exercise the colour maths itself — a contrast ratio cannot be tested
- * without two colours to take the ratio of.
+ * The first two exercise the colour maths itself — a contrast ratio cannot be
+ * tested without two colours to take the ratio of. The third exercises the
+ * presentation engine's token *parser*: `looksLikeColour` decides whether a
+ * custom property's value is something `THREE.Color` can read, and a parser
+ * cannot be tested without hex and `hsl()` strings to hand it.
  */
 const COLOUR_FIXTURE_FILES: readonly string[] = [
   'src/lib/coloring/__tests__/legend.test.ts',
   'src/lib/coloring/__tests__/coloring.test.ts',
+  'src/lib/three/present/__tests__/palette.test.ts',
 ];
 
 /** Paths as the allowlist writes them, whatever the platform hands back. */

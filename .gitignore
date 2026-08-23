@@ -83,3 +83,6 @@ __pycache__/
 .claude/
 .githooks/
 settings.json
+
+# Bộ giải mã Draco, chép từ node_modules/three bằng `pnpm draco`
+public/draco/

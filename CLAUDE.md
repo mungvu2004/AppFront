@@ -177,6 +177,12 @@ component, và D không cản đường ở đó.
 - **`components/feedback/ScreenErrorBoundary.tsx` ĐÃ được gắn.** `src/App.tsx` bọc màn
   đang hiện, có `key={activeScreen}` để ranh giới gắn lại mỗi lần đổi màn, và phần dự
   phòng dựng bằng `EmptyState` từ `report.description`. Màn thật đầu tiên chép khuôn đó.
+- **`src/lib/three/present` là tầng trình diễn** — biến một plan JSON thành mặt bằng 3D
+  cắt mở: tô vật liệu theo phòng/loại tường (`dressing`), nội thất thủ tục + `.glb` tải
+  muộn có dự phòng (`catalogue`/`assets`/`placement`), camera trục đo + đung đưa + khung
+  hình (`director`), ánh sáng, môi trường PMREM, bóng tiếp xúc. `mountPresentation(canvas,
+  plan)` là cửa vào; `/login` chỉ là một người gọi (`AuthScreen/houseScene.ts`). Mô hình
+  `.glb` nén Draco cần `pnpm draco` (chép bộ giải mã vào `public/draco/`, đã gitignore).
 - **`src/components/motion` là chỗ DUY NHẤT được nhập `framer-motion`.** `MotionProvider`
   ở đó đặt `reducedMotion="user"` một lần cho toàn ứng dụng, và `local/no-framer-outside-motion`
   chặn mọi đường vòng. **Không** đặt ở `src/lib/motion`: `framer-motion` nhập React, mà

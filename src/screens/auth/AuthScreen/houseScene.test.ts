@@ -1,90 +1,98 @@
 /**
- * The plan on `/login`, checked through the product's own builder.
+ * The plan on `/login`, checked through the presentation engine.
  *
- * A WebGL context is not available here and not needed: `buildHouse` is the
- * part that turns `houseModel.json` into geometry, and it is the part a plan
- * edit can break. Three things are verified — every opening is cut into its
- * wall (the builder refuses rather than repairs, and a refusal shows on screen
- * as a window that is not there), every piece of furniture is a variant the
- * catalogue knows, and the ceilings the builder lays are gone again, since an
- * open box with a lid is a box.
+ * The engine has its own tests under `src/lib/three/present/__tests__`; this
+ * file asks only the questions that belong to *this* plan. A WebGL context is
+ * not available here and not needed: `assembleHouse` is the part that turns
+ * `houseModel.json` into geometry, and it is the part a plan edit can break.
+ * Every opening must be cut into its wall (the builder refuses rather than
+ * repairs, and a refusal shows on screen as a window that is not there), every
+ * piece of furniture must be a variant the catalogue knows, every finish must be
+ * one the engine can paint, and the ceilings the builder lays must be gone again.
  */
 
-import { Mesh, PointLight, type Group } from 'three';
-import { describe, expect, it, vi } from 'vitest';
+import { Mesh, PointLight } from 'three';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readPartData } from '@/lib/three/build/scene';
-import type { WallPartData } from '@/lib/three/build/wall';
+import {
+  assembleHouse,
+  createMaterials,
+  isCatalogueVariant,
+  isFacing,
+  isFinish,
+  readPalette,
+  type AssembledHouse,
+  type PresentationPlan,
+} from '@/lib/three/present';
 
-import { buildFurniture } from './houseFurniture';
-import { createMaterials, readPalette } from './houseMaterials';
-import plan from './houseModel.json';
-import { buildHouse } from './houseScene';
+import rawPlan from './houseModel.json';
 
-// jsdom has no 2D canvas and says so on the console every time it is asked;
-// `null` is the answer the texture code is written for, so give it quietly.
-vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+const plan = rawPlan as PresentationPlan;
 
-const materials = createMaterials(readPalette());
+let assembled: AssembledHouse;
 
-function partsOfKind(house: Group, kind: string): Mesh[] {
-  const found: Mesh[] = [];
+beforeEach(() => {
+  // jsdom has no 2D canvas and says so on the console every time it is asked;
+  // `null` is the answer the texture code is written for, so give it quietly.
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
 
-  house.traverse((object) => {
-    if (object instanceof Mesh && readPartData(object)?.kind === kind) {
-      found.push(object);
+  const palette = readPalette(() => '');
+  assembled = assembleHouse(plan, palette, createMaterials(palette));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function idsOfKind(kind: string): string[] {
+  const found: string[] = [];
+  assembled.house.traverse((object) => {
+    const part = readPartData(object);
+    if (part?.kind === kind && (kind === 'furniture' || object instanceof Mesh)) {
+      found.push(part.entityId);
     }
   });
-
   return found;
 }
 
-describe('houseModel.json through buildHouse', () => {
-  const house = buildHouse(materials);
+describe('houseModel.json', () => {
+  it('names only variants, facings and finishes the engine knows', () => {
+    for (const entry of plan.furniture) {
+      expect(isCatalogueVariant(entry.variant), `${entry.id}: ${entry.variant}`).toBe(true);
+      expect(isFacing(entry.facing), `${entry.id}: ${entry.facing}`).toBe(true);
+    }
+    for (const room of plan.rooms) {
+      expect(isFinish(room.finish), `${room.id}: ${room.finish}`).toBe(true);
+    }
+    for (const roomId of plan.ceilingLights.roomIds) {
+      expect(plan.rooms.some((room) => room.id === roomId), roomId).toBe(true);
+    }
+  });
 
   it('cuts every opening in the plan; nothing is refused', () => {
-    const refusals = partsOfKind(house, 'wall').flatMap(
-      (wall) => (wall.userData as WallPartData).refusals,
-    );
-
-    expect(refusals.map((refusal) => refusal.message)).toEqual([]);
-
-    const cut = partsOfKind(house, 'wall').flatMap(
-      (wall) => (wall.userData as WallPartData).openingIds,
-    );
-
-    expect(new Set(cut).size).toBe(plan.openings.length);
+    expect(assembled.refusals.map((refusal) => refusal.message)).toEqual([]);
+    expect(assembled.unknownFinishes).toEqual([]);
   });
 
   it('hangs a panel in every door and window, and none in the archway', () => {
-    const panels = partsOfKind(house, 'opening').map((panel) => readPartData(panel)?.entityId);
     const expected = plan.openings.filter((opening) => opening.kind !== 'void').map((opening) => opening.id);
 
-    expect([...panels].sort()).toEqual([...expected].sort());
+    expect(idsOfKind('opening').sort()).toEqual([...expected].sort());
   });
 
   it('lays a slab for every room and takes every ceiling away', () => {
-    expect(partsOfKind(house, 'floorSlab')).toHaveLength(plan.rooms.length);
-    expect(partsOfKind(house, 'ceiling')).toHaveLength(0);
+    expect(idsOfKind('floorSlab')).toHaveLength(plan.rooms.length);
+    expect(idsOfKind('ceiling')).toHaveLength(0);
   });
 
   it('places every piece of furniture the plan lists', () => {
-    const placed: string[] = [];
-
-    house.traverse((object) => {
-      const part = readPartData(object);
-      if (part?.kind === 'furniture') {
-        placed.push(part.entityId);
-      }
-    });
-
-    expect([...placed].sort()).toEqual(plan.furniture.map((entry) => entry.id).sort());
+    expect(idsOfKind('furniture').sort()).toEqual(plan.furniture.map((entry) => entry.id).sort());
   });
 
   it('lights every room the plan names, plus each lamp on the plan', () => {
     let lights = 0;
-
-    house.traverse((object) => {
+    assembled.house.traverse((object) => {
       if (object instanceof PointLight) {
         lights += 1;
       }
@@ -96,26 +104,11 @@ describe('houseModel.json through buildHouse', () => {
 
     expect(lights).toBe(plan.ceilingLights.roomIds.length + lamps);
   });
-});
 
-describe('buildFurniture', () => {
-  it('refuses a variant the catalogue does not know', () => {
-    expect(() =>
-      buildFurniture(
-        { id: 'F-X', variant: 'hammock', centreMm: [0, 0], sizeMm: [1, 1, 1], facing: 'north' },
-        'L-G',
-        materials,
-      ),
-    ).toThrow(RangeError);
-  });
+  it('keeps every piece procedural: the plan ships no model URLs', async () => {
+    expect(plan.furniture.every((entry) => entry.modelUrl === undefined)).toBe(true);
 
-  it('refuses a facing that is not a compass point', () => {
-    expect(() =>
-      buildFurniture(
-        { id: 'F-X', variant: 'chair', centreMm: [0, 0], sizeMm: [1, 1, 1], facing: 'up' },
-        'L-G',
-        materials,
-      ),
-    ).toThrow(RangeError);
+    const sources = await Promise.all(assembled.pieces.map((piece) => piece.ready));
+    expect(new Set(sources)).toEqual(new Set(['procedural']));
   });
 });
