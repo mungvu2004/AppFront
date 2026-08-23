@@ -45,6 +45,13 @@ export const DOOR_OPEN_RAD = 1.22;
 const FRAME_FACE = 0.06;
 const FRAME_PROUD = 0.025;
 
+/**
+ * How far the frame reaches into the opening. A frame flush with the reveal
+ * would share a plane with it and the two would fight for every pixel as the
+ * model turns; reaching in a centimetre puts the reveal inside the frame.
+ */
+const FRAME_INSET = 0.012;
+
 /** Sliding glazing gets a mullion down the middle. */
 const MULLION_WIDTH = 0.04;
 
@@ -205,19 +212,22 @@ export function buildFrame(panel: Mesh, opening: PlanOpening, run: WallRun, mate
   const high = bounds.max.y;
   const depth = run.thickness + FRAME_PROUD * 2;
   const sill = opening.sillHeightMm > 0;
-  const jambBase = sill ? low - FRAME_FACE : low;
-  const jambHeight = high + FRAME_FACE - jambBase;
+  const jambBase = sill ? low - FRAME_FACE + FRAME_INSET : low;
+  const jambHeight = high + FRAME_FACE - FRAME_INSET - jambBase;
 
   const frame = new Group();
   frame.position.set(centre.x, 0, centre.z);
   frame.rotation.y = run.turn;
 
   for (const side of [-1, 1]) {
-    frame.add(box(FRAME_FACE, jambHeight, depth, materials.paint, side * (width / 2 + FRAME_FACE / 2), jambBase));
+    const across = side * (width / 2 + FRAME_FACE / 2 - FRAME_INSET);
+    frame.add(box(FRAME_FACE, jambHeight, depth, materials.paint, across, jambBase));
   }
-  frame.add(box(width + FRAME_FACE * 2, FRAME_FACE, depth, materials.paint, 0, high));
+  frame.add(box(width + FRAME_FACE * 2, FRAME_FACE, depth, materials.paint, 0, high - FRAME_INSET));
   if (sill) {
-    frame.add(box(width + FRAME_FACE * 2, FRAME_FACE, depth + FRAME_PROUD, materials.paint, 0, low - FRAME_FACE));
+    frame.add(
+      box(width + FRAME_FACE * 2, FRAME_FACE, depth + FRAME_PROUD, materials.paint, 0, low - FRAME_FACE + FRAME_INSET),
+    );
   }
   if (opening.swing === 'sliding') {
     frame.add(box(MULLION_WIDTH, high - low, run.thickness * 0.6, materials.paint, 0, low));

@@ -21,7 +21,7 @@ export const baseRun: PieceBuilder = (group, { w, d, h }, m) => {
   group.add(box(w, h - 0.04, d - 0.02, m.paint, 0, 0, -0.01));
   group.add(box(w, 0.04, d + 0.02, m.stone, 0, h - 0.04, 0.01));
   group.add(box(w, 0.08, d - 0.06, m.cut, 0, 0, -0.03));
-  doorFronts(group, m, w, h - 0.14, d / 2 - 0.01, 0.08, 0.6, h * 0.82);
+  doorFronts(group, m, w, h - 0.14, d / 2 - 0.02, 0.08, 0.6, h * 0.82);
 };
 
 /** Hung at splashback height; the plan's height says how far up it reaches. */

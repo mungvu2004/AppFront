@@ -182,7 +182,8 @@ component, và D không cản đường ở đó.
   cửa mở sẵn + khung cửa trắng + lan can thanh (`joinery`), nội thất thủ tục chia theo
   phòng trong `pieces/` + `.glb` tải muộn có dự phòng (`catalogue`/`assets`/`placement`),
   camera phối cảnh ống kính dài + đung đưa + khung hình cân theo phối cảnh (`director`),
-  đèn rọi trần dạng spot + đèn bàn/tường, môi trường PMREM, bóng tiếp xúc.
+  đèn rọi trần dạng spot + đèn bàn/tường, môi trường PMREM, bóng tiếp xúc, và bước gộp
+  mesh tĩnh theo vật liệu (`merge`: ~750 mesh → ~70, đồ có `modelUrl` được chừa ra).
   `mountPresentation(canvas, plan)` là cửa vào; `/login` chỉ là một người gọi
   (`AuthScreen/houseScene.ts`). Plan có ba trường tuỳ chọn mà builder không có: `liftMm`
   (đồ đặt trên đồ khác, tranh trên tường), `opensTowards` (phía cánh cửa mở), và

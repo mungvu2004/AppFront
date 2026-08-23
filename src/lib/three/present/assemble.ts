@@ -20,6 +20,7 @@ import { dressStorey } from './dressing';
 import { fitJoinery } from './joinery';
 import { addCeilingLights } from './lighting';
 import type { SceneMaterials } from './materials';
+import { mergeStatic } from './merge';
 import type { ScenePalette } from './palette';
 import { placeFurniture, type PlacedPiece, type PlacementOptions } from './placement';
 import {
@@ -45,6 +46,12 @@ export interface AssembledHouse {
 export interface AssembleOptions extends PlacementOptions {
   /** Told about each piece that kept its procedural geometry, and why. */
   readonly onFallback?: (entry: PlanFurniture, reason: unknown) => void;
+  /**
+   * Fold the static meshes — frames, rails, every piece that will never be
+   * swapped for a model — into one mesh per material. On by default; a test
+   * that wants to look at a piece's own meshes turns it off.
+   */
+  readonly batch?: boolean;
 }
 
 /**
@@ -65,6 +72,8 @@ export function assembleHouse(
   const unknownFinishes: string[] = [];
   const openings = plan.openings.map(toDomainOpening);
   const firstLevelId = plan.levels[0]?.id;
+  /** Everything that is final the moment it is built, and so can be batched. */
+  const staticRoots: Group[] = [];
 
   for (const level of plan.levels) {
     const levelId = level.id as LevelId;
@@ -92,6 +101,7 @@ export function assembleHouse(
       part.geometry.dispose();
     }
     unknownFinishes.push(...dressing.unknownFinishes);
+    staticRoots.push(...joinery.added.filter((piece): piece is Group => piece instanceof Group));
 
     house.add(storey);
 
@@ -103,9 +113,19 @@ export function assembleHouse(
       const piece = placeFurniture(entry, levelId, materials, options);
       house.add(piece.group);
       pieces.push(piece);
+
+      // A piece that names a model the service may yet deliver keeps its own
+      // meshes, so the swap has something to take out.
+      if (entry.modelUrl === undefined || options.assets === undefined) {
+        staticRoots.push(piece.group);
+      }
     }
 
     addCeilingLights(house, palette, level, planRooms, plan.ceilingLights);
+  }
+
+  if (options.batch !== false) {
+    mergeStatic(staticRoots, house);
   }
 
   return { house, pieces, refusals, unknownFinishes };

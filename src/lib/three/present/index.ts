@@ -75,6 +75,7 @@ export {
 } from './joinery';
 export { addCeilingLights, createLighting, type SceneLighting } from './lighting';
 export { createMaterials, disposeMaterials, type SceneMaterials, type SurfaceMaterials } from './materials';
+export { concatGeometries, isBatchable, mergeStatic, type MergeReport } from './merge';
 export { mountPresentation, type PresentationHandle, type PresentationOptions } from './mount';
 export {
   documentTokenReader,

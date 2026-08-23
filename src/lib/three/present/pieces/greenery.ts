@@ -41,7 +41,10 @@ function canopy(
   }
 }
 
-/** A tapered pot, standing on the floor. */
+/** How far the soil stands proud of a pot's rim: enough that the two faces never share a pixel. */
+const SOIL_PROUD = 0.006;
+
+/** A tapered pot, standing on the floor, with its soil just proud of the rim. */
 function pot(
   group: Parameters<PieceBuilder>[0],
   m: Parameters<PieceBuilder>[2],
@@ -49,7 +52,19 @@ function pot(
   height: number,
 ): void {
   group.add(cylinder(radius * 0.78, height, m.clay, 0, 0, 0, radius));
-  group.add(cylinder(radius * 0.95, 0.01, m.cut, 0, height - 0.01, 0, radius * 0.95));
+  group.add(cylinder(radius * 0.9, SOIL_PROUD * 2, m.cut, 0, height - SOIL_PROUD, 0, radius * 0.9));
+}
+
+/** A rectangular trough, standing on the floor, with its soil just proud of the rim. */
+function trough(
+  group: Parameters<PieceBuilder>[0],
+  m: Parameters<PieceBuilder>[2],
+  w: number,
+  d: number,
+  height: number,
+): void {
+  group.add(box(w, height, d, m.clay));
+  group.add(box(w - 0.05, SOIL_PROUD * 2, d - 0.05, m.cut, 0, height - SOIL_PROUD));
 }
 
 /** A leafy pot plant: a stem with a few broad leaves and a canopy of heads. */
@@ -88,8 +103,7 @@ export const bamboo: PieceBuilder = (group, { w, d, h }, m) => {
   const troughHeight = Math.min(0.35, h * 0.18);
   const canes = Math.max(4, Math.round(w / 0.12));
 
-  group.add(box(w, troughHeight, d, m.clay));
-  group.add(box(w - 0.04, 0.01, d - 0.04, m.cut, 0, troughHeight - 0.01));
+  trough(group, m, w, d, troughHeight);
 
   for (let cane = 0; cane < canes; cane += 1) {
     const x = (noise(cane * 5 + 1) - 0.5) * (w - 0.1);
@@ -132,8 +146,7 @@ export const planter: PieceBuilder = (group, { w, d, h }, m) => {
   const radius = Math.min(d * 0.6, (h - troughHeight) * 0.7);
   const heads = Math.max(2, Math.round(w / (radius * 1.2)));
 
-  group.add(box(w, troughHeight, d, m.clay));
-  group.add(box(w - 0.04, 0.01, d - 0.04, m.cut, 0, troughHeight - 0.01));
+  trough(group, m, w, d, troughHeight);
 
   for (let head = 0; head < heads; head += 1) {
     const x = -w / 2 + (w / heads) * (head + 0.5);
