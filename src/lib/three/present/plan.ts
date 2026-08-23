@@ -30,10 +30,10 @@ import { toSceneLength } from '../build/scene';
 /* -------------------------------------------------------------------------- */
 
 /** What a room's slab is finished in; decides which drawn texture it gets. */
-export type Finish = 'wood' | 'tile' | 'decking';
+export type Finish = 'wood' | 'tile' | 'mosaic' | 'decking';
 
 /** Every finish, in the order the catalogue lists them. */
-export const FINISHES: readonly Finish[] = ['wood', 'tile', 'decking'];
+export const FINISHES: readonly Finish[] = ['wood', 'tile', 'mosaic', 'decking'];
 
 /** Where the front of a piece points on the plan; north is `+y` on the drawing. */
 export type Facing = 'north' | 'east' | 'south' | 'west';
@@ -67,6 +67,12 @@ export interface PlanOpening {
   readonly heightMm: number;
   readonly sillHeightMm: number;
   readonly swing: string;
+  /**
+   * Which way a hinged door stands open in the cutaway — the compass point the
+   * leaf's free edge moves towards. Absent, the leaf opens to whichever side the
+   * hinge rule picks first. Ignored for anything that is not a hinged door.
+   */
+  readonly opensTowards?: string;
 }
 
 export interface PlanRoom {
@@ -87,6 +93,11 @@ export interface PlanFurniture {
   readonly sizeMm: readonly number[];
   readonly facing: string;
   /**
+   * How far above the floor the piece's base sits: a vase on a table, a picture
+   * on a wall, a hood under the ceiling. Absent means standing on the floor.
+   */
+  readonly liftMm?: number;
+  /**
    * A `.glb` to stand in place of the procedural piece, when one exists.
    * Absent, unreachable or broken, the procedural piece stays — see `assets.ts`.
    */
@@ -95,7 +106,10 @@ export interface PlanFurniture {
 
 export interface PlanCeilingLights {
   readonly heightMm: number;
+  /** Rooms that get one downlight at their centre. */
   readonly roomIds: readonly string[];
+  /** Extra downlights at named plan points — a long room needs more than its centre. */
+  readonly positionsMm?: readonly (readonly number[])[];
 }
 
 /** The whole drawing. Extra JSON fields such as a comment or a name are ignored. */
@@ -212,6 +226,33 @@ export function furnitureCentre(entry: PlanFurniture): ScenePoint {
     x: toSceneLength(millimetres(at(entry.centreMm, 0))),
     z: toSceneLength(millimetres(at(entry.centreMm, 1))),
   };
+}
+
+/** How far above the floor a furniture entry's base sits, in scene units. */
+export function furnitureLift(entry: PlanFurniture): number {
+  return toSceneLength(millimetres(entry.liftMm ?? 0));
+}
+
+/** A plan point in scene units. */
+export function planPoint(pointMm: readonly number[]): ScenePoint {
+  return {
+    x: toSceneLength(millimetres(at(pointMm, 0))),
+    z: toSceneLength(millimetres(at(pointMm, 1))),
+  };
+}
+
+/** The unit vector a facing points along, on the scene's floor plane. */
+export function facingVector(facing: Facing): ScenePoint {
+  switch (facing) {
+    case 'north':
+      return { x: 0, z: 1 };
+    case 'east':
+      return { x: 1, z: 0 };
+    case 'south':
+      return { x: 0, z: -1 };
+    case 'west':
+      return { x: -1, z: 0 };
+  }
 }
 
 /** A height above the project datum for a storey, in scene units. */

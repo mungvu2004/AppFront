@@ -1,4 +1,4 @@
-import { AmbientLight, DirectionalLight, Group, HemisphereLight, PointLight, Vector3 } from 'three';
+import { AmbientLight, DirectionalLight, Group, HemisphereLight, SpotLight, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 
 import { addCeilingLights, CEILING_LIGHT_INTENSITY, createLighting, SHADOW_MAP_SIZE } from '../lighting';
@@ -37,17 +37,33 @@ describe('createLighting', () => {
 });
 
 describe('addCeilingLights', () => {
-  it('hangs one warm light per named room, at the plan height, and none elsewhere', () => {
+  it('hangs one warm downlight per named room, at the plan height, aimed at the floor', () => {
     const house = new Group();
     const level = FIXTURE_PLAN.levels[0]!;
 
     const added = addCeilingLights(house, palette, level, FIXTURE_PLAN.rooms, FIXTURE_PLAN.ceilingLights);
 
     expect(added).toHaveLength(2);
-    expect(house.children.filter((child) => child instanceof PointLight)).toHaveLength(2);
+    expect(house.children.filter((child) => child instanceof SpotLight)).toHaveLength(2);
     expect(added[0]?.position.y).toBeCloseTo(2.3);
     expect(added[0]?.position.x).toBeCloseTo(1.5);
     expect(added[0]?.intensity).toBe(CEILING_LIGHT_INTENSITY);
     expect(added[0]?.color.getHex()).toBe(palette.lamp.getHex());
+    // The target is in the graph under the house, so the spot points straight down.
+    expect(added[0]?.target.parent).toBe(house);
+    expect(added[0]?.target.position.x).toBeCloseTo(1.5);
+    expect(added[0]?.target.position.y).toBe(0);
+  });
+
+  it('adds a downlight at every extra point the plan names', () => {
+    const house = new Group();
+    const level = FIXTURE_PLAN.levels[0]!;
+    const lights = { ...FIXTURE_PLAN.ceilingLights, positionsMm: [[5000, 3000]] };
+
+    const added = addCeilingLights(house, palette, level, FIXTURE_PLAN.rooms, lights);
+
+    expect(added).toHaveLength(3);
+    expect(added[2]?.position.x).toBeCloseTo(5);
+    expect(added[2]?.position.z).toBeCloseTo(3);
   });
 });

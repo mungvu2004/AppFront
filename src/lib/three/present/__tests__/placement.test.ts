@@ -42,6 +42,19 @@ describe('placeFurniture — procedural first', () => {
     expect(front.clone().applyAxisAngle(new Vector3(0, 1, 0), FACING_TURN.north).z).toBeCloseTo(1);
   });
 
+  it('raises a lifted piece off the floor, and gives it no contact shadow', () => {
+    const vase = placeFurniture(
+      { id: 'F-VASE', variant: 'vase', centreMm: [1000, 1000], sizeMm: [200, 200, 400], facing: 'north', liftMm: 750 },
+      'L-G',
+      materials,
+    );
+    const liftedBed = placeFurniture({ ...BED, liftMm: 300 }, 'L-G', materials);
+
+    expect(vase.group.position.y).toBeCloseTo(0.75);
+    expect(placeFurniture(BED, 'L-G', materials).group.position.y).toBe(0);
+    expect(liftedBed.group.getObjectByName('contactShadow')).toBeUndefined();
+  });
+
   it('lays a contact shadow under a heavy piece and not under a light one', () => {
     const bed = placeFurniture(BED, 'L-G', materials);
     const chair = placeFurniture(CHAIR, 'L-G', materials);

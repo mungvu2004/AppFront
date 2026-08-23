@@ -1,4 +1,4 @@
-import { Mesh, PointLight } from 'three';
+import { Group, Mesh, PointLight, SpotLight } from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readPartData } from '../../build/scene';
@@ -21,11 +21,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/**
+ * Ids of the built parts of one kind. A wall is a mesh, except a balustrade,
+ * which the joinery pass turns into a tagged group of rails.
+ */
 function idsOfKind(root: Parameters<typeof readPartData>[0], kind: string): string[] {
   const found: string[] = [];
   root.traverse((object) => {
     const part = readPartData(object);
-    if (part?.kind === kind && (kind !== 'wall' || object instanceof Mesh)) {
+    const isWallPart = object instanceof Mesh || (object instanceof Group && kind === 'wall');
+    if (part?.kind === kind && (kind !== 'wall' || isWallPart)) {
       found.push(part.entityId);
     }
   });
@@ -57,14 +62,18 @@ describe('assembleHouse', () => {
     expect(pieces).toHaveLength(FIXTURE_PLAN.furniture.length);
     expect(idsOfKind(house, 'furniture').sort()).toEqual(FIXTURE_PLAN.furniture.map((entry) => entry.id).sort());
 
-    let lights = 0;
+    let downlights = 0;
+    let lamps = 0;
     house.traverse((object) => {
-      if (object instanceof PointLight) {
-        lights += 1;
+      if (object instanceof SpotLight) {
+        downlights += 1;
+      } else if (object instanceof PointLight) {
+        lamps += 1;
       }
     });
     // Two ceiling lights from the plan, one from the floor lamp.
-    expect(lights).toBe(3);
+    expect(downlights).toBe(2);
+    expect(lamps).toBe(1);
   });
 
   it('reports a refused opening rather than hiding it', () => {

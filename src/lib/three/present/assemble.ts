@@ -17,6 +17,7 @@ import { readPartData } from '../build/scene';
 import type { WallPartData } from '../build/wall';
 
 import { dressStorey } from './dressing';
+import { fitJoinery } from './joinery';
 import { addCeilingLights } from './lighting';
 import type { SceneMaterials } from './materials';
 import type { ScenePalette } from './palette';
@@ -84,9 +85,11 @@ export function assembleHouse(
       }
     });
 
-    const dressing = dressStorey(storey, { walls: planWalls, openings: plan.openings, rooms: planRooms }, materials);
-    for (const ceiling of dressing.removed) {
-      ceiling.geometry.dispose();
+    const dressingPlan = { walls: planWalls, openings: plan.openings, rooms: planRooms };
+    const dressing = dressStorey(storey, dressingPlan, materials);
+    const joinery = fitJoinery(storey, dressingPlan, materials);
+    for (const part of [...dressing.removed, ...joinery.removed]) {
+      part.geometry.dispose();
     }
     unknownFinishes.push(...dressing.unknownFinishes);
 

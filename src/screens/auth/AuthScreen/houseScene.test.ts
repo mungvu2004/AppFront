@@ -11,7 +11,7 @@
  * one the engine can paint, and the ceilings the builder lays must be gone again.
  */
 
-import { Mesh, PointLight } from 'three';
+import { Mesh, PointLight, SpotLight } from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readPartData } from '@/lib/three/build/scene';
@@ -21,6 +21,7 @@ import {
   isCatalogueVariant,
   isFacing,
   isFinish,
+  LAMP_VARIANTS,
   readPalette,
   type AssembledHouse,
   type PresentationPlan,
@@ -68,6 +69,11 @@ describe('houseModel.json', () => {
     for (const roomId of plan.ceilingLights.roomIds) {
       expect(plan.rooms.some((room) => room.id === roomId), roomId).toBe(true);
     }
+    for (const opening of plan.openings) {
+      if (opening.opensTowards !== undefined) {
+        expect(isFacing(opening.opensTowards), `${opening.id}: ${opening.opensTowards}`).toBe(true);
+      }
+    }
   });
 
   it('cuts every opening in the plan; nothing is refused', () => {
@@ -90,19 +96,38 @@ describe('houseModel.json', () => {
     expect(idsOfKind('furniture').sort()).toEqual(plan.furniture.map((entry) => entry.id).sort());
   });
 
-  it('lights every room the plan names, plus each lamp on the plan', () => {
-    let lights = 0;
+  it('lights every room and point the plan names, plus each lamp on the plan', () => {
+    let downlights = 0;
+    let lamps = 0;
     assembled.house.traverse((object) => {
-      if (object instanceof PointLight) {
-        lights += 1;
+      if (object instanceof SpotLight) {
+        downlights += 1;
+      } else if (object instanceof PointLight) {
+        lamps += 1;
       }
     });
 
-    const lamps = plan.furniture.filter((entry) =>
-      ['floorLamp', 'tableLamp', 'pendant'].includes(entry.variant),
-    ).length;
+    const lampsOnPlan = plan.furniture.filter((entry) => LAMP_VARIANTS.includes(entry.variant)).length;
 
-    expect(lights).toBe(plan.ceilingLights.roomIds.length + lamps);
+    expect(downlights).toBe(plan.ceilingLights.roomIds.length + (plan.ceilingLights.positionsMm?.length ?? 0));
+    expect(lamps).toBe(lampsOnPlan);
+  });
+
+  it('stands every hinged door open, and every other panel still', () => {
+    for (const opening of plan.openings.filter((entry) => entry.kind !== 'void')) {
+      const panel = assembled.house.getObjectByName(opening.id);
+      const hinged = opening.kind === 'door' && (opening.swing === 'left' || opening.swing === 'right');
+
+      expect(panel, opening.id).toBeInstanceOf(Mesh);
+      expect(panel?.rotation.y !== 0, `${opening.id} open`).toBe(hinged);
+    }
+  });
+
+  it('keeps every lifted piece off the floor and every other piece on it', () => {
+    for (const entry of plan.furniture) {
+      const piece = assembled.house.getObjectByName(entry.id);
+      expect(piece?.position.y ?? -1, entry.id).toBeCloseTo((entry.liftMm ?? 0) / 1000);
+    }
   });
 
   it('keeps every piece procedural: the plan ships no model URLs', async () => {

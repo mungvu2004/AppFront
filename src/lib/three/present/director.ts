@@ -23,7 +23,7 @@
  * else's problem, which is why all of it can be tested without one.
  */
 
-import { Vector3, type Box3, type OrthographicCamera } from 'three';
+import { Vector3, type Box3, type OrthographicCamera, type PerspectiveCamera } from 'three';
 
 import { AMBIENT_LOOP_MS } from '@/lib/motion';
 
@@ -47,8 +47,8 @@ export interface CameraRig {
 
 const FULL_TURN_RADIANS = Math.PI * 2;
 
-/** Fifty-five degrees: the axonometric tilt a 3D floor plan is usually drawn at. */
-const DEFAULT_ELEVATION_RAD = (55 * Math.PI) / 180;
+/** Fifty degrees: steep enough to read the plan, low enough that the walls have faces. */
+const DEFAULT_ELEVATION_RAD = (50 * Math.PI) / 180;
 
 /** The tuned defaults, balcony to the front-left, eighteen degrees of sway each way. */
 export const DEFAULT_CAMERA_RIG: CameraRig = {
@@ -98,6 +98,14 @@ const FRAMING_SAMPLES = 24;
 export interface FrameExtents {
   readonly halfWidth: number;
   readonly halfHeight: number;
+  /**
+   * The same reach as a ratio to the distance from the camera, for a
+   * perspective camera: the largest `|x| / depth` and `|up| / depth` over every
+   * corner, where depth is how far in front of the camera the corner sits.
+   * Absent when the extents were measured for an orthographic camera alone.
+   */
+  readonly tanHalfWidth?: number;
+  readonly tanHalfHeight?: number;
 }
 
 /** The camera's up vector on screen, for a camera on the `+z` side looking down at `elevation`. */
@@ -105,19 +113,10 @@ export function screenUp(elevationRad: number): Vector3 {
   return new Vector3(0, Math.cos(elevationRad), -Math.sin(elevationRad));
 }
 
-/**
- * The reach of a bounding box on screen over the whole sway.
- *
- * Every corner is swung through each sampled heading about `centre` and
- * projected onto the camera's right and up axes; the largest reach either way
- * is what the frustum has to cover.
- */
-export function swayExtents(bounds: Box3, centre: Vector3, rig: CameraRig): FrameExtents {
+/** Every corner of `bounds`, swung about `centre` through each sampled heading of the sway. */
+function forEachSwayCorner(bounds: Box3, centre: Vector3, rig: CameraRig, visit: (corner: Vector3) => void): void {
   const vertical = new Vector3(0, 1, 0);
-  const up = screenUp(rig.elevationRad);
   const corner = new Vector3();
-  let halfWidth = 0;
-  let halfHeight = 0;
 
   for (let sample = 0; sample <= FRAMING_SAMPLES; sample += 1) {
     const heading =
@@ -128,14 +127,81 @@ export function swayExtents(bounds: Box3, centre: Vector3, rig: CameraRig): Fram
       for (const y of [bounds.min.y, bounds.max.y]) {
         for (const z of [bounds.min.z, bounds.max.z]) {
           corner.set(x, y, z).sub(centre).applyAxisAngle(vertical, heading);
-          halfWidth = Math.max(halfWidth, Math.abs(corner.x));
-          halfHeight = Math.max(halfHeight, Math.abs(corner.dot(up)));
+          visit(corner);
         }
       }
     }
   }
+}
 
-  return { halfWidth, halfHeight };
+/**
+ * The reach of a bounding box on screen over the whole sway.
+ *
+ * Every corner is swung through each sampled heading about `centre` and
+ * projected onto the camera's right and up axes; the largest reach either way
+ * is what the frustum has to cover. Given a `cameraDistance`, the perspective
+ * ratios are measured too, relative to `aim` — the point on the view axis the
+ * camera is pointed at, in the model's centred frame.
+ */
+export function swayExtents(
+  bounds: Box3,
+  centre: Vector3,
+  rig: CameraRig,
+  cameraDistance = 0,
+  aim: Vector3 = new Vector3(),
+): FrameExtents {
+  const up = screenUp(rig.elevationRad);
+  const towardsCamera = screenForward(rig.elevationRad);
+  const offset = new Vector3();
+  let halfWidth = 0;
+  let halfHeight = 0;
+  let tanHalfWidth = 0;
+  let tanHalfHeight = 0;
+
+  forEachSwayCorner(bounds, centre, rig, (corner) => {
+    halfWidth = Math.max(halfWidth, Math.abs(corner.x));
+    halfHeight = Math.max(halfHeight, Math.abs(corner.dot(up)));
+
+    if (cameraDistance > 0) {
+      // A corner nearer the camera than the aim looms larger.
+      offset.copy(corner).sub(aim);
+      const depth = Math.max(cameraDistance * 0.1, cameraDistance - offset.dot(towardsCamera));
+      tanHalfWidth = Math.max(tanHalfWidth, Math.abs(offset.x) / depth);
+      tanHalfHeight = Math.max(tanHalfHeight, Math.abs(offset.dot(up)) / depth);
+    }
+  });
+
+  return cameraDistance > 0 ? { halfWidth, halfHeight, tanHalfWidth, tanHalfHeight } : { halfWidth, halfHeight };
+}
+
+/**
+ * Where a perspective camera should aim so the model sits centred on screen.
+ *
+ * Seen in perspective, the near half of a model is bigger than the far half,
+ * so a camera aimed at the model's centre leaves a band of empty frame above
+ * it. This measures the signed reach up and down the screen over the sway and
+ * returns the point, along the screen's up axis, that splits it evenly — the
+ * camera is then moved by this offset, not tilted, so the elevation holds.
+ */
+export function frameAim(bounds: Box3, centre: Vector3, rig: CameraRig, cameraDistance: number): Vector3 {
+  const up = screenUp(rig.elevationRad);
+  const towardsCamera = screenForward(rig.elevationRad);
+  let top = -Infinity;
+  let bottom = Infinity;
+
+  forEachSwayCorner(bounds, centre, rig, (corner) => {
+    const depth = Math.max(cameraDistance * 0.1, cameraDistance - corner.dot(towardsCamera));
+    const ratio = corner.dot(up) / depth;
+    top = Math.max(top, ratio);
+    bottom = Math.min(bottom, ratio);
+  });
+
+  return up.multiplyScalar((cameraDistance * (top + bottom)) / 2);
+}
+
+/** The unit vector from the origin towards the camera, for a camera on the `+z` side at `elevation`. */
+export function screenForward(elevationRad: number): Vector3 {
+  return new Vector3(0, Math.sin(elevationRad), Math.cos(elevationRad));
 }
 
 /** The frustum half-sizes that fit `extents` into a viewport of `aspect`, with the rig's margin. */
@@ -154,6 +220,30 @@ export function applyFrustum(camera: OrthographicCamera, frustum: FrameExtents):
   camera.right = frustum.halfWidth;
   camera.top = frustum.halfHeight;
   camera.bottom = -frustum.halfHeight;
+  camera.updateProjectionMatrix();
+}
+
+/**
+ * The vertical field of view, in degrees, that fits `extents` into a viewport
+ * of `aspect` for a perspective camera, with the rig's margin.
+ *
+ * Uses the perspective ratios when the extents carry them, so a corner that
+ * leans towards the camera still lands inside the frame; otherwise falls back
+ * to the orthographic reach over `cameraDistance`, which is right only for a
+ * model thin along the view axis.
+ */
+export function fitFieldOfView(extents: FrameExtents, aspect: number, rig: CameraRig, cameraDistance: number): number {
+  const tanHalfWidth = extents.tanHalfWidth ?? extents.halfWidth / cameraDistance;
+  const tanHalfHeight = extents.tanHalfHeight ?? extents.halfHeight / cameraDistance;
+  const tanHalfVertical = Math.max(tanHalfHeight, tanHalfWidth / aspect) * rig.margin;
+
+  return (2 * Math.atan(tanHalfVertical) * 180) / Math.PI;
+}
+
+/** Apply a fitted field of view to a perspective camera. */
+export function applyFieldOfView(camera: PerspectiveCamera, fovDeg: number, aspect: number): void {
+  camera.fov = fovDeg;
+  camera.aspect = aspect;
   camera.updateProjectionMatrix();
 }
 

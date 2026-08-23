@@ -6,6 +6,8 @@ import { readPalette } from '../palette';
 import {
   contactShadowFalloff,
   createContactShadowTexture,
+  createDeckingTexture,
+  createMosaicTexture,
   createPlankTexture,
   createTileTexture,
   noise,
@@ -24,7 +26,9 @@ describe('drawn textures without a canvas', () => {
     stubNoCanvas();
 
     expect(createPlankTexture(palette)).toBeNull();
+    expect(createDeckingTexture(palette)).toBeNull();
     expect(createTileTexture(palette)).toBeNull();
+    expect(createMosaicTexture(palette)).toBeNull();
     expect(createContactShadowTexture(palette)).toBeNull();
   });
 });
@@ -33,14 +37,16 @@ describe('drawn textures with a canvas', () => {
   it('paint boards and tiles as repeating metre tiles', () => {
     stubCanvasContext();
 
-    const planks = createPlankTexture(palette);
-    const tiles = createTileTexture(palette);
-
-    expect(planks).toBeInstanceOf(CanvasTexture);
-    expect(planks?.wrapS).toBe(RepeatWrapping);
-    expect(planks?.wrapT).toBe(RepeatWrapping);
-    expect(tiles).toBeInstanceOf(CanvasTexture);
-    expect(tiles?.wrapS).toBe(RepeatWrapping);
+    for (const texture of [
+      createPlankTexture(palette),
+      createDeckingTexture(palette),
+      createTileTexture(palette),
+      createMosaicTexture(palette),
+    ]) {
+      expect(texture).toBeInstanceOf(CanvasTexture);
+      expect(texture?.wrapS).toBe(RepeatWrapping);
+      expect(texture?.wrapT).toBe(RepeatWrapping);
+    }
   });
 
   it('writes the contact shadow pixel by pixel, darkest in the middle', () => {
@@ -91,17 +97,17 @@ describe('createMaterials', () => {
     expect(materials.woodFloor.color.getHex()).toBe(palette.wood.getHex());
   });
 
-  it('attaches the drawn maps and shares the plank map between parquet and decking', () => {
+  it('attaches a drawn map to every floor finish, each its own', () => {
     stubCanvasContext();
 
     const materials = createMaterials(palette);
+    const maps = [materials.woodFloor.map, materials.decking.map, materials.tileFloor.map, materials.mosaicFloor.map];
 
-    expect(materials.woodFloor.map).not.toBeNull();
-    expect(materials.decking.map).toBe(materials.woodFloor.map);
-    expect(materials.tileFloor.map).not.toBeNull();
+    expect(maps.every((map) => map !== null)).toBe(true);
+    expect(new Set(maps).size).toBe(maps.length);
     expect(materials.contactShadow?.transparent).toBe(true);
     expect(materials.contactShadow?.depthWrite).toBe(false);
-    expect(materials.textures).toHaveLength(3);
+    expect(materials.textures).toHaveLength(5);
     expect(materials.glass.transparent).toBe(true);
     expect(materials.lampShade.emissiveIntensity).toBeGreaterThan(0);
   });

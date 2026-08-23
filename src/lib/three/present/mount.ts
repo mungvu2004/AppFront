@@ -4,8 +4,8 @@
  * Everything before this point — reading the palette, building and dressing the
  * storeys, placing the furniture, hanging the lights, fitting the frame — is
  * arithmetic that runs anywhere. This file is the thin shell that puts it on
- * screen: a WebGL renderer with shadows and filmic tone mapping, an
- * orthographic camera on the rig, a studio environment for the materials to
+ * screen: a WebGL renderer with shadows and filmic tone mapping, a long-lens
+ * perspective camera on the rig, a studio environment for the materials to
  * reflect, a ground that catches the flat's drop shadow, and a loop that sways
  * the model or parks it when the visitor has asked for no motion.
  *
@@ -19,8 +19,8 @@ import {
   Box3,
   Group,
   Mesh,
-  OrthographicCamera,
   PCFSoftShadowMap,
+  PerspectiveCamera,
   PlaneGeometry,
   Scene,
   ShadowMaterial,
@@ -34,9 +34,10 @@ import { toSceneLength } from '../build/scene';
 import { assembleHouse, type AssembledHouse } from './assemble';
 import type { AssetService } from './assets';
 import {
-  applyFrustum,
+  applyFieldOfView,
   cameraPosition,
-  fitFrustum,
+  fitFieldOfView,
+  frameAim,
   headingAt,
   resolveRig,
   restingHeading,
@@ -80,10 +81,15 @@ export interface PresentationHandle {
 const CAMERA_NEAR = 0.1;
 const CAMERA_FAR = 100;
 
-/** How far back the orthographic camera sits. Only has to clear the model. */
+/**
+ * How far back the camera sits. With a perspective camera this is the lens:
+ * forty metres from a flat twelve across is a long lens — enough convergence
+ * that the far walls read as farther, not so much that the plan distorts.
+ */
 const CAMERA_DISTANCE = 40;
 
-const TONE_MAPPING_EXPOSURE = 1;
+/** A touch under one: the lamps should read as the bright things in the frame. */
+const TONE_MAPPING_EXPOSURE = 0.86;
 
 /** How dark the flat's drop shadow is on the backdrop. */
 const GROUND_SHADOW_OPACITY = 0.45;
@@ -147,9 +153,12 @@ export function mountPresentation(
     scene.add(light);
   }
 
-  const camera = new OrthographicCamera(-1, 1, 1, -1, CAMERA_NEAR, CAMERA_FAR);
-  camera.position.copy(cameraPosition(rig, CAMERA_DISTANCE));
-  camera.lookAt(0, 0, 0);
+  // Aimed a little below the model's centre so the near half, which looms
+  // larger in perspective, does not push the far half off the top of the frame.
+  const aim = frameAim(bounds, centre, rig, CAMERA_DISTANCE);
+  const camera = new PerspectiveCamera(1, 1, CAMERA_NEAR, CAMERA_FAR);
+  camera.position.copy(cameraPosition(rig, CAMERA_DISTANCE)).add(aim);
+  camera.lookAt(aim);
 
   const renderer = new WebGLRenderer({ canvas, antialias: true });
   renderer.setClearColor(palette.backdrop, 1);
@@ -159,7 +168,7 @@ export function mountPresentation(
   renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
 
   const environment = applyRoomEnvironment(renderer, scene);
-  const extents = swayExtents(bounds, centre, rig);
+  const extents = swayExtents(bounds, centre, rig, CAMERA_DISTANCE, aim);
 
   const resize = (): void => {
     const width = canvas.clientWidth;
@@ -171,7 +180,7 @@ export function mountPresentation(
 
     renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio, 2));
     renderer.setSize(width, height, false);
-    applyFrustum(camera, fitFrustum(extents, width / height, rig));
+    applyFieldOfView(camera, fitFieldOfView(extents, width / height, rig, CAMERA_DISTANCE), width / height);
   };
 
   resize();

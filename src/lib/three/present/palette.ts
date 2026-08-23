@@ -28,13 +28,17 @@ import type { ColorTokenName } from '@/lib/coloring/scales';
 export type PaletteRole =
   | 'backdrop'
   | 'plaster'
+  | 'exterior'
   | 'cut'
   | 'wood'
   | 'woodDark'
+  | 'decking'
   | 'tile'
   | 'grout'
+  | 'mosaic'
   | 'fabric'
   | 'textile'
+  | 'ochre'
   | 'stone'
   | 'metal'
   | 'foliage'
@@ -57,13 +61,17 @@ export type ScenePalette = Readonly<Record<PaletteRole, Color>>;
 export const PALETTE_TOKENS: Readonly<Record<PaletteRole, ColorTokenName>> = {
   backdrop: '--scene-backdrop',
   plaster: '--bg-surface',
+  exterior: '--scene-exterior',
   cut: '--text-primary',
   wood: '--scene-wood',
   woodDark: '--scene-wood-dark',
+  decking: '--scene-decking',
   tile: '--scene-tile',
   grout: '--scene-tile-grout',
+  mosaic: '--scene-mosaic',
   fabric: '--canvas-3d',
   textile: '--scene-textile',
+  ochre: '--scene-ochre',
   stone: '--canvas-3d-horizon',
   metal: '--wall-110',
   foliage: '--scene-foliage',

@@ -6,9 +6,10 @@
  * when it wants a plan to *look like a home*. It is organised as the three
  * things a presentation needs, each its own module and each testable alone:
  *
- * - **Dressing** — `palette`, `textures`, `materials`, `dressing`: every token
- *   the scene reads, the floors drawn from them, and the assignment of a
- *   material to every built part by its role.
+ * - **Dressing** — `palette`, `textures`, `materials`, `dressing`, `joinery`:
+ *   every token the scene reads, the floors drawn from them, the assignment of
+ *   a material to every built part by its role, and the doors, frames and
+ *   rails that make openings legible.
  * - **Furniture** — `catalogue`, `assets`, `placement`: the procedural pieces,
  *   the late-loaded `.glb` models, and the rule that the procedural piece goes
  *   in first and is swapped only when a model arrives whole.
@@ -35,17 +36,23 @@ export {
   CATALOGUE,
   CATALOGUE_VARIANTS,
   isCatalogueVariant,
+  LAMP_VARIANTS,
   type CatalogueEntry,
   type PieceBuilder,
 } from './catalogue';
 export {
+  applyFieldOfView,
   applyFrustum,
   cameraPosition,
   DEFAULT_CAMERA_RIG,
+  fitFieldOfView,
   fitFrustum,
+  frameAim,
   headingAt,
   resolveRig,
   restingHeading,
+  screenForward,
+  screenUp,
   swayExtents,
   swayPeriodMs,
   type CameraRig,
@@ -53,6 +60,19 @@ export {
 } from './director';
 export { dressStorey, floorMaterialFor, isGlazed, type DressingPlan, type DressingReport } from './dressing';
 export { applyRoomEnvironment, type EnvironmentHandle } from './environment';
+export {
+  buildFrame,
+  buildRailing,
+  chooseSwing,
+  DOOR_OPEN_RAD,
+  fitJoinery,
+  isHinged,
+  swingDoor,
+  turnedAboutY,
+  wallRun,
+  type JoineryReport,
+  type WallRun,
+} from './joinery';
 export { addCeilingLights, createLighting, type SceneLighting } from './lighting';
 export { createMaterials, disposeMaterials, type SceneMaterials, type SurfaceMaterials } from './materials';
 export { mountPresentation, type PresentationHandle, type PresentationOptions } from './mount';
@@ -76,11 +96,14 @@ export {
 } from './placement';
 export {
   FACINGS,
+  facingVector,
   FINISHES,
   furnitureCentre,
+  furnitureLift,
   furnitureSize,
   isFacing,
   isFinish,
+  planPoint,
   roomCentre,
   type Facing,
   type Finish,
@@ -97,6 +120,8 @@ export {
 export {
   contactShadowFalloff,
   createContactShadowTexture,
+  createDeckingTexture,
+  createMosaicTexture,
   createPlankTexture,
   createTileTexture,
 } from './textures';

@@ -1,16 +1,20 @@
-import { Box3, OrthographicCamera, Vector3 } from 'three';
+import { Box3, OrthographicCamera, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 
 import { AMBIENT_LOOP_MS } from '@/lib/motion';
 
 import {
+  applyFieldOfView,
   applyFrustum,
   cameraPosition,
   DEFAULT_CAMERA_RIG,
+  fitFieldOfView,
   fitFrustum,
+  frameAim,
   headingAt,
   resolveRig,
   restingHeading,
+  screenForward,
   screenUp,
   swayExtents,
   swayPeriodMs,
@@ -113,5 +117,60 @@ describe('framing', () => {
     expect(position.y).toBeCloseTo(position.z);
     expect(position.length()).toBeCloseTo(10);
     expect(screenUp(rig.elevationRad).dot(position.clone().normalize())).toBeCloseTo(0);
+    expect(screenForward(rig.elevationRad).dot(position.clone().normalize())).toBeCloseTo(1);
+  });
+});
+
+describe('framing in perspective', () => {
+  const box = new Box3(new Vector3(-6, 0, -4), new Vector3(6, 2.4, 4));
+  const centre = box.getCenter(new Vector3());
+  const rig = resolveRig({ restingTurn: 0, swayTurn: 0 });
+  const distance = 40;
+
+  it('measures the reach as a ratio to depth only when given a camera distance', () => {
+    expect(swayExtents(box, centre, rig).tanHalfWidth).toBeUndefined();
+
+    const extents = swayExtents(box, centre, rig, distance);
+    // A corner nearer the camera than the centre looms larger than its orthographic reach.
+    expect(extents.tanHalfWidth).toBeGreaterThan(extents.halfWidth / distance);
+    expect(extents.tanHalfHeight).toBeGreaterThan(extents.halfHeight / distance);
+    // ...but not by much at forty metres from a twelve-metre flat.
+    expect(extents.tanHalfWidth).toBeLessThan((extents.halfWidth / distance) * 1.25);
+  });
+
+  it('aims below the centre, along the screen up axis, so the near half does not crowd the top', () => {
+    const aim = frameAim(box, centre, rig, distance);
+    const up = screenUp(rig.elevationRad);
+
+    expect(aim.dot(up)).toBeLessThan(0);
+    expect(aim.clone().normalize().dot(up)).toBeCloseTo(-1);
+    expect(aim.length()).toBeLessThan(2);
+
+    // Aimed there, the reach is tighter than aimed at the centre.
+    const centred = swayExtents(box, centre, rig, distance);
+    const aimed = swayExtents(box, centre, rig, distance, aim);
+    expect(aimed.tanHalfHeight).toBeLessThan(centred.tanHalfHeight!);
+  });
+
+  it('fits a field of view by height or by width, whichever binds, with the margin', () => {
+    const extents = swayExtents(box, centre, rig, distance);
+    const tall = fitFieldOfView(extents, 0.5, rig, distance);
+    const wide = fitFieldOfView(extents, 3, rig, distance);
+    const byHeight = (2 * Math.atan(extents.tanHalfHeight! * rig.margin) * 180) / Math.PI;
+
+    expect(wide).toBeCloseTo(byHeight);
+    expect(tall).toBeGreaterThan(wide);
+
+    // Without perspective ratios the orthographic reach over the distance stands in.
+    const flat = fitFieldOfView({ halfWidth: 6, halfHeight: 4 }, 1, rig, distance);
+    expect(flat).toBeCloseTo((2 * Math.atan((6 / distance) * rig.margin) * 180) / Math.PI);
+  });
+
+  it('writes the field of view and aspect to a perspective camera', () => {
+    const camera = new PerspectiveCamera();
+    applyFieldOfView(camera, 25, 1.5);
+
+    expect(camera.fov).toBe(25);
+    expect(camera.aspect).toBe(1.5);
   });
 });

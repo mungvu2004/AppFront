@@ -16,7 +16,7 @@ import { PMREMGenerator, type Scene, type WebGLRenderer } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 /** How strongly the environment lights the scene. Below one: the lamps stay the story. */
-const ENVIRONMENT_INTENSITY = 0.4;
+const ENVIRONMENT_INTENSITY = 0.18;
 
 /** Blur applied when filtering the room, in radians; softens the box's hard edges. */
 const ENVIRONMENT_SIGMA = 0.04;

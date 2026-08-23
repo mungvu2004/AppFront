@@ -18,7 +18,8 @@
  *
  * Heavy pieces also get a contact shadow: a soft dark decal laid on the floor
  * under their footprint, which is the cue that tells an eye the piece is
- * standing rather than floating.
+ * standing rather than floating. A piece the plan lifts off the floor
+ * (`liftMm`) gets none — it is standing on something else.
  */
 
 import { Box3, Group, Mesh, PlaneGeometry, Vector3, type Object3D } from 'three';
@@ -30,7 +31,15 @@ import { tagPart } from '../build/scene';
 import type { AssetService } from './assets';
 import { buildProceduralPiece, CATALOGUE, isCatalogueVariant } from './catalogue';
 import type { SceneMaterials } from './materials';
-import { furnitureCentre, furnitureSize, isFacing, type Facing, type PlanFurniture, type SceneSize } from './plan';
+import {
+  furnitureCentre,
+  furnitureLift,
+  furnitureSize,
+  isFacing,
+  type Facing,
+  type PlanFurniture,
+  type SceneSize,
+} from './plan';
 
 /* -------------------------------------------------------------------------- */
 /* Types.                                                                      */
@@ -184,7 +193,7 @@ export function placeFurniture(
   procedural.name = 'procedural';
   group.add(procedural);
 
-  if (CATALOGUE[entry.variant]?.contactShadow === true) {
+  if (CATALOGUE[entry.variant]?.contactShadow === true && (entry.liftMm ?? 0) === 0) {
     const decal = contactShadowFor(size, materials);
     if (decal !== null) {
       decal.name = 'contactShadow';
@@ -192,7 +201,9 @@ export function placeFurniture(
     }
   }
 
-  group.position.set(centre.x, 0, centre.z);
+  // A lifted piece — a vase on a table, a picture on a wall — is raised whole,
+  // contact shadow and all; a piece the plan lifts is by definition not on the floor.
+  group.position.set(centre.x, furnitureLift(entry), centre.z);
   group.rotation.y = FACING_TURN[entry.facing];
   tagPart(group, { kind: 'furniture', entityId: entry.id as FurnitureId, levelId });
 

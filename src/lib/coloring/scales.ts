@@ -101,11 +101,15 @@ export const COLOR_TOKEN_NAMES = [
   // `globals.css`, nhưng không mode tô màu nào được cầm tới: chúng không nói gì
   // về trạng thái của một bức tường.
   '--scene-backdrop',
+  '--scene-exterior',
   '--scene-wood',
   '--scene-wood-dark',
+  '--scene-decking',
   '--scene-tile',
   '--scene-tile-grout',
+  '--scene-mosaic',
   '--scene-textile',
+  '--scene-ochre',
   '--scene-foliage',
   '--scene-clay',
   '--scene-glass',
