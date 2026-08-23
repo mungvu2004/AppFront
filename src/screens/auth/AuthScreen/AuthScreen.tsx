@@ -47,57 +47,13 @@ import {
   type AuthTab,
   type UseAuthScreenOptions,
 } from './useAuthScreen';
+import { ValuePanel } from './ValuePanel';
 
 const AUTH_MESSAGES = viMessages.auth;
 
 /** The one panel both tabs point at. Fixed, because there is only ever one. */
 const PANEL_ID = 'auth-tab-panel';
 
-/** Where the hairlines sit on the left panel. Static: nothing here moves or measures. */
-const VERTICAL_RULE_OFFSETS = ['18%', '36%', '54%', '72%', '90%'] as const;
-const HORIZONTAL_RULE_OFFSETS = ['28%', '64%'] as const;
-
-/* -------------------------------------------------------------------------- */
-/* The left column.                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The value proposition, on a grid that is drawn rather than rendered.
- *
- * `aria-hidden` on the rules because they are texture: a screen reader that
- * announced seven dividers before the form would be describing the wallpaper.
- */
-function ValuePanel() {
-  return (
-    <section className="relative hidden w-[45%] shrink-0 overflow-hidden bg-bg-sunken p-12 lg:flex lg:flex-col lg:justify-center">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        {VERTICAL_RULE_OFFSETS.map((offset) => (
-          <span
-            key={offset}
-            className="absolute top-0 bottom-0 w-px bg-border-default"
-            style={{ left: offset }}
-          />
-        ))}
-        {HORIZONTAL_RULE_OFFSETS.map((offset) => (
-          <span
-            key={offset}
-            className="absolute right-0 left-0 h-px bg-border-default"
-            style={{ top: offset }}
-          />
-        ))}
-      </div>
-
-      <div className="relative flex max-w-[420px] flex-col gap-4">
-        <h1 className="text-[28px] font-semibold leading-[36px] text-text-primary">
-          {AUTH_MESSAGES.hero.headline}
-        </h1>
-        <p className="text-[15px] leading-[24px] text-text-secondary">
-          {AUTH_MESSAGES.hero.support}
-        </p>
-      </div>
-    </section>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* One tab's form.                                                             */
@@ -287,7 +243,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
       <ValuePanel />
 
       <div className="flex w-full flex-col items-center justify-center p-12 lg:w-[55%]">
-        <div className="flex w-[360px] max-w-full flex-col gap-6">
+        <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
           {/* The mark, and nothing beside it. There is deliberately no "thu
               gọn" button: `isCollapsed` is set by whoever mounts the screen —
               an embedding host with less room — not by the visitor. A control

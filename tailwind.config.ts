@@ -107,6 +107,21 @@ const config: Config = {
           '0%': { transform: 'scale(0.96)' },
           '100%': { transform: 'scale(1)' },
         },
+        /**
+         * Một vòng quay đầy của khối mô hình trên màn đăng nhập.
+         *
+         * Nghiêng sẵn `rotateX` để nhìn thấy mặt trên — không có nó thì khối
+         * hộp dẹt thành hình chữ nhật lúc đi qua 0° và 180°.
+         */
+        'model-spin': {
+          '0%': { transform: 'rotateX(-24deg) rotateY(0deg)' },
+          '100%': { transform: 'rotateX(-24deg) rotateY(360deg)' },
+        },
+        /** Khối nội dung trồi lên khi màn vừa mở. Cùng hình dạng toast-enter, đi chậm hơn. */
+        'panel-rise': {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         'dropdown-open': {
           '0%': { opacity: '0', transform: 'scale(0.98) translateY(4px)' },
           '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
@@ -167,6 +182,11 @@ const config: Config = {
         'skeleton-scan': `skeleton-scan ${beats(2)} linear infinite`,
         'progress-overlay-scan': `progress-overlay-scan ${beats(2)} linear infinite`,
         'pipeline-sweep': `pipeline-sweep ${beats(2)} linear infinite`,
+        // Xoay nền: 30 nhịp = 21 giây một vòng. Chậm tới mức đọc chữ bên cạnh
+        // không thấy vướng, nhưng nhìn kỹ thì biết nó đang sống. `linear` vì một
+        // vòng quay đều không có điểm bắt đầu hay kết thúc để mà gia tốc.
+        'model-spin': `model-spin ${beats(30)} linear infinite`,
+        'panel-rise': `panel-rise ${speed('slow')} ease-out forwards`,
       }
     },
   },

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- file này xuất `AuthRoute`
- * bên cạnh ba thứ không phải component: `safeDestination`, `createHttpAuthGateway`
- * và câu báo khi tầng phiên chưa được cấu hình. Fast refresh vì thế nạp lại cả màn
+ * bên cạnh hai thứ không phải component: `safeDestination` và
+ * `createHttpAuthGateway`. Fast refresh vì thế nạp lại cả màn
  * đăng nhập thay vì giữ trạng thái khi đang sửa — một cái giá thật, và là cái giá
  * nhỏ trên màn mà trạng thái chỉ gồm hai ô chữ.
  *
@@ -48,17 +48,14 @@ import { createApiClient, type ApiClient } from '@/api/client';
 import { API_BASE_PATH } from '@/api/endpoints';
 import type { RegisterInput, SignInInput } from '@/api/schemas';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { bootstrapSession, createAuthHttpClientOptions } from '@/lib/auth';
+import { bootstrapSession } from '@/lib/auth';
 import { createHttpClient, type Result } from '@/lib/http';
 import { ROUTES } from '@/routes/paths';
-
-import viMessages from '@/i18n/vi.json';
 
 import { AuthScreen } from './AuthScreen';
 import type { AuthGateway } from './useAuthScreen';
@@ -68,9 +65,6 @@ const SCREEN_ID = 'auth';
 
 /** Where the visitor lands when they arrived at `/login` directly. */
 const DEFAULT_DESTINATION = ROUTES.dashboard;
-
-/** What to say when the session layer has not been configured by the host yet. */
-export const AUTH_GATEWAY_UNAVAILABLE = viMessages.auth.notices.gatewayUnavailable;
 
 /**
  * Where the API lives.
@@ -148,30 +142,28 @@ export function createHttpAuthGateway(client: ApiClient): AuthGateway {
 }
 
 /**
- * The gateway for this build, or `null` when there is no session layer to use.
+ * The gateway. There is always one.
  *
- * `src/lib/auth` throws when `configureAuth()` has not run — which is the truth
- * in this build, where the auth layer is configured by the host application
- * rather than at import time. Throwing out of a route would take it down with a
- * white screen, which is the one failure invariant A11 exists to prevent, so the
- * failure is returned as a value and the route says so.
+ * An earlier version probed `src/lib/auth` here and returned `null` when
+ * `configureAuth()` had not run, and the route then rendered a notice *instead
+ * of the form*. That was wrong twice over. A sign-in form is static markup —
+ * whether a server can be reached is not knowable until someone presses the
+ * button — so hiding it locks the visitor out before they have typed anything.
+ * And invariant A11 lists seven states; "the host has not configured auth" is
+ * not one of them, because it is a deployment fault, not something a visitor
+ * can act on.
+ *
+ * The probe was unnecessary anyway: `createHttpClient` needs a base URL and
+ * nothing else. Only `bootstrapSession()` needs the auth layer configured, and
+ * that runs *after* a successful post — where a failure is an ordinary rejected
+ * attempt that `useAuthScreen` turns into a sentence in the strip, with every
+ * field left exactly as it was typed.
  */
-function useAuthGateway(): AuthGateway | null {
-  return useMemo(() => {
-    try {
-      // Called for the exception, not the value. It is the one exported probe
-      // that fails exactly when `configureAuth()` has not run, and asking now
-      // is what lets the screen say so before anyone types a password rather
-      // than after they press the button.
-      createAuthHttpClientOptions();
-    } catch {
-      // Auth has not been configured yet. Not an error worth reporting: the
-      // route says so in a sentence and offers nothing it cannot deliver.
-      return null;
-    }
-
-    return createHttpAuthGateway(createApiClient(createHttpClient({ baseUrl: resolveBaseUrl() })));
-  }, []);
+function useAuthGateway(): AuthGateway {
+  return useMemo(
+    () => createHttpAuthGateway(createApiClient(createHttpClient({ baseUrl: resolveBaseUrl() }))),
+    [],
+  );
 }
 
 /**
@@ -220,14 +212,6 @@ function AuthRouteContent() {
   const onAuthenticated = useCallback(() => {
     navigate(destination, { replace: true });
   }, [destination, navigate]);
-
-  if (gateway === null) {
-    return (
-      <div className="p-6">
-        <InlineAlert level="attention" message={AUTH_GATEWAY_UNAVAILABLE} />
-      </div>
-    );
-  }
 
   return (
     <AuthScreen gateway={gateway} onAuthenticated={onAuthenticated} reducedMotion={reducedMotion} />

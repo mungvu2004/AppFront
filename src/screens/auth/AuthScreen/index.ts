@@ -8,7 +8,7 @@
  * - {@link AuthScreenView} is the markup alone, for stories and tests.
  */
 
-export { AuthRoute, AUTH_GATEWAY_UNAVAILABLE, createHttpAuthGateway, safeDestination } from './AuthScreen.container';
+export { AuthRoute, createHttpAuthGateway, safeDestination } from './AuthScreen.container';
 export { AuthScreen, AuthScreenView } from './AuthScreen';
 export type { AuthScreenProps, AuthScreenViewProps } from './AuthScreen';
 export {

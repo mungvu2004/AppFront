@@ -1,0 +1,52 @@
+{
+  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập. Toạ độ mm, gốc ở góc nhà. Trục x chạy ngang, y chạy sâu; cao độ tính từ cốt 0. Đây là dữ liệu ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua.",
+  "name": "Nhà phố hai tầng",
+  "levels": [
+    { "id": "L-G", "elevationMm": 0, "heightMm": 3000 },
+    { "id": "L-1", "elevationMm": 3000, "heightMm": 3000 }
+  ],
+  "roof": {
+    "risePx": 0,
+    "riseMm": 2400,
+    "eaveOvershootMm": 600
+  },
+  "footprint": { "widthMm": 12000, "depthMm": 8000 },
+  "walls": [
+    { "id": "W-G-S", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 0], "end": [12000, 0] },
+    { "id": "W-G-E", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 0], "end": [12000, 8000] },
+    { "id": "W-G-N", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 8000], "end": [0, 8000] },
+    { "id": "W-G-W", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 8000], "end": [0, 0] },
+    { "id": "W-G-I1", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [7400, 0], "end": [7400, 8000] },
+    { "id": "W-G-I2", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [0, 4600], "end": [7400, 4600] },
+
+    { "id": "W-1-S", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 0], "end": [12000, 0] },
+    { "id": "W-1-E", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 0], "end": [12000, 8000] },
+    { "id": "W-1-N", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 8000], "end": [0, 8000] },
+    { "id": "W-1-W", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 8000], "end": [0, 0] },
+    { "id": "W-1-I1", "levelId": "L-1", "kind": "partition", "thicknessMm": 120, "start": [5200, 0], "end": [5200, 8000] }
+  ],
+  "openings": [
+    { "id": "D-DOOR-1", "wallId": "W-G-S", "kind": "door", "relativePosition": 0.16, "widthMm": 1200, "heightMm": 2300, "sillHeightMm": 0, "swing": "left" },
+    { "id": "D-WIN-G1", "wallId": "W-G-S", "kind": "window", "relativePosition": 0.44, "widthMm": 1800, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+    { "id": "D-WIN-G2", "wallId": "W-G-S", "kind": "window", "relativePosition": 0.74, "widthMm": 1800, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+    { "id": "D-WIN-G3", "wallId": "W-G-E", "kind": "window", "relativePosition": 0.32, "widthMm": 1500, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+    { "id": "D-WIN-G4", "wallId": "W-G-E", "kind": "window", "relativePosition": 0.7, "widthMm": 1500, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+    { "id": "D-WIN-G5", "wallId": "W-G-W", "kind": "window", "relativePosition": 0.5, "widthMm": 1500, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+    { "id": "D-WIN-G6", "wallId": "W-G-N", "kind": "window", "relativePosition": 0.35, "widthMm": 1800, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+
+    { "id": "D-WIN-11", "wallId": "W-1-S", "kind": "window", "relativePosition": 0.18, "widthMm": 1600, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
+    { "id": "D-WIN-12", "wallId": "W-1-S", "kind": "window", "relativePosition": 0.46, "widthMm": 1600, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
+    { "id": "D-WIN-13", "wallId": "W-1-S", "kind": "window", "relativePosition": 0.74, "widthMm": 1600, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
+    { "id": "D-WIN-14", "wallId": "W-1-E", "kind": "window", "relativePosition": 0.5, "widthMm": 1500, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
+    { "id": "D-WIN-15", "wallId": "W-1-W", "kind": "window", "relativePosition": 0.5, "widthMm": 1500, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
+    { "id": "D-WIN-16", "wallId": "W-1-N", "kind": "window", "relativePosition": 0.4, "widthMm": 1800, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" }
+  ],
+  "rooms": [
+    { "id": "R-G-PHONGKHACH", "levelId": "L-G", "outline": [[0, 0], [7400, 0], [7400, 4600], [0, 4600]] },
+    { "id": "R-G-BEP", "levelId": "L-G", "outline": [[0, 4600], [7400, 4600], [7400, 8000], [0, 8000]] },
+    { "id": "R-G-GARA", "levelId": "L-G", "outline": [[7400, 0], [12000, 0], [12000, 8000], [7400, 8000]] },
+
+    { "id": "R-1-NGU1", "levelId": "L-1", "outline": [[0, 0], [5200, 0], [5200, 8000], [0, 8000]] },
+    { "id": "R-1-NGU2", "levelId": "L-1", "outline": [[5200, 0], [12000, 0], [12000, 8000], [5200, 8000]] }
+  ]
+}

@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import viMessages from '@/i18n/vi.json';
@@ -11,6 +12,7 @@ import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import { AuthScreen, AuthScreenView, type AuthScreenViewProps } from './AuthScreen';
+import { AuthRoute } from './AuthScreen.container';
 import { LOCKOUT_SECONDS, MIN_PASSWORD_LENGTH, type AuthGateway } from './useAuthScreen';
 
 const AUTH_MESSAGES = viMessages.auth;
@@ -558,6 +560,38 @@ describe('AuthScreen — changing tab', () => {
 
 /* -------------------------------------------------------------------------- */
 /* Boundaries.                                                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('AuthRoute — the form is never withheld', () => {
+  /**
+   * A regression that shipped once and must not ship twice.
+   *
+   * The route used to probe `src/lib/auth` on mount and, when `configureAuth()`
+   * had not run, render a notice *instead of* the form. That locks a visitor out
+   * before they have typed a character, over a deployment fault they cannot act
+   * on — and "the host has not configured auth" is not one of invariant A11's
+   * seven states. A sign-in form is static markup; whether a server answers is
+   * not knowable until someone presses the button, and that answer belongs in
+   * the strip inside the form.
+   *
+   * Nothing configures auth in this test, which is the whole point.
+   */
+  it('renders the form even when nothing has configured the auth layer', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/login']}>
+        <AuthRoute />
+      </MemoryRouter>,
+    );
+
+    expect(container.querySelector('main')).toHaveAttribute('data-auth-state', 'empty');
+    expect(screen.getByLabelText(AUTH_MESSAGES.fields.email)).toBeInTheDocument();
+    expect(screen.getByLabelText(AUTH_MESSAGES.fields.password)).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Layer boundaries.                                                           */
 /* -------------------------------------------------------------------------- */
 
 describe('AuthScreen — layer boundaries', () => {
