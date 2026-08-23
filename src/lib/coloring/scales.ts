@@ -96,6 +96,21 @@ export const COLOR_TOKEN_NAMES = [
   '--canvas-3d-ground',
   '--canvas-3d-horizon',
 
+  // Phong cảnh của màn đăng nhập — sàn gỗ, gạch, cây, kính, đèn, nền tối của
+  // khối mô hình. Là màu thật nên vào đây để `ColorTokenName` khép kín với
+  // `globals.css`, nhưng không mode tô màu nào được cầm tới: chúng không nói gì
+  // về trạng thái của một bức tường.
+  '--scene-backdrop',
+  '--scene-wood',
+  '--scene-wood-dark',
+  '--scene-tile',
+  '--scene-tile-grout',
+  '--scene-textile',
+  '--scene-foliage',
+  '--scene-clay',
+  '--scene-glass',
+  '--scene-lamp',
+
   // Hai màu tuyệt đối và năm màu bóng đổ, vào đây khi R-41 gỡ giá trị cứng khỏi
   // `tailwind.config.ts`. Chúng là MÀU thật — `--shadow-color-rest` là
   // `rgba(0,0,0,0.1)`, không phải cả câu `0 1px 3px rgba(0,0,0,0.1)` — nên chúng

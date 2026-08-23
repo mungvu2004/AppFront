@@ -1,52 +1,115 @@
 {
-  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập. Toạ độ mm, gốc ở góc nhà. Trục x chạy ngang, y chạy sâu; cao độ tính từ cốt 0. Đây là dữ liệu ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua.",
-  "name": "Nhà phố hai tầng",
+  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập: một căn hộ một tầng, cắt mở nhìn từ trên xuống. Toạ độ mm, gốc ở góc trước-trái của nhà. Trục x chạy ngang (trái → phải), y chạy sâu (mặt tiền y=0 → mặt sau y=8000); cao độ tính từ cốt 0. Tường, ô mở và phòng là ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua. Nội thất và đèn là lớp phong cảnh dựng thêm bằng houseFurniture.ts; `facing` là hướng mặt trước của món đồ, `sizeMm` là rộng × sâu × cao.",
+  "name": "Căn hộ ba phòng có ban công",
   "levels": [
-    { "id": "L-G", "elevationMm": 0, "heightMm": 3000 },
-    { "id": "L-1", "elevationMm": 3000, "heightMm": 3000 }
+    { "id": "L-G", "elevationMm": 0, "heightMm": 2400 }
   ],
-  "roof": {
-    "risePx": 0,
-    "riseMm": 2400,
-    "eaveOvershootMm": 600
-  },
   "footprint": { "widthMm": 12000, "depthMm": 8000 },
   "walls": [
-    { "id": "W-G-S", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 0], "end": [12000, 0] },
-    { "id": "W-G-E", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 0], "end": [12000, 8000] },
-    { "id": "W-G-N", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 8000], "end": [0, 8000] },
-    { "id": "W-G-W", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 8000], "end": [0, 0] },
-    { "id": "W-G-I1", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [7400, 0], "end": [7400, 8000] },
-    { "id": "W-G-I2", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [0, 4600], "end": [7400, 4600] },
+    { "id": "W-S", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 0], "end": [12000, 0] },
+    { "id": "W-E", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 0], "end": [12000, 8000] },
+    { "id": "W-N", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 8000], "end": [0, 8000] },
+    { "id": "W-W", "levelId": "L-G", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 8000], "end": [0, 0] },
 
-    { "id": "W-1-S", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 0], "end": [12000, 0] },
-    { "id": "W-1-E", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 0], "end": [12000, 8000] },
-    { "id": "W-1-N", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [12000, 8000], "end": [0, 8000] },
-    { "id": "W-1-W", "levelId": "L-1", "kind": "loadBearing", "thicknessMm": 300, "start": [0, 8000], "end": [0, 0] },
-    { "id": "W-1-I1", "levelId": "L-1", "kind": "partition", "thicknessMm": 120, "start": [5200, 0], "end": [5200, 8000] }
+    { "id": "W-P1", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [3000, 0], "end": [3000, 4800] },
+    { "id": "W-P2", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [0, 2200], "end": [3000, 2200] },
+    { "id": "W-P3", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [0, 4800], "end": [7400, 4800] },
+    { "id": "W-P4", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [4200, 4800], "end": [4200, 8000] },
+    { "id": "W-P5", "levelId": "L-G", "kind": "partition", "thicknessMm": 120, "start": [7400, 4800], "end": [7400, 8000] },
+
+    { "id": "W-R1", "levelId": "L-G", "kind": "railing", "thicknessMm": 80, "heightMm": 1050, "start": [-1700, 4650], "end": [-1700, 9650] },
+    { "id": "W-R2", "levelId": "L-G", "kind": "railing", "thicknessMm": 80, "heightMm": 1050, "start": [-1700, 9650], "end": [7400, 9650] },
+    { "id": "W-R3", "levelId": "L-G", "kind": "railing", "thicknessMm": 80, "heightMm": 1050, "start": [7400, 9650], "end": [7400, 8150] },
+    { "id": "W-R4", "levelId": "L-G", "kind": "railing", "thicknessMm": 80, "heightMm": 1050, "start": [-150, 4650], "end": [-1700, 4650] }
   ],
   "openings": [
-    { "id": "D-DOOR-1", "wallId": "W-G-S", "kind": "door", "relativePosition": 0.16, "widthMm": 1200, "heightMm": 2300, "sillHeightMm": 0, "swing": "left" },
-    { "id": "D-WIN-G1", "wallId": "W-G-S", "kind": "window", "relativePosition": 0.44, "widthMm": 1800, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
-    { "id": "D-WIN-G2", "wallId": "W-G-S", "kind": "window", "relativePosition": 0.74, "widthMm": 1800, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
-    { "id": "D-WIN-G3", "wallId": "W-G-E", "kind": "window", "relativePosition": 0.32, "widthMm": 1500, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
-    { "id": "D-WIN-G4", "wallId": "W-G-E", "kind": "window", "relativePosition": 0.7, "widthMm": 1500, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
-    { "id": "D-WIN-G5", "wallId": "W-G-W", "kind": "window", "relativePosition": 0.5, "widthMm": 1500, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
-    { "id": "D-WIN-G6", "wallId": "W-G-N", "kind": "window", "relativePosition": 0.35, "widthMm": 1800, "heightMm": 1600, "sillHeightMm": 850, "swing": "sliding" },
+    { "id": "D-ENTRY", "wallId": "W-S", "kind": "door", "relativePosition": 0.125, "widthMm": 1000, "heightMm": 2100, "sillHeightMm": 0, "swing": "left" },
+    { "id": "D-WIN-LIVING", "wallId": "W-S", "kind": "window", "relativePosition": 0.4333, "widthMm": 1800, "heightMm": 1400, "sillHeightMm": 800, "swing": "sliding" },
+    { "id": "D-WIN-DINING", "wallId": "W-S", "kind": "window", "relativePosition": 0.8083, "widthMm": 1800, "heightMm": 1400, "sillHeightMm": 800, "swing": "sliding" },
+    { "id": "D-WIN-EAST-1", "wallId": "W-E", "kind": "window", "relativePosition": 0.3125, "widthMm": 1500, "heightMm": 1400, "sillHeightMm": 800, "swing": "sliding" },
+    { "id": "D-WIN-EAST-2", "wallId": "W-E", "kind": "window", "relativePosition": 0.725, "widthMm": 1500, "heightMm": 1100, "sillHeightMm": 1000, "swing": "sliding" },
+    { "id": "D-WIN-KITCHEN", "wallId": "W-N", "kind": "window", "relativePosition": 0.2, "widthMm": 1500, "heightMm": 1000, "sillHeightMm": 1100, "swing": "sliding" },
+    { "id": "D-BALCONY-2", "wallId": "W-N", "kind": "door", "relativePosition": 0.5167, "widthMm": 1600, "heightMm": 2100, "sillHeightMm": 0, "swing": "sliding" },
+    { "id": "D-BALCONY-1", "wallId": "W-N", "kind": "door", "relativePosition": 0.825, "widthMm": 1600, "heightMm": 2100, "sillHeightMm": 0, "swing": "sliding" },
+    { "id": "D-WIN-BED-1", "wallId": "W-W", "kind": "window", "relativePosition": 0.2, "widthMm": 1500, "heightMm": 1400, "sillHeightMm": 800, "swing": "sliding" },
+    { "id": "D-WIN-BATH", "wallId": "W-W", "kind": "window", "relativePosition": 0.5625, "widthMm": 1000, "heightMm": 800, "sillHeightMm": 1300, "swing": "sliding" },
 
-    { "id": "D-WIN-11", "wallId": "W-1-S", "kind": "window", "relativePosition": 0.18, "widthMm": 1600, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
-    { "id": "D-WIN-12", "wallId": "W-1-S", "kind": "window", "relativePosition": 0.46, "widthMm": 1600, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
-    { "id": "D-WIN-13", "wallId": "W-1-S", "kind": "window", "relativePosition": 0.74, "widthMm": 1600, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
-    { "id": "D-WIN-14", "wallId": "W-1-E", "kind": "window", "relativePosition": 0.5, "widthMm": 1500, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
-    { "id": "D-WIN-15", "wallId": "W-1-W", "kind": "window", "relativePosition": 0.5, "widthMm": 1500, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" },
-    { "id": "D-WIN-16", "wallId": "W-1-N", "kind": "window", "relativePosition": 0.4, "widthMm": 1800, "heightMm": 1500, "sillHeightMm": 900, "swing": "sliding" }
+    { "id": "D-HALL-ARCH", "wallId": "W-P1", "kind": "void", "relativePosition": 0.2292, "widthMm": 1400, "heightMm": 2400, "sillHeightMm": 0, "swing": "fixed" },
+    { "id": "D-BATH", "wallId": "W-P1", "kind": "door", "relativePosition": 0.7083, "widthMm": 800, "heightMm": 2050, "sillHeightMm": 0, "swing": "left" },
+    { "id": "D-BED-1", "wallId": "W-P3", "kind": "door", "relativePosition": 0.4865, "widthMm": 850, "heightMm": 2050, "sillHeightMm": 0, "swing": "right" },
+    { "id": "D-BED-2", "wallId": "W-P3", "kind": "door", "relativePosition": 0.9189, "widthMm": 850, "heightMm": 2050, "sillHeightMm": 0, "swing": "left" }
   ],
   "rooms": [
-    { "id": "R-G-PHONGKHACH", "levelId": "L-G", "outline": [[0, 0], [7400, 0], [7400, 4600], [0, 4600]] },
-    { "id": "R-G-BEP", "levelId": "L-G", "outline": [[0, 4600], [7400, 4600], [7400, 8000], [0, 8000]] },
-    { "id": "R-G-GARA", "levelId": "L-G", "outline": [[7400, 0], [12000, 0], [12000, 8000], [7400, 8000]] },
+    { "id": "R-HALL", "levelId": "L-G", "usage": "corridor", "finish": "tile", "outline": [[0, 0], [3000, 0], [3000, 2200], [0, 2200]] },
+    { "id": "R-BATH", "levelId": "L-G", "usage": "bathroom", "finish": "tile", "outline": [[0, 2200], [3000, 2200], [3000, 4800], [0, 4800]] },
+    { "id": "R-LIVING", "levelId": "L-G", "usage": "livingRoom", "finish": "wood", "outline": [[3000, 0], [7400, 0], [7400, 4800], [3000, 4800]] },
+    { "id": "R-KITCHEN", "levelId": "L-G", "usage": "kitchen", "finish": "tile", "outline": [[7400, 0], [12000, 0], [12000, 8000], [7400, 8000]] },
+    { "id": "R-BED-1", "levelId": "L-G", "usage": "bedroom", "finish": "wood", "outline": [[0, 4800], [4200, 4800], [4200, 8000], [0, 8000]] },
+    { "id": "R-BED-2", "levelId": "L-G", "usage": "bedroom", "finish": "wood", "outline": [[4200, 4800], [7400, 4800], [7400, 8000], [4200, 8000]] },
+    { "id": "R-BALCONY", "levelId": "L-G", "usage": "other", "finish": "decking", "outline": [[-1700, 4650], [-150, 4650], [-150, 8150], [7400, 8150], [7400, 9650], [-1700, 9650]] }
+  ],
+  "furniture": [
+    { "id": "F-HALL-WARDROBE", "roomId": "R-HALL", "kind": "wardrobe", "variant": "wardrobe", "centreMm": [300, 1100], "sizeMm": [1000, 450, 2200], "facing": "east" },
+    { "id": "F-HALL-PLANT", "roomId": "R-HALL", "kind": "other", "variant": "plant", "centreMm": [2650, 1850], "sizeMm": [500, 500, 1300], "facing": "north" },
 
-    { "id": "R-1-NGU1", "levelId": "L-1", "outline": [[0, 0], [5200, 0], [5200, 8000], [0, 8000]] },
-    { "id": "R-1-NGU2", "levelId": "L-1", "outline": [[5200, 0], [12000, 0], [12000, 8000], [5200, 8000]] }
-  ]
+    { "id": "F-BATH-SHOWER", "roomId": "R-BATH", "kind": "sanitaryFixture", "variant": "shower", "centreMm": [600, 4200], "sizeMm": [900, 900, 2000], "facing": "south" },
+    { "id": "F-BATH-WC", "roomId": "R-BATH", "kind": "sanitaryFixture", "variant": "wc", "centreMm": [1800, 4400], "sizeMm": [400, 650, 800], "facing": "south" },
+    { "id": "F-BATH-BASIN", "roomId": "R-BATH", "kind": "sanitaryFixture", "variant": "basin", "centreMm": [1200, 2550], "sizeMm": [1000, 500, 850], "facing": "north" },
+
+    { "id": "F-LIVING-SOFA", "roomId": "R-LIVING", "kind": "other", "variant": "sofa", "centreMm": [5200, 1500], "sizeMm": [2400, 900, 800], "facing": "north" },
+    { "id": "F-LIVING-ARMCHAIR", "roomId": "R-LIVING", "kind": "other", "variant": "sofa", "centreMm": [3600, 2700], "sizeMm": [900, 900, 800], "facing": "east" },
+    { "id": "F-LIVING-RUG", "roomId": "R-LIVING", "kind": "other", "variant": "rug", "centreMm": [5200, 2700], "sizeMm": [2800, 2000, 10], "facing": "north" },
+    { "id": "F-LIVING-COFFEE", "roomId": "R-LIVING", "kind": "table", "variant": "table", "centreMm": [5200, 2800], "sizeMm": [1100, 600, 400], "facing": "north" },
+    { "id": "F-LIVING-TV", "roomId": "R-LIVING", "kind": "other", "variant": "tv", "centreMm": [5200, 4500], "sizeMm": [1800, 450, 1500], "facing": "south" },
+    { "id": "F-LIVING-LAMP", "roomId": "R-LIVING", "kind": "other", "variant": "floorLamp", "centreMm": [3500, 500], "sizeMm": [400, 400, 1500], "facing": "north" },
+    { "id": "F-LIVING-PLANT", "roomId": "R-LIVING", "kind": "other", "variant": "plant", "centreMm": [7050, 500], "sizeMm": [600, 600, 1600], "facing": "north" },
+
+    { "id": "F-KITCHEN-BACK", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "baseRun", "centreMm": [9655, 7550], "sizeMm": [4350, 600, 900], "facing": "south" },
+    { "id": "F-KITCHEN-UPPER-L", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "upperRun", "centreMm": [8150, 7675], "sizeMm": [1300, 350, 700], "facing": "south" },
+    { "id": "F-KITCHEN-UPPER-R", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "upperRun", "centreMm": [11200, 7675], "sizeMm": [1300, 350, 700], "facing": "south" },
+    { "id": "F-KITCHEN-HOB", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "hob", "centreMm": [8150, 7550], "sizeMm": [600, 500, 20], "facing": "south" },
+    { "id": "F-KITCHEN-SINK", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "sink", "centreMm": [9600, 7550], "sizeMm": [800, 450, 20], "facing": "south" },
+    { "id": "F-KITCHEN-SIDE", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "baseRun", "centreMm": [11550, 6100], "sizeMm": [2400, 600, 900], "facing": "west" },
+    { "id": "F-KITCHEN-FRIDGE", "roomId": "R-KITCHEN", "kind": "kitchenCabinet", "variant": "fridge", "centreMm": [11500, 4500], "sizeMm": [700, 700, 1800], "facing": "west" },
+    { "id": "F-DINING-TABLE", "roomId": "R-KITCHEN", "kind": "table", "variant": "table", "centreMm": [9600, 2800], "sizeMm": [1800, 900, 750], "facing": "north" },
+    { "id": "F-DINING-CHAIR-1", "roomId": "R-KITCHEN", "kind": "chair", "variant": "chair", "centreMm": [9000, 2100], "sizeMm": [450, 450, 900], "facing": "north" },
+    { "id": "F-DINING-CHAIR-2", "roomId": "R-KITCHEN", "kind": "chair", "variant": "chair", "centreMm": [9600, 2100], "sizeMm": [450, 450, 900], "facing": "north" },
+    { "id": "F-DINING-CHAIR-3", "roomId": "R-KITCHEN", "kind": "chair", "variant": "chair", "centreMm": [10200, 2100], "sizeMm": [450, 450, 900], "facing": "north" },
+    { "id": "F-DINING-CHAIR-4", "roomId": "R-KITCHEN", "kind": "chair", "variant": "chair", "centreMm": [9000, 3500], "sizeMm": [450, 450, 900], "facing": "south" },
+    { "id": "F-DINING-CHAIR-5", "roomId": "R-KITCHEN", "kind": "chair", "variant": "chair", "centreMm": [9600, 3500], "sizeMm": [450, 450, 900], "facing": "south" },
+    { "id": "F-DINING-CHAIR-6", "roomId": "R-KITCHEN", "kind": "chair", "variant": "chair", "centreMm": [10200, 3500], "sizeMm": [450, 450, 900], "facing": "south" },
+    { "id": "F-DINING-PENDANT", "roomId": "R-KITCHEN", "kind": "other", "variant": "pendant", "centreMm": [9600, 2800], "sizeMm": [300, 300, 1900], "facing": "north" },
+    { "id": "F-KITCHEN-PLANT", "roomId": "R-KITCHEN", "kind": "other", "variant": "plant", "centreMm": [11500, 500], "sizeMm": [600, 600, 1500], "facing": "north" },
+
+    { "id": "F-BED1-BED", "roomId": "R-BED-1", "kind": "bed", "variant": "bed", "centreMm": [3050, 6600], "sizeMm": [1800, 2000, 550], "facing": "west" },
+    { "id": "F-BED1-NIGHTSTAND", "roomId": "R-BED-1", "kind": "table", "variant": "nightstand", "centreMm": [3920, 7675], "sizeMm": [350, 400, 500], "facing": "west" },
+    { "id": "F-BED1-LAMP", "roomId": "R-BED-1", "kind": "other", "variant": "tableLamp", "centreMm": [3920, 7675], "sizeMm": [250, 250, 900], "facing": "west" },
+    { "id": "F-BED1-WARDROBE", "roomId": "R-BED-1", "kind": "wardrobe", "variant": "wardrobe", "centreMm": [1300, 5160], "sizeMm": [2000, 600, 2200], "facing": "north" },
+    { "id": "F-BED1-RUG", "roomId": "R-BED-1", "kind": "other", "variant": "rug", "centreMm": [1500, 6600], "sizeMm": [1200, 2000, 10], "facing": "north" },
+    { "id": "F-BED1-PLANT", "roomId": "R-BED-1", "kind": "other", "variant": "plant", "centreMm": [450, 7600], "sizeMm": [500, 500, 1200], "facing": "north" },
+
+    { "id": "F-BED2-BED", "roomId": "R-BED-2", "kind": "bed", "variant": "bed", "centreMm": [5300, 6300], "sizeMm": [1500, 2000, 550], "facing": "east" },
+    { "id": "F-BED2-NIGHTSTAND", "roomId": "R-BED-2", "kind": "table", "variant": "nightstand", "centreMm": [4500, 5150], "sizeMm": [450, 450, 500], "facing": "east" },
+    { "id": "F-BED2-LAMP", "roomId": "R-BED-2", "kind": "other", "variant": "tableLamp", "centreMm": [4500, 5150], "sizeMm": [250, 250, 900], "facing": "east" },
+    { "id": "F-BED2-WARDROBE", "roomId": "R-BED-2", "kind": "wardrobe", "variant": "wardrobe", "centreMm": [7040, 6850], "sizeMm": [2000, 600, 2200], "facing": "west" },
+    { "id": "F-BED2-RUG", "roomId": "R-BED-2", "kind": "other", "variant": "rug", "centreMm": [6200, 6300], "sizeMm": [1000, 1800, 10], "facing": "north" },
+    { "id": "F-BED2-PLANT", "roomId": "R-BED-2", "kind": "other", "variant": "plant", "centreMm": [4550, 7600], "sizeMm": [450, 450, 1100], "facing": "north" },
+
+    { "id": "F-BALCONY-LOUNGER-1", "roomId": "R-BALCONY", "kind": "chair", "variant": "lounger", "centreMm": [1400, 8880], "sizeMm": [700, 1300, 800], "facing": "north" },
+    { "id": "F-BALCONY-LOUNGER-2", "roomId": "R-BALCONY", "kind": "chair", "variant": "lounger", "centreMm": [4700, 8880], "sizeMm": [700, 1300, 800], "facing": "north" },
+    { "id": "F-BALCONY-LOUNGER-3", "roomId": "R-BALCONY", "kind": "chair", "variant": "lounger", "centreMm": [-900, 7000], "sizeMm": [700, 1300, 800], "facing": "west" },
+    { "id": "F-BALCONY-TABLE", "roomId": "R-BALCONY", "kind": "table", "variant": "nightstand", "centreMm": [3000, 8900], "sizeMm": [500, 500, 450], "facing": "north" },
+    { "id": "F-BALCONY-PLANT-1", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [-1300, 5100], "sizeMm": [600, 600, 1400], "facing": "north" },
+    { "id": "F-BALCONY-PLANT-2", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [-1300, 9200], "sizeMm": [700, 700, 1700], "facing": "north" },
+    { "id": "F-BALCONY-PLANT-3", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [200, 9300], "sizeMm": [500, 500, 1100], "facing": "north" },
+    { "id": "F-BALCONY-PLANT-4", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [3000, 9350], "sizeMm": [450, 450, 900], "facing": "north" },
+    { "id": "F-BALCONY-PLANT-5", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [6000, 9250], "sizeMm": [600, 600, 1500], "facing": "north" },
+    { "id": "F-BALCONY-PLANT-6", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [-900, 8300], "sizeMm": [500, 500, 1200], "facing": "north" },
+    { "id": "F-BALCONY-LANTERN", "roomId": "R-BALCONY", "kind": "other", "variant": "tableLamp", "centreMm": [3000, 8900], "sizeMm": [200, 200, 750], "facing": "north" }
+  ],
+  "ceilingLights": {
+    "$comment": "Một đèn trần ấm cho mỗi phòng trong nhà, đặt ở trọng tâm phòng; ban công không có.",
+    "heightMm": 2300,
+    "roomIds": ["R-HALL", "R-BATH", "R-LIVING", "R-KITCHEN", "R-BED-1", "R-BED-2"]
+  }
 }

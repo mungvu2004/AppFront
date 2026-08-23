@@ -63,6 +63,24 @@
     --canvas-3d: #EDEBE6;
     --canvas-3d-ground: #E4E1DA;
     --canvas-3d-horizon: #D9D5CD;
+
+    /* Màu của khối mô hình trên màn đăng nhập — và CHỈ của nó. Mười màu này tô
+       sàn gỗ, gạch, cây, chậu, kính, đèn và nền tối của một căn hộ cắt mở; chúng
+       là phong cảnh, không phải giao diện: không màu nào gắn vào nút, vào trạng
+       thái hay vào thứ bấm được. A2 và A4 vì thế không đổi — `--scene-foliage`
+       là màu lá, không phải màu "đã xác minh" thứ hai, và `--scene-clay` là màu
+       đất nung, không phải màu vi phạm. Chúng ở đây thay vì trong houseScene.ts
+       vì A1: bảng màu sống ở một chỗ và đổi theo chủ đề ở chỗ đó. */
+    --scene-backdrop: #2b2a28;
+    --scene-wood: #c9a878;
+    --scene-wood-dark: #9c7a4f;
+    --scene-tile: #e9e5dd;
+    --scene-tile-grout: #cfc9bf;
+    --scene-textile: #c3b29c;
+    --scene-foliage: #5f8a4e;
+    --scene-clay: #b5775a;
+    --scene-glass: #cfe3ea;
+    --scene-lamp: #ffd9a3;
   }
 
   body {

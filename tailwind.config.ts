@@ -75,6 +75,12 @@ const config: Config = {
         '3d-ground': 'var(--canvas-3d-ground)',
         '3d-horizon': 'var(--canvas-3d-horizon)',
       },
+      // Phong cảnh của màn đăng nhập. Chỉ `backdrop` cần tới lớp Tailwind — khung
+      // của tấm canvas tối sẵn trước khi three.js tải xong; chín màu còn lại
+      // đọc thẳng từ custom property trong houseMaterials.ts.
+      scene: {
+        backdrop: 'var(--scene-backdrop)',
+      },
     },
     extend: {
       transitionDuration: {
