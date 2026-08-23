@@ -51,16 +51,18 @@ function HouseModel() {
 
     void import('./houseScene')
       .then((module) => {
-        if (!cancelled) {
-          handle = module.mountHouseScene(canvas);
+        if (cancelled) {
+          return undefined;
         }
+        handle = module.mountHouseScene(canvas);
+        return handle.ready;
       })
       .catch(() => {
-        // No WebGL context — an old browser, a blocklisted GPU, a headless run.
-        // The panel keeps its dark frame and its two sentences, and signing in
-        // is unaffected: this is scenery, and scenery that fails must fail
-        // quietly rather than take the one screen a visitor cannot get past
-        // with it.
+        // No WebGL context — an old browser, a blocklisted GPU, a headless run
+        // — or a plan that never arrived. The panel keeps its dark frame and
+        // its two sentences, and signing in is unaffected: this is scenery,
+        // and scenery that fails must fail quietly rather than take the one
+        // screen a visitor cannot get past with it.
       });
 
     return () => {

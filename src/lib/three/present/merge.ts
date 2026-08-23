@@ -11,11 +11,14 @@
  * This pass walks the roots it is given — the furniture that will never be
  * swapped for a model, the frames, the rails — and folds every opaque mesh
  * into one geometry per material, positioned in the house's own frame. The
- * originals are removed and their geometry released; lights, decals and glass
- * stay where they were (a decal is drawn over the floor in its own order, and
- * glass has to sort). Nothing is lost that a presentation needs: the tagged
- * groups still stand where the plan put them, so a count of pieces, a lift or
- * a facing can still be read off the graph.
+ * originals are removed and their geometry released; lights and glass stay
+ * where they were (glass has to sort against everything else). Decals — the
+ * contact shadows and the drawn pools of light, the meshes that write no depth
+ * — fold too: they are drawn after the opaque pass in their own render order,
+ * and within a batch their triangles land in the order they were added, which
+ * is the order they were drawn in before. Nothing is lost that a presentation
+ * needs: the tagged groups still stand where the plan put them, so a count of
+ * pieces, a lift or a facing can still be read off the graph.
  *
  * `../build/merge.ts` does the same job for the product's own storeys, with a
  * range table so a merged wall stays selectable. A presentation has no
@@ -43,6 +46,7 @@ interface Batch {
   readonly material: Material;
   readonly castShadow: boolean;
   readonly receiveShadow: boolean;
+  readonly renderOrder: number;
   readonly sources: { readonly geometry: BufferGeometry; readonly matrix: Matrix4 }[];
 }
 
@@ -54,12 +58,16 @@ const ATTRIBUTES = ['position', 'normal', 'uv'] as const;
 /* -------------------------------------------------------------------------- */
 
 /**
- * Whether a mesh can be folded into a batch: one opaque material, the three
- * attributes every batch needs, and no material array — a multi-material mesh
- * has geometry groups with their own story.
+ * Whether a mesh can be folded into a batch: one material that is either
+ * opaque or a decal (transparent but writing no depth), the three attributes
+ * every batch needs, and no material array — a multi-material mesh has
+ * geometry groups with their own story.
  */
 export function isBatchable(mesh: Mesh): boolean {
-  if (Array.isArray(mesh.material) || mesh.material.transparent) {
+  if (Array.isArray(mesh.material)) {
+    return false;
+  }
+  if (mesh.material.transparent && mesh.material.depthWrite) {
     return false;
   }
 
@@ -67,8 +75,11 @@ export function isBatchable(mesh: Mesh): boolean {
 }
 
 function batchKey(mesh: Mesh, material: Material): string {
-  return `${material.uuid}|${mesh.castShadow ? 'c' : ''}${mesh.receiveShadow ? 'r' : ''}`;
+  return `${material.uuid}|${mesh.castShadow ? 'c' : ''}${mesh.receiveShadow ? 'r' : ''}|${mesh.renderOrder}`;
 }
+
+/** The largest vertex index a 16-bit index buffer can name. */
+const MAX_UINT16_INDEX = 0xffff;
 
 /* -------------------------------------------------------------------------- */
 /* Concatenating geometry.                                                     */
@@ -87,7 +98,9 @@ function indicesOf(geometry: BufferGeometry): ArrayLike<number> {
  * One geometry holding every source, each moved by its matrix.
  *
  * Normals are transformed with the matrix too — `applyMatrix4` does that — so
- * a box turned by a facing still shades as a turned box.
+ * a box turned by a facing still shades as a turned box. The index is 16-bit
+ * whenever the vertices fit, which is half the upload and what most GPUs
+ * prefer; a batch past 65 536 vertices gets 32 bits.
  */
 export function concatGeometries(sources: readonly { geometry: BufferGeometry; matrix: Matrix4 }[]): BufferGeometry {
   const moved = sources.map((source) => source.geometry.clone().applyMatrix4(source.matrix));
@@ -95,7 +108,7 @@ export function concatGeometries(sources: readonly { geometry: BufferGeometry; m
   const indexCount = moved.reduce((sum, geometry) => sum + indicesOf(geometry).length, 0);
 
   const merged = new BufferGeometry();
-  const index = new Uint32Array(indexCount);
+  const index = vertexCount - 1 <= MAX_UINT16_INDEX ? new Uint16Array(indexCount) : new Uint32Array(indexCount);
   let vertexOffset = 0;
   let indexOffset = 0;
 
@@ -157,6 +170,7 @@ export function mergeStatic(roots: readonly Object3D[], into: Object3D): MergeRe
         material,
         castShadow: object.castShadow,
         receiveShadow: object.receiveShadow,
+        renderOrder: object.renderOrder,
         sources: [],
       };
       batch.sources.push({ geometry: object.geometry, matrix: new Matrix4().multiplyMatrices(inverse, object.matrixWorld) });
@@ -170,6 +184,7 @@ export function mergeStatic(roots: readonly Object3D[], into: Object3D): MergeRe
     const mesh = new Mesh(concatGeometries(batch.sources), batch.material);
     mesh.castShadow = batch.castShadow;
     mesh.receiveShadow = batch.receiveShadow;
+    mesh.renderOrder = batch.renderOrder;
     mesh.name = 'batch';
     into.add(mesh);
     added.push(mesh);

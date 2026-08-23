@@ -12,8 +12,10 @@ import {
   fitFrustum,
   frameAim,
   headingAt,
+  headingStep,
   resolveRig,
   restingHeading,
+  rimRadius,
   screenForward,
   screenUp,
   swayExtents,
@@ -172,5 +174,38 @@ describe('framing in perspective', () => {
 
     expect(camera.fov).toBe(25);
     expect(camera.aspect).toBe(1.5);
+  });
+});
+
+describe('rimRadius', () => {
+  it('is the farthest corner of the box from the vertical axis through the centre', () => {
+    const box = new Box3(new Vector3(-6, 0, -4), new Vector3(6, 3, 4));
+    expect(rimRadius(box, new Vector3(0, 1, 0))).toBeCloseTo(Math.hypot(6, 4));
+    // Off-centre: the far corner is farther.
+    expect(rimRadius(box, new Vector3(2, 1, 0))).toBeCloseTo(Math.hypot(8, 4));
+  });
+});
+
+describe('headingStep', () => {
+  it('is the turn that moves the rim by one pixel at the viewport size', () => {
+    // At 40 m with a 20° lens, a 1000 px viewport spans 2·40·tan(10°) ≈ 14,1 m: ≈ 70,9 px a metre.
+    const step = headingStep(8, 1000, 20, 40, 1);
+    const pixelsPerUnit = 1000 / (2 * (40 - 8) * Math.tan((10 * Math.PI) / 180));
+    expect(step).toBeCloseTo(1 / (8 * pixelsPerUnit));
+    // Two pixels is twice the turn; a taller viewport halves it.
+    expect(headingStep(8, 1000, 20, 40, 2)).toBeCloseTo(step * 2);
+    expect(headingStep(8, 2000, 20, 40, 1)).toBeCloseTo(step / 2);
+  });
+
+  it('errs towards drawing: the rim is measured at its nearest, and a tiny viewport still gets a step', () => {
+    const near = headingStep(8, 1000, 20, 40);
+    const flat = 1 / (8 * (1000 / (2 * 40 * Math.tan((10 * Math.PI) / 180))));
+    expect(near).toBeLessThan(flat);
+    expect(headingStep(39.9, 1000, 20, 40)).toBeGreaterThan(0);
+  });
+
+  it('is zero — every tick draws — when there is no rim or no viewport', () => {
+    expect(headingStep(0, 1000, 20, 40)).toBe(0);
+    expect(headingStep(8, 0, 20, 40)).toBe(0);
   });
 });

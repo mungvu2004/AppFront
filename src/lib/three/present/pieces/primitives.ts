@@ -28,6 +28,23 @@ export type PieceBuilder = (group: Group, size: SceneSize, m: SceneMaterials) =>
 export const LAMP_INTENSITY = 3;
 export const LAMP_REACH = 4.5;
 
+/**
+ * Where a lamp's pool of light goes when the lamp is drawn rather than lit —
+ * see `lighting.ts`. A `floor` pool lies flat at `height` in the piece's frame;
+ * a `wall` pool stands against the wall behind the piece (local `-z`), taller
+ * than it is wide. `priority` is what the lamp is worth against a downlight,
+ * in the same units as a room's floor area.
+ */
+export interface LightPoolSpec {
+  readonly surface: 'floor' | 'wall';
+  readonly radius: number;
+  readonly height: number;
+  readonly priority: number;
+}
+
+/** The key under which a light carries its pool on `userData`. */
+export const LIGHT_POOL_KEY = 'lightPool';
+
 /** Where the ceiling would be, for things that hang from it or reach up to it. */
 export const CEILING_HEIGHT = 2.4;
 
@@ -129,7 +146,10 @@ export function doorFronts(
   }
 }
 
-/** A pole standing at `baseY`, a shade on top of it, and the light the shade gives. */
+/**
+ * A pole standing at `baseY`, a shade on top of it, and the light the shade
+ * gives. Drawn rather than lit, it pools on the surface it stands on.
+ */
 export function lampOn(
   group: Group,
   m: SceneMaterials,
@@ -137,15 +157,31 @@ export function lampOn(
   poleHeight: number,
   shadeRadius: number,
   shadeHeight: number,
+  priority: number,
 ): void {
   group.add(cylinder(0.015, poleHeight, m.metal, 0, baseY));
   group.add(cylinder(shadeRadius, shadeHeight, m.lampShade, 0, baseY + poleHeight, 0, shadeRadius * 0.8));
-  group.add(pointLight(m, 0, baseY + poleHeight + shadeHeight / 2, 0));
+  group.add(
+    pointLight(m, 0, baseY + poleHeight + shadeHeight / 2, 0, LAMP_INTENSITY, {
+      surface: 'floor',
+      radius: poleHeight * 0.9 + shadeRadius,
+      height: baseY,
+      priority,
+    }),
+  );
 }
 
-/** The warm point source every lamp carries. */
-export function pointLight(m: SceneMaterials, x: number, y: number, z: number, intensity = LAMP_INTENSITY): PointLight {
+/** The warm point source every lamp carries, and where its pool goes if it is drawn instead. */
+export function pointLight(
+  m: SceneMaterials,
+  x: number,
+  y: number,
+  z: number,
+  intensity: number,
+  pool: LightPoolSpec,
+): PointLight {
   const light = new PointLight(m.lampShade.color, intensity, LAMP_REACH, 2);
   light.position.set(x, y, z);
+  light.userData[LIGHT_POOL_KEY] = pool;
   return light;
 }

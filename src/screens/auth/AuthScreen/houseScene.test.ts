@@ -18,6 +18,7 @@ import { readPartData } from '@/lib/three/build/scene';
 import {
   assembleHouse,
   createMaterials,
+  DEFAULT_LIGHT_BUDGET,
   isCatalogueVariant,
   isFacing,
   isFinish,
@@ -96,10 +97,12 @@ describe('houseModel.json', () => {
     expect(idsOfKind('furniture').sort()).toEqual(plan.furniture.map((entry) => entry.id).sort());
   });
 
-  it('lights every room and point the plan names, plus each lamp on the plan', () => {
+  it('lights every room and point the plan names, plus each lamp on the plan, given the budget', () => {
+    const palette = readPalette(() => '');
+    const unbudgeted = assembleHouse(plan, palette, createMaterials(palette), { lightBudget: Infinity });
     let downlights = 0;
     let lamps = 0;
-    assembled.house.traverse((object) => {
+    unbudgeted.house.traverse((object) => {
       if (object instanceof SpotLight) {
         downlights += 1;
       } else if (object instanceof PointLight) {
@@ -111,6 +114,27 @@ describe('houseModel.json', () => {
 
     expect(downlights).toBe(plan.ceilingLights.roomIds.length + (plan.ceilingLights.positionsMm?.length ?? 0));
     expect(lamps).toBe(lampsOnPlan);
+    expect(unbudgeted.lights.drawn).toHaveLength(0);
+  });
+
+  it('keeps eight lights real — the big rooms and the pendant — and draws the rest', () => {
+    const real: object[] = [];
+    assembled.house.traverse((object) => {
+      if (object instanceof SpotLight || object instanceof PointLight) {
+        real.push(object);
+      }
+    });
+
+    expect(real).toHaveLength(DEFAULT_LIGHT_BUDGET);
+    expect(assembled.lights.kept).toHaveLength(DEFAULT_LIGHT_BUDGET);
+    expect(assembled.lights.kept.filter((light) => light instanceof SpotLight)).toHaveLength(7);
+    expect(assembled.lights.kept.filter((light) => light instanceof PointLight)).toHaveLength(1);
+
+    // Both bathrooms are the smallest rooms on the plan; their downlights are drawn.
+    const lampsOnPlan = plan.furniture.filter((entry) => LAMP_VARIANTS.includes(entry.variant)).length;
+    const downlightsOnPlan = plan.ceilingLights.roomIds.length + (plan.ceilingLights.positionsMm?.length ?? 0);
+    expect(assembled.lights.drawn).toHaveLength(lampsOnPlan + downlightsOnPlan - DEFAULT_LIGHT_BUDGET);
+    expect(assembled.lights.drawn.filter(({ light }) => light instanceof SpotLight)).toHaveLength(2);
   });
 
   it('stands every hinged door open, and every other panel still', () => {

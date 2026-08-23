@@ -33,7 +33,15 @@ import { bed, bench, chair, lounger, sofa, stool } from './pieces/seating';
 import { cabinet, nightstand, shelves, sideTable, table, tv, wardrobe } from './pieces/storage';
 import type { SceneSize } from './plan';
 
-export { box, cylinder, LAMP_INTENSITY, LAMP_REACH, type PieceBuilder } from './pieces/primitives';
+export {
+  box,
+  cylinder,
+  LAMP_INTENSITY,
+  LAMP_REACH,
+  LIGHT_POOL_KEY,
+  type LightPoolSpec,
+  type PieceBuilder,
+} from './pieces/primitives';
 
 /** One catalogue entry. */
 export interface CatalogueEntry {

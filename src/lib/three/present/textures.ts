@@ -2,8 +2,9 @@
  * Textures that are drawn, not loaded.
  *
  * Four finishes need more than a flat colour — parquet boards, outdoor decking,
- * glazed tiles, a bathroom's mosaic — and so does the soft shadow a heavy piece
- * of furniture casts on the floor around it. All of them are painted onto a 2D
+ * glazed tiles, a bathroom's mosaic — and so do the soft shadow a heavy piece
+ * of furniture casts on the floor around it and the pool of light a lamp
+ * throws on the surface beneath it. All of them are painted onto a 2D
  * canvas in token colours and wrapped as a `CanvasTexture`. No image assets
  * ship with the route, every texture follows the theme, and because an extruded
  * slab's UVs are its plan coordinates in metres, one floor tile stands for
@@ -14,7 +15,7 @@
  * and it is why these can be exercised in a test that has no canvas at all.
  */
 
-import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Color, type Texture } from 'three';
+import { CanvasTexture, LinearFilter, RepeatWrapping, SRGBColorSpace, type Color, type Texture } from 'three';
 
 import type { ScenePalette } from './palette';
 
@@ -40,8 +41,9 @@ const MOSAIC_COLUMNS = 8;
 /** Grout and board gaps, as a fraction of the tile. */
 const JOINT_FRACTION = 0.012;
 
-/** Pixels across a contact-shadow blob. */
+/** Pixels across a contact-shadow blob, and across a lamp's pool of light. */
 const SHADOW_TEXTURE_PX = 128;
+const POOL_TEXTURE_PX = 128;
 
 /* -------------------------------------------------------------------------- */
 /* Helpers.                                                                    */
@@ -215,23 +217,31 @@ export function createMosaicTexture(palette: ScenePalette): Texture | null {
  * pixel by pixel so that no colour string is ever composed here.
  */
 export function createContactShadowTexture(palette: ScenePalette): Texture | null {
-  const context = createContext(SHADOW_TEXTURE_PX);
+  return paintRadial(SHADOW_TEXTURE_PX, palette.cut, contactShadowFalloff);
+}
+
+/**
+ * A disc of `tint`, solid at the centre and fading to clear by `falloff` of
+ * the distance from it. Written pixel by pixel so no colour string is ever
+ * composed here. Magnified far more than minified, so it carries no mipmaps.
+ */
+function paintRadial(sizePx: number, tint: Color, falloff: (distance: number) => number): Texture | null {
+  const context = createContext(sizePx);
 
   if (context === null) {
     return null;
   }
 
-  const size = SHADOW_TEXTURE_PX;
-  const half = size / 2;
-  const image = context.createImageData(size, size);
-  const tint = palette.cut.clone().convertLinearToSRGB();
-  const channels = [tint.r, tint.g, tint.b].map((value) => Math.round(value * 255));
+  const half = sizePx / 2;
+  const image = context.createImageData(sizePx, sizePx);
+  const srgb = tint.clone().convertLinearToSRGB();
+  const channels = [srgb.r, srgb.g, srgb.b].map((value) => Math.round(value * 255));
 
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
+  for (let y = 0; y < sizePx; y += 1) {
+    for (let x = 0; x < sizePx; x += 1) {
       const distance = Math.hypot(x + 0.5 - half, y + 0.5 - half) / half;
-      const alpha = contactShadowFalloff(distance);
-      const offset = (y * size + x) * 4;
+      const alpha = falloff(distance);
+      const offset = (y * sizePx + x) * 4;
 
       image.data[offset] = channels[0] ?? 0;
       image.data[offset + 1] = channels[1] ?? 0;
@@ -244,7 +254,37 @@ export function createContactShadowTexture(palette: ScenePalette): Texture | nul
 
   const texture = new CanvasTexture(context.canvas);
   texture.colorSpace = SRGBColorSpace;
+  texture.generateMipmaps = false;
+  texture.minFilter = LinearFilter;
   return texture;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pool of light.                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The warm pool a lamp throws on the surface under it, for lamps that are
+ * drawn rather than lit.
+ *
+ * A real light costs every pixel of every frame, whether it lights a living
+ * room or a nightstand; a pool is a disc of the lamp's colour, added over the
+ * surface once, and costs nothing after. From above, on a floor, the two are
+ * hard to tell apart — a pool is what a downlight *looks like* — and
+ * `lighting.ts` keeps the real lights for the rooms that earn them.
+ */
+export function createLightPoolTexture(palette: ScenePalette): Texture | null {
+  return paintRadial(POOL_TEXTURE_PX, palette.lamp, lightPoolFalloff);
+}
+
+/** Brightest at the centre, falling off as the square of a smooth step — a soft-edged disc. */
+export function lightPoolFalloff(distance: number): number {
+  if (distance >= 1) {
+    return 0;
+  }
+
+  const remaining = 1 - distance * distance;
+  return remaining * remaining;
 }
 
 /** Fully dark to a third of the way out, then a smooth fade to nothing at the rim. */

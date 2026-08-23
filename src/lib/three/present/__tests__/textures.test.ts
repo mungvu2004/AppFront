@@ -1,4 +1,4 @@
-import { CanvasTexture, RepeatWrapping } from 'three';
+import { AdditiveBlending, CanvasTexture, LinearFilter, RepeatWrapping } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createMaterials, disposeMaterials } from '../materials';
@@ -7,9 +7,11 @@ import {
   contactShadowFalloff,
   createContactShadowTexture,
   createDeckingTexture,
+  createLightPoolTexture,
   createMosaicTexture,
   createPlankTexture,
   createTileTexture,
+  lightPoolFalloff,
   noise,
 } from '../textures';
 
@@ -30,6 +32,7 @@ describe('drawn textures without a canvas', () => {
     expect(createTileTexture(palette)).toBeNull();
     expect(createMosaicTexture(palette)).toBeNull();
     expect(createContactShadowTexture(palette)).toBeNull();
+    expect(createLightPoolTexture(palette)).toBeNull();
   });
 });
 
@@ -56,6 +59,27 @@ describe('drawn textures with a canvas', () => {
 
     expect(texture).toBeInstanceOf(CanvasTexture);
     expect(texture?.wrapS).not.toBe(RepeatWrapping);
+  });
+
+  it('writes a pool of light the same way, and neither disc carries mipmaps', () => {
+    stubCanvasContext();
+
+    for (const texture of [createContactShadowTexture(palette), createLightPoolTexture(palette)]) {
+      expect(texture).toBeInstanceOf(CanvasTexture);
+      expect(texture?.generateMipmaps).toBe(false);
+      expect(texture?.minFilter).toBe(LinearFilter);
+    }
+  });
+});
+
+describe('lightPoolFalloff', () => {
+  it('is brightest at the centre, gone at the rim, and falls smoothly between', () => {
+    expect(lightPoolFalloff(0)).toBe(1);
+    expect(lightPoolFalloff(1)).toBe(0);
+    expect(lightPoolFalloff(2)).toBe(0);
+    expect(lightPoolFalloff(0.5)).toBeCloseTo(0.5625);
+    expect(lightPoolFalloff(0.3)).toBeGreaterThan(lightPoolFalloff(0.6));
+    expect(lightPoolFalloff(0.6)).toBeGreaterThan(lightPoolFalloff(0.9));
   });
 });
 
@@ -93,6 +117,7 @@ describe('createMaterials', () => {
     expect(materials.woodFloor.map).toBeNull();
     expect(materials.tileFloor.map).toBeNull();
     expect(materials.contactShadow).toBeNull();
+    expect(materials.lightPool).toBeNull();
     expect(materials.textures).toHaveLength(0);
     expect(materials.woodFloor.color.getHex()).toBe(palette.wood.getHex());
   });
@@ -107,7 +132,10 @@ describe('createMaterials', () => {
     expect(new Set(maps).size).toBe(maps.length);
     expect(materials.contactShadow?.transparent).toBe(true);
     expect(materials.contactShadow?.depthWrite).toBe(false);
-    expect(materials.textures).toHaveLength(5);
+    expect(materials.lightPool?.transparent).toBe(true);
+    expect(materials.lightPool?.depthWrite).toBe(false);
+    expect(materials.lightPool?.blending).toBe(AdditiveBlending);
+    expect(materials.textures).toHaveLength(6);
     expect(materials.glass.transparent).toBe(true);
     expect(materials.lampShade.emissiveIntensity).toBeGreaterThan(0);
   });
@@ -120,6 +148,7 @@ describe('createMaterials', () => {
       vi.spyOn(materials.plaster, 'dispose'),
       vi.spyOn(materials.glass, 'dispose'),
       vi.spyOn(materials.contactShadow!, 'dispose'),
+      vi.spyOn(materials.lightPool!, 'dispose'),
       ...materials.textures.map((texture) => vi.spyOn(texture, 'dispose')),
     ];
 

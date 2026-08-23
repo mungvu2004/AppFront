@@ -37,7 +37,9 @@ export {
   CATALOGUE_VARIANTS,
   isCatalogueVariant,
   LAMP_VARIANTS,
+  LIGHT_POOL_KEY,
   type CatalogueEntry,
+  type LightPoolSpec,
   type PieceBuilder,
 } from './catalogue';
 export {
@@ -49,8 +51,10 @@ export {
   fitFrustum,
   frameAim,
   headingAt,
+  headingStep,
   resolveRig,
   restingHeading,
+  rimRadius,
   screenForward,
   screenUp,
   swayExtents,
@@ -59,7 +63,8 @@ export {
   type FrameExtents,
 } from './director';
 export { dressStorey, floorMaterialFor, isGlazed, type DressingPlan, type DressingReport } from './dressing';
-export { applyRoomEnvironment, type EnvironmentHandle } from './environment';
+export { applyRoomEnvironment, createStudioScene, disposeStudioScene, type EnvironmentHandle } from './environment';
+export { createFrameLoop, LOOP_GATES, MAX_SWAY_FPS, type FrameLoop, type FrameLoopOptions, type LoopGate } from './frameLoop';
 export {
   buildFrame,
   buildRailing,
@@ -73,10 +78,20 @@ export {
   type JoineryReport,
   type WallRun,
 } from './joinery';
-export { addCeilingLights, createLighting, type SceneLighting } from './lighting';
+export {
+  addCeilingLights,
+  budgetLights,
+  createLighting,
+  DEFAULT_LIGHT_BUDGET,
+  lightPoolFor,
+  lightPoolOf,
+  roomArea,
+  type LightBudgetReport,
+  type SceneLighting,
+} from './lighting';
 export { createMaterials, disposeMaterials, type SceneMaterials, type SurfaceMaterials } from './materials';
 export { concatGeometries, isBatchable, mergeStatic, type MergeReport } from './merge';
-export { mountPresentation, type PresentationHandle, type PresentationOptions } from './mount';
+export { MAX_PIXEL_RATIO, mountPresentation, type PresentationHandle, type PresentationOptions } from './mount';
 export {
   documentTokenReader,
   PALETTE_TOKENS,
@@ -104,6 +119,7 @@ export {
   furnitureSize,
   isFacing,
   isFinish,
+  isPresentationPlan,
   planPoint,
   roomCentre,
   type Facing,
@@ -118,11 +134,15 @@ export {
   type ScenePoint,
   type SceneSize,
 } from './plan';
+export { loadPlan, type PlanLoaderOptions } from './planLoader';
+export { watchPresence, type PresenceHandle, type PresenceReporter } from './presence';
 export {
   contactShadowFalloff,
   createContactShadowTexture,
   createDeckingTexture,
+  createLightPoolTexture,
   createMosaicTexture,
   createPlankTexture,
   createTileTexture,
+  lightPoolFalloff,
 } from './textures';

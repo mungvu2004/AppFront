@@ -46,12 +46,17 @@ describe('mergeStatic through assembleHouse', () => {
       expect(surfaces.has((batch as Mesh).material as MeshStandardMaterial)).toBe(true);
     }
 
-    // The floor lamp's light and the bed's contact shadow are untouched.
+    // The floor lamp's light is untouched; the bed's contact shadow, a decal,
+    // is folded into a batch of its own material, in its own render order.
     const lamp = batched.house.getObjectByName('F-LAMP')!;
     const bed = batched.house.getObjectByName('F-BED')!;
     expect(lamp.getObjectByProperty('isLight', true)).toBeInstanceOf(Light);
-    expect(bed.getObjectByName('contactShadow')).toBeInstanceOf(Mesh);
-    expect(countMeshes(bed as Group)).toBe(1);
+    expect(bed.getObjectByName('contactShadow')).toBeUndefined();
+    expect(countMeshes(bed as Group)).toBe(0);
+    const decals = batches.filter((batch) => (batch as Mesh).material === materials.contactShadow);
+    expect(decals).toHaveLength(1);
+    expect(decals[0]?.renderOrder).toBe(1);
+    expect(decals[0]?.castShadow).toBe(false);
   });
 
   it('draws exactly what it folded: the house covers the same box', () => {
@@ -101,6 +106,14 @@ describe('isBatchable', () => {
     bare.setAttribute('position', geometry.getAttribute('position'));
     expect(isBatchable(new Mesh(bare, materials.wood))).toBe(false);
   });
+
+  it('takes a decal — transparent but writing no depth — and refuses transparent glass', () => {
+    const geometry = new BoxGeometry(1, 1, 1);
+
+    expect(isBatchable(new Mesh(geometry, materials.contactShadow!))).toBe(true);
+    expect(isBatchable(new Mesh(geometry, materials.lightPool!))).toBe(true);
+    expect(isBatchable(new Mesh(geometry, materials.glass))).toBe(false);
+  });
 });
 
 describe('concatGeometries', () => {
@@ -129,6 +142,18 @@ describe('concatGeometries', () => {
     const merged = concatGeometries([{ geometry: flat, matrix: new Matrix4() }]);
 
     expect(merged.getIndex()?.count).toBe(flat.getAttribute('position').count);
+  });
+
+  it('indexes with sixteen bits while the vertices fit, and thirty-two past that', () => {
+    const unit = new BoxGeometry(1, 1, 1);
+    const small = concatGeometries([{ geometry: unit, matrix: new Matrix4() }]);
+    expect(small.getIndex()?.array).toBeInstanceOf(Uint16Array);
+
+    // 24 vertices a box: 2 731 boxes is 65 544, one past the 16-bit limit.
+    const many = Array.from({ length: 2731 }, () => ({ geometry: unit, matrix: new Matrix4() }));
+    const large = concatGeometries(many);
+    expect(large.getIndex()?.array).toBeInstanceOf(Uint32Array);
+    expect(large.getAttribute('position').count).toBe(24 * 2731);
   });
 });
 

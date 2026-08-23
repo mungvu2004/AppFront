@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /**
  * The model on the sign-in panel: `houseModel.json`, handed to the presentation engine.
  *
@@ -21,21 +23,33 @@
  * fourteen rooms, 248,60 m² — and every test that reads it counts or sums.
  * Rendering it draws a fifty-metre ruler.
  *
+ * ## Why the plan is fetched and not imported
+ *
+ * The drawing is content, the way a `.glb` is: twenty kilobytes of walls and
+ * chairs that belong to this screen's scenery, not to the code that draws it.
+ * Imported, it would sit in the route chunk the size gate pays for; fetched
+ * (`?url` makes Vite serve the file as an asset), it arrives beside the
+ * models, late and cacheable, through the engine's own `loadPlan`. The test
+ * next door still reads the file directly — it is the same file.
+ *
  * Kept as its own module, imported at effect time by `ValuePanel`, so three.js
  * and the engine arrive in their own chunk after the form has painted.
  */
 
 import {
   createAssetService,
+  loadPlan,
   mountPresentation,
   type PresentationHandle,
-  type PresentationPlan,
 } from '@/lib/three/present';
 
-import plan from './houseModel.json';
+import planUrl from './houseModel.json?url';
 
 /** What the caller keeps so it can give the GPU memory back. */
-export type HouseSceneHandle = Pick<PresentationHandle, 'dispose'>;
+export interface HouseSceneHandle extends Pick<PresentationHandle, 'dispose'> {
+  /** Settles once the plan has arrived and the scene is on the canvas; rejects if it never will be. */
+  readonly ready: Promise<void>;
+}
 
 /**
  * Where the Draco decoder is served from. `scripts/copy-draco.mjs` puts three's
@@ -45,7 +59,7 @@ export type HouseSceneHandle = Pick<PresentationHandle, 'dispose'>;
 const DRACO_DECODER_PATH = '/draco/';
 
 /**
- * Builds the scene, starts the sway, and hands back the way to stop it.
+ * Fetches the plan, builds the scene, starts the sway, and hands back the way to stop it.
  *
  * @param canvas The element to draw into. It is measured, not resized by this.
  *
@@ -54,12 +68,22 @@ const DRACO_DECODER_PATH = '/draco/';
  * return () => { handle.dispose(); };
  */
 export function mountHouseScene(canvas: HTMLCanvasElement): HouseSceneHandle {
+  const aborter = new AbortController();
   const assets = createAssetService({ dracoDecoderPath: DRACO_DECODER_PATH });
-  const handle = mountPresentation(canvas, plan as PresentationPlan, { assets });
+  let presentation: PresentationHandle | null = null;
+
+  const ready = loadPlan(planUrl, { signal: aborter.signal }).then((plan) => {
+    // Disposed while the plan was in flight: nothing to mount, nothing to leak.
+    if (!aborter.signal.aborted) {
+      presentation = mountPresentation(canvas, plan, { assets });
+    }
+  });
 
   return {
+    ready,
     dispose: () => {
-      handle.dispose();
+      aborter.abort();
+      presentation?.dispose();
       assets.dispose();
     },
   };

@@ -267,3 +267,28 @@ export function isFinish(value: string): value is Finish {
 export function isFacing(value: string): value is Facing {
   return (FACINGS as readonly string[]).includes(value);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Reading a plan from data.                                                   */
+/* -------------------------------------------------------------------------- */
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+/**
+ * Whether a parsed JSON value has the shape of a plan: the five lists and the
+ * ceiling lights. A plan is content — fetched, not bundled — so this is the
+ * check at the door; the builders refuse, loudly, anything finer that is wrong.
+ */
+export function isPresentationPlan(value: unknown): value is PresentationPlan {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const lists = ['levels', 'walls', 'openings', 'rooms', 'furniture'] as const;
+  if (!lists.every((key) => Array.isArray(value[key]))) {
+    return false;
+  }
+
+  const lights = value['ceilingLights'];
+  return isRecord(lights) && typeof lights['heightMm'] === 'number' && Array.isArray(lights['roomIds']);
+}

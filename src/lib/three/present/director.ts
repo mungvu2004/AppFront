@@ -251,3 +251,45 @@ export function applyFieldOfView(camera: PerspectiveCamera, fovDeg: number, aspe
 export function cameraPosition(rig: CameraRig, distance: number): Vector3 {
   return new Vector3(0, distance * Math.sin(rig.elevationRad), distance * Math.cos(rig.elevationRad));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Drawing on demand.                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** How far the farthest corner of `bounds` is from the vertical axis through `centre`. */
+export function rimRadius(bounds: Box3, centre: Vector3): number {
+  let radius = 0;
+  for (const x of [bounds.min.x, bounds.max.x]) {
+    for (const z of [bounds.min.z, bounds.max.z]) {
+      radius = Math.max(radius, Math.hypot(x - centre.x, z - centre.z));
+    }
+  }
+  return radius;
+}
+
+/**
+ * The smallest turn, in radians, that moves the rim of the model by `pixels`
+ * on a viewport `heightPx` tall — the threshold under which a frame is not
+ * worth drawing.
+ *
+ * The rim is the fastest-moving point, so a turn that moves it less than a
+ * pixel moves everything less than a pixel. Its depth is taken at its nearest
+ * — `cameraDistance - rimRadius` — where a scene unit covers the most pixels,
+ * so the answer errs towards drawing.
+ */
+export function headingStep(
+  rimRadius: number,
+  heightPx: number,
+  fovDeg: number,
+  cameraDistance: number,
+  pixels = 1,
+): number {
+  if (rimRadius <= 0 || heightPx <= 0) {
+    return 0;
+  }
+
+  const depth = Math.max(cameraDistance * 0.1, cameraDistance - rimRadius);
+  const pixelsPerUnit = heightPx / (2 * depth * Math.tan((fovDeg * Math.PI) / 360));
+
+  return pixels / (rimRadius * pixelsPerUnit);
+}

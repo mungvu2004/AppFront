@@ -1,5 +1,5 @@
 {
-  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập: một căn hộ một tầng, cắt mở nhìn từ trên xuống. Toạ độ mm, gốc ở góc sau-trái của nhà. Trục x chạy ngang (trái → phải), y chạy sâu: y=0 là tường sau (trên cùng trong khung hình), y=9000 là mặt tiền (dưới cùng, gần máy quay), ban công chữ L ôm góc trước-trái. Tường, ô mở và phòng là ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua. Nội thất, khung cửa và đèn là lớp trình diễn của src/lib/three/present; `facing` là hướng mặt trước của món đồ, `sizeMm` là rộng × sâu × cao, `liftMm` nâng đế món đồ khỏi sàn (lọ hoa trên bàn, tranh trên tường), `opensTowards` là phía cánh cửa mở ra.",
+  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập: một căn hộ một tầng, cắt mở nhìn từ trên xuống. Toạ độ mm, gốc ở góc sau-trái của nhà. Trục x chạy ngang (trái → phải), y chạy sâu: y=0 là tường sau (trên cùng trong khung hình), y=9000 là mặt tiền (dưới cùng, gần máy quay), ban công chữ L ôm góc trước-trái. Tường, ô mở và phòng là ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua. Nội thất, khung cửa và đèn là lớp trình diễn của src/lib/three/present; `facing` là hướng mặt trước của món đồ, `sizeMm` là rộng × sâu × cao, `liftMm` nâng đế món đồ khỏi sàn (lọ hoa trên bàn, tranh trên tường), `opensTowards` là phía cánh cửa mở ra. `ceilingLights`: một đèn rọi ấm cho mỗi phòng trong nhà, đặt ở trọng tâm phòng; phòng khách dài nên có thêm hai điểm nêu đích danh; ban công không có. Chú thích chỉ viết ở khoá `$comment` cấp cao nhất này: `houseScene.ts` nhập file theo từng khoá nên phần chú thích không đi vào gói.",
   "name": "Căn hộ hai phòng ngủ, phòng làm việc và ban công chữ L",
   "levels": [
     { "id": "L-G", "elevationMm": 0, "heightMm": 2400 }
@@ -153,7 +153,6 @@
     { "id": "F-BALCONY-PLANT-2", "roomId": "R-BALCONY", "kind": "other", "variant": "plant", "centreMm": [-700, 8650], "sizeMm": [450, 450, 1200], "facing": "north" }
   ],
   "ceilingLights": {
-    "$comment": "Một đèn rọi ấm cho mỗi phòng trong nhà, đặt ở trọng tâm phòng; phòng khách dài nên có thêm hai điểm nêu đích danh. Ban công không có.",
     "heightMm": 2300,
     "roomIds": ["R-BATH-1", "R-BED-1", "R-BED-2", "R-HALL", "R-STUDY", "R-BATH-2", "R-KITCHEN"],
     "positionsMm": [[5600, 6600], [8200, 6000]]

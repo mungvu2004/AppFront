@@ -3,12 +3,14 @@
  *
  * This is the step between "a JSON file" and "a scene": the plan goes through
  * the product's own `buildFloorMesh`, the result is dressed as an open box,
- * every furniture entry is placed (procedurally at once, as a model later), and
- * the plan's ceiling lights are hung. No renderer is touched, which is what
- * lets a test run a whole house through here and count what came out.
+ * every furniture entry is placed (procedurally at once, as a model later), the
+ * plan's ceiling lights are hung, the lights past the budget are drawn instead,
+ * and what will never change is folded into a few meshes. No renderer is
+ * touched, which is what lets a test run a whole house through here and count
+ * what came out.
  */
 
-import { Group, Mesh } from 'three';
+import { Group, Mesh, type Object3D } from 'three';
 
 import type { LevelId } from '@/domain/spatial/types';
 
@@ -18,7 +20,7 @@ import type { WallPartData } from '../build/wall';
 
 import { dressStorey } from './dressing';
 import { fitJoinery } from './joinery';
-import { addCeilingLights } from './lighting';
+import { addCeilingLights, budgetLights, DEFAULT_LIGHT_BUDGET, type LightBudgetReport } from './lighting';
 import type { SceneMaterials } from './materials';
 import { mergeStatic } from './merge';
 import type { ScenePalette } from './palette';
@@ -41,6 +43,8 @@ export interface AssembledHouse {
   readonly refusals: readonly WallPartData['refusals'][number][];
   /** Rooms whose finish was not one the catalogue knows; painted as tile. */
   readonly unknownFinishes: readonly string[];
+  /** Which of the plan's lights stayed real, and which were drawn as pools. */
+  readonly lights: LightBudgetReport;
 }
 
 export interface AssembleOptions extends PlacementOptions {
@@ -52,6 +56,8 @@ export interface AssembleOptions extends PlacementOptions {
    * that wants to look at a piece's own meshes turns it off.
    */
   readonly batch?: boolean;
+  /** How many of the plan's lights stay real; the rest are drawn. See `lighting.ts`. */
+  readonly lightBudget?: number;
 }
 
 /**
@@ -73,7 +79,7 @@ export function assembleHouse(
   const openings = plan.openings.map(toDomainOpening);
   const firstLevelId = plan.levels[0]?.id;
   /** Everything that is final the moment it is built, and so can be batched. */
-  const staticRoots: Group[] = [];
+  const staticRoots: Object3D[] = [];
 
   for (const level of plan.levels) {
     const levelId = level.id as LevelId;
@@ -124,9 +130,18 @@ export function assembleHouse(
     addCeilingLights(house, palette, level, planRooms, plan.ceilingLights);
   }
 
+  // A lamp's pool lands beside the lamp, inside a root already listed; a
+  // downlight's lands on the house itself and is listed here.
+  const lights = budgetLights(house, materials, options.lightBudget ?? DEFAULT_LIGHT_BUDGET);
+  for (const { pool } of lights.drawn) {
+    if (pool !== null && pool.parent === house) {
+      staticRoots.push(pool);
+    }
+  }
+
   if (options.batch !== false) {
     mergeStatic(staticRoots, house);
   }
 
-  return { house, pieces, refusals, unknownFinishes };
+  return { house, pieces, refusals, unknownFinishes, lights };
 }
