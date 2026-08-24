@@ -154,9 +154,17 @@ describe('houseModel.json', () => {
     }
   });
 
-  it('keeps every piece procedural: the plan ships no model URLs', async () => {
-    expect(plan.furniture.every((entry) => entry.modelUrl === undefined)).toBe(true);
+  it('names its models under /models only, and still stands whole without them', async () => {
+    // A handful of hero pieces name a CC0 `.glb` (fetched by scripts/fetch-models.mjs,
+    // not in the repo); everything else stays procedural by design.
+    const withModels = plan.furniture.filter((entry) => entry.modelUrl !== undefined);
+    expect(withModels.length).toBeGreaterThan(0);
+    for (const entry of withModels) {
+      expect(entry.modelUrl, entry.id).toMatch(/^\/models\/[a-z-]+\.glb$/);
+    }
 
+    // Assembled with no asset service, every piece — modelUrl or not — must
+    // settle as procedural: the missing-file fallback is the design.
     const sources = await Promise.all(assembled.pieces.map((piece) => piece.ready));
     expect(new Set(sources)).toEqual(new Set(['procedural']));
   });

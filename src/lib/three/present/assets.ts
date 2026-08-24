@@ -100,30 +100,46 @@ export function platformDownloader(timeoutMs = REQUEST_TIMEOUT_MS.file): ModelDo
   };
 }
 
+/** A loaded GLTF parser: the one method this module calls on it. */
+interface LoadedGltfLoader {
+  parseAsync: (bytes: ArrayBuffer, path: string) => Promise<{ scene: Object3D }>;
+}
+
+/**
+ * One loader per decoder path, for the life of the app. A `GLTFLoader` holds
+ * no per-mount state, and the `DRACOLoader` behind it stands up workers and a
+ * wasm decoder that are never torn down — one per mount was a measured leak
+ * of about a quarter megabyte on every visit to the screen.
+ */
+const sharedLoaders = new Map<string, Promise<LoadedGltfLoader>>();
+
 /**
  * The GLTF parser, imported on first use so the loader code stays out of the
  * route chunk. A decoder path attaches Draco; without one, plain glTF only.
  */
 export function gltfParser(dracoDecoderPath?: string): ModelParser {
-  let loaderPromise: Promise<{ parseAsync: (bytes: ArrayBuffer, path: string) => Promise<{ scene: Object3D }> }> | null =
-    null;
+  const key = dracoDecoderPath ?? '';
 
-  const loader = (): Promise<{ parseAsync: (bytes: ArrayBuffer, path: string) => Promise<{ scene: Object3D }> }> => {
-    loaderPromise ??= (async () => {
-      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
-      const gltf = new GLTFLoader();
+  const loader = (): Promise<LoadedGltfLoader> => {
+    let promise = sharedLoaders.get(key);
+    if (promise === undefined) {
+      promise = (async () => {
+        const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+        const gltf = new GLTFLoader();
 
-      if (dracoDecoderPath !== undefined) {
-        const { DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js');
-        const draco = new DRACOLoader();
-        draco.setDecoderPath(dracoDecoderPath);
-        gltf.setDRACOLoader(draco);
-      }
+        if (dracoDecoderPath !== undefined) {
+          const { DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js');
+          const draco = new DRACOLoader();
+          draco.setDecoderPath(dracoDecoderPath);
+          gltf.setDRACOLoader(draco);
+        }
 
-      return gltf;
-    })();
+        return gltf;
+      })();
+      sharedLoaders.set(key, promise);
+    }
 
-    return loaderPromise;
+    return promise;
   };
 
   return async (bytes) => {

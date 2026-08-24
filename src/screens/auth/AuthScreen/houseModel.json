@@ -1,5 +1,5 @@
 {
-  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập: một căn hộ một tầng, cắt mở nhìn từ trên xuống. Toạ độ mm, gốc ở góc sau-trái của nhà. Trục x chạy ngang (trái → phải), y chạy sâu: y=0 là tường sau (trên cùng trong khung hình), y=9000 là mặt tiền (dưới cùng, gần máy quay), ban công chữ L ôm góc trước-trái. Tường, ô mở và phòng là ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua. Nội thất, khung cửa và đèn là lớp trình diễn của src/lib/three/present; `facing` là hướng mặt trước của món đồ, `sizeMm` là rộng × sâu × cao, `liftMm` nâng đế món đồ khỏi sàn (lọ hoa trên bàn, tranh trên tường), `opensTowards` là phía cánh cửa mở ra. `ceilingLights`: một đèn rọi ấm cho mỗi phòng trong nhà, đặt ở trọng tâm phòng; phòng khách dài nên có thêm hai điểm nêu đích danh; ban công không có. Chú thích chỉ viết ở khoá `$comment` cấp cao nhất này: `houseScene.ts` nhập file theo từng khoá nên phần chú thích không đi vào gói.",
+  "$comment": "Bản vẽ cố định cho khối mô hình trên màn đăng nhập: một căn hộ một tầng, cắt mở nhìn từ trên xuống. Toạ độ mm, gốc ở góc sau-trái của nhà. Trục x chạy ngang (trái → phải), y chạy sâu: y=0 là tường sau (trên cùng trong khung hình), y=9000 là mặt tiền (dưới cùng, gần máy quay), ban công chữ L ôm góc trước-trái. Tường, ô mở và phòng là ĐẦU VÀO cho src/lib/three/build — cùng đường mà một bản vẽ thật đi qua. Nội thất, khung cửa và đèn là lớp trình diễn của src/lib/three/present; `facing` là hướng mặt trước của món đồ, `sizeMm` là rộng × sâu × cao, `liftMm` nâng đế món đồ khỏi sàn (lọ hoa trên bàn, tranh trên tường), `opensTowards` là phía cánh cửa mở ra, `modelUrl` trỏ tới `.glb` CC0 trong public/models/ (tạo bằng `node scripts/fetch-models.mjs`, đã gitignore; thiếu file thì món thủ tục tự thay — xem placement.ts). `ceilingLights`: một đèn rọi ấm cho mỗi phòng trong nhà, đặt ở trọng tâm phòng; phòng khách dài nên có thêm hai điểm nêu đích danh; ban công không có. Chú thích chỉ viết ở khoá `$comment` cấp cao nhất này: `houseScene.ts` nhập file theo từng khoá nên phần chú thích không đi vào gói.",
   "name": "Căn hộ hai phòng ngủ, phòng làm việc và ban công chữ L",
   "levels": [
     { "id": "L-G", "elevationMm": 0, "heightMm": 2400 }
@@ -81,13 +81,13 @@
     { "id": "F-BED2-PLANT", "roomId": "R-BED-2", "kind": "other", "variant": "plant", "centreMm": [500, 8500], "sizeMm": [450, 450, 1200], "facing": "north" },
 
     { "id": "F-HALL-RUG", "roomId": "R-HALL", "kind": "other", "variant": "rug", "centreMm": [4400, 2000], "sizeMm": [700, 3000, 10], "facing": "north" },
-    { "id": "F-HALL-PLANT", "roomId": "R-HALL", "kind": "other", "variant": "plant", "centreMm": [4400, 400], "sizeMm": [450, 450, 1100], "facing": "north" },
+    { "id": "F-HALL-PLANT", "roomId": "R-HALL", "kind": "other", "variant": "plant", "centreMm": [4400, 400], "sizeMm": [450, 450, 1100], "facing": "north", "modelUrl": "/models/plant.glb" },
     { "id": "F-HALL-ART", "roomId": "R-HALL", "kind": "other", "variant": "artwork", "centreMm": [4400, 170], "sizeMm": [700, 40, 500], "facing": "north", "liftMm": 1300 },
 
     { "id": "F-STUDY-DESK", "roomId": "R-STUDY", "kind": "table", "variant": "table", "centreMm": [5800, 450], "sizeMm": [1300, 600, 750], "facing": "north" },
-    { "id": "F-STUDY-CHAIR", "roomId": "R-STUDY", "kind": "chair", "variant": "chair", "centreMm": [5800, 1050], "sizeMm": [450, 450, 900], "facing": "south" },
+    { "id": "F-STUDY-CHAIR", "roomId": "R-STUDY", "kind": "chair", "variant": "chair", "centreMm": [5800, 1050], "sizeMm": [450, 600, 950], "facing": "south", "modelUrl": "/models/dining-chair.glb" },
     { "id": "F-STUDY-LAMP", "roomId": "R-STUDY", "kind": "other", "variant": "tableLamp", "centreMm": [6300, 400], "sizeMm": [200, 200, 1350], "facing": "north" },
-    { "id": "F-STUDY-SHELVES", "roomId": "R-STUDY", "kind": "other", "variant": "shelves", "centreMm": [6390, 2000], "sizeMm": [800, 300, 2000], "facing": "west" },
+    { "id": "F-STUDY-SHELVES", "roomId": "R-STUDY", "kind": "other", "variant": "shelves", "centreMm": [6390, 2000], "sizeMm": [800, 300, 2000], "facing": "west", "modelUrl": "/models/shelf.glb" },
     { "id": "F-STUDY-PLANT", "roomId": "R-STUDY", "kind": "other", "variant": "plant", "centreMm": [5350, 2450], "sizeMm": [400, 400, 900], "facing": "north" },
 
     { "id": "F-BATH2-SHOWER", "roomId": "R-BATH-2", "kind": "sanitaryFixture", "variant": "shower", "centreMm": [6140, 3260], "sizeMm": [800, 800, 2000], "facing": "north" },
@@ -108,27 +108,27 @@
     { "id": "F-KITCHEN-STOOL-1", "roomId": "R-KITCHEN", "kind": "chair", "variant": "stool", "centreMm": [9000, 3500], "sizeMm": [380, 380, 700], "facing": "south" },
     { "id": "F-KITCHEN-STOOL-2", "roomId": "R-KITCHEN", "kind": "chair", "variant": "stool", "centreMm": [9800, 3500], "sizeMm": [380, 380, 700], "facing": "south" },
     { "id": "F-HALL-SHOES", "roomId": "R-KITCHEN", "kind": "other", "variant": "cabinet", "centreMm": [11675, 1100], "sizeMm": [900, 350, 1000], "facing": "west" },
-    { "id": "F-KITCHEN-PLANT", "roomId": "R-KITCHEN", "kind": "other", "variant": "plant", "centreMm": [11550, 4400], "sizeMm": [600, 600, 1500], "facing": "north" },
+    { "id": "F-KITCHEN-PLANT", "roomId": "R-KITCHEN", "kind": "other", "variant": "plant", "centreMm": [11550, 4400], "sizeMm": [600, 600, 1500], "facing": "north", "modelUrl": "/models/plant.glb" },
 
-    { "id": "F-LIVING-SOFA", "roomId": "R-LIVING", "kind": "other", "variant": "sofa", "centreMm": [5600, 7500], "sizeMm": [2400, 900, 800], "facing": "south" },
+    { "id": "F-LIVING-SOFA", "roomId": "R-LIVING", "kind": "other", "variant": "sofa", "centreMm": [6200, 7250], "sizeMm": [1700, 700, 800], "facing": "south", "modelUrl": "/models/sofa.glb" },
     { "id": "F-LIVING-SCONCE-L", "roomId": "R-LIVING", "kind": "other", "variant": "sconce", "centreMm": [5150, 4880], "sizeMm": [160, 120, 280], "facing": "north", "liftMm": 1550 },
     { "id": "F-LIVING-SCONCE-R", "roomId": "R-LIVING", "kind": "other", "variant": "sconce", "centreMm": [6500, 4880], "sizeMm": [160, 120, 280], "facing": "north", "liftMm": 1550 },
     { "id": "F-LIVING-TV", "roomId": "R-LIVING", "kind": "other", "variant": "tv", "centreMm": [5900, 5060], "sizeMm": [1100, 400, 1500], "facing": "north" },
     { "id": "F-LIVING-RUG", "roomId": "R-LIVING", "kind": "other", "variant": "rug", "centreMm": [5600, 6700], "sizeMm": [3000, 1800, 10], "facing": "north" },
-    { "id": "F-LIVING-COFFEE", "roomId": "R-LIVING", "kind": "table", "variant": "table", "centreMm": [5600, 6500], "sizeMm": [1000, 500, 400], "facing": "south" },
-    { "id": "F-LIVING-ARMCHAIR", "roomId": "R-LIVING", "kind": "other", "variant": "armchair", "centreMm": [7500, 6900], "sizeMm": [800, 800, 750], "facing": "west" },
-    { "id": "F-LIVING-SIDE", "roomId": "R-LIVING", "kind": "table", "variant": "sideTable", "centreMm": [4100, 7500], "sizeMm": [450, 450, 500], "facing": "north" },
-    { "id": "F-LIVING-SIDE-PLANT", "roomId": "R-LIVING", "kind": "other", "variant": "plant", "centreMm": [4100, 7500], "sizeMm": [300, 300, 450], "facing": "north", "liftMm": 500 },
+    { "id": "F-LIVING-COFFEE", "roomId": "R-LIVING", "kind": "table", "variant": "table", "centreMm": [5600, 6350], "sizeMm": [900, 900, 420], "facing": "south", "modelUrl": "/models/coffee-table.glb" },
+    { "id": "F-LIVING-ARMCHAIR", "roomId": "R-LIVING", "kind": "other", "variant": "armchair", "centreMm": [7500, 6900], "sizeMm": [800, 800, 1000], "facing": "west", "modelUrl": "/models/armchair.glb" },
+    { "id": "F-LIVING-SIDE", "roomId": "R-LIVING", "kind": "table", "variant": "sideTable", "centreMm": [4900, 7100], "sizeMm": [450, 450, 500], "facing": "north", "modelUrl": "/models/side-table.glb" },
+    { "id": "F-LIVING-SIDE-PLANT", "roomId": "R-LIVING", "kind": "other", "variant": "plant", "centreMm": [4900, 7100], "sizeMm": [300, 300, 450], "facing": "north", "liftMm": 500 },
     { "id": "F-LIVING-LAMP", "roomId": "R-LIVING", "kind": "other", "variant": "floorLamp", "centreMm": [4100, 5400], "sizeMm": [400, 400, 1500], "facing": "north" },
-    { "id": "F-LIVING-PLANT", "roomId": "R-LIVING", "kind": "other", "variant": "plant", "centreMm": [7000, 5100], "sizeMm": [600, 600, 1600], "facing": "north" },
+    { "id": "F-LIVING-PLANT", "roomId": "R-LIVING", "kind": "other", "variant": "plant", "centreMm": [7000, 5100], "sizeMm": [600, 600, 1600], "facing": "north", "modelUrl": "/models/plant.glb" },
 
     { "id": "F-DINING-TABLE", "roomId": "R-LIVING", "kind": "table", "variant": "table", "centreMm": [10000, 6700], "sizeMm": [1800, 900, 750], "facing": "north" },
-    { "id": "F-DINING-CHAIR-1", "roomId": "R-LIVING", "kind": "chair", "variant": "chair", "centreMm": [9450, 5950], "sizeMm": [450, 450, 900], "facing": "north" },
-    { "id": "F-DINING-CHAIR-2", "roomId": "R-LIVING", "kind": "chair", "variant": "chair", "centreMm": [10000, 5950], "sizeMm": [450, 450, 900], "facing": "north" },
-    { "id": "F-DINING-CHAIR-3", "roomId": "R-LIVING", "kind": "chair", "variant": "chair", "centreMm": [10550, 5950], "sizeMm": [450, 450, 900], "facing": "north" },
+    { "id": "F-DINING-CHAIR-1", "roomId": "R-LIVING", "kind": "chair", "variant": "chair", "centreMm": [9450, 5950], "sizeMm": [450, 600, 950], "facing": "north", "modelUrl": "/models/dining-chair.glb" },
+    { "id": "F-DINING-CHAIR-2", "roomId": "R-LIVING", "kind": "chair", "variant": "chair", "centreMm": [10000, 5950], "sizeMm": [450, 600, 950], "facing": "north", "modelUrl": "/models/dining-chair.glb" },
+    { "id": "F-DINING-CHAIR-3", "roomId": "R-LIVING", "kind": "chair", "variant": "chair", "centreMm": [10550, 5950], "sizeMm": [450, 600, 950], "facing": "north", "modelUrl": "/models/dining-chair.glb" },
     { "id": "F-DINING-BENCH", "roomId": "R-LIVING", "kind": "chair", "variant": "bench", "centreMm": [10000, 7500], "sizeMm": [1600, 400, 450], "facing": "south" },
     { "id": "F-DINING-PENDANT", "roomId": "R-LIVING", "kind": "other", "variant": "pendant", "centreMm": [10000, 6700], "sizeMm": [350, 350, 1900], "facing": "north" },
-    { "id": "F-DINING-VASE", "roomId": "R-LIVING", "kind": "other", "variant": "vase", "centreMm": [10000, 6700], "sizeMm": [200, 200, 400], "facing": "north", "liftMm": 750 },
+    { "id": "F-DINING-VASE", "roomId": "R-LIVING", "kind": "other", "variant": "vase", "centreMm": [10000, 6700], "sizeMm": [200, 200, 400], "facing": "north", "liftMm": 750, "modelUrl": "/models/vase.glb" },
 
     { "id": "F-BALCONY-TABLE-1", "roomId": "R-BALCONY", "kind": "table", "variant": "sideTable", "centreMm": [-950, 9950], "sizeMm": [500, 500, 450], "facing": "north" },
     { "id": "F-BALCONY-CHAIR-1A", "roomId": "R-BALCONY", "kind": "chair", "variant": "armchair", "centreMm": [-400, 9950], "sizeMm": [650, 650, 750], "facing": "west" },
