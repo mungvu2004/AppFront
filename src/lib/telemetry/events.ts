@@ -1,5 +1,5 @@
 /**
- * The catalogue: the eight things this application is allowed to say about
+ * The catalogue: the nine things this application is allowed to say about
  * itself, and nothing else.
  *
  * Measuring a QC tool is unusually risky, because the thing being measured *is*
@@ -14,7 +14,7 @@
  *
  * A free-form `track(name, props)` looks flexible for a week and then becomes a
  * warehouse of misspelt names holding data nobody meant to collect. Here
- * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly eight
+ * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly nine
  * shapes: an event that is not one of them does not typecheck, and — because a
  * value that reached `unknown` can still be anything — does not parse either.
  * {@link parseTelemetryEvent} is the runtime half of that sentence, and the
@@ -287,6 +287,29 @@ const sceneBuildSchema = z.object({
   triangleCount: countSchema,
 });
 
+/** How the dashboard was told to open a project. */
+export const PROJECT_OPEN_SOURCES = ['card', 'row', 'command-palette'] as const;
+export type ProjectOpenSource = (typeof PROJECT_OPEN_SOURCES)[number];
+
+/** Where a project sat in the pipeline at the moment it was opened. */
+export const PROJECT_PIPELINE_STATUSES = ['processing', 'qc', 'done'] as const;
+export type ProjectPipelineStatus = (typeof PROJECT_PIPELINE_STATUSES)[number];
+
+/**
+ * A project was opened from the dashboard.
+ *
+ * No project id and no project name, for the same reason nothing above carries
+ * one — see the header. `status` and `source` are both closed codes, so this
+ * event can say *how many* opens came from the command palette versus a card,
+ * and how many landed on a project still processing versus one already done,
+ * without ever saying *which* project.
+ */
+const projectOpenSchema = z.object({
+  name: z.literal('project.open'),
+  source: z.enum(PROJECT_OPEN_SOURCES),
+  status: z.enum(PROJECT_PIPELINE_STATUSES),
+});
+
 /* -------------------------------------------------------------------------- */
 /* The union, and the door into it.                                            */
 /* -------------------------------------------------------------------------- */
@@ -307,6 +330,7 @@ export const TELEMETRY_EVENT_SCHEMA = z.discriminatedUnion('name', [
   screenErrorSchema,
   appFirstFrameSchema,
   sceneBuildSchema,
+  projectOpenSchema,
 ]);
 
 /** An event as it travels: durations and counts already whole numbers. */
@@ -334,6 +358,7 @@ export const TELEMETRY_EVENT_NAMES = [
   'screen.error',
   'app.first-frame',
   'scene.build',
+  'project.open',
 ] as const satisfies readonly TelemetryEventName[];
 
 export type DrawingUploadEvent = Extract<TelemetryEvent, { name: 'drawing.upload' }>;
@@ -344,6 +369,7 @@ export type ExportFileEvent = Extract<TelemetryEvent, { name: 'export.file' }>;
 export type ScreenErrorEvent = Extract<TelemetryEvent, { name: 'screen.error' }>;
 export type AppFirstFrameEvent = Extract<TelemetryEvent, { name: 'app.first-frame' }>;
 export type SceneBuildEvent = Extract<TelemetryEvent, { name: 'scene.build' }>;
+export type ProjectOpenEvent = Extract<TelemetryEvent, { name: 'project.open' }>;
 
 /** Is this one of the eight names? */
 export function isTelemetryEventName(value: unknown): value is TelemetryEventName {

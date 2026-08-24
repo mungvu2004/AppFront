@@ -19,6 +19,7 @@ const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3
 const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
 const RouteShare = lazy(() => import('../screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
+const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboard })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -60,7 +61,7 @@ const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes(
 export const router = createBrowserRouter([
   ...DEV_ONLY_ROUTES,
   { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
-  { path: ROUTE_PATTERNS.dashboard, element: <Placeholder name="dashboard" /> },
+  { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },
   { path: ROUTE_PATTERNS.projectSettings, element: <Placeholder name="/projects/:id/settings" /> },
   { path: ROUTE_PATTERNS.projectUpload, element: <Placeholder name="/projects/:id/upload" /> },
   { path: ROUTE_PATTERNS.projectPipeline, element: <Placeholder name="/projects/:id/pipeline" /> },

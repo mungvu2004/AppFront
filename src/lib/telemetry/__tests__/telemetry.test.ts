@@ -110,6 +110,11 @@ const SAMPLE_EVENTS: Readonly<Record<TelemetryEventName, TelemetryEventInput>> =
     roomCount: 14,
     triangleCount: 184_320,
   },
+  'project.open': {
+    name: 'project.open',
+    source: 'card',
+    status: 'processing',
+  },
 };
 
 const wallEdit = (latencyMs: number): TelemetryEventInput => ({
