@@ -22,7 +22,7 @@ import { dressStorey } from './dressing';
 import type { CachedAssembly } from './geometryCache';
 import { fitJoinery } from './joinery';
 import { addCeilingLights, budgetLights, DEFAULT_LIGHT_BUDGET, type LightBudgetReport } from './lighting';
-import { materialByRole, materialRoles, type SceneMaterials } from './materials';
+import { materialRoles, type SceneMaterials } from './materials';
 import { collectStatic, concatCollected, fingerprintStatic, hydrateBatches, removeCollected, serializeBatches } from './merge';
 import { bakeVertexOcclusion, meshOccluders } from './occlusion';
 import type { ScenePalette } from './palette';
@@ -163,30 +163,31 @@ export function assembleHouse(
   // skipped: the raw meshes come out, the stored batches go in.
   let geometry: CachedAssembly | null = null;
   let geometryRestored = false;
+  const bake = (): void => {
+    if (options.occlusion !== false) {
+      bakeVertexOcclusion(staticRoots, meshOccluders(house));
+    }
+  };
 
   if (options.batch !== false) {
     const roles = materialRoles(materials);
     const collected = collectStatic(staticRoots, house);
     const fingerprint = fingerprintStatic(collected, roles);
     const cached = options.cachedGeometry ?? null;
-    const hydrated =
-      cached !== null && cached.fingerprint === fingerprint
-        ? hydrateBatches(cached, (role) => materialByRole(materials, role), house)
-        : null;
+    const byRole = new Map([...roles].map(([material, role]) => [role, material] as const));
+    const hydrated = cached !== null && cached.fingerprint === fingerprint ? hydrateBatches(cached, byRole, house) : null;
 
     if (hydrated !== null) {
       removeCollected(collected);
       geometry = cached;
       geometryRestored = true;
     } else {
-      if (options.occlusion !== false) {
-        bakeVertexOcclusion(staticRoots, meshOccluders(house));
-      }
+      bake();
       const report = concatCollected(collected, house);
       geometry = { fingerprint, batches: serializeBatches(report.batches, roles) };
     }
-  } else if (options.occlusion !== false) {
-    bakeVertexOcclusion(staticRoots, meshOccluders(house));
+  } else {
+    bake();
   }
 
   return { house, pieces, refusals, unknownFinishes, lights, geometry, geometryRestored };

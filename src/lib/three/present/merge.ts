@@ -29,7 +29,7 @@
 
 import { BufferAttribute, BufferGeometry, Matrix4, Mesh, type Material, type Object3D } from 'three';
 
-import { fingerprintSource, type CachedAssembly, type CachedBatch } from './geometryCache';
+import { hashNumbers, hashString, type CachedAssembly, type CachedBatch } from './geometryCache';
 
 /* -------------------------------------------------------------------------- */
 /* Types.                                                                      */
@@ -47,7 +47,6 @@ export interface MergeReport {
 export interface CollectedStatic {
   readonly batches: ReadonlyMap<string, Batch>;
   readonly removed: readonly Mesh[];
-  readonly inverse: Matrix4;
 }
 
 /** One batch in the making. */
@@ -200,7 +199,7 @@ export function collectStatic(roots: readonly Object3D[], into: Object3D): Colle
     });
   }
 
-  return { batches, removed, inverse };
+  return { batches, removed };
 }
 
 /** Take the collected sources out of the graph and release their geometry. */
@@ -251,7 +250,19 @@ export function fingerprintStatic(collected: CollectedStatic, roles: ReadonlyMap
   for (const batch of collected.batches.values()) {
     const role = roles.get(batch.material) ?? '?';
     for (const source of batch.sources) {
-      hash = fingerprintSource(hash, role, batch, source.geometry.getAttribute('position'), source.matrix.elements);
+      const position = source.geometry.getAttribute('position');
+      const last = position.count - 1;
+      hash = hashString(`${role}|${batch.castShadow ? 'c' : ''}${batch.receiveShadow ? 'r' : ''}|${batch.renderOrder}`, hash);
+      hash = hashNumbers(hash, [position.count]);
+      hash = hashNumbers(hash, source.matrix.elements);
+      hash = hashNumbers(hash, [
+        position.getX(0),
+        position.getY(0),
+        position.getZ(0),
+        position.getX(last),
+        position.getY(last),
+        position.getZ(last),
+      ]);
     }
   }
   return hash;
@@ -282,14 +293,14 @@ export function serializeBatches(batches: readonly Mesh[], roles: ReadonlyMap<Ma
  */
 export function hydrateBatches(
   cached: CachedAssembly,
-  byRole: (role: string) => Material | null,
+  byRole: ReadonlyMap<string, Material>,
   into: Object3D,
 ): readonly Mesh[] | null {
   const added: Mesh[] = [];
 
   for (const batch of cached.batches) {
-    const material = byRole(batch.role);
-    if (material === null) {
+    const material = byRole.get(batch.role);
+    if (material === undefined) {
       for (const mesh of added) {
         mesh.removeFromParent();
         mesh.geometry.dispose();

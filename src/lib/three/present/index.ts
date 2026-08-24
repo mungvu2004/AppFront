@@ -67,14 +67,12 @@ export { applyRoomEnvironment, createStudioScene, disposeStudioScene, type Envir
 export { createFrameLoop, LOOP_GATES, MAX_SWAY_FPS, type FrameLoop, type FrameLoopOptions, type LoopGate } from './frameLoop';
 export {
   createGeometryCache,
-  fingerprintSource,
   hashNumbers,
   hashString,
   planCacheKey,
   type CachedAssembly,
   type CachedBatch,
   type GeometryCache,
-  type GeometryCacheOptions,
 } from './geometryCache';
 export {
   buildFrame,
@@ -100,7 +98,7 @@ export {
   type LightBudgetReport,
   type SceneLighting,
 } from './lighting';
-export { createMaterials, disposeMaterials, materialByRole, materialRoles, type SceneMaterials, type SurfaceMaterials } from './materials';
+export { createMaterials, disposeMaterials, materialRoles, type SceneMaterials, type SurfaceMaterials } from './materials';
 export {
   collectStatic,
   concatCollected,

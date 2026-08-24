@@ -20,15 +20,14 @@
  *   drawing is a different entry;
  * - the **fingerprint**: a hash over every static mesh the raw build just
  *   produced — its material role, shadow flags, vertex count, world matrix
- *   and sampled vertices. Change a builder in `pieces/`, a trim constant, the
- *   light budget's outcome — the fingerprint moves and the entry is recomputed
- *   and rewritten, no version constant to remember to bump.
+ *   and sampled vertices (see `fingerprintStatic` in `merge.ts`). Change a
+ *   builder in `pieces/`, a trim constant, the light budget's outcome — the
+ *   fingerprint moves and the entry is recomputed and rewritten, no version
+ *   constant to remember to bump.
  *
  * Everything degrades to a normal cold build: no IndexedDB, a failed read, a
  * fingerprint miss — the caller bakes as if this module did not exist.
  */
-
-import type { BufferAttribute, InterleavedBufferAttribute } from 'three';
 
 /* -------------------------------------------------------------------------- */
 /* Types.                                                                      */
@@ -56,11 +55,6 @@ export interface GeometryCache {
   readonly load: (key: string) => Promise<CachedAssembly | null>;
   /** Write an entry; failures are swallowed — a cache that cannot write is a cache that misses. */
   readonly store: (key: string, assembly: CachedAssembly) => Promise<void>;
-}
-
-export interface GeometryCacheOptions {
-  readonly factory?: IDBFactory;
-  readonly name?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -94,63 +88,12 @@ export function planCacheKey(plan: unknown, lightBudget: number): string {
   return `plan-${hashString(`${JSON.stringify(plan)}|${lightBudget}`).toString(16)}`;
 }
 
-/**
- * Fold one static mesh's shape into a fingerprint: role, flags, size, where
- * it stands, and a sample of its first and last vertices — enough that any
- * edit to a builder moves the number.
- */
-export function fingerprintSource(
-  hash: number,
-  role: string,
-  flags: { readonly castShadow: boolean; readonly receiveShadow: boolean; readonly renderOrder: number },
-  position: BufferAttribute | InterleavedBufferAttribute,
-  matrixElements: ArrayLike<number>,
-): number {
-  let mixed = hashString(`${role}|${flags.castShadow ? 'c' : ''}${flags.receiveShadow ? 'r' : ''}|${flags.renderOrder}`, hash);
-  mixed = hashNumbers(mixed, [position.count]);
-  mixed = hashNumbers(mixed, matrixElements);
-  const last = position.count - 1;
-  mixed = hashNumbers(mixed, [
-    position.getX(0),
-    position.getY(0),
-    position.getZ(0),
-    position.getX(last),
-    position.getY(last),
-    position.getZ(last),
-  ]);
-  return mixed;
-}
-
 /* -------------------------------------------------------------------------- */
 /* The store.                                                                  */
 /* -------------------------------------------------------------------------- */
 
 const DB_NAME = 'digitwin-presentation';
-const DB_VERSION = 1;
 const STORE = 'assembledGeometry';
-
-function openDb(factory: IDBFactory, name: string): Promise<IDBDatabase | null> {
-  return new Promise((resolve) => {
-    let request: IDBOpenDBRequest;
-    try {
-      request = factory.open(name, DB_VERSION);
-    } catch {
-      resolve(null);
-      return;
-    }
-    request.onerror = () => {
-      resolve(null);
-    };
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE)) {
-        request.result.createObjectStore(STORE);
-      }
-    };
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-  });
-}
 
 /** Whether a stored value has the shape this module writes. */
 function isCachedAssembly(value: unknown): value is CachedAssembly {
@@ -163,45 +106,51 @@ function isCachedAssembly(value: unknown): value is CachedAssembly {
 }
 
 /**
- * A cache over IndexedDB. Every failure path resolves rather than rejects:
- * the caller treats `null` as a cold start and a failed write as weather.
+ * One request against the store. Every failure path — no IndexedDB at all, a
+ * refused open, a failed transaction — resolves as `fallback` rather than
+ * rejecting: the caller treats it as a cold start or a write into the wind.
  */
-export function createGeometryCache(options: GeometryCacheOptions = {}): GeometryCache {
-  const factory = options.factory ?? (globalThis as { indexedDB?: IDBFactory }).indexedDB;
-  const name = options.name ?? DB_NAME;
-
-  const withStore = async <T>(
-    mode: IDBTransactionMode,
-    run: (store: IDBObjectStore) => IDBRequest,
-    fallback: T,
-    read: (request: IDBRequest) => T,
-  ): Promise<T> => {
-    if (factory === undefined) {
-      return fallback;
-    }
-    const db = await openDb(factory, name);
-    if (db === null) {
-      return fallback;
-    }
-    return new Promise<T>((resolve) => {
-      try {
-        const request = run(db.transaction(STORE, mode).objectStore(STORE));
-        request.onerror = () => {
+function withStore<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest,
+  fallback: T,
+  read: (request: IDBRequest) => T,
+): Promise<T> {
+  return new Promise((resolve) => {
+    try {
+      const open = ((globalThis as { indexedDB?: IDBFactory }).indexedDB as IDBFactory).open(DB_NAME, 1);
+      open.onerror = () => {
+        resolve(fallback);
+      };
+      open.onupgradeneeded = () => {
+        open.result.createObjectStore(STORE);
+      };
+      open.onsuccess = () => {
+        const db = open.result;
+        try {
+          const request = run(db.transaction(STORE, mode).objectStore(STORE));
+          request.onerror = () => {
+            db.close();
+            resolve(fallback);
+          };
+          request.onsuccess = () => {
+            const value = read(request);
+            db.close();
+            resolve(value);
+          };
+        } catch {
           db.close();
           resolve(fallback);
-        };
-        request.onsuccess = () => {
-          const value = read(request);
-          db.close();
-          resolve(value);
-        };
-      } catch {
-        db.close();
-        resolve(fallback);
-      }
-    });
-  };
+        }
+      };
+    } catch {
+      resolve(fallback);
+    }
+  });
+}
 
+/** A cache over IndexedDB. See `withStore` for why it never rejects. */
+export function createGeometryCache(): GeometryCache {
   return {
     load: (key) =>
       withStore<CachedAssembly | null>(

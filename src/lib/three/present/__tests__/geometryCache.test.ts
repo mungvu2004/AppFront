@@ -16,7 +16,7 @@ import {
   planCacheKey,
   type CachedAssembly,
 } from '../geometryCache';
-import { createMaterials, materialByRole, materialRoles, type SceneMaterials } from '../materials';
+import { createMaterials, materialRoles, type SceneMaterials } from '../materials';
 import { hydrateBatches } from '../merge';
 import { readPalette, type ScenePalette } from '../palette';
 
@@ -25,14 +25,29 @@ import { FIXTURE_PLAN, stubCanvasContext } from './fixtures';
 let palette: ScenePalette;
 let materials: SceneMaterials;
 
+/** The restore-time direction of `materialRoles`: role name to material. */
+function rolesToMaterials(set: SceneMaterials): Map<string, Material> {
+  return new Map([...materialRoles(set)].map(([material, role]) => [role, material] as const));
+}
+
+const deleteDatabase = (): Promise<void> =>
+  new Promise((resolve) => {
+    const request = indexedDB.deleteDatabase('digitwin-presentation');
+    request.onsuccess = request.onerror = request.onblocked = () => {
+      resolve();
+    };
+  });
+
 beforeEach(() => {
   stubCanvasContext();
   palette = readPalette(() => '');
   materials = createMaterials(palette);
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  await deleteDatabase();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -86,7 +101,7 @@ function smallAssembly(): CachedAssembly {
 
 describe('createGeometryCache', () => {
   it('round-trips an assembly, typed arrays intact, and misses on an absent key', async () => {
-    const cache = createGeometryCache({ name: 'test-roundtrip' });
+    const cache = createGeometryCache();
     const assembly = smallAssembly();
 
     await cache.store('k', assembly);
@@ -105,7 +120,7 @@ describe('createGeometryCache', () => {
   });
 
   it('treats an entry with the wrong shape as a miss', async () => {
-    const cache = createGeometryCache({ name: 'test-shape' });
+    const cache = createGeometryCache();
 
     await cache.store('k', { nope: true } as unknown as CachedAssembly);
 
@@ -118,16 +133,15 @@ describe('createGeometryCache', () => {
 
     await expect(cache.load('k')).resolves.toBeNull();
     await expect(cache.store('k', smallAssembly())).resolves.toBeUndefined();
-    vi.unstubAllGlobals();
   });
 
   it('misses quietly when the factory refuses to open', async () => {
-    const factory = {
+    vi.stubGlobal('indexedDB', {
       open: () => {
         throw new Error('từ chối');
       },
-    } as unknown as IDBFactory;
-    const cache = createGeometryCache({ factory });
+    });
+    const cache = createGeometryCache();
 
     await expect(cache.load('k')).resolves.toBeNull();
     await expect(cache.store('k', smallAssembly())).resolves.toBeUndefined();
@@ -153,13 +167,15 @@ function batchesOf(root: Object3D): Mesh[] {
 }
 
 /** What the store would hand back: through fake-indexeddb, sharing nothing. */
+let tripCount = 0;
 async function roundTripped(assembly: CachedAssembly | null): Promise<CachedAssembly> {
   if (assembly === null) {
     throw new Error('cold assembly missing');
   }
-  const cache = createGeometryCache({ name: `test-trip-${Math.trunc(Math.random() * 1e9)}` });
-  await cache.store('k', assembly);
-  const back = await cache.load('k');
+  const cache = createGeometryCache();
+  const key = `test-trip-${(tripCount += 1)}`;
+  await cache.store(key, assembly);
+  const back = await cache.load(key);
   if (back === null) {
     throw new Error('round trip lost the assembly');
   }
@@ -198,8 +214,9 @@ describe('assembleHouse with a cached assembly', () => {
     expect(warmBatches.map((batch) => describeBatch(batch, warmRoles)).sort()).toEqual(
       coldBatches.map((batch) => describeBatch(batch, coldRoles)).sort(),
     );
+    const warmByRole = rolesToMaterials(warmMaterials);
     for (const batch of warmBatches) {
-      expect(materialByRole(warmMaterials, warmRoles.get(batch.material as Material) ?? '?')).toBe(batch.material);
+      expect(warmByRole.get(warmRoles.get(batch.material as Material) ?? '?')).toBe(batch.material);
     }
   });
 
@@ -259,7 +276,7 @@ describe('hydrateBatches', () => {
       batches: [smallAssembly().batches[0]!, { ...smallAssembly().batches[0]!, role: 'notARole' }],
     };
 
-    const added = hydrateBatches(cached, (role) => materialByRole(materials, role), into);
+    const added = hydrateBatches(cached, rolesToMaterials(materials), into);
 
     expect(added).toBeNull();
     expect(into.children).toHaveLength(0);

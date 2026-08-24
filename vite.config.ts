@@ -18,8 +18,10 @@ export default defineConfig({
   build: {
     // terser thay vì esbuild: chậm hơn vài giây mỗi lần dựng, đổi lấy ~1,5%
     // gzip trên toàn bộ JS — đúng tinh thần cổng kích thước gói: sửa cách dựng,
-    // không nới ngưỡng. Cấu hình mặc định, không mangle property nào.
+    // không nới ngưỡng. Không mangle property nào; `passes: 2` cho terser nén
+    // thêm một lượt (thêm ~2 s dựng, bớt ~2 KiB gzip nữa).
     minify: 'terser',
+    terserOptions: { compress: { passes: 2, pure_getters: true } },
   },
   resolve: {
     alias: {
