@@ -19,10 +19,11 @@ import { readPartData } from '../build/scene';
 import type { WallPartData } from '../build/wall';
 
 import { dressStorey } from './dressing';
+import type { CachedAssembly } from './geometryCache';
 import { fitJoinery } from './joinery';
 import { addCeilingLights, budgetLights, DEFAULT_LIGHT_BUDGET, type LightBudgetReport } from './lighting';
-import type { SceneMaterials } from './materials';
-import { mergeStatic } from './merge';
+import { materialByRole, materialRoles, type SceneMaterials } from './materials';
+import { collectStatic, concatCollected, fingerprintStatic, hydrateBatches, removeCollected, serializeBatches } from './merge';
 import { bakeVertexOcclusion, meshOccluders } from './occlusion';
 import type { ScenePalette } from './palette';
 import { placeFurniture, type PlacedPiece, type PlacementOptions } from './placement';
@@ -47,6 +48,13 @@ export interface AssembledHouse {
   readonly unknownFinishes: readonly string[];
   /** Which of the plan's lights stayed real, and which were drawn as pools. */
   readonly lights: LightBudgetReport;
+  /**
+   * The static geometry as data — what a caller stores so the next mount
+   * skips the bake — and whether this assembly came from such a store.
+   * `null` when batching was off.
+   */
+  readonly geometry: CachedAssembly | null;
+  readonly geometryRestored: boolean;
 }
 
 export interface AssembleOptions extends PlacementOptions {
@@ -62,6 +70,11 @@ export interface AssembleOptions extends PlacementOptions {
   readonly lightBudget?: number;
   /** Bake ambient occlusion into the static meshes' vertex colours. On by default. */
   readonly occlusion?: boolean;
+  /**
+   * A previously stored assembly. Used only if its fingerprint matches what
+   * this build just produced; otherwise everything is baked afresh.
+   */
+  readonly cachedGeometry?: CachedAssembly | null;
 }
 
 /**
@@ -145,14 +158,36 @@ export function assembleHouse(
   }
 
   // Occlusion is read off every solid thing in the house and written onto the
-  // static meshes only, before they are folded — a batch keeps its colours.
-  if (options.occlusion !== false) {
+  // static meshes, before they are folded — a batch keeps its colours. With a
+  // cached assembly whose fingerprint matches, both the bake and the fold are
+  // skipped: the raw meshes come out, the stored batches go in.
+  let geometry: CachedAssembly | null = null;
+  let geometryRestored = false;
+
+  if (options.batch !== false) {
+    const roles = materialRoles(materials);
+    const collected = collectStatic(staticRoots, house);
+    const fingerprint = fingerprintStatic(collected, roles);
+    const cached = options.cachedGeometry ?? null;
+    const hydrated =
+      cached !== null && cached.fingerprint === fingerprint
+        ? hydrateBatches(cached, (role) => materialByRole(materials, role), house)
+        : null;
+
+    if (hydrated !== null) {
+      removeCollected(collected);
+      geometry = cached;
+      geometryRestored = true;
+    } else {
+      if (options.occlusion !== false) {
+        bakeVertexOcclusion(staticRoots, meshOccluders(house));
+      }
+      const report = concatCollected(collected, house);
+      geometry = { fingerprint, batches: serializeBatches(report.batches, roles) };
+    }
+  } else if (options.occlusion !== false) {
     bakeVertexOcclusion(staticRoots, meshOccluders(house));
   }
 
-  if (options.batch !== false) {
-    mergeStatic(staticRoots, house);
-  }
-
-  return { house, pieces, refusals, unknownFinishes, lights };
+  return { house, pieces, refusals, unknownFinishes, lights, geometry, geometryRestored };
 }

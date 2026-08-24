@@ -31,6 +31,7 @@
 import {
   AdditiveBlending,
   DoubleSide,
+  Material,
   MeshBasicMaterial,
   MeshLambertMaterial,
   MeshStandardMaterial,
@@ -260,6 +261,27 @@ export function createMaterials(palette: ScenePalette): SceneMaterials {
       mosaicRelief,
     ].filter((map): map is Texture => map !== null),
   };
+}
+
+/**
+ * Every material's role name, by identity — how a batch's material is written
+ * to the geometry cache, and how a cached batch finds its material again in a
+ * later mount's fresh set.
+ */
+export function materialRoles(materials: SceneMaterials): Map<Material, string> {
+  const roles = new Map<Material, string>();
+  for (const [role, value] of Object.entries(materials)) {
+    if (role !== 'textures' && value !== null && !Array.isArray(value)) {
+      roles.set(value as Material, role);
+    }
+  }
+  return roles;
+}
+
+/** The other direction: a role name back to this set's material, or nothing. */
+export function materialByRole(materials: SceneMaterials, role: string): Material | null {
+  const value = (materials as unknown as Record<string, unknown>)[role];
+  return role !== 'textures' && value instanceof Material ? value : null;
 }
 
 /** Release every material and texture the set holds. Safe to call once. */

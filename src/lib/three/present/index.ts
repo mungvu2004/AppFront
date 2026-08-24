@@ -66,6 +66,17 @@ export { dressStorey, floorMaterialFor, isGlazed, type DressingPlan, type Dressi
 export { applyRoomEnvironment, createStudioScene, disposeStudioScene, type EnvironmentHandle } from './environment';
 export { createFrameLoop, LOOP_GATES, MAX_SWAY_FPS, type FrameLoop, type FrameLoopOptions, type LoopGate } from './frameLoop';
 export {
+  createGeometryCache,
+  fingerprintSource,
+  hashNumbers,
+  hashString,
+  planCacheKey,
+  type CachedAssembly,
+  type CachedBatch,
+  type GeometryCache,
+  type GeometryCacheOptions,
+} from './geometryCache';
+export {
   buildFrame,
   buildRailing,
   chooseSwing,
@@ -89,8 +100,20 @@ export {
   type LightBudgetReport,
   type SceneLighting,
 } from './lighting';
-export { createMaterials, disposeMaterials, type SceneMaterials, type SurfaceMaterials } from './materials';
-export { concatGeometries, isBatchable, mergeStatic, type MergeReport } from './merge';
+export { createMaterials, disposeMaterials, materialByRole, materialRoles, type SceneMaterials, type SurfaceMaterials } from './materials';
+export {
+  collectStatic,
+  concatCollected,
+  concatGeometries,
+  fingerprintStatic,
+  hydrateBatches,
+  isBatchable,
+  mergeStatic,
+  removeCollected,
+  serializeBatches,
+  type CollectedStatic,
+  type MergeReport,
+} from './merge';
 export { MAX_PIXEL_RATIO, mountPresentation, type PresentationHandle, type PresentationOptions } from './mount';
 export {
   bakeVertexOcclusion,

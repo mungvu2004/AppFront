@@ -29,6 +29,8 @@
 
 import { BufferAttribute, BufferGeometry, Matrix4, Mesh, type Material, type Object3D } from 'three';
 
+import { fingerprintSource, type CachedAssembly, type CachedBatch } from './geometryCache';
+
 /* -------------------------------------------------------------------------- */
 /* Types.                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -41,8 +43,15 @@ export interface MergeReport {
   readonly batches: readonly Mesh[];
 }
 
+/** The meshes bound for batching, grouped and not yet touched. */
+export interface CollectedStatic {
+  readonly batches: ReadonlyMap<string, Batch>;
+  readonly removed: readonly Mesh[];
+  readonly inverse: Matrix4;
+}
+
 /** One batch in the making. */
-interface Batch {
+export interface Batch {
   readonly material: Material;
   readonly castShadow: boolean;
   readonly receiveShadow: boolean;
@@ -155,14 +164,16 @@ export function concatGeometries(sources: readonly { geometry: BufferGeometry; m
 /* -------------------------------------------------------------------------- */
 
 /**
- * Fold every batchable mesh under `roots` into one mesh per material under
- * `into`, in `into`'s frame.
+ * Gather every batchable mesh under `roots`, grouped by material and shadow
+ * setting, with each source's matrix read relative to `into`. Nothing is
+ * removed or concatenated yet — the caller decides whether to fold them or,
+ * with a cache hit, to throw them away in favour of the stored result.
  *
  * `into` must be an ancestor of every root — the world matrices are read
  * relative to it, so it is updated first and must carry no transform of its
  * own at the time (the house does not: it is positioned after assembly).
  */
-export function mergeStatic(roots: readonly Object3D[], into: Object3D): MergeReport {
+export function collectStatic(roots: readonly Object3D[], into: Object3D): CollectedStatic {
   into.updateMatrixWorld(true);
   const inverse = new Matrix4().copy(into.matrixWorld).invert();
   const batches = new Map<string, Batch>();
@@ -189,8 +200,21 @@ export function mergeStatic(roots: readonly Object3D[], into: Object3D): MergeRe
     });
   }
 
+  return { batches, removed, inverse };
+}
+
+/** Take the collected sources out of the graph and release their geometry. */
+export function removeCollected(collected: CollectedStatic): void {
+  for (const mesh of collected.removed) {
+    mesh.removeFromParent();
+    mesh.geometry.dispose();
+  }
+}
+
+/** Fold collected sources into one mesh per batch under `into` — the cold path. */
+export function concatCollected(collected: CollectedStatic, into: Object3D): MergeReport {
   const added: Mesh[] = [];
-  for (const batch of batches.values()) {
+  for (const batch of collected.batches.values()) {
     const mesh = new Mesh(concatGeometries(batch.sources), batch.material);
     mesh.castShadow = batch.castShadow;
     mesh.receiveShadow = batch.receiveShadow;
@@ -200,10 +224,95 @@ export function mergeStatic(roots: readonly Object3D[], into: Object3D): MergeRe
     added.push(mesh);
   }
 
-  for (const mesh of removed) {
-    mesh.removeFromParent();
-    mesh.geometry.dispose();
+  removeCollected(collected);
+
+  return { merged: collected.removed.length, batches: added };
+}
+
+/**
+ * Fold every batchable mesh under `roots` into one mesh per material under
+ * `into`, in `into`'s frame.
+ */
+export function mergeStatic(roots: readonly Object3D[], into: Object3D): MergeReport {
+  return concatCollected(collectStatic(roots, into), into);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The cache's two directions.                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A number that moves when any collected source moves: its material's role,
+ * its shadow flags, its vertex count, its matrix, its first and last vertex.
+ * What decides whether a cached assembly still describes this build.
+ */
+export function fingerprintStatic(collected: CollectedStatic, roles: ReadonlyMap<Material, string>): number {
+  let hash = 0x811c9dc5;
+  for (const batch of collected.batches.values()) {
+    const role = roles.get(batch.material) ?? '?';
+    for (const source of batch.sources) {
+      hash = fingerprintSource(hash, role, batch, source.geometry.getAttribute('position'), source.matrix.elements);
+    }
+  }
+  return hash;
+}
+
+/** The finished batches as plain data, for the cache — arrays shared, not copied. */
+export function serializeBatches(batches: readonly Mesh[], roles: ReadonlyMap<Material, string>): CachedBatch[] {
+  return batches.map((mesh) => {
+    const attributes: Record<string, { array: Float32Array; itemSize: number }> = {};
+    for (const [name, attribute] of Object.entries(mesh.geometry.attributes)) {
+      attributes[name] = { array: attribute.array as Float32Array, itemSize: attribute.itemSize };
+    }
+    return {
+      role: roles.get(mesh.material as Material) ?? '?',
+      castShadow: mesh.castShadow,
+      receiveShadow: mesh.receiveShadow,
+      renderOrder: mesh.renderOrder,
+      index: (mesh.geometry.getIndex()?.array ?? new Uint16Array(0)) as Uint16Array | Uint32Array,
+      attributes,
+    };
+  });
+}
+
+/**
+ * Stand a cached assembly back up under `into`: one mesh per stored batch,
+ * materials found by role in `byRole`. Returns `null` — take the cold path —
+ * if any role has no material in this mount's set.
+ */
+export function hydrateBatches(
+  cached: CachedAssembly,
+  byRole: (role: string) => Material | null,
+  into: Object3D,
+): readonly Mesh[] | null {
+  const added: Mesh[] = [];
+
+  for (const batch of cached.batches) {
+    const material = byRole(batch.role);
+    if (material === null) {
+      for (const mesh of added) {
+        mesh.removeFromParent();
+        mesh.geometry.dispose();
+      }
+      return null;
+    }
+
+    const geometry = new BufferGeometry();
+    for (const [name, attribute] of Object.entries(batch.attributes)) {
+      geometry.setAttribute(name, new BufferAttribute(attribute.array, attribute.itemSize));
+    }
+    geometry.setIndex(new BufferAttribute(batch.index, 1));
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
+    const mesh = new Mesh(geometry, material);
+    mesh.castShadow = batch.castShadow;
+    mesh.receiveShadow = batch.receiveShadow;
+    mesh.renderOrder = batch.renderOrder;
+    mesh.name = 'batch';
+    into.add(mesh);
+    added.push(mesh);
   }
 
-  return { merged: removed.length, batches: added };
+  return added;
 }

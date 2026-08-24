@@ -38,8 +38,11 @@
 
 import {
   createAssetService,
+  createGeometryCache,
+  DEFAULT_LIGHT_BUDGET,
   loadPlan,
   mountPresentation,
+  planCacheKey,
   type PresentationHandle,
 } from '@/lib/three/present';
 
@@ -70,12 +73,25 @@ const DRACO_DECODER_PATH = '/draco/';
 export function mountHouseScene(canvas: HTMLCanvasElement): HouseSceneHandle {
   const aborter = new AbortController();
   const assets = createAssetService({ dracoDecoderPath: DRACO_DECODER_PATH });
+  const geometryCache = createGeometryCache();
   let presentation: PresentationHandle | null = null;
 
-  const ready = loadPlan(planUrl, { signal: aborter.signal }).then((plan) => {
+  const ready = loadPlan(planUrl, { signal: aborter.signal }).then(async (plan) => {
+    // The baked geometry from a previous visit, if this exact plan has one.
+    // The cache never rejects — no IndexedDB, a bad entry, a stale fingerprint
+    // all come back as a cold build, which is the path that always works.
+    const cacheKey = planCacheKey(plan, DEFAULT_LIGHT_BUDGET);
+    const cachedGeometry = await geometryCache.load(cacheKey);
+
     // Disposed while the plan was in flight: nothing to mount, nothing to leak.
     if (!aborter.signal.aborted) {
-      presentation = mountPresentation(canvas, plan, { assets });
+      presentation = mountPresentation(canvas, plan, { assets, cachedGeometry });
+
+      const { geometry, geometryRestored } = presentation.report;
+      if (geometry !== null && !geometryRestored) {
+        // Fire and forget: a write that fails is next visit's cold build.
+        void geometryCache.store(cacheKey, geometry);
+      }
     }
   });
 

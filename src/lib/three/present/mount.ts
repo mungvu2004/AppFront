@@ -51,6 +51,7 @@ import { toSceneLength } from '../build/scene';
 
 import { assembleHouse, type AssembledHouse } from './assemble';
 import type { AssetService } from './assets';
+import type { CachedAssembly } from './geometryCache';
 import {
   applyFieldOfView,
   cameraPosition,
@@ -85,6 +86,8 @@ export interface PresentationOptions {
   readonly onFallback?: (entry: PlanFurniture, reason: unknown) => void;
   /** Where token values come from; the document by default. */
   readonly readToken?: TokenReader;
+  /** A stored assembly to restore instead of baking, when it still fits. See `geometryCache.ts`. */
+  readonly cachedGeometry?: CachedAssembly | null;
 }
 
 /** What the caller keeps so it can give the GPU memory back. */
@@ -93,7 +96,7 @@ export interface PresentationHandle {
   /** Settles once every piece is final — useful to a screenshot or a test. */
   readonly settled: Promise<void>;
   /** Openings the builder refused and rooms with an unknown finish, for a log. */
-  readonly report: Pick<AssembledHouse, 'refusals' | 'unknownFinishes' | 'lights'>;
+  readonly report: Pick<AssembledHouse, 'refusals' | 'unknownFinishes' | 'lights' | 'geometry' | 'geometryRestored'>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -162,6 +165,7 @@ export function mountPresentation(
     signal: aborter.signal,
     ...(options.assets === undefined ? {} : { assets: options.assets }),
     ...(options.onFallback === undefined ? {} : { onFallback: options.onFallback }),
+    ...(options.cachedGeometry === undefined ? {} : { cachedGeometry: options.cachedGeometry }),
   });
   const { house } = assembled;
 
@@ -274,7 +278,13 @@ export function mountPresentation(
 
   return {
     settled,
-    report: { refusals: assembled.refusals, unknownFinishes: assembled.unknownFinishes, lights: assembled.lights },
+    report: {
+      refusals: assembled.refusals,
+      unknownFinishes: assembled.unknownFinishes,
+      lights: assembled.lights,
+      geometry: assembled.geometry,
+      geometryRestored: assembled.geometryRestored,
+    },
     dispose: () => {
       aborter.abort();
       loop.dispose();
