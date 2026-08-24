@@ -10,6 +10,11 @@
  * `src/lib/export` because a module about sharing has no business knowing how
  * this product authenticates.
  *
+ * The base URL comes from `src/api/appClient.ts` rather than a local copy —
+ * this hook used to resolve `VITE_API_BASE_URL` on its own, with a fallback
+ * that had quietly drifted from `AuthScreen.container.tsx`'s (`http://localhost`
+ * here, the page origin there). One resolver now, shared by both.
+ *
  * ## Why it can return `null`
  *
  * `createAuthHttpClient` throws when `configureAuth()` has not run — which is
@@ -22,26 +27,11 @@
 
 import { useMemo } from 'react';
 
+import { resolveApiBaseUrl } from '@/api/appClient';
 import { createAuthHttpClient, type AuthHttpClient, type AuthHttpError } from '@/lib/auth';
 import type { ShareLinkGateway } from '@/lib/export/shareLink';
 import { SHARE_LINK_ENDPOINTS } from '@/lib/export/shareLink';
 import type { HttpError, Result } from '@/lib/http';
-
-/**
- * Where the API lives.
- *
- * `createHttpClient` resolves paths with `new URL(path, baseUrl)`, which needs
- * an absolute base, so a relative default is resolved against the page's own
- * origin rather than passed through as `/api`.
- */
-function resolveBaseUrl(): string {
-  const configured: unknown = import.meta.env.VITE_API_BASE_URL;
-  if (typeof configured === 'string' && configured.length > 0) {
-    return configured;
-  }
-
-  return new URL('/api', globalThis.location?.origin ?? 'http://localhost').toString();
-}
 
 /**
  * One error kind down to a kind the share module understands.
@@ -97,7 +87,7 @@ export function createAuthShareLinkGateway(client: AuthHttpClient): ShareLinkGat
 export function useShareLinkGateway(): ShareLinkGateway | null {
   return useMemo(() => {
     try {
-      return createAuthShareLinkGateway(createAuthHttpClient({ baseUrl: resolveBaseUrl() }));
+      return createAuthShareLinkGateway(createAuthHttpClient({ baseUrl: resolveApiBaseUrl() }));
     } catch {
       // Auth has not been configured yet. Not an error worth reporting: the
       // route says so in a sentence and offers nothing it cannot deliver.

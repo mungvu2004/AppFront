@@ -62,6 +62,8 @@ function baseProps(): AuthScreenViewProps {
     blurField: noop,
     setCollapsed: noop,
     submit: noop,
+    ssoSignIn: noop,
+    forgotPassword: noop,
   };
 }
 
@@ -82,6 +84,8 @@ function renderScreen(
   options: {
     readonly gateway?: AuthGateway;
     readonly onAuthenticated?: () => void;
+    readonly onSsoSignIn?: () => void;
+    readonly onForgotPassword?: () => void;
     readonly reducedMotion?: boolean;
   } = {},
 ) {
@@ -91,6 +95,10 @@ function renderScreen(
     <AuthScreen
       gateway={options.gateway ?? fallback.gateway}
       onAuthenticated={options.onAuthenticated ?? noop}
+      {...(options.onSsoSignIn !== undefined ? { onSsoSignIn: options.onSsoSignIn } : {})}
+      {...(options.onForgotPassword !== undefined
+        ? { onForgotPassword: options.onForgotPassword }
+        : {})}
       reducedMotion={options.reducedMotion ?? true}
     />,
   );
@@ -140,6 +148,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => AuthScreenViewProps>> = 
       tone: 'violation',
       title: AUTH_MESSAGES.errors.invalidCredentials.title,
       message: AUTH_MESSAGES.errors.invalidCredentials.description,
+      showResetAction: true,
     },
   }),
   success: () => ({
@@ -310,14 +319,100 @@ describe('AuthScreen — keyboard', () => {
     // Document order is tab order, because nothing carries a positive tabindex.
     expect(stops[0]).toBe(emailField());
     expect(stops[1]).toBe(passwordField());
-    expect(stops[2]).toBe(screen.getByLabelText(AUTH_MESSAGES.fields.rememberMe));
-    expect(stops[3]).toBe(submitButton());
+    expect(stops[2]).toBe(
+      screen.getByRole('button', { name: AUTH_MESSAGES.actions.showPassword }),
+    );
+    expect(stops[3]).toBe(screen.getByLabelText(AUTH_MESSAGES.fields.rememberMe));
+    expect(stops[4]).toBe(submitButton());
+    expect(stops[5]).toBe(
+      screen.getByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn }),
+    );
+    expect(stops[6]).toBe(
+      screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }),
+    );
 
     type(emailField(), EMAIL);
     type(passwordField(), PASSWORD);
     fireEvent.keyDown(passwordField(), { key: 'Enter' });
 
     expect(signIn).toHaveBeenCalledWith({ email: EMAIL, password: PASSWORD, rememberMe: false });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Password visibility.                                                       */
+/* -------------------------------------------------------------------------- */
+
+describe('AuthScreen — password visibility', () => {
+  it('starts masked and reveals the typed password on toggle, without touching its value', () => {
+    renderScreen();
+
+    type(passwordField(), PASSWORD);
+    expect(passwordField()).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.showPassword }));
+
+    expect(passwordField()).toHaveAttribute('type', 'text');
+    expect(passwordField().value).toBe(PASSWORD);
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.hidePassword }));
+    expect(passwordField()).toHaveAttribute('type', 'password');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* SSO and password reset.                                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('AuthScreen — SSO and password reset', () => {
+  it('calls the host callback when the SSO button is pressed, and does nothing when none was given', () => {
+    const onSsoSignIn = vi.fn();
+    renderScreen({ onSsoSignIn });
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn }));
+
+    expect(onSsoSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls the host callback when "Quên mật khẩu" is pressed', () => {
+    const onForgotPassword = vi.fn();
+    renderScreen({ onForgotPassword });
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }));
+
+    expect(onForgotPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a reset action inside the wrong-password strip, wired to the same callback', async () => {
+    const onForgotPassword = vi.fn();
+    const { gateway } = stubGateway({
+      ok: false,
+      error: { kind: 'http', status: UNAUTHORIZED_STATUS, retryable: false, requestId: 'req-5', raw: null },
+    });
+    renderScreen({ gateway, onForgotPassword });
+
+    type(emailField(), EMAIL);
+    type(passwordField(), PASSWORD);
+    fireEvent.keyDown(passwordField(), { key: 'Enter' });
+
+    const action = await screen.findByRole('button', { name: AUTH_MESSAGES.actions.resetPassword });
+    fireEvent.click(action);
+
+    expect(onForgotPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('is absent from the register tab, which has no account to reset or federate yet', async () => {
+    renderScreen();
+
+    fireEvent.click(screen.getByRole('tab', { name: AUTH_MESSAGES.tabs.register }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.register }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn })).toBeNull();
+    expect(screen.queryByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword })).toBeNull();
   });
 });
 

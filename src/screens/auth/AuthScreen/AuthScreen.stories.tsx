@@ -52,6 +52,8 @@ const base: AuthScreenViewProps = {
   blurField: noop,
   setCollapsed: noop,
   submit: noop,
+  ssoSignIn: noop,
+  forgotPassword: noop,
 };
 
 /** Nothing typed yet — the state a visitor arrives in. */
@@ -83,6 +85,7 @@ export const WrongPassword: Story = {
       tone: 'violation',
       title: AUTH_MESSAGES.errors.invalidCredentials.title,
       message: AUTH_MESSAGES.errors.invalidCredentials.description,
+      showResetAction: true,
     },
   },
 };

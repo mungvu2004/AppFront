@@ -89,7 +89,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 {...props}
               />
               {suffix && (
-                <div className="pr-3 pl-1 text-[13px] font-mono text-text-muted flex items-center justify-center pointer-events-none">
+                <div className="pr-3 pl-1 text-[13px] font-mono text-text-muted flex items-center justify-center">
                   {suffix}
                 </div>
               )}

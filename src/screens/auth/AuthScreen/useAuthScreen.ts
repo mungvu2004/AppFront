@@ -110,6 +110,8 @@ export interface AuthNotice {
   /** Absent when the message says the whole thing on its own. */
   readonly title?: string;
   readonly message: string;
+  /** True only for a wrong password: the one failure a person can act on right away. */
+  readonly showResetAction?: boolean;
 }
 
 /** A complaint under one field, or nothing when the field is fine. */
@@ -152,12 +154,20 @@ export interface AuthScreenActions {
   readonly blurField: (field: AuthField) => void;
   readonly setCollapsed: (isCollapsed: boolean) => void;
   readonly submit: () => void;
+  /** The SSO button. A no-op until a host supplies {@link UseAuthScreenOptions.onSsoSignIn}. */
+  readonly ssoSignIn: () => void;
+  /** "Quên mật khẩu". A no-op until a host supplies {@link UseAuthScreenOptions.onForgotPassword}. */
+  readonly forgotPassword: () => void;
 }
 
 export interface UseAuthScreenOptions {
   readonly gateway: AuthGateway;
   /** Called after the success flash, to send the visitor back where they came from. */
   readonly onAuthenticated: () => void;
+  /** There is no SSO flow yet — the button renders and does nothing until a host wires one in. */
+  readonly onSsoSignIn?: () => void;
+  /** There is no password-reset flow yet — the link renders and does nothing until a host wires one in. */
+  readonly onForgotPassword?: () => void;
   readonly initialTab?: AuthTab;
   /** Skips the success flash, so a person who asked for less motion waits for nothing. */
   readonly reducedMotion?: boolean;
@@ -235,6 +245,7 @@ function noticeFor(failure: AuthFailure, secondsLeft: number): AuthNotice {
         tone: 'violation',
         title: AUTH_MESSAGES.errors.invalidCredentials.title,
         message: AUTH_MESSAGES.errors.invalidCredentials.description,
+        showResetAction: true,
       };
     case 'accountDisabled':
       return {
@@ -358,7 +369,14 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   readonly model: AuthScreenModel;
   readonly actions: AuthScreenActions;
 } {
-  const { gateway, onAuthenticated, initialTab = 'signIn', reducedMotion = false } = options;
+  const {
+    gateway,
+    onAuthenticated,
+    onSsoSignIn,
+    onForgotPassword,
+    initialTab = 'signIn',
+    reducedMotion = false,
+  } = options;
 
   const [tab, setTabState] = useState<AuthTab>(initialTab);
   const [values, setValues] = useState<AuthValues>(EMPTY_VALUES);
@@ -506,6 +524,14 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   const setCollapsed = useCallback((next: boolean) => {
     setCollapsedState(next);
   }, []);
+
+  const ssoSignIn = useCallback(() => {
+    onSsoSignIn?.();
+  }, [onSsoSignIn]);
+
+  const forgotPassword = useCallback(() => {
+    onForgotPassword?.();
+  }, [onForgotPassword]);
 
   /* ---- submitting --------------------------------------------------------- */
 
@@ -661,6 +687,8 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     blurField,
     setCollapsed,
     submit,
+    ssoSignIn,
+    forgotPassword,
   };
 
   return { model, actions };

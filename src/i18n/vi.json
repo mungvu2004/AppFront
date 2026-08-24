@@ -84,21 +84,30 @@
       "headline": "Soát bản vẽ mặt bằng trước khi sai sót kịp ra công trường.",
       "support": "Tải bản vẽ lên, chạy chuỗi xử lý, rồi đối chiếu tường, trục, phòng và ô mở theo bộ quy tắc của đội bạn."
     },
+    "brand": {
+      "subtitle": "Số hóa bản vẽ 2D thành mô hình 3D tương tác."
+    },
     "tabs": {
       "signIn": "Đăng nhập",
       "register": "Đăng ký"
     },
     "fields": {
-      "email": "thư điện tử",
-      "password": "mật khẩu",
-      "fullName": "họ và tên",
-      "rememberMe": "ghi nhớ máy này"
+      "email": "Thư điện tử",
+      "password": "Mật khẩu",
+      "fullName": "Họ và tên",
+      "rememberMe": "Ghi nhớ máy này"
     },
     "actions": {
       "signIn": "Đăng nhập",
       "register": "Tạo tài khoản",
       "submitting": "Đang gửi…",
-      "expand": "Mở lại biểu mẫu"
+      "expand": "Mở lại biểu mẫu",
+      "or": "Hoặc",
+      "ssoSignIn": "Đăng nhập bằng SSO công ty",
+      "forgotPassword": "Quên mật khẩu",
+      "resetPassword": "Đặt lại mật khẩu",
+      "showPassword": "Hiện mật khẩu",
+      "hidePassword": "Ẩn mật khẩu"
     },
     "problems": {
       "emailRequired": "Chưa nhập thư điện tử.",

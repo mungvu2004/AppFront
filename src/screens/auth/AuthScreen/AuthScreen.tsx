@@ -28,8 +28,8 @@
  * of them through `expectSevenStates`.
  */
 
-import { useCallback, useRef } from 'react';
-import { PanelsTopLeft } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+import { Eye, EyeOff, PanelsTopLeft } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -73,6 +73,9 @@ function CredentialForm({ tab, model, actions, registerFirstField }: CredentialF
   const isDone = state === 'success';
   const fieldsDisabled = isSubmitting || isDone;
 
+  /** Ephemeral display state, not part of the model: it changes nothing about what gets submitted. */
+  const [isPasswordVisible, setPasswordVisible] = useState(false);
+
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -115,6 +118,9 @@ function CredentialForm({ tab, model, actions, registerFirstField }: CredentialF
           level={notice.tone}
           {...(notice.title !== undefined ? { title: notice.title } : {})}
           message={notice.message}
+          {...(notice.showResetAction
+            ? { action: { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword } }
+            : {})}
         />
       )}
 
@@ -155,7 +161,7 @@ function CredentialForm({ tab, model, actions, registerFirstField }: CredentialF
         />
 
         <Input
-          type="password"
+          type={isPasswordVisible ? 'text' : 'password'}
           label={AUTH_MESSAGES.fields.password}
           autoComplete={isRegister ? 'new-password' : 'current-password'}
           value={values.password}
@@ -165,6 +171,27 @@ function CredentialForm({ tab, model, actions, registerFirstField }: CredentialF
             actions.setPassword(event.target.value);
           }}
           onBlur={blur('password')}
+          suffix={
+            <button
+              type="button"
+              disabled={fieldsDisabled}
+              onClick={() => {
+                setPasswordVisible((visible) => !visible);
+              }}
+              aria-label={
+                isPasswordVisible
+                  ? AUTH_MESSAGES.actions.hidePassword
+                  : AUTH_MESSAGES.actions.showPassword
+              }
+              className="text-text-muted transition-colors duration-120 hover:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPasswordVisible ? (
+                <EyeOff aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+              ) : (
+                <Eye aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+              )}
+            </button>
+          }
         />
       </div>
 
@@ -182,6 +209,38 @@ function CredentialForm({ tab, model, actions, registerFirstField }: CredentialF
           {isSubmitting ? AUTH_MESSAGES.actions.submitting : submitLabel}
         </Button>
       </div>
+
+      {/* SSO and password reset only make sense once there is an account to sign
+          into — the register tab has neither yet. */}
+      {!isRegister && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
+            <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
+            <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            fullWidth
+            disabled={fieldsDisabled}
+            onClick={actions.ssoSignIn}
+          >
+            {AUTH_MESSAGES.actions.ssoSignIn}
+          </Button>
+
+          <button
+            type="button"
+            disabled={fieldsDisabled}
+            onClick={actions.forgotPassword}
+            className="self-center text-[13px] leading-[18px] text-accent transition-colors duration-120 hover:text-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {AUTH_MESSAGES.actions.forgotPassword}
+          </button>
+        </div>
+      )}
     </form>
   );
 }
@@ -244,13 +303,27 @@ export function AuthScreenView(props: AuthScreenViewProps) {
 
       <div className="flex w-full flex-col items-center justify-center p-12 lg:w-[55%]">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
-          {/* The mark, and nothing beside it. There is deliberately no "thu
-              gọn" button: `isCollapsed` is set by whoever mounts the screen —
-              an embedding host with less room — not by the visitor. A control
-              on a product screen whose only job is to switch it into another of
-              its seven states is the developer furniture list B refuses, and it
-              belongs on /design-system/states instead. */}
-          <PanelsTopLeft aria-hidden="true" className="h-7 w-7 text-accent" strokeWidth={1.5} />
+          {/* The mark, and the screen's own name beside it. There is deliberately
+              no "thu gọn" button: `isCollapsed` is set by whoever mounts the
+              screen — an embedding host with less room — not by the visitor. A
+              control on a product screen whose only job is to switch it into
+              another of its seven states is the developer furniture list B
+              refuses, and it belongs on /design-system/states instead.
+
+              The title reads "Đăng nhập" even when the register tab is open:
+              it names the screen, not the open tab — the tab strip already
+              says which of the two forms is showing. */}
+          <div className="flex flex-col gap-3">
+            <PanelsTopLeft aria-hidden="true" className="h-8 w-8 text-accent" strokeWidth={1.5} />
+            <div className="flex flex-col gap-1">
+              <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">
+                {AUTH_MESSAGES.tabs.signIn}
+              </h1>
+              <p className="text-[15px] leading-[24px] text-text-secondary">
+                {AUTH_MESSAGES.brand.subtitle}
+              </p>
+            </div>
+          </div>
 
           {isCollapsed ? (
             <div className="flex flex-col gap-4">

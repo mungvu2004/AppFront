@@ -39,13 +39,20 @@
  * used — an open redirect is the one bug a login screen must not have, and
  * `//evil.example` is a *relative* URL to a browser but an absolute one to a
  * person reading it.
+ *
+ * ## Developing without a server
+ *
+ * `VITE_USE_MOCK_API=true pnpm dev` swaps `useAuthGateway`'s client for
+ * `src/api/__mocks__/client.ts`, which accepts any credentials — see
+ * `src/api/appClient.ts`, the one place that decision and the API's base URL
+ * are resolved, for why it cannot reach a production build.
  */
 
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createApiClient, type ApiClient } from '@/api/client';
-import { API_BASE_PATH } from '@/api/endpoints';
+import { createAppApiClient, resolveUseMockApi } from '@/api/appClient';
+import type { ApiClient } from '@/api/client';
 import type { RegisterInput, SignInInput } from '@/api/schemas';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
@@ -54,7 +61,7 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { bootstrapSession } from '@/lib/auth';
-import { createHttpClient, type Result } from '@/lib/http';
+import type { Result } from '@/lib/http';
 import { ROUTES } from '@/routes/paths';
 
 import { AuthScreen } from './AuthScreen';
@@ -65,23 +72,6 @@ const SCREEN_ID = 'auth';
 
 /** Where the visitor lands when they arrived at `/login` directly. */
 const DEFAULT_DESTINATION = ROUTES.dashboard;
-
-/**
- * Where the API lives.
- *
- * `createHttpClient` resolves paths with `new URL(path, baseUrl)`, which needs
- * an absolute base, so the default from `src/api/endpoints.ts` is resolved
- * against the page's own origin rather than passed through as a bare path.
- */
-function resolveBaseUrl(): string {
-  const configured: unknown = import.meta.env.VITE_API_BASE_URL;
-
-  if (typeof configured === 'string' && configured.length > 0) {
-    return configured;
-  }
-
-  return new URL(API_BASE_PATH, globalThis.location?.origin ?? globalThis.origin).toString();
-}
 
 /**
  * A redirect target that cannot leave this origin.
@@ -142,6 +132,26 @@ export function createHttpAuthGateway(client: ApiClient): AuthGateway {
 }
 
 /**
+ * The mock client's two auth calls, without `withSession`.
+ *
+ * `bootstrapSession()` needs a real `POST /auth/refresh` reply, and there is no
+ * server behind the mock client to answer it — faking a session lifecycle is a
+ * bigger thing than `VITE_USE_MOCK_API` (see `src/api/appClient.ts`) is for.
+ * Under it `/login` exercises the form and its seven states with any typed
+ * credentials accepted (see the mock client's own doc comment); it does not
+ * start a session, so whatever `onAuthenticated` navigates to should not
+ * assume one either.
+ */
+function createMockAuthGateway(client: ApiClient): AuthGateway {
+  return {
+    register: async (input: RegisterInput): Promise<Result<void, unknown>> =>
+      client.auth.register({ body: input }),
+    signIn: async (input: SignInInput): Promise<Result<void, unknown>> =>
+      client.auth.signIn({ body: input }),
+  };
+}
+
+/**
  * The gateway. There is always one.
  *
  * An earlier version probed `src/lib/auth` here and returned `null` when
@@ -160,10 +170,11 @@ export function createHttpAuthGateway(client: ApiClient): AuthGateway {
  * field left exactly as it was typed.
  */
 function useAuthGateway(): AuthGateway {
-  return useMemo(
-    () => createHttpAuthGateway(createApiClient(createHttpClient({ baseUrl: resolveBaseUrl() }))),
-    [],
-  );
+  return useMemo(() => {
+    const client = createAppApiClient();
+
+    return resolveUseMockApi() ? createMockAuthGateway(client) : createHttpAuthGateway(client);
+  }, []);
 }
 
 /**
