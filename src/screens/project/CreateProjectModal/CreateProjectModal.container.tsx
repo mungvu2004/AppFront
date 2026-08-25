@@ -74,7 +74,15 @@ function toProjectWriteBody(request: CreateProjectRequest) {
   };
 }
 
-function createProjectGateway(client: ApiClient, invalidate: () => void): CreateProjectGateway {
+/**
+ * Exported so a test can wire this exact mapping to `createMockApiClient()`
+ * (`src/api/__mocks__/client.ts`) instead of hand-rolling a second, competing
+ * idea of what a gateway reply looks like — R-70.
+ */
+/* eslint-disable-next-line react-refresh/only-export-components -- named export
+   sits beside the container it serves (mục D) rather than in a seventh file for
+   one pure function; nothing here is a component, so Fast Refresh is unaffected. */
+export function createProjectGateway(client: ApiClient, invalidate: () => void): CreateProjectGateway {
   return {
     create: async (request) => {
       const result = await client.projects.create({

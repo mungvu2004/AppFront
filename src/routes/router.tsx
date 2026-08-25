@@ -19,7 +19,7 @@ const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3
 const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
 const RouteShare = lazy(() => import('../screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
-const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboard })));
+const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.

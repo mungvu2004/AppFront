@@ -1,5 +1,6 @@
-export { ProjectDashboard, ProjectDashboardView } from './ProjectDashboard';
+export { ProjectDashboard, ProjectDashboardConnected, ProjectDashboardView } from './ProjectDashboard';
 export type { ProjectDashboardProps, ProjectDashboardViewProps } from './ProjectDashboard';
+export { ProjectDashboardRoute } from './ProjectDashboard.container';
 export type {
   ProjectCardModel,
   ProjectDashboardActions,

@@ -42,6 +42,17 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
   const autoTitleId = React.useId();
   const titleId = externalTitleId || `modal-title-${autoTitleId}`;
 
+  // `onClose` giữ trong ref, đúng khuôn `useShortcut` đã dùng
+  // (src/hooks/useShortcut.ts:86-89): một closure mới mỗi lần render — trường
+  // hợp thường gặp, vì `onClose` một màn hình truyền vào hay đọc state hiện
+  // tại (tên đang gõ, cờ isDirty…) — không được làm effect chạy lại. Bản cũ
+  // liệt `onClose` vào mảng phụ thuộc, nên mỗi phím gõ trong ô nhập của modal
+  // đổi tham chiếu `onClose`, effect chạy lại, bẫy tiêu điểm kích hoạt lại và
+  // `activate()` nhảy tiêu điểm về phần tử focus được đầu tiên trong modal
+  // (nút đóng, hay công tắc đầu tiên) — đúng lỗi "gõ chữ thì nhảy focus".
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   // Bẫy tiêu điểm dùng chung (src/lib/input/focusTrap): Tab vòng trong
   // modal, Esc gọi onClose rồi dừng lan để trọng tài không xử lý lần hai,
   // đóng thì trả tiêu điểm về đúng nơi đã mở.
@@ -50,7 +61,7 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
     const container = modalRef.current;
     if (!container) return;
 
-    const trap = createFocusTrap(container, { onEscape: onClose });
+    const trap = createFocusTrap(container, { onEscape: () => onCloseRef.current() });
     // Delay để animation bắt đầu trước khi focus
     const raf = requestAnimationFrame(() => trap.activate());
 
@@ -58,7 +69,7 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
       cancelAnimationFrame(raf);
       trap.release();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Esc khi focus nằm ngoài modal (trường hợp hiếm) — qua trọng tài phím tắt.
   // Binding scope 'dialog' cũng là thứ làm tầng dialog thành modal: phím công

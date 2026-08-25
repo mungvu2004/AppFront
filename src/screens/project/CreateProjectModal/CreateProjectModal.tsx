@@ -39,40 +39,53 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Building2, Plus, Trash2 } from 'lucide-react';
 
-import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
-import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
-import { NumericField } from '@/components/ui/NumericField';
 import { Select } from '@/components/ui/Select';
-import { Table } from '@/components/ui/Table';
 import { Textarea } from '@/components/ui/Textarea';
-import { Toggle } from '@/components/ui/Toggle';
 import { durationSeconds } from '@/lib/motion';
+import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
+import { StepFloors } from './StepFloors';
 import {
-  CREATE_PROJECT_LIMITS,
+  PROJECT_LIMITS,
   useCreateProjectModal,
-  type CreateProjectActions,
-  type CreateProjectModel,
+  type CreateProjectModalViewProps,
   type UseCreateProjectModalOptions,
 } from './useCreateProjectModal';
 
 /** See the file doc comment: the width `Modal.Root` is pinned at until it takes an override. */
 const MODAL_WIDTH = 560;
 
+/**
+ * The Vietnamese name announced for each of the seven states, on the sr-only
+ * `role="status"` span below.
+ *
+ * Deliberately its own copy rather than an import of `SEVEN_STATE_LABELS` from
+ * `@/lib/testing/sevenStateScenarios`: that module is test infrastructure —
+ * excluded from the coverage build and never meant to ship — and this file is
+ * product code that a screen reader user actually hears.
+ */
+const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
+  empty: 'rỗng',
+  loading: 'đang tải',
+  partial: 'một phần',
+  error: 'lỗi',
+  success: 'thành công',
+  forbidden: 'không có quyền',
+  collapsed: 'thu gọn',
+};
+
 const TITLE_ID = 'create-project-modal-title';
 
-export interface CreateProjectModalViewProps extends CreateProjectModel, CreateProjectActions {
-  readonly isOpen: boolean;
-}
+/** Re-exported so every existing caller of `CreateProjectModal.tsx` keeps its import path. */
+export type { CreateProjectModalViewProps } from './useCreateProjectModal';
 
 /* -------------------------------------------------------------------------- */
 /* Step 1 — thông tin công trình.                                             */
@@ -88,10 +101,10 @@ function StepInfo(props: CreateProjectModalViewProps) {
           label="tên dự án"
           value={props.name}
           onChange={(event) => props.setName(event.target.value)}
-          maxLength={CREATE_PROJECT_LIMITS.nameMaxLength}
+          maxLength={PROJECT_LIMITS.nameMaxLength}
           error={props.problems.name}
           disabled={props.isSubmitting}
-          placeholder="ví dụ: Chung cư Sunrise Block B"
+          placeholder="ví dụ: Chung cư Bình Minh"
         />
         <Input
           label="mã dự án"
@@ -139,120 +152,9 @@ function StepInfo(props: CreateProjectModalViewProps) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Step 2 — tầng.                                                              */
+/* Step 2 — tầng. Split into `StepFloors.tsx` once this file crossed R-22's    */
+/* 400-line ceiling (mục D).                                                   */
 /* -------------------------------------------------------------------------- */
-
-interface StepFloorsProps extends CreateProjectModalViewProps {
-  readonly rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
-}
-
-function StepFloors(props: StepFloorsProps) {
-  const { floorRows, isSubmitting, rowRefs } = props;
-  const collisionRowId = props.collisionRowId;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <Toggle
-        checked={props.hasBasement}
-        onChange={props.setHasBasement}
-        disabled={isSubmitting}
-        label="có tầng hầm"
-        description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
-      />
-
-      {props.collision !== null && (
-        <InlineAlert
-          level="violation"
-          message={props.collision}
-          {...(collisionRowId !== null
-            ? {
-                action: {
-                  label: 'xem tầng',
-                  onClick: () => props.focusFloor(collisionRowId),
-                  variant: 'secondary' as const,
-                },
-              }
-            : {})}
-        />
-      )}
-
-      {floorRows.length === 0 ? (
-        <EmptyState
-          icon={<Building2 aria-hidden="true" />}
-          title="chưa có tầng nào"
-          description="Thêm ít nhất một tầng để sang bước xem lại."
-          action={{ label: 'thêm tầng', onClick: props.addFloor }}
-        />
-      ) : (
-        <>
-          <Table.Root>
-            <Table.Header>
-              <tr>
-                <Table.Head>tầng</Table.Head>
-                <Table.Head>chiều cao thông thuỷ</Table.Head>
-                <Table.Head>cao độ</Table.Head>
-                <Table.Head aria-label="xoá tầng" />
-              </tr>
-            </Table.Header>
-            <Table.Body>
-              {floorRows.map((row) => (
-                <Table.Row
-                  key={row.id}
-                  ref={(node) => {
-                    if (node) rowRefs.current.set(row.id, node);
-                    else rowRefs.current.delete(row.id);
-                  }}
-                  isAttention={row.problem !== null}
-                >
-                  <Table.Cell>
-                    <Input
-                      value={row.name}
-                      onChange={(event) => props.setFloorName(row.id, event.target.value)}
-                      disabled={isSubmitting}
-                      aria-label={`tên tầng ${row.name}`}
-                    />
-                  </Table.Cell>
-                  <Table.Cell>
-                    <NumericField
-                      value={row.clearHeightM ?? undefined}
-                      onChange={(value) => props.setFloorHeight(row.id, value)}
-                      min={CREATE_PROJECT_LIMITS.storeyHeightMinM}
-                      max={CREATE_PROJECT_LIMITS.storeyHeightMaxM}
-                      unit="m"
-                      disabled={isSubmitting}
-                      aria-label={`chiều cao thông thuỷ tầng ${row.name}`}
-                      {...(row.problem !== null ? { error: row.problem } : {})}
-                    />
-                  </Table.Cell>
-                  <Table.Cell className="text-text-secondary">{row.elevationLabel ?? '—'}</Table.Cell>
-                  <Table.Cell>
-                    <IconButton
-                      icon={<Trash2 size={16} aria-hidden="true" />}
-                      aria-label={`xoá ${row.name}`}
-                      onClick={() => props.removeFloor(row.id)}
-                      disabled={isSubmitting}
-                    />
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Root>
-          <div>
-            <Button
-              variant="secondary"
-              size="sm"
-              iconBefore={<Plus size={16} aria-hidden="true" />}
-              onClick={props.addFloor}
-              disabled={isSubmitting || !props.canAddFloor}
-            >
-              thêm tầng
-            </Button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Step 3 — xem lại.                                                           */
@@ -331,7 +233,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           </div>
         </Modal.Footer>
         <span className="sr-only" role="status">
-          {state}
+          {STATE_ANNOUNCEMENT[state]}
         </span>
       </Modal.Root>
     );
@@ -394,7 +296,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         </div>
       </Modal.Footer>
       <span className="sr-only" role="status">
-        {state}
+        {STATE_ANNOUNCEMENT[state]}
       </span>
     </Modal.Root>
   );

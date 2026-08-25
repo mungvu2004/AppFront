@@ -349,8 +349,17 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
 export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {}
 
-/** Wires the hook to the router and a local toast provider, then renders the view. */
-function ProjectDashboardConnected(options: ProjectDashboardProps) {
+/**
+ * Wires the hook to the router and whichever `Toast.Provider` is nearest, then
+ * renders the view.
+ *
+ * Exported (not just used below) so `ProjectDashboard.container.tsx` can mount
+ * it under its own, wider `Toast.Provider` — shared with the create-project
+ * dialog it opens — instead of the standalone one `ProjectDashboard` supplies
+ * two lines down. Two independent `Toast.Provider`s would each draw their own
+ * fixed-position stack in the same corner (R-73's container/props boundary).
+ */
+export function ProjectDashboardConnected(options: ProjectDashboardProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -363,7 +372,7 @@ function ProjectDashboardConnected(options: ProjectDashboardProps) {
   return <ProjectDashboardView {...model} {...actions} />;
 }
 
-/** `/` — the real dashboard route (`src/routes/router.tsx`). */
+/** `ProjectDashboard`, standalone — its own `Toast.Provider`. For stories, tests and the demo picker; the real route is `ProjectDashboardRoute` (`./ProjectDashboard.container`). */
 export function ProjectDashboard(options: ProjectDashboardProps = {}) {
   return (
     <Toast.Provider>

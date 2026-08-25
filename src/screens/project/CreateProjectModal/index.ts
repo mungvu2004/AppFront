@@ -4,10 +4,9 @@ export type { CreateProjectModalProps, CreateProjectModalViewProps } from './Cre
 export { CreateProjectModalContainer } from './CreateProjectModal.container';
 export type { CreateProjectModalContainerProps } from './CreateProjectModal.container';
 
-export {
-  CREATE_PROJECT_LIMITS,
-  useCreateProjectModal,
-} from './useCreateProjectModal';
+export { PROJECT_LIMITS } from '@/domain/project/limits';
+
+export { useCreateProjectModal } from './useCreateProjectModal';
 export type {
   CreateProjectActions,
   CreateProjectFloorRowModel,

@@ -265,6 +265,35 @@ chuyển động.
 
 ---
 
+### R-73 — Một màn xong là một màn nối được ngay: container luôn tồn tại, luôn nhận đủ props để màn khác mở nó mà không phải viết thêm gì.
+
+- **Vì sao:** Ca cụ thể sinh ra luật này: `CreateProjectModal.container.tsx` đã tự dựng
+  gateway thật, tự bọc `ScreenErrorBoundary`, nhận `isOpen`/`onDismiss`/`onCreated`/`onToast`
+  làm props — đúng R-59, đúng R-62. Nhưng `ProjectDashboard` có nút "Tạo dự án mới" gọi
+  `props.createProject` → `options.onCreateProject?.()`, mà chính `ProjectDashboard` lại
+  không có `ProjectDashboard.container.tsx` nào để nối `onCreateProject` vào
+  `CreateProjectModalContainer`. Callback tồn tại trên giấy, không nơi nào cung cấp nó.
+  Hai màn đều "xong" theo báo cáo riêng, nhưng ghép lại thì không bấm được — vì một bên
+  thiếu đúng cái file mà bên kia cần cắm vào. 47 màn dựng tuần tự mà mỗi màn để lại một
+  lỗ "chưa có container" thì càng về sau càng phải dừng lại vá ngược, đúng thứ R-59 sinh
+  ra để chặn nhưng không đủ tự nó chặn hết.
+- **Đúng:** `CreateProjectModal.container.tsx` — bất kỳ màn nào cần mở nó chỉ cần
+  `<CreateProjectModalContainer isOpen={...} onDismiss={...} />`, không viết thêm một dòng
+  logic tạo dự án nào. Container luôn được dựng đủ **ngay khi màn xong**, kể cả khi chưa
+  có nơi gọi thật nào tồn tại — "chưa có ai dùng" không phải lý do hoãn R-59.
+- **Sai:** Bỏ qua `<Name>.container.tsx` vì "màn này chưa có nơi gọi", hoặc dựng container
+  nhưng để một hành động ra ngoài (mở dialog, điều hướng, callback kết quả) chỉ tồn tại
+  như một prop optional không ai truyền — `ProjectDashboard` hiện đang ở đúng trạng thái
+  này với `onCreateProject`.
+- **Kiểm bằng:** với mỗi thư mục màn, `ls` phải ra đủ sáu tên R-59 **kể cả khi chưa có ai
+  gọi màn đó**. Với mỗi hành động một màn cần lấy từ màn khác (mở dialog, điều hướng, gọi
+  API), `rg` tên prop/callback đó trong `<Name>.container.tsx` của màn **cung cấp** hành
+  động phải ra kết quả — rỗng nghĩa là màn đó chưa nối được, coi như chưa xong dù mọi kiểm
+  khác đều xanh.
+- **Mức:** BẮT BUỘC
+
+---
+
 ## Phần 2 — Quy trình chạy một prompt màn
 
 Sáu giai đoạn. Không nhảy cóc.
@@ -367,13 +396,14 @@ echo "R-65 đường dẫn thô:";   rg "['\"\`](/|https?://)" $SCREEN
 echo "R-69 stub/nợ:";         rg "TODO|FIXME|stub|any\b" $SCREEN
 echo "R-70 test bị tắt:";     rg "\.(skip|only)\(" $SCREEN
 echo "R-71 hằng số thô:";     rg "setTimeout\([^,]*, *[0-9]|duration: *[0-9]" $SCREEN
+echo "R-73 container tồn tại:"; ls $SCREEN/*.container.tsx
 echo "R-68 phạm vi sửa:";     git diff --name-only
 
 pnpm verify
 ```
 
-Sáu lệnh đầu phải **rỗng** (trừ `ls`, `<ScreenErrorBoundary` và `expectSevenStates` — ba
-lệnh đó phải **có** kết quả).
+Sáu lệnh đầu phải **rỗng** (trừ `ls`, `<ScreenErrorBoundary`, `expectSevenStates` và
+`R-73 container tồn tại` — bốn lệnh đó phải **có** kết quả).
 
 > **Sửa 21-08-2026.** Lệnh R-60 thêm `--glob '*.tsx'`. Bản trước quét cả `.ts` nên báo
 > nhầm `use<Name>.ts` — mà R-60 nói rõ view là `<Name>.tsx`, còn hook thì **được** biết
@@ -397,6 +427,8 @@ lệnh đó phải **có** kết quả).
 - [ ] Không sửa, nới, hay tắt test có sẵn (R-70)
 - [ ] Không hằng số viết tay (R-71)
 - [ ] `expectAccessible` + `expectVietnamese` xanh (R-72)
+- [ ] Container tồn tại và nhận đủ props để màn khác mở được — không cần viết thêm
+      logic, kể cả khi hiện chưa có nơi gọi thật (R-73)
 - [ ] `pnpm verify` xanh, kết quả dán nguyên văn vào PR (R-56, R-58)
 
 ---

@@ -51,9 +51,9 @@ const base: CreateProjectModalViewProps = {
   isSubmitting: false,
   isConfirmingDiscard: false,
   isSelectOpen: false,
-  name: 'Chung cư Sunrise Block B',
+  name: 'Chung cư Bình Minh',
   address: '12 Nguyễn Trãi, Hà Nội',
-  code: 'DA-CHUNGCUSUNRISEBLOCKB',
+  code: 'DA-CHUNGCUBINHMINH',
   buildingType: 'residential',
   notes: '',
   buildingTypeOptions: BUILDING_TYPE_OPTIONS,
@@ -65,6 +65,8 @@ const base: CreateProjectModalViewProps = {
   collisionRowId: null,
   focusFloorId: null,
   canAddFloor: true,
+  applyHeightM: null,
+  canApplyHeight: false,
   canGoNext: true,
   canSubmit: true,
   setName: noop,
@@ -78,6 +80,8 @@ const base: CreateProjectModalViewProps = {
   removeFloor: noop,
   setFloorName: noop,
   setFloorHeight: noop,
+  setApplyHeightM: noop,
+  applyHeightToAllFloors: noop,
   focusFloor: noop,
   acknowledgeFocus: noop,
   goNext: noop,
@@ -106,6 +110,15 @@ export const StepInfo: Story = {
     problems: { name: 'Chưa nhập tên dự án.' },
     canGoNext: false,
     canSubmit: false,
+  },
+};
+
+/** bước 2 — bốn tầng mặc định, cao độ tính đủ, sẵn sàng qua bước xem lại. */
+export const FloorsFilled: Story = {
+  args: {
+    ...base,
+    step: 2,
+    stepLabel: 'bước 2 / 3',
   },
 };
 

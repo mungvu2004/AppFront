@@ -1,11 +1,32 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 
+import { renderWithProviders } from '@/lib/testing/render';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
+import { ProjectDashboardRoute } from './ProjectDashboard.container';
 import { ProjectDashboardView, type ProjectDashboardViewProps } from './ProjectDashboard';
 import type { ProjectCardModel } from './useProjectDashboard';
+
+// jsdom has no matchMedia; matches: false renders the desktop layout, the one
+// `ProjectDashboardRoute` (real hook, real viewport probe) needs below.
+beforeAll(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
 
 afterEach(() => {
   cleanup();
@@ -150,5 +171,43 @@ describe('ProjectDashboardView, seven states', () => {
     fireEvent.keyDown(card, { key: 'Enter' });
 
     expect(openProject).toHaveBeenCalledWith(SAMPLE_ROW.id, 'card');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* ProjectDashboardRoute — the wiring R-73 exists for.                         */
+/* -------------------------------------------------------------------------- */
+
+describe('ProjectDashboardRoute', () => {
+  it('opens "tạo dự án mới" from its own button — the callback R-73 was written about', async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/']}>
+        <ProjectDashboardRoute />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: /Dự án mới/ })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Dự án mới/ }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('tạo dự án mới')).toBeInTheDocument();
+  });
+
+  it('shares one toast stack between the dashboard and the dialog it opens', async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/']}>
+        <ProjectDashboardRoute />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Dự án mới/ }));
+    await screen.findByRole('dialog');
+
+    // Two independent `Toast.Provider`s would each draw their own
+    // `role="region", aria-label="Thông báo"` — exactly one means this file's
+    // `DashboardWithCreateModal` really did share a single provider.
+    expect(screen.getAllByRole('region', { name: 'Thông báo' })).toHaveLength(1);
   });
 });

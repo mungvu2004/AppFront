@@ -40,8 +40,8 @@ if (import.meta.env.DEV) {
  *   the URL.
  *
  * The demo picker is not lost: it is the `/demo` route, and only in a
- * development build. `/` is now the real dashboard route — still a
- * `<Placeholder>` until that screen is built.
+ * development build. `/` is the real dashboard route, `ProjectDashboardRoute`
+ * (`src/screens/dashboard/ProjectDashboard/ProjectDashboard.container.tsx`).
  */
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

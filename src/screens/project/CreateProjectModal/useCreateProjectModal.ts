@@ -40,7 +40,12 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { SelectOption } from '@/components/ui/Select';
 import { alignFloors, ceilingElevationMm, type FloorPlan } from '@/domain/axes/alignFloors';
+import { PROJECT_LIMITS } from '@/domain/project/limits';
 import type { LevelId } from '@/domain/spatial/types';
+
+/** Re-exported so `CreateProjectModal.tsx`/`StepFloors.tsx` (pure views, R-60)
+ * never import `src/domain` directly — only this hook may. */
+export { PROJECT_LIMITS };
 import {
   metres,
   metresToMillimetres,
@@ -57,21 +62,6 @@ import { formatNumber } from '@/lib/format/number';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { ProjectRole } from '@/types/project';
 
-/* -------------------------------------------------------------------------- */
-/* Limits.                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export const CREATE_PROJECT_LIMITS = Object.freeze({
-  nameMinLength: 3,
-  nameMaxLength: 80,
-  floorCountMin: 1,
-  floorCountMax: 50,
-  elevationMinM: -30,
-  elevationMaxM: 300,
-  storeyHeightMinM: 2,
-  storeyHeightMaxM: 10,
-});
-
 /** How many characters of the generated slug the code keeps. */
 const CODE_SLUG_MAX_LENGTH = 24;
 
@@ -87,6 +77,9 @@ const BUILDING_TYPE_OPTIONS: SelectOption[] = [
 ];
 
 const DEFAULT_BUILDING_TYPE = 'residential';
+
+/** How many floors the wizard starts with — a stack worth reviewing at a glance. */
+const DEFAULT_FLOOR_COUNT = 4;
 
 /* -------------------------------------------------------------------------- */
 /* Draft floors — what this hook edits before it becomes a FloorPlan.          */
@@ -120,12 +113,12 @@ function heightProblemFor(clearHeightM: number | null): string | null {
     return 'Chưa nhập chiều cao thông thuỷ.';
   }
   if (
-    clearHeightM < CREATE_PROJECT_LIMITS.storeyHeightMinM ||
-    clearHeightM > CREATE_PROJECT_LIMITS.storeyHeightMaxM
+    clearHeightM < PROJECT_LIMITS.storeyHeightMinM ||
+    clearHeightM > PROJECT_LIMITS.storeyHeightMaxM
   ) {
     return (
-      `Chiều cao thông thuỷ áp dụng từ ${formatNumber(CREATE_PROJECT_LIMITS.storeyHeightMinM)} ` +
-      `đến ${formatNumber(CREATE_PROJECT_LIMITS.storeyHeightMaxM)} mét.`
+      `Chiều cao thông thuỷ áp dụng từ ${formatNumber(PROJECT_LIMITS.storeyHeightMinM)} ` +
+      `đến ${formatNumber(PROJECT_LIMITS.storeyHeightMaxM)} mét.`
     );
   }
   return null;
@@ -133,10 +126,10 @@ function heightProblemFor(clearHeightM: number | null): string | null {
 
 function elevationProblemFor(elevationMm: Millimetres): string | null {
   const elevationM = millimetresToMetres(elevationMm);
-  if (elevationM < CREATE_PROJECT_LIMITS.elevationMinM || elevationM > CREATE_PROJECT_LIMITS.elevationMaxM) {
+  if (elevationM < PROJECT_LIMITS.elevationMinM || elevationM > PROJECT_LIMITS.elevationMaxM) {
     return (
-      `Cao độ vượt giới hạn cho phép (${formatNumber(CREATE_PROJECT_LIMITS.elevationMinM)} ` +
-      `đến ${formatNumber(CREATE_PROJECT_LIMITS.elevationMaxM)} mét).`
+      `Cao độ vượt giới hạn cho phép (${formatNumber(PROJECT_LIMITS.elevationMinM)} ` +
+      `đến ${formatNumber(PROJECT_LIMITS.elevationMaxM)} mét).`
     );
   }
   return null;
@@ -151,11 +144,11 @@ function localNameProblemFor(name: string): string | null {
   if (trimmed.length === 0) {
     return 'Chưa nhập tên dự án.';
   }
-  if (trimmed.length < CREATE_PROJECT_LIMITS.nameMinLength) {
-    return `Tên dự án cần ít nhất ${formatNumber(CREATE_PROJECT_LIMITS.nameMinLength)} ký tự.`;
+  if (trimmed.length < PROJECT_LIMITS.nameMinLength) {
+    return `Tên dự án cần ít nhất ${formatNumber(PROJECT_LIMITS.nameMinLength)} ký tự.`;
   }
-  if (trimmed.length > CREATE_PROJECT_LIMITS.nameMaxLength) {
-    return `Tên dự án không quá ${formatNumber(CREATE_PROJECT_LIMITS.nameMaxLength)} ký tự.`;
+  if (trimmed.length > PROJECT_LIMITS.nameMaxLength) {
+    return `Tên dự án không quá ${formatNumber(PROJECT_LIMITS.nameMaxLength)} ký tự.`;
   }
   return null;
 }
@@ -186,6 +179,21 @@ function generateProjectCode(name: string): string {
 
 function rowIdFromLevelId(levelId: LevelId): string {
   return levelId.slice(LEVEL_ID_PREFIX_LENGTH);
+}
+
+/** Names the next floor above the ground the way {@link addFloor} always has. */
+function nextFloorName(aboveCount: number): string {
+  return aboveCount === 0 ? 'Tầng trệt' : `Tầng ${String(aboveCount)}`;
+}
+
+/** The wizard's starting stack: {@link DEFAULT_FLOOR_COUNT} floors, no basement, no heights yet. */
+function createDefaultFloorRows(): DraftFloorRow[] {
+  return Array.from({ length: DEFAULT_FLOOR_COUNT }, (_unused, index) => ({
+    id: createUuid(),
+    name: nextFloorName(index),
+    kind: 'floor' as const,
+    clearHeightM: null,
+  }));
 }
 
 function describeCreateFailure(error: unknown): string {
@@ -374,6 +382,9 @@ export interface CreateProjectModel {
   readonly collisionRowId: string | null;
   readonly focusFloorId: string | null;
   readonly canAddFloor: boolean;
+  /** The height typed into the "áp cho mọi tầng" field; `null` while empty. */
+  readonly applyHeightM: number | null;
+  readonly canApplyHeight: boolean;
   readonly canGoNext: boolean;
   readonly canSubmit: boolean;
 }
@@ -390,6 +401,8 @@ export interface CreateProjectActions {
   readonly removeFloor: (id: string) => void;
   readonly setFloorName: (id: string, value: string) => void;
   readonly setFloorHeight: (id: string, valueM: number | undefined) => void;
+  readonly setApplyHeightM: (valueM: number | undefined) => void;
+  readonly applyHeightToAllFloors: () => void;
   readonly focusFloor: (id: string) => void;
   readonly acknowledgeFocus: () => void;
   readonly goNext: () => void;
@@ -397,6 +410,18 @@ export interface CreateProjectActions {
   readonly requestClose: () => void;
   readonly confirmDiscard: () => void;
   readonly submit: () => void;
+}
+
+/**
+ * Every prop the view (and its per-step siblings) render from — model plus
+ * actions plus the one field the hook itself has no opinion about.
+ *
+ * Lives here rather than in `CreateProjectModal.tsx` so that a step split off
+ * into its own file (mục D, once a view crosses R-22's 400-line ceiling) can
+ * import it without creating an import cycle with the view file.
+ */
+export interface CreateProjectModalViewProps extends CreateProjectModel, CreateProjectActions {
+  readonly isOpen: boolean;
 }
 
 export interface CreateProjectRequest {
@@ -439,7 +464,8 @@ export function useCreateProjectModal(
   const [buildingType, setBuildingTypeState] = useState(DEFAULT_BUILDING_TYPE);
   const [notes, setNotesState] = useState('');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
-  const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>([]);
+  const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(createDefaultFloorRows);
+  const [applyHeightM, setApplyHeightMState] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -461,7 +487,8 @@ export function useCreateProjectModal(
   const canGoNextStep2 = floorRows.length > 0 && !hasAnyRowProblem && floorStack.collision === null;
   const canGoNext = step === 1 ? canGoNextStep1 : step === 2 ? canGoNextStep2 : true;
   const canSubmit = canGoNextStep1 && canGoNextStep2 && !isSubmitting;
-  const canAddFloor = floorRows.length < CREATE_PROJECT_LIMITS.floorCountMax;
+  const canAddFloor = floorRows.length < PROJECT_LIMITS.floorCountMax;
+  const canApplyHeight = applyHeightM !== null && floorRows.length > 0;
 
   const state = useMemo<SevenState>(() => {
     if (isCompact) return 'collapsed';
@@ -534,8 +561,7 @@ export function useCreateProjectModal(
     markDirty();
     setFloorRows((current) => {
       const aboveCount = current.filter((row) => row.kind === 'floor').length;
-      const name = aboveCount === 0 ? 'Tầng trệt' : `Tầng ${String(aboveCount)}`;
-      return [...current, { id: createUuid(), name, kind: 'floor', clearHeightM: null }];
+      return [...current, { id: createUuid(), name: nextFloorName(aboveCount), kind: 'floor', clearHeightM: null }];
     });
   };
 
@@ -554,6 +580,17 @@ export function useCreateProjectModal(
     setFloorRows((current) =>
       current.map((row) => (row.id === id ? { ...row, clearHeightM: valueM ?? null } : row)),
     );
+  };
+
+  const setApplyHeightM = (valueM: number | undefined): void => {
+    setApplyHeightMState(valueM ?? null);
+  };
+
+  /** The one place a height is written to every row at once, rather than row by row. */
+  const applyHeightToAllFloors = (): void => {
+    if (!canApplyHeight || applyHeightM === null) return;
+    markDirty();
+    setFloorRows((current) => current.map((row) => ({ ...row, clearHeightM: applyHeightM })));
   };
 
   const setHasBasement = (value: boolean): void => {
@@ -662,6 +699,8 @@ export function useCreateProjectModal(
     collisionRowId: floorStack.collisionRowId,
     focusFloorId,
     canAddFloor,
+    applyHeightM,
+    canApplyHeight,
     canGoNext,
     canSubmit,
   };
@@ -678,6 +717,8 @@ export function useCreateProjectModal(
     removeFloor,
     setFloorName,
     setFloorHeight,
+    setApplyHeightM,
+    applyHeightToAllFloors,
     focusFloor: (id: string) => setFocusFloorId(id),
     acknowledgeFocus: () => setFocusFloorId(null),
     goNext,

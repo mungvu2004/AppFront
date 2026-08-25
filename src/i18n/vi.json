@@ -148,25 +148,59 @@
       },
       "fields": {
         "name": "Tên dự án",
+        "namePlaceholder": "ví dụ: Chung cư Bình Minh",
         "address": "Địa chỉ",
         "code": "Mã dự án",
+        "codeHint": "tự tạo từ tên, sửa được",
         "buildingType": "Loại công trình",
-        "notes": "Ghi chú"
+        "notes": "Ghi chú",
+        "notesPlaceholder": "không bắt buộc"
+      },
+      "buildingTypes": {
+        "residential": "Nhà ở",
+        "commercial": "Thương mại",
+        "industrial": "Công nghiệp",
+        "mixed": "Hỗn hợp",
+        "other": "Khác"
       },
       "floors": {
         "hasBasement": "Có tầng hầm",
+        "hasBasementDescription": "Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm.",
         "addFloor": "Thêm tầng",
         "removeFloor": "Bỏ tầng này",
+        "removeFloorNamed": "Xoá {{name}}",
+        "nameNamed": "Tên tầng {{name}}",
         "elevation": "Cao độ",
         "clearHeight": "Chiều cao thông thuỷ",
-        "heightRange": "Chiều cao thông thuỷ áp dụng từ {{min}} đến {{max}} mét."
+        "clearHeightNamed": "Chiều cao thông thuỷ tầng {{name}}",
+        "heightRange": "Chiều cao thông thuỷ áp dụng từ {{min}} đến {{max}} mét.",
+        "applyHeight": "Áp cho mọi tầng",
+        "applyHeightLabel": "Chiều cao áp cho mọi tầng",
+        "groundFloorName": "Tầng trệt",
+        "basementName": "Tầng hầm",
+        "emptyTitle": "Chưa có tầng nào",
+        "emptyDescription": "Thêm ít nhất một tầng để sang bước xem lại.",
+        "missingHeight": "Chưa nhập chiều cao thông thuỷ.",
+        "missingHeightBelow": "Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.",
+        "elevationOutOfRange": "Cao độ vượt giới hạn cho phép ({{min}} đến {{max}} mét)."
       },
       "problems": {
         "nameRequired": "Chưa nhập tên dự án.",
+        "nameTooShort": "Tên dự án cần ít nhất {{min}} ký tự.",
+        "nameTooLong": "Tên dự án không quá {{max}} ký tự.",
         "duplicateName": "Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại."
+      },
+      "summary": {
+        "floorCount": "Số tầng"
+      },
+      "forbidden": {
+        "title": "Không có quyền tạo dự án",
+        "message": "Vai trò hiện tại chỉ được xem, không thể tạo dự án mới. Liên hệ quản trị dự án nếu cần.",
+        "close": "Đóng"
       },
       "discard": {
         "title": "Đóng và bỏ các thay đổi chưa lưu?",
+        "message": "Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.",
         "confirm": "Đóng, bỏ thay đổi",
         "keepEditing": "Tiếp tục chỉnh sửa"
       },
@@ -175,7 +209,8 @@
         "cancel": "Huỷ",
         "next": "Tiếp tục",
         "create": "Tạo dự án"
-      }
+      },
+      "createdToast": "Đã tạo dự án \"{{name}}\"."
     }
   }
 }
