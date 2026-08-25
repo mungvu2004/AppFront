@@ -211,6 +211,103 @@
         "create": "Tạo dự án"
       },
       "createdToast": "Đã tạo dự án \"{{name}}\"."
+    },
+    "settings": {
+      "title": "Cài đặt dự án",
+      "subtitle": "Thông tin chung, đơn vị đo, thành viên và hai việc không hoàn tác được.",
+      "readOnlyNotice": "Vai hiện tại chỉ xem được cài đặt, không sửa và không xoá.",
+      "statusLabel": "Trạng thái",
+      "tabGroup": "Nhóm cài đặt",
+      "tabs": {
+        "general": "Chung",
+        "units": "Đơn vị đo",
+        "members": "Thành viên",
+        "danger": "Vùng nguy hiểm"
+      },
+      "general": {
+        "name": "Tên dự án",
+        "code": "Mã dự án",
+        "codeHint": "mã ngắn để tra cứu nhanh; bỏ trống cũng được",
+        "address": "Địa chỉ",
+        "buildingType": "Loại công trình",
+        "notes": "Ghi chú",
+        "notesPlaceholder": "không bắt buộc",
+        "notesCount": "{{count}} / {{max}} ký tự"
+      },
+      "buildingTypes": {
+        "residential": "Nhà ở",
+        "commercial": "Thương mại",
+        "industrial": "Công nghiệp",
+        "mixed": "Hỗn hợp",
+        "other": "Khác"
+      },
+      "units": {
+        "lengthUnit": "Đơn vị chiều dài",
+        "millimetre": "Milimét (mm)",
+        "metre": "Mét (m)",
+        "areaUnit": "Đơn vị diện tích",
+        "areaUnitValue": "mét vuông — ví dụ {{example}}",
+        "snapTolerance": "Dung sai bắt điểm",
+        "confidenceThreshold": "Ngưỡng tin cậy",
+        "scale": "Tỉ lệ bản vẽ",
+        "scaleValue": "{{value}} milimét trên mỗi điểm ảnh",
+        "scalePreview": "{{pixels}} điểm ảnh ứng với {{length}} ngoài thực tế.",
+        "scalePreviewUnknown": "Chưa nói được quãng thật vì tỉ lệ chưa hợp lệ."
+      },
+      "members": {
+        "count": "{{count}} thành viên",
+        "readOnlyNote": "chỉ để xem trong bản này.",
+        "emptyTitle": "Chưa có thành viên nào",
+        "emptyDescription": "Dự án này chưa có ai ngoài chủ sở hữu. Tên của họ sẽ hiện ở đây khi có thêm người.",
+        "roles": {
+          "admin": "Quản trị",
+          "engineer": "Kỹ sư",
+          "viewer": "Người xem"
+        }
+      },
+      "danger": {
+        "noPermission": "Vai hiện tại không xoá được gì ở đây. Liên hệ quản trị dự án nếu cần.",
+        "deleteAllFloors": "Xoá mọi tầng",
+        "deleteAllFloorsConsequence": "Xoá toàn bộ {{count}} tầng cùng bản vẽ và mô hình của chúng. Không hoàn tác được.",
+        "deleteAllFloorsNothing": "Dự án chưa có tầng nào để xoá.",
+        "deleteProject": "Xoá dự án",
+        "deleteProjectConsequence": "Xoá dự án cùng mọi tầng, bản vẽ và mô hình bên trong. Không hoàn tác được.",
+        "emptyTitle": "Chưa có tầng nào",
+        "emptyDescription": "Dự án chưa có tầng nào, nên ở đây chưa có gì để xoá ngoài chính dự án.",
+        "confirmFloorsTitle": "Xoá mọi tầng của dự án?",
+        "confirmFloorsMessage": "Mọi tầng cùng bản vẽ và mô hình của chúng sẽ bị xoá vĩnh viễn. Không hoàn tác được.",
+        "confirmProjectTitle": "Xoá dự án này?",
+        "confirmProjectMessage": "Dự án cùng toàn bộ tầng, bản vẽ và mô hình bên trong sẽ bị xoá vĩnh viễn. Không hoàn tác được.",
+        "confirmationLabel": "Gõ lại tên dự án để xác nhận",
+        "keep": "Để nguyên",
+        "floorsDeleted": "Đã xoá {{count}} tầng của dự án.",
+        "floorsPartiallyDeleted": "Đã xoá {{count}} tầng; còn {{failed}} tầng chưa xoá được.",
+        "projectDeleted": "Đã xoá dự án."
+      },
+      "problems": {
+        "nameRequired": "Chưa nhập tên dự án.",
+        "nameTooShort": "Tên dự án cần ít nhất {{min}} ký tự.",
+        "nameTooLong": "Tên dự án không quá {{max}} ký tự.",
+        "codeTooLong": "Mã dự án không quá {{max}} ký tự.",
+        "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
+        "notesTooLong": "Ghi chú không quá {{max}} ký tự.",
+        "snapRequired": "Chưa nhập dung sai bắt điểm.",
+        "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
+        "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",
+        "scaleRequired": "Chưa nhập tỉ lệ bản vẽ.",
+        "scaleOutOfRange": "Tỉ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh."
+      },
+      "load": {
+        "errorTitle": "Không tải được cài đặt dự án",
+        "errorFallback": "Không tải được cài đặt dự án.",
+        "retry": "Thử lại",
+        "conflictTitle": "Cài đặt đã đổi ở nơi khác",
+        "reload": "Tải lại"
+      },
+      "savedToast": "Đã lưu cài đặt dự án.",
+      "undoDescription": "Hoàn tác thay đổi cài đặt dự án",
+      "missingProjectTitle": "Không xác định được dự án",
+      "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở cài đặt của dự án nào."
     }
   }
 }
