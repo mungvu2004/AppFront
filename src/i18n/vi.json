@@ -136,5 +136,46 @@
       "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",
       "gatewayUnavailable": "Chưa kết nối được máy chủ xác thực, nên chưa đăng nhập được. Tải lại trang rồi thử lại."
     }
+  },
+  "project": {
+    "createModal": {
+      "title": "Tạo dự án mới",
+      "stepLabel": "Bước {{step}} trên {{total}}",
+      "steps": {
+        "info": "thông tin công trình",
+        "floors": "tầng",
+        "review": "xem lại"
+      },
+      "fields": {
+        "name": "Tên dự án",
+        "address": "Địa chỉ",
+        "code": "Mã dự án",
+        "buildingType": "Loại công trình",
+        "notes": "Ghi chú"
+      },
+      "floors": {
+        "hasBasement": "Có tầng hầm",
+        "addFloor": "Thêm tầng",
+        "removeFloor": "Bỏ tầng này",
+        "elevation": "Cao độ",
+        "clearHeight": "Chiều cao thông thuỷ",
+        "heightRange": "Chiều cao thông thuỷ áp dụng từ {{min}} đến {{max}} mét."
+      },
+      "problems": {
+        "nameRequired": "Chưa nhập tên dự án.",
+        "duplicateName": "Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại."
+      },
+      "discard": {
+        "title": "Đóng và bỏ các thay đổi chưa lưu?",
+        "confirm": "Đóng, bỏ thay đổi",
+        "keepEditing": "Tiếp tục chỉnh sửa"
+      },
+      "actions": {
+        "back": "Quay lại",
+        "cancel": "Huỷ",
+        "next": "Tiếp tục",
+        "create": "Tạo dự án"
+      }
+    }
   }
 }
