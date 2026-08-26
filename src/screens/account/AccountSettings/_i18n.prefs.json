@@ -1,0 +1,52 @@
+{
+  "account": {
+    "profile": {
+      "avatar": {
+        "change": "Đổi ảnh",
+        "alt": "Ảnh đại diện",
+        "altOf": "Ảnh đại diện của {{name}}",
+        "uploading": "Đang tải ảnh lên…"
+      },
+      "fields": {
+        "fullName": "họ tên",
+        "jobTitle": "chức danh",
+        "email": "thư điện tử",
+        "phone": "điện thoại",
+        "language": "ngôn ngữ"
+      },
+      "jobTitlePlaceholder": "chưa đặt",
+      "email": {
+        "change": "Đổi thư điện tử",
+        "readOnlyShort": "Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.",
+        "readOnlyLong": "Thư điện tử là tên đăng nhập nên đổi nó phải qua một bước xác minh. Liên hệ quản trị viên của công ty để đổi."
+      },
+      "languages": {
+        "vi": "Tiếng Việt",
+        "en": "Tiếng Anh"
+      }
+    },
+    "appearance": {
+      "fields": {
+        "theme": "chủ đề",
+        "viewportDark": "dùng nền tối cho khung nhìn 3D",
+        "reducedMotion": "giảm chuyển động",
+        "showGrid": "hiện lưới 100 mm",
+        "density": "mật độ hiển thị"
+      },
+      "themes": {
+        "light": "sáng",
+        "dark": "tối",
+        "system": "theo hệ thống"
+      },
+      "densities": {
+        "comfortable": "thoải mái",
+        "compact": "gọn"
+      },
+      "hints": {
+        "viewportDark": "Chỉ đổi màu vùng mô hình, giao diện vẫn sáng.",
+        "reducedMotion": "Tắt hoạt cảnh trong ứng dụng, không riêng màn này.",
+        "showGrid": "Lưới nền của khung nhìn, bước 100 mm."
+      }
+    }
+  }
+}
