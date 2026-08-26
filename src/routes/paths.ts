@@ -34,7 +34,11 @@ const DESIGN_SYSTEM_ROOT = '/design-system';
 
 /** What `createBrowserRouter` registers. `:id` and `:floorId` are the router's holes. */
 export const ROUTE_PATTERNS = {
-  account: '/account',
+  // Ngoại lệ duy nhất của quy ước "đường dẫn viết bằng tiếng Anh": đường dẫn của
+  // màn cài đặt tài khoản là thứ người dùng đọc và gõ, nên nó là tiếng Việt.
+  // Khoá vẫn là định danh tiếng Anh `account` — mục E.11 nói về mã, không nói về
+  // URL, và mọi nơi gọi vẫn viết `ROUTES.account`.
+  account: '/tai-khoan',
   adminModels: `${ADMIN_ROOT}/models`,
   adminUsers: `${ADMIN_ROOT}/users`,
   billing: '/billing',

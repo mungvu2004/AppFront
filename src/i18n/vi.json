@@ -309,5 +309,43 @@
       "missingProjectTitle": "Không xác định được dự án",
       "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở cài đặt của dự án nào."
     }
+  },
+  "account": {
+    "title": "cài đặt tài khoản",
+    "description": "Hồ sơ, giao diện, thông báo, phím tắt, mật khẩu và những phiên đang mở.",
+    "sections": {
+      "profile": "hồ sơ",
+      "appearance": "giao diện",
+      "notifications": "thông báo",
+      "shortcuts": "phím tắt",
+      "password": "mật khẩu",
+      "sessions": "phiên đăng nhập",
+      "danger": "vùng nguy hiểm"
+    },
+    "descriptions": {
+      "profile": "Tên, ảnh đại diện và thông tin liên hệ.",
+      "appearance": "Chủ đề sáng, tối, hoặc theo hệ thống.",
+      "notifications": "Việc nào báo qua thư điện tử, việc nào báo trong ứng dụng.",
+      "shortcuts": "Những phím tắt đang có hiệu lực trong ứng dụng.",
+      "password": "Đổi mật khẩu đăng nhập.",
+      "sessions": "Những máy đang đăng nhập vào tài khoản này.",
+      "danger": "Những việc không hoàn tác được."
+    },
+    "errors": {
+      "loadTitle": "Không tải được cài đặt tài khoản",
+      "retry": "Thử lại"
+    },
+    "stub": {
+      "profile": "Khối hồ sơ đang được dựng.",
+      "appearance": "Khối giao diện đang được dựng.",
+      "notifications": "Ma trận thông báo đang được dựng.",
+      "shortcuts": "Khối phím tắt đang được dựng.",
+      "password": "Khối đổi mật khẩu đang được dựng.",
+      "sessions": "Khối phiên đăng nhập đang được dựng.",
+      "danger": "Vùng nguy hiểm đang được dựng.",
+      "loadingProfile": "Đang đọc hồ sơ…",
+      "loadingAppearance": "Đang đọc giao diện…",
+      "loadingNotifications": "Đang đọc thông báo…"
+    }
   }
 }
