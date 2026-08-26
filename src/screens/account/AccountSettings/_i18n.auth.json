@@ -1,0 +1,55 @@
+{
+  "account": {
+    "password": {
+      "currentLabel": "mật khẩu hiện tại",
+      "newLabel": "mật khẩu mới",
+      "confirmLabel": "nhắc lại mật khẩu mới",
+      "submit": "Đổi mật khẩu",
+      "strengthPrefix": "Độ mạnh",
+      "strength": {
+        "weak": "yếu",
+        "fair": "khá",
+        "strong": "mạnh"
+      },
+      "managedTitle": "Đăng nhập một lần của công ty",
+      "managedReason": "Do quản trị viên công ty quản lý.",
+      "problems": {
+        "currentRequired": "Chưa nhập mật khẩu hiện tại.",
+        "currentWrong": "Mật khẩu hiện tại không đúng.",
+        "newRequired": "Chưa nhập mật khẩu mới.",
+        "newTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
+        "newNeedsLetterAndDigit": "Mật khẩu cần có cả chữ và số.",
+        "newSameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại.",
+        "confirmMismatch": "Hai ô mật khẩu chưa khớp nhau.",
+        "managedExternally": "Tài khoản này do quản trị viên công ty quản lý, không đổi ở đây được."
+      },
+      "changed": "Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới."
+    },
+    "sessions": {
+      "currentBadge": "thiết bị này",
+      "signOut": "Đăng xuất",
+      "signOutOne": "Đăng xuất khỏi {{device}}",
+      "signedOutOf": "Đã đăng xuất khỏi {{device}}",
+      "empty": "Chưa có phiên nào đang mở.",
+      "warningTitle": "Không đọc được danh sách phiên",
+      "warningMessage": "Không đọc được danh sách phiên đang mở. Thử lại sau ít phút.",
+      "sessionGone": "Phiên này đã đóng từ trước. Danh sách vừa được đọc lại.",
+      "retry": "Thử lại"
+    },
+    "danger": {
+      "deleteTitle": "xoá tài khoản",
+      "deleteDescription": "Xoá vĩnh viễn tài khoản này cùng mọi dự án chỉ mình bạn giữ. Việc này không hoàn tác được.",
+      "deleteButton": "Xoá tài khoản",
+      "dialogTitle": "Xoá tài khoản này?",
+      "dialogBody": "Mọi dự án, bản vẽ và mô hình chỉ mình bạn giữ sẽ mất theo, và không có đường lấy lại.",
+      "confirmPrompt": "Gõ lại {{email}} để xác nhận.",
+      "confirmLabel": "địa chỉ thư",
+      "cancel": "Để sau",
+      "confirm": "Xoá vĩnh viễn",
+      "problems": {
+        "emailMismatch": "Địa chỉ vừa gõ không khớp với tài khoản này.",
+        "failed": "Không xoá được tài khoản lúc này. Thử lại sau ít phút."
+      }
+    }
+  }
+}
