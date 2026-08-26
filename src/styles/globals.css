@@ -3,6 +3,130 @@
 @tailwind utilities;
 
 @layer base {
+  /* ------------------------------------------------------------------------
+     CHỦ ĐỀ TỐI — bộ token tối, không phải một bộ lọc.
+
+     [CẤM TUYỆT ĐỐI] nói "chủ đề tối dùng đúng bộ token tối, không tự làm tối
+     màu bằng bộ lọc". Nên ở đây không có `filter: invert()`, không có
+     `opacity`, không có lớp phủ đen: chỉ 36 custom property được khai lại.
+     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 43 mục, không
+     một mã màu thô nào — nên khai lại thuộc tính DƯỚI selector này CHÍNH LÀ cả
+     cơ chế. Không thêm `darkMode: 'class'` vào Tailwind: cái đó bật biến thể
+     `dark:`, thứ repo này dùng đúng 0 lần.
+
+     ## Vì sao selector là `html.dark` và vì sao khối này đứng TRƯỚC `:root`
+
+     `useTheme` gắn lớp `dark` lên `<html>`, đúng phần tử mà `:root` chỉ tới.
+     Viết `.dark` thì hai selector cùng độ đặc hiệu (0,1,0) và thứ tự quyết định
+     — khối tối buộc phải đứng sau. Viết `html.dark` thì độ đặc hiệu là (0,1,1),
+     cao hơn hẳn, nên **thứ tự không còn quyết định gì** và khối tối thắng ở đâu
+     cũng được.
+
+     Điều đó cho phép đặt nó lên TRƯỚC, và có một lý do rất cụ thể để làm vậy:
+     `parsePalette` (`src/lib/coloring/legend.ts:146`) đọc CẢ file bằng một biểu
+     thức chính quy `--ten: giá-trị;` và **khai báo sau đè khai báo trước**. Nó
+     không biết chủ đề nào đang bật — nó chỉ đọc văn bản. Nếu khối tối đứng sau,
+     `resolveLabelTreatment` và `checkContrast` sẽ lặng lẽ tính bằng bảng màu tối
+     ở MỌI chủ đề, kể cả chủ đề sáng: đó không chỉ là ba bài test đỏ, đó là nhãn
+     trên mảng tường bị chọn sai màu lúc chạy thật.
+
+     Nên trật tự này là một ràng buộc, không phải một sở thích: bảng màu SÁNG
+     phải là bảng cuối cùng trong file. `AppearanceSection.test.tsx` khoá điều đó
+     lại bằng một bài đọc thẳng globals.css, để lần sau ai đó dời khối này xuống
+     dưới thì test đỏ ngay chứ không đỏ ở màn hình người dùng.
+
+     Khoản nợ thật vẫn còn và nó nằm ở `src/lib/coloring`: `parsePalette` cần
+     khoanh vùng theo khối selector, hoặc `checkContrast` cần nhận chủ đề làm
+     tham số. Cả hai đều ở `src/lib/**`, thư mục lượt làm này không được sửa.
+
+     Không được sửa một giá trị nào của `:root` bên dưới — chín màn đã xong đang
+     đọc chúng.
+
+     ## Đo tương phản (A11y, ngưỡng 4,5:1)
+
+     | chữ | trên | tỉ số |
+     |---|---|---|
+     | `--text-primary`   | `--bg-app`     | 14,20:1 |
+     | `--text-primary`   | `--bg-surface` | 12,77:1 |
+     | `--text-secondary` | `--bg-app`     |  7,71:1 |
+     | `--text-secondary` | `--bg-surface` |  6,93:1 |
+
+     `--text-muted` đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface` —
+     cao hơn chính bản sáng của nó (2,95:1 trên nền trắng), nên chủ đề tối không
+     mang theo khoản nợ tương phản nào mới.
+
+     ## Hai mươi thuộc tính KHÔNG khai lại, và vì sao
+
+     - `--white`, `--black` — hai màu tuyệt đối, đổi theo chủ đề là vô nghĩa.
+     - `--wall-110/220/330/idle` — màu VẬT LIỆU của tường trong mô hình, không
+       phải màu giao diện. Bốn sắc xám ấm này đọc đúng trên nền tối mới; đổi
+       chúng là đổi cách nhận dạng bề dày tường, không phải đổi chủ đề.
+     - `--scene-*` (14) — phong cảnh của khối mô hình trên `/login`, đã cân theo
+       độ sáng và độ ấm đo trên GPU thật. Một căn hộ cắt mở được chiếu sáng
+       không đổi màu vì giao diện quanh nó đổi chủ đề.
+
+     ## A2 và A4 vẫn nguyên
+
+     `--accent` sáng lên để đọc được trên nền tối (6,01:1 trên `--bg-surface`)
+     nhưng vẫn là màu DUY NHẤT dành cho thứ tương tác được. Và đúng BA màu trạng
+     thái — verified, attention, violation. Màu thứ tư là thứ A4 tồn tại để chặn.
+     ------------------------------------------------------------------------ */
+  html.dark {
+    /* Bóng đổ trên nền tối phải sâu hơn: một bóng nhạt trên bề mặt tối đọc ra
+       là KHÔNG có độ cao, tức là mất hẳn tầng lớp mà bóng tồn tại để nói. */
+    --shadow-color-rest: rgba(0, 0, 0, 0.5);
+    --shadow-color-float: rgba(0, 0, 0, 0.6);
+    --shadow-color-overlay: rgba(0, 0, 0, 0.55);
+    --shadow-color-panel: rgba(0, 0, 0, 0.45);
+    --shadow-color-modal: rgba(0, 0, 0, 0.65);
+
+    /* Ở chủ đề sáng, hover và active đi TỐI dần; ở chủ đề tối chúng đi SÁNG dần
+       — cùng một quy tắc "tiến về phía nguồn sáng", soi qua gương. */
+    --accent: #7fa6c4;
+    --accent-hover: #93b5cf;
+    --accent-active: #a7c4d9;
+    --accent-wash: #23303a;
+
+    --bg-app: #1c1b19;
+    --bg-surface: #262421;
+    --bg-sunken: #151413;
+    --bg-hover: rgba(236, 233, 227, 0.06);
+    --bg-overlay: rgba(10, 9, 8, 0.6);
+
+    --border-default: #3a3733;
+
+    --text-primary: #ece9e3;
+    --text-secondary: #b2ada4;
+    --text-muted: #969189;
+
+    --danger-tint: #2e1f1c;
+    --danger-border: #5a3a33;
+
+    --state-verified: #7fb18d;
+    --state-verified-text: #a7cdb1;
+    --state-verified-tint: #1f2b23;
+
+    --state-attention: #d4b46a;
+    --state-attention-text: #e3cb92;
+    --state-attention-tint: #2c2617;
+
+    --state-violation: #d68577;
+    --state-violation-text: #eda595;
+    --state-violation-tint: #2e1f1c;
+
+    --bg-selected: #23303a;
+    --bg-flash: #1f2b23;
+
+    /* Tấm vẽ là một BỀ MẶT của giao diện, nên nó theo chủ đề. Một tờ giấy trắng
+       giữa khung tối là điểm chói duy nhất trên màn hình, và người dùng nhìn nó
+       hàng giờ. */
+    --canvas-2d: #1a1917;
+    --canvas-2d-grid: #2a2724;
+    --canvas-3d: #1e1d1b;
+    --canvas-3d-ground: #171614;
+    --canvas-3d-horizon: #2b2926;
+  }
+
   :root {
     --white: #ffffff;
     --black: #000000;
