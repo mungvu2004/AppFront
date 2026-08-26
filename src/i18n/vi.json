@@ -346,6 +346,128 @@
       "loadingProfile": "Đang đọc hồ sơ…",
       "loadingAppearance": "Đang đọc giao diện…",
       "loadingNotifications": "Đang đọc thông báo…"
+    },
+    "profile": {
+      "avatar": {
+        "change": "Đổi ảnh",
+        "alt": "Ảnh đại diện",
+        "altOf": "Ảnh đại diện của {{name}}",
+        "uploading": "Đang tải ảnh lên…"
+      },
+      "fields": {
+        "fullName": "họ tên",
+        "jobTitle": "chức danh",
+        "email": "thư điện tử",
+        "phone": "điện thoại",
+        "language": "ngôn ngữ"
+      },
+      "jobTitlePlaceholder": "chưa đặt",
+      "email": {
+        "change": "Đổi thư điện tử",
+        "readOnlyShort": "Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.",
+        "readOnlyLong": "Thư điện tử là tên đăng nhập nên đổi nó phải qua một bước xác minh. Liên hệ quản trị viên của công ty để đổi."
+      },
+      "languages": {
+        "vi": "Tiếng Việt",
+        "en": "Tiếng Anh"
+      }
+    },
+    "appearance": {
+      "fields": {
+        "theme": "chủ đề",
+        "viewportDark": "dùng nền tối cho khung nhìn 3D",
+        "reducedMotion": "giảm chuyển động",
+        "showGrid": "hiện lưới 100 mm",
+        "density": "mật độ hiển thị"
+      },
+      "themes": {
+        "light": "sáng",
+        "dark": "tối",
+        "system": "theo hệ thống"
+      },
+      "densities": {
+        "comfortable": "thoải mái",
+        "compact": "gọn"
+      },
+      "hints": {
+        "viewportDark": "Chỉ đổi màu vùng mô hình, giao diện vẫn sáng.",
+        "reducedMotion": "Tắt hoạt cảnh trong ứng dụng, không riêng màn này.",
+        "showGrid": "Lưới nền của khung nhìn, bước 100 mm."
+      }
+    },
+    "notifications": {
+      "caption": "Hàng là sự việc, cột là kênh nhận thông báo.",
+      "eventColumn": "sự việc",
+      "channels": {
+        "inApp": "Trong ứng dụng",
+        "email": "Thư điện tử"
+      },
+      "events": {
+        "aiCompleted": "AI xử lý xong",
+        "violationFound": "Phát hiện vi phạm mới",
+        "projectInvite": "Được mời vào dự án",
+        "commentMention": "Bình luận nhắc đến tôi",
+        "morningDigest": "Tổng hợp mỗi sáng"
+      }
+    },
+    "shortcuts": {
+      "caption": "Tổ hợp phím và việc mà nó làm.",
+      "filterLabel": "tìm phím tắt",
+      "filterPlaceholder": "Gõ để lọc ngay",
+      "comboColumn": "tổ hợp phím",
+      "actionColumn": "việc",
+      "countAll": "{{total}} phím tắt đang có hiệu lực.",
+      "countFiltered": "Đang hiện {{shown}} trong {{total}} phím tắt.",
+      "empty": "Không có phím tắt nào khớp với ô tìm.",
+      "missingDescription": "chưa có mô tả"
+    },
+    "password": {
+      "currentLabel": "mật khẩu hiện tại",
+      "newLabel": "mật khẩu mới",
+      "confirmLabel": "nhắc lại mật khẩu mới",
+      "submit": "Đổi mật khẩu",
+      "strengthPrefix": "Độ mạnh",
+      "strength": {
+        "weak": "yếu",
+        "fair": "khá",
+        "strong": "mạnh"
+      },
+      "managedTitle": "Đăng nhập một lần của công ty",
+      "managedReason": "Do quản trị viên công ty quản lý.",
+      "problems": {
+        "currentRequired": "Chưa nhập mật khẩu hiện tại.",
+        "currentWrong": "Mật khẩu hiện tại không đúng.",
+        "newRequired": "Chưa nhập mật khẩu mới.",
+        "newTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
+        "newNeedsLetterAndDigit": "Mật khẩu cần có cả chữ và số.",
+        "newSameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại.",
+        "confirmMismatch": "Hai ô mật khẩu chưa khớp nhau.",
+        "managedExternally": "Tài khoản này do quản trị viên công ty quản lý, không đổi ở đây được."
+      },
+      "changed": "Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới."
+    },
+    "sessions": {
+      "currentBadge": "thiết bị này",
+      "signOut": "Đăng xuất",
+      "signOutOne": "Đăng xuất khỏi {{device}}",
+      "signedOutOf": "Đã đăng xuất khỏi {{device}}",
+      "empty": "Chưa có phiên nào đang mở.",
+      "retry": "Thử lại"
+    },
+    "danger": {
+      "deleteTitle": "xoá tài khoản",
+      "deleteDescription": "Xoá vĩnh viễn tài khoản này cùng mọi dự án chỉ mình bạn giữ. Việc này không hoàn tác được.",
+      "deleteButton": "Xoá tài khoản",
+      "dialogTitle": "Xoá tài khoản này?",
+      "dialogBody": "Mọi dự án, bản vẽ và mô hình chỉ mình bạn giữ sẽ mất theo, và không có đường lấy lại.",
+      "confirmPrompt": "Gõ lại {{email}} để xác nhận.",
+      "confirmLabel": "địa chỉ thư",
+      "cancel": "Để sau",
+      "confirm": "Xoá vĩnh viễn",
+      "problems": {
+        "emailMismatch": "Địa chỉ vừa gõ không khớp với tài khoản này.",
+        "failed": "Không xoá được tài khoản lúc này. Thử lại sau ít phút."
+      }
     }
   }
 }

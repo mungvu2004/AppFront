@@ -75,7 +75,7 @@ Tất cả route liên quan đến không gian vẽ 2D (canvas) và 3D đều ph
 - `/projects/:id/share`
 - `/admin/models`
 - `/admin/users`
-- `/account`
+- `/tai-khoan`
 - `/billing`
 - `/design-system`
 - `/design-system/states`

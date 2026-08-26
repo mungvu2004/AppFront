@@ -31,20 +31,6 @@ import {
 } from './SessionsSection';
 import { useAccountAuth, type UseAccountAuthOptions } from './useAccountAuth';
 
-/**
- * Lỗ hổng của jsdom, không phải lỗi của khối.
- *
- * `framer-motion` đo chiều cao thật của hàng trước khi thu nó về 0 — nó phải đo,
- * vì `height: auto` không nội suy được — và bước đo ấy lưu rồi khôi phục vị trí
- * cuộn bằng `window.scrollTo`, thứ jsdom **không cài đặt**. Không chặn thì mỗi
- * lượt hàng biến mất in ra một vệt `Not implemented: window.scrollTo` dài, và
- * một bộ kiểm xanh mà ồn thì lần sau người ta bỏ qua cả vệt thật.
- *
- * Chỗ đúng của dòng này là `vitest.setup.ts`, để mọi bộ kiểm chạm khối phiên đều
- * yên; file đó nằm ngoài phần T3 được sửa, nên đây là chỗ tạm.
- */
-window.scrollTo = () => undefined;
-
 afterEach(() => {
   cleanup();
 });
