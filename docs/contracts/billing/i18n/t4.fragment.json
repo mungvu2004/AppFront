@@ -1,0 +1,33 @@
+{
+  "billing": {
+    "plans": {
+      "starter": {
+        "name": "Cơ bản",
+        "feature1": "500 m² số hoá mỗi tháng",
+        "feature2": "3 dự án đang hoạt động",
+        "feature3": "Xuất mô hình 3D độ phân giải chuẩn",
+        "feature4": "Lưu bản vẽ 30 ngày",
+        "feature5": "Hỗ trợ qua email trong giờ hành chính",
+        "feature6": "1 thành viên chỉnh sửa"
+      },
+      "growth": {
+        "name": "Chuyên nghiệp",
+        "feature1": "5.000 m² số hoá mỗi tháng",
+        "feature2": "Không giới hạn dự án đang hoạt động",
+        "feature3": "Xuất mô hình 3D độ phân giải cao",
+        "feature4": "Lưu bản vẽ không giới hạn",
+        "feature5": "Hỗ trợ ưu tiên 24/7",
+        "feature6": "5 thành viên chỉnh sửa"
+      },
+      "enterprise": {
+        "name": "Doanh nghiệp",
+        "feature1": "20.000 m² số hoá mỗi tháng",
+        "feature2": "Không giới hạn dự án và thành viên",
+        "feature3": "Xuất mô hình 3D kèm decal vật liệu",
+        "feature4": "Sao lưu bản vẽ riêng theo yêu cầu",
+        "feature5": "Quản lý tài khoản chuyên trách",
+        "feature6": "Tích hợp API riêng theo yêu cầu"
+      }
+    }
+  }
+}
