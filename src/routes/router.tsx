@@ -22,6 +22,7 @@ const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ d
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
+const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -62,6 +63,7 @@ const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes(
 
 export const router = createBrowserRouter([
   ...DEV_ONLY_ROUTES,
+  { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
   { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
   { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },
   { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },

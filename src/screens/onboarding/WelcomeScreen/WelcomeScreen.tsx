@@ -8,11 +8,11 @@
  * ba liên kết chìm cho người muốn đi đường khác.
  *
  * **Mục D / R-60 — view thuần.** Mọi thứ vẽ ra đến từ `WelcomeScreenProps`:
- * không store, không mạng, không `Date`, không một phép định dạng số nào. Khối
- * props bên dưới là bản chép nguyên văn của hợp đồng đông cứng —
- * `useWelcomeScreen.ts` khai đúng khối đó dưới tên `WelcomeScreenViewModel`, và
- * người tích hợp gộp hai bản thành một `import type`. Chép chứ không nhập, vì
- * hai file này được dựng song song.
+ * không store, không mạng, không `Date`, không một phép định dạng số nào.
+ * `WelcomeScreenProps` KHÔNG còn là một khối khai lại: nó là chính
+ * `WelcomeScreenViewModel` của `useWelcomeScreen.ts`, mượn về bằng `import type`.
+ * Hai bản chép song song của hợp đồng đông cứng đã gộp làm một ở lượt tích hợp,
+ * nên từ đây một trường đổi tên là một lỗi biên dịch chứ không phải một lỗi lúc chạy.
  *
  * **Ba con số chuyển động.** Đặc tả xin ba con số cho stagger, vẽ nét và hoà
  * tan; cả ba đều nằm ngoài thang của mục B nên `local/no-raw-duration` từ chối
@@ -38,60 +38,26 @@ import { Button } from '@/components/ui/Button';
 import { useMotionConditions } from '@/hooks/useMotionConditions';
 import { durationSeconds } from '@/lib/motion';
 import { staggerDelaysMs } from '@/lib/motion/stagger';
-import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
-export type OnboardingStepId = 'createProject' | 'uploadDrawings' | 'reviewAndBuild';
+import type {
+  OnboardingLink,
+  OnboardingStepCard,
+  OnboardingStepId,
+  WelcomeScreenViewModel,
+} from './useWelcomeScreen';
 
-export type OnboardingStepState = 'done' | 'open' | 'locked';
+/**
+ * Props của view = view model của hook, một nguồn duy nhất.
+ *
+ * Hai bản chép song song của hợp đồng mục 2 đã gộp ở đây: bản còn lại là bản
+ * trong `useWelcomeScreen.ts`, và view mượn nó bằng `import type`. Kiểu bị xoá
+ * lúc biên dịch nên không một dòng mã chạy được nào của view chạm tới hook —
+ * R-60 vẫn nguyên, và `pnpm lint` là thứ nói câu đó chứ không phải chú thích này.
+ */
+export type WelcomeScreenProps = WelcomeScreenViewModel;
 
-export interface OnboardingStepCard {
-  readonly id: OnboardingStepId;
-  /** '1' | '2' | '3' — hiện bằng chữ đều (tabular-nums). */
-  readonly ordinal: string;
-  readonly title: string;
-  /** ĐÚNG MỘT CÂU. Không bao giờ là một đoạn. */
-  readonly sentence: string;
-  readonly actionLabel: string;
-  readonly state: OnboardingStepState;
-  /** Thẻ chính của màn lúc này — đúng một thẻ có true, hoặc không thẻ nào. */
-  readonly isPrimary: boolean;
-  /** Câu chú giải vì sao khoá. null khi state !== 'locked'. */
-  readonly lockedReason: string | null;
-  readonly onActivate: () => void;
-}
-
-export interface OnboardingLink {
-  readonly label: string;
-  /** null = bấm được. Chuỗi = vô hiệu, và chuỗi này là lý do hiện cho người đọc. */
-  readonly disabledReason: string | null;
-  readonly onActivate: () => void;
-}
-
-export interface WelcomeScreenProps {
-  readonly screenState: SevenState;
-  /** true khi phải xếp dọc — story/test bật tay, lúc chạy thật CSS tự lo dưới 1024. */
-  readonly isCollapsed: boolean;
-  /** 'Chào Minh, bắt đầu trong ba bước' — đã ghép tên, view không ghép gì. */
-  readonly greeting: string;
-  /** Đoạn hai câu nói sản phẩm làm gì. */
-  readonly intro: string;
-  /** Luôn đúng thứ tự 1,2,3. Ở 'forbidden' mảng chỉ còn ĐÚNG một phần tử: thẻ 3. */
-  readonly cards: readonly OnboardingStepCard[];
-  readonly sampleProjectLink: OnboardingLink;
-  readonly tutorialLink: OnboardingLink;
-  readonly skipLink: OnboardingLink;
-  /** Chỉ khác null ở screenState === 'error'. */
-  readonly errorMessage: string | null;
-  readonly onRetry: () => void;
-  /** Chỉ khác null ở screenState === 'success'. */
-  readonly finishLabel: string | null;
-  readonly onFinish: () => void;
-  /** true trong lúc nội dung hoà tan trước khi chuyển trang. */
-  readonly isDissolving: boolean;
-  /** Câu hiện sau khi bấm 'Bỏ qua'. */
-  readonly skipNotice: string;
-}
+export type { OnboardingLink, OnboardingStepCard, OnboardingStepId, OnboardingStepState } from './useWelcomeScreen';
 
 /** Bốn câu không trường nào chở, viết thẳng theo bảng chuỗi của hợp đồng. */
 const ERROR_TITLE = 'Không đọc được tiến độ';
