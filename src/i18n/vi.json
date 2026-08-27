@@ -469,5 +469,37 @@
         "failed": "Không xoá được tài khoản lúc này. Thử lại sau ít phút."
       }
     }
+  },
+  "onboarding": {
+    "greeting": "Chào {{name}}, bắt đầu trong ba bước",
+    "greetingFallback": "Chào bạn, bắt đầu trong ba bước",
+    "intro": "AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
+    "step1": {
+      "title": "Tạo dự án",
+      "sentence": "Khai báo tên công trình và danh sách tầng.",
+      "action": "Tạo dự án"
+    },
+    "step2": {
+      "title": "Tải bản vẽ theo từng tầng",
+      "sentence": "Kéo ảnh quét hoặc tệp CAD vào từng tầng.",
+      "action": "Tải bản vẽ",
+      "locked": "Cần tạo dự án trước."
+    },
+    "step3": {
+      "title": "Duyệt kết quả và dựng 3D",
+      "sentence": "Kiểm tra tường, cửa, phòng rồi xem mô hình.",
+      "action": "Duyệt kết quả",
+      "locked": "Cần tải bản vẽ trước."
+    },
+    "sampleProject": "Xem dự án mẫu",
+    "tutorial": "Xem hướng dẫn 2 phút",
+    "tutorialDisabled": "Hướng dẫn hai phút chưa sẵn sàng.",
+    "skip": "Bỏ qua",
+    "skipNotice": "Có thể xem lại hướng dẫn trong menu trợ giúp.",
+    "finish": "Vào danh sách dự án",
+    "errorTitle": "Không đọc được tiến độ",
+    "errorDescription": "Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.",
+    "retry": "Thử lại",
+    "forbiddenNote": "Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
   }
 }

@@ -57,6 +57,7 @@ export const ROUTE_PATTERNS = {
   listReviewDemo: '/list-review-demo',
   login: '/login',
   notFound: '*',
+  onboarding: '/onboarding',
   projectExport: `${PROJECTS_ROOT}/:id/export`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
   projectRules: `${PROJECTS_ROOT}/:id/rules`,
@@ -90,6 +91,7 @@ export const ROUTES = {
   layerObjects: ROUTE_PATTERNS.layerObjects,
   layerRooms: ROUTE_PATTERNS.layerRooms,
   login: ROUTE_PATTERNS.login,
+  onboarding: ROUTE_PATTERNS.onboarding,
   project: {
     export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
