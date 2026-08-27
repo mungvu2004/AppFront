@@ -138,6 +138,34 @@ function degradedMessageFor(degraded: readonly BillingDegradedNotice[], block: B
   return degraded.find((notice) => notice.block === block)?.message ?? null;
 }
 
+/**
+ * Dải lỗi của hợp đồng mục 4 trạng thái 4: câu nêu lý do (L-03), mã chữ đều nhỏ,
+ * một nút thử lại. Một khối, hai đường tới.
+ *
+ * `error` không chỉ mang lỗi của lượt ĐỌC. `useBillingScreen` gộp vào đó cả lỗi
+ * của ba lượt GHI — báo giá đổi gói, xác nhận đổi gói, tải hoá đơn — mà ba lượt
+ * ấy không đưa màn về `state === 'error'`: dữ liệu vẫn còn nguyên, bốn khối vẫn
+ * đúng, chỉ lệnh vừa bấm là hỏng. Nếu chỉ vẽ khối này ở trạng thái 4 thì một lượt
+ * tải hoá đơn hỏng sẽ hỏng trong im lặng, và im lặng là thứ duy nhất một màn
+ * không được phép trả lời.
+ *
+ * Nên nó vẽ bất cứ khi nào `error !== null`, chỉ khác chỗ đứng: ở trạng thái 4 nó
+ * THAY bốn khối (không có dữ liệu nào để hiện), còn ở mọi trạng thái khác nó đứng
+ * ngay dưới tiêu đề, TRÊN bốn khối vẫn đầy đủ. Đúng một lần, không hai.
+ */
+function BillingErrorBlock({ error }: { readonly error: BillingErrorNotice }) {
+  return (
+    <section className={CARD_SURFACE_CLASS}>
+      <InlineAlert
+        level="violation"
+        message={error.message}
+        action={{ label: error.retryLabel, onClick: error.onRetry }}
+      />
+      <p className="mt-2 font-mono text-[12px] text-text-muted">{error.code}</p>
+    </section>
+  );
+}
+
 export function BillingScreen({
   state,
   isReadOnly,
@@ -168,19 +196,14 @@ export function BillingScreen({
       <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-6 px-6">
         <h1 className={cn(BLOCK_WIDTH_CLASS, 'text-[24px] font-semibold text-text-primary')}>Thanh toán</h1>
 
+        {!isError && error !== null && <BillingErrorBlock error={error} />}
+
         {isReadOnly && readOnlyNotice !== null && (
           <p className={cn(BLOCK_WIDTH_CLASS, 'text-[13px] text-text-secondary')}>{readOnlyNotice}</p>
         )}
 
         {isError && error !== null ? (
-          <section className={CARD_SURFACE_CLASS}>
-            <InlineAlert
-              level="violation"
-              message={error.message}
-              action={{ label: error.retryLabel, onClick: error.onRetry }}
-            />
-            <p className="mt-2 font-mono text-[12px] text-text-muted">{error.code}</p>
-          </section>
+          <BillingErrorBlock error={error} />
         ) : isCollapsed ? (
           plan !== null && <CollapsedQuota plan={plan} />
         ) : (

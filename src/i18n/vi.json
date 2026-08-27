@@ -501,5 +501,101 @@
     "errorDescription": "Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.",
     "retry": "Thử lại",
     "forbiddenNote": "Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
+  },
+  "billing": {
+    "plans": {
+      "starter": {
+        "name": "Cơ bản",
+        "feature1": "500 m² số hoá mỗi tháng",
+        "feature2": "3 dự án đang hoạt động",
+        "feature3": "Xuất mô hình 3D độ phân giải chuẩn",
+        "feature4": "Lưu bản vẽ 30 ngày",
+        "feature5": "Hỗ trợ qua email trong giờ hành chính",
+        "feature6": "1 thành viên chỉnh sửa"
+      },
+      "growth": {
+        "name": "Chuyên nghiệp",
+        "feature1": "5.000 m² số hoá mỗi tháng",
+        "feature2": "Không giới hạn dự án đang hoạt động",
+        "feature3": "Xuất mô hình 3D độ phân giải cao",
+        "feature4": "Lưu bản vẽ không giới hạn",
+        "feature5": "Hỗ trợ ưu tiên 24/7",
+        "feature6": "5 thành viên chỉnh sửa"
+      },
+      "enterprise": {
+        "name": "Doanh nghiệp",
+        "feature1": "20.000 m² số hoá mỗi tháng",
+        "feature2": "Không giới hạn dự án và thành viên",
+        "feature3": "Xuất mô hình 3D kèm decal vật liệu",
+        "feature4": "Sao lưu bản vẽ riêng theo yêu cầu",
+        "feature5": "Quản lý tài khoản chuyên trách",
+        "feature6": "Tích hợp API riêng theo yêu cầu"
+      },
+      "currentAction": "Gói hiện tại",
+      "upgradeAction": "Nâng gói",
+      "changePlanHint": "Bảng so sánh gói ở ngay bên dưới, chọn một gói để nâng.",
+      "title": "So sánh gói",
+      "recommendedBadge": "Đề xuất",
+      "periodAriaLabel": "Kỳ thanh toán"
+    },
+    "quota": {
+      "usage": "{{used}} / {{limit}} đã số hoá trong chu kỳ này",
+      "renew": "Gia hạn ngày {{date}}",
+      "alert": "Sắp hết hạn mức. Còn {{remaining}}.",
+      "recalculating": "Đang tính lại hạn mức.",
+      "eyebrow": "Gói hiện tại",
+      "changePlan": "Đổi gói"
+    },
+    "period": {
+      "monthly": "Theo tháng",
+      "yearly": "Theo năm",
+      "monthlyUnit": "mỗi tháng",
+      "yearlyUnit": "mỗi năm"
+    },
+    "estimate": {
+      "lead": "Số hoá thủ công ngoài thị trường tốn khoảng ",
+      "middle": " mỗi m². AppFront tính ",
+      "tail": " mỗi m² cho phần diện tích đã số hoá.",
+      "areaRow": "Diện tích tháng này",
+      "unitRow": "Đơn giá",
+      "subtotalRow": "Tạm tính",
+      "title": "Ước tính"
+    },
+    "invoices": {
+      "unavailable": "Không lấy được lịch sử hoá đơn.",
+      "period": "{{from}} – {{to}}",
+      "download": "Tải hoá đơn {{code}} dạng PDF",
+      "statusPaid": "Đã thanh toán",
+      "statusPending": "Chờ thanh toán",
+      "statusOverdue": "Quá hạn",
+      "pageLabel": "Trang {{index}} / {{count}}",
+      "title": "Hoá đơn",
+      "columnCode": "Mã",
+      "columnPeriod": "Kỳ",
+      "columnArea": "Diện tích",
+      "columnAmount": "Số tiền",
+      "columnStatus": "Trạng thái",
+      "columnDownloadSr": "Tải PDF",
+      "previousPage": "Trang trước",
+      "nextPage": "Trang sau",
+      "emptyTitle": "Chưa có hoá đơn nào",
+      "emptyDescription": "Hoá đơn sẽ xuất hiện ở đây sau khi bạn bắt đầu số hoá bản vẽ."
+    },
+    "confirm": {
+      "title": "Xác nhận nâng gói",
+      "planRow": "Gói mới",
+      "remainingRow": "Phần còn lại của chu kỳ",
+      "dueRow": "Thanh toán ngay",
+      "cancel": "Huỷ",
+      "dayUnit": "{{days}} ngày"
+    },
+    "readOnlyNotice": "Chỉ quản trị viên có thể thay đổi gói.",
+    "retry": "Thử lại",
+    "screenTitle": "Thanh toán",
+    "invoiceCard": {
+      "periodLabel": "Kỳ",
+      "areaLabel": "Diện tích",
+      "amountLabel": "Số tiền"
+    }
   }
 }
