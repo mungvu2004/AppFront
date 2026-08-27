@@ -335,3 +335,130 @@ Nên sửa ghi chú ấy trong một lượt riêng (CLAUDE.md nằm ngoài ph�
 ## 8. TRẠNG THÁI BÀN GIAO
 
 Đã commit trên nhánh `h-screen`. **Chưa merge** — chờ cổng duyệt của người.
+
+---
+
+## 9. R1 FIX PASS
+
+Lượt sửa hai lỗi còn lại, commit `a62b6a4` trên `h-screen`. Cột "TRƯỚC" đo trên đúng cây
+của commit `51ce574` (kết quả của mục 1–8 ở trên), cột "SAU" đo sau lượt sửa này.
+
+### 9.1 Số đo
+
+| Bước | TRƯỚC (`51ce574`) | SAU (`a62b6a4`) | Ghi chú |
+|---|---|---|---|
+| `pnpm typecheck` | đạt (exit 0) | **đạt (exit 0)** | — |
+| `pnpm lint` | 0 lỗi · 0 cảnh báo | **0 lỗi · 0 cảnh báo** | `--max-warnings 0` |
+| `pnpm test` — file test | 188 qua / 0 hỏng (188) | **188 qua / 0 hỏng (188)** | không thêm file |
+| `pnpm test` — test case | 3 850 qua / 0 hỏng (3 850) | **3 853 qua / 0 hỏng (3 853)** | +3 case: tiêu chí (f) |
+| `pnpm cycles` | đạt | **đạt** | — |
+| `pnpm build` | đạt (exit 0) | **đạt (exit 0)** | — |
+| `pnpm length` | đạt — 0 file vượt 400 | **đạt — 0 file vượt 400** | 108 file quét, 10 vượt mức "nhắc" 250 |
+| `pnpm size` — tổng JS | 449,5 KiB / 175 KiB — VƯỢT | **449,5 KiB / 175 KiB — VƯỢT** | **đo lại thật**, không trích: dựng lại cây `51ce574`, rồi dựng lại cây sau sửa; hai lượt ra cùng một con số. Lượt này thêm **0,0 KiB**. Nợ có sẵn từ trước màn này — xem mục 6.1 |
+| `pnpm size` — tổng CSS | 8,8 KiB / 12 KiB — đạt | **8,8 KiB / 12 KiB — đạt** | — |
+| `pnpm size` — chunk lớn nhất | 132,9 KiB / 170 KiB — đạt | **132,9 KiB / 170 KiB — đạt** | — |
+
+`pnpm verify` vẫn dừng ở bước 6 ("kích thước gói"). Năm bước trước nó — typecheck, lint,
+import vòng, test + độ phủ, build — đều **đạt**; bước 7 ("độ dài file") vì thế ghi
+"chưa chạy" trong bảng của `verify`, nên nó được chạy riêng và **đạt**.
+
+### 9.2 Bộ khẳng định nghiệm thu
+
+| Mã | Đo cái gì | Ngưỡng | TRƯỚC | **SAU** |
+|---|---|---|---|---|
+| `[NGHIEM-A]` | `expectSevenStates` | 7/7 | 7/7 | **7/7** |
+| `[NGHIEM-B]` | lần cập nhật màn trong 1 giây mô phỏng lúc đang tải | ≤ 4 | 4 | **4** |
+| `[NGHIEM-C]` | trần dung lượng viết tay trong thư mục màn | 0 | 0 | **0** |
+| `[NGHIEM-D]` | `scrollIntoView` gọi trên thẻ tầng thiếu | đúng 1 | 1 | **1**, câu chặn `"Tầng 2 chưa có bản vẽ."` |
+| `[NGHIEM-E1]` | lớp ảnh hưởng kích thước bị đổi lúc kéo tệp qua | 0 | 0 | **0** |
+| `[NGHIEM-F]` | *(mới)* số chuỗi khác nhau bộ đếm đi qua khi đổi | > 2 | — | **3** — `"2 / 4"` → `"3 / 4"` → `"4 / 4 tầng đã có bản vẽ"` |
+
+### 9.3 Lỗi 1 — tiền tố "Tầng" lặp
+
+`floor.name` mà API trả về **đã là nhãn đầy đủ**. Đọc thẳng từ nguồn chứ không đoán:
+`src/mocks/spatial.ts` khai bốn tầng tên `"Tầng hầm"`, `"Tầng 1"`, `"Tầng 2"`, `"Tầng 3"`;
+`src/api/__mocks__/client.ts:63-72` chuyển thẳng `level.name` thành `Floor.name`. Không
+tầng nào của bộ mẫu mang tên trần trụi kiểu `"2"`, nên bỏ chữ `"Tầng "` khỏi mẫu câu là
+đúng cho mọi tầng — không sinh ra câu `"2 chưa có bản vẽ."` nào.
+
+Đường dự phòng duy nhất là `makeFallbackFloor` (`client.ts:74-81`), đặt `name` bằng chính
+`floorId` (`"L1"`). Câu ra là `"L1 chưa có bản vẽ."` — vẫn đọc được, vẫn nêu đúng một
+nhãn. Đó là lý do chọn cách bỏ tiền tố, thay vì cắt chuỗi khỏi `floor.name`.
+
+Ba câu sau khi sửa, nguyên văn:
+
+```
+Tầng 2 chưa có bản vẽ.
+Tầng 2 chưa nhập cao độ.
+Tầng 2 đang tải lên bản vẽ.
+```
+
+Sửa ở `useFloorUploadScreen.ts:686,698,707`. Điều phối viên mở rộng phạm vi thêm đúng ba
+chỗ mang cùng một bản sao của lỗi: `FloorUploadScreen.stories.tsx:264,389` (fixture của
+Storybook, cũng là fixture `blockedScenario` mà test màn dùng) và `.notes/contract-hook.md:157`
+(dòng tài liệu ghi chuỗi lặp như thể nó là hợp đồng).
+
+Hai khẳng định được **xiết lại**, không phải nới ra: `toContain('Tầng hầm')` xanh cả với
+`"Tầng Tầng hầm chưa có bản vẽ."`, nên nó đổi thành khẳng định nguyên câu
+(`useFloorUploadScreen.test.ts:627`); và `getByText(/Tầng 2/u)` trong
+`FloorUploadScreen.test.tsx` đổi thành `getByText('Tầng 2 chưa có bản vẽ.')`.
+
+### 9.4 Lỗi 2 — bộ đếm "3 / 4" chạy số
+
+`FloorUploadFooter.tsx` render `footer.counterLabel` — một chuỗi ghép sẵn, không có chỗ
+cho con số động. Nay chỉ vế "đã xong" đi qua `useCountUp` (**`src/hooks/useCountUp.ts`**,
+bản bọc React; `src/lib/motion/useCountUp.ts` là engine thuần, không gọi từ view — bẫy 4
+của CLAUDE.md). Thang thời lượng: `standard` = **260 ms**, một trong năm giá trị hợp lệ,
+do chính hằng `COUNT_UP_DURATION` của engine quyết định — view không viết ra con số ms nào.
+
+Bốn ràng buộc, và cách từng cái được giữ:
+
+- **Giảm chuyển động.** `useCountUp` gọi `useReducedMotion()` bên trong; không có cờ nào
+  phải truyền tay. Có bài kiểm riêng: bắt `matchMedia` trả `true` cho
+  `(prefers-reduced-motion: reduce)` rồi khẳng định con số hiện **thẳng** giá trị cuối.
+- **Trình đọc màn hình nghe giá trị CUỐI.** Con số chạy nằm trong `<span aria-hidden>`;
+  vùng sống là một `<span className="sr-only" role="status">` riêng, mang nguyên
+  `footer.counterLabel`. Không có chữ nào chạy bên trong vùng sống. Bài kiểm khẳng định
+  điều này ở **mọi khung hình** của lượt chạy, không chỉ ở khung cuối.
+- **Chữ vẫn là chữ của `copy.md`.** Phần đuôi (`" / 4 tầng đã có bản vẽ"`) **cắt ra từ
+  chính `counterLabel`**, không gõ lại. Nên `formatNumber` vẫn là nơi duy nhất viết ra
+  tổng (A15) và `.notes/copy.md` vẫn là nơi duy nhất giữ câu — không có bản sao thứ hai
+  nào để mà lệch.
+- **Không tạo component mới, không sửa file ngoài phạm vi.** Không đụng `types.ts`,
+  không đụng `src/components/**`, không đụng `tailwind.config.ts`.
+
+**Một quyết định đáng đọc kỹ: bộ đếm chạy khi ĐỔI, không chạy lúc HIỆN RA.**
+
+Bản đầu cho con số quét 0 → n ngay lần vẽ đầu. Nó làm **hỏng `[NGHIEM-B]`**: 64 lần cập
+nhật trong cửa sổ một giây thay vì 4. Nguyên nhân thật, đã truy đến gốc chứ không đoán:
+lượt chạy khởi động đúng lúc danh sách tầng về (`doneCount` 0 → 1), và trong bài kiểm ấy
+`installFakeClock` **không** giả `performance` lẫn `requestAnimationFrame` (`toFake` mặc
+định của Vitest bỏ hai thứ đó), nên mỗi khung hình chỉ nhích theo thời gian thật vài phần
+mười mili giây: lượt chạy không bao giờ kết thúc, và nó vẽ lại chân trang ở mọi khung
+hình suốt cửa sổ đo.
+
+Cách chữa **không** phải là sửa bài kiểm. `[NGHIEM-B]` đo đúng thứ nó nói là đo, và nới
+nó ra là đúng thứ R-70 cấm. Cách chữa nằm ở sản phẩm: lúc `totalCount === 0` — màn còn
+đang đọc danh sách tầng — chưa có bộ đếm nào để chạy, nên hook nhận `Number.NaN` và giá
+trị đang hiện bị xoá; lúc dữ liệu về, hook lấy `from` của lời gọi và con số đầu tiên
+**hiện thẳng**. Đây đúng là hành vi mà chính `useCountUp` ghi trong tài liệu của nó:
+*"sau một giá trị trống, đích kế tiếp chỉ đơn giản là được hiện ra — chạy lên từ 0 sẽ là
+diễn một quãng người đọc chưa từng thấy."* Mỗi lần đổi **sau đó** mới chạy, từ con số
+người đọc đang nhìn. `[NGHIEM-B]` trở lại **4**, và đặc tả "chạy số khi đổi" được giữ
+đúng chữ của nó.
+
+Ba bài kiểm mới trong `FloorUploadScreen.test.tsx`, tất cả chạy trên một đồng hồ giả
+riêng có giả cả `performance` và `requestAnimationFrame` (cùng cách `BillingScreen.test.tsx`
+đã làm — không có nó thì mọi khung mang một dấu thời gian đông cứng, số không nhích, và
+bài kiểm xanh mà không khẳng định gì, đúng thứ E.10 tồn tại để chặn):
+
+1. hiện thẳng lúc vừa vẽ ra, rồi **chạy** khi con số đổi (2 → 4), đi qua ít nhất một bước
+   giữa chừng và dừng đúng ở giá trị cuối;
+2. vùng sống đọc giá trị cuối ở **mọi** khung hình của lượt chạy;
+3. giảm chuyển động thì con số hiện luôn, không chạy.
+
+### 9.5 Không đụng tới
+
+- Thẻ hiện ra bằng keyframe `panel-rise` thay vì height+opacity — cần `tailwind.config.ts`,
+  ngoài phạm vi (R-68). Còn nguyên.
+- Cổng kích thước gói — đỏ từ trước khi có màn này, và lượt sửa này thêm 0,0 KiB. Còn nguyên.
