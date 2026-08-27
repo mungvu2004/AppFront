@@ -253,12 +253,12 @@ describe('expectVietnamese', () => {
   });
 
   it('learns a spelling from an extra lexicon', () => {
-    const container = mount('<div><span>sach</span></div>');
+    const container = mount('<div><span>huou</span></div>');
 
     expect(findNonVietnamese(container)).toEqual([]);
-    expect(findNonVietnamese(container, { lexicon: ['sách'] })[0]).toMatchObject({
+    expect(findNonVietnamese(container, { lexicon: ['hươu'] })[0]).toMatchObject({
       kind: 'unaccented',
-      suggestion: 'sách',
+      suggestion: 'hươu',
     });
   });
 
