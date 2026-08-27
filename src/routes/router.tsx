@@ -24,6 +24,7 @@ const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettin
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
 const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
+const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen').then(m => ({ default: m.FloorUploadRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -68,7 +69,7 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
   { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },
   { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
-  { path: ROUTE_PATTERNS.projectUpload, element: <Placeholder name="/projects/:id/upload" /> },
+  { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
   { path: ROUTE_PATTERNS.projectPipeline, element: <Placeholder name="/projects/:id/pipeline" /> },
   { path: ROUTE_PATTERNS.projectScale, element: <Placeholder name="/projects/:id/scale" /> },
   { path: ROUTE_PATTERNS.projectWalls, element: <RouteCanvas /> },
