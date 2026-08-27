@@ -154,7 +154,8 @@ FloorUploadBlockNotice {
 FloorUploadBlockReason {
   floorId, floorName,
   kind: 'missingFile'|'missingElevation'|'duplicateElevation'|'uploading',
-  sentence,     // "Tầng Tầng 2 chưa có bản vẽ." — đã nêu tên tầng
+  sentence,     // "Tầng 2 chưa có bản vẽ." — `floor.name` đã là nhãn đầy đủ,
+                //  KHÔNG ghép thêm chữ "Tầng" ở đầu câu
 }
 ```
 

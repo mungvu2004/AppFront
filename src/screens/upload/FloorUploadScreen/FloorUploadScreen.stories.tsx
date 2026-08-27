@@ -261,7 +261,7 @@ function footerOf(rows: readonly FloorUploadRowModel[]) {
       floorId: row.floorId,
       floorName: row.name,
       kind: 'missingFile' as const,
-      sentence: `Tầng ${row.name} chưa có bản vẽ.`,
+      sentence: `${row.name} chưa có bản vẽ.`,
     }));
 
   return {
@@ -386,7 +386,7 @@ export function blockedScenario(missingIndex: number): FloorUploadScreenViewProp
       floorId: missing.floorId,
       floorName: missing.name,
       kind: 'missingFile' as const,
-      sentence: `Tầng ${missing.name} chưa có bản vẽ.`,
+      sentence: `${missing.name} chưa có bản vẽ.`,
     },
   ];
 

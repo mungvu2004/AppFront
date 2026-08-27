@@ -31,6 +31,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { DrawingsApi } from '@/api/client';
 import { formatFileSize } from '@/lib/format/bytes';
+import { durationMs, REDUCED_MOTION_QUERY } from '@/lib/motion';
 import type {
   NetworkMonitor,
   NetworkMonitorStatus,
@@ -40,7 +41,7 @@ import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
-import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
+import { FAKE_CLOCK_START, installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { renderWithProviders } from '@/lib/testing/render';
 import {
   SEVEN_STATES,
@@ -58,7 +59,7 @@ import {
 import { FloorUploadScreenView } from './FloorUploadScreen';
 import { FloorUploadScreenContainer } from './FloorUploadScreen.container';
 import { DROP_ZONE_TEST_ID, FILE_INPUT_TEST_ID } from './FloorUploadDropZone';
-import { BLOCK_NOTICE_TEST_ID } from './FloorUploadFooter';
+import { BLOCK_NOTICE_TEST_ID, COUNTER_NUMBER_TEST_ID } from './FloorUploadFooter';
 import { createFloorUploadGateway, type FloorUploadGateway } from './floorUploadGateway';
 import { blockedScenario, scenarioFor, trayScenario } from './FloorUploadScreen.stories';
 
@@ -270,7 +271,12 @@ describe('FloorUploadScreenView — nút chính bị chặn (tiêu chí d)', () 
 
     const notice = screen.getByTestId(BLOCK_NOTICE_TEST_ID);
 
-    expect(within(notice).getByText(new RegExp(missingFloorName, 'u'))).toBeInTheDocument();
+    // Nguyên câu, không phải một mẩu: `floor.name` của API đã là `Tầng 2`, nên
+    // câu chỉ được mang nhãn tầng ĐÚNG MỘT LẦN. Một `RegExp` chỉ tìm `Tầng 2`
+    // sẽ xanh cả với `Tầng Tầng 2 chưa có bản vẽ.`.
+    const missingSentence = `${missingFloorName} chưa có bản vẽ.`;
+
+    expect(within(notice).getByText(missingSentence)).toBeInTheDocument();
 
     expect(scrollSpy).toHaveBeenCalledTimes(1);
 
@@ -282,7 +288,7 @@ describe('FloorUploadScreenView — nút chính bị chặn (tiêu chí d)', () 
     ).toContain(missingFloorName);
 
     console.log(
-      `[NGHIEM-D] ten-tang-thieu="${missingFloorName}" scroll-called=${String(scrollSpy.mock.calls.length)}`,
+      `[NGHIEM-D] cau-chan="${missingSentence}" scroll-called=${String(scrollSpy.mock.calls.length)}`,
     );
   });
 
@@ -558,5 +564,168 @@ describe('FloorUploadScreen — tốc độ cập nhật tiến trình (tiêu ch
 
     expect(uploadedCard, 'thẻ của Tầng 2 phải còn trên trang').not.toBeNull();
     expect(uploadedCard?.textContent).toContain('đã gắn kèm');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* (f) Bộ đếm chân trang chạy số khi đổi.                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bộ giả riêng cho lượt chạy số.
+ *
+ * `toFake` mặc định của Vitest **không** giả `performance` và
+ * `requestAnimationFrame`, mà `useCountUp` chạy trên đúng hai thứ đó. Để nguyên
+ * thì mọi khung hình mang cùng một dấu thời gian đông cứng, con số không nhích
+ * bước nào, và bài kiểm "bộ đếm chạy số" sẽ xanh mà không khẳng định gì — đúng
+ * thứ E.10 tồn tại để chặn. Cùng cách làm với `BillingScreen.test.tsx`, vẫn neo
+ * vào `FAKE_CLOCK_START` để hai file định dạng cùng một mốc ra cùng một chuỗi.
+ */
+function installCountUpClock(): void {
+  vi.useFakeTimers({
+    now: FAKE_CLOCK_START,
+    toFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'Date',
+      'performance',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+    ],
+  });
+}
+
+/** Một khung hình của jsdom, và số khung phủ trọn một lượt chạy 260 ms. */
+const FRAME_MS = 16;
+const RUN_FRAMES = Math.ceil(durationMs('standard') / FRAME_MS) * 2;
+
+/**
+ * Nhích đồng hồ đúng `count` khung hình, mỗi khung một lượt vẽ của React.
+ *
+ * Nhảy một phát cả 260 ms thì mọi khung rơi hết TRƯỚC khi React kịp vẽ, số nằm
+ * im, và phép đo mất nghĩa. Mỗi `act` là một vòng sự kiện thật.
+ */
+async function runFrames(count: number, onFrame?: () => void): Promise<void> {
+  for (let frame = 0; frame < count; frame += 1) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRAME_MS);
+    });
+
+    onFrame?.();
+  }
+}
+
+/** Con số nhìn thấy được, tách khỏi vùng sống mà trình đọc màn hình nghe. */
+function counterNumberText(): string {
+  return screen.getByTestId(COUNTER_NUMBER_TEST_ID).textContent ?? '';
+}
+
+/** Chuỗi vùng sống: luôn phải là giá trị CUỐI, không phải khung giữa chừng. */
+function counterStatusText(): string {
+  return screen.getByRole('status').textContent ?? '';
+}
+
+/** Bắt `matchMedia` trả lời "có, tôi muốn giảm chuyển động". */
+function preferReducedMotion(): void {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === REDUCED_MOTION_QUERY,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+describe('FloorUploadFooter — bộ đếm "3 / 4" chạy số khi đổi', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('hiện thẳng lúc vừa vẽ ra, rồi CHẠY khi con số đổi', async () => {
+    installCountUpClock();
+
+    const before = scenarioFor('partial');
+    const after = scenarioFor('success');
+
+    expect(before.footer.doneCount).not.toBe(after.footer.doneCount);
+
+    const { rerender } = renderWithProviders(<FloorUploadScreenView {...before} />);
+
+    // Lúc HIỆN RA thì không chạy: người đọc chưa từng thấy con số nào khác để
+    // mà chạy từ đó, và một lượt quét 0 → 2 lúc mở màn là chuyển động thừa.
+    expect(counterNumberText()).toBe(before.footer.counterLabel);
+
+    rerender(<FloorUploadScreenView {...after} />);
+
+    const firstFrame = counterNumberText();
+
+    // Lúc ĐỔI thì chạy: khung ngay sau lượt đổi chưa được là giá trị cuối, nếu
+    // không thì con số đã NHẢY và phần còn lại của bài kiểm xanh vô nghĩa.
+    expect(firstFrame, 'khung đầu sau lượt đổi không được đã là giá trị cuối').not.toBe(
+      after.footer.counterLabel,
+    );
+
+    const seen = new Set<string>([firstFrame]);
+
+    await runFrames(RUN_FRAMES, () => {
+      seen.add(counterNumberText());
+    });
+
+    console.log(
+      `[NGHIEM-F] khung-dau="${firstFrame}" so-khung-khac-nhau=${String(seen.size)} khung-cuoi="${counterNumberText()}"`,
+    );
+
+    // Chạy, không nhảy: một cú nhảy thẳng chỉ để lại hai chuỗi.
+    expect(
+      seen.size,
+      `bộ đếm phải đi qua ít nhất một bước giữa chừng, chỉ thấy: ${[...seen].join(' | ')}`,
+    ).toBeGreaterThan(2);
+
+    expect(counterNumberText()).toBe(after.footer.counterLabel);
+  });
+
+  it('trình đọc màn hình nghe giá trị cuối, không nghe khung giữa chừng', async () => {
+    installCountUpClock();
+
+    const before = scenarioFor('partial');
+    const after = scenarioFor('success');
+
+    const { rerender } = renderWithProviders(<FloorUploadScreenView {...before} />);
+
+    rerender(<FloorUploadScreenView {...after} />);
+
+    // Ngay khung đầu, lúc con số nhìn thấy được vẫn đang ở đầu lượt chạy.
+    expect(counterNumberText()).not.toBe(after.footer.counterLabel);
+    expect(counterStatusText()).toBe(after.footer.counterLabel);
+
+    await runFrames(RUN_FRAMES, () => {
+      expect(counterStatusText()).toBe(after.footer.counterLabel);
+    });
+  });
+
+  it('người dùng chọn giảm chuyển động thì con số hiện luôn, không chạy', async () => {
+    preferReducedMotion();
+    installCountUpClock();
+
+    const before = scenarioFor('partial');
+    const after = scenarioFor('success');
+
+    const { rerender } = renderWithProviders(<FloorUploadScreenView {...before} />);
+
+    rerender(<FloorUploadScreenView {...after} />);
+
+    expect(counterNumberText()).toBe(after.footer.counterLabel);
+
+    await runFrames(2);
+
+    expect(counterNumberText()).toBe(after.footer.counterLabel);
   });
 });

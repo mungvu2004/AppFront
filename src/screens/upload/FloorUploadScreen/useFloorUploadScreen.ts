@@ -670,6 +670,10 @@ export function useFloorUploadScreen(
   const blockReasons = useMemo<readonly FloorUploadBlockReason[]>(() => {
     const reasons: FloorUploadBlockReason[] = [];
 
+    // `floor.name` đã là nhãn đầy đủ — API trả về `Tầng 2`, `Tầng hầm`, chứ
+    // không trả về `2`. Mẫu câu trong `.notes/copy.md` viết `Tầng {{floorName}}`
+    // với `{{floorName}}` là phần số, nên ghép thêm chữ `Tầng` vào đây là đọc
+    // thành `Tầng Tầng 2 chưa có bản vẽ.`. Nhãn xuất hiện đúng một lần.
     for (const floor of floors) {
       const attachment = attachmentByFloor.get(floor.id) ?? null;
       const hasFile = attachment !== null || floor.drawings.length > 0;
@@ -679,7 +683,7 @@ export function useFloorUploadScreen(
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingFile',
-          sentence: `Tầng ${floor.name} chưa có bản vẽ.`,
+          sentence: `${floor.name} chưa có bản vẽ.`,
         });
       }
 
@@ -691,7 +695,7 @@ export function useFloorUploadScreen(
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingElevation',
-          sentence: elevationProblem ?? `Tầng ${floor.name} chưa nhập cao độ.`,
+          sentence: elevationProblem ?? `${floor.name} chưa nhập cao độ.`,
         });
       }
 
@@ -700,7 +704,7 @@ export function useFloorUploadScreen(
           floorId: floor.id,
           floorName: floor.name,
           kind: 'uploading',
-          sentence: `Tầng ${floor.name} đang tải lên bản vẽ.`,
+          sentence: `${floor.name} đang tải lên bản vẽ.`,
         });
       }
     }

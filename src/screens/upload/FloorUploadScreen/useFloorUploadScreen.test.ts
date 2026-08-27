@@ -621,7 +621,10 @@ describe('useFloorUploadScreen — nút chính', () => {
 
     expect(notice).not.toBeNull();
     expect(notice?.reasons.length).toBeGreaterThan(0);
-    expect(notice?.reasons[0]?.sentence).toContain('Tầng hầm');
+    // Nhãn tầng xuất hiện ĐÚNG MỘT LẦN: `floor.name` của API đã là `Tầng hầm`,
+    // nên câu không được ghép thêm chữ `Tầng` ở đầu. Khẳng định nguyên câu chứ
+    // không `toContain`, vì `toContain('Tầng hầm')` xanh cả với `Tầng Tầng hầm`.
+    expect(notice?.reasons[0]?.sentence).toBe('Tầng hầm chưa có bản vẽ.');
     expect(notice?.scrollTo.floorId).toBe('L-1');
     expect(harness.navigations).toHaveLength(0);
   });
