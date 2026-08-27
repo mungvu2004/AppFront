@@ -23,6 +23,7 @@ const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard'
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
+const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -83,7 +84,7 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.adminModels, element: <Placeholder name="/admin/models" /> },
   { path: ROUTE_PATTERNS.adminUsers, element: <Placeholder name="/admin/users" /> },
   { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
-  { path: ROUTE_PATTERNS.billing, element: <Placeholder name="/billing" /> },
+  { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
   { path: ROUTE_PATTERNS.designSystemStates, element: <Placeholder name="/design-system/states" /> },
   { path: ROUTE_PATTERNS.notFound, element: <Placeholder name="404" /> }
 ]);
