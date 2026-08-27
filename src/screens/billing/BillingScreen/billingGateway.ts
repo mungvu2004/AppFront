@@ -103,6 +103,17 @@ export interface BillingGateway {
   readonly read: (period: BillingPeriod) => Promise<BillingSnapshot>;
   readonly quoteChangePlan: (planId: string, period: BillingPeriod) => Promise<BillingChangePlanQuote>;
   readonly confirmChangePlan: (planId: string, period: BillingPeriod) => Promise<void>;
+  /**
+   * Tải một hoá đơn về dưới dạng PDF.
+   *
+   * Nợ **T-11**. `src/api/endpoints.ts` không có điểm cuối hoá đơn và
+   * `src/lib/export/exportPdf.ts` dựng PDF của mô hình không gian (trang bìa,
+   * diện tích phòng, vi phạm) chứ không phải chứng từ thanh toán — nên bản mock
+   * chỉ xác nhận hoá đơn có thật rồi kết thúc, không ghi ra tệp nào. Chỗ duy
+   * nhất phải sửa khi có dây thật vẫn là file này: `useBillingScreen` gọi qua
+   * `useMutation` nên nó không đổi một dòng nào.
+   */
+  readonly downloadInvoice: (invoiceId: string) => Promise<void>;
 }
 
 /**
@@ -119,6 +130,7 @@ export interface BillingGatewaySeed {
   readonly failRead?: boolean;
   readonly failQuoteChangePlan?: boolean;
   readonly failConfirmChangePlan?: boolean;
+  readonly failDownloadInvoice?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -337,6 +349,16 @@ function resolvePlan(planId: string): BillingPlanOffer {
   return plan;
 }
 
+function resolveInvoice(invoiceId: string): BillingInvoice {
+  const invoice = BILLING_GENERATED_INVOICES.find((candidate) => candidate.id === invoiceId);
+
+  if (invoice === undefined) {
+    throw new Error(`Không tìm thấy hoá đơn với mã "${invoiceId}".`);
+  }
+
+  return invoice;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Bộ nhớ trong cho gói đang dùng — xem đầu file, mã T-09.                    */
 /* -------------------------------------------------------------------------- */
@@ -414,6 +436,17 @@ export function createBillingGateway(seed: BillingGatewaySeed = {}): BillingGate
       }
 
       currentPlanId = resolvePlan(planId).id;
+    },
+
+    downloadInvoice: async (invoiceId) => {
+      if (seed.failDownloadInvoice === true) {
+        throw new Error('Không tải được hoá đơn.');
+      }
+
+      // Không có tệp nào để ghi (nợ T-11): việc thật duy nhất làm được ở đây là
+      // xác nhận hoá đơn tồn tại, và một mã lạ phải hỏng thành lỗi chứ không
+      // im lặng thành công.
+      resolveInvoice(invoiceId);
     },
   };
 }
