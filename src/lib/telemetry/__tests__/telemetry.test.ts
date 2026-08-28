@@ -53,6 +53,11 @@ const SAMPLE_EVENTS: Readonly<Record<TelemetryEventName, TelemetryEventInput>> =
     sizeKb: 8_640,
     pageCount: 4,
   },
+  'ai.started': {
+    name: 'ai.started',
+    levelCount: 4,
+    pageCount: 4,
+  },
   'ai.finished': {
     name: 'ai.finished',
     outcome: 'success',
@@ -369,6 +374,30 @@ describe('telemetry catalogue', () => {
 
     expect(parseTelemetryEvent(known)).not.toBeNull();
     expect(parseTelemetryEvent(invented)).toBeNull();
+  });
+
+  it('parses a valid ai.started event', () => {
+    const parsed = parseTelemetryEvent(SAMPLE_EVENTS['ai.started']);
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.name).toBe('ai.started');
+  });
+
+  it('drops a field ai.started does not name', () => {
+    const parsed = parseTelemetryEvent({
+      ...SAMPLE_EVENTS['ai.started'],
+      fileName: PRIVATE_FILE_NAME,
+    });
+
+    expect(parsed).not.toBeNull();
+    expect(Object.keys(parsed ?? {}).sort()).toEqual(['name', 'levelCount', 'pageCount'].sort());
+    expect(JSON.stringify(parsed)).not.toContain(PRIVATE_FILE_NAME);
+  });
+
+  it('refuses ai.started values that are not measurements', () => {
+    expect(parseTelemetryEvent({ ...SAMPLE_EVENTS['ai.started'], levelCount: '4' })).toBeNull();
+    expect(parseTelemetryEvent({ ...SAMPLE_EVENTS['ai.started'], pageCount: -1 })).toBeNull();
+    expect(parseTelemetryEvent({ ...SAMPLE_EVENTS['ai.started'], levelCount: Number.NaN })).toBeNull();
   });
 });
 
