@@ -1,0 +1,22 @@
+{
+  "_note": "Chuỗi tiếng Việt viết thẳng trong JSX của nhiệm vụ V6 (ProcessingPreviewPanel.tsx, ProcessingLogPanel.tsx). File này KHÔNG được đọc lúc chạy — chỉ để chủ sở hữu src/i18n/vi.json (nhiệm vụ I8) gộp vào. Không tự gộp: mục [KHONG DUOC SUA FILE NAO] của nhiệm vụ này cấm sửa src/i18n/vi.json.",
+  "screens": {
+    "pipeline": {
+      "processing": {
+        "previewPanel": {
+          "ariaLabel": "Xem trước bản vẽ đang xử lý",
+          "noFloorTitle": "Chưa có tầng nào để xem trước",
+          "noFloorDescription": "Panel sẽ hiện bản vẽ ngay khi có tầng bắt đầu xử lý.",
+          "waitingImage": "Đang chờ ảnh xem trước…"
+        },
+        "logPanel": {
+          "ariaLabel": "Nhật ký xử lý",
+          "lockAutoScroll": "Khoá cuộn tự động",
+          "copyLog": "Sao chép nhật ký",
+          "emptyTitle": "Chưa có dòng nhật ký nào",
+          "emptyDescription": "Nhật ký xử lý sẽ xuất hiện tại đây khi hệ thống bắt đầu ghi lại."
+        }
+      }
+    }
+  }
+}
