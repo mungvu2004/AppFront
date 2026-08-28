@@ -14,7 +14,7 @@
  *
  * A free-form `track(name, props)` looks flexible for a week and then becomes a
  * warehouse of misspelt names holding data nobody meant to collect. Here
- * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly nine
+ * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly ten
  * shapes: an event that is not one of them does not typecheck, and — because a
  * value that reached `unknown` can still be anything — does not parse either.
  * {@link parseTelemetryEvent} is the runtime half of that sentence, and the
@@ -145,7 +145,7 @@ export const SEVERITY_CODES: Readonly<Record<AppErrorSeverity, TelemetrySeverity
 };
 
 /* -------------------------------------------------------------------------- */
-/* The eight shapes.                                                           */
+/* The ten shapes.                                                             */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -162,6 +162,22 @@ const drawingUploadSchema = z.object({
   sizeKb: countSchema,
   pageCount: countSchema,
   errorKind: errorKindSchema.optional(),
+});
+
+/**
+ * The machine began reading the drawing.
+ *
+ * Paired with {@link aiFinishedSchema} so a duration between the two can be
+ * derived without a third "still running" event. `levelCount` and `pageCount`
+ * are the only counts knowable before extraction runs — how many levels were
+ * queued and how many pages the drawing holds — unlike the five counts on
+ * `ai.finished`, which exist only once extraction has actually produced
+ * something to count.
+ */
+const aiStartedSchema = z.object({
+  name: z.literal('ai.started'),
+  levelCount: countSchema,
+  pageCount: countSchema,
 });
 
 /**
@@ -323,6 +339,7 @@ const projectOpenSchema = z.object({
  */
 export const TELEMETRY_EVENT_SCHEMA = z.discriminatedUnion('name', [
   drawingUploadSchema,
+  aiStartedSchema,
   aiFinishedSchema,
   wallEditSchema,
   rulesRunSchema,
@@ -351,6 +368,7 @@ export type TelemetryEventName = TelemetryEvent['name'];
  */
 export const TELEMETRY_EVENT_NAMES = [
   'drawing.upload',
+  'ai.started',
   'ai.finished',
   'wall.edit',
   'rules.run',
@@ -362,6 +380,7 @@ export const TELEMETRY_EVENT_NAMES = [
 ] as const satisfies readonly TelemetryEventName[];
 
 export type DrawingUploadEvent = Extract<TelemetryEvent, { name: 'drawing.upload' }>;
+export type AiStartedEvent = Extract<TelemetryEvent, { name: 'ai.started' }>;
 export type AiFinishedEvent = Extract<TelemetryEvent, { name: 'ai.finished' }>;
 export type WallEditEvent = Extract<TelemetryEvent, { name: 'wall.edit' }>;
 export type RulesRunEvent = Extract<TelemetryEvent, { name: 'rules.run' }>;
@@ -371,7 +390,7 @@ export type AppFirstFrameEvent = Extract<TelemetryEvent, { name: 'app.first-fram
 export type SceneBuildEvent = Extract<TelemetryEvent, { name: 'scene.build' }>;
 export type ProjectOpenEvent = Extract<TelemetryEvent, { name: 'project.open' }>;
 
-/** Is this one of the eight names? */
+/** Is this one of the ten names? */
 export function isTelemetryEventName(value: unknown): value is TelemetryEventName {
   return (
     typeof value === 'string' && (TELEMETRY_EVENT_NAMES as readonly string[]).includes(value)
