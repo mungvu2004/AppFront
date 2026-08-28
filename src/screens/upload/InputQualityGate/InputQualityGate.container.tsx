@@ -29,6 +29,7 @@ import { useSession } from '@/hooks/useSession';
 import type { ProjectRole } from '@/types/project';
 
 import { InputQualityGateView } from './InputQualityGate';
+import type { InputQualityGateway } from './inputQualityGateway';
 import { useInputQualityGate, type InputQualityToast } from './useInputQualityGate';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
@@ -51,6 +52,15 @@ export interface InputQualityGateContainerProps {
    * hoàn tác được nhưng người dùng không bao giờ thấy lối hoàn tác — A8 hỏng.
    */
   readonly onToast?: (toast: InputQualityToast) => void;
+  /**
+   * Cổng dữ liệu. Có mặc định thật bên trong hook, nên nơi gọi bình thường bỏ
+   * trống; test và story cắm `createInputQualityGateway(createMockApiClient())`
+   * vào đúng phép ánh xạ mà bản sản phẩm dùng (R-70), cùng khuôn
+   * `FloorUploadScreenContainerProps.gateway`.
+   */
+  readonly gateway?: InputQualityGateway;
+  /** Đồng hồ tiêm được (R-29) — vé hoàn tác của A8 đọc nó. */
+  readonly now?: () => number;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
 }
@@ -78,6 +88,8 @@ function WiredInputQualityGate(props: InputQualityGateContainerProps) {
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
     ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
     ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
+    ...(props.gateway !== undefined ? { gateway: props.gateway } : {}),
+    ...(props.now !== undefined ? { now: props.now } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
