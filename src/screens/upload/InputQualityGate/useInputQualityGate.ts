@@ -151,6 +151,7 @@ const COPY = Object.freeze({
   sendCornersAction: 'Gửi bốn góc đã chọn',
   straightenedToast: 'Đã nắn thẳng bản vẽ',
   cornersToast: 'Đã gửi bốn góc khung bản vẽ',
+  regionLabelPrefix: 'Vùng ảnh có vấn đề:',
 });
 
 /** Nhãn bốn phép kiểm — tiếng Việt, viết thường kiểu câu (A6). */
@@ -572,13 +573,17 @@ export function useInputQualityGate(
 
   const regions = useMemo<readonly InputQualityRegion[]>(
     () =>
-      (activeFloor?.findings ?? []).map((finding) => ({
-        id: `${REGION_ID_PREFIX}${finding.id}`,
-        xRatio: finding.region.xRatio,
-        yRatio: finding.region.yRatio,
-        widthRatio: finding.region.widthRatio,
-        heightRatio: finding.region.heightRatio,
-      })),
+      activeFloor === null
+        ? []
+        : activeFloor.findings.map((finding) => ({
+            id: `${REGION_ID_PREFIX}${finding.id}`,
+            xRatio: finding.region.xRatio,
+            yRatio: finding.region.yRatio,
+            widthRatio: finding.region.widthRatio,
+            heightRatio: finding.region.heightRatio,
+            level: finding.severity,
+            label: `${COPY.regionLabelPrefix} ${describeFinding(finding, activeFloor).title.toLowerCase()}`,
+          })),
     [activeFloor],
   );
 

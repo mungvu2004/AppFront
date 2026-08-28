@@ -24,11 +24,12 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
 import type { ProjectRole } from '@/types/project';
 
 import { InputQualityGateView } from './InputQualityGate';
-import { useInputQualityGate } from './useInputQualityGate';
+import { useInputQualityGate, type InputQualityToast } from './useInputQualityGate';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
 const SCREEN_ID = 'input-quality-gate';
@@ -43,6 +44,13 @@ export interface InputQualityGateContainerProps {
   readonly roles?: readonly ProjectRole[];
   /** Điều hướng sau khi bấm tiếp tục hoặc tải bản vẽ khác. */
   readonly onNavigate?: (path: string) => void;
+  /**
+   * Toast hoàn tác của A8. Tiêm vào bởi nơi đã dựng `Toast.Provider` — container
+   * cố ý **không** gọi `useToast()` để màn khác mở được nó ở chỗ chưa có
+   * provider nào (R-73). Không nối dây này thì nắn thẳng và gửi bốn góc vẫn
+   * hoàn tác được nhưng người dùng không bao giờ thấy lối hoàn tác — A8 hỏng.
+   */
+  readonly onToast?: (toast: InputQualityToast) => void;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
 }
@@ -69,6 +77,7 @@ function WiredInputQualityGate(props: InputQualityGateContainerProps) {
     projectId: props.projectId,
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
     ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
+    ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
@@ -89,7 +98,7 @@ export function InputQualityGateContainer(props: InputQualityGateContainerProps)
   );
 }
 
-/** Bên trong router thật, nơi `useNavigate`/`useParams` chắc chắn tìm được provider. */
+/** Bên trong router thật và `Toast.Provider`, nên `useNavigate`/`useToast` chắc chắn tìm được provider. */
 function InputQualityGateRouteBody({
   projectId,
   roles,
@@ -97,11 +106,15 @@ function InputQualityGateRouteBody({
   projectId: string;
   roles: readonly ProjectRole[];
 }) {
+  const { addToast } = useToast();
   const navigate = useNavigate();
 
   return (
     <InputQualityGateContainer
       onNavigate={(path) => navigate(path)}
+      onToast={({ message, onUndo }) => {
+        addToast({ message, onUndo });
+      }}
       projectId={projectId}
       roles={roles}
     />
@@ -125,5 +138,9 @@ export function InputQualityGateRoute() {
     );
   }
 
-  return <InputQualityGateRouteBody projectId={id} roles={session.roles} />;
+  return (
+    <Toast.Provider>
+      <InputQualityGateRouteBody projectId={id} roles={session.roles} />
+    </Toast.Provider>
+  );
 }
