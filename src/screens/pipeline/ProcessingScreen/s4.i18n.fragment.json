@@ -1,0 +1,55 @@
+{
+  "_note": "Chuỗi tiếng Việt viết thẳng trong JSX ở khung S4 (src/screens/pipeline/ProcessingScreen). File này KHÔNG được đọc lúc chạy — chỉ để chủ sở hữu src/i18n/vi.json (nhiệm vụ I8) gộp vào. Không tự gộp: mục [KHONG DUOC SUA FILE NAO] của nhiệm vụ này cấm sửa src/i18n/vi.json.",
+  "screens": {
+    "pipeline": {
+      "processing": {
+        "breadcrumb": {
+          "projects": "Dự án",
+          "pipeline": "Xử lý"
+        },
+        "error": {
+          "retry": "Thử lại",
+          "goToSupport": "Liên hệ hỗ trợ"
+        },
+        "tabs": {
+          "switchAriaLabel": "Chuyển tab cột phải",
+          "preview": "Xem trước",
+          "log": "Nhật ký"
+        },
+        "actions": {
+          "runInBackground": "Chạy nền",
+          "cancel": "Huỷ xử lý"
+        },
+        "cancelConfirm": {
+          "ariaLabel": "Xác nhận huỷ xử lý",
+          "message": "Bạn có chắc muốn huỷ xử lý?",
+          "confirm": "Xác nhận huỷ",
+          "dismiss": "Đóng"
+        },
+        "floorChips": {
+          "ariaLabel": "Tiến độ theo tầng"
+        },
+        "stepList": {
+          "ariaLabel": "Các bước xử lý"
+        },
+        "previewPanel": {
+          "ariaLabel": "Xem trước bản vẽ đang xử lý"
+        },
+        "logPanel": {
+          "ariaLabel": "Nhật ký xử lý",
+          "lockAutoScroll": "Khoá cuộn tự động",
+          "copyLog": "Sao chép nhật ký"
+        },
+        "summary": {
+          "ariaLabel": "Báo cáo tổng kết",
+          "reviewWalls": "Xem lại tường",
+          "calibrateScale": "Hiệu chỉnh tỉ lệ"
+        },
+        "missingProject": {
+          "title": "Không xác định được dự án",
+          "message": "Đường dẫn thiếu mã dự án, nên không biết phải mở màn xử lý của dự án nào."
+        }
+      }
+    }
+  }
+}
