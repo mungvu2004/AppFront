@@ -59,6 +59,24 @@ export interface InputQualityRegion {
   readonly heightRatio: number;
   /** Góc xoay của khung vùng, độ. Vắng mặt nghĩa là vùng không xoay. */
   readonly rotationDeg?: number;
+  /**
+   * Mức của vấn đề vùng này khoanh — đặc tả bắt viền vẽ theo mức: viền mức vi
+   * phạm quanh góc bị cắt, viền mức cần chú ý quanh vùng mờ.
+   *
+   * Nằm ở đây chứ không ở phát hiện vì cột trái **chỉ** nhận `image`
+   * (`InputQualityImagePanelProps`): không có trường này thì panel ảnh không
+   * biết tô viền màu gì, và đó là thứ duy nhất giữ lời hứa "mọi phát hiện phải
+   * neo vào đúng vùng ảnh nó nói tới" ở phía hình.
+   */
+  readonly level: QualityLevel;
+  /**
+   * Câu tiếng Việt nói vùng này là vấn đề gì, cho `aria-label`.
+   *
+   * A12 nói bàn phím là đường đi hạng nhất: một khung màu không có tên là một
+   * khung mà người dùng trình đọc màn hình không bao giờ biết tới. Hook điền
+   * câu này; view chỉ in ra.
+   */
+  readonly label: string;
 }
 
 /** Một góc kéo được của chế độ "chọn bốn góc" (`onDragCorner`). */
