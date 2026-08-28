@@ -552,6 +552,143 @@
       "uploadComplete": "Tải xong {{fileName}}"
     }
   },
+  "inputQualityGate": {
+    "breadcrumb": {
+      "projects": "Dự án",
+      "current": "Kiểm tra chất lượng đầu vào"
+    },
+    "loadError": {
+      "title": "Không đọc được kết quả kiểm tra chất lượng",
+      "emptyTitle": "Chưa có kết quả để xem",
+      "emptyDescription": "Thử tải lại bản vẽ để hệ thống đo lại chất lượng đầu vào."
+    },
+    "missingProjectTitle": "Không xác định được dự án",
+    "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở màn kiểm tra chất lượng của dự án nào.",
+    "imagePanel": {
+      "sectionLabel": "Khung xem bản vẽ",
+      "regionGroupLabel": "Vùng có vấn đề trên bản vẽ",
+      "skewLabelPrefix": "Độ nghiêng đo được so với phương ngang: ",
+      "corner": {
+        "groupLabel": "Bốn góc bản vẽ, kéo để chỉnh khung",
+        "hint": "Kéo bằng chuột, hoặc dùng phím mũi tên khi tay nắm đang được chọn.",
+        "labelPrefix": "Góc ",
+        "labelJoin": " bên ",
+        "top": "trên",
+        "bottom": "dưới",
+        "left": "trái",
+        "right": "phải"
+      },
+      "comparison": {
+        "label": "Tỉ lệ lộ ảnh sau khi nắn",
+        "hint": "Phần bên trái đường chia là ảnh đã nắn, bên phải là ảnh gốc.",
+        "unit": "%"
+      }
+    },
+    "reportPanel": {
+      "sectionLabel": "Báo cáo chất lượng",
+      "qualityLevel": {
+        "good": "tốt",
+        "attention": "cần chú ý",
+        "poor": "kém"
+      },
+      "findingsHeading": "Phát hiện",
+      "floorsHeading": "Các tầng đã đo",
+      "column": {
+        "floor": "tầng",
+        "summary": "kết quả đo",
+        "level": "mức"
+      },
+      "notMeasured": "chưa đo",
+      "remainingSuffix": " phát hiện còn lại",
+      "resolvedSuffix": "đã xử lý"
+    },
+    "footer": {
+      "sectionLabel": "Hành động tiếp theo",
+      "acknowledgement": "Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này",
+      "primary": "Tiếp tục xử lý",
+      "secondary": "Tải bản vẽ khác",
+      "continueBlockedAcknowledgement": "Đánh dấu ô xác nhận bên trên rồi thử lại.",
+      "continueBlockedGeneric": "Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo."
+    },
+    "image": {
+      "altText": "Bản vẽ tầng {{floorName}}, đang xem để kiểm tra chất lượng đầu vào"
+    },
+    "region": {
+      "labelPrefix": "Vùng ảnh có vấn đề:"
+    },
+    "metric": {
+      "resolution": "độ phân giải",
+      "skew": "độ nghiêng",
+      "contrast": "độ tương phản",
+      "noise": "nhiễu"
+    },
+    "recommendation": {
+      "resolution": "Nên dùng ảnh có cạnh ngắn từ {{goodShortEdgePx}} px trở lên.",
+      "skew": "Bấm \"Tự động nắn\" để hệ thống xoay ảnh về phương ngang.",
+      "contrast": "Quét lại với nền sáng đều hơn để nét mảnh không rụng khỏi ảnh.",
+      "noise": "Quét lại ở chế độ ảnh nét và không nén mạnh để bớt đốm giả."
+    },
+    "finding": {
+      "resolutionTooLow": {
+        "title": "Độ phân giải thấp",
+        "consequence": "Độ phân giải thấp — {{resolution}}. Cạnh ngắn chỉ {{shortEdgePx}} px, nên tường ngăn mỏng nhất chỉ còn vài pixel bề dày và bước dò có thể bỏ sót nó. Nên dùng ảnh có cạnh ngắn từ {{goodShortEdgePx}} px trở lên."
+      },
+      "skewDetected": {
+        "title": "Ảnh bị nghiêng",
+        "consequence": "Ảnh bị nghiêng {{angle}}. Ở góc này hai đầu một bức tường dài lệch nhau đủ để bước bắt trục vuông góc đọc chúng thành hai bức khác nhau. Hệ thống có thể tự nắn."
+      },
+      "frameNotFound": {
+        "title": "Không tìm thấy khung bản vẽ",
+        "consequence": "Không tìm thấy khung bản vẽ. Không có khung thì hệ thống không biết đâu là mép bản vẽ, nên tỉ lệ quy đổi ra kích thước thật lệch theo và mọi kích thước đọc được đều sai. Bạn có thể tự chọn 4 góc."
+      },
+      "lowContrast": {
+        "title": "Độ tương phản thấp",
+        "consequence": "Độ tương phản thấp — {{score}}. Ở mức này nét mảnh nhất của bản vẽ rụng khỏi ảnh ngay ở bước nhị phân hoá, nên đường ghi kích thước đứt quãng và ô mở mất nét đứt của nó. Nên quét lại với nền sáng đều hơn."
+      },
+      "highNoise": {
+        "title": "Nhiễu cao",
+        "consequence": "Nhiễu cao — {{score}}. Ở mức này đốm nhiễu dính lại thành vệt dài ngang vạch thật, nên bước dò đọc chúng thành tường không tồn tại. Nên quét lại ở chế độ ảnh nét, không nén mạnh."
+      },
+      "unknown": {
+        "title": "Phát hiện chưa có mô tả",
+        "consequence": "Hệ thống báo mã {{code}} nhưng chưa có câu giải thích cho mã này. Hãy xem vùng được đánh dấu trên ảnh và kiểm tra lại bản vẽ trước khi chạy bước dò."
+      }
+    },
+    "findingAction": {
+      "straighten": "Tự động nắn",
+      "pickCorners": "Chọn góc thủ công",
+      "sendCorners": "Gửi bốn góc đã chọn"
+    },
+    "floorRow": {
+      "notMeasured": "chưa đo",
+      "noFinding": "không có phát hiện",
+      "findingCount": "{{count}} phát hiện cần chú ý"
+    },
+    "forecast": {
+      "text": "Dự kiến độ tin cậy trung bình {{confidence}} — {{confidenceLabel}}",
+      "missing": "Chưa dự kiến được độ tin cậy vì bản vẽ chưa đo xong."
+    },
+    "notice": {
+      "pass": "Bản vẽ đạt yêu cầu. Độ phân giải {{resolution}}, độ nghiêng {{angle}}.",
+      "partialCounted": "Mới có {{measuredCount}}/{{totalCount}} tầng đo xong.",
+      "partialActiveFloor": "Bản vẽ tầng {{floorName}} chưa chạy đủ bốn phép kiểm nên chưa có mức để nói.",
+      "partialPending": "Còn chờ: {{floorNames}}.",
+      "noFloor": "Dự án chưa có tầng nào tải bản vẽ lên, nên chưa có gì để đo.",
+      "loadFailureFallback": "Không đọc được kết quả kiểm tra chất lượng của bản vẽ này."
+    },
+    "toast": {
+      "straightened": "Đã nắn thẳng bản vẽ",
+      "corners": "Đã gửi bốn góc khung bản vẽ"
+    },
+    "announce": {
+      "floorChanged": "Đang xem bản vẽ tầng {{floorName}}"
+    },
+    "shortcut": {
+      "previousFloor": "xem bản vẽ của tầng liền trước",
+      "nextFloor": "xem bản vẽ của tầng liền sau",
+      "exitCornerMode": "thoát chế độ chọn bốn góc khung bản vẽ"
+    }
+  },
   "billing": {
     "plans": {
       "starter": {

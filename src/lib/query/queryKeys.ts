@@ -6,6 +6,7 @@ type QueryDomain =
   | 'library'
   | 'progress'
   | 'project'
+  | 'quality'
   | 'room'
   | 'space'
   | 'user'
@@ -53,6 +54,7 @@ const floorDetailRoot = freezeKey(['floor', 'detail'] as const);
 const drawingByFloorRoot = freezeKey(['drawing', 'byFloor'] as const);
 const progressByFloorRoot = freezeKey(['progress', 'byFloor'] as const);
 const spaceByFloorRoot = freezeKey(['space', 'byFloor'] as const);
+const qualityAssessmentRoot = freezeKey(['quality', 'assessment'] as const);
 const roomByFloorRoot = freezeKey(['room', 'byFloor'] as const);
 const violationByProjectRoot = freezeKey(['violation', 'byProject'] as const);
 const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
@@ -88,6 +90,21 @@ export const queryKeys = {
     members: createQueryKeyFactory(projectMembersRoot, (projectId: string) => [
       ...projectMembersRoot,
       projectId,
+    ] as const),
+  },
+  /**
+   * Phép đo chất lượng ảnh của một tầng.
+   *
+   * Khoá theo `floorId` chứ không theo `uploadId`: câu hỏi là "bản vẽ đang dùng
+   * của tầng này tốt tới đâu", và nó vẫn là cùng câu hỏi sau khi người dùng tải
+   * lên một lượt khác — xem `ENDPOINTS.quality.assess`. Lượt đọc trả về trạng
+   * thái của mọi tầng trong dự án, nên hai tầng khác nhau vẫn là hai khoá khác
+   * nhau: mỗi khoá giữ một lượt đọc, và tầng đang xem là thứ phân biệt chúng.
+   */
+  quality: {
+    assessment: createQueryKeyFactory(qualityAssessmentRoot, (floorId: string) => [
+      ...qualityAssessmentRoot,
+      floorId,
     ] as const),
   },
   room: {

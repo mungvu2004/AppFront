@@ -241,3 +241,14 @@ export const ProjectSchema = z
 export type Project = z.infer<typeof ProjectSchema>;
 export type ProjectWire = z.input<typeof ProjectSchema>;
 export type ProjectStatus = Project['status'];
+
+/* -------------------------------------------------------------------------- */
+/* Chất lượng ảnh đầu vào.                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Nhóm schema T-04, ở file riêng vì nó là nhóm duy nhất mượn một kiểu của
+ * `src/domain` — xem đầu `./quality.ts`. Nối lại qua đây để `./contracts.ts`
+ * và `./client.ts` vẫn chỉ biết đúng một cửa vào cho mọi schema.
+ */
+export * from './quality';

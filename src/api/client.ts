@@ -3,17 +3,20 @@ import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/ht
 import type { z, ZodTypeAny } from 'zod';
 import {
   FloorSchema,
+  ImageQualityAssessmentSchema,
   ProgressSchema,
   ProjectSchema,
   VersionSchema,
   toFloorWirePayload,
   toProjectWirePayload,
+  type DrawingCornersInput,
   type Floor,
   type FloorElevationMm,
   type FloorHeightMm,
   type FloorName,
   type FloorOrder,
   type FloorPayload,
+  type ImageQualityAssessment,
   type Progress,
   type Project,
   type ProjectPayload,
@@ -23,7 +26,22 @@ import { ENDPOINTS } from './endpoints';
 import type { RegisterInput, SignInInput } from './schemas';
 import { decode, safeParseList } from './schemas/decode';
 
-export type { Drawing, Floor, Progress, Project, User, Version } from './contracts';
+export type {
+  Drawing,
+  DrawingCornersInput,
+  DrawingFrame,
+  Floor,
+  FloorImageQuality,
+  ImageQualityAssessment,
+  ImageQualityFinding,
+  ImageQualityMeasurement,
+  Progress,
+  Project,
+  QualityPoint,
+  QualityRegion,
+  User,
+  Version,
+} from './contracts';
 export type { RegisterInput, SignInInput } from './schemas';
 
 export type ApiError = HttpError | AppError;
@@ -134,6 +152,22 @@ export interface ReadSpatialVersionInput extends RequestOptions {
   versionId: string;
 }
 
+export interface ReadImageQualityInput extends RequestOptions {
+  floorId: string;
+  projectId: string;
+}
+
+export interface StraightenDrawingInput extends WriteRequestOptions {
+  floorId: string;
+  projectId: string;
+}
+
+export interface SetDrawingCornersInput extends WriteRequestOptions {
+  body: DrawingCornersInput;
+  floorId: string;
+  projectId: string;
+}
+
 export interface ProjectsApi {
   create(input: CreateProjectInput): Promise<ApiResult<Project>>;
   delete(input: DeleteProjectInput): Promise<ApiResult<Project>>;
@@ -174,6 +208,28 @@ export interface DrawingsApi {
   sendChunk(input: SendDrawingChunkInput): Promise<ApiResult<Progress>>;
 }
 
+/**
+ * How good the drawing behind one floor is, and the two ways to improve it.
+ *
+ * Shaped like `DrawingsApi` — every method decodes through a schema, every
+ * write takes an idempotency key — with one difference worth naming: both
+ * writes return the freshly re-run `ImageQualityAssessment` rather than a
+ * `Progress`. Straightening and re-cropping finish in one round trip on the
+ * server, so there is no job to poll; handing the new reading straight back
+ * lets the caller seed `queryKeys.quality.assessment(floorId)` instead of
+ * invalidating and waiting for a second request to answer the same question.
+ *
+ * Nothing here classifies anything. The three levels a measurement falls into
+ * are decided by `src/domain/quality`, from the raw numbers this group carries
+ * — a wire payload that already said "poor" would be a second opinion nobody
+ * could check against the thresholds.
+ */
+export interface QualityApi {
+  assess(input: ReadImageQualityInput): Promise<ApiResult<ImageQualityAssessment>>;
+  setCorners(input: SetDrawingCornersInput): Promise<ApiResult<ImageQualityAssessment>>;
+  straighten(input: StraightenDrawingInput): Promise<ApiResult<ImageQualityAssessment>>;
+}
+
 export interface SpatialApi {
   patchFloor(input: PatchSpatialFloorInput): Promise<ApiResult<Floor>>;
   readFloor(input: ReadSpatialFloorInput): Promise<ApiResult<Floor>>;
@@ -208,6 +264,7 @@ export interface ApiClient {
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   projects: ProjectsApi;
+  quality: QualityApi;
   spatial: SpatialApi;
 }
 
@@ -392,6 +449,32 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
         await callPatch(http, ENDPOINTS.projects.update(projectId), toProjectWirePayload(body), input),
         ProjectSchema,
         'projects.update',
+      );
+    },
+  },
+  quality: {
+    assess: async ({ floorId, projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.quality.assess(projectId, floorId), signal),
+        ImageQualityAssessmentSchema,
+        'quality.assess',
+      ),
+    setCorners: async (input) => {
+      const { body, floorId, projectId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.quality.corners(projectId, floorId), body, input),
+        ImageQualityAssessmentSchema,
+        'quality.setCorners',
+      );
+    },
+    straighten: async (input) => {
+      const { floorId, projectId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.quality.straighten(projectId, floorId), {}, input),
+        ImageQualityAssessmentSchema,
+        'quality.straighten',
       );
     },
   },
