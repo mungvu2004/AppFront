@@ -502,6 +502,56 @@
     "retry": "Thử lại",
     "forbiddenNote": "Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
   },
+  "floorUpload": {
+    "breadcrumb": {
+      "projects": "Dự án",
+      "upload": "Tải lên bản vẽ"
+    },
+    "dropZone": {
+      "title": "Kéo thả bản vẽ vào đây, hoặc chọn tệp",
+      "selectFile": "Chọn tệp",
+      "formats": "Định dạng hỗ trợ: {{formats}}. Kích thước tối đa: {{maxSize}}."
+    },
+    "floorCard": {
+      "elevation": "cao độ",
+      "height": "chiều cao thông thuỷ",
+      "fileInfo": "{{fileName}} · {{fileSize}} · {{pageCount}} trang",
+      "reassignLabel": "Gán cho tầng khác",
+      "pagePickerLabel": "Chọn trang",
+      "menuButton": "Tùy chọn của tầng {{floorName}}"
+    },
+    "status": {
+      "waiting": "chờ xử lý",
+      "uploading": "đang tải lên",
+      "attached": "đã gắn kèm",
+      "error": "lỗi"
+    },
+    "cadPill": "Nhánh CAD · độ chính xác cao",
+    "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
+    "unassignedTray": "Tệp chưa gán tầng",
+    "emptyState": "Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.",
+    "offlineBanner": "Đang làm việc ngoại tuyến",
+    "footer": {
+      "counter": "{{done}} / {{total}} tầng đã có bản vẽ",
+      "submit": "Bắt đầu xử lý"
+    },
+    "blockedSubmit": {
+      "title": "Không thể bắt đầu xử lý",
+      "missingFile": "Tầng {{floorName}} chưa có bản vẽ.",
+      "missingElevation": "Tầng {{floorName}} chưa nhập cao độ.",
+      "duplicateElevation": "Hai tầng {{floor1}} và {{floor2}} có cùng cao độ {{elevation}}.",
+      "uploading": "Tầng {{floorName}} đang tải lên bản vẽ."
+    },
+    "removeAction": {
+      "aria": "Xoá bản vẽ {{fileName}}",
+      "undo": "Đã xoá bản vẽ {{fileName}}"
+    },
+    "readOnlyNotice": "Vai hiện tại chỉ được xem danh sách tệp, không tải lên và không sửa.",
+    "aria": {
+      "uploadProgress": "Đã tải {{percent}}% của {{total}}",
+      "uploadComplete": "Tải xong {{fileName}}"
+    }
+  },
   "billing": {
     "plans": {
       "starter": {
