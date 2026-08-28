@@ -52,6 +52,27 @@ export const ENDPOINTS = {
     read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
     update: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
   },
+  /**
+   * Phép đo chất lượng của bản vẽ một tầng, và hai cách sửa nó — T-05.
+   *
+   * Cả ba đều nhận `(projectId, floorId)` chứ không `uploadId`: cái màn hỏi là
+   * "bản vẽ đang dùng của tầng này tốt tới đâu", một câu hỏi sống lâu hơn lượt
+   * tải lên đã sinh ra nó. Khoá cache `queryKeys.quality.assessment(floorId)`
+   * theo đúng cách đọc đó.
+   *
+   * `straighten` và `corners` là hai lối sửa cho hai phát hiện khác nhau — ảnh
+   * nghiêng thì máy nắn được, khung bản vẽ không tìm ra thì phải người chỉ. Cả
+   * hai trả về chính phép đo đã chạy lại, nên nơi gọi có ngay kết quả mới thay
+   * vì phải đọc lại một lượt nữa.
+   */
+  quality: {
+    assess: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality`,
+    corners: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality/corners`,
+    straighten: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality/straighten`,
+  },
   spatial: {
     floor: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial`,

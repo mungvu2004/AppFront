@@ -32,6 +32,27 @@ describe('invalidationMap', () => {
     ]);
   });
 
+  it('scopes straightenDrawing to the quality reading and the drawing of that floor', () => {
+    expect(invalidationMap.straightenDrawing({ floorId, projectId })).toEqual([
+      queryKeys.quality.assessment(floorId),
+      queryKeys.drawing.byFloor(floorId),
+    ]);
+  });
+
+  it('scopes setDrawingCorners to the same two keys as straightenDrawing', () => {
+    expect(invalidationMap.setDrawingCorners({ floorId, projectId })).toEqual(
+      invalidationMap.straightenDrawing({ floorId, projectId }),
+    );
+  });
+
+  it('leaves the detection read models alone after a straighten, since no detection has re-run', () => {
+    const keys = invalidationMap.straightenDrawing({ floorId, projectId });
+
+    expect(keys).not.toContainEqual(queryKeys.space.byFloor(floorId));
+    expect(keys).not.toContainEqual(queryKeys.room.byFloor(floorId));
+    expect(keys).not.toContainEqual(queryKeys.violation.byProject(projectId));
+  });
+
   it('scopes restoreVersion to every read model of that floor/project', () => {
     expect(invalidationMap.restoreVersion({ floorId, projectId })).toEqual([
       queryKeys.floor.detail(floorId),
@@ -55,6 +76,21 @@ describe('applyInvalidation', () => {
     queryClient.setQueryData(queryKeys.violation.byProject(projectId), { violations: [] });
     queryClient.setQueryData(queryKeys.space.byFloor(otherFloorId), { walls: [] });
     queryClient.setQueryData(queryKeys.room.byFloor(otherFloorId), { rooms: [] });
+    queryClient.setQueryData(queryKeys.quality.assessment(floorId), { floors: [] });
+    queryClient.setQueryData(queryKeys.quality.assessment(otherFloorId), { floors: [] });
+  });
+
+  it('invalidates the quality reading of the straightened floor only', () => {
+    applyInvalidation(queryClient, 'straightenDrawing', { floorId, projectId });
+
+    expect(queryClient.getQueryState(queryKeys.quality.assessment(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.quality.assessment(otherFloorId))?.isInvalidated).toBeFalsy();
+  });
+
+  it('invalidates the quality reading after the four corners are set by hand', () => {
+    applyInvalidation(queryClient, 'setDrawingCorners', { floorId, projectId });
+
+    expect(queryClient.getQueryState(queryKeys.quality.assessment(floorId))?.isInvalidated).toBe(true);
   });
 
   it('invalidates space, room, and violation keys of the edited floor on editWall', () => {

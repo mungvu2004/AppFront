@@ -11,6 +11,8 @@ export const WRITE_OPERATIONS = [
   'changeAxis',
   'rerunRules',
   'restoreVersion',
+  'straightenDrawing',
+  'setDrawingCorners',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -29,6 +31,8 @@ export interface WriteOperationParamsMap {
   changeAxis: FloorScopedParams;
   rerunRules: FloorScopedParams;
   restoreVersion: FloorScopedParams;
+  straightenDrawing: FloorScopedParams;
+  setDrawingCorners: FloorScopedParams;
 }
 
 type InvalidationMap = {
@@ -86,6 +90,28 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.room.byFloor(floorId),
     queryKeys.violation.byProject(projectId),
     queryKeys.version.byFloor(floorId),
+  ],
+
+  /**
+   * Nắn ảnh và cắt lại bốn góc đổi cùng hai thứ, nên chúng làm mất hiệu lực
+   * cùng hai khoá.
+   *
+   * Phép đo là thứ hiển nhiên: cả hai thao tác chạy lại nó. Bản vẽ thì kém hiển
+   * nhiên hơn — nhưng nắn xong thì đúng những pixel mà `drawing.byFloor` đang
+   * giữ đã xoay đi, và cắt lại khung thì chúng đã bị xén; giữ lại bản cũ nghĩa
+   * là màn kế tiếp vẽ một tấm ảnh không còn tồn tại. Không đụng tới
+   * `space`/`room`/`violation`: chưa bước dò nào chạy trên ảnh mới, nên các mô
+   * hình đó vẫn đúng như trước, và làm mất hiệu lực chúng chỉ tốn một lượt gọi
+   * trả về đúng dữ liệu vừa vứt đi.
+   */
+  straightenDrawing: ({ floorId }) => [
+    queryKeys.quality.assessment(floorId),
+    queryKeys.drawing.byFloor(floorId),
+  ],
+
+  setDrawingCorners: ({ floorId }) => [
+    queryKeys.quality.assessment(floorId),
+    queryKeys.drawing.byFloor(floorId),
   ],
 };
 

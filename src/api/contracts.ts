@@ -7,6 +7,16 @@ export const ProjectSchema = sourceSchemas.ProjectSchema;
 export const UserSchema = sourceSchemas.UserSchema;
 export const VersionSchema = sourceSchemas.VersionSchema;
 
+/* Chất lượng ảnh đầu vào — T-04. Cùng cửa ra với sáu schema tài nguyên trên. */
+export const DrawingCornersInputSchema = sourceSchemas.DrawingCornersInputSchema;
+export const DrawingFrameSchema = sourceSchemas.DrawingFrameSchema;
+export const FloorImageQualitySchema = sourceSchemas.FloorImageQualitySchema;
+export const ImageQualityAssessmentSchema = sourceSchemas.ImageQualityAssessmentSchema;
+export const ImageQualityFindingSchema = sourceSchemas.ImageQualityFindingSchema;
+export const ImageQualityMeasurementSchema = sourceSchemas.ImageQualityMeasurementSchema;
+export const QualityPointSchema = sourceSchemas.QualityPointSchema;
+export const QualityRegionSchema = sourceSchemas.QualityRegionSchema;
+
 export type Drawing = sourceSchemas.Drawing;
 export type DrawingWire = sourceSchemas.DrawingWire;
 export type Floor = sourceSchemas.Floor;
@@ -19,6 +29,22 @@ export type User = sourceSchemas.User;
 export type UserWire = sourceSchemas.UserWire;
 export type Version = sourceSchemas.Version;
 export type VersionWire = sourceSchemas.VersionWire;
+
+export type DrawingCornersInput = sourceSchemas.DrawingCornersInput;
+export type DrawingFrame = sourceSchemas.DrawingFrame;
+export type DrawingFrameWire = sourceSchemas.DrawingFrameWire;
+export type FloorImageQuality = sourceSchemas.FloorImageQuality;
+export type FloorImageQualityWire = sourceSchemas.FloorImageQualityWire;
+export type ImageQualityAssessment = sourceSchemas.ImageQualityAssessment;
+export type ImageQualityAssessmentWire = sourceSchemas.ImageQualityAssessmentWire;
+export type ImageQualityFinding = sourceSchemas.ImageQualityFinding;
+export type ImageQualityFindingWire = sourceSchemas.ImageQualityFindingWire;
+export type ImageQualityMeasurement = sourceSchemas.ImageQualityMeasurement;
+export type ImageQualityMeasurementWire = sourceSchemas.ImageQualityMeasurementWire;
+export type QualityPoint = sourceSchemas.QualityPoint;
+export type QualityPointWire = sourceSchemas.QualityPointWire;
+export type QualityRegion = sourceSchemas.QualityRegion;
+export type QualityRegionWire = sourceSchemas.QualityRegionWire;
 
 export type ProjectStatus = Project['status'];
 export type FloorAreaM2 = Floor['areaM2'];
