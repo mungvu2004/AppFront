@@ -784,5 +784,104 @@
       "areaLabel": "Diện tích",
       "amountLabel": "Số tiền"
     }
+  },
+  "processingScreen": {
+    "breadcrumb": {
+      "projects": "Dự án",
+      "pipeline": "Xử lý"
+    },
+    "actions": {
+      "runInBackground": "Để chạy nền và thông báo cho tôi",
+      "cancel": "Huỷ xử lý"
+    },
+    "cancelConfirm": {
+      "ariaLabel": "Xác nhận huỷ xử lý",
+      "question": "Huỷ lượt xử lý này?",
+      "confirm": "Xác nhận huỷ",
+      "dismiss": "Giữ nguyên"
+    },
+    "error": {
+      "retry": "Thử lại",
+      "goToSupport": "Liên hệ hỗ trợ"
+    },
+    "tabs": {
+      "ariaLabel": "Xem trước hoặc nhật ký",
+      "preview": "Xem trước",
+      "log": "Nhật ký"
+    },
+    "empty": {
+      "title": "Chưa có bước nào để theo dõi",
+      "description": "Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây."
+    },
+    "floorChips": {
+      "ariaLabel": "Tiến độ theo tầng"
+    },
+    "floorObjects": {
+      "ariaLabel": "Số đối tượng đã nhận theo tầng"
+    },
+    "stepList": {
+      "ariaLabel": "Các bước xử lý",
+      "openDetailPrefix": "Mở chi tiết bước",
+      "closeDetailPrefix": "Đóng chi tiết bước"
+    },
+    "stepBar": {
+      "ariaLabel": "Bước đang xử lý"
+    },
+    "previewPanel": {
+      "ariaLabel": "Xem trước bản vẽ đang xử lý",
+      "noFloorTitle": "Chưa có tầng nào để xem trước",
+      "noFloorDescription": "Panel sẽ hiện bản vẽ ngay khi có tầng bắt đầu xử lý.",
+      "waitingImage": "Đang chờ ảnh xem trước…"
+    },
+    "logPanel": {
+      "ariaLabel": "Nhật ký xử lý",
+      "lockAutoScroll": "Khoá cuộn tự động",
+      "copyLog": "Sao chép nhật ký",
+      "emptyTitle": "Chưa có dòng nhật ký nào",
+      "emptyDescription": "Nhật ký xử lý sẽ xuất hiện tại đây khi hệ thống bắt đầu ghi lại."
+    },
+    "summary": {
+      "ariaLabel": "Báo cáo tổng kết",
+      "reviewWalls": "Duyệt lớp tường",
+      "calibrateScale": "Hiệu chỉnh tỷ lệ",
+      "lowConfidence": "Có {{count}} mức độ tin cậy dưới {{threshold}} cần bạn xem lại.",
+      "noLowConfidence": "Không có mức độ tin cậy nào dưới {{threshold}}."
+    },
+    "missingProject": {
+      "title": "Không xác định được dự án",
+      "message": "Đường dẫn thiếu mã dự án, nên không biết phải mở màn xử lý của dự án nào."
+    },
+    "stageStatus": {
+      "queued": "đang chờ",
+      "running": "đang xử lý",
+      "done": "đã xong",
+      "failed": "lỗi"
+    },
+    "units": {
+      "floor": "tầng",
+      "wall": "tường",
+      "object": "đối tượng",
+      "dimensionChain": "chuỗi kích thước",
+      "room": "phòng"
+    },
+    "step": {
+      "remaining": "còn khoảng {{duration}}",
+      "errorFallback": "Bước này gặp lỗi nên không hoàn tất được."
+    },
+    "overall": {
+      "doneFloors": "Đã xong {{done}}/{{total}} tầng",
+      "withRemaining": "{{doneClause}} · Còn lại khoảng {{duration}}"
+    },
+    "queue": {
+      "waiting": "Đang chờ hàng đợi — vị trí {{position}}"
+    },
+    "partialNotice": {
+      "someFloorsFailed": "{{floors}} gặp lỗi. Các tầng còn lại vẫn đang được xử lý."
+    },
+    "preview": {
+      "altPrefix": "Bản vẽ đang được xử lý — ",
+      "altEmpty": "Chưa có bản vẽ nào để xem trước.",
+      "noFloorRunning": "Chưa có tầng nào đang được xử lý."
+    }
   }
 }
