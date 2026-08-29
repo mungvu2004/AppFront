@@ -8,7 +8,7 @@
  *
  * ## Vì sao story phải tự diễn đủ dữ liệu
  *
- * Cổng dữ liệu thật (`processingGateway.ts`) trả `supported: false` cho TÁM
+ * Cổng dữ liệu thật (`processingGateway.ts`) trả `supported: false` cho BẢY
  * trong chín khả năng — repo hôm nay không có endpoint huỷ, không có vị trí
  * hàng đợi, không có tổng kết trích xuất, không có hình học dò được giữa chừng.
  * Story lấy dữ liệu từ bản cài đặt thật thì khối tổng kết, dòng hàng đợi và nút
@@ -16,6 +16,16 @@
  * Nên story ở đây điền tay đúng hình dạng cổng SẼ trả về khi endpoint có mặt —
  * nó diễn phía "có hỗ trợ" của mỗi nhánh, đúng như `ProcessingGateway.supports`
  * mô tả để test cắm bản giả bật `true`.
+ *
+ * Hai khả năng KHÔNG nằm trong số đó: `stageBreakdown` (bật, kèm giả định C3) và
+ * `runInBackground` (bật, và chạy thật — nó không cần endpoint nào, chỉ cần một
+ * chỗ giữ hàm huỷ đăng ký, xem `src/lib/realtime/backgroundWatch.ts`).
+ *
+ * ## Nút chạy nền ở đây vẫn là `NO_OP`, và đó là đúng
+ *
+ * Story dựng thẳng view, nên `onRunInBackground` chỉ là một props như mọi props
+ * khác — không có hook, không có sổ theo dõi, không có bus thông báo phía sau.
+ * Phần thông báo có story riêng của nó: `NotificationHost.stories.tsx`.
  *
  * ## Sáu tên bước không được gõ tay
  *

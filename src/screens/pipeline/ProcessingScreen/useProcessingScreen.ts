@@ -36,6 +36,22 @@
  * chính nó; `state` của cả màn thành `partial`, `partialNoticeLine` nói rõ xử lý
  * vẫn tiếp tục, và các tầng còn lại chạy tiếp.
  *
+ * ## Chạy nền — cái nút "Để chạy nền và thông báo cho tôi" thật sự làm gì
+ *
+ * Nút đó từng gọi `gateway.runInBackground()`, nhận `supported: false`, và
+ * không có gì xảy ra. Nay nó làm đúng hai việc, và không hơn:
+ *
+ * 1. trao hàm huỷ đăng ký của TỪNG dòng sự kiện đang chạy cho sổ theo dõi nền,
+ *    nên lúc màn tháo, `useEffect` dưới đây KHÔNG đóng chúng nữa;
+ * 2. đẩy một thông báo qua `notificationBus` (bọc bởi `useNotifications`), và
+ *    đẩy thông báo thứ hai khi nhịp cuối của một lượt về — kể cả khi lúc đó màn
+ *    đã tháo từ lâu, vì hàm báo là một bao đóng nằm trong sổ, không phải state
+ *    của React.
+ *
+ * Ranh giới nói thẳng trong chính câu tiếng Việt người dùng đọc: repo không có
+ * kênh đẩy từ máy chủ, nên **đóng thẻ trình duyệt là hết**. "Chạy nền" ở đây là
+ * rời MÀN NÀY trong cùng một phiên.
+ *
  * ## Trạng thái máy chủ (R-64)
  *
  * Không `useState` nào giữ `isLoading` hay `error` — `useQueries` giữ. Hai thứ
@@ -49,6 +65,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 
 import type { Progress } from '@/api/schemas';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { APP_ERROR_KIND_CONFIG } from '@/lib/errors';
@@ -57,7 +74,12 @@ import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { MILLISECONDS_PER_SECOND } from '@/lib/motion/tokens';
+import type { NotificationBus, NotificationInput } from '@/lib/mutations/notificationBus';
 import { queryKeys } from '@/lib/query/queryKeys';
+import type {
+  BackgroundWatchEntry,
+  BackgroundWatchOutcome,
+} from '@/lib/realtime/backgroundWatch';
 import type { ChannelStatus } from '@/lib/realtime/eventChannel';
 import {
   calculateTotalProgress,
@@ -103,7 +125,18 @@ const COPY = {
   previewAltPrefix: 'Bản vẽ đang được xử lý — ',
   previewAltEmpty: 'Chưa có bản vẽ nào để xem trước.',
   noFloorRunning: 'Chưa có tầng nào đang được xử lý.',
+  backgroundStartedTitle: 'Sẽ báo cho bạn khi xử lý xong',
+  backgroundStartedDescription:
+    'Xử lý vẫn chạy khi bạn rời màn này. Đóng thẻ trình duyệt thì không báo được nữa.',
+  backgroundDoneDescription: 'Mở lại màn xử lý để xem kết quả.',
+  backgroundFailedDescription: 'Mở lại màn xử lý để xem chi tiết lỗi.',
 } as const;
+
+/** Ví dụ `"Tầng 1 đã xử lý xong"`. */
+const backgroundDoneTitle = (floor: string): string => `${floor} đã xử lý xong`;
+
+/** Ví dụ `"Tầng 1 gặp lỗi khi xử lý"`. */
+const backgroundFailedTitle = (floor: string): string => `${floor} gặp lỗi khi xử lý`;
 
 const UNIT = {
   floor: 'tầng',
@@ -153,6 +186,44 @@ const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 
+/** Danh tính một lượt trong sổ theo dõi nền — một dự án có thể có nhiều lượt. */
+const watchIdOf = (projectId: string, uploadId: string): string => `${projectId}:${uploadId}`;
+
+/**
+ * Loại của thông báo — và vì sao loại "xong" mang theo mã lượt.
+ *
+ * `notificationBus` GỘP các thông báo cùng `type` rơi vào cùng một cửa sổ thời
+ * gian, và nhãn nó dán lên bản gộp là `common.undo_group` — "Hoàn tác N thay
+ * đổi". Câu đó đúng cho một chuỗi sửa hoàn tác được, và sai hoàn toàn cho hai
+ * tầng xử lý xong cách nhau ba giây. Nên mỗi lượt có `type` riêng: hai lượt
+ * không bao giờ gộp, và không câu nào bị viết lại thành câu của chuyện khác.
+ */
+const BACKGROUND_STARTED_TYPE = 'processing-background-started';
+const backgroundSettledType = (watchId: string): string => `processing-background-done:${watchId}`;
+
+/** Nhịp cuối theo cách máy chủ báo — chỉ hai giá trị này kết thúc một lượt. */
+function outcomeOf(status: Progress['status'] | undefined): BackgroundWatchOutcome | undefined {
+  if (status === 'completed') {
+    return 'done';
+  }
+
+  if (status === 'failed') {
+    return 'failed';
+  }
+
+  return undefined;
+}
+
+/** Câu báo một lượt chạy nền đã kết thúc. Mức độ nằm trong CÂU, không trong màu (A5). */
+function settledNotice(watchId: string, label: string, outcome: BackgroundWatchOutcome): NotificationInput {
+  return {
+    type: backgroundSettledType(watchId),
+    title: outcome === 'done' ? backgroundDoneTitle(label) : backgroundFailedTitle(label),
+    description:
+      outcome === 'done' ? COPY.backgroundDoneDescription : COPY.backgroundFailedDescription,
+  };
+}
+
 /** Ổn định qua các lượt render, để `useQueries` không dựng lại danh sách rỗng mỗi lần. */
 const EMPTY_UPLOADS: readonly ProcessingFloorUpload[] = [];
 const EMPTY_GEOMETRY: readonly string[] = [];
@@ -196,6 +267,12 @@ export interface UseProcessingScreenOptions {
   readonly onGoToSupport?: () => void;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /**
+   * Bus thông báo. Bỏ trống là bus của cả phiên (`appNotificationBus`) — thứ
+   * `NotificationHost` ở `main.tsx` đang vẽ. Test và story tiêm bus riêng để hai
+   * lượt kiểm không thấy thông báo của nhau.
+   */
+  readonly notifications?: NotificationBus;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -399,6 +476,12 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const queryClient = useQueryClient();
 
   const gateway = useResolvedGateway(options.gateway);
+  const { publish } = useNotifications(options.notifications);
+
+  // Hàm huỷ đăng ký của TỪNG dòng sự kiện đang mở, khoá theo `uploadId`. Đây là
+  // thứ duy nhất `onRunInBackground` cần mà không lấy được từ chỗ nào khác: nó
+  // sinh ra trong `useEffect` dưới, và phải trao được sang sổ theo dõi nền.
+  const stopsRef = useRef<ReadonlyMap<string, () => void>>(new Map());
 
   const floorUploads = options.floorUploads ?? EMPTY_UPLOADS;
   // Danh tính của danh sách tầng dưới dạng một chuỗi: nơi gọi truyền một mảng
@@ -497,6 +580,18 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
                 snapshot.eventId,
               ),
             );
+
+            // Nhịp cuối. `settle` tự trả `false` cho một lượt KHÔNG chạy nền,
+            // nên đây không phải một nhánh điều kiện thứ hai của màn: lượt bình
+            // thường đi qua đây và không có gì xảy ra.
+            const outcome = outcomeOf(snapshot.progress.status);
+
+            if (outcome !== undefined) {
+              gateway.backgroundWatches.settle(
+                watchIdOf(projectId, upload.uploadId),
+                outcome,
+              );
+            }
           },
           onConnectionChange: (state) => {
             write(upload, (record) => ({
@@ -512,8 +607,27 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       ),
     );
 
+    stopsRef.current = new Map(
+      uploads.flatMap((upload, index) => {
+        const stop = stops[index];
+        return stop === undefined ? [] : [[upload.uploadId, stop] as const];
+      }),
+    );
+
     return () => {
-      stops.forEach((stop) => {
+      stops.forEach((stop, index) => {
+        const upload = uploads[index];
+
+        // Lượt đã đăng ký chạy nền: sổ đang GIỮ chính hàm `stop` này và sẽ gọi
+        // nó lúc lượt kết thúc. Rời màn không đóng dòng sự kiện — đó là toàn bộ
+        // nội dung của lời hứa "chạy nền".
+        if (
+          upload !== undefined &&
+          gateway.backgroundWatches.has(watchIdOf(projectId, upload.uploadId))
+        ) {
+          return;
+        }
+
         stop();
       });
     };
@@ -656,9 +770,54 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     });
   }, [gateway, projectId]);
 
+  /**
+   * "Để chạy nền và thông báo cho tôi".
+   *
+   * Không có lượt nào đang chạy thì KHÔNG hứa gì: đẩy một câu "sẽ báo cho bạn"
+   * lúc màn ở trạng thái `empty` là hứa một thông báo không bao giờ tới.
+   */
   const onRunInBackground = useCallback(() => {
-    void gateway.runInBackground({ projectId });
-  }, [gateway, projectId]);
+    const uploads = uploadsRef.current;
+
+    const watches = uploads.flatMap((upload): readonly BackgroundWatchEntry[] => {
+      const release = stopsRef.current.get(upload.uploadId);
+
+      if (release === undefined) {
+        return [];
+      }
+
+      const id = watchIdOf(projectId, upload.uploadId);
+
+      return [
+        {
+          id,
+          label: upload.floorName,
+          release,
+          // Bao đóng, không phải state: nó chạy được sau khi màn đã tháo, vì cả
+          // sổ lẫn bus đều sống ngoài cây React.
+          onSettled: (outcome) => {
+            publish(settledNotice(id, upload.floorName, outcome));
+          },
+        },
+      ];
+    });
+
+    if (watches.length === 0) {
+      return;
+    }
+
+    void gateway.runInBackground({ projectId, watches }).then((result) => {
+      if (!result.supported) {
+        return;
+      }
+
+      publish({
+        type: BACKGROUND_STARTED_TYPE,
+        title: COPY.backgroundStartedTitle,
+        description: COPY.backgroundStartedDescription,
+      });
+    });
+  }, [gateway, projectId, publish]);
 
   const onToggleDetail = useCallback((stepId: string) => {
     setOpenStepIds((open) =>

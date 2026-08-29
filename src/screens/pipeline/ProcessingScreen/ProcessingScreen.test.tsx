@@ -12,6 +12,7 @@
  * | `[NGHIEM-C]` | huỷ xác nhận TẠI CHỖ, không một `role="dialog"` nào | 0 hộp thoại |
  * | `[NGHIEM-D]` | `canCancel` sai thì nút huỷ không tồn tại trong cây | ẩn hẳn |
  * | `[NGHIEM-E]` | `prefersReducedMotion` bật thì không lớp `animate-pipeline-sweep` | 0 phần tử |
+ * | `[NGHIEM-F]` | nút "Để chạy nền và thông báo cho tôi" đẩy ra một thông báo THẤY ĐƯỢC | 1 thông báo |
  *
  * Hai lớp render, cố ý — cùng khuôn `InputQualityGate.test.tsx`:
  *
@@ -25,17 +26,27 @@
  *   để nhánh "có hỗ trợ" vẫn được kiểm; đó là điều `ProcessingGateway.supports`
  *   được dựng ra để cho phép, không phải một đường vòng.
  *
+ * - **Qua hook thật + `NotificationHost` thật** cho `[NGHIEM-F]`. Nút chạy nền
+ *   không có gì để nhìn nếu chỉ có view: nó đẩy một thông báo, và thông báo được
+ *   vẽ ở một cây khác. Lượt render đó dựng cả hai mảnh, và tiêm bus riêng.
+ *
  * Nửa "suy nghĩ" — SSE chết giữa chừng, tab ẩn, một tầng lỗi không dừng tầng
- * khác, rời màn rồi quay lại — nằm ở `useProcessingScreen.test.ts` và không lặp
- * lại ở đây.
+ * khác, rời màn rồi quay lại, và lượt chạy nền xong SAU khi màn đã tháo — nằm ở
+ * `useProcessingScreen.test.ts` và không lặp lại ở đây.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { NotificationHost } from '@/components/feedback/NotificationHost';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import viMessages from '@/i18n/vi.json';
+import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import {
+  createBackgroundWatchRegistry,
+  type BackgroundWatchRegistry,
+} from '@/lib/realtime/backgroundWatch';
 import { PIPELINE_STAGES } from '@/lib/realtime/pipeline';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -58,12 +69,14 @@ import {
   scenarioFor,
 } from './ProcessingScreen.stories';
 import { createProcessingGateway, type ProcessingGateway } from './processingGateway';
+import { useProcessingScreen } from './useProcessingScreen';
 
 const SCREEN_DIRECTORY = 'src/screens/pipeline/ProcessingScreen';
 const PROJECT_ID = 'project-1';
 
 /** Nhãn của hàng hành động — hằng chuỗi thật của `ProcessingScreen.tsx`. */
 const CANCEL_LABEL = 'Huỷ xử lý';
+const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_CONFIRM_LABEL = 'Xác nhận huỷ';
 const CANCEL_DISMISS_LABEL = 'Giữ nguyên';
 
@@ -403,5 +416,80 @@ describe('ProcessingScreenContainer — R-73', () => {
 
     expect(container.textContent?.trim()).not.toBe('');
     expect(screen.getByText('Xử lý')).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Nút "Để chạy nền và thông báo cho tôi" — nó phải LÀM được một việc.          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Hook + view + chỗ hiện thông báo, dựng ngay tại test.
+ *
+ * Không dùng `ProcessingScreenContainer` ở đây, vì container không có khe tiêm
+ * bus thông báo (và mở một khe như vậy chỉ để test nhìn được là đổi hình dạng
+ * sản phẩm cho tiện lợi của test). Cả ba mảnh dưới đây là mảnh THẬT — cùng hook,
+ * cùng view, cùng `NotificationHost` mà `src/main.tsx` gắn — chỉ có bus và sổ
+ * theo dõi nền là bản cách ly, để lượt kiểm này không thấy thông báo của lượt
+ * kiểm khác.
+ */
+function WiredWithNotifications({
+  backgroundWatches,
+  notifications,
+}: {
+  backgroundWatches: BackgroundWatchRegistry;
+  notifications: NotificationBus;
+}) {
+  const gateway = createProcessingGateway(createMockApiClient(), {
+    EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+    backgroundWatches,
+  });
+
+  const props = useProcessingScreen({
+    projectId: PROJECT_ID,
+    floorUploads: ONE_UPLOAD,
+    gateway,
+    notifications,
+    roles: ['engineer'],
+  });
+
+  return (
+    <>
+      <ProcessingScreen {...props} />
+      <NotificationHost bus={notifications} />
+    </>
+  );
+}
+
+describe('ProcessingScreen — nút chạy nền', () => {
+  it('bấm "Để chạy nền và thông báo cho tôi": thông báo HIỆN RA, và lượt vào sổ theo dõi nền', async () => {
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const notifications = createNotificationBus();
+
+    renderWithProviders(
+      <WiredWithNotifications
+        backgroundWatches={backgroundWatches}
+        notifications={notifications}
+      />,
+    );
+
+    expect(screen.queryByText(/Sẽ báo cho bạn khi xử lý xong/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: RUN_IN_BACKGROUND_LABEL }));
+
+    // Câu người dùng đọc, đúng nguyên văn, và nó nói luôn ranh giới thật: đóng
+    // thẻ trình duyệt là hết.
+    const notice = await screen.findByText(/Sẽ báo cho bạn khi xử lý xong/);
+
+    expect(notice).toBeInTheDocument();
+    expect(notice.textContent).toContain('Đóng thẻ trình duyệt thì không báo được nữa.');
+
+    // Và trình đọc màn hình đọc được nó (R-72).
+    expect(notice.closest('[role="status"]')).not.toBeNull();
+    expect(screen.getByRole('region', { name: 'Thông báo' })).toBeInTheDocument();
+
+    expect(backgroundWatches.has(`${PROJECT_ID}:${ONE_UPLOAD[0].uploadId}`)).toBe(true);
+
+    backgroundWatches.releaseAll();
   });
 });

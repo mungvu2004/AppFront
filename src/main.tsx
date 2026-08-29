@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 
+import { NotificationHost } from './components/feedback/NotificationHost';
 import { MotionProvider } from './components/motion';
 import { queryClient } from './lib/query/queryClient';
 import { installFeatureFlagDevPanel } from './lib/telemetry/flags';
@@ -38,6 +39,20 @@ if (import.meta.env.DEV) {
  *   Per-screen leaves room for a screen to forget (R-39).
  * - `RouterProvider` innermost, because it is the only part that changes with
  *   the URL.
+ * - `NotificationHost` is a SIBLING of `RouterProvider`, not a parent and not a
+ *   child, and that follows from the same three reasons rather than bending
+ *   them. A notification outlives the route that published it — a run that
+ *   finishes after the user has walked away still has to be able to say so — so
+ *   it cannot live under the part that changes with the URL. It draws, so it
+ *   belongs inside `MotionProvider` where `reducedMotion="user"` is already set
+ *   once for the whole shell (R-39). It uses no router hook and no query, so
+ *   standing outside `RouterProvider` costs it nothing.
+ *
+ *   Before this, `notificationBus` had every rule of a notification and full
+ *   tests but no caller anywhere in `src`, and `Toast.tsx` was only ever mounted
+ *   by `src/App.tsx` — the demo picker this file stopped rendering. On the real
+ *   route tree there was no place for a notification to appear at all. There is
+ *   now, and it is one line.
  *
  * The demo picker is not lost: it is the `/demo` route, and only in a
  * development build. `/` is the real dashboard route, `ProjectDashboardRoute`
@@ -48,6 +63,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <MotionProvider>
         <RouterProvider router={router} />
+        <NotificationHost />
       </MotionProvider>
     </QueryClientProvider>
   </React.StrictMode>,

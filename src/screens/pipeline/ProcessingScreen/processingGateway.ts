@@ -17,9 +17,24 @@
  * nó: không có giãn cách thử lại, không có `EventSource`, không có vòng lặp quay
  * vòng nào viết tay ở đây.
  *
+ * ## Phần chạy nền — nối được mà KHÔNG cần endpoint mới
+ *
+ * `runInBackground` từng nằm trong danh sách "chưa có" và nút gọi nó là một nút
+ * chết. Nó ra khỏi danh sách đó, và không phải vì có endpoint mới: việc "xử lý
+ * vẫn chạy sau khi rời màn" làm được trọn vẹn bằng thứ đã có trong tay — dòng sự
+ * kiện của chính `subscribeProgress`. Cái thiếu chỉ là một chỗ GIỮ hàm huỷ đăng
+ * ký để màn tháo không đóng dòng đó, và chỗ ấy nay là
+ * `src/lib/realtime/backgroundWatch.ts`.
+ *
+ * Ranh giới đi kèm phải nói ra, vì nó là thật: không có kênh đẩy từ máy chủ thì
+ * ĐÓNG THẺ TRÌNH DUYỆT LÀ HẾT. "Chạy nền" ở đây nghĩa là rời màn này trong cùng
+ * một phiên, không phải tắt trình duyệt. `completionNotice` — kênh đẩy thật, thứ
+ * một cái chuông thông báo cần — vẫn là `supported: false`, và nó ở lại danh
+ * sách dưới đây cho tới khi có endpoint.
+ *
  * ## Phần KHÔNG CÓ — và vì sao vẫn khai
  *
- * Chín việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
+ * Tám việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
  * {@link ProcessingGateway} (giao diện là thứ nơi gọi lập trình theo, xoá đi thì
  * lần sau phải dựng lại; test và story cắm bản giả "có dữ liệu" vào đúng chỗ đó
  * để phần giao diện tương ứng vẫn kiểm được — R-73), nhưng **bản cài đặt thật
@@ -66,6 +81,11 @@ import type { ChannelEvent } from '@/lib/realtime/eventChannel';
 import type { ProgressPatchEvent } from '@/lib/realtime/mergeEvents';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
 import type { PipelineStageId, PipelineStageState } from '@/lib/realtime/pipeline';
+import {
+  backgroundWatchRegistry,
+  type BackgroundWatchEntry,
+  type BackgroundWatchRegistry,
+} from '@/lib/realtime/backgroundWatch';
 import type { PollingVisibilityTarget } from '@/lib/realtime/pollingChannel';
 import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
@@ -96,18 +116,44 @@ export const PROCESSING_CAPABILITIES = [
 export type ProcessingCapability = (typeof PROCESSING_CAPABILITIES)[number];
 
 /**
+ * Những việc trong {@link PROCESSING_CAPABILITIES} mà bản cài đặt thật CHƯA làm
+ * được. Đây là bản kê nợ thật sự, và nó chỉ được ngắn đi.
+ *
+ * Tách khỏi danh sách trên vì hai danh sách trả lời hai câu khác nhau: trên là
+ * "màn hỏi cổng những gì", dưới là "câu nào hôm nay chưa trả lời được".
+ * `runInBackground` rời danh sách dưới khi nó chạy thật. `stageBreakdown` thì ở
+ * lại: `supports.stageBreakdown` bật, nhưng `toStageBreakdown` vẫn trả nhánh
+ * `supported: false` cho một `Progress.step` không tra được — nên nó vẫn cần một
+ * dòng nợ viết nguyên văn.
+ */
+export const PROCESSING_MISSING_CAPABILITIES = [
+  'cancelProcessing',
+  'queuePosition',
+  'parallelFloorPipeline',
+  'completionNotice',
+  'extractionSummary',
+  'stepDetails',
+  'detectedGeometry',
+  'stageBreakdown',
+] as const;
+
+export type ProcessingMissingCapability = (typeof PROCESSING_MISSING_CAPABILITIES)[number];
+
+/**
  * Endpoint / trường dữ liệu còn thiếu của từng khả năng, viết nguyên văn để
  * người nối dây sau biết chính xác phải thêm gì vào `src/api` trước khi bản cài
  * đặt thật đổi được sang nhánh `supported: true`.
  */
-export const PROCESSING_MISSING_ENDPOINTS: Readonly<Record<ProcessingCapability, string>> = {
+export const PROCESSING_MISSING_ENDPOINTS: Readonly<
+  Record<ProcessingMissingCapability, string>
+> = {
   cancelProcessing: 'ENDPOINTS.drawings.cancel + DrawingsApi.cancel — chưa có',
   queuePosition:
     'ENDPOINTS.drawings.queue + trường vị trí hàng đợi trong ProgressSchema (.strict(), 7 trường) — chưa có',
   parallelFloorPipeline:
     'endpoint trả trạng thái xử lý của MỌI tầng trong một lượt đọc — chưa có; màn tự ghép N lượt đọc drawings.progress độc lập',
-  runInBackground: 'endpoint/luồng "chạy nền, xử lý vẫn tiếp tục sau khi rời màn" — chưa có',
-  completionNotice: 'kênh thông báo khi xử lý xong (chuông thông báo) — chưa có',
+  completionNotice:
+    'kênh ĐẨY từ máy chủ khi xử lý xong, sống qua cả lúc đóng thẻ (chuông thông báo) — chưa có',
   extractionSummary:
     'endpoint tổng kết trích xuất: wallCount, openingCount, dimensionCount, roomCount, confidencePercent — chưa có (areaM2 đã có qua spatial.readFloor)',
   stepDetails:
@@ -120,7 +166,7 @@ export const PROCESSING_MISSING_ENDPOINTS: Readonly<Record<ProcessingCapability,
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
 export interface ProcessingUnsupported {
   readonly supported: false;
-  readonly capability: ProcessingCapability;
+  readonly capability: ProcessingMissingCapability;
   /** Lấy nguyên từ {@link PROCESSING_MISSING_ENDPOINTS}. */
   readonly missing: string;
 }
@@ -135,7 +181,7 @@ export type ProcessingCapabilityResult<TValue> =
   | ProcessingUnsupported;
 
 /** Dựng nhánh "không hỗ trợ" — một chỗ duy nhất ghép tên việc với endpoint thiếu. */
-export function unsupported(capability: ProcessingCapability): ProcessingUnsupported {
+export function unsupported(capability: ProcessingMissingCapability): ProcessingUnsupported {
   return { supported: false, capability, missing: PROCESSING_MISSING_ENDPOINTS[capability] };
 }
 
@@ -235,6 +281,16 @@ export interface RequestCancelInput {
 
 export interface RunInBackgroundInput {
   readonly projectId: string;
+  /**
+   * Các lượt cần giữ sống sau khi rời màn, mỗi lượt mang theo hàm huỷ đăng ký
+   * của chính dòng sự kiện đang chạy.
+   *
+   * Cổng KHÔNG tự mở dòng mới ở đây, và cũng không đi tìm dòng nào đang mở: nơi
+   * mở là `subscribeProgress`, nơi giữ hàm huỷ là hook, nên hook là nơi duy nhất
+   * trao được đúng những hàm đó. Danh sách rỗng là câu trả lời hợp lệ — không có
+   * lượt nào đang chạy thì không có gì để theo dõi.
+   */
+  readonly watches: readonly BackgroundWatchEntry[];
 }
 
 export interface ReadQueuePositionInput {
@@ -310,10 +366,22 @@ export interface ProcessingGateway {
 
   /** NOT FOUND — `cancelProcessing`. */
   readonly requestCancel: (input: RequestCancelInput) => Promise<ProcessingCapabilityResult<void>>;
-  /** NOT FOUND — `runInBackground`. */
+  /**
+   * Ghi các lượt đang chạy vào sổ theo dõi nền, để màn tháo KHÔNG đóng dòng sự
+   * kiện của chúng. Luôn `supported: true` — việc này không cần endpoint nào.
+   *
+   * Ranh giới: nó giữ được qua một lần rời màn, KHÔNG giữ được qua một lần đóng
+   * thẻ trình duyệt. Xem `src/lib/realtime/backgroundWatch.ts`.
+   */
   readonly runInBackground: (
     input: RunInBackgroundInput,
   ) => Promise<ProcessingCapabilityResult<void>>;
+  /**
+   * Sổ theo dõi nền mà cổng này ghi vào — hook đọc nó để biết một lượt có đang
+   * chạy nền không (thì đừng đóng dòng sự kiện lúc tháo) và để kết thúc một lượt
+   * khi nhịp cuối về.
+   */
+  readonly backgroundWatches: BackgroundWatchRegistry;
   /** NOT FOUND — `queuePosition`. */
   readonly readQueuePosition: (
     input: ReadQueuePositionInput,
@@ -532,6 +600,8 @@ export interface CreateProcessingGatewayOptions {
   readonly writeClipboardText?: (text: string) => Promise<void>;
   /** Đồng hồ tiêm được. */
   readonly now?: () => number;
+  /** Sổ theo dõi nền tiêm được — mặc định là sổ của cả ứng dụng. */
+  readonly backgroundWatches?: BackgroundWatchRegistry;
 }
 
 /** Một chuỗi đại diện cho nội dung một lượt đọc, để bỏ qua lượt không đổi gì. */
@@ -565,15 +635,17 @@ export function createProcessingGateway(
   options: CreateProcessingGatewayOptions = {},
 ): ProcessingGateway {
   const now = options.now ?? ((): number => Date.now());
+  const backgroundWatches = options.backgroundWatches ?? backgroundWatchRegistry;
 
   return {
-    // Đúng một việc làm được hôm nay, và nó chỉ làm được một nửa: xem giả định
-    // C3 ở đầu file. Tám việc còn lại `false` cho tới khi có endpoint thật.
+    // Ba việc làm được hôm nay: theo dõi tiến độ, chạy nền, và ánh xạ sáu bước —
+    // cái cuối chỉ làm được một nửa, xem giả định C3 ở đầu file. Sáu việc còn
+    // lại `false` cho tới khi có endpoint thật.
     supports: {
       cancelProcessing: false,
       queuePosition: false,
       parallelFloorPipeline: false,
-      runInBackground: false,
+      runInBackground: true,
       completionNotice: false,
       extractionSummary: false,
       stepDetails: false,
@@ -650,7 +722,19 @@ export function createProcessingGateway(
     },
 
     requestCancel: () => Promise.resolve(unsupported('cancelProcessing')),
-    runInBackground: () => Promise.resolve(unsupported('runInBackground')),
+
+    // Không lời gọi mạng nào: "chạy nền" chỉ là việc KHÔNG đóng dòng sự kiện đã
+    // mở. Ghi vào sổ là toàn bộ phần việc của cổng.
+    runInBackground: ({ watches }) => {
+      watches.forEach((entry) => {
+        backgroundWatches.watch(entry);
+      });
+
+      return Promise.resolve({ supported: true, value: undefined });
+    },
+
+    backgroundWatches,
+
     readQueuePosition: () => Promise.resolve(unsupported('queuePosition')),
     readParallelFloorPipeline: () => Promise.resolve(unsupported('parallelFloorPipeline')),
     readExtractionSummary: () => Promise.resolve(unsupported('extractionSummary')),

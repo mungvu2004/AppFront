@@ -21,6 +21,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient } from '@/api/client';
 import type { Progress } from '@/api/schemas';
+import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import {
+  createBackgroundWatchRegistry,
+  type BackgroundWatchRegistry,
+} from '@/lib/realtime/backgroundWatch';
 import { POLL_INTERVAL_MS } from '@/lib/realtime/pollingChannel';
 import { SSE_FAILURE_LIMIT } from '@/lib/realtime/progressStream';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
@@ -238,22 +243,44 @@ interface Mounted {
   readonly rerender: () => void;
 }
 
+/**
+ * Hai thứ của phần chạy nền phải tiêm được, vì bản mặc định của cả hai là một
+ * đối tượng dùng chung cho cả phiên: sổ theo dõi nền và bus thông báo. Không
+ * tiêm thì hai lượt kiểm thấy thông báo của nhau.
+ */
+interface BackgroundOptions {
+  readonly notifications?: NotificationBus;
+  readonly backgroundWatches?: BackgroundWatchRegistry;
+}
+
 function mountHook(
   client: ApiClient,
   uploads: readonly ProcessingFloorUpload[],
   queryClient: ReturnType<typeof createTestQueryClient>,
   visibilityTarget: MockVisibilityTarget,
+  background: BackgroundOptions = {},
 ): Mounted {
   const gateway = createProcessingGateway(client, {
     EventSourceImpl: MockEventSource as unknown as typeof EventSource,
     visibilityTarget,
+    ...(background.backgroundWatches !== undefined
+      ? { backgroundWatches: background.backgroundWatches }
+      : {}),
   });
 
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
   const rendered = renderHook(
-    () => useProcessingScreen({ projectId: PROJECT_ID, floorUploads: uploads, gateway }),
+    () =>
+      useProcessingScreen({
+        projectId: PROJECT_ID,
+        floorUploads: uploads,
+        gateway,
+        ...(background.notifications !== undefined
+          ? { notifications: background.notifications }
+          : {}),
+      }),
     { wrapper },
   );
 
@@ -538,6 +565,150 @@ describe('useProcessingScreen', () => {
     expect(props.steps.every((step) => step.percent === 100)).toBe(true);
     expect(props.state).toBe('success');
     expect(props.overallSummaryLine).toContain('Đã xong 1/1 tầng');
+
+    mounted.unmount();
+  });
+
+  it('bấm chạy nền rồi RỜI MÀN: dòng sự kiện vẫn sống và lượt xong vẫn báo được', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const visibility = new MockVisibilityTarget();
+    const notifications = createNotificationBus();
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(
+      harness.client,
+      uploads,
+      createTestQueryClient(),
+      visibility,
+      { backgroundWatches, notifications },
+    );
+
+    await settle(clock);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(upload.uploadId, 0));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    // 1. Bấm nút. Lượt vào sổ theo dõi nền, và người dùng được hứa một câu.
+    await act(async () => {
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+
+    expect(backgroundWatches.has(`${PROJECT_ID}:${upload.uploadId}`)).toBe(true);
+    expect(notifications.list().map((item) => item.title)).toContain(
+      'Sẽ báo cho bạn khi xử lý xong',
+    );
+
+    // 2. Rời màn. Dòng sự kiện KHÔNG bị đóng — đó là toàn bộ lời hứa.
+    const source = latestSource();
+
+    mounted.unmount();
+
+    expect(source.closed).toBe(false);
+    expect(backgroundWatches.has(`${PROJECT_ID}:${upload.uploadId}`)).toBe(true);
+
+    // 3. Máy chủ báo xong khi màn đã tháo từ lâu.
+    await act(async () => {
+      source.triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(notifications.list().map((item) => item.title)).toContain(
+      `${upload.floorName} đã xử lý xong`,
+    );
+    // Lượt đã kết thúc: sổ nhả nó, và dòng sự kiện được đóng đúng lúc này.
+    expect(backgroundWatches.has(`${PROJECT_ID}:${upload.uploadId}`)).toBe(false);
+    expect(source.closed).toBe(true);
+  });
+
+  it('rời màn mà KHÔNG bấm chạy nền: dòng sự kiện đóng lại như cũ', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const visibility = new MockVisibilityTarget();
+    const notifications = createNotificationBus();
+    const mounted = mountHook(
+      harness.client,
+      uploads,
+      createTestQueryClient(),
+      visibility,
+      { backgroundWatches: createBackgroundWatchRegistry(), notifications },
+    );
+
+    await settle(clock);
+
+    const source = latestSource();
+
+    mounted.unmount();
+
+    expect(source.closed).toBe(true);
+    expect(notifications.list()).toEqual([]);
+  });
+
+  it('lượt hỏng khi đang chạy nền: câu báo nói lỗi, không nói xong', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const visibility = new MockVisibilityTarget();
+    const notifications = createNotificationBus();
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(
+      harness.client,
+      uploads,
+      createTestQueryClient(),
+      visibility,
+      { backgroundWatches, notifications },
+    );
+
+    await settle(clock);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+
+    const source = latestSource();
+
+    mounted.unmount();
+
+    await act(async () => {
+      source.triggerMessage(
+        progressAt(upload.uploadId, 1, { status: 'failed', error: 'Không đọc được bản vẽ.' }),
+      );
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(notifications.list().map((item) => item.title)).toContain(
+      `${upload.floorName} gặp lỗi khi xử lý`,
+    );
+    expect(notifications.list().map((item) => item.title)).not.toContain(
+      `${upload.floorName} đã xử lý xong`,
+    );
+  });
+
+  it('không có lượt xử lý nào thì bấm chạy nền KHÔNG hứa gì', async () => {
+    const visibility = new MockVisibilityTarget();
+    const notifications = createNotificationBus();
+    const harness = makeScriptedClient();
+    const mounted = mountHook(harness.client, [], createTestQueryClient(), visibility, {
+      backgroundWatches: createBackgroundWatchRegistry(),
+      notifications,
+    });
+
+    await settle(clock);
+
+    await act(async () => {
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+
+    // Hứa "sẽ báo cho bạn khi xử lý xong" lúc không có gì đang chạy là hứa một
+    // thông báo không bao giờ tới.
+    expect(notifications.list()).toEqual([]);
 
     mounted.unmount();
   });

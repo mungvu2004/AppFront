@@ -882,6 +882,17 @@
       "altPrefix": "Bản vẽ đang được xử lý — ",
       "altEmpty": "Chưa có bản vẽ nào để xem trước.",
       "noFloorRunning": "Chưa có tầng nào đang được xử lý."
+    },
+    "background": {
+      "startedTitle": "Sẽ báo cho bạn khi xử lý xong",
+      "startedDescription": "Xử lý vẫn chạy khi bạn rời màn này. Đóng thẻ trình duyệt thì không báo được nữa.",
+      "doneTitle": "{{floor}} đã xử lý xong",
+      "doneDescription": "Mở lại màn xử lý để xem kết quả.",
+      "failedTitle": "{{floor}} gặp lỗi khi xử lý",
+      "failedDescription": "Mở lại màn xử lý để xem chi tiết lỗi."
     }
+  },
+  "notifications": {
+    "regionAriaLabel": "Thông báo"
   }
 }
