@@ -18,14 +18,10 @@
  */
 
 import { splitOutliers, median } from './outliers';
-import { millimetres, type Millimetres, type Quantity } from './types';
+import { millimetres, type Millimetres, type MillimetresPerPixel, type Pixels } from './types';
 import { MAX_WALL_THICKNESS_MM } from '../rules/registry';
 
-/** A distance measured on the image, in pixels. */
-export type Pixels = Quantity<'px'>;
-
-/** A drawing scale: how many millimetres one pixel of the image is worth. */
-export type MillimetresPerPixel = Quantity<'mm/px'>;
+export type { Pixels, MillimetresPerPixel } from './types';
 
 /**
  * Every threshold the inference depends on, in one place so a change is a
