@@ -1,0 +1,55 @@
+{
+  "_note": "Chuỗi tiếng Việt MỚI mà nhiệm vụ V5 viết thẳng trong JSX (ProcessingScreen.tsx, ProcessingFloorChips.tsx, ProcessingStepList.tsx, ProcessingStepBar.tsx, ProcessingSummary.tsx). File này KHÔNG được đọc lúc chạy — nhiệm vụ I8 gộp nó vào src/i18n/vi.json. Không tự gộp: mục [KHONG DUOC SUA FILE NAO] cấm sửa src/i18n/vi.json. Các khoá trùng tên với s4.i18n.fragment.json là do V5 thay ruột đúng chỗ đó; nơi nào chuỗi đổi thì giá trị ở đây là bản đúng.",
+  "screens": {
+    "pipeline": {
+      "processing": {
+        "breadcrumb": {
+          "projects": "Dự án",
+          "pipeline": "Xử lý"
+        },
+        "actions": {
+          "runInBackground": "Để chạy nền và thông báo cho tôi",
+          "cancel": "Huỷ xử lý"
+        },
+        "cancelConfirm": {
+          "ariaLabel": "Xác nhận huỷ xử lý",
+          "question": "Huỷ lượt xử lý này?",
+          "confirm": "Xác nhận huỷ",
+          "dismiss": "Giữ nguyên"
+        },
+        "error": {
+          "retry": "Thử lại",
+          "goToSupport": "Liên hệ hỗ trợ"
+        },
+        "tabs": {
+          "ariaLabel": "Xem trước hoặc nhật ký",
+          "preview": "Xem trước",
+          "log": "Nhật ký"
+        },
+        "empty": {
+          "title": "Chưa có bước nào để theo dõi",
+          "description": "Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây."
+        },
+        "floorChips": {
+          "ariaLabel": "Tiến độ theo tầng"
+        },
+        "floorObjects": {
+          "ariaLabel": "Số đối tượng đã nhận theo tầng"
+        },
+        "stepList": {
+          "ariaLabel": "Các bước xử lý",
+          "openDetailPrefix": "Mở chi tiết bước",
+          "closeDetailPrefix": "Đóng chi tiết bước"
+        },
+        "stepBar": {
+          "ariaLabel": "Bước đang xử lý"
+        },
+        "summary": {
+          "ariaLabel": "Báo cáo tổng kết",
+          "reviewWalls": "Duyệt lớp tường",
+          "calibrateScale": "Hiệu chỉnh tỷ lệ"
+        }
+      }
+    }
+  }
+}
