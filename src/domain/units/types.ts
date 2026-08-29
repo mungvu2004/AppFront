@@ -45,6 +45,12 @@ export type Degrees = Quantity<'deg'>;
 /** An angle in radians. */
 export type Radians = Quantity<'rad'>;
 
+/** A distance measured on the image, in pixels. */
+export type Pixels = Quantity<'px'>;
+
+/** A drawing scale: how many millimetres one pixel of the image is worth. */
+export type MillimetresPerPixel = Quantity<'mm/px'>;
+
 /** Millimetres in one metre. */
 export const MILLIMETRES_PER_METRE = 1000;
 

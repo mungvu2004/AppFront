@@ -985,7 +985,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         }
       },
       onCalibrateScale: () => {
-        navigate(ROUTES.project.scale(projectId));
+        const upload = uploadsRef.current[focusIndex];
+
+        if (upload !== undefined) {
+          navigate(ROUTES.project.scale(projectId, upload.floorId));
+        }
       },
     };
   }, [focusIndex, navigate, projectId, records]);

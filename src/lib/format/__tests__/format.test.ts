@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatArea, formatAngle, formatLength, METRE_THRESHOLD_MM } from '../measure';
+import {
+  A3_SHORT_EDGE_MM,
+  formatArea,
+  formatAngle,
+  formatDrawingScaleRatio,
+  formatLength,
+  formatScaleDensity,
+  METRE_THRESHOLD_MM,
+} from '../measure';
 import { formatNumber, formatPercent, isFormattable, MISSING_VALUE, parseNumber } from '../number';
 
 /**
@@ -144,6 +152,49 @@ describe('format/measure.ts — formatAngle', () => {
   });
 });
 
+describe('format/measure.ts — formatScaleDensity', () => {
+  it.each([
+    { input: 12, expected: '12 mm/px', reason: 'the spec\'s own example, no decimals to show' },
+    { input: 0, expected: '0 mm/px', reason: 'zero needs no decimals' },
+    { input: 12.4, expected: '12,4 mm/px', reason: 'a fraction keeps the comma decimal mark' },
+    { input: Number.NaN, expected: MISSING_VALUE, reason: 'an unusable number is not a density' },
+    { input: null, expected: MISSING_VALUE, reason: 'a missing density shows the placeholder' },
+    { input: undefined, expected: MISSING_VALUE, reason: 'an absent density shows the placeholder' },
+  ] as const)('writes $input as $expected ($reason)', ({ input, expected }) => {
+    expect(formatScaleDensity(input)).toBe(expected);
+  });
+
+  it('lets the caller choose the decimals through formatNumber\'s own options, never by rounding by hand', () => {
+    expect(formatScaleDensity(12.375, { fractionDigits: 2 })).toBe('12,38 mm/px');
+    expect(formatScaleDensity(12.375, { maxFractionDigits: 1 })).toBe('12,4 mm/px');
+  });
+});
+
+describe('format/measure.ts — formatDrawingScaleRatio', () => {
+  it('reproduces the spec\'s own worked example: 12 mm/px at 2 475 px is 1:100', () => {
+    expect(A3_SHORT_EDGE_MM).toBe(297);
+    expect(formatDrawingScaleRatio(12, 2475)).toBe('1:100');
+  });
+
+  it.each([
+    { millimetresPerPixel: Number.NaN, shortEdgePx: 2475, reason: 'an unusable density' },
+    { millimetresPerPixel: 12, shortEdgePx: Number.NaN, reason: 'an unusable short edge' },
+    { millimetresPerPixel: null, shortEdgePx: 2475, reason: 'a missing density' },
+    { millimetresPerPixel: 12, shortEdgePx: undefined, reason: 'a missing short edge' },
+    { millimetresPerPixel: 0, shortEdgePx: 2475, reason: 'a scale cannot be zero' },
+    { millimetresPerPixel: -12, shortEdgePx: 2475, reason: 'a scale cannot be negative' },
+    { millimetresPerPixel: 12, shortEdgePx: 0, reason: 'an image has no zero-pixel edge' },
+    { millimetresPerPixel: 12, shortEdgePx: -2475, reason: 'a pixel count cannot be negative' },
+  ] as const)('shows the placeholder for $reason', ({ millimetresPerPixel, shortEdgePx }) => {
+    expect(formatDrawingScaleRatio(millimetresPerPixel, shortEdgePx)).toBe(MISSING_VALUE);
+  });
+
+  it('rounds to a whole number so the ratio reads as a round scale', () => {
+    // 6 mm/px on the same 2 475 px edge is half the density, so half the scale.
+    expect(formatDrawingScaleRatio(6, 2475)).toBe('1:50');
+  });
+});
+
 describe('format/number.ts — formatNumber', () => {
   it.each([
     { input: 0, expected: '0', reason: 'zero needs no decimals' },
@@ -227,6 +278,7 @@ describe('format — invariants that hold for every entry point', () => {
     { name: 'formatLength', run: (value) => formatLength(value) },
     { name: 'formatArea', run: (value) => formatArea(value) },
     { name: 'formatAngle', run: (value) => formatAngle(value) },
+    { name: 'formatScaleDensity', run: (value) => formatScaleDensity(value) },
   ];
 
   it.each(formatters)('$name never writes "NaN", "undefined", "null" or "Infinity"', ({ run }) => {

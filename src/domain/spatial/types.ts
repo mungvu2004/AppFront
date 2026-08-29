@@ -10,6 +10,8 @@
  * This file only declares types. Id generation and validation live in `./ids`.
  */
 
+import type { MillimetresPerPixel } from '../units/types';
+
 /** A length in millimetres, always an integer. */
 export type Millimetres = number;
 
@@ -107,6 +109,11 @@ export interface Level extends ReviewMetadata {
   elevationMm: Millimetres;
   heightMm: Millimetres;
   areaM2?: SquareMetres;
+  /**
+   * Tỷ lệ bản vẽ của tầng này, mm trên mỗi pixel.
+   * Không bắt buộc vì tầng chưa hiệu chỉnh thì chưa có.
+   */
+  scaleMillimetresPerPixel?: MillimetresPerPixel;
 }
 
 /** Structural role of a wall. */

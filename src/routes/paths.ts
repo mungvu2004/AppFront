@@ -62,7 +62,7 @@ export const ROUTE_PATTERNS = {
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
   projectQuality: `${PROJECTS_ROOT}/:id/quality`,
   projectRules: `${PROJECTS_ROOT}/:id/rules`,
-  projectScale: `${PROJECTS_ROOT}/:id/scale`,
+  projectScale: `${PROJECTS_ROOT}/:id/floors/:floorId/scale`,
   projectSettings: `${PROJECTS_ROOT}/:id/settings`,
   projectShare: `${PROJECTS_ROOT}/:id/share`,
   projectUpload: `${PROJECTS_ROOT}/:id/upload`,
@@ -98,7 +98,8 @@ export const ROUTES = {
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
     quality: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/quality`,
     rules: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rules`,
-    scale: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/scale`,
+    scale: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/scale`,
     settings: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
     share: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/share`,
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,

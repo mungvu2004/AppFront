@@ -18,13 +18,10 @@
  */
 
 import { splitOutliers, median } from './outliers';
-import { millimetres, type Millimetres, type Quantity } from './types';
+import { millimetres, type Millimetres, type MillimetresPerPixel, type Pixels } from './types';
+import { MAX_WALL_THICKNESS_MM } from '../rules/registry';
 
-/** A distance measured on the image, in pixels. */
-export type Pixels = Quantity<'px'>;
-
-/** A drawing scale: how many millimetres one pixel of the image is worth. */
-export type MillimetresPerPixel = Quantity<'mm/px'>;
+export type { Pixels, MillimetresPerPixel } from './types';
 
 /**
  * Every threshold the inference depends on, in one place so a change is a
@@ -45,6 +42,28 @@ export const SCALE_THRESHOLDS = {
   sampleCountWeight: 0.5,
   /** Relative gap between two levels' scales that is worth a warning. */
   levelAgreementLimit: 0.02,
+  /**
+   * Below this many millimetres per pixel, the image is claiming resolution
+   * no real scan or camera delivers: 1 mm/px means a single pixel already
+   * resolves a millimetre, finer than any plan this system reads. A ratio
+   * under this points at a bad reading, not a sharper drawing.
+   */
+  minMillimetresPerPixel: 1,
+  /**
+   * Above this many millimetres per pixel, a single pixel already swallows
+   * more than the thinnest wall this system has to find: the standing-brick
+   * wall `quality/thresholds.ts` is anchored on (110 mm) would draw narrower
+   * than half a pixel at 200 mm/px, so two such walls a pixel apart could
+   * not be told apart at all.
+   */
+  maxMillimetresPerPixel: 200,
+  /**
+   * Relative gap between a scale set by hand and the one the AI estimated
+   * for the same drawing, past which the difference is worth a warning —
+   * the same role `levelAgreementLimit` plays between two levels, but here
+   * the second side is the AI's own suggestion rather than another level.
+   */
+  aiDeviationLimit: 0.15,
 } as const;
 
 /** Decimals kept on confidence and percentages so results compare cleanly. */
@@ -286,4 +305,85 @@ export function compareLevelScales(levels: readonly LevelScale[]): readonly Leve
   }
 
   return warnings;
+}
+
+/** Where a scale ratio falls relative to the range this system can read. */
+export type ScaleRangeStatus = 'inRange' | 'belowRange' | 'aboveRange';
+
+/**
+ * Classify a scale ratio against `SCALE_THRESHOLDS.minMillimetresPerPixel`
+ * and `.maxMillimetresPerPixel`.
+ *
+ * Returns a classification rather than throwing: a ratio outside the range is
+ * something to warn a person about, not something that blocks them — they may
+ * be mid-calibration and about to correct it.
+ */
+export function classifyScaleRange(ratio: MillimetresPerPixel): ScaleRangeStatus {
+  if (ratio < SCALE_THRESHOLDS.minMillimetresPerPixel) {
+    return 'belowRange';
+  }
+  if (ratio > SCALE_THRESHOLDS.maxMillimetresPerPixel) {
+    return 'aboveRange';
+  }
+  return 'inRange';
+}
+
+/** How a manually set scale compares with the AI's own estimate. */
+export interface ScaleAiDeviation {
+  /** Signed relative gap: positive when the manual ratio reads bigger. */
+  readonly relativeDeviation: number;
+  readonly exceedsLimit: boolean;
+}
+
+/**
+ * Compare a scale a person set by hand against the one the AI estimated for
+ * the same drawing.
+ *
+ * The deviation keeps its sign so a caller can show "+2,4%" rather than just
+ * "2,4%" — which of the two ratios drifted matters to the person reading it.
+ * The result never marks itself as verified (A5): that colour belongs to a
+ * human reviewer's own decision, and this is one automatic estimate compared
+ * against another.
+ */
+export function compareScaleToAiEstimate(
+  manualRatio: MillimetresPerPixel,
+  aiEstimatedRatio: MillimetresPerPixel,
+): ScaleAiDeviation {
+  if (aiEstimatedRatio <= 0) {
+    return { relativeDeviation: 0, exceedsLimit: false };
+  }
+  const relativeDeviation = roundResult((manualRatio - aiEstimatedRatio) / aiEstimatedRatio);
+  return {
+    relativeDeviation,
+    exceedsLimit: Math.abs(relativeDeviation) > SCALE_THRESHOLDS.aiDeviationLimit,
+  };
+}
+
+/** A wall thickness implied by a scale, plus whether it is worth doubting. */
+export interface ImpliedWallThickness {
+  readonly thicknessMm: Millimetres;
+  readonly implausible: boolean;
+}
+
+/**
+ * What a scale implies about a reference wall drawn `referenceWallWidthPx`
+ * pixels wide.
+ *
+ * A caller derives `referenceWallWidthPx` from the 1/270 anchor in
+ * `quality/thresholds.ts` — the fraction of a short paper edge a 110 mm wall
+ * occupies at 1:100 — applied to the drawing's actual resolution. A scale
+ * that is simply wrong turns that same stroke into a wall far thicker than
+ * any real one, and `MAX_WALL_THICKNESS_MM` (`domain/rules/registry.ts`), the
+ * ceiling the rule book already enforces on drawn geometry, is reused here
+ * rather than restated as a second threshold.
+ */
+export function inferWallThicknessFromScale(
+  ratio: MillimetresPerPixel,
+  referenceWallWidthPx: Pixels,
+): ImpliedWallThickness {
+  const thicknessMm = millimetres(referenceWallWidthPx * ratio);
+  return {
+    thicknessMm,
+    implausible: thicknessMm > MAX_WALL_THICKNESS_MM,
+  };
 }

@@ -892,6 +892,145 @@
       "failedDescription": "Mở lại màn xử lý để xem chi tiết lỗi."
     }
   },
+  "scaleCalibration": {
+    "breadcrumb": {
+      "projects": "Dự án",
+      "floors": "Tầng",
+      "scale": "Hiệu chỉnh tỷ lệ"
+    },
+    "screen": {
+      "title": "Hiệu chỉnh tỷ lệ",
+      "canvasAriaLabel": "Bản vẽ đã nắn, kéo để vẽ đường tham chiếu",
+      "canvasAltPrefix": "Bản vẽ đã nắn của ",
+      "canvasAltEmpty": "Chưa có bản vẽ nào để hiệu chỉnh.",
+      "panelAriaLabel": "Bảng hiệu chỉnh tỷ lệ",
+      "sheetAriaLabel": "Tấm trượt hiệu chỉnh tỷ lệ",
+      "collapse": "Thu gọn bảng",
+      "expand": "Bung bảng"
+    },
+    "currentScale": {
+      "title": "Tỷ lệ hiện tại",
+      "unknownValue": "chưa có",
+      "derivedLine": "1 pixel = {{millimetres}} · bản vẽ ở tỷ lệ khoảng {{ratio}}",
+      "derivedLineUnknown": "chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ"
+    },
+    "method": {
+      "title": "Cách xác định",
+      "ariaLabel": "Chọn cách xác định tỷ lệ",
+      "dimensionString": "Từ chuỗi kích thước",
+      "referenceLine": "Vẽ đường tham chiếu",
+      "dimensionStringDisabled": "Không đọc được chuỗi kích thước nào trên bản vẽ này, nên chỉ còn cách vẽ đường tham chiếu.",
+      "referenceLinePreselected": "Phương pháp vẽ tay được chọn sẵn vì chưa có chuỗi kích thước nào để đối chiếu."
+    },
+    "dimensionMethod": {
+      "listAriaLabel": "Các chuỗi kích thước đã đọc được",
+      "rowAriaLabelPrefix": "Chuỗi kích thước ",
+      "pixelLength": "{{pixels}} đo được",
+      "confidenceLabel": "Độ tin cậy",
+      "emptyTitle": "Chưa đọc được chuỗi kích thước nào",
+      "emptyDescription": "OCR không tìm thấy chuỗi kích thước nào trên bản vẽ này. Vẽ một đường tham chiếu dọc cạnh đã biết để đặt tỷ lệ bằng tay.",
+      "lowConfidence": "Có {{count}} chuỗi đọc được với độ tin cậy thấp, đã đánh dấu mức cần chú ý.",
+      "tooFewSamples": "Chưa đủ chuỗi kích thước để suy ra tỷ lệ, nên phải đặt bằng tay.",
+      "lowConfidenceInference": "Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay."
+    },
+    "referenceMethod": {
+      "stepDraw": "Kéo một đoạn dọc cạnh đã biết",
+      "stepEnterLength": "Nhập chiều dài thật của đoạn đó",
+      "stepResult": "Kết quả",
+      "drawHint": "Giữ Shift để khoá đoạn theo trục ngang hoặc dọc.",
+      "livePixelLength": "{{pixels}}",
+      "realLengthLabel": "Chiều dài thật",
+      "realLengthUnit": "mm",
+      "realLengthPlaceholder": "4800",
+      "realLengthHint": "OCR đọc được {{value}} ngay cạnh đoạn này.",
+      "realLengthNoHint": "Không có chuỗi kích thước nào gần đoạn này để gợi ý.",
+      "remeasure": "Đo lại",
+      "snapped": "Đã bắt vào {{target}}",
+      "snapTarget": {
+        "wallVertex": "đỉnh tường",
+        "intersection": "giao điểm",
+        "midpoint": "trung điểm",
+        "perpendicular": "chân đường vuông góc",
+        "grid": "lưới"
+      },
+      "handleStartAriaLabel": "Đầu đoạn tham chiếu, dùng phím mũi tên để nhích",
+      "handleEndAriaLabel": "Cuối đoạn tham chiếu, dùng phím mũi tên để nhích"
+    },
+    "computation": {
+      "title": "Kết quả",
+      "ariaLabel": "Phép tính ra tỷ lệ",
+      "divider": "÷",
+      "equals": "=",
+      "missingValue": "—",
+      "incomplete": "Còn thiếu một vế, nên chưa ra được tỷ lệ."
+    },
+    "crossChecks": {
+      "title": "Kiểm chứng",
+      "ariaLabel": "Ba đại lượng dẫn xuất để kiểm chứng tỷ lệ",
+      "wallThickness": "độ dày tường điển hình",
+      "doorWidth": "bề rộng cửa đi điển hình",
+      "largestRoomArea": "diện tích phòng lớn nhất",
+      "expectedRange": "khoảng hợp lý {{min}} – {{max}}",
+      "expectedRangeFrom": "khoảng hợp lý từ {{min}} trở lên",
+      "outOfRange": "ngoài khoảng hợp lý"
+    },
+    "warning": {
+      "implausible": "Giá trị này cho ra bức tường dày {{thickness}}. Kiểm tra lại đơn vị hoặc chiều dài tham chiếu.",
+      "deviatesFromEstimate": "Tỷ lệ này lệch {{percent}} so với ước tính {{estimated}} của AI. Bạn vẫn áp được, nhưng nên kiểm lại chiều dài tham chiếu.",
+      "ariaLabel": "Cảnh báo về tỷ lệ"
+    },
+    "apply": {
+      "primary": "Áp dụng tỷ lệ",
+      "applying": "Đang áp tỷ lệ…",
+      "recalculationCaption": "Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.",
+      "scopeAriaLabel": "Phạm vi áp tỷ lệ",
+      "scopeAllFloors": "Áp cho mọi tầng",
+      "scopeThisFloor": "Chỉ áp cho tầng này",
+      "undoToast": "Đã áp tỷ lệ {{scale}}",
+      "undoLabel": "Hoàn tác"
+    },
+    "statusBar": {
+      "ariaLabel": "Thanh trạng thái hiệu chỉnh tỷ lệ",
+      "cursor": "Toạ độ con trỏ trên bản vẽ",
+      "scaleRatio": "Tỷ lệ nguyên đồ",
+      "scaleDensity": "Mật độ mi-li-mét trên pixel"
+    },
+    "shortcuts": {
+      "title": "Phím tắt",
+      "cancelDrag": "huỷ đoạn đang kéo",
+      "axisLock": "khoá đoạn theo trục",
+      "remeasure": "đo lại",
+      "confirm": "xác nhận",
+      "nudgeFine": "nhích đầu đoạn một pixel",
+      "nudgeCoarse": "nhích đầu đoạn mười pixel"
+    },
+    "state": {
+      "emptyTitle": "Chưa có chuỗi kích thước nào để đối chiếu",
+      "emptyDescription": "Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.",
+      "loadingTitle": "Đang tải bản vẽ đã nắn",
+      "loadingDescription": "Ảnh 3000×3000 pixel đang được tải. Bảng hiệu chỉnh sẽ mở ngay khi ảnh sẵn sàng.",
+      "partialTitle": "Chưa đủ dữ liệu để chốt tỷ lệ",
+      "partialDescription": "Đã có đoạn tham chiếu nhưng chưa có chiều dài thật, hoặc một số chuỗi kích thước đọc được với độ tin cậy thấp.",
+      "errorTitle": "Nắn ảnh thất bại nên bản vẽ có thể méo",
+      "errorDescription": "Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.",
+      "errorBackToPreprocessing": "Quay lại bước tiền xử lý",
+      "errorRetry": "Tải lại ảnh",
+      "successTitle": "Đã áp tỷ lệ cho bản vẽ",
+      "successDescription": "Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.",
+      "successBadge": "đã duyệt",
+      "forbiddenTitle": "Bạn không có quyền hiệu chỉnh tỷ lệ",
+      "forbiddenDescription": "Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.",
+      "collapsedTitle": "Bảng hiệu chỉnh đang thu gọn",
+      "collapsedDescription": "Bung bảng để đổi cách xác định tỷ lệ."
+    },
+    "units": {
+      "pixel": "px",
+      "millimetre": "mm",
+      "millimetrePerPixel": "mm/px",
+      "squareMetre": "m²",
+      "dimensionString": "chuỗi kích thước"
+    }
+  },
   "notifications": {
     "regionAriaLabel": "Thông báo"
   }
