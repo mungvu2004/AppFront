@@ -602,6 +602,22 @@ export interface ScaleCalibrationActions {
   readonly onZoom: (nextZoom: number, focus: ImageRatioPoint | null) => void;
   /** Con trỏ dịch trên canvas, để thanh trạng thái đổi toạ độ. `null` khi rời canvas. */
   readonly onMoveCursor: (point: ImageRatioPoint | null) => void;
+  /**
+   * Kích thước canvas ĐÃ RENDER, tính bằng pixel CSS.
+   *
+   * Thêm sau khi file đóng băng, bằng một ngoại lệ hẹp điều phối viên cấp
+   * thành văn bản, và CHỈ THÊM — không kiểu nào đã có bị đổi.
+   *
+   * Vì sao phải có: bay khung nhìn (R-07) chạy qua `flyToBounds` của
+   * `hooks/useCanvasViewport`, và hàm đó nhận bề rộng/bề cao canvas bằng pixel
+   * để tính ra `ViewportState`. `ScaleCalibrationCanvas` đã đo sẵn kích thước
+   * đó bằng `ResizeObserver` nhưng giữ riêng cho mình; không có đường này thì
+   * hook chỉ đoán được, và một `viewport.x` sai đơn vị dịch khung nhìn chưa tới
+   * một pixel — R-07 hỏng âm thầm chứ không kêu.
+   *
+   * View gọi mỗi lần kích thước đổi, kể cả lần đo đầu tiên.
+   */
+  readonly onCanvasSizeChange: (widthPx: number, heightPx: number) => void;
 
   /* -- Chân panel ---------------------------------------------------------- */
   /** Áp tỷ lệ. Sinh toast có Hoàn tác (A8) và cho nhãn kích thước chạy số 260 ms. */
