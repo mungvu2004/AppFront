@@ -16,7 +16,13 @@
 
 import { MILLIMETRES_PER_METRE } from '@/domain/units/types';
 
-import { formatNumber, isFormattable, MISSING_VALUE, type MaybeNumber } from './number';
+import {
+  formatNumber,
+  isFormattable,
+  MISSING_VALUE,
+  type MaybeNumber,
+  type NumberFormatOptions,
+} from './number';
 
 /** The units a length may be shown in. */
 export type LengthDisplayUnit = 'mm' | 'm';
@@ -63,6 +69,18 @@ export interface MeasureFormatOptions {
   /** Override the decimals: 2 for an area, 1 for an angle. */
   readonly fractionDigits?: number;
 }
+
+/**
+ * Short edge of an A3 sheet, in millimetres of paper.
+ *
+ * The one anchor {@link formatDrawingScaleRatio} is built on — see
+ * `src/domain/quality/thresholds.ts:16`: "Cạnh ngắn A3 = 297 mm giấy. Ở 1:100,
+ * đó là 29.700 mm công trình." That file already owns the three other quality
+ * thresholds derived from the same anchor and is out of scope for this change,
+ * so the number is named here rather than left as a bare `297` in the formula
+ * below — the citation is what keeps it from being a fabricated constant.
+ */
+export const A3_SHORT_EDGE_MM = 297;
 
 /** The unit a length of this magnitude reads in. */
 function chooseUnit(valueMm: number): LengthDisplayUnit {
@@ -136,4 +154,73 @@ export function formatAngle(angleDeg: MaybeNumber, options: MeasureFormatOptions
   }
   const digits = options.fractionDigits ?? ANGLE_FRACTION_DIGITS;
   return `${formatNumber(angleDeg, { fractionDigits: digits })}${DEGREE_SUFFIX}`;
+}
+
+const MILLIMETRES_PER_PIXEL_SUFFIX = ' mm/px';
+
+/**
+ * Write a drawing's scale density: how many real millimetres one pixel of the
+ * image is worth.
+ *
+ * The number part is whatever {@link formatNumber}'s own options produce —
+ * this function does not pick a decimal count of its own, it only supplies the
+ * unit. `formatScaleDensity(12)` is `"12 mm/px"`; a caller that wants decimals
+ * asks for them the same way it would from `formatNumber`.
+ *
+ * @param millimetresPerPixel A `MillimetresPerPixel` quantity (see
+ * `src/domain/units/scale.ts`) or a bare number.
+ *
+ * @example
+ * formatScaleDensity(12)                              // "12 mm/px"
+ * formatScaleDensity(12.4, { maxFractionDigits: 1 })  // "12,4 mm/px"
+ * formatScaleDensity(null)                            // "—"
+ */
+export function formatScaleDensity(
+  millimetresPerPixel: MaybeNumber,
+  options: NumberFormatOptions = {},
+): string {
+  if (!isFormattable(millimetresPerPixel)) {
+    return MISSING_VALUE;
+  }
+  return `${formatNumber(millimetresPerPixel, options)}${MILLIMETRES_PER_PIXEL_SUFFIX}`;
+}
+
+/**
+ * Write a drawing's print scale as `"1:N"`, from its density and the short
+ * edge of the source image.
+ *
+ * Anchored on {@link A3_SHORT_EDGE_MM}, the one reference point the whole
+ * quality-threshold system is built on. At `shortEdgePx` pixels for that same
+ * paper edge, one pixel covers `A3_SHORT_EDGE_MM / shortEdgePx` millimetres of
+ * *paper* — the same shape of quantity as `millimetresPerPixel`, but measured
+ * on the sheet instead of on the built structure. The ratio of the two is how
+ * many real millimetres one paper millimetre stands for, which is exactly what
+ * `N` means in `1:N`. `formatNumber` does the rounding (to a whole number, so
+ * the figure reads as a round scale like `1:100`); nothing here rounds by hand.
+ *
+ * @param millimetresPerPixel A `MillimetresPerPixel` quantity or a bare number.
+ * @param shortEdgePx The image's short edge, in pixels — a `Pixels` quantity
+ * or a bare number.
+ *
+ * @example
+ * formatDrawingScaleRatio(12, 2475)   // "1:100" — the spec's own worked example
+ * formatDrawingScaleRatio(null, 2475) // "—"
+ */
+export function formatDrawingScaleRatio(
+  millimetresPerPixel: MaybeNumber,
+  shortEdgePx: MaybeNumber,
+): string {
+  if (
+    !isFormattable(millimetresPerPixel) ||
+    millimetresPerPixel <= 0 ||
+    !isFormattable(shortEdgePx) ||
+    shortEdgePx <= 0
+  ) {
+    return MISSING_VALUE;
+  }
+
+  const paperMillimetresPerPixel = A3_SHORT_EDGE_MM / shortEdgePx;
+  const ratio = millimetresPerPixel / paperMillimetresPerPixel;
+
+  return `1:${formatNumber(ratio, { fractionDigits: 0 })}`;
 }
