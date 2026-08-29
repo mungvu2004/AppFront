@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { median, medianAbsoluteDeviation, splitOutliers } from '../outliers';
 import {
+  classifyScaleRange,
   compareLevelScales,
+  compareScaleToAiEstimate,
   createScale,
   inferScale,
+  inferWallThicknessFromScale,
   millimetresPerPixel,
   pixels,
   SCALE_THRESHOLDS,
@@ -13,6 +16,7 @@ import {
   type ScaleMeasurement,
 } from '../scale';
 import { millimetres, roundMeasurement } from '../types';
+import { MAX_WALL_THICKNESS_MM } from '../../rules/registry';
 
 /** The drawing used throughout: 4800 mm of wall measured as 400 px. */
 const TARGET_RATIO = 12;
@@ -214,6 +218,90 @@ describe('compareLevelScales', () => {
 
   it('says nothing about a single level', () => {
     expect(compareLevelScales([level('L-001', 'Tầng trệt', 12)])).toEqual([]);
+  });
+});
+
+describe('classifyScaleRange', () => {
+  it('accepts a ratio inside the documented 1-200 mm/px range', () => {
+    expect(classifyScaleRange(millimetresPerPixel(1))).toBe('inRange');
+    expect(classifyScaleRange(millimetresPerPixel(12))).toBe('inRange');
+    expect(classifyScaleRange(millimetresPerPixel(200))).toBe('inRange');
+  });
+
+  it('flags a ratio finer than the range as below it', () => {
+    expect(classifyScaleRange(millimetresPerPixel(0.5))).toBe('belowRange');
+  });
+
+  it('flags a ratio coarser than the range as above it', () => {
+    expect(classifyScaleRange(millimetresPerPixel(250))).toBe('aboveRange');
+  });
+});
+
+describe('compareScaleToAiEstimate', () => {
+  it('reports a positive deviation when the manual ratio reads bigger', () => {
+    const result = compareScaleToAiEstimate(millimetresPerPixel(12.3), millimetresPerPixel(12));
+
+    expect(result.relativeDeviation).toBeCloseTo(0.025, 6);
+    expect(result.exceedsLimit).toBe(false);
+  });
+
+  it('reports a negative deviation when the manual ratio reads smaller', () => {
+    const result = compareScaleToAiEstimate(millimetresPerPixel(9), millimetresPerPixel(12));
+
+    expect(result.relativeDeviation).toBeCloseTo(-0.25, 6);
+    expect(result.exceedsLimit).toBe(true);
+  });
+
+  it('flags a deviation once it passes the 15% threshold', () => {
+    const belowLimit = compareScaleToAiEstimate(
+      millimetresPerPixel(13.7),
+      millimetresPerPixel(12),
+    );
+    const aboveLimit = compareScaleToAiEstimate(
+      millimetresPerPixel(13.9),
+      millimetresPerPixel(12),
+    );
+
+    expect(belowLimit.exceedsLimit).toBe(false);
+    expect(aboveLimit.exceedsLimit).toBe(true);
+  });
+
+  it('never marks a comparison against another estimate as verified', () => {
+    const result = compareScaleToAiEstimate(millimetresPerPixel(12), millimetresPerPixel(12));
+
+    expect(result).not.toHaveProperty('verified');
+  });
+
+  it('reports no deviation when the AI estimate is degenerate rather than dividing by it', () => {
+    const result = compareScaleToAiEstimate(millimetresPerPixel(12), millimetresPerPixel(0));
+
+    expect(result).toEqual({ relativeDeviation: 0, exceedsLimit: false });
+  });
+});
+
+describe('inferWallThicknessFromScale', () => {
+  it('says a scale is fine when it implies an ordinary wall', () => {
+    const result = inferWallThicknessFromScale(millimetresPerPixel(12), pixels(10));
+
+    expect(result.thicknessMm).toBe(120);
+    expect(result.implausible).toBe(false);
+  });
+
+  it('stays plausible exactly at the ceiling', () => {
+    const result = inferWallThicknessFromScale(millimetresPerPixel(40), pixels(10));
+
+    expect(result.thicknessMm).toBe(MAX_WALL_THICKNESS_MM);
+    expect(result.implausible).toBe(false);
+  });
+
+  it('flags the example from the spec: 250 mm/px implies a wall about 3 m thick', () => {
+    // 12 px is the width the 1/270 anchor (quality/thresholds.ts:19-20) implies
+    // for a reference wall on a plan scanned at roughly 3,240 px short edge —
+    // above the recommended 2,000 px minimum, and a plausible scan size.
+    const result = inferWallThicknessFromScale(millimetresPerPixel(250), pixels(12));
+
+    expect(result.thicknessMm).toBe(3000);
+    expect(result.implausible).toBe(true);
   });
 });
 
