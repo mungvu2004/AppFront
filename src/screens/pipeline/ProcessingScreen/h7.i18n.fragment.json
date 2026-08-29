@@ -1,0 +1,46 @@
+{
+  "_note": "Chuỗi tiếng Việt MỚI do useProcessingScreen.ts sinh ra (nhiệm vụ H7). File này KHÔNG được đọc lúc chạy — chuỗi viết thẳng trong hook, đây là bản khai để chủ sở hữu src/i18n/vi.json (nhiệm vụ I8) gộp vào. Không tự gộp: mục [KHONG DUOC SUA FILE NAO] cấm sửa src/i18n/vi.json. Chuỗi của khung view nằm ở s4.i18n.fragment.json, không lặp lại ở đây. Tên sáu bước KHÔNG có ở đây: chúng đã nằm sẵn ở khoá `pipeline` của vi.json và hook đọc qua getPipelineStages().",
+  "screens": {
+    "pipeline": {
+      "processing": {
+        "stageStatus": {
+          "queued": "đang chờ",
+          "running": "đang xử lý",
+          "done": "đã xong",
+          "failed": "lỗi"
+        },
+        "units": {
+          "floor": "tầng",
+          "wall": "tường",
+          "object": "đối tượng",
+          "dimensionChain": "chuỗi kích thước",
+          "room": "phòng",
+          "countLabel": "{{count}} {{unit}}"
+        },
+        "step": {
+          "remaining": "còn khoảng {{duration}}",
+          "errorFallback": "Bước này gặp lỗi nên không hoàn tất được."
+        },
+        "overall": {
+          "doneFloors": "Đã xong {{done}}/{{total}} tầng",
+          "withRemaining": "{{doneClause}} · Còn lại khoảng {{duration}}"
+        },
+        "queue": {
+          "waiting": "Đang chờ hàng đợi — vị trí {{position}}"
+        },
+        "partialNotice": {
+          "someFloorsFailed": "{{floors}} gặp lỗi. Các tầng còn lại vẫn đang được xử lý."
+        },
+        "preview": {
+          "altPrefix": "Bản vẽ đang được xử lý — ",
+          "altEmpty": "Chưa có bản vẽ nào để xem trước.",
+          "noFloorRunning": "Chưa có tầng nào đang được xử lý."
+        },
+        "summary": {
+          "lowConfidence": "Có {{count}} mức độ tin cậy dưới {{threshold}} cần bạn xem lại.",
+          "noLowConfidence": "Không có mức độ tin cậy nào dưới {{threshold}}."
+        }
+      }
+    }
+  }
+}
