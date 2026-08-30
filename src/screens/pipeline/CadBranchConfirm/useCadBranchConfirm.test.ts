@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatNumber } from '@/lib/format/number';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
+import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -350,7 +351,7 @@ describe('useCadBranchConfirm — hai giai đoạn', () => {
     expect(mounted.result.current.resolvedBranch).toBe('ai');
     expect(mounted.result.current.model.stage).toBe('branchDialog');
     expect(mounted.result.current.model.mapping).toBeNull();
-    expect(onNavigate).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/pipeline`);
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.pipeline(PROJECT_ID));
   });
 
   it('nút Huỷ đóng hộp thoại mà không chốt nhánh nào', async () => {

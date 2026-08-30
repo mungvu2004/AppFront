@@ -10,6 +10,7 @@
  * | `[NGHIEM-2]` | chọn CAD → hộp thoại ĐÓNG rồi panel ánh xạ mở, KHÔNG lồng hộp thoại | 0 hộp thoại còn mở |
  * | `[NGHIEM-3]` | đổi vai trò một lớp → canvas đổi màu NGAY, không bấm gửi | nét đổi trong cùng lượt |
  * | `[NGHIEM-4]` | ô màu chú giải nhận `var(--wall-…)` hợp lệ | mọi ô |
+ * | `[NGHIEM-5]` | bàn phím ở hộp thoại giai đoạn 1 (A12) | tiêu điểm vào, Tab vòng, Esc đóng, tiêu điểm về nút mở |
  *
  * Hai lớp render, cố ý — cùng khuôn `ScaleCalibration.test.tsx`:
  *
@@ -32,10 +33,12 @@
  */
 
 import { readdirSync } from 'node:fs';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { formatNumber } from '@/lib/format/number';
+import { getFocusableElements } from '@/lib/input/focusTrap';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -442,5 +445,169 @@ describe('CadBranchConfirm — xem trước cập nhật trực tiếp [NGHIEM-3
         `${formatNumber(WALL_LAYER.entityCount)} đối tượng sẽ được nhập`,
       );
     });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [NGHIEM-5] Bàn phím ở hộp thoại giai đoạn 1 (A12).                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bảo đảm bàn phím của hộp thoại đến từ `Modal.Root` dùng chung
+ * (`createFocusTrap` + `useShortcut` scope `'dialog'`), và L2-A cố ý KHÔNG bẫy
+ * tiêu điểm lần thứ hai ở màn này. Thừa hưởng là đúng về cài đặt, nhưng lời hứa
+ * của A12 phải được đo TẠI ĐÂY: một màn có thể vô tình phá nó bằng một nút mọc
+ * ngoài khung hộp thoại hay một lượt đóng bỏ quên tiêu điểm.
+ *
+ * Ba điều kiện kỹ thuật của khối này:
+ *
+ * - **Nhường một khung hình trước mọi khẳng định về tiêu điểm.** `Modal.tsx:66-67`
+ *   gọi `trap.activate()` trong `requestAnimationFrame`, nên trước khung hình đó
+ *   tiêu điểm chưa vào hộp thoại. `nextFrame` chép đúng cách của
+ *   `src/components/overlay/Modal.test.tsx:10` — không hằng thời gian viết tay (R-71).
+ * - **Mở màn từ một nút THẬT.** Đó là cách một màn khác mở màn này (R-73), và là
+ *   thứ duy nhất làm câu hỏi "tiêu điểm quay về đâu" có nghĩa: bẫy tiêu điểm ghi
+ *   nhớ `document.activeElement` lúc `activate()`, nên phải có một phần tử đang
+ *   giữ tiêu điểm trước khi hộp thoại mở.
+ * - **Hỏi `getFocusableElements` chứ không tự viết bộ chọn.** Đó chính là hàm bẫy
+ *   tiêu điểm dùng để quyết định Tab đi đâu (`src/lib/input/focusTrap.ts`), nên
+ *   test đọc đúng danh sách mà mã chạy đọc, không dựng một bản sao sẽ lệch.
+ *
+ * Khẳng định (a) dừng ở mức "tiêu điểm nằm TRONG hộp thoại", cố ý không nêu tên
+ * nút: `activate()` hiện lấy phần tử focus được đầu tiên, và đóng đinh nút ấy vào
+ * test là khoá lại một hành vi còn phải đổi — xem chú thích đầu
+ * `CadBranchConfirmDialog.tsx` về prop `initialFocus` còn thiếu của `Modal.Root`.
+ */
+
+/** Đúng một khung hình thật — `activate()` của bẫy tiêu điểm chạy ở khung kế. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+/** Nhãn nút mở màn trong khuôn dựng dưới đây — nút này thuộc về test, không thuộc màn. */
+const OPENER_BUTTON_LABEL = 'mở hộp thoại chốt nhánh';
+
+/**
+ * Khuôn dựng đúng hình một màn khác mở màn này: một nút, và màn chỉ được gắn
+ * sau khi nút ấy được bấm.
+ */
+function CadBranchConfirmOpener({ onNavigate }: { readonly onNavigate: (path: string) => void }) {
+  const [isScreenOpen, setIsScreenOpen] = useState(false);
+
+  return (
+    <>
+      <button type="button" onClick={() => setIsScreenOpen(true)}>
+        {OPENER_BUTTON_LABEL}
+      </button>
+
+      {isScreenOpen && (
+        <CadBranchConfirmContainer
+          floorId={FLOOR_ID}
+          gateway={createMockCadBranchConfirmGateway()}
+          onNavigate={onNavigate}
+          projectId={PROJECT_ID}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * Mở màn đúng đường bàn phím đi: đưa tiêu điểm vào nút mở rồi kích hoạt nó, chờ
+ * hộp thoại có nút thật, rồi nhường một khung hình cho bẫy tiêu điểm.
+ */
+async function openScreenFromButton(onNavigate: (path: string) => void = () => undefined): Promise<{
+  readonly opener: HTMLElement;
+  readonly dialog: HTMLElement;
+}> {
+  renderWithProviders(<CadBranchConfirmOpener onNavigate={onNavigate} />);
+
+  const opener = screen.getByRole('button', { name: OPENER_BUTTON_LABEL });
+
+  opener.focus();
+  expect(document.activeElement).toBe(opener);
+
+  fireEvent.click(opener);
+  await settleDialog();
+
+  await act(async () => {
+    await nextFrame();
+  });
+
+  return { opener, dialog: screen.getByRole('dialog') };
+}
+
+describe('CadBranchConfirm — bàn phím ở hộp thoại chốt nhánh [NGHIEM-5]', () => {
+  it('mở màn ở giai đoạn 1 thì tiêu điểm đi vào trong hộp thoại, không ở lại nền phía sau', async () => {
+    const { opener, dialog } = await openScreenFromButton();
+
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(opener);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('Tab đi vòng TRONG hộp thoại, không thoát ra nút phía sau', async () => {
+    const { opener, dialog } = await openScreenFromButton();
+
+    const focusable = getFocusableElements(dialog);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (first === undefined || last === undefined) {
+      throw new Error('hộp thoại chốt nhánh phải có phần tử nhận tiêu điểm được');
+    }
+
+    // Nút mở nằm NGOÀI hộp thoại, nên nó không được có mặt trong vòng Tab.
+    expect(focusable).not.toContain(opener);
+
+    // Từ phần tử cuối, Tab vòng về phần tử đầu — không sang nút mở phía sau.
+    last.focus();
+    fireEvent.keyDown(dialog, { key: 'Tab' });
+
+    expect(document.activeElement).toBe(first);
+
+    // Và chiều ngược lại: Shift+Tab từ phần tử đầu vòng về phần tử cuối.
+    first.focus();
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+
+    expect(document.activeElement).toBe(last);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('bấm Esc thì hộp thoại đóng mà KHÔNG chốt nhánh nào', async () => {
+    const onNavigate = vi.fn();
+    const { dialog } = await openScreenFromButton(onNavigate);
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // Không nhánh nào được chốt: panel ánh xạ của nhánh CAD không mở ra, và
+    // không lượt điều hướng nào sang nhánh AI được gọi.
+    expect(screen.queryByRole('heading', { name: PANEL_TITLE })).not.toBeInTheDocument();
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    // Màn không trắng (A11) và vẫn còn ĐÚNG HAI lựa chọn để chốt lại.
+    expect(screen.getByText(AI_HANDOFF_TITLE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: PRIMARY_BUTTON_LABEL })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: SECONDARY_BUTTON_LABEL })).toBeEnabled();
+  });
+
+  it('đóng hộp thoại thì tiêu điểm quay về đúng nút đã mở nó', async () => {
+    const { opener, dialog } = await openScreenFromButton();
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    await act(async () => {
+      await nextFrame();
+    });
+
+    expect(document.activeElement).toBe(opener);
   });
 });
