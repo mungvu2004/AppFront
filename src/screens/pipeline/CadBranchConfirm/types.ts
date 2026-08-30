@@ -265,12 +265,67 @@ export interface CadWallThicknessLegendEntry {
   readonly colorToken: string;
 }
 
+import type { WallThickness } from '@/types/spatial';
+
+/**
+ * Một điểm trong hệ toạ độ bản vẽ, đơn vị milimét: `[x, y]`.
+ *
+ * Không dùng `{ x, y }` để canvas dựng thuộc tính `points` của SVG mà không phải
+ * dịch kiểu ở giữa.
+ */
+export type CadPreviewPoint = readonly [number, number];
+
+/**
+ * Một thực thể vẽ được trên canvas xem trước.
+ *
+ * Vì sao trường này tồn tại (bổ sung 30-08-2026, coordinator duyệt): bản giao kèo
+ * đầu tiên chỉ có `layers`, mà spec đòi hai thứ cần tới từng thực thể — "các thực
+ * thể tương ứng đổi màu trên canvas" và "nổi bật liên kết hai chiều … và ngược
+ * lại". Không có `id` thực thể do MỘT nguồn phát ra thì `hoveredEntityId` không
+ * bao giờ khớp được giữa hook và canvas. `id` PHẢI do gateway đặt, không do view
+ * tự sinh — view tự sinh là dữ liệu bịa (R-69).
+ */
+export interface CadPreviewEntity {
+  readonly id: string;
+  /** Lớp CAD chứa thực thể này — quyết định màu vẽ, theo vai trò đã gán cho lớp. */
+  readonly layerId: string;
+  readonly points: readonly CadPreviewPoint[];
+  /**
+   * Độ dày tường của thực thể này, chỉ có nghĩa khi lớp chứa nó được gán vai trò
+   * `wall`; `null` cho mọi vai trò khác.
+   *
+   * Vì sao trường này tồn tại (bổ sung 30-08-2026, coordinator duyệt): năm trên
+   * bảy vai trò lấy màu từ hàm không tham số của `materialMap`, nhưng
+   * `wallStrokeToken(thickness: WallThickness)` bắt buộc phải nhận một mức độ
+   * dày. Chọn cứng một mức cho mọi tường thì chú giải độ dày tường — thứ đã nằm
+   * trong hợp đồng này — sẽ nói dối về cái đang được vẽ.
+   */
+  readonly thicknessMm: WallThickness | null;
+}
+
+/**
+ * Khung bao của toàn bộ thực thể, đơn vị milimét.
+ *
+ * Tính sẵn ở viewmodel để canvas không phải tự tính khung bao — R-61 giữ mọi phép
+ * tính ra ngoài thư mục màn, và A15 giữ phép tính ra ngoài view.
+ */
+export interface CadPreviewExtent {
+  readonly minXMm: number;
+  readonly minYMm: number;
+  readonly maxXMm: number;
+  readonly maxYMm: number;
+}
+
 /** Mọi thứ canvas xem trước bên phải vẽ. Cập nhật TRỰC TIẾP khi đổi ánh xạ. */
 export interface CadLayerPreviewCanvasViewModel {
   readonly layers: readonly CadLayer[];
   readonly hoveredLayerId: string | null;
   /** Thực thể đang được rê chuột qua trên canvas, đồng bộ ngược lại bảng lớp. `null` khi rời. */
   readonly hoveredEntityId: string | null;
+  /** Hình học thật để vẽ. Rỗng khi chưa đọc xong tệp. */
+  readonly entities: readonly CadPreviewEntity[];
+  /** Khung bao đã tính sẵn của `entities`. */
+  readonly extentMm: CadPreviewExtent;
   readonly wallThicknessLegend: readonly CadWallThicknessLegendEntry[];
   readonly isLoading: boolean;
 }
