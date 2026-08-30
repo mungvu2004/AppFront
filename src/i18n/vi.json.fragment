@@ -47,7 +47,8 @@
         "secondary": "Vẫn dùng AI",
         "dismiss": "Huỷ"
       },
-      "rememberChoice": "Ghi nhớ lựa chọn cho dự án này"
+      "rememberChoice": "Ghi nhớ lựa chọn cho dự án này",
+      "rememberChoiceSessionNote": "lựa chọn chỉ được giữ trong phiên làm việc này, tải lại trang sẽ hỏi lại"
     },
     "phase2": {
       "panelTitle": "Ánh xạ lớp từ tệp CAD",

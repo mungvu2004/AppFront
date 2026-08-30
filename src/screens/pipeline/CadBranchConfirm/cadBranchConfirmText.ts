@@ -147,6 +147,10 @@ export const DISMISS_BUTTON_LABEL = 'Huỷ';
 /** Ô tích: ghi nhớ lựa chọn cho dự án này. */
 export const REMEMBER_CHOICE_LABEL = 'Ghi nhớ lựa chọn cho dự án này';
 
+/** Chú thích nhỏ dưới ô tích: nói rõ lựa chọn chỉ sống trong phiên (chưa có API lưu). */
+export const REMEMBER_CHOICE_SESSION_NOTE =
+  'lựa chọn chỉ được giữ trong phiên làm việc này, tải lại trang sẽ hỏi lại';
+
 /**
  * GIAI ĐOẠN 2 — Panel ánh xạ lớp
  */
@@ -338,6 +342,7 @@ export const CAD_BRANCH_CONFIRM_TEXT = {
       dismiss: DISMISS_BUTTON_LABEL,
     },
     rememberChoice: REMEMBER_CHOICE_LABEL,
+    rememberChoiceSessionNote: REMEMBER_CHOICE_SESSION_NOTE,
   },
   phase2: {
     panelTitle: PHASE_2_PANEL_TITLE,
