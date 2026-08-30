@@ -3,9 +3,22 @@
  * bộ dữ liệu qua `CadBranchConfirmDialogProps`, không chạm store/mạng/tệp CAD.
  *
  * `Modal.Root` tự lo bẫy tiêu điểm, Esc, và hoạt ảnh mở/đóng — hộp thoại này
- * không tự bắt phím hay tự gọi `.focus()`. Nút chính nhận tiêu điểm qua
- * `autoFocus` thô của HTML (`ButtonProps` kế thừa `React.ButtonHTMLAttributes`,
- * nên `Button` không cần khai báo prop riêng cho việc này).
+ * không tự bắt phím hay tự gọi `.focus()`.
+ *
+ * **Nút chính KHÔNG tự nhận tiêu điểm, và ở đây không có `autoFocus`.** Đặc tả
+ * đòi nút chính nhận tiêu điểm lúc mở, nhưng `Modal.Root` chưa có đường nào
+ * nhận lấy mong muốn đó: `createFocusTrap(...).activate()` chạy trong
+ * `requestAnimationFrame` (`Modal.tsx:66-67`) và luôn lấy phần tử focus được
+ * ĐẦU TIÊN trong khung hộp thoại — nút "Đóng hộp thoại" của `Modal.Header`.
+ * Một `autoFocus` đặt ở đây vì thế không bao giờ giữ được tiêu điểm; tệ hơn,
+ * nó đẩy tiêu điểm vào trong hộp thoại TRƯỚC lượt `activate()`, nên bẫy ghi
+ * nhớ nhầm "nơi đã mở" là chính nút bên trong, và lúc đóng thì tiêu điểm rơi
+ * về `body` thay vì quay lại nút đã mở màn — hỏng đúng lời hứa của A12.
+ * Bản sửa đúng còn thiếu: thêm prop `initialFocus` cho `Modal.Root` rồi chuyển
+ * thẳng xuống `createFocusTrap`. Việc đó đụng component dùng chung nên nằm
+ * ngoài lượt này. Test `[NGHIEM-5]` của màn khẳng định đúng phần đang đạt: tiêu
+ * điểm nằm TRONG hộp thoại, Tab vòng trong đó, Esc đóng, và đóng thì tiêu điểm
+ * quay về đúng nút đã mở.
  *
  * Không hộp thoại nào được mở từ trong hộp thoại này (cấm tuyệt đối của đặc tả).
  */
@@ -72,7 +85,6 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
           </Button>
           <Button
             variant="primary"
-            autoFocus
             disabled={model.isCadChoiceDisabled}
             onClick={() => actions.onChooseBranch('cad')}
           >
