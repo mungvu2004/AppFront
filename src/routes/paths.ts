@@ -58,6 +58,7 @@ export const ROUTE_PATTERNS = {
   login: '/login',
   notFound: '*',
   onboarding: '/onboarding',
+  projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
   projectExport: `${PROJECTS_ROOT}/:id/export`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
   projectPipelineGraph: `${PROJECTS_ROOT}/:id/pipeline/graph`,
@@ -95,6 +96,8 @@ export const ROUTES = {
   login: ROUTE_PATTERNS.login,
   onboarding: ROUTE_PATTERNS.onboarding,
   project: {
+    cadConfirm: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,
     export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
     pipelineGraph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline/graph`,

@@ -128,13 +128,28 @@ function strokeTokenForRole(role: CadLayerRole, thicknessMm: CadPreviewEntity['t
  * Giá trị màu dùng được trong CSS, từ một token của chú giải.
  *
  * `CadWallThicknessLegendEntry.colorToken` là "token màu giao diện" và hợp đồng
- * không chốt cách viết: `materialMap` trả về dạng đã bọc (`var(--wall-220)`),
- * còn `src/lib/coloring` gọi tên trần (`--wall-220`). Cả hai đều là token hợp
- * lệ, nên chỗ này nhận cả hai thay vì bắt một bên phải đổi — và vẫn không có mã
- * màu nào được viết ra ở đây.
+ * không chốt cách viết, nên BA cách viết đều tới được đây và cả ba đều hợp lệ:
+ *
+ * - đã bọc sẵn — `var(--wall-220)`, dạng `materialMap` trả về;
+ * - tên biến CSS — `--wall-220`, dạng `src/lib/coloring` gọi;
+ * - tên trần — `wall-220`, dạng hook của màn này phát ra cho chú giải
+ *   (`useCadBranchConfirm.ts`, bảng `WALL_THICKNESS_TOKENS`), cùng tên mà
+ *   `tailwind.config.ts` đặt cho bảng màu.
+ *
+ * Dạng thứ ba là dạng KHÔNG phải CSS hợp lệ: gán thẳng `wall-220` vào
+ * `backgroundColor` thì ô chú giải không có màu nào cả. Nó được bọc ở đây thay
+ * vì bắt hook đổi cách phát, và vẫn không có mã màu nào được viết ra.
  */
 function cssColorOfToken(colorToken: string): string {
-  return colorToken.startsWith('--') ? `var(${colorToken})` : colorToken;
+  if (colorToken.startsWith('var(')) {
+    return colorToken;
+  }
+
+  if (colorToken.startsWith('--')) {
+    return `var(${colorToken})`;
+  }
+
+  return `var(--${colorToken})`;
 }
 
 /** Danh sách điểm của một thực thể, dựng thẳng thành thuộc tính `points` của SVG. */
