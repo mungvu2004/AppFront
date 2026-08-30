@@ -265,6 +265,8 @@ export interface CadWallThicknessLegendEntry {
   readonly colorToken: string;
 }
 
+import type { WallThickness } from '@/types/spatial';
+
 /**
  * Một điểm trong hệ toạ độ bản vẽ, đơn vị milimét: `[x, y]`.
  *
@@ -288,6 +290,17 @@ export interface CadPreviewEntity {
   /** Lớp CAD chứa thực thể này — quyết định màu vẽ, theo vai trò đã gán cho lớp. */
   readonly layerId: string;
   readonly points: readonly CadPreviewPoint[];
+  /**
+   * Độ dày tường của thực thể này, chỉ có nghĩa khi lớp chứa nó được gán vai trò
+   * `wall`; `null` cho mọi vai trò khác.
+   *
+   * Vì sao trường này tồn tại (bổ sung 30-08-2026, coordinator duyệt): năm trên
+   * bảy vai trò lấy màu từ hàm không tham số của `materialMap`, nhưng
+   * `wallStrokeToken(thickness: WallThickness)` bắt buộc phải nhận một mức độ
+   * dày. Chọn cứng một mức cho mọi tường thì chú giải độ dày tường — thứ đã nằm
+   * trong hợp đồng này — sẽ nói dối về cái đang được vẽ.
+   */
+  readonly thicknessMm: WallThickness | null;
 }
 
 /**
