@@ -1,0 +1,115 @@
+{
+  "cadBranchConfirm": {
+    "phase1": {
+      "title": "Phát hiện tệp CAD",
+      "description": "Hồ sơ này có tệp bản vẽ gốc từ AutoCAD hoặc các phần mềm thiết kế khác. Bạn có thể sử dụng đường hình học chính xác từ tệp, hoặc tiếp tục dùng nhánh nhận dạng ảnh để kiểm soát từng bước.",
+      "loading": {
+        "title": "Đang đọc tệp CAD…",
+        "description": "Hệ thống đang phân tích tệp bản vẽ. Vui lòng đợi."
+      },
+      "errorTitle": "Không thể đọc tệp CAD",
+      "errorDescription": "Tệp bản vẽ bị hỏng hoặc dùng phiên bản AutoCAD mới hơn mức mà hệ thống hỗ trợ (hỗ trợ đến AutoCAD 2023). Vui lòng thiết lập lại tệp rồi tải lên. Bạn vẫn có thể tiếp tục dùng nhánh nhận dạng ảnh.",
+      "errorButton": "Tiếp tục với ảnh",
+      "partialTitle": "Chỉ một số tầng có CAD",
+      "partialDescription": "Tệp bản vẽ chỉ có dữ liệu cho một số tầng của hồ sơ. Các tầng khác sẽ chạy qua nhánh nhận dạng ảnh. Bạn có thể lựa chọn cách xử lý từng loại dữ liệu riêng biệt ở bước tiếp theo.",
+      "readyTitle": "Phát hiện tệp CAD",
+      "forbiddenTitle": "Không có quyền xử lý CAD",
+      "forbiddenDescription": "Tài khoản hiện tại không được phép sử dụng tính năng xử lý tệp CAD. Bạn chỉ có thể tiếp tục với nhánh nhận dạng ảnh. Liên hệ quản trị dự án để nâng cấp quyền truy cập.",
+      "collapsedTitle": "Phát hiện tệp CAD",
+      "comparisonTable": {
+        "accuracy": {
+          "aspect": "Độ chính xác",
+          "cadBranch": "Lấy thẳng từ tệp CAD gốc, độ chính xác tuyệt đối.",
+          "aiBranch": "Dựa trên nhận dạng ảnh; cần hiệu chỉnh tỷ lệ và kiểm tra từng chi tiết. Không nhỏ hơn CAD nhưng yêu cầu xác minh."
+        },
+        "qcWork": {
+          "aspect": "Công việc QC",
+          "cadBranch": "Kiểm tra lớp tường và đối tượng, ánh xạ vào vai trò (tường, cửa, cửa sổ). Nhanh nếu tệp sạch.",
+          "aiBranch": "Kiểm tra tường, cửa, cửa sổ, trục, kích thước. Phạm vi rộng hơn nhưng chi tiết hơn. Thích hợp nếu bạn có thời gian."
+        },
+        "time": {
+          "aspect": "Thời gian",
+          "cadBranch": "Tổng cộng 5–15 phút (phụ thuộc tệp sạch hay không).",
+          "aiBranch": "Tổng cộng 20–40 phút (gồm xử lý AI và kiểm tra từng tầng)."
+        }
+      },
+      "floorTableCaption": "Các tầng có sẵn tệp CAD sẽ dùng nhánh CAD; các tầng chỉ có ảnh sẽ chạy qua nhận dạng AI.",
+      "floorColumnLabel": "Tầng",
+      "cadStatusColumnLabel": "Trạng thái CAD",
+      "cadStatusAvailable": "Có tệp CAD",
+      "cadStatusImageOnly": "Chỉ có ảnh",
+      "unitWarning": {
+        "title": "Tệp CAD thiếu khai báo đơn vị",
+        "message": "Tệp bản vẽ không ghi rõ đơn vị (mm, cm, m, inch). Bạn sẽ cần chọn đơn vị thủ công ở bước tiếp theo. Nếu chọn sai, toàn bộ hình học sẽ bị sai tỷ lệ."
+      },
+      "buttons": {
+        "primary": "Dùng đường từ CAD",
+        "secondary": "Vẫn dùng AI",
+        "dismiss": "Huỷ"
+      },
+      "rememberChoice": "Ghi nhớ lựa chọn cho dự án này"
+    },
+    "phase2": {
+      "panelTitle": "Ánh xạ lớp từ tệp CAD",
+      "tableColumns": {
+        "layerName": "Tên lớp",
+        "entityCount": "Số thực thể",
+        "originalColor": "Màu gốc",
+        "layerRole": "Vai trò"
+      },
+      "layerRoles": {
+        "wall": "Tường",
+        "door": "Cửa đi",
+        "window": "Cửa sổ",
+        "dimension": "Kích thước",
+        "grid": "Trục",
+        "furniture": "Nội thất",
+        "ignore": "Bỏ qua"
+      },
+      "advancedOptions": {
+        "label": "Tuỳ chọn nhập",
+        "drawingUnit": "Đơn vị bản vẽ",
+        "units": {
+          "mm": "milimét (mm)",
+          "cm": "centimét (cm)",
+          "m": "mét (m)",
+          "inch": "inch"
+        },
+        "coordinateOrigin": "Gốc toạ độ",
+        "originOptions": {
+          "keepCAD": "Giữ nguyên gốc CAD",
+          "gridA1": "Đặt tại giao trục A-1"
+        }
+      },
+      "summaryLine": "Đã ánh xạ {mapped}/{total} lớp · {objects} đối tượng sẽ được nhập",
+      "buttons": {
+        "import": "Nhập hình học"
+      },
+      "hints": {
+        "unassignedLayer": "Lớp này chưa gán vai trò nhưng chứa nhiều đối tượng. Nếu bỏ qua, những đối tượng đó sẽ không được nhập.",
+        "aiBranchNotice": "Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học."
+      },
+      "emptyTitle": "Tệp CAD không có lớp được đặt tên",
+      "emptyDescription": "Hệ thống sẽ tự động ánh xạ các đối tượng dựa trên loại hình học (polyline cho tường, circle/arc cho cửa sổ, v.v.). Bạn có thể điều chỉnh kết quả này ở bước tiếp theo.",
+      "loadingTitle": "Đang phân tích tệp…",
+      "loadingDescription": "Hệ thống đang trích xuất danh sách lớp và đối tượng. Vui lòng đợi.",
+      "partialTitle": "Một số loại đối tượng không hỗ trợ",
+      "partialDescription": "Tệp CAD chứa các loại đối tượng không được hỗ trợ. Các loại này sẽ bị bỏ qua. Chỉ polyline, đường tròn, arc, text, và các loại hình học cơ bản khác được nhập.",
+      "errorTitle": "Không thể phân tích tệp CAD",
+      "errorDescription": "Tệp bản vẽ bị hỏng hoặc dùng phiên bản AutoCAD mới hơn mức mà hệ thống hỗ trợ (hỗ trợ đến AutoCAD 2023). Vui lòng thiết lập lại tệp trong AutoCAD (Lưu thành phiên bản 2023 hoặc cũ hơn) rồi tải lên lại.",
+      "readyTitle": "Ánh xạ lớp từ tệp CAD",
+      "readyDescription": "Gán mỗi lớp một vai trò để xác định cách xử lý hình học. Bạn có thể bỏ qua lớp không cần thiết.",
+      "forbiddenTitle": "Không có quyền xử lý CAD",
+      "forbiddenDescription": "Tài khoản hiện tại không được phép sử dụng tính năng xử lý tệp CAD. Liên hệ quản trị dự án để nâng cấp quyền truy cập.",
+      "collapsedTitle": "Ánh xạ lớp từ tệp CAD",
+      "collapsedDescription": "Bảng đã được đóng. Mở lại để điều chỉnh ánh xạ lớp hoặc tiếp tục nhập hình học."
+    },
+    "errors": {
+      "unsupportedVersion": "Tệp được lưu bằng AutoCAD phiên bản {version}, mà hệ thống chỉ hỗ trợ đến 2023. Vui lòng mở tệp lại trong AutoCAD 2023 hoặc phiên bản cũ hơn, lưu lại, rồi tải lên.",
+      "corruptedFile": "Tệp bản vẽ bị hỏng hoặc định dạng không hợp lệ. Hãy kiểm tra tệp trong AutoCAD rồi lưu lại dưới tên khác.",
+      "emptyFile": "Tệp bản vẽ không chứa bất kỳ đối tượng hình học nào. Kiểm tra lại file được tải lên có đúng không.",
+      "fileTooLarge": "Tệp bản vẽ quá lớn ({sizeMb} MB). Vui lòng tải lên tệp dưới 100 MB hoặc tách tệp thành các phần nhỏ hơn.",
+      "encodingNotSupported": "Tệu bản vẽ chứa mã hóa không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hóa tiêu chuẩn."
+    }
+  }
+}
