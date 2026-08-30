@@ -892,6 +892,74 @@
       "failedDescription": "Mở lại màn xử lý để xem chi tiết lỗi."
     }
   },
+  "pipelineFailure": {
+    "alert": {
+      "title": "Không nhận diện được lớp tường ở Tầng 03.",
+      "message": "Bản vẽ có nét quá mảnh và nhiều vết nhiễu, mô hình không tách được tường khỏi nội thất.",
+      "code": "SEG-2041"
+    },
+    "actions": {
+      "retryLowerThreshold": "Thử lại với ngưỡng thấp hơn",
+      "uploadClearerDrawing": "Tải lên bản vẽ rõ hơn",
+      "skipFloor": "Bỏ qua tầng đó",
+      "skipFloorWarning": "Bỏ qua tầng đó sẽ thiếu một tầng trong mô hình."
+    },
+    "keptResults": {
+      "notice": "Những kết quả này đã được giữ lại. Chạy lại sẽ không xoá chúng.",
+      "steps": {
+        "preprocess": "Tiền xử lý ảnh — xong",
+        "detection": "Nhận diện cửa và nội thất — 21 đối tượng",
+        "dimensions": "Đọc kích thước — 34 chuỗi"
+      }
+    },
+    "attempt": {
+      "count": "Lần thử 2",
+      "supportSuggestion": "Đã thử ba lần chưa thành công. Báo lỗi cho hỗ trợ để được hỗ trợ trực tiếp."
+    },
+    "technicalDetail": {
+      "disclosureLabel": "Chi tiết kỹ thuật",
+      "retryThisStep": "Thử lại bước này",
+      "copyLabel": "Sao chép chi tiết kỹ thuật",
+      "copiedLabel": "Đã sao chép",
+      "goToSupport": "Báo lỗi cho hỗ trợ"
+    },
+    "floorErrors": {
+      "dimFloor01": {
+        "title": "Không đọc được chuỗi kích thước ở Tầng 01.",
+        "message": "Nét ghi kích thước quá mờ nên bước đọc số không tách được số khỏi đường dẫn.",
+        "code": "DIM-1187"
+      },
+      "objFloor02": {
+        "title": "Không nhận diện được cửa và nội thất ở Tầng 02.",
+        "message": "Vùng ảnh bị chú thích chồng lấn che khuất, mô hình không tách được khối nội thất.",
+        "code": "OBJ-3350"
+      },
+      "segFloor03": {
+        "title": "Không nhận diện được lớp tường ở Tầng 03.",
+        "message": "Bản vẽ có nét quá mảnh và nhiều vết nhiễu, mô hình không tách được tường khỏi nội thất.",
+        "code": "SEG-2041"
+      },
+      "preFloor04": {
+        "title": "Không tiền xử lý được ảnh ở Tầng 04.",
+        "message": "Ảnh gốc hỏng một phần hoặc sai định dạng, bước tiền xử lý không đọc được.",
+        "code": "PRE-0512"
+      }
+    },
+    "state": {
+      "emptyTitle": "Chưa có lỗi nào để xem",
+      "emptyDescription": "Khi một bước xử lý gặp lỗi, chi tiết sẽ hiện ở đây.",
+      "loadingTitle": "Đang tải chi tiết lỗi",
+      "loadingDescription": "Nội dung cảnh báo và các đường đi tiếp đang được chuẩn bị.",
+      "partialTitle": "Một tầng gặp lỗi, các tầng khác vẫn đang chạy",
+      "partialDescription": "Xử lý vẫn tiếp tục cho những tầng còn lại trong lúc chờ xử lý lại tầng gặp lỗi.",
+      "successTitle": "Tầng 03 đã xử lý lại thành công",
+      "successDescription": "Lớp tường của tầng này đã tách được khỏi nội thất, có thể xem lại kết quả.",
+      "forbiddenTitle": "Không có quyền xử lý lại bước này",
+      "forbiddenDescription": "Chi tiết lỗi vẫn xem được, nhưng đường đi tiếp bị khoá. Nhờ người có quyền sửa dự án chạy lại giúp.",
+      "collapsedTitle": "Chi tiết lỗi đang thu gọn",
+      "collapsedDescription": "Mở khối chi tiết kỹ thuật để xem mã lỗi và nhật ký đầy đủ."
+    }
+  },
   "scaleCalibration": {
     "breadcrumb": {
       "projects": "Dự án",
