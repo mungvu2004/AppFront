@@ -102,7 +102,11 @@
       "forbiddenTitle": "Không có quyền xử lý CAD",
       "forbiddenDescription": "Tài khoản hiện tại không được phép sử dụng tính năng xử lý tệp CAD. Liên hệ quản trị dự án để nâng cấp quyền truy cập.",
       "collapsedTitle": "Ánh xạ lớp từ tệp CAD",
-      "collapsedDescription": "Bảng đã được đóng. Mở lại để điều chỉnh ánh xạ lớp hoặc tiếp tục nhập hình học."
+      "collapsedDescription": "Bảng đã được đóng. Mở lại để điều chỉnh ánh xạ lớp hoặc tiếp tục nhập hình học.",
+      "detectedUnitHint": "gợi ý đọc được từ tệp",
+      "previewCanvasAriaLabel": "xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán",
+      "layerRoleSelectAriaLabel": "vai trò của lớp {layerName}",
+      "layerSourceColorAriaLabel": "màu gốc của lớp {layerName}"
     },
     "errors": {
       "unsupportedVersion": "Tệp được lưu bằng AutoCAD phiên bản {version}, mà hệ thống chỉ hỗ trợ đến 2023. Vui lòng mở tệp lại trong AutoCAD 2023 hoặc phiên bản cũ hơn, lưu lại, rồi tải lên.",

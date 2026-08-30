@@ -374,3 +374,27 @@ export const CAD_BRANCH_CONFIRM_TEXT = {
   },
   errors: CAD_SPECIFIC_ERRORS,
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* -- bổ sung cho canvas + bảng lớp (L2-C) --                                  */
+/*                                                                            */
+/* Bốn hằng dưới đây do điều phối viên duyệt và chỉ định nguyên văn. Chúng     */
+/* nằm ở CUỐI FILE để không đụng phần L2-B đang thêm cạnh                      */
+/* REMEMBER_CHOICE_LABEL. Tên lớp CAD viết hoa (A-WALL) là ngoại lệ chữ hoa    */
+/* hợp lệ của A6 — nó là mã, không phải câu.                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Ghi chú cạnh Select "Đơn vị bản vẽ": giá trị hệ thống tự nhận là GỢI Ý, không phải quyết định. */
+export const DETECTED_UNIT_HINT_LABEL = 'gợi ý đọc được từ tệp';
+
+/** Nhãn trình đọc màn hình của khung canvas xem trước giai đoạn 2. */
+export const PREVIEW_CANVAS_ARIA_LABEL =
+  'xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán';
+
+/** Nhãn trình đọc màn hình cho Select vai trò của TỪNG hàng — bảy Select giống hệt nhau thì phải phân biệt được bằng tên lớp. */
+export const layerRoleSelectAriaLabel = (layerName: string): string =>
+  `vai trò của lớp ${layerName}`;
+
+/** Nhãn trình đọc màn hình cho ô màu CAD gốc của từng hàng. */
+export const layerSourceColorAriaLabel = (layerName: string): string =>
+  `màu gốc của lớp ${layerName}`;
