@@ -62,6 +62,7 @@ import { formatNumber } from '@/lib/format/number';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
+import type { WallThickness } from '@/types/spatial';
 
 import type {
   CadBranchConfirmGateway,
@@ -83,6 +84,8 @@ import type {
   CadLayerRole,
   CadMappingSummary,
   CadOriginMode,
+  CadPreviewEntity,
+  CadPreviewExtent,
   CadSelectOption,
   CadWallThicknessLegendEntry,
   UnsupportedEntityKind,
@@ -112,6 +115,14 @@ const COPY = {
   unitWarning:
     'tệp không khai báo đơn vị bản vẽ. hãy kiểm tra lại đơn vị ở khối "tuỳ chọn nhập" trước khi nhập hình học.',
   rememberSessionOnly: CAD_REMEMBER_SESSION_NOTICE,
+  /**
+   * Nhãn chú giải của mức dày duy nhất KHÔNG đo bằng mi-li-mét.
+   *
+   * `WallThickness` có bốn giá trị, ba số và một tên (`src/types/spatial.ts:14`).
+   * Ba giá trị số thành "110 mm"; giá trị thứ tư không có số nào để in, nên nó
+   * được gọi tên — A6, viết thường kiểu câu.
+   */
+  concreteColumnThickness: 'cột bê tông',
 } as const;
 
 /** Câu lỗi của tệp không đọc được — LUÔN nêu số phiên bản (L-03). */
@@ -243,20 +254,61 @@ const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 const BUSY_LAYER_MINIMUM_ENTITY_COUNT = 150;
 
 /**
- * Ba mức độ dày tường bảng màu của dự án đặt tên, và token của từng mức.
+ * Token bảng màu của từng giá trị `WallThickness`.
  *
- * Khoá LÀ tên token (`wall-110`, `wall-220`, `wall-330` — `tailwind.config.ts:66-69`),
- * nên đây không phải hằng số viết tay mà là bản kê những gì bảng màu có. Mức
- * không nằm trong ba mức này tô bằng `wall-idle`, đúng A4: không có màu thứ tư.
+ * Khoá LÀ bốn giá trị của kiểu (`src/types/spatial.ts:14`) và giá trị LÀ tên
+ * token (`wall-110`, `wall-220`, `wall-330` — `tailwind.config.ts:66-69`), nên
+ * đây không phải hằng số viết tay mà là bản kê những gì bảng màu có. Bảng này
+ * nói đúng cái `wallStrokeToken` của `materialMap` tô lên canvas cho cùng một
+ * mức — chú giải và nét vẽ không được lệch nhau.
+ *
+ * Không mức nào sinh ra một họ màu thứ tư: `CONCRETE_COLUMN` mượn `text-primary`
+ * đúng như `materialMap.wallStrokeToken` làm, đúng A4.
  */
-const WALL_THICKNESS_TOKENS: Readonly<Record<number, string>> = {
+const WALL_THICKNESS_TOKENS: Readonly<Record<WallThickness, string>> = {
   110: 'wall-110',
   220: 'wall-220',
   330: 'wall-330',
+  CONCRETE_COLUMN: 'text-primary',
 };
 
-/** Token của mức dày không nằm trong ba mức bảng màu đặt tên. */
+/** Token của mức dày không nằm trong bản kê trên. */
 const WALL_THICKNESS_FALLBACK_TOKEN = 'wall-idle';
+
+/**
+ * Khung bao dùng khi chưa có thực thể nào để bao.
+ *
+ * Bốn số không, KHÔNG phải `NaN` hay `Infinity`: `Math.min()` trên mảng rỗng
+ * trả `Infinity`, và một `viewBox` mang `Infinity` là một canvas trắng không ai
+ * gỡ được. Bề rộng và bề cao bằng không là câu đúng — chưa có gì để vẽ — và
+ * canvas đã đọc đúng nó (`hasDrawableExtent`).
+ */
+const EMPTY_PREVIEW_EXTENT: CadPreviewExtent = {
+  minXMm: 0,
+  minYMm: 0,
+  maxXMm: 0,
+  maxYMm: 0,
+};
+
+/** Nhãn chú giải của một mức dày. Ba mức số đo bằng mi-li-mét, mức thứ tư có tên. */
+const wallThicknessLabel = (thickness: WallThickness): string =>
+  typeof thickness === 'number'
+    ? `${formatNumber(thickness)} mm`
+    : COPY.concreteColumnThickness;
+
+/**
+ * Thứ tự chú giải: mỏng tới dày, mức không đo bằng số đứng cuối.
+ *
+ * Thứ tự đọc ra từ chính giá trị, không từ thứ tự thực thể xuất hiện trong tệp
+ * — chú giải phải đứng yên khi người dùng đổi vai trò một lớp.
+ */
+const compareWallThickness = (left: WallThickness, right: WallThickness): number => {
+  if (typeof left === 'number' && typeof right === 'number') {
+    return left - right;
+  }
+
+  return typeof left === 'number' ? -1 : typeof right === 'number' ? 1 : 0;
+};
 
 /**
  * Câu máy đọc, tiếng Anh, của một tệp CAD không đọc được.
@@ -423,6 +475,48 @@ export function useCadBranchConfirm(
     }),
     [layers.length, mappedLayers.length, objectCount],
   );
+
+  /* ---------------------------------------------------------------------- */
+  /* Hình học xem trước — thực thể và khung bao của chúng.                   */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Hình học cổng dữ liệu đọc được. Rỗng khi chưa đọc xong tệp — `[]` ở đây
+   * nghĩa là "chưa có gì để vẽ", đúng thứ `preview.isLoading` nói ra cùng lúc.
+   */
+  const entities = useMemo<readonly CadPreviewEntity[]>(
+    () => inspection?.entities ?? [],
+    [inspection],
+  );
+
+  /**
+   * Khung bao của mọi điểm, tính Ở ĐÂY chứ không ở canvas.
+   *
+   * R-61 giữ mọi phép tính ra khỏi view: canvas nhận `viewBox` đã sẵn sàng và
+   * chỉ ghép chuỗi. Mảng rỗng trả {@link EMPTY_PREVIEW_EXTENT} thay vì để
+   * `Math.min` trả `Infinity`.
+   */
+  const extentMm = useMemo<CadPreviewExtent>(() => {
+    let minXMm = Number.POSITIVE_INFINITY;
+    let minYMm = Number.POSITIVE_INFINITY;
+    let maxXMm = Number.NEGATIVE_INFINITY;
+    let maxYMm = Number.NEGATIVE_INFINITY;
+    let pointCount = 0;
+
+    for (const entity of entities) {
+      for (const [xMm, yMm] of entity.points) {
+        minXMm = Math.min(minXMm, xMm);
+        minYMm = Math.min(minYMm, yMm);
+        maxXMm = Math.max(maxXMm, xMm);
+        maxYMm = Math.max(maxYMm, yMm);
+        pointCount += 1;
+      }
+    }
+
+    // Một thực thể không có điểm nào cũng là "không có gì để bao" — đếm điểm
+    // thật, không đếm thực thể.
+    return pointCount === 0 ? EMPTY_PREVIEW_EXTENT : { minXMm, minYMm, maxXMm, maxYMm };
+  }, [entities]);
 
   const unsupportedEntityKinds = useMemo<readonly UnsupportedEntityKind[]>(
     // Giữ nguyên TỪNG loại kèm số lượng — không gộp, không tổng hoá.
@@ -705,15 +799,28 @@ export function useCadBranchConfirm(
     [],
   );
 
-  const wallThicknessLegend = useMemo<readonly CadWallThicknessLegendEntry[]>(
-    () =>
-      (inspection?.wallThicknessesMm ?? []).map((thicknessMm) => ({
-        id: `cad-wall-thickness-${thicknessMm}`,
-        label: `${formatNumber(thicknessMm)} mm`,
-        colorToken: WALL_THICKNESS_TOKENS[thicknessMm] ?? WALL_THICKNESS_FALLBACK_TOKEN,
-      })),
-    [inspection],
-  );
+  /**
+   * Chú giải liệt kê ĐÚNG những mức dày có mặt trong `entities` — không hơn.
+   *
+   * Đọc ra từ chính thứ canvas đang vẽ chứ không từ một danh sách mức song song
+   * của tệp: một chú giải kể tên mức không xuất hiện trên hình là chú giải nói
+   * dối, và người dùng không có cách nào biết là nó đang nói dối.
+   */
+  const wallThicknessLegend = useMemo<readonly CadWallThicknessLegendEntry[]>(() => {
+    const present = new Set<WallThickness>();
+
+    for (const entity of entities) {
+      if (entity.thicknessMm !== null) {
+        present.add(entity.thicknessMm);
+      }
+    }
+
+    return [...present].sort(compareWallThickness).map((thickness) => ({
+      id: `cad-wall-thickness-${thickness}`,
+      label: wallThicknessLabel(thickness),
+      colorToken: WALL_THICKNESS_TOKENS[thickness] ?? WALL_THICKNESS_FALLBACK_TOKEN,
+    }));
+  }, [entities]);
 
   const partialNotice = useMemo(() => {
     if (state !== 'partial') {
@@ -770,6 +877,8 @@ export function useCadBranchConfirm(
             layers,
             hoveredLayerId,
             hoveredEntityId,
+            entities,
+            extentMm,
             wallThicknessLegend,
             isLoading: query.isPending,
           }

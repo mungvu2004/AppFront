@@ -62,6 +62,7 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import type { AppError } from '@/lib/errors';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AcceptedUploadExtension } from '@/lib/upload/validate';
+import type { WallThickness } from '@/types/spatial';
 import { readExtension } from '@/lib/upload/validate';
 
 import type {
@@ -71,6 +72,7 @@ import type {
   CadLayer,
   CadLayerRole,
   CadOriginMode,
+  CadPreviewEntity,
   UnsupportedEntityKind,
 } from './types';
 
@@ -186,6 +188,15 @@ export interface CadInspectionSnapshot {
    * cần một họ màu thứ tư, thứ A4 tồn tại để chặn.
    */
   readonly wallThicknessesMm: readonly number[];
+  /**
+   * Hình học vẽ được của tệp: từng thực thể, kèm lớp chứa nó và độ dày tường.
+   *
+   * `id` do CỔNG đặt và ổn định giữa hai lượt đọc cùng một tệp — canvas và bảng
+   * lớp đối chiếu `hoveredEntityId` bằng chính chuỗi này, nên một id sinh ngẫu
+   * nhiên hay theo đồng hồ là một liên kết nổi bật hai chiều chết. View KHÔNG
+   * BAO GIỜ tự sinh id thực thể (R-69).
+   */
+  readonly entities: readonly CadPreviewEntity[];
   /** Từng loại thực thể không hỗ trợ kèm số lượng — không bao giờ gộp. */
   readonly unsupportedEntities: readonly UnsupportedEntityKind[];
 }
@@ -462,10 +473,274 @@ export const CAD_SAMPLE_UNSUPPORTED_ENTITIES: readonly UnsupportedEntityKind[] =
 ];
 
 /**
+ * Hình học của bộ mẫu — một mặt bằng 12,0 × 9,0 m, toạ độ MI-LI-MÉT tuyệt đối.
+ *
+ * Ba điều kiện của bộ này, theo thứ tự quan trọng:
+ *
+ * 1. **`id` ổn định.** Mọi id là chuỗi viết thẳng, không sinh ngẫu nhiên và
+ *    không lấy từ đồng hồ: `hoveredEntityId` của hook phải khớp được với `id`
+ *    canvas đang vẽ qua nhiều lượt render, và hai lượt đọc cùng một tệp phải
+ *    cho cùng một tập id.
+ * 2. **`layerId` trỏ đúng chín lớp của {@link CAD_SAMPLE_LAYERS}.** Canvas tra
+ *    lớp theo id để biết vai trò, và vai trò quyết định màu nét; một id lạc là
+ *    một nét tô màu "bỏ qua" mà không ai giải thích được vì sao.
+ * 3. **Độ dày chỉ đi cùng thực thể của lớp tường.** Sáu vai trò còn lại lấy màu
+ *    từ hàm không tham số của `materialMap`, nên `thicknessMm` của chúng là
+ *    `null` — không phải `0`, thứ sẽ giả làm một mức dày có thật.
+ *
+ * Ba mức dày cùng có mặt (330 tường bao, 220 tường chịu lực trong, 110 tường
+ * ngăn) nên chú giải độ dày tường nói ra đúng ba mức bảng màu đặt tên.
+ *
+ * Trục và đường kích thước chạy ra ngoài mép nhà — đó là lý do khung bao rộng
+ * hơn hình chữ nhật tường bao, và là thứ khiến phép tính khung bao ở hook có
+ * việc thật để làm.
+ */
+export const CAD_SAMPLE_ENTITIES: readonly CadPreviewEntity[] = [
+  /* -- Tường bao: một đa tuyến khép, dày nhất. ----------------------------- */
+  {
+    id: 'cad-entity-wall-envelope',
+    layerId: 'cad-layer-a-wall',
+    points: [
+      [0, 0],
+      [12000, 0],
+      [12000, 9000],
+      [0, 9000],
+      [0, 0],
+    ],
+    thicknessMm: 330,
+  },
+
+  /* -- Tường chịu lực bên trong: đoạn thẳng. ------------------------------- */
+  {
+    id: 'cad-entity-wall-spine',
+    layerId: 'cad-layer-a-wall',
+    points: [
+      [0, 5400],
+      [12000, 5400],
+    ],
+    thicknessMm: 220,
+  },
+  {
+    id: 'cad-entity-wall-cross',
+    layerId: 'cad-layer-a-wall',
+    points: [
+      [7200, 0],
+      [7200, 5400],
+    ],
+    thicknessMm: 220,
+  },
+
+  /* -- Tường ngăn: mỏng nhất. ---------------------------------------------- */
+  {
+    id: 'cad-entity-wall-prtn-bedroom',
+    layerId: 'cad-layer-a-wall-prtn',
+    points: [
+      [3600, 5400],
+      [3600, 9000],
+    ],
+    thicknessMm: 110,
+  },
+  {
+    id: 'cad-entity-wall-prtn-bath',
+    layerId: 'cad-layer-a-wall-prtn',
+    points: [
+      [3600, 7200],
+      [12000, 7200],
+    ],
+    thicknessMm: 110,
+  },
+
+  /* -- Cửa đi: đoạn ngắn NẰM TRÊN một tường ở trên. ------------------------- */
+  {
+    id: 'cad-entity-door-entry',
+    layerId: 'cad-layer-a-door',
+    points: [
+      [5400, 0],
+      [6300, 0],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-door-bedroom',
+    layerId: 'cad-layer-a-door',
+    points: [
+      [3600, 6000],
+      [3600, 6900],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-door-service',
+    layerId: 'cad-layer-a-door',
+    points: [
+      [8400, 5400],
+      [9300, 5400],
+    ],
+    thicknessMm: null,
+  },
+
+  /* -- Cửa sổ: đoạn ngắn trên tường bao. ------------------------------------ */
+  {
+    id: 'cad-entity-window-south',
+    layerId: 'cad-layer-a-glaz',
+    points: [
+      [1800, 0],
+      [3600, 0],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-window-north',
+    layerId: 'cad-layer-a-glaz',
+    points: [
+      [1800, 9000],
+      [3600, 9000],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-window-east',
+    layerId: 'cad-layer-a-glaz',
+    points: [
+      [12000, 2400],
+      [12000, 4200],
+    ],
+    thicknessMm: null,
+  },
+
+  /* -- Trục: đường dài xuyên qua cả mặt bằng, thò ra hai đầu. ---------------- */
+  {
+    id: 'cad-entity-grid-1',
+    layerId: 'cad-layer-a-grid',
+    points: [
+      [-1200, 0],
+      [13200, 0],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-grid-2',
+    layerId: 'cad-layer-a-grid',
+    points: [
+      [-1200, 5400],
+      [13200, 5400],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-grid-a',
+    layerId: 'cad-layer-a-grid',
+    points: [
+      [0, -1200],
+      [0, 10200],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-grid-b',
+    layerId: 'cad-layer-a-grid',
+    points: [
+      [7200, -1200],
+      [7200, 10200],
+    ],
+    thicknessMm: null,
+  },
+
+  /* -- Kích thước: đoạn có hai đầu, chạy song song mép nhà. ------------------ */
+  {
+    id: 'cad-entity-dim-south',
+    layerId: 'cad-layer-a-dims',
+    points: [
+      [0, -600],
+      [12000, -600],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-dim-west',
+    layerId: 'cad-layer-a-dims',
+    points: [
+      [-600, 0],
+      [-600, 9000],
+    ],
+    thicknessMm: null,
+  },
+
+  /* -- Nội thất: hình chữ nhật khép. ---------------------------------------- */
+  {
+    id: 'cad-entity-furn-sofa',
+    layerId: 'cad-layer-a-furn',
+    points: [
+      [900, 900],
+      [3300, 900],
+      [3300, 2100],
+      [900, 2100],
+      [900, 900],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-furn-table',
+    layerId: 'cad-layer-a-furn',
+    points: [
+      [8400, 1200],
+      [10800, 1200],
+      [10800, 2400],
+      [8400, 2400],
+      [8400, 1200],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-furn-bed',
+    layerId: 'cad-layer-a-furn',
+    points: [
+      [600, 6000],
+      [2400, 6000],
+      [2400, 8100],
+      [600, 8100],
+      [600, 6000],
+    ],
+    thicknessMm: null,
+  },
+
+  /* -- Ghi chú và điểm dựng: hai lớp còn để "bỏ qua". ----------------------- */
+  {
+    id: 'cad-entity-anno-living-room',
+    layerId: 'cad-layer-a-anno-text',
+    points: [
+      [1200, 4500],
+      [2400, 4500],
+    ],
+    thicknessMm: null,
+  },
+  {
+    id: 'cad-entity-defpoint-origin',
+    layerId: 'cad-layer-defpoints',
+    points: [
+      [-150, -150],
+      [150, 150],
+    ],
+    thicknessMm: null,
+  },
+];
+
+/**
  * Ba mức độ dày tường của bộ mẫu — đúng ba mức bảng màu của dự án đặt tên
  * (`wall-110`, `wall-220`, `wall-330`).
+ *
+ * ĐỌC RA TỪ {@link CAD_SAMPLE_ENTITIES}, không viết tay lần thứ hai: chú giải
+ * độ dày tường phải nói đúng cái canvas đang vẽ, và hai danh sách viết tay song
+ * song là đúng chỗ chúng lệch nhau vào lúc không ai để ý.
  */
-export const CAD_SAMPLE_WALL_THICKNESSES_MM: readonly number[] = [110, 220, 330];
+export const CAD_SAMPLE_WALL_THICKNESSES_MM: readonly number[] = [
+  ...new Set(
+    CAD_SAMPLE_ENTITIES.map((entity) => entity.thicknessMm).filter(
+      (thicknessMm): thicknessMm is Extract<WallThickness, number> =>
+        typeof thicknessMm === 'number',
+    ),
+  ),
+].sort((left, right) => left - right);
 
 /** Số phiên bản định dạng của tệp mẫu — mã máy đọc, giữ nguyên dạng (A6). */
 export const CAD_SAMPLE_FILE_FORMAT_VERSION = 'AC1032';
@@ -483,6 +758,7 @@ export const CAD_SAMPLE_INSPECTION: CadInspectionSnapshot = {
   detectedUnit: 'mm',
   layers: CAD_SAMPLE_LAYERS,
   wallThicknessesMm: CAD_SAMPLE_WALL_THICKNESSES_MM,
+  entities: CAD_SAMPLE_ENTITIES,
   unsupportedEntities: CAD_SAMPLE_UNSUPPORTED_ENTITIES,
 };
 

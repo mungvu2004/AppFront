@@ -21,6 +21,7 @@ import type { ProjectRole } from '@/types/project';
 
 import {
   CAD_MISSING_ENDPOINTS,
+  CAD_SAMPLE_ENTITIES,
   CAD_SAMPLE_FILE_FORMAT_VERSION,
   CAD_SAMPLE_INSPECTION,
   CAD_SAMPLE_LAYERS,
@@ -39,6 +40,7 @@ import { useCadBranchConfirm } from './useCadBranchConfirm';
 import type {
   CadBranchConfirmState,
   CadLayerRole,
+  CadPreviewEntity,
   UseCadBranchConfirmResult,
 } from './types';
 import { createMockApiClient } from '@/api/__mocks__/client';
@@ -742,5 +744,208 @@ describe('useCadBranchConfirm — tuỳ chọn nhập và lượt nhập hình h
       CAD_SAMPLE_FILE_FORMAT_VERSION,
     );
     expect(mounted.result.current.model.dialog.diagnostics.hasNamedLayers).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Hình học xem trước — thực thể, khung bao, chú giải độ dày.                  */
+/* -------------------------------------------------------------------------- */
+
+/** Mọi điểm của một bộ thực thể, trải phẳng — dùng để tự tính lại khung bao. */
+function allPointsOf(entities: readonly CadPreviewEntity[]): readonly (readonly [number, number])[] {
+  return entities.flatMap((entity) => entity.points);
+}
+
+/** Bộ thực thể chỉ mang đúng những mức dày người gọi liệt kê. */
+function entitiesWithThicknesses(
+  thicknesses: readonly CadPreviewEntity['thicknessMm'][],
+): readonly CadPreviewEntity[] {
+  return thicknesses.map((thicknessMm, index) => ({
+    id: `cad-entity-test-${index}`,
+    layerId: 'cad-layer-a-wall',
+    points: [
+      [0, index * 100],
+      [1000, index * 100],
+    ] as const,
+    thicknessMm,
+  }));
+}
+
+describe('useCadBranchConfirm — hình học xem trước', () => {
+  it('thực thể của cổng đi thẳng ra canvas, không bị màn dựng lại', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    await openLayerMapping(mounted);
+    const entities = mounted.result.current.model.preview?.entities ?? [];
+
+    expect(entities).toStrictEqual(CAD_SAMPLE_ENTITIES);
+    expect(entities.length).toBeGreaterThan(0);
+  });
+
+  it('mọi thực thể trỏ vào một lớp CÓ THẬT trong bảng lớp', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    await openLayerMapping(mounted);
+    const { preview } = mounted.result.current.model;
+    const layerIds = new Set((preview?.layers ?? []).map((layer) => layer.id));
+
+    expect(layerIds.size).toBe(CAD_SAMPLE_LAYERS.length);
+
+    for (const entity of preview?.entities ?? []) {
+      expect(layerIds.has(entity.layerId)).toBe(true);
+    }
+  });
+
+  it('id thực thể ổn định qua hai lượt đọc — nổi bật hai chiều mới khớp được', async () => {
+    const first = mountHook(createMockCadBranchConfirmGateway());
+    await openLayerMapping(first);
+    const idsBefore = (first.result.current.model.preview?.entities ?? []).map(
+      (entity) => entity.id,
+    );
+
+    act(() => {
+      first.result.current.actions.onRetry();
+    });
+    await settle(first);
+
+    const idsAfterRefetch = (first.result.current.model.preview?.entities ?? []).map(
+      (entity) => entity.id,
+    );
+
+    const second = mountHook(createMockCadBranchConfirmGateway());
+    await openLayerMapping(second);
+    const idsSecondMount = (second.result.current.model.preview?.entities ?? []).map(
+      (entity) => entity.id,
+    );
+
+    expect(idsBefore.length).toBeGreaterThan(0);
+    expect(idsAfterRefetch).toStrictEqual(idsBefore);
+    expect(idsSecondMount).toStrictEqual(idsBefore);
+    // Không id nào trùng nhau: `hoveredEntityId` phải chỉ đúng MỘT nét.
+    expect(new Set(idsBefore).size).toBe(idsBefore.length);
+  });
+
+  it('khung bao ôm đúng mọi điểm, kể cả trục thò ra ngoài mép nhà', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    await openLayerMapping(mounted);
+    const extent = mounted.result.current.model.preview?.extentMm;
+    const points = allPointsOf(CAD_SAMPLE_ENTITIES);
+
+    expect(extent).toStrictEqual({
+      minXMm: Math.min(...points.map(([xMm]) => xMm)),
+      minYMm: Math.min(...points.map(([, yMm]) => yMm)),
+      maxXMm: Math.max(...points.map(([xMm]) => xMm)),
+      maxYMm: Math.max(...points.map(([, yMm]) => yMm)),
+    });
+    // Bề rộng và bề cao dương thì canvas mới dựng được `viewBox`.
+    expect((extent?.maxXMm ?? 0) - (extent?.minXMm ?? 0)).toBeGreaterThan(0);
+    expect((extent?.maxYMm ?? 0) - (extent?.minYMm ?? 0)).toBeGreaterThan(0);
+  });
+
+  it('không có thực thể nào thì khung bao vẫn là bốn số hữu hạn, không NaN/Infinity', async () => {
+    const mounted = mountHook(
+      createMockCadBranchConfirmGateway({
+        inspection: { ...CAD_SAMPLE_INSPECTION, entities: [] },
+      }),
+    );
+    await openLayerMapping(mounted);
+    const { preview } = mounted.result.current.model;
+
+    expect(preview?.entities).toStrictEqual([]);
+    expect(preview?.extentMm).toStrictEqual({
+      minXMm: 0,
+      minYMm: 0,
+      maxXMm: 0,
+      maxYMm: 0,
+    });
+
+    for (const value of Object.values(preview?.extentMm ?? {})) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
+  });
+
+  it('đang đọc tệp thì canvas chưa có thực thể nào để vẽ', async () => {
+    const mounted = await mountInState('loading');
+
+    expect(mounted.result.current.model.state).toBe('loading');
+    // Giai đoạn 2 chưa mở nên `preview` là `null`; canvas không có gì để vẽ và
+    // màn không giả vờ đã đọc xong hình học.
+    expect(mounted.result.current.model.preview).toBeNull();
+  });
+
+  it('chú giải chỉ liệt kê mức độ dày CÓ MẶT trong thực thể', async () => {
+    const mounted = mountHook(
+      createMockCadBranchConfirmGateway({
+        inspection: {
+          ...CAD_SAMPLE_INSPECTION,
+          // Tệp khai ba mức, nhưng hình học chỉ vẽ đúng một — chú giải theo hình.
+          entities: entitiesWithThicknesses([220, 220, null]),
+        },
+      }),
+    );
+    await openLayerMapping(mounted);
+    const legend = mounted.result.current.model.preview?.wallThicknessLegend ?? [];
+
+    expect(CAD_SAMPLE_INSPECTION.wallThicknessesMm.length).toBeGreaterThan(1);
+    expect(legend).toHaveLength(1);
+    expect(legend[0]?.label).toBe(`${formatNumber(220)} mm`);
+    expect(legend[0]?.colorToken).toBe('wall-220');
+  });
+
+  it('chú giải xếp từ mỏng tới dày, mức không đo bằng số đứng cuối và có tên riêng', async () => {
+    const mounted = mountHook(
+      createMockCadBranchConfirmGateway({
+        inspection: {
+          ...CAD_SAMPLE_INSPECTION,
+          entities: entitiesWithThicknesses(['CONCRETE_COLUMN', 330, 110]),
+        },
+      }),
+    );
+    await openLayerMapping(mounted);
+    const legend = mounted.result.current.model.preview?.wallThicknessLegend ?? [];
+
+    expect(legend.map((entry) => entry.label)).toStrictEqual([
+      `${formatNumber(110)} mm`,
+      `${formatNumber(330)} mm`,
+      'cột bê tông',
+    ]);
+    // Không mã màu thô ở bất kỳ mức nào — kể cả mức thứ tư.
+    for (const entry of legend) {
+      expect(entry.colorToken).not.toMatch(/^#|^rgb|^hsl/u);
+    }
+  });
+
+  it('bộ mẫu mang đủ ba mức dày, và chú giải nói lại đúng ba mức đó', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    await openLayerMapping(mounted);
+    const legend = mounted.result.current.model.preview?.wallThicknessLegend ?? [];
+
+    const thicknessesInEntities = [
+      ...new Set(
+        CAD_SAMPLE_ENTITIES.map((entity) => entity.thicknessMm).filter(
+          (thicknessMm) => thicknessMm !== null,
+        ),
+      ),
+    ];
+
+    expect(thicknessesInEntities.length).toBeGreaterThanOrEqual(2);
+    expect(legend).toHaveLength(thicknessesInEntities.length);
+    expect(legend.map((entry) => entry.id)).toStrictEqual(
+      [...thicknessesInEntities]
+        .sort((left, right) => Number(left) - Number(right))
+        .map((thicknessMm) => `cad-wall-thickness-${thicknessMm}`),
+    );
+  });
+
+  it('chỉ thực thể của lớp tường mang độ dày; sáu vai trò kia mang null', async () => {
+    const wallLayerIds = new Set(
+      CAD_SAMPLE_LAYERS.filter((layer) => layer.name.startsWith('A-WALL')).map(
+        (layer) => layer.id,
+      ),
+    );
+
+    expect(wallLayerIds.size).toBeGreaterThan(0);
+
+    for (const entity of CAD_SAMPLE_ENTITIES) {
+      expect(entity.thicknessMm === null).toBe(!wallLayerIds.has(entity.layerId));
+    }
   });
 });
