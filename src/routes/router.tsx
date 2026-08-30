@@ -28,6 +28,7 @@ const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen'
 const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityGate').then(m => ({ default: m.InputQualityGateRoute })));
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
 const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
+const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -75,6 +76,7 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
   { path: ROUTE_PATTERNS.projectQuality, element: suspended(<RouteInputQualityGate />) },
   { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
+  { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
   { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
   { path: ROUTE_PATTERNS.projectWalls, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerObjects, element: <RouteCanvas /> },
