@@ -1033,5 +1033,103 @@
   },
   "notifications": {
     "regionAriaLabel": "Thông báo"
+  },
+  "pipelineGraph": {
+    "screen": {
+      "title": "Sơ đồ xử lý",
+      "leadLine": "Hồ sơ này đi qua nhánh nào, và vì sao hệ thống chọn nhánh đó cho từng tầng.",
+      "missingProjectTitle": "Không xác định được dự án",
+      "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở sơ đồ xử lý của dự án nào.",
+      "emptyTitle": "Chưa có lượt xử lý nào để kể lại",
+      "emptyDescription": "Khi một bản vẽ được đưa vào xử lý, sơ đồ và nhánh đã chọn sẽ hiện ở đây.",
+      "partialNotice": "Xử lý vẫn đang chạy, nên vài bước còn chưa có kết quả cuối.",
+      "forbiddenLine": "Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị, nên phần đó và nút đổi nhánh không hiện ở đây.",
+      "retryLabel": "Thử lại"
+    },
+    "branch": {
+      "cad": "Nhánh tệp CAD",
+      "ai": "Nhánh ảnh quét",
+      "activeBadge": "đang dùng",
+      "reasonCad": "Hồ sơ có tệp CAD còn nguyên lớp, nên đường hình học lấy thẳng từ tệp thay vì dò lại bằng ảnh.",
+      "reasonAi": "Hồ sơ chỉ có bản quét, nên mỗi tầng đi qua sáu bước nhận dạng rồi mới hợp lại.",
+      "reasonUnknown": "Mỗi tầng đang đi một nhánh khác nhau, nên chưa có một câu trả lời chung cho cả hồ sơ.",
+      "switchLabel": "Đổi sang nhánh ảnh quét",
+      "switchWarningTitle": "Việc này không hoàn tác được",
+      "switchWarningMessage": "Đổi nhánh sẽ bỏ toàn bộ kết quả đang có của hồ sơ và chạy lại từ đầu bằng ảnh quét.",
+      "switchConfirmLabel": "Xác nhận đổi nhánh",
+      "dismissLabel": "Giữ nguyên"
+    },
+    "overview": {
+      "inputLabel": "Tệp đầu vào",
+      "inputCaption": "bản vẽ kiến trúc của hồ sơ",
+      "cadCaption": "đường hình học đọc thẳng từ tệp",
+      "aiCaption": "sáu bước nhận dạng chạy trên ảnh",
+      "mergeLabel": "Dữ liệu không gian đa tầng",
+      "mergeCaption": "hai nhánh hợp lại ở một tệp duy nhất",
+      "modelLabel": "Dựng mô hình 3D",
+      "modelCaption": "mặt bằng và khối nhà dựng từ tệp đó",
+      "comparisonCaption": "So sánh hai nhánh",
+      "comparisonAspectHeader": "Mặt so sánh",
+      "evidenceCaption": "Dẫn chứng theo tầng",
+      "evidenceFloorHeader": "Tầng",
+      "evidenceReasonHeader": "Vì sao chọn nhánh này",
+      "aspectAccuracy": "Độ chính xác",
+      "aspectDuration": "Thời gian xử lý",
+      "aspectReview": "Có cần soát nhiều không",
+      "aspectRisk": "Rủi ro"
+    },
+    "status": {
+      "queued": "chờ chạy",
+      "running": "đang chạy",
+      "done": "đã xong",
+      "failed": "hỏng"
+    },
+    "nodes": {
+      "sourceImage": "Ảnh gốc",
+      "preprocess": "Tiền xử lý",
+      "wallSegmentation": "Phân vùng tường",
+      "objectDetection": "Nhận diện đối tượng",
+      "dimensionReading": "Đọc kích thước",
+      "thicknessExtraction": "Trích xuất độ dày",
+      "simplify": "Làm mỏng và đơn giản hoá",
+      "thicknessNormalise": "Chuẩn hoá độ dày",
+      "spatialJson": "Dựng dữ liệu không gian"
+    },
+    "preprocessSteps": {
+      "grayscale": "chuyển xám",
+      "blur": "làm mờ Gauss",
+      "edges": "dò cạnh Canny",
+      "contour": "tìm đường biên",
+      "warp": "nắn phối cảnh 3000×3000"
+    },
+    "normaliseSteps": {
+      "steps": "quy về 110 / 220 / 330 mm",
+      "column": "hoặc nhận là cột bê tông"
+    },
+    "detail": {
+      "disclosureLabel": "Chi tiết kỹ thuật",
+      "graphAriaLabel": "Sơ đồ các bước xử lý",
+      "panelAriaLabel": "Chi tiết bước đang chọn",
+      "stepListAriaLabel": "Danh sách các bước xử lý",
+      "inputHeader": "Đầu vào",
+      "parameterHeader": "Tham số",
+      "outputHeader": "Số đầu ra",
+      "thumbnailHeader": "Ảnh của bước",
+      "logLabel": "Nhật ký",
+      "thumbnailAltPrefix": "Ảnh trung gian của bước ",
+      "defaultOutputUnit": "đối tượng",
+      "unknownValue": "chưa có số liệu",
+      "zoomIn": "Phóng to sơ đồ",
+      "zoomOut": "Thu nhỏ sơ đồ",
+      "zoomReset": "Về tỷ lệ gốc"
+    },
+    "rerun": {
+      "label": "Chạy lại từ bước này",
+      "warningTitle": "Chạy lại sẽ động vào việc đã duyệt",
+      "warningMessage": "Chạy lại từ bước {{step}} sẽ dựng lại {{count}} tường đã duyệt. Giữ lại phần đã duyệt thì các tường đó không bị ghi đè.",
+      "keepApprovedLabel": "Giữ lại phần đã duyệt",
+      "confirmLabel": "Xác nhận chạy lại",
+      "unavailableLine": "Chưa phát được lệnh chạy lại: tầng dữ liệu chưa có đường gọi cho việc này."
+    }
   }
 }

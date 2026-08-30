@@ -60,6 +60,7 @@ export const ROUTE_PATTERNS = {
   onboarding: '/onboarding',
   projectExport: `${PROJECTS_ROOT}/:id/export`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
+  projectPipelineGraph: `${PROJECTS_ROOT}/:id/pipeline/graph`,
   projectQuality: `${PROJECTS_ROOT}/:id/quality`,
   projectRules: `${PROJECTS_ROOT}/:id/rules`,
   projectScale: `${PROJECTS_ROOT}/:id/floors/:floorId/scale`,
@@ -96,6 +97,7 @@ export const ROUTES = {
   project: {
     export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
+    pipelineGraph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline/graph`,
     quality: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/quality`,
     rules: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rules`,
     scale: (projectId: string, floorId: string): string =>
