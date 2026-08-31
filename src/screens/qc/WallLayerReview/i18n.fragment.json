@@ -1,0 +1,55 @@
+{
+  "wallLayerReview": {
+    "screen": {
+      "title": "Duyệt lớp tường"
+    },
+    "panel": {
+      "title": "Đoạn tường",
+      "reviewProgress": "{{reviewed}}/{{total}} tường đã duyệt"
+    },
+    "row": {
+      "approve": "Duyệt đoạn này",
+      "skip": "Bỏ qua"
+    },
+    "inspector": {
+      "advancedTitle": "Thông số nâng cao",
+      "length": "chiều dài",
+      "height": "chiều cao",
+      "confidence": "độ tin cậy",
+      "material": "vật liệu",
+      "elevationOffset": "lệch Z",
+      "startPoint": "toạ độ đầu",
+      "endPoint": "toạ độ cuối"
+    },
+    "filters": {
+      "onlyUnreviewed": "Chỉ hiện chưa duyệt",
+      "onlyLowConfidence": "Chỉ hiện độ tin cậy thấp",
+      "onlyNonStandardThickness": "Chỉ hiện độ dày không chuẩn"
+    },
+    "contextMenu": {
+      "approve": "Duyệt",
+      "changeThickness": "Đổi độ dày",
+      "split": "Tách đoạn",
+      "delete": "Xoá"
+    },
+    "tools": {
+      "select": "chọn",
+      "drawWall": "vẽ tường",
+      "splitWall": "tách đoạn",
+      "mergeWall": "nối đoạn",
+      "measure": "đo"
+    },
+    "state": {
+      "emptyDescription": "Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.",
+      "successContinue": "Sang lớp Cửa và nội thất",
+      "forbiddenNotice": "Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp."
+    },
+    "layerTree": {
+      "walls": "Tường",
+      "openingsAndFurniture": "Cửa và nội thất",
+      "dimensions": "Kích thước",
+      "axes": "Trục",
+      "rooms": "Phòng"
+    }
+  }
+}
