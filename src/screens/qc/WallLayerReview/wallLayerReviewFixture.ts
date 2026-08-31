@@ -67,12 +67,12 @@ function wall(
  * 48 tường, đúng 12 tường `reviewed: true`.
  *
  * Bốn nhóm, theo thứ tự dựng (khớp thứ tự mã `W-001`…`W-048`):
- * - W-001..W-005, W-021..W-025 — tường bao ngang (`envelope`), dày 300 mm.
+ * - W-001..W-005, W-021..W-025 — tường bao ngang (`envelope`), dày 330 mm.
  * - W-006..W-020 — tường ngăn ngang nội bộ (`partition`); ba tường đầu
  *   (W-006/007/008) mang độ dày KHÔNG CHUẨN 175/235/90 mm để bộ lọc thứ ba có
  *   cái để lọc — `STANDARD_THICKNESSES_MM` của `src/domain/walls/cleanup.ts:70-72`
- *   là `[100, 150, 200, 220, 300, 400]`, ba giá trị này không nằm trong đó.
- * - W-026..W-029, W-045..W-048 — tường bao dọc (`envelope`), dày 300 mm.
+ *   là ba băng `[110, 220, 330]` của WALL_THICKNESS_CHOICES, ba giá trị này không nằm trong đó.
+ * - W-026..W-029, W-045..W-048 — tường bao dọc (`envelope`), dày 330 mm.
  * - W-030..W-044 — tường ngăn dọc chịu lực (`loadBearing`), dày 220 mm; thiếu
  *   đoạn x=5.000, y 2.200→4.400 (bị bỏ có chủ đích, xem ghi chú đầu file).
  *
@@ -84,35 +84,35 @@ function wall(
  * W-021 (0,55), W-026 (0,72), W-033 (0,60), W-041 (0,74).
  */
 export const WALL_LAYER_FIXTURE_WALLS: readonly Wall[] = [
-  wall('W-001', { x: 0, y: 0 }, { x: 2500, y: 0 }, 300, 'envelope', 0.76, false),
-  wall('W-002', { x: 2500, y: 0 }, { x: 5000, y: 0 }, 300, 'envelope', 0.92, true),
-  wall('W-003', { x: 5000, y: 0 }, { x: 7500, y: 0 }, 300, 'envelope', 0.99, false),
-  wall('W-004', { x: 7500, y: 0 }, { x: 10000, y: 0 }, 300, 'envelope', 0.58, false),
-  wall('W-005', { x: 10000, y: 0 }, { x: 12500, y: 0 }, 300, 'envelope', 0.95, true),
+  wall('W-001', { x: 0, y: 0 }, { x: 2500, y: 0 }, 330, 'envelope', 0.76, false),
+  wall('W-002', { x: 2500, y: 0 }, { x: 5000, y: 0 }, 330, 'envelope', 0.92, true),
+  wall('W-003', { x: 5000, y: 0 }, { x: 7500, y: 0 }, 330, 'envelope', 0.99, false),
+  wall('W-004', { x: 7500, y: 0 }, { x: 10000, y: 0 }, 330, 'envelope', 0.58, false),
+  wall('W-005', { x: 10000, y: 0 }, { x: 12500, y: 0 }, 330, 'envelope', 0.95, true),
   wall('W-006', { x: 0, y: 2200 }, { x: 2500, y: 2200 }, 175, 'partition', 0.82, false),
   wall('W-007', { x: 2500, y: 2200 }, { x: 5000, y: 2200 }, 235, 'partition', 0.62, false),
   wall('W-008', { x: 5000, y: 2200 }, { x: 7500, y: 2200 }, 90, 'partition', 0.95, false),
-  wall('W-009', { x: 7500, y: 2200 }, { x: 10000, y: 2200 }, 100, 'partition', 0.9, true),
-  wall('W-010', { x: 10000, y: 2200 }, { x: 12500, y: 2200 }, 100, 'partition', 0.65, false),
-  wall('W-011', { x: 0, y: 4400 }, { x: 2500, y: 4400 }, 100, 'partition', 0.88, false),
-  wall('W-012', { x: 2500, y: 4400 }, { x: 5000, y: 4400 }, 100, 'partition', 0.93, true),
-  wall('W-013', { x: 5000, y: 4400 }, { x: 7500, y: 4400 }, 100, 'partition', 0.91, false),
+  wall('W-009', { x: 7500, y: 2200 }, { x: 10000, y: 2200 }, 110, 'partition', 0.9, true),
+  wall('W-010', { x: 10000, y: 2200 }, { x: 12500, y: 2200 }, 110, 'partition', 0.65, false),
+  wall('W-011', { x: 0, y: 4400 }, { x: 2500, y: 4400 }, 110, 'partition', 0.88, false),
+  wall('W-012', { x: 2500, y: 4400 }, { x: 5000, y: 4400 }, 110, 'partition', 0.93, true),
+  wall('W-013', { x: 5000, y: 4400 }, { x: 7500, y: 4400 }, 110, 'partition', 0.91, false),
   wall('W-014', { x: 7500, y: 4400 }, { x: 10000, y: 4400 }, 220, 'partition', 0.71, false),
-  wall('W-015', { x: 10000, y: 4400 }, { x: 12500, y: 4400 }, 100, 'partition', 0.79, false),
-  wall('W-016', { x: 0, y: 6600 }, { x: 2500, y: 6600 }, 100, 'partition', 0.97, true),
-  wall('W-017', { x: 2500, y: 6600 }, { x: 5000, y: 6600 }, 100, 'partition', 0.68, false),
-  wall('W-018', { x: 5000, y: 6600 }, { x: 7500, y: 6600 }, 100, 'partition', 0.97, false),
-  wall('W-019', { x: 7500, y: 6600 }, { x: 10000, y: 6600 }, 100, 'partition', 0.85, false),
-  wall('W-020', { x: 10000, y: 6600 }, { x: 12500, y: 6600 }, 100, 'partition', 0.92, true),
-  wall('W-021', { x: 0, y: 8800 }, { x: 2500, y: 8800 }, 300, 'envelope', 0.55, false),
-  wall('W-022', { x: 2500, y: 8800 }, { x: 5000, y: 8800 }, 300, 'envelope', 0.93, false),
-  wall('W-023', { x: 5000, y: 8800 }, { x: 7500, y: 8800 }, 300, 'envelope', 0.78, false),
-  wall('W-024', { x: 7500, y: 8800 }, { x: 10000, y: 8800 }, 300, 'envelope', 0.96, true),
-  wall('W-025', { x: 10000, y: 8800 }, { x: 12500, y: 8800 }, 300, 'envelope', 0.96, false),
-  wall('W-026', { x: 0, y: 0 }, { x: 0, y: 2200 }, 300, 'envelope', 0.72, false),
-  wall('W-027', { x: 0, y: 2200 }, { x: 0, y: 4400 }, 300, 'envelope', 0.9, true),
-  wall('W-028', { x: 0, y: 4400 }, { x: 0, y: 6600 }, 300, 'envelope', 0.81, false),
-  wall('W-029', { x: 0, y: 6600 }, { x: 0, y: 8800 }, 300, 'envelope', 0.9, false),
+  wall('W-015', { x: 10000, y: 4400 }, { x: 12500, y: 4400 }, 110, 'partition', 0.79, false),
+  wall('W-016', { x: 0, y: 6600 }, { x: 2500, y: 6600 }, 110, 'partition', 0.97, true),
+  wall('W-017', { x: 2500, y: 6600 }, { x: 5000, y: 6600 }, 110, 'partition', 0.68, false),
+  wall('W-018', { x: 5000, y: 6600 }, { x: 7500, y: 6600 }, 110, 'partition', 0.97, false),
+  wall('W-019', { x: 7500, y: 6600 }, { x: 10000, y: 6600 }, 110, 'partition', 0.85, false),
+  wall('W-020', { x: 10000, y: 6600 }, { x: 12500, y: 6600 }, 110, 'partition', 0.92, true),
+  wall('W-021', { x: 0, y: 8800 }, { x: 2500, y: 8800 }, 330, 'envelope', 0.55, false),
+  wall('W-022', { x: 2500, y: 8800 }, { x: 5000, y: 8800 }, 330, 'envelope', 0.93, false),
+  wall('W-023', { x: 5000, y: 8800 }, { x: 7500, y: 8800 }, 330, 'envelope', 0.78, false),
+  wall('W-024', { x: 7500, y: 8800 }, { x: 10000, y: 8800 }, 330, 'envelope', 0.96, true),
+  wall('W-025', { x: 10000, y: 8800 }, { x: 12500, y: 8800 }, 330, 'envelope', 0.96, false),
+  wall('W-026', { x: 0, y: 0 }, { x: 0, y: 2200 }, 330, 'envelope', 0.72, false),
+  wall('W-027', { x: 0, y: 2200 }, { x: 0, y: 4400 }, 330, 'envelope', 0.9, true),
+  wall('W-028', { x: 0, y: 4400 }, { x: 0, y: 6600 }, 330, 'envelope', 0.81, false),
+  wall('W-029', { x: 0, y: 6600 }, { x: 0, y: 8800 }, 330, 'envelope', 0.9, false),
   wall('W-030', { x: 2500, y: 0 }, { x: 2500, y: 2200 }, 220, 'loadBearing', 0.87, false),
   wall('W-031', { x: 2500, y: 2200 }, { x: 2500, y: 4400 }, 220, 'loadBearing', 0.94, true),
   wall('W-032', { x: 2500, y: 4400 }, { x: 2500, y: 6600 }, 220, 'loadBearing', 0.94, false),
@@ -128,10 +128,10 @@ export const WALL_LAYER_FIXTURE_WALLS: readonly Wall[] = [
   wall('W-042', { x: 10000, y: 2200 }, { x: 10000, y: 4400 }, 220, 'loadBearing', 0.89, false),
   wall('W-043', { x: 10000, y: 4400 }, { x: 10000, y: 6600 }, 220, 'loadBearing', 0.97, true),
   wall('W-044', { x: 10000, y: 6600 }, { x: 10000, y: 8800 }, 220, 'loadBearing', 0.84, false),
-  wall('W-045', { x: 12500, y: 0 }, { x: 12500, y: 2200 }, 300, 'envelope', 0.86, false),
-  wall('W-046', { x: 12500, y: 2200 }, { x: 12500, y: 4400 }, 300, 'envelope', 0.76, false),
-  wall('W-047', { x: 12500, y: 4400 }, { x: 12500, y: 6600 }, 300, 'envelope', 0.99, false),
-  wall('W-048', { x: 12500, y: 6600 }, { x: 12500, y: 8800 }, 300, 'envelope', 0.82, false),
+  wall('W-045', { x: 12500, y: 0 }, { x: 12500, y: 2200 }, 330, 'envelope', 0.86, false),
+  wall('W-046', { x: 12500, y: 2200 }, { x: 12500, y: 4400 }, 330, 'envelope', 0.76, false),
+  wall('W-047', { x: 12500, y: 4400 }, { x: 12500, y: 6600 }, 330, 'envelope', 0.99, false),
+  wall('W-048', { x: 12500, y: 6600 }, { x: 12500, y: 8800 }, 330, 'envelope', 0.82, false),
 ];
 
 /** Tổng số tường của bộ mẫu — test khẳng định bằng hằng, không bằng số viết tay (R-71). */
