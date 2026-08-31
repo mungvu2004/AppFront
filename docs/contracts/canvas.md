@@ -5,14 +5,11 @@
 > `docs/domain-contracts.md`, `docs/components-canvas.md` (docs cũ) **không** được dùng
 > làm nguồn — xem cảnh báo trong `CLAUDE.md`.
 
-> **ĐÃ ĐẢO LẠI — 31-08-2026 (lượt gộp T8).** Hai kết luận của file này đã bị điều phối
-> viên đảo ngược ở commit `eef24b4`, SAU khi file được viết. Sự thật hiện tại:
-> **`WALL_THICKNESS_CHOICES = [110, 220, 330]`** (không phải 100/220/300),
-> **`wallStrokeToken` DÙNG ĐƯỢC**, và **đa giác tường tô theo MÀU ĐỘ DÀY** (không theo
-> `ViewStatusCode`). Lý do: hệ thiết kế chỉ có ba token `--wall-110/220/330`, nên bộ
-> 100/220/300 không có màu nào để tô. Xem mục "NOT FOUND" #2 và #3 ở cuối file để biết
-> đầy đủ. Mọi câu khác trong file còn nhắc "100/220/300" hay "tô theo trạng thái" đều
-> thuộc bản cũ và phải đọc theo hai mục đã sửa đó.
+> **ĐÃ ĐẢO LẠI — 31-08-2026 (commit `eef24b4`, dọn sạch lượt S12-B2).** Hai kết luận gốc
+> của file này (giá trị `WALL_THICKNESS_CHOICES`, và màu tô đa giác theo `statusCode`
+> thay vì độ dày) đã bị đảo ngược sau khi file được viết. Mọi câu trong thân file còn
+> nhắc bộ số cũ hay kết luận cũ nay đã được sửa tại chỗ hoặc gắn nhãn "ĐÃ ĐẢO LẠI" kèm sự
+> thật hiện tại — xem mục 0.2, 0.3, và "NOT FOUND" #2/#3 ở cuối file.
 
 ---
 
@@ -50,9 +47,14 @@ CỤ THỂ cho màn `WallLayerReview` phải theo đúng file `types.ts` này.
 
 ### 0.1 — Props canvas thật, chép nguyên
 
+> **Đã sửa 31-08-2026**: hai dòng mã dưới đây trích tại thời điểm khảo sát (2025-08-31),
+> khi `types.ts` còn đặt `WALL_THICKNESS_CHOICES = [100, 220, 300]`. Điều phối viên đã
+> đảo giá trị này ở commit `eef24b4` — xem banner đầu file. Đoạn dưới đây đã cập nhật
+> theo đúng mã nguồn hôm nay.
+
 ```ts
-// src/screens/qc/WallLayerReview/types.ts:160-163
-export const WALL_THICKNESS_CHOICES = [100, 220, 300] as const;
+// src/screens/qc/WallLayerReview/types.ts:168,171
+export const WALL_THICKNESS_CHOICES = [110, 220, 330] as const;
 export type WallThicknessChoice = (typeof WALL_THICKNESS_CHOICES)[number];
 
 // types.ts:280-286
@@ -98,7 +100,13 @@ xạ lại (đúng nguyên văn comment `types.ts:271-278`). Việc DUY NHẤT c
 của view — nếu worker lớp 2 đang viết `WallLayerReviewCanvas.tsx` (view), đọc mục 0 này
 là đủ; nếu đang viết `useWallLayerReview.ts` (hook), đọc thêm mục A đầy đủ.
 
-### 0.2 — Màu tô tường KHÔNG phải theo độ dày — là theo `ViewStatusCode`
+### 0.2 — ~~Màu tô tường KHÔNG phải theo độ dày — là theo `ViewStatusCode`~~ (ĐÃ ĐẢO LẠI 31-08-2026)
+
+> **ĐÃ ĐẢO LẠI — 31-08-2026.** Kết luận của mục 0.2 SAI với hôm nay: đa giác tường
+> `WallLayerReview` tô theo **ĐỘ DÀY** (`wallThicknessFillToken`, `wallLayerHatch.ts:107-108`,
+> gọi làm `fill` tại `WallLayerCanvas.tsx:375`), không theo `statusCode`. Xem NOT FOUND #3
+> (cuối file) để biết đầy đủ. Nội dung dưới đây giữ nguyên làm tư liệu khảo sát tại thời
+> điểm viết (2025-08-31) — không phải sự thật hiện tại.
 
 `ViewStatusCode` (`src/lib/viewmodel/types.ts:65-68`):
 ```ts
@@ -131,8 +139,16 @@ canvas nào khác thật sự tô theo độ dày qua `materialMap` (ví dụ th
 `CanvasIntegration.stories.tsx`/`CadLayerPreviewCanvas.tsx`), chỉ là **không phải màn
 này**.
 
-### 0.3 — BẪY THẬT: `materialMap.wallStrokeToken` KHÔNG NHẬN được ba giá trị của
-`WALL_THICKNESS_CHOICES`
+### 0.3 — ~~BẪY THẬT: `materialMap.wallStrokeToken` KHÔNG NHẬN được ba giá trị của
+`WALL_THICKNESS_CHOICES`~~ (ĐÃ ĐẢO LẠI 31-08-2026)
+
+> **ĐÃ ĐẢO LẠI — 31-08-2026.** Bẫy mô tả dưới đây không còn tồn tại: điều phối viên đã
+> đổi `WALL_THICKNESS_CHOICES` từ `[100, 220, 300]` sang `[110, 220, 330]`
+> (`src/screens/qc/WallLayerReview/types.ts:168`), khớp đúng `WallThickness`
+> (`src/types/spatial.ts:14`: `110 | 220 | 330 | 'CONCRETE_COLUMN'`). `wallStrokeToken`
+> nay NHẬN được cả ba giá trị, không còn lỗi kiểu. Xem NOT FOUND #2 (cuối file). Nội dung
+> dưới đây giữ nguyên làm tư liệu khảo sát tại thời điểm viết (2025-08-31) — không phải
+> sự thật hiện tại.
 
 Đây là một phát hiện cụ thể, không phải suy đoán — đáng báo động vì nó là một lỗi kiểu
 sẽ chặn build nếu ai đó ghép nhầm hai module lại với nhau:
@@ -429,7 +445,7 @@ export type MillimetresPerPixel = Quantity<'mm/px'>;
 `types.ts:23-31`.) Được re-export lại ở `src/domain/units/scale.ts:24`.
 
 **Khi `scaleMillimetresPerPixel` là `undefined` (tầng chưa hiệu chỉnh):** màn KHÔNG
-được tự bịa một tỉ lệ mặc định để vẽ tường thật (100/220/300 mm...) ra pixel — làm vậy
+được tự bịa một tỉ lệ mặc định để vẽ tường thật (110/220/330 mm...) ra pixel — làm vậy
 là vẽ sai kích thước. Màn phải rơi vào một trong bảy trạng thái chuẩn (A11) — cụ thể là
 trạng thái yêu cầu hiệu chỉnh tỉ lệ trước (xem `screens/pipeline/ScaleCalibration/`,
 màn đã có sẵn cho việc này) — hoặc, nếu chỉ cần xem bản vẽ chưa hiệu chỉnh, vẽ theo một
@@ -761,10 +777,11 @@ export function isLowConfidence(confidence: MaybeNumber): boolean;
 `materialMap.ts` nhận `WallKind` — nếu màn cần tô theo loại tường (chịu lực khác vách
 ngăn), không có sẵn, phải hỏi.
 
-> **Cập nhật (mục 0.3)**: `WallThickness` của hàm này (110/220/330) KHÔNG khớp
-> `WALL_THICKNESS_CHOICES` (100/220/300) mà màn `WallLayerReview` thật sự dùng — gọi
-> `wallStrokeToken(100)` hay `wallStrokeToken(300)` không qua được typecheck. Đừng dùng
-> hàm này cho màn đó; xem mục 0.2 cho nguồn màu đúng (`ViewStatusCode`).
+> **Cập nhật (mục 0.3, ĐÃ ĐẢO LẠI 31-08-2026)**: `WallThickness` của hàm này (110/220/330)
+> nay KHỚP đúng `WALL_THICKNESS_CHOICES` (`types.ts:168`, cũng `[110, 220, 330]`) —
+> `wallStrokeToken` DÙNG ĐƯỢC cho màn `WallLayerReview`, và màn đó THẬT SỰ dùng nó
+> (qua `wallThicknessFillToken`, `wallLayerHatch.ts:107-108`) để tô đa giác theo độ dày,
+> không theo `ViewStatusCode`. Xem NOT FOUND #2/#3 (cuối file).
 
 `WallThickness` — kiểu tham số của `wallStrokeToken` — không nằm trong
 `domain/spatial/types.ts` hay `domain/walls/types.ts` nào cả, mà ở:
@@ -1061,10 +1078,11 @@ export function checkContrast(
 
 ### Trả lời: tô tường theo ĐỘ DÀY dùng mode nào?
 
-> **Cập nhật (mục 0.2)**: với màn `WallLayerReview` cụ thể, câu hỏi này hoá ra không áp
-> dụng — đa giác tường ở màn đó tô theo `ViewStatusCode` (trạng thái duyệt), không theo
-> độ dày. Phần dưới đây vẫn đúng như một khảo sát chung của `src/lib/coloring` cho MÀN
-> KHÁC có nhu cầu tô theo độ dày thật.
+> **Cập nhật (ĐÃ ĐẢO LẠI 31-08-2026)**: bản trước ghi ở đây rằng câu hỏi này "không áp
+> dụng" cho `WallLayerReview` vì màn đó tô theo `ViewStatusCode` — kết luận đó đã bị đảo
+> ngược (xem NOT FOUND #2/#3, cuối file). Phần khảo sát dưới đây ÁP DỤNG ĐÚNG cho màn
+> này: `WallLayerReview` tô đa giác theo ĐỘ DÀY qua `materialMap.wallStrokeToken`, không
+> qua một `ColoringModeId` nào của `src/lib/coloring`.
 
 **NOT FOUND.** `COLORING_MODE_IDS` chỉ có bảy giá trị:
 `default, roomUsage, area, aiConfidence, reviewState, violationSeverity, level`
@@ -1141,11 +1159,14 @@ act on"*).
 
 ## E. BA ĐỘ DÀY PHẢI PHÂN BIỆT ĐƯỢC KHI CHE HẾT CHỮ VÀ CHUYỂN ĐEN TRẮNG
 
-> **Cập nhật (mục 0.2/0.3)**: với màn `WallLayerReview`, kênh màu (E.1, token
-> `--wall-110/220/330`) KHÔNG áp dụng — màu đa giác ở màn đó là `ViewStatusCode`, và ba
-> giá trị độ dày chuẩn thật là 100/220/300 (không phải 110/220/330). Kênh bề rộng hình
-> học (E.2) vẫn đúng nguyên văn và là kênh phân biệt DUY NHẤT còn hoạt động cho màn này
-> khi che hết chữ. E.1 vẫn là dữ liệu thật, giữ lại cho màn khác dùng đúng thang màu đó.
+> **Cập nhật (ĐÃ ĐẢO LẠI 31-08-2026)**: callout trước ở đây sai trên hai điểm, cả hai đã
+> bị điều phối viên đảo ngược (xem NOT FOUND #2/#3, cuối file). Sự thật hiện tại: ba giá
+> trị độ dày chuẩn là **110/220/330** (không phải 100/220/300), và kênh MÀU (E.1) **ÁP
+> DỤNG ĐÚNG** cho `WallLayerReview` — đa giác tô theo độ dày qua `wallThicknessFillToken`
+> (`wallLayerHatch.ts:107-108`), không theo `ViewStatusCode`. Nghiệm thu "che hết chữ vẫn
+> phân biệt được ba độ dày" đạt được bằng CẢ HAI kênh E.1 (màu) và E.2 (bề rộng), đúng
+> như bản khảo sát gốc dưới đây mô tả — không phải chỉ còn một kênh. Test hồi quy thật:
+> `WallLayerReview.test.tsx` `[NGHIEM-3]`/`[NGHIEM-4]`.
 
 ### E.1 — Ba token, giá trị thật, độ sáng tính thật
 
@@ -1176,10 +1197,11 @@ giảm gần một nửa).
 
 Vì đa giác tường (mục A) được vẽ **tô đầy theo đúng độ dày thật của tường**
 (`resolveWallShapes` cắt outline rộng đúng `thicknessMm`), **bản thân bề rộng hình học
-của đa giác đã phân biệt được ba loại tường** — một tường 300 mm luôn vẽ ra một dải
-rộng gấp ~2,7 lần một tường 110 mm ở cùng tỉ lệ mm/px, bất kể màu gì. Với dữ liệu
-100/220/300 mm cụ thể trong nghiệm thu: tỉ lệ bề rộng là 100:220:300 = 1 : 2,2 : 3 —
-chênh lệch đủ để mắt thường phân biệt ở bất kỳ tỉ lệ zoom hợp lý nào (không cần đọc số).
+của đa giác đã phân biệt được ba loại tường** — một tường 330 mm luôn vẽ ra một dải
+rộng gấp 3 lần một tường 110 mm ở cùng tỉ lệ mm/px, bất kể màu gì. Với ba giá trị chuẩn
+thật của `WALL_THICKNESS_CHOICES` (110/220/330 mm, `types.ts:168`): tỉ lệ bề rộng là
+110:220:330 = 1 : 2 : 3 — khớp đúng phép kiểm `[NGHIEM-4]` của `WallLayerReview.test.tsx`
+— chênh lệch đủ để mắt thường phân biệt ở bất kỳ tỉ lệ zoom hợp lý nào (không cần đọc số).
 
 **Kết luận bắt buộc**: màu (mục E.1) là lớp phân biệt **thứ nhất** khi màn hình còn màu;
 bề rộng nét/vùng tô là lớp phân biệt **độc lập, luôn đúng** kể cả khi màu bị lược bỏ
@@ -1190,10 +1212,10 @@ KHÔNG được hợp nhất thành một lớp duy nhất — mất bất kỳ 
 
 ### E.3 — Cách worker canvas tự kiểm nghiệm thu
 
-1. Dựng ba tường 100 mm, 220 mm, 300 mm trên cùng một canvas ở cùng một tỉ lệ mm/px.
-2. Tô mỗi tường bằng `wallStrokeToken`/`wallFillToken` tương ứng (dùng mức 110/220/330
-   sẵn có — 110/220/330 là đúng ba mức chuẩn của legend (xem "NOT FOUND" mục 2, đã đảo lại 31-08-2026), nếu một độ dày
-   không map tròn vào 110).
+1. Dựng ba tường 110 mm, 220 mm, 330 mm (ba giá trị thật của `WALL_THICKNESS_CHOICES`,
+   `types.ts:168`) trên cùng một canvas ở cùng một tỉ lệ mm/px.
+2. Tô mỗi tường bằng `wallStrokeToken`/`wallFillToken` tương ứng — ba mức này khớp
+   thẳng ba nhánh switch của hàm, không cần quy tròn.
 3. Chụp canvas, chuyển ảnh sang thang xám (desaturate), che hết mọi nhãn chữ (ẩn toàn
    bộ text) — vẫn phải phân biệt được ba dải bằng mắt nhờ hai lớp E.1 (độ sáng khác
    nhau ≥ 0,09 mỗi bậc) và E.2 (bề rộng khác nhau).
@@ -1488,18 +1510,19 @@ không phải kết luận chung mục này khẳng định được — ghi là
 6. Vẽ hình học 2D bằng **SVG** — đúng khuôn `GridLayer`/`CadLayerPreviewCanvas`, không
    dùng `<canvas>` context 2D. Gốc SVG cần `role="img"` + `aria-label` tiếng Việt mô tả
    số liệu (không chép theo `TransformGizmo`'s nhãn tiếng Anh — đó là lỗi có sẵn).
-7. **Tô đa giác tường theo `statusCode: ViewStatusCode`** (verified/attention/violation/neutral,
-   `WallShapeViewModel.statusCode`, mục 0.2) — KHÔNG theo độ dày. `materialMap.wallStrokeToken`
-   dùng bộ giá trị độ dày khác (110/220/330) và **không nhận được** ba giá trị chuẩn thật
-   (100/220/300, `WALL_THICKNESS_CHOICES`) — lỗi kiểu nếu gọi, xem mục 0.3. Ánh xạ
-   `statusCode → token` do view tự quyết (gợi ý: cùng vựng bốn token mà `Badge`'s
-   `variant` dùng — `--state-verified/--state-attention/--state-violation`, và
-   `neutral` dùng token trung tính như `--wall-idle`/`--text-primary`).
-8. Bề rộng đa giác (tỉ lệ đúng theo `thicknessMm` thật) là kênh phân biệt ba độ dày khi
-   che hết chữ (mục E.2 — vẫn đúng, độc lập với việc màu đổi ý nghĩa ở mục 7). Bảng độ
-   sáng `--wall-110/220/330` ở mục E.1 (0,4166/0,2297/0,0947) là dữ liệu thật hữu ích cho
-   MÀN KHÁC dùng đúng thang màu đó qua `materialMap` (ví dụ `CadLayerPreviewCanvas`),
-   không áp dụng cho `WallLayerReviewCanvas`.
+7. **Tô đa giác tường theo ĐỘ DÀY, qua `materialMap.wallStrokeToken`** (ĐÃ ĐẢO LẠI
+   31-08-2026 — bản trước ghi ngược lại; xem NOT FOUND #2/#3, cuối file).
+   `WALL_THICKNESS_CHOICES` (`types.ts:168`) nay là `[110, 220, 330]`, khớp đúng ba
+   nhánh của `wallStrokeToken` (`materialMap.ts:21-33`) — không còn lỗi kiểu. Cài đặt
+   thật của màn: `wallThicknessFillToken(thicknessMm)` (`wallLayerHatch.ts:107-108`),
+   gọi làm `fill` của `<polygon>` tại `WallLayerCanvas.tsx:375`.
+   `WallShapeViewModel.statusCode` (`types.ts:293`) vẫn tồn tại trong viewmodel nhưng
+   KHÔNG còn là nguồn màu tô đa giác.
+8. Bề rộng đa giác (tỉ lệ đúng theo `thicknessMm` thật) là kênh phân biệt thứ HAI, độc
+   lập với màu (mục E.2). Bảng độ sáng `--wall-110/220/330` ở mục E.1
+   (0,4166/0,2297/0,0947) **ÁP DỤNG ĐÚNG** cho `WallLayerReviewCanvas` (ĐÃ ĐẢO LẠI
+   31-08-2026) — cả hai kênh cùng hoạt động để đạt nghiệm thu "che hết chữ vẫn phân
+   biệt được ba độ dày" (`WallLayerReview.test.tsx` `[NGHIEM-3]`/`[NGHIEM-4]`).
 9. Gạch chéo mục dưới ngưỡng: cổng quyết định là `materialMap.isLowConfidence(confidence)`
    (đã có, đã test) — dùng cho panel/inspector; với đa giác canvas, `statusCode === 'attention'`
    (đã tính sẵn ở hook theo đúng logic tương tự) là cờ tương ứng. Mẫu vẽ 2px/6% mờ phải
