@@ -52,7 +52,11 @@ import type { ReactNode } from 'react';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
 import { WallLayerInspector } from './WallLayerInspector';
-import { WallLayerLeftPanel, type WallLayerOtherKind } from './WallLayerLeftPanel';
+import {
+  WallLayerLeftPanel,
+  type WallLayerLeftPanelExtras,
+  type WallLayerOtherKind,
+} from './WallLayerLeftPanel';
 import { WallLayerStatusBar, type WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { WallLayerToolRail, type WallLayerToolRailProps } from './WallLayerToolRail';
 import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
@@ -60,9 +64,13 @@ import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
 export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
   readonly statusBar: WallLayerStatusBarProps;
+  /** Nhóm mở rộng thứ tư: điều hướng tầng, tim tường, cờ lớp Tường, hàng đang nháy. */
+  readonly leftPanel: WallLayerLeftPanelExtras;
   /** Vùng canvas thật. Vắng thì dùng dự phòng dựng từ `canvas` (xem đầu file). */
   readonly canvasSlot?: ReactNode | undefined;
   readonly onNavigateLayer?: ((layer: WallLayerOtherKind) => void) | undefined;
+  /** Mở lớp tường của một tầng khác — container tra `ROUTES.project.walls`. */
+  readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
@@ -90,8 +98,10 @@ export function WallLayerReview({
   canvas,
   toolRail,
   statusBar,
+  leftPanel,
   canvasSlot,
   onNavigateLayer,
+  onNavigateFloor,
 }: WallLayerReviewViewProps) {
   const isCollapsed = panel.state === 'collapsed';
 
@@ -106,7 +116,14 @@ export function WallLayerReview({
           <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
         )}
 
-        {!isCollapsed && <WallLayerLeftPanel onNavigateLayer={onNavigateLayer} panel={panel} />}
+        {!isCollapsed && (
+          <WallLayerLeftPanel
+            extras={leftPanel}
+            onNavigateFloor={onNavigateFloor}
+            onNavigateLayer={onNavigateLayer}
+            panel={panel}
+          />
+        )}
 
         <section
           aria-label={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}

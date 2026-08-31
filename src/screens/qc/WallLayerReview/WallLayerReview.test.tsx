@@ -43,6 +43,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+import type { Level, LevelId } from '@/domain/spatial/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -60,11 +62,13 @@ import { useStore } from '@/store';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { scenarioArgsFor } from './WallLayerReview.stories';
 import {
+  WALL_LAYER_FIXTURE_BUILDING,
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_TOTAL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
 import {
+  createMockWallLayerReviewGateway,
   toCanvasShapes,
   wallDisplayCode,
   wallStatusCode,
@@ -404,5 +408,237 @@ describe('nhãn mã tường', () => {
     expect(fourteenth?.thicknessMm).toBe(220);
     expect(fourteenth?.confidence).toBe(0.71);
     expect(fourteenth?.levelId).toBe(WALL_LAYER_FIXTURE_LEVEL.id);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Bốn điều khiển VỪA ĐƯỢC DỰNG — mỗi cái một phép đo trên cây thật.           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Bốn thứ dưới đây trước lượt sửa này KHÔNG CÓ MẶT trên màn: khối điều hướng
+ * tầng, ô bật tim tường, nút con mắt của lớp Tường, và nút thu gọn hai panel.
+ * Ba cổng đều xanh khi chúng vắng mặt — không cổng nào đếm được một điều khiển
+ * chưa từng được dựng — nên phép đo phải là "nó có trên cây, và bấm vào nó thì
+ * có việc xảy ra".
+ */
+
+describe('điều hướng tầng (BC-05)', () => {
+  /** Tầng thứ hai của bài kiểm — cùng khuôn `WALL_LAYER_FIXTURE_LEVEL`. */
+  const SECOND_LEVEL: Level = {
+    ...WALL_LAYER_FIXTURE_LEVEL,
+    id: 'L-000002LVL0' as LevelId,
+    name: 'Tầng 2',
+    order: 1,
+  };
+
+  const twoFloorArgs = (onNavigate: (path: string) => void) => ({
+    ...scenarioArgsFor('partial'),
+    onNavigate,
+    gateway: createMockWallLayerReviewGateway({
+      graph: normalizeSpatial({
+        building: WALL_LAYER_FIXTURE_BUILDING,
+        levels: [WALL_LAYER_FIXTURE_LEVEL, SECOND_LEVEL],
+        walls: WALL_LAYER_FIXTURE_WALLS,
+        openings: [],
+        furniture: [],
+        rooms: [],
+        axes: [],
+        dimensions: [],
+        notes: [],
+      }),
+    }),
+  });
+
+  it('liệt kê mọi tầng, đánh dấu tầng đang mở, và mở được tầng khác', async () => {
+    const onNavigate = vi.fn();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...twoFloorArgs(onNavigate)} />
+      </MemoryRouter>,
+    );
+
+    const nav = await screen.findByRole('navigation', { name: 'Tầng của bản vẽ' });
+    const floors = Array.from(nav.querySelectorAll('button'));
+
+    expect(floors).toHaveLength(2);
+    expect(floors[0]?.getAttribute('aria-current')).toBe('page');
+    expect(floors[1]?.getAttribute('aria-current')).toBeNull();
+    expect(floors[1]?.textContent).toContain(SECOND_LEVEL.name);
+
+    await act(async () => {
+      floors[1]?.click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    /* Đường dẫn tra từ `ROUTES`, màn không ghép một chuỗi nào (R-65). */
+    expect(onNavigate.mock.calls[0]?.[0]).toBe(
+      ROUTES.project.walls(scenarioArgsFor('partial').projectId, SECOND_LEVEL.id),
+    );
+  });
+});
+
+describe('tim tường bật tắt được (BC-17)', () => {
+  it('ô đánh dấu có mặt và đổi được câu trả lời của công cụ', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
+      </MemoryRouter>,
+    );
+
+    const checkbox = await screen.findByRole('checkbox', { name: 'Hiện tim tường' });
+
+    expect(checkbox).not.toBeChecked();
+
+    await act(async () => {
+      checkbox.click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(checkbox).toBeChecked();
+    });
+  });
+});
+
+describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
+  it('nút con mắt bàn phím tới được, và chú giải đi theo nó', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
+
+    const hide = screen.getByRole('button', { name: 'Ẩn lớp Tường' });
+
+    /* Hai lỗi của `TreeItem` dùng chung mà hàng riêng của màn này không mắc. */
+    expect(hide.getAttribute('tabindex')).toBeNull();
+
+    await act(async () => {
+      hide.click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
+    });
+
+    const show = screen.getByRole('button', { name: 'Hiện lớp Tường' });
+
+    await act(async () => {
+      show.click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
+    });
+  });
+});
+
+describe('thu gọn hai panel (BT-16)', () => {
+  it('nút trên ray công cụ đưa màn vào trạng thái thu gọn thật', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('tree', { name: 'Cây lớp' })).toBeInTheDocument();
+
+    const collapse = screen.getByRole('button', { name: 'Thu gọn hai panel' });
+
+    await act(async () => {
+      collapse.click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tree', { name: 'Cây lớp' })).not.toBeInTheDocument();
+    });
+
+    /* Canvas và thanh trạng thái vẫn còn — thu gọn không phải màn trắng (A11). */
+    expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toBeInTheDocument();
+
+    const expand = screen.getByRole('button', { name: 'Mở lại hai panel' });
+
+    await act(async () => {
+      expand.click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('tree', { name: 'Cây lớp' })).toBeInTheDocument();
+    });
+  });
+});
+
+describe('thứ tự ray công cụ (BC-02)', () => {
+  /** Nhãn của từng nút trên ray, theo đúng thứ tự DOM. */
+  const railLabels = (): readonly string[] =>
+    Array.from(screen.getByRole('toolbar', { name: 'Công cụ lớp tường' }).querySelectorAll('button'))
+      .map((button) => button.getAttribute('aria-label') ?? '');
+
+  it('nối đoạn đứng TRƯỚC đo, đúng thứ tự đặc tả đọc ray', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('toolbar', { name: 'Công cụ lớp tường' });
+
+    const labels = railLabels();
+    const mergeAt = labels.findIndex((label) => label.startsWith('nối đoạn'));
+    const measureAt = labels.findIndex((label) => label.startsWith('đo'));
+
+    expect(mergeAt).toBeGreaterThan(-1);
+    expect(measureAt).toBeGreaterThan(-1);
+    expect(mergeAt).toBeLessThan(measureAt);
+  });
+
+  it('vai Người xem: "đo" vẫn hiện, "nối đoạn" bị ẩn', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('forbidden')} />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('toolbar', { name: 'Công cụ lớp tường' });
+
+    const labels = railLabels();
+
+    expect(labels.some((label) => label.startsWith('đo'))).toBe(true);
+    expect(labels.some((label) => label.startsWith('nối đoạn'))).toBe(false);
+  });
+});
+
+describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
+  it('thanh tiến độ và con số chuyển sang token "đã xác minh"', async () => {
+    const { container } = renderState('success');
+
+    await screen.findByRole('button', { name: 'Sang lớp Cửa và nội thất' });
+
+    /*
+     * A5 vẫn nguyên: xanh "đã xác minh" ở đây tới từ `reviewed === total` —
+     * việc của người duyệt — chứ không từ một điểm số nào của AI.
+     */
+    expect(container.querySelectorAll('.bg-state-verified').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.text-state-verified').length).toBeGreaterThan(0);
+  });
+
+  it('trạng thái Một phần thì KHÔNG có token đó ở bộ đếm', async () => {
+    const { container } = renderState('partial');
+
+    await screen.findByRole('tree', { name: 'Cây lớp' });
+
+    expect(container.querySelectorAll('.text-state-verified')).toHaveLength(0);
   });
 });

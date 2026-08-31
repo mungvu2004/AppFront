@@ -99,6 +99,7 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { useCountUp } from '@/hooks/useCountUp';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
@@ -106,14 +107,23 @@ import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
 import { planReveals, revealAnchor, describeSelection } from '@/lib/selection/revealPolicy';
-import { selectSingle, type SelectionContext } from '@/lib/selection/selectionOps';
+import { selectSingle, toggleSelection, type SelectionContext } from '@/lib/selection/selectionOps';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
+import { durationMs } from '@/lib/motion';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
 import { createToolState, reduceTool, DEFAULT_TOOL_SETTINGS } from '@/lib/tools/toolMachine';
-import type { ToolContext, ToolEvent, ToolId, ToolMachineState } from '@/lib/tools/toolMachine';
+import type {
+  ToolContext,
+  ToolEvent,
+  ToolId,
+  ToolInputValue,
+  ToolMachineState,
+  ToolTransition,
+} from '@/lib/tools/toolMachine';
 import { TOOLS } from '@/lib/tools/tools';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
@@ -136,6 +146,7 @@ import {
   fitZoomFor,
   formatScaleLabel,
   isLowConfidence,
+  measurementOutcomeToPx,
   miniMapCentreMm,
   isStandardThickness,
   reviewProgressLabel,
@@ -148,6 +159,7 @@ import {
   scaleOfLevel,
   toCanvasShapes,
   toolOutcomeToCommand,
+  toMeasurementPx,
   toMillimetrePoint,
   toPixelPoint,
   unionOfBounds,
@@ -155,6 +167,7 @@ import {
   zoomPercentOf,
   WALL_LAYER_THICKNESS_CHOICES,
   ZOOM_STEP,
+  type WallLayerBackground,
   type WallLayerCanvasShape,
   type WallLayerGraphPort,
   type WallLayerPointerReading,
@@ -164,8 +177,9 @@ import {
   type WallLayerViewportPx,
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
+import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
-import type { WallLayerCanvasViewProps } from './wallLayerHatch';
+import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
 import type {
   WallLayerFilterKey,
@@ -190,15 +204,41 @@ import type {
  * trừ mã tường và tên phím — hai ngoại lệ A6 cho phép.
  */
 export const WALL_LAYER_TEXT = {
+  /*
+   * Bốn câu dưới đây từng TRÔI khỏi `src/i18n/vi.json`: mã nói một đằng, từ
+   * điển kiểm tra nói một nẻo, và không cổng nào bắt được vì `vi.json` không
+   * phải bảng dịch lúc chạy. Bản trong từ điển là bản khớp đặc tả, nên mã đi
+   * theo từ điển — xem `vi.json#wallLayerReview.state`.
+   */
   emptyNotice:
-    'Chưa phát hiện được đoạn tường nào ở tầng này. Kiểm tra lại bản vẽ gốc hoặc chạy lại bước tách lớp tường.',
+    'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.',
   viewerRoleNotice:
-    'Bạn đang xem với vai Người xem nên không duyệt hay sửa được lớp tường. Xin quyền Kỹ sư từ chủ dự án để chỉnh sửa.',
+    'Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   mergeLabel: 'nối đoạn',
   mergeDescription: 'Nối hai đoạn tường đang chọn thành một.',
+  /** Nhãn ô đánh dấu bật/tắt tim tường (BC-17). */
+  centrelinesLabel: 'Hiện tim tường',
+  /** Nhãn khối điều hướng tầng của panel trái (BC-05). */
+  floorNavLabel: 'Tầng của bản vẽ',
+  /** Nhãn nút con mắt của hàng cây lớp "Tường" (BC-19). */
+  showWallLayerLabel: 'Hiện lớp Tường',
+  hideWallLayerLabel: 'Ẩn lớp Tường',
+  /** Nhãn nút thu gọn / mở lại hai panel (BT-16). */
+  collapsePanelsLabel: 'Thu gọn hai panel',
+  expandPanelsLabel: 'Mở lại hai panel',
   shortcutNext: 'Xuống tường tiếp theo.',
   shortcutPrevious: 'Lên tường phía trên.',
-  shortcutApprove: 'Duyệt đoạn tường đang chọn.',
+  /*
+   * `shortcutApprove` đã BỊ XOÁ, không phải bỏ quên.
+   *
+   * Nó mô tả một phím duyệt chưa từng được đăng ký: `rg 'shortcutApprove'`
+   * chỉ ra đúng một chỗ khai và không một `useShortcut` nào dùng. Đặc tả không
+   * đòi phím duyệt, và `Enter` trên nút "Duyệt đoạn này" đang có tiêu điểm đã
+   * là đường bàn phím đúng (xem ghi chú "Bàn phím" ở đầu file) — nên chỗ sửa
+   * là xoá câu mô tả, không phải dựng thêm một phím để câu mô tả có việc.
+   * Khoá `wallLayerReview.shortcuts.approve` trong `vi.json` để nguyên: lượt
+   * này chỉ được THÊM khoá vào từ điển, không được xoá.
+   */
   shortcutDelete: 'Xoá đoạn tường đang chọn.',
   shortcutUndo: 'Hoàn tác thao tác gần nhất.',
   shortcutThickness: 'Đặt độ dày cho đoạn tường đang chọn.',
@@ -246,6 +286,14 @@ export interface UseWallLayerReviewOptions {
   readonly registry?: ShortcutRegistry;
   /** Ép thu gọn hai panel — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /**
+   * Bus thông báo — chỗ toast hoàn tác của A8 đi ra.
+   *
+   * Bỏ trống là bus của cả phiên (`appNotificationBus`), thứ `NotificationHost`
+   * ở `src/main.tsx` đang vẽ. Test và story tiêm bus riêng để hai lượt kiểm
+   * không thấy thông báo của nhau — cùng khuôn `useProcessingScreen`.
+   */
+  readonly notifications?: NotificationBus;
 }
 
 /*
@@ -259,16 +307,28 @@ export interface UseWallLayerReviewOptions {
  */
 export type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 
-/** Đúng hợp đồng đã đóng băng, cộng ba nhóm thoả thuận thêm với hai worker view. */
+/** Đúng hợp đồng đã đóng băng, cộng bốn nhóm thoả thuận thêm với hai worker view. */
 export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly canvas: WallLayerCanvasViewProps;
   readonly toolRail: WallLayerToolRailProps;
   readonly statusBar: WallLayerStatusBarProps;
+  /** Những gì panel trái cần mà `WallLayerViewProps` (đã đóng băng) không mang. */
+  readonly leftPanel: WallLayerLeftPanelExtras;
 }
 
 /* -------------------------------------------------------------------------- */
 /* Hằng của riêng hook.                                                        */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Loại thông báo của một lượt xoá tường.
+ *
+ * `notificationBus` gộp các thông báo CÙNG LOẠI trong một cửa sổ năm giây và
+ * dựng một vé hoàn tác gộp cho cả nhóm, nên xoá năm tường liên tiếp cho ra một
+ * toast "hoàn tác 5 thay đổi" chứ không phải năm toast chồng nhau. Chuỗi này
+ * viết đúng một chỗ (R-71).
+ */
+const WALL_DELETE_NOTIFICATION_TYPE = 'wallLayerReview.deleteWall';
 
 /** Ba cờ lọc lúc mở màn: chưa lọc gì. */
 const NO_FILTERS: WallLayerFilters = {
@@ -278,6 +338,7 @@ const NO_FILTERS: WallLayerFilters = {
 };
 
 const NO_WALLS: readonly Wall[] = [];
+const NO_LEVELS: readonly Level[] = [];
 
 /**
  * Tỷ lệ dùng khi tầng CHƯA hiệu chỉnh.
@@ -362,6 +423,31 @@ export function levelOf(graph: NormalizedSpatial | null, levelId: LevelId | unde
   const entity = graph.byId[id];
 
   return entity !== undefined && 'elevationMm' in entity ? entity : null;
+}
+
+/**
+ * Mọi tầng của bản vẽ, theo đúng thứ tự đồ thị giữ chúng (BC-05).
+ *
+ * Cùng khuôn {@link levelOf} — đọc `graph.byKind.level` rồi lọc ra thực thể có
+ * `elevationMm`. KHÔNG một `useQuery` thứ hai nào: danh sách tầng đã nằm trong
+ * chính đồ thị mà màn đang sửa.
+ */
+export function levelsOf(graph: NormalizedSpatial | null): readonly Level[] {
+  if (graph === null) {
+    return NO_LEVELS;
+  }
+
+  const levels: Level[] = [];
+
+  for (const id of graph.byKind.level) {
+    const entity = graph.byId[id];
+
+    if (entity !== undefined && 'elevationMm' in entity) {
+      levels.push(entity);
+    }
+  }
+
+  return levels;
 }
 
 /** Ba cờ lọc áp lên danh sách. Cờ tắt thì không loại gì. */
@@ -499,16 +585,60 @@ export function useWallLayerReview(
   const [filters, setFilters] = useState<WallLayerFilters>(NO_FILTERS);
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [toolState, setToolState] = useState<ToolMachineState>(() => createToolState('select'));
+  /** Hàng vừa đổi (TT-02) — nháy nền rồi tự tắt; xem khối "Xoá (D-05)" bên dưới. */
+  const [flashingWallId, setFlashingWallId] = useState<WallId | null>(null);
   const isCollapsed = options.forceCollapsed ?? ownCollapsed;
 
+  const onToggleCollapsed = useCallback(() => {
+    setOwnCollapsed((previous) => !previous);
+  }, []);
+
+  /*
+   * Trạng thái máy công cụ đọc được từ MỌI hàm xử lý, kể cả những hàm dựng
+   * trước nó trong file — hai ref này đứng ngay cạnh `useState` vì `onSelect`
+   * (dựng sớm hơn nhiều) phải hỏi máy công cụ đang chờ bước gì.
+   */
+  const toolStateRef = useRef(toolState);
+  toolStateRef.current = toolState;
+  const sendToolInputRef = useRef<((value: ToolInputValue) => void) | null>(null);
+
   /* ---------------------------------------------------------------------- */
-  /* Ảnh nền — dữ liệu máy chủ duy nhất của màn (R-64).                       */
+  /* Hai lượt đọc máy chủ, TÁCH BẠCH (R-64).                                  */
   /* ---------------------------------------------------------------------- */
+
+  /*
+   * Ảnh nền và lớp tường là HAI lượt đọc, dưới hai khoá khác nhau, và trạng
+   * thái 4 của A11 chỉ nghe lượt thứ hai. Bản trước gộp chúng làm một
+   * (`hasError = backgroundQuery.isError`), nên "ảnh nền hỏng" bị đọc thành
+   * "lớp tường hỏng" VÀ canvas mất luôn ảnh gốc — đúng hai điều
+   * `wallLayerReviewScenarios.ts` gọi là không được phép.
+   */
 
   const backgroundQuery = useQuery({
     queryKey: queryKeys.drawing.byFloor(floorId),
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
+
+  const wallLayerQuery = useQuery({
+    queryKey: queryKeys.space.byFloor(floorId),
+    queryFn: ({ signal }) => gateway.readWallLayer({ floorId, projectId, signal }),
+  });
+
+  /*
+   * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
+   *
+   * `backgroundQuery.data` là `undefined` ngay khi lượt đọc hỏng, nên canvas
+   * rơi về ô xám và kỹ sư mất ảnh gốc đúng lúc cần nó nhất để đối chiếu. Một
+   * ref là đủ và trung thực: nó không bịa ra ảnh nào, chỉ không quên ảnh vừa
+   * xem được.
+   */
+  const lastBackgroundRef = useRef<WallLayerBackground | null>(null);
+
+  if (backgroundQuery.data !== undefined) {
+    lastBackgroundRef.current = backgroundQuery.data;
+  }
+
+  const background = backgroundQuery.data ?? lastBackgroundRef.current;
 
   /* ---------------------------------------------------------------------- */
   /* Đồ thị đang sửa — nơi `commit` ghi vào.                                  */
@@ -609,26 +739,68 @@ export function useWallLayerReview(
     return last !== undefined && walls.some((wall) => wall.id === last) ? (last as WallId) : null;
   }, [selectedIds, walls]);
 
+  const pushSelection = useCallback(
+    (next: readonly EntityId[]) => {
+      selectionBeforeRef.current = selectionSnapshotRef.current;
+      setSelection([...next]);
+      /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
+      channel.push([...next]);
+    },
+    [channel, setSelection],
+  );
+
   const onSelect = useCallback(
     (wallId: WallId | null) => {
       if (wallId === null) {
-        selectionBeforeRef.current = selectionSnapshotRef.current;
-        setSelection([]);
-        channel.push([]);
+        pushSelection([]);
 
         return;
+      }
+
+      /*
+       * Công cụ tách đoạn hỏi TƯỜNG trước, rồi mới hỏi điểm cắt
+       * (`SPLIT_WALL_TOOL.steps`), nên một lượt bấm vào tường lúc nó đang chờ
+       * bước `entity` là câu trả lời cho máy công cụ, không chỉ là một lượt
+       * chọn. Chỉ `splitWall` đi đường này: `select` cũng có bước `entity`,
+       * nhưng kết quả của nó là một `selection` quay ngược lại đúng hàm này.
+       */
+      const toolNow = toolStateRef.current;
+
+      if (
+        toolNow.tool === 'splitWall' &&
+        TOOLS[toolNow.tool].steps[toolNow.values.length]?.kind === 'entity'
+      ) {
+        sendToolInputRef.current?.({ kind: 'entity', id: wallId });
       }
 
       const context = selectionContext;
       const next =
         context === null ? [wallId] : selectSingle(selectionSnapshotRef.current, wallId, context);
 
-      selectionBeforeRef.current = selectionSnapshotRef.current;
-      setSelection(next);
-      /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
-      channel.push(next);
+      pushSelection(next);
     },
-    [channel, selectionContext, setSelection],
+    [pushSelection, selectionContext],
+  );
+
+  /**
+   * Ctrl/Cmd-bấm: thêm hoặc bớt một tường khỏi vùng chọn (S-10).
+   *
+   * `selectSingle` luôn thay CẢ vùng chọn bằng đúng một mã, nên trước lượt sửa
+   * này không có cách nào chọn được hai tường — và nút "nối đoạn", vốn bật theo
+   * `selectedWallIds.length === 2`, là một nút chết vĩnh viễn. `toggleSelection`
+   * của `src/lib/selection/selectionOps.ts` đã có sẵn đúng phép cần dùng.
+   */
+  const onToggleSelect = useCallback(
+    (wallId: WallId) => {
+      const context = selectionContext;
+
+      if (context === null) {
+        return;
+      }
+
+      pushSelection(toggleSelection(selectionSnapshotRef.current, wallId, context));
+    },
+    [pushSelection, selectionContext],
   );
 
   const onHover = useCallback(
@@ -727,6 +899,9 @@ export function useWallLayerReview(
         const result = buildChangeThicknessCommand({ wallId, thicknessMm }, context);
 
         return result.ok ? result.data : null;
+      }).then(() => {
+        /* TT-02: đổi độ dày là lượt nháy nền chính, không phải một ngoại lệ. */
+        setFlashingWallId(wallId);
       });
     },
     [run],
@@ -785,8 +960,27 @@ export function useWallLayerReview(
   /* Xoá (D-05) — tức thì, không hộp thoại, kèm vé hoàn tác 8000 ms.          */
   /* ---------------------------------------------------------------------- */
 
-  const [flashingWallId, setFlashingWallId] = useState<WallId | null>(null);
   const undoTicketRef = useRef<ReturnType<typeof createWallUndoTicket> | null>(null);
+  const notifications = options.notifications ?? appNotificationBus;
+
+  /*
+   * Nháy nền một hàng — bật ở đây, và TỰ TẮT.
+   *
+   * Bản trước bật cờ đúng một chỗ (lượt hoàn tác sau khi xoá) và không có một
+   * lượt gọi nào đưa nó về `null`, nên hàng đó sáng vĩnh viễn. Nay cả hai lối
+   * vào của TT-02 đều bật nó — đổi độ dày và hoàn tác-sau-khi-xoá — và một hẹn
+   * giờ ở nấc `'slow'` của thang chuyển động tắt nó (không một con số mili-giây
+   * nào viết tay, R-71).
+   */
+  useEffect(() => {
+    if (flashingWallId === null) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => setFlashingWallId(null), durationMs('slow'));
+
+    return () => clearTimeout(timer);
+  }, [flashingWallId]);
 
   const onDelete = useCallback(
     (wallId: WallId) => {
@@ -795,7 +989,7 @@ export function useWallLayerReview(
 
         return result.ok ? result.data : null;
       }).then(() => {
-        undoTicketRef.current = createWallUndoTicket({
+        const ticket = createWallUndoTicket({
           wallId,
           now: gateway.now,
           undo: () => {
@@ -804,9 +998,30 @@ export function useWallLayerReview(
             setFlashingWallId(wallId);
           },
         });
+
+        undoTicketRef.current = ticket;
+
+        /*
+         * A8: mọi thay đổi hoàn tác được, KÈM TOAST hoàn tác.
+         *
+         * Vé đã dựng đúng từ đầu, chỉ thiếu chỗ hiện. `NotificationHost` của
+         * `src/main.tsx` vẽ bus này bằng `Toast.Item`, và nút "Hoàn tác" của nó
+         * gọi thẳng `undoTicket.undo()` — tức đúng vé ở trên, chạy trên ngăn xếp
+         * 100 bước của S-06. Cửa sổ tám giây do chính vé mang
+         * (`UNDO_WINDOW_MS`), nên không có thời lượng nào phải truyền (R-71).
+         *
+         * `description` để rỗng có chủ đích: `NotificationHost` ghép tiêu đề với
+         * mô tả bằng " — " khi hai câu khác nhau, và ở đây chỉ có MỘT câu.
+         */
+        notifications.publish({
+          type: WALL_DELETE_NOTIFICATION_TYPE,
+          title: ticket.description,
+          description: '',
+          undoTicket: ticket,
+        });
       });
     },
-    [applyUndo, gateway, run],
+    [applyUndo, gateway, notifications, run],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -823,10 +1038,14 @@ export function useWallLayerReview(
     [gateway, levelId],
   );
 
-  const toolStateRef = useRef(toolState);
-  toolStateRef.current = toolState;
   const toolContextRef = useRef(toolContext);
   toolContextRef.current = toolContext;
+  const levelRef = useRef(level);
+  levelRef.current = level;
+
+  /** Số đo ĐÃ CHỐT của công cụ đo; `null` cho tới khi có một lượt đo thật. */
+  const [committedMeasurement, setCommittedMeasurement] =
+    useState<WallLayerMeasurementPx | null>(null);
 
   /**
    * Một sự kiện của máy công cụ, và kết quả nó sinh ra.
@@ -838,7 +1057,7 @@ export function useWallLayerReview(
    * `kind: 'selection'` đi thẳng vào vùng chọn của S-10.
    */
   const runToolEvent = useCallback(
-    (event: ToolEvent) => {
+    (event: ToolEvent): ToolTransition => {
       const transition = reduceTool(toolStateRef.current, event, {
         tools: TOOLS,
         context: toolContextRef.current,
@@ -847,10 +1066,15 @@ export function useWallLayerReview(
       toolStateRef.current = transition.state;
       setToolState(transition.state);
 
+      /* Đổi công cụ là bỏ cử chỉ đang dở — nhãn đo cũ đi theo nó. */
+      if (event.type === 'activate' || event.type === 'cancel') {
+        setCommittedMeasurement(null);
+      }
+
       const outcome = transition.outcome;
 
       if (outcome === null) {
-        return;
+        return transition;
       }
 
       if (outcome.kind === 'selection') {
@@ -858,13 +1082,51 @@ export function useWallLayerReview(
 
         onSelect(last === undefined ? null : (last as WallId));
 
-        return;
+        return transition;
+      }
+
+      /*
+       * Một lượt đo KHÔNG phải một lệnh: nó không đổi bản vẽ, nên
+       * `toolOutcomeToCommand` trả `null` cho nó và trước lượt sửa này kết quả
+       * bị bỏ im lặng — đó là toàn bộ lý do `canvas.measurement` từng là `null`
+       * cứng. Nay nó vào một `useState` và đi thẳng ra `MeasurementLabel`.
+       */
+      if (outcome.kind === 'measurement') {
+        setCommittedMeasurement(
+          measurementOutcomeToPx(outcome.measurement, scaleOfLevel(levelRef.current)),
+        );
+
+        return transition;
       }
 
       void run((context) => toolOutcomeToCommand(outcome, context));
+
+      return transition;
     },
     [onSelect, run],
   );
+
+  /**
+   * Một bước đã điền, rồi CHỐT LUÔN khi cử chỉ đã đủ bước.
+   *
+   * `reduceTool` dừng ở `confirming` và chỉ phát kết quả khi nhận `commit`, vì
+   * có công cụ cần một bước xác nhận. Ba công cụ của màn này thì không: vẽ
+   * tường là hai lần bấm, tách đoạn là chọn tường rồi bấm chỗ cắt, đo là hai
+   * lần bấm — lần bấm cuối CHÍNH LÀ lời xác nhận. Nên hook chốt trong cùng
+   * lượt, và không có nút "xong" nào phải dựng ra chỉ để bấm.
+   */
+  const sendToolInput = useCallback(
+    (value: ToolInputValue) => {
+      const transition = runToolEvent({ type: 'input', value });
+
+      if (transition.state.phase === 'confirming') {
+        runToolEvent({ type: 'commit' });
+      }
+    },
+    [runToolEvent],
+  );
+
+  sendToolInputRef.current = sendToolInput;
 
   const activateTool = useCallback(
     (tool: ToolId) => {
@@ -873,12 +1135,45 @@ export function useWallLayerReview(
     [runToolEvent],
   );
 
+  /**
+   * Canvas báo một điểm vừa bấm; máy công cụ nhận nó làm bước kế tiếp (NL-06,
+   * NL-10, TT-10).
+   *
+   * Toạ độ vào ĐÃ là pixel bản vẽ (trình duyệt đổi giúp qua ma trận của
+   * `<svg>`), và `reduceTool` làm việc bằng milimét công trình, nên ở đây có
+   * đúng một phép quy đổi — `toMillimetrePoint`, tức `scale.pixelsToMillimetres`
+   * của `src/domain/units/scale.ts`. Không một công thức hình học nào viết mới:
+   * điểm cắt, chiều dài tường mới và khoảng cách đo đều do
+   * `src/lib/tools/tools.ts` và `src/domain` tính.
+   */
+  const onCanvasPoint = useCallback(
+    (at: WallLayerPointerReading) => {
+      const currentLevel = levelRef.current;
+
+      if (currentLevel === null) {
+        return;
+      }
+
+      /* Bắt đầu một cử chỉ mới thì nhãn đo cũ nhường chỗ. */
+      if (toolStateRef.current.values.length === 0) {
+        setCommittedMeasurement(null);
+      }
+
+      sendToolInput({
+        kind: 'point',
+        at: toMillimetrePoint({ x: at.xPx, y: at.yPx }, scaleOfLevel(currentLevel)),
+      });
+    },
+    [sendToolInput],
+  );
+
   /* ---------------------------------------------------------------------- */
   /* Danh sách, thanh tra, hình canvas.                                       */
   /* ---------------------------------------------------------------------- */
 
-  const hasError = backgroundQuery.isError;
-  const isLoading = backgroundQuery.isPending || graph === null;
+  /* Trạng thái 4 nghe LỚP TƯỜNG, không nghe ảnh nền — xem khối hai lượt đọc trên. */
+  const hasError = wallLayerQuery.isError;
+  const isLoading = backgroundQuery.isPending || wallLayerQuery.isPending || graph === null;
 
   const counter = useMemo<WallReviewCounter>(
     () => ({
@@ -921,8 +1216,8 @@ export function useWallLayerReview(
       return null;
     }
 
-    return describeError(toAppError(backgroundQuery.error)).description;
-  }, [backgroundQuery.error, hasError]);
+    return describeError(toAppError(wallLayerQuery.error)).description;
+  }, [hasError, wallLayerQuery.error]);
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (I-01) — không một `addEventListener` nào ở đây (R-72).         */
@@ -1102,8 +1397,19 @@ export function useWallLayerReview(
       canMerge: canEdit && mergePair !== null,
       onMerge: onMergeSelection,
       readOnly: isViewerRole,
+      isCollapsed,
+      onToggleCollapsed,
     }),
-    [canEdit, isViewerRole, mergePair, onMergeSelection, onSelectTool, toolState.tool],
+    [
+      canEdit,
+      isCollapsed,
+      isViewerRole,
+      mergePair,
+      onMergeSelection,
+      onSelectTool,
+      onToggleCollapsed,
+      toolState.tool,
+    ],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1120,10 +1426,49 @@ export function useWallLayerReview(
   const hiddenLayers = useStore((current) => current.hiddenLayers);
 
   const isWallLayerVisible = !hiddenLayers.includes('wall');
+  const toggleLayerVisibility = useStore((current) => current.toggleLayerVisibility);
+
+  /**
+   * Bật/tắt lớp Tường của cây lớp (BC-19).
+   *
+   * View KHÔNG gọi thẳng kho (R-60): cờ sống ở `viewSlice.hiddenLayers` và đi
+   * ra qua đúng hàm này. Chú giải độ dày đọc cùng cờ đó, nên câu "chú giải luôn
+   * hiện KHI LỚP TƯỜNG BẬT" giữ được cả hai vế.
+   */
+  const onToggleWallLayer = useCallback(() => {
+    toggleLayerVisibility('wall');
+  }, [toggleLayerVisibility]);
+
+  /*
+   * Tim tường: hành vi cũ là GIÁ TRỊ KHỞI TẠO, người dùng đè lên được (BC-17).
+   *
+   * `null` nghĩa là "chưa ai đè", nên bật công cụ vẽ/tách vẫn tự hiện tim tường
+   * như trước; một lượt bấm ô đánh dấu ghim lấy câu trả lời của người dùng.
+   */
+  const [centrelineOverride, setCentrelineOverride] = useState<boolean | null>(null);
+  const showCentrelines =
+    centrelineOverride ?? (toolState.tool === 'drawWall' || toolState.tool === 'splitWall');
+  const showCentrelinesRef = useRef(showCentrelines);
+  showCentrelinesRef.current = showCentrelines;
+
+  const onToggleCentrelines = useCallback(() => {
+    setCentrelineOverride(!showCentrelinesRef.current);
+  }, []);
+
+  /** Danh sách tầng cho khối điều hướng của panel trái (BC-05). */
+  const floors = useMemo(
+    () =>
+      levelsOf(graph).map((item) => ({
+        id: item.id,
+        label: item.name,
+        isCurrent: item.id === levelId,
+      })),
+    [graph, levelId],
+  );
 
   const drawingSizePx = useMemo<WallLayerSizePx | null>(
-    () => drawingSizeOf(backgroundQuery.data, level),
-    [backgroundQuery.data, level],
+    () => drawingSizeOf(background ?? undefined, level),
+    [background, level],
   );
 
   const contentBoundsPx = useMemo<WallLayerRectPx | null>(
@@ -1278,6 +1623,33 @@ export function useWallLayerReview(
     setPointerReading(reading);
   }, []);
 
+  /**
+   * Nhãn đo của canvas: đang đo thì đi theo con trỏ, đo xong thì đứng yên.
+   *
+   * Vế "đang đo" DẪN XUẤT từ chính máy công cụ — một điểm đã chấm cộng vị trí
+   * con trỏ hiện tại — nên không có bản sao trạng thái thứ hai để lệch. Vế "đã
+   * chốt" là kết quả `kind: 'measurement'` mà `runToolEvent` vừa cất. Khoảng
+   * cách của cả hai vế đều do `measureDistance` của `src/domain/measure` tính.
+   */
+  const measurement = useMemo<WallLayerMeasurementPx | null>(() => {
+    if (toolState.tool === 'measure' && toolState.values.length === 1 && pointerReading !== null) {
+      const first = toolState.values[0];
+
+      if (first !== undefined && first.kind === 'point') {
+        const scale = scaleOfLevel(level);
+
+        return toMeasurementPx(
+          first.at,
+          toMillimetrePoint({ x: pointerReading.xPx, y: pointerReading.yPx }, scale),
+          scale,
+          'measuring',
+        );
+      }
+    }
+
+    return committedMeasurement;
+  }, [committedMeasurement, level, pointerReading, toolState.tool, toolState.values]);
+
   const statusBar = useMemo<WallLayerStatusBarProps>(
     () => ({
       cursorLabel: cursorLabelOf(pointerReading, scaleOfLevel(level)),
@@ -1295,21 +1667,25 @@ export function useWallLayerReview(
     [onSelect],
   );
 
-  /** Menu chuột phải "Tách đoạn": chọn tường rồi bật đúng công cụ tách đoạn. */
+  /**
+   * Menu chuột phải "Tách đoạn": chọn tường, bật công cụ, và ĐIỀN LUÔN bước
+   * đầu.
+   *
+   * Người dùng vừa chỉ đúng tường cần tách, nên bắt họ bấm lại lần nữa để trả
+   * lời bước `entity` là hỏi một câu đã có câu trả lời. Sau lượt này máy công
+   * cụ chỉ còn chờ điểm cắt, và một lần bấm trên canvas là tách xong.
+   */
   const onRequestSplit = useCallback(
     (wallId: WallId) => {
       onSelect(wallId);
       activateTool('splitWall');
+      sendToolInput({ kind: 'entity', id: wallId });
     },
-    [activateTool, onSelect],
+    [activateTool, onSelect, sendToolInput],
   );
 
   const onToggleFilter = useCallback((filter: WallLayerFilterKey) => {
     setFilters((previous) => ({ ...previous, [filter]: !previous[filter] }));
-  }, []);
-
-  const onToggleCollapsed = useCallback(() => {
-    setOwnCollapsed((previous) => !previous);
   }, []);
 
   const panel: WallLayerViewProps = {
@@ -1320,7 +1696,7 @@ export function useWallLayerReview(
     filters,
     thicknessChoices: WALL_LAYER_THICKNESS_CHOICES,
     selectedWallId,
-    hoveredWallId: (hoveredId as WallId | null) ?? flashingWallId,
+    hoveredWallId: hoveredId as WallId | null,
     inspector,
     isCompact: isCollapsed,
     isCollapsed,
@@ -1345,10 +1721,15 @@ export function useWallLayerReview(
     shapes,
     selectedWallId,
     hoveredWallId: (hoveredId as WallId | null) ?? null,
-    showCentrelines: toolState.tool === 'drawWall' || toolState.tool === 'splitWall',
+    showCentrelines,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,
-    backgroundImageUrl: backgroundQuery.data?.imageUrl ?? null,
-    backgroundImageAlt: backgroundQuery.data?.imageAlt ?? '',
+    /*
+     * BT-06/BT-07: ở trạng thái `error` canvas VẪN xem được ảnh gốc. `background`
+     * là lượt đọc thành công gần nhất, nên một lượt đọc hỏng sau đó không xoá
+     * mất bản vẽ mà kỹ sư đang đối chiếu.
+     */
+    backgroundImageUrl: background?.imageUrl ?? null,
+    backgroundImageAlt: background?.imageAlt ?? '',
     isInteractive: canEdit,
     onSelect,
     onHover,
@@ -1361,13 +1742,7 @@ export function useWallLayerReview(
     contentBoundsPx,
     isWallLayerVisible,
     legendLevels,
-    /*
-     * Công cụ đo chưa chạy được từ màn này: `WallLayerCanvasProps` đã đóng băng
-     * không có hàm xử lý con trỏ nào, nên không cử chỉ đo nào tới được máy công
-     * cụ. `null` là câu trả lời THẬT — một nhãn đo bịa ra sẽ là một số đo không
-     * ai đo (R-69).
-     */
-    measurement: null,
+    measurement,
     prefersReducedMotion,
     onApprove,
     onRequestThicknessChange,
@@ -1384,9 +1759,21 @@ export function useWallLayerReview(
     onMiniMapViewportChange,
     onFrameResize,
     onPointerMove,
+    onCanvasPoint,
+    onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar };
+  const leftPanel: WallLayerLeftPanelExtras = {
+    floors,
+    showCentrelines,
+    onToggleCentrelines,
+    isWallLayerVisible,
+    onToggleWallLayer,
+    flashingWallId,
+    onToggleSelect,
+  };
+
+  return { panel, canvas, toolRail, statusBar, leftPanel };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */

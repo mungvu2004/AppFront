@@ -26,9 +26,10 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { Level, Wall, WallId } from '@/domain/spatial/types';
+import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
@@ -44,6 +45,8 @@ import {
   type UseWallLayerReviewOptions,
   type UseWallLayerReviewResult,
 } from './useWallLayerReview';
+import { isLowConfidence as canvasHatchGate } from '@/components/canvas/materialMap';
+
 import {
   buildApproveWallCommand,
   buildChangeThicknessCommand,
@@ -51,7 +54,11 @@ import {
   createMockWallLayerReviewGateway,
   createWallUndoTicket,
   CURSOR_IDLE_LABEL,
+  deleteToastDescription,
+  isLowConfidence,
   isStandardThickness,
+  scaleOfLevel,
+  toPixelPoint,
   toWallInspector,
   UNDO_WINDOW_MS,
   WALL_APPROVE_COMMAND_TYPE,
@@ -170,6 +177,7 @@ function mountHook(options: MountOptions = {}): Mounted {
           options.gateway ??
           createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH }),
         registry,
+        ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.levelId === undefined ? {} : { levelId: options.levelId }),
         ...(options.forceCollapsed === undefined ? {} : { forceCollapsed: options.forceCollapsed }),
       }),
@@ -178,6 +186,16 @@ function mountHook(options: MountOptions = {}): Mounted {
 
   return { result: rendered.result, registry, unmount: rendered.unmount };
 }
+
+/** Một điểm milimét của bản vẽ, đọc ra bằng PIXEL đúng cách canvas đọc nó. */
+const asCanvasPoint = (pointMm: Point): { readonly xPx: number; readonly yPx: number } => {
+  const pixelPoint = toPixelPoint(pointMm, scaleOfLevel(FIXTURE_LEVEL));
+
+  return { xPx: pixelPoint.x, yPx: pixelPoint.y };
+};
+
+/** Số tường đang có trên tầng, đọc thẳng từ kho. */
+const wallCount = (): number => useStore.getState().spatial?.byKind.wall.length ?? 0;
 
 /** Chờ lượt đọc ảnh nền xong — trước đó mọi kịch bản đều là `'loading'`. */
 async function mountSettled(options: MountOptions = {}): Promise<Mounted> {
@@ -584,11 +602,20 @@ describe('vai Người xem', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('bảy trạng thái', () => {
+  /*
+   * Bài kiểm này ĐỔI CÁCH ÉP trạng thái lỗi, và đó là điểm của nó.
+   *
+   * Tiêu đề nó vẫn nói đúng điều đặc tả đòi — "lỗi LỚP TƯỜNG vẫn để ảnh gốc xem
+   * được" — nhưng bản trước ép trạng thái bằng `failReadBackground`, tức bằng
+   * cách giết chính ẢNH GỐC mà nó đang khẳng định là còn xem được, rồi chỉ đo
+   * `canvas.shapes` thay cho ảnh. Nay nó ép bằng `failReadWallLayer` và đo đúng
+   * thứ phải đo: `backgroundImageUrl` khác `null`.
+   */
   it('lỗi lớp tường vẫn để ảnh gốc xem được', async () => {
     const mounted = await mountSettled({
       gateway: createMockWallLayerReviewGateway({
         graph: FIXTURE_GRAPH,
-        failReadBackground: true,
+        failReadWallLayer: true,
       }),
     });
 
@@ -597,6 +624,30 @@ describe('bảy trạng thái', () => {
     /* Danh sách trắng nhưng canvas KHÔNG trắng: hình tường vẫn dựng được. */
     expect(mounted.result.current.panel.rows).toHaveLength(0);
     expect(mounted.result.current.canvas.shapes.length).toBeGreaterThan(0);
+    /* Điều khoản nặng nhất của BT-06/BT-07: ảnh bản vẽ gốc KHÔNG được mất. */
+    expect(mounted.result.current.canvas.backgroundImageUrl).not.toBeNull();
+    expect(mounted.result.current.canvas.backgroundImageAlt.length).toBeGreaterThan(0);
+
+    mounted.unmount();
+  });
+
+  it('ảnh nền hỏng KHÔNG bị đọc thành lớp tường hỏng', async () => {
+    const mounted = await mountSettled({
+      gateway: createMockWallLayerReviewGateway({
+        graph: FIXTURE_GRAPH,
+        failReadBackground: true,
+      }),
+    });
+
+    /*
+     * Hai lượt đọc, hai khoá, hai ý nghĩa: mất ảnh nền là mất một lớp tham
+     * chiếu, không phải mất lớp tường. Danh sách vẫn đọc được và bộ đếm vẫn
+     * đếm — nếu bài kiểm này đỏ thì hai nguồn lỗi lại vừa bị gộp làm một.
+     */
+    expect(mounted.result.current.panel.state).not.toBe('error');
+    expect(mounted.result.current.panel.errorMessage).toBeNull();
+    expect(mounted.result.current.panel.rows.length).toBe(WALL_LAYER_FIXTURE_TOTAL);
+    expect(mounted.result.current.canvas.backgroundImageUrl).toBeNull();
 
     mounted.unmount();
   });
@@ -697,7 +748,15 @@ describe('ray công cụ và thanh trạng thái', () => {
     expect(inspector.codeLabel).toBe('#W-014');
     /* W-014 dài 2.500 mm: "2.500,00 mm" — chấm ngăn nghìn, phẩy thập phân. */
     expect(inspector.lengthLabel).toBe('2.500,00 mm');
-    expect(inspector.heightLabel).toBe('3,00 m');
+    /*
+     * Chiều cao ở CÙNG cột milimét với chiều dài (BC-26).
+     *
+     * Bản trước khẳng định "3,00 m" — đúng thứ `formatLength` không có đơn vị
+     * sẽ trả về, và sai thứ đặc tả đòi: hai dòng cạnh nhau của thanh tra không
+     * được đọc bằng hai đơn vị khác nhau. Đây là đổi ĐẶC TẢ HIỂN THỊ, không
+     * phải nới một điều kiện — chuỗi mới chặt hơn chuỗi cũ, không lỏng hơn.
+     */
+    expect(inspector.heightLabel).toBe('3.000,00 mm');
     expect(inspector.kindLabel).toBe('vách ngăn');
   });
 });
@@ -779,6 +838,416 @@ describe('hợp đồng canvas mở rộng', () => {
         WALL_LAYER_FIXTURE_REVIEWED + 1,
       );
     });
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Ba công cụ vừa được NỐI DÂY — vẽ tường, tách đoạn, đo.                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Vì sao bốn bài kiểm dưới đây tồn tại.
+ *
+ * Trước lượt sửa này máy công cụ chỉ nhận `{ type: 'activate' }`: bấm `W` đổi
+ * được biểu tượng đang sáng và KHÔNG vẽ được gì, `M` cũng vậy, còn "Tách đoạn"
+ * của menu chuột phải chỉ bật công cụ rồi đứng im. Ba nút chết đó đi qua mọi
+ * cổng — typecheck, lint, và cả `toolRail.activeTool` của bài kiểm cũ — vì
+ * "công cụ đang chọn đã đổi" là một câu đúng về một việc không xảy ra.
+ *
+ * Nên bốn bài kiểm này đo THỨ KHÁC: số tường trong kho sau một cử chỉ, và nhãn
+ * đo mà canvas nhận được. Sửa một nút chết mà không có phép đo như vậy thì lần
+ * sau nó chết lại mà không ai biết.
+ */
+
+describe('công cụ đã nối dây', () => {
+  it('vẽ tường: bấm hai điểm trên canvas thì kho có thêm một tường', async () => {
+    const mounted = await mountSettled();
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
+
+    /* Hai điểm nằm ngoài lưới bộ mẫu, nên tường mới không đụng nút giao nào. */
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20000 }));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(wallCount()).toBe(before + 1);
+    });
+
+    /* Cử chỉ đã chốt xong, máy công cụ về `ready` chứ không kẹt ở `confirming`. */
+    expect(mounted.result.current.canvas.measurement).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('tách đoạn: chọn tường rồi bấm điểm cắt thì một tường thành hai', async () => {
+    const mounted = await mountSettled();
+    const target = wallAt(0);
+    const before = wallCount();
+
+    /* Menu chuột phải "Tách đoạn" — chọn tường, bật công cụ, điền bước đầu. */
+    await act(async () => {
+      mounted.result.current.canvas.onRequestSplit(target.id);
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.toolRail.activeTool).toBe('splitWall');
+
+    const middle: Point = {
+      x: (target.centreline.start.x + target.centreline.end.x) / 2,
+      y: (target.centreline.start.y + target.centreline.end.y) / 2,
+    };
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint(middle));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(wallCount()).toBe(before + 1);
+    });
+
+    mounted.unmount();
+  });
+
+  it('đo: bấm hai điểm cho ra một nhãn đo THẬT, không phải null cứng', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, shortcutForTool('measure'));
+    expect(mounted.result.current.canvas.measurement).toBeNull();
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 0, y: 0 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 2500, y: 0 }));
+      await Promise.resolve();
+    });
+
+    const measurement = mounted.result.current.canvas.measurement;
+
+    expect(measurement).not.toBeNull();
+    expect(measurement?.state).toBe('committed');
+    /* Số đo do `measureDistance` của `src/domain/measure` tính, không phải màn. */
+    expect(measurement?.distanceLabel).toBe('2.500,00 mm');
+    expect(measurement?.startPx).not.toBeNull();
+    expect(measurement?.midPx).not.toBeNull();
+
+    /* Đo xong không được đẻ ra lệnh nào: một lượt đo không đổi bản vẽ. */
+    expect(wallCount()).toBe(WALL_LAYER_FIXTURE_TOTAL);
+
+    mounted.unmount();
+  });
+
+  it('đo: sau điểm đầu, nhãn đi theo con trỏ', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, shortcutForTool('measure'));
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 0, y: 0 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onPointerMove(asCanvasPoint({ x: 1200, y: 0 }));
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.canvas.measurement?.state).toBe('measuring');
+    expect(mounted.result.current.canvas.measurement?.distanceLabel).toBe('1.200,00 mm');
+
+    /* Đổi công cụ là bỏ cử chỉ đang dở — nhãn đo đi theo nó. */
+    await pressKey(mounted.registry, shortcutForTool('select'));
+    expect(mounted.result.current.canvas.measurement).toBeNull();
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Chọn nhiều — điều kiện để "nối đoạn" thôi là một nút chết.                  */
+/* -------------------------------------------------------------------------- */
+
+describe('chọn hai tường rồi nối đoạn', () => {
+  it('Ctrl-bấm cộng dồn vùng chọn thay vì thay cả vùng', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.canvas.onSelect(wallAt(0).id);
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.toolRail.canMerge).toBe(false);
+
+    await act(async () => {
+      mounted.result.current.canvas.onToggleSelect(wallAt(1).id);
+      await Promise.resolve();
+    });
+
+    /* Hai tường cùng lúc — điều `selectSingle` một mình không bao giờ cho được. */
+    expect(useStore.getState().selectedIds).toHaveLength(2);
+    expect(mounted.result.current.toolRail.canMerge).toBe(true);
+
+    /* Ctrl-bấm lần nữa lên chính nó thì bớt ra, đúng ngữ nghĩa `toggleSelection`. */
+    await act(async () => {
+      mounted.result.current.canvas.onToggleSelect(wallAt(1).id);
+      await Promise.resolve();
+    });
+
+    expect(useStore.getState().selectedIds).toHaveLength(1);
+    expect(mounted.result.current.toolRail.canMerge).toBe(false);
+
+    mounted.unmount();
+  });
+
+  it('nút "nối đoạn" gọi tới lệnh wall.merge thật và bớt đi một tường', async () => {
+    const mounted = await mountSettled();
+    const before = wallCount();
+
+    await act(async () => {
+      mounted.result.current.canvas.onSelect(wallAt(0).id);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onToggleSelect(wallAt(1).id);
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.toolRail.canMerge).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.toolRail.onMerge();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(wallCount()).toBe(before - 1);
+    });
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Bốn điều khiển vừa được dựng ở panel trái và ray công cụ.                    */
+/* -------------------------------------------------------------------------- */
+
+describe('điều khiển của panel trái', () => {
+  it('điều hướng tầng đọc danh sách tầng của chính đồ thị', async () => {
+    const mounted = await mountSettled();
+    const { floors } = mounted.result.current.leftPanel;
+
+    expect(floors).toHaveLength(1);
+    expect(floors[0]?.id).toBe(FIXTURE_LEVEL.id);
+    expect(floors[0]?.label).toBe(FIXTURE_LEVEL.name);
+    expect(floors[0]?.isCurrent).toBe(true);
+
+    mounted.unmount();
+  });
+
+  it('tim tường bật tắt được, và hành vi cũ chỉ là giá trị khởi tạo', async () => {
+    const mounted = await mountSettled();
+
+    /* Công cụ chọn: mặc định không hiện tim tường. */
+    expect(mounted.result.current.canvas.showCentrelines).toBe(false);
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    /* Bật công cụ vẽ thì tim tường hiện sẵn — hành vi cũ, giữ nguyên. */
+    expect(mounted.result.current.canvas.showCentrelines).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.leftPanel.onToggleCentrelines();
+      await Promise.resolve();
+    });
+
+    /* Người dùng đè lên được, kể cả khi công cụ vẽ vẫn đang bật. */
+    expect(mounted.result.current.canvas.showCentrelines).toBe(false);
+    expect(mounted.result.current.leftPanel.showCentrelines).toBe(false);
+
+    mounted.unmount();
+  });
+
+  it('lớp Tường bật tắt được từ cây lớp, và chú giải đi theo cờ đó', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.canvas.isWallLayerVisible).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.leftPanel.onToggleWallLayer();
+      await Promise.resolve();
+    });
+
+    expect(useStore.getState().hiddenLayers).toContain('wall');
+    expect(mounted.result.current.canvas.isWallLayerVisible).toBe(false);
+
+    await act(async () => {
+      mounted.result.current.leftPanel.onToggleWallLayer();
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.canvas.isWallLayerVisible).toBe(true);
+
+    mounted.unmount();
+  });
+
+  it('đổi độ dày làm hàng nháy nền, và cờ nháy TỰ TẮT', async () => {
+    const mounted = await mountSettled();
+    const target = wallAt(0);
+
+    await act(async () => {
+      mounted.result.current.panel.onChangeThickness(target.id, thicknessChoice(1));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.leftPanel.flashingWallId).toBe(target.id);
+    });
+
+    /*
+     * Bản trước không có một lượt gọi nào đưa cờ về `null`, nên hàng đó sáng
+     * vĩnh viễn. Hẹn giờ chạy ở nấc `'slow'` của thang chuyển động.
+     */
+    await waitFor(() => {
+      expect(mounted.result.current.leftPanel.flashingWallId).toBeNull();
+    });
+
+    /* Cờ nháy KHÔNG đi ké `hoveredWallId` nữa — hàng không còn giả vờ đang bị rê chuột. */
+    expect(mounted.result.current.panel.hoveredWallId).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('thu gọn hai panel là một hành động của người dùng, không chỉ của story', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.toolRail.isCollapsed).toBe(false);
+
+    await act(async () => {
+      mounted.result.current.toolRail.onToggleCollapsed();
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.panel.state).toBe('collapsed');
+    expect(mounted.result.current.toolRail.isCollapsed).toBe(true);
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A8 — xoá đi kèm TOAST hoàn tác, không chỉ một vé nằm im.                    */
+/* -------------------------------------------------------------------------- */
+
+describe('toast hoàn tác sau khi xoá', () => {
+  /*
+   * Vé hoàn tác của lượt xoá đã dựng đúng từ đầu (`createWallUndoTicket`) và
+   * KHÔNG nơi nào hiện nó ra, nên A8 mất vế thứ hai: người dùng xoá nhầm một
+   * tường và không có lời mời nào để lấy lại. Bài kiểm này đo đúng chỗ đó — một
+   * thông báo trên bus, mang đúng câu của vé và mang chính vé đó, vì
+   * `NotificationHost` (`src/main.tsx`) vẽ nút "Hoàn tác" từ `undoTicket`.
+   */
+  it('đẩy một thông báo mang đúng vé hoàn tác của lượt xoá', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+    const target = wallAt(0);
+    const before = wallCount();
+
+    expect(bus.list()).toHaveLength(0);
+
+    await act(async () => {
+      mounted.result.current.panel.onDelete(target.id);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(wallCount()).toBe(before - 1);
+    });
+
+    await waitFor(() => {
+      expect(bus.list()).toHaveLength(1);
+    });
+
+    const notification = bus.list()[0];
+
+    /* Câu trên toast là câu của chính vé, không phải một bản chép thứ hai. */
+    expect(notification?.title).toBe(deleteToastDescription(target.id));
+    expect(notification?.undoTicket).toBeDefined();
+
+    /* Bấm "Hoàn tác" của `NotificationHost` chính là gọi vé này. */
+    await act(async () => {
+      notification?.undoTicket?.undo();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(wallCount()).toBe(before);
+    });
+
+    /* Hoàn tác xong thì hàng vừa quay lại nháy nền — TT-02 vế thứ hai. */
+    expect(mounted.result.current.leftPanel.flashingWallId).toBe(target.id);
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Ngưỡng gạch chéo — MỘT nguồn phân loại, cho cả danh sách lẫn canvas.        */
+/* -------------------------------------------------------------------------- */
+
+describe('ngưỡng "cần chú ý"', () => {
+  /*
+   * Ngưỡng cũ của màn là "khác `certain`", tức dưới 0,90 — trong khi canvas gạch
+   * chéo theo `materialMap.isLowConfidence`, vốn đã là dưới 0,70. Hai con số
+   * khác nhau cho cùng một tường, và không cổng nào bắt được vì cả hai đều chạy
+   * đúng như đã viết. Người duyệt chốt 0,70; bài kiểm này là chỗ giữ hai bên
+   * không lệch lại lần nữa.
+   */
+  it('danh sách và canvas gạch chéo cùng một tập tường', () => {
+    for (const wall of FIXTURE_WALLS) {
+      expect(isLowConfidence(wall)).toBe(canvasHatchGate(wall.confidence));
+    }
+  });
+
+  it('băng "AI đề xuất" (0,70 ≤ x < 0,90) KHÔNG còn bị tính là độ tin cậy thấp', () => {
+    /* W-014 — tường ví dụ của đặc tả — có `confidence` 0,71. */
+    const suggested = wallAt(13);
+
+    expect(suggested.confidence).toBe(0.71);
+    expect(isLowConfidence(suggested)).toBe(false);
+
+    /* W-004 ở 0,58 thì có, và bộ lọc phải nhìn thấy đúng nhóm đó. */
+    const needsReview = wallAt(3);
+
+    expect(needsReview.confidence).toBe(0.58);
+    expect(isLowConfidence(needsReview)).toBe(true);
+  });
+
+  it('bộ lọc "Chỉ hiện độ tin cậy thấp" lọc theo đúng ngưỡng đó', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.panel.onToggleFilter('onlyLowConfidence');
+      await Promise.resolve();
+    });
+
+    const expected = FIXTURE_WALLS.filter((wall) => isLowConfidence(wall)).length;
+
+    expect(expected).toBeGreaterThan(0);
+    expect(expected).toBeLessThan(WALL_LAYER_FIXTURE_TOTAL);
+    expect(mounted.result.current.panel.rows).toHaveLength(expected);
+    expect(
+      mounted.result.current.panel.rows.every((row) => row.isLowConfidence),
+    ).toBe(true);
 
     mounted.unmount();
   });

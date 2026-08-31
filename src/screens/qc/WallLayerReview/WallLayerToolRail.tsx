@@ -14,7 +14,17 @@
  * hiện chỉ có một `selectedWallId`, không phải danh sách nhiều lựa chọn).
  */
 
-import { GitMerge, MousePointer2, Ruler, Scissors, Square, type LucideIcon } from 'lucide-react';
+import { Fragment } from 'react';
+import {
+  GitMerge,
+  MousePointer2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Ruler,
+  Scissors,
+  Square,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -30,6 +40,18 @@ export interface WallLayerToolRailProps {
   readonly onMerge: () => void;
   /** `true` ở vai Người xem — ẩn công cụ vẽ/tách/gộp, chỉ còn chọn và đo. */
   readonly readOnly: boolean;
+  /** Hai panel đang thu gọn hay không — nút cuối ray đổi nhãn theo nó. */
+  readonly isCollapsed: boolean;
+  /**
+   * Thu gọn / mở lại hai panel (BT-16).
+   *
+   * `WallLayerViewProps.onToggleCollapsed` đã có từ hợp đồng L1 nhưng KHÔNG
+   * view nào gọi, nên trạng thái `collapsed` chỉ tới được từ `forceCollapsed` —
+   * một cửa của story và bài kiểm, không phải của người dùng. R-73 gọi đích
+   * danh "một hành động chỉ tồn tại như một prop optional không ai truyền", nên
+   * nút này là chỗ hành động đó có mặt trên màn.
+   */
+  readonly onToggleCollapsed: () => void;
 }
 
 interface WallLayerToolDef {
@@ -53,6 +75,19 @@ const TOOLS: readonly WallLayerToolDef[] = [
 const MERGE_LABEL = 'nối đoạn';
 const MERGE_HINT = 'Chọn hai đoạn tường để gộp';
 const RAIL_ARIA_LABEL = 'Công cụ lớp tường';
+const COLLAPSE_LABEL = 'Thu gọn hai panel';
+const EXPAND_LABEL = 'Mở lại hai panel';
+
+/**
+ * Vị trí của "nối đoạn" trên ray — TRƯỚC "đo" (BC-02).
+ *
+ * Đặc tả đọc ray theo thứ tự chọn · vẽ tường · tách đoạn · nối đoạn · đo. "Nối
+ * đoạn" vẫn KHÔNG phải một `ToolId` thứ chín (xem đầu file), nên nó không vào
+ * được {@link TOOLS}; thay vào đó khối nút của nó được chèn ngay trước mục mang
+ * mã này. Ở vai Người xem "đo" vẫn hiện còn "nối đoạn" bị ẩn, và thứ tự này
+ * không đụng vào hai nhánh đó.
+ */
+const MERGE_BEFORE_TOOL: WallLayerToolId = 'measure';
 
 export function WallLayerToolRail({
   activeTool,
@@ -60,7 +95,27 @@ export function WallLayerToolRail({
   canMerge,
   onMerge,
   readOnly,
+  isCollapsed,
+  onToggleCollapsed,
 }: WallLayerToolRailProps) {
+  const collapseLabel = isCollapsed ? EXPAND_LABEL : COLLAPSE_LABEL;
+  const CollapseIcon = isCollapsed ? PanelLeftOpen : PanelLeftClose;
+
+  const mergeButton = readOnly ? null : (
+    <div className="relative flex w-full justify-center" key="merge">
+      <Tooltip label={canMerge ? MERGE_LABEL : MERGE_HINT}>
+        <IconButton
+          aria-label={canMerge ? MERGE_LABEL : `${MERGE_LABEL} — ${MERGE_HINT}`}
+          disabled={!canMerge}
+          icon={<GitMerge aria-hidden="true" className="h-[18px] w-[18px]" />}
+          onClick={onMerge}
+          size="lg"
+          tooltip={false}
+        />
+      </Tooltip>
+    </div>
+  );
+
   return (
     <div
       aria-label={RAIL_ARIA_LABEL}
@@ -76,7 +131,7 @@ export function WallLayerToolRail({
         const isActive = tool.id === activeTool;
         const Icon = tool.icon;
 
-        return (
+        const button = (
           <div className="relative flex w-full justify-center" key={tool.id}>
             {isActive && (
               <span
@@ -97,22 +152,30 @@ export function WallLayerToolRail({
             </Tooltip>
           </div>
         );
+
+        if (tool.id !== MERGE_BEFORE_TOOL) {
+          return button;
+        }
+
+        return (
+          <Fragment key={tool.id}>
+            {mergeButton}
+            {button}
+          </Fragment>
+        );
       })}
 
-      {!readOnly && (
-        <div className="relative flex w-full justify-center">
-          <Tooltip label={canMerge ? MERGE_LABEL : MERGE_HINT}>
-            <IconButton
-              aria-label={canMerge ? MERGE_LABEL : `${MERGE_LABEL} — ${MERGE_HINT}`}
-              disabled={!canMerge}
-              icon={<GitMerge aria-hidden="true" className="h-[18px] w-[18px]" />}
-              onClick={onMerge}
-              size="lg"
-              tooltip={false}
-            />
-          </Tooltip>
-        </div>
-      )}
+      <div className="relative mt-1 flex w-full justify-center">
+        <Tooltip label={collapseLabel}>
+          <IconButton
+            aria-label={collapseLabel}
+            icon={<CollapseIcon aria-hidden="true" className="h-[18px] w-[18px]" />}
+            onClick={onToggleCollapsed}
+            size="lg"
+            tooltip={false}
+          />
+        </Tooltip>
+      </div>
     </div>
   );
 }

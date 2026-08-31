@@ -24,7 +24,7 @@
  * | `Rong` | đồ thị không có tường nào |
  * | `DangTai` | cổng có `readBackground` không bao giờ trả lời |
  * | `MotPhan` | bộ mẫu nguyên bản — 12/48 |
- * | `Loi` | `failReadBackground` |
+ * | `Loi` | `failReadWallLayer` |
  * | `ThanhCong` | bộ mẫu với cả 48 tường `reviewed` |
  * | `KhongCoQuyen` | `roles: ['viewer']` — không quyền sửa lớp |
  * | `ThuGon` | `forceCollapsed` |
@@ -117,12 +117,21 @@ export function scenarioArgsFor(state: SevenState): WallLayerReviewContainerProp
     case 'loading':
       return { ...base, gateway: pendingGateway() };
 
+    /*
+     * `error` ép bằng LỚP TƯỜNG hỏng, không phải ảnh nền hỏng.
+     *
+     * Đặc tả của trạng thái 4 nói "lớp dữ liệu tường hỏng; ẢNH NỀN vẫn xem
+     * được" (`wallLayerReviewScenarios.ts`), và `failReadBackground` ép đúng
+     * điều ngược lại: nó giết ảnh nền và để lớp tường nguyên vẹn. Cờ đúng là
+     * `failReadWallLayer`, và nhờ nó canvas của story này vẫn có bản vẽ gốc để
+     * đối chiếu — thứ kỹ sư cần nhất đúng lúc danh sách trắng.
+     */
     case 'error':
       return {
         ...base,
         gateway: createMockWallLayerReviewGateway({
           graph: FULL_GRAPH,
-          failReadBackground: true,
+          failReadWallLayer: true,
         }),
       };
 

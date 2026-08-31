@@ -45,6 +45,7 @@ export function MiniMap({
     handleClick,
     handleMouseEnter,
     handleMouseLeave,
+    jumpToCentre,
   } = useMiniMap({
     // `exactOptionalPropertyTypes` bật, nên chỉ đặt khoá khi thật sự có giá trị;
     // truyền thẳng `undefined` là lỗi kiểu.
@@ -92,7 +93,7 @@ export function MiniMap({
           // Bàn phím: Enter/Space để nhảy vào trung tâm
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            // Nhảy về trung tâm
+            jumpToCentre();
           }
         }}
       >

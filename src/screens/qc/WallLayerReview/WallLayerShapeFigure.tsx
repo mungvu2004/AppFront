@@ -8,7 +8,9 @@
  *
  * Vẫn là view thuần và vẫn KHÔNG một phép hình học nào: đa giác tới nơi đã tính
  * sẵn, việc của file này là nối mảng điểm thành chuỗi `points` và giao cho
- * `<polygon>`.
+ * `<polygon>`. Tâm chấm cần chú ý cũng vậy — nó từng được tính tại chỗ
+ * (`boundsPx.x + boundsPx.width / 2`), nay tới sẵn trong `shape.attentionDotPx`
+ * do `centreOfBounds` của hook dựng.
  */
 
 import type { MouseEvent as ReactMouseEvent } from 'react';
@@ -40,6 +42,8 @@ export interface WallShapeFigureProps {
   readonly isInteractive: boolean;
   readonly showCentrelines: boolean;
   readonly onSelect: (wallId: WallId | null) => void;
+  /** Ctrl/Cmd-bấm: thêm/bớt khỏi vùng chọn thay vì thay cả vùng (NL-07). */
+  readonly onToggleSelect: (wallId: WallId) => void;
   readonly onHover: (wallId: WallId | null) => void;
   readonly onOpenMenu: (event: ReactMouseEvent<SVGGElement>, wallId: WallId) => void;
 }
@@ -59,16 +63,33 @@ export function WallShapeFigure({
   isInteractive,
   showCentrelines,
   onSelect,
+  onToggleSelect,
   onHover,
   onOpenMenu,
 }: WallShapeFigureProps) {
   const points = toSvgPoints(shape.outline);
 
+  /*
+   * Ctrl (hoặc Cmd trên máy Mac) giữ vùng chọn cũ và thêm/bớt đúng tường vừa
+   * bấm — đó là cách chọn được HAI đoạn, tức là cách nút "nối đoạn" thôi bị
+   * khoá vĩnh viễn. Phép cộng/trừ vùng chọn nằm ở `selectionOps.toggleSelection`
+   * của S-10; view chỉ đọc hai cờ phím của sự kiện chuột.
+   */
+  const handleClick = (event: ReactMouseEvent<SVGGElement>) => {
+    if (event.ctrlKey || event.metaKey) {
+      onToggleSelect(shape.id);
+
+      return;
+    }
+
+    onSelect(shape.id);
+  };
+
   return (
     <g
       aria-label={shape.codeLabel}
       className={isInteractive ? 'cursor-pointer' : 'pointer-events-none'}
-      onClick={isInteractive ? () => onSelect(shape.id) : undefined}
+      onClick={isInteractive ? handleClick : undefined}
       onContextMenu={isInteractive ? (event) => onOpenMenu(event, shape.id) : undefined}
       onMouseEnter={isInteractive ? () => onHover(shape.id) : undefined}
       onMouseLeave={isInteractive ? () => onHover(null) : undefined}
@@ -84,8 +105,8 @@ export function WallShapeFigure({
         <>
           <polygon fill={`url(#${WALL_HATCH_PATTERN_ID})`} points={points} />
           <circle
-            cx={shape.boundsPx.x + shape.boundsPx.width / 2}
-            cy={shape.boundsPx.y + shape.boundsPx.height / 2}
+            cx={shape.attentionDotPx.x}
+            cy={shape.attentionDotPx.y}
             fill={ATTENTION_TOKEN}
             r={ATTENTION_DOT_RADIUS_PX}
           />

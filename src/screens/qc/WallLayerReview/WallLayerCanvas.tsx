@@ -94,8 +94,10 @@ export function WallLayerCanvas({
   measurement,
   millimetresPerPixel,
   onApprove,
+  onCanvasPoint,
   onDelete,
   onHover,
+  onToggleSelect,
   onRequestSplit,
   onRequestThicknessChange,
   onSelect,
@@ -171,19 +173,57 @@ export function WallLayerCanvas({
    * kiểm chứ không phải một lối thoát phòng hờ — bài kiểm gọi thẳng
    * `canvas.onPointerMove(...)` để đo chuỗi toạ độ.
    */
-  const handlePointerMove = useCallback(
-    (event: ReactMouseEvent<SVGSVGElement>) => {
+  const readPointer = useCallback(
+    (event: ReactMouseEvent<SVGSVGElement>): { readonly xPx: number; readonly yPx: number } | null => {
       const matrix = event.currentTarget.getScreenCTM?.();
 
       if (matrix === null || matrix === undefined) {
-        return;
+        return null;
       }
 
       const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
 
-      onPointerMove({ xPx: point.x, yPx: point.y });
+      return { xPx: point.x, yPx: point.y };
     },
-    [onPointerMove],
+    [],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactMouseEvent<SVGSVGElement>) => {
+      const reading = readPointer(event);
+
+      if (reading !== null) {
+        onPointerMove(reading);
+      }
+    },
+    [onPointerMove, readPointer],
+  );
+
+  /**
+   * Một lượt bấm trên bản vẽ → một bước của máy công cụ.
+   *
+   * Đây là đường mà vẽ tường, tách đoạn và đo đi qua; trước lượt sửa này nó
+   * không tồn tại, nên ba công cụ đó bấm được mà không làm gì. Toạ độ vẫn do
+   * TRÌNH DUYỆT đổi (`getScreenCTM().inverse()`), y hệt `handlePointerMove` —
+   * không một phép tính nào thêm ở view.
+   *
+   * Bấm vào một đa giác tường cũng nổi bọt lên đây, và đó là điều mong muốn:
+   * bước `point` của công cụ tách đoạn thường rơi đúng trên tường cần cắt.
+   * Công cụ nào không chờ một điểm thì `reduceTool` bỏ qua lượt này.
+   */
+  const handleCanvasClick = useCallback(
+    (event: ReactMouseEvent<SVGSVGElement>) => {
+      if (!isInteractive) {
+        return;
+      }
+
+      const reading = readPointer(event);
+
+      if (reading !== null) {
+        onCanvasPoint(reading);
+      }
+    },
+    [isInteractive, onCanvasPoint, readPointer],
   );
 
   const handlePointerLeave = useCallback(() => {
@@ -290,6 +330,7 @@ export function WallLayerCanvas({
               <svg
                 aria-label={canvasLabel}
                 className="absolute inset-0 h-full w-full"
+                onClick={handleCanvasClick}
                 onMouseMove={handlePointerMove}
                 role="img"
                 viewBox={viewBox}
@@ -323,6 +364,7 @@ export function WallLayerCanvas({
                     onHover={onHover}
                     onOpenMenu={handleOpenMenu}
                     onSelect={onSelect}
+                    onToggleSelect={onToggleSelect}
                     shape={shape}
                     showCentrelines={showCentrelines}
                   />

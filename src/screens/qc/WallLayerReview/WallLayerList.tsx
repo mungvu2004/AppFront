@@ -15,6 +15,12 @@
  * `isLowConfidence`) mang gạch chéo 45° 2px ở 6% — không bao giờ đổi màu đặc
  * (không đỏ, A5 + P-06). Chấm trạng thái dùng đúng ba token trạng thái của A4,
  * xanh "đã xác minh" chỉ khi `statusCode === 'verified'` (tức người đã duyệt).
+ *
+ * Độ dày và "cần chú ý" là CHIP (`Badge`), đúng chữ đặc tả dùng (BC-11, BT-05)
+ * chứ không phải hai `<span>` trần. `Badge` cao 22px nên hàng vẫn đúng
+ * {@link ROW_HEIGHT_PX} = 40 và ảo hoá không lệch; vòng tiêu điểm vẫn là
+ * `focus-visible:` dạng class, không phải một vòng điều khiển bằng state
+ * (cảnh báo H1 của `docs/contracts/ui.md`).
  */
 
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -24,6 +30,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Badge } from '@/components/ui/Badge';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { cn } from '@/lib/utils';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -33,13 +40,26 @@ import type { WallLayerViewProps, WallRowViewModel } from './types';
 
 export interface WallLayerListProps {
   readonly panel: WallLayerViewProps;
+  /** Hàng vừa đổi — nháy nền một nhịp `duration-340` rồi tắt (TT-02). */
+  readonly flashingWallId: WallRowViewModel['id'] | null;
+  /** Ctrl/Cmd-bấm một hàng: thêm/bớt khỏi vùng chọn (NL-07). */
+  readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
 }
 
 const ROW_HEIGHT_PX = 40;
 const LOADING_SKELETON_ROWS = 12;
-const LIST_ARIA_LABEL = 'Danh sách tường';
+/*
+ * Ba câu dưới đây đọc theo `src/i18n/vi.json#wallLayerReview` chứ không theo
+ * bản viết tay cũ: `aria.wallList` là "Danh sách đoạn tường" (không phải "Danh
+ * sách tường") và `state.filterNoMatch` nói ra cả cách thoát khỏi bộ lọc. Mã và
+ * từ điển kiểm tra trôi khỏi nhau là thứ không cổng nào bắt được, nên chúng
+ * được kéo về đúng một bản.
+ */
+const LIST_ARIA_LABEL = 'Danh sách đoạn tường';
 const EMPTY_LIST_TITLE = 'Chưa có đoạn tường nào';
-const NO_MATCH_MESSAGE = 'Không có tường nào khớp bộ lọc hiện tại.';
+const NO_MATCH_MESSAGE =
+  'Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.';
+const ATTENTION_BADGE_LABEL = 'cần chú ý';
 
 const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
   verified: 'bg-state-verified',
@@ -76,13 +96,35 @@ interface WallLayerListRowProps {
   readonly row: WallRowViewModel;
   readonly isSelected: boolean;
   readonly isHovered: boolean;
+  readonly isFlashing: boolean;
   readonly onSelect: (wallId: WallRowViewModel['id']) => void;
+  readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
   readonly onHover: (wallId: WallRowViewModel['id'] | null) => void;
   readonly style: CSSProperties;
 }
 
-function WallLayerListRow({ row, isSelected, isHovered, onSelect, onHover, style }: WallLayerListRowProps) {
+function WallLayerListRow({
+  row,
+  isSelected,
+  isHovered,
+  isFlashing,
+  onSelect,
+  onToggleSelect,
+  onHover,
+  style,
+}: WallLayerListRowProps) {
   const showHatch = row.isLowConfidence && row.statusCode === 'attention';
+
+  /* Ctrl/Cmd giữ vùng chọn cũ — cách duy nhất chọn đủ hai đoạn để "nối đoạn". */
+  const pick = (withModifier: boolean) => {
+    if (withModifier) {
+      onToggleSelect(row.id);
+
+      return;
+    }
+
+    onSelect(row.id);
+  };
 
   return (
     <div
@@ -94,12 +136,20 @@ function WallLayerListRow({ row, isSelected, isHovered, onSelect, onHover, style
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
         isSelected && 'bg-bg-selected hover:bg-bg-selected',
         isHovered && !isSelected && 'bg-bg-hover',
+        /*
+         * Nháy nền của TT-02 — token `bg-accent-wash` (không phải một mã màu
+         * thô) ở nhịp `duration-340` của thang chuyển động; đặc tả ghi 400 ms,
+         * và 400 không có trên thang. Đứng SAU hai nhánh trên để một hàng vừa
+         * đổi vẫn nhận ra được kể cả khi nó đang được chọn. Tiền lệ nguyên văn:
+         * `screens/account/AccountSettings/AppearanceSection.tsx`.
+         */
+        isFlashing && 'bg-accent-wash duration-340',
       )}
-      onClick={() => onSelect(row.id)}
+      onClick={(event) => pick(event.ctrlKey || event.metaKey)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onSelect(row.id);
+          pick(event.ctrlKey || event.metaKey);
         }
       }}
       onMouseEnter={() => onHover(row.id)}
@@ -122,27 +172,33 @@ function WallLayerListRow({ row, isSelected, isHovered, onSelect, onHover, style
 
       <span className="relative w-16 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
 
-      <span className="relative flex shrink-0 items-center gap-1.5">
+      <Badge className="relative shrink-0 gap-1.5 font-mono" noDot variant="neutral">
         <span
           aria-hidden="true"
           className="h-3 w-3 rounded-sm border border-border-default/50"
           style={{ backgroundColor: wallStrokeToken(row.thicknessMm as WallThickness) }}
         />
-        <span className="font-mono text-text-secondary">{row.thicknessLabel}</span>
-      </span>
+        {row.thicknessLabel}
+      </Badge>
 
       <span className="relative shrink-0">
         <ConfidenceMeter noTooltip value={row.confidence} />
       </span>
 
-      <span className="relative ml-auto flex shrink-0 items-center" title={STATUS_DOT_LABEL[row.statusCode]}>
-        <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
-      </span>
+      {row.statusCode === 'attention' ? (
+        <Badge className="relative ml-auto shrink-0" variant="attention">
+          {ATTENTION_BADGE_LABEL}
+        </Badge>
+      ) : (
+        <span className="relative ml-auto flex shrink-0 items-center" title={STATUS_DOT_LABEL[row.statusCode]}>
+          <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
+        </span>
+      )}
     </div>
   );
 }
 
-export function WallLayerList({ panel }: WallLayerListProps) {
+export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, state, emptyNotice } = panel;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
@@ -227,11 +283,13 @@ export function WallLayerList({ panel }: WallLayerListProps) {
 
         return (
           <WallLayerListRow
+            isFlashing={row.id === flashingWallId}
             isHovered={row.id === hoveredWallId}
             isSelected={row.id === selectedWallId}
             key={row.id}
             onHover={onHover}
             onSelect={onSelect}
+            onToggleSelect={onToggleSelect}
             row={row}
             style={{ transform: `translateY(${virtualRow.start}px)` }}
           />

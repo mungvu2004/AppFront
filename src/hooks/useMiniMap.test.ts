@@ -88,4 +88,36 @@ describe('useMiniMap', () => {
       height: 30,
     }));
   });
+
+  it('jumpToCentre moves viewport to the middle of the map and notifies onViewportChange', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() =>
+      useMiniMap({
+        initialViewport: { x: 0, y: 0, width: 40, height: 30 },
+        onViewportChange: onChange,
+      })
+    );
+
+    act(() => {
+      result.current.jumpToCentre();
+    });
+
+    // Tâm bản đồ là (50, 50); top-left của khung nhìn 40x30 phải là (30, 35).
+    expect(result.current.viewport).toEqual({ x: 30, y: 35, width: 40, height: 30 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ x: 30, y: 35, width: 40, height: 30 });
+  });
+
+  it('jumpToCentre clamps when viewport is larger than the centred half-extent', () => {
+    const { result } = renderHook(() =>
+      useMiniMap({ initialViewport: { x: 0, y: 0, width: 80, height: 80 } })
+    );
+
+    act(() => {
+      result.current.jumpToCentre();
+    });
+
+    // 50 - 80/2 = 10, trong khoảng [0, 100-80] nên không bị clamp thêm.
+    expect(result.current.viewport).toEqual({ x: 10, y: 10, width: 80, height: 80 });
+  });
 });
