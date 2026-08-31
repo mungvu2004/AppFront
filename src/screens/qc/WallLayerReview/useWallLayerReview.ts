@@ -33,7 +33,8 @@
  * - Ngưỡng độ tin cậy: `confidenceLevel` (`@/lib/format/semantic`) — cùng hàm
  *   `toWallViewModel` dùng, nên trạng thái màu và cờ lọc không thể lệch nhau.
  * - Số: `formatLength`, `formatNumber`, `formatPoint`, `formatElevationM`,
- *   `formatScaleDensity`. Không `toFixed`, không `toLocaleString`.
+ *   `formatScaleDensity`. Không một hàm định dạng số dựng sẵn nào của JavaScript
+ *   được gọi thẳng trong màn — A15 đặt việc đó ở `src/lib/format`.
  * - **Không một lời gọi nào tới đối tượng toán học toàn cục**, ở đây hay ở bất
  *   cứ file nào trong thư mục màn — nghiệm thu grep rỗng.
  *
@@ -98,11 +99,10 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { useCountUp } from '@/hooks/useCountUp';
-import type { MeasurementState, Point as PointPx } from '@/hooks/useMeasurementLabel';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
-import { createAutosave, type Autosave, type AutosaveState } from '@/lib/autosave/createAutosave';
+import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -114,7 +114,7 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
 import { createToolState, reduceTool, DEFAULT_TOOL_SETTINGS } from '@/lib/tools/toolMachine';
 import type { ToolContext, ToolEvent, ToolId, ToolMachineState } from '@/lib/tools/toolMachine';
-import { TOOLS, toolById } from '@/lib/tools/tools';
+import { TOOLS } from '@/lib/tools/tools';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
@@ -129,8 +129,14 @@ import {
   createWallLayerDispatchDeps,
   createWallLayerReviewGateway,
   createWallUndoTicket,
+  centreOfBounds,
+  clampZoom,
+  cursorLabelOf,
+  DEFAULT_ZOOM,
+  fitZoomFor,
   formatScaleLabel,
   isLowConfidence,
+  miniMapCentreMm,
   isStandardThickness,
   reviewProgressLabel,
   runWallCommand,
@@ -142,19 +148,26 @@ import {
   scaleOfLevel,
   toCanvasShapes,
   toolOutcomeToCommand,
+  toMillimetrePoint,
   toPixelPoint,
   unionOfBounds,
   wallStatusCode,
+  zoomPercentOf,
   WALL_LAYER_THICKNESS_CHOICES,
+  ZOOM_STEP,
   type WallLayerCanvasShape,
   type WallLayerGraphPort,
+  type WallLayerPointerReading,
   type WallLayerRectPx,
   type WallLayerReviewGateway,
   type WallLayerSizePx,
   type WallLayerViewportPx,
+  type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
+import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
+import type { WallLayerCanvasViewProps } from './wallLayerHatch';
+import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
 import type {
-  WallLayerCanvasProps,
   WallLayerFilterKey,
   WallLayerFilters,
   WallLayerReviewProps,
@@ -190,48 +203,32 @@ export const WALL_LAYER_TEXT = {
   shortcutUndo: 'Hoàn tác thao tác gần nhất.',
   shortcutThickness: 'Đặt độ dày cho đoạn tường đang chọn.',
   shortcutTool: 'Chuyển công cụ.',
+  shortcutFit: 'Phủ khắp đoạn tường đang chọn.',
 } as const;
 
 /* -------------------------------------------------------------------------- */
-/* Hai trường thoả thuận thêm với người viết view.                             */
+/* Hai trường thoả thuận thêm với người viết view — NAY ĐỌC TỪ CHÍNH VIEW.     */
 /* -------------------------------------------------------------------------- */
 
-/** Một ô của ray công cụ. `id` là mã máy đọc, không phải nhãn. */
-export interface WallLayerToolRailItemProps {
-  readonly id: string;
-  /** Nhãn tiếng Việt, lấy nguyên từ `TOOLS[id].label` — không dịch lại (R-61). */
-  readonly label: string;
-  /** Phím tắt in trên ô, lấy từ `TOOL_SHORTCUTS`. Rỗng khi ô không có phím. */
-  readonly keyLabel: string;
-  readonly isActive: boolean;
-  readonly isEnabled: boolean;
-  readonly onSelect: () => void;
-}
-
-/**
- * Ray công cụ của màn: chọn · vẽ tường · tách đoạn · nối đoạn · đo.
+/*
+ * `WallLayerToolRailProps` và `WallLayerStatusBarProps` từng được khai HAI BẢN:
+ * một ở đây, một trong file của mỗi view, vì hook và view được viết song song
+ * trên hai nhánh chưa gộp. Hai bản đã LỆCH NHAU thật:
  *
- * "Nối đoạn" KHÔNG phải một chế độ công cụ — `ToolId` chỉ có tám mục và không
- * mục nào cho việc gộp (hợp đồng lô-gic mục J.5). Nó là hành động theo VÙNG
- * CHỌN: chọn hai đoạn rồi bấm, nên `isEnabled` của nó chỉ bật khi đúng hai
- * tường đang được chọn.
+ * - ray công cụ: bản hook là một danh sách ô chung
+ *   (`{ items, activeToolId }`), bản view là hợp đồng điều phối viên chốt
+ *   (`{ activeTool, onSelectTool, canMerge, onMerge, readOnly }`);
+ * - thanh trạng thái: bản hook có `saveState`/`reviewProgressLabel` nhưng
+ *   THIẾU `cursorLabel`, thứ hợp đồng chốt đòi.
+ *
+ * Hợp đồng đã chốt thắng, và cách chắc chắn nhất để hai bên không lệch lần nữa
+ * là bỏ hẳn bản thứ hai: hook đọc kiểu TỪ view. `import type` bị xoá lúc biên
+ * dịch nên không dòng nhập nào kéo một component vào bản dựng của hook.
+ *
+ * `reviewProgressLabel` không mất đi — nó vẫn ở `WallLayerViewProps` của panel,
+ * đúng một chỗ. `saveState` cũng vậy: nhãn `saveLabel` đã nói ra trạng thái tự
+ * lưu bằng tiếng Việt, nên một mã máy đọc song song chỉ là chỗ thứ hai để lệch.
  */
-export interface WallLayerToolRailProps {
-  readonly items: readonly WallLayerToolRailItemProps[];
-  readonly activeToolId: ToolId;
-}
-
-/** Thanh trạng thái dưới cùng. Mọi trường đã là chuỗi — view không định dạng gì. */
-export interface WallLayerStatusBarProps {
-  /** Tỷ lệ của tầng, "12 mm/px". Tầng chưa hiệu chỉnh thì là dấu thiếu, không phải "undefined". */
-  readonly scaleLabel: string;
-  /** Nhãn tự lưu, "Đã lưu lúc 14:32". Không có nút Lưu (A7). */
-  readonly saveLabel: string;
-  /** Trạng thái máy tự lưu, cho view chọn token màu. */
-  readonly saveState: AutosaveState;
-  /** "12/48 tường đã duyệt" — cùng chuỗi với {@link WallLayerViewProps.reviewProgressLabel}. */
-  readonly reviewProgressLabel: string;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Tham số vào và giá trị ra.                                                  */
@@ -251,52 +248,16 @@ export interface UseWallLayerReviewOptions {
   readonly forceCollapsed?: boolean;
 }
 
-/**
- * Nhãn đo của công cụ đo — mọi toạ độ bằng px, khoảng cách đã thành chuỗi.
+/*
+ * Hợp đồng canvas: ĐỌC TỪ `wallLayerHatch.ts`, không khai lại.
  *
- * Cùng hình dạng với `WallLayerMeasurementPx` của `wallLayerHatch.ts` (nhánh
- * `mungvu2004/wlr-view-canvas`); xem ghi chú {@link WallLayerCanvasViewProps}.
+ * Hai khai báo từng đứng ở đây (`WallLayerMeasurementPx`,
+ * `WallLayerCanvasViewProps`) là bản chép tay của hợp đồng lớp canvas, viết khi
+ * nhánh canvas chưa gộp vào worktree này — cách duy nhất để hook biên dịch được
+ * lúc đó. Nhánh đã gộp, nên bản chép biến mất theo đúng kế hoạch người viết nó
+ * để lại: một hợp đồng, một chỗ khai.
  */
-export interface WallLayerMeasurementPx {
-  readonly state: MeasurementState;
-  readonly startPx: PointPx | null;
-  readonly currentPx: PointPx | null;
-  readonly midPx: PointPx | null;
-  /** Ví dụ `"4.250,00 mm"` — đã định dạng ở hook (A15). */
-  readonly distanceLabel: string;
-}
-
-/**
- * Hợp đồng canvas MỞ RỘNG — thuần cộng thêm lên `WallLayerCanvasProps`.
- *
- * Lớp canvas (T7) đã khai đúng hình dạng này ở
- * `src/screens/qc/WallLayerReview/wallLayerHatch.ts` trên nhánh
- * `mungvu2004/wlr-view-canvas`, một nhánh CHƯA có trong worktree này. Khai lại
- * ở đây là cách duy nhất để hook biên dịch được trước lượt gộp, và mọi TÊN
- * TRƯỜNG giữ nguyên từng chữ theo bản của T7 nên hai bên khớp bằng cấu trúc:
- * lúc T8 gộp, chỉ cần đổi chú thích kiểu của {@link UseWallLayerReviewResult}
- * sang `import type { WallLayerCanvasViewProps } from './wallLayerHatch'` rồi
- * xoá bốn khai báo dưới đây — không một dòng logic nào phải đổi.
- */
-export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
-  readonly shapes: readonly WallLayerCanvasShape[];
-  readonly state: WallLayerScreenState;
-  readonly canvasLabel: string;
-  readonly viewport: WallLayerViewportPx;
-  readonly drawingSizePx: WallLayerSizePx | null;
-  readonly contentBoundsPx: WallLayerRectPx | null;
-  readonly isWallLayerVisible: boolean;
-  readonly legendLevels: readonly WallThicknessChoice[];
-  readonly measurement: WallLayerMeasurementPx | null;
-  readonly prefersReducedMotion: boolean;
-  readonly onApprove: (wallId: WallId) => void;
-  /** Xin đổi độ dày: đưa tiêu điểm về điều khiển ba lựa chọn của thanh tra. */
-  readonly onRequestThicknessChange: (wallId: WallId) => void;
-  /** Xin tách đoạn: bật công cụ tách đoạn trên tường này. */
-  readonly onRequestSplit: (wallId: WallId) => void;
-  /** Xoá dùng vé hoàn tác (A8) — không hộp thoại. */
-  readonly onDelete: (wallId: WallId) => void;
-}
+export type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 
 /** Đúng hợp đồng đã đóng băng, cộng ba nhóm thoả thuận thêm với hai worker view. */
 export interface UseWallLayerReviewResult extends WallLayerReviewProps {
@@ -332,11 +293,33 @@ const UNCALIBRATED_SCALE = millimetresPerPixel(1);
 const NO_LEVEL_ID = '';
 const NO_ROWS: readonly WallRowViewModel[] = [];
 
-/** Bốn công cụ ray này mượn của `TOOLS`, theo đúng thứ tự đặc tả đọc chúng. */
-const RAIL_TOOL_IDS: readonly ToolId[] = ['select', 'drawWall', 'splitWall', 'measure'];
+/**
+ * Bốn công cụ của ray, theo đúng thứ tự đặc tả đọc chúng.
+ *
+ * `WallLayerToolId` (hợp đồng ray, khai ở `WallLayerToolRail.tsx`) là ĐÚNG bốn
+ * mục này, và cả bốn có mặt trong `ToolId` của `toolMachine` — nên phép gán hai
+ * chiều dưới đây không mất mát gì. "Nối đoạn" cố ý KHÔNG nằm trong danh sách:
+ * `toolMachine` không có chế độ nào cho việc gộp, nó là một hành động theo vùng
+ * chọn (`canMerge`/`onMerge` của hợp đồng ray), không phải một công cụ.
+ */
+const RAIL_TOOL_IDS: readonly WallLayerToolId[] = ['select', 'drawWall', 'splitWall', 'measure'];
 
-/** Mã ô "nối đoạn" của ray — một hành động, không phải một `ToolId`. */
-export const MERGE_RAIL_ITEM_ID = 'mergeWalls';
+/**
+ * Vùng nhìn khởi tạo của bản đồ nhỏ, phần trăm khổ bản vẽ.
+ *
+ * Cùng bộ số mà `useMiniMap` vốn tự đặt (`useMiniMap.ts:36-39`), viết ra đây để
+ * nó là một quyết định đọc được chứ không phải một mặc định ẩn của component.
+ */
+const MINIMAP_INITIAL_VIEWPORT: WallLayerViewportRectPercent = {
+  x: 20,
+  y: 20,
+  width: 40,
+  height: 30,
+};
+
+/** Công cụ đang chọn của máy công cụ, đọc về đúng bốn mã ray. */
+const railToolOf = (tool: ToolId): WallLayerToolId =>
+  RAIL_TOOL_IDS.includes(tool as WallLayerToolId) ? (tool as WallLayerToolId) : 'select';
 
 /* -------------------------------------------------------------------------- */
 /* Phép ghép thuần — kiểm được mà không cần dựng hook.                          */
@@ -1092,40 +1075,35 @@ export function useWallLayerReview(
   );
   const mergePair = selectedWallIds.length === 2 ? selectedWallIds : null;
 
-  const toolRail = useMemo<WallLayerToolRailProps>(() => {
-    const items: WallLayerToolRailItemProps[] = RAIL_TOOL_IDS.map((tool) => ({
-      id: tool,
-      label: toolById(tool).label,
-      keyLabel: shortcutForTool(tool),
-      isActive: toolState.tool === tool,
-      isEnabled: canEdit || tool === 'select' || tool === 'measure',
-      onSelect: () => activateTool(tool),
-    }));
+  const onSelectTool = useCallback(
+    (tool: WallLayerToolId) => {
+      activateTool(tool);
+    },
+    [activateTool],
+  );
 
-    items.splice(RAIL_TOOL_IDS.indexOf('measure'), 0, {
-      id: MERGE_RAIL_ITEM_ID,
-      label: WALL_LAYER_TEXT.mergeLabel,
-      keyLabel: '',
-      isActive: false,
-      isEnabled: canEdit && mergePair !== null,
-      onSelect: () => {
-        if (mergePair !== null) {
-          onMerge(mergePair[0] as WallId, mergePair[1] as WallId);
-        }
-      },
-    });
+  const onMergeSelection = useCallback(() => {
+    if (mergePair !== null) {
+      onMerge(mergePair[0] as WallId, mergePair[1] as WallId);
+    }
+  }, [mergePair, onMerge]);
 
-    return { items, activeToolId: toolState.tool };
-  }, [activateTool, canEdit, mergePair, onMerge, toolState.tool]);
-
-  const statusBar = useMemo<WallLayerStatusBarProps>(
+  /**
+   * Ray công cụ, đúng hợp đồng điều phối viên chốt.
+   *
+   * `canMerge` là "đã chọn >= 2 tường" CỘNG quyền sửa: ở vai Người xem nút phải
+   * tắt dù có chọn đủ hai đoạn, vì mọi hàm sửa đã bị vô hiệu ở tầng hook. A2 —
+   * một nút bấm được mà không có tác dụng là thứ A2 tồn tại để chặn.
+   */
+  const toolRail = useMemo<WallLayerToolRailProps>(
     () => ({
-      scaleLabel: formatScaleLabel(level),
-      saveLabel: saveIndicator.label,
-      saveState: saveIndicator.state,
-      reviewProgressLabel: progressLabel,
+      activeTool: railToolOf(toolState.tool),
+      onSelectTool,
+      canMerge: canEdit && mergePair !== null,
+      onMerge: onMergeSelection,
+      readOnly: isViewerRole,
     }),
-    [level, progressLabel, saveIndicator.label, saveIndicator.state],
+    [canEdit, isViewerRole, mergePair, onMergeSelection, onSelectTool, toolState.tool],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1155,8 +1133,10 @@ export function useWallLayerReview(
 
   /*
    * Khung nhìn: tâm nhìn của kho, đọc bằng pixel bản vẽ, cộng mức phóng.
-   * `ZoomCluster`/`MiniMap` chưa nhận props để lái ngược lại (ghi chú của T7),
-   * nên đây là chiều đi một hướng — kho quyết, canvas vẽ theo.
+   *
+   * Nay là đường HAI CHIỀU: kho vẫn quyết những gì canvas vẽ, nhưng cụm thu
+   * phóng, phím `F` và bản đồ nhỏ đã lái ngược được qua `setZoom`/`setViewCenter`
+   * (xem khối "Lái khung nhìn" ngay dưới).
    */
   const viewport = useMemo<WallLayerViewportPx>(() => {
     const centre = toPixelPoint(viewCenter, scaleOfLevel(level));
@@ -1165,6 +1145,147 @@ export function useWallLayerReview(
   }, [level, viewCenter, zoom]);
 
   const legendLevels = useMemo(() => legendLevelsOf(walls), [walls]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Lái khung nhìn: cụm thu phóng, phím F, bản đồ nhỏ.                       */
+  /* ---------------------------------------------------------------------- */
+
+  /*
+   * Trước lượt gộp này, `ZoomCluster` và `MiniMap` được dựng TRẦN trong canvas:
+   * bấm được, không đổi được gì. Người duyệt đã chấp thuận một ngoại lệ R-68 để
+   * hai component đó nhận props, nên bốn nút và bản đồ nhỏ giờ nối vào đúng
+   * `zoom`/`viewCenter` của kho — cùng hai trường mà `viewport` ở trên đọc ra.
+   *
+   * Khổ khung do canvas báo lên (`onFrameResize`): "vừa khung" không tính được
+   * nếu không biết khung rộng bao nhiêu, và khung là thứ chỉ view đo được.
+   */
+
+  const setZoom = useStore((current) => current.setZoom);
+  const setViewCenter = useStore((current) => current.setViewCenter);
+
+  const [frameSizePx, setFrameSizePx] = useState<WallLayerSizePx | null>(null);
+
+  const onFrameResize = useCallback((size: WallLayerSizePx) => {
+    setFrameSizePx((previous) =>
+      previous !== null && previous.width === size.width && previous.height === size.height
+        ? previous
+        : size,
+    );
+  }, []);
+
+  const onZoomIn = useCallback(() => {
+    setZoom(clampZoom(zoom + ZOOM_STEP));
+  }, [setZoom, zoom]);
+
+  const onZoomOut = useCallback(() => {
+    setZoom(clampZoom(zoom - ZOOM_STEP));
+  }, [setZoom, zoom]);
+
+  const onResetZoom = useCallback(() => {
+    setZoom(DEFAULT_ZOOM);
+  }, [setZoom]);
+
+  /** Hộp mà phím `F` phủ: tường đang chọn nếu có, không thì cả lớp tường. */
+  const fitBoundsPx = useMemo<WallLayerRectPx | null>(() => {
+    if (selectedWallId !== null) {
+      const selected = shapes.find((shape) => shape.id === selectedWallId);
+
+      if (selected !== undefined) {
+        return selected.boundsPx;
+      }
+    }
+
+    return contentBoundsPx;
+  }, [contentBoundsPx, selectedWallId, shapes]);
+
+  /**
+   * "Vừa khung" (nút bốn mũi tên và phím `F`) — phủ khắp vùng đang chọn.
+   *
+   * Đổi CẢ mức phóng lẫn tâm nhìn. Không có gì để phủ (chưa có tường, hoặc khung
+   * chưa đo xong) thì KHÔNG làm gì — nhảy về một khung nhìn bịa còn tệ hơn là
+   * đứng yên.
+   */
+  const onFitToScreen = useCallback(() => {
+    if (fitBoundsPx === null) {
+      return;
+    }
+
+    const nextZoom = fitZoomFor(frameSizePx, fitBoundsPx);
+
+    if (nextZoom !== null) {
+      setZoom(nextZoom);
+    }
+
+    setViewCenter(toMillimetrePoint(centreOfBounds(fitBoundsPx), scaleOfLevel(level)));
+  }, [fitBoundsPx, frameSizePx, level, setViewCenter, setZoom]);
+
+  /** Bản đồ nhỏ: kéo hoặc bấm một chỗ thì tâm nhìn đi theo. */
+  const onMiniMapViewportChange = useCallback(
+    (rect: WallLayerViewportRectPercent) => {
+      if (drawingSizePx === null) {
+        return;
+      }
+
+      setViewCenter(miniMapCentreMm(rect, drawingSizePx, scaleOfLevel(level)));
+    },
+    [drawingSizePx, level, setViewCenter],
+  );
+
+  /*
+   * Vùng nhìn ban đầu của bản đồ nhỏ, phần trăm khổ bản vẽ.
+   *
+   * `MiniMap` giữ vùng nhìn của riêng nó sau lượt đầu (`useMiniMap` là kho cục
+   * bộ của component), nên đây đúng là giá trị KHỞI TẠO chứ không phải một điều
+   * khiển có chủ — tên prop của component nói thẳng như vậy (`initialViewport`).
+   */
+  const miniMapViewport = MINIMAP_INITIAL_VIEWPORT;
+
+  /*
+   * Phím `F` — phủ khắp vùng đang chọn.
+   *
+   * Bản đầu của file này cố ý KHÔNG đăng ký `F`: hợp đồng canvas lúc đó không có
+   * đường ra nào cho nó, và một phím tắt không làm gì là đúng thứ A2/R-73 chặn.
+   * Nay `onFitToScreen` là một đường ra thật, nên phím được đăng ký.
+   *
+   * `Space` (giữ để tạm kéo khung nhìn) VẪN chưa được đăng ký, và vì đúng lý do
+   * cũ: kéo khung nhìn cần lớp canvas theo dõi cả một cử chỉ kéo, thứ hợp đồng
+   * canvas không có chỗ nhận. Ghi vào mục việc còn nợ, không dựng một phím câm.
+   */
+  useShortcut(
+    {
+      id: 'wallLayerReview.fitToScreen',
+      combo: 'F',
+      description: WALL_LAYER_TEXT.shortcutFit,
+      scope: 'canvas',
+      onTrigger: onFitToScreen,
+    },
+    shortcutOptions,
+  );
+
+  /* ---------------------------------------------------------------------- */
+  /* Thanh trạng thái — ba chuỗi ĐÃ định dạng, view không tính gì (A15).      */
+  /* ---------------------------------------------------------------------- */
+
+  const [pointerReading, setPointerReading] = useState<WallLayerPointerReading | null>(null);
+
+  /**
+   * Canvas báo lên toạ độ ĐÃ là pixel bản vẽ (trình duyệt đổi giúp qua ma trận
+   * của `<svg>`); `cursorLabelOf` chỉ còn quy px → mm và định dạng. Đây là cách
+   * thanh trạng thái có toạ độ THẬT mà thư mục màn vẫn không có một phép chia
+   * quy đổi đơn vị nào (`local/no-raw-number`).
+   */
+  const onPointerMove = useCallback((reading: WallLayerPointerReading | null) => {
+    setPointerReading(reading);
+  }, []);
+
+  const statusBar = useMemo<WallLayerStatusBarProps>(
+    () => ({
+      cursorLabel: cursorLabelOf(pointerReading, scaleOfLevel(level)),
+      scaleLabel: formatScaleLabel(level),
+      saveLabel: saveIndicator.label,
+    }),
+    [level, pointerReading, saveIndicator.label],
+  );
 
   /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, nơi có ba lựa chọn. */
   const onRequestThicknessChange = useCallback(
@@ -1252,6 +1373,17 @@ export function useWallLayerReview(
     onRequestThicknessChange,
     onRequestSplit,
     onDelete,
+
+    /* -- Khung nhìn lái ngược được (T8) ---------------------------------- */
+    zoomPercent: zoomPercentOf(zoom),
+    onZoomIn,
+    onZoomOut,
+    onResetZoom,
+    onFitToScreen,
+    miniMapViewport,
+    onMiniMapViewportChange,
+    onFrameResize,
+    onPointerMove,
   };
 
   return { panel, canvas, toolRail, statusBar };

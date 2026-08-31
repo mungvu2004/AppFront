@@ -75,7 +75,21 @@ const UNBANDED_WALL_TOKEN = 'var(--wall-idle)';
  * hơn cả ba băng tường nên nhìn thấy trên mọi nền tường. Vẫn là token, không
  * mã màu thô (A1).
  */
-export const WALL_CENTRELINE_TOKEN = 'var(--wall-centerline, var(--wall-idle))';
+/*
+ * Tim tường vẽ bằng `--wall-idle`, KHÔNG phải `--wall-centerline`.
+ *
+ * Đặc tả nêu tên token `--wall-centerline`, nhưng token đó KHÔNG TỒN TẠI: không
+ * có trong `src/styles/globals.css` (bốn token tường khai ở dòng 180-183 là
+ * `--wall-110/220/330/idle`) và không có trong `tailwind.config.ts:66-69`. Bản
+ * trước viết `var(--wall-centerline, var(--wall-idle))`, tức là LUÔN rơi về dự
+ * phòng — một tham chiếu chết đội lốt một lựa chọn.
+ *
+ * `--wall-idle` là token SÁNG NHẤT trong bốn token tường của
+ * `src/styles/globals.css` — sáng hơn cả ba băng độ dày — nên tim tường đọc
+ * được trên cả ba nền. Thêm một token mới vào `src/styles/**` nằm ngoài phạm vi
+ * lượt này.
+ */
+export const WALL_CENTRELINE_TOKEN = 'var(--wall-idle)';
 
 /** `true` khi độ dày thuộc đúng một trong ba băng hệ thiết kế sơn được. */
 export function isThicknessBand(thicknessMm: number): thicknessMm is WallThicknessChoice {
@@ -270,6 +284,76 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly onRequestSplit: (wallId: WallId) => void;
   /** Xoá dùng vé hoàn tác (A8) — không hộp thoại. */
   readonly onDelete: (wallId: WallId) => void;
+
+  /* -- Khung nhìn: cụm thu phóng và bản đồ nhỏ (T8) ----------------------- */
+
+  /*
+   * Bảy trường dưới đây đến sau bản đầu của file này, và có lý do.
+   *
+   * Bản đầu ghi nhận `ZoomCluster`/`MiniMap` "chưa nhận props để lái ngược
+   * lại", nên canvas dựng chúng trần: bấm được mà không đổi được gì. A2 nói
+   * màu nhấn dành cho thứ THỰC SỰ tương tác được, nên một cụm nút chết là đúng
+   * thứ A2 tồn tại để chặn. Người duyệt đã chấp thuận một ngoại lệ R-68 có chủ
+   * đích và hai component đó nay nhận props (`ZoomCluster.tsx:16-20`,
+   * `MiniMap.tsx:15-22`, thuần cộng thêm, tương thích ngược).
+   *
+   * Hai trường cuối đi NGƯỢC — canvas báo lên hook, không phải hook truyền
+   * xuống — và đó là cách giữ lời hứa "không hình học trong màn": view chỉ
+   * chuyển tiếp những con số do TRÌNH DUYỆT cấp (`ResizeObserver`,
+   * `getBoundingClientRect`), còn mọi phép quy đổi px↔mm và mọi phép so sánh
+   * khung đều xảy ra ở hook.
+   */
+
+  /** Mức phóng theo phần trăm, đã tính ở hook — cụm thu phóng chỉ hiển thị (A15). */
+  readonly zoomPercent: number;
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+  readonly onResetZoom: () => void;
+  /** Phím `F` và nút "vừa khung": phủ khắp vùng đang chọn, hoặc cả bản vẽ khi chưa chọn gì. */
+  readonly onFitToScreen: () => void;
+  /** Vùng nhìn bản đồ nhỏ, đơn vị PHẦN TRĂM khổ bản vẽ — đúng đơn vị `useMiniMap` dùng. */
+  readonly miniMapViewport: WallLayerViewportRectPercent;
+  /** Người dùng kéo/bấm trên bản đồ nhỏ; hook dịch tâm nhìn theo. */
+  readonly onMiniMapViewportChange: (rect: WallLayerViewportRectPercent) => void;
+  /** Khung canvas đổi kích thước — hook cần số này để "vừa khung" khớp thật. */
+  readonly onFrameResize: (size: WallLayerSizePx) => void;
+  /** Con trỏ trên bản vẽ, số thô của trình duyệt. `null` khi con trỏ rời khung. */
+  readonly onPointerMove: (position: WallLayerPointerReading | null) => void;
+}
+
+/**
+ * Vùng nhìn của bản đồ nhỏ, đơn vị phần trăm (0..100) khổ bản vẽ.
+ *
+ * Cùng hình dạng và cùng đơn vị với `ViewportRect` của `src/hooks/useMiniMap.ts`
+ * — chép lại ở đây để lớp canvas không phải nhập một kiểu từ `src/hooks/**`, và
+ * để nơi gọi đọc được đơn vị ngay tại chỗ khai.
+ */
+export interface WallLayerViewportRectPercent {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Một lượt đọc con trỏ, ĐÃ LÀ PIXEL BẢN VẼ.
+ *
+ * Việc đổi toạ độ chuột sang pixel bản vẽ do CHÍNH TRÌNH DUYỆT làm, qua ma trận
+ * biến đổi của `<svg>` (`getScreenCTM().inverse()`): `<svg>` mang `viewBox`
+ * đúng bằng khổ ảnh bản vẽ tính theo pixel, nên một đơn vị người dùng của nó là
+ * đúng một pixel bản vẽ — và ma trận đó đã gộp sẵn cả phép dịch lẫn mức phóng
+ * của khung nhìn.
+ *
+ * Vì thế view KHÔNG trừ, KHÔNG chia, KHÔNG nhân một phép nào: nó hỏi trình
+ * duyệt một câu và chuyển tiếp câu trả lời. Đây là lý do thư mục màn qua được
+ * cả `local/no-raw-number` (cấm quy đổi đơn vị bằng phép chia trong
+ * `src/screens`) lẫn `grep "Math\."` rỗng, mà thanh trạng thái vẫn có toạ độ
+ * thật để hiện. Hook chỉ còn một việc: pixel → milimét bằng
+ * `scale.pixelsToMillimetres` của `src/domain/units/scale.ts`.
+ */
+export interface WallLayerPointerReading {
+  readonly xPx: number;
+  readonly yPx: number;
 }
 
 /* -------------------------------------------------------------------------- */

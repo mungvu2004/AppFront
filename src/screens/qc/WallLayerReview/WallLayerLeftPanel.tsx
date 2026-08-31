@@ -21,13 +21,14 @@
  * gì khi bấm.
  */
 
+import type { ReactNode } from 'react';
 import { Crosshair, DoorOpen, LayoutGrid, Ruler, Square } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { TreeItem } from '@/components/ui/TreeItem';
 import { useCountUp } from '@/hooks/useCountUp';
+import { cn } from '@/lib/utils';
 
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps } from './types';
@@ -56,6 +57,82 @@ const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
 const REVIEWED_SUFFIX = ' tường đã duyệt';
 /** Cùng hành động với mục cây lớp "Cửa và nội thất" — xem `onNavigateLayer`. */
 const SUCCESS_CONTINUE_LABEL = 'Sang lớp Cửa và nội thất';
+
+/**
+ * Một hàng cây lớp — dựng tại chỗ thay vì gọi `TreeItem` dùng chung.
+ *
+ * `src/components/ui/TreeItem.tsx` gắn một nút con mắt bật/tắt lớp mang
+ * `tabIndex={-1}` và `aria-label="Ẩn layer"`. Hai thứ đó làm hỏng hai bộ soát
+ * bắt buộc của R-72 cùng lúc, và cả hai đều là lỗi thật chứ không phải chuyện
+ * hình thức:
+ *
+ * - `tabIndex={-1}` → một nút bàn phím KHÔNG tới được, đúng thứ A12 tồn tại để
+ *   chặn ("bàn phím là đường đi hạng nhất, không phải phương án dự phòng");
+ * - `"Ẩn layer"` → chữ tiếng Anh trong nhãn người đọc, phạm A6/mục B.
+ *
+ * Màn này lại KHÔNG truyền `onToggleVisible`, nên nút đó còn không làm gì —
+ * `src/components/**` nằm ngoài danh sách file được sửa (R-68), và sửa nó ở đây
+ * cũng sai chỗ: bộ tên và hành vi của nó đang phục vụ những nơi gọi khác. Nên
+ * màn dùng hàng của riêng nó: một `<button role="treeitem">` thật, bàn phím tới
+ * được, nhãn tiếng Việt có dấu, không có nút phụ nào chết bên trong.
+ *
+ * Cờ hiện/ẩn lớp Tường KHÔNG mất đi — nó sống ở cây lớp của kho
+ * (`hiddenLayers`), và chú giải độ dày đọc thẳng cờ đó.
+ */
+function WallLayerTreeRow({
+  icon,
+  label,
+  isCurrent = false,
+  onOpen,
+}: {
+  readonly icon: ReactNode;
+  readonly label: string;
+  readonly isCurrent?: boolean;
+  readonly onOpen?: (() => void) | undefined;
+}) {
+  return (
+    <button
+      aria-current={isCurrent ? 'page' : undefined}
+      aria-label={label}
+      aria-selected={isCurrent}
+      className={cn(
+        'flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px]',
+        'transition-colors duration-120',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        isCurrent
+          ? 'bg-accent-wash text-accent'
+          : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+      )}
+      onClick={onOpen}
+      role="treeitem"
+      type="button"
+    >
+      <span aria-hidden="true" className="shrink-0">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+/** Lớp đang mở. Bốn lớp còn lại nằm ở {@link OTHER_LAYERS}. */
+const WALL_LAYER_LABEL = 'Tường';
+
+/** Bốn lớp còn lại của cây, đúng thứ tự đặc tả đọc chúng. */
+const OTHER_LAYERS: readonly {
+  readonly kind: WallLayerOtherKind;
+  readonly label: string;
+  readonly icon: ReactNode;
+}[] = [
+  {
+    kind: 'openingsAndFurniture',
+    label: 'Cửa và nội thất',
+    icon: <DoorOpen className="h-4 w-4" />,
+  },
+  { kind: 'dimensions', label: 'Kích thước', icon: <Ruler className="h-4 w-4" /> },
+  { kind: 'axes', label: 'Trục', icon: <Crosshair className="h-4 w-4" /> },
+  { kind: 'rooms', label: 'Phòng', icon: <LayoutGrid className="h-4 w-4" /> },
+];
 
 export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPanelProps) {
   const { reviewCounter, reviewProgressLabel, filters, onToggleFilter } = panel;
@@ -93,31 +170,15 @@ export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPane
         )}
 
         <div aria-label={LAYER_TREE_ARIA_LABEL} role="tree">
-          <TreeItem hasChildren={false} label="Tường" selected typeIcon={<Square className="h-4 w-4" />} />
-          <TreeItem
-            hasChildren={false}
-            label="Cửa và nội thất"
-            onClick={() => onNavigateLayer?.('openingsAndFurniture')}
-            typeIcon={<DoorOpen className="h-4 w-4" />}
-          />
-          <TreeItem
-            hasChildren={false}
-            label="Kích thước"
-            onClick={() => onNavigateLayer?.('dimensions')}
-            typeIcon={<Ruler className="h-4 w-4" />}
-          />
-          <TreeItem
-            hasChildren={false}
-            label="Trục"
-            onClick={() => onNavigateLayer?.('axes')}
-            typeIcon={<Crosshair className="h-4 w-4" />}
-          />
-          <TreeItem
-            hasChildren={false}
-            label="Phòng"
-            onClick={() => onNavigateLayer?.('rooms')}
-            typeIcon={<LayoutGrid className="h-4 w-4" />}
-          />
+          <WallLayerTreeRow icon={<Square className="h-4 w-4" />} isCurrent label={WALL_LAYER_LABEL} />
+          {OTHER_LAYERS.map((layer) => (
+            <WallLayerTreeRow
+              icon={layer.icon}
+              key={layer.kind}
+              label={layer.label}
+              onOpen={() => onNavigateLayer?.(layer.kind)}
+            />
+          ))}
         </div>
 
         <div className="flex flex-col gap-1">

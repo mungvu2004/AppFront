@@ -55,7 +55,7 @@ import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { mergeWalls, splitWall } from '@/domain/walls/edit';
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
-import { millimetresPerPixel, scaleFromRatio, type Scale } from '@/domain/units/scale';
+import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
 import { isLowConfidence as hasLowConfidenceHatch } from '@/components/canvas/materialMap';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
@@ -116,6 +116,13 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
+import type {
+  WallLayerCanvasShape,
+  WallLayerPointerReading,
+  WallLayerRectPx,
+  WallLayerSizePx,
+  WallLayerViewportRectPercent,
+} from './wallLayerHatch';
 
 /* -------------------------------------------------------------------------- */
 /* Khả năng — những gì màn hỏi thế giới bên ngoài.                             */
@@ -239,6 +246,34 @@ export interface WallLayerReviewGateway {
 /** Mô tả ảnh nền cho trình đọc màn hình, ghép từ tên tầng đã có. */
 export const backgroundImageAlt = (floorName: string): string =>
   `Bản vẽ gốc của ${floorName}, dùng làm nền để đối chiếu lớp tường.`;
+
+/* -------------------------------------------------------------------------- */
+/* Nhãn mã tường — mã máy dài, nhãn người đọc ngắn.                            */
+/* -------------------------------------------------------------------------- */
+
+/** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
+const ID_COUNTER_LENGTH = 6;
+
+/** Bề rộng nhãn người đọc: "#W-014", không phải "#W-14". */
+const DISPLAY_CODE_DIGITS = 3;
+
+/**
+ * Nhãn người đọc của một mã tường: `W-000014WALL` → `W-014`.
+ *
+ * Mã máy phải dài (thân ≥ 10 ký tự, xem đầu `wallLayerReviewFixture.ts`) để
+ * tầng lệnh nhận; nhãn thanh tra thì đặc tả đòi đúng "#W-014". `types.ts:220`
+ * đã tách sẵn `codeLabel` khỏi `id` cho đúng việc này, nên hai thứ đi riêng
+ * chứ không phải chọn một.
+ *
+ * Đọc ngược sáu chữ số đếm mà `createId` sinh ra, nên nó đúng cho cả tường của
+ * bộ mẫu lẫn tường người dùng vừa vẽ — không có bảng tra nào phải giữ đồng bộ.
+ * Thuần cắt chuỗi: không một lời gọi hàm hình học hay số học nào.
+ */
+export function wallDisplayCode(id: string): string {
+  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
+
+  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+}
 
 export interface CreateWallLayerReviewGatewayOptions {
   /** Client tiêm được. Vắng mặt thì cổng dùng client giả dùng chung của repo. */
@@ -372,12 +407,22 @@ export function createMockWallLayerReviewGateway(
     persistWallLayer: () =>
       Promise.resolve(canPersist ? { supported: true, value: undefined } : unsupported('persistWallLayer')),
 
+    /*
+     * Mã tường mới của bộ mẫu — cùng khuôn `createId`, KHÔNG phải "W-M1".
+     *
+     * Thân mã phải dài ít nhất 10 ký tự `[0-9A-Z]` hoặc `dispatch.ts:285` từ
+     * chối lệnh vẽ tường ngay ở bước kiểm (xem đầu `wallLayerReviewFixture.ts`).
+     * Vẫn tất định: số đếm chạy trong phạm vi một cổng giả, đuôi là hằng.
+     */
     nextWallId:
       seed.nextWallId ??
       ((): WallId => {
         counter += 1;
 
-        return `W-M${formatNumber(counter, { grouping: false, fractionDigits: 0 })}` as WallId;
+        return `W-${formatNumber(counter, { grouping: false, fractionDigits: 0 }).padStart(
+          ID_COUNTER_LENGTH,
+          '0',
+        )}MOCK` as WallId;
       }),
     actorId: seed.actorId ?? WALL_LAYER_DEFAULT_ACTOR_ID,
     now: seed.now ?? ((): number => Date.now()),
@@ -695,35 +740,22 @@ export const canMergeWalls = (first: Wall, second: Wall, level: Level): boolean 
  * `src/domain/units/scale.ts` là hàm duy nhất làm việc đó trong repo (R-61).
  */
 
-/** Một hình chữ nhật trên ảnh bản vẽ, đơn vị pixel. */
-export interface WallLayerRectPx {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-/** Kích thước ảnh bản vẽ, đơn vị pixel. */
-export interface WallLayerSizePx {
-  readonly width: number;
-  readonly height: number;
-}
-
-/** Khung nhìn: dịch bao nhiêu pixel và phóng bao nhiêu lần. */
-export interface WallLayerViewportPx {
-  readonly x: number;
-  readonly y: number;
-  readonly zoom: number;
-}
-
-/** {@link WallShapeViewModel} cộng năm trường lớp canvas không tự dựng được. */
-export interface WallLayerCanvasShape extends WallShapeViewModel {
-  readonly codeLabel: string;
-  readonly thicknessMm: number;
-  readonly centrelinePx: { readonly start: Point; readonly end: Point };
-  readonly boundsPx: WallLayerRectPx;
-  readonly isLowConfidence: boolean;
-}
+/*
+ * Bốn kiểu px NAY LẤY TỪ `wallLayerHatch.ts`, không khai lại.
+ *
+ * Chúng từng được chép thành hai bản vì hai worker viết song song trên hai
+ * nhánh chưa gộp: bản này và bản của lớp canvas. Sau lượt gộp, hai bản chỉ còn
+ * là hai chỗ để lệch nhau, nên bản gốc thắng — `wallLayerHatch.ts` là nơi hợp
+ * đồng canvas được khai, và mọi nơi khác đọc nó.
+ */
+export type {
+  WallLayerCanvasShape,
+  WallLayerPointerReading,
+  WallLayerRectPx,
+  WallLayerSizePx,
+  WallLayerViewportPx,
+  WallLayerViewportRectPercent,
+} from './wallLayerHatch';
 
 /** Bộ quy đổi của một tầng. Tầng chưa hiệu chỉnh thì một pixel là một milimét. */
 export const scaleOfLevel = (level: Level | null): Scale =>
@@ -734,6 +766,144 @@ export const toPixelPoint = (point: Point, scale: Scale): Point => ({
   x: scale.millimetresToPixels(millimetres(point.x)),
   y: scale.millimetresToPixels(millimetres(point.y)),
 });
+
+/** Chiều ngược lại: một điểm trên ảnh bản vẽ, đọc ra milimét công trình. */
+export const toMillimetrePoint = (point: Point, scale: Scale): Point => ({
+  x: scale.pixelsToMillimetres(pixels(point.x)),
+  y: scale.pixelsToMillimetres(pixels(point.y)),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Thanh trạng thái: toạ độ con trỏ.                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Chưa có lượt đọc nào — dấu thiếu, KHÔNG phải "0; 0" (một số đo không ai đo). */
+export const CURSOR_IDLE_LABEL = 'chưa rê chuột lên bản vẽ';
+
+/**
+ * Một lượt đọc con trỏ → chuỗi toạ độ đã định dạng của thanh trạng thái.
+ *
+ * Toạ độ vào ĐÃ là pixel bản vẽ (trình duyệt đổi giúp, xem
+ * {@link WallLayerPointerReading}), nên ở đây chỉ còn đúng một việc: pixel →
+ * milimét bằng hàm của `src/domain/units/scale.ts`, rồi định dạng bằng
+ * `formatPoint` — cùng hàm mà thanh tra dùng cho toạ độ đầu/cuối, nên hai chỗ
+ * không thể lệch cách viết số (R-61).
+ */
+export function cursorLabelOf(reading: WallLayerPointerReading | null, scale: Scale): string {
+  if (reading === null) {
+    return CURSOR_IDLE_LABEL;
+  }
+
+  return formatPoint(toMillimetrePoint({ x: reading.xPx, y: reading.yPx }, scale));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Khung nhìn: mức phóng, "vừa khung", bản đồ nhỏ.                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Giới hạn mức phóng — cùng hai đầu mà `viewSlice.setZoom` đã kẹp.
+ *
+ * Đọc lại ở đây để phép "vừa khung" không đề nghị một mức mà kho sẽ lặng lẽ kẹp
+ * lại, khiến nhãn phần trăm nói một đằng còn khung nhìn một nẻo.
+ */
+export const MIN_WALL_LAYER_ZOOM = 0.1;
+export const MAX_WALL_LAYER_ZOOM = 10;
+
+/** Mỗi lượt bấm +/− đổi mức phóng một phần tư. */
+export const ZOOM_STEP = 0.25;
+
+/** Mức phóng gốc — nút phần trăm bấm được để về đây. */
+export const DEFAULT_ZOOM = 1;
+
+/**
+ * Kẹp mức phóng vào hai đầu, KHÔNG gọi đối tượng toán học toàn cục.
+ *
+ * Thư mục màn phải qua được phép soát "không hàm hình học nào trong màn" (bản
+ * nghiệm thu mục 7.3), nên hai phép so sánh viết thẳng thay cho hai hàm nhỏ
+ * nhất/lớn nhất dựng sẵn. Kết quả giống hệt.
+ */
+export function clampZoom(zoom: number): number {
+  if (zoom < MIN_WALL_LAYER_ZOOM) {
+    return MIN_WALL_LAYER_ZOOM;
+  }
+
+  return zoom > MAX_WALL_LAYER_ZOOM ? MAX_WALL_LAYER_ZOOM : zoom;
+}
+
+/** Mức phóng → phần trăm nguyên cho `ZoomCluster` (A15: view không tự nhân trăm). */
+export const zoomPercentOf = (zoom: number): number =>
+  Number(formatNumber(zoom * ZOOM_PERCENT_PER_UNIT, { grouping: false, fractionDigits: 0 }));
+
+/** Một lần phóng là một trăm phần trăm. */
+const ZOOM_PERCENT_PER_UNIT = 100;
+
+/**
+ * Mức phóng để một vùng vừa khít khung, cộng lề thở.
+ *
+ * Cần CẢ khổ khung (chỉ view biết, báo lên bằng `onFrameResize`) lẫn khổ vùng
+ * muốn phủ. Thiếu một trong hai thì trả `null` và nơi gọi giữ nguyên mức phóng —
+ * đoán một con số ở đây là đúng thứ R-69 cấm.
+ */
+export function fitZoomFor(
+  frame: WallLayerSizePx | null,
+  bounds: WallLayerRectPx | null,
+): number | null {
+  if (frame === null || bounds === null) {
+    return null;
+  }
+
+  if (frame.width === 0 || frame.height === 0 || bounds.width === 0 || bounds.height === 0) {
+    return null;
+  }
+
+  const byWidth = (frame.width * FIT_MARGIN_RATIO) / bounds.width;
+  const byHeight = (frame.height * FIT_MARGIN_RATIO) / bounds.height;
+
+  return clampZoom(byWidth < byHeight ? byWidth : byHeight);
+}
+
+/** Chừa 10% lề quanh vùng phủ, để đường viền ngoài cùng không dính mép khung. */
+const FIT_MARGIN_RATIO = 0.9;
+
+/** Thang vùng nhìn của `useMiniMap`: x/y/rộng/cao đều kẹp trong 0..100. */
+const MINIMAP_VIEWPORT_SPAN = 100;
+
+/** Tâm của một hộp, đơn vị pixel bản vẽ. */
+export const centreOfBounds = (bounds: WallLayerRectPx): Point => ({
+  x: bounds.x + bounds.width / HALF,
+  y: bounds.y + bounds.height / HALF,
+});
+
+const HALF = 2;
+
+/**
+ * Vùng nhìn của bản đồ nhỏ (phần trăm khổ bản vẽ) → tâm nhìn tính bằng milimét.
+ *
+ * `useMiniMap` làm việc bằng phần trăm 0..100 trên khổ bản đồ; khổ bản đồ là khổ
+ * bản vẽ thu nhỏ, nên cùng một phần trăm đọc thẳng được trên khổ bản vẽ.
+ */
+export function miniMapCentreMm(
+  rect: WallLayerViewportRectPercent,
+  drawingSizePx: WallLayerSizePx,
+  scale: Scale,
+): Point {
+  /*
+   * Phép chia dưới đây KHÔNG phải quy đổi đơn vị đo, nên nó không thuộc về
+   * `src/domain` như `local/no-raw-number` vốn đòi: `MINIMAP_VIEWPORT_SPAN` là
+   * THANG mà `useMiniMap` tự kẹp vùng nhìn vào (`useMiniMap.ts:49-50` kẹp x/y
+   * trong 0..100), nên đây là đọc một PHẦN của thang ấy ra, cùng loại với việc
+   * đọc một phần trăm tiến độ. Phép quy đổi đơn vị thật — pixel sang milimét —
+   * nằm ở dòng cuối, và nó đi qua `scale.pixelsToMillimetres` của
+   * `src/domain/units/scale.ts`, đúng chỗ luật chỉ tới.
+   */
+  const centrePx: Point = {
+    x: ((rect.x + rect.width / HALF) / MINIMAP_VIEWPORT_SPAN) * drawingSizePx.width,
+    y: ((rect.y + rect.height / HALF) / MINIMAP_VIEWPORT_SPAN) * drawingSizePx.height,
+  };
+
+  return toMillimetrePoint(centrePx, scale);
+}
 
 /**
  * Hộp bao của một chuỗi điểm.
@@ -814,7 +984,7 @@ export function toCanvasShapes(
       id: wall.id,
       outline,
       statusCode: shape.statusCode,
-      codeLabel: `#${wall.id}`,
+      codeLabel: `#${wallDisplayCode(wall.id)}`,
       thicknessMm: wall.thicknessMm,
       centrelinePx: {
         start: toPixelPoint(wall.centreline.start, scale),
@@ -935,7 +1105,7 @@ export function wallStatusCode(wall: Wall): ViewStatusCode {
 export function toWallRow(wall: Wall): WallRowViewModel {
   return {
     id: wall.id,
-    codeLabel: `#${wall.id}`,
+    codeLabel: `#${wallDisplayCode(wall.id)}`,
     thicknessMm: wall.thicknessMm,
     thicknessLabel: formatThickness(wall.thicknessMm),
     confidence: wall.confidence,
@@ -950,7 +1120,7 @@ export function toWallRow(wall: Wall): WallRowViewModel {
 export function toWallInspector(wall: Wall, level: Level): WallInspectorViewModel {
   return {
     id: wall.id,
-    codeLabel: `#${wall.id}`,
+    codeLabel: `#${wallDisplayCode(wall.id)}`,
     thicknessMm: wall.thicknessMm,
     lengthLabel: formatCentrelineLength(wall, level),
     heightLabel: formatLength(wall.heightMm),

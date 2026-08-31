@@ -23,11 +23,41 @@
  */
 
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Building, Confidence, Level, Point, Wall, WallId, WallKind } from '@/domain/spatial/types';
+import type { Building, Confidence, Level, LevelId, Point, Wall, WallId, WallKind } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 
+/*
+ * Mã hợp lệ của bộ mẫu — vì sao dài hơn "W-001".
+ *
+ * `src/domain/spatial/ids.ts` đòi thân mã dài ít nhất `MIN_BODY_LENGTH` = 10 ký
+ * tự `[0-9A-Z]` (6 ký tự đếm + 4 ký tự ngẫu nhiên, `ids.ts:40-43,95`). Mã rút
+ * gọn `W-001` có thân dài BA, nên `isIdOfKind('wall', 'W-001')` trả `false` và
+ * `src/lib/commands/dispatch.ts:285` từ chối MỌI lệnh trên tường của bộ mẫu với
+ * "đối tượng W-001 trong bản vẽ không phải loại wall." Hệ quả đo được: duyệt,
+ * đổi độ dày, tách, nối, xoá đều không chạy — tức bản nghiệm thu bàn phím
+ * 12 → 17 → 12 không thể đạt.
+ *
+ * Nên bộ mẫu sinh mã ĐÚNG KHUÔN `createId`: tiền tố, 6 chữ số đếm, rồi bốn ký
+ * tự đuôi. Đuôi ở đây là hằng chứ không ngẫu nhiên — dữ liệu bộ mẫu phải TẤT
+ * ĐỊNH, và số đếm đã đủ bảo đảm không hai mã nào trùng nhau.
+ *
+ * Nhãn người đọc KHÔNG dài theo: `wallDisplayCode` của `wallLayerReviewGateway.ts`
+ * đọc ngược sáu chữ số đếm ra "#W-014", đúng mã mà đặc tả đòi thanh tra hiện.
+ */
+
+/** Số chữ số của phần đếm trong thân mã — `COUNTER_LENGTH` của `ids.ts:41`. */
+const COUNTER_LENGTH = 6;
+
+/** Bốn ký tự đuôi, cố định để bộ mẫu tất định (xem ghi chú trên). */
+const WALL_ID_SUFFIX = 'WALL';
+const LEVEL_ID_SUFFIX = 'LVL0';
+
+/** `'W-001'` → `'W-000001WALL'`. Thuần cắt chuỗi, không một phép tính nào. */
+const wallIdOf = (code: string): WallId =>
+  `W-${code.slice(2).padStart(COUNTER_LENGTH, '0')}${WALL_ID_SUFFIX}` as WallId;
+
 /** Tầng duy nhất của bộ mẫu. */
-const LEVEL_ID = 'L-001';
+const LEVEL_ID = `L-${'1'.padStart(COUNTER_LENGTH, '0')}${LEVEL_ID_SUFFIX}` as LevelId;
 
 /** Chiều cao tường đồng nhất trong bộ mẫu — 3 m thông thuỷ. */
 const WALL_HEIGHT_MM = 3000;
@@ -41,7 +71,7 @@ const WALL_HEIGHT_MM = 3000;
  * bên dưới: đúng 12 lệnh `wall(...)` truyền `reviewed = true`).
  */
 function wall(
-  id: WallId,
+  code: string,
   start: Point,
   end: Point,
   thicknessMm: number,
@@ -50,7 +80,7 @@ function wall(
   reviewed: boolean,
 ): Wall {
   return {
-    id,
+    id: wallIdOf(code),
     levelId: LEVEL_ID,
     centreline: { start, end },
     thicknessMm,

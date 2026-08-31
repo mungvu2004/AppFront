@@ -28,26 +28,19 @@ import { GridLayer } from '@/components/canvas/GridLayer';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { MiniMap } from '@/components/canvas/MiniMap';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
-import { selectionBorderToken } from '@/components/canvas/materialMap';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cssDurationMs } from '@/lib/motion';
-import { cn } from '@/lib/utils';
 
 import { WallLayerLegend } from './WallLayerLegend';
-import type {
-  WallLayerCanvasShape,
-  WallLayerCanvasViewProps,
-  WallLayerRectPx,
-} from './wallLayerHatch';
+import { WallShapeFigure } from './WallLayerShapeFigure';
+import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 import {
-  ATTENTION_DOT_RADIUS_PX,
   ATTENTION_TOKEN,
   BACKGROUND_IMAGE_OPACITY,
-  WALL_CENTRELINE_TOKEN,
   WALL_HATCH_LINE_WIDTH_PX,
   WALL_HATCH_OPACITY,
   WALL_HATCH_PATTERN_ID,
@@ -86,94 +79,6 @@ const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
 const FRAME_CLASSES =
   'relative min-h-[640px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3';
 
-/* Một đa giác tường. */
-
-interface WallShapeFigureProps {
-  readonly shape: WallLayerCanvasShape;
-  readonly isSelected: boolean;
-  readonly isHovered: boolean;
-  readonly isInteractive: boolean;
-  readonly showCentrelines: boolean;
-  readonly onSelect: (wallId: WallId | null) => void;
-  readonly onHover: (wallId: WallId | null) => void;
-  readonly onOpenMenu: (event: ReactMouseEvent<SVGGElement>, wallId: WallId) => void;
-}
-
-/**
- * Bốn lớp chồng lên nhau: đa giác tô theo màu độ dày (màu CHẠY 260 ms khi đổi
- * độ dày — đặc tả ghi 240, thang chuyển động chỉ có 120/180/260/340/700); gạch
- * chéo cộng chấm cần chú ý khi dưới ngưỡng tin cậy; tim tường khi cờ bật; viền
- * tô sáng chọn/trỏ ở nhịp 180 ms, tách khỏi lớp một để hai nhịp không phải chia
- * nhau một thuộc tính. Viền LUÔN nằm trong cây và chỉ đổi độ mờ, nên nó mờ dần
- * chứ không nhấp nháy vì bị gắn rồi tháo.
- */
-function WallShapeFigure({
-  shape,
-  isSelected,
-  isHovered,
-  isInteractive,
-  showCentrelines,
-  onSelect,
-  onHover,
-  onOpenMenu,
-}: WallShapeFigureProps) {
-  const points = toSvgPoints(shape.outline);
-
-  return (
-    <g
-      aria-label={shape.codeLabel}
-      className={isInteractive ? 'cursor-pointer' : 'pointer-events-none'}
-      onClick={isInteractive ? () => onSelect(shape.id) : undefined}
-      onContextMenu={isInteractive ? (event) => onOpenMenu(event, shape.id) : undefined}
-      onMouseEnter={isInteractive ? () => onHover(shape.id) : undefined}
-      onMouseLeave={isInteractive ? () => onHover(null) : undefined}
-      role="presentation"
-    >
-      <polygon
-        className="transition-colors duration-260 motion-reduce:transition-none"
-        fill={wallThicknessFillToken(shape.thicknessMm)}
-        points={points}
-      />
-
-      {shape.isLowConfidence ? (
-        <>
-          <polygon fill={`url(#${WALL_HATCH_PATTERN_ID})`} points={points} />
-          <circle
-            cx={shape.boundsPx.x + shape.boundsPx.width / 2}
-            cy={shape.boundsPx.y + shape.boundsPx.height / 2}
-            fill={ATTENTION_TOKEN}
-            r={ATTENTION_DOT_RADIUS_PX}
-          />
-        </>
-      ) : null}
-
-      {showCentrelines ? (
-        <line
-          stroke={WALL_CENTRELINE_TOKEN}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-          x1={shape.centrelinePx.start.x}
-          x2={shape.centrelinePx.end.x}
-          y1={shape.centrelinePx.start.y}
-          y2={shape.centrelinePx.end.y}
-        />
-      ) : null}
-
-      <polygon
-        className={cn(
-          'transition-opacity duration-180 motion-reduce:transition-none',
-          isSelected || isHovered ? 'opacity-100' : 'opacity-0',
-        )}
-        fill="none"
-        points={points}
-        stroke={selectionBorderToken()}
-        strokeWidth={isSelected ? 2 : 1}
-        vectorEffect="non-scaling-stroke"
-      />
-    </g>
-  );
-}
-
 /* Canvas. */
 
 export function WallLayerCanvas({
@@ -194,12 +99,21 @@ export function WallLayerCanvas({
   onRequestSplit,
   onRequestThicknessChange,
   onSelect,
+  miniMapViewport,
+  onFitToScreen,
+  onFrameResize,
+  onMiniMapViewportChange,
+  onPointerMove,
+  onResetZoom,
+  onZoomIn,
+  onZoomOut,
   prefersReducedMotion,
   selectedWallId,
   shapes,
   showCentrelines,
   state,
   viewport,
+  zoomPercent,
 }: WallLayerCanvasViewProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
@@ -219,14 +133,21 @@ export function WallLayerCanvas({
       const entry = entries[0];
 
       if (entry !== undefined) {
-        setFrameSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        const size = { width: entry.contentRect.width, height: entry.contentRect.height };
+
+        setFrameSize(size);
+        /*
+         * Lên hook, nguyên số của `ResizeObserver`. "Vừa khung" cần biết khung
+         * rộng bao nhiêu mới khớp được thật, và khung là thứ chỉ view biết.
+         */
+        onFrameResize(size);
       }
     });
 
     observer.observe(frame);
 
     return () => observer.disconnect();
-  }, []);
+  }, [onFrameResize]);
 
   useEffect(() => {
     if (selectedWallId !== null) {
@@ -237,6 +158,37 @@ export function WallLayerCanvas({
       haloDeselect();
     }
   }, [selectedWallId, hoveredWallId, haloSelect, haloHover, haloDeselect]);
+
+  /**
+   * Toạ độ con trỏ cho thanh trạng thái — KHÔNG một phép tính nào ở đây.
+   *
+   * `getScreenCTM().inverse()` là ma trận của chính `<svg>`, và `<svg>` mang
+   * `viewBox` đúng bằng khổ ảnh bản vẽ tính theo pixel — nên trình duyệt trả về
+   * thẳng toạ độ PIXEL BẢN VẼ, đã gộp sẵn cả phép dịch lẫn mức phóng của khung
+   * nhìn. View chỉ chuyển tiếp hai con số đó; hook quy ra milimét và định dạng.
+   *
+   * jsdom không cài `getScreenCTM`, nên nhánh `null` là đường đi thật của bài
+   * kiểm chứ không phải một lối thoát phòng hờ — bài kiểm gọi thẳng
+   * `canvas.onPointerMove(...)` để đo chuỗi toạ độ.
+   */
+  const handlePointerMove = useCallback(
+    (event: ReactMouseEvent<SVGSVGElement>) => {
+      const matrix = event.currentTarget.getScreenCTM?.();
+
+      if (matrix === null || matrix === undefined) {
+        return;
+      }
+
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+
+      onPointerMove({ xPx: point.x, yPx: point.y });
+    },
+    [onPointerMove],
+  );
+
+  const handlePointerLeave = useCallback(() => {
+    onPointerMove(null);
+  }, [onPointerMove]);
 
   const handleOpenMenu = useCallback(
     (event: ReactMouseEvent<SVGGElement>, wallId: WallId) => {
@@ -289,6 +241,7 @@ export function WallLayerCanvas({
       aria-describedby={isInteractive ? undefined : FORBIDDEN_DESCRIPTION_ID}
       aria-label={canvasLabel}
       className={FRAME_CLASSES}
+      onMouseLeave={handlePointerLeave}
       ref={frameRef}
       role="group"
     >
@@ -337,6 +290,7 @@ export function WallLayerCanvas({
               <svg
                 aria-label={canvasLabel}
                 className="absolute inset-0 h-full w-full"
+                onMouseMove={handlePointerMove}
                 role="img"
                 viewBox={viewBox}
               >
@@ -406,8 +360,14 @@ export function WallLayerCanvas({
         levels={legendLevels}
         state={state}
       />
-      <ZoomCluster />
-      <MiniMap>
+      <ZoomCluster
+        onFitToScreen={onFitToScreen}
+        onResetZoom={onResetZoom}
+        onZoomIn={onZoomIn}
+        onZoomOut={onZoomOut}
+        zoomLevel={zoomPercent}
+      />
+      <MiniMap initialViewport={miniMapViewport} onViewportChange={onMiniMapViewportChange}>
         {viewBox === undefined ? null : (
           <svg aria-label={MINIMAP_LABEL} className="h-full w-full" role="img" viewBox={viewBox}>
             {shapes.map((shape) => (

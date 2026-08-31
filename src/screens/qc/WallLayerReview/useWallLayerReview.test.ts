@@ -26,7 +26,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { Level, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import type { Level, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -41,7 +41,6 @@ import {
   nextUnreviewedWallId,
   useWallLayerReview,
   wallsOfLevel,
-  MERGE_RAIL_ITEM_ID,
   type UseWallLayerReviewOptions,
   type UseWallLayerReviewResult,
 } from './useWallLayerReview';
@@ -51,6 +50,7 @@ import {
   commandContextOf,
   createMockWallLayerReviewGateway,
   createWallUndoTicket,
+  CURSOR_IDLE_LABEL,
   isStandardThickness,
   toWallInspector,
   UNDO_WINDOW_MS,
@@ -77,44 +77,23 @@ const PROJECT_ID = 'project-1';
 const APPROVALS = 5;
 
 /* -------------------------------------------------------------------------- */
-/* Mã hợp lệ — bộ mẫu dùng mã rút gọn mà tầng lệnh KHÔNG nhận.                 */
+/* Bộ mẫu, ĐỌC THẲNG — không còn lượt đánh lại mã nào.                         */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Vì sao bài kiểm phải đánh lại mã cho bộ mẫu.
+/*
+ * Bản trước của file này đánh lại mã cho cả 48 tường trước khi dùng, vì bộ mẫu
+ * đặt mã kiểu `W-001` mà `isIdOfKind` (`src/domain/spatial/ids.ts:95,108`) từ
+ * chối — thân mã phải dài ít nhất 10 ký tự `[0-9A-Z]`. Hệ quả là bài kiểm chạy
+ * trên một bộ mẫu KHÁC bộ mẫu màn thật dùng, tức là một lượt xanh không chứng
+ * minh được gì về màn.
  *
- * `wallLayerReviewFixture.ts` đặt mã kiểu `W-001` / `L-001`. `normalizeSpatial`
- * nhận chúng, nhưng `isIdOfKind` của `src/domain/spatial/ids.ts` thì KHÔNG:
- * thân mã phải dài ít nhất `MIN_BODY_LENGTH` = 10 ký tự `[0-9A-Z]`
- * (`ids.ts:39-43,95`), mà `001` chỉ có ba. Hệ quả đo được:
- *
- * - `readOf(graph, 'wall', 'W-001')` trả `null`, nên MỌI hàm dựng lệnh của S-07
- *   từ chối với "Không tìm thấy tường W-001 trong bản vẽ.";
- * - `isSelectable` trả `false`, nên `selectSingle` trả về vùng chọn rỗng;
- * - `validateCommands` cũng chặn ở bước `validate` với cùng lý do.
- *
- * Đây là lỗi của BỘ MẪU, không phải của hook: dữ liệu thật lấy mã từ `createId`
- * nên luôn hợp lệ. Bộ mẫu nằm ngoài phạm vi lượt này (hai worker view đang dùng
- * chung nó), nên bài kiểm bọc nó lại thay vì sửa nó — GIỮ NGUYÊN cả 48 tường,
- * cả độ dày, độ tin cậy và đúng 12 cờ đã duyệt, chỉ đánh lại mã một cách tất
- * định. Không một con số khẳng định nào đổi.
+ * Bộ mẫu đã được sửa tận gốc (xem đầu `wallLayerReviewFixture.ts`): mã sinh
+ * đúng khuôn `createId` và vẫn tất định, còn nhãn người đọc "#W-014" do
+ * `wallDisplayCode` dẫn xuất nên không dài theo. Nên lượt đánh lại mã ở đây là
+ * thừa và đã bị xoá — bài kiểm nay chạy trên ĐÚNG bộ mẫu mà màn dựng.
  */
-const VALID_BODY_SUFFIX = 'WALL';
-const COUNTER_DIGITS = 6;
-
-const validWallId = (index: number): WallId =>
-  `W-${String(index + 1).padStart(COUNTER_DIGITS, '0')}${VALID_BODY_SUFFIX}` as WallId;
-
-const FIXTURE_LEVEL: Level = {
-  ...WALL_LAYER_FIXTURE_LEVEL,
-  id: `L-${String(1).padStart(COUNTER_DIGITS, '0')}LVL0` as LevelId,
-};
-
-const FIXTURE_WALLS: readonly Wall[] = WALL_LAYER_FIXTURE_WALLS.map((wall, index) => ({
-  ...wall,
-  id: validWallId(index),
-  levelId: FIXTURE_LEVEL.id,
-}));
+const FIXTURE_LEVEL: Level = WALL_LAYER_FIXTURE_LEVEL;
+const FIXTURE_WALLS: readonly Wall[] = WALL_LAYER_FIXTURE_WALLS;
 
 const FIXTURE_GRAPH = normalizeSpatial({
   building: WALL_LAYER_FIXTURE_BUILDING,
@@ -640,19 +619,15 @@ describe('bảy trạng thái', () => {
 describe('ray công cụ và thanh trạng thái', () => {
   it('nối đoạn là hành động theo VÙNG CHỌN, chỉ bật khi đúng hai tường được chọn', async () => {
     const mounted = await mountSettled();
-    const mergeItem = (): { readonly isEnabled: boolean } =>
-      mounted.result.current.toolRail.items.find(
-        (item) => item.id === MERGE_RAIL_ITEM_ID,
-      ) as { readonly isEnabled: boolean };
 
-    expect(mergeItem().isEnabled).toBe(false);
+    expect(mounted.result.current.toolRail.canMerge).toBe(false);
 
     await act(async () => {
       useStore.getState().setSelection([wallAt(0).id, wallAt(1).id]);
       await Promise.resolve();
     });
 
-    expect(mergeItem().isEnabled).toBe(true);
+    expect(mounted.result.current.toolRail.canMerge).toBe(true);
 
     mounted.unmount();
   });
@@ -660,24 +635,57 @@ describe('ray công cụ và thanh trạng thái', () => {
   it('phím công cụ đổi đúng công cụ đang dùng', async () => {
     const mounted = await mountSettled();
 
-    expect(mounted.result.current.toolRail.activeToolId).toBe('select');
+    expect(mounted.result.current.toolRail.activeTool).toBe('select');
 
     await pressKey(mounted.registry, shortcutForTool('measure'));
-    expect(mounted.result.current.toolRail.activeToolId).toBe('measure');
+    expect(mounted.result.current.toolRail.activeTool).toBe('measure');
 
     await pressKey(mounted.registry, shortcutForTool('select'));
-    expect(mounted.result.current.toolRail.activeToolId).toBe('select');
+    expect(mounted.result.current.toolRail.activeTool).toBe('select');
 
     mounted.unmount();
   });
 
-  it('thanh trạng thái nói tỷ lệ và bộ đếm bằng chuỗi đã định dạng', async () => {
+  it('thanh trạng thái cấp đủ BA chuỗi đã định dạng của hợp đồng đã chốt', async () => {
     const mounted = await mountSettled();
     const { statusBar } = mounted.result.current;
 
     expect(statusBar.scaleLabel).toContain('mm/px');
-    expect(statusBar.reviewProgressLabel).toContain('tường đã duyệt');
-    expect(statusBar.reviewProgressLabel).toContain(String(WALL_LAYER_FIXTURE_TOTAL));
+    expect(statusBar.saveLabel.length).toBeGreaterThan(0);
+    /* Chưa rê chuột lần nào: dấu thiếu, KHÔNG phải một toạ độ bịa ra. */
+    expect(statusBar.cursorLabel).toBe(CURSOR_IDLE_LABEL);
+
+    mounted.unmount();
+  });
+
+  it('bộ đếm duyệt ở panel, đúng một chỗ — thanh trạng thái không giữ bản thứ hai', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.panel.reviewProgressLabel).toContain('tường đã duyệt');
+    expect(mounted.result.current.panel.reviewProgressLabel).toContain(
+      String(WALL_LAYER_FIXTURE_TOTAL),
+    );
+
+    mounted.unmount();
+  });
+
+  it('toạ độ con trỏ: canvas báo số thô, hook trả về chuỗi milimét đã định dạng', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.canvas.onPointerMove({ xPx: 100, yPx: 80 });
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.statusBar.cursorLabel).not.toBe(CURSOR_IDLE_LABEL);
+    expect(mounted.result.current.statusBar.cursorLabel).toContain('mm');
+
+    await act(async () => {
+      mounted.result.current.canvas.onPointerMove(null);
+      await Promise.resolve();
+    });
+
+    expect(mounted.result.current.statusBar.cursorLabel).toBe(CURSOR_IDLE_LABEL);
 
     mounted.unmount();
   });
@@ -685,7 +693,8 @@ describe('ray công cụ và thanh trạng thái', () => {
   it('thanh tra định dạng số theo A15 — dấu phẩy thập phân, đơn vị viết một lần', () => {
     const inspector = toWallInspector(wallAt(13), FIXTURE_LEVEL);
 
-    expect(inspector.codeLabel).toBe(`#${wallAt(13).id}`);
+    /* Mã máy dài ra để tầng lệnh nhận; nhãn thanh tra vẫn đúng "#W-014" đặc tả đòi. */
+    expect(inspector.codeLabel).toBe('#W-014');
     /* W-014 dài 2.500 mm: "2.500,00 mm" — chấm ngăn nghìn, phẩy thập phân. */
     expect(inspector.lengthLabel).toBe('2.500,00 mm');
     expect(inspector.heightLabel).toBe('3,00 m');
@@ -703,7 +712,7 @@ describe('hợp đồng canvas mở rộng', () => {
     const shape = mounted.result.current.canvas.shapes[0];
 
     expect(shape).toBeDefined();
-    expect(shape?.codeLabel).toBe(`#${wallAt(0).id}`);
+    expect(shape?.codeLabel).toBe('#W-001');
     expect(shape?.thicknessMm).toBe(wallAt(0).thicknessMm);
     expect(shape?.outline.length).toBeGreaterThanOrEqual(4);
     expect(shape?.boundsPx.width).toBeGreaterThan(0);
@@ -750,7 +759,7 @@ describe('hợp đồng canvas mở rộng', () => {
     });
 
     expect(mounted.result.current.panel.selectedWallId).toBe(wall.id);
-    expect(mounted.result.current.toolRail.activeToolId).toBe('splitWall');
+    expect(mounted.result.current.toolRail.activeTool).toBe('splitWall');
 
     await act(async () => {
       mounted.result.current.canvas.onRequestThicknessChange(wall.id);

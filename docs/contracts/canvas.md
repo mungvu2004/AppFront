@@ -5,6 +5,15 @@
 > `docs/domain-contracts.md`, `docs/components-canvas.md` (docs cũ) **không** được dùng
 > làm nguồn — xem cảnh báo trong `CLAUDE.md`.
 
+> **ĐÃ ĐẢO LẠI — 31-08-2026 (lượt gộp T8).** Hai kết luận của file này đã bị điều phối
+> viên đảo ngược ở commit `eef24b4`, SAU khi file được viết. Sự thật hiện tại:
+> **`WALL_THICKNESS_CHOICES = [110, 220, 330]`** (không phải 100/220/300),
+> **`wallStrokeToken` DÙNG ĐƯỢC**, và **đa giác tường tô theo MÀU ĐỘ DÀY** (không theo
+> `ViewStatusCode`). Lý do: hệ thiết kế chỉ có ba token `--wall-110/220/330`, nên bộ
+> 100/220/300 không có màu nào để tô. Xem mục "NOT FOUND" #2 và #3 ở cuối file để biết
+> đầy đủ. Mọi câu khác trong file còn nhắc "100/220/300" hay "tô theo trạng thái" đều
+> thuộc bản cũ và phải đọc theo hai mục đã sửa đó.
+
 ---
 
 ## 0. CẬP NHẬT SAU ESCALATION — hợp đồng L1 thật của màn đã tồn tại
@@ -1183,7 +1192,7 @@ KHÔNG được hợp nhất thành một lớp duy nhất — mất bất kỳ 
 
 1. Dựng ba tường 100 mm, 220 mm, 300 mm trên cùng một canvas ở cùng một tỉ lệ mm/px.
 2. Tô mỗi tường bằng `wallStrokeToken`/`wallFillToken` tương ứng (dùng mức 110/220/330
-   sẵn có — 100/220/300 làm tròn về ba mức chuẩn của legend, xem "NOT FOUND" nếu 100 mm
+   sẵn có — 110/220/330 là đúng ba mức chuẩn của legend (xem "NOT FOUND" mục 2, đã đảo lại 31-08-2026), nếu một độ dày
    không map tròn vào 110).
 3. Chụp canvas, chuyển ảnh sang thang xám (desaturate), che hết mọi nhãn chữ (ẩn toàn
    bộ text) — vẫn phải phân biệt được ba dải bằng mắt nhờ hai lớp E.1 (độ sáng khác
@@ -1396,19 +1405,37 @@ không phải kết luận chung mục này khẳng định được — ghi là
      không phải của view canvas — xem mục 0.1. View canvas chỉ nhận
      `WallShapeViewModel[]` đã có `outline` sẵn.
 
-2. **Độ dày chuẩn của điều khiển ba lựa chọn là 100/220/300 mm, KHÔNG phải 110/220/330 mm
-   như bản khảo sát ban đầu suy đoán từ `materialMap`/`types/spatial.ts` — ĐÃ SỬA, xem
-   mục 0.2–0.3.** Nguồn thật: `WALL_THICKNESS_CHOICES = [100, 220, 300]`
-   (`src/screens/qc/WallLayerReview/types.ts:160`, khớp `STANDARD_THICKNESSES_MM` của
-   `domain/walls/cleanup.ts:70-72`). `materialMap.wallStrokeToken` dùng bộ giá trị khác
-   (110/220/330) và **không nhận được** 100/300 (lỗi kiểu, mục 0.3) — không được gọi hàm
-   đó để tô theo độ dày ở màn này.
+2. **~~Độ dày chuẩn là 100/220/300 mm~~ — ĐÃ ĐẢO LẠI ngày 31-08-2026, mục này LỖI THỜI.**
 
-3. **Màu tô đa giác tường KHÔNG theo độ dày — theo `ViewStatusCode`
-   (verified/attention/violation/neutral) — ĐÃ SỬA, xem mục 0.2.** Không có mode tô theo
-   độ dày trong `src/lib/coloring` (đúng như bản khảo sát ban đầu ghi nhận), nhưng với
-   màn `WallLayerReview` cụ thể, đây không phải lỗ hổng — màn này không cần một mode như
-   vậy, vì độ dày truyền đạt qua bề rộng hình học + nhãn chữ, không qua màu.
+   Bản trên được viết khi `types.ts` còn đặt `WALL_THICKNESS_CHOICES = [100, 220, 300]`.
+   Điều phối viên đã đảo quyết định đó SAU khi file này được viết, ở commit `eef24b4`
+   ("do day ba lua chon tro ve 110/220/330 theo he thiet ke"), vì một lý do đo được: hệ
+   thiết kế chỉ có ba token tường `--wall-110`/`--wall-220`/`--wall-330`
+   (`src/styles/globals.css:180-182`), nên bộ 100/220/300 không có màu nào để tô và
+   không băng nào phân biệt được khi che hết chữ.
+
+   **Sự thật hiện tại:** `WALL_THICKNESS_CHOICES = [110, 220, 330]`
+   (`src/screens/qc/WallLayerReview/types.ts`), khớp đúng ba token, và
+   `materialMap.wallStrokeToken` **DÙNG ĐƯỢC** — nó nhận đúng ba giá trị đó và trả về ba
+   token tương ứng (`src/components/canvas/materialMap.ts:21-33`). `wallLayerHatch.ts`
+   gọi hàm này qua `wallThicknessFillToken`; không có lỗi kiểu nào.
+
+3. **~~Màu tô đa giác tường theo `ViewStatusCode`~~ — ĐÃ ĐẢO LẠI ngày 31-08-2026, mục
+   này LỖI THỜI.** Cùng lý do và cùng commit với mục 2.
+
+   **Sự thật hiện tại:** đa giác tường tô theo **MÀU ĐỘ DÀY**, không theo trạng thái
+   duyệt. `wallThicknessFillToken(thicknessMm)` (`wallLayerHatch.ts`) trả một trong ba
+   token `--wall-110/220/330`; độ dày ngoài ba băng rơi về `--wall-idle`.
+
+   Đây là điều kiện để nghiệm thu "che hết chữ vẫn phân biệt được ba độ dày" đạt được,
+   và nó đạt bằng HAI lớp độc lập:
+   - **màu** — ba token cho ba độ sáng tương đối 0,4166 / 0,2297 / 0,0947, mỗi bậc giảm
+     gần một nửa nên ba băng vẫn tách nhau khi ảnh chuyển thang xám;
+   - **bề rộng** — đa giác tô đầy theo độ dày thật, tỉ lệ 110:220:330 = 1:2:3.
+
+   Trạng thái duyệt KHÔNG mất chỗ hiển thị: nó đi bằng gạch chéo + chấm "cần chú ý" cho
+   tường dưới ngưỡng tin cậy, và bằng viền tô sáng khi chọn/trỏ — ba lớp riêng, không
+   tranh nhau một thuộc tính `fill`.
 
 4. **Không có mẫu gạch chéo đúng tham số đặc tả (2px/6% mờ)** — có tiền lệ kỹ thuật gần
    đúng (`ScaleCalibrationCanvas.tsx:366`) nhưng tham số khác; phải viết mới trong file

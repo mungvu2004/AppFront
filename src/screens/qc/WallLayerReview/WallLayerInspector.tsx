@@ -48,7 +48,7 @@ const END_POINT_LABEL = 'toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
 const APPROVE_LABEL = 'Duyệt đoạn này';
 const SKIP_LABEL = 'Bỏ qua';
-const EMPTY_MESSAGE = 'Chọn một đoạn tường trên canvas hoặc trong danh sách để xem chi tiết.';
+const EMPTY_MESSAGE = 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để xem chi tiết.';
 
 interface ReadOnlyThicknessProps {
   readonly choices: readonly WallThicknessChoice[];
