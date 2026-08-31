@@ -22,7 +22,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Crosshair, DoorOpen, LayoutGrid, Ruler, Square } from 'lucide-react';
+import { Crosshair, DoorOpen, Eye, EyeOff, Layers, LayoutGrid, Ruler, Square } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -31,14 +31,46 @@ import { useCountUp } from '@/hooks/useCountUp';
 import { cn } from '@/lib/utils';
 
 import { WallLayerList } from './WallLayerList';
-import type { WallLayerFilterKey, WallLayerViewProps } from './types';
+import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
 
 /** Bốn lớp khác ngoài "Tường" — đúng năm khoá của `i18n.fragment.json#layerTree`. */
 export type WallLayerOtherKind = 'openingsAndFurniture' | 'dimensions' | 'axes' | 'rooms';
 
+/** Một tầng trong khối điều hướng tầng (BC-05). Nhãn đã là tên tầng, không ghép ở view. */
+export interface WallLayerFloorItem {
+  readonly id: string;
+  readonly label: string;
+  readonly isCurrent: boolean;
+}
+
+/**
+ * Những gì panel trái cần mà `WallLayerViewProps` (đóng băng ở L1) không mang.
+ *
+ * Cùng khuôn mở rộng mà `WallLayerToolRailProps` và `WallLayerStatusBarProps`
+ * đã dùng: component con tự khai props của chính nó trong file của nó, thay vì
+ * sửa `types.ts`. Hook dựng đủ bộ này và trả nó ra ở trường `leftPanel`.
+ */
+export interface WallLayerLeftPanelExtras {
+  /** Mọi tầng của bản vẽ, để đổi tầng ngay trong panel (BC-05). */
+  readonly floors: readonly WallLayerFloorItem[];
+  /** Cờ hiện tim tường (BC-17) — người dùng đè lên được mặc định của công cụ. */
+  readonly showCentrelines: boolean;
+  readonly onToggleCentrelines: () => void;
+  /** Cờ lớp Tường của cây lớp (BC-19); chú giải độ dày đi theo nó. */
+  readonly isWallLayerVisible: boolean;
+  readonly onToggleWallLayer: () => void;
+  /** Hàng vừa đổi, nháy nền một nhịp rồi tắt (TT-02). `null` khi không có. */
+  readonly flashingWallId: WallRowViewModel['id'] | null;
+  /** Ctrl/Cmd-bấm một hàng: thêm/bớt khỏi vùng chọn (NL-07). */
+  readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
+}
+
 export interface WallLayerLeftPanelProps {
   readonly panel: WallLayerViewProps;
+  readonly extras: WallLayerLeftPanelExtras;
   readonly onNavigateLayer?: ((layer: WallLayerOtherKind) => void) | undefined;
+  /** Mở lớp tường của một tầng khác. Container tra `ROUTES.project.walls` (R-65). */
+  readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
 }
 
 const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
@@ -54,6 +86,10 @@ const FILTER_KEYS: readonly WallLayerFilterKey[] = [
 ];
 
 const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
+const FLOOR_NAV_ARIA_LABEL = 'Tầng của bản vẽ';
+const CENTRELINES_LABEL = 'Hiện tim tường';
+const SHOW_WALL_LAYER_LABEL = 'Hiện lớp Tường';
+const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp Tường';
 const REVIEWED_SUFFIX = ' tường đã duyệt';
 /** Cùng hành động với mục cây lớp "Cửa và nội thất" — xem `onNavigateLayer`. */
 const SUCCESS_CONTINUE_LABEL = 'Sang lớp Cửa và nội thất';
@@ -84,13 +120,18 @@ function WallLayerTreeRow({
   label,
   isCurrent = false,
   onOpen,
+  visibility,
 }: {
   readonly icon: ReactNode;
   readonly label: string;
   readonly isCurrent?: boolean;
   readonly onOpen?: (() => void) | undefined;
+  /** Nút con mắt của riêng hàng này. Vắng mặt thì hàng không có nút nào. */
+  readonly visibility?:
+    | { readonly isVisible: boolean; readonly onToggle: () => void }
+    | undefined;
 }) {
-  return (
+  const row = (
     <button
       aria-current={isCurrent ? 'page' : undefined}
       aria-label={label}
@@ -113,6 +154,83 @@ function WallLayerTreeRow({
       <span className="truncate">{label}</span>
     </button>
   );
+
+  if (visibility === undefined) {
+    return row;
+  }
+
+  /*
+   * Nút con mắt đứng CẠNH hàng, không lồng trong nó: một `<button>` bên trong
+   * một `<button>` không hợp lệ, và trình đọc màn hình sẽ chỉ thấy một trong
+   * hai. Vỏ ngoài mang `role="none"` để cây lớp vẫn thấy `treeitem` là con của
+   * nó. Khác hẳn nút con mắt của `TreeItem` dùng chung: nút này có
+   * `tabIndex` mặc định (bàn phím tới được, A12) và nhãn tiếng Việt có dấu (A6).
+   */
+  return (
+    <div className="flex items-center gap-1" role="none">
+      <div className="min-w-0 flex-1">{row}</div>
+      <button
+        aria-label={visibility.isVisible ? HIDE_WALL_LAYER_LABEL : SHOW_WALL_LAYER_LABEL}
+        aria-pressed={visibility.isVisible}
+        className={cn(
+          'shrink-0 rounded-[8px] p-1.5 text-text-secondary',
+          'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
+          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        )}
+        onClick={visibility.onToggle}
+        type="button"
+      >
+        {visibility.isVisible ? (
+          <Eye aria-hidden="true" className="h-4 w-4" />
+        ) : (
+          <EyeOff aria-hidden="true" className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Khối điều hướng tầng — giữa bộ đếm duyệt và cây lớp (BC-05).
+ *
+ * Danh sách tầng đến từ chính đồ thị màn đang sửa (`levelsOf` ở hook), không
+ * phải một lượt đọc máy chủ thứ hai. Lối ra đi qua `onNavigateFloor`, và
+ * container tra `ROUTES.project.walls` — panel không ghép một đường dẫn nào.
+ */
+function WallLayerFloorNav({
+  floors,
+  onNavigateFloor,
+}: {
+  readonly floors: readonly WallLayerFloorItem[];
+  readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
+}) {
+  if (floors.length === 0) {
+    return null;
+  }
+
+  return (
+    <nav aria-label={FLOOR_NAV_ARIA_LABEL} className="flex flex-col gap-0.5">
+      {floors.map((floor) => (
+        <button
+          aria-current={floor.isCurrent ? 'page' : undefined}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px]',
+            'transition-colors duration-120',
+            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            floor.isCurrent
+              ? 'bg-accent-wash text-accent'
+              : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+          )}
+          key={floor.id}
+          onClick={() => onNavigateFloor?.(floor.id)}
+          type="button"
+        >
+          <Layers aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <span className="truncate">{floor.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
 }
 
 /** Lớp đang mở. Bốn lớp còn lại nằm ở {@link OTHER_LAYERS}. */
@@ -134,18 +252,36 @@ const OTHER_LAYERS: readonly {
   { kind: 'rooms', label: 'Phòng', icon: <LayoutGrid className="h-4 w-4" /> },
 ];
 
-export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPanelProps) {
+export function WallLayerLeftPanel({
+  panel,
+  extras,
+  onNavigateLayer,
+  onNavigateFloor,
+}: WallLayerLeftPanelProps) {
   const { reviewCounter, reviewProgressLabel, filters, onToggleFilter } = panel;
   // Phân số tiến độ: view được PHÉP tính tại chỗ (eslint-rules/no-raw-number.js:21).
   const progressFraction = reviewCounter.total === 0 ? 0 : reviewCounter.reviewed / reviewCounter.total;
   const { text: reviewedText } = useCountUp(reviewCounter.reviewed, { format: { fractionDigits: 0 } });
+  /*
+   * Xong thì bộ đếm ĐỔI HÌNH THỨC, không chỉ đứng ở 48/48 (BT-08).
+   *
+   * A5 vẫn nguyên: xanh "đã xác minh" ở đây chỉ xuất hiện vì `reviewed === total`
+   * — tức việc của người duyệt — chứ không vì một điểm số nào của AI.
+   */
+  const isComplete = panel.state === 'success';
 
   return (
     <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
       <div className="flex shrink-0 flex-col gap-4 px-5 pb-3 pt-4">
         <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5">
           <p className="text-[13px] text-text-primary">
-            <span aria-hidden="true" className="font-mono font-semibold tabular-nums">
+            <span
+              aria-hidden="true"
+              className={cn(
+                'font-mono font-semibold tabular-nums',
+                isComplete && 'text-state-verified',
+              )}
+            >
               {reviewedText}
             </span>
             <span aria-hidden="true" className="font-mono tabular-nums text-text-muted">
@@ -157,7 +293,10 @@ export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPane
           </p>
           <div aria-hidden="true" className="h-1 w-full overflow-hidden rounded-full bg-bg-sunken">
             <div
-              className="h-full rounded-full bg-accent transition-all duration-340"
+              className={cn(
+                'h-full rounded-full transition-all duration-340',
+                isComplete ? 'bg-state-verified' : 'bg-accent',
+              )}
               style={{ width: `${progressFraction * 100}%` }}
             />
           </div>
@@ -169,8 +308,18 @@ export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPane
           </Button>
         )}
 
+        <WallLayerFloorNav floors={extras.floors} onNavigateFloor={onNavigateFloor} />
+
         <div aria-label={LAYER_TREE_ARIA_LABEL} role="tree">
-          <WallLayerTreeRow icon={<Square className="h-4 w-4" />} isCurrent label={WALL_LAYER_LABEL} />
+          <WallLayerTreeRow
+            icon={<Square className="h-4 w-4" />}
+            isCurrent
+            label={WALL_LAYER_LABEL}
+            visibility={{
+              isVisible: extras.isWallLayerVisible,
+              onToggle: extras.onToggleWallLayer,
+            }}
+          />
           {OTHER_LAYERS.map((layer) => (
             <WallLayerTreeRow
               icon={layer.icon}
@@ -182,6 +331,11 @@ export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPane
         </div>
 
         <div className="flex flex-col gap-1">
+          <Checkbox
+            checked={extras.showCentrelines}
+            label={CENTRELINES_LABEL}
+            onChange={extras.onToggleCentrelines}
+          />
           {FILTER_KEYS.map((key) => (
             <Checkbox
               checked={filters[key]}
@@ -199,7 +353,11 @@ export function WallLayerLeftPanel({ panel, onNavigateLayer }: WallLayerLeftPane
             <InlineAlert level="violation" message={panel.errorMessage} />
           </div>
         )}
-        <WallLayerList panel={panel} />
+        <WallLayerList
+          flashingWallId={extras.flashingWallId}
+          onToggleSelect={extras.onToggleSelect}
+          panel={panel}
+        />
       </div>
     </div>
   );

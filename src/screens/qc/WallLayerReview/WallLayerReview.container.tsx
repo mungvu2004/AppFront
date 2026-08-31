@@ -43,6 +43,24 @@
  * `App.tsx`: đổi sang một tầng khác thì ranh giới gắn LẠI, nên một lần sập ở
  * Tầng 01 không để phần dự phòng nằm lại khi màn cha chuyển sang Tầng 02.
  *
+ * ## Toast hoàn tác đi qua `notificationBus`, KHÔNG qua `Toast.Provider`
+ *
+ * A8 đòi lượt xoá có toast hoàn tác. Repo có hai chỗ hiện toast, và chỉ một
+ * chỗ đúng cho màn này:
+ *
+ * - `Toast.Provider` (`src/components/feedback/Toast.tsx`) mang thêm một cầu
+ *   nối riêng tới `useUndoableToast`, thứ tự phát một toast cho MỌI lượt
+ *   `commit()` và gắn vào nút "Hoàn tác" của nó `useStore.temporal.undo()` —
+ *   tức ngăn xếp **zundo**, không phải ngăn xếp 100 bước của S-06 mà màn này
+ *   dùng. Bọc provider đó quanh màn sẽ cho mỗi lượt xoá HAI toast, và cái thứ
+ *   hai hoàn tác bằng một ngăn xếp khác, để lại lịch sử của màn lệch pha.
+ * - `NotificationHost` (`src/main.tsx:66`) vẽ `appNotificationBus` bằng đúng
+ *   `Toast.Item`, và nút "Hoàn tác" của nó gọi `undoTicket.undo()` — tức đúng
+ *   vé mà `createWallUndoTicket` dựng.
+ *
+ * Nên hook đẩy thông báo vào bus (xem `useWallLayerReview.ts`), và container
+ * không bọc provider nào. Tiền lệ: `ProcessingScreen/useProcessingScreen.ts`.
+ *
  * ## Khoảng trống đã biết: KHÔNG có đường lưu tường lên máy chủ
  *
  * `FloorWriteBody` (`src/api/client.ts`) chỉ có `name`/`order`/`elevationMm`/
@@ -143,7 +161,7 @@ function WallLayerReviewCrashFallback({ report, retry }: ScreenErrorFallback) {
  * `PipelineFailure.container.tsx`.
  */
 function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
-  const { panel, canvas, toolRail, statusBar } = useWallLayerReview({
+  const { panel, canvas, toolRail, statusBar, leftPanel } = useWallLayerReview({
     floorId: props.floorId,
     projectId: props.projectId,
     ...(props.levelId !== undefined ? { levelId: props.levelId } : {}),
@@ -153,7 +171,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
-  const { onNavigate } = props;
+  const { onNavigate, projectId } = props;
   const onNavigateLayer = useCallback(
     (layer: WallLayerOtherKind) => {
       onNavigate(LAYER_ROUTE[layer]);
@@ -161,10 +179,26 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     [onNavigate],
   );
 
+  /**
+   * Đổi tầng: mở lớp tường của tầng khác (BC-05).
+   *
+   * `ROUTES.project.walls` là đường dẫn CÓ SẴN của chính màn này
+   * (`src/routes/paths.ts`), nên panel trái không ghép một chuỗi nào và R-65
+   * giữ nguyên: mọi đường dẫn của màn tra từ `ROUTES`.
+   */
+  const onNavigateFloor = useCallback(
+    (floorId: string) => {
+      onNavigate(ROUTES.project.walls(projectId, floorId));
+    },
+    [onNavigate, projectId],
+  );
+
   return (
     <WallLayerReview
       canvas={canvas}
       canvasSlot={<WallLayerCanvas {...canvas} />}
+      leftPanel={leftPanel}
+      onNavigateFloor={onNavigateFloor}
       onNavigateLayer={onNavigateLayer}
       panel={panel}
       statusBar={statusBar}
