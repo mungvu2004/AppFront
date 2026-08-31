@@ -109,9 +109,17 @@ function wall(
  * `W-014` — ví dụ thanh tra của đặc tả — có `confidence: 0.71` và
  * `thicknessMm: 220` đúng như yêu cầu, `reviewed: false`.
  *
- * Chín tường có `confidence < 0,75` (yêu cầu tối thiểu tám):
- * W-004 (0,58), W-007 (0,62), W-010 (0,65), W-014 (0,71), W-017 (0,68),
- * W-021 (0,55), W-026 (0,72), W-033 (0,60), W-041 (0,74).
+ * Ngưỡng "cần chú ý" của màn là băng `needsReview` của
+ * `src/lib/format/semantic.ts` — **dưới 0,70** (xem `isLowConfidence` ở
+ * `wallLayerReviewGateway.ts`). Đúng SÁU tường của bộ mẫu nằm dưới ngưỡng đó,
+ * nên gạch chéo và bộ lọc "Chỉ hiện độ tin cậy thấp" luôn có cái để hiện:
+ * W-004 (0,58), W-007 (0,62), W-010 (0,65), W-017 (0,68), W-021 (0,55),
+ * W-033 (0,60).
+ *
+ * Ba tường nữa nằm trong băng `suggested` (0,70 ≤ x < 0,90) — W-014 (0,71),
+ * W-026 (0,72), W-041 (0,74) — nên chúng vẫn là `attention` trong danh sách
+ * nhưng KHÔNG bị gạch chéo. Câu này từng ghi "chín tường có confidence < 0,75",
+ * đúng theo một ngưỡng 0,75 không tồn tại trong mã.
  */
 export const WALL_LAYER_FIXTURE_WALLS: readonly Wall[] = [
   wall('W-001', { x: 0, y: 0 }, { x: 2500, y: 0 }, 330, 'envelope', 0.76, false),

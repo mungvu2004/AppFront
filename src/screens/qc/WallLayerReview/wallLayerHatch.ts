@@ -253,8 +253,10 @@ export interface WallLayerCanvasShape extends WallShapeViewModel {
   readonly thicknessMm: number;
   /** Tim tường, hai đầu bằng px. Vẽ khi `showCentrelines` bật. */
   readonly centrelinePx: { readonly start: PointPx; readonly end: PointPx };
-  /** Hộp bao của đa giác, px — `SelectionHalo` và chấm cần chú ý bám vào nó. */
+  /** Hộp bao của đa giác, px — `SelectionHalo` bám vào nó. */
   readonly boundsPx: WallLayerRectPx;
+  /** Tâm chấm cần chú ý, px. Tính ở hook (`centreOfBounds`), view chỉ đọc. */
+  readonly attentionDotPx: PointPx;
   /** Cổng bật gạch chéo; ngưỡng sống ở `materialMap.isLowConfidence`. */
   readonly isLowConfidence: boolean;
 }
@@ -319,6 +321,34 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly onFrameResize: (size: WallLayerSizePx) => void;
   /** Con trỏ trên bản vẽ, số thô của trình duyệt. `null` khi con trỏ rời khung. */
   readonly onPointerMove: (position: WallLayerPointerReading | null) => void;
+
+  /* -- Cử chỉ của máy công cụ: vẽ tường, tách đoạn, đo -------------------- */
+
+  /*
+   * Trước lượt sửa này máy công cụ chỉ nhận `{ type: 'activate' }`, nên ba
+   * trong bốn công cụ của ray là nút chết: bấm `W` đổi được biểu tượng đang
+   * sáng và KHÔNG vẽ được gì, `M` cũng vậy, còn mục "Tách đoạn" của menu chuột
+   * phải chỉ bật công cụ rồi đứng im. Thứ thiếu là một đường cho CỬ CHỈ đi từ
+   * canvas lên máy công cụ, và nó chỉ cần đúng một hàm: một điểm đã bấm.
+   *
+   * Điểm vào đây là PIXEL BẢN VẼ, cùng đơn vị và cùng cách đọc với
+   * `onPointerMove` (`getScreenCTM().inverse()`), nên view vẫn không trừ,
+   * không chia, không nhân. Hook quy nó ra milimét bằng `scale.pixelsToMillimetres`
+   * rồi giao cho `reduceTool`; chọn tường (bước `entity` của công cụ tách đoạn)
+   * đi qua `onSelect` sẵn có, không cần một hàm thứ hai.
+   *
+   * KHÔNG có `onCanvasCommit` riêng: `reduceTool` chuyển sang `confirming`
+   * ngay khi đủ số điểm, và hook chốt luôn trong cùng lượt — một cử chỉ hai
+   * điểm không có bước xác nhận nào để người dùng bấm. KHÔNG có
+   * `onCanvasCancel` riêng: huỷ là đổi công cụ (`activate` reset máy), đường
+   * đã có sẵn trên ray công cụ và trên phím `V`. Thêm hai prop mà không nơi
+   * gọi nào truyền là đúng thứ R-73 chặn.
+   */
+
+  /** Một điểm vừa bấm trên bản vẽ, pixel. Máy công cụ nhận nó làm bước kế tiếp. */
+  readonly onCanvasPoint: (at: WallLayerPointerReading) => void;
+  /** Ctrl/Cmd-bấm một hình tường: thêm/bớt khỏi vùng chọn (S-10), không thay cả vùng. */
+  readonly onToggleSelect: (wallId: WallId) => void;
 }
 
 /**

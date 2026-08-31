@@ -95,9 +95,10 @@ export const WALL_LAYER_REVIEW_SCENARIO_LOADING: WallLayerReviewScenario = {
 
 /**
  * 3. Một phần — TRẠNG THÁI CHÍNH của màn. 12/48 đã duyệt (khớp
- * `WALL_LAYER_FIXTURE_REVIEWED`/`WALL_LAYER_FIXTURE_TOTAL`); chín tường trong
- * bộ mẫu có `confidence < 0,75` nên panel chắc chắn có ít nhất một chip
- * "cần chú ý" hiện ra.
+ * `WALL_LAYER_FIXTURE_REVIEWED`/`WALL_LAYER_FIXTURE_TOTAL`); sáu tường trong bộ
+ * mẫu nằm dưới ngưỡng "cần chú ý" (băng `needsReview`, dưới 0,70 — xem
+ * `wallLayerReviewFixture.ts`), nên panel chắc chắn có chip "cần chú ý" và
+ * canvas chắc chắn có gạch chéo.
  */
 export const WALL_LAYER_REVIEW_SCENARIO_PARTIAL: WallLayerReviewScenario = {
   state: 'partial',

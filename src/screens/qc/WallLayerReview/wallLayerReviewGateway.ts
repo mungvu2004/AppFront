@@ -52,12 +52,14 @@ import { mockApiClient } from '@/api/__mocks__/client';
 import { createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
+import { measureDistance, type Measurement } from '@/domain/measure/measure';
 import { mergeWalls, splitWall } from '@/domain/walls/edit';
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
 import { isLowConfidence as hasLowConfidenceHatch } from '@/components/canvas/materialMap';
+import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 import {
   createDeleteWallCommand,
@@ -118,6 +120,7 @@ import {
 } from './wallLayerReviewFixture';
 import type {
   WallLayerCanvasShape,
+  WallLayerMeasurementPx,
   WallLayerPointerReading,
   WallLayerRectPx,
   WallLayerSizePx,
@@ -203,6 +206,25 @@ export interface WallLayerGraphPort {
   readonly read: () => NormalizedSpatial | null;
 }
 
+/*
+ * Vì sao có `readWallLayer` bên cạnh `graph.read`.
+ *
+ * `graph.read` là lượt đọc ĐỒNG BỘ của đồ thị đang sửa (kho), và nó không hỏng
+ * được: nó trả `null` khi kho còn trống. Trạng thái 4 của A11 nói về một thứ
+ * khác hẳn — LỚP TƯỜNG của tầng không tải được — và trước lượt sửa này màn
+ * không có đường nào diễn tả điều đó, nên nó mượn tạm cờ hỏng của ẢNH NỀN. Hệ
+ * quả đo được: đúng lúc hỏng thì `backgroundImageUrl` thành `null` và kỹ sư mất
+ * luôn ảnh gốc để đối chiếu — trái đúng điều `wallLayerReviewScenarios.ts` gọi
+ * là bắt buộc ("canvas không được trắng dù danh sách trắng").
+ *
+ * `readWallLayer` là lượt đọc bất đồng bộ của chính lớp tường, dưới khoá
+ * `queryKeys.space.byFloor` — đúng khoá mà `invalidationMap.editWall` đã dọn
+ * sau mỗi lượt ghi. Cổng thật trả lại đúng đồ thị `graph.read()` cho ra (không
+ * bịa một endpoint nào, xem `WALL_LAYER_MISSING_ENDPOINTS`); cổng giả có cờ
+ * `failReadWallLayer` để bảy kịch bản ép được trạng thái 4 mà KHÔNG phải phá
+ * ảnh nền.
+ */
+
 export interface ReadBackgroundInput {
   readonly projectId: string;
   readonly floorId: string;
@@ -223,8 +245,10 @@ export interface PersistWallLayerInput {
 export interface WallLayerReviewGateway {
   /** Khả năng nào cổng này làm được, trả lời ĐỒNG BỘ — màn phải biết trước lượt vẽ đầu. */
   readonly supports: Readonly<Record<WallLayerCapability, boolean>>;
-  /** Ảnh nền của tầng. Lỗi ở đây đẩy màn sang trạng thái `error`, canvas VẪN xem được. */
+  /** Ảnh nền của tầng. Lỗi ở ĐÂY chỉ làm mất ảnh nền, không phải hỏng lớp tường. */
   readonly readBackground: (input: ReadBackgroundInput) => Promise<WallLayerBackground>;
+  /** Lớp tường của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
+  readonly readWallLayer: (input: ReadBackgroundInput) => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: WallLayerGraphPort;
   /** NOT FOUND — `persistWallLayer`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
@@ -330,6 +354,8 @@ export function createWallLayerReviewGateway(
       };
     },
 
+    readWallLayer: () => Promise.resolve(graph.read()),
+
     graph,
 
     persistWallLayer: () => Promise.resolve(unsupported('persistWallLayer')),
@@ -361,8 +387,10 @@ export const WALL_LAYER_SAMPLE_DRAWING_HEIGHT_MM = 9300;
 export interface WallLayerGatewaySeed {
   /** Đồ thị cổng trả về. Vắng mặt thì cổng đọc store thật. */
   readonly graph?: NormalizedSpatial | null;
-  /** `true` thì `readBackground` ném — đúng cảnh `error` của bảy kịch bản. */
+  /** `true` thì `readBackground` ném — ảnh nền mất, lớp tường thì không. */
   readonly failReadBackground?: boolean;
+  /** `true` thì `readWallLayer` ném — đúng cảnh `error` của bảy kịch bản. */
+  readonly failReadWallLayer?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ. */
   readonly withoutImage?: boolean;
   /** `true` thì `persistWallLayer` chạy thật (bộ mẫu có đường lưu), cho nhãn "Đã lưu lúc…". */
@@ -400,6 +428,14 @@ export function createMockWallLayerReviewGateway(
         widthMm: hasImage ? WALL_LAYER_SAMPLE_DRAWING_WIDTH_MM : null,
         heightMm: hasImage ? WALL_LAYER_SAMPLE_DRAWING_HEIGHT_MM : null,
       });
+    },
+
+    readWallLayer: () => {
+      if (seed.failReadWallLayer === true) {
+        return Promise.reject(new Error('Không tải được lớp tường của tầng.'));
+      }
+
+      return Promise.resolve(seed.graph ?? useStore.getState().spatial);
     },
 
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
@@ -991,6 +1027,16 @@ export function toCanvasShapes(
         end: toPixelPoint(wall.centreline.end, scale),
       },
       boundsPx: bounds,
+      /*
+       * Tâm chấm cần chú ý, tính Ở ĐÂY chứ không ở view.
+       *
+       * `WallLayerShapeFigure.tsx` từng viết `boundsPx.x + boundsPx.width / 2`
+       * ngay trong thuộc tính `cx` — một phép hình học trong màn, đúng thứ câu
+       * "không một phép hình học nào ở đây" của `WallLayerCanvas.tsx` cấm.
+       * `centreOfBounds` đã tồn tại và hook đã dùng nó cho "vừa khung", nên
+       * chấm và khung nhìn nay đọc chung một phép.
+       */
+      attentionDotPx: centreOfBounds(bounds),
       isLowConfidence: hasLowConfidenceHatch(wall.confidence),
     });
   }
@@ -1057,6 +1103,65 @@ export const reviewProgressLabel = (reviewedText: string, total: number): string
   `${reviewedText}/${formatNumber(total, { fractionDigits: 0 })} tường đã duyệt`;
 
 /* -------------------------------------------------------------------------- */
+/* Công cụ đo — số đo do `src/domain/measure` tính, màn chỉ đọc lại.           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Hai điểm milimét của bản vẽ → nhãn đo bằng pixel mà `MeasurementLabel` nhận.
+ *
+ * KHÔNG một phép hình học nào viết mới ở đây:
+ * - khoảng cách là `measureDistance` của `src/domain/measure/measure.ts`, đúng
+ *   hàm mà `MEASURE_TOOL` (`src/lib/tools/tools.ts`) gọi ở bước `complete`, nên
+ *   nhãn trên canvas và số máy công cụ phát ra không thể lệch nhau;
+ * - quy đổi mm → px là `scale.millimetresToPixels` qua {@link toPixelPoint};
+ * - điểm giữa là {@link centreOfBounds} của hộp bao hai đầu ({@link boundsOfPoints}),
+ *   hai hàm đã có sẵn và đã được hook dùng cho "vừa khung".
+ */
+export function toMeasurementPx(
+  startMm: Point,
+  endMm: Point,
+  scale: Scale,
+  state: MeasurementState,
+): WallLayerMeasurementPx {
+  const startPx = toPixelPoint(startMm, scale);
+  const currentPx = toPixelPoint(endMm, scale);
+  const bounds = boundsOfPoints([startPx, currentPx]);
+  const distance = measureDistance(toPointMm(startMm), toPointMm(endMm));
+
+  return {
+    state,
+    startPx,
+    currentPx,
+    midPx: bounds === null ? null : centreOfBounds(bounds),
+    distanceLabel: formatLength(distance.lengthMm, {
+      unit: 'mm',
+      fractionDigits: LENGTH_FRACTION_DIGITS,
+    }),
+  };
+}
+
+/**
+ * Kết quả `kind: 'measurement'` của máy công cụ → nhãn đo đã chốt.
+ *
+ * Chỉ `distance` có nghĩa ở màn này: `MEASURE_TOOL` là công cụ đo duy nhất màn
+ * bật, và bốn loại đo còn lại của `src/domain/measure` (chuỗi, góc, diện tích,
+ * cao độ) không có tool nào phát ra chúng ở đây. Loại khác trả `null` chứ không
+ * bị vẽ nhầm thành một khoảng cách.
+ */
+export function measurementOutcomeToPx(
+  measurement: Measurement,
+  scale: Scale,
+): WallLayerMeasurementPx | null {
+  if (measurement.kind !== 'distance') {
+    return null;
+  }
+
+  const [from, to] = measurement.points;
+
+  return toMeasurementPx({ x: from.x, y: from.y }, { x: to.x, y: to.y }, scale, 'committed');
+}
+
+/* -------------------------------------------------------------------------- */
 /* Viewmodel của một tường.                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -1073,15 +1178,32 @@ export const isStandardThickness = (thicknessMm: number): boolean =>
   WALL_THICKNESS_CHOICES.some((choice) => choice === thicknessMm);
 
 /**
- * Tường này có dưới ngưỡng "cần chú ý" không.
+ * Tường này có dưới ngưỡng "cần chú ý" không — băng `needsReview`, tức **dưới
+ * 0,70**.
  *
- * Ngưỡng KHÔNG được viết ở màn: `confidenceLevel` của `@/lib/format/semantic` là
- * nơi duy nhất phân loại, và cũng chính là hàm `toWallViewModel` dùng để chọn
- * `statusCode` — nên hai chỗ không thể lệch nhau. Hợp đồng lô-gic mục H.3 đã
- * xác nhận hằng `0,75` KHÔNG tồn tại trong mã.
+ * Ngưỡng KHÔNG được viết ở màn: `CONFIDENCE_SUGGESTED_THRESHOLD` của
+ * `@/lib/format/semantic` là chỗ duy nhất con số đó tồn tại, và `confidenceLevel`
+ * là hàm duy nhất phân loại.
+ *
+ * ## Vì sao KHÔNG phải `!== 'certain'`
+ *
+ * Bản trước hỏi "khác `certain`", tức gom cả băng `suggested` (0,70 ≤ x < 0,90)
+ * vào diện gạch chéo. Hệ quả đo được: canvas và danh sách nói hai chuyện khác
+ * nhau về cùng một tường — canvas gạch chéo theo `materialMap.isLowConfidence`,
+ * vốn đã là `needsReview` (< 0,70), còn danh sách và bộ lọc "Chỉ hiện độ tin cậy
+ * thấp" thì gạch theo < 0,90. Một tường 0,80 bị gạch trong danh sách và không
+ * gạch trên bản vẽ.
+ *
+ * Đặc tả đòi 0,75. Con số đó KHÔNG tồn tại ở đâu trong repo và R-71 cấm viết
+ * thẳng nó vào màn; `needsReview` là băng có sẵn gần nó nhất. Người duyệt đã
+ * chốt 0,70 — quyết định ghi ở đây vì đây là chỗ nó có hiệu lực.
+ *
+ * Một nguồn phân loại duy nhất: `WallRowViewModel.isLowConfidence`, bộ lọc
+ * "Chỉ hiện độ tin cậy thấp" và gạch chéo của canvas nay đọc chung một câu trả
+ * lời.
  */
 export const isLowConfidence = (wall: Wall): boolean =>
-  confidenceLevel(wall.confidence) !== 'certain';
+  confidenceLevel(wall.confidence) === 'needsReview';
 
 /**
  * Trạng thái màu của một tường.
@@ -1123,7 +1245,18 @@ export function toWallInspector(wall: Wall, level: Level): WallInspectorViewMode
     codeLabel: `#${wallDisplayCode(wall.id)}`,
     thicknessMm: wall.thicknessMm,
     lengthLabel: formatCentrelineLength(wall, level),
-    heightLabel: formatLength(wall.heightMm),
+    /*
+     * Chiều cao ở CÙNG cột milimét với chiều dài.
+     *
+     * `formatLength` tự đổi sang mét từ 1 m trở lên (`src/lib/format/measure.ts`),
+     * nên `formatLength(3000)` ra "3,00 m" — một đơn vị khác hẳn dòng ngay trên
+     * nó. Đặc tả đòi hai dòng đọc được cạnh nhau, nên đơn vị nói thẳng ra, và
+     * số chữ số thập phân dùng lại đúng hằng của chiều dài (R-71).
+     */
+    heightLabel: formatLength(wall.heightMm, {
+      unit: 'mm',
+      fractionDigits: LENGTH_FRACTION_DIGITS,
+    }),
     confidence: wall.confidence,
     kindLabel: WALL_KIND_LABELS[wall.kind],
     advanced: {
