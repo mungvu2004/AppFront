@@ -18,6 +18,8 @@ export interface MiniMapState {
   handleClick: (e: React.MouseEvent) => void;
   handleMouseEnter: () => void;
   handleMouseLeave: () => void;
+  /** Nhảy khung nhìn về trung tâm bản đồ — đường bàn phím cho Enter/Space (A12). */
+  jumpToCentre: () => void;
   onViewportChange: ((rect: ViewportRect) => void) | undefined;
 }
 
@@ -102,6 +104,17 @@ export function useMiniMap(options: UseMiniMapOptions = {}): MiniMapState {
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
+  const jumpToCentre = useCallback(() => {
+    const newVp = clampViewport(
+      50 - viewport.width / 2,
+      50 - viewport.height / 2,
+      viewport.width,
+      viewport.height
+    );
+    setViewport(newVp);
+    onViewportChange?.(newVp);
+  }, [clampViewport, viewport.width, viewport.height, onViewportChange]);
+
   return {
     viewport,
     isDragging,
@@ -113,6 +126,7 @@ export function useMiniMap(options: UseMiniMapOptions = {}): MiniMapState {
     handleClick,
     handleMouseEnter,
     handleMouseLeave,
+    jumpToCentre,
     onViewportChange,
   };
 }
