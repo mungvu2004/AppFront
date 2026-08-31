@@ -1,9 +1,14 @@
 # S12-L2 — Hồ sơ trình người duyệt: màn "Duyệt lớp tường" (S-12)
 
 Gộp lại từ `docs/contracts/S12-L1-kich-thuoc.md` (đo kích thước gói, A3) và
-`docs/contracts/S12-L1-no-ngoai-pham-vi.md` (ba món nợ ngoài phạm vi, A4). Không đo lại,
-không đo thêm — mọi con số dưới đây chép nguyên từ hai hồ sơ đó. Viết cho người duyệt
-không cần đọc mã vẫn quyết định được.
+`docs/contracts/S12-L1-no-ngoai-pham-vi.md` (ba món nợ ngoài phạm vi, A4). Viết cho người
+duyệt không cần đọc mã vẫn quyết định được.
+
+> **Đã cập nhật sau lượt gộp C1.** Mục 1–4 giữ nguyên như B2 viết: chúng mô tả hiện trạng
+> **trước** khi gộp, và các con số ở mục 2 chép nguyên từ hai hồ sơ L1 tại `master` @
+> `ae7db03`. **Mục 5, 6 và 7 là phần thêm của C1** và mô tả hiện trạng **sau** khi gộp ba
+> nhánh B1 + B2 + B3. Người duyệt đọc mục 5–7 trước khi bấm gộp; bảng số hai cột đầy đủ
+> nằm ở `docs/contracts/S12-C1-bao-cao-tich-hop.md`.
 
 ---
 
@@ -105,3 +110,96 @@ trong DAG này (A3, A4, B1, B2) xử lý:
 - **`expectVietnamese` nới đúng một chữ tiếng Anh: `"zoom"`** — đến từ `ZoomCluster`
   (`aria-label="Điều khiển zoom"`, "Zoom hiện tại 100%…"), một component dùng chung nằm
   ngoài phạm vi sửa của màn S-12; cùng tiền lệ với `ScaleCalibration.test.tsx`.
+
+---
+
+## 5. Bốn quyết định người duyệt đã chốt — đã thi hành
+
+Bốn món ở mục 3 (và một món phát sinh) đã có phán quyết. Ghi lại ở đây để người duyệt
+không phải quyết lại; **cả bốn đều đã thi hành xong hoặc đã ghi nợ đúng chỗ**.
+
+| # | Quyết định | Trạng thái sau lượt gộp C1 |
+|---|---|---|
+| 1 | **A-13 — ngưỡng gạch chéo "cần chú ý" đặt ở 0,70** | **Đã làm** (nhánh B1). Làm bằng cách dùng lại `isLowConfidence` của `@/components/canvas/materialMap` (`= confidenceLevel(...) === 'needsReview'`), **không viết một hằng số ngưỡng nào vào thư mục màn** — đúng R-71 (một nguồn sự thật, màn đọc chứ không chép). Băng "AI đề xuất" (0,70 ≤ x < 0,90) do đó KHÔNG còn bị tính là độ tin cậy thấp; có bài kiểm khẳng định đúng điều này. |
+| 2 | **B-07 — MiniMap được MIỄN TRỪ R-68** | **Đã làm** (nhánh B3). Đúng hai file sản phẩm như món 2 của mục 3 xin phép: `src/hooks/useMiniMap.ts` (thêm `jumpToCentre`) và `src/components/canvas/MiniMap.tsx` (nối vào nhánh Enter/Space). Kèm hai file kiểm mới. Soát phạm vi R-68 của C1 xác nhận nhóm "ngoài phạm vi" đúng bằng **bốn** file này và không có file thứ năm. |
+| 3 | **B-04 — `wall.approve` dựng ở tầng màn → GHI NỢ** | **Ghi nợ, không chặn lượt gộp này.** Tách ra prompt lô-gic nhóm T sau. Người duyệt gộp được S-12 mà không phải chờ món này. |
+| 4 | **B-05 — lưu tường lên máy chủ → prompt lô-gic nhóm T riêng** | **Ghi nợ.** Đúng đề xuất của A4 ở món 1 mục 3: gộp chung nhu cầu tương tự của `ScaleCalibration` để tránh vá hai lần. Cho tới lúc đó, màn lưu trong bộ nhớ trình duyệt. |
+
+---
+
+## 6. Năm điều nhánh B1 tự khai là còn treo
+
+Đây là lời khai của chính nhánh làm việc, chép nguyên, **không phải phát hiện của người
+soát**. C1 không sửa món nào trong năm món này — lượt gộp là gộp và đo, không viết tiếp.
+
+1. **`A-04` mới làm nửa.** Chọn nhiều tường bằng **Ctrl-bấm** thì được (có bài kiểm:
+   "Ctrl-bấm cộng dồn vùng chọn thay vì thay cả vùng"), nhưng **khoanh vùng marquee chưa
+   làm**. Nút "nối đoạn" vẫn chỉ bật khi đúng hai tường được chọn, nên phần đã làm là đủ
+   cho việc nối đoạn; phần thiếu là cách chọn nhanh nhiều tường.
+2. **`A-07` cố ý không đổi bộ mẫu.** Bộ mẫu 48 tường / 12 đã duyệt giữ nguyên, có chủ ý.
+3. **Toast hoàn tác đi qua `appNotificationBus`, KHÔNG qua `Toast.Provider`.** Lý do:
+   provider đó tự phát thêm một toast mỗi lần commit và hoàn tác bằng zundo — sai ngăn xếp
+   của màn này. Đây là lựa chọn kiến trúc có lý do, không phải chỗ quên nối dây.
+4. **Khoá `shortcuts.approve` trong `src/i18n/vi.json` được giữ** dù không còn nơi đọc,
+   vì đặc tả cấm xoá khoá.
+5. **Ảo hoá của `WallLayerList` không vẽ hàng nào trong môi trường kiểm** — 0 phần tử
+   `role="option"` ở cả bảy trạng thái, nên chưa một bài kiểm DOM nào từng nhìn thấy một
+   hàng danh sách. **Món này C1 đã điều tra xong: xem mục 7.**
+
+---
+
+## 7. Kết luận điều tra "danh sách rỗng" — (a) hiện tượng của jsdom, sản phẩm không sao
+
+**Câu hỏi:** người dùng thật có nhìn thấy hàng danh sách không?
+**Trả lời: có.** Danh sách rỗng chỉ xuất hiện trong jsdom, và nguyên nhân nằm hoàn toàn ở
+môi trường kiểm, không ở mã màn.
+
+**Cách nghiệm.** Dựng cùng một cây `WallLayerReviewContainer` (trạng thái `success`) hai
+lượt, **không sửa một dòng mã sản phẩm nào**. Lượt B chỉ khác lượt A ở chỗ dựng lại đúng
+hai thứ trình duyệt thật luôn có mà jsdom không có.
+
+| | Lượt A — jsdom nguyên trạng | Lượt B — có bảng kiểu + phép đo khung |
+|---|---|---|
+| `<div role="listbox">` có mặt | có | có |
+| chiều cao `getTotalSize()` | `height: 1920px` (48 hàng × 40 px) | `height: 1920px` |
+| số phần tử `role="option"` | **0** | **23** |
+| hàng đầu đọc được | — | `#W-001 · 330 mm · 0,76` |
+
+23 hàng đúng bằng số hàng vừa một khung cuộn cao 600 px (15 hàng × 40 px) cộng `overscan: 8`
+mà `WallLayerList` khai — con số khớp đúng công thức, không phải một số ngẫu nhiên.
+
+**Chuỗi nhân quả, đã lần tới tận gốc.**
+
+1. `WallLayerList` lấy phần tử cuộn qua `findScrollParent`, hàm này đi ngược cây tổ tiên
+   tìm phần tử có `getComputedStyle(...).overflowY` bằng `auto` hay `scroll`. Trong trình
+   duyệt thật, phần tử đó là `<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">`
+   bọc ngay ngoài danh sách (`WallLayerLeftPanel.tsx:350`) — tìm thấy ở **bước đi đầu tiên**.
+2. **jsdom không nạp bảng kiểu nào**, nên lớp Tailwind `overflow-y-auto` không sinh ra
+   giá trị tính toán: `getComputedStyle(...).overflowY` trả chuỗi rỗng cho mọi phần tử.
+   Vòng lặp đi hết cây mà không tìm được gì.
+3. Nhánh dự phòng cuối hàm trả `document.scrollingElement`. Trong môi trường kiểm này,
+   **`document.scrollingElement` là `undefined`** (đã đo trực tiếp), nên `?? null` cho ra
+   `null`.
+4. `getScrollElement()` trả `null` → `@tanstack/react-virtual` không bao giờ đặt được
+   `scrollElement` → `observeElementRect` thoát sớm → `outerSize` đứng ở 0 →
+   `calculateRange` trả `null` khi `outerSize > 0` sai (`virtual-core@3.8.3`, dòng 439) →
+   `getVirtualItems()` trả mảng rỗng.
+
+Điểm 3 đáng ghi lại: nhánh dự phòng của `findScrollParent` **không** chịu được một môi
+trường mà `document.scrollingElement` vắng mặt. Trong trình duyệt thật điều đó không xảy
+ra (và kể cả có, bước 1 đã tìm thấy phần tử cuộn nên không bao giờ tới nhánh dự phòng),
+nên **đây không phải lỗi người dùng gặp** — chỉ là một chỗ dự phòng mỏng hơn vẻ ngoài.
+
+**Bài kiểm dùng để nghiệm là bài kiểm TẠM và KHÔNG được commit.** Nó phải giả lập bảng
+kiểu (`getComputedStyle`), phép đo khung (`clientHeight`, `getBoundingClientRect`) và
+`ResizeObserver` cùng lúc — ba lớp giả cho một khẳng định, quá nhiều giàn giáo để thành
+một bài kiểm thật đáng tin. Giữ nó lại sẽ là một bài kiểm chủ yếu kiểm chính bộ giả của
+nó. Vì vậy C1 xoá nó sau khi đo và giữ số đo ở đây.
+
+**Việc còn nợ (không chặn gộp):** chưa một bài kiểm DOM nào nhìn thấy một hàng danh sách,
+nên hành vi của một hàng (chọn, rê chuột, nháy nền, chấm trạng thái, huy hiệu "cần chú ý")
+chỉ được kiểm gián tiếp qua tầng hook. Cách đúng để trả nợ này là một bài kiểm Playwright
+trong trình duyệt thật — nơi bảng kiểu có thật nên không cần lớp giả nào — chứ không phải
+thêm giàn giáo vào jsdom. Đề nghị làm ở một lượt riêng, sau khi `src/routes/router.tsx`
+được gắn thật (hiện `main.tsx` vẫn dựng thẳng `<App />`, nên màn chưa có đường vào trình
+duyệt để Playwright mở).
