@@ -39,7 +39,11 @@ export {
 } from './useWallLayerReview';
 export { type WallLayerStatusBarProps } from './WallLayerStatusBar';
 export { type WallLayerToolId, type WallLayerToolRailProps } from './WallLayerToolRail';
-export { type WallLayerOtherKind } from './WallLayerLeftPanel';
+export {
+  type WallLayerFloorItem,
+  type WallLayerLeftPanelExtras,
+  type WallLayerOtherKind,
+} from './WallLayerLeftPanel';
 export {
   backgroundImageAlt,
   createMockWallLayerReviewGateway,

@@ -1348,7 +1348,8 @@
     },
     "row": {
       "approve": "Duyệt đoạn này",
-      "skip": "Bỏ qua"
+      "skip": "Bỏ qua",
+      "attention": "cần chú ý"
     },
     "inspector": {
       "advancedTitle": "Thông số nâng cao",
@@ -1363,7 +1364,8 @@
     "filters": {
       "onlyUnreviewed": "Chỉ hiện chưa duyệt",
       "onlyLowConfidence": "Chỉ hiện độ tin cậy thấp",
-      "onlyNonStandardThickness": "Chỉ hiện độ dày không chuẩn"
+      "onlyNonStandardThickness": "Chỉ hiện độ dày không chuẩn",
+      "showCentrelines": "Hiện tim tường"
     },
     "contextMenu": {
       "approve": "Duyệt",
@@ -1377,7 +1379,9 @@
       "splitWall": "tách đoạn",
       "mergeWall": "nối đoạn",
       "measure": "đo",
-      "mergeHint": "Chọn hai đoạn tường để gộp"
+      "mergeHint": "Chọn hai đoạn tường để gộp",
+      "collapsePanels": "Thu gọn hai panel",
+      "expandPanels": "Mở lại hai panel"
     },
     "state": {
       "emptyDescription": "Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.",
@@ -1391,7 +1395,9 @@
       "openingsAndFurniture": "Cửa và nội thất",
       "dimensions": "Kích thước",
       "axes": "Trục",
-      "rooms": "Phòng"
+      "rooms": "Phòng",
+      "showWalls": "Hiện lớp Tường",
+      "hideWalls": "Ẩn lớp Tường"
     },
     "aria": {
       "screen": "Duyệt lớp tường",
@@ -1399,7 +1405,8 @@
       "layerTree": "Cây lớp",
       "wallList": "Danh sách đoạn tường",
       "statusBar": "Thanh trạng thái",
-      "minimap": "Mặt bằng thu nhỏ"
+      "minimap": "Mặt bằng thu nhỏ",
+      "floorNav": "Tầng của bản vẽ"
     },
     "statusBar": {
       "cursorIdle": "chưa rê chuột lên bản vẽ"
