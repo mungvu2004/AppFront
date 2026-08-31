@@ -1,12 +1,25 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { useMiniMap } from '../../hooks/useMiniMap';
+import { useMiniMap, type ViewportRect } from '../../hooks/useMiniMap';
 
 interface MiniMapProps {
   isVisible?: boolean;
   /** Nội dung bản vẽ thu nhỏ (SVG hoặc canvas) */
   children?: React.ReactNode;
   className?: string;
+  /**
+   * Khung nhìn ban đầu, theo phần trăm.
+   *
+   * Bỏ trống thì component tự giữ khung nhìn của nó như trước.
+   */
+  initialViewport?: Partial<ViewportRect>;
+  /**
+   * Gọi mỗi khi người dùng kéo hoặc bấm để đổi vùng nhìn.
+   *
+   * Đây là đường DUY NHẤT để một màn biết minimap vừa được điều khiển; thiếu
+   * nó thì nút bấm được nhưng không màn nào lái được khung nhìn theo.
+   */
+  onViewportChange?: (rect: ViewportRect) => void;
 }
 
 /**
@@ -14,7 +27,13 @@ interface MiniMapProps {
  * Mờ 60% khi không hover.
  * Bấm để nhảy vùng (click-to-jump).
  */
-export function MiniMap({ isVisible = true, children, className }: MiniMapProps) {
+export function MiniMap({
+  isVisible = true,
+  children,
+  className,
+  initialViewport,
+  onViewportChange,
+}: MiniMapProps) {
   const {
     viewport,
     isDragging,
@@ -26,7 +45,12 @@ export function MiniMap({ isVisible = true, children, className }: MiniMapProps)
     handleClick,
     handleMouseEnter,
     handleMouseLeave,
-  } = useMiniMap();
+  } = useMiniMap({
+    // `exactOptionalPropertyTypes` bật, nên chỉ đặt khoá khi thật sự có giá trị;
+    // truyền thẳng `undefined` là lỗi kiểu.
+    ...(initialViewport === undefined ? {} : { initialViewport }),
+    ...(onViewportChange === undefined ? {} : { onViewportChange }),
+  });
 
   if (!isVisible) return null;
 

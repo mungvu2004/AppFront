@@ -6,6 +6,18 @@ import { useZoomCluster } from '../../hooks/useZoomCluster';
 interface ZoomClusterProps {
   isVisible?: boolean;
   className?: string;
+  /**
+   * Mức thu phóng theo phần trăm, do người gọi làm chủ.
+   *
+   * Bỏ trống thì cụm tự giữ mức của nó như trước — mọi nơi gọi cũ không phải
+   * đổi gì. Truyền vào thì cụm trở thành điều khiển có chủ, và màn là nơi giữ
+   * trạng thái thật của khung nhìn.
+   */
+  zoomLevel?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetZoom?: () => void;
+  onFitToScreen?: () => void;
 }
 
 /**
@@ -14,9 +26,23 @@ interface ZoomClusterProps {
  * Mờ 60% khi không hover.
  * Phần trăm mono bấm được để về 100%.
  */
-export function ZoomCluster({ isVisible = true, className }: ZoomClusterProps) {
-  const { zoomIn, zoomOut, resetZoom, fitToScreen, zoomLabel } =
-    useZoomCluster();
+export function ZoomCluster({
+  isVisible = true,
+  className,
+  zoomLevel,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onFitToScreen,
+}: ZoomClusterProps) {
+  // Hook vẫn chạy vô điều kiện (luật hook của React); props chỉ ĐÈ LÊN nó.
+  const internal = useZoomCluster();
+
+  const zoomIn = onZoomIn ?? internal.zoomIn;
+  const zoomOut = onZoomOut ?? internal.zoomOut;
+  const resetZoom = onResetZoom ?? internal.resetZoom;
+  const fitToScreen = onFitToScreen ?? internal.fitToScreen;
+  const zoomLabel = zoomLevel === undefined ? internal.zoomLabel : `${zoomLevel}%`;
 
   if (!isVisible) return null;
 
