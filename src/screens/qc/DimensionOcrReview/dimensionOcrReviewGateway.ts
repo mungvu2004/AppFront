@@ -578,6 +578,29 @@ export const toContentBounds = (rect: DimensionPixelRect): DimensionContentBound
   maxY: rect.y + rect.height,
 });
 
+/** Khổ bản vẽ tính bằng pixel — hai số mà `flyToBounds` nhận làm khung nhìn. */
+export interface DimensionDrawingSizePx {
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Khổ ảnh bản vẽ tính bằng pixel. `null` khi chưa có bản vẽ nào. */
+export function drawingSizePxOf(
+  background: DimensionOcrBackground | null,
+  level: Level | null,
+): DimensionDrawingSizePx | null {
+  if (background === null || background.widthMm === null || background.heightMm === null) {
+    return null;
+  }
+
+  const scale = scaleOfLevel(level);
+
+  return {
+    width: scale.millimetresToPixels(millimetres(background.widthMm)),
+    height: scale.millimetresToPixels(millimetres(background.heightMm)),
+  };
+}
+
 /**
  * Ô nhãn giá trị, tính bằng pixel — cũng chính là khung ảnh cắt 1:1.
  *
