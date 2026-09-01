@@ -30,10 +30,10 @@
 | `alignmentPanel.rootFloorLabel` | tầng gốc | Nhãn cho tầng mọi tầng khác căn theo |
 | `alignmentPanel.rowAriaLabel` | {{floorName}}, lệch {{offset}} mm, {{status}} | Nhãn aria cho mỗi hàng tầng |
 | `warning.title` | cảnh báo lệch quá ngưỡng | Tiêu đề dải cảnh báo |
-| `warning.message` | Tầng {{floorName}} lệch {{offset}} mm so với tầng gốc, vượt quá 100 mm được phép. | Câu cảnh báo có chỗ chèn tên tầng và độ lệch |
+| `warning.message` | Tầng {{floorName}} lệch {{offset}} mm so với tầng gốc, vượt quá ngưỡng {{threshold}} mm cho phép. | Câu cảnh báo có chỗ chèn tên tầng và độ lệch |
 | `warning.actionLabel` | Xem trên bản vẽ | Nhãn nút dẫn đến bản vẽ |
-| `constraint.message` | không thể đặt {{axis1}} và {{axis2}} cách nhau dưới 100 mm — khoảng cách tối thiểu này giữ cho bước dò hai trục khác nhau phân biệt được. khoảng cách hiện tại: {{distance}} mm. | Câu chặn khoảng cách tối thiểu với ba chỗ chèn |
-| `constraint.ariaLive` | không thể đặt {{axis1}} và {{axis2}} cách dưới 100 mm | Phiên bản ngắn dùng cho aria-live |
+| `constraint.message` | không thể đặt {{axis1}} và {{axis2}} cách nhau dưới {{minimum}} mm — khoảng cách tối thiểu này giữ cho bước dò hai trục khác nhau phân biệt được. khoảng cách hiện tại: {{distance}} mm. | Câu chặn khoảng cách tối thiểu với ba chỗ chèn |
+| `constraint.ariaLive` | không thể đặt {{axis1}} và {{axis2}} cách dưới {{minimum}} mm | Phiên bản ngắn dùng cho aria-live |
 | `undoToast.message` | Đã căn chỉnh {{count}} tầng thành công. | Câu toast sau khi căn tự động |
 | `undoToast.actionLabel` | Hoàn tác | Nhãn nút hoàn tác |
 | `undoToast.confirmMessage` | Đã hoàn tác căn chỉnh. | Câu xác nhận sau khi đã hoàn tác |
@@ -71,3 +71,23 @@
 - Dấu thập phân là dấu phẩy (A15): "100,5 mm", không "100.5 mm"
 - Nhãn aria bắt buộc cho mọi nút không chữ (R-72, A12)
 - Bảy trạng thái (A11): empty, loading, partial (hai biến thể), error, done, forbidden, collapsed
+
+
+---
+
+## Sửa của điều phối viên (01-09-2026)
+
+Bản T4 nộp lần đầu viết thẳng số **100 mm** vào hai chỗ. Đã sửa thành chỗ chèn:
+
+1. `warning.message` — SAI SỰ THẬT. Ngưỡng cảnh báo lệch tầng là
+   `ALIGNMENT_WARNING_THRESHOLD_MM = 150 mm` (`src/domain/axes/alignFloors.ts:61`),
+   không phải 100 mm. 100 mm là luật khoảng cách tối thiểu giữa hai trục — một luật
+   hoàn toàn khác. Câu cũ sẽ nói dối người dùng về ngưỡng họ vừa vượt. Nay dùng
+   `{{threshold}}`, giá trị do hook truyền vào từ hằng của `src/domain`.
+2. `constraint.message` / `constraint.ariaLive` — dùng `{{minimum}}` thay số trần, giá
+   trị lấy từ `MIN_AXIS_SPACING_MM` khai trong cổng (xem `S15-COORD-quyetdinh.md` Q3.1).
+   Số viết trong câu chữ là một bản sao sẽ lệch khi hằng đổi.
+
+Cách viết hoa của T4 KHÔNG phải lỗi: `vi.json` hiện có 165 chuỗi của ba màn QC, 89 bắt
+đầu bằng chữ hoa (tiêu đề, nút) và 71 bằng chữ thường (nhãn trường, trạng thái). Bản
+T4 nộp theo đúng quy ước đó.

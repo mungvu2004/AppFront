@@ -43,14 +43,14 @@
     },
     "warning": {
       "title": "cảnh báo lệch quá ngưỡng",
-      "message": "Tầng {{floorName}} lệch {{offset}} mm so với tầng gốc, vượt quá 100 mm được phép."
+      "message": "Tầng {{floorName}} lệch {{offset}} mm so với tầng gốc, vượt quá ngưỡng {{threshold}} mm cho phép."
     },
     "warningAction": {
       "label": "Xem trên bản vẽ"
     },
     "constraint": {
-      "message": "không thể đặt {{axis1}} và {{axis2}} cách nhau dưới 100 mm — khoảng cách tối thiểu này giữ cho bước dò hai trục khác nhau phân biệt được. khoảng cách hiện tại: {{distance}} mm.",
-      "ariaLive": "không thể đặt {{axis1}} và {{axis2}} cách dưới 100 mm"
+      "message": "không thể đặt {{axis1}} và {{axis2}} cách nhau dưới {{minimum}} mm — khoảng cách tối thiểu này giữ cho hai trục còn phân biệt được trên bản vẽ. khoảng cách hiện tại: {{distance}} mm.",
+      "ariaLive": "không thể đặt {{axis1}} và {{axis2}} cách dưới {{minimum}} mm"
     },
     "undoToast": {
       "message": "Đã căn chỉnh {{count}} tầng thành công.",
