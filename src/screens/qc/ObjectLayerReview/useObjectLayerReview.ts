@@ -82,6 +82,7 @@ import type { ProjectRole } from '@/types/project';
 import {
   attachOrphanToNearestWall,
   buildAddOpeningCommand,
+  manualDoorProposalOf,
   buildApproveObjectCommand,
   buildChangeObjectKindCommand,
   buildChangeObjectSwingCommand,
@@ -128,6 +129,7 @@ import {
   type ObjectLayerDispatchDeps,
   type ObjectLayerGraphPort,
   type ObjectLayerReviewGateway,
+  type ObjectSeedEntry,
   type ObjectWriteVariables,
 } from './objectLayerReviewGateway';
 import {
@@ -170,6 +172,9 @@ const DELETE_NOTIFICATION_TYPE = 'objectLayerReview.deleteObject';
 
 /** Loại thông báo của một lượt gắn vào tường gần nhất — viết đúng một chỗ (R-71). */
 const ATTACH_NOTIFICATION_TYPE = 'objectLayerReview.attachToNearestWall';
+
+/** Loại thông báo của một lượt thêm tay — viết đúng một chỗ (R-71). */
+const ADD_NOTIFICATION_TYPE = 'objectLayerReview.addManually';
 
 /** Ba lớp con bật hết lúc mở màn. */
 const ALL_LAYERS_VISIBLE: ObjectLayerVisibility = { door: true, window: true, furniture: true };
@@ -334,6 +339,17 @@ export function useObjectLayerReview(
    */
   const [lowConfidenceChoice, setLowConfidenceChoice] = useState<boolean | null>(null);
 
+  /**
+   * Dòng bộ mẫu của những đối tượng người duyệt tự thêm trong phiên này.
+   *
+   * `objectsOf` đọc đồ thị QUA bộ mẫu (một dòng bộ mẫu là chỗ mã hiển thị gặp
+   * mã máy), nên một đối tượng vừa thêm mà không có dòng của nó sẽ nằm trong đồ
+   * thị mà không hiện ra ở đâu — đúng thứ một nút "thêm" im lặng trông như.
+   * Cổng không sửa được (bộ mẫu của nó là hằng), nên dòng mới sống ở đây, cạnh
+   * chính lượt ghi đã tạo ra nó.
+   */
+  const [manualEntries, setManualEntries] = useState<readonly ObjectSeedEntry[]>([]);
+
   const isCollapsed = options.forceCollapsed ?? ownCollapsed;
 
   const onToggleCollapsed = useCallback(() => {
@@ -403,9 +419,15 @@ export function useObjectLayerReview(
   const hasError = objectLayerQuery.isError;
   const isLoading = objectLayerQuery.isPending || graph === null;
 
+  /** Bộ mẫu của cổng cộng những dòng người duyệt tự thêm trong phiên này. */
+  const seed = useMemo<readonly ObjectSeedEntry[]>(
+    () => (manualEntries.length === 0 ? gateway.seed : [...gateway.seed, ...manualEntries]),
+    [gateway, manualEntries],
+  );
+
   const objects = useMemo<readonly ReviewObject[]>(
-    () => (hasError ? NO_OBJECTS : objectsOf(graph, level, gateway.seed)),
-    [gateway, graph, hasError, level],
+    () => (hasError ? NO_OBJECTS : objectsOf(graph, level, seed)),
+    [graph, hasError, level, seed],
   );
 
   const counts = useMemo(() => countsOf(objects), [objects]);
@@ -911,14 +933,14 @@ export function useObjectLayerReview(
    */
   const onAttachToNearestWall = useCallback(
     (objectId: string) => {
-      const entry = gateway.seed.find((candidate) => candidate.displayId === objectId) ?? null;
+      const entry = seed.find((candidate) => candidate.displayId === objectId) ?? null;
       const current = useStore.getState().spatial;
 
       if (entry === null || level === null || current === null || !canEdit) {
         return;
       }
 
-      const input = attachOrphanToNearestWall(entry, current, level, gateway.seed);
+      const input = attachOrphanToNearestWall(entry, current, level, seed);
 
       if (input === null) {
         notifications.publish({
@@ -944,8 +966,54 @@ export function useObjectLayerReview(
 
       void runSingle(entry.displayId, entry.layer, () => built.data);
     },
-    [canEdit, gateway, level, notifications, runSingle],
+    [canEdit, gateway, level, notifications, runSingle, seed],
   );
+
+  /*
+   * "thêm thủ công" của trạng thái rỗng — một lệnh `opening.add` thật.
+   *
+   * Màn đề nghị ĐÚNG MỘT chỗ (`manualDoorProposalOf`, giữa tim đoạn tường đầu
+   * tiên, toạ độ do `placeOnWall` của M-08 trả) rồi để `validateOpening` phán
+   * quyết. Bị từ chối thì người duyệt đọc được câu từ chối của domain; màn
+   * không đi tìm một tường thứ hai (CẤM TUYỆT ĐỐI).
+   */
+  const onAddManually = useCallback(() => {
+    const current = useStore.getState().spatial;
+
+    if (!canEdit || current === null || level === null) {
+      return;
+    }
+
+    const proposal = manualDoorProposalOf(current, level, seed);
+
+    if (proposal === null) {
+      notifications.publish({
+        type: ADD_NOTIFICATION_TYPE,
+        title: OBJECT_LAYER_TEXT.addNoWall,
+        description: '',
+      });
+
+      return;
+    }
+
+    const built = buildAddOpeningCommand(
+      proposal.input,
+      commandContextOf(current, gateway.actorId),
+    );
+
+    if (!built.ok) {
+      notifications.publish({
+        type: ADD_NOTIFICATION_TYPE,
+        title: OBJECT_LAYER_TEXT.addRefused,
+        description: built.error.reasons.join(' '),
+      });
+
+      return;
+    }
+
+    setManualEntries((entries) => [...entries, proposal.entry]);
+    void runSingle(proposal.entry.displayId, 'door', () => built.data);
+  }, [canEdit, gateway, level, notifications, runSingle, seed]);
 
   /* ---------------------------------------------------------------------- */
   /* Bấm liên kết tường chủ — chọn tường đó và bay khung nhìn tới (R-07).     */
@@ -1292,5 +1360,6 @@ export function useObjectLayerReview(
     onToggleSelect,
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,
+    onAddManually,
   };
 }

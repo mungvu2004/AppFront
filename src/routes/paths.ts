@@ -60,6 +60,7 @@ export const ROUTE_PATTERNS = {
   onboarding: '/onboarding',
   projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
   projectExport: `${PROJECTS_ROOT}/:id/export`,
+  projectObjects: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/objects`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
   projectPipelineGraph: `${PROJECTS_ROOT}/:id/pipeline/graph`,
   projectQuality: `${PROJECTS_ROOT}/:id/quality`,
@@ -99,6 +100,8 @@ export const ROUTES = {
     cadConfirm: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,
     export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
+    objects: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/objects`,
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
     pipelineGraph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline/graph`,
     quality: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/quality`,

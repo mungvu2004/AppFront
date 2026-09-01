@@ -97,7 +97,7 @@ import type {
   RelativePosition,
   TracedOpening,
 } from '@/domain/openings/types';
-import { clampRelativePosition } from '@/domain/openings/types';
+import { AT_WALL_END, AT_WALL_START, clampRelativePosition } from '@/domain/openings/types';
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import {
@@ -118,6 +118,7 @@ import {
 } from '@/lib/commands/business/openingCommands';
 import {
   accept,
+  AUTHORED_BY_HAND,
   entitiesOfKind,
   offsetOnWall,
   openingsOfWall,
@@ -1280,6 +1281,8 @@ export const OBJECT_LAYER_TEXT = {
   errorMessage: 'Không tải được lớp đối tượng của tầng.',
   attachNoWall: 'Không có tường nào đủ gần để gắn đối tượng này.',
   attachRefused: 'Không gắn được vào tường gần nhất.',
+  addNoWall: 'Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.',
+  addRefused: 'Không thêm được đối tượng vào tường.',
   shortcutLayer: 'Đặt nhóm loại cho đối tượng đang chọn',
   shortcutSubtype: 'Đổi loại trong nhóm đang chọn',
   shortcutUndo: 'Hoàn tác thay đổi gần nhất',
@@ -2099,6 +2102,105 @@ export function attachOrphanToNearestWall(
     heightMm: entry.heightMm,
     sillHeightMm: entry.sillHeightMm ?? OPENING_RULES.doorSillHeightMm,
     swing: entry.swing,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Thêm tay — hành động của nút "thêm thủ công" ở trạng thái rỗng.              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Giữa tim tường.
+ *
+ * Không gõ `0,5`: hai đầu tim tường đã có tên ở domain
+ * (`AT_WALL_START`/`AT_WALL_END`, `src/domain/openings/types.ts`), nên trung
+ * điểm suy ra từ chính hai hằng đó và đi theo domain nếu quy ước fraction đổi
+ * (R-71). `clampRelativePosition` là hàm domain giữ giá trị trong dải hợp lệ.
+ */
+const AT_WALL_MIDDLE: RelativePosition = clampRelativePosition((AT_WALL_START + AT_WALL_END) / 2);
+
+/**
+ * Khuôn kích thước của một cửa đơn thêm tay — ĐỌC RA từ bộ mẫu, không gõ tay.
+ *
+ * Bộ mẫu là nơi duy nhất viết "cửa đi 900 × 2.200 mm" (đặc tả gốc); lấy lại từ
+ * đó thay vì viết con số thứ hai giữ cho hai chỗ không bao giờ lệch (R-71).
+ * `null` khi bộ mẫu không có cửa đơn nào — lúc đó màn không đề nghị gì cả thay
+ * vì bịa một kích thước.
+ */
+const MANUAL_DOOR_TEMPLATE: ReviewObject | null =
+  OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.subtype === 'singleDoor') ?? null;
+
+/** Mã hiển thị kế tiếp của lớp cửa đi — lớn hơn mọi mã cửa đi đang có đúng một. */
+function nextDoorDisplayId(seed: readonly ObjectSeedEntry[]): string {
+  const counters = seed
+    .filter((entry) => entry.layer === 'door')
+    .map((entry) => Number.parseInt(entry.displayId.slice(2), 10))
+    .filter((counter) => Number.isFinite(counter));
+  const next = (counters.length === 0 ? 0 : Math.max(...counters)) + 1;
+
+  return `D-${String(next).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+}
+
+/** Một đối tượng thêm tay: dòng bộ mẫu của nó, và đầu vào lệnh `opening.add`. */
+export interface ManualObjectProposal {
+  readonly entry: ObjectSeedEntry;
+  readonly input: AddOpeningInput;
+}
+
+/**
+ * Đề nghị MỘT cửa đơn thêm tay, hoặc `null` khi tầng chưa có tường nào để đặt.
+ *
+ * Màn KHÔNG tự tính vị trí gắn và KHÔNG tự kiểm chồng lấn (CẤM TUYỆT ĐỐI): nó
+ * đề nghị đúng một chỗ — giữa tim đoạn tường đầu tiên của tầng, toạ độ do
+ * `placeOnWall` của M-08 trả — rồi để `createAddOpeningCommand` chạy
+ * `attachToWall` + `validateOpening` phán quyết. Lời từ chối của M-08 đi thẳng
+ * tới người duyệt; màn không đi tìm một tường thứ hai để "chữa" nó.
+ *
+ * Đối tượng thêm tay KHÔNG mang cờ duyệt: `createAddOpeningCommand` gắn
+ * `AUTHORED_BY_HAND` (`reviewed: false`), và A5 giữ nguyên — chỉ lệnh duyệt của
+ * người mới đặt `reviewed: true`.
+ */
+export function manualDoorProposalOf(
+  graph: NormalizedSpatial,
+  level: Level,
+  seed: readonly ObjectSeedEntry[] = OBJECT_LAYER_SEED,
+): ManualObjectProposal | null {
+  const wall = solidWallsOf(graph, level)[0];
+
+  if (wall === undefined || MANUAL_DOOR_TEMPLATE === null) {
+    return null;
+  }
+
+  const displayId = nextDoorDisplayId(seed);
+  const entityId = entityIdOf(displayId, 'door');
+  const template = MANUAL_DOOR_TEMPLATE;
+
+  return {
+    entry: {
+      displayId,
+      entityId,
+      layer: 'door',
+      subtype: 'singleDoor',
+      widthMm: template.widthMm,
+      heightMm: template.heightMm,
+      sillHeightMm: null,
+      swing: template.swing,
+      confidence: AUTHORED_BY_HAND.confidence,
+      reviewed: AUTHORED_BY_HAND.reviewed,
+      hostWallId: wall.id,
+      relativePosition: AT_WALL_MIDDLE,
+      tracedCentre: null,
+    },
+    input: {
+      id: entityId as OpeningId,
+      levelId: level.id,
+      kind: 'door',
+      centre: positionOnWall(wall, AT_WALL_MIDDLE),
+      widthMm: template.widthMm,
+      heightMm: template.heightMm,
+      sillHeightMm: OPENING_RULES.doorSillHeightMm,
+      swing: template.swing,
+    },
   };
 }
 

@@ -536,6 +536,15 @@ export interface ObjectLayerReviewModel {
   /** Chọn cả một lớp con (S-10). */
   readonly onSelectLayerObjects: (layer: ObjectLayerId) => void;
   readonly onToggleLowConfidenceOnly: () => void;
+  /**
+   * Thêm một đối tượng bằng tay — hành động của nút "thêm thủ công" ở trạng
+   * thái rỗng.
+   *
+   * Đi qua `opening.add` của S-07: màn đề nghị đúng một chỗ và `validateOpening`
+   * của M-08 phán quyết, nên màn không tự tính vị trí gắn (CẤM TUYỆT ĐỐI). Lệnh
+   * hoàn tác được như mọi lệnh khác, và KHÔNG đặt cờ duyệt (A5).
+   */
+  readonly onAddManually: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

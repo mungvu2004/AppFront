@@ -93,7 +93,7 @@ function ObjectLayerListRow({
       className={cn(
         'flex cursor-pointer flex-col gap-1 rounded-[8px] px-2 py-1.5 text-[13px] outline-none',
         'transition-colors duration-120 hover:bg-bg-hover',
-        'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         isSelected && 'bg-bg-selected hover:bg-bg-selected',
       )}
       onClick={() => onSelect(row.id)}

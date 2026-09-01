@@ -31,6 +31,7 @@ const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibr
 const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
 const RouteCadBranchConfirm = lazy(() => import('../screens/pipeline/CadBranchConfirm').then(m => ({ default: m.CadBranchConfirmRoute })));
 const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').then(m => ({ default: m.WallLayerReviewRoute })));
+const RouteObjectLayerReview = lazy(() => import('../screens/qc/ObjectLayerReview').then(m => ({ default: m.ObjectLayerReviewRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
   { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
   { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
+  { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
   { path: ROUTE_PATTERNS.layerObjects, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerDimensions, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerGrids, element: <RouteCanvas /> },
