@@ -179,6 +179,10 @@ const EMPTY_ORIGIN_PANEL: OriginPanelViewModel = {
   offsetYPxText: MISSING_VALUE,
   offsetXMmText: MISSING_VALUE,
   offsetYMmText: MISSING_VALUE,
+  offsetXPx: toPx(millimetres(0)),
+  offsetYPx: toPx(millimetres(0)),
+  offsetXMm: millimetres(0),
+  offsetYMm: millimetres(0),
 };
 
 function anchorValueOf(horizontalLabel: string | null, verticalLabel: string | null): string | null {
@@ -210,6 +214,10 @@ const FULL_ORIGIN_PANEL: OriginPanelViewModel = (() => {
     offsetYPxText: pixelText(toPx(AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetYMm)),
     offsetXMmText: formatLength(AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetXMm, { unit: 'mm' }),
     offsetYMmText: formatLength(AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetYMm, { unit: 'mm' }),
+    offsetXPx: toPx(AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetXMm),
+    offsetYPx: toPx(AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetYMm),
+    offsetXMm: AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetXMm,
+    offsetYMm: AXIS_GRID_FIXTURE_ORIGIN_POSITION.offsetYMm,
   };
 })();
 
@@ -384,7 +392,11 @@ export const AXIS_GRID_SCENARIO_FORBIDDEN: AxisGridViewModel = {
   floors: toFloorRows(AXIS_GRID_FIXTURE_REPORT),
   canvas: toCanvas(AXIS_GRID_FIXTURE_LABELLED_AXES, GHOST_FLOOR_BELOW),
   ghostEnabled: true,
-  warningBanner: { message: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.message, actionLabel: WARNING_ACTION_LABEL },
+  warningBanner: {
+    message: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.message,
+    actionLabel: WARNING_ACTION_LABEL,
+    levelId: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.levelId,
+  },
   isCompact: false,
   isCollapsed: false,
   isViewerRole: true,
@@ -401,7 +413,11 @@ export const AXIS_GRID_SCENARIO_COLLAPSED: AxisGridViewModel = {
   floors: toFloorRows(AXIS_GRID_FIXTURE_REPORT),
   canvas: toCanvas(AXIS_GRID_FIXTURE_LABELLED_AXES, GHOST_FLOOR_BELOW),
   ghostEnabled: true,
-  warningBanner: { message: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.message, actionLabel: WARNING_ACTION_LABEL },
+  warningBanner: {
+    message: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.message,
+    actionLabel: WARNING_ACTION_LABEL,
+    levelId: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.levelId,
+  },
   isCompact: false,
   isCollapsed: true,
   isViewerRole: false,
@@ -443,7 +459,11 @@ export const AXIS_GRID_SCENARIO_PARTIAL_BY_FLOOR: AxisGridViewModel = {
   floors: toFloorRows(AXIS_GRID_FIXTURE_PENDING_REPORT),
   canvas: toCanvas(AXIS_GRID_FIXTURE_LABELLED_AXES, GHOST_FLOOR_BELOW),
   ghostEnabled: true,
-  warningBanner: { message: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.message, actionLabel: WARNING_ACTION_LABEL },
+  warningBanner: {
+    message: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.message,
+    actionLabel: WARNING_ACTION_LABEL,
+    levelId: AXIS_GRID_FIXTURE_FLOOR2_ISSUE.levelId,
+  },
   isCompact: false,
   isCollapsed: false,
   isViewerRole: false,

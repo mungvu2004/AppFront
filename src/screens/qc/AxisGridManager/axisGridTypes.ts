@@ -149,6 +149,18 @@ export interface OriginPanelViewModel {
   readonly offsetYPxText: string;
   readonly offsetXMmText: string;
   readonly offsetYMmText: string;
+  /**
+   * Bốn giá trị thô đi kèm bốn chuỗi trên, CHỈ để `useCountUp` chạy số khi đổi
+   * giao trục neo (đặc tả mục Tương tác). View KHÔNG định dạng chúng và KHÔNG
+   * đọc ngược chuỗi `*Text` — đó mới là thứ A15 cấm. Cùng khuôn với
+   * {@link AxisRowViewModel.spacingMm} và {@link FloorAlignRowViewModel.offsetMm},
+   * vốn đã mang số thô cạnh chuỗi ngay từ bản đầu; bốn trường này là chỗ sót.
+   * Lúc nghỉ, `*Text` vẫn là nguồn sự thật hiển thị.
+   */
+  readonly offsetXPx: Pixels;
+  readonly offsetYPx: Pixels;
+  readonly offsetXMm: Millimetres;
+  readonly offsetYMm: Millimetres;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -235,10 +247,21 @@ export interface AxisCanvasViewModel {
 /* Dải cảnh báo căn tầng dính đầu màn.                                         */
 /* -------------------------------------------------------------------------- */
 
-/** Dải cảnh báo khi có tầng lệch quá ngưỡng. `actionLabel` đi cùng `onAutoAlign`. */
+/**
+ * Dải cảnh báo khi có tầng lệch quá ngưỡng.
+ *
+ * `actionLabel` là nút "Xem trên bản vẽ" và đi cùng {@link
+ * AxisGridManagerProps.onViewFloorOnDrawing} — KHÔNG phải `onAutoAlign`. Đặc tả
+ * nói rõ dải này chỉ đưa người dùng tới chỗ lệch, việc căn là nút riêng ở mục
+ * "Căn chỉnh giữa các tầng".
+ *
+ * `levelId` là tầng lệch nặng nhất — dải ở mức toàn màn nên nếu không mang sẵn
+ * tầng thì nút không có gì để trỏ tới.
+ */
 export interface AxisGridWarningBanner {
   readonly message: string;
   readonly actionLabel: string;
+  readonly levelId: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -308,9 +331,20 @@ export interface AxisGridManagerProps {
 
   /* -- Tầng ngầm (ghost) và căn tầng ------------------------------------------ */
   readonly onGhostToggle: () => void;
-  /** Căn tự động MỘT tầng — CẤM TUYỆT ĐỐI: phải hoàn tác được trong một thao tác. */
-  readonly onAutoAlign: (levelId: string) => void;
+  /**
+   * Căn tự động TOÀN BỘ các tầng, trong ĐÚNG MỘT lệnh.
+   *
+   * Bản đầu nhận `levelId` (căn từng tầng một). Điều phối viên đã sửa: đặc tả
+   * chỉ có MỘT nút "Căn chỉnh tự động" ở mục "Căn chỉnh giữa các tầng", và phần
+   * chuyển động nói "từng tầng trượt vào vị trí, so le 60ms" — tức một thao tác
+   * phủ mọi tầng. Quan trọng hơn, CẤM TUYỆT ĐỐI bắt "căn tự động phải hoàn tác
+   * được trong MỘT thao tác": căn từng tầng một sẽ đẩy N bước vào ngăn xếp lịch
+   * sử và cần N lần Ctrl+Z, hỏng đúng điều kiện nghiệm thu.
+   */
+  readonly onAutoAlign: () => void;
   readonly onFloorRowHover: (levelId: string | null) => void;
+  /** Nút "Xem trên bản vẽ" của dải cảnh báo: bay khung nhìn tới tầng lệch. */
+  readonly onViewFloorOnDrawing: (levelId: string) => void;
 
   /* -- Hoàn tác, thử lại, vỏ màn ----------------------------------------------- */
   readonly onUndo: () => void;
