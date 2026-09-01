@@ -174,7 +174,7 @@ export function FloorTableRow({
       aria-selected={row.isSelected}
       className={cn(
         'h-10 border-b border-border-default/50 outline-none transition-colors duration-120',
-        'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         row.isSelected ? 'bg-bg-selected' : row.isHovered ? 'bg-bg-hover' : undefined,
         row.isHiddenIn3d && 'opacity-50',
         showInsertionLineBefore && 'border-t-2 border-t-accent',

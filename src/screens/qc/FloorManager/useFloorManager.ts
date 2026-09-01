@@ -373,6 +373,35 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [isAutoElevation, setIsAutoElevation] = useState(false);
   const [drafts, setDrafts] = useState<Readonly<Record<string, FloorRowDraft>>>({});
+
+  /*
+   * Gương ĐỒNG BỘ của `drafts` — T7 thêm khi ráp hai nửa (xem báo cáo T7).
+   *
+   * `NumericField` không có sự kiện "đang gõ" riêng: nó chỉ bắn `onChange` MỘT
+   * lần, lúc chốt (`useNumericField.ts:14,86`). Nên `FloorTableRow.tsx` buộc
+   * phải gọi `onFloorFieldChange` rồi `onFloorFieldCommit` trong CÙNG một lượt
+   * xử lý sự kiện, và ở lượt đó `setDrafts` chưa kịp vẽ lại: bản `drafts` mà
+   * `onFloorFieldCommit` đóng gói vẫn là bản CŨ, nên `drafts[floorId]` là
+   * `undefined` và lượt chốt lặng lẽ không làm gì. Ô "Tên tầng" không dính vì
+   * `Input` bắn `onChange` mỗi phím rồi mới `onBlur`, tức hai lượt vẽ khác nhau.
+   *
+   * `useRef` sửa đúng chỗ đó và KHÔNG đổi một dòng logic lệnh nào: `updateDrafts`
+   * ghi gương trước, đặt state sau; `onFloorFieldCommit` đọc gương. Đường ghi vẫn
+   * là lệnh → `dispatch` → `commit` như cũ (A10).
+   */
+  const draftsRef = useRef<Readonly<Record<string, FloorRowDraft>>>(drafts);
+
+  const updateDrafts = useCallback(
+    (
+      next: (
+        previous: Readonly<Record<string, FloorRowDraft>>,
+      ) => Readonly<Record<string, FloorRowDraft>>,
+    ) => {
+      draftsRef.current = next(draftsRef.current);
+      setDrafts(draftsRef.current);
+    },
+    [],
+  );
   const [editing, setEditing] = useState<{
     readonly floorId: string;
     readonly field: FloorEditableField;
@@ -742,7 +771,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const onFloorFieldChange = useCallback(
     (floorId: string, field: FloorEditableField, draftValue: string) => {
       setEditing({ floorId, field });
-      setDrafts((previous) => {
+      updateDrafts((previous) => {
         const current = previous[floorId] ?? {
           name: '',
           elevation: '',
@@ -752,14 +781,17 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         return { ...previous, [floorId]: { ...current, [field]: draftValue } };
       });
     },
-    [],
+    [updateDrafts],
   );
 
-  const onFloorFieldCancel = useCallback((floorId: string) => {
-    setEditing(null);
-    setDuplicateElevation(null);
-    setDrafts((previous) => withoutDraft(previous, floorId));
-  }, []);
+  const onFloorFieldCancel = useCallback(
+    (floorId: string) => {
+      setEditing(null);
+      setDuplicateElevation(null);
+      updateDrafts((previous) => withoutDraft(previous, floorId));
+    },
+    [updateDrafts],
+  );
 
   /**
    * Rời tiêu điểm hoặc Enter — giá trị đã CHỐT.
@@ -773,7 +805,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       setEditing(null);
 
       const context = readContext();
-      const draft = drafts[floorId];
+      const draft = draftsRef.current[floorId];
 
       if (context === null || draft === undefined) {
         return;
@@ -781,7 +813,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
 
       const levelId = floorId as LevelId;
       const clearDraft = (): void => {
-        setDrafts((previous) => withoutDraft(previous, floorId));
+        updateDrafts((previous) => withoutDraft(previous, floorId));
       };
 
       if (field === 'name') {
@@ -855,7 +887,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         }
       });
     },
-    [announce, announceStackIssue, drafts, persistChangedLevels, readContext, run, runAll],
+    [announce, announceStackIssue, persistChangedLevels, readContext, run, runAll, updateDrafts],
   );
 
   /* ---------------------------------------------------------------------- */
