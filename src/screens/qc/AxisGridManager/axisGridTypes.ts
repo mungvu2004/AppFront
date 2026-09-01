@@ -232,14 +232,28 @@ export interface AxisCanvasGhostFloorViewModel {
   readonly levelId: string;
   readonly outlinePx: readonly AxisGridPixelPoint[];
   readonly isVisible: boolean;
+  /**
+   * Tầng đang được trỏ ở danh sách "Căn chỉnh giữa các tầng" — đường bao của
+   * đúng tầng đó nháy lên. Lớp gọi tính bằng `hoveredLevelId === levelId`.
+   */
+  readonly isHighlighted: boolean;
 }
 
 /** Mọi thứ view canvas nhận. */
 export interface AxisCanvasViewModel {
   readonly axes: readonly AxisCanvasAxisViewModel[];
   readonly origin: AxisCanvasOriginViewModel;
-  /** `null` khi không có tầng nào bên dưới để làm bóng mờ đối chiếu. */
-  readonly ghostFloor: AxisCanvasGhostFloorViewModel | null;
+  /**
+   * Đường bao mờ của các tầng khác, rỗng khi không có tầng nào để đối chiếu.
+   *
+   * Bản đầu của T3 là SỐ ÍT (`ghostFloor: … | null`, chỉ tầng ngay dưới). Điều
+   * phối viên đã sửa thành mảng vì kiểu số ít không diễn đạt được HAI câu của
+   * đặc tả: "trỏ vào một hàng tầng trong danh sách lệch thì đường bao bóng ma
+   * của TẦNG ĐÓ nháy lên" (trỏ tầng nào cũng được, không riêng tầng dưới), và
+   * "căn tự động: TỪNG TẦNG trượt vào vị trí, so le" (so le chỉ có nghĩa khi có
+   * nhiều đường bao cùng hiện). Một phần tử vẫn là trường hợp hợp lệ.
+   */
+  readonly ghostFloors: readonly AxisCanvasGhostFloorViewModel[];
   readonly boundsPx: AxisGridPixelRect;
 }
 

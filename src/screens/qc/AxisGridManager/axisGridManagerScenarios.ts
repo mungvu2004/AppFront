@@ -87,6 +87,7 @@ const ORIGIN_CANVAS: AxisCanvasOriginViewModel = {
 /** Đường bao tầng 1, dùng làm bóng mờ đối chiếu khi canvas đang xem tầng 2. */
 const GHOST_FLOOR_BELOW: AxisCanvasGhostFloorViewModel = {
   levelId: AXIS_GRID_FIXTURE_FLOOR1.levelId,
+  isHighlighted: false,
   outlinePx: [
     pointPx(AXIS_GRID_FIXTURE_FLOOR1_BOUNDS_MM.x, AXIS_GRID_FIXTURE_FLOOR1_BOUNDS_MM.y),
     pointPx(
@@ -246,7 +247,7 @@ function toCanvas(
   return {
     axes: labelledAxes.map((labelled) => toCanvasAxis(labelled)),
     origin: ORIGIN_CANVAS,
-    ghostFloor,
+    ghostFloors: ghostFloor === null ? [] : [ghostFloor],
     boundsPx: DRAWING_BOUNDS_PX,
   };
 }
