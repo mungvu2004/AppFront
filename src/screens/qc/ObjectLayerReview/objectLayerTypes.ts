@@ -29,6 +29,8 @@
 import type { Confidence, Point, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { Millimetres, MillimetresPerPixel } from '@/domain/units/types';
 import type { RelativePosition } from '@/domain/openings/types';
+import type { MeasurementState } from '@/hooks/useMeasurementLabel';
+import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 /* -------------------------------------------------------------------------- */
@@ -486,4 +488,133 @@ export interface ObjectLayerReviewModel {
   readonly onToggleGroupCollapsed: (layer: ObjectLayerId) => void;
   readonly onUndo: () => void;
   readonly onToggleCollapsed: () => void;
+
+  /* -- Bổ sung của lớp L2 (T5) ---------------------------------------------- */
+
+  /**
+   * Những trường dưới đây là PHẦN THÊM của `useObjectLayerReview`, không phải
+   * sửa đổi phần trên: chúng là kết quả đã tính sẵn mà `ObjectLayerListProps`,
+   * `ObjectLayerInspectorProps` và `ObjectLayerCanvasProps` đòi, và A15 đặt
+   * việc tính chúng ở viewmodel chứ không ở view. Không trường nào của hợp đồng
+   * gốc bị đổi kiểu hay bị bỏ đi.
+   */
+
+  /** Toạ độ vẽ đã tính sẵn của MỌI đối tượng — canvas không tự tính gì. */
+  readonly placements: readonly ObjectPlacementViewModel[];
+  /** Số đo hai đầu tường của đối tượng đang chọn. `null` khi chưa chọn hoặc chưa gắn tường. */
+  readonly dragMeasurement: ObjectDragMeasurement | null;
+  /** Danh sách gộp theo ba nhóm, đã lọc và đã định dạng. */
+  readonly rows: readonly ObjectListRowViewModel[];
+  /** Thanh tra đối tượng đang chọn. `null` khi chưa chọn gì. */
+  readonly inspector: ObjectInspectorViewModel | null;
+  /** Hình tường nền để canvas vẽ mờ phía sau đối tượng. */
+  readonly wallOutlines: readonly HostWallOutlineViewModel[];
+  readonly backgroundImageUrl: string | null;
+  readonly backgroundImageAlt: string;
+  readonly millimetresPerPixel: MillimetresPerPixel;
+  /** "tổng 21 đối tượng" — đã ghép sẵn (A15). */
+  readonly layerTotalLabel: string;
+  /** "5 mục dưới ngưỡng tin cậy, đã lọc sẵn". `null` khi không có mục nào. */
+  readonly partialNotice: string | null;
+  /** Màu dữ liệu ĐANG hiện — đúng ba khi bật cả ba lớp, không hơn (P-06). */
+  readonly dataLayerTokens: readonly ColorTokenName[];
+  /** Màu độ tin cậy của một đối tượng, do `src/lib/coloring` tô (P-06). */
+  readonly confidenceTokenOf: (objectId: string) => ColorTokenName;
+  /** Số bước còn hoàn tác được — D-06 gộp 20 lượt kéo thành đúng một bước. */
+  readonly undoStepCount: number;
+  /** Khung nhìn canvas; bấm liên kết tường chủ bay tới bằng R-07. */
+  readonly viewport: ObjectLayerViewport;
+  /** Nhóm loại đang chọn (`D`/`W`/`F`). */
+  readonly activeLayer: ObjectLayerId | null;
+  readonly activeSubtype: ObjectSubtype | null;
+  /** Nhánh (a) của trạng thái một phần: chỉ hiện mục dưới ngưỡng tin cậy. */
+  readonly isLowConfidenceOnly: boolean;
+  readonly onSelectLayer: (layer: ObjectLayerId) => void;
+  readonly onSelectSubtypeSlot: (slot: 1 | 2 | 3) => void;
+  /** Thêm/bớt một đối tượng khỏi vùng chọn (S-10). */
+  readonly onToggleSelect: (objectId: string) => void;
+  /** Chọn cả một lớp con (S-10). */
+  readonly onSelectLayerObjects: (layer: ObjectLayerId) => void;
+  readonly onToggleLowConfidenceOnly: () => void;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Toạ độ vẽ đã tính sẵn — phía sản xuất cho canvas (T6) và số đo (T7).        */
+/* -------------------------------------------------------------------------- */
+
+/** Một điểm trên ảnh bản vẽ, tính bằng pixel của `<svg viewBox>`. */
+export interface PixelPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Một hình chữ nhật trên ảnh bản vẽ, tính bằng pixel. */
+export interface PixelRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Toạ độ vẽ của MỘT đối tượng — mọi thứ một ký hiệu kiến trúc cần, đã tính sẵn.
+ *
+ * Canvas KHÔNG tự tính hình học (CẤM TUYỆT ĐỐI, và A15/R-60): tâm tới từ
+ * `placeOnWall` của M-08 với đối tượng đã gắn, từ `tracedCentre` với đối tượng
+ * chưa gắn; hướng tới từ `wallBearing` của tường chủ.
+ */
+export interface ObjectPlacementViewModel {
+  /** Mã hiển thị, ví dụ `"D-007"`. */
+  readonly id: string;
+  readonly layer: ObjectLayerId;
+  readonly subtype: ObjectSubtype;
+  readonly swing: SwingDirection;
+  /** Tâm ký hiệu trên ảnh bản vẽ. */
+  readonly centrePx: PixelPoint;
+  /** Hướng chạy của tường chủ, độ, trong `[0, 360)`. `0` khi chưa gắn tường nào. */
+  readonly angleDeg: number;
+  /** Bề rộng đối tượng DỌC theo tường. */
+  readonly widthPx: number;
+  /**
+   * Chiều sâu ký hiệu, tức **bề dày tường chủ** — KHÔNG phải `heightMm`.
+   *
+   * Một ký hiệu cửa trên mặt bằng cắt ngang hết bề dày tường; `heightMm` là
+   * chiều cao đứng và không xuất hiện trên mặt bằng. Đối tượng chưa gắn không
+   * có tường chủ để đọc bề dày nên rơi về chiều sâu của chính nó, và
+   * {@link ObjectPlacementViewModel.isOrphan} nói rõ đó là trường hợp nào.
+   */
+  readonly depthPx: number;
+  /** Hộp bao CHƯA XOAY quanh tâm — xoay nó bằng `angleDeg` quanh `centrePx`. */
+  readonly boundsPx: PixelRect;
+  /** Ví dụ `"#D-007"`. */
+  readonly codeLabel: string;
+  readonly isOrphan: boolean;
+}
+
+/**
+ * Số đo tới HAI ĐẦU tường trong lúc kéo Slider vị trí.
+ *
+ * `MeasurementLabel` của `src/components/canvas` nhận đúng bộ này: hai điểm
+ * đầu tường, điểm của đối tượng, hai điểm giữa để đặt nhãn, và hai chuỗi đã
+ * định dạng (A15 — view không định dạng số).
+ */
+export interface ObjectDragMeasurement {
+  readonly objectId: string;
+  readonly state: MeasurementState;
+  readonly wallStartPx: PixelPoint;
+  readonly wallEndPx: PixelPoint;
+  readonly objectPx: PixelPoint;
+  readonly midToStartPx: PixelPoint;
+  readonly midToEndPx: PixelPoint;
+  /** Ví dụ `"1.240 mm"`. */
+  readonly distanceToStartLabel: string;
+  /** Ví dụ `"860 mm"`. */
+  readonly distanceToEndLabel: string;
+}
+
+/** Khung nhìn canvas — `x`, `y` tính bằng pixel, `zoom` là hệ số. */
+export interface ObjectLayerViewport {
+  readonly x: number;
+  readonly y: number;
+  readonly zoom: number;
 }
