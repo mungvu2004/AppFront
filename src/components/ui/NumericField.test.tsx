@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { NumericField } from './NumericField';
+import { expectAccessible } from '../../lib/testing/expectAccessible';
+import { renderWithProviders } from '../../lib/testing/render';
 
 describe('NumericField', () => {
   it('renders input with value', () => {
@@ -31,5 +33,11 @@ describe('NumericField', () => {
   it('shows error', () => {
     render(<NumericField value={-1} unit="mm" error="Giá trị âm không hợp lệ" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị âm không hợp lệ');
+  });
+
+  it('passes expectAccessible on a bare field', () => {
+    expectAccessible(
+      renderWithProviders(<NumericField value={220} unit="mm" aria-label="chiều dài" />),
+    );
   });
 });

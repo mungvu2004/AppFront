@@ -30,6 +30,8 @@ export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
         <button
           type="button"
           tabIndex={-1}
+          data-roving-focus
+          aria-label="tăng giá trị"
           className="flex-1 px-1.5 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover rounded-t transition-colors"
           onMouseDown={(e) => handleStepper(1, e)}
         >
@@ -38,6 +40,8 @@ export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
         <button
           type="button"
           tabIndex={-1}
+          data-roving-focus
+          aria-label="giảm giá trị"
           className="flex-1 px-1.5 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover rounded-b transition-colors"
           onMouseDown={(e) => handleStepper(-1, e)}
         >
