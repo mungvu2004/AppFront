@@ -1,9 +1,12 @@
 /**
- * Bảy story của màn S-16 "Quản lý tầng" — đúng bảy trạng thái của A11.
+ * Story của màn S-16 "Quản lý tầng" — bảy trạng thái của A11, cộng một story
+ * thứ tám cho hai khoản nợ của cổng.
  *
- * Dựng VIEW THUẦN từ `floorManagerScenarioFor(state)` — cùng bộ dữ liệu mà
- * `FloorManager.test.tsx` (T7) sẽ dùng (R-70, đúng khuôn
- * `AxisGridManager.stories.tsx`).
+ * Cả tám dựng VIEW THUẦN từ `floorManagerScenarioFor(state)` — cùng bộ dữ liệu
+ * mà `FloorManager.test.tsx` dùng (R-70, đúng khuôn
+ * `AxisGridManager.stories.tsx`). Story thứ tám ({@link GioiHanCuaPhien}) vẫn
+ * là trạng thái "một phần", chỉ ghi đè `unsupportedNotices` để hai câu nợ có
+ * chỗ nhìn thấy được.
  *
  * ## BẪY ĐÃ BIẾT — `meta.excludeStories`
  *
@@ -17,7 +20,10 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import { FloorManager } from './FloorManager';
-import { floorManagerScenarioFor } from './floorManagerFixture';
+import {
+  FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES,
+  floorManagerScenarioFor,
+} from './floorManagerFixture';
 import type { FloorManagerViewProps } from './floorManagerTypes';
 
 /** Bảy trạng thái, đúng thứ tự `SEVEN_STATES` — cho story và cho bài kiểm. */
@@ -96,3 +102,18 @@ export const KhongCoQuyen: Story = { args: scenarioArgsFor('forbidden') };
 
 /** 7. Thu gọn — cột lát cắt ẩn hẳn, còn nút bung lại. */
 export const ThuGon: Story = { args: scenarioArgsFor('collapsed') };
+
+/**
+ * 8. Khoản nợ của cổng — hai khả năng chưa có chỗ lưu, và màn NÓI RA cả hai.
+ *
+ * Không phải trạng thái thứ tám của A11: đây vẫn là "một phần", chỉ khác ở chỗ
+ * cổng khai `persistFloorContents` và `hideFloorFrom3d` là chưa làm được. Câu
+ * chữ lấy nguyên từ bảng của `floorManagerGateway.ts`, đúng bộ mà
+ * `useFloorManager` đọc lên khi chạy thật.
+ */
+export const GioiHanCuaPhien: Story = {
+  args: {
+    ...scenarioArgsFor('partial'),
+    unsupportedNotices: FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES,
+  },
+};

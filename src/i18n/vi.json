@@ -1863,6 +1863,7 @@
       "reorderToast": "Đã đổi thứ tự tầng."
     },
     "capability": {
+      "sessionOnlyHeading": "những thay đổi chỉ sống trong phiên làm việc này",
       "persistFloorContents": "nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
       "hideFloorFrom3d": "ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
     },

@@ -299,6 +299,19 @@ export interface FloorManagerViewProps {
   /** Câu của vai Người xem. `null` ở mọi trạng thái khác. */
   readonly forbiddenNotice: string | null;
   /**
+   * Khả năng cổng KHÔNG làm được, ở dạng câu đã sẵn sàng đọc cho người dùng.
+   *
+   * Rỗng khi cổng làm được hết. KHÔNG bịa endpoint để lấp: xem bản kê nợ ở
+   * `floorManagerGateway.ts` (`FLOOR_MANAGER_MISSING_CAPABILITIES`) và mục H
+   * của bản thiết kế.
+   *
+   * Ở TRONG props của view chứ không chỉ ở kết quả hook: một khoản nợ mà màn
+   * không nói ra thì người dùng tưởng đã lưu xong. View vẽ từng câu thành
+   * `InlineAlert level="attention"` có `role="status"` ngay dưới đầu màn, tức
+   * TRƯỚC lúc người dùng bấm, không giấu dưới đáy trang.
+   */
+  readonly unsupportedNotices: readonly string[];
+  /**
    * Câu chặn trùng cao độ của lượt sửa gần nhất, `null` khi lượt vừa rồi hợp lệ.
    *
    * Đi ra bằng trường RIÊNG, không nhét vào `errorMessage`: nhét vào đó sẽ lật
@@ -393,13 +406,12 @@ export interface UseFloorManagerResult extends FloorManagerViewProps {
   /** Ngăn xếp hoàn tác của chính màn — bài nghiệm thu đếm bước trên nó. */
   readonly historyStepCount: () => number;
   readonly canUndo: boolean;
-  /**
-   * Khả năng cổng không làm được, ở dạng câu đã sẵn sàng đọc cho người dùng.
-   *
-   * Rỗng khi cổng làm được hết. KHÔNG bịa endpoint để lấp: xem bản kê nợ ở
-   * `floorManagerGateway.ts` và mục H của bản thiết kế.
+  /*
+   * `unsupportedNotices` KHÔNG khai lại ở đây: nó đã là một prop của view
+   * ({@link FloorManagerViewProps.unsupportedNotices}) nên interface này thừa
+   * kế thẳng. Trước T8 nó chỉ sống ở đây, tức hook trả về một câu mà không
+   * đường nào đưa được tới màn.
    */
-  readonly unsupportedNotices: readonly string[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -410,4 +422,8 @@ export interface UseFloorManagerResult extends FloorManagerViewProps {
  * File này ĐÓNG BĂNG. T5/T6/T7 thấy thiếu một trường, sai một kiểu, hay cần
  * thêm một prop thì `orca orchestration ask` hỏi điều phối viên trước — không
  * tự thêm, không tự sửa, kể cả người đã viết file này.
+ *
+ * T8 là lần MỞ ĐÓNG BĂNG duy nhất cho tới nay, và điều phối viên mở đúng một
+ * trường: `unsupportedNotices` chuyển từ `UseFloorManagerResult` xuống
+ * `FloorManagerViewProps`. Không trường nào khác đổi trong lượt đó.
  */

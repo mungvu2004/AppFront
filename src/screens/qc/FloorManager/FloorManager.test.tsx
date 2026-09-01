@@ -3,7 +3,8 @@
  *
  * Bốn bộ khẳng định dùng chung (`expectSevenStates`, `expectAccessible`,
  * `expectVietnamese`, `expectNoRawColor`) cộng năm phép đo của bản nghiệm thu mà
- * chỉ màn đã ráp mới trả lời được:
+ * chỉ màn đã ráp mới trả lời được, cộng `[NGHIEM-6]` của T8 — hai thông báo mà
+ * hook đã trả về nhưng trước đó không view nào vẽ ra:
  *
  * | mã | đo cái gì | ngưỡng |
  * |---|---|---|
@@ -12,6 +13,7 @@
  * | `[NGHIEM-3]` | bảng cao độ CẢ BỐN TẦNG trước và sau khi Tầng trệt cao 3,9 → 4,2 m | Tầng 2 tự dịch |
  * | `[NGHIEM-4]` | bốn cặp (chiều cao thật, chiều cao dải) của lát cắt | tổng tỷ lệ = 1 |
  * | `[NGHIEM-5]` | xoá một tầng rồi hoàn tác: thứ tự VÀ cao độ về nguyên trạng | 4 → 3 → 4 dòng |
+ * | `[NGHIEM-6]` | hai câu màn phải nói ra: vai Người xem, và nợ của cổng | cả hai hiện trên màn |
  *
  * ## Vì sao `[NGHIEM-3]` đi qua ô nhập thật chứ không gọi thẳng hook
  *
@@ -64,7 +66,10 @@ import { useStore } from '@/store';
 import { FloorManager } from './FloorManager';
 import { FloorManagerContainer } from './FloorManager.container';
 import { scenarioArgsFor } from './FloorManager.stories';
-import { floorManagerScenarioFor } from './floorManagerFixture';
+import {
+  FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES,
+  floorManagerScenarioFor,
+} from './floorManagerFixture';
 import {
   createMockFloorManagerGateway,
   FLOOR_MANAGER_SAMPLE_LEVELS,
@@ -434,6 +439,57 @@ describe('[NGHIEM-5] xoá tầng và hoàn tác', () => {
 
     /* Thứ tự VÀ cao độ về nguyên trạng — so cả mảng, không so từng dòng rời. */
     expect(afterUndo).toEqual(before);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [NGHIEM-6] Hai câu màn PHẢI nói ra.                                         */
+/* -------------------------------------------------------------------------- */
+
+describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
+  it('vai Người xem: câu giải thích vì sao mọi nút sửa biến mất có mặt trên màn', () => {
+    const notice = floorManagerScenarioFor('forbidden').forbiddenNotice ?? '';
+
+    renderState('forbidden');
+
+    console.log(`[NGHIEM-6] câu của vai Người xem: ${notice}`);
+
+    /* Ẩn nút là đúng; ẩn mà không nói vì sao mới là lỗi A11 mà bài này chặn. */
+    expect(notice).not.toBe('');
+    expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
+    expect(screen.getByText(notice)).toBeInTheDocument();
+  });
+
+  it('cổng khai khả năng chưa có: TỪNG câu nợ hiện ra, và câu chữ vẫn đi qua hai bộ soát', () => {
+    const { container } = renderWithProviders(
+      <FloorManager
+        {...scenarioArgsFor('partial')}
+        unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES}
+      />,
+    );
+
+    console.log('[NGHIEM-6] CÁC CÂU NỢ CỦA CỔNG:');
+    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
+      console.log(`  ${notice}`);
+      expect(screen.getByText(notice)).toBeInTheDocument();
+    }
+
+    expect(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length).toBeGreaterThan(0);
+
+    expectAccessible(container);
+    expectVietnamese(container);
+  });
+
+  it('màn ĐÃ NỐI DÂY đọc hai câu đó thẳng từ cổng thật, không ai gõ lại chuỗi nào', async () => {
+    await mountScreen();
+
+    console.log(
+      `[NGHIEM-6] màn đã nối dây nói ra ${String(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length)} khoản nợ của cổng`,
+    );
+
+    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
+      expect(screen.getByText(notice)).toBeInTheDocument();
+    }
   });
 });
 

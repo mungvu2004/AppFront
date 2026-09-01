@@ -37,6 +37,19 @@
  * `state` sang `error` (bất biến 4 của `floorManagerTypes.ts`), tức nói dối.
  * Nó vẽ thành `InlineAlert level="violation"` có `role="status"` ngay trên
  * bảng, cùng khuôn `AxisGridManager.tsx` xử lý `spacingMessage`.
+ *
+ * ## Hai câu màn PHẢI nói ra, ngay dưới đầu màn
+ *
+ * - `forbiddenNotice` — vai Người xem thấy một màn KHÔNG còn nút sửa nào. Ẩn
+ *   nút mà không nói vì sao là để người dùng đoán; A11 tồn tại đúng để chặn
+ *   chuyện đó, nên câu này đi kèm ngay trên bảng.
+ * - `unsupportedNotices` — hai khoản cổng khai là chưa làm được
+ *   (`persistFloorContents`, `hideFloorFrom3d`). Màn CẤM im lặng và CẤM bịa một
+ *   lượt lưu đã xong: nó nói thẳng rằng thay đổi chỉ sống trong phiên này.
+ *
+ * Cả hai nằm TRƯỚC bảng và trước mọi nút, không giấu dưới đáy trang, và dùng
+ * `role="status"` chứ không `role="alert"`: đây là bối cảnh thường trực của
+ * màn, không phải tin khẩn cấp cắt ngang người đang gõ.
  */
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -51,6 +64,8 @@ const SCREEN_TITLE = 'quản lý tầng';
 const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'hiện lát cắt';
+const FORBIDDEN_NOTICE_TITLE = 'không có quyền sửa tầng';
+const UNSUPPORTED_NOTICES_HEADING = 'những thay đổi chỉ sống trong phiên làm việc này';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
   'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
@@ -59,7 +74,15 @@ const EXPAND_BUTTON_CLASS_NAME = cn(
 );
 
 export function FloorManager(props: FloorManagerViewProps) {
-  const { state, isCollapsed, isCompact, duplicateElevationMessage, onToggleCollapsed } = props;
+  const {
+    state,
+    isCollapsed,
+    isCompact,
+    duplicateElevationMessage,
+    forbiddenNotice,
+    unsupportedNotices,
+    onToggleCollapsed,
+  } = props;
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
@@ -68,6 +91,28 @@ export function FloorManager(props: FloorManagerViewProps) {
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
+
+      {forbiddenNotice === null ? null : (
+        <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
+          <InlineAlert
+            level="attention"
+            message={forbiddenNotice}
+            role="status"
+            title={FORBIDDEN_NOTICE_TITLE}
+          />
+        </div>
+      )}
+
+      {unsupportedNotices.length === 0 ? null : (
+        <div className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-2 px-8 pb-2">
+          <h3 className="text-[13px] font-semibold text-text-secondary">
+            {UNSUPPORTED_NOTICES_HEADING}
+          </h3>
+          {unsupportedNotices.map((notice) => (
+            <InlineAlert key={notice} level="attention" message={notice} role="status" />
+          ))}
+        </div>
+      )}
 
       {duplicateElevationMessage === null ? null : (
         <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">

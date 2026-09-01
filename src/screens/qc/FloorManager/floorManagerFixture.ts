@@ -18,6 +18,10 @@ import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import {
+  FLOOR_MANAGER_MISSING_CAPABILITIES,
+  FLOOR_MANAGER_UNSUPPORTED_NOTICES,
+} from './floorManagerGateway';
 import type {
   ElevationTickVm,
   FloorManagerScreenState,
@@ -257,10 +261,29 @@ const EMPTY_FOOTER: FloorTableFooterVm = {
 /* Bảy kịch bản — cùng một bộ cho story và bài kiểm (R-70).                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Hai câu cổng nói ra cho hai khoản nợ đang khai
+ * (`persistFloorContents`, `hideFloorFrom3d`).
+ *
+ * Đọc THẲNG từ bảng của `floorManagerGateway.ts` — cùng nguồn mà
+ * `useFloorManager` đọc, nên story và bài kiểm không gõ lại một câu nào (R-70,
+ * R-71). Danh sách này chỉ ngắn đi khi cổng làm được thêm một khoản.
+ */
+export const FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES: readonly string[] =
+  FLOOR_MANAGER_MISSING_CAPABILITIES.map(
+    (capability) => FLOOR_MANAGER_UNSUPPORTED_NOTICES[capability],
+  );
+
 const BASE_SCENARIO_FIELDS = {
   isCompact: false,
   duplicateElevationMessage: null,
   duplicateElevationViolation: null,
+  /*
+   * Bảy kịch bản mặc định KHÔNG mang khoản nợ nào: chúng đo bảy trạng thái của
+   * A11, và hai chuyện đó độc lập nhau. Story và bài kiểm nào cần thấy câu nợ
+   * thì ghi đè bằng {@link FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES}.
+   */
+  unsupportedNotices: [],
 } as const;
 
 function scenarioFromRows(
