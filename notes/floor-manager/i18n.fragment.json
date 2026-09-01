@@ -1,0 +1,80 @@
+{
+  "floorManager": {
+    "screen": {
+      "breadcrumb": "Dự án > Quản lý tầng",
+      "title": "quản lý tầng",
+      "description": "Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần."
+    },
+    "table": {
+      "caption": "Danh sách tầng của dự án",
+      "columnDragHandle": "Đổi thứ tự",
+      "columnName": "Tên tầng",
+      "columnElevation": "Cao độ (m)",
+      "columnHeight": "Chiều cao (m)",
+      "columnDrawings": "Bản vẽ",
+      "columnWalls": "Tường",
+      "columnRooms": "Phòng",
+      "columnArea": "Diện tích",
+      "columnQcProgress": "Tiến độ QC",
+      "columnActions": "Hành động",
+      "rowAriaLabel": "{{floorName}}, cao độ {{elevation}}, cao {{height}}, {{qcProgress}} đã kiểm",
+      "dragHandleAriaLabel": "Đổi thứ tự tầng {{floorName}}",
+      "moveUp": "Đưa tầng {{floorName}} lên trên",
+      "moveDown": "Đưa tầng {{floorName}} xuống dưới"
+    },
+    "drawings": {
+      "count": "{{count}} bản vẽ",
+      "missing": "chưa có bản vẽ",
+      "uploadLink": "tải lên"
+    },
+    "footer": {
+      "floorCount": "{{count}} tầng",
+      "totalHeightLabel": "tổng chiều cao",
+      "totalAreaLabel": "tổng diện tích",
+      "totalWallsLabel": "tổng số tường",
+      "totalRoomsLabel": "tổng số phòng"
+    },
+    "sectionCut": {
+      "title": "Lát cắt",
+      "ariaLabel": "Lát cắt các tầng theo đúng tỷ lệ chiều cao",
+      "elevationScaleLabel": "Thang cao độ",
+      "totalHeightLabel": "tổng chiều cao công trình",
+      "bandAriaLabel": "{{floorName}}, cao {{height}}",
+      "collapse": "thu gọn lát cắt",
+      "expand": "hiện lát cắt"
+    },
+    "actions": {
+      "addFloor": "Thêm tầng",
+      "duplicateFloor": "Nhân bản tầng {{floorName}}",
+      "duplicateFloorToolbar": "Nhân bản tầng",
+      "duplicateCopyFurniture": "sao chép nội thất sang tầng mới",
+      "duplicateConfirm": "nhân bản",
+      "rename": "đổi tên",
+      "hideIn3d": "ẩn khỏi mô hình 3D",
+      "showIn3d": "hiện trong mô hình 3D",
+      "removeFloor": "xoá tầng",
+      "moreActions": "Thao tác khác cho tầng {{floorName}}",
+      "autoElevation": "tự động tính cao độ",
+      "autoElevationDescription": "Cao độ từng tầng được dồn lại từ mốc chuẩn mỗi khi ngăn xếp đổi thứ tự."
+    },
+    "constraint": {
+      "duplicateElevation": "không đặt được: tầng {{firstFloor}} và tầng {{secondFloor}} sẽ cùng ở cao độ {{elevation}}."
+    },
+    "states": {
+      "emptyTitle": "chưa có tầng nào",
+      "emptyDescription": "thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.",
+      "errorTitle": "không đọc được danh sách tầng",
+      "forbiddenTitle": "không có quyền sửa tầng",
+      "forbiddenDescription": "vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.",
+      "needsDrawing": "chưa có bản vẽ"
+    },
+    "caption": {
+      "elevationRule": "cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
+    },
+    "undo": {
+      "floorRemoved": "Đã xoá tầng {{floorName}}",
+      "floorDuplicated": "Đã nhân bản tầng {{floorName}}",
+      "floorsReordered": "Đã đổi thứ tự tầng"
+    }
+  }
+}
