@@ -17,6 +17,7 @@
  */
 
 import { degrees, DEGREES_PER_TURN, millimetres, type Degrees, type Millimetres } from './types';
+import { SCALE_THRESHOLDS } from './scale';
 
 /** Default tolerance for measured values: one micrometre, in millimetres. */
 export const DEFAULT_EPSILON = 0.001;
@@ -109,4 +110,54 @@ export function nearlyEqualAngle(
   const raw = (first - second) % DEGREES_PER_TURN;
   const gap = ((raw + DEGREES_PER_TURN + HALF_TURN) % DEGREES_PER_TURN) - HALF_TURN;
   return Math.abs(gap) <= Math.abs(epsilon);
+}
+
+/**
+ * Decimals kept on a deviation, matching `scale.ts`'s own `RESULT_PRECISION`
+ * (not exported, so restated here) so a length deviation and a scale
+ * deviation round the same way and stay comparable side by side.
+ */
+const RESULT_PRECISION = 1e6;
+
+function roundResult(value: number): number {
+  return Math.round(value * RESULT_PRECISION) / RESULT_PRECISION;
+}
+
+/** Deviation between a length read off a dimension string and the same length re-measured from geometry. */
+export interface LengthDeviation {
+  /** Signed relative deviation: positive when the read value is bigger than the measured one. */
+  readonly relativeDeviation: number;
+  /** Whether the deviation passed the notice threshold, compared by magnitude. */
+  readonly exceedsLimit: boolean;
+}
+
+/**
+ * Compare a length OCR read off a dimension string against the same length
+ * re-measured from the drawing's geometry.
+ *
+ * `measuredValue` is the denominator: the geometry re-measured from the plan
+ * is the reference a reading is checked against. That is different from
+ * `compareLevelScales`, whose two sides are peers and so divides by their
+ * average — worth spelling out here because it is the one choice a later
+ * reader is likely to question. The deviation keeps its sign, for the same
+ * reason as `compareScaleToAiEstimate`: which side drifted is what the
+ * person reading it needs to know, so `exceedsLimit` alone would throw that
+ * away. The threshold is `SCALE_THRESHOLDS.levelAgreementLimit`, reused
+ * rather than restated, since a reading-vs-geometry gap and a level-vs-level
+ * gap are judged against the same 2% bar. Like `compareScaleToAiEstimate`,
+ * this never sets a "verified" flag (A5): it is one automatic comparison,
+ * not a reviewer's decision.
+ */
+export function compareLengthToMeasured(
+  readValue: Millimetres,
+  measuredValue: Millimetres,
+): LengthDeviation {
+  if (measuredValue <= 0) {
+    return { relativeDeviation: 0, exceedsLimit: false };
+  }
+  const relativeDeviation = roundResult((readValue - measuredValue) / measuredValue);
+  return {
+    relativeDeviation,
+    exceedsLimit: Math.abs(relativeDeviation) > SCALE_THRESHOLDS.levelAgreementLimit,
+  };
 }
