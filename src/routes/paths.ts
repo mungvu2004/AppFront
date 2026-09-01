@@ -61,6 +61,7 @@ export const ROUTE_PATTERNS = {
   projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
   projectDimensions: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/dimensions`,
   projectExport: `${PROJECTS_ROOT}/:id/export`,
+  projectGrids: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/grids`,
   projectObjects: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/objects`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
   projectPipelineGraph: `${PROJECTS_ROOT}/:id/pipeline/graph`,
@@ -103,6 +104,8 @@ export const ROUTES = {
     dimensions: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/dimensions`,
     export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
+    grids: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/grids`,
     objects: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/objects`,
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,

@@ -1661,5 +1661,106 @@
         "description": "Bung bảng để xem danh sách kích thước và chỉnh sửa giá trị."
       }
     }
+  },
+  "axisGridManager": {
+    "screen": {
+      "breadcrumb": "Dự án > Trục và gốc toạ độ",
+      "title": "quản lý trục và gốc toạ độ",
+      "description": "Kiểm tra các trục nằm trùng khớp giữa các tầng và điều chỉnh khoảng cách nếu cần."
+    },
+    "axisPanel": {
+      "title": "Trục",
+      "groupHorizontal": "Trục ngang",
+      "groupVertical": "Trục dọc",
+      "addAxisButton": "Thêm trục",
+      "toggleVisibility": {
+        "on": "Hiện trục {{code}}",
+        "off": "Ẩn trục {{code}}"
+      },
+      "removeAxis": "Xoá trục {{code}}",
+      "toggleShadow": {
+        "on": "Hiện bóng ma tầng dưới",
+        "off": "Ẩn bóng ma tầng dưới"
+      },
+      "rowAriaLabel": "Trục {{code}}, cách trục kế là {{distance}} mm"
+    },
+    "originPanel": {
+      "title": "Gốc toạ độ",
+      "selectLabel": "Chọn giao trục neo",
+      "selectDescription": "Gốc toạ độ sẽ tính từ giao điểm trục này, khi di chuyển tầng để căn lên tầng gốc.",
+      "selectPlaceholder": "A-1",
+      "offsetXPixels": "lệch X (pixel)",
+      "offsetYPixels": "lệch Y (pixel)",
+      "offsetXMm": "lệch X (mm)",
+      "offsetYMm": "lệch Y (mm)"
+    },
+    "alignmentPanel": {
+      "title": "Căn chỉnh giữa các tầng",
+      "autoAlignButton": "Căn chỉnh tự động",
+      "status": {
+        "withinTolerance": "trong dung sai",
+        "needsAttention": "cần chú ý",
+        "cannotAlign": "không căn được"
+      },
+      "rootFloorLabel": "tầng gốc",
+      "rowAriaLabel": "{{floorName}}, lệch {{offset}} mm, {{status}}"
+    },
+    "warning": {
+      "title": "cảnh báo lệch quá ngưỡng",
+      "message": "Tầng {{floorName}} lệch {{offset}} mm so với tầng gốc, vượt quá ngưỡng {{threshold}} mm cho phép."
+    },
+    "warningAction": {
+      "label": "Xem trên bản vẽ"
+    },
+    "constraint": {
+      "message": "không thể đặt {{axis1}} và {{axis2}} cách nhau dưới {{minimum}} mm — khoảng cách tối thiểu này giữ cho hai trục còn phân biệt được trên bản vẽ. khoảng cách hiện tại: {{distance}} mm.",
+      "ariaLive": "không thể đặt {{axis1}} và {{axis2}} cách dưới {{minimum}} mm"
+    },
+    "undoToast": {
+      "message": "Đã căn chỉnh {{count}} tầng thành công.",
+      "actionLabel": "Hoàn tác",
+      "confirmMessage": "Đã hoàn tác căn chỉnh."
+    },
+    "states": {
+      "empty": {
+        "title": "chưa có trục nào",
+        "description": "Bạn có thể vẽ trục thủ công từ bản vẽ, hoặc cho hệ thống suy ra trục từ hình học tường bao.",
+        "actionDrawManual": "Vẽ trục thủ công",
+        "actionInfer": "Suy ra từ tường bao"
+      },
+      "loading": {
+        "title": "đang tính trục",
+        "description": "Hệ thống đang suy ra trục từ hình học tường bao. Đợi một lát…"
+      },
+      "partial": {
+        "titleVerticalOnly": "chỉ có trục dọc",
+        "titleMissingFloors": "một số tầng chưa có trục",
+        "descriptionMissingFloors": "{{floors}} chưa có trục. Bạn có thể vẽ thủ công hoặc suy ra từ tường bao."
+      },
+      "error": {
+        "title": "không tính được trục",
+        "description": "Hệ thống gặp lỗi khi xử lý hình học tường. Thử lại để chạy lại bước này.",
+        "actionLabel": "Thử lại"
+      },
+      "done": {
+        "title": "mọi tầng trong dung sai",
+        "description": "Mọi trục của các tầng đã được căn chỉnh và nằm trong dung sai cho phép.",
+        "badgeLabel": "đã duyệt"
+      },
+      "forbidden": {
+        "title": "không có quyền sửa trục",
+        "description": "Vai trò hiện tại chỉ được xem, không được chỉnh sửa các trục. Liên hệ quản trị dự án nếu cần."
+      },
+      "collapsed": {
+        "title": "bảng trục đang thu gọn",
+        "description": "Bung bảng để xem danh sách trục và căn chỉnh các tầng."
+      }
+    },
+    "canvas": {
+      "ariaLabel": "Khung xem bản vẽ quản lý trục và gốc toạ độ",
+      "originLabel": "gốc toạ độ 0,0",
+      "axisAriaLabel": "trục {{code}}, {{description}}",
+      "shadowFloorAriaLabel": "bóng ma tầng {{floorName}}"
+    }
   }
 }

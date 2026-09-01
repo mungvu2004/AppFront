@@ -290,7 +290,7 @@ const WARNING_ACTION_LABEL = 'Tự động căn chỉnh';
 /* -------------------------------------------------------------------------- */
 
 const EMPTY_NOTICE = 'AI chưa dò ra trục nào trên bản vẽ này. Kiểm tra lại lớp tường hoặc thêm trục thủ công.';
-const ERROR_MESSAGE = 'axis-grid: không tải được lưới trục ở công trình này.';
+const ERROR_MESSAGE = 'Không tải được lưới trục của công trình này. Thử lại để chạy lại bước dò trục.';
 const VIEWER_ROLE_NOTICE = 'Bạn đang ở vai người xem: chỉ xem lưới trục, không thêm, sửa hay xoá được.';
 
 /* -------------------------------------------------------------------------- */
