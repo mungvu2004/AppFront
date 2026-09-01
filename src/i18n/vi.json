@@ -1429,5 +1429,151 @@
       "tool": "Chuyển công cụ.",
       "fit": "Phủ khắp đoạn tường đang chọn."
     }
+  },
+  "objectLayerReview": {
+    "screen": {
+      "title": "lớp đối tượng"
+    },
+    "aria": {
+      "screen": "lớp đối tượng",
+      "canvas": "mặt bằng lớp đối tượng",
+      "legend": "chú giải màu lớp",
+      "layerTree": "cây lớp",
+      "subtypeFilters": "lọc theo loại",
+      "objectList": "danh sách đối tượng",
+      "toolRail": "Công cụ lớp đối tượng",
+      "statusBar": "Thanh trạng thái"
+    },
+    "counter": {
+      "reviewProgress": "{{reviewed}}/{{total}} đối tượng đã duyệt",
+      "reviewedSuffix": " đối tượng đã duyệt",
+      "totalPrefix": "tổng ",
+      "totalSuffix": " đối tượng",
+      "objectCountSuffix": " đối tượng",
+      "layerTreeTotal": "tổng {{total}} đối tượng"
+    },
+    "layer": {
+      "door": "cửa đi",
+      "window": "cửa sổ",
+      "furniture": "nội thất"
+    },
+    "layerTree": {
+      "showPrefix": "Hiện lớp ",
+      "hidePrefix": "Ẩn lớp "
+    },
+    "subtype": {
+      "singleDoor": "cửa đơn",
+      "doubleDoor": "cửa đôi",
+      "window": "cửa sổ",
+      "bed": "giường",
+      "sofa": "sofa",
+      "diningTable": "bàn ăn",
+      "toilet": "bồn cầu",
+      "basin": "chậu rửa"
+    },
+    "group": {
+      "expandPrefix": "Mở nhóm ",
+      "collapsePrefix": "Gấp nhóm ",
+      "empty": "chưa có đối tượng nào trong nhóm này"
+    },
+    "list": {
+      "sizeExample": "900 × 2.200 mm"
+    },
+    "status": {
+      "verified": "đã duyệt",
+      "attention": "cần chú ý",
+      "violation": "vi phạm",
+      "neutral": "bình thường"
+    },
+    "inspector": {
+      "title": "Đối tượng",
+      "empty": "Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.",
+      "approve": "Duyệt đối tượng này"
+    },
+    "field": {
+      "width": "chiều rộng",
+      "height": "chiều cao",
+      "hostWall": "tường chứa nó",
+      "position": "vị trí trên tường",
+      "swing": "hướng mở",
+      "confidence": "độ tin cậy",
+      "sillHeight": "cao độ bệ cửa"
+    },
+    "swing": {
+      "left": "mở trái",
+      "right": "mở phải",
+      "double": "hai cánh",
+      "sliding": "cửa lùa",
+      "fixed": "cố định"
+    },
+    "orphan": {
+      "badge": "Chưa gắn vào tường nào",
+      "action": "Gắn vào tường gần nhất"
+    },
+    "menu": {
+      "approve": "Duyệt",
+      "toWindow": "Đổi thành cửa sổ",
+      "toDoor": "Đổi thành cửa đi",
+      "attach": "Gắn vào tường gần nhất",
+      "remove": "Xoá"
+    },
+    "filter": {
+      "lowConfidenceOnly": "chỉ hiện mục dưới ngưỡng"
+    },
+    "state": {
+      "emptyTitle": "chưa nhận ra đối tượng nào",
+      "emptyExplanation": "nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.",
+      "emptyAction": "thêm thủ công",
+      "partialNotice": "{{count}} mục dưới ngưỡng tin cậy, đã lọc sẵn",
+      "furnitureAttention": "nhận diện nội thất lỗi, cửa vẫn xong",
+      "success": "{{total}}/{{total}} đối tượng đã duyệt",
+      "forbidden": "bạn không có quyền xem lớp đối tượng của dự án này",
+      "error": "Không tải được lớp đối tượng của tầng."
+    },
+    "canvas": {
+      "nothingToDraw": "chưa có đối tượng nào để vẽ trên mặt bằng.",
+      "readOnlyNotice": "Mặt bằng vẫn xem và phóng to được, nhưng không chọn hay sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.",
+      "backgroundAlt": "Bản vẽ gốc của {{floorName}}, dùng làm nền để đối chiếu lớp đối tượng."
+    },
+    "attach": {
+      "noWall": "Không có tường nào đủ gần để gắn đối tượng này.",
+      "refused": "Không gắn được vào tường gần nhất."
+    },
+    "add": {
+      "noWall": "Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.",
+      "refused": "Không thêm được đối tượng vào tường."
+    },
+    "toolRail": {
+      "ariaLabel": "Công cụ lớp đối tượng",
+      "selectLayer": "chọn nhóm {{layer}} (phím {{key}})",
+      "selectSubtype": "đổi thành {{subtype}} (phím {{key}})"
+    },
+    "statusBar": {
+      "ariaLabel": "Thanh trạng thái",
+      "undo": "Hoàn tác",
+      "collapse": "Thu gọn hai panel",
+      "expand": "Mở lại hai panel"
+    },
+    "shortcut": {
+      "layer": "Đặt nhóm loại cho đối tượng đang chọn",
+      "subtype": "Đổi loại trong nhóm đang chọn",
+      "undo": "Hoàn tác thay đổi gần nhất",
+      "closeTopLayer": "Đóng thanh tra đối tượng"
+    },
+    "command": {
+      "changeKind": "Đổi loại {{id}} thành {{subtype}}.",
+      "changeSwing": "Đổi chiều mở {{id}} thành {{swing}}.",
+      "approve": "Duyệt đối tượng {{id}}.",
+      "delete": "Đã xoá đối tượng {{id}}."
+    },
+    "refuse": {
+      "notAnOpening": "Chỉ lỗ mở mới đổi được loại: đồ đạc và lỗ mở là hai loại thực thể khác nhau của bản vẽ, và không lệnh nào của S-07 chuyển đổi giữa chúng.",
+      "sameSubtype": "Đối tượng đã ở đúng loại đó nên không có gì thay đổi.",
+      "sameSwing": "Đối tượng đã mở đúng chiều đó nên không có gì thay đổi."
+    },
+    "route": {
+      "missingParamsTitle": "Thiếu mã dự án hoặc mã tầng",
+      "missingParamsMessage": "Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp đối tượng. Quay lại danh sách tầng rồi chọn lại tầng cần duyệt."
+    }
   }
 }
