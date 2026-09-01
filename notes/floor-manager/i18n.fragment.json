@@ -1,5 +1,5 @@
 {
-  "_note": "Mảnh khoá i18n của màn S-16 FloorManager. T5 ghi ra đây; T7 trộn vào khối \"floorManager\" của src/i18n/vi.json (src/i18n/vi.json là CỦA T7). Khối \"screen\"/\"table\"/\"drawings\"/\"footer\"/\"sectionCut\"/\"actions\"/\"states\"/\"undo\" lấy nguyên từ mục G của notes/floor-manager/blueprint.md; khối \"hook\" và \"capability\" là chuỗi T5 thật sự viết trong mã (FLOOR_MANAGER_TEXT của useFloorManager.ts và FLOOR_MANAGER_UNSUPPORTED_NOTICES của floorManagerGateway.ts). vi.json không phải bảng dịch lúc chạy — nó là từ điển để lib/testing/expectVietnamese.ts soát chữ, nên mọi chuỗi người dùng đọc của màn phải có mặt ở đây.",
+  "_note": "Manh khoa i18n cua man S-16 FloorManager — BAN HOP NHAT cua T7. Hai nhanh T5 va T6 deu ghi file nay; T7 hop nhat CA HAI tap khoa (khong chon mot bo mot) roi tron vao khoi \"floorManager\" cua src/i18n/vi.json. Bon khoa trung ten ma khac gia tri (actions.autoElevation / hideIn3d / showIn3d / removeFloor) lay ban T6, vi do la chuoi view THAT SU ve ra (FloorTable.tsx openRowMenu + Toggle); ban T5 la de nghi cua blueprint, khong noi nao render. vi.json khong phai bang dich luc chay — no la tu dien de lib/testing/expectVietnamese.ts soat chu.",
   "floorManager": {
     "screen": {
       "breadcrumb": "Dự án > Quản lý tầng",
@@ -41,17 +41,22 @@
       "elevationScaleLabel": "Thang cao độ",
       "bandAriaLabel": "{{floorName}}, cao {{height}}",
       "collapse": "thu gọn lát cắt",
-      "expand": "hiện lát cắt"
+      "expand": "hiện lát cắt",
+      "totalHeightLabel": "tổng chiều cao công trình"
     },
     "actions": {
       "addFloor": "Thêm tầng",
       "duplicateFloor": "Nhân bản tầng {{floorName}}",
       "duplicateCopyFurniture": "sao chép nội thất sang tầng mới",
-      "hideIn3d": "Ẩn tầng {{floorName}} khỏi mô hình 3D",
-      "showIn3d": "Hiện tầng {{floorName}} trong mô hình 3D",
-      "removeFloor": "Xoá tầng {{floorName}}",
-      "autoElevation": "Tự động tính cao độ",
-      "autoElevationDescription": "Cao độ từng tầng được dồn lại từ mốc chuẩn mỗi khi ngăn xếp đổi thứ tự."
+      "hideIn3d": "ẩn khỏi mô hình 3D",
+      "showIn3d": "hiện trong mô hình 3D",
+      "removeFloor": "xoá tầng",
+      "autoElevation": "tự động tính cao độ",
+      "autoElevationDescription": "Cao độ từng tầng được dồn lại từ mốc chuẩn mỗi khi ngăn xếp đổi thứ tự.",
+      "duplicateFloorToolbar": "Nhân bản tầng",
+      "duplicateConfirm": "nhân bản",
+      "rename": "đổi tên",
+      "moreActions": "Thao tác khác cho tầng {{floorName}}"
     },
     "constraint": {
       "duplicateElevation": "không đặt được: tầng {{firstFloor}} và tầng {{secondFloor}} sẽ cùng ở cao độ {{elevation}}."
@@ -61,7 +66,8 @@
       "emptyDescription": "thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.",
       "errorTitle": "không đọc được danh sách tầng",
       "forbiddenTitle": "không có quyền sửa tầng",
-      "forbiddenDescription": "vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn."
+      "forbiddenDescription": "vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.",
+      "needsDrawing": "chưa có bản vẽ"
     },
     "undo": {
       "floorRemoved": "Đã xoá tầng {{floorName}}",
@@ -90,6 +96,9 @@
     "capability": {
       "persistFloorContents": "nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
       "hideFloorFrom3d": "ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+    },
+    "caption": {
+      "elevationRule": "cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
     }
   }
 }
