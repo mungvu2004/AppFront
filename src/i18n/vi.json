@@ -1874,5 +1874,122 @@
       "missingProjectTitle": "Thiếu mã dự án",
       "missingProjectMessage": "Đường dẫn không mang mã dự án, nên chưa mở được danh sách tầng. Quay lại bảng dự án rồi chọn lại dự án cần xem."
     }
+  },
+  "roomLabelReview": {
+    "screen": {
+      "breadcrumb": "Dự án > Tầng 01 > Nhãn phòng",
+      "title": "duyệt tên phòng",
+      "description": "Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.",
+      "canvasSectionLabel": "Khung xem bản vẽ duyệt tên phòng",
+      "expandPanel": "bảng phòng đang thu gọn"
+    },
+    "states": {
+      "empty": {
+        "title": "chưa dò ra phòng nào",
+        "action": "Kiểm tra lại vòng hở",
+        "notice": "Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm \"Kiểm tra vòng hở\" để dò lại.",
+        "filteredNotice": "Không còn phòng nào chưa đặt tên. Tắt bộ lọc \"Chưa đặt tên\" để xem lại toàn bộ phòng của tầng."
+      },
+      "error": {
+        "title": "không đọc được lớp phòng",
+        "action": "Thử lại"
+      },
+      "forbidden": {
+        "title": "không có quyền sửa lớp phòng",
+        "notice": "Bạn đang xem với vai Người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng."
+      }
+    },
+    "missingParams": {
+      "title": "Thiếu mã dự án hoặc mã tầng",
+      "message": "Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp phòng. Quay lại danh sách tầng rồi chọn lại tầng cần duyệt."
+    },
+    "canvas": {
+      "canvasLabel": "Mặt bằng duyệt tên phòng",
+      "emptyCanvas": "Chưa dò được phòng nào trên bản vẽ này.",
+      "forbiddenNotice": "Bản vẽ vẫn xem được, nhưng không chọn được phòng nào ở đây. Nhờ người có quyền sửa dự án duyệt giúp.",
+      "unnamedPlaceholder": "(chưa đặt tên)",
+      "waitingFrameLabel": "Chưa có ảnh bản vẽ của tầng này"
+    },
+    "leftPanel": {
+      "summaryPrefix": "Tổng diện tích sàn",
+      "summaryRoomSuffix": "phòng",
+      "unnamedFilter": "Chưa đặt tên",
+      "gapsTitle": "Vòng tường hở",
+      "gapsEmpty": "Chưa thấy vòng tường hở nào ở tầng này.",
+      "gapWalls": "tường liên quan",
+      "checkGaps": "Kiểm tra lại vòng hở",
+      "navigateWalls": "Xem tại lớp tường",
+      "normalize": "Chuẩn hoá tên"
+    },
+    "list": {
+      "aria": "Danh sách phòng",
+      "unnamedPlaceholder": "chưa đặt tên",
+      "emptyTitle": "Chưa có phòng nào",
+      "emptyDescription": "Không có phòng nào khớp bộ lọc đang bật. Tắt bộ lọc \"Chưa đặt tên\" để thấy lại cả danh sách.",
+      "statusUnnamed": "cần chú ý",
+      "statusSuggested": "AI đề xuất, chưa duyệt",
+      "statusConfirmed": "đã duyệt"
+    },
+    "nameField": {
+      "label": "Tên phòng",
+      "placeholder": "Gõ tên phòng",
+      "hint": "Gợi ý bên dưới chỉ để chọn nhanh — tên tự gõ luôn được giữ nguyên.",
+      "suggestionsAria": "Gợi ý tên phòng"
+    },
+    "inspector": {
+      "title": "Phòng",
+      "usageLabel": "Công năng",
+      "empty": "Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.",
+      "approve": "Duyệt phòng này",
+      "approvedBadge": "đã duyệt",
+      "merge": "Gộp phòng",
+      "split": "Tách phòng",
+      "splitMissingPoint": "Bấm lên ranh phòng trên bản vẽ để chọn điểm cắt, rồi quay lại đây để tách phòng."
+    },
+    "fields": {
+      "area": "diện tích",
+      "perimeter": "chu vi phòng",
+      "clearHeight": "chiều cao thông thuỷ",
+      "clearHeightMissing": "Chưa có số đo chiều cao thông thuỷ cho phòng này.",
+      "confidence": "độ tin cậy",
+      "cropTitle": "Ảnh cắt gốc",
+      "cropMissingOcr": "Tên do máy đọc nhưng chưa có ảnh bản vẽ để cắt vùng ghi tên.",
+      "cropMissingHuman": "Tên do người duyệt đặt nên không có ảnh cắt gốc để đối chiếu.",
+      "noticesTitle": "Nhắc công năng",
+      "noticeLink": "Xem luật không gian"
+    },
+    "dialogs": {
+      "mergeTitle": "Gộp hai phòng",
+      "mergeSelectLabel": "Phòng sẽ gộp vào",
+      "mergePlaceholder": "Chọn phòng",
+      "mergeEmpty": "Không còn phòng nào khác ở tầng này để gộp.",
+      "mergeConfirm": "Gộp hai phòng",
+      "cancel": "Huỷ",
+      "splitTitle": "Tách phòng",
+      "splitConfirm": "Tách phòng"
+    },
+    "normalize": {
+      "title": "Xem trước chuẩn hoá tên",
+      "tableCaption": "Những tên sẽ đổi khi áp",
+      "columnCode": "Mã phòng",
+      "columnFrom": "Tên hiện tại",
+      "columnTo": "Tên sẽ thành",
+      "noChange": "Không có tên nào cần chuẩn hoá — mọi tên phòng đã đúng kiểu câu.",
+      "close": "Đóng",
+      "apply": "Áp dụng",
+      "emptyNamePlaceholder": "chưa đặt tên"
+    },
+    "gateway": {
+      "mergeNeedsWallRemoved": "Chưa gộp được: giữa hai phòng vẫn còn một đoạn tường ngăn. Sang lớp tường xoá đoạn tường đó rồi quay lại đây gộp.",
+      "mergeAreaMismatch": "Chưa gộp được: vùng dò lại được không nuốt trọn hai phòng đang chọn. Kiểm tra lại ranh tường quanh hai phòng ở lớp tường rồi quay lại.",
+      "splitNeedsDividingWall": "Chưa tách được: chưa có tường ngăn nào chia đôi phòng này. Sang lớp tường vẽ đoạn tường ngăn rồi quay lại đây tách.",
+      "splitAreaMismatch": "Chưa tách được: hai phần dò lại được không khớp với ranh phòng hiện tại. Kiểm tra lại đoạn tường ngăn vừa vẽ ở lớp tường rồi quay lại.",
+      "roomNotFound": "Không tìm thấy phòng trong bản vẽ đang mở.",
+      "wallsNotReadable": "Chưa đọc được đồ thị tường của tầng này. Sang lớp tường kiểm tra các đoạn tường lỗi rồi quay lại.",
+      "backgroundImageAlt": "Bản vẽ gốc của {{floorName}}, dùng làm nền để đối chiếu lớp phòng.",
+      "roomImageAlt": "Ảnh cắt tên phòng {{codeLabel}} trên bản vẽ gốc.",
+      "approveDescription": "Duyệt tên phòng {{codeLabel}}.",
+      "normalizeDescription": "Chuẩn hoá tên {{count}} phòng."
+    }
   }
 }
