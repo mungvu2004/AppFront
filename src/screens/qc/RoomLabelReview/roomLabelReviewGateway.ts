@@ -1084,12 +1084,29 @@ export function buildNormalizePreview(rooms: readonly Room[]): RoomLabelNormaliz
   for (const room of rooms) {
     const next = canonicalRoomName(room.name);
 
-    if (next === null || taken.has(next.toLowerCase())) {
+    if (next === null) {
       continue;
     }
 
-    taken.delete(room.name.trim().toLowerCase());
-    taken.add(next.toLowerCase());
+    /*
+     * Tên ĐANG DÙNG của chính phòng này không phải một lượt đụng tên.
+     *
+     * Bản trước hỏi `taken.has(...)` trước khi bỏ tên cũ ra khỏi tập, nên
+     * `"PHÒNG NGỦ 1"` → `"phòng ngủ 1"` — lượt quy chiếu CHÍNH mà chức năng này
+     * tồn tại để làm — luôn tự đụng chính nó và không bao giờ vào được bảng.
+     * `validateRenameRoom` (`roomFloorCommands.ts:194-198`) bỏ qua chính phòng
+     * đang đổi (`candidate.id !== room.id`), nên phép lọc ở đây phải bỏ qua
+     * đúng như vậy: chỉ tên của phòng KHÁC mới chặn được một dòng.
+     */
+    const ownKey = room.name.trim().toLowerCase();
+    const nextKey = next.toLowerCase();
+
+    if (nextKey !== ownKey && taken.has(nextKey)) {
+      continue;
+    }
+
+    taken.delete(ownKey);
+    taken.add(nextKey);
     rows.push({
       roomId: room.id,
       codeLabel: roomCodeLabel(room.id),

@@ -398,7 +398,20 @@ export interface RoomLabelListProps {
   readonly selectedRoomId: RoomId | null;
   readonly onSelect: (roomId: RoomId | null) => void;
   readonly onHover: (roomId: RoomId | null) => void;
-  /** `true` ở vai Người xem — ẩn nút duyệt nhanh trên từng dòng. */
+  /**
+   * `true` ở vai Người xem — dòng danh sách chỉ còn chọn và rê chuột.
+   *
+   * Chú thích cũ ở đây nói cờ này "ẩn nút duyệt nhanh trên từng dòng", nhưng
+   * lát props KHÔNG mang `onApprove` nên chưa từng có nút duyệt nhanh nào để
+   * ẩn — đúng thứ worker panel (T7) đã tự bắt và ghi lại trong
+   * `t7.types.fragment.md` mục 2. Hai đường sửa được: thêm
+   * `onApprove: (roomId: RoomId) => void` vào lát này, hoặc nói đúng sự thật.
+   * Chọn cách thứ hai (E.10 — không mô tả một hành vi chưa có): duyệt một
+   * phòng đi qua {@link RoomLabelInspectorProps.onApprove} của thanh tra, là
+   * chỗ DUY NHẤT có nút duyệt, và danh sách không hứa gì nó không làm. Thêm
+   * một callback bắt buộc mà không view nào vẽ chỉ đổi lời hứa sai này lấy
+   * một prop chết.
+   */
   readonly isViewerRole: boolean;
 }
 
@@ -440,6 +453,41 @@ export interface RoomLabelNormalizePreviewProps {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Sáu trường thanh tra — MỞ RỘNG của lớp L2, xem ghi chú.                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Sáu trường dưới đây (năm kiểu mới ở đây, cộng `viewerRoleNotice` vốn đã có)
+ * được THÊM vào `RoomLabelReviewProps` sau khi worker panel (T7) dựng xong
+ * thanh tra và phát hiện năm chỗ nó cần mà hợp đồng chưa mang — nguyên văn ở
+ * `t7.types.fragment.md` mục 1. Điều phối viên đã duyệt lượt mở rộng này và
+ * giao nó cho T5, nên nó KHÔNG phải một lượt tự sửa file đã đóng băng.
+ *
+ * Cả năm đều là DỮ LIỆU đã tính xong: view không lọc `rooms`, không tính điểm
+ * cắt, không gõ một nhãn công năng nào (R-60/R-61).
+ */
+
+/** Một lựa chọn của ô chọn công năng — nhãn tới từ `ROOM_USAGE_LABELS`, view không tự gõ. */
+export interface RoomLabelUsageOption {
+  readonly value: RoomUsage;
+  readonly label: string;
+}
+
+/**
+ * Một phòng khác của cùng tầng, đủ để thanh tra dựng danh sách "gộp với…".
+ *
+ * `onMerge(roomId, otherRoomId)` cần một `otherRoomId` mà thanh tra không có
+ * đường nào tự tìm: lát {@link RoomLabelInspectorProps} không nhận `rooms`, và
+ * lọc danh sách phòng trong view là việc của hook (R-60).
+ */
+export interface RoomLabelMergeCandidate {
+  readonly id: RoomId;
+  /** Ví dụ `"#R-006"`. */
+  readonly codeLabel: string;
+  readonly name: string;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Toàn màn — kiểu hook trả về, `RoomLabelReview.tsx` nhận đúng kiểu này.      */
 /* -------------------------------------------------------------------------- */
 
@@ -471,6 +519,26 @@ export interface RoomLabelReviewProps {
   readonly emptyNotice: string | null;
   /** Lỗi của trạng thái `error`. `null` ở trạng thái khác. */
   readonly errorMessage: string | null;
+
+  /* -- Sáu trường thanh tra cần (xem khối ghi chú ngay trên) ---------------- */
+  /** Tám nhãn của `ROOM_USAGE_LABELS`, gợi ý cho ô nhập tên — GỢI Ý, không bao giờ ép. */
+  readonly nameSuggestions: readonly string[];
+  /** Danh mục công năng, đọc thẳng từ tầng luật — màn không định nghĩa lại. */
+  readonly usageOptions: readonly RoomLabelUsageOption[];
+  /**
+   * Câu giải thích cách M-07 ra con số diện tích, lấy NGUYÊN từ `explainRoom`
+   * (`src/domain/rooms/area.ts`) — hook không tự viết một câu thứ hai. `''`
+   * khi tầng chưa có phòng nào để giải thích.
+   */
+  readonly areaCaption: string;
+  /** Phòng khác của cùng tầng, cho danh sách "gộp với…" của thanh tra. */
+  readonly mergeCandidates: readonly RoomLabelMergeCandidate[];
+  /**
+   * Điểm cắt của lượt tách phòng đang chọn, do HOOK chọn (R-60: view không
+   * tính hình học). `null` khi chưa có tường ngăn nào chia đôi phòng — thanh
+   * tra nói ra cách vẽ đoạn tường đó thay vì hiện một nút tách chết.
+   */
+  readonly splitPointMm: Point | null;
 
   /* -- Hành động trên một phòng ------------------------------------------- */
   readonly onRename: (roomId: RoomId, name: string) => void;
