@@ -20,14 +20,7 @@ import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 
-import type { RoomLabelViewModel } from './roomLabelTypes';
-
-/** Một phòng có thể gộp vào phòng đang chọn. Nhãn đã ghép sẵn ở hook. */
-export interface RoomLabelMergeCandidate {
-  readonly id: RoomLabelViewModel['id'];
-  readonly codeLabel: string;
-  readonly name: string;
-}
+import type { RoomLabelMergeCandidate, RoomLabelViewModel } from './roomLabelTypes';
 
 const MERGE_TITLE = 'Gộp hai phòng';
 const MERGE_SELECT_LABEL = 'Phòng sẽ gộp vào';

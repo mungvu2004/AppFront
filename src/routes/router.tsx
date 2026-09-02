@@ -34,6 +34,7 @@ const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').
 const RouteObjectLayerReview = lazy(() => import('../screens/qc/ObjectLayerReview').then(m => ({ default: m.ObjectLayerReviewRoute })));
 const RouteDimensionOcrReview = lazy(() => import('../screens/qc/DimensionOcrReview').then(m => ({ default: m.DimensionOcrReviewRoute })));
 const RouteAxisGridManager = lazy(() => import('../screens/qc/AxisGridManager').then(m => ({ default: m.AxisGridManagerRoute })));
+const RouteRoomLabelReview = lazy(() => import('../screens/qc/RoomLabelReview').then(m => ({ default: m.RoomLabelReviewRoute })));
 const RouteFloorManager = lazy(() => import('../screens/qc/FloorManager').then(m => ({ default: m.FloorManagerRoute })));
 
 /**
@@ -89,12 +90,13 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
   { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<RouteDimensionOcrReview />) },
   { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
+  { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
   { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
   { path: ROUTE_PATTERNS.layerObjects, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerDimensions, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerGrids, element: suspended(<RouteAxisGridManager />) },
   { path: ROUTE_PATTERNS.floors, element: <RouteCanvas /> },
-  { path: ROUTE_PATTERNS.layerRooms, element: <RouteCanvas /> },
+  { path: ROUTE_PATTERNS.layerRooms, element: suspended(<RouteRoomLabelReview />) },
   { path: ROUTE_PATTERNS.projectViewer, element: <Route3D /> },
   { path: ROUTE_PATTERNS.projectRules, element: <Placeholder name="/projects/:id/rules" /> },
   { path: ROUTE_PATTERNS.projectExport, element: <Placeholder name="/projects/:id/export" /> },

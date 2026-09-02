@@ -41,40 +41,38 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 
-import { RoomLabelMergeDialog, RoomLabelSplitDialog, type RoomLabelMergeCandidate } from './RoomLabelActionDialogs';
+import { RoomLabelMergeDialog, RoomLabelSplitDialog } from './RoomLabelActionDialogs';
 import {
   RoomLabelConfidenceBlock,
   RoomLabelMeasureRows,
   RoomLabelNoticeList,
 } from './RoomLabelInspectorFields';
 import { RoomLabelNameField } from './RoomLabelNameField';
-import type { RoomLabelInspectorProps, RoomLabelViewModel } from './roomLabelTypes';
+import type {
+  RoomLabelInspectorProps,
+  RoomLabelReviewProps,
+  RoomLabelViewModel,
+} from './roomLabelTypes';
 
-/** Một mục của `Select` công năng. Nhãn lấy từ `ROOM_USAGE_LABELS`, không gõ lại trong màn. */
-export interface RoomLabelUsageOption {
-  readonly value: RoomLabelViewModel['usage'];
-  readonly label: string;
-}
-
-/** Những gì thanh tra cần mà lát props L1 (đã đóng băng) không mang. */
-export interface RoomLabelInspectorExtras {
-  /** Vựng chuẩn gợi ý tên phòng — tám nhãn của `ROOM_USAGE_LABELS`. */
-  readonly nameSuggestions: readonly string[];
-  /** Tám giá trị `RoomUsage` kèm nhãn tiếng Việt. */
-  readonly usageOptions: readonly RoomLabelUsageOption[];
-  /** Chú giải cách tính diện tích (M-07), ví dụ "tính theo mép trong tường". */
-  readonly areaCaption: string;
-  /** Các phòng khác có thể gộp vào phòng đang chọn. */
-  readonly mergeCandidates: readonly RoomLabelMergeCandidate[];
-  /**
-   * Điểm cắt trên ranh phòng, do hook chọn — view KHÔNG tính hình học (R-60).
-   * `null` khi chưa có điểm nào: thanh tra nói ra điều đó thay vì hiện một nút
-   * tách bấm được nhưng không làm gì.
-   */
-  readonly splitPointMm: RoomLabelViewModel['outlineMm'][number] | null;
-  /** Câu giải thích thay các nút sửa ở vai Người xem. `null` ngoài vai đó. */
-  readonly viewerRoleNotice: string | null;
-}
+/**
+ * Sáu thứ thanh tra cần mà lát {@link RoomLabelInspectorProps} không mang.
+ *
+ * KHÔNG còn là một khai báo độc lập. Lúc T7 viết file này,
+ * `roomLabelTypes.ts` chưa mang sáu trường ấy, nên chúng được khai tại chỗ và
+ * lý do ghi ở `t7.types.fragment.md`. Điều phối viên đã duyệt lượt mở rộng và
+ * giao nó cho T5: sáu trường giờ nằm trong {@link RoomLabelReviewProps} của
+ * chính hợp đồng L1. Nên đây chỉ còn là một lát CẮT TỪ hợp đồng đó — một bản
+ * sao thứ hai sẽ là đúng thứ trôi khỏi bản gốc ở lượt sửa sau.
+ */
+export type RoomLabelInspectorExtras = Pick<
+  RoomLabelReviewProps,
+  | 'areaCaption'
+  | 'mergeCandidates'
+  | 'nameSuggestions'
+  | 'splitPointMm'
+  | 'usageOptions'
+  | 'viewerRoleNotice'
+>;
 
 export interface RoomLabelInspectorViewProps {
   readonly inspector: RoomLabelInspectorProps;
