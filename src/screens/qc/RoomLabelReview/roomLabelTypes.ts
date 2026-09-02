@@ -151,6 +151,45 @@ export interface RoomLabelPixelRect {
 export const ROOM_LABEL_CROP_DISPLAY_WIDTH_PX = 160;
 export const ROOM_LABEL_CROP_DISPLAY_HEIGHT_PX = 96;
 
+/* -------------------------------------------------------------------------- */
+/* Cỡ chữ của nhãn trên canvas — mở rộng của lớp L2, xem ghi chú.              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Ba hằng dưới đây được lớp L2 (hook/cổng) THÊM vào file này, theo đúng đường
+ * mở rộng mà khối "KHOÁ SAU KHI XONG" ở cuối file cho phép: chúng không đổi
+ * hình dạng một kiểu nào đã khai, chỉ đặt tên cho hai con số mà
+ * {@link RoomLabelViewModel.labelFits} phải so.
+ *
+ * Vì sao chúng ở ĐÂY chứ không trong hook: `labelFits` là một cờ của viewmodel,
+ * và cỡ chữ nó so là cỡ chữ lớp giao diện vẽ nhãn — hai dòng, tên phòng ở
+ * `text-[15px]` và mã phòng ở `text-[13px]` theo đặc tả. Viết thẳng 15 và 13
+ * trong thân hàm của hook là đúng thứ R-71 cấm; đặt tên cho chúng cạnh hai hằng
+ * kích thước ảnh cắt là chỗ duy nhất còn lại mà cả hook lẫn view đọc chung.
+ *
+ * Không có hằng "diện tích tối thiểu để hiện nhãn" nào trong `src/domain` (đã
+ * tìm: `MIN_LABEL`/`LABEL_AREA` ra rỗng) và bịa một ngưỡng mét vuông là phạm
+ * R-71, nên phép quyết định ẩn/hiện nhãn là SO HAI KÍCH THƯỚC: hộp chữ nhật
+ * trong lớn nhất mà M-07 tính, với hộp chữ hai dòng cần — xem `labelFitsIn`
+ * trong `roomLabelReviewGateway.ts`.
+ */
+
+/** Cỡ chữ dòng tên phòng trên canvas. */
+export const ROOM_LABEL_NAME_FONT_SIZE_PX = 15;
+
+/** Cỡ chữ dòng mã phòng trên canvas. */
+export const ROOM_LABEL_CODE_FONT_SIZE_PX = 13;
+
+/**
+ * Chiều cao tối thiểu của hộp nhãn: hai dòng chữ chồng nhau.
+ *
+ * Cận DƯỚI, không phải chiều cao thật của hai dòng (chiều cao dòng luôn lớn hơn
+ * cỡ chữ) — một hộp thấp hơn tổng hai cỡ chữ thì chắc chắn không chứa nổi hai
+ * dòng, nên đây là phép loại trừ an toàn chứ không phải một ước lượng.
+ */
+export const ROOM_LABEL_MIN_LABEL_BOX_HEIGHT_PX =
+  ROOM_LABEL_NAME_FONT_SIZE_PX + ROOM_LABEL_CODE_FONT_SIZE_PX;
+
 /**
  * Mọi thứ view cần để vẽ ảnh cắt 1:1 của vùng ghi tên phòng, đặt cạnh
  * `ConfidenceMeter`. `sourcePx` là khung cắt TRÊN ẢNH GỐC; `displayWidthPx`/
