@@ -72,6 +72,7 @@ export const ROUTE_PATTERNS = {
   projectScale: `${PROJECTS_ROOT}/:id/floors/:floorId/scale`,
   projectSettings: `${PROJECTS_ROOT}/:id/settings`,
   projectShare: `${PROJECTS_ROOT}/:id/share`,
+  projectThickness: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/thickness`,
   projectUpload: `${PROJECTS_ROOT}/:id/upload`,
   projectViewer: `${PROJECTS_ROOT}/:id/3d`,
   projectWalls: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/walls`,
@@ -121,6 +122,8 @@ export const ROUTES = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/scale`,
     settings: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
     share: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/share`,
+    thickness: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/thickness`,
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,
     viewer: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d`,
     walls: (projectId: string, floorId: string): string =>
