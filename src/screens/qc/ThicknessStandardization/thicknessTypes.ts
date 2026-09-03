@@ -393,13 +393,41 @@ export interface ThicknessGroupTableProps {
 /* Bảng chi tiết — 48 đoạn.                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Mọi thứ bảng chi tiết nhận. */
+/**
+ * Mọi thứ bảng chi tiết nhận.
+ *
+ * Bảy trường CUỐI (chọn hàng theo lô, đổi nhóm tại ô, dải nháy) do điều phối
+ * viên bổ sung sau khi T7 phát hiện hợp đồng ban đầu thiếu chỗ cho "chọn hàng
+ * thì hiện dải hành động (`TableActionBar`)" của đặc tả S-18 — xem
+ * `orca orchestration ask` của T7. Tên trường khớp đúng thứ T5 (hook) cấp,
+ * không tự đặt tên khác. View vẫn chỉ BÁO sự kiện ra ngoài (A10) — không tự
+ * áp thay đổi nào, không tự đặt hẹn giờ tắt nháy.
+ */
 export interface ThicknessSegmentTableProps {
   readonly rows: readonly ThicknessSegmentRow[];
   readonly sortKey: ThicknessSortKey;
   readonly onChangeSortKey: (key: ThicknessSortKey) => void;
   readonly hoveredWallId: WallId | null;
   readonly onHoverRow: (wallId: WallId | null) => void;
+
+  /** Các hàng đang được chọn để thao tác theo lô — nguồn cho `TableActionBar.selectedCount`. */
+  readonly selectedWallIds: readonly WallId[];
+  /** Tích/bỏ tích một hàng (ô đồng ý ở đầu hàng). */
+  readonly onToggleRowSelected: (wallId: WallId, selected: boolean) => void;
+  /** Tích/bỏ tích toàn bộ hàng đang hiển thị (ô đồng ý ở tiêu đề). */
+  readonly onToggleAllSelected: (selected: boolean) => void;
+  /** Bỏ chọn tất cả — nút "Bỏ chọn" của `TableActionBar`. */
+  readonly onClearSelection: () => void;
+  /** Đổi nhóm chuẩn hoá của MỘT hàng qua `SegmentedControl` ngay trong ô "độ dày chuẩn hoá". */
+  readonly onChangeNormalizedGroup: (wallId: WallId, group: ThicknessGroup) => void;
+  /** Gán một nhóm chuẩn cho TẤT CẢ hàng đang chọn — hành động chính phát từ `TableActionBar`. */
+  readonly onApplySelectedGroup: (group: ThicknessGroup) => void;
+  /**
+   * Các hàng vừa được gán theo lô — nháy `--bg-flash` trong `slow` (340 ms).
+   * Danh sách và hẹn giờ tắt nháy do hook giữ; view chỉ đọc, không tự đặt
+   * `setTimeout`.
+   */
+  readonly flashingWallIds: readonly WallId[];
 }
 
 /* -------------------------------------------------------------------------- */
