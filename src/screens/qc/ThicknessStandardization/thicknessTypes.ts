@@ -463,6 +463,18 @@ export interface ThicknessApplyBarProps {
   readonly reapplyWarning: ReapplyFilterWarning | null;
   /** Xác nhận áp dụng lại — CẤM TUYỆT ĐỐI: không bao giờ ghi đè im lặng tường đã duyệt. */
   readonly onReapplyFilter: (excludeReviewed: boolean) => void;
+  /**
+   * Bỏ qua lớp cảnh báo mà không áp gì — nút "Huỷ" của lớp đó.
+   *
+   * Trường DUY NHẤT được thêm sau khi file này đóng băng ở lượt T8, và điều
+   * phối viên duyệt riêng (xem `orca orchestration ask` của T8). Vì sao bắt
+   * buộc: {@link onReapplyFilter} không có nhánh nào chỉ-bỏ-qua — gọi nó với
+   * `false` lần thứ hai LÀ lượt áp cho tất cả — nên nếu không có prop này thì
+   * nút "Huỷ" hoặc là nút chết, hoặc là một nút "Huỷ" thật sự đi áp. Hàm này
+   * đi ĐÚNG đường mà phím Escape của hook đang gọi, để A12 ("Esc đóng lớp trên
+   * cùng") và nút bấm là MỘT hành vi chứ không phải hai.
+   */
+  readonly onDismissReapplyWarning: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

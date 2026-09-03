@@ -36,6 +36,7 @@ const RouteDimensionOcrReview = lazy(() => import('../screens/qc/DimensionOcrRev
 const RouteAxisGridManager = lazy(() => import('../screens/qc/AxisGridManager').then(m => ({ default: m.AxisGridManagerRoute })));
 const RouteRoomLabelReview = lazy(() => import('../screens/qc/RoomLabelReview').then(m => ({ default: m.RoomLabelReviewRoute })));
 const RouteFloorManager = lazy(() => import('../screens/qc/FloorManager').then(m => ({ default: m.FloorManagerRoute })));
+const RouteThicknessStandardization = lazy(() => import('../screens/qc/ThicknessStandardization').then(m => ({ default: m.ThicknessStandardizationRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
   { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
   { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
+  { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
   { path: ROUTE_PATTERNS.layerObjects, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerDimensions, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerGrids, element: suspended(<RouteAxisGridManager />) },

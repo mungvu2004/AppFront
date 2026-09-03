@@ -3,19 +3,36 @@
  * sai, nút "áp dụng lại bộ lọc" (kèm cảnh báo tại chỗ khi ảnh hưởng tường đã
  * duyệt), tóm tắt xem trước, danh sách tường không đổi được, và nút áp dụng.
  *
- * VIEW THUẦN — nhận đúng `ThicknessApplyBarProps` (T4 khai). Hai state cục bộ
- * (`isReapplyOpen`, `expandedWallId`) chỉ điều khiển việc HIỆN/ẨN — đúng khuôn
- * `FloorTable.tsx` (`duplicatingFloorId`) — không phải nơi quyết định nghiệp
- * vụ; mọi thay đổi thật đi qua `onApplyPreview`/`onReapplyFilter`/`onUndo`.
+ * VIEW THUẦN — nhận đúng `ThicknessApplyBarProps` (T4 khai). State cục bộ duy
+ * nhất còn lại (`expandedWallId`) chỉ điều khiển việc HIỆN/ẨN dòng giải thích
+ * của một tường không đổi được — đúng khuôn `FloorTable.tsx`
+ * (`duplicatingFloorId`) — không phải nơi quyết định nghiệp vụ; mọi thay đổi
+ * thật đi qua `onApplyPreview`/`onReapplyFilter`/`onUndo`.
+ *
+ * ## Sửa ở lượt T8 — lớp cảnh báo đọc THẲNG từ hook, không có bản sao cục bộ
+ *
+ * Bản T7 giữ thêm một cờ `isReapplyOpen` của riêng view và `confirmReapply()`
+ * đóng cờ đó NGAY sau khi gọi `onReapplyFilter(false)`. Nhưng lần gọi thứ nhất
+ * của hook chỉ ĐẶT `reapplyWarning` rồi dừng, nên lớp cảnh báo bị đóng đúng
+ * lúc nó vừa có nội dung: cảnh báo không bao giờ hiện, và CẤM TUYỆT ĐỐI "không
+ * bao giờ ghi đè im lặng tường đã duyệt" mất hiệu lực trên giao diện. Bản T7
+ * cũng khẳng định sẵn "sẽ không ảnh hưởng tường nào đã duyệt" TRƯỚC khi hook
+ * đếm — với bộ mẫu chuẩn câu đó sai (9 tường sẽ đổi).
+ *
+ * Điều phối viên chốt: một nguồn sự thật duy nhất, và nó ở hook. Nên
+ * `isReapplyOpen` bị xoá, lớp cảnh báo hiện KHI VÀ CHỈ KHI
+ * `reapplyWarning !== null`, câu khẳng định trước-khi-đếm bị xoá, và nút "Huỷ"
+ * gọi {@link ThicknessApplyBarProps.onDismissReapplyWarning} — đúng đường mà
+ * phím Escape của hook đang gọi, để A12 và nút bấm là một hành vi.
  *
  * ## CẤM TUYỆT ĐỐI vẫn giữ nguyên trong file này
  *
  * - Nút "Áp dụng" trong khối xem trước là NƠI DUY NHẤT gọi `onApplyPreview` —
  *   không có đường tắt nào khác áp thay đổi.
- * - "Áp dụng lại bộ lọc" không bao giờ âm thầm ghi đè tường đã duyệt: bấm nút
- *   chỉ MỞ khối cảnh báo/xác nhận cục bộ; `onReapplyFilter` chỉ được gọi sau
- *   khi người dùng chọn rõ một trong hai đường (loại tường đã duyệt ra, hoặc
- *   xác nhận áp cho tất cả).
+ * - "Áp dụng lại bộ lọc" không bao giờ âm thầm ghi đè tường đã duyệt: lần bấm
+ *   thứ nhất chỉ làm hook ĐẾM và dựng cảnh báo; chỉ khi người dùng chọn rõ một
+ *   trong hai đường (loại tường đã duyệt ra, hoặc vẫn áp cho tất cả) thì lượt
+ *   ghi mới chạy.
  *
  * ## Vì sao khối cảnh báo không dùng `Modal`
  *
@@ -41,11 +58,9 @@ const CANCEL_LABEL = 'Huỷ';
 const APPLY_LABEL = 'Áp dụng';
 const VIEW_LABEL = 'Xem';
 const HIDE_LABEL = 'Ẩn';
-const CONFIRM_REAPPLY_LABEL = 'Áp dụng lại';
 const EXCLUDE_AND_REAPPLY_LABEL = 'Loại tường đã duyệt ra rồi áp lại';
 const APPLY_TO_ALL_LABEL = 'Vẫn áp dụng cho tất cả';
 const REAPPLY_WARNING_TITLE = 'Áp dụng lại bộ lọc sẽ đổi tường đã duyệt';
-const NO_REVIEWED_AFFECTED_MESSAGE = 'Áp dụng lại bộ lọc sẽ không ảnh hưởng tường nào đã duyệt.';
 
 const reapplyWarningMessage = (affectedReviewedCount: number): string =>
   `${affectedReviewedCount} tường đã duyệt sẽ bị đổi. Đề nghị loại các tường này khỏi lượt áp dụng lại.`;
@@ -65,16 +80,9 @@ export function ThicknessApplyBar({
   onUndo,
   reapplyWarning,
   onReapplyFilter,
+  onDismissReapplyWarning,
 }: ThicknessApplyBarProps) {
-  const [isReapplyOpen, setIsReapplyOpen] = useState(false);
   const [expandedWallId, setExpandedWallId] = useState<WallId | null>(null);
-
-  const closeReapply = (): void => setIsReapplyOpen(false);
-
-  const confirmReapply = (excludeReviewed: boolean): void => {
-    onReapplyFilter(excludeReviewed);
-    closeReapply();
-  };
 
   const cancelPreview = (): void => {
     setExpandedWallId(null);
@@ -107,7 +115,7 @@ export function ThicknessApplyBar({
           unit="mm"
           value={toleranceMm}
         />
-        <Button onClick={() => setIsReapplyOpen(true)} size="sm" variant="secondary">
+        <Button onClick={() => onReapplyFilter(false)} size="sm" variant="secondary">
           {REAPPLY_FILTER_LABEL}
         </Button>
 
@@ -123,43 +131,32 @@ export function ThicknessApplyBar({
         )}
       </div>
 
-      {isReapplyOpen &&
-        (reapplyWarning !== null ? (
-          <div className="flex flex-col gap-2">
-            <InlineAlert
-              action={{ label: EXCLUDE_AND_REAPPLY_LABEL, onClick: () => confirmReapply(true) }}
-              level="attention"
-              message={reapplyWarningMessage(reapplyWarning.affectedReviewedCount)}
-              title={REAPPLY_WARNING_TITLE}
-            />
-            <div className="flex items-center gap-3 pl-3">
-              <button
-                className="rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                onClick={() => confirmReapply(false)}
-                type="button"
-              >
-                {APPLY_TO_ALL_LABEL}
-              </button>
-              <button
-                className="rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                onClick={closeReapply}
-                type="button"
-              >
-                {CANCEL_LABEL}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <p className="text-[13px] text-text-secondary">{NO_REVIEWED_AFFECTED_MESSAGE}</p>
-            <Button onClick={() => confirmReapply(false)} size="sm" variant="secondary">
-              {CONFIRM_REAPPLY_LABEL}
-            </Button>
-            <Button onClick={closeReapply} size="sm" variant="ghost">
+      {reapplyWarning !== null && (
+        <div className="flex flex-col gap-2">
+          <InlineAlert
+            action={{ label: EXCLUDE_AND_REAPPLY_LABEL, onClick: () => onReapplyFilter(true) }}
+            level="attention"
+            message={reapplyWarningMessage(reapplyWarning.affectedReviewedCount)}
+            title={REAPPLY_WARNING_TITLE}
+          />
+          <div className="flex items-center gap-3 pl-3">
+            <button
+              className="rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              onClick={() => onReapplyFilter(false)}
+              type="button"
+            >
+              {APPLY_TO_ALL_LABEL}
+            </button>
+            <button
+              className="rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              onClick={onDismissReapplyWarning}
+              type="button"
+            >
               {CANCEL_LABEL}
-            </Button>
+            </button>
           </div>
-        ))}
+        </div>
+      )}
 
       {preview !== null && (
         <div className="flex flex-col gap-3 rounded-[8px] border border-border-default bg-bg-sunken p-3">

@@ -1991,5 +1991,110 @@
       "approveDescription": "Duyệt tên phòng {{codeLabel}}.",
       "normalizeDescription": "Chuẩn hoá tên {{count}} phòng."
     }
+  },
+  "thicknessStandardization": {
+    "screen": {
+      "breadcrumb": "Dự án > Tầng 01 > Độ dày tường",
+      "title": "chuẩn hoá độ dày tường",
+      "description": "Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.",
+      "histogramSectionLabel": "Phân bố độ dày đo được",
+      "tablesSectionLabel": "Bảng nhóm và bảng chi tiết từng đoạn",
+      "collapsePreview": "Thu gọn khung xem trước",
+      "expandPreview": "khung xem trước đang thu gọn"
+    },
+    "states": {
+      "empty": {
+        "title": "chưa có đoạn tường nào để chuẩn hoá",
+        "notice": "Mọi đoạn tường đã ở đúng nhóm chuẩn, không còn gì để áp. Kéo một ngưỡng trên biểu đồ hoặc nới ô dung sai nếu bạn muốn gom thêm đoạn vào một nhóm khác.",
+        "noMeasurementNotice": "Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày."
+      },
+      "error": {
+        "title": "không đọc được lớp số đo độ dày",
+        "readLayer": "Không tải được lớp số đo độ dày tường của tầng.",
+        "readMeasurements": "Không tải được số đo độ dày tường."
+      },
+      "forbidden": {
+        "title": "không có quyền sửa độ dày tường",
+        "notice": "Bạn đang xem với vai Người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường."
+      }
+    },
+    "missingParams": {
+      "title": "Thiếu mã dự án hoặc mã tầng",
+      "message": "Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp số đo độ dày. Quay lại danh sách tầng rồi chọn lại tầng cần chuẩn hoá."
+    },
+    "groups": {
+      "thin": "110 mm",
+      "medium": "220 mm",
+      "thick": "330 mm",
+      "concreteColumn": "cột bê tông cốt thép"
+    },
+    "histogram": {
+      "label": "biểu đồ phân bố độ dày tường theo mi-li-mét",
+      "loading": "đang tải biểu đồ phân bố độ dày",
+      "axisUnit": "mm",
+      "thresholdLow": "ngưỡng giữa 110 mm và 220 mm",
+      "thresholdMid": "ngưỡng giữa 220 mm và 330 mm",
+      "thresholdHigh": "ngưỡng giữa 330 mm và cột bê tông cốt thép"
+    },
+    "previewCanvas": {
+      "label": "mặt bằng xem trước theo nhóm độ dày",
+      "legendLabel": "chú giải độ dày tường",
+      "empty": "chưa có hình tường để xem trước"
+    },
+    "summary": {
+      "groupLabel": "Tóm tắt chuẩn hoá độ dày tường",
+      "segmentCount": "tổng số đoạn tường",
+      "normalizedCount": "đã ở đúng nhóm chuẩn",
+      "exceedingToleranceCount": "lệch quá dung sai",
+      "concreteColumnCount": "cột bê tông cốt thép"
+    },
+    "groupTable": {
+      "measured": "Độ dày đo được",
+      "wallCount": "Số tường",
+      "suggestedGroup": "Nhóm chuẩn đề xuất",
+      "accepted": "Đồng ý",
+      "empty": "Chưa có nhóm nào để chuẩn hoá.",
+      "acceptCheckbox": "Đồng ý chuẩn hoá {{count}} tường {{measured}} mm về {{group}}"
+    },
+    "segmentTable": {
+      "code": "Mã",
+      "measured": "Độ dày đo được",
+      "normalized": "Độ dày chuẩn hoá",
+      "deviation": "Sai lệch",
+      "confidence": "Độ tin cậy",
+      "floor": "Tầng",
+      "status": "Trạng thái",
+      "empty": "Chưa có đoạn tường nào để chuẩn hoá.",
+      "entityName": "tường",
+      "normalizedControl": "Độ dày chuẩn hoá của đoạn {{code}}",
+      "chooseGroupLabel": "Chọn nhóm áp cho các đoạn đã chọn",
+      "chooseGroupPrompt": "Chọn nhóm áp cho {{count}} tường đã chọn:",
+      "statusVerified": "đã duyệt",
+      "statusAttention": "cần chú ý",
+      "statusViolation": "vi phạm",
+      "statusNeutral": "trung tính"
+    },
+    "applyBar": {
+      "tolerance": "Dung sai",
+      "openPreview": "Xem trước",
+      "apply": "Áp dụng",
+      "cancel": "Huỷ",
+      "undo": "Hoàn tác",
+      "view": "Xem",
+      "hide": "Ẩn",
+      "reapplyFilter": "Áp dụng lại bộ lọc",
+      "reapplyWarningTitle": "Áp dụng lại bộ lọc sẽ đổi tường đã duyệt",
+      "reapplyWarningMessage": "{{count}} tường đã duyệt sẽ bị đổi. Đề nghị loại các tường này khỏi lượt áp dụng lại.",
+      "excludeAndReapply": "Loại tường đã duyệt ra rồi áp lại",
+      "applyToAll": "Vẫn áp dụng cho tất cả",
+      "unchangedHeading": "{{count}} tường không đổi được:",
+      "unchangedDetail": "Lệch {{deviation}} · Độ tin cậy: {{confidence}} · {{floor}}",
+      "previewSentence": "{{total}} tường → {{groups}} nhóm chuẩn.",
+      "previewSentenceWithUnchanged": "{{total}} tường → {{groups}} nhóm chuẩn. {{unchanged}} tường lệch quá {{tolerance}} sẽ không đổi."
+    },
+    "commands": {
+      "standardizeDescription": "Chuẩn hoá độ dày {{count}} tường.",
+      "escapeShortcut": "Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc."
+    }
   }
 }

@@ -100,9 +100,11 @@ import {
   DEFAULT_TOLERANCE_MM,
   type ApplyPreview,
   type ReapplyFilterWarning,
+  type ThicknessApplyBarProps,
   type ThicknessGroup,
   type ThicknessScreenState,
   type ThicknessSegmentRow,
+  type ThicknessSegmentTableProps,
   type ThicknessSortKey,
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
@@ -161,28 +163,34 @@ export interface UseThicknessStandardizationOptions {
 }
 
 /**
- * Phần bảng chi tiết cấp thêm ngoài `ThicknessStandardizationProps`.
+ * Mọi thứ hook trả về — hai hợp đồng của `thicknessTypes.ts`, không có hình
+ * dạng thứ ba nào khai ở đây.
  *
- * `thicknessTypes.ts` đã đóng băng ở lớp L1, và cách hợp lệ duy nhất để mở rộng
- * nó là mở rộng ở file riêng — đúng khuôn `UseScaleCalibrationHookOptions` của
- * màn `ScaleCalibration`. Bảy trường dưới đây là phần chọn hàng của bảng chi
- * tiết mà điều phối viên bổ sung sau khi T7 dựng view.
+ * Bảy trường chọn hàng (`selectedWallIds` … `flashingWallIds`) từng được T5
+ * khai lại trong file này vì lúc đó `thicknessTypes.ts` đang đóng băng. Sau khi
+ * T7 được điều phối viên cho phép bổ sung chúng vào
+ * {@link ThicknessSegmentTableProps}, hai đường cùng tả một thứ — nên bản khai
+ * thứ hai đã bị xoá và kể từ đây kiểu lấy THẮNG từ hợp đồng. `Pick` chứ
+ * không phải cả `ThicknessSegmentTableProps`: `rows`/`onHoverRow` của bảng chi
+ * tiết đến từ `segmentRows`/`onHoverWall` của màn, và view là nơi nối hai tên
+ * đó lại với nhau.
+ *
+ * `onDismissReapplyWarning` đi cùng lối: một trường của
+ * {@link ThicknessApplyBarProps} mà `ThicknessStandardizationProps` không
+ * mang, `Pick` ra chứ không khai lại.
  */
-export interface ThicknessSegmentSelection {
-  readonly selectedWallIds: readonly WallId[];
-  readonly onToggleRowSelected: (wallId: WallId, selected: boolean) => void;
-  readonly onToggleAllSelected: (selected: boolean) => void;
-  readonly onClearSelection: () => void;
-  /** Sửa GỢI Ý nhóm của một hàng — thuần, không ghi gì cho tới lúc bấm áp. */
-  readonly onChangeNormalizedGroup: (wallId: WallId, group: ThicknessGroup) => void;
-  /** Gán một nhóm cho mọi hàng đang chọn, vẫn qua ĐÚNG MỘT `runTransaction`. */
-  readonly onApplySelectedGroup: (group: ThicknessGroup) => void;
-  /** Hàng vừa đổi, nháy rồi tự tắt sau `slow`; view không tự đặt hẹn giờ. */
-  readonly flashingWallIds: readonly WallId[];
-}
-
 export type UseThicknessStandardizationResult = ThicknessStandardizationProps &
-  ThicknessSegmentSelection;
+  Pick<ThicknessApplyBarProps, 'onDismissReapplyWarning'> &
+  Pick<
+    ThicknessSegmentTableProps,
+    | 'selectedWallIds'
+    | 'onToggleRowSelected'
+    | 'onToggleAllSelected'
+    | 'onClearSelection'
+    | 'onChangeNormalizedGroup'
+    | 'onApplySelectedGroup'
+    | 'flashingWallIds'
+  >;
 
 /* -------------------------------------------------------------------------- */
 /* Hằng của riêng hook.                                                        */
@@ -804,6 +812,18 @@ export function useThicknessStandardization(
 
   const hasTopLayer = preview !== null || reapplyWarning !== null;
 
+  /**
+   * Bỏ lớp cảnh báo áp dụng lại mà KHÔNG áp gì.
+   *
+   * Một hàm, hai nơi gọi: phím Escape ngay dưới đây và nút "Huỷ" của
+   * `ThicknessApplyBar` (`onDismissReapplyWarning`). Tách ra để hai đường ấy
+   * không thể trôi khỏi nhau — A12 nói Esc đóng lớp trên cùng, và một nút bấm
+   * làm việc khác với chính phím ấy là đúng thứ lời hứa đó cấm.
+   */
+  const onDismissReapplyWarning = useCallback(() => {
+    setReapplyWarning(null);
+  }, []);
+
   useShortcut(
     {
       id: 'thicknessStandardization.closeTopLayer',
@@ -817,7 +837,7 @@ export function useThicknessStandardization(
           return;
         }
 
-        setReapplyWarning(null);
+        onDismissReapplyWarning();
       },
     },
     { ...shortcutOptions, enabled: hasTopLayer },
@@ -895,6 +915,7 @@ export function useThicknessStandardization(
     onUndo,
     reapplyWarning,
     onReapplyFilter,
+    onDismissReapplyWarning,
 
     isViewerRole,
     viewerRoleNotice: isViewerRole ? THICKNESS_SCREEN_TEXT.viewerRoleNotice : null,
