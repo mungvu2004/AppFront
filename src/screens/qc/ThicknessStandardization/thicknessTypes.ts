@@ -2,119 +2,151 @@
  * Hợp đồng kiểu của màn QC "Chuẩn hoá độ dày tường" (`ThicknessStandardization`).
  *
  * Đây là NỀN MÓNG (lớp L1), đúng khuôn `WallLayerReview/types.ts` và
- * `RoomLabelReview/roomLabelTypes.ts` của hai màn QC anh em: chỉ khai KIỂU và
- * HẰNG, không import React, không import `src/api`, `src/store`, `src/lib/http`.
- * T5 (hook + gateway), T6 (biểu đồ + canvas xem trước) và T7 (bảng + tóm tắt)
- * import DỰA VÀO đúng những gì khai ở đây. Thêm một trường hay đổi hình dạng
- * một kiểu đã khai là quyết định của điều phối viên — hỏi bằng
- * `orca orchestration ask` trước khi tự thêm; xem "KHOÁ SAU KHI XONG" cuối file.
+ * `RoomLabelReview/roomLabelTypes.ts` — hai màn QC anh em đã xong. Chỉ khai
+ * KIỂU và HẰNG. Không import React, không import `src/api`, `src/store`,
+ * `src/lib/http`. Ba worker lớp sau (T5 — hook, T6 — biểu đồ/canvas, T7 —
+ * bảng/tóm tắt) import DỰA VÀO đúng những gì khai ở đây. Thêm một trường hay
+ * đổi hình dạng một kiểu đã khai là quyết định của điều phối viên — hỏi bằng
+ * `orca orchestration ask` trước khi tự thêm (xem "KHOÁ SAU KHI XONG" cuối
+ * file).
  *
- * ## Nguồn dữ liệu — MỘT domain khác với hai màn QC anh em
+ * ## Hàm chuẩn hoá THẬT — điều phối viên đã xác minh, dùng thẳng
  *
- * `WallLayerReview`/`RoomLabelReview` dựng trên `Wall` của
- * `src/domain/spatial/types.ts` (đồ thị nhiều tầng, `WallKind =
- * 'loadBearing'|'partition'|'envelope'`). Màn này dựng trên `Wall` KHÁC —
- * `src/domain/walls/types.ts:61` (mô hình hình học "dọn tường": centreline +
- * độ dày, `WallKind = 'loadBearing'|'partition'|'railing'|'glazed'`,
- * `MIN_WALL_THICKNESS_MM = 60`, `MAX_WALL_THICKNESS_MM = 600`). Đây là quyết
- * định đã duyệt của điều phối viên (mục 1 "HỢP ĐỒNG ĐÃ XÁC MINH" của đặc tả
- * T4), không phải một lựa chọn của lớp này — `Wall` đó KHÔNG có `levelId`
- * hay tầng (`floorName` ở đây tới từ khoảng cao độ `baseElevationMm`/
- * `topElevationMm`, xem `thicknessFixture.ts`) và KHÔNG có `confidence`/
- * `reviewed` (hai trường đó bọc riêng trong `ThicknessFixtureWall` của
- * `thicknessFixture.ts`, không phải một phần của `Wall`).
+ * `standardizeThickness(rawThicknessMm): { original_mm, standardized }` ở
+ * `src/lib/geometry/standardize.ts:17` là NGUỒN THẬT DUY NHẤT quyết định một
+ * số đo mm rơi vào nhóm nào:
  *
- * ## Ba nhóm chuẩn — quyết định đã duyệt X1
+ * ```
+ * < 165        -> 110
+ * 165 .. < 275 -> 220
+ * 275 .. <= 350-> 330
+ * > 350        -> 'CONCRETE_COLUMN'
+ * ```
  *
- * `WALL_THICKNESS_CHOICES` của `src/screens/qc/WallLayerReview/types.ts:168`
- * (`[110, 220, 330]`) là bộ BA BĂNG hệ thiết kế sơn được — khớp đúng ba token
- * CSS `--wall-110`/`--wall-220`/`--wall-330`. `STANDARD_THICKNESSES_MM` của
- * `src/domain/walls/cleanup.ts:70` (`[100, 150, 200, 220, 300, 400]`) là một
- * danh sách KHÁC — độ dày XÂY được mà một wall có thể làm tròn về, chỉ trùng
- * nhau ở 220. Màn này "chuẩn hoá độ dày" theo nghĩa hệ thiết kế (ba băng tô
- * được), nên khai lại {@link THICKNESS_GROUPS_MM} ở ĐÂY, bằng `[110, 220,
- * 330]`, KHÔNG dùng `STANDARD_THICKNESSES_MM` — đúng khuôn "định nghĩa lại,
- * không nhập chéo" mà `roomLabelTypes.ts` đã dùng cho các hằng cỡ chữ của nó.
+ * Màn này (hook T5) GỌI hàm đó, không tự làm tròn, không khai lại bảng nhóm —
+ * file này chỉ khai HÌNH DẠNG dữ liệu hook cần, không khai lại logic.
+ * `standardizeThickness(195).standardized === 220` đúng câu chuyện gốc của
+ * đặc tả (30 tường 195 mm bị quy về 220 mm).
  *
- * ## Cột bê tông cốt thép — quyết định đã duyệt X2
+ * ## X1 — vì sao `ThicknessGroup` là BÍ DANH của `WallThickness`, không phải một union mới
  *
- * `'CONCRETE_COLUMN'` là nhóm thứ TƯ: đếm được (`ThicknessSummary.concreteColumnCount`),
- * hiển thị được (chú giải, mã màu `var(--text-primary)` — xem
- * `src/components/canvas/materialMap.ts:29`), nhưng KHÔNG có lệnh áp — không
- * "chuẩn hoá cột về 220mm" nào có nghĩa. {@link ThicknessGroup} phản ánh điều
- * đó bằng cách gộp nó vào CÙNG một kiểu hợp với ba con số, thay vì tách một
- * kiểu "áp được" riêng: mọi nơi đọc `ThicknessGroup` đều phải xử lý nhánh này,
- * và trình biên dịch nhắc chứ không phải tài liệu.
+ * `WallThickness = 110 | 220 | 330 | 'CONCRETE_COLUMN'` đã khai ở
+ * `src/types/spatial.ts:14`, đúng bốn nhóm hàm `standardizeThickness` sinh ra.
+ * Khai một union thứ hai trùng lặp ở đây là thứ có thể trôi khỏi kiểu gốc khi
+ * một trong hai chỗ đổi mà chỗ kia quên theo — nên {@link ThicknessGroup}
+ * dùng lại nguyên kiểu đó (R-61: hook chỉ nối lại logic đã có, không tự chế
+ * hình dạng song song). Đây cũng là câu trả lời cho X2: `'CONCRETE_COLUMN'`
+ * là kết quả HỢP LỆ của chính `standardizeThickness` (> 350 mm), không phải
+ * một nhóm bịa thêm — nó đếm được, hiển thị được, nhưng KHÔNG có lệnh áp
+ * (không có thao tác "đổi tường này thành cột bê tông cốt thép").
  *
- * `src/domain/walls/types.ts` không có trường nào đánh dấu "đây là cột" —
- * `WallKind` chỉ có bốn nhãn, không nhãn nào tên "column". Đây là THIẾU LOGIC
- * THẬT (R-69): không hàm nào trong `src/domain/walls/**` phân loại được một
- * `Wall` là cột hay tường. `thicknessFixture.ts` né vấn đề này bằng cách dựng
- * ba đoạn "cột" có `thicknessMm` vượt xa nhóm 330 — 480/520/560 mm, cách xa
- * 330 hơn 100 mm — trong khi SÁU đoạn "lệch quá dung sai" (X4) không đoạn nào
- * vượt quá 365 mm; có một khoảng trống 115 mm (365↔480) không đoạn nào của bộ
- * mẫu rơi vào. T5 (hook) PHẢI hỏi điều phối viên trước khi cài đặt phép phân
- * loại cột thật (ngưỡng chính xác, hay tín hiệu khác như tỷ lệ dài/dày) — bộ
- * mẫu chỉ đảm bảo MỌI ngưỡng hợp lý nằm trong khoảng trống đó đều phân loại
- * đúng, không thay cho quyết định đó.
+ * Phần bổ sung thật của màn này — thứ `WallThickness` không mang — là NHÃN
+ * TIẾNG VIỆT và THỨ TỰ HIỂN THỊ cho từng nhóm: {@link THICKNESS_GROUPS_MM},
+ * {@link CONCRETE_COLUMN_GROUP}, {@link THICKNESS_GROUP_DISPLAY_ORDER},
+ * {@link THICKNESS_GROUP_LABELS}.
  *
- * ## Thang chuyển động — quyết định đã duyệt X3
+ * ## X3 — dung sai mặc định là 30 mm, không phải 20 mm
  *
- * Đặc tả gốc xin 240 ms / 400 ms; `MOTION_DURATIONS_MS` của
- * `src/lib/motion/tokens.ts:62` chỉ có `{instant:120, fast:180, standard:260,
- * slow:340}`. T6/T7 dùng `standard` (260 ms) cho hoạt ảnh xếp lại bảng/biểu đồ,
- * `slow` (340 ms) cho nháy hàng khi chọn — không hằng số viết tay nào khác.
+ * Câu ví dụ gốc của đặc tả ("6 tường lệch quá 20 mm sẽ không đổi") xung đột số
+ * học với câu chuyện chính (30 tường 195 mm phải quy về 220, lệch 25 mm) nếu
+ * dung sai là 20: khi đó cả 30 tường mũi nhọn cũng bị tính vượt dung sai. Điều
+ * phối viên đã quyết: {@link DEFAULT_TOLERANCE_MM} = 30 (KHÔNG phải 20), giữ
+ * dung sai ĐỒNG NHẤT theo từng tường — không có "dung sai theo cụm" tự chế
+ * (đó là công thức bịa, phạm R-61). Con số 20 mm trong đặc tả chỉ là ví dụ; ô
+ * dung sai là số người dùng sửa được (`NumericField` ở tầng component, T7 lo
+ * phần đó). Câu tóm tắt {@link ApplyPreview.sentence} phải ghép từ số đếm và
+ * dung sai ĐANG ĐẶT — không viết chuỗi cứng "6 tường lệch quá 20 mm".
  *
- * ## Dung sai mặc định và cụm đo hệ thống — quyết định đã duyệt X4
+ * ## Vì sao KHÔNG có `sortThresholds`/`clampThresholds` ở đây
  *
- * {@link DEFAULT_TOLERANCE_MM} = 20, lấy từ câu "6 tường lệch quá 20 mm sẽ
- * không đổi" của đặc tả gốc. Bộ mẫu 48 đoạn (`thicknessFixture.ts`) đồng thời
- * cần **30 đoạn đo đúng 195 mm** — ca người dùng chính của màn — và với
- * `THICKNESS_GROUPS_MM` cố định, khoảng cách 195↔220 (nhóm gần nhất) là 25 mm,
- * TỰ NÓ đã vượt 20 mm. Nếu `exceedsTolerance` chỉ đơn thuần là "khoảng cách
- * tới nhóm chuẩn gần nhất > dung sai" thì cả 30 đoạn đó sẽ bị đếm là "lệch quá
- * dung sai", mâu thuẫn với đúng SÁU đoạn mà câu tóm tắt "6 tường ... sẽ không
- * đổi" đòi.
+ * Đặc tả gợi ý kèm hai hàm thuần này "nếu cần giữ thứ tự tăng dần" khi kéo một
+ * ngưỡng. Cả hai màn QC anh em (`WallLayerReview/types.ts`,
+ * `RoomLabelReview/roomLabelTypes.ts`) đều tự đặt luật riêng cho file này:
+ * "chỉ khai KIỂU và HẰNG" — không một hàm nào, kể cả hàm thuần. Giữ đúng luật
+ * đó ở đây: sắp lại ba ngưỡng sau khi kéo là một phép tính (mục B của
+ * `CLAUDE.md`: "Tính toán không nằm trong màn hình"), nên nó thuộc về
+ * `useThicknessStandardization.ts` của T5, không phải file kiểu này — một
+ * dòng `[...t].sort((a, b) => a - b)` trong hook không cần một hàm xuất khẩu
+ * riêng ở đây.
  *
- * Quyết định đã duyệt (hỏi trực tiếp điều phối viên qua `orca orchestration
- * ask`, xem lịch sử phiên): {@link DEFAULT_TOLERANCE_MM} lọc TƯỜNG ĐO LẺ —
- * một giá trị đo KHÔNG lặp lại ở tường nào khác trong cùng bộ dữ liệu — chứ
- * KHÔNG lọc một CỤM đo lớn, đồng nhất. 30 tường cùng đo đúng 195 mm là một
- * SAI SỐ HIỆU CHỈNH CÓ HỆ THỐNG (một lỗi tỷ lệ/OCR làm lệch toàn bộ một loại
- * tường), được chấp nhận chuẩn hoá bất kể khoảng cách numeric tới nhóm chuẩn.
- * Một tường đo 260 mm mà KHÔNG tường nào khác trong bộ dữ liệu đo trùng giá
- * trị đó là NHIỄU — một lần đọc không chắc chắn, không đại diện cho gì khác —
- * và bị {@link DEFAULT_TOLERANCE_MM} loại khỏi lượt áp nếu lệch quá xa.
+ * ## Bảy trạng thái (A11/R-63) — tên lấy NGUYÊN VĂN từ `SEVEN_STATES`
  *
- * T5 (hook) PHẢI cài `ThicknessSegmentRow.exceedsTolerance` theo đúng quy tắc
- * này: đo lẻ (không tường nào khác của kết quả dò cùng đo giá trị đó) VÀ lệch
- * quá {@link DEFAULT_TOLERANCE_MM} so với nhóm chuẩn gần nhất ⟹ `true`; một
- * cụm đo (từ hai tường trở lên cùng giá trị) không bao giờ `true` vì lý do
- * này — dù khoảng cách tới nhóm chuẩn là bao nhiêu. Nhóm `CONCRETE_COLUMN`
- * không có nhóm chuẩn để so nên `exceedsTolerance` của nó luôn `false` (khớp
- * X2: không có lệnh áp thì không có gì để "lệch"). `thicknessFixture.ts` cài
- * đặt executable đúng quy tắc này (hàm `isUnclusteredOutlier`), không chỉ ghi
- * trong chú thích, để test đối chiếu được bằng hằng.
+ * `src/lib/testing/sevenStateScenarios.ts` (`SEVEN_STATES`) dùng `'success'`,
+ * KHÔNG dùng `'done'` — đúng tiền lệ hai màn QC anh em. {@link ThicknessScreenState}
+ * dùng nguyên bảy tên đó.
+ *
+ * | Trạng thái  | Nghĩa ở màn Chuẩn hoá độ dày tường                                   |
+ * |-------------|-----------------------------------------------------------------------|
+ * | `empty`     | mọi đoạn đã ở đúng nhóm chuẩn, không còn gì để áp; hoặc chưa có số đo |
+ * | `loading`   | đang tải số đo — biểu đồ vẽ khung xương đúng `HISTOGRAM_HEIGHT_PX`    |
+ * | `partial`   | mới có số đo một phần (một số nhóm hoặc một số tầng) — trạng thái CHÍNH |
+ * | `error`     | lớp số đo hỏng                                                        |
+ * | `success`   | vừa áp xong; dòng kết quả + nút hoàn tác (A8); nếu hết lệch thì tóm tắt lên mức đã duyệt |
+ * | `forbidden` | vai Người xem: ẩn nút áp/gộp/sửa dung sai                             |
+ * | `collapsed` | ẩn canvas xem trước, chỉ còn biểu đồ + hai bảng                       |
+ *
+ * ## Vì sao `measuredMm`/`deviationMm` là `number` trần, không gắn nhãn
+ *
+ * T2 đã đối chiếu: màn QC dùng `Wall` của `src/domain/spatial/types.ts`
+ * (`thicknessMm: Millimetres = number`, KHÔNG gắn nhãn — xem
+ * `docs/notes/thickness/data.md` mục 2), khác kiểu `Wall` gắn nhãn của
+ * `src/domain/walls/types.ts` mà `standardizeThickness`/`cleanup.ts` dùng nội
+ * bộ. Hợp đồng dưới đây theo đúng quy ước của dữ liệu nó bọc — trần, không gắn
+ * nhãn — đúng khuôn `WallRowViewModel.thicknessMm` của `WallLayerReview`. Khi
+ * hook cần gọi các hàm gắn nhãn (nếu có), nó tự bọc số bằng `millimetres()`
+ * tại chỗ gọi, không đổi kiểu ở đây.
+ *
+ * ## Vì sao `deviationMm`/`exceedsTolerance` LUÔN là `0`/`false` ở nhóm cột bê tông cốt thép
+ *
+ * `'CONCRETE_COLUMN'` không có một giá trị mm chuẩn để so — X2 nói rõ nó
+ * "đếm được, hiển thị được, nhưng KHÔNG có lệnh áp". Không có mục tiêu số thì
+ * không có "lệch bao nhiêu" để nói, nên hook phải đặt `deviationMm: 0` và
+ * `exceedsTolerance: false` cho mọi đoạn thuộc nhóm này — không suy ra một
+ * ngưỡng giả.
+ *
+ * ## `ThicknessSegmentRow.status` dùng lại `ViewStatusCode`, không khai mã mới
+ *
+ * Đặc tả liệt kê đúng bốn mã `'verified' | 'attention' | 'violation' | 'neutral'`
+ * — trùng khớp {@link ViewStatusCode} của `src/lib/viewmodel/types.ts:68` (A4:
+ * đúng ba màu trạng thái + trung tính, không có mã thứ năm). Dùng lại thẳng
+ * kiểu đó (R-61) thay vì khai một union giống hệt.
+ *
+ * ## `ThicknessStandardizationProps` — bổ sung ngoài danh sách khai tối thiểu (R-59)
+ *
+ * Đúng khuôn `RoomLabelReviewProps` (không phải cặp `{ panel, canvas }` như
+ * `WallLayerReviewProps` — màn này có nhiều mảnh ngang hàng: biểu đồ, canvas
+ * xem trước, hai bảng, tóm tắt, thanh áp dụng — không có một cặp panel/canvas
+ * hai cột rõ ràng để gói). {@link ThicknessStandardizationProps} là kiểu hook
+ * `useThicknessStandardization` (T5) trả về; `ThicknessStandardization.tsx`
+ * (T7) cắt lát cho từng view con bằng đúng các `*Props` khai bên dưới. Thuần
+ * cộng thêm: xoá kiểu này không đổi hình dạng của bất kỳ trường nào bên trong
+ * các `*Props` con.
  */
 
-import type { WallId } from '@/domain/spatial/types';
-import type { PointMm } from '@/domain/units/compare';
+import type { Confidence, Point, WallId } from '@/domain/spatial/types';
+import type { WallThickness } from '@/types/spatial';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 /* -------------------------------------------------------------------------- */
-/* Ba nhóm chuẩn + cột bê tông cốt thép (X1, X2).                              */
+/* Bốn nhóm chuẩn hoá — xem "X1" ở đầu file.                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Ba băng độ dày hệ thiết kế sơn được — xem ghi chú X1 đầu file. */
+/** Bí danh của `WallThickness` — xem "X1" ở đầu file vì sao không khai union mới. */
+export type ThicknessGroup = WallThickness;
+
+/** Ba nhóm SỐ, theo thứ tự hiển thị tăng dần. Không gồm cột bê tông cốt thép. */
 export const THICKNESS_GROUPS_MM = [110, 220, 330] as const;
 
-/** Nhóm thứ tư: cột bê tông cốt thép — đếm/hiển thị được, KHÔNG có lệnh áp (X2). */
-export const CONCRETE_COLUMN_GROUP = 'CONCRETE_COLUMN' as const;
+/** Nhóm thứ tư — cột bê tông cốt thép. Đếm được, hiển thị được, không có lệnh áp (X2). */
+export const CONCRETE_COLUMN_GROUP: ThicknessGroup = 'CONCRETE_COLUMN';
 
-/** Một trong ba độ dày chuẩn, hoặc nhóm cột bê tông cốt thép. */
-export type ThicknessGroup = (typeof THICKNESS_GROUPS_MM)[number] | typeof CONCRETE_COLUMN_GROUP;
+/** Cả bốn nhóm, đúng thứ tự hiển thị — ba nhóm số trước, cột bê tông cốt thép sau cùng. */
+export const THICKNESS_GROUP_DISPLAY_ORDER: readonly ThicknessGroup[] = [
+  ...THICKNESS_GROUPS_MM,
+  CONCRETE_COLUMN_GROUP,
+];
 
-/** Nhãn tiếng Việt của từng nhóm — nguồn duy nhất, tránh ba worker gõ tay ba lần. */
+/** Nhãn tiếng Việt của từng nhóm, viết thường kiểu câu trừ mã trục/số (A6). */
 export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = {
   110: '110 mm',
   220: '220 mm',
@@ -123,69 +155,55 @@ export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = 
 };
 
 /* -------------------------------------------------------------------------- */
-/* Hằng số dùng chung — không hằng số viết tay nào khác trong T6/T7 (R-71).    */
+/* Dung sai, ngưỡng, kích thước khung xương — xem "X3" ở đầu file.             */
 /* -------------------------------------------------------------------------- */
 
-/** Dung sai mặc định, mm — xem ghi chú X4 đầu file. */
-export const DEFAULT_TOLERANCE_MM = 20;
+/** Dung sai mặc định, mm. ĐÃ CHỐT = 30 (KHÔNG phải 20 trong câu ví dụ của đặc tả) — xem "X3". */
+export const DEFAULT_TOLERANCE_MM = 30;
 
-/** Bề rộng một cột của biểu đồ, mm. */
+/** Bề rộng một cột biểu đồ, mm. */
 export const HISTOGRAM_BIN_MM = 5;
 
-/** Chiều cao CỐ ĐỊNH của biểu đồ, px — khung xương lúc tải phải đúng chiều cao này (chống nhảy khung). */
+/** Chiều cao khung biểu đồ, px — khung xương lúc tải PHẢI đúng chiều cao này để không nhảy khung. */
 export const HISTOGRAM_HEIGHT_PX = 200;
 
-/** Bề rộng CỐ ĐỊNH của canvas xem trước, px. */
+/** Bề rộng cố định của canvas xem trước, px. */
 export const THICKNESS_PREVIEW_CANVAS_WIDTH_PX = 320;
 
+/**
+ * Ba ngưỡng kéo được của biểu đồ, theo thứ tự tăng dần — ranh giới
+ * 110↔220, 220↔330, 330↔cột bê tông cốt thép. Chỉ số (0/1/2) khớp tham số
+ * `index` của {@link ThicknessHistogramProps.onThresholdDrag}.
+ */
+export type ThicknessThresholds = readonly [lowMm: number, midMm: number, highMm: number];
+
+/** Mặc định ĐÚNG BA số của `standardizeThickness` (`src/lib/geometry/standardize.ts:12-15`). */
+export const DEFAULT_THICKNESS_THRESHOLDS: ThicknessThresholds = [165, 275, 350];
+
 /* -------------------------------------------------------------------------- */
-/* Ba ngưỡng kéo được trên biểu đồ.                                            */
+/* Bảy trạng thái (A11/R-63) — xem bảng ở đầu file.                            */
+/* -------------------------------------------------------------------------- */
+
+/** Đúng bảy trạng thái của A11, tên lấy nguyên từ `SEVEN_STATES`. */
+export type ThicknessScreenState =
+  | 'empty'
+  | 'loading'
+  | 'partial'
+  | 'error'
+  | 'success'
+  | 'forbidden'
+  | 'collapsed';
+
+/* -------------------------------------------------------------------------- */
+/* Một cột của biểu đồ.                                                       */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Ba ngưỡng phân nhóm trên biểu đồ, mm, LUÔN tăng dần: `[a, b, c]` với
- * `a ≤ b ≤ c`. Đoạn đo ≤ `a` gợi ý nhóm 110; trong khoảng `(a, b]` gợi ý nhóm
- * 220; trong khoảng `(b, c]` gợi ý nhóm 330; lớn hơn `c` gợi ý cột bê tông cốt
- * thép — ba đường kéo được chia bốn dải ứng với bốn nhánh của
- * {@link ThicknessGroup}. Người dùng kéo từng đường trên biểu đồ qua
- * `ThicknessHistogramProps.onThresholdDrag`; giá trị KHỞI TẠO do T5 (hook)
- * chọn từ dữ liệu thật, không phải hằng số ở đây.
+ * Một cột biểu đồ — TRUNG TÍNH (CẤM TUYỆT ĐỐI: cột không mang màu nhóm). Chỉ
+ * các DẢI nền phía sau (vẽ bằng `wallStrokeToken` ở độ mờ thấp, xem
+ * `docs/notes/thickness/data.md` mục 5) mới mang màu xám tường — dải đó là
+ * việc của T6, không cần một trường màu ở đây.
  */
-export type ThicknessThresholds = readonly [number, number, number];
-
-/** Chỉ số của một trong ba ngưỡng — tham số của `onThresholdDrag`. */
-export type ThicknessThresholdIndex = 0 | 1 | 2;
-
-/**
- * Sắp lại ba ngưỡng tăng dần — kéo ngưỡng giữa vượt qua ngưỡng biên không được
- * phép làm hỏng thứ tự `a ≤ b ≤ c`. Hàm thuần, không tính trung điểm hay số
- * viết tay nào khác — chỉ sắp xếp lại đúng ba số đã cho.
- */
-export function sortThresholds(thresholds: ThicknessThresholds): ThicknessThresholds {
-  const [first, second, third] = thresholds;
-  const lowest = Math.min(first, second, third);
-  const highest = Math.max(first, second, third);
-  // Tổng trừ hai đầu ra giá trị giữa — đúng cả khi hai trong ba số bằng nhau.
-  const middle = first + second + third - lowest - highest;
-  return [lowest, middle, highest];
-}
-
-/** Giữ ba ngưỡng trong `[minMm, maxMm]`, rồi sắp lại tăng dần. */
-export function clampThresholds(
-  thresholds: ThicknessThresholds,
-  minMm: number,
-  maxMm: number,
-): ThicknessThresholds {
-  const [first, second, third] = thresholds;
-  const clampOne = (value: number): number => Math.min(Math.max(value, minMm), maxMm);
-  return sortThresholds([clampOne(first), clampOne(second), clampOne(third)]);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Một cột của biểu đồ.                                                        */
-/* -------------------------------------------------------------------------- */
-
-/** Một cột của biểu đồ độ dày — bề rộng `HISTOGRAM_BIN_MM`. */
 export interface HistogramBin {
   readonly startMm: number;
   readonly endMm: number;
@@ -194,13 +212,12 @@ export interface HistogramBin {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Bảng nhóm bên trái — một hàng cho mỗi giá trị đo riêng biệt.                 */
+/* Bảng nhóm bên trái — một dòng cho mỗi số đo khác nhau.                      */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Một hàng của bảng nhóm — mọi tường đo ĐÚNG cùng `measuredMm` gộp vào một
- * hàng. `accepted` mặc định `false` cho MỌI hàng (CẤM TUYỆT ĐỐI: không tích
- * sẵn toàn bộ) — người dùng tự chọn nhóm nào được áp trước khi bấm nút áp.
+ * Một dòng của bảng nhóm. `accepted` mặc định `false` CHO MỌI HÀNG (CẤM TUYỆT
+ * ĐỐI: không tích sẵn toàn bộ, không áp thay đổi nào trước khi người dùng bấm).
  */
 export interface ThicknessGroupRow {
   readonly measuredMm: number;
@@ -215,41 +232,48 @@ export interface ThicknessGroupRow {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Một hàng của bảng chi tiết 48 đoạn tường, đã sẵn sàng để VẼ — không còn
- * phép tính nào (A15: định dạng ở hook, không ở view; dấu thập phân là dấu
- * phẩy). `status` dùng đúng bốn mã của `ViewStatusCode`
- * (`src/lib/viewmodel/types.ts:65`): `'verified'` CHỈ khi `reviewed` (A5),
- * `'violation'` khi `exceedsTolerance` mà chưa duyệt, `'attention'` khi thuộc
- * nhóm `CONCRETE_COLUMN` hoặc độ tin cậy thấp mà chưa duyệt, `'neutral'` còn
- * lại.
+ * Một dòng của bảng chi tiết 48 đoạn, không còn phép tính nào (A15: định dạng
+ * ở hook, không ở view; dấu thập phân là dấu phẩy).
+ *
+ * `deviationMm`/`exceedsTolerance` luôn `0`/`false` ở nhóm cột bê tông cốt
+ * thép — xem ghi chú đầu file.
  */
 export interface ThicknessSegmentRow {
   readonly wallId: WallId;
   /** Mã hiển thị chữ đều, ví dụ `"#W-014"`. */
   readonly code: string;
   readonly measuredMm: number;
-  /** Ví dụ `"195,0 mm"` — một chữ số thập phân, dấu phẩy (A15, ghép ở hook). */
+  /** Ví dụ `"195,0 mm"` — một chữ số thập phân, dấu phẩy (A15). */
   readonly measuredLabel: string;
   readonly normalizedGroup: ThicknessGroup;
-  /** Khoảng cách tới nhóm chuẩn được gợi ý, luôn dương; `0` ở nhóm cột bê tông cốt thép. */
   readonly deviationMm: number;
   /** Ví dụ `"25,0 mm"`. */
   readonly deviationLabel: string;
-  /** Xem ghi chú X4 đầu file — chỉ `true` cho một đo LẺ lệch quá {@link DEFAULT_TOLERANCE_MM}. */
+  /** `deviationMm > toleranceMm` đang đặt — hook tính sẵn, view không tự so (R-61). */
   readonly exceedsTolerance: boolean;
-  readonly confidence: number;
+  readonly confidence: Confidence;
   /** Ví dụ `"AI đề xuất"` (`describeConfidence`, `src/lib/format/semantic.ts`). */
   readonly confidenceLabel: string;
   readonly floorName: string;
+  /** Đúng bốn mã của `ViewStatusCode` (A4) — dùng lại thẳng, xem ghi chú đầu file. */
   readonly status: ViewStatusCode;
   readonly reviewed: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Dòng tóm tắt — bốn con số mono-lg.                                          */
+/* Sắp xếp bảng chi tiết — "để trường hợp tệ nhất nổi lên đầu".                */
 /* -------------------------------------------------------------------------- */
 
-/** Bốn con số tóm tắt của màn — không câu chữ ghép sẵn ở đây. */
+/** Cột bảng chi tiết có thể sắp theo. Mặc định `'deviation'` (spec: tệ nhất lên đầu). */
+export type ThicknessSortKey = 'deviation' | 'measured' | 'confidence' | 'floor';
+
+export const DEFAULT_THICKNESS_SORT_KEY: ThicknessSortKey = 'deviation';
+
+/* -------------------------------------------------------------------------- */
+/* Bốn con số tóm tắt.                                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Bốn con số mono-lg đầu màn. */
 export interface ThicknessSummary {
   readonly segmentCount: number;
   readonly normalizedCount: number;
@@ -257,38 +281,22 @@ export interface ThicknessSummary {
   readonly concreteColumnCount: number;
 }
 
-/** Nhãn tiếng Việt viết thường cho từng con số của {@link ThicknessSummary}. */
+/** Nhãn tiếng Việt cho từng con số của {@link ThicknessSummary}, viết thường kiểu câu. */
 export const THICKNESS_SUMMARY_LABELS: Readonly<Record<keyof ThicknessSummary, string>> = {
   segmentCount: 'tổng số đoạn tường',
-  normalizedCount: 'đã chuẩn hoá',
+  normalizedCount: 'đã ở đúng nhóm chuẩn',
   exceedingToleranceCount: 'lệch quá dung sai',
   concreteColumnCount: 'cột bê tông cốt thép',
 };
 
 /* -------------------------------------------------------------------------- */
-/* Sắp xếp bảng chi tiết.                                                      */
+/* Cảnh báo khi áp dụng lại bộ lọc.                                            */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Cột bảng chi tiết có thể sắp xếp theo. Mặc định
- * {@link DEFAULT_THICKNESS_SORT_KEY} — sắp theo sai lệch GIẢM DẦN, "để trường
- * hợp tệ nhất nổi lên đầu" (yêu cầu gốc của đặc tả).
- */
-export type ThicknessSortKey = 'deviation' | 'measuredMm' | 'confidence' | 'floorName';
-
-/** Cột sắp xếp mặc định khi mở màn. */
-export const DEFAULT_THICKNESS_SORT_KEY: ThicknessSortKey = 'deviation';
-
-/* -------------------------------------------------------------------------- */
-/* Cảnh báo khi "áp dụng lại bộ lọc".                                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Cảnh báo tại chỗ khi bấm "áp dụng lại bộ lọc" — CẤM TUYỆT ĐỐI: không bao
- * giờ ghi đè im lặng tường đã duyệt. `affectedReviewedCount`/`affectedWallIds`
- * phải nêu ĐÚNG SỐ tường đã duyệt bị ảnh hưởng; `excludeReviewed` là lựa chọn
- * người dùng đang bật (mặc định `true` — loại tường đã duyệt ra, đề nghị an
- * toàn hơn), không phải kết quả.
+ * Cảnh báo tại chỗ khi bấm "áp dụng lại bộ lọc" (CẤM TUYỆT ĐỐI: không bao giờ
+ * ghi đè im lặng tường đã duyệt). `affectedReviewedCount` phải là SỐ THẬT,
+ * đếm từ dữ liệu, không phải một câu chữ cứng.
  */
 export interface ReapplyFilterWarning {
   readonly affectedReviewedCount: number;
@@ -297,15 +305,16 @@ export interface ReapplyFilterWarning {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Xem trước trước khi áp — LUÔN hiện trước khi áp (CẤM TUYỆT ĐỐI).            */
+/* Xem trước trước khi áp — luôn hiện trước khi áp (đúng khuôn                */
+/* `RoomLabelNormalizePreview`).                                               */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Tóm tắt trước khi áp, hiện thành câu kiểu "48 tường → 3 nhóm chuẩn. 6 tường
- * lệch quá 20 mm sẽ không đổi." — CẤM TUYỆT ĐỐI: luôn hiện trước khi áp, và
- * không tách thành nhiều bước hoàn tác (một lượt áp là MỘT vé hoàn tác, A8).
- * `unchangedWalls` liệt kê rõ, không phải một con số, để người dùng thấy
- * chính xác tường nào không đổi trước khi bấm xác nhận.
+ * Tóm tắt trước khi áp, ví dụ câu "48 tường → 3 nhóm chuẩn. 6 tường lệch quá
+ * 30 mm sẽ không đổi." `sentence` PHẢI ghép từ số đếm và dung sai đang đặt ở
+ * hook (A15) — cấm chuỗi cứng, xem "X3" ở đầu file. `unchangedWalls` là mảng
+ * HÀNG ĐẦY ĐỦ (không phải một con số) vì đặc tả đòi liệt kê rõ tường nào
+ * không đổi.
  */
 export interface ApplyPreview {
   readonly totalWalls: number;
@@ -315,122 +324,187 @@ export interface ApplyPreview {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Bảy trạng thái (A11/R-63) — tên lấy NGUYÊN VĂN từ `SEVEN_STATES`.           */
+/* Canvas xem trước — không tính hình học ở view (R-60).                       */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Đúng bảy trạng thái của A11. `src/lib/testing/sevenStateScenarios.ts`
- * (`SEVEN_STATES`) dùng `'success'` cho nhánh thứ năm, KHÔNG dùng `'done'` —
- * đặc tả gốc của T4 gợi ý `'done'` nhưng chỉ dẫn của điều phối viên ("bộ
- * khẳng định đòi tên khác thì theo nó") và tiền lệ của hai màn QC anh em
- * (`WallLayerReview`, `RoomLabelReview`) đều thắng: dùng `'success'`.
- *
- * | Trạng thái  | Nghĩa ở màn Chuẩn hoá độ dày tường                                |
- * |-------------|---------------------------------------------------------------------|
- * | `empty`     | mọi tường đã chuẩn hết, không còn gì để chuẩn hoá                   |
- * | `loading`   | đang tải/đo lại lớp tường — khung xương biểu đồ đúng `HISTOGRAM_HEIGHT_PX` |
- * | `partial`   | mới có số đo của một số tầng — TRẠNG THÁI CHÍNH của màn             |
- * | `error`     | lớp dữ liệu độ dày hỏng                                             |
- * | `success`   | vừa áp xong, kèm dòng kết quả và nút hoàn tác                       |
- * | `forbidden` | vai Người xem: ẩn nút áp/duyệt/gộp nhóm                             |
- * | `collapsed` | ẩn canvas xem trước                                                 |
+ * Một hình tường đã có sẵn đa giác, đủ để canvas xem trước vẽ — đúng khuôn
+ * `WallShapeViewModel` của `WallLayerReview` (canvas KHÔNG tự tính hình học).
  */
-export type ThicknessScreenState =
-  | 'empty'
-  | 'loading'
-  | 'partial'
-  | 'error'
-  | 'success'
-  | 'forbidden'
-  | 'collapsed';
-
-/* -------------------------------------------------------------------------- */
-/* Props của các thành phần con (T6, T7 cài đặt đúng những interface này).     */
-/* -------------------------------------------------------------------------- */
-
-/** Mọi thứ biểu đồ nhận. Cột biểu đồ trung tính; chỉ dải mang màu xám tường ở độ mờ thấp (CẤM TUYỆT ĐỐI). */
-export interface ThicknessHistogramProps {
-  readonly bins: readonly HistogramBin[];
-  readonly thresholds: ThicknessThresholds;
-  /** Nhãn chữ đều cho từng ngưỡng, ví dụ `"165 mm"` — đã định dạng ở hook (A15). */
-  readonly thresholdLabels: readonly [string, string, string];
-  readonly onThresholdDrag: (index: ThicknessThresholdIndex, mm: number) => void;
-  readonly hoveredBinIndex: number | null;
-  readonly onHoverBin: (index: number | null) => void;
-  readonly isLoading: boolean;
-}
-
-/** Một tường đã có sẵn đa giác cho canvas xem trước — canvas KHÔNG tự tính hình học (R-60). */
-export interface ThicknessPreviewWallViewModel {
-  readonly id: WallId;
-  /** Đa giác đóng, kết quả của `resolveWallShapes` (`src/domain/walls/joints.ts`), hook chuyền tay không tính lại. */
-  readonly outline: readonly PointMm[];
+export interface ThicknessWallShapeViewModel {
+  readonly wallId: WallId;
+  /** Đa giác đóng, ngược kim đồng hồ, ít nhất bốn đỉnh. */
+  readonly outline: readonly Point[];
   readonly group: ThicknessGroup;
 }
 
-/** Một dòng chú giải độ dày của canvas xem trước. */
-export interface ThicknessPreviewLegendEntry {
+/** Một mục chú giải độ dày — token màu đã ghép sẵn (`wallStrokeToken`, view không tự chọn màu). */
+export interface ThicknessLegendEntry {
   readonly group: ThicknessGroup;
   readonly label: string;
+  /** Ví dụ `"var(--wall-220)"` — CSS custom property, view chỉ gán thẳng vào style (A1). */
+  readonly colorToken: string;
 }
 
-/** Mọi thứ canvas xem trước nhận — rộng cố định {@link THICKNESS_PREVIEW_CANVAS_WIDTH_PX}. */
+/** Mọi thứ canvas xem trước nhận. */
 export interface ThicknessPreviewCanvasProps {
-  readonly walls: readonly ThicknessPreviewWallViewModel[];
-  /** Nhóm đang trỏ tới (từ bảng nhóm) để tô sáng cả cụm — `null` khi không trỏ tới nhóm nào. */
-  readonly highlightedGroup: ThicknessGroup | null;
-  /** Tường đang trỏ tới (từ bảng chi tiết) để tô sáng một mình nó — `null` khi không trỏ tới tường nào. */
-  readonly highlightedWallId: WallId | null;
-  readonly legend: readonly ThicknessPreviewLegendEntry[];
+  readonly shapes: readonly ThicknessWallShapeViewModel[];
+  readonly legend: readonly ThicknessLegendEntry[];
+  /** Nhóm đang trỏ tới (từ bảng nhóm hoặc biểu đồ) — cùng khái niệm với {@link ThicknessGroupTableProps.hoveredGroup}. */
+  readonly hoveredGroup: ThicknessGroup | null;
+  /** Tường đang trỏ tới — cùng khái niệm với {@link ThicknessSegmentTableProps.hoveredWallId}. */
+  readonly hoveredWallId: WallId | null;
+  readonly onHoverWall: (wallId: WallId | null) => void;
+  /** `true` ở trạng thái `collapsed` — CẤM TUYỆT ĐỐI: ẩn canvas xem trước, không xoá dữ liệu. */
   readonly isCollapsed: boolean;
 }
 
-/** Mọi thứ bảng nhóm bên trái nhận. */
-export interface ThicknessGroupTableProps {
-  readonly rows: readonly ThicknessGroupRow[];
-  /** Tích/bỏ tích một hàng — CẤM TUYỆT ĐỐI: không hàng nào tích sẵn. */
-  readonly onToggleAccepted: (measuredMm: number, accepted: boolean) => void;
-  readonly hoveredMeasuredMm: number | null;
-  readonly onHoverRow: (measuredMm: number | null) => void;
+/* -------------------------------------------------------------------------- */
+/* Biểu đồ.                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Mọi thứ biểu đồ nhận. */
+export interface ThicknessHistogramProps {
+  readonly bins: readonly HistogramBin[];
+  readonly thresholds: ThicknessThresholds;
+  readonly onThresholdDrag: (index: number, mm: number) => void;
+  /** Nhãn chữ đã định dạng sẵn cho mỗi ngưỡng, cùng thứ tự với {@link ThicknessThresholds} (A15). */
+  readonly thresholdLabels: readonly string[];
+  readonly hoveredBinIndex: number | null;
+  readonly onHoverBin: (index: number | null) => void;
+  /** `true` khi số đo chưa tới — khung xương vẽ đúng {@link HISTOGRAM_HEIGHT_PX}, không nhảy khung. */
   readonly isLoading: boolean;
 }
 
-/** Mọi thứ bảng chi tiết 48 đoạn nhận. */
+/* -------------------------------------------------------------------------- */
+/* Bảng nhóm bên trái.                                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Mọi thứ bảng nhóm nhận. */
+export interface ThicknessGroupTableProps {
+  readonly rows: readonly ThicknessGroupRow[];
+  readonly hoveredGroup: ThicknessGroup | null;
+  readonly onHoverGroup: (group: ThicknessGroup | null) => void;
+  /** Tích/bỏ tích một dòng — CẤM TUYỆT ĐỐI: không tích sẵn, người dùng phải tự bấm. */
+  readonly onToggleAccepted: (measuredMm: number, accepted: boolean) => void;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Bảng chi tiết — 48 đoạn.                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Mọi thứ bảng chi tiết nhận. */
 export interface ThicknessSegmentTableProps {
   readonly rows: readonly ThicknessSegmentRow[];
   readonly sortKey: ThicknessSortKey;
-  readonly onSortChange: (key: ThicknessSortKey) => void;
+  readonly onChangeSortKey: (key: ThicknessSortKey) => void;
   readonly hoveredWallId: WallId | null;
   readonly onHoverRow: (wallId: WallId | null) => void;
-  readonly isLoading: boolean;
 }
 
-/** Mọi thứ dòng tóm tắt nhận. */
+/* -------------------------------------------------------------------------- */
+/* Tóm tắt bốn con số.                                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Mọi thứ khối tóm tắt nhận. */
 export interface ThicknessSummaryProps {
   readonly summary: ThicknessSummary;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Thanh áp dụng — dung sai, xem trước, áp, hoàn tác, áp dụng lại bộ lọc.       */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Mọi thứ thanh áp dụng dưới cùng nhận — xem trước, cảnh báo áp lại bộ lọc,
- * và kết quả sau khi áp, gộp một chỗ vì cả ba đều thuộc vòng đời của MỘT lượt
- * áp (CẤM TUYỆT ĐỐI: không tách thành nhiều bước hoàn tác).
+ * Mọi thứ thanh áp dụng nhận. `preview` là `null` cho tới khi
+ * {@link onOpenPreview} được gọi — đúng khuôn `RoomLabelNormalizePreviewProps`
+ * (CẤM TUYỆT ĐỐI: bảng xem trước luôn hiện trước khi áp). `onUndo` là MỘT
+ * hành động cho cả lượt áp (CẤM TUYỆT ĐỐI: không tách thành nhiều bước hoàn
+ * tác).
  */
 export interface ThicknessApplyBarProps {
-  /** Xem trước trước khi áp. `null` khi chưa tính (chưa hàng nào được tích, hoặc chưa bấm "xem trước"). */
   readonly preview: ApplyPreview | null;
-  /** Cảnh báo khi "áp dụng lại bộ lọc" đụng tường đã duyệt. `null` khi không có. */
-  readonly reapplyWarning: ReapplyFilterWarning | null;
-  /** Câu kết quả SAU khi đã áp, ví dụ "Đã chuẩn hoá 42/48 tường về 3 nhóm chuẩn.". `null` trước khi áp. */
-  readonly resultSentence: string | null;
+  readonly toleranceMm: number;
+  readonly onChangeTolerance: (mm: number) => void;
   readonly onOpenPreview: () => void;
-  readonly onApply: () => void;
+  readonly onApplyPreview: () => void;
   readonly onCancelPreview: () => void;
-  readonly onReapplyFilter: () => void;
-  readonly onToggleExcludeReviewed: () => void;
-  /** Hoàn tác lượt áp gần nhất (A8) — thường đi cùng toast, không tham số. */
+  /** Hoàn tác thao tác gần nhất (A8) — thường đi cùng toast, không tham số. */
   readonly onUndo: () => void;
-  /** `true` ở vai Người xem — CẤM TUYỆT ĐỐI không hộp thoại, nên chỉ ẩn nút áp/hoàn tác. */
+  /** `null` khi chưa bấm "áp dụng lại bộ lọc" hoặc không có tường đã duyệt bị ảnh hưởng. */
+  readonly reapplyWarning: ReapplyFilterWarning | null;
+  /** Xác nhận áp dụng lại — CẤM TUYỆT ĐỐI: không bao giờ ghi đè im lặng tường đã duyệt. */
+  readonly onReapplyFilter: (excludeReviewed: boolean) => void;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Toàn màn — kiểu hook trả về (R-59) — xem ghi chú đầu file.                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mọi thứ hook `useThicknessStandardization` trả về. View KHÔNG tự gọi store
+ * — mọi thay đổi đi ra qua một trong các `on...` dưới đây (A10). KHÔNG có
+ * trong danh sách khai tối thiểu của đặc tả — bổ sung thuần cộng thêm (R-59),
+ * xem ghi chú đầu file. Xoá kiểu này không đổi hình dạng của bất kỳ trường
+ * nào bên trong các `*Props` con — `ThicknessStandardization.tsx` (T7) vẫn
+ * dùng được từng `*Props` độc lập nếu điều phối viên muốn bỏ kiểu gộp này.
+ */
+export interface ThicknessStandardizationProps {
+  readonly state: ThicknessScreenState;
+
+  /* -- Biểu đồ -------------------------------------------------------------- */
+  readonly bins: readonly HistogramBin[];
+  readonly thresholds: ThicknessThresholds;
+  readonly thresholdLabels: readonly string[];
+  readonly onThresholdDrag: (index: number, mm: number) => void;
+  readonly hoveredBinIndex: number | null;
+  readonly onHoverBin: (index: number | null) => void;
+  readonly isLoading: boolean;
+
+  /* -- Canvas xem trước ------------------------------------------------------ */
+  readonly shapes: readonly ThicknessWallShapeViewModel[];
+  readonly legend: readonly ThicknessLegendEntry[];
+  readonly isCollapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+
+  /* -- Trỏ tới dùng chung giữa canvas / hai bảng ----------------------------- */
+  readonly hoveredGroup: ThicknessGroup | null;
+  readonly onHoverGroup: (group: ThicknessGroup | null) => void;
+  readonly hoveredWallId: WallId | null;
+  readonly onHoverWall: (wallId: WallId | null) => void;
+
+  /* -- Bảng nhóm bên trái ----------------------------------------------------- */
+  readonly groupRows: readonly ThicknessGroupRow[];
+  readonly onToggleAccepted: (measuredMm: number, accepted: boolean) => void;
+
+  /* -- Bảng chi tiết ----------------------------------------------------------- */
+  readonly segmentRows: readonly ThicknessSegmentRow[];
+  readonly sortKey: ThicknessSortKey;
+  readonly onChangeSortKey: (key: ThicknessSortKey) => void;
+
+  /* -- Tóm tắt ------------------------------------------------------------------ */
+  readonly summary: ThicknessSummary;
+
+  /* -- Dung sai, xem trước, áp, hoàn tác, áp dụng lại bộ lọc --------------------- */
+  readonly toleranceMm: number;
+  readonly onChangeTolerance: (mm: number) => void;
+  readonly preview: ApplyPreview | null;
+  readonly onOpenPreview: () => void;
+  readonly onApplyPreview: () => void;
+  readonly onCancelPreview: () => void;
+  readonly onUndo: () => void;
+  readonly reapplyWarning: ReapplyFilterWarning | null;
+  readonly onReapplyFilter: (excludeReviewed: boolean) => void;
+
+  /* -- Vai trò, bảy trạng thái ---------------------------------------------------- */
+  /** `true` ở vai Người xem — CẤM TUYỆT ĐỐI không hộp thoại, nên chỉ ẩn nút áp/gộp/sửa dung sai. */
   readonly isViewerRole: boolean;
+  /** Câu giải thích thay nút áp ở vai Người xem. `null` ngoài `forbidden`. */
+  readonly viewerRoleNotice: string | null;
+  /** Câu của trạng thái `empty`. `null` ở trạng thái khác. */
+  readonly emptyNotice: string | null;
+  /** Lỗi của trạng thái `error`. `null` ở trạng thái khác. */
+  readonly errorMessage: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -438,11 +512,11 @@ export interface ThicknessApplyBarProps {
 /* -------------------------------------------------------------------------- */
 
 /*
- * File này ĐÓNG BĂNG kể từ lúc lớp L1 xong. Worker lớp sau (T5 hook/gateway,
- * T6 biểu đồ/canvas, T7 bảng/tóm tắt) thấy thiếu một trường, sai một kiểu, hay
- * cần thêm một prop thì phải `orca orchestration ask` hỏi điều phối viên
- * trước — không tự thêm, không tự sửa, kể cả người đã viết file này. Cách hợp
- * lệ duy nhất để mở rộng là MỞ RỘNG kiểu ở file riêng, đúng khuôn
- * `UseScaleCalibrationHookOptions extends UseScaleCalibrationOptions` của màn
- * `ScaleCalibration`.
+ * File này ĐÓNG BĂNG kể từ lúc lớp L1 (T4) xong. Worker lớp sau (T5 — hook,
+ * T6 — biểu đồ/canvas, T7 — bảng/tóm tắt) thấy thiếu một trường, sai một
+ * kiểu, hay cần thêm một prop thì phải `orca orchestration ask` hỏi điều
+ * phối viên trước — không tự thêm, không tự sửa, kể cả người đã viết file
+ * này. Cách hợp lệ duy nhất để mở rộng là MỞ RỘNG kiểu ở file riêng, đúng
+ * khuôn `UseScaleCalibrationHookOptions extends UseScaleCalibrationOptions`
+ * của màn `ScaleCalibration`.
  */

@@ -1,149 +1,104 @@
 /**
  * Bảy kịch bản của màn "Chuẩn hoá độ dày tường", dựng sẵn để story (T8) và bài
- * kiểm dùng chung. Theo đúng khuôn `roomLabelReviewScenarios.ts` /
- * `wallLayerReviewScenarios.ts` của hai màn QC anh em: đúng bảy kịch bản, tên
- * nhánh lấy nguyên từ `SEVEN_STATES`, nhãn tiếng Việt lấy nguyên từ
- * `SEVEN_STATE_LABELS` chứ không tự đặt một bản dịch thứ hai có thể trôi khỏi
- * bản gốc.
+ * kiểm dùng chung.
  *
- * Mỗi kịch bản mang RAW DATA đúng hình dạng `ThicknessFixtureWall` — KHÔNG
- * phải `ThicknessSegmentRow`/`ApplyPreview` đã tính sẵn. Lý do giống hệt hai
- * màn anh em: viewmodel là kết quả của `useThicknessStandardization` (T5), và
- * dựng sẵn nó ở đây nghĩa là chép lại logic của hook vào một chỗ thứ hai để
- * hai bên trôi khỏi nhau (R-61/R-70).
+ * Theo đúng khuôn `roomLabelReviewScenarios.ts` của màn QC anh em: đúng bảy
+ * kịch bản, tên nhánh lấy nguyên từ `SEVEN_STATES`, nhãn tiếng Việt lấy nguyên
+ * từ `SEVEN_STATE_LABELS` chứ không tự đặt một bản dịch thứ hai có thể trôi
+ * khỏi bản gốc.
+ *
+ * Mỗi kịch bản mang RAW DATA đúng hình dạng đồ thị — `Wall[]`/`Level[]` của
+ * `src/domain/spatial/types` — chứ KHÔNG phải `ThicknessStandardizationProps`
+ * đã tính sẵn (bins, groupRows, segmentRows, summary...). Lý do giống hệt màn
+ * tường/phòng anh em: viewmodel là kết quả của `useThicknessStandardization.ts`
+ * (T5), và dựng sẵn nó ở đây nghĩa là chép lại logic của hook vào một chỗ thứ
+ * hai để hai bên trôi khỏi nhau (R-61/R-70). Nơi gọi (bài kiểm/story) cắm
+ * `scenario.walls`/`scenario.levels` vào hook thật hoặc một cổng giả, đúng
+ * cách `roomLabelReviewScenarios.ts` cắm `scenario.rooms`/`scenario.walls`
+ * vào `normalizeSpatial(...)`.
+ *
+ * ## Hai kịch bản dùng lại `alreadyStandardized(...)`, không phải hai tập dữ liệu tự chế
+ *
+ * `'empty'` ("độ dày đã chuẩn hết, không cần làm gì") và `'success'` ("kèm
+ * dòng kết quả và nút hoàn tác; nếu mọi đoạn đều trong dung sai thì tóm tắt
+ * chuyển sang mức đã duyệt") đều tả cùng MỘT sự thật dữ liệu: không đoạn nào
+ * còn lệch quá dung sai. Khác nhau ở `state` (và do đó ở UI — `'success'` có
+ * dòng kết quả + nút hoàn tác, `'empty'` thì không), không phải ở dữ liệu.
+ * {@link alreadyStandardized} gọi THẲNG `standardizeThickness` thật
+ * (`src/lib/geometry/standardize.ts`, đúng R-61) để đưa `thicknessMm` của cả
+ * 48 đoạn về giá trị chuẩn của nhóm nó rơi vào — cột bê tông cốt thép giữ
+ * nguyên vì không có giá trị số để quy về (X2, xem `thicknessTypes.ts`).
  */
 
-import type { WallId } from '@/domain/spatial/types';
-import { millimetres } from '@/domain/units/types';
-import type { WallKind } from '@/domain/walls/types';
+import type { Level, Wall } from '@/domain/spatial/types';
+import { standardizeThickness } from '@/lib/geometry/standardize';
 import { SEVEN_STATE_LABELS, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import { THICKNESS_FIXTURE_LEVELS, THICKNESS_FIXTURE_WALLS } from './thicknessFixture';
 import {
-  THICKNESS_FIXTURE_EMPTY,
-  THICKNESS_FIXTURE_WALLS,
-  type ThicknessFixtureWall,
-} from './thicknessFixture';
-import { DEFAULT_TOLERANCE_MM, THICKNESS_GROUPS_MM, type ThicknessGroup, type ThicknessScreenState } from './thicknessTypes';
+  DEFAULT_THICKNESS_THRESHOLDS,
+  DEFAULT_TOLERANCE_MM,
+  type ThicknessScreenState,
+  type ThicknessThresholds,
+} from './thicknessTypes';
 
 /* -------------------------------------------------------------------------- */
-/* Bộ tường nhỏ "đã chuẩn hết" — dùng cho `empty` và (sau khi áp) `success`.   */
+/* Không tường nào — kịch bản chưa có số đo.                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Dựng một đoạn tường đã ĐÚNG một trong ba nhóm chuẩn — không cần chuẩn hoá gì thêm. */
-function standardWall(
-  code: string,
-  xStartMm: number,
-  xEndMm: number,
-  thicknessMm: number,
-  kind: WallKind,
-  floorName: string,
-  baseElevationMm: number,
-  confidence: number,
-  reviewed: boolean,
-): ThicknessFixtureWall {
-  return {
-    wall: {
-      id: `W-${code}` as WallId,
-      kind,
-      centreline: { start: { x: millimetres(xStartMm), y: millimetres(0) }, end: { x: millimetres(xEndMm), y: millimetres(0) } },
-      thicknessMm: millimetres(thicknessMm),
-      baseElevationMm: millimetres(baseElevationMm),
-      topElevationMm: millimetres(baseElevationMm + 3000),
-    },
-    confidence,
-    reviewed,
-    floorName,
-  };
-}
+const NO_WALLS: readonly Wall[] = [];
 
 /**
- * 6 đoạn, đúng khớp {@link THICKNESS_GROUPS_MM} (2 mỗi nhóm), trải cả ba tầng —
- * "độ dày đã chuẩn hết, không cần làm gì" của kịch bản `empty`.
+ * Đưa `thicknessMm` của mỗi đoạn về đúng giá trị chuẩn của nhóm nó rơi vào,
+ * qua `standardizeThickness` thật — xem "Hai kịch bản dùng lại..." ở đầu file.
  */
-const THICKNESS_SCENARIO_ALREADY_STANDARD_WALLS: readonly ThicknessFixtureWall[] = [
-  standardWall('101', 0, 800, 110, 'railing', 'Tầng 1', 0, 0.95, true),
-  standardWall('102', 1000, 1800, 110, 'railing', 'Tầng 2', 3000, 0.9, false),
-  standardWall('103', 2000, 2800, 220, 'partition', 'Tầng 1', 0, 0.93, true),
-  standardWall('104', 3000, 3800, 220, 'partition', 'Tầng 3', 6000, 0.88, false),
-  standardWall('105', 4000, 4800, 330, 'loadBearing', 'Tầng 2', 3000, 0.97, true),
-  standardWall('106', 5000, 5800, 330, 'loadBearing', 'Tầng 3', 6000, 0.91, false),
-];
-
-/* -------------------------------------------------------------------------- */
-/* Bản đã áp của 48 đoạn — dùng cho kịch bản `success` ("vừa áp xong").        */
-/* -------------------------------------------------------------------------- */
-
-/** Nhóm chuẩn gần nhất trong {@link THICKNESS_GROUPS_MM}, cùng công thức với `thicknessFixture.ts`. */
-function nearestGroupMm(thicknessMm: number): number {
-  return THICKNESS_GROUPS_MM.reduce((nearest, group) =>
-    Math.abs(thicknessMm - group) < Math.abs(thicknessMm - nearest) ? group : nearest,
-  );
+function alreadyStandardized(walls: readonly Wall[]): readonly Wall[] {
+  return walls.map((source) => {
+    const { standardized } = standardizeThickness(source.thicknessMm);
+    return typeof standardized === 'number' ? { ...source, thicknessMm: standardized } : source;
+  });
 }
 
-/** Cột bê tông cốt thép: vượt xa 330 mm — cùng biên với `PLAUSIBLE_WALL_MAX_MM` của `thicknessFixture.ts`. */
-const PLAUSIBLE_WALL_MAX_MM = 400;
+/** Bốn nhóm đều đã chuẩn — dùng chung cho `'empty'` và `'success'`. */
+const STANDARDIZED_WALLS = alreadyStandardized(THICKNESS_FIXTURE_WALLS);
 
 /**
- * Độ dày SAU khi áp — theo đúng quyết định X4 (`thicknessTypes.ts`): cụm đo
- * (≥2 đoạn cùng giá trị) luôn đổi về nhóm gần nhất; đo lẻ lệch quá
- * {@link DEFAULT_TOLERANCE_MM} thì giữ nguyên ("sẽ không đổi"); cột bê tông
- * cốt thép không có lệnh áp nên luôn giữ nguyên (X2).
+ * "Chỉ chọn hai nhóm" — mới có số đo cho nhóm 110 và 220, hai nhóm 330/cột bê
+ * tông cốt thép của bộ mẫu CHƯA nằm trong tập này. Lọc bằng
+ * `standardizeThickness` thật (R-61), không tự khai lại ngưỡng.
  */
-function appliedThicknessMm(thicknessMm: number, allThicknesses: readonly number[]): number {
-  if (thicknessMm > PLAUSIBLE_WALL_MAX_MM) {
-    return thicknessMm;
-  }
-  const occurrences = allThicknesses.filter((value) => value === thicknessMm).length;
-  const nearest = nearestGroupMm(thicknessMm);
-  if (occurrences === 1 && Math.abs(thicknessMm - nearest) > DEFAULT_TOLERANCE_MM) {
-    return thicknessMm;
-  }
-  return nearest;
-}
+const PARTIAL_TWO_GROUPS_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((source) => {
+  const { standardized } = standardizeThickness(source.thicknessMm);
+  return standardized === 110 || standardized === 220;
+});
 
-const ALL_FIXTURE_THICKNESSES = THICKNESS_FIXTURE_WALLS.map((entry) => entry.wall.thicknessMm);
-
-/**
- * 48 đoạn của bộ mẫu chính, SAU khi áp chuẩn hoá — mọi đoạn đổi được đã đổi,
- * sáu đoạn lệch quá dung sai và ba đoạn cột bê tông cốt thép giữ nguyên. Dùng
- * cho kịch bản `success`, đúng khuôn `allNamedAndReviewed` của
- * `roomLabelReviewScenarios.ts` (biến đổi bộ mẫu chính thay vì dựng một bộ
- * riêng, để câu kết quả khớp đúng những con số đã kiểm ở `thicknessFixture.ts`).
- */
-function appliedFixtureWalls(): readonly ThicknessFixtureWall[] {
-  return THICKNESS_FIXTURE_WALLS.map((entry) => ({
-    ...entry,
-    wall: { ...entry.wall, thicknessMm: millimetres(appliedThicknessMm(entry.wall.thicknessMm, ALL_FIXTURE_THICKNESSES)) },
-  }));
-}
+/** "Mới có số đo của một số tầng" — chỉ hai trong ba tầng của bộ mẫu đã có dữ liệu. */
+const LOADED_LEVEL_IDS = new Set([THICKNESS_FIXTURE_LEVELS[0]?.id, THICKNESS_FIXTURE_LEVELS[1]?.id]);
+const PARTIAL_TWO_FLOORS_WALLS: readonly Wall[] = THICKNESS_FIXTURE_WALLS.filter((source) =>
+  LOADED_LEVEL_IDS.has(source.levelId),
+);
+const PARTIAL_TWO_FLOORS_LEVELS: readonly Level[] = THICKNESS_FIXTURE_LEVELS.slice(0, 2);
 
 /* -------------------------------------------------------------------------- */
 /* Một kịch bản.                                                               */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Nguyên liệu cho một trong bảy trạng thái, cộng vài cờ ngoài dữ liệu tường
- * (vai trò, thu gọn, lỗi, nhóm tích sẵn) mà bản thân `Wall[]` không mang.
+ * Nguyên liệu đồ thị cho một trong bảy trạng thái, cộng vài cờ ngoài đồ thị
+ * (dung sai, ngưỡng, vai trò, thu gọn, lỗi) mà đồ thị tự nó không mang.
  *
  * Mọi trường có mặt ở MỌI kịch bản (đúng tinh thần `SevenStateScenario`): một
- * nơi gọi đọc `scenario.error` không phải đoán xem trường đó có tồn tại không.
+ * nơi gọi đọc `scenario.error` không phải đoán xem trường đó có tồn tại
+ * không.
  */
 export interface ThicknessStandardizationScenario {
   readonly state: ThicknessScreenState;
   /** Nhãn tiếng Việt của trạng thái, nguyên từ `SEVEN_STATE_LABELS`. */
   readonly label: string;
-  readonly walls: readonly ThicknessFixtureWall[];
-  /**
-   * Nhóm chuẩn đã được tích sẵn khi mở kịch bản này — mô phỏng người dùng đã
-   * chọn trước lúc chụp ảnh màn hình/chạy bài kiểm. KHÔNG phải mặc định của
-   * màn: `ThicknessGroupRow.accepted` vẫn `false` cho MỌI hàng lúc màn mới
-   * tải (CẤM TUYỆT ĐỐI "không tích sẵn", `thicknessTypes.ts`) — trường này chỉ
-   * có ý nghĩa với kịch bản `partial` (mô phỏng bước giữa chừng của người
-   * dùng), rỗng ở mọi kịch bản khác.
-   */
-  readonly acceptedGroups: readonly ThicknessGroup[];
-  /** Câu kết quả sau khi đã áp. Non-null CHỈ ở kịch bản `success`. */
-  readonly resultSentence: string | null;
+  readonly levels: readonly Level[];
+  readonly walls: readonly Wall[];
+  readonly toleranceMm: number;
+  readonly thresholds: ThicknessThresholds;
   /** `true` ở kịch bản `forbidden` — vai Người xem. */
   readonly isViewerRole: boolean;
   /** `true` ở kịch bản `collapsed`. */
@@ -154,127 +109,129 @@ export interface ThicknessStandardizationScenario {
 
 const labelOf = (state: SevenState): string => SEVEN_STATE_LABELS[state];
 
-const NO_ACCEPTED_GROUPS: readonly ThicknessGroup[] = [];
-
 /**
- * 1. Rỗng — độ dày đã chuẩn hết, không cần làm gì (`emptyNotice` của
- * {@link ThicknessSummaryProps} sẽ nói ra điều đó). Biến thể "chưa có số đo"
- * (đặc tả mục 2.3.1) nằm ở {@link THICKNESS_SCENARIO_EMPTY_UNMEASURED} bên
- * dưới — hai kịch bản `empty` khác nhau về LÝ DO rỗng, nên tách hai hằng thay
- * vì ép chung một mảng `walls` phải nói được cả hai chuyện cùng lúc.
+ * 1. Rỗng — độ dày đã chuẩn hết, không đoạn nào cần làm gì.
+ *
+ * `STANDARDIZED_WALLS` — xem "Hai kịch bản dùng lại..." ở đầu file.
  */
 export const THICKNESS_SCENARIO_EMPTY: ThicknessStandardizationScenario = {
   state: 'empty',
   label: labelOf('empty'),
-  walls: THICKNESS_SCENARIO_ALREADY_STANDARD_WALLS,
-  acceptedGroups: NO_ACCEPTED_GROUPS,
-  resultSentence: null,
+  levels: THICKNESS_FIXTURE_LEVELS,
+  walls: STANDARDIZED_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: false,
   error: null,
 };
 
-/**
- * 1b. Biến thể của `empty` — CHƯA có số đo nào (AI chưa dò xong), khác lý do
- * rỗng với {@link THICKNESS_SCENARIO_EMPTY} (đã đo xong và đều chuẩn). KHÔNG
- * nằm trong {@link THICKNESS_STANDARDIZATION_SCENARIOS} — bảy kịch bản đó chỉ
- * cần đúng một đại diện cho mỗi trạng thái; đây là hằng phụ cho story/test
- * muốn phân biệt hai lý do rỗng.
- */
-export const THICKNESS_SCENARIO_EMPTY_UNMEASURED: ThicknessStandardizationScenario = {
+/** 1b. Biến thể rỗng — chưa có số đo nào (đồ thị chưa có tường). */
+export const THICKNESS_SCENARIO_EMPTY_NO_MEASUREMENTS: ThicknessStandardizationScenario = {
   state: 'empty',
   label: labelOf('empty'),
-  walls: THICKNESS_FIXTURE_EMPTY,
-  acceptedGroups: NO_ACCEPTED_GROUPS,
-  resultSentence: null,
+  levels: THICKNESS_FIXTURE_LEVELS,
+  walls: NO_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: false,
   error: null,
 };
 
-/** 2. Đang tải — chưa có đoạn tường nào tới, khung xương biểu đồ đúng `HISTOGRAM_HEIGHT_PX`. */
+/** 2. Đang tải — chưa có số đo nào tới; biểu đồ vẽ khung xương đúng `HISTOGRAM_HEIGHT_PX`. */
 export const THICKNESS_SCENARIO_LOADING: ThicknessStandardizationScenario = {
   state: 'loading',
   label: labelOf('loading'),
-  walls: THICKNESS_FIXTURE_EMPTY,
-  acceptedGroups: NO_ACCEPTED_GROUPS,
-  resultSentence: null,
+  levels: THICKNESS_FIXTURE_LEVELS,
+  walls: NO_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: false,
   error: null,
 };
 
 /**
- * 3. Một phần — TRẠNG THÁI CHÍNH của màn. Hai điều kiện của đặc tả cùng đúng ở
- * đây: `walls` chỉ còn Tầng 1 và Tầng 2 (Tầng 3 CHƯA có số đo, "mới có số đo
- * của một số tầng"), và {@link ThicknessStandardizationScenario.acceptedGroups}
- * chỉ có hai trong bốn nhóm ("chỉ chọn hai nhóm").
+ * 3. Một phần — TRẠNG THÁI CHÍNH của màn. "Chỉ chọn hai nhóm": mới có số đo
+ * cho nhóm 110 và 220, nhóm 330 và cột bê tông cốt thép còn trống.
  */
 export const THICKNESS_SCENARIO_PARTIAL: ThicknessStandardizationScenario = {
   state: 'partial',
   label: labelOf('partial'),
-  walls: THICKNESS_FIXTURE_WALLS.filter((entry) => entry.floorName !== 'Tầng 3'),
-  acceptedGroups: [220, 110],
-  resultSentence: null,
+  levels: THICKNESS_FIXTURE_LEVELS,
+  walls: PARTIAL_TWO_GROUPS_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: false,
   error: null,
 };
 
-/** 4. Lỗi — lớp dữ liệu độ dày hỏng. */
+/** 3b. Biến thể một phần — mới có số đo của hai trong ba tầng. */
+export const THICKNESS_SCENARIO_PARTIAL_BY_FLOOR: ThicknessStandardizationScenario = {
+  state: 'partial',
+  label: labelOf('partial'),
+  levels: PARTIAL_TWO_FLOORS_LEVELS,
+  walls: PARTIAL_TWO_FLOORS_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
+  isViewerRole: false,
+  isCollapsed: false,
+  error: null,
+};
+
+/** 4. Lỗi — lớp số đo hỏng. */
 export const THICKNESS_SCENARIO_ERROR: ThicknessStandardizationScenario = {
   state: 'error',
   label: labelOf('error'),
-  walls: THICKNESS_FIXTURE_EMPTY,
-  acceptedGroups: NO_ACCEPTED_GROUPS,
-  resultSentence: null,
+  levels: THICKNESS_FIXTURE_LEVELS,
+  walls: NO_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: false,
-  error: new Error('Không tải được lớp độ dày tường của tầng.'),
+  error: new Error('Không tải được số đo độ dày tường.'),
 };
 
 /**
- * 5. Xong — vừa áp xong, kèm dòng kết quả và nút hoàn tác.
- *
- * `walls` là bản ĐÃ ÁP của bộ mẫu 48 đoạn ({@link appliedFixtureWalls}): 39
- * đoạn (30 đoạn 195 mm + 5 đoạn quanh 110 + 4 đoạn quanh 330) đã về đúng một
- * trong ba nhóm chuẩn; 6 đoạn lệch quá dung sai và 3 đoạn cột bê tông cốt thép
- * giữ nguyên (X2, X4). Vì không đoạn nào còn `exceedsTolerance` NGOÀI sáu đoạn
- * cột/lệch quá dung sai (chúng không đổi trạng thái đó khi áp), tóm tắt của
- * đặc tả "nếu mọi đoạn đều trong dung sai thì tóm tắt chuyển sang mức đã
- * duyệt" áp dụng cho 39 đoạn đã chuẩn — hook (T5) tính `status: 'verified'`
- * cho chúng khi đồng thời `reviewed === true`.
+ * 5. Xong — vừa áp xong, mọi đoạn đều trong dung sai (`STANDARDIZED_WALLS`,
+ * xem "Hai kịch bản dùng lại..." ở đầu file); tóm tắt chuyển sang mức đã
+ * duyệt, kèm dòng kết quả và nút hoàn tác (do hook/view dựng từ `state`).
  */
 export const THICKNESS_SCENARIO_SUCCESS: ThicknessStandardizationScenario = {
   state: 'success',
   label: labelOf('success'),
-  walls: appliedFixtureWalls(),
-  acceptedGroups: [...THICKNESS_GROUPS_MM],
-  resultSentence: 'Đã chuẩn hoá 48 tường về 3 nhóm chuẩn; 6 tường lệch quá 20 mm không đổi.',
+  levels: THICKNESS_FIXTURE_LEVELS,
+  walls: STANDARDIZED_WALLS,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: false,
   error: null,
 };
 
-/** 6. Không có quyền — vai Người xem, chỉ xem; dữ liệu như `partial` (đủ ba tầng). */
+/** 6. Không có quyền — vai Người xem, chỉ xem; dữ liệu như bộ mẫu đầy đủ. */
 export const THICKNESS_SCENARIO_FORBIDDEN: ThicknessStandardizationScenario = {
   state: 'forbidden',
   label: labelOf('forbidden'),
+  levels: THICKNESS_FIXTURE_LEVELS,
   walls: THICKNESS_FIXTURE_WALLS,
-  acceptedGroups: NO_ACCEPTED_GROUPS,
-  resultSentence: null,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: true,
   isCollapsed: false,
   error: null,
 };
 
-/** 7. Thu gọn — ẩn canvas xem trước; dữ liệu như `partial` (đủ ba tầng). */
+/** 7. Thu gọn — ẩn canvas xem trước; dữ liệu như bộ mẫu đầy đủ. */
 export const THICKNESS_SCENARIO_COLLAPSED: ThicknessStandardizationScenario = {
   state: 'collapsed',
   label: labelOf('collapsed'),
+  levels: THICKNESS_FIXTURE_LEVELS,
   walls: THICKNESS_FIXTURE_WALLS,
-  acceptedGroups: NO_ACCEPTED_GROUPS,
-  resultSentence: null,
+  toleranceMm: DEFAULT_TOLERANCE_MM,
+  thresholds: DEFAULT_THICKNESS_THRESHOLDS,
   isViewerRole: false,
   isCollapsed: true,
   error: null,
