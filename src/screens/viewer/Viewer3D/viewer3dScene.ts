@@ -41,6 +41,13 @@
  * ngoài trần khung hình {@link VIEWER_MAX_FPS}, vốn là một tần số chứ không
  * phải một thời lượng chuyển động (đúng phân biệt mà `MAX_SWAY_FPS` của
  * `frameLoop.ts` đã đặt ra).
+ *
+ * `DegradeAction` có hai vế và cả hai được thi hành: bóng đổ đi thẳng vào
+ * `renderer.shadowMap.type` qua `shadowMapTypeFor`, còn nấc chi tiết đi qua
+ * {@link applyDetailLevel} — ẩn đúng những loại bộ phận mà `droppedKindsAt` nói
+ * nấc ấy bỏ. Hình học KHÔNG dựng lại cho một nấc rẻ hơn: mọi mesh của cả ba nấc
+ * đã nằm sẵn trên cây, nên hạ chi tiết là một phép ẩn và nâng lại là phép thôi
+ * ẩn — đảo ngược được, không mất một buffer nào.
  */
 
 import {
@@ -59,6 +66,7 @@ import {
   WebGLRenderer,
   type Camera,
   type Material,
+  type Object3D,
 } from 'three';
 
 import { CAMERA_SETTINGS } from '@/lib/three/camera/settings';
@@ -70,7 +78,8 @@ import {
   type Viewpoint,
 } from '@/lib/three/camera/modes';
 import { BuildQueue, planFullBuild, toMesh } from '@/lib/three/build/buildQueue';
-import { readPartData, type BuildPartKind } from '@/lib/three/build/scene';
+import { droppedKindsAt, type DetailLevel } from '@/lib/three/build/lod';
+import { readPartData, type BuildPartKind, type PartUserData } from '@/lib/three/build/scene';
 import { createPointerPicker, createScenePick, type PointerInput } from '@/lib/three/interaction/raycast';
 import { detectDeviceProfile, measureScene, readRenderInfo } from '@/lib/three/perf/budget';
 import { disposeFloor, ResourceLedger } from '@/lib/three/perf/dispose';
@@ -208,6 +217,55 @@ function cameraModeOf(frame: ViewerSceneFrame): CameraMode {
   return frame.polarRad <= ORTHOGRAPHIC_TOP_POLAR_RAD ? 'top' : 'elevation';
 }
 
+/**
+ * Áp một nấc chi tiết của R-04 lên cây đã dựng.
+ *
+ * Hạ chi tiết ở đây KHÔNG dựng lại gì. Mesh của mọi bộ phận đã nằm sẵn trên cây
+ * — worker R-03 dựng chúng một lần — nên "nấc rẻ hơn" là ẩn đúng những loại bộ
+ * phận mà nấc ấy bỏ, và "nấc đầy đủ" là thôi ẩn chúng. `droppedKindsAt`
+ * (`src/lib/three/build/lod.ts`) là nơi DUY NHẤT biết nấc nào bỏ loại nào; bảng
+ * ấy không được chép lại ở đây, vì hai bản sao của một luật sẽ lệch nhau vào
+ * đúng lúc không ai nhìn.
+ *
+ * **Đảo ngược được, và đó là điều kiện.** Không `remove()`, không `dispose()`,
+ * không nhớ lần trước đã ẩn những gì: mỗi lần gọi tính lại cờ `visible` từ đầu
+ * cho mọi vật có thẻ, nên nấc quay về `full` hiện lại đủ mà không cần một buffer
+ * nào được dựng lần thứ hai.
+ *
+ * Làm việc trên mọi `Object3D` mang {@link PartUserData}, không riêng `Mesh`:
+ * thẻ mới là thứ nói một vật thuộc loại nào, và ẩn một nút thì cả nhánh dưới nó
+ * cùng biến mất — đúng nghĩa "bỏ" của một nấc.
+ *
+ * @param baseVisible Vật này có được hiện không NẾU bỏ nấc chi tiết ra ngoài:
+ * tầng của nó đang bật, người dùng chưa ẩn tay, và nó không bị cô lập ra rìa.
+ * @returns số vật mà chính nấc này bỏ đi.
+ */
+export function applyDetailLevel(
+  root: Object3D,
+  detail: DetailLevel,
+  baseVisible: (data: PartUserData) => boolean,
+): number {
+  const dropped = new Set<BuildPartKind>(droppedKindsAt(detail));
+  let droppedCount = 0;
+
+  root.traverse((object) => {
+    const data = readPartData(object);
+
+    if (data === null) {
+      return;
+    }
+
+    const isDropped = dropped.has(data.kind);
+    object.visible = baseVisible(data) && !isDropped;
+
+    if (isDropped) {
+      droppedCount += 1;
+    }
+  });
+
+  return droppedCount;
+}
+
 /** Tỉ lệ khung nhìn; 1 khi canvas chưa có kích thước nào để đo. */
 function aspectOf(width: number, height: number): number {
   return width > 0 && height > 0 ? width / height : 1;
@@ -287,6 +345,8 @@ function startScene(
   let lastWidthPx = 0;
   let lastHeightPx = 0;
   let disposed = false;
+  /** Nấc chi tiết R-04 đang bảo vẽ. Chỉ `onDegrade` đổi nó. */
+  let activeDetail: DetailLevel = 'full';
 
   let settledCount = 0;
   let failedCount = 0;
@@ -361,8 +421,12 @@ function startScene(
       triangleCount = sample.triangles;
     },
     onDegrade: (action) => {
-      // R-04 quyết, module thi hành. Không ngưỡng riêng, không lần hạ thứ hai.
+      // R-04 quyết, module thi hành — cả hai vế của quyết định, không vế nào bị
+      // bỏ lại. Không ngưỡng riêng, không lần hạ thứ hai, và không dựng lại một
+      // milimét hình nào cho nấc rẻ hơn.
       renderer.shadowMap.type = shadowMapTypeFor(action.shadows);
+      activeDetail = action.detail;
+      applyFrame(currentFrame);
       loop.invalidate();
     },
     ...(options.now !== undefined ? { now: options.now } : {}),
@@ -420,23 +484,26 @@ function startScene(
       levelGroups.get(stacked.id)?.position.setY(stacked.spreadM);
     }
 
+    // Một nơi duy nhất ghi `visible`, và nó đã tính cả nấc chi tiết của R-04 —
+    // nên một `update()` sau khi hạ chất lượng không vô tình dựng lại những gì
+    // nấc ấy vừa bỏ.
+    applyDetailLevel(
+      root,
+      activeDetail,
+      (data) =>
+        visibleStoreys.has(data.levelId) &&
+        !hidden.has(data.entityId) &&
+        (isolated === null || isolated.has(data.entityId)),
+    );
+
     root.traverse((object) => {
       if (!(object instanceof Mesh)) {
         return;
       }
 
       const data = readPartData(object);
-      if (data === null) {
-        return;
-      }
-
-      object.visible =
-        visibleStoreys.has(data.levelId) &&
-        !hidden.has(data.entityId) &&
-        (isolated === null || isolated.has(data.entityId));
-
-      const base = baseMaterials.get(object);
-      if (base === undefined) {
+      const base = data === null ? undefined : baseMaterials.get(object);
+      if (data === null || base === undefined) {
         return;
       }
 

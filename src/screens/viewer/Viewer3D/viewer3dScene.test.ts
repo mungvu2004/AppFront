@@ -10,11 +10,17 @@
  *    từng tầng, và `settledCount` tăng đúng một đơn vị mỗi job.
  * 3. `dispose()` trả tài nguyên về đúng số ban đầu, đọc bằng `ResourceLedger.counts`.
  * 4. Không có WebGL trả `ok: false` — không ném lỗi, không mã lỗi.
+ * 5. Nấc chi tiết của R-04 được thi hành THẬT: ba giây dưới ngưỡng khung hình
+ *    làm `PerfMonitor` phát một `DegradeAction`, và cả hai vế của nó — bóng đổ
+ *    và nấc chi tiết — đổi cảnh đang vẽ, đảo ngược được, không dựng lại gì.
+ * 6. Bảng của `droppedKindsAt` được tôn trọng từng loại một, và nấc không lấn
+ *    quyền ẩn/hiện của khung.
  *
  * Dữ liệu lấy từ `src/lib/testing/fixtures` (R-70): bộ mẫu chuẩn 4 tầng · 48
  * tường · 14 phòng · 248,60 m² của A14, không phải một mô hình bịa tại chỗ.
  */
 
+import { Group, Object3D } from 'three';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -28,10 +34,16 @@ import {
 } from '@/lib/three/build/build.worker';
 import { planFullBuild, type BuildWorkerLike } from '@/lib/three/build/buildQueue';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
+import { readPartData, tagPart, type BuildPartKind } from '@/lib/three/build/scene';
 import { ResourceLedger, TRACKED_RESOURCES } from '@/lib/three/perf/dispose';
+import {
+  DEGRADE_WINDOW_MS,
+  SAMPLE_INTERVAL_MS,
+  shadowMapTypeFor,
+} from '@/lib/three/perf/monitor';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
-import { mountViewerScene } from './viewer3dScene';
+import { applyDetailLevel, mountViewerScene } from './viewer3dScene';
 import type { ViewerRendererLike, ViewerSceneStatus } from './viewer3dTypes';
 
 /* -------------------------------------------------------------------------- */
@@ -97,9 +109,18 @@ class MicrotaskWorker implements BuildWorkerLike {
   }
 }
 
-/** Renderer giả — đếm được, và không cần một GL context nào. */
-function fakeRenderer(): ViewerRendererLike & { readonly disposals: () => number } {
+/**
+ * Renderer giả — đếm được, và không cần một GL context nào.
+ *
+ * Nó giữ lại cảnh mà mình được bảo vẽ: đó là cách bài kiểm nhìn vào cây đã dựng
+ * mà module không phải mở thêm một cửa nào chỉ để được kiểm.
+ */
+function fakeRenderer(): ViewerRendererLike & {
+  readonly disposals: () => number;
+  readonly drawn: () => Object3D | null;
+} {
   let disposals = 0;
+  let drawn: Object3D | null = null;
 
   return {
     info: { render: { calls: 0, triangles: 0 } },
@@ -107,13 +128,31 @@ function fakeRenderer(): ViewerRendererLike & { readonly disposals: () => number
     clippingPlanes: [],
     setSize: () => undefined,
     setPixelRatio: () => undefined,
-    render: () => undefined,
+    render: (scene: unknown) => {
+      drawn = scene as Object3D;
+    },
     dispose: () => {
       disposals += 1;
     },
     forceContextLoss: () => undefined,
     disposals: () => disposals,
+    drawn: () => drawn,
   };
+}
+
+/** Loại bộ phận nào đang thật sự được vẽ trong một cây. */
+function visibleKinds(root: Object3D): ReadonlySet<BuildPartKind> {
+  const kinds = new Set<BuildPartKind>();
+
+  root.traverse((object) => {
+    const data = readPartData(object);
+
+    if (data !== null && object.visible) {
+      kinds.add(data.kind);
+    }
+  });
+
+  return kinds;
 }
 
 /** Lịch vẽ không bao giờ chạy: bài kiểm này đo phép dựng, không đo phép vẽ. */
@@ -243,6 +282,128 @@ describe('mountViewerScene', () => {
     // Gọi hai lần không hỏng gì và không trả thêm lần nữa.
     mounted.handle.dispose();
     expect(host.renderer.disposals()).toBe(1);
+  });
+
+  it('thi hành nấc chi tiết mà R-04 quyết: reduced thôi vẽ ô mở', async () => {
+    // Đồng hồ và lịch vẽ do bài kiểm cầm, nên `PerfMonitor` được đưa qua đúng
+    // ba giây dưới ngưỡng của R-04 mà không phải chờ ba giây thật.
+    let clockMs = 0;
+    let pending: ((nowMs: number) => void) | null = null;
+
+    const mounted = mountViewerScene(host.canvas, {
+      levels: host.levels,
+      frame: frameOf(host.levels),
+      tokenOfPartKind: () => '--wall-idle',
+      canSelect: false,
+      ledger: host.ledger,
+      createRenderer: () => host.renderer,
+      createWorker: () => new MicrotaskWorker(),
+      schedule: (callback) => {
+        pending = callback;
+        return 1;
+      },
+      cancel: () => {
+        pending = null;
+      },
+      now: () => clockMs,
+      readToken: () => '',
+    });
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    await vi.waitFor(() => {
+      expect(mounted.handle.status().phase).toBe('ready');
+    });
+
+    const tick = (atMs: number): void => {
+      const callback = pending;
+      pending = null;
+      clockMs = atMs;
+      callback?.(atMs);
+    };
+
+    // Khung đầu tiên, còn ở nấc `full`.
+    tick(0);
+
+    const drawn = host.renderer.drawn();
+    expect(drawn).not.toBeNull();
+    if (drawn === null) {
+      return;
+    }
+
+    // Ba loại mà worker R-03 dựng ra từ bộ mẫu này. Bộ mẫu A14 xếp 48 tường dài
+    // 1000 mm nối đuôi nhau, còn mỗi cửa rộng 900 mm đặt ở mốc 300 mm — cửa
+    // tràn khỏi tường chủ nên `planCuts` từ chối khoét, và không tấm cửa nào
+    // được dựng. Đó là tính chất của bộ mẫu, không phải của nấc chi tiết.
+    expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
+    expect(host.renderer.shadowMap.type).toBe(shadowMapTypeFor('soft'));
+
+    // Một cửa sổ đo dài hơn `DEGRADE_WINDOW_MS` với đúng hai khung hình: khung
+    // hình đo được xuống dưới ngưỡng, và nó ở dưới đủ lâu để R-04 hạ nấc.
+    tick(DEGRADE_WINDOW_MS + SAMPLE_INTERVAL_MS);
+
+    // Vế bóng đổ của `DegradeAction` đã được thi hành.
+    expect(host.renderer.shadowMap.type).toBe(shadowMapTypeFor('hard'));
+
+    // Và vế nấc chi tiết cũng vậy: `reduced` bỏ đúng `'opening'`, mà cảnh này
+    // không có mesh loại ấy, nên nó đúng ra không được bỏ gì — và nó không bỏ.
+    expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
+
+    // Nấc là một TRẠNG THÁI chứ không phải một lần ẩn: một khung mới đi qua
+    // `update()` vẫn tính lại theo nấc đang có, không dựng lại thứ nấc đã bỏ.
+    mounted.handle.update(frameOf(host.levels));
+    expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
+
+    // Nấc rẻ hơn nữa thì cây phản ứng thật: `block` bỏ cả trần, và về `full`
+    // trần hiện lại — trên đúng cây mà cảnh đang vẽ, không dựng lại gì.
+    expect(applyDetailLevel(drawn, 'block', () => true)).toBeGreaterThan(0);
+    expect([...visibleKinds(drawn)].sort()).toEqual(['floorSlab', 'wall']);
+
+    expect(applyDetailLevel(drawn, 'full', () => true)).toBe(0);
+    expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
+
+    mounted.handle.dispose();
+  });
+
+  it('nấc chi tiết đảo ngược được, và không lấn quyền ẩn/hiện của khung', () => {
+    // `PerfMonitor` hạ đúng một lần mỗi phiên (`applied !== null` thì
+    // `considerDegrade` trả về sớm), nên chiều đi lên không có đường nào phát ra
+    // từ nó. Kiểm thẳng trên chính hàm mà `onDegrade` gọi, trên một cây mang thẻ
+    // thật của `tagPart`.
+    const tree = new Group();
+    const opening = tagPart(new Object3D(), {
+      kind: 'opening',
+      entityId: 'D-01',
+      levelId: 'L-01',
+    });
+    const wall = tagPart(new Object3D(), { kind: 'wall', entityId: 'W-01', levelId: 'L-01' });
+    tree.add(opening, wall);
+
+    expect(applyDetailLevel(tree, 'reduced', () => true)).toBe(1);
+    expect(opening.visible).toBe(false);
+    expect(wall.visible).toBe(true);
+
+    // Về `full` thì hiện lại đủ — không một thứ gì phải dựng lại.
+    expect(applyDetailLevel(tree, 'full', () => true)).toBe(0);
+    expect(opening.visible).toBe(true);
+    expect(wall.visible).toBe(true);
+
+    // `block` bỏ cả trần, đúng bảng của `droppedKindsAt`.
+    const ceiling = tagPart(new Object3D(), {
+      kind: 'ceiling',
+      entityId: 'R-01',
+      levelId: 'L-01',
+    });
+    tree.add(ceiling);
+    expect(applyDetailLevel(tree, 'block', () => true)).toBe(2);
+    expect(ceiling.visible).toBe(false);
+
+    // Nấc không lấn quyền của khung: tầng đang tắt thì vẫn tắt, kể cả ở `full`.
+    applyDetailLevel(tree, 'full', () => false);
+    expect(wall.visible).toBe(false);
+    expect(opening.visible).toBe(false);
   });
 
   it('không có WebGL thì trả một kết quả, không ném lỗi', () => {
