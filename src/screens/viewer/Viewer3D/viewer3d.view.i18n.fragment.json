@@ -1,0 +1,15 @@
+{
+  "viewer3d.empty.description": "Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.",
+  "viewer3d.empty.qcButton": "Quay lại xem lớp tường",
+  "viewer3d.loading.progress": "Đang dựng mô hình {{count}} tầng",
+  "viewer3d.partial.readyLabel": "Tầng đã dựng xong",
+  "viewer3d.webglUnavailable.title": "Trình duyệt này chưa xem được mô hình 3D",
+  "viewer3d.webglUnavailable.description": "Máy hoặc trình duyệt của bạn chưa bật được hình ảnh 3D. Thử lại, hoặc xem bản vẽ 2D trong lúc chờ.",
+  "viewer3d.buildError.description": "Không dựng được mô hình 3D lần này. Thử lại, hoặc quay lại lớp tường để xem dữ liệu còn thiếu gì.",
+  "viewer3d.error.retryButton": "Thử lại",
+  "viewer3d.error.fallbackLink": "Xem bản 2D",
+  "viewer3d.forbidden.description": "Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.",
+  "viewer3d.success.description": "Mô hình 3D đã dựng xong.",
+  "viewer3d.edit.buttonLabel": "Sửa hình học",
+  "viewer3d.edit.ariaLabel": "Sửa hình học đã chọn"
+}
