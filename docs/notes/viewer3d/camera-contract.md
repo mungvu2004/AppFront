@@ -465,6 +465,117 @@ Built with `buildGlobalShortcuts(handlers)`:
 
 ---
 
+## tools/tools.ts — Tool registry
+
+**File**: `src/lib/tools/tools.ts`
+
+| Name | Line | Signature | Description |
+|------|------|-----------|-------------|
+| `TOOLS` | 531 | `ToolRegistry` | Map of all eight tools: select, pan, drawWall, placeOpening, placeFurniture, measure, splitWall, annotate. |
+| `toolById` | 543 | `function toolById(id: ToolId): ToolDefinition` | Get the definition of a tool by id. |
+
+---
+
+## tools/shortcutTable.ts — Help screen bindings
+
+**File**: `src/lib/tools/shortcutTable.ts`
+
+| Name | Line | Signature | Description |
+|------|------|-----------|-------------|
+| `ShortcutSectionId` | 34 | `'tools' \| 'modifiers'` | Section of the shortcut help table. |
+| `SHORTCUT_SECTION_LABELS` | 42 | `Record<ShortcutSectionId, string>` | Vietnamese labels for sections: công cụ, phím bổ trợ. |
+| `ShortcutSubject` | 48 | `type` | What a shortcut row describes: tool or modifier. |
+| `ShortcutRow` | 53 | `interface { subject: ShortcutSubject; keys: readonly string[]; label: string; description: string; }` | One row in the help table. |
+| `ShortcutSection` | 68 | `interface { id: ShortcutSectionId; rows: readonly ShortcutRow[]; }` | A section with its rows. |
+| `buildShortcutTable` | 100 | `function buildShortcutTable(tools: ToolRegistry = TOOLS): readonly ShortcutSection[]` | Build the complete help table from tool definitions. |
+| `SHORTCUT_TABLE` | 123 | `readonly ShortcutSection[]` | The prebuilt table used by the help screen. |
+| `shortcutRows` | 130 | `function shortcutRows(sections: readonly ShortcutSection[]): readonly ShortcutRow[]` | Flatten sections into rows. |
+| `shortcutRowFor` | 135 | `function shortcutRowFor(sections: readonly ShortcutSection[], subject: ShortcutSubject): ShortcutRow \| null` | Find a row by subject. |
+
+---
+
+## Five Questions Answered
+
+**Question 1:** Đổi giữa bốn chế độ camera thì `Viewpoint` bàn giao qua hàm nào? Có hàm nào làm sẵn việc "giữ nguyên chỗ đang nhìn khi đổi chế độ" không?
+
+**Answer:** 
+- Function: `switchCameraMode` at `modes.ts:1020`
+- Signature: `function switchCameraMode(current: CameraModeController, next: CameraMode, context: CameraModeContext): CameraModeController`
+- Guarantee: The `target` (point being looked at) does not move between modes; only the camera's position and orientation shift to accommodate the new mode's constraints.
+
+---
+
+**Question 2:** "Khuôn vào đối tượng đang chọn" (R-07) gọi hàm nào, nhận gì, trả gì?
+
+**Answer:**
+- Function: `CameraDirector.frameObjects` at `presets.ts:518`
+- Receives: `ids: Iterable<string>` — entity IDs to frame
+- Returns: `ViewpointTransition | null` — the animated move, or `null` if no objects found
+- Implementation path: calls `frameObjects` from `frameObjects.ts:303` to compute the viewpoint, then animates there via `goTo`
+
+---
+
+**Question 3:** Bắn tia từ toạ độ pixel của canvas ra `EntityId` đi qua đúng những hàm nào, theo thứ tự nào? Ai chịu trách nhiệm lọc theo tầng đang hiện?
+
+**Answer:**
+Full pipeline from pixel to entity:
+1. `createPointerPicker` (raycast.ts:298) — sets up pointer event handlers
+2. `createScenePick` (raycast.ts:217) — creates the ray-casting function
+3. `toNormalizedDevice` (raycast.ts:201) — converts canvas pixels to NDC (normalized device coordinates)
+4. Ray cast via three.js `Raycaster` against the scene
+5. `resolveHit` (hitTest.ts:167) — converts `Raycaster` intersection to `EntityHit`, **filters by layer visibility/lock**
+6. `isPickableKind` (hitTest.ts:116) — helper that checks if a layer's kind is visible & unlocked
+7. `firstEntityHit` (hitTest.ts:202) — finds the nearest hit from the list
+
+Layer filtering responsibility: **`resolveHit` and `isPickableKind`** in `hitTest.ts`
+
+---
+
+**Question 4:** `toolMachine` có trạng thái nào ứng với "đang kéo mặt phẳng cắt" và "đang chọn" không? Màn nối vào bằng API nào?
+
+**Answer:**
+- `ToolPhase` (toolMachine.ts:111): `'ready' | 'drawing' | 'confirming'`
+- Selectable states: `'ready'` (idle), `'drawing'` (gesture in flight), `'confirming'` (awaiting user confirmation)
+- Select tool: `'select'` in `ToolId` (toolMachine.ts:84)
+- **Cutting/section plane state**: **NOT FOUND** — no distinct tool state for dragging a cut plane. The ViewerShell has `viewerSectionPlane.ts` for section management but it is separate from `ToolPhase`.
+- Integration API: Screen reads `phase` from the tool machine to drive UI and preview rendering.
+
+---
+
+**Question 5:** Đăng ký phím tắt cho một màn thì gọi gì? Huỷ đăng ký lúc rời màn thì gọi gì?
+
+**Answer:**
+- Register: `ShortcutRegistry.register(definition)` at `shortcutRegistry.ts:238`
+- Signature: `register(definition: ShortcutDefinition): () => void`
+- Returns: A dispose function `() => void` that removes the binding
+- Unregister: Call the returned dispose function when the screen unmounts
+- Pattern: `useEffect` in the screen calls `register`, captures the disposer, calls it in cleanup
+
+Example flow:
+```typescript
+const dispose = registry.register({ id: '...', combo: '...', scope: 'canvas', onTrigger: ... });
+return () => { dispose(); }; // in useEffect cleanup
+```
+
+---
+
+## Known Pitfalls
+
+| Pitfall | Impact | Mitigation |
+|---------|--------|-----------|
+| **Angles: radians vs. degrees** | Camera methods use radians internally; `CAMERA_SETTINGS` uses degrees. Mix them and the camera spins unexpectedly. | `degreesToRadians()` is called once at the top of `modes.ts`. Settings always convert; never use raw degree values in mode implementations. |
+| **Distance units: metres** | All scene units are metres (per `build/scene.ts`). Eye heights, collision radii, zoom limits are all in metres. | Always scale from plan millimetres to metres before creating an extent or limits. |
+| **Viewpoint handover** | `switchCameraMode` guarantees the target doesn't move, but **does not promise the heading or distance stay unchanged**. | Accept that orbit and flat modes recompute heading and distance from the same target; don't expect them to match. |
+| **Walk mode floor elevation** | `CameraModeContext.floorElevationM` is optional; defaults to the bottom of the extent. An empty building has a huge negative floor. | Always provide `floorElevationM` when building walk mode, or lock the walker into one storey. |
+| **Orthographic half-height** | `CameraPose.orthographicHalfHeightM` is null for perspective modes and non-null for flat modes. Forgetting to check null breaks projection. | Always check: `pose.orthographicHalfHeightM !== null` before using it as an ortho camera parameter. |
+| **Raycast metering** | `MAX_RAYCASTS_PER_SECOND` is 30 Hz. Hover casts are debounced; click still happens immediately. Over-frequent manual casts waste GPU. | Use `createPointerPicker` to handle debouncing automatically; don't cast on every mouse move. |
+| **Hit test filtering** | `resolveHit` filters by layer visibility but **returns the nearest hit first**. If multiple entities overlap, only the closest is returned. | Caller must walk the intersection list with `firstEntityHit` if layering matters more than distance. |
+| **Tool phase transitions** | A tool moves `ready` → `drawing` → `confirming` → `ready`. Skipping a phase breaks the invariant. | Never write to `phase` directly; let the tool machine drive it through `update()` and user input. |
+| **Shortcut registry scope** | Scopes are resolved `dialog` → `sidePanel` → `canvas` → `global`, first answer wins. A canvas binding shadows the global one. | Plan key bindings by scope; don't assume global shortcuts work when canvas shortcuts are registered. |
+| **Pointer picker disposal** | `PointerPicker` holds timers. Calling `dispose()` is essential to prevent memory leaks and dangling timer refs. | Always capture the disposer from `createPointerPicker` and call it in `useEffect` cleanup. |
+
+---
+
 ## Question (a): Clipping Planes
 
 **Search command result**: `rg -n "clippingPlanes|localClipping|new Plane\(" src`
