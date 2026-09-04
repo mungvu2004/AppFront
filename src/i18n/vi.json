@@ -2096,5 +2096,96 @@
       "standardizeDescription": "Chuẩn hoá độ dày {{count}} tường.",
       "escapeShortcut": "Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc."
     }
+  },
+  "viewerShell": {
+    "title": "Mô hình 3D",
+    "regionLabel": "Vỏ khung nhìn 3D",
+    "topBarLabel": "Thanh trên khung nhìn",
+    "viewportLabel": "Khung nhìn mô hình",
+    "mode": {
+      "label": "Chế độ xem"
+    },
+    "preset": {
+      "label": "Góc nhìn sẵn",
+      "perspective": "Phối cảnh",
+      "axonometric": "Trục đo",
+      "top": "Trên xuống",
+      "section": "Mặt cắt"
+    },
+    "tool": {
+      "label": "Công cụ khung nhìn",
+      "orbit": "quay quanh",
+      "pan": "kéo màn",
+      "measure": "đo",
+      "section": "mặt cắt",
+      "select": "chọn",
+      "isolate": "cô lập"
+    },
+    "storey": {
+      "label": "Tầng",
+      "separation": "Độ tách",
+      "hide": "Ẩn {{name}}",
+      "show": "Hiện {{name}}",
+      "elevation": "{{name}}, cao độ {{elevation}}"
+    },
+    "cube": {
+      "label": "Khối định hướng"
+    },
+    "inspector": {
+      "label": "Thanh tra đối tượng",
+      "heading": "Thuộc tính",
+      "emptyTitle": "Chưa chọn đối tượng",
+      "hint": "Chọn một đối tượng trên mô hình để xem thuộc tính.",
+      "entityId": "mã đối tượng",
+      "area": "diện tích",
+      "thickness": "độ dày",
+      "name": "tên",
+      "kindRoom": "phòng",
+      "kindWall": "tường",
+      "kindOther": "đối tượng"
+    },
+    "legend": {
+      "label": "Chú giải",
+      "wall110": "tường 110",
+      "wall220": "tường 220",
+      "wall330": "tường 330",
+      "opening": "ô mở"
+    },
+    "elevationScale": {
+      "label": "Cao độ tầng"
+    },
+    "status": {
+      "label": "Thanh trạng thái",
+      "building": "Đang dựng mô hình…",
+      "ready": "Mô hình đã dựng xong.",
+      "summary": "{{floors}} tầng · {{rooms}} phòng · {{area}} · {{fps}} fps"
+    },
+    "perf": {
+      "triangles": "{{count}} tam giác"
+    },
+    "forbidden": {
+      "title": "Chỉ xem",
+      "message": "Bạn đang xem ở vai Người xem nên không sửa được mô hình."
+    },
+    "error": {
+      "title": "Không đọc được dữ liệu",
+      "message": "Không dựng được mô hình từ dữ liệu của dự án này. Thử lại, hoặc mở lại lớp tường để xem dữ liệu còn thiếu gì."
+    },
+    "missingParams": {
+      "title": "Thiếu mã dự án",
+      "message": "Đường dẫn không mang mã dự án, nên chưa mở được khung nhìn 3D. Quay lại danh sách dự án rồi chọn lại dự án cần xem."
+    },
+    "shortcut": {
+      "storey": "xem tầng thứ {{index}} tính từ dưới lên",
+      "fitAll": "đưa toàn bộ mô hình vào khung hình",
+      "orthographic": "bật tắt phép chiếu trực giao",
+      "hide": "ẩn đối tượng đang chọn",
+      "isolate": "chỉ hiện đối tượng đang chọn",
+      "frame": "khuôn đối tượng đang chọn vào khung hình",
+      "separation": "bật tắt tách tầng",
+      "measure": "bật công cụ đo",
+      "search": "mở ô tìm đối tượng",
+      "deselect": "bỏ chọn đối tượng trên mô hình"
+    }
   }
 }
