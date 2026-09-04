@@ -139,6 +139,21 @@ export function readDetail(object: Object3D): DetailLevel | null {
 }
 
 /**
+ * The mesh types dropped at a given detail level.
+ *
+ * A worker-built scene needs to know which kinds are dropped at each rung so it can
+ * execute a degrade action (lower the detail when fps tails off) without having to
+ * rebuild the entire mesh on the main thread. This function answers that question
+ * without forcing the caller to know the internal table of dropped kinds.
+ *
+ * `full` drops nothing. `reduced` drops openings (leaves and glazing). `block` drops
+ * openings and ceilings. See the module docblock for the reasoning.
+ */
+export function droppedKindsAt(detail: DetailLevel): readonly BuildPartKind[] {
+  return DROPPED_KINDS[detail];
+}
+
+/**
  * One storey, built at one rung.
  *
  * The group is the one `buildFloorMesh` returns — named after the level, every

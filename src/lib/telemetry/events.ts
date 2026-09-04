@@ -1,5 +1,5 @@
 /**
- * The catalogue: the nine things this application is allowed to say about
+ * The catalogue: the eleven things this application is allowed to say about
  * itself, and nothing else.
  *
  * Measuring a QC tool is unusually risky, because the thing being measured *is*
@@ -14,7 +14,7 @@
  *
  * A free-form `track(name, props)` looks flexible for a week and then becomes a
  * warehouse of misspelt names holding data nobody meant to collect. Here
- * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly ten
+ * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly eleven
  * shapes: an event that is not one of them does not typecheck, and — because a
  * value that reached `unknown` can still be anything — does not parse either.
  * {@link parseTelemetryEvent} is the runtime half of that sentence, and the
@@ -112,6 +112,24 @@ const countSchema = z
 /** A whole percentage, 0–100. */
 const percentSchema = z.number().finite().min(0).max(100).transform(roundToInteger);
 
+/** A thousand frames a second. Past that the counter is broken, not the renderer. */
+export const MAX_TELEMETRY_FRAME_RATE = 1_000;
+
+/**
+ * Frames a second, as a whole number.
+ *
+ * Rounded for the same reason a duration is: a mean frame rate carried to three
+ * decimals is precision no dashboard reads and one more digit that makes a
+ * session identifiable. Zero is a legal reading — a tab that painted nothing
+ * measured something, and dropping it would flatter the average.
+ */
+const frameRateSchema = z
+  .number()
+  .finite()
+  .min(0)
+  .max(MAX_TELEMETRY_FRAME_RATE)
+  .transform(roundToInteger);
+
 /**
  * How an attempt ended.
  *
@@ -145,7 +163,7 @@ export const SEVERITY_CODES: Readonly<Record<AppErrorSeverity, TelemetrySeverity
 };
 
 /* -------------------------------------------------------------------------- */
-/* The ten shapes.                                                             */
+/* The eleven shapes.                                                         */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -303,6 +321,38 @@ const sceneBuildSchema = z.object({
   triangleCount: countSchema,
 });
 
+/**
+ * A three-dimensional viewing session ended, and this is what it ran at.
+ *
+ * The mean rather than a sample: `PerfMonitor` (`src/lib/three/perf/monitor.ts`)
+ * takes a reading every 500 ms to decide whether to drop quality, and sending
+ * those would be a stream of thousands of points per session saying nothing a
+ * mean does not. One event when the viewer closes is the whole session.
+ *
+ * The other two fields are what make the mean readable, and both are numbers the
+ * viewer already holds — `useViewerShell` takes `perf: { frameRate, triangles }`
+ * and shows them on the status bar, so nothing new has to be measured to send
+ * this:
+ *
+ * - `durationMs` is how long the session lasted. A mean over 300 ms is a
+ *   measurement of the first three frames after a build, not of a session, and
+ *   without this field there is no way to tell the two apart afterwards.
+ * - `triangleCount` is the size of the scene, for the reason `scene.build`
+ *   carries it: a frame rate without a triangle count says only that something
+ *   was slow, not whether it was slow for its size.
+ *
+ * There is no level, room or wall id here and no camera position, for the same
+ * reason nothing above carries one — see the header.
+ */
+const sceneFrameRateSchema = z.object({
+  name: z.literal('scene.frame-rate'),
+  /** Mean frames a second over the whole session. */
+  averageFps: frameRateSchema,
+  /** How long the session lasted, so a mean over a moment is not read as one. */
+  durationMs: durationMsSchema,
+  triangleCount: countSchema,
+});
+
 /** How the dashboard was told to open a project. */
 export const PROJECT_OPEN_SOURCES = ['card', 'row', 'command-palette'] as const;
 export type ProjectOpenSource = (typeof PROJECT_OPEN_SOURCES)[number];
@@ -347,6 +397,7 @@ export const TELEMETRY_EVENT_SCHEMA = z.discriminatedUnion('name', [
   screenErrorSchema,
   appFirstFrameSchema,
   sceneBuildSchema,
+  sceneFrameRateSchema,
   projectOpenSchema,
 ]);
 
@@ -376,6 +427,7 @@ export const TELEMETRY_EVENT_NAMES = [
   'screen.error',
   'app.first-frame',
   'scene.build',
+  'scene.frame-rate',
   'project.open',
 ] as const satisfies readonly TelemetryEventName[];
 
@@ -388,9 +440,10 @@ export type ExportFileEvent = Extract<TelemetryEvent, { name: 'export.file' }>;
 export type ScreenErrorEvent = Extract<TelemetryEvent, { name: 'screen.error' }>;
 export type AppFirstFrameEvent = Extract<TelemetryEvent, { name: 'app.first-frame' }>;
 export type SceneBuildEvent = Extract<TelemetryEvent, { name: 'scene.build' }>;
+export type SceneFrameRateEvent = Extract<TelemetryEvent, { name: 'scene.frame-rate' }>;
 export type ProjectOpenEvent = Extract<TelemetryEvent, { name: 'project.open' }>;
 
-/** Is this one of the ten names? */
+/** Is this one of the eleven names? */
 export function isTelemetryEventName(value: unknown): value is TelemetryEventName {
   return (
     typeof value === 'string' && (TELEMETRY_EVENT_NAMES as readonly string[]).includes(value)

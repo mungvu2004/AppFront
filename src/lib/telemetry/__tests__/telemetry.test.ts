@@ -4,6 +4,7 @@ import { APP_ERROR_KINDS, reportError, type AppError, type ErrorTelemetryDetail 
 
 import {
   EXPERIENCE_TARGETS,
+  MAX_TELEMETRY_FRAME_RATE,
   TELEMETRY_CODE_PATTERN,
   TELEMETRY_EVENT_NAMES,
   TELEMETRY_SCHEMA_VERSION,
@@ -113,6 +114,12 @@ const SAMPLE_EVENTS: Readonly<Record<TelemetryEventName, TelemetryEventInput>> =
     levelCount: 4,
     wallCount: 48,
     roomCount: 14,
+    triangleCount: 184_320,
+  },
+  'scene.frame-rate': {
+    name: 'scene.frame-rate',
+    averageFps: 52.4,
+    durationMs: 96_000,
     triangleCount: 184_320,
   },
   'project.open': {
@@ -339,6 +346,49 @@ describe('telemetry catalogue', () => {
       ['name', 'outcome', 'durationMs', 'sizeKb', 'pageCount'].sort(),
     );
     expect(JSON.stringify(parsed)).not.toContain(PRIVATE_FILE_NAME);
+  });
+
+  it('rounds a mean frame rate to a whole number', () => {
+    const parsed = parseTelemetryEvent(SAMPLE_EVENTS['scene.frame-rate']);
+
+    expect(parsed).toMatchObject({
+      name: 'scene.frame-rate',
+      averageFps: 52,
+      durationMs: 96_000,
+      triangleCount: 184_320,
+    });
+  });
+
+  it('accepts a session that painted nothing at all', () => {
+    const parsed = parseTelemetryEvent({
+      ...SAMPLE_EVENTS['scene.frame-rate'],
+      averageFps: 0,
+    });
+
+    expect(parsed).toMatchObject({ name: 'scene.frame-rate', averageFps: 0 });
+  });
+
+  it('refuses a frame rate no renderer produced', () => {
+    const beyondTheCounter = { ...SAMPLE_EVENTS['scene.frame-rate'], averageFps: MAX_TELEMETRY_FRAME_RATE + 1 };
+    const negative = { ...SAMPLE_EVENTS['scene.frame-rate'], averageFps: -1 };
+    const notANumber = { ...SAMPLE_EVENTS['scene.frame-rate'], averageFps: Number.NaN };
+
+    expect(parseTelemetryEvent(beyondTheCounter)).toBeNull();
+    expect(parseTelemetryEvent(negative)).toBeNull();
+    expect(parseTelemetryEvent(notANumber)).toBeNull();
+  });
+
+  it('carries no scene identity alongside the frame rate', () => {
+    const parsed = parseTelemetryEvent({
+      ...SAMPLE_EVENTS['scene.frame-rate'],
+      projectLabel: PRIVATE_PROJECT_LABEL,
+      levelId: 'L-GROUND0001',
+    });
+
+    expect(Object.keys(parsed ?? {}).sort()).toEqual(
+      ['name', 'averageFps', 'durationMs', 'triangleCount'].sort(),
+    );
+    expect(JSON.stringify(parsed)).not.toContain(PRIVATE_PROJECT_LABEL);
   });
 
   it('refuses a code that could hold a label', () => {
