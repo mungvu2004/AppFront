@@ -263,6 +263,17 @@ export interface ViewerSceneActions {
   selectEntity(entityId: string | null, additive: boolean): void;
   /** `null` là con trỏ vừa rời khỏi mọi đối tượng. */
   hoverEntity(entityId: string | null): void;
+  /**
+   * Đổi vị trí tay nắm mặt phẳng cắt — tỉ lệ [0, 1] dọc hộp bao, cùng quy ước
+   * `sectionPlaneFor` của `viewerSectionPlane.ts`. Vỏ tự kẹp giá trị qua
+   * `clampSectionPosition` trước khi lưu, nên màn nội dung có thể truyền
+   * thẳng toạ độ kéo thô của tay nắm.
+   *
+   * Tuỳ chọn để tương thích ngược: tám màn 3D chưa dựng tay nắm không cần
+   * biết trường này tồn tại, và vị trí cắt vẫn giữ nguyên
+   * `DEFAULT_SECTION_POSITION` như trước khi setter này có mặt.
+   */
+  setSectionPosition?(position: number): void;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -27,11 +27,12 @@
  * cổng giả và CÙNG bộ mẫu (R-70).
  */
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { REDUCED_MOTION_QUERY } from '@/lib/motion';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -56,7 +57,12 @@ import {
 import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import { ALL_VIEWER_TOOLS } from './useViewerShell';
-import type { ViewerScreenState } from './viewerShellTypes';
+import {
+  VIEWER_LAYOUT,
+  type ViewerSceneActions,
+  type ViewerSceneFrame,
+  type ViewerScreenState,
+} from './viewerShellTypes';
 import { isClipped, sectionPlaneFor } from './viewerSectionPlane';
 import { stackStoreys, storeySpreadMm, type StackableStorey } from './viewerStoreyStack';
 
@@ -276,6 +282,166 @@ describe('[VS-6] chip hiệu năng', () => {
 
     console.log('[VIEWER-SHELL][VS-6] cờ tắt → không có chip nào');
     expect(screen.queryByText(/tam giác/)).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-7] Setter vị trí mặt phẳng cắt — V7.A.                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-7] setter vị trí mặt phẳng cắt', () => {
+  it('sceneActions.setSectionPosition đổi frame.sectionPlane, và luôn kẹp về [0, 1] qua clampSectionPosition', () => {
+    const captured: {
+      frame: ViewerSceneFrame | null;
+      actions: ViewerSceneActions | undefined;
+    } = { frame: null, actions: undefined };
+
+    const { unmount } = render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter>
+          <ViewerShellContainer
+            {...scenarioArgsFor('success')}
+            renderScene={(frame: ViewerSceneFrame, actions?: ViewerSceneActions): null => {
+              captured.frame = frame;
+              captured.actions = actions;
+              return null;
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(typeof captured.actions?.setSectionPosition).toBe('function');
+
+    // Chưa bật công cụ "mặt cắt" — vỏ không đưa mặt phẳng cắt nào.
+    expect(captured.frame?.sectionPlane).toBeNull();
+
+    const toolRail = within(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' }));
+    fireEvent.click(toolRail.getByRole('button', { name: /mặt cắt/i }));
+    expect(captured.frame?.sectionPlane).not.toBeNull();
+
+    act(() => {
+      captured.actions?.setSectionPosition?.(0);
+    });
+    const atStart = captured.frame?.sectionPlane;
+
+    act(() => {
+      captured.actions?.setSectionPosition?.(1);
+    });
+    const atEnd = captured.frame?.sectionPlane;
+
+    console.log(
+      `[VIEWER-SHELL][VS-7] constant tại vị trí 0 = ${String(atStart?.constant)}, tại vị trí 1 = ${String(atEnd?.constant)}`,
+    );
+
+    expect(atStart?.constant).not.toBe(atEnd?.constant);
+
+    act(() => {
+      // Ngoài [0, 1] — clampSectionPosition phải kẹp về đúng như vị trí 1.
+      captured.actions?.setSectionPosition?.(5);
+    });
+    expect(captured.frame?.sectionPlane?.constant).toBe(atEnd?.constant);
+
+    act(() => {
+      // Ngoài [0, 1] phía dưới — kẹp về đúng như vị trí 0.
+      captured.actions?.setSectionPosition?.(-3);
+    });
+    expect(captured.frame?.sectionPlane?.constant).toBe(atStart?.constant);
+
+    unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-8] Panel phải trượt vào — V7.B.                                        */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-8] panel phải trượt vào', () => {
+  it('lúc thu gọn: panel vẫn nằm trong DOM, chỉ biến mất khỏi cây tiếp cận, width/opacity kẹp về 0', () => {
+    const { unmount } = renderState('collapsed');
+
+    const hiddenAside = screen.getByRole('complementary', {
+      hidden: true,
+      name: 'Thanh tra đối tượng',
+    });
+
+    // Không dùng `getByRole` mặc định (loại phần tử ẩn) tìm thấy nó — đúng
+    // nghĩa "thu gọn" với trình đọc màn hình.
+    expect(screen.queryByRole('complementary', { name: 'Thanh tra đối tượng' })).toBeNull();
+
+    const wrapper = hiddenAside.parentElement as HTMLElement;
+
+    expect(wrapper).toHaveAttribute('aria-hidden', 'true');
+    expect(wrapper.style.width).toBe('0px');
+    expect(wrapper.className).toContain('opacity-0');
+
+    console.log(
+      `[VIEWER-SHELL][VS-8] thu gọn → width=${wrapper.style.width}, aria-hidden=${wrapper.getAttribute('aria-hidden') ?? ''}`,
+    );
+
+    unmount();
+  });
+
+  it(`lúc mở: panel rộng đúng ${String(VIEWER_LAYOUT.inspectorPx)}px và dùng thang chuyển động chuẩn`, () => {
+    const { unmount } = renderState('success');
+
+    const openAside = screen.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+    const wrapper = openAside.parentElement as HTMLElement;
+
+    expect(wrapper).not.toHaveAttribute('aria-hidden', 'true');
+    expect(wrapper.style.width).toBe(`${String(VIEWER_LAYOUT.inspectorPx)}px`);
+    expect(wrapper.className).toContain('duration-standard');
+    expect(wrapper.className).not.toContain('transition-none');
+
+    console.log(
+      `[VIEWER-SHELL][VS-8] mở → width=${wrapper.style.width}, class="${wrapper.className}"`,
+    );
+
+    unmount();
+  });
+
+  describe('giảm chuyển động', () => {
+    let originalMatchMedia: typeof window.matchMedia;
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query === REDUCED_MOTION_QUERY,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: originalMatchMedia,
+      });
+    });
+
+    it('tắt hẳn transition thay vì chỉ chạy nhanh hơn, khi frame.reducedMotion true', () => {
+      const { unmount } = renderState('success');
+
+      const openAside = screen.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+      const wrapper = openAside.parentElement as HTMLElement;
+
+      console.log(`[VIEWER-SHELL][VS-8] giảm chuyển động → class="${wrapper.className}"`);
+
+      expect(wrapper.className).toContain('transition-none');
+      expect(wrapper.className).not.toContain('duration-standard');
+
+      unmount();
+    });
   });
 });
 

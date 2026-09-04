@@ -59,7 +59,7 @@ import { ViewerStoreyRail } from './ViewerStoreyRail';
 import { ViewerToolRail } from './ViewerToolRail';
 import { ViewerTopBar } from './ViewerTopBar';
 import { ViewerViewport } from './ViewerViewport';
-import type { ViewerShellProps } from './viewerShellTypes';
+import { VIEWER_LAYOUT, type ViewerShellProps } from './viewerShellTypes';
 
 /** Nhãn vùng của cả màn — bài kiểm tìm màn bằng đúng tên này. */
 export const VIEWER_SHELL_LABEL = 'Vỏ khung nhìn 3D';
@@ -199,18 +199,31 @@ export function ViewerShell(props: ViewerShellProps) {
           </div>
         </ViewerViewport>
 
-        {!isCollapsed && (
-          <div className="py-3 pr-3">
-            <ViewerInspector
-              errorMessage={errorMessage}
-              inspectorHint={inspectorHint}
-              onRetry={onRetry}
-              scrollToEntityId={scrollToEntityId}
-              selection={selection}
-              state={state}
-            />
-          </div>
-        )}
+        {/* Panel phải trượt vào bằng cách kẹp `width`/`opacity`, không gỡ
+            khỏi DOM — nên `aria-hidden` là dấu hiệu "thu gọn" thật cho trình
+            đọc màn hình thay vì việc phần tử biến mất đột ngột. Giữ nguyên
+            câu chuyện cho người dùng giảm chuyển động: `frame.reducedMotion`
+            tắt hẳn transition thay vì chỉ chạy nhanh hơn. */}
+        <div
+          aria-hidden={isCollapsed}
+          className={cn(
+            'shrink-0 overflow-hidden',
+            isCollapsed ? 'py-0 pr-0 opacity-0' : 'py-3 pr-3 opacity-100',
+            frame.reducedMotion
+              ? 'transition-none'
+              : 'transition-all duration-standard ease-in-out',
+          )}
+          style={{ width: isCollapsed ? 0 : VIEWER_LAYOUT.inspectorPx }}
+        >
+          <ViewerInspector
+            errorMessage={errorMessage}
+            inspectorHint={inspectorHint}
+            onRetry={onRetry}
+            scrollToEntityId={scrollToEntityId}
+            selection={selection}
+            state={state}
+          />
+        </div>
       </div>
 
       <ViewerStatusBar status={status}>

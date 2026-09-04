@@ -106,6 +106,7 @@ import {
   type StackableStorey,
 } from './viewerStoreyStack';
 import {
+  clampSectionPosition,
   DEFAULT_SECTION_AXIS,
   DEFAULT_SECTION_POSITION,
   sectionPlaneFor,
@@ -370,7 +371,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   const [hiddenStoreyIds, setHiddenStoreyIds] = useState<readonly string[]>([]);
   const [separation, setSeparation] = useState(0);
   const [rememberedSeparation, setRememberedSeparation] = useState(SEPARATION_STEP);
-  const [sectionPosition] = useState(DEFAULT_SECTION_POSITION);
+  const [sectionPosition, setSectionPositionState] = useState(DEFAULT_SECTION_POSITION);
   const [hiddenEntityIds, setHiddenEntityIds] = useState<readonly string[]>([]);
   const [isolatedEntityIds, setIsolatedEntityIds] = useState<readonly string[] | null>(null);
   const [hoverPointPx, setHoverPointPx] = useState<ViewerPointPx | null>(null);
@@ -566,6 +567,17 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
     return sectionPlaneFor(boundsOf(extent), DEFAULT_SECTION_AXIS, sectionPosition);
   }, [activePresetId, activeToolId, extent, sectionPosition]);
+
+  /**
+   * Tay nắm mặt phẳng cắt gọi vào đây qua {@link ViewerSceneActions.setSectionPosition}.
+   *
+   * Giá trị luôn đi qua `clampSectionPosition` — không tự kẹp biên bằng tay ở
+   * đây hay ở màn nội dung — nên `sectionPosition` không bao giờ rời [0, 1]
+   * dù tay nắm kéo quá đầu thanh trượt.
+   */
+  const setSectionPosition = useCallback((value: number): void => {
+    setSectionPositionState(clampSectionPosition(value));
+  }, []);
 
   /* ---- Camera: hành động ------------------------------------------------- */
 
@@ -908,8 +920,9 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       hoverEntity: (entityId: string | null): void => {
         setHovered(entityId as (typeof selectedIds)[number] | null);
       },
+      setSectionPosition,
     }),
-    [clearSelection, setSelection, setHovered, selectedIds],
+    [clearSelection, setSelection, setHovered, selectedIds, setSectionPosition],
   );
 
   const breadcrumbs = useMemo(
