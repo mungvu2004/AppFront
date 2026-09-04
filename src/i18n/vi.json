@@ -2097,6 +2097,40 @@
       "escapeShortcut": "Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc."
     }
   },
+  "viewer3d": {
+    "buildError": {
+      "description": "Không dựng được mô hình 3D lần này. Thử lại, hoặc quay lại lớp tường để xem dữ liệu còn thiếu gì."
+    },
+    "edit": {
+      "ariaLabel": "Sửa hình học đã chọn",
+      "buttonLabel": "Sửa hình học"
+    },
+    "empty": {
+      "description": "Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.",
+      "qcButton": "Quay lại xem lớp tường"
+    },
+    "error": {
+      "fallbackLink": "Xem bản 2D",
+      "retryButton": "Thử lại"
+    },
+    "forbidden": {
+      "description": "Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D."
+    },
+    "loading": {
+      "progress": "Đang dựng mô hình {{count}} tầng"
+    },
+    "partial": {
+      "readyLabel": "Tầng đã dựng xong",
+      "wireframeCaption": "{{name}} — chưa dựng xong"
+    },
+    "success": {
+      "description": "Mô hình 3D đã dựng xong."
+    },
+    "webglUnavailable": {
+      "description": "Máy hoặc trình duyệt của bạn chưa bật được hình ảnh 3D. Thử lại, hoặc xem bản vẽ 2D trong lúc chờ.",
+      "title": "Trình duyệt này chưa xem được mô hình 3D"
+    }
+  },
   "viewerShell": {
     "title": "Mô hình 3D",
     "regionLabel": "Vỏ khung nhìn 3D",

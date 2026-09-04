@@ -48,6 +48,15 @@ export interface Viewer3DProps {
   readonly onRetryBuild: () => void;
   /** Vai đã lọc: được double-click chọn/sửa hình học hay chỉ xem. */
   readonly canEdit: boolean;
+  /**
+   * Callback ref nhận phần tử `<canvas>` sau khi view gắn xong, để container
+   * đưa nó vào `useViewer3D` (`viewer3dTypes.ts:230-232`: `canvas` chỉ tồn tại
+   * sau khi view gắn, nên nó KHÔNG phải một prop dữ liệu).
+   *
+   * Vắng mặt thì không có `<canvas>` nào được vẽ — đó là cách story và bài kiểm
+   * dựng view thuần này một mình, không cần WebGL.
+   */
+  readonly canvasRef?: ((canvas: HTMLCanvasElement | null) => void) | undefined;
 }
 
 /** Nền + mặt đất + chân trời một màu token, không gradient — dùng ở mọi trạng thái. */
@@ -233,6 +242,7 @@ export function Viewer3D(props: Viewer3DProps) {
     qcHref,
     onRetryBuild,
     canEdit,
+    canvasRef,
   } = props;
 
   const isErrorLike = state === 'error' || webglUnavailable;
@@ -244,6 +254,14 @@ export function Viewer3D(props: Viewer3DProps) {
       role="region"
     >
       <ViewerGround />
+
+      {/* Mặt vẽ của module cảnh. Trên nền và mặt đất, dưới mọi lớp nội dung —
+          nên card lỗi và câu trạng thái rỗng không bao giờ bị hình che. View
+          không tạo geometry/material nào ở đây: nó chỉ giao phần tử canvas cho
+          container qua callback ref. */}
+      {canvasRef !== undefined && !isErrorLike && (
+        <canvas aria-hidden="true" className="absolute inset-0 block h-full w-full" ref={canvasRef} />
+      )}
 
       {state === 'empty' && <EmptyContent qcHref={qcHref} />}
 
