@@ -15,7 +15,7 @@ const suspended = (node: React.ReactNode) => (
 );
 
 // Lazy load 3D and canvas routes
-const Route3D = lazy(() => Promise.resolve({ default: () => <Placeholder name="3D View" /> }));
+const RouteViewerShell = lazy(() => import('../screens/viewer/ViewerShell').then(m => ({ default: m.ViewerShellRoute })));
 const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
 const RouteShare = lazy(() => import('../screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
@@ -99,7 +99,7 @@ export const router = createBrowserRouter([
   { path: ROUTE_PATTERNS.layerGrids, element: suspended(<RouteAxisGridManager />) },
   { path: ROUTE_PATTERNS.floors, element: <RouteCanvas /> },
   { path: ROUTE_PATTERNS.layerRooms, element: suspended(<RouteRoomLabelReview />) },
-  { path: ROUTE_PATTERNS.projectViewer, element: <Route3D /> },
+  { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewerShell />) },
   { path: ROUTE_PATTERNS.projectRules, element: <Placeholder name="/projects/:id/rules" /> },
   { path: ROUTE_PATTERNS.projectExport, element: <Placeholder name="/projects/:id/export" /> },
   { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
