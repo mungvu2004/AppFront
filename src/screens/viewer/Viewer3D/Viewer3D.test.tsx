@@ -112,12 +112,23 @@ describe('[V5-2] nội dung theo trạng thái', () => {
     expect(screen.queryByRole('button', { name: 'Sửa hình học đã chọn' })).toBeNull();
   });
 
-  it('được sửa: công cụ sửa CÓ mặt và không bị disabled', () => {
-    render(<Viewer3D {...scenarioPropsFor('success')} />);
+  /* Ca này trước đây khẳng định "công cụ sửa CÓ mặt và không bị disabled". Nút ấy
+     là một nút CHẾT — `onClick` rỗng, vì không có lệnh sửa hình học nào ở tầng
+     logic để nối vào (R-69, R-73) — nên nó đã được gỡ, và khẳng định cũ đang nói
+     về một thứ không còn tồn tại. Khẳng định được sửa cho khớp việc gỡ, không bỏ
+     ca đi. Vai nào được sửa hình học vẫn là câu hỏi của VỎ: `ViewerShell` lọc
+     danh sách công cụ theo vai rồi mới đưa xuống `ViewerToolRail`. */
+  it('không trạng thái nào dựng lại nút sửa hình học đã gỡ', () => {
+    for (const state of SEVEN_STATES) {
+      const { unmount } = render(<Viewer3D {...scenarioPropsFor(state)} />);
 
-    const editButton = screen.getByRole('button', { name: 'Sửa hình học đã chọn' });
-    expect(editButton).toBeInTheDocument();
-    expect(editButton).not.toBeDisabled();
+      expect(
+        screen.queryByRole('button', { name: 'Sửa hình học đã chọn' }),
+        `trạng thái ${state} dựng lại nút chết`,
+      ).toBeNull();
+
+      unmount();
+    }
   });
 });
 

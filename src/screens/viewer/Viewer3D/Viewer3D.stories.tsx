@@ -8,9 +8,16 @@
 
 import type { Meta, StoryObj } from '@storybook/react';
 
+import { ROUTES } from '@/routes/paths';
 import type { ViewerSceneFrame, ViewerScreenState } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { Viewer3D } from './Viewer3D';
+
+/** Dự án mẫu của story — mã giả, không phải một dự án thật (R-71). */
+const DEMO_PROJECT_ID = 'P-001';
+
+/** Tầng dưới cùng của bộ mẫu; hook thật cũng lấy tầng đầu để dựng `qcHref`. */
+const DEMO_STOREY_ID = 'T01';
 
 const BASE_FRAME: ViewerSceneFrame = {
   azimuthRad: 0.6,
@@ -36,12 +43,12 @@ export function scenarioPropsFor(state: ViewerScreenState) {
     readyStoreyIds: state === 'partial' ? ['T01', 'T02'] : BASE_FRAME.visibleStoreyIds,
     wireframeCaptionOf: (storeyId: string) => `Tầng ${storeyId} — chưa dựng xong`,
     webglUnavailable: false,
-    fallback2dHref: '/projects/P-001/2d',
-    qcHref: '/projects/P-001/qc',
+    // Cùng hai hàm đường dẫn mà `useViewer3D` dùng, không phải chuỗi thô (R-65).
+    fallback2dHref: ROUTES.project.floors(DEMO_PROJECT_ID),
+    qcHref: ROUTES.project.walls(DEMO_PROJECT_ID, DEMO_STOREY_ID),
     onRetryBuild: () => {
       /* Story chỉ minh hoạ, không gọi lệnh thật. */
     },
-    canEdit: state !== 'forbidden',
   };
 
   if (state === 'empty' || state === 'loading') {
@@ -87,7 +94,7 @@ export const Loi: Story = { args: { ...scenarioPropsFor('error'), webglUnavailab
 /** Bốn tầng, đủ hình. */
 export const Xong: Story = { args: scenarioPropsFor('success') };
 
-/** Vai Người xem: công cụ sửa bị GỠ khỏi DOM, không phải làm mờ. */
+/** Vai Người xem: vỏ `ViewerShell` gỡ công cụ sửa khỏi ray, view chỉ nói ra vai. */
 export const KhongCoQuyen: Story = { args: scenarioPropsFor('forbidden') };
 
 /** Thu gọn — vỏ ẩn hai ray và panel; nội dung khung nhìn giữ nguyên. */

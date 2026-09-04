@@ -14,7 +14,7 @@
  * mã riêng.
  */
 
-import { Loader2, Wrench } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { Button } from '@/components/ui/Button';
@@ -46,8 +46,6 @@ export interface Viewer3DProps {
   readonly qcHref: string;
   /** Thử lại bước dựng hình (khác `onRetry` của vỏ — vỏ retry truy vấn dự án). */
   readonly onRetryBuild: () => void;
-  /** Vai đã lọc: được double-click chọn/sửa hình học hay chỉ xem. */
-  readonly canEdit: boolean;
   /**
    * Callback ref nhận phần tử `<canvas>` sau khi view gắn xong, để container
    * đưa nó vào `useViewer3D` (`viewer3dTypes.ts:230-232`: `canvas` chỉ tồn tại
@@ -208,27 +206,6 @@ function ErrorContent({
   );
 }
 
-/** Chip nổi cho hành động sửa hình học — chỉ vẽ khi được phép (A2, không làm mờ). */
-function EditAffordance() {
-  return (
-    <div className="absolute bottom-3 right-3">
-      <Button
-        aria-label="Sửa hình học đã chọn"
-        onClick={() => {
-          /* Chưa nối hành vi thật: khe cắm chưa có callback riêng cho việc sửa
-             hình học (mục D của hợp đồng), chỉ khai điều kiện hiện/ẩn theo
-             `canEdit`. Việc nối lệnh thật là của hook đi kèm màn nội dung. */
-        }}
-        size="sm"
-        variant="secondary"
-      >
-        <Wrench aria-hidden="true" className="h-4 w-4" />
-        Sửa hình học
-      </Button>
-    </div>
-  );
-}
-
 export function Viewer3D(props: Viewer3DProps) {
   const {
     state,
@@ -241,7 +218,6 @@ export function Viewer3D(props: Viewer3DProps) {
     fallback2dHref,
     qcHref,
     onRetryBuild,
-    canEdit,
     canvasRef,
   } = props;
 
@@ -302,8 +278,6 @@ export function Viewer3D(props: Viewer3DProps) {
           </span>
         </div>
       )}
-
-      {canEdit && !isErrorLike && state !== 'empty' && state !== 'loading' && <EditAffordance />}
     </div>
   );
 }
