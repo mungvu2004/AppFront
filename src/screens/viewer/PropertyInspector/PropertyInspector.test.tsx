@@ -7,6 +7,7 @@
  *
  * | mã | đo cái gì | ngưỡng |
  * |---|---|---|
+ * | `[N1.1]` | xem trước 3D TRONG LÚC KÉO: bản nháp panel phát ra ở mỗi bước | 10/10 bước, 0 lượt ghi |
  * | `[N1]` | đổi độ dày 220 → 330: ghi vào mô hình, dọn sạch, MỘT cú Ctrl+Z | 220 → 330 → 220 |
  * | `[N2]` | số trường hiện ra khi chọn một bức tường | ≤ 5 trường mặc định |
  * | `[N3]` | chân panel có nhảy không khi đổi tường ↔ phòng 10 lần | 0 lần nhảy |
@@ -37,7 +38,12 @@ import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import { sampleLevelId, sampleRoomId, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import {
+  sampleDoorId,
+  sampleLevelId,
+  sampleRoomId,
+  sampleWallId,
+} from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { SpatialGraph } from '@/domain/spatial/types';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -55,6 +61,7 @@ import {
 } from '@/lib/testing/sevenStateScenarios';
 import { UndoShortcuts } from '@/routes/router';
 import { useStore } from '@/store';
+import { selectDraftEntityIds, selectDraftPreviewGraph } from '@/store/selectors';
 
 import { PropertyInspector } from './PropertyInspector';
 import {
@@ -175,6 +182,43 @@ const WALL_ID = sampleWallId(INSPECTED_WALL_INDEX);
 /** Độ dày ban đầu và độ dày đích của phép nghiệm thu N1. */
 const THICKNESS_BEFORE_MM = INSPECTED_WALL.thicknessMm;
 const THICKNESS_AFTER_MM = 330;
+
+/**
+ * Ô mở dùng cho phép nghiệm thu N1.1.
+ *
+ * Độ dày tường là một dải chip (`segmented`, `commitMode: 'immediate'`) — bấm
+ * một chip là đã thả tay, nên nó không có "trong lúc kéo" để đo. Ô nhập số của
+ * một ô mở là dòng `settled` thật: mỗi ký tự gõ vào là một bước của cử chỉ, và
+ * lệnh chỉ phát khi giá trị đứng yên hết {@link MERGE_WINDOW_MS}.
+ */
+const OPENING_ID = sampleDoorId(0);
+
+/** Nhãn ô nhập chiều rộng — hợp đồng T4 sở hữu chữ này. */
+const OPENING_WIDTH_LABEL = 'Chiều rộng';
+
+/**
+ * Lượt kéo N1.1: mười bước, mỗi bước HẸP đi 10 mm, bắt đầu từ 500 mm.
+ *
+ * Bắt đầu từ 500 chứ không từ 900 mà bộ mẫu đang mang: bức tường chủ
+ * `W-WALL0000000` chỉ dài 1000 mm, và `validateResizeOpening` giữ tâm ô mở nên
+ * mọi chiều rộng lớn hơn 500 mm đều làm cánh cửa thò ra ngoài tường — một lệnh
+ * bị từ chối, không phải một lượt kéo. Bài kiểm kéo trong khoảng lệnh CHẤP
+ * NHẬN được, vì thứ đang đo là kênh xem trước chứ không phải bộ luật.
+ */
+const DRAG_FROM_MM = 500;
+const DRAG_STEP_COUNT = 10;
+const DRAG_STEP_MM = 10;
+
+/** Ô mở đang nằm trong store, đọc lại sau mỗi lượt ghi. */
+function openingInStore(openingId: string) {
+  const entity = useStore.getState().spatial?.byId[openingId];
+
+  if (entity === undefined || !('widthMm' in entity)) {
+    throw new Error(`Không còn ô mở ${openingId} trong store.`);
+  }
+
+  return entity;
+}
 
 /** Bức tường đang nằm trong store, đọc lại sau mỗi lượt ghi. */
 function wallInStore(wallId: string) {
@@ -476,17 +520,78 @@ describe('[N1] đổi độ dày tường từ 220 sang 330', () => {
     clock?.restore();
   });
 
-  it('bước 1 — "3D đổi ngay trong lúc kéo": in ra vì sao chưa chứng minh được', () => {
+  it('bước 1 — "3D đổi ngay trong lúc kéo": ĐẠT, đo trên bản nháp panel phát ra', async () => {
+    const { container } = await renderWired([OPENING_ID]);
+
+    /* Đồng hồ giả lắp SAU lượt dựng, cùng lý do như bước 4: `waitFor` của
+     * `renderWired` chạy trên đồng hồ thật. */
+    clock = installFakeClock();
+
+    const input = within(container).getByLabelText(OPENING_WIDTH_LABEL);
+    const before = openingInStore(OPENING_ID).widthMm;
+    // Lượt gieo dữ liệu của `seedStore` đã mở một bước hoàn tác; cái được đếm
+    // là những bước MỚI, không phải tổng số của cả phiên.
+    const undoBefore = useStore.temporal.getState().pastStates.length;
+    const steps: number[] = [];
+
+    /* ---- Lượt kéo: mười bước, KHÔNG bước nào chạm cửa sổ settle ----------- */
+
+    for (let step = 1; step <= DRAG_STEP_COUNT; step += 1) {
+      const widthMm = DRAG_FROM_MM - step * DRAG_STEP_MM;
+
+      act(() => {
+        fireEvent.change(input, { target: { value: String(widthMm) } });
+      });
+
+      const previewGraph = selectDraftPreviewGraph(useStore.getState());
+      const previewed = previewGraph?.byId[OPENING_ID];
+
+      // Đây LÀ dữ liệu mà `useViewer3D` đọc để vẽ hình tạm: cùng một selector,
+      // cùng một đồ thị. Bên tiêu thụ được đo riêng ở
+      // `Viewer3D/useViewer3D.preview.test.tsx` (30 bước kéo → 30 lượt xem
+      // trước, MỘT lượt lắp cảnh) và ở `viewer3dScene.test.ts` (30 khung hình,
+      // 0 lượt vẽ bản đồ bóng, 0 job dựng chạy lại).
+      expect(previewed).toBeDefined();
+      expect(previewed !== undefined && 'widthMm' in previewed ? previewed.widthMm : null).toBe(
+        widthMm,
+      );
+      expect(selectDraftEntityIds(useStore.getState())).toStrictEqual([OPENING_ID]);
+
+      // …và mô hình ĐÃ LƯU chưa hề đổi: bản nháp không phải một lượt ghi.
+      expect(openingInStore(OPENING_ID).widthMm).toBe(before);
+      expect(useStore.temporal.getState().pastStates).toHaveLength(undoBefore);
+
+      steps.push(widthMm);
+    }
+
+    /* ---- Thả tay: lệnh thật chạy, bản nháp bị dọn ------------------------- */
+
+    await act(async () => {
+      await clock.advance(MERGE_WINDOW_MS);
+      await clock.flushMicrotasks();
+    });
+
+    expect(openingInStore(OPENING_ID).widthMm).toBe(steps.at(-1));
+
     console.log(
-      '[PROPERTY-INSPECTOR][N1.1] xem trước 3D tức thời TRONG LÚC KÉO: CHƯA CHỨNG MINH ĐƯỢC. ' +
-        'Mục C5 của commands.md ghi bốn chỗ chặn độc lập: draftSlice không ai sản xuất ' +
-        'trong production và bị ESLint khoá ngoài src/store; không ai đọc draftOperations; ' +
-        'handle.update(frame) không nhận hình học; DragPreview chỉ dành cho gizmo 3D. ' +
-        'Panel vì thế phát lệnh khi giá trị ĐỨNG YÊN hết một cửa sổ ' +
-        `${String(MERGE_WINDOW_MS)} ms, không phát mỗi khung hình. Không có phép đo nào ở đây báo "đạt".`,
+      `[PROPERTY-INSPECTOR][N1.1] xem trước 3D tức thời TRONG LÚC KÉO: ĐẠT. ` +
+        `${String(DRAG_STEP_COUNT)} bước kéo trên ${OPENING_ID} ` +
+        `(${String(before)} → ${String(DRAG_FROM_MM)} → ${String(steps.at(-1))} mm): ` +
+        `số thao tác nháp đọc được ở mỗi bước = 1, ` +
+        `số lượt ghi vào mô hình trong lúc kéo = 0, ` +
+        `số bước hoàn tác mở ra trong lúc kéo = 0; ` +
+        `sau khi giá trị đứng yên hết ${String(MERGE_WINDOW_MS)} ms: ` +
+        `mô hình = ${String(openingInStore(OPENING_ID).widthMm)} mm, ` +
+        `thao tác nháp còn lại = ${String(useStore.getState().draftOperations.length)}, ` +
+        `bước hoàn tác mở thêm = ${String(useStore.temporal.getState().pastStates.length - undoBefore)}.`,
     );
 
-    expect(MERGE_WINDOW_MS).toBeGreaterThan(0);
+    // Bản nháp bị dọn bởi chính `commit`, không bởi một lời hứa của panel.
+    expect(useStore.getState().draftOperations).toStrictEqual([]);
+    expect(selectDraftPreviewGraph(useStore.getState())).toBeNull();
+
+    // Một lượt kéo vẫn là MỘT bước hoàn tác: xem trước không phải lượt ghi.
+    expect(useStore.temporal.getState().pastStates).toHaveLength(undoBefore + 1);
   });
 
   it('bước 2 — lượt ghi vào mô hình: 220 → 330, và panel đọc lại đúng con số đó', async () => {

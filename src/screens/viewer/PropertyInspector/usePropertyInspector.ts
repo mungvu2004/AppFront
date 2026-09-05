@@ -52,16 +52,17 @@
  *
  * ## Nợ kỹ thuật đã ghi nhận (không phải chuyện bỏ quên)
  *
- * - **KHÔNG có xem trước 3D trong lúc kéo.** Hợp đồng T2 mục C5 kết luận
- *   `NOT FOUND` với bốn bằng chứng độc lập: `draftSlice` không ai sản xuất trong
- *   production và bị `local/no-draft-write-outside-commands` khoá ngoài
- *   `src/store`; không nơi nào đọc `draftOperations` để vẽ lại; `handle.update`
- *   không nhận hình học nên đổi `spatial` ép dựng lại toàn cảnh qua worker;
- *   `DragPreview` chỉ phục vụ gizmo trong khung nhìn 3D. Điều phối viên và người
- *   dùng đã chốt: trong lúc kéo panel CHỈ đổi con số hiện trong panel, và lệnh
- *   phát đúng một lần khi giá trị ngừng đổi (cửa sổ {@link MERGE_WINDOW_MS}). Mô
- *   hình 3D vì thế chỉ đổi SAU lượt ghi — đó là độ trễ có thật của kiến trúc hiện
- *   nay, không phải lựa chọn của đặc tả.
+ * - **~~KHÔNG có xem trước 3D trong lúc kéo~~ — đã có, U7.** Mục C5 của hợp đồng
+ *   T2 kết luận `NOT FOUND` với bốn bằng chứng, và cả bốn đã được gỡ đúng chỗ
+ *   chúng nằm: `src/store/commit.ts` mở `previewEdit`/`discardPreview` (người
+ *   sản xuất nháp hợp lệ, trong chính `src/store` — luật ESLint KHÔNG bị nới);
+ *   `selectDraftPreviewGraph` hợp nhất nháp với đồ thị; `useViewer3D` đọc phép
+ *   hợp nhất ấy và đẩy xuống `ViewerSceneHandle.preview`, một đường hình học
+ *   KHÔNG đi qua `BuildQueue` nên không có lượt dựng lại nào; lớp vẽ đè sống ở
+ *   `src/lib/three/preview`, không phải `DragPreview` của gizmo. Panel vì thế đề
+ *   nghị một bản nháp ở MỖI lần giá trị đổi (mô hình 3D đi theo ngay trong lúc
+ *   kéo) và vẫn chỉ phát LỆNH THẬT một lần khi giá trị đứng yên hết cửa sổ
+ *   {@link MERGE_WINDOW_MS} — một bước hoàn tác cho một lượt kéo (D-06).
  * - **Chiều cao tường và kích thước bao nội thất chỉ đọc.** Không lệnh nào ghi
  *   được hai trường đó (xem docblock của cổng).
  * - **`isInterior` suy từ `kind`, không sửa được.** Domain không có trường riêng,
@@ -80,7 +81,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { ROOM_USAGE_LABELS } from '@/domain/rules/registry';
 import type { Violation } from '@/domain/rules/registry';
-import { readEntity } from '@/domain/spatial/applyPatch';
+import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
@@ -109,12 +110,14 @@ import {
 } from '@/lib/commands/business/roomFloorCommands';
 import { FURNITURE_KIND_LABELS } from '@/lib/commands/business/shared';
 import type { CommandContext, CommandResult } from '@/lib/commands/business/shared';
+import { commandToPatches } from '@/lib/commands/invert';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
 import { formatNumber, formatPercent, isFormattable, MISSING_VALUE, parseNumber } from '@/lib/format/number';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ViewAttribute } from '@/lib/viewmodel/types';
 import { toRoomViewModel, toWallViewModel } from '@/lib/viewmodel/toViewModel';
 import { useStore } from '@/store';
+import { discardPreview, previewEdit } from '@/store/commit';
 import { selectViolations } from '@/store/selectors';
 
 import type {
@@ -1073,6 +1076,11 @@ export function usePropertyInspector(
       }
 
       timers.clear();
+
+      // Rời panel giữa lúc kéo là huỷ, không phải xác nhận: bản nháp đi cùng
+      // những cái hẹn giờ chưa nổ, nên khung nhìn 3D không giữ lại một bức
+      // tường mà không ô nhập nào còn nói tới.
+      discardPreview();
     };
   }, []);
 
@@ -1102,6 +1110,53 @@ export function usePropertyInspector(
     });
   }, []);
 
+  /**
+   * Đề nghị một bản nháp cho giá trị đang gõ, để mô hình 3D đi theo ngay.
+   *
+   * Cùng một `commandForRow` mà lượt ghi thật dùng — không có phép tính thứ hai
+   * ở đây, nên thứ người dùng NHÌN THẤY trong lúc kéo đúng bằng thứ họ sẽ nhận
+   * khi thả tay. Lệnh được dựng nhưng KHÔNG điều phối: `dispatch` là lượt ghi
+   * thật, còn cái cần lúc này chỉ là "bức tường sẽ trông ra sao", và câu trả lời
+   * ấy là đồ thị sau khi áp các vá của lệnh.
+   *
+   * Một giá trị chưa hợp lệ (gõ dở, quá dày, tên trùng) BỎ bản nháp thay vì giữ
+   * cái cũ: mô hình quay về đúng thứ đang có thật, và dòng nhập là chỗ nói ra
+   * lý do — chứ không phải một hình 3D đứng lại ở một con số người dùng đã rời
+   * khỏi.
+   */
+  const stagePreview = useCallback(
+    (rowId: string, nextValue: string, entityId: string): void => {
+      const current = useStore.getState().spatial;
+      const entity = current === null ? null : readInspectableEntity(current, entityId);
+
+      if (current === null || entity === null) {
+        return;
+      }
+
+      const built = commandForRow(entity, rowId, nextValue, {
+        actorId: gateway.actorId,
+        graph: current,
+      });
+
+      if (built === null || !built.ok) {
+        discardPreview();
+
+        return;
+      }
+
+      const preview = applyPatch(current, commandToPatches(built.data)).byId[entity.id];
+
+      if (preview === undefined) {
+        discardPreview();
+
+        return;
+      }
+
+      previewEdit(entity.id, preview);
+    },
+    [gateway],
+  );
+
   const write = useCallback(
     async (rowId: string, nextValue: string, entityId: string): Promise<void> => {
       const bundle = bundleRef.current;
@@ -1118,6 +1173,7 @@ export function usePropertyInspector(
       });
 
       if (built === null) {
+        discardPreview();
         dropPending(rowId);
         setRefusal({
           message: TEXT.refusal.invalidNumber,
@@ -1131,6 +1187,7 @@ export function usePropertyInspector(
       }
 
       if (!built.ok) {
+        discardPreview();
         dropPending(rowId);
         setRefusal({
           message: built.error.reasons.join(' '),
@@ -1146,6 +1203,9 @@ export function usePropertyInspector(
       const result = await runInspectorCommand(built.data, bundle);
 
       if (!result.ok) {
+        // Lượt ghi hỏng giữa chừng thì `commit` không chạy, nên không ai dọn
+        // bản nháp hộ — dọn ở đây, cùng chỗ dòng nhập quay về giá trị cũ.
+        discardPreview();
         dropPending(rowId);
         setRefusal({
           message: result.error.reasons.join(' '),
@@ -1172,13 +1232,19 @@ export function usePropertyInspector(
   /**
    * Người dùng đổi giá trị một dòng.
    *
-   * Dòng `settled` (ô số, ô chữ, thanh trượt) chỉ đổi CON SỐ HIỆN TRONG PANEL
-   * trong lúc còn đang đổi, và phát lệnh khi giá trị đứng yên hết một cửa sổ
-   * {@link MERGE_WINDOW_MS}. Đó là hệ quả trực tiếp của mục C5: không có kênh xem
-   * trước 3D nào gọi được từ tầng màn hình, nên phát lệnh mỗi khung hình chỉ tổ
-   * ép `Viewer3D` dựng lại toàn cảnh qua worker hàng chục lần một giây. Cùng cửa
-   * sổ đó là cửa sổ `HistoryStack` gộp lệnh, nên hai lượt ghi sát nhau vẫn về
-   * chung MỘT bước hoàn tác (D-06).
+   * Dòng `settled` (ô số, ô chữ, thanh trượt) làm HAI việc ở mỗi lần giá trị
+   * đổi, và một việc nữa khi giá trị đứng yên:
+   *
+   * 1. **Đổi con số hiện trong panel** — `pendingText`, cục bộ, không ghi kho.
+   * 2. **Đề nghị một bản nháp** — {@link stagePreview} → `previewEdit` của
+   *    `src/store/commit`, thứ `useViewer3D` đọc để vẽ đè hình tạm. Đây là lượt
+   *    ghi TẠM: nó không vào lịch sử hoàn tác, không được tự lưu, và bị dọn khi
+   *    lệnh thật chạy.
+   * 3. **Phát lệnh thật** khi giá trị đứng yên hết một cửa sổ
+   *    {@link MERGE_WINDOW_MS}. Vẫn đúng MỘT lệnh cho một lượt kéo: bản nháp
+   *    không phải một lượt ghi, nên xem trước sáu mươi lần một giây cũng không
+   *    thêm một bước hoàn tác nào. Cùng cửa sổ ấy là cửa sổ `HistoryStack` gộp
+   *    lệnh, nên hai lượt ghi sát nhau vẫn về chung một bước (D-06).
    */
   const changeRow = useCallback(
     (rowId: string, commitMode: CommitMode, entityId: string, nextValue: string): void => {
@@ -1193,10 +1259,14 @@ export function usePropertyInspector(
       }
 
       if (commitMode === 'immediate') {
+        // Bấm một lựa chọn là đã thả tay: lệnh thật chạy ngay, nên một bản nháp
+        // sống được đúng một nhịp sẽ chỉ là một lượt vẽ thừa.
         void write(rowId, nextValue, entityId);
 
         return;
       }
+
+      stagePreview(rowId, nextValue, entityId);
 
       timers.set(
         rowId,
@@ -1206,7 +1276,7 @@ export function usePropertyInspector(
         }, MERGE_WINDOW_MS),
       );
     },
-    [write],
+    [stagePreview, write],
   );
 
   /* ---------------------------------------------------------------------- */

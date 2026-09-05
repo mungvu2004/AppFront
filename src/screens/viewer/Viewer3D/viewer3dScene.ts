@@ -19,6 +19,21 @@
  * file này không import `buildFloorMesh`, `buildFloorAtDetail` hay
  * `buildFloorLod` — cả ba dựng hình trên luồng chính.
  *
+ * Lớp xem trước không phá luật ấy: hình tạm của một cử chỉ đang diễn ra do
+ * `src/lib/three/preview` dựng, và module ấy giải thích vì sao MỘT bức tường
+ * được phép extrude trên luồng chính trong khi cả một tầng thì không. File này
+ * chỉ gắn nhóm ấy vào cảnh, ẩn mesh thật nằm dưới, và gỡ ra khi xong.
+ *
+ * ## Bản đồ bóng là bản đồ TĨNH
+ *
+ * `shadowMap.autoUpdate = false`, và `needsUpdate` chỉ được bật ở ba chỗ mà tập
+ * vật đổ bóng thật sự đổi: một tầng vừa dựng xong, vỏ vừa đổi khung (ẩn/hiện,
+ * độ tách), và R-04 vừa hạ chất lượng. Lớp xem trước KHÔNG bật nó: một depth
+ * pass cho mỗi bước kéo là đúng thứ vòng vẽ theo nhu cầu được dựng ra để khỏi
+ * phải trả. Cái giá của lựa chọn ấy được nói thẳng ở
+ * {@link ViewerSceneHandle.preview}: trong lúc kéo, bóng của riêng vật đang kéo
+ * là bóng cũ, và nó đúng trở lại ngay khi lệnh thật chạy.
+ *
  * ## Phần trăm dựng là phép đếm thật
  *
  * `BuildQueue` không phát tiến độ và `enqueueAll` chỉ resolve khi mọi job xong
@@ -87,6 +102,7 @@ import { disposeFloor, ResourceLedger } from '@/lib/three/perf/dispose';
 import { paintByPartKind, sharedMaterialCache } from '@/lib/three/perf/materialCache';
 import { PerfMonitor, shadowMapTypeFor } from '@/lib/three/perf/monitor';
 import { createFrameLoop } from '@/lib/three/present/frameLoop';
+import { createPreviewLayer } from '@/lib/three/preview/previewLayer';
 import { documentTokenReader, tokenColour, type TokenReader } from '@/lib/three/present/palette';
 import {
   stackStoreys,
@@ -97,6 +113,7 @@ import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellT
 import type {
   ViewerRendererLike,
   ViewerSceneFrameRate,
+  ViewerScenePreview,
   ViewerSceneHandle,
   ViewerSceneMount,
   ViewerSceneMountOptions,
@@ -316,6 +333,9 @@ function startScene(
 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = shadowMapTypeFor('soft');
+  // Vẽ lại khi mô hình đổi, không phải mỗi khung hình — xem docblock đầu file.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
 
   const perspective = new PerspectiveCamera(
     CAMERA_SETTINGS.shared.fieldOfViewDeg,
@@ -349,6 +369,22 @@ function startScene(
   /** Vật liệu gốc của mỗi mesh, để trả lại sau khi bỏ chọn. */
   const baseMaterials = new WeakMap<Mesh, Material>();
 
+  /** Vật liệu tô của từng loại bộ phận, để lớp xem trước MƯỢN đúng màu P-06. */
+  const paintedByKind = new Map<BuildPartKind, Material>();
+
+  /**
+   * Lớp vẽ đè của một cử chỉ đang diễn ra.
+   *
+   * Nhóm riêng, gắn thẳng vào `scene` chứ không vào `root`: phép tô chọn/hover
+   * và phép đo hộp bao đi bộ trên `root`, và một bản xem trước không phải là mô
+   * hình — nó không được đếm vào hộp bao, không được đổi vật liệu theo lượt
+   * chọn, và gỡ nó phải là gỡ MỘT nhóm.
+   */
+  const previewLayer = createPreviewLayer({
+    materialOf: (kind: BuildPartKind) => paintedByKind.get(kind),
+  });
+  scene.add(previewLayer.root);
+
   /* ---- Trạng thái sống --------------------------------------------------- */
 
   let currentFrame: ViewerSceneFrame = options.frame;
@@ -359,6 +395,10 @@ function startScene(
   let disposed = false;
   /** Nấc chi tiết R-04 đang bảo vẽ. Chỉ `onDegrade` đổi nó. */
   let activeDetail: DetailLevel = 'full';
+
+  /** Bản xem trước đang treo. Chỉ `applyPreview` đổi hai biến này. */
+  let previewLevelId: string | null = null;
+  let previewHidden: ReadonlySet<string> = new Set<string>();
 
   let settledCount = 0;
   let failedCount = 0;
@@ -489,6 +529,8 @@ function startScene(
       renderer.shadowMap.type = shadowMapTypeFor(action.shadows);
       activeDetail = action.detail;
       applyFrame(currentFrame);
+      // Kiểu bóng và tập vật được vẽ vừa đổi cùng lúc — vẽ lại bản đồ bóng.
+      renderer.shadowMap.needsUpdate = true;
       loop.invalidate();
     },
     ...(options.now !== undefined ? { now: options.now } : {}),
@@ -544,19 +586,34 @@ function startScene(
       // `toMesh` đã đặt hình ở cao độ thật của tầng, nên nhóm chỉ mang phần
       // dịch THÊM do độ tách — `separation === 0` để mọi tầng nguyên chỗ.
       levelGroups.get(stacked.id)?.position.setY(stacked.spreadM);
+
+      // Hình tạm đứng đúng chỗ hình thật nó thay, kể cả khi các tầng đang tách.
+      if (stacked.id === previewLevelId) {
+        previewLayer.root.position.setY(stacked.spreadM);
+      }
     }
+
+    /** Vật này có được hiện không, nếu bỏ lớp xem trước ra ngoài. */
+    const baseVisible = (data: PartUserData): boolean =>
+      visibleStoreys.has(data.levelId) &&
+      !hidden.has(data.entityId) &&
+      (isolated === null || isolated.has(data.entityId));
 
     // Một nơi duy nhất ghi `visible`, và nó đã tính cả nấc chi tiết của R-04 —
     // nên một `update()` sau khi hạ chất lượng không vô tình dựng lại những gì
-    // nấc ấy vừa bỏ.
+    // nấc ấy vừa bỏ. Vật đang được xem trước bị ẩn Ở ĐÂY chứ không ở
+    // `applyPreview`: một khung mới của vỏ tới giữa lúc kéo sẽ tính lại
+    // `visible` từ đầu, và quên điều kiện này thì bức tường thật hiện lại xuyên
+    // qua bản xem trước.
     applyDetailLevel(
       root,
       activeDetail,
-      (data) =>
-        visibleStoreys.has(data.levelId) &&
-        !hidden.has(data.entityId) &&
-        (isolated === null || isolated.has(data.entityId)),
+      (data) => baseVisible(data) && !previewHidden.has(data.entityId),
     );
+
+    // Lớp xem trước chịu cùng nấc chi tiết và cùng phép ẩn tầng — nhưng KHÔNG
+    // chịu `previewHidden`: nó chính là thứ đứng thay những mã ấy.
+    applyDetailLevel(previewLayer.root, activeDetail, baseVisible);
 
     root.traverse((object) => {
       if (!(object instanceof Mesh)) {
@@ -607,6 +664,12 @@ function startScene(
       ),
     );
 
+    for (const [kind, material] of painted) {
+      // Lớp xem trước mượn đúng vật liệu này, nên một bức tường đang kéo không
+      // bao giờ đổi màu so với chính nó lúc đứng yên.
+      paintedByKind.set(kind, material);
+    }
+
     group.traverse((object) => {
       if (!(object instanceof Mesh)) {
         return;
@@ -642,6 +705,8 @@ function startScene(
     keyLight.shadow.camera.updateProjectionMatrix();
 
     applyFrame(currentFrame);
+    // Hình mới vừa lên cây: tập vật đổ bóng đã đổi, nên bản đồ bóng vẽ lại.
+    renderer.shadowMap.needsUpdate = true;
     loop.invalidate();
   };
 
@@ -792,6 +857,46 @@ function startScene(
     return true;
   };
 
+  /* ---- Xem trước ---------------------------------------------------------- */
+
+  /**
+   * Đặt (hoặc bỏ) lớp vẽ đè, rồi tính lại `visible` một lượt.
+   *
+   * Mô hình thật không bị đụng: mesh của vật đang xem trước chỉ bị ẩn, và bỏ xem
+   * trước là gỡ một nhóm rồi hiện chúng lại. Không `dispose` nào chạy trên cây
+   * thật, không job nào được xếp hàng, và `BuildQueue` không hề biết chuyện này
+   * xảy ra.
+   */
+  const applyPreview = (
+    next: ViewerScenePreview | null,
+  ): { readonly meshCount: number; readonly changed: boolean } => {
+    if (next === null) {
+      const removed = previewLayer.clear();
+
+      // Bỏ một bản xem trước không có là không có gì để làm — và nhất là không
+      // có khung hình nào để vẽ. Đây là lượt gọi mà hook phát ra lúc cảnh vừa
+      // gắn xong, và một cảnh vừa gắn xong không nợ ai một lượt vẽ thêm.
+      if (!removed && previewLevelId === null) {
+        return { meshCount: 0, changed: false };
+      }
+
+      previewLevelId = null;
+      previewHidden = new Set<string>();
+      applyFrame(currentFrame);
+
+      return { meshCount: 0, changed: true };
+    }
+
+    previewLevelId = next.levelId;
+    previewHidden = new Set<string>(next.entityIds);
+
+    const meshCount = previewLayer.show(next.model);
+
+    applyFrame(currentFrame);
+
+    return { meshCount, changed: true };
+  };
+
   /* ---- Khởi động --------------------------------------------------------- */
 
   applyFrame(currentFrame);
@@ -808,7 +913,28 @@ function startScene(
       releaseFramingIfMoved(frame);
       currentFrame = frame;
       applyFrame(frame);
+      // Khung của vỏ mang tầng hiện, vật bị ẩn và độ tách — cả ba đổi tập vật
+      // đổ bóng. Camera thì không, nhưng nó đi chung một khung nên không tách
+      // được ra; một lượt vẽ bóng cho mỗi lượt người dùng lái camera vẫn là thứ
+      // `autoUpdate` cũ đã trả, không phải một khoản phát sinh.
+      renderer.shadowMap.needsUpdate = true;
       loop.invalidate();
+    },
+
+    preview: (next) => {
+      if (disposed) {
+        return 0;
+      }
+
+      const applied = applyPreview(next);
+
+      if (applied.changed) {
+        // ĐÚNG một khung hình cho một lượt đổi. Không `BuildQueue`, không
+        // worker, không `needsUpdate` — bản đồ bóng giữ nguyên (docblock đầu file).
+        loop.invalidate();
+      }
+
+      return applied.meshCount;
     },
 
     status: statusOf,
@@ -830,6 +956,7 @@ function startScene(
       loop.dispose();
       queue.dispose();
       picker?.dispose();
+      previewLayer.dispose();
 
       if (picker !== null) {
         canvas.removeEventListener('pointerdown', onPointerDown);

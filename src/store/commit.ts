@@ -1,7 +1,10 @@
 import { useStore } from './index';
 import type { RootState } from './index';
+import { draftEntityId, type EditEntityDraft } from './draftSlice';
 import { MERGE_WINDOW_MS } from '../lib/commands/mergeCommands';
 import type { SpatialPatch } from '../domain/spatial/applyPatch';
+import type { SpatialEntity } from '../domain/spatial/normalize';
+import type { EntityId } from '../domain/spatial/types';
 
 export interface CommitResult {
   undo: () => void;
@@ -119,6 +122,14 @@ export function commit(
 
   openRun = { key, at: timestamp, spatial: useStore.getState().spatial };
 
+  // Thả tay là lúc lượt ghi thật thay chỗ bản xem trước, nên bản nháp bị dọn ở
+  // ĐÂY chứ không ở người gọi: một panel quên gọi `discardPreview` sẽ để lại một
+  // bức tường ma vẽ đè lên chính bức tường vừa sửa, và không ai nhìn thấy lỗi ấy
+  // trong lúc đọc mã panel. Dọn sau khi vá đã áp: giữa hai lượt `set` này không
+  // có lượt vẽ nào, nên không có khung hình nào thấy "mất preview mà chưa có
+  // hình mới". Xem `previewEdit` ở cuối file.
+  discardPreview();
+
   // Update history slice for UI to react
   store.setLastCommit(label, timestamp);
 
@@ -131,4 +142,64 @@ export function commit(
     label,
     timestamp,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Xem trước: lượt ghi TẠM, cùng cửa ra vào với lượt ghi thật.                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Đề nghị một thay đổi TẠM THỜI, để mọi người xem đọc được nó mà mô hình đã lưu
+ * không bị đụng tới.
+ *
+ * Đây là đường hợp lệ DUY NHẤT cho tầng màn hình: `local/no-draft-write-outside-commands`
+ * khoá `stageDraftOperation`/`amendDraftOperation`/`discardDraft` ngoài `src/store`,
+ * và luật ấy đúng — một panel gọi thẳng vào slice thì không ai còn bảo đảm được
+ * bản nháp bị dọn. Nên bản nháp có một người sản xuất, ở đúng chỗ `commit` đứng:
+ * cùng một cửa, một cửa cho lượt ghi thật và một cửa cho lượt ghi tạm, và cửa
+ * tạm biết tự đóng khi cửa thật mở.
+ *
+ * Ba lời hứa của một bản nháp, và cả ba đều có chỗ giữ:
+ *
+ * - **Không bao giờ vào lịch sử hoàn tác.** `temporal` chỉ theo dõi `spatial`
+ *   (`store/index.ts`, `partialize`), và bản nháp không nằm trong `spatial`.
+ * - **Không bao giờ được tự lưu ra máy chủ.** `useAutosave` cũng chỉ đọc
+ *   `state.spatial`; bản nháp không có đường nào tới đó.
+ * - **Bị dọn khi người dùng thả tay.** Lúc ấy lệnh thật chạy qua {@link commit},
+ *   và `commit` dọn bản nháp trước khi trả về — xem dưới.
+ *
+ * Một đối tượng có nhiều nhất MỘT thao tác nháp: kéo một thanh trượt phát hàng
+ * chục lượt đề nghị trên cùng một bức tường, và cộng dồn chúng thành hàng chục
+ * thao tác sẽ bắt người đọc phải tự tìm cái cuối. Lượt sau SỬA lại lượt trước
+ * (`amendDraftOperation`) — đúng việc mà hàm ấy được viết ra để làm.
+ *
+ * @param entityId Đối tượng đã lưu mà bản xem trước đứng thay.
+ * @param preview Cả đối tượng như nó sẽ trông, không phải một phần khác biệt.
+ */
+export function previewEdit(entityId: EntityId, preview: SpatialEntity): void {
+  const store = useStore.getState();
+  const operation: EditEntityDraft = { kind: 'editEntity', entityId, preview };
+  const index = store.draftOperations.findIndex(
+    (staged) => draftEntityId(staged) === entityId,
+  );
+
+  if (index === -1) {
+    store.stageDraftOperation(operation);
+
+    return;
+  }
+
+  store.amendDraftOperation(index, operation);
+}
+
+/**
+ * Bỏ bản nháp đang treo. Không có nháp nào thì không ghi gì cả.
+ *
+ * Người dùng huỷ (Esc, bỏ ô nhập, lệnh bị từ chối) gọi hàm này. Người dùng thả
+ * tay thì không cần gọi: {@link commit} tự dọn.
+ */
+export function discardPreview(): void {
+  if (useStore.getState().draftOperations.length > 0) {
+    useStore.getState().discardDraft();
+  }
 }
