@@ -22,6 +22,15 @@ export default defineConfig({
     // thêm một lượt (thêm ~2 s dựng, bớt ~2 KiB gzip nữa).
     minify: 'terser',
     terserOptions: { compress: { passes: 2, pure_getters: true } },
+    // `dist/.vite/manifest.json` — bật vì cổng kích thước gói cần ĐỒ THỊ nhập,
+    // không chỉ danh sách file. Từ khi router `lazy()` 25 màn, "tổng JS" không
+    // còn là "chi phí màn hình đầu tiên": muốn biết cái sau thì phải đi từ chunk
+    // `isEntry` theo `imports` (nhập tĩnh) và tách riêng `dynamicImports` (nhập
+    // động, tải muộn). Manifest là chỗ duy nhất vite ghi sẵn đồ thị đó ra đĩa;
+    // không có nó thì `scripts/check-bundle-size.mjs` chỉ cộng được kích thước
+    // file và lại đo nhầm thứ nó sinh ra để chặn. Xem `docs/notes/bundle-size.md`.
+    // File này chỉ nằm trong `dist/`, không được nhập vào gói và không đi ra dây.
+    manifest: true,
   },
   resolve: {
     alias: {

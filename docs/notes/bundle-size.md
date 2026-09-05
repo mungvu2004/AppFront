@@ -181,3 +181,36 @@ Không có công cụ nào được thêm vào repo. Để đo lại: thêm tạ
 cho mỗi chunk ra JSON, dựng bằng đúng `build` của `vite.config.ts` nhưng `outDir` khác, rồi
 gzip từng file trong `assets/` và phân bổ theo `renderedLength`. Đóng kín khởi động lấy từ
 `chunk.imports` của chunk có `isEntry`.
+
+---
+
+## 9. Hậu ký — cổng đã đổi theo §7 (2026-09-05)
+
+Người duyệt đã ký bảng đề xuất ở §7. `scripts/check-bundle-size.mjs` nay đo **bốn** đại
+lượng thay vì ba; `vite.config.ts` bật `build.manifest: true` vì ba trong bốn phép đo cần
+**đồ thị nhập** (`imports` / `dynamicImports` trong `dist/.vite/manifest.json`), chứ không
+chỉ cần danh sách file trong `assets/`.
+
+| Ngưỡng | Đo cái gì | Số đo hôm nay | Ngưỡng | Loại |
+|---|---|---|---|---|
+| `entry` *(mới)* | chunk `isEntry` **+ bao đóng nhập tĩnh** của nó | **124,7** | 175 | cổng |
+| `largestJsChunk` | không đổi | **137,3** | 170 | cổng |
+| `routeChunk` *(mới)* | bao đóng nhập tĩnh của một chunk tải muộn, **trừ** bao đóng khởi động | **264,8** (`viewer/Viewer3D`) | 280 | cổng |
+| `css` | không đổi | **9,8** | 12 | cổng |
+| `js` (tổng) | không đổi cách đo, hạ cấp | **761,2** | 800 | **cảnh báo** — in ra, không làm hỏng mã thoát |
+
+Mức nghiêm khắc giữ nguyên: `entry` là **đúng con số 175 cũ**, `largestJsChunk` là đúng
+170 cũ. Chỉ *thứ được đo* là đổi. Tổng JS ở lại làm mốc để đà tăng không đi im lặng
+(509,3 ở `23fc4b9` → 761,2 hôm nay), nhưng nó không còn chặn PR: một màn `lazy()` mới làm
+nó tăng mà không làm ai chậm đi.
+
+Vì sao `routeChunk` chỉ đi theo `imports` chứ không theo `dynamicImports`: các màn tới được
+nhau qua điều hướng, nên bao đóng **động** của màn nào cũng là gần cả gói (đo thử: 626,2 KiB
+cho mọi màn — một con số không phân biệt được gì). Bao đóng **tĩnh** mới là thứ trình duyệt
+buộc phải tải trong một lượt.
+
+Kiểm chứng `entry` thật sự chặn: sửa `dist/.vite/manifest.json` để chunk vào **nhập tĩnh**
+chunk `scene-*` (giả lập một `import { Scene } from 'three'` lọt vào đường khởi động), rồi
+chạy `pnpm size`. Kết quả: `entry` nhảy 124,7 → **262,0 KiB**, cổng in `VƯỢT`, mã thoát **1**
+— trong khi kích thước *file* entry không đổi một byte nào. Đây đúng là trường hợp cổng cũ
+và cách đo "kích thước file entry" đều không thấy. Manifest được khôi phục ngay sau đó.
