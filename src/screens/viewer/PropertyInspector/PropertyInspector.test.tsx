@@ -7,7 +7,7 @@
  *
  * | mã | đo cái gì | ngưỡng |
  * |---|---|---|
- * | `[N1]` | đổi độ dày 220 → 330: ghi vào mô hình, dọn sạch, hoàn tác MỘT lần | 220 → 330 → 220 |
+ * | `[N1]` | đổi độ dày 220 → 330: ghi vào mô hình, dọn sạch, MỘT cú Ctrl+Z | 220 → 330 → 220 |
  * | `[N2]` | số trường hiện ra khi chọn một bức tường | ≤ 5 trường mặc định |
  * | `[N3]` | chân panel có nhảy không khi đổi tường ↔ phòng 10 lần | 0 lần nhảy |
  * | `[N4]` | ba bức tường lệch độ dày: ô độ dày hiện gì | "—", không phải 220 |
@@ -53,6 +53,7 @@ import {
   SEVEN_STATE_LABELS,
   type SevenState,
 } from '@/lib/testing/sevenStateScenarios';
+import { UndoShortcuts } from '@/routes/router';
 import { useStore } from '@/store';
 
 import { PropertyInspector } from './PropertyInspector';
@@ -115,15 +116,30 @@ function seedStore(graph: SpatialGraph): void {
   store.setSpatial(normalizeSpatial(graph), 'v-test');
 }
 
+interface RenderWiredOptions {
+  /**
+   * Đặt panel dưới {@link UndoShortcuts} — ĐÚNG component mà `src/routes/router.tsx`
+   * bọc cả ba mươi route bằng, không phải một bản dựng lại của nó. Đó là điều
+   * làm cho cú gõ Ctrl+Z ở `[N1.3]`/`[N1.4]` chứng minh được điều gì: registry
+   * là một thực thể dùng chung của cả ứng dụng, nên binding mà component này
+   * đăng ký là binding người dùng thật sẽ gõ trúng.
+   */
+  readonly shellKeyboard?: boolean;
+}
+
 /** Dựng panel đã nối dây và đợi lượt đọc lớp không gian xong. */
-async function renderWired(selectedIds: readonly string[]) {
-  const result = render(
+async function renderWired(selectedIds: readonly string[], options: RenderWiredOptions = {}) {
+  const panel = (
     <QueryClientProvider client={createTestQueryClient()}>
       <WiredInspector
         selectedEntityId={selectedIds[0] ?? null}
         selectedEntityIds={selectedIds}
       />
-    </QueryClientProvider>,
+    </QueryClientProvider>
+  );
+
+  const result = render(
+    options.shellKeyboard === true ? <UndoShortcuts>{panel}</UndoShortcuts> : panel,
   );
 
   await waitFor(() => {
@@ -170,6 +186,18 @@ function wallInStore(wallId: string) {
 
   return entity;
 }
+
+/**
+ * Một cú Ctrl+Z THẬT.
+ *
+ * `document.body` chứ không phải một ô nhập: registry tắt mọi phím tắt khi con
+ * trỏ đang nằm trong `<input>`, `<textarea>` hay `<select>` — người đang gõ chữ
+ * thì Ctrl+Z là của ô chữ, không phải của bản vẽ. Sự kiện nổi bọt lên `window`,
+ * nơi `shortcutRegistry` gắn đúng một listener duy nhất của cả ứng dụng.
+ */
+const pressUndo = (): void => {
+  fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true });
+};
 
 afterEach(() => {
   cleanup();
@@ -491,8 +519,8 @@ describe('[N1] đổi độ dày tường từ 220 sang 330', () => {
     expect(commitLabel).not.toBeNull();
   });
 
-  it('bước 3 — MỘT lượt hoàn tác trả độ dày về 220 (phím Ctrl+Z: chưa chứng minh được)', async () => {
-    const { container } = await renderWired([WALL_ID]);
+  it('bước 3 — MỘT cú Ctrl+Z THẬT trả độ dày về 220', async () => {
+    const { container } = await renderWired([WALL_ID], { shellKeyboard: true });
 
     const option = within(container).getByRole('radio', {
       name: new RegExp(String(THICKNESS_AFTER_MM)),
@@ -507,11 +535,10 @@ describe('[N1] đổi độ dày tường từ 220 sang 330', () => {
       expect(wallInStore(WALL_ID).thicknessMm).toBe(THICKNESS_AFTER_MM);
     });
 
-    const temporal = useStore.temporal.getState();
-    const stepsBefore = temporal.pastStates.length;
+    const stepsBefore = useStore.temporal.getState().pastStates.length;
 
     await act(async () => {
-      useStore.temporal.getState().undo();
+      pressUndo();
       await Promise.resolve();
     });
 
@@ -519,28 +546,29 @@ describe('[N1] đổi độ dày tường từ 220 sang 330', () => {
     const stepsAfter = useStore.temporal.getState().pastStates.length;
 
     console.log(
-      `[PROPERTY-INSPECTOR][N1.3] một lượt hoàn tác: độ dày ${String(THICKNESS_AFTER_MM)} mm → ${String(afterUndo)} mm; ` +
+      `[PROPERTY-INSPECTOR][N1.3] một cú Ctrl+Z: độ dày ${String(THICKNESS_AFTER_MM)} mm → ${String(afterUndo)} mm; ` +
         `số bước trong ngăn xếp hoàn tác ${String(stepsBefore)} → ${String(stepsAfter)}`,
     );
     console.log(
-      '[PROPERTY-INSPECTOR][N1.3] kênh hoàn tác được kiểm là useStore.temporal.undo() — ' +
-        'đúng kênh commit().undo và useUndoableToast dùng. PHÍM Ctrl+Z chưa nối: ' +
-        'useGlobalShortcuts() không được gọi ở đâu trong src ngoài chính nó, nên ' +
-        'phép nghiệm thu này KHÔNG chứng minh được cú gõ phím, chỉ chứng minh hành động hoàn tác.',
+      '[PROPERTY-INSPECTOR][N1.3] thứ được kiểm là CÚ GÕ PHÍM: một sự kiện keydown thật ' +
+        'trên document.body, đi qua đúng một listener mà shortcutRegistry gắn, tới binding ' +
+        'mà `UndoShortcuts` (src/routes/router.tsx) đăng ký — cùng component bọc cả ba mươi ' +
+        'route của bảng route. Bài kiểm KHÔNG gọi thẳng useStore.temporal.undo() ở đâu cả.',
     );
 
     expect(afterUndo).toBe(THICKNESS_BEFORE_MM);
     expect(stepsAfter).toBe(stepsBefore - 1);
   });
 
-  it('bước 4 — hai lượt đổi sát nhau trong cửa sổ gộp: đếm số bước hoàn tác THẬT của store', async () => {
+  it('bước 4 — một mạch kéo trong cửa sổ gộp là MỘT bước, và một cú Ctrl+Z trả về 220', async () => {
     /* Đồng hồ giả lắp SAU lượt dựng: `waitFor` của `renderWired` chạy trên đồng
      * hồ thật, và đổi đồng hồ dưới chân nó thì lượt đọc react-query treo. */
-    const { container } = await renderWired([WALL_ID]);
+    const { container } = await renderWired([WALL_ID], { shellKeyboard: true });
 
     clock = installFakeClock();
     useStore.temporal.getState().clear();
 
+    const before = wallInStore(WALL_ID).thicknessMm;
     const wide = within(container).getByRole('radio', { name: /330/ });
     const narrow = within(container).getByRole('radio', { name: /110/ });
 
@@ -556,23 +584,33 @@ describe('[N1] đổi độ dày tường từ 220 sang 330', () => {
     });
 
     const steps = useStore.temporal.getState().pastStates.length;
+    const afterDrag = wallInStore(WALL_ID).thicknessMm;
+
+    await act(async () => {
+      pressUndo();
+      await clock.flushMicrotasks();
+    });
+
+    const afterUndo = wallInStore(WALL_ID).thicknessMm;
 
     console.log(
       `[PROPERTY-INSPECTOR][N1.4] hai lượt đổi cách nhau ${String(Math.floor(MERGE_WINDOW_MS / 2))} ms ` +
-        `(cửa sổ gộp ${String(MERGE_WINDOW_MS)} ms) ⇒ ${String(steps)} bước trong ngăn xếp hoàn tác của store.`,
+        `(cửa sổ gộp ${String(MERGE_WINDOW_MS)} ms) ⇒ ${String(steps)} bước trong ngăn xếp hoàn tác của store; ` +
+        `độ dày ${String(before)} → ${String(afterDrag)} → (một cú Ctrl+Z) → ${String(afterUndo)} mm.`,
     );
     console.log(
-      '[PROPERTY-INSPECTOR][N1.4] D-06 gộp lệnh ở HistoryStack của tầng lệnh ' +
-        '(propertyInspectorGateway.createPropertyInspectorDispatchDeps), còn ngăn xếp mà ' +
-        'undo của ứng dụng đọc là zundo trên store — hai ngăn xếp khác nhau. Con số in ' +
-        'ra ở trên là con số THẬT của ngăn xếp zundo, không phải của HistoryStack.',
+      '[PROPERTY-INSPECTOR][N1.4] hai cửa sổ gộp nay nói cùng một câu: `commit()` ' +
+        '(src/store/commit.ts) gấp một mạch ghi lại trước khi nó tới zundo, theo đúng ' +
+        'điều kiện `canMergeCommands` dùng — cùng phép, cùng thực thể, cùng trường, cách ' +
+        'nhau dưới MERGE_WINDOW_MS, và không lượt ghi lạ nào chen vào giữa. Con số in ra ' +
+        'là con số THẬT của ngăn xếp zundo, không phải của HistoryStack.',
     );
 
-    /* KHÔNG khẳng định `steps === 1`. Cửa sổ gộp của D-06 nằm ở `HistoryStack`
-     * của tầng lệnh, còn ngăn xếp mà hành động hoàn tác của ứng dụng đọc là
-     * zundo trên store — hai lượt ghi trong cùng cửa sổ vẫn cho hai bước zundo.
-     * Bài kiểm ghi lại con số THẬT thay vì nới điều kiện cho nó xanh (R-70), và
-     * bản báo cáo nói rõ đây là chỗ N1 chưa đạt. */
-    expect(steps).toBe(2);
+    /* Đây là điều mục N1 đòi và trước lượt này KHÔNG chứng minh được: một mạch
+     * kéo, MỘT cú gõ phím, và giá trị trở về đúng chỗ nó đứng trước khi kéo. */
+    expect(before).toBe(THICKNESS_BEFORE_MM);
+    expect(afterDrag).toBe(110);
+    expect(steps).toBe(1);
+    expect(afterUndo).toBe(THICKNESS_BEFORE_MM);
   });
 });
