@@ -1,8 +1,8 @@
 /**
- * The seven things a person can do to a wall.
+ * The eight things a person can do to a wall.
  *
- * `wall.draw` · `wall.dragEnd` · `wall.changeThickness` · `wall.changeKind` ·
- * `wall.split` · `wall.merge` · `wall.delete`
+ * `wall.draw` · `wall.dragEnd` · `wall.changeThickness` · `wall.changeHeight` ·
+ * `wall.changeKind` · `wall.split` · `wall.merge` · `wall.delete`
  *
  * Each one is two functions: a `validate…` that reads the drawing and answers
  * with Vietnamese sentences, and a `create…Command` that answers with a command
@@ -25,6 +25,7 @@
 import { openingCentre, attachToWall } from '@/domain/openings/attach';
 import { reflowOpenings, reflowOpeningsAcrossSplit } from '@/domain/openings/reflow';
 import { isAttached, type AttachedOpening } from '@/domain/openings/types';
+import { validateOpening } from '@/domain/openings/validate';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import type {
   Dimension,
@@ -83,6 +84,7 @@ import {
   toAttachedOpening,
   toPointMm,
   toSolidWall,
+  wallIsUsable,
   WALL_KIND_LABELS,
   WALL_KINDS,
   withCentrelineOf,
@@ -94,11 +96,12 @@ import {
 /* Command names.                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** The seven wall commands, as `dispatch` and the telemetry see them. */
+/** The eight wall commands, as `dispatch` and the telemetry see them. */
 export const WALL_COMMAND_TYPES = {
   draw: 'wall.draw',
   dragEnd: 'wall.dragEnd',
   changeThickness: 'wall.changeThickness',
+  changeHeight: 'wall.changeHeight',
   changeKind: 'wall.changeKind',
   split: 'wall.split',
   merge: 'wall.merge',
@@ -489,7 +492,149 @@ export function createChangeWallThicknessCommand(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 4. Đổi loại tường — wall.changeKind                                         */
+/* 4. Đổi chiều cao — wall.changeHeight                                        */
+/* -------------------------------------------------------------------------- */
+
+export interface ChangeWallHeightInput {
+  readonly wallId: WallId;
+  readonly heightMm: number;
+}
+
+/**
+ * The openings a wall of this height would cut through the top of.
+ *
+ * Whether the head of an opening clears the wall is `domain/openings/validate`
+ * `validateOpening`'s own `aboveWallTop`; what the command adds is the figure
+ * the person has to act on — how far short of the head the wall would stop.
+ *
+ * **Nothing is repaired here.** Sliding the window down, making it shorter and
+ * deleting it are three different product decisions, none of them taken, and a
+ * command that quietly picked one would be throwing away a measurement
+ * somebody took. Nor is the problem left for the rule pass to warn about
+ * afterwards: a wall shorter than the hole in it is not a wall anybody can
+ * build, so the height is a hard constraint and the edit is refused.
+ */
+const openingHeadReasons = (
+  context: CommandContext,
+  wall: GraphWall,
+  level: Level,
+  heightMm: number,
+): string[] => {
+  const lowered = toSolidWall({ ...wall, heightMm }, level);
+
+  return openingsOfWall(context.graph, wall.id).flatMap((opening) => {
+    const cutThrough = validateOpening(toAttachedOpening(opening, lowered), lowered, []).some(
+      (violation) => violation.rule === 'aboveWallTop',
+    );
+
+    if (!cutThrough) {
+      return [];
+    }
+
+    const headMm = opening.sillHeightMm + opening.heightMm;
+
+    return [
+      `Hạ tường ${wall.id} xuống ${formatLengthMm(heightMm)} sẽ cắt qua ` +
+        `${nameOfOpening(opening)} có đỉnh ở ${formatLengthMm(headMm)}; còn thiếu ` +
+        `${formatLengthMm(headMm - heightMm)}.`,
+    ];
+  });
+};
+
+/** Everything wrong with this height; empty when it may be applied. */
+export function validateChangeWallHeight(
+  input: ChangeWallHeightInput,
+  context: CommandContext,
+): string[] {
+  const wall = readOf(context.graph, 'wall', input.wallId);
+
+  if (wall === null) {
+    return [`Không tìm thấy tường ${input.wallId} trong bản vẽ.`];
+  }
+
+  if (!Number.isFinite(input.heightMm) || compareNearly(input.heightMm, 0) <= 0) {
+    return [`Chiều cao tường phải lớn hơn 0 mm, đang nhận ${formatLengthMm(input.heightMm)}.`];
+  }
+
+  // A wall whose stored height is unreadable is exactly what this command
+  // exists to fix, so the "nothing changed" comparison is skipped rather than
+  // allowed to throw on it.
+  if (
+    Number.isFinite(wall.heightMm) &&
+    nearlyEqualLength(millimetres(wall.heightMm), millimetres(input.heightMm))
+  ) {
+    return [`Tường ${wall.id} đã cao ${formatLengthMm(wall.heightMm)} nên không có gì thay đổi.`];
+  }
+
+  const openings = openingsOfWall(context.graph, wall.id);
+
+  if (openings.length === 0) {
+    return [];
+  }
+
+  const level = levelOfWall(context.graph, wall);
+
+  if (level === null) {
+    return [`Tường ${wall.id} đang trỏ tới tầng ${wall.levelId} không tồn tại.`];
+  }
+
+  if (!wallIsUsable({ ...wall, heightMm: input.heightMm }, level)) {
+    return [
+      `Tường ${wall.id} có số đo không dùng được nên chưa kiểm được ` +
+        `${formatCount(openings.length)} lỗ mở trên nó.`,
+    ];
+  }
+
+  return openingHeadReasons(context, wall, level, input.heightMm);
+}
+
+/**
+ * Changes how tall a wall stands above its floor.
+ *
+ * There is no ceiling on the figure and no floor beyond zero, because there is
+ * none on the way in either: `validateDrawWall` takes any positive height, and
+ * a wall that may be drawn taller than it may be corrected back down would be
+ * a rule that contradicts itself. The two ranges the domain does carry —
+ * `MIN_CLEAR_HEIGHT_MM`–`MAX_CLEAR_HEIGHT_MM` and `PROJECT_STOREY_HEIGHT_*` —
+ * are both about a **storey's clear height**, which is a different measurement
+ * from one wall's own, and neither is borrowed here.
+ *
+ * The one hard limit is the openings: see `openingHeadReasons`.
+ */
+export function createChangeWallHeightCommand(
+  input: ChangeWallHeightInput,
+  context: CommandContext,
+): CommandResult {
+  const reasons = validateChangeWallHeight(input, context);
+
+  if (reasons.length > 0) {
+    return refuse(WALL_COMMAND_TYPES.changeHeight, reasons);
+  }
+
+  const wall = readOf(context.graph, 'wall', input.wallId);
+
+  if (wall === null) {
+    return refuse(WALL_COMMAND_TYPES.changeHeight, [`Không tìm thấy tường ${input.wallId}.`]);
+  }
+
+  const openingCount = openingsOfWall(context.graph, wall.id).length;
+
+  return accept(
+    buildCommand(
+      WALL_COMMAND_TYPES.changeHeight,
+      `Đổi chiều cao tường ${wall.id} từ ${formatLengthMm(wall.heightMm)} sang ` +
+        `${formatLengthMm(input.heightMm)}` +
+        (openingCount === 0
+          ? '.'
+          : `, ${formatCount(openingCount)} lỗ mở vẫn nằm trọn trong tường.`),
+      [changeForUpdate('wall', wall, { ...wall, heightMm: input.heightMm })],
+      context,
+    ),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 5. Đổi loại tường — wall.changeKind                                         */
 /* -------------------------------------------------------------------------- */
 
 export interface ChangeWallKindInput {
@@ -554,7 +699,7 @@ export function createChangeWallKindCommand(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 5. Cắt tường — wall.split                                                   */
+/* 6. Cắt tường — wall.split                                                   */
 /* -------------------------------------------------------------------------- */
 
 export interface SplitWallInput {
@@ -699,7 +844,7 @@ export function createSplitWallCommand(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 6. Gộp tường — wall.merge                                                   */
+/* 7. Gộp tường — wall.merge                                                   */
 /* -------------------------------------------------------------------------- */
 
 export interface MergeWallsInput {
@@ -860,7 +1005,7 @@ export function createMergeWallsCommand(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 7. Xoá tường — wall.delete                                                  */
+/* 8. Xoá tường — wall.delete                                                  */
 /* -------------------------------------------------------------------------- */
 
 export interface DeleteWallInput {
