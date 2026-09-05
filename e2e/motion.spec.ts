@@ -7,11 +7,19 @@ import type { Page } from '@playwright/test';
  * The visual spec proves the screen draws; this one proves it is actually wired
  * to `src/lib/motion` — that the timings on screen come from the orchestrator
  * and change when the conditions do, rather than being text somebody typed.
+ *
+ * `src/App.tsx` (the nine-screen demo picker, including this Motion demo) is no
+ * longer mounted at `/` — that is `ProjectDashboardRoute` now
+ * (`src/routes/router.tsx`) — but `main.tsx` keeps the picker alive at `/demo`,
+ * in a development build only (`src/routes/router.tsx:76`). No product screen
+ * exposes the duration ladder as visible captions the way this instrumented
+ * demo does, so `/demo` is still the real, reachable place to prove the
+ * orchestrator's timings end to end.
  */
 
 const openMotionScreen = async (page: Page): Promise<void> => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
+  await page.goto('/demo');
   await page.getByRole('button', { name: 'Motion & Transitions' }).click();
   await expect(page.getByRole('heading', { name: 'Chuyển cảnh và nhịp' })).toBeVisible();
 };
