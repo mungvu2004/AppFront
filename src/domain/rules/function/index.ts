@@ -41,7 +41,6 @@ import { millimetres } from '../../units/types';
 import { formatLength } from '../../../lib/format/measure';
 import { formatNumber } from '../../../lib/format/number';
 import {
-  defaultRuleRegistry,
   entitiesInScope,
   findEntity,
   MIN_ROOM_AREA_M2,
@@ -1145,8 +1144,11 @@ export const SUPERSEDED_BUILT_IN_CODES: readonly string[] = ['ROOM-HAS-DOOR', 'R
  *
  * Registering the same rules twice is a no-op; a different rule claiming one of
  * these codes still throws.
+ *
+ * The registry is a required argument: the shared book comes assembled from
+ * `rules/defaults`, and this function is for a caller building a narrower one.
  */
-export function registerFunctionRules(registry: RuleRegistry = defaultRuleRegistry()): void {
+export function registerFunctionRules(registry: RuleRegistry): void {
   for (const rule of FUNCTION_RULES) {
     if (registry.get(rule.code) === rule) {
       continue;

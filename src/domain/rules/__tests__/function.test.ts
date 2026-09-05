@@ -18,7 +18,7 @@ import type {
   WallId,
   WallKind,
 } from '../../spatial/types';
-import { createDefaultRuleRegistry, createRuleRegistry, type RuleContext } from '../registry';
+import { BUILT_IN_RULES, createRuleRegistry, type RuleContext } from '../registry';
 import { runRules } from '../runner';
 import { computeHealthScore, explainHealthScore, sortBySeverity } from '../healthScore';
 import {
@@ -424,7 +424,10 @@ describe('the function group', () => {
   });
 
   it('stands the two built-in rules it replaces down as it registers', () => {
-    const registry = createDefaultRuleRegistry();
+    // The book as it is *before* this group joins it. `createDefaultRuleRegistry`
+    // is no use here: it registers this group itself, so the two would already be
+    // down and the test would prove nothing about what standing them down does.
+    const registry = createRuleRegistry(BUILT_IN_RULES);
 
     expect(registry.isEnabled('ROOM-HAS-DOOR')).toBe(true);
     expect(registry.isEnabled('ROOM-MIN-AREA')).toBe(true);
@@ -437,7 +440,7 @@ describe('the function group', () => {
     }
 
     expect(registry.isEnabled('ROOM-NO-DOOR')).toBe(true);
-    expect(registry.list()).toHaveLength(8 + 7);
+    expect(registry.list()).toHaveLength(BUILT_IN_RULES.length + FUNCTION_RULES.length);
   });
 
   it('registers into an empty book without complaining about the missing built-ins', () => {
