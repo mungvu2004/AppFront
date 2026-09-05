@@ -6,6 +6,7 @@
 import React, { lazy, useCallback, useState } from 'react';
 import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom';
 
+import { flushAutosaves } from '@/hooks/useAutosave';
 import { useShortcut } from '@/hooks/useShortcut';
 import {
   buildGlobalShortcuts,
@@ -111,9 +112,9 @@ const LazyGlobalShortcutHelp = lazy(() =>
  * Sáu tay cầm không bao giờ được gọi tới, chỉ để **đếm được**.
  *
  * `buildGlobalShortcuts` là bảng DUY NHẤT đánh vần các tổ hợp toàn cục, và nó
- * đòi đủ sáu tay cầm trước khi đưa ra bất cứ định nghĩa nào. Bốn trong sáu
+ * đòi đủ sáu tay cầm trước khi đưa ra bất cứ định nghĩa nào. Năm trong sáu
  * định nghĩa được lấy bên dưới (`globalShortcut` gọi trong `UndoShortcuts`),
- * và cả bốn đều bị thay `onTrigger` trên đường ra, nên không hàm nào trong đối
+ * và cả năm đều bị thay `onTrigger` trên đường ra, nên không hàm nào trong đối
  * tượng này có đường chạy tới. Đúng kiểu mượn mà `buildShortcutRows` dùng ở
  * `useAccountTables.ts:236` để dựng bảng phím tắt của màn tài khoản: một chuỗi
  * `'Ctrl+Z'` viết tay ở đây là một nguồn thứ hai, và nguồn thứ hai thì lệch.
@@ -139,8 +140,9 @@ function globalShortcut(id: string, onTrigger: () => void): ShortcutDefinition {
 }
 
 /**
- * Hai phím không mang state của component nào — hoàn tác đọc thẳng cửa sổ gộp
- * của kho, không đọc gì từ `UndoShortcuts`. Nên một đối tượng dựng đúng một
+ * Ba phím không mang state của component nào — hoàn tác đọc thẳng cửa sổ gộp
+ * của kho, Ctrl+S đọc sổ engine tự lưu dùng chung, không phím nào đọc gì từ
+ * `UndoShortcuts`. Nên một đối tượng dựng đúng một
  * lần ở cấp module cũng là một lượt đăng ký đứng yên; hai phím còn lại (`?` và
  * Escape) cần trạng thái của chính `UndoShortcuts` nên được dựng lại mỗi lượt
  * render, ngay trong thân component — `useShortcut` chấp nhận việc đó, vì
@@ -156,10 +158,20 @@ const REDO_SHORTCUT = globalShortcut('global.redo', (): void => {
 });
 
 /**
- * Bàn phím của vỏ ứng dụng: hoàn tác, làm lại, bảng phím tắt, đóng lớp trên
- * cùng — và đúng chừng đó.
+ * Ctrl+S — xả bộ tự lưu đang gắn thay vì đợi hết 800 ms.
  *
- * Cả bốn từng có tầng lệnh đứng sau nhưng không phím nào chạm tới được:
+ * Cùng lý do hai phím trên đứng ở cấp module: `flushAutosaves` đọc sổ engine
+ * dùng chung của `hooks/useAutosave.ts`, không đọc gì từ `UndoShortcuts`.
+ */
+const SAVE_SHORTCUT = globalShortcut('global.save', (): void => {
+  void flushAutosaves();
+});
+
+/**
+ * Bàn phím của vỏ ứng dụng: hoàn tác, làm lại, lưu ngay, bảng phím tắt, đóng
+ * lớp trên cùng — và đúng chừng đó.
+ *
+ * Cả năm từng có tầng lệnh đứng sau nhưng không phím nào chạm tới được:
  * `useGlobalShortcuts` (`hooks/useShortcut.ts:172`) được xuất mà không nơi nào
  * gọi, nên không màn nào trong repo có bàn phím vỏ. Component này là chỗ đứng
  * cho `useShortcut`, vì `useShortcut` là hook nên nối một phím thì buộc phải
@@ -182,16 +194,14 @@ const REDO_SHORTCUT = globalShortcut('global.redo', (): void => {
  * vỏ, `RouterProvider` trong cùng, `NotificationHost` là anh em chứ không phải
  * cha hay con — được giữ nguyên vẹn theo cách an toàn nhất: không đụng vào.
  *
- * ## Vì sao chỉ bốn, không phải sáu
+ * ## Vì sao chỉ năm, không phải sáu
  *
  * `useGlobalShortcuts` đăng ký cả sáu phím toàn cục một lượt, mà registry gọi
  * `preventDefault()` cho mọi lượt khớp không xin miễn (`shortcutRegistry.ts:466`)
  * — nên nối một tay cầm rỗng vào một phím không phải là để dành chỗ, nó là lấy
- * mất một phím của trình duyệt hoặc của màn khác mà không trả lại gì:
+ * mất một phím của trình duyệt hoặc của màn khác mà không trả lại gì. Đúng một
+ * phím còn bị bỏ lại:
  *
- * - **Ctrl+S vẫn để yên.** Không có lệnh xả tự lưu để gọi (bộ hẹn giờ của A7
- *   nằm trong `useAutosave` và hook đó không xuất ra lệnh xả nào); phím này
- *   thuộc lượt ghép việc của một worker khác.
  * - **Ctrl+F KHÔNG đăng ký ở đây.** Nó chỉ có nghĩa khi đang xem mô hình
  *   không gian — đăng ký nó ở phạm vi `global` sẽ cướp tìm-trong-trang của
  *   trình duyệt ở hai mươi mấy màn không có gì để tìm. Tổ hợp thật sống ở
@@ -199,6 +209,13 @@ const REDO_SHORTCUT = globalShortcut('global.redo', (): void => {
  *   `screens/viewer/Viewer3D/ObjectSearch.tsx`. `buildGlobalShortcuts` vẫn
  *   khai `'global.search'` (cho `buildShortcutRows` của màn tài khoản đếm),
  *   nhưng `UndoShortcuts` không lấy định nghĩa đó ra.
+ *
+ * **Ctrl+S nay ĐÃ nối** (lỗ hổng #7). Vỏ không dựng bộ tự lưu của riêng nó —
+ * nó không biết dự án nào đang mở — mà gọi `flushAutosaves()`
+ * (`hooks/useAutosave.ts`), thứ xả mọi engine `createAutosave` đang gắn. Một
+ * màn không sửa gì thì không có engine nào để xả và phím không làm gì, đúng như
+ * `saveNow` của một bộ tự lưu sạch. Và **không** có nút Lưu nào mọc lên theo
+ * (A7): đây là lối tắt của bộ đếm 800 ms, không phải một nút mới.
  *
  * Hai phím còn lại — `?` mở `GlobalShortcutHelp`, Escape gọi
  * `uiSlice.closeDialog()` — ĐÃ nối ở lượt này. `GlobalShortcutHelp` tự đăng ký
@@ -228,6 +245,7 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
 
   useShortcut(UNDO_SHORTCUT);
   useShortcut(REDO_SHORTCUT);
+  useShortcut(SAVE_SHORTCUT);
   useShortcut(globalShortcut('global.shortcutHelp', openHelp));
   useShortcut(globalShortcut('global.closeTopLayer', closeDialog));
 

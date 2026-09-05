@@ -234,10 +234,13 @@ export interface PropertyGroup {
 /**
  * Tường — đúng năm trường theo đặc tả:
  * 1. `thickness` — SegmentedControl 110/220/330, kèm ô màu (`options[].colorToken`).
- * 2. `length` — ví dụ "4.250,00 mm".
- * 3. `height` — ví dụ "3.000,00 mm".
+ * 2. `length` — chỉ đọc, ví dụ "4.250,00 mm"; đổi bằng cách kéo đầu tường.
+ * 3. `height` — ô nhập milimét, SỬA ĐƯỢC từ lượt vá lỗ hổng #1
+ *    (`wall.changeHeight`).
  * 4. `wallType` — loại tường (chịu lực / ngăn / bao che).
- * 5. `isInterior` — tường nội thất hay tường bao (toggle).
+ * 5. `isInterior` — tường nội thất hay tường bao (toggle), CHỈ ĐỌC có chủ đích:
+ *    nó suy từ `kind`, nên ghi vào nó là ghi đè `kind` và làm mất `loadBearing`
+ *    không có đường lấy lại. Dòng `wallType` là chỗ đổi loại tường.
  *
  * Số lượng ô mở của tường thuộc nhóm "Quan hệ", KHÔNG nằm trong năm trường này.
  */
@@ -266,13 +269,27 @@ export const DEFAULT_OPENING_FIELD_IDS = [
 ] as const;
 
 /**
- * Nội thất — hai trường cố định, tối đa ba trường nữa tuỳ hạng mục để đủ
+ * Nội thất — ba trường cố định, còn chỗ cho hai trường nữa tuỳ hạng mục để đủ
  * NĂM (`DEFAULT_VISIBLE_FIELD_COUNT`):
- * 1. `boundingSize` — kích thước bao.
- * 2. `rotation` — góc xoay.
- * 3-5. tuỳ hạng mục nội thất — hook chọn, id không cố định ở đây.
+ * 1. `boundingWidth` — bề rộng hộp bao, ô nhập milimét.
+ * 2. `boundingDepth` — bề sâu hộp bao, ô nhập milimét.
+ * 3. `rotation` — góc xoay.
+ * 4-5. tuỳ hạng mục nội thất — hook chọn, id không cố định ở đây.
+ *
+ * Hộp bao là HAI dòng chứ không phải một dòng "600 × 400": từ lượt vá lỗ hổng
+ * #2 nó SỬA ĐƯỢC (`furniture.resize`), mà `ResizeFurnitureInput` nhận
+ * `widthMm`/`depthMm` độc lập — một ô ghép hai số bằng dấu nhân sẽ phải tự tách
+ * chuỗi rồi tự đoán người dùng vừa đổi chiều nào. `boundingSize` cũ vì thế
+ * không còn là một id dòng; chuỗi nhãn của nó vẫn ở lại `src/i18n/vi.json` cho
+ * nơi nào cần nói về hộp bao như một khái niệm.
+ *
+ * Phòng đối tượng vẫn là dòng QUAN HỆ, không tính vào năm trường thuộc tính.
  */
-export const DEFAULT_FURNITURE_FIELD_IDS = ['boundingSize', 'rotation'] as const;
+export const DEFAULT_FURNITURE_FIELD_IDS = [
+  'boundingWidth',
+  'boundingDepth',
+  'rotation',
+] as const;
 
 /**
  * Phòng — đúng năm trường theo đặc tả:

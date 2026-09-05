@@ -5,6 +5,43 @@ import { formatClockTime } from '../lib/format/datetime';
 import type { RootState } from '../store';
 import { useStore } from '../store';
 
+/* -------------------------------------------------------------------------- */
+/* Mọi bộ tự lưu đang gắn — để Ctrl+S có ĐÚNG MỘT hệ để xả.                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Các engine `createAutosave` đang sống, một mục cho mỗi hook đang gắn.
+ *
+ * Vỏ ứng dụng (`src/routes/router.tsx`) cần một lối "lưu ngay" cho Ctrl+S, mà
+ * vỏ thì không biết dự án nào đang mở hay màn nào đang sửa cái gì. Cách sai là
+ * cho vỏ dựng bộ tự lưu THỨ HAI của riêng nó: hai engine cùng theo dõi
+ * `state.spatial` sẽ gửi hai lượt ghi cho mỗi thay đổi, đúng thứ lỗ hổng #7
+ * ("một hệ tự lưu duy nhất") vừa được dọn. Nên vỏ không sở hữu engine nào —
+ * nó xả engine mà màn đang mở đã dựng, qua {@link flushAutosaves}.
+ *
+ * `Set` chứ không phải một biến đơn: hai màn có thể cùng gắn (panel thanh tra
+ * nằm bên trong một màn khác), và cả hai đều đáng được lưu khi người dùng bấm
+ * Ctrl+S. Rỗng là chuyện bình thường — một màn không sửa gì thì không có gì
+ * để xả, và {@link flushAutosaves} khi đó không làm gì.
+ */
+const mountedAutosaves = new Set<Autosave>();
+
+/**
+ * Lưu ngay mọi bộ tự lưu đang gắn, thay vì đợi hết cửa sổ 800 ms của A7.
+ *
+ * An toàn khi không có gì để lưu: `saveNow` của một engine không có thay đổi
+ * nào sẽ giải quyết mà không gọi `onSave` lần nào. Trả về một `Promise` đợi
+ * ĐỦ mọi lượt lưu, để nơi gọi (và bài kiểm) biết lượt xả đã xong.
+ *
+ * Đây là thứ Ctrl+S gọi. **Không** có nút Lưu nào được sinh ra kèm theo — A7
+ * nói phím tắt là lối tắt của bộ đếm giờ, không phải một nút bấm mới.
+ */
+export function flushAutosaves(): Promise<void> {
+  return Promise.all([...mountedAutosaves].map((autosave) => autosave.saveNow())).then(
+    () => undefined,
+  );
+}
+
 export interface UseAutosaveHandle {
   /**
    * The exact string this hook has always returned: `null` before the first
@@ -68,6 +105,17 @@ function useAutosaveHandle(onSave: (data: RootState['spatial']) => Promise<void>
   const state = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
   const [label, setLabel] = useState<string | null>(null);
 
+  /* Ghi tên engine này vào sổ dùng chung suốt thời gian hook còn gắn, để Ctrl+S
+     của vỏ xả được nó mà không cần biết màn nào đang mở. Gỡ tên khi tháo: một
+     engine đã tháo không còn `getChanges` nào đọc được nữa. */
+  useEffect(() => {
+    mountedAutosaves.add(autosave);
+
+    return () => {
+      mountedAutosaves.delete(autosave);
+    };
+  }, [autosave]);
+
   useEffect(() => {
     if (!spatial) {
       return;
@@ -111,10 +159,13 @@ export function useAutosave(onSave: (data: RootState['spatial']) => Promise<void
 
 /**
  * Same engine as {@link useAutosave}, plus `flush` for a caller that needs to
- * save on demand (a keyboard shortcut, a "before you leave" guard) rather
- * than only after the debounce window. Not wired to a key yet —
- * `src/lib/input/shortcutRegistry.ts` is outside this task's whitelist; the
- * first caller is whoever connects a panel's autosave to Ctrl+S.
+ * save on demand (a "before you leave" guard, a test that would rather not
+ * wait out 800 ms) rather than only after the debounce window.
+ *
+ * Ctrl+S does **not** go through here: the shell has no `onSave` of its own to
+ * pass, so it calls {@link flushAutosaves} and flushes whichever engine the
+ * open screen already built. Use this one when the caller owns the save
+ * target itself.
  */
 export function useAutosaveFlush(onSave: (data: RootState['spatial']) => Promise<void>): UseAutosaveHandle {
   return useAutosaveHandle(onSave);

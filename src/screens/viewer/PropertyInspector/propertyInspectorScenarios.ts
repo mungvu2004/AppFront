@@ -36,7 +36,7 @@ import type { ViewAttribute } from '@/lib/viewmodel/types';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import type { Wall } from '@/domain/spatial/types';
 
-import { PERSIST_PROPERTIES_UNSUPPORTED_REASON } from './propertyInspectorGateway';
+import { NO_SAVE_TARGET_REASON } from './propertyInspectorGateway';
 import { PROPERTY_INSPECTOR_TEXT } from './usePropertyInspector';
 import {
   COLLAPSIBLE_GROUP_ID,
@@ -310,8 +310,9 @@ function contentOf(seeds: readonly RowSeed[], selectionCount: number): PropertyI
     footer: {
       onApprove: noop,
       onSkip: noop,
-      /* Chỉ báo lưu nói ra sự thật: chưa có đích để gửi lớp không gian tới. */
-      lastEditedCaption: PERSIST_PROPERTIES_UNSUPPORTED_REASON,
+      /* Kịch bản tĩnh không có phiên làm việc nào, nên chỉ báo lưu nói ra đúng
+       * điều đó: chưa mở dự án và tầng thì chưa có nơi để gửi lớp không gian tới. */
+      lastEditedCaption: NO_SAVE_TARGET_REASON,
     },
   };
 }

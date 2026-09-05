@@ -2265,7 +2265,9 @@
         "boundingSize": "Kích thước bao",
         "rotation": "Góc xoay",
         "furnitureKind": "Loại nội thất",
-        "roomId": "Phòng chứa"
+        "roomId": "Phòng chứa",
+        "boundingWidth": "Bề rộng bao",
+        "boundingDepth": "Bề sâu bao"
       },
       "room": {
         "name": "Tên",
