@@ -5,7 +5,9 @@
  */
 
 import { Group, Mesh, PointLight, Scene, SpotLight, Texture, type Camera } from 'three';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { mountPresentation as MountPresentation } from '../mount';
 
 import { FIXTURE_PLAN, stubCanvasContext } from './fixtures';
 
@@ -159,15 +161,49 @@ beforeEach(() => {
   vi.stubGlobal('devicePixelRatio', 3);
 });
 
+/**
+ * `../mount` pulls in the whole `present/` tree; transforming it the first
+ * time this file runs can take longer than one test's budget when the
+ * machine is under heavy parallel load (many workers building and testing at
+ * once). That cost belongs to the file, not to whichever test happens to run
+ * first — paying it here, once, keeps it off every test's own clock. Without
+ * this, two tests can end up racing the SAME in-flight import against their
+ * own five-second timeout, both losing, and the second one's abandoned
+ * continuation goes on to mount for real later — against whichever test is
+ * running by then.
+ */
+let mountPresentation: typeof MountPresentation;
+
+beforeAll(async () => {
+  ({ mountPresentation } = await import('../mount'));
+});
+
+/**
+ * The handle for whatever test is currently running. `afterEach` disposes it
+ * unconditionally, so a test that fails an assertion — and so never reaches
+ * its own `handle.dispose()` — cannot leave a renderer, a `visibilitychange`
+ * listener or a scheduled frame behind for the next test to trip over.
+ */
+let activeHandle: ReturnType<typeof mountPresentation> | null = null;
+
+function mount(canvas = sizedCanvas(550, 400)): ReturnType<typeof mountPresentation> {
+  const handle = mountPresentation(canvas, FIXTURE_PLAN, { readToken: () => '' });
+  activeHandle = handle;
+  return {
+    ...handle,
+    dispose: () => {
+      activeHandle = null;
+      handle.dispose();
+    },
+  };
+}
+
 afterEach(() => {
+  activeHandle?.dispose();
+  activeHandle = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-async function mount(canvas = sizedCanvas(550, 400)) {
-  const { mountPresentation } = await import('../mount');
-  return mountPresentation(canvas, FIXTURE_PLAN, { readToken: () => '' });
-}
 
 /* -------------------------------------------------------------------------- */
 /* Tests.                                                                      */
