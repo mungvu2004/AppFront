@@ -496,6 +496,8 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
         ? ROUTES.project.floors(projectId)
         : ROUTES.project.walls(projectId, firstStoreyId),
     onRetryBuild,
-    canEdit,
+    // `canEdit` KHÔNG nằm trong Viewer3DProps (N2): view đã gỡ nút "sửa hình
+    // học" nên không đọc trường này; nó chỉ còn dùng nội bộ ở trên
+    // (canSelect cho mountViewerScene, và nhánh forbidden của state).
   };
 }

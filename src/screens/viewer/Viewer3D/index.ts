@@ -9,7 +9,7 @@
  * `Viewer3DContainer` và truyền `projectId` (R-73).
  */
 
-export { Viewer3D, type Viewer3DProps as Viewer3DViewProps } from './Viewer3D';
+export { Viewer3D } from './Viewer3D';
 export {
   Viewer3DContainer,
   Viewer3DRoute,

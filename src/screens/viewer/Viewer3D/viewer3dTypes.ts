@@ -42,7 +42,23 @@ import type { ProjectRole } from '@/types/project';
  * Props của `Viewer3D.tsx` — view thuần cắm vào khe `renderScene` của vỏ.
  *
  * Nguồn: `docs/notes/viewer3d/shell-props-contract.md` mục D. Mỗi trường ghi rõ
- * ai cấp; `useViewer3D` cấp mọi trường không phải của vỏ.
+ * ai cấp; `useViewer3D` cấp mọi trường không phải của vỏ hay của container.
+ *
+ * N2: trước đây file này và `Viewer3D.tsx` mỗi bên khai một `Viewer3DProps`
+ * riêng, ăn khớp nhau chỉ nhờ kiểu cấu trúc (container spread cả model vào
+ * view, JSX cho phép prop dư). Gộp về đây — file `.ts` thuần — vì
+ * `Viewer3D.tsx` nhập nó bằng `import type`, bị xoá trước khi ra bundle
+ * (`local/no-data-layer-in-view` coi import chỉ-kiểu là an toàn, xem docblock
+ * luật đó), nên R-60 không bị phá dù file này có nhập `@/domain` ở chỗ khác.
+ * Hai trường lệch giữa hai bản cũ được xử lý đúng sự thật hiện tại thay vì
+ * cộng dồn:
+ * - `canEdit` không còn ở đây. `useViewer3D` vẫn tính và dùng nó (làm
+ *   `canSelect` cho `mountViewerScene`, và để quyết `forbidden`), nhưng không
+ *   nơi nào phía dưới đọc `model.canEdit` — nút "Sửa hình học" đã gỡ vì
+ *   `onClick` rỗng (R-69/R-73). Trả nó ra ngoài chỉ là trùng lặp không dùng.
+ * - `canvasRef` được thêm vào đây (từ bản của view): `WiredViewer3DScene`
+ *   thêm prop này SAU khi gọi `useViewer3D` (`Viewer3D.container.tsx:147`),
+ *   nên hook không cấp nó nhưng view cần nhận nó.
  */
 export interface Viewer3DProps {
   /**
@@ -84,8 +100,15 @@ export interface Viewer3DProps {
   /** Thử lại riêng bước DỰNG HÌNH của R-03 — khác `onRetry` của vỏ. */
   readonly onRetryBuild: () => void;
 
-  /** Vai đã lọc: có được chọn/sửa hình học trên mô hình hay không. */
-  readonly canEdit: boolean;
+  /**
+   * Callback ref nhận phần tử `<canvas>` sau khi view gắn xong, để container
+   * đưa nó vào `useViewer3D` (mục 4 dưới: `canvas` chỉ tồn tại sau khi view
+   * gắn, nên nó KHÔNG phải một trường hook cấp qua đây).
+   *
+   * Vắng mặt thì không có `<canvas>` nào được vẽ — đó là cách story và bài
+   * kiểm dựng view thuần này một mình, không cần WebGL.
+   */
+  readonly canvasRef?: ((canvas: HTMLCanvasElement | null) => void) | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
