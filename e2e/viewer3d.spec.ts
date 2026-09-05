@@ -261,6 +261,28 @@ test('ba việc chỉ bằng thứ nhìn thấy trên màn: quay, thu phóng, ch
   logDuration('tổng ba việc', rotateMs + zoomMs + storeyMs);
 });
 
+test('ViewCube bấm được bằng chuột, bản đồ nhỏ không đè lên nó (P2)', async ({ page }) => {
+  await openViewer(page);
+
+  /* Bấm THẬT bằng `click()` thường — cấm `force: true`. `force` bỏ qua đúng
+     phép kiểm che khuất Playwright dùng để bắt lỗi này
+     (`subtree intercepts pointer events`); dùng nó là tự bịt mắt mình trước
+     một cú bấm không tới nơi. */
+  const cube = page.getByRole('group', { name: 'Khối định hướng' });
+  const axonometricFace = cube.getByRole('button', { name: 'Trục đo' });
+
+  await expect(axonometricFace).toHaveAttribute('aria-pressed', 'false');
+
+  await axonometricFace.click();
+
+  /* Góc nhìn đổi thật: mặt vừa bấm chuyển `aria-pressed`, mặt cũ nhả ra. */
+  await expect(axonometricFace).toHaveAttribute('aria-pressed', 'true');
+  await expect(cube.getByRole('button', { name: 'Phối cảnh' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});
+
 test('Esc đóng lớp trên cùng (A12)', async ({ page }) => {
   await openViewer(page);
 
