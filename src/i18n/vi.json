@@ -2229,5 +2229,145 @@
       "search": "mở ô tìm đối tượng",
       "deselect": "bỏ chọn đối tượng trên mô hình"
     }
+  },
+  "propertyInspector": {
+    "regionLabel": "Thanh tra đối tượng",
+    "groups": {
+      "geometry": "Kích thước hình học",
+      "material": "Vật liệu",
+      "relations": "Quan hệ",
+      "inspection": "Kiểm tra",
+      "advanced": "Thông số nâng cao"
+    },
+    "objectKind": {
+      "wall": "tường",
+      "opening": "ô mở",
+      "furniture": "nội thất",
+      "room": "phòng"
+    },
+    "fields": {
+      "wall": {
+        "thickness": "Độ dày",
+        "length": "Chiều dài",
+        "height": "Chiều cao",
+        "wallType": "Loại tường",
+        "isInterior": "Tường nội thất",
+        "openingCount": "Số ô mở"
+      },
+      "opening": {
+        "width": "Chiều rộng",
+        "height": "Chiều cao",
+        "sillHeight": "Cao độ bậu",
+        "swingDirection": "Chiều mở",
+        "hostWallId": "Tường chủ"
+      },
+      "furniture": {
+        "boundingSize": "Kích thước bao",
+        "rotation": "Góc xoay",
+        "furnitureKind": "Loại nội thất",
+        "roomId": "Phòng chứa"
+      },
+      "room": {
+        "name": "Tên",
+        "function": "Công năng",
+        "area": "Diện tích",
+        "doorCount": "Số cửa",
+        "windowCount": "Số cửa sổ"
+      },
+      "advanced": {
+        "zOffset": "Lệch Z",
+        "startPoint": "Toạ độ đầu",
+        "endPoint": "Toạ độ cuối",
+        "sourceEntityId": "Mã đối tượng gốc",
+        "confidence": "Độ tin cậy"
+      }
+    },
+    "wallType": {
+      "loadBearing": "Chịu lực",
+      "partition": "Ngăn",
+      "envelope": "Bao che"
+    },
+    "value": {
+      "mixed": "Giá trị khác nhau",
+      "yes": "Có",
+      "no": "Không"
+    },
+    "empty": {
+      "message": "Chưa chọn đối tượng nào để xem thuộc tính.",
+      "tabHint": "Nhấn Tab để duyệt vòng qua các đối tượng trên mô hình."
+    },
+    "loading": {
+      "label": "Đang tải thuộc tính…"
+    },
+    "partial": {
+      "unavailable": "Không áp dụng cho đối tượng này.",
+      "selectionSummary": "Đang chọn {{count}} đối tượng"
+    },
+    "error": {
+      "title": "Không lưu được thay đổi",
+      "message": "Giá trị vừa nhập không hợp lệ với hình học hiện tại của mô hình.",
+      "retry": "Thử lại"
+    },
+    "forbidden": {
+      "message": "Bạn đang xem ở vai chỉ xem nên không sửa được thuộc tính này."
+    },
+    "collapsed": {
+      "expandChip": "Mở lại thanh tra đối tượng",
+      "expandSheet": "Kéo lên để xem thuộc tính",
+      "summaryLabel": "{{kind}} {{code}}"
+    },
+    "header": {
+      "copyAsTemplate": "Lưu làm khuôn mẫu",
+      "close": "Đóng"
+    },
+    "footer": {
+      "approve": "Duyệt",
+      "skip": "Bỏ qua",
+      "savedAt": "Đã lưu lúc {{time}}",
+      "lastEditedBy": "Đã sửa lúc {{time}} bởi {{name}}",
+      "approvedCount": "Đã duyệt {{count}} đối tượng"
+    },
+    "actions": {
+      "openRuleScreen": "Xem quy tắc",
+      "navigateToObject": "Đi tới đối tượng {{code}}"
+    },
+    "relations": {
+      "onWall": "Nằm trên #{{code}}",
+      "inRoom": "Thuộc phòng #{{code}}"
+    },
+    "status": {
+      "verified": "Đã duyệt",
+      "attention": "Cần chú ý",
+      "violation": "Vi phạm",
+      "neutral": "Chưa duyệt"
+    },
+    "swing": {
+      "left": "Mở trái",
+      "right": "Mở phải",
+      "double": "Hai cánh",
+      "sliding": "Trượt",
+      "fixed": "Cố định"
+    },
+    "refusal": {
+      "invalidNumber": "Chưa đọc được con số vừa nhập. Hãy nhập một giá trị bằng milimét.",
+      "readFailed": "Không đọc được lớp không gian của tầng này."
+    },
+    "inspection": {
+      "clean": "Không có vi phạm nào",
+      "noticeLabel": "Ghi chú của phần mềm"
+    },
+    "units": {
+      "degree": "độ"
+    },
+    "template": {
+      "unsupported": "Phần mềm chưa lưu được khuôn mẫu thuộc tính. Bản vẽ của bạn không có lỗi nào ở đây."
+    },
+    "autosave": {
+      "unsupported": "Chưa có đường lưu thuộc tính lên máy chủ, nên thay đổi mới chỉ nằm trên máy này."
+    },
+    "command": {
+      "changeSwing": "Đổi chiều mở ô mở {{code}}",
+      "approve": "Duyệt {{kind}} {{code}}"
+    }
   }
 }
