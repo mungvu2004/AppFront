@@ -6,6 +6,8 @@ export const WRITE_OPERATIONS = [
   'createProject',
   'editFloor',
   'editWall',
+  'editOpening',
+  'editRoom',
   'moveFurniture',
   'editDimension',
   'changeAxis',
@@ -13,6 +15,8 @@ export const WRITE_OPERATIONS = [
   'restoreVersion',
   'straightenDrawing',
   'setDrawingCorners',
+  'persistSpatialLayer',
+  'createPropertyTemplate',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -22,10 +26,16 @@ interface FloorScopedParams {
   floorId: string;
 }
 
+interface ProjectScopedParams {
+  projectId: string;
+}
+
 export interface WriteOperationParamsMap {
   createProject: Record<string, never>;
   editFloor: FloorScopedParams;
   editWall: FloorScopedParams;
+  editOpening: FloorScopedParams;
+  editRoom: FloorScopedParams;
   moveFurniture: FloorScopedParams;
   editDimension: FloorScopedParams;
   changeAxis: FloorScopedParams;
@@ -33,6 +43,10 @@ export interface WriteOperationParamsMap {
   restoreVersion: FloorScopedParams;
   straightenDrawing: FloorScopedParams;
   setDrawingCorners: FloorScopedParams;
+  /** A floor's whole spatial layer was just saved to the server (U4 gap #4) — same three read models as a single `editWall`, since any of the four entity lists could have changed. */
+  persistSpatialLayer: FloorScopedParams;
+  /** A property template was created (U4 gap #5) — project-scoped, not floor-scoped, since a template outlives any one floor. */
+  createPropertyTemplate: ProjectScopedParams;
 }
 
 type InvalidationMap = {
@@ -54,6 +68,20 @@ export const invalidationMap: InvalidationMap = {
   ],
 
   editWall: ({ projectId, floorId }) => [
+    queryKeys.space.byFloor(floorId),
+    queryKeys.room.byFloor(floorId),
+    queryKeys.violation.byProject(projectId),
+  ],
+
+  /** Same three keys as `editWall`: an opening lives on a wall, and its edit can trip the same room/violation reads. */
+  editOpening: ({ projectId, floorId }) => [
+    queryKeys.space.byFloor(floorId),
+    queryKeys.room.byFloor(floorId),
+    queryKeys.violation.byProject(projectId),
+  ],
+
+  /** Same three keys as `editWall` — a room's own fields (name, usage) are read through the same `room.byFloor`/`violation.byProject` models. */
+  editRoom: ({ projectId, floorId }) => [
     queryKeys.space.byFloor(floorId),
     queryKeys.room.byFloor(floorId),
     queryKeys.violation.byProject(projectId),
@@ -113,6 +141,15 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.quality.assessment(floorId),
     queryKeys.drawing.byFloor(floorId),
   ],
+
+  /** Same three keys as `editWall`: a full-layer save can change walls, openings, rooms or furniture at once. */
+  persistSpatialLayer: ({ projectId, floorId }) => [
+    queryKeys.space.byFloor(floorId),
+    queryKeys.room.byFloor(floorId),
+    queryKeys.violation.byProject(projectId),
+  ],
+
+  createPropertyTemplate: ({ projectId }) => [queryKeys.template.byProject(projectId)],
 };
 
 /**

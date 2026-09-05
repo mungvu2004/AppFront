@@ -1,6 +1,7 @@
 import type { AppError } from '@/lib/errors';
 import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/http';
 import type { z, ZodTypeAny } from 'zod';
+import type { Furniture, Opening, Room, Wall } from '@/domain/spatial/types';
 import {
   FloorSchema,
   ImageQualityAssessmentSchema,
@@ -147,6 +148,36 @@ export interface PatchSpatialFloorInput extends WriteRequestOptions {
   projectId: string;
 }
 
+/**
+ * The spatial layer of one floor: walls, openings, rooms, furniture — U4 gap #4.
+ *
+ * `Floor`/`FloorWriteBody` above only ever carried the floor's own metadata
+ * (area, drawings, elevation, height, name, order); nothing in this file gave
+ * a shape to the four entity lists a floor actually holds, so autosave had
+ * nowhere to send them (`PERSIST_PROPERTIES_UNSUPPORTED_REASON`,
+ * `screens/viewer/PropertyInspector/propertyInspectorGateway.ts`). Fields are
+ * `readonly Wall[]` etc. straight from `@/domain/spatial/types` rather than a
+ * wire-schema mirror: the domain shapes are already flat, JSON-safe records
+ * (no class instances, no branded-at-runtime fields beyond string ids), so a
+ * second copy of the same field list would only be a place for the two to
+ * drift. A write always sends the floor's complete four lists — this is the
+ * autosave flush of "everything on this floor right now", not a per-field
+ * patch, so there is no `Partial<SpatialLayer>` counterpart the way
+ * `PatchSpatialFloorInput` has one for `Floor`.
+ */
+export interface SpatialLayer {
+  furniture: readonly Furniture[];
+  openings: readonly Opening[];
+  rooms: readonly Room[];
+  walls: readonly Wall[];
+}
+
+export interface WriteSpatialLayerInput extends WriteRequestOptions {
+  body: SpatialLayer;
+  floorId: string;
+  projectId: string;
+}
+
 export interface ReadSpatialVersionInput extends RequestOptions {
   projectId: string;
   versionId: string;
@@ -165,6 +196,95 @@ export interface StraightenDrawingInput extends WriteRequestOptions {
 export interface SetDrawingCornersInput extends WriteRequestOptions {
   body: DrawingCornersInput;
   floorId: string;
+  projectId: string;
+}
+
+/**
+ * Property templates — U4 gap #5.
+ *
+ * A template is a named, reusable set of property values for ONE object
+ * kind, copied from an object a user is inspecting so it can be re-applied to
+ * another object of the same kind later (the "khuôn" button at the top of
+ * `PropertyInspector`, `onCopyAsTemplate` /
+ * `COPY_AS_TEMPLATE_UNSUPPORTED_REASON` in
+ * `screens/viewer/PropertyInspector/propertyInspectorGateway.ts`). Before this
+ * file, no layer of the app — domain, store, lib, api — had this concept at
+ * all; there was nothing to read or write.
+ *
+ * `fields` is keyed by object kind and only lists the properties worth
+ * presetting: geometry that is measured off the drawing (a wall's `length`,
+ * a room's `area`, an opening's `hostWallId` relation) is derived, not a
+ * value a template author chose, so it has no place here even though the
+ * panel shows it. What is left is exactly the "preset-able" subset of each
+ * kind's five default fields in `propertyInspectorTypes.ts`
+ * (`DEFAULT_WALL_FIELD_IDS` etc.): a wall's thickness/height/kind, an
+ * opening's width/height/sill height/swing, a room's usage (not its name —
+ * every room needs its own), and a furniture item's kind/rotation (not its
+ * bounding box, which is tied to a specific placement).
+ */
+export type PropertyTemplateObjectKind = 'furniture' | 'opening' | 'room' | 'wall';
+
+export interface PropertyTemplateFieldsByKind {
+  furniture: {
+    kind?: Furniture['kind'];
+    rotationDeg?: Furniture['rotationDeg'];
+  };
+  opening: {
+    heightMm?: Opening['heightMm'];
+    sillHeightMm?: Opening['sillHeightMm'];
+    swing?: Opening['swing'];
+    widthMm?: Opening['widthMm'];
+  };
+  room: {
+    usage?: Room['usage'];
+  };
+  wall: {
+    heightMm?: Wall['heightMm'];
+    kind?: Wall['kind'];
+    thicknessMm?: Wall['thicknessMm'];
+  };
+}
+
+/**
+ * `scope` is a decision recorded in data, not an assumption baked into the
+ * shape: a template belongs to the PROJECT it was created in (coordinator
+ * ruling for U4) — every other piece of spatial data in this codebase is
+ * keyed by `projectId`/`floorId`, and "belongs to the user" would need a
+ * per-user store this repo has nowhere else. The counter-argument is real
+ * too — in an architecture tool, a standard kit (220mm load-bearing walls,
+ * 12mm glazing) is often a firm-wide asset, not a per-project one — so this
+ * field exists precisely to make that a new *value* here later
+ * (`'user' | 'organization'`), not a data migration. Only `'project'` is
+ * accepted today.
+ */
+export type PropertyTemplateScope = 'project';
+
+export interface PropertyTemplate<
+  TKind extends PropertyTemplateObjectKind = PropertyTemplateObjectKind,
+> {
+  createdAt: string;
+  fields: PropertyTemplateFieldsByKind[TKind];
+  id: string;
+  name: string;
+  objectKind: TKind;
+  projectId: string;
+  scope: PropertyTemplateScope;
+}
+
+export type PropertyTemplateDraft = {
+  [TKind in PropertyTemplateObjectKind]: {
+    fields: PropertyTemplateFieldsByKind[TKind];
+    name: string;
+    objectKind: TKind;
+  };
+}[PropertyTemplateObjectKind];
+
+export interface CreatePropertyTemplateInput extends WriteRequestOptions {
+  body: PropertyTemplateDraft;
+  projectId: string;
+}
+
+export interface ListPropertyTemplatesInput extends RequestOptions {
   projectId: string;
 }
 
@@ -234,6 +354,19 @@ export interface SpatialApi {
   patchFloor(input: PatchSpatialFloorInput): Promise<ApiResult<Floor>>;
   readFloor(input: ReadSpatialFloorInput): Promise<ApiResult<Floor>>;
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
+  /** Saves the floor's whole spatial layer and hands the persisted copy back — U4 gap #4. */
+  writeLayer(input: WriteSpatialLayerInput): Promise<ApiResult<SpatialLayer>>;
+}
+
+/**
+ * Property templates — U4 gap #5. `create` echoes back the stored record
+ * (id, `createdAt`, `scope` filled in), the same "write returns the fresh
+ * read" shape `QualityApi` uses above, so a caller can seed
+ * `queryKeys.template.byProject(projectId)` without a second round trip.
+ */
+export interface PropertyTemplatesApi {
+  create(input: CreatePropertyTemplateInput): Promise<ApiResult<PropertyTemplate>>;
+  list(input: ListPropertyTemplatesInput): Promise<ApiResult<PropertyTemplate[]>>;
 }
 
 /**
@@ -264,6 +397,7 @@ export interface ApiClient {
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   projects: ProjectsApi;
+  propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
   spatial: SpatialApi;
 }
@@ -452,6 +586,32 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
       );
     },
   },
+  /**
+   * No schema decode here, same reasoning as `featureFlags.read` above: a
+   * template's `fields` shape depends on `objectKind` (see
+   * `PropertyTemplateFieldsByKind`), and this file has no wire-schema
+   * vocabulary for `Wall`/`Opening`/`Room`/`Furniture` to validate it against
+   * — building one is future work, not something this endpoint should block
+   * on.
+   */
+  propertyTemplates: {
+    create: async (input) => {
+      const { body, projectId } = input;
+
+      return asApiResult(
+        await callPost<PropertyTemplate, PropertyTemplateDraft>(
+          http,
+          ENDPOINTS.propertyTemplates.create(projectId),
+          body,
+          input,
+        ),
+      );
+    },
+    list: async ({ projectId, signal }) =>
+      asApiResult(
+        await callGet<PropertyTemplate[]>(http, ENDPOINTS.propertyTemplates.list(projectId), signal),
+      ),
+  },
   quality: {
     assess: async ({ floorId, projectId, signal }) =>
       decodeSingle(
@@ -500,6 +660,14 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
         VersionSchema,
         'spatial.readVersion',
       ),
+    /** Same undecoded reasoning as `propertyTemplates` above — no wire schema for the four domain entities yet. */
+    writeLayer: async (input) => {
+      const { body, floorId, projectId } = input;
+
+      return asApiResult(
+        await callPatch<SpatialLayer, SpatialLayer>(http, ENDPOINTS.spatial.layer(projectId, floorId), body, input),
+      );
+    },
   },
 });
 

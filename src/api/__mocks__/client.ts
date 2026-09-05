@@ -14,6 +14,7 @@ import type {
   Progress,
   Project,
   ProjectWriteBody,
+  PropertyTemplate,
   Version,
 } from '../client';
 
@@ -363,6 +364,7 @@ export const createMockApiClient = (): ApiClient => {
   let floors = clone(project.floors);
   const uploads = new Map<string, Progress>();
   let qualityFloors = makeMeasuredFloors();
+  const propertyTemplates: PropertyTemplate[] = [];
 
   const readQualityFloor = (floorId: string): FloorImageQuality =>
     qualityFloors.find((item) => item.floorId === floorId) ?? makeFallbackQualityFloor(floorId);
@@ -502,6 +504,30 @@ export const createMockApiClient = (): ApiClient => {
       },
     },
     /**
+     * Khuôn mẫu thuộc tính, giữ trong bộ nhớ của MỘT lượt `createMockApiClient()`
+     * — cùng vòng đời với `floors`/`project` ở trên, không phải một bảng dữ
+     * liệu toàn cục (`mockApiClient` module-level vẫn dùng chung một bản, đúng
+     * như mọi nhóm khác của file này).
+     */
+    propertyTemplates: {
+      create: async ({ body, projectId }) => {
+        const next: PropertyTemplate = {
+          createdAt: '2026-08-03T08:00:00.000Z',
+          fields: clone(body.fields),
+          id: `template-${propertyTemplates.length + 1}`,
+          name: body.name,
+          objectKind: body.objectKind,
+          projectId,
+          scope: 'project',
+        };
+
+        propertyTemplates.push(next);
+        return ok(clone(next));
+      },
+      list: async ({ projectId }) =>
+        ok(propertyTemplates.filter((template) => template.projectId === projectId).map(clone)),
+    },
+    /**
      * Cùng bốn tầng cho mọi lượt gọi, và hai lối sửa thật sự đổi dữ liệu.
      *
      * `straighten` và `setCorners` ghi lại vào `qualityFloors` chứ không trả
@@ -549,6 +575,8 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
+      /** Echoes the layer back, like every other write in this file that has no separate read endpoint to reconcile with (see `auth.signIn`, `drawings.complete`). */
+      writeLayer: async ({ body }) => ok(clone(body)),
     },
   };
 };

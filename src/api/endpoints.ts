@@ -3,6 +3,7 @@ const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
 const FEATURE_FLAGS_ROOT = '/feature-flags';
 const AUTH_ROOT = '/auth';
+const PROPERTY_TEMPLATES_ROOT = 'property-templates';
 
 /**
  * Where the API lives when the build does not say.
@@ -53,6 +54,21 @@ export const ENDPOINTS = {
     update: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
   },
   /**
+   * Khuôn mẫu thuộc tính — bộ giá trị đặt tên, sao chép từ một tường/ô
+   * mở/phòng/nội thất để áp lại cho đối tượng khác cùng loại (nút "khuôn" ở
+   * đầu `PropertyInspector`) — lỗ hổng #4, U4.
+   *
+   * Thuộc VỀ DỰ ÁN, không phải người dùng — quyết định của điều phối viên: mọi
+   * dữ liệu không gian khác trong repo đều khoá theo `projectId`/`floorId`, và
+   * "thuộc về người dùng" đòi một trục dữ liệu mới (kho theo người dùng) mà
+   * repo chưa có ở bất cứ đâu. Xem `PropertyTemplate.scope`
+   * (`src/api/client.ts`) cho lý do đầy đủ và đường mở rộng sau này.
+   */
+  propertyTemplates: {
+    create: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/${PROPERTY_TEMPLATES_ROOT}`,
+    list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/${PROPERTY_TEMPLATES_ROOT}`,
+  },
+  /**
    * Phép đo chất lượng của bản vẽ một tầng, và hai cách sửa nó — T-05.
    *
    * Cả ba đều nhận `(projectId, floorId)` chứ không `uploadId`: cái màn hỏi là
@@ -76,6 +92,15 @@ export const ENDPOINTS = {
   spatial: {
     floor: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial`,
+    /**
+     * Lớp không gian của một tầng: tường, ô mở, phòng, nội thất — lỗ hổng #4,
+     * U4. `spatial.floor` ở trên chỉ mang siêu dữ liệu tầng (`Floor`, không có
+     * chỗ cho bốn thứ này — xem `FloorWriteBody`, `src/api/client.ts`), nên đây
+     * là đường RIÊNG, cùng khuôn "một path dùng chung cho đọc lẫn ghi" mà
+     * `spatial.floor` đã đặt.
+     */
+    layer: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial/layer`,
     version: (projectId: string, versionId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/versions/${versionId}`,
   },
