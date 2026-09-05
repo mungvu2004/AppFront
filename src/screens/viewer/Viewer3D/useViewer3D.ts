@@ -41,6 +41,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 
+import { ENDPOINTS } from '@/api/endpoints';
 import { isEntityOfKind, resolveLevelId, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { isValidId } from '@/domain/spatial/ids';
@@ -86,9 +87,6 @@ import type {
 /* -------------------------------------------------------------------------- */
 /* Hằng số.                                                                    */
 /* -------------------------------------------------------------------------- */
-
-/** O-01 mặc định đóng (`resolveTelemetryEnabled`), nên đây không bao giờ là một beacon thật lúc dev. */
-const TELEMETRY_URL = '/api/telemetry';
 
 /** Câu dưới một tầng chưa dựng xong. Khoá `viewer3d.partial.wireframeCaption`. */
 const WIREFRAME_CAPTION_SUFFIX = ' — chưa dựng xong';
@@ -347,7 +345,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
 
   const [fallbackTelemetry] = useState((): Viewer3DTelemetry => {
     const sender = createTelemetrySender({
-      transport: createBeaconTransport({ url: TELEMETRY_URL }),
+      transport: createBeaconTransport({ url: ENDPOINTS.telemetry }),
       sessionId: createUuid(),
     });
 

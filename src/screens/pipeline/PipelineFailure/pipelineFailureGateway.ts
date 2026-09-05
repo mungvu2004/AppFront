@@ -51,7 +51,7 @@
  */
 
 import { createUuid } from '@/lib/http/ids';
-import { API_BASE_PATH } from '@/api/endpoints';
+import { ENDPOINTS } from '@/api/endpoints';
 import { describeError, reportError, toAppError } from '@/lib/errors';
 import type { AppError, ErrorTelemetryDetail } from '@/lib/errors';
 import type { PipelineStageId } from '@/lib/realtime/pipeline';
@@ -327,16 +327,6 @@ export interface PipelineFailureGateway {
  */
 export const PIPELINE_FAILURE_SCREEN_CODE = 'pipeline-failure';
 
-/**
- * Địa chỉ nhận đo đạc, ghép từ `API_BASE_PATH` của `@/api/endpoints`.
- *
- * Ghép chứ không viết thẳng: R-65 cấm chuỗi bắt đầu bằng dấu gạch chéo trong thư
- * mục màn, và đường dẫn gốc của API chỉ có một chủ sở hữu. Cả dấu phân cách cũng
- * lấy lại từ chính `API_BASE_PATH` — đúng tiền lệ `processingGateway.ts:588-590`.
- */
-const PATH_SEPARATOR = API_BASE_PATH.slice(0, 1);
-const TELEMETRY_PATH = `${API_BASE_PATH}${PATH_SEPARATOR}telemetry`;
-
 export interface CreatePipelineFailureGatewayOptions {
   /** Bộ gửi đo đạc tiêm được — test cắm bản đếm, không đẩy gì lên mạng. */
   readonly telemetry?: TelemetrySender;
@@ -435,7 +425,7 @@ export function createPipelineFailureGateway(
 export function createAppPipelineFailureGateway(): PipelineFailureGateway {
   return createPipelineFailureGateway({
     telemetry: createTelemetrySender({
-      transport: createBeaconTransport({ url: TELEMETRY_PATH }),
+      transport: createBeaconTransport({ url: ENDPOINTS.telemetry }),
       sessionId: createUuid(),
     }),
   });

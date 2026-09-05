@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HttpClient, HttpError, Result } from '@/lib/http';
 import { parseFeatureFlagPayload } from '@/lib/telemetry/flags';
 import { createApiClient } from '../client';
-import { ENDPOINTS } from '../endpoints';
+import { API_BASE_PATH, ENDPOINTS } from '../endpoints';
 import { createMockApiClient } from '../__mocks__/client';
 
 const ok = <T>(data: T): Result<T, HttpError> => ({ ok: true, data });
@@ -232,6 +232,10 @@ describe('api client', () => {
     expect(parsed.readable).toBe(true);
     expect(parsed.values['scene.instanced-walls']).toBe(true);
     expect(parsed.values['scene.soft-shadows']).toBe(false);
+  });
+
+  it('exposes telemetry as a path already prefixed with API_BASE_PATH, for callers that bypass createHttpClient', () => {
+    expect(ENDPOINTS.telemetry).toBe(`${API_BASE_PATH}/telemetry`);
   });
 
   it('mock client returns sample data with the same signature', async () => {

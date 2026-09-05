@@ -79,4 +79,17 @@ export const ENDPOINTS = {
     version: (projectId: string, versionId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/versions/${versionId}`,
   },
+  /**
+   * Đường dẫn ĐÃ GHÉP với `API_BASE_PATH`, khác khuôn tương đối của mọi mục
+   * khác trong `ENDPOINTS` — có chủ ý, không phải sơ suất.
+   *
+   * `createBeaconTransport` (`src/lib/telemetry/sender.ts`) gọi thẳng
+   * `navigator.sendBeacon(url, ...)`, không đi qua `createHttpClient` — nên
+   * không có bước nào tự ghép `API_BASE_PATH` vào một đường dẫn tương đối như
+   * `new URL(path, baseUrl)` làm cho các mục khác. Nếu để `telemetry` là chuỗi
+   * tương đối theo khuôn chung, bốn nơi gọi vẫn phải tự nhớ ghép — đúng cái lỗi
+   * N1 đang dọn. Xuất sẵn đường dẫn đầy đủ ở đây thay vì lặp lại phép ghép ở cả
+   * bốn màn.
+   */
+  telemetry: `${API_BASE_PATH}/telemetry`,
 } as const;

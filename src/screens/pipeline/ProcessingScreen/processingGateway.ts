@@ -72,7 +72,7 @@
 
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient, ApiResult } from '@/api/client';
-import { API_BASE_PATH, ENDPOINTS } from '@/api/endpoints';
+import { ENDPOINTS } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
@@ -574,21 +574,6 @@ export function toStageBreakdown(
 /* Cửa vào.                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Địa chỉ nhận đo đạc O-01, ghép từ `API_BASE_PATH` của `@/api/endpoints`.
- *
- * Ghép chứ không viết thẳng: R-65 cấm chuỗi bắt đầu bằng dấu gạch chéo trong
- * thư mục màn, và đường dẫn gốc của API chỉ có một chủ sở hữu. Cả dấu phân cách
- * cũng lấy lại từ chính `API_BASE_PATH` thay vì khai một dấu gạch chéo thứ hai
- * ở đây — thư mục màn không viết đường dẫn, nó chỉ nối tiếp cái đã có.
- *
- * Bản thân đoạn `telemetry` là chỗ DUY NHẤT của file này không đến từ
- * `ENDPOINTS`: bảng đó không có mục đo đạc nào (đã soát toàn văn). Đây là tiền
- * lệ có sẵn của `useProjectDashboard.ts` — cùng địa chỉ, khác cách viết.
- */
-const PATH_SEPARATOR = API_BASE_PATH.slice(0, 1);
-const TELEMETRY_PATH = `${API_BASE_PATH}${PATH_SEPARATOR}telemetry`;
-
 export interface CreateProcessingGatewayOptions {
   /** Bộ gửi đo đạc tiêm được — test cắm bản đếm, không đẩy gì lên mạng. */
   readonly telemetry?: TelemetrySender;
@@ -773,7 +758,7 @@ export function createProcessingGateway(
 export function createAppProcessingGateway(): ProcessingGateway {
   return createProcessingGateway(createAppApiClient(), {
     telemetry: createTelemetrySender({
-      transport: createBeaconTransport({ url: TELEMETRY_PATH }),
+      transport: createBeaconTransport({ url: ENDPOINTS.telemetry }),
       sessionId: createUuid(),
     }),
   });

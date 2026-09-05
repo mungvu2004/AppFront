@@ -40,6 +40,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, type QueryFunction } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
+import { ENDPOINTS } from '@/api/endpoints';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { formatArea } from '@/lib/format/measure';
@@ -171,9 +172,6 @@ export interface UseProjectDashboardOptions {
   readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
 }
 
-/** O-01: fail-closed by default (`resolveTelemetryEnabled`), so this never puts a real beacon on the wire in dev or test. */
-const TELEMETRY_URL = '/api/telemetry';
-
 /** Stable across renders, so a memo keyed on `allProjects` does not churn while `listQuery.data` is undefined. */
 const EMPTY_PROJECTS: readonly DashboardProject[] = [];
 
@@ -211,7 +209,7 @@ export function useProjectDashboard(
   const [pulseKey, setPulseKey] = useState(0);
   const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
   const [telemetry] = useState(() =>
-    createTelemetrySender({ transport: createBeaconTransport({ url: TELEMETRY_URL }), sessionId: createUuid() }),
+    createTelemetrySender({ transport: createBeaconTransport({ url: ENDPOINTS.telemetry }), sessionId: createUuid() }),
   );
 
   const detectedNarrow = useNarrowViewport();
