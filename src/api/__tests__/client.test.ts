@@ -76,6 +76,76 @@ const sampleVersion = {
   sequence: 1,
 };
 
+const sampleSpatialLayer = {
+  furniture: [
+    {
+      boundingBox: { max: { x: 550, y: 550 }, min: { x: 450, y: 450 } },
+      centre: { x: 500, y: 500 },
+      confidence: 1,
+      id: 'F-1',
+      kind: 'chair',
+      levelId: 'L-1',
+      reviewed: true,
+      rotationDeg: 0,
+      source: 'human',
+    },
+  ],
+  openings: [
+    {
+      confidence: 1,
+      heightMm: 2100,
+      id: 'D-1',
+      kind: 'door',
+      offsetMm: 100,
+      reviewed: true,
+      sillHeightMm: 0,
+      source: 'human',
+      swing: 'left',
+      wallId: 'W-1',
+      widthMm: 900,
+    },
+  ],
+  rooms: [
+    {
+      areaM2: 12.5,
+      confidence: 1,
+      id: 'R-1',
+      levelId: 'L-1',
+      name: 'Phòng khách',
+      outline: [
+        { x: 0, y: 0 },
+        { x: 3500, y: 0 },
+        { x: 3500, y: 3500 },
+        { x: 0, y: 3500 },
+      ],
+      reviewed: true,
+      source: 'human',
+      usage: 'livingRoom',
+      wallIds: ['W-1'],
+    },
+  ],
+  walls: [
+    {
+      centreline: { end: { x: 4000, y: 0 }, start: { x: 0, y: 0 } },
+      confidence: 1,
+      heightMm: 2800,
+      id: 'W-1',
+      kind: 'loadBearing',
+      levelId: 'L-1',
+      openingIds: ['D-1'],
+      reviewed: true,
+      source: 'human',
+      thicknessMm: 220,
+    },
+  ],
+} as const;
+
+const samplePropertyTemplateDraft = {
+  fields: { heightMm: 2800, kind: 'loadBearing', thicknessMm: 220 },
+  name: 'Tường 220 chịu lực',
+  objectKind: 'wall',
+} as const;
+
 describe('api client', () => {
   it('uses the centralized endpoint map for project reads', async () => {
     const http = createHttpMock({
@@ -251,5 +321,116 @@ describe('api client', () => {
     expect(projectsResult.ok).toBe(true);
     expect(floorsResult.ok).toBe(true);
     expect(spatialResult.ok).toBe(true);
+  });
+
+  describe('spatial layer (U4 gap #4)', () => {
+    it('exposes a path distinct from spatial.floor, since Floor carries no walls/openings/rooms/furniture', () => {
+      expect(ENDPOINTS.spatial.layer('project-1', 'floor-1')).toBe(
+        `${ENDPOINTS.spatial.floor('project-1', 'floor-1')}/layer`,
+      );
+    });
+
+    it('writeLayer PATCHes the layer path with an idempotency key and hands the response straight back', async () => {
+      const http = createHttpMock({
+        [`PATCH ${ENDPOINTS.spatial.layer('project-1', 'floor-1')}`]: sampleSpatialLayer,
+      });
+      const client = createApiClient(http);
+
+      const result = await client.spatial.writeLayer({
+        body: sampleSpatialLayer,
+        floorId: 'floor-1',
+        idempotencyKey: 'key-spatial-layer',
+        projectId: 'project-1',
+      });
+
+      expect(http.patch).toHaveBeenCalledWith(
+        ENDPOINTS.spatial.layer('project-1', 'floor-1'),
+        expect.objectContaining({ body: sampleSpatialLayer, idempotencyKey: 'key-spatial-layer' }),
+      );
+      expect(result).toEqual({ data: sampleSpatialLayer, ok: true });
+    });
+
+    it('mock client echoes whatever layer it is given back, unchanged', async () => {
+      const client = createMockApiClient();
+
+      const result = await client.spatial.writeLayer({
+        body: sampleSpatialLayer,
+        floorId: 'floor-1',
+        projectId: 'project-1',
+      });
+
+      expect(result).toEqual({ data: sampleSpatialLayer, ok: true });
+    });
+  });
+
+  describe('property templates (U4 gap #5)', () => {
+    it('exposes create and list on the same project-scoped path', () => {
+      expect(ENDPOINTS.propertyTemplates.create('project-1')).toBe(ENDPOINTS.propertyTemplates.list('project-1'));
+      expect(ENDPOINTS.propertyTemplates.list('project-1')).toBe('/projects/project-1/property-templates');
+    });
+
+    it('create POSTs the draft with an idempotency key and hands the response straight back', async () => {
+      const http = createHttpMock({
+        [`POST ${ENDPOINTS.propertyTemplates.create('project-1')}`]: {
+          ...samplePropertyTemplateDraft,
+          createdAt: '2026-08-03T08:00:00.000Z',
+          id: 'template-1',
+          projectId: 'project-1',
+          scope: 'project',
+        },
+      });
+      const client = createApiClient(http);
+
+      const result = await client.propertyTemplates.create({
+        body: samplePropertyTemplateDraft,
+        idempotencyKey: 'key-template-create',
+        projectId: 'project-1',
+      });
+
+      expect(http.post).toHaveBeenCalledWith(
+        ENDPOINTS.propertyTemplates.create('project-1'),
+        expect.objectContaining({ body: samplePropertyTemplateDraft, idempotencyKey: 'key-template-create' }),
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.id).toBe('template-1');
+        expect(result.data.scope).toBe('project');
+      }
+    });
+
+    it('mock client creates a template and lists it back, scoped to its project', async () => {
+      const client = createMockApiClient();
+
+      const created = await client.propertyTemplates.create({
+        body: samplePropertyTemplateDraft,
+        projectId: 'project-1',
+      });
+
+      expect(created.ok).toBe(true);
+      if (!created.ok) {
+        return;
+      }
+      expect(created.data).toMatchObject({
+        fields: samplePropertyTemplateDraft.fields,
+        name: samplePropertyTemplateDraft.name,
+        objectKind: 'wall',
+        projectId: 'project-1',
+        scope: 'project',
+      });
+      expect(created.data.id).toEqual(expect.any(String));
+      expect(created.data.createdAt).toEqual(expect.any(String));
+
+      const listedForOwner = await client.propertyTemplates.list({ projectId: 'project-1' });
+      const listedForOtherProject = await client.propertyTemplates.list({ projectId: 'project-2' });
+
+      expect(listedForOwner.ok).toBe(true);
+      if (listedForOwner.ok) {
+        expect(listedForOwner.data).toContainEqual(created.data);
+      }
+      expect(listedForOtherProject.ok).toBe(true);
+      if (listedForOtherProject.ok) {
+        expect(listedForOtherProject.data).toEqual([]);
+      }
+    });
   });
 });

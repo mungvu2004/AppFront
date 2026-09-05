@@ -3,7 +3,7 @@
  *
  * One property carries the whole file: **applying a command and then applying
  * its inverse leaves the drawing exactly as it was**. It is checked for all
- * twenty-one, from the same starting graph, through the real patch pipeline —
+ * twenty-three, from the same starting graph, through the real patch pipeline —
  * `commandToPatches`, `applyPatch`, `invertCommand` — rather than through a
  * stub, so what is proved is what the store will actually do.
  *
@@ -46,10 +46,12 @@ import {
   createDeleteOpeningCommand,
   createMoveFurnitureCommand,
   createMoveOpeningCommand,
+  createResizeFurnitureCommand,
   createResizeOpeningCommand,
   createRotateFurnitureCommand,
   validateAddOpening,
   validateMoveFurniture,
+  validateResizeFurniture,
   validateResizeOpening,
 } from '../openingCommands';
 import {
@@ -66,6 +68,7 @@ import {
 } from '../roomFloorCommands';
 import type { CommandContext, CommandResult } from '../shared';
 import {
+  createChangeWallHeightCommand,
   createChangeWallKindCommand,
   createChangeWallThicknessCommand,
   createDeleteWallCommand,
@@ -73,6 +76,7 @@ import {
   createDrawWallCommand,
   createMergeWallsCommand,
   createSplitWallCommand,
+  validateChangeWallHeight,
   validateChangeWallThickness,
   validateDragWallEnd,
   validateDrawWall,
@@ -433,6 +437,10 @@ const wallCases: readonly CommandCase[] = [
     build: () => createChangeWallThicknessCommand({ wallId: SOUTH_WALL, thicknessMm: 200 }, context),
   },
   {
+    name: 'wall.changeHeight',
+    build: () => createChangeWallHeightCommand({ wallId: SOUTH_WALL, heightMm: 2800 }, context),
+  },
+  {
     name: 'wall.changeKind',
     build: () => createChangeWallKindCommand({ wallId: SOUTH_WALL, kind: 'envelope' }, context),
   },
@@ -513,6 +521,14 @@ const openingCases: readonly CommandCase[] = [
     name: 'furniture.delete',
     build: () => createDeleteFurnitureCommand({ furnitureId: CHAIR }, context),
   },
+  {
+    name: 'furniture.resize',
+    build: () =>
+      createResizeFurnitureCommand(
+        { furnitureId: TABLE, widthMm: RESIZED_TABLE_WIDTH_MM },
+        context,
+      ),
+  },
 ];
 
 const mergedRoomOutline = [
@@ -521,6 +537,8 @@ const mergedRoomOutline = [
   { x: 8000, y: 14000 },
   { x: 0, y: 14000 },
 ];
+
+const RESIZED_TABLE_WIDTH_MM = 1200;
 
 const roomFloorCases: readonly CommandCase[] = [
   {
@@ -577,11 +595,13 @@ const roomFloorCases: readonly CommandCase[] = [
 const allCases: readonly CommandCase[] = [...wallCases, ...openingCases, ...roomFloorCases];
 
 /**
- * How many business commands there are: 7 wall + 8 opening and furniture +
- * 6 room and level. The brief's summary line says twenty, but the three lists
- * it enumerates name twenty-one, and the lists are what is implemented.
+ * How many business commands there are: 8 wall + 9 opening and furniture +
+ * 6 room and level. The brief's summary line says twenty and the three lists
+ * it enumerates name twenty-one; the two geometry commands the property
+ * inspector needs — `wall.changeHeight` and `furniture.resize` — were missing
+ * from both, and the lists are what is implemented.
  */
-const BUSINESS_COMMAND_COUNT = 21;
+const BUSINESS_COMMAND_COUNT = 23;
 
 /* -------------------------------------------------------------------------- */
 /* The round trip.                                                             */
@@ -593,8 +613,8 @@ describe('business commands', () => {
   });
 
   it('covers every business command exactly once', () => {
-    expect(wallCases).toHaveLength(7);
-    expect(openingCases).toHaveLength(8);
+    expect(wallCases).toHaveLength(8);
+    expect(openingCases).toHaveLength(9);
     expect(roomFloorCases).toHaveLength(6);
     expect(allCases).toHaveLength(BUSINESS_COMMAND_COUNT);
     expect(new Set(allCases.map((entry) => entry.name)).size).toBe(BUSINESS_COMMAND_COUNT);
@@ -771,6 +791,85 @@ describe('wall commands', () => {
     expect(checkIntegrity(applied)).toEqual([]);
     expect(command.description).toContain('2 lỗ mở');
   });
+
+  it('records both heights and how many openings rode through the change', () => {
+    const command = expectCommand(
+      createChangeWallHeightCommand({ wallId: SOUTH_WALL, heightMm: 2800 }, context),
+    );
+    const applied = applyCommand(baseGraph, command);
+
+    expect(applied.byId[SOUTH_WALL]).toMatchObject({ heightMm: 2800 });
+    expect(command.description).toContain('3.400 mm');
+    expect(command.description).toContain('2.800 mm');
+    expect(command.description).toContain('2 lỗ mở vẫn nằm trọn trong tường');
+  });
+
+  it('undoes a height change back to the height that was there', () => {
+    const command = expectCommand(
+      createChangeWallHeightCommand({ wallId: SOUTH_WALL, heightMm: 2800 }, context),
+    );
+
+    expect(undoCommand(applyCommand(baseGraph, command), command).byId[SOUTH_WALL]).toMatchObject({
+      heightMm: WALL_HEIGHT_MM,
+    });
+  });
+
+  it('refuses to lower a wall through the head of an opening, and says by how much', () => {
+    // The door's head is at 2.200 mm and the window's at 900 + 1.400 = 2.300 mm.
+    const reasons = validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: 2000 }, context);
+
+    expect(reasons).toHaveLength(2);
+    expect(reasons.join(' ')).toContain(FRONT_DOOR);
+    expect(reasons.join(' ')).toContain(FRONT_WINDOW);
+    expect(reasons.join(' ')).toContain('còn thiếu 200 mm');
+    expect(reasons.join(' ')).toContain('còn thiếu 300 mm');
+  });
+
+  it('names only the opening that no longer fits, and leaves the drawing alone', () => {
+    // 2.250 mm clears the door at 2.200 mm and cuts the window at 2.300 mm.
+    const reasons = expectReasons(
+      createChangeWallHeightCommand({ wallId: SOUTH_WALL, heightMm: 2250 }, context),
+    );
+
+    expect(reasons).toHaveLength(1);
+    expect(reasons.join(' ')).toContain(FRONT_WINDOW);
+    expect(reasons.join(' ')).not.toContain(FRONT_DOOR);
+    expect(reasons.join(' ')).toContain('còn thiếu 50 mm');
+    expect(baseGraph.byId[FRONT_WINDOW]).toMatchObject({ heightMm: 1400, sillHeightMm: 900 });
+  });
+
+  it('lowers a wall with nothing cut into it as far as it is asked to', () => {
+    expect(validateChangeWallHeight({ wallId: EAST_WALL, heightMm: 500 }, context)).toEqual([]);
+  });
+
+  it('refuses a height that is not a positive length, and one that changes nothing', () => {
+    expect(
+      validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: 0 }, context).join(' '),
+    ).toContain('phải lớn hơn 0 mm');
+    expect(
+      validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: Number.NaN }, context).join(' '),
+    ).toContain('phải lớn hơn 0 mm');
+    expect(
+      validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: WALL_HEIGHT_MM }, context).join(' '),
+    ).toContain('không có gì thay đổi');
+  });
+
+  it('puts no ceiling on a wall height, because drawing one puts none either', () => {
+    expect(validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: 12000 }, context)).toEqual([]);
+    expect(
+      validateDrawWall(
+        {
+          id: DRAWN_WALL_ID,
+          levelId: LEVEL_ONE,
+          centreline: { start: { x: 0, y: 4000 }, end: { x: 0, y: 8000 } },
+          thicknessMm: 200,
+          heightMm: 12000,
+          kind: 'partition',
+        },
+        context,
+      ),
+    ).toEqual([]);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -871,6 +970,70 @@ describe('opening and furniture commands', () => {
 
     expect(applyCommand(baseGraph, command).byId[TABLE]).toMatchObject({ rotationDeg: 90 });
     expect(command.description).toContain('90°');
+  });
+
+  it('stretches the bounding box about the centre, which does not move', () => {
+    const command = expectCommand(
+      createResizeFurnitureCommand({ furnitureId: TABLE, widthMm: RESIZED_TABLE_WIDTH_MM }, context),
+    );
+    const applied = applyCommand(baseGraph, command);
+
+    expect(applied.byId[TABLE]).toMatchObject({
+      centre: { x: 4500, y: 2000 },
+      boundingBox: { min: { x: 3900, y: 1600 }, max: { x: 5100, y: 2400 } },
+    });
+    expect(command.description).toContain('800 mm');
+    expect(command.description).toContain('1.200 mm');
+    expect(command.description).toContain('giữ nguyên tâm');
+  });
+
+  it('undoes a resize back to the box that was there', () => {
+    const command = expectCommand(
+      createResizeFurnitureCommand({ furnitureId: TABLE, depthMm: 300 }, context),
+    );
+
+    expect(undoCommand(applyCommand(baseGraph, command), command).byId[TABLE]).toMatchObject({
+      boundingBox: { min: { x: 4100, y: 1600 }, max: { x: 4900, y: 2400 } },
+    });
+  });
+
+  it('changes only the side it was given', () => {
+    const applied = applyCommand(
+      baseGraph,
+      expectCommand(createResizeFurnitureCommand({ furnitureId: TABLE, depthMm: 400 }, context)),
+    );
+
+    expect(applied.byId[TABLE]).toMatchObject({
+      boundingBox: { min: { x: 4100, y: 1800 }, max: { x: 4900, y: 2200 } },
+    });
+  });
+
+  it('refuses a side that is not a positive length, and a resize that names nothing', () => {
+    expect(
+      validateResizeFurniture({ furnitureId: TABLE, widthMm: 0 }, context).join(' '),
+    ).toContain('Chiều rộng đồ đạc phải lớn hơn 0 mm');
+    expect(
+      validateResizeFurniture({ furnitureId: TABLE, depthMm: Number.NaN }, context).join(' '),
+    ).toContain('Chiều sâu đồ đạc phải lớn hơn 0 mm');
+    expect(validateResizeFurniture({ furnitureId: TABLE }, context).join(' ')).toContain(
+      'không nêu số đo nào cần đổi',
+    );
+    expect(
+      validateResizeFurniture({ furnitureId: TABLE, widthMm: 800, depthMm: 800 }, context).join(' '),
+    ).toContain('không có gì thay đổi');
+  });
+
+  it('leaves the clash with a wall or another piece to the rule that owns it', () => {
+    // A table blown up to five metres runs straight through the living room's
+    // walls; FURNITURE-CLASH warns about that afterwards, the command does not.
+    const command = expectCommand(
+      createResizeFurnitureCommand({ furnitureId: TABLE, widthMm: 5000, depthMm: 5000 }, context),
+    );
+
+    expect(applyCommand(baseGraph, command).byId[TABLE]).toMatchObject({
+      centre: { x: 4500, y: 2000 },
+      boundingBox: { min: { x: 2000, y: -500 }, max: { x: 7000, y: 4500 } },
+    });
   });
 });
 

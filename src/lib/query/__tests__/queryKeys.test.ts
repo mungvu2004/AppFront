@@ -31,6 +31,11 @@ const queryKeyBranchCases = [
     name: 'violation.byProject',
     root: queryKeys.violation.byProject.root,
   },
+  {
+    create: () => queryKeys.template.byProject(projectId),
+    name: 'template.byProject',
+    root: queryKeys.template.byProject.root,
+  },
   { create: () => queryKeys.version.byFloor(floorId), name: 'version.byFloor', root: queryKeys.version.byFloor.root },
   { create: () => queryKeys.library.list(), name: 'library.list', root: queryKeys.library.list.root },
   {
@@ -56,6 +61,7 @@ describe('queryKeys', () => {
       'room.byFloor',
       'quality.assessment',
       'violation.byProject',
+      'template.byProject',
       'version.byFloor',
       'library.list',
       'library.detail',

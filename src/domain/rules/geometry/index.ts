@@ -45,7 +45,6 @@
 import { compareNearly, isNearlyZero } from '../../units/compare';
 import type { Furniture, Level, Point, Wall } from '../../spatial/types';
 import {
-  defaultRuleRegistry,
   entitiesInScope,
   findEntity,
   type Rule,
@@ -1147,10 +1146,13 @@ export const GEOMETRY_RULES: readonly Rule[] = [
  * a **different** rule claiming one of these codes still throws, which is the
  * clash worth hearing about.
  *
- * Defaults to the shared registry, which is what the application wants. Tests
- * should pass a registry of their own.
+ * The registry is a required argument on purpose. It used to default to the
+ * shared one, which made this function look like the way the application got
+ * these rules — and it was not, because nothing called it. The shared book now
+ * comes assembled from `rules/defaults`; this function is for a caller building
+ * a narrower book deliberately.
  */
-export function registerGeometryRules(registry: RuleRegistry = defaultRuleRegistry()): void {
+export function registerGeometryRules(registry: RuleRegistry): void {
   for (const rule of GEOMETRY_RULES) {
     if (registry.get(rule.code) === rule) {
       continue;

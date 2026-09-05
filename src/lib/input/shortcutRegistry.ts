@@ -224,6 +224,15 @@ export interface ShortcutOverlap {
   readonly registrantIds: readonly string[];
 }
 
+/** One binding exactly as it stands registered right now. */
+export interface RegisteredShortcut {
+  readonly id: string;
+  /** Canonical spelling, e.g. `Mod+Shift+Z` — the same form `formatCombo` prints. */
+  readonly combo: string;
+  readonly scope: ShortcutScope;
+  readonly description?: string;
+}
+
 /**
  * The one place a real listener is allowed to exist. `window` satisfies
  * this; a test passes a recording fake.
@@ -261,6 +270,13 @@ export interface ShortcutRegistry {
    * the caller can assert on it.
    */
   reportOverlaps(): readonly ShortcutOverlap[];
+  /**
+   * Every binding registered at this instant, canonical combo included — the
+   * one source a shortcut-help overlay reads from instead of a handwritten
+   * list that would drift. Registration order, not display order: a caller
+   * that cares about grouping or priority sorts this itself.
+   */
+  listShortcuts(): readonly RegisteredShortcut[];
 }
 
 export interface ShortcutRegistryOptions {
@@ -551,7 +567,25 @@ export function createShortcutRegistry(
     return overlaps;
   };
 
-  return { register, claimScope, handleKeyDown, attach, findOverlaps, reportOverlaps };
+  const listShortcuts = (): readonly RegisteredShortcut[] =>
+    entries.map((entry) => ({
+      id: entry.definition.id,
+      combo: entry.canonical,
+      scope: entry.definition.scope,
+      ...(entry.definition.description !== undefined
+        ? { description: entry.definition.description }
+        : {}),
+    }));
+
+  return {
+    register,
+    claimScope,
+    handleKeyDown,
+    attach,
+    findOverlaps,
+    reportOverlaps,
+    listShortcuts,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

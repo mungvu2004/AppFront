@@ -131,13 +131,7 @@ import {
   type LabelRectangle,
 } from '@/domain/rooms/area';
 import { detectRooms, type DetectRoomsResult } from '@/domain/rooms/detect';
-import { registerFunctionRules } from '@/domain/rules/function';
-import {
-  createRuleRegistry,
-  ROOM_USAGE_LABELS,
-  type RuleRegistry,
-  type Violation,
-} from '@/domain/rules/registry';
+import { ROOM_USAGE_LABELS, type Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
 import { createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -805,29 +799,16 @@ export function summaryOf(rooms: readonly Room[]): RoomLabelSummaryViewModel {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Sổ luật của màn, có đủ bảy luật công năng.
+ * Chạy sổ luật dùng chung trên đồ thị hiện tại. Kết quả là NHẮC, không phải cổng chặn.
  *
- * `defaultRuleRegistry()` dùng chung của ứng dụng CHƯA có bảy luật này và
- * không nơi nào trong `src/main.tsx`/`src/App.tsx` gọi `registerFunctionRules`
- * (khảo sát T1, mục NOT FOUND #5). Điều phối viên quyết: cổng của màn tự gọi
- * `registerFunctionRules` trên sổ NÓ DỰNG — sửa `src/main.tsx` để đăng ký toàn
- * cục thì không, R-68 cấm. Sổ riêng cũng có nghĩa một lượt bật/tắt luật ở màn
- * này không rò sang màn khác.
+ * Màn này từng dựng một sổ luật RIÊNG và tự gọi `registerFunctionRules` lên nó,
+ * vì `defaultRuleRegistry()` hồi đó chỉ có tám luật dựng sẵn và không nơi nào
+ * đăng ký ba nhóm bổ sung. Lý do đó đã hết: sổ dùng chung nay đủ cả hai mươi
+ * lăm luật ngay khi dựng (`src/domain/rules/defaults.ts`). Bản sao riêng bị xoá
+ * — nó chỉ còn là một sổ luật thứ hai lệch với sổ mọi màn khác đang đọc.
  */
-export function createRoomRuleRegistry(): RuleRegistry {
-  const registry = createRuleRegistry();
-
-  registerFunctionRules(registry);
-
-  return registry;
-}
-
-/** Chạy bảy luật công năng trên đồ thị hiện tại. Kết quả là NHẮC, không phải cổng chặn. */
-export function runRoomRules(
-  graph: NormalizedSpatial,
-  registry: RuleRegistry,
-): readonly Violation[] {
-  return runRules(graph, { registry }).violations;
+export function runRoomRules(graph: NormalizedSpatial): readonly Violation[] {
+  return runRules(graph).violations;
 }
 
 /**

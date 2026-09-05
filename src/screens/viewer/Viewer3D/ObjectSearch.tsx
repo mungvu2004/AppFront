@@ -32,10 +32,24 @@
  * Danh sách đi theo khuôn `aria-activedescendant`: ô chữ giữ tiêu điểm, dòng
  * đang nhắm được trỏ tới bằng `id`. Nên không dòng nào cần `tabindex`, và Tab
  * vẫn đi qua cả nhóm bằng một lần bấm.
+ *
+ * ## Ctrl+F đứng cạnh `/`, không thay nó
+ *
+ * `/` do vỏ (`ViewerShell/viewerShellShortcuts.ts`) đăng ký ở phạm vi
+ * `canvas`, gọi đúng `onOpen` này. Ctrl+F là lối vào quen thuộc hơn với người
+ * dùng trình duyệt, nhưng nó CHỈ có nghĩa khi đang xem mô hình không gian —
+ * mọi màn khác trong ứng dụng không có gì để tìm. Đăng ký nó ở phạm vi toàn
+ * cục sẽ cướp "tìm trong trang" của trình duyệt ở hai mươi mấy màn còn lại
+ * (lỗ hổng #9); đăng ký ngay đây, ở phạm vi `canvas`, thì tổ hợp chỉ sống khi
+ * `ObjectSearch` — tức khi màn xem mô hình — đang gắn. `registry` tuỳ chọn là
+ * chỗ tiêm cho bài kiểm (cùng khuôn `Viewer3DContainerProps.registry`): không
+ * truyền thì dùng `appShortcutRegistry` dùng chung của cả ứng dụng.
  */
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 
+import { useShortcut } from '@/hooks/useShortcut';
+import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { cn } from '@/lib/utils';
 
 import { matchRoomOptions, type ViewerRoomOption } from './roomSearch';
@@ -62,6 +76,8 @@ export interface ObjectSearchProps {
   readonly onSelectRoom: (roomId: string) => void;
   /** Phòng đang được chọn trong kho, để dòng tương ứng nói ra điều đó. */
   readonly selectedRoomId: string | null;
+  /** Đăng ký thay cho `appShortcutRegistry` dùng chung — chỗ tiêm cho bài kiểm. */
+  readonly registry?: ShortcutRegistry;
 }
 
 /** Viền tiêu điểm 2px kèm offset 2px — cùng khuôn ViewCube của vỏ (A12). */
@@ -84,6 +100,7 @@ export function ObjectSearch({
   onClose,
   onSelectRoom,
   selectedRoomId,
+  registry,
 }: ObjectSearchProps) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -92,6 +109,17 @@ export function ObjectSearch({
 
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+
+  useShortcut(
+    {
+      id: 'viewer.search.openCtrlF',
+      combo: 'Ctrl+F',
+      scope: 'canvas',
+      description: 'mở ô tìm đối tượng',
+      onTrigger: onOpen,
+    },
+    registry !== undefined ? { registry } : {},
+  );
 
   const { options, hasMore } = matchRoomOptions(rooms, query);
   const activeOption = options[wrapIndex(activeIndex, options.length)];

@@ -3,7 +3,7 @@
  * định nghĩa `Placeholder` và `UndoShortcuts`. `UndoShortcuts` được xuất có chủ
  * đích: xem docblock của nó — một binding không test được là một binding không ai
  * chứng minh được. */
-import React, { lazy } from 'react';
+import React, { lazy, useCallback, useState } from 'react';
 import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom';
 
 import { useShortcut } from '@/hooks/useShortcut';
@@ -86,19 +86,37 @@ function buildDevOnlyRoutes(): RouteObject[] {
 const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes() : [];
 
 /* -------------------------------------------------------------------------- */
-/* Ctrl+Z — bàn phím của vỏ ứng dụng.                                          */
+/* Bàn phím của vỏ ứng dụng.                                                   */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Bảng phím tắt tải muộn — cùng lý do bảy màn demo ở trên tải muộn (mục B: gói
+ * người dùng không mang thứ chưa được yêu cầu).
+ *
+ * `UndoShortcuts` bọc cả ba mươi route, nên bất cứ thứ gì nó nhập TĨNH đều nằm
+ * trong đường tải đầu tiên của MỌI màn — đã đo: nhập tĩnh đẩy "chunk vào" từ
+ * 128,7 KiB lên 171,1 KiB (vượt trần 170 KiB của `pnpm size`), vì
+ * `GlobalShortcutHelp` kéo theo `framer-motion` qua `@/components/motion` mà
+ * trước đó chỉ những màn tải muộn mới chạm tới. `lazy()` + `Suspense` tách nó
+ * ra một chunk riêng, chỉ tải khi người dùng bấm `?` lần đầu — đúng lúc cần,
+ * không phải lúc mở trang.
+ */
+const LazyGlobalShortcutHelp = lazy(() =>
+  import('@/components/shell/GlobalShortcutHelp').then((m) => ({
+    default: m.GlobalShortcutHelp,
+  })),
+);
 
 /**
  * Sáu tay cầm không bao giờ được gọi tới, chỉ để **đếm được**.
  *
  * `buildGlobalShortcuts` là bảng DUY NHẤT đánh vần các tổ hợp toàn cục, và nó
- * đòi đủ sáu tay cầm trước khi đưa ra bất cứ định nghĩa nào. Dưới đây chỉ hai
- * trong sáu định nghĩa được lấy, và cả hai đều bị thay `onTrigger` trên đường
- * ra, nên không hàm nào trong đối tượng này có đường chạy tới. Đúng kiểu mượn
- * mà `buildShortcutRows` dùng ở `useAccountTables.ts:236` để dựng bảng phím tắt
- * của màn tài khoản: một chuỗi `'Ctrl+Z'` viết tay ở đây là một nguồn thứ hai,
- * và nguồn thứ hai thì lệch.
+ * đòi đủ sáu tay cầm trước khi đưa ra bất cứ định nghĩa nào. Bốn trong sáu
+ * định nghĩa được lấy bên dưới (`globalShortcut` gọi trong `UndoShortcuts`),
+ * và cả bốn đều bị thay `onTrigger` trên đường ra, nên không hàm nào trong đối
+ * tượng này có đường chạy tới. Đúng kiểu mượn mà `buildShortcutRows` dùng ở
+ * `useAccountTables.ts:236` để dựng bảng phím tắt của màn tài khoản: một chuỗi
+ * `'Ctrl+Z'` viết tay ở đây là một nguồn thứ hai, và nguồn thứ hai thì lệch.
  */
 const UNREACHABLE_HANDLERS: GlobalShortcutHandlers = {
   undo: (): void => undefined,
@@ -121,8 +139,13 @@ function globalShortcut(id: string, onTrigger: () => void): ShortcutDefinition {
 }
 
 /**
- * Hai phím vỏ ứng dụng nhận, dựng đúng một lần: định nghĩa không mang state của
- * component nào, nên một đối tượng đứng yên cũng là một lượt đăng ký đứng yên.
+ * Hai phím không mang state của component nào — hoàn tác đọc thẳng cửa sổ gộp
+ * của kho, không đọc gì từ `UndoShortcuts`. Nên một đối tượng dựng đúng một
+ * lần ở cấp module cũng là một lượt đăng ký đứng yên; hai phím còn lại (`?` và
+ * Escape) cần trạng thái của chính `UndoShortcuts` nên được dựng lại mỗi lượt
+ * render, ngay trong thân component — `useShortcut` chấp nhận việc đó, vì
+ * handler được đọc qua ref (`hooks/useShortcut.ts:86-89`), không nằm trong
+ * mảng phụ thuộc của lượt đăng ký.
  */
 const UNDO_SHORTCUT = globalShortcut('global.undo', (): void => {
   useStore.temporal.getState().undo();
@@ -133,13 +156,14 @@ const REDO_SHORTCUT = globalShortcut('global.redo', (): void => {
 });
 
 /**
- * Bàn phím hoàn tác của vỏ ứng dụng — và đúng chừng đó.
+ * Bàn phím của vỏ ứng dụng: hoàn tác, làm lại, bảng phím tắt, đóng lớp trên
+ * cùng — và đúng chừng đó.
  *
- * Hoàn tác đã có sẵn cả một tầng lệnh, một cửa sổ gộp và ngăn xếp một trăm bước
- * đứng sau, nhưng cho tới lượt này KHÔNG phím nào chạm tới được: `useGlobalShortcuts`
- * (`hooks/useShortcut.ts:172`) được xuất mà không nơi nào gọi, nên không màn nào
- * trong repo có hoàn tác bằng bàn phím. Component này là chỗ đứng cho `useShortcut`,
- * vì `useShortcut` là hook nên nối một phím thì buộc phải có một component.
+ * Cả bốn từng có tầng lệnh đứng sau nhưng không phím nào chạm tới được:
+ * `useGlobalShortcuts` (`hooks/useShortcut.ts:172`) được xuất mà không nơi nào
+ * gọi, nên không màn nào trong repo có bàn phím vỏ. Component này là chỗ đứng
+ * cho `useShortcut`, vì `useShortcut` là hook nên nối một phím thì buộc phải
+ * có một component.
  *
  * Nó nằm ở **bảng route** chứ không ở `src/main.tsx` vì hai lý do, và lý do thứ
  * hai mới là lý do quyết định:
@@ -158,22 +182,65 @@ const REDO_SHORTCUT = globalShortcut('global.redo', (): void => {
  * vỏ, `RouterProvider` trong cùng, `NotificationHost` là anh em chứ không phải
  * cha hay con — được giữ nguyên vẹn theo cách an toàn nhất: không đụng vào.
  *
- * **Chỉ** hai phím đó. `useGlobalShortcuts` đăng ký cả sáu phím toàn cục một
- * lượt, mà registry gọi `preventDefault()` cho mọi lượt khớp không xin miễn
- * (`shortcutRegistry.ts:466`) — nên nối Ctrl+F và Ctrl+S vào những tay cầm rỗng
- * không phải là để dành chỗ, nó là lấy mất tìm-trong-trang của trình duyệt và
- * không trả lại gì. Không có lệnh xả tự lưu để gọi (bộ hẹn giờ của A7 nằm trong
- * `useAutosave` và hook đó không xuất ra lệnh xả nào), không có màn tìm kiếm,
- * không có màn bảng phím tắt toàn cục. Escape cũng để yên: A12 là lời hứa các
- * màn đang tự giữ, và thêm một tay bắt Escape ở tầng vỏ thuộc về lượt thay đổi
- * kiểm được cả hai bốn màn, không phải lượt này. Bốn lỗ hổng, ghi ra chứ không
- * lấp liếm.
+ * ## Vì sao chỉ bốn, không phải sáu
+ *
+ * `useGlobalShortcuts` đăng ký cả sáu phím toàn cục một lượt, mà registry gọi
+ * `preventDefault()` cho mọi lượt khớp không xin miễn (`shortcutRegistry.ts:466`)
+ * — nên nối một tay cầm rỗng vào một phím không phải là để dành chỗ, nó là lấy
+ * mất một phím của trình duyệt hoặc của màn khác mà không trả lại gì:
+ *
+ * - **Ctrl+S vẫn để yên.** Không có lệnh xả tự lưu để gọi (bộ hẹn giờ của A7
+ *   nằm trong `useAutosave` và hook đó không xuất ra lệnh xả nào); phím này
+ *   thuộc lượt ghép việc của một worker khác.
+ * - **Ctrl+F KHÔNG đăng ký ở đây.** Nó chỉ có nghĩa khi đang xem mô hình
+ *   không gian — đăng ký nó ở phạm vi `global` sẽ cướp tìm-trong-trang của
+ *   trình duyệt ở hai mươi mấy màn không có gì để tìm. Tổ hợp thật sống ở
+ *   phạm vi `canvas`, cạnh phím `/` đã có sẵn — xem docblock đầu
+ *   `screens/viewer/Viewer3D/ObjectSearch.tsx`. `buildGlobalShortcuts` vẫn
+ *   khai `'global.search'` (cho `buildShortcutRows` của màn tài khoản đếm),
+ *   nhưng `UndoShortcuts` không lấy định nghĩa đó ra.
+ *
+ * Hai phím còn lại — `?` mở `GlobalShortcutHelp`, Escape gọi
+ * `uiSlice.closeDialog()` — ĐÃ nối ở lượt này. `GlobalShortcutHelp` tự đăng ký
+ * hai binding phạm vi `dialog` của riêng nó (Esc và `?` lần hai) khi đang mở,
+ * nên `SCOPE_PRIORITY` (`shortcutRegistry.ts:59`) luôn cho bảng tự đóng trước
+ * khi Escape rơi được tới `closeTopLayer` — đúng lời hứa A12: không màn nào
+ * đang tự giữ Esc của mình (`dialog`/`sidePanel`/`canvas` đứng trước `global`)
+ * bị lấy mất phím, vì binding `global` chỉ chạy khi không phạm vi nào phía
+ * trên trả lời.
  */
 export function UndoShortcuts({ children }: { children: React.ReactNode }): React.ReactElement {
+  const closeDialog = useStore((state) => state.closeDialog);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  /* Dựng `LazyGlobalShortcutHelp` chỉ khi ĐÃ từng mở — giữ nó (và chunk
+     framer-motion của nó) ngoài cây cho tới lần bấm `?` đầu tiên, đúng lý do
+     `lazy()` ở trên tồn tại. */
+  const [hasOpenedHelp, setHasOpenedHelp] = useState(false);
+
+  const openHelp = useCallback((): void => {
+    setIsHelpOpen(true);
+    setHasOpenedHelp(true);
+  }, []);
+
+  const closeHelp = useCallback((): void => {
+    setIsHelpOpen(false);
+  }, []);
+
   useShortcut(UNDO_SHORTCUT);
   useShortcut(REDO_SHORTCUT);
+  useShortcut(globalShortcut('global.shortcutHelp', openHelp));
+  useShortcut(globalShortcut('global.closeTopLayer', closeDialog));
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {hasOpenedHelp && (
+        <React.Suspense fallback={null}>
+          <LazyGlobalShortcutHelp isOpen={isHelpOpen} onClose={closeHelp} />
+        </React.Suspense>
+      )}
+    </>
+  );
 }
 
 export const router = createBrowserRouter([

@@ -41,7 +41,6 @@ import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
 import { formatLength } from '../../../lib/format/measure';
 import {
-  defaultRuleRegistry,
   entitiesInScope,
   findEntity,
   ROOM_USAGE_LABELS,
@@ -427,8 +426,11 @@ export const FITOUT_RULES: readonly Rule[] = [
  * Nothing is superseded and nothing is switched off: this group covers ground no
  * other rule covers, which is why it exists. Registering the same rules twice is
  * a no-op; a different rule claiming one of these codes still throws.
+ *
+ * The registry is a required argument: the shared book comes assembled from
+ * `rules/defaults`, and this function is for a caller building a narrower one.
  */
-export function registerFitoutRules(registry: RuleRegistry = defaultRuleRegistry()): void {
+export function registerFitoutRules(registry: RuleRegistry): void {
   for (const rule of FITOUT_RULES) {
     if (registry.get(rule.code) === rule) {
       continue;

@@ -12,9 +12,10 @@ import {
 import { isValidId } from '../../spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '../../spatial/normalize';
 import type { LevelId, Room, RoomId, SpatialGraph, Wall, WallId } from '../../spatial/types';
+import { ALL_RULES, createDefaultRuleRegistry } from '../defaults';
+import { SUPERSEDED_BUILT_IN_CODES } from '../function';
 import {
   BUILT_IN_RULES,
-  createDefaultRuleRegistry,
   createRuleRegistry,
   entitiesInScope,
   MIN_WALL_THICKNESS_MM,
@@ -41,11 +42,59 @@ import {
 const GROUND_LEVEL_ID: LevelId = sampleLevelId(0);
 const FIRST_WALL_ID: WallId = sampleWallId(0);
 
-/** Rules that read walls, and so go stale when one moves. */
-const WALL_DEPENDENT_CODES = ['WALL-THICKNESS', 'WALL-LENGTH', 'OPENING-IN-WALL', 'ROOM-HAS-DOOR'];
+/**
+ * Rules that read walls, and so go stale when one moves.
+ *
+ * Fifteen rather than the four the eight built-ins gave, because the default
+ * book now holds all twenty-five: the geometry, function and fit-out groups are
+ * registered by `createDefaultRuleRegistry` itself. `rulesFor` answers with the
+ * **enabled** rules, so `ROOM-HAS-DOOR` is absent — the function group stands it
+ * down and `ROOM-NO-DOOR` reads walls in its place.
+ */
+const WALL_DEPENDENT_CODES = [
+  'WALL-THICKNESS',
+  'WALL-LENGTH',
+  'OPENING-IN-WALL',
+  'WALL-OVERLAP',
+  'WALL-DANGLING-END',
+  'ROOM-NOT-CLOSED',
+  'DOOR-SWING-BLOCKED',
+  'WALL-UNSUPPORTED',
+  'ROOM-NO-DOOR',
+  'ROOM-NO-WINDOW',
+  'ESCAPE-DISTANCE',
+  'DOOR-BLOCKS-PATH',
+  'FURNITURE-CLASH',
+  'FIXTURE-OFF-WALL',
+  'WINDOW-ON-INNER-WALL',
+];
 
-/** Rules that read rooms. */
-const ROOM_DEPENDENT_CODES = ['ROOM-MIN-AREA', 'ROOM-HAS-DOOR', 'ROOM-UNNAMED'];
+/**
+ * The one of those that is building-scoped rather than level-scoped.
+ *
+ * It matters to the arithmetic below: a building-scoped rule has exactly one
+ * task however many floors went stale, so it is counted once, not four times.
+ */
+const BUILDING_SCOPED_WALL_CODES = ['WALL-UNSUPPORTED'];
+
+/** Rules that read rooms. `ROOM-MIN-AREA` is stood down; `ROOM-AREA-BELOW-MINIMUM` replaced it. */
+const ROOM_DEPENDENT_CODES = [
+  'ROOM-UNNAMED',
+  'ROOM-NOT-CLOSED',
+  'ROOM-NO-DOOR',
+  'CORRIDOR-WIDTH',
+  'ROOM-NO-WINDOW',
+  'ESCAPE-DISTANCE',
+  'DOOR-BLOCKS-PATH',
+  'ROOM-AREA-BELOW-MINIMUM',
+  'ROOM-FURNITURE-MISMATCH',
+];
+
+/** Rules that read levels — all three building-scoped. */
+const LEVEL_DEPENDENT_CODES = ['LEVEL-ELEVATION', 'WALL-UNSUPPORTED', 'STAIR-ALIGNMENT'];
+
+/** Twenty level-scoped rules over four floors, plus three building-scoped ones. */
+const FULL_PASS_TASK_COUNT = 20 * 4 + 3;
 
 function normalizedSample(): NormalizedSpatial {
   return normalizeSpatial(createSampleBuilding());
@@ -71,8 +120,10 @@ function withRoom(graph: SpatialGraph, roomId: RoomId, patch: Partial<Room>): Sp
  * The sample building padded out past the worker threshold.
  *
  * The extra walls are plain 1 000 mm partitions carrying no openings and
- * belonging to no room, so they break no rule: the violation count stays what
- * the standard sample produces, and only the entity count changes.
+ * belonging to no room. They broke no rule while the book held only the eight
+ * built-ins; they break `WALL-DANGLING-END` now, because a partition standing on
+ * its own joins nothing at either end. Nothing here asserts a violation count,
+ * only that the worker and the main thread agree on whatever it is.
  */
 function createOversizedGraph(extraWallCount: number): SpatialGraph {
   const graph = createSampleBuilding();
@@ -203,7 +254,8 @@ describe('the rule book', () => {
     expect(registry.rulesFor(['opening']).map((rule) => rule.code)).not.toContain('DOOR-WIDTH');
 
     registry.setEnabled('DOOR-WIDTH', true);
-    expect(registry.listEnabled()).toHaveLength(BUILT_IN_RULES.length);
+    // Twenty-five registered, less the two the function group stands down.
+    expect(registry.listEnabled()).toHaveLength(ALL_RULES.length - SUPERSEDED_BUILT_IN_CODES.length);
   });
 
   it('refuses to switch a rule nobody registered', () => {
@@ -243,14 +295,31 @@ describe('a violation', () => {
   const registry = createDefaultRuleRegistry();
   const result = runRules(normalizedSample(), { registry });
 
-  it('is raised by the standard sample: 16 openings off their wall, 5 rooms with no door', () => {
+  // The sample building is built to pass `checkIntegrity`, which is referential:
+  // no dangling id, no zero-length wall, no room naming a wall that is not there.
+  // It was never built to be a plausible *plan* — its 48 walls are collinear
+  // 1 000 mm stubs spread round-robin over four floors, each room lists exactly
+  // one such stub as its only boundary wall, and each of its 21 tables sits
+  // astride the wall it was placed on. The eight built-ins could see none of
+  // that. The other seventeen can, and every count below is a true reading of
+  // the fixture's own geometry.
+  it('is raised by the standard sample: 96 wall ends joining nothing, 21 tables through a wall', () => {
     const byRule = new Map<string, number>();
 
     for (const found of result.violations) {
       byRule.set(found.ruleCode, (byRule.get(found.ruleCode) ?? 0) + 1);
     }
 
-    expect(Object.fromEntries(byRule)).toEqual({ 'OPENING-IN-WALL': 16, 'ROOM-HAS-DOOR': 5 });
+    expect(Object.fromEntries(byRule)).toEqual({
+      'OPENING-IN-WALL': 16,
+      'WALL-DANGLING-END': 96,
+      'ROOM-NOT-CLOSED': 14,
+      'ROOM-NO-DOOR': 13,
+      'ROOM-NO-WINDOW': 14,
+      'ESCAPE-DISTANCE': 1,
+      'FURNITURE-CLASH': 21,
+      'WINDOW-ON-INNER-WALL': 7,
+    });
   });
 
   it('always names an entity code that exists in the model', () => {
@@ -289,8 +358,11 @@ describe('a violation', () => {
 
   it('gives areas in square metres, with a comma for the decimal', () => {
     const graph = normalizeSpatial(withRoom(createSampleBuilding(), sampleRoomId(0), { areaM2: 8 }));
+    // `ROOM-MIN-AREA` is stood down in the default book. `ROOM-AREA-BELOW-MINIMUM`
+    // reports the same shortfall against the same 9,00 m2 floor for a bedroom,
+    // and the decimal comma is the point of this test either way.
     const area = runRules(graph, { registry: createDefaultRuleRegistry() }).violations.find(
-      (found) => found.ruleCode === 'ROOM-MIN-AREA',
+      (found) => found.ruleCode === 'ROOM-AREA-BELOW-MINIMUM',
     );
 
     expect(area?.message).toContain('8,00 m²');
@@ -361,8 +433,7 @@ describe('editing one wall', () => {
   const full = runRules(graph, { registry });
 
   it('starts from a pass over every rule on every level', () => {
-    // Seven level-scoped rules over four levels, plus one building-scoped rule.
-    expect(full.evaluated).toHaveLength(7 * 4 + 1);
+    expect(full.evaluated).toHaveLength(FULL_PASS_TASK_COUNT);
     expect(full.reusedTaskCount).toBe(0);
   });
 
@@ -388,7 +459,17 @@ describe('editing one wall', () => {
     });
 
     expect(edited.evaluated).toHaveLength(WALL_DEPENDENT_CODES.length);
-    expect(edited.evaluated.every((task) => task.levelId === GROUND_LEVEL_ID)).toBe(true);
+    expect(
+      edited.evaluated
+        .filter((task) => !BUILDING_SCOPED_WALL_CODES.includes(task.ruleCode))
+        .every((task) => task.levelId === GROUND_LEVEL_ID),
+    ).toBe(true);
+    // The building-scoped one reads the whole stack, so it carries no level at all.
+    expect(
+      edited.evaluated
+        .filter((task) => BUILDING_SCOPED_WALL_CODES.includes(task.ruleCode))
+        .every((task) => task.levelId === null),
+    ).toBe(true);
     expect(edited.reusedTaskCount).toBe(full.evaluated.length - WALL_DEPENDENT_CODES.length);
   });
 
@@ -415,15 +496,17 @@ describe('editing one wall', () => {
     expect(evaluatedRuleCodes(edited)).not.toContain('WALL-LENGTH');
   });
 
-  it('re-runs the building-wide rule when a level changes, whatever floor it is', () => {
+  it('re-runs the building-wide rules when a level changes, whatever floor it is', () => {
     const edited = runRules(graph, {
       registry,
       previous: full.state,
       changes: [{ entityId: sampleLevelId(2) }],
     });
 
-    expect(evaluatedRuleCodes(edited)).toEqual(['LEVEL-ELEVATION']);
-    expect(edited.evaluated).toEqual([{ ruleCode: 'LEVEL-ELEVATION', levelId: null }]);
+    expect(evaluatedRuleCodes(edited)).toEqual(LEVEL_DEPENDENT_CODES);
+    expect(edited.evaluated).toEqual(
+      LEVEL_DEPENDENT_CODES.map((ruleCode) => ({ ruleCode, levelId: null })),
+    );
   });
 
   it('re-runs nothing when nothing changed', () => {
@@ -442,7 +525,11 @@ describe('editing one wall', () => {
     });
 
     expect(evaluatedRuleCodes(edited)).toEqual(WALL_DEPENDENT_CODES);
-    expect(edited.evaluated).toHaveLength(WALL_DEPENDENT_CODES.length * 4);
+    // Every floor for the level-scoped ones; the building-scoped one still once.
+    expect(edited.evaluated).toHaveLength(
+      (WALL_DEPENDENT_CODES.length - BUILDING_SCOPED_WALL_CODES.length) * 4 +
+        BUILDING_SCOPED_WALL_CODES.length,
+    );
   });
 
   it('re-checks everything when the changed code cannot be read', () => {
@@ -471,7 +558,8 @@ describe('switching a rule while a session is open', () => {
 
     expect(after.evaluated).toHaveLength(0);
     expect(after.violations.some((found) => found.ruleCode === 'OPENING-IN-WALL')).toBe(false);
-    expect(after.violations).toHaveLength(5);
+    // The sample's 182 findings, less the 16 that rule raised.
+    expect(after.violations).toHaveLength(166);
   });
 
   it('runs a rule registered mid-session even though nothing changed', () => {
@@ -687,7 +775,7 @@ describe('speed', () => {
     const result = runRules(normalizeSpatial(createSampleBuilding()), { registry });
     const elapsedMs = performance.now() - startedAt;
 
-    expect(result.violations).toHaveLength(21);
+    expect(result.violations).toHaveLength(182);
     expect(elapsedMs).toBeLessThan(200);
   });
 

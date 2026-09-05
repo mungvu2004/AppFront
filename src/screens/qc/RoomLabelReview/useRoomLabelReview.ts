@@ -106,7 +106,6 @@ import {
   createRoomLabelDispatchDeps,
   createRoomLabelReviewGateway,
   createRoomLabelUndoTicket,
-  createRoomRuleRegistry,
   detectRoomsOfLevel,
   gapsOf,
   levelOf,
@@ -516,13 +515,9 @@ export function useRoomLabelReview(
   /* Nhắc công năng M-14 — NHẮC, không bao giờ CHẶN.                          */
   /* ---------------------------------------------------------------------- */
 
-  const ruleRegistry = useMemo(() => createRoomRuleRegistry(), []);
   const ruleRouteHref = useMemo(() => ROUTES.project.rules(projectId), [projectId]);
 
-  const violations = useMemo(
-    () => (graph === null ? [] : runRoomRules(graph, ruleRegistry)),
-    [graph, ruleRegistry],
-  );
+  const violations = useMemo(() => (graph === null ? [] : runRoomRules(graph)), [graph]);
 
   /* ---------------------------------------------------------------------- */
   /* Vòng hở — GỌI LẠI M-06, kèm kích thước khe hở.                           */

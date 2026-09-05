@@ -260,7 +260,9 @@ export interface RuleRegistry {
  *
  * Registries are instances rather than one global, so a test can build the
  * exact book it wants and switching a rule off in one screen cannot leak into
- * another. The application shares one through `defaultRuleRegistry`.
+ * another. The application shares one through `defaultRuleRegistry` in
+ * `./defaults`, which is where the eight below are put in a book with the
+ * seventeen from `geometry/`, `function/` and `fitout/`.
  */
 export function createRuleRegistry(rules: readonly Rule[] = []): RuleRegistry {
   const ordered: Rule[] = [];
@@ -670,25 +672,3 @@ export const BUILT_IN_RULES: readonly Rule[] = [
   roomNamedRule,
   levelElevationRule,
 ];
-
-/** A fresh registry holding the built-in rules, all switched on. */
-export function createDefaultRuleRegistry(): RuleRegistry {
-  return createRuleRegistry(BUILT_IN_RULES);
-}
-
-let sharedRegistry: RuleRegistry | null = null;
-
-/**
- * The registry the application shares.
- *
- * One instance, because switching a rule off is a project-wide decision and the
- * status bar and the QC panel have to agree about it. Tests should build their
- * own with `createDefaultRuleRegistry` instead of switching rules off in here.
- */
-export function defaultRuleRegistry(): RuleRegistry {
-  if (sharedRegistry === null) {
-    sharedRegistry = createDefaultRuleRegistry();
-  }
-
-  return sharedRegistry;
-}
