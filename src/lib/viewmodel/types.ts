@@ -2,10 +2,11 @@
  * What a view is allowed to know about the model: nothing.
  *
  * A component in `src/components` or `src/screens` never receives a `Wall`, an
- * `Opening`, a `Room` or a `Violation`. It receives a {@link ViewModel} — six
- * fields, every one of them a string or a list of strings — and its only job is
- * to place them. That boundary buys three things the design rules ask for and
- * that no amount of care inside a component can guarantee:
+ * `Opening`, a `Room`, a `Furniture` or a `Violation`. It receives a
+ * {@link ViewModel} — six fields, every one of them a string or a list of
+ * strings — and its only job is to place them. That boundary buys three
+ * things the design rules ask for and that no amount of care inside a
+ * component can guarantee:
  *
  * - **No number reaches a view unformatted.** Every reading is already written
  *   in Vietnamese notation by `src/lib/format`, so a component has nothing left
@@ -20,9 +21,9 @@
  * - **A view is testable from props alone**, which is what invariant D asks for.
  *   A `ViewModel` is a plain object, so a story or a test writes one by hand.
  *
- * The shape is deliberately the same for all four kinds. A list mixing walls,
- * openings, rooms and violations renders through one component, and a new kind
- * costs a builder in `./toViewModel` rather than a new card.
+ * The shape is deliberately the same for all five kinds. A list mixing walls,
+ * openings, rooms, furniture and violations renders through one component, and
+ * a new kind costs a builder in `./toViewModel` rather than a new card.
  *
  * ## Field names
  *
@@ -47,7 +48,7 @@
  * lower case and sentence style, as invariant A6 requires.
  */
 
-import type { Opening, Room, Wall } from '@/domain/spatial/types';
+import type { Furniture, Opening, Room, Wall } from '@/domain/spatial/types';
 import type { Violation } from '@/domain/rules/registry';
 
 /* -------------------------------------------------------------------------- */
@@ -81,6 +82,14 @@ export const VIEW_ICON_CODES = [
   'openingDoor',
   'openingWindow',
   'room',
+  'furnitureTable',
+  'furnitureChair',
+  'furnitureBed',
+  'furnitureWardrobe',
+  'furnitureKitchenCabinet',
+  'furnitureSanitaryFixture',
+  'furnitureStair',
+  'furnitureOther',
   'violationCritical',
   'violationWarning',
   'violationSuggestion',
@@ -138,7 +147,7 @@ export interface ViewModel {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The four things `toViewModel` converts, tagged so one call site can handle a
+ * The five things `toViewModel` converts, tagged so one call site can handle a
  * mixed list.
  *
  * The domain types are imported for their shape only; the import is erased at
@@ -148,6 +157,7 @@ export type ViewModelInput =
   | { readonly kind: 'wall'; readonly wall: Wall }
   | { readonly kind: 'opening'; readonly opening: Opening }
   | { readonly kind: 'room'; readonly room: Room }
+  | { readonly kind: 'furniture'; readonly furniture: Furniture }
   | { readonly kind: 'violation'; readonly violation: Violation };
 
 /** The tag of one {@link ViewModelInput}. */

@@ -34,6 +34,7 @@
  */
 
 import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area';
+import { openingsOfRoom as openingsOfRoomOfAnyKind } from '../../spatial/roomOpenings';
 import type { BoundingBox, Opening, Point, Room, RoomUsage, Wall } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
@@ -426,9 +427,18 @@ function opensOnto(at: Point, room: Room): boolean {
   return compareNearly(distanceToOutline(at, room.outline), OPENING_ON_OUTLINE_TOLERANCE_MM) <= 0;
 }
 
-/** The openings of one kind cut into the stretch of wall that bounds a room. */
+/**
+ * The openings of one kind cut into the stretch of wall that bounds a room.
+ *
+ * Resolving `room.wallIds` against `RuleContext` into plain arrays is this
+ * function's only remaining job: the walk itself — and the "shared wall
+ * counts for both rooms" behaviour that comes with it — lives in
+ * `openingsOfRoom` of `src/domain/spatial/roomOpenings`, the one definition of
+ * that behaviour. Do not re-implement the traversal here.
+ */
 function openingsOfRoom(context: RuleContext, room: Room, kind: Opening['kind']): Opening[] {
-  const found: Opening[] = [];
+  const walls: Wall[] = [];
+  const openingIds = new Set<string>();
 
   for (const wallId of room.wallIds) {
     const wall = findEntity(context, 'wall', wallId);
@@ -437,20 +447,24 @@ function openingsOfRoom(context: RuleContext, room: Room, kind: Opening['kind'])
       continue;
     }
 
+    walls.push(wall);
+
     for (const openingId of wall.openingIds) {
-      const opening = findEntity(context, 'opening', openingId);
-
-      if (opening === null || opening.kind !== kind) {
-        continue;
-      }
-
-      if (opensOnto(openingCentre(wall, opening), room)) {
-        found.push(opening);
-      }
+      openingIds.add(openingId);
     }
   }
 
-  return found;
+  const openings: Opening[] = [];
+
+  for (const openingId of openingIds) {
+    const opening = findEntity(context, 'opening', openingId);
+
+    if (opening !== null) {
+      openings.push(opening);
+    }
+  }
+
+  return openingsOfRoomOfAnyKind(room, walls, openings).filter((opening) => opening.kind === kind);
 }
 
 /** How much leaf has to swing: half the width for a double door. */

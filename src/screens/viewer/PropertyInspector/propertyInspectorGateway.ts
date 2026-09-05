@@ -33,7 +33,7 @@
  *   và một con số suy ra không bao giờ lệch khỏi dữ liệu. Khuôn:
  *   `reviewCounterOf` (cùng file trên, dòng 727).
  *
- * ## Ba việc tầng logic CHƯA CÓ ĐƯỜNG — nói ra, không vá
+ * ## Hai việc tầng logic CHƯA CÓ ĐƯỜNG — nói ra, không vá
  *
  * 1. **Chiều cao tường và kích thước bao nội thất không ghi được.**
  *    `WALL_COMMAND_TYPES` không có lệnh đổi `heightMm`; họ `furniture.*` chỉ có
@@ -49,15 +49,15 @@
  *    lý do tiếng Việt, đúng khuôn `persistWallLayer` của
  *    `wallLayerReviewGateway.ts:250-256,362` — nút có thật và nói thật, không phải
  *    một callback rỗng.
- * 3. **`openingsOfRoom` không được export.** {@link roomOpeningCountsOf} dưới đây
- *    là bản sao HẸP của `src/domain/rules/function/index.ts:430-454`, thứ đòi
- *    nguyên một `RuleContext` nên không dùng lại được như tiện ích rời. Khi hàm đó
- *    được export, chỗ này PHẢI bị thay bằng nó.
+ *
+ * `openingsOfRoom` giờ đã được export từ `src/domain/spatial/roomOpenings.ts` —
+ * {@link roomOpeningCountsOf} dưới đây gọi thẳng nó thay vì nuôi một bản sao.
  */
 
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
+import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
 import type {
   Furniture,
   Opening,
@@ -159,25 +159,21 @@ export interface RoomOpeningCounts {
 }
 
 /**
- * Đếm cửa đi / cửa sổ của một phòng bằng cách đi theo các trường id đã có:
- * `room.wallIds` → `wall.openingIds` → `opening.kind`.
- *
- * **Đây là bản sao hẹp của `openingsOfRoom`
- * (`src/domain/rules/function/index.ts:430-454`), hàm KHÔNG được export và đòi
- * nguyên một `RuleContext`.** Khi hàm đó được export, chỗ này phải bị thay bằng
- * nó chứ không được nuôi song song.
+ * Đếm cửa đi / cửa sổ của một phòng, qua tiện ích dùng chung
+ * `openingsOfRoom`/`countOpeningsByKind` của `src/domain/spatial/roomOpenings.ts`.
  *
  * `Room` không có `doorCount`/`windowCount`/`openingIds` (hợp đồng T1 mục M7 #5),
- * nên hai con số này chỉ có thể ghép ra. Phép ghép chỉ đọc id — không đo, không
- * cắt, không suy ra hình học nào.
+ * nên hai con số này chỉ có thể ghép ra. Việc của hàm này chỉ còn là giải
+ * `room.wallIds`/`wall.openingIds` thành hai mảng phẳng từ `NormalizedSpatial`
+ * — phép đếm và phép duyệt hình học thật sự nằm trong tiện ích domain.
  *
  * **Một ô mở nằm trên tường dùng chung giữa hai phòng được đếm cho CẢ HAI phòng.**
- * Đó là hành vi đúng: cái cửa ấy đúng là cửa của cả hai phòng. Ghi ra đây để
- * người đọc sau không tưởng là lỗi trùng.
+ * Đó là hành vi đúng của `openingsOfRoom`: cái cửa ấy đúng là cửa của cả hai
+ * phòng. Ghi ra đây để người đọc sau không tưởng là lỗi trùng.
  */
 export function roomOpeningCountsOf(graph: NormalizedSpatial, room: Room): RoomOpeningCounts {
-  let doorCount = 0;
-  let windowCount = 0;
+  const walls: Wall[] = [];
+  const openingIds = new Set<Opening['id']>();
 
   for (const wallId of room.wallIds) {
     const wall = readEntity(graph, 'wall', wallId);
@@ -186,22 +182,24 @@ export function roomOpeningCountsOf(graph: NormalizedSpatial, room: Room): RoomO
       continue;
     }
 
+    walls.push(wall);
+
     for (const openingId of wall.openingIds) {
-      const opening = readEntity(graph, 'opening', openingId);
-
-      if (opening === null) {
-        continue;
-      }
-
-      if (opening.kind === 'door') {
-        doorCount += 1;
-      } else {
-        windowCount += 1;
-      }
+      openingIds.add(openingId);
     }
   }
 
-  return { doorCount, windowCount };
+  const openings: Opening[] = [];
+
+  for (const openingId of openingIds) {
+    const opening = readEntity(graph, 'opening', openingId);
+
+    if (opening !== null) {
+      openings.push(opening);
+    }
+  }
+
+  return countOpeningsByKind(openingsOfRoom(room, walls, openings));
 }
 
 /**
