@@ -2263,7 +2263,9 @@
       },
       "furniture": {
         "boundingSize": "Kích thước bao",
-        "rotation": "Góc xoay"
+        "rotation": "Góc xoay",
+        "furnitureKind": "Loại nội thất",
+        "roomId": "Phòng chứa"
       },
       "room": {
         "name": "Tên",
@@ -2286,7 +2288,9 @@
       "envelope": "Bao che"
     },
     "value": {
-      "mixed": "Giá trị khác nhau"
+      "mixed": "Giá trị khác nhau",
+      "yes": "Có",
+      "no": "Không"
     },
     "empty": {
       "message": "Chưa chọn đối tượng nào để xem thuộc tính.",
@@ -2309,7 +2313,8 @@
     },
     "collapsed": {
       "expandChip": "Mở lại thanh tra đối tượng",
-      "expandSheet": "Kéo lên để xem thuộc tính"
+      "expandSheet": "Kéo lên để xem thuộc tính",
+      "summaryLabel": "{{kind}} {{code}}"
     },
     "header": {
       "copyAsTemplate": "Lưu làm khuôn mẫu",
@@ -2319,7 +2324,8 @@
       "approve": "Duyệt",
       "skip": "Bỏ qua",
       "savedAt": "Đã lưu lúc {{time}}",
-      "lastEditedBy": "Đã sửa lúc {{time}} bởi {{name}}"
+      "lastEditedBy": "Đã sửa lúc {{time}} bởi {{name}}",
+      "approvedCount": "Đã duyệt {{count}} đối tượng"
     },
     "actions": {
       "openRuleScreen": "Xem quy tắc",
@@ -2332,7 +2338,36 @@
     "status": {
       "verified": "Đã duyệt",
       "attention": "Cần chú ý",
-      "violation": "Vi phạm"
+      "violation": "Vi phạm",
+      "neutral": "Chưa duyệt"
+    },
+    "swing": {
+      "left": "Mở trái",
+      "right": "Mở phải",
+      "double": "Hai cánh",
+      "sliding": "Trượt",
+      "fixed": "Cố định"
+    },
+    "refusal": {
+      "invalidNumber": "Chưa đọc được con số vừa nhập. Hãy nhập một giá trị bằng milimét.",
+      "readFailed": "Không đọc được lớp không gian của tầng này."
+    },
+    "inspection": {
+      "clean": "Không có vi phạm nào",
+      "noticeLabel": "Ghi chú của phần mềm"
+    },
+    "units": {
+      "degree": "độ"
+    },
+    "template": {
+      "unsupported": "Phần mềm chưa lưu được khuôn mẫu thuộc tính. Bản vẽ của bạn không có lỗi nào ở đây."
+    },
+    "autosave": {
+      "unsupported": "Chưa có đường lưu thuộc tính lên máy chủ, nên thay đổi mới chỉ nằm trên máy này."
+    },
+    "command": {
+      "changeSwing": "Đổi chiều mở ô mở {{code}}",
+      "approve": "Duyệt {{kind}} {{code}}"
     }
   }
 }

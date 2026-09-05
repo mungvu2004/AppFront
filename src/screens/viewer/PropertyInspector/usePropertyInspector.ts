@@ -111,7 +111,6 @@ import { FURNITURE_KIND_LABELS } from '@/lib/commands/business/shared';
 import type { CommandContext, CommandResult } from '@/lib/commands/business/shared';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
 import { formatNumber, formatPercent, isFormattable, MISSING_VALUE, parseNumber } from '@/lib/format/number';
-import { durationMs } from '@/lib/motion';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ViewAttribute } from '@/lib/viewmodel/types';
 import { toRoomViewModel, toWallViewModel } from '@/lib/viewmodel/toViewModel';
@@ -163,11 +162,13 @@ import {
  * Chữ của panel, chép đúng theo `propertyInspector.*` trong `src/i18n/vi.json`.
  *
  * `vi.json` là TỪ ĐIỂN KIỂM TRA của `expectVietnamese`, không phải bảng dịch lúc
- * chạy (CLAUDE.md), nên nơi thật sự tạo ra chuỗi là file này. Chuỗi nào chưa có
- * trong `vi.json` được ghi ra `hook.i18n.fragment.json` để worker cuối gộp vào —
- * hook không sửa `vi.json` (worker khác sở hữu).
+ * chạy (CLAUDE.md), nên nơi thật sự tạo ra chuỗi là file này.
+ *
+ * XUẤT KHẨU vì bài kiểm và file story của panel phải đối chiếu ĐÚNG chuỗi này
+ * chứ không gõ lại một bản thứ hai bên cạnh: một bài kiểm chép lại chữ của mã
+ * nguồn thì nó chỉ kiểm rằng hai bản chép giống nhau (R-70).
  */
-const TEXT = {
+export const PROPERTY_INSPECTOR_TEXT = {
   objectKind: OBJECT_KIND_LABELS,
   fields: {
     wall: {
@@ -256,6 +257,9 @@ const TEXT = {
     degree: 'độ',
   },
 } as const;
+
+/** Bí danh ngắn, dùng khắp phần còn lại của file. */
+const TEXT = PROPERTY_INSPECTOR_TEXT;
 
 /** Câu tóm tắt khi chọn nhiều đối tượng — mẫu `partial.selectionSummary` của T4. */
 const selectionSummaryLabel = (count: number): string => `Đang chọn ${formatNumber(count)} đối tượng`;
@@ -940,20 +944,13 @@ function commandForRow(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Những gì hook trả về: hợp đồng T4 cộng một tín hiệu chỉ view cần.
+ * Những gì hook trả về: ĐÚNG props của view, không hơn một trường nào.
  *
- * `UsePropertyInspectorResult` đúng bằng `PropertyInspectorProps` — một trường
- * `state` — và `PropertyRow` không có chỗ nào mang "dòng vừa được ghi nhận". Kiểu
- * mở rộng này là chỗ tín hiệu đó sống cho tới khi nó được nâng lên
- * `propertyInspectorTypes.ts`; docblock của chính file kiểu đã lường trước việc
- * hook thêm một trường chỉ-hook-cần.
+ * Tín hiệu "dòng vừa được ghi nhận" đã được nâng lên `propertyInspectorTypes.ts`
+ * ở bước ráp, nên `UsePropertyInspectorResult` mang đủ cả hai trường và không
+ * còn kiểu mở rộng riêng của hook nữa: container chỉ việc trải kết quả này vào
+ * view. Thời lượng nháy không đi kèm — `FieldRow` đã nháy đúng nhịp `slow`.
  */
-export interface PropertyInspectorHookResult extends UsePropertyInspectorResult {
-  /** Dòng vừa được ghi nhận, để view nháy nền đúng dòng đó; `null` khi không có. */
-  readonly recentlyCommittedRowId: string | null;
-  /** Thời lượng nháy nền, lấy từ thang chuyển động — không phải một con số của panel. */
-  readonly commitFlashDurationMs: number;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Hook.                                                                       */
@@ -968,7 +965,7 @@ export interface PropertyInspectorHookResult extends UsePropertyInspectorResult 
 export function usePropertyInspector(
   options: UsePropertyInspectorOptions,
   injectedGateway?: PropertyInspectorGateway,
-): PropertyInspectorHookResult {
+): UsePropertyInspectorResult {
   const graph = useStore((state) => state.spatial);
   const activeFloorId = useStore((state) => state.activeFloorId);
   const isPanelOpen = useStore((state) => state.rightPanelOpen);
@@ -1610,9 +1607,5 @@ export function usePropertyInspector(
     statusBadge,
   ]);
 
-  return {
-    state,
-    recentlyCommittedRowId: isFlashing ? writtenRowId : null,
-    commitFlashDurationMs: durationMs('slow'),
-  };
+  return { state, recentlyCommittedRowId: isFlashing ? writtenRowId : null };
 }

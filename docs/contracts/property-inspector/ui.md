@@ -576,3 +576,45 @@ describe('PropertyInspector', () => {
 | U5 Camera Fly | ❌ **NOT FOUND** | No public API to fly camera to object ID in 700ms. Blocking R-07. |
 | U6 Testing | ✅ Done | 6 helpers ready: expectAccessible, expectVietnamese, expectSevenStates, render, fixtures. |
 
+
+---
+
+## U7. Ghi chú ráp (T8) — bốn chỗ ba nhánh lệch nhau, và cách hàn
+
+Bốn mối hàn dưới đây được thực hiện ở bước ráp. Nguyên tắc đã dùng:
+`propertyInspectorTypes.ts` là SỰ THẬT, hai bên còn lại kéo về theo nó.
+
+| # | Chỗ lệch | Hàn thế nào |
+|---|---|---|
+| 1 | Hook trả `recentlyCommittedRowId` + `commitFlashDurationMs`, còn `PropertyInspectorProps` chỉ có `state` — container trải cả ba vào view nên hai trường kia rơi mất, và `FieldRow.flash` (thứ U3 nói là nơi `--accent-wash` được áp) không bao giờ được bật. | Nâng `recentlyCommittedRowId` lên `PropertyInspectorProps` (đúng như docblock của `UsePropertyInspectorResult` đã lường trước), luồn qua `PropertyInspectorGroups` → `PropertyInspectorRow` → `FieldRow.flash`. Bỏ `commitFlashDurationMs`: `FieldRow` đã nháy đúng nhịp `slow` (340 ms), một con số thứ hai chạy dọc props chỉ là chỗ để hai bên trôi khỏi nhau. `UsePropertyInspectorResult` giờ ĐÚNG BẰNG props. |
+| 2 | `selectedOptionValue` của view dò lựa chọn bằng `option.label === formatted`. Dòng độ dày có `formatted = "220"` (đơn vị `mm` nằm ở trường `unit`) còn nhãn lựa chọn là `"220 mm"` ⇒ không khớp ⇒ `SegmentedControl` rơi về lựa chọn đầu, và một bức tường 220 mm được vẽ thành 110 mm. | Dò theo CẢ HAI chuỗi mà dữ liệu mang: `option.value === formatted \|\| option.label === formatted`. Các dòng `select` khác (loại tường, chiều mở, công năng phòng) khớp ở vế thứ hai như cũ. |
+| 3 | Trạng thái `empty` dựng biểu tượng cỡ mặc định 24px, trong khi hợp đồng chuỗi (§2) và `PROPERTY_INSPECTOR_LAYOUT.emptyIconPx` đều nói 32px. | `<MousePointerClick size={PROPERTY_INSPECTOR_LAYOUT.emptyIconPx} />`. |
+| 4 | Panel chỉ khoá BỀ RỘNG (344px). Một bức tường có 7 dòng, một phòng có 6 ⇒ chân panel dịch một dòng mỗi lần đổi loại đối tượng, trái CẤM TUYỆT ĐỐI số 3. | Panel thành cột flex `h-full min-h-0`: đầu và chân `shrink-0`, vùng các nhóm là chỗ DUY NHẤT `flex-1 overflow-y-auto`. Khi không được cấp chiều cao, chính chiều cao panel trượt trên nhịp `standard` (260 ms) thay vì giật — `transition-[height] duration-standard motion-reduce:transition-none`. Không thêm hằng số chiều cao nào. |
+
+### Chuỗi i18n
+
+Hai file `*.i18n.fragment.json` của T5 và T6 đã được gộp vào `src/i18n/vi.json`
+(21 khoá mới, 14 khoá đã trùng khớp sẵn, 0 xung đột) và bị xoá. `TEXT` của hook
+được xuất khẩu thành `PROPERTY_INSPECTOR_TEXT` để bài kiểm và story đối chiếu
+đúng chuỗi của mã nguồn thay vì gõ lại một bản thứ hai.
+
+### Hai chỗ CHƯA CHỨNG MINH ĐƯỢC (E.10 — không báo "đạt")
+
+- **Xem trước 3D trong lúc kéo.** Bốn chỗ chặn của mục C5 vẫn nguyên. Panel phát
+  lệnh khi giá trị đứng yên hết `MERGE_WINDOW_MS`, không phát mỗi khung hình.
+- **Vị trí pixel của chân panel.** jsdom không dựng bố cục nên mọi
+  `getBoundingClientRect()` trả 0. Bằng chứng thay thế đã đo được: chân panel
+  nằm trong khối `shrink-0` ở 10/10 lượt đổi, và có đúng MỘT vùng
+  `flex-1 + overflow-y-auto` mỗi lượt.
+
+### Một chỗ CHƯA ĐẠT, nằm ngoài phạm vi sửa của bước ráp
+
+`Ctrl+Z` sau một mạch kéo không trả về hết mạch đó. Cửa sổ gộp D-06 nằm ở
+`HistoryStack` của tầng lệnh (`propertyInspectorGateway.ts:492`,
+`lib/commands/history.ts:269`), còn hành động hoàn tác của ứng dụng đọc ngăn xếp
+zundo trên store (`store/index.ts:50`, `store/commit.ts:34`,
+`hooks/useUndoableToast.ts:26`) — mỗi lượt `_applyPatches` là một bước zundo, bất
+kể tầng lệnh có gộp hay không. Đo được: hai lượt ghi cách nhau 200 ms trong cửa
+sổ 400 ms ⇒ **2** bước zundo. Ngoài ra `useGlobalShortcuts()`
+(`hooks/useShortcut.ts:172`) không được gọi ở đâu trong `src`, nên chính PHÍM
+`Ctrl+Z` cũng chưa được nối.

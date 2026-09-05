@@ -457,15 +457,28 @@ export type PropertyInspectorStateKind = PropertyInspectorState['kind'];
  */
 export interface PropertyInspectorProps {
   readonly state: PropertyInspectorState;
+  /**
+   * Dòng vừa được ghi nhận, để view nháy nền đúng dòng đó; `null` khi không có.
+   *
+   * Nâng lên đây ở bước ráp (T8) đúng như docblock của
+   * {@link UsePropertyInspectorResult} đã lường trước: hook sinh ra tín hiệu
+   * này, `FieldRow` có sẵn `flash` để tiêu thụ nó, và trước khi nâng thì hai
+   * đầu không nối được với nhau — hook trả một trường mà view không có chỗ
+   * nhận. Thời lượng nháy KHÔNG đi kèm: `FieldRow` đã nháy đúng nhịp `slow`
+   * (340 ms) của thang chuyển động, nên một con số thứ hai chạy dọc props chỉ
+   * là một chỗ nữa để hai bên trôi khỏi nhau (mục B).
+   */
+  readonly recentlyCommittedRowId?: string | null | undefined;
 }
 
 /**
  * Đúng những gì `usePropertyInspector` trả về.
  *
- * Bằng `PropertyInspectorProps` ở thời điểm này — bằng CŨNG là một superset
- * hợp lệ. Tách thành alias riêng (thay vì dùng thẳng `PropertyInspectorProps`
- * ở chữ ký hook) để chỗ hook thêm một trường chỉ-hook-cần sau này không phải
- * đổi tên kiểu tại mọi nơi gọi.
+ * Bằng `PropertyInspectorProps` — cả `state` lẫn `recentlyCommittedRowId` — nên
+ * `<PropertyInspector {...usePropertyInspector(options)} />` là một dòng đúng
+ * kiểu, không dư trường nào. Tách thành alias riêng (thay vì dùng thẳng
+ * `PropertyInspectorProps` ở chữ ký hook) để chỗ hook thêm một trường
+ * chỉ-hook-cần sau này không phải đổi tên kiểu tại mọi nơi gọi.
  */
 export type UsePropertyInspectorResult = PropertyInspectorProps;
 

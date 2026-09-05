@@ -5,13 +5,15 @@
  * no colour outside a token — every string on screen either arrived already
  * written through props (A15) or is one of the handful of literal, static
  * chrome strings this view owns outright (button labels, the empty/loading/
- * forbidden copy that no state field carries). Those are recorded verbatim in
- * `view.i18n.fragment.json` for T4 to fold into `src/i18n/vi.json`.
+ * forbidden copy that no state field carries). Those now live under the
+ * `propertyInspector` key of `src/i18n/vi.json` — the dictionary
+ * `expectVietnamese` reads — since the integration step folded this screen's
+ * two i18n fragments into it and deleted them.
  *
- * `usePropertyInspector` (T5) and `PropertyInspector.container.tsx` (a sibling
- * this file does not own) are the two places that may know where an object's
- * properties actually come from; this file is not one of them, which is what
- * `local/no-data-layer-in-view` (R-60) enforces on every import below.
+ * `usePropertyInspector` and `PropertyInspector.container.tsx` (a sibling this
+ * file does not own) are the two places that may know where an object's
+ * properties actually come from; this file is not one of them, and R-60 is
+ * checked on every import below.
  *
  * ## The seven states
  *
@@ -22,14 +24,21 @@
  *
  * ## Fixed measures, not layout that reacts to data
  *
- * CẤM TUYỆT ĐỐI số 3: the panel is a fixed 344px regardless of object kind or
- * row count — `FieldRow`'s own 36px row height and 40/60 split do the rest.
- * The one place height legitimately changes — the "Thông số nâng cao"
- * accordion — animates through `PropertyInspectorGroups.tsx` on the `slow`
- * (340ms) rung of the motion ladder, and the content below a changed
- * selection cross-fades at `fast` (180ms) via the same `@/components/motion`
- * gate every other animated component in this codebase uses, so
- * `prefers-reduced-motion` is honoured without this file asking about it.
+ * CẤM TUYỆT ĐỐI số 3: the panel is a fixed 344px wide regardless of object kind
+ * or row count, and `FieldRow`'s own 36px row height and 40/60 split hold every
+ * row to the same shape. Those two alone are not enough for the *foot* of the
+ * panel to stay put, though: a wall shows seven rows and a room six, so a panel
+ * sized by its content moves its footer by a row every time the selected kind
+ * changes. So the panel is a flex column — head and foot `shrink-0`, the group
+ * list the only thing that grows and the only thing that scrolls — and when it
+ * is given a height, the footer does not move at all. When it is not, the
+ * height itself travels on the `standard` (260ms) rung rather than snapping.
+ *
+ * The other place height changes — the "Thông số nâng cao" accordion — animates
+ * through `PropertyInspectorGroups.tsx` on the `slow` (340ms) rung, and the
+ * content below a changed selection cross-fades at `fast` (180ms) via the same
+ * `@/components/motion` gate every other animated component in this codebase
+ * uses, so `prefers-reduced-motion` is honoured without this file asking.
  *
  * U3 of `docs/contracts/property-inspector/ui.md` records two deviations from
  * the original spec, both because rule B allows only five durations and one
@@ -60,16 +69,32 @@ const FORBIDDEN_MESSAGE = 'Bạn đang xem ở vai chỉ xem nên không sửa �
 const COLLAPSED_CHIP_LABEL = 'Mở lại thanh tra đối tượng';
 const COLLAPSED_SHEET_HINT = 'Kéo lên để xem thuộc tính';
 
-const PANEL_CLASS = 'flex w-[344px] flex-col overflow-hidden rounded-xl bg-bg-surface';
+/**
+ * Panel là một CỘT FLEX cao hết khung mà nơi gọi dành cho nó.
+ *
+ * `h-full` cộng `min-h-0` là điều kiện để `flex-1` của vùng các nhóm có tác
+ * dụng: thiếu chúng, panel cao đúng bằng nội dung và chân panel trôi lên xuống
+ * mỗi lần đổi loại đối tượng (tường 7 dòng, phòng 6 dòng). `transition-[height]
+ * duration-standard` là câu trả lời cho "chiều cao panel chuyển mượt để chân
+ * panel không nhảy" của đặc tả: khi KHÔNG được cấp chiều cao, panel vẫn co giãn
+ * theo nội dung, nhưng trượt trên nhịp `standard` (260 ms) của thang chuyển
+ * động thay vì giật một nấc. Bề rộng vẫn cố định 344px bất kể loại đối tượng
+ * (CẤM TUYỆT ĐỐI số 3).
+ */
+const PANEL_CLASS =
+  'flex h-full min-h-0 w-[344px] flex-col overflow-hidden rounded-xl bg-bg-surface ' +
+  'transition-[height] duration-standard motion-reduce:transition-none';
 
 const EXPAND_BUTTON_CLASS =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function PanelContent({
   content,
+  recentlyCommittedRowId,
   forbidden = false,
 }: {
   content: PropertyInspectorPanelContent;
+  recentlyCommittedRowId: string | null;
   forbidden?: boolean;
 }): ReactNode {
   return (
@@ -80,16 +105,26 @@ function PanelContent({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: durationSeconds('fast') }}
-        className="flex flex-col"
+        className="flex min-h-0 flex-1 flex-col"
       >
-        <PropertyInspectorHeader header={content.header} thumbnails={content.thumbnails} />
-        {forbidden && (
-          <p className="px-5 pb-3 text-[13px] leading-[18px] text-text-secondary">{FORBIDDEN_MESSAGE}</p>
-        )}
-        <div className="flex-1 px-5">
-          <PropertyInspectorGroups groups={content.groups} />
+        <div className="shrink-0">
+          <PropertyInspectorHeader header={content.header} thumbnails={content.thumbnails} />
+          {forbidden && (
+            <p className="px-5 pb-3 text-[13px] leading-[18px] text-text-secondary">{FORBIDDEN_MESSAGE}</p>
+          )}
         </div>
-        <PropertyInspectorFooter footer={content.footer} />
+        {/* Vùng các nhóm là chỗ DUY NHẤT co giãn và cuộn: đầu panel và chân
+            panel đều `shrink-0`, nên số dòng đổi thì cột giữa cuộn chứ chân
+            panel không dịch. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5">
+          <PropertyInspectorGroups
+            groups={content.groups}
+            recentlyCommittedRowId={recentlyCommittedRowId}
+          />
+        </div>
+        <div className="shrink-0">
+          <PropertyInspectorFooter footer={content.footer} />
+        </div>
       </motion.div>
     </AnimatePresence>
   );
@@ -146,7 +181,10 @@ function CollapsedSheet({ summaryLabel, onExpand }: { summaryLabel: string; onEx
  * does not own) renders every one of the seven states through this component
  * directly, no store or gateway involved.
  */
-export function PropertyInspector({ state }: PropertyInspectorProps): ReactNode {
+export function PropertyInspector({
+  state,
+  recentlyCommittedRowId = null,
+}: PropertyInspectorProps): ReactNode {
   if (state.kind === 'collapsed') {
     return state.variant === 'chip' ? (
       <CollapsedChip summaryLabel={state.summaryLabel} onExpand={state.onExpand} />
@@ -159,7 +197,7 @@ export function PropertyInspector({ state }: PropertyInspectorProps): ReactNode 
     <section role="region" aria-label={REGION_LABEL} className={PANEL_CLASS}>
       {state.kind === 'empty' && (
         <EmptyState
-          icon={<MousePointerClick />}
+          icon={<MousePointerClick size={PROPERTY_INSPECTOR_LAYOUT.emptyIconPx} />}
           title={state.message}
           description={state.tabHint}
           className="p-5"
@@ -169,10 +207,12 @@ export function PropertyInspector({ state }: PropertyInspectorProps): ReactNode 
       {state.kind === 'loading' && <LoadingSkeleton />}
 
       {(state.kind === 'partial' || state.kind === 'success' || state.kind === 'error') && (
-        <PanelContent content={state} />
+        <PanelContent content={state} recentlyCommittedRowId={recentlyCommittedRowId} />
       )}
 
-      {state.kind === 'forbidden' && <PanelContent content={state} forbidden />}
+      {state.kind === 'forbidden' && (
+        <PanelContent content={state} recentlyCommittedRowId={recentlyCommittedRowId} forbidden />
+      )}
     </section>
   );
 }

@@ -41,11 +41,22 @@ function formattedValue(row: PropertyRowData): string {
   return row.value.kind === 'single' ? row.value.formatted : '';
 }
 
-/** The option whose label matches the row's formatted value — the only link between the two that the data carries. */
+/**
+ * The option the row is currently on, matched against the only two strings the
+ * data carries — the option's own `value` and its label.
+ *
+ * Both are needed, and the wall-thickness row is why. Its formatted value is
+ * `"220"` (the number alone, with `unit: "mm"` beside it), while its options are
+ * labelled `"220 mm"` and valued `"220"`: matching on the label alone leaves
+ * every thickness row with no selection at all, and `SegmentedControl` then
+ * falls back to its first option — a 220 mm wall drawn as 110 mm. Every other
+ * `select` row (wall kind, swing, room usage) carries the label as its value and
+ * matches on the second arm.
+ */
 function selectedOptionValue(row: PropertyRowData, options: readonly PropertyRowOption[]): string | undefined {
   const formatted = formattedValue(row);
 
-  return options.find((option) => option.label === formatted)?.value;
+  return options.find((option) => option.value === formatted || option.label === formatted)?.value;
 }
 
 function warningNode(row: PropertyRowData): ReactNode {
@@ -220,6 +231,8 @@ export interface PropertyInspectorRowProps {
   readonly row: PropertyRowData;
   readonly groupId: PropertyGroupId;
   readonly isLast: boolean;
+  /** Nền `--accent-wash` nháy 340 ms sau khi đúng dòng này được ghi nhận. */
+  readonly isFlashing?: boolean | undefined;
 }
 
 /**
@@ -227,10 +240,15 @@ export interface PropertyInspectorRowProps {
  * control — it always renders the dash plus the "giá trị khác nhau" hint, and
  * never a single value that would misrepresent a multi-selection.
  */
-export function PropertyInspectorRow({ row, groupId, isLast }: PropertyInspectorRowProps) {
+export function PropertyInspectorRow({
+  row,
+  groupId,
+  isLast,
+  isFlashing = false,
+}: PropertyInspectorRowProps) {
   if (row.value.kind === 'mixed') {
     return (
-      <FieldRow label={row.label} isLast={isLast} isMixed title={MIXED_HINT}>
+      <FieldRow label={row.label} isLast={isLast} isMixed flash={isFlashing} title={MIXED_HINT}>
         {null}
       </FieldRow>
     );
@@ -238,14 +256,14 @@ export function PropertyInspectorRow({ row, groupId, isLast }: PropertyInspector
 
   if (row.value.kind === 'unavailable') {
     return (
-      <FieldRow label={row.label} isLast={isLast} isReadOnly={row.isLocked}>
+      <FieldRow label={row.label} isLast={isLast} isReadOnly={row.isLocked} flash={isFlashing}>
         <span className="flex h-[36px] items-center text-[13px] text-text-muted">{row.value.caption}</span>
       </FieldRow>
     );
   }
 
   return (
-    <FieldRow label={row.label} isLast={isLast} isReadOnly={row.isLocked}>
+    <FieldRow label={row.label} isLast={isLast} isReadOnly={row.isLocked} flash={isFlashing}>
       {controlFor(row, groupId)}
     </FieldRow>
   );
