@@ -57,12 +57,24 @@
  * (`viewerShellFixture.ts`), nên `toBuildFloorInput` dựng được hình thật và
  * cảnh 3D ở dev đã có khối nhà bốn tầng — đo bằng Playwright, canvas 960×415.
  *
- * Thứ CÒN chặn là vai: mock `auth.signIn` (`src/api/__mocks__/client.ts`) trả
- * `ok(undefined)` chứ không trả payload có `roles`, nên
- * `setAuthenticatedSession` không bao giờ nhận vai, `useSession().roles` rỗng,
- * `canEdit` là `false`, và `viewer3dScene` không gắn `createPointerPicker`.
- * Hệ quả: bấm chuột trong khung nhìn KHÔNG chọn được đối tượng ở dev. Ô tìm
- * đối tượng thì chạy, vì nó đi đường khác.
+ * Thứ CÒN chặn là vai — **đã hết chặn (R1)**, và đoạn trên là bản ghi của lần
+ * đo trước. Hai chỗ đứt, không phải một:
+ *
+ * 1. **Không nơi nào trong `src` gọi `configureAuth()`.** `setAuthenticatedSession`
+ *    chỉ có đúng một người gọi (`lib/auth/refresh.ts`), và người ấy chạy trong
+ *    `bootstrapSession()`, thứ ném ngay khi tầng phiên chưa được cấu hình. Nên
+ *    chuỗi `signIn → bootstrapSession → roles` đứt ở mắt đầu tiên, cho cả bản
+ *    thật lẫn bản mock. `AuthScreen.container.tsx` nay cấu hình tầng phiên ngay
+ *    trước lượt post, và dưới `VITE_USE_MOCK_API` nó đưa vào một chuyến đi giả
+ *    (`createMockAuthTransport`) để lượt gia hạn có người trả lời.
+ * 2. **Khối `sr-only` của `Viewer3D.tsx` nuốt cú bấm.** Ngay cả khi `canEdit`
+ *    đúng và `createPointerPicker` đã gắn, khối phủ kín khung nhìn ở trạng thái
+ *    `success` nằm SAU `<canvas>` trong DOM nên đứng trên nó khi dò trúng đích.
+ *    `pointer-events-none` gỡ chỗ ấy.
+ *
+ * Cả hai đều đo bằng trình duyệt thật, và `e2e/viewer3d.spec.ts` giữ hai bài
+ * chứng minh: vai kỹ sư thì bấm chọn được một đối tượng, vai chỉ-xem thì cùng
+ * cú bấm ấy không chọn gì.
  *
  * Ghi ra đây để người sau không phải dò lại (E.10).
  *

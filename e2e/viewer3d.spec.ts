@@ -69,12 +69,19 @@ import { ROUTE_PATTERNS } from '../src/routes/paths';
  *   `toBuildFloorInput` dựng được hình thật: **cảnh 3D ở dev đã có khối nhà bốn
  *   tầng**, canvas 960×415 chứ không còn 300×150.
  * - **Lý do 2 — KHÔNG đổi.** Bảy màn QC vẫn đọc vòng tròn.
- * - **Lý do 3 — KHÔNG đổi.** Vai vẫn là `[]` (mock `auth.signIn` trả
- *   `ok(undefined)`, không payload nào mang `roles`), `canEdit` vẫn `false`,
- *   nên `viewer3dScene.ts` vẫn KHÔNG gắn `createPointerPicker` và **bấm chuột
- *   vào khung nhìn vẫn không chọn được gì**. Bài dưới đây đi đường khác — ô
- *   tìm — nên nó không chứng minh và không được đọc là đã chứng minh việc
- *   bấm-để-chọn trong cảnh 3D.
+ * - **Lý do 3 — ĐÃ LẤP (R1).** Đoạn dưới đây là bản ghi lúc Q2 và được giữ
+ *   nguyên chữ: *"Vai vẫn là `[]` … nên `viewer3dScene.ts` vẫn KHÔNG gắn
+ *   `createPointerPicker` và bấm chuột vào khung nhìn vẫn không chọn được
+ *   gì"*. Điều ấy nay không còn đúng, và hai bài cuối file là bằng chứng.
+ *   Hai chỗ đứt, cả hai đã sửa và cả hai đều đo được bằng trình duyệt thật:
+ *   **(a)** không nơi nào trong `src` gọi `configureAuth()`, nên
+ *   `bootstrapSession()` — cửa DUY NHẤT đặt `roles` vào phiên — không chạy nổi
+ *   sau lượt đăng nhập; **(b)** ngay cả khi vai đã đúng, khối `sr-only` phủ kín
+ *   khung nhìn của `Viewer3D.tsx` nằm SAU `<canvas>` trong DOM nên nuốt sạch cú
+ *   bấm — `document.elementFromPoint` giữa khung trả về khối ấy chứ không trả
+ *   về canvas. `pointer-events-none` gỡ nửa sau.
+ *   Bài "tìm một phòng" ngay dưới vẫn đi đường khác — ô tìm — nên nó vẫn không
+ *   phải là bằng chứng của việc bấm-để-chọn; bằng chứng ấy nằm ở bài R1.
  * - **Lý do 4 — đã lấp.** Tên phòng đọc được ở ô tìm, và tên phòng vừa chọn
  *   hiện ra ở panel thanh tra bên phải — thứ bài dưới đây khẳng định, vì nó nằm
  *   NGOÀI ô tìm và do đó không phải là ô tìm tự đọc lại chính mình. Mã bộ mẫu
@@ -136,6 +143,83 @@ const ROOM_NAME = 'Phòng ngủ 4';
 
 /** Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. */
 const ROOM_ID = 'R-011';
+
+/* -------------------------------------------------------------------------- */
+/* Phiên: vai thật, qua đúng cửa đăng nhập của sản phẩm.                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Vai mà máy chủ giả cấp cho lượt đăng nhập của bài này.
+ *
+ * `engineer` là vai `permissionMatrix` bật `layer.edit`, và `layer.edit` CHÍNH
+ * LÀ thứ `useViewer3D` hỏi để tính `canEdit`. Không có nó thì
+ * `viewer3dScene.ts` không gắn `createPointerPicker` và cú bấm dưới đây rơi vào
+ * hư không — đúng lỗi bài này sinh ra để chặn.
+ */
+const SIGNED_IN_ROLES = ['engineer'] as const;
+
+/** Bao lâu thì token hết hạn. Đủ dài để không lượt gia hạn nào chen vào giữa bài. */
+const SESSION_TTL_SECONDS = 3600;
+
+/** Địa chỉ và mật khẩu gõ vào biểu mẫu — máy chủ giả nhận mọi thứ, nên chỉ cần hợp lệ về hình dạng. */
+const SIGN_IN_EMAIL = 'engineer@example.com';
+const SIGN_IN_PASSWORD = 'matkhau-du-dai';
+
+/** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
+const EMAIL_LABEL = 'Thư điện tử';
+const PASSWORD_LABEL = 'Mật khẩu';
+const SIGN_IN_LABEL = 'Đăng nhập';
+
+/**
+ * Đăng nhập THẬT rồi đi tiếp tới màn 3D, với hai lượt gọi mạng do bài kiểm trả lời.
+ *
+ * Bài này KHÔNG tự đặt phiên vào trang. Nó chạy đúng chuỗi của sản phẩm —
+ * `POST /auth/login` → `bootstrapSession()` → `POST /auth/refresh` →
+ * `setAuthenticatedSession({ roles })` → `useSession().roles` — và chỉ thay hai
+ * chuyến đi ngoài cùng, vì máy dựng của dev không có máy chủ nào sau lưng.
+ * Chặn ở tầng trình duyệt (`page.route`) chứ không ở tầng ứng dụng: mọi mắt
+ * xích trong `src` vẫn là mắt xích thật, kể cả `configureAuth()` và bộ phân
+ * tích thân trả lời của `src/lib/auth/refresh.ts`.
+ *
+ * `?next=` là đường quay lại mà chính màn đăng nhập khai (`safeDestination`),
+ * nên sau lượt đăng nhập trình duyệt tự sang màn 3D — không `goto` lần hai,
+ * tức phiên vừa mở không bị một lượt tải trang xoá mất.
+ */
+async function signInThenOpenViewer(
+  page: Page,
+  roles: readonly string[] = SIGNED_IN_ROLES,
+): Promise<void> {
+  await page.route('**/auth/login', async (route) => {
+    await route.fulfill({ body: '{}', contentType: 'application/json', status: 200 });
+  });
+
+  await page.route('**/auth/refresh', async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        accessToken: 'e2e-access-token',
+        expiresIn: SESSION_TTL_SECONDS,
+        roles,
+        user: {
+          email: SIGN_IN_EMAIL,
+          id: 'user-2',
+          name: 'Engineer',
+          roles,
+        },
+      }),
+      contentType: 'application/json',
+      status: 200,
+    });
+  });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(VIEWER_PATH)}`);
+
+  await page.getByLabel(EMAIL_LABEL).fill(SIGN_IN_EMAIL);
+  await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
+  await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
+
+  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+}
 
 /** Mỗi bước kéo đi ngang bấy nhiêu pixel. */
 const DRAG_STEP_X_PX = 15;
@@ -392,4 +476,74 @@ test('tìm được một phòng chỉ bằng thứ nhìn thấy trên màn (Q2)
   await openViewer(page);
 
   await timed('tìm một phòng', () => findOneRoom(page));
+});
+
+/**
+ * R1 — **bấm chuột vào khung nhìn 3D và chọn được một đối tượng.**
+ *
+ * Đây là việc mà bốn lượt trước KHÔNG chứng minh được, và lý do luôn là một:
+ * vai của phiên rỗng nên `canEdit` sai nên `viewer3dScene.ts` không gắn
+ * `createPointerPicker`. Bài này đi qua cửa đăng nhập thật để vai chảy tới màn,
+ * rồi bấm — `click()` thường, không `force: true`.
+ *
+ * Bằng chứng nằm ở panel thanh tra bên phải, tức NGOÀI khung nhìn: nó dựng từ
+ * kho chọn dùng chung, nên tên và mã hiện ở đó nghĩa là cú bấm đã chạy trọn
+ * đường `tia → entityId → selectionSlice → viewmodel`. Trước cú bấm panel nói
+ * "Chưa chọn đối tượng"; sau cú bấm câu ấy phải biến mất, và chỗ nó vừa đứng
+ * phải là một đối tượng có mã đọc được.
+ *
+ * Bấm hơi chếch khỏi tâm: tâm khung nhìn là chỗ trục tách tầng đi qua, nên một
+ * điểm lệch xuống dưới rơi vào thân khối nhà chứ không vào khe giữa hai tầng.
+ */
+test('bấm chuột trong khung nhìn chọn được một đối tượng (R1)', async ({ page }) => {
+  await signInThenOpenViewer(page);
+
+  const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
+  const inspector = page.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+
+  /* Vai đã chảy tới màn: vai Người xem thì panel dựng dải "Chỉ xem" thay vì để
+     chọn — không thấy dải ấy nghĩa là quyền đã đúng. */
+  await expect(inspector).not.toContainText('Chỉ xem');
+  await expect(inspector).toContainText('Chưa chọn đối tượng');
+
+  const box = await viewport.boundingBox();
+  expect(box).not.toBeNull();
+
+  await timed('bấm để chọn', async () => {
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height * 0.62);
+
+    /* Panel đổi hẳn nội dung: không còn câu "chưa chọn", và có một mã đối
+       tượng thật của đồ thị không gian. */
+    await expect(inspector).not.toContainText('Chưa chọn đối tượng');
+    await expect(inspector).toContainText(/(phòng|tường) [A-Z]-[A-Z0-9]+/u);
+    await expect(inspector).toContainText('mã đối tượng');
+  });
+});
+
+/**
+ * Nửa còn lại của cùng một mắt xích: **vai chỉ-xem thì cú bấm ấy KHÔNG chọn gì.**
+ *
+ * Bài trên chứng minh vai chảy tới màn; bài này chứng minh nó chảy tới đúng chỗ
+ * và mang đúng nghĩa. Cùng một cú bấm, cùng một toạ độ, chỉ khác vai mà máy chủ
+ * trả về — `can('edit', 'layer')` sai cho `viewer`, nên `canEdit` sai,
+ * `viewer3dScene.ts` không gắn bộ bắt tia, và panel vẫn nói "Chưa chọn đối
+ * tượng". Không có bài này thì "vai đã chảy" chỉ là một câu nói: một màn cho ai
+ * cũng chọn được cũng sẽ làm bài trên xanh.
+ */
+test('vai chỉ-xem: cùng cú bấm ấy không chọn được gì (A11 · nhánh không có quyền)', async ({
+  page,
+}) => {
+  await signInThenOpenViewer(page, ['viewer']);
+
+  const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
+  const inspector = page.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+
+  await expect(inspector).toContainText('Chỉ xem');
+
+  const box = await viewport.boundingBox();
+  expect(box).not.toBeNull();
+
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height * 0.62);
+
+  await expect(inspector).toContainText('Chưa chọn đối tượng');
 });

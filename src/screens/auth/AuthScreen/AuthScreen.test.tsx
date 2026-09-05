@@ -12,7 +12,7 @@ import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import { AuthScreen, AuthScreenView, type AuthScreenViewProps } from './AuthScreen';
-import { AuthRoute } from './AuthScreen.container';
+import { AuthRoute, createHttpAuthGateway } from './AuthScreen.container';
 import { LOCKOUT_SECONDS, MIN_PASSWORD_LENGTH, type AuthGateway } from './useAuthScreen';
 
 const AUTH_MESSAGES = viMessages.auth;
@@ -707,5 +707,73 @@ describe('AuthScreen — layer boundaries', () => {
 
     expect(view).not.toMatch(/@\/api/);
     expect(view).not.toMatch(/@\/store/);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* R1 — the session the gateway is worth nothing without.                      */
+/* -------------------------------------------------------------------------- */
+
+describe('createHttpAuthGateway — vai chảy được sau lượt đăng nhập', () => {
+  /**
+   * Mắt xích đã đứt, và bài này là chỗ nó gãy lại nếu ai gỡ.
+   *
+   * `setAuthenticatedSession` chỉ có đúng một người gọi trong `src`
+   * (`lib/auth/refresh.ts`), người ấy chạy trong `bootstrapSession()`, và
+   * `bootstrapSession()` ném ngay khi `configureAuth()` chưa chạy — mà trước
+   * lượt này KHÔNG nơi nào trong `src` gọi `configureAuth()`. Nên `roles` không
+   * bao giờ tới được phiên, `useSession().roles` rỗng ở mọi màn, `canEdit` sai,
+   * và bấm chuột trong khung nhìn 3D không chọn được gì.
+   *
+   * Không có máy chủ nào ở đây: bộ mẫu vừa trả lời lượt post vừa trả lời lượt
+   * gia hạn, đúng cặp mà `VITE_USE_MOCK_API` dựng ở `pnpm dev`. Thứ được kiểm
+   * là chuỗi, không phải bộ mẫu.
+   */
+  const signInWithMockSession = async (email: string) => {
+    const { createMockApiClient, createMockAuthTransport } = await import('@/api/__mocks__/client');
+    const { __resetAuthForTests, getSession } = await import('@/lib/auth');
+
+    __resetAuthForTests();
+
+    const gateway = createHttpAuthGateway(createMockApiClient(), createMockAuthTransport());
+    const result = await gateway.signIn({ email, password: 'matkhau-du-dai', rememberMe: false });
+
+    return { result, session: getSession() };
+  };
+
+  it('mở phiên thật và mang vai về, thay vì trả ok rồi bỏ mặc phiên rỗng', async () => {
+    const { result, session } = await signInWithMockSession('nguoi-la@example.com');
+
+    expect(result.ok).toBe(true);
+    expect(session.status).toBe('authenticated');
+    expect(session.roles).toEqual(['engineer']);
+  });
+
+  it('cấp vai chỉ-xem cho địa chỉ chỉ-xem, nên nhánh không-có-quyền của A11 vẫn chạy ra được', async () => {
+    const { session } = await signInWithMockSession('viewer@example.com');
+
+    expect(session.roles).toEqual(['viewer']);
+  });
+
+  it('trả về thất bại chứ không mở phiên khi lượt post bị từ chối', async () => {
+    const { __resetAuthForTests, getSession } = await import('@/lib/auth');
+
+    __resetAuthForTests();
+
+    const refused: AuthGateway = createHttpAuthGateway({
+      auth: {
+        register: async () => ({ ok: false, error: { status: 401 } }),
+        signIn: async () => ({ ok: false, error: { status: 401 } }),
+      },
+    } as unknown as Parameters<typeof createHttpAuthGateway>[0]);
+
+    const result = await refused.signIn({
+      email: 'nguoi-la@example.com',
+      password: 'matkhau-du-dai',
+      rememberMe: false,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(getSession().status).not.toBe('authenticated');
   });
 });

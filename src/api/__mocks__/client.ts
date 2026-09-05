@@ -1,6 +1,7 @@
 import { SAMPLE_BUILDING, SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
+import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type {
   ApiClient,
@@ -101,6 +102,9 @@ const buildProject = (): Project => {
     members: [
       { email: 'admin@example.com', id: 'user-1', name: 'Admin', role: 'admin' },
       { email: 'engineer@example.com', id: 'user-2', name: 'Engineer', role: 'engineer' },
+      // Vai chỉ-xem có mặt để nhánh "không có quyền" của A11 CHẠY ĐƯỢC ở dev:
+      // đăng nhập bằng địa chỉ này là cách quan sát nó, không phải một cờ.
+      { email: 'viewer@example.com', id: 'user-3', name: 'Viewer', role: 'viewer' },
     ],
     name: building.name,
     progress: makeProgress({ id: 'ai-1', progressPercent: 100, status: 'completed' }),
@@ -239,6 +243,111 @@ const applyProjectBody = (project: Project, body: Partial<ProjectWriteBody>): Pr
   ...(body.status !== undefined ? { status: body.status } : {}),
 });
 
+/* -------------------------------------------------------------------------- */
+/* Phiên: vai của người vừa đăng nhập.                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Vai của một địa chỉ chưa có trong danh sách thành viên của bộ mẫu.
+ *
+ * `engineer` chứ không phải `viewer`, và đó là một lựa chọn có hệ quả: vai này
+ * là thứ `pnpm dev` chạy vào khi gõ đại một địa chỉ, nên nó phải là vai LÀM
+ * ĐƯỢC VIỆC — `layer.edit` bật, `canEdit` đúng, `viewer3dScene` gắn được bộ
+ * bắt tia và bấm chuột trong khung nhìn chọn được đối tượng. Nhánh "không có
+ * quyền" của A11 không mất đi vì thế: đăng nhập bằng `viewer@example.com` (một
+ * thành viên THẬT của bộ mẫu, xem `buildProject`) cho đúng `['viewer']`, và
+ * `useViewer3D` chuyển sang trạng thái `forbidden`. Hai nhánh, hai địa chỉ,
+ * không cờ môi trường nào ở giữa.
+ */
+const MOCK_FALLBACK_ROLES: readonly ProjectRole[] = ['engineer'];
+
+/** Bao lâu thì token của bộ mẫu hết hạn — đủ dài để không lượt gia hạn nào chen vào một bài kiểm. */
+const MOCK_SESSION_TTL_SECONDS = 3600;
+
+/**
+ * Địa chỉ của lượt đăng nhập gần nhất, ở cấp module chứ không trong closure của
+ * `createMockApiClient()`.
+ *
+ * Một trang chỉ có MỘT phiên, còn `createMockApiClient()` thì mỗi nơi gọi dựng
+ * một bản. Giữ ở closure nghĩa là lượt `signIn` của màn đăng nhập và lượt gia
+ * hạn mà `bootstrapSession()` chạy sau đó đọc hai ô nhớ khác nhau, và vai lại
+ * rơi mất đúng chỗ nó vừa được đặt.
+ */
+let lastSignedInEmail: string | null = null;
+
+/** Thành viên của bộ mẫu mang địa chỉ này, nếu có. */
+const roleOfEmail = (email: string | null): readonly ProjectRole[] => {
+  if (email === null) {
+    return MOCK_FALLBACK_ROLES;
+  }
+
+  const member = buildProject().members.find(
+    (candidate) => candidate.email?.toLowerCase() === email.trim().toLowerCase(),
+  );
+
+  return member === undefined ? MOCK_FALLBACK_ROLES : [member.role];
+};
+
+/**
+ * Thân của một lượt `POST /auth/refresh` do bộ mẫu trả lời.
+ *
+ * Đúng hình dạng `defaultParseRefreshResponse` (`src/lib/auth/refresh.ts`) đọc
+ * được: `expiresIn` tính bằng giây, `roles` ở gốc, `user` mang lại chính vai ấy.
+ */
+const makeRefreshPayload = (): Record<string, unknown> => {
+  const email = lastSignedInEmail;
+  const roles = roleOfEmail(email);
+  const member = buildProject().members.find(
+    (candidate) => candidate.email?.toLowerCase() === email?.trim().toLowerCase(),
+  );
+
+  return {
+    accessToken: 'mock-access-token',
+    expiresIn: MOCK_SESSION_TTL_SECONDS,
+    roles,
+    user: {
+      email: email ?? 'nguoi-dung@example.com',
+      id: member?.id ?? 'user-mock',
+      name: member?.name ?? 'Người dùng thử',
+      roles,
+    },
+  };
+};
+
+/**
+ * Chuyến đi mà `configureAuth({ fetchImpl })` cần, khi sau lưng không có máy chủ nào.
+ *
+ * Đây KHÔNG phải một đường đăng nhập thứ hai. `src/lib/auth` chỉ nhận phiên qua
+ * đúng một cửa — `bootstrapSession()` gọi `POST /auth/refresh` rồi đưa thân trả
+ * lời cho `setAuthenticatedSession` — và `ConfigureAuthOptions.fetchImpl` là chỗ
+ * tiêm mà chính cửa ấy khai ra cho một máy chủ giả. Hàm dưới đây chỉ trả lời
+ * đúng lượt gia hạn; mọi đường khác nhận `204`, vì bộ mẫu không mô phỏng thêm
+ * hành vi nào của máy chủ (`/auth/logout` là lượt duy nhất còn lại đi qua đây).
+ */
+export const createMockAuthTransport =
+  () =>
+  async (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+    void init;
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (!url.includes('/auth/refresh')) {
+      return new Response(null, { status: 204 });
+    }
+
+    return new Response(JSON.stringify(makeRefreshPayload()), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    });
+  };
+
+/** Vai mà bộ mẫu cấp cho một địa chỉ — xuất ra để bài kiểm khỏi chép lại bảng. */
+export const mockRolesForEmail = (email: string): readonly ProjectRole[] => roleOfEmail(email);
+
+/** Quên lượt đăng nhập gần nhất. Bài kiểm gọi giữa hai ca để không rò vai sang nhau. */
+export const resetMockAuthSession = (): void => {
+  lastSignedInEmail = null;
+};
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -279,10 +388,23 @@ export const createMockApiClient = (): ApiClient => {
      * gateway port instead — see `AuthScreen.test.tsx`. `undefined` rather than
      * a token because the real client returns none either: the session arrives
      * through `bootstrapSession()`, not through this response.
+     *
+     * Cái GHI LẠI địa chỉ vừa gửi là phần mới, và nó không đổi hình dạng trả về
+     * một chút nào — `ApiResult<void>` vẫn là `ApiResult<void>`. Vai không thể
+     * đi ra bằng đường này: `AuthApi.signIn` khai `void`, đúng vì máy chủ thật
+     * cũng không trả vai ở đây. Vai đi ra ở lượt gia hạn ngay sau đó, và
+     * {@link createMockAuthTransport} là bên trả lời lượt ấy — nó đọc đúng địa
+     * chỉ ghi ở đây để biết cấp vai nào.
      */
     auth: {
-      register: async () => ok(undefined),
-      signIn: async () => ok(undefined),
+      register: async ({ body }) => {
+        lastSignedInEmail = body.email;
+        return ok(undefined);
+      },
+      signIn: async ({ body }) => {
+        lastSignedInEmail = body.email;
+        return ok(undefined);
+      },
     },
     drawings: {
       complete: async ({ body, projectId }) => {

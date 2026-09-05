@@ -240,14 +240,23 @@ export function Viewer3D(props: Viewer3DProps) {
         />
       )}
 
+      {/* `pointer-events-none` KHÔNG phải chuyện gọn gàng — thiếu nó thì bấm
+          chuột trong khung nhìn không chọn được gì, và đã đo bằng trình duyệt
+          thật: hai khối dưới đây phủ kín khung nhìn, nằm SAU `<canvas>` trong
+          DOM nên đứng trên nó khi dò trúng đích, và `document.elementFromPoint`
+          ở giữa khung trả về đúng chúng chứ không trả về canvas. Bộ bắt tia gắn
+          listener trên chính canvas (`viewer3dScene.ts`), nên cú bấm không bao
+          giờ tới nơi. Cả hai khối chỉ chứa một câu cho trình đọc màn hình —
+          chúng không có gì để nhận chuột. Quay và thu phóng vẫn chạy vì listener
+          của chúng ở trên `<main>` và ăn theo bọt sự kiện. */}
       {(state === 'success' || state === 'collapsed') && !isErrorLike && (
-        <div className="relative flex h-full w-full items-center justify-center">
+        <div className="pointer-events-none relative flex h-full w-full items-center justify-center">
           <span className="sr-only">Mô hình 3D đã dựng xong.</span>
         </div>
       )}
 
       {state === 'forbidden' && !isErrorLike && (
-        <div className="relative flex h-full w-full items-center justify-center">
+        <div className="pointer-events-none relative flex h-full w-full items-center justify-center">
           <span className="sr-only">
             Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.
           </span>

@@ -46,12 +46,21 @@
  * `src/api/__mocks__/client.ts`, which accepts any credentials — see
  * `src/api/appClient.ts`, the one place that decision and the API's base URL
  * are resolved, for why it cannot reach a production build.
+ *
+ * Dưới cờ ấy, lượt gia hạn cũng do bộ mẫu trả lời:
+ * `createMockAuthTransport()` được đưa vào `configureAuth({ fetchImpl })`, nên
+ * `bootstrapSession()` chạy trọn vẹn và phiên mở ra THẬT — có `accessToken`,
+ * có `roles`. Đây không phải một đường đăng nhập thứ hai: cùng `withSession`,
+ * cùng thứ tự, chỉ khác chuyến đi. Vai cấp theo địa chỉ đã gõ
+ * (`viewer@example.com` → chỉ-xem, còn lại → kỹ sư), nên cả hai nhánh quyền
+ * của A11 quan sát được mà không cần cờ thứ hai.
  */
 
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createAppApiClient, resolveUseMockApi } from '@/api/appClient';
+import { createMockAuthTransport } from '@/api/__mocks__/client';
+import { createAppApiClient, resolveApiBaseUrl, resolveUseMockApi } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
 import type { RegisterInput, SignInInput } from '@/api/schemas';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -60,7 +69,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { bootstrapSession } from '@/lib/auth';
+import { bootstrapSession, configureAuth, type ConfigureAuthOptions } from '@/lib/auth';
 import type { Result } from '@/lib/http';
 import { ROUTES } from '@/routes/paths';
 
@@ -122,33 +131,49 @@ async function withSession(posted: Result<void, unknown>): Promise<Result<void, 
  * token to attach either. So the auth wrapper is used for its configuration
  * probe and nothing else, and the request itself goes over the ordinary client.
  */
-export function createHttpAuthGateway(client: ApiClient): AuthGateway {
+export function createHttpAuthGateway(client: ApiClient, transport?: SessionTransport): AuthGateway {
   return {
-    register: async (input: RegisterInput, signal?: AbortSignal): Promise<Result<void, unknown>> =>
-      withSession(await client.auth.register({ body: input, ...(signal !== undefined ? { signal } : {}) })),
-    signIn: async (input: SignInInput, signal?: AbortSignal): Promise<Result<void, unknown>> =>
-      withSession(await client.auth.signIn({ body: input, ...(signal !== undefined ? { signal } : {}) })),
+    register: async (input: RegisterInput, signal?: AbortSignal): Promise<Result<void, unknown>> => {
+      configureSessionOnce(transport);
+
+      return withSession(await client.auth.register({ body: input, ...(signal !== undefined ? { signal } : {}) }));
+    },
+    signIn: async (input: SignInInput, signal?: AbortSignal): Promise<Result<void, unknown>> => {
+      configureSessionOnce(transport);
+
+      return withSession(await client.auth.signIn({ body: input, ...(signal !== undefined ? { signal } : {}) }));
+    },
   };
 }
 
+/** Chuyến đi mà lượt gia hạn dùng; vắng mặt nghĩa là `globalThis.fetch`. */
+type SessionTransport = NonNullable<ConfigureAuthOptions['fetchImpl']>;
+
 /**
- * The mock client's two auth calls, without `withSession`.
+ * Cấu hình tầng phiên, đúng một lần, ngay TRƯỚC lượt gọi đầu tiên cần tới nó.
  *
- * `bootstrapSession()` needs a real `POST /auth/refresh` reply, and there is no
- * server behind the mock client to answer it — faking a session lifecycle is a
- * bigger thing than `VITE_USE_MOCK_API` (see `src/api/appClient.ts`) is for.
- * Under it `/login` exercises the form and its seven states with any typed
- * credentials accepted (see the mock client's own doc comment); it does not
- * start a session, so whatever `onAuthenticated` navigates to should not
- * assume one either.
+ * `bootstrapSession()` ném khi `configureAuth()` chưa chạy, và trước lượt này
+ * **không nơi nào trong `src` gọi `configureAuth()`** — nên mắt xích
+ * `signIn → bootstrapSession → setAuthenticatedSession → useSession().roles`
+ * đứt ngay ở đầu, và mọi màn đọc vai đều thấy `[]`. Đó là nửa đầu của lỗi "bấm
+ * chuột trong khung nhìn 3D không chọn được gì".
+ *
+ * Lười chứ không phải lúc dựng gateway, và có lý do đo được: `AuthRoute` phải
+ * vẽ được biểu mẫu KỂ CẢ khi chưa ai cấu hình auth — đó là một hồi quy đã ghi
+ * trong `AuthScreen.test.tsx`. Gọi lúc render sẽ biến tiền đề của bài kiểm ấy
+ * thành sai; gọi ngay trước lượt post thì không đụng vào nó.
+ *
+ * Gọi lại ở mỗi lượt post chứ không nhớ bằng một cờ ở cấp module:
+ * `configureAuth()` chỉ ghi đè cấu hình và đăng ký lại đúng một người nghe kênh
+ * phát (nó gỡ người cũ trước), còn một cờ thì nói dối ngay sau
+ * `__resetAuthForTests()` — bảo là đã cấu hình trong khi tầng phiên vừa quên
+ * sạch.
  */
-function createMockAuthGateway(client: ApiClient): AuthGateway {
-  return {
-    register: async (input: RegisterInput): Promise<Result<void, unknown>> =>
-      client.auth.register({ body: input }),
-    signIn: async (input: SignInInput): Promise<Result<void, unknown>> =>
-      client.auth.signIn({ body: input }),
-  };
+function configureSessionOnce(transport?: SessionTransport): void {
+  configureAuth({
+    baseUrl: resolveApiBaseUrl(),
+    ...(transport === undefined ? {} : { fetchImpl: transport }),
+  });
 }
 
 /**
@@ -173,7 +198,15 @@ function useAuthGateway(): AuthGateway {
   return useMemo(() => {
     const client = createAppApiClient();
 
-    return resolveUseMockApi() ? createMockAuthGateway(client) : createHttpAuthGateway(client);
+    // MỘT đường, hai chuyến đi. Dưới `VITE_USE_MOCK_API` cả lượt post lẫn lượt
+    // gia hạn đều do bộ mẫu trả lời, nhưng thứ tự vẫn y hệt bản thật:
+    // `signIn` → `bootstrapSession()` → `setAuthenticatedSession({ roles })`.
+    // Trước đây nhánh mock đi vòng qua `withSession` và vì thế KHÔNG bao giờ
+    // mở phiên, nên `useSession().roles` rỗng suốt ở dev.
+    return createHttpAuthGateway(
+      client,
+      resolveUseMockApi() ? createMockAuthTransport() : undefined,
+    );
   }, []);
 }
 

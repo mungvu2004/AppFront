@@ -280,3 +280,36 @@ describe('[Q2] ô tìm đối tượng', () => {
     expectVietnamese(container);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* [V5-R1] Không lớp nào đứng chắn trước canvas.                               */
+/* -------------------------------------------------------------------------- */
+
+describe('[V5-R1] cú bấm phải tới được canvas', () => {
+  /**
+   * Một hồi quy đã đo bằng trình duyệt thật, không phải một lo xa.
+   *
+   * Ở trạng thái `success` view vẽ một khối phủ kín khung nhìn chỉ để mang một
+   * câu cho trình đọc màn hình. Khối ấy nằm SAU `<canvas>` trong DOM nên đứng
+   * trên nó khi dò trúng đích, và bộ bắt tia gắn listener trên chính canvas —
+   * nên mọi cú bấm rơi vào khối chữ và không đối tượng nào được chọn.
+   * `document.elementFromPoint` giữa khung trả về đúng khối ấy trước khi có
+   * `pointer-events-none`, và trả về canvas sau khi có.
+   */
+  it.each(['success', 'forbidden'] as const)(
+    'không nhận chuột ở lớp chữ phủ khung nhìn — trạng thái %s',
+    (state) => {
+      const { container } = render(<Viewer3D {...scenarioPropsFor(state)} />);
+
+      const overlays = Array.from(container.querySelectorAll('div')).filter((element) =>
+        element.querySelector(':scope > .sr-only') !== null,
+      );
+
+      expect(overlays.length).toBeGreaterThan(0);
+
+      for (const overlay of overlays) {
+        expect(overlay.className).toContain('pointer-events-none');
+      }
+    },
+  );
+});
