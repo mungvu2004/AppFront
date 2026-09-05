@@ -91,7 +91,15 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - run: pnpm install
+      # `playwright.config.ts` khai `channel: 'chrome'` — Google Chrome THẬT, không
+      # phải Chromium đóng gói. `playwright install --with-deps` KHÔNG cài Chrome:
+      # nó chỉ cài chromium/firefox/webkit của Playwright. Thiếu dòng dưới thì mọi
+      # bài e2e chết ngay lúc mở trình duyệt với "Chromium distribution 'chrome' is
+      # not found at /opt/google/chrome/chrome" — TRƯỚC khi so bất kỳ ảnh nào, nên
+      # bước đẩy artifact bên dưới cũng không có ảnh linux nào để đẩy.
+      # Đã dựng lại lỗi này trong ảnh mcr.microsoft.com/playwright:v1.45.2-jammy.
       - run: npx playwright install --with-deps
+      - run: npx playwright install chrome
       # `pnpm e2e` SO SÁNH ảnh chuẩn. `pnpm e2e:visual` thì KHÔNG — nó chạy với
       # `--update-snapshots`, tức ghi đè ảnh chuẩn rồi báo đạt. Job này từng gọi
       # lệnh đó, nên nó hiển thị dấu tích mà không kiểm gì: đúng thứ mục E.10 của

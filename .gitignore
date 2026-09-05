@@ -90,3 +90,6 @@ public/draco/
 # Mô hình .glb CC0, tải và xử lý bằng `node scripts/fetch-models.mjs` —
 # repo không chứa binary; thiếu file thì món thủ tục tự thay
 public/models/
+
+# Kho pnpm cuc bo sinh ra khi cai dat trong container linux
+.pnpm-store/
