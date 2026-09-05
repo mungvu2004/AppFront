@@ -12,6 +12,7 @@ import { ROUTES } from '@/routes/paths';
 import type { ViewerSceneFrame, ViewerScreenState } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { Viewer3D } from './Viewer3D';
+import type { ViewerRoomOption } from './roomSearch';
 
 /** Dự án mẫu của story — mã giả, không phải một dự án thật (R-71). */
 const DEMO_PROJECT_ID = 'P-001';
@@ -34,7 +35,23 @@ const BASE_FRAME: ViewerSceneFrame = {
   reducedMotion: false,
 };
 
-/** Đối số dùng chung giữa story và bài kiểm (R-70). */
+/**
+ * Phòng mẫu của ô tìm — ba tầng, để bài kiểm chứng minh được cả việc lọc lẫn
+ * việc chọn một phòng KHÔNG nằm ở tầng dưới cùng.
+ */
+const DEMO_ROOMS: readonly ViewerRoomOption[] = [
+  { id: 'R-001', name: 'Phòng khách', storeyName: 'Tầng trệt', areaLabel: '32,40 m²' },
+  { id: 'R-003', name: 'Phòng ngủ 1', storeyName: 'Tầng trệt', areaLabel: '12,60 m²' },
+  { id: 'R-011', name: 'Phòng ngủ 4', storeyName: 'Tầng 03', areaLabel: '19,60 m²' },
+];
+
+/**
+ * Đối số dùng chung giữa story và bài kiểm (R-70).
+ *
+ * Ô tìm đóng sẵn ở mọi story: đó là trạng thái người dùng gặp khi vừa mở màn,
+ * và nó là trạng thái duy nhất mà `expectSevenStates` được phép nhìn thấy —
+ * bảy trạng thái nói về MÔ HÌNH, không về việc ô tìm đang mở hay đóng.
+ */
 export function scenarioPropsFor(state: ViewerScreenState) {
   const base = {
     state,
@@ -49,10 +66,29 @@ export function scenarioPropsFor(state: ViewerScreenState) {
     onRetryBuild: () => {
       /* Story chỉ minh hoạ, không gọi lệnh thật. */
     },
+    search: {
+      rooms: DEMO_ROOMS,
+      selectedRoomId: null,
+      isOpen: false,
+      onOpen: () => {
+        /* Story chỉ minh hoạ, không gọi lệnh thật. */
+      },
+      onClose: () => {
+        /* Story chỉ minh hoạ, không gọi lệnh thật. */
+      },
+      onSelectRoom: () => {
+        /* Story chỉ minh hoạ, không gọi lệnh thật. */
+      },
+    },
   };
 
   if (state === 'empty' || state === 'loading') {
-    return { ...base, frame: { ...BASE_FRAME, visibleStoreyIds: [] } };
+    // Chưa có tầng nào thì cũng chưa có phòng nào để tìm — ô tìm tự không vẽ.
+    return {
+      ...base,
+      frame: { ...BASE_FRAME, visibleStoreyIds: [] },
+      search: { ...base.search, rooms: [] },
+    };
   }
 
   return base;

@@ -69,6 +69,7 @@ import {
   type Object3D,
 } from 'three';
 
+import { CameraDirector } from '@/lib/three/camera/presets';
 import { CAMERA_SETTINGS } from '@/lib/three/camera/settings';
 import {
   buildingExtent,
@@ -153,6 +154,17 @@ const FALLBACK_ACCENT_LEVEL = 0.45;
 
 /** Cạnh bản đồ bóng. Bóng mềm, không gắt — R-04 mới được đổi nó sang cứng. */
 const SHADOW_MAP_SIZE_PX = 1024;
+
+/**
+ * Một giây, tính bằng mili-giây.
+ *
+ * `CameraDirector.update` nhận GIÂY còn mọi đồng hồ ở đây trả mili-giây, nên
+ * phép đổi phải viết ra một lần. Tên cố ý không mang `_PER_`: `local/no-raw-number`
+ * đọc mọi ước số tên `*_PER_*` là một phép quy đổi ĐƠN VỊ ĐO — thứ thuộc về
+ * `src/domain` — và đây là thời gian của một vòng vẽ, không phải số đo của mô
+ * hình.
+ */
+const SECOND_IN_MS = 1000;
 
 /* -------------------------------------------------------------------------- */
 /* Bản dựng mặc định của những thứ tiêm được.                                  */
@@ -371,21 +383,71 @@ function startScene(
     height: canvas.clientHeight > 0 ? canvas.clientHeight : canvas.height,
   });
 
+  /** Cùng đồng hồ mà `PerfMonitor` dùng, nên bài kiểm chỉ phải tiêm một cái. */
+  const now = options.now ?? ((): number => performance.now());
+
   /* ---- Camera ------------------------------------------------------------ */
 
   let activeCamera: Camera = perspective;
 
-  const applyCamera = (frame: ViewerSceneFrame, width: number, height: number): void => {
-    const viewpoint: Viewpoint = {
-      target: extent.centre,
-      azimuthRad: frame.azimuthRad,
-      polarRad: frame.polarRad,
-      distanceM: frame.distanceM,
-    };
-    const controller = createCameraMode(cameraModeOf(frame), viewpoint, { extent });
-    const camera = frame.isOrthographic ? orthographic : perspective;
+  /**
+   * Camera do VỎ lái: hướng, góc chúc và khoảng cách của khung, nhìn vào tâm
+   * hộp bao. `ViewerSceneFrame` không mang điểm ngắm, nên tâm hộp bao là điểm
+   * ngắm duy nhất suy ra được từ khung.
+   */
+  const shellViewpointOf = (frame: ViewerSceneFrame): Viewpoint => ({
+    target: extent.centre,
+    azimuthRad: frame.azimuthRad,
+    polarRad: frame.polarRad,
+    distanceM: frame.distanceM,
+  });
 
-    controller.applyTo(camera, aspectOf(width, height));
+  /**
+   * Lượt khuôn đối tượng đang chạy hoặc đang giữ, và số của khung vỏ lúc nó bắt
+   * đầu — xem {@link ViewerSceneHandle.frameEntities}.
+   *
+   * Giữ lại sau khi bay xong là cố ý: khuôn xong rồi mà khung kế tiếp của vỏ
+   * kéo camera về tâm nhà thì phòng vừa tìm ra lại biến mất. Người dùng lấy
+   * quyền lái lại bằng cách động vào camera — và lúc ấy ba con số của khung đổi,
+   * đúng dấu hiệu {@link releaseFramingIfMoved} đọc.
+   */
+  let framing: CameraDirector | null = null;
+  let framingFrom: Viewpoint | null = null;
+  let framingAtMs: number | null = null;
+
+  const sameCameraNumbers = (left: Viewpoint, right: Viewpoint): boolean =>
+    left.azimuthRad === right.azimuthRad &&
+    left.polarRad === right.polarRad &&
+    left.distanceM === right.distanceM;
+
+  /** Vỏ vừa lái camera: trả quyền về cho vỏ. */
+  const releaseFramingIfMoved = (frame: ViewerSceneFrame): void => {
+    if (framingFrom !== null && !sameCameraNumbers(framingFrom, shellViewpointOf(frame))) {
+      framing = null;
+      framingFrom = null;
+      framingAtMs = null;
+    }
+  };
+
+  const applyCamera = (frame: ViewerSceneFrame, width: number, height: number): void => {
+    const camera = frame.isOrthographic ? orthographic : perspective;
+    const aspect = aspectOf(width, height);
+
+    if (framing !== null) {
+      const nowMs = now();
+      const dtSeconds = framingAtMs === null ? 0 : (nowMs - framingAtMs) / SECOND_IN_MS;
+      framingAtMs = nowMs;
+
+      framing.update(dtSeconds);
+      framing.applyTo(camera, aspect);
+      activeCamera = camera;
+
+      return;
+    }
+
+    const controller = createCameraMode(cameraModeOf(frame), shellViewpointOf(frame), { extent });
+
+    controller.applyTo(camera, aspect);
     activeCamera = camera;
   };
 
@@ -688,6 +750,48 @@ function startScene(
         });
   observer?.observe(canvas);
 
+  /* ---- Khuôn đối tượng (R-07) -------------------------------------------- */
+
+  /**
+   * Dựng một `CameraDirector` đứng đúng chỗ camera đang đứng, CÓ gốc cảnh, rồi
+   * bảo nó khuôn những mã này.
+   *
+   * Director được dựng mới mỗi lượt thay vì giữ một cái sống suốt đời cảnh: vỏ
+   * mới là bên lái camera, nên giữa hai lượt khuôn thì hộp bao, tỉ lệ khung
+   * hình và điểm nhìn đều đã đổi, và một director cũ sẽ bay đi từ một chỗ mà
+   * camera không còn đứng.
+   */
+  const frameEntities = (entityIds: readonly string[]): boolean => {
+    if (disposed) {
+      return false;
+    }
+
+    const { width, height } = viewport();
+    const from = shellViewpointOf(currentFrame);
+    const director = new CameraDirector(
+      createCameraMode(cameraModeOf(currentFrame), from, { extent }),
+      { extent },
+      {
+        root,
+        aspect: aspectOf(width, height),
+        reducedMotion: currentFrame.reducedMotion,
+      },
+    );
+
+    if (director.frameObjects(entityIds) === null) {
+      // Không vật nào mang mã ấy — cảnh có thể chưa dựng xong tầng đó. Để
+      // camera yên còn hơn bay tới một hộp rỗng.
+      return false;
+    }
+
+    framing = director;
+    framingFrom = from;
+    framingAtMs = null;
+    loop.invalidate();
+
+    return true;
+  };
+
   /* ---- Khởi động --------------------------------------------------------- */
 
   applyFrame(currentFrame);
@@ -701,12 +805,15 @@ function startScene(
       if (disposed) {
         return;
       }
+      releaseFramingIfMoved(frame);
       currentFrame = frame;
       applyFrame(frame);
       loop.invalidate();
     },
 
     status: statusOf,
+
+    frameEntities,
 
     frameRate: (): ViewerSceneFrameRate => ({
       averageFps: totalDurationMs > 0 ? (totalFrames * 1000) / totalDurationMs : 0,

@@ -34,6 +34,8 @@ import type {
 } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 import type { ProjectRole } from '@/types/project';
 
+import type { ViewerRoomOption } from './roomSearch';
+
 /* -------------------------------------------------------------------------- */
 /* 1. Props của view — hợp đồng đã chốt, chép nguyên hình dạng.                */
 /* -------------------------------------------------------------------------- */
@@ -60,6 +62,30 @@ import type { ProjectRole } from '@/types/project';
  *   thêm prop này SAU khi gọi `useViewer3D` (`Viewer3D.container.tsx:147`),
  *   nên hook không cấp nó nhưng view cần nhận nó.
  */
+/**
+ * Phần ô tìm đối tượng mà HOOK cấp.
+ *
+ * Danh sách phòng và lệnh chọn đến từ đồ thị không gian, nên chúng là việc của
+ * `useViewer3D`. Trạng thái đóng/mở KHÔNG ở đây: phím `/` đi vào vỏ trước rồi
+ * mới quay ra qua `onOpenSearch`, nên chỗ duy nhất thấy được cả hai đầu dây là
+ * container.
+ */
+export interface Viewer3DSearchData {
+  /** Mọi phòng của mô hình đang xem, đã rút gọn về đúng thứ ô tìm vẽ. */
+  readonly rooms: readonly ViewerRoomOption[];
+  /** Phòng đang chọn trong kho, hoặc `null` khi chọn thứ khác / chưa chọn gì. */
+  readonly selectedRoomId: string | null;
+  /** Chọn thật qua S-10/S-11, rồi khuôn camera vào phòng ấy qua R-07. */
+  readonly onSelectRoom: (roomId: string) => void;
+}
+
+/** {@link Viewer3DSearchData} cộng phần đóng/mở mà container giữ. */
+export interface Viewer3DSearchModel extends Viewer3DSearchData {
+  readonly isOpen: boolean;
+  readonly onOpen: () => void;
+  readonly onClose: () => void;
+}
+
 export interface Viewer3DProps {
   /**
    * Bảy trạng thái màn hình. `ViewerSceneFrame` KHÔNG mang `state` (chỉ mang
@@ -101,6 +127,14 @@ export interface Viewer3DProps {
   readonly onRetryBuild: () => void;
 
   /**
+   * Ô tìm đối tượng — khe `onOpenSearch` của vỏ, cắm vào ở container.
+   *
+   * Bắt buộc chứ không tuỳ chọn: một ô tìm mà người gọi quên truyền thì đúng
+   * bằng không có ô tìm nào, và R-73 cấm để một khe như thế treo lơ lửng.
+   */
+  readonly search: Viewer3DSearchModel;
+
+  /**
    * Callback ref nhận phần tử `<canvas>` sau khi view gắn xong, để container
    * đưa nó vào `useViewer3D` (mục 4 dưới: `canvas` chỉ tồn tại sau khi view
    * gắn, nên nó KHÔNG phải một trường hook cấp qua đây).
@@ -109,6 +143,17 @@ export interface Viewer3DProps {
    * kiểm dựng view thuần này một mình, không cần WebGL.
    */
   readonly canvasRef?: ((canvas: HTMLCanvasElement | null) => void) | undefined;
+}
+
+/**
+ * Đúng những gì `useViewer3D` trả về.
+ *
+ * Khác {@link Viewer3DProps} ở hai trường mà HOOK không cấp được, và cả hai đều
+ * đã có lý do ghi sẵn ở trên: `canvasRef` chỉ tồn tại sau khi view gắn, còn
+ * phần đóng/mở của ô tìm nằm ở container vì phím `/` đi vòng qua vỏ.
+ */
+export interface Viewer3DModel extends Omit<Viewer3DProps, 'search' | 'canvasRef'> {
+  readonly search: Viewer3DSearchData;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -212,6 +257,20 @@ export interface ViewerSceneHandle {
   readonly status: () => ViewerSceneStatus;
   /** Ba con số O-01, đọc lúc rời màn. */
   readonly frameRate: () => ViewerSceneFrameRate;
+  /**
+   * R-07 — khuôn camera vào những đối tượng mang các mã này.
+   *
+   * Chỉ MODULE CẢNH làm được việc này: `CameraDirector.frameObjects` đọc hộp
+   * bao của lưới đã dựng (`boundsOfIds` là hàm duy nhất đi bộ trên `Object3D`),
+   * và cây lưới ấy sống ở đây chứ không ở vỏ — `useViewerShell` dựng
+   * `CameraDirector` mà không bao giờ gọi `setRoot`, nên `frameSelection` của
+   * vỏ luôn trả `null` rồi rơi về "khuôn cả toà nhà".
+   *
+   * `false` khi không vật nào trong cảnh mang một trong các mã ấy: để camera
+   * yên còn hơn bay tới một hộp rỗng.
+   */
+  readonly frameEntities: (entityIds: readonly string[]) => boolean;
+
   /** R-05: trả geometry, material, texture và cả GL context. An toàn gọi hai lần. */
   readonly dispose: () => void;
 }

@@ -11,6 +11,21 @@
 
 export { Viewer3D } from './Viewer3D';
 export {
+  ObjectSearch,
+  NO_MATCH_MESSAGE,
+  OPEN_SEARCH_LABEL,
+  SEARCH_INPUT_LABEL,
+  SEARCH_LIST_LABEL,
+  type ObjectSearchProps,
+} from './ObjectSearch';
+export {
+  matchRoomOptions,
+  foldForSearch,
+  MAX_ROOM_RESULTS,
+  type RoomSearchResult,
+  type ViewerRoomOption,
+} from './roomSearch';
+export {
   Viewer3DContainer,
   Viewer3DRoute,
   VIEWER_3D_SCREEN_ID,
@@ -23,7 +38,10 @@ export { mountViewerScene, applyDetailLevel, VIEWER_MAX_FPS } from './viewer3dSc
 export type {
   MountViewerScene,
   UseViewer3DOptions,
+  Viewer3DModel,
   Viewer3DProps,
+  Viewer3DSearchData,
+  Viewer3DSearchModel,
   Viewer3DTelemetry,
   ViewerFrameRateEvent,
   ViewerRendererLike,

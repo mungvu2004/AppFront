@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import type { ViewerSceneActions, ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
+import { ObjectSearch } from './ObjectSearch';
 import type { Viewer3DProps } from './viewer3dTypes';
 
 export type { Viewer3DProps };
@@ -191,6 +192,7 @@ export function Viewer3D(props: Viewer3DProps) {
     fallback2dHref,
     qcHref,
     onRetryBuild,
+    search,
     canvasRef,
   } = props;
 
@@ -251,6 +253,20 @@ export function Viewer3D(props: Viewer3DProps) {
           </span>
         </div>
       )}
+
+      {/* Ô tìm phòng, vẽ ở MỌI trạng thái có phòng để tìm — kể cả `error` và
+          `forbidden`. Tìm một phòng và đọc tên nó là việc của người XEM, không
+          phải của người sửa, và một cảnh 3D không dựng được cũng không lấy đi
+          quyền ấy. Trạng thái không có phòng nào thì `ObjectSearch` tự không vẽ
+          gì. */}
+      <ObjectSearch
+        isOpen={search.isOpen}
+        onClose={search.onClose}
+        onOpen={search.onOpen}
+        onSelectRoom={search.onSelectRoom}
+        rooms={search.rooms}
+        selectedRoomId={search.selectedRoomId}
+      />
     </div>
   );
 }

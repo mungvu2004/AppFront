@@ -5,8 +5,8 @@
  * file story (R-70, cùng dữ liệu mẫu giữa story và bài kiểm).
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -15,6 +15,12 @@ import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStat
 
 import { Viewer3D } from './Viewer3D';
 import { scenarioPropsFor } from './Viewer3D.stories';
+import {
+  NO_MATCH_MESSAGE,
+  OPEN_SEARCH_LABEL,
+  SEARCH_INPUT_LABEL,
+  SEARCH_LIST_LABEL,
+} from './ObjectSearch';
 import type { ViewerScreenState } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 afterEach(() => {
@@ -155,5 +161,122 @@ describe('R-72 — expectAccessible và expectVietnamese', () => {
 
       unmount();
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [Q2] Ô tìm đối tượng — tìm được một phòng.                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Props của trạng thái `success` với ô tìm nối vào ba hàm theo dõi được. */
+function searchProps(overrides: { readonly isOpen: boolean }) {
+  const base = scenarioPropsFor('success');
+  const onOpen = vi.fn();
+  const onClose = vi.fn();
+  const onSelectRoom = vi.fn();
+
+  return {
+    props: {
+      ...base,
+      search: { ...base.search, ...overrides, onOpen, onClose, onSelectRoom },
+    },
+    onOpen,
+    onClose,
+    onSelectRoom,
+  };
+}
+
+describe('[Q2] ô tìm đối tượng', () => {
+  it('có một chỗ NHÌN THẤY ĐƯỢC để mở, không chỉ có phím tắt', () => {
+    const { props, onOpen } = searchProps({ isOpen: false });
+    render(<Viewer3D {...props} />);
+
+    const trigger = screen.getByRole('button', { name: OPEN_SEARCH_LABEL });
+    expect(trigger).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('chưa mở thì không có ô chữ nào — lớp nổi không đè lên khung nhìn', () => {
+    const { props } = searchProps({ isOpen: false });
+    render(<Viewer3D {...props} />);
+
+    expect(screen.queryByRole('combobox', { name: SEARCH_INPUT_LABEL })).toBeNull();
+    expect(screen.queryByRole('listbox', { name: SEARCH_LIST_LABEL })).toBeNull();
+  });
+
+  it('không có phòng nào thì ô tìm không được vẽ (trạng thái rỗng)', () => {
+    render(<Viewer3D {...scenarioPropsFor('empty')} />);
+
+    expect(screen.queryByRole('button', { name: OPEN_SEARCH_LABEL })).toBeNull();
+  });
+
+  it('mở ra là thấy ngay mọi phòng, không phải một danh sách trắng', () => {
+    const { props } = searchProps({ isOpen: true });
+    render(<Viewer3D {...props} />);
+
+    expect(screen.getAllByRole('option')).toHaveLength(props.search.rooms.length);
+  });
+
+  it('gõ KHÔNG DẤU vẫn lọc ra đúng phòng, rồi bấm chuột chọn được nó', () => {
+    const { props, onSelectRoom, onClose } = searchProps({ isOpen: true });
+    render(<Viewer3D {...props} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: SEARCH_INPUT_LABEL }), {
+      target: { value: 'phong ngu 4' },
+    });
+
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent('Phòng ngủ 4');
+
+    fireEvent.click(options[0] as HTMLElement);
+
+    expect(onSelectRoom).toHaveBeenCalledWith('R-011');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('A12: mũi tên đổi dòng, Enter chọn — không cần chuột', () => {
+    const { props, onSelectRoom } = searchProps({ isOpen: true });
+    render(<Viewer3D {...props} />);
+
+    const input = screen.getByRole('combobox', { name: SEARCH_INPUT_LABEL });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSelectRoom).toHaveBeenCalledWith(props.search.rooms[1]?.id);
+  });
+
+  it('A12: Esc đóng ô tìm', () => {
+    const { props, onClose } = searchProps({ isOpen: true });
+    render(<Viewer3D {...props} />);
+
+    fireEvent.keyDown(screen.getByRole('combobox', { name: SEARCH_INPUT_LABEL }), {
+      key: 'Escape',
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('không khớp gì thì nói ra bằng một câu, không để danh sách trắng (A11)', () => {
+    const { props } = searchProps({ isOpen: true });
+    render(<Viewer3D {...props} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: SEARCH_INPUT_LABEL }), {
+      target: { value: 'khong co phong nao ten nhu vay' },
+    });
+
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    expect(screen.getByText(NO_MATCH_MESSAGE)).toBeInTheDocument();
+  });
+
+  it('ô tìm đang mở vẫn qua expectAccessible và expectVietnamese (R-72)', () => {
+    const { props } = searchProps({ isOpen: true });
+    const { container } = render(<Viewer3D {...props} />);
+
+    expectAccessible(container);
+    expectVietnamese(container);
   });
 });

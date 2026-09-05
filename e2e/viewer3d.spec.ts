@@ -56,6 +56,43 @@ import { ROUTE_PATTERNS } from '../src/routes/paths';
  * chọn một tầng từ ray tầng. Đó là một việc khác, không phải "tìm một phòng",
  * và tên bài viết đúng như vậy để không ai đọc nhầm.
  *
+ * ## Bốn khoảng trống ấy giờ còn lại những gì (Q2)
+ *
+ * Mục trên là bản ghi của lần đo TRƯỚC Q2 và được giữ nguyên chữ để đọc lại
+ * được. Sau Q2, ba trong bốn lý do đã đổi, và {@link findOneRoom} là bài chứng
+ * minh phần đã đổi:
+ *
+ * - **Lý do 1 — đã lấp một nửa, bằng một đường TẠM.** `Viewer3DContainer` chốt
+ *   đồ thị một lần rồi tiêm cùng giá trị ấy vào cả vỏ lẫn hook qua hai chỗ tiêm
+ *   sẵn có (`gateway`, `spatial`). Kho rỗng thì nó rơi về ĐÚNG bộ mẫu vỏ vẫn
+ *   dùng, nên hai bên không còn nhìn hai nguồn khác nhau, và **danh sách phòng
+ *   tới được màn**. Nửa chưa lấp: bộ mẫu ấy đánh mã `L-01`/`R-001`, thân mã
+ *   ngắn hơn mười ký tự mà `domain/spatial/ids.ts` đòi, nên `toBuildFloorInput`
+ *   trả `null` cho mọi tầng và **cảnh 3D vẫn không dựng được hình nào ở dev** —
+ *   `<canvas>` có mặt và trống. Sửa chỗ đó là sửa `viewerShellFixture.ts` hoặc
+ *   `domain/spatial/ids.ts`, cả hai nằm ngoài phạm vi Q2.
+ * - **Lý do 2 — KHÔNG đổi.** Bảy màn QC vẫn đọc vòng tròn; Q2 không chạm vào
+ *   chúng.
+ * - **Lý do 3 — KHÔNG đổi.** Vai vẫn là `[]`, `canEdit` vẫn `false`, nên
+ *   `viewer3dScene.ts` vẫn KHÔNG gắn `createPointerPicker` và **bấm chuột vào
+ *   khung nhìn vẫn không chọn được gì**. Bài dưới đây đi đường khác — ô tìm —
+ *   nên nó không chứng minh và không được đọc là đã chứng minh việc bấm-để-chọn
+ *   trong cảnh 3D.
+ * - **Lý do 4 — đã lấp.** Tên phòng giờ đọc được ở ô tìm, và tên phòng vừa chọn
+ *   hiện ra ở panel thanh tra bên phải — thứ bài dưới đây khẳng định, vì nó nằm
+ *   NGOÀI ô tìm và do đó không phải là ô tìm tự đọc lại chính mình. Lưu ý điều
+ *   bài này KHÔNG nói: vì `isValidId` từ chối mã `R-011` của bộ mẫu, đại số
+ *   `selectSingle`/`isSelectable` của S-10 KHÔNG chạy ở đây — lượt chọn tới kho
+ *   qua đúng đường mà một cú bấm trong cảnh 3D đi (phần ghi kho của vỏ). Với
+ *   một đồ thị mã hợp lệ thì cả hai nhánh cùng chạy; điều đó chưa được chứng
+ *   minh trên trình duyệt.
+ *
+ * Còn một việc nữa bài này KHÔNG kiểm được: **camera có bay tới đúng phòng
+ * không**. `CameraDirector.frameObjects` chạy trên cây lưới bên trong `<canvas>`,
+ * và không có gì trong DOM nói ra điểm ngắm của camera — nhãn thu phóng chỉ đọc
+ * khoảng cách. Việc ấy được chứng minh ở tầng đơn vị
+ * (`viewer3dScene.test.ts` — "R-07: khuôn camera vào một phòng có thật").
+ *
  * ## Điểm mù của việc "quay"
  *
  * Kéo chuột trong khung nhìn CÓ quay camera (`useViewerShell` gọi
@@ -85,6 +122,26 @@ const WHEEL_DELTA_PX = 120;
 
 /** Kéo chuột thành bấy nhiêu bước, để `pointermove` sinh ra delta thật. */
 const DRAG_STEPS = 12;
+
+/** Nhãn nút mở ô tìm — cùng chữ `ObjectSearch.tsx` vẽ ra. */
+const SEARCH_TRIGGER_LABEL = 'tìm phòng';
+
+/** Nhãn ô chữ của ô tìm. */
+const SEARCH_INPUT_LABEL = 'tìm phòng theo tên hoặc mã';
+
+/**
+ * Chuỗi người dùng gõ — KHÔNG DẤU, cố ý.
+ *
+ * Nếu ô tìm chỉ khớp chuỗi thô thì "phong ngu 4" không bao giờ ra "Phòng ngủ 4",
+ * và bài này đỏ. Đó là điều đáng kiểm: người dùng đặc tả nhắm tới gõ không dấu.
+ */
+const ROOM_QUERY = 'phong ngu 4';
+
+/** Phòng phải tìm ra. Nó ở TẦNG 03 — không phải tầng dưới cùng (S-10). */
+const ROOM_NAME = 'Phòng ngủ 4';
+
+/** Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. */
+const ROOM_ID = 'R-011';
 
 /** Mỗi bước kéo đi ngang bấy nhiêu pixel. */
 const DRAG_STEP_X_PX = 15;
@@ -231,6 +288,40 @@ async function stepChooseStorey(page: Page): Promise<void> {
   await expect(roofStorey).toHaveAttribute('aria-selected', 'false');
 }
 
+/**
+ * Việc thứ ba của đặc tả — **tìm một phòng**, không dùng phím tắt nào.
+ *
+ * Bốn thao tác, cả bốn bằng thứ nhìn thấy trên màn: bấm nút mở ô tìm, gõ tên
+ * phòng KHÔNG DẤU (người dùng đặc tả nhắm tới ngồi trước một bàn phím không cài
+ * bộ gõ tiếng Việt), bấm dòng kết quả, rồi đọc tên phòng ở panel bên phải.
+ *
+ * `click()` thường ở cả hai cú bấm — cấm `force: true`, vì `force` bỏ qua đúng
+ * phép kiểm che khuất bắt được lỗi "nút nằm dưới một lớp khác".
+ */
+async function findOneRoom(page: Page): Promise<void> {
+  /* Không một `page.keyboard.press` nào trong hàm này: phím `/` mở được ô tìm,
+     nhưng người quản lý toà nhà không biết phím ấy tồn tại. */
+  await page.getByRole('button', { name: SEARCH_TRIGGER_LABEL }).click();
+
+  const box = page.getByRole('combobox', { name: SEARCH_INPUT_LABEL });
+  await expect(box).toBeVisible();
+
+  await box.fill(ROOM_QUERY);
+
+  const match = page.getByRole('option', { name: new RegExp(ROOM_NAME, 'u') });
+  await expect(match).toHaveCount(1);
+
+  await match.click();
+
+  /* Bằng chứng nằm NGOÀI ô tìm: panel thanh tra của vỏ đọc kho chọn dùng chung,
+     nên tên phòng hiện ở đó nghĩa là phòng ĐÃ ĐƯỢC CHỌN THẬT — không phải ô tìm
+     đọc lại chính danh sách của nó. */
+  const inspector = page.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+
+  await expect(inspector).toContainText(ROOM_NAME);
+  await expect(inspector).toContainText(ROOM_ID);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Bài.                                                                        */
 /* -------------------------------------------------------------------------- */
@@ -301,4 +392,10 @@ test('Esc đóng lớp trên cùng (A12)', async ({ page }) => {
   await expect(presetSelect).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('option', { name: 'Trục đo' })).toHaveCount(0);
   await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+});
+
+test('tìm được một phòng chỉ bằng thứ nhìn thấy trên màn (Q2)', async ({ page }) => {
+  await openViewer(page);
+
+  await timed('tìm một phòng', () => findOneRoom(page));
 });
