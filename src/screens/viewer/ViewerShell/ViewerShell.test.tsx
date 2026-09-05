@@ -446,6 +446,35 @@ describe('[VS-8] panel phải trượt vào', () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* [VS-9] P2 — bản đồ nhỏ không đè lên ViewCube.                              */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-9] bản đồ nhỏ không đè lên ViewCube (P2)', () => {
+  it('bản đồ nhỏ không tự định vị `absolute` bên trong cụm góc trên phải', () => {
+    const { unmount } = renderState('success');
+
+    /* `MiniMap` (src/components/canvas/MiniMap.tsx) mang sẵn lớp
+       `absolute top-4 right-4 z-20` — nếu cụm này không huỷ lớp đó, nó thoát
+       khỏi `flex-col` và đè thẳng lên ViewCube (`subtree intercepts pointer
+       events` ở Playwright, không thấy được trong jsdom vì jsdom không tính
+       layout thật — nên bài này canh theo class, phép đo hình học thật nằm ở
+       `e2e/viewer3d.spec.ts`). */
+    const miniMap = screen.getByRole('region', { name: 'Bản đồ thu nhỏ' });
+
+    expect(miniMap.className).not.toMatch(/(?:^|\s)absolute(?:\s|$)/);
+    expect(miniMap.className).toMatch(/(?:^|\s)static(?:\s|$)/);
+
+    const cube = screen.getByRole('group', { name: 'Khối định hướng' });
+
+    // Cùng cha `flex-col`: bản đồ nhỏ xếp SAU ViewCube trong luồng DOM, tức
+    // "ngay dưới nó" đúng thứ tự docblock `ViewerOverlays.tsx` ghi.
+    expect(cube.compareDocumentPosition(miniMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* R-72: khả năng tiếp cận và tiếng Việt, trên cả bảy trạng thái.              */
 /* -------------------------------------------------------------------------- */
 

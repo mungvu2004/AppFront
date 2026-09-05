@@ -184,7 +184,20 @@ export interface ViewerCornerControlsProps extends ViewerCubeProps {
   readonly onFitAll: () => void;
 }
 
-/** ViewCube ở trên, bản đồ nhỏ ngay dưới nó — đúng thứ tự đặc tả mô tả. */
+/**
+ * ViewCube ở trên, bản đồ nhỏ ngay dưới nó — đúng thứ tự đặc tả mô tả.
+ *
+ * `MiniMap` tự mang lớp định vị riêng (`absolute top-4 right-4 z-20`) từ
+ * `src/components/canvas/MiniMap.tsx` — thứ đó nằm ngoài phạm vi sửa của màn
+ * này. Đặt thẳng nó vào đây thì lớp `absolute` ấy thoát khỏi luồng của
+ * `flex-col`, định vị lại theo tổ tiên đã định vị gần nhất (chính khối
+ * `right-2 top-2` bọc cả cụm ở `ViewerShell.tsx`) — và nằm đè thẳng lên
+ * ViewCube thay vì xếp dưới nó, khiến bốn mặt của ViewCube không bấm được
+ * bằng chuột (`subtree intercepts pointer events`). Huỷ lớp định vị đó bằng
+ * `className` (đơn vị xung đột của `tailwind-merge`, nên các lớp sau thắng)
+ * để `MiniMap` quay lại làm một phần tử THƯỜNG trong `flex-col`, xếp đúng vị
+ * trí thứ hai — không đổi gì bên trong `MiniMap.tsx`.
+ */
 export function ViewerTopRightControls({
   presets,
   activePresetId,
@@ -197,7 +210,7 @@ export function ViewerTopRightControls({
         onCubeFaceSelect={onCubeFaceSelect}
         presets={presets}
       />
-      <MiniMap />
+      <MiniMap className="static top-auto right-auto z-auto" />
     </div>
   );
 }
