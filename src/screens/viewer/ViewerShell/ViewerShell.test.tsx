@@ -32,6 +32,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -471,6 +472,30 @@ describe('[VS-9] bản đồ nhỏ không đè lên ViewCube (P2)', () => {
     expect(cube.compareDocumentPosition(miniMap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-10] Q3 — mã bộ mẫu hợp lệ với domain/spatial/ids.ts.                    */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-10] mã bộ mẫu hợp lệ', () => {
+  it('toBuildFloorInput trả một BuildFloorInput thật cho tầng trệt, không phải null', () => {
+    const groundLevelId = VIEWER_FIXTURE_LEVELS[0]?.id;
+
+    if (groundLevelId === undefined) {
+      throw new Error('bộ mẫu không có tầng nào');
+    }
+
+    const input = toBuildFloorInput(VIEWER_FIXTURE_SPATIAL, groundLevelId);
+
+    console.log(
+      `[VIEWER-SHELL][VS-10] toBuildFloorInput(${groundLevelId}) → ${input === null ? 'null' : `${String(input.walls.length)} tường, ${String(input.rooms.length)} phòng`}`,
+    );
+
+    expect(input).not.toBeNull();
+    expect(input?.rooms.length).toBeGreaterThan(0);
+    expect(input?.walls.length).toBeGreaterThan(0);
   });
 });
 

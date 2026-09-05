@@ -30,6 +30,7 @@
  */
 
 import { computeArea } from '@/domain/rooms/area';
+import { ID_PREFIX_BY_KIND } from '@/domain/spatial/ids';
 import type { PointMm } from '@/domain/units/compare';
 import { millimetres, squareMetres } from '@/domain/units/types';
 import type {
@@ -44,6 +45,44 @@ import type {
   Wall,
   WallId,
 } from '@/domain/spatial/types';
+
+/* -------------------------------------------------------------------------- */
+/* Mã định danh — cố định, hợp lệ theo domain/spatial/ids.ts.                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Đuôi cố định gắn sau mã số đọc được, để thân mã đạt tối thiểu mười ký tự mà
+ * `domain/spatial/ids.ts:43` (`MIN_BODY_LENGTH`) đòi.
+ *
+ * `createId` của `ids.ts` KHÔNG dùng được ở đây: nó vừa mang một mẩu ngẫu
+ * nhiên bốn ký tự, vừa cộng dồn vào một bộ đếm cấp module — hai thứ bộ mẫu
+ * này không được phép có, vì ảnh chuẩn và bài kiểm đối chiếu mã phải lặp lại
+ * y hệt giữa các lượt chạy. Nên mã ở đây là chuỗi gõ tay, nhưng vẫn giữ đúng
+ * hình dạng `createId` sinh ra: tiền tố lấy từ `ID_PREFIX_BY_KIND` (không tự
+ * bịa chữ cái), thân chỉ gồm `[0-9A-Z]`, dài hơn ngưỡng tối thiểu.
+ *
+ * Tám ký tự, tất cả nằm trong bảng chữ base36 mà `ids.ts` dùng, nên thân mã
+ * ngắn nhất của bộ mẫu (mã tầng, hai chữ số) vẫn chạm đúng mười ký tự tối
+ * thiểu: `"01" + "FIXTURE0"` = mười ký tự.
+ */
+const FIXTURE_ID_SUFFIX = 'FIXTURE0';
+
+/**
+ * Một mã hợp lệ cho một loại thực thể, từ mã số đọc được của bộ mẫu.
+ *
+ * `code` giữ nguyên các mã số đã có từ trước (`"01"`, `"001"`, `"0101"`…) làm
+ * TIỀN TỐ của thân mã, nên mọi nơi soát bằng khớp chuỗi con (ô tìm phòng của
+ * `Viewer3D/roomSearch.ts`) vẫn khớp đúng thứ đã khớp trước khi sửa.
+ */
+function fixtureId<K extends keyof typeof ID_PREFIX_BY_KIND>(kind: K, code: string): string {
+  return `${ID_PREFIX_BY_KIND[kind]}-${code}${FIXTURE_ID_SUFFIX}`;
+}
+
+/** Mã phòng hợp lệ, từ số phòng đọc được (`"001"`…`"014"`). */
+const roomId = (code: string): RoomId => fixtureId('room', code) as RoomId;
+
+/** Mã tường hợp lệ, từ số tường đọc được (`"0101"`…`"0402"`). */
+const wallId = (code: string): WallId => fixtureId('wall', code) as WallId;
 
 /* -------------------------------------------------------------------------- */
 /* Những con số đặc tả in ra.                                                  */
@@ -115,7 +154,7 @@ export function rectangleOutline(
 function level(order: number, name: string): Level {
   return {
     ...REVIEWED,
-    id: `L-0${String(order + 1)}` as LevelId,
+    id: fixtureId('level', String(order + 1).padStart(2, '0')) as LevelId,
     name,
     order,
     elevationMm: millimetres(order * FIXTURE_STOREY_HEIGHT_MM),
@@ -133,7 +172,7 @@ function level(order: number, name: string): Level {
  * `local/no-raw-number`).
  */
 function room(
-  id: string,
+  id: RoomId,
   levelId: LevelId,
   name: string,
   usage: RoomUsage,
@@ -148,7 +187,7 @@ function room(
 
   return {
     ...metadata,
-    id: id as RoomId,
+    id,
     levelId,
     name,
     usage,
@@ -159,8 +198,9 @@ function room(
 }
 
 /** Bốn bức tường bao của một tầng, hình chữ nhật `widthMm × depthMm`. */
-function envelopeWalls(levelId: LevelId, widthMm: number, depthMm: number): readonly Wall[] {
+function envelopeWalls(level: Level, widthMm: number, depthMm: number): readonly Wall[] {
   const THICKNESS_MM = 220;
+  const levelCode = String(level.order + 1).padStart(2, '0');
   const corners: readonly (readonly [number, number, number, number])[] = [
     [0, 0, widthMm, 0],
     [widthMm, 0, widthMm, depthMm],
@@ -170,8 +210,8 @@ function envelopeWalls(levelId: LevelId, widthMm: number, depthMm: number): read
 
   return corners.map(([startX, startY, endX, endY], index) => ({
     ...REVIEWED,
-    id: `W-${levelId.slice(2)}${String(index + 1).padStart(2, '0')}` as WallId,
-    levelId,
+    id: wallId(`${levelCode}${String(index + 1).padStart(2, '0')}`),
+    levelId: level.id,
     centreline: { start: point(startX, startY), end: point(endX, endY) },
     thicknessMm: millimetres(THICKNESS_MM),
     heightMm: millimetres(FIXTURE_STOREY_HEIGHT_MM),
@@ -184,17 +224,22 @@ function envelopeWalls(levelId: LevelId, widthMm: number, depthMm: number): read
 /* Bốn tầng.                                                                   */
 /* -------------------------------------------------------------------------- */
 
+const groundLevel = level(0, 'Tầng trệt');
+const firstLevel = level(1, 'Tầng 02');
+const secondLevel = level(2, 'Tầng 03');
+const roofLevel = level(3, 'Tầng mái');
+
 export const VIEWER_FIXTURE_LEVELS: readonly Level[] = Object.freeze([
-  level(0, 'Tầng trệt'),
-  level(1, 'Tầng 02'),
-  level(2, 'Tầng 03'),
-  level(3, 'Tầng mái'),
+  groundLevel,
+  firstLevel,
+  secondLevel,
+  roofLevel,
 ]);
 
-const GROUND: LevelId = 'L-01';
-const FIRST: LevelId = 'L-02';
-const SECOND: LevelId = 'L-03';
-const ROOF: LevelId = 'L-04';
+export const GROUND: LevelId = groundLevel.id;
+const FIRST: LevelId = firstLevel.id;
+const SECOND: LevelId = secondLevel.id;
+const ROOF: LevelId = roofLevel.id;
 
 /* -------------------------------------------------------------------------- */
 /* Mười bốn phòng, tổng 248,60 m².                                             */
@@ -209,26 +254,26 @@ const ROOF: LevelId = 'L-04';
  */
 export const VIEWER_FIXTURE_ROOMS: readonly Room[] = Object.freeze([
   /* Tầng trệt — 5 phòng, 80,00 m². */
-  room('R-001', GROUND, 'Phòng khách', 'livingRoom', 0, 0, 5_400, 6_000, ['W-0101']),
-  room('R-002', GROUND, 'Bếp và ăn', 'kitchen', 5_400, 0, 3_750, 5_000, ['W-0102']),
-  room('R-003', GROUND, 'Phòng ngủ 1', 'bedroom', 0, 6_000, 3_600, 3_500, ['W-0103']),
-  room('R-004', GROUND, 'Phòng tắm', 'bathroom', 3_600, 6_000, 2_500, 3_940, ['W-0104']),
-  room('R-005', GROUND, 'Hành lang', 'corridor', 6_100, 6_000, 1_600, 4_000, ['W-0104']),
+  room(roomId('001'), GROUND, 'Phòng khách', 'livingRoom', 0, 0, 5_400, 6_000, [wallId('0101')]),
+  room(roomId('002'), GROUND, 'Bếp và ăn', 'kitchen', 5_400, 0, 3_750, 5_000, [wallId('0102')]),
+  room(roomId('003'), GROUND, 'Phòng ngủ 1', 'bedroom', 0, 6_000, 3_600, 3_500, [wallId('0103')]),
+  room(roomId('004'), GROUND, 'Phòng tắm', 'bathroom', 3_600, 6_000, 2_500, 3_940, [wallId('0104')]),
+  room(roomId('005'), GROUND, 'Hành lang', 'corridor', 6_100, 6_000, 1_600, 4_000, [wallId('0104')]),
 
   /* Tầng 02 — 4 phòng, 70,00 m². */
-  room('R-006', FIRST, 'Phòng làm việc', 'other', 0, 0, 5_000, 5_700, ['W-0201']),
-  room('R-007', FIRST, 'Phòng ngủ 2', 'bedroom', 5_000, 0, 4_500, 3_600, ['W-0202']),
-  room('R-008', FIRST, 'Phòng ngủ 3', 'bedroom', 0, 5_700, 4_400, 3_250, ['W-0203']),
-  room('R-009', FIRST, 'Kho', 'utility', 4_400, 5_700, 2_750, 4_000, ['W-0204']),
+  room(roomId('006'), FIRST, 'Phòng làm việc', 'other', 0, 0, 5_000, 5_700, [wallId('0201')]),
+  room(roomId('007'), FIRST, 'Phòng ngủ 2', 'bedroom', 5_000, 0, 4_500, 3_600, [wallId('0202')]),
+  room(roomId('008'), FIRST, 'Phòng ngủ 3', 'bedroom', 0, 5_700, 4_400, 3_250, [wallId('0203')]),
+  room(roomId('009'), FIRST, 'Kho', 'utility', 4_400, 5_700, 2_750, 4_000, [wallId('0204')]),
 
   /* Tầng 03 — 3 phòng, 60,00 m². */
-  room('R-010', SECOND, 'Phòng sinh hoạt chung', 'livingRoom', 0, 0, 6_000, 4_400, ['W-0301']),
-  room('R-011', SECOND, 'Phòng ngủ 4', 'bedroom', 6_000, 0, 4_000, 4_900, ['W-0302']),
-  room('R-012', SECOND, 'Thang bộ', 'stairwell', 0, 4_400, 3_500, 4_000, ['W-0303']),
+  room(roomId('010'), SECOND, 'Phòng sinh hoạt chung', 'livingRoom', 0, 0, 6_000, 4_400, [wallId('0301')]),
+  room(roomId('011'), SECOND, 'Phòng ngủ 4', 'bedroom', 6_000, 0, 4_000, 4_900, [wallId('0302')]),
+  room(roomId('012'), SECOND, 'Thang bộ', 'stairwell', 0, 4_400, 3_500, 4_000, [wallId('0303')]),
 
   /* Tầng mái — 2 phòng, 38,60 m². */
-  room('R-013', ROOF, 'Sân thượng', 'other', 0, 0, 5_575, 4_000, ['W-0401']),
-  room('R-014', ROOF, 'Phòng kỹ thuật', 'utility', 5_575, 0, 4_075, 4_000, ['W-0402'], FROM_MODEL),
+  room(roomId('013'), ROOF, 'Sân thượng', 'other', 0, 0, 5_575, 4_000, [wallId('0401')]),
+  room(roomId('014'), ROOF, 'Phòng kỹ thuật', 'utility', 5_575, 0, 4_075, 4_000, [wallId('0402')], FROM_MODEL),
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -240,7 +285,7 @@ const FOOTPRINT_DEPTH_MM = 10_000;
 
 export const VIEWER_FIXTURE_WALLS: readonly Wall[] = Object.freeze(
   VIEWER_FIXTURE_LEVELS.flatMap((storey) =>
-    envelopeWalls(storey.id, FOOTPRINT_WIDTH_MM, FOOTPRINT_DEPTH_MM),
+    envelopeWalls(storey, FOOTPRINT_WIDTH_MM, FOOTPRINT_DEPTH_MM),
   ),
 );
 

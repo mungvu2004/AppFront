@@ -43,7 +43,7 @@ import type { ApiClient } from '@/api/client';
 import { mockApiClient } from '@/api/__mocks__/client';
 import type { ProjectRole } from '@/types/project';
 
-import { toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
+import { GROUND, toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
 
 /* -------------------------------------------------------------------------- */
 /* Bản kê khả năng.                                                            */
@@ -293,7 +293,7 @@ export const VIEWER_FIXTURE_SPATIAL: NormalizedSpatial = normalizeSpatial(VIEWER
 /** Đồ thị "một phần": đủ bốn tầng, nhưng mới có phòng của tầng dưới cùng. */
 export const VIEWER_PARTIAL_SPATIAL: NormalizedSpatial = normalizeSpatial({
   ...VIEWER_FIXTURE_GRAPH,
-  rooms: VIEWER_FIXTURE_GRAPH.rooms.filter((room) => room.levelId === 'L-01'),
+  rooms: VIEWER_FIXTURE_GRAPH.rooms.filter((room) => room.levelId === GROUND),
 });
 
 /** Đồ thị rỗng: toà nhà chưa dựng được tầng nào. */
