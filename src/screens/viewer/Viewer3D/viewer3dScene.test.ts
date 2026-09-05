@@ -406,6 +406,35 @@ describe('mountViewerScene', () => {
     expect(opening.visible).toBe(false);
   });
 
+  it('R-07: khuôn camera vào một phòng có thật, và từ chối một mã không có', async () => {
+    const mounted = mount(host);
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    await vi.waitFor(() => {
+      expect(mounted.handle.status().phase).toBe('ready');
+    });
+
+    const roomId = host.levels[0]?.rooms[0]?.id;
+    expect(roomId).toBeDefined();
+
+    // Có vật mang mã ấy trong cây đã dựng → `CameraDirector.frameObjects` tìm
+    // ra hộp bao và bay tới. Đây là việc mà `frameSelection` của VỎ không làm
+    // được: director của vỏ không bao giờ được `setRoot`.
+    expect(mounted.handle.frameEntities([String(roomId)])).toBe(true);
+
+    // Không vật nào mang mã ấy → để camera yên, không bay tới hộp rỗng.
+    expect(mounted.handle.frameEntities(['R-khong-ton-tai'])).toBe(false);
+    expect(mounted.handle.frameEntities([])).toBe(false);
+
+    mounted.handle.dispose();
+
+    // Sau khi dọn thì không còn cảnh nào để khuôn vào.
+    expect(mounted.handle.frameEntities([String(roomId)])).toBe(false);
+  });
+
   it('không có WebGL thì trả một kết quả, không ném lỗi', () => {
     const canvas = document.createElement('canvas');
 

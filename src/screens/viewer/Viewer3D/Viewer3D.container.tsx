@@ -29,6 +29,70 @@
  * `ViewerSceneActions` KHÔNG được `ViewerShell/index.ts` tái xuất, nên nó nhập
  * thẳng từ `viewerShellTypes.ts` — cùng ngoại lệ mục A của hợp đồng đã ghi.
  *
+ * ## MỘT nguồn dữ liệu, không phải hai
+ *
+ * Trước đây vỏ và màn nội dung nhìn hai đồ thị khác nhau: `useViewerShell` mặc
+ * định dùng cổng BỘ MẪU (`useViewerShell.ts:345-346`) nên thanh trạng thái hiện
+ * "4 tầng · 14 phòng · 248,60 m²", còn `useViewer3D` mặc định đọc KHO — thứ ở
+ * môi trường dev vẫn là `null`, vì bảy màn QC nạp kho đều đọc vòng tròn lại
+ * chính nó. Kết quả: vỏ có 14 phòng, cảnh không có phòng nào, và không có phòng
+ * nào để tìm.
+ *
+ * Container chốt đồ thị MỘT LẦN ở đây rồi tiêm cùng giá trị ấy vào cả hai qua
+ * hai chỗ tiêm đã có sẵn (`ViewerShellContainerProps.gateway` và `.spatial`):
+ *
+ * - kho có đồ thị thật → đó là nguồn, và cổng là cổng THẬT;
+ * - kho rỗng → dùng ĐÚNG bộ mẫu mà vỏ vẫn đang dùng
+ *   (`VIEWER_FIXTURE_SPATIAL`), chứ không dựng một bảng dữ liệu thứ ba.
+ *
+ * **Đây là đường TẠM.** Nó ở đây vì chưa endpoint nào trả về `NormalizedSpatial`
+ * — `data-gateway-contract.md` mục A ghi rõ khoảng trống ấy, và `FloorSchema`
+ * không mang phòng. Ngày có endpoint thật, nhánh bộ mẫu này bị xoá và
+ * `createViewerShellGateway` là nhánh duy nhất còn lại. Không ai được lấp chỗ
+ * đó bằng một lượt gọi mạng tự chế (R-69).
+ *
+ * ## Bộ mẫu của vỏ mang MÃ mà `src/domain` không đọc được — hệ quả, đã đo
+ *
+ * `domain/spatial/ids.ts:40-43` đòi phần thân của một mã dài ít nhất mười ký tự
+ * (`6` đếm + `4` ngẫu nhiên). Bộ mẫu của vỏ đánh mã `L-01`, `W-0101`, `R-001` —
+ * thân dài hai tới bốn. Nên với đồ thị bộ mẫu:
+ *
+ * - `isEntityOfKind` trả `false` cho **mọi** thực thể của nó. Vỏ không vướng vì
+ *   `shellDataOf`/`storeysOf` đọc theo HÌNH DẠNG; `roomOptionsOf` của
+ *   `useViewer3D` đã phải làm y hệt (xem docblock ở đó).
+ * - `toBuildFloorInput` trả `null` cho mọi tầng, nên **cảnh 3D không dựng được
+ *   hình nào ở dev**: `<canvas>` vẫn có mặt và vẫn trống. Đây không phải điều
+ *   Q2 làm hỏng — trước Q2 kho rỗng nên cảnh cũng không dựng gì — nhưng nó cũng
+ *   KHÔNG được Q2 sửa, và không được báo là đã xong.
+ * - Vì cảnh không dựng, `ViewerSceneHandle.frameEntities` không tồn tại lúc
+ *   chạy ở dev, nên **camera không bay tới phòng vừa tìm ở dev**. Đường R-07 có
+ *   thật và chạy đúng trên một đồ thị mã hợp lệ — `viewer3dScene.test.ts`
+ *   ("R-07: khuôn camera vào một phòng có thật") chứng minh điều đó với bộ mẫu
+ *   A14 — nhưng nó chưa được chứng minh trên trình duyệt.
+ * - Vì `isValidId` từ chối `R-011`, đại số chọn của S-10 cũng từ chối nó. Lượt
+ *   chọn vẫn tới kho qua chính đường mà một cú bấm trong cảnh 3D đi
+ *   (`ViewerSceneActions.selectEntity` của vỏ), nên panel thanh tra nói đúng
+ *   tên phòng; nhưng phần `selectSingle`/`isSelectable` KHÔNG chạy với dữ liệu
+ *   bộ mẫu.
+ *
+ * Sửa chỗ này là sửa `viewerShellFixture.ts` hoặc `domain/spatial/ids.ts`, hai
+ * thứ nằm ngoài phạm vi được sửa của Q2. Ghi ra đây để người sau không phải dò
+ * lại (E.10).
+ *
+ * ## Ô tìm đối tượng: khe `onOpenSearch` cuối cùng cũng có người cắm vào
+ *
+ * Vỏ nhận `onOpenSearch` và gọi nó khi người dùng bấm `/`, nhưng docblock của
+ * nó nói thẳng "vỏ không tự dựng hộp thoại nào". Trước đây màn này chỉ CHUYỂN
+ * TIẾP một prop tuỳ chọn mà không nơi gọi nào cung cấp — đúng ca R-73 gọi là
+ * "callback tồn tại trên giấy". Giờ chính container giữ trạng thái đóng/mở và
+ * `Viewer3D` vẽ ô tìm, nên prop chuyển tiếp ấy đã bị gỡ.
+ *
+ * `useShortcutListener` được gọi ở đây vì không có gì khác trên nhánh route này
+ * giữ listener bàn phím: `useViewerShell` chỉ `register` các phím của nó, còn
+ * `registry.attach(window)` chỉ xảy ra qua một trong các hook của
+ * `hooks/useShortcut.ts`. Thiếu nó thì phím `/` — và cả `F`, `H`, `I` của vỏ —
+ * không bao giờ chạy, và A12 mất một nửa lời hứa.
+ *
  * ## Canvas ở đâu
  *
  * `viewer3dTypes.ts:230-232` chốt: `canvas` không phải một prop của view mà là
@@ -45,7 +109,7 @@
  * dự án khác thì ranh giới gắn LẠI.
  */
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -56,9 +120,17 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { useSession } from '@/hooks/useSession';
+import { useShortcutListener } from '@/hooks/useShortcut';
 import type { ColoringModeId } from '@/lib/coloring/modes';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
-import { ViewerShellContainer, type ViewerShellGateway } from '@/screens/viewer/ViewerShell';
+import { useStore } from '@/store';
+import {
+  createViewerShellFixtureGateway,
+  createViewerShellGateway,
+  VIEWER_FIXTURE_SPATIAL,
+  ViewerShellContainer,
+  type ViewerShellGateway,
+} from '@/screens/viewer/ViewerShell';
 import type {
   ViewerSceneActions,
   ViewerSceneFrame,
@@ -81,8 +153,6 @@ export interface Viewer3DContainerProps {
   readonly projectId: string;
   /** Vai của người đang xem. Vai Người xem gỡ công cụ sửa khỏi ray và khỏi cảnh. */
   readonly roles?: readonly ProjectRole[];
-  /** Mở ô tìm đối tượng — phím `/`. Vỏ không tự dựng hộp thoại nào. */
-  readonly onOpenSearch?: () => void;
   /** Chế độ tô màu P-06; `'default'` khi vắng mặt. */
   readonly coloringModeId?: ColoringModeId;
 
@@ -118,6 +188,13 @@ function Viewer3DCrashFallback({ report, retry }: ScreenErrorFallback) {
 interface WiredViewer3DSceneProps extends Viewer3DContainerProps {
   readonly frame: ViewerSceneFrame;
   readonly sceneActions: ViewerSceneActions | undefined;
+  /** Đồ thị container đã chốt — ĐÚNG cái vỏ đang đọc. Xem "MỘT nguồn" ở đầu file. */
+  readonly resolvedSpatial: NormalizedSpatial | null;
+  /** Cổng container đã chốt — cũng là cổng vỏ đang dùng. */
+  readonly resolvedGateway: ViewerShellGateway;
+  readonly isSearchOpen: boolean;
+  readonly onOpenSearch: () => void;
+  readonly onCloseSearch: () => void;
 }
 
 /**
@@ -134,28 +211,83 @@ function WiredViewer3DScene(props: WiredViewer3DSceneProps) {
     projectId: props.projectId,
     canvas,
     frame: props.frame,
+    // Đồ thị và cổng KHÔNG còn là chỗ tiêm có điều kiện: container đã chốt
+    // chúng, và chốt một lần là cả điểm của mục "MỘT nguồn dữ liệu".
+    spatial: props.resolvedSpatial,
+    gateway: props.resolvedGateway,
     ...(props.sceneActions !== undefined ? { sceneActions: props.sceneActions } : {}),
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
-    ...(props.spatial !== undefined ? { spatial: props.spatial } : {}),
-    ...(props.gateway !== undefined ? { gateway: props.gateway } : {}),
     ...(props.forceState !== undefined ? { forceState: props.forceState } : {}),
     ...(props.coloringModeId !== undefined ? { coloringModeId: props.coloringModeId } : {}),
     ...(props.telemetry !== undefined ? { telemetry: props.telemetry } : {}),
     ...(props.mountScene !== undefined ? { mountScene: props.mountScene } : {}),
   });
 
-  return <Viewer3D {...model} canvasRef={setCanvas} />;
+  return (
+    <Viewer3D
+      {...model}
+      canvasRef={setCanvas}
+      search={{
+        ...model.search,
+        isOpen: props.isSearchOpen,
+        onOpen: props.onOpenSearch,
+        onClose: props.onCloseSearch,
+      }}
+    />
+  );
 }
 
 export function Viewer3DContainer(props: Viewer3DContainerProps) {
+  /* A12: giữ listener bàn phím sống suốt lúc màn còn gắn. Không có dòng này thì
+     mọi phím vỏ đăng ký — kể cả `/` — không bao giờ tới được sổ phím. */
+  useShortcutListener(props.registry !== undefined ? { registry: props.registry } : {});
+
+  const storeSpatial = useStore((state) => state.spatial);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  /* Kho rỗng là chuyện thường ở dev, không phải một sự cố: rơi về đúng bộ mẫu
+     vỏ vẫn dùng, và ghi rõ đây là đường tạm (xem đầu file). */
+  const usesFixture = props.spatial === undefined && storeSpatial === null;
+
+  const resolvedSpatial: NormalizedSpatial | null = usesFixture
+    ? VIEWER_FIXTURE_SPATIAL
+    : (props.spatial ?? storeSpatial);
+
+  const resolvedGateway = useMemo((): ViewerShellGateway => {
+    if (props.gateway !== undefined) {
+      return props.gateway;
+    }
+
+    return usesFixture
+      ? createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL)
+      : createViewerShellGateway(() => useStore.getState().spatial);
+  }, [props.gateway, usesFixture]);
+
+  const onOpenSearch = useCallback((): void => {
+    setIsSearchOpen(true);
+  }, []);
+
+  const onCloseSearch = useCallback((): void => {
+    setIsSearchOpen(false);
+  }, []);
+
   const renderScene = useCallback(
     // Hai tham số, tham số thứ hai TUỲ CHỌN — mục B của hợp đồng. Đây là hình
     // dạng duy nhất vừa gán được vào `renderScene` một tham số của vỏ, vừa đọc
     // được `actions` mà `ViewerViewport.tsx:123` luôn truyền thật.
     (frame: ViewerSceneFrame, actions?: ViewerSceneActions): ReactNode => (
-      <WiredViewer3DScene {...props} frame={frame} sceneActions={actions} />
+      <WiredViewer3DScene
+        {...props}
+        frame={frame}
+        isSearchOpen={isSearchOpen}
+        onCloseSearch={onCloseSearch}
+        onOpenSearch={onOpenSearch}
+        resolvedGateway={resolvedGateway}
+        resolvedSpatial={resolvedSpatial}
+        sceneActions={actions}
+      />
     ),
-    [props],
+    [props, isSearchOpen, onCloseSearch, onOpenSearch, resolvedGateway, resolvedSpatial],
   );
 
   return (
@@ -165,12 +297,12 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
       screenId={VIEWER_3D_SCREEN_ID}
     >
       <ViewerShellContainer
+        gateway={resolvedGateway}
+        onOpenSearch={onOpenSearch}
         projectId={props.projectId}
         renderScene={renderScene}
+        spatial={resolvedSpatial}
         {...(props.roles !== undefined ? { roles: props.roles } : {})}
-        {...(props.onOpenSearch !== undefined ? { onOpenSearch: props.onOpenSearch } : {})}
-        {...(props.gateway !== undefined ? { gateway: props.gateway } : {})}
-        {...(props.spatial !== undefined ? { spatial: props.spatial } : {})}
         {...(props.forceState !== undefined ? { forceState: props.forceState } : {})}
         {...(props.isDev !== undefined ? { isDev: props.isDev } : {})}
         {...(props.perf !== undefined ? { perf: props.perf } : {})}

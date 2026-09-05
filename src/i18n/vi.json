@@ -2123,6 +2123,14 @@
       "readyLabel": "Tầng đã dựng xong",
       "wireframeCaption": "{{name}} — chưa dựng xong"
     },
+    "search": {
+      "openButton": "tìm phòng",
+      "inputLabel": "tìm phòng theo tên hoặc mã",
+      "inputPlaceholder": "tên hoặc mã phòng",
+      "listLabel": "kết quả tìm phòng",
+      "noMatch": "không có phòng nào khớp",
+      "truncated": "còn phòng nữa — gõ thêm để thu hẹp"
+    },
     "success": {
       "description": "Mô hình 3D đã dựng xong."
     },

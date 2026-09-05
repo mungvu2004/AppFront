@@ -14,6 +14,7 @@
  * | Quyền | `can('edit', 'layer', …)` |
  * | Đường dẫn | `ROUTES.project.*` |
  * | fps trung bình (O-01) | `PerfMonitor` đo, `scene.frame-rate` ghi |
+ * | khuôn camera vào phòng vừa tìm (R-07) | `CameraDirector.frameObjects`, qua `ViewerSceneHandle.frameEntities` |
  *
  * ## `loading` và `error` không phải `useState`
  *
@@ -45,11 +46,12 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { isEntityOfKind, resolveLevelId, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { isValidId } from '@/domain/spatial/ids';
-import type { EntityId, LevelId } from '@/domain/spatial/types';
+import type { EntityId, LevelId, Room } from '@/domain/spatial/types';
 import { can } from '@/lib/auth/permissions';
 import { generateLegend } from '@/lib/coloring/legend';
 import { createColoringMode, type ColoringMode, type PaintSubject } from '@/lib/coloring/modes';
 import type { ColorTokenName } from '@/lib/coloring/scales';
+import { formatArea } from '@/lib/format/measure';
 import { formatPercent } from '@/lib/format/number';
 import { createUuid } from '@/lib/http/ids';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -76,9 +78,10 @@ import type {
 } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { mountViewerScene } from './viewer3dScene';
+import type { ViewerRoomOption } from './roomSearch';
 import type {
   UseViewer3DOptions,
-  Viewer3DProps,
+  Viewer3DModel,
   Viewer3DTelemetry,
   ViewerSceneHandle,
   ViewerSceneStatus,
@@ -102,6 +105,10 @@ const IDLE_STATUS: ViewerSceneStatus = {
 
 const EMPTY_LEVELS: readonly BuildFloorInput[] = [];
 const EMPTY_SUBJECTS: readonly PaintSubject[] = [];
+const EMPTY_ROOMS: readonly ViewerRoomOption[] = [];
+
+/** Tiền tố mã của một phòng — cùng quy ước `representativeOf` đọc. */
+const ROOM_ID_PREFIX = 'R-';
 
 /* -------------------------------------------------------------------------- */
 /* Phép đọc thuần trên đồ thị.                                                 */
@@ -175,7 +182,7 @@ function representativeOf(
   return subjects.find((subject) => subject.id.startsWith(prefix));
 }
 
-/** Tầng nào đang là tầng "đang xem" theo nghĩa của `isSelectable`. */
+/** Tầng nào đang là tầng "đang xem" khi vật được chọn không nói được tầng nào. */
 function activeLevelOf(
   visibleStoreyIds: readonly string[],
   data: ViewerShellData,
@@ -183,6 +190,95 @@ function activeLevelOf(
   const first = visibleStoreyIds[0] ?? data.storeys[0]?.id ?? null;
 
   return first === null ? null : (first as LevelId);
+}
+
+/** Mọi thứ một lượt chọn cần đọc, chụp lại ở mỗi lần vẽ. */
+interface SelectionSource {
+  readonly selection: Selection;
+  readonly spatial: NormalizedSpatial | null;
+  readonly visibleStoreyIds: readonly string[];
+  readonly fallbackLevelId: LevelId | null;
+}
+
+/**
+ * `SelectionContext` của S-10 cho MỘT lượt chọn.
+ *
+ * `isSelectable` từ chối mọi thứ không nằm trên "tầng đang xem", và trong một
+ * màn 2D thì tầng ấy có đúng một nghĩa. Ở khung nhìn 3D thì không: **mọi tầng
+ * đang hiện đều nằm trên màn cùng lúc**, xếp chồng lên nhau. Lấy
+ * `visibleStoreyIds[0]` làm tầng đang xem — như trước — nghĩa là bấm vào một
+ * phòng tầng 3 đang hiện rành rành cũng không chọn được nó, vì tầng trệt mới là
+ * tầng đầu danh sách.
+ *
+ * Nên tầng đang xem của một lượt chọn là tầng CỦA CHÍNH VẬT ẤY, miễn là tầng đó
+ * đang hiện. Tầng người dùng đã ẩn vẫn không chọn được — đúng ý ban đầu của
+ * `isSelectable`, và đó là phần luật này KHÔNG nới.
+ */
+function selectionContextOf(
+  source: SelectionSource,
+  id: EntityId | null,
+): SelectionContext | null {
+  const { spatial } = source;
+
+  if (spatial === null) {
+    return null;
+  }
+
+  const entity = id === null ? undefined : spatial.byId[id];
+  const ownLevelId = entity === undefined ? null : resolveLevelId(entity, spatial.byId);
+  const activeLevelId =
+    ownLevelId !== null && source.visibleStoreyIds.includes(ownLevelId)
+      ? ownLevelId
+      : source.fallbackLevelId;
+
+  return activeLevelId === null ? null : { spatial, activeLevelId, layers: {} };
+}
+
+/**
+ * Mọi phòng của đồ thị, rút gọn về đúng những gì ô tìm vẽ ra.
+ *
+ * Đọc theo HÌNH DẠNG (`'name' in entity`), **không** qua `isEntityOfKind` — và
+ * đó không phải một lối tắt. `isEntityOfKind` hỏi `isValidId`, thứ đòi phần
+ * thân của mã dài ít nhất mười ký tự (`domain/spatial/ids.ts:40-43`); bộ mẫu
+ * của vỏ đánh mã `R-001`, thân dài ba. Nên với bộ mẫu ấy `isEntityOfKind('room', …)`
+ * trả `false` cho **cả mười bốn phòng**, và một danh sách phòng rỗng là thứ
+ * người dùng nhìn thấy.
+ *
+ * `shellDataOf` và `storeysOf` của vỏ đã đọc theo hình dạng đúng vì lý do này;
+ * file này theo chúng thay vì dựng một danh sách rỗng rồi gọi đó là "không có
+ * phòng nào".
+ */
+function roomOptionsOf(
+  spatial: NormalizedSpatial | null,
+  storeys: ViewerShellData['storeys'],
+): readonly ViewerRoomOption[] {
+  if (spatial === null) {
+    return EMPTY_ROOMS;
+  }
+
+  const storeyNameById = new Map(storeys.map((storey) => [String(storey.id), storey.name]));
+  const options: ViewerRoomOption[] = [];
+
+  for (const id of spatial.byKind.room) {
+    const entity = spatial.byId[id];
+
+    if (entity === undefined || !('name' in entity) || !('areaM2' in entity)) {
+      continue;
+    }
+
+    const room = entity as Room;
+
+    options.push({
+      id: room.id,
+      name: room.name,
+      storeyName: storeyNameById.get(room.levelId) ?? UNNAMED_STOREY,
+      // A15: định dạng xảy ra ở viewmodel, không ở view — cùng `formatArea` mà
+      // panel thanh tra của vỏ dùng, nên hai chỗ không in ra hai con số khác.
+      areaLabel: formatArea(room.areaM2),
+    });
+  }
+
+  return options;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -193,10 +289,11 @@ function activeLevelOf(
  * Mọi thứ `Viewer3D.tsx` cần, và không gì hơn.
  *
  * @param options Dự án, canvas để vẽ, khung của vỏ, và các chỗ tiêm.
- * @returns Đúng {@link Viewer3DProps} — hình dạng `shell-props-contract.md` mục
- * D đã chốt và V5 đã dựng view theo.
+ * @returns Đúng {@link Viewer3DModel} — {@link Viewer3DProps} của
+ * `shell-props-contract.md` mục D trừ hai trường hook không cấp được
+ * (`canvasRef` và phần đóng/mở của ô tìm); container ghép chúng vào.
  */
-export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
+export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   const { canvas, frame, projectId } = options;
 
   /* ---- Kho: đọc một lần ------------------------------------------------- */
@@ -292,19 +389,18 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
 
   /* ---- Chọn: S-10 tính, S-11 đi cả hai chiều ---------------------------- */
 
-  const selectionRef = useRef<{ selection: Selection; context: SelectionContext | null }>({
+  const selectionRef = useRef<SelectionSource>({
     selection: selectedIds,
-    context: null,
+    spatial,
+    visibleStoreyIds: frame.visibleStoreyIds,
+    fallbackLevelId: null,
   });
-
-  const activeLevelId = activeLevelOf(frame.visibleStoreyIds, data);
 
   selectionRef.current = {
     selection: selectedIds,
-    context:
-      spatial === null || activeLevelId === null
-        ? null
-        : { spatial, activeLevelId, layers: {} },
+    spatial,
+    visibleStoreyIds: frame.visibleStoreyIds,
+    fallbackLevelId: activeLevelOf(frame.visibleStoreyIds, data),
   };
 
   const shellActions = options.sceneActions;
@@ -312,19 +408,28 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
   const sceneActions = useMemo<ViewerSceneActions>(
     () => ({
       selectEntity: (entityId, additive) => {
-        const { selection, context } = selectionRef.current;
+        const source = selectionRef.current;
 
-        if (context !== null) {
-          const id = entityId === null ? null : toEntityId(entityId);
+        if (entityId === null) {
+          setSelection(clearSelection(source.selection));
+        } else {
+          // `toEntityId` trả `null` khi mã KHÔNG hợp lệ với `src/domain` — thân
+          // mã ngắn hơn mười ký tự, đúng những mã mà bộ mẫu của vỏ đánh
+          // (`R-001`). Đó KHÔNG phải "bỏ chọn": coi nó là bỏ chọn thì mỗi lần
+          // chọn một phòng của bộ mẫu lại xoá sạch lựa chọn đang có. Đại số
+          // S-10 chỉ chạy khi mã đọc được, và phần ghi kho của vỏ ở dưới vẫn
+          // chạy trong cả hai trường hợp.
+          const id = toEntityId(entityId);
+          const context = id === null ? null : selectionContextOf(source, id);
 
-          // Đại số chọn của S-10, không phải một phép hợp/hiệu viết tay ở đây.
-          setSelection(
-            id === null
-              ? clearSelection(selection)
-              : additive
-                ? toggleSelection(selection, id, context)
-                : selectSingle(selection, id, context),
-          );
+          if (id !== null && context !== null) {
+            // Đại số chọn của S-10, không phải phép hợp/hiệu viết tay ở đây.
+            setSelection(
+              additive
+                ? toggleSelection(source.selection, id, context)
+                : selectSingle(source.selection, id, context),
+            );
+          }
         }
 
         // Chiều "3D → panel" của S-11: vỏ cuộn hàng tương ứng vào tầm nhìn.
@@ -476,6 +581,38 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
     setBuildAttempt((attempt) => attempt + 1);
   }, []);
 
+  /* ---- Ô tìm đối tượng --------------------------------------------------- */
+
+  const rooms = useMemo(() => roomOptionsOf(spatial, data.storeys), [spatial, data.storeys]);
+
+  const selectedRoomId = useMemo(
+    () => selectedIds.find((id) => id.startsWith(ROOM_ID_PREFIX)) ?? null,
+    [selectedIds],
+  );
+
+  /**
+   * Chọn một phòng từ ô tìm.
+   *
+   * Hai việc, đúng thứ tự, và cả hai đều đi qua chủ cũ của chúng:
+   *
+   * 1. **Chọn thật** — cùng `sceneActions.selectEntity` mà cú bấm chuột trong
+   *    cảnh 3D gọi, nên đại số S-10 và chiều "3D → panel" của S-11 chỉ có một
+   *    đường dây, không phải hai.
+   * 2. **Khuôn camera** — `frameEntities` của cảnh, tức
+   *    `CameraDirector.frameObjects` của R-07 chạy trên chính cây lưới đã dựng.
+   *
+   * Việc 2 im lặng không làm gì khi cảnh chưa dựng xong tầng ấy, hoặc khi máy
+   * không có WebGL: phòng vẫn được CHỌN và panel phải vẫn nói ra tên nó, nên
+   * việc "tìm được một phòng" không phụ thuộc vào việc camera bay tới nơi.
+   */
+  const onSelectRoom = useCallback(
+    (roomId: string): void => {
+      sceneActions.selectEntity(roomId, false);
+      handleRef.current?.frameEntities([roomId]);
+    },
+    [sceneActions],
+  );
+
   const firstStoreyId = data.storeys[0]?.id;
 
   return {
@@ -494,6 +631,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DProps {
         ? ROUTES.project.floors(projectId)
         : ROUTES.project.walls(projectId, firstStoreyId),
     onRetryBuild,
+    search: { rooms, selectedRoomId, onSelectRoom },
     // `canEdit` KHÔNG nằm trong Viewer3DProps (N2): view đã gỡ nút "sửa hình
     // học" nên không đọc trường này; nó chỉ còn dùng nội bộ ở trên
     // (canSelect cho mountViewerScene, và nhánh forbidden của state).
