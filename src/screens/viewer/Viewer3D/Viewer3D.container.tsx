@@ -51,33 +51,20 @@
  * `createViewerShellGateway` là nhánh duy nhất còn lại. Không ai được lấp chỗ
  * đó bằng một lượt gọi mạng tự chế (R-69).
  *
- * ## Bộ mẫu của vỏ mang MÃ mà `src/domain` không đọc được — hệ quả, đã đo
+ * ## Vai người dùng vẫn chưa chảy tới màn — hệ quả, đã đo
  *
- * `domain/spatial/ids.ts:40-43` đòi phần thân của một mã dài ít nhất mười ký tự
- * (`6` đếm + `4` ngẫu nhiên). Bộ mẫu của vỏ đánh mã `L-01`, `W-0101`, `R-001` —
- * thân dài hai tới bốn. Nên với đồ thị bộ mẫu:
+ * Mã của bộ mẫu vỏ ĐÃ được sửa cho hợp lệ theo `domain/spatial/ids.ts`
+ * (`viewerShellFixture.ts`), nên `toBuildFloorInput` dựng được hình thật và
+ * cảnh 3D ở dev đã có khối nhà bốn tầng — đo bằng Playwright, canvas 960×415.
  *
- * - `isEntityOfKind` trả `false` cho **mọi** thực thể của nó. Vỏ không vướng vì
- *   `shellDataOf`/`storeysOf` đọc theo HÌNH DẠNG; `roomOptionsOf` của
- *   `useViewer3D` đã phải làm y hệt (xem docblock ở đó).
- * - `toBuildFloorInput` trả `null` cho mọi tầng, nên **cảnh 3D không dựng được
- *   hình nào ở dev**: `<canvas>` vẫn có mặt và vẫn trống. Đây không phải điều
- *   Q2 làm hỏng — trước Q2 kho rỗng nên cảnh cũng không dựng gì — nhưng nó cũng
- *   KHÔNG được Q2 sửa, và không được báo là đã xong.
- * - Vì cảnh không dựng, `ViewerSceneHandle.frameEntities` không tồn tại lúc
- *   chạy ở dev, nên **camera không bay tới phòng vừa tìm ở dev**. Đường R-07 có
- *   thật và chạy đúng trên một đồ thị mã hợp lệ — `viewer3dScene.test.ts`
- *   ("R-07: khuôn camera vào một phòng có thật") chứng minh điều đó với bộ mẫu
- *   A14 — nhưng nó chưa được chứng minh trên trình duyệt.
- * - Vì `isValidId` từ chối `R-011`, đại số chọn của S-10 cũng từ chối nó. Lượt
- *   chọn vẫn tới kho qua chính đường mà một cú bấm trong cảnh 3D đi
- *   (`ViewerSceneActions.selectEntity` của vỏ), nên panel thanh tra nói đúng
- *   tên phòng; nhưng phần `selectSingle`/`isSelectable` KHÔNG chạy với dữ liệu
- *   bộ mẫu.
+ * Thứ CÒN chặn là vai: mock `auth.signIn` (`src/api/__mocks__/client.ts`) trả
+ * `ok(undefined)` chứ không trả payload có `roles`, nên
+ * `setAuthenticatedSession` không bao giờ nhận vai, `useSession().roles` rỗng,
+ * `canEdit` là `false`, và `viewer3dScene` không gắn `createPointerPicker`.
+ * Hệ quả: bấm chuột trong khung nhìn KHÔNG chọn được đối tượng ở dev. Ô tìm
+ * đối tượng thì chạy, vì nó đi đường khác.
  *
- * Sửa chỗ này là sửa `viewerShellFixture.ts` hoặc `domain/spatial/ids.ts`, hai
- * thứ nằm ngoài phạm vi được sửa của Q2. Ghi ra đây để người sau không phải dò
- * lại (E.10).
+ * Ghi ra đây để người sau không phải dò lại (E.10).
  *
  * ## Ô tìm đối tượng: khe `onOpenSearch` cuối cùng cũng có người cắm vào
  *

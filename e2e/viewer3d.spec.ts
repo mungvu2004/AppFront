@@ -62,30 +62,24 @@ import { ROUTE_PATTERNS } from '../src/routes/paths';
  * được. Sau Q2, ba trong bốn lý do đã đổi, và {@link findOneRoom} là bài chứng
  * minh phần đã đổi:
  *
- * - **Lý do 1 — đã lấp một nửa, bằng một đường TẠM.** `Viewer3DContainer` chốt
- *   đồ thị một lần rồi tiêm cùng giá trị ấy vào cả vỏ lẫn hook qua hai chỗ tiêm
- *   sẵn có (`gateway`, `spatial`). Kho rỗng thì nó rơi về ĐÚNG bộ mẫu vỏ vẫn
- *   dùng, nên hai bên không còn nhìn hai nguồn khác nhau, và **danh sách phòng
- *   tới được màn**. Nửa chưa lấp: bộ mẫu ấy đánh mã `L-01`/`R-001`, thân mã
- *   ngắn hơn mười ký tự mà `domain/spatial/ids.ts` đòi, nên `toBuildFloorInput`
- *   trả `null` cho mọi tầng và **cảnh 3D vẫn không dựng được hình nào ở dev** —
- *   `<canvas>` có mặt và trống. Sửa chỗ đó là sửa `viewerShellFixture.ts` hoặc
- *   `domain/spatial/ids.ts`, cả hai nằm ngoài phạm vi Q2.
- * - **Lý do 2 — KHÔNG đổi.** Bảy màn QC vẫn đọc vòng tròn; Q2 không chạm vào
- *   chúng.
- * - **Lý do 3 — KHÔNG đổi.** Vai vẫn là `[]`, `canEdit` vẫn `false`, nên
- *   `viewer3dScene.ts` vẫn KHÔNG gắn `createPointerPicker` và **bấm chuột vào
- *   khung nhìn vẫn không chọn được gì**. Bài dưới đây đi đường khác — ô tìm —
- *   nên nó không chứng minh và không được đọc là đã chứng minh việc bấm-để-chọn
- *   trong cảnh 3D.
- * - **Lý do 4 — đã lấp.** Tên phòng giờ đọc được ở ô tìm, và tên phòng vừa chọn
+ * - **Lý do 1 — ĐÃ LẤP.** `Viewer3DContainer` chốt đồ thị một lần rồi tiêm cùng
+ *   giá trị ấy vào cả vỏ lẫn hook qua hai chỗ tiêm sẵn có (`gateway`,
+ *   `spatial`), nên hai bên không còn nhìn hai nguồn khác nhau. Và mã của bộ
+ *   mẫu vỏ đã được sửa cho hợp lệ theo `domain/spatial/ids.ts`, nên
+ *   `toBuildFloorInput` dựng được hình thật: **cảnh 3D ở dev đã có khối nhà bốn
+ *   tầng**, canvas 960×415 chứ không còn 300×150.
+ * - **Lý do 2 — KHÔNG đổi.** Bảy màn QC vẫn đọc vòng tròn.
+ * - **Lý do 3 — KHÔNG đổi.** Vai vẫn là `[]` (mock `auth.signIn` trả
+ *   `ok(undefined)`, không payload nào mang `roles`), `canEdit` vẫn `false`,
+ *   nên `viewer3dScene.ts` vẫn KHÔNG gắn `createPointerPicker` và **bấm chuột
+ *   vào khung nhìn vẫn không chọn được gì**. Bài dưới đây đi đường khác — ô
+ *   tìm — nên nó không chứng minh và không được đọc là đã chứng minh việc
+ *   bấm-để-chọn trong cảnh 3D.
+ * - **Lý do 4 — đã lấp.** Tên phòng đọc được ở ô tìm, và tên phòng vừa chọn
  *   hiện ra ở panel thanh tra bên phải — thứ bài dưới đây khẳng định, vì nó nằm
- *   NGOÀI ô tìm và do đó không phải là ô tìm tự đọc lại chính mình. Lưu ý điều
- *   bài này KHÔNG nói: vì `isValidId` từ chối mã `R-011` của bộ mẫu, đại số
- *   `selectSingle`/`isSelectable` của S-10 KHÔNG chạy ở đây — lượt chọn tới kho
- *   qua đúng đường mà một cú bấm trong cảnh 3D đi (phần ghi kho của vỏ). Với
- *   một đồ thị mã hợp lệ thì cả hai nhánh cùng chạy; điều đó chưa được chứng
- *   minh trên trình duyệt.
+ *   NGOÀI ô tìm và do đó không phải là ô tìm tự đọc lại chính mình. Mã bộ mẫu
+ *   nay hợp lệ nên đại số `selectSingle`/`isSelectable` của S-10 chạy được với
+ *   dữ liệu ấy; bài này vẫn không đi qua nhánh bấm-trong-cảnh, xem lý do 3.
  *
  * Còn một việc nữa bài này KHÔNG kiểm được: **camera có bay tới đúng phòng
  * không**. `CameraDirector.frameObjects` chạy trên cây lưới bên trong `<canvas>`,
