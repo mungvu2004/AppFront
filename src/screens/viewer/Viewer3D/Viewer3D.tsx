@@ -12,6 +12,11 @@
  * nền/mặt đất token vẫn được vẽ ở đây để không trạng thái nào ra màn trắng khi
  * đứng độc lập — cùng ba token màu vỏ dùng (`bg-canvas-3d` v.v.), không phải
  * mã riêng.
+ *
+ * N2: `Viewer3DProps` không khai ở đây nữa — nhập kiểu từ `viewer3dTypes.ts`
+ * (docblock ở đó giải thích vì sao gộp về một chỗ vẫn giữ được R-60). Import
+ * chỉ-kiểu bị xoá trước khi ra bundle nên không kéo `@/domain` mà file kia
+ * nhập vào view lúc chạy.
  */
 
 import { Loader2 } from 'lucide-react';
@@ -19,43 +24,11 @@ import { Loader2 } from 'lucide-react';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import type {
-  ViewerSceneActions,
-  ViewerSceneFrame,
-  ViewerScreenState,
-} from '@/screens/viewer/ViewerShell/viewerShellTypes';
+import type { ViewerSceneActions, ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
-export interface Viewer3DProps {
-  /** Bảy trạng thái A11 — `ViewerSceneFrame` không mang trường này. */
-  readonly state: ViewerScreenState;
-  /** Điểm nhìn, tầng hiện, chọn/hover — vỏ cấp, tham số thứ nhất `renderScene`. */
-  readonly frame: ViewerSceneFrame;
-  /** Hai việc báo ngược lên vỏ. Tuỳ chọn để qua kiểu một tham số của container. */
-  readonly sceneActions?: ViewerSceneActions | undefined;
-  /** Phần trăm dựng thật của R-03, đã ghép chuỗi sẵn (A15). */
-  readonly buildProgressLabel: string | null;
-  /** Tầng đã dựng xong hình thật; còn lại vẽ khung dây. */
-  readonly readyStoreyIds: readonly string[];
-  /** Caption một câu cho một tầng khung dây, đã ghép sẵn (A15). */
-  readonly wireframeCaptionOf: (storeyId: string) => string;
-  /** Không có WebGL — phát hiện ngoài bảy trạng thái của vỏ. */
-  readonly webglUnavailable: boolean;
-  /** Liên kết sang bản 2D, cho card lỗi và cho trạng thái rỗng. */
-  readonly fallback2dHref: string;
-  /** Nút "sang QC" của trạng thái rỗng. */
-  readonly qcHref: string;
-  /** Thử lại bước dựng hình (khác `onRetry` của vỏ — vỏ retry truy vấn dự án). */
-  readonly onRetryBuild: () => void;
-  /**
-   * Callback ref nhận phần tử `<canvas>` sau khi view gắn xong, để container
-   * đưa nó vào `useViewer3D` (`viewer3dTypes.ts:230-232`: `canvas` chỉ tồn tại
-   * sau khi view gắn, nên nó KHÔNG phải một prop dữ liệu).
-   *
-   * Vắng mặt thì không có `<canvas>` nào được vẽ — đó là cách story và bài kiểm
-   * dựng view thuần này một mình, không cần WebGL.
-   */
-  readonly canvasRef?: ((canvas: HTMLCanvasElement | null) => void) | undefined;
-}
+import type { Viewer3DProps } from './viewer3dTypes';
+
+export type { Viewer3DProps };
 
 /** Nền + mặt đất + chân trời một màu token, không gradient — dùng ở mọi trạng thái. */
 function ViewerGround() {
