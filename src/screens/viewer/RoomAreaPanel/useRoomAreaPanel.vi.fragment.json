@@ -1,0 +1,21 @@
+{
+  "_note": "Chuỗi tiếng Việt MỚI do useRoomAreaPanel.ts và useRoomAreaPanel.model.ts sinh ra. src/i18n/vi.json là từ điển để kiểm tra (lib/testing/expectVietnamese), không phải bảng dịch lúc chạy — nên chuỗi vẫn viết thẳng trong mã, và mảnh này là bản kê để người gộp vi.json về sau đọc. Những chuỗi do src/domain viết ra (explainRoom, describeUsage, CommandRefusal.reasons) KHÔNG nằm ở đây: chúng đã có chủ.",
+  "roomAreaPanel": {
+    "totals": {
+      "caption": "Tổng diện tích sàn {{scope}} — {{count}} phòng",
+      "whole_building": "toàn nhà",
+      "unit": "m²"
+    },
+    "bands": {
+      "wall_strong": "phòng ở",
+      "wall_mid": "khu phụ trợ",
+      "neutral": "lưu thông và khác"
+    },
+    "level": {
+      "unknown": "Tầng chưa xác định"
+    },
+    "errors": {
+      "write_failed": "Không lưu được tên phòng vừa sửa. Thử lại giúp tôi."
+    }
+  }
+}
