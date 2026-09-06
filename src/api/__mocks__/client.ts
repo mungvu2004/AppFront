@@ -1,4 +1,5 @@
 import { SAMPLE_BUILDING, SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { FURNITURE_KIND_BY_LIBRARY_GROUP } from '../schemas/library';
 import type { Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
@@ -11,6 +12,8 @@ import type {
   FloorWriteBody,
   ImageQualityAssessment,
   ImageQualityFinding,
+  LibraryGroup,
+  LibraryItem,
   Progress,
   Project,
   ProjectWriteBody,
@@ -349,6 +352,253 @@ export const resetMockAuthSession = (): void => {
   lastSignedInEmail = null;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Thư viện model.                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mười sáu model, đủ để dựng cả bảy trạng thái của panel thư viện — D-01/D-02/D-03.
+ *
+ * Bộ này không phải một danh sách cho có: từng đặc điểm dưới đây có mặt vì một
+ * trạng thái cụ thể cần nó, và bỏ một cái đi là một story mất chỗ dựa.
+ *
+ * - **Cả tám nhóm đều có mặt, mỗi nhóm ít nhất hai mục.** Bấm một chip bất kỳ
+ *   cũng còn thứ để vẽ, nên `'empty'` không bao giờ là kết quả của "chip này
+ *   tình cờ rỗng".
+ * - **Ba mục `source: 'mine'`, nằm ở ba nhóm KHÁC nhau** (`table`, `chair`,
+ *   `technical`). Đây là cái chứng minh hai trục thật sự độc lập: chip `Ghế`
+ *   phải tìm thấy chiếc ghế của tôi, và chip `Của tôi` phải tìm thấy cả ba —
+ *   xem `matchesLibraryFilter` (`../schemas/library.ts`).
+ * - **Một mục nặng bất thường** (`library-technical-2`, 1.240.000 tam giác).
+ *   Nó một mình đã vượt `SCENE_BUDGET.maxTriangles` (900.000,
+ *   `src/lib/three/perf/budget.ts`), nên `checkBudget()` cảnh báo KỂ CẢ khi
+ *   cảnh đang rỗng — cảnh báo trước khi cho kéo của R-04 có đường chạy mà
+ *   không ai phải bịa một ngưỡng thứ hai.
+ * - **Hai mục thiếu `previewUrl`** (`library-storage-2`, `library-sanitary-2`).
+ *   Đây là cái cho trạng thái `'partial'` của A11 có nội dung thật: 14/16 mục
+ *   có ảnh xem trước.
+ *
+ * `furnitureKind` KHÔNG gõ tay ở đây. Nó suy ra từ `group` qua
+ * `FURNITURE_KIND_BY_LIBRARY_GROUP`, đúng một phép suy mà `LibraryItemSchema`
+ * chạy khi giải mã một payload thật — mock gõ tay một loại khác thì bài kiểm
+ * của màn xanh với dữ liệu mà máy chủ thật không bao giờ gửi.
+ */
+const LIBRARY_ASSET_ROOT = 'https://example.com/library';
+
+interface MockLibraryItemInput {
+  depthMm: number;
+  fileSizeBytes: number;
+  group: LibraryGroup;
+  /** Vắng mặt có chủ đích: xem mục "hai mục thiếu previewUrl" ở trên. */
+  hasPreview?: false;
+  heightMm: number;
+  id: string;
+  name: string;
+  source?: LibraryItem['source'];
+  triangleCount: number;
+  widthMm: number;
+}
+
+const makeLibraryItem = (input: MockLibraryItemInput): LibraryItem => ({
+  depthMm: input.depthMm,
+  fileSizeBytes: input.fileSizeBytes,
+  furnitureKind: FURNITURE_KIND_BY_LIBRARY_GROUP[input.group],
+  group: input.group,
+  heightMm: input.heightMm,
+  id: input.id,
+  modelUrl: `${LIBRARY_ASSET_ROOT}/${input.id}.glb`,
+  name: input.name,
+  ...(input.hasPreview === false ? {} : { previewUrl: `${LIBRARY_ASSET_ROOT}/${input.id}.png` }),
+  source: input.source ?? 'catalogue',
+  triangleCount: input.triangleCount,
+  widthMm: input.widthMm,
+});
+
+const MOCK_LIBRARY_ITEMS: readonly LibraryItem[] = [
+  makeLibraryItem({
+    depthMm: 900,
+    fileSizeBytes: 412_000,
+    group: 'table',
+    heightMm: 750,
+    id: 'library-table-1',
+    name: 'bàn ăn sáu chỗ',
+    triangleCount: 8_400,
+    widthMm: 1_800,
+  }),
+  makeLibraryItem({
+    depthMm: 600,
+    fileSizeBytes: 268_000,
+    group: 'table',
+    heightMm: 750,
+    id: 'library-table-2',
+    name: 'bàn làm việc chữ l',
+    source: 'mine',
+    triangleCount: 6_100,
+    widthMm: 1_400,
+  }),
+  makeLibraryItem({
+    depthMm: 520,
+    fileSizeBytes: 184_000,
+    group: 'chair',
+    heightMm: 880,
+    id: 'library-chair-1',
+    name: 'ghế tựa gỗ sồi',
+    triangleCount: 12_600,
+    widthMm: 460,
+  }),
+  makeLibraryItem({
+    depthMm: 620,
+    fileSizeBytes: 226_000,
+    group: 'chair',
+    heightMm: 1_120,
+    id: 'library-chair-2',
+    name: 'ghế xoay văn phòng',
+    source: 'mine',
+    triangleCount: 24_800,
+    widthMm: 640,
+  }),
+  makeLibraryItem({
+    depthMm: 2_000,
+    fileSizeBytes: 520_000,
+    group: 'bed',
+    heightMm: 420,
+    id: 'library-bed-1',
+    name: 'giường đôi 1m6',
+    triangleCount: 9_800,
+    widthMm: 1_600,
+  }),
+  makeLibraryItem({
+    depthMm: 1_900,
+    fileSizeBytes: 388_000,
+    group: 'bed',
+    heightMm: 400,
+    id: 'library-bed-2',
+    name: 'giường đơn có hộc kéo',
+    triangleCount: 11_200,
+    widthMm: 1_000,
+  }),
+  makeLibraryItem({
+    depthMm: 880,
+    fileSizeBytes: 742_000,
+    group: 'sofa',
+    heightMm: 820,
+    id: 'library-sofa-1',
+    name: 'sô pha ba chỗ bọc nỉ',
+    triangleCount: 46_500,
+    widthMm: 2_100,
+  }),
+  makeLibraryItem({
+    depthMm: 1_600,
+    fileSizeBytes: 964_000,
+    group: 'sofa',
+    heightMm: 820,
+    id: 'library-sofa-2',
+    name: 'sô pha góc chữ l',
+    triangleCount: 61_300,
+    widthMm: 2_600,
+  }),
+  makeLibraryItem({
+    depthMm: 600,
+    fileSizeBytes: 296_000,
+    group: 'storage',
+    heightMm: 2_200,
+    id: 'library-storage-1',
+    name: 'tủ quần áo ba cánh',
+    triangleCount: 7_400,
+    widthMm: 1_800,
+  }),
+  makeLibraryItem({
+    depthMm: 320,
+    fileSizeBytes: 158_000,
+    group: 'storage',
+    hasPreview: false,
+    heightMm: 1_800,
+    id: 'library-storage-2',
+    name: 'kệ sách năm tầng',
+    triangleCount: 5_200,
+    widthMm: 800,
+  }),
+  makeLibraryItem({
+    depthMm: 700,
+    fileSizeBytes: 344_000,
+    group: 'sanitary',
+    heightMm: 780,
+    id: 'library-sanitary-1',
+    name: 'bệt liền khối',
+    triangleCount: 18_900,
+    widthMm: 380,
+  }),
+  makeLibraryItem({
+    depthMm: 480,
+    fileSizeBytes: 212_000,
+    group: 'sanitary',
+    hasPreview: false,
+    heightMm: 850,
+    id: 'library-sanitary-2',
+    name: 'chậu rửa đặt bàn',
+    triangleCount: 14_300,
+    widthMm: 600,
+  }),
+  makeLibraryItem({
+    depthMm: 600,
+    fileSizeBytes: 486_000,
+    group: 'kitchen',
+    heightMm: 850,
+    id: 'library-kitchen-1',
+    name: 'tủ bếp dưới có chậu',
+    triangleCount: 10_700,
+    widthMm: 1_200,
+  }),
+  makeLibraryItem({
+    depthMm: 350,
+    fileSizeBytes: 238_000,
+    group: 'kitchen',
+    heightMm: 700,
+    id: 'library-kitchen-2',
+    name: 'tủ bếp trên cánh lật',
+    triangleCount: 6_900,
+    widthMm: 1_200,
+  }),
+  makeLibraryItem({
+    depthMm: 300,
+    fileSizeBytes: 176_000,
+    group: 'technical',
+    heightMm: 300,
+    id: 'library-technical-1',
+    name: 'cục nóng điều hòa',
+    source: 'mine',
+    triangleCount: 21_400,
+    widthMm: 800,
+  }),
+  makeLibraryItem({
+    depthMm: 900,
+    fileSizeBytes: 24_800_000,
+    group: 'technical',
+    heightMm: 2_000,
+    id: 'library-technical-2',
+    name: 'cụm thông gió tầng hầm',
+    triangleCount: 1_240_000,
+    widthMm: 2_400,
+  }),
+];
+
+/**
+ * Một mục thay thế khi id không có trong bộ mẫu — cùng khuôn với
+ * `makeFallbackFloor` ở trên: mock của file này không bao giờ trả về thất bại,
+ * vì nhánh lỗi của màn được lái qua cổng của nó chứ không qua đây.
+ */
+const makeFallbackLibraryItem = (libraryItemId: string): LibraryItem =>
+  makeLibraryItem({
+    depthMm: 600,
+    fileSizeBytes: 120_000,
+    group: 'technical',
+    heightMm: 600,
+    id: libraryItemId,
+    name: 'model chưa đặt tên',
+    triangleCount: 4_000,
+    widthMm: 600,
+  });
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -466,6 +716,22 @@ export const createMockApiClient = (): ApiClient => {
         }
         return ok(clone(floors));
       },
+    },
+    /**
+     * Cùng mười sáu mục cho mọi lượt gọi, và `read` không bao giờ trượt.
+     *
+     * Không có trạng thái ghi nào ở đây, khác `quality` và `propertyTemplates`:
+     * `LibraryApi` chỉ đọc, nên không thao tác nào của màn làm danh mục đổi đi.
+     */
+    library: {
+      list: async () => ok(MOCK_LIBRARY_ITEMS.map(clone)),
+      read: async ({ libraryItemId }) =>
+        ok(
+          clone(
+            MOCK_LIBRARY_ITEMS.find((item) => item.id === libraryItemId) ??
+              makeFallbackLibraryItem(libraryItemId),
+          ),
+        ),
     },
     projects: {
       create: async ({ body }) => {
