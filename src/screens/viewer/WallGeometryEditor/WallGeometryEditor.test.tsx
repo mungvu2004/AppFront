@@ -31,7 +31,7 @@
  */
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, waitFor, type RenderResult } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, type RenderResult } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -352,7 +352,6 @@ async function captureState(
   props: Omit<WiredEditorProps, 'gateway' | 'probe'>,
   provoke?: (result: RenderResult, probe: EditorProbe) => Promise<void>,
 ): Promise<void> {
-  console.log('MARK-BEGIN ' + wanted);
   const probe = createProbe();
   const result = renderWired({ ...props, gateway: createCountedGateway().gateway, probe });
 
@@ -376,7 +375,6 @@ async function captureState(
   });
 
   result.unmount();
-  console.log('MARK-END ' + wanted);
 }
 
 /** Trạng thái đã chụp, hoặc một lời từ chối rõ ràng thay cho một `undefined` lặng lẽ. */
@@ -413,8 +411,13 @@ beforeAll(async () => {
       expect(probe.state?.kind).toBe('success');
     });
 
+    /* Chọn một đỉnh trước — nút "Xoá đỉnh" chỉ bật lên khi đã có đỉnh đang chọn. */
     fireEvent.click(result.getByRole('button', { name: vertexDisplayCode(0) }));
-    fireEvent.click(result.getByRole('button', { name: TEXT.tools.removeVertex.label }));
+
+    /* Lượt ghi là BẤT ĐỒNG BỘ; `act` giữ lời từ chối rơi vào trong lượt kiểm. */
+    await act(async () => {
+      fireEvent.click(result.getByRole('button', { name: TEXT.tools.removeVertex.label }));
+    });
   });
 });
 
@@ -835,6 +838,21 @@ describe('[R] luật màn hình', () => {
     );
 
     expect(container.childElementCount).toBeGreaterThan(0);
+  });
+
+  it('[A11] lượt ghi bị từ chối luôn nói ra vì sao — không có từ chối im lặng', () => {
+    const refused = stateOf('error');
+    const explanation = 'explanation' in refused ? refused.explanation : '';
+    const offending = 'offendingEdgeIds' in refused ? refused.offendingEdgeIds : [];
+    const { getByText } = render(<WallGeometryEditor state={refused} />);
+
+    console.log(
+      `${REPORT}[A11] câu từ chối hiện trên màn: "${explanation}" · số cạnh được chỉ đích danh = ` +
+        `${String(offending.length)}`,
+    );
+
+    expect(explanation).not.toBe('');
+    expect(getByText(explanation)).toBeVisible();
   });
 
   it('[A12] Esc thoát chế độ sửa khi không còn lớp nào bên trên', async () => {
