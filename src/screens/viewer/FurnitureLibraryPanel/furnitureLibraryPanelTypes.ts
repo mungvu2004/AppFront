@@ -268,4 +268,19 @@ export interface UseFurnitureLibraryPanelOptions {
 export interface FurnitureLibraryPanelContainerProps {
   readonly floorId: string;
   readonly onModelDropped: (modelId: string, targetEntityId: string | null) => void;
+  /**
+   * Màn cha cấp đường tải mô hình lên.
+   *
+   * TUỲ CHỌN, và tuỳ chọn là câu trả lời trung thực chứ không phải chỗ hở: repo
+   * CHƯA có đường tải mô hình lên nào — `ENDPOINTS.library` chỉ có `list` và
+   * `detail`, `LibraryApi` chỉ có `list()`/`read()`, và `src/lib/upload` phục vụ
+   * `DrawingsApi` (bản vẽ) chứ không phải `.glb`. Không truyền thì nút "Tải lên
+   * mô hình" KHÔNG hiện, đúng như trạng thái thứ sáu của A11 mô tả (ẩn nút tải
+   * lên, thẻ vẫn xem được). Ngày có màn tải mô hình thật, nó truyền đúng một
+   * prop chứ không phải sửa panel — đó là điều R-73 đòi.
+   *
+   * Không bịa endpoint, không dựng hàm giả, không hẹn nợ bằng ghi chú (R-69):
+   * khoảng trống được NÓI RA ở đây thay vì bị giấu sau một hàm rỗng.
+   */
+  readonly onUploadModel?: (() => void) | undefined;
 }
