@@ -2533,6 +2533,92 @@
       "gapClosed": "Đã đóng khe hở"
     }
   },
+  "roomAreaPanel": {
+    "regionLabel": "Bảng diện tích phòng",
+    "levelSelectLabel": "Chọn tầng",
+    "levelWithoutAreaSuffix": " (chưa có diện tích)",
+    "tableModeLabel": "mở chế độ bảng toàn trang",
+    "groupingLabel": "Cách nhóm danh sách",
+    "grouping": {
+      "byLevel": "theo tầng",
+      "byUsage": "theo công năng"
+    },
+    "sortLabel": "Sắp xếp",
+    "sort": {
+      "byArea": "theo diện tích",
+      "byName": "theo tên",
+      "byUsage": "theo loại"
+    },
+    "bandsLabel": "Phân bố diện tích theo loại phòng",
+    "bands": {
+      "wallStrong": "phòng ở",
+      "wallMid": "khu phụ trợ",
+      "neutral": "lưu thông và khác"
+    },
+    "totals": {
+      "caption": "Tổng diện tích sàn {{scope}} — {{count}} phòng",
+      "wholeBuilding": "toàn nhà",
+      "unit": "m²"
+    },
+    "level": {
+      "unknown": "Tầng chưa xác định"
+    },
+    "copyAsText": "sao chép bảng",
+    "openExport": "xuất bảng",
+    "loadingLabel": "Đang tính diện tích…",
+    "emptyTitle": "Chưa khép được vòng phòng nào",
+    "emptyDescription": "Diện tích chỉ đo được khi các đoạn tường khép kín thành một vòng. Bản vẽ này còn khe hở giữa các đoạn tường nên chưa có phòng nào tính ra được số.",
+    "emptyAction": "Kiểm tra khe hở tường",
+    "errorTitle": "Không tính được diện tích",
+    "retry": "Đo lại",
+    "forbiddenTitle": "Không xem được diện tích",
+    "forbiddenDescription": "Vai của bạn trong dự án này chỉ xem được mô hình, chưa xem được bảng diện tích phòng.",
+    "partialTitle": "Bảng mới có một phần",
+    "partialMissingLevelsPrefix": "Các tầng sau chưa có diện tích: ",
+    "partialUnnamedNote": " Một số phòng chưa đặt tên; gõ thẳng vào ô tên trong dòng để đặt, bảng tự lưu.",
+    "collapsedCaption": "Năm phòng lớn nhất",
+    "rowNameFieldLabel": "tên phòng",
+    "rowAreaButtonLabel": "xem cách tính và khuôn hình vào phòng",
+    "rowUnnamedHint": "phòng chưa đặt tên",
+    "groupCountSuffix": "phòng",
+    "status": {
+      "trusted": "máy dò được, chưa duyệt",
+      "suspect": "cần xem lại",
+      "reviewed": "đã xác minh"
+    },
+    "errors": {
+      "writeFailed": "Không lưu được tên phòng vừa sửa. Thử lại giúp tôi."
+    },
+    "table": {
+      "regionLabel": "bảng diện tích phòng",
+      "export": "xuất bảng diện tích phòng",
+      "header": {
+        "level": "tầng",
+        "name": "tên phòng",
+        "usage": "loại",
+        "area": "diện tích",
+        "areaUnit": "m²",
+        "perimeter": "chu vi phòng",
+        "perimeterUnit": "m",
+        "clearHeight": "chiều cao thông thuỷ",
+        "clearHeightUnit": "m",
+        "doorCount": "số cửa",
+        "windowCount": "số cửa sổ",
+        "status": "trạng thái"
+      },
+      "status": {
+        "trusted": "đã dò",
+        "suspect": "cần kiểm tra",
+        "reviewed": "đã xác minh"
+      },
+      "renameAriaLabelPrefix": "tên phòng",
+      "emptyTitle": "chưa dò ra phòng nào",
+      "emptyDescription": "kiểm tra khe hở tường rồi dò lại để bảng có dữ liệu.",
+      "emptyAction": "kiểm tra khe hở tường",
+      "forbiddenNotice": "bảng chỉ xem — không có quyền sửa tên phòng.",
+      "collapsedNotice": "danh sách phòng đang thu gọn, chỉ còn tổng diện tích."
+    }
+  },
   "shell": {
     "shortcut": {
       "openShortcutHelp": "mở bảng phím tắt",

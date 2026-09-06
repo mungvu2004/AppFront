@@ -92,6 +92,7 @@ import {
   buildBands,
   buildGroups,
   buildTotals,
+  collapseToLargest,
   deriveRoomAreaScreenState,
   graphOf,
   levelOptionsOf,
@@ -165,6 +166,15 @@ export interface UseRoomAreaPanelOptions {
   readonly now?: () => number;
   /** Kênh toast. Mặc định là kênh dùng chung của ứng dụng. */
   readonly notifications?: NotificationBus;
+  /**
+   * Sang chỗ soát khe hở tường — hành động của trạng thái rỗng.
+   *
+   * Nơi ráp cấp, hook chỉ chuyển tiếp: đích đến của nút này là một màn KHÁC,
+   * và một hook của màn diện tích không được tự quyết chuyện điều hướng. Bắt
+   * buộc chứ không tuỳ chọn — R-73 nói mỗi hành động phải có một sợi dây thật,
+   * và một mặc định "không làm gì" sẽ là đúng thứ R-69 gọi là bản tạm.
+   */
+  readonly onCheckWallGaps: () => void;
 }
 
 /**
@@ -192,7 +202,7 @@ const writeToClipboard = (text: string): void => {
 /* Hook.                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export function useRoomAreaPanel(options: UseRoomAreaPanelOptions = {}): RoomAreaPanelModel {
+export function useRoomAreaPanel(options: UseRoomAreaPanelOptions): RoomAreaPanelModel {
   const roles = options.roles;
   const actorId = options.actorId ?? ROOM_AREA_DEFAULT_ACTOR_ID;
   const notifications = options.notifications ?? appNotificationBus;
@@ -253,9 +263,43 @@ export function useRoomAreaPanel(options: UseRoomAreaPanelOptions = {}): RoomAre
     [levels],
   );
 
+  /* ---- Bảy trạng thái, suy ra TRƯỚC danh sách ----------------------------- */
+
+  /*
+   * Trạng thái đứng trước `groups` vì trạng thái `collapsed` ĐỔI danh sách:
+   * tấm trượt thu gọn hiện năm phòng lớn nhất toàn màn chứ không phải mọi
+   * nhóm. Không vòng phụ thuộc nào ở đây — cả bảy nhánh của
+   * `deriveRoomAreaScreenState` đọc số phòng, số tầng thiếu và vai, không nhánh
+   * nào đọc `groups`.
+   */
+  const unnamedCount = useMemo(
+    () => visibleEntries.filter((entry) => entry.room.name.trim() === '').length,
+    [visibleEntries],
+  );
+
+  const derivedState = deriveRoomAreaScreenState({
+    isViewerRole: roles !== undefined && !canEdit,
+    hasWriteFailure: writeFailure !== null,
+    spatialLoaded: spatial !== null,
+    isCollapsed: options.isCollapsed === true,
+    visibleRoomCount: visibleEntries.length,
+    unnamedCount,
+    missingLevelCount: missingLevelNames.length,
+  });
+
+  const state = options.forceState ?? derivedState;
+
+  /*
+   * Thu gọn thì `groups` là MỘT nhóm gồm năm phòng lớn nhất toàn màn — một phép
+   * CHỌN, và chọn thì thuộc hook (PQ-7). View không làm thay được: `areaRatio`
+   * là tỷ lệ trong nhóm nên hai hàng khác nhóm không so được với nhau.
+   */
   const groups = useMemo(
-    () => buildGroups(visibleEntries, grouping, sort, graph),
-    [graph, grouping, sort, visibleEntries],
+    () =>
+      state === 'collapsed'
+        ? collapseToLargest(visibleEntries, graph)
+        : buildGroups(visibleEntries, grouping, sort, graph),
+    [graph, grouping, sort, state, visibleEntries],
   );
 
   const bands = useMemo(() => buildBands(visibleEntries), [visibleEntries]);
@@ -495,25 +539,6 @@ export function useRoomAreaPanel(options: UseRoomAreaPanelOptions = {}): RoomAre
     copyText(tableAsText(groups, totals));
   }, [copyText, groups, totals]);
 
-  /* ---- Bảy trạng thái ---------------------------------------------------- */
-
-  const unnamedCount = useMemo(
-    () => visibleEntries.filter((entry) => entry.room.name.trim() === '').length,
-    [visibleEntries],
-  );
-
-  const derivedState = deriveRoomAreaScreenState({
-    isViewerRole: roles !== undefined && !canEdit,
-    hasWriteFailure: writeFailure !== null,
-    spatialLoaded: spatial !== null,
-    isCollapsed: options.isCollapsed === true,
-    visibleRoomCount: visibleEntries.length,
-    unnamedCount,
-    missingLevelCount: missingLevelNames.length,
-  });
-
-  const state = options.forceState ?? derivedState;
-
   return {
     state,
     groups,
@@ -529,6 +554,7 @@ export function useRoomAreaPanel(options: UseRoomAreaPanelOptions = {}): RoomAre
     flashedRoomId,
     errorMessage: state === 'error' ? (writeFailure ?? UNKNOWN_WRITE_FAILURE) : '',
     onRetry,
+    onCheckWallGaps: options.onCheckWallGaps,
     levels,
     activeLevelId,
     onLevelChange: setPickedLevelId,

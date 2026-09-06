@@ -53,10 +53,10 @@
  *
  * ## Hai chỗ hợp đồng chưa với tới, và cách file này xử lý mà KHÔNG bịa
  *
- * 1. **"Kiểm tra khe hở tường" ở trạng thái rỗng** không có callback riêng
- *    trong `RoomAreaPanelProps`. Nút đó gọi `onRetry` — hành động "đo lại" duy
- *    nhất hợp đồng có. Không bản tạm, không ghi chú hoãn lại, không prop tự
- *    chế (R-69).
+ * 1. **"Kiểm tra khe hở tường" ở trạng thái rỗng** ĐÃ có callback riêng:
+ *    `onCheckWallGaps` của `RoomAreaCommonProps`. Trước đó nút gọi tạm
+ *    `onRetry` vì hợp đồng thiếu trường — thiếu sót của hợp đồng, đã vá. "Đo
+ *    lại" và "soát khe hở" là hai hành động, nên hai sợi dây (R-73).
  * 2. **"Năm phòng lớn nhất" ở trạng thái thu gọn** là một phép CHỌN, và chọn
  *    thì thuộc về hook (PQ-7 cho phép gộp/sắp xếp trong hook). Panel vẽ đúng
  *    `groups` được trao, phẳng hoá rồi cắt theo sức chứa của tấm trượt —
@@ -114,6 +114,7 @@ export function RoomAreaPanel(props: RoomAreaPanelProps) {
     activeLevelId,
     missingLevelNames,
     errorMessage,
+    onCheckWallGaps,
     onLevelChange,
     onModeChange,
     onRetry,
@@ -157,10 +158,10 @@ export function RoomAreaPanel(props: RoomAreaPanelProps) {
   if (state === 'empty') {
     return (
       <section aria-label={REGION_LABEL} className={PANEL_CLASS}>
-        {/* Hợp đồng không có callback riêng cho việc soát khe hở; `onRetry` là
-            hành động "đo lại" duy nhất nó có, nên nút gọi đúng cái đó. */}
+        {/* Hành động riêng của trạng thái rỗng: soát khe hở tường, KHÔNG phải
+            "đo lại". Hai việc khác nhau nên hai callback khác nhau (R-73). */}
         <EmptyState
-          action={{ label: EMPTY_ACTION_LABEL, onClick: onRetry, variant: 'secondary' }}
+          action={{ label: EMPTY_ACTION_LABEL, onClick: onCheckWallGaps, variant: 'secondary' }}
           description={EMPTY_DESCRIPTION}
           icon={<Unlink />}
           title={EMPTY_TITLE}

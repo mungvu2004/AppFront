@@ -40,7 +40,7 @@ const RENAME_INPUT_CLASS_NAME = cn(
   'w-full rounded-[6px] border border-transparent bg-transparent px-1.5 py-1 text-text-primary',
   'transition-colors duration-180 hover:border-border-default',
   'focus-visible:border-border-default focus-visible:outline-none focus-visible:ring-2',
-  'focus-visible:ring-accent focus-visible:ring-offset-1',
+  'focus-visible:ring-accent focus-visible:ring-offset-2',
 );
 
 const ROW_CLASS_NAME = cn(

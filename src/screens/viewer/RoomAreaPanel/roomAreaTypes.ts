@@ -175,6 +175,19 @@ export interface RoomAreaCommonProps {
   /** Câu tiếng Việt của trạng thái lỗi. Rỗng khi `state` khác `'error'`. */
   readonly errorMessage: string;
   readonly onRetry: () => void;
+  /**
+   * Trạng thái rỗng: sang chỗ kiểm tra khe hở tường của bản vẽ.
+   *
+   * KHÁC `onRetry`. "Đo lại" chạy lại chính phép đo vừa hỏng; "kiểm tra khe hở
+   * tường" đưa người dùng sang một việc khác — soát chỗ các đoạn tường chưa
+   * khép vòng, thứ khiến bảng rỗng ngay từ đầu. Nối cả hai vào một hàm là gộp
+   * hai hành động khác nhau, và R-73 đòi mỗi hành động một sợi dây thật.
+   *
+   * Nằm ở props CHUNG chứ không riêng panel: cả hai chế độ đều vẽ nút này ở
+   * trạng thái rỗng (`RoomAreaPanel.tsx` và `RoomAreaTable.tsx`), nên đặt riêng
+   * cho panel sẽ để bảng toàn trang tiếp tục gọi nhầm `onRetry`.
+   */
+  readonly onCheckWallGaps: () => void;
 }
 
 /** Chế độ panel 344. */

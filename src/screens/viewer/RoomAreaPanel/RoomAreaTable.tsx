@@ -27,7 +27,7 @@
  * | `state`     | vẽ ở đâu                                                            |
  * |-------------|-----------------------------------------------------------------------|
  * | `loading`   | `Table.Skeleton` (thân) + một dòng `Skeleton` (ô tổng)                |
- * | `empty`     | `EmptyState` mang hành động "kiểm tra khe hở tường" → `onRetry`       |
+ * | `empty`     | `EmptyState` mang hành động "kiểm tra khe hở tường" → `onCheckWallGaps` |
  * | `error`     | `Table.Error` mang `errorMessage` + nút thử lại → `onRetry`           |
  * | `collapsed` | thân ẩn, chỉ còn một dòng thông báo cộng hàng tổng ghim đáy           |
  * | `forbidden` | thân hiện đủ NHƯNG ô tên phòng là chữ tĩnh — không sửa được (`canRename`) |
@@ -86,7 +86,13 @@ const HEADER_NAME = 'tên phòng';
 const HEADER_USAGE = 'loại';
 const HEADER_AREA = 'diện tích';
 const HEADER_AREA_UNIT = 'm²';
-const HEADER_PERIMETER = 'chu vi';
+/*
+ * "chu vi" là một cụm tiếng Việt KHÔNG DẤU trọn vẹn, và `expectVietnamese` từ
+ * chối cả cụm như thế (`expectVietnamese.ts:649,671`) — không phải vì nó sai,
+ * mà vì một nhãn toàn ASCII là chỗ tiếng Anh lọt vào mà không ai thấy. Thêm
+ * "phòng" trả lại dấu cho cụm và nói đúng thứ cột đang đo.
+ */
+const HEADER_PERIMETER = 'chu vi phòng';
 const HEADER_PERIMETER_UNIT = 'm';
 const HEADER_CLEAR_HEIGHT = 'chiều cao thông thuỷ';
 const HEADER_CLEAR_HEIGHT_UNIT = 'm';
@@ -115,6 +121,7 @@ export function RoomAreaTable(props: RoomAreaTableProps) {
     flashedRoomId,
     errorMessage,
     onRetry,
+    onCheckWallGaps,
     onOpenExport,
   } = props;
 
@@ -184,7 +191,7 @@ export function RoomAreaTable(props: RoomAreaTableProps) {
               <tr>
                 <Table.Cell className="p-0" colSpan={COLUMN_COUNT}>
                   <EmptyState
-                    action={{ label: EMPTY_ACTION_LABEL, onClick: onRetry }}
+                    action={{ label: EMPTY_ACTION_LABEL, onClick: onCheckWallGaps }}
                     description={EMPTY_DESCRIPTION}
                     icon={<Inbox />}
                     title={EMPTY_TITLE}

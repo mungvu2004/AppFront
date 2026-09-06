@@ -416,6 +416,60 @@ export function buildGroups(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Thu gọn — năm phòng lớn nhất TOÀN MÀN.                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sức chứa của tấm trượt thu gọn: năm phòng.
+ *
+ * Cùng con số `COLLAPSED_ROW_CAPACITY` của `RoomAreaPanel.chrome.tsx`, và hai
+ * chỗ là cố ý: view giữ một cái chặn phòng hờ cho bất kỳ nguồn `groups` nào,
+ * còn đây là PHÉP CHỌN thật sự. Sau khi hàm dưới chạy, phép cắt ở view thành
+ * một lượt không làm gì — đúng thứ nó nên là.
+ */
+export const COLLAPSED_ROOM_COUNT = 5;
+
+/** Khoá và nhãn của nhóm duy nhất khi panel thu gọn. */
+const COLLAPSED_GROUP_KEY = 'collapsed-largest';
+export const COLLAPSED_GROUP_LABEL = 'Năm phòng lớn nhất';
+
+/**
+ * Một nhóm duy nhất chứa năm phòng lớn nhất trên TOÀN màn, giảm dần.
+ *
+ * Đặc tả trạng thái 7: "tấm trượt đáy chỉ hiện tổng và năm phòng lớn nhất".
+ * Phép chọn này KHÔNG làm được ở view: `RoomAreaRow.areaRatio` là tỷ lệ TRONG
+ * NHÓM, nên hai hàng ở hai nhóm khác nhau không so được với nhau, và phẳng hoá
+ * `groups` rồi cắt năm hàng đầu chỉ cho ra "năm hàng đầu của nhóm đầu". Chọn là
+ * việc của hook (PQ-7).
+ *
+ * Không một công thức mới nào ở đây (R-61): diện tích vẫn là `entry.areaM2` do
+ * `selectRoomsWithArea` tính, tổng phụ vẫn do `buildGroup` gọi `totalArea`, và
+ * mọi chuỗi vẫn đi qua `formatNumber`. Thứ hàm này tự làm chỉ có sắp xếp và
+ * cắt — hai phép mà PQ-7 cho phép.
+ *
+ * Ít hơn năm phòng thì lấy hết; không phòng nào thì không nhóm nào, để trạng
+ * thái `empty` là thứ lên tiếng chứ không phải một đầu nhóm trống.
+ */
+export function collapseToLargest(
+  entries: readonly RoomWithArea[],
+  graph: RoomAreaGraph,
+): readonly RoomAreaGroup[] {
+  if (entries.length === 0) {
+    return [];
+  }
+
+  return [
+    buildGroup(
+      COLLAPSED_GROUP_KEY,
+      COLLAPSED_GROUP_LABEL,
+      sortEntries(entries, 'area').slice(0, COLLAPSED_ROOM_COUNT),
+      graph,
+      'area',
+    ),
+  ];
+}
+
+/* -------------------------------------------------------------------------- */
 /* Thanh xếp chồng — tối đa ba dải.                                            */
 /* -------------------------------------------------------------------------- */
 
