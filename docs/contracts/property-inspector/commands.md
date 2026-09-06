@@ -9,6 +9,32 @@ rồi điều phối qua `dispatch`, không được ghi thẳng vào store (A10
 kế hoạch thực thi — nó là bản kê những gì tầng lệnh/store/tự lưu THẬT SỰ có, để T5 (hook) và
 T3 (component) dựa vào mà không phải đọc lại toàn bộ `src/lib/commands` và `src/store`.
 
+> ## CẬP NHẬT 2026-09-06 — mười hai lỗ hổng của khảo sát này ĐÃ ĐƯỢC VÁ
+>
+> Bản khảo sát dưới đây đúng với `master` **tại thời điểm khảo sát**. Từ lượt U1–U8
+> (nhánh `mungvu2004/fix-u8-integrate`) mười hai kết luận `NOT FOUND` của nó đã có lời
+> giải trong mã, nên mọi mục `NOT FOUND` phải đọc kèm bảng này:
+>
+> | # | Lỗ hổng của khảo sát | Lời giải hiện có |
+> |---|---|---|
+> | 1 | Không lệnh nào ghi `Wall.heightMm` | `createChangeWallHeightCommand` (`lib/commands/business/wallCommands.ts`) — hạ xuống dưới đỉnh một ô mở bị TỪ CHỐI kèm lý do tiếng Việt |
+> | 2 | Không lệnh nào ghi lại kích thước `boundingBox` của nội thất | `createResizeFurnitureCommand` (`lib/commands/business/openingCommands.ts`) — giữ nguyên tâm, giãn hộp quanh tâm |
+> | 3 | `openingsOfRoom` không export, đòi cả một `RuleContext` | `src/domain/spatial/roomOpenings.ts` — hàm thuần `openingsOfRoom(room, walls, openings)` + `countOpeningsByKind` |
+> | 4 | Không có khái niệm khuôn mẫu thuộc tính ở bất cứ tầng nào | `PropertyTemplate` + `ENDPOINTS.propertyTemplates` + `queryKeys.template.byProject` + `WriteOperation` `createPropertyTemplate` |
+> | 5 | Không endpoint nào nhận lớp không gian, nên tự lưu NÍN | `SpatialApi.writeLayer` + `ENDPOINTS.spatial.layer`; panel gửi thật qua `propertyInspectorGateway.persistProperties` |
+> | 6 | `defaultRuleRegistry` chỉ đăng ký 8/25 luật | `src/domain/rules/defaults.ts` — 25 luật đăng ký, 23 bật, `FURNITURE-CLASH` hiện thật ở nhóm "Kiểm tra" |
+> | 7 | Không có lệnh xả tự lưu, nên Ctrl+S không có gì để gọi | `useAutosaveFlush` + `flushAutosaves` (`hooks/useAutosave.ts`), nối vào Ctrl+S ở `routes/router.tsx` |
+> | 8 | Không có màn tìm kiếm cho Ctrl+F | `ObjectSearch` đăng ký `Ctrl+F` ở phạm vi `canvas` (`screens/viewer/Viewer3D/ObjectSearch.tsx`) |
+> | 9 | Không có bảng phím tắt toàn cục cho phím `?` | `GlobalShortcutHelp` (`components/shell/`), đọc thẳng `appShortcutRegistry.listShortcuts()` |
+> | 10 | Escape ở tầng vỏ chưa được nối | `UndoShortcuts` đăng ký `global.closeTopLayer` → `uiSlice.closeDialog()` |
+> | 11 | Không có `toFurnitureViewModel` | `lib/viewmodel/toViewModel.ts` — thêm hàm và nhánh `'furniture'` của `ViewModelInput` |
+> | 12 | Không có kênh xem trước 3D gọi được từ tầng màn hình | `previewEdit`/`discardPreview` (`store/commit.ts`), `selectDraftPreviewGraph`, `lib/three/preview/`, `ViewerSceneHandle.preview` |
+>
+> Ba mục `NOT FOUND` khác của khảo sát KHÔNG được vá và vẫn đúng nguyên văn: đổi chiều mở
+> (`swing`) của một ô mở đã có — panel dựng lệnh riêng trong cổng của nó; đổi tường chủ của
+> một ô mở; và `isInterior` của tường — dòng đó CỐ Ý giữ chỉ đọc vì nó suy từ `kind`, ghi
+> vào nó sẽ làm mất `loadBearing` không có đường lấy lại.
+
 ---
 
 ## C1. Lệnh sửa thuộc tính (S-07)
@@ -133,7 +159,11 @@ function createRotateFurnitureCommand(input: RotateFurnitureInput, context: Comm
 ```
 Góc tự gấp về `[0, 360)` bằng `normaliseDegrees` (`openingCommands.ts:892`) — panel không tự mod 360.
 
-**NOT FOUND — đổi kích thước nội thất.** `Furniture.boundingBox` (`src/domain/spatial/types.ts:172`,
+**~~NOT FOUND~~ — ĐÃ VÁ (lỗ hổng #2, U1): `ResizeFurnitureInput` /
+`createResizeFurnitureCommand` nay có thật trong `openingCommands.ts`, giữ nguyên tâm và giãn
+hộp bao quanh tâm. Đoạn dưới giữ nguyên làm lịch sử của quyết định.**
+
+~~NOT FOUND — đổi kích thước nội thất.~~ `Furniture.boundingBox` (`src/domain/spatial/types.ts:172`,
 kiểu `BoundingBox`) là trường DUY NHẤT mang kích thước, nhưng trong cả tám lệnh của
 `openingCommands.ts` không hàm nào ghi lại `boundingBox` để THAY ĐỔI kích thước — `movedFurniture`
 (`openingCommands.ts:750-761`, dùng bởi `createMoveFurnitureCommand`) chỉ DỊCH hộp bao theo cùng
@@ -337,7 +367,14 @@ gọi `dispatch` mỗi `onChange` hay debounce lúc thả tay.
 
 ## C5. Xem trước 3D thời gian thực trong lúc kéo *** MỤC QUAN TRỌNG NHẤT ***
 
-### KẾT LUẬN: NOT FOUND — không có kênh xem trước 3D gọi được từ tầng màn hình hiện nay.
+### KẾT LUẬN CŨ: NOT FOUND — ~~không có kênh xem trước 3D gọi được từ tầng màn hình~~
+
+**ĐÃ VÁ (lỗ hổng #12, U7).** Cả bốn bằng chứng dưới đây đã được gỡ đúng chỗ chúng nằm:
+`src/store/commit.ts` mở `previewEdit`/`discardPreview` (người sản xuất nháp hợp lệ, nằm trong
+chính `src/store` nên `local/no-draft-write-outside-commands` không bị nới một chữ);
+`selectDraftPreviewGraph` hợp nhất nháp với đồ thị; `ViewerSceneHandle.preview(...)` là một
+đường hình học BỔ SUNG không đi qua `BuildQueue`; lớp vẽ đè sống ở `src/lib/three/preview`,
+không phải `DragPreview` của gizmo. Bốn đoạn dưới giữ nguyên làm lịch sử của quyết định.
 
 Đã ESCALATE và được điều phối viên xác nhận (không mở rộng `src/store`/`src/lib` cho việc này —
 nằm trong vùng CẤM SỬA của nhiệm vụ). Bốn bằng chứng độc lập, mỗi bằng chứng một mình đã đủ chặn:
@@ -509,7 +546,11 @@ const WRITE_OPERATIONS = [ 'createProject','editFloor','editWall','moveFurniture
 function applyInvalidation<T extends WriteOperation>(queryClient, operation: T,
   params: WriteOperationParamsMap[T]): void                                          // invalidation.ts:122-132
 ```
-**NOT FOUND — không có `WriteOperation` cho `editOpening`/`editRoom`/`renameRoom`/`resizeOpening`.**
+**~~NOT FOUND~~ — ĐÃ VÁ (lỗ hổng #5, U4): `WRITE_OPERATIONS` nay có `editOpening`, `editRoom`,
+`persistSpatialLayer` và `createPropertyTemplate`, mỗi mục kèm entry `invalidationMap` riêng.
+Đoạn dưới giữ nguyên làm lịch sử.**
+
+~~NOT FOUND — không có `WriteOperation` cho `editOpening`/`editRoom`/`renameRoom`/`resizeOpening`.~~
 Danh sách chỉ có `editWall` (làm mất hiệu lực `space.byFloor`, `room.byFloor`,
 `violation.byProject` — dòng 56-60) và `moveFurniture` (dòng 62-66). Nếu panel sửa Opening hoặc
 Room, KHÔNG có entry `invalidationMap` sẵn khớp tên — nơi gần nhất là dùng lại `editWall` (vì cùng
@@ -575,14 +616,16 @@ xem chú thích `wallLayerReviewGateway.ts:204-226`.
 |---|---|---|---|
 | 1 | Đổi chiều mở (swing) một ô mở đã có | Không có input/hàm nào ghi `swing` ngoài lúc tạo | `AddOpeningInput.swing`, `openingCommands.ts:~210,220,326` |
 | 2 | Đổi tượng chủ (đổi ô mở sang tường khác) | Không `Input` nào mang `wallId` đích khác wallId hiện tại | `MoveOpeningInput` (chỉ đổi `offsetMm`), `openingCommands.ts:351-355` |
-| 3 | Đổi kích thước / scale nội thất | Không `ResizeFurnitureInput`/`createResizeFurnitureCommand` nào; `boundingBox` chỉ được DỊCH theo `move`, không được GHI lại kích thước | `movedFurniture`, `openingCommands.ts:750-761`; trường `boundingBox`, `domain/spatial/types.ts:172` |
-| 4 | Xem trước 3D tức thời trong lúc kéo Slider (C5) | `draftSlice` không ai sản xuất trong production + bị ESLint khoá ngoài `src/store`; không ai đọc `draftOperations`; `handle.update(frame)` không nhận hình học, đổi `spatial` ép remount toàn cảnh qua worker bất đồng bộ; `DragPreview` chỉ cho gizmo 3D | Bốn bằng chứng, mục C5 |
-| 5 | `WriteOperation` cho sửa Opening/Room (để `applyInvalidation`) | Danh sách `WRITE_OPERATIONS` chỉ có `editWall`/`moveFurniture` liên quan tới panel; không có `editOpening`/`editRoom` | `invalidation.ts:5-16` |
-| 6 | Map `AutosaveState` (dirty/failed/offline/saved/saving) → `SaveState` của `SaveIndicator` (idle/pending/saving/saved/error) | Không hàm map nào trong repo; `offline` không có `SaveState` tương ứng | `createAutosave.ts:3` vs `SaveIndicator.tsx:11` |
-| 7 | Một hệ autosave DUY NHẤT | Hai hệ độc lập cùng tồn tại: `lib/autosave/createAutosave` (+`useSaveIndicator`) chưa ai dùng cho panel nào; `hooks/useAutosave` (tự viết debounce riêng) đang là cái `SaveIndicator.tsx` thật sự dùng | `useAutosave.ts:18-49` vs `createAutosave.ts:37-198` |
+| 3 | Đổi kích thước / scale nội thất | **ĐÃ VÁ — lỗ hổng #2 (U1)** | `createResizeFurnitureCommand`, `openingCommands.ts` |
+| 4 | Xem trước 3D tức thời trong lúc kéo Slider (C5) | **ĐÃ VÁ — lỗ hổng #12 (U7)** | `store/commit.ts` `previewEdit`; `selectDraftPreviewGraph`; `lib/three/preview/`; `ViewerSceneHandle.preview` |
+| 5 | `WriteOperation` cho sửa Opening/Room (để `applyInvalidation`) | **ĐÃ VÁ — lỗ hổng #5 (U4)** | `editOpening`/`editRoom`/`persistSpatialLayer`/`createPropertyTemplate`, `invalidation.ts` |
+| 6 | Map `AutosaveState` → `SaveState` của `SaveIndicator` | **ĐÃ VÁ — lỗ hổng #7 (U5)**: `offline` gộp vào `'pending'`, không phải `'error'` | `lib/autosave/toSaveIndicatorState.ts` |
+| 7 | Một hệ autosave DUY NHẤT | **ĐÃ VÁ — lỗ hổng #7 (U5)**: `hooks/useAutosave` nay chỉ là lớp bọc React của `createAutosave`; `flushAutosaves` cho Ctrl+S xả đúng engine đang gắn | `hooks/useAutosave.ts` |
 | 8 | `ROOM_FLOOR_COMMAND_TYPES` đầy đủ (chỉ trích được vị trí khai, không trích nguyên văn object trong khảo sát này) | Không phải NOT FOUND — chỉ là giới hạn của khảo sát này, xem trực tiếp `roomFloorCommands.ts:67` khi cần đủ 6 tên | `roomFloorCommands.ts:67` |
 
-Mọi mục 1-3, 5-7 là giới hạn THẬT của tầng lệnh/store tại thời điểm khảo sát (không phải do
-người khảo sát bỏ sót) — nếu T3/T5 cần các khả năng này, phải quay lại xin quyết định của điều
+Mục 1 và 2 vẫn đúng nguyên văn (chưa vá, và không nằm trong mười hai lỗ hổng): đổi `swing` của
+một ô mở đã có được panel dựng bằng nguyên thuỷ công khai trong chính cổng của nó, còn đổi tường
+chủ thì chưa ai cần. Mọi mục còn lại là giới hạn THẬT của tầng lệnh/store tại thời điểm khảo sát
+(không phải do người khảo sát bỏ sót) — nếu T3/T5 cần các khả năng này, phải quay lại xin quyết định của điều
 phối viên trước khi tự dựng, vì lời giải nằm trong `src/store`/`src/lib` — vùng nhiệm vụ này
 (và các nhiệm vụ dùng tầng lệnh khác) không được sửa.

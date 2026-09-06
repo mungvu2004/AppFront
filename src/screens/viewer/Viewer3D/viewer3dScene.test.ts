@@ -15,17 +15,21 @@
  *    và nấc chi tiết — đổi cảnh đang vẽ, đảo ngược được, không dựng lại gì.
  * 6. Bảng của `droppedKindsAt` được tôn trọng từng loại một, và nấc không lấn
  *    quyền ẩn/hiện của khung.
+ * 7. [U7] Kênh xem trước: hình học đổi TRONG LÚC KÉO mà không một job dựng nào
+ *    chạy lại, một lượt gọi tốn đúng một khung hình, và bản đồ bóng không bị vẽ
+ *    lại lần nào trong suốt lượt kéo.
  *
  * Dữ liệu lấy từ `src/lib/testing/fixtures` (R-70): bộ mẫu chuẩn 4 tầng · 48
  * tường · 14 phòng · 248,60 m² của A14, không phải một mô hình bịa tại chỗ.
  */
 
-import { Group, Object3D } from 'three';
+import { Box3, Group, Object3D, Vector3 } from 'three';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import type { LevelId } from '@/domain/spatial/types';
+import { millimetres } from '@/domain/units/types';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import {
   respondTo,
@@ -35,6 +39,7 @@ import {
 import { planFullBuild, type BuildWorkerLike } from '@/lib/three/build/buildQueue';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
 import { readPartData, tagPart, type BuildPartKind } from '@/lib/three/build/scene';
+import { narrowFloorInput } from '@/lib/three/preview/previewModel';
 import { ResourceLedger, TRACKED_RESOURCES } from '@/lib/three/perf/dispose';
 import {
   DEGRADE_WINDOW_MS,
@@ -118,18 +123,31 @@ class MicrotaskWorker implements BuildWorkerLike {
 function fakeRenderer(): ViewerRendererLike & {
   readonly disposals: () => number;
   readonly drawn: () => Object3D | null;
+  readonly renders: () => number;
+  readonly shadowRenders: () => number;
 } {
   let disposals = 0;
   let drawn: Object3D | null = null;
+  let renders = 0;
+  let shadowRenders = 0;
 
-  return {
+  const renderer = {
     info: { render: { calls: 0, triangles: 0 } },
-    shadowMap: { type: 0, enabled: false },
-    clippingPlanes: [],
+    shadowMap: { type: 0, enabled: false, autoUpdate: true, needsUpdate: false },
+    clippingPlanes: [] as unknown[],
     setSize: () => undefined,
     setPixelRatio: () => undefined,
     render: (scene: unknown) => {
       drawn = scene as Object3D;
+      renders += 1;
+
+      // Cùng phép đếm mà `present/__tests__/mount.test.ts` dùng: một lượt vẽ
+      // bản đồ bóng xảy ra khi `autoUpdate` bật, hoặc khi ai đó vừa bật
+      // `needsUpdate` — và cờ ấy tự tắt sau lượt vẽ, đúng như three làm.
+      if (renderer.shadowMap.autoUpdate || renderer.shadowMap.needsUpdate) {
+        shadowRenders += 1;
+        renderer.shadowMap.needsUpdate = false;
+      }
     },
     dispose: () => {
       disposals += 1;
@@ -137,7 +155,11 @@ function fakeRenderer(): ViewerRendererLike & {
     forceContextLoss: () => undefined,
     disposals: () => disposals,
     drawn: () => drawn,
+    renders: () => renders,
+    shadowRenders: () => shadowRenders,
   };
+
+  return renderer;
 }
 
 /** Loại bộ phận nào đang thật sự được vẽ trong một cây. */
@@ -454,5 +476,364 @@ describe('mountViewerScene', () => {
     if (!mounted.ok) {
       expect(mounted.reason).toBe('webglUnavailable');
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [U7] Kênh xem trước 3D thời gian thực.                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Một lượt kéo dài bằng chừng này bước — đủ dài để một lỗi vòng vẽ lộ ra. */
+const DRAG_STEP_COUNT = 30;
+
+/** Độ dày đầu và bước tăng của lượt kéo, tính bằng milimét. */
+const DRAG_FROM_MM = 220;
+const DRAG_STEP_MM = 10;
+
+/** Diện tích hình chiếu bằng của một cây — lớn lên khi tường dày lên. */
+function footprintOf(root: Object3D): number {
+  const box = new Box3().setFromObject(root);
+
+  if (box.isEmpty()) {
+    return 0;
+  }
+
+  const size = box.getSize(new Vector3());
+
+  return size.x * size.z;
+}
+
+/** Mọi mesh mang mã này, kèm việc nó có đang được vẽ hay không. */
+function meshesOf(root: Object3D, entityId: string): readonly Object3D[] {
+  const found: Object3D[] = [];
+
+  root.traverse((object) => {
+    if (readPartData(object)?.entityId === entityId) {
+      found.push(object);
+    }
+  });
+
+  return found;
+}
+
+describe('[U7] mountViewerScene.preview', () => {
+  let host: Harness;
+
+  beforeEach(() => {
+    host = harness();
+  });
+
+  /**
+   * Lắp cảnh với một lịch vẽ mà bài kiểm cầm, và ở chế độ GIẢM CHUYỂN ĐỘNG.
+   *
+   * Giảm chuyển động đóng cổng `motion`, và đó là chế độ duy nhất mà "một lượt
+   * gọi = một khung hình" đo được thành một con số: vòng vẽ lúc ấy không tự
+   * tick, nó chỉ vẽ đúng những khung mà ai đó xin qua `invalidate`. Với chuyển
+   * động bật, vòng vẽ của khung nhìn 3D vốn đã chạy liên tục dưới trần 60 fps —
+   * người dùng đang xoay một toà nhà bằng chuột — nên đếm khung ở đó chỉ đo cái
+   * trần ấy, không đo ảnh hưởng của xem trước.
+   */
+  function mountParked(): {
+    readonly mounted: ReturnType<typeof mountViewerScene>;
+    readonly pump: () => number;
+  } {
+    let pending: ((nowMs: number) => void) | null = null;
+    let clockMs = 0;
+
+    const mounted = mountViewerScene(host.canvas, {
+      levels: host.levels,
+      frame: { ...frameOf(host.levels), reducedMotion: true },
+      tokenOfPartKind: () => '--wall-idle',
+      canSelect: false,
+      ledger: host.ledger,
+      createRenderer: () => host.renderer,
+      createWorker: () => new MicrotaskWorker(),
+      schedule: (callback) => {
+        pending = callback;
+        return 1;
+      },
+      cancel: () => {
+        pending = null;
+      },
+      now: () => clockMs,
+      readToken: () => '',
+      onStatusChange: (status) => host.seen.push(status),
+    });
+
+    /** Chạy hết những khung đang chờ; trả về số khung đã chạy. */
+    const pump = (): number => {
+      let ran = 0;
+
+      while (pending !== null && ran < DRAG_STEP_COUNT * 2) {
+        const callback = pending;
+        pending = null;
+        clockMs += 1;
+        callback(clockMs);
+        ran += 1;
+      }
+
+      return ran;
+    };
+
+    return { mounted, pump };
+  }
+
+  it('mô hình đổi TRONG LÚC KÉO: không job nào dựng lại, một khung cho một bước, bóng vẽ 0 lần', async () => {
+    const { mounted, pump } = mountParked();
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    const { handle } = mounted;
+
+    await vi.waitFor(() => {
+      expect(handle.status().phase).toBe('ready');
+    });
+
+    pump();
+
+    const level = host.levels[0];
+    const wall = level?.walls[0];
+
+    if (level === undefined || wall === undefined) {
+      throw new Error('bộ mẫu phải có ít nhất một tường trên tầng đầu');
+    }
+
+    const wallId = String(wall.id);
+    const builtJobs = handle.status().progress;
+    const rendersBefore = host.renderer.renders();
+    const shadowBefore = host.renderer.shadowRenders();
+
+    /* ---- Lượt kéo: ba mươi bước, mỗi bước dày thêm 10 mm ------------------ */
+
+    const footprints: number[] = [];
+    let framesDuringDrag = 0;
+
+    for (let step = 0; step < DRAG_STEP_COUNT; step += 1) {
+      const thicknessMm = millimetres(DRAG_FROM_MM + step * DRAG_STEP_MM);
+      const previewed = { ...level, walls: [{ ...wall, thicknessMm }] };
+
+      const meshCount = handle.preview({
+        levelId: String(level.level.id),
+        entityIds: [wallId],
+        model: narrowFloorInput(previewed, [wall.id]),
+      });
+
+      expect(meshCount).toBeGreaterThan(0);
+
+      framesDuringDrag += pump();
+
+      const scene = host.renderer.drawn();
+
+      if (scene === null) {
+        throw new Error('phải có một cảnh được vẽ');
+      }
+
+      const shown = meshesOf(scene, wallId).filter((object) => object.visible);
+
+      // Đúng MỘT bức tường mang mã ấy đang được vẽ: bản xem trước. Mesh thật
+      // vẫn nằm nguyên trên cây, chỉ bị ẩn — bỏ xem trước là hiện lại nó.
+      expect(shown).toHaveLength(1);
+
+      const drawnWall = shown[0];
+
+      if (drawnWall === undefined) {
+        throw new Error('bức tường xem trước phải đang được vẽ');
+      }
+
+      footprints.push(footprintOf(drawnWall));
+    }
+
+    /* ---- Ba con số ------------------------------------------------------- */
+
+    const rebuilt = handle.status().progress;
+
+    // (1) Không một job dựng nào chạy lại: `BuildQueue` không hề biết chuyện
+    //     này xảy ra, và cảnh không rơi về `building` một lần nào.
+    expect(rebuilt.totalCount).toBe(builtJobs.totalCount);
+    expect(rebuilt.settledCount).toBe(builtJobs.settledCount);
+    expect(handle.status().phase).toBe('ready');
+
+    // (2) Một lượt gọi = ĐÚNG một khung hình. Vòng vẽ không biến thành vòng
+    //     chạy liên tục: ba mươi bước kéo tốn ba mươi khung, không hơn.
+    expect(framesDuringDrag).toBe(DRAG_STEP_COUNT);
+    expect(host.renderer.renders() - rendersBefore).toBe(DRAG_STEP_COUNT);
+
+    // (3) Bản đồ bóng KHÔNG vẽ lại lần nào trong suốt lượt kéo.
+    expect(host.renderer.shadowRenders() - shadowBefore).toBe(0);
+
+    // (4) Và hình học thật sự đổi ở từng bước: hình chiếu bằng của bức tường
+    //     lớn dần đúng theo con số đang kéo.
+    expect(footprints).toHaveLength(DRAG_STEP_COUNT);
+    for (let step = 1; step < footprints.length; step += 1) {
+      expect(footprints[step]).toBeGreaterThan(Number(footprints[step - 1]));
+    }
+
+    console.log(
+      `[VIEWER3D][U7] ${String(DRAG_STEP_COUNT)} bước kéo ` +
+        `(${String(DRAG_FROM_MM)} → ${String(DRAG_FROM_MM + (DRAG_STEP_COUNT - 1) * DRAG_STEP_MM)} mm): ` +
+        `khung hình vẽ = ${String(framesDuringDrag)}, ` +
+        `lượt vẽ bản đồ bóng = ${String(host.renderer.shadowRenders() - shadowBefore)}, ` +
+        `job dựng chạy lại = ${String(rebuilt.totalCount - builtJobs.totalCount)}, ` +
+        `hình chiếu bằng ${String(footprints[0])} → ${String(footprints.at(-1))} m²`,
+    );
+
+    handle.dispose();
+  });
+
+  it('bỏ xem trước là gỡ MỘT nhóm: mesh thật hiện lại, không dựng lại gì', async () => {
+    const { mounted, pump } = mountParked();
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    const { handle } = mounted;
+
+    await vi.waitFor(() => {
+      expect(handle.status().phase).toBe('ready');
+    });
+
+    pump();
+
+    const level = host.levels[0];
+    const wall = level?.walls[0];
+
+    if (level === undefined || wall === undefined) {
+      throw new Error('bộ mẫu phải có ít nhất một tường trên tầng đầu');
+    }
+
+    const wallId = String(wall.id);
+    const before = handle.status().progress.totalCount;
+
+    handle.preview({
+      levelId: String(level.level.id),
+      entityIds: [wallId],
+      model: narrowFloorInput(
+        { ...level, walls: [{ ...wall, thicknessMm: millimetres(400) }] },
+        [wall.id],
+      ),
+    });
+    pump();
+
+    const scene = host.renderer.drawn();
+
+    if (scene === null) {
+      throw new Error('phải có một cảnh được vẽ');
+    }
+
+    expect(meshesOf(scene, wallId).filter((object) => object.visible)).toHaveLength(1);
+    expect(meshesOf(scene, wallId).length).toBeGreaterThan(1);
+
+    // Bỏ xem trước.
+    expect(handle.preview(null)).toBe(0);
+    expect(pump()).toBe(1);
+
+    const after = meshesOf(scene, wallId);
+
+    // Chỉ còn mesh THẬT, và nó được vẽ trở lại.
+    expect(after).toHaveLength(1);
+    expect(after[0]?.visible).toBe(true);
+    expect(handle.status().progress.totalCount).toBe(before);
+    expect(handle.status().phase).toBe('ready');
+
+    handle.dispose();
+  });
+
+  it('một khung mới của vỏ giữa lúc kéo không làm bức tường thật hiện lại', async () => {
+    const { mounted, pump } = mountParked();
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    const { handle } = mounted;
+
+    await vi.waitFor(() => {
+      expect(handle.status().phase).toBe('ready');
+    });
+
+    pump();
+
+    const level = host.levels[0];
+    const wall = level?.walls[0];
+
+    if (level === undefined || wall === undefined) {
+      throw new Error('bộ mẫu phải có ít nhất một tường trên tầng đầu');
+    }
+
+    const wallId = String(wall.id);
+
+    handle.preview({
+      levelId: String(level.level.id),
+      entityIds: [wallId],
+      model: narrowFloorInput(
+        { ...level, walls: [{ ...wall, thicknessMm: millimetres(400) }] },
+        [wall.id],
+      ),
+    });
+    pump();
+
+    // Vỏ đổi khung giữa lúc kéo — chọn một vật, tách tầng — và `applyFrame`
+    // tính lại `visible` từ đầu.
+    handle.update({
+      ...frameOf(host.levels),
+      reducedMotion: true,
+      selectedEntityIds: [wallId],
+      separation: 2,
+    });
+    pump();
+
+    const scene = host.renderer.drawn();
+
+    if (scene === null) {
+      throw new Error('phải có một cảnh được vẽ');
+    }
+
+    expect(meshesOf(scene, wallId).filter((object) => object.visible)).toHaveLength(1);
+
+    handle.dispose();
+  });
+
+  it('dispose() sau một lượt xem trước vẫn trả hết tài nguyên', async () => {
+    const before = host.ledger.counts;
+    const { mounted, pump } = mountParked();
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    const { handle } = mounted;
+
+    await vi.waitFor(() => {
+      expect(handle.status().phase).toBe('ready');
+    });
+
+    const level = host.levels[0];
+    const wall = level?.walls[0];
+
+    if (level === undefined || wall === undefined) {
+      throw new Error('bộ mẫu phải có ít nhất một tường trên tầng đầu');
+    }
+
+    handle.preview({
+      levelId: String(level.level.id),
+      entityIds: [String(wall.id)],
+      model: narrowFloorInput(
+        { ...level, walls: [{ ...wall, thicknessMm: millimetres(400) }] },
+        [wall.id],
+      ),
+    });
+    pump();
+
+    handle.dispose();
+
+    for (const resource of TRACKED_RESOURCES) {
+      expect(host.ledger.counts[resource]).toBe(before[resource]);
+    }
+
+    // Gọi khi đã dọn: không ném, không vẽ thêm.
+    expect(handle.preview(null)).toBe(0);
   });
 });

@@ -207,7 +207,13 @@ export interface ViewerSceneFrameRate {
 /** Phần tối thiểu của `WebGLRenderer` mà module cảnh dùng. */
 export interface ViewerRendererLike {
   readonly info: { readonly render: { readonly calls: number; readonly triangles: number } };
-  readonly shadowMap: { type: number; enabled: boolean };
+  /**
+   * `autoUpdate`/`needsUpdate` nằm ở đây vì bản đồ bóng của khung nhìn là bản đồ
+   * TĨNH: nó được vẽ lại khi mô hình đổi, không phải mỗi khung hình. Không khai
+   * hai trường này thì module cảnh không tắt được `autoUpdate`, và một lượt xem
+   * trước sẽ kéo theo một lượt vẽ depth pass cho mỗi bước kéo.
+   */
+  readonly shadowMap: { type: number; enabled: boolean; autoUpdate: boolean; needsUpdate: boolean };
   clippingPlanes: unknown[];
   setSize(width: number, height: number, updateStyle?: boolean): void;
   setPixelRatio(value: number): void;
@@ -231,6 +237,23 @@ export interface ViewerSceneInjections {
   readonly readToken?: TokenReader | undefined;
   /** Sổ tài nguyên để bài kiểm chứng minh `dispose()` trả hết. */
   readonly ledger?: ResourceLedger | undefined;
+}
+
+/**
+ * Hình học TẠM vẽ đè lên mô hình thật, trong lúc một cử chỉ còn đang diễn ra.
+ *
+ * Không phải một khung nhìn mới và không phải một mô hình mới: đúng những bộ
+ * phận người dùng đang cầm, cộng với mã của chính chúng để mesh thật nằm dưới
+ * được ẩn đi. Bỏ xem trước là truyền `null` — một thao tác gỡ một nhóm, không
+ * phải một lượt dựng lại.
+ */
+export interface ViewerScenePreview {
+  /** Tầng mà hình tạm thuộc về, để nó chịu cùng độ tách như tầng thật. */
+  readonly levelId: string;
+  /** Mã những đối tượng hình tạm ĐỨNG THAY; mesh thật của chúng bị ẩn. */
+  readonly entityIds: readonly string[];
+  /** Chỉ những bộ phận đang xem trước — {@link narrowFloorInput} cắt ra. */
+  readonly model: BuildFloorInput;
 }
 
 /** Mọi thứ module cảnh cần để lắp lên một canvas. */
@@ -270,6 +293,24 @@ export interface ViewerSceneHandle {
    * yên còn hơn bay tới một hộp rỗng.
    */
   readonly frameEntities: (entityIds: readonly string[]) => boolean;
+
+  /**
+   * Vẽ đè một bản xem trước lên mô hình, hoặc `null` để bỏ nó đi.
+   *
+   * BỔ SUNG cho {@link ViewerSceneHandle.update}, không thay nó: `update` nhận
+   * khung nhìn (chọn, ẩn, camera) và không bao giờ nhận hình học, còn hàm này
+   * nhận hình học và không bao giờ nhận khung nhìn. Vỏ và `Viewer3D` đang chạy
+   * trên `update`, nên chữ ký ấy không đổi một chữ.
+   *
+   * Không lượt dựng lại nào xảy ra: `BuildQueue` không được gọi, worker không
+   * được đánh thức, và mô hình thật vẫn nguyên trên cây. Một lượt gọi vẽ ĐÚNG
+   * một khung hình (`invalidate`), nên kéo một thanh trượt tốn đúng số khung
+   * hình bằng số bước kéo — vòng vẽ theo nhu cầu không biến thành vòng chạy
+   * liên tục.
+   *
+   * @returns số mesh của lớp xem trước sau lượt gọi; 0 khi vừa bỏ xem trước.
+   */
+  readonly preview: (preview: ViewerScenePreview | null) => number;
 
   /** R-05: trả geometry, material, texture và cả GL context. An toàn gọi hai lần. */
   readonly dispose: () => void;

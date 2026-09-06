@@ -15,6 +15,33 @@
 
 ---
 
+> ## CẬP NHẬT 2026-09-06 — mười hai lỗ hổng của khảo sát này ĐÃ ĐƯỢC VÁ
+>
+> Bản khảo sát dưới đây đúng với `master` **tại thời điểm khảo sát**. Từ lượt U1–U8
+> (nhánh `mungvu2004/fix-u8-integrate`) mười hai kết luận `NOT FOUND` của nó đã có lời
+> giải trong mã, nên mọi mục `NOT FOUND` phải đọc kèm bảng này:
+>
+> | # | Lỗ hổng của khảo sát | Lời giải hiện có |
+> |---|---|---|
+> | 1 | Không lệnh nào ghi `Wall.heightMm` | `createChangeWallHeightCommand` (`lib/commands/business/wallCommands.ts`) — hạ xuống dưới đỉnh một ô mở bị TỪ CHỐI kèm lý do tiếng Việt |
+> | 2 | Không lệnh nào ghi lại kích thước `boundingBox` của nội thất | `createResizeFurnitureCommand` (`lib/commands/business/openingCommands.ts`) — giữ nguyên tâm, giãn hộp quanh tâm |
+> | 3 | `openingsOfRoom` không export, đòi cả một `RuleContext` | `src/domain/spatial/roomOpenings.ts` — hàm thuần `openingsOfRoom(room, walls, openings)` + `countOpeningsByKind` |
+> | 4 | Không có khái niệm khuôn mẫu thuộc tính ở bất cứ tầng nào | `PropertyTemplate` + `ENDPOINTS.propertyTemplates` + `queryKeys.template.byProject` + `WriteOperation` `createPropertyTemplate` |
+> | 5 | Không endpoint nào nhận lớp không gian, nên tự lưu NÍN | `SpatialApi.writeLayer` + `ENDPOINTS.spatial.layer`; panel gửi thật qua `propertyInspectorGateway.persistProperties` |
+> | 6 | `defaultRuleRegistry` chỉ đăng ký 8/25 luật | `src/domain/rules/defaults.ts` — 25 luật đăng ký, 23 bật, `FURNITURE-CLASH` hiện thật ở nhóm "Kiểm tra" |
+> | 7 | Không có lệnh xả tự lưu, nên Ctrl+S không có gì để gọi | `useAutosaveFlush` + `flushAutosaves` (`hooks/useAutosave.ts`), nối vào Ctrl+S ở `routes/router.tsx` |
+> | 8 | Không có màn tìm kiếm cho Ctrl+F | `ObjectSearch` đăng ký `Ctrl+F` ở phạm vi `canvas` (`screens/viewer/Viewer3D/ObjectSearch.tsx`) |
+> | 9 | Không có bảng phím tắt toàn cục cho phím `?` | `GlobalShortcutHelp` (`components/shell/`), đọc thẳng `appShortcutRegistry.listShortcuts()` |
+> | 10 | Escape ở tầng vỏ chưa được nối | `UndoShortcuts` đăng ký `global.closeTopLayer` → `uiSlice.closeDialog()` |
+> | 11 | Không có `toFurnitureViewModel` | `lib/viewmodel/toViewModel.ts` — thêm hàm và nhánh `'furniture'` của `ViewModelInput` |
+> | 12 | Không có kênh xem trước 3D gọi được từ tầng màn hình | `previewEdit`/`discardPreview` (`store/commit.ts`), `selectDraftPreviewGraph`, `lib/three/preview/`, `ViewerSceneHandle.preview` |
+>
+> Ba mục `NOT FOUND` khác của khảo sát KHÔNG được vá và vẫn đúng nguyên văn: đổi chiều mở
+> (`swing`) của một ô mở đã có — panel dựng lệnh riêng trong cổng của nó; đổi tường chủ của
+> một ô mở; và `isInterior` của tường — dòng đó CỐ Ý giữ chỉ đọc vì nó suy từ `kind`, ghi
+> vào nó sẽ làm mất `loadBearing` không có đường lấy lại.
+
+
 ## M1. Tra cứu đối tượng theo id (D-12)
 
 **Một đối tượng, theo id:**
@@ -119,8 +146,8 @@ export interface Room extends ReviewMetadata {
 | tên | Có | `name` (rỗng → nhãn `UNNAMED_ROOM_LABEL`, xem M3) |
 | công năng/function | Có | `usage`, nhãn Việt ở `ROOM_USAGE_LABELS` (`src/domain/rules/registry.ts:390-399`) |
 | diện tích | Có | `areaM2`, tính sẵn theo domain (không tính lại ở viewmodel, xem M3) |
-| số cửa | **NOT FOUND** trường sẵn | Không có `doorCount`/`openingIds` trên `Room` |
-| số cửa sổ | **NOT FOUND** trường sẵn | Không có `windowCount` trên `Room` |
+| số cửa | Không có trường sẵn, nhưng **ĐÃ CÓ tiện ích** (lỗ hổng #3) | `openingsOfRoom` + `countOpeningsByKind`, `src/domain/spatial/roomOpenings.ts` |
+| số cửa sổ | Không có trường sẵn, nhưng **ĐÃ CÓ tiện ích** (lỗ hổng #3) | cùng trên |
 
 Đây là thông tin quan trọng: đếm cửa/cửa sổ của một phòng đòi phải tự duyệt
 `room.wallIds` → mỗi `wall.openingIds` → tra `opening.kind`. Hàm nội bộ duy nhất
@@ -167,7 +194,11 @@ export function toViewModel(input: ViewModelInput): ViewModel  // dòng 416-427 
 export function toViewModels(inputs: readonly ViewModelInput[]): ViewModel[] // dòng 430-432
 ```
 
-`toFurnitureViewModel` — **NOT FOUND**. `ViewModelInput` (`src/lib/viewmodel/types.ts:147-151`)
+`toFurnitureViewModel` — **~~NOT FOUND~~ ĐÃ VÁ (lỗ hổng #11, U2): hàm và nhánh `'furniture'`
+của `ViewModelInput` nay có thật trong `lib/viewmodel/toViewModel.ts`.** Đoạn dưới giữ nguyên
+làm lịch sử.
+
+~~`toFurnitureViewModel` — NOT FOUND.~~ `ViewModelInput` (`src/lib/viewmodel/types.ts:147-151`)
 chỉ có 4 nhánh: `'wall' | 'opening' | 'room' | 'violation'`. Không có nhánh `'furniture'`.
 `toViewModel(input)` do đó KHÔNG THỂ nhận một `Furniture` — gọi nó với đối tượng
 nội thất không biên dịch được (không khớp `ViewModelInput`).
@@ -315,7 +346,9 @@ Nhãn tiếng Việt tại `RULE_SEVERITY_LABELS` (`registry.ts:63-67`):
 
 **Rủi ro lớn — xem M7 #2:** `defaultRuleRegistry()` (registry dùng chung mà
 `selectViolations` gọi qua `runRules(spatial)` không truyền `options.registry`,
-`src/store/selectors.ts:230-236`) chỉ có 8 luật gốc `BUILT_IN_RULES`
+`src/store/selectors.ts`) ~~chỉ có 8 luật gốc `BUILT_IN_RULES`~~ — **ĐÃ VÁ (lỗ hổng #6, U3): nay
+là cả sổ 25 luật của `src/domain/rules/defaults.ts`, 23 trong đó bật.** Đoạn dưới giữ nguyên làm
+lịch sử: khi khảo sát, nó chỉ có 8 luật gốc `BUILT_IN_RULES`
 (`registry.ts:663-672`). Ba nhóm luật khác — hình học 7 luật
 (`GEOMETRY_RULES`, `src/domain/rules/geometry/index.ts:1132-1140`), công năng 7
 luật kể cả `FURNITURE-CLASH` (`FUNCTION_RULES`,

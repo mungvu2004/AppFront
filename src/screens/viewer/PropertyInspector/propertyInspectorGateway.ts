@@ -33,33 +33,49 @@
  *   và một con số suy ra không bao giờ lệch khỏi dữ liệu. Khuôn:
  *   `reviewCounterOf` (cùng file trên, dòng 727).
  *
- * ## Ba việc tầng logic CHƯA CÓ ĐƯỜNG — nói ra, không vá
+ * ## Ba việc tầng logic TỪNG chưa có đường — nay đã có, và đã nối
  *
- * 1. **Chiều cao tường và kích thước bao nội thất không ghi được.**
- *    `WALL_COMMAND_TYPES` không có lệnh đổi `heightMm`; họ `furniture.*` chỉ có
- *    `add`/`move`/`rotate`/`delete`, `movedFurniture` chỉ DỊCH hộp bao chứ không
- *    ghi lại kích thước. Panel để hai dòng đó CHỈ ĐỌC. Phán quyết ghi rõ lý do:
- *    chưa ai quyết định chuyện gì xảy ra với ô mở khi tường thấp xuống dưới đỉnh
- *    ô mở, hay với `FURNITURE-CLASH` khi nội thất phình ra — ghi thẳng
- *    `{...wall, heightMm}` là tự quyết định hai điều đó, đúng thứ "không tính lại
- *    hình học" cấm.
- * 2. **`copyAsTemplate` chưa tồn tại ở bất cứ tầng nào.** Không lệnh, không
- *    `queryKey`, không endpoint trong `src/lib`, `src/domain`, `src/store`,
- *    `src/api`. Cổng khai `supports.copyAsTemplate = false` ĐỒNG BỘ và trả về một
- *    lý do tiếng Việt, đúng khuôn `persistWallLayer` của
- *    `wallLayerReviewGateway.ts:250-256,362` — nút có thật và nói thật, không phải
- *    một callback rỗng.
- * 3. **`openingsOfRoom` không được export.** {@link roomOpeningCountsOf} dưới đây
- *    là bản sao HẸP của `src/domain/rules/function/index.ts:430-454`, thứ đòi
- *    nguyên một `RuleContext` nên không dùng lại được như tiện ích rời. Khi hàm đó
- *    được export, chỗ này PHẢI bị thay bằng nó.
+ * 1. **~~Chiều cao tường và kích thước bao nội thất không ghi được~~ — lỗ hổng
+ *    #1 và #2, đã vá (U1).** `WALL_COMMAND_TYPES.changeHeight` và
+ *    `OPENING_COMMAND_TYPES.resizeFurniture` nay có thật, mỗi lệnh tự mang phán
+ *    quyết mà trước đây chưa ai ra: hạ tường xuống dưới đỉnh một ô mở bị TỪ
+ *    CHỐI kèm câu tiếng Việt nói còn thiếu bao nhiêu milimét, còn nội thất
+ *    phình ra thì để `FURNITURE-CLASH` cảnh báo sau chứ lệnh không tự dọn đồ.
+ *    Panel vì thế mở khoá hai dòng đó — {@link propertyInspectorTypes} và
+ *    `usePropertyInspector.ts` là nơi chúng thành ô nhập.
+ * 2. **~~`copyAsTemplate` chưa tồn tại ở bất cứ tầng nào~~ — lỗ hổng #4, đã vá
+ *    (U4).** `PropertyTemplate` + `ENDPOINTS.propertyTemplates`
+ *    (`src/api/client.ts`, `src/api/endpoints.ts`), `queryKeys.template.byProject`
+ *    và `WriteOperation` `createPropertyTemplate` nay đủ bộ, nên
+ *    {@link PropertyInspectorGateway.copyAsTemplate} GỬI THẬT thay vì trả một
+ *    lý do. Nó chỉ còn từ chối khi chưa mở dự án nào — một tình huống của phiên
+ *    làm việc, không phải một khả năng còn thiếu.
+ * 3. **~~Không endpoint nào nhận lớp không gian~~ — lỗ hổng #5, đã vá (U4).**
+ *    `SpatialApi.writeLayer` nhận đủ bốn danh sách (tường / ô mở / phòng / nội
+ *    thất) của một tầng, nên {@link PropertyInspectorGateway.persistProperties}
+ *    là một lượt ghi thật và chỉ báo tự lưu nói được "Đã lưu lúc …" mà không
+ *    nói dối. Trước đây nó NÉM để khỏi nói dối; giờ nó chỉ ném khi máy chủ thật
+ *    sự từ chối, và `createAutosave` lo phần thử lại.
+ *
+ * `openingsOfRoom` giờ đã được export từ `src/domain/spatial/roomOpenings.ts`
+ * (lỗ hổng #3) — {@link roomOpeningCountsOf} dưới đây gọi thẳng nó thay vì nuôi
+ * một bản sao.
  */
 
+import type {
+  ApiClient,
+  PropertyTemplate,
+  PropertyTemplateDraft,
+  SpatialLayer,
+} from '@/api/client';
+import { createAppApiClient } from '@/api/appClient';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
-import { isEntityOfKind } from '@/domain/spatial/normalize';
+import { idsOnLevel, isEntityOfKind } from '@/domain/spatial/normalize';
+import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
 import type {
   Furniture,
+  LevelId,
   Opening,
   Room,
   SwingDirection,
@@ -74,6 +90,7 @@ import { createIncrementalRuleRunner, dispatch } from '@/lib/commands/dispatch';
 import type { HistoryStack, SelectionSnapshot } from '@/lib/commands/history';
 import { createHistoryStack, NO_SELECTION } from '@/lib/commands/history';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
+import { useStore } from '@/store';
 import { commit } from '@/store/commit';
 
 import type { ObjectKind } from './propertyInspectorTypes';
@@ -159,25 +176,21 @@ export interface RoomOpeningCounts {
 }
 
 /**
- * Đếm cửa đi / cửa sổ của một phòng bằng cách đi theo các trường id đã có:
- * `room.wallIds` → `wall.openingIds` → `opening.kind`.
- *
- * **Đây là bản sao hẹp của `openingsOfRoom`
- * (`src/domain/rules/function/index.ts:430-454`), hàm KHÔNG được export và đòi
- * nguyên một `RuleContext`.** Khi hàm đó được export, chỗ này phải bị thay bằng
- * nó chứ không được nuôi song song.
+ * Đếm cửa đi / cửa sổ của một phòng, qua tiện ích dùng chung
+ * `openingsOfRoom`/`countOpeningsByKind` của `src/domain/spatial/roomOpenings.ts`.
  *
  * `Room` không có `doorCount`/`windowCount`/`openingIds` (hợp đồng T1 mục M7 #5),
- * nên hai con số này chỉ có thể ghép ra. Phép ghép chỉ đọc id — không đo, không
- * cắt, không suy ra hình học nào.
+ * nên hai con số này chỉ có thể ghép ra. Việc của hàm này chỉ còn là giải
+ * `room.wallIds`/`wall.openingIds` thành hai mảng phẳng từ `NormalizedSpatial`
+ * — phép đếm và phép duyệt hình học thật sự nằm trong tiện ích domain.
  *
  * **Một ô mở nằm trên tường dùng chung giữa hai phòng được đếm cho CẢ HAI phòng.**
- * Đó là hành vi đúng: cái cửa ấy đúng là cửa của cả hai phòng. Ghi ra đây để
- * người đọc sau không tưởng là lỗi trùng.
+ * Đó là hành vi đúng của `openingsOfRoom`: cái cửa ấy đúng là cửa của cả hai
+ * phòng. Ghi ra đây để người đọc sau không tưởng là lỗi trùng.
  */
 export function roomOpeningCountsOf(graph: NormalizedSpatial, room: Room): RoomOpeningCounts {
-  let doorCount = 0;
-  let windowCount = 0;
+  const walls: Wall[] = [];
+  const openingIds = new Set<Opening['id']>();
 
   for (const wallId of room.wallIds) {
     const wall = readEntity(graph, 'wall', wallId);
@@ -186,22 +199,24 @@ export function roomOpeningCountsOf(graph: NormalizedSpatial, room: Room): RoomO
       continue;
     }
 
+    walls.push(wall);
+
     for (const openingId of wall.openingIds) {
-      const opening = readEntity(graph, 'opening', openingId);
-
-      if (opening === null) {
-        continue;
-      }
-
-      if (opening.kind === 'door') {
-        doorCount += 1;
-      } else {
-        windowCount += 1;
-      }
+      openingIds.add(openingId);
     }
   }
 
-  return { doorCount, windowCount };
+  const openings: Opening[] = [];
+
+  for (const openingId of openingIds) {
+    const opening = readEntity(graph, 'opening', openingId);
+
+    if (opening !== null) {
+      openings.push(opening);
+    }
+  }
+
+  return countOpeningsByKind(openingsOfRoom(room, walls, openings));
 }
 
 /**
@@ -553,26 +568,128 @@ export type PropertyInspectorCapabilityResult<TValue> =
   | { readonly ok: false; readonly reason: string };
 
 /**
- * Câu nói ra khi một khả năng chưa tồn tại ở bất cứ tầng nào.
+ * Câu nói ra khi một lượt ghi không có ĐÍCH, chứ không phải không có ĐƯỜNG.
  *
- * Câu chữ nói rõ đây là giới hạn của PHẦN MỀM, không phải vấn đề của bản vẽ:
- * panel hiện nó ở nhóm "Kiểm tra", nơi vốn dành cho vi phạm quy tắc, nên nếu
- * không nói rõ thì người dùng sẽ tưởng mô hình của họ có lỗi.
+ * Cả hai khả năng dưới đây nay đã có đủ endpoint (lỗ hổng #4 và #5, U4). Thứ
+ * còn thiếu được là ngữ cảnh của phiên làm việc: chưa mở dự án nào thì không
+ * có `projectId` để gửi tới, và chưa chọn tầng nào thì không biết lấy lớp
+ * không gian của tầng nào. Câu chữ nói rõ đó là việc người dùng làm tiếp được,
+ * không phải một lỗi của bản vẽ — panel hiện nó ở nhóm "Kiểm tra", nơi vốn
+ * dành cho vi phạm quy tắc.
  */
-export const COPY_AS_TEMPLATE_UNSUPPORTED_REASON =
-  'Phần mềm chưa lưu được khuôn mẫu thuộc tính. Bản vẽ của bạn không có lỗi nào ở đây.';
+export const NO_SAVE_TARGET_REASON =
+  'Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.';
+
+/** Câu nói ra khi máy chủ từ chối lượt lưu lớp không gian. */
+export const persistFailedReason = (kind: string): string =>
+  `Máy chủ chưa nhận được lớp không gian (${kind}). Thay đổi vẫn còn trên máy này.`;
+
+/** Câu nói ra khi máy chủ từ chối lượt tạo khuôn mẫu. */
+export const templateFailedReason = (kind: string): string =>
+  `Máy chủ chưa lưu được khuôn mẫu thuộc tính (${kind}). Chưa có khuôn nào được tạo.`;
+
+/** Câu xác nhận khi khuôn mẫu đã lưu xong — panel hiện nó ở nhóm "Kiểm tra". */
+export const templateSavedNotice = (name: string): string =>
+  `Đã lưu khuôn mẫu "${name}" cho dự án này.`;
+
+/** Tên khuôn mẫu sinh từ chính đối tượng được sao chép — người dùng đổi được sau. */
+export const templateNameOf = (entity: InspectableEntity): string => {
+  const kind = objectKindOf(entity);
+
+  return kind === null ? `Khuôn mẫu ${entity.id}` : `Khuôn ${OBJECT_KIND_LABELS[kind]} ${entity.id}`;
+};
 
 /**
- * Câu nói ra khi lượt tự lưu không có đích để gửi tới.
+ * Bộ giá trị một khuôn mẫu mang theo, đúng `PropertyTemplateFieldsByKind` của
+ * `src/api/client.ts`.
  *
- * `FloorWriteBody` (`src/api/client.ts:87`) không có chỗ cho tường, ô mở, phòng
- * hay nội thất, nên không endpoint nào nhận được lớp không gian vừa sửa — cùng
- * lớp vấn đề với `persistWallLayer` (`wallLayerReviewGateway.ts:256`) và
- * `persistDimensionLayer`. Lượt lưu vì thế NÉM, và chỉ báo nói ra sự thật thay
- * vì hiện "Đã lưu lúc…" cho một thay đổi chưa rời khỏi máy này.
+ * Chỉ những thuộc tính ĐẶT TRƯỚC được: hình học đo ra từ bản vẽ (chiều dài
+ * tường, diện tích phòng, tường chủ của một ô mở) là số đo của MỘT đối tượng cụ
+ * thể, không phải một lựa chọn ai đó chép sang đối tượng khác. Danh sách này
+ * không được gõ lại ở đây lần thứ hai: nó là đúng các trường
+ * `PropertyTemplateFieldsByKind` khai, và TypeScript bắt lệch.
  */
-export const PERSIST_PROPERTIES_UNSUPPORTED_REASON =
-  'Chưa có đường lưu thuộc tính lên máy chủ, nên thay đổi mới chỉ nằm trên máy này.';
+export function propertyTemplateDraftOf(entity: InspectableEntity): PropertyTemplateDraft | null {
+  const name = templateNameOf(entity);
+
+  if (isEntityOfKind('wall', entity)) {
+    return {
+      fields: { heightMm: entity.heightMm, kind: entity.kind, thicknessMm: entity.thicknessMm },
+      name,
+      objectKind: 'wall',
+    };
+  }
+
+  if (isEntityOfKind('opening', entity)) {
+    return {
+      fields: {
+        heightMm: entity.heightMm,
+        sillHeightMm: entity.sillHeightMm,
+        swing: entity.swing,
+        widthMm: entity.widthMm,
+      },
+      name,
+      objectKind: 'opening',
+    };
+  }
+
+  if (isEntityOfKind('room', entity)) {
+    return { fields: { usage: entity.usage }, name, objectKind: 'room' };
+  }
+
+  if (isEntityOfKind('furniture', entity)) {
+    return {
+      fields: { kind: entity.kind, rotationDeg: entity.rotationDeg },
+      name,
+      objectKind: 'furniture',
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Bốn danh sách thực thể của MỘT tầng, đúng hình dạng `SpatialLayer` mà
+ * `SpatialApi.writeLayer` nhận.
+ *
+ * Lọc theo tầng chứ không gửi cả toà nhà: `writeLayer` khoá theo
+ * `projects/:id/floors/:floorId/spatial/layer`, nên gửi kèm tường của tầng
+ * khác là ghi dữ liệu của tầng đó vào đường dẫn của tầng này. `idsOnLevel` là
+ * chỉ mục `byLevel` mà `normalizeSpatial` đã dựng sẵn — không một phép duyệt
+ * hình học nào ở đây, chỉ đọc id.
+ */
+export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): SpatialLayer {
+  const furniture: Furniture[] = [];
+  const openings: Opening[] = [];
+  const rooms: Room[] = [];
+  const walls: Wall[] = [];
+
+  for (const id of idsOnLevel(graph, floorId)) {
+    const entity = graph.byId[id];
+
+    if (entity === undefined) {
+      continue;
+    }
+
+    if (isEntityOfKind('wall', entity)) {
+      walls.push(entity);
+    } else if (isEntityOfKind('opening', entity)) {
+      openings.push(entity);
+    } else if (isEntityOfKind('room', entity)) {
+      rooms.push(entity);
+    } else if (isEntityOfKind('furniture', entity)) {
+      furniture.push(entity);
+    }
+  }
+
+  return { furniture, openings, rooms, walls };
+}
+
+/** Dự án và tầng lượt ghi đi tới. `null` khi phiên làm việc chưa mở đủ cả hai. */
+export interface PropertyInspectorSaveTarget {
+  readonly projectId: string;
+  readonly floorId: LevelId;
+}
 
 /** Mỗi phương thức là một việc panel cần từ bên ngoài, và không có việc nào khác. */
 export interface PropertyInspectorGateway {
@@ -590,10 +707,22 @@ export interface PropertyInspectorGateway {
   readonly readSpatialLayer: () => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: PropertyInspectorGraphPort;
-  /** NOT FOUND — không endpoint nào nhận lớp không gian vừa sửa. */
-  readonly persistProperties: () => PropertyInspectorCapabilityResult<void>;
-  /** NOT FOUND — chưa có khái niệm khuôn mẫu thuộc tính ở bất cứ tầng nào. */
-  readonly copyAsTemplate: () => PropertyInspectorCapabilityResult<void>;
+  /**
+   * Gửi lớp không gian của tầng đang mở lên máy chủ — lượt lưu THẬT của A7.
+   *
+   * Nhận đồ thị chứ không tự đọc kho: nơi gọi là `useAutosave`, và chính nó đã
+   * cầm ảnh chụp `state.spatial` của đúng lượt lưu này. Cổng tự đọc lại sẽ là
+   * một ảnh chụp thứ hai, có thể mới hơn thứ bộ đếm giờ vừa quyết định lưu.
+   */
+  readonly persistProperties: (
+    graph: NormalizedSpatial,
+  ) => Promise<PropertyInspectorCapabilityResult<SpatialLayer>>;
+  /** Lưu bộ thuộc tính của đối tượng này thành một khuôn mẫu của dự án. */
+  readonly copyAsTemplate: (
+    entity: InspectableEntity,
+  ) => Promise<PropertyInspectorCapabilityResult<PropertyTemplate>>;
+  /** Dự án và tầng lượt ghi đi tới, đọc ĐỒNG BỘ; `null` khi chưa mở đủ. */
+  readonly saveTarget: () => PropertyInspectorSaveTarget | null;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
   readonly actorId: string;
 }
@@ -605,25 +734,84 @@ export interface CreatePropertyInspectorGatewayOptions {
   /** Đồ thị đang sửa. Vắng mặt thì cổng đọc store thật. */
   readonly graph?: PropertyInspectorGraphPort;
   readonly actorId?: string;
+  /**
+   * Máy khách API. Vắng mặt thì dùng `createAppApiClient()` — cùng một quyết
+   * định thật/giả cho mọi màn (`src/api/appClient.ts`), không tự đoán lại.
+   */
+  readonly apiClient?: ApiClient;
+  /**
+   * Dự án và tầng lượt ghi đi tới. Vắng mặt thì đọc `projectSlice` của store.
+   *
+   * Là một HÀM chứ không phải một giá trị: người dùng đổi tầng giữa hai lượt
+   * tự lưu, và một cổng dựng đúng một lần (`useMemo` của hook) sẽ giữ mãi cái
+   * tầng đang mở lúc panel gắn.
+   */
+  readonly target?: () => PropertyInspectorSaveTarget | null;
 }
 
-/** Cổng thật — đọc store, ghi qua `dispatch`, và nói thật về việc chưa làm được. */
+/** Dự án và tầng đang mở, đọc thẳng store. `null` khi thiếu một trong hai. */
+function storeSaveTarget(): PropertyInspectorSaveTarget | null {
+  const state = useStore.getState();
+  const projectId = state.project?.id;
+  const floorId = state.activeFloorId;
+
+  return projectId === undefined || projectId === '' || floorId === null
+    ? null
+    : { floorId, projectId };
+}
+
+/** Cổng thật — đọc store, ghi qua `dispatch`, lưu qua `src/api`. */
 export function createPropertyInspectorGateway(
   options: CreatePropertyInspectorGatewayOptions,
 ): PropertyInspectorGateway {
   const graph = options.graph ?? { read: (): NormalizedSpatial | null => null };
+  const apiClient = options.apiClient ?? createAppApiClient();
+  const saveTarget = options.target ?? storeSaveTarget;
 
   return {
     supports: {
       readSpatialLayer: true,
       writeSpatialLayer: true,
-      persistProperties: false,
-      copyAsTemplate: false,
+      persistProperties: true,
+      copyAsTemplate: true,
     },
     readSpatialLayer: () => Promise.resolve(graph.read()),
     graph,
-    persistProperties: () => ({ ok: false, reason: PERSIST_PROPERTIES_UNSUPPORTED_REASON }),
-    copyAsTemplate: () => ({ ok: false, reason: COPY_AS_TEMPLATE_UNSUPPORTED_REASON }),
+    saveTarget,
+    persistProperties: async (current) => {
+      const target = saveTarget();
+
+      if (target === null) {
+        return { ok: false, reason: NO_SAVE_TARGET_REASON };
+      }
+
+      const result = await apiClient.spatial.writeLayer({
+        body: spatialLayerOf(current, target.floorId),
+        floorId: target.floorId,
+        projectId: target.projectId,
+      });
+
+      return result.ok
+        ? { data: result.data, ok: true }
+        : { ok: false, reason: persistFailedReason(result.error.kind) };
+    },
+    copyAsTemplate: async (entity) => {
+      const target = saveTarget();
+      const draft = propertyTemplateDraftOf(entity);
+
+      if (target === null || draft === null) {
+        return { ok: false, reason: NO_SAVE_TARGET_REASON };
+      }
+
+      const result = await apiClient.propertyTemplates.create({
+        body: draft,
+        projectId: target.projectId,
+      });
+
+      return result.ok
+        ? { data: result.data, ok: true }
+        : { ok: false, reason: templateFailedReason(result.error.kind) };
+    },
     actorId: options.actorId ?? PROPERTY_INSPECTOR_DEFAULT_ACTOR_ID,
   };
 }

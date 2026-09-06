@@ -2265,7 +2265,9 @@
         "boundingSize": "Kích thước bao",
         "rotation": "Góc xoay",
         "furnitureKind": "Loại nội thất",
-        "roomId": "Phòng chứa"
+        "roomId": "Phòng chứa",
+        "boundingWidth": "Bề rộng bao",
+        "boundingDepth": "Bề sâu bao"
       },
       "room": {
         "name": "Tên",
@@ -2368,6 +2370,22 @@
     "command": {
       "changeSwing": "Đổi chiều mở ô mở {{code}}",
       "approve": "Duyệt {{kind}} {{code}}"
+    }
+  },
+  "shell": {
+    "shortcut": {
+      "openShortcutHelp": "mở bảng phím tắt",
+      "closeTopLayer": "đóng lớp trên cùng"
+    },
+    "shortcutHelp": {
+      "title": "Phím tắt",
+      "closeAriaLabel": "Đóng bảng phím tắt",
+      "closeHint": "Nhấn ? hoặc Esc để đóng",
+      "scope": {
+        "global": "Toàn cục",
+        "canvas": "Khung nhìn 3D",
+        "sidePanel": "Bảng bên"
+      }
     }
   }
 }

@@ -13,7 +13,8 @@ import {
   type PropertyThumbnail,
 } from './propertyInspectorTypes';
 
-const COPY_AS_TEMPLATE_LABEL = 'Lưu làm khuôn mẫu';
+/** Nhãn nút "khuôn" — bài kiểm tìm nút này bằng đúng chữ này, không gõ lại. */
+export const COPY_AS_TEMPLATE_LABEL = 'Lưu làm khuôn mẫu';
 const CLOSE_LABEL = 'Đóng';
 
 export interface PropertyInspectorHeaderProps {

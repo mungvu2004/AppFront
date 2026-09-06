@@ -44,7 +44,8 @@ import type {
   WallId,
   WallKind,
 } from '@/domain/spatial/types';
-import type { PointMm } from '@/domain/units/compare';
+import { compareNearly, type PointMm } from '@/domain/units/compare';
+import { distanceBetween } from '@/domain/units/snap';
 import { millimetres, MILLIMETRES_PER_METRE } from '@/domain/units/types';
 import { centrelineLength, type Wall as SolidWall, type WallKind as SolidWallKind } from '@/domain/walls/types';
 import { formatNumber } from '@/lib/format/number';
@@ -293,6 +294,25 @@ const SOLID_WALL_KIND: Readonly<Record<WallKind, SolidWallKind>> = {
   partition: 'partition',
   envelope: 'glazed',
 };
+
+/**
+ * Is every measurement on this wall one the geometry can work with?
+ *
+ * `toSolidWall` labels each number as millimetres, and that labelling throws on
+ * anything not finite, so this is the guard that has to pass before a wall is
+ * handed to the geometry at all. A centreline of no length is in it for the
+ * same reason: every wall function divides by that length.
+ */
+export const wallIsUsable = (wall: GraphWall, level: Level): boolean =>
+  isFinitePoint(wall.centreline.start) &&
+  isFinitePoint(wall.centreline.end) &&
+  Number.isFinite(wall.thicknessMm) &&
+  Number.isFinite(wall.heightMm) &&
+  Number.isFinite(level.elevationMm) &&
+  compareNearly(
+    distanceBetween(toPointMm(wall.centreline.start), toPointMm(wall.centreline.end)),
+    0,
+  ) > 0;
 
 /**
  * A graph wall as the geometry functions want it.

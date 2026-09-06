@@ -52,24 +52,36 @@
  *
  * ## Nợ kỹ thuật đã ghi nhận (không phải chuyện bỏ quên)
  *
- * - **KHÔNG có xem trước 3D trong lúc kéo.** Hợp đồng T2 mục C5 kết luận
- *   `NOT FOUND` với bốn bằng chứng độc lập: `draftSlice` không ai sản xuất trong
- *   production và bị `local/no-draft-write-outside-commands` khoá ngoài
- *   `src/store`; không nơi nào đọc `draftOperations` để vẽ lại; `handle.update`
- *   không nhận hình học nên đổi `spatial` ép dựng lại toàn cảnh qua worker;
- *   `DragPreview` chỉ phục vụ gizmo trong khung nhìn 3D. Điều phối viên và người
- *   dùng đã chốt: trong lúc kéo panel CHỈ đổi con số hiện trong panel, và lệnh
- *   phát đúng một lần khi giá trị ngừng đổi (cửa sổ {@link MERGE_WINDOW_MS}). Mô
- *   hình 3D vì thế chỉ đổi SAU lượt ghi — đó là độ trễ có thật của kiến trúc hiện
- *   nay, không phải lựa chọn của đặc tả.
- * - **Chiều cao tường và kích thước bao nội thất chỉ đọc.** Không lệnh nào ghi
- *   được hai trường đó (xem docblock của cổng).
- * - **`isInterior` suy từ `kind`, không sửa được.** Domain không có trường riêng,
- *   và cho một toggle ghi đè `kind` sẽ biến một tường chịu lực thành vách ngăn mà
- *   không có đường quay lại.
- * - **Bộ luật dùng chung chỉ đăng ký 8 luật gốc**, nên `FURNITURE-CLASH` và các
- *   luật hình học/công năng/fit-out không bao giờ hiện ở nhóm "Kiểm tra". Panel
- *   giữ nguyên: tự đăng ký thêm luật là tự kiểm luật.
+ * - **~~KHÔNG có xem trước 3D trong lúc kéo~~ — đã có, U7.** Mục C5 của hợp đồng
+ *   T2 kết luận `NOT FOUND` với bốn bằng chứng, và cả bốn đã được gỡ đúng chỗ
+ *   chúng nằm: `src/store/commit.ts` mở `previewEdit`/`discardPreview` (người
+ *   sản xuất nháp hợp lệ, trong chính `src/store` — luật ESLint KHÔNG bị nới);
+ *   `selectDraftPreviewGraph` hợp nhất nháp với đồ thị; `useViewer3D` đọc phép
+ *   hợp nhất ấy và đẩy xuống `ViewerSceneHandle.preview`, một đường hình học
+ *   KHÔNG đi qua `BuildQueue` nên không có lượt dựng lại nào; lớp vẽ đè sống ở
+ *   `src/lib/three/preview`, không phải `DragPreview` của gizmo. Panel vì thế đề
+ *   nghị một bản nháp ở MỖI lần giá trị đổi (mô hình 3D đi theo ngay trong lúc
+ *   kéo) và vẫn chỉ phát LỆNH THẬT một lần khi giá trị đứng yên hết cửa sổ
+ *   {@link MERGE_WINDOW_MS} — một bước hoàn tác cho một lượt kéo (D-06).
+ * - **~~Chiều cao tường và kích thước bao nội thất chỉ đọc~~ — đã mở khoá, U1.**
+ *   `createChangeWallHeightCommand` và `createResizeFurnitureCommand` nay có
+ *   thật, và mỗi lệnh tự mang phán quyết mà trước đây chưa ai ra: hạ tường
+ *   xuống dưới đỉnh một ô mở bị TỪ CHỐI kèm câu tiếng Việt nói còn thiếu bao
+ *   nhiêu milimét (hook chỉ việc gắn câu đó vào đúng dòng), còn nội thất phình
+ *   ra thì để `FURNITURE-CLASH` cảnh báo sau chứ lệnh không tự dọn đồ. Hộp bao
+ *   thành HAI ô nhập — bề rộng và bề sâu — vì `ResizeFurnitureInput` nhận hai
+ *   số đo độc lập, và một ô "600 × 400" thì không ô nhập số nào đọc lại được.
+ * - **`isInterior` suy từ `kind`, không sửa được — GIỮ NGUYÊN CHỈ ĐỌC.** Đây
+ *   không phải một lỗ hổng còn sót: domain không có trường riêng cho nó, nên
+ *   một toggle chỉ có thể ghi đè `kind`, và ghi đè `kind` sẽ biến một tường
+ *   chịu lực thành vách ngăn mà không có đường quay lại — `loadBearing` mất đi
+ *   không có gì khôi phục. Dòng `wallType` ngay trên nó là chỗ đổi loại tường
+ *   một cách nói rõ mình đang làm gì.
+ * - **~~Bộ luật dùng chung chỉ đăng ký 8 luật gốc~~ — đã đủ 25, U3.**
+ *   `defaultRuleRegistry` nay là cả sổ (`domain/rules/defaults.ts`), nên
+ *   `FURNITURE-CLASH` và các luật hình học/công năng/fit-out hiện THẬT ở nhóm
+ *   "Kiểm tra" mà panel không phải tự đăng ký một luật nào — vẫn đúng kỷ luật
+ *   cũ: tự đăng ký thêm luật là tự kiểm luật.
  * - **Chọn nhiều là CHỈ ĐỌC.** Tầng lệnh không có lệnh nào nhận nhiều thực thể
  *   (mọi `Input` của `src/lib/commands/business` mang đúng một id), nên panel đọc
  *   giao của các thuộc tính và không mở ô nhập nào.
@@ -80,7 +92,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { ROOM_USAGE_LABELS } from '@/domain/rules/registry';
 import type { Violation } from '@/domain/rules/registry';
-import { readEntity } from '@/domain/spatial/applyPatch';
+import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
@@ -96,10 +108,12 @@ import type {
 import { useAutosave } from '@/hooks/useAutosave';
 import { useCommitFlash } from '@/hooks/useCommitFlash';
 import {
+  createChangeWallHeightCommand,
   createChangeWallKindCommand,
   createChangeWallThicknessCommand,
 } from '@/lib/commands/business/wallCommands';
 import {
+  createResizeFurnitureCommand,
   createResizeOpeningCommand,
   createRotateFurnitureCommand,
 } from '@/lib/commands/business/openingCommands';
@@ -109,12 +123,14 @@ import {
 } from '@/lib/commands/business/roomFloorCommands';
 import { FURNITURE_KIND_LABELS } from '@/lib/commands/business/shared';
 import type { CommandContext, CommandResult } from '@/lib/commands/business/shared';
+import { commandToPatches } from '@/lib/commands/invert';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
 import { formatNumber, formatPercent, isFormattable, MISSING_VALUE, parseNumber } from '@/lib/format/number';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ViewAttribute } from '@/lib/viewmodel/types';
 import { toRoomViewModel, toWallViewModel } from '@/lib/viewmodel/toViewModel';
 import { useStore } from '@/store';
+import { discardPreview, previewEdit } from '@/store/commit';
 import { selectViolations } from '@/store/selectors';
 
 import type {
@@ -133,6 +149,7 @@ import {
   readInspectableEntity,
   roomOpeningCountsOf,
   runInspectorCommand,
+  templateSavedNotice,
   violationsOfEntity,
 } from './propertyInspectorGateway';
 import type {
@@ -188,6 +205,8 @@ export const PROPERTY_INSPECTOR_TEXT = {
     },
     furniture: {
       boundingSize: 'Kích thước bao',
+      boundingWidth: 'Bề rộng bao',
+      boundingDepth: 'Bề sâu bao',
       rotation: 'Góc xoay',
       furnitureKind: 'Loại nội thất',
       roomId: 'Phòng chứa',
@@ -393,9 +412,11 @@ const ROOM_USAGE_OPTIONS: readonly PropertyRowOption[] = (
 /**
  * Tường — năm trường mặc định cộng một dòng quan hệ.
  *
- * `length` và `height` chỉ đọc: chiều dài chỉ đổi được bằng cách kéo đầu tường
- * (`wall.dragEnd`, một thao tác trong khung nhìn chứ không phải một ô nhập), và
- * `WALL_COMMAND_TYPES` không có lệnh nào ghi `heightMm`.
+ * `length` vẫn chỉ đọc: chiều dài chỉ đổi được bằng cách kéo đầu tường
+ * (`wall.dragEnd`, một thao tác trong khung nhìn chứ không phải một ô nhập).
+ * `height` thì KHÔNG còn chỉ đọc — `wall.changeHeight` đã có (lỗ hổng #1) — nên
+ * nó là một ô nhập milimét như mọi ô sửa được khác, chứ không mượn chữ đã đổi
+ * sang mét của viewmodel (xem lý do ở docblock đầu file).
  */
 function wallRows(wall: Wall): readonly RowDraft[] {
   const attributes = toWallViewModel(wall).attributes;
@@ -415,7 +436,7 @@ function wallRows(wall: Wall): readonly RowDraft[] {
       },
     },
     viewModelRow('length', TEXT.fields.wall.length, 'geometry', attributeOf(attributes, 'Chiều dài')),
-    viewModelRow('height', TEXT.fields.wall.height, 'geometry', attributeOf(attributes, 'Chiều cao')),
+    numericRow('height', TEXT.fields.wall.height, 'geometry', wall.heightMm),
     {
       groupId: 'material',
       commitMode: 'immediate',
@@ -428,6 +449,10 @@ function wallRows(wall: Wall): readonly RowDraft[] {
         options: WALL_KIND_OPTIONS,
       },
     },
+    /* `isInterior` KHOÁ có chủ đích, không phải vì thiếu lệnh: nó suy từ `kind`,
+     * nên một toggle ghi được sẽ phải ghi đè `kind`, và một tường `loadBearing`
+     * bị gạt thành vách ngăn thì không có đường lấy lại. Đổi loại tường là việc
+     * của dòng `wallType` ngay trên. */
     {
       groupId: 'material',
       commitMode: 'immediate',
@@ -518,30 +543,25 @@ function roomRows(room: Room, graph: NormalizedSpatial): readonly RowDraft[] {
 }
 
 /**
- * Nội thất — hai trường cố định cộng hai trường tuỳ hạng mục.
+ * Nội thất — ba trường thuộc tính cộng một dòng quan hệ.
  *
- * `boundingSize` chỉ đọc: không lệnh nào ghi lại `boundingBox`; `movedFurniture`
- * chỉ DỊCH hộp bao theo `centre`, giữ nguyên kích thước. Bề rộng và bề sâu đọc
- * thẳng hai đầu hộp bao đã lưu — đọc kích thước của một hộp có sẵn, không dựng
- * lại hình học nào.
+ * Hộp bao là HAI ô nhập, không phải một dòng "600 × 400". Lý do nằm ở chính
+ * `ResizeFurnitureInput` (`openingCommands.ts`): nó nhận `widthMm` và `depthMm`
+ * độc lập nhau, ai vắng mặt thì chiều đó giữ nguyên. Một ô chữ ghép hai số bằng
+ * dấu nhân sẽ phải tự tách chuỗi rồi tự đoán người dùng vừa đổi chiều nào —
+ * một phép phân tích cú pháp mà `parseNumber` của `lib/format/number` không
+ * làm, và R-61 không cho hook tự chế. Hai ô, hai số, mỗi ô một lệnh.
+ *
+ * Bề rộng và bề sâu đọc thẳng hai đầu hộp bao đã lưu — đọc kích thước của một
+ * hộp có sẵn, không dựng lại hình học nào.
  */
 function furnitureRows(furniture: Furniture): readonly RowDraft[] {
   const { max, min } = furniture.boundingBox;
   const roomId = furniture.roomId;
 
   return [
-    {
-      groupId: 'geometry',
-      commitMode: 'immediate',
-      row: {
-        id: 'boundingSize',
-        label: TEXT.fields.furniture.boundingSize,
-        controlType: 'text',
-        value: singleValue(`${millimetreText(max.x - min.x)} × ${millimetreText(max.y - min.y)}`),
-        unit: TEXT.units.millimetre,
-        isLocked: true,
-      },
-    },
+    numericRow('boundingWidth', TEXT.fields.furniture.boundingWidth, 'geometry', max.x - min.x),
+    numericRow('boundingDepth', TEXT.fields.furniture.boundingDepth, 'geometry', max.y - min.y),
     {
       groupId: 'geometry',
       commitMode: 'settled',
@@ -887,6 +907,14 @@ function commandForRow(
       return createChangeWallKindCommand({ kind: nextValue, wallId: entity.id }, context);
     }
 
+    if (rowId === 'height') {
+      const heightMm = parseNumber(nextValue);
+
+      return heightMm === undefined
+        ? null
+        : createChangeWallHeightCommand({ heightMm, wallId: entity.id }, context);
+    }
+
     return null;
   }
 
@@ -934,6 +962,24 @@ function commandForRow(
     return rotationDeg === undefined
       ? null
       : createRotateFurnitureCommand({ furnitureId: entity.id, rotationDeg }, context);
+  }
+
+  /* Hai chiều của hộp bao là hai lệnh riêng, mỗi lệnh nêu ĐÚNG chiều vừa đổi:
+   * `validateResizeFurniture` giữ nguyên chiều nào không được nêu, nên gửi kèm
+   * chiều kia sẽ là ghi lại một số đo người dùng không hề chạm vào. */
+  if (rowId === 'boundingWidth' || rowId === 'boundingDepth') {
+    const measureMm = parseNumber(nextValue);
+
+    if (measureMm === undefined) {
+      return null;
+    }
+
+    return createResizeFurnitureCommand(
+      rowId === 'boundingWidth'
+        ? { furnitureId: entity.id, widthMm: measureMm }
+        : { depthMm: measureMm, furnitureId: entity.id },
+      context,
+    );
   }
 
   return null;
@@ -1041,20 +1087,34 @@ export function usePropertyInspector(
   /* ---------------------------------------------------------------------- */
 
   /**
-   * Lượt lưu THẬT — và nó ném, vì chưa có đích để gửi tới.
+   * Lượt lưu THẬT — nay có đích để gửi tới (lỗ hổng #5).
    *
-   * Không endpoint nào nhận lớp không gian vừa sửa (xem
-   * `PERSIST_PROPERTIES_UNSUPPORTED_REASON` ở cổng). Lượt lưu ném để chỉ báo nói
-   * ra sự thật, thay vì hiện "Đã lưu lúc…" cho một thay đổi chưa rời khỏi máy.
-   * Bộ đếm 800 ms của A7 nằm trong chính `useAutosave`, không viết lại ở đây.
+   * `SpatialApi.writeLayer` nhận đủ bốn danh sách của một tầng, nên cổng gửi
+   * thẳng lớp không gian của tầng đang mở lên máy chủ và chỉ báo nói được "Đã
+   * lưu lúc…" mà không nói dối. Vẫn NÉM khi lượt gửi hỏng: `createAutosave` bắt
+   * cái ném đó làm tín hiệu để chạy lịch thử lại 5s/15s/45s của nó, và chỉ sau
+   * khi lịch ấy cạn mới đổi nhãn thành "Lưu thất bại". Bộ đếm 800 ms của A7 nằm
+   * trong chính `useAutosave`, không viết lại ở đây.
+   *
+   * Đồ thị đi vào bằng THAM SỐ, không đọc lại kho: đây là đúng ảnh chụp
+   * `state.spatial` mà bộ đếm giờ đã quyết định lưu, còn một lượt đọc lại có
+   * thể bắt được một thay đổi mới hơn và làm lượt lưu này báo xong cho một thứ
+   * chưa ai hẹn giờ.
    */
-  const persist = useCallback(async (): Promise<void> => {
-    const result = gateway.persistProperties();
+  const persist = useCallback(
+    async (current: NormalizedSpatial | null): Promise<void> => {
+      if (current === null) {
+        return;
+      }
 
-    if (!result.ok) {
-      throw new Error(result.reason);
-    }
-  }, [gateway]);
+      const result = await gateway.persistProperties(current);
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+    },
+    [gateway],
+  );
 
   const saveLabel = useAutosave(persist);
 
@@ -1073,6 +1133,11 @@ export function usePropertyInspector(
       }
 
       timers.clear();
+
+      // Rời panel giữa lúc kéo là huỷ, không phải xác nhận: bản nháp đi cùng
+      // những cái hẹn giờ chưa nổ, nên khung nhìn 3D không giữ lại một bức
+      // tường mà không ô nhập nào còn nói tới.
+      discardPreview();
     };
   }, []);
 
@@ -1102,6 +1167,53 @@ export function usePropertyInspector(
     });
   }, []);
 
+  /**
+   * Đề nghị một bản nháp cho giá trị đang gõ, để mô hình 3D đi theo ngay.
+   *
+   * Cùng một `commandForRow` mà lượt ghi thật dùng — không có phép tính thứ hai
+   * ở đây, nên thứ người dùng NHÌN THẤY trong lúc kéo đúng bằng thứ họ sẽ nhận
+   * khi thả tay. Lệnh được dựng nhưng KHÔNG điều phối: `dispatch` là lượt ghi
+   * thật, còn cái cần lúc này chỉ là "bức tường sẽ trông ra sao", và câu trả lời
+   * ấy là đồ thị sau khi áp các vá của lệnh.
+   *
+   * Một giá trị chưa hợp lệ (gõ dở, quá dày, tên trùng) BỎ bản nháp thay vì giữ
+   * cái cũ: mô hình quay về đúng thứ đang có thật, và dòng nhập là chỗ nói ra
+   * lý do — chứ không phải một hình 3D đứng lại ở một con số người dùng đã rời
+   * khỏi.
+   */
+  const stagePreview = useCallback(
+    (rowId: string, nextValue: string, entityId: string): void => {
+      const current = useStore.getState().spatial;
+      const entity = current === null ? null : readInspectableEntity(current, entityId);
+
+      if (current === null || entity === null) {
+        return;
+      }
+
+      const built = commandForRow(entity, rowId, nextValue, {
+        actorId: gateway.actorId,
+        graph: current,
+      });
+
+      if (built === null || !built.ok) {
+        discardPreview();
+
+        return;
+      }
+
+      const preview = applyPatch(current, commandToPatches(built.data)).byId[entity.id];
+
+      if (preview === undefined) {
+        discardPreview();
+
+        return;
+      }
+
+      previewEdit(entity.id, preview);
+    },
+    [gateway],
+  );
+
   const write = useCallback(
     async (rowId: string, nextValue: string, entityId: string): Promise<void> => {
       const bundle = bundleRef.current;
@@ -1118,6 +1230,7 @@ export function usePropertyInspector(
       });
 
       if (built === null) {
+        discardPreview();
         dropPending(rowId);
         setRefusal({
           message: TEXT.refusal.invalidNumber,
@@ -1131,6 +1244,7 @@ export function usePropertyInspector(
       }
 
       if (!built.ok) {
+        discardPreview();
         dropPending(rowId);
         setRefusal({
           message: built.error.reasons.join(' '),
@@ -1146,6 +1260,9 @@ export function usePropertyInspector(
       const result = await runInspectorCommand(built.data, bundle);
 
       if (!result.ok) {
+        // Lượt ghi hỏng giữa chừng thì `commit` không chạy, nên không ai dọn
+        // bản nháp hộ — dọn ở đây, cùng chỗ dòng nhập quay về giá trị cũ.
+        discardPreview();
         dropPending(rowId);
         setRefusal({
           message: result.error.reasons.join(' '),
@@ -1172,13 +1289,19 @@ export function usePropertyInspector(
   /**
    * Người dùng đổi giá trị một dòng.
    *
-   * Dòng `settled` (ô số, ô chữ, thanh trượt) chỉ đổi CON SỐ HIỆN TRONG PANEL
-   * trong lúc còn đang đổi, và phát lệnh khi giá trị đứng yên hết một cửa sổ
-   * {@link MERGE_WINDOW_MS}. Đó là hệ quả trực tiếp của mục C5: không có kênh xem
-   * trước 3D nào gọi được từ tầng màn hình, nên phát lệnh mỗi khung hình chỉ tổ
-   * ép `Viewer3D` dựng lại toàn cảnh qua worker hàng chục lần một giây. Cùng cửa
-   * sổ đó là cửa sổ `HistoryStack` gộp lệnh, nên hai lượt ghi sát nhau vẫn về
-   * chung MỘT bước hoàn tác (D-06).
+   * Dòng `settled` (ô số, ô chữ, thanh trượt) làm HAI việc ở mỗi lần giá trị
+   * đổi, và một việc nữa khi giá trị đứng yên:
+   *
+   * 1. **Đổi con số hiện trong panel** — `pendingText`, cục bộ, không ghi kho.
+   * 2. **Đề nghị một bản nháp** — {@link stagePreview} → `previewEdit` của
+   *    `src/store/commit`, thứ `useViewer3D` đọc để vẽ đè hình tạm. Đây là lượt
+   *    ghi TẠM: nó không vào lịch sử hoàn tác, không được tự lưu, và bị dọn khi
+   *    lệnh thật chạy.
+   * 3. **Phát lệnh thật** khi giá trị đứng yên hết một cửa sổ
+   *    {@link MERGE_WINDOW_MS}. Vẫn đúng MỘT lệnh cho một lượt kéo: bản nháp
+   *    không phải một lượt ghi, nên xem trước sáu mươi lần một giây cũng không
+   *    thêm một bước hoàn tác nào. Cùng cửa sổ ấy là cửa sổ `HistoryStack` gộp
+   *    lệnh, nên hai lượt ghi sát nhau vẫn về chung một bước (D-06).
    */
   const changeRow = useCallback(
     (rowId: string, commitMode: CommitMode, entityId: string, nextValue: string): void => {
@@ -1193,10 +1316,14 @@ export function usePropertyInspector(
       }
 
       if (commitMode === 'immediate') {
+        // Bấm một lựa chọn là đã thả tay: lệnh thật chạy ngay, nên một bản nháp
+        // sống được đúng một nhịp sẽ chỉ là một lượt vẽ thừa.
         void write(rowId, nextValue, entityId);
 
         return;
       }
+
+      stagePreview(rowId, nextValue, entityId);
 
       timers.set(
         rowId,
@@ -1206,7 +1333,7 @@ export function usePropertyInspector(
         }, MERGE_WINDOW_MS),
       );
     },
-    [write],
+    [stagePreview, write],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1240,16 +1367,35 @@ export function usePropertyInspector(
   const primaryEntity = entities.find((entity) => entity.id === primaryId) ?? entities[0] ?? null;
   const entityViolations = violationsOfEntity(violations, primaryEntity?.id ?? null);
 
+  /* Nút "khuôn" đọc đối tượng qua ref chứ không qua danh sách phụ thuộc: nó là
+   * một callback đi vào header, và một callback dựng lại ở mỗi lượt chọn sẽ kéo
+   * cả header dựng lại theo. */
+  const primaryEntityRef = useRef<InspectableEntity | null>(primaryEntity);
+  primaryEntityRef.current = primaryEntity;
+
   /* ---------------------------------------------------------------------- */
-  /* Khuôn mẫu — khả năng chưa có ở bất cứ tầng nào.                         */
+  /* Khuôn mẫu — nay là một lượt ghi thật (lỗ hổng #4).                      */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * Câu panel nói ra sau lượt bấm nút "khuôn", thành công hay không.
+   *
+   * Một dòng ở nhóm "Kiểm tra" chứ không phải một toast: nút nằm ngay đầu
+   * panel, và câu trả lời của nó phải ở lại đủ lâu để đọc — cùng chỗ mọi thứ
+   * khác panel có ý kiến về đối tượng đang chọn.
+   */
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
 
   const copyAsTemplate = useCallback((): void => {
-    const result = gateway.copyAsTemplate();
+    const entity = primaryEntityRef.current;
 
-    setTemplateNotice(result.ok ? null : result.reason);
+    if (entity === null) {
+      return;
+    }
+
+    void gateway.copyAsTemplate(entity).then((result) => {
+      setTemplateNotice(result.ok ? templateSavedNotice(result.data.name) : result.reason);
+    });
   }, [gateway]);
 
   /* ---------------------------------------------------------------------- */
@@ -1371,16 +1517,24 @@ export function usePropertyInspector(
     }
 
     /* Nhóm "Kiểm tra": vi phạm nào không có dòng tương ứng thì thành dòng riêng
-     * ở đây, cộng một lối sang màn luật. Không vi phạm nào bị nuốt mất. */
+     * ở đây, cộng một lối sang màn luật. Không vi phạm nào bị nuốt mất.
+     *
+     * Id mang thêm SỐ THỨ TỰ chứ không chỉ mã luật: từ khi sổ luật đủ 25 mục,
+     * một luật vẫn có thể phát nhiều lần trên cùng một đối tượng —
+     * `WALL-DANGLING-END` nói một câu cho mỗi đầu tường hở, nên một bức tường
+     * hở hai đầu có hai vi phạm cùng mã. Trùng `id` là trùng `key` của React,
+     * và React im lặng bỏ bớt một dòng: một vi phạm biến mất khỏi màn hình mà
+     * không ai báo. Số thứ tự lấy từ chính danh sách nên nó ổn định qua các
+     * lượt vẽ, và mã luật vẫn là NHÃN người dùng đọc. */
     const inspectionRows = rowsByGroup.get('inspection') ?? [];
 
-    for (const violation of entityViolations) {
+    for (const [index, violation] of entityViolations.entries()) {
       if (ROW_ID_BY_RULE_CODE[violation.ruleCode] !== undefined) {
         continue;
       }
 
       inspectionRows.push({
-        id: `violation-${violation.ruleCode}`,
+        id: `violation-${violation.ruleCode}-${String(index)}`,
         label: violation.ruleCode,
         controlType: 'readonly',
         value: singleValue(violation.message),

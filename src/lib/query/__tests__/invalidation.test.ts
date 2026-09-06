@@ -32,6 +32,30 @@ describe('invalidationMap', () => {
     ]);
   });
 
+  it('scopes editOpening to the same three keys as editWall', () => {
+    expect(invalidationMap.editOpening({ floorId, projectId })).toEqual(
+      invalidationMap.editWall({ floorId, projectId }),
+    );
+  });
+
+  it('scopes editRoom to the same three keys as editWall', () => {
+    expect(invalidationMap.editRoom({ floorId, projectId })).toEqual(
+      invalidationMap.editWall({ floorId, projectId }),
+    );
+  });
+
+  it('scopes persistSpatialLayer to the same three keys as editWall, since a full-layer save can touch any of the four entity lists', () => {
+    expect(invalidationMap.persistSpatialLayer({ floorId, projectId })).toEqual(
+      invalidationMap.editWall({ floorId, projectId }),
+    );
+  });
+
+  it('scopes createPropertyTemplate to the template list of that project only', () => {
+    expect(invalidationMap.createPropertyTemplate({ projectId })).toEqual([
+      queryKeys.template.byProject(projectId),
+    ]);
+  });
+
   it('scopes straightenDrawing to the quality reading and the drawing of that floor', () => {
     expect(invalidationMap.straightenDrawing({ floorId, projectId })).toEqual([
       queryKeys.quality.assessment(floorId),
@@ -99,6 +123,47 @@ describe('applyInvalidation', () => {
     expect(queryClient.getQueryState(queryKeys.space.byFloor(floorId))?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(queryKeys.room.byFloor(floorId))?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(queryKeys.violation.byProject(projectId))?.isInvalidated).toBe(true);
+  });
+
+  it('invalidates space, room, and violation keys of the edited floor on editOpening', () => {
+    applyInvalidation(queryClient, 'editOpening', { floorId, projectId });
+
+    expect(queryClient.getQueryState(queryKeys.space.byFloor(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.room.byFloor(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.violation.byProject(projectId))?.isInvalidated).toBe(true);
+  });
+
+  it('invalidates space, room, and violation keys of the edited floor on editRoom', () => {
+    applyInvalidation(queryClient, 'editRoom', { floorId, projectId });
+
+    expect(queryClient.getQueryState(queryKeys.space.byFloor(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.room.byFloor(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.violation.byProject(projectId))?.isInvalidated).toBe(true);
+  });
+
+  it('invalidates space, room, and violation keys of the saved floor on persistSpatialLayer', () => {
+    applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId });
+
+    expect(queryClient.getQueryState(queryKeys.space.byFloor(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.room.byFloor(floorId))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.violation.byProject(projectId))?.isInvalidated).toBe(true);
+  });
+
+  it('does not invalidate another floor on editOpening, editRoom, or persistSpatialLayer', () => {
+    applyInvalidation(queryClient, 'editOpening', { floorId, projectId });
+    applyInvalidation(queryClient, 'editRoom', { floorId, projectId });
+    applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId });
+
+    expect(queryClient.getQueryState(queryKeys.space.byFloor(otherFloorId))?.isInvalidated).toBeFalsy();
+    expect(queryClient.getQueryState(queryKeys.room.byFloor(otherFloorId))?.isInvalidated).toBeFalsy();
+  });
+
+  it('invalidates only the template list of the given project on createPropertyTemplate', () => {
+    queryClient.setQueryData(queryKeys.template.byProject(projectId), []);
+
+    applyInvalidation(queryClient, 'createPropertyTemplate', { projectId });
+
+    expect(queryClient.getQueryState(queryKeys.template.byProject(projectId))?.isInvalidated).toBe(true);
   });
 
   it('does not invalidate another floor on editWall', () => {

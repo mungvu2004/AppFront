@@ -37,6 +37,8 @@
 import { OPENING_KIND_LABELS } from '@/domain/openings/types';
 import { ROOM_USAGE_LABELS, RULE_SEVERITY_LABELS, type RuleSeverity, type Violation } from '@/domain/rules/registry';
 import type {
+  Furniture,
+  FurnitureKind,
   Opening,
   OpeningKind,
   Point,
@@ -63,6 +65,7 @@ const UNIT_MILLIMETRE = 'mm';
 const UNIT_METRE = 'm';
 const UNIT_SQUARE_METRE = 'm²';
 const UNIT_PERCENT = '%';
+const UNIT_DEGREE = '°';
 
 /**
  * Decimals each reading keeps.
@@ -77,6 +80,7 @@ const METRE_FRACTION_DIGITS = 2;
 const AREA_FRACTION_DIGITS = 2;
 const COUNT_FRACTION_DIGITS = 0;
 const PERCENT_FRACTION_DIGITS = 0;
+const ANGLE_FRACTION_DIGITS = 1;
 
 /** A ratio on the 0–1 scale, written as a percentage. */
 const PERCENT_SCALE = 100;
@@ -141,6 +145,17 @@ function lengthAttribute(label: string, valueMm: MaybeNumber): ViewAttribute {
 function areaAttribute(label: string, areaM2: MaybeNumber): ViewAttribute {
   return isFormattable(areaM2)
     ? { label, value: formatNumber(areaM2, { fractionDigits: AREA_FRACTION_DIGITS }), unit: UNIT_SQUARE_METRE }
+    : missingAttribute(label);
+}
+
+/**
+ * An angle held in degrees, to one decimal — the same rounding `formatAngle`
+ * applies, and not folded into [0, 360): a rotation of `-90°` reads
+ * differently from `270°`.
+ */
+function angleAttribute(label: string, valueDeg: MaybeNumber): ViewAttribute {
+  return isFormattable(valueDeg)
+    ? { label, value: formatNumber(valueDeg, { fractionDigits: ANGLE_FRACTION_DIGITS }), unit: UNIT_DEGREE }
     : missingAttribute(label);
 }
 
@@ -257,6 +272,52 @@ const OPENING_ICON_CODES: Readonly<Record<OpeningKind, ViewIconCode>> = {
   window: 'openingWindow',
 };
 
+/**
+ * Vietnamese names for the graph's furniture kinds, capitalised to open a
+ * headline.
+ *
+ * The same eight words exist lower case, for mid-sentence use, as
+ * `FURNITURE_KIND_LABELS` in `src/lib/commands/business/shared` — the command
+ * layer. A display module must not depend on that layer (see
+ * {@link WALL_KIND_LABELS} above), so the words are restated rather than
+ * imported. The test file lower-cases this table's values and compares them
+ * against the command layer's, so the two cannot drift apart in wording, only
+ * in case.
+ *
+ * A complete `Record`, so a ninth `FurnitureKind` fails the build here instead
+ * of showing an English fallback or a blank card.
+ */
+const FURNITURE_KIND_LABELS: Readonly<Record<FurnitureKind, string>> = {
+  table: 'Bàn',
+  chair: 'Ghế',
+  bed: 'Giường',
+  wardrobe: 'Tủ áo',
+  kitchenCabinet: 'Tủ bếp',
+  sanitaryFixture: 'Thiết bị vệ sinh',
+  stair: 'Thang',
+  other: 'Đồ đạc khác',
+};
+
+/**
+ * One icon per furniture kind, the same way {@link WALL_ICON_CODES} gives a
+ * wall one icon per structural kind rather than the single generic code a room
+ * gets. A complete `Record`: adding a kind to `FurnitureKind` without adding it
+ * here fails the build (`VIEW_ICON_CODES` in `./types` must also list the new
+ * code) rather than rendering a blank icon — that is the point of the closed
+ * union, spelled out again here because furniture is the first kind with more
+ * icon codes than the union needs for anything else on screen.
+ */
+const FURNITURE_ICON_CODES: Readonly<Record<FurnitureKind, ViewIconCode>> = {
+  table: 'furnitureTable',
+  chair: 'furnitureChair',
+  bed: 'furnitureBed',
+  wardrobe: 'furnitureWardrobe',
+  kitchenCabinet: 'furnitureKitchenCabinet',
+  sanitaryFixture: 'furnitureSanitaryFixture',
+  stair: 'furnitureStair',
+  other: 'furnitureOther',
+};
+
 /** How the leaf opens, as a reader of the plan says it. */
 const SWING_LABELS: Readonly<Record<SwingDirection, string>> = {
   left: 'mở trái',
@@ -297,7 +358,7 @@ export const UNNAMED_ROOM_LABEL = 'Phòng chưa đặt tên';
 export const VIOLATION_ID_SEPARATOR = ':';
 
 /* -------------------------------------------------------------------------- */
-/* The four builders.                                                          */
+/* The five builders.                                                          */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -376,6 +437,33 @@ export function toRoomViewModel(room: Room): ViewModel {
 }
 
 /**
+ * A furniture item, ready to draw.
+ *
+ * The footprint is read off the stored bounding box rather than recomputed
+ * from `centre` and `rotationDeg`: the box is axis-aligned and already the
+ * number a QC panel argues about, and re-deriving it here would let the two
+ * disagree after a rounding difference. Width and depth are the box's own
+ * `max − min`, not a rotated width — a wardrobe drawn at 30° reads as the box
+ * around it, which is generous on the diagonal and matches how
+ * `FURNITURE-CLASH` (`src/domain/rules/function`) judges the same piece.
+ */
+export function toFurnitureViewModel(item: Furniture): ViewModel {
+  return {
+    id: item.id,
+    label: `${FURNITURE_KIND_LABELS[item.kind]} ${item.id}`,
+    secondaryLine: item.roomId === undefined ? 'chưa gán phòng' : `trong phòng ${item.roomId}`,
+    attributes: [
+      lengthAttribute('Chiều rộng', item.boundingBox.max.x - item.boundingBox.min.x),
+      lengthAttribute('Chiều sâu', item.boundingBox.max.y - item.boundingBox.min.y),
+      angleAttribute('Góc xoay', item.rotationDeg),
+      confidenceAttribute(item),
+    ],
+    statusCode: reviewStatus(item),
+    iconCode: FURNITURE_ICON_CODES[item.kind],
+  };
+}
+
+/**
  * A violation, ready to draw.
  *
  * The message is the headline and the suggestion is the line under it, because
@@ -404,7 +492,7 @@ export function toViolationViewModel(violation: Violation): ViewModel {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The view model for any of the four kinds.
+ * The view model for any of the five kinds.
  *
  * The tagged input is what lets a mixed list — a QC panel showing walls, rooms
  * and the violations against them — go through one `map` and come out as one
@@ -421,6 +509,8 @@ export function toViewModel(input: ViewModelInput): ViewModel {
       return toOpeningViewModel(input.opening);
     case 'room':
       return toRoomViewModel(input.room);
+    case 'furniture':
+      return toFurnitureViewModel(input.furniture);
     case 'violation':
       return toViolationViewModel(input.violation);
   }

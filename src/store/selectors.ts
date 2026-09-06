@@ -31,6 +31,7 @@ import {
 import type { EntityId, LevelId, Point, Room } from '../domain/spatial/types';
 import type { PointMm } from '../domain/units/compare';
 import { millimetres, type SquareMetres } from '../domain/units/types';
+import { draftEntityId, type DraftOperation } from './draftSlice';
 import type { RootState } from './index';
 
 /* -------------------------------------------------------------------------- */
@@ -97,6 +98,9 @@ const EMPTY_ROOMS_WITH_AREA: readonly RoomWithArea[] = Object.freeze([]);
 const EMPTY_VIOLATIONS: readonly Violation[] = Object.freeze([]);
 const EMPTY_VIOLATIONS_BY_FLOOR: ViolationsByFloor = Object.freeze({});
 const EMPTY_ENTITIES: readonly SpatialEntity[] = Object.freeze([]);
+const EMPTY_DRAFT_IDS: readonly EntityId[] = Object.freeze([]);
+
+let lastDraftIds: readonly EntityId[] | null = null;
 
 /* -------------------------------------------------------------------------- */
 /* Rooms and areas.                                                            */
@@ -314,6 +318,79 @@ export const selectSelectedEntities = (state: RootState): readonly SpatialEntity
   selectedEntitiesOf(state.spatial, state.selectedIds);
 
 /* -------------------------------------------------------------------------- */
+/* Draft: the unconfirmed edit, read as a graph.                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The saved graph with the staged operations laid over it.
+ *
+ * A draft carries whole entities (`draftSlice`), so laying one over the graph is
+ * a replacement in `byId` and nothing else: no index is rebuilt, because a
+ * preview never changes what kind a thing is nor which storey it stands on — it
+ * is the same wall, thicker. That is what makes this cheap enough to run on
+ * every frame of a drag.
+ *
+ * `null` when nothing is staged, and that is the answer a consumer wants: it
+ * says "there is no preview" without asking the consumer to compare two graphs
+ * to find out. The saved graph is never mutated and never re-normalized, so the
+ * real one keeps its identity and nothing downstream of `state.spatial`
+ * re-renders because somebody previewed something.
+ *
+ * A create-draft is skipped here rather than added to the graph: nothing in the
+ * product stages one yet, and inventing an index entry for an entity that has
+ * no saved counterpart would be writing a path no caller walks.
+ */
+const draftGraphOf = memoizeLatest(
+  (
+    spatial: RootState['spatial'],
+    operations: readonly DraftOperation[],
+  ): RootState['spatial'] => {
+    if (spatial === null || operations.length === 0) {
+      return null;
+    }
+
+    const byId: Record<string, SpatialEntity> = { ...spatial.byId };
+    let replaced = 0;
+
+    for (const operation of operations) {
+      if (operation.kind !== 'editEntity' || byId[operation.entityId] === undefined) {
+        continue;
+      }
+
+      byId[operation.entityId] = operation.preview;
+      replaced += 1;
+    }
+
+    return replaced === 0 ? null : { ...spatial, byId };
+  },
+);
+
+/**
+ * The saved graph with the unconfirmed edit applied, or `null` when there is
+ * none — the graph a 3D preview draws from.
+ */
+export const selectDraftPreviewGraph = (state: RootState): RootState['spatial'] =>
+  draftGraphOf(state.spatial, state.draftOperations);
+
+const draftIdsOf = memoizeLatest(
+  (operations: readonly DraftOperation[]): readonly EntityId[] => {
+    if (operations.length === 0) {
+      return EMPTY_DRAFT_IDS;
+    }
+
+    const ids = operations.map(draftEntityId);
+
+    lastDraftIds = keepIfShallowEqualArray(lastDraftIds, ids);
+
+    return lastDraftIds;
+  },
+);
+
+/** Which entities the staged operations are about, in the order they were made. */
+export const selectDraftEntityIds = (state: RootState): readonly EntityId[] =>
+  draftIdsOf(state.draftOperations);
+
+/* -------------------------------------------------------------------------- */
 /* Introspection.                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -333,4 +410,5 @@ export const resetSelectorCaches = (): void => {
   violationCache = null;
   lastRoomsWithArea = null;
   lastSelectedEntities = null;
+  lastDraftIds = null;
 };

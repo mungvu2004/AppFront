@@ -27,7 +27,7 @@ chủ sở hữu duy nhất của phần `propertyInspector` trong nó.
 | `objectKind.room` | phòng | nt |
 | `fields.wall.*` | Độ dày / Chiều dài / Chiều cao / Loại tường / Tường nội thất / Số ô mở | Nhãn 40% trái của dòng thuộc tính — tường |
 | `fields.opening.*` | Chiều rộng / Chiều cao / Cao độ bậu / Chiều mở / Tường chủ | Nhãn dòng thuộc tính — ô mở |
-| `fields.furniture.*` | Kích thước bao / Góc xoay | Nhãn dòng thuộc tính — nội thất (2 trường cố định; tối đa 3 trường nữa tuỳ hạng mục, không có khoá cố định) |
+| `fields.furniture.*` | Bề rộng bao / Bề sâu bao / Góc xoay | Nhãn dòng thuộc tính — nội thất (3 trường cố định từ lượt vá lỗ hổng #2; còn chỗ cho 2 trường nữa tuỳ hạng mục, không có khoá cố định). Khoá `boundingSize` ("Kích thước bao") vẫn còn trong `vi.json` nhưng không còn là một id dòng: hộp bao tách thành hai ô nhập vì `ResizeFurnitureInput` nhận `widthMm`/`depthMm` độc lập |
 | `fields.room.*` | Tên / Công năng / Diện tích / Số cửa / Số cửa sổ | Nhãn dòng thuộc tính — phòng |
 | `fields.advanced.*` | Lệch Z / Toạ độ đầu / Toạ độ cuối / Mã đối tượng gốc / Độ tin cậy | Nhãn dòng trong khối gập "Thông số nâng cao", chung cho cả bốn loại |
 | `wallType.loadBearing` / `.partition` / `.envelope` | Chịu lực / Ngăn / Bao che | Lựa chọn của control `select` ở dòng `wallType` |
@@ -96,9 +96,10 @@ nâng cao", với mọi loại đối tượng. T6 (view) và T8 (test) đếm s
 | | | 3. `sillHeight` | `numeric` | `fields.opening.sillHeight` |
 | | | 4. `swingDirection` | `select` | `fields.opening.swingDirection` |
 | | | 5. `hostWallId` | `link` | `fields.opening.hostWallId` |
-| `furniture` | `DEFAULT_FURNITURE_FIELD_IDS` | 1. `boundingSize` | `text`/`numeric` | `fields.furniture.boundingSize` |
-| | | 2. `rotation` | `numeric`/`slider` | `fields.furniture.rotation` |
-| | | 3-5. tối đa 3 trường tuỳ hạng mục | tuỳ hạng mục | không có khoá cố định — hook chọn theo loại đồ đạc |
+| `furniture` | `DEFAULT_FURNITURE_FIELD_IDS` | 1. `boundingWidth` | `numeric` | `fields.furniture.boundingWidth` |
+| | | 2. `boundingDepth` | `numeric` | `fields.furniture.boundingDepth` |
+| | | 3. `rotation` | `numeric`/`slider` | `fields.furniture.rotation` |
+| | | 4-5. tối đa 2 trường tuỳ hạng mục | tuỳ hạng mục | không có khoá cố định — hook chọn theo loại đồ đạc |
 | `room` | `DEFAULT_ROOM_FIELD_IDS` | 1. `name` | `text` | `fields.room.name` |
 | | | 2. `function` | `select` | `fields.room.function` |
 | | | 3. `area` | `readonly` | `fields.room.area` |

@@ -9,6 +9,7 @@ type QueryDomain =
   | 'quality'
   | 'room'
   | 'space'
+  | 'template'
   | 'user'
   | 'version'
   | 'violation';
@@ -56,6 +57,7 @@ const progressByFloorRoot = freezeKey(['progress', 'byFloor'] as const);
 const spaceByFloorRoot = freezeKey(['space', 'byFloor'] as const);
 const qualityAssessmentRoot = freezeKey(['quality', 'assessment'] as const);
 const roomByFloorRoot = freezeKey(['room', 'byFloor'] as const);
+const templateByProjectRoot = freezeKey(['template', 'byProject'] as const);
 const violationByProjectRoot = freezeKey(['violation', 'byProject'] as const);
 const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
 const libraryListRoot = freezeKey(['library', 'list'] as const);
@@ -112,6 +114,18 @@ export const queryKeys = {
   },
   space: {
     byFloor: createQueryKeyFactory(spaceByFloorRoot, (floorId: string) => [...spaceByFloorRoot, floorId] as const),
+  },
+  /**
+   * Khuôn mẫu thuộc tính — U4 gap #5. Khoá theo `projectId`, không theo
+   * `floorId`: một khuôn mẫu (ví dụ "tường 220 chịu lực") dùng lại được ở MỌI
+   * tầng của cùng dự án, đúng phạm vi `scope: 'project'` của
+   * `PropertyTemplate` (`src/api/client.ts`).
+   */
+  template: {
+    byProject: createQueryKeyFactory(templateByProjectRoot, (projectId: string) => [
+      ...templateByProjectRoot,
+      projectId,
+    ] as const),
   },
   user: {
     current: createQueryKeyFactory(userCurrentRoot, () => userCurrentRoot),

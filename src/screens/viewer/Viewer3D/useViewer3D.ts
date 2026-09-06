@@ -15,6 +15,23 @@
  * | Đường dẫn | `ROUTES.project.*` |
  * | fps trung bình (O-01) | `PerfMonitor` đo, `scene.frame-rate` ghi |
  * | khuôn camera vào phòng vừa tìm (R-07) | `CameraDirector.frameObjects`, qua `ViewerSceneHandle.frameEntities` |
+ * | đồ thị + bản nháp đang treo | `selectDraftPreviewGraph` của `src/store/selectors` |
+ * | cắt tầng xuống đúng phần đang xem trước | `narrowFloorInput` (`src/lib/three/preview`) |
+ *
+ * ## Phép hợp nhất "đồ thị thật + bản nháp" xảy ra Ở ĐÂY, và phải ở đây
+ *
+ * `src/lib` không được import store (mục 0.4 của CLAUDE.md) — đó là lý do
+ * `src/lib/three` chạy được trong worker và test được không cần DOM. Nên tầng
+ * dựng cảnh không thể tự đọc `draftOperations` dù có muốn, và phép hợp nhất
+ * phải xảy ra ở phía ĐỌC ĐƯỢC kho: hook này. Cái đi xuống `src/lib` sau đó là
+ * dữ liệu thuần — một `BuildFloorInput` đã cắt nhỏ — không phải một tham chiếu
+ * tới kho.
+ *
+ * Bản nháp KHÔNG đi qua `levels`. `levels` là mảng mà `useEffect` dựng cảnh phụ
+ * thuộc, nên đổi nó là dọn cảnh và chạy lại `BuildQueue` từ đầu: hàng chục lượt
+ * dispose + spawn worker mỗi giây trong lúc kéo, kèm thanh tiến độ nhấp nháy.
+ * Bản nháp đi đường riêng — {@link ViewerSceneHandle.preview} — vẽ đè lên mô
+ * hình đang có và không đụng tới hàng đợi dựng hình.
  *
  * ## `loading` và `error` không phải `useState`
  *
@@ -65,8 +82,10 @@ import {
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
 import type { BuildPartKind } from '@/lib/three/build/scene';
+import { narrowFloorInput } from '@/lib/three/preview/previewModel';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
+import { selectDraftEntityIds, selectDraftPreviewGraph } from '@/store/selectors';
 import {
   createViewerShellGateway,
   shellDataOf,
@@ -84,6 +103,7 @@ import type {
   Viewer3DModel,
   Viewer3DTelemetry,
   ViewerSceneHandle,
+  ViewerScenePreview,
   ViewerSceneStatus,
 } from './viewer3dTypes';
 
@@ -159,6 +179,60 @@ function paintSubjectsOf(spatial: NormalizedSpatial | null): readonly PaintSubje
   }
 
   return subjects;
+}
+
+/**
+ * Bản nháp đang treo, đã thành hình học sẵn sàng vẽ — hoặc `null`.
+ *
+ * Ba bước, và không bước nào chạm tới `BuildQueue`:
+ *
+ * 1. **Một tầng.** Mọi mã trong bản nháp được quy về tầng của mã ĐẦU TIÊN; thứ
+ *    nằm trên tầng khác bị bỏ. Một cử chỉ giữ một vật, và dựng một bản xem trước
+ *    trải trên nhiều tầng là dựng một khả năng chưa ai có đường tạo ra.
+ * 2. **Đầu vào của tầng ấy, tính trên đồ thị ĐÃ HỢP NHẤT** — cùng
+ *    `toBuildFloorInput` mà mô hình thật đi qua, nên bức tường xem trước được
+ *    cắt, vát và lắp ô mở đúng như bức tường đã lưu.
+ * 3. **Cắt xuống đúng phần đang sửa** bằng `narrowFloorInput`, để lượt extrude
+ *    trên luồng chính là một bức tường chứ không phải ba mươi tư căn phòng.
+ *
+ * @param graph Đồ thị đã hợp nhất với bản nháp, hoặc `null` khi không có nháp.
+ * @param entityIds Mã những vật bản nháp nói tới.
+ */
+function previewOf(
+  graph: NormalizedSpatial | null,
+  entityIds: readonly EntityId[],
+): ViewerScenePreview | null {
+  const firstId = entityIds[0];
+
+  if (graph === null || firstId === undefined) {
+    return null;
+  }
+
+  const first = graph.byId[firstId];
+
+  if (first === undefined) {
+    return null;
+  }
+
+  const levelId = resolveLevelId(first, graph.byId);
+
+  if (levelId === null) {
+    return null;
+  }
+
+  const onLevel = entityIds.filter((id) => {
+    const entity = graph.byId[id];
+
+    return entity !== undefined && resolveLevelId(entity, graph.byId) === levelId;
+  });
+
+  const input = toBuildFloorInput(graph, levelId);
+
+  if (input === null) {
+    return null;
+  }
+
+  return { levelId, entityIds: onLevel, model: narrowFloorInput(input, onLevel) };
 }
 
 /**
@@ -299,6 +373,8 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   /* ---- Kho: đọc một lần ------------------------------------------------- */
 
   const storeSpatial = useStore((state) => state.spatial);
+  const draftGraph = useStore(selectDraftPreviewGraph);
+  const draftEntityIds = useStore(selectDraftEntityIds);
   const selectedIds = useStore((state) => state.selectedIds);
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
@@ -497,6 +573,12 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     setWebglUnavailable(false);
     handleRef.current = mount.handle;
 
+    if (previewRef.current !== null) {
+      // Cảnh vừa dựng lại (đổi tầng, bấm thử lại) mà bản nháp vẫn còn treo thì
+      // hình tạm quay lại cùng nó — hiệu ứng dưới chỉ chạy khi `preview` ĐỔI.
+      mount.handle.preview(previewRef.current);
+    }
+
     return () => {
       // O-01: MỘT sự kiện lúc rời màn, không phải một dòng số theo chu kỳ.
       const reading = mount.handle.frameRate();
@@ -515,6 +597,28 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   useEffect(() => {
     handleRef.current?.update(frame);
   }, [frame]);
+
+  /* ---- Xem trước: bản nháp → hình học, không qua hàng đợi dựng ----------- */
+
+  /**
+   * Bản nháp CHỈ được xem trước khi màn đang xem chính đồ thị của kho.
+   *
+   * Story và bài kiểm truyền `options.spatial` để dựng một mô hình cố định;
+   * trộn bản nháp của kho vào một đồ thị tiêm vào là vẽ hai nguồn dữ liệu lên
+   * cùng một cảnh, và cái người ta thấy sẽ không phải cái họ truyền vào.
+   */
+  const preview = useMemo(
+    () => (options.spatial !== undefined ? null : previewOf(draftGraph, draftEntityIds)),
+    [options.spatial, draftGraph, draftEntityIds],
+  );
+
+  const previewRef = useRef(preview);
+
+  previewRef.current = preview;
+
+  useEffect(() => {
+    handleRef.current?.preview(preview);
+  }, [preview]);
 
   /* ---- Viewmodel -------------------------------------------------------- */
 
