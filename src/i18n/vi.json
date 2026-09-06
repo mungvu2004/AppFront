@@ -2426,6 +2426,113 @@
       }
     }
   },
+  "wallGeometryEditor": {
+    "regionLabel": "Sửa hình học tường",
+    "band": {
+      "editing": "Đang sửa: {{wallCode}}",
+      "done": "Xong"
+    },
+    "tools": {
+      "moveVertex": {
+        "label": "Di chuyển đỉnh",
+        "key": "V"
+      },
+      "addVertex": {
+        "label": "Thêm đỉnh",
+        "key": "A"
+      },
+      "removeVertex": {
+        "label": "Xoá đỉnh",
+        "key": "X"
+      },
+      "splitWall": {
+        "label": "Tách tường",
+        "key": "T"
+      },
+      "joinWalls": {
+        "label": "Nối tường",
+        "key": "N"
+      },
+      "resetHeight": {
+        "label": "Đặt lại chiều cao",
+        "key": "H"
+      },
+      "tooltip": "{{label}} · phím {{key}}"
+    },
+    "dimensionChain": {
+      "regionLabel": "Chuỗi kích thước của tường đang sửa",
+      "total": "Tổng chiều dài: {{length}}"
+    },
+    "vertexTable": {
+      "title": "Bảng đỉnh",
+      "columnCode": "Đỉnh",
+      "columnX": "Toạ độ x",
+      "columnY": "Toạ độ y",
+      "empty": "Chưa có đỉnh nào để sửa.",
+      "cellInvalid": "Giá trị chưa hợp lệ nên toạ độ đã trở về số cũ."
+    },
+    "comparison": {
+      "deviation": "Lệch so với bản vẽ gốc: {{deviation}}"
+    },
+    "snap": {
+      "axis": "Trục {{axisCode}}",
+      "otherVertex": "Đỉnh khác",
+      "perpendicular": "Vuông góc",
+      "aiTrace": "Vết vẽ gốc",
+      "axisLocked": "Đang khoá trục theo phím Shift",
+      "suppressed": "Đang tắt bắt điểm theo phím Alt"
+    },
+    "handles": {
+      "vertex": "Đỉnh {{vertexCode}}",
+      "edge": "Cạnh {{edgeCode}}",
+      "nudgeHint": "Dùng phím mũi tên để dời đỉnh, giữ Shift để dời bước lớn.",
+      "offendingEdge": "Cạnh {{edgeCode}} đang gây lỗi hình học"
+    },
+    "states": {
+      "empty": {
+        "message": "Chưa chọn tường nào để sửa.",
+        "hint": "Chọn một bức tường trong khung nhìn, hoặc nhấn Tab để duyệt qua các tường."
+      },
+      "loading": {
+        "message": "Đang tính lại hình học…"
+      },
+      "partial": {
+        "heightOnly": "Đang chọn nhiều tường nên chỉ đổi được chiều cao.",
+        "gapSize": "Khe hở: {{gap}}",
+        "closeGap": "Đóng khe hở"
+      },
+      "error": {
+        "selfIntersecting": "Đa giác tự cắt nên hình mới bị từ chối. Toạ độ đã trở về giá trị trước đó.",
+        "dismiss": "Đã hiểu"
+      },
+      "forbidden": {
+        "viewerRole": "Bạn không có quyền sửa hình học nên các công cụ sửa đã được gỡ khỏi thanh.",
+        "sectionOrthographic": "Đang ở chế độ trực giao lát cắt nên hình học chưa sửa được. Thoát lát cắt rồi thử lại."
+      },
+      "collapsed": {
+        "summary": "Tường {{wallCode}}",
+        "notice": "Trên màn hình nhỏ, hình học chỉ xem được chứ không sửa được.",
+        "exit": "Thoát chế độ sửa"
+      }
+    },
+    "refusal": {
+      "vertexFloor": "Một bức tường cần ít nhất hai đỉnh nên đỉnh này chưa xoá được.",
+      "joinNeedsTwoEnds": "Nối tường cần đúng hai đầu mút đang chọn.",
+      "splitOffWall": "Điểm tách nằm ngoài bức tường nên chưa tách được.",
+      "heightBelowOpening": "Chiều cao mới thấp hơn đỉnh một ô mở trên tường này nên chưa đặt được.",
+      "noSaveTarget": "Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.",
+      "serverRejected": "Máy chủ chưa nhận được hình học mới ({{kind}}). Thay đổi vẫn còn trên máy này."
+    },
+    "undo": {
+      "vertexMoved": "Đã dời đỉnh {{vertexCode}}",
+      "vertexAdded": "Đã thêm một đỉnh",
+      "vertexRemoved": "Đã xoá một đỉnh",
+      "wallSplit": "Đã tách tường {{wallCode}}",
+      "wallsJoined": "Đã nối hai tường",
+      "heightChanged": "Đã đổi chiều cao tường",
+      "gapClosed": "Đã đóng khe hở"
+    }
+  },
   "shell": {
     "shortcut": {
       "openShortcutHelp": "mở bảng phím tắt",
