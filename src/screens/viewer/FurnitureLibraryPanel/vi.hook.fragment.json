@@ -1,0 +1,30 @@
+{
+  "furnitureLibraryPanel": {
+    "hook": {
+      "thumbnail": {
+        "alt": "Ảnh xem trước của {{name}}",
+        "altMissing": "Chưa có ảnh xem trước của {{name}}"
+      },
+      "detected": {
+        "groupLabel": "{{kind}} ({{count}})"
+      },
+      "replaceAll": {
+        "dialogLabel": "Thay thế tất cả — {{groupLabel}}",
+        "item": "{{kind}} {{entityId}} hiện tại → {{modelName}} ({{source}})"
+      },
+      "source": {
+        "mine": "Của tôi",
+        "catalogue": "Danh mục"
+      },
+      "budget": {
+        "heavyModel": "Model này nặng hơn phần ngân sách hiệu năng của cảnh."
+      },
+      "errors": {
+        "readFailed": "Không đọc được lớp không gian của tầng này."
+      },
+      "shortcuts": {
+        "cancel": "huỷ lượt kéo model và đóng hộp xem trước"
+      }
+    }
+  }
+}
