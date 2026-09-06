@@ -252,3 +252,10 @@ export type ProjectStatus = Project['status'];
  * và `./client.ts` vẫn chỉ biết đúng một cửa vào cho mọi schema.
  */
 export * from './quality';
+
+/**
+ * Nhom schema thu vien model — D-01/D-02/D-03. Cung ly do tach file voi
+ * `./quality.ts`: no muon `FurnitureKind` cua `src/domain`. Noi lai qua day de
+ * `./contracts.ts` va `./client.ts` van chi biet dung mot cua vao.
+ */
+export * from './library';

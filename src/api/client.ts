@@ -5,6 +5,7 @@ import type { Furniture, Opening, Room, Wall } from '@/domain/spatial/types';
 import {
   FloorSchema,
   ImageQualityAssessmentSchema,
+  LibraryItemSchema,
   ProgressSchema,
   ProjectSchema,
   VersionSchema,
@@ -18,6 +19,7 @@ import {
   type FloorOrder,
   type FloorPayload,
   type ImageQualityAssessment,
+  type LibraryItem,
   type Progress,
   type Project,
   type ProjectPayload,
@@ -36,6 +38,10 @@ export type {
   ImageQualityAssessment,
   ImageQualityFinding,
   ImageQualityMeasurement,
+  LibraryFilterId,
+  LibraryGroup,
+  LibraryItem,
+  LibrarySource,
   Progress,
   Project,
   QualityPoint,
@@ -200,6 +206,23 @@ export interface SetDrawingCornersInput extends WriteRequestOptions {
 }
 
 /**
+ * Thư viện model — D-01/D-02/D-03.
+ *
+ * `list` không nhận tham số nào ngoài `signal`: danh mục là toàn cục và gần như
+ * tĩnh (`CACHE_POLICY.branches.static`, `src/lib/query/cachePolicy.ts`), nên màn
+ * tải một lần rồi lọc tại chỗ bằng `matchesLibraryFilter` — không có tham số
+ * lọc nào đi trên dây, và cũng không nên có: mười chip đổi qua lại là chuyện
+ * tức thì, một lượt gọi mạng cho mỗi lần bấm chip thì không.
+ *
+ * `read` tồn tại riêng vì `queryKeys.library.detail(libraryItemId)` tồn tại và
+ * vì D-03 cần NẠP TRƯỚC một mục khi con trỏ chạm thẻ — cái nạp trước ấy phải
+ * đọc được đúng một mục, không phải cả danh mục lần nữa.
+ */
+export interface ReadLibraryItemInput extends RequestOptions {
+  libraryItemId: string;
+}
+
+/**
  * Property templates — U4 gap #5.
  *
  * A template is a named, reusable set of property values for ONE object
@@ -359,6 +382,26 @@ export interface SpatialApi {
 }
 
 /**
+ * Danh mục model dựng sẵn cộng model người dùng tự tải lên — D-01/D-02/D-03.
+ *
+ * Chỉ đọc. Đường tải model lên là việc của một tầng khác chưa dựng, nên nhóm
+ * này KHÔNG có `create`/`delete` — thêm chúng ở đây khi chưa có ai gọi thì đúng
+ * là thứ R-69 cấm. Hệ quả có thật: `src/lib/query/invalidation.ts` không cần một
+ * mục `library` nào, vì không thao tác ghi nào làm danh mục cũ đi.
+ *
+ * Cả hai lượt đọc đều giải mã qua `LibraryItemSchema` — khác `propertyTemplates`
+ * và `spatial.writeLayer`, hai nhóm đi thẳng không schema vì hình dạng của chúng
+ * phụ thuộc `objectKind` hoặc phản chiếu bốn thực thể miền. Một mục thư viện thì
+ * phẳng và cố định, nên nó được kiểm như `Project` và `Floor`: `list` dùng
+ * `safeParseList`, nên một mục hỏng bị bỏ qua và ghi cảnh báo thay vì làm rỗng
+ * cả panel — đúng thứ A11 tồn tại để chặn.
+ */
+export interface LibraryApi {
+  list(options?: RequestOptions): Promise<ApiResult<LibraryItem[]>>;
+  read(input: ReadLibraryItemInput): Promise<ApiResult<LibraryItem>>;
+}
+
+/**
  * Property templates — U4 gap #5. `create` echoes back the stored record
  * (id, `createdAt`, `scope` filled in), the same "write returns the fresh
  * read" shape `QualityApi` uses above, so a caller can seed
@@ -396,6 +439,7 @@ export interface ApiClient {
   drawings: DrawingsApi;
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
+  library: LibraryApi;
   projects: ProjectsApi;
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
@@ -548,6 +592,16 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
         'floors.reorder',
       );
     },
+  },
+  library: {
+    list: async (options) =>
+      decodeList(await callGet<unknown>(http, ENDPOINTS.library.list, options?.signal), LibraryItemSchema, 'library.list'),
+    read: async ({ libraryItemId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.library.detail(libraryItemId), signal),
+        LibraryItemSchema,
+        'library.read',
+      ),
   },
   projects: {
     create: async (input) => {

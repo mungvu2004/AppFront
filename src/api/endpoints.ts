@@ -2,6 +2,7 @@ const PROJECTS_ROOT = '/projects';
 const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
 const FEATURE_FLAGS_ROOT = '/feature-flags';
+const LIBRARY_ROOT = '/library';
 const AUTH_ROOT = '/auth';
 const PROPERTY_TEMPLATES_ROOT = 'property-templates';
 
@@ -45,6 +46,26 @@ export const ENDPOINTS = {
     delete: (floorId: string): string => `${FLOORS_ROOT}/${floorId}`,
     list: FLOORS_ROOT,
     reorder: `${FLOORS_ROOT}/reorder`,
+  },
+  /**
+   * Thư viện model — D-01/D-02/D-03.
+   *
+   * Đường TOÀN CỤC, không lồng dưới `PROJECTS_ROOT` như `propertyTemplates`:
+   * một chiếc ghế trong danh mục là cùng một chiếc ghế ở mọi dự án, và
+   * `queryKeys.library.list()` (`src/lib/query/queryKeys.ts`) — khoá có sẵn từ
+   * trước, đây là lượt đầu tiên có người tiêu thụ nó — cũng không nhận
+   * `projectId`. Bộ lọc "Của tôi" đi theo phiên đăng nhập, không theo dự án, nên
+   * nó là một trường trên từng mục (`LibraryItem.source`) chứ không phải một
+   * đoạn đường dẫn.
+   *
+   * `list` là hằng phẳng vì nó không nhận tham số nào — cùng khuôn với
+   * `floors.list` và `projects.list`; lọc theo chip và theo ô tìm xảy ra trên
+   * danh sách đã tải, không phải bằng một lượt gọi khác (danh mục gần như tĩnh,
+   * `CACHE_POLICY.branches.static`).
+   */
+  library: {
+    detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
+    list: LIBRARY_ROOT,
   },
   projects: {
     create: PROJECTS_ROOT,

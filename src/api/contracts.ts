@@ -46,6 +46,20 @@ export type QualityPointWire = sourceSchemas.QualityPointWire;
 export type QualityRegion = sourceSchemas.QualityRegion;
 export type QualityRegionWire = sourceSchemas.QualityRegionWire;
 
+/* Thư viện model — D-01/D-02/D-03. Cùng cửa ra với mọi schema khác. */
+export const LibraryItemSchema = sourceSchemas.LibraryItemSchema;
+export const LIBRARY_FILTER_IDS = sourceSchemas.LIBRARY_FILTER_IDS;
+export const LIBRARY_GROUPS = sourceSchemas.LIBRARY_GROUPS;
+export const LIBRARY_SOURCES = sourceSchemas.LIBRARY_SOURCES;
+export const FURNITURE_KIND_BY_LIBRARY_GROUP = sourceSchemas.FURNITURE_KIND_BY_LIBRARY_GROUP;
+export const matchesLibraryFilter = sourceSchemas.matchesLibraryFilter;
+
+export type LibraryFilterId = sourceSchemas.LibraryFilterId;
+export type LibraryGroup = sourceSchemas.LibraryGroup;
+export type LibraryItem = sourceSchemas.LibraryItem;
+export type LibraryItemWire = sourceSchemas.LibraryItemWire;
+export type LibrarySource = sourceSchemas.LibrarySource;
+
 export type ProjectStatus = Project['status'];
 export type FloorAreaM2 = Floor['areaM2'];
 export type FloorElevationMm = Floor['elevationMm'];
