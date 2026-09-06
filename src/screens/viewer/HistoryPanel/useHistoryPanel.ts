@@ -62,7 +62,11 @@ import { prefersReducedMotion } from '@/lib/motion/reducedMotion';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
-import type { HistorySceneHandle, HistoryPanelGateway } from './historyPanelGateway';
+import type {
+  CreateHistoryPanelGatewayOptions,
+  HistorySceneHandle,
+  HistoryPanelGateway,
+} from './historyPanelGateway';
 import { createHistoryPanelGateway, JUMP_INTERRUPTED_REASON } from './historyPanelGateway';
 import {
   HISTORY_PANEL_SHORTCUT,
@@ -114,6 +118,17 @@ export interface UseHistoryPanelOptions {
    */
   readonly gateway?: HistoryPanelGateway;
   /**
+   * Ngăn xếp hoàn tác của phiên làm việc (S-06), chuyển thẳng cho cổng mặc định.
+   *
+   * Ngăn xếp là một ĐỐI TƯỢNG của phiên chứ không phải một kho toàn cục:
+   * `createHistoryStack()` sinh ra instance rời nhau, và bảy màn QC đều nhận nó
+   * qua `options.history`. Vắng mặt thì cổng dựng một ngăn xếp rỗng của riêng
+   * nó — panel hiện trạng thái rỗng THÀNH THẬT chứ không mượn lịch sử của màn
+   * khác. Nơi ráp truyền ngăn xếp thật xuống là đủ để panel sống; không ai phải
+   * dựng cả một `HistoryPanelGateway` chỉ để đưa một ngăn xếp vào.
+   */
+  readonly history?: CreateHistoryPanelGatewayOptions['history'];
+  /**
    * Vai của người dùng trên dự án, chuyển thẳng cho cổng mặc định.
    *
    * Vắng mặt là "CHƯA BIẾT vai" — panel ở `loading`, không nhảy sang
@@ -140,18 +155,19 @@ export interface UseHistoryPanelOptions {
 /* -------------------------------------------------------------------------- */
 
 export function useHistoryPanel(options: UseHistoryPanelOptions = {}): UseHistoryPanelResult {
-  const { gateway: injected, roles, scene, actorId } = options;
+  const { gateway: injected, history, roles, scene, actorId } = options;
   const now = options.now ?? Date.now;
 
   const gateway = useMemo(
     () =>
       injected ??
       createHistoryPanelGateway({
+        ...(history === undefined ? {} : { history }),
         ...(roles === undefined ? {} : { roles }),
         ...(scene === undefined ? {} : { scene }),
         ...(actorId === undefined ? {} : { actorId }),
       }),
-    [actorId, injected, roles, scene],
+    [actorId, history, injected, roles, scene],
   );
 
   /* ---- Nhịp đọc lại ngăn xếp -------------------------------------------- */

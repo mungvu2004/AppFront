@@ -198,8 +198,10 @@ export function categoryOfStep(step: HistoryStep): HistoryCategory {
 /**
  * Chữ tắt VIẾT HOA, tối đa hai ký tự, dựng từ chính `actorId`.
  *
- * Viết hoa là điều kiện để đi qua `expectVietnamese`: A6 miễn trừ chữ hoa cho
- * mã, còn hai chữ cái thường thì bị đọc thành một từ tiếng Việt mất dấu.
+ * **Không hiển thị được.** Viết hoa KHÔNG cứu được nó: `expectVietnamese` bỏ
+ * hoa/thường trước khi so, nên `"AN"` trượt y hệt `"An"`. View đã bỏ hẳn chữ
+ * tắt khỏi `Avatar`; trường này còn lại vì hợp đồng khai nó, và vì một nơi gọi
+ * KHÔNG vẽ ra màn (nhật ký, xuất tệp) vẫn dùng được. Xem `historyPanelTypes.ts`.
  */
 export function initialsOf(actorId: string): string {
   const parts = actorId.split(/[^0-9A-Za-z]+/u).filter((part) => part !== '');
@@ -212,21 +214,63 @@ export function initialsOf(actorId: string): string {
 }
 
 /**
+ * Sổ đánh số những người KHÔNG phải người đang xem.
+ *
+ * Dựng một lần cho cả trục thời gian, theo thứ tự gặp từ cũ tới mới, nên số của
+ * một người không nhảy khi danh sách được lọc hay khi một mục được mở ra. Người
+ * đang xem không có số: họ là `Bạn`.
+ */
+export function actorOrdinalsOf(
+  steps: readonly HistoryStep[],
+  currentActorId: string,
+): ReadonlyMap<string, number> {
+  const ordinals = new Map<string, number>();
+
+  for (const step of steps) {
+    for (const command of step.commands) {
+      if (command.actorId !== currentActorId && !ordinals.has(command.actorId)) {
+        ordinals.set(command.actorId, ordinals.size + 1);
+      }
+    }
+  }
+
+  return ordinals;
+}
+
+/**
  * Người đứng sau một mục.
  *
- * Chỉ hai câu trả lời: chính người đang xem, hoặc `Người dùng khác`. Không có
- * câu thứ ba vì không có đường nào dựng ra nó — không bảng tra người dùng theo
- * id, không `avatarUrl` cho người khác (xem bản kê nợ #2 của
- * `historyPanelGateway.ts`). Chữ tắt vẫn khác nhau giữa hai người khác nhau,
- * nên bộ lọc theo người vẫn phân biệt được họ mà không cần bịa một cái tên.
+ * Chỉ hai câu trả lời: chính người đang xem, hoặc một `Người dùng khác` CÓ SỐ.
+ * Không có câu thứ ba vì không có đường nào dựng ra nó — không bảng tra người
+ * dùng theo id, không `avatarUrl` cho người khác (xem bản kê nợ #2 của
+ * `historyPanelGateway.ts`), và `AuthUser.name` chỉ trả lời được "tôi là ai".
+ *
+ * Số thứ tự là thứ gánh việc PHÂN BIỆT, và nó gánh vì chữ tắt đã bị bỏ: view
+ * không vẽ `initials` được (`expectVietnamese` đọc `"AN"` thành tiếng Việt mất
+ * dấu — xem `historyPanelTypes.ts`), nên nếu ba người khác nhau cùng ra câu
+ * `Người dùng khác` thì `Select` lọc theo người hiện ba dòng giống hệt nhau và
+ * người dùng không chọn nổi ai. Một con số không bịa ra danh tính nào: nó chỉ
+ * nói "người thứ mấy trên dòng thời gian này".
+ *
+ * Không có số trong sổ — người mới xuất hiện sau lượt dựng sổ — thì nhãn lùi về
+ * câu trần không số. Nói ít hơn sự thật vẫn tốt hơn gắn nhầm số của người khác.
  */
-export function actorOf(actorId: string, currentActorId: string): HistoryActor {
+export function actorOf(
+  actorId: string,
+  currentActorId: string,
+  ordinals?: ReadonlyMap<string, number>,
+): HistoryActor {
   const isSelf = actorId === currentActorId;
+  const ordinal = ordinals?.get(actorId);
+  const otherLabel =
+    ordinal === undefined
+      ? HISTORY_ANONYMOUS_ACTOR_LABEL
+      : `${HISTORY_ANONYMOUS_ACTOR_LABEL} ${String(ordinal)}`;
 
   return {
     id: actorId,
     initials: initialsOf(actorId),
-    label: isSelf ? SELF_ACTOR_LABEL : HISTORY_ANONYMOUS_ACTOR_LABEL,
+    label: isSelf ? SELF_ACTOR_LABEL : otherLabel,
     isAnonymised: !isSelf,
   };
 }
@@ -470,6 +514,8 @@ interface ItemContext {
   readonly currentActorId: string;
   readonly nowMs: number;
   readonly timeZone?: string | undefined;
+  /** Sổ đánh số người khác, dựng một lần cho cả trục — xem {@link actorOrdinalsOf}. */
+  readonly actorOrdinals?: ReadonlyMap<string, number> | undefined;
 }
 
 /** Thời gian tương đối đã định dạng bằng P-02: `12 phút trước`, `14:32`. */
@@ -496,7 +542,7 @@ function childItemOf(
     /* Câu của người viết lệnh, không phải câu do màn ghép. */
     label: command.description,
     category: categoryOfChange(change),
-    actor: actorOf(command.actorId, context.currentActorId),
+    actor: actorOf(command.actorId, context.currentActorId, context.actorOrdinals),
     timestampIso: command.timestamp,
     relativeLabel: relativeLabelOf(command.timestamp, context),
     position,
@@ -541,7 +587,11 @@ export function timelineItemOf(
     /* Nhãn LẤY TỪ `HistoryStep.label`, do `buildHistoryLabel` sinh (S-06). */
     label: step.label,
     category: categoryOfStep(step),
-    actor: actorOf(step.commands[0]?.actorId ?? context.currentActorId, context.currentActorId),
+    actor: actorOf(
+      step.commands[0]?.actorId ?? context.currentActorId,
+      context.currentActorId,
+      context.actorOrdinals,
+    ),
     timestampIso: step.timestamp,
     relativeLabel: relativeLabelOf(step.timestamp, context),
     position,
@@ -613,6 +663,9 @@ export function buildTimelineItems(input: BuildTimelineInput): readonly HistoryT
     currentActorId: input.currentActorId,
     nowMs: input.nowMs,
     timeZone: input.timeZone,
+    /* Đánh số theo TRỤC THỜI GIAN, không theo danh sách đã lọc: số của một
+       người phải đứng yên khi người dùng đổi chip loại việc. */
+    actorOrdinals: actorOrdinalsOf(steps, input.currentActorId),
   };
 
   return steps

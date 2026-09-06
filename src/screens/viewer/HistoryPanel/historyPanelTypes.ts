@@ -109,25 +109,58 @@ export const HISTORY_CATEGORY_ORDER: readonly HistoryCategoryFilter[] = [
  *
  * `Command.actorId` là một chuỗi thô và **không có chỗ nào trong repo đổi nó
  * thành tên người hay ảnh đại diện** — đã tìm ở `src/lib/auth`, `useSession`,
- * `AccountSettings`. Nên `initials` dựng từ chính `actorId` và viết HOA: A6
- * miễn trừ chữ hoa cho mã, nên chuỗi ấy đi qua được `expectVietnamese`, trong
- * khi chữ tắt viết thường bị đọc nhầm thành tiếng Việt mất dấu — đã chứng minh
- * bằng một lần chạy thật.
+ * `AccountSettings`. `AuthUser.name` chỉ trả lời được "tôi là ai"; không bảng
+ * tra nào đổi `actorId` của NGƯỜI KHÁC thành một cái tên.
+ *
+ * ## `initials` không được view dùng — và không thể dùng
+ *
+ * Bản hợp đồng đầu tiên đoán rằng chữ tắt VIẾT HOA đi qua được
+ * `expectVietnamese` vì A6 miễn trừ chữ hoa cho mã. **Điều đó SAI, và một lần
+ * chạy thật đã bác bỏ nó**: `expectVietnamese` bỏ hoa/thường TRƯỚC khi so, nên
+ * `initials="AN"` trượt y hệt `"An"` — `→ từ "AN" — tiếng Việt thiếu dấu; đúng
+ * ra là "án hoặc ẩn hoặc ăn"`. `Avatar` VẼ chữ tắt ra màn hình chứ không chỉ
+ * đọc nó, nên không có cách viết nào của chữ tắt sống sót được phép kiểm.
+ *
+ * Vì vậy `HistoryPanel.rows.tsx` **không truyền `initials` vào `Avatar`**:
+ * vòng tròn để trống và `alt` — một câu tiếng Việt — là thứ duy nhất mang danh
+ * tính người thực hiện. Trường vẫn nằm trong hợp đồng và vẫn được tầng model
+ * điền, nhưng hôm nay không nơi nào hiển thị nó.
+ *
+ * ## `label` là thứ phân biệt người này với người kia
  *
  * `label` luôn là tiếng Việt và luôn có mặt, vì nó là thứ đi vào `alt` của
- * `Avatar` (mặc định của `Avatar` là chuỗi tiếng Anh `'Avatar'`, không dùng được).
+ * `Avatar` (mặc định của `Avatar` là chuỗi tiếng Anh `'Avatar'`, không dùng
+ * được) VÀ là thứ đổ vào `Select` lọc theo người. Chữ tắt đã bị bỏ, nên `label`
+ * gánh cả việc phân biệt: hai người khác nhau phải ra hai `label` khác nhau,
+ * nếu không bộ lọc hiện ra một danh sách mơ hồ. Xem
+ * {@link HISTORY_ANONYMOUS_ACTOR_LABEL}.
  */
 export interface HistoryActor {
   readonly id: string;
-  /** Chữ tắt VIẾT HOA, tối đa hai ký tự. */
+  /**
+   * Chữ tắt VIẾT HOA, tối đa hai ký tự.
+   *
+   * KHÔNG hiển thị được: `expectVietnamese` bỏ hoa/thường trước khi so, nên mọi
+   * chữ tắt hai ký tự đều bị đọc thành một từ tiếng Việt mất dấu. Xem ghi chú ở
+   * đầu khối này.
+   */
   readonly initials: string;
-  /** Câu tiếng Việt mô tả người này, dùng cho `alt`/`aria-label`. */
+  /** Câu tiếng Việt mô tả người này, dùng cho `alt`/`aria-label` và cho bộ lọc. */
   readonly label: string;
   /** `true` khi người xem không được biết đây là ai (trạng thái không có quyền). */
   readonly isAnonymised: boolean;
 }
 
-/** Nhãn thay cho tên khi người xem không có quyền biết ai đã làm gì. */
+/**
+ * Mở đầu nhãn thay cho tên, khi không có đường nào biết người ấy tên gì.
+ *
+ * Tầng model ghép thêm một SỐ THỨ TỰ ổn định vào sau — `Người dùng khác 1`,
+ * `Người dùng khác 2` — theo thứ tự gặp trên trục thời gian. Số ấy không nói dối
+ * điều gì: nó không phải tên, không phải mã, chỉ là "người thứ mấy" để hai mục
+ * của hai người khác nhau không đọc ra cùng một câu. Chữ tắt đã bị bỏ (xem
+ * {@link HistoryActor}), nên nếu nhãn cũng trùng nhau thì `Select` lọc theo
+ * người sẽ hiện mấy dòng giống hệt nhau và người dùng không chọn được ai.
+ */
 export const HISTORY_ANONYMOUS_ACTOR_LABEL = 'Người dùng khác';
 
 /* -------------------------------------------------------------------------- */
