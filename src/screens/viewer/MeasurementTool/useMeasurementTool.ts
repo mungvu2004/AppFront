@@ -20,22 +20,36 @@
  * mới ở đây (R-61). Phần số học thuần nằm ở `measurementToolViewModel.ts`, phần
  * mạng và phần dựng mồi bắt điểm nằm ở `measurementToolGateway.ts`.
  *
- * ## Cảnh 3D đi VÀO hook, không ra từ nó
+ * ## Hook TỰ LẮP cảnh, và view vẫn là một lớp phủ
  *
- * Màn đo không dựng canvas: `MeasurementToolProps` không có `canvasRef` và view
- * là một lớp phủ. Camera, cây cảnh và cỡ khung nhìn tới qua
- * {@link UseMeasurementToolOptions.scene}, do container cắm vào. Vắng cảnh thì
- * không chấm được điểm và `screenPoints` là `null` — danh sách, đổi đơn vị, ẩn
- * hiện, xoá và hoàn tác vẫn chạy đủ.
+ * `MeasurementToolProps` không có `canvasRef`: `MeasurementTool.tsx` là lớp nổi
+ * `pointer-events-none`, và nó không dựng canvas nào. Canvas do chính
+ * `renderScene` của hook dựng, nằm NGAY DƯỚI lớp phủ ấy, `aria-hidden` và
+ * không nhận con trỏ — nên mọi cử chỉ vẫn đi qua đúng một đường
+ * (`onViewportPointerMove/Down/Up` của vỏ) và không có hai nguồn sự kiện tranh
+ * nhau trả lời một cú chấm.
  *
- * ## `M` được đăng ký hai lần, và bản của màn thắng
+ * Cảnh lắp lên canvas ấy qua {@link useMeasurementToolScene}, đúng khuôn
+ * `useExplodedView`: hook có `levels` (đồ thị → `toBuildFloorInput`) và có
+ * `frame` (thứ `useViewerShell` trả về), còn container thì không — bắt container
+ * tự lắp là bắt nó dựng lại nửa cái hook này.
  *
- * `buildViewerShortcuts` của vỏ đã giữ `M` ở phạm vi `canvas`, nhưng nó chỉ
- * **bật** công cụ đo (`setActiveToolId('measure')`). Hợp đồng của màn đòi `M`
- * **bật tắt**, và một phím chỉ bật được là một phím người dùng không tắt được.
- * Nên màn đăng ký `M` của riêng nó sau vỏ; `handleKeyDown` duyệt sổ từ cuối lên
- * nên binding đăng ký sau trả lời trước. `findOverlaps()` sẽ kể tên cả hai —
- * đó là một sự thật đúng, không phải một lỗi cần giấu.
+ * {@link UseMeasurementToolOptions.scene} Ở LẠI và vẫn THẮNG cảnh tự lắp: nó là
+ * đường tiêm của bài kiểm, cùng `pick` và `projectToScreen`. Vắng cảnh — chưa có
+ * canvas, chưa có tầng nào dựng được, hay máy không có WebGL — thì không chấm
+ * được điểm và `screenPoints` là `null`, còn danh sách, đổi đơn vị, ẩn hiện, xoá
+ * và hoàn tác vẫn chạy đủ. Không ném lỗi, không màn trắng (A11).
+ *
+ * ## `M` thuộc về VỎ, và chỉ vỏ
+ *
+ * `buildViewerShortcuts` đã giữ `M` ở phạm vi `canvas` với mã
+ * `viewer.tool.measure`. Màn này KHÔNG đăng ký `M` lần thứ hai: hai người trả
+ * lời một phím là đúng thứ `findOverlaps()` kể tên, và một cảnh báo đúng thì
+ * cách xử là bỏ bớt một người đăng ký, không phải xếp cho ai trả lời trước.
+ *
+ * `onToggleTool` vẫn đi xuống view và vẫn có nút gọi tới nó (A12: bàn phím là
+ * đường hạng nhất, không phải đường duy nhất) — chỉ là nó không còn tự đăng ký
+ * phím nữa. "Công cụ đang bật" đọc từ `shell.activeToolId`.
  *
  * ## `Esc` ở phạm vi `canvas`, và chỉ ở đó
  *
@@ -55,7 +69,7 @@
  * vựng để mang.
  */
 
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -93,6 +107,7 @@ import type { ViewerPointPx, ViewerShellProps } from '@/screens/viewer/ViewerShe
 
 import { MeasurementList } from './MeasurementList';
 import { MeasurementTool } from './MeasurementTool';
+import type { MountMeasurementScene } from './measurementToolScene';
 import {
   createMeasurementHttpClient,
   createMeasurementToolGateway,
@@ -119,6 +134,7 @@ import type {
   ScreenPoint,
   SnapIndicator,
 } from './measurementToolTypes';
+import { useMeasurementToolScene } from './useMeasurementToolScene';
 import {
   attemptMeasure,
   projectAll,
@@ -137,18 +153,15 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Mã binding — cái tên mà cảnh báo trùng phím của registry in ra. */
-const TOGGLE_ID = 'measurementTool.tool.toggle';
 const ESCAPE_ID = 'measurementTool.draft.cancel';
 const PIN_ID = 'measurementTool.draft.pin';
 const DELETE_ID = 'measurementTool.list.delete';
 
-const TOGGLE_COMBO = 'M';
 const ESCAPE_COMBO = 'Escape';
 const PIN_COMBO = 'Enter';
 const DELETE_COMBO = 'Delete';
 
 /** Câu tiếng Việt cho bảng phím tắt, viết thường kiểu câu (A6). */
-const TOGGLE_DESCRIPTION = 'bật tắt công cụ đo';
 const ESCAPE_DESCRIPTION = 'thoát chế độ đo, bỏ phần đường dở dang';
 const PIN_DESCRIPTION = 'ghim phép đo đang đọc';
 const DELETE_DESCRIPTION = 'xoá phép đo đang chọn';
@@ -230,8 +243,15 @@ export interface UseMeasurementToolOptions {
   readonly registry?: ShortcutRegistry;
   /** Khe `/` của vỏ; vỏ gọi nó khi người dùng bấm phím tìm. */
   readonly onOpenSearch?: () => void;
-  /** Cảnh 3D để bắn tia và chiếu điểm — xem {@link MeasurementScene}. */
+  /**
+   * Cảnh 3D đã lắp sẵn, THẮNG cảnh hook tự lắp — xem {@link MeasurementScene}.
+   *
+   * `null` truyền vào là "màn này không có cảnh", một câu trả lời dứt khoát;
+   * vắng mặt hẳn mới là "hook tự lắp lấy".
+   */
   readonly scene?: MeasurementScene | null;
+  /** Thay module cảnh, cho bài kiểm không cần WebGL. */
+  readonly mountScene?: MountMeasurementScene;
   /** Thay lượt bắn tia, cho bài kiểm không cần WebGL. */
   readonly pick?: PickAt;
   /** Thay phép chiếu, cho bài kiểm không cần camera. */
@@ -368,8 +388,32 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     throw new Error('renderScene được gọi trước khi hook dựng xong phép dựng props.');
   });
 
+  /* Canvas của cảnh. `setCanvas` ổn định qua mọi lượt vẽ, nên `renderScene` —
+     thứ chạy lại mỗi khung hình trong lúc camera còn bay — không gắn lại ref và
+     không tháo dựng cảnh theo từng khung hình. */
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+
+  /**
+   * Khe cắm cảnh: canvas trước, lớp phủ sau.
+   *
+   * Thứ tự này là cả bố cục lẫn hợp đồng con trỏ. Canvas nằm dưới nên lớp phủ vẽ
+   * chồng lên nó; `aria-hidden` vì mọi thứ đọc được đã nằm trong lớp phủ; và
+   * `pointer-events-none` để cú chấm rơi thẳng xuống khung nhìn của vỏ — chỉ vỏ
+   * bắt con trỏ, và hook nối lượt bắt ấy vào `picker`.
+   */
   const renderScene = useCallback(
-    (): ReactNode => createElement(MeasurementTool, buildPropsRef.current()),
+    (): ReactNode =>
+      createElement(
+        Fragment,
+        null,
+        createElement('canvas', {
+          'aria-hidden': 'true',
+          className: 'pointer-events-none absolute inset-0 h-full w-full',
+          key: 'scene',
+          ref: setCanvas,
+        }),
+        createElement(MeasurementTool, { ...buildPropsRef.current(), key: 'overlay' }),
+      ),
     [],
   );
 
@@ -405,13 +449,18 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
    * không có đường nào làm hai bên lệch nhau.
    */
   useEffect(() => {
-    runToolEvent({
-      type: 'activate',
-      tool: shell.activeToolId === MEASURE_TOOL_ID ? MEASURE_TOOL_ID : IDLE_MACHINE_TOOL_ID,
-    });
-  }, [shell.activeToolId, runToolEvent]);
+    const next =
+      shell.activeToolId === MEASURE_TOOL_ID ? MEASURE_TOOL_ID : IDLE_MACHINE_TOOL_ID;
 
-  const isMeasuring = toolState.tool === MEASURE_TOOL_ID;
+    if (toolState.tool !== next) {
+      runToolEvent({ type: 'activate', tool: next });
+    }
+  }, [shell.activeToolId, toolState.tool, runToolEvent]);
+
+  /* "Công cụ đang bật" đọc THẲNG từ vỏ, không đọc từ máy công cụ: vỏ giữ `M` và
+     giữ ray trái, nên nó là nguồn duy nhất, còn máy công cụ chỉ đi sau nó một
+     nhịp và không được phép trả lời trước nó. */
+  const isMeasuring = shell.activeToolId === MEASURE_TOOL_ID;
 
   /* ---- Bắt điểm --------------------------------------------------------- */
 
@@ -441,7 +490,14 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* ---- Bắn tia ---------------------------------------------------------- */
 
-  const scene = options.scene ?? null;
+  const mountedScene = useMeasurementToolScene({
+    canvas,
+    spatial,
+    frame: shell.frame,
+    ...(options.mountScene !== undefined ? { mountScene: options.mountScene } : {}),
+  });
+
+  const scene = options.scene !== undefined ? options.scene : mountedScene;
 
   const pick = useMemo((): PickAt | null => {
     if (options.pick !== undefined) {
@@ -712,17 +768,6 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
   /* ---- Phím tắt (A12, R-54, R-72) ---------------------------------------- */
 
   const registryOption = options.registry !== undefined ? { registry: options.registry } : {};
-
-  useShortcut(
-    {
-      id: TOGGLE_ID,
-      combo: TOGGLE_COMBO,
-      scope: 'canvas',
-      description: TOGGLE_DESCRIPTION,
-      onTrigger: onToggleTool,
-    },
-    registryOption,
-  );
 
   useShortcut(
     {
