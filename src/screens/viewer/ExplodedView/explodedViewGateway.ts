@@ -52,6 +52,11 @@ import {
   type FloorPlan,
 } from '@/domain/axes/alignFloors';
 import { detectAxes } from '@/domain/axes/detect';
+import {
+  findVerticalCores,
+  type CoreLevel,
+  type CoreRoom,
+} from '@/domain/axes/verticalCores';
 import { totalArea } from '@/domain/rooms/area';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Axis, Level, Point, Room, Wall as GraphWall } from '@/domain/spatial/types';
@@ -66,6 +71,7 @@ import type { ViewerFootprintMm } from '@/screens/viewer/ViewerShell/viewerShell
 
 import type {
   AlignmentReportLike,
+  ExplodedCoreProbe,
   ExplodedFloorProbe,
   ExplodedViewGateway,
 } from './explodedViewTypes';
@@ -107,6 +113,9 @@ export interface ExplodedAxisProbe {
 
 /** Không có trục nào. */
 const NO_AXES: readonly ExplodedAxisProbe[] = Object.freeze([]);
+
+/** Không có lõi nào. */
+const NO_CORES: readonly ExplodedCoreProbe[] = Object.freeze([]);
 
 /** Không có tầng nào. */
 const NO_PROBES: readonly ExplodedFloorProbe[] = Object.freeze([]);
@@ -151,6 +160,71 @@ function axisFractionOf(axis: Axis, footprint: ViewerFootprintMm): number {
   }
 
   return fractionWithin(axis.line.start.y, footprint.minYMm, footprint.maxYMm);
+}
+
+/**
+ * Mọi lõi thẳng đứng của đồ thị, đã đặt lên khung nhìn.
+ *
+ * Đọc phòng và tầng ra dạng thuần rồi giao cho `findVerticalCores` —
+ * `src/domain/axes/verticalCores.ts` giữ toàn bộ luật (công năng nào liên tục
+ * được, chồng mặt bằng thế nào là cùng một lõi, lệch bao nhiêu thì cảnh báo), và
+ * ngưỡng nó dùng là `ALIGNMENT_WARNING_THRESHOLD_MM` của `alignFloors`, không
+ * phải một ngưỡng thứ hai. Cổng này chỉ đổi toạ độ mặt bằng thành tỉ lệ khung
+ * nhìn; nó không quyết định gì về nghiệp vụ (R-61).
+ */
+export function coreProbesOf(spatial: NormalizedSpatial | null): readonly ExplodedCoreProbe[] {
+  if (spatial === null) {
+    return NO_CORES;
+  }
+
+  const rooms: CoreRoom[] = [];
+  for (const id of spatial.byKind.room) {
+    const entity = spatial.byId[id];
+    if (entity === undefined || !('outline' in entity) || !('usage' in entity)) {
+      continue;
+    }
+    const room = entity as Room;
+    rooms.push({
+      id: room.id,
+      levelId: room.levelId,
+      name: room.name,
+      usage: room.usage,
+      outline: room.outline,
+    });
+  }
+
+  const levels: CoreLevel[] = [];
+  for (const id of spatial.byKind.level) {
+    const entity = spatial.byId[id];
+    if (entity === undefined || !('order' in entity) || !('elevationMm' in entity)) {
+      continue;
+    }
+    const level = entity as Level;
+    levels.push({ levelId: level.id, name: level.name, order: level.order });
+  }
+
+  if (rooms.length === 0 || levels.length === 0) {
+    return NO_CORES;
+  }
+
+  const footprint = footprintOf(spatial);
+
+  return findVerticalCores(rooms, levels).cores.map((core): ExplodedCoreProbe => {
+    // Câu của lõi lệch nhất trong chuỗi: một đường dẫn chỉ vẽ được MỘT caption,
+    // và cặp tầng lệch nhất là cặp người soát phải nhìn trước.
+    const worst = core.issues.reduce<(typeof core.issues)[number] | null>(
+      (worstSoFar, issue) =>
+        worstSoFar === null || issue.amountMm > worstSoFar.amountMm ? issue : worstSoFar,
+      null,
+    );
+
+    return {
+      id: core.id,
+      xFraction: fractionWithin(core.centroid.x, footprint.minXMm, footprint.maxXMm),
+      maxOffsetMm: core.maxOffsetMm,
+      caption: worst?.message ?? null,
+    };
+  });
 }
 
 /** Mọi trục của đồ thị, đã đặt lên khung nhìn. */
@@ -379,6 +453,7 @@ export function createExplodedViewGateway(
 ): ExplodedViewGateway {
   return {
     readFloorAreas: (): ReadonlyMap<string, number> => floorAreasOf(readSpatial()),
+    readVerticalCores: (): readonly ExplodedCoreProbe[] => coreProbesOf(readSpatial()),
     readAlignment: (): AlignmentReportLike | null => alignmentOf(readSpatial()),
   };
 }
@@ -393,6 +468,7 @@ export function createExplodedViewFixtureGateway(
 ): ExplodedViewGateway {
   return {
     readFloorAreas: (): ReadonlyMap<string, number> => floorAreasOf(spatial),
+    readVerticalCores: (): readonly ExplodedCoreProbe[] => coreProbesOf(spatial),
     readAlignment: (): AlignmentReportLike | null => alignmentOf(spatial),
   };
 }

@@ -115,6 +115,7 @@ import {
   type AlignmentReportLike,
   type ExplodedAlignmentPath,
   type ExplodedElevationTick,
+  type ExplodedCoreProbe,
   type ExplodedFloorProbe,
   type ExplodedFloorViewModel,
   type ExplodePresetId,
@@ -160,6 +161,9 @@ const NO_PATHS: readonly ExplodedAlignmentPath[] = Object.freeze([]);
 /** Không tầng nào có diện tích — một bảng rỗng, dùng chung. */
 const NO_AREAS: ReadonlyMap<string, number> = new Map<string, number>();
 
+/** Bản vẽ không có lõi thẳng đứng nào. */
+const NO_CORES: readonly ExplodedCoreProbe[] = Object.freeze([]);
+
 /** Chưa dựng gì cả — cùng hình dạng `IDLE_STATUS` của khung nhìn 3D. */
 const IDLE_STATUS: ViewerSceneStatus = Object.freeze({
   phase: 'idle',
@@ -189,6 +193,7 @@ export interface ExplodedViewRuntime {
   readonly floors: readonly ExplodedFloorProbe[];
   /** Trục của đồ thị, đã đặt lên khung nhìn. */
   readonly axes: readonly ExplodedAxisProbe[];
+  readonly cores: readonly ExplodedCoreProbe[];
   readonly hoveredStoreyId: string | null;
   readonly isCapturing: boolean;
   readonly captureError: string | null;
@@ -293,6 +298,32 @@ function ticksOf(
  * bao giờ suy màu từ một con số (A1, A15). `residualMm` đi kèm để bài kiểm khẳng
  * định con số chứ không khẳng định câu chữ.
  */
+/**
+ * Đường dẫn dọc của chỉ báo thẳng hàng: LÕI trước, trục là đường lui.
+ *
+ * Đặc tả hỏi về "phần tử phải liên tục qua các tầng như lõi thang hay hộp kỹ
+ * thuật". Lúc dựng màn, `src/domain` chưa có gì trả lời được câu đó — không có
+ * trường nào nối một phòng ở tầng này với phòng ở tầng trên — nên chỉ báo phải
+ * mượn TRỤC, thứ nói về cả tầng chứ không nói về một lõi cụ thể. Từ khi có
+ * `verticalCores.ts` thì câu ấy trả lời được thật, và lõi lên trước.
+ *
+ * Trục KHÔNG bị bỏ đi: một bản vẽ chưa vẽ lõi nào đi qua từ hai tầng trở lên vẫn
+ * phải có gì đó để soi, và trục vẫn là căn cứ duy nhất lúc ấy. Hai nguồn không
+ * bao giờ vẽ cùng lúc — hai chùm đường dọc chồng nhau thì người soát không biết
+ * đường nào nói về cái gì.
+ */
+function corePathsOf(cores: readonly ExplodedCoreProbe[]): readonly ExplodedAlignmentPath[] {
+  return cores.map(
+    (core): ExplodedAlignmentPath => ({
+      id: core.id,
+      xFraction: core.xFraction,
+      tone: core.caption === null ? 'aligned' : 'attention',
+      caption: core.caption,
+      residualMm: core.maxOffsetMm,
+    }),
+  );
+}
+
 function alignmentPathsOf(
   axes: readonly ExplodedAxisProbe[],
   alignment: AlignmentReportLike | null,
@@ -347,7 +378,12 @@ export function explodedViewPropsOf(
     onSeparationChange: options.onSeparationChange,
     onFloorHover: runtime.onFloorHover,
     onFloorActivate: (storeyId: string): void => {
+      // Hai nửa của một hành động, và đặc tả hỏi cả hai: "khuôn vào tầng đó VÀ
+      // panel trái đổi sang tầng ấy". Nửa sau là `onStoreyActivate`; nửa đầu là
+      // `frameStorey` của vỏ, vốn không tồn tại lúc dựng màn nên hồi ấy thẻ tầng
+      // chỉ làm được một nửa.
       options.onStoreyActivate(storeyId, false);
+      options.onStoreyFrame?.(storeyId);
     },
     onFloorVisibilityToggle: options.onStoreyVisibilityToggle,
     onCapture: runtime.onCapture,
@@ -366,7 +402,12 @@ export function explodedViewPropsOf(
     areLabelsVisible: separation > LABEL_REVEAL_SEPARATION,
     floors: floors.length === 0 ? NO_FLOORS : floors,
     ticks: floors.length === 0 ? NO_TICKS : ticksOf(floors),
-    alignmentPaths: runtime.axes.length === 0 ? NO_PATHS : alignmentPathsOf(runtime.axes, alignment),
+    alignmentPaths:
+      runtime.cores.length > 0
+        ? corePathsOf(runtime.cores)
+        : runtime.axes.length === 0
+          ? NO_PATHS
+          : alignmentPathsOf(runtime.axes, alignment),
     hoveredStoreyId: runtime.hoveredStoreyId,
     reducedMotion: options.frame.reducedMotion,
     isCollapsed: state === 'collapsed',
@@ -477,11 +518,14 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
     // không được nói ba chuyện khác nhau.
     const empty = spatial === null;
     let areas: ReadonlyMap<string, number> | null = null;
+    let cores: readonly ExplodedCoreProbe[] | null = null;
     let alignment: AlignmentReportLike | null | undefined;
 
     return {
       readFloorAreas: (): ReadonlyMap<string, number> =>
         (areas ??= empty ? NO_AREAS : gateway.readFloorAreas()),
+      readVerticalCores: (): readonly ExplodedCoreProbe[] =>
+        (cores ??= empty ? NO_CORES : gateway.readVerticalCores()),
       readAlignment: (): AlignmentReportLike | null => {
         if (alignment === undefined) {
           alignment = empty ? null : gateway.readAlignment();
@@ -509,6 +553,9 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
   const data = useMemo(() => shellDataOf(spatial), [spatial]);
   const probes = useMemo(() => floorProbesOf(spatial), [spatial]);
   const axes = useMemo(() => axisProbesOf(spatial), [spatial]);
+  // Qua LỚP NHỚ chứ không gọi thẳng `coreProbesOf`: `renderScene` chạy lại mỗi
+  // khung hình, và một lượt dò lõi là một lượt duyệt mọi phòng của mọi tầng.
+  const cores = useMemo(() => cachedGateway.readVerticalCores(), [cachedGateway]);
 
   const conversion = useMemo((): { levels: readonly BuildFloorInput[]; failed: boolean } => {
     if (spatial === null) {
@@ -775,6 +822,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
       state,
       floors: probes,
       axes,
+      cores,
       hoveredStoreyId,
       isCapturing,
       captureError: captureFailed ? CAPTURE_ERROR_MESSAGE : null,
@@ -786,6 +834,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
       state,
       probes,
       axes,
+      cores,
       hoveredStoreyId,
       isCapturing,
       captureFailed,
@@ -801,6 +850,9 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
         frame,
         onSeparationChange: shell.onSeparationChange,
         onStoreyActivate: shell.onStoreyActivate,
+        ...(shell.sceneActions.frameStorey !== undefined
+          ? { onStoreyFrame: shell.sceneActions.frameStorey }
+          : {}),
         onStoreyVisibilityToggle: shell.onStoreyVisibilityToggle,
         storeys: shell.storeys,
         ...(options.forceState !== undefined ? { forceState: options.forceState } : {}),

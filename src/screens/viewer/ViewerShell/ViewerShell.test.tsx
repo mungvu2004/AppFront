@@ -27,13 +27,17 @@
  * cổng giả và CÙNG bộ mẫu (R-70).
  */
 
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { millimetres } from '@/domain/units/types';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
+import { CameraDirector } from '@/lib/three/camera/presets';
+import { toSceneLength } from '@/lib/three/build/scene';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -57,7 +61,7 @@ import {
 } from './viewerShellFixture';
 import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
-import { ALL_VIEWER_TOOLS } from './useViewerShell';
+import { ALL_VIEWER_TOOLS, useViewerShell } from './useViewerShell';
 import {
   VIEWER_LAYOUT,
   type ViewerSceneActions,
@@ -496,6 +500,197 @@ describe('[VS-10] mã bộ mẫu hợp lệ', () => {
     expect(input).not.toBeNull();
     expect(input?.rooms.length).toBeGreaterThan(0);
     expect(input?.walls.length).toBeGreaterThan(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-11] frameStorey — khuôn khung nhìn vào một tầng (D1).                   */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    // Giảm chuyển động: `director.goTo` hoàn tất NGAY trong lượt gọi, nên
+    // `director.viewpoint()` (qua `frame`) phản ánh đích đến tức thì, không
+    // phải đợi vòng `requestAnimationFrame` của `wake()`.
+    originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === REDUCED_MOTION_QUERY,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  /**
+   * Dựng thẳng `useViewerShell` — không qua container — vì `ViewerSceneFrame`
+   * (đúng ranh giới D) cố ý không mang `target` của camera, nên phép kiểm
+   * "nhìn đúng cao độ tầng nào" phải rình đối số của `CameraDirector.goTo`,
+   * chứ không đọc được từ props của view.
+   */
+  function renderShellHook() {
+    const queryClient = createTestQueryClient();
+
+    return renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+  }
+
+  it('mã tầng có thật: điểm nhìn ĐỔI, và nhìn đúng vào cao độ của tầng ấy', () => {
+    const goToSpy = vi.spyOn(CameraDirector.prototype, 'goTo');
+    const { result, unmount } = renderShellHook();
+
+    const storey = VIEWER_FIXTURE_LEVELS[1];
+
+    if (storey === undefined) {
+      throw new Error('bộ mẫu cần ít nhất hai tầng');
+    }
+
+    const distanceBefore = result.current.frame.distanceM;
+
+    act(() => {
+      result.current.sceneActions.frameStorey?.(storey.id);
+    });
+
+    const distanceAfter = result.current.frame.distanceM;
+    const destination = goToSpy.mock.calls.at(-1)?.[0];
+    const expectedCentreYM = toSceneLength(millimetres(storey.elevationMm + storey.heightMm / 2));
+
+    console.log(
+      `[VIEWER-SHELL][VS-11] khuôn cả toà = ${String(distanceBefore)} m, khuôn ${storey.name} = ${String(distanceAfter)} m, cao độ đích = ${String(destination?.target.y)} m`,
+    );
+
+    expect(goToSpy).toHaveBeenCalledTimes(1);
+    expect(distanceAfter).not.toBeCloseTo(distanceBefore, 3);
+    expect(destination?.target.y).toBeCloseTo(expectedCentreYM, 5);
+
+    goToSpy.mockRestore();
+    unmount();
+  });
+
+  it('mã tầng không có thật: không làm gì, không ném lỗi', () => {
+    const goToSpy = vi.spyOn(CameraDirector.prototype, 'goTo');
+    const { result, unmount } = renderShellHook();
+
+    const distanceBefore = result.current.frame.distanceM;
+    const azimuthBefore = result.current.frame.azimuthRad;
+    const polarBefore = result.current.frame.polarRad;
+
+    expect(() => {
+      act(() => {
+        result.current.sceneActions.frameStorey?.('khong-co-thay');
+      });
+    }).not.toThrow();
+
+    console.log(
+      `[VIEWER-SHELL][VS-11] mã tầng lạ → director.goTo được gọi ${String(goToSpy.mock.calls.length)} lần`,
+    );
+
+    expect(goToSpy).not.toHaveBeenCalled();
+    expect(result.current.frame.distanceM).toBe(distanceBefore);
+    expect(result.current.frame.azimuthRad).toBe(azimuthBefore);
+    expect(result.current.frame.polarRad).toBe(polarBefore);
+
+    goToSpy.mockRestore();
+    unmount();
+  });
+
+  it('độ tách > 0: tầng trên được khuôn vào chỗ nó ĐANG đứng, cao hơn cao độ thật', () => {
+    const goToSpy = vi.spyOn(CameraDirector.prototype, 'goTo');
+    const { result, unmount } = renderShellHook();
+
+    const storey = VIEWER_FIXTURE_LEVELS[1];
+
+    if (storey === undefined) {
+      throw new Error('bộ mẫu cần ít nhất hai tầng');
+    }
+
+    act(() => {
+      result.current.onSeparationChange(1);
+    });
+
+    act(() => {
+      result.current.sceneActions.frameStorey?.(storey.id);
+    });
+
+    const destination = goToSpy.mock.calls.at(-1)?.[0];
+    const trueCentreYM = toSceneLength(millimetres(storey.elevationMm + storey.heightMm / 2));
+
+    const stackable: readonly StackableStorey[] = VIEWER_FIXTURE_LEVELS.map((level) => ({
+      id: level.id,
+      order: level.order,
+      elevationMm: level.elevationMm,
+      heightMm: level.heightMm,
+    }));
+    const spreadMm = storeySpreadMm(
+      stackable.find((each) => each.id === storey.id) as StackableStorey,
+      1,
+    );
+    const expectedCentreYM = toSceneLength(
+      millimetres(storey.elevationMm + spreadMm + storey.heightMm / 2),
+    );
+
+    console.log(
+      `[VIEWER-SHELL][VS-11] tách hết cỡ: cao độ thật = ${String(trueCentreYM)} m, cao độ đã tách = ${String(expectedCentreYM)} m, đích thật = ${String(destination?.target.y)} m`,
+    );
+
+    expect(destination?.target.y).toBeGreaterThan(trueCentreYM);
+    expect(destination?.target.y).toBeCloseTo(expectedCentreYM, 5);
+
+    goToSpy.mockRestore();
+    unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-12] sceneActions.frameStorey tới được màn nội dung qua renderScene.     */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-12] sceneActions.frameStorey tới màn nội dung', () => {
+  it('renderScene nhận actions.frameStorey dạng hàm', () => {
+    const captured: { actions: ViewerSceneActions | undefined } = { actions: undefined };
+
+    const { unmount } = render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter>
+          <ViewerShellContainer
+            {...scenarioArgsFor('success')}
+            renderScene={(_frame: ViewerSceneFrame, actions?: ViewerSceneActions): null => {
+              captured.actions = actions;
+              return null;
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    console.log(`[VIEWER-SHELL][VS-12] frameStorey tới màn nội dung = ${typeof captured.actions?.frameStorey}`);
+
+    expect(typeof captured.actions?.frameStorey).toBe('function');
+
+    unmount();
   });
 });
 

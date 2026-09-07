@@ -328,6 +328,26 @@ export interface ExplodedViewProps extends ExplodedViewModel {
 /* Cổng dữ liệu.                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Một lõi thẳng đứng đã đặt lên khung nhìn.
+ *
+ * Lõi thang và hộp kỹ thuật là thứ đặc tả THẬT SỰ hỏi ("phần tử phải liên tục qua
+ * các tầng"), và từ khi có `src/domain/axes/verticalCores.ts` thì hỏi được: một
+ * chuỗi phòng cùng công năng chồng mặt bằng lên nhau qua các tầng kề. Trước đó
+ * chỉ có TRỤC, thứ nói về cả tầng chứ không nói về một lõi cụ thể — nên trục lùi
+ * xuống làm đường lui khi bản vẽ chưa có lõi nào.
+ */
+export interface ExplodedCoreProbe {
+  /** Mã lõi, ví dụ `stairwell:R-0001`. */
+  readonly id: string;
+  /** Vị trí ngang trong khung nhìn, tỉ lệ [0, 1] từ trái sang. */
+  readonly xFraction: number;
+  /** Độ lệch của cặp tầng xấu nhất; 0 khi lõi thẳng đứng. */
+  readonly maxOffsetMm: Millimetres;
+  /** Câu tiếng Việt ghi độ lệch, hoặc `null` khi lõi thẳng. */
+  readonly caption: string | null;
+}
+
 /** Đầu vào của một phép dò thẳng hàng: một tầng, kèm trục đã dò. */
 export interface ExplodedFloorProbe extends StackableStorey {
   readonly name: string;
@@ -345,6 +365,13 @@ export interface ExplodedFloorProbe extends StackableStorey {
 export interface ExplodedViewGateway {
   /** Diện tích từng tầng, m². Gom `Room.outline` theo tầng rồi gọi `totalArea()`. */
   readonly readFloorAreas: () => ReadonlyMap<string, number>;
+  /**
+   * Lõi thẳng đứng của bản vẽ, đã đặt lên khung nhìn.
+   *
+   * Rỗng khi bản vẽ không có lõi nào đi qua từ hai tầng trở lên — lúc ấy chỉ báo
+   * lùi về trục, xem {@link ExplodedCoreProbe}.
+   */
+  readonly readVerticalCores: () => readonly ExplodedCoreProbe[];
   /**
    * Báo cáo thẳng hàng của cả chồng tầng.
    *
@@ -388,6 +415,14 @@ export interface UseExplodedViewOptions {
   readonly onSeparationChange: ViewerShellProps['onSeparationChange'];
   /** Kích hoạt một tầng — chính là `ViewerShellProps.onStoreyActivate`. */
   readonly onStoreyActivate: ViewerShellProps['onStoreyActivate'];
+  /**
+   * Khuôn khung nhìn vào một tầng — `ViewerSceneActions.frameStorey` của vỏ.
+   *
+   * Tuỳ chọn vì chính trường của vỏ cũng tuỳ chọn: tám màn 3D còn lại không dựng
+   * hành động này, và một bản vỏ cũ hơn không có nó. Vắng mặt thì bấm thẻ tầng
+   * vẫn kích hoạt tầng và đổi panel — chỉ camera là đứng yên.
+   */
+  readonly onStoreyFrame?: (storeyId: string) => void;
   /** Bật/tắt con mắt — chính là `ViewerShellProps.onStoreyVisibilityToggle`. */
   readonly onStoreyVisibilityToggle: ViewerShellProps['onStoreyVisibilityToggle'];
   /** Danh sách tầng của vỏ, đã sắp từ dưới lên. */
