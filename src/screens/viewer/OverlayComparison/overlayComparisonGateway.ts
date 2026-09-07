@@ -24,23 +24,41 @@
  * nó — M-02 đặt tỷ lệ theo TỪNG TẦNG), và hook đọc thẳng từ đó. Một lượt đọc
  * `/floors` ở đây sẽ dựng ý niệm thứ hai về cùng một danh sách.
  *
- * ## Bốn việc KHÔNG CÓ — và vì sao vẫn khai
+ * ## Bốn việc KHÔNG CÓ — và thứ CHÍNH XÁC còn thiếu ở mỗi việc
  *
- * `types.ts` đã kiểm và chốt: phép biến hình ảnh→mô hình, danh sách vùng lệch,
- * và phép tổng hợp trung bình/lớn nhất/đếm vượt ngưỡng đều **không tồn tại**
- * trong `src/domain` hôm nay. Ba mảnh đó đang được viết ở `src/domain/overlay`
- * song song với màn.
+ * `src/domain/overlay` **đã tồn tại** và đã xong: `createOverlayTransform`,
+ * `imagePixelToModelMm`, `compareDrawingToModel`, `summariseDeviations`,
+ * `countOverTolerance` — có test riêng, độ phủ 100%. Nên chỗ còn thiếu KHÔNG
+ * phải phép tính. Chỗ còn thiếu là **đầu vào cho phép tính**, và nó thiếu ở
+ * tầng mạng:
+ *
+ * - `compareDrawingToModel` đòi `drawingAxes` — trục dò từ **ảnh quét**, theo
+ *   khung pixel của ảnh. Không endpoint nào trả về trục: đã đọc hết
+ *   `endpoints.ts`, `client.ts` (bảy nhóm) và `FloorImageQualitySchema`. Một
+ *   lượt `quality.assess` mang `sourceUrl`, `measurement`, `frame`,
+ *   `isMeasured` — không có trục.
+ * - `createOverlayTransform` đòi ba thứ; hai thứ có sẵn (`scale` ở
+ *   `Level.scaleMillimetresPerPixel`, góc xoay ở `measurement.skewDeg`) còn
+ *   `originMm` — gốc ảnh rơi vào đâu trong không gian mô hình — thì không.
  *
  * Mỗi việc vẫn nằm trong {@link OverlayComparisonGateway} với một kết quả
  * `supported: false` nói rõ thứ nào còn thiếu, thay vì bị bỏ trắng: một cổng im
  * lặng thì màn không phân biệt được "chưa có dữ liệu" với "không có đường lấy dữ
- * liệu", và người đọc mã sau này không biết chỗ nào cần nối khi module xuất hiện.
+ * liệu", và người đọc mã sau này không biết chỗ nào cần nối khi endpoint xuất hiện.
+ * {@link OVERLAY_MISSING_SOURCES} là chỗ viết ra thứ đó, và
+ * `overlayComparisonGateway.test.ts` **khẳng định** nó — một lỗ hổng được ghi
+ * bằng chú thích thì im lặng mục đi, ghi bằng test thì kêu lên khi có người nối
+ * nhầm hay xoá nhầm. Đúng nguyên tắc của chính màn này: bằng chứng thay vì lời
+ * khẳng định, áp cho cả mã nguồn.
  *
- * Hệ quả nói thẳng: trong bản sản phẩm hôm nay không phép đo nào về, nên ba con
- * số ở đầu panel là `'—'` và danh sách vùng lệch rỗng — đúng nghĩa "chưa đo
- * được" mà `MatchMetricsViewModel` đã khai. Test và story cắm cổng giả để dựng
- * đủ bảy trạng thái. Đây là quyết định của điều phối viên (R-69), không phải chỗ
- * tự chế một phép đo.
+ * ## Nói thật màn hôm nay làm được gì
+ *
+ * Trong bản sản phẩm hôm nay màn **không đo**. Nó mở được, vẽ được ảnh quét đã
+ * nắn và vẽ được hình học mô hình, rồi **nói rõ thiếu gì** — ba con số ở đầu
+ * panel là `'—'` và danh sách vùng lệch rỗng, đúng nghĩa "chưa đo được" mà
+ * `MatchMetricsViewModel` đã khai, chứ không phải "đo ra 0". Test và story cắm
+ * cổng giả nên bảy trạng thái vẫn dựng đủ. Không hứa nhiều hơn thế; bịa một
+ * phép đo ở đây là thứ R-69 cấm, và nó sẽ sai mà không có gì đỏ.
  *
  * ## Đánh giá theo dung sai là hàm ĐỒNG BỘ, và đó là quyết định
  *
@@ -90,10 +108,14 @@ export const FRAME_NOT_FOUND_CODE = 'FRAME_NOT_FOUND';
  * thật — nên nó không vi phạm R-65.
  */
 export const OVERLAY_MISSING_SOURCES: Readonly<Record<OverlayMissingCapability, string>> = {
-  imageToModelTransform: 'src/domain/overlay — đặt ảnh quét vào không gian mô hình',
-  deviationRegions: 'src/domain/overlay — vùng lệch kèm vị trí tham chiếu và mã đối tượng',
-  matchMetrics: 'src/domain/overlay — trung bình, lớn nhất, đếm vượt ngưỡng theo milimét',
-  confirmFloorMatch: 'POST .../projects/:projectId/floors/:floorId/overlay-confirmation',
+  imageToModelTransform:
+    'cần một endpoint trả về gốc ảnh quét trong không gian mô hình (originMm); tỷ lệ đã có ở Level.scaleMillimetresPerPixel và góc xoay đã có ở measurement.skewDeg của quality.assess, nên createOverlayTransform chỉ còn thiếu đúng gốc',
+  deviationRegions:
+    'cần một endpoint trả về trục dò từ ảnh quét theo khung pixel của ảnh (drawingAxes); phép so đã sẵn ở compareDrawingToModel của @/domain/overlay, chỉ thiếu đầu vào',
+  matchMetrics:
+    'phụ thuộc deviationRegions: không có vùng lệch thì không có gì để tổng hợp; summariseDeviations và countOverTolerance đã sẵn ở @/domain/overlay',
+  confirmFloorMatch:
+    'cần một endpoint nhận lượt xác nhận của người duyệt, dạng POST .../projects/:projectId/floors/:floorId/overlay-confirmation; hôm nay lượt ghi chỉ sống trong phiên trình duyệt',
 };
 
 /** Một việc làm được, kèm kết quả. */
@@ -302,8 +324,10 @@ export function createOverlayComparisonGateway(
 
   return {
     // Một việc làm được hôm nay: đọc ảnh quét đã nắn. Bốn việc còn lại `false`
-    // cho tới khi `src/domain/overlay` và endpoint xác nhận về — xem
-    // `OVERLAY_MISSING_SOURCES`.
+    // vì tầng mạng chưa trả về đầu vào cho chúng — KHÔNG phải vì thiếu phép
+    // tính: `src/domain/overlay` đã xong. Thứ còn thiếu ở từng việc viết trong
+    // `OVERLAY_MISSING_SOURCES`, và `overlayComparisonGateway.test.ts` khẳng
+    // định cả bốn.
     supports: {
       imageToModelTransform: false,
       deviationRegions: false,
