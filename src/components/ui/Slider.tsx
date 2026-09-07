@@ -151,6 +151,7 @@ export function Slider({
             onKeyDown={handleKeyDown}
             className={cn(
               'h-3.5 w-3.5 rounded-full bg-bg-surface border border-border-default shadow-rest outline-none',
+              'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
               isFocused && 'ring-2 ring-accent ring-offset-2'
             )}
           />

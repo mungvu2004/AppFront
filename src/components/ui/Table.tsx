@@ -83,6 +83,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
   const rowClassName = twMerge(
     'group h-10 border-b border-border-default/50 last:border-0 outline-none transition-colors duration-120',
     'hover:bg-bg-hover focus-visible:bg-bg-hover',
+    'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',
     selected && 'bg-bg-selected hover:bg-bg-selected',
     isFlash && 'bg-bg-flash hover:bg-bg-flash',
     isAttention && 'bg-state-attention-tint',
