@@ -111,14 +111,22 @@ import { PerfMonitor, shadowMapTypeFor } from '@/lib/three/perf/monitor';
 import { createFrameLoop } from '@/lib/three/present/frameLoop';
 import { documentTokenReader, tokenColour, type TokenReader } from '@/lib/three/present/palette';
 // `applyDetailLevel` là hàm ẩn/hiện theo nấc chi tiết, và nó đã có một chủ:
-// `viewer3dScene.ts` tái xuất qua cửa nhập của màn ấy. Ba kiểu tiến độ dựng cũng
-// vậy — dựng bản thứ hai của chúng là hai bảng luật sẽ lệch nhau (R-61).
+// `viewer3dScene.ts` của màn S-11. Ba kiểu tiến độ dựng cũng vậy — dựng bản thứ
+// hai của chúng là hai bảng luật sẽ lệch nhau (R-61).
+//
+// Nhập SÂU tới đúng hai file, không qua `@/screens/viewer/Viewer3D`. Cửa nhập của
+// màn ấy tái xuất cả `Viewer3D.tsx`, container và `ObjectSearch.tsx`; đi qua nó
+// thì bốn thứ React ấy rơi vào chunk của màn này, và cổng kích thước gói bắt
+// đúng chuyện đó — 294,9 KiB trên ngân sách 280 KiB cho một màn. Hai đường nhập
+// dưới đây kéo về đúng phần hình học, không kéo theo cây React nào.
 import {
   applyDetailLevel,
-  type ViewerScenePhase,
-  type ViewerSceneProgress,
-  type ViewerSceneStatus,
-} from '@/screens/viewer/Viewer3D';
+} from '@/screens/viewer/Viewer3D/viewer3dScene';
+import type {
+  ViewerScenePhase,
+  ViewerSceneProgress,
+  ViewerSceneStatus,
+} from '@/screens/viewer/Viewer3D/viewer3dTypes';
 import { stackStoreys } from '@/screens/viewer/ViewerShell';
 import { MIN_SEPARATION } from '@/screens/viewer/ViewerShell/viewerStoreyStack';
 import type {

@@ -9,14 +9,22 @@
  * màn khẳng định đúng điều ngược lại. Bài kiểm thắng (R-70), nên thẻ nay
  * mount/unmount thật.
  *
- * Hệ quả đã cân nhắc, ghi ra để người sau không tưởng là bỏ sót: lượt hoà tan
- * KHÔNG còn chạy khi thẻ vừa hiện. Một `transition-opacity` không có tác dụng
- * trên phần tử vừa mount, và ba đường vòng còn lại đều bị cấm ở màn này —
- * `requestAnimationFrame` và vòng lặp chuyển động tự viết đều nằm trong danh
- * sách cấm, còn thêm một keyframe thuần hoà tan thì phải sửa
- * `tailwind.config.ts`, ngoài phạm vi được sửa của lượt gộp. Phép chuyển tiếp
- * duy nhất còn thật trong file này là lượt mờ khi con trỏ đậu lên một thẻ, và
- * nó vẫn chạy theo `EXPLODED_MOTION_MS.dimMs`.
+ * Lượt hiện vẫn có chuyển động, và nó là một ANIMATION chứ không phải một
+ * transition: `transition-opacity` không có tác dụng trên phần tử vừa mount, còn
+ * `animate-panel-rise` thì có. Keyframe ấy đã nằm sẵn trong `tailwind.config.ts`
+ * (`panel-rise`, `speed('slow')` — 340 ms, `opacity 0 → 1` cộng một quãng trồi
+ * 12 px, `forwards`), nên không phải thêm gì vào cấu hình và cũng không phải
+ * mượn `requestAnimationFrame` hay một vòng lặp tự viết, cả hai đều bị cấm ở
+ * màn này.
+ *
+ * Nó gắn vào lớp THẺ chứ không vào lớp định vị bên ngoài: lớp ngoài đang giữ
+ * `-translate-y-1/2` để căn thẻ vào đúng cao độ, mà `panel-rise` kết thúc ở
+ * `translateY(0)` với `forwards` — đặt nhầm chỗ thì thẻ tụt mất nửa chiều cao và
+ * đứng sai vĩnh viễn.
+ *
+ * 340 ms thay cho 240 ms mà đặc tả xin: 240 không có trên thang chuyển động, và
+ * `slow` là nấc gần nhất mà một keyframe sẵn có đang chạy. Lượt mờ khi con trỏ
+ * đậu lên một thẻ vẫn là transition thật, theo `EXPLODED_MOTION_MS.dimMs`.
  *
  * Thẻ bấm được là một `<button>` phủ kín thẻ (không phải `div onClick`, R-72);
  * con mắt là một `<button>` con đứng NGOÀI vùng phủ đó (không lồng button
@@ -78,6 +86,7 @@ export function ExplodedViewFloorCards({
             <div
               className={cn(
                 'relative flex items-start justify-between gap-2 bg-bg-surface p-3 shadow-float',
+                'animate-panel-rise motion-reduce:animate-none',
                 dimDuration,
                 !floor.isReady && 'border-2 border-dashed border-border-default',
               )}

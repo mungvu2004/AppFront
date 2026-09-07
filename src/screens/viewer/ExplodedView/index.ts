@@ -67,13 +67,16 @@ export {
   type UseExplodedViewOptions,
 } from './explodedViewTypes';
 
-export {
-  explodedViewScenarioFor,
-  withReducedMotion,
-  withSeparation,
-  EXPLODED_VIEW_SCENARIOS,
-  EXPLODED_VIEW_STATES,
-  SAMPLE_ALIGNMENT_ISSUE,
-  SAMPLE_MISALIGNED_FLOORS,
-  type ExplodedViewScenario,
-} from './explodedViewScenarios';
+/*
+ * `explodedViewScenarios.ts` KHÔNG được tái xuất ở đây, và đó là một quyết định
+ * về kích thước gói chứ không phải một chỗ bỏ sót.
+ *
+ * Router lazy-import chính cửa nhập này, nên mọi thứ cửa này nhắc tên đều rơi vào
+ * chunk mà người dùng tải khi bước vào màn. Bảy kịch bản là 420 dòng dữ liệu mẫu
+ * phục vụ story và bài kiểm; đẩy chúng vào gói sản phẩm làm màn vượt ngân sách
+ * 280 KiB của cổng kích thước gói.
+ *
+ * Story và bài kiểm nhập thẳng `./explodedViewScenarios` — chúng nằm cùng thư mục
+ * nên không cần đi vòng qua cửa nhập, và cách ấy giữ dữ liệu mẫu ở đúng phía biên
+ * giới sản phẩm.
+ */

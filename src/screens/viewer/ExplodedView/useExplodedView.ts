@@ -71,12 +71,12 @@ import { useShortcut, useShortcutListener } from '@/hooks/useShortcut';
 import { createColoringMode } from '@/lib/coloring/modes';
 import type { PaintSubject } from '@/lib/coloring/modes';
 import { UNPAINTED_TOKEN, type ColorTokenName } from '@/lib/coloring/scales';
-import { captureViewport, type CaptureResult } from '@/lib/export/screenshot';
+import type { CaptureResult } from '@/lib/export/screenshot';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatPercent } from '@/lib/format/number';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
-import type { ViewerSceneStatus } from '@/screens/viewer/Viewer3D';
+import type { ViewerSceneStatus } from '@/screens/viewer/Viewer3D/viewer3dTypes';
 import { useStore } from '@/store';
 import {
   createViewerShellGateway,
@@ -633,6 +633,18 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
       if (source === null) {
         throw new Error(CAPTURE_UNAVAILABLE_MESSAGE);
       }
+
+      // Nạp MUỘN, và đây là một quyết định về kích thước gói chứ không phải một
+      // thói quen. `src/lib/export/screenshot` nặng 7,4 KiB gzip và không cần một
+      // byte nào để VẼ màn — nó chỉ chạy khi có người bấm nút chụp. Nhập tĩnh thì
+      // 7,4 KiB ấy nằm trong chunk mọi người tải khi bước vào màn, và cổng kích
+      // thước gói bắt đúng chuyện đó (280 KiB cho một màn; màn này 284,7 KiB khi
+      // còn nhập tĩnh).
+      //
+      // Ranh giới của lập luận này: module CẢNH thì KHÔNG được nạp muộn kiểu ấy —
+      // cảnh chính là màn, dời nó sang sau chỉ làm đẹp con số chứ người dùng vẫn
+      // phải tải nó mới thấy gì. Chụp ảnh thì khác thật.
+      const { captureViewport } = await import('@/lib/export/screenshot');
 
       // `captureViewport` render LẠI một khung vào target ngoài màn rồi trả
       // renderer về y nguyên — màn không tự dựng ảnh (X-03).
