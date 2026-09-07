@@ -243,6 +243,23 @@ export interface MeasurementToolProps {
   readonly onToggleVisibility: (id: PinnedMeasurementId) => void;
   readonly onDelete: (id: PinnedMeasurementId) => void;
 
+  /*
+   * Ba hành động mà bàn phím gọi tới — và cũng là ba hành động các nút trên màn
+   * gọi tới.
+   *
+   * Hook đăng ký `M`, `Esc`, `Enter` qua `shortcutRegistry` (R-54) rồi chuyền
+   * đúng ba hàm ấy xuống đây. Hai lý do, cả hai đều là luật:
+   *
+   * 1. A12 nói bàn phím là đường đi hạng nhất, KHÔNG phải đường duy nhất. Một
+   *    hành động chỉ tới được bằng phím là một hành động người dùng chuột không
+   *    có. Ba prop này là chỗ nút bấm cắm vào.
+   * 2. View phải test được CHỈ TỪ PROPS (mục D). Hành động nào chỉ sống trong
+   *    registry thì bài kiểm của view không với tới được.
+   */
+  readonly onToggleTool: () => void;
+  readonly onEscape: () => void;
+  readonly onPin: () => void;
+
   /* Đơn vị. Đổi đơn vị là chỗ DUY NHẤT được chạy số. */
   readonly unit: MeasureUnit;
   readonly onUnitChange: (unit: MeasureUnit) => void;
