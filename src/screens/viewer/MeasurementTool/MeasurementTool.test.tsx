@@ -45,6 +45,7 @@ import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
 import { SEVEN_STATES, SEVEN_STATE_LABELS, type SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 
+import { MeasurementList } from './MeasurementList';
 import { MeasurementTool } from './MeasurementTool';
 import { MeasurementToolContainer } from './MeasurementTool.container';
 import {
@@ -430,7 +431,28 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
       onDelete,
     });
 
-    renderWithProviders(<MeasurementTool {...props} />);
+    // Nút xoá sống ở mục "Phép đo" của panel phải (`MeasurementList.tsx:150`,
+    // aria-label `Xoá <tên>`), không ở lớp phủ trên canvas. Hook cắm danh sách
+    // ấy vào `inspectorSections` của vỏ, nên `<MeasurementTool>` — vốn chỉ là
+    // phần nằm trong `renderScene` — không chứa nó. Bản trước của khẳng định
+    // này dựng nhầm component; ý định (hành động xoá phải có đường cho con trỏ,
+    // A12) giữ nguyên, chỉ hỏi đúng chỗ nó ở.
+    renderWithProviders(
+      <MeasurementList
+        canPin={props.canPin}
+        collapsed={props.collapsed}
+        countLabel={props.countLabel}
+        highlightedId={props.highlightedId}
+        measurements={props.measurements}
+        onDelete={props.onDelete}
+        onHighlight={props.onHighlight}
+        onToggleCollapsed={props.onToggleCollapsed}
+        onToggleVisibility={props.onToggleVisibility}
+        onUnitChange={props.onUnitChange}
+        pinBlockedCaption={props.pinBlockedCaption}
+        unit={props.unit}
+      />,
+    );
 
     const button = screen.getByRole('button', { name: /xoá|xóa/iu });
 
@@ -453,7 +475,14 @@ describe('MeasurementTool — bốn phím THẬT trên bản đã nối dây (A1
       .filter((shortcut) => shortcut.scope === 'canvas')
       .map((shortcut) => shortcut.combo);
 
-    for (const expectedCombo of ['M', 'Escape', 'Enter', 'Delete']) {
+    // `listShortcuts()` trả tổ hợp ĐÃ CHUẨN HOÁ, không phải chuỗi đã đăng ký:
+    // `combo: entry.canonical` (shortcutRegistry.ts:570-578), với
+    // `canonical = formatCombo(parseCombo(...))`, và `parseCombo` gọi
+    // `normaliseKey` — hàm này viết hoa mọi tên phím (tools/shortcuts.ts:49-55).
+    // Nên 'Escape' KHÔNG BAO GIỜ xuất hiện; dạng thật là 'ESCAPE'. Bản trước của
+    // khẳng định này mong sai một sự thật về registry chứ không mong sai về màn —
+    // ý định (đủ bốn phím ở phạm vi canvas) giữ nguyên. 'M' do vỏ đăng ký.
+    for (const expectedCombo of ['M', 'ESCAPE', 'ENTER', 'DELETE']) {
       expect(
         canvasCombos,
         `thiếu tổ hợp "${expectedCombo}" ở phạm vi canvas — hiện có: ${canvasCombos.join(', ')}`,
@@ -525,8 +554,13 @@ describe('MeasurementTool — trạng thái không có quyền vẫn đo đượ
 
     // "Vẫn đo được": ít nhất một nút đổi chế độ (tên khớp một trong bốn nhãn chế
     // độ của MEASURE_MODE_LABELS) phải tồn tại và KHÔNG bị disabled.
+    // `SegmentedControl` dựng một `radiogroup` chứa các `radio`
+    // (components/ui/SegmentedControl.tsx:66,109), không phải các `button` —
+    // đó là vai ARIA đúng cho một bộ chọn loại trừ nhau. Bản trước của khẳng
+    // định này hỏi sai vai; ý định (chế độ đo vẫn đổi được ở trạng thái
+    // forbidden) giữ nguyên.
     const modeButtons = within(container)
-      .getAllByRole('button')
+      .getAllByRole('radio')
       .filter((button) => Object.values(MEASURE_MODE_LABELS).some((label) => button.textContent?.includes(label)));
 
     expect(modeButtons.length, 'phải có ít nhất một nút đổi chế độ đo hiện trên màn').toBeGreaterThan(0);

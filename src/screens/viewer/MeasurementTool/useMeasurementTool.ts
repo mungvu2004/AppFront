@@ -98,11 +98,13 @@ import {
 import type { MeasurementRecord } from '@/types/measurement';
 import type { ProjectRole } from '@/types/project';
 import { useStore } from '@/store';
+// Nhập THẲNG module thay vì qua cửa nhập của ViewerShell — xem ghi chú cùng
+// lý do trong `useMeasurementToolScene.ts`.
 import {
   createViewerShellGateway,
-  useViewerShell,
   type ViewerShellGateway,
-} from '@/screens/viewer/ViewerShell';
+} from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import { useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
 import type { ViewerPointPx, ViewerShellProps } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { MeasurementList } from './MeasurementList';

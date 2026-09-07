@@ -315,14 +315,40 @@ interface PinnedLabelProps {
  * `valueLabel` khi lượt chạy kết thúc.
  */
 function PinnedLabel({ measurement, at, dimmed, unitJustChanged }: PinnedLabelProps) {
-  const initialValueRef = useRef(measurement.displayValue);
+  const settledValueRef = useRef(measurement.displayValue);
+  const [counting, setCounting] = useState(false);
 
   const countUp = useCountUp(measurement.displayValue, {
-    from: initialValueRef.current,
+    from: settledValueRef.current,
     format: { fractionDigits: measurement.displayFractionDigits },
   });
 
-  const isRunningUp = unitJustChanged || !countUp.done;
+  /*
+   * Một chốt, và nó là chỗ cả điều cấm của màn nằm gọn trong một dòng.
+   *
+   * `useCountUp` bắt đầu chạy mỗi lần đích đổi, bất kể vì sao đích đổi. Nhưng
+   * đặc tả cho phép chạy số ĐÚNG MỘT LÝ DO: người dùng vừa đổi đơn vị. Một
+   * phép đo được tính lại, một hàng được thay giá trị, một lượt tải về — tất cả
+   * đều làm `displayValue` đổi, và không cái nào được phép làm chữ nhảy số.
+   *
+   * `unitJustChanged` chỉ bật một nhịp, nên đọc thẳng nó thì lượt chạy tắt ngay
+   * ở khung hình sau. Chốt này giữ "đang chạy vì đổi đơn vị" cho tới khi lượt
+   * chạy kết thúc, rồi tự mở ra.
+   */
+  useEffect(() => {
+    if (unitJustChanged) {
+      setCounting(true);
+    }
+  }, [unitJustChanged]);
+
+  useEffect(() => {
+    if (countUp.done) {
+      setCounting(false);
+      settledValueRef.current = measurement.displayValue;
+    }
+  }, [countUp.done, measurement.displayValue]);
+
+  const isRunningUp = counting && !countUp.done;
 
   return (
     <ValuePill
