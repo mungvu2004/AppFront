@@ -22,7 +22,8 @@ import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 
-import type { ViolationDetailViewProps } from './types';
+import { allowedActionsOf } from './violationDetailActions';
+import type { ViolationDetailCapabilities, ViolationDetailViewProps } from './types';
 
 /** Mức nghiêm trọng, đọc ngược từ props — thư mục này không nêu tên `@/domain`. */
 type RuleSeverity = NonNullable<ViolationDetailViewProps['severity']>;
@@ -217,6 +218,7 @@ export function ViolationCausesSection({ causes }: CausesProps) {
 
 interface ActionsProps {
   readonly actions: ViolationDetailViewProps['actions'];
+  readonly capabilities: ViolationDetailCapabilities;
   readonly onAction: ViolationDetailViewProps['onAction'];
   readonly onActionHover: ViolationDetailViewProps['onActionHover'];
 }
@@ -230,14 +232,35 @@ interface ActionsProps {
  * `onMouseLeave` và `onBlur` đều gọi `onActionHover(null)`: bỏ một trong hai là để lại
  * một hình xem trước dính lại sau khi người dùng đã đi chỗ khác.
  *
- * Hàng "bỏ qua kèm lý do" sẽ không bao giờ tới đây. `canDismiss` là `false` — không một
- * slice nào của store có trạng thái bỏ qua, xác nhận bằng grep hai lượt — nên gateway
- * không phát ra hàng ấy và view không dựng ô ghi lý do. Phán quyết G3. `dismissReason`,
- * `onDismissReasonChange` và `dismissReasonError` vẫn nằm trong `types.ts` để khi tầng
- * logic có trạng thái ấy thì việc phải làm ở đây là bật một chữ `false` ở gateway.
+ * Chuột nghe ở `<li>`, bàn phím nghe ở `<button>`, và đó không phải tuỳ tiện: HÀNG là
+ * thứ con trỏ đi vào, còn NÚT là thứ tiêu điểm dừng lại. Gắn cả bốn vào nút thì trỏ vào
+ * phần chữ hậu quả — vẫn trong hàng, ngoài nút — không bật được xem trước.
+ *
+ * Câu hậu quả nằm NGOÀI nút, nối vào bằng `aria-describedby`. Nhét nó vào trong nút thì
+ * tên tiếp cận được của nút là nhãn cộng cả câu hậu quả dính liền, và không ai gọi được
+ * nút ấy bằng đúng tên của nó — "xoá đối tượng" — nữa.
+ *
+ * Mỗi hàng còn phải qua cổng năng lực của CHÍNH nó ({@link ACTION_CAPABILITY}) trước khi
+ * được dựng. Gateway đã lọc một lượt, nhưng view gác lần hai và gác trên `capabilities`
+ * chứ không trên "mảng `actions` có gì": năng lực `false` nghĩa là phần giao diện ấy
+ * biến khỏi DOM, và một cái cổng chỉ đứng ở một phía thì hở ngay lúc phía kia sai.
+ *
+ * Hàng "bỏ qua kèm lý do" vì thế không bao giờ dựng ra được. `canDismiss` là `false` —
+ * không một slice nào của store có trạng thái bỏ qua, xác nhận bằng grep hai lượt — nên
+ * cả gateway lẫn view đều chặn, và ô ghi lý do không tồn tại. Phán quyết G3.
+ * `dismissReason`, `onDismissReasonChange` và `dismissReasonError` vẫn nằm trong
+ * `types.ts` để khi tầng logic có trạng thái ấy thì việc phải làm là bật một chữ `false`
+ * ở gateway.
  */
-export function ViolationActionsSection({ actions, onAction, onActionHover }: ActionsProps) {
-  if (actions.length === 0) {
+export function ViolationActionsSection({
+  actions,
+  capabilities,
+  onAction,
+  onActionHover,
+}: ActionsProps) {
+  const allowed = allowedActionsOf(actions, capabilities);
+
+  if (allowed.length === 0) {
     return null;
   }
 
@@ -248,10 +271,20 @@ export function ViolationActionsSection({ actions, onAction, onActionHover }: Ac
       </h3>
 
       <ul className="flex flex-col gap-2">
-        {actions.map((action) => (
-          <li key={action.kind}>
+        {allowed.map((action) => (
+          <li
+            className="flex flex-col gap-0.5 rounded-[8px] border border-border-default bg-bg-surface p-3 transition-colors duration-120 hover:border-accent"
+            key={action.kind}
+            onMouseEnter={() => {
+              onActionHover(action.kind);
+            }}
+            onMouseLeave={() => {
+              onActionHover(null);
+            }}
+          >
             <button
-              className={`flex w-full flex-col items-start gap-0.5 rounded-[8px] border border-border-default bg-bg-surface p-3 text-left transition-colors duration-120 hover:border-accent ${FOCUS_RING}`}
+              aria-describedby={`violation-action-${action.kind}-description`}
+              className={`w-full text-left text-sm font-medium text-text-primary ${FOCUS_RING}`}
               onBlur={() => {
                 onActionHover(null);
               }}
@@ -261,17 +294,16 @@ export function ViolationActionsSection({ actions, onAction, onActionHover }: Ac
               onFocus={() => {
                 onActionHover(action.kind);
               }}
-              onMouseEnter={() => {
-                onActionHover(action.kind);
-              }}
-              onMouseLeave={() => {
-                onActionHover(null);
-              }}
               type="button"
             >
-              <span className="text-sm font-medium text-text-primary">{action.label}</span>
-              <span className="text-[13px] text-text-secondary">{action.description}</span>
+              {action.label}
             </button>
+            <span
+              className="text-[13px] text-text-secondary"
+              id={`violation-action-${action.kind}-description`}
+            >
+              {action.description}
+            </span>
           </li>
         ))}
       </ul>

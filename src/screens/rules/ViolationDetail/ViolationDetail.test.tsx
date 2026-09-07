@@ -1,22 +1,12 @@
 /**
- * Bộ kiểm của W3 cho tấm trượt `ViolationDetail` (S-34).
+ * Bộ kiểm cho tấm trượt `ViolationDetail` (S-34).
  *
- * ## Vì sao import `./ViolationDetail` đi qua biến, không qua chuỗi tĩnh
- *
- * `./ViolationDetail` (view) và `./useViolationDetail`/`./ViolationDetail.container`
- * (hook, container) là việc của hai worker khác, và tại thời điểm viết file này
- * CHƯA tồn tại trong worktree của W3 — mỗi worker lớp 2 dựng trên nhánh riêng của
- * mình rồi lớp gộp mới ghép lại. Một `import` TĨNH của một chuỗi không tồn tại làm
- * Vite sập lúc transform và KHÔNG MỘT test nào trong cả file chạy được. Cách duy
- * nhất hoãn việc phân giải sang đúng lúc CHẠY (để một import hỏng chỉ làm hỏng
- * ĐÚNG một `it`) là giấu chuỗi đường dẫn sau một biến, kèm `/* @vite-ignore *\/` —
- * xem {@link importFromScreen}. Nhờ vậy các test không cần view thật (đếm nguyên
- * nhân trên dữ liệu mẫu, kiểm mã màu thô trên cả thư mục…) chạy XANH ngay hôm nay;
- * các test cần view thật thì HỎNG RIÊNG LẺ với "Failed to resolve" — đúng kết quả
- * mà lớp này phải có, không cần sửa gì khi lớp gộp đã có đủ `ViolationDetail.tsx`.
- *
- * `import type` (xoá hẳn lúc biên dịch) từ `./types` thì an toàn dùng thẳng — file
- * đó đã đóng băng trên nhánh hợp đồng.
+ * Bản gốc của file này nhập `./ViolationDetail` qua một biến kèm `@vite-ignore`, vì
+ * lúc viết nó view còn nằm trên một nhánh khác và một `import` tĩnh trỏ vào file
+ * chưa có sẽ làm Vite sập lúc transform — cả file không chạy được một `it` nào. Lớp
+ * gộp đã ghép ba nhánh lại nên lý do ấy hết hiệu lực, và cách nhập đã trở về tĩnh:
+ * giữ lại một mẹo mà điều kiện sinh ra nó đã biến mất chỉ để lại một câu đố cho
+ * người đọc sau.
  *
  * ## Dữ liệu mẫu
  *
@@ -31,14 +21,14 @@
  * chính thực thể đó, định dạng qua `formatNumber` (dấu phẩy, A15) — không bịa số.
  *
  * Nội dung câu chữ của `causes`/`actions` là dữ liệu KIỂM THỬ tự viết (giống
- * `RuleReport.test.tsx` tự viết `toRow`/`toGroups` để có props hợp lệ): hook (W1)
- * chưa tồn tại nên không có "logic sinh nguyên nhân" nào để gọi lại — đây không
- * phải viết lại logic của hook, chỉ là props hợp lệ theo đúng hình dạng
- * `ViolationCause`/`ViolationAction` mà `types.ts` mô tả, bám sát ví dụ minh hoạ ở
- * phán quyết G2 của CONTRACT.md ("nhận diện tự động có thể sai — độ tin cậy chỉ…").
+ * `RuleReport.test.tsx` tự viết `toRow`/`toGroups` để có props hợp lệ). Đây là bài
+ * kiểm của VIEW THUẦN: nó phải chạy được chỉ từ props, không gọi hook và không chạm
+ * store (mục D), nên props ở đây là props hợp lệ theo đúng hình dạng
+ * `ViolationCause`/`ViolationAction` mà `types.ts` mô tả — không phải viết lại logic
+ * sinh nguyên nhân của hook. Số nguyên nhân THẬT mà hook sinh ra được `G2` bảo vệ ở
+ * phía hook; ở đây bám sát ví dụ minh hoạ của phán quyết G2 trong CONTRACT.md
+ * ("nhận diện tự động có thể sai — độ tin cậy chỉ…").
  */
-
-import type { ComponentType } from 'react';
 
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -47,7 +37,15 @@ import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
+import {
+  idsOnLevel,
+  isEntityOfKind,
+  normalizeSpatial,
+  type NormalizedSpatial,
+} from '@/domain/spatial/normalize';
+import type { Wall } from '@/domain/spatial/types';
+import { resolveWallShapes } from '@/domain/walls/joints';
+import { toSolidWall } from '@/lib/commands/business/shared';
 import { formatNumber } from '@/lib/format/number';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -61,6 +59,7 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 
+import { ViolationDetail } from './ViolationDetail';
 import type {
   ViolationAction,
   ViolationCause,
@@ -74,27 +73,11 @@ afterEach(() => {
 });
 
 /* ==========================================================================
- * 0. Hạ tầng: nhập `./ViolationDetail` qua biến, không qua chuỗi tĩnh.
+ * 0. Hạ tầng.
  * ========================================================================== */
 
-/** Xem lời giải thích ở đầu file. */
-async function importFromScreen<T>(specifier: string): Promise<T> {
-  return import(/* @vite-ignore */ specifier) as Promise<T>;
-}
-
-async function loadView(): Promise<ComponentType<ViolationDetailViewProps>> {
-  const mod = await importFromScreen<{ ViolationDetail: ComponentType<ViolationDetailViewProps> }>(
-    './ViolationDetail',
-  );
-
-  return mod.ViolationDetail;
-}
-
-function renderView(
-  View: ComponentType<ViolationDetailViewProps>,
-  props: ViolationDetailViewProps,
-) {
-  return renderWithProviders(<View {...props} />);
+function renderView(props: ViolationDetailViewProps) {
+  return renderWithProviders(<ViolationDetail {...props} />);
 }
 
 /* ==========================================================================
@@ -111,6 +94,68 @@ function ruleOf(code: string): Rule {
   }
 
   return rule;
+}
+
+/**
+ * `figure2d` THẬT của một bộ mẫu, dựng bằng chính hai hàm domain mà hook dùng.
+ *
+ * Không mảng toạ độ viết tay: props của khối hình phải là một mặt bằng dựng được
+ * thì cây render mới đi qua nhánh `<polygon>`, và `expectAccessible` / bảy trạng
+ * thái mới soát đúng thứ người dùng nhìn thấy. Đây là dựng DỮ LIỆU VÀO cho một
+ * view thuần, không phải gọi lại hook (view test chỉ nhận props — mục D).
+ */
+function figureOf(
+  graph: NormalizedSpatial,
+  subjectEntityId: string,
+): ViolationDetailViewProps['figure2d'] {
+  const level = Object.values(graph.byId).find((entity) => isEntityOfKind('level', entity));
+
+  if (level === undefined || !isEntityOfKind('level', level)) {
+    throw new Error('bộ mẫu không có tầng nào — không dựng được mặt bằng 2D');
+  }
+
+  const walls: Wall[] = [];
+
+  for (const id of idsOnLevel(graph, level.id)) {
+    const entity = graph.byId[id];
+
+    if (entity !== undefined && isEntityOfKind('wall', entity)) {
+      walls.push(entity);
+    }
+  }
+
+  let shapes;
+
+  try {
+    shapes = resolveWallShapes(walls.map((wall) => toSolidWall(wall, level))).shapes;
+  } catch {
+    // Đúng như hook: một tầng có tường không dùng được (dày 40 mm, ngoài khoảng
+    // 60–600) là tầng KHÔNG vẽ được, không phải một sự cố. `figureUnavailable`
+    // bật lên và phần chữ đứng một mình — `VIOLATED_BUILDING_SCENARIO` rơi vào
+    // đúng trường hợp này, và đó là lý do trạng thái "một phần" không có hình.
+    return null;
+  }
+
+  const points = shapes.flatMap((shape) => [...shape.outline]);
+
+  if (points.length === 0) {
+    return null;
+  }
+
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+
+  return {
+    viewBox: `${String(minX)} ${String(minY)} ${String(Math.max(...xs) - minX)} ${String(Math.max(...ys) - minY)}`,
+    shapes: shapes.map((shape) => ({
+      id: shape.wallId,
+      points: shape.outline.map((point) => `${String(point.x)},${String(point.y)}`).join(' '),
+      isSubject: shape.wallId === subjectEntityId,
+      isDimmed: false,
+    })),
+  };
 }
 
 /** Nhóm 1 — `FURNITURE-CLASH` thật trên bộ mẫu "sạch": đồ đạc chồng tường/nhau. */
@@ -249,6 +294,11 @@ function emptyProps(): ViolationDetailViewProps {
     figureMode: '2d',
     onFigureModeChange: vi.fn(),
     previewEntityIds: null,
+    // Chưa có vi phạm nào để dựng ngữ cảnh hình: khối 5 biến khỏi DOM, phần chữ
+    // đứng một mình — không khung vỡ (types.ts, `figureUnavailable`).
+    figure2d: null,
+    figureRef: vi.fn(),
+    figureUnavailable: true,
     causes: [],
     actions: [],
     onAction: vi.fn(),
@@ -273,6 +323,7 @@ function emptyProps(): ViolationDetailViewProps {
 interface LoadedArgs {
   readonly violation: Violation;
   readonly rule: Rule;
+  readonly figure2d: ViolationDetailViewProps['figure2d'];
   readonly objects: readonly ViolationObject[];
   readonly causes: readonly ViolationCause[];
   readonly actions: readonly ViolationAction[];
@@ -281,6 +332,7 @@ interface LoadedArgs {
 const SUCCESS_ARGS: LoadedArgs = {
   violation: SUCCESS_VIOLATION,
   rule: SUCCESS_RULE,
+  figure2d: figureOf(NORMALIZED_CLEAN, SUCCESS_VIOLATION.entityId),
   objects: SUCCESS_OBJECTS,
   causes: SUCCESS_CAUSES,
   actions: SUCCESS_ACTIONS,
@@ -289,6 +341,7 @@ const SUCCESS_ARGS: LoadedArgs = {
 const PARTIAL_ARGS: LoadedArgs = {
   violation: PARTIAL_VIOLATION,
   rule: PARTIAL_RULE,
+  figure2d: figureOf(NORMALIZED_VIOLATED, PARTIAL_VIOLATION.entityId),
   objects: PARTIAL_OBJECTS,
   causes: PARTIAL_CAUSES,
   actions: [],
@@ -312,6 +365,11 @@ function loadedProps(args: LoadedArgs): ViolationDetailViewProps {
     figureMode: '2d',
     onFigureModeChange: vi.fn(),
     previewEntityIds: null,
+    // Hook đặt `figureUnavailable = figure2d === null` — props ở đây theo đúng
+    // luật đó, không tự đặt một cặp giá trị mà hook không bao giờ phát ra.
+    figure2d: args.figure2d,
+    figureRef: vi.fn(),
+    figureUnavailable: args.figure2d === null,
     causes: args.causes,
     actions: args.actions,
     onAction: vi.fn(),
@@ -387,14 +445,13 @@ function scenarioOf(state: SevenStateScenario['state']): SevenStateScenario {
  * ========================================================================== */
 
 describe('A11 — bảy trạng thái của ViolationDetail', () => {
-  it('dựng đủ bảy, không trạng thái nào ra màn trắng', async () => {
-    const View = await loadView();
+  it('dựng đủ bảy, không trạng thái nào ra màn trắng', () => {
     const covered: string[] = [];
 
     expectSevenStates((scenario) => {
       covered.push(scenario.label);
 
-      return renderView(View, propsFor(scenario));
+      return renderView(propsFor(scenario));
     }, createSevenStateScenarios());
 
     console.log(
@@ -410,9 +467,8 @@ describe('A11 — bảy trạng thái của ViolationDetail', () => {
  * ========================================================================== */
 
 describe('R-72 — expectAccessible và expectVietnamese trên cây render thật', () => {
-  it('trạng thái "success" tiếp cận được và toàn chữ tiếng Việt có dấu', async () => {
-    const View = await loadView();
-    const { container } = renderView(View, propsFor(scenarioOf('success')));
+  it('trạng thái "success" tiếp cận được và toàn chữ tiếng Việt có dấu', () => {
+    const { container } = renderView(propsFor(scenarioOf('success')));
 
     expectAccessible(container);
     expectVietnamese(container);
@@ -441,10 +497,9 @@ describe('G2 — luôn ít nhất hai nguyên nhân có thể', () => {
     expect(PARTIAL_CAUSES.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('view hiện đủ mọi nguyên nhân trong DOM', async () => {
-    const View = await loadView();
+  it('view hiện đủ mọi nguyên nhân trong DOM', () => {
     const props = propsFor(scenarioOf('success'));
-    renderView(View, props);
+    renderView(props);
 
     for (const cause of props.causes) {
       expect(screen.getByText(cause.text)).toBeTruthy();
@@ -460,8 +515,7 @@ describe('G2 — luôn ít nhất hai nguyên nhân có thể', () => {
  * ========================================================================== */
 
 describe('năng lực false thì phần giao diện bị gỡ khỏi DOM', () => {
-  it('canCompareMeasure=false: khối "số đo so với ngưỡng" không hiện dù có nhãn', async () => {
-    const View = await loadView();
+  it('canCompareMeasure=false: khối "số đo so với ngưỡng" không hiện dù có nhãn', () => {
     const probeMeasureLabel = '9,99 m';
     const probeThresholdLabel = '1,00 m';
     const props: ViolationDetailViewProps = {
@@ -472,14 +526,13 @@ describe('năng lực false thì phần giao diện bị gỡ khỏi DOM', () =>
 
     expect(props.capabilities.canCompareMeasure).toBe(false);
 
-    renderView(View, props);
+    renderView(props);
 
     expect(screen.queryByText(probeMeasureLabel)).toBeNull();
     expect(screen.queryByText(probeThresholdLabel)).toBeNull();
   });
 
-  it('canDismiss=false: hàng "bỏ qua" không hiện dù `actions` có mang nó', async () => {
-    const View = await loadView();
+  it('canDismiss=false: hàng "bỏ qua" không hiện dù `actions` có mang nó', () => {
     const base = propsFor(scenarioOf('success'));
     const props: ViolationDetailViewProps = {
       ...base,
@@ -489,7 +542,7 @@ describe('năng lực false thì phần giao diện bị gỡ khỏi DOM', () =>
 
     expect(props.capabilities.canDismiss).toBe(false);
 
-    renderView(View, props);
+    renderView(props);
 
     expect(screen.queryByRole('button', { name: DISMISS_ACTION.label })).toBeNull();
     expect(screen.queryByDisplayValue(props.dismissReason)).toBeNull();
@@ -501,14 +554,13 @@ describe('năng lực false thì phần giao diện bị gỡ khỏi DOM', () =>
  * ========================================================================== */
 
 describe('trạng thái 6 "không có quyền": nút sửa vắng mặt, căn cứ vẫn xem được', () => {
-  it('canEdit=false thì không nút hành động nào, nhưng ruleSentence vẫn hiện', async () => {
-    const View = await loadView();
+  it('canEdit=false thì không nút hành động nào, nhưng ruleSentence vẫn hiện', () => {
     const props = propsFor(scenarioOf('forbidden'));
 
     expect(props.capabilities.canEdit).toBe(false);
     expect(props.actions.length).toBeGreaterThan(0);
 
-    renderView(View, props);
+    renderView(props);
 
     for (const action of props.actions) {
       expect(screen.queryByRole('button', { name: action.label })).toBeNull();
@@ -523,13 +575,12 @@ describe('trạng thái 6 "không có quyền": nút sửa vắng mặt, căn c�
  * ========================================================================== */
 
 describe('trạng thái 7 "thu gọn": canvas nhỏ vắng mặt', () => {
-  it('state=collapsed thì không canvas nào trong DOM dù canPreview3d=true', async () => {
-    const View = await loadView();
+  it('state=collapsed thì không canvas nào trong DOM dù canPreview3d=true', () => {
     const props = propsFor(scenarioOf('collapsed'));
 
     expect(props.capabilities.canPreview3d).toBe(true);
 
-    const { container } = renderView(View, props);
+    const { container } = renderView(props);
 
     expect(container.querySelector('canvas')).toBeNull();
   });
@@ -540,13 +591,28 @@ describe('trạng thái 7 "thu gọn": canvas nhỏ vắng mặt', () => {
  * ========================================================================== */
 
 describe('tấm trượt không phải hộp thoại', () => {
-  it('không aria-modal="true", không lớp phủ che mô hình', async () => {
-    const View = await loadView();
-    const { container } = renderView(View, propsFor(scenarioOf('success')));
+  it('không aria-modal="true", không lớp phủ che mô hình', () => {
+    const { container } = renderView(propsFor(scenarioOf('success')));
 
     expect(container.querySelector('[aria-modal="true"]')).toBeNull();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
-    expect(container.querySelector('[class*="overlay"]')).toBeNull();
+
+    // Thứ phải vắng mặt là một phần tử TRẢI KÍN và TÔ NỀN — đúng hai thứ mà
+    // `Drawer.Root` làm (`absolute inset-0 bg-bg-overlay`, Drawer.tsx:132) và
+    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app/88 backdrop-blur-sm`).
+    //
+    // Bắt theo chuỗi con "overlay" thì `shadow-overlay` — token ĐỔ BÓNG mà chín tấm
+    // nổi khác trong repo cùng dùng — dính oan; bắt theo `inset-0` một mình thì con
+    // trượt bên trong `SegmentedControl` (`absolute inset-0 … bg-bg-surface`, rộng
+    // đúng một ô của chính nó) cũng dính oan. Cặp "trải kín + tô nền phủ" mới là lớp
+    // phủ thật.
+    expect(container.querySelector('[class*="bg-bg-overlay"]')).toBeNull();
+
+    const covering = [...container.querySelectorAll('[class~="inset-0"]')].filter((element) =>
+      /(^| )bg-bg-(overlay|app)($| |\/)|backdrop-blur/.test(element.getAttribute('class') ?? ''),
+    );
+
+    expect(covering).toHaveLength(0);
   });
 });
 
@@ -555,13 +621,12 @@ describe('tấm trượt không phải hộp thoại', () => {
  * ========================================================================== */
 
 describe('A12 — J/K duyệt qua lại không đóng tấm, Esc đóng tấm', () => {
-  it('J gọi onNext, K gọi onPrevious, không gọi onClose', async () => {
-    const View = await loadView();
+  it('J gọi onNext, K gọi onPrevious, không gọi onClose', () => {
     const onNext = vi.fn();
     const onPrevious = vi.fn();
     const onClose = vi.fn();
 
-    renderView(View, {
+    renderView({
       ...propsFor(scenarioOf('success')),
       onNext,
       onPrevious,
@@ -576,11 +641,10 @@ describe('A12 — J/K duyệt qua lại không đóng tấm, Esc đóng tấm', 
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('Esc gọi onClose', async () => {
-    const View = await loadView();
+  it('Esc gọi onClose', () => {
     const onClose = vi.fn();
 
-    renderView(View, { ...propsFor(scenarioOf('success')), onClose });
+    renderView({ ...propsFor(scenarioOf('success')), onClose });
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
@@ -593,8 +657,7 @@ describe('A12 — J/K duyệt qua lại không đóng tấm, Esc đóng tấm', 
  * ========================================================================== */
 
 describe('trỏ vào một hàng lựa chọn → xem trước hậu quả', () => {
-  it('trỏ vào báo onActionHover(kind), rời khỏi báo lại null', async () => {
-    const View = await loadView();
+  it('trỏ vào báo onActionHover(kind), rời khỏi báo lại null', () => {
     const onActionHover = vi.fn();
     const props: ViolationDetailViewProps = {
       ...propsFor(scenarioOf('success')),
@@ -606,7 +669,7 @@ describe('trỏ vào một hàng lựa chọn → xem trước hậu quả', () 
       throw new Error('propsFor("success") phải có ít nhất một hành động để trỏ vào');
     }
 
-    renderView(View, props);
+    renderView(props);
 
     const trigger = screen.getByRole('button', { name: action.label });
     const row = trigger.closest('li') ?? trigger.closest('[role="listitem"]') ?? trigger;

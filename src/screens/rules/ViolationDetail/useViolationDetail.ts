@@ -82,7 +82,6 @@ import { applyInvalidation } from '@/lib/query/invalidation';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useShortcut } from '@/hooks/useShortcut';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import { DEFAULT_CAMERA_RIG, restingHeading } from '@/lib/three/present';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
@@ -959,40 +958,19 @@ export function useViolationDetail(
   }, [isAdvancing, violations.length]);
 
   /* ---------------------------------------------------------------------- */
-  /* Bàn phím — đăng ký qua sổ phím tắt, không `addEventListener` (R-72).     */
+  /* Bàn phím — đăng ký ở view, không ở đây.                                 */
   /* ---------------------------------------------------------------------- */
 
   /*
-   * Phạm vi `sidePanel`, KHÔNG chiếm phạm vi (`useShortcutScope`): tấm trượt
-   * không phải hộp thoại và không bao giờ che khuất mô hình, nên phím của khung
-   * vẽ phải còn sống ngay bên cạnh nó.
+   * `J` / `K` / `Escape` đăng ký ở `./ViolationDetail`, ngay cạnh phần DOM mà
+   * chúng điều khiển. Đăng ký ở CẢ HAI nơi là hai phím tắt trùng trên cùng
+   * một tổ hợp, và `Escape` sẽ gọi `onClose` hai lần.
    *
-   * `Ctrl+Z` không có ở đây: nó đã đăng ký một lần, phạm vi `global`, tại
-   * `routes/router.tsx`. Đăng ký lại là dựng một phím tắt trùng.
+   * Hook giữ `onNext` / `onPrevious` / `onClose` làm phần logic; view nối chúng
+   * vào bàn phím qua sổ phím tắt, không `addEventListener` (R-72). `Ctrl+Z`
+   * không thuộc bên nào: nó đã đăng ký một lần, phạm vi `global`, tại
+   * `routes/router.tsx`.
    */
-  useShortcut({
-    id: 'violationDetail.next',
-    combo: 'J',
-    scope: 'sidePanel',
-    description: 'sang vi phạm kế tiếp',
-    onTrigger: onNext,
-  });
-
-  useShortcut({
-    id: 'violationDetail.previous',
-    combo: 'K',
-    scope: 'sidePanel',
-    description: 'về vi phạm liền trước',
-    onTrigger: onPrevious,
-  });
-
-  useShortcut({
-    id: 'violationDetail.close',
-    combo: 'Escape',
-    scope: 'sidePanel',
-    description: 'đóng tấm trượt chi tiết vi phạm',
-    onTrigger: onClose,
-  });
 
   /* ---------------------------------------------------------------------- */
   /* Khối 5 — hai chế độ hình.                                                */

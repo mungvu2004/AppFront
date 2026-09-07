@@ -13,13 +13,9 @@
  * file này (và ngược lại): mỗi file tự tính dữ liệu mẫu của nó từ cùng một
  * nguồn thật, đúng quy ước đã có của `RuleReport`.
  *
- * `./ViolationDetail` là việc của một worker khác và CHƯA tồn tại trong
- * worktree này lúc viết file — `npx tsc --noEmit` vì vậy đỏ trên đúng import
- * này (báo trong `worker_done`, không phải lỗi ẩn), giống hệt lý do
- * `ViolationDetail.test.tsx` phải giấu import của nó sau một biến. Storybook
- * (`Meta<typeof ViolationDetail>`) cần một tham chiếu component thật ở thời
- * điểm biên dịch nên không dùng được mẹo đó ở đây; khi lớp gộp có đủ
- * `ViolationDetail.tsx`, import này phân giải thật và không cần sửa gì.
+ * `figure2d` của các story đã tải là mặt bằng THẬT của bộ mẫu, dựng bằng đúng
+ * hai hàm domain mà hook dùng (`resolveWallShapes` + `toSolidWall`) — xem
+ * {@link figureOf}. Story vẫn là view thuần: đây là dữ liệu vào, không phải hook.
  */
 
 import type { Meta, StoryObj } from '@storybook/react';
@@ -28,7 +24,15 @@ import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
+import {
+  idsOnLevel,
+  isEntityOfKind,
+  normalizeSpatial,
+  type NormalizedSpatial,
+} from '@/domain/spatial/normalize';
+import type { Wall } from '@/domain/spatial/types';
+import { resolveWallShapes } from '@/domain/walls/joints';
+import { toSolidWall } from '@/lib/commands/business/shared';
 import { formatNumber } from '@/lib/format/number';
 import { CLEAN_BUILDING_SCENARIO, VIOLATED_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
 
@@ -67,6 +71,67 @@ function ruleOf(code: string): Rule {
   }
 
   return rule;
+}
+
+/**
+ * `figure2d` THẬT của một bộ mẫu, dựng bằng chính hai hàm domain mà hook dùng.
+ *
+ * Không mảng toạ độ viết tay: story phải cho thấy khối hình như người dùng thấy,
+ * nên mặt bằng phải là mặt bằng dựng được từ bộ mẫu chuẩn. Đây là dựng DỮ LIỆU
+ * VÀO cho một view thuần, không phải gọi hook trong story.
+ */
+function figureOf(
+  graph: NormalizedSpatial,
+  subjectEntityId: string,
+): ViolationDetailViewProps['figure2d'] {
+  const level = Object.values(graph.byId).find((entity) => isEntityOfKind('level', entity));
+
+  if (level === undefined || !isEntityOfKind('level', level)) {
+    throw new Error('bộ mẫu không có tầng nào — không dựng được mặt bằng 2D');
+  }
+
+  const walls: Wall[] = [];
+
+  for (const id of idsOnLevel(graph, level.id)) {
+    const entity = graph.byId[id];
+
+    if (entity !== undefined && isEntityOfKind('wall', entity)) {
+      walls.push(entity);
+    }
+  }
+
+  let shapes;
+
+  try {
+    shapes = resolveWallShapes(walls.map((wall) => toSolidWall(wall, level))).shapes;
+  } catch {
+    // Đúng như hook: một tầng có tường không dùng được (dày 40 mm, ngoài khoảng
+    // 60–600) là tầng KHÔNG vẽ được, không phải một sự cố. `figureUnavailable`
+    // bật lên và phần chữ đứng một mình — `VIOLATED_BUILDING_SCENARIO` rơi vào
+    // đúng trường hợp này, và đó là lý do trạng thái "một phần" không có hình.
+    return null;
+  }
+
+  const points = shapes.flatMap((shape) => [...shape.outline]);
+
+  if (points.length === 0) {
+    return null;
+  }
+
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+
+  return {
+    viewBox: `${String(minX)} ${String(minY)} ${String(Math.max(...xs) - minX)} ${String(Math.max(...ys) - minY)}`,
+    shapes: shapes.map((shape) => ({
+      id: shape.wallId,
+      points: shape.outline.map((point) => `${String(point.x)},${String(point.y)}`).join(' '),
+      isSubject: shape.wallId === subjectEntityId,
+      isDimmed: false,
+    })),
+  };
 }
 
 /** `FURNITURE-CLASH` thật trên bộ mẫu "sạch" — đồ đạc chồng tường/nhau, xoá được. */
@@ -190,6 +255,11 @@ const EMPTY_PROPS: ViolationDetailViewProps = {
   figureMode: '2d',
   onFigureModeChange: noop,
   previewEntityIds: null,
+  // Chưa có vi phạm nào để dựng ngữ cảnh hình: khối 5 biến khỏi DOM, phần chữ
+  // đứng một mình — không khung vỡ (types.ts, `figureUnavailable`).
+  figure2d: null,
+  figureRef: noop,
+  figureUnavailable: true,
   causes: [],
   actions: [],
   onAction: noop,
@@ -213,6 +283,7 @@ const EMPTY_PROPS: ViolationDetailViewProps = {
 interface LoadedArgs {
   readonly violation: Violation;
   readonly rule: Rule;
+  readonly figure2d: ViolationDetailViewProps['figure2d'];
   readonly objects: readonly ViolationObject[];
   readonly causes: readonly ViolationCause[];
   readonly actions: readonly ViolationAction[];
@@ -221,6 +292,7 @@ interface LoadedArgs {
 const SUCCESS_ARGS: LoadedArgs = {
   violation: SUCCESS_VIOLATION,
   rule: SUCCESS_RULE,
+  figure2d: figureOf(NORMALIZED_CLEAN, SUCCESS_VIOLATION.entityId),
   objects: SUCCESS_OBJECTS,
   causes: SUCCESS_CAUSES,
   actions: SUCCESS_ACTIONS,
@@ -229,6 +301,7 @@ const SUCCESS_ARGS: LoadedArgs = {
 const PARTIAL_ARGS: LoadedArgs = {
   violation: PARTIAL_VIOLATION,
   rule: PARTIAL_RULE,
+  figure2d: figureOf(NORMALIZED_VIOLATED, PARTIAL_VIOLATION.entityId),
   objects: PARTIAL_OBJECTS,
   causes: PARTIAL_CAUSES,
   actions: [],
@@ -246,6 +319,9 @@ function loadedProps(args: LoadedArgs): ViolationDetailViewProps {
     subjectEntityId: args.violation.entityId,
     ruleSentence: args.rule.name,
     objects: args.objects,
+    // Hook đặt `figureUnavailable = figure2d === null` — story theo đúng luật đó.
+    figure2d: args.figure2d,
+    figureUnavailable: args.figure2d === null,
     causes: args.causes,
     actions: args.actions,
     ruleCode: args.violation.ruleCode,

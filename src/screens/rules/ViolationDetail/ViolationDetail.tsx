@@ -69,6 +69,7 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { durationSeconds, EASE } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
+import { allowedActionsOf } from './violationDetailActions';
 import { ViolationFigure, ViolationRuleDiagram } from './ViolationDetailFigure';
 import {
   ViolationActionsSection,
@@ -253,12 +254,16 @@ function ViolationDetailBody({ props }: BodyProps) {
       {canAct ? (
         <ViolationActionsSection
           actions={props.actions}
+          capabilities={props.capabilities}
           onAction={props.onAction}
           onActionHover={props.onActionHover}
         />
       ) : null}
 
-      <ViolationDetailNotices hasActions={canAct && props.actions.length > 0} props={props} />
+      <ViolationDetailNotices
+        hasActions={canAct && allowedActionsOf(props.actions, props.capabilities).length > 0}
+        props={props}
+      />
 
       <ViolationFooterSection levelId={props.levelId} ruleCode={props.ruleCode} />
     </div>
@@ -281,6 +286,28 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
   // A12. Phạm vi `sidePanel`, không phải `dialog`: `dialog` là tầng nuốt mọi phím nó
   // không nhận, và một tấm trượt sống CẠNH mô hình thì không được phép làm thế — `W`
   // vẫn phải đổi công cụ trên canvas trong lúc tấm trượt mở.
+  //
+  // Cả ba phím ở ĐÂY chứ không ở `useViolationDetail`: bàn phím là một mặt của cùng
+  // lớp trình bày này, và đăng ký ở cả hai nơi là hai phím tắt trùng trên cùng một tổ
+  // hợp — `Escape` sẽ gọi `onClose` hai lần. Hook giữ ba hàm; view nối chúng vào bàn
+  // phím. `Ctrl+Z` không có ở đây: đã đăng ký một lần, phạm vi `global`, tại
+  // `routes/router.tsx`.
+  useShortcut({
+    combo: 'J',
+    description: 'sang vi phạm kế tiếp',
+    id: 'sidePanel.violationDetail.next',
+    onTrigger: props.onNext,
+    scope: 'sidePanel',
+  });
+
+  useShortcut({
+    combo: 'K',
+    description: 'về vi phạm liền trước',
+    id: 'sidePanel.violationDetail.previous',
+    onTrigger: props.onPrevious,
+    scope: 'sidePanel',
+  });
+
   useShortcut({
     combo: 'Escape',
     description: 'đóng tấm trượt chi tiết vi phạm',

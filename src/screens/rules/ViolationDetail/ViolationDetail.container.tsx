@@ -8,20 +8,30 @@
  * mở được tấm trượt bằng đúng một thẻ,
  *
  * ```tsx
- * <ViolationDetailContainer ruleCode={row.ruleCode} entityId={row.entityId} onClose={close} />
+ * <ViolationDetailContainer
+ *   violations={report.violations}
+ *   initialIndex={openedIndex}
+ *   floorId={levelId}
+ *   onClose={close}
+ * />
  * ```
  *
- * mà không phải viết thêm một dòng logic nào. `projectId` là **tuỳ chọn** vì màn cha
- * thường đã cầm sẵn nó; khi vắng, container đọc `useParams()` làm phương án dự phòng,
- * đúng khuôn `RuleReport.container.tsx`.
+ * mà không phải viết thêm một dòng logic nào. Cha đưa xuống **cả danh sách** vi phạm
+ * chứ không phải một cặp `ruleCode`/`entityId`: tấm trượt duyệt qua lại bằng `J`/`K`
+ * (`onPrevious`/`onNext` của view), và tấm trượt KHÔNG được chạy lại bộ luật để tự
+ * dựng lại danh sách — S-33 vừa chạy nó xong, chạy lần hai là hai sự thật khác nhau
+ * trên cùng một màn hình. `projectId` là **tuỳ chọn** vì màn cha thường đã cầm sẵn nó;
+ * khi vắng, container đọc `useParams()` làm phương án dự phòng, đúng khuôn
+ * `RuleReport.container.tsx`.
  *
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản `src/App.tsx` đang gắn (R-62),
  * KHÔNG phải bản ở `src/lib/screen-state`. Phần dự phòng dựng bằng `EmptyState` từ
  * `report.description`, cùng khuôn `RuleReport.container.tsx` và
  * `ExplodedView.container.tsx`.
  *
- * `key={...}` trên ranh giới lỗi ghép từ mã luật và mã đối tượng: chuyển sang vi phạm
- * khác là gắn lại ranh giới, nên một lần hỏng ở vi phạm này không dính sang vi phạm sau.
+ * `key={...}` trên ranh giới lỗi ghép từ mã luật và mã đối tượng của vi phạm được mở
+ * đầu tiên: cha mở sang vi phạm khác là gắn lại ranh giới, nên một lần hỏng ở vi phạm
+ * này không dính sang vi phạm sau.
  */
 
 import { useParams } from 'react-router-dom';
@@ -31,6 +41,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { Violation } from '@/domain/rules/registry';
 
 import { ViolationDetail } from './ViolationDetail';
 import { useViolationDetail } from './useViolationDetail';
@@ -42,11 +53,16 @@ const SCREEN_ID = 'violation-detail';
 export interface ViolationDetailContainerProps {
   /** Mã dự án. Khi có, dùng nó thay vì đọc URL — để màn khác nhúng được container này. */
   readonly projectId?: string;
-  /** Vi phạm nào: mã luật. */
-  readonly ruleCode: string;
-  /** Đối tượng gây lỗi. */
-  readonly entityId: string;
-  readonly levelId?: string;
+  /**
+   * Danh sách vi phạm của màn cha, đã sắp sẵn. Chuyển thẳng xuống hook.
+   *
+   * Cha sở hữu danh sách này vì cha vừa chạy `runRules` qua `queryKeys.violation.byProject`.
+   */
+  readonly violations: readonly Violation[];
+  /** Vi phạm được mở đầu tiên. `J`/`K` đi tiếp từ đây. */
+  readonly initialIndex: number;
+  /** Tầng đang mở ở vỏ — khoá mất-hiệu-lực của lượt chạy lại luật cần nó. */
+  readonly floorId: string;
   /** Quyền của người đang xem. Chuyển thẳng xuống hook, quyết định trạng thái 6. */
   readonly canEdit?: boolean;
   /** Vỏ ngoài báo màn đang ở chế độ thu gọn. Chuyển thẳng xuống hook, quyết định trạng thái 7. */
@@ -77,6 +93,11 @@ function ViolationDetailCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
+interface WiredViolationDetailProps extends ViolationDetailContainerProps {
+  /** Đã phân giải xong ở container, nên ở đây không còn tuỳ chọn nữa. */
+  readonly projectId: string;
+}
+
 /**
  * Hook cộng view, không có provider nào ở giữa.
  *
@@ -84,13 +105,13 @@ function ViolationDetailCrashFallback({ report, retry }: ScreenErrorFallback) {
  * không mang giá trị `undefined` — cùng khuôn trải có điều kiện của
  * `RuleReport.container.tsx`.
  */
-function WiredViolationDetail(props: ViolationDetailContainerProps) {
+function WiredViolationDetail(props: WiredViolationDetailProps) {
   const viewProps = useViolationDetail({
-    entityId: props.entityId,
+    violations: props.violations,
+    initialIndex: props.initialIndex,
+    projectId: props.projectId,
+    floorId: props.floorId,
     onClose: props.onClose,
-    ruleCode: props.ruleCode,
-    ...(props.projectId !== undefined ? { projectId: props.projectId } : {}),
-    ...(props.levelId !== undefined ? { levelId: props.levelId } : {}),
     ...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
   });
@@ -99,7 +120,7 @@ function WiredViolationDetail(props: ViolationDetailContainerProps) {
 }
 
 /**
- * `<ViolationDetailContainer ruleCode entityId onClose />` — tấm trượt đã nối dây.
+ * `<ViolationDetailContainer violations initialIndex floorId onClose />` — tấm trượt đã nối dây.
  *
  * Không có mã dự án ở props lẫn ở URL thì tấm trượt **không dựng gì cả**. Đó là quyết
  * định có chủ ý: S-34 là một lớp phụ mở trên một màn khác, và một tấm trượt rỗng báo lỗi
@@ -109,6 +130,7 @@ function WiredViolationDetail(props: ViolationDetailContainerProps) {
 export function ViolationDetailContainer(props: ViolationDetailContainerProps) {
   const params = useParams<{ id: string }>();
   const projectId = props.projectId ?? params.id;
+  const opened = props.violations[props.initialIndex];
 
   if (projectId === undefined || projectId.length === 0) {
     return null;
@@ -116,7 +138,7 @@ export function ViolationDetailContainer(props: ViolationDetailContainerProps) {
 
   return (
     <ScreenErrorBoundary
-      key={`${props.ruleCode}:${props.entityId}`}
+      key={opened === undefined ? 'none' : `${opened.ruleCode}:${opened.entityId}`}
       renderFallback={({ report, retry }) => (
         <ViolationDetailCrashFallback report={report} retry={retry} />
       )}
