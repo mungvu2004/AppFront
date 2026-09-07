@@ -366,6 +366,9 @@ export interface ViewerShellProps {
   readonly inspectorHint: string;
   /** Mã đối tượng cần cuộn vào tầm nhìn — S-11, đồng bộ hai chiều. */
   readonly scrollToEntityId: string | null;
+  /** Mục riêng của màn nội dung, chèn vào panel phải dưới phần thanh tra.
+   *  Vắng mặt thì panel phải y như hôm nay. */
+  readonly inspectorSections?: ReactNode;
 
   /* Thanh trạng thái. */
   readonly status: ViewerStatusViewModel;

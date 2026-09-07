@@ -74,6 +74,14 @@ export const CACHE_POLICY = {
  * Maps a query domain (the first query key segment) to its policy tier.
  * Domains not listed here fall back to the 'default' tier.
  */
+/**
+ * Phép đo đã ghim (LG-3) KHÔNG có mục ở đây, và đó là chủ ý chứ không phải bỏ
+ * sót: nó rơi về bậc `'default'` (30 giây) — đúng cách phần lớn domain của
+ * repo đã hoạt động (`floor`, `project`, `quality`, `template`, `version`,
+ * `violation`… không domain nào trong số đó có mục riêng ở đây). Một hồ sơ
+ * lưu kèm dự án đổi chậm hơn nhiều so với việc kéo tường trên canvas —
+ * không cần bậc `spatialDraft` 10 giây của `room`/`space`.
+ */
 const TIER_BY_DOMAIN: Readonly<Record<string, CachePolicyTier>> = Object.freeze({
   drawing: 'spatialDraft',
   library: 'static',
