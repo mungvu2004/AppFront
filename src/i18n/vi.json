@@ -2944,5 +2944,52 @@
       "messageColumn": "mô tả",
       "suggestionColumn": "gợi ý xử lý"
     }
+  },
+  "violationDetail": {
+    "regionLabel": "chi tiết vi phạm",
+    "closeButton": "đóng tấm trượt chi tiết vi phạm",
+    "previousButton": "vi phạm trước",
+    "nextButton": "vi phạm kế tiếp",
+    "shortcuts": {
+      "next": "sang vi phạm kế tiếp",
+      "previous": "về vi phạm liền trước",
+      "close": "đóng tấm trượt chi tiết vi phạm"
+    },
+    "advancing": {
+      "message": "Sắp chuyển sang vi phạm kế tiếp.",
+      "cancelButton": "Giữ lại màn này"
+    },
+    "rule": {
+      "heading": "Luật",
+      "diagram": {
+        "geometry": "sơ đồ hai đoạn tường và khe hở giữa chúng",
+        "circulation": "sơ đồ lối đi và bề rộng thông thuỷ của nó",
+        "area": "sơ đồ một mặt sàn và phần diện tích được đo",
+        "annotation": "sơ đồ một nhãn gắn vào bộ phận nó mô tả",
+        "level": "sơ đồ hai tầng chồng lên nhau và chênh cao giữa chúng"
+      }
+    },
+    "objects": {
+      "heading": "Phát hiện",
+      "confidencePrefix": "độ tin cậy"
+    },
+    "figure": {
+      "regionLabel": "khối hình của vi phạm",
+      "modeSegmentedLabel": "chế độ khối hình",
+      "planLabel": "mặt bằng quanh đối tượng gây lỗi"
+    },
+    "causes": {
+      "heading": "Nguyên nhân có thể"
+    },
+    "actions": {
+      "heading": "Lựa chọn xử lý"
+    },
+    "empty": {
+      "title": "Chưa chọn vi phạm nào",
+      "description": "Chọn một vi phạm trong báo cáo kiểm tra luật để xem luật nào kêu, ở bộ phận nào, và những cách xử lý có sẵn."
+    },
+    "partial": {
+      "description": "Chưa có cách sửa tự động nào cho vi phạm này. Phần căn cứ ở trên đủ để sửa tay trên bản vẽ."
+    }
   }
 }
