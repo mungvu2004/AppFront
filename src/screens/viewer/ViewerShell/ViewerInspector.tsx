@@ -12,7 +12,7 @@
  * sáng lên — đi qua `onSelectRow`, do vỏ nối vào kho chọn dùng chung.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -28,6 +28,7 @@ export interface ViewerInspectorProps {
   readonly scrollToEntityId: string | null;
   readonly errorMessage: string | null;
   readonly onRetry: () => void;
+  readonly inspectorSections?: ReactNode;
 }
 
 export function ViewerInspector({
@@ -37,6 +38,7 @@ export function ViewerInspector({
   scrollToEntityId,
   errorMessage,
   onRetry,
+  inspectorSections,
 }: ViewerInspectorProps) {
   const rowsRef = useRef<HTMLDListElement | null>(null);
 
@@ -113,6 +115,8 @@ export function ViewerInspector({
           </section>
         )}
       </div>
+
+      {inspectorSections}
     </aside>
   );
 }
