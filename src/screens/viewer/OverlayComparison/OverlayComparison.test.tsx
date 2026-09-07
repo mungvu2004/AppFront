@@ -7,29 +7,28 @@
  * `ScaleCalibration.test.tsx` — chỉ props, không hook, không mạng, vì
  * {@link OverlayComparison} là một hàm của props (mục D).
  *
- * ## KHÔNG lượt kiểm nào ở đây chạy được trong worktree này hôm nay
+ * ## Hai điều kiện lượt kiểm này chờ — Lớp 3 đã gộp cả hai
  *
- * `OverlayComparison.tsx` import `OverlayComparisonCanvas`,
- * `OverlayComparisonToolbar`, `OverlayComparisonPanel` — ba file đang viết song
- * song trên nhánh khác (xem chú thích đầu `OverlayComparison.tsx`). Vitest
- * không resolve được ba đường dẫn đó nên MỌI test dưới đây sẽ hỏng ở bước biên
- * dịch module, không chỉ riêng lượt `expectAccessible`. Đây là kết quả ĐÚNG của
- * lượt L2-4, không phải một bài kiểm viết sai — mã được viết đúng cho hình dạng
- * `types.ts` đã chốt, và sẽ chạy được ngay khi Lớp 3 gộp ba file kia vào.
+ * File này được viết ở lượt L2-4 khi `OverlayComparisonCanvas`,
+ * `OverlayComparisonToolbar` và `OverlayComparisonPanel` còn nằm trên ba nhánh
+ * khác, nên MỌI test ở đây khi đó hỏng ngay ở bước biên dịch module. Chúng đã
+ * về cùng nhánh. `expectAccessible` cũng chờ một điều kiện thứ hai — bản vá
+ * viền tiêu điểm của `Slider` và `Table.Row` (mục E của `COMMON-layer2.md`) —
+ * và nhánh `overlay-a11y` đã gộp. Không khẳng định nào bị nới, không `.skip`
+ * nào được thêm (R-70): bài kiểm viết đúng từ đầu, chỉ là chạy được muộn.
  *
- * ## `expectAccessible` — biết trước sẽ đỏ vì MỘT lý do khác nữa
+ * ## `ResizeObserver` — bản giả do Lớp 3 gắn, đúng khuôn màn có canvas
  *
- * Ngay cả sau khi ba file kia có mặt, `expectAccessible` vẫn đỏ cho tới khi
- * nhánh `overlay-a11y` gộp: `Slider` (thanh trượt độ mờ, dùng ở thanh công cụ)
- * và `Table.Row` (dùng ở panel) đang hỏng viền tiêu điểm ở
- * `src/components/ui/Slider.tsx:152-155` và `src/components/ui/Table.tsx:83-90,120`.
- * Bản vá đã được người duyệt cho phép và Lớp 3 gộp trước khi lượt kiểm cấp màn
- * chạy thật (mục E của `COMMON-layer2.md`). Không nới khẳng định, không `.skip`
- * (R-70) — cứ viết đúng, để đỏ đúng lý do.
+ * `OverlayComparisonCanvas.tsx:211` đo khung bằng `ResizeObserver`, mà jsdom
+ * không khai. Lượt L2-4 không thấy chỗ này vì nó chưa dựng nổi cây React. Đây
+ * là seam thật giữa hai worker cùng xanh khi đứng riêng, và cách vá theo đúng
+ * khuôn mọi màn có canvas của repo — `ScaleCalibration.test.tsx:158-213`,
+ * `WallLayerReview.test.tsx`, `RoomLabelReview.test.tsx` — là mỗi test cấp màn
+ * tự gắn bản giả rồi tự gỡ, chứ không đặt vào `vitest.setup.ts` chung.
  */
 
 import { cleanup, fireEvent, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -46,8 +45,36 @@ import { scenarioFor } from './OverlayComparison.stories';
 import { OVERLAY_COMPARISON_SCENARIOS } from './overlayComparisonScenarios';
 import type { OverlayComparisonActions, OverlayComparisonViewModel } from './types';
 
+/**
+ * Khung không đổi kích thước trong lượt kiểm, nên bản giả không cần báo lại gì:
+ * ba phương thức rỗng là đủ để `OverlayComparisonCanvas` gắn và gỡ quan sát mà
+ * không ném. Cùng bản `ScaleCalibration.test.tsx:158-168` dùng.
+ */
+class FakeResizeObserver {
+  observe(): void {
+    /* kích thước cố định trong lượt kiểm, không có lượt đổi nào để báo */
+  }
+  unobserve(): void {
+    /* như trên */
+  }
+  disconnect(): void {
+    /* như trên */
+  }
+}
+
+beforeEach(() => {
+  // Gắn bằng `Object.defineProperty` rồi gỡ bằng tay ở `afterEach`, để không
+  // lượt kiểm nào ngoài file này thừa hưởng bản giả.
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: FakeResizeObserver,
+  });
+});
+
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(globalThis, 'ResizeObserver');
   vi.restoreAllMocks();
 });
 
@@ -121,16 +148,24 @@ describe('OverlayComparison — khả năng tiếp cận, tiếng Việt (R-72)'
     expectAccessible(container);
   });
 
+  /* `toleranceLabel` của bộ mẫu đóng băng là "dung sai" — tiếng Việt đúng chính
+     tả nhưng không âm tiết nào mang dấu, đúng "điểm mù đã biết" mà
+     `expectVietnamese.ts:63-66` ghi rõ cho một cụm hai từ không dấu.
+     `allowWords` là lối thoát tài liệu hoá sẵn cho đúng trường hợp này, và
+     `OverlayComparisonPanel.test.tsx` đã dùng nó cho cùng chuỗi đó. Lượt L2-4
+     không thấy trước vì panel khi ấy chưa cùng nhánh. */
+  const TOLERANCE_LABEL_WORDS = ['dung', 'sai'];
+
   it('mọi chuỗi hiển thị ở trạng thái thành công là tiếng Việt có dấu', () => {
     const { container } = renderWithProviders(<OverlayComparison {...scenarioFor('success')} />);
 
-    expectVietnamese(container);
+    expectVietnamese(container, { allowWords: TOLERANCE_LABEL_WORDS });
   });
 
   it('mọi chuỗi hiển thị ở trạng thái lỗi cũng là tiếng Việt có dấu', () => {
     const { container } = renderWithProviders(<OverlayComparison {...scenarioFor('error')} />);
 
-    expectVietnamese(container);
+    expectVietnamese(container, { allowWords: TOLERANCE_LABEL_WORDS });
   });
 });
 

@@ -273,8 +273,19 @@ interface OverlayComparisonRecord {
 
 export interface UseOverlayComparisonOptions {
   readonly projectId: string;
-  /** Tầng của đường dẫn. Store là nguồn sự thật của tầng đang chọn; đây là giá trị mở màn. */
-  readonly floorId: LevelId;
+  /**
+   * Tầng của đường dẫn. Store là nguồn sự thật của tầng đang chọn; đây là giá
+   * trị mở màn.
+   *
+   * Kiểu là `string`, không phải `LevelId`: giá trị này tới từ một đoạn URL mà
+   * không ai kiểm trước, đúng như mọi container khác của repo khai nó
+   * (`ScaleCalibrationContainerProps.floorId`, `ROUTES.project.scale`). Thu hẹp
+   * ở đây chỉ đẩy một lượt `as LevelId` lên router — một lời khẳng định sai về
+   * dữ liệu chưa kiểm. Nhãn `L-` không mua được gì bên trong hook: `floorId`
+   * chỉ được đem SO SÁNH với `floor.id`, còn `activeFloorId` mà hook phát ra
+   * luôn lấy từ chính `floors[].id` nên vẫn là `LevelId` thật.
+   */
+  readonly floorId: string;
   /** Vai của người đang xem. Bỏ trống thì đọc từ store (`ProjectSlice.userRoles`). */
   readonly roles?: readonly ProjectRole[];
   /** Ép thanh công cụ xếp hai hàng — cho story và test muốn một câu trả lời cố định. */

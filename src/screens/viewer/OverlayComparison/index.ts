@@ -6,17 +6,29 @@
  * được tái xuất ở đây: chúng là mảnh của một view, không phải API của màn. Cùng
  * lý lẽ `ScaleCalibration/index.ts`.
  *
- * `useOverlayComparison` và `overlayComparisonGateway` không tái xuất ở đây vì
- * hai file đó chưa tồn tại trong worktree này (nhánh `overlay-hook`, viết song
- * song — xem chú thích đầu `OverlayComparison.tsx`); Lớp 3 thêm chúng vào khi gộp.
+ * `OverlayComparisonRoute` là tên `src/routes/router.tsx` nạp qua `lazy(...)`:
+ * route trỏ vào container, không vào view gốc.
+ *
+ * `useOverlayComparison` và `createAppOverlayComparisonGateway` cũng ra từ đây —
+ * chúng là hai nửa còn lại của API màn, cho một màn cha muốn tự dựng vỏ.
  */
 
 export { OverlayComparison } from './OverlayComparison';
 export {
   OVERLAY_COMPARISON_SCREEN_ID,
   OverlayComparisonContainer,
+  OverlayComparisonRoute,
   type OverlayComparisonContainerProps,
 } from './OverlayComparison.container';
+export {
+  createAppOverlayComparisonGateway,
+  type OverlayComparisonGateway,
+} from './overlayComparisonGateway';
+export {
+  useOverlayComparison,
+  type UseOverlayComparisonOptions,
+  type UseOverlayComparisonResult,
+} from './useOverlayComparison';
 export type {
   CompareModeId,
   ConfirmationViewModel,

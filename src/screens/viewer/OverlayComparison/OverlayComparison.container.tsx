@@ -33,8 +33,10 @@
  */
 
 import { useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -49,6 +51,14 @@ import { useOverlayComparison } from './useOverlayComparison';
 
 /** Mã màn, cho ranh giới lỗi — một chỗ viết duy nhất. */
 export const OVERLAY_COMPARISON_SCREEN_ID = 'overlay-comparison';
+
+/**
+ * Thiếu một trong hai tham số đường dẫn thì màn nói ra, không để trắng (A11).
+ * Cùng câu chuyện `ScaleCalibrationRoute`.
+ */
+const MISSING_PARAMS_TITLE = 'Không xác định được bản vẽ cần đối chiếu';
+const MISSING_PARAMS_MESSAGE =
+  'Đường dẫn thiếu mã dự án hoặc mã tầng nên chưa biết phải đối chiếu bản vẽ nào. Hãy mở lại màn này từ danh sách tầng.';
 
 /** Props thật của container — mọi thứ một màn khác cần để mở màn này (R-73). */
 export interface OverlayComparisonContainerProps {
@@ -113,4 +123,33 @@ export function OverlayComparisonContainer(props: OverlayComparisonContainerProp
       <WiredOverlayComparison {...props} />
     </ScreenErrorBoundary>
   );
+}
+
+
+/**
+ * Route thật của màn Đối chiếu bản vẽ, đăng ký tại `src/routes/router.tsx`.
+ *
+ * Đây là nơi DUY NHẤT của màn biết tới router, đúng khuôn
+ * `ScaleCalibrationRoute`: `router.tsx` nạp nó qua `lazy(...)` và không phải
+ * biết màn cần những tham số nào.
+ *
+ * Vai không đọc ở đây mà để container tự đọc `useSession()` — xem ghi chú "Vai
+ * không phải một prop bắt buộc" ở trên. Route chỉ bắc hai tham số đường dẫn.
+ */
+export function OverlayComparisonRoute() {
+  const { floorId, id } = useParams<{ floorId: string; id: string }>();
+
+  if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
+    return (
+      <div className="p-6">
+        <InlineAlert
+          level="violation"
+          message={MISSING_PARAMS_MESSAGE}
+          title={MISSING_PARAMS_TITLE}
+        />
+      </div>
+    );
+  }
+
+  return <OverlayComparisonContainer floorId={floorId} projectId={id} />;
 }

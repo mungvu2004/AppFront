@@ -176,7 +176,17 @@ export function OverlayComparisonPanel({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-default px-4 py-3">
-        <Button disabled={!confirmation.canConfirm} fullWidth onClick={onConfirmMatch} variant="primary">
+        {/* Bọc lại chứ không truyền thẳng: `onConfirmMatch` khai `() => void`, còn
+            `onClick` sẽ đưa một `SyntheticEvent` vào đối số đầu. Cùng cách hàng
+            danh sách ngay trên đây và `Toggle` của thanh công cụ đang làm. */}
+        <Button
+          disabled={!confirmation.canConfirm}
+          fullWidth
+          onClick={() => {
+            onConfirmMatch();
+          }}
+          variant="primary"
+        >
           {confirmation.buttonLabel}
         </Button>
         {confirmation.confirmedNotice !== null && (
