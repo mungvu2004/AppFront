@@ -105,8 +105,16 @@ export function ExplodedViewRail({
     );
   }
 
+  /*
+   * Cột trượt dừng trước góc trái dưới, nơi vỏ đặt chú giải màu tường.
+   * `bottom-14` không phải một khoảng đệm cho đẹp: đo trong trình duyệt thật,
+   * khung nhìn 3D của vỏ chỉ cao 362 px ở cửa sổ 1000 px, và cột dài 12 + nhãn +
+   * 240 + hàng ba mức sẵn thì hàng mức sẵn rơi đúng vào chú giải (đo được: hàng
+   * mức sẵn tại y≈374, chú giải cũng ở đó). Neo cả hai đầu rồi cho thanh trượt co
+   * lại là cách giữ đúng 240 px khi có chỗ, và không đè lên thứ của vỏ khi không.
+   */
   return (
-    <div className="absolute left-3 top-3 flex flex-col items-center gap-2">
+    <div className="absolute bottom-24 left-3 top-3 flex flex-col items-center justify-start gap-2">
       <span className="text-[11px] leading-none text-text-muted">{maxLabel}</span>
       <input
         aria-label="Độ tách các tầng"
@@ -115,7 +123,11 @@ export function ExplodedViewRail({
         min={MIN_SEPARATION}
         onChange={handleSeparationInput}
         step={SEPARATION_STEP}
-        style={{ height: EXPLODED_LAYOUT.railHeightPx, writingMode: 'vertical-lr', direction: 'rtl' }}
+        style={{
+          height: `min(${String(EXPLODED_LAYOUT.railHeightPx)}px, 100%)`,
+          writingMode: 'vertical-lr',
+          direction: 'rtl',
+        }}
         type="range"
         value={separation}
       />

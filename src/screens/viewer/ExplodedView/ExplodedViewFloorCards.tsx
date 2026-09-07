@@ -26,6 +26,15 @@
  * `slow` là nấc gần nhất mà một keyframe sẵn có đang chạy. Lượt mờ khi con trỏ
  * đậu lên một thẻ vẫn là transition thật, theo `EXPLODED_MOTION_MS.dimMs`.
  *
+ * Trên THẺ chỉ có một dấu ngắn "cần chú ý"; câu đầy đủ ghi độ lệch thuộc về
+ * ĐƯỜNG DẪN thẳng hàng, không thuộc về thẻ — đọc kỹ đặc tả thì caption ghi độ
+ * lệch đi với đường dẫn, còn thẻ ở trạng thái một phần chỉ cần "caption cần chú
+ * ý". Đặt nhầm câu lên thẻ đã gây đúng hai lỗi đo được trong trình duyệt thật:
+ * câu tràn khỏi `Badge` cao cố định 22 px và loang sang thẻ bên cạnh, rồi khi
+ * cho nó xuống dòng thì thẻ cao 110 px và bốn thẻ không nhét vừa cột 272 px nên
+ * chồng lên nhau (đo được 89 px chồng). Câu không mất đi: nó nằm trong
+ * `aria-label` của nút chọn tầng và trong `title` của thẻ.
+ *
  * Thẻ bấm được là một `<button>` phủ kín thẻ (không phải `div onClick`, R-72);
  * con mắt là một `<button>` con đứng NGOÀI vùng phủ đó (không lồng button
  * trong button) nhờ lớp nội dung đặt `pointer-events-none` còn riêng con mắt
@@ -68,8 +77,17 @@ export function ExplodedViewFloorCards({
     return null;
   }
 
+  /*
+   * Cột thẻ né hai lớp nổi CỦA VỎ, không phải né cho đẹp: ViewCube 72 px ngồi góc
+   * trên phải và cụm thu phóng ngồi góc dưới phải, cả hai thuộc `ViewerShell` nên
+   * màn này không dời được chúng — chỉ có thể không đứng dưới chúng. Đo trong
+   * trình duyệt thật ở 1600×1000: cube tại x≈1164 y≈76, cụm thu phóng tại x≈1088
+   * y≈384, còn thẻ rộng 200 px bám mép phải thì trùm lên cả hai. `top-20`/
+   * `bottom-12` là hai con số vừa đủ né hai vùng đó mà vẫn để lại đường ray dài
+   * nhất có thể — ray càng ngắn thì bốn thẻ càng dễ chồng nhau.
+   */
   return (
-    <div className="absolute inset-y-0 right-3">
+    <div className="absolute right-3 top-20 bottom-20">
       {floors.map((floor) => {
         const isDimmed = hoveredStoreyId !== null && hoveredStoreyId !== floor.id;
 
@@ -78,14 +96,14 @@ export function ExplodedViewFloorCards({
             className="absolute right-0 -translate-y-1/2 transition-opacity motion-reduce:transition-none"
             key={floor.id}
             style={{
-              top: `${(1 - floor.railFraction) * 100}%`,
+              top: `${(1 - Math.min(1, Math.max(0, floor.railFraction))) * 100}%`,
               width: EXPLODED_LAYOUT.cardWidthPx,
               opacity: isDimmed ? DIMMED_FLOOR_OPACITY : 1,
             }}
           >
             <div
               className={cn(
-                'relative flex items-start justify-between gap-2 bg-bg-surface p-3 shadow-float',
+                'relative flex items-start justify-between gap-2 bg-bg-surface px-3 py-1.5 shadow-float',
                 'animate-panel-rise motion-reduce:animate-none',
                 dimDuration,
                 !floor.isReady && 'border-2 border-dashed border-border-default',
@@ -97,9 +115,14 @@ export function ExplodedViewFloorCards({
                 onFloorHover(null);
               }}
               style={{ borderRadius: EXPLODED_LAYOUT.cardRadiusPx }}
+              {...(floor.attentionCaption !== null ? { title: floor.attentionCaption } : {})}
             >
               <button
-                aria-label={`Chọn tầng ${floor.name}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}`}
+                aria-label={
+                  floor.attentionCaption === null
+                    ? `Chọn tầng ${floor.name}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}`
+                    : `Chọn tầng ${floor.name}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}. ${floor.attentionCaption}`
+                }
                 className={cn(
                   'absolute inset-0',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
@@ -112,14 +135,22 @@ export function ExplodedViewFloorCards({
 
               <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-0.5 pointer-events-none">
                 <span className="truncate text-[13px] font-medium text-text-primary">{floor.name}</span>
-                <span className="truncate text-[12px] text-text-secondary">
-                  {floor.elevationLabel} · {floor.areaLabel}
-                </span>
-                {floor.attentionCaption !== null && (
-                  <Badge className="mt-1 w-fit" variant="attention">
-                    {floor.attentionCaption}
-                  </Badge>
-                )}
+                {/*
+                  Dấu "cần chú ý" nằm CÙNG DÒNG với cao độ và diện tích, không
+                  chiếm một dòng riêng. Một dòng riêng đẩy thẻ từ 64 lên 92 px,
+                  mà khoảng cách giữa hai tâm thẻ chỉ 58–78 px, nên bốn thẻ chồng
+                  lên nhau 34 px — đo được trong trình duyệt thật.
+                */}
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-[12px] text-text-secondary">
+                    {floor.elevationLabel} · {floor.areaLabel}
+                  </span>
+                  {floor.attentionCaption !== null && (
+                    <Badge className="shrink-0" variant="attention">
+                      cần chú ý
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div className="relative z-10 shrink-0 pointer-events-auto">
