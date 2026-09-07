@@ -185,7 +185,7 @@ interface BuiltRows {
  *
  * Khoá là `${ruleCode}:${entityId}` như đã hẹn, nối thêm `#2`, `#3`… cho lần
  * xuất hiện thứ hai trở đi của cùng một cặp: một luật soi ra nhiều lỗi trên
- * cùng một đối tượng là chuyện thật (`WALL-DANGLING-END` báo cả hai đầu tường),
+ * cùng một đối tượng là chuyện thật (luật soát đầu tường hở báo cả hai đầu),
  * và hai hàng trùng khoá sẽ làm hỏng cả danh sách lẫn phép so hai lượt chạy.
  */
 const buildRows = (

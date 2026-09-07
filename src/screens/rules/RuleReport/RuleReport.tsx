@@ -258,7 +258,11 @@ export function RuleReport(props: RuleReportViewProps) {
   // `expandedRuleCodes`; the resolved group is not a rule and has no code, so
   // its one boolean lives here. Nothing about loading or failure is kept in the
   // view — invariant R-64 is about those, and both arrive in `status`.
-  const [isResolvedOpen, setResolvedOpen] = useState(false);
+  //
+  // It starts open. "Mục đã xử lý phải còn nhìn thấy trong nhóm gộp" is one of
+  // the absolute bans, and a group that starts shut hides exactly the rows the
+  // ban is about. The reader can still collapse it.
+  const [isResolvedOpen, setResolvedOpen] = useState(true);
 
   const isRunning = status === 'loading';
   const hasResults = status !== 'empty' && status !== 'error';

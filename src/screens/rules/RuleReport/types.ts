@@ -18,7 +18,7 @@ export interface RuleReportRow {
   /**
    * Khoá ổn định: `${ruleCode}:${entityId}`.
    *
-   * Một luật có thể soi ra NHIỀU lỗi trên CÙNG một đối tượng — `WALL-DANGLING-END`
+   * Một luật có thể soi ra NHIỀU lỗi trên CÙNG một đối tượng — luật soát đầu tường hở
    * cho hai vi phạm trên một bức tường vì tường có hai đầu — nên hai hàng có thể
    * trùng đúng cặp đó. Hàng thứ hai trở đi được nối thêm `#2`, `#3`… để khoá luôn
    * là duy nhất trong một lượt chạy. Hàng đầu tiên giữ nguyên dạng đã hẹn.

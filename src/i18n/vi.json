@@ -2874,5 +2874,75 @@
       "errorMessage": "Không bắt được bề mặt nào dưới con trỏ. Xoay lại góc nhìn rồi thử lại.",
       "pinBlockedCaption": "Bạn không có quyền ghim phép đo trong dự án này. Liên hệ quản trị dự án."
     }
+  },
+  "ruleReport": {
+    "screenTitle": "Kiểm tra luật không gian",
+    "breadcrumb": {
+      "projects": "Dự án",
+      "current": "Kiểm tra luật không gian"
+    },
+    "summary": {
+      "evaluated": "tổng số kiểm tra",
+      "passed": "đạt",
+      "warnings": "cảnh báo",
+      "violations": "vi phạm"
+    },
+    "filters": {
+      "segmentedAriaLabel": "Lọc theo mức độ",
+      "segmented": {
+        "all": "Tất cả",
+        "violation": "Vi phạm",
+        "warning": "Cảnh báo",
+        "passed": "Đạt"
+      },
+      "groupLabel": "Nhóm luật",
+      "groupAllOption": "Tất cả nhóm luật",
+      "levelLabel": "Tầng",
+      "levelAllOption": "Tất cả tầng"
+    },
+    "severity": {
+      "critical": "nghiêm trọng",
+      "warning": "cảnh báo",
+      "suggestion": "gợi ý"
+    },
+    "actions": {
+      "view": "Xem",
+      "rerun": "Chạy kiểm tra lại",
+      "confirmResolved": "Xác nhận đã xử lý"
+    },
+    "resolvedGroupLabel": "Đã xử lý",
+    "empty": {
+      "title": "Chưa chạy kiểm tra luật nào",
+      "description": "Bấm \"Chạy kiểm tra lại\" để soát dự án theo bộ quy tắc không gian hiện có."
+    },
+    "loading": {
+      "title": "Đang chạy kiểm tra…",
+      "progressUnit": "quy tắc đã chạy"
+    },
+    "partial": {
+      "title": "Chỉ chạy được một phần",
+      "description": "Một số nhóm luật chưa chạy được vì thiếu dữ liệu. Bổ sung dữ liệu còn thiếu rồi chạy kiểm tra lại.",
+      "remedyGroupLabel": "nhóm luật"
+    },
+    "error": {
+      "title": "Không chạy được kiểm tra luật",
+      "description": "Có lỗi khi chạy kiểm tra luật không gian của dự án này.",
+      "retry": "Thử lại"
+    },
+    "forbidden": {
+      "title": "Không có quyền xem báo cáo luật",
+      "description": "Vai hiện tại không được xem kết quả kiểm tra luật không gian của dự án này. Liên hệ quản trị dự án nếu cần."
+    },
+    "done": {
+      "noViolations": "Không phát hiện vi phạm nào.",
+      "evaluatedCountPrefix": "Đã chạy",
+      "evaluatedCountSuffix": "quy tắc."
+    },
+    "table": {
+      "entityColumn": "mã đối tượng",
+      "levelColumn": "tầng",
+      "messageColumn": "mô tả",
+      "suggestionColumn": "gợi ý xử lý"
+    }
   }
 }

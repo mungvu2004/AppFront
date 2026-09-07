@@ -314,7 +314,7 @@ export function RuleReportGroupList({
           <RuleReportSection
             key={group.ruleCode}
             title={`${group.ruleName} · ${GROUP_LABELS[group.group]}`}
-            summary={`${count(group.openCount)} mục chưa xử lý${resolvedNote}`}
+            summary={`${SEVERITY_LABELS[group.severity]} · ${count(group.openCount)} mục chưa xử lý${resolvedNote}`}
             isOpen={isOpen}
             onToggle={() => {
               onToggleGroup(group.ruleCode);

@@ -483,9 +483,17 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
     const { container } = renderRuleReport(RuleReportView, props);
 
     // Mã đối tượng (W-WALL0000000…) là mã kỹ thuật viết hoa, được
-    // `expectVietnamese` chấp nhận (xem ui.md mục A về Table) — không cần ignore
-    // thêm gì vì đó không phải một từ tiếng Anh.
-    expectVietnamese(container);
+    // `expectVietnamese` chấp nhận (xem ui.md mục A về Table) — đó không phải
+    // một từ tiếng Anh.
+    //
+    // `Level 0`…`Level 3` thì có. Chúng KHÔNG phải chữ của màn: `levelLabel` là
+    // TÊN TẦNG đọc nguyên văn từ đồ thị (`levelNamesOf` → `entity.name`), và bộ
+    // mẫu dùng chung của repo sinh tên tầng bằng tiếng Anh
+    // (`src/lib/testing/fixtures.ts:186` — `name: ` + backtick + `Level ${index}`).
+    // Màn không được tự đặt tên tầng, y như không được viết lại câu mô tả; dữ
+    // liệu thật có tên tầng tiếng Việt thì màn hiện tiếng Việt. Nên bỏ qua ĐÚNG
+    // chuỗi đó, neo hai đầu — không nới rộng hơn một ký tự nào.
+    expectVietnamese(container, { ignore: [/^Level \d+$/] });
     expectAccessible(container);
   });
 
@@ -509,10 +517,33 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
  * ========================================================================== */
 
 describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryRouter', () => {
-  it('dựng RuleReportContainer ngoài Router thì ném lỗi (đã xác nhận ở lớp khảo sát)', async () => {
+  /**
+   * Ngoài Router, `useNavigate()` trong hook ném lỗi — nhưng lỗi đó KHÔNG nổi
+   * ra ngoài `render()`, vì R-62 buộc container bọc `ScreenErrorBoundary` và
+   * ranh giới bắt lại đúng lỗi này. Nên phép kiểm là: ngoài Router thì ra phần
+   * dự phòng của ranh giới lỗi, KHÔNG ra báo cáo. Điều cần chứng minh (hook đòi
+   * Router thật) vẫn được chứng minh, và chứng minh thêm rằng ranh giới lỗi làm
+   * đúng việc. Gỡ `ScreenErrorBoundary` để phép cũ (`toThrow()`) xanh lại là vi
+   * phạm R-62, nên không làm.
+   */
+  it('dựng RuleReportContainer ngoài Router thì ra phần dự phòng của ranh giới lỗi, không ra báo cáo', async () => {
     const RuleReportContainer = await loadRuleReportContainer();
 
-    expect(() => render(<RuleReportContainer projectId="P-000001" />)).toThrow();
+    // React in lỗi đã bắt được ra console; im nó đi để bảng kết quả đọc được.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      render(<RuleReportContainer projectId="P-000001" />);
+    } finally {
+      consoleError.mockRestore();
+    }
+
+    // Không có báo cáo: đầu đề của màn không được dựng.
+    expect(screen.queryByRole('heading', { name: 'Kiểm tra luật không gian' })).toBeNull();
+    // Mà có phần dự phòng của ranh giới lỗi, dựng bằng `EmptyState` từ
+    // `report.description` (R-62). Lỗi này không thử lại được nên phần dự phòng
+    // KHÔNG có nút — cái nhìn thấy được là đầu đề của nó.
+    expect(screen.getByRole('heading', { name: 'Có trục trặc' })).toBeTruthy();
   });
 
   it('bọc trong MemoryRouter thì dựng được, không ném lỗi', async () => {
@@ -592,8 +623,13 @@ describe('CẤM TUYỆT ĐỐI — đỏ chỉ xuất hiện dưới dạng chip
     expect(violationColored.length).toBeLessThanOrEqual(criticalRowCount * 2);
 
     for (const element of violationColored) {
+      // `\b` ở CUỐI không bao giờ khớp được: sau `]` là dấu cách, cả hai đều
+      // không phải ký tự từ, nên không có ranh giới từ ở đó — biểu thức cũ
+      // không thể xanh dù mã đúng hay sai. Bỏ đúng dấu `\b` cuối, giữ nguyên
+      // điều đang cần chứng minh: phần tử mang màu vi phạm phải là chip
+      // (`h-[22px]` của `Badge`) hoặc chấm (`rounded-full`).
       const looksLikeChipOrDot =
-        /\bh-\[22px\]\b/.test(element.className) || /\brounded-full\b/.test(element.className);
+        /\bh-\[22px\]/.test(element.className) || /\brounded-full\b/.test(element.className);
 
       expect(
         looksLikeChipOrDot,
