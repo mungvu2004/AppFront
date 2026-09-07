@@ -183,23 +183,12 @@ export interface DraftMeasurement {
 /**
  * Ba đơn vị của Select ở đầu mục.
  *
- * `'cm'` đang được việc logic LG-2 bổ sung vào `LengthDisplayUnit`. Cho tới khi
- * việc đó về, union viết thẳng ở đây để nhánh hợp đồng typecheck được; dòng
- * khẳng định bên dưới bắt hai bên phải trùng nhau ngay khi LG-2 về, nên chúng
- * không thể lệch trong im lặng. Điều phối viên đổi lại thành bí danh ở lớp gộp.
+ * Bí danh thẳng của kiểu tầng định dạng, nên hai bên không lệch nhau được: màn
+ * không thể chào một đơn vị mà `formatLength` không in nổi. Trước khi việc logic
+ * bổ sung `'cm'` về, chỗ này là một union viết tay cộng một dòng khẳng định giữ
+ * chỗ; nay `'cm'` đã có thật nên bí danh làm đúng việc đó mà không cần dòng nào.
  */
-export type MeasureUnit = 'mm' | 'cm' | 'm';
-
-/**
- * Mọi đơn vị màn này dùng phải là đơn vị tầng định dạng in được.
- *
- * Hôm nay dòng này đúng vì `LengthDisplayUnit` chưa có `'cm'` — nó chỉ kiểm
- * chiều `LengthDisplayUnit ⊆ MeasureUnit`. Khi LG-2 về, đổi `MeasureUnit`
- * thành `LengthDisplayUnit` và dòng này thành hằng đẳng thức.
- */
-type _MeasureUnitCoversFormatter = LengthDisplayUnit extends MeasureUnit ? true : never;
-const _measureUnitCheck: _MeasureUnitCoversFormatter = true;
-void _measureUnitCheck;
+export type MeasureUnit = LengthDisplayUnit;
 
 export const MEASURE_UNITS = ['mm', 'cm', 'm'] as const satisfies readonly MeasureUnit[];
 
@@ -253,6 +242,23 @@ export interface MeasurementToolProps {
   readonly onHighlight: (id: PinnedMeasurementId | null) => void;
   readonly onToggleVisibility: (id: PinnedMeasurementId) => void;
   readonly onDelete: (id: PinnedMeasurementId) => void;
+
+  /*
+   * Ba hành động mà bàn phím gọi tới — và cũng là ba hành động các nút trên màn
+   * gọi tới.
+   *
+   * Hook đăng ký `M`, `Esc`, `Enter` qua `shortcutRegistry` (R-54) rồi chuyền
+   * đúng ba hàm ấy xuống đây. Hai lý do, cả hai đều là luật:
+   *
+   * 1. A12 nói bàn phím là đường đi hạng nhất, KHÔNG phải đường duy nhất. Một
+   *    hành động chỉ tới được bằng phím là một hành động người dùng chuột không
+   *    có. Ba prop này là chỗ nút bấm cắm vào.
+   * 2. View phải test được CHỈ TỪ PROPS (mục D). Hành động nào chỉ sống trong
+   *    registry thì bài kiểm của view không với tới được.
+   */
+  readonly onToggleTool: () => void;
+  readonly onEscape: () => void;
+  readonly onPin: () => void;
 
   /* Đơn vị. Đổi đơn vị là chỗ DUY NHẤT được chạy số. */
   readonly unit: MeasureUnit;

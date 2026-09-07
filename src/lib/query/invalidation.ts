@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-import { queryKeys, type QueryKey } from './queryKeys';
+import { measurementKeys, queryKeys, type QueryKey } from './queryKeys';
 
 export const WRITE_OPERATIONS = [
   'createProject',
@@ -17,6 +17,8 @@ export const WRITE_OPERATIONS = [
   'setDrawingCorners',
   'persistSpatialLayer',
   'createPropertyTemplate',
+  'saveMeasurement',
+  'deleteMeasurement',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -47,6 +49,10 @@ export interface WriteOperationParamsMap {
   persistSpatialLayer: FloorScopedParams;
   /** A property template was created (U4 gap #5) — project-scoped, not floor-scoped, since a template outlives any one floor. */
   createPropertyTemplate: ProjectScopedParams;
+  /** A measurement was pinned and saved to the project record (LG-3) — project-scoped: a pinned measurement belongs to the project, not to any one floor. */
+  saveMeasurement: ProjectScopedParams;
+  /** A measurement was deleted from the project record (LG-3) — same scope as `saveMeasurement`. */
+  deleteMeasurement: ProjectScopedParams;
 }
 
 type InvalidationMap = {
@@ -150,6 +156,10 @@ export const invalidationMap: InvalidationMap = {
   ],
 
   createPropertyTemplate: ({ projectId }) => [queryKeys.template.byProject(projectId)],
+
+  /** Same key for both — a save and a delete change the exact same list (LG-3). */
+  saveMeasurement: ({ projectId }) => [measurementKeys.all(projectId)],
+  deleteMeasurement: ({ projectId }) => [measurementKeys.all(projectId)],
 };
 
 /**

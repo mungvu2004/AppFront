@@ -50,7 +50,7 @@ import {
 } from '@/lib/testing/sevenStateScenarios';
 
 import { ViewerShellContainer } from './ViewerShell.container';
-import { VIEWER_SHELL_LABEL } from './ViewerShell';
+import { ViewerShell, VIEWER_SHELL_LABEL } from './ViewerShell';
 import { scenarioArgsFor } from './ViewerShell.stories';
 import {
   FIXTURE_ROOM_COUNT,
@@ -691,6 +691,93 @@ describe('[VS-12] sceneActions.frameStorey tới màn nội dung', () => {
     expect(typeof captured.actions?.frameStorey).toBe('function');
 
     unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-13] inspectorSections — khe cho mục nội dung ở panel phải (LG-4).       */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-13] inspectorSections — khe cho mục nội dung ở panel phải', () => {
+  /**
+   * Dựng thẳng `useViewerShell` — không qua container — vì
+   * `ViewerShellContainerProps` (LG-4 không được sửa) chưa biết khe này; khe
+   * này là một prop của `ViewerShell.tsx` thuần, do màn nội dung tự truyền.
+   */
+  function renderShellProps() {
+    const queryClient = createTestQueryClient();
+
+    return renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+  }
+
+  it('vắng mặt: panel phải y hệt hôm nay, không thêm nút, không thêm vùng', () => {
+    const { result, unmount: unmountHook } = renderShellProps();
+    const { unmount } = render(<ViewerShell {...result.current} />);
+
+    const aside = screen.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+
+    console.log(
+      `[VIEWER-SHELL][VS-13] vắng mặt → ${String(aside.querySelectorAll('*').length)} phần tử trong <aside>, không có khe`,
+    );
+
+    expect(within(aside).queryByTestId('inspector-sections-slot')).toBeNull();
+    expect(within(aside).queryAllByRole('button')).toHaveLength(0);
+    expect(within(aside).queryByRole('region')).toBeNull();
+
+    unmount();
+    unmountHook();
+  });
+
+  it('có mặt: nội dung xuất hiện bên trong CÙNG <aside>, dưới phần thanh tra', () => {
+    const { result, unmount: unmountHook } = renderShellProps();
+    const { unmount } = render(
+      <ViewerShell
+        {...result.current}
+        inspectorSections={<div data-testid="inspector-sections-slot">phép đo</div>}
+      />,
+    );
+
+    const aside = screen.getByRole('complementary', { name: 'Thanh tra đối tượng' });
+    const slot = within(aside).getByTestId('inspector-sections-slot');
+    const heading = within(aside).getByRole('heading', { name: 'Thuộc tính' });
+
+    console.log(
+      `[VIEWER-SHELL][VS-13] có mặt → khe "${slot.textContent ?? ''}" nằm sau tiêu đề "${heading.textContent ?? ''}" trong cùng <aside>`,
+    );
+
+    expect(slot).toBeInTheDocument();
+    expect(heading.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    unmount();
+    unmountHook();
+  });
+
+  it('cây đã render với inspectorSections vẫn qua expectAccessible và expectVietnamese', () => {
+    const { result, unmount: unmountHook } = renderShellProps();
+    const { container, unmount } = render(
+      <ViewerShell
+        {...result.current}
+        inspectorSections={
+          <section aria-label="Phép đo">
+            <h3>phép đo</h3>
+            <p>chưa có phép đo nào đã ghim.</p>
+          </section>
+        }
+      />,
+    );
+
+    expectAccessible(container);
+    expectVietnamese(container);
+
+    unmount();
+    unmountHook();
   });
 });
 

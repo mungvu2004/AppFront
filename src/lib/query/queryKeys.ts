@@ -4,6 +4,7 @@ type QueryDomain =
   | 'drawing'
   | 'floor'
   | 'library'
+  | 'measurement'
   | 'progress'
   | 'project'
   | 'quality'
@@ -62,6 +63,7 @@ const violationByProjectRoot = freezeKey(['violation', 'byProject'] as const);
 const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
 const libraryListRoot = freezeKey(['library', 'list'] as const);
 const libraryDetailRoot = freezeKey(['library', 'detail'] as const);
+const measurementAllRoot = freezeKey(['measurement', 'all'] as const);
 const userListRoot = freezeKey(['user', 'list'] as const);
 const userCurrentRoot = freezeKey(['user', 'current'] as const);
 
@@ -144,3 +146,21 @@ export const queryKeys = {
     ] as const),
   },
 } as const;
+
+/**
+ * Khoá của danh sách phép đo đã ghim trong một dự án — LG-3 ("lưu số đo kèm
+ * dự án làm hồ sơ").
+ *
+ * Xuất RIÊNG thay vì lồng vào `queryKeys` phía trên: hợp đồng màn đo
+ * (CONTRACT.md mục 3, LG-3) chốt đúng chữ ký phẳng `measurementKeys.all(...)`
+ * cho `src/lib/mutations` tiêu thụ, và phép đo là thực thể MỚI — không có
+ * lượt đọc nào khác của nó cần lồng chung gốc với một nhánh có sẵn. Dùng
+ * cùng `createQueryKeyFactory` mà mọi nhánh trong `queryKeys` dùng, nên khoá
+ * vẫn đông lạnh và có `root()` cho việc làm mất hiệu lực theo tiền tố.
+ */
+export const measurementKeys = {
+  all: createQueryKeyFactory(measurementAllRoot, (projectId: string) => [
+    ...measurementAllRoot,
+    projectId,
+  ] as const),
+};
