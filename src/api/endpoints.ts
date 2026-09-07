@@ -3,6 +3,7 @@ const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
 const FEATURE_FLAGS_ROOT = '/feature-flags';
 const LIBRARY_ROOT = '/library';
+const MEASUREMENTS_ROOT = '/measurements';
 const AUTH_ROOT = '/auth';
 const PROPERTY_TEMPLATES_ROOT = 'property-templates';
 
@@ -66,6 +67,23 @@ export const ENDPOINTS = {
   library: {
     detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
     list: LIBRARY_ROOT,
+  },
+  /**
+   * Phép đo đã ghim của một dự án, lưu KÈM dự án làm hồ sơ — LG-3.
+   *
+   * Số đo là lớp phủ theo phiên của màn đo (`MeasurementTool`), tách khỏi
+   * hình học: `remove` xoá đúng MỘT bản ghi theo `measurementId`, không đi
+   * qua `spatial.layer` như tường/ô mở/phòng/nội thất — bốn đó SỬA hình
+   * học của tầng, còn đây chỉ ghi/xoá một dòng hồ sơ không đụng mô hình.
+   *
+   * `list` và `create` dùng chung một đường, cùng khuôn `floors.list`/
+   * `floors.create`: đọc và ghi cùng một tài nguyên gốc.
+   */
+  measurements: {
+    create: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}${MEASUREMENTS_ROOT}`,
+    list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}${MEASUREMENTS_ROOT}`,
+    remove: (projectId: string, measurementId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}${MEASUREMENTS_ROOT}/${measurementId}`,
   },
   projects: {
     create: PROJECTS_ROOT,
