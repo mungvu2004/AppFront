@@ -66,7 +66,13 @@ export interface MeasurePoint {
 }
 
 /** What was measured. */
-export type MeasurementKind = 'distance' | 'chain' | 'angle' | 'area' | 'height';
+export type MeasurementKind =
+  | 'distance'
+  | 'chain'
+  | 'angle'
+  | 'area'
+  | 'height'
+  | 'perpendicular';
 
 /**
  * Decimals kept on a length so a result compares cleanly.
@@ -115,7 +121,7 @@ function deltaOf(from: MeasurePoint, to: MeasurePoint): readonly [number, number
 }
 
 /* -------------------------------------------------------------------------- */
-/* The five measurements.                                                      */
+/* The six measurements.                                                       */
 /* -------------------------------------------------------------------------- */
 
 /** Straight-line distance between two picked points. */
@@ -347,17 +353,77 @@ export function measureHeight(from: MeasurePoint, to: MeasurePoint): HeightMeasu
   };
 }
 
+/** How far a picked point stands off a surface, measured square to it. */
+export interface PerpendicularMeasurement {
+  readonly kind: 'perpendicular';
+  /** The point the user picked, and the foot of its perpendicular on the plane. */
+  readonly points: readonly [MeasurePoint, MeasurePoint];
+  readonly lengthMm: Millimetres;
+}
+
+/**
+ * Measure from a point square onto the plane through `planePoint` facing `normal`.
+ *
+ * This is the clearance a section drawing asks for — a column face to the wall
+ * behind it, a beam soffit to the slab — and it is not the distance to the point
+ * that was picked on that surface. Picking a wall a metre to the left of the
+ * column and picking it a metre to the right must give the same clearance, and
+ * they do: only the component of the gap along the normal survives the dot
+ * product, and everything the pick slid along the surface drops out.
+ *
+ * The foot of the perpendicular is returned alongside the length because the
+ * drawing needs a line to hang the number on, and that line is the one from the
+ * pick to its own foot, not to the point that named the plane.
+ *
+ * The length is unsigned: which side of a wall a point stands on is a question
+ * about the building, not about the two picks, and the returned foot already
+ * says which way it went. `normal` need not be unit length — a raycast hands
+ * back a unit vector, a plane fitted to three points does not — and a zero
+ * vector is `null`, because a normal of no length names no plane to measure to.
+ */
+export function measurePointToPlane(
+  from: MeasurePoint,
+  planePoint: MeasurePoint,
+  normal: { readonly x: number; readonly y: number; readonly z: number },
+): PerpendicularMeasurement | null {
+  const length = Math.hypot(normal.x, normal.y, normal.z);
+
+  if (isNearlyZero(length)) {
+    return null;
+  }
+
+  const unitX = normal.x / length;
+  const unitY = normal.y / length;
+  const unitZ = normal.z / length;
+
+  const [dx, dy, dz] = deltaOf(planePoint, from);
+  const offset = dx * unitX + dy * unitY + dz * unitZ;
+
+  const foot: MeasurePoint = {
+    x: roundLength(from.x - offset * unitX),
+    y: roundLength(from.y - offset * unitY),
+    z: roundLength(elevationOf(from) - offset * unitZ),
+  };
+
+  return {
+    kind: 'perpendicular',
+    points: [from, foot],
+    lengthMm: roundLength(Math.abs(offset)),
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Saving a measurement as a note.                                             */
 /* -------------------------------------------------------------------------- */
 
-/** Any of the five measurements, told apart by `kind`. */
+/** Any of the six measurements, told apart by `kind`. */
 export type Measurement =
   | DistanceMeasurement
   | ChainMeasurement
   | AngleMeasurement
   | AreaMeasurement
-  | HeightMeasurement;
+  | HeightMeasurement
+  | PerpendicularMeasurement;
 
 /**
  * Id of a saved measurement, prefixed `MS-`.
@@ -390,6 +456,7 @@ export const MEASUREMENT_LABELS: Readonly<Record<MeasurementKind, string>> = {
   angle: 'Góc ba điểm',
   area: 'Diện tích đa giác',
   height: 'Chiều cao theo trục đứng',
+  perpendicular: 'Khoảng cách vuông góc tới bề mặt',
 };
 
 /** A measurement kept on the sheet, with its code, its name and its level. */
