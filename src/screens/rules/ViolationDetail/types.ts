@@ -160,6 +160,21 @@ export interface ViolationDetailViewProps {
   readonly onFigureModeChange: (mode: ViolationFigureMode) => void;
   /** Mã đối tượng đang được xem trước hậu quả (trỏ vào một hàng lựa chọn); `null` khi không. */
   readonly previewEntityIds: readonly string[] | null;
+  /**
+   * Mặt bằng 2D đã dựng SẴN ở hook: `viewBox` và mọi `points` đều là chuỗi hoàn
+   * chỉnh, view chỉ in ra chứ không tính (A15). `null` khi không dựng được.
+   */
+  readonly figure2d: {
+    readonly viewBox: string;
+    readonly shapes: readonly {
+      readonly id: string; readonly points: string;
+      readonly isSubject: boolean; readonly isDimmed: boolean;
+    }[];
+  } | null;
+  /** Chỗ gắn canvas 3D; hook giữ `import()` ĐỘNG tới `mountViewerScene`. */
+  readonly figureRef: (canvas: HTMLCanvasElement | null) => void;
+  /** Không dựng được ngữ cảnh hình — phần chữ đứng một mình, CẤM hiện khung vỡ. */
+  readonly figureUnavailable: boolean;
 
   /* -- Khối 6 "Nguyên nhân có thể" — LUÔN ≥ 2 -- */
   readonly causes: readonly ViolationCause[];
