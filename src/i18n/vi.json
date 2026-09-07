@@ -2777,5 +2777,53 @@
       "noDeviationsNotice": "không có vùng lệch nào được ghi nhận.",
       "confirmBadgeLabel": "đã duyệt"
     }
+  },
+  "explodedView": {
+    "regionLabel": "Nội dung tách tầng",
+    "railLabel": "Độ tách các tầng",
+    "presetsLabel": "Mức tách sẵn",
+    "captureButton": "Chụp ảnh khung nhìn",
+    "notice": {
+      "empty": "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.",
+      "loading": "Đang tách các tầng...",
+      "error": "Không tách được các tầng lúc này. Vui lòng thử lại sau.",
+      "forbidden": "Bạn đang xem ở vai người xem nên không sửa được vị trí tầng."
+    },
+    "floor": {
+      "select": "Chọn tầng {{name}}, cao độ {{elevation}}, diện tích {{area}}",
+      "hide": "Ẩn tầng {{name}}",
+      "show": "Hiện tầng {{name}}"
+    },
+    "capture": {
+      "error": "Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.",
+      "unavailable": "Khung nhìn chưa có gì để chụp.",
+      "renderSceneTooEarly": "renderScene được gọi trước khi hook dựng xong phép dựng props."
+    },
+    "shortcut": {
+      "cycle": "tách các tầng ra rồi hợp lại"
+    },
+    "live": {
+      "separation": "đã tách"
+    },
+    "sample": {
+      "floor": {
+        "tang01": "Tầng 01",
+        "tang02": "Tầng 02",
+        "tang03": "Tầng 03",
+        "tang04": "Tầng 04"
+      },
+      "liveMessage": {
+        "empty": "chỉ có một tầng, chưa tách được.",
+        "loading": "đang tải các tầng.",
+        "partial": "đã tách vừa; hai tầng trên vẫn đang dựng hình.",
+        "error": "không tải được các tầng.",
+        "success": "đã tách hết bốn tầng.",
+        "forbidden": "bạn không có quyền xem tầng này.",
+        "collapsed": "đã thu gọn thanh điều khiển."
+      },
+      "floorReview": {
+        "tang02": "tầng 02 chưa được người duyệt xác nhận."
+      }
+    }
   }
 }
