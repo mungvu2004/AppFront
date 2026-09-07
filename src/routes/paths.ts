@@ -64,6 +64,7 @@ export const ROUTE_PATTERNS = {
   projectFloors: `${PROJECTS_ROOT}/:id/floors`,
   projectGrids: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/grids`,
   projectObjects: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/objects`,
+  projectOverlay: `${PROJECTS_ROOT}/:id/floors/:floorId/overlay`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
   projectPipelineGraph: `${PROJECTS_ROOT}/:id/pipeline/graph`,
   projectQuality: `${PROJECTS_ROOT}/:id/quality`,
@@ -112,6 +113,8 @@ export const ROUTES = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/grids`,
     objects: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/objects`,
+    overlay: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/overlay`,
     pipeline: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline`,
     pipelineGraph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/pipeline/graph`,
     quality: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/quality`,

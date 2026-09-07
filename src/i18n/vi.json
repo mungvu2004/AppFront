@@ -2711,5 +2711,71 @@
         "sidePanel": "Bảng bên"
       }
     }
+  },
+  "overlayComparison": {
+    "screenLabel": "Màn đối chiếu bản vẽ",
+    "canvasRegionLabel": "Khung đối chiếu bản vẽ gốc và mô hình",
+    "noticeRegionLabel": "Trạng thái của màn đối chiếu bản vẽ",
+    "scaleFixLinkLabel": "sang màn hiệu chỉnh tỷ lệ",
+    "confirm": {
+      "button": "xác nhận mô hình khớp bản vẽ",
+      "withinTolerance": "mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
+      "withDeviations": "bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai."
+    },
+    "layer": {
+      "scan": "ảnh quét gốc",
+      "geometry": "hình học sinh ra",
+      "deviation": "vùng lệch"
+    },
+    "metric": {
+      "mean": "sai số trung bình",
+      "max": "sai số lớn nhất",
+      "overTolerance": "số vùng vượt ngưỡng"
+    },
+    "mode": {
+      "sideBySideDisabled": "khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt."
+    },
+    "notice": {
+      "empty": "tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.",
+      "errorFrame": "không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.",
+      "errorRead": "không đọc được ảnh bản vẽ gốc của tầng này.",
+      "errorScale": "không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
+      "forbidden": "bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
+      "loading": "đang tải ảnh bản vẽ gốc.",
+      "noFloor": "dự án này chưa có tầng nào để đối chiếu.",
+      "partialDeviation": "còn {{count}} vùng vượt dung sai.",
+      "partialGeometry": "còn {{count}} tầng chưa dựng hình học.",
+      "partialScan": "chỉ {{withScan}} trong {{total}} tầng có ảnh gốc để đối chiếu."
+    },
+    "tolerance": {
+      "label": "dung sai"
+    },
+    "canvas": {
+      "frame": "khung đối chiếu bản vẽ và mô hình",
+      "source_frame": "khung bản vẽ nguồn",
+      "result_frame": "khung mô hình sinh ra",
+      "divider": "đường chia đôi, dùng phím mũi tên trái và phải để dịch",
+      "mark_label_prefix": "vùng lệch ",
+      "mark_label_over_suffix": ", vượt dung sai"
+    },
+    "toolbar": {
+      "label": "thanh công cụ đối chiếu bản vẽ",
+      "floorSelectLabel": "chọn tầng",
+      "floorNoScanSuffix": "không có ảnh bản vẽ gốc",
+      "compareModeAriaLabel": "kiểu đối chiếu",
+      "scanOpacityAriaLabel": "độ mờ ảnh nguồn",
+      "alignmentLockLabel": "khoá căn",
+      "readOnlyNotice": "bạn không có quyền sửa, các điều khiển đang tắt."
+    },
+    "panel": {
+      "label": "kết quả đối chiếu bản vẽ và mô hình",
+      "deviationListLabel": "danh sách vùng lệch",
+      "headerReference": "vị trí tham chiếu",
+      "headerDeviation": "độ lệch",
+      "headerObject": "đối tượng",
+      "measuringNotice": "chưa đo được vùng lệch nào.",
+      "noDeviationsNotice": "không có vùng lệch nào được ghi nhận.",
+      "confirmBadgeLabel": "đã duyệt"
+    }
   }
 }

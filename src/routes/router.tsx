@@ -39,6 +39,7 @@ const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen'
 const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityGate').then(m => ({ default: m.InputQualityGateRoute })));
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
 const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
+const RouteOverlayComparison = lazy(() => import('../screens/viewer/OverlayComparison').then(m => ({ default: m.OverlayComparisonRoute })));
 const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
 const RouteCadBranchConfirm = lazy(() => import('../screens/pipeline/CadBranchConfirm').then(m => ({ default: m.CadBranchConfirmRoute })));
 const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').then(m => ({ default: m.WallLayerReviewRoute })));
@@ -279,6 +280,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
       { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
       { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
+      { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<RouteOverlayComparison />) },
       { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
       { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
       { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
