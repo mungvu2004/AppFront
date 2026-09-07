@@ -440,8 +440,25 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
     [options.shellGateway],
   );
 
+  /**
+   * Đồ thị mà cổng đọc là đồ thị ĐÃ PHÂN GIẢI ở trên, không phải kho.
+   *
+   * Đọc thẳng `useStore.getState().spatial` ở đây là một lỗi im lặng: khi người
+   * gọi truyền `spatial` bằng props — story, bài kiểm, và bất kỳ màn cha nào biết
+   * rõ hơn kho — thì vỏ dùng props còn cổng này vẫn dùng kho, nên thẻ nhãn mất
+   * sạch diện tích (`—` ở mọi tầng) và báo cáo thẳng hàng ra rỗng, trong khi thanh
+   * trạng thái ngay bên cạnh vẫn nói "4 tầng · 14 phòng · 248,60 m²". Hai nguồn
+   * cho cùng một màn, và chỉ lộ ra khi mở màn thật bằng dữ liệu thật.
+   *
+   * Đọc qua ref chứ không đưa `spatial` vào mảng phụ thuộc: cổng giữ nguyên danh
+   * tính qua các lượt vẽ (`renderScene` chạy lại mỗi khung hình), còn lớp nhớ bọc
+   * ngoài mới là chỗ dựng lại theo `spatial` — đúng chỗ nó đã làm sẵn.
+   */
+  const spatialRef = useRef(spatial);
+  spatialRef.current = spatial;
+
   const gateway = useMemo(
-    () => options.gateway ?? createExplodedViewGateway(() => useStore.getState().spatial),
+    () => options.gateway ?? createExplodedViewGateway(() => spatialRef.current),
     [options.gateway],
   );
 
