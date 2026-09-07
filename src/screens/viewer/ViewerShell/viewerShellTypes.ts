@@ -274,6 +274,15 @@ export interface ViewerSceneActions {
    * `DEFAULT_SECTION_POSITION` như trước khi setter này có mặt.
    */
   setSectionPosition?(position: number): void;
+  /**
+   * Khuôn khung nhìn vào đúng một tầng — mã tầng không khớp tầng nào thì
+   * không làm gì.
+   *
+   * Tuỳ chọn để tương thích ngược, cùng lý do {@link setSectionPosition} ở
+   * trên: tám màn 3D còn lại không cần biết trường này tồn tại, và không màn
+   * nào hỏng vì nó xuất hiện.
+   */
+  frameStorey?(storeyId: string): void;
 }
 
 /* -------------------------------------------------------------------------- */

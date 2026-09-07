@@ -67,11 +67,13 @@ import { millimetres } from '@/domain/units/types';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import {
   CameraDirector,
+  isFlatMode,
   PRESET_SETTINGS,
   presetById,
   presetViewpoint,
   type CameraPresetId,
 } from '@/lib/three/camera/presets';
+import { boxOfExtent, frameViewpoint } from '@/lib/three/camera/frameObjects';
 import {
   createCameraMode,
   type BuildingExtent,
@@ -103,6 +105,7 @@ import {
 import {
   clampSeparation,
   stackedHeightMm,
+  stackStoreys,
   type StackableStorey,
 } from './viewerStoreyStack';
 import {
@@ -261,6 +264,67 @@ function extentOf(data: ViewerShellData, footprintMm: {
     sizeM: new Vector3(
       toSceneLength(millimetres(widthMm)),
       toSceneLength(millimetres(heightMm)),
+      toSceneLength(millimetres(depthMm)),
+    ),
+  };
+}
+
+/**
+ * Hộp bao của MỘT tầng, theo mét — bản một-tầng của {@link extentOf}.
+ *
+ * Mặt bằng mượn của cả toà nhà (một tầng không có mặt bằng riêng); chiều đứng
+ * lấy từ cao độ ĐÃ TÁCH của {@link stackStoreys} tới cao độ đó cộng chiều cao
+ * tầng — tầng đang tách thì khuôn vào chỗ nó ĐANG đứng, không phải chỗ nó đứng
+ * khi chưa tách. `null` khi không có tầng nào mang đúng mã này.
+ */
+function extentOfStorey(
+  data: ViewerShellData,
+  footprintMm: {
+    readonly minXMm: number;
+    readonly minYMm: number;
+    readonly maxXMm: number;
+    readonly maxYMm: number;
+  },
+  storeyId: string,
+  separation: number,
+): BuildingExtent | null {
+  const storey = data.storeys.find((each) => each.id === storeyId);
+
+  if (storey === undefined) {
+    return null;
+  }
+
+  const storeys: readonly StackableStorey[] = data.storeys.map((each) => ({
+    id: each.id,
+    order: each.order,
+    elevationMm: each.elevationMm,
+    heightMm: each.heightMm,
+  }));
+
+  const stacked = stackStoreys(storeys, separation).find((each) => each.id === storeyId);
+
+  if (stacked === undefined) {
+    return null;
+  }
+
+  const widthMm = footprintMm.maxXMm - footprintMm.minXMm;
+  const depthMm = footprintMm.maxYMm - footprintMm.minYMm;
+
+  if (widthMm <= 0 || depthMm <= 0 || storey.heightMm <= 0) {
+    return UNIT_EXTENT;
+  }
+
+  const heightM = toSceneLength(millimetres(storey.heightMm));
+
+  return {
+    centre: new Vector3(
+      toSceneLength(millimetres((footprintMm.minXMm + footprintMm.maxXMm) / 2)),
+      stacked.offsetM + heightM / 2,
+      toSceneLength(millimetres((footprintMm.minYMm + footprintMm.maxYMm) / 2)),
+    ),
+    sizeM: new Vector3(
+      toSceneLength(millimetres(widthMm)),
+      heightM,
       toSceneLength(millimetres(depthMm)),
     ),
   };
@@ -618,6 +682,43 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     wake();
   }, [director, selectedIds, onFitAll, wake]);
 
+  /**
+   * Khuôn khung nhìn vào đúng một tầng — nối cho hành động "bấm thẻ tầng" của
+   * `ExplodedView`.
+   *
+   * Giữ nguyên góc nhìn (kinh độ, góc chúc) và chế độ camera đang dùng, chỉ đổi
+   * điểm ngắm và khoảng cách — cùng cách {@link frameSelection} khuôn một lựa
+   * chọn mà không xoay lại mô hình. Mã tầng không khớp tầng nào thì
+   * {@link extentOfStorey} trả về `null` và hàm này không làm gì (không ném
+   * lỗi, không gọi camera).
+   */
+  const frameStorey = useCallback(
+    (storeyId: string): void => {
+      const singleExtent = extentOfStorey(data, footprint, storeyId, separation);
+
+      if (singleExtent === null) {
+        return;
+      }
+
+      const current = director.viewpoint();
+      const mode = director.controller.mode === 'walk' ? 'orbit' : director.controller.mode;
+
+      director.goTo(
+        frameViewpoint(boxOfExtent(singleExtent), {
+          azimuthRad: current.azimuthRad,
+          polarRad: current.polarRad,
+          aspect: PRESET_SETTINGS.defaultAspect,
+          paddingFraction: PRESET_SETTINGS.framePaddingFraction,
+          clearanceMarginM: PRESET_SETTINGS.clearanceMarginM,
+          orthographic: isFlatMode(mode),
+        }),
+        mode,
+      );
+      wake();
+    },
+    [director, data, footprint, separation, wake],
+  );
+
   const toggleOrthographic = useCallback((): void => {
     setIsOrthographic((current) => {
       const next = !current;
@@ -921,8 +1022,9 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
         setHovered(entityId as (typeof selectedIds)[number] | null);
       },
       setSectionPosition,
+      frameStorey,
     }),
-    [clearSelection, setSelection, setHovered, selectedIds, setSectionPosition],
+    [clearSelection, setSelection, setHovered, selectedIds, setSectionPosition, frameStorey],
   );
 
   const breadcrumbs = useMemo(
