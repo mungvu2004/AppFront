@@ -1,0 +1,42 @@
+{
+  "measurementTool": {
+    "title": "Phép đo",
+    "unitLabel": "đơn vị",
+    "empty": "chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.",
+    "row": {
+      "hide": "Ẩn {{name}}",
+      "show": "Hiện {{name}}",
+      "delete": "Xoá {{name}}",
+      "stale": "cần chú ý"
+    },
+    "collapse": {
+      "collapseButton": "Thu gọn mục Phép đo",
+      "expandButton": "Mở mục Phép đo, {{countLabel}}"
+    },
+    "mode": {
+      "pointToPoint": "điểm đến điểm",
+      "perpendicular": "vuông góc với bề mặt",
+      "height": "chiều cao",
+      "floorArea": "diện tích mặt sàn"
+    },
+    "snap": {
+      "vertex": "đỉnh",
+      "midpoint": "trung điểm",
+      "axisIntersection": "giao trục",
+      "none": "chưa bắt được điểm nào",
+      "noneOnError": "không tìm thấy bề mặt để bắt"
+    },
+    "unit": {
+      "mm": "mm",
+      "cm": "cm",
+      "m": "m"
+    },
+    "error": "Không bắt được bề mặt nào dưới con trỏ. Xoay lại góc nhìn rồi thử lại.",
+    "pinBlocked": "Bạn không có quyền ghim phép đo trong dự án này. Liên hệ quản trị dự án.",
+    "sample": {
+      "name": "Phép đo {{n}}",
+      "countLabel": "{{count}} phép đo",
+      "staleReason": "Hình học mà phép đo này tham chiếu đã bị xoá."
+    }
+  }
+}
