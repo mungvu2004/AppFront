@@ -37,13 +37,29 @@
  * câu giải thích, chứ không tắt viên thuốc, không tắt lớp phủ, và không thay
  * khung nhìn bằng một tấm bảng "không có quyền".
  *
- * ## Bàn phím
+ * ## Bàn phím, và con trỏ đi cùng đường với nó
  *
  * `M` · `Esc` · `Enter` · `Delete` đăng ký qua `src/lib/input/shortcutRegistry`
  * ở tầng hook (A12, R-72). File này KHÔNG gắn `addEventListener('keydown')`, và
  * do đó không có đường nào cho nó cướp mất lời hứa "Esc đóng lớp trên cùng".
+ *
+ * Nhưng A12 nói bàn phím là đường đi hạng nhất, **không phải đường duy nhất**:
+ * một hành động chỉ tới được bằng phím là một hành động người dùng chuột không
+ * có. Nên `onToggleTool` (`M`), `onEscape` (`Esc`) và `onPin` (`Enter`) đi
+ * xuống view thành ba prop, và mỗi prop có đúng một nút gọi tới — xem
+ * {@link KeyAction}. Hai đường chung một hàm, nên chúng không thể lệch nhau về
+ * sau. `Delete` đã có đường chuột sẵn ở mục "Phép đo" của panel phải.
+ *
+ * Nút ghim chỉ hiện khi có gì để ghim (`draft` khác `null`), và vô hiệu khi
+ * `canPin` là `false` — lúc ấy `pinBlockedCaption` ngay bên dưới nói ra vì sao,
+ * vì một nút mờ đi mà không giải thích là một nút bắt người dùng đoán.
  */
+import { Pin, Ruler, X } from 'lucide-react';
+import type { ReactNode } from 'react';
+
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { IconButton } from '@/components/ui/IconButton';
+import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { cn } from '@/lib/utils';
 
@@ -70,6 +86,47 @@ const PARTIAL_HINT = 'chuỗi đo chưa đóng. chọn thêm điểm để đón
 
 /** Nền chung của mọi mảnh chữ trôi trên canvas: đủ mờ để đọc được trên mọi nền. */
 const FLOATING_SURFACE = 'rounded-full bg-bg-surface/90 shadow-float';
+
+interface KeyActionProps {
+  readonly icon: ReactNode;
+  /** `aria-label` của nút, đã gồm cả tên phím. */
+  readonly label: string;
+  /** Tên phím in ra trong `Kbd` — chữ hoa, ngoại lệ mà A6 cho phép. */
+  readonly hint: string;
+  readonly onClick: () => void;
+  readonly disabled?: boolean | undefined;
+}
+
+/**
+ * Một hành động tới được bằng CẢ HAI đường: phím tắt, và cú bấm.
+ *
+ * A12 nói bàn phím là đường đi hạng nhất, không phải đường duy nhất — nên mỗi
+ * hành động mà hook đăng ký trong `shortcutRegistry` có đúng một nút ở đây gọi
+ * cùng hàm ấy. Hai đường, một `onClick`; không có nhánh nào để hai đường lệch
+ * nhau về sau.
+ *
+ * Tên phím nằm trong `aria-label` chứ không chỉ nằm trong `Kbd`: `Kbd` là chữ
+ * nhìn thấy, và nếu để nó là chỗ duy nhất nói ra phím tắt thì người dùng trình
+ * đọc màn hình — đúng những người cần phím tắt nhất — là những người không được
+ * nghe nó. `Kbd` do đó `aria-hidden`, vì nếu không nó sẽ được đọc lên lần thứ
+ * hai, tách rời khỏi câu đã giải thích nó.
+ */
+function KeyAction({ icon, label, hint, onClick, disabled }: KeyActionProps) {
+  return (
+    <span className="flex items-center gap-1">
+      <IconButton
+        aria-label={label}
+        disabled={disabled ?? false}
+        icon={icon}
+        onClick={onClick}
+        size="sm"
+      />
+      <span aria-hidden="true">
+        <Kbd>{hint}</Kbd>
+      </span>
+    </span>
+  );
+}
 
 function EmptyInvitation() {
   return (
@@ -107,6 +164,32 @@ export function MeasurementTool(props: MeasurementToolProps) {
             onChange={props.onModeChange}
             options={MODE_OPTIONS}
             value={props.mode}
+          />
+        </div>
+
+        <div className={cn('pointer-events-auto flex items-center gap-2 px-1.5 py-1', FLOATING_SURFACE)}>
+          {props.draft !== null && (
+            <KeyAction
+              disabled={!props.canPin}
+              hint="Enter"
+              icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
+              label="ghim phép đo (phím Enter)"
+              onClick={props.onPin}
+            />
+          )}
+
+          <KeyAction
+            hint="Esc"
+            icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
+            label="thoát chế độ đo (phím Esc)"
+            onClick={props.onEscape}
+          />
+
+          <KeyAction
+            hint="M"
+            icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
+            label="bật tắt công cụ đo (phím M)"
+            onClick={props.onToggleTool}
           />
         </div>
 
