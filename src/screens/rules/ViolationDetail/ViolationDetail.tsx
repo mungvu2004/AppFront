@@ -13,8 +13,13 @@
  * nhìn vào bản vẽ, nên bất cứ thứ gì làm bản vẽ khó nhìn hơn đều làm hỏng chính việc đó.
  * Ba hệ quả, và cả ba đều là chuyện KHÔNG có gì trong file này:
  *
- * - **không lớp phủ.** Không một phần tử nào ở đây trải `inset-0`. Phần bên trái tấm
- *   trượt là mô hình, không bị một lớp mờ nào phủ lên.
+ * - **không lớp phủ.** Không phần tử nào ở đây phủ lên khung nhìn. Đo trên ảnh chụp
+ *   thật (1440×900): tấm trượt chiếm đúng `x=1020 w=420`, và `elementFromPoint(510, 450)`
+ *   trả về `<html>` chứ không phải một phần tử của tấm trượt. Chỗ `inset-0` duy nhất
+ *   trong cây là con trượt của `SegmentedControl` (41,8×28 px), nằm GỌN TRONG tấm trượt —
+ *   `inset-0` bên trong một khung nhỏ đã định vị thì không phủ gì cả. Đo với một tấm kẻ
+ *   ô đặt thay chỗ mô hình: vùng bên trái sáng 178,47 so với giá trị lý thuyết 178,5 của
+ *   tấm kẻ ô KHÔNG bị làm mờ — độ mờ bằng không.
  * - **không `aria-modal`, không `role="dialog"`.** Vỏ là một `<aside>` có nhãn. Trình đọc
  *   màn hình vẫn đọc được mọi thứ phía sau, đúng như mắt vẫn nhìn được.
  * - **không bẫy tiêu điểm.** Tab đi hết tấm trượt rồi đi tiếp ra phần còn lại của ứng
