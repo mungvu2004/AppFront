@@ -1,0 +1,17 @@
+{
+  "overlayComparisonToolbarLabel": "thanh công cụ đối chiếu bản vẽ",
+  "overlayComparisonFloorSelectLabel": "chọn tầng",
+  "overlayComparisonFloorNoScanSuffix": "không có ảnh bản vẽ gốc",
+  "overlayComparisonCompareModeAriaLabel": "kiểu đối chiếu",
+  "overlayComparisonScanOpacityAriaLabel": "độ mờ ảnh nguồn",
+  "overlayComparisonAlignmentLockLabel": "khoá căn",
+  "overlayComparisonReadOnlyNotice": "bạn không có quyền sửa, các điều khiển đang tắt.",
+  "overlayComparisonPanelLabel": "kết quả đối chiếu bản vẽ và mô hình",
+  "overlayComparisonDeviationListLabel": "danh sách vùng lệch",
+  "overlayComparisonHeaderReference": "vị trí tham chiếu",
+  "overlayComparisonHeaderDeviation": "độ lệch",
+  "overlayComparisonHeaderObject": "đối tượng",
+  "overlayComparisonMeasuringNotice": "chưa đo được vùng lệch nào.",
+  "overlayComparisonNoDeviationsNotice": "không có vùng lệch nào được ghi nhận.",
+  "overlayComparisonConfirmBadgeLabel": "đã duyệt"
+}
