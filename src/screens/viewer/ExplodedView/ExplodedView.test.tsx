@@ -29,6 +29,7 @@ import { SEVEN_STATES, SEVEN_STATE_LABELS, type SevenStateScenario } from '@/lib
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 
 import { ExplodedView } from './ExplodedView';
+import { explodedViewPropsOf, type ExplodedViewRuntime } from './useExplodedView';
 import {
   SAMPLE_ALIGNMENT_ISSUE,
   SAMPLE_MISALIGNED_FLOORS,
@@ -262,5 +263,141 @@ describe('ExplodedView — không tô màu theo tầng', () => {
     for (const tone of tones) {
       expect(['aligned', 'attention']).toContain(tone);
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Hai khoản nợ vừa trả: khuôn camera vào tầng, và chỉ báo chạy trên LÕI.      */
+/* -------------------------------------------------------------------------- */
+
+/** Runtime tối thiểu — mọi trường bắt buộc, không trục không lõi. */
+function bareRuntime(): ExplodedViewRuntime {
+  return {
+    state: 'success',
+    floors: [],
+    axes: [],
+    cores: [],
+    hoveredStoreyId: null,
+    isCapturing: false,
+    captureError: null,
+    onFloorHover: () => undefined,
+    onCapture: () => undefined,
+    canvasRef: () => undefined,
+  };
+}
+
+/** Tuỳ chọn tối thiểu — khung của vỏ ở độ tách 0, không cổng. */
+function bareOptions(
+  extra: Partial<Parameters<typeof explodedViewPropsOf>[0]> = {},
+): Parameters<typeof explodedViewPropsOf>[0] {
+  return {
+    projectId: 'P-1',
+    frame: {
+      azimuthRad: 0,
+      polarRad: 0,
+      distanceM: 10,
+      isOrthographic: false,
+      visibleStoreyIds: [],
+      separation: 0,
+      sectionPlane: null,
+      selectedEntityIds: [],
+      hoveredEntityId: null,
+      isolatedEntityIds: null,
+      hiddenEntityIds: [],
+      reducedMotion: false,
+    },
+    onSeparationChange: () => undefined,
+    onStoreyActivate: () => undefined,
+    onStoreyVisibilityToggle: () => undefined,
+    storeys: [],
+    ...extra,
+  };
+}
+
+describe('ExplodedView — bấm thẻ tầng làm CẢ HAI nửa của hành động', () => {
+  it('gọi onStoreyActivate và onStoreyFrame, đúng mã tầng, mỗi cái một lần', () => {
+    const activated: [string, boolean][] = [];
+    const framed: string[] = [];
+
+    const props = explodedViewPropsOf(
+      bareOptions({
+        onStoreyActivate: (id, additive) => activated.push([id, additive]),
+        onStoreyFrame: (id) => framed.push(id),
+      }),
+      bareRuntime(),
+    );
+
+    props.actions.onFloorActivate('L-02');
+
+    expect(activated).toEqual([['L-02', false]]);
+    expect(framed).toEqual(['L-02']);
+  });
+
+  it('vỏ không dựng frameStorey thì vẫn kích hoạt tầng, không ném', () => {
+    const activated: string[] = [];
+
+    const props = explodedViewPropsOf(
+      bareOptions({ onStoreyActivate: (id) => activated.push(id) }),
+      bareRuntime(),
+    );
+
+    expect(() => {
+      props.actions.onFloorActivate('L-02');
+    }).not.toThrow();
+    expect(activated).toEqual(['L-02']);
+  });
+});
+
+describe('ExplodedView — chỉ báo thẳng hàng chạy trên LÕI, trục là đường lui', () => {
+  const core = {
+    id: 'stairwell:R-0001',
+    xFraction: 0.4,
+    maxOffsetMm: millimetres(180),
+    caption: 'Lõi thang ở tầng 2 lệch 180 mm so với tầng trệt, vượt ngưỡng 150 mm.',
+  };
+
+  it('có lõi thì đường dẫn dựng từ lõi, và caption ghi đúng 180 mm', () => {
+    const props = explodedViewPropsOf(bareOptions(), { ...bareRuntime(), cores: [core] });
+
+    expect(props.alignmentPaths).toHaveLength(1);
+    expect(props.alignmentPaths[0]?.id).toBe('stairwell:R-0001');
+    expect(props.alignmentPaths[0]?.tone).toBe('attention');
+    expect(props.alignmentPaths[0]?.residualMm).toBe(180);
+    expect(props.alignmentPaths[0]?.caption).toContain('180 mm');
+  });
+
+  it('lõi thẳng đứng thì đường dẫn ở tone aligned và không có caption', () => {
+    const props = explodedViewPropsOf(bareOptions(), {
+      ...bareRuntime(),
+      cores: [{ ...core, maxOffsetMm: millimetres(0), caption: null }],
+    });
+
+    expect(props.alignmentPaths[0]?.tone).toBe('aligned');
+    expect(props.alignmentPaths[0]?.caption).toBeNull();
+  });
+
+  it('có lõi thì KHÔNG vẽ thêm đường của trục — hai chùm chồng nhau là không đọc được', () => {
+    const props = explodedViewPropsOf(bareOptions(), {
+      ...bareRuntime(),
+      cores: [core],
+      axes: [
+        { id: 'A-01', levelId: 'L-01', xFraction: 0.1 },
+        { id: 'A-02', levelId: 'L-01', xFraction: 0.9 },
+      ],
+    });
+
+    expect(props.alignmentPaths).toHaveLength(1);
+    expect(props.alignmentPaths.map((path) => path.id)).not.toContain('A-01');
+  });
+
+  it('bản vẽ chưa có lõi nào thì lùi về trục, không để trống chỉ báo', () => {
+    const props = explodedViewPropsOf(bareOptions(), {
+      ...bareRuntime(),
+      cores: [],
+      axes: [{ id: 'A-01', levelId: 'L-01', xFraction: 0.1 }],
+    });
+
+    expect(props.alignmentPaths).toHaveLength(1);
+    expect(props.alignmentPaths[0]?.id).toBe('A-01');
   });
 });
