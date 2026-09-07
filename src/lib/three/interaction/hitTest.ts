@@ -31,7 +31,7 @@
  *   belongs to whoever asked.
  */
 
-import type { Object3D, Vector3 } from 'three';
+import { Matrix3, Vector3, type Object3D } from 'three';
 
 import type { LevelId } from '@/domain/spatial/types';
 import {
@@ -55,14 +55,33 @@ import { readPartData, type BuildEntityId } from '../build/scene';
  * can write one out by hand: the reverse lookup is arithmetic on a triangle
  * index, and proving it right should not require a WebGL context. A real
  * `Intersection` satisfies this type as it stands, and so it is exactly what
- * `entityAtHit` already asks for — plus the two fields a hit test needs and a
- * reverse lookup does not.
+ * `entityAtHit` already asks for — plus the fields a hit test needs and a
+ * reverse lookup does not: where the ray met the surface, how far away, and
+ * which way the surface faces.
  */
 export interface RayIntersection extends HitLike {
   /** Distance from the ray origin, in scene units — metres. */
   readonly distance: number;
   /** Where the ray met the surface, in world space. */
   readonly point: Vector3;
+  /**
+   * The surface normal the caster interpolated at the touch point, in the hit
+   * object's **local** space, already turned to face the ray.
+   *
+   * `Mesh.raycast` fills this in only when the geometry carries a `normal`
+   * attribute; a batch merged out of position-only buffers has none, and a hit
+   * on a line or a point sprite has no surface to take one from. `face.normal`
+   * below is the fallback.
+   */
+  readonly normal?: Vector3 | undefined;
+  /**
+   * The face that was hit, with the flat normal of its triangle in local space.
+   *
+   * Widened from `HitLike`, which needs only the first vertex index to run the
+   * reverse lookup. Repeating the property here rather than changing `merge.ts`
+   * keeps the range table's contract exactly as narrow as it was.
+   */
+  readonly face?: { readonly a: number; readonly normal?: Vector3 | undefined } | null | undefined;
 }
 
 /**
@@ -82,6 +101,16 @@ export interface EntityHit {
   readonly levelId: LevelId;
   /** The touch point in world space, for a label anchored in the scene. */
   readonly point: Vector3;
+  /**
+   * The surface normal at the touch point, in world space and unit length.
+   *
+   * `null` when the ray returned no normal to convert — a batch merged without a
+   * normal attribute, or a crossing that met no surface at all. A perpendicular
+   * measurement has no plane to measure to in that case, which is a different
+   * answer from measuring to the floor, so it is `null` and never a default
+   * vector. Freshly allocated per hit, so a caller may keep it.
+   */
+  readonly normal: Vector3 | null;
   readonly distance: number;
   /** The object the ray actually met — a merged batch, or a loose mesh. */
   readonly object: Object3D;
@@ -126,6 +155,44 @@ export function isPickableKind(kind: SelectableKind | null, layers: LayerStates)
 /* -------------------------------------------------------------------------- */
 /* Internals.                                                                  */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Scratch matrix for the normal transform.
+ *
+ * Refilled from the hit object on every use and read on the next line, never
+ * across calls: `resolveHit` runs on every pointer move, and the inverse
+ * transpose is the one allocation on that path worth not making thirty times a
+ * second.
+ */
+const NORMAL_MATRIX = new Matrix3();
+
+/**
+ * The world-space surface normal of one crossing, or `null` when it has none.
+ *
+ * The interpolated normal is preferred over the face normal because the caster
+ * has already turned it to face the ray, so it points back at the viewer the way
+ * a person expects a surface to; the flat face normal is the fallback for
+ * geometry that carries no normal attribute. Either arrives in the object's
+ * local space and is converted with the inverse transpose of the world matrix,
+ * which is the only transform that keeps a normal perpendicular to its surface
+ * when the object is scaled unevenly.
+ */
+function worldNormalOf(intersection: RayIntersection): Vector3 | null {
+  const local = intersection.normal ?? intersection.face?.normal ?? null;
+
+  if (local === null || local === undefined) {
+    return null;
+  }
+
+  const world = new Vector3(local.x, local.y, local.z).applyMatrix3(
+    NORMAL_MATRIX.getNormalMatrix(intersection.object.matrixWorld),
+  );
+
+  // A degenerate triangle, or a matrix that collapses an axis, leaves nothing to
+  // normalise; `Vector3.normalize` would hand back the zero vector and call it a
+  // direction.
+  return world.lengthSq() === 0 ? null : world.normalize();
+}
 
 /** The entity behind one hit: through the range table, or off the mesh itself. */
 function readHitEntity(
@@ -187,6 +254,7 @@ export function resolveHit(
     entityId: found.entityId,
     kind,
     levelId: found.levelId,
+    normal: worldNormalOf(intersection),
     object: intersection.object,
     point: intersection.point,
   };
