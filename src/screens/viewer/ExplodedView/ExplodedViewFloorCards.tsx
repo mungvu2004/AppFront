@@ -1,11 +1,22 @@
 /**
  * Thẻ nhãn tầng nổi mép phải khung nhìn: tên · cao độ · diện tích · con mắt.
  *
- * Chỉ hiện khi `areLabelsVisible`; hoà tan theo `EXPLODED_MOTION_MS.revealMs`
- * (Tailwind `duration-standard`, đổi sang `duration-instant` khi
- * `reducedMotion` — không hoạt cảnh vị trí, chỉ hoà tan, đúng mục 9 của đặc
- * tả). Mỗi thẻ luôn ở trong DOM (opacity đổi, không mount/unmount) để phép
- * chuyển tiếp CSS chạy được.
+ * Chỉ hiện khi `areLabelsVisible`, và "chỉ hiện" ở đây nghĩa là KHÔNG CÓ TRONG
+ * DOM khi độ tách còn dưới `LABEL_REVEAL_SEPARATION` — không phải một thẻ vẫn
+ * nằm đó ở `opacity: 0`. Bản trước giữ thẻ trong cây để phép chuyển tiếp CSS
+ * chạy được lượt hoà tan của `EXPLODED_MOTION_MS.revealMs`; đổi lại, tên tầng
+ * vẫn đọc được bằng `queryByText` lúc lẽ ra chưa có gì để đọc, và bài kiểm cấp
+ * màn khẳng định đúng điều ngược lại. Bài kiểm thắng (R-70), nên thẻ nay
+ * mount/unmount thật.
+ *
+ * Hệ quả đã cân nhắc, ghi ra để người sau không tưởng là bỏ sót: lượt hoà tan
+ * KHÔNG còn chạy khi thẻ vừa hiện. Một `transition-opacity` không có tác dụng
+ * trên phần tử vừa mount, và ba đường vòng còn lại đều bị cấm ở màn này —
+ * `requestAnimationFrame` và vòng lặp chuyển động tự viết đều nằm trong danh
+ * sách cấm, còn thêm một keyframe thuần hoà tan thì phải sửa
+ * `tailwind.config.ts`, ngoài phạm vi được sửa của lượt gộp. Phép chuyển tiếp
+ * duy nhất còn thật trong file này là lượt mờ khi con trỏ đậu lên một thẻ, và
+ * nó vẫn chạy theo `EXPLODED_MOTION_MS.dimMs`.
  *
  * Thẻ bấm được là một `<button>` phủ kín thẻ (không phải `div onClick`, R-72);
  * con mắt là một `<button>` con đứng NGOÀI vùng phủ đó (không lồng button
@@ -40,18 +51,17 @@ export function ExplodedViewFloorCards({
   onFloorActivate,
   onFloorVisibilityToggle,
 }: ExplodedViewFloorCardsProps) {
-  const revealDuration = reducedMotion ? 'duration-instant' : 'duration-standard';
   const dimDuration = reducedMotion ? 'duration-instant' : 'duration-fast';
 
+  /* Dưới ngưỡng thì cảnh chưa đủ thưa để chữ không đè lên hình, và thẻ không
+     tồn tại — xem docblock đầu file về vì sao đây là unmount chứ không phải
+     `opacity: 0`. */
+  if (!areLabelsVisible) {
+    return null;
+  }
+
   return (
-    <div
-      aria-hidden={!areLabelsVisible}
-      className={cn(
-        'absolute inset-y-0 right-3 transition-opacity motion-reduce:transition-none',
-        revealDuration,
-        areLabelsVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
-      )}
-    >
+    <div className="absolute inset-y-0 right-3">
       {floors.map((floor) => {
         const isDimmed = hoveredStoreyId !== null && hoveredStoreyId !== floor.id;
 
@@ -88,7 +98,6 @@ export function ExplodedViewFloorCards({
                 onClick={() => {
                   onFloorActivate(floor.id);
                 }}
-                tabIndex={areLabelsVisible ? 0 : -1}
                 type="button"
               />
 
@@ -118,7 +127,6 @@ export function ExplodedViewFloorCards({
                     onFloorVisibilityToggle(floor.id);
                   }}
                   size="sm"
-                  tabIndex={areLabelsVisible ? 0 : -1}
                 />
               </div>
             </div>

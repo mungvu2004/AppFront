@@ -1,7 +1,0 @@
-{
-  "explodedView.logic.cycleShortcut": "tách các tầng ra rồi hợp lại",
-  "explodedView.logic.liveSeparation": "đã tách",
-  "explodedView.logic.captureError": "Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.",
-  "explodedView.logic.captureUnavailable": "Khung nhìn chưa có gì để chụp.",
-  "explodedView.logic.renderSceneTooEarly": "renderScene được gọi trước khi hook dựng xong phép dựng props."
-}

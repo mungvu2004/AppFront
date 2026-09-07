@@ -60,6 +60,7 @@ export const ROUTE_PATTERNS = {
   onboarding: '/onboarding',
   projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
   projectDimensions: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/dimensions`,
+  projectExploded: `${PROJECTS_ROOT}/:id/3d/exploded`,
   projectExport: `${PROJECTS_ROOT}/:id/export`,
   projectFloors: `${PROJECTS_ROOT}/:id/floors`,
   projectGrids: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/grids`,
@@ -107,6 +108,7 @@ export const ROUTES = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,
     dimensions: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/dimensions`,
+    exploded: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d/exploded`,
     export: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/export`,
     floors: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/floors`,
     grids: (projectId: string, floorId: string): string =>
