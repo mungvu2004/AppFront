@@ -103,6 +103,7 @@ export function ViewerShell(props: ViewerShellProps) {
     selection,
     inspectorHint,
     scrollToEntityId,
+    inspectorSections,
     status,
     errorMessage,
     onRetry,
@@ -222,6 +223,7 @@ export function ViewerShell(props: ViewerShellProps) {
             scrollToEntityId={scrollToEntityId}
             selection={selection}
             state={state}
+            {...(inspectorSections !== undefined ? { inspectorSections } : {})}
           />
         </div>
       </div>

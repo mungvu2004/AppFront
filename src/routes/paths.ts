@@ -64,6 +64,7 @@ export const ROUTE_PATTERNS = {
   projectExport: `${PROJECTS_ROOT}/:id/export`,
   projectFloors: `${PROJECTS_ROOT}/:id/floors`,
   projectGrids: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/grids`,
+  projectMeasure: `${PROJECTS_ROOT}/:id/3d/measure`,
   projectObjects: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/objects`,
   projectOverlay: `${PROJECTS_ROOT}/:id/floors/:floorId/overlay`,
   projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
@@ -113,6 +114,7 @@ export const ROUTES = {
     floors: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/floors`,
     grids: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/grids`,
+    measure: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d/measure`,
     objects: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/objects`,
     overlay: (projectId: string, floorId: string): string =>

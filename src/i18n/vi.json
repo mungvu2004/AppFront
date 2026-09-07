@@ -2825,5 +2825,54 @@
         "tang02": "tầng 02 chưa được người duyệt xác nhận."
       }
     }
+  },
+  "measurementTool": {
+    "title": "Phép đo",
+    "unitLabel": "đơn vị",
+    "regionLabel": "Lớp phủ công cụ đo",
+    "modeSegmentedLabel": "Chọn chế độ đo",
+    "empty": "chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.",
+    "partialHint": "chuỗi đo chưa đóng. chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.",
+    "row": {
+      "hide": "Ẩn {{name}}",
+      "show": "Hiện {{name}}",
+      "delete": "Xoá {{name}}",
+      "stale": "cần chú ý"
+    },
+    "collapse": {
+      "collapseButton": "Thu gọn mục Phép đo",
+      "expandButton": "Mở mục Phép đo, {{countLabel}}",
+      "reopenHint": "mở lại danh sách phép đo"
+    },
+    "key": {
+      "pin": "ghim phép đo (phím Enter)",
+      "escape": "thoát chế độ đo (phím Esc)",
+      "toggleTool": "bật tắt công cụ đo (phím M)"
+    },
+    "mode": {
+      "pointToPoint": "điểm đến điểm",
+      "perpendicular": "vuông góc với bề mặt",
+      "height": "chiều cao",
+      "floorArea": "diện tích mặt sàn"
+    },
+    "snap": {
+      "vertex": "đỉnh",
+      "midpoint": "trung điểm",
+      "axisIntersection": "giao trục",
+      "none": "chưa bắt được điểm nào",
+      "noneOnError": "không tìm thấy bề mặt để bắt"
+    },
+    "unit": {
+      "mm": "mm",
+      "cm": "cm",
+      "m": "m"
+    },
+    "sample": {
+      "name": "Phép đo {{n}}",
+      "countLabel": "{{count}} phép đo",
+      "staleReason": "Hình học mà phép đo này tham chiếu đã bị xoá.",
+      "errorMessage": "Không bắt được bề mặt nào dưới con trỏ. Xoay lại góc nhìn rồi thử lại.",
+      "pinBlockedCaption": "Bạn không có quyền ghim phép đo trong dự án này. Liên hệ quản trị dự án."
+    }
   }
 }

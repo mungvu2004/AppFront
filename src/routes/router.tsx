@@ -41,6 +41,7 @@ const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen'
 const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
 const RouteOverlayComparison = lazy(() => import('../screens/viewer/OverlayComparison').then(m => ({ default: m.OverlayComparisonRoute })));
 const RouteExplodedView = lazy(() => import('../screens/viewer/ExplodedView').then(m => ({ default: m.ExplodedViewRoute })));
+const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
 const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
 const RouteCadBranchConfirm = lazy(() => import('../screens/pipeline/CadBranchConfirm').then(m => ({ default: m.CadBranchConfirmRoute })));
 const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').then(m => ({ default: m.WallLayerReviewRoute })));
@@ -297,6 +298,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.layerRooms, element: suspended(<RouteRoomLabelReview />) },
       { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
       { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
+      { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
       { path: ROUTE_PATTERNS.projectRules, element: <Placeholder name="/projects/:id/rules" /> },
       { path: ROUTE_PATTERNS.projectExport, element: <Placeholder name="/projects/:id/export" /> },
       { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
