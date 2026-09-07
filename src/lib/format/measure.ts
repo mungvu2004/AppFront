@@ -14,7 +14,7 @@
  * the next calculation sees the full value. See `./number` for why.
  */
 
-import { MILLIMETRES_PER_METRE } from '@/domain/units/types';
+import { MILLIMETRES_PER_CENTIMETRE, MILLIMETRES_PER_METRE } from '@/domain/units/types';
 
 import {
   formatNumber,
@@ -25,7 +25,7 @@ import {
 } from './number';
 
 /** The units a length may be shown in. */
-export type LengthDisplayUnit = 'mm' | 'm';
+export type LengthDisplayUnit = 'mm' | 'cm' | 'm';
 
 /**
  * At and above this many millimetres a length reads in metres.
@@ -39,6 +39,12 @@ export const METRE_THRESHOLD_MM = MILLIMETRES_PER_METRE;
 /** Decimals shown on a length in millimetres — walls are drawn to whole millimetres. */
 const MILLIMETRE_FRACTION_DIGITS = 0;
 
+/**
+ * Decimals shown on a length in centimetres. Chosen only when the caller asks
+ * for `unit: 'cm'` explicitly — {@link chooseUnit} never picks it.
+ */
+const CENTIMETRE_FRACTION_DIGITS = 1;
+
 /** Decimals shown on a length in metres, so a metre value keeps millimetre resolution. */
 const METRE_FRACTION_DIGITS = 2;
 
@@ -49,6 +55,7 @@ const AREA_FRACTION_DIGITS = 2;
 const ANGLE_FRACTION_DIGITS = 1;
 
 const MILLIMETRE_SUFFIX = ' mm';
+const CENTIMETRE_SUFFIX = ' cm';
 const METRE_SUFFIX = ' m';
 const SQUARE_METRE_SUFFIX = ' m²';
 const DEGREE_SUFFIX = '°';
@@ -57,11 +64,13 @@ export interface LengthFormatOptions {
   /**
    * Force the reading unit instead of choosing it from the magnitude.
    *
-   * Pass `'mm'` for a column of wall thicknesses that must line up, or `'m'`
-   * for a column of elevations.
+   * Pass `'mm'` for a column of wall thicknesses that must line up, `'cm'` for
+   * a unit picker that offers it explicitly, or `'m'` for a column of
+   * elevations. {@link chooseUnit} — the automatic pick used when `unit` is
+   * left out — never returns `'cm'`.
    */
   readonly unit?: LengthDisplayUnit;
-  /** Override the decimals for the chosen unit: 0 for millimetres, 2 for metres. */
+  /** Override the decimals for the chosen unit: 0 for millimetres, 1 for centimetres, 2 for metres. */
   readonly fractionDigits?: number;
 }
 
@@ -95,6 +104,9 @@ function chooseUnit(valueMm: number): LengthDisplayUnit {
  * `formatLength(3450)` is `"3,45 m"`. `null`, `undefined`, `NaN` and `±Infinity`
  * all give {@link MISSING_VALUE}.
  *
+ * `unit: 'cm'` reads only when the caller asks for it explicitly — the
+ * automatic pick above never lands on centimetres.
+ *
  * @param valueMm Length in millimetres — a `Millimetres` quantity or a bare number.
  *
  * @example
@@ -103,6 +115,7 @@ function chooseUnit(valueMm: number): LengthDisplayUnit {
  * formatLength(12400)                    // "12,40 m"
  * formatLength(850, { unit: 'm' })       // "0,85 m"
  * formatLength(3450, { unit: 'mm' })     // "3.450 mm"
+ * formatLength(3450, { unit: 'cm' })     // "345,0 cm"
  * formatLength(null)                     // "—"
  */
 export function formatLength(valueMm: MaybeNumber, options: LengthFormatOptions = {}): string {
@@ -114,6 +127,11 @@ export function formatLength(valueMm: MaybeNumber, options: LengthFormatOptions 
   if (unit === 'mm') {
     const digits = options.fractionDigits ?? MILLIMETRE_FRACTION_DIGITS;
     return `${formatNumber(valueMm, { fractionDigits: digits })}${MILLIMETRE_SUFFIX}`;
+  }
+
+  if (unit === 'cm') {
+    const digits = options.fractionDigits ?? CENTIMETRE_FRACTION_DIGITS;
+    return `${formatNumber(valueMm / MILLIMETRES_PER_CENTIMETRE, { fractionDigits: digits })}${CENTIMETRE_SUFFIX}`;
   }
 
   const digits = options.fractionDigits ?? METRE_FRACTION_DIGITS;
