@@ -1,0 +1,23 @@
+{
+  "overlayComparison.confirm.button": "xác nhận mô hình khớp bản vẽ",
+  "overlayComparison.confirm.withinTolerance": "mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
+  "overlayComparison.confirm.withDeviations": "bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai.",
+  "overlayComparison.layer.scan": "ảnh quét gốc",
+  "overlayComparison.layer.geometry": "hình học sinh ra",
+  "overlayComparison.layer.deviation": "vùng lệch",
+  "overlayComparison.metric.mean": "sai số trung bình",
+  "overlayComparison.metric.max": "sai số lớn nhất",
+  "overlayComparison.metric.overTolerance": "số vùng vượt ngưỡng",
+  "overlayComparison.mode.sideBySideDisabled": "khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.",
+  "overlayComparison.notice.empty": "tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.",
+  "overlayComparison.notice.errorFrame": "không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.",
+  "overlayComparison.notice.errorRead": "không đọc được ảnh bản vẽ gốc của tầng này.",
+  "overlayComparison.notice.errorScale": "không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
+  "overlayComparison.notice.forbidden": "bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
+  "overlayComparison.notice.loading": "đang tải ảnh bản vẽ gốc.",
+  "overlayComparison.notice.noFloor": "dự án này chưa có tầng nào để đối chiếu.",
+  "overlayComparison.notice.partialDeviation": "còn {{count}} vùng vượt dung sai.",
+  "overlayComparison.notice.partialGeometry": "còn {{count}} tầng chưa dựng hình học.",
+  "overlayComparison.notice.partialScan": "chỉ {{withScan}} trong {{total}} tầng có ảnh gốc để đối chiếu.",
+  "overlayComparison.tolerance.label": "dung sai"
+}
