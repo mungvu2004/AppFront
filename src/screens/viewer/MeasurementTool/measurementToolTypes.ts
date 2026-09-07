@@ -183,23 +183,12 @@ export interface DraftMeasurement {
 /**
  * Ba đơn vị của Select ở đầu mục.
  *
- * `'cm'` đang được việc logic LG-2 bổ sung vào `LengthDisplayUnit`. Cho tới khi
- * việc đó về, union viết thẳng ở đây để nhánh hợp đồng typecheck được; dòng
- * khẳng định bên dưới bắt hai bên phải trùng nhau ngay khi LG-2 về, nên chúng
- * không thể lệch trong im lặng. Điều phối viên đổi lại thành bí danh ở lớp gộp.
+ * Bí danh thẳng của kiểu tầng định dạng, nên hai bên không lệch nhau được: màn
+ * không thể chào một đơn vị mà `formatLength` không in nổi. Trước khi việc logic
+ * bổ sung `'cm'` về, chỗ này là một union viết tay cộng một dòng khẳng định giữ
+ * chỗ; nay `'cm'` đã có thật nên bí danh làm đúng việc đó mà không cần dòng nào.
  */
-export type MeasureUnit = 'mm' | 'cm' | 'm';
-
-/**
- * Mọi đơn vị màn này dùng phải là đơn vị tầng định dạng in được.
- *
- * Hôm nay dòng này đúng vì `LengthDisplayUnit` chưa có `'cm'` — nó chỉ kiểm
- * chiều `LengthDisplayUnit ⊆ MeasureUnit`. Khi LG-2 về, đổi `MeasureUnit`
- * thành `LengthDisplayUnit` và dòng này thành hằng đẳng thức.
- */
-type _MeasureUnitCoversFormatter = LengthDisplayUnit extends MeasureUnit ? true : never;
-const _measureUnitCheck: _MeasureUnitCoversFormatter = true;
-void _measureUnitCheck;
+export type MeasureUnit = LengthDisplayUnit;
 
 export const MEASURE_UNITS = ['mm', 'cm', 'm'] as const satisfies readonly MeasureUnit[];
 
