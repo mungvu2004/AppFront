@@ -160,6 +160,38 @@ export interface ViolationDetailViewProps {
   readonly onFigureModeChange: (mode: ViolationFigureMode) => void;
   /** Mã đối tượng đang được xem trước hậu quả (trỏ vào một hàng lựa chọn); `null` khi không. */
   readonly previewEntityIds: readonly string[] | null;
+  /**
+   * Hình 2D đã tính sẵn ở hook. `null` khi không dựng được ngữ cảnh 2D.
+   *
+   * `points` là chuỗi thuộc tính `points` của `<polygon>`, đã tính xong ở hook bằng
+   * `toBuildFloorInput` + `resolveWallShapes` — view chỉ đổ vào thuộc tính, đúng A15 và
+   * đúng R-60 (view không được nhập `@/domain`). `isSubject` mang viền `--state-violation`
+   * (phán quyết G4); `isDimmed` là đường nối của xem trước hậu quả: trỏ vào một hàng lựa
+   * chọn thì hook bật cờ này cho các mã trong `affectedEntityIds`.
+   */
+  readonly figure2d: {
+    readonly viewBox: string;
+    readonly shapes: readonly {
+      readonly id: string;
+      readonly points: string;
+      readonly isSubject: boolean;
+      readonly isDimmed: boolean;
+    }[];
+  } | null;
+  /**
+   * Chỗ gắn canvas 3D. Hook sở hữu `import()` động tới `mountViewerScene`.
+   *
+   * Nhập động là bắt buộc, không phải tuỳ chọn: ngân sách `routeChunk` là 280 KiB và
+   * `screens/viewer/Viewer3D` một mình đã chiếm 264,8 KiB. Khuôn: `RuleReport/types.ts:155`
+   * `previewRef`.
+   */
+  readonly figureRef: (canvas: HTMLCanvasElement | null) => void;
+  /**
+   * Không dựng được ngữ cảnh hình ⇒ phần chữ đứng một mình, **cấm** hiện khung vỡ.
+   *
+   * Đây là nguồn thứ hai của trạng thái 3 (`partial`) — xem {@link ViolationDetailState}.
+   */
+  readonly figureUnavailable: boolean;
 
   /* -- Khối 6 "Nguyên nhân có thể" — LUÔN ≥ 2 -- */
   readonly causes: readonly ViolationCause[];
