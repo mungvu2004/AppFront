@@ -414,6 +414,19 @@ export interface OverlayComparisonViewModel {
   readonly floors: readonly FloorOptionViewModel[];
   readonly activeFloorId: LevelId | null;
 
+  /**
+   * Ảnh quét gốc của tầng đang chọn. `null` khi tầng không có ảnh.
+   *
+   * Đến từ `FloorImageQuality.sourceUrl` (`quality.assess`) — **ảnh đã nắn**, nên
+   * màn không phải xoay hay sửa méo gì thêm.
+   *
+   * `null` mang hai nghĩa khác nhau, và view phân biệt chúng bằng
+   * {@link OverlayComparisonViewModel.state} chứ không bằng trường này: `empty` là
+   * tầng **không có** ảnh (nhập từ CAD), `loading` là **chưa tải xong**. Ở `error`
+   * thì ảnh vẫn có — thứ hỏng là phép căn, không phải ảnh.
+   */
+  readonly scanUrl: string | null;
+
   readonly compareMode: CompareModeId;
   /** Kiểu bị tắt kèm lý do — `sideBySide` dưới 1280 và ở trạng thái `collapsed`. */
   readonly disabledCompareModes: Readonly<Partial<Record<CompareModeId, string>>>;
