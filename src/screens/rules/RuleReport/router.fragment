@@ -1,0 +1,40 @@
+GHI CHÚ CHO LỚP GỘP (M1) — KHÔNG PHẢI MÃ NGUỒN CHẠY ĐƯỢC.
+Sửa `src/routes/router.tsx` theo đúng ba bước dưới đây. Không worker nào khác
+được sửa file đó (mục 3 của phân công W4).
+
+--------------------------------------------------------------------------
+BƯỚC 1 — Thêm một dòng `import` mới, cạnh các `RouteXxx` lazy khác (khoảng
+dòng 29-53 của `router.tsx` hiện tại, ngay sau dòng khai `RouteMeasurementTool`):
+
+const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
+const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(m => ({ default: m.RulesRoute })));
+const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
+
+(Chỉ dòng `RouteRules` là MỚI; hai dòng còn lại chép nguyên văn để lớp gộp
+thấy đúng chỗ chèn — nó nằm giữa `RouteMeasurementTool` và `RoutePipelineGraph`
+trong file hiện tại.)
+
+--------------------------------------------------------------------------
+BƯỚC 2 — Trong mảng `children` của `router` (`createBrowserRouter([...])`),
+XOÁ đúng dòng Placeholder này:
+
+{ path: ROUTE_PATTERNS.projectRules, element: <Placeholder name="/projects/:id/rules" /> },
+
+THAY BẰNG dòng route thật, đúng khuôn các route `suspended(...)` khác:
+
+{ path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
+
+--------------------------------------------------------------------------
+BƯỚC 3 — Không có bước nào khác. `ROUTE_PATTERNS.projectRules` đã có sẵn ở
+`src/routes/paths.ts:74`, không cần sửa file đó.
+
+--------------------------------------------------------------------------
+KẾT QUẢ MONG ĐỢI (đoạn `router.tsx` sau khi áp dụng, dòng 300-304 hiện tại):
+
+      { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
+      { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
+      { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
+      { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
+      { path: ROUTE_PATTERNS.projectExport, element: <Placeholder name="/projects/:id/export" /> },
+
+(`projectExport` ở dòng dưới KHÔNG đổi — màn đó chưa có worker nào dựng.)
