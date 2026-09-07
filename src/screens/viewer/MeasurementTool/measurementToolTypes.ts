@@ -11,7 +11,11 @@
  * 3. Không quy đổi đơn vị. Màn chỉ chọn đơn vị rồi đưa cho tầng định dạng.
  */
 
-import type { MeasurementKind, MeasurePoint } from '@/domain/measure/measure';
+import type {
+  MeasurementKind,
+  MeasurePoint,
+  SquareMillimetres,
+} from '@/domain/measure/measure';
 import type { Millimetres } from '@/domain/units/types';
 import type { LengthDisplayUnit } from '@/lib/format/measure';
 
@@ -122,8 +126,15 @@ export interface PinnedMeasurement {
   readonly mode: MeasureMode;
   /** Giá trị ĐÃ ĐỊNH DẠNG, ví dụ "3.450 mm" hoặc "3,45 m" (A15, P-01). */
   readonly valueLabel: string;
-  /** Giá trị thô, chỉ để so sánh và sắp xếp. Không bao giờ in thẳng. */
-  readonly rawValueMm: Millimetres;
+  /**
+   * Giá trị thô, chỉ để so sánh và sắp xếp. Không bao giờ in thẳng.
+   *
+   * Hai nhãn đơn vị, vì hai loại phép đo: ba chế độ độ dài cho `Millimetres`,
+   * còn "diện tích mặt sàn" cho `SquareMillimetres`. Union thay vì chỉ
+   * `Millimetres` là để một hàng diện tích không phải nói dối rằng nó là độ
+   * dài — kiểu sai ở đây thì mọi phép so sánh về sau đều so nhầm thứ nguyên.
+   */
+  readonly rawValueMm: Millimetres | SquareMillimetres;
   /**
    * Cùng giá trị ấy, đã đổi sang đơn vị đang chọn — nhưng vẫn là SỐ.
    *
