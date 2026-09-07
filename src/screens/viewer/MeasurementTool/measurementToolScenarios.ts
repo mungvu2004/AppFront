@@ -20,10 +20,25 @@
  * mang `mode: 'perpendicular'` ở đây dùng `measureDistance` giữa hai điểm
  * thật của bộ mẫu làm giá trị tạm thời — con số vẫn thật, chỉ nhãn chế độ là
  * minh hoạ cho tới khi LG-1 về và điều phối viên nối lại.
+ *
+ * ## `displayValue`/`displayFractionDigits`/`unitSuffix` — cùng một đơn vị cho cả bảng
+ *
+ * `unit` của mọi kịch bản ở đây là `'mm'` (xem `BASE.unit`), nên mọi hàng đã
+ * ghim gọi `formatLength(..., { unit: 'mm' })` một lần rồi lấy CẢ chuỗi
+ * (`valueLabel`) LẪN số (`displayValue`) từ đúng một lần gọi đó — không có
+ * phép chia đơn vị nào viết tay ở đây (`mm` là đơn vị lưu trữ gốc nên
+ * `displayValue` chỉ là `rawValueMm` không đổi, không phải một phép quy đổi).
+ *
+ * ## `screenPoints` — pixel khung nhìn, không phải hình học
+ *
+ * Đây là bố cục minh hoạ cho story/test, không phải dữ liệu nghiệp vụ, nên
+ * không lấy từ fixture (R-70 nói tới dữ liệu MẪU, không nói tới toạ độ bố
+ * cục). Kịch bản `ready` cố ý để một hàng có `screenPoints: null` — phép đo
+ * đó "nằm ngoài khung nhìn", đúng ca `MeasurementOverlay.tsx` phải xử lý.
  */
 
 import { measureDistance, measureHeight, type MeasurePoint } from '@/domain/measure/measure';
-import { millimetres } from '@/domain/units/types';
+import { millimetres, type Millimetres } from '@/domain/units/types';
 import { formatLength } from '@/lib/format/measure';
 import { CLEAN_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
 
@@ -32,8 +47,33 @@ import type {
   MeasurementScreenState,
   MeasurementToolProps,
   PinnedMeasurement,
+  ScreenPoint,
   SnapIndicator,
 } from './measurementToolTypes';
+
+/* -------------------------------------------------------------------------- */
+/* Chuỗi + số cùng một lần định dạng — một đơn vị cho mọi kịch bản (`unit: 'mm'`). */
+/* -------------------------------------------------------------------------- */
+
+const DISPLAY_UNIT_SUFFIX = 'mm';
+const DISPLAY_FRACTION_DIGITS = 0;
+
+interface FormattedMillimetreValue {
+  readonly valueLabel: string;
+  readonly displayValue: number;
+  readonly displayFractionDigits: number;
+  readonly unitSuffix: string;
+}
+
+/** `mm` là đơn vị lưu trữ gốc nên không có phép quy đổi nào ở đây, chỉ định dạng lại. */
+function formatPinnedValue(valueMm: Millimetres): FormattedMillimetreValue {
+  return {
+    valueLabel: formatLength(valueMm, { unit: 'mm' }),
+    displayValue: valueMm,
+    displayFractionDigits: DISPLAY_FRACTION_DIGITS,
+    unitSuffix: DISPLAY_UNIT_SUFFIX,
+  };
+}
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái, cùng thứ tự A11.                                            */
@@ -96,13 +136,32 @@ const HEIGHT_2 = measureHeight(
   levelPoint(2, wallEndpoint(9, 'start')),
 );
 
+/** Bốn trong năm hàng có toạ độ pixel thật; xem `PINNED_4` cho ca "ngoài khung nhìn". */
+const SCREEN_POINTS_1: readonly ScreenPoint[] = [
+  { x: 340, y: 420 },
+  { x: 560, y: 430 },
+];
+const SCREEN_POINTS_2: readonly ScreenPoint[] = [
+  { x: 680, y: 220 },
+  { x: 740, y: 360 },
+];
+const SCREEN_POINTS_3: readonly ScreenPoint[] = [
+  { x: 820, y: 120 },
+  { x: 820, y: 380 },
+];
+const SCREEN_POINTS_5: readonly ScreenPoint[] = [
+  { x: 180, y: 520 },
+  { x: 260, y: 560 },
+];
+
 const PINNED_1: PinnedMeasurement = {
   id: 'MS-0001',
   name: 'Phép đo 1',
   mode: 'pointToPoint',
-  valueLabel: formatLength(DISTANCE_1.lengthMm),
+  ...formatPinnedValue(DISTANCE_1.lengthMm),
   rawValueMm: DISTANCE_1.lengthMm,
   points: DISTANCE_1.points,
+  screenPoints: SCREEN_POINTS_1,
   visible: true,
   stale: false,
   staleReason: null,
@@ -112,9 +171,10 @@ const PINNED_2: PinnedMeasurement = {
   id: 'MS-0002',
   name: 'Phép đo 2',
   mode: 'perpendicular',
-  valueLabel: formatLength(PERPENDICULAR_1.lengthMm),
+  ...formatPinnedValue(PERPENDICULAR_1.lengthMm),
   rawValueMm: PERPENDICULAR_1.lengthMm,
   points: PERPENDICULAR_1.points,
+  screenPoints: SCREEN_POINTS_2,
   visible: true,
   stale: false,
   staleReason: null,
@@ -124,21 +184,24 @@ const PINNED_3: PinnedMeasurement = {
   id: 'MS-0003',
   name: 'Phép đo 3',
   mode: 'height',
-  valueLabel: formatLength(HEIGHT_1.heightMm),
+  ...formatPinnedValue(HEIGHT_1.heightMm),
   rawValueMm: HEIGHT_1.heightMm,
   points: HEIGHT_1.points,
+  screenPoints: SCREEN_POINTS_3,
   visible: true,
   stale: false,
   staleReason: null,
 };
 
+/** Camera đang nhìn chỗ khác — phép đo này còn đó nhưng ngoài khung nhìn. */
 const PINNED_4: PinnedMeasurement = {
   id: 'MS-0004',
   name: 'Phép đo 4',
   mode: 'height',
-  valueLabel: formatLength(HEIGHT_2.heightMm),
+  ...formatPinnedValue(HEIGHT_2.heightMm),
   rawValueMm: HEIGHT_2.heightMm,
   points: HEIGHT_2.points,
+  screenPoints: null,
   visible: true,
   stale: false,
   staleReason: null,
@@ -148,9 +211,10 @@ const PINNED_5: PinnedMeasurement = {
   id: 'MS-0005',
   name: 'Phép đo 5',
   mode: 'pointToPoint',
-  valueLabel: formatLength(DISTANCE_2.lengthMm),
+  ...formatPinnedValue(DISTANCE_2.lengthMm),
   rawValueMm: DISTANCE_2.lengthMm,
   points: DISTANCE_2.points,
+  screenPoints: SCREEN_POINTS_5,
   visible: true,
   stale: false,
   staleReason: null,
@@ -195,11 +259,15 @@ const SNAP_AXIS: SnapIndicator = { kind: 'axisIntersection', label: 'giao trục
 /* nhãn bám con trỏ nên `valueLabel` là `null` (điều cấm thứ hai).             */
 /* -------------------------------------------------------------------------- */
 
+/** Điểm duy nhất đã đặt, chiếu ra cùng một toạ độ pixel với `cursorPx`: con trỏ vừa đặt điểm đó, chưa kịp nhúc nhích. */
+const MEASURING_CURSOR: ScreenPoint = { x: 540, y: 310 };
+
 const MEASURING_DRAFT: DraftMeasurement = {
   mode: 'pointToPoint',
   points: [wallEndpoint(30, 'start')],
   valueLabel: null,
-  cursorPx: { x: 540, y: 310 },
+  screenPoints: [MEASURING_CURSOR],
+  cursorPx: MEASURING_CURSOR,
   snap: SNAP_VERTEX,
 };
 
@@ -222,6 +290,9 @@ const BASE: MeasurementToolProps = {
   onHighlight: NO_OP,
   onToggleVisibility: NO_OP,
   onDelete: NO_OP,
+  onToggleTool: NO_OP,
+  onEscape: NO_OP,
+  onPin: NO_OP,
   unit: 'mm',
   onUnitChange: NO_OP,
   unitJustChanged: false,

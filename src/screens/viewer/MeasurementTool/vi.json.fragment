@@ -2,7 +2,10 @@
   "measurementTool": {
     "title": "Phép đo",
     "unitLabel": "đơn vị",
+    "regionLabel": "Lớp phủ công cụ đo",
+    "modeSegmentedLabel": "Chọn chế độ đo",
     "empty": "chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.",
+    "partialHint": "chuỗi đo chưa đóng. chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.",
     "row": {
       "hide": "Ẩn {{name}}",
       "show": "Hiện {{name}}",
@@ -11,7 +14,13 @@
     },
     "collapse": {
       "collapseButton": "Thu gọn mục Phép đo",
-      "expandButton": "Mở mục Phép đo, {{countLabel}}"
+      "expandButton": "Mở mục Phép đo, {{countLabel}}",
+      "reopenHint": "mở lại danh sách phép đo"
+    },
+    "key": {
+      "pin": "ghim phép đo (phím Enter)",
+      "escape": "thoát chế độ đo (phím Esc)",
+      "toggleTool": "bật tắt công cụ đo (phím M)"
     },
     "mode": {
       "pointToPoint": "điểm đến điểm",
@@ -31,12 +40,12 @@
       "cm": "cm",
       "m": "m"
     },
-    "error": "Không bắt được bề mặt nào dưới con trỏ. Xoay lại góc nhìn rồi thử lại.",
-    "pinBlocked": "Bạn không có quyền ghim phép đo trong dự án này. Liên hệ quản trị dự án.",
     "sample": {
       "name": "Phép đo {{n}}",
       "countLabel": "{{count}} phép đo",
-      "staleReason": "Hình học mà phép đo này tham chiếu đã bị xoá."
+      "staleReason": "Hình học mà phép đo này tham chiếu đã bị xoá.",
+      "errorMessage": "Không bắt được bề mặt nào dưới con trỏ. Xoay lại góc nhìn rồi thử lại.",
+      "pinBlockedCaption": "Bạn không có quyền ghim phép đo trong dự án này. Liên hệ quản trị dự án."
     }
   }
 }
