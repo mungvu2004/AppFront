@@ -87,6 +87,23 @@ export interface SnapIndicator {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Toạ độ màn hình.                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Một điểm trong khung nhìn, tính bằng pixel.
+ *
+ * Vì sao kiểu này tồn tại: phép đo sống trong không gian thế giới (milimet, ba
+ * trục), còn overlay vẽ bằng pixel. Phép chiếu world → NDC → pixel cần camera,
+ * và camera là thứ view thuần không được biết. Nên hook chiếu mỗi khung hình
+ * rồi đưa xuống kết quả đã chiếu; view chỉ nối các điểm lại.
+ */
+export interface ScreenPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Một phép đo đã ghim.                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -107,7 +124,25 @@ export interface PinnedMeasurement {
   readonly valueLabel: string;
   /** Giá trị thô, chỉ để so sánh và sắp xếp. Không bao giờ in thẳng. */
   readonly rawValueMm: Millimetres;
+  /**
+   * Cùng giá trị ấy, đã đổi sang đơn vị đang chọn — nhưng vẫn là SỐ.
+   *
+   * `valueLabel` là chuỗi nên chạy số không được: không có gì để nội suy giữa
+   * "3.450 mm" và "3,45 m". Ba trường dưới đây là cái duy nhất cho phép nhãn
+   * chạy số lúc đổi đơn vị, mà view vẫn không phải quy đổi hay tự chọn số chữ
+   * số thập phân — hook đã quyết cả hai bằng `src/lib/format`.
+   */
+  readonly displayValue: number;
+  /** 0 cho mm, 1 cho cm, 2 cho m. Hook lấy từ tầng định dạng, view không đoán. */
+  readonly displayFractionDigits: number;
+  /** Hậu tố đơn vị đã sẵn sàng để nối: "mm" · "cm" · "m". */
+  readonly unitSuffix: string;
   readonly points: readonly MeasurePoint[];
+  /**
+   * `points` đã chiếu sang pixel khung nhìn. `null` khi phép đo nằm ngoài khung
+   * nhìn và không có gì để vẽ.
+   */
+  readonly screenPoints: readonly ScreenPoint[] | null;
   readonly visible: boolean;
   /**
    * Hình học mà phép đo này tham chiếu đã bị xoá.
@@ -134,8 +169,10 @@ export interface DraftMeasurement {
   readonly points: readonly MeasurePoint[];
   /** `null` khi mới đặt một điểm và chưa có gì để đọc. */
   readonly valueLabel: string | null;
+  /** `points` đã chiếu sang pixel khung nhìn — xem {@link ScreenPoint}. */
+  readonly screenPoints: readonly ScreenPoint[];
   /** Vị trí con trỏ trong khung nhìn, để nhãn bám theo. */
-  readonly cursorPx: { readonly x: number; readonly y: number } | null;
+  readonly cursorPx: ScreenPoint | null;
   readonly snap: SnapIndicator;
 }
 
