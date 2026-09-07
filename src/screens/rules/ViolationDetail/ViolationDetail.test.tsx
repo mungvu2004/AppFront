@@ -30,13 +30,13 @@
  * ("nhận diện tự động có thể sai — độ tin cậy chỉ…").
  */
 
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, Violation } from '@/domain/rules/registry';
-import { runRules } from '@/domain/rules/runner';
+import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
 import {
   idsOnLevel,
   isEntityOfKind,
@@ -59,7 +59,10 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 
+import { useStore } from '@/store';
+
 import { ViolationDetail } from './ViolationDetail';
+import { useViolationDetail } from './useViolationDetail';
 import type {
   ViolationAction,
   ViolationCause,
@@ -679,5 +682,144 @@ describe('trỏ vào một hàng lựa chọn → xem trước hậu quả', () 
 
     expect(onActionHover).toHaveBeenNthCalledWith(1, action.kind);
     expect(onActionHover).toHaveBeenNthCalledWith(2, null);
+  });
+});
+
+/* ==========================================================================
+ * L. [NGHIỆM THU] Vòng sửa → luật đạt → Ctrl+Z trả về trạng thái vi phạm.
+ *
+ * Đây là phép kiểm DUY NHẤT trong file dựng hook thật lên trên kho thật: mọi
+ * `describe` phía trên kiểm view thuần chỉ-từ-props (mục D), còn đặc tả gốc đòi
+ * một vòng đi hết mười hai bước của hợp đồng — lệnh domain, `commit()`, chạy lại
+ * luật, rồi hoàn tác.
+ *
+ * **Hai ngăn xếp, không phải một.** Vé hoàn tác tám giây của tấm trượt lùi
+ * `HistoryStack` riêng của nó; `Ctrl+Z` toàn cục (`router.tsx`, `UndoShortcuts`)
+ * lùi ngăn xếp `temporal` của zundo. Phép kiểm này gọi ĐÚNG cái thứ hai
+ * (`useStore.temporal.getState().undo()`) vì đó là cái phím tắt thật đi qua —
+ * kiểm nhầm ngăn xếp thì phép kiểm xanh mà `Ctrl+Z` vẫn hỏng.
+ * ========================================================================== */
+
+/** Mã dự án và mã tầng của lượt kiểm: chỉ dùng làm khoá mất-hiệu-lực, không đọc mạng. */
+const FIX_LOOP_PROJECT_ID = 'project-nghiem-thu-s34';
+
+/** Số vi phạm của ĐÚNG một mã luật, đếm bằng một lượt `runRules()` đầy đủ. */
+function violationCountOf(graph: NormalizedSpatial, ruleCode: string): number {
+  return runRules(graph, { registry: REGISTRY }).violations.filter(
+    (candidate) => candidate.ruleCode === ruleCode,
+  ).length;
+}
+
+/** Đồ thị đang nằm trong kho — đọc lúc chạy, không phải bản chụp lúc render. */
+function storedGraph(): NormalizedSpatial {
+  const graph = useStore.getState().spatial;
+
+  if (graph === null) {
+    throw new Error('kho chưa có đồ thị nào — lượt kiểm phải nạp bộ mẫu trước');
+  }
+
+  return graph;
+}
+
+/**
+ * Hook THẬT cộng view THẬT, không đi qua `ViolationDetail.container`.
+ *
+ * Container gọi `useParams()` nên nó đòi một router chỉ để lấy một mã dự án mà
+ * lượt kiểm này đã cầm sẵn; bọc thêm `MemoryRouter` sẽ đưa một mối nối không liên
+ * quan vào giữa vòng sửa. Đây đúng là hai dòng mà `WiredViolationDetail` của
+ * container làm sau khi đã phân giải xong mã dự án.
+ */
+function WiredForFixLoop(props: {
+  readonly violations: readonly Violation[];
+  readonly floorId: string;
+}) {
+  const viewProps = useViolationDetail({
+    violations: props.violations,
+    initialIndex: 0,
+    projectId: FIX_LOOP_PROJECT_ID,
+    floorId: props.floorId,
+    onClose: () => undefined,
+  });
+
+  return <ViolationDetail {...viewProps} />;
+}
+
+describe('[NGHIỆM THU] sửa một vi phạm → luật chuyển sang đạt → Ctrl+Z trả về vi phạm', () => {
+  it('ba lần kiểm: vi phạm → đạt → vi phạm trở lại, qua đúng ngăn xếp mà Ctrl+Z đọc', async () => {
+    const { ruleCode, entityId } = SUCCESS_VIOLATION;
+    const floorId = SUCCESS_VIOLATION.levelId ?? 'level-1';
+
+    renderWithProviders(
+      <WiredForFixLoop floorId={floorId} violations={[SUCCESS_VIOLATION]} />,
+    );
+
+    // Bước 1 — nạp bộ mẫu chuẩn vào kho qua đúng hành động công khai của slice.
+    // `renderWithProviders` đặt kho về ban đầu TRƯỚC mỗi lượt render, nên lượt nạp
+    // phải nằm sau nó, và nó cũng là lượt ghi đầu tiên mà `temporal` nhìn thấy.
+    await act(async () => {
+      useStore.getState().setSpatial(NORMALIZED_CLEAN, 'version-1');
+      await Promise.resolve();
+    });
+
+    /* ---- LẦN KIỂM 1 — luật đang VI PHẠM. ---- */
+    const before = violationCountOf(storedGraph(), ruleCode);
+
+    console.log(
+      `[NGHIỆM THU S-34] lần kiểm 1 — trước khi sửa: ${ruleCode} có ${String(before)} vi phạm`,
+    );
+
+    expect(before).toBeGreaterThan(0);
+    expect(storedGraph().byId[entityId]).toBeDefined();
+
+    /* ---- Bước 3 — bấm ĐÚNG nút đề xuất của tấm trượt. ---- */
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'xoá đối tượng này' }));
+    });
+
+    await waitFor(() => {
+      expect(storedGraph().byId[entityId]).toBeUndefined();
+    });
+
+    // Tấm trượt tự nói ra rằng luật vừa chạy lại và không còn báo lỗi — cùng một
+    // sự thật mà hai lần đếm dưới đây đo, chỉ khác là người dùng đọc được nó.
+    await waitFor(() => {
+      expect(screen.getByText(/đã sửa xong/u)).toBeInTheDocument();
+    });
+
+    /* ---- Bước 4 + LẦN KIỂM 2 — chạy lại ĐÚNG luật đó, rồi khẳng định nó ĐẠT. ---- */
+    const fixedGraph = storedGraph();
+    const rerun = runRules(fixedGraph, { registry: REGISTRY, changes: [{ entityId }] });
+    const ran = evaluatedRuleCodes(rerun).includes(ruleCode);
+    const after = violationCountOf(fixedGraph, ruleCode);
+
+    console.log(
+      `[NGHIỆM THU S-34] lần kiểm 2 — sau khi sửa: ${ruleCode} có ${String(after)} vi phạm` +
+        ` (luật có chạy lại: ${String(ran)})`,
+    );
+
+    // "Không còn trong danh sách" và "không được tính lại" là hai chuyện khác
+    // nhau, và chỉ cái đầu mới là đã đạt — nên hỏi cả hai.
+    expect(ran).toBe(true);
+    expect(
+      rerun.violations.some(
+        (candidate) => candidate.ruleCode === ruleCode && candidate.entityId === entityId,
+      ),
+    ).toBe(false);
+    expect(after).toBeLessThan(before);
+
+    /* ---- Bước 6 — Ctrl+Z: ngăn xếp `temporal`, không phải vé của tấm trượt. ---- */
+    await act(async () => {
+      useStore.temporal.getState().undo();
+    });
+
+    /* ---- LẦN KIỂM 3 — vi phạm trở lại, nguyên số cũ. ---- */
+    const restored = violationCountOf(storedGraph(), ruleCode);
+
+    console.log(
+      `[NGHIỆM THU S-34] lần kiểm 3 — sau Ctrl+Z: ${ruleCode} có ${String(restored)} vi phạm`,
+    );
+
+    expect(storedGraph().byId[entityId]).toBeDefined();
+    expect(restored).toBe(before);
   });
 });
