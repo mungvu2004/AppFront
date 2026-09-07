@@ -76,6 +76,7 @@
  */
 
 import type { LevelId } from '@/domain/spatial/types';
+import type { ViewportState } from '@/hooks/useCanvasViewport';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { ProjectRole } from '@/types/project';
 
@@ -174,6 +175,36 @@ export interface RatioBox {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+}
+
+/**
+ * Một nét của lớp `geometry` — hình học mô hình đã chiếu xuống khung đối chiếu.
+ *
+ * ## Vì sao lớp này CÓ dữ liệu ngay hôm nay, khác với lớp `scan`
+ *
+ * Hai lớp thiếu hai thứ khác nhau, và đây là chỗ dễ nhầm nhất của màn:
+ *
+ * - **`geometry` không thiếu gì.** Tường, phòng, ô mở đã nằm trong store từ trước
+ *   (`spatialSlice`). Hook chiếu chúng xuống hệ tỉ lệ `0..1` của khung là vẽ được
+ *   ngay. Chính lớp này **định nghĩa** khung đối chiếu: biên của mô hình là biên
+ *   của khung.
+ * - **`scan` mới là lớp thiếu.** Đặt ảnh quét vào đúng chỗ cần
+ *   `imageToModelTransform`, thứ nằm trong {@link OVERLAY_MISSING_CAPABILITIES}.
+ *
+ * Nên "chưa có phép biến hình" **không** có nghĩa là lớp `geometry` rỗng. Một màn
+ * chỉ vẽ được ảnh nguồn mà không vẽ được mô hình thì mất đúng nửa lý do nó tồn
+ * tại — nguyên tắc của màn là cho người dùng **nhìn thấy nguồn và kết quả cùng
+ * lúc**.
+ *
+ * `points` đã ở hệ tỉ lệ `0..1`; view đặt thẳng vào `path`/`polyline` mà không
+ * cần biết milimét (R-60).
+ */
+export interface GeometryPolyline {
+  /** Định danh tất định — thường là `WallId` / `RoomId` của đối tượng nguồn. */
+  readonly id: string;
+  readonly points: readonly RatioPoint[];
+  /** Phòng thì khép kín; tường và nét dựng thì không. */
+  readonly isClosed: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -399,6 +430,11 @@ export interface OverlayComparisonViewModel {
   readonly isAlignmentLocked: boolean;
 
   readonly layers: Readonly<Record<OverlayLayerId, OverlayLayerViewModel>>;
+  /**
+   * Nét của lớp `geometry`, đã chiếu xuống hệ tỉ lệ `0..1`. Xem
+   * {@link GeometryPolyline} — lớp này CÓ dữ liệu ngay hôm nay, khác lớp `scan`.
+   */
+  readonly geometry: readonly GeometryPolyline[];
   readonly marks: readonly DeviationMarkViewModel[];
   readonly measurement: DeviationMeasurementViewModel | null;
 
@@ -412,6 +448,18 @@ export interface OverlayComparisonViewModel {
   /** Vai của người đang xem, để view biết vì sao một nút bị tắt. */
   readonly role: ProjectRole | null;
   /** Việc cổng chưa làm được — rỗng khi mọi thứ đã nối. */
+  /**
+   * Kéo và thu phóng, **dùng chung cho mọi khung**.
+   *
+   * `useCanvasViewport` không chia sẻ state giữa hai lượt gọi — mỗi lượt là một
+   * `useState` riêng (`src/hooks/useCanvasViewport.ts:82-86`). Nên kiểu
+   * `sideBySide` **không** đồng bộ được bằng cách gọi hook hai lần. Hook gọi nó
+   * đúng MỘT lần và phát giá trị xuống đây; hai khung cùng đọc một `viewport` nên
+   * chúng kéo và thu phóng cùng nhau theo cấu trúc, không phải nhờ một lượt đồng
+   * bộ chạy sau. Cùng khuôn `ScaleCalibration` đang chạy (`types.ts:418`).
+   */
+  readonly viewport: ViewportState;
+
   readonly unsupported: readonly OverlayUnsupported[];
 }
 
@@ -448,6 +496,8 @@ export interface OverlayComparisonActions {
   readonly setToleranceMm: (millimetres: number) => void;
   /** Chọn một vùng lệch: hai khung bay tới và vẽ đường đo. `null` để bỏ chọn. */
   readonly selectRegion: (id: string | null) => void;
+  /** Kéo/thu phóng. Một lượt gọi đổi viewport của MỌI khung cùng lúc. */
+  readonly setViewport: (viewport: ViewportState) => void;
   /** Hành động rõ ràng của con người. Không có đường nào khác đặt được `isConfirmed`. */
   readonly confirmMatch: () => void;
 }
@@ -499,10 +549,15 @@ export interface OverlayComparisonCanvasProps {
   readonly layers: Readonly<Record<OverlayLayerId, OverlayLayerViewModel>>;
   /** URL ảnh quét gốc. `null` khi tầng không có ảnh. */
   readonly scanUrl: string | null;
+  /** Nét của lớp `geometry`. Có dữ liệu ngay hôm nay — xem {@link GeometryPolyline}. */
+  readonly geometry: readonly GeometryPolyline[];
   readonly marks: readonly DeviationMarkViewModel[];
   readonly measurement: DeviationMeasurementViewModel | null;
   readonly swipePosition: number;
+  /** Dùng chung cho mọi khung, kể cả hai khung của `sideBySide`. */
+  readonly viewport: ViewportState;
   readonly isInteractive: boolean;
   readonly onSetSwipePosition: (ratio: number) => void;
+  readonly onSetViewport: (viewport: ViewportState) => void;
   readonly onSelectRegion: (id: string | null) => void;
 }

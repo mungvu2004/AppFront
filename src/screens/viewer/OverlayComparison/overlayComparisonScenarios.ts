@@ -37,11 +37,13 @@ import { formatLength } from '@/lib/format/measure';
 import { ROUTES } from '@/routes/paths';
 import { MISSING_VALUE } from '@/lib/format/number';
 import type { LevelId } from '@/domain/spatial/types';
+import type { ViewportState } from '@/hooks/useCanvasViewport';
 
 import type {
   DeviationMarkViewModel,
   DeviationRowViewModel,
   FloorOptionViewModel,
+  GeometryPolyline,
   MatchMetricsViewModel,
   OverlayComparisonState,
   OverlayComparisonViewModel,
@@ -223,6 +225,57 @@ export const SAMPLE_FLOORS: readonly FloorOptionViewModel[] = Object.freeze([
   { levelId: levelId('04'), label: 'tầng mái', hasScan: false, hasGeometry: false },
 ]);
 
+/**
+ * Hình học mô hình mẫu, đã ở hệ tỉ lệ `0..1` của khung đối chiếu.
+ *
+ * Một đường bao khép kín (ngôi nhà) và ba nét tường trong. Đủ để test đếm được
+ * lớp `geometry` có vẽ hay không, và đủ để story nhìn ra hình.
+ *
+ * Lớp này có dữ liệu ở **mọi** kịch bản có hình học — kể cả `empty` (tầng không có
+ * ảnh gốc) và `error` (không căn được tỷ lệ). Đó là điểm khác cốt lõi giữa nó và
+ * lớp `scan`: thiếu `imageToModelTransform` làm hỏng việc đặt **ảnh**, không làm
+ * mất **mô hình**.
+ */
+export const SAMPLE_GEOMETRY: readonly GeometryPolyline[] = Object.freeze([
+  {
+    id: 'R-outline',
+    isClosed: true,
+    points: [
+      { x: 0.08, y: 0.1 },
+      { x: 0.92, y: 0.1 },
+      { x: 0.92, y: 0.9 },
+      { x: 0.08, y: 0.9 },
+    ],
+  },
+  {
+    id: 'W-03',
+    isClosed: false,
+    points: [
+      { x: 0.4, y: 0.1 },
+      { x: 0.4, y: 0.55 },
+    ],
+  },
+  {
+    id: 'W-07',
+    isClosed: false,
+    points: [
+      { x: 0.4, y: 0.55 },
+      { x: 0.92, y: 0.55 },
+    ],
+  },
+  {
+    id: 'W-12',
+    isClosed: false,
+    points: [
+      { x: 0.08, y: 0.62 },
+      { x: 0.4, y: 0.62 },
+    ],
+  },
+]);
+
+/** Viewport mặc định: chưa kéo, chưa thu phóng. */
+export const IDENTITY_VIEWPORT: ViewportState = Object.freeze({ x: 0, y: 0, zoom: 1 });
+
 /** Ảnh quét mẫu. Chuỗi này KHÔNG bắt đầu bằng `/` hay `http` (R-65). */
 /** Dự án mẫu, để dựng đường dẫn điều hướng thật thay vì chuỗi thô (R-65). */
 export const SAMPLE_PROJECT_ID = 'P-01';
@@ -246,6 +299,8 @@ const BASE: OverlayComparisonViewModel = {
   swipePosition: 0.5,
   isAlignmentLocked: false,
   layers: buildLayers(25, true),
+  geometry: SAMPLE_GEOMETRY,
+  viewport: IDENTITY_VIEWPORT,
   marks: buildMarks(SAMPLE_DEVIATIONS_MM, DEFAULT_TOLERANCE_MM),
   measurement: null,
   metrics: buildMetrics(SAMPLE_DEVIATIONS_MM, DEFAULT_TOLERANCE_MM),
