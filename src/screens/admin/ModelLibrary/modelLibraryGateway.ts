@@ -176,8 +176,21 @@ async function mountModelPreview(
   modelUrl: string,
   options: PreviewSceneOptions,
 ): Promise<ModelPreviewSession> {
+  // Sáu lớp của `three`, tách thành MỘT lệnh `await import` riêng và huỷ cấu trúc ngay tại
+  // chỗ gán. Hình dạng ấy là thứ duy nhất Rollup rung cây được — đã đo cả ba cách viết:
+  //
+  //   `import('three')` trong `Promise.all`      → chunk three dùng chung 165,8 KiB gzip
+  //   `import('three').then(m => ({ Box3: … }))` → 165,8 KiB gzip
+  //   `const { … } = await import('three')`      → 139,0 KiB gzip
+  //
+  // Chunk ấy bị tính vào MỌI route tải muộn có 3D, nên hai cách đầu đẩy `viewer/Viewer3D`
+  // từ 273,7 lên 306,1 KiB và làm hỏng cổng `routeChunk` 280 KiB — một màn mới không được
+  // phép bắt bốn màn cũ trả tiền. Giá của cách thứ ba là một lượt tải nối tiếp: chunk
+  // `three` (139,0 KiB) đi trước, chín chunk còn lại (tổng ~9,3 KiB) đi sau nó.
+  const { Box3, DirectionalLight, HemisphereLight, PerspectiveCamera, Scene, WebGLRenderer } =
+    await import('three');
+
   const [
-    { Box3, DirectionalLight, HemisphereLight, PerspectiveCamera, Scene, WebGLRenderer },
     { createAssetService },
     { measureScene },
     { disposeFloor, ResourceLedger: Ledger },
@@ -188,7 +201,6 @@ async function mountModelPreview(
     { createFrameLoop },
     { degrees, degreesToRadians, RADIANS_PER_TURN },
   ] = await Promise.all([
-    import('three'),
     import('@/lib/three/present/assets'),
     import('@/lib/three/perf/budget'),
     import('@/lib/three/perf/dispose'),
