@@ -267,6 +267,24 @@ export interface VersionHistoryModel {
   /** Trạng thái 6: so sánh được, ẩn nút phục hồi. */
   readonly canRestore: boolean;
   readonly restoreHiddenReason: string | null;
+  /**
+   * Gắn nhãn cho một phiên bản có làm được không.
+   *
+   * `false` ⇒ affordance gắn nhãn **rời khỏi DOM**, không disable (R-69). Bản này là
+   * `false`: không có endpoint gắn nhãn ở `src/api/endpoints.ts`.
+   *
+   * Trường này ở trên model chứ không chỉ trên gateway vì view không nhìn thấy gateway —
+   * thiếu nó thì view vẽ một nút gọi vào chỗ trống, đúng thứ R-69 sinh ra để chặn.
+   */
+  readonly canTagVersion: boolean;
+  /**
+   * Xuất phiên bản cũ (dẫn sang S-34) có làm được không.
+   *
+   * Đây là **điều hướng**, không phải thao tác dữ liệu: màn không tự xuất gì, nó gọi
+   * `onExportVersion` do nơi gọi cấp xuống (R-73). Nên khả năng này đúng bằng "nơi gọi có
+   * cấp callback đó không", chứ không đợi một endpoint xuất-theo-phiên-bản nào cả.
+   */
+  readonly canExportVersion: boolean;
   /** Câu giải thích phục hồi là không phá huỷ — luôn hiện cạnh nút, trước khi bấm. */
   readonly restoreCaption: string;
   readonly restoreConfirm: RestoreConfirmModel;
