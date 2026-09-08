@@ -1,0 +1,25 @@
+{
+  "userManagement": {
+    "detail": {
+      "regionLabel": "chi tiết người dùng",
+      "emptyLabel": "chọn một người để xem chi tiết",
+      "closeButton": "đóng chi tiết người dùng",
+      "membershipsHeading": "dự án tham gia",
+      "membershipsEmpty": "người này chưa tham gia dự án nào",
+      "activitiesHeading": "hoạt động gần đây",
+      "activitiesEmpty": "chưa có hoạt động nào",
+      "removeSectionLabel": "xoá người dùng",
+      "removeDescription": "Xoá hẳn người dùng này khỏi hệ thống.",
+      "removeButton": "xoá hẳn người dùng",
+      "removeDialogTitle": "xoá hẳn {{name}}?",
+      "removeConfirmPrefix": "Gõ lại {{email}} để xác nhận.",
+      "removeInputLabel": "địa chỉ thư",
+      "removeCancel": "để sau",
+      "removeConfirmButton": "xoá vĩnh viễn"
+    },
+    "permissionMatrix": {
+      "captionLabel": "ma trận quyền theo vai",
+      "cornerLabel": "việc"
+    }
+  }
+}
