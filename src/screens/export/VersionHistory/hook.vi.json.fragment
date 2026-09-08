@@ -23,5 +23,7 @@
   "versionHistory.diff.added": "đã thêm",
   "versionHistory.diff.removed": "đã xoá",
   "versionHistory.diff.changed": "đã thay đổi",
-  "versionHistory.savedAt": "đã lưu lúc"
+  "versionHistory.savedAt": "đã lưu lúc",
+  "versionHistory.diff.headingPrefix": "—",
+  "versionHistory.restoreConfirmTitleNamed": "phục hồi phiên bản này?"
 }

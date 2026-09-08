@@ -2,9 +2,10 @@
  * Phép chuyển thuần của S-33 — từ dữ liệu phiên bản sang các mảnh của
  * `VersionHistoryModel`.
  *
- * Tách khỏi `useVersionHistory.ts` vì R-22: gộp lại thì một file vượt 400 dòng.
- * File này **không có React**, nên mọi hàm ở đây test được ngoài một cây React và
- * hook chỉ còn phần trạng thái.
+ * Tách khỏi `useVersionHistory.ts` vì R-22: gộp lại thì một file vượt 400 dòng. Hai
+ * file anh em còn lại cùng lý do — `versionHistoryScene.ts` giữ tab "Trực quan",
+ * `versionHistoryCompare.ts` giữ cặp phiên bản đang so. File này **không có React**,
+ * nên mọi hàm ở đây test được ngoài một cây React.
  *
  * Ba điều file này KHÔNG làm, và đó là chủ ý:
  *
@@ -18,7 +19,6 @@
  *   làm việc đó, nên dấu thập phân là dấu phẩy ở mọi nơi (A15).
  */
 
-import { millimetres, millimetresToMetres, RADIANS_PER_TURN } from '@/domain/units/types';
 import {
   formatCalendarDate,
   formatClockTime,
@@ -27,7 +27,6 @@ import {
 } from '@/lib/format/datetime';
 import { formatNumber } from '@/lib/format/number';
 import { formatChange } from '@/lib/format/semantic';
-import type { BuildFloorInput } from '@/lib/three/build/floor';
 import {
   diffVersions,
   type DiffEntry,
@@ -35,7 +34,6 @@ import {
   type VersionDiff,
 } from '@/lib/versioning/diff';
 import type { VersionEntry, VersionHistoryEntry } from '@/lib/versioning/restore';
-import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import type {
   DiffCountsModel,
@@ -43,6 +41,7 @@ import type {
   DiffRowModel,
   DiffTone,
   JsonDiffLineModel,
+  RestoreConfirmModel,
   VersionGroupModel,
   VersionRowModel,
 } from './types';
@@ -126,10 +125,18 @@ export function countsOf(diff: VersionDiff): DiffCountsModel {
 /* 3 — Cột trái: hàng phiên bản và nhóm theo ngày                             */
 /* -------------------------------------------------------------------------- */
 
-/** Một hàng kèm mốc thời gian thô của nó — phép gộp theo ngày cần mốc, view thì không. */
+/** Một hàng kèm mốc thời gian của nó — phép gộp theo ngày cần mốc, view thì không. */
 export interface VersionRowBuild {
   readonly row: VersionRowModel;
-  readonly createdAt: string;
+  readonly createdAt: Date;
+}
+
+/**
+ * `VersionMetadata.createdAt` là chuỗi ISO, còn `TimeInput` của `@/lib/format/datetime`
+ * chỉ nhận `Date` hoặc số epoch — nên mọi mốc đi qua đây đúng một lần.
+ */
+function instantOf(iso: string): Date {
+  return new Date(iso);
 }
 
 /**
@@ -174,8 +181,10 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         ? countsOf(diffVersions(previous.snapshot, entry.version.snapshot))
         : EMPTY_DIFF_COUNTS;
 
+    const createdAt = instantOf(metadata.createdAt);
+
     return {
-      createdAt: metadata.createdAt,
+      createdAt,
       row: {
         id: metadata.id,
         label: `v${formatNumber(metadata.sequence, { grouping: false })}`,
@@ -185,8 +194,8 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         // Không có nguồn ảnh đại diện nào ở tầng logic, nên ô đại diện dựng bằng chữ
         // cái đầu — một đường dẫn bịa ra còn tệ hơn một ô chữ thành thật (R-69).
         avatarUrl: null,
-        relativeTimeLabel: formatTimestamp(metadata.createdAt, now),
-        absoluteTimeLabel: `${formatCalendarDate(metadata.createdAt)} ${formatClockTime(metadata.createdAt)}`,
+        relativeTimeLabel: formatTimestamp(createdAt, now),
+        absoluteTimeLabel: `${formatCalendarDate(createdAt)} ${formatClockTime(createdAt)}`,
         counts,
         isCurrent: index === 0,
         // Không có endpoint gắn nhãn, nên không có nhãn nào để đọc ra (R-69).
@@ -213,7 +222,7 @@ export function groupRowsByDay(
   now: Date,
 ): readonly VersionGroupModel[] {
   const groups: VersionGroupModel[] = [];
-  let current: { createdAt: string; rows: VersionRowModel[] } | null = null;
+  let current: { createdAt: Date; rows: VersionRowModel[] } | null = null;
 
   for (const build of builds) {
     if (current !== null && isSameCalendarDay(current.createdAt, build.createdAt)) {
@@ -311,7 +320,9 @@ export function buildJsonLines(diff: VersionDiff): readonly JsonDiffLineModel[] 
       continue;
     }
 
-    lines.push({ id: `heading-${tone}`, text: `// ${toneHeading(tone)}`, tone: null });
+    // Dấu gạch ngang chứ không phải `//`: JSON không có chú thích, và R-65 cấm mọi
+    // chuỗi mở đầu bằng `/` trong `src/screens`.
+    lines.push({ id: `heading-${tone}`, text: `— ${toneHeading(tone)}`, tone: null });
 
     entries.forEach((entry, index) => {
       lines.push({
@@ -339,89 +350,62 @@ export function changedEntityIdsOf(diff: VersionDiff): readonly string[] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 5 — Khung cảnh 3D                                                          */
+/* 5 — Lỗi                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** Lượt đọc hỏng mà không mang câu nào vẫn phải nói ra một câu (A11: cấm màn trắng). */
+export const LIST_ERROR_FALLBACK = 'không tải được danh sách phiên bản của tầng này';
+
 /**
- * Vòng quay nghỉ của khung nhìn mở đầu, tính theo vòng.
+ * Lỗi đầu tiên có thật trong danh sách, thành một câu người đọc hiểu.
  *
- * Ba hằng camera dưới đây lặp lại `DEFAULT_CAMERA_RIG`
- * (`lib/three/present/director.ts:54`) thay vì nhập nó về, và đó là một lượt đánh đổi
- * có cân: `director.ts` nhập `three` ở dòng đầu, nên một `import` từ đây kéo cả `three`
- * vào phần gói TĨNH của tuyến lịch sử phiên bản — mà cổng kích thước gói đo theo TỪNG
- * tuyến, và cảnh 3D của màn này cố ý chỉ được nhập động lúc người dùng mở tab "Trực
- * quan". Cùng tiền lệ: `ViewerShell/useViewerShell.ts:346` cũng khai
- * `AXONOMETRIC_POLAR_RAD` của riêng nó thay vì dùng chung.
+ * Không đi qua `describeError`: cổng đã ném ra những câu NÊU ĐÍCH DANH chính sách lưu
+ * giữ hoặc đường dữ liệu còn thiếu (`RETENTION_NOTICE`, `NO_VERSION_SOURCE_REASON`), và
+ * đổi chúng thành một câu lỗi chung là mất đúng phần người đọc cần.
  */
-const CAMERA_RESTING_TURN = 0.05;
-
-/** Năm mươi độ, tính theo vòng: đủ dốc để đọc mặt bằng, đủ thấp để tường còn mặt. */
-const CAMERA_ELEVATION_TURN = 50 / 360;
-
-/** Khoảng trống chừa quanh mô hình sau khi khuôn hình, theo tỉ lệ bề rộng của nó. */
-const CAMERA_MARGIN = 1.03;
-
-/** Khoảng cách tối thiểu, cho một mô hình quá nhỏ để tự quyết định khuôn hình. */
-const MIN_CAMERA_DISTANCE_M = 8;
-
-/** Một phần tư vòng — góc chúc đo từ trục +Y, nên nó là mốc trừ đi độ cao camera. */
-const QUARTER_TURN_RAD = RADIANS_PER_TURN / 4;
-
-/** Bề rộng lớn nhất của các tầng, tính bằng mét; `null` khi không tầng nào có tường. */
-function spanMetresOf(levels: readonly BuildFloorInput[]): number | null {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-
-  for (const level of levels) {
-    for (const wall of level.walls) {
-      for (const point of [wall.centreline.start, wall.centreline.end]) {
-        minX = Math.min(minX, point.x);
-        minY = Math.min(minY, point.y);
-        maxX = Math.max(maxX, point.x);
-        maxY = Math.max(maxY, point.y);
-      }
+export function readErrorMessage(errors: readonly (Error | null)[]): string | null {
+  for (const error of errors) {
+    if (error !== null) {
+      return error.message.length === 0 ? LIST_ERROR_FALLBACK : error.message;
     }
   }
 
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
-    return null;
-  }
-
-  return millimetresToMetres(millimetres(Math.max(maxX - minX, maxY - minY)));
+  return null;
 }
 
-/**
- * Khung cảnh mở đầu của tab "Trực quan".
- *
- * View mount bằng khung này rồi ghi đè đúng hai trường của mình
- * (`selectedEntityIds`, `hoveredEntityId`), nên hai trường ấy để trống ở đây. Không
- * tầng nào dựng được thì trả `null` và view hiện câu caption thay vì canvas.
- */
-export function buildSceneFrame(
-  levels: readonly BuildFloorInput[],
-  reducedMotion: boolean,
-): ViewerSceneFrame | null {
-  if (levels.length === 0) {
-    return null;
-  }
+/* -------------------------------------------------------------------------- */
+/* 6 — Phục hồi                                                               */
+/* -------------------------------------------------------------------------- */
 
-  const span = spanMetresOf(levels);
-  const framed = span === null ? 0 : span * CAMERA_MARGIN;
+/** Trạng thái 6: so sánh được, nhưng nút phục hồi rời khỏi DOM (R-69). */
+export const RESTORE_FORBIDDEN_REASON =
+  'vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện';
+
+/**
+ * Câu giải thích phục hồi là KHÔNG PHÁ HUỶ.
+ *
+ * Luôn hiện cạnh nút VÀ trong hộp thoại xác nhận, tức người đọc gặp nó trước khi bấm —
+ * đúng cấm tuyệt đối của đặc tả, và đúng A9 (việc A8 không hoàn tác được thì phải hỏi).
+ */
+export const RESTORE_CAPTION =
+  'phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
+
+/** Hộp thoại xác nhận phục hồi; `targetVersionId` là `null` khi hộp thoại đang đóng. */
+export function buildRestoreConfirm(
+  builds: readonly VersionRowBuild[],
+  targetVersionId: string | null,
+): RestoreConfirmModel {
+  const label =
+    targetVersionId === null
+      ? null
+      : (builds.find((build) => build.row.id === targetVersionId)?.row.label ?? null);
 
   return {
-    azimuthRad: CAMERA_RESTING_TURN * RADIANS_PER_TURN,
-    polarRad: QUARTER_TURN_RAD - CAMERA_ELEVATION_TURN * RADIANS_PER_TURN,
-    distanceM: Math.max(framed, MIN_CAMERA_DISTANCE_M),
-    isOrthographic: false,
-    visibleStoreyIds: levels.map((level) => level.level.id),
-    separation: 0,
-    selectedEntityIds: [],
-    hoveredEntityId: null,
-    sectionPlane: null,
-    isolatedEntityIds: null,
-    hiddenEntityIds: [],
-    reducedMotion,
+    isOpen: targetVersionId !== null,
+    title: label === null ? 'phục hồi phiên bản này?' : `phục hồi phiên bản ${label}?`,
+    reassurance: RESTORE_CAPTION,
+    confirmLabel: 'phục hồi',
+    cancelLabel: 'để nguyên',
+    targetVersionLabel: label,
   };
 }
