@@ -44,6 +44,7 @@ const RouteExplodedView = lazy(() => import('../screens/viewer/ExplodedView').th
 const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
 const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(m => ({ default: m.RulesRoute })));
 const RouteRuleSettings = lazy(() => import('../screens/rules/RuleSettings').then(m => ({ default: m.RuleSettingsRoute })));
+const RouteExportPanel = lazy(() => import('../screens/export/ExportPanel').then(m => ({ default: m.ExportPanelRoute })));
 const RoutePipelineGraph = lazy(() => import('../screens/pipeline/PipelineGraph').then(m => ({ default: m.PipelineGraphRoute })));
 const RouteCadBranchConfirm = lazy(() => import('../screens/pipeline/CadBranchConfirm').then(m => ({ default: m.CadBranchConfirmRoute })));
 const RouteWallLayerReview = lazy(() => import('../screens/qc/WallLayerReview').then(m => ({ default: m.WallLayerReviewRoute })));
@@ -303,7 +304,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
       { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
       { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
-      { path: ROUTE_PATTERNS.projectExport, element: <Placeholder name="/projects/:id/export" /> },
+      { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
       { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
       { path: ROUTE_PATTERNS.adminModels, element: <Placeholder name="/admin/models" /> },
       { path: ROUTE_PATTERNS.adminUsers, element: <Placeholder name="/admin/users" /> },

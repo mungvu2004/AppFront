@@ -103,11 +103,7 @@ import {
   floorProbesOf,
   type ExplodedAxisProbe,
 } from './explodedViewGateway';
-import {
-  mountExplodedScene,
-  type ExplodedSceneHandle,
-  type MountExplodedScene,
-} from './explodedViewScene';
+import type { ExplodedSceneHandle, MountExplodedScene } from './explodedViewScene';
 import {
   EXPLODE_PRESETS,
   EXPLODED_MOTION_MS,
@@ -642,7 +638,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
   /* ---- Lắp cảnh --------------------------------------------------------- */
 
   const levels = conversion.levels;
-  const mountScene = options.mountScene ?? mountExplodedScene;
+  const injectedMount = options.mountScene;
 
   const latest = useRef({ frame: shell.frame, sceneActions: shell.sceneActions, tokenOfPartKind });
 
@@ -650,39 +646,89 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
     latest.current = { frame: shell.frame, sceneActions: shell.sceneActions, tokenOfPartKind };
   });
 
+  /**
+   * Lắp cảnh — và nạp module cảnh MUỘN.
+   *
+   * `explodedViewScene` kéo theo `three` và `src/lib/three/build`: 136,7 KiB gzip
+   * nằm trong chunk mà người dùng tải NGAY khi bước vào màn, và cổng `routeChunk`
+   * đo đúng con số đó. Commit `8c32959` đã chỉ tận nơi ("three của nó đi vào qua
+   * `explodedViewScene.ts` nhập tĩnh") và để lại lời giải: "cho nó nạp cảnh qua
+   * `import()` như `useMeasurementToolScene` đã làm". Đây là lượt làm việc ấy;
+   * khuôn chép từ `useMeasurementToolScene.ts:107-158`.
+   *
+   * Cửa tiêm `options.mountScene` giữ nguyên và vẫn đi đường ĐỒNG BỘ: một cảnh
+   * giả không có lý do gì phải đợi một lượt nạp module.
+   *
+   * `cancelled` là vì `import()` mở một khoảng giữa lúc effect chạy và lúc module
+   * về: người dùng có thể đã rời màn trong khoảng ấy, và một cảnh lắp lên canvas
+   * đã gỡ là một `WebGLRenderer` không ai dọn.
+   */
   useEffect(() => {
     if (canvas === null || levels.length === 0) {
       return undefined;
     }
 
-    const current = latest.current;
-    const mount = mountScene(canvas, {
-      levels,
-      storeys: probes,
-      frame: current.frame,
-      actions: current.sceneActions,
-      tokenOfPartKind: () => latest.current.tokenOfPartKind(),
-      // Cảnh này chỉ để XEM sự tách: không có công cụ sửa nào cắm vào nó, nên tia
-      // chọn luôn bật và quyền sửa không đi qua đây (vai chỉ-xem vẫn chọn được để
-      // panel phải nói ra tên tầng — đúng nghĩa `forbidden` của A11).
-      canSelect: true,
-      onStatusChange: setSceneStatus,
-    });
+    let cancelled = false;
+    let mounted: ExplodedSceneHandle | null = null;
 
-    if (!mount.ok) {
-      setWebglUnavailable(true);
-      return undefined;
+    const attach = (mountScene: MountExplodedScene): void => {
+      if (cancelled) {
+        return;
+      }
+
+      const current = latest.current;
+      const mount = mountScene(canvas, {
+        levels,
+        storeys: probes,
+        frame: current.frame,
+        actions: current.sceneActions,
+        tokenOfPartKind: () => latest.current.tokenOfPartKind(),
+        // Cảnh này chỉ để XEM sự tách: không có công cụ sửa nào cắm vào nó, nên tia
+        // chọn luôn bật và quyền sửa không đi qua đây (vai chỉ-xem vẫn chọn được để
+        // panel phải nói ra tên tầng — đúng nghĩa `forbidden` của A11).
+        canSelect: true,
+        onStatusChange: setSceneStatus,
+      });
+
+      if (!mount.ok) {
+        setWebglUnavailable(true);
+        return;
+      }
+
+      if (cancelled) {
+        mount.handle.dispose();
+        return;
+      }
+
+      setWebglUnavailable(false);
+      mounted = mount.handle;
+      handleRef.current = mount.handle;
+    };
+
+    if (injectedMount !== undefined) {
+      attach(injectedMount);
+    } else {
+      void import('./explodedViewScene').then(
+        (module) => {
+          attach(module.mountExplodedScene);
+        },
+        () => {
+          // Không nạp được module cảnh thì màn ở đúng chỗ nó đã ở khi máy không
+          // có WebGL: nói ra rằng không dựng được, chứ không trắng màn (A11).
+          if (!cancelled) {
+            setWebglUnavailable(true);
+          }
+        },
+      );
     }
 
-    setWebglUnavailable(false);
-    handleRef.current = mount.handle;
-
     return (): void => {
-      mount.handle.dispose();
+      cancelled = true;
+      mounted?.dispose();
       handleRef.current = null;
       setSceneStatus(IDLE_STATUS);
     };
-  }, [canvas, levels, probes, mountScene]);
+  }, [canvas, levels, probes, injectedMount]);
 
   useEffect(() => {
     handleRef.current?.update(shell.frame);
