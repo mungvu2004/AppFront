@@ -3390,5 +3390,138 @@
       "filterAll": "tất cả",
       "filterMine": "của tôi"
     }
+  },
+  "userManagement": {
+    "breadcrumb": {
+      "navLabel": "đường dẫn trang",
+      "admin": "quản trị",
+      "users": "người dùng",
+      "backLabel": "về bảng điều khiển"
+    },
+    "role": {
+      "admin": "quản trị",
+      "engineer": "kỹ sư",
+      "viewer": "người xem"
+    },
+    "status": {
+      "active": "đang hoạt động",
+      "pending": "chờ chấp nhận",
+      "disabled": "đã vô hiệu hoá"
+    },
+    "permissionMatrix": {
+      "captionLabel": "ma trận quyền theo vai trò",
+      "referenceButtonLabel": "Xem ma trận quyền",
+      "referenceModalTitle": "Ma trận quyền theo vai trò",
+      "allowed": "được phép",
+      "notAllowed": "không được phép",
+      "floorUpload": "tải bản vẽ",
+      "layerEdit": "sửa hình học",
+      "qcApprove": "duyệt QC",
+      "rulesetEdit": "đổi bộ luật",
+      "modelExport": "xuất",
+      "shareCreate": "chia sẻ",
+      "userManage": "quản lý người dùng"
+    },
+    "toolbar": {
+      "searchLabel": "tìm người dùng",
+      "searchPlaceholder": "Tìm theo tên hoặc email...",
+      "roleFilterLabel": "vai",
+      "statusFilterLabel": "trạng thái",
+      "allOptionLabel": "tất cả",
+      "summaryUserLabel": "người dùng",
+      "summaryAdminLabel": "quản trị",
+      "summaryPendingLabel": "lời mời đang chờ",
+      "inviteButtonLabel": "Mời người dùng"
+    },
+    "invite": {
+      "roleLabel": "vai cho lời mời",
+      "emailsLabel": "email người được mời",
+      "emailsPlaceholder": "Nhập email, cách nhau bằng dấu phẩy hoặc xuống dòng...",
+      "submitLabel": "Gửi lời mời",
+      "cancelLabel": "Huỷ",
+      "hint": "ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
+      "invalidEmailsPrefix": "không hợp lệ:",
+      "invalidEmailsErrorPrefix": "chưa đọc được các địa chỉ sau:",
+      "validEmailCountSuffix": "địa chỉ hợp lệ"
+    },
+    "table": {
+      "headerUser": "Họ tên",
+      "headerEmail": "Email",
+      "headerRole": "Vai",
+      "headerProjects": "Số dự án",
+      "headerLastActive": "Lần hoạt động cuối",
+      "headerStatus": "Trạng thái",
+      "headerActions": "hành động",
+      "emptyMessage": "Không tìm thấy người dùng phù hợp.",
+      "inviteExpiredLabel": "lời mời đã hết hạn",
+      "resendInviteLabel": "gửi lại",
+      "disableUserLabel": "vô hiệu hoá",
+      "enableUserLabel": "bật lại",
+      "removeUserLabel": "xoá"
+    },
+    "detail": {
+      "regionLabel": "chi tiết người dùng",
+      "emptyLabel": "chọn một người để xem chi tiết",
+      "closeButton": "đóng chi tiết người dùng",
+      "membershipsHeading": "dự án tham gia",
+      "membershipsEmpty": "người này chưa tham gia dự án nào",
+      "activitiesHeading": "hoạt động gần đây",
+      "activitiesEmpty": "chưa có hoạt động nào",
+      "removeSectionLabel": "xoá người dùng",
+      "removeDescription": "Xoá hẳn người dùng này khỏi hệ thống.",
+      "removeButton": "gỡ người dùng khỏi hệ thống",
+      "removeDialogTitle": "xoá hẳn {{name}}?",
+      "removeConfirmPrefix": "Gõ lại {{email}} để xác nhận.",
+      "removeInputLabel": "địa chỉ thư",
+      "removeCancel": "để sau",
+      "removeConfirmButton": "xác nhận xoá vĩnh viễn"
+    },
+    "state": {
+      "emptyTitle": "chưa có người dùng nào khác",
+      "emptyTeaching": "mới chỉ có mình bạn ở đây; mời đồng đội bằng nút mời người dùng, ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
+      "errorTitle": "không tải được danh sách người dùng",
+      "errorFallback": "Đã có lỗi xảy ra.",
+      "retryButtonLabel": "Thử lại",
+      "loadFailed": "không đọc được danh sách người dùng",
+      "forbidden": "vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì",
+      "neverActive": "chưa hoạt động lần nào"
+    },
+    "blocked": {
+      "selfRole": "bạn không thể tự đổi vai của mình",
+      "selfDisable": "bạn không thể tự vô hiệu hoá tài khoản của mình",
+      "lastAdmin": "đây là quản trị cuối cùng, hệ thống cần ít nhất một người giữ vai này",
+      "membershipRole": "vai trong từng dự án theo vai của hệ thống; hệ thống chưa có đường đổi riêng cho một dự án",
+      "invite": "vai của bạn chưa mời được người dùng",
+      "removeWarning": "xoá hẳn gỡ luôn phần ghi công của người này trong lịch sử và không hoàn tác được; gõ đúng địa chỉ thư của họ để xác nhận"
+    },
+    "toast": {
+      "roleChangedTitle": "đã đổi vai",
+      "roleChangedNoLoss": "vai mới giữ nguyên mọi việc họ đang làm được",
+      "roleChangedLostPrefix": "vai mới không còn:",
+      "roleChangeFailedTitle": "không đổi được vai",
+      "disabledTitle": "đã vô hiệu hoá tài khoản",
+      "enabledTitle": "đã bật lại tài khoản",
+      "setEnabledFailedTitle": "không đổi được trạng thái tài khoản",
+      "invitedTitle": "đã gửi lời mời",
+      "inviteFailedTitle": "không gửi được lời mời",
+      "removedTitle": "đã xoá tài khoản",
+      "removeFailedTitle": "không xoá được tài khoản",
+      "resentTitle": "đã gửi lại lời mời",
+      "resendFailedTitle": "không gửi lại được lời mời"
+    },
+    "activity": {
+      "wallEdit": "sửa tường",
+      "roomEdit": "sửa phòng",
+      "openingEdit": "sửa ô mở",
+      "furnitureMove": "dời nội thất",
+      "dimensionEdit": "sửa kích thước",
+      "axisEdit": "sửa trục",
+      "floorUpload": "tải bản vẽ",
+      "rulesRun": "chạy bộ luật",
+      "exportFile": "xuất tệp",
+      "shareCreate": "tạo liên kết chia sẻ",
+      "projectOpen": "mở dự án",
+      "fallback": "thao tác khác"
+    }
   }
 }

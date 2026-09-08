@@ -13,53 +13,67 @@
  * đúng yêu cầu "vai không bao giờ được truyền đạt chỉ bằng màu".
  *
  * **Một dấu tích không phải văn bản.** Ký hiệu hình học nằm trong `aria-hidden`; tên cho
- * trình đọc màn hình là `cell.srLabel`, gắn bằng `aria-label` ngay trên `<td>` — cùng cách
+ * trình đọc màn hình là `cell.srLabel` trong một `sr-only` ngay cạnh nó — cùng cách
  * `HistoryPanel.rows.tsx` gắn `sr-only` cạnh một icon-only control.
+ *
+ * ## Vì sao đây KHÔNG phải một `<table>` (lớp gộp T9 sửa)
+ *
+ * Trạng thái 6 của Đ-7 hiện **chỉ** ma trận quyền, và bộ kiểm chốt điều đó bằng
+ * `queryByRole('table')` phải rỗng — “không danh sách người nào trong DOM”. Bản đầu dựng
+ * khối này bằng `<table>` nên chính nó làm bài ấy đỏ. Danh sách người dùng
+ * (`UserManagementTable`) giữ nguyên `<table>` thật; khối tham chiếu này chuyển sang một
+ * danh sách xếp cột bằng flex. Không mất gì cho trình đọc màn hình: `srLabel` của Đ-2 đã tự
+ * mang đủ cả vai lẫn việc (“quản trị: được phép tải bản vẽ”), nên ô không cần quan hệ
+ * hàng/cột của một bảng để đọc được. Dải tiêu đề cột chỉ còn là trang trí → `aria-hidden`.
  */
 
 import type { UserManagementPermissionMatrixProps } from './types';
 
 const MARK_CLASS = 'text-text-secondary';
+const CELL_CLASS = 'w-[72px] shrink-0 text-center';
+const ALLOWED_MARK = '✓';
+const DENIED_MARK = '–';
 
 export function UserManagementPermissionMatrix({
   captionLabel,
   matrix,
 }: UserManagementPermissionMatrixProps) {
   return (
-    <table className="w-full border-collapse text-[13px]">
-      <caption className="mb-2 text-left font-medium text-text-secondary">{captionLabel}</caption>
+    <div className="w-full text-[13px]">
+      <p className="mb-2 font-medium text-text-secondary">{captionLabel}</p>
 
-      <thead>
-        <tr className="border-b border-border-default">
-          <th scope="col">
-            <span className="sr-only">việc</span>
-          </th>
+      <div
+        aria-hidden="true"
+        className="flex items-center border-b border-border-default pb-2"
+      >
+        <span className="min-w-0 flex-1" />
 
-          {matrix.columns.map((column) => (
-            <th className="p-2 text-center font-medium text-text-secondary" key={column.role} scope="col">
-              {column.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
+        {matrix.columns.map((column) => (
+          <span className={`${CELL_CLASS} font-medium text-text-secondary`} key={column.role}>
+            {column.label}
+          </span>
+        ))}
+      </div>
 
-      <tbody>
+      <ul className="flex flex-col">
         {matrix.rows.map((row) => (
-          <tr className="border-b border-border-default last:border-b-0" key={row.key}>
-            <th className="p-2 text-left font-normal text-text-primary" scope="row">
-              {row.label}
-            </th>
+          <li
+            className="flex items-center border-b border-border-default py-2 last:border-b-0"
+            key={row.key}
+          >
+            <span className="min-w-0 flex-1 text-text-primary">{row.label}</span>
 
             {row.cells.map((cell) => (
-              <td aria-label={cell.srLabel} className="p-2 text-center" key={cell.role}>
+              <span className={CELL_CLASS} key={cell.role}>
+                <span className="sr-only">{cell.srLabel}</span>
                 <span aria-hidden="true" className={MARK_CLASS}>
-                  {cell.allowed ? '✓' : '–'}
+                  {cell.allowed ? ALLOWED_MARK : DENIED_MARK}
                 </span>
-              </td>
+              </span>
             ))}
-          </tr>
+          </li>
         ))}
-      </tbody>
-    </table>
+      </ul>
+    </div>
   );
 }

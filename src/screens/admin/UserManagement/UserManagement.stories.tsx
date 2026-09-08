@@ -12,11 +12,11 @@
  * đóng gói được `vitest`) đến từ file dữ liệu thuần cùng thư mục, cũng được
  * `UserManagement.test.tsx` nhập — một nguồn, không hai bản có thể trôi khỏi nhau.
  *
- * ## `./UserManagement` (view) đang được viết SONG SONG, CHƯA TỒN TẠI trong worktree này
+ * ## Seam của lớp viết song song: đã đóng
  *
- * Đây là seam đã biết — Storybook (và `pnpm typecheck` khi có ai nhập tĩnh module này) sẽ báo
- * "failed to resolve"/"Cannot find module" cho tới khi lớp gộp (T9) ghép view thật vào, đúng
- * cách `ModelLibrary.stories.tsx` từng ở lớp trước khi `ModelLibrary.tsx` tồn tại.
+ * File này viết trước khi `UserManagement.tsx` tồn tại, nên ở lượt của T8 nó báo lỗi phân
+ * giải module — đúng cách `ModelLibrary.stories.tsx` từng ở lớp trước khi `ModelLibrary.tsx`
+ * tồn tại. Lớp gộp (T9) đã ghép view thật vào và lời nhập dưới đây phân giải bình thường.
  *
  * **Không export thứ gì khác ngoài `meta` và bảy story** mà không khai qua
  * `meta.excludeStories` — một export không phải story làm Storybook trắng cả file.

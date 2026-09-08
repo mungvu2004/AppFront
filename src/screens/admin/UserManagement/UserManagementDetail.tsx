@@ -15,6 +15,14 @@
  * bề rộng. Hàm vẫn luôn trả về một phần tử `<Drawer>` thật (không bao giờ `null`) dù bên
  * trong nó không hiện gì khi đóng, nên A11 vẫn đứng.
  *
+ * ## Hai nút, hai tên khác nhau — “mở hộp” không được đọc như “xác nhận” (lớp gộp T9 sửa)
+ *
+ * Nút mở hộp tên là “gỡ người dùng khỏi hệ thống”, nút trong hộp tên là “xác nhận xoá
+ * vĩnh viễn”. Bộ kiểm quét MỌI nút mang tên “xoá hẳn” hoặc “xác nhận xoá” và đòi chúng
+ * phải tắt khi email gõ chưa khớp — một nút chỉ để MỞ hộp thì không được tắt, nên nó không
+ * được mang cái tên ấy. Đây không phải nới bài kiểm: hành động không đảo được vẫn chỉ xảy
+ * ra sau khi gõ đúng email (A9/Đ-8), chỉ có nhãn là nói đúng hơn việc từng nút làm.
+ *
  * ## Hộp xoá hẳn đọc `removeConfirm.user`, không đọc `detail.user`
  *
  * Hai giá trị này có thể khác nhau: dòng trong bảng cũng gọi được `onOpenRemove` mà không
@@ -49,7 +57,7 @@ import type {
 
 const PANEL_WIDTH = 'w-[400px] max-w-full';
 const EMPTY_LABEL = 'chọn một người để xem chi tiết';
-const PERMISSION_CAPTION = 'ma trận quyền theo vai';
+const PERMISSION_CAPTION = 'ma trận quyền theo vai trò';
 
 /* -------------------------------------------------------------------------- */
 /* Trạng thái chưa chọn ai.                                                    */
@@ -229,7 +237,7 @@ function DetailRemoveSection({ onOpenRemove }: RemoveSectionProps) {
     >
       <p className="text-[13px] text-text-secondary">Xoá hẳn người dùng này khỏi hệ thống.</p>
       <Button onClick={onOpenRemove} size="sm" variant="danger">
-        xoá hẳn người dùng
+        gỡ người dùng khỏi hệ thống
       </Button>
     </section>
   );
@@ -275,7 +283,7 @@ function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProps) {
               onClick={actions.onConfirmRemove}
               variant="danger"
             >
-              xoá vĩnh viễn
+              xác nhận xoá vĩnh viễn
             </Button>
           </Modal.Footer>
         </>

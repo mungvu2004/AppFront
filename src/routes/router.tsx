@@ -56,6 +56,7 @@ const RouteFloorManager = lazy(() => import('../screens/qc/FloorManager').then(m
 const RouteThicknessStandardization = lazy(() => import('../screens/qc/ThicknessStandardization').then(m => ({ default: m.ThicknessStandardizationRoute })));
 const RouteVersionHistory = lazy(() => import('../screens/export/VersionHistory').then(m => ({ default: m.VersionHistoryRoute })));
 const RouteModelLibrary = lazy(() => import('../screens/admin/ModelLibrary').then(m => ({ default: m.ModelLibraryRoute })));
+const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -310,7 +311,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
       { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
       { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
-      { path: ROUTE_PATTERNS.adminUsers, element: <Placeholder name="/admin/users" /> },
+      { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
       { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
       { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
       { path: ROUTE_PATTERNS.designSystemStates, element: <Placeholder name="/design-system/states" /> },

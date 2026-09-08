@@ -9,14 +9,14 @@
  * trang, thanh công cụ, rồi vùng nội dung (khung xương lúc `loading`, `EmptyState` lúc
  * `empty`, `InlineAlert` lúc `error`, bảng người dùng cho `partial`/`success`/`collapsed`).
  *
- * ## Hai component đến từ một nhánh khác
+ * ## Hai component đến từ một nhánh khác: đã ghép
  *
- * `UserManagementDetail` và `UserManagementPermissionMatrix` thuộc phạm vi của T7, viết
- * song song trên nhánh riêng. File này nhập đúng tên và đúng chữ ký
+ * `UserManagementDetail` và `UserManagementPermissionMatrix` thuộc phạm vi của T7, viết song
+ * song trên nhánh riêng. File này nhập đúng tên và đúng chữ ký
  * (`UserManagementDetailProps`, `UserManagementPermissionMatrixProps` trong `./types`) từ
- * trước khi hai file kia tồn tại — không tự viết, không thay bằng stub — nên tới lượt kiểm
- * của nhánh này `pnpm typecheck` báo đúng hai lỗi "Cannot find module" ở hai dòng nhập dưới
- * đây. Lỗi ấy đã dự kiến tan khi lớp gộp (T9) ghép các nhánh lại.
+ * trước khi hai file kia tồn tại — nó không tự viết lại chúng và không dựng bản tạm nào —
+ * nên ở lượt kiểm của nhánh T6 `pnpm typecheck` báo đúng hai lỗi phân giải module ở hai dòng
+ * nhập dưới đây. Lớp gộp (T9) đã ghép các nhánh lại và hai lỗi ấy tan đúng như dự kiến.
  *
  * ## Ma trận quyền có HAI chỗ mở được
  *

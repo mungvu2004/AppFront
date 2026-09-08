@@ -354,8 +354,18 @@ describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng,
 
     renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
 
+    // `getByText` một mình KHÔNG dùng được ở đây: React dựng `<textarea value>` bằng cách đặt
+    // chuỗi làm TEXT CHILD, nên chính ô nhập đã là một khớp của /khong-hop-le/ — và mọi cách
+    // hiện địa chỉ hỏng cho người đọc đều tạo khớp thứ hai, tức `getByText` luôn ném "Found
+    // multiple elements" trên MỌI bản hiện thực đúng. Nên bài này lọc bỏ ô nhập rồi đòi phần
+    // còn lại vẫn có ít nhất một phần tử: điều sản phẩm thật sự cần là địa chỉ hỏng hiện ra ở
+    // CHỖ NGƯỜI ĐỌC THẤY, không phải chỉ vọng lại trong ô gõ.
     await waitFor(() => {
-      expect(screen.getByText(/khong-hop-le/iu)).toBeTruthy();
+      const shown = screen
+        .getAllByText(/khong-hop-le/iu)
+        .filter((node) => node.tagName !== 'TEXTAREA' && node.tagName !== 'INPUT');
+
+      expect(shown.length, 'địa chỉ hỏng phải hiện ngoài ô nhập').toBeGreaterThan(0);
     });
   });
 });
