@@ -1,0 +1,28 @@
+{
+  "modelLibrary": {
+    "detail": {
+      "regionLabel": "chi tiết model",
+      "closeButton": "đóng panel chi tiết model",
+      "key": {
+        "escape": "đóng panel chi tiết model"
+      },
+      "preview": {
+        "regionLabel": "xem trước mô hình",
+        "retry": "Thử lại"
+      },
+      "triangles": {
+        "regionLabel": "số tam giác",
+        "declared": "Máy chủ khai",
+        "measured": "Đo lại từ tệp",
+        "mismatchNote": "Hai số lệch nhau là chuyện thường: số đo lại đọc thẳng từ hình học trong tệp."
+      },
+      "fields": {
+        "regionLabel": "siêu dữ liệu model"
+      },
+      "heavy": {
+        "regionLabel": "cảnh báo model nặng",
+        "badge": "Nặng"
+      }
+    }
+  }
+}
