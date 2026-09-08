@@ -68,7 +68,6 @@ import {
   type NormalizedSpatial,
   type SpatialEntity,
 } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import type { Furniture, Level, LevelId, SpatialGraph } from '@/domain/spatial/types';
 import { can } from '@/lib/auth/permissions';
 import * as glbModule from '@/lib/export/exportGlb';
@@ -499,7 +498,7 @@ export function countPdfPages(input: CountPdfPagesInput): number {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Một tầng của đồ thị, thành một `ExportFloor`.
+ * Các tầng được chọn, thành `ExportFloor`; tầng không có trong đồ thị bị bỏ.
  *
  * `toBuildFloorInput` đã giải quyết hai chỗ lệch kiểu khó nhất — `Wall` và
  * `Opening` của `domain/spatial` khác `Wall` và `Opening` mà bộ xuất đòi — nên
@@ -507,22 +506,37 @@ export function countPdfPages(input: CountPdfPagesInput): number {
  * trong `BuildableLevel`) và lọc nội thất của tầng (`Furniture` khớp thẳng,
  * không cần chuyển đổi).
  *
- * @returns `null` khi tầng không có trong đồ thị.
+ * **Nhập muộn, và nhận cả danh sách thay vì một tầng.** Phép chuyển đổi này chỉ
+ * chạy khi người dùng bấm Xuất `.glb`, nên `@/domain/spatial/toBuildFloorInput`
+ * không có việc gì trên đường nhập TĨNH của màn: để nó ở đó thì bộ gói phải
+ * tách nó ra một chunk dùng chung riêng, và mọi màn khác đang dùng nó — kể cả
+ * `viewer/ExplodedView` — trả tiền cho lần tách ấy. Nhận cả danh sách để một
+ * lượt xuất chỉ tốn đúng một lần `import()`.
  */
-export function toExportFloor(graph: NormalizedSpatial, level: Level): ExportFloor | null {
-  const built = toBuildFloorInput(graph, level.id);
+export async function toExportFloors(
+  graph: NormalizedSpatial,
+  levels: readonly Level[],
+): Promise<readonly ExportFloor[]> {
+  const { toBuildFloorInput } = await import('@/domain/spatial/toBuildFloorInput');
+  const floors: ExportFloor[] = [];
 
-  if (built === null) {
-    return null;
+  for (const level of levels) {
+    const built = toBuildFloorInput(graph, level.id);
+
+    if (built === null) {
+      continue;
+    }
+
+    floors.push({
+      level: { ...built.level, name: level.name, order: level.order },
+      walls: built.walls,
+      rooms: built.rooms,
+      openings: built.openings ?? [],
+      furniture: furnitureOnLevel(graph, level.id),
+    });
   }
 
-  return {
-    level: { ...built.level, name: level.name, order: level.order },
-    walls: built.walls,
-    rooms: built.rooms,
-    openings: built.openings ?? [],
-    furniture: furnitureOnLevel(graph, level.id),
-  };
+  return floors;
 }
 
 function furnitureOnLevel(graph: NormalizedSpatial, levelId: LevelId): readonly Furniture[] {

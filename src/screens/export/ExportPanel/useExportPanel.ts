@@ -53,15 +53,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
 import { describeError, toAppError } from '@/lib/errors';
-import {
-  DEFAULT_EXPORT_OPTIONS,
-  EXPORT_CANCELLED_MESSAGE,
-  type ExportFloor,
-} from '@/lib/export/exportGlb';
-import { CAPTURE_WIDTH_PX, DEFAULT_CAPTURE_OPTIONS } from '@/lib/export/screenshot';
+import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
 import { formatFileSize } from '@/lib/format/bytes';
 import { formatTimestamp } from '@/lib/format/datetime';
-import { formatNumber } from '@/lib/format/number';
+import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useSession } from '@/hooks/useSession';
 import { useStore } from '@/store';
@@ -73,7 +68,7 @@ import {
   countPdfPages,
   createExportPanelGateway,
   EXPORT_FORBIDDEN_CAPTION,
-  toExportFloor,
+  toExportFloors,
   type ExportedFile,
   type ExportPanelCapabilities,
   type ExportPanelGateway,
@@ -202,9 +197,19 @@ const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
  *
  * `CAPTURE_WIDTH_PX` nhân độ phân giải mặc định là con số bộ chụp thật sẽ dùng;
  * không có con số nào viết tay ở đây.
+ *
+ * Hai hằng số ấy sống trong `@/lib/export/screenshot`, và file đó mở đầu bằng
+ * `import { WebGLRenderTarget } from 'three'`. Một cái nhãn không được quyền
+ * kéo `three` vào bao đóng nhập TĨNH của màn, nên nó đi qua `import()` — đúng
+ * khuôn `useExplodedView.ts:711` đã dùng cho `captureViewport`. Nhãn chỉ hiện
+ * khi thẻ "ảnh" mở ra, nên một nhịp `MISSING_VALUE` không ai kịp thấy; và viết
+ * cứng 1440 vào đây thì R-71 cấm.
  */
-const captureWidthLabel = (): string =>
-  `${formatNumber(CAPTURE_WIDTH_PX * DEFAULT_CAPTURE_OPTIONS.resolution)} px`;
+const readCaptureWidthLabel = async (): Promise<string> => {
+  const { CAPTURE_WIDTH_PX, DEFAULT_CAPTURE_OPTIONS } = await import('@/lib/export/screenshot');
+
+  return `${formatNumber(CAPTURE_WIDTH_PX * DEFAULT_CAPTURE_OPTIONS.resolution)} px`;
+};
 
 const initialOptions = (viewId: string): ExportOptionsView => ({
   glb: {
@@ -222,7 +227,7 @@ const initialOptions = (viewId: string): ExportOptionsView => ({
     // nó cũng không làm hồ sơ dày thêm một trang, và số trang phải nói thật.
     includeRender3d: false,
   },
-  image: { viewId, widthLabel: captureWidthLabel() },
+  image: { viewId, widthLabel: MISSING_VALUE },
   spatialJson: { includeConfidence: true },
   isExpanded: false,
 });
@@ -281,6 +286,29 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const [optionsView, setOptionsView] = useState<ExportOptionsView>(() =>
     initialOptions(activeFloorId ?? ''),
   );
+
+  // Bề ngang ảnh đến sau một nhịp vì `@/lib/export/screenshot` được nạp muộn;
+  // xem {@link readCaptureWidthLabel}. Ghi đè đúng một trường và bỏ qua nếu
+  // nhãn đã đúng, nên lượt này không đụng tới lựa chọn nào của người dùng.
+  useEffect(() => {
+    let isActive = true;
+
+    void readCaptureWidthLabel().then((widthLabel) => {
+      if (!isActive) {
+        return;
+      }
+
+      setOptionsView((current) =>
+        current.image.widthLabel === widthLabel
+          ? current
+          : { ...current, image: { ...current.image, widthLabel } },
+      );
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   // Mặc định là **mọi tầng**, và một tầng mới thêm vào dự án cũng được chọn:
   // giữ danh sách tầng BỊ BỎ chọn thay vì danh sách được chọn khiến mặc định
@@ -357,17 +385,15 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const startedAtRef = useRef<number>(0);
 
   const exportMutation = useMutation<ExportedFile, Error, ExportFormatId>({
-    mutationFn: (formatId) => {
+    mutationFn: async (formatId) => {
       startedAtRef.current = gateway.now();
 
       if (formatId === 'glb') {
         if (graph === null) {
-          return Promise.reject(new Error('Chưa có mô hình để xuất.'));
+          throw new Error('Chưa có mô hình để xuất.');
         }
 
-        const exportFloors = selectedLevels
-          .map((level) => toExportFloor(graph, level))
-          .filter((floor): floor is ExportFloor => floor !== null);
+        const exportFloors = await toExportFloors(graph, selectedLevels);
 
         return gateway.startGlbExport({
           projectId,

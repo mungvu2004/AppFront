@@ -37,12 +37,21 @@ export {
   type ExplodedAxisProbe,
 } from './explodedViewGateway';
 
-export {
-  mountExplodedScene,
-  EXPLODED_MAX_FPS,
-  type ExplodedSceneHandle,
-  type ExplodedSceneMountOptions,
-  type MountExplodedScene,
+/**
+ * Cảnh 3D chỉ tái xuất KIỂU, không tái xuất giá trị.
+ *
+ * `mountExplodedScene` và `EXPLODED_MAX_FPS` từng ra khỏi đây như giá trị, và
+ * một lượt tái xuất giá trị là một lượt nhập tĩnh: `three` cùng
+ * `src/lib/three/build` (136,7 KiB gzip) đi thẳng vào chunk của màn, kể cả khi
+ * `useExplodedView` đã chuyển sang `import()` động. Không nơi gọi nào trong
+ * `src/` dùng hai cái tên ấy — đường dùng chúng là `options.mountScene` của
+ * container, và nó nhận KIỂU chứ không nhận module. Ai thật sự cần chính cảnh
+ * thì nhập `./explodedViewScene`, và nhận lấy `three` một cách có ý thức.
+ */
+export type {
+  ExplodedSceneHandle,
+  ExplodedSceneMountOptions,
+  MountExplodedScene,
 } from './explodedViewScene';
 
 export {
