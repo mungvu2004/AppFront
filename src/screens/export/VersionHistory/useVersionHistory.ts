@@ -1,5 +1,5 @@
 /**
- * Hook của S-33 — lịch sử phiên bản (`/du-an/:projectId/phien-ban`).
+ * Hook của S-33 — lịch sử phiên bản (`/projects/:id/versions`; xem `types.ts` về chỗ lệch).
  *
  * View thuần chỉ nhận `model` + `actions` (mục D, R-60); tất cả phần còn lại của màn ở
  * đây. File này tiêu thụ `versionHistoryGateway.ts` và không dựng lại thứ gì trong đó —

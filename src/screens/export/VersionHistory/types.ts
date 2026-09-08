@@ -1,5 +1,10 @@
 /**
- * Hợp đồng của S-33 — lịch sử phiên bản (`/du-an/:projectId/phien-ban`).
+ * Hợp đồng của S-33 — lịch sử phiên bản (`/projects/:id/versions`).
+ *
+ * Đặc tả gọi route này là `/du-an/:projectId/phien-ban`. Đường dẫn thật đi theo quy ước
+ * đang chạy của repo — `PROJECTS_ROOT = '/projects'` và lỗ `:id` (`routes/paths.ts:30`) —
+ * vì chính `paths.ts` ghi rõ `account: '/tai-khoan'` là ngoại lệ tiếng Việt DUY NHẤT.
+ * Luật thắng prompt, và chỗ lệch được ghi lại thay vì im lặng chọn bên.
  *
  * Điều phối viên sở hữu file này. **Không worker nào được sửa nó.** Hook, hai nửa view và bộ
  * test đều tiêu thụ file này và không tiêu thụ mã của nhau; đó là lý do bốn worker chạy song
