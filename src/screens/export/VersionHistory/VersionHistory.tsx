@@ -2,8 +2,8 @@
  * Vỏ S-33: bố cục hai cột (trái 360 = danh sách, phải = vùng so sánh). View thuần (R-60,
  * mục D) — mọi dữ liệu tới từ `VersionHistoryProps`, không chạm store/mạng.
  *
- * `VersionCompare` (vùng so sánh) do worker khác dựng, CHƯA tồn tại trong worktree này —
- * import thẳng, lớp gộp sẽ rấp lại. Typecheck báo thiếu `./VersionCompare` là bình thường.
+ * `VersionCompare` (vùng so sánh) do worker khác dựng trên nhánh riêng; lớp gộp đã ghép nó
+ * vào, nên lệnh nhập dưới đây phân giải bình thường.
  *
  * Quyết định lệch khỏi đặc tả, ghi lại vì đặc tả không nói rõ:
  *  - "Phiên bản này" ở chân màn (nút phục hồi + nút xuất) trỏ vào
@@ -115,7 +115,12 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {reviewedVersionId !== null && (
+          {/*
+            R-69: `canExportVersion` sai ⇒ nút RỜI KHỎI DOM, không phải bị tắt. Xuất một
+            phiên bản là điều hướng sang S-34 và khả năng ấy đúng bằng "nơi gọi có cấp
+            `onExportVersion` không" — không có thì nút này gọi vào chỗ trống.
+          */}
+          {model.canExportVersion && reviewedVersionId !== null && (
             <Button variant="ghost" onClick={() => actions.exportVersion(reviewedVersionId)}>
               xuất phiên bản này
             </Button>
@@ -130,7 +135,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
                 }
               }}
             >
-              khôi phục phiên bản này
+              phục hồi phiên bản này
             </Button>
           )}
         </div>

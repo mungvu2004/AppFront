@@ -36,7 +36,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
@@ -110,6 +110,16 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const [activeTab, setActiveTab] = useState<CompareTabId>('changes');
   const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
   const [restoreTargetId, setRestoreTargetId] = useState<string | null>(null);
+  /*
+   * Phiên bản đang chờ xác nhận, giữ SONG SONG trong một ref.
+   *
+   * `confirmRestore()` không nhận tham số (hợp đồng), nên nó phải đọc mục tiêu ở đâu đó.
+   * Đọc từ `restoreTargetId` một mình là đọc qua closure của lượt render hiện tại: gọi
+   * `requestRestore(id)` rồi `confirmRestore()` trong CÙNG một nhịp — thứ hợp đồng cho phép,
+   * và thứ bộ kiểm làm — sẽ thấy `null` và lượt phục hồi im lặng không xảy ra. Ref được ghi
+   * ngay trong `requestRestore`, nên thứ tự trong một nhịp không còn quyết định kết quả.
+   */
+  const restoreTargetRef = useRef<string | null>(null);
   const [isRecomputing, setIsRecomputing] = useState(false);
 
   /* ---- Đọc: danh sách phiên bản và bản so ------------------------------ */
@@ -383,15 +393,22 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       },
       setTab: setActiveTab,
       hoverDiffRow: setHoveredEntityId,
-      requestRestore: setRestoreTargetId,
+      requestRestore: (versionId) => {
+        restoreTargetRef.current = versionId;
+        setRestoreTargetId(versionId);
+      },
       confirmRestore: () => {
-        if (restoreTargetId !== null) {
-          restoreMutation.mutate(restoreTargetId);
+        const target = restoreTargetRef.current ?? restoreTargetId;
+
+        if (target !== null) {
+          restoreMutation.mutate(target);
         }
 
+        restoreTargetRef.current = null;
         setRestoreTargetId(null);
       },
       cancelRestore: () => {
+        restoreTargetRef.current = null;
         setRestoreTargetId(null);
       },
       exportVersion: (versionId) => {

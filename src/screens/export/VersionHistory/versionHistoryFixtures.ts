@@ -54,6 +54,7 @@ import type {
   VersionRowModel,
   VisualDiffModel,
 } from './types';
+import { NO_MODEL_REASON } from './versionHistoryScene';
 
 /* ==========================================================================
  * 0. Hằng số chung.
@@ -170,11 +171,22 @@ export const SAMPLE_JSON_LINES: readonly JsonDiffLineModel[] = buildJsonLines(SA
 export const SAMPLE_VISUAL_CAPTION =
   'Đang hiện mô hình hiện tại, không phải phiên bản cũ; 3 đối tượng liên quan được đánh dấu.';
 
+/**
+ * Không có đồ thị không gian trong fixture, nên tab "trực quan" ở đúng nhánh mà
+ * `buildVisualModel` sinh ra trong hoàn cảnh ấy: `sceneFrame` là `null` ⇒ `isAvailable`
+ * là `false` và lý do là `NO_MODEL_REASON` (`versionHistoryScene.ts:34`). `isBuilding`
+ * bắt buộc là `false` vì mã thật tính nó bằng `isAvailable && isFetchingDiff` — một
+ * fixture "đang dựng" mà không có cảnh là một trạng thái mã thật không sinh ra được.
+ * `caption` vẫn giữ nguyên: nó là trường bắt buộc của hợp đồng, và giá trị này đúng bằng
+ * câu `buildVisualModel` sẽ ghép cho ba đối tượng đã đổi.
+ */
 export const SAMPLE_VISUAL: VisualDiffModel = {
-  isAvailable: true,
-  unavailableReason: null,
+  isAvailable: false,
+  unavailableReason: NO_MODEL_REASON,
   isBuilding: false,
   caption: SAMPLE_VISUAL_CAPTION,
+  sceneLevels: [],
+  sceneFrame: null,
   changedEntityIds: ['W-005', 'W-014', 'W-021'],
   hoveredEntityId: null,
 };
@@ -373,6 +385,10 @@ function modelForState(state: SevenState): VersionHistoryModel {
     conflict: null,
     errorMessage: null,
     savedAtLabel: SAMPLE_SAVED_AT_LABEL,
+    // Không có endpoint gắn nhãn ⇒ affordance gắn nhãn rời khỏi DOM (mục 2 hợp đồng, R-69).
+    canTagVersion: false,
+    // Nơi gọi có cấp `onExportVersion` ⇒ nút "xuất phiên bản này" ở lại trong DOM (R-73).
+    canExportVersion: true,
   };
 
   switch (state) {
