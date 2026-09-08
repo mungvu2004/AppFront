@@ -13,6 +13,11 @@
  * `ImageOptionsView` không có trường nào sửa được qua props (không có danh
  * sách góc nhìn để chọn) nên phần của ảnh chỉ hiện thông tin, không có điều
  * khiển — đúng tinh thần "thiếu dữ liệu thì không giả vờ có điều khiển".
+ *
+ * Cùng tinh thần đó, công tắc "kèm lưới trục" chỉ tồn tại khi
+ * `capabilities.canIncludeAxisGrid`. Hôm nay cờ đó là `false` —
+ * `ExportGlbOptions` không có trường lưới trục nên công tắc không đổi được tệp
+ * xuất ra — nên nó **rời khỏi DOM**, không phải bị làm xám.
  */
 
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -24,6 +29,7 @@ import { cn } from '@/lib/utils';
 
 import { FOCUS_RING } from './ExportPanelFormats';
 import type {
+  ExportCapabilities,
   ExportDetailChoice,
   ExportFloorChoice,
   ExportFormatId,
@@ -92,10 +98,11 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
 interface FormatOptionsBodyProps {
   readonly formatId: ExportFormatId;
   readonly options: ExportOptionsView;
+  readonly capabilities: ExportCapabilities;
   readonly onChangeOptions: (next: ExportOptionsView) => void;
 }
 
-function FormatOptionsBody({ formatId, options, onChangeOptions }: FormatOptionsBodyProps) {
+function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }: FormatOptionsBodyProps) {
   if (formatId === 'glb') {
     return (
       <div className="flex flex-col gap-3">
@@ -117,13 +124,15 @@ function FormatOptionsBody({ formatId, options, onChangeOptions }: FormatOptions
             onChangeOptions(withGlb(options, { includeFurniture: checked }));
           }}
         />
-        <Checkbox
-          label="gồm lưới trục"
-          checked={options.glb.includeAxisGrid}
-          onChange={(checked) => {
-            onChangeOptions(withGlb(options, { includeAxisGrid: checked }));
-          }}
-        />
+        {capabilities.canIncludeAxisGrid && (
+          <Checkbox
+            label="gồm lưới trục"
+            checked={options.glb.includeAxisGrid}
+            onChange={(checked) => {
+              onChangeOptions(withGlb(options, { includeAxisGrid: checked }));
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -190,6 +199,7 @@ function FormatOptionsBody({ formatId, options, onChangeOptions }: FormatOptions
 export interface ExportPanelOptionsProps {
   readonly floors: readonly ExportFloorChoice[];
   readonly options: ExportOptionsView;
+  readonly capabilities: ExportCapabilities;
   readonly selectedFormatId: ExportFormatId;
   readonly onToggleFloor: (id: string) => void;
   readonly onChangeOptions: (next: ExportOptionsView) => void;
@@ -199,6 +209,7 @@ export interface ExportPanelOptionsProps {
 export function ExportPanelOptions({
   floors,
   options,
+  capabilities,
   selectedFormatId,
   onToggleFloor,
   onChangeOptions,
@@ -228,7 +239,12 @@ export function ExportPanelOptions({
 
         {options.isExpanded && (
           <div key={selectedFormatId} className="animate-dropdown-open">
-            <FormatOptionsBody formatId={selectedFormatId} options={options} onChangeOptions={onChangeOptions} />
+            <FormatOptionsBody
+              formatId={selectedFormatId}
+              options={options}
+              capabilities={capabilities}
+              onChangeOptions={onChangeOptions}
+            />
           </div>
         )}
       </div>

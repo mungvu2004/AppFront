@@ -6,9 +6,10 @@
  * mà `useExportPanel` (chưa tồn tại) sẽ gọi tới — `buildPdfDocument` cho số trang
  * PDF thật, `APP_ERROR_KIND_CONFIG.export` cho mã lỗi thật (R-70).
  *
- * Năm công năng của {@link ExportCapabilities} đều `false` — tầng logic không
+ * Tám công năng của {@link ExportCapabilities} đều `false` — tầng logic không
  * cung cấp ước tính dung lượng trước khi xuất, lưu lịch sử qua lần tải lại, đổi
- * đơn vị, đặt tên bước theo tầng, hay đính nút tải vào toast. Đây không phải một
+ * đơn vị, đặt tên bước theo tầng, đính nút tải vào toast, dựng bytes của tệp
+ * PDF, chụp ảnh khung nhìn ba chiều, hay đưa lưới trục vào tệp. Đây không phải một
  * biến thể theo trạng thái: cả bảy kịch bản dùng ĐÚNG MỘT hằng số
  * {@link FIXED_EXPORT_CAPABILITIES}, vì đây là giới hạn của tầng logic, không
  * phải quyền hạn của người dùng (khác `permissionCaption`, đổi theo `forbidden`).
@@ -140,7 +141,9 @@ export function floorsWithOneUnapproved(): readonly ExportFloorChoice[] {
  * ========================================================================== */
 
 export const DEFAULT_OPTIONS: ExportOptionsView = {
-  glb: { detail: 'high', includeFurniture: true, includeAxisGrid: true },
+  // `canIncludeAxisGrid` là false ở mọi kịch bản: `ExportGlbOptions` không có
+  // trường lưới trục, nên một tuỳ chọn bật sẵn ở đây là một lời hứa suông.
+  glb: { detail: 'high', includeFurniture: true, includeAxisGrid: false },
   pdf: { includeFloorPlans: true, includeRoomTable: true, includeViolations: true, includeRender3d: false },
   image: { viewId: 'viewer-3d-front', widthLabel: `${wholeNumber(CAPTURE_WIDTH_PX)} px` },
   spatialJson: { includeConfidence: true },
@@ -157,7 +160,18 @@ export const FIXED_EXPORT_CAPABILITIES: ExportCapabilities = {
   canChooseUnit: false,
   canNameFloorStep: false,
   canPutDownloadInToast: false,
+  canRenderPdfBytes: false,
+  canCaptureImage: false,
+  canIncludeAxisGrid: false,
 };
+
+/**
+ * Bốn thẻ định dạng với đúng một thẻ được chọn — dùng để dựng cảnh "định dạng
+ * chưa sinh được tệp" mà không phải chép lại cả bốn thẻ tại chỗ.
+ */
+export function formatsSelecting(id: ExportFormatId): readonly ExportFormatCard[] {
+  return DEFAULT_FORMATS.map((format) => ({ ...format, isSelected: format.id === id }));
+}
 
 /* ==========================================================================
  * 5. Khối "Kiểm tra trước khi xuất" — CHỈ THÔNG TIN, KHÔNG BAO GIỜ CHẶN.

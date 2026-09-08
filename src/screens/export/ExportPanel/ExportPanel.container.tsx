@@ -2,17 +2,23 @@
  * Route `ROUTE_PATTERNS.projectExport` — nối hook với view, và với ranh giới
  * lỗi. Cùng khuôn `RuleSettings.container.tsx`.
  *
- * ## Vai không phải một prop — container tự đọc
+ * ## Vai không phải một prop, và cũng không phải việc của container
  *
  * `ExportPanelContainerProps` cố ý không có trường `roles`: màn gọi container
- * này không cần biết chuyện phân quyền. Container đọc `useSession().roles`
- * rồi hỏi đúng cổng phân quyền dùng chung `can('export', 'model', { roles })`
+ * này không cần biết chuyện phân quyền. Lượt gộp còn đi thêm một bước — phép
+ * đọc quyền nằm **trọn** trong `useExportPanel`, không lặp lại ở đây. Hook đọc
+ * vai theo dự án đang mở trước, lấy vai của phiên đăng nhập làm dự phòng, rồi
+ * hỏi đúng cổng phân quyền dùng chung `can('export', 'model', { roles })`
  * (`@/lib/auth/permissions.ts`) — cùng khoá `model.export` mà
  * `l1b-format-telemetry.md` đã khảo sát: `admin: true`, `engineer: true`,
  * `viewer: false`. Vai Người xem không xuất được **bất cứ định dạng nào** —
  * khoá này gác cả bốn, không có quyền riêng cho ảnh dù đặc tả cũ có nói vậy.
- * `false` là lý do hook trả trạng thái `forbidden` kèm `permissionCaption`;
- * container chỉ đưa `canExport` vào, không tự vẽ trạng thái đó.
+ * `false` là lý do hook trả trạng thái `forbidden` kèm `permissionCaption`.
+ *
+ * Container **từng** tự tính `canExport` từ `useSession().roles` rồi truyền
+ * xuống. Đó là hai nguồn sự thật cho cùng một câu hỏi, và nguồn của container
+ * hẹp hơn — nó không thấy vai theo dự án — nên lượt gộp bỏ nó đi thay vì để hai
+ * phép đọc chạy song song rồi có ngày lệch nhau.
  *
  * ## `onNavigateToFix` — có mặc định thật, không phải một prop chết
  *
@@ -23,19 +29,19 @@
  * `useNavigate()` làm mặc định; `onNavigateToFix` chỉ tồn tại để một màn nhúng
  * container này thay bằng điều hướng riêng của nó.
  *
- * ## `onToast` — đi lên, tuỳ chọn, cùng lý do của `RuleSettings`
+ * ## Không có `onToast`, `announcer`, `now` hay `isOnline`
  *
- * Repo chưa có nhà cung cấp toast toàn cục, nên chủ của bề mặt toast tự quyết
- * định toast hiện ở đâu. Vắng `onToast` thì màn vẫn chạy đủ — danh sách tệp đã
- * xuất và khối lỗi trong `ExportPanelProps` đã tự nói đủ mọi thứ cần nói, chỉ
- * là không có thêm một lời nhắc nổi lên ở nơi khác.
+ * Bốn prop đó từng đứng ở đây như những khe cắm tuỳ chọn. `useExportPanel` —
+ * viết song song trên nhánh khác — không nhận cái nào: repo chưa có nhà cung
+ * cấp toast toàn cục, hook không xướng gì riêng, còn đồng hồ lẫn trạng thái
+ * mạng đều đọc từ tầng dưới. Một prop không đi tới đâu là đúng thứ R-73 tồn
+ * tại để chặn, nên lượt gộp gỡ cả bốn thay vì giữ một chữ ký đẹp mà rỗng.
  *
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản `src/App.tsx` đang gắn
  * (R-62), **không** phải bản chưa nối ở `src/lib/screen-state`. Phần dự phòng
  * dựng bằng `EmptyState` từ `report.description`, cùng khuôn `RuleSettings`.
  */
 
-import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -44,12 +50,9 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
-import { useSession } from '@/hooks/useSession';
-import { can } from '@/lib/auth/permissions';
-import type { Announcer } from '@/lib/input/announcer';
 
 import { ExportPanel } from './ExportPanel';
-import { useExportPanel, type ExportPanelToast } from './useExportPanel';
+import { useExportPanel } from './useExportPanel';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
 const SCREEN_ID = 'export-panel';
@@ -64,20 +67,12 @@ export interface ExportPanelContainerProps {
   readonly projectId?: string;
   /** Vỏ ngoài báo màn đang ở chế độ thu gọn (`isCollapsed` của A11 trạng thái 7). */
   readonly isCompact?: boolean;
-  /** Nơi nhận toast báo kết quả xuất. Vắng mặt thì màn vẫn chạy đủ, chỉ không ai mời bấm. */
-  readonly onToast?: (toast: ExportPanelToast) => void;
   /**
    * Điều hướng khi bấm "sửa" ở một dòng kiểm tra trước khi xuất. Mặc định là
    * `useNavigate()` thật của container — chỉ truyền prop này khi một màn khác
    * nhúng container và cần tự quyết định cách điều hướng.
    */
   readonly onNavigateToFix?: (href: string) => void;
-  /** Đồng hồ tiêm được, để bài kiểm lái các mốc thời gian trong danh sách tệp. */
-  readonly now?: () => number;
-  /** Trạng thái mạng tiêm được, để bài kiểm dựng lượt xuất hỏng vì mất kết nối. */
-  readonly isOnline?: () => boolean;
-  /** Người xướng cho trình đọc màn hình — nói ra các bước tiến trình thật. */
-  readonly announcer?: Announcer;
 }
 
 /** Cùng khuôn `RuleSettingsCrashFallback` — R-62, chữ lấy từ `report.description`. */
@@ -108,25 +103,18 @@ interface WiredExportPanelProps extends Omit<ExportPanelContainerProps, 'project
  * `RuleSettings.container.tsx`.
  */
 function WiredExportPanel(props: WiredExportPanelProps) {
-  const session = useSession();
   const navigate = useNavigate();
 
-  const canExport = useMemo(
-    () => can('export', 'model', { roles: session.roles }),
-    [session.roles],
-  );
-
-  const navigateToFix = props.onNavigateToFix ?? ((href: string) => navigate(href));
+  const onNavigate =
+    props.onNavigateToFix ??
+    ((href: string) => {
+      void navigate(href);
+    });
 
   const viewProps = useExportPanel({
-    canExport,
-    navigateToFix,
+    onNavigate,
     projectId: props.projectId,
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
-    ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
-    ...(props.now !== undefined ? { now: props.now } : {}),
-    ...(props.isOnline !== undefined ? { isOnline: props.isOnline } : {}),
-    ...(props.announcer !== undefined ? { announcer: props.announcer } : {}),
   });
 
   return <ExportPanel {...viewProps} />;
@@ -163,11 +151,7 @@ export function ExportPanelContainer(props: ExportPanelContainerProps) {
       <WiredExportPanel
         projectId={projectId}
         {...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {})}
-        {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
         {...(props.onNavigateToFix !== undefined ? { onNavigateToFix: props.onNavigateToFix } : {})}
-        {...(props.now !== undefined ? { now: props.now } : {})}
-        {...(props.isOnline !== undefined ? { isOnline: props.isOnline } : {})}
-        {...(props.announcer !== undefined ? { announcer: props.announcer } : {})}
       />
     </ScreenErrorBoundary>
   );

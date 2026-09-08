@@ -19,10 +19,42 @@ import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-import type { ExportFormatCard, ExportFormatId } from './types';
+import type { ExportCapabilities, ExportFormatCard, ExportFormatId } from './types';
 
 export const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app';
+
+/**
+ * Vì sao thẻ PDF chưa tải về được, dù số trang trên nó là số thật.
+ *
+ * Xuất từ đây (một chuỗi, nên `allowConstantExport` của
+ * `react-refresh/only-export-components` tha) để `ExportPanel.tsx` nói cùng một
+ * câu ở chân trang mà không ai phải chép lại nó.
+ */
+export const PDF_BLOCKED_CAPTION =
+  'chưa tải về được: dự án chưa có bộ dựng tệp PDF, mới đếm được số trang.';
+
+/** Vì sao thẻ ảnh chưa tải về được. */
+export const IMAGE_BLOCKED_CAPTION =
+  'chưa tải về được: ảnh cần một khung nhìn ba chiều đang mở, màn này chưa gắn với khung nhìn nào.';
+
+/**
+ * Câu giải thích của một định dạng chưa sinh được tệp, hoặc `null` khi nó sinh
+ * được.
+ *
+ * `.glb` và Spatial JSON có bộ xuất thật nên không bao giờ mang câu này.
+ */
+function blockedCaptionOf(id: ExportFormatId, capabilities: ExportCapabilities): string | null {
+  if (id === 'pdf' && !capabilities.canRenderPdfBytes) {
+    return PDF_BLOCKED_CAPTION;
+  }
+
+  if (id === 'image' && !capabilities.canCaptureImage) {
+    return IMAGE_BLOCKED_CAPTION;
+  }
+
+  return null;
+}
 
 const FORMAT_ICONS: Readonly<Record<ExportFormatId, LucideIcon>> = {
   glb: Box,
@@ -44,10 +76,11 @@ export function SkeletonText({ className }: { readonly className: string }) {
 interface FormatCardProps {
   readonly format: ExportFormatCard;
   readonly isLoading: boolean;
+  readonly blockedCaption: string | null;
   readonly onSelect: (id: ExportFormatId) => void;
 }
 
-function FormatCard({ format, isLoading, onSelect }: FormatCardProps) {
+function FormatCard({ format, isLoading, blockedCaption, onSelect }: FormatCardProps) {
   const Icon = FORMAT_ICONS[format.id];
 
   return (
@@ -87,6 +120,8 @@ function FormatCard({ format, isLoading, onSelect }: FormatCardProps) {
           ) : (
             <p className="font-mono text-xs tabular-nums text-text-muted">{format.sizeLabel}</p>
           ))}
+
+        {blockedCaption !== null && <p className="text-xs text-state-attention-text">{blockedCaption}</p>}
       </div>
     </button>
   );
@@ -94,15 +129,27 @@ function FormatCard({ format, isLoading, onSelect }: FormatCardProps) {
 
 export interface ExportPanelFormatsProps {
   readonly formats: readonly ExportFormatCard[];
+  readonly capabilities: ExportCapabilities;
   readonly isLoading: boolean;
   readonly onSelectFormat: (id: ExportFormatId) => void;
 }
 
-export function ExportPanelFormats({ formats, isLoading, onSelectFormat }: ExportPanelFormatsProps) {
+export function ExportPanelFormats({
+  formats,
+  capabilities,
+  isLoading,
+  onSelectFormat,
+}: ExportPanelFormatsProps) {
   return (
     <div role="radiogroup" aria-label="định dạng xuất" className="flex flex-col gap-3">
       {formats.map((format) => (
-        <FormatCard key={format.id} format={format} isLoading={isLoading} onSelect={onSelectFormat} />
+        <FormatCard
+          key={format.id}
+          format={format}
+          isLoading={isLoading}
+          blockedCaption={blockedCaptionOf(format.id, capabilities)}
+          onSelect={onSelectFormat}
+        />
       ))}
     </div>
   );

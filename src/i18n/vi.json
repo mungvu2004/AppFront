@@ -3069,5 +3069,48 @@
       "title": "không có quyền xem cài đặt bộ luật",
       "description": "Chỉ người có quyền quản trị dự án mới xem được mục này."
     }
+  },
+  "exportPanel": {
+    "formats": {
+      "glb": {
+        "audience": "Dùng khi cần mở mô hình 3D trong phần mềm dựng hình khác, ví dụ Blender hoặc Unity."
+      },
+      "pdf": {
+        "audience": "Dùng khi cần in ra hoặc gửi cho người không cài phần mềm xem mô hình."
+      },
+      "image": {
+        "audience": "Dùng khi chỉ cần một tấm ảnh nhanh để gửi qua tin nhắn hoặc email."
+      },
+      "spatialJson": {
+        "audience": "Dùng khi một hệ thống khác cần đọc dữ liệu không gian để xử lý tiếp."
+      }
+    },
+    "states": {
+      "empty": "rỗng",
+      "loading": "đang tải",
+      "partial": "một phần",
+      "error": "lỗi",
+      "success": "thành công",
+      "forbidden": "không có quyền",
+      "collapsed": "thu gọn"
+    },
+    "preflight": {
+      "approval": "Còn tầng chưa được duyệt. Vẫn xuất được, nhưng nên kiểm tra lại trước.",
+      "violations": "Còn {{count}} vi phạm chưa xử lý.",
+      "unreviewed": "Còn đối tượng chưa được rà soát."
+    },
+    "progress": {
+      "rendering": "đang dựng hình",
+      "encoding": "đang mã hoá"
+    },
+    "floors": {
+      "unapproved": "Tầng chưa được duyệt — vẫn chọn được để xuất."
+    },
+    "destinationCaption": "Tệp xuất xong sẽ hiện ngay trong danh sách bên dưới; tải xuống trực tiếp từ đó.",
+    "permissionCaption": "Chỉ quản trị viên và kỹ sư mới xuất được bản vẽ. Liên hệ quản trị dự án nếu bạn cần một tệp xuất.",
+    "missingParams": {
+      "title": "Thiếu mã dự án",
+      "description": "Đường dẫn thiếu mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất."
+    }
   }
 }

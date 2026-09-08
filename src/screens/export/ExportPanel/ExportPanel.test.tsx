@@ -29,10 +29,13 @@ import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStat
 
 import {
   buildExportPanelProps,
+  buildSampleExportedFile,
   buildSampleProgress,
   DEFAULT_FORMATS,
+  DEFAULT_OPTIONS,
   FIXED_EXPORT_CAPABILITIES,
   floorsWithOneUnapproved,
+  formatsSelecting,
 } from './exportPanelFixtures';
 import { EXPORT_FORMAT_IDS } from './types';
 import type { ExportPanelProps } from './types';
@@ -85,7 +88,23 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
     const props = buildExportPanelProps('success');
     const { container } = render(<ExportPanelView {...props} />);
 
-    expectVietnamese(container);
+    // Ba ngoại lệ, không cái nào là chữ của màn — cùng lý do và cùng cách neo
+    // như `RuleReport.test.tsx:496`:
+    //
+    // - `Level 0`…`Level 3` là TÊN TẦNG đọc nguyên văn từ đồ thị. Bộ mẫu chuẩn
+    //   sinh tên tầng bằng tiếng Anh (`sampleBuilding.ts:85`); màn không được
+    //   tự đặt lại tên tầng, y như nó không được viết lại tên phòng. Dữ liệu
+    //   thật có tên tiếng Việt thì màn hiện tiếng Việt.
+    // - Tên tệp đã xuất là một TÊN TỆP: nó không dấu vì hệ tệp, không vì ai
+    //   quên bỏ dấu. Neo đúng chuỗi đó, không nới rộng.
+    // - `glb` là mã định dạng, đúng loại với `pdf`/`png`/`json` mà
+    //   `expectVietnamese` đã nhận sẵn; danh sách của nó chỉ thiếu đúng cái
+    //   này, và `src/lib/**` nằm ngoài phạm vi sửa của lượt gộp (R-68). Đây là
+    //   cửa `allowWords` mở sẵn cho ca "một đơn vị module chưa nghe tên".
+    expectVietnamese(container, {
+      allowWords: ['glb'],
+      ignore: [/^Level \d+$/u, buildSampleExportedFile().fileName],
+    });
     expectAccessible(container);
   });
 });
@@ -182,17 +201,20 @@ describe('tầng chưa duyệt vẫn chọn được', () => {
 });
 
 /* ==========================================================================
- * F. Năm công năng false → giao diện tương ứng rời khỏi DOM.
+ * F. Tám công năng false → giao diện tương ứng rời khỏi DOM.
  * ========================================================================== */
 
 describe('capabilities false → giao diện tương ứng rời khỏi DOM, không giả vờ có', () => {
-  it('capabilities cố định đúng năm trường, đều false', () => {
+  it('capabilities cố định đúng tám trường, đều false', () => {
     expect(FIXED_EXPORT_CAPABILITIES).toEqual({
       canEstimateSize: false,
       canPersistHistory: false,
       canChooseUnit: false,
       canNameFloorStep: false,
       canPutDownloadInToast: false,
+      canRenderPdfBytes: false,
+      canCaptureImage: false,
+      canIncludeAxisGrid: false,
     });
   });
 
@@ -239,6 +261,73 @@ describe('capabilities false → giao diện tương ứng rời khỏi DOM, kh�
 
     if (toastNode !== null) {
       expect(toastNode.querySelector('button')).toBeNull();
+    }
+  });
+
+  /* ------------------------------------------------------------------------
+   * Ba công năng tìm ra sau khi hợp đồng đóng băng, cùng một loại với năm cái
+   * trên: một mảnh giao diện không có đích đến ở tầng logic. Ba bài dưới đây là
+   * chốt chặn chống người sau lén thêm lại một điều khiển không chạy.
+   * ---------------------------------------------------------------------- */
+
+  it('canRenderPdfBytes=false: thẻ PDF vẫn ở lại và vẫn hiện số trang thật, nhưng không còn khả năng tải nào', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const pdfCard = DEFAULT_FORMATS.find((format) => format.id === 'pdf');
+
+    if (pdfCard?.pageCountLabel == null) {
+      throw new Error('thẻ PDF phải có pageCountLabel thật — fixture lỗi');
+    }
+
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('pdf'),
+      exportedFiles: [],
+    });
+    const { container } = render(<ExportPanelView {...props} />);
+
+    // Thẻ vẫn ở lại, và con số trên nó là số thật.
+    expect(screen.getAllByText('.pdf')).toHaveLength(1);
+    expect(container.textContent).toContain(pdfCard.pageCountLabel);
+
+    // Không nút xuất, không nút tải — kể cả một nút xám.
+    expect(screen.queryByRole('button', { name: /xuất|tải/iu })).toBeNull();
+  });
+
+  it('canCaptureImage=false: thẻ ảnh vẫn ở lại nhưng không còn khả năng tải nào', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('image'),
+      exportedFiles: [],
+    });
+
+    render(<ExportPanelView {...props} />);
+
+    expect(screen.getAllByText('.png')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /xuất|tải/iu })).toBeNull();
+  });
+
+  it('canIncludeAxisGrid=false: không có công tắc "lưới trục" nào, kể cả khi mục tuỳ chọn đã mở', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('glb'),
+      options: { ...DEFAULT_OPTIONS, isExpanded: true },
+    });
+
+    render(<ExportPanelView {...props} />);
+
+    // Mục tuỳ chọn của `.glb` đang mở thật — công tắc anh em của nó vẫn ở đó.
+    expect(screen.getByLabelText(/đồ nội thất/iu)).not.toBeDisabled();
+    expect(screen.queryByLabelText(/lưới trục/iu)).toBeNull();
+  });
+
+  it('.glb và Spatial JSON thì NGƯỢC LẠI: khả năng xuất vẫn còn nguyên', async () => {
+    const ExportPanelView = await loadExportPanelView();
+
+    for (const id of ['glb', 'spatial-json'] as const) {
+      const props = buildExportPanelProps('success', { formats: formatsSelecting(id) });
+      const { unmount } = render(<ExportPanelView {...props} />);
+
+      expect(screen.getByRole('button', { name: /^xuất$/iu })).not.toBeDisabled();
+      unmount();
     }
   });
 });

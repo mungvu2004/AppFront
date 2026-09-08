@@ -6,7 +6,7 @@
  * store, không mạng, không domain — `local/no-data-layer-in-view` (R-60)
  * không có gì để bắt ở đây.
  *
- * ## Năm công năng vắng mặt (mục 1 của nhiệm vụ)
+ * ## Tám công năng vắng mặt
  *
  * `canEstimateSize`, `canChooseUnit`, `canNameFloorStep`,
  * `canPutDownloadInToast` không có mặt bằng logic nào tương ứng nên không có
@@ -17,6 +17,14 @@
  * giống ghi chú trong `RuleSettings.container.tsx`). `canPersistHistory` có
  * điều khiển thật (danh sách tệp vẫn hiện) nhưng mang một caption nói rõ danh
  * sách chỉ sống trong phiên làm việc — không giả vờ nó bền.
+ *
+ * Ba cờ còn lại đi cùng một đường: `canRenderPdfBytes` và `canCaptureImage`
+ * `false` thì **khả năng tải của thẻ tương ứng rời khỏi DOM** — chân trang
+ * không dựng nút "xuất" khi định dạng đang chọn là một trong hai, và thẻ mang
+ * một câu nói vì sao. Bốn thẻ định dạng vẫn ở nguyên, thẻ PDF vẫn hiện **số
+ * trang thật** (số đó đếm được, chỉ tệp là chưa dựng được). `canIncludeAxisGrid`
+ * `false` thì công tắc "gồm lưới trục" rời khỏi DOM trong `ExportPanelOptions`.
+ * `.glb` và Spatial JSON có bộ xuất thật nên không bị chạm tới.
  *
  * ## "Đi duyệt tầng" ở trạng thái `empty` — chỗ lệch có ghi chú
  *
@@ -50,10 +58,34 @@ import { ExportPanelFooter } from './ExportPanelFooter';
 import { ExportPanelFormats, FOCUS_RING, SkeletonText } from './ExportPanelFormats';
 import { ExportPanelOptions } from './ExportPanelOptions';
 import { ExportPanelPreflight } from './ExportPanelPreflight';
-import type { ExportedFileRow, ExportPanelProps, PreflightRow } from './types';
+import type {
+  ExportCapabilities,
+  ExportedFileRow,
+  ExportFormatId,
+  ExportPanelProps,
+  PreflightRow,
+} from './types';
 
 function findPreflightRow(rows: readonly PreflightRow[], id: PreflightRow['id']): PreflightRow | null {
   return rows.find((row) => row.id === id) ?? null;
+}
+
+/**
+ * Định dạng này có sinh ra được một tệp thật không.
+ *
+ * `.glb` và Spatial JSON luôn có; PDF và ảnh phụ thuộc hai cờ mà tầng logic
+ * hôm nay trả `false`. Suy ra từ props, không phải một trường mới của hợp đồng.
+ */
+function canDeliverFormat(id: ExportFormatId, capabilities: ExportCapabilities): boolean {
+  if (id === 'pdf') {
+    return capabilities.canRenderPdfBytes;
+  }
+
+  if (id === 'image') {
+    return capabilities.canCaptureImage;
+  }
+
+  return true;
 }
 
 interface ExportPanelHistoryProps {
@@ -150,6 +182,8 @@ export function ExportPanel(props: ExportPanelProps) {
 
   const isLoading = status === 'loading';
   const selectedFormat = formats.find((format) => format.isSelected) ?? formats[0] ?? null;
+  const canExportSelected =
+    selectedFormat !== null && canDeliverFormat(selectedFormat.id, capabilities);
 
   if (status === 'forbidden') {
     return (
@@ -207,13 +241,19 @@ export function ExportPanel(props: ExportPanelProps) {
         )}
 
         <div className={cn('gap-6', isCollapsed ? 'flex flex-col' : 'grid grid-cols-[60%_344px] items-start')}>
-          <ExportPanelFormats formats={formats} isLoading={isLoading} onSelectFormat={onSelectFormat} />
+          <ExportPanelFormats
+            formats={formats}
+            capabilities={capabilities}
+            isLoading={isLoading}
+            onSelectFormat={onSelectFormat}
+          />
 
           <div className="flex flex-col gap-4">
             {selectedFormat !== null && (
               <ExportPanelOptions
                 floors={floors}
                 options={options}
+                capabilities={capabilities}
                 selectedFormatId={selectedFormat.id}
                 onToggleFloor={onToggleFloor}
                 onChangeOptions={onChangeOptions}
@@ -235,6 +275,7 @@ export function ExportPanel(props: ExportPanelProps) {
 
       <ExportPanelFooter
         progress={progress}
+        canExportSelected={canExportSelected}
         destinationCaption={destinationCaption}
         onExport={onExport}
         onCancel={onCancel}

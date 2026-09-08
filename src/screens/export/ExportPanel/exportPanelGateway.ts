@@ -17,14 +17,13 @@
  * cho tới khi bảng khoá được cập nhật, và lúc đó cờ tự lật sang `true`.
  * Xem {@link FieldKeys} và bốn bảng dùng nó.
  *
- * ## Ba năng lực THIẾU mà hợp đồng `types.ts` chưa có chỗ để nói ra
+ * ## Ba năng lực THIẾU, nay đã nằm trong hợp đồng
  *
- * `ExportCapabilities` đông cứng đúng năm cờ. Ba lỗ hổng dưới đây được phát
- * hiện *sau* khi hợp đồng đóng băng, nên chúng sống trong
- * {@link ExportPanelCapabilities} — một kiểu **mở rộng** `ExportCapabilities`
- * chứ không sửa nó. Một giá trị `ExportPanelCapabilities` vẫn gán được vào
- * `ExportPanelProps.capabilities`, nên hợp đồng không phải đổi một dòng nào;
- * ngày `types.ts` nhận ba cờ này về, chỗ duy nhất phải sửa là câu `extends`.
+ * Ba lỗ hổng dưới đây được phát hiện *sau* khi hợp đồng đóng băng, nên chúng
+ * từng sống trong một kiểu mở rộng riêng của cổng này. Lớp gộp đã dời chúng vào
+ * `ExportCapabilities` của `types.ts` — đúng chỗ của chúng, và nhờ vậy view lẫn
+ * bài kiểm nhìn thấy đủ tám cờ theo kiểu. {@link ExportPanelCapabilities} giữ
+ * lại chỉ như một cái tên cũ trỏ vào hợp đồng, để nơi gọi không phải sửa theo.
  *
  * 1. **`canRenderPdfBytes: false`.** `src/lib/export/exportPdf.ts` dựng
  *    `PdfDocument` — cấu trúc trang và chuỗi đã định dạng — và docstring đầu
@@ -182,21 +181,13 @@ const TOAST_ACTION_FIELD_NAMES = ['action', 'actions', 'actionLabel', 'onAction'
 /* -------------------------------------------------------------------------- */
 
 /**
- * Năm cờ của hợp đồng, cộng ba cờ hợp đồng chưa có chỗ để nói ra.
+ * Tám cờ của hợp đồng — cái tên cũ của cổng, nay chỉ là bí danh.
  *
- * Mở rộng chứ không sửa `ExportCapabilities`: một giá trị kiểu này vẫn là một
- * `ExportCapabilities` hợp lệ, nên `ExportPanelProps.capabilities` nhận được nó
- * mà `types.ts` không phải đổi. View đọc được ba cờ thêm ngay khi hợp đồng nhận
- * chúng về.
+ * Ba cờ từng khai riêng ở đây đã về `ExportCapabilities` trong `types.ts` (xem
+ * chú thích đầu file), nên kiểu này không còn thêm gì. Giữ tên lại để
+ * `useExportPanel.ts` và mọi nơi gọi khác không phải sửa theo.
  */
-export interface ExportPanelCapabilities extends ExportCapabilities {
-  /** Dựng `PdfDocument` thành bytes `.pdf`. Xem chú thích đầu file, mục 1. */
-  readonly canRenderPdfBytes: boolean;
-  /** Chụp ảnh khung nhìn 3D. Xem chú thích đầu file, mục 2. */
-  readonly canCaptureImage: boolean;
-  /** Đưa lưới trục vào tệp `.glb`. Xem chú thích đầu file, mục 3. */
-  readonly canIncludeAxisGrid: boolean;
-}
+export type ExportPanelCapabilities = ExportCapabilities;
 
 /** Cái vỏ ứng dụng đưa xuống để cổng đo được năng lực phụ thuộc hoàn cảnh. */
 export interface ReadCapabilitiesInput {

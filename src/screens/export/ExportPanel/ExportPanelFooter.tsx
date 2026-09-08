@@ -14,12 +14,20 @@ import type { ExportProgressView } from './types';
 
 export interface ExportPanelFooterProps {
   readonly progress: ExportProgressView | null;
+  /** Định dạng đang chọn có sinh ra được một tệp thật không. */
+  readonly canExportSelected: boolean;
   readonly destinationCaption: string;
   readonly onExport: () => void;
   readonly onCancel: () => void;
 }
 
-export function ExportPanelFooter({ progress, destinationCaption, onExport, onCancel }: ExportPanelFooterProps) {
+export function ExportPanelFooter({
+  progress,
+  canExportSelected,
+  destinationCaption,
+  onExport,
+  onCancel,
+}: ExportPanelFooterProps) {
   if (progress !== null) {
     return (
       <footer className="sticky bottom-0 flex flex-col gap-2 border-t border-border-default bg-bg-surface px-6 py-4">
@@ -53,9 +61,11 @@ export function ExportPanelFooter({ progress, destinationCaption, onExport, onCa
   return (
     <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-4">
       <p className="text-sm text-text-secondary">{destinationCaption}</p>
-      <Button variant="primary" onClick={onExport}>
-        xuất
-      </Button>
+      {canExportSelected && (
+        <Button variant="primary" onClick={onExport}>
+          xuất
+        </Button>
+      )}
     </footer>
   );
 }

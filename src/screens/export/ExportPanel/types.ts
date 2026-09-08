@@ -24,11 +24,18 @@ export type ExportFormatId = (typeof EXPORT_FORMAT_IDS)[number];
 /* -------------------------------------------------------------------------- */
 
 /**
- * Năm điều đặc tả yêu cầu mà tầng logic không cung cấp.
+ * Tám điều đặc tả yêu cầu mà tầng logic không cung cấp.
  *
  * Công năng nào `false` thì phần giao diện tương ứng **rời khỏi DOM** — không
  * vẽ thanh giả, không để một nút không bao giờ bấm được. Đây là tiền lệ đã
  * chạy ở màn RuleReport: thiếu logic thì gỡ khả năng đó đi, không giả vờ có.
+ *
+ * Năm cờ đầu đã có từ lượt đông cứng hợp đồng. Ba cờ cuối
+ * (`canRenderPdfBytes`, `canCaptureImage`, `canIncludeAxisGrid`) do lượt khảo
+ * sát tầng xuất tìm ra muộn hơn và được dời vào đây ở lớp gộp: chúng cùng một
+ * loại với năm cờ kia — một mảnh giao diện không có đích đến ở tầng logic — nên
+ * chúng thuộc về đúng chỗ này, chứ không phải một kiểu mở rộng mà view và bài
+ * kiểm không nhìn thấy.
  */
 export interface ExportCapabilities {
   /**
@@ -69,6 +76,32 @@ export interface ExportCapabilities {
    * ý. Nút tải sống ở hàng tương ứng trong danh sách tệp đã xuất.
    */
   readonly canPutDownloadInToast: boolean;
+  /**
+   * Dựng hồ sơ PDF thành bytes của một tệp `.pdf`.
+   *
+   * `false` — `src/lib/export/exportPdf.ts` chỉ dựng **mô hình nội dung trang**
+   * (`PdfDocument`); docstring của nó nói thẳng là không chạm vào thư viện PDF
+   * nào, và `package.json` cũng không có thư viện PDF nào. **Số trang là thật**
+   * và vẫn hiện trên thẻ; chỉ khả năng tải tệp về là chưa có, nên khả năng đó
+   * rời khỏi DOM thay vì thành một nút xám.
+   */
+  readonly canRenderPdfBytes: boolean;
+  /**
+   * Chụp ảnh khung nhìn ba chiều.
+   *
+   * `false` — `createFloorCapture` đòi một `renderer`/`scene`/`camera` đang
+   * sống. Route của màn này không gắn khung nhìn nào và lượt này không được
+   * dựng thêm thành phần mới, nên chưa có gì để chụp.
+   */
+  readonly canCaptureImage: boolean;
+  /**
+   * Đưa lưới trục vào tệp `.glb`.
+   *
+   * `false` — `ExportGlbOptions` không có trường lưới trục nào, nên một công
+   * tắc "kèm lưới trục" không đổi được tệp xuất ra. Công tắc đó vì thế rời khỏi
+   * DOM.
+   */
+  readonly canIncludeAxisGrid: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

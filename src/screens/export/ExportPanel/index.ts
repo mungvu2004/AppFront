@@ -21,7 +21,7 @@ export { ExportPanelContainer, ExportPanelRoute } from './ExportPanel.container'
 export type { ExportPanelContainerProps } from './ExportPanel.container';
 
 export { useExportPanel } from './useExportPanel';
-export type { ExportPanelToast, UseExportPanelOptions } from './useExportPanel';
+export type { UseExportPanelOptions } from './useExportPanel';
 
 export {
   EXPORT_FORMAT_IDS,
