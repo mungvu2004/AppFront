@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AUTH_ROLES, can, permissionCapabilities, permissionMatrix } from '../permissions';
 
 describe('src/lib/auth/permissions', () => {
-  it('prints the 3 x 8 matrix and matches the brief', () => {
+  it('prints the 3 x 10 matrix and matches the brief', () => {
     const rows = permissionCapabilities.map(({ key }) => ({
       admin: permissionMatrix[key].admin,
       capability: key,
@@ -13,7 +13,7 @@ describe('src/lib/auth/permissions', () => {
 
     console.table(rows);
 
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(10);
     expect(AUTH_ROLES).toEqual(['admin', 'engineer', 'viewer']);
     expect(permissionCapabilities.every(({ key }) => permissionMatrix[key].admin)).toBe(true);
     expect(permissionCapabilities.every(({ key }) => !permissionMatrix[key].viewer)).toBe(true);

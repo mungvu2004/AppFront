@@ -66,6 +66,8 @@ const libraryDetailRoot = freezeKey(['library', 'detail'] as const);
 const measurementAllRoot = freezeKey(['measurement', 'all'] as const);
 const userListRoot = freezeKey(['user', 'list'] as const);
 const userCurrentRoot = freezeKey(['user', 'current'] as const);
+const userMembershipsRoot = freezeKey(['user', 'memberships'] as const);
+const userActivityRoot = freezeKey(['user', 'activity'] as const);
 
 export const queryKeys = {
   drawing: {
@@ -129,9 +131,30 @@ export const queryKeys = {
       projectId,
     ] as const),
   },
+  /**
+   * Người dùng — T-04/T-05.
+   *
+   * `list` và `current` đã nằm ở đây từ trước; `memberships` và `activity` là
+   * hai nhánh MỚI của cùng miền `'user'`, không phải một miền `'users'` thứ hai.
+   * Lý do cụ thể: `TIER_BY_DOMAIN` (`./cachePolicy.ts`) xếp bậc theo ĐOẠN ĐẦU
+   * của khoá, và nó đã có `user: 'static'`. Một miền `'users'` riêng sẽ rơi về
+   * bậc `'default'` 30 giây trong im lặng — cùng một bảng người dùng, hai chính
+   * sách cache khác nhau, không ai thấy cho tới lúc một màn refetch nhiều gấp
+   * mười màn kia. R-71 nói không dựng nguồn thứ hai cho một quyết định đã có
+   * chủ; đây là hình dạng cụ thể của luật ấy ở tầng khoá.
+   *
+   * Cả hai nhánh mới đều khoá theo `userId`: chúng trả lời "người NÀY thuộc
+   * những dự án nào" và "người NÀY vừa làm gì", nên hai người dùng là hai lượt
+   * đọc tách biệt và làm mất hiệu lực một người không đụng người kia.
+   */
   user: {
+    activity: createQueryKeyFactory(userActivityRoot, (userId: string) => [...userActivityRoot, userId] as const),
     current: createQueryKeyFactory(userCurrentRoot, () => userCurrentRoot),
     list: createQueryKeyFactory(userListRoot, () => userListRoot),
+    memberships: createQueryKeyFactory(userMembershipsRoot, (userId: string) => [
+      ...userMembershipsRoot,
+      userId,
+    ] as const),
   },
   version: {
     byFloor: createQueryKeyFactory(versionByFloorRoot, (floorId: string) => [

@@ -19,6 +19,11 @@ export const WRITE_OPERATIONS = [
   'createPropertyTemplate',
   'saveMeasurement',
   'deleteMeasurement',
+  'inviteUsers',
+  'changeUserRole',
+  'setUserEnabled',
+  'removeUser',
+  'resendInvite',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -30,6 +35,17 @@ interface FloorScopedParams {
 
 interface ProjectScopedParams {
   projectId: string;
+}
+
+/**
+ * Một lượt ghi đụng đúng MỘT người — T-04/T-05.
+ *
+ * Không có `projectId`: bảng người dùng là toàn cục (`ENDPOINTS.users` là đường
+ * toàn cục, không lồng dưới `/projects`), nên phạm vi hẹp nhất mà một lượt đổi
+ * vai hay vô hiệu làm cũ đi là chính người ấy cộng danh sách chứa họ.
+ */
+interface UserScopedParams {
+  userId: string;
 }
 
 export interface WriteOperationParamsMap {
@@ -53,6 +69,16 @@ export interface WriteOperationParamsMap {
   saveMeasurement: ProjectScopedParams;
   /** A measurement was deleted from the project record (LG-3) — same scope as `saveMeasurement`. */
   deleteMeasurement: ProjectScopedParams;
+  /** Lời mời vừa gửi cho một hoặc nhiều địa chỉ (T-05) — chưa người nào tồn tại để khoá theo, nên không tham số. */
+  inviteUsers: Record<string, never>;
+  /** Vai của một người vừa đổi (T-05). */
+  changeUserRole: UserScopedParams;
+  /** Một người vừa bị vô hiệu hoặc được bật lại (T-05) — hai đường API, cùng một hệ quả cache. */
+  setUserEnabled: UserScopedParams;
+  /** Một người vừa bị xoá hẳn (T-05). */
+  removeUser: UserScopedParams;
+  /** Lời mời vừa được gửi lại (T-05) — `inviteExpiresAt` đổi, nên dòng trong danh sách cũ đi. */
+  resendInvite: Record<string, never>;
 }
 
 type InvalidationMap = {
@@ -160,6 +186,34 @@ export const invalidationMap: InvalidationMap = {
   /** Same key for both — a save and a delete change the exact same list (LG-3). */
   saveMeasurement: ({ projectId }) => [measurementKeys.all(projectId)],
   deleteMeasurement: ({ projectId }) => [measurementKeys.all(projectId)],
+
+  /**
+   * Năm lượt ghi của phần quản trị người dùng — T-05.
+   *
+   * Cả năm đều làm cũ `user.list()`: một dòng thêm vào, đổi vai, đổi trạng thái
+   * hay biến mất đều là cùng một bảng đang hiện sai. Ba lượt khoá theo `userId`
+   * thêm `user.memberships(userId)` vì vai TRONG dự án đọc từ chính lượt ghi ấy;
+   * `user.activity(userId)` KHÔNG có trong ba danh sách đó — nhật ký là chuyện
+   * đã xảy ra, và đổi vai hôm nay không viết lại việc người ta làm hôm qua.
+   * `removeUser` là ngoại lệ đúng một chỗ: người không còn thì lượt đọc nhật ký
+   * của họ cũng không còn nghĩa, nên nó đi cùng.
+   *
+   * `inviteUsers` và `resendInvite` không nhận tham số: lời mời chưa gắn với một
+   * `userId` mà nơi gọi đang giữ, nên thứ duy nhất chúng làm cũ là danh sách.
+   */
+  inviteUsers: () => [queryKeys.user.list()],
+
+  changeUserRole: ({ userId }) => [queryKeys.user.list(), queryKeys.user.memberships(userId)],
+
+  setUserEnabled: ({ userId }) => [queryKeys.user.list(), queryKeys.user.memberships(userId)],
+
+  removeUser: ({ userId }) => [
+    queryKeys.user.list(),
+    queryKeys.user.memberships(userId),
+    queryKeys.user.activity(userId),
+  ],
+
+  resendInvite: () => [queryKeys.user.list()],
 };
 
 /**

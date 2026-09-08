@@ -2,7 +2,7 @@ import type { ProjectRole } from '@/types/project';
 
 export const AUTH_ROLES = ['admin', 'engineer', 'viewer'] as const satisfies readonly ProjectRole[];
 
-export type PermissionAction = 'create' | 'edit' | 'export' | 'manage' | 'upload';
+export type PermissionAction = 'approve' | 'create' | 'edit' | 'export' | 'manage' | 'upload';
 
 export type PermissionResource =
   | 'floor'
@@ -11,6 +11,8 @@ export type PermissionResource =
   | 'model'
   | 'project'
   | 'project.settings'
+  | 'qc'
+  | 'ruleset'
   | 'share'
   | 'user';
 
@@ -22,7 +24,9 @@ export type PermissionKey =
   | 'model.export'
   | 'share.create'
   | 'library.manage'
-  | 'user.manage';
+  | 'user.manage'
+  | 'qc.approve'
+  | 'ruleset.edit';
 
 export interface PermissionContext {
   roles?: readonly ProjectRole[];
@@ -40,6 +44,8 @@ const permissionEntries = [
   { action: 'create', resource: 'share' },
   { action: 'manage', resource: 'library' },
   { action: 'manage', resource: 'user' },
+  { action: 'approve', resource: 'qc' },
+  { action: 'edit', resource: 'ruleset' },
 ] as const satisfies readonly { action: PermissionAction; resource: PermissionResource }[];
 
 const adminPermissions: Record<PermissionKey, boolean> = {
@@ -49,6 +55,8 @@ const adminPermissions: Record<PermissionKey, boolean> = {
   'model.export': true,
   'project.create': true,
   'project.settings.edit': true,
+  'qc.approve': true,
+  'ruleset.edit': true,
   'share.create': true,
   'user.manage': true,
 };
@@ -60,6 +68,8 @@ const engineerPermissions: Record<PermissionKey, boolean> = {
   'model.export': true,
   'project.create': true,
   'project.settings.edit': true,
+  'qc.approve': true,
+  'ruleset.edit': false,
   'share.create': true,
   'user.manage': false,
 };
@@ -71,6 +81,8 @@ const viewerPermissions: Record<PermissionKey, boolean> = {
   'model.export': false,
   'project.create': false,
   'project.settings.edit': false,
+  'qc.approve': false,
+  'ruleset.edit': false,
   'share.create': false,
   'user.manage': false,
 };
@@ -105,6 +117,16 @@ export const permissionMatrix: PermissionMatrix = {
     admin: adminPermissions['project.settings.edit'],
     engineer: engineerPermissions['project.settings.edit'],
     viewer: viewerPermissions['project.settings.edit'],
+  },
+  'qc.approve': {
+    admin: adminPermissions['qc.approve'],
+    engineer: engineerPermissions['qc.approve'],
+    viewer: viewerPermissions['qc.approve'],
+  },
+  'ruleset.edit': {
+    admin: adminPermissions['ruleset.edit'],
+    engineer: engineerPermissions['ruleset.edit'],
+    viewer: viewerPermissions['ruleset.edit'],
   },
   'share.create': {
     admin: adminPermissions['share.create'],

@@ -1,5 +1,5 @@
 /**
- * The catalogue: the eleven things this application is allowed to say about
+ * The catalogue: the twelve things this application is allowed to say about
  * itself, and nothing else.
  *
  * Measuring a QC tool is unusually risky, because the thing being measured *is*
@@ -14,7 +14,7 @@
  *
  * A free-form `track(name, props)` looks flexible for a week and then becomes a
  * warehouse of misspelt names holding data nobody meant to collect. Here
- * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly eleven
+ * {@link TELEMETRY_EVENT_SCHEMA} is a discriminated union of exactly twelve
  * shapes: an event that is not one of them does not typecheck, and — because a
  * value that reached `unknown` can still be anything — does not parse either.
  * {@link parseTelemetryEvent} is the runtime half of that sentence, and the
@@ -51,6 +51,7 @@
 
 import { z } from 'zod';
 
+import { AUTH_ROLES } from '@/lib/auth/permissions';
 import { APP_ERROR_KINDS, type AppErrorKind, type AppErrorSeverity, type ErrorTelemetryDetail } from '@/lib/errors';
 
 /* -------------------------------------------------------------------------- */
@@ -163,7 +164,7 @@ export const SEVERITY_CODES: Readonly<Record<AppErrorSeverity, TelemetrySeverity
 };
 
 /* -------------------------------------------------------------------------- */
-/* The eleven shapes.                                                         */
+/* The twelve shapes.                                                         */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -362,6 +363,48 @@ export const PROJECT_PIPELINE_STATUSES = ['processing', 'qc', 'done'] as const;
 export type ProjectPipelineStatus = (typeof PROJECT_PIPELINE_STATUSES)[number];
 
 /**
+ * A role, as one of the three codes `src/lib/auth` already owns.
+ *
+ * `AUTH_ROLES` rather than a fourth copy of `'admin' | 'engineer' | 'viewer'`:
+ * the permission matrix is where a role list is decided, and a catalogue that
+ * repeated it would keep sending a role the rest of the application had stopped
+ * recognising. All three survive {@link TELEMETRY_CODE_PATTERN} — they are
+ * lowercase ASCII slugs, which is exactly why a role is reportable at all.
+ */
+const roleSchema = z.enum(AUTH_ROLES);
+
+/**
+ * Somebody's role was changed by an administrator — O-01.
+ *
+ * **No `userId`, no address, no name — theirs or the administrator's.** Read the
+ * header again if that looks like an omission: an email address fails
+ * {@link TELEMETRY_CODE_PATTERN} on the `@`, and it would fail the point of this
+ * module long before it failed the regular expression. What a dashboard is
+ * allowed to learn from this event is how often role changes happen, which
+ * direction they run in, how many are immediately undone, and how many fail —
+ * never who was promoted.
+ *
+ * `undo` carries the same meaning it carries on `wall.edit`: whether this change
+ * was the undo of a previous one (invariant A8's toast). It is the measurement
+ * that matters most here — a promotion undone within seconds is a mis-click or a
+ * confusing screen, and without this flag those are indistinguishable from two
+ * deliberate changes.
+ *
+ * `fromRole` and `toRole` are both present rather than just the destination: a
+ * demotion and a promotion are different events for whoever reads the numbers,
+ * and the destination alone cannot tell them apart.
+ */
+const userRoleChangeSchema = z.object({
+  name: z.literal('user.role-change'),
+  fromRole: roleSchema,
+  toRole: roleSchema,
+  outcome: outcomeSchema,
+  undo: z.boolean(),
+  durationMs: durationMsSchema,
+  errorKind: errorKindSchema.optional(),
+});
+
+/**
  * A project was opened from the dashboard.
  *
  * No project id and no project name, for the same reason nothing above carries
@@ -399,6 +442,7 @@ export const TELEMETRY_EVENT_SCHEMA = z.discriminatedUnion('name', [
   sceneBuildSchema,
   sceneFrameRateSchema,
   projectOpenSchema,
+  userRoleChangeSchema,
 ]);
 
 /** An event as it travels: durations and counts already whole numbers. */
@@ -429,6 +473,7 @@ export const TELEMETRY_EVENT_NAMES = [
   'scene.build',
   'scene.frame-rate',
   'project.open',
+  'user.role-change',
 ] as const satisfies readonly TelemetryEventName[];
 
 export type DrawingUploadEvent = Extract<TelemetryEvent, { name: 'drawing.upload' }>;
@@ -442,8 +487,9 @@ export type AppFirstFrameEvent = Extract<TelemetryEvent, { name: 'app.first-fram
 export type SceneBuildEvent = Extract<TelemetryEvent, { name: 'scene.build' }>;
 export type SceneFrameRateEvent = Extract<TelemetryEvent, { name: 'scene.frame-rate' }>;
 export type ProjectOpenEvent = Extract<TelemetryEvent, { name: 'project.open' }>;
+export type UserRoleChangeEvent = Extract<TelemetryEvent, { name: 'user.role-change' }>;
 
-/** Is this one of the eleven names? */
+/** Is this one of the twelve names? */
 export function isTelemetryEventName(value: unknown): value is TelemetryEventName {
   return (
     typeof value === 'string' && (TELEMETRY_EVENT_NAMES as readonly string[]).includes(value)
