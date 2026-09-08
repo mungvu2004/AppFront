@@ -233,6 +233,13 @@ describe('thresholdUnitText', () => {
     expect(thresholdUnitText('do')).toBe('°');
     expect(thresholdUnitText('phantram')).toBe('%');
   });
+
+  it('gives a bare ratio no suffix, rather than an off-by-a-hundred one', () => {
+    // 0,8 followed by '%' would be wrong by a factor of a hundred. Turning the
+    // share into a percentage is the viewmodel's job (A15), not this layer's.
+    expect(thresholdUnitText('tile')).toBe('');
+    expect(specOf('wallSupport.minSupportShare').unit).toBe('tile');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -289,6 +296,15 @@ describe('validateThreshold', () => {
     const result = validateThreshold({ ...share, max: 2.5 }, 9);
 
     expect(result.ok ? '' : result.message).toContain('đến 2,5');
+  });
+
+  it('states a ratio band in ratios, and ends the sentence without a stray space', () => {
+    const result = validateThreshold(specOf('wallSupport.minSupportShare'), 0.2);
+
+    expect(result).toEqual({
+      ok: false,
+      message: 'phần tường chịu lực phải có điểm tựa ở tầng dưới nhận giá trị từ 0,5 đến 1.',
+    });
   });
 
   it('groups thousands so a five-digit band stays readable', () => {

@@ -80,8 +80,16 @@ export type { RuleThresholds } from './registry';
  * ASCII names rather than the symbols themselves, so the value can be switched
  * on and stored without a mojibake risk; {@link thresholdUnitText} turns each
  * into the suffix a person reads in the field.
+ *
+ * `'tile'` is a bare ratio between 0 and 1, and it is deliberately *not*
+ * `'phantram'`. A rule that measures a share stores the share it measures — the
+ * constant is `0,8`, and restating it as `80` here would make `defaultValue`
+ * something other than the number the check runs with, which is the one thing
+ * these specs are not allowed to be. Turning `0,8` into `80 %` is a formatting
+ * decision, and A15 puts formatting in the viewmodel rather than in the domain
+ * or the view; the screen's hook is what does it.
  */
-export type RuleThresholdUnit = 'mm' | 'm2' | 'do' | 'phantram';
+export type RuleThresholdUnit = 'mm' | 'm2' | 'do' | 'phantram' | 'tile';
 
 /** One number a project may change, and the band it may change it inside. */
 export interface RuleThresholdSpec {
@@ -327,14 +335,18 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
     key: 'wallSupport.minSupportShare',
     ruleCode: 'WALL-UNSUPPORTED',
     label: 'phần tường chịu lực phải có điểm tựa ở tầng dưới',
-    unit: 'phantram',
-    // The rule measures a *share* of the wall's length, and `defaultValue` is
-    // the constant it measures with, so the band runs 0 to 1 rather than 0 to
-    // 100 — restating the shipped 0,8 as 80 would break the one hard rule these
-    // specs have. 0 switches the check off; 1 demands a wall supported along its
-    // whole run. Twentieths, because a support share finer than five hundredths
-    // is not a decision anybody can defend on a drawing.
-    min: 0,
+    unit: 'tile',
+    // A share of the wall's length, stored as the share the rule measures: the
+    // viewmodel is what turns 0,8 into "80 %" for the field.
+    //
+    // The band starts at half rather than at nothing. Below 0,5 the majority of
+    // a loadbearing wall is hanging over thin air and "supported" has stopped
+    // meaning anything, so a project setting it there has switched the rule off
+    // without saying so — and switching a rule off is what the toggle is for.
+    // 1 demands a wall supported along its whole run. Twentieths, because a
+    // support share finer than five hundredths is not a decision anybody can
+    // defend on a drawing.
+    min: 0.5,
     max: 1,
     step: 0.05,
     defaultValue: MIN_SUPPORT_SHARE,
@@ -495,7 +507,13 @@ export function thresholdSpecByKey(key: string): RuleThresholdSpec | null {
   return SPEC_BY_KEY.get(key) ?? null;
 }
 
-/** The suffix a person reads in the field, e.g. `mm`, `m²`, `°`, `%`. */
+/**
+ * The suffix a person reads after the number, e.g. `mm`, `m²`, `°`, `%`.
+ *
+ * A bare ratio has no suffix at this layer, and gets the empty string rather
+ * than a made-up one: `0,8` followed by `%` would be wrong by a factor of a
+ * hundred, and the conversion that makes it right belongs to the viewmodel.
+ */
 export function thresholdUnitText(unit: RuleThresholdUnit): string {
   switch (unit) {
     case 'mm':
@@ -506,6 +524,8 @@ export function thresholdUnitText(unit: RuleThresholdUnit): string {
       return '°';
     case 'phantram':
       return '%';
+    case 'tile':
+      return '';
   }
 }
 
@@ -543,8 +563,11 @@ export function validateThreshold(spec: RuleThresholdSpec, raw: number): Thresho
 function outOfRangeMessage(spec: RuleThresholdSpec): string {
   const low = formatNumber(spec.min, { maxFractionDigits: 2 });
   const high = formatNumber(spec.max, { maxFractionDigits: 2 });
+  const unit = thresholdUnitText(spec.unit);
+  // A ratio has no suffix, and a sentence must not end on a stranded space.
+  const suffix = unit === '' ? '' : ` ${unit}`;
 
-  return `${spec.label} nhận giá trị từ ${low} đến ${high} ${thresholdUnitText(spec.unit)}.`;
+  return `${spec.label} nhận giá trị từ ${low} đến ${high}${suffix}.`;
 }
 
 /* -------------------------------------------------------------------------- */
