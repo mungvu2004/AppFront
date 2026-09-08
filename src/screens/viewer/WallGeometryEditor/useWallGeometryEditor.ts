@@ -63,7 +63,7 @@ import {
 } from '@/lib/tools/shortcuts';
 import { durationMs } from '@/lib/motion/tokens';
 import { useStore } from '@/store';
-import { selectDraftPreviewGraph } from '@/store/selectors';
+import { selectDraftPreviewGraph } from '@/store/graphSelectors';
 
 import {
   createWallGeometryEditorGateway,

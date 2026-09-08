@@ -40,9 +40,11 @@ import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import type { BoundingBox, EntityId, Point } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
-import { OPENING_COMMAND_TYPES } from '@/lib/commands/business/openingCommands';
+import {
+  OPENING_COMMAND_TYPES,
+  WALL_COMMAND_TYPES,
+} from '@/lib/commands/business/commandTypes';
 import { isFinitePoint } from '@/lib/commands/business/shared';
-import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 
 import type {
   ToolBuild,

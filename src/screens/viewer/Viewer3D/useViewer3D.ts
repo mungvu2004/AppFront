@@ -15,7 +15,7 @@
  * | Đường dẫn | `ROUTES.project.*` |
  * | fps trung bình (O-01) | `PerfMonitor` đo, `scene.frame-rate` ghi |
  * | khuôn camera vào phòng vừa tìm (R-07) | `CameraDirector.frameObjects`, qua `ViewerSceneHandle.frameEntities` |
- * | đồ thị + bản nháp đang treo | `selectDraftPreviewGraph` của `src/store/selectors` |
+ * | đồ thị + bản nháp đang treo | `selectDraftPreviewGraph` của `src/store/graphSelectors` |
  * | cắt tầng xuống đúng phần đang xem trước | `narrowFloorInput` (`src/lib/three/preview`) |
  *
  * ## Phép hợp nhất "đồ thị thật + bản nháp" xảy ra Ở ĐÂY, và phải ở đây
@@ -85,7 +85,7 @@ import type { BuildPartKind } from '@/lib/three/build/scene';
 import { narrowFloorInput } from '@/lib/three/preview/previewModel';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
-import { selectDraftEntityIds, selectDraftPreviewGraph } from '@/store/selectors';
+import { selectDraftEntityIds, selectDraftPreviewGraph } from '@/store/graphSelectors';
 import {
   createViewerShellGateway,
   shellDataOf,

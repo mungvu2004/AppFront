@@ -44,7 +44,7 @@ import { toPointMm } from '@/lib/commands/business/shared';
 import { formatNumber } from '@/lib/format/number';
 import { confidenceLevel } from '@/lib/format/semantic';
 import { UNNAMED_ROOM_LABEL } from '@/lib/viewmodel/toViewModel';
-import type { RoomWithArea } from '@/store/selectors';
+import type { RoomWithArea } from '@/store/graphSelectors';
 
 import type {
   RoomAreaBand,

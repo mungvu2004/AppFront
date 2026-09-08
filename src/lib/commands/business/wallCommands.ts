@@ -64,6 +64,7 @@ import {
 
 import { changeForAdd, changeForRemove, changeForUpdate } from '../createCommand';
 import type { EntityChange } from '../types';
+import { WALL_COMMAND_TYPES } from './commandTypes';
 import {
   accept,
   AUTHORED_BY_HAND,
@@ -96,17 +97,16 @@ import {
 /* Command names.                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** The eight wall commands, as `dispatch` and the telemetry see them. */
-export const WALL_COMMAND_TYPES = {
-  draw: 'wall.draw',
-  dragEnd: 'wall.dragEnd',
-  changeThickness: 'wall.changeThickness',
-  changeHeight: 'wall.changeHeight',
-  changeKind: 'wall.changeKind',
-  split: 'wall.split',
-  merge: 'wall.merge',
-  remove: 'wall.delete',
-} as const;
+/**
+ * Tám tên lệnh tường — nay ở `./commandTypes`, tái xuất nguyên vẹn từ đây.
+ *
+ * Tên tách khỏi thân vì một người gọi chỉ cần tên (`src/lib/tools/tools.ts`
+ * khai công cụ vẽ tường bằng đúng chuỗi `wall.draw`) không nên phải tải cả
+ * `domain/walls/edit`, `domain/walls/joints` và `domain/walls/cleanup` cùng nó.
+ * Đường nhập `@/lib/commands/business/wallCommands` giữ nguyên cho mọi nơi gọi
+ * khác; nơi nào CHỈ cần tên thì nhập `./commandTypes`.
+ */
+export { WALL_COMMAND_TYPES };
 
 /* -------------------------------------------------------------------------- */
 /* Shared checks.                                                              */

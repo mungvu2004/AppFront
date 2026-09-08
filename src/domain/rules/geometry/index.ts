@@ -408,6 +408,10 @@ function stackedLevels(context: RuleContext): Level[] {
  * first, so a QC list never shows the same overlap from both sides.
  */
 export const checkWallOverlap: GeometryCheck = (context) => {
+  const parallelAngleDeg = context.thresholds?.['general.parallelAngleDeg'] ?? PARALLEL_ANGLE_DEG;
+  const minOverlapMm = context.thresholds?.['wallOverlap.minOverlapMm'] ?? MIN_WALL_OVERLAP_MM;
+  const jointToleranceMm = context.thresholds?.['general.jointToleranceMm'] ?? JOINT_TOLERANCE_MM;
+
   const walls = usableWalls(entitiesInScope(context, 'wall'));
   const findings: GeometryFinding[] = [];
 
@@ -417,7 +421,7 @@ export const checkWallOverlap: GeometryCheck = (context) => {
     for (let other = index + 1; other < walls.length; other += 1) {
       const secondWall = itemAt(walls, other);
 
-      if (compareNearly(angleBetween(wall.centreline, secondWall.centreline), PARALLEL_ANGLE_DEG) <= 0) {
+      if (compareNearly(angleBetween(wall.centreline, secondWall.centreline), parallelAngleDeg) <= 0) {
         const bodiesMm = (wall.thicknessMm + secondWall.thicknessMm) / 2;
 
         if (
@@ -428,7 +432,7 @@ export const checkWallOverlap: GeometryCheck = (context) => {
 
         const overlapMm = overlapAlong(wall.centreline, secondWall.centreline);
 
-        if (compareNearly(overlapMm, MIN_WALL_OVERLAP_MM) <= 0) {
+        if (compareNearly(overlapMm, minOverlapMm) <= 0) {
           continue;
         }
 
@@ -443,7 +447,7 @@ export const checkWallOverlap: GeometryCheck = (context) => {
         continue;
       }
 
-      const at = properCrossingOf(wall.centreline, secondWall.centreline, JOINT_TOLERANCE_MM);
+      const at = properCrossingOf(wall.centreline, secondWall.centreline, jointToleranceMm);
 
       if (at === null) {
         continue;
@@ -479,6 +483,8 @@ export const checkWallOverlap: GeometryCheck = (context) => {
  * two separate things to draw.
  */
 export const checkDanglingWallEnds: GeometryCheck = (context) => {
+  const jointToleranceMm = context.thresholds?.['general.jointToleranceMm'] ?? JOINT_TOLERANCE_MM;
+
   const walls = usableWalls(entitiesInScope(context, 'wall'));
   const findings: GeometryFinding[] = [];
 
@@ -499,7 +505,7 @@ export const checkDanglingWallEnds: GeometryCheck = (context) => {
           distanceToLine(at, other.centreline) - other.thicknessMm / 2,
         );
 
-        if (compareNearly(faceGapMm, JOINT_TOLERANCE_MM) <= 0) {
+        if (compareNearly(faceGapMm, jointToleranceMm) <= 0) {
           joined = true;
           break;
         }
@@ -521,7 +527,7 @@ export const checkDanglingWallEnds: GeometryCheck = (context) => {
             at,
             nearestGapMm,
             nearestWallId,
-            toleranceMm: JOINT_TOLERANCE_MM,
+            toleranceMm: jointToleranceMm,
           }),
           wall.id,
           nearestWallId === null ? [wall.id] : [wall.id, nearestWallId],
@@ -555,6 +561,10 @@ export const checkDanglingWallEnds: GeometryCheck = (context) => {
  * in plainer words.
  */
 export const checkRoomClosure: GeometryCheck = (context) => {
+  const parallelAngleDeg = context.thresholds?.['general.parallelAngleDeg'] ?? PARALLEL_ANGLE_DEG;
+  const lateralToleranceMm = context.thresholds?.['roomClosure.lateralToleranceMm'] ?? COVERAGE_LATERAL_TOLERANCE_MM;
+  const maxUncoveredEdgeMm = context.thresholds?.['roomClosure.maxUncoveredEdgeMm'] ?? MAX_UNCOVERED_EDGE_MM;
+
   const rooms = entitiesInScope(context, 'room');
   const walls = usableWalls(entitiesInScope(context, 'wall'));
   const findings: GeometryFinding[] = [];
@@ -587,11 +597,11 @@ export const checkRoomClosure: GeometryCheck = (context) => {
       const covered: Interval[] = [];
 
       for (const wall of walls) {
-        if (compareNearly(angleBetween(edge, wall.centreline), PARALLEL_ANGLE_DEG) > 0) {
+        if (compareNearly(angleBetween(edge, wall.centreline), parallelAngleDeg) > 0) {
           continue;
         }
 
-        const reachMm = wall.thicknessMm / 2 + COVERAGE_LATERAL_TOLERANCE_MM;
+        const reachMm = wall.thicknessMm / 2 + lateralToleranceMm;
         const startOff = Math.abs(lateralOf(edge, wall.centreline.start));
         const endOff = Math.abs(lateralOf(edge, wall.centreline.end));
 
@@ -612,7 +622,7 @@ export const checkRoomClosure: GeometryCheck = (context) => {
       for (const gap of gapsIn(covered, edgeLengthMm)) {
         const gapMm = gap.high - gap.low;
 
-        if (compareNearly(gapMm, MAX_UNCOVERED_EDGE_MM) <= 0) {
+        if (compareNearly(gapMm, maxUncoveredEdgeMm) <= 0) {
           continue;
         }
 
@@ -889,6 +899,9 @@ export const checkOpeningOverlap: GeometryCheck = (context) => {
  * silence about a wall standing on nothing is the expensive mistake.
  */
 export const checkLoadBearingSupport: GeometryCheck = (context) => {
+  const parallelAngleDeg = context.thresholds?.['general.parallelAngleDeg'] ?? PARALLEL_ANGLE_DEG;
+  const minSupportShare = context.thresholds?.['wallSupport.minSupportShare'] ?? MIN_SUPPORT_SHARE;
+
   const levels = stackedLevels(context);
   const wallsByLevel = groupByLevel(usableWalls(entitiesInScope(context, 'wall')));
   const findings: GeometryFinding[] = [];
@@ -911,7 +924,7 @@ export const checkLoadBearingSupport: GeometryCheck = (context) => {
       let bestSupportMm = 0;
 
       for (const support of supports) {
-        if (compareNearly(angleBetween(wall.centreline, support.centreline), PARALLEL_ANGLE_DEG) > 0) {
+        if (compareNearly(angleBetween(wall.centreline, support.centreline), parallelAngleDeg) > 0) {
           continue;
         }
 
@@ -943,7 +956,7 @@ export const checkLoadBearingSupport: GeometryCheck = (context) => {
       );
       const supportedShare = supportedMm / wallLengthMm;
 
-      if (compareNearly(supportedShare, MIN_SUPPORT_SHARE) >= 0) {
+      if (compareNearly(supportedShare, minSupportShare) >= 0) {
         continue;
       }
 
@@ -956,7 +969,7 @@ export const checkLoadBearingSupport: GeometryCheck = (context) => {
             wallLengthMm,
             supportedShare,
             bestSupportWallId,
-            requiredShare: MIN_SUPPORT_SHARE,
+            requiredShare: minSupportShare,
           }),
           wall.id,
           bestSupportWallId === null ? [wall.id, level.id] : [wall.id, bestSupportWallId, level.id],
@@ -991,6 +1004,8 @@ function stairsOf(items: readonly Furniture[]): Furniture[] {
  * the wrong fix — in front of the person reading the list.
  */
 export const checkStairAlignment: GeometryCheck = (context) => {
+  const alignmentToleranceMm = context.thresholds?.['stair.alignmentToleranceMm'] ?? STAIR_ALIGNMENT_TOLERANCE_MM;
+
   const levels = stackedLevels(context);
   const furnitureByLevel = groupByLevel(entitiesInScope(context, 'furniture'));
   const findings: GeometryFinding[] = [];
@@ -1020,7 +1035,7 @@ export const checkStairAlignment: GeometryCheck = (context) => {
         }
       }
 
-      if (compareNearly(offsetMm, STAIR_ALIGNMENT_TOLERANCE_MM) <= 0) {
+      if (compareNearly(offsetMm, alignmentToleranceMm) <= 0) {
         continue;
       }
 
@@ -1032,7 +1047,7 @@ export const checkStairAlignment: GeometryCheck = (context) => {
             levelName: level.name,
             levelBelowName: levelBelow.name,
             offsetMm,
-            toleranceMm: STAIR_ALIGNMENT_TOLERANCE_MM,
+            toleranceMm: alignmentToleranceMm,
             at: stair.centre,
             belowAt: nearest.centre,
           }),

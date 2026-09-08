@@ -188,7 +188,7 @@ import {
   type SelectionSnapshot,
 } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
-import { fitText } from '@/lib/export/screenshot';
+import { fitText } from '@/lib/export/fitText';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { describeConfidence } from '@/lib/format/semantic';
@@ -759,7 +759,7 @@ export function measureRoom(room: Room, scale: Scale): RoomLabelMeasures {
  * cần. So sánh hai kích thước là việc TRÌNH BÀY, không phải một công thức hình
  * học mới — đúng phán quyết của điều phối viên cho mục NOT FOUND #7.
  *
- * Bề rộng hỏi `fitText` (`src/lib/export/screenshot.ts`), hàm duy nhất trong
+ * Bề rộng hỏi `fitText` (`src/lib/export/fitText.ts`), hàm duy nhất trong
  * repo trả lời "chuỗi này có vừa bề rộng này không": nó cắt chuỗi khi không
  * vừa, nên "không bị cắt" chính là "vừa". Chiều cao so với
  * {@link ROOM_LABEL_MIN_LABEL_BOX_HEIGHT_PX} — tổng hai cỡ chữ của lớp giao

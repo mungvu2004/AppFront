@@ -72,6 +72,7 @@ export const ROUTE_PATTERNS = {
   projectQuality: `${PROJECTS_ROOT}/:id/quality`,
   projectRooms: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/rooms`,
   projectRules: `${PROJECTS_ROOT}/:id/rules`,
+  projectRuleSettings: `${PROJECTS_ROOT}/:id/rules/settings`,
   projectScale: `${PROJECTS_ROOT}/:id/floors/:floorId/scale`,
   projectSettings: `${PROJECTS_ROOT}/:id/settings`,
   projectShare: `${PROJECTS_ROOT}/:id/share`,
@@ -125,6 +126,8 @@ export const ROUTES = {
     rooms: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/layers/rooms`,
     rules: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rules`,
+    ruleSettings: (projectId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/rules/settings`,
     scale: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/scale`,
     settings: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
