@@ -54,6 +54,7 @@ const RouteAxisGridManager = lazy(() => import('../screens/qc/AxisGridManager').
 const RouteRoomLabelReview = lazy(() => import('../screens/qc/RoomLabelReview').then(m => ({ default: m.RoomLabelReviewRoute })));
 const RouteFloorManager = lazy(() => import('../screens/qc/FloorManager').then(m => ({ default: m.FloorManagerRoute })));
 const RouteThicknessStandardization = lazy(() => import('../screens/qc/ThicknessStandardization').then(m => ({ default: m.ThicknessStandardizationRoute })));
+const RouteVersionHistory = lazy(() => import('../screens/export/VersionHistory').then(m => ({ default: m.VersionHistoryRoute })));
 
 /**
  * Bảy màn demo, và **chỉ trong bản dev**.
@@ -306,6 +307,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
       { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
       { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
+      { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
       { path: ROUTE_PATTERNS.adminModels, element: <Placeholder name="/admin/models" /> },
       { path: ROUTE_PATTERNS.adminUsers, element: <Placeholder name="/admin/users" /> },
       { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },

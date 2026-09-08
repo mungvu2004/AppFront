@@ -78,6 +78,7 @@ export const ROUTE_PATTERNS = {
   projectShare: `${PROJECTS_ROOT}/:id/share`,
   projectThickness: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/thickness`,
   projectUpload: `${PROJECTS_ROOT}/:id/upload`,
+  projectVersions: `${PROJECTS_ROOT}/:id/versions`,
   projectViewer: `${PROJECTS_ROOT}/:id/3d`,
   projectWalls: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
@@ -135,6 +136,7 @@ export const ROUTES = {
     thickness: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/thickness`,
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,
+    versions: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/versions`,
     viewer: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d`,
     walls: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,

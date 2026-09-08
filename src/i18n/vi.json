@@ -3190,5 +3190,110 @@
       "memberTwo": "Nguyễn Bình",
       "memberThree": "Trần Chi"
     }
+  },
+  "versionHistory": {
+    "state": {
+      "emptyTitle": "chưa có phiên bản nào",
+      "emptyDescription": "Chưa có phiên bản nào được lưu cho bản vẽ này.",
+      "forbiddenTitle": "không đủ quyền xem",
+      "forbiddenDescription": "Bạn không có quyền xem lịch sử phiên bản của bản vẽ này.",
+      "errorTitle": "không tải được lịch sử phiên bản",
+      "errorFallback": "Đã có lỗi xảy ra.",
+      "listErrorFallback": "không tải được danh sách phiên bản của tầng này",
+      "missingParamsTitle": "Không xác định được bản vẽ",
+      "missingParamsMessage": "Đường dẫn thiếu mã dự án hoặc chưa có tầng nào đang mở, nên không biết phải hiện lịch sử phiên bản của bản vẽ nào."
+    },
+    "list": {
+      "ariaLabel": "Danh sách phiên bản",
+      "selectLabel": "phiên bản",
+      "currentBadge": "hiện tại",
+      "compareCheckboxAriaLabel": "Chọn phiên bản {{label}} để so sánh",
+      "todayHeading": "hôm nay",
+      "noNote": "không có ghi chú cho phiên bản này",
+      "retentionNotice": "chỉ {{count}} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được"
+    },
+    "compare": {
+      "ariaLabel": "Vùng so sánh hai phiên bản",
+      "leftSelectLabel": "Phiên bản gốc",
+      "rightSelectLabel": "Phiên bản đối chiếu",
+      "selectPlaceholder": "Chọn phiên bản",
+      "tabsLabel": "Cách xem khác biệt",
+      "teaching": "mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây",
+      "noPairReason": "chưa chọn đủ hai phiên bản để so sánh",
+      "snapshotMissingReason": "phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được",
+      "noVersionSourceReason": "chưa có nguồn dữ liệu phiên bản nào được nối vào màn này"
+    },
+    "tab": {
+      "changes": "thay đổi",
+      "json": "JSON",
+      "visual": "trực quan"
+    },
+    "counts": {
+      "none": "không có thay đổi nào",
+      "ariaLabel": "thêm {{added}}, xoá {{removed}}, thay đổi {{changed}}"
+    },
+    "diff": {
+      "groupsAriaLabel": "Danh sách thay đổi theo loại đối tượng",
+      "emptyTitle": "Không có khác biệt",
+      "emptyDescription": "Hai phiên bản đang chọn giống nhau ở mọi đối tượng.",
+      "countLabel": "{{count}} thay đổi",
+      "added": "đã thêm",
+      "removed": "đã xoá",
+      "changed": "đã thay đổi",
+      "entityDimension": "kích thước",
+      "entityDoor": "cửa đi",
+      "entityFurniture": "nội thất",
+      "entityRoom": "phòng",
+      "entityVertex": "điểm",
+      "entityWall": "tường",
+      "entityWindow": "cửa sổ"
+    },
+    "json": {
+      "ariaLabel": "So sánh bản ghi JSON theo từng dòng",
+      "emptyTitle": "Không có dòng nào khác nhau",
+      "emptyDescription": "Bản ghi của hai phiên bản đang chọn trùng nhau từng dòng."
+    },
+    "visual": {
+      "unavailableTitle": "Chưa xem trực quan được",
+      "unavailableDescription": "Không dựng được mô hình cho cặp phiên bản đang chọn.",
+      "webglTitle": "Máy này không dựng được 3D",
+      "webglDescription": "Trình duyệt không bật WebGL nên khối 3D không hiện. Hai tab còn lại vẫn mô tả đủ khác biệt.",
+      "buildingLabel": "Đang dựng mô hình",
+      "noScene": "màn này chưa nối được vào bộ dựng cảnh 3D",
+      "noModel": "chưa có mô hình không gian nào được nạp, nên chưa dựng được cảnh",
+      "brokenModel": "mô hình hiện tại chưa dựng được thành cảnh, nên tab này để trống",
+      "caption": "đây là mô hình hiện tại chứ không phải một bản cũ; {{count}} đối tượng đã đổi đang được tô sáng",
+      "captionNamed": "đây là mô hình hiện tại chứ không phải phiên bản {{label}}; {{count}} đối tượng đã đổi đang được tô sáng"
+    },
+    "restore": {
+      "buttonLabel": "phục hồi phiên bản này",
+      "exportButtonLabel": "xuất phiên bản này",
+      "caption": "phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách",
+      "forbiddenReason": "vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện",
+      "confirmTitle": "phục hồi phiên bản này?",
+      "confirmTitleNamed": "phục hồi phiên bản {{label}}?",
+      "confirmLabel": "phục hồi",
+      "cancelLabel": "để nguyên",
+      "toast": "đã phục hồi nội dung của phiên bản {{label}}; hoàn tác được trong {{duration}}",
+      "savedAt": "đã lưu lúc {{time}}"
+    },
+    "fixture": {
+      "teachingSentence": "Chỉ có một phiên bản, chưa có gì để so sánh.",
+      "restoreCaption": "Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không có gì bị xoá.",
+      "restoreConfirmTitle": "Phục hồi phiên bản này?",
+      "restoreConfirmLabel": "Phục hồi",
+      "restoreCancelLabel": "Huỷ",
+      "restoreHiddenReasonNoPermission": "Bạn không có quyền phục hồi phiên bản trên tầng này.",
+      "restoreHiddenReasonNoOlder": "Chưa có phiên bản cũ nào để phục hồi.",
+      "restoreHiddenReasonLoading": "Đang tải danh sách phiên bản.",
+      "conflictDismissLabel": "Đã hiểu",
+      "conflictDetail": "Phiên bản đã đổi kể từ khi bạn mở màn này.",
+      "visualCaption": "Đang hiện mô hình hiện tại, không phải phiên bản cũ; 3 đối tượng liên quan được đánh dấu.",
+      "errorMessage": "Không tải được lịch sử phiên bản. Kiểm tra kết nối rồi thử lại.",
+      "rowDescriptionInitial": "Bản khởi tạo tầng",
+      "rowDescriptionEdit": "Chỉnh sửa tường và bố cục",
+      "rowRetentionNotice": "Đã lưu quá 90 ngày, chỉ còn thông tin cơ bản.",
+      "rowTagReview": "Duyệt với chủ đầu tư"
+    }
   }
 }
