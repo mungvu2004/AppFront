@@ -23,11 +23,13 @@
  *     client (`client.ts:34,137,386`). Bài kiểm chống-ghép-chuỗi trong
  *     `ShareDialog.test.tsx` vì thế BỎ QUA file này và soát các file CHẠY ĐƯỢC của màn —
  *     nơi lệnh cấm thật sự áp dụng: view và hook không được tự ghép URL hay thẻ `<iframe`.
- *  2. **Tên thành viên tiếng Việt** — `src/api/__mocks__/client.ts:106-112` có ba thành
- *     viên thật nhưng tên họ là `Admin`/`Engineer`/`Viewer`, tức chữ tiếng Anh trên màn
- *     và `expectVietnamese` sẽ đỏ. Tiền lệ đang chạy trong repo là
- *     `ProjectSettings.stories.tsx:26-28`, tự đặt tên tiếng Việt cho đúng ba vai đó.
- *     Nhãn vai thì lấy đúng ba chữ `ProjectSettings` đang dùng, không nghĩ ra chữ mới.
+ *  2. **Tên và địa chỉ thư của thành viên** — `src/api/__mocks__/client.ts:106-112` có ba
+ *     thành viên thật nhưng cả tên (`Admin`/`Engineer`/`Viewer`) lẫn địa chỉ thư
+ *     (`admin@example.com`…) là chữ tiếng Anh HIỆN TRÊN MÀN, nên `expectVietnamese` đỏ.
+ *     Tiền lệ đang chạy trong repo là `ProjectSettings.stories.tsx:26-28` cho tên, và
+ *     `AccountSettings` (`an@congty.vn`) cho địa chỉ thư. Nhãn vai thì KHÔNG viết tay
+ *     nữa: nó đi ra từ `toMemberRows` của `shareDialogGateway.ts`, đúng hàm mà container
+ *     gọi trên câu trả lời của máy chủ.
  *
  * ## Mật khẩu
  *
@@ -38,6 +40,7 @@
  * giờ ở một `ShareLinkRowModel`.
  */
 
+import type { User } from '@/api/client';
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { LevelId } from '@/domain/spatial/types';
 import { SHARE_EXPIRY_CHOICES, SHARE_EXPIRY_LABELS } from '@/hooks/useShareLinks';
@@ -64,6 +67,12 @@ import { formatClockTime } from '@/lib/format/datetime';
 import { FAKE_CLOCK_START } from '@/lib/testing/fakeClock';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import {
+  EMBED_SIZE_PRESETS,
+  MEMBERS_READ_ONLY_REASON as SHARE_MEMBERS_READ_ONLY_REASON,
+  SHARE_FORBIDDEN_REASON,
+  toMemberRows,
+} from './shareDialogGateway';
 import type {
   EmbedEditableKey,
   EmbedSectionModel,
@@ -182,27 +191,14 @@ export function buildShareLinkRow(
  * 3. Nhúng — `params` → `view` + `code`, cả hai đều do lib sinh.
  * ========================================================================== */
 
-const ARTICLE_WIDTH_PX = 640;
-const ARTICLE_HEIGHT_PX = 400;
-const WIDE_WIDTH_PX = 1280;
-const WIDE_HEIGHT_PX = 720;
-
-/** Ba khổ nhúng, nhãn tiếng Việt viết thường kiểu câu (A6). */
-export const SAMPLE_SIZE_PRESETS: readonly EmbedSizePreset[] = [
-  {
-    id: 'article',
-    label: 'vừa cột bài viết',
-    widthPx: ARTICLE_WIDTH_PX,
-    heightPx: ARTICLE_HEIGHT_PX,
-  },
-  {
-    id: 'default',
-    label: 'khổ mặc định',
-    widthPx: DEFAULT_EMBED_WIDTH_PX,
-    heightPx: DEFAULT_EMBED_HEIGHT_PX,
-  },
-  { id: 'wide', label: 'tràn chiều ngang', widthPx: WIDE_WIDTH_PX, heightPx: WIDE_HEIGHT_PX },
-];
+/**
+ * Ba khổ nhúng — ĐÚNG bộ mà hộp thoại thật vẽ.
+ *
+ * Ở lớp W4 đây là ba khổ tự đặt, vì `shareDialogGateway.ts` chưa được ghép vào. Lớp gộp
+ * nối lại: story và test giờ hiện đúng ba nhãn người dùng thấy ("gọn · vừa · rộng"), và
+ * `activeSizePresetId` khớp cùng một bảng mà `matchEmbedSizePreset` tra.
+ */
+export const SAMPLE_SIZE_PRESETS: readonly EmbedSizePreset[] = EMBED_SIZE_PRESETS;
 
 /** Bộ tham số nhúng mặc định: tầng đầu của `SAMPLE_BUILDING`, tô theo công năng phòng. */
 export const SAMPLE_EMBED_PARAMS: EmbedParams = {
@@ -275,43 +271,49 @@ export function buildEmbedSection(overrides: EmbedSectionOverrides = {}): EmbedS
  * Ba vai của bộ mẫu (`client.ts:106-112`), tên tiếng Việt và nhãn vai đúng ba chữ
  * `ProjectSettings` đang dùng (`useProjectSettings.ts:397-401`). Xem ghi chú (2).
  */
-export const SAMPLE_MEMBERS: readonly MemberRowModel[] = [
-  {
-    id: 'user-1',
-    name: 'Phạm An',
-    email: 'admin@example.com',
-    initials: 'PA',
-    avatarUrl: null,
-    roleLabel: 'quản trị',
-    isOwner: true,
-  },
-  {
-    id: 'user-2',
-    name: 'Nguyễn Bình',
-    email: 'engineer@example.com',
-    initials: 'NB',
-    avatarUrl: null,
-    roleLabel: 'kỹ sư',
-    isOwner: false,
-  },
-  {
-    id: 'user-3',
-    name: 'Trần Chi',
-    email: 'viewer@example.com',
-    initials: 'TC',
-    avatarUrl: null,
-    roleLabel: 'người xem',
-    isOwner: false,
-  },
+const SAMPLE_MEMBER_USERS: readonly User[] = [
+  { id: 'user-1', name: 'Phạm An', email: 'pham.an@duan.com', role: 'admin' },
+  { id: 'user-2', name: 'Nguyễn Bình', email: 'nguyen.binh@duan.com', role: 'engineer' },
+  { id: 'user-3', name: 'Trần Chi', email: 'tran.chi@duan.com', role: 'viewer' },
 ];
 
-/** Một câu nói vì sao danh sách này chỉ để xem — cùng lý do `MembersTab.tsx:1-10` ghi. */
-export const MEMBERS_READ_ONLY_REASON =
-  'Danh sách thành viên chỉ để xem trong bản này; mời thêm người cần một cửa dữ liệu chưa có.';
+/**
+ * Ba hàng thành viên, dựng qua ĐÚNG phép biến đổi của sản phẩm.
+ *
+ * `toMemberRows` là hàm mà container gọi trên câu trả lời thật của máy chủ, nên `initials`,
+ * `roleLabel` và `isOwner` ở đây không còn là ba giá trị viết tay có thể lệch với sản phẩm —
+ * chúng do chính hàm đó sinh. Đây là chỗ lớp gộp nối lại; ở lớp W4 hàm này chưa tồn tại.
+ *
+ * Địa chỉ thư thì viết tay, và viết bằng âm tiết tiếng Việt: `admin@example.com` của
+ * `client.ts:106-112` là chữ tiếng Anh HIỆN TRÊN MÀN, nên `expectVietnamese` bắt đúng —
+ * cùng lý do tên ba người này đã là tiếng Việt. Tiền lệ đang chạy: `AccountSettings`
+ * (`an@congty.vn`, `thu.ha@congty.vn`).
+ */
+export const SAMPLE_MEMBERS: readonly MemberRowModel[] = toMemberRows(SAMPLE_MEMBER_USERS);
 
-/** Một câu nói vì sao không đổi được, hiện ngay tại mục bị khoá (trạng thái "không có quyền"). */
-export const NO_PERMISSION_REASON =
-  'Chỉ quản trị viên và kỹ sư của dự án mới tạo được liên kết chia sẻ.';
+/**
+ * Ba địa chỉ thư ở trên, để bài `expectVietnamese` bỏ qua ĐÚNG chúng.
+ *
+ * Một địa chỉ thư không mang nổi dấu tiếng Việt, nên KHÔNG chuỗi nào thuộc loại này qua
+ * được phép soát: hoặc nó rớt vì một từ tiếng Anh, hoặc — nếu mọi từ đều đúng hình dạng
+ * tiếng Việt — nó rớt vì "cả chuỗi là tiếng Việt không dấu". Tiền lệ đang chạy trong repo
+ * là `ProfileSection.test.tsx:273` và `AccountSettings.test.tsx:517`: cùng một `ignore`,
+ * cùng một lý do. Đọc danh sách từ đây thay vì chép tay để hai nơi không lệch nhau.
+ */
+export const SAMPLE_MEMBER_EMAILS: readonly string[] = SAMPLE_MEMBER_USERS.map(
+  (user) => user.email,
+);
+
+/**
+ * Một câu nói vì sao danh sách này chỉ để xem.
+ *
+ * Chuỗi THẬT của sản phẩm (`shareDialogGateway.ts`), không phải một câu tương đương viết
+ * lại: story và màn thật phải nói cùng một câu.
+ */
+export const MEMBERS_READ_ONLY_REASON = SHARE_MEMBERS_READ_ONLY_REASON;
+
+/** Một câu nói vì sao không đổi được, hiện ngay tại mục bị khoá — cũng là chuỗi THẬT. */
+export const NO_PERMISSION_REASON = SHARE_FORBIDDEN_REASON;
 
 /** Đổi khoá nhúng thì liên kết cũ hết hiệu lực — một dòng nhắc, không phải hộp thoại. */
 export const STALE_LINK_NOTICE =

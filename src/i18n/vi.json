@@ -3112,5 +3112,83 @@
       "title": "Thiếu mã dự án",
       "description": "Đường dẫn thiếu mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất."
     }
+  },
+  "shareDialog": {
+    "title": "chia sẻ bản vẽ",
+    "done": "xong",
+    "savedAt": "Đã lưu lúc {{time}}",
+    "people": {
+      "sectionLabel": "thành viên",
+      "emptyTitle": "chưa có thành viên nào",
+      "ownerBadge": "chủ sở hữu",
+      "ownerNote": "chủ sở hữu dự án — không đổi được",
+      "readOnlyReason": "bản này chỉ hiển thị những người đã có quyền; việc mời thêm và đổi vai làm ở phần cài đặt dự án"
+    },
+    "roles": {
+      "admin": "quản trị viên",
+      "engineer": "kỹ sư",
+      "viewer": "người xem"
+    },
+    "link": {
+      "sectionLabel": "liên kết chia sẻ",
+      "permissionLabel": "quyền truy cập",
+      "expiryLabel": "hạn dùng",
+      "passwordToggleLabel": "yêu cầu mật khẩu",
+      "passwordToggleDescription": "người xem phải nhập đúng mật khẩu trước khi mở liên kết.",
+      "passwordFieldLabel": "mật khẩu",
+      "passwordProtectedBadge": "có mật khẩu",
+      "viewpointToggleLabel": "kèm góc nhìn hiện tại",
+      "viewpointToggleDescription": "liên kết mở đúng vị trí đang xem, thay vì góc nhìn mặc định của tầng.",
+      "createButton": "tạo liên kết",
+      "revokeButton": "thu hồi",
+      "copyIdle": "sao chép liên kết",
+      "copyDone": "đã sao chép liên kết",
+      "forbiddenReason": "chỉ quản trị viên và kỹ sư của dự án tạo được liên kết chia sẻ; hãy nhờ một người trong hai vai đó tạo giúp",
+      "staleNotice": "các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi"
+    },
+    "embed": {
+      "sectionLabel": "nhúng vào trang khác",
+      "copyIdle": "sao chép mã nhúng",
+      "copyDone": "đã sao chép mã nhúng",
+      "sizeLabel": "kích thước",
+      "sizeAriaLabel": "kích thước khung nhúng",
+      "widthLabel": "chiều rộng (px)",
+      "heightLabel": "chiều cao (px)",
+      "toolbarLabel": "thanh công cụ",
+      "toolbarDescription": "hiện thanh điều khiển của trình xem trong khung nhúng.",
+      "levelLabel": "tầng",
+      "coloringLabel": "chế độ tô màu",
+      "previewIdle": "xem trước tĩnh",
+      "previewLevel": "tầng",
+      "previewColoring": "chế độ màu",
+      "previewToolbar": "thanh công cụ",
+      "previewViewpoint": "góc nhìn",
+      "previewLevelUnset": "chưa chọn",
+      "yes": "có",
+      "no": "không",
+      "sizeCompact": "gọn",
+      "sizeStandard": "vừa",
+      "sizeWide": "rộng"
+    },
+    "toast": {
+      "created": "đã tạo liên kết chia sẻ",
+      "revoked": "đã thu hồi liên kết",
+      "linkCopied": "đã chép liên kết",
+      "embedCopied": "đã chép mã nhúng",
+      "permissionChanged": "đã đổi quyền chia sẻ sang {{permission}}",
+      "permissionUndoDescription": "đổi quyền chia sẻ sang {{permission}}"
+    },
+    "error": {
+      "generic": "không thực hiện được thao tác chia sẻ; hãy thử lại",
+      "clipboardBlocked": "trình duyệt không cho trang này ghi vào bộ nhớ tạm",
+      "copyFailed": "không chép được vào bộ nhớ tạm; hãy chọn và chép thủ công"
+    },
+    "fixture": {
+      "createFailed": "Không tạo được liên kết chia sẻ. Kiểm tra kết nối rồi thử lại.",
+      "staleLinkNotice": "Bạn vừa đổi thiết lập nhúng; mã nhúng đã sao chép trước đó không còn khớp.",
+      "memberOne": "Phạm An",
+      "memberTwo": "Nguyễn Bình",
+      "memberThree": "Trần Chi"
+    }
   }
 }

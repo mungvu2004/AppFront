@@ -31,8 +31,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
@@ -43,7 +44,7 @@ import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
-import { renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
 import {
@@ -52,6 +53,7 @@ import {
   SAMPLE_ACTIVE_LINK,
   SAMPLE_DRAFT_PASSWORD,
   SAMPLE_EMBED_PARAMS,
+  SAMPLE_MEMBER_EMAILS,
   SAMPLE_MEMBERS,
   SAMPLE_PROJECT_ID,
   SAMPLE_PROTECTED_LINK,
@@ -89,6 +91,23 @@ async function loadUseShareDialog(): Promise<(options: UseShareDialogOptions) =>
   }>('./useShareDialog');
 
   return mod.useShareDialog;
+}
+
+/**
+ * Bọc `renderHook` trong đúng bộ nhớ đệm mà sản phẩm chạy trên.
+ *
+ * `useShareDialog` đọc danh sách liên kết bằng `useQuery` (R-64), nên nó đòi một
+ * `QueryClientProvider` phía trên — `renderHook` trần ném "No QueryClient set". Ở lớp W4
+ * hook chưa tồn tại nên điều đó chưa đo được; đây là chỗ lớp gộp nối lại. Không một điều
+ * kiện nào của bài bị nới: chỉ có cái provider mà container thật cũng có.
+ * Tiền lệ: `useFloorUploadScreen.test.ts:205`, `ViewerShell.test.tsx:554`.
+ */
+function withQueryClient(): ({ children }: { readonly children: ReactNode }) => JSX.Element {
+  const client = createTestQueryClient();
+
+  return function QueryWrapper({ children }: { readonly children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
 }
 
 /** Một cổng không chạm mạng: `list` rỗng, `create` trả đúng bản ghi mẫu, `revoke` xong. */
@@ -131,13 +150,20 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
       <ShareDialogView {...buildShareDialogProps('success')} />,
     );
 
-    // Hai ngoại lệ, không cái nào là chữ của màn:
+    // Ba ngoại lệ, không cái nào là chữ của màn:
     //
     // - `^https?://` — ô địa chỉ chia sẻ mang một URL do máy chủ cấp. Cách né số 2.
     // - `^Level \d+$` — TÊN TẦNG đọc nguyên văn từ `SAMPLE_BUILDING` (`sampleBuilding.ts:85`).
     //   Màn không được tự đặt lại tên tầng, y như nó không được viết lại tên phòng. Neo y
     //   hệt `ExportPanel.test.tsx:110`.
-    expectVietnamese(container, { ignore: [/^https?:\/\//u, /^Level \d+$/u] });
+    // - ba địa chỉ thư của thành viên. Đo được ở lớp gộp: một địa chỉ thư KHÔNG THỂ qua
+    //   phép soát này — nó không mang nổi một dấu tiếng Việt, nên hoặc rớt vì một từ tiếng
+    //   Anh, hoặc rớt vì "cả chuỗi là tiếng Việt không dấu". Đây là cách repo đã xử đúng
+    //   tình huống ấy hai lần: `ProfileSection.test.tsx:273`, `AccountSettings.test.tsx:517`.
+    //   Danh sách đọc từ fixture, không chép tay, nên nó không nới ra quá ba chuỗi đó.
+    expectVietnamese(container, {
+      ignore: [/^https?:\/\//u, /^Level \d+$/u, ...SAMPLE_MEMBER_EMAILS],
+    });
 
     // Hộp thoại dựng NGOÀI `container` của lượt render (`Modal.Root` vẽ ở lớp cố định),
     // nên soát cả `body`; bỏ đúng một phần tử là cái vỏ `role="dialog"`. Cách né số 1.
@@ -335,14 +361,16 @@ describe('A8 — mọi thay đổi hoàn tác được, kèm toast hoàn tác', 
   it('đổi quyền truy cập gọi onToast với một onUndo', async () => {
     const useShareDialog = await loadUseShareDialog();
     const onToast = vi.fn();
-    const { result } = renderHook(() =>
-      useShareDialog({
-        gateway: buildFakeGateway(),
-        projectId: SAMPLE_PROJECT_ID,
-        roles: ['admin'],
-        members: SAMPLE_MEMBERS,
-        onToast,
-      }),
+    const { result } = renderHook(
+      () =>
+        useShareDialog({
+          gateway: buildFakeGateway(),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          members: SAMPLE_MEMBERS,
+          onToast,
+        }),
+      { wrapper: withQueryClient() },
     );
 
     const [, actions] = result.current;

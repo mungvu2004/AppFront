@@ -164,7 +164,7 @@ export function ShareDialogLink({
           <div className="flex flex-col gap-1">
             <Toggle
               label="kèm góc nhìn hiện tại"
-              description="liên kết mở đúng vị trí camera đang xem, thay vì mặc định của tầng."
+              description="liên kết mở đúng vị trí đang xem, thay vì góc nhìn mặc định của tầng."
               checked={form.includeViewpoint}
               onChange={actions.setIncludeViewpoint}
             />

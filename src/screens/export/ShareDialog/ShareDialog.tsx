@@ -23,6 +23,7 @@ import { ShareDialogEmbed } from './ShareDialogEmbed';
 import { ShareDialogFooter } from './ShareDialogFooter';
 import { ShareDialogLink } from './ShareDialogLink';
 import { ShareDialogPeople } from './ShareDialogPeople';
+import { EMBED_COPY_TARGET_ID } from './types';
 import type { ShareDialogProps } from './types';
 
 export function ShareDialog({ isOpen, model, actions, titleId }: ShareDialogProps) {
@@ -58,7 +59,11 @@ export function ShareDialog({ isOpen, model, actions, titleId }: ShareDialogProp
                 actions={actions}
               />
 
-              <ShareDialogEmbed embed={model.embed} actions={actions} />
+              <ShareDialogEmbed
+                embed={model.embed}
+                isCodeCopied={model.copiedTargetId === EMBED_COPY_TARGET_ID}
+                actions={actions}
+              />
             </>
           )}
         </div>

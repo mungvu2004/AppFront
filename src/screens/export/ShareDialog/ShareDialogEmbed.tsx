@@ -11,7 +11,7 @@
  * không tự khai ở đây, để `id` không lệch với hook.
  */
 
-import { Copy, ImageOff } from 'lucide-react';
+import { Check, Copy, ImageOff } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
@@ -24,6 +24,11 @@ import type { EmbedSectionModel, ShareDialogActions } from './types';
 
 export interface ShareDialogEmbedProps {
   readonly embed: EmbedSectionModel;
+  /**
+   * `model.copiedTargetId` đang trỏ vào mã nhúng — dấu tích giữ 700 ms rồi bỏ, đúng như
+   * hàng liên kết. Vỏ hộp thoại so sánh, không phải mục này, để mục này vẫn thuần props.
+   */
+  readonly isCodeCopied: boolean;
   readonly actions: Pick<
     ShareDialogActions,
     | 'setEmbedLevel'
@@ -84,7 +89,7 @@ function EmbedPreview({ embed }: EmbedPreviewProps) {
   );
 }
 
-export function ShareDialogEmbed({ embed, actions }: ShareDialogEmbedProps) {
+export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEmbedProps) {
   const sizePresetOptions = embed.sizePresets.map((preset) => ({ label: preset.label, value: preset.id }));
   const levelSelectOptions = embed.levelOptions.map((option) => ({ label: option.label, value: option.id }));
   const coloringSelectOptions = embed.coloringOptions.map((option) => ({ label: option.label, value: option.id }));
@@ -114,8 +119,14 @@ export function ShareDialogEmbed({ embed, actions }: ShareDialogEmbedProps) {
               <code>{embed.code}</code>
             </pre>
             <IconButton
-              aria-label="sao chép mã nhúng"
-              icon={<Copy size={16} aria-hidden="true" />}
+              aria-label={isCodeCopied ? 'đã sao chép mã nhúng' : 'sao chép mã nhúng'}
+              icon={
+                isCodeCopied ? (
+                  <Check size={16} aria-hidden="true" />
+                ) : (
+                  <Copy size={16} aria-hidden="true" />
+                )
+              }
               onClick={actions.copyEmbedCode}
             />
           </div>

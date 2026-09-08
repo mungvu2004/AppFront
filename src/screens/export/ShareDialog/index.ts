@@ -1,0 +1,43 @@
+/**
+ * `S-ShareDialog` — hộp thoại chia sẻ. Đường nhập duy nhất của thư mục này.
+ *
+ * - {@link ShareDialogContainer} là hộp thoại ĐÃ NỐI: một màn khác chỉ cần
+ *   `<ShareDialogContainer isOpen onDismiss projectId />` là mở được, không phải
+ *   viết thêm một dòng logic chia sẻ nào (R-73).
+ * - {@link ShareDialog} là markup thuần, cho story và test (mục D).
+ * - {@link useShareDialog} là toàn bộ logic, cho ai muốn dựng một vỏ khác.
+ *
+ * **Không có route ở đây, và đó là chủ ý.** Đây là một hộp thoại, không phải một
+ * màn có địa chỉ; `ROUTE_PATTERNS.projectShare` đã trỏ `ShareRoute.tsx` rồi.
+ *
+ * Kiểu công khai có đúng **một** nơi định nghĩa — `./types`, hợp đồng đông cứng của
+ * ba worker viết song song — mà container, view và hook cùng nhập; barrel này chỉ
+ * tái xuất, không chép lại hình dạng.
+ *
+ * Chuỗi tiếng Việt viết thẳng vào TS/TSX; `src/i18n/vi.json` là từ điển để
+ * `lib/testing/expectVietnamese.ts` soát, không phải bảng dịch lúc chạy.
+ */
+
+export { ShareDialog } from './ShareDialog';
+
+export { ShareDialogContainer } from './ShareDialog.container';
+
+export { useShareDialog } from './useShareDialog';
+
+export { EMBED_COPY_TARGET_ID } from './types';
+export type {
+  EmbedEditableKey,
+  EmbedSectionModel,
+  EmbedSizePreset,
+  MemberRowModel,
+  ShareDialogActions,
+  ShareDialogContainerProps,
+  ShareDialogModel,
+  ShareDialogOption,
+  ShareDialogProps,
+  ShareDialogResult,
+  ShareDialogToast,
+  ShareLinkFormModel,
+  ShareLinkRowModel,
+  UseShareDialogOptions,
+} from './types';

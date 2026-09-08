@@ -97,6 +97,7 @@ import {
   toExpiryChoice,
   toLevelOptions,
 } from './shareDialogGateway';
+import { EMBED_COPY_TARGET_ID } from './types';
 import type {
   EmbedEditableKey,
   MemberRowModel,
@@ -120,9 +121,6 @@ import type {
  * đọc được một dấu tích.
  */
 const COPY_FLASH_MS = 700;
-
-/** Mục "mã nhúng" trong `copiedTargetId`; các mục còn lại là id của liên kết. */
-export const EMBED_COPY_TARGET_ID = 'embed-code';
 
 /** Dưới mức này thì khung xem trước rời khỏi màn — trạng thái thứ bảy. */
 const COLLAPSED_MEDIA_QUERY = '(max-width: 1279px)';

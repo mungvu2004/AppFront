@@ -60,6 +60,18 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { SharedViewpoint } from '@/lib/three/camera/viewpointCodec';
 import type { ProjectRole } from '@/types/project';
 
+/* ── Mục đang được chép ──────────────────────────────────────────────────────────────────── */
+
+/**
+ * Giá trị của `copiedTargetId` khi thứ vừa được chép là MÃ NHÚNG.
+ *
+ * Mọi giá trị khác của trường đó là `id` của một liên kết. Hằng số này ở đây vì cùng một
+ * lý do `ShareDialogOption` ở đây: `id` phải khớp giữa view và hook, và hai bên được viết
+ * song song. Nếu view tự khai lấy chuỗi này thì dấu tích "đã chép" của mã nhúng sẽ im
+ * lặng không bao giờ sáng — đúng loại lỗi chỉ lộ ra lúc chạy.
+ */
+export const EMBED_COPY_TARGET_ID = 'embed-code';
+
 /* ── Danh mục lựa chọn ───────────────────────────────────────────────────────────────────── */
 
 /**
