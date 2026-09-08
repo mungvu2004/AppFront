@@ -8,11 +8,11 @@
  * consequence of applying one before it is committed.
  *
  * Each threshold override below is located by matching `RULE_THRESHOLD_SPECS`
- * against the *current running constant* for that rule (the numbers in the
- * contract's threshold table), not by a hardcoded spec key — `config.ts`
- * chooses its own key strings, and this file has no business guessing them.
- * `defaultValue` is contractually required to equal that running constant, so
- * matching on it is exact, not a heuristic.
+ * (in `thresholdSpecs.ts`) against the *current running constant* for that rule
+ * (the numbers in the contract's threshold table), not by a hardcoded spec key
+ * — the spec table chooses its own key strings, and this file has no business
+ * guessing them. `defaultValue` is contractually required to equal that running
+ * constant, so matching on it is exact, not a heuristic.
  */
 import type { RuleCode } from './registry';
 import { defaultRuleRegistry } from './defaults';
@@ -22,10 +22,10 @@ import {
   setRuleEnabled,
   setRuleSeverity,
   setRuleThreshold,
-  thresholdSpecsFor,
   type RuleConfig,
   type RuleThresholds,
 } from './config';
+import { thresholdSpecsFor } from './thresholdSpecs';
 
 export type BuildingKind = 'residential' | 'commercial' | 'industrial';
 

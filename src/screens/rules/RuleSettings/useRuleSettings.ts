@@ -63,17 +63,19 @@ import {
   isDefaultConfig,
   resetConfig,
   resolveRules,
-  RULE_THRESHOLD_SPECS,
   setGroupEnabled,
   setRuleEnabled,
   setRuleSeverity,
   setRuleThreshold,
-  thresholdSpecsFor,
-  validateThreshold,
   type ResolvedRule,
   type RuleConfig,
   type RuleThresholdSpec,
 } from '@/domain/rules/config';
+import {
+  RULE_THRESHOLD_SPECS,
+  thresholdSpecsFor,
+  validateThreshold,
+} from '@/domain/rules/thresholdSpecs';
 import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { SUPERSEDED_BUILT_IN_CODES } from '@/domain/rules/function';
 import { diffPreset, RULE_PRESETS, type RulePreset } from '@/domain/rules/presets';

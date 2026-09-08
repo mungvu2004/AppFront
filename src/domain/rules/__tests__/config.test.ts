@@ -66,18 +66,20 @@ import {
   resetConfig,
   resolveRules,
   resolveThresholds,
-  RULE_THRESHOLD_SPECS,
   setGroupEnabled,
   setRuleEnabled,
   setRuleSeverity,
   setRuleThreshold,
+  type RuleConfig,
+  type RuleThresholdSpec,
+} from '../config';
+import {
+  RULE_THRESHOLD_SPECS,
   thresholdSpecByKey,
   thresholdSpecsFor,
   thresholdUnitText,
   validateThreshold,
-  type RuleConfig,
-  type RuleThresholdSpec,
-} from '../config';
+} from '../thresholdSpecs';
 
 /* -------------------------------------------------------------------------- */
 /* Helpers.                                                                    */
