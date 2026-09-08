@@ -1,0 +1,50 @@
+{
+  "ruleSettings": {
+    "title": "cài đặt bộ luật không gian",
+    "enabledOfTotal": "{{enabled}}/{{total}} luật đang bật",
+    "nav": {
+      "ariaLabel": "mục cài đặt bộ luật",
+      "selectLabel": "mục cài đặt",
+      "generalThresholds": "ngưỡng chung"
+    },
+    "severity": {
+      "critical": "nghiêm trọng",
+      "warning": "cảnh báo",
+      "suggestion": "gợi ý",
+      "pickerAriaLabel": "mức độ của luật: {{sentence}}"
+    },
+    "row": {
+      "toggleAriaLabel": "bật hoặc tắt luật: {{sentence}}",
+      "supersededBy": "Đã được thay thế bởi {{ruleName}}"
+    },
+    "group": {
+      "toggleAriaLabel": "bật hoặc tắt cả nhóm: {{groupLabel}}"
+    },
+    "generalThresholdsCard": {
+      "title": "ngưỡng chung",
+      "description": "Dung sai hình học dùng chung cho nhiều luật trong bộ này.",
+      "empty": "Chưa có ngưỡng chung nào để chỉnh."
+    },
+    "presets": {
+      "sectionLabel": "bộ luật sẵn",
+      "changedRuleCount": "{{count}} luật sẽ đổi"
+    },
+    "restoreDefaults": {
+      "caption": "Cấu hình đã khác mặc định.",
+      "button": "khôi phục mặc định"
+    },
+    "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
+    "error": {
+      "title": "không tải được cài đặt bộ luật",
+      "description": "Đã có lỗi khi tải cấu hình bộ luật. Thử lại sau ít phút."
+    },
+    "empty": {
+      "title": "chưa có bộ luật để cài đặt",
+      "description": "Chưa có luật không gian nào được nạp cho dự án này."
+    },
+    "forbidden": {
+      "title": "không có quyền xem cài đặt bộ luật",
+      "description": "Chỉ người có quyền quản trị dự án mới xem được mục này."
+    }
+  }
+}
