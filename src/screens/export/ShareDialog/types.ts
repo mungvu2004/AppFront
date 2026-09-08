@@ -60,6 +60,22 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { SharedViewpoint } from '@/lib/three/camera/viewpointCodec';
 import type { ProjectRole } from '@/types/project';
 
+/* ── Danh mục lựa chọn ───────────────────────────────────────────────────────────────────── */
+
+/**
+ * Một lựa chọn của `Select` hoặc `SegmentedControl`, đã sẵn sàng để vẽ.
+ *
+ * Vì sao danh mục nằm trong model chứ không nằm trong view: nhãn là chuỗi người đọc, mà A15 nói
+ * định dạng xảy ra ở viewmodel. Quan trọng hơn, `id` phải khớp giữa view và hook — nếu view tự
+ * khai danh mục của nó thì hai bên sẽ lệch id vào lúc không ai để ý, đúng loại lỗi chỉ lộ ra
+ * lúc chạy.
+ */
+export interface ShareDialogOption<TValue extends string> {
+  readonly id: TValue;
+  /** Nhãn tiếng Việt, viết thường kiểu câu (A6). */
+  readonly label: string;
+}
+
 /* ── Mục 1: thành viên (CHỈ ĐỌC) ─────────────────────────────────────────────────────────── */
 
 /**
@@ -97,7 +113,15 @@ export interface ShareLinkRowModel {
 
 export interface ShareLinkFormModel {
   readonly permission: SharePermission;
+  /** Hai mức, từ `SHARE_PERMISSIONS` + `SHARE_PERMISSION_LABELS`. */
+  readonly permissionOptions: readonly ShareDialogOption<SharePermission>[];
   readonly expiryChoiceId: string;
+  /**
+   * Danh mục hạn dùng. Nguồn duy nhất là `SHARE_EXPIRY_CHOICES` + `SHARE_EXPIRY_LABELS`
+   * (`src/hooks/useShareLinks.ts:79,85`) — hook đọc chúng và chuyển thành danh mục này, để
+   * view không phải nhập từ một hook khác và để id không lệch giữa hai bên.
+   */
+  readonly expiryChoices: readonly ShareDialogOption<string>[];
   readonly passwordEnabled: boolean;
   /**
    * Chỉ sống trước khi lưu. Sau khi lưu, `ShareLink` chỉ mang `passwordProtected` kiểu
@@ -139,6 +163,15 @@ export interface EmbedSectionModel {
   readonly code: string;
   readonly widthPx: number;
   readonly heightPx: number;
+  /**
+   * Các tầng của dự án, để dựng `Select` tầng. `EmbedParams.levelId` chỉ là GIÁ TRỊ ĐANG CHỌN,
+   * không phải danh mục. Nguồn: `Level[]` đọc từ store — đúng tiền lệ
+   * `ExportPanel/exportPanelGateway.ts:276` (`readonly levels: readonly Level[]`).
+   * Rỗng nghĩa là dự án chưa có tầng nào; view ẩn `Select` đó đi.
+   */
+  readonly levelOptions: readonly ShareDialogOption<LevelId>[];
+  /** Nguồn: `COLORING_MODE_IDS` + nhãn của `@/lib/coloring/modes`. */
+  readonly coloringOptions: readonly ShareDialogOption<ColoringModeId>[];
   readonly sizePresets: readonly EmbedSizePreset[];
   readonly activeSizePresetId: string | null;
   /** Khoá vừa đổi — view tô nền `--bg-selected` trong chốc lát rồi bỏ. */
