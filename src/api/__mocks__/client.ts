@@ -1,10 +1,12 @@
 import { SAMPLE_BUILDING, SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { FURNITURE_KIND_BY_LIBRARY_GROUP } from '../schemas/library';
-import type { Result } from '@/lib/http';
+import type { HttpError, Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type {
+  AdminUser,
+  AdminUserList,
   ApiClient,
   Drawing,
   FloorImageQuality,
@@ -18,6 +20,8 @@ import type {
   Project,
   ProjectWriteBody,
   PropertyTemplate,
+  UserActivity,
+  UserMembership,
   Version,
 } from '../client';
 
@@ -599,6 +603,224 @@ const makeFallbackLibraryItem = (libraryItemId: string): LibraryItem =>
     widthMm: 600,
   });
 
+/* -------------------------------------------------------------------------- */
+/* Quản trị người dùng — T-04/T-05.                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bảy người, đủ để màn quản trị diễn được cả bảy trạng thái của A11.
+ *
+ * ## Mốc thời gian là hằng, không phải `Date.now()`
+ *
+ * {@link MOCK_USERS_REFERENCE_TIME} là "bây giờ" mà mọi mốc dưới đây được đặt
+ * quanh. Một bộ mẫu đọc đồng hồ thật thì "vừa xong" hôm nay thành "ba tháng
+ * trước" vào tháng sau, và bài kiểm cột thời gian tương đối sẽ hỏng vào một ngày
+ * không ai đụng vào code. Bài kiểm đóng băng đồng hồ tại đúng mốc này
+ * (`fakeClock`, `src/lib/testing`) rồi đọc bảng.
+ *
+ * ## Bảy trạng thái ánh xạ vào đâu
+ *
+ * 1. **Rỗng** — {@link MOCK_ADMIN_USERS_SOLO}: đúng một người, chính người đang
+ *    đăng nhập. Bảng người dùng không bao giờ rỗng thật, vì người đang mở nó
+ *    luôn có mặt trong đó; "rỗng" ở màn này nghĩa là "chưa mời ai".
+ * 2. **Đang tải** — không có dữ liệu riêng. Bộ mẫu trả lời ngay lập tức, đúng
+ *    như mọi nhóm khác trong file này: một độ trễ giả ở đây làm chậm mọi bài
+ *    kiểm chạy qua bộ mẫu để đổi lấy một trạng thái mà story dựng được từ
+ *    `isPending`. Tám hàng khung xương là việc của màn.
+ * 3. **Một phần** — đúng ba lời mời `'pending'`, HAI trong số đó đã quá
+ *    `inviteExpiresAt` so với mốc trên. Đó là lý do nút "gửi lại" có việc để làm.
+ * 4. **Lỗi** — {@link MOCK_USERS_ERROR_USER_ID}: đọc dự án hay nhật ký của id ấy
+ *    trả về `HttpError`. Một id chuyên trả lỗi thay vì một cờ môi trường, cùng
+ *    lối nghĩ với `viewer@example.com` ở phần xác thực phía trên.
+ * 5. **Xong** — {@link MOCK_ADMIN_USERS}: đủ ba vai, một người bị vô hiệu, và
+ *    `lastActiveAt` rải từ vài phút tới vài tuần để cột thời gian tương đối có
+ *    cái gì để hiện.
+ * 6. **Không có quyền** — đăng nhập bằng `viewer@example.com` thì `users.list`
+ *    trả `403`. Cùng một cửa với nhánh `forbidden` của `useViewer3D`: vai đi ra
+ *    từ lượt gia hạn, không từ một cờ.
+ * 7. **Thu gọn** — không cần dữ liệu riêng.
+ *
+ * ## Tên tiếng Việt có dấu, địa chỉ thư không dấu
+ *
+ * Tiền lệ ở `shareDialogFixtures.ts` ("Phạm An", "Nguyễn Bình", "Trần Chi"): bộ
+ * mẫu phải nuôi được `expectVietnamese`, và một bảng toàn "User 1", "User 2" thì
+ * không bao giờ phát hiện được một nhãn mất dấu. Địa chỉ thư thì ngược lại —
+ * chúng là mã máy đọc và giữ đúng ba địa chỉ mà `buildProject()` đã đặt cho ba
+ * vai, nên `users.list` và `project.members` nói về cùng những con người.
+ *
+ * (`buildProject()` vẫn gọi ba người ấy là "Admin" / "Engineer" / "Viewer". Đổi
+ * tên ở đó nằm ngoài phạm vi lượt này — đó là dữ liệu của một lượt đọc khác, và
+ * bài kiểm màn đăng nhập đang đọc nó.)
+ */
+export const MOCK_USERS_REFERENCE_TIME = '2026-09-08T09:00:00.000Z';
+
+/** Hạn của một lời mời vừa gửi — bảy ngày sau {@link MOCK_USERS_REFERENCE_TIME}, viết thẳng để mốc không trôi theo đồng hồ thật. */
+export const MOCK_USERS_INVITE_EXPIRY = '2026-09-15T09:00:00.000Z';
+
+/** Id chuyên trả lỗi, để nhánh "Lỗi" của A11 chạy được ở dev mà không cần cờ. */
+export const MOCK_USERS_ERROR_USER_ID = 'user-loi';
+
+/** 403 và 404 của bộ mẫu — cùng hình dạng `HttpError` mà `createHttpClient` trả về thật. */
+const mockUsersHttpError = (status: number, requestId: string): HttpError => ({
+  kind: 'http',
+  raw: undefined,
+  requestId,
+  retryable: false,
+  status,
+});
+
+const failed = <T>(error: HttpError): Result<T, HttpError> => ({ error, ok: false });
+
+const AVATAR_ROOT = 'https://example.com/avatars';
+
+export const MOCK_ADMIN_USERS: readonly AdminUser[] = [
+  {
+    avatarUrl: `${AVATAR_ROOT}/user-1.png`,
+    email: 'admin@example.com',
+    id: 'user-1',
+    lastActiveAt: '2026-09-08T08:57:00.000Z',
+    name: 'Phạm An',
+    projectCount: 7,
+    role: 'admin',
+    status: 'active',
+  },
+  {
+    avatarUrl: `${AVATAR_ROOT}/user-2.png`,
+    email: 'engineer@example.com',
+    id: 'user-2',
+    lastActiveAt: '2026-09-08T05:30:00.000Z',
+    name: 'Nguyễn Bình',
+    projectCount: 4,
+    role: 'engineer',
+    status: 'active',
+  },
+  {
+    email: 'viewer@example.com',
+    id: 'user-3',
+    lastActiveAt: '2026-09-05T14:10:00.000Z',
+    name: 'Trần Chi',
+    projectCount: 2,
+    role: 'viewer',
+    status: 'active',
+  },
+  {
+    email: 'le.dung@example.com',
+    id: 'user-4',
+    lastActiveAt: '2026-08-21T10:05:00.000Z',
+    name: 'Lê Thuỳ Dung',
+    projectCount: 1,
+    role: 'engineer',
+    status: 'disabled',
+  },
+  {
+    email: 'hoang.bao@example.com',
+    id: 'user-5',
+    inviteExpiresAt: '2026-09-14T09:00:00.000Z',
+    invitedAt: '2026-09-07T09:00:00.000Z',
+    lastActiveAt: null,
+    name: 'Hoàng Gia Bảo',
+    projectCount: 0,
+    role: 'engineer',
+    status: 'pending',
+  },
+  {
+    email: 'vu.hanh@example.com',
+    id: 'user-6',
+    inviteExpiresAt: '2026-09-08T08:00:00.000Z',
+    invitedAt: '2026-09-01T09:00:00.000Z',
+    lastActiveAt: null,
+    name: 'Vũ Thị Hạnh',
+    projectCount: 0,
+    role: 'viewer',
+    status: 'pending',
+  },
+  {
+    email: 'dang.khoi@example.com',
+    id: 'user-7',
+    inviteExpiresAt: '2026-09-01T09:00:00.000Z',
+    invitedAt: '2026-08-25T09:00:00.000Z',
+    lastActiveAt: null,
+    name: 'Đặng Minh Khôi',
+    projectCount: 0,
+    role: 'viewer',
+    status: 'pending',
+  },
+];
+
+/** Trạng thái "Rỗng": chỉ còn người đang đăng nhập, chưa mời ai. */
+export const MOCK_ADMIN_USERS_SOLO: readonly AdminUser[] = MOCK_ADMIN_USERS.slice(0, 1);
+
+/**
+ * Ba dự án, tên tiếng Việt có dấu — cùng lý do với tên người ở trên.
+ *
+ * Vai trong bảng này KHÔNG suy ra từ `AdminUser.role`: `user-2` là `engineer`
+ * của hệ thống nhưng chỉ được xem dự án thứ ba. Bộ mẫu phải diễn được đúng chỗ
+ * lệch ấy, nếu không màn sẽ được dựng trên giả định rằng hai vai luôn trùng.
+ */
+const MOCK_USER_MEMBERSHIPS: Readonly<Record<string, readonly UserMembership[]>> = {
+  'user-1': [
+    { projectId: 'project-1', projectName: 'Chung cư Sông Hàn', role: 'admin' },
+    { projectId: 'project-2', projectName: 'Văn phòng Thủ Thiêm', role: 'admin' },
+  ],
+  'user-2': [
+    { projectId: 'project-1', projectName: 'Chung cư Sông Hàn', role: 'engineer' },
+    { projectId: 'project-3', projectName: 'Trường mầm non Hoa Sữa', role: 'viewer' },
+  ],
+  'user-3': [{ projectId: 'project-1', projectName: 'Chung cư Sông Hàn', role: 'viewer' }],
+  'user-4': [{ projectId: 'project-2', projectName: 'Văn phòng Thủ Thiêm', role: 'engineer' }],
+};
+
+/**
+ * Nhật ký hoạt động, mã đối tượng tách khỏi nhãn.
+ *
+ * `objectCode` là thứ màn hiện bằng chữ đều (`A-3`, `P.201`) — A6 cho phép chữ
+ * hoa đúng ở mã trục và mã lỗi; `objectLabel` là câu viết thường kiểu câu. Gộp
+ * làm một chuỗi thì màn không tách lại được.
+ */
+const MOCK_USER_ACTIVITY: Readonly<Record<string, readonly UserActivity[]>> = {
+  'user-1': [
+    {
+      at: '2026-09-08T08:55:00.000Z',
+      id: 'activity-1',
+      kind: 'rules.run',
+      objectCode: 'L1',
+      objectLabel: 'chạy lại bộ luật cho tầng trệt',
+    },
+    {
+      at: '2026-09-07T16:20:00.000Z',
+      id: 'activity-2',
+      kind: 'export.file',
+      objectCode: 'PDF',
+      objectLabel: 'xuất hồ sơ mặt bằng',
+    },
+  ],
+  'user-2': [
+    {
+      at: '2026-09-08T05:28:00.000Z',
+      id: 'activity-3',
+      kind: 'wall.edit',
+      objectCode: 'A-3',
+      objectLabel: 'sửa tường trục a-3',
+    },
+    {
+      at: '2026-09-06T09:12:00.000Z',
+      id: 'activity-4',
+      kind: 'room.edit',
+      objectCode: 'P.201',
+      objectLabel: 'đổi công năng phòng 201',
+    },
+  ],
+  'user-3': [
+    {
+      at: '2026-09-05T14:08:00.000Z',
+      id: 'activity-6',
+      kind: 'project.open',
+      objectCode: 'DA-1',
+      objectLabel: 'mở dự án chung cư sông hàn',
+    },
+  ],
+};
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -615,6 +837,23 @@ export const createMockApiClient = (): ApiClient => {
   const uploads = new Map<string, Progress>();
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
+  let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
+  let nextInviteSequence = adminUsers.length;
+
+  const readAdminUser = (userId: string): AdminUser | undefined =>
+    adminUsers.find((candidate) => candidate.id === userId);
+
+  const writeAdminUser = (next: AdminUser): AdminUser => {
+    adminUsers = adminUsers.map((candidate) => (candidate.id === next.id ? next : candidate));
+
+    return clone(next);
+  };
+
+  /** Vai của phiên hiện tại có được đọc bảng người dùng không — `user.manage` là quyền của quản trị. */
+  const isUserAdminForbidden = (): boolean => !roleOfEmail(lastSignedInEmail).includes('admin');
+
+  const missingAdminUser = (userId: string): Result<never, HttpError> =>
+    failed(mockUsersHttpError(404, `req-users-${userId}`));
 
   const readQualityFloor = (floorId: string): FloorImageQuality =>
     qualityFloors.find((item) => item.floorId === floorId) ?? makeFallbackQualityFloor(floorId);
@@ -843,6 +1082,119 @@ export const createMockApiClient = (): ApiClient => {
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
       /** Echoes the layer back, like every other write in this file that has no separate read endpoint to reconcile with (see `auth.signIn`, `drawings.complete`). */
       writeLayer: async ({ body }) => ok(clone(body)),
+    },
+    /**
+     * Quản trị người dùng — T-04/T-05.
+     *
+     * Giữ trong bộ nhớ của MỘT lượt `createMockApiClient()`, cùng khuôn với
+     * `propertyTemplates` ở trên: mời rồi đọc lại trong cùng một phiên thì thấy
+     * người vừa mời, còn hai bài kiểm cạnh nhau không dẫm lên nhau vì mỗi bài
+     * dựng client riêng.
+     *
+     * `list` là lượt gọi DUY NHẤT trong file này từ chối phục vụ, và nó từ chối
+     * theo VAI chứ không theo cờ: `roleOfEmail(lastSignedInEmail)` là cùng bảng
+     * mà lượt gia hạn đọc, nên đăng nhập bằng `viewer@example.com` cho ra `403`
+     * ở đây đúng lúc `useViewer3D` chuyển sang `forbidden` ở kia. Một cờ môi
+     * trường riêng cho màn này sẽ là nguồn thứ hai cho cùng một câu hỏi.
+     *
+     * Hai lượt đọc theo người trả `500` cho {@link MOCK_USERS_ERROR_USER_ID} —
+     * đó là nhánh "Lỗi" của A11, và nó là một ID chứ không phải một cờ vì cùng
+     * một màn phải hiện được panel lỗi cho một người trong khi bảng bên cạnh vẫn
+     * đúng: đúng định nghĩa trạng thái "Một phần".
+     */
+    users: {
+      activity: async ({ userId }) =>
+        userId === MOCK_USERS_ERROR_USER_ID
+          ? failed(mockUsersHttpError(500, 'req-users-activity'))
+          : ok((MOCK_USER_ACTIVITY[userId] ?? []).map(clone)),
+      changeRole: async ({ body }) => {
+        const current = readAdminUser(body.userId);
+
+        return current === undefined
+          ? missingAdminUser(body.userId)
+          : ok(writeAdminUser({ ...current, role: body.role }));
+      },
+      disable: async ({ userId }) => {
+        const current = readAdminUser(userId);
+
+        return current === undefined
+          ? missingAdminUser(userId)
+          : ok(writeAdminUser({ ...current, status: 'disabled' }));
+      },
+      enable: async ({ userId }) => {
+        const current = readAdminUser(userId);
+
+        return current === undefined
+          ? missingAdminUser(userId)
+          : ok(writeAdminUser({ ...current, status: 'active' }));
+      },
+      /**
+       * Một lời mời cho nhiều địa chỉ sinh ra nhiều người ở trạng thái `'pending'`.
+       *
+       * `invitedAt` và `inviteExpiresAt` đặt quanh {@link MOCK_USERS_REFERENCE_TIME}
+       * chứ không quanh `Date.now()` — xem docblock của bảng người dùng cho lý
+       * do. Lời mời mới luôn CÒN hạn: người vừa bấm mời phải thấy một dòng chưa
+       * hết hạn, còn hai dòng hết hạn sẵn có là để nút "gửi lại" có việc ngay khi
+       * mở màn.
+       *
+       * `name` lấy chính địa chỉ thư: người được mời chưa từng đăng nhập nên chưa
+       * có tên nào để biết, và bịa một cái tên ở đây là dạy cho màn một sự thật
+       * mà máy chủ thật không có.
+       */
+      invite: async ({ body }) => {
+        const invited = body.emails.map((email): AdminUser => {
+          nextInviteSequence += 1;
+
+          return {
+            email,
+            id: `user-${nextInviteSequence}`,
+            inviteExpiresAt: MOCK_USERS_INVITE_EXPIRY,
+            invitedAt: MOCK_USERS_REFERENCE_TIME,
+            lastActiveAt: null,
+            name: email,
+            projectCount: 0,
+            role: body.role,
+            status: 'pending',
+          };
+        });
+
+        adminUsers = [...adminUsers, ...invited];
+
+        return ok(invited.map(clone));
+      },
+      list: async () =>
+        isUserAdminForbidden()
+          ? failed(mockUsersHttpError(403, 'req-users-list'))
+          : ok({ total: adminUsers.length, users: adminUsers.map(clone) } satisfies AdminUserList),
+      memberships: async ({ userId }) =>
+        userId === MOCK_USERS_ERROR_USER_ID
+          ? failed(mockUsersHttpError(500, 'req-users-memberships'))
+          : ok((MOCK_USER_MEMBERSHIPS[userId] ?? []).map(clone)),
+      remove: async ({ body }) => {
+        const current = readAdminUser(body.userId);
+
+        if (current === undefined) {
+          return missingAdminUser(body.userId);
+        }
+
+        adminUsers = adminUsers.filter((candidate) => candidate.id !== body.userId);
+
+        return ok(clone(current));
+      },
+      /** Gửi lại đẩy hạn về phía trước; `inviteId` của bộ mẫu chính là id người được mời. */
+      resendInvite: async ({ inviteId }) => {
+        const current = readAdminUser(inviteId);
+
+        return current === undefined
+          ? missingAdminUser(inviteId)
+          : ok(
+              writeAdminUser({
+                ...current,
+                inviteExpiresAt: MOCK_USERS_INVITE_EXPIRY,
+                invitedAt: MOCK_USERS_REFERENCE_TIME,
+              }),
+            );
+      },
     },
   };
 };

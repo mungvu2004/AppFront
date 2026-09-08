@@ -259,3 +259,11 @@ export * from './quality';
  * `./contracts.ts` va `./client.ts` van chi biet dung mot cua vao.
  */
 export * from './library';
+
+/**
+ * Nhóm schema quản trị người dùng — T-04. Cùng lý do tách file với
+ * `./quality.ts` và `./library.ts`: nó mượn `ProjectRole` của `src/types`, và
+ * ranh giới ấy đáng nhìn thấy ở đầu một file. Nối lại qua đây để
+ * `./contracts.ts` và `./client.ts` vẫn chỉ biết đúng một cửa vào.
+ */
+export * from './users';

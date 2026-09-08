@@ -127,6 +127,14 @@ const SAMPLE_EVENTS: Readonly<Record<TelemetryEventName, TelemetryEventInput>> =
     source: 'card',
     status: 'processing',
   },
+  'user.role-change': {
+    name: 'user.role-change',
+    fromRole: 'viewer',
+    toRole: 'engineer',
+    outcome: 'success',
+    undo: false,
+    durationMs: 240,
+  },
 };
 
 const wallEdit = (latencyMs: number): TelemetryEventInput => ({
@@ -1114,7 +1122,7 @@ describe('summariseExperience', () => {
     expect(summary.timeToFirstFrame.sampleCount).toBe(1);
     expect(summary.sceneBuild.sampleCount).toBe(1);
     expect(summary.editLatency.sampleCount).toBe(1);
-    expect(summary.errorRate.attemptCount).toBe(5);
+    expect(summary.errorRate.attemptCount).toBe(6);
     expect(summary.errorRate.errorCount).toBe(1);
   });
 });

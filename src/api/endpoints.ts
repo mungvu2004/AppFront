@@ -6,6 +6,7 @@ const LIBRARY_ROOT = '/library';
 const MEASUREMENTS_ROOT = '/measurements';
 const AUTH_ROOT = '/auth';
 const PROPERTY_TEMPLATES_ROOT = 'property-templates';
+const USERS_ROOT = '/users';
 
 /**
  * Where the API lives when the build does not say.
@@ -156,4 +157,40 @@ export const ENDPOINTS = {
    * bốn màn.
    */
   telemetry: `${API_BASE_PATH}/telemetry`,
+  /**
+   * Quản trị người dùng — T-05.
+   *
+   * Đường TOÀN CỤC, không lồng dưới `PROJECTS_ROOT`: câu hỏi màn quản trị đặt ra
+   * là "ai có mặt trong hệ thống này", một câu hỏi sống bên ngoài mọi dự án.
+   * `memberships(userId)` chính là chiều ngược lại — người này có mặt ở những dự
+   * án nào — nên nó treo dưới người dùng chứ không dưới dự án; treo ngược lại
+   * thì phải quét mọi dự án mới trả lời được một câu hỏi về một người.
+   *
+   * `list` là hằng phẳng vì nó không nhận tham số nào, cùng khuôn với
+   * `floors.list`, `projects.list` và `library.list`: lọc theo vai và ô tìm xảy
+   * ra trên danh sách đã tải (bảng người dùng đổi theo tuần —
+   * `CACHE_POLICY.branches.static`, `src/lib/query/cachePolicy.ts`), không phải
+   * bằng một lượt gọi khác cho mỗi lần bấm chip.
+   *
+   * `enable` và `disable` là HAI đường chứ không một đường nhận cờ. Bật lại và
+   * vô hiệu là hai ý định khác nhau, và một đường `PATCH .../status` nhận
+   * `{ enabled: boolean }` thì nhật ký máy chủ không phân biệt được chúng —
+   * `remove` mới là đường không hoàn tác được, nên nó phải đứng riêng hẳn và có
+   * hộp thoại của A9 chắn trước.
+   *
+   * `invite` gửi tới một tài nguyên "lời mời" chứ không tới `USERS_ROOT`: một
+   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(inviteId)` cần
+   * đúng tài nguyên ấy để trỏ tới — nó nhận `inviteId`, không nhận `userId`.
+   */
+  users: {
+    activity: (userId: string): string => `${USERS_ROOT}/${userId}/activity`,
+    changeRole: (userId: string): string => `${USERS_ROOT}/${userId}/role`,
+    disable: (userId: string): string => `${USERS_ROOT}/${userId}/disable`,
+    enable: (userId: string): string => `${USERS_ROOT}/${userId}/enable`,
+    invite: `${USERS_ROOT}/invitations`,
+    list: USERS_ROOT,
+    memberships: (userId: string): string => `${USERS_ROOT}/${userId}/memberships`,
+    remove: (userId: string): string => `${USERS_ROOT}/${userId}`,
+    resendInvite: (inviteId: string): string => `${USERS_ROOT}/invitations/${inviteId}/resend`,
+  },
 } as const;

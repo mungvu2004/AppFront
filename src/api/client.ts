@@ -27,6 +27,19 @@ import {
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
 import type { RegisterInput, SignInInput } from './schemas';
+import {
+  AdminUserListSchema,
+  AdminUserSchema,
+  UserActivitySchema,
+  UserMembershipSchema,
+  type AdminUser,
+  type AdminUserList,
+  type InviteUsersInput,
+  type RemoveUserInput,
+  type RoleChangeInput,
+  type UserActivity,
+  type UserMembership,
+} from './schemas/users';
 import { decode, safeParseList } from './schemas/decode';
 
 export type {
@@ -50,6 +63,19 @@ export type {
   Version,
 } from './contracts';
 export type { RegisterInput, SignInInput } from './schemas';
+export type {
+  AdminUser,
+  AdminUserList,
+  AdminUserStatus,
+  AdminUserWire,
+  InviteUsersInput,
+  RemoveUserInput,
+  RoleChangeInput,
+  UserActivity,
+  UserActivityWire,
+  UserMembership,
+  UserMembershipWire,
+} from './schemas/users';
 
 export type ApiError = HttpError | AppError;
 export type ApiResult<T> = Result<T, ApiError>;
@@ -220,6 +246,56 @@ export interface SetDrawingCornersInput extends WriteRequestOptions {
  */
 export interface ReadLibraryItemInput extends RequestOptions {
   libraryItemId: string;
+}
+
+/**
+ * Quản trị người dùng — T-04/T-05.
+ *
+ * `list` không nhận tham số nào ngoài `signal`, cùng lý lẽ với `LibraryApi.list`
+ * ngay trên: bảng người dùng đổi theo tuần (`CACHE_POLICY.branches.static`), nên
+ * màn tải một lượt rồi lọc theo vai và theo ô tìm tại chỗ. Nó trả về
+ * `AdminUserList` — danh sách CỘNG `total` — chứ không một mảng trần, vì màn
+ * phải nói được "đang hiện 20 trên 137" mà không tải cả 137 dòng về đếm.
+ *
+ * `enable` và `disable` nhận cùng một hình dạng đầu vào nhưng là hai phương
+ * thức: xem `ENDPOINTS.users` cho lý do chúng không gộp thành một cờ.
+ */
+export interface ReadUserActivityInput extends RequestOptions {
+  userId: string;
+}
+
+export interface ReadUserMembershipsInput extends RequestOptions {
+  userId: string;
+}
+
+export interface InviteUsersApiInput extends WriteRequestOptions {
+  body: InviteUsersInput;
+}
+
+export interface ChangeUserRoleInput extends WriteRequestOptions {
+  body: RoleChangeInput;
+}
+
+export interface SetUserEnabledInput extends WriteRequestOptions {
+  userId: string;
+}
+
+export interface ResendInviteInput extends WriteRequestOptions {
+  inviteId: string;
+}
+
+/**
+ * Xoá hẳn một người.
+ *
+ * Thân mang `confirmEmail` — địa chỉ người duyệt vừa gõ lại. Nó đi trên dây chứ
+ * không dừng ở state của màn vì A9 nói hành động A8 không hoàn tác được thì
+ * phải hỏi trước, và một xác nhận chỉ tồn tại trong màn thì nơi gọi thứ hai bỏ
+ * qua được nó. Trả về chính bản ghi vừa xoá, cùng khuôn `projects.delete` và
+ * `floors.delete`: nơi gọi có ngay dữ liệu để dựng toast mà không phải giữ lại
+ * một bản chép trước đó.
+ */
+export interface RemoveUserApiInput extends WriteRequestOptions {
+  body: RemoveUserInput;
 }
 
 /**
@@ -413,6 +489,34 @@ export interface PropertyTemplatesApi {
 }
 
 /**
+ * Ai có mặt trong hệ thống, và ba việc người quản trị làm với họ — T-04/T-05.
+ *
+ * Chín phương thức, khớp chín đường của `ENDPOINTS.users`. Bảy lượt GHI đều trả
+ * về bản ghi `AdminUser` đã đổi — không phải `void` — vì mọi lượt trong số đó
+ * hoàn tác được (A8) và cái toast hoàn tác cần biết trạng thái trước lẫn sau.
+ * `invite` là ngoại lệ về SỐ LƯỢNG chứ không về hình dạng: một lời mời gửi cho
+ * nhiều địa chỉ một lượt, nên nó trả về mảng những người vừa được tạo ở trạng
+ * thái `'pending'`.
+ *
+ * `list` giải mã qua `AdminUserListSchema` bằng `decodeSingle`, KHÔNG bằng
+ * `safeParseList` như `LibraryApi.list`: ở đây `total` và `users` là một hình
+ * dạng duy nhất, và bỏ qua một dòng hỏng rồi vẫn in `total` cũ thì màn nói dối
+ * về con số. `memberships` và `activity` thì ngược lại — chúng là danh sách
+ * thật, nên chúng dùng `safeParseList` và một dòng hỏng không làm rỗng cả panel.
+ */
+export interface UsersApi {
+  activity(input: ReadUserActivityInput): Promise<ApiResult<UserActivity[]>>;
+  changeRole(input: ChangeUserRoleInput): Promise<ApiResult<AdminUser>>;
+  disable(input: SetUserEnabledInput): Promise<ApiResult<AdminUser>>;
+  enable(input: SetUserEnabledInput): Promise<ApiResult<AdminUser>>;
+  invite(input: InviteUsersApiInput): Promise<ApiResult<AdminUser[]>>;
+  list(options?: RequestOptions): Promise<ApiResult<AdminUserList>>;
+  memberships(input: ReadUserMembershipsInput): Promise<ApiResult<UserMembership[]>>;
+  remove(input: RemoveUserApiInput): Promise<ApiResult<AdminUser>>;
+  resendInvite(input: ResendInviteInput): Promise<ApiResult<AdminUser>>;
+}
+
+/**
  * The credential exchange.
  *
  * Two things make this group unlike every other one in this file.
@@ -444,6 +548,7 @@ export interface ApiClient {
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
   spatial: SpatialApi;
+  users: UsersApi;
 }
 
 const asApiResult = <T>(result: Result<T, HttpError>): ApiResult<T> => result as ApiResult<T>;
@@ -484,6 +589,22 @@ const callGet = async <T>(http: HttpClient, path: string, signal?: AbortSignal):
 
 const callDelete = async <T>(http: HttpClient, path: string, options: WriteRequestOptions): Promise<Result<T, HttpError>> =>
   http.delete<T>(path, toRequestOptions(options));
+
+/**
+ * A delete that carries a body.
+ *
+ * `callDelete` above cannot be reused: `users.remove` has to send the address
+ * the reviewer retyped (`RemoveUserSchema.confirmEmail`, A9), and a confirmation
+ * that travels as a query parameter ends up in a server access log next to the
+ * request that acted on it. `HttpRequestOptions<TBody>` already models a body on
+ * every verb, so this is the same call `callDelete` makes with one more field.
+ */
+const callDeleteWithBody = async <T, TBody>(
+  http: HttpClient,
+  path: string,
+  body: TBody,
+  options: WriteRequestOptions,
+): Promise<Result<T, HttpError>> => http.delete<T, TBody>(path, { body, ...toRequestOptions(options) });
 
 const callPost = async <T, TBody>(
   http: HttpClient,
@@ -720,6 +841,80 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
 
       return asApiResult(
         await callPatch<SpatialLayer, SpatialLayer>(http, ENDPOINTS.spatial.layer(projectId, floorId), body, input),
+      );
+    },
+  },
+  users: {
+    activity: async ({ signal, userId }) =>
+      decodeList(
+        await callGet<unknown>(http, ENDPOINTS.users.activity(userId), signal),
+        UserActivitySchema,
+        'users.activity',
+      ),
+    changeRole: async (input) => {
+      const { body } = input;
+
+      return decodeSingle(
+        await callPatch(http, ENDPOINTS.users.changeRole(body.userId), body, input),
+        AdminUserSchema,
+        'users.changeRole',
+      );
+    },
+    disable: async (input) => {
+      const { userId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.users.disable(userId), {}, input),
+        AdminUserSchema,
+        'users.disable',
+      );
+    },
+    enable: async (input) => {
+      const { userId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.users.enable(userId), {}, input),
+        AdminUserSchema,
+        'users.enable',
+      );
+    },
+    invite: async (input) => {
+      const { body } = input;
+
+      return decodeList(
+        await callPost(http, ENDPOINTS.users.invite, body, input),
+        AdminUserSchema,
+        'users.invite',
+      );
+    },
+    list: async (options) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.users.list, options?.signal),
+        AdminUserListSchema,
+        'users.list',
+      ),
+    memberships: async ({ signal, userId }) =>
+      decodeList(
+        await callGet<unknown>(http, ENDPOINTS.users.memberships(userId), signal),
+        UserMembershipSchema,
+        'users.memberships',
+      ),
+    remove: async (input) => {
+      const { body } = input;
+
+      return decodeSingle(
+        await callDeleteWithBody(http, ENDPOINTS.users.remove(body.userId), body, input),
+        AdminUserSchema,
+        'users.remove',
+      );
+    },
+    resendInvite: async (input) => {
+      const { inviteId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.users.resendInvite(inviteId), {}, input),
+        AdminUserSchema,
+        'users.resendInvite',
       );
     },
   },
