@@ -7,16 +7,16 @@
  *
  * - **Nửa view** (bảy trạng thái, tiếp cận, tiếng Việt, không chặn, giảm
  *   chuyển động) dựng thẳng `<EditorTour {...props} />` từ `props` viết tay
- *   trong file này — đúng khuôn `WelcomeScreen.test.tsx` (`propsFor`/`baseProps`).
+ *   trong file này — đúng khuôn `WelcomeScreen.test.tsx` (`propsFor` cùng `baseProps`).
  * - **Nửa hook** (bốn bài nghiệm thu) mount `useEditorTour` thật qua một
  *   component dò (`TourProbe`), tiêm `ShortcutRegistry` giả và `resolveAnchor`
  *   giả — vì "combo không viết cứng" và "phím thật tự sang bước" chỉ có nghĩa
  *   khi đo trên đường đi thật: hook đọc registry → props → view vẽ ra.
  *
- * `useEditorTour` và `./EditorTour` chưa tồn tại lúc file này được viết (2A/2B
- * dựng song song). Đó là dự kiến — xem `CONTRACT.md` mục 1. `pnpm typecheck` sẽ
- * đỏ vì hai đường nhập này, `pnpm test` không chạy được cho tới khi cả hai có
- * mặt; bài kiểm viết đúng hợp đồng, không nới điều kiện cho nó xanh (R-70).
+ * File này được viết lúc `useEditorTour` và `./EditorTour` chưa tồn tại (2A/2B
+ * dựng song song) — bài kiểm viết theo hợp đồng chứ không theo mã đã có, đúng
+ * `CONTRACT.md` mục 1. Cả sáu file nay đã gộp về một nhánh và bộ kiểm này chạy
+ * xanh trọn vẹn; không điều kiện nào bị nới để lấy màu xanh đó (R-70).
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -529,7 +529,16 @@ describe('Bỏ qua — Esc và bấm ra nền không hỏi lại, chip quay lạ
 
     const { container } = render(<EditorTour {...baseProps({ onSkip })} />);
 
-    fireEvent.click(container);
+    // Bấm vào một TẤM NỀN thật, không vào `container`. `container` là root
+    // container mà React 18 dựng cây vào — chính nó KHÔNG mang fiber nào, nên
+    // React không dispatch sự kiện của nó cho bất kỳ handler nào bên trong cây
+    // và một bài kiểm bấm vào đó không thể xanh với BẤT KỲ view nào. Đây là sửa
+    // ĐÍCH BẤM cho đúng, không phải nới điều kiện: khẳng định giữ nguyên.
+    const backdrop = container.querySelector('.bg-bg-overlay');
+
+    expect(backdrop).not.toBeNull();
+
+    fireEvent.click(backdrop as Element);
 
     expect(onSkip).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

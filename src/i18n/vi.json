@@ -3523,5 +3523,51 @@
       "projectOpen": "mở dự án",
       "fallback": "thao tác khác"
     }
+  },
+  "editorTour": {
+    "steps": {
+      "switchTool": {
+        "title": "chọn công cụ ở ray bên trái",
+        "body": "mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng."
+      },
+      "reviewWall": {
+        "title": "đi dọc từng đoạn tường",
+        "body": "một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt."
+      },
+      "editThickness": {
+        "title": "đặt lại độ dày cho đoạn đang chọn",
+        "body": "ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số."
+      },
+      "undo": {
+        "title": "lùi lại khi lỡ tay",
+        "body": "ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím."
+      },
+      "view3d": {
+        "title": "đổi sang khung nhìn khối",
+        "body": "nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào."
+      },
+      "exportResult": {
+        "title": "lấy tệp mang đi",
+        "body": "nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào."
+      }
+    },
+    "skip": "bỏ qua",
+    "next": "tiếp theo",
+    "finish": "bắt đầu làm việc",
+    "reopenChip": "xem hướng dẫn",
+    "skipShortcut": "bỏ qua lớp hướng dẫn đang mở",
+    "sampleProjectPrompt": {
+      "title": "chưa có gì trên khung vẽ",
+      "body": "lớp chỉ dẫn cần một mặt bằng đang mở thì mới trỏ vào đâu được. mở bộ mẫu rồi quay lại đây.",
+      "action": "mở bộ mẫu"
+    },
+    "summary": {
+      "title": "bấy nhiêu phím là đủ dùng"
+    },
+    "liveMessage": {
+      "stepChange": "bước {{index}} trên {{total}}: {{title}}"
+    },
+    "progressGroup": "tiến độ hướng dẫn",
+    "progressDot": "tới bước {{index}}: {{title}}"
   }
 }

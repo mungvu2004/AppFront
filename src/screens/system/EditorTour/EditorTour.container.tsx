@@ -17,16 +17,16 @@
  * ## `onOpenSampleProject` nối vào đâu, và vì sao phải nối
  *
  * `useEditorTour` để ngỏ `options.onOpenSampleProject` vì hook không được
- * nhập router (mục 0.4 — `src/lib`/hook thuần không gọi `useNavigate`). Đích
+ * nhập router (mục 0.4 — `src/lib` và hook thuần không gọi `useNavigate`). Đích
  * mặc định là `ROUTES.dashboard` — đúng nơi `WelcomeScreen` cũng đưa người
  * dùng tới khi bấm "Xem dự án mẫu" (`useWelcomeScreen.ts` — `goDashboard`),
  * vì đây là nơi một dự án mẫu thật sự mở được. Nối tại đây, không tại hook,
  * đúng cách `WelcomeScreen.container.tsx` nối `onCreateProject`.
  *
- * ## `userId`/`role` lấy từ `useSession()` tại container, không tại hook
+ * ## `userId` và `role` lấy từ `useSession()` tại container, không tại hook
  *
- * `UseEditorTourOptions` nhận `userId`/`role` như hai tham số tiêm được —
- * cùng cách `registry`/`resolveAnchor` được tiêm — để hook test được không
+ * `UseEditorTourOptions` nhận `userId` và `role` như hai tham số tiêm được —
+ * cùng cách `registry` và `resolveAnchor` được tiêm — để hook test được không
  * cần dựng `SessionProvider`. Container là nơi nối chúng với phiên đăng nhập
  * thật. Dùng so sánh `!== undefined` thay vì `??` cho `userId`: `null` là một
  * giá trị hợp lệ (chưa đăng nhập) mà một lượt gọi có thể cố tình truyền vào,
