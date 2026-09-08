@@ -212,8 +212,18 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         ...(ticket === undefined
           ? {}
           : {
+              /*
+               * Phiếu hết hạn thì KHÔNG gọi cổng.
+               *
+               * `UNDO_WINDOW_MS` là lời hứa của A8 và phiếu tự biết mình còn sống hay
+               * không (`undoTicket.ts:51-56`). Gửi một phiếu đã hết hạn ra cổng là một
+               * lượt ghi mà người dùng không còn quyền yêu cầu — cổng thật có ném nó đi
+               * hay không cũng không đổi được điều đó.
+               */
               onUndo: (): void => {
-                undoMutation.mutate(ticket);
+                if (ticket.getStatus() === 'active') {
+                  undoMutation.mutate(ticket);
+                }
               },
             }),
       });

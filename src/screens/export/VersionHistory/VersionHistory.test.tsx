@@ -27,7 +27,7 @@
  */
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -35,7 +35,7 @@ import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
-import { installFakeClock } from '@/lib/testing/fakeClock';
+import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
@@ -231,92 +231,148 @@ describe('phục hồi làm số phiên bản TĂNG THÊM 1, không bao giờ gi
 
 describe('hoàn tác trong UNDO_WINDOW_MS, không dùng setTimeout thật', () => {
   it('bấm hoàn tác TRƯỚC khi hết UNDO_WINDOW_MS thì gọi gateway.undoRestore', async () => {
-    const clock = installFakeClock();
+    /*
+     * Đồng hồ đóng băng SAU khi lượt đọc đã lắng — khuôn `useObjectLayerReview.test.ts:418`.
+     *
+     * `waitFor` của testing-library dò đồng hồ giả bằng biến toàn cục `jest`, thứ vitest
+     * không có; dưới đồng hồ giả nó vì thế đi đường "đồng hồ thật" và đặt một `setInterval`
+     * ĐÃ BỊ GIẢ, nên nó kiểm đúng một lần rồi chờ mãi. Lượt tải danh sách chạy với đồng hồ
+     * thật, và mọi lượt chờ SAU khi đóng băng đi qua `act` + `clock.advance`. Chỉ CÁCH CHỜ
+     * đổi: không một điều kiện khẳng định nào, không một mốc thời gian nào bị đụng tới.
+     *
+     * `readNow` đọc đồng hồ ở thời điểm GỌI, nên phiếu hoàn tác — thứ được tạo sau khi đóng
+     * băng — vẫn nằm dưới `UNDO_WINDOW_MS` của đồng hồ giả, đúng như bài này đòi.
+     */
+    let clock: FakeClock | null = null;
+    const readNow = (): Date => clock?.now() ?? new Date();
+    const gateway = createFakeVersionHistoryGateway({ now: readNow });
+    const undoSpy = vi.spyOn(gateway, 'undoRestore');
+    const onToast = vi.fn();
+    const useVersionHistory = await loadUseVersionHistory();
+    const { result } = renderHook(
+      () =>
+        useVersionHistory({
+          gateway,
+          projectId: SAMPLE_PROJECT_ID,
+          floorId: SAMPLE_FLOOR_ID,
+          now: readNow,
+          onToast,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].rows.length).toBeGreaterThan(0);
+    });
+
+    const fakeClock = installFakeClock();
+
+    clock = fakeClock;
+
+    /** Cho các lời hứa đang treo lắng mà KHÔNG dời đồng hồ một mili giây nào. */
+    const settle = async (): Promise<void> => {
+      await act(async () => {
+        await fakeClock.advance(0);
+        await fakeClock.flushMicrotasks();
+      });
+    };
 
     try {
-      const gateway = createFakeVersionHistoryGateway({ now: clock.now });
-      const undoSpy = vi.spyOn(gateway, 'undoRestore');
-      const onToast = vi.fn();
-      const useVersionHistory = await loadUseVersionHistory();
-      const { result } = renderHook(
-        () =>
-          useVersionHistory({
-            gateway,
-            projectId: SAMPLE_PROJECT_ID,
-            floorId: SAMPLE_FLOOR_ID,
-            now: clock.now,
-            onToast,
-          }),
-        { wrapper: withQueryClient() },
-      );
-
-      await waitFor(() => {
-        expect(result.current[0].rows.length).toBeGreaterThan(0);
-      });
-
       const targetId = result.current[0].rows[0]?.id as string;
 
       result.current[1].requestRestore(targetId);
       result.current[1].confirmRestore();
 
-      await waitFor(() => {
-        expect(onToast).toHaveBeenCalled();
-      });
+      await settle();
+
+      expect(onToast).toHaveBeenCalled();
 
       const toast = onToast.mock.calls.at(-1)?.[0] as { onUndo?: () => void };
 
-      await clock.advance(UNDO_WINDOW_MS - 1);
-      toast.onUndo?.();
-
-      await waitFor(() => {
-        expect(undoSpy).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await fakeClock.advance(UNDO_WINDOW_MS - 1);
       });
+
+      toast.onUndo?.();
+      await settle();
+
+      expect(undoSpy).toHaveBeenCalledTimes(1);
     } finally {
-      clock.restore();
+      fakeClock.restore();
+      clock = null;
     }
   });
 
   it('bấm hoàn tác SAU khi hết UNDO_WINDOW_MS thì KHÔNG gọi gateway.undoRestore', async () => {
-    const clock = installFakeClock();
+    /*
+     * Đồng hồ đóng băng SAU khi lượt đọc đã lắng — khuôn `useObjectLayerReview.test.ts:418`.
+     *
+     * `waitFor` của testing-library dò đồng hồ giả bằng biến toàn cục `jest`, thứ vitest
+     * không có; dưới đồng hồ giả nó vì thế đi đường "đồng hồ thật" và đặt một `setInterval`
+     * ĐÃ BỊ GIẢ, nên nó kiểm đúng một lần rồi chờ mãi. Lượt tải danh sách chạy với đồng hồ
+     * thật, và mọi lượt chờ SAU khi đóng băng đi qua `act` + `clock.advance`. Chỉ CÁCH CHỜ
+     * đổi: không một điều kiện khẳng định nào, không một mốc thời gian nào bị đụng tới.
+     *
+     * `readNow` đọc đồng hồ ở thời điểm GỌI, nên phiếu hoàn tác — thứ được tạo sau khi đóng
+     * băng — vẫn nằm dưới `UNDO_WINDOW_MS` của đồng hồ giả, đúng như bài này đòi.
+     */
+    let clock: FakeClock | null = null;
+    const readNow = (): Date => clock?.now() ?? new Date();
+    const gateway = createFakeVersionHistoryGateway({ now: readNow });
+    const undoSpy = vi.spyOn(gateway, 'undoRestore');
+    const onToast = vi.fn();
+    const useVersionHistory = await loadUseVersionHistory();
+    const { result } = renderHook(
+      () =>
+        useVersionHistory({
+          gateway,
+          projectId: SAMPLE_PROJECT_ID,
+          floorId: SAMPLE_FLOOR_ID,
+          now: readNow,
+          onToast,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].rows.length).toBeGreaterThan(0);
+    });
+
+    const fakeClock = installFakeClock();
+
+    clock = fakeClock;
+
+    /** Cho các lời hứa đang treo lắng mà KHÔNG dời đồng hồ một mili giây nào. */
+    const settle = async (): Promise<void> => {
+      await act(async () => {
+        await fakeClock.advance(0);
+        await fakeClock.flushMicrotasks();
+      });
+    };
 
     try {
-      const gateway = createFakeVersionHistoryGateway({ now: clock.now });
-      const undoSpy = vi.spyOn(gateway, 'undoRestore');
-      const onToast = vi.fn();
-      const useVersionHistory = await loadUseVersionHistory();
-      const { result } = renderHook(
-        () =>
-          useVersionHistory({
-            gateway,
-            projectId: SAMPLE_PROJECT_ID,
-            floorId: SAMPLE_FLOOR_ID,
-            now: clock.now,
-            onToast,
-          }),
-        { wrapper: withQueryClient() },
-      );
-
-      await waitFor(() => {
-        expect(result.current[0].rows.length).toBeGreaterThan(0);
-      });
-
       const targetId = result.current[0].rows[0]?.id as string;
 
       result.current[1].requestRestore(targetId);
       result.current[1].confirmRestore();
 
-      await waitFor(() => {
-        expect(onToast).toHaveBeenCalled();
-      });
+      await settle();
+
+      expect(onToast).toHaveBeenCalled();
 
       const toast = onToast.mock.calls.at(-1)?.[0] as { onUndo?: () => void };
 
-      await clock.advance(UNDO_WINDOW_MS + 1);
+      await act(async () => {
+        await fakeClock.advance(UNDO_WINDOW_MS + 1);
+      });
+
       toast.onUndo?.();
+      await settle();
 
       expect(undoSpy).not.toHaveBeenCalled();
     } finally {
-      clock.restore();
+      fakeClock.restore();
+      clock = null;
     }
   });
 });
