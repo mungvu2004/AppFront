@@ -58,6 +58,8 @@
 
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
+import type { BuildFloorInput } from '@/lib/three/build/floor';
+import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 import type { EntityKind, VersionDiff } from '@/lib/versioning/diff';
 import type { VersionEntry, VersionHistoryEntry, VersionMetadata } from '@/lib/versioning/restore';
 
@@ -199,6 +201,23 @@ export interface VisualDiffModel {
    * đang được đánh dấu. Bắt buộc hiện — người đọc không được phép tưởng đây là bản cũ.
    */
   readonly caption: string;
+  /**
+   * Hình học để dựng cảnh, do hook nấu sẵn.
+   *
+   * View thuần **không được** tự nấu: `toBuildFloorInput` sống ở `@/domain`, mà
+   * `local/no-data-layer-in-view` chặn import chạy trong `.tsx`. Hook thì được — nó đọc
+   * `graph: NormalizedSpatial` từ store rồi gọi `toBuildFloorInput`, đúng khuôn đang chạy ở
+   * `useViewer3D.ts:64,229,402`. Rỗng ⇒ chưa có gì để dựng.
+   */
+  readonly sceneLevels: readonly BuildFloorInput[];
+  /**
+   * Khung cảnh đầy đủ (camera, tầng đang hiện, mặt cắt…), do hook nấu sẵn vì cùng lý do.
+   *
+   * View mount bằng khung này, ghi đè đúng hai trường của mình:
+   * `{ ...sceneFrame, selectedEntityIds: changedEntityIds, hoveredEntityId }`.
+   * `null` ⇒ chưa dựng được; view hiện `caption`/`unavailableReason` thay vì canvas.
+   */
+  readonly sceneFrame: ViewerSceneFrame | null;
   /** Đi vào `ViewerSceneFrame.selectedEntityIds`. */
   readonly changedEntityIds: readonly string[];
   /**
