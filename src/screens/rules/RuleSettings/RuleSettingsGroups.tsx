@@ -5,6 +5,12 @@
  * luật con bật) — file này chỉ vẽ nó, không tính lại. `onToggleGroup` là hành
  * động duy nhất nhóm phát ra; tắt/bật từng luật con vẫn đi qua `onToggleRule`
  * trên chính hàng đó, không phải qua nhóm.
+ *
+ * Mỗi thẻ là đích của một liên kết trên thanh điều hướng, nên nó mang `id` và
+ * `tabIndex={-1}`: thiếu `tabIndex` thì `focus()` không bám vào một `<section>`
+ * được, và người đi bằng bàn phím nhảy tới mục xong lại rơi về đầu trang ở lần
+ * Tab kế tiếp. `-1` chỉ mở đường cho `focus()` theo mã, không chen thêm một
+ * điểm dừng nào vào thứ tự Tab.
  */
 
 import { NumericField } from '@/components/ui/NumericField';
@@ -17,6 +23,8 @@ type RuleGroup = RuleSettingsGroup['group'];
 type RuleSeverity = RuleSettingsGroup['rows'][number]['severity'];
 
 export interface RuleSettingsGroupCardProps {
+  /** `id` trong DOM — đích của liên kết cùng tên trên thanh điều hướng. */
+  readonly sectionId: string;
   readonly group: RuleSettingsGroup;
   readonly canEdit: boolean;
   readonly isCollapsed: boolean;
@@ -30,6 +38,7 @@ export interface RuleSettingsGroupCardProps {
 
 /** Một nhóm luật: tên, mô tả, toggle tổng, rồi từng luật con. */
 export function RuleSettingsGroupCard({
+  sectionId,
   group,
   canEdit,
   isCollapsed,
@@ -40,10 +49,17 @@ export function RuleSettingsGroupCard({
   onChangeThreshold,
 }: RuleSettingsGroupCardProps) {
   return (
-    <section className="flex flex-col gap-4 rounded border border-border-default bg-bg-surface p-4">
+    <section
+      id={sectionId}
+      tabIndex={-1}
+      aria-labelledby={`${sectionId}-title`}
+      className="flex scroll-mt-4 flex-col gap-4 rounded border border-border-default bg-bg-surface p-4"
+    >
       <header className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="text-base font-semibold text-text-primary">{group.label}</h3>
+          <h3 className="text-base font-semibold text-text-primary" id={`${sectionId}-title`}>
+            {group.label}
+          </h3>
           <p className="text-sm text-text-secondary">{group.description}</p>
         </div>
         <Toggle
@@ -75,6 +91,8 @@ export function RuleSettingsGroupCard({
 }
 
 export interface RuleSettingsGeneralThresholdsCardProps {
+  /** `id` trong DOM — đích của liên kết "ngưỡng chung" trên thanh điều hướng. */
+  readonly sectionId: string;
   readonly thresholds: readonly RuleSettingsThreshold[];
   readonly canEdit: boolean;
   readonly onChangeGeneralThreshold: (key: string, value: number) => void;
@@ -86,14 +104,22 @@ export interface RuleSettingsGeneralThresholdsCardProps {
  * thứ đó không có trong viewmodel (quyết định D5 của hợp đồng).
  */
 export function RuleSettingsGeneralThresholdsCard({
+  sectionId,
   thresholds,
   canEdit,
   onChangeGeneralThreshold,
 }: RuleSettingsGeneralThresholdsCardProps) {
   return (
-    <section className="flex flex-col gap-4 rounded border border-border-default bg-bg-surface p-4">
+    <section
+      id={sectionId}
+      tabIndex={-1}
+      aria-labelledby={`${sectionId}-title`}
+      className="flex scroll-mt-4 flex-col gap-4 rounded border border-border-default bg-bg-surface p-4"
+    >
       <div className="flex flex-col gap-1">
-        <h3 className="text-base font-semibold text-text-primary">ngưỡng chung</h3>
+        <h3 className="text-base font-semibold text-text-primary" id={`${sectionId}-title`}>
+          ngưỡng chung
+        </h3>
         <p className="text-sm text-text-secondary">
           Dung sai hình học dùng chung cho nhiều luật trong bộ này.
         </p>

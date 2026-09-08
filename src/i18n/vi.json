@@ -2991,5 +2991,83 @@
     "partial": {
       "description": "Chưa có cách sửa tự động nào cho vi phạm này. Phần căn cứ ở trên đủ để sửa tay trên bản vẽ."
     }
+  },
+  "ruleSettings": {
+    "screenTitle": "cài đặt bộ luật không gian",
+    "enabledOfTotal": "{{enabled}}/{{total}} luật đang bật",
+    "nav": {
+      "ariaLabel": "mục cài đặt bộ luật",
+      "selectLabel": "mục cài đặt",
+      "generalThresholds": "ngưỡng chung"
+    },
+    "severity": {
+      "critical": "nghiêm trọng",
+      "warning": "cảnh báo",
+      "suggestion": "gợi ý",
+      "pickerAriaLabel": "mức độ của luật: {{sentence}}"
+    },
+    "row": {
+      "toggleAriaLabel": "bật hoặc tắt luật: {{sentence}}",
+      "supersededBy": "Đã được thay thế bởi {{rule}}",
+      "scopeLevel": "soi trên từng tầng",
+      "scopeBuilding": "soi trên cả công trình",
+      "adjustable": "{{scope}} · chỉnh được: {{thresholds}}",
+      "noThreshold": "{{scope}} · không có ngưỡng chỉnh được"
+    },
+    "group": {
+      "toggleAriaLabel": "bật hoặc tắt cả nhóm: {{group}}",
+      "counts": "{{total}} luật, {{enabled}} đang bật."
+    },
+    "generalThresholdsCard": {
+      "title": "ngưỡng chung",
+      "description": "Dung sai hình học dùng chung cho nhiều luật trong bộ này.",
+      "empty": "Chưa có ngưỡng chung nào để chỉnh.",
+      "outOfRange": "{{threshold}} nhận giá trị từ {{min}} đến {{max}} {{unit}}."
+    },
+    "presets": {
+      "sectionLabel": "bộ luật sẵn",
+      "changedRuleCount": "{{count}} luật sẽ đổi"
+    },
+    "impact": {
+      "unknown": "Chưa có dữ liệu để đánh giá",
+      "affecting": "Đang ảnh hưởng {{count}} đối tượng"
+    },
+    "restoreDefaults": {
+      "caption": "Cấu hình đã khác mặc định.",
+      "button": "khôi phục mặc định"
+    },
+    "disableAllWarning": "Mọi luật đều đang tắt: lượt kiểm tra sẽ không soi gì nữa và mô hình báo sạch lỗi dù chưa được kiểm lần nào.",
+    "readOnlyReason": "chỉ quản trị viên và kỹ sư của dự án đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.",
+    "loadFailure": "Không tải được cài đặt bộ luật của dự án này.",
+    "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
+    "missingParams": {
+      "title": "Thiếu mã dự án",
+      "description": "Đường dẫn thiếu mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
+    },
+    "actions": {
+      "enableRule": "Bật luật {{rule}}",
+      "disableRule": "Tắt luật {{rule}}",
+      "enableGroup": "Bật nhóm {{group}}",
+      "disableGroup": "Tắt nhóm {{group}}",
+      "changeSeverity": "Đổi mức của luật {{rule}}",
+      "changeThreshold": "Đổi ngưỡng {{threshold}}",
+      "applyPreset": "Áp bộ luật {{preset}}",
+      "presetApplied": "Áp bộ luật {{preset}}: {{count}} luật đã đổi.",
+      "restoreDefaults": "Trả bộ luật về mặc định",
+      "defaultsRestored": "Đã trả bộ luật về mặc định.",
+      "hydrate": "Nạp cài đặt bộ luật"
+    },
+    "empty": {
+      "title": "chưa có bộ luật để cài đặt",
+      "description": "Chưa có luật không gian nào được nạp cho dự án này."
+    },
+    "error": {
+      "title": "không tải được cài đặt bộ luật",
+      "description": "Đã có lỗi khi tải cấu hình bộ luật. Thử lại sau ít phút."
+    },
+    "forbidden": {
+      "title": "không có quyền xem cài đặt bộ luật",
+      "description": "Chỉ người có quyền quản trị dự án mới xem được mục này."
+    }
   }
 }

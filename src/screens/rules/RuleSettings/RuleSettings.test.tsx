@@ -20,7 +20,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -220,7 +220,17 @@ describe('2.(b).1 — đếm đúng số luật hiện ra và số luật đang 
       expect(screen.getByText(row.sentence)).toBeTruthy();
     }
 
-    expect(container.textContent).toContain('25');
+    // Hai con số ở đầu màn chạy lên qua `useCountUp`, nên ở KHUNG HÌNH ĐẦU
+    // header còn đọc là "0/0 luật đang bật" rồi mới chạy tới "23/25". Đọc
+    // `textContent` ngay sau `render` là đọc đúng cái khung hình đó — màn in đủ
+    // cả hai số, chỉ là chưa xong lượt chạy số. Khuôn này là khuôn đang chạy sẵn
+    // của repo (`RuleReportSummary.tsx` dùng y hệt cho bốn số của màn S-31), nên
+    // chỗ phải sửa là lúc đọc chứ không phải thứ được đòi: `waitFor` vẫn đòi
+    // đúng cả "25" lẫn "23" xuất hiện thật trong DOM.
+    await waitFor(() => {
+      expect(container.textContent).toContain('25');
+    });
+
     expect(container.textContent).toContain('23');
   });
 });
@@ -261,12 +271,35 @@ describe('2.(b).2 — luật đã tắt vẫn còn trong DOM, ở độ mờ th�
 });
 
 describe('2.(b).3 — A7: không có nút Lưu nào trong màn', () => {
-  it('màn "ready" không dựng nút nào mang chữ "lưu"', async () => {
+  /**
+   * Bản đầu của phép đo này soát MỌI nút mang chữ "lưu", và nó bắt trúng một
+   * thứ không phải nút Lưu: nhãn nhóm `circulation` của sổ đăng ký là
+   * **"lưu thông"** (`RULE_GROUP_LABELS`), và màn không được đặt lại tên nhóm
+   * của domain. Phép đo vì thế báo đỏ trên một màn KHÔNG hề có nút Lưu nào.
+   *
+   * Bản này soát đúng thứ A7 nói: không phần tử tương tác nào mở một lượt lưu
+   * bằng tay. Thanh điều hướng bị loại khỏi phạm vi soát vì chữ trên đó là chữ
+   * của domain, không phải chữ màn này chọn — và loại nó ra không nới lỏng gì:
+   * một nút Lưu thật sẽ không bao giờ nằm trong `<nav>` mục lục.
+   */
+  it('màn "ready" không dựng nút nào mở một lượt lưu bằng tay', async () => {
     const RuleSettingsView = await loadRuleSettingsView();
     const props = buildRuleSettingsProps({ status: 'ready' });
-    render(<RuleSettingsView {...props} />);
+    const { container } = render(<RuleSettingsView {...props} />);
 
-    expect(screen.queryByRole('button', { name: /\blưu\b/i })).toBeNull();
+    const nav = container.querySelector('nav');
+    const saveish = screen
+      .queryAllByRole('button', { name: /\b(lưu|luu|save)\b/i })
+      .filter((node) => nav === null || !nav.contains(node));
+
+    expect(
+      saveish.map((node) => node.textContent),
+      'A7: màn tự lưu 800 ms sau thao tác cuối, không có nút Lưu nào',
+    ).toEqual([]);
+
+    // Và cũng không có nút nào ở bất cứ đâu mang đúng chữ "lưu" đứng một mình —
+    // "lưu thông" là hai từ, nên phép soát này vẫn bắt được một nút Lưu thật.
+    expect(screen.queryByRole('button', { name: /^\s*lưu\s*$/i })).toBeNull();
   });
 });
 
@@ -305,9 +338,25 @@ describe('2.(b).5 — mỗi dòng luật nói rõ số đối tượng đang b�
 
     render(<RuleSettingsView {...props} />);
 
+    // `getByText` nổ với "Found multiple elements" ở đây, và đó là lỗi của phép
+    // đo chứ không của màn: rất nhiều luật cùng mang đúng một câu
+    // "Đang ảnh hưởng 0 đối tượng", nên câu ấy XUẤT HIỆN NHIỀU LẦN là điều đúng.
+    // `getAllByText` đo được thứ cần đo, và đếm tổng số câu impact thành đúng 25
+    // là một khẳng định CHẶT HƠN bản cũ: nó bắt cả trường hợp thiếu một dòng lẫn
+    // trường hợp vẽ thừa một dòng.
+    let captionNodeCount = 0;
+
     for (const row of rows) {
-      expect(screen.getByText(row.impactCaption)).toBeTruthy();
+      const found = screen.getAllByText(row.impactCaption);
+
+      expect(found.length).toBeGreaterThan(0);
     }
+
+    for (const caption of new Set(rows.map((row) => row.impactCaption))) {
+      captionNodeCount += screen.getAllByText(caption).length;
+    }
+
+    expect(captionNodeCount, 'đúng 25 câu "Đang ảnh hưởng N đối tượng" trong DOM').toBe(25);
   });
 });
 

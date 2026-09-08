@@ -11,17 +11,28 @@
  * Hệ thống tự lưu 800 ms sau thao tác cuối; `SaveIndicator` nói trạng thái đó
  * ra cho trình đọc màn hình.
  *
- * ## Mục đang xem là trạng thái CỦA VIEW, không phải của model
+ * ## Cả năm nhóm cùng nằm trên trang, thanh nav chỉ NHẢY TỚI mục
  *
- * `RuleSettingsActions` không có hành động nào để đổi mục nav — nhóm nào đang
- * hiện bên phải là lựa chọn hiển thị thuần tuý, sống trong `useState` ở đây,
- * giống `isResolvedOpen` của `RuleReport.tsx`.
+ * Bản đầu vẽ mỗi lúc một nhóm và thay nhau theo nút nav đang chọn. Cách đó làm
+ * 20 trên 25 luật KHÔNG tồn tại trong DOM ở mọi thời điểm, mà nguyên tắc của
+ * chính màn này là cho người ta thấy cái gì tồn tại — đó là lý do một luật đã
+ * tắt mờ xuống chứ không bị ẩn. Phân trang theo nhóm đánh mất đúng tính chất
+ * ấy ở quy mô lớn hơn, nên năm thẻ nhóm cộng thẻ "ngưỡng chung" xếp chồng trên
+ * một cột, và thanh bên trái là danh sách LIÊN KẾT tới từng mục.
+ *
+ * Liên kết thật (`<a href="#...">`) chứ không phải nút cuộn bằng tay: A12 nói
+ * bàn phím là đường đi hạng nhất, và một cái neo đã có sẵn Tab, Enter, mở tab
+ * mới và "quay lại" mà không cần một dòng mã nào giữ chúng.
+ *
+ * `activeSection` vì thế không còn quyết định *cái gì được vẽ* — nó chỉ nhớ mục
+ * người dùng vừa nhảy tới, để `aria-current` nói ra chỗ đang đứng.
  *
  * ## Bảy trạng thái (A11)
  *
  * `collapsed` là mốc dưới 1024px do hook quyết định (khuôn `ProjectSettingsView`
  * dùng `state === 'collapsed'`) — view không tự đo viewport, chỉ đổi cách vẽ:
- * nav thành `Select`, ô ngưỡng xuống dòng dưới tên luật.
+ * nav thành một `Select` nhảy tới mục ở ĐẦU trang, ô ngưỡng xuống dòng dưới tên
+ * luật.
  */
 
 import { useMemo, useState } from 'react';
@@ -43,6 +54,15 @@ import type { RuleSettingsGroup, RuleSettingsProps } from './types';
 
 /** Mục nav cho thẻ "Ngưỡng chung" — không phải mã nhóm luật thật. */
 const GENERAL_SECTION_ID = 'general-thresholds';
+
+/**
+ * `id` thật của một mục trong DOM.
+ *
+ * Có tiền tố vì mã nhóm là những từ chung (`area`, `levels`) và một trang có
+ * thể mang phần tử khác cùng tên; một cái neo trỏ nhầm chỗ là loại hỏng không
+ * ai thấy cho tới lúc bấm.
+ */
+const sectionIdOf = (id: string): string => `rule-settings-${id}`;
 
 /** Câu của từng luật, tra theo mã — để hàng có `supersededBy` nói rõ tên luật thay thế. */
 function sentenceByCodeOf(groups: readonly RuleSettingsGroup[]): ReadonlyMap<RuleCode, string> {
@@ -67,6 +87,24 @@ function navItemsOf(groups: readonly RuleSettingsGroup[]): readonly NavItem[] {
   ];
 }
 
+/**
+ * Đưa một mục vào khung nhìn và trao con trỏ bàn phím cho nó.
+ *
+ * `scrollIntoView` không tồn tại trong jsdom, nên gọi có điều kiện: thiếu bước
+ * ấy thì mọi bài kiểm chạm vào ô `Select` đều ngã, và ngã ở một chỗ không liên
+ * quan gì tới thứ nó đang kiểm.
+ */
+const goToSection = (id: string): void => {
+  const node = document.getElementById(sectionIdOf(id));
+
+  if (node === null) {
+    return;
+  }
+
+  node.scrollIntoView?.({ block: 'start' });
+  node.focus?.();
+};
+
 interface RuleSettingsNavProps {
   readonly items: readonly NavItem[];
   readonly activeId: string;
@@ -74,7 +112,10 @@ interface RuleSettingsNavProps {
   readonly onSelect: (id: string) => void;
 }
 
-/** Bộ điều hướng mặc định: danh sách nút dọc; dưới 1024 đổi thành một ô `Select`. */
+/**
+ * Bộ điều hướng: danh sách LIÊN KẾT dọc; dưới 1024 đổi thành một ô `Select` ở
+ * đầu trang. Cả hai đều nhảy tới mục — không mục nào bị gỡ khỏi trang.
+ */
 function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSettingsNavProps) {
   if (isCollapsed) {
     return (
@@ -82,7 +123,10 @@ function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSetting
         label="mục cài đặt"
         value={activeId}
         options={items.map((item) => ({ value: item.id, label: item.label }))}
-        onChange={onSelect}
+        onChange={(id) => {
+          onSelect(id);
+          goToSection(id);
+        }}
       />
     );
   }
@@ -92,15 +136,15 @@ function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSetting
       {items.map((item) => {
         const isActive = item.id === activeId;
         return (
-          <button
+          <a
             key={item.id}
-            type="button"
+            href={`#${sectionIdOf(item.id)}`}
             aria-current={isActive ? 'true' : undefined}
             onClick={() => {
               onSelect(item.id);
             }}
             className={cn(
-              'rounded px-3 py-2 text-left text-sm transition-colors duration-standard',
+              'rounded px-3 py-2 text-left text-sm no-underline transition-colors duration-standard',
               FOCUS_RING,
               isActive
                 ? 'bg-bg-selected font-medium text-accent'
@@ -108,7 +152,7 @@ function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSetting
             )}
           >
             {item.label}
-          </button>
+          </a>
         );
       })}
     </nav>
@@ -127,7 +171,6 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
   const { model, capabilities } = props;
   const isCollapsed = model.status === 'collapsed';
   const navItems = navItemsOf(model.groups);
-  const activeGroup = model.groups.find((group) => group.group === activeSection) ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -155,16 +198,14 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
           onSelect={onSelectSection}
         />
 
-        <div className="min-w-0 flex-1">
-          {activeGroup === null ? (
-            <RuleSettingsGeneralThresholdsCard
-              thresholds={model.generalThresholds}
-              canEdit={capabilities.canEditRules}
-              onChangeGeneralThreshold={props.onChangeGeneralThreshold}
-            />
-          ) : (
+        {/* Cả năm nhóm cùng ở đây: một luật không hiện là một luật người dùng
+            không biết là mình có. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {model.groups.map((group) => (
             <RuleSettingsGroupCard
-              group={activeGroup}
+              key={group.group}
+              sectionId={sectionIdOf(group.group)}
+              group={group}
               canEdit={capabilities.canEditRules}
               isCollapsed={isCollapsed}
               sentenceByCode={sentenceByCode}
@@ -173,7 +214,14 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
               onChangeSeverity={props.onChangeSeverity}
               onChangeThreshold={props.onChangeThreshold}
             />
-          )}
+          ))}
+
+          <RuleSettingsGeneralThresholdsCard
+            sectionId={sectionIdOf(GENERAL_SECTION_ID)}
+            thresholds={model.generalThresholds}
+            canEdit={capabilities.canEditRules}
+            onChangeGeneralThreshold={props.onChangeGeneralThreshold}
+          />
         </div>
       </div>
     </div>

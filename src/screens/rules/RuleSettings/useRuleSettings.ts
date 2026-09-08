@@ -21,12 +21,15 @@
  * - **Ảnh hưởng thật** — `selectRuleImpactCounts` của store, tức số vi phạm mà
  *   chính lượt chạy luật trên mô hình đang mở sinh ra.
  *
- * ## Ghi cấu hình: `setRuleConfig`, KHÔNG phải `commit()`
+ * ## Ghi cấu hình: `commitRuleConfig`, KHÔNG phải `commit()`
  *
  * `store/commit.ts` nhận `SpatialPatch` rồi áp lên slice `spatial` — nó không
- * mang được một `RuleConfig`. Cấu hình luật đi qua action có tên
- * `setRuleConfig(config, label)` của `src/store` (sửa hợp đồng #1). A10 vẫn
- * nguyên: màn không gọi `set()` của store lần nào.
+ * mang được một `RuleConfig`. Cấu hình luật đi qua cửa ghi có tên
+ * `commitRuleConfig(next, label)` của `src/store` (sửa hợp đồng #1, tên chốt lại
+ * ở sửa hợp đồng #2). A10 vẫn nguyên: màn không gọi `set()` của store lần nào.
+ * Cửa ấy trả về `RuleConfigCommit` mang sẵn `undo()` đóng gói cấu hình TRƯỚC
+ * lượt ghi, nên vé hoàn tác dưới đây dùng thẳng nó thay vì tự chụp bản cũ —
+ * tự chụp thì hai lượt sửa liên tiếp có thể lưu cùng một "bản trước".
  *
  * ## Hoàn tác: vé D-05, KHÔNG phải lịch sử toàn cục
  *
@@ -56,6 +59,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  GENERAL_THRESHOLD_CODE,
   isDefaultConfig,
   resetConfig,
   resolveRules,
@@ -91,7 +95,7 @@ import type { Announcer } from '@/lib/input/announcer';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
-import { selectRuleConfig, selectRuleImpactCounts } from '@/store/ruleConfigSlice';
+import { selectRuleConfig, selectRuleImpactCounts } from '@/store/selectors';
 
 import { createRuleSettingsGateway, type RuleSettingsGateway } from './ruleSettingsGateway';
 import type {
@@ -154,12 +158,46 @@ export const ruleSettingsQueryKey = (projectId: string) =>
  * chỗ duy nhất nó thành ký hiệu người đọc. Phép đổi này thuộc viewmodel chứ
  * không thuộc view (A15).
  */
+/**
+ * Hậu tố người đọc thấy sau con số của một ô ngưỡng.
+ *
+ * `'tile'` của domain là một tỉ lệ trần 0..1 — `MIN_SUPPORT_SHARE = 0,8` — và
+ * domain giữ đúng con số mà luật đo, nên `thresholdUnitText('tile')` trả về
+ * chuỗi rỗng chứ không dám ghi `%` cạnh `0,8`. Việc đưa `0,8` thành `80 %` là
+ * một quyết định ĐỊNH DẠNG, và A15 đặt định dạng ở viewmodel: đúng chỗ này.
+ * Thiếu bước ấy thì ô hiện `0,8 %`, sai đúng một trăm lần.
+ */
 const UNIT_SUFFIX: Readonly<Record<RuleThresholdSpec['unit'], string>> = Object.freeze({
   mm: 'mm',
   m2: 'm²',
   do: '°',
   phantram: '%',
+  tile: '%',
 });
+
+/** Một tỉ lệ 0..1 hiện trên màn dưới dạng phần trăm. */
+const PERCENT_SCALE = 100;
+
+/**
+ * Cắt sai số dấu phẩy động của phép nhân trăm.
+ *
+ * `0,8 * 100` trong IEEE-754 ra `80.00000000000001`, và một ô ngưỡng in ra con
+ * số đó là một ô hỏng. Sáu chữ số thập phân dư sức cho một bước nhảy nhỏ nhất
+ * là năm phần trăm.
+ */
+const ROUNDING_STEPS = 1_000_000;
+
+/** Số nhân giữa miền của domain và con số hiện trên ô. 1 với mọi đơn vị trừ `'tile'`. */
+const displayScale = (unit: RuleThresholdSpec['unit']): number =>
+  unit === 'tile' ? PERCENT_SCALE : 1;
+
+/** Miền của domain → con số trên ô. */
+const toDisplayValue = (spec: RuleThresholdSpec, value: number): number =>
+  Math.round(value * displayScale(spec.unit) * ROUNDING_STEPS) / ROUNDING_STEPS;
+
+/** Con số người dùng gõ → miền của domain, đường ngược của {@link toDisplayValue}. */
+const toDomainValue = (spec: RuleThresholdSpec, shown: number): number =>
+  Math.round((shown / displayScale(spec.unit)) * ROUNDING_STEPS) / ROUNDING_STEPS;
 
 /** Phạm vi một luật soi, thành câu. `RuleScope` không có bảng nhãn nào trong repo. */
 const SCOPE_PHRASE: Readonly<Record<RuleScope, string>> = Object.freeze({
@@ -218,6 +256,14 @@ const specsByKey = (): ReadonlyMap<string, RuleThresholdSpec> => {
 /** Khoá của một ô ngưỡng trong bảng lỗi: hai luật có thể cùng dùng một khoá ngưỡng. */
 const errorKeyOf = (code: RuleCode, key: string): string => `${code}::${key}`;
 
+/**
+ * Một spec của domain thành một ô trên màn.
+ *
+ * `value` vào đây là con số của DOMAIN; cả bốn con số đi ra đều đã qua thang
+ * hiển thị, nên biên của ô và giá trị của ô luôn cùng một đơn vị. Đổi thang cho
+ * `value` mà quên `min`/`max` là cách chắc chắn nhất để một ô hợp lệ hiện viền
+ * đỏ.
+ */
 const toThreshold = (
   spec: RuleThresholdSpec,
   value: number,
@@ -226,12 +272,32 @@ const toThreshold = (
   key: spec.key,
   label: spec.label,
   unit: UNIT_SUFFIX[spec.unit],
-  value,
-  min: spec.min,
-  max: spec.max,
-  step: spec.step,
+  value: toDisplayValue(spec, value),
+  min: toDisplayValue(spec, spec.min),
+  max: toDisplayValue(spec, spec.max),
+  step: toDisplayValue(spec, spec.step),
   error,
 });
+
+/**
+ * Câu báo ngoài khoảng, viết bằng đúng đơn vị người dùng đang nhìn.
+ *
+ * `validateThreshold` là nơi quyết định một con số CÓ chạy được không, và câu
+ * của nó nêu khoảng bằng đơn vị của domain — với `'tile'` là "từ 0,5 đến 1",
+ * đọc lệch hẳn với một ô đang hiện 80 %. Nên domain vẫn giữ quyền phán đúng
+ * sai, còn câu chữ thì dựng lại ở đây theo đúng khuôn của
+ * `outOfRangeMessage` — A15 lần nữa: định dạng ở viewmodel.
+ */
+const outOfRangeText = (spec: RuleThresholdSpec, fallback: string): string => {
+  if (displayScale(spec.unit) === 1) {
+    return fallback;
+  }
+
+  const low = formatNumber(toDisplayValue(spec, spec.min), { maxFractionDigits: 2 });
+  const high = formatNumber(toDisplayValue(spec, spec.max), { maxFractionDigits: 2 });
+
+  return `${spec.label} nhận giá trị từ ${low} đến ${high} ${UNIT_SUFFIX[spec.unit]}.`;
+};
 
 /**
  * Câu mô tả một luật, ghép từ dữ liệu THẬT của chính nó.
@@ -316,7 +382,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     lastPersistedRef.current = loaded;
     // Nạp lại bản đã lưu KHÔNG phải một thay đổi của người dùng: không vé hoàn
     // tác, không toast, và không đánh thức bộ tự lưu.
-    useStore.getState().setRuleConfig(loaded, HYDRATE_LABEL);
+    useStore.getState().commitRuleConfig(loaded, HYDRATE_LABEL);
   }, [loaded, projectId]);
 
   /* ---------------------------------------------------------------------- */
@@ -368,9 +434,10 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
         return;
       }
 
-      const previous = selectRuleConfig(useStore.getState());
-
-      useStore.getState().setRuleConfig(next, label);
+      // Cửa ghi trả về `undo()` đã đóng gói cấu hình trước lượt này, nên màn
+      // không tự chụp lại bản cũ: chụp tay thì hai lượt sửa nối nhau trong cùng
+      // một lượt render đều nhớ cùng một "bản trước" và vé thứ hai lùi quá xa.
+      const result = useStore.getState().commitRuleConfig(next, label);
       autosave.notifyChange();
 
       // A8: đúng một vé cho mỗi thay đổi. Cửa sổ 8 giây do chính vé giữ
@@ -378,7 +445,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       const ticket = createUndoTicket({
         description: label,
         undo: () => {
-          useStore.getState().setRuleConfig(previous, `Hoàn tác: ${label}`);
+          result.undo();
           autosave.notifyChange();
         },
         ...(nowOption !== undefined ? { now: nowOption } : {}),
@@ -476,18 +543,22 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   }, [resolved, rows]);
 
   const generalThresholds = useMemo<readonly RuleSettingsThreshold[]>(() => {
-    const byCode = new Map(resolved.map((item) => [item.rule.code, item]));
+    // Dung sai chung nằm dưới mã giả `GENERAL_THRESHOLD_CODE`, và
+    // `registry.get('GENERAL')` là `null` — nó cố ý không phải một luật. Nên
+    // giá trị đang áp đọc thẳng từ override của mã ấy, không tra qua
+    // `resolveRules`: tra qua đó thì không luật nào mang mã `GENERAL`, mọi ô
+    // rơi về `defaultValue`, và thẻ "ngưỡng chung" quên sạch thứ người dùng vừa
+    // gõ ngay lần vẽ lại kế tiếp.
+    const general = config.overrides[GENERAL_THRESHOLD_CODE]?.thresholds;
 
-    return RULE_THRESHOLD_SPECS.filter((spec) => spec.isGeneral).map((spec) => {
-      const owner = byCode.get(spec.ruleCode);
-
-      return toThreshold(
+    return RULE_THRESHOLD_SPECS.filter((spec) => spec.isGeneral).map((spec) =>
+      toThreshold(
         spec,
-        owner?.thresholds[spec.key] ?? spec.defaultValue,
+        general?.[spec.key] ?? spec.defaultValue,
         thresholdErrors[errorKeyOf(spec.ruleCode, spec.key)] ?? null,
-      );
-    });
-  }, [resolved, thresholdErrors]);
+      ),
+    );
+  }, [config, thresholdErrors]);
 
   /* Hậu quả đo trước: số luật sẽ đổi hiện ra TRƯỚC khi người dùng cam kết. */
   const presets = useMemo<readonly RuleSettingsPresetOption[]>(
@@ -655,11 +726,17 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
         return;
       }
 
-      const outcome = validateThreshold(spec, value);
+      // `value` là con số trên ô. Ô của một ngưỡng `'tile'` chạy 50..100 còn
+      // domain chạy 0,5..1, nên phép soát phải nhận con số của domain — soát
+      // thẳng con số của ô thì 80 rơi ngoài khoảng và một giá trị hợp lệ bị từ
+      // chối.
+      const outcome = validateThreshold(spec, toDomainValue(spec, value));
       const errorKey = errorKeyOf(code, key);
 
       if (!outcome.ok) {
-        setThresholdErrors((current) => ({ ...current, [errorKey]: outcome.message }));
+        const message = outOfRangeText(spec, outcome.message);
+
+        setThresholdErrors((current) => ({ ...current, [errorKey]: message }));
 
         return;
       }
