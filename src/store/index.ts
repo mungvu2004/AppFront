@@ -20,6 +20,8 @@ import type { UiSlice } from './uiSlice';
 import { createUiSlice } from './uiSlice';
 import type { PipelineSlice } from './pipelineSlice';
 import { createPipelineSlice } from './pipelineSlice';
+import type { RuleConfigSlice } from './ruleConfigSlice';
+import { createRuleConfigSlice } from './ruleConfigSlice';
 
 export type RootState = ProjectSlice &
   SpatialSlice &
@@ -29,7 +31,8 @@ export type RootState = ProjectSlice &
   ViewSlice &
   HistorySlice &
   UiSlice &
-  PipelineSlice;
+  PipelineSlice &
+  RuleConfigSlice;
 
 /** localStorage key the view and ui slices are persisted under. */
 export const PERSIST_STORAGE_KEY = 'appfront-view-ui';
@@ -58,6 +61,7 @@ export const useStore = create<RootState>()(
             ...createHistorySlice(...a),
             ...createUiSlice(...a),
             ...createPipelineSlice(...a),
+            ...createRuleConfigSlice(...a),
           }),
           {
             partialize: (state) => {
