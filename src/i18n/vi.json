@@ -3295,5 +3295,100 @@
       "rowRetentionNotice": "Đã lưu quá 90 ngày, chỉ còn thông tin cơ bản.",
       "rowTagReview": "Duyệt với chủ đầu tư"
     }
+  },
+  "modelLibrary": {
+    "state": {
+      "emptyTitle": "chưa có model nào",
+      "emptyDescription": "Thư viện chưa có model nào.",
+      "errorTitle": "không tải được thư viện model",
+      "errorFallback": "Đã có lỗi xảy ra.",
+      "loadFailed": "không đọc được danh mục model",
+      "readOnlyReason": "vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện",
+      "filteredEmptyMessage": "Không tìm thấy model phù hợp."
+    },
+    "breadcrumb": {
+      "navLabel": "Đường dẫn trang",
+      "parent": "Quản trị",
+      "current": "Thư viện model"
+    },
+    "toolbar": {
+      "searchLabel": "tìm model",
+      "searchPlaceholder": "Tìm theo tên model...",
+      "categoryLabel": "danh mục",
+      "viewModeLabel": "chế độ xem",
+      "viewModeTable": "Bảng",
+      "viewModeGrid": "Lưới"
+    },
+    "summary": {
+      "totalCountCaption": "tổng số model",
+      "totalSizeCaption": "tổng dung lượng",
+      "heavyCountCaption": "model nặng"
+    },
+    "table": {
+      "previewHeader": "ảnh xem trước",
+      "headerName": "Tên",
+      "headerGroup": "Danh mục",
+      "headerBounds": "Kích thước bao",
+      "headerTriangles": "Số tam giác",
+      "headerFileSize": "Dung lượng",
+      "heavyBadgeLabel": "Nặng",
+      "gridListLabel": "lưới model",
+      "retryPreviewLabel": "Thử tải lại ảnh xem trước của {{name}}",
+      "cardCaptionGroup": "danh mục",
+      "cardCaptionBounds": "kích thước bao",
+      "cardCaptionTriangles": "số tam giác",
+      "cardCaptionFileSize": "dung lượng"
+    },
+    "field": {
+      "bounds": "kích thước bao",
+      "triangles": "số tam giác",
+      "fileSize": "dung lượng",
+      "group": "nhóm"
+    },
+    "detail": {
+      "regionLabel": "chi tiết model",
+      "closeButton": "đóng panel chi tiết model",
+      "key": {
+        "escape": "đóng panel chi tiết model"
+      },
+      "preview": {
+        "regionLabel": "xem trước mô hình",
+        "retry": "Thử lại",
+        "autoSpinNote": "khung xem trước không tự quay; kéo chuột trong khung để xoay model"
+      },
+      "triangles": {
+        "regionLabel": "số tam giác",
+        "declared": "Máy chủ khai",
+        "measured": "Đo lại từ tệp",
+        "mismatchNote": "Hai số lệch nhau là chuyện thường: số đo lại đọc thẳng từ hình học trong tệp."
+      },
+      "fields": {
+        "regionLabel": "siêu dữ liệu model"
+      },
+      "heavy": {
+        "regionLabel": "cảnh báo model nặng",
+        "badge": "Nặng"
+      }
+    },
+    "fixture": {
+      "readOnlyReason": "Bạn chỉ có quyền xem thư viện model, không thể quản lý.",
+      "errorMessage": "Không tải được thư viện model. Kiểm tra kết nối rồi thử lại.",
+      "autoSpinNote": "Chưa hỗ trợ tự quay; bạn vẫn quay được bằng tay.",
+      "heavyBadge": "Nặng",
+      "fieldBounds": "kích thước bao",
+      "fieldTriangles": "số tam giác",
+      "fieldFileSize": "dung lượng",
+      "fieldGroup": "nhóm",
+      "groupTable": "bàn",
+      "groupChair": "ghế",
+      "groupBed": "giường",
+      "groupSofa": "ghế sofa",
+      "groupStorage": "tủ lưu trữ",
+      "groupSanitary": "thiết bị vệ sinh",
+      "groupKitchen": "bếp",
+      "groupTechnical": "kỹ thuật",
+      "filterAll": "tất cả",
+      "filterMine": "của tôi"
+    }
   }
 }

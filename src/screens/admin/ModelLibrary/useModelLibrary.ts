@@ -36,7 +36,8 @@
  * ## Ba quyết định đã chốt, chép lại để không ai gỡ nhầm
  *
  * 1. **Không bao giờ nạp quá MỘT model cùng lúc.** Lượt nạp sống trong đúng một `useEffect`
- *    có khoá là (canvas, `modelUrl`); mở model khác thì phần dọn của lượt trước chạy trước
+ *    có khoá là (canvas, `modelUrl`, `previewEpoch`); mở model khác thì phần dọn của lượt
+ *    trước chạy trước
  *    khi lượt sau bắt đầu. `closeDetail` còn gọi `dispose()` thẳng tay trước cả lượt vẽ
  *    lại, nên "đóng panel là dọn ngay" không phụ thuộc vào lúc React chạy phần dọn (R-05).
  * 2. **`onToast` không bao giờ được gọi trong bản này.** A8 nói mọi THAY ĐỔI phải hoàn tác
@@ -322,6 +323,16 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
   }>({ key: 'name', direction: 'asc' });
   const [openModelId, setOpenModelId] = useState<string | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  /**
+   * Lượt xem trước hiện tại. Tăng mỗi lần `openDetail` được gọi — KỂ CẢ khi id không đổi.
+   *
+   * `setOpenModelId` một mình không đủ: `useState` bỏ qua lần đặt trùng giá trị, nên mở lại
+   * chính model đang mở sẽ không dựng lại gì. Nút "thử lại" của khung 3D lại đi đúng đường
+   * đó (`ModelLibraryDetail.tsx`), nên nếu thiếu con số này nó là một nút chết (R-69).
+   * Effect nạp model đọc nó như một phụ thuộc, nên tăng nó = dọn phiên cũ (phần dọn của
+   * effect) rồi mở phiên mới.
+   */
+  const [previewEpoch, setPreviewEpoch] = useState(0);
 
   /* ---- Đọc: danh mục và một mục ---------------------------------------- */
 
@@ -448,7 +459,9 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
       sessionRef.current = null;
       setPreview(IDLE_PREVIEW);
     };
-  }, [canvas, modelUrl, openPreview]);
+    // `previewEpoch` không được đọc trong thân effect: nó ở đây để một lượt "thử lại" trên
+    // cùng model vẫn chạy lại toàn bộ vòng dọn-rồi-nạp ở trên.
+  }, [canvas, modelUrl, openPreview, previewEpoch]);
 
   const previewModel = useMemo(
     (): ModelPreviewModel => ({
@@ -519,6 +532,11 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
 
   /* ---- Việc làm được ---------------------------------------------------- */
 
+  const openDetail = useCallback((modelId: string): void => {
+    setOpenModelId(modelId);
+    setPreviewEpoch((epoch) => epoch + 1);
+  }, []);
+
   const closeDetail = useCallback((): void => {
     // Dọn THẲNG TAY, không đợi phần dọn của effect: hợp đồng nói đóng panel là dọn cảnh
     // ngay tại đây (R-05). `dispose()` an toàn khi gọi hai lần, nên phần dọn của effect
@@ -540,7 +558,7 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
             : { key, direction: 'asc' },
         );
       },
-      openDetail: setOpenModelId,
+      openDetail,
       closeDetail,
       attachPreviewCanvas: setCanvas,
       retryPreviewImage: (modelId): void => {
@@ -553,7 +571,7 @@ export function useModelLibrary(options: UseModelLibraryOptions): ModelLibraryRe
         void queryClient.invalidateQueries({ queryKey: modelLibraryListKey() });
       },
     }),
-    [closeDetail, queryClient],
+    [closeDetail, openDetail, queryClient],
   );
 
   const model = useMemo(

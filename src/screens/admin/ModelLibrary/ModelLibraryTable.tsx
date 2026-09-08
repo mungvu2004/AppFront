@@ -233,10 +233,19 @@ export function ModelLibraryTable({ actions, model }: ModelLibraryTableProps) {
               </Table.Cell>
               <Table.Cell className={ROW_HEIGHT}>{row.groupLabel}</Table.Cell>
               <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.boundsLabel}</Table.Cell>
-              <Table.Cell className={ROW_HEIGHT}>
+              {/*
+                Chữ đều nằm trên chính ô, không chỉ trên `<span>` bên trong — cùng khuôn hai
+                cột số anh em ở trên và dưới. Badge "Nặng" là chữ thường nên nó tự kéo mình
+                về bộ chữ giao diện, thay vì mọi thứ trong ô cùng thành chữ đều.
+              */}
+              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>
                 <div className="flex items-center gap-2">
                   <TriangleCountValue row={row} />
-                  {row.isHeavy && <Badge variant="attention">{HEAVY_BADGE_LABEL}</Badge>}
+                  {row.isHeavy && (
+                    <Badge className="font-sans" variant="attention">
+                      {HEAVY_BADGE_LABEL}
+                    </Badge>
+                  )}
                 </div>
               </Table.Cell>
               <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.fileSizeLabel}</Table.Cell>
