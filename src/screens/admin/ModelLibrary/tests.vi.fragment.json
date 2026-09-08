@@ -1,0 +1,20 @@
+{
+  "model_library_read_only_reason": "Bạn chỉ có quyền xem thư viện model, không thể quản lý.",
+  "model_library_error_message": "Không tải được thư viện model. Kiểm tra kết nối rồi thử lại.",
+  "model_library_auto_spin_note": "Chưa hỗ trợ tự quay; bạn vẫn quay được bằng tay.",
+  "model_library_heavy_badge": "Nặng",
+  "model_library_field_bounds": "kích thước bao",
+  "model_library_field_triangles": "số tam giác",
+  "model_library_field_file_size": "dung lượng",
+  "model_library_field_group": "nhóm",
+  "model_library_group_table": "bàn",
+  "model_library_group_chair": "ghế",
+  "model_library_group_bed": "giường",
+  "model_library_group_sofa": "ghế sofa",
+  "model_library_group_storage": "tủ lưu trữ",
+  "model_library_group_sanitary": "thiết bị vệ sinh",
+  "model_library_group_kitchen": "bếp",
+  "model_library_group_technical": "kỹ thuật",
+  "model_library_filter_all": "tất cả",
+  "model_library_filter_mine": "của tôi"
+}
