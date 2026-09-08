@@ -1,0 +1,48 @@
+{
+  "editorTour": {
+    "steps": {
+      "switchTool": {
+        "title": "Đổi công cụ trên ray công cụ",
+        "body": "Ray công cụ bên trái đổi giữa các thao tác vẽ và chọn. Một phím tắt là đủ, không cần rời tay khỏi bàn phím."
+      },
+      "reviewWall": {
+        "title": "Lần lượt xem qua từng đoạn tường",
+        "body": "Danh sách bên phải liệt kê từng đoạn tường theo thứ tự. Nhảy tới đoạn kế tiếp bằng phím tắt, không cần cuộn chuột."
+      },
+      "editThickness": {
+        "title": "Đổi độ dày tường đã chọn",
+        "body": "Chọn một đoạn tường rồi đổi độ dày ngay tại đây — ba lựa chọn cố định, không gõ số tự do."
+      },
+      "undo": {
+        "title": "Lùi lại một thao tác bất cứ lúc nào",
+        "body": "Mọi chỉnh sửa đều lùi được bằng phím tắt, kể cả khi bạn không nhìn thấy nút nào cho việc đó."
+      },
+      "view3d": {
+        "title": "Xem không gian vừa dựng ở dạng khối",
+        "body": "Chuyển sang chế độ ba chiều để nhìn kết quả từ mặt bằng vừa chỉnh."
+      },
+      "exportResult": {
+        "title": "Xuất kết quả khi đã sẵn sàng",
+        "body": "Khi định dạng đã chọn xong, nút này xuất mô hình ra một tệp."
+      }
+    },
+    "skip": "Bỏ qua",
+    "next": "Tiếp theo",
+    "finish": "Bắt đầu làm việc",
+    "reopenChip": "Xem hướng dẫn",
+    "sampleProjectPrompt": {
+      "title": "Chưa có gì để dạy trên canvas trống",
+      "body": "Mở một dự án mẫu để xem lớp dạy hoạt động trên dữ liệu thật.",
+      "action": "Mở dự án mẫu"
+    },
+    "liveMessage": {
+      "stepChange": "Bước {{index}} trên {{total}}: {{title}}",
+      "skip": "Đã bỏ qua hướng dẫn. Mở lại bất cứ lúc nào bằng chip xem hướng dẫn.",
+      "finish": "Đã học xong. Sẵn sàng bắt đầu làm việc."
+    },
+    "progressDot": "Đến bước {{index}} trên {{total}}: {{title}}",
+    "summary": {
+      "title": "Những phím vừa học"
+    }
+  }
+}
