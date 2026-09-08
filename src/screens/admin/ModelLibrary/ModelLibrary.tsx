@@ -9,15 +9,15 @@
  * công" lẫn "không có quyền"; sự khác biệt giữa ba trạng thái đó nằm trong dữ liệu
  * (`model.rows`, `model.readOnlyReason`), không phải trong nhánh JSX.
  *
- * ## Vì sao có một lệnh nhập sẽ đỏ khi worker này chạy một mình
+ * ## Panel chi tiết đến từ một nhánh khác
  *
- * Panel chi tiết (`ModelLibraryDetail`) thuộc phạm vi của một worker khác (L2-3), viết
- * song song trên nhánh riêng. Hợp đồng (`L2-2-brief.md` mục 2) yêu cầu nhập nó đúng tên
- * và đúng chữ ký `{ model: ModelLibraryDetailModel; actions: ModelLibraryActions }` ngay
- * từ bây giờ để lớp gộp ghép file đó vào sau — không tự viết file đó, không thay bằng
- * stub. Tới lúc bốn file của L2-2 được xác minh, `./ModelLibraryDetail` CHƯA TỒN TẠI nên
- * `pnpm typecheck` báo đúng một lỗi "Cannot find module" ở dòng nhập dưới đây; đây là kết
- * quả đã biết trước, không phải lỗi của bốn file thuộc phạm vi L2-2.
+ * `ModelLibraryDetail` thuộc phạm vi của một worker khác (L2-3), viết song song trên nhánh
+ * riêng. File này nhập nó đúng tên và đúng chữ ký
+ * `{ model: ModelLibraryDetailModel; actions: ModelLibraryActions }` từ trước khi file kia
+ * tồn tại — không tự viết, không thay bằng stub — nên tới lượt kiểm của L2-2 thì
+ * `pnpm typecheck` báo đúng một lỗi "Cannot find module" ở dòng nhập dưới đây. Lỗi ấy đã
+ * tan khi lớp gộp ghép bốn nhánh lại; nó được ghi lại ở đây để không ai đi tìm lại nguyên
+ * nhân trong lịch sử.
  */
 import type { ReactNode } from 'react';
 
