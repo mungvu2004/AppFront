@@ -277,6 +277,8 @@ export const checkRoomFurnitureMismatch: FitoutCheck = (context) => {
  * fitting in the wrong room.
  */
 export const checkFixtureOffWall: FitoutCheck = (context) => {
+  const wallHuggingToleranceMm =
+    context.thresholds?.['fixture.wallHuggingToleranceMm'] ?? WALL_HUGGING_TOLERANCE_MM;
   const walls = entitiesInScope(context, 'wall');
   const findings: FitoutFinding[] = [];
 
@@ -307,7 +309,7 @@ export const checkFixtureOffWall: FitoutCheck = (context) => {
       continue;
     }
 
-    if (compareNearly(nearestGapMm, WALL_HUGGING_TOLERANCE_MM) <= 0) {
+    if (compareNearly(nearestGapMm, wallHuggingToleranceMm) <= 0) {
       continue;
     }
 
@@ -316,7 +318,7 @@ export const checkFixtureOffWall: FitoutCheck = (context) => {
         item.id,
         [item.id, nearestWallId],
         `${furnitureText(item.kind, item.id)} cách mặt tường gần nhất ${nearestWallId} ` +
-          `${lengthText(nearestGapMm)}, vượt ngưỡng ${lengthText(WALL_HUGGING_TOLERANCE_MM)}.`,
+          `${lengthText(nearestGapMm)}, vượt ngưỡng ${lengthText(wallHuggingToleranceMm)}.`,
         `Dời ${item.id} áp sát tường ${nearestWallId}, hoặc kiểm tra lại vị trí đã bóc ` +
           `từ ký hiệu trên bản vẽ.`,
       ),

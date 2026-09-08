@@ -389,7 +389,7 @@ function centreOf(room: Room): Point {
  * opening actually is, and a quarter of a metre covers the thickest wall's half
  * section with slack for a traced outline that missed the tim by a little.
  */
-const OPENING_ON_OUTLINE_TOLERANCE_MM = 250;
+export const OPENING_ON_OUTLINE_TOLERANCE_MM = 250;
 
 /** Distance from a point to the nearest edge of a closed outline. */
 function distanceToOutline(point: Point, outline: readonly Point[]): number {
@@ -422,8 +422,8 @@ function openingCentre(wall: Wall, opening: Opening): Point {
 }
 
 /** Is this opening on the stretch of wall that bounds this room? */
-function opensOnto(at: Point, room: Room): boolean {
-  return compareNearly(distanceToOutline(at, room.outline), OPENING_ON_OUTLINE_TOLERANCE_MM) <= 0;
+function opensOnto(at: Point, room: Room, toleranceMm: number): boolean {
+  return compareNearly(distanceToOutline(at, room.outline), toleranceMm) <= 0;
 }
 
 /**
@@ -550,7 +550,9 @@ export const checkCorridorWidth: FunctionCheck = (context) => {
   const findings: FunctionFinding[] = [];
 
   for (const room of entitiesInScope(context, 'room')) {
-    const requiredMm = USAGE_REQUIREMENTS[room.usage].minClearWidthMm;
+    const requiredMm =
+      context.thresholds?.[`${room.usage}.minClearWidthMm`] ??
+      USAGE_REQUIREMENTS[room.usage].minClearWidthMm;
 
     if (requiredMm <= 0) {
       continue;
@@ -638,6 +640,8 @@ interface EscapeNode {
 
 function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[] {
   const byWall = roomsByWall(rooms);
+  const onOutlineToleranceMm =
+    context.thresholds?.['escape.openingOnOutlineToleranceMm'] ?? OPENING_ON_OUTLINE_TOLERANCE_MM;
   const links: DoorLink[] = [];
 
   for (const opening of entitiesInScope(context, 'opening')) {
@@ -659,7 +663,7 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
       // Only the rooms this door is actually cut into; naming the wall is not
       // enough, or one long party wall would join every room along it.
       roomIds: (byWall.get(wall.id) ?? [])
-        .filter((room) => opensOnto(at, room))
+        .filter((room) => opensOnto(at, room, onOutlineToleranceMm))
         .map((room) => room.id),
       leadsOutside: wall.kind === 'envelope',
     });
@@ -794,6 +798,7 @@ function measureEscapeDistances(
  * a person to the same room for the same reason.
  */
 export const checkEscapeDistance: FunctionCheck = (context) => {
+  const maxDistanceMm = context.thresholds?.['escape.maxDistanceMm'] ?? MAX_ESCAPE_DISTANCE_MM;
   const rooms = entitiesInScope(context, 'room');
   const nodes = measureEscapeDistances(context, rooms);
   const findings: FunctionFinding[] = [];
@@ -829,7 +834,7 @@ export const checkEscapeDistance: FunctionCheck = (context) => {
       continue;
     }
 
-    if (compareNearly(node.distanceMm, MAX_ESCAPE_DISTANCE_MM) <= 0) {
+    if (compareNearly(node.distanceMm, maxDistanceMm) <= 0) {
       continue;
     }
 
@@ -838,8 +843,8 @@ export const checkEscapeDistance: FunctionCheck = (context) => {
         room.id,
         node.anchorId === null ? [room.id] : [room.id, node.anchorId],
         `${roomText(room)} cách lối thoát gần nhất ${metreText(node.distanceMm)} đi qua các cửa, ` +
-          `vượt ngưỡng ${metreText(MAX_ESCAPE_DISTANCE_MM)}.`,
-        `Thêm một lối thoát trong bán kính ${metreText(MAX_ESCAPE_DISTANCE_MM)}, hoặc mở thêm ` +
+          `vượt ngưỡng ${metreText(maxDistanceMm)}.`,
+        `Thêm một lối thoát trong bán kính ${metreText(maxDistanceMm)}, hoặc mở thêm ` +
           'cửa để rút ngắn đường đi.',
       ),
     );
@@ -866,10 +871,13 @@ export const checkEscapeDistance: FunctionCheck = (context) => {
  * one defect into four.
  */
 export const checkDoorBlocksPath: FunctionCheck = (context) => {
+  const minPassageMm = context.thresholds?.['door.minClearPassageMm'] ?? MIN_CLEAR_PASSAGE_MM;
   const findings: FunctionFinding[] = [];
 
   for (const room of entitiesInScope(context, 'room')) {
-    const requiredMm = USAGE_REQUIREMENTS[room.usage].minClearWidthMm;
+    const requiredMm =
+      context.thresholds?.[`${room.usage}.minClearWidthMm`] ??
+      USAGE_REQUIREMENTS[room.usage].minClearWidthMm;
 
     if (requiredMm <= 0) {
       continue;
@@ -889,7 +897,7 @@ export const checkDoorBlocksPath: FunctionCheck = (context) => {
       const leafMm = leafWidthMm(opening);
       const leftMm = widthMm - leafMm;
 
-      if (compareNearly(leftMm, MIN_CLEAR_PASSAGE_MM) >= 0) {
+      if (compareNearly(leftMm, minPassageMm) >= 0) {
         continue;
       }
 
@@ -899,9 +907,9 @@ export const checkDoorBlocksPath: FunctionCheck = (context) => {
           [opening.id, opening.wallId, room.id],
           `Cửa đi ${opening.id} mở vào ${roomText(room)} rộng ${lengthText(widthMm)}: cánh ` +
             `${lengthText(leafMm)} chỉ chừa lại ${lengthText(Math.max(0, leftMm))}, dưới mức ` +
-            `${lengthText(MIN_CLEAR_PASSAGE_MM)} để đi lọt.`,
+            `${lengthText(minPassageMm)} để đi lọt.`,
           `Đổi sang cửa trượt hoặc cửa mở ngược ra khỏi lối đi, hoặc thu hẹp cánh xuống ` +
-            `${lengthText(Math.max(0, widthMm - MIN_CLEAR_PASSAGE_MM))}.`,
+            `${lengthText(Math.max(0, widthMm - minPassageMm))}.`,
         ),
       );
     }
@@ -928,7 +936,8 @@ export const checkRoomArea: FunctionCheck = (context) => {
   const findings: FunctionFinding[] = [];
 
   for (const room of entitiesInScope(context, 'room')) {
-    const requiredM2 = USAGE_REQUIREMENTS[room.usage].minAreaM2;
+    const requiredM2 =
+      context.thresholds?.[`room.minArea.${room.usage}`] ?? USAGE_REQUIREMENTS[room.usage].minAreaM2;
 
     if (requiredM2 <= 0 || compareNearly(room.areaM2, requiredM2) >= 0) {
       continue;
@@ -970,6 +979,7 @@ export const checkRoomArea: FunctionCheck = (context) => {
  * a glance, a clash that goes unreported is a site instruction.
  */
 export const checkFurnitureClash: FunctionCheck = (context) => {
+  const minClashMm = context.thresholds?.['furniture.minClashMm'] ?? MIN_CLASH_MM;
   const items = entitiesInScope(context, 'furniture');
   const walls = entitiesInScope(context, 'wall');
   const findings: FunctionFinding[] = [];
@@ -988,7 +998,7 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
       const reachMm = wall.thicknessMm / 2;
       const overlapMm = reachMm - distanceLineToBox(wall.centreline, item.boundingBox);
 
-      if (compareNearly(overlapMm, MIN_CLASH_MM) <= 0) {
+      if (compareNearly(overlapMm, minClashMm) <= 0) {
         continue;
       }
 
@@ -1000,7 +1010,7 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
       const secondItem = itemAt(items, other);
       const overlapMm = boxOverlapMm(item.boundingBox, secondItem.boundingBox);
 
-      if (compareNearly(overlapMm, MIN_CLASH_MM) <= 0) {
+      if (compareNearly(overlapMm, minClashMm) <= 0) {
         continue;
       }
 

@@ -111,7 +111,33 @@ export type RuleSubject = EntityKind;
 export interface RuleContext {
   readonly graph: NormalizedSpatial;
   readonly levelId: LevelId | null;
+  /**
+   * The numbers this pass measures against, by threshold key.
+   *
+   * Optional, and every check reads it as `context.thresholds?.[key] ?? CONST`
+   * with the shipped constant as the fallback. That shape is doing two jobs.
+   * It lets the rules be moved onto configurable thresholds one at a time
+   * instead of in one 25-file rewrite, and it keeps every caller that builds a
+   * context by hand — the tests next door, and anything outside this module
+   * that runs a single check — compiling and running exactly as it does today.
+   *
+   * The keys are the ones `./config` defines, and `resolveRules` there is what
+   * builds the map. A pass with no configuration passes nothing, and every rule
+   * falls through to its constant.
+   */
+  readonly thresholds?: RuleThresholds;
 }
+
+/**
+ * Threshold values by key.
+ *
+ * Declared here rather than in `./config`, where the rest of the configuration
+ * vocabulary lives, because `RuleContext` needs it and `./config` imports this
+ * module for `Rule` and the shipped constants — the other direction would be an
+ * import cycle, and `pnpm cycles` keeps this repo at zero. `./config` re-exports
+ * the name, so callers still have one place to import the whole vocabulary from.
+ */
+export type RuleThresholds = Readonly<Record<string, number>>;
 
 /**
  * One thing a rule found.
@@ -420,10 +446,13 @@ const wallThicknessRule: Rule = {
   severity: 'warning',
   scope: 'level',
   dependsOn: ['wall'],
-  check: (context) =>
-    entitiesInScope(context, 'wall').flatMap((wall) => {
-      const tooThin = wall.thicknessMm < MIN_WALL_THICKNESS_MM;
-      const tooThick = wall.thicknessMm > MAX_WALL_THICKNESS_MM;
+  check: (context) => {
+    const minMm = context.thresholds?.['wall.minThicknessMm'] ?? MIN_WALL_THICKNESS_MM;
+    const maxMm = context.thresholds?.['wall.maxThicknessMm'] ?? MAX_WALL_THICKNESS_MM;
+
+    return entitiesInScope(context, 'wall').flatMap((wall) => {
+      const tooThin = wall.thicknessMm < minMm;
+      const tooThick = wall.thicknessMm > maxMm;
 
       if (!tooThin && !tooThick) {
         return [];
@@ -434,13 +463,14 @@ const wallThicknessRule: Rule = {
           entityId: wall.id,
           message:
             `Tường ${wall.id} dày ${formatLength(wall.thicknessMm, { unit: 'mm' })}, ngoài khoảng ` +
-            `${formatLength(MIN_WALL_THICKNESS_MM, { unit: 'mm' })} đến ${formatLength(MAX_WALL_THICKNESS_MM, { unit: 'mm' })}.`,
+            `${formatLength(minMm, { unit: 'mm' })} đến ${formatLength(maxMm, { unit: 'mm' })}.`,
           suggestion: tooThin
-            ? `Tăng bề dày lên tối thiểu ${formatLength(MIN_WALL_THICKNESS_MM, { unit: 'mm' })}, hoặc xoá nếu đây là nét thừa.`
-            : `Giảm bề dày xuống tối đa ${formatLength(MAX_WALL_THICKNESS_MM, { unit: 'mm' })}, hoặc tách thành hai tường.`,
+            ? `Tăng bề dày lên tối thiểu ${formatLength(minMm, { unit: 'mm' })}, hoặc xoá nếu đây là nét thừa.`
+            : `Giảm bề dày xuống tối đa ${formatLength(maxMm, { unit: 'mm' })}, hoặc tách thành hai tường.`,
         },
       ];
-    }),
+    });
+  },
 };
 
 const wallLengthRule: Rule = {
@@ -450,11 +480,13 @@ const wallLengthRule: Rule = {
   severity: 'critical',
   scope: 'level',
   dependsOn: ['wall'],
-  check: (context) =>
-    entitiesInScope(context, 'wall').flatMap((wall) => {
+  check: (context) => {
+    const minLengthMm = context.thresholds?.['wall.minLengthMm'] ?? MIN_WALL_LENGTH_MM;
+
+    return entitiesInScope(context, 'wall').flatMap((wall) => {
       const lengthMm = segmentLengthMm(wall.centreline.start, wall.centreline.end);
 
-      if (lengthMm >= MIN_WALL_LENGTH_MM) {
+      if (lengthMm >= minLengthMm) {
         return [];
       }
 
@@ -463,11 +495,12 @@ const wallLengthRule: Rule = {
           entityId: wall.id,
           message:
             `Tường ${wall.id} chỉ dài ${formatLength(lengthMm, { unit: 'mm' })}, ngắn hơn mức dựng được ` +
-            `${formatLength(MIN_WALL_LENGTH_MM, { unit: 'mm' })}.`,
+            `${formatLength(minLengthMm, { unit: 'mm' })}.`,
           suggestion: 'Kéo dài tường tới nút giao gần nhất, hoặc xoá đoạn thừa này.',
         },
       ];
-    }),
+    });
+  },
 };
 
 const openingInWallRule: Rule = {
@@ -516,9 +549,11 @@ const doorWidthRule: Rule = {
   severity: 'warning',
   scope: 'level',
   dependsOn: ['opening'],
-  check: (context) =>
-    entitiesInScope(context, 'opening').flatMap((opening) => {
-      if (opening.kind !== 'door' || opening.widthMm >= MIN_DOOR_WIDTH_MM) {
+  check: (context) => {
+    const minWidthMm = context.thresholds?.['door.minWidthMm'] ?? MIN_DOOR_WIDTH_MM;
+
+    return entitiesInScope(context, 'opening').flatMap((opening) => {
+      if (opening.kind !== 'door' || opening.widthMm >= minWidthMm) {
         return [];
       }
 
@@ -527,11 +562,12 @@ const doorWidthRule: Rule = {
           entityId: opening.id,
           message:
             `Cửa đi ${opening.id} rộng ${formatLength(opening.widthMm, { unit: 'mm' })}, hẹp hơn mức lọt người ` +
-            `${formatLength(MIN_DOOR_WIDTH_MM, { unit: 'mm' })}.`,
-          suggestion: `Mở rộng cửa lên tối thiểu ${formatLength(MIN_DOOR_WIDTH_MM, { unit: 'mm' })}.`,
+            `${formatLength(minWidthMm, { unit: 'mm' })}.`,
+          suggestion: `Mở rộng cửa lên tối thiểu ${formatLength(minWidthMm, { unit: 'mm' })}.`,
         },
       ];
-    }),
+    });
+  },
 };
 
 const roomMinAreaRule: Rule = {
@@ -543,7 +579,8 @@ const roomMinAreaRule: Rule = {
   dependsOn: ['room'],
   check: (context) =>
     entitiesInScope(context, 'room').flatMap((room) => {
-      const minimumM2 = MIN_ROOM_AREA_M2[room.usage];
+      const minimumM2 =
+        context.thresholds?.[`room.minArea.${room.usage}`] ?? MIN_ROOM_AREA_M2[room.usage];
 
       if (minimumM2 <= 0 || room.areaM2 >= minimumM2) {
         return [];
