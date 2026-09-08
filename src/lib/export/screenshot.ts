@@ -95,6 +95,7 @@ import { formatLength } from '@/lib/format/measure';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
 
 import { formatExportTimestamp, toFileSlug } from './exportGlb';
+import { fitText, lineHeightOf } from './fitText';
 import { PDF_FONT } from './pdfSchema';
 
 /* -------------------------------------------------------------------------- */
@@ -379,27 +380,12 @@ export const CAPTURE_LAYOUT: CaptureLayout = Object.freeze({
 });
 
 /**
- * Leading as a multiple of the font size.
- *
- * 1,45 rather than the usual 1,2 because Vietnamese stacks two marks on one
- * letter — `ệ`, `ữ`, `ỗ` — and a line box cut to Latin ascenders clips the
- * upper one. The band is the one place in the product where a clipped diacritic
- * cannot be fixed by scrolling: it is already a file.
+ * `fitText` sống ở `./fitText`, không ở đây — nó là số học thuần trên một chuỗi,
+ * và mọi nơi chỉ cần nó thì không nên tải `three` cùng. Tái xuất để đường nhập
+ * cũ (`@/lib/export/screenshot`) không đổi; nơi gọi nào CHỈ cần đo chữ thì nhập
+ * thẳng `@/lib/export/fitText`.
  */
-const VIETNAMESE_LINE_HEIGHT = 1.45;
-
-/**
- * The width of an average glyph, as a fraction of the font size.
- *
- * Used only to decide where to cut a string that would otherwise run into the
- * next field. It is an estimate and is deliberately generous — measuring
- * properly would mean owning a canvas context before the layout exists, which
- * would make the layout untestable to save a few pixels of slack.
- */
-const AVERAGE_GLYPH_RATIO = 0.58;
-
-/** The character a truncated string ends with. */
-const ELLIPSIS = '…';
+export { fitText } from './fitText';
 
 /** Canvas weights, named the way the interface names them. */
 export type CaptureFontWeight = 'regular' | 'medium';
@@ -419,25 +405,6 @@ export function captureFontOf(sizePx: number, weight: CaptureFontWeight): string
     .join(', ');
 
   return `${String(FONT_WEIGHTS[weight])} ${String(sizePx)}px ${families}, sans-serif`;
-}
-
-/** The height of one line of type at a given size. */
-function lineHeightOf(fontPx: number): number {
-  return Math.round(fontPx * VIETNAMESE_LINE_HEIGHT);
-}
-
-/** A string cut to fit a width, with an ellipsis where it was cut. */
-export function fitText(text: string, fontPx: number, maxWidthPx: number): string {
-  const glyphs = Math.floor(maxWidthPx / (fontPx * AVERAGE_GLYPH_RATIO));
-
-  if (glyphs <= 0) {
-    return '';
-  }
-  if (text.length <= glyphs) {
-    return text;
-  }
-
-  return `${text.slice(0, Math.max(glyphs - 1, 0)).trimEnd()}${ELLIPSIS}`;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -77,7 +77,7 @@ import { appNotificationBus } from '@/hooks/useNotifications';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
-import { selectRoomsWithArea, selectTotalAreaM2 } from '@/store/selectors';
+import { selectRoomsWithArea, selectTotalAreaM2 } from '@/store/graphSelectors';
 import type { ProjectRole } from '@/types/project';
 
 import type { ViewerSceneHandle } from '../Viewer3D/viewer3dTypes';

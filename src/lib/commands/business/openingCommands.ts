@@ -49,6 +49,7 @@ import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 
 import { changeForAdd, changeForRemove, changeForUpdate } from '../createCommand';
 import type { EntityChange } from '../types';
+import { OPENING_COMMAND_TYPES } from './commandTypes';
 import {
   accept,
   AUTHORED_BY_HAND,
@@ -80,18 +81,15 @@ import {
 /* Command names.                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** The nine opening and furniture commands. */
-export const OPENING_COMMAND_TYPES = {
-  addOpening: 'opening.add',
-  moveOpening: 'opening.move',
-  resizeOpening: 'opening.resize',
-  removeOpening: 'opening.delete',
-  addFurniture: 'furniture.add',
-  moveFurniture: 'furniture.move',
-  rotateFurniture: 'furniture.rotate',
-  resizeFurniture: 'furniture.resize',
-  removeFurniture: 'furniture.delete',
-} as const;
+/**
+ * Chín tên lệnh ô mở và đồ đạc — nay ở `./commandTypes`, tái xuất từ đây.
+ *
+ * Cùng lý do như `wallCommands.ts`: `src/lib/tools/tools.ts` khai hai công cụ
+ * bằng đúng hai chuỗi `opening.add` và `furniture.add`, và không nên vì thế mà
+ * kéo theo `domain/openings/reflow` cùng toàn bộ phần thân chín lệnh. Đường nhập
+ * `@/lib/commands/business/openingCommands` giữ nguyên.
+ */
+export { OPENING_COMMAND_TYPES };
 
 /* -------------------------------------------------------------------------- */
 /* Shared checks.                                                              */
