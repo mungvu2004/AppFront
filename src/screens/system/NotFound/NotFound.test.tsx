@@ -37,6 +37,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -46,8 +47,23 @@ import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStat
 import { ROUTES } from '@/routes/paths';
 
 import { NotFound } from './NotFound';
-import { RECENT_PROJECT_LIMIT } from './notFoundModel';
+import { RECENT_PROJECT_LIMIT, type NotFoundVm } from './notFoundModel';
 import { createNotFoundVm, SAMPLE_RECENT_PROJECTS } from './notFoundScenarios';
+
+/**
+ * Hàng dự án gần đây là `Link` của `react-router-dom` (quyết định của view,
+ * `NotFound.tsx`) — nó gọi `useHref()` và ném khi không có router nào ở trên.
+ * Bọc `MemoryRouter` đúng khuôn `ProjectDashboard.test.tsx:184`; đây là chỗ
+ * thiếu lớp bọc, KHÔNG phải chỗ khẳng định sai, nên không khẳng định nào dưới
+ * đây bị nới ra để né (R-70).
+ */
+function renderNotFound(vm: NotFoundVm) {
+  return render(
+    <MemoryRouter>
+      <NotFound {...vm} />
+    </MemoryRouter>,
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* (a) A11 — bảy trạng thái, không trạng thái nào ra màn trắng.                */
@@ -60,7 +76,7 @@ describe('A11 — bảy trạng thái', () => {
     expectSevenStates((scenario) => {
       covered.push(scenario.label);
 
-      return render(<NotFound {...createNotFoundVm(scenario.state)} />);
+      return renderNotFound(createNotFoundVm(scenario.state));
     }, createSevenStateScenarios());
 
     expect(covered).toHaveLength(SEVEN_STATES.length);
@@ -75,7 +91,7 @@ describe('R-72 — mọi trạng thái tiếp cận được, tiếng Việt có
   it.each(createSevenStateScenarios())(
     'trạng thái "$label" tiếp cận được và không sót tiếng Anh/mất dấu',
     (scenario) => {
-      const { container } = render(<NotFound {...createNotFoundVm(scenario.state)} />);
+      const { container } = renderNotFound(createNotFoundVm(scenario.state));
 
       // Nếu một phần tử cụ thể của view làm bài này trượt vì lý do ngoài tầm
       // của bộ ba file test/story/scenario (ví dụ một control chưa có
@@ -107,7 +123,7 @@ describe('BÀI NGHIỆM THU — chưa đăng nhập thì nút chính là "Đăng
 
     expect(vm.primaryAction.label).toBe('Đăng nhập');
 
-    render(<NotFound {...vm} />);
+    renderNotFound(vm);
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 
     expect(navigate).toHaveBeenCalledTimes(1);
@@ -123,7 +139,7 @@ describe('BÀI NGHIỆM THU — trạng thái lỗi vẫn đủ hai nút', () =>
   it('còn cả nút chính lẫn nút "Quay lại" khi state là "error"', () => {
     const vm = createNotFoundVm('error');
 
-    render(<NotFound {...vm} />);
+    renderNotFound(vm);
 
     expect(screen.getByRole('button', { name: vm.primaryAction.label })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: vm.secondaryAction.label })).toBeInTheDocument();
@@ -143,7 +159,7 @@ describe(`BÀI NGHIỆM THU — khối gợi ý hiện tối đa ${String(RECENT
 
     const vm = { ...createNotFoundVm('success'), recentProjects: SAMPLE_RECENT_PROJECTS };
 
-    render(<NotFound {...vm} />);
+    renderNotFound(vm);
 
     for (const project of SAMPLE_RECENT_PROJECTS.slice(0, RECENT_PROJECT_LIMIT)) {
       expect(screen.getByText(project.name)).toBeInTheDocument();
@@ -159,7 +175,7 @@ describe(`BÀI NGHIỆM THU — khối gợi ý hiện tối đa ${String(RECENT
 
     expect(vm.recentProjects).toHaveLength(0);
 
-    render(<NotFound {...vm} />);
+    renderNotFound(vm);
 
     expect(screen.queryByText(vm.recentHeading)).not.toBeInTheDocument();
   });
@@ -173,7 +189,7 @@ describe('BÀI NGHIỆM THU — mã lỗi có mặt, chọn được, và không
   it('caption mã lỗi hiện đủ, không mang class chặn bôi đen, và "404" chỉ xuất hiện đúng một lần trong cả màn', () => {
     const vm = createNotFoundVm('success');
 
-    const { container } = render(<NotFound {...vm} />);
+    const { container } = renderNotFound(vm);
 
     const caption = screen.getByText(vm.errorCaption);
 

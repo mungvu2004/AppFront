@@ -34,6 +34,7 @@ const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard'
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
 const RouteNotificationCenter = lazy(() => import('../screens/system/NotificationCenter').then(m => ({ default: m.NotificationCenterRoute })));
+const RouteNotFound = lazy(() => import('../screens/system/NotFound').then(m => ({ default: m.NotFoundRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
 const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
 const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen').then(m => ({ default: m.FloorUploadRoute })));
@@ -317,7 +318,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
       { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
       { path: ROUTE_PATTERNS.designSystemStates, element: <Placeholder name="/design-system/states" /> },
-      { path: ROUTE_PATTERNS.notFound, element: <Placeholder name="404" /> },
+      { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
     ],
   },
 ]);

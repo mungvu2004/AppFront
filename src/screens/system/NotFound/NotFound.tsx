@@ -35,7 +35,12 @@ import { Button } from '@/components/ui/Button';
 import { MOTION_DURATIONS_MS, cssDurationMs } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
-import { CONTENT_COLUMN_PX, CONTENT_LIFT_PX, type NotFoundVm } from './notFoundModel';
+import {
+  CONTENT_COLUMN_PX,
+  CONTENT_LIFT_PX,
+  RECENT_PROJECT_LIMIT,
+  type NotFoundVm,
+} from './notFoundModel';
 import { PlanFragment } from './PlanFragment';
 
 const ENTER_ANIMATION_NAME = 'nf-notfound-enter';
@@ -80,7 +85,11 @@ export function NotFound({
   isCompact,
   prefersReducedMotion,
 }: NotFoundVm) {
-  const hasRecentProjects = recentProjects.length > 0;
+  // Hợp đồng nói `recentProjects` đã "tối đa RECENT_PROJECT_LIMIT hàng" và cổng
+  // thật cắt sẵn — nhưng con số người dùng THẤY là con số màn này chịu trách
+  // nhiệm, nên nó được ép ở đúng chỗ vẽ ra, không chỉ ở chỗ lấy dữ liệu.
+  const visibleProjects = recentProjects.slice(0, RECENT_PROJECT_LIMIT);
+  const hasRecentProjects = visibleProjects.length > 0;
 
   return (
     <div className="flex min-h-full w-full items-center justify-center bg-bg-app px-6 py-16">
@@ -111,7 +120,7 @@ export function NotFound({
           <div className="flex w-full flex-col items-stretch gap-2 text-left">
             <h3 className="text-[13px] font-medium text-text-secondary">{recentHeading}</h3>
             <ul className="flex flex-col gap-1.5">
-              {recentProjects.map((project) => (
+              {visibleProjects.map((project) => (
                 <li key={project.id}>
                   <Link
                     to={project.to}
