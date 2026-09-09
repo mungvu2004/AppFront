@@ -57,6 +57,7 @@ export const ROUTE_PATTERNS = {
   listReviewDemo: '/list-review-demo',
   login: '/login',
   notFound: '*',
+  notifications: '/thong-bao',
   onboarding: '/onboarding',
   projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
   projectDimensions: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/dimensions`,
@@ -105,6 +106,7 @@ export const ROUTES = {
   layerObjects: ROUTE_PATTERNS.layerObjects,
   layerRooms: ROUTE_PATTERNS.layerRooms,
   login: ROUTE_PATTERNS.login,
+  notifications: ROUTE_PATTERNS.notifications,
   onboarding: ROUTE_PATTERNS.onboarding,
   project: {
     cadConfirm: (projectId: string, floorId: string): string =>

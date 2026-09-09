@@ -1099,6 +1099,27 @@
       "dimensionString": "chuỗi kích thước"
     }
   },
+  "notificationCenter": {
+    "title": "Thông báo",
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "markRead": "Đánh dấu đã đọc",
+    "settingsLabel": "Cài đặt thông báo",
+    "filterAll": "Tất cả",
+    "filterUnread": "Chưa đọc",
+    "filterMentions": "Nhắc đến tôi",
+    "seeAll": "Xem tất cả",
+    "actionViewResult": "Xem kết quả",
+    "actionAccept": "Chấp nhận",
+    "emptyTitle": "Không có thông báo mới",
+    "emptyBody": "Không có thông báo mới. Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.",
+    "staleWarning": "Có thể chưa cập nhật",
+    "errorRetry": "Thử lại",
+    "forbiddenBody": "Bạn chỉ thấy thông báo của dự án được chia sẻ với mình.",
+    "bellLabel": "Thông báo",
+    "unreadDotLabel": "Chưa đọc",
+    "todayHeading": "Hôm nay",
+    "yesterdayHeading": "Hôm qua"
+  },
   "notifications": {
     "regionAriaLabel": "Thông báo"
   },
