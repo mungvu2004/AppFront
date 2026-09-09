@@ -62,7 +62,10 @@ export function ExportPanelFooter({
     <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-4">
       <p className="text-sm text-text-secondary">{destinationCaption}</p>
       {canExportSelected && (
-        <Button variant="primary" onClick={onExport}>
+        // `data-tour-anchor`: móc neo cho lớp dạy việc (`screens/system/EditorTour`).
+        // Nút này không có `aria-label`/`id` nào ổn định để bám, và tên khẳng định
+        // của nó là chính chữ hiện trên nút — thứ `querySelector` không chọn được.
+        <Button data-tour-anchor="exportResult" variant="primary" onClick={onExport}>
           xuất
         </Button>
       )}

@@ -51,6 +51,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 
+import { EditorTourContainer } from '@/screens/system/EditorTour';
 import { ExportPanel } from './ExportPanel';
 import { useExportPanel } from './useExportPanel';
 
@@ -153,6 +154,7 @@ export function ExportPanelContainer(props: ExportPanelContainerProps) {
         {...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {})}
         {...(props.onNavigateToFix !== undefined ? { onNavigateToFix: props.onNavigateToFix } : {})}
       />
+      <EditorTourContainer hostId="export-panel" />
     </ScreenErrorBoundary>
   );
 }

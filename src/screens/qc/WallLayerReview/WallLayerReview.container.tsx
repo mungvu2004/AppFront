@@ -85,6 +85,7 @@ import type { LevelId } from '@/domain/spatial/types';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { ROUTES } from '@/routes/paths';
+import { EditorTourContainer } from '@/screens/system/EditorTour';
 import type { ProjectRole } from '@/types/project';
 
 import { WallLayerCanvas } from './WallLayerCanvas';
@@ -218,6 +219,7 @@ export function WallLayerReviewContainer(props: WallLayerReviewContainerProps) {
       screenId={WALL_LAYER_REVIEW_SCREEN_ID}
     >
       <WiredWallLayerReview {...props} />
+      <EditorTourContainer hostId="wall-layer-review" />
     </ScreenErrorBoundary>
   );
 }

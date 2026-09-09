@@ -46,6 +46,7 @@ import {
 import { useSession } from '@/hooks/useSession';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { EditorTourContainer } from '@/screens/system/EditorTour';
 import type { ProjectRole } from '@/types/project';
 
 import { ViewerShell } from './ViewerShell';
@@ -126,6 +127,7 @@ export function ViewerShellContainer(props: ViewerShellContainerProps) {
       screenId={VIEWER_SHELL_SCREEN_ID}
     >
       <WiredViewerShell {...props} />
+      <EditorTourContainer hostId="viewer-shell" />
     </ScreenErrorBoundary>
   );
 }

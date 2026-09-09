@@ -630,6 +630,87 @@ describe('Vai người xem — forbidden chỉ còn ba bước xem', () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* (k) Cờ đã xem tách theo HOST — sáu bước nằm trên ba màn chủ.                 */
+/* -------------------------------------------------------------------------- */
+
+describe('Cờ đã xem tách theo host — học xong ở màn này không tắt hướng dẫn ở màn kia', () => {
+  /** Bỏ qua ngay khi vừa dựng, trên đúng một host. */
+  function skipOnHost(hostId: string): void {
+    const registry = createShortcutRegistry();
+
+    registry.register({
+      id: 'wallLayerReview.next',
+      combo: 'J',
+      scope: 'canvas',
+      description: STEP_TEXT.reviewWall.comboDescription,
+      onTrigger: noop,
+    });
+
+    mountTour({ registry, resolveAnchor: () => null, hostId, userId: 'u-1', hasModel: true });
+
+    act(() => {
+      registry.handleKeyDown({ key: 'Escape', preventDefault: vi.fn() }, null);
+    });
+
+    cleanup();
+  }
+
+  it('khoá localStorage mang cả userId lẫn hostId, nên hai host là hai cờ khác nhau', () => {
+    skipOnHost('wall-layer-review');
+
+    const keys = Object.keys(window.localStorage).filter((key) => key.includes('editor-tour-seen'));
+
+    console.log(`[đp] khoá đã ghi: ${keys.join(', ')}`);
+
+    expect(keys).toEqual(['appfront:system-editor-tour-seen:u-1:wall-layer-review']);
+    expect(window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:viewer-shell')).toBeNull();
+    expect(window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:export-panel')).toBeNull();
+  });
+
+  it('bỏ qua ở màn QC rồi mở vỏ 3D: hướng dẫn của vỏ 3D VẪN chạy', () => {
+    skipOnHost('wall-layer-review');
+
+    const registry = createShortcutRegistry();
+
+    mountTour({
+      registry,
+      resolveAnchor: (id): TourRect | null => (id === 'view3d' ? FIXED_RECT : null),
+      hostId: 'viewer-shell',
+      userId: 'u-1',
+      hasModel: true,
+    });
+
+    // Còn bước để dạy, và chưa bị coi là đã xem xong.
+    expect(tourProps().steps.map((step) => step.id)).toEqual(['view3d']);
+    expect(tourProps().screenState).not.toBe('empty');
+  });
+
+  it('mở lại ĐÚNG host đã bỏ qua thì không hiện nữa', () => {
+    skipOnHost('wall-layer-review');
+
+    const registry = createShortcutRegistry();
+
+    registry.register({
+      id: 'wallLayerReview.next',
+      combo: 'J',
+      scope: 'canvas',
+      description: STEP_TEXT.reviewWall.comboDescription,
+      onTrigger: noop,
+    });
+
+    mountTour({
+      registry,
+      resolveAnchor: () => FIXED_RECT,
+      hostId: 'wall-layer-review',
+      userId: 'u-1',
+      hasModel: true,
+    });
+
+    expect(tourProps().screenState).toBe('empty');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* (j) Giảm chuyển động — vùng khoét đứng yên.                                 */
 /* -------------------------------------------------------------------------- */
 

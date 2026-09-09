@@ -139,6 +139,22 @@ export type UseEditorTourResult = EditorTourProps;
 export interface UseEditorTourOptions {
   /** Ai đang xem. `null` = chưa đăng nhập: không đọc ghi cờ nào. */
   readonly userId?: string | null;
+  /**
+   * Màn chủ đang cõng lớp dạy việc này — `'wall-layer-review'`, `'viewer-shell'`,
+   * `'export-panel'`.
+   *
+   * Sáu bước KHÔNG nằm trên một màn: bốn bước đầu neo vào màn Duyệt lớp tường,
+   * bước `view3d` neo vào thanh trên của vỏ 3D, bước `exportResult` neo vào nút
+   * xuất. Nên lớp này được mount ở BA chỗ, và mỗi chỗ chỉ dạy được phần bước mà
+   * nó có neo hoặc có phím — luật sống sót ở {@link buildSteps} tự lọc phần còn
+   * lại, đúng thứ trạng thái `error` của đặc tả đã lường trước.
+   *
+   * Vì thế cờ đã xem phải tách theo host. Không có nó thì host nào chạy trước sẽ
+   * ghi `'true'` và HAI host kia vĩnh viễn không hiện — người dùng học xong bốn
+   * bước ở màn QC rồi không bao giờ được chỉ nút chuyển 3D. Đó là lỗi im lặng,
+   * nên `hostId` không có giá trị mặc định "đoán được": thiếu nó là thiếu thật.
+   */
+  readonly hostId?: string;
   /** Vai; vai người xem chỉ được ba bước xem. */
   readonly role?: string | undefined;
   /** Test tiêm registry giả; mặc định `appShortcutRegistry`. */
@@ -220,7 +236,14 @@ const TOUR_STEPS: readonly TourStepDefinition[] = [
   },
   {
     id: 'exportResult',
-    anchorSelector: null,
+    /*
+     * Nút xuất (`export/ExportPanel/ExportPanelFooter.tsx`) không có `aria-label`,
+     * `id` hay lớp css nào ổn định — tên khẳng định của nó CHÍNH LÀ chữ "xuất"
+     * hiện trên nút, mà `querySelector` không chọn được theo tên khẳng định. Nên
+     * nút đó mang một `data-tour-anchor` thuần bổ sung: không đổi hành vi, không
+     * đụng khả năng tiếp cận, và không vỡ khi ai đó sửa lại chữ trên nút.
+     */
+    anchorSelector: '[data-tour-anchor="exportResult"]',
     shortcutId: null,
     title: 'lấy tệp mang đi',
     body: 'nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào.',
@@ -267,10 +290,23 @@ const EMPTY_SUMMARY: readonly TourSummaryRow[] = Object.freeze([]);
  * (`useWelcomeScreen.ts:147-193`). Khi nào có kho tuỳ chọn thật, chỗ phải sửa là
  * ba hàm ngay dưới đây và không chỗ nào khác.
  *
- * Khoá theo NGƯỜI và theo MÀN, nên hai người trên cùng một máy không cướp cờ của
- * nhau và lớp này không đụng vào cờ của màn chào.
+ * Khoá gồm BA phần: tiền tố (là "màn" — lớp này, tách khỏi cờ của màn chào),
+ * `userId` (hai người trên cùng một máy không cướp cờ của nhau), và `hostId`.
+ *
+ * Phần thứ ba là phần dễ quên nhất và hỏng im lặng nhất: lớp này mount ở ba màn
+ * chủ, mỗi chỗ dạy một phần sáu bước. Gộp chung một cờ thì học xong ở màn QC là
+ * hai màn kia tắt vĩnh viễn. Xem {@link UseEditorTourOptions.hostId}.
  */
 const TOUR_SEEN_KEY_PREFIX = 'appfront:system-editor-tour-seen:';
+
+/**
+ * Host dùng khi nơi gọi quên truyền `hostId`.
+ *
+ * Vẫn là một khoá riêng chứ không phải rỗng: gộp vào khoá của một host thật sẽ
+ * làm host đó tắt hướng dẫn vì lý do không liên quan. Tên có chữ `unknown` để
+ * ai đọc `localStorage` lúc gỡ lỗi thấy ngay là có chỗ gọi thiếu tham số.
+ */
+const UNKNOWN_HOST_ID = 'unknown-host';
 
 /**
  * Giá trị ghi vào khoá trên. Chỉ có ba khả năng nên không cần dấu ngăn nào:
@@ -290,8 +326,8 @@ const NO_PROGRESS: TourProgress = Object.freeze({
   stoppedStepId: null,
 });
 
-function tourSeenKey(userId: string): string {
-  return `${TOUR_SEEN_KEY_PREFIX}${userId}`;
+function tourSeenKey(userId: string, hostId: string): string {
+  return `${TOUR_SEEN_KEY_PREFIX}${userId}:${hostId}`;
 }
 
 const isTourStepId = (value: string): value is TourStepId =>
@@ -301,10 +337,10 @@ const isTourStepId = (value: string): value is TourStepId =>
  * Đọc cờ. Cửa sổ ẩn danh ném ngay ở `localStorage.getItem`, nên mọi lần đọc đều
  * nằm trong try/catch và "không đọc được" quy về "chưa xem".
  */
-function readTourProgress(userId: string | null): TourProgress {
+function readTourProgress(userId: string | null, hostId: string): TourProgress {
   if (userId === null) return NO_PROGRESS;
   try {
-    const raw = window.localStorage.getItem(tourSeenKey(userId));
+    const raw = window.localStorage.getItem(tourSeenKey(userId, hostId));
     if (raw === null) return NO_PROGRESS;
     if (raw === TOUR_SEEN_VALUE) return { isFinished: true, stoppedStepId: null };
     if (isTourStepId(raw)) return { isFinished: false, stoppedStepId: raw };
@@ -315,10 +351,10 @@ function readTourProgress(userId: string | null): TourProgress {
 }
 
 /** Ghi cờ. Ẩn danh ném ở `setItem`; hỏng cũng không được làm hỏng màn chủ. */
-function writeTourProgress(userId: string | null, value: string): void {
+function writeTourProgress(userId: string | null, hostId: string, value: string): void {
   if (userId === null) return;
   try {
-    window.localStorage.setItem(tourSeenKey(userId), value);
+    window.localStorage.setItem(tourSeenKey(userId, hostId), value);
   } catch {
     // Không có chỗ lưu thì lớp dạy việc hiện lại lần sau — phiền, không hỏng.
   }
@@ -411,11 +447,14 @@ type TourPhase = 'running' | 'finished' | 'dismissed';
 
 export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTourResult {
   const userId = options.userId ?? null;
+  // Không đoán host: một mặc định im lặng gộp cờ của ba màn chủ làm một, và
+  // triệu chứng là hai màn "tự nhiên không hiện hướng dẫn" — rất khó lần ra.
+  const hostId = options.hostId ?? UNKNOWN_HOST_ID;
   const registry = options.registry ?? appShortcutRegistry;
   const resolveAnchor = options.resolveAnchor ?? resolveAnchorFromDom;
   const isViewer = options.role === VIEWER_ROLE;
 
-  const [progress] = useState<TourProgress>(() => readTourProgress(userId));
+  const [progress] = useState<TourProgress>(() => readTourProgress(userId, hostId));
   const [phase, setPhase] = useState<TourPhase>(progress.isFinished ? 'dismissed' : 'running');
   const [activeStepId, setActiveStepId] = useState<TourStepId | null>(progress.stoppedStepId);
   const [hasSkipped, setHasSkipped] = useState(false);
@@ -496,12 +535,12 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     const next = steps[index];
     if (next === undefined) return;
     setActiveStepId(next.id);
-    writeTourProgress(userId, next.id);
+    writeTourProgress(userId, hostId, next.id);
   };
 
   const closeTour = (nextPhase: TourPhase): void => {
     setPhase(nextPhase);
-    writeTourProgress(userId, TOUR_SEEN_VALUE);
+    writeTourProgress(userId, hostId, TOUR_SEEN_VALUE);
   };
 
   const handleNext = (): void => {
