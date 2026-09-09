@@ -5,6 +5,7 @@ type QueryDomain =
   | 'floor'
   | 'library'
   | 'measurement'
+  | 'notification'
   | 'progress'
   | 'project'
   | 'quality'
@@ -64,6 +65,7 @@ const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
 const libraryListRoot = freezeKey(['library', 'list'] as const);
 const libraryDetailRoot = freezeKey(['library', 'detail'] as const);
 const measurementAllRoot = freezeKey(['measurement', 'all'] as const);
+const notificationListRoot = freezeKey(['notification', 'list'] as const);
 const userListRoot = freezeKey(['user', 'list'] as const);
 const userCurrentRoot = freezeKey(['user', 'current'] as const);
 const userMembershipsRoot = freezeKey(['user', 'memberships'] as const);
@@ -83,6 +85,20 @@ export const queryKeys = {
       libraryItemId,
     ] as const),
     list: createQueryKeyFactory(libraryListRoot, () => libraryListRoot),
+  },
+  /**
+   * Thông báo của người đang đăng nhập — T-09.
+   *
+   * Một nhánh duy nhất: `NotificationCenterGateway` (T09-CONTRACT.md mục 0,
+   * `notificationModel.ts`) chỉ có một lượt ĐỌC (`list`) — đánh dấu đã đọc và
+   * chấp nhận lời mời là hai lượt GHI, khai ở `invalidation.ts`, không phải
+   * khoá truy vấn. Không lồng dưới `user`: đây là danh sách của PHIÊN đăng
+   * nhập hiện tại chứ không phải hồ sơ một người dùng bất kỳ, và nó đổi theo
+   * sự kiện thời gian thực chứ không theo tuần như bảng người dùng — xem bậc
+   * `notification` riêng trong `cachePolicy.ts`.
+   */
+  notification: {
+    list: createQueryKeyFactory(notificationListRoot, () => notificationListRoot),
   },
   progress: {
     byFloor: createQueryKeyFactory(progressByFloorRoot, (floorId: string) => [
