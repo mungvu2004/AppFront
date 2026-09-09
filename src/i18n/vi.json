@@ -3629,5 +3629,16 @@
     "collapsed": {
       "hint": "đã thu gọn, ghim bình luận vẫn còn"
     }
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang này.",
+    "missingDescription": "Trang này đã bị xoá, đã chuyển đi, hoặc đường dẫn không đầy đủ.",
+    "forbiddenDescription": "Cần đăng nhập để xem trang này.",
+    "offlineDescription": "Đang mất kết nối, chưa chắc trang có tồn tại hay không.",
+    "primaryActionAuthenticated": "Về danh sách dự án",
+    "primaryActionUnauthenticated": "Đăng nhập",
+    "secondaryAction": "Quay lại",
+    "recentHeading": "Có thể bạn đang tìm",
+    "errorCodePrefix": "Mã lỗi"
   }
 }
