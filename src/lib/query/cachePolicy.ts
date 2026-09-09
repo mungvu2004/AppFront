@@ -82,9 +82,22 @@ export const CACHE_POLICY = {
  * lưu kèm dự án đổi chậm hơn nhiều so với việc kéo tường trên canvas —
  * không cần bậc `spatialDraft` 10 giây của `room`/`space`.
  */
+/**
+ * Thông báo — T-09. Bậc `'default'` (30s stale / 10m gc) là bậc ĐÚNG cho miền
+ * này: không tĩnh theo tuần như `library`/`user`, không đổi liên tục như tiến
+ * trình AI, không phải nét vẽ tay đang sửa trên canvas — một thông báo mới
+ * tới trong vòng 30 giây là chấp nhận được cho một trung tâm thông báo.
+ *
+ * Khác `measurement` ở trên, miền này ĐƯỢC khai một dòng ở đây dù bậc chọn
+ * vẫn là `'default'`, và đó là chủ ý: chính chú thích của nhánh `user` trong
+ * `queryKeys.ts` cảnh báo rằng một miền thiếu mục ở bảng này lặng lẽ rơi về
+ * `'default'` — dòng dưới đây biến nó thành một quyết định đã xác nhận, không
+ * phải một miền bị quên.
+ */
 const TIER_BY_DOMAIN: Readonly<Record<string, CachePolicyTier>> = Object.freeze({
   drawing: 'spatialDraft',
   library: 'static',
+  notification: 'default',
   progress: 'aiProgress',
   room: 'spatialDraft',
   space: 'spatialDraft',

@@ -87,6 +87,36 @@ describe('invalidationMap', () => {
       queryKeys.version.byFloor(floorId),
     ]);
   });
+
+  it('scopes markNotificationRead to the notification list only', () => {
+    expect(invalidationMap.markNotificationRead({})).toEqual([queryKeys.notification.list()]);
+  });
+
+  it('scopes markAllNotificationsRead to the same key as markNotificationRead', () => {
+    expect(invalidationMap.markAllNotificationsRead({})).toEqual(invalidationMap.markNotificationRead({}));
+  });
+
+  it('carries acceptInvite past the inbox: membership changed, not just a label', () => {
+    expect(invalidationMap.acceptInvite({ projectId })).toEqual([
+      queryKeys.notification.list(),
+      queryKeys.project.members(projectId),
+      queryKeys.user.memberships.root(),
+    ]);
+  });
+
+  it('does not reduce acceptInvite to the two mark-read operations', () => {
+    expect(invalidationMap.acceptInvite({ projectId })).not.toEqual(
+      invalidationMap.markNotificationRead({}),
+    );
+  });
+
+  it('invalidates every membership entry this browser holds, not one named user', () => {
+    const keys = invalidationMap.acceptInvite({ projectId });
+
+    // Người vừa đổi tư cách là người đang đăng nhập, và bảng này là dữ liệu
+    // thuần — nó không đọc phiên. Tiền tố phủ đúng những mục đang giữ.
+    expect(keys).toContainEqual(['user', 'memberships']);
+  });
 });
 
 describe('applyInvalidation', () => {
@@ -102,6 +132,13 @@ describe('applyInvalidation', () => {
     queryClient.setQueryData(queryKeys.room.byFloor(otherFloorId), { rooms: [] });
     queryClient.setQueryData(queryKeys.quality.assessment(floorId), { floors: [] });
     queryClient.setQueryData(queryKeys.quality.assessment(otherFloorId), { floors: [] });
+    queryClient.setQueryData(queryKeys.notification.list(), []);
+  });
+
+  it('invalidates the notification list on markNotificationRead', () => {
+    applyInvalidation(queryClient, 'markNotificationRead', {});
+
+    expect(queryClient.getQueryState(queryKeys.notification.list())?.isInvalidated).toBe(true);
   });
 
   it('invalidates the quality reading of the straightened floor only', () => {

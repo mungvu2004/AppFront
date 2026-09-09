@@ -7,6 +7,7 @@ const MEASUREMENTS_ROOT = '/measurements';
 const AUTH_ROOT = '/auth';
 const PROPERTY_TEMPLATES_ROOT = 'property-templates';
 const USERS_ROOT = '/users';
+const NOTIFICATIONS_ROOT = '/notifications';
 
 /**
  * Where the API lives when the build does not say.
@@ -85,6 +86,44 @@ export const ENDPOINTS = {
     list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}${MEASUREMENTS_ROOT}`,
     remove: (projectId: string, measurementId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${MEASUREMENTS_ROOT}/${measurementId}`,
+  },
+  /**
+   * Hộp thư của người đang đăng nhập — T-09.
+   *
+   * Đường TOÀN CỤC, không lồng dưới `PROJECTS_ROOT`: một thông báo trỏ tới MỘT
+   * dự án cụ thể (`projectId` trên thực thể), nhưng hộp thư của một người gộp
+   * thông báo từ mọi dự án họ có mặt — cùng lý lẽ đã đặt `users` và `library`
+   * ở cấp toàn cục thay vì lồng theo dự án.
+   *
+   * `list` là hằng phẳng, cùng khuôn `users.list`/`floors.list`: không tham
+   * số, vì bộ lọc (`NotificationFilter`,
+   * `screens/system/NotificationCenter/notificationModel.ts`) chạy trên danh
+   * sách đã tải, không phải một lượt gọi khác cho mỗi lần đổi tab.
+   *
+   * `markRead` và `markAllRead` là HAI đường chứ không một đường nhận danh
+   * sách rỗng để hiểu là "tất cả" — cùng lý lẽ đã tách `users.enable`/`disable`:
+   * một request rỗng có chủ đích và một request rỗng do lỗi ở nơi gọi thì
+   * nhật ký máy chủ phải phân biệt được.
+   *
+   * `stream` là địa chỉ của kênh SSE thời gian thực (T-06/T-09) —
+   * `EventSource` mở thẳng vào đây, không đi qua `HttpClient`, nên nó không có
+   * phương thức tương ứng trong `NotificationsApi` (`src/api/client.ts`); nó
+   * vẫn đứng ở đây vì đây là "một đường của tầng API", đúng chỗ mọi đường
+   * khác được khai.
+   *
+   * `acceptInvite` nhận `notificationId`, không `inviteId`: người NHẬN chỉ
+   * cầm trong tay đúng một khoá — mục thông báo đang hiện trên màn — nên đó
+   * là thứ duy nhất có sẵn ở nơi gọi. Đây là phép ghi mà
+   * `notificationModel.ts` (docblock của `NotificationInlineAction.kind`) ghi
+   * là Ô CHỜ: `users.invite`/`users.resendInvite` ở trên đều là hành động của
+   * NGƯỜI QUẢN TRỊ gửi lời mời, không phải của người nhận chấp nhận nó.
+   */
+  notifications: {
+    acceptInvite: (notificationId: string): string => `${NOTIFICATIONS_ROOT}/${notificationId}/accept-invite`,
+    list: NOTIFICATIONS_ROOT,
+    markAllRead: `${NOTIFICATIONS_ROOT}/read-all`,
+    markRead: `${NOTIFICATIONS_ROOT}/read`,
+    stream: `${NOTIFICATIONS_ROOT}/stream`,
   },
   projects: {
     create: PROJECTS_ROOT,

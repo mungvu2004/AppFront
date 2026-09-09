@@ -16,6 +16,7 @@ import type {
   ImageQualityFinding,
   LibraryGroup,
   LibraryItem,
+  Notification,
   Progress,
   Project,
   ProjectWriteBody,
@@ -821,6 +822,99 @@ const MOCK_USER_ACTIVITY: Readonly<Record<string, readonly UserActivity[]>> = {
   ],
 };
 
+/* -------------------------------------------------------------------------- */
+/* Hộp thư thông báo — T-09.                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Năm mục, đủ bốn loại của `NOTIFICATION_KINDS` và cả hai trạng thái đã/chưa
+ * đọc.
+ *
+ * Tên dự án khớp đúng `MOCK_USER_MEMBERSHIPS` ở trên — cùng ba dự án, cùng
+ * tên — để hai bộ mẫu không kể hai câu chuyện khác nhau về cùng một hệ thống.
+ * `notif-4` (`commentMention`) là mục DUY NHẤT mang `excerpt`, đúng ràng buộc
+ * của `NotificationItemVm.excerpt` (chỉ loại nhắc tên); `notif-3`
+ * (`projectInvite`) là mục DUY NHẤT không mang `floorId` — một lời mời chưa
+ * gắn với tầng nào cả.
+ *
+ * `place` cố ý KHÔNG chạy song song với `kind`: hai mục `aiCompleted` mang
+ * `walls` và `grids`, tức hai màn duyệt khác nhau cho cùng một loại. Đó chính
+ * là điều lược đồ nói — nơi đến là dữ liệu của máy chủ, không suy được từ loại
+ * — nên bộ mẫu phải thể hiện nó, chứ không phải một bảng một-đối-một mà mọi
+ * người đọc sau sẽ tưởng là suy ra được.
+ */
+export const MOCK_NOTIFICATIONS: readonly Notification[] = [
+  {
+    createdAt: '2026-09-08T08:40:00.000Z',
+    floorId: 'L1',
+    id: 'notif-1',
+    isRead: false,
+    kind: 'aiCompleted',
+    message: 'AI đã xử lý xong bản vẽ tầng trệt của Chung cư Sông Hàn.',
+    objectLabel: 'tầng trệt',
+    place: 'walls',
+    projectId: 'project-1',
+    projectName: 'Chung cư Sông Hàn',
+  },
+  {
+    createdAt: '2026-09-08T07:10:00.000Z',
+    floorId: 'L1',
+    id: 'notif-2',
+    isRead: false,
+    kind: 'violationFound',
+    message: 'Phát hiện xung đột tường chịu lực ở trục a-3, Văn phòng Thủ Thiêm.',
+    objectLabel: 'trục a-3',
+    place: 'rules',
+    projectId: 'project-2',
+    projectName: 'Văn phòng Thủ Thiêm',
+  },
+  {
+    createdAt: '2026-09-07T09:00:00.000Z',
+    id: 'notif-3',
+    isRead: false,
+    kind: 'projectInvite',
+    message: 'Bạn được mời tham gia dự án Trường mầm non Hoa Sữa với vai trò kỹ sư.',
+    objectLabel: 'lời mời tham gia dự án',
+    place: 'projectSettings',
+    projectId: 'project-3',
+    projectName: 'Trường mầm non Hoa Sữa',
+  },
+  {
+    createdAt: '2026-09-06T16:20:00.000Z',
+    excerpt: 'Kiểm tra lại kích thước cửa sổ ở góc này giúp mình nhé.',
+    floorId: 'L1',
+    id: 'notif-4',
+    isRead: true,
+    kind: 'commentMention',
+    message: 'Trần Chi nhắc đến bạn trong một bình luận ở phòng 201.',
+    objectLabel: 'phòng 201',
+    place: 'rooms',
+    projectId: 'project-1',
+    projectName: 'Chung cư Sông Hàn',
+  },
+  {
+    createdAt: '2026-09-05T09:00:00.000Z',
+    floorId: 'L2',
+    id: 'notif-5',
+    isRead: true,
+    kind: 'aiCompleted',
+    message: 'AI đã xử lý xong bản vẽ tầng hai của Chung cư Sông Hàn.',
+    objectLabel: 'tầng hai',
+    place: 'grids',
+    projectId: 'project-1',
+    projectName: 'Chung cư Sông Hàn',
+  },
+];
+
+/** 404 của bộ mẫu — cùng hình dạng `HttpError` mà `createHttpClient` trả về thật. */
+const mockNotificationsHttpError = (status: number, requestId: string): HttpError => ({
+  kind: 'http',
+  raw: undefined,
+  requestId,
+  retryable: false,
+  status,
+});
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -854,6 +948,20 @@ export const createMockApiClient = (): ApiClient => {
 
   const missingAdminUser = (userId: string): Result<never, HttpError> =>
     failed(mockUsersHttpError(404, `req-users-${userId}`));
+
+  let notifications: Notification[] = MOCK_NOTIFICATIONS.map(clone);
+
+  const readNotification = (notificationId: string): Notification | undefined =>
+    notifications.find((candidate) => candidate.id === notificationId);
+
+  const writeNotification = (next: Notification): Notification => {
+    notifications = notifications.map((candidate) => (candidate.id === next.id ? next : candidate));
+
+    return clone(next);
+  };
+
+  const missingNotification = (notificationId: string): Result<never, HttpError> =>
+    failed(mockNotificationsHttpError(404, `req-notifications-${notificationId}`));
 
   const readQualityFloor = (floorId: string): FloorImageQuality =>
     qualityFloors.find((item) => item.floorId === floorId) ?? makeFallbackQualityFloor(floorId);
@@ -971,6 +1079,34 @@ export const createMockApiClient = (): ApiClient => {
               makeFallbackLibraryItem(libraryItemId),
           ),
         ),
+    },
+    /**
+     * Chấp nhận trả về chính mục vừa đổi, cùng khuôn mọi lượt GHI khác của
+     * `users` bên dưới — `changeRole`/`disable`/`enable` đều làm vậy.
+     * `markRead`/`markAllRead` trả `void`, đúng chữ ký
+     * `NotificationCenterGateway` mà nhóm này phục vụ.
+     */
+    notifications: {
+      acceptInvite: async ({ notificationId }) => {
+        const current = readNotification(notificationId);
+
+        return current === undefined
+          ? missingNotification(notificationId)
+          : ok(writeNotification({ ...current, isRead: true }));
+      },
+      list: async () => ok(notifications.map(clone)),
+      markAllRead: async () => {
+        notifications = notifications.map((item) => ({ ...item, isRead: true }));
+
+        return ok(undefined);
+      },
+      markRead: async ({ body }) => {
+        notifications = notifications.map((item) =>
+          body.ids.includes(item.id) ? { ...item, isRead: true } : item,
+        );
+
+        return ok(undefined);
+      },
     },
     projects: {
       create: async ({ body }) => {

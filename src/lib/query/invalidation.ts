@@ -24,6 +24,9 @@ export const WRITE_OPERATIONS = [
   'setUserEnabled',
   'removeUser',
   'resendInvite',
+  'markNotificationRead',
+  'markAllNotificationsRead',
+  'acceptInvite',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -79,6 +82,18 @@ export interface WriteOperationParamsMap {
   removeUser: UserScopedParams;
   /** Lời mời vừa được gửi lại (T-05) — `inviteExpiresAt` đổi, nên dòng trong danh sách cũ đi. */
   resendInvite: Record<string, never>;
+  /** Một hoặc nhiều mục thông báo vừa được đánh dấu đã đọc (T-09) — `queryKeys.notification` không có khoá theo từng mục (chỉ `list`), nên không có gì để khoá theo ngoài chính danh sách. */
+  markNotificationRead: Record<string, never>;
+  /** Toàn bộ thông báo của người đang đăng nhập vừa được đánh dấu đã đọc (T-09) — cùng phạm vi với `markNotificationRead`, vì cùng một danh sách đổi. */
+  markAllNotificationsRead: Record<string, never>;
+  /**
+   * Người nhận vừa chấp nhận lời mời vào một dự án (T-09).
+   *
+   * Khoá theo `projectId` — dự án họ vừa vào — chứ không phải không tham số như
+   * hai phép ghi thông báo ở trên: đây không chỉ là một dòng thông báo đổi nhãn,
+   * nó là một lượt đổi TƯ CÁCH THÀNH VIÊN, và thứ cũ đi nằm ngoài hộp thư.
+   */
+  acceptInvite: ProjectScopedParams;
 }
 
 type InvalidationMap = {
@@ -214,6 +229,42 @@ export const invalidationMap: InvalidationMap = {
   ],
 
   resendInvite: () => [queryKeys.user.list()],
+
+  /**
+   * Hai lượt đánh dấu đã đọc — T-09.
+   *
+   * `queryKeys.notification` chỉ có một nhánh (`list`, xem `queryKeys.ts`):
+   * trung tâm thông báo tải một lượt cho cả bảng rồi lọc tại chỗ, không có
+   * khoá theo từng mục để làm mất hiệu lực riêng lẻ. Đánh dấu một mục và đánh
+   * dấu tất cả đều viết lại cùng danh sách ấy, và không đụng gì ngoài nó.
+   */
+  markNotificationRead: () => [queryKeys.notification.list()],
+
+  markAllNotificationsRead: () => [queryKeys.notification.list()],
+
+  /**
+   * Chấp nhận lời mời — BA khoá, không phải một.
+   *
+   * Bản đầu của lượt T-09 chỉ liệt kê `notification.list()`, và đó là thiếu:
+   * chấp nhận lời mời không phải một dòng thông báo đổi nhãn, nó là một lượt
+   * đổi TƯ CÁCH THÀNH VIÊN. Sau nó, người dùng có mặt trong danh sách thành
+   * viên của dự án, và dự án có mặt trong danh sách dự án của họ. Bỏ hai khoá
+   * kia thì hai màn ấy đọc dữ liệu cũ cho tới khi bậc cache tự hết hạn — người
+   * dùng vừa bấm "chấp nhận" xong mà mở màn dự án lại không thấy mình ở đó.
+   *
+   * `user.memberships` dùng `root()` chứ không khoá theo `userId`, và đó là
+   * lựa chọn có ý thức. Người vừa đổi tư cách là người ĐANG ĐĂNG NHẬP, mà file
+   * này là dữ liệu thuần: nó không đọc phiên, và kéo mã người dùng vào tham số
+   * của một phép ghi chỉ để nói lại điều phiên đã biết là dựng một nguồn thứ
+   * hai cho cùng một sự thật. Tiền tố `['user','memberships']` phủ đúng những
+   * mục mà trình duyệt này đang giữ — nó chỉ giữ của một người. Cùng lối mà
+   * `useProcessingScreen.ts` dùng `queryKeys.progress.byFloor.root()`.
+   */
+  acceptInvite: ({ projectId }) => [
+    queryKeys.notification.list(),
+    queryKeys.project.members(projectId),
+    queryKeys.user.memberships.root(),
+  ],
 };
 
 /**

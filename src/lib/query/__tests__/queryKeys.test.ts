@@ -45,6 +45,11 @@ const queryKeyBranchCases = [
   },
   { create: () => queryKeys.user.list(), name: 'user.list', root: queryKeys.user.list.root },
   { create: () => queryKeys.user.current(), name: 'user.current', root: queryKeys.user.current.root },
+  {
+    create: () => queryKeys.notification.list(),
+    name: 'notification.list',
+    root: queryKeys.notification.list.root,
+  },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -67,6 +72,7 @@ describe('queryKeys', () => {
       'library.detail',
       'user.list',
       'user.current',
+      'notification.list',
     ]);
   });
 

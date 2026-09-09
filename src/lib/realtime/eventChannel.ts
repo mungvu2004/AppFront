@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+
 import { ProgressSchema } from '@/api/schemas';
 import type { Progress } from '@/api/schemas';
 
@@ -15,9 +17,9 @@ export interface ChannelState {
   nextRetryAt: number | null;
 }
 
-export interface ChannelEvent {
-  type: 'progress';
-  data: Progress;
+export interface ChannelEvent<TData extends object = Progress> {
+  type: string;
+  data: TData;
 }
 
 export interface ChannelClock {
@@ -26,11 +28,22 @@ export interface ChannelClock {
   clearTimeout(id: TimerId): void;
 }
 
-export interface CreateEventChannelOptions {
+export interface CreateEventChannelOptions<TData extends object = Progress> {
   url: string;
   lastEventId?: string;
-  onEvent: (event: ChannelEvent) => void;
+  onEvent: (event: ChannelEvent<TData>) => void;
   onStateChange: (state: ChannelState) => void;
+  /**
+   * Lược đồ dùng để đọc gói tin. Bỏ trống thì vẫn là `ProgressSchema`, nên mọi nơi gọi cũ
+   * không đổi một chữ. `.strict()` của `ProgressSchema` không bị nới.
+   *
+   * Chú thích phải là `z.ZodType<TData, z.ZodTypeDef, unknown>` chứ không phải
+   * `z.ZodType<TData>`: `ProgressSchema` là một `ZodEffects` (có `.transform()`) nên đầu
+   * vào khác đầu ra, và dạng một tham số không biên dịch được với nó.
+   */
+  schema?: z.ZodType<TData, z.ZodTypeDef, unknown>;
+  /** Nhãn gắn vào `ChannelEvent.type`. Bỏ trống thì vẫn là `'progress'`. */
+  eventType?: string;
   clock?: ChannelClock;
   EventSourceImpl?: typeof EventSource;
   random?: () => number;
@@ -63,11 +76,17 @@ function warnInvalidEvent(reason: string, detail: unknown): void {
   console.warn(`[eventChannel] ${reason}`, detail);
 }
 
-export function createEventChannel(options: CreateEventChannelOptions): EventChannelHandle {
+export function createEventChannel<TData extends object = Progress>(
+  options: CreateEventChannelOptions<TData>,
+): EventChannelHandle {
   const {
     url,
     onEvent,
     onStateChange,
+    // `ProgressSchema` chỉ hợp kiểu khi `TData` là `Progress`; ở dạng generic chưa giải,
+    // trình biên dịch không biết điều đó, nên mặc định phải ép kiểu một lần tại đây.
+    schema = ProgressSchema as unknown as z.ZodType<TData, z.ZodTypeDef, unknown>,
+    eventType = 'progress',
     clock = defaultClock,
     EventSourceImpl = EventSource,
     random,
@@ -168,13 +187,13 @@ export function createEventChannel(options: CreateEventChannelOptions): EventCha
         return;
       }
 
-      const parsedEvent = ProgressSchema.safeParse(rawEvent);
+      const parsedEvent = schema.safeParse(rawEvent);
       if (!parsedEvent.success) {
         warnInvalidEvent('schema-invalid event skipped', parsedEvent.error.issues);
         return;
       }
 
-      onEvent({ type: 'progress', data: parsedEvent.data });
+      onEvent({ type: eventType, data: parsedEvent.data });
     };
 
     nextSource.onerror = () => {

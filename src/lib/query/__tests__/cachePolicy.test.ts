@@ -55,6 +55,7 @@ describe('resolveCachePolicy', () => {
       staleTime: 30_000,
       tier: 'default',
     },
+    { key: queryKeys.notification.list(), name: 'notification.list', staleTime: 30_000, tier: 'default' },
   ];
 
   it.each(cases)('assigns $name to tier $tier', ({ key, staleTime, tier }) => {
@@ -87,7 +88,7 @@ describe('listCachePolicyDefaults', () => {
     const defaults = listCachePolicyDefaults();
     const domains = defaults.map((entry) => entry.queryKey[0]).sort();
 
-    expect(domains).toEqual(['drawing', 'library', 'progress', 'room', 'space', 'user']);
+    expect(domains).toEqual(['drawing', 'library', 'notification', 'progress', 'room', 'space', 'user']);
     expect(defaults.every((entry) => entry.queryKey.length === 1)).toBe(true);
   });
 
