@@ -177,6 +177,13 @@ const BASE: NotificationCenterProps = {
   onItemClick: noop,
   onMarkAllRead: noop,
   onRetry: noop,
+  onInlineAction: noop,
+  onMarkRead: noop,
+  onViewAll: noop,
+  onOpenSettings: noop,
+  arrivedIds: [],
+  bellNudgeToken: 0,
+  scrollRef: noop,
 };
 
 /* -------------------------------------------------------------------------- */

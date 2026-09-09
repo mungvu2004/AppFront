@@ -41,7 +41,7 @@
  */
 
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -66,7 +66,11 @@ import type { NotificationCenterProps, UseNotificationCenterOptions } from './us
 
 const noop = (): void => undefined;
 
-beforeAll(() => {
+// `beforeEach`, KHÔNG `beforeAll`: `afterEach` dưới đây gọi `vi.restoreAllMocks()`,
+// thứ xoá luôn `mockImplementation` của polyfill này — nên đặt một lần ở đầu file
+// thì từ bài thứ hai trở đi `matchMedia()` trả về `undefined` và mọi bài dựng
+// `Drawer` đều đổ. Dựng lại trước MỖI bài là cách duy nhất giữ cả hai.
+beforeEach(() => {
   // Bẫy (a): jsdom không có matchMedia; Drawer.Root gọi nó ngay lần render đầu.
   // matches: false ép layout desktop — khuôn chép nguyên văn từ AppShell.test.tsx.
   Object.defineProperty(window, 'matchMedia', {
@@ -203,6 +207,13 @@ function baseProps(overrides: Partial<NotificationCenterProps> = {}): Notificati
     onItemClick: noop,
     onMarkAllRead: noop,
     onRetry: noop,
+    onInlineAction: noop,
+    onMarkRead: noop,
+    onViewAll: noop,
+    onOpenSettings: noop,
+    arrivedIds: [],
+    bellNudgeToken: 0,
+    scrollRef: noop,
     ...overrides,
   };
 }
@@ -527,7 +538,10 @@ describe('BÀI NGHIỆM THU — không âm thanh, không nhấp nháy', () => {
 
     const fake = createFakeGateway([buildItem({ id: 'seed', isRead: true })]);
 
-    const { container } = mountNotificationCenter({ gateway: fake.gateway });
+    // `isOpen: true` — tấm trượt đóng thì `Drawer.Root` không dựng gì cả, và
+    // bài này soi CÂY ĐÃ RENDER. Giữ nó mở là điều kiện để bài kiểm nhìn thấy
+    // thứ nó khẳng định, không phải một điều kiện được nới ra cho dễ xanh.
+    const { container } = mountNotificationCenter({ gateway: fake.gateway, isOpen: true });
 
     await waitFor(() => {
       expect(allItems(notificationProps().groups)).toHaveLength(1);

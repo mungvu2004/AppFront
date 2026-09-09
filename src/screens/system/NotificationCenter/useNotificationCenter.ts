@@ -140,10 +140,16 @@ const NOTIFICATION_ENTITY_ID = 'notification-inbox';
 export const NOTIFICATION_CENTER_TEXT = {
   headingToday: 'Hôm nay',
   headingYesterday: 'Hôm qua',
+  liveEmpty: 'không có thông báo nào',
   loadFailed: 'không đọc được danh sách thông báo',
   markReadFailed: 'không đánh dấu được là đã đọc',
   settingsLabel: 'cài đặt thông báo',
 } as const;
+
+/** Câu của vùng `aria-live` khi còn mục chưa đọc. Một chỗ dựng, một chỗ sửa. */
+function unreadLiveMessage(badge: string): string {
+  return `có ${badge} thông báo chưa đọc`;
+}
 
 /* -------------------------------------------------------------------------- */
 /* 3 — Chữ ký view và test đọc                                                 */
@@ -185,52 +191,111 @@ export interface UseNotificationCenterOptions {
   readonly enabledKinds?: readonly NotificationKind[];
   /** Bề ngang hẹp — view đo, hook chỉ đặt tên. Đổi `screenState` thành `'collapsed'`. */
   readonly isCompact?: boolean;
+  /**
+   * Tấm trượt đang mở hay không, khi NGƯỜI GỌI muốn tự giữ trạng thái ấy.
+   *
+   * Bỏ trống thì hook tự giữ (`useState`) và `onToggle` đổi nó — đủ cho một
+   * chuông đứng một mình. Truyền vào thì hook không giữ nữa, và người gọi phải
+   * tự đổi khi `onToggle`/`onClose` gọi tới: đó là cách một màn chủ đã có
+   * trạng thái mở của riêng nó cắm vào mà không có hai nguồn sự thật.
+   */
+  readonly isOpen?: boolean;
 }
 
 /**
  * Thứ view nhận. Một đối tượng, một prop.
  *
- * Chữ ký này ĐÔNG LẠNH kể từ lượt commit đầu tiên của file: view và bài kiểm đọc
- * nó, nên thêm trường thì được, đổi tên hay đổi kiểu một trường đã có thì không.
+ * ## Vì sao kiểu này khai ở ĐÂY chứ không ở `NotificationCenter.tsx`
+ *
+ * Đúng khuôn `EditorTourProps` xuất từ `useEditorTour.ts`: kiểu dùng chung có
+ * MỘT nguồn, và nguồn ấy là tầng logic. View nhập lại bằng `import type`, bài
+ * kiểm cũng vậy — nên không ai phải nhập từ file của người khác để biết mình
+ * nhận gì, và không có bản khai thứ hai để lệch.
+ *
+ * ## Vì sao mọi trường đều bắt buộc
+ *
+ * View này thuần và test được chỉ từ props (mục D). Một `onMarkRead?` tuỳ chọn
+ * sẽ bắt view tự đoán khi không ai truyền, tức là logic quay lại nằm trong
+ * view. Hook luôn cấp đủ, và bài kiểm dựng đủ — nên không trường nào tuỳ chọn.
  */
-export interface UseNotificationCenterResult {
+export interface NotificationCenterProps {
+  /** Bảy trạng thái của A11. */
+  readonly screenState: NotificationScreenState;
+  /** Tấm trượt đang mở hay không. */
+  readonly isOpen: boolean;
+  /** Bề ngang hẹp — trạng thái 7 "thu gọn", tấm trượt trải toàn màn. */
+  readonly isCollapsed: boolean;
+
   /** Đã lọc, đã gộp theo ngày, mới trước. Rỗng khi đang tải hoặc khi lọc không khớp. */
   readonly groups: readonly NotificationDayGroup[];
   readonly filter: NotificationFilter;
-  readonly setFilter: (next: NotificationFilter) => void;
-  /** Ba lựa chọn với nhãn sẵn, để view không lặp qua hằng của hợp đồng. */
-  readonly filterOptions: readonly NotificationFilterOption[];
+  readonly onFilterChange: (next: NotificationFilter) => void;
+
   /** Số mục chưa đọc trong những loại đang bật. KHÔNG phụ thuộc bộ lọc đang chọn. */
   readonly unreadCount: number;
-  /** `unreadCount` đã cắt ngưỡng: "9+" khi vượt {@link UNREAD_BADGE_CAP}. Cắt ở đây, không ở view (A15). */
+  /**
+   * `unreadCount` đã cắt ngưỡng: "9+" khi vượt {@link UNREAD_BADGE_CAP}. Cắt ở
+   * hook, không ở view (A15). Chuỗi RỖNG nghĩa là không có gì chưa đọc — không
+   * phải `null`, để view chỉ có một phép thử và bài kiểm chỉ có một quy ước.
+   */
   readonly unreadBadge: string;
-  /** Đánh dấu một mục. Chỉ gọi khi người dùng bấm. */
-  readonly markRead: (id: string) => void;
-  /** Đánh dấu tất cả. Chỉ gọi khi người dùng bấm. */
-  readonly markAllRead: () => void;
-  /** Đánh dấu đã đọc, điều hướng tới `target.to`, rồi đóng tấm trượt — đúng thứ tự ấy. */
-  readonly openNotification: (id: string) => void;
-  /** Tăng đúng MỘT lần mỗi khi một thông báo tới. View dùng làm khoá chạy hoạt ảnh một lần. */
-  readonly bellNudgeToken: number;
-  /** Id vừa trượt vào, để view nháy `--bg-selected`. Tự rỗng lại sau `standard` (260 ms). */
-  readonly arrivedIds: readonly string[];
-  /** Bảy trạng thái của A11. */
-  readonly screenState: NotificationScreenState;
-  /** Tiêu đề của khối lỗi đọc. Luôn cùng một câu; câu cụ thể nằm ở `errorMessage`. */
-  readonly errorTitle: string;
+
+  /**
+   * Câu cho vùng `aria-live` — trình đọc màn hình nghe được số chưa đọc đổi mà
+   * không phải đi dò lại danh sách. Dựng ở hook vì nó là chữ sinh từ dữ liệu
+   * (A15), không phải nhãn tĩnh của view.
+   */
+  readonly liveMessage: string;
+
   /** Câu lỗi tiếng Việt của lượt đọc; `null` khi đọc được. */
   readonly errorMessage: string | null;
-  /** Câu lỗi của phép đánh dấu vừa hỏng và đã lùi lại; `null` khi không có. */
-  readonly mutationErrorMessage: string | null;
+
+  /** Mở/đóng tấm trượt. Dành cho chuông và cho phím tắt. */
+  readonly onToggle: () => void;
+  /** Đóng tấm trượt. KHÔNG bao giờ tự đánh dấu đã đọc — xem bài nghiệm thu 2. */
+  readonly onClose: () => void;
+  /** Bấm vào câu của một mục: đánh dấu đã đọc, điều hướng, rồi đóng. */
+  readonly onItemClick: (item: NotificationItemVm) => void;
+  /** Bấm nút hành động ngay trong dòng ("xem kết quả"). */
+  readonly onInlineAction: (item: NotificationItemVm) => void;
+  /** Đánh dấu một mục. Chỉ gọi khi người dùng bấm. */
+  readonly onMarkRead: (id: string) => void;
+  /** Đánh dấu tất cả. Chỉ gọi khi người dùng bấm. */
+  readonly onMarkAllRead: () => void;
+  /** "Xem tất cả" — sang route toàn màn `/thong-bao`. */
+  readonly onViewAll: () => void;
+  /** "Cài đặt thông báo" — sang ma trận của S-05. */
+  readonly onOpenSettings: () => void;
   /** Đọc lại sau khi lỗi. */
-  readonly retryLoad: () => void;
+  readonly onRetry: () => void;
+
+  /** Những id vừa trượt vào, để view nháy `--bg-selected`. Tự rỗng lại sau `standard` (260 ms). */
+  readonly arrivedIds: readonly string[];
+  /** Tăng đúng MỘT lần mỗi khi một thông báo tới. View dùng làm khoá chạy hoạt ảnh một lần. */
+  readonly bellNudgeToken: number;
   /** Ref của vùng cuộn. Gắn vào `<div>` cuộn thì hook mới bù được vị trí. */
   readonly scrollRef: (surface: NotificationScrollSurface | null) => void;
-  /** Đích của nút "cài đặt" trong tấm trượt — một chủ sở hữu, một chỗ sửa. */
+}
+
+/**
+ * Thứ hook trả về: đúng props của view, cộng thêm vài thứ chỉ người nối dây cần.
+ *
+ * Là SIÊU TẬP của {@link NotificationCenterProps} nên `<NotificationCenter {...vm} />`
+ * chạy thẳng — JSX spread không kiểm thuộc tính thừa, đúng cách
+ * `<EditorTour {...vm} />` đã đi trước.
+ */
+export interface UseNotificationCenterResult extends NotificationCenterProps {
+  /** Ba lựa chọn với nhãn sẵn, để người nối dây khác không lặp qua hằng của hợp đồng. */
+  readonly filterOptions: readonly NotificationFilterOption[];
+  /** Tiêu đề của khối lỗi đọc. Luôn cùng một câu; câu cụ thể nằm ở `errorMessage`. */
+  readonly errorTitle: string;
+  /** Câu lỗi của phép đánh dấu vừa hỏng và đã lùi lại; `null` khi không có. */
+  readonly mutationErrorMessage: string | null;
+  /** Đích của nút "cài đặt" — một chủ sở hữu, một chỗ sửa. */
   readonly settingsTo: string;
   /** Nhãn của nút ấy. */
   readonly settingsLabel: string;
-  /** Những loại đang bật, để view nói ra khi danh sách rỗng vì người dùng tắt bớt. */
+  /** Những loại đang bật, để người gọi nói ra khi danh sách rỗng vì người dùng tắt bớt. */
   readonly enabledKinds: readonly NotificationKind[];
 }
 
@@ -338,6 +403,27 @@ export function useNotificationCenter(
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [bellNudgeToken, setBellNudgeToken] = useState(0);
   const [arrivedIds, setArrivedIds] = useState<readonly string[]>([]);
+
+  /* ---- Mở / đóng --------------------------------------------------------- */
+
+  /**
+   * Trạng thái mở NỘI BỘ — chỉ dùng khi `options.isOpen` bỏ trống.
+   *
+   * Một cờ, không phải một `useState` cho dữ liệu máy chủ: R-64 cấm tự viết
+   * `isLoading`/`error`, còn "tấm trượt đang mở" là trạng thái giao diện thuần
+   * và không có tầng nào khác giữ nó.
+   */
+  const [isOpenInternal, setIsOpenInternal] = useState(false);
+  const isOpen = options.isOpen ?? isOpenInternal;
+
+  const closeDrawer = useCallback((): void => {
+    setIsOpenInternal(false);
+    onClose?.();
+  }, [onClose]);
+
+  const onToggle = useCallback((): void => {
+    setIsOpenInternal((current) => !current);
+  }, []);
 
   const listQuery = useQuery({
     queryKey: notificationListQueryKey,
@@ -504,38 +590,55 @@ export function useNotificationCenter(
   const { mutate: mutateMarkRead } = markReadMutation;
   const { mutate: mutateMarkAllRead } = markAllReadMutation;
 
-  const markRead = useCallback(
+  const onMarkRead = useCallback(
     (id: string): void => {
       mutateMarkRead([id]);
     },
     [mutateMarkRead],
   );
 
-  const markAllRead = useCallback((): void => {
+  const onMarkAllRead = useCallback((): void => {
     mutateMarkAllRead(null);
   }, [mutateMarkAllRead]);
 
   /* ---- Mở một thông báo -------------------------------------------------- */
 
-  const openNotification = useCallback(
-    (id: string): void => {
-      const item = items.find((candidate) => candidate.id === id);
-
-      if (item === undefined) {
-        return;
-      }
-
+  /**
+   * Mở một thông báo: đánh dấu đã đọc → điều hướng → đóng, ĐÚNG thứ tự ấy.
+   *
+   * Nhận cả mục chứ không chỉ `id`: người gọi (view) đang cầm sẵn mục trong tay
+   * lúc dựng dòng, nên bắt hook đi tìm lại trong mảng là một vòng thừa và một
+   * nhánh "không tìm thấy" không bao giờ xảy ra mà vẫn phải viết.
+   */
+  const onItemClick = useCallback(
+    (item: NotificationItemVm): void => {
       if (!item.isRead) {
-        mutateMarkRead([id]);
+        mutateMarkRead([item.id]);
       }
 
       // Đích đã được `resolveNotificationTo` phân giải lúc mục được dựng, nên ở
       // đây không có nhánh nào phải đoán và không mục nào thiếu đích.
       onNavigate?.(item.target.to);
-      onClose?.();
+      closeDrawer();
     },
-    [items, mutateMarkRead, onNavigate, onClose],
+    [mutateMarkRead, onNavigate, closeDrawer],
   );
+
+  /**
+   * Nút hành động trong dòng. Hôm nay mọi hành động đã dựng đều là `navigate`,
+   * nên nó đi đúng đường `onItemClick` — xem chú thích của `kind` ở hợp đồng.
+   */
+  const onInlineAction = onItemClick;
+
+  const onViewAll = useCallback((): void => {
+    onNavigate?.(ROUTES.notifications);
+    closeDrawer();
+  }, [onNavigate, closeDrawer]);
+
+  const onOpenSettings = useCallback((): void => {
+    onNavigate?.(ROUTES.account);
+    closeDrawer();
+  }, [onNavigate, closeDrawer]);
 
   /* ---- Dẫn xuất ---------------------------------------------------------- */
 
@@ -655,31 +758,51 @@ export function useNotificationCenter(
 
   const { refetch } = listQuery;
 
-  const retryLoad = useCallback((): void => {
+  const onRetry = useCallback((): void => {
     void refetch();
   }, [refetch]);
 
+  /**
+   * Câu cho `aria-live`. Lỗi nói ra là lỗi; không còn gì chưa đọc thì nói ra
+   * điều đó thay vì im lặng — trình đọc màn hình không thấy được cái danh sách
+   * rỗng, nó chỉ nghe được câu này.
+   */
+  const liveMessage =
+    errorMessage !== null
+      ? NOTIFICATION_CENTER_TEXT.loadFailed
+      : unreadCount === 0
+        ? NOTIFICATION_CENTER_TEXT.liveEmpty
+        : unreadLiveMessage(unreadBadge);
+
   return {
+    screenState,
+    isOpen,
+    isCollapsed: isCompact,
     groups,
     filter,
-    setFilter,
-    filterOptions,
+    onFilterChange: setFilter,
     unreadCount,
-    unreadBadge,
-    markRead,
-    markAllRead,
-    openNotification,
-    bellNudgeToken,
-    arrivedIds,
-    screenState,
-    errorTitle: NOTIFICATION_CENTER_TEXT.loadFailed,
+    unreadBadge: unreadCount === 0 ? '' : unreadBadge,
+    liveMessage,
     errorMessage,
+    onToggle,
+    onClose: closeDrawer,
+    onItemClick,
+    onInlineAction,
+    onMarkRead,
+    onMarkAllRead,
+    onViewAll,
+    onOpenSettings,
+    onRetry,
+    arrivedIds,
+    bellNudgeToken,
+    scrollRef,
+    filterOptions,
+    errorTitle: NOTIFICATION_CENTER_TEXT.loadFailed,
     mutationErrorMessage:
       mutationError === null || mutationError === undefined
         ? null
         : NOTIFICATION_CENTER_TEXT.markReadFailed,
-    retryLoad,
-    scrollRef,
     settingsTo: ROUTES.account,
     settingsLabel: NOTIFICATION_CENTER_TEXT.settingsLabel,
     enabledKinds: [...enabledKinds],

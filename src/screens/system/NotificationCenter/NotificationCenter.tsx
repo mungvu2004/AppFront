@@ -42,11 +42,10 @@ import {
   UNREAD_DOT_SIZE_PX,
   UNREAD_DOT_STAGGER_MS,
   type NotificationDayGroup,
-  type NotificationFilter,
   type NotificationItemVm,
   type NotificationKind,
-  type NotificationScreenState,
 } from './notificationModel';
+import type { NotificationCenterProps } from './useNotificationCenter';
 
 /* -------------------------------------------------------------------------- */
 /* Chữ tĩnh của màn — không tới từ props vì đây là bản dịch cố định của UI.    */
@@ -205,43 +204,11 @@ function NotificationRow({
 /* Màn.                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export interface NotificationCenterProps {
-  readonly screenState: NotificationScreenState;
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-
-  readonly filter: NotificationFilter;
-  readonly onFilterChange: (filter: NotificationFilter) => void;
-
-  readonly groups: readonly NotificationDayGroup[];
-  /** Đã cắt ngưỡng sẵn ("9+") ở viewmodel (A15); `null` khi không có gì chưa đọc. */
-  readonly unreadBadge: string | null;
-
-  readonly onMarkAllRead: () => void;
-  readonly onMarkRead: (id: string) => void;
-  /** Bấm một mục: điều hướng tới đối tượng của nó. */
-  readonly onItemAction: (item: NotificationItemVm) => void;
-  /** Bấm nút hành động ngay trong dòng ("xem kết quả", "chấp nhận"). */
-  readonly onInlineAction: (item: NotificationItemVm) => void;
-
-  readonly onViewAll: () => void;
-  readonly onOpenSettings: () => void;
-
-  /** Chỉ có ý nghĩa khi `screenState === 'error'`. */
-  readonly errorMessage: string | null;
-  readonly onRetry: () => void;
-
-  /** Mục vừa đến trong khi tấm đang mở — trượt vào + nháy đúng mục này. */
-  readonly arrivedItemId: string | null;
-  /** Đổi giá trị là tín hiệu "có thông báo mới" cho chuông nghiêng một lần. */
-  readonly bellNudgeToken: number;
-}
-
 export function NotificationCenter(props: NotificationCenterProps) {
   const {
-    screenState, isOpen, onClose, filter, onFilterChange, groups, unreadBadge,
-    onMarkAllRead, onMarkRead, onItemAction, onInlineAction, onViewAll,
-    onOpenSettings, errorMessage, onRetry, arrivedItemId,
+    screenState, isOpen, isCollapsed, onClose, filter, onFilterChange, groups, unreadBadge,
+    liveMessage, onMarkAllRead, onMarkRead, onItemClick, onInlineAction, onViewAll,
+    onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef,
   } = props;
 
   /* Hoà tan 180ms rồi mới `onClose` — trình bày thuần, không phải R-64. */
@@ -257,7 +224,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
   };
 
   const handleItemAction = (item: NotificationItemVm) => {
-    onItemAction(item);
+    onItemClick(item);
     closeAfterFade();
   };
 
@@ -269,7 +236,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
   };
 
   const indices = flatIndexOf(groups);
-  const isMarkAllDisabled = unreadBadge === null || screenState === 'loading' || screenState === 'error';
+  const isMarkAllDisabled = unreadBadge === '' || screenState === 'loading' || screenState === 'error';
 
   let body: React.ReactNode;
 
@@ -304,7 +271,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
                   key={item.id}
                   item={item}
                   flatIndex={indices.get(item.id) ?? 0}
-                  isArrived={item.id === arrivedItemId}
+                  isArrived={arrivedIds.includes(item.id)}
                   onItemAction={handleItemAction}
                   onMarkRead={onMarkRead}
                   onInlineAction={handleInlineAction}
@@ -320,10 +287,20 @@ export function NotificationCenter(props: NotificationCenterProps) {
   return (
     <Drawer.Root isOpen={isOpen} onClose={onClose}>
       <Drawer.Header>
-        <div className="flex items-center justify-between gap-3">
+        {/*
+          Trạng thái 7 ("thu gọn"): khung hẹp thì tiêu đề và nhóm nút xếp dọc
+          thay vì chen nhau trên một hàng. Bề ngang của chính tấm trượt là việc
+          của `Drawer` (nó tự đo bằng `useMediaQuery`), không phải của màn này.
+        */}
+        <div
+          className={cn(
+            'flex gap-3',
+            isCollapsed ? 'flex-col items-stretch' : 'items-center justify-between',
+          )}
+        >
           <div className="flex items-center gap-2">
             <h3 className="text-[15px] font-semibold text-text-primary">{TITLE_LABEL}</h3>
-            {unreadBadge !== null && (
+            {unreadBadge !== '' && (
               <span className="font-mono text-[13px] tabular-nums text-text-secondary">
                 {unreadBadge}
               </span>
@@ -351,7 +328,12 @@ export function NotificationCenter(props: NotificationCenterProps) {
         </div>
       </Drawer.Header>
 
-      <Drawer.Body>
+      <Drawer.Body ref={scrollRef}>
+        {/* A7/A11: số chưa đọc đổi thì trình đọc màn hình nghe được, không phải đi dò lại. */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {liveMessage}
+        </p>
+
         <div
           className={cn(
             'flex flex-col gap-1 transition-opacity duration-fast',
@@ -376,8 +358,8 @@ export function NotificationCenter(props: NotificationCenterProps) {
 /* -------------------------------------------------------------------------- */
 
 export interface NotificationBellProps {
-  /** Đã cắt ngưỡng sẵn ("9+"), giống hệt quy tắc của `unreadBadge` ở trên. */
-  readonly unreadBadge: string | null;
+  /** Đã cắt ngưỡng sẵn ("9+"); chuỗi RỖNG nghĩa là không có gì chưa đọc. */
+  readonly unreadBadge: string;
   readonly isOpen: boolean;
   readonly onToggle: () => void;
   /** Đổi giá trị → nghiêng đúng một lần. Không tự lặp. */
@@ -416,7 +398,7 @@ export function NotificationBell({ unreadBadge, isOpen, onToggle, bellNudgeToken
       )}
     >
       <Bell aria-hidden="true" size={BELL_ICON_SIZE} strokeWidth={1.5} />
-      {unreadBadge !== null && (
+      {unreadBadge !== '' && (
         <Badge
           variant="neutral"
           noDot

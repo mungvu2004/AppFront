@@ -272,7 +272,12 @@ function createSeedItems(nowMs: number): readonly NotificationItemVm[] {
       createdAt: nowMs - 26 * HOUR_MS,
       isRead: false,
       excerpt: undefined,
-      inlineAction: { label: 'chấp nhận', kind: 'accept' },
+      // Đặc tả gốc ghi nhãn "Chấp nhận". Không có phép ghi nào nhận lời mời:
+      // `src/api/client.ts` có `invite()`/`resendInvite()` (bên quản trị của
+      // S-06) nhưng KHÔNG có `acceptInvite`, và hợp đồng của cổng này chỉ có
+      // `list`/`markRead`/`markAllRead`/`subscribe`. Một nút ghi "chấp nhận" mà
+      // chỉ điều hướng là đúng thứ R-69 cấm, nên nhãn nói đúng việc nó làm.
+      inlineAction: { label: 'xem lời mời', kind: 'navigate' },
     },
     {
       id: 'ntf-dimensions-01',

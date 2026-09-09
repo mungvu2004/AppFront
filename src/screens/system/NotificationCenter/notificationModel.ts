@@ -52,8 +52,21 @@ export interface NotificationTarget {
 }
 
 export interface NotificationInlineAction {
-  /** Nhãn tiếng Việt viết thường kiểu câu (A6): "xem kết quả", "chấp nhận". */
+  /** Nhãn tiếng Việt viết thường kiểu câu (A6): "xem kết quả", "xem lời mời". */
   readonly label: string;
+  /**
+   * `'accept'` là Ô CHỜ, hôm nay KHÔNG nguồn nào sinh ra nó.
+   *
+   * Tầng logic không có phép nhận lời mời: `src/api/client.ts` có `invite()` và
+   * `resendInvite()` — hai lời gọi của màn quản trị S-06 — nhưng không có
+   * `acceptInvite` ở bất cứ đâu trong `src/api`, `src/lib`, `src/domain` hay
+   * `src/store`, và cổng ở cuối file này cố ý không mọc thêm một phép ghi thành
+   * viên mà không tầng nào khác biết tới.
+   *
+   * Nên mục lời mời trong cổng mang `'navigate'` với nhãn "xem lời mời", nói
+   * đúng việc nó làm. Khi T-09 nối dây thật, ĐÂY là chỗ nạp vào: thêm phép ghi
+   * vào {@link NotificationCenterGateway}, rồi đổi mục ấy sang `'accept'`.
+   */
   readonly kind: 'navigate' | 'accept';
 }
 
