@@ -176,6 +176,26 @@ không phải ở chỗ lớp phủ đọc danh sách thông báo để dựng g
 - `onFrameComment` **không phải sửa một dòng nào**: nó đã tra ghim theo `id`,
   gọi `frameObjects` (R-07) và bỏ qua khi không vật nào mang mã ấy.
 
+### 2.6 Bốn thứ ở tầng giao diện đã bị gỡ, và cần gì để bật lại
+
+> Nguồn: báo cáo `worker_done` của L2-C, chuyển qua điều phối viên và chép
+> nguyên văn vào đây ở lớp gộp (mục 8 của đặc tả lớp gộp). Không phải văn bản
+> do lớp gộp tự viết.
+
+Bốn thứ dưới đây từng nằm trong đặc tả của `CommentThread.tsx` nhưng đã được gỡ
+khỏi DOM vì không có tầng logic nào đỡ phía sau — không phải vì chúng không cần.
+Khi 2.1–2.5 xong, bật lại bằng cách bổ sung vào `CollaborationLayerProps`:
+
+| Đã gỡ | Cần thêm vào hợp đồng |
+|---|---|
+| Chuỗi trả lời có nội dung | `CommentThreadVm` — nội dung, tác giả, thời điểm, mảng trả lời |
+| Ô nhập + nút gửi | `onSubmitComment(commentId: string, body: string): void` |
+| Nút đánh dấu đã xử lý | `onResolveComment(commentId: string): void` |
+| Nhắc tên bằng `@` | `mentionCandidates: readonly { id: string; name: string }[]` |
+
+Cho tới lúc đó, `CommentThread` chỉ dựng ghim, trạng thái đã xử lý, số trả lời,
+và bấm ghim để khuôn camera — đúng những gì `CommentPinVm` đỡ được.
+
 ---
 
 ## 3. Ba thứ KHÔNG cần thêm

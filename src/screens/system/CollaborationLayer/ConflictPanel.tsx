@@ -56,12 +56,12 @@ const THEIRS_LABEL = 'Bản của họ';
 const KEEP_MINE_LABEL = 'Giữ bản của tôi';
 const TAKE_THEIRS_LABEL = 'Lấy bản của họ';
 const MANUAL_LABEL = 'Nhập thủ công';
-const DEFER_LABEL = 'Để lát nữa';
+const DEFER_LABEL = 'Hoãn lại';
 
 const INTRO_MESSAGE =
-  'Chưa giá trị nào được ghi. Chọn một bản để tiếp tục, hoặc để lát nữa rồi quay lại.';
+  'Chưa giá trị nào được ghi. Chọn một bản để tiếp tục, hoặc hoãn lại rồi quay lại.';
 const DEFER_NOTE =
-  'Để lát nữa không phải là một lựa chọn: không giá trị nào bị ghi đè, và xung đột vẫn còn đó.';
+  'Hoãn lại không phải là một lựa chọn: không giá trị nào bị ghi đè, và xung đột vẫn còn đó.';
 
 /**
  * Bảng khép kín: `EntityKind` có bảy giá trị, thiếu một khoá là hỏng ở bước
@@ -129,10 +129,16 @@ function ConflictSide({ heading, side }: ConflictSideProps) {
         {side.valueLabel}
       </code>
 
+      {/*
+        Tác giả và thời điểm nằm trong hai `<span>` riêng, không phải ba mẩu chữ
+        trần trong cùng một `<p>`: đặc tả bắt xung đột hiện CẢ HAI tác giả, nên
+        mỗi tên phải là một mẩu tự nó đọc được — trộn chung thì "Bạn" chỉ còn tồn
+        tại như một khúc của chuỗi "Bạn · vừa xong", không ai trỏ vào riêng được.
+      */}
       <p className="text-[13px] leading-[18px] text-text-muted">
-        {side.authorName}
+        <span>{side.authorName}</span>
         {' · '}
-        {side.atLabel}
+        <span>{side.atLabel}</span>
       </p>
     </section>
   );
@@ -168,7 +174,7 @@ export function ConflictPanel({
       id: 'sidePanel.collaborationConflict.defer',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'để lát nữa, đóng tấm xung đột mà không chọn bản nào',
+      description: 'hoãn lại, đóng tấm xung đột mà không chọn bản nào',
       onTrigger: onDeferConflict,
     },
     { enabled: conflict !== null },

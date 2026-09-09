@@ -56,12 +56,18 @@ import { MOTION_EASINGS, durationSeconds } from '@/lib/motion';
 import { Z_INDEX } from '@/lib/zIndex';
 
 /*
- * Hai phần do lớp khác dựng; chữ ký do điều phối viên CHỐT, không do file này
- * đoán: `CommentThreadProps { comments, isCollapsed, onFrameComment }` và
- * `ConflictPanelProps { conflict, onResolveConflict, onDeferConflict }`. Cả hai
- * KHÔNG nhận `canWrite` — mọi điều khiển GHI của bình luận đã bị cắt khỏi DOM vì
- * không có tầng logic nào đỡ chúng, còn một xung đột thì luôn đòi một lựa chọn
- * của con người dù người đó có quyền ghi hay không.
+ * Hai phần do lớp khác dựng. Chữ ký thật nằm ở chính hai file đó — chúng là chủ
+ * sở hữu — nên nơi gọi này khớp theo chúng chứ không theo bản tóm tắt:
+ * `CommentThreadProps { capabilities, comments, canWrite, isCollapsed,
+ * onFrameComment }` và `ConflictPanelProps { conflict, onResolveConflict,
+ * onDeferConflict }`.
+ *
+ * `CommentThread` nhận `canWrite` KHÔNG phải để bật/tắt một ô nhập: mọi điều
+ * khiển GHI của bình luận đã rời khỏi DOM vì không tầng logic nào đỡ chúng.
+ * Trạng thái 6 vì thế không còn affordance nào để gỡ, nên nó phải NÓI THÀNH LỜI
+ * bằng một chú thích thường trực — và đó là việc `canWrite` làm ở đó.
+ * `ConflictPanel` thì không nhận nó: một xung đột luôn đòi một lựa chọn của con
+ * người, dù người đó có quyền ghi hay không.
  */
 import { CommentThread } from './CommentThread';
 import { ConflictPanel } from './ConflictPanel';
@@ -314,7 +320,17 @@ export function CollaborationLayer({
     { enabled: isRosterOpen },
   );
 
-  const others = collaborators.filter((person) => !person.isSelf);
+  /*
+   * `presence === false` ⇒ "nhóm ảnh chỉ còn bạn" (types.ts). Cắt ở ĐÂY, một
+   * chỗ, chứ không ở từng nhánh dựng: nhóm ảnh, chip đếm và danh sách đều đọc
+   * cùng một mảng, nên không nhánh nào có đường vẽ ra một người mà năng lực đang
+   * tắt nói là không có. `PresenceOverlay` đã tự cắt đúng như vậy cho con trỏ.
+   */
+  const visibleCollaborators = capabilities.presence
+    ? collaborators
+    : collaborators.filter((person) => person.isSelf);
+
+  const others = visibleCollaborators.filter((person) => !person.isSelf);
   const captions = [
     SYNC_CAPTIONS[syncState],
     others.length === 0 ? ALONE_CAPTION : null,
@@ -335,7 +351,9 @@ export function CollaborationLayer({
       {/* Ghim bình luận: không năng lực thì KHÔNG dựng, chứ không dựng rồi tắt. */}
       {capabilities.comments && (
         <CommentThread
+          capabilities={capabilities}
           comments={comments}
+          canWrite={canWrite}
           isCollapsed={isCollapsed}
           onFrameComment={onFrameComment}
         />
@@ -369,10 +387,10 @@ export function CollaborationLayer({
                 size={PRESENCE_LOCK_ICON_SIZE_PX}
                 strokeWidth={PRESENCE_ICON_STROKE}
               />
-              {`${collaborators.length} người`}
+              {`${visibleCollaborators.length} người`}
             </Badge>
           ) : (
-            <PresenceAvatars collaborators={collaborators} />
+            <PresenceAvatars collaborators={visibleCollaborators} />
           )}
         </button>
 
@@ -389,7 +407,7 @@ export function CollaborationLayer({
         <AnimatePresence>
           {isRosterOpen && (
             <PresenceRoster
-              collaborators={collaborators}
+              collaborators={visibleCollaborators}
               canGoTo={capabilities.presence}
               onGoToCollaborator={onGoToCollaborator}
             />

@@ -75,7 +75,7 @@ const MAI: CollaboratorVm = {
 
 const LOCK_DOOR: LockVm = {
   objectId: 'D-004',
-  holderName: 'Trần Thị Mai',
+  holderName: 'Lê Văn Hùng',
   heldSinceLabel: 'giữ từ 3 phút trước',
 };
 
@@ -92,7 +92,7 @@ const CONFLICT: ConflictVm = {
   entityType: 'wall',
   fieldLabel: 'độ dày',
   mine: { valueLabel: '110 mm', authorName: 'Bạn', atLabel: 'vừa xong' },
-  theirs: { valueLabel: '220 mm', authorName: 'Trần Thị Mai', atLabel: '2 phút trước' },
+  theirs: { valueLabel: '220 mm', authorName: 'Phạm Quốc Anh', atLabel: '2 phút trước' },
 };
 
 /** Mọi trường không đổi giữa các bài kiểm, một chỗ (khuôn `EditorTour.test.tsx`). */
@@ -220,7 +220,7 @@ describe('capabilities.comments === false — ghim và bóng rời khỏi DOM', 
 
 describe('capabilities.presence === false — không con trỏ, không viền chọn người khác', () => {
   it('tên và lựa chọn của người khác không còn trong DOM dù collaborators vẫn mang dữ liệu', () => {
-    render(
+    const off = render(
       <CollaborationLayer
         {...baseProps({
           capabilities: { presence: false, comments: true, locks: true, requestAccess: true },
@@ -231,6 +231,17 @@ describe('capabilities.presence === false — không con trỏ, không viền ch
 
     expect(screen.queryByText(MAI.name)).toBeNull();
     expect(screen.queryByText(MAI.selectionLabel ?? '')).toBeNull();
+
+    /*
+      DỐI CHỨNG. Hai khẳng định trên mới chỉ nói "không tìm thấy một chuỗi", mà
+      một chuỗi có thể vắng vì view hỏng chứ không vì năng lực tắt. Bật lại
+      `presence` với ĐÚNG bộ dữ liệu đó: cái tên vừa vắng phải hiện ra. Có cả hai
+      chiều thì bài này mới đo được cái cổng, thay vì đo một cái DOM rỗng.
+    */
+    off.unmount();
+    render(<CollaborationLayer {...baseProps({ collaborators: [SELF, MAI] })} />);
+
+    expect(screen.queryByText(MAI.name)).not.toBeNull();
   });
 });
 
@@ -286,7 +297,7 @@ describe('canWrite === false — ô nhập bình luận không có trong DOM', (
 
 describe('isCollapsed === true — con trỏ người khác biến mất, ghim bình luận còn lại', () => {
   it('tên người khác không còn trong DOM nhưng ghim bình luận vẫn còn (trạng thái 7)', () => {
-    render(
+    const collapsed = render(
       <CollaborationLayer
         {...baseProps({
           isCollapsed: true,
@@ -298,5 +309,15 @@ describe('isCollapsed === true — con trỏ người khác biến mất, ghim b
 
     expect(screen.queryByText(MAI.name)).toBeNull();
     expect(screen.getAllByRole('button', { name: /bình luận/i }).length).toBeGreaterThan(0);
+
+    /* ĐỐI CHỨNG — cùng lý do như bài `presence === false` ở trên. */
+    collapsed.unmount();
+    render(
+      <CollaborationLayer
+        {...baseProps({ isCollapsed: false, collaborators: [SELF, MAI], comments: [COMMENT_OPEN] })}
+      />,
+    );
+
+    expect(screen.queryByText(MAI.name)).not.toBeNull();
   });
 });
