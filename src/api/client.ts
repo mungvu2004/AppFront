@@ -28,6 +28,11 @@ import {
 import { ENDPOINTS } from './endpoints';
 import type { RegisterInput, SignInInput } from './schemas';
 import {
+  NotificationSchema,
+  type MarkNotificationsReadInput,
+  type Notification,
+} from './schemas/notifications';
+import {
   AdminUserListSchema,
   AdminUserSchema,
   UserActivitySchema,
@@ -63,6 +68,12 @@ export type {
   Version,
 } from './contracts';
 export type { RegisterInput, SignInInput } from './schemas';
+export type {
+  MarkNotificationsReadInput,
+  Notification,
+  NotificationKind,
+  NotificationWire,
+} from './schemas/notifications';
 export type {
   AdminUser,
   AdminUserList,
@@ -517,6 +528,52 @@ export interface UsersApi {
 }
 
 /**
+ * Hộp thư của người đang đăng nhập — T-09.
+ *
+ * `list` không nhận tham số nào ngoài `signal`, cùng lý lẽ với `UsersApi.list`:
+ * bộ lọc (`NotificationFilter`,
+ * `screens/system/NotificationCenter/notificationModel.ts`) chạy trên danh
+ * sách đã tải, không phải một lượt gọi khác cho mỗi lần đổi tab.
+ *
+ * `acceptInvite` là phép ghi MỚI của lượt này — trước T-09 không có cách nào
+ * cho NGƯỜI NHẬN chấp nhận một lời mời (`UsersApi.invite`/`resendInvite` ở
+ * trên đều là việc của người quản trị GỬI lời mời). Nó nhận `notificationId`,
+ * không `inviteId`: xem `ENDPOINTS.notifications` cho lý do.
+ */
+export interface MarkNotificationsReadApiInput extends WriteRequestOptions {
+  body: MarkNotificationsReadInput;
+}
+
+export interface AcceptNotificationInviteInput extends WriteRequestOptions {
+  notificationId: string;
+}
+
+/**
+ * Bốn phương thức, khớp bốn đường của `ENDPOINTS.notifications` mà tầng này
+ * gọi qua `HttpClient` — `stream` không có mặt ở đây vì nó là địa chỉ cho một
+ * `EventSource` mở thẳng, không đi qua client này (xem docblock của
+ * `ENDPOINTS.notifications`).
+ *
+ * `markRead` và `markAllRead` trả `void`, đúng chữ ký
+ * `NotificationCenterGateway.markRead`/`markAllRead` mà nhóm này phục vụ
+ * (`screens/system/NotificationCenter/notificationModel.ts`) — không có toast
+ * hoàn tác nào cần một bản ghi trước/sau ở đây, khác `UsersApi.disable`/`enable`.
+ *
+ * `list` giải mã qua `safeParseList` (như `LibraryApi.list`), không như
+ * `UsersApi.list`: một hộp thư không có tổng số cần giữ đúng, nên một mục hỏng
+ * bị bỏ qua thay vì làm rỗng cả hộp thư — đúng thứ A11 tồn tại để chặn.
+ *
+ * `acceptInvite` trả về chính thông báo vừa đổi, cùng khuôn mọi lượt GHI khác
+ * trong `UsersApi`.
+ */
+export interface NotificationsApi {
+  acceptInvite(input: AcceptNotificationInviteInput): Promise<ApiResult<Notification>>;
+  list(options?: RequestOptions): Promise<ApiResult<Notification[]>>;
+  markAllRead(options?: WriteRequestOptions): Promise<ApiResult<void>>;
+  markRead(input: MarkNotificationsReadApiInput): Promise<ApiResult<void>>;
+}
+
+/**
  * The credential exchange.
  *
  * Two things make this group unlike every other one in this file.
@@ -544,6 +601,7 @@ export interface ApiClient {
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   library: LibraryApi;
+  notifications: NotificationsApi;
   projects: ProjectsApi;
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
@@ -723,6 +781,27 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
         LibraryItemSchema,
         'library.read',
       ),
+  },
+  notifications: {
+    acceptInvite: async (input) => {
+      const { notificationId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.notifications.acceptInvite(notificationId), {}, input),
+        NotificationSchema,
+        'notifications.acceptInvite',
+      );
+    },
+    list: async (options) =>
+      decodeList(
+        await callGet<unknown>(http, ENDPOINTS.notifications.list, options?.signal),
+        NotificationSchema,
+        'notifications.list',
+      ),
+    markAllRead: async (options = {}) =>
+      postWithoutBody(http, ENDPOINTS.notifications.markAllRead, {}, options),
+    markRead: async (input) =>
+      postWithoutBody(http, ENDPOINTS.notifications.markRead, input.body, input),
   },
   projects: {
     create: async (input) => {

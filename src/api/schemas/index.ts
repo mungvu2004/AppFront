@@ -267,3 +267,11 @@ export * from './library';
  * `./contracts.ts` và `./client.ts` vẫn chỉ biết đúng một cửa vào.
  */
 export * from './users';
+
+/**
+ * Nhóm schema trung tâm thông báo — T-09. Tách file cùng lý do với ba nhóm
+ * trên: nó khai lại `NOTIFICATION_KINDS` của riêng tầng `src/api` (mục 0.4
+ * cấm nhập ngược từ `src/screens`), và ranh giới ấy đáng nhìn thấy ở đầu một
+ * file thay vì lẫn vào `index.ts`.
+ */
+export * from './notifications';
