@@ -24,6 +24,9 @@ export const WRITE_OPERATIONS = [
   'setUserEnabled',
   'removeUser',
   'resendInvite',
+  'markNotificationRead',
+  'markAllNotificationsRead',
+  'acceptInvite',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -79,6 +82,12 @@ export interface WriteOperationParamsMap {
   removeUser: UserScopedParams;
   /** Lời mời vừa được gửi lại (T-05) — `inviteExpiresAt` đổi, nên dòng trong danh sách cũ đi. */
   resendInvite: Record<string, never>;
+  /** Một hoặc nhiều mục thông báo vừa được đánh dấu đã đọc (T-09) — `queryKeys.notification` không có khoá theo từng mục (chỉ `list`), nên không có gì để khoá theo ngoài chính danh sách. */
+  markNotificationRead: Record<string, never>;
+  /** Toàn bộ thông báo của người đang đăng nhập vừa được đánh dấu đã đọc (T-09) — cùng phạm vi với `markNotificationRead`, vì cùng một danh sách đổi. */
+  markAllNotificationsRead: Record<string, never>;
+  /** Người nhận vừa chấp nhận lời mời từ một thông báo (T-09) — nhãn hành động của mục đó đổi từ "xem lời mời" sang đã xong (T09-CONTRACT.md mục 3), nên danh sách cũ đi. */
+  acceptInvite: Record<string, never>;
 }
 
 type InvalidationMap = {
@@ -214,6 +223,21 @@ export const invalidationMap: InvalidationMap = {
   ],
 
   resendInvite: () => [queryKeys.user.list()],
+
+  /**
+   * Ba lượt ghi của trung tâm thông báo — T-09.
+   *
+   * `queryKeys.notification` chỉ có một nhánh (`list`, xem `queryKeys.ts`):
+   * trung tâm thông báo tải một lượt cho cả bảng rồi lọc tại chỗ, không có
+   * khoá theo từng mục để làm mất hiệu lực riêng lẻ. Nên cả ba lượt ghi dưới
+   * đây — đánh dấu một/nhiều mục, đánh dấu tất cả, và chấp nhận lời mời (đổi
+   * nhãn hành động của đúng một mục) — cùng làm cũ một khoá như nhau.
+   */
+  markNotificationRead: () => [queryKeys.notification.list()],
+
+  markAllNotificationsRead: () => [queryKeys.notification.list()],
+
+  acceptInvite: () => [queryKeys.notification.list()],
 };
 
 /**

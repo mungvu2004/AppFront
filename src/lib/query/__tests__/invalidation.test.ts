@@ -87,6 +87,18 @@ describe('invalidationMap', () => {
       queryKeys.version.byFloor(floorId),
     ]);
   });
+
+  it('scopes markNotificationRead to the notification list only', () => {
+    expect(invalidationMap.markNotificationRead({})).toEqual([queryKeys.notification.list()]);
+  });
+
+  it('scopes markAllNotificationsRead to the same key as markNotificationRead', () => {
+    expect(invalidationMap.markAllNotificationsRead({})).toEqual(invalidationMap.markNotificationRead({}));
+  });
+
+  it('scopes acceptInvite to the same key as markNotificationRead', () => {
+    expect(invalidationMap.acceptInvite({})).toEqual(invalidationMap.markNotificationRead({}));
+  });
 });
 
 describe('applyInvalidation', () => {
@@ -102,6 +114,13 @@ describe('applyInvalidation', () => {
     queryClient.setQueryData(queryKeys.room.byFloor(otherFloorId), { rooms: [] });
     queryClient.setQueryData(queryKeys.quality.assessment(floorId), { floors: [] });
     queryClient.setQueryData(queryKeys.quality.assessment(otherFloorId), { floors: [] });
+    queryClient.setQueryData(queryKeys.notification.list(), []);
+  });
+
+  it('invalidates the notification list on markNotificationRead', () => {
+    applyInvalidation(queryClient, 'markNotificationRead', {});
+
+    expect(queryClient.getQueryState(queryKeys.notification.list())?.isInvalidated).toBe(true);
   });
 
   it('invalidates the quality reading of the straightened floor only', () => {
