@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
+
+import type { Progress } from '@/api/schemas';
 
 import { createBackoff } from '../backoff';
 import { createEventChannel } from '../eventChannel';
-import type { ChannelClock, ChannelEvent, ChannelState } from '../eventChannel';
+import type {
+  ChannelClock,
+  ChannelEvent,
+  ChannelState,
+  CreateEventChannelOptions,
+} from '../eventChannel';
 
 class MockEventSource {
   static instances: MockEventSource[] = [];
@@ -60,7 +68,7 @@ function makeClock(): ChannelClock {
 }
 
 function makeChannel(
-  overrides: Partial<Parameters<typeof createEventChannel>[0]> = {},
+  overrides: Partial<CreateEventChannelOptions<Progress>> = {},
 ): {
   handle: ReturnType<typeof createEventChannel>;
   states: ChannelState[];
@@ -290,5 +298,136 @@ describe('createEventChannel', () => {
       attemptIndex: 0,
       nextRetryAt: 32_000,
     });
+  });
+});
+
+/**
+ * Kênh phải chở được gói tin KHÔNG phải `Progress`: lược đồ tiêm vào quyết định kiểu dữ
+ * liệu, và nhãn tiêm vào quyết định `type`. Trước phương án A, cả hai đều bị khoá cứng.
+ */
+const NotificationSchema = z
+  .object({
+    id: z.string().min(1),
+    kind: z.enum(['moi-du-an', 'binh-luan']),
+    unread: z.boolean(),
+  })
+  .strict()
+  .transform((wireNotification) => ({
+    id: wireNotification.id,
+    isUnread: wireNotification.unread,
+    kind: wireNotification.kind,
+  }));
+
+type NotificationPayload = z.infer<typeof NotificationSchema>;
+
+const VALID_NOTIFICATION = {
+  id: 'notif-1',
+  kind: 'moi-du-an',
+  unread: true,
+} as const;
+
+function makeNotificationChannel(
+  overrides: Partial<CreateEventChannelOptions<NotificationPayload>> = {},
+): {
+  handle: ReturnType<typeof createEventChannel>;
+  states: ChannelState[];
+  events: ChannelEvent<NotificationPayload>[];
+} {
+  const states: ChannelState[] = [];
+  const events: ChannelEvent<NotificationPayload>[] = [];
+
+  const handle = createEventChannel<NotificationPayload>({
+    url: 'https://api.example.com/notifications',
+    schema: NotificationSchema,
+    eventType: 'notification',
+    onEvent: (event) => events.push(event),
+    onStateChange: (state) => states.push(state),
+    clock: makeClock(),
+    EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+    random: () => 0,
+    ...overrides,
+  });
+
+  return { handle, states, events };
+}
+
+describe('createEventChannel with an injected schema', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    MockEventSource.instances = [];
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('decodes a non-progress packet into the injected schema output type', () => {
+    const { handle, events } = makeNotificationChannel();
+
+    MockEventSource.instances[0]?.triggerOpen();
+    MockEventSource.instances[0]?.triggerMessage(VALID_NOTIFICATION, 'notif-event-1');
+
+    expect(events).toEqual([
+      {
+        type: 'notification',
+        data: { id: 'notif-1', isUnread: true, kind: 'moi-du-an' },
+      },
+    ]);
+
+    // Kiểm ở mức kiểu: `data` phải là đầu ra của lược đồ tiêm vào, không phải `Progress`.
+    const received: NotificationPayload | undefined = events[0]?.data;
+    expect(received?.isUnread).toBe(true);
+
+    handle.close();
+  });
+
+  it('labels the event with the injected eventType instead of progress', () => {
+    const { handle, events } = makeNotificationChannel({ eventType: 'thong-bao' });
+
+    MockEventSource.instances[0]?.triggerMessage(VALID_NOTIFICATION, 'notif-event-2');
+
+    expect(events.map((event) => event.type)).toEqual(['thong-bao']);
+
+    handle.close();
+  });
+
+  it('rejects a progress packet on a notification channel instead of letting it through', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { handle, events } = makeNotificationChannel();
+
+    MockEventSource.instances[0]?.triggerMessage(VALID_PROGRESS, 'progress-on-notif');
+
+    expect(events).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledOnce();
+
+    handle.close();
+  });
+
+  it('keeps the strict check of the injected schema for unknown fields', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { handle, events } = makeNotificationChannel();
+
+    MockEventSource.instances[0]?.triggerMessage(
+      { ...VALID_NOTIFICATION, unexpected: 'x' },
+      'notif-event-3',
+    );
+
+    expect(events).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledOnce();
+
+    handle.close();
+  });
+
+  it('still uses ProgressSchema and the progress label when both fields are omitted', () => {
+    const { handle, events } = makeChannel();
+
+    MockEventSource.instances[0]?.triggerMessage(VALID_PROGRESS, 'event-1');
+
+    expect(events.map((event) => event.type)).toEqual(['progress']);
+    expect(events[0]?.data.progressPercent).toBe(42);
+
+    handle.close();
   });
 });
