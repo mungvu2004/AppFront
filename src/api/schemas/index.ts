@@ -270,8 +270,14 @@ export * from './users';
 
 /**
  * Nhóm schema trung tâm thông báo — T-09. Tách file cùng lý do với ba nhóm
- * trên: nó khai lại `NOTIFICATION_KINDS` của riêng tầng `src/api` (mục 0.4
- * cấm nhập ngược từ `src/screens`), và ranh giới ấy đáng nhìn thấy ở đầu một
- * file thay vì lẫn vào `index.ts`.
+ * trên: nó giữ hai bảng của hợp đồng dây — `NOTIFICATION_KINDS` và
+ * `NOTIFICATION_PLACES` — và ranh giới ấy đáng nhìn thấy ở đầu một file thay
+ * vì lẫn vào `index.ts`.
+ *
+ * Hai bảng ấy nằm ở ĐÂY chứ không ở màn, và màn nhập lại từ đây: mục 0.4 cấm
+ * `src/api` nhập ngược từ `src/screens`, nên tầng dưới phải là tầng giữ. Trước
+ * lượt nối dây, `NOTIFICATION_KINDS` có hai bản — một ở đây, một ở
+ * `screens/system/NotificationCenter/notificationModel.ts` — và bản của màn đã
+ * bị gỡ; R-71 không cho một quyết định có hai nguồn.
  */
 export * from './notifications';

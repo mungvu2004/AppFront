@@ -50,9 +50,12 @@ import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import type { SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
+import { createMockApiClient, MOCK_NOTIFICATIONS } from '@/api/__mocks__/client';
+import { ENDPOINTS } from '@/api/endpoints';
 import { ROUTES } from '@/routes/paths';
 
 import { NotificationCenter } from './NotificationCenter';
+import { createNotificationCenterGateway, toNotificationItemVm } from './notificationCenterGateway';
 import { UNREAD_DOT_SIZE_PX } from './notificationModel';
 import type {
   NotificationCenterGateway,
@@ -274,6 +277,7 @@ interface FakeGateway {
   readonly gateway: NotificationCenterGateway;
   readonly markRead: ReturnType<typeof vi.fn>;
   readonly markAllRead: ReturnType<typeof vi.fn>;
+  readonly acceptInvite: ReturnType<typeof vi.fn>;
   readonly arrive: (item: NotificationItemVm) => void;
 }
 
@@ -293,10 +297,17 @@ function createFakeGateway(initialItems: readonly NotificationItemVm[]): FakeGat
     return Promise.resolve();
   });
 
+  const acceptInvite = vi.fn((notificationId: string): Promise<void> => {
+    items = items.map((entry) => (entry.id === notificationId ? { ...entry, isRead: true } : entry));
+
+    return Promise.resolve();
+  });
+
   const gateway: NotificationCenterGateway = {
     list: () => Promise.resolve(items),
     markRead,
     markAllRead,
+    acceptInvite,
     subscribe: (fn) => {
       listener = fn;
 
@@ -310,6 +321,7 @@ function createFakeGateway(initialItems: readonly NotificationItemVm[]): FakeGat
     gateway,
     markRead,
     markAllRead,
+    acceptInvite,
     arrive: (item) => {
       items = [item, ...items];
       listener?.(item);
@@ -523,6 +535,227 @@ describe('BÀI NGHIỆM THU — bấm một thông báo AI xử lý xong thì m�
 
     expect(onNavigate).toHaveBeenCalledTimes(1);
     expect(onNavigate).toHaveBeenCalledWith(expectedTo);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* (e1) Cổng THẬT — dây, không phải bộ nhớ trong (T-09).                       */
+/* -------------------------------------------------------------------------- */
+
+/** Một `EventSource` giả, để soi thứ cổng mở ra mà không cần mạng. */
+class StubEventSource {
+  static instances: StubEventSource[] = [];
+
+  readonly url: string;
+  onopen: ((event: Event) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  closed = false;
+
+  constructor(url: string) {
+    this.url = url;
+    StubEventSource.instances.push(this);
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+
+  send(data: unknown): void {
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data), lastEventId: '' }));
+  }
+}
+
+const GATEWAY_NOW_MS = Date.parse('2026-09-08T09:00:00.000Z');
+
+describe('createNotificationCenterGateway — dây thật', () => {
+  it('đọc danh sách qua client.notifications.list và đổi sang viewmodel', async () => {
+    const gateway = createNotificationCenterGateway(createMockApiClient(), () => GATEWAY_NOW_MS);
+
+    const items = await gateway.list();
+
+    expect(items).toHaveLength(MOCK_NOTIFICATIONS.length);
+    expect(items.map((item) => item.id)).toEqual(MOCK_NOTIFICATIONS.map((item) => item.id));
+  });
+
+  it('dựng target.to từ place của máy chủ, không suy từ kind', () => {
+    const wire = MOCK_NOTIFICATIONS.find((item) => item.id === 'notif-1');
+    const other = MOCK_NOTIFICATIONS.find((item) => item.id === 'notif-5');
+
+    if (wire === undefined || other === undefined) throw new Error('bộ mẫu thiếu mục');
+
+    // Hai mục CÙNG kind 'aiCompleted' nhưng khác place, nên khác đích. Đây là
+    // điều một bảng kind→place sẽ làm sai mà không báo lỗi.
+    expect(wire.kind).toBe(other.kind);
+    expect(toNotificationItemVm(wire, GATEWAY_NOW_MS).target.to).toBe(
+      ROUTES.project.walls(wire.projectId, 'L1'),
+    );
+    expect(toNotificationItemVm(other, GATEWAY_NOW_MS).target.to).toBe(
+      ROUTES.project.grids(other.projectId, 'L2'),
+    );
+  });
+
+  it('đổi createdAt sang epoch ms và dựng relativeTime bằng formatTimestamp', () => {
+    const wire = MOCK_NOTIFICATIONS.find((item) => item.id === 'notif-1');
+
+    if (wire === undefined) throw new Error('bộ mẫu thiếu mục');
+
+    const item = toNotificationItemVm(wire, GATEWAY_NOW_MS);
+
+    expect(item.createdAt).toBe(Date.parse('2026-09-08T08:40:00.000Z'));
+    expect(item.relativeTime).not.toBe('');
+  });
+
+  it('chỉ lời mời mang hành động "chấp nhận"; ba loại kia điều hướng', () => {
+    const byKind = new Map(
+      MOCK_NOTIFICATIONS.map((wire) => [wire.kind, toNotificationItemVm(wire, GATEWAY_NOW_MS)]),
+    );
+
+    expect(byKind.get('projectInvite')?.inlineAction).toEqual({
+      label: 'chấp nhận',
+      kind: 'accept',
+    });
+    expect(byKind.get('aiCompleted')?.inlineAction?.kind).toBe('navigate');
+    expect(byKind.get('violationFound')?.inlineAction?.kind).toBe('navigate');
+    expect(byKind.get('commentMention')?.inlineAction?.kind).toBe('navigate');
+  });
+
+  it('markRead, markAllRead và acceptInvite đều đi ra client thật', async () => {
+    const client = createMockApiClient();
+    const markRead = vi.spyOn(client.notifications, 'markRead');
+    const markAllRead = vi.spyOn(client.notifications, 'markAllRead');
+    const acceptInvite = vi.spyOn(client.notifications, 'acceptInvite');
+    const gateway = createNotificationCenterGateway(client, () => GATEWAY_NOW_MS);
+
+    await gateway.markRead(['notif-1']);
+    await gateway.markAllRead();
+    await gateway.acceptInvite('notif-3');
+
+    expect(markRead).toHaveBeenCalledWith({ body: { ids: ['notif-1'] } });
+    expect(markAllRead).toHaveBeenCalledTimes(1);
+    expect(acceptInvite).toHaveBeenCalledWith({ notificationId: 'notif-3' });
+  });
+
+  it('không gọi ra dây khi không có id nào để đánh dấu', async () => {
+    const client = createMockApiClient();
+    const markRead = vi.spyOn(client.notifications, 'markRead');
+
+    await createNotificationCenterGateway(client, () => GATEWAY_NOW_MS).markRead([]);
+
+    expect(markRead).not.toHaveBeenCalled();
+  });
+
+  it('ném lỗi khi lượt đọc hỏng, để tầng trên vẽ trạng thái 4', async () => {
+    const client = createMockApiClient();
+    const failure = { kind: 'http', raw: undefined, requestId: 'req-1', retryable: false, status: 500 };
+
+    vi.spyOn(client.notifications, 'list').mockResolvedValue({ ok: false, error: failure } as never);
+
+    await expect(createNotificationCenterGateway(client).list()).rejects.toBe(failure);
+  });
+
+  it('subscribe mở kênh dùng chung trên ENDPOINTS.notifications.stream và đóng lại được', () => {
+    StubEventSource.instances = [];
+    vi.stubGlobal('EventSource', StubEventSource);
+
+    const unsubscribe = createNotificationCenterGateway(
+      createMockApiClient(),
+      () => GATEWAY_NOW_MS,
+    ).subscribe(() => undefined);
+
+    const source = StubEventSource.instances[0];
+
+    expect(source?.url).toContain(ENDPOINTS.notifications.stream);
+
+    unsubscribe();
+
+    expect(source?.closed).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('đọc gói tin bằng NotificationSchema, KHÔNG bằng ProgressSchema mặc định', () => {
+    StubEventSource.instances = [];
+    vi.stubGlobal('EventSource', StubEventSource);
+
+    const arrived: NotificationItemVm[] = [];
+    const unsubscribe = createNotificationCenterGateway(
+      createMockApiClient(),
+      () => GATEWAY_NOW_MS,
+    ).subscribe((item) => arrived.push(item));
+
+    StubEventSource.instances[0]?.send(MOCK_NOTIFICATIONS[0]);
+
+    // Bỏ `schema` thì kênh phân tích bằng `ProgressSchema` và mảng này rỗng.
+    expect(arrived).toHaveLength(1);
+    expect(arrived[0]?.id).toBe('notif-1');
+    expect(arrived[0]?.target.to).toBe(ROUTES.project.walls('project-1', 'L1'));
+
+    unsubscribe();
+    vi.unstubAllGlobals();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* (e2) Nhãn "chấp nhận" GHI thật — nó không phải một nút điều hướng đội lốt.  */
+/* -------------------------------------------------------------------------- */
+
+describe('nút hành động "chấp nhận" của một lời mời', () => {
+  it('gọi gateway.acceptInvite với đúng mã thông báo, KHÔNG điều hướng', async () => {
+    const invite = buildItem({
+      id: 'invite-1',
+      kind: 'projectInvite',
+      isRead: false,
+      inlineAction: { label: 'chấp nhận', kind: 'accept' },
+    });
+
+    const fake = createFakeGateway([invite]);
+    const onNavigate = vi.fn();
+
+    mountNotificationCenter({ gateway: fake.gateway, onNavigate });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups)).toHaveLength(1);
+    });
+
+    act(() => {
+      notificationProps().onInlineAction(firstItem(notificationProps().groups));
+    });
+
+    await waitFor(() => {
+      expect(fake.acceptInvite).toHaveBeenCalledWith('invite-1');
+    });
+
+    expect(fake.acceptInvite).toHaveBeenCalledTimes(1);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('một hành động "navigate" vẫn đi đường cũ và KHÔNG gọi acceptInvite', async () => {
+    const expectedTo = ROUTES.project.rules('p-thao-dien');
+
+    const violation = buildItem({
+      id: 'violation-1',
+      kind: 'violationFound',
+      isRead: false,
+      projectId: 'p-thao-dien',
+      targetTo: expectedTo,
+      inlineAction: { label: 'xem lỗi', kind: 'navigate' },
+    });
+
+    const fake = createFakeGateway([violation]);
+    const onNavigate = vi.fn();
+
+    mountNotificationCenter({ gateway: fake.gateway, onNavigate });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups)).toHaveLength(1);
+    });
+
+    act(() => {
+      notificationProps().onInlineAction(firstItem(notificationProps().groups));
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith(expectedTo);
+    expect(fake.acceptInvite).not.toHaveBeenCalled();
   });
 });
 

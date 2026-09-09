@@ -836,6 +836,12 @@ const MOCK_USER_ACTIVITY: Readonly<Record<string, readonly UserActivity[]>> = {
  * của `NotificationItemVm.excerpt` (chỉ loại nhắc tên); `notif-3`
  * (`projectInvite`) là mục DUY NHẤT không mang `floorId` — một lời mời chưa
  * gắn với tầng nào cả.
+ *
+ * `place` cố ý KHÔNG chạy song song với `kind`: hai mục `aiCompleted` mang
+ * `walls` và `grids`, tức hai màn duyệt khác nhau cho cùng một loại. Đó chính
+ * là điều lược đồ nói — nơi đến là dữ liệu của máy chủ, không suy được từ loại
+ * — nên bộ mẫu phải thể hiện nó, chứ không phải một bảng một-đối-một mà mọi
+ * người đọc sau sẽ tưởng là suy ra được.
  */
 export const MOCK_NOTIFICATIONS: readonly Notification[] = [
   {
@@ -846,6 +852,7 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     kind: 'aiCompleted',
     message: 'AI đã xử lý xong bản vẽ tầng trệt của Chung cư Sông Hàn.',
     objectLabel: 'tầng trệt',
+    place: 'walls',
     projectId: 'project-1',
     projectName: 'Chung cư Sông Hàn',
   },
@@ -857,6 +864,7 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     kind: 'violationFound',
     message: 'Phát hiện xung đột tường chịu lực ở trục a-3, Văn phòng Thủ Thiêm.',
     objectLabel: 'trục a-3',
+    place: 'rules',
     projectId: 'project-2',
     projectName: 'Văn phòng Thủ Thiêm',
   },
@@ -867,6 +875,7 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     kind: 'projectInvite',
     message: 'Bạn được mời tham gia dự án Trường mầm non Hoa Sữa với vai trò kỹ sư.',
     objectLabel: 'lời mời tham gia dự án',
+    place: 'projectSettings',
     projectId: 'project-3',
     projectName: 'Trường mầm non Hoa Sữa',
   },
@@ -879,6 +888,7 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     kind: 'commentMention',
     message: 'Trần Chi nhắc đến bạn trong một bình luận ở phòng 201.',
     objectLabel: 'phòng 201',
+    place: 'rooms',
     projectId: 'project-1',
     projectName: 'Chung cư Sông Hàn',
   },
@@ -890,6 +900,7 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     kind: 'aiCompleted',
     message: 'AI đã xử lý xong bản vẽ tầng hai của Chung cư Sông Hàn.',
     objectLabel: 'tầng hai',
+    place: 'grids',
     projectId: 'project-1',
     projectName: 'Chung cư Sông Hàn',
   },

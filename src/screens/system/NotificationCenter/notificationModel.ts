@@ -17,22 +17,31 @@
  * ngưỡng nằm trong JSX. View chỉ in ra.
  */
 
+import type { NotificationKind } from '@/api/schemas/notifications';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
 /**
- * Bốn loại thông báo, lấy đúng mã của ma trận cài đặt tài khoản (S-05,
- * `useAccountTables.ts:115-141`) để hai nơi không đặt tên khác nhau cho cùng
- * một sự việc.
+ * Bốn loại thông báo — MỘT bản, giữ ở `src/api/schemas/notifications.ts`.
  *
- * Ma trận đó có **năm** dòng; `morningDigest` cố ý không có mặt ở đây. Cấm tuyệt
- * đối của màn này là "mọi thông báo phải dẫn tới một đối tượng cụ thể", mà bản
- * tổng hợp mỗi sáng gộp nhiều việc nên không có đối tượng nào để dẫn tới. Nó là
- * thư điện tử theo mặc định của chính ma trận ấy (`email: true, inApp: false`),
- * và nó ở lại bên đó.
+ * Trước lượt nối dây có hai bản: một ở đây và một ở tầng API, gõ tay giống
+ * nhau. Đó đúng là thứ R-71 cấm — hai nguồn cho một quyết định, lệch nhau đúng
+ * vào lúc loại thứ năm được thêm. Bản của tầng API thắng vì nó là bên đọc gói
+ * tin thật (`NotificationSchema` dùng chính mảng ấy làm `z.enum`), và mục 0.4
+ * cho màn nhập xuống chứ không cho API nhập ngược lên.
+ *
+ * Xuất lại qua đây thay vì bắt mọi nơi gọi đổi đường nhập: `useNotificationCenter`
+ * và `index.ts` vẫn đọc hình dạng của màn từ đúng một file, và cái tên vẫn phân
+ * giải về một khai báo duy nhất.
+ *
+ * Ma trận cài đặt tài khoản (S-05, `useAccountTables.ts:115-141`) có **năm**
+ * dòng; `morningDigest` cố ý vắng mặt ở cả hai tầng. Cấm tuyệt đối của màn này
+ * là "mọi thông báo phải dẫn tới một đối tượng cụ thể", mà bản tổng hợp mỗi
+ * sáng gộp nhiều việc nên không có đối tượng nào để dẫn tới. Nó là thư điện tử
+ * theo mặc định của chính ma trận ấy (`email: true, inApp: false`), và nó ở lại
+ * bên đó.
  */
-export const NOTIFICATION_KINDS = ['aiCompleted', 'violationFound', 'projectInvite', 'commentMention'] as const;
-
-export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+export { NOTIFICATION_KINDS } from '@/api/schemas/notifications';
+export type { NotificationKind };
 
 /**
  * Đích cụ thể mà một thông báo dẫn tới.
@@ -55,17 +64,19 @@ export interface NotificationInlineAction {
   /** Nhãn tiếng Việt viết thường kiểu câu (A6): "xem kết quả", "xem lời mời". */
   readonly label: string;
   /**
-   * `'accept'` là Ô CHỜ, hôm nay KHÔNG nguồn nào sinh ra nó.
+   * `'navigate'` chỉ mở một màn; `'accept'` GHI trước rồi mới mở.
    *
-   * Tầng logic không có phép nhận lời mời: `src/api/client.ts` có `invite()` và
-   * `resendInvite()` — hai lời gọi của màn quản trị S-06 — nhưng không có
-   * `acceptInvite` ở bất cứ đâu trong `src/api`, `src/lib`, `src/domain` hay
-   * `src/store`, và cổng ở cuối file này cố ý không mọc thêm một phép ghi thành
-   * viên mà không tầng nào khác biết tới.
+   * `'accept'` có nguồn sinh ra thật kể từ lượt nối dây: mục `projectInvite`
+   * mang nhãn "chấp nhận", và bấm vào gọi
+   * {@link NotificationCenterGateway.acceptInvite} → `client.notifications.acceptInvite`
+   * → `ENDPOINTS.notifications.acceptInvite(notificationId)`. Trước đó nhãn là
+   * "xem lời mời" với `'navigate'`, vì chưa có phép ghi nào để gọi và một nút
+   * ghi "chấp nhận" mà chỉ điều hướng là đúng thứ R-69 cấm.
    *
-   * Nên mục lời mời trong cổng mang `'navigate'` với nhãn "xem lời mời", nói
-   * đúng việc nó làm. Khi T-09 nối dây thật, ĐÂY là chỗ nạp vào: thêm phép ghi
-   * vào {@link NotificationCenterGateway}, rồi đổi mục ấy sang `'accept'`.
+   * Hai giá trị này quyết định cả hành vi của tấm trượt:
+   * `NotificationCenter.tsx` đóng tấm trượt sau một `'navigate'` nhưng GIỮ nó
+   * mở sau một `'accept'` — người vừa nhận lời mời còn phải thấy dòng ấy đổi
+   * trạng thái.
    */
   readonly kind: 'navigate' | 'accept';
 }
@@ -126,36 +137,27 @@ export const UNREAD_DOT_SIZE_PX = 6;
 export const BELL_NUDGE_DEGREES = 8;
 
 /**
- * Cổng dữ liệu của trung tâm thông báo.
+ * Cổng dữ liệu của trung tâm thông báo — đã nối dây thật (T-09).
  *
- * ## Vì sao đây là bộ nhớ trong chứ không phải một lời gọi mạng
+ * ## Cổng là ranh giới, và nó thật cả năm phép
  *
- * `src/api/endpoints.ts` không có nhóm `notifications`; `src/api/client.ts` không
- * có thực thể thông báo; `queryKeys` không có nhánh `notification`; và
- * `WRITE_OPERATIONS` không có phép ghi nào liên quan. `src/api/**` và
- * `src/lib/**` là những thư mục màn này không được sửa (R-68). Bịa một đường dẫn
- * ra rồi gọi vào đó cho "trông như thật" là cách chắc chắn nhất để màn hình xanh
- * trên máy người viết và đỏ ở mọi nơi khác.
+ * Mỗi phép dưới đây chạy qua tầng dữ liệu dùng chung, không qua bộ nhớ nào của
+ * riêng màn: `client.notifications.{list,markRead,markAllRead,acceptInvite}`
+ * trên `ENDPOINTS.notifications`, và `createEventChannel` cho kênh thời gian
+ * thực. Xem `notificationCenterGateway.ts` cho từng đường một.
  *
- * Nên dữ liệu được giữ trong bộ nhớ của chính module cổng, đúng khuôn mà
- * `screens/account/AccountSettings/accountSettingsGateway.ts` (nợ T-08) và
- * `screens/pipeline/ProcessingScreen/processingGateway.ts` đã đi trước. Đó là
- * một khoản nợ đã ghi, không phải một lời hứa đã giữ.
+ * ## Vì sao `subscribe` vẫn nhận `listener` chứ không trả về một `EventSource`
  *
- * ## Vì sao `subscribe` nhận nguồn từ ngoài chứ không tự mở kết nối
+ * Đặc tả cấm màn tự mở kết nối. Chữ ký này giữ lời hứa ấy bằng cấu trúc: cổng
+ * là nơi DUY NHẤT biết tới một kết nối, và thứ nó trả ra ngoài chỉ là một hàm
+ * huỷ đăng ký. Không có `new EventSource`, không có `fetch`, không có hẹn giờ
+ * hỏi lại ở bất kỳ đâu khác trong thư mục màn — và vì cổng dùng
+ * `createEventChannel` dùng chung, nó cũng không tự viết lại phép thử-lại
+ * hay phép đọc gói tin.
  *
- * Đặc tả nói thông báo mới đến qua kênh của T-06 và cấm màn tự mở SSE riêng.
- * Nhưng `createEventChannel` (`lib/realtime/eventChannel.ts:18-21`) khoá cứng
- * `ChannelEvent = { type: 'progress'; data: Progress }` và phân tích gói tin bằng
- * `ProgressSchema.strict` — nó **không** chở được một thông báo.
- * `createProgressStream` tuy generic ở `TPatch` nhưng vẫn tự mở `EventSource`
- * riêng, tức đúng thứ bị cấm, và cũng không có điểm cuối nào để mở tới.
- *
- * Nên màn không mở kết nối nào cả: nó **nhận** nguồn từ bên ngoài. Hôm nay nguồn
- * đó là bộ nhớ của cổng này; khi T-09 nối dây thật (thêm nhóm `notifications` vào
- * `ENDPOINTS`, nhánh `queryKeys.notification`, và một kênh thời gian thực chở
- * được gói tin không-phải-Progress), chữ ký dưới đây không đổi và đây là file
- * duy nhất phải sửa.
+ * Chữ ký này KHÔNG đổi khi bộ nhớ trong bị gỡ: `useNotificationCenter` gọi
+ * đúng những phép cũ với đúng những kiểu cũ. Phép thứ năm — `acceptInvite` —
+ * là thứ được THÊM, không phải thứ bị đổi; xem chú thích của nó.
  */
 export interface NotificationCenterGateway {
   /** Đọc danh sách. Ném lỗi khi hỏng — tầng trên bắt và vẽ trạng thái 4. */
@@ -164,10 +166,23 @@ export interface NotificationCenterGateway {
   readonly markRead: (ids: readonly string[]) => Promise<void>;
   readonly markAllRead: () => Promise<void>;
   /**
+   * Chấp nhận một lời mời vào dự án. Ném lỗi khi hỏng, như {@link list}.
+   *
+   * Phép ghi MỚI của lượt nối dây, và là lý do `NotificationInlineAction.kind`
+   * có nhánh `'accept'` sinh ra được. Nó nhận `notificationId` chứ không phải
+   * `inviteId` vì đường của nó là
+   * `ENDPOINTS.notifications.acceptInvite(notificationId)` — người nhận chấp
+   * nhận từ chính thông báo họ đang đọc, không phải từ một tài nguyên lời mời
+   * mà màn này không cầm mã.
+   *
+   * Khác `UsersApi.invite`/`resendInvite`: hai cái đó là việc của quản trị
+   * viên GỬI lời mời (S-06). Đây là phía NHẬN.
+   */
+  readonly acceptInvite: (notificationId: string) => Promise<void>;
+  /**
    * Đăng ký nhận thông báo mới tới. Trả về hàm huỷ đăng ký.
    *
-   * Đây là cửa duy nhất thông báo mới đi vào màn. Không có `new EventSource`,
-   * không có `fetch`, không có hẹn giờ hỏi lại ở bất kỳ đâu trong thư mục màn.
+   * Đây là cửa duy nhất thông báo mới đi vào màn.
    */
   readonly subscribe: (listener: (arrived: NotificationItemVm) => void) => () => void;
 }

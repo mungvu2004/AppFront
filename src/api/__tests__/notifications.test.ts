@@ -7,6 +7,7 @@ import { ENDPOINTS } from '../endpoints';
 import {
   MarkNotificationsReadSchema,
   NOTIFICATION_KINDS,
+  NOTIFICATION_PLACES,
   NotificationSchema,
   type NotificationWire,
 } from '../schemas/notifications';
@@ -80,6 +81,7 @@ const aiCompletedWire: NotificationWire = {
   kind: 'aiCompleted',
   message: 'AI đã xử lý xong bản vẽ tầng trệt của Chung cư Sông Hàn.',
   objectLabel: 'tầng trệt',
+  place: 'walls',
   projectId: 'project-1',
   projectName: 'Chung cư Sông Hàn',
 };
@@ -93,6 +95,7 @@ const commentMentionWire: NotificationWire = {
   kind: 'commentMention',
   message: 'Trần Chi nhắc đến bạn trong một bình luận ở phòng 201.',
   objectLabel: 'phòng 201',
+  place: 'rooms',
   projectId: 'project-1',
   projectName: 'Chung cư Sông Hàn',
 };
@@ -104,6 +107,7 @@ const projectInviteWire: NotificationWire = {
   kind: 'projectInvite',
   message: 'Bạn được mời tham gia dự án Trường mầm non Hoa Sữa với vai trò kỹ sư.',
   objectLabel: 'lời mời tham gia dự án',
+  place: 'projectSettings',
   projectId: 'project-3',
   projectName: 'Trường mầm non Hoa Sữa',
 };
@@ -122,6 +126,7 @@ describe('NotificationSchema', () => {
       kind: 'aiCompleted',
       message: 'AI đã xử lý xong bản vẽ tầng trệt của Chung cư Sông Hàn.',
       objectLabel: 'tầng trệt',
+      place: 'walls',
       projectId: 'project-1',
       projectName: 'Chung cư Sông Hàn',
     });
@@ -165,6 +170,38 @@ describe('NotificationSchema', () => {
 
   it('is strict: an unmodelled field stops at this layer', () => {
     expect(NotificationSchema.safeParse({ ...aiCompletedWire, priority: 'high' }).success).toBe(false);
+  });
+
+  it('lists the nine places a notification may point at', () => {
+    expect([...NOTIFICATION_PLACES]).toEqual([
+      'walls',
+      'objects',
+      'dimensions',
+      'grids',
+      'rooms',
+      'thickness',
+      'floors',
+      'rules',
+      'projectSettings',
+    ]);
+  });
+
+  it('requires place: a packet without one is refused, never given a default', () => {
+    const withoutPlace: Record<string, unknown> = { ...aiCompletedWire };
+    delete withoutPlace['place'];
+
+    expect(NotificationSchema.safeParse(withoutPlace).success).toBe(false);
+  });
+
+  it('rejects a tenth place', () => {
+    expect(NotificationSchema.safeParse({ ...aiCompletedWire, place: 'dashboard' }).success).toBe(false);
+  });
+
+  it('does not tie place to kind: the same kind may point at different screens', () => {
+    const asGrids = NotificationSchema.parse({ ...aiCompletedWire, place: 'grids' });
+
+    expect(asGrids.kind).toBe('aiCompleted');
+    expect(asGrids.place).toBe('grids');
   });
 });
 
@@ -217,6 +254,21 @@ describe('NotificationsApi', () => {
     expect(result.ok && result.data).toHaveLength(2);
     expect(result.ok && result.data[0]?.projectName).toBe('Chung cư Sông Hàn');
     expect(calls).toEqual([{ body: undefined, method: 'GET', path: '/notifications' }]);
+  });
+
+  it('drops an item that carries no place rather than routing it somewhere invented', async () => {
+    const withoutPlace: Record<string, unknown> = { ...projectInviteWire };
+    delete withoutPlace['place'];
+
+    const { http } = createHttpMock({
+      'GET /notifications': [aiCompletedWire, aiCompletedWire, aiCompletedWire, aiCompletedWire, withoutPlace],
+    });
+
+    const result = await createApiClient(http).notifications.list();
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data).toHaveLength(4);
+    expect(result.ok && result.data.every((item) => item.id === 'notif-1')).toBe(true);
   });
 
   it('drops one broken item instead of emptying the whole inbox', async () => {

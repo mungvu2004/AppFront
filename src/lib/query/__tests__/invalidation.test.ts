@@ -96,8 +96,26 @@ describe('invalidationMap', () => {
     expect(invalidationMap.markAllNotificationsRead({})).toEqual(invalidationMap.markNotificationRead({}));
   });
 
-  it('scopes acceptInvite to the same key as markNotificationRead', () => {
-    expect(invalidationMap.acceptInvite({})).toEqual(invalidationMap.markNotificationRead({}));
+  it('carries acceptInvite past the inbox: membership changed, not just a label', () => {
+    expect(invalidationMap.acceptInvite({ projectId })).toEqual([
+      queryKeys.notification.list(),
+      queryKeys.project.members(projectId),
+      queryKeys.user.memberships.root(),
+    ]);
+  });
+
+  it('does not reduce acceptInvite to the two mark-read operations', () => {
+    expect(invalidationMap.acceptInvite({ projectId })).not.toEqual(
+      invalidationMap.markNotificationRead({}),
+    );
+  });
+
+  it('invalidates every membership entry this browser holds, not one named user', () => {
+    const keys = invalidationMap.acceptInvite({ projectId });
+
+    // Người vừa đổi tư cách là người đang đăng nhập, và bảng này là dữ liệu
+    // thuần — nó không đọc phiên. Tiền tố phủ đúng những mục đang giữ.
+    expect(keys).toContainEqual(['user', 'memberships']);
   });
 });
 

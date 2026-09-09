@@ -71,7 +71,8 @@ import { formatCalendarDate, formatTimestamp, isSameCalendarDay } from '@/lib/fo
 import { formatNumber } from '@/lib/format/number';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
-import type { QueryKey } from '@/lib/query/queryKeys';
+import { applyInvalidation } from '@/lib/query/invalidation';
+import { queryKeys, type QueryKey } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
 
 import { createNotificationCenterGateway } from './notificationCenterGateway';
@@ -93,25 +94,23 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Khoá bộ đệm của lượt đọc danh sách thông báo.
+ * Khoá bộ đệm của lượt đọc danh sách thông báo — lấy từ `queryKeys`.
  *
- * Dựng tại chỗ chứ không lấy từ `queryKeys`: bảng đó không có nhánh
- * `notification`, `createQueryKeyFactory` **không được xuất khẩu** khỏi
- * `lib/query/queryKeys.ts` (nó là `const` ở tầm module, dòng 39), miền hợp lệ
- * `QueryDomain` là một union đóng mười bốn tên không có `notification`, và
- * `src/lib` là thư mục màn này không được sửa. Cùng lối đi mà
- * `accountSettingsQueryKey` (`useAccountSettings.ts:79`) và
- * `projectSettingsQueryKey` đã mở.
+ * Trước lượt nối dây, hằng này được gõ tay ở đây (`['notification','list']`) vì
+ * `queryKeys` chưa có nhánh `notification`. Nhánh ấy nay đã có, nên khoá đến từ
+ * đó: một khoá viết tay trong thư mục màn là nguồn sự thật thứ hai cho cùng một
+ * quyết định, đúng thứ R-71 cấm, và nó lệch trong im lặng — hai chuỗi khác nhau
+ * chỉ tạo ra hai mục cache, không tạo ra một lỗi nào.
  *
- * **HẬU QUẢ, ghi ra để không ai tưởng là tai nạn:** `TIER_BY_DOMAIN`
- * (`lib/query/cachePolicy.ts:85`) xếp bậc cache theo ĐOẠN ĐẦU của khoá, và
- * `'notification'` không có mục ở đó — nên lượt đọc này rơi về bậc `'default'`,
- * tức `staleTime` 30 giây. Đó là lựa chọn có ý thức: thông báo mới đi vào bằng
- * {@link NotificationCenterGateway.subscribe} chứ không bằng lượt đọc lại, nên
- * một `staleTime` ngắn hơn chỉ tốn công mà không sớm hơn được giây nào. Cùng lý
- * lẽ mà phép đo đã ghim (LG-3) cố ý không có mục trong bảng ấy.
+ * Bậc cache không còn phải ghi ở đây nữa: `TIER_BY_DOMAIN`
+ * (`lib/query/cachePolicy.ts`) nay khai thẳng `notification: 'default'`, nên
+ * `staleTime` 30 giây là một quyết định đã xác nhận ở tầng giữ chính sách chứ
+ * không phải hệ quả của một miền bị bỏ sót.
+ *
+ * Vẫn xuất khẩu dưới tên cũ: `index.ts` xuất lại nó, và một tên ổn định là thứ
+ * rẻ nhất để giữ.
  */
-export const notificationListQueryKey: QueryKey = Object.freeze(['notification', 'list'] as const);
+export const notificationListQueryKey: QueryKey = queryKeys.notification.list();
 
 /**
  * Mọi phép ghi của màn dùng chung một `entityId`.
@@ -587,8 +586,30 @@ export function useNotificationCenter(
     }),
   );
 
+  /**
+   * Chấp nhận một lời mời vào dự án.
+   *
+   * KHÔNG lạc quan, khác hai phép ghi kia. Đánh dấu đã đọc là một lượt đổi cờ
+   * mà màn tự vẽ lại đúng được ngay; chấp nhận lời mời đổi TƯ CÁCH THÀNH VIÊN
+   * — nó đổi cả danh sách dự án và danh sách thành viên ở những màn khác — nên
+   * thứ đúng để vẽ là điều máy chủ nói, không phải điều màn đoán trước. Vì thế
+   * `useMutation` trần, không `createOptimisticMutation`.
+   *
+   * Ba khoá phải mất hiệu lực chứ không chỉ một, và bảng nói ra điều đó thay
+   * cho một lời gọi `invalidateQueries` viết tay ở đây: `invalidationMap.acceptInvite`
+   * (`lib/query/invalidation.ts`) liệt kê `notification.list`,
+   * `project.members` và `user.memberships`. `applyInvalidation` đọc bảng ấy.
+   */
+  const acceptInviteMutation = useMutation({
+    mutationFn: (item: NotificationItemVm) => gateway.acceptInvite(item.id),
+    onSuccess: (_result, item) => {
+      applyInvalidation(queryClient, 'acceptInvite', { projectId: item.target.projectId });
+    },
+  });
+
   const { mutate: mutateMarkRead } = markReadMutation;
   const { mutate: mutateMarkAllRead } = markAllReadMutation;
+  const { mutate: mutateAcceptInvite } = acceptInviteMutation;
 
   const onMarkRead = useCallback(
     (id: string): void => {
@@ -625,10 +646,31 @@ export function useNotificationCenter(
   );
 
   /**
-   * Nút hành động trong dòng. Hôm nay mọi hành động đã dựng đều là `navigate`,
-   * nên nó đi đúng đường `onItemClick` — xem chú thích của `kind` ở hợp đồng.
+   * Nút hành động trong dòng — hai đường, theo `inlineAction.kind`.
+   *
+   * `'navigate'` là đường cũ và đi đúng `onItemClick`: đánh dấu đã đọc, điều
+   * hướng, đóng tấm trượt.
+   *
+   * `'accept'` GHI trước. Nó gọi `gateway.acceptInvite` qua
+   * {@link acceptInviteMutation} rồi để lượt đọc lại mang trạng thái mới về —
+   * nó KHÔNG điều hướng và KHÔNG đóng tấm trượt, vì người vừa nhận lời mời còn
+   * phải thấy dòng ấy đổi. Muốn mở dự án thì bấm vào chính câu của mục, đường
+   * `onItemClick` vẫn ở đó.
+   *
+   * Nhánh này tồn tại vì nếu thiếu nó thì một nút ghi "chấp nhận" chỉ điều
+   * hướng — đúng thứ R-69 cấm.
    */
-  const onInlineAction = onItemClick;
+  const onInlineAction = useCallback(
+    (item: NotificationItemVm): void => {
+      if (item.inlineAction?.kind !== 'accept') {
+        onItemClick(item);
+        return;
+      }
+
+      mutateAcceptInvite(item);
+    },
+    [onItemClick, mutateAcceptInvite],
+  );
 
   const onViewAll = useCallback((): void => {
     onNavigate?.(ROUTES.notifications);

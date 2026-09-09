@@ -1,78 +1,80 @@
 /**
- * Nguồn dữ liệu của trung tâm thông báo.
+ * Nguồn dữ liệu của trung tâm thông báo — dây thật, không còn bộ nhớ trong.
  *
- * ## Vì sao đây là bộ nhớ trong chứ không phải một lời gọi mạng
+ * ## Năm phép, năm đường thật
  *
- * `src/api/endpoints.ts` hiện có đúng sáu nhóm — `auth.{login,register}`,
- * `drawings`, `featureFlags.read`, `floors`, `projects`, `spatial`. **Không có**
- * nhóm `notifications`; `src/api/client.ts` không có thực thể thông báo;
- * `queryKeys` không có nhánh `notification`; và `WRITE_OPERATIONS`
- * (`lib/query/invalidation.ts:5`) không có phép ghi nào liên quan. `src/api/**`
- * và `src/lib/**` là những thư mục màn này không được sửa. Bịa một đường dẫn ra
- * rồi gọi vào đó cho "trông như thật" là cách chắc chắn nhất để màn hình xanh
- * trên máy người viết và đỏ ở mọi nơi khác.
+ * | Phép của cổng | Đi qua |
+ * |---|---|
+ * | `list` | `client.notifications.list()` → `ENDPOINTS.notifications.list` |
+ * | `markRead` | `client.notifications.markRead()` → `…markRead` |
+ * | `markAllRead` | `client.notifications.markAllRead()` → `…markAllRead` |
+ * | `acceptInvite` | `client.notifications.acceptInvite()` → `…acceptInvite(id)` |
+ * | `subscribe` | `createEventChannel` → `…stream` |
  *
- * Nên thông báo được giữ trong bộ nhớ của chính module này, đúng khuôn mà
- * `screens/account/AccountSettings/accountSettingsGateway.ts` (nợ T-08) đã đi
- * trước: người dùng đọc được, đánh dấu được, và mọi thứ trở về bộ mẫu khi tải
- * lại trang. Đó là một khoản nợ đã ghi, không phải một lời hứa đã giữ.
+ * Không còn `pushNotification`, không còn `resetNotificationCenterStore`, không
+ * còn bộ mẫu bảy mục: chúng là bộ khung chống đỡ của khoản nợ T-09 và khoản nợ
+ * ấy đã trả. Bộ mẫu cho bộ kiểm và Storybook nay là `MOCK_NOTIFICATIONS`
+ * (`src/api/__mocks__/client.ts`), tức cùng bộ dữ liệu mà mọi tầng khác đọc —
+ * `createAppApiClient()` tự chọn client giả hay client thật theo môi trường,
+ * nên màn không có nhánh nào phải tự quyết định điều đó.
  *
- * Mở dây thật là một lượt riêng ở tầng dữ liệu, mã đề xuất **T-09**: thêm nhóm
- * `notifications` vào `ENDPOINTS`, nhánh `queryKeys.notification`, một kênh thời
- * gian thực chở được gói tin không-phải-`Progress`, rồi xoá bộ nhớ dưới đây. Khi
- * ấy đây là file duy nhất phải sửa: {@link NotificationCenterGateway} không đổi
- * một dòng nào, và `useNotificationCenter` cũng vậy.
+ * ## Màn không mở kết nối; cổng cũng không TỰ VIẾT một kết nối
  *
- * ## Vì sao thông báo mới đi vào bằng {@link pushNotification} chứ không bằng SSE
+ * `subscribe` dùng `createEventChannel` (`lib/realtime/eventChannel.ts`) dùng
+ * chung — cùng hàm mà `createProgressStream` dùng — nên phép thử lại có lùi
+ * theo cấp số nhân, phép nối lại và phép đọc gói tin đều là mã đã có test, chứ
+ * không phải một `new EventSource` viết tay trong thư mục màn.
  *
- * Đặc tả cấm màn tự mở kết nối riêng, và kênh có sẵn cũng không chở được:
- * `createEventChannel` (`lib/realtime/eventChannel.ts:18-21`) khoá cứng
- * `ChannelEvent = { type: 'progress'; data: Progress }` và phân tích gói tin
- * bằng `ProgressSchema.strict`. Nên hôm nay nguồn duy nhất của một thông báo mới
- * là cửa dưới đây, và test/story là những người gọi nó. Sản phẩm không gọi.
+ * Hai tuỳ chọn của kênh đều được truyền **có chủ ý**:
  *
- * ## Vì sao bảng đích nằm ở đây
+ * - `schema: NotificationSchema` — nếu bỏ trống, kênh phân tích gói tin bằng
+ *   `ProgressSchema` và mọi thông báo bị loại.
+ * - `eventType: NOTIFICATION_EVENT_TYPE` — nếu bỏ trống, mọi thông báo đi ra
+ *   với `type: 'progress'`, một lời nói dối nằm ngay trong kiểu. `eventType`
+ *   tồn tại chính vì chỗ này.
+ *
+ * ## Vì sao bảng đích vẫn nằm ở đây
  *
  * "Mọi thông báo phải dẫn tới một đối tượng cụ thể" là cấm tuyệt đối của màn.
- * Cách giữ lời hứa đó bằng cấu trúc — thay vì bằng trí nhớ của người viết mục
- * tiếp theo — là để {@link resolveNotificationTo} là **con đường duy nhất** dựng
- * `target.to`, và để nó không có nhánh nào trả về `ROUTES.dashboard`.
+ * Cách giữ lời hứa đó bằng cấu trúc là để {@link resolveNotificationTo} là **con
+ * đường duy nhất** dựng `target.to`, và để nó không có nhánh nào trả về
+ * `ROUTES.dashboard`. Cái ĐỔI so với bản bộ nhớ trong là nơi `place` đến từ:
+ * trước đây bộ mẫu tự gán, nay máy chủ nói ra (`NotificationSchema.place`, bắt
+ * buộc). Suy `place` từ `kind` ở đây là bịa — một lượt chuẩn hoá bề dày mở ra
+ * màn tường vẫn "chạy", chỉ là dẫn sai chỗ và không ai thấy.
  */
 
+import { createAppApiClient } from '@/api/appClient';
+import type { ApiClient, ApiResult, Notification } from '@/api/client';
+import { ENDPOINTS } from '@/api/endpoints';
+import { NOTIFICATION_PLACES, NotificationSchema } from '@/api/schemas/notifications';
+import type { NotificationPlace } from '@/api/schemas/notifications';
 import { formatTimestamp } from '@/lib/format/datetime';
+import { createEventChannel } from '@/lib/realtime/eventChannel';
 import { ROUTES } from '@/routes/paths';
 
 import type {
   NotificationCenterGateway,
+  NotificationInlineAction,
   NotificationItemVm,
+  NotificationKind,
   NotificationTarget,
 } from './notificationModel';
+
+/**
+ * Chín nơi một thông báo được phép dẫn tới — MỘT bản, giữ ở tầng API.
+ *
+ * Xuất lại qua đây vì bảng đích bên dưới là người dùng nó, và vì `index.ts`
+ * cùng bộ kiểm đã quen đường nhập này. Khai báo thật nằm ở
+ * `src/api/schemas/notifications.ts`, cạnh `z.enum` đọc nó từ gói tin — cùng lý
+ * lẽ mà `NOTIFICATION_KINDS` đã chuyển về đó.
+ */
+export { NOTIFICATION_PLACES };
+export type { NotificationPlace };
 
 /* -------------------------------------------------------------------------- */
 /* 1 — Bảng đích: mỗi thông báo dẫn tới màn duyệt của chính nó                 */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Những nơi một thông báo được phép dẫn tới.
- *
- * Đây là bảng điều hướng của đặc tả viết thành một union: sáu nơi đầu là màn
- * duyệt theo tầng, ba nơi cuối theo dự án. Không có mục nào cho bảng điều khiển,
- * và đó là chủ ý — "dẫn về dashboard cho chắc" là đúng thứ mà cấm tuyệt đối của
- * màn này nói không.
- */
-export const NOTIFICATION_PLACES = [
-  'walls',
-  'objects',
-  'dimensions',
-  'grids',
-  'rooms',
-  'thickness',
-  'floors',
-  'rules',
-  'projectSettings',
-] as const;
-
-export type NotificationPlace = (typeof NOTIFICATION_PLACES)[number];
 
 /** Sáu nơi cần biết ĐANG Ở TẦNG NÀO mới dựng được đường dẫn. */
 const FLOOR_SCOPED_PLACES: ReadonlySet<NotificationPlace> = new Set<NotificationPlace>([
@@ -147,8 +149,9 @@ export interface NotificationTargetInput {
 /**
  * Dựng một {@link NotificationTarget} đã có `to` đúng.
  *
- * Xuất khẩu để story và bài kiểm dựng mục mẫu bằng CÙNG bảng đích mà bộ mẫu dưới
- * đây dùng — một bản đích thứ hai gõ tay sẽ lệch đúng vào lúc `ROUTES` đổi.
+ * Xuất khẩu để story và bài kiểm dựng mục mẫu bằng CÙNG bảng đích mà phép đổi
+ * gói tin → viewmodel dùng — một bản đích thứ hai gõ tay sẽ lệch đúng vào lúc
+ * `ROUTES` đổi.
  */
 export function createNotificationTarget(input: NotificationTargetInput): NotificationTarget {
   return {
@@ -161,248 +164,161 @@ export function createNotificationTarget(input: NotificationTargetInput): Notifi
 }
 
 /* -------------------------------------------------------------------------- */
-/* 2 — Bộ mẫu của khoản nợ T-09                                                */
+/* 2 — Gói tin → viewmodel                                                     */
 /* -------------------------------------------------------------------------- */
 
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
-
-/** Thứ {@link buildSeedItem} nhận: mọi thứ trừ `relativeTime`, thứ được dựng ra. */
-interface SeedInput extends Omit<NotificationItemVm, 'relativeTime' | 'target'> {
-  readonly target: NotificationTargetInput;
-}
+/**
+ * Nhãn của nút hành động trong dòng, theo loại thông báo.
+ *
+ * `projectInvite` là loại DUY NHẤT mang `'accept'`: nó có một phép ghi thật để
+ * gọi (`NotificationCenterGateway.acceptInvite`). Ba loại còn lại chỉ mở một
+ * màn, nên nhãn của chúng nói đúng chừng ấy — A6, viết thường kiểu câu.
+ */
+const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlineAction>> =
+  Object.freeze({
+    aiCompleted: { label: 'xem kết quả', kind: 'navigate' },
+    commentMention: { label: 'xem bình luận', kind: 'navigate' },
+    projectInvite: { label: 'chấp nhận', kind: 'accept' },
+    violationFound: { label: 'xem lỗi', kind: 'navigate' },
+  } as const);
 
 /**
- * `relativeTime` của cổng là giá trị **mồi**, không phải giá trị cuối.
+ * Đổi một thông báo trên dây thành một mục của màn.
  *
- * Chỉ `useNotificationCenter` mới có đồng hồ tiêm vào (`options.now`, cho
- * `fakeClock`), nên nó dựng lại chuỗi này bằng `formatTimestamp(createdAt, now)`
- * ở mỗi lượt render. Trường vẫn được đổ đầy ở đây vì hợp đồng khai nó là bắt
- * buộc, và một mục đọc thẳng từ cổng — trong một story không qua hook — vẫn phải
- * đọc được.
+ * Hàm có TÊN, không phải một lambda trong `list`: nó là chỗ hai hình dạng gặp
+ * nhau, và cả `list` lẫn `subscribe` đều đi qua nó — một mục trượt vào bằng
+ * kênh thời gian thực phải giống hệt một mục đọc bằng `list`, nếu không thì
+ * cùng một thông báo trông khác nhau tuỳ vào việc nó tới lúc nào.
+ *
+ * Bốn điều xảy ra ở đây và không xảy ra ở nơi nào khác:
+ *
+ * - `createdAt` đổi từ ISO 8601 sang epoch ms, vì hook gộp theo ngày bằng số.
+ * - `relativeTime` dựng bằng `formatTimestamp` (A15 — định dạng ở viewmodel,
+ *   không ở view). Đây là giá trị MỒI: hook có đồng hồ tiêm vào và dựng lại
+ *   chuỗi này mỗi lượt render, nhưng hợp đồng khai trường là bắt buộc và một
+ *   mục đọc thẳng từ cổng vẫn phải đọc được.
+ * - `message` của máy chủ thành `sentence`, `objectLabel` thành chữ của liên
+ *   kết. Hai trường tách nhau trên dây đúng vì chúng có hai vai khác nhau.
+ * - `place` của máy chủ thành `target.to` qua {@link createNotificationTarget}.
  */
-function buildSeedItem(seed: SeedInput, nowMs: number): NotificationItemVm {
+export function toNotificationItemVm(notification: Notification, nowMs: number): NotificationItemVm {
+  const createdAt = Date.parse(notification.createdAt);
+
   return {
-    id: seed.id,
-    kind: seed.kind,
-    sentence: seed.sentence,
-    target: createNotificationTarget(seed.target),
-    createdAt: seed.createdAt,
-    relativeTime: formatTimestamp(seed.createdAt, nowMs),
-    isRead: seed.isRead,
-    excerpt: seed.excerpt,
-    inlineAction: seed.inlineAction,
+    id: notification.id,
+    kind: notification.kind,
+    sentence: notification.message,
+    target: createNotificationTarget({
+      place: notification.place,
+      projectId: notification.projectId,
+      projectName: notification.projectName,
+      floorId: notification.floorId,
+      label: notification.objectLabel,
+    }),
+    createdAt,
+    relativeTime: formatTimestamp(createdAt, nowMs),
+    isRead: notification.isRead,
+    excerpt: notification.excerpt,
+    inlineAction: INLINE_ACTION_BY_KIND[notification.kind],
   };
 }
 
-/**
- * Bộ mẫu: bảy mục trải trên bốn ngày và cả bốn loại.
- *
- * Mốc thời gian tính LÙI từ `nowMs` chứ không phải hằng số tuyệt đối, để bộ mẫu
- * không tự già đi thành "03/08/2026" sau vài tuần và nhóm "Hôm nay" không rỗng
- * trong story.
- *
- * `excerpt` chỉ có ở `commentMention` — cấm tuyệt đối của màn, và đây là chỗ nó
- * được giữ trong dữ liệu chứ không chỉ trong lời hứa.
- */
-function createSeedItems(nowMs: number): readonly NotificationItemVm[] {
-  const seeds: readonly SeedInput[] = [
-    {
-      id: 'ntf-walls-01',
-      kind: 'aiCompleted',
-      sentence: 'đã dò xong tường tầng 3 của Chung cư Thảo Điền, mời bạn duyệt.',
-      target: {
-        place: 'walls',
-        projectId: 'prj-thao-dien',
-        projectName: 'Chung cư Thảo Điền',
-        floorId: 'floor-03',
-        label: 'tường tầng 3',
-      },
-      createdAt: nowMs - 40 * 1000,
-      isRead: false,
-      excerpt: undefined,
-      inlineAction: { label: 'xem kết quả', kind: 'navigate' },
-    },
-    {
-      id: 'ntf-mention-01',
-      kind: 'commentMention',
-      sentence:
-        'Trần Minh Khoa nhắc bạn trong một bình luận ở phòng khách tầng 2, Nhà phố Nguyễn Huệ.',
-      target: {
-        place: 'rooms',
-        projectId: 'prj-nguyen-hue',
-        projectName: 'Nhà phố Nguyễn Huệ',
-        floorId: 'floor-02',
-        label: 'phòng khách tầng 2',
-      },
-      createdAt: nowMs - 18 * MINUTE_MS,
-      isRead: false,
-      excerpt:
-        'chỗ này bề dày tường đang là 220 nhưng bản vẽ gốc ghi 200, bạn xem lại giúp mình nhé.',
-      inlineAction: { label: 'xem bình luận', kind: 'navigate' },
-    },
-    {
-      id: 'ntf-violation-01',
-      kind: 'violationFound',
-      sentence: 'bộ luật vừa tìm thấy ba lỗi mới ở Chung cư Thảo Điền.',
-      target: {
-        place: 'rules',
-        projectId: 'prj-thao-dien',
-        projectName: 'Chung cư Thảo Điền',
-        floorId: undefined,
-        label: 'bảng lỗi của dự án',
-      },
-      createdAt: nowMs - 3 * HOUR_MS,
-      isRead: false,
-      excerpt: undefined,
-      inlineAction: { label: 'xem lỗi', kind: 'navigate' },
-    },
-    {
-      id: 'ntf-invite-01',
-      kind: 'projectInvite',
-      sentence: 'Lê Thị Hồng Ánh mời bạn tham gia dự án Văn phòng Cầu Giấy.',
-      target: {
-        place: 'projectSettings',
-        projectId: 'prj-cau-giay',
-        projectName: 'Văn phòng Cầu Giấy',
-        floorId: undefined,
-        label: 'Văn phòng Cầu Giấy',
-      },
-      createdAt: nowMs - 26 * HOUR_MS,
-      isRead: false,
-      excerpt: undefined,
-      // Đặc tả gốc ghi nhãn "Chấp nhận". Không có phép ghi nào nhận lời mời:
-      // `src/api/client.ts` có `invite()`/`resendInvite()` (bên quản trị của
-      // S-06) nhưng KHÔNG có `acceptInvite`, và hợp đồng của cổng này chỉ có
-      // `list`/`markRead`/`markAllRead`/`subscribe`. Một nút ghi "chấp nhận" mà
-      // chỉ điều hướng là đúng thứ R-69 cấm, nên nhãn nói đúng việc nó làm.
-      inlineAction: { label: 'xem lời mời', kind: 'navigate' },
-    },
-    {
-      id: 'ntf-dimensions-01',
-      kind: 'aiCompleted',
-      sentence: 'đã đọc xong kích thước tầng 1 của Nhà phố Nguyễn Huệ, mời bạn đối chiếu.',
-      target: {
-        place: 'dimensions',
-        projectId: 'prj-nguyen-hue',
-        projectName: 'Nhà phố Nguyễn Huệ',
-        floorId: 'floor-01',
-        label: 'kích thước tầng 1',
-      },
-      createdAt: nowMs - 30 * HOUR_MS,
-      isRead: true,
-      excerpt: undefined,
-      inlineAction: { label: 'xem kết quả', kind: 'navigate' },
-    },
-    {
-      id: 'ntf-grids-01',
-      kind: 'aiCompleted',
-      sentence: 'đã dò xong trục tầng 2 của Văn phòng Cầu Giấy, mời bạn duyệt.',
-      target: {
-        place: 'grids',
-        projectId: 'prj-cau-giay',
-        projectName: 'Văn phòng Cầu Giấy',
-        floorId: 'floor-02',
-        label: 'trục tầng 2',
-      },
-      createdAt: nowMs - 3 * DAY_MS,
-      isRead: true,
-      excerpt: undefined,
-      inlineAction: { label: 'xem kết quả', kind: 'navigate' },
-    },
-    {
-      id: 'ntf-thickness-01',
-      kind: 'aiCompleted',
-      sentence: 'đã chuẩn hoá bề dày tường tầng 3 của Chung cư Thảo Điền, mời bạn duyệt.',
-      target: {
-        place: 'thickness',
-        projectId: 'prj-thao-dien',
-        projectName: 'Chung cư Thảo Điền',
-        floorId: 'floor-03',
-        label: 'bề dày tường tầng 3',
-      },
-      createdAt: nowMs - 4 * DAY_MS,
-      isRead: true,
-      excerpt: undefined,
-      inlineAction: { label: 'xem kết quả', kind: 'navigate' },
-    },
-  ];
+/* -------------------------------------------------------------------------- */
+/* 3 — Cổng                                                                    */
+/* -------------------------------------------------------------------------- */
 
-  return seeds.map((seed) => buildSeedItem(seed, nowMs));
+/**
+ * Nhãn gắn vào `ChannelEvent.type` cho gói tin của kênh này.
+ *
+ * KHÔNG để `createEventChannel` dùng mặc định `'progress'`: một thông báo mang
+ * nhãn `'progress'` là một lời nói dối nằm trong kiểu, và `ChannelEvent.type`
+ * trở thành một trường không nói gì. Đây là toàn bộ lý do tham số `eventType`
+ * tồn tại.
+ */
+const NOTIFICATION_EVENT_TYPE = 'notification';
+
+/**
+ * Mở gói một `ApiResult`, ném lỗi khi hỏng.
+ *
+ * Hợp đồng của cổng nói "ném lỗi khi hỏng — tầng trên bắt và vẽ trạng thái 4",
+ * còn tầng API trả `Result`. Đây là đúng một chỗ hai quy ước ấy gặp nhau; lỗi
+ * ném ra nguyên vẹn để `toAppError`/`describeError` ở hook dựng được câu tiếng
+ * Việt từ chính nó thay vì từ một `Error` gói lại làm mất mã trạng thái.
+ */
+function unwrap<T>(result: ApiResult<T>): T {
+  if (!result.ok) {
+    throw result.error;
+  }
+
+  return result.data;
 }
-
-/* -------------------------------------------------------------------------- */
-/* 3 — Bộ nhớ tạm của khoản nợ T-09                                            */
-/* -------------------------------------------------------------------------- */
-
-/** Một người dùng một hộp, vì màn này chỉ nói về người đang đăng nhập. */
-let storedItems: readonly NotificationItemVm[] = createSeedItems(Date.now());
-
-/**
- * Người nghe của {@link NotificationCenterGateway.subscribe}.
- *
- * Ở tầm module chứ không trong bao đóng của factory: hook dựng cổng đúng một lần
- * bằng `useState(() => …)`, nhưng story dựng nhiều bản, và một thông báo đẩy vào
- * phải tới được mọi bản đang mở — cùng lý lẽ giữ `storedItems` ở đây.
- */
-const listeners = new Set<(arrived: NotificationItemVm) => void>();
 
 /**
  * Cổng thật của ứng dụng.
  *
- * Trả về `Promise` chứ không phải giá trị đồng bộ, và đó là chủ ý: `useQuery`
- * phải có một lượt "đang tải" thật để trạng thái 2 của A11 không phải là thứ chỉ
- * tồn tại trong story. Khi T-09 nối dây thật, chữ ký này không đổi.
+ * Nhận `ApiClient` qua tham số — cùng khuôn `createProjectSettingsGateway` — để
+ * bộ kiểm cắm `createMockApiClient()` vào đúng phép ánh xạ mà bản sản phẩm dùng
+ * thay vì dựng một ý niệm thứ hai về hình dạng câu trả lời (R-70). Bỏ trống thì
+ * lấy client của ứng dụng, nên `useNotificationCenter` gọi
+ * `createNotificationCenterGateway()` không đổi một chữ.
+ *
+ * `now` cũng tiêm được vì `formatTimestamp` là hàm thuần của hai tham số: một
+ * bài kiểm cần "18 phút trước" phải nói được bây giờ là lúc nào.
  */
-export function createNotificationCenterGateway(): NotificationCenterGateway {
+export function createNotificationCenterGateway(
+  client: ApiClient = createAppApiClient(),
+  now: () => number = Date.now,
+): NotificationCenterGateway {
   return {
-    list: () => Promise.resolve(storedItems),
-    markRead: (ids) => {
-      const wanted = new Set(ids);
-      storedItems = storedItems.map((item) =>
-        wanted.has(item.id) ? { ...item, isRead: true } : item,
+    list: async () => {
+      const nowMs = now();
+
+      return unwrap(await client.notifications.list()).map((notification) =>
+        toNotificationItemVm(notification, nowMs),
       );
-
-      return Promise.resolve();
     },
-    markAllRead: () => {
-      storedItems = storedItems.map((item) => (item.isRead ? item : { ...item, isRead: true }));
 
-      return Promise.resolve();
+    markRead: async (ids) => {
+      // `MarkNotificationsReadSchema.ids` là `.min(1)`: một yêu cầu không mang
+      // id nào là một lượt gọi sai chỗ, không phải "đánh dấu không gì cả". Hook
+      // không gọi như vậy, và nếu có thì nó không đi ra dây.
+      if (ids.length === 0) {
+        return;
+      }
+
+      unwrap(await client.notifications.markRead({ body: { ids: [...ids] } }));
     },
+
+    markAllRead: async () => {
+      unwrap(await client.notifications.markAllRead());
+    },
+
+    acceptInvite: async (notificationId) => {
+      // Máy chủ trả về chính thông báo vừa đổi; nơi gọi chỉ cần biết nó xong, và
+      // dòng mới đi vào màn bằng lượt đọc lại mà `invalidationMap.acceptInvite`
+      // kích hoạt — không phải bằng một bản vá tại chỗ dựng ở đây.
+      unwrap(await client.notifications.acceptInvite({ notificationId }));
+    },
+
     subscribe: (listener) => {
-      listeners.add(listener);
+      const channel = createEventChannel({
+        url: ENDPOINTS.notifications.stream,
+        schema: NotificationSchema,
+        eventType: NOTIFICATION_EVENT_TYPE,
+        onEvent: (event) => {
+          listener(toNotificationItemVm(event.data, now()));
+        },
+        // Trạng thái kết nối không có mặt trong chữ ký `subscribe`, và màn không
+        // có chỗ nào vẽ nó: bảy trạng thái của A11 nói về LƯỢT ĐỌC danh sách,
+        // không về đường SSE. Kênh tự thử lại có lùi theo cấp số nhân, nên mất
+        // sóng một lát là việc nó tự giải quyết. Tham số này bắt buộc phải có,
+        // nên đây là một lời từ chối có chú thích, không phải chỗ bỏ quên.
+        onStateChange: () => undefined,
+      });
 
       return () => {
-        listeners.delete(listener);
+        channel.close();
       };
     },
   };
-}
-
-/**
- * Đẩy một thông báo mới vào. Dành cho test và story; sản phẩm không gọi.
- *
- * Đây là thứ thay chỗ kênh thời gian thực cho tới khi T-09 nối dây: mục được ghi
- * vào bộ nhớ ở ĐẦU danh sách (mới nhất trước) rồi phát cho mọi người nghe, đúng
- * thứ tự một máy chủ thật sẽ làm.
- */
-export function pushNotification(item: NotificationItemVm): void {
-  storedItems = [item, ...storedItems];
-
-  for (const listener of listeners) {
-    listener(item);
-  }
-}
-
-/** Đưa bộ nhớ tạm về bộ mẫu và gỡ mọi người nghe. Dành cho test; sản phẩm không gọi. */
-export function resetNotificationCenterStore(nowMs: number = Date.now()): void {
-  storedItems = createSeedItems(nowMs);
-  listeners.clear();
-}
-
-/** Xoá sạch hộp thư, cho story dựng trạng thái 1 (rỗng). Sản phẩm không gọi. */
-export function clearNotificationCenterStore(): void {
-  storedItems = [];
 }
