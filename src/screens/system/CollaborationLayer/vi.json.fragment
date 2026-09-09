@@ -1,0 +1,42 @@
+{
+  "collaborationLayer": {
+    "syncState": {
+      "dangNoi": "đang nối",
+      "daNoi": "đã nối",
+      "dongBoCham": "đồng bộ chậm",
+      "lamViecRieng": "đang làm việc riêng, chưa đồng bộ",
+      "matKetNoi": "mất kết nối, vẫn sửa được tại chỗ"
+    },
+    "presence": {
+      "onlySelf": "chỉ mình bạn đang xem",
+      "goToCollaborator": "đến chỗ {{name}} đang xem",
+      "cursorLabel": "con trỏ của {{name}}",
+      "group": "những người đang xem"
+    },
+    "comments": {
+      "pin": "ghim bình luận",
+      "pinResolved": "ghim bình luận đã xong",
+      "pinOpen": "ghim bình luận, {{count}} trả lời",
+      "writeDisabled": "chỉ xem được bình luận, không viết được",
+      "placeholder": "viết bình luận"
+    },
+    "locks": {
+      "heldBy": "{{name}} đang giữ",
+      "requestAccess": "xin quyền chỉnh sửa"
+    },
+    "conflict": {
+      "title": "có xung đột cần bạn quyết định",
+      "fieldLabel": "trường đang xung đột",
+      "mine": "phần của bạn",
+      "theirs": "phần của họ",
+      "useMine": "dùng phần của tôi",
+      "useTheirs": "dùng phần của họ",
+      "mergeManually": "tự gộp",
+      "defer": "hoãn lại",
+      "deferHint": "có thể quay lại xử lý sau"
+    },
+    "collapsed": {
+      "hint": "đã thu gọn, ghim bình luận vẫn còn"
+    }
+  }
+}
