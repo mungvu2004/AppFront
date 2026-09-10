@@ -31,7 +31,11 @@
  */
 
 import type { MeasurePoint } from '@/domain/measure/measure';
+import { createColoringMode, type PaintSubject } from '@/lib/coloring/modes';
+import { UNPAINTED_TOKEN, type ColorTokenName } from '@/lib/coloring/scales';
+import type { BuildFloorInput } from '@/lib/three/build/floor';
 import type { DetailLevel } from '@/lib/three/build/lod';
+import type { BuildPartKind } from '@/lib/three/build/scene';
 import type { EntityHit } from '@/lib/three/interaction/hitTest';
 
 /* -------------------------------------------------------------------------- */
@@ -236,10 +240,58 @@ export type MobileViewerGesture =
   | { readonly kind: 'pan'; readonly deltaXPx: number; readonly deltaYPx: number }
   | { readonly kind: 'tap'; readonly xPx: number; readonly yPx: number };
 
-/** Tuỳ chọn lắp cảnh di động. */
+/**
+ * Token màu DUY NHẤT của cả mô hình trên di động — chế độ `default` của P-06.
+ *
+ * Màn này không có bộ chọn chế độ tô: một người đứng ở công trường mở nó ra để
+ * xem hình khối, không để đọc một dải quantile. Nên `tokenOfPartKind` mặc định
+ * trả về đúng hằng này cho MỌI loại bộ phận, và nó sống ở hợp đồng để cảnh và
+ * hook đọc CÙNG một nguồn thay vì mỗi bên tự dựng lại một bản (R-71).
+ */
+export const MOBILE_VIEWER_MODEL_TOKEN: ColorTokenName =
+  createColoringMode('default', { subjects: [] as readonly PaintSubject[] }).bands[0]?.token ??
+  UNPAINTED_TOKEN;
+
+/**
+ * Tuỳ chọn lắp cảnh di động.
+ *
+ * > **Sửa của lớp gộp — `levels` là trường mà bản đầu của hợp đồng này bỏ sót.**
+ * > Bản đầu chỉ khai `floorIds: readonly string[]`, tức MÃ tầng. T5 dựng cảnh
+ * > rồi báo lại: mọi đường dựng hình trong `src/lib/three/build` nhận
+ * > `BuildFloorInput`, và với riêng mã tầng thì **không dựng được một tam giác
+ * > nào** — cảnh lắp xong, mọi cổng xanh, và người dùng nhìn vào một mô hình
+ * > RỖNG. T5 đã bù bằng một trường TUỲ CHỌN trên `MobileViewerSceneMountOptions`
+ * > để ba mảnh song song còn lại không phải sửa giữa chừng; lớp gộp kéo nó về
+ * > đây và bỏ dấu `?`, vì một trường mà thiếu nó thì màn hình trống rỗng không
+ * > phải là một trường tuỳ chọn. Bài kiểm canh đúng chỗ này là
+ * > `MobileViewer.container.test.tsx` — nó đòi `levels` khác rỗng, chứ không
+ * > dừng ở "typecheck xanh".
+ */
 export interface MobileViewerSceneOptions {
-  /** Các tầng cần dựng, theo thứ tự từ dưới lên. */
+  /**
+   * Các tầng cần dựng, theo thứ tự từ dưới lên.
+   *
+   * Vẫn là thứ quyết định **thứ tự và tập tầng**; {@link levels} chỉ cấp hình
+   * cho chúng. Một mã tầng không có hình tương ứng thì không có gì để vẽ — không
+   * ném lỗi, không dựng một tầng rỗng giả vờ.
+   */
   readonly floorIds: readonly string[];
+  /**
+   * Hình của từng tầng, tra theo `level.id`. **Bắt buộc** — xem docblock trên.
+   *
+   * Người gọi dựng nó bằng `toBuildFloorInput(spatial, levelId)` của
+   * `src/domain/spatial`, đúng cách `useViewer3D.ts:401-424` dựng cho máy tính.
+   */
+  readonly levels: readonly BuildFloorInput[];
+  /**
+   * Token màu của một loại bộ phận.
+   *
+   * Vắng mặt thì cả mô hình dùng {@link MOBILE_VIEWER_MODEL_TOKEN}. Trường này
+   * tuỳ chọn còn `levels` thì không, và khác biệt ấy có lý do: thiếu `levels` là
+   * một mô hình rỗng, còn thiếu `tokenOfPartKind` là một mô hình một màu — đúng
+   * thứ màn chỉ đọc này muốn.
+   */
+  readonly tokenOfPartKind?: ((kind: BuildPartKind) => ColorTokenName) | undefined;
   /**
    * Mức chi tiết dựng ĐẦU TIÊN. Đặc tả bắt "mức gọn trước rồi mới nâng dần",
    * nên giá trị mở màn là `'block'`, không phải `'full'`.

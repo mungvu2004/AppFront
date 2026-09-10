@@ -29,6 +29,7 @@
 import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import { millimetres } from '@/domain/units/types';
 import { formatLength } from '@/lib/format/measure';
+import { ROUTES } from '@/routes/paths';
 
 import type {
   MobileViewerFloor,
@@ -156,8 +157,17 @@ const NO_OP = (): void => undefined;
 /** Tên dự án mẫu — một danh xưng riêng, không phải một câu (A6 không áp dụng ở đây). */
 const SAMPLE_PROJECT_NAME = 'Trạm bơm Nhơn Trạch';
 
-/** Liên kết sang bản 2D — lối thoát của trạng thái `error` (máy yếu). */
-const SAMPLE_FALLBACK_2D_HREF = '/2d/P-NHONTRACH01';
+/** Mã dự án mẫu — chỉ dùng để dựng đường dẫn, không hiện ra ở đâu. */
+const SAMPLE_PROJECT_ID = 'P-NHONTRACH01';
+
+/**
+ * Liên kết sang bản 2D — lối thoát của trạng thái `error` (máy yếu).
+ *
+ * Dựng bằng `ROUTES` chứ không viết tay: hook thật trả về đúng
+ * `ROUTES.project.floors(projectId)`, và một bộ mẫu mang đường dẫn khác là một
+ * story vẽ ra thứ sản phẩm không bao giờ hiện.
+ */
+const SAMPLE_FALLBACK_2D_HREF = ROUTES.project.floors(SAMPLE_PROJECT_ID);
 
 const BASE: MobileViewerProps = {
   state: 'success',

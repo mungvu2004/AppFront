@@ -42,6 +42,15 @@
  * `MobileViewerProps` không có chỗ nào cho toast, nên nơi nhận toast phải do
  * người gọi cấp. Thứ THIẾU không hiện ra trong diff, nên nó đóng bằng cấu trúc.
  *
+ * ## Hình của tầng đi xuống cảnh, không chỉ mã tầng
+ *
+ * `MobileViewerSceneOptions` bản đầu chỉ có `floorIds` — mã tầng — và với riêng
+ * mã tầng thì `mobileViewerScene.ts` không dựng được một tam giác nào. Hợp đồng
+ * đã sửa (mục 4: `levels` là trường **bắt buộc**), và hook là nơi dựng mảng ấy:
+ * `toBuildFloorInput(spatial, levelId)` cho từng tầng của `data.storeys`, đúng
+ * phép chuyển mà `useViewer3D.ts:401-424` dùng trên máy tính. Một đồ thị không
+ * chuyển được thành trạng thái `error`, không thành một mô hình rỗng im lặng.
+ *
  * ## Một chỗ hợp đồng chưa phủ, và cách bắc qua
  *
  * `MobileViewerSceneOptions.onPick` đưa lên một `EntityHit` mà KHÔNG kèm toạ độ
@@ -59,6 +68,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { can } from '@/lib/auth/permissions';
 import {
   createShareLink,
@@ -67,7 +77,9 @@ import {
   type ShareLink,
   type ShareLinkGateway,
 } from '@/lib/export/shareLink';
+import type { ColorTokenName } from '@/lib/coloring/scales';
 import { createUuid } from '@/lib/http/ids';
+import type { BuildFloorInput } from '@/lib/three/build/floor';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
@@ -93,6 +105,7 @@ import {
 import { projectDetailQueryOptions } from './mobileViewerQueries';
 import {
   MOBILE_VIEWER_COMPACT_WIDTH_PX,
+  MOBILE_VIEWER_MODEL_TOKEN,
   type MobileViewerMeasurement,
   type MobileViewerModel,
   type MobileViewerSceneHandle,
@@ -139,6 +152,9 @@ const SHARE_UNDO_LABEL = 'thu hồi liên kết vừa tạo';
 /* -------------------------------------------------------------------------- */
 /* Tham số và những kiểu riêng của hook.                                       */
 /* -------------------------------------------------------------------------- */
+
+/** Không tầng nào dựng được — một hằng đông cứng, để mọi lượt trả về cùng một mảng. */
+const EMPTY_LEVELS: readonly BuildFloorInput[] = Object.freeze([]);
 
 /** Chữ ký lắp cảnh của `mobileViewerScene.ts`, tiêm vào chứ không `import`. */
 export type MountMobileViewerScene = (
@@ -251,6 +267,53 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   const data = useMemo(() => shellDataOf(spatial), [spatial]);
   const floors = useMemo(() => floorsOf(spatial, data.storeys), [spatial, data.storeys]);
   const floorIds = useMemo(() => floors.map((floor) => floor.id), [floors]);
+
+  /**
+   * Đồ thị → đầu vào của R-01, cùng phép chuyển mà `useViewer3D.ts:401-424` dùng.
+   *
+   * **Vì sao đoạn này tồn tại.** `floorIds` là MÃ tầng, và với riêng mã tầng thì
+   * `mobileViewerScene.ts` không dựng được một tam giác nào — cảnh lắp xong,
+   * mọi cổng xanh, người dùng nhìn vào một mô hình rỗng. Hợp đồng nay khai
+   * `levels` là trường bắt buộc (mục 4), nên chỗ dựng nó là ở đây, cạnh nơi dải
+   * tầng được đọc ra, chứ không phải một `useEffect` thứ hai.
+   *
+   * `toBuildFloorInput` ném khi đồ thị hỏng chỉ mục hoặc mang số đo không hữu
+   * hạn. Đó là một mô hình không dựng được, không phải một sự cố kỹ thuật để
+   * hiện mã lỗi: nó thành trạng thái `error`, và `error` của màn này mời người
+   * dùng sang bản 2D — lối thoát đúng cho cả hai lý do.
+   */
+  const conversion = useMemo((): { levels: readonly BuildFloorInput[]; failed: boolean } => {
+    if (spatial === null) {
+      return { levels: EMPTY_LEVELS, failed: false };
+    }
+
+    try {
+      const built: BuildFloorInput[] = [];
+
+      for (const storey of data.storeys) {
+        const input = toBuildFloorInput(spatial, storey.id);
+
+        if (input !== null) {
+          built.push(input);
+        }
+      }
+
+      return { levels: built, failed: false };
+    } catch {
+      return { levels: EMPTY_LEVELS, failed: true };
+    }
+  }, [spatial, data.storeys]);
+
+  const levels = conversion.levels;
+
+  /**
+   * Một token cho cả mô hình — màn chỉ đọc này không có bộ chọn chế độ tô.
+   *
+   * Trị số đến từ {@link MOBILE_VIEWER_MODEL_TOKEN} của hợp đồng, cùng hằng mà
+   * cảnh dùng làm mặc định; hook truyền nó tường minh để cái seam này nhìn thấy
+   * được ở một chỗ, thay vì đúng nhờ hai bên tình cờ mặc định giống nhau.
+   */
+  const tokenOfPartKind = useCallback((): ColorTokenName => MOBILE_VIEWER_MODEL_TOKEN, []);
 
   const [activeFloorId, setActiveFloorId] = useState<string | null>(null);
 
@@ -466,6 +529,10 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
 
     const mount = mountScene(canvas, {
       floorIds,
+      // Hình THẬT của từng tầng. Thiếu mảng này thì cảnh lắp xong mà không có gì
+      // để vẽ, và không một cổng nào bắt được điều đó.
+      levels,
+      tokenOfPartKind,
       // "Mức gọn trước, rồi nâng dần" — R-04. Mở màn ở `full` trên một máy ở
       // công trường là cách chắc chắn nhất để khung hình đầu tiên đến muộn.
       initialDetail: 'block',
@@ -490,7 +557,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
       handleRef.current = null;
       setIsSceneMounted(false);
     };
-  }, [canvas, floorIds, mountScene]);
+  }, [canvas, floorIds, levels, tokenOfPartKind, mountScene]);
 
   useEffect(() => {
     handleRef.current?.setActiveFloor(activeFloorId);
@@ -593,7 +660,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     if (isForbidden) {
       return 'forbidden';
     }
-    if (sceneFailure !== null || projectQuery.isError) {
+    if (sceneFailure !== null || conversion.failed || projectQuery.isError) {
       return 'error';
     }
     if (projectQuery.isLoading || (canvas !== null && floorIds.length > 0 && !isSceneMounted)) {
@@ -613,6 +680,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   }, [
     isForbidden,
     sceneFailure,
+    conversion.failed,
     projectQuery.isError,
     projectQuery.isLoading,
     canvas,

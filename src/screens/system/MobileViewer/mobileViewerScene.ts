@@ -82,8 +82,7 @@ import {
 
 import type { MeasurePoint } from '@/domain/measure/measure';
 import { metres, metresToMillimetres } from '@/domain/units/types';
-import { createColoringMode, type PaintSubject } from '@/lib/coloring/modes';
-import { UNPAINTED_TOKEN, type ColorTokenName } from '@/lib/coloring/scales';
+import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
 import { buildFloorAtDetail, DETAIL_LEVELS, type DetailLevel } from '@/lib/three/build/lod';
 import type { BuildPartKind } from '@/lib/three/build/scene';
@@ -105,11 +104,12 @@ import { createFrameLoop } from '@/lib/three/present/frameLoop';
 import { documentTokenReader, tokenColour, type TokenReader } from '@/lib/three/present/palette';
 
 import { attachMobileViewerGestures } from './mobileViewerGestures';
-import type {
-  MobileViewerGesture,
-  MobileViewerSceneHandle,
-  MobileViewerSceneMount,
-  MobileViewerSceneOptions,
+import {
+  MOBILE_VIEWER_MODEL_TOKEN,
+  type MobileViewerGesture,
+  type MobileViewerSceneHandle,
+  type MobileViewerSceneMount,
+  type MobileViewerSceneOptions,
 } from './mobileViewerTypes';
 
 /* -------------------------------------------------------------------------- */
@@ -157,9 +157,6 @@ const FALLBACK_SURFACE_LEVEL = 0.72;
  */
 const SECOND_IN_MS = 1000;
 
-/** Không có đối tượng nào để tô theo trị số: màn này dùng MỘT token cho cả mô hình. */
-const NO_SUBJECTS: readonly PaintSubject[] = Object.freeze([]);
-
 /* -------------------------------------------------------------------------- */
 /* Kiểu công khai.                                                             */
 /* -------------------------------------------------------------------------- */
@@ -175,27 +172,18 @@ export interface MobileViewerRendererLike {
 }
 
 /**
- * Những gì `MobileViewerSceneOptions` của hợp đồng còn thiếu, cộng các chỗ tiêm
- * cho bài kiểm. **Mọi trường ở đây đều tuỳ chọn**, nên một lời gọi dùng đúng
- * `MobileViewerSceneOptions` vẫn hợp lệ và ba worker kia không phải sửa gì.
+ * Các chỗ tiêm cho bài kiểm. **Mọi trường ở đây đều tuỳ chọn**, nên một lời gọi
+ * dùng đúng `MobileViewerSceneOptions` của hợp đồng vẫn hợp lệ.
  *
- * > **Vì sao `levels` nằm ở đây chứ không nằm trong hợp đồng.** Mục 4 của
- * > `mobileViewerTypes.ts` chỉ cấp `floorIds: readonly string[]` — mã tầng, không
- * > phải hình. Khảo sát mục (a) và (b) đã đo: mọi đường dựng hình đều cần
- * > `BuildFloorInput` cộng một hàm chọn token màu, và với riêng mã tầng thì không
- * > dựng được một tam giác nào. Luật đã chốt là *ghi chú khảo sát thắng*, và hợp
- * > đồng là tài sản chung của bốn người nên nó không được sửa ở đây — thiếu sót
- * > ấy đã báo bằng `escalation`, và phần bù đắp đứng ở đây, dạng cộng thêm.
- *
- * `floorIds` vẫn là thứ quyết định **thứ tự và tập tầng** được dựng; `levels` chỉ
- * cấp hình cho chúng. Một mã tầng không có hình tương ứng thì đơn giản là không
- * có gì để vẽ — không ném lỗi, không dựng một tầng rỗng giả vờ.
+ * > **`levels` và `tokenOfPartKind` từng đứng ở đây, và nay đã về hợp đồng.**
+ * > Mục 4 của `mobileViewerTypes.ts` bản đầu chỉ cấp `floorIds` — mã tầng, không
+ * > phải hình — nên file này bù bằng hai trường TUỲ CHỌN để ba mảnh song song
+ * > còn lại không phải sửa giữa chừng. Lớp gộp đã kéo cả hai về mục 4: `levels`
+ * > thành trường **bắt buộc** (thiếu nó là một mô hình rỗng), `tokenOfPartKind`
+ * > ở lại dạng tuỳ chọn với mặc định có tên. Không còn hai nguồn cho cùng một
+ * > hình dạng.
  */
 export interface MobileViewerSceneInjections {
-  /** Hình của từng tầng, tra theo `level.id`. */
-  readonly levels?: readonly BuildFloorInput[] | undefined;
-  /** Token màu của một loại bộ phận. Vắng mặt thì cả mô hình dùng một token. */
-  readonly tokenOfPartKind?: ((kind: BuildPartKind) => ColorTokenName) | undefined;
   /** Thay `new WebGLRenderer(...)`. Ném lỗi được coi là "không có WebGL". */
   readonly createRenderer?: ((canvas: HTMLCanvasElement) => MobileViewerRendererLike) | undefined;
   /** Lên lịch một khung hình; `requestAnimationFrame` khi vắng mặt. */
@@ -243,11 +231,6 @@ export function notchesForScale(scale: number): number {
   }
 
   return -Math.log(scale) / Math.log(CAMERA_SETTINGS.orbit.zoomFactorPerNotch);
-}
-
-/** Token dùng cho cả mô hình khi người gọi không nói gì: chế độ `default` của P-06. */
-function defaultToken(): ColorTokenName {
-  return createColoringMode('default', { subjects: NO_SUBJECTS }).bands[0]?.token ?? UNPAINTED_TOKEN;
 }
 
 /** Renderer thật. Ném lỗi khi máy không cấp được WebGL — caller bắt, không để lọt. */
@@ -331,10 +314,10 @@ function startScene(
       globalThis.cancelAnimationFrame(handle);
     });
 
-  const oneToken = defaultToken();
-  const tokenOfPartKind = options.tokenOfPartKind ?? ((): ColorTokenName => oneToken);
+  const tokenOfPartKind =
+    options.tokenOfPartKind ?? ((): ColorTokenName => MOBILE_VIEWER_MODEL_TOKEN);
   const levelsById = new Map<string, BuildFloorInput>(
-    (options.levels ?? []).map((input) => [input.level.id, input]),
+    options.levels.map((input) => [input.level.id, input]),
   );
 
   /* ---- Cảnh, đèn, camera ------------------------------------------------- */
