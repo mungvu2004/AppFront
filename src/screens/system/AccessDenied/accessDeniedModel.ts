@@ -225,6 +225,18 @@ export interface AccessDeniedVm {
   /** Câu nêu lý do bị chặn gửi lại. `null` khi không bị chặn. Không im lặng bỏ qua. */
   readonly throttleSentence: string | null;
 
+  /**
+   * Nút chính của khối xin quyền. `null` khi `canRequestAccess` tắt.
+   *
+   * Hai trường này là cặp đôi của hai cờ năng lực, và chúng `null` **cùng lúc** với cờ
+   * — đó là điều khiến "cờ tắt" và "không có hành động" không bao giờ nói hai điều
+   * khác nhau. View không được dựng một nút rồi gắn `onClick` rỗng để lấp chỗ: một nút
+   * bấm không làm gì là lời hứa suông với người dùng, và R-69 cấm đúng loại mã ấy.
+   */
+  readonly requestAccess: AccessDeniedAction | null;
+  /** Nút gửi mật khẩu liên kết. `null` khi `canSubmitLinkPassword` tắt. */
+  readonly submitLinkPassword: AccessDeniedAction | null;
+
   readonly backToProjects: AccessDeniedAction;
   /** Nút vào dự án — chỉ có ở trạng thái `success`. */
   readonly enterProject: AccessDeniedAction | null;
