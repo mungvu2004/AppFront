@@ -69,6 +69,16 @@ export const SAMPLE_ACCESS_REQUEST: AccessRequestVm = {
   sentAtLabel: 'đã gửi lúc 14:32',
 };
 
+/**
+ * Nhãn nút xin quyền — cùng chuỗi mà bài nghiệm thu 3 tìm rồi khẳng định là
+ * KHÔNG có trong DOM khi cổng tắt. Hai chỗ phải đọc cùng một chữ, nên chữ ấy
+ * sống ở đây một lần.
+ */
+export const REQUEST_ACCESS_LABEL = 'Yêu cầu quyền truy cập';
+
+/** Nhãn nút gửi mật khẩu liên kết — dùng khi `capabilities.canSubmitLinkPassword` bật. */
+export const SUBMIT_LINK_PASSWORD_LABEL = 'Gửi mật khẩu';
+
 /** Câu nêu lý do gửi lại bị chặn — một câu tiếng Việt hoàn chỉnh, không im lặng (bài nghiệm thu 2). */
 export const ACCESS_REQUEST_THROTTLE_SENTENCE =
   'Bạn vừa gửi yêu cầu, hãy đợi một lát trước khi gửi lại.';
@@ -158,6 +168,10 @@ export interface CreateAccessDeniedVmOptions {
   readonly onSwitchAccount?: () => void;
   readonly onBackToProjects?: () => void;
   readonly onEnterProject?: () => void;
+  /** Chỉ có hiệu lực khi `capabilities.canRequestAccess` bật. */
+  readonly onRequestAccess?: () => void;
+  /** Chỉ có hiệu lực khi `capabilities.canSubmitLinkPassword` bật. */
+  readonly onSubmitLinkPassword?: () => void;
 }
 
 /**
@@ -194,6 +208,12 @@ export function createAccessDeniedVm(
     owner,
     request,
     throttleSentence: options.throttleSentence ?? null,
+    requestAccess: capabilities.canRequestAccess
+      ? actionFor(REQUEST_ACCESS_LABEL, options.onRequestAccess)
+      : null,
+    submitLinkPassword: capabilities.canSubmitLinkPassword
+      ? actionFor(SUBMIT_LINK_PASSWORD_LABEL, options.onSubmitLinkPassword)
+      : null,
     backToProjects: actionFor('Về danh sách dự án', options.onBackToProjects),
     enterProject: state === 'success' ? actionFor('Vào dự án', options.onEnterProject) : null,
     errorCodeCaption: `Mã lỗi: ${options.error?.code ?? 'FORBIDDEN'}`,

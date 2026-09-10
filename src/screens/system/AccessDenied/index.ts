@@ -17,8 +17,10 @@
 
 export { AccessDeniedContainer, AccessDeniedRoute } from './AccessDenied.container';
 export type { AccessDeniedContainerProps } from './AccessDenied.container';
+// `AccessDenied` nhận thẳng `AccessDeniedVm` làm props — hợp đồng nói VM là
+// toàn bộ những gì view cần, nên không có kiểu `AccessDeniedProps` thứ hai để
+// xuất. Người gọi nhập `AccessDeniedVm` ở khối kiểu bên dưới.
 export { AccessDenied } from './AccessDenied';
-export type { AccessDeniedProps } from './AccessDenied';
 export { useAccessDenied } from './useAccessDenied';
 export type { UseAccessDeniedOptions } from './useAccessDenied';
 export { createAccessDeniedGateway } from './accessDeniedGateway';

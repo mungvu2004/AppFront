@@ -3631,26 +3631,29 @@
     }
   },
   "accessDenied": {
-    "title": "Bạn chưa có quyền truy cập",
-    "restriction": "Không truy cập được dự án này",
-    "restrictionWithProject": "Không truy cập được \"{{projectName}}\"",
+    "title": "bạn chưa có quyền truy cập",
+    "restriction": "nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
+    "restrictionWithProject": "dự án “{{projectName}}” đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
     "reason": {
-      "revoked": "Quyền truy cập đã bị thu hồi.",
-      "expired": "Quyền truy cập đã hết hạn.",
-      "password": "Mật khẩu liên kết sai.",
-      "unknown": "Không thể xác định lý do chính xác, nhưng hệ thống không cho phép truy cập lúc này."
+      "revoked": "quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.",
+      "expired": "đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.",
+      "password": "đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.",
+      "unknown": "hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này."
     },
-    "whoCanGrant": "Chỉ chủ sở hữu dự án mới có thể cấp quyền truy cập.",
-    "identityLabel": "Đang đăng nhập bằng",
-    "switchAccount": "Đổi tài khoản",
-    "owner": "Chủ sở hữu",
+    "whoCanGrant": "người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.",
+    "identityLabel": "bạn đang đăng nhập bằng {{email}}",
+    "identityUnknown": "phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.",
+    "switchAccount": "đăng nhập bằng tài khoản khác",
     "requestAccess": "Yêu cầu quyền truy cập",
     "requestPlaceholder": "Lý do bạn cần truy cập (không bắt buộc)",
-    "requestSent": "Đã gửi yêu cầu đến {{ownerName}}. Bạn sẽ nhận thông báo khi được chấp nhận.",
-    "requestThrottled": "Đã gửi yêu cầu rồi. Chờ {{duration}} rồi gửi lại.",
-    "backToProjects": "Về danh sách dự án",
-    "enterProject": "Vào dự án",
-    "errorCodePrefix": "Mã lỗi"
+    "requestSentBadge": "đã gửi yêu cầu",
+    "requestSent": "đã gửi {{sentAt}}",
+    "requestThrottled": "bạn vừa gửi một yêu cầu, nên lượt gửi tiếp theo mở lại sau {{duration}}.",
+    "linkPassword": "Mật khẩu liên kết",
+    "submitLinkPassword": "Gửi mật khẩu",
+    "backToProjects": "về danh sách dự án",
+    "enterProject": "mở dự án",
+    "errorCodePrefix": "mã lỗi: "
   },
   "notFound": {
     "title": "Không tìm thấy trang này.",

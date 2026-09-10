@@ -363,6 +363,31 @@ export function useAccessDenied(options: UseAccessDeniedOptions = {}): AccessDen
    */
   const owner: ProjectOwnerVm | null = null;
 
+  /* ---- Hai phép ghi chưa tồn tại ----------------------------------------- */
+
+  /**
+   * Cả hai luôn `null`, cùng một lý do và cùng một khuôn với {@link owner}.
+   *
+   * Hợp đồng nói hai trường này `null` **cùng lúc** với hai cờ năng lực của
+   * chúng, và {@link AccessDeniedGateway} khai `submitAccessRequest` /
+   * `submitLinkPassword` là TUỲ CHỌN đúng để sự vắng mặt của hàm và cờ tắt
+   * không bao giờ nói hai điều khác nhau. Cổng thật
+   * (`accessDeniedGateway.ts`) không mang hàm nào trong hai hàm ấy — T-05 chưa
+   * tồn tại, và không hàm nào trong repo nhận mật khẩu để mở khoá một liên kết
+   * (hợp đồng, khoản 1 và 4).
+   *
+   * Nên một nhánh `capabilities.canRequestAccess ? … : null` ở đây sẽ là nhánh
+   * chết giả vờ có đường gửi (R-69) — và tệ hơn thế: ô ghi chú của view là ô
+   * không kiểm soát, không có đường nào đưa nội dung người dùng gõ ngược lên
+   * hook, nên một nút "gửi" dựng hôm nay chỉ gửi được chuỗi rỗng. Cờ năng lực
+   * đã làm đúng việc của nó ở view, nơi nó quyết định cả khối rời khỏi DOM.
+   *
+   * Ngày một trong hai phép ghi có thật, nó vào cổng trước, và chỗ này đọc
+   * `gateway.submitAccessRequest` — đổi ở đây là một nhánh, không phải một tầng.
+   */
+  const requestAccess: AccessDeniedAction | null = null;
+  const submitLinkPassword: AccessDeniedAction | null = null;
+
   /* ---- Trạng thái -------------------------------------------------------- */
 
   const projectId = options.projectId;
@@ -511,6 +536,9 @@ export function useAccessDenied(options: UseAccessDeniedOptions = {}): AccessDen
     owner,
     request,
     throttleSentence,
+
+    requestAccess,
+    submitLinkPassword,
 
     backToProjects,
     enterProject,
