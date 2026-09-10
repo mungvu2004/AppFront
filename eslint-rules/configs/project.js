@@ -251,20 +251,24 @@ module.exports = {
     // -- 3. SỔ NỢ --------------------------------------------------------------
     // Mỗi mục dưới đây là một luật ĐANG bật cho toàn repo, tạm tắt trên đúng
     // những file có sẵn từ trước khi luật ra đời. Không mục nào được dài thêm.
-    {
-      // Nợ kỹ thuật có sẵn từ trước khi local/no-raw-number ra đời. Danh sách này
-      // chỉ được ngắn đi: chuyển màn hình sang ViewModel của src/lib/viewmodel rồi
-      // xoá dòng tương ứng. Cấm thêm file mới vào đây.
-      files: [
-        'src/components/shell/StatusBar.tsx',
-        'src/components/ui/ConfidenceMeter.tsx',
-        'src/components/ui/Slider.tsx',
-        'src/screens/ListReviewDemo.tsx',
-      ],
-      rules: {
-        'local/no-raw-number': 'off',
-      },
-    },
+    //
+    // Sổ nợ của `local/no-raw-number` đã TRẢ HẾT và bị xoá.
+    //
+    // Bốn file — StatusBar, ConfidenceMeter, Slider, ListReviewDemo — từng tự chép
+    // tay `toFixed()/toLocaleString()`. Giờ chúng gọi `formatNumber`/`formatLength`
+    // của `src/lib/format`, nên luật chạy khắp `src/components` và `src/screens` mà
+    // không phải miễn trừ cho file nào. Đừng dựng lại mục này.
+    //
+    // Slider.tsx:47 (`Math.round(raw / step) * step`) và ConfidenceMeter.tsx:37
+    // (`Math.round(percentage)` cho `aria-valuenow`) vẫn còn số thô, nhưng luật
+    // không bắt chúng — cả hai không phải `toFixed`/`toLocaleString` và không phải
+    // phép chia quy đổi đơn vị (`step`, `percentage` không khớp `_PER_` hay đứng
+    // sau một số hạng có tên đo lường). Chưa có hàm dùng chung nào trong `src/lib`
+    // làm việc này cho một `number` không mang đơn vị: `roundMeasurement`/`snapAngle`
+    // ở `src/domain/units` chỉ nhận `Millimetres`/`Degrees` — ép kiểu bừa để gọi
+    // chúng là nói dối kiểu dữ liệu, vì Slider/ConfidenceMeter dùng cho nhiều loại
+    // giá trị không phải chiều dài. Để nguyên, không bịa hàm mới trong component.
+    //
     // Sổ nợ của `local/no-fetch-outside-http` đã TRẢ HẾT và bị xoá.
     //
     // Ba adapter — auth/session, offline/networkMonitor, telemetry/sender — từng

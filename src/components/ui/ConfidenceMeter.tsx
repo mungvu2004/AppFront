@@ -2,6 +2,7 @@ import React from 'react';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 import { confidenceLevel } from '@/lib/format/semantic';
+import { formatNumber } from '@/lib/format/number';
 import { Tooltip } from './Tooltip';
 
 // ─── ConfidenceMeter ──────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: Conf
   const isAttention = confidenceLevel(value) === 'needsReview';
   const percentage = Math.min(100, Math.max(0, value * 100));
   // Format with Vietnamese decimal separator (comma)
-  const displayValue = value.toFixed(2).replace('.', ',');
+  const displayValue = formatNumber(value, { fractionDigits: 2 });
 
   return (
     <div className={twMerge('flex items-center gap-2', className)} {...props}>
@@ -64,7 +65,7 @@ function ConfidenceMeterInner({ value, className, noTooltip: _, ...props }: Conf
 
 export function ConfidenceMeter({ value, noTooltip = false, ...props }: ConfidenceMeterProps) {
   const isAttention = confidenceLevel(value) === 'needsReview';
-  const displayValue = value.toFixed(2).replace('.', ',');
+  const displayValue = formatNumber(value, { fractionDigits: 2 });
   const tooltipLabel = isAttention
     ? `Độ tin cậy AI ${displayValue} — cần kiểm tra`
     : `Độ tin cậy AI ${displayValue}`;

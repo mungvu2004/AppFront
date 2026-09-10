@@ -10,6 +10,7 @@ import { Skeleton } from '../components/feedback/Skeleton';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { useToast } from '../components/feedback/Toast';
 import { confidenceLevel } from '../lib/format/semantic';
+import { formatLength } from '../lib/format/measure';
 
 const mockData: WallData[] = Array.from({ length: 48 }).map((_, i) => {
   const num = i + 1;
@@ -202,7 +203,7 @@ export function ListReviewDemo() {
                     <TableCell className="font-medium">{item.code}</TableCell>
                     {!isCollapsed && (
                       <>
-                        <TableCell>{item.thickness.toLocaleString('vi-VN')} mm</TableCell>
+                        <TableCell>{formatLength(item.thickness, { unit: 'mm' })}</TableCell>
                         <TableCell>
                           <ConfidenceMeter value={item.confidence} />
                         </TableCell>

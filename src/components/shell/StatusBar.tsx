@@ -1,5 +1,6 @@
 import React from 'react';
 import { Z_INDEX } from '../../lib/zIndex';
+import { formatNumber } from '@/lib/format/number';
 
 // ─── useSaveState (logic tách biệt) ──────────────────────────────────────────
 
@@ -18,7 +19,7 @@ export interface StatusBarProps {
 
 // Định dạng số thập phân bằng dấu phẩy (theo quy ước hệ thống)
 function formatCoord(n: number): string {
-  return n.toFixed(2).replace('.', ',');
+  return formatNumber(n, { fractionDigits: 2, grouping: false });
 }
 
 // ─── StatusBar View ───────────────────────────────────────────────────────────
