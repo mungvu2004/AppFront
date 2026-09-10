@@ -3630,6 +3630,31 @@
       "hint": "đã thu gọn, ghim bình luận vẫn còn"
     }
   },
+  "accessDenied": {
+    "title": "bạn chưa có quyền truy cập",
+    "restriction": "nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
+    "restrictionWithProject": "dự án “{{projectName}}” đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
+    "reason": {
+      "revoked": "quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.",
+      "expired": "đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.",
+      "password": "đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.",
+      "unknown": "hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này."
+    },
+    "whoCanGrant": "người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.",
+    "identityLabel": "bạn đang đăng nhập bằng {{email}}",
+    "identityUnknown": "phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.",
+    "switchAccount": "đăng nhập bằng tài khoản khác",
+    "requestAccess": "Yêu cầu quyền truy cập",
+    "requestPlaceholder": "Lý do bạn cần truy cập (không bắt buộc)",
+    "requestSentBadge": "đã gửi yêu cầu",
+    "requestSent": "đã gửi {{sentAt}}",
+    "requestThrottled": "bạn vừa gửi một yêu cầu, nên lượt gửi tiếp theo mở lại sau {{duration}}.",
+    "linkPassword": "Mật khẩu liên kết",
+    "submitLinkPassword": "Gửi mật khẩu",
+    "backToProjects": "về danh sách dự án",
+    "enterProject": "mở dự án",
+    "errorCodePrefix": "mã lỗi: "
+  },
   "notFound": {
     "title": "Không tìm thấy trang này.",
     "missingDescription": "Trang này đã bị xoá, đã chuyển đi, hoặc đường dẫn không đầy đủ.",

@@ -38,6 +38,7 @@ export const ROUTE_PATTERNS = {
   // màn cài đặt tài khoản là thứ người dùng đọc và gõ, nên nó là tiếng Việt.
   // Khoá vẫn là định danh tiếng Anh `account` — mục E.11 nói về mã, không nói về
   // URL, và mọi nơi gọi vẫn viết `ROUTES.account`.
+  accessDenied: '/khong-co-quyen',
   account: '/tai-khoan',
   adminModels: `${ADMIN_ROOT}/models`,
   adminUsers: `${ADMIN_ROOT}/users`,
@@ -92,6 +93,7 @@ export const ROUTE_PATTERNS = {
  * cannot be handed to `navigate` by mistake, whereas a template string can.
  */
 export const ROUTES = {
+  accessDenied: ROUTE_PATTERNS.accessDenied,
   account: ROUTE_PATTERNS.account,
   adminModels: ROUTE_PATTERNS.adminModels,
   adminUsers: ROUTE_PATTERNS.adminUsers,
