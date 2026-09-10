@@ -34,6 +34,7 @@ const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard'
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
 const RouteNotificationCenter = lazy(() => import('../screens/system/NotificationCenter').then(m => ({ default: m.NotificationCenterRoute })));
+const RouteAccessDenied = lazy(() => import('../screens/system/AccessDenied').then(m => ({ default: m.AccessDeniedRoute })));
 const RouteNotFound = lazy(() => import('../screens/system/NotFound').then(m => ({ default: m.NotFoundRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
 const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
@@ -281,6 +282,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       ...DEV_ONLY_ROUTES,
+      { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
       { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
       { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
       { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },

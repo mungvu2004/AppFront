@@ -3630,6 +3630,28 @@
       "hint": "đã thu gọn, ghim bình luận vẫn còn"
     }
   },
+  "accessDenied": {
+    "title": "Bạn chưa có quyền truy cập",
+    "restriction": "Không truy cập được dự án này",
+    "restrictionWithProject": "Không truy cập được \"{{projectName}}\"",
+    "reason": {
+      "revoked": "Quyền truy cập đã bị thu hồi.",
+      "expired": "Quyền truy cập đã hết hạn.",
+      "password": "Mật khẩu liên kết sai.",
+      "unknown": "Không thể xác định lý do chính xác, nhưng hệ thống không cho phép truy cập lúc này."
+    },
+    "whoCanGrant": "Chỉ chủ sở hữu dự án mới có thể cấp quyền truy cập.",
+    "identityLabel": "Đang đăng nhập bằng",
+    "switchAccount": "Đổi tài khoản",
+    "owner": "Chủ sở hữu",
+    "requestAccess": "Yêu cầu quyền truy cập",
+    "requestPlaceholder": "Lý do bạn cần truy cập (không bắt buộc)",
+    "requestSent": "Đã gửi yêu cầu đến {{ownerName}}. Bạn sẽ nhận thông báo khi được chấp nhận.",
+    "requestThrottled": "Đã gửi yêu cầu rồi. Chờ {{duration}} rồi gửi lại.",
+    "backToProjects": "Về danh sách dự án",
+    "enterProject": "Vào dự án",
+    "errorCodePrefix": "Mã lỗi"
+  },
   "notFound": {
     "title": "Không tìm thấy trang này.",
     "missingDescription": "Trang này đã bị xoá, đã chuyển đi, hoặc đường dẫn không đầy đủ.",
