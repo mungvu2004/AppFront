@@ -122,11 +122,8 @@ describe('BÀI NGHIỆM THU 1 — ba mã 403 khác nhau cho ba câu giải thíc
     expect(expiredVm.reasonSentence).not.toBe(passwordVm.reasonSentence);
 
     // In cả ba ra để điều phối viên dẫn nguyên văn vào báo cáo.
-    // eslint-disable-next-line no-console -- bằng chứng nghiệm thu, đọc trong log CI.
     console.log('[AccessDenied][bài nghiệm thu 1] revoked  →', revokedVm.reasonSentence);
-    // eslint-disable-next-line no-console -- bằng chứng nghiệm thu, đọc trong log CI.
     console.log('[AccessDenied][bài nghiệm thu 1] expired  →', expiredVm.reasonSentence);
-    // eslint-disable-next-line no-console -- bằng chứng nghiệm thu, đọc trong log CI.
     console.log('[AccessDenied][bài nghiệm thu 1] password →', passwordVm.reasonSentence);
   });
 });
