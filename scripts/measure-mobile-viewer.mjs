@@ -211,6 +211,73 @@ function requestUrl(url) {
   });
 }
 
+/** Tải một file nguồn qua dev server, trả về nội dung đã transform (hoặc `null`). */
+function fetchText(url) {
+  return new Promise((resolve) => {
+    const request = http.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume();
+        resolve(null);
+        return;
+      }
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        body += chunk;
+      });
+      response.on('end', () => resolve(body));
+    });
+    request.on('error', () => resolve(null));
+    request.setTimeout(5000, () => {
+      request.destroy();
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Dev server đang trả lời có phải là của CHÍNH bản làm việc này không?
+ *
+ * Script tái dùng một server đã chạy sẵn trên cổng đó thay vì tự mở
+ * (`serverWasRunning`). Tiện, nhưng nó từng đo NHẦM HẲN MỘT BẢN KHÁC: một
+ * `vite` cũ còn sống trên 5173 phục vụ một checkout chưa có màn này, nên phép
+ * đo 2 mở đúng đường dẫn, nhận về màn NotFound, rồi kết luận "màn chưa tồn
+ * tại" — trong khi màn có thật và chạy được ở bản đang đo. Đo nhầm bản mà vẫn
+ * in ra số là kiểu sai tệ nhất một bộ đo có thể mắc: nó trông y hệt lúc đúng.
+ *
+ * Nên: đối chiếu bảng route server trả về với bảng route trên đĩa. Lệch thì
+ * DỪNG HẲN và nói rõ, không đo tiếp bằng dữ liệu của bản khác.
+ */
+async function assertServerServesThisCheckout(baseUrl) {
+  const declaredOnDisk = findDeclaredMobileRoutes();
+  const served = await fetchText(new URL('/src/routes/paths.ts', baseUrl).toString());
+
+  if (served === null) {
+    return {
+      ok: false,
+      reason:
+        'Không đọc được src/routes/paths.ts qua dev server. Server này có thể không phải Vite dev của dự án.',
+    };
+  }
+
+  const missing = declaredOnDisk.filter((route) => {
+    const tail = route.replace(/^\/m/, '');
+    return !served.includes(route) && !served.includes(tail);
+  });
+
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      reason:
+        `Dev server ở ${baseUrl} đang phục vụ MỘT BẢN KHÁC: bảng route của nó không có ` +
+        `${missing.join(', ')}, còn bản trên đĩa thì có. Tắt server đó rồi chạy lại, ` +
+        'hoặc trỏ --base-url sang server của đúng bản này.',
+    };
+  }
+
+  return { ok: true };
+}
+
 async function waitForServer(url, timeoutMs) {
   const startedAt = Date.now();
 
@@ -553,8 +620,26 @@ async function measureMobileFrameRate(page, durationS, viewport) {
  */
 function findDeclaredMobileRoutes() {
   const source = fs.readFileSync(path.join(projectRoot, 'src/routes/paths.ts'), 'utf8');
-  const matches = source.match(/['"`](\/m\/[^'"`]*)['"`]/g) ?? [];
-  return matches.map((raw) => raw.slice(1, -1));
+
+  /* Đường dẫn viết thẳng: `'/m/du-an/:projectId'`. */
+  const literal = (source.match(/['"`](\/m\/[^'"`]*)['"`]/g) ?? []).map((raw) => raw.slice(1, -1));
+
+  /* Đường dẫn ghép từ một hằng gốc: `` `${MOBILE_ROOT}/du-an/:projectId` ``.
+   *
+   * Bản trước chỉ tìm dạng viết thẳng, nên nó KHÔNG THẤY route thật — mà route
+   * thật của màn này lại đúng dạng ghép, vì `paths.ts` gom mọi gốc thành hằng
+   * (`PROJECTS_ROOT`, `LAYERS_ROOT`, …) và `/m` theo đúng quy ước đó. Hậu quả:
+   * script báo "màn chưa tồn tại" cho một màn đã tồn tại, tức là báo SAI theo
+   * đúng chiều nguy hiểm nhất — bỏ qua phép đo rồi kết luận "chưa chạy".
+   * Đọc luôn giá trị hằng gốc rồi ghép lại, thay vì đoán. */
+  const rootValue = source.match(/const\s+MOBILE_ROOT\s*=\s*['"`]([^'"`]+)['"`]/)?.[1];
+  const composed = rootValue
+    ? (source.match(/`\$\{MOBILE_ROOT\}([^`]*)`/g) ?? []).map(
+        (raw) => rootValue + raw.slice('`${MOBILE_ROOT}'.length, -1),
+      )
+    : [];
+
+  return [...literal, ...composed];
 }
 
 /**
@@ -882,6 +967,15 @@ async function main() {
 
   try {
     await waitForServer(args.baseUrl, 120_000);
+
+    /* Đo nhầm bản khác thì mọi con số bên dưới đều vô nghĩa — chặn ngay ở đây,
+     * trước khi in ra bất kỳ số nào trông có vẻ đáng tin. */
+    const sameCheckout = await assertServerServesThisCheckout(args.baseUrl);
+    if (!sameCheckout.ok) {
+      console.error('\n*** DỪNG: dev server không phải của bản đang đo ***\n');
+      console.error(`  ${sameCheckout.reason}\n`);
+      return 1;
+    }
 
     const launch = await launchBrowser(args.headed);
     browser = launch.browser;
