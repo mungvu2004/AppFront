@@ -58,14 +58,44 @@ export const MOBILE_VIEWER_BOTTOM_BAR_PX = 56;
  *
  * Không phải gợi ý. Bộ đo nghiệm thu liệt kê từng vùng bấm và một cái dưới số
  * này là hỏng cả lượt.
+ *
+ * **Cạm bẫy đã đo, đọc trước khi đặt một `IconButton` nào:** kích thước thật của
+ * `IconButton` là `sm` 36px · `md` 40px · **`lg` 44px**, và **`md` là mặc định**.
+ * Nghĩa là một `<IconButton>` viết không có `size` thì **trượt đặc tả 4px** và
+ * không có bài kiểm nào trong `pnpm test` bắt được — `jsdom` trả về 0×0 cho mọi
+ * phép đo pixel, nên chỉ bộ đo Playwright của T4 mới thấy. Mọi nút của màn này
+ * phải là `size="lg"`, hoặc bọc trong một hộp `min-h-[44px] min-w-[44px]`.
  */
 export const MOBILE_VIEWER_MIN_HIT_TARGET_PX = 44;
 
 /** Bề ngang mà dưới nó thanh dưới rút còn ba biểu tượng, px. */
 export const MOBILE_VIEWER_COMPACT_WIDTH_PX = 360;
 
-/** Chiều cao tấm thông tin ở nấc giữa — 45% chiều cao khung nhìn. */
+/**
+ * Ba nấc của tấm thông tin — CL-07.
+ *
+ * **Vì sao màn này tự dựng tấm trượt thay vì dùng `components/overlay/Drawer`.**
+ * Khảo sát đã đo `Drawer`: ba nấc của nó là 88px / **40%** / **90%**, và
+ * `snapLevel` là `useState` *bên trong* `DrawerRoot` — không có prop nào đặt nấc
+ * mở đầu, nên mở ra là 90% màn hình. Đặc tả S-45 đòi tấm cao **45%** và mở ra ở
+ * đúng nấc đó: che 90% khung nhìn thì người ở công trường không còn thấy mô hình,
+ * đúng thứ màn này tồn tại để cho họ xem. Sửa `Drawer` là phạm R-68.
+ *
+ * Nên tấm này dựng trong thư mục màn (`MobileViewerInfoSheet.tsx`). Đó **không**
+ * phải "tạo component mới" theo nghĩa lệnh cấm: lệnh cấm chặn việc thêm vào
+ * `src/components/**`, và R-68 vốn đã cấm chạm vào đó. Cùng lối đi mà repo đã
+ * dùng khi một component chung không vừa việc.
+ *
+ * Logic kéo thì CHÉP từ `Drawer.tsx` (ngưỡng 100px hoặc vận tốc 600) — đã chạy
+ * thật, đừng nghĩ lại từ đầu.
+ */
+export const MOBILE_VIEWER_SHEET_PEEK_PX = 88;
+
+/** Nấc giữa — mở ra là ở đây. 45% chiều cao khung nhìn, đúng đặc tả. */
 export const MOBILE_VIEWER_SHEET_MID_RATIO = 0.45;
+
+/** Nấc cao nhất. */
+export const MOBILE_VIEWER_SHEET_FULL_RATIO = 0.9;
 
 /* -------------------------------------------------------------------------- */
 /* 2. Bảy trạng thái, và công cụ ở thanh dưới.                                 */
@@ -174,11 +204,31 @@ export interface MobileViewerMeasurement {
 /**
  * Cử chỉ mà bộ nhận chạm dịch ra.
  *
- * **Vì sao mục này tồn tại:** đặc tả gốc nói ba cử chỉ "tất cả do R-06". Khảo
- * sát cho thấy `src/lib/three/camera` **không có mặt tiếp nhận sự kiện nào** —
- * `CameraModeController` chỉ có `viewpoint/pose/update/settle/applyTo`. Nên phần
- * nghe DOM nằm ở `mobileViewerGestures.ts` trong thư mục màn, còn **toán camera
- * vẫn hoàn toàn của R-06**. Đây là quyết định đã được duyệt, không phải đường tắt.
+ * **Vì sao mục này tồn tại.** Đặc tả gốc nói ba cử chỉ "tất cả do R-06, không tự
+ * viết xử lý chạm". Khảo sát đã đo: `src/lib/three/camera` **không gắn một
+ * listener nào** — không `pointerdown`, không `touchstart`, không `wheel`. Người
+ * gọi duy nhất trên máy tính (`useViewerShell.ts:735-788`) tự nghe sự kiện rồi
+ * gọi vào camera, và nó chỉ đọc **một** con trỏ cộng `wheel`.
+ *
+ * Nhưng **toán camera thì có thật và vẫn hoàn toàn là của R-06** — đừng viết lại:
+ *
+ * | Cử chỉ | Gọi thẳng vào | Ở đâu |
+ * |---|---|---|
+ * | một ngón quay   | `OrbitCameraMode.rotate(deltaXPx, deltaYPx)`              | `modes.ts:504` |
+ * | hai ngón kéo    | `OrbitCameraMode.pan(deltaXPx, deltaYPx, viewportHeightPx)` | `modes.ts:520` |
+ * | hai ngón thu phóng | `OrbitCameraMode.dolly(notches)`                       | `modes.ts:534` |
+ *
+ * (Chế độ trực giao dùng `FlatCameraMode.pan`/`.zoom`.) Ba hàm này nhận **số
+ * pixel thô** và tự lo giảm chấn, giới hạn, quy đổi — `rotatePixelsPerTurn` 900,
+ * `zoomFactorPerNotch` 1,12, `minDistanceM` 1,2 đều nằm trong `CAMERA_SETTINGS`.
+ *
+ * Vậy phần MỚI của màn này hẹp đúng một việc: **đọc nhiều ngón cùng lúc rồi quy
+ * ra ba lời gọi trên**. Đó là `mobileViewerGestures.ts`, và nó KHÔNG được chứa
+ * một phép toán camera nào — không ma trận, không góc, không khoảng cách thế
+ * giới. Thấy mình sắp viết lượng giác là đi sai đường: quay lại gọi R-06.
+ *
+ * `pinch` quy ra `notches` theo tỉ lệ khoảng cách hai ngón (liên tục, không giật
+ * cấp) — chi tiết ở ghi chú khảo sát `three-mobile-contract.md` mục (g).
  */
 export type MobileViewerGesture =
   | { readonly kind: 'orbit'; readonly deltaXPx: number; readonly deltaYPx: number }
