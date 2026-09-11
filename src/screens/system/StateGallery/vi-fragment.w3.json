@@ -1,0 +1,11 @@
+{
+  "state_gallery": {
+    "forbidden_title": "không có quyền truy cập",
+    "forbidden_message": "trang này chỉ dùng nội bộ trong bản dựng phát triển, không có ở bản dựng thật.",
+    "manifest_error": "không đọc được danh sách bốn mươi bảy màn; thử tải lại.",
+    "check_missing_states": "còn thiếu trạng thái: {{labels}}.",
+    "check_no_raw_color_pending": "phép kiểm màu thô đọc thẳng tệp mã nguồn qua node:fs; trình duyệt không chạy được node:fs nên phép kiểm này chạy ở pnpm verify, không chạy được ở đây.",
+    "check_preview_not_selected": "chỉ màn đang chọn mới có khung xem trước đã dựng trong trang; chọn màn này rồi chạy lại kiểm nhanh để có kết quả thật.",
+    "check_preview_missing": "chưa tìm thấy khung xem trước đã dựng trong trang; khung xem trước có thể chưa gắn xong."
+  }
+}
