@@ -176,6 +176,11 @@ describe('StateGallery — trạng thái "một phần" hiện đúng số đế
     const partialEntry = props.coverageByScreen[selectedId];
 
     expect(partialEntry).toBeDefined();
+
+    if (partialEntry === undefined) {
+      throw new Error('không thể tới đây — đã khẳng định ở trên');
+    }
+
     expect(partialEntry.presentCount).toBe(5);
     expect(partialEntry.totalCount).toBe(7);
     expect(partialEntry.missingLabels.length).toBe(2);
@@ -309,23 +314,39 @@ describe('StateGallery — ba công tắc thanh công cụ gọi đúng callback
 /* -------------------------------------------------------------------------- */
 
 /**
- * GIẢ ĐỊNH (xem đầu file): "lớp trên cùng" ở trang này là ô tìm kiếm đang có
- * từ khoá — Esc xoá nó bằng `onSearchTextChange('')`. `onSelectScreen` nhận
- * `string`, không nhận `null`, nên Esc không thể "bỏ chọn màn" qua đường đó;
- * đây là cách đóng duy nhất hợp đồng cho phép mà không đổi kiểu dữ liệu.
+ * GIẢ ĐỊNH ĐÃ ĐƯỢC THAY BẰNG CƠ CHẾ THẬT — lớp gộp, đúng lời dặn ở đầu file
+ * ("nếu lớp gộp chọn cơ chế khác, chỉ sửa đúng các bài đó").
+ *
+ * Bài này trước đây đoán "lớp trên cùng" là ô tìm kiếm và Esc xoá nó bằng
+ * `onSearchTextChange('')`. View thật chọn khác, và chọn đúng hơn: lớp duy
+ * nhất thực sự NỔI LÊN TRÊN ở trang này là bảng kết quả kiểm nhanh, nên
+ * `StateGalleryToolbar` gắn Esc vào đúng nó qua registry dùng chung
+ * (`useShortcut`, `id: 'stateGallery.closeCheckPanel'`, `scope: 'sidePanel'`,
+ * bật khi bảng đang mở) — không `addEventListener('keydown')` nào tự viết,
+ * đúng A12.
+ *
+ * Ô tìm kiếm là bộ lọc nằm TRONG cây, không phải lớp phủ; buộc Esc xoá nó sẽ
+ * là binding Escape thứ hai tranh chấp với lớp thật đang mở — đúng thứ "Esc
+ * đóng LỚP TRÊN CÙNG" của A12 tồn tại để ngăn. Nên phép kiểm đổi mục tiêu,
+ * KHÔNG nới lỏng: nó vẫn bấm Esc thật và vẫn đòi một lớp phải đóng.
  */
 describe('StateGallery — Esc đóng lớp trên cùng (A12, e)', () => {
-  it('đang có từ khoá tìm kiếm: Esc gọi onSearchTextChange("")', () => {
-    const onSearchTextChange = vi.fn();
-    const props: StateGalleryProps = {
-      ...stateGalleryScenarioFor('success'),
-      searchText: 'tường',
-      onSearchTextChange,
-    };
+  it('bảng kết quả kiểm nhanh đang mở: Esc đóng nó', () => {
+    const base = stateGalleryScenarioFor('success');
+    const checkRows: readonly QuickCheckRow[] = base.screens.slice(0, 2).map((screen: GalleryScreenEntry) => ({
+      screenId: screen.id,
+      screenLabel: screen.label,
+      cells: QUICK_CHECK_IDS.map((checkId) => ({ checkId, status: 'pass' as const, detail: null })),
+    }));
 
-    renderStateGallery(props);
+    const props: StateGalleryProps = { ...base, checkRows, isCheckRunning: false };
+    const { queryByRole } = renderStateGallery(props);
+
+    // Lớp đang mở: nút đóng của bảng kết quả có mặt.
+    expect(queryByRole('button', { name: /đóng bảng kết quả/iu })).not.toBeNull();
+
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
-    expect(onSearchTextChange).toHaveBeenCalledWith('');
+    expect(queryByRole('button', { name: /đóng bảng kết quả/iu })).toBeNull();
   });
 });

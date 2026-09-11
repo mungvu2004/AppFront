@@ -99,6 +99,33 @@ function buildDevOnlyRoutes(): RouteObject[] {
 
 const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes() : [];
 
+/**
+ * Màn duyệt bảy trạng thái (S-47), và **chỉ trong bản dev** — cùng lý do và
+ * cùng khuôn với {@link buildDevOnlyRoutes} ngay trên: `lazy(...)` khai TRONG
+ * hàm chứ không ở cấp module, để nhánh production bỏ được cả thân hàm lẫn
+ * `import()` động bên trong nó. Đã đo bằng một chunk mang chuỗi đánh dấu:
+ * `grep` trong `dist/` ra RỖNG.
+ *
+ * Nó đứng riêng chứ không nhập chung vào `buildDevOnlyRoutes` để giữ nguyên chỗ
+ * của route trong mảng `children` — đúng chỗ route tạm cũ nằm, giữa
+ * `mobileViewer` và `notFound`.
+ *
+ * Đường nhập ghi rõ `/index`: thư mục `screens/system/StateGallery/` có một file
+ * anh em cùng tên `screens/system/StateGallery.tsx` (bảng demo QA cũ mà
+ * `src/App.tsx` đang dùng), và cả Vite lẫn tsc đều ưu tiên file .tsx hơn thư
+ * mục. Bỏ `/index` đi là nhập nhầm sang màn demo cũ, thứ không xuất
+ * `StateGalleryRoute` nào cả.
+ */
+function buildStateGalleryDevOnlyRoutes(): RouteObject[] {
+  const RouteStateGallery = lazy(() => import('../screens/system/StateGallery/index').then(m => ({ default: m.StateGalleryRoute })));
+
+  return [{ path: ROUTE_PATTERNS.designSystemStates, element: suspended(<RouteStateGallery />) }];
+}
+
+const STATE_GALLERY_DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV
+  ? buildStateGalleryDevOnlyRoutes()
+  : [];
+
 /* -------------------------------------------------------------------------- */
 /* Bàn phím của vỏ ứng dụng.                                                   */
 /* -------------------------------------------------------------------------- */
@@ -322,7 +349,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
       // Màn di động: route MỚI, không thay chỗ một `<Placeholder>` nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspended(<RouteMobileViewer />) },
-      { path: ROUTE_PATTERNS.designSystemStates, element: <Placeholder name="/design-system/states" /> },
+      ...STATE_GALLERY_DEV_ONLY_ROUTES,
       { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
     ],
   },

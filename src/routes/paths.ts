@@ -113,6 +113,7 @@ export const ROUTES = {
   dashboard: ROUTE_PATTERNS.dashboard,
   demoGallery: ROUTE_PATTERNS.demoGallery,
   designSystem: ROUTE_PATTERNS.designSystem,
+  designSystemStates: ROUTE_PATTERNS.designSystemStates,
   floors: ROUTE_PATTERNS.floors,
   layerDimensions: ROUTE_PATTERNS.layerDimensions,
   layerGrids: ROUTE_PATTERNS.layerGrids,

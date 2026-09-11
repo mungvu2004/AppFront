@@ -13,6 +13,16 @@
  * trong repo này — mọi token màu là `var()` trần, không có `<alpha-value>` để
  * Tailwind nội suy. Nên lưới là một lớp `aria-hidden` riêng, màu lấy từ token qua
  * `var()`, độ mờ đặt INLINE bằng một hằng có tên. Tiền lệ: `wallStrokeToken`.
+ *
+ * ## `data-state-gallery-preview` — mối nối với hai phép kiểm nhanh
+ *
+ * `useStateGallery.ts` (`PREVIEW_FRAME_SELECTOR`) tìm ĐÚNG thuộc tính này để
+ * chạy `findNonVietnamese` / `inspectAccessibility` trên cây DOM thật. Thuộc
+ * tính đặt trên `<section>` chứ không trên từng khung, vì phép kiểm cần soát cả
+ * nhãn màn lẫn bảy khung cùng một lượt. Chỉ màn ĐANG CHỌN dựng khối này, nên 46
+ * hàng còn lại của bảng kiểm đứng ở `pending` kèm lý do — đó là ý đồ, không phải
+ * thiếu sót (mục E.10). Gỡ thuộc tính này ra thì hai cột đó im lặng `pending`
+ * mãi mãi mà không có lỗi nào báo.
  */
 import type { GalleryScreenEntry, ScreenStateEntry } from './stateGalleryTypes';
 
@@ -99,7 +109,11 @@ function StateFrame({ entry, isSpacingGridVisible }: StateFrameProps) {
 
 export function StateGalleryFrames({ screen, isSpacingGridVisible }: StateGalleryFramesProps) {
   return (
-    <section aria-label={FRAMES_REGION_LABEL} className="flex flex-col gap-3">
+    <section
+      aria-label={FRAMES_REGION_LABEL}
+      className="flex flex-col gap-3"
+      data-state-gallery-preview
+    >
       <h2 className="text-[16px] font-semibold leading-[22px] text-text-primary">{screen.label}</h2>
 
       {isSpacingGridVisible && (
