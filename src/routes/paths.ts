@@ -31,6 +31,14 @@ const PROJECTS_ROOT = '/projects';
 const LAYERS_ROOT = '/layers';
 const ADMIN_ROOT = '/admin';
 const DESIGN_SYSTEM_ROOT = '/design-system';
+/**
+ * Gốc của các màn dựng riêng cho điện thoại.
+ *
+ * `/m` chứ không phải một tham số hay một tên miền phụ: màn di động là một màn
+ * *khác*, không phải cùng màn thu nhỏ lại, nên nó có đường dẫn riêng để chia sẻ
+ * được thẳng cho người đang ở công trường.
+ */
+const MOBILE_ROOT = '/m';
 
 /** What `createBrowserRouter` registers. `:id` and `:floorId` are the router's holes. */
 export const ROUTE_PATTERNS = {
@@ -57,6 +65,9 @@ export const ROUTE_PATTERNS = {
   layerRooms: `${LAYERS_ROOT}/rooms`,
   listReviewDemo: '/list-review-demo',
   login: '/login',
+  // Đường dẫn tiếng Việt, cùng ngoại lệ đã ghi ở `accessDenied` và `account`:
+  // đây là thứ người dùng đọc và gõ, còn khoá vẫn là định danh tiếng Anh.
+  mobileViewer: `${MOBILE_ROOT}/du-an/:projectId`,
   notFound: '*',
   notifications: '/thong-bao',
   onboarding: '/onboarding',
@@ -108,6 +119,7 @@ export const ROUTES = {
   layerObjects: ROUTE_PATTERNS.layerObjects,
   layerRooms: ROUTE_PATTERNS.layerRooms,
   login: ROUTE_PATTERNS.login,
+  mobileViewer: (projectId: string): string => `${MOBILE_ROOT}/du-an/${projectId}`,
   notifications: ROUTE_PATTERNS.notifications,
   onboarding: ROUTE_PATTERNS.onboarding,
   project: {

@@ -3665,5 +3665,93 @@
     "secondaryAction": "Quay lại",
     "recentHeading": "Có thể bạn đang tìm",
     "errorCodePrefix": "Mã lỗi"
+  },
+  "mobileViewer": {
+    "regionLabel": "xem mô hình 3D trên điện thoại",
+    "shareProject": "chia sẻ dự án",
+    "toolbarLabel": "công cụ xem mô hình",
+    "toolFloors": "tầng",
+    "toolView": "chế độ xem",
+    "toolMeasure": "đo",
+    "toolInfo": "thông tin",
+    "floorNotLoaded": "chưa tải",
+    "floorsEmpty": "chưa có tầng nào để hiện.",
+    "measurementsEmpty": "chưa có phép đo nào. chạm hai điểm trên mô hình để đo.",
+    "emptyTitle": "chưa có mô hình để xem",
+    "emptyDescription": "dự án này chưa có bản dựng 3D nào để mở trên điện thoại.",
+    "forbiddenTitle": "bạn chưa có quyền xem mô hình này",
+    "forbiddenDescription": "hỏi chủ dự án để được cấp quyền xem mô hình.",
+    "weakDeviceTitle": "máy này chưa dựng nổi mô hình 3D",
+    "weakDeviceDescription": "bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.",
+    "weakDeviceAction": "xem bản 2D",
+    "loadingFallback": "đang tải mô hình",
+    "partialNote": "mạng yếu nên mới tải được một phần các tầng. các tầng còn lại sẽ hiện khi mạng khá hơn.",
+    "readyAnnouncement": "mô hình đã dựng xong.",
+    "escapeShortcut": "đóng lớp đang mở trên màn xem mô hình",
+    "sheetLabel": "thông tin đối tượng đang chọn",
+    "sheetTitleFallback": "thông tin",
+    "sheetExpand": "mở rộng tấm thông tin",
+    "sheetCollapse": "thu gọn tấm thông tin",
+    "sheetClose": "đóng tấm thông tin",
+    "sheetNoSelection": "chưa chọn đối tượng nào. chạm vào mô hình để xem thông tin của nó.",
+    "desktopOnlyNote": "sửa trên máy tính để chính xác hơn",
+    "desktopLinkAction": "gửi liên kết sang máy tính",
+    "detail": {
+      "rising": {
+        "block": "đang tải mức gọn",
+        "reduced": "đang tải mức vừa"
+      },
+      "degraded": {
+        "block": "đã hạ xuống mức gọn để hình chạy mượt",
+        "reduced": "đã hạ xuống mức vừa để hình chạy mượt"
+      }
+    },
+    "project": {
+      "unnamed": "dự án chưa có tên"
+    },
+    "floor": {
+      "unnamedPrefix": "tầng "
+    },
+    "floors": {
+      "ground": "tầng trệt",
+      "level1": "tầng 1",
+      "level2": "tầng 2",
+      "roof": "tầng mái"
+    },
+    "kind": {
+      "wall": "tường",
+      "opening": "ô mở",
+      "room": "phòng",
+      "furniture": "đồ nội thất",
+      "axis": "trục",
+      "dimension": "kích thước"
+    },
+    "infoSheet": {
+      "rowLength": "chiều dài",
+      "rowThickness": "độ dày",
+      "editOnDesktopOnly": "mục này chỉ sửa được trên máy tính",
+      "sendDesktopLink": "gửi liên kết"
+    },
+    "measure": {
+      "kindDistance": "khoảng cách"
+    },
+    "share": {
+      "copiedTitle": "đã tạo liên kết chia sẻ",
+      "copiedDescription": "liên kết chỉ xem đã được chép vào bộ nhớ tạm.",
+      "copyBlockedDescription": "máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.",
+      "mailedTitle": "đã tạo liên kết cho máy tính",
+      "mailedDescription": "ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.",
+      "failedTitle": "chưa tạo được liên kết chia sẻ",
+      "failedDescription": "chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.",
+      "undo": "thu hồi liên kết vừa tạo"
+    },
+    "mail": {
+      "subjectPrefix": "liên kết xem mô hình dự án ",
+      "bodyLead": "mục này chỉ sửa được trên máy tính, nên đây là liên kết mở đúng dự án đó bằng trình duyệt máy tính:"
+    },
+    "sample": {
+      "projectName": "Trạm bơm Nhơn Trạch",
+      "wallTitle": "Tường trục A-B"
+    }
   }
 }

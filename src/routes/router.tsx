@@ -35,6 +35,7 @@ const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettin
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
 const RouteNotificationCenter = lazy(() => import('../screens/system/NotificationCenter').then(m => ({ default: m.NotificationCenterRoute })));
 const RouteAccessDenied = lazy(() => import('../screens/system/AccessDenied').then(m => ({ default: m.AccessDeniedRoute })));
+const RouteMobileViewer = lazy(() => import('../screens/system/MobileViewer').then(m => ({ default: m.MobileViewerRoute })));
 const RouteNotFound = lazy(() => import('../screens/system/NotFound').then(m => ({ default: m.NotFoundRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
 const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
@@ -319,6 +320,8 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
       { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
       { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
+      // Màn di động: route MỚI, không thay chỗ một `<Placeholder>` nào (R-66).
+      { path: ROUTE_PATTERNS.mobileViewer, element: suspended(<RouteMobileViewer />) },
       { path: ROUTE_PATTERNS.designSystemStates, element: <Placeholder name="/design-system/states" /> },
       { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
     ],
