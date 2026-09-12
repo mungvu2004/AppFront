@@ -37,6 +37,7 @@ import {
 import { distanceBetween } from '../units/snap';
 import {
   degrees,
+  degreesToRadians,
   millimetres,
   normaliseDegrees,
   radians,
@@ -182,6 +183,20 @@ interface JointGeometry {
 /** Ends this far apart in angle count as running along the same line. */
 const COLLINEAR_TOLERANCE_DEG: Degrees = degrees(1);
 
+/**
+ * The same tolerance, as the sine of the angle.
+ *
+ * `faceCorner` has the cross product of two unit directions in hand, which is
+ * `sin Δ` — a number with no unit. Comparing it against the domain's millimetre
+ * epsilon made the parallel test fire only below 0,0573°, seventeen times
+ * tighter than the tolerance this file declares one line above, and every angle
+ * in between divided by a sine near zero and threw the corner tens of metres
+ * away. Comparing it against `sin` of the declared tolerance is the same
+ * question asked in the same unit. It covers two walls running head-on at 180°
+ * as well, whose sine is just as near zero.
+ */
+const COLLINEAR_TOLERANCE_SIN = Math.sin(degreesToRadians(COLLINEAR_TOLERANCE_DEG));
+
 /** Which wall keeps the middle of a node when several meet there. */
 const KIND_RANK: Readonly<Record<WallKind, number>> = {
   loadBearing: 0,
@@ -285,6 +300,24 @@ function collectEnds(walls: readonly Wall[]): EndSample[] {
   return samples;
 }
 
+/** The band of height a group of ends all share, as `[bottom, top]`. */
+interface HeightBand {
+  readonly bottomMm: number;
+  readonly topMm: number;
+}
+
+function bandOfWall(wall: Wall): HeightBand {
+  return { bottomMm: wall.baseElevationMm, topMm: wall.topElevationMm };
+}
+
+/** The height both bands hold at once, or `null` when they only touch or miss. */
+function intersectBands(first: HeightBand, second: HeightBand): HeightBand | null {
+  const bottomMm = Math.max(first.bottomMm, second.bottomMm);
+  const topMm = Math.min(first.topMm, second.topMm);
+
+  return compareNearly(topMm, bottomMm) > 0 ? { bottomMm, topMm } : null;
+}
+
 /**
  * Group ends that are within the threshold of each other.
  *
@@ -294,13 +327,22 @@ function collectEnds(walls: readonly Wall[]): EndSample[] {
  * order the walls arrive in.
  *
  * Ends whose walls occupy no common height are never grouped, so a parapet is
- * not welded to the wall of the storey above it.
+ * not welded to the wall of the storey above it. Proximity is transitive but
+ * **sharing a height is not**: a parapet from 2900 to 3900 overlaps the wall
+ * below it and the wall above it while those two share nothing at all, so
+ * checking the pair being merged and stopping there welded the ground floor to
+ * the first floor through the parapet. The group therefore carries the band of
+ * height every one of its members occupies, and a merge only happens when the
+ * two bands still leave a band behind. Because these are intervals on one axis,
+ * a non-empty running intersection is the same statement as "every pair in the
+ * group overlaps" — no pair is let through unchecked.
  */
 function groupNearbyEnds(
   samples: readonly EndSample[],
   thresholdMm: Millimetres,
 ): readonly (readonly EndSample[])[] {
   const parents = samples.map((_, index) => index);
+  const bands: HeightBand[] = samples.map((sample) => bandOfWall(sample.wall));
 
   const rootOf = (index: number): number => {
     let current = index;
@@ -312,12 +354,22 @@ function groupNearbyEnds(
     return current;
   };
 
+  /** Merge the two groups, unless they would no longer share any height. */
   const merge = (first: number, second: number): void => {
     const firstRoot = rootOf(first);
     const secondRoot = rootOf(second);
-    if (firstRoot !== secondRoot) {
-      parents[Math.max(firstRoot, secondRoot)] = Math.min(firstRoot, secondRoot);
+    if (firstRoot === secondRoot) {
+      return;
     }
+
+    const shared = intersectBands(atIndex(bands, firstRoot), atIndex(bands, secondRoot));
+    if (shared === null) {
+      return;
+    }
+
+    const keptRoot = Math.min(firstRoot, secondRoot);
+    parents[Math.max(firstRoot, secondRoot)] = keptRoot;
+    bands[keptRoot] = shared;
   };
 
   for (let first = 0; first < samples.length; first += 1) {
@@ -452,9 +504,13 @@ function faceCorner(position: PointMm, earlier: EndSample, later: EndSample): Fa
 
   const cross = earlier.direction.x * later.direction.y - earlier.direction.y * later.direction.x;
 
-  if (isNearlyZero(cross)) {
+  if (Math.abs(cross) <= COLLINEAR_TOLERANCE_SIN) {
     // Parallel faces never meet. Both walls keep a square end on the node plane,
     // which for two collinear walls of one thickness is the very same point.
+    // "Parallel" here means the same thing `COLLINEAR_TOLERANCE_DEG` means
+    // everywhere else in this file, not a thousandth of that: a step between two
+    // thicknesses a fraction of a degree off the line still has no corner worth
+    // computing, and computing one anyway put it nineteen metres off the wall.
     return { left: onEarlier, right: onLater };
   }
 

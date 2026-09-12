@@ -29,7 +29,7 @@
  * from both a door and a window and the graph's pair has no room for it.
  */
 
-import { compareNearly, type PointMm } from '../units/compare';
+import { compareNearly, DIMENSIONLESS_EPSILON, type PointMm } from '../units/compare';
 import type { Millimetres } from '../units/types';
 import type { OpeningId, SwingDirection, WallId } from '../spatial/types';
 
@@ -95,8 +95,12 @@ export const AT_WALL_END: RelativePosition = 1;
  * this number is a fraction, not a length: on a four metre wall the domain's
  * default micrometre epsilon would be four millimetres of slack. This value only
  * absorbs the last few ulps of a division.
+ *
+ * The number itself now lives in `units/compare.ts` as `DIMENSIONLESS_EPSILON`,
+ * because the same trap caught the room graph and the joint solver as well; the
+ * name is kept here so callers reading about openings find it where they expect.
  */
-export const RELATIVE_POSITION_EPSILON = 1e-9;
+export const RELATIVE_POSITION_EPSILON = DIMENSIONLESS_EPSILON;
 
 /** Is this a fraction of a wall a real opening could sit at? */
 export function isValidRelativePosition(value: number): boolean {

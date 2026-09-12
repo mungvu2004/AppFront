@@ -638,3 +638,57 @@ describe('the thresholds the rules are read from', () => {
     expect(rulesBroken(validateOpening(low, WALL_BEFORE, [], ownRules))).toEqual([]);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The cut is a fraction, and so is the tolerance it is judged by.             */
+/* -------------------------------------------------------------------------- */
+
+describe('sharing openings out, a hair either side of the cut', () => {
+  // The wall is 4 000 mm long and cut in the middle, so one thousandth of a
+  // fraction — what `compareNearly`'s length tolerance amounts to when it is
+  // read as a fraction — is four millimetres of wall.
+  const split = splitWall(WALL_BEFORE, point(2000, 0), 'W-2');
+
+  if (!split.ok) {
+    throw new Error(`Expected the wall to split, got ${split.reason}.`);
+  }
+
+  const pieces = split.walls;
+
+  it('sends an opening two millimetres past the cut to the far piece', () => {
+    const justPast = door('1', '1', 0.5005);
+    const change = onlyChange(reflowOpeningsAcrossSplit(WALL_BEFORE, pieces, [justPast]).changes);
+
+    expect(change.after.wallId).toBe('W-2');
+  });
+
+  it('sends an opening two millimetres short of the cut to the near piece', () => {
+    const justShort = door('1', '1', 0.4995);
+    const change = onlyChange(reflowOpeningsAcrossSplit(WALL_BEFORE, pieces, [justShort]).changes);
+
+    expect(change.after.wallId).toBe('W-1');
+  });
+
+  it('reports an opening that overlaps the cut by two millimetres as straddling it', () => {
+    // Half of a 900 mm door on a 4 000 mm wall is 0,1125 of the wall, so a door
+    // centred at 0,612 starts at 0,4995 — two millimetres past the cut.
+    const grazing = door('1', '1', 0.612);
+    const result = reflowOpeningsAcrossSplit(WALL_BEFORE, pieces, [grazing]);
+    const change = onlyChange(result.changes);
+
+    expect(change.status).toBe('needsDecision');
+    expect(change.reason).toBe('straddlesCut');
+    expect(result.needsDecision).toEqual(['D-1']);
+  });
+
+  it('leaves an opening that genuinely clears the cut alone', () => {
+    // Centred at 0,62: it starts at 0,5075, three hundred millimetres clear.
+    const clear = door('1', '1', 0.62);
+    const result = reflowOpeningsAcrossSplit(WALL_BEFORE, pieces, [clear]);
+    const change = onlyChange(result.changes);
+
+    expect(change.reason).not.toBe('straddlesCut');
+    expect(result.needsDecision).toEqual([]);
+    expect(change.after.wallId).toBe('W-2');
+  });
+});
