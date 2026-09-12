@@ -18,9 +18,16 @@ export {
   SEARCH_LIST_LABEL,
   type ObjectSearchProps,
 } from './ObjectSearch';
+/*
+ * `foldForSearch` KHÔNG còn được xuất ở đây — nó đã xuống `@/lib/format/fold`.
+ *
+ * Bốn màn ngoài `Viewer3D` cần bỏ dấu khi tìm, và việc chúng với tay vào thư
+ * mục của một màn khác để lấy nó là một vi phạm ranh giới tầng (mục 0.4:
+ * `src/screens/**` là tầng cao nhất, không ai được nhập từ nó). Nó tự lộ ra
+ * thành một vòng import khi màn này gắn `FurnitureLibraryPanel`.
+ */
 export {
   matchRoomOptions,
-  foldForSearch,
   MAX_ROOM_RESULTS,
   type RoomSearchResult,
   type ViewerRoomOption,

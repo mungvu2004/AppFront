@@ -24,6 +24,8 @@
  * lặng giấu đi phần còn lại (E.10).
  */
 
+import { foldForSearch } from '@/lib/format/fold';
+
 /** Bao nhiêu dòng kết quả được vẽ cùng lúc. */
 export const MAX_ROOM_RESULTS = 8;
 
@@ -45,21 +47,8 @@ export interface RoomSearchResult {
   readonly hasMore: boolean;
 }
 
-/** Dấu phụ Unicode, để tách ra khỏi chữ cái sau khi NFD. */
-const DIACRITICS = /\p{Diacritic}/gu;
-
 /** Khoảng trắng giữa các từ người dùng gõ. */
 const SPACES = /\s+/u;
-
-/**
- * Chuỗi đã bỏ dấu và về chữ thường, dạng dùng để so khớp.
- *
- * "Phòng ngủ 1" → "phong ngu 1". Đây là dạng của CẢ hai phía phép so, nên nó
- * là một hàm chứ không phải hai đoạn mã giống nhau ở hai chỗ.
- */
-export function foldForSearch(text: string): string {
-  return text.normalize('NFD').replace(DIACRITICS, '').toLowerCase().replace(/đ/gu, 'd');
-}
 
 /** Tên, mã và tầng gộp lại — mọi thứ một từ khoá được phép khớp vào. */
 function haystackOf(option: ViewerRoomOption): string {

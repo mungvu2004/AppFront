@@ -60,8 +60,8 @@ import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { boxAround, type DragLibraryItem } from '@/lib/input/dragDrop';
 import { checkBudget, detectDeviceProfile, SCENE_BUDGET } from '@/lib/three/perf/budget';
-import { foldForSearch } from '@/screens/viewer/Viewer3D';
-import { commit } from '@/store/commit';
+import { foldForSearch } from '@/lib/format/fold';
+import { applyRollbackPatches, commit } from '@/store/commit';
 
 import type { FurnitureCategoryId, ReplaceAllPreviewItem } from './furnitureLibraryPanelTypes';
 
@@ -356,6 +356,11 @@ export function createCommitSpatialPort(
     applyPatches: (patches) => {
       commit(patches, labelOf());
     },
+    // Rollback KHÔNG được mở một bước hoàn tác mới: `commit` thì mở, còn
+    // `applyRollbackPatches` thì không. Thiếu dòng này, một lượt dispatch hỏng ở
+    // bước sau để lại HAI past-state zundo, và Ctrl+Z kế tiếp áp LẠI thay đổi vừa bị
+    // rollback — vi phạm A8. Xem `SpatialPort.revertPatches` (lib/commands/dispatch.ts:145).
+    revertPatches: applyRollbackPatches,
   };
 }
 

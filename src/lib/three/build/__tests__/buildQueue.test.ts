@@ -787,3 +787,84 @@ describe('toMesh', () => {
     expect(fromWorker?.max.z).toBeCloseTo(fromMain?.max.z ?? Number.NaN, PLACES);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* A platform that refuses.                                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('BuildQueue when the platform refuses the worker', () => {
+  it('answers failed and frees the slot when the worker cannot be made', async () => {
+    const queue = new BuildQueue({
+      createWorker: () => {
+        throw new Error('worker-src bị CSP chặn');
+      },
+    });
+
+    // `pump` runs inside the executor of this promise, so a throw that escapes
+    // would reject it instead of answering it — and leave the slot taken.
+    await expect(queue.enqueue(wallJob(wallAt(0)))).resolves.toEqual({
+      status: 'failed',
+      message: 'worker-src bị CSP chặn',
+    });
+    expect(queue.inFlightCount).toBe(0);
+    expect(queue.pendingCount).toBe(0);
+
+    queue.dispose();
+  });
+
+  it('keeps draining the queue after a job that could not be sent', async () => {
+    const worker = new FakeWorker();
+    let firstPost = true;
+    const failingOnce = {
+      get onmessage() {
+        return worker.onmessage;
+      },
+      set onmessage(handler: BuildWorkerLike['onmessage']) {
+        worker.onmessage = handler;
+      },
+      postMessage: (message: BuildRequestMessage) => {
+        if (firstPost) {
+          firstPost = false;
+          throw new DOMException('Không sao chép được job', 'DataCloneError');
+        }
+        worker.postMessage(message);
+      },
+      terminate: () => {
+        worker.terminate();
+      },
+    } satisfies BuildWorkerLike;
+
+    const queue = new BuildQueue({ createWorker: () => failingOnce });
+
+    const first = queue.enqueue(wallJob(wallAt(0)));
+    const second = queue.enqueue(wallJob(wallAt(1)));
+
+    expect((await first).status).toBe('failed');
+
+    // The second job was posted for real: the slot the first one took was given back.
+    expect(worker.posted).toHaveLength(1);
+    worker.answerAll();
+    expect((await second).status).toBe('done');
+
+    queue.dispose();
+  });
+
+  it('refuses a maxInFlight that is not a whole number of at least one', () => {
+    expect(() => new BuildQueue({ maxInFlight: Number.NaN })).toThrow(RangeError);
+    expect(() => new BuildQueue({ maxInFlight: 2.5 })).toThrow(RangeError);
+    expect(() => new BuildQueue({ maxInFlight: 0 })).toThrow(RangeError);
+    expect(() => new BuildQueue({ maxInFlight: -1 })).toThrow(RangeError);
+  });
+
+  it('still sends jobs when maxInFlight is a whole number', async () => {
+    const { queue, worker } = queueWith(2);
+
+    const outcomes = [queue.enqueue(wallJob(wallAt(0))), queue.enqueue(wallJob(wallAt(1)))];
+    expect(worker.posted).toHaveLength(2);
+
+    worker.answerAll();
+    expect((await Promise.all(outcomes)).map((outcome) => outcome.status)).toEqual(['done', 'done']);
+
+    queue.dispose();
+  });
+});

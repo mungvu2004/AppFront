@@ -161,152 +161,175 @@ export function mountPresentation(
   const materials = createMaterials(palette);
   const aborter = new AbortController();
 
-  const assembled = assembleHouse(plan, palette, materials, {
-    signal: aborter.signal,
-    ...(options.assets === undefined ? {} : { assets: options.assets }),
-    ...(options.onFallback === undefined ? {} : { onFallback: options.onFallback }),
-    ...(options.cachedGeometry === undefined ? {} : { cachedGeometry: options.cachedGeometry }),
-  });
-  const { house } = assembled;
+  // Everything below is built on the materials above, and `assembleHouse` throws a
+  // documented `RangeError` on a bad `variant`/`facing`. Without this the textures and
+  // materials already made would be orphaned and the `.glb` loads started under
+  // `aborter` would keep downloading into a mount that no longer exists.
+  try {
+    const assembled = assembleHouse(plan, palette, materials, {
+      signal: aborter.signal,
+      ...(options.assets === undefined ? {} : { assets: options.assets }),
+      ...(options.onFallback === undefined ? {} : { onFallback: options.onFallback }),
+      ...(options.cachedGeometry === undefined ? {} : { cachedGeometry: options.cachedGeometry }),
+    });
+    const { house } = assembled;
 
-  // Turn about the middle of the plan rather than the corner the drawing starts at.
-  const bounds = new Box3().setFromObject(house);
-  const centre = bounds.getCenter(new Vector3());
-  const size = bounds.getSize(new Vector3());
-  house.position.set(-centre.x, -centre.y, -centre.z);
+    // Turn about the middle of the plan rather than the corner the drawing starts at.
+    const bounds = new Box3().setFromObject(house);
 
-  const scene = new Scene();
-  scene.add(house);
-
-  const lighting = createLighting(palette, size);
-  for (const light of lighting.lights) {
-    scene.add(light);
-  }
-  scene.add(lighting.key.target);
-
-  // The backdrop catches the flat's shadow and nothing else: a `ShadowMaterial`
-  // is invisible except where a shadow falls, so the clear colour shows through.
-  // It is no bigger than the shadow can be.
-  const groundMaterial = new ShadowMaterial({ opacity: GROUND_SHADOW_OPACITY });
-  const ground = new Mesh(
-    new PlaneGeometry(size.x + GROUND_MARGIN * 2, size.z + GROUND_MARGIN * 2),
-    groundMaterial,
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -centre.y - toSceneLength(SLAB_THICKNESS_MM) - GROUND_DROP;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  // Aimed a little below the model's centre so the near half, which looms
-  // larger in perspective, does not push the far half off the top of the frame.
-  // The camera sits on an orbit about the model's axis; turning the orbit by
-  // the negative of the model's heading shows the same picture as turning the
-  // model, with nothing under the lights having moved.
-  const aim = frameAim(bounds, centre, rig, CAMERA_DISTANCE);
-  const camera = new PerspectiveCamera(1, 1, CAMERA_NEAR, CAMERA_FAR);
-  camera.position.copy(cameraPosition(rig, CAMERA_DISTANCE)).add(aim);
-  camera.lookAt(aim);
-  const orbit = new Group();
-  orbit.add(camera);
-  scene.add(orbit);
-
-  const renderer = new WebGLRenderer({ canvas, antialias: true });
-  renderer.setClearColor(palette.backdrop, 1);
-  renderer.shadowMap.enabled = true;
-  // One tap per pixel. The map is dense enough — a centimetre a texel — that
-  // a filtered edge would be softer than the cut it is drawing, and the nine
-  // taps of a soft map are a tenth of the frame on an integrated GPU.
-  renderer.shadowMap.type = BasicShadowMap;
-  renderer.shadowMap.autoUpdate = false;
-  renderer.shadowMap.needsUpdate = true;
-  renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
-
-  const environment = applyRoomEnvironment(renderer, scene);
-  const extents = swayExtents(bounds, centre, rig, CAMERA_DISTANCE, aim);
-  const rim = rimRadius(bounds, centre);
-
-  const loop = createFrameLoop({
-    headingAt: (elapsedMs) => headingAt(rig, elapsedMs),
-    restingHeading: restingHeading(rig),
-    minStep: () =>
-      headingStep(rim, renderer.getDrawingBufferSize(new Vector2()).y, camera.fov, CAMERA_DISTANCE, REDRAW_THRESHOLD_PX),
-    render: (heading) => {
-      orbit.rotation.y = -heading;
-      renderer.render(scene, camera);
-    },
-  });
-
-  const resize = (): void => {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-
-    if (width === 0 || height === 0) {
-      return;
+    // An empty box keeps its `+Infinity`/`-Infinity` seed. `getCenter` and `getSize`
+    // special-case that and answer zero, but `frameAim` and `swayExtents` read
+    // `min`/`max` straight and turn `Infinity - Infinity` into `NaN`, which reaches the
+    // camera's matrices and leaves a white canvas behind a handle that reports success.
+    // Fail loudly instead, so the caller can build its error state (A11).
+    if (bounds.isEmpty()) {
+      throw new Error(
+        'Presentation plan produced no geometry: nothing to frame, so no camera can be aimed',
+      );
     }
 
-    renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio, MAX_PIXEL_RATIO));
-    renderer.setSize(width, height, false);
-    applyFieldOfView(camera, fitFieldOfView(extents, width / height, rig, CAMERA_DISTANCE), width / height);
-    loop.invalidate();
-  };
+    const centre = bounds.getCenter(new Vector3());
+    const size = bounds.getSize(new Vector3());
+    house.position.set(-centre.x, -centre.y, -centre.z);
 
-  resize();
-  const observer = new ResizeObserver(resize);
-  observer.observe(canvas);
+    const scene = new Scene();
+    scene.add(house);
 
-  const stillness = globalThis.matchMedia('(prefers-reduced-motion: reduce)');
-  const applyMotionSetting = (): void => {
-    loop.setGate('motion', !stillness.matches);
-  };
-  applyMotionSetting();
-  stillness.addEventListener('change', applyMotionSetting);
+    const lighting = createLighting(palette, size);
+    for (const light of lighting.lights) {
+      scene.add(light);
+    }
+    scene.add(lighting.key.target);
 
-  const presence = watchPresence(canvas, (gate, open) => {
-    loop.setGate(gate, open);
-  });
-  // The first frame is owed whatever the gates and the canvas size say.
-  loop.invalidate();
+    // The backdrop catches the flat's shadow and nothing else: a `ShadowMaterial`
+    // is invisible except where a shadow falls, so the clear colour shows through.
+    // It is no bigger than the shadow can be.
+    const groundMaterial = new ShadowMaterial({ opacity: GROUND_SHADOW_OPACITY });
+    const ground = new Mesh(
+      new PlaneGeometry(size.x + GROUND_MARGIN * 2, size.z + GROUND_MARGIN * 2),
+      groundMaterial,
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -centre.y - toSceneLength(SLAB_THICKNESS_MM) - GROUND_DROP;
+    ground.receiveShadow = true;
+    scene.add(ground);
 
-  // A model arriving changes the picture and its shadows: both are redrawn once.
-  const settled = Promise.all(assembled.pieces.map((piece) => piece.ready)).then(() => {
-    if (!aborter.signal.aborted) {
-      renderer.shadowMap.needsUpdate = true;
+    // Aimed a little below the model's centre so the near half, which looms
+    // larger in perspective, does not push the far half off the top of the frame.
+    // The camera sits on an orbit about the model's axis; turning the orbit by
+    // the negative of the model's heading shows the same picture as turning the
+    // model, with nothing under the lights having moved.
+    const aim = frameAim(bounds, centre, rig, CAMERA_DISTANCE);
+    const camera = new PerspectiveCamera(1, 1, CAMERA_NEAR, CAMERA_FAR);
+    camera.position.copy(cameraPosition(rig, CAMERA_DISTANCE)).add(aim);
+    camera.lookAt(aim);
+    const orbit = new Group();
+    orbit.add(camera);
+    scene.add(orbit);
+
+    const renderer = new WebGLRenderer({ canvas, antialias: true });
+    renderer.setClearColor(palette.backdrop, 1);
+    renderer.shadowMap.enabled = true;
+    // One tap per pixel. The map is dense enough — a centimetre a texel — that
+    // a filtered edge would be softer than the cut it is drawing, and the nine
+    // taps of a soft map are a tenth of the frame on an integrated GPU.
+    renderer.shadowMap.type = BasicShadowMap;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
+    renderer.toneMapping = ACESFilmicToneMapping;
+    renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
+
+    const environment = applyRoomEnvironment(renderer, scene);
+    const extents = swayExtents(bounds, centre, rig, CAMERA_DISTANCE, aim);
+    const rim = rimRadius(bounds, centre);
+
+    const loop = createFrameLoop({
+      headingAt: (elapsedMs) => headingAt(rig, elapsedMs),
+      restingHeading: restingHeading(rig),
+      minStep: () =>
+        headingStep(rim, renderer.getDrawingBufferSize(new Vector2()).y, camera.fov, CAMERA_DISTANCE, REDRAW_THRESHOLD_PX),
+      render: (heading) => {
+        orbit.rotation.y = -heading;
+        renderer.render(scene, camera);
+      },
+    });
+
+    const resize = (): void => {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+
+      if (width === 0 || height === 0) {
+        return;
+      }
+
+      renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio, MAX_PIXEL_RATIO));
+      renderer.setSize(width, height, false);
+      applyFieldOfView(camera, fitFieldOfView(extents, width / height, rig, CAMERA_DISTANCE), width / height);
       loop.invalidate();
-    }
-  });
+    };
 
-  return {
-    settled,
-    report: {
-      refusals: assembled.refusals,
-      unknownFinishes: assembled.unknownFinishes,
-      lights: assembled.lights,
-      geometry: assembled.geometry,
-      geometryRestored: assembled.geometryRestored,
-    },
-    dispose: () => {
-      aborter.abort();
-      loop.dispose();
-      presence.dispose();
-      stillness.removeEventListener('change', applyMotionSetting);
-      observer.disconnect();
-      environment.dispose();
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
 
-      scene.traverse((object) => {
-        if (object instanceof Mesh) {
-          object.geometry.dispose();
-        }
-      });
+    const stillness = globalThis.matchMedia('(prefers-reduced-motion: reduce)');
+    const applyMotionSetting = (): void => {
+      loop.setGate('motion', !stillness.matches);
+    };
+    applyMotionSetting();
+    stillness.addEventListener('change', applyMotionSetting);
 
-      disposeMaterials(materials);
-      groundMaterial.dispose();
-      lighting.key.shadow.dispose();
-      renderer.dispose();
-      // `dispose` releases what three tracks; the context itself — and the few
-      // textures and programs every renderer makes for its own use — go only
-      // when the context does. The canvas is never drawn into again.
-      renderer.forceContextLoss();
-    },
-  };
+    const presence = watchPresence(canvas, (gate, open) => {
+      loop.setGate(gate, open);
+    });
+    // The first frame is owed whatever the gates and the canvas size say.
+    loop.invalidate();
+
+    // A model arriving changes the picture and its shadows: both are redrawn once.
+    const settled = Promise.all(assembled.pieces.map((piece) => piece.ready)).then(() => {
+      if (!aborter.signal.aborted) {
+        renderer.shadowMap.needsUpdate = true;
+        loop.invalidate();
+      }
+    });
+
+    return {
+      settled,
+      report: {
+        refusals: assembled.refusals,
+        unknownFinishes: assembled.unknownFinishes,
+        lights: assembled.lights,
+        geometry: assembled.geometry,
+        geometryRestored: assembled.geometryRestored,
+      },
+      dispose: () => {
+        aborter.abort();
+        loop.dispose();
+        presence.dispose();
+        stillness.removeEventListener('change', applyMotionSetting);
+        observer.disconnect();
+        environment.dispose();
+
+        scene.traverse((object) => {
+          if (object instanceof Mesh) {
+            object.geometry.dispose();
+          }
+        });
+
+        disposeMaterials(materials);
+        groundMaterial.dispose();
+        lighting.key.shadow.dispose();
+        renderer.dispose();
+        // `dispose` releases what three tracks; the context itself — and the few
+        // textures and programs every renderer makes for its own use — go only
+        // when the context does. The canvas is never drawn into again.
+        renderer.forceContextLoss();
+      },
+    };
+  } catch (error) {
+    aborter.abort();
+    disposeMaterials(materials);
+
+    throw error;
+  }
 }

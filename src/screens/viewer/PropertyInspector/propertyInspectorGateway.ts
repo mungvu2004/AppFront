@@ -91,7 +91,7 @@ import type { HistoryStack, SelectionSnapshot } from '@/lib/commands/history';
 import { createHistoryStack, NO_SELECTION } from '@/lib/commands/history';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
 import { useStore } from '@/store';
-import { commit } from '@/store/commit';
+import { applyRollbackPatches, commit } from '@/store/commit';
 
 import type { ObjectKind } from './propertyInspectorTypes';
 import { OBJECT_KIND_LABELS } from './propertyInspectorTypes';
@@ -470,6 +470,11 @@ export function createCommitSpatialPort(
     applyPatches: (patches) => {
       commit(patches, labelOf());
     },
+    // Rollback KHÔNG được mở một bước hoàn tác mới: `commit` thì mở, còn
+    // `applyRollbackPatches` thì không. Thiếu dòng này, một lượt dispatch hỏng ở
+    // bước sau để lại HAI past-state zundo, và Ctrl+Z kế tiếp áp LẠI thay đổi vừa bị
+    // rollback — vi phạm A8. Xem `SpatialPort.revertPatches` (lib/commands/dispatch.ts:145).
+    revertPatches: applyRollbackPatches,
   };
 }
 

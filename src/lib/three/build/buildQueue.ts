@@ -90,6 +90,9 @@ export interface BuildQueueOptions {
    * One, by default, because there is one worker: sending it a second job while
    * it is busy buys nothing and only widens the window in which a job that has
    * already been superseded is still being computed.
+   *
+   * Must be a whole number of at least one; the constructor throws `RangeError`
+   * otherwise.
    */
   readonly maxInFlight?: number;
 }
@@ -224,6 +227,15 @@ interface Entry {
   settled: boolean;
 }
 
+/** What to put in a `failed` outcome when a thrown value reaches the queue. */
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 /** The real worker. Vite turns the URL into its own bundle at build time. */
 export function createBuildWorker(): BuildWorkerLike {
   return new Worker(new URL('./build.worker.ts', import.meta.url), { type: 'module' });
@@ -248,8 +260,19 @@ export class BuildQueue {
   private disposed = false;
 
   constructor(options: BuildQueueOptions = {}) {
+    const maxInFlight = options.maxInFlight ?? 1;
+
+    // `Math.max(1, NaN)` is `NaN`, and every `size < NaN` comparison is false, so a
+    // bad number here would leave `pump` silently sending nothing and every job
+    // waiting for ever. Refuse it the way `mergeByMaterial` refuses its threshold.
+    if (!Number.isInteger(maxInFlight) || maxInFlight < 1) {
+      throw new RangeError(
+        `maxInFlight must be a whole number of at least 1: ${String(maxInFlight)}`,
+      );
+    }
+
     this.createWorker = options.createWorker ?? createBuildWorker;
-    this.maxInFlight = Math.max(1, options.maxInFlight ?? 1);
+    this.maxInFlight = maxInFlight;
   }
 
   /** Jobs waiting to be sent. */
@@ -372,7 +395,18 @@ export class BuildQueue {
       const ticket = this.nextTicket;
       this.nextTicket += 1;
       this.inFlight.set(ticket, entry);
-      this.ensureWorker().postMessage({ ticket, job: entry.job });
+
+      // `ensureWorker` throws synchronously when the platform refuses a worker (a CSP
+      // that blocks `worker-src`, or no `Worker` at all), and `postMessage` throws
+      // `DataCloneError` on a job it cannot structured-clone. `pump` runs inside the
+      // executor of `enqueue`'s promise, so letting either escape would reject that
+      // promise instead of answering it, and would leave the slot taken for ever.
+      try {
+        this.ensureWorker().postMessage({ ticket, job: entry.job });
+      } catch (error) {
+        this.inFlight.delete(ticket);
+        entry.settle({ status: 'failed', message: describeError(error) });
+      }
     }
   }
 

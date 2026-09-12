@@ -28,6 +28,29 @@ export const DEFAULT_EPSILON_MM: Millimetres = millimetres(DEFAULT_EPSILON);
 /** Default tolerance for angles, in degrees. */
 export const DEFAULT_EPSILON_DEG: Degrees = degrees(DEFAULT_EPSILON);
 
+/**
+ * Tolerance for a quantity that carries no unit at all.
+ *
+ * `DEFAULT_EPSILON` is a length: one micrometre, expressed in millimetres. It
+ * is the wrong number — by orders of magnitude — for the two dimensionless
+ * quantities this domain also compares:
+ *
+ * - a **normalised fraction** along a run, in `[0, 1]`. A micrometre of
+ *   tolerance read as a fraction is one part in a thousand, which on a ten
+ *   metre wall is ten millimetres of slack: two cut points five millimetres
+ *   apart come back "equal" and the order they end up in is whatever order the
+ *   array happened to be in.
+ * - the **sine of the angle** between two unit vectors. Compared against a
+ *   length tolerance, a "parallel" test only fires below 0,0573°, far tighter
+ *   than any tolerance the drawing itself is judged by.
+ *
+ * `1e-9` absorbs the last few ulps of a division and nothing else, which is all
+ * a dimensionless value needs. Callers that mean an *angle* should compare the
+ * angle (see `COLLINEAR_TOLERANCE_DEG` in `walls/joints.ts`) rather than reach
+ * for this; this is for the cases where the number really is just a ratio.
+ */
+export const DIMENSIONLESS_EPSILON = 1e-9;
+
 /** Half a turn, the point past which an angle gap folds back the other way. */
 const HALF_TURN = DEGREES_PER_TURN / 2;
 

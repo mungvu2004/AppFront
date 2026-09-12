@@ -197,7 +197,22 @@ export const applyPatch = (
         draftKind(patch.kind).push(entity.id);
       }
 
-      moveBetweenLevels(entity.id, previousLevelId, resolveLevelId(entity, byId));
+      const addedLevelId = resolveLevelId(entity, byId);
+
+      moveBetweenLevels(entity.id, previousLevelId, addedLevelId);
+
+      // `add` is the branch the application really uses: `changeToPatch` emits
+      // it for every change whose `after` is not null, so every edit **and
+      // every undo** of a wall arrives here rather than in `update` below. A
+      // wall that changes level therefore has to carry its openings from here
+      // too, or the doors stay indexed on the floor the wall just left.
+      //
+      // It also covers the restore: undoing a wall deletion re-adds the
+      // openings before the wall (the inverse replays in reverse), so they find
+      // no host and land on no level — until the wall arrives and takes them.
+      if (patch.kind === 'wall') {
+        moveOpeningsOfWall(entity.id, previousLevelId, addedLevelId);
+      }
 
       continue;
     }

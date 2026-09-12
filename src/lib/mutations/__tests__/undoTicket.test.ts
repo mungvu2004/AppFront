@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createNotificationBus, type NotificationInput } from '../notificationBus';
-import { UNDO_WINDOW_MS, createUndoTicket } from '../undoTicket';
+import { UNDO_WINDOW_MS, combineUndoTickets, createUndoTicket } from '../undoTicket';
 
 /**
  * Invariant A8 is a number three modules read, so it is pinned here rather than
@@ -118,7 +118,11 @@ describe('createNotificationBus', () => {
 
     const notifications = bus.list();
     expect(notifications).toHaveLength(1);
-    expect(notifications[0]?.title).toBe('Hoàn tác 3 thay đổi');
+    // The count goes in the sentence under the headline, and the headline stays
+    // the message. It used to replace both, which destroyed the real text of
+    // every grouped notification — see `notificationBus`.
+    expect(notifications[0]?.title).toBe('Sửa tường 3');
+    expect(notifications[0]?.description).toBe('Hoàn tác 3 thay đổi');
 
     const result = notifications[0]?.undoTicket?.undo();
 
@@ -188,5 +192,178 @@ describe('createNotificationBus', () => {
     bus.publish(buildInput('Sửa tường', () => {}));
 
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A grouped ticket, and the two ways it used to lose a change.                */
+/* -------------------------------------------------------------------------- */
+
+describe('combineUndoTickets', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('has nothing to combine for an empty list, and returns the one ticket of a single', () => {
+    const only = createUndoTicket({ description: 'Xoá tường', undo: () => {} });
+
+    expect(combineUndoTickets([], { description: 'Hoàn tác 0 thay đổi' })).toBeUndefined();
+    expect(combineUndoTickets([only], { description: 'Hoàn tác 1 thay đổi' })).toBe(only);
+  });
+
+  it('expires with the first of its children, not on a fresh window of its own', () => {
+    const older = createUndoTicket({ description: 'Sửa tường 1', undo: () => {} });
+
+    vi.advanceTimersByTime(4900);
+
+    const newer = createUndoTicket({ description: 'Sửa tường 2', undo: () => {} });
+    const group = combineUndoTickets([older, newer], { description: 'Hoàn tác 2 thay đổi' });
+
+    // The older child dies at t=8.000; a fresh default window would have run to
+    // t=12.900 and kept the toast on screen for every millisecond of it.
+    expect(group?.expiresAt).toBe(older.expiresAt);
+    expect(group?.expiresAt).toBeLessThan(newer.expiresAt);
+
+    vi.advanceTimersByTime(3099);
+    expect(group?.getStatus()).toBe('active');
+
+    vi.advanceTimersByTime(1);
+    expect(group?.getStatus()).toBe('expired');
+  });
+
+  it('reports failure when a child can no longer be undone, instead of answering ok', () => {
+    const calls: string[] = [];
+    const older = createUndoTicket({
+      description: 'Sửa tường 1',
+      ttlMs: 1000,
+      undo: () => {
+        calls.push('undo-1');
+      },
+    });
+    const newer = createUndoTicket({
+      description: 'Sửa tường 2',
+      ttlMs: 9000,
+      undo: () => {
+        calls.push('undo-2');
+      },
+    });
+    // A group built from children of unequal life, then asked to undo after the
+    // shorter one has gone. The group used to carry its own window, answer `ok`
+    // and let the toast leave — with change 1 never taken back and nothing said.
+    const group = combineUndoTickets([older, newer], { description: 'Hoàn tác 2 thay đổi' });
+
+    expect(group?.expiresAt).toBe(older.expiresAt);
+
+    vi.advanceTimersByTime(1000);
+
+    expect(group?.undo()).toEqual({ error: 'expired', ok: false });
+    expect(calls).toEqual([]);
+  });
+
+  it('attempts every child even after one of them refuses', () => {
+    const calls: string[] = [];
+    const spent = createUndoTicket({
+      description: 'Sửa tường 1',
+      undo: () => {
+        calls.push('undo-1');
+      },
+    });
+    const live = createUndoTicket({
+      description: 'Sửa tường 2',
+      undo: () => {
+        calls.push('undo-2');
+      },
+    });
+
+    // Somebody already pressed Undo on the first change on its own.
+    expect(spent.undo()).toEqual({ data: undefined, ok: true });
+    calls.length = 0;
+
+    const group = combineUndoTickets([spent, live], { description: 'Hoàn tác 2 thay đổi' });
+    const outcome = group?.undo();
+
+    expect(outcome).toEqual({ error: 'expired', ok: false });
+    // The one that still could be undone was, rather than being skipped because
+    // its neighbour refused.
+    expect(calls).toEqual(['undo-2']);
+  });
+
+  it('is spent after one press, like any other ticket', () => {
+    const calls: string[] = [];
+    const group = combineUndoTickets(
+      [
+        createUndoTicket({ description: 'Sửa tường 1', undo: () => calls.push('undo-1') }),
+        createUndoTicket({ description: 'Sửa tường 2', undo: () => calls.push('undo-2') }),
+      ],
+      { description: 'Hoàn tác 2 thay đổi' },
+    );
+
+    expect(group?.undo()).toEqual({ data: undefined, ok: true });
+    expect(group?.getStatus()).toBe('used');
+    expect(group?.undo()).toEqual({ error: 'expired', ok: false });
+    expect(calls).toEqual(['undo-2', 'undo-1']);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Grouping a notification that carries no ticket at all.                      */
+/* -------------------------------------------------------------------------- */
+
+describe('createNotificationBus — grouping messages with nothing to undo', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The shape `notifyFailure` publishes: a real error, and no way back. */
+  const failure = (title: string, description: string): NotificationInput => ({
+    description,
+    title,
+    type: 'saveFailed',
+  });
+
+  it('keeps both real messages when two failures collapse into one notification', () => {
+    const bus = createNotificationBus();
+
+    bus.publish(failure('Không lưu được tường W-1', 'Máy chủ trả lỗi 409.'));
+    vi.advanceTimersByTime(1000);
+    bus.publish(failure('Không lưu được tường W-2', 'Máy chủ trả lỗi 500.'));
+
+    const [notification] = bus.list();
+
+    expect(bus.list()).toHaveLength(1);
+    // Neither field may be replaced by "Hoàn tác 2 thay đổi": there is nothing to
+    // undo, and overwriting them destroyed two real error messages while
+    // inviting the user to take back two things that cannot be taken back.
+    expect(notification?.title).toBe('Không lưu được tường W-2');
+    expect(notification?.description).toBe('Máy chủ trả lỗi 500.');
+    expect(notification?.undoTicket).toBeUndefined();
+  });
+
+  it('counts what can be undone, not how many messages arrived', () => {
+    const bus = createNotificationBus();
+    const undoable: NotificationInput = {
+      description: 'Đã xoá tường W-3.',
+      title: 'Đã xoá tường W-3',
+      type: 'saveFailed',
+      undoTicket: createUndoTicket({ description: 'Hoàn tác xoá tường', undo: () => {} }),
+    };
+
+    bus.publish(failure('Không lưu được tường W-1', 'Máy chủ trả lỗi 409.'));
+    bus.publish(undoable);
+
+    const [notification] = bus.list();
+
+    // Two entries, one ticket: a single thing to undo, so no group label and the
+    // ticket is the child's own.
+    expect(notification?.description).toBe('Đã xoá tường W-3.');
+    expect(notification?.undoTicket).toBe(undoable.undoTicket);
   });
 });

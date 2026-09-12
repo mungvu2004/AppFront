@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { commit } from './commit';
+import { applyRollbackPatches, commit } from './commit';
 import { useStore } from './index';
 import { readEntity } from '../domain/spatial/applyPatch';
 import { normalizeSpatial } from '../domain/spatial/normalize';
@@ -72,6 +72,33 @@ describe('store/commit.ts', () => {
     expect(storedWallThickness(wall.id)).toBe(wall.thicknessMm + 20);
 
     result.undo();
+
+    expect(storedWallThickness(wall.id)).toBe(wall.thicknessMm);
+  });
+
+  it('rolls a failed dispatch back without leaving a step for Ctrl+Z to find', () => {
+    const wall = firstSampleWall();
+    const pastStatesBefore = useStore.temporal.getState().pastStates.length;
+
+    // A command that got as far as the store, then failed at `rules` or `sync`.
+    commit(
+      { op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 100 } },
+      'Thêm tường'
+    );
+
+    expect(useStore.temporal.getState().pastStates).toHaveLength(pastStatesBefore + 1);
+
+    applyRollbackPatches([
+      { op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm } },
+    ]);
+
+    // The graph is back, and the rollback opened nothing of its own: going
+    // through `commit` left a second past state, and the user's next Ctrl+Z then
+    // re-applied the change that had just been cancelled.
+    expect(storedWallThickness(wall.id)).toBe(wall.thicknessMm);
+    expect(useStore.temporal.getState().pastStates).toHaveLength(pastStatesBefore + 1);
+
+    useStore.temporal.getState().undo();
 
     expect(storedWallThickness(wall.id)).toBe(wall.thicknessMm);
   });

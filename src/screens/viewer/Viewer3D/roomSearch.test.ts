@@ -19,7 +19,10 @@ import {
   VIEWER_FIXTURE_ROOMS,
 } from '@/screens/viewer/ViewerShell/viewerShellFixture';
 
-import { foldForSearch, matchRoomOptions, MAX_ROOM_RESULTS } from './roomSearch';
+/* `foldForSearch` đã xuống `@/lib/format/fold` — xem docblock của module đó. */
+import { foldForSearch } from '@/lib/format/fold';
+
+import { matchRoomOptions, MAX_ROOM_RESULTS } from './roomSearch';
 import type { ViewerRoomOption } from './roomSearch';
 
 const STOREY_NAMES = new Map(VIEWER_FIXTURE_LEVELS.map((level) => [level.id, level.name]));

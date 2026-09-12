@@ -22,6 +22,53 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+
+    /**
+     * Test hàm thuần chạy `node`, không dựng jsdom.
+     *
+     * `src/domain` là mô hình nghiệp vụ thuần — không DOM, không React, không
+     * mạng (mục 0.4). Dựng một jsdom cho mỗi file ở đó là trả tiền cho thứ
+     * không bao giờ được chạm tới, và hoá đơn lớn hơn phần việc thật rất nhiều.
+     * Số đo trên 1.148 bài của `src/domain`, 36 file:
+     *
+     *     jsdom:  tests 2,09 s · environment 34,15 s · setup 26,20 s
+     *     node:   tests 2,09 s · environment 0,01 s  · setup 0 s
+     *
+     * Hơn một phút biến mất mà không một phép kiểm nào đổi. Con số ấy nhân lên
+     * theo số lõi đang tranh nhau: chính nó là thứ đẩy một bài A11 vượt hạn
+     * 5000 ms khi cả bộ chạy song song.
+     *
+     * Danh sách dưới đây **đo từng thư mục một**, không suy từ tên tầng. Mỗi
+     * mục đã được chạy với `--environment node` và xanh trọn vẹn trước khi được
+     * thêm vào. Những thư mục KHÔNG có mặt ở đây đã được thử và hỏng — chúng
+     * chạm `window`, `IndexedDB`, `canvas`, `EventSource` hoặc React:
+     *
+     *     lib/errors · lib/screen-state · lib/auth · lib/upload · lib/telemetry
+     *     lib/autosave · lib/three · lib/testing · api · store · components
+     *     hooks · screens
+     *
+     * Đừng thêm thư mục vào đây bằng phán đoán. Chạy
+     * `npx vitest run <đường dẫn> --environment node` trước; nếu đỏ thì nó
+     * thuộc jsdom, và lý do thường nằm ở một dòng duy nhất chạm DOM.
+     */
+    environmentMatchGlobs: [
+      ['src/domain/**', 'node'],
+      ['src/lib/format/**', 'node'],
+      ['src/lib/geometry/**', 'node'],
+      ['src/lib/versioning/**', 'node'],
+      ['src/lib/coloring/**', 'node'],
+      ['src/lib/selection/**', 'node'],
+      ['src/lib/viewmodel/**', 'node'],
+      ['src/lib/commands/**', 'node'],
+      ['src/lib/tools/**', 'node'],
+      ['src/lib/mutations/**', 'node'],
+      ['src/lib/query/**', 'node'],
+      ['src/lib/http/**', 'node'],
+      ['src/lib/offline/**', 'node'],
+      ['src/lib/realtime/**', 'node'],
+      ['src/lib/motion/**', 'node'],
+    ],
+
     globals: true,
     setupFiles: './vitest.setup.ts',
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],

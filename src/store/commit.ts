@@ -130,18 +130,66 @@ export function commit(
   // hình mới". Xem `previewEdit` ở cuối file.
   discardPreview();
 
-  // Update history slice for UI to react
-  store.setLastCommit(label, timestamp);
+  // zundo provides temporal api on useStore
+  const undo = (): void => {
+    useStore.temporal.getState().undo();
+  };
+
+  // Update history slice for UI to react. The undo goes with the label: the
+  // toast that offers it must not have to guess which stack the write landed on
+  // (see `historySlice.lastCommitUndo`).
+  store.setLastCommit(label, timestamp, undo);
 
   // Return the interface as requested
   return {
-    undo: () => {
-      // zundo provides temporal api on useStore
-      useStore.temporal.getState().undo();
-    },
+    undo,
     label,
     timestamp,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lùi lại một lượt dispatch hỏng: ghi thật, nhưng KHÔNG mở bước hoàn tác.     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Puts the graph back after a failed dispatch, without opening an undo step.
+ *
+ * This is `SpatialPort.revertPatches` (`lib/commands/dispatch`) for the zustand
+ * store, and it is not a second door past A10: the patches it applies are the
+ * ones the command layer computed to cancel its own write, and nothing outside
+ * the pipeline's rollback has a reason to call it.
+ *
+ * A rollback is not something the user did, so it must not be something they can
+ * undo. Going through {@link commit} for it left two zundo past-states for one
+ * failed dispatch — the run-folding does not merge them, because a create or a
+ * delete rolls back under a different patch key than it applied under — and the
+ * user's next Ctrl+Z re-applied the very change that had just been cancelled.
+ *
+ * zundo's own `pause`/`resume` does the suppressing, the same mechanism `commit`
+ * uses to fold a drag: the write still happens, it just opens no new past state,
+ * so the step Ctrl+Z returns to stays the one before the failed dispatch.
+ */
+export function applyRollbackPatches(patches: readonly SpatialPatch[]): void {
+  const temporal = useStore.temporal.getState();
+  const tracking = temporal.isTracking;
+
+  if (tracking) {
+    temporal.pause();
+  }
+
+  try {
+    useStore.getState()._applyPatches(patches);
+  } finally {
+    if (tracking) {
+      useStore.temporal.getState().resume();
+    }
+  }
+
+  // The failed dispatch is over; whatever run was open died with it, so the next
+  // commit must not fold into it.
+  resetCommitRun();
+  discardPreview();
 }
 
 /* -------------------------------------------------------------------------- */

@@ -30,7 +30,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -52,12 +52,14 @@ import {
   EMPTY_PROJECT_SCENARIO,
   VIOLATED_BUILDING_SCENARIO,
 } from '@/lib/testing/fixtures';
+import { renderWithProviders } from '@/lib/testing/render';
 import {
   SEVEN_STATES,
   createSevenStateScenarios,
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
+import { useStore } from '@/store';
 
 import type {
   PassedRule,
@@ -691,5 +693,100 @@ describe('mục đã xử lý phải còn nhìn thấy trong nhóm gộp (CẤM 
     renderRuleReport(RuleReportView, withResolved);
 
     expect(screen.getByText(resolvedRow.message)).toBeTruthy();
+  });
+});
+
+/* ==========================================================================
+ * I. R-73 — "chọn" một vi phạm mở `ViolationDetailContainer` dạng tấm trượt.
+ *
+ *    Đây là container THẬT (không phải view thuần), nên `useRuleReport` chạy
+ *    `useQuery` thật và cần `QueryClientProvider` — `renderWithProviders`
+ *    của `@/lib/testing/render`, không phải `render()` trần của mục E. Kho
+ *    được nạp bằng đúng hành động công khai của slice (`setSpatial`,
+ *    `setActiveFloor`), cùng khuôn `ViolationDetail.test.tsx` mục "[NGHIỆM
+ *    THU]" — không gọi `useStore.setState` tay.
+ * ========================================================================== */
+
+describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng tấm trượt', () => {
+  it('bấm câu mô tả của một hàng mở đúng tấm trượt của vi phạm đó; Esc đóng lại (A12)', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+    const firstLevelEntityId = NORMALIZED_VIOLATED.byKind.level[0];
+    const firstLevelEntity =
+      firstLevelEntityId === undefined ? undefined : NORMALIZED_VIOLATED.byId[firstLevelEntityId];
+
+    if (firstLevelEntity === undefined || !isEntityOfKind('level', firstLevelEntity)) {
+      throw new Error(
+        'VIOLATED_BUILDING_SCENARIO không có tầng nào — không dựng được lượt kiểm R-73',
+      );
+    }
+
+    const firstLevelId = firstLevelEntity.id;
+
+    // `renderWithProviders` đặt kho về ban đầu TRƯỚC mỗi lượt render (mục
+    // "Vì sao kho được hạ tay" của `render.tsx`), nên lượt nạp đồ thị phải
+    // nằm SAU render — cùng thứ tự `ViolationDetail.test.tsx` mục "[NGHIỆM
+    // THU]" dùng, không phải trước.
+    const { container } = renderWithProviders(
+      <MemoryRouter>
+        <RuleReportContainer projectId="P-000001" />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      useStore.getState().setSpatial(NORMALIZED_VIOLATED, 'w3-r73-version');
+      useStore.getState().setActiveFloor(firstLevelId);
+      await Promise.resolve();
+    });
+
+    // Chưa chọn gì: tấm trượt không có trong cây.
+    expect(screen.queryByRole('complementary', { name: 'chi tiết vi phạm' })).toBeNull();
+
+    // Đợi lượt chạy xong rồi mở nhóm luật đầu tiên (mọi nhóm bắt đầu đóng —
+    // `expandedRuleCodes` của `useRuleReport` rỗng lúc mở màn thật, khác
+    // `propsFor` ở mục B vốn tự mở sẵn cho các phép kiểm view thuần). Neo vào
+    // `h3 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h3>`; bộ lọc
+    // "nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
+    // ô chọn) nên một selector không neo `h3` bắt nhầm đúng cái đó trước.
+    const groupToggle = await waitFor(() => {
+      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
+
+      if (toggle === null) {
+        throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
+      }
+
+      return toggle;
+    });
+
+    fireEvent.click(groupToggle);
+
+    const messageButton = await waitFor(() => {
+      const button = container.querySelector<HTMLButtonElement>('tbody button');
+
+      if (button === null) {
+        throw new Error('chưa có hàng nào trong nhóm vừa mở');
+      }
+
+      return button;
+    });
+
+    const clickedMessage = messageButton.textContent ?? '';
+
+    expect(clickedMessage.length).toBeGreaterThan(0);
+
+    fireEvent.click(messageButton);
+
+    const panel = await waitFor(() => screen.getByRole('complementary', { name: 'chi tiết vi phạm' }));
+
+    // Đúng vi phạm vừa bấm — không phải hàng đầu tiên của một danh sách khác.
+    // Chứng minh `initialIndex` trỏ đúng chỗ trong `violations`, không lệch
+    // do khác thứ tự giữa `allRows` (nguồn của tấm trượt) và DOM.
+    expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent(clickedMessage);
+
+    // A12 — Esc đóng lớp trên cùng.
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('complementary', { name: 'chi tiết vi phạm' })).toBeNull();
+    });
   });
 });

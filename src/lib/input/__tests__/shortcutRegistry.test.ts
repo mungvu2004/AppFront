@@ -248,6 +248,29 @@ describe('typing guard', () => {
     expect(registry.handleKeyDown(keyEvent('w'), target)).toBe(false);
     expect(activateWallTool).not.toHaveBeenCalled();
   });
+
+  it('still lets Escape reach the global close handler while typing (H4-1)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    expect(registry.handleKeyDown(keyEvent('Escape'), { tagName: 'INPUT' })).toBe(true);
+    expect(handlers.closeTopLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps every other key blocked while typing, Escape included in the check', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const event = keyEvent('s', { ctrlKey: true });
+
+    expect(registry.handleKeyDown(event, { tagName: 'TEXTAREA' })).toBe(false);
+    expect(handlers.save).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
 });
 
 describe('ctrl and cmd', () => {
@@ -334,6 +357,26 @@ describe('auto-repeat', () => {
     expect(activateWallTool).not.toHaveBeenCalled();
     expect(handlers.undo).toHaveBeenCalledTimes(1);
   });
+
+  it('ends arbitration at the scope that rejects repeat instead of falling to a lower scope (H4-4)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+    const canvasUndo = vi.fn();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.register({
+      id: 'canvas.undo',
+      combo: 'Ctrl+Z',
+      scope: 'canvas',
+      onTrigger: canvasUndo,
+    });
+
+    registry.handleKeyDown(keyEvent('z', { ctrlKey: true }), null);
+    registry.handleKeyDown(keyEvent('z', { ctrlKey: true, repeat: true }), null);
+
+    expect(canvasUndo).toHaveBeenCalledTimes(1);
+    expect(handlers.undo).not.toHaveBeenCalled();
+  });
 });
 
 describe('preventDefault', () => {
@@ -356,6 +399,20 @@ describe('preventDefault', () => {
 
     expect(registry.handleKeyDown(event, null)).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('prevents the browser default when a modal swallows an unbound key (H4-3)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.claimScope('dialog');
+
+    const event = keyEvent('s', { ctrlKey: true });
+
+    expect(registry.handleKeyDown(event, null)).toBe(false);
+    expect(handlers.save).not.toHaveBeenCalled();
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
   });
 
   it('lets a binding opt out of preventing the default', () => {

@@ -109,7 +109,12 @@ export function diffVersions(previous: VersionSnapshot, next: VersionSnapshot): 
   const removed: DiffEntry[] = [];
 
   for (const entityType of ENTITY_KINDS) {
-    const group = diffEntityKind(entityType, previous[entityType], next[entityType]);
+    // `VersionSnapshot` promises all seven groups at the type level only: the real
+    // snapshots come off the wire unvalidated, and a server that leaves out an empty
+    // group — `dimension`, usually — would otherwise reach `Object.keys(undefined)` and
+    // throw a `TypeError` out of the gateway, blanking the compare screen. A group that
+    // is not there holds nothing, which is exactly what an empty record says.
+    const group = diffEntityKind(entityType, previous[entityType] ?? {}, next[entityType] ?? {});
     added.push(...group.added);
     changed.push(...group.changed);
     removed.push(...group.removed);

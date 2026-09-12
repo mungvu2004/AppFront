@@ -106,6 +106,8 @@ export interface UseExportPanelOptions {
    * từ `ROUTES`, và ai gắn màn này vào router thì người đó biết cách đi.
    */
   readonly onNavigate?: (href: string) => void;
+  /** Mở hộp thoại chia sẻ (`ShareDialogContainer`). Container quyết định mở gì (R-73). */
+  readonly onShare?: () => void;
 }
 
 /**
@@ -701,6 +703,11 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     [onNavigate, preflight],
   );
 
+  const onShareOption = options.onShare;
+  const onShare = useCallback((): void => {
+    onShareOption?.();
+  }, [onShareOption]);
+
   return {
     status,
     capabilities,
@@ -724,5 +731,6 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onRetry,
     onDownload,
     onFollowFix,
+    onShare,
   };
 }
