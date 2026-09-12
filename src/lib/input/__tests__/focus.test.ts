@@ -163,6 +163,21 @@ describe('createFocusTrap', () => {
     document.body.removeEventListener('keydown', reachedBody);
   });
 
+  it('lets Escape reach the window arbiter when the trap has no onEscape (H4-2)', () => {
+    const { dialog, first } = buildDialog();
+    const reachedBody = vi.fn();
+
+    document.body.addEventListener('keydown', reachedBody);
+    createFocusTrap(dialog).activate();
+    first.focus();
+
+    pressKey('Escape');
+
+    expect(reachedBody).toHaveBeenCalledTimes(1);
+
+    document.body.removeEventListener('keydown', reachedBody);
+  });
+
   it('returns the focus to the opener on release', () => {
     const { opener, dialog } = buildDialog();
 

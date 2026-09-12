@@ -10,9 +10,12 @@
  *   somehow finds the focus outside the layer drags it back in. A layer
  *   with nothing focusable keeps the focus on its own container — the
  *   focus never vanishes off the page.
- * - **Escape closes.** The trap does not know what closing means — it calls
- *   the owner's `onEscape` and stops the event there, so the shortcut
- *   arbiter (shortcutRegistry) never handles the same press a second time.
+ * - **Escape closes.** The trap does not know what closing means — when the
+ *   owner gives an `onEscape` it calls it and stops the event there, so the
+ *   shortcut arbiter (shortcutRegistry) never handles the same press a
+ *   second time. A trap with no `onEscape` swallows nothing: the press keeps
+ *   bubbling to the window listener, because "Esc đóng lớp trên cùng"
+ *   (invariant A12) must hold even for a layer that forgot to wire closing.
  * - **Focus goes home.** The element focused at `activate` is remembered
  *   and focused again at `release`; if it has left the document by then,
  *   focus falls to the caller's fallback, then to the first focusable
@@ -91,8 +94,15 @@ export function createFocusTrap(
 
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
+      // Swallow only when someone actually handles it: an untended Escape
+      // must still reach the shortcut arbiter on `window` (invariant A12),
+      // and `onEscape` is optional.
+      if (options.onEscape === undefined) {
+        return;
+      }
+
       event.stopPropagation();
-      options.onEscape?.();
+      options.onEscape();
 
       return;
     }

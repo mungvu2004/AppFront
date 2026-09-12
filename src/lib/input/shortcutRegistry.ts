@@ -449,11 +449,14 @@ export function createShortcutRegistry(
     event: ShortcutKeyEvent,
     target: ShortcutTarget | null,
   ): boolean => {
-    if (isTextEntryTarget(target)) {
+    const code = normaliseKey(event.key);
+
+    // Typing disables every binding — except Escape, which must reach the
+    // global close-top-layer handler from inside a text field exactly as it
+    // falls through a modal dialog's own key-swallowing (invariant A12).
+    if (isTextEntryTarget(target) && code !== 'ESCAPE') {
       return false;
     }
-
-    const code = normaliseKey(event.key);
 
     if (MODIFIER_KEY_CODES.has(code)) {
       return false;
@@ -471,12 +474,15 @@ export function createShortcutRegistry(
           continue;
         }
 
-        if (event.repeat === true && entry.definition.allowRepeat !== true) {
+        if (!eventMatches(entry.parsed, event)) {
           continue;
         }
 
-        if (!eventMatches(entry.parsed, event)) {
-          continue;
+        if (event.repeat === true && entry.definition.allowRepeat !== true) {
+          // The rightful owner of this combo rejects auto-repeat: end
+          // arbitration for this press instead of falling through to a
+          // lower-priority scope that happens to bind the same combo.
+          return false;
         }
 
         if (entry.definition.preventDefault !== false) {
@@ -490,7 +496,9 @@ export function createShortcutRegistry(
 
       // A modal floor swallows what it does not bind — except Escape, which
       // must always reach the global close-top-layer handler (invariant A12).
+      // The swallow still blocks the browser's own action on the key.
       if (MODAL_SCOPES.has(scope) && code !== 'ESCAPE') {
+        event.preventDefault?.();
         return false;
       }
     }

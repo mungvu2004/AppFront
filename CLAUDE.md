@@ -88,7 +88,7 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
 | A10 | Ghi vào store qua `commit(patch, label)`, không gọi `set()` | `project.js:65`, `lib/tools/toolMachine.ts:37` |
 | A11 | **Bảy trạng thái màn hình.** Màn trắng là thất bại duy nhất mà A11 tồn tại để chặn | `useShareLinks.ts:172`, `AuthScreen.container.tsx:129` |
 | A12 | Bàn phím là đường đi hạng nhất, không phải phương án dự phòng. **Esc đóng lớp trên cùng** — lời hứa không tính năng nào được lấy mất | `lib/input/shortcutRegistry.ts:21,108,573`, `lib/input/dragDrop.ts:23` |
-| A14 | Bộ mẫu chuẩn: **34 phòng và sảnh 248,60 m²**. Test dùng bộ này | `lib/coloring/__tests__/coloring.test.ts:31`, `legend.test.ts:106` |
+| A14 | Bộ mẫu chuẩn dùng chung là `createSampleBuilding()` (`domain/spatial/__fixtures__/sampleBuilding.ts`): **14 phòng, 4 trục, 16 ô mở (9 cửa + 7 cửa sổ), 21 đồ đạc, 34 kích thước**; 248,60 m² là tổng diện tích cả 14 phòng. `coloring.test.ts:34-38,91` tự khai lại một bộ **khác** (34 phòng, 21 trục, 14 ô mở, 248,60 m² là diện tích MỘT sảnh) thay vì gọi `createSampleBuilding()` — hai con số 21 và 34 ở đó là số đồ đạc/kích thước của bộ thật bị gán nhầm sang trục/phòng. Đừng chép số của `coloring.test.ts` làm "bộ mẫu chuẩn" | `domain/spatial/__fixtures__/sampleBuilding.ts:36-38`, `lib/coloring/__tests__/coloring.test.ts:34-38,91`, `legend.test.ts:106` |
 | A15 | Định dạng số xảy ra ở viewmodel, không ở view. Dấu thập phân là **dấu phẩy** | `project.js:57`, `gizmo.ts:417` |
 
 ---
@@ -159,15 +159,16 @@ component, và D không cản đường ở đó.
 
 ## Trạng thái hiện tại — đọc trước khi dựng màn mới
 
-- **`src/App.tsx` là bảng chọn 9 màn demo**, không phải vỏ ứng dụng thật. Nó dùng
-  `useState` để đổi màn.
-- **`src/routes.tsx` chưa được gắn.** Route khai sẵn (17 trong đó là `<Placeholder>`)
-  nhưng không nơi nào dựng `RouterProvider`; `main.tsx` render thẳng `<App />`. Đây là nợ
-  đã ghi nhận, không phải chuyện bỏ quên.
-- **`src/lib/query` và `src/lib/mutations` là tầng logic đã hoàn thành theo kế hoạch**,
-  có test đầy đủ và tính vào ngưỡng độ phủ — chưa màn nào gọi tới **vì chưa có màn thật
-  nào được dựng**. Đây không phải mã chết. Màn thật đầu tiên phải cắm vào tầng đó chứ
-  không dựng lại nó lần nữa.
+- **Router đã được gắn.** `src/routes.tsx` không còn tồn tại — router thật là
+  `src/routes/router.tsx` (47 route, chỉ còn **một** `Placeholder`, dùng bởi `RouteCanvas`
+  và gắn vào ba đường tĩnh `/layers/objects`, `/layers/dimensions`, `/floors`).
+  `src/main.tsx` dựng đủ `QueryClientProvider` → `MotionProvider` → `RouterProvider`, với
+  `NotificationHost` là **anh em** của `RouterProvider`.
+- **`src/App.tsx` nay là route `/demo`**, chỉ trong bản dựng phát triển — vẫn là bảng chọn
+  9 màn demo, dùng `useState` để đổi màn, nhưng không còn là thứ `main.tsx` render thẳng.
+  `/` là route thật, `ProjectDashboardRoute`.
+- **`src/lib/query` và `src/lib/mutations` đã có nơi gọi thật** từ các màn đã dựng — không
+  còn là tầng logic chờ màn đầu tiên cắm vào. Đây chưa từng là mã chết.
 - **`hooks/useShareLinks.ts` tự viết `isLoading`/`error` bằng tay.** Đó là ngoại lệ đi
   trước, **không phải khuôn mẫu để chép**.
 - **`components/feedback/ScreenErrorBoundary.tsx` ĐÃ được gắn.** `src/App.tsx` bọc màn
