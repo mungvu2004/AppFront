@@ -40,8 +40,23 @@
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản `src/App.tsx` đang gắn
  * (R-62), **không** phải bản chưa nối ở `src/lib/screen-state`. Phần dự phòng
  * dựng bằng `EmptyState` từ `report.description`, cùng khuôn `RuleSettings`.
+ *
+ * ## "chia sẻ" mở `ShareDialogContainer` — vai đọc lại, không đọc chung
+ *
+ * `ShareDialogContainerProps.roles` là quyền của MỘT hộp thoại khác
+ * (`can('create', 'share', …)`), không phải `model.export` mà `useExportPanel`
+ * đã tự đọc cho quyền xuất. Container đọc vai lần thứ hai ở đây — cùng khuôn
+ * "vai theo dự án trước, vai phiên đăng nhập sau" của `useExportPanel.ts:277`
+ * và của `VersionHistory.container.tsx` — thay vì mở rộng hợp đồng của
+ * `useExportPanel` để lộ ra một con số nó không dùng cho chính nó.
+ *
+ * `isShareOpen` sống ở container, không ở hook: đây là trạng thái CỦA MÀN NÀY
+ * mở màn kia, không phải một phần "suy nghĩ của màn Xuất" mà
+ * `useExportPanel.ts` mô tả nó giữ. Cùng khuôn `ProjectDashboard.container.tsx`
+ * giữ `isCreateOpen` cho `CreateProjectModalContainer`.
  */
 
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -50,6 +65,10 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { useSession } from '@/hooks/useSession';
+import { ShareDialogContainer } from '@/screens/export/ShareDialog';
+import { useStore } from '@/store';
+import type { ProjectRole } from '@/types/project';
 
 import { EditorTourContainer } from '@/screens/system/EditorTour';
 import { ExportPanel } from './ExportPanel';
@@ -105,6 +124,11 @@ interface WiredExportPanelProps extends Omit<ExportPanelContainerProps, 'project
  */
 function WiredExportPanel(props: WiredExportPanelProps) {
   const navigate = useNavigate();
+  const session = useSession();
+  const storeRoles = useStore((state) => state.userRoles);
+  const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
+
+  const [isShareOpen, setShareOpen] = useState(false);
 
   const onNavigate =
     props.onNavigateToFix ??
@@ -114,11 +138,22 @@ function WiredExportPanel(props: WiredExportPanelProps) {
 
   const viewProps = useExportPanel({
     onNavigate,
+    onShare: () => setShareOpen(true),
     projectId: props.projectId,
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
   });
 
-  return <ExportPanel {...viewProps} />;
+  return (
+    <>
+      <ExportPanel {...viewProps} />
+      <ShareDialogContainer
+        isOpen={isShareOpen}
+        onDismiss={() => setShareOpen(false)}
+        projectId={props.projectId}
+        roles={roles}
+      />
+    </>
+  );
 }
 
 /**

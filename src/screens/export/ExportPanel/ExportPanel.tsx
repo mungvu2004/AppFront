@@ -45,9 +45,15 @@
  *
  * `progress !== null` là cờ độc lập với `status`: chân trang đổi sang thanh
  * tiến độ bất kể `status` đang là gì.
+ *
+ * ## "chia sẻ" — mở `ShareDialogContainer` (S-ShareDialog)
+ *
+ * View chỉ phát `onShare()`; container quyết định mở hộp thoại nào và với
+ * quyền gì (R-73). Nút chỉ hiện ở năm trạng thái có header — `empty` và
+ * `forbidden` không có header nên không có gì để chia sẻ.
  */
 
-import { FolderOpen, Lock } from 'lucide-react';
+import { FolderOpen, Lock, Share2 } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -178,6 +184,7 @@ export function ExportPanel(props: ExportPanelProps) {
     onRetry,
     onDownload,
     onFollowFix,
+    onShare,
   } = props;
 
   const isLoading = status === 'loading';
@@ -225,8 +232,11 @@ export function ExportPanel(props: ExportPanelProps) {
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <header>
+        <header className="flex items-center justify-between gap-4">
           <h2 className="text-base font-semibold text-text-primary">xuất bản vẽ</h2>
+          <Button variant="secondary" size="sm" iconBefore={<Share2 aria-hidden="true" size={16} />} onClick={onShare}>
+            chia sẻ
+          </Button>
         </header>
 
         {status === 'partial' && noticeCaption !== null && <InlineAlert level="attention" message={noticeCaption} />}
