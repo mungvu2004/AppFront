@@ -13,8 +13,36 @@
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản `src/App.tsx` đang gắn
  * (R-62). Phần dự phòng dựng bằng `EmptyState` từ `report.description`, cùng
  * khuôn `BillingScreen.container.tsx`, `ExplodedView.container.tsx`.
+ *
+ * ## R-73 — nối `ViolationDetailContainer` (S-34) vào đây
+ *
+ * `ViolationDetail/ViolationDetail.container.tsx` tự khai nó là "tấm trượt mở
+ * TRÊN màn báo cáo luật, không phải một trang" và ghi sẵn đúng một thẻ để một
+ * màn khác gắn vào — đây là màn đó. "Chọn" một vi phạm (bấm vào câu mô tả — đúng
+ * `onSelectRow` hiện có, không phải "Xem", thứ đã có việc riêng: khuôn camera
+ * sang màn 3D qua `onViewRow`) mở tấm trượt; `RuleReport.tsx` không đổi một
+ * dòng nào, `WiredRuleReport` chỉ bọc thêm `onSelectRow` để vừa giữ hiệu ứng
+ * chọn hàng có sẵn (nhấp nháy viền) vừa mở tấm trượt.
+ *
+ * Danh sách `violations` mà tấm trượt cần KHÔNG chạy lại `runRules` (đúng lệnh
+ * cấm ở docblock của `ViolationDetailContainerProps`): nó dựng lại từ
+ * `RuleReportRow` — kiểu này mang đủ sáu trường của `Violation`
+ * (`entityId`/`message`/`suggestion`/`ruleCode`/`severity`/`levelId`), chỉ thừa
+ * ba trường tầng hiển thị (`key`/`levelLabel`/`resolved`). Nguồn là
+ * `viewProps.groups` — nó đã gộp cả hàng đang mở lẫn hàng đã xử lý
+ * (`useRuleReport.ts` dựng bằng `groupRowsByRule([...visibleRows,
+ * ...resolvedRows])`), nên đây là đúng một nguồn, không phải hai sự thật khác
+ * nhau.
+ *
+ * `floorId` đọc từ `state.activeFloorId` — "tầng đang mở ở vỏ" đúng chữ hợp
+ * đồng. Khi vỏ chưa mở tầng nào (dự án nhiều tầng chưa chọn tầng, hoặc màn này
+ * đứng một mình), dự phòng bằng tầng của chính vi phạm đang mở
+ * (`row.levelId`); vẫn không có thì tấm trượt không mở — đúng triết lý đã ghi ở
+ * `ViolationDetailContainer`: "một tấm trượt rỗng báo lỗi chồng lên mô hình còn
+ * tệ hơn không mở tấm trượt nào".
  */
 
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -23,8 +51,13 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { Violation } from '@/domain/rules/registry';
+import { useStore } from '@/store';
+
+import { ViolationDetailContainer } from '../ViolationDetail';
 
 import { RuleReport } from './RuleReport';
+import type { RuleReportRow } from './types';
 import { useRuleReport } from './useRuleReport';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
@@ -66,21 +99,74 @@ interface WiredRuleReportProps {
   readonly isCompact?: boolean;
 }
 
+/** `RuleReportRow` đã mang đủ sáu trường của `Violation` — chỉ lọc bớt ba trường thừa. */
+function toViolation(row: RuleReportRow): Violation {
+  return {
+    entityId: row.entityId,
+    message: row.message,
+    suggestion: row.suggestion,
+    ruleCode: row.ruleCode,
+    severity: row.severity,
+    levelId: row.levelId,
+  };
+}
+
 /**
  * Hook cộng view, không có provider nào ở giữa.
  *
  * `exactOptionalPropertyTypes` bật, nên một prop tuỳ chọn vắng mặt phải VẮNG
  * MẶT chứ không mang giá trị `undefined` — cùng khuôn trải có điều kiện của
  * `ExplodedView.container.tsx`.
+ *
+ * `openRowKey` là trạng thái CỦA RIÊNG việc gắn dây này — "hàng nào đang mở
+ * tấm trượt" không phải một phần của `RuleReportViewProps` (mục D: hook của
+ * S-33 chỉ trả đúng bộ props của view, không thừa trường nào), nên nó sống ở
+ * đây, một tầng trên `useRuleReport`, không phải một `useState` mới thêm vào
+ * bên trong hook đó.
  */
 function WiredRuleReport(props: WiredRuleReportProps) {
+  const [openRowKey, setOpenRowKey] = useState<string | null>(null);
+  const activeFloorId = useStore((state) => state.activeFloorId);
+
   const viewProps = useRuleReport({
     projectId: props.projectId,
     ...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
   });
 
-  return <RuleReport {...viewProps} />;
+  const allRows = useMemo(
+    () => viewProps.groups.flatMap((group) => group.rows),
+    [viewProps.groups],
+  );
+  const openIndex = openRowKey === null ? -1 : allRows.findIndex((row) => row.key === openRowKey);
+  const openRow = openIndex === -1 ? null : (allRows[openIndex] ?? null);
+  const floorId = openRow === null ? null : (activeFloorId ?? openRow.levelId);
+
+  return (
+    <div className="relative h-full">
+      <RuleReport
+        {...viewProps}
+        onSelectRow={(rowKey) => {
+          viewProps.onSelectRow(rowKey);
+          setOpenRowKey(rowKey);
+        }}
+      />
+
+      {openRow !== null && floorId !== null ? (
+        <ViolationDetailContainer
+          floorId={floorId}
+          initialIndex={openIndex}
+          onClose={() => {
+            setOpenRowKey(null);
+          }}
+          projectId={props.projectId}
+          violations={allRows.map(toViolation)}
+          {...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {})}
+          {...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {})}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 /**
