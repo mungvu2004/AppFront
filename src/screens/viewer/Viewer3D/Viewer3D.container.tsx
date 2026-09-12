@@ -92,6 +92,39 @@
  * `hooks/useShortcut.ts`. Thiếu nó thì phím `/` — và cả `F`, `H`, `I` của vỏ —
  * không bao giờ chạy, và A12 mất một nửa lời hứa.
  *
+ * ## Sáu panel đã dựng sẵn, nay đã có người gọi
+ *
+ * Sáu container panel (`PropertyInspector`, `RoomAreaPanel`,
+ * `FurnitureLibraryPanel`, `HistoryPanel`, `WallGeometryEditor`,
+ * `CollaborationLayer`) đều ghi trong docblock của chúng rằng chúng là một
+ * PHẦN của `Viewer3D` và "chưa nơi nào dựng thẻ này — nợ đã ghi nhận". Lượt
+ * này trả nợ ấy, và nó chia làm hai đường vì sáu panel không cùng một hình
+ * dạng:
+ *
+ * - **Bốn panel nội dung** đi vào khe `inspectorSections` của vỏ, qua
+ *   `Viewer3DPanels.tsx`. Khe ấy đã có trong `viewerShellTypes.ts:371` cho
+ *   VIEW từ đầu (`useMeasurementTool.ts:911` dùng nó thật), nhưng
+ *   `useViewerShell` không trả trường ấy nên một màn đi qua CONTAINER không có
+ *   đường nào chạm tới. `ViewerShell.container.tsx` nay nhận prop tuỳ chọn
+ *   cùng tên và chuyển tiếp — thêm, không đổi: vắng mặt thì vỏ dựng y hệt hôm
+ *   nay.
+ * - **Hai lớp phủ** (`CollaborationLayer`, `WallGeometryEditor`) đi vào khe
+ *   CẢNH qua `Viewer3DOverlays.tsx`, vì cả hai khai `absolute inset-0` ở gốc
+ *   của chúng và đòi một khung phủ đúng khung nhìn 3D. Lý do đầy đủ ở đầu file
+ *   ấy.
+ *
+ * Container đọc `selectedIds` và `activeFloorId` THẲNG TỪ KHO thay vì lấy từ
+ * `frame`: `frame` chỉ tồn tại bên trong khe cảnh, còn `useViewerShell.ts:444`
+ * cũng đọc đúng lát kho ấy — cùng một nguồn, không phải nguồn thứ hai.
+ *
+ * ## `useNavigate` nay có mặt ở CONTAINER, không chỉ ở vỏ route
+ *
+ * Ba đường ra ngoài của cột panel (`onOpenRuleScreen`, `onOpenExport`,
+ * `onCheckWallGaps`) là CALLBACK chứ không phải `href`, và R-73 đòi mỗi cái có
+ * một đích THẬT. Hệ quả: bài kiểm nào dựng `Viewer3DContainer` phải bọc một
+ * `MemoryRouter`, cùng khuôn `ViewerShell.test.tsx`. Ghi ra để người sau không
+ * phải dò lại (E.10).
+ *
  * ## Canvas ở đâu
  *
  * `viewer3dTypes.ts:230-232` chốt: `canvas` không phải một prop của view mà là
@@ -366,7 +399,10 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
 }
 
 /**
- * Vỏ route — thứ DUY NHẤT trong thư mục màn biết tới `react-router-dom`.
+ * Vỏ route — chỗ DUY NHẤT trong thư mục màn đọc THAM SỐ ĐƯỜNG DẪN.
+ *
+ * (Container cũng nhập `react-router-dom` từ lượt gắn panel — xem mục
+ * "`useNavigate` nay có mặt ở CONTAINER" ở đầu file.)
  *
  * Cùng khuôn `ViewerShellRoute`: đọc tham số đường dẫn, đọc vai từ phiên, và từ
  * chối tử tế khi đường dẫn thiếu mã dự án thay vì dựng một màn không có gì để
