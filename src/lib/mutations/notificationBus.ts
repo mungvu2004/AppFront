@@ -1,7 +1,7 @@
 import viMessages from '@/i18n/vi.json';
 import { createUuid } from '@/lib/http/ids';
 
-import { createUndoTicket, type UndoTicket } from './undoTicket';
+import { combineUndoTickets, type UndoTicket } from './undoTicket';
 
 const DEFAULT_GROUP_WINDOW_MS = 5000;
 const DEFAULT_MAX_VISIBLE = 3;
@@ -45,28 +45,25 @@ interface PendingGroup {
 const formatUndoGroupLabel = (count: number): string =>
   viMessages.common.undo_group.replace('{{count}}', String(count));
 
-const buildGroupedTicket = (entries: readonly NotificationInput[], now: () => number): UndoTicket | undefined => {
-  const tickets = entries
+/** The tickets among these entries, oldest first; entries without one are skipped. */
+const ticketsOf = (entries: readonly NotificationInput[]): readonly UndoTicket[] =>
+  entries
     .map((entry) => entry.undoTicket)
     .filter((ticket): ticket is UndoTicket => ticket !== undefined);
 
-  if (tickets.length === 0) {
-    return undefined;
-  }
+/**
+ * The one ticket a grouped notification offers.
+ *
+ * `combineUndoTickets` is what makes it safe: the group dies with the first of
+ * its children rather than outliving them on a window of its own, and a child
+ * that can no longer be undone fails the whole press instead of being thrown
+ * away. Both used to go the other way, and a change could disappear from a
+ * grouped toast that reported success — see `undoTicket`.
+ */
+const buildGroupedTicket = (entries: readonly NotificationInput[], now: () => number): UndoTicket | undefined => {
+  const tickets = ticketsOf(entries);
 
-  if (tickets.length === 1) {
-    return tickets[0];
-  }
-
-  return createUndoTicket({
-    description: formatUndoGroupLabel(tickets.length),
-    now,
-    undo: () => {
-      for (const ticket of [...tickets].reverse()) {
-        ticket.undo();
-      }
-    },
-  });
+  return combineUndoTickets(tickets, { description: formatUndoGroupLabel(tickets.length), now });
 };
 
 /**
@@ -154,13 +151,20 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
     if (pending && currentTime - pending.firstAt < groupWindowMs) {
       pending.entries.push(input);
 
-      const isGrouped = pending.entries.length > 1;
       const groupedTicket = buildGroupedTicket(pending.entries, now);
-      const label = isGrouped ? formatUndoGroupLabel(pending.entries.length) : undefined;
+      // Counted over the tickets, not the entries: `notifyFailure` publishes
+      // messages carrying no ticket at all, and two failed writes inside the
+      // window used to collapse into "Hoàn tác 2 thay đổi" — over BOTH the title
+      // and the description, with no ticket behind it. Two real error messages
+      // destroyed, and an invitation to undo two things that cannot be undone.
+      const undoableCount = ticketsOf(pending.entries).length;
+      // The title stays the message. Only the sentence under it gives way to the
+      // count, and only when there is really more than one thing to take back.
+      const groupLabel = undoableCount > 1 ? formatUndoGroupLabel(undoableCount) : undefined;
 
       upsertNotification(pending.notificationId, pending.firstAt, {
-        description: label ?? input.description,
-        title: label ?? input.title,
+        description: groupLabel ?? input.description,
+        title: input.title,
         type: input.type,
         undoTicket: groupedTicket,
       });

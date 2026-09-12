@@ -409,13 +409,28 @@ export interface ResizeOpeningInput {
   readonly sillHeightMm?: number;
 }
 
-/** The opening this resize would leave behind. */
-const resizedOpening = (opening: GraphOpening, input: ResizeOpeningInput): GraphOpening => ({
-  ...opening,
-  widthMm: input.widthMm ?? opening.widthMm,
-  heightMm: input.heightMm ?? opening.heightMm,
-  sillHeightMm: input.sillHeightMm ?? opening.sillHeightMm,
-});
+/**
+ * The opening this resize would leave behind — offset included.
+ *
+ * The re-centring belongs **here** rather than in the command, because this is
+ * the shape `validateResizeOpening` runs the standards over: a validator that
+ * measures one rectangle while the command stores another accepts a door that
+ * hangs past the end of its wall. Widening `O-1` at offset 0 from 800 mm to
+ * 1.200 mm was checked over the span [0, 1.200] and written as [-200, 1.000].
+ */
+const resizedOpening = (opening: GraphOpening, input: ResizeOpeningInput): GraphOpening => {
+  const widthMm = input.widthMm ?? opening.widthMm;
+
+  return {
+    ...opening,
+    widthMm,
+    heightMm: input.heightMm ?? opening.heightMm,
+    sillHeightMm: input.sillHeightMm ?? opening.sillHeightMm,
+    // The centre stays where it is: the stored offset is the left edge, so half
+    // the growth comes off it.
+    offsetMm: opening.offsetMm - (widthMm - opening.widthMm) / 2,
+  };
+};
 
 /** Everything wrong with this resize; empty when it may be applied. */
 export function validateResizeOpening(
@@ -499,11 +514,8 @@ export function createResizeOpeningCommand(
   }
 
   const { opening } = found;
-  const resized = resizedOpening(opening, input);
-  const after: GraphOpening = {
-    ...resized,
-    offsetMm: opening.offsetMm - (resized.widthMm - opening.widthMm) / 2,
-  };
+  // Exactly the shape `validateResizeOpening` measured, offset and all.
+  const after: GraphOpening = resizedOpening(opening, input);
 
   const parts = [
     ['rộng', opening.widthMm, after.widthMm] as const,

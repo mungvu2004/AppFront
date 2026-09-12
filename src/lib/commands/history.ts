@@ -18,7 +18,8 @@
  *   bottom, the same depth the store keeps.
  * - **A new command cuts the redo branch.** Editing after undoing abandons what
  *   was undone; there is no tree, and no way to end up somewhere that was never
- *   drawn.
+ *   drawn. A command that never made it through the pipeline abandons nothing:
+ *   `drop` puts the branch back with the entry it takes off.
  * - **A run folds into one step.** Consecutive edits of the same type on the
  *   same entity within `MERGE_WINDOW_MS` become a single step, so a drag is one
  *   Ctrl+Z (see `./mergeCommands`).
@@ -272,6 +273,21 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
   let redoRecords: StackRecord[] = [];
 
   /**
+   * The redo branch the newest push cut off, kept in case that push is dropped.
+   *
+   * `push` abandons the redo side before the pipeline has finished, and a step
+   * that fails at `rules` or `sync` is taken back off with `drop`. Without this,
+   * undoing A and then making a failing edit B lost A's redo entry for good even
+   * though **nothing was committed**: the drawing was back where it started but
+   * the way forward was gone.
+   *
+   * One step deep, which is all `drop` covers: only the newest entry can be
+   * taken back, and only right after its own push. Anything that legitimately
+   * moves the redo side — an undo, a redo, a clear — forgets it.
+   */
+  let cutRedoRecords: { readonly entryId: UndoEntryId; readonly records: StackRecord[] } | null = null;
+
+  /**
    * The command this push would fold into, or `null` to start a new step.
    *
    * A transaction never folds, in either direction: the user asked for those
@@ -299,6 +315,8 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
     push: (input) => {
       // Drawing after undoing abandons what was undone; there is no branch to
       // come back to, which is what keeps the stack a line rather than a tree.
+      // Kept aside all the same, because this push may still be dropped.
+      cutRedoRecords = { entryId: input.entry.id, records: redoRecords };
       redoRecords = [];
 
       const run = runInProgress(input);
@@ -331,6 +349,7 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
         return null;
       }
 
+      cutRedoRecords = null;
       redoRecords.push(record);
 
       return {
@@ -348,6 +367,7 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
         return null;
       }
 
+      cutRedoRecords = null;
       undoRecords.push(record);
 
       return {
@@ -377,12 +397,20 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
         undoRecords[topIndex] = top.replaced;
       }
 
+      // Nothing was committed, so nothing was abandoned: the branch this entry's
+      // push cut off comes back with it.
+      if (cutRedoRecords !== null && cutRedoRecords.entryId === entryId) {
+        redoRecords = cutRedoRecords.records;
+        cutRedoRecords = null;
+      }
+
       return true;
     },
 
     clear: () => {
       undoRecords = [];
       redoRecords = [];
+      cutRedoRecords = null;
     },
   };
 }

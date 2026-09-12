@@ -75,3 +75,84 @@ export function createUndoTicket(options: CreateUndoTicketOptions): UndoTicket {
     undo,
   };
 }
+
+export interface CombineUndoTicketsOptions {
+  /** Vietnamese sentence naming the whole group, e.g. `Hoàn tác 3 thay đổi`. */
+  description: string;
+  now?: () => number;
+}
+
+/**
+ * One ticket standing for several, and it keeps the promises all of them made.
+ *
+ * Built here rather than out of {@link createUndoTicket} because a group needs
+ * two things a single ticket does not, and both are what A8 turns on:
+ *
+ * - **It expires when the first of its children does.** A fresh window counted
+ *   from the moment of grouping outlives them: publish A at t=0 and B at
+ *   t=4.900 and a default group ran to t=12.900, toast and all, while A's own
+ *   ticket had died at t=8.000.
+ * - **A child that refuses fails the group.** `createUndoTicket` takes an
+ *   `undo` that cannot report anything, so wrapping a loop in one threw every
+ *   child's `Result` away: pressing Undo at t=12.000 took back B, silently
+ *   failed on A, and answered `ok`. Change A was never undone and nothing said
+ *   so.
+ *
+ * `undefined` for an empty list, and the ticket itself for a list of one: there
+ * is nothing to combine, and a wrapper would only shorten its life.
+ */
+export function combineUndoTickets(
+  tickets: readonly UndoTicket[],
+  options: CombineUndoTicketsOptions,
+): UndoTicket | undefined {
+  const first = tickets[0];
+
+  if (first === undefined) {
+    return undefined;
+  }
+
+  if (tickets.length === 1) {
+    return first;
+  }
+
+  const now = options.now ?? Date.now;
+  const expiresAt = tickets.reduce(
+    (earliest, ticket) => Math.min(earliest, ticket.expiresAt),
+    first.expiresAt,
+  );
+  let used = false;
+
+  const getStatus = (): UndoTicketStatus => {
+    if (used) {
+      return 'used';
+    }
+
+    return now() >= expiresAt ? 'expired' : 'active';
+  };
+
+  const undo = (): Result<void, UndoTicketError> => {
+    if (getStatus() !== 'active') {
+      return { error: 'expired', ok: false };
+    }
+
+    used = true;
+
+    // Newest first, the order a person undoes in. Every child is attempted even
+    // after one refuses — stopping half-way would leave the drawing in a state
+    // nobody asked for — and the first refusal is what comes back.
+    const failure = [...tickets]
+      .reverse()
+      .map((ticket) => ticket.undo())
+      .find((outcome) => !outcome.ok);
+
+    return failure ?? { data: undefined, ok: true };
+  };
+
+  return {
+    description: options.description,
+    expiresAt,
+    getStatus,
+    id: createUuid(),
+    undo,
+  };
+}

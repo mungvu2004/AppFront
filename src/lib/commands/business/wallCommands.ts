@@ -852,6 +852,48 @@ export interface MergeWallsInput {
   readonly otherWallId: WallId;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Who points at a wall — shared by the weld and the delete.                   */
+/* -------------------------------------------------------------------------- */
+
+/** The rooms that list this wall among the ones bounding them. */
+const roomsCiting = (context: CommandContext, wallId: WallId): readonly Room[] =>
+  entitiesOfKind(context.graph, 'room').filter((room) => room.wallIds.includes(wallId));
+
+/**
+ * The dimensions measured against any of these entities.
+ *
+ * Takes a set rather than one id because deleting a wall takes its openings
+ * with it: a dimension measuring door `O-3` is left citing a door that no
+ * longer exists just as surely as one measuring the wall itself, and
+ * `checkIntegrity` reports both the same way.
+ */
+const dimensionsCitingAny = (
+  context: CommandContext,
+  entityIds: readonly EntityId[],
+): readonly Dimension[] =>
+  entitiesOfKind(context.graph, 'dimension').filter((dimension) =>
+    dimension.referenceIds.some((referenceId) => entityIds.includes(referenceId)),
+  );
+
+/**
+ * The same list with `removedIds` taken out, and `replacementId` put in their
+ * place when one is given.
+ *
+ * A weld is not a loss: the merged wall covers the run the removed one covered,
+ * so a room bounded by it is still bounded, and a dimension measuring it still
+ * has something to measure. A delete has no replacement and simply drops them.
+ */
+const withoutReferences = <T extends EntityId>(
+  references: readonly T[],
+  removedIds: readonly EntityId[],
+  replacementId: T | null,
+): T[] => {
+  const kept = references.filter((reference) => !removedIds.includes(reference));
+
+  return replacementId !== null && !kept.includes(replacementId) ? [...kept, replacementId] : kept;
+};
+
 /** Vietnamese for every reason the geometry refuses a weld. */
 const MERGE_REFUSAL_REASONS: Readonly<Record<MergeRefusal, string>> = {
   sameWall: 'Hai mã tường trỏ về cùng một tường.',
@@ -988,6 +1030,29 @@ export function createMergeWallsCommand(
     );
   }
 
+  // The removed wall is about to stop existing, and nothing may go on pointing
+  // at it — the same rule `createDeleteWallCommand` keeps. The merged wall is
+  // the replacement: it holds the run the removed one held, so a room bounded
+  // by it stays bounded and a dimension measuring it keeps a subject.
+  const removedIds: readonly EntityId[] = [removedGraphWall.id];
+  const citingRooms = roomsCiting(context, removedGraphWall.id);
+  const citingDimensions = dimensionsCitingAny(context, removedIds);
+
+  const referenceChanges: EntityChange[] = [
+    ...citingRooms.map((room) =>
+      changeForUpdate('room', room, {
+        ...room,
+        wallIds: withoutReferences(room.wallIds, removedIds, keptGraphWall.id),
+      }),
+    ),
+    ...citingDimensions.map((dimension) =>
+      changeForUpdate('dimension', dimension, {
+        ...dimension,
+        referenceIds: withoutReferences(dimension.referenceIds, removedIds, keptGraphWall.id),
+      }),
+    ),
+  ];
+
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.merge,
@@ -997,6 +1062,7 @@ export function createMergeWallsCommand(
       [
         changeForUpdate('wall', keptGraphWall, { ...mergedWall, openingIds: keptOpeningIds }),
         ...openingChanges,
+        ...referenceChanges,
         changeForRemove('wall', removedGraphWall),
       ],
       context,
@@ -1020,16 +1086,6 @@ export function validateDeleteWall(input: DeleteWallInput, context: CommandConte
 
   return [];
 }
-
-/** The rooms that list this wall among the ones bounding them. */
-const roomsCiting = (context: CommandContext, wallId: WallId): readonly Room[] =>
-  entitiesOfKind(context.graph, 'room').filter((room) => room.wallIds.includes(wallId));
-
-/** The dimensions measured against this wall. */
-const dimensionsCiting = (context: CommandContext, wallId: EntityId): readonly Dimension[] =>
-  entitiesOfKind(context.graph, 'dimension').filter((dimension) =>
-    dimension.referenceIds.includes(wallId),
-  );
 
 /**
  * Deletes a wall, and everything that would be left dangling without it.
@@ -1061,7 +1117,11 @@ export function createDeleteWallCommand(
 
   const openings = openingsOfWall(context.graph, wall.id);
   const rooms = roomsCiting(context, wall.id);
-  const dimensions = dimensionsCiting(context, wall.id);
+  // Everything this command makes disappear, not just the wall: the openings go
+  // with it, so a dimension measuring one of them dangles exactly as a
+  // dimension measuring the wall would.
+  const goneIds: readonly EntityId[] = [wall.id, ...openings.map((opening) => opening.id)];
+  const dimensions = dimensionsCitingAny(context, goneIds);
 
   const changes: EntityChange[] = [
     ...openings.map((opening) => changeForRemove('opening', opening)),
@@ -1069,13 +1129,13 @@ export function createDeleteWallCommand(
     ...rooms.map((room) =>
       changeForUpdate('room', room, {
         ...room,
-        wallIds: room.wallIds.filter((wallId) => wallId !== wall.id),
+        wallIds: withoutReferences(room.wallIds, [wall.id], null),
       }),
     ),
     ...dimensions.map((dimension) =>
       changeForUpdate('dimension', dimension, {
         ...dimension,
-        referenceIds: dimension.referenceIds.filter((referenceId) => referenceId !== wall.id),
+        referenceIds: withoutReferences(dimension.referenceIds, goneIds, null),
       }),
     ),
   ];

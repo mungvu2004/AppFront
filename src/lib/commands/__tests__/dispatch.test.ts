@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createRuleRegistry, type Rule } from '@/domain/rules/registry';
 import { EMPTY_RUN_STATE, evaluatedRuleCodes, type ChangedEntity, type RuleRunResult } from '@/domain/rules/runner';
-import { applyPatch } from '@/domain/spatial/applyPatch';
+import { applyPatch, type SpatialPatch } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Opening, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 import { changeForAdd, changeForRemove, changeForUpdate, createCommand } from '@/lib/commands/createCommand';
@@ -202,6 +202,11 @@ const EMPTY_RUN_RESULT: RuleRunResult = {
 interface HarnessOptions {
   /** Makes the store throw on the n-th `applyPatches` call, counting from 1. */
   readonly failOnApplyCall?: number;
+  /**
+   * Gives the port a `revertPatches`, the way an adapter that does not open an
+   * undo step for a rollback has one. Left out, the port is the older shape.
+   */
+  readonly supportsRevert?: boolean;
   /** Makes the undo stack throw on `push`. */
   readonly historyError?: Error;
   /** Makes the sync queue reject. */
@@ -212,6 +217,10 @@ interface HarnessOptions {
 
 interface Harness {
   readonly deps: DispatchDeps;
+  /** Every batch that went through `applyPatches`, rollbacks included. */
+  readonly appliedPatchBatches: readonly SpatialPatch[][];
+  /** Every batch that went through `revertPatches`. */
+  readonly revertedPatchBatches: readonly SpatialPatch[][];
   /** The steps that reported in, in the order they ran. */
   readonly log: DispatchStage[];
   readonly entries: UndoEntry[];
@@ -229,12 +238,23 @@ const createHarness = (options: HarnessOptions = {}): Harness => {
   const entries: UndoEntry[] = [];
   const queued: DispatchBatch[] = [];
   const changesSeenByRules: ChangedEntity[][] = [];
+  const appliedPatchBatches: SpatialPatch[][] = [];
+  const revertedPatchBatches: SpatialPatch[][] = [];
 
   const deps: DispatchDeps = {
     spatial: {
       read: () => graph,
+      ...(options.supportsRevert === true
+        ? {
+            revertPatches: (patches: readonly SpatialPatch[]): void => {
+              revertedPatchBatches.push([...patches]);
+              graph = graph === null ? null : applyPatch(graph, patches);
+            },
+          }
+        : {}),
       applyPatches: (patches) => {
         applyCalls += 1;
+        appliedPatchBatches.push([...patches]);
 
         if (options.failOnApplyCall === applyCalls) {
           // The next call is the pipeline putting things back; let it through.
@@ -290,7 +310,16 @@ const createHarness = (options: HarnessOptions = {}): Harness => {
     now: () => '2026-08-14T10:00:00+07:00',
   };
 
-  return { deps, log, entries, queued, changesSeenByRules, graph: () => graph };
+  return {
+    deps,
+    log,
+    entries,
+    queued,
+    changesSeenByRules,
+    appliedPatchBatches,
+    revertedPatchBatches,
+    graph: () => graph,
+  };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -573,6 +602,66 @@ describe('dispatch: lỗi giữa đường ống', () => {
     expect(harness.graph()).toEqual(before);
     expect(harness.entries).toEqual([]);
     expect(harness.queued).toEqual([]);
+  });
+
+  it('puts the graph back through `revertPatches`, so the rollback is not itself undoable', async () => {
+    const harness = createHarness({ supportsRevert: true, syncError: new Error('Hàng đợi đồng bộ đã đầy.') });
+    const before = createGraph();
+
+    const result = await dispatch(buildAddWallCommand(), harness.deps);
+
+    expect(result.ok).toBe(false);
+    expect(harness.graph()).toEqual(before);
+    // The write that cancels the command goes down the path that opens no undo
+    // step. Going through `applyPatches` — which every adapter implements with
+    // `commit()` — left a second zundo past state for one failed dispatch, and
+    // the user's next Ctrl+Z re-applied the wall that had just been rolled back.
+    expect(harness.revertedPatchBatches).toHaveLength(1);
+    expect(harness.revertedPatchBatches[0]).toEqual([
+      { op: 'remove', kind: 'wall', id: NEW_WALL_ID },
+    ]);
+    // Only the command itself went through the ordinary write.
+    expect(harness.appliedPatchBatches).toHaveLength(1);
+    expect(harness.appliedPatchBatches[0]).toEqual([
+      { op: 'add', kind: 'wall', entity: newWallFixture },
+    ]);
+  });
+
+  it('still rolls back through `applyPatches` for a port that has no `revertPatches`', async () => {
+    const harness = createHarness({ syncError: new Error('Hàng đợi đồng bộ đã đầy.') });
+    const before = createGraph();
+
+    const result = await dispatch(buildAddWallCommand(), harness.deps);
+
+    expect(result.ok).toBe(false);
+    expect(harness.graph()).toEqual(before);
+    expect(harness.revertedPatchBatches).toEqual([]);
+    // The command, then the rollback: the extra undo step this shape leaves is
+    // why `revertPatches` exists.
+    expect(harness.appliedPatchBatches).toHaveLength(2);
+  });
+
+  it('reports a rollback that fails through `revertPatches` rather than hiding it', async () => {
+    const rollbackError = new Error('Kho dữ liệu đã đóng.');
+    const harness = createHarness({ supportsRevert: true, syncError: new Error('Hàng đợi đồng bộ đã đầy.') });
+    const brittleDeps: DispatchDeps = {
+      ...harness.deps,
+      spatial: {
+        ...harness.deps.spatial,
+        revertPatches: () => {
+          throw rollbackError;
+        },
+      },
+    };
+
+    const result = await dispatch(buildAddWallCommand(), brittleDeps);
+
+    if (result.ok) {
+      throw new Error('Lệnh hỏng mà vẫn báo thành công.');
+    }
+
+    expect(result.error.rolledBack).toBe(false);
+    expect(result.error.rollbackIssues.map((issue) => issue.cause)).toEqual([rollbackError]);
   });
 
   it('rolls the store back when the undo stack refuses the entry', async () => {

@@ -771,6 +771,68 @@ describe('wall commands', () => {
     expect(command.description).toContain('7.000 mm');
   });
 
+  it('leaves nothing pointing at the wall that the weld removed', () => {
+    // The merged wall keeps the longer id — `RUN_WALL_RIGHT`, 4.000 mm against
+    // 3.000 mm — so `RUN_WALL_LEFT` stops existing, and the left bedroom was
+    // bounded by it.
+    const command = expectCommand(
+      createMergeWallsCommand({ wallId: RUN_WALL_LEFT, otherWallId: RUN_WALL_RIGHT }, context),
+    );
+    const applied = applyCommand(baseGraph, command);
+
+    expect(applied.byId[RUN_WALL_LEFT]).toBeUndefined();
+    expect(applied.byId[LEFT_ROOM]).toMatchObject({ wallIds: [RUN_WALL_RIGHT] });
+    expect(checkIntegrity(applied)).toEqual([]);
+  });
+
+  it('hands a dimension measuring the removed wall over to the merged one', () => {
+    const runDimension: Dimension = {
+      ...DETECTED,
+      id: 'M-DIMN02AAAA',
+      levelId: LEVEL_ONE,
+      kind: 'linear',
+      referenceIds: [RUN_WALL_LEFT],
+      line: { start: { x: 0, y: 8800 }, end: { x: 3000, y: 8800 } },
+      valueMm: 3000,
+    };
+    const graph = normalizeSpatial({ ...graphFixture, dimensions: [...dimensions, runDimension] });
+    const command = expectCommand(
+      createMergeWallsCommand(
+        { wallId: RUN_WALL_LEFT, otherWallId: RUN_WALL_RIGHT },
+        { ...context, graph },
+      ),
+    );
+    const applied = applyCommand(graph, command);
+
+    expect(applied.byId[runDimension.id]).toMatchObject({ referenceIds: [RUN_WALL_RIGHT] });
+    expect(checkIntegrity(applied)).toEqual([]);
+    // And it undoes back to the wall it used to measure.
+    expect(undoCommand(applied, command).byId[runDimension.id]).toEqual(runDimension);
+  });
+
+  it('does not list the merged wall twice on a room already bounded by it', () => {
+    const bothWalls: Room = {
+      ...(rooms[1] as Room),
+      wallIds: [RUN_WALL_LEFT, RUN_WALL_RIGHT],
+    };
+    const graph = normalizeSpatial({
+      ...graphFixture,
+      rooms: [rooms[0] as Room, bothWalls, rooms[2] as Room],
+    });
+    const applied = applyCommand(
+      graph,
+      expectCommand(
+        createMergeWallsCommand(
+          { wallId: RUN_WALL_LEFT, otherWallId: RUN_WALL_RIGHT },
+          { ...context, graph },
+        ),
+      ),
+    );
+
+    expect(applied.byId[LEFT_ROOM]).toMatchObject({ wallIds: [RUN_WALL_RIGHT] });
+    expect(checkIntegrity(applied)).toEqual([]);
+  });
+
   it('refuses to weld two walls of different kinds', () => {
     expect(
       validateMergeWalls({ wallId: SOUTH_WALL, otherWallId: RUN_WALL_LEFT }, context).join(' '),
@@ -790,6 +852,30 @@ describe('wall commands', () => {
     expect(applied.byId[SOUTH_DIMENSION]).toMatchObject({ referenceIds: [] });
     expect(checkIntegrity(applied)).toEqual([]);
     expect(command.description).toContain('2 lỗ mở');
+  });
+
+  it('clears a dimension measuring an opening the delete takes with the wall', () => {
+    const doorDimension: Dimension = {
+      ...DETECTED,
+      id: 'M-DIMN03AAAA',
+      levelId: LEVEL_ONE,
+      kind: 'linear',
+      referenceIds: [FRONT_DOOR],
+      line: { start: { x: 1000, y: -400 }, end: { x: 1900, y: -400 } },
+      valueMm: 900,
+    };
+    const graph = normalizeSpatial({ ...graphFixture, dimensions: [...dimensions, doorDimension] });
+    const command = expectCommand(
+      createDeleteWallCommand({ wallId: SOUTH_WALL }, { ...context, graph }),
+    );
+    const applied = applyCommand(graph, command);
+
+    // The door goes with the wall, so a dimension still citing it dangles just
+    // as surely as one citing the wall itself.
+    expect(applied.byId[FRONT_DOOR]).toBeUndefined();
+    expect(applied.byId[doorDimension.id]).toMatchObject({ referenceIds: [] });
+    expect(checkIntegrity(applied)).toEqual([]);
+    expect(undoCommand(applied, command).byId[doorDimension.id]).toEqual(doorDimension);
   });
 
   it('records both heights and how many openings rode through the change', () => {
@@ -935,6 +1021,60 @@ describe('opening and furniture commands', () => {
     expect(applied.byId[FRONT_WINDOW]).toMatchObject({ widthMm: 1500, offsetMm: 2850 });
     expect(command.description).toContain('1.200 mm');
     expect(command.description).toContain('1.500 mm');
+  });
+
+  it('refuses a widening that would push the opening past the end of its wall', () => {
+    // `O-1` at offset 0, 800 mm wide, on a 3.000 mm wall: widening it to
+    // 1.200 mm moves the left edge back to -200 mm. The validator used to
+    // measure the span [0, 1.200] — which fits — while the command wrote
+    // [-200, 1.000], which does not. The shape checked and the shape stored are
+    // now the same one.
+    const edgeDoor: Opening = {
+      ...DETECTED,
+      id: 'D-EDGE01AAAA',
+      wallId: RUN_WALL_RIGHT,
+      kind: 'door',
+      offsetMm: 0,
+      widthMm: 800,
+      heightMm: 2200,
+      sillHeightMm: 0,
+      swing: 'left',
+    };
+    const graph = normalizeSpatial({
+      ...graphFixture,
+      walls: walls.map((wall) =>
+        wall.id === RUN_WALL_RIGHT ? { ...wall, openingIds: [edgeDoor.id] } : wall,
+      ),
+      openings: [...openings, edgeDoor],
+    });
+    const edgeContext: CommandContext = { ...context, graph };
+
+    expect(
+      validateResizeOpening({ openingId: edgeDoor.id, widthMm: 1200 }, edgeContext).join(' '),
+    ).toContain('vượt ra ngoài tường');
+    expect(
+      expectReasons(
+        createResizeOpeningCommand({ openingId: edgeDoor.id, widthMm: 1200 }, edgeContext),
+      ).join(' '),
+    ).toContain('vượt ra ngoài tường');
+  });
+
+  it('writes exactly the offset the validator measured', () => {
+    const command = expectCommand(
+      createResizeOpeningCommand({ openingId: FRONT_WINDOW, widthMm: 1500 }, context),
+    );
+    const change = command.changes.find((entry) => entry.id === FRONT_WINDOW);
+    const written = change?.after;
+
+    expect(validateResizeOpening({ openingId: FRONT_WINDOW, widthMm: 1500 }, context)).toEqual([]);
+    // Narrowing keeps the centre too, in the other direction.
+    expect(written).toMatchObject({ widthMm: 1500, offsetMm: 2850 });
+    expect(
+      applyCommand(
+        baseGraph,
+        expectCommand(createResizeOpeningCommand({ openingId: FRONT_WINDOW, widthMm: 800 }, context)),
+      ).byId[FRONT_WINDOW],
+    ).toMatchObject({ widthMm: 800, offsetMm: 3200 });
   });
 
   it('takes an opening off its wall list when it is deleted', () => {
