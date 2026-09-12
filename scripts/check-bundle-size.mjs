@@ -46,7 +46,7 @@
  */
 import { gzipSync } from 'node:zlib';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 /** Thư mục vite ghi bản dựng ra. */
 const ASSETS_DIR = join('dist', 'assets');
@@ -203,6 +203,83 @@ function closure(startKeys, manifest, { followDynamic = false } = {}) {
   return seen;
 }
 
+/**
+ * Những chunk CHẮC CHẮN ĐÃ HIỆN DIỆN khi `target` được tải.
+ *
+ * ## Vì sao không gọi chúng là "cha"
+ *
+ * Một chunk nhập `target` ở dạng TĨNH không tải *trước* nó — nó tải *cùng*. Chữ
+ * "cha" gợi quan hệ `dynamic-import`, và ai đọc theo nghĩa đó sẽ lại chỉ gom
+ * `dynamicImports` — đúng cái lỗi mô tả ở đoạn dưới. Tính chất mà phép trừ dựa
+ * vào không phải thứ tự thời gian mà là **sự hiện diện**: tại lúc `target` chạy,
+ * những chunk này chắc chắn đã nằm trong bộ nhớ trình duyệt.
+ *
+ * ## Vì sao gồm CẢ nhập tĩnh
+ *
+ * Gom mỗi `dynamicImports` là không đủ. `three.module.js` được **34** chunk nhập,
+ * nhưng chỉ **một** nhập ở dạng động; lấy mỗi vế động thì tập thiếu 33, và phép
+ * trừ khi ấy ngầm giả định mọi đường tới `three` đều đi qua đúng một màn.
+ */
+function presentWhenLoaded(target, manifest) {
+  const holders = [];
+
+  for (const key of Object.keys(manifest)) {
+    const entry = manifest[key];
+    const reaches =
+      (entry.imports ?? []).includes(target) || (entry.dynamicImports ?? []).includes(target);
+
+    if (reaches) {
+      holders.push(key);
+    }
+  }
+
+  return holders;
+}
+
+/**
+ * Mốc trừ của một chunk tải muộn: phần người dùng CHẮC CHẮN đã có sẵn.
+ *
+ * `entryClosure` ∪ **giao** bao đóng **TĨNH** của mọi chunk trong
+ * {@link presentWhenLoaded}.
+ *
+ * ## Vì sao GIAO chứ không phải HỢP
+ *
+ * Một chunk tới được từ nhiều đường thì chỉ phần **mọi** đường đều có mới chắc
+ * chắn đã tải. Hợp sẽ trừ cả thứ chỉ một đường mang theo, tức tạo ra đúng điểm
+ * mù mà cổng này tồn tại để chặn. Đo trên bản dựng thật:
+ * `lib/export/screenshot.ts` tới được từ `ExportPanel` và `ExplodedView` — giao
+ * cho 15,2 KiB, hợp cho 5,1, tức hợp **nuốt mất 10,0 KiB**.
+ *
+ * ## Vì sao TĨNH chứ không phải toàn phần
+ *
+ * Sáu panel của trình xem 3D cùng được một chunk nhập động. Dùng bao đóng toàn
+ * phần thì mỗi panel bị trừ luôn phần của **các panel anh em** — không panel nào
+ * trong chúng đã tải khi một panel khác mở ra.
+ *
+ * ## Vì sao route không cần nhánh riêng
+ *
+ * `presentWhenLoaded` của một route là chính chunk vào, và bao đóng tĩnh của
+ * chunk vào bằng đúng `entryClosure` — nên mốc trừ của route không đổi một byte
+ * so với trước. Đã đo: **0/60** chunk tải muộn có tập rỗng, nên không có nhánh
+ * dự phòng nào ở đây; tập rỗng cho `entryClosure`, và điều đó rơi ra tự nhiên
+ * từ phép giao trên tập rỗng.
+ */
+function baselineFor(target, manifest, entryClosure) {
+  const holders = presentWhenLoaded(target, manifest);
+  let shared;
+
+  for (const holder of holders) {
+    const holderClosure = closure([holder], manifest, { followDynamic: false });
+
+    shared =
+      shared === undefined
+        ? holderClosure
+        : new Set([...shared].filter((key) => holderClosure.has(key)));
+  }
+
+  return new Set([...entryClosure, ...(shared ?? [])]);
+}
+
 /** Tổng gzip JS của một tập khoá manifest, tra qua bảng kích thước đã đo. */
 function closureGzip(keys, manifest, gzipByFile) {
   let total = 0;
@@ -281,14 +358,26 @@ function main() {
     }
   }
 
-  let worstRoute = { key: 'không có chunk tải muộn nào', bytes: 0 };
+  let worstRoute = { key: 'không có chunk tải muộn nào', bytes: 0, rawBytes: 0, holders: [] };
 
   for (const target of dynamicTargets) {
-    const added = [...closure([target], manifest)].filter((key) => !entryClosure.has(key));
+    const own = closure([target], manifest);
+    const baseline = baselineFor(target, manifest, entryClosure);
+
+    const added = [...own].filter((key) => !baseline.has(key));
     const bytes = closureGzip(added, manifest, gzipByFile);
 
     if (bytes > worstRoute.bytes) {
-      worstRoute = { key: target, bytes };
+      worstRoute = {
+        key: target,
+        bytes,
+        rawBytes: closureGzip(
+          [...own].filter((key) => !entryClosure.has(key)),
+          manifest,
+          gzipByFile,
+        ),
+        holders: presentWhenLoaded(target, manifest),
+      };
     }
   }
 
@@ -323,6 +412,28 @@ function main() {
     },
     { label: 'tổng CSS', actual: totalGzip('css'), budgetKib: BUDGETS_KIB.css },
   ];
+
+  /*
+   * Chuỗi phép tính của hàng "chi phí thêm", in ra chứ không giấu.
+   *
+   * Không có dòng này thì con số cuối là một hộp đen: người đọc không kiểm được
+   * phần nào đã bị trừ và vì sao. Khi chunk mang `target` không có `src` — đúng
+   * trường hợp các panel của trình xem 3D — in thẳng khoá chunk và nói rõ nó là
+   * chunk dùng chung, KHÔNG bịa cho nó một tên màn.
+   */
+  if (worstRoute.holders.length > 0) {
+    const subtracted = worstRoute.rawBytes - worstRoute.bytes;
+    const holderNames = worstRoute.holders
+      .map((key) => (manifest[key]?.src === undefined ? `${key} (chunk dùng chung)` : shortenKey(key)))
+      .join(', ');
+
+    console.log(
+      `\nchi phí thêm — chuỗi phép tính:\n` +
+        `  ${shortenKey(worstRoute.key)}\n` +
+        `  ${formatKib(worstRoute.rawBytes)} thô − ${formatKib(subtracted)} ` +
+        `(đã hiện diện: ${holderNames}) = ${formatKib(worstRoute.bytes)} KiB`,
+    );
+  }
 
   console.log('\ncổng — vượt là hỏng:\n');
   const over = [];
@@ -367,9 +478,25 @@ function main() {
   console.log('Kích thước gói: đạt.\n');
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(`\n${error instanceof Error ? error.message : String(error)}\n`);
-  process.exit(1);
+/*
+ * Ba hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
+ *
+ * Chúng không đọc đĩa và không in gì: đưa manifest vào, nhận tập khoá ra. Nhờ
+ * vậy bộ test khoá được PHÉP TÍNH mà không cần một bản dựng, và bảng đối chiếu
+ * của lượt gộp này được sinh bằng CHÍNH những hàm đã cắm vào cổng — chứ không
+ * bằng một script riêng rồi hy vọng hai bên khớp nhau.
+ */
+export { closure, presentWhenLoaded, baselineFor, closureGzip };
+
+/*
+ * Chỉ chạy cổng khi file này được gọi thẳng. Khi bộ test `import` nó, đoạn dưới
+ * không chạy — nếu không, mỗi lần test nạp module là một lượt đọc `dist/`.
+ */
+if (process.argv[1] !== undefined && import.meta.url.endsWith(basename(process.argv[1]))) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`\n${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
+  }
 }
