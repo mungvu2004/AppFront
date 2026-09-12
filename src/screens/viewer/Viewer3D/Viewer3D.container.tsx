@@ -109,7 +109,7 @@
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -135,9 +135,12 @@ import type {
   ViewerSceneFrame,
   ViewerScreenState,
 } from '@/screens/viewer/ViewerShell/viewerShellTypes';
+import { ROUTES } from '@/routes/paths';
+import type { EntityId } from '@/domain/spatial/types';
 import type { ProjectRole } from '@/types/project';
 
 import { Viewer3D } from './Viewer3D';
+import { Viewer3DPanels, type Viewer3DPanelId } from './Viewer3DPanels';
 import { useViewer3D } from './useViewer3D';
 import type { MountViewerScene, Viewer3DTelemetry } from './viewer3dTypes';
 
@@ -241,8 +244,14 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
      mọi phím vỏ đăng ký — kể cả `/` — không bao giờ tới được sổ phím. */
   useShortcutListener(props.registry !== undefined ? { registry: props.registry } : {});
 
+  const navigate = useNavigate();
   const storeSpatial = useStore((state) => state.spatial);
+  const storeFloorId = useStore((state) => state.activeFloorId);
+  const selectedIds = useStore((state) => state.selectedIds);
+  const setSelection = useStore((state) => state.setSelection);
+  const clearSelection = useStore((state) => state.clearSelection);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [openPanelId, setOpenPanelId] = useState<Viewer3DPanelId | null>(null);
 
   /* Kho rỗng là chuyện thường ở dev, không phải một sự cố: rơi về đúng bộ mẫu
      vỏ vẫn dùng, và ghi rõ đây là đường tạm (xem đầu file). */
@@ -269,6 +278,72 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   const onCloseSearch = useCallback((): void => {
     setIsSearchOpen(false);
   }, []);
+
+  /* Tầng đang mở — cùng phép rơi về của `useOverlayComparison.ts:365`: kho biết
+     thì kho thắng, kho chưa biết thì tầng đầu của đồ thị đã chốt. `null` chỉ
+     còn lại khi KHÔNG có tầng nào, và lúc ấy thư viện đồ đạc không có gì để
+     lọc nên nút của nó không được dựng. */
+  const resolvedFloorId: string | null =
+    storeFloorId ?? resolvedSpatial?.byKind.level[0] ?? null;
+
+  /* Bốn đường ra ngoài của cột panel. Không đường nào là hàm rỗng: mỗi cái tới
+     một màn CÓ THẬT trong `ROUTES` (R-73). */
+  const onOpenRuleScreen = useCallback((): void => {
+    /* `ROUTES.project.rules` không nhận mã đối tượng — màn luật liệt kê vi phạm
+       theo DỰ ÁN. Nên mã đối tượng không được gắn thành một tham số truy vấn mà
+       màn kia không đọc; nó ở lại trong kho chọn, thứ màn luật đọc chung. */
+    navigate(ROUTES.project.rules(props.projectId));
+  }, [navigate, props.projectId]);
+
+  const onOpenExport = useCallback((): void => {
+    navigate(ROUTES.project.export(props.projectId));
+  }, [navigate, props.projectId]);
+
+  const onCheckWallGaps = useCallback((): void => {
+    /* Soát khe hở tường là việc của lớp tường MỘT tầng. Chưa biết tầng thì đi
+       tới danh sách tầng — cùng phép rơi về `qcHref` của `useViewer3D.ts:733`. */
+    navigate(
+      resolvedFloorId === null
+        ? ROUTES.project.floors(props.projectId)
+        : ROUTES.project.walls(props.projectId, resolvedFloorId),
+    );
+  }, [navigate, props.projectId, resolvedFloorId]);
+
+  const onNavigateToObject = useCallback(
+    (entityId: string): void => {
+      /* A10: đi qua hành động của kho, không `set()`. Kho chọn LÀ đường dây
+         chung giữa panel và mô hình (`useViewerShell.ts:444`), nên ghi vào đó
+         là vừa đổi panel vừa làm sáng đối tượng trên hình. */
+      setSelection([entityId as EntityId]);
+    },
+    [setSelection],
+  );
+
+  const onModelDropped = useCallback((_modelId: string, targetEntityId: string | null): void => {
+    /* Thư viện đã tự chèn mô hình vào kho; việc còn lại của khung nhìn là đưa
+       đối tượng vừa chèn vào vùng chọn để người dùng thấy ngay mình vừa thả gì.
+       Thả ra chỗ trống thì không có mã nào để chọn. */
+    if (targetEntityId !== null) {
+      setSelection([targetEntityId as EntityId]);
+    }
+  }, [setSelection]);
+
+  const inspectorSections = (
+    <Viewer3DPanels
+      floorId={resolvedFloorId}
+      onCheckWallGaps={onCheckWallGaps}
+      onDismissInspector={clearSelection}
+      onModelDropped={onModelDropped}
+      onNavigateToObject={onNavigateToObject}
+      onOpenExport={onOpenExport}
+      onOpenRuleScreen={onOpenRuleScreen}
+      onTogglePanel={setOpenPanelId}
+      openPanelId={openPanelId}
+      projectId={props.projectId}
+      selectedEntityId={selectedIds[0] ?? null}
+      selectedEntityIds={selectedIds}
+    />
+  );
 
   const renderScene = useCallback(
     // Hai tham số, tham số thứ hai TUỲ CHỌN — mục B của hợp đồng. Đây là hình
@@ -297,6 +372,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
     >
       <ViewerShellContainer
         gateway={resolvedGateway}
+        inspectorSections={inspectorSections}
         onOpenSearch={onOpenSearch}
         projectId={props.projectId}
         renderScene={renderScene}

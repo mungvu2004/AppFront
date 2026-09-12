@@ -69,6 +69,16 @@ export interface ViewerShellContainerProps {
   readonly renderScene?: (frame: ViewerSceneFrame) => ReactNode;
   /** Mở ô tìm đối tượng — phím `/`. Vỏ không tự dựng hộp thoại nào. */
   readonly onOpenSearch?: () => void;
+  /**
+   * Mục riêng của màn nội dung, chèn vào panel phải dưới phần thanh tra.
+   *
+   * `viewerShellTypes.ts:371` đã khai khe này cho VIEW từ đầu, và
+   * `useMeasurementTool.ts:911` đã dùng nó thật — nhưng `useViewerShell` không
+   * trả trường ấy, nên một màn đi qua CONTAINER (như `Viewer3D`) không có
+   * đường nào chạm tới. Prop này là đường ấy: tuỳ chọn, và vắng mặt thì vỏ
+   * dựng y hệt hôm nay.
+   */
+  readonly inspectorSections?: ReactNode;
 
   /* Chỗ tiêm của story và bài kiểm (R-73 — bản giả phải cắm được vào). */
   readonly gateway?: ViewerShellGateway;
@@ -116,7 +126,16 @@ function WiredViewerShell(props: ViewerShellContainerProps) {
     ...(props.registry !== undefined ? { registry: props.registry } : {}),
   });
 
-  return <ViewerShell {...model} />;
+  /* `exactOptionalPropertyTypes` bật: khe vắng mặt phải VẮNG MẶT, không phải
+     mang giá trị `undefined` — cùng khuôn trải có điều kiện ở trên. */
+  return (
+    <ViewerShell
+      {...model}
+      {...(props.inspectorSections !== undefined
+        ? { inspectorSections: props.inspectorSections }
+        : {})}
+    />
+  );
 }
 
 export function ViewerShellContainer(props: ViewerShellContainerProps) {
