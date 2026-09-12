@@ -402,4 +402,109 @@ describe('http/client.ts', () => {
     expect(client.getRecentRequests()).toHaveLength(1);
     expect(telemetry).toHaveBeenCalledTimes(1);
   });
+  it('returns a timeout Result when the deadline falls inside the retry backoff', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const fetchImpl = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const telemetry = vi.fn();
+    client.events.on('http:done', telemetry);
+
+    // Attempt 1 at t=0, wait 300; attempt 2 at t=300, wait 900 — and the 700 ms
+    // deadline lands in the middle of that second wait. `executeRequest` promises a
+    // Result in every case, so this must not reject.
+    const pending = client.get('/floors', { timeoutMs: 700 });
+    await vi.advanceTimersByTimeAsync(700);
+    const result = await pending;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error.kind).toBe('timeout');
+    expect(telemetry).toHaveBeenCalledWith(
+      expect.objectContaining({ errorKind: 'timeout', ok: false }),
+    );
+  });
+
+  it('returns an aborted Result when the caller cancels inside the network retry backoff', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const fetchImpl = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const telemetry = vi.fn();
+    client.events.on('http:done', telemetry);
+
+    const controller = new AbortController();
+    const pending = client.get('/floors', { signal: controller.signal });
+
+    // One 503, then the caller walks away while the 300 ms backoff is still running.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const result = await pending;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error.kind).toBe('aborted');
+    expect(telemetry).toHaveBeenCalledWith(
+      expect.objectContaining({ errorKind: 'aborted', ok: false }),
+    );
+  });
+  it('returns an aborted Result when the caller cancels inside the 503 retry backoff', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 'TEMP' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 503,
+        }),
+      ),
+    );
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const controller = new AbortController();
+    const pending = client.get('/floors', { signal: controller.signal });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const result = await pending;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error.kind).toBe('aborted');
+  });
 });

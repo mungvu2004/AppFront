@@ -390,6 +390,29 @@ export const createHttpClient = ({
     }
     const requestBody = serializeBody(options.body, baseHeaders);
 
+    /**
+     * Waits out the retry backoff without ever rejecting: `waitForRetry` rejects with the
+     * abort reason when the signal fires mid-wait, and `executeRequest` promises a `Result`
+     * in every case. Returns the matching `HttpError` when the wait was cut short.
+     */
+    const awaitRetryDelay = async (delayMs: number): Promise<HttpError | undefined> => {
+      try {
+        await waitForRetry(delayMs, managedAbortSignal.signal);
+
+        return undefined;
+      } catch (waitError) {
+        const normalizedWaitError = normalizeError(waitError);
+        const timedOut = managedAbortSignal.isTimeout() || isTimeoutError(normalizedWaitError);
+
+        return createHttpError({
+          kind: timedOut ? 'timeout' : 'aborted',
+          raw: normalizedWaitError,
+          requestId,
+          retryable: false,
+        });
+      }
+    };
+
     try {
       for (;;) {
         const headers = new Headers(baseHeaders);
@@ -468,7 +491,11 @@ export const createHttpClient = ({
               const retryAfterValue = response.headers.get('Retry-After');
               const delayMs = computeRetryDelayMs(attemptIndex, retryAfterValue);
               attemptIndex += 1;
-              await waitForRetry(delayMs, managedAbortSignal.signal);
+              const waitFailure = await awaitRetryDelay(delayMs);
+              if (waitFailure) {
+                errorKind = waitFailure.kind;
+                return err(waitFailure);
+              }
               continue;
             }
 
@@ -529,7 +556,11 @@ export const createHttpClient = ({
             retryCount += 1;
             const delayMs = computeRetryDelayMs(attemptIndex, null);
             attemptIndex += 1;
-            await waitForRetry(delayMs, managedAbortSignal.signal);
+            const waitFailure = await awaitRetryDelay(delayMs);
+            if (waitFailure) {
+              errorKind = waitFailure.kind;
+              return err(waitFailure);
+            }
             continue;
           }
 
