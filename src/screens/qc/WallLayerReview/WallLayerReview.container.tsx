@@ -104,15 +104,25 @@ const MISSING_PARAMS_MESSAGE =
 /**
  * Bốn lớp còn lại của cây lớp → đường dẫn thật.
  *
- * Bốn hằng này là các route TĨNH của `ROUTE_PATTERNS` (`/layers/objects`…), nên
- * chúng không nhận mã dự án hay mã tầng; tra bảng ở đây thay vì ghép chuỗi giữ
- * cho màn không viết một đường dẫn nào của riêng nó (R-65).
+ * Dùng builder THEO DỰ ÁN của `ROUTES.project`, không dùng bốn hằng tĩnh
+ * `/layers/*`. Các đường tĩnh ấy không mang mã dự án và mã tầng, nên chúng
+ * không dẫn tới màn thật được: `/layers/objects` và `/layers/dimensions` rơi
+ * vào `<Placeholder>` của router (`src/routes/router.tsx:332-333`, một
+ * `<div>Canvas</div>` rỗng — đúng cái màn trắng A11 tồn tại để chặn), còn
+ * `/layers/grids` và `/layers/rooms` tuy trỏ màn thật nhưng thiếu tham số nên
+ * chỉ dựng được trạng thái "thiếu mã dự án".
+ *
+ * Màn này CÓ cả hai mã, nên nó đi thẳng tới màn thật — cùng khuôn
+ * `onNavigateFloor` bên dưới. Vẫn tra `ROUTES` chứ không ghép chuỗi, nên R-65
+ * giữ nguyên.
  */
-const LAYER_ROUTE: Readonly<Record<WallLayerOtherKind, string>> = {
-  openingsAndFurniture: ROUTES.layerObjects,
-  dimensions: ROUTES.layerDimensions,
-  axes: ROUTES.layerGrids,
-  rooms: ROUTES.layerRooms,
+const LAYER_ROUTE: Readonly<
+  Record<WallLayerOtherKind, (projectId: string, floorId: string) => string>
+> = {
+  openingsAndFurniture: ROUTES.project.objects,
+  dimensions: ROUTES.project.dimensions,
+  axes: ROUTES.project.grids,
+  rooms: ROUTES.project.rooms,
 };
 
 /**
@@ -172,12 +182,12 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
-  const { onNavigate, projectId } = props;
+  const { onNavigate, projectId, floorId } = props;
   const onNavigateLayer = useCallback(
     (layer: WallLayerOtherKind) => {
-      onNavigate(LAYER_ROUTE[layer]);
+      onNavigate(LAYER_ROUTE[layer](projectId, floorId));
     },
-    [onNavigate],
+    [onNavigate, projectId, floorId],
   );
 
   /**

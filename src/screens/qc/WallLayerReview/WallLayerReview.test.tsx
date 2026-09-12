@@ -349,8 +349,20 @@ describe('[NGHIEM-7] R-73', () => {
       expect(onNavigate).toHaveBeenCalledTimes(1);
     });
 
-    /* Container KHÔNG viết đường dẫn của riêng nó — nó tra `ROUTES` (R-65/R-71). */
-    expect(onNavigate.mock.calls[0]?.[0]).toBe(ROUTES.layerObjects);
+    /*
+     * Container KHÔNG viết đường dẫn của riêng nó — nó tra `ROUTES` (R-65/R-71).
+     *
+     * Và nó phải tra builder THEO DỰ ÁN, không tra hằng tĩnh `ROUTES.layerObjects`:
+     * đường tĩnh `/layers/objects` dẫn vào `<Placeholder>` của router
+     * (`src/routes/router.tsx:332`), tức một `<div>Canvas</div>` rỗng, chứ không
+     * dẫn tới `ObjectLayerReview`. Khẳng định bằng đường tĩnh thì vẫn xanh trong
+     * khi người dùng rơi vào màn trắng — đó là lý do phép kiểm này so với builder.
+     */
+    const args = scenarioArgsFor('success');
+
+    expect(onNavigate.mock.calls[0]?.[0]).toBe(
+      ROUTES.project.objects(args.projectId, args.floorId),
+    );
   });
 });
 

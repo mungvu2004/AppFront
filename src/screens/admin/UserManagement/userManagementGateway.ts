@@ -75,7 +75,6 @@ import {
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetryEventInput } from '@/lib/telemetry/events';
-import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import type {
@@ -260,26 +259,34 @@ export function userManagementCapabilities(
  * Miền của một `UserActivity.kind` ↔ tuyến mở được đối tượng ấy.
  *
  * `kind` có dạng `<miền>.<việc>` (`wall.edit`, `room.edit`, `rules.run`) — cùng từ vựng mà
- * `TELEMETRY_EVENT_NAMES` dùng. Giá trị của bảng lấy TỪ `ROUTES`, nên không một chuỗi nào
- * bắt đầu bằng `/` được viết trong thư mục màn (R-65).
+ * `TELEMETRY_EVENT_NAMES` dùng. Giá trị của bảng phải lấy TỪ `ROUTES`, để không một chuỗi
+ * nào bắt đầu bằng `/` được viết trong thư mục màn (R-65).
  *
  * Bảng cố tình NGẮN. Những tuyến còn lại của repo đều cần một mã dự án hoặc một mã tầng
  * (`ROUTES.project.*` là hàm), mà `UserActivitySchema` không mang mã nào trong hai thứ đó
  * — nó có `objectCode` để ĐỌC, không phải để điều hướng. Nên `wall`, `rules`, `export` và
  * `project` không có mặt ở đây và {@link activityHref} trả `null` cho chúng: một dòng
  * không mở được thì nói thẳng là không mở được, chứ không dẫn tới một trang sai.
+ *
+ * **Bảng nay RỖNG, và đó là kết luận của chính đoạn trên.** Chín mục cũ đều trỏ vào các
+ * hằng tĩnh `/layers/*` và `/floors`, vốn cũng không mang hai mã ấy — nên không mục nào
+ * trong chúng mở được đối tượng:
+ *
+ * - `opening`, `furniture`, `object`, `dimension`, `floor`, `level` dẫn vào `<Placeholder>`
+ *   của router (`src/routes/router.tsx:332-335`), tức một `<div>Canvas</div>` rỗng — đúng
+ *   cái màn trắng mà A11 tồn tại để chặn;
+ * - `room`, `axis`, `grid` dẫn tới màn thật nhưng không có tham số, nên màn chỉ dựng được
+ *   `InlineAlert` "Thiếu mã dự án hoặc mã tầng" — trung thực, nhưng vẫn là một trang sai
+ *   cho yêu cầu "mở R-12", và người dùng không bao giờ đi tiếp được từ đó.
+ *
+ * Bảng ở lại (thay vì xoá hẳn cùng {@link activityHref}) vì cơ chế vẫn đúng: ngày
+ * `UserActivitySchema` mang thêm mã dự án và mã tầng, mỗi miền thêm lại một dòng gọi
+ * `ROUTES.project.*(projectId, floorId)`. Tới lúc đó bảng mới có gì để tra.
+ *
+ * Trong khi chờ, `UserManagementDetail.tsx:174-181` đã dựng sẵn nhánh `null`: mã đối tượng
+ * hiện ra dạng chữ thường, không phải thẻ liên kết. Affordance rời khỏi DOM (R-69).
  */
-const ROUTE_BY_ACTIVITY_DOMAIN: Readonly<Record<string, string>> = Object.freeze({
-  room: ROUTES.layerRooms,
-  opening: ROUTES.layerObjects,
-  furniture: ROUTES.layerObjects,
-  object: ROUTES.layerObjects,
-  axis: ROUTES.layerGrids,
-  grid: ROUTES.layerGrids,
-  dimension: ROUTES.layerDimensions,
-  floor: ROUTES.floors,
-  level: ROUTES.floors,
-});
+const ROUTE_BY_ACTIVITY_DOMAIN: Readonly<Record<string, string>> = Object.freeze({});
 
 /** Đường mở đối tượng của một dòng hoạt động, hoặc `null` khi không mở được. */
 export function activityHref(kind: string): string | null {
