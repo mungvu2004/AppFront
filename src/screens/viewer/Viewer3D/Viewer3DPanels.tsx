@@ -66,6 +66,12 @@ export const VIEWER_3D_PANELS_LABEL = 'Bảng phụ của khung nhìn 3D';
 /** Nhãn vùng của panel thanh tra thuộc tính. */
 export const VIEWER_3D_INSPECTOR_LABEL = 'Thuộc tính đối tượng đã chọn';
 
+/* Nút vào/ra CHẾ ĐỘ sửa hình học tường. Chế độ ấy vẽ đè lên khung nhìn
+   (`Viewer3DOverlays.tsx`), nhưng cửa vào nó nằm ở đây — ngay dưới panel thuộc
+   tính của chính bức tường đang chọn, chứ không nổi lên giữa mô hình. */
+export const VIEWER_3D_ENTER_WALL_EDIT_LABEL = 'Sửa hình học tường';
+export const VIEWER_3D_EXIT_WALL_EDIT_LABEL = 'Thoát chế độ sửa hình học';
+
 export interface Viewer3DPanelsProps {
   /** Đối tượng đang chọn đầu tiên; `null` thì panel thuộc tính không được dựng. */
   readonly selectedEntityId: string | null;
@@ -95,6 +101,19 @@ export interface Viewer3DPanelsProps {
   readonly onModelDropped: (modelId: string, targetEntityId: string | null) => void;
   /** Dự án đang mở; bảng diện tích dùng nó làm khoá bộ nhớ đệm. */
   readonly projectId: string;
+
+  /**
+   * Vùng chọn hiện tại có phải tường không.
+   *
+   * `false` ⇒ nút vào chế độ sửa hình học KHÔNG được dựng: lớp phủ ấy chỉ sửa
+   * được tường, nên một nút mở nó ra khi đang chọn một cái ghế là một nút dẫn
+   * tới trạng thái rỗng (R-73).
+   */
+  readonly canEditWallGeometry: boolean;
+  /** Chế độ sửa hình học đang bật — nút đổi thành lối ra. */
+  readonly isWallEditing: boolean;
+  /** Bật/tắt chế độ sửa hình học tường. */
+  readonly onToggleWallEditing: () => void;
 }
 
 /** Một nút bật của bộ đóng mở loại trừ nhau. */
@@ -162,6 +181,27 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
             selectedEntityIds={props.selectedEntityIds}
           />
         </section>
+      )}
+
+      {props.canEditWallGeometry && (
+        <div className="shrink-0 px-2 pt-2">
+          <button
+            aria-pressed={props.isWallEditing}
+            className={cn(
+              'w-full rounded-[6px] px-2 py-1 text-[13px] font-medium',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              props.isWallEditing
+                ? 'bg-bg-hover text-text-primary'
+                : 'text-accent hover:bg-bg-hover',
+            )}
+            onClick={props.onToggleWallEditing}
+            type="button"
+          >
+            {props.isWallEditing
+              ? VIEWER_3D_EXIT_WALL_EDIT_LABEL
+              : VIEWER_3D_ENTER_WALL_EDIT_LABEL}
+          </button>
+        </div>
       )}
 
       <nav aria-label={VIEWER_3D_PANELS_LABEL} className="flex shrink-0 flex-wrap gap-1 p-2">

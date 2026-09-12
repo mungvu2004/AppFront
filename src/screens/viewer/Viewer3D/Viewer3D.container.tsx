@@ -136,12 +136,12 @@ import type {
   ViewerScreenState,
 } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 import { ROUTES } from '@/routes/paths';
+import { isIdOfKind } from '@/domain/spatial/ids';
 import type { EntityId } from '@/domain/spatial/types';
 import type { ProjectRole } from '@/types/project';
 
-import { Viewer3D } from './Viewer3D';
 import { Viewer3DPanels, type Viewer3DPanelId } from './Viewer3DPanels';
-import { useViewer3D } from './useViewer3D';
+import { Viewer3DSceneSlot } from './Viewer3DSceneSlot';
 import type { MountViewerScene, Viewer3DTelemetry } from './viewer3dTypes';
 
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
@@ -187,58 +187,6 @@ function Viewer3DCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
-interface WiredViewer3DSceneProps extends Viewer3DContainerProps {
-  readonly frame: ViewerSceneFrame;
-  readonly sceneActions: ViewerSceneActions | undefined;
-  /** Đồ thị container đã chốt — ĐÚNG cái vỏ đang đọc. Xem "MỘT nguồn" ở đầu file. */
-  readonly resolvedSpatial: NormalizedSpatial | null;
-  /** Cổng container đã chốt — cũng là cổng vỏ đang dùng. */
-  readonly resolvedGateway: ViewerShellGateway;
-  readonly isSearchOpen: boolean;
-  readonly onOpenSearch: () => void;
-  readonly onCloseSearch: () => void;
-}
-
-/**
- * Nội dung khe cắm cảnh: hook cộng view, không provider nào ở giữa.
- *
- * `exactOptionalPropertyTypes` bật, nên một prop tuỳ chọn vắng mặt phải VẮNG
- * MẶT chứ không mang giá trị `undefined` — cùng khuôn trải có điều kiện của
- * `ViewerShell.container.tsx:107-115`.
- */
-function WiredViewer3DScene(props: WiredViewer3DSceneProps) {
-  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
-
-  const model = useViewer3D({
-    projectId: props.projectId,
-    canvas,
-    frame: props.frame,
-    // Đồ thị và cổng KHÔNG còn là chỗ tiêm có điều kiện: container đã chốt
-    // chúng, và chốt một lần là cả điểm của mục "MỘT nguồn dữ liệu".
-    spatial: props.resolvedSpatial,
-    gateway: props.resolvedGateway,
-    ...(props.sceneActions !== undefined ? { sceneActions: props.sceneActions } : {}),
-    ...(props.roles !== undefined ? { roles: props.roles } : {}),
-    ...(props.forceState !== undefined ? { forceState: props.forceState } : {}),
-    ...(props.coloringModeId !== undefined ? { coloringModeId: props.coloringModeId } : {}),
-    ...(props.telemetry !== undefined ? { telemetry: props.telemetry } : {}),
-    ...(props.mountScene !== undefined ? { mountScene: props.mountScene } : {}),
-  });
-
-  return (
-    <Viewer3D
-      {...model}
-      canvasRef={setCanvas}
-      search={{
-        ...model.search,
-        isOpen: props.isSearchOpen,
-        onOpen: props.onOpenSearch,
-        onClose: props.onCloseSearch,
-      }}
-    />
-  );
-}
-
 export function Viewer3DContainer(props: Viewer3DContainerProps) {
   /* A12: giữ listener bàn phím sống suốt lúc màn còn gắn. Không có dòng này thì
      mọi phím vỏ đăng ký — kể cả `/` — không bao giờ tới được sổ phím. */
@@ -252,6 +200,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   const clearSelection = useStore((state) => state.clearSelection);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [openPanelId, setOpenPanelId] = useState<Viewer3DPanelId | null>(null);
+  const [isWallEditing, setIsWallEditing] = useState(false);
 
   /* Kho rỗng là chuyện thường ở dev, không phải một sự cố: rơi về đúng bộ mẫu
      vỏ vẫn dùng, và ghi rõ đây là đường tạm (xem đầu file). */
@@ -328,9 +277,26 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
     }
   }, [setSelection]);
 
+  /* Chế độ sửa hình học chỉ mở được trên TƯỜNG, và tiền tố mã là dấu hiệu duy
+     nhất đọc được lúc chạy (`domain/spatial/normalize.ts:60-64`). Vùng chọn
+     đổi sang thứ khác thì chế độ tự đóng — không có nhánh nào để lại một lớp
+     phủ sửa tường lơ lửng trên một cái ghế. */
+  const canEditWallGeometry = selectedIds.some((entityId) => isIdOfKind('wall', entityId));
+  const isWallEditingNow = isWallEditing && canEditWallGeometry;
+
+  const onToggleWallEditing = useCallback((): void => {
+    setIsWallEditing((editing) => !editing);
+  }, []);
+
+  const onExitWallEditMode = useCallback((): void => {
+    setIsWallEditing(false);
+  }, []);
+
   const inspectorSections = (
     <Viewer3DPanels
+      canEditWallGeometry={canEditWallGeometry}
       floorId={resolvedFloorId}
+      isWallEditing={isWallEditingNow}
       onCheckWallGaps={onCheckWallGaps}
       onDismissInspector={clearSelection}
       onModelDropped={onModelDropped}
@@ -338,6 +304,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
       onOpenExport={onOpenExport}
       onOpenRuleScreen={onOpenRuleScreen}
       onTogglePanel={setOpenPanelId}
+      onToggleWallEditing={onToggleWallEditing}
       openPanelId={openPanelId}
       projectId={props.projectId}
       selectedEntityId={selectedIds[0] ?? null}
@@ -350,18 +317,29 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
     // dạng duy nhất vừa gán được vào `renderScene` một tham số của vỏ, vừa đọc
     // được `actions` mà `ViewerViewport.tsx:123` luôn truyền thật.
     (frame: ViewerSceneFrame, actions?: ViewerSceneActions): ReactNode => (
-      <WiredViewer3DScene
+      <Viewer3DSceneSlot
         {...props}
         frame={frame}
         isSearchOpen={isSearchOpen}
+        isWallEditing={isWallEditingNow}
         onCloseSearch={onCloseSearch}
+        onExitWallEditMode={onExitWallEditMode}
         onOpenSearch={onOpenSearch}
         resolvedGateway={resolvedGateway}
         resolvedSpatial={resolvedSpatial}
         sceneActions={actions}
       />
     ),
-    [props, isSearchOpen, onCloseSearch, onOpenSearch, resolvedGateway, resolvedSpatial],
+    [
+      props,
+      isSearchOpen,
+      isWallEditingNow,
+      onCloseSearch,
+      onExitWallEditMode,
+      onOpenSearch,
+      resolvedGateway,
+      resolvedSpatial,
+    ],
   );
 
   return (

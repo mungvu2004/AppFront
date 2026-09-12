@@ -21,6 +21,8 @@ import { renderWithProviders } from '@/lib/testing/render';
 
 import {
   Viewer3DPanels,
+  VIEWER_3D_ENTER_WALL_EDIT_LABEL,
+  VIEWER_3D_EXIT_WALL_EDIT_LABEL,
   VIEWER_3D_FURNITURE_PANEL_LABEL,
   VIEWER_3D_HISTORY_PANEL_LABEL,
   VIEWER_3D_INSPECTOR_LABEL,
@@ -96,7 +98,10 @@ function StatefulPanels(
 
   return (
     <Viewer3DPanels
+      canEditWallGeometry={false}
       floorId={FLOOR_ID}
+      isWallEditing={false}
+      onToggleWallEditing={noop}
       onCheckWallGaps={noop}
       onDismissInspector={noop}
       onModelDropped={noop}
@@ -233,5 +238,47 @@ describe('[VP-3] A12 — Esc đóng lớp trên cùng', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(onTogglePanel).not.toHaveBeenCalled();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VP-4] Cửa vào CHẾ ĐỘ sửa hình học tường.                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('[VP-4] cửa vào chế độ sửa hình học tường', () => {
+  it('vùng chọn không phải tường thì nút KHÔNG được dựng (R-73, không nút chết)', () => {
+    renderPanels({ selectedEntityId: WALL_ID, selectedEntityIds: [WALL_ID] });
+
+    expect(screen.queryByRole('button', { name: VIEWER_3D_ENTER_WALL_EDIT_LABEL })).toBeNull();
+  });
+
+  it('đang chọn tường thì nút hiện ra và bấm được', () => {
+    const onToggleWallEditing = vi.fn();
+    renderPanels({
+      canEditWallGeometry: true,
+      onToggleWallEditing,
+      selectedEntityId: WALL_ID,
+      selectedEntityIds: [WALL_ID],
+    });
+
+    const enter = screen.getByRole('button', { name: VIEWER_3D_ENTER_WALL_EDIT_LABEL });
+    expect(enter).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(enter);
+
+    expect(onToggleWallEditing).toHaveBeenCalledTimes(1);
+  });
+
+  it('chế độ đang bật thì cùng nút ấy đổi thành lối ra', () => {
+    renderPanels({
+      canEditWallGeometry: true,
+      isWallEditing: true,
+      selectedEntityId: WALL_ID,
+      selectedEntityIds: [WALL_ID],
+    });
+
+    const exit = screen.getByRole('button', { name: VIEWER_3D_EXIT_WALL_EDIT_LABEL });
+    expect(exit).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: VIEWER_3D_ENTER_WALL_EDIT_LABEL })).toBeNull();
   });
 });
