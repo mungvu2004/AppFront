@@ -87,6 +87,16 @@ function StoreTrigger() {
     useStore.setState({
       lastCommitTimestamp: Date.now(),
       lastCommitLabel: 'Cập nhật thuộc tính',
+      /*
+       * `lastCommitUndo` BẮT BUỘC phải có, không phải trang trí: `useUndoableToast`
+       * chỉ dựng toast khi commit giao lại một hàm hoàn tác, vì một nút Hoàn tác
+       * không làm gì còn tệ hơn không có nút. Thiếu trường này thì story lặng lẽ
+       * không hiện gì và trông như hook hỏng.
+       */
+      lastCommitUndo: () => {
+        // eslint-disable-next-line no-console -- story chỉ cần chứng minh nút có chạy.
+        console.info('[story] đã gọi hoàn tác của commit');
+      },
     });
   };
 

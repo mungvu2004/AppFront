@@ -168,7 +168,7 @@ import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { confidenceLevel } from '@/lib/format/semantic';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
-import { commit } from '@/store/commit';
+import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
 
 import {
@@ -1082,6 +1082,11 @@ export function createCommitSpatialPort(
     applyPatches: (patches) => {
       commit(patches, labelOf());
     },
+    // Rollback KHÔNG được mở một bước hoàn tác mới: `commit` thì mở, còn
+    // `applyRollbackPatches` thì không. Thiếu dòng này, một lượt dispatch hỏng ở
+    // bước sau để lại HAI past-state zundo, và Ctrl+Z kế tiếp áp LẠI thay đổi vừa bị
+    // rollback — vi phạm A8. Xem `SpatialPort.revertPatches` (lib/commands/dispatch.ts:145).
+    revertPatches: applyRollbackPatches,
   };
 }
 
