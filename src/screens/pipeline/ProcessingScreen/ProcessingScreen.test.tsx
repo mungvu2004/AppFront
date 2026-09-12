@@ -36,7 +36,7 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
@@ -160,6 +160,35 @@ function gatewayWithCancel(onCancel: () => void): ProcessingGateway {
       onCancel();
       return { supported: true, value: undefined };
     },
+  };
+}
+
+/**
+ * Cổng giả: bản THẬT dựng trên `createMockApiClient()`, chỉ đổi `readProgressOnce`
+ * để lượt đọc ĐẦU TIÊN báo luôn một bước hỏng — cùng khuôn `gatewayWithCancel`.
+ *
+ * `status: 'failed'` cộng `step` tra được (`toStageBreakdown`, `processingGateway.ts:499`)
+ * là đúng và duy nhất cách một `PipelineStageState` thành `'failed'` — khác hẳn
+ * `record.failure` (lỗi ĐỌC, vẫn đi ra qua `errorAlert` như cũ). Đây chính là "một
+ * bước AI hỏng" mà S-11 `PipelineFailure` được dựng ra để nói.
+ */
+function gatewayWithFailedStep(stepId: string): ProcessingGateway {
+  const real = createProcessingGateway(createMockApiClient(), {
+    EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+  });
+
+  return {
+    ...real,
+    readProgressOnce: () =>
+      Promise.resolve({
+        ok: true,
+        data: {
+          id: 'progress-1',
+          progressPercent: 40,
+          status: 'failed',
+          step: stepId,
+        },
+      }),
   };
 }
 
@@ -416,6 +445,54 @@ describe('ProcessingScreenContainer — R-73', () => {
 
     expect(container.textContent?.trim()).not.toBe('');
     expect(screen.getByText('Xử lý')).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Gắn S-11 `PipelineFailure` khi một bước AI hỏng.                            */
+/* -------------------------------------------------------------------------- */
+
+describe('ProcessingScreenContainer — gắn S-11 PipelineFailure khi một bước AI hỏng', () => {
+  it('một bước hỏng thì PipelineFailureContainer THẾ CHỖ ProcessingScreen thật sự', async () => {
+    const FAILED_STEP_ID = 'wallSegmentation';
+
+    const { container } = renderWithProviders(
+      <ProcessingScreenContainer
+        floorUploads={ONE_UPLOAD}
+        gateway={gatewayWithFailedStep(FAILED_STEP_ID)}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    // Thân màn S-11 có mặt — `PipelineFailure.tsx` dựng đúng một id này (`BODY_ID`).
+    await waitFor(() => {
+      expect(container.querySelector('#pipeline-failure-body')).not.toBeNull();
+    });
+
+    // Và ProcessingScreen thật sự đã bị THAY: cột phải "Xem trước/Nhật ký" cùng
+    // nút huỷ của S-10 không còn trong cây, không phải hai màn chồng lên nhau.
+    expect(screen.queryByRole('button', { name: CANCEL_LABEL })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Xem trước' })).not.toBeInTheDocument();
+
+    // Không màn trắng (A11): còn nội dung thật để đọc.
+    expect(container.textContent?.trim()).not.toBe('');
+  });
+
+  it('không bước nào hỏng thì ProcessingScreen vẽ như cũ, không có PipelineFailureContainer', () => {
+    const { container } = renderWithProviders(
+      <ProcessingScreenContainer
+        floorUploads={ONE_UPLOAD}
+        gateway={gatewayWithCancel(() => undefined)}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(container.querySelector('#pipeline-failure-body')).toBeNull();
+    expect(screen.getByRole('button', { name: CANCEL_LABEL })).toBeInTheDocument();
   });
 });
 

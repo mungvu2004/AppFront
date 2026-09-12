@@ -25,6 +25,19 @@
  * vẽ, nên nó truyền sang. Mở màn này từ URL trần là hợp lệ và trung thực: không
  * có lượt xử lý nào để theo dõi thì màn ở trạng thái `empty`, không phải một
  * thanh tiến độ bịa.
+ *
+ * ## Gắn S-11 `PipelineFailure` khi một bước AI hỏng
+ *
+ * `useProcessingScreen` trả thêm `failedPipelineStep` ngoài
+ * {@link ProcessingScreenProps} — xem ghi chú "Gắn `PipelineFailure`" ở đầu
+ * `useProcessingScreen.ts`. Có mặt trường đó thì `WiredProcessingScreen` GẮN
+ * THAY `<PipelineFailureContainer>` cho `<ProcessingScreen>`, đúng khuôn container
+ * của chính S-11 (`PipelineFailure.container.tsx:6-14`): ba mã định vị
+ * (`projectId`, `floorId`, `stepId`), `onNavigate` chuyển tiếp nguyên vẹn, và
+ * `onResolved` tái dùng `onRetry` của màn này (nạp lại tiến độ). S-11 tự vẽ lại
+ * đủ đường dẫn, dải tầng và cột trái của khung S-10 (xem đầu `PipelineFailure.tsx`)
+ * nên đây là một phép THAY, không phải một mảnh ghép lồng vào cây của
+ * `ProcessingScreen.tsx` — `<ProcessingScreen>` không được gắn tiếp bên trong.
  */
 
 import { useMemo } from 'react';
@@ -37,6 +50,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
+import { PipelineFailureContainer, type PipelineFailureGateway } from '@/screens/pipeline/PipelineFailure';
 import type { ProjectRole } from '@/types/project';
 
 import { ProcessingScreen } from './ProcessingScreen';
@@ -70,6 +84,13 @@ export interface ProcessingScreenContainerProps {
    * sản phẩm dùng (R-70).
    */
   readonly gateway?: ProcessingGateway;
+  /**
+   * Cổng dữ liệu của `PipelineFailureContainer`, cho lượt gắn thay khi một bước
+   * hỏng — xem ghi chú "Gắn S-11" ở đầu file. Vắng mặt thì `PipelineFailureContainer`
+   * tự dựng cổng thật của chính nó (R-73); test và story cắm
+   * `createMockPipelineFailureGateway()` vào đây.
+   */
+  readonly pipelineFailureGateway?: PipelineFailureGateway;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
 }
@@ -94,7 +115,7 @@ function ProcessingScreenCrashFallback({ report, retry }: ScreenErrorFallback) {
 function WiredProcessingScreen(props: ProcessingScreenContainerProps) {
   const appGateway = useMemo(() => createAppProcessingGateway(), []);
 
-  const screenProps = useProcessingScreen({
+  const { failedPipelineStep, ...screenProps } = useProcessingScreen({
     projectId: props.projectId,
     floorUploads: props.floorUploads ?? NO_UPLOADS,
     gateway: props.gateway ?? appGateway,
@@ -103,6 +124,22 @@ function WiredProcessingScreen(props: ProcessingScreenContainerProps) {
     ...(props.onGoToSupport !== undefined ? { onGoToSupport: props.onGoToSupport } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
+
+  if (failedPipelineStep !== undefined) {
+    return (
+      <PipelineFailureContainer
+        floorId={failedPipelineStep.floorId}
+        onResolved={failedPipelineStep.onResolved}
+        projectId={props.projectId}
+        stepId={failedPipelineStep.stepId}
+        {...(props.roles !== undefined ? { roles: props.roles } : {})}
+        {...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {})}
+        {...(props.pipelineFailureGateway !== undefined
+          ? { gateway: props.pipelineFailureGateway }
+          : {})}
+      />
+    );
+  }
 
   return <ProcessingScreen {...screenProps} />;
 }

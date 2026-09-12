@@ -1,9 +1,28 @@
 /**
  * Nửa "suy nghĩ" của màn Xử lý — mọi thứ `ProcessingScreen.tsx` cần, đã xong.
  *
- * `types.ts` là hợp đồng props DUY NHẤT của màn; hook này trả về đúng
- * {@link ProcessingScreenProps}, không hơn không kém. Mọi chuỗi người đọc được
- * ghép và định dạng ở đây (A15) — view không còn con số thô nào phải làm tròn.
+ * `types.ts` là hợp đồng props DUY NHẤT của màn; hook này trả về
+ * {@link ProcessingScreenProps} cộng đúng MỘT trường ngoài hợp đồng đó —
+ * {@link ProcessingScreenHookResult.failedPipelineStep}, xem ghi chú "Gắn
+ * `PipelineFailure`" bên dưới. Mọi chuỗi người đọc được ghép và định dạng ở đây
+ * (A15) — view không còn con số thô nào phải làm tròn.
+ *
+ * ## Gắn `PipelineFailure` (S-11) khi một bước AI hỏng
+ *
+ * `record.failure` (kiểu {@link ProcessingFailure}) là lỗi ĐỌC — mạng chết, SSE
+ * rớt — và vẫn đi ra qua `errorAlert`/`InlineAlert` như cũ, với nút "Thử lại" gọi
+ * thẳng `queryClient.invalidateQueries`. Khác hẳn: một `PipelineStageState` mang
+ * `status: 'failed'` nghĩa là MÁY CHỦ đã chạy bước đó và bước đó hỏng (ví dụ mô
+ * hình tách tường không tách được) — đây mới là "một bước AI hỏng" mà màn S-11
+ * (`@/screens/pipeline/PipelineFailure`) được dựng riêng để nói.
+ *
+ * {@link ProcessingScreenHookResult.failedPipelineStep} tìm bản ghi tầng ĐẦU
+ * TIÊN có một bước `'failed'` và trả ba mã định vị của nó (`floorId`, `stepId`)
+ * cộng `onResolved` — tái dùng đúng `onRetry` ở dưới, vì "thử lại xong" ở màn
+ * S-11 và "làm mới toàn bộ tiến độ" ở nút Thử lại của màn này là cùng một hành
+ * động: nạp lại từ máy chủ. `ProcessingScreen.container.tsx` đọc trường này và
+ * GẮN THAY `<PipelineFailureContainer>` cho `<ProcessingScreen>` khi nó có mặt —
+ * xem docblock ở đó. `undefined` thì màn Xử lý vẽ như bình thường.
  *
  * ## Không có công thức nào tự chế (R-61)
  *
@@ -469,8 +488,28 @@ function useResolvedGateway(injected: ProcessingGateway | undefined): Processing
 /* Hook.                                                                       */
 /* -------------------------------------------------------------------------- */
 
-/** `(options) => ProcessingScreenProps` cho `ProcessingScreen.tsx`. */
-export function useProcessingScreen(options: UseProcessingScreenOptions): ProcessingScreenProps {
+/**
+ * Ba mã định vị của bước AI đã hỏng, cộng lối ra khi màn S-11 báo thử lại xong.
+ * Xem ghi chú "Gắn `PipelineFailure`" ở đầu file.
+ */
+export interface ProcessingScreenFailedStep {
+  readonly floorId: string;
+  readonly stepId: string;
+  /** "Thử lại xong" ở màn S-11 — nạp lại tiến độ, cùng hành động với nút Thử lại. */
+  readonly onResolved: () => void;
+}
+
+/**
+ * {@link ProcessingScreenProps} cộng đúng một trường ngoài hợp đồng đóng băng
+ * của `types.ts` — xem ghi chú "Gắn `PipelineFailure`" ở đầu file.
+ */
+export interface ProcessingScreenHookResult extends ProcessingScreenProps {
+  /** Có mặt khi một tầng có bước `'failed'`. `undefined` thì không tầng nào hỏng bước. */
+  readonly failedPipelineStep?: ProcessingScreenFailedStep;
+}
+
+/** `(options) => ProcessingScreenHookResult` cho `ProcessingScreen.tsx` và container. */
+export function useProcessingScreen(options: UseProcessingScreenOptions): ProcessingScreenHookResult {
   const { projectId } = options;
   const roles = options.roles ?? DEFAULT_ROLES;
   const queryClient = useQueryClient();
@@ -1039,6 +1078,22 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     };
   }, [firstReadError, gateway, onGoToSupport, onRetry, records, state]);
 
+  // Không bọc `useMemo`: `records` là mảng mới mỗi lượt render (cùng lý lẽ
+  // `failedIndexes` ở trên), và một vòng `find` lồng `find` trên tối đa vài chục
+  // phần tử là rẻ. Bản ghi ĐẦU TIÊN có một bước `'failed'` — không phải bản ghi
+  // có `record.failure` (đó là lỗi đọc, đi ra qua `errorAlert` như cũ).
+  const failedStage = records
+    .map((record) => ({
+      floorId: record.floorId,
+      stage: record.stages.find((s) => s.status === 'failed'),
+    }))
+    .find((entry): entry is { floorId: string; stage: PipelineStageState } => entry.stage !== undefined);
+
+  const failedPipelineStep: ProcessingScreenFailedStep | undefined =
+    failedStage === undefined
+      ? undefined
+      : { floorId: failedStage.floorId, stepId: failedStage.stage.id, onResolved: onRetry };
+
   return {
     state,
     floors,
@@ -1052,6 +1107,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       : {}),
     ...(partialNoticeLine !== undefined ? { partialNoticeLine } : {}),
     ...(errorAlert !== undefined ? { errorAlert } : {}),
+    ...(failedPipelineStep !== undefined ? { failedPipelineStep } : {}),
     activeTab,
     onTabChange,
     isLogAutoScrollLocked,
