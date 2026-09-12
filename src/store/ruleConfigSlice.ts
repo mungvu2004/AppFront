@@ -87,19 +87,28 @@ export const createRuleConfigSlice: StateCreator<
     const previous = get().ruleConfig;
     const timestamp = Date.now();
 
+    // Lượt hoàn tác cũng là một lượt ghi, nên nó đi qua đúng cửa này lần nữa:
+    // version vẫn tiến lên, vì cache vi phạm phân biệt hai lần chạy bằng version
+    // chứ không bằng nội dung — trả về version cũ sẽ khiến cache tưởng nó đã có
+    // sẵn kết quả của lần này. Đi lại qua cửa còn đặt luôn `lastCommitUndo` cho
+    // lượt lùi, nên toast của lượt lùi cũng lùi được (A8), thay vì rơi về
+    // `temporal.undo()` của zundo — thứ chỉ biết dữ liệu không gian.
+    const undo = (): void => {
+      get().commitRuleConfig(previous, `hoàn tác: ${label}`);
+    };
+
     set({ ruleConfig: atVersion(next, previous.version + 1) });
-    get().setLastCommit(label, timestamp);
+
+    // Nhãn đi cùng cách lùi nó: host toast toàn cục đọc `lastCommitLabel` và chỉ
+    // biết lùi bằng thứ được giao ở đây. Trước đây nó tự gọi `temporal.undo()`
+    // của zundo, nên chỉ mở màn cài đặt bộ luật là một toast hiện ra mà nút Hoàn
+    // tác của nó lùi lần sửa tường gần nhất — xem `historySlice.lastCommitUndo`.
+    get().setLastCommit(label, timestamp, undo);
 
     return {
       label,
       timestamp,
-      undo: () => {
-        // Lượt hoàn tác cũng là một lượt ghi: version vẫn tiến lên, vì cache vi
-        // phạm phân biệt hai lần chạy bằng version chứ không bằng nội dung. Trả
-        // về version cũ sẽ khiến cache tưởng nó đã có sẵn kết quả của lần này.
-        set({ ruleConfig: atVersion(previous, get().ruleConfig.version + 1) });
-        get().setLastCommit(`hoàn tác: ${label}`, Date.now());
-      },
+      undo,
     };
   },
 });

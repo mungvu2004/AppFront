@@ -470,6 +470,69 @@ describe('createHistoryStack: gỡ mục vừa đẩy', () => {
     expect(stack.drop(second.entry.id)).toBe(false);
   });
 
+  it('gives the redo branch back with the entry it takes off', () => {
+    const stack = createHistoryStack();
+    const first = pushOf([dragCommand({ fromMm: 220, toMm: 240, atMs: 0 })]);
+    // Far enough apart not to fold, so this is a step of its own.
+    const failing = pushOf([dragCommand({ fromMm: 240, toMm: 300, atMs: 5000 })]);
+
+    stack.push(first);
+    stack.undo();
+
+    const abandoned = stack.redoSteps();
+
+    expect(abandoned).toHaveLength(1);
+
+    // The user edits again and the pipeline fails at `rules` or `sync`, so the
+    // entry comes straight back off. Nothing was committed, so nothing was
+    // abandoned: the way forward has to still be there.
+    stack.push(failing);
+    expect(stack.canRedo()).toBe(false);
+    expect(stack.drop(failing.entry.id)).toBe(true);
+
+    expect(stack.canRedo()).toBe(true);
+    expect(stack.redoSteps()).toEqual(abandoned);
+    expect(stack.canUndo()).toBe(false);
+    expect(stack.undoSteps()).toEqual([]);
+  });
+
+  it('keeps the redo branch cut when the command that cut it stayed', () => {
+    const stack = createHistoryStack();
+    const kept = pushOf([dragCommand({ fromMm: 240, toMm: 300, atMs: 5000 })]);
+
+    stack.push(pushOf([dragCommand({ fromMm: 220, toMm: 240, atMs: 0 })]));
+    stack.undo();
+    stack.push(kept);
+
+    // A redo undoes the cut on its own terms; dropping an entry that is no longer
+    // the newest must not resurrect anything.
+    expect(stack.drop('U-NOSUCHENTRY')).toBe(false);
+    expect(stack.canRedo()).toBe(false);
+
+    stack.undo();
+    stack.redo();
+
+    // After a real move on the redo side, the branch the push had cut is gone for
+    // good — `drop` may only restore what its own push cut.
+    expect(stack.drop(kept.entry.id)).toBe(true);
+    expect(stack.canRedo()).toBe(false);
+  });
+
+  it('gives back the branch a folded push cut, without inventing one', () => {
+    const stack = createHistoryStack();
+    const opening = pushOf([dragCommand({ fromMm: 220, toMm: 240, atMs: 0 })]);
+    const folded = pushOf([dragCommand({ fromMm: 240, toMm: 260, atMs: 100 })]);
+
+    stack.push(opening);
+    stack.push(folded);
+
+    expect(stack.drop(folded.entry.id)).toBe(true);
+    // The run's first push found the redo side empty, so there is nothing to put
+    // back — and the run itself is still there, un-folded.
+    expect(stack.canRedo()).toBe(false);
+    expect(stack.undoSteps()).toHaveLength(1);
+  });
+
   it('forgets everything on clear', () => {
     const stack = createHistoryStack();
 

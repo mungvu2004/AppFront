@@ -126,6 +126,23 @@ export interface SpatialPort {
   read: () => NormalizedSpatial | null;
   /** Applies patches in order, as one step. */
   applyPatches: (patches: readonly SpatialPatch[]) => void;
+  /**
+   * Puts the graph back after a failed pipeline, **without opening an undo step**.
+   *
+   * A rollback is not something the user did, so it must not become something
+   * they can undo. Every adapter implements `applyPatches` with `commit()`, and
+   * `commit` opens an undo step; the run-folding inside it does not swallow the
+   * rollback either, because the rollback's patch keys differ from the ones just
+   * applied whenever a command creates or deletes an entity. A dispatch that
+   * failed at `sync` therefore left **two** undo steps, and the user's next
+   * Ctrl+Z re-applied the change that had just been rolled back.
+   *
+   * Optional, so a port written before this existed still type-checks: without
+   * it the rollback falls back to `applyPatches` and the extra step comes back.
+   * An adapter over the zustand store implements it with
+   * `applyRollbackPatches` from `store/commit`.
+   */
+  revertPatches?: (patches: readonly SpatialPatch[]) => void;
 }
 
 /** The undo stack. */
@@ -488,7 +505,17 @@ export async function runCommandPipeline(input: PipelineInput, deps: DispatchDep
 
     if (applied.length > 0) {
       const reverted = attempt(() => {
-        deps.spatial.applyPatches(undoPatchesOf(applied));
+        // `revertPatches` when the port has one, so putting the graph back does
+        // not itself become an undo step. See `SpatialPort.revertPatches`.
+        const patches = undoPatchesOf(applied);
+
+        if (deps.spatial.revertPatches !== undefined) {
+          deps.spatial.revertPatches(patches);
+
+          return;
+        }
+
+        deps.spatial.applyPatches(patches);
       });
 
       if (!reverted.ok) {
