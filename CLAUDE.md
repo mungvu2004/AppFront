@@ -25,7 +25,10 @@ tiếng Anh — xem mục B và E.11.
 Các lệnh còn lại (`dev`, `typecheck`, `build`, `size`, `e2e`, `e2e:visual`, `storybook`,
 `draco`) là lệnh chuẩn — xem `scripts` trong `package.json`.
 
-CI (`.github/workflows/ci.yml`) chạy năm job nối tiếp trên cả `main` và `master`.
+CI (`.github/workflows/ci.yml`) chạy năm job **song song và độc lập** — `lint` ·
+`typecheck` · `unit` · `build` · `visual` — trên cả `main` và `master`. Không job
+nào `needs:` job nào: một lượt chạy phải cho năm phán quyết, không phải một. Lý do
+đầy đủ nằm trong khối chú thích ngay trên `jobs:` của file đó.
 
 ---
 

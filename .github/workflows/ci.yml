@@ -9,6 +9,31 @@ on:
   pull_request:
     branches: [main, master]
 
+# Năm job, KHÔNG job nào `needs:` job nào. Đây là lựa chọn, không phải thiếu sót.
+#
+# Trước đây chúng nối thành một chuỗi: typecheck ← lint, unit ← typecheck,
+# build ← unit, visual ← build. Chuỗi ấy cho mỗi lượt chạy đúng MỘT phán quyết —
+# mắt xích hỏng đầu tiên — rồi bốn job sau bị `skipped`, tức không biết chúng
+# xanh hay đỏ. Lần gần nhất `lint` không khởi động được (tài khoản bị khoá thanh
+# toán), cả bốn job sau im lặng suốt 25 ngày và 63 lượt chạy; bảng CI không hề
+# đỏ, nó chỉ rỗng. Cùng hình dạng với cái bẫy `main`/`master` ghi ở trên: CI xanh
+# vì không có CI.
+#
+# Chuỗi đó cũng không mô tả quan hệ thật. `lint` không phải điều kiện kỹ thuật
+# của `typecheck`: hai bên đọc cùng mã nguồn, không bên nào ăn đầu ra của bên
+# kia. Một cảnh báo lint không làm câu trả lời của `tsc` kém tin cậy đi — nó chỉ
+# làm ta không được nghe câu trả lời đó.
+#
+# `visual` cũng không cần `build`. `pnpm e2e` gọi `scripts/run-playwright.mjs`,
+# và dòng 81 ở đó dựng `vite` — máy chủ DEV — chứ không `vite preview`; `dist/`
+# không bao giờ được đọc. Kể cả nếu có đọc thì `needs:` vẫn không chuyển được
+# file: mỗi job chạy trên một runner riêng, và không có cặp upload/download
+# artifact nào cho `dist/` ở đây.
+#
+# Giá phải trả: không đồng nào. Cả năm job vốn đã tự `checkout` + `pnpm install`
+# riêng, nên tổng số phút máy không đổi — chỉ khác là chúng chạy cùng lúc thay vì
+# xếp hàng. Đổi lại, một lượt chạy cho năm phán quyết, và khi có ba thứ hỏng thì
+# ta thấy cả ba trong một lần đọc chứ không phải sửa-chạy-lại bốn vòng.
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -29,7 +54,6 @@ jobs:
       - run: pnpm cycles
 
   typecheck:
-    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +68,6 @@ jobs:
       - run: pnpm typecheck
 
   unit:
-    needs: typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +85,6 @@ jobs:
       - run: pnpm coverage
 
   build:
-    needs: unit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +101,6 @@ jobs:
       - run: pnpm size
 
   visual:
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
