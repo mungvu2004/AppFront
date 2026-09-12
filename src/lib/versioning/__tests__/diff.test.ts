@@ -154,6 +154,35 @@ describe('diffVersions', () => {
     expect(diff.removed.map((entry) => entry.entityId)).toEqual(['W-021']);
     expect(diff.changed.map((entry) => entry.entityId)).toEqual(['W-014']);
   });
+
+  // `VersionSnapshot` promises seven groups at the type level only: the snapshots the
+  // compare screen diffs come off the wire without a validator, and a server that
+  // leaves an empty group out used to throw a TypeError out of the gateway and blank
+  // the screen (A11).
+  it('treats a group the server left out as an empty group', () => {
+    const previous = { ...emptySnapshot(), wall: { 'W-014': wall(220) } };
+    const next = { ...emptySnapshot(), wall: { 'W-014': wall(220) } };
+    delete (previous as Partial<VersionSnapshot>).dimension;
+    delete (next as Partial<VersionSnapshot>).dimension;
+
+    const diff = diffVersions(previous, next);
+
+    expect(diff).toEqual({ added: [], changed: [], removed: [] });
+  });
+
+  it('reports the entities of a group the other side is missing entirely', () => {
+    const previous = emptySnapshot();
+    const next = { ...emptySnapshot(), dimension: { 'DIM-01': { length_mm: 3200 } } };
+    delete (previous as Partial<VersionSnapshot>).dimension;
+
+    const diff = diffVersions(previous, next);
+
+    expect(diff.added).toEqual([
+      { entityId: 'DIM-01', entityType: 'dimension', kind: 'added', newValue: { length_mm: 3200 } },
+    ]);
+    expect(diff.removed).toHaveLength(0);
+    expect(diff.changed).toHaveLength(0);
+  });
 });
 
 describe('a diff entry, put into words', () => {

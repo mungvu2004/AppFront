@@ -9,7 +9,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import type { mountPresentation as MountPresentation } from '../mount';
 
-import { FIXTURE_PLAN, stubCanvasContext } from './fixtures';
+import { FIXTURE_PLAN, fakeAssets, stubCanvasContext, withModel } from './fixtures';
 
 /* -------------------------------------------------------------------------- */
 /* Fakes.                                                                      */
@@ -389,5 +389,58 @@ describe('mountPresentation', () => {
     await handle.settled;
     frames.tick(16);
     expect(renderer.calls).toHaveLength(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A plan the mount cannot draw.                                               */
+/* -------------------------------------------------------------------------- */
+
+describe('mountPresentation on a plan it cannot draw', () => {
+  it('refuses a plan with no geometry rather than aiming the camera at NaN', () => {
+    fakeFrames();
+    fakeStillness(false);
+
+    // `loadPlan` lets this through: every field is an array of the right shape,
+    // just empty. `Box3.setFromObject` on the empty house keeps its Infinity seed,
+    // which reaches `frameAim` as NaN and leaves a white canvas behind a handle
+    // that reports success.
+    const empty = {
+      levels: [],
+      walls: [],
+      openings: [],
+      rooms: [],
+      furniture: [],
+      ceilingLights: { heightMm: 0, roomIds: [] },
+    };
+
+    expect(() => mountPresentation(sizedCanvas(550, 400), empty, { readToken: () => '' })).toThrow(
+      /no geometry/i,
+    );
+    expect(renderers).toHaveLength(0);
+  });
+
+  it('releases the materials and aborts the model loads when assembly throws', () => {
+    fakeFrames();
+    fakeStillness(false);
+
+    const disposed = vi.spyOn(Texture.prototype, 'dispose');
+    const assets = fakeAssets('never');
+    const [bed, chair, lamp] = FIXTURE_PLAN.furniture;
+    const broken = {
+      ...FIXTURE_PLAN,
+      // The bed starts a model download; the chair's typo then fails the mount.
+      furniture: [withModel(bed!, 'https://models.example/bed.glb'), { ...chair!, variant: 'sofa2' }, lamp!],
+    };
+
+    expect(() =>
+      mountPresentation(sizedCanvas(550, 400), broken, { readToken: () => '', assets }),
+    ).toThrow(RangeError);
+
+    // The eleven canvas textures and normal maps made before the throw are let go...
+    expect(disposed.mock.calls.length).toBeGreaterThan(0);
+    // ...and the `.glb` already in flight is told to stop.
+    const signal = assets.load.mock.calls[0]?.[1] as AbortSignal | undefined;
+    expect(signal?.aborted).toBe(true);
   });
 });
