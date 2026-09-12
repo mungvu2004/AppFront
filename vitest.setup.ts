@@ -1,33 +1,24 @@
-import '@testing-library/jest-dom/vitest';
-
-import { configureTestProviders, createStoreReset } from '@/lib/testing/render';
-import { useStore } from '@/store';
-
 /**
- * Hand the test harness the application store, once.
+ * Cửa vào chuẩn bị test — chia theo môi trường.
  *
- * `src/lib/**` may not import `src/store/**` — mục 0.4 — so `renderWithProviders`
- * takes the store rather than reaching for it. This is the one place that
- * knows both, and it runs before any test file, which is what keeps a screen
- * test down to a single line.
+ * Toàn bộ phần chuẩn bị của dự án chỉ có nghĩa khi có DOM: bộ so khớp của
+ * `jest-dom`, `@testing-library/react` (qua `configureTestProviders`), và bản vá
+ * `window.scrollTo`. Nạp chúng cho một bài kiểm hàm thuần là trả tiền cho thứ
+ * không dùng — và hoá đơn không nhỏ.
  *
- * The snapshot is taken here, at setup time, so "initial state" means the state
- * the application boots with rather than whatever the first test happened to
- * leave behind. Undo history is cleared alongside it.
+ * Số đo trên `src/domain` (1.148 bài, 36 file) khi mọi file đều chạy jsdom:
+ *
+ *     tests 2,09 s  ·  environment 34,15 s  ·  setup 26,20 s
+ *
+ * Hai phần ba phút để chạy hai giây phép kiểm. `vitest.config.ts` nay cho
+ * `src/domain/**` chạy môi trường `node`, và nhánh dưới đây giữ cho file chuẩn
+ * bị DOM không bị nạp ở đó — `import()` động chứ không phải `import` tĩnh, vì
+ * một `import` tĩnh vẫn chạy dù nhánh không vào.
+ *
+ * Đây là lý do file `vitest.setup.dom.ts` tồn tại tách riêng, chứ không phải vì
+ * nó có gì khác biệt.
  */
-configureTestProviders({ resetStore: createStoreReset(useStore) });
 
-/**
- * `window.scrollTo`, which jsdom declares and does not implement.
- *
- * `framer-motion` measures a row's real height before collapsing it to zero —
- * it has to, because `height: auto` cannot be interpolated — and that
- * measurement saves and restores the scroll position through `window.scrollTo`.
- * Left alone, every disappearing row prints a `Not implemented: window.scrollTo`
- * stack, and a suite that is green but noisy is a suite whose next real warning
- * nobody reads.
- *
- * It lives here rather than in one test file because any test that collapses a
- * motion element hits it — `SessionsSection.test.tsx` was only the first.
- */
-window.scrollTo = () => undefined;
+if (typeof window !== 'undefined') {
+  await import('./vitest.setup.dom');
+}
