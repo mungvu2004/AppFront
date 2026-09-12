@@ -397,9 +397,17 @@ export function reflowOpeningsAcrossSplit(
     hostedBy(openings, originalWall).map((opening) => {
       const position = opening.relativePosition;
       const halfSpan = halfSpanShare(opening, wallLengthMm);
+      // Every number on this line is a fraction of the wall, so the tolerance
+      // has to be the dimensionless one. `compareNearly`'s default is a
+      // micrometre *of length*: read as a fraction it is one part in a
+      // thousand, four millimetres of slack on a four metre wall, so an opening
+      // sitting a few millimetres past the cut counted as sitting on it and
+      // went to the wrong piece — and one whose edge grazed the cut was not
+      // reported as straddling it.
       const straddlesCut =
-        compareNearly(cutAt, position - halfSpan) > 0 && compareNearly(cutAt, position + halfSpan) < 0;
-      const onFirstPiece = compareNearly(position, cutAt) <= 0;
+        compareNearly(cutAt, position - halfSpan, RELATIVE_POSITION_EPSILON) > 0 &&
+        compareNearly(cutAt, position + halfSpan, RELATIVE_POSITION_EPSILON) < 0;
+      const onFirstPiece = compareNearly(position, cutAt, RELATIVE_POSITION_EPSILON) <= 0;
       const piece = onFirstPiece ? first : second;
 
       return resolveChange({

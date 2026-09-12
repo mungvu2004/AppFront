@@ -22,7 +22,14 @@ import {
   RULE_SEVERITIES,
   type Rule,
   type RuleRegistry,
+  type Violation,
 } from '../registry';
+import {
+  EMPTY_RULE_CONFIG,
+  resetConfig,
+  setRuleThreshold,
+  type RuleConfig,
+} from '../config';
 import {
   countEntities,
   evaluatedRuleCodes,
@@ -794,5 +801,99 @@ describe('speed', () => {
 
     expect(edited.evaluated).toHaveLength(WALL_DEPENDENT_CODES.length);
     expect(elapsedMs).toBeLessThan(200);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A pass never reuses an answer measured against another threshold.           */
+/* -------------------------------------------------------------------------- */
+
+describe('runRules, when the thresholds move under an unchanged model', () => {
+  /** A bar no wall in the sample clears, so the pass has to find something. */
+  const STRICT_CONFIG: RuleConfig = setRuleThreshold(
+    EMPTY_RULE_CONFIG,
+    'WALL-LENGTH',
+    'wall.minLengthMm',
+    100000,
+  );
+
+  function countOf(violations: readonly Violation[], code: string): number {
+    return violations.filter((violation) => violation.ruleCode === code).length;
+  }
+
+  it('recomputes every task, even when the caller says nothing changed', () => {
+    const graph = normalizeSpatial(SAMPLE_BUILDING);
+    const registry = createDefaultRuleRegistry();
+
+    const asShipped = runRules(graph, { registry });
+    const stricter = runRules(graph, {
+      registry,
+      config: STRICT_CONFIG,
+      previous: asShipped.state,
+      changes: [],
+    });
+
+    expect(countOf(asShipped.violations, 'WALL-LENGTH')).toBe(0);
+    expect(countOf(stricter.violations, 'WALL-LENGTH')).toBe(SAMPLE_WALL_COUNT);
+    expect(stricter.reusedTaskCount).toBe(0);
+  });
+
+  it('gives the same answer as a pass with no previous state at all', () => {
+    const graph = normalizeSpatial(SAMPLE_BUILDING);
+    const registry = createDefaultRuleRegistry();
+
+    const fromScratch = runRules(graph, { registry, config: STRICT_CONFIG });
+    const afterAnEdit = runRules(graph, {
+      registry,
+      config: STRICT_CONFIG,
+      previous: runRules(graph, { registry }).state,
+      changes: [],
+    });
+
+    expect(afterAnEdit.violations).toEqual(fromScratch.violations);
+  });
+
+  it('recomputes again when the thresholds are put back', () => {
+    const graph = normalizeSpatial(SAMPLE_BUILDING);
+    const registry = createDefaultRuleRegistry();
+
+    const stricter = runRules(graph, { registry, config: STRICT_CONFIG });
+    const restored = runRules(graph, {
+      registry,
+      config: resetConfig(),
+      previous: stricter.state,
+      changes: [],
+    });
+
+    expect(countOf(restored.violations, 'WALL-LENGTH')).toBe(0);
+    expect(restored.reusedTaskCount).toBe(0);
+  });
+
+  it('still reuses everything when the config has not moved', () => {
+    const graph = normalizeSpatial(SAMPLE_BUILDING);
+    const registry = createDefaultRuleRegistry();
+
+    const first = runRules(graph, { registry, config: STRICT_CONFIG });
+    const second = runRules(graph, {
+      registry,
+      config: STRICT_CONFIG,
+      previous: first.state,
+      changes: [],
+    });
+
+    expect(second.evaluated).toEqual([]);
+    expect(second.reusedTaskCount).toBe(first.state.violationsByTask.size);
+    expect(second.violations).toEqual(first.violations);
+  });
+
+  it('reuses across passes that are both unconfigured', () => {
+    const graph = normalizeSpatial(SAMPLE_BUILDING);
+    const registry = createDefaultRuleRegistry();
+
+    const first = runRules(graph, { registry });
+    const second = runRules(graph, { registry, previous: first.state, changes: [] });
+
+    expect(second.evaluated).toEqual([]);
+    expect(second.violations).toEqual(first.violations);
   });
 });

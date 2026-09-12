@@ -435,20 +435,37 @@ function isStrictlyAlong(along: number, lengthMm: number): boolean {
   return along > margin && along < 1 - margin;
 }
 
-/** Break one segment at its cuts, in order along the run. */
+/**
+ * Break one segment at its cuts, in order along the run.
+ *
+ * The stops are ordered on the **distance in millimetres** from the start of
+ * the run, not on the fraction along it. `compareNearly`'s tolerance is a
+ * length — one micrometre — and measuring a fraction against it silently
+ * scales the slack by the length of the wall: on a ten metre run, 0,001 of a
+ * fraction is ten millimetres, so two cuts five millimetres apart compared
+ * equal and `sort`, being stable, left them in whatever order the wall list
+ * happened to produce. The same drawing then gave a different number of rooms
+ * depending on the order its walls arrived in, which is exactly what the
+ * promise at the top of this file rules out. In millimetres the tolerance
+ * means what it says, and it is the same micrometre `CUT_MARGIN_MM` already
+ * uses a few lines above.
+ */
 function sliceSegment(segment: WorkingSegment): Piece[] {
   const runX = segment.end.x - segment.start.x;
   const runY = segment.end.y - segment.start.y;
   const lengthSquared = runX * runX + runY * runY;
+  const lengthMm = Math.sqrt(lengthSquared);
 
-  const alongOf = (point: PointMm): number =>
-    ((point.x - segment.start.x) * runX + (point.y - segment.start.y) * runY) / lengthSquared;
+  /** How far along the run a point falls, in millimetres. */
+  const alongMmOf = (point: PointMm): number =>
+    (((point.x - segment.start.x) * runX + (point.y - segment.start.y) * runY) / lengthSquared) *
+    lengthMm;
 
   const stops = [
-    { along: 0, point: segment.start },
-    ...segment.cuts.map((point) => ({ along: alongOf(point), point })),
-    { along: 1, point: segment.end },
-  ].sort((first, second) => compareNearly(first.along, second.along));
+    { alongMm: 0, point: segment.start },
+    ...segment.cuts.map((point) => ({ alongMm: alongMmOf(point), point })),
+    { alongMm: lengthMm, point: segment.end },
+  ].sort((first, second) => compareNearly(first.alongMm, second.alongMm));
 
   const pieces: Piece[] = [];
   for (let index = 1; index < stops.length; index += 1) {

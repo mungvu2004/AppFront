@@ -650,3 +650,141 @@ describe('resolveWallShapes, invariants across every node', () => {
     }
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* A step between two thicknesses, a fraction of a degree off the line.        */
+/* -------------------------------------------------------------------------- */
+
+describe('resolveWallShapes, a step between thicknesses just off the line', () => {
+  /** A wall 8 m long turned by `offsetDeg` from the `x` axis, starting at the node. */
+  function armAt(id: WallId, offsetDeg: number, thicknessMm: Millimetres): Wall {
+    const turn = (offsetDeg * Math.PI) / 180;
+    const lengthMm = 8000;
+
+    return makeWall(id, point(0, 0), point(lengthMm * Math.cos(turn), lengthMm * Math.sin(turn)), {
+      thicknessMm,
+    });
+  }
+
+  /** The widest the outline reaches from the node, on either axis. */
+  function spreadMm(shape: WallShape): number {
+    return Math.max(...shape.outline.map((vertex) => Math.max(Math.abs(vertex.x), Math.abs(vertex.y))));
+  }
+
+  // Below `COLLINEAR_TOLERANCE_DEG` the two faces count as parallel and each
+  // wall keeps a square end. Above it they really do meet and a corner is worth
+  // computing. What must never happen is the third answer: a corner solved from
+  // a sine so near zero that it lands tens of metres off the drawing.
+  const offsets: readonly [string, number][] = [
+    ['0,01°', 0.01],
+    ['0,3°', 0.3],
+    ['0,9°', 0.9],
+    ['2°', 2],
+    ['15°', 15],
+  ];
+
+  it.each(offsets)('keeps both outlines on the drawing at %s off the line', (_name, offsetDeg) => {
+    const walls: readonly Wall[] = [
+      makeWall('W-1', point(-8000, 0), point(0, 0), { thicknessMm: millimetres(300) }),
+      armAt('W-2', offsetDeg, millimetres(100)),
+    ];
+
+    for (const shape of resolveWallShapes(walls).shapes) {
+      // Nothing may reach past the 8 m arms plus their own half thickness.
+      expect(spreadMm(shape)).toBeLessThan(8200);
+    }
+  });
+
+  it('does not turn a 0,3° step into a bow tie spanning tens of metres', () => {
+    const walls: readonly Wall[] = [
+      makeWall('W-1', point(-8000, 0), point(0, 0), { thicknessMm: millimetres(300) }),
+      armAt('W-2', 0.3, millimetres(100)),
+    ];
+
+    const spreads = resolveWallShapes(walls).shapes.map(spreadMm);
+
+    // Before the parallel guard was asked in the same unit as the angle it
+    // guards, both outlines reached ±19 098 mm for an 8 m wall.
+    expect(Math.max(...spreads)).toBeLessThan(9000);
+  });
+
+  it('still solves a real corner well past the collinear tolerance', () => {
+    const walls: readonly Wall[] = [
+      makeWall('W-1', point(-8000, 0), point(0, 0), { thicknessMm: millimetres(100) }),
+      armAt('W-2', 90, millimetres(100)),
+    ];
+
+    const [first, second] = resolveWallShapes(walls).shapes;
+    const keysOf = (shape: WallShape | undefined): Set<string> =>
+      new Set((shape?.outline ?? []).map((vertex) => `${vertex.x.toFixed(3)}:${vertex.y.toFixed(3)}`));
+
+    const shared = [...keysOf(first)].filter((key) => keysOf(second).has(key)).sort();
+
+    // A right angle is nowhere near parallel, so both faces meet at a point and
+    // the two outlines share it. Widening the guard must not swallow that.
+    expect(shared).toEqual(['-50.000:50.000', '50.000:-50.000'].sort());
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A parapet is not a bridge between two storeys.                              */
+/* -------------------------------------------------------------------------- */
+
+describe('resolveJoints, ends that share no common height', () => {
+  const GROUND_WALL = makeWall('W-ground', point(0, 0), point(5000, 0), {
+    baseElevationMm: millimetres(0),
+    topElevationMm: millimetres(3000),
+  });
+
+  /** Sits astride the two storeys: overlaps the one below and the one above. */
+  const PARAPET = makeWall('W-parapet', point(5000, 0), point(5000, 4000), {
+    kind: 'railing',
+    baseElevationMm: millimetres(2900),
+    topElevationMm: millimetres(3900),
+  });
+
+  const UPPER_WALL = makeWall('W-upper', point(5000, 0), point(10000, 0), {
+    baseElevationMm: millimetres(3800),
+    topElevationMm: millimetres(6800),
+  });
+
+  function memberWallIds(walls: readonly Wall[]): string[][] {
+    return resolveJoints(walls).joints.map((joint) =>
+      joint.members.map((member) => member.wallId).sort(),
+    );
+  }
+
+  it('joins nothing when only the two storeys are present', () => {
+    expect(resolveJoints([GROUND_WALL, UPPER_WALL]).joints).toEqual([]);
+  });
+
+  it('does not weld the two storeys together through the parapet', () => {
+    const groups = memberWallIds([GROUND_WALL, PARAPET, UPPER_WALL]);
+
+    for (const group of groups) {
+      expect(group).not.toEqual(['W-ground', 'W-parapet', 'W-upper']);
+      expect(group.includes('W-ground') && group.includes('W-upper')).toBe(false);
+    }
+  });
+
+  it('still joins the parapet to the storey it actually overlaps', () => {
+    expect(memberWallIds([GROUND_WALL, PARAPET, UPPER_WALL])).toEqual([['W-ground', 'W-parapet']]);
+  });
+
+  it('leaves a node of three ends that do all share a height alone', () => {
+    const walls: readonly Wall[] = [
+      GROUND_WALL,
+      makeWall('W-spur', point(5000, 0), point(5000, 4000)),
+      makeWall('W-onward', point(5000, 0), point(10000, 0)),
+    ];
+
+    expect(memberWallIds(walls)).toEqual([['W-ground', 'W-onward', 'W-spur']]);
+  });
+
+  it('does not depend on a wall being drawn before or after its neighbour', () => {
+    const drawn = memberWallIds([GROUND_WALL, PARAPET, UPPER_WALL]);
+    const redrawn = memberWallIds([GROUND_WALL, UPPER_WALL, PARAPET]);
+
+    expect(redrawn).toEqual(drawn);
+  });
+});

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareLengthToMeasured } from '../compare';
+import { RELATIVE_POSITION_EPSILON } from '../../openings/types';
+import {
+  compareLengthToMeasured,
+  compareNearly,
+  DEFAULT_EPSILON,
+  DIMENSIONLESS_EPSILON,
+  isNearlyZero,
+} from '../compare';
 import { SCALE_THRESHOLDS } from '../scale';
 import { millimetres } from '../types';
 
@@ -76,5 +83,30 @@ describe('compareLengthToMeasured', () => {
 
     expect(justBelow.exceedsLimit).toBe(false);
     expect(justAbove.exceedsLimit).toBe(true);
+  });
+});
+
+describe('DIMENSIONLESS_EPSILON', () => {
+  it('is far tighter than the length tolerance it exists to replace', () => {
+    expect(DIMENSIONLESS_EPSILON).toBeLessThan(DEFAULT_EPSILON);
+    // A millimetre of tolerance read as a fraction of a ten metre wall is a
+    // centimetre of slack; this one is under a micrometre on the same wall.
+    expect(DIMENSIONLESS_EPSILON * 10000).toBeLessThan(0.001);
+  });
+
+  it('separates two fractions a few millimetres apart on a long wall', () => {
+    // 5 mm out of 10 m, as a fraction.
+    expect(compareNearly(0.5, 0.5005, DIMENSIONLESS_EPSILON)).toBe(-1);
+    expect(compareNearly(0.5, 0.5005)).toBe(0);
+  });
+
+  it('still swallows the last few ulps of a division', () => {
+    const drifted = 0.1 + 0.2 - 0.3;
+
+    expect(isNearlyZero(drifted, DIMENSIONLESS_EPSILON)).toBe(true);
+  });
+
+  it('is the number `RELATIVE_POSITION_EPSILON` names', () => {
+    expect(RELATIVE_POSITION_EPSILON).toBe(DIMENSIONLESS_EPSILON);
   });
 });
