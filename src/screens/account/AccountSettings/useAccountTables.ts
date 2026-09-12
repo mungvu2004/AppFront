@@ -54,6 +54,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { foldForSearch } from '@/lib/format/fold';
 import { formatNumber } from '@/lib/format/number';
 import {
   buildGlobalShortcuts,
@@ -222,9 +223,6 @@ const ANIMATED_ROW_MOTION: ShortcutRowMotion = Object.freeze({
   transition: Object.freeze({ duration: durationSeconds('standard'), ease: ROW_EASE }),
 });
 
-/** Dấu thanh và dấu mũ tổ hợp, thứ `NFD` tách ra được. */
-const COMBINING_MARKS = /[\u0300-\u036f]/gu;
-
 /**
  * Bảng phím tắt, sinh ra từ I-01.
  *
@@ -249,22 +247,16 @@ export function buildShortcutRows(): readonly ShortcutRowModel[] {
   });
 }
 
-/**
- * Bỏ dấu để ô tìm khớp được cả khi người ta gõ vội.
+/*
+ * Bản `foldForSearch` riêng của file này ĐÃ BỊ GỠ — nay dùng chung
+ * `@/lib/format/fold`.
  *
- * `NFD` tách dấu thanh và dấu mũ ra thành ký tự tổ hợp, xoá được bằng một dải
- * Unicode; `đ` thì không phân tách được nên nó đi riêng một dòng. Không có
- * bước này thì gõ "hoan tac" không tìm ra "hoàn tác", và một ô tìm không tìm
- * ra thứ đang hiện trên màn hình là một ô tìm người ta thôi dùng.
+ * Hai bản cho cùng một kết quả trên tiếng Việt (dải `̀-ͯ` mà bản cũ
+ * dùng nằm trọn trong `\p{Diacritic}`), nên đây là gộp trùng lặp chứ không phải
+ * đổi hành vi. Bốn màn khác cũng cần đúng hàm này; giữ năm bản ở năm chỗ là
+ * cách chắc chắn nhất để một hôm nào đó ô tìm của màn này khớp khác ô tìm của
+ * màn kia.
  */
-function foldForSearch(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(COMBINING_MARKS, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase();
-}
 
 /* -------------------------------------------------------------------------- */
 /* Thu gọn — trạng thái 7.                                                     */

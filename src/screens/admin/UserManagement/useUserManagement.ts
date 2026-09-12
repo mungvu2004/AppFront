@@ -66,7 +66,7 @@ import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutati
 import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { ROUTES } from '@/routes/paths';
-import { foldForSearch } from '@/screens/viewer/Viewer3D/roomSearch';
+import { foldForSearch } from '@/lib/format/fold';
 import type { ProjectRole } from '@/types/project';
 
 import {

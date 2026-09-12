@@ -66,7 +66,7 @@ import {
   FURNITURE_CATEGORY_LABELS,
   type FurnitureCategoryId,
 } from '@/screens/viewer/FurnitureLibraryPanel/furnitureLibraryPanelTypes';
-import { foldForSearch } from '@/screens/viewer/Viewer3D/roomSearch';
+import { foldForSearch } from '@/lib/format/fold';
 
 import { modelLibraryDetailKey, modelLibraryListKey } from './modelLibraryGateway';
 import type {

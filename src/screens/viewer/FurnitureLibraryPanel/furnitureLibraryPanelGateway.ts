@@ -60,7 +60,7 @@ import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { boxAround, type DragLibraryItem } from '@/lib/input/dragDrop';
 import { checkBudget, detectDeviceProfile, SCENE_BUDGET } from '@/lib/three/perf/budget';
-import { foldForSearch } from '@/screens/viewer/Viewer3D';
+import { foldForSearch } from '@/lib/format/fold';
 import { applyRollbackPatches, commit } from '@/store/commit';
 
 import type { FurnitureCategoryId, ReplaceAllPreviewItem } from './furnitureLibraryPanelTypes';
