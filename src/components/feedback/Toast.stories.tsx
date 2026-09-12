@@ -94,7 +94,6 @@ function StoreTrigger() {
        * không hiện gì và trông như hook hỏng.
        */
       lastCommitUndo: () => {
-        // eslint-disable-next-line no-console -- story chỉ cần chứng minh nút có chạy.
         console.info('[story] đã gọi hoàn tác của commit');
       },
     });
