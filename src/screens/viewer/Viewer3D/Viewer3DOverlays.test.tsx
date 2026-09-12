@@ -7,12 +7,21 @@
  * cắm vào, và không phải chỉ "biên dịch được".
  */
 
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '@/lib/testing/render';
 
 import { Viewer3DOverlays, type Viewer3DOverlaysProps } from './Viewer3DOverlays';
+
+/**
+ * Hạn chờ cho hai lớp phủ nạp bằng lazy — xem đầu `Viewer3DOverlays.tsx`.
+ *
+ * Hạn mặc định 1000 ms của `findBy*` không đủ cho lượt `import()` đầu tiên
+ * trong vitest, vốn phải biên dịch cả cây module. Con số này vẫn dưới
+ * `testTimeout` 5000 ms nên lớp phủ hỏng thật vẫn làm bài đỏ.
+ */
+const LAZY_WAIT = { timeout: 4000 } as const;
 
 /** Mã tường hợp lệ theo `domain/spatial/ids.ts`. */
 const WALL_ID = 'W-0000000000A';
@@ -84,21 +93,29 @@ function renderOverlays(overrides: Partial<Viewer3DOverlaysProps> = {}) {
 /* -------------------------------------------------------------------------- */
 
 describe('[VO-1] lớp phủ cộng tác', () => {
+  /*
+   * Hai lớp phủ nạp bằng `lazy` (xem đầu `Viewer3DOverlays.tsx`), nên phép tìm
+   * phải là `findBy*` — bản đồng bộ `getBy*` chạy trước khi chunk kịp về. Đây
+   * là hệ quả của cổng kích thước gói, không phải đổi hành vi: lớp phủ vẫn có
+   * mặt ngay lượt dựng đầu, chỉ là sau một lượt vi mô.
+   */
   it('có mặt ngay lượt dựng đầu, không cần bật gì', async () => {
     renderOverlays();
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: ROSTER_TOGGLE_LABEL })).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByRole('button', { name: ROSTER_TOGGLE_LABEL }, LAZY_WAIT),
+    ).toBeInTheDocument();
   });
 
   it('vẫn có mặt khi chế độ sửa hình học đang bật — hai lớp phủ không loại trừ nhau', async () => {
     renderOverlays({ isWallEditing: true, selectedWallIds: [WALL_ID], wallId: WALL_ID });
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: ROSTER_TOGGLE_LABEL })).toBeInTheDocument();
-    });
-    expect(screen.getByRole('region', { name: WALL_EDITOR_REGION_LABEL })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: ROSTER_TOGGLE_LABEL }, LAZY_WAIT),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole('region', { name: WALL_EDITOR_REGION_LABEL }, LAZY_WAIT),
+    ).toBeInTheDocument();
   });
 });
 
@@ -113,18 +130,18 @@ describe('[VO-2] chế độ sửa hình học tường', () => {
     expect(screen.queryByRole('region', { name: WALL_EDITOR_REGION_LABEL })).toBeNull();
   });
 
-  it('bật chế độ với một bức tường đang chọn thì lớp phủ thật sự hiện ra', () => {
+  it('bật chế độ với một bức tường đang chọn thì lớp phủ thật sự hiện ra', async () => {
     renderOverlays({ isWallEditing: true, selectedWallIds: [WALL_ID], wallId: WALL_ID });
 
     expect(
-      screen.getByRole('region', { name: WALL_EDITOR_REGION_LABEL }),
+      await screen.findByRole('region', { name: WALL_EDITOR_REGION_LABEL }, LAZY_WAIT),
     ).toBeInTheDocument();
   });
 
-  it('bật chế độ mà chưa chọn tường nào thì lớp phủ nói ra, không để trắng (A11)', () => {
+  it('bật chế độ mà chưa chọn tường nào thì lớp phủ nói ra, không để trắng (A11)', async () => {
     renderOverlays({ isWallEditing: true });
 
-    const region = screen.getByRole('region', { name: WALL_EDITOR_REGION_LABEL });
+    const region = await screen.findByRole('region', { name: WALL_EDITOR_REGION_LABEL }, LAZY_WAIT);
     expect(region).toBeInTheDocument();
     expect(region.textContent?.length ?? 0).toBeGreaterThan(0);
   });

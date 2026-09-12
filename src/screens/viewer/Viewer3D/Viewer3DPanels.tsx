@@ -37,12 +37,46 @@
  * phía sau không bao giờ bị một bảng đã đóng nuốt mất.
  */
 
+import { lazy, Suspense, type ReactNode } from 'react';
+
+import { Skeleton } from '@/components/feedback/Skeleton';
 import { useShortcut } from '@/hooks/useShortcut';
 import { cn } from '@/lib/utils';
-import { FurnitureLibraryPanelContainer } from '@/screens/viewer/FurnitureLibraryPanel';
-import { HistoryPanelContainer } from '@/screens/viewer/HistoryPanel';
-import { PropertyInspectorContainer } from '@/screens/viewer/PropertyInspector';
-import { RoomAreaPanelContainer } from '@/screens/viewer/RoomAreaPanel';
+
+/**
+ * Bốn panel nạp theo nhu cầu, không nhập tĩnh.
+ *
+ * Cả bốn đã được dựng CÓ ĐIỀU KIỆN ở dưới — panel chỉ hiện khi người dùng mở
+ * nó, và phần thanh tra chỉ hiện khi có đối tượng được chọn. Nhập tĩnh thì
+ * người mở trình xem 3D phải tải cả bốn ngay, kể cả khi không bao giờ bấm vào
+ * thư viện đồ đạc: đo được **375,8 KiB trên ngân sách 280 KiB** của chunk màn,
+ * tức vượt 95,8. Nạp động đưa mỗi panel về đúng lúc nó được mở.
+ *
+ * Cách xử này là cách cổng kích thước gói yêu cầu — tách chunk, không nới số.
+ */
+const FurnitureLibraryPanelContainer = lazy(async () => ({
+  default: (await import('@/screens/viewer/FurnitureLibraryPanel')).FurnitureLibraryPanelContainer,
+}));
+const HistoryPanelContainer = lazy(async () => ({
+  default: (await import('@/screens/viewer/HistoryPanel')).HistoryPanelContainer,
+}));
+const PropertyInspectorContainer = lazy(async () => ({
+  default: (await import('@/screens/viewer/PropertyInspector')).PropertyInspectorContainer,
+}));
+const RoomAreaPanelContainer = lazy(async () => ({
+  default: (await import('@/screens/viewer/RoomAreaPanel')).RoomAreaPanelContainer,
+}));
+
+/**
+ * Vỏ chờ dùng chung cho bốn panel nạp động.
+ *
+ * Một `Skeleton` chứ không phải khoảng trắng: A11 nói màn trắng là thất bại duy
+ * nhất nó tồn tại để chặn, và một ô trống trong lúc chunk đang tải cũng là một
+ * màn trắng thu nhỏ.
+ */
+function LazyPanel({ children }: { readonly children: ReactNode }) {
+  return <Suspense fallback={<Skeleton preset="property-panel" />}>{children}</Suspense>;
+}
 
 /** Ba bảng phụ bật/tắt được. `null` là không bảng nào đang mở. */
 export type Viewer3DPanelId = 'rooms' | 'furniture' | 'history';
@@ -173,13 +207,15 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
           aria-label={VIEWER_3D_INSPECTOR_LABEL}
           className="min-h-0 max-h-[320px] overflow-y-auto"
         >
-          <PropertyInspectorContainer
-            onDismiss={props.onDismissInspector}
-            onNavigateToObject={props.onNavigateToObject}
-            onOpenRuleScreen={props.onOpenRuleScreen}
-            selectedEntityId={props.selectedEntityId}
-            selectedEntityIds={props.selectedEntityIds}
-          />
+          <LazyPanel>
+            <PropertyInspectorContainer
+              onDismiss={props.onDismissInspector}
+              onNavigateToObject={props.onNavigateToObject}
+              onOpenRuleScreen={props.onOpenRuleScreen}
+              selectedEntityId={props.selectedEntityId}
+              selectedEntityIds={props.selectedEntityIds}
+            />
+          </LazyPanel>
         </section>
       )}
 
@@ -217,26 +253,32 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
 
       {openPanelId === 'rooms' && (
         <div className="min-h-0 max-h-[360px] overflow-y-auto" id="viewer-3d-panel-rooms">
-          <RoomAreaPanelContainer
-            onCheckWallGaps={props.onCheckWallGaps}
-            onOpenExport={props.onOpenExport}
-            projectId={props.projectId}
-          />
+          <LazyPanel>
+            <RoomAreaPanelContainer
+              onCheckWallGaps={props.onCheckWallGaps}
+              onOpenExport={props.onOpenExport}
+              projectId={props.projectId}
+            />
+          </LazyPanel>
         </div>
       )}
 
       {openPanelId === 'furniture' && props.floorId !== null && (
         <div className="min-h-0 max-h-[360px] overflow-y-auto" id="viewer-3d-panel-furniture">
-          <FurnitureLibraryPanelContainer
-            floorId={props.floorId}
-            onModelDropped={props.onModelDropped}
-          />
+          <LazyPanel>
+            <FurnitureLibraryPanelContainer
+              floorId={props.floorId}
+              onModelDropped={props.onModelDropped}
+            />
+          </LazyPanel>
         </div>
       )}
 
       {openPanelId === 'history' && (
         <div className="min-h-0 max-h-[360px] overflow-y-auto" id="viewer-3d-panel-history">
-          <HistoryPanelContainer layout="panel" />
+          <LazyPanel>
+            <HistoryPanelContainer layout="panel" />
+          </LazyPanel>
         </div>
       )}
     </div>

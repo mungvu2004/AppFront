@@ -47,8 +47,26 @@
  * thứ E.10 cấm.
  */
 
-import { CollaborationLayerContainer } from '@/screens/system/CollaborationLayer';
-import { WallGeometryEditorContainer } from '@/screens/viewer/WallGeometryEditor';
+import { lazy, Suspense } from 'react';
+
+/**
+ * Hai lớp phủ nạp theo nhu cầu, không nhập tĩnh.
+ *
+ * Nhập tĩnh sáu panel và lớp phủ đẩy chunk của màn `viewer/Viewer3D` lên
+ * **375,8 KiB trên ngân sách 280 KiB**. Cổng kích thước gói đòi tách chunk chứ
+ * không nới số, nên cả hai xuống `lazy`.
+ *
+ * `WallGeometryEditor` chỉ dựng khi đang ở chế độ sửa hình học, nên nó gần như
+ * miễn phí. `CollaborationLayer` thì dựng luôn — nạp động ở đây đổi một lượt
+ * tải phụ lấy việc nó rời khỏi bao đóng tĩnh của màn; lớp phủ cộng tác không
+ * phải thứ người dùng chờ ở khung hình đầu tiên.
+ */
+const CollaborationLayerContainer = lazy(async () => ({
+  default: (await import('@/screens/system/CollaborationLayer')).CollaborationLayerContainer,
+}));
+const WallGeometryEditorContainer = lazy(async () => ({
+  default: (await import('@/screens/viewer/WallGeometryEditor')).WallGeometryEditorContainer,
+}));
 
 export interface Viewer3DOverlaysProps {
   /** Chế độ sửa hình học tường đang bật. `false` ⇒ lớp phủ ấy không được dựng. */
@@ -66,16 +84,22 @@ export interface Viewer3DOverlaysProps {
 export function Viewer3DOverlays(props: Viewer3DOverlaysProps) {
   return (
     <>
-      <CollaborationLayerContainer />
+      {/* Không có phần dự phòng nhìn thấy được: lớp phủ vắng mặt trong lúc chunk
+          đang tải là đúng, một khung xương lơ lửng trên khung nhìn 3D thì không. */}
+      <Suspense fallback={null}>
+        <CollaborationLayerContainer />
+      </Suspense>
 
       {props.isWallEditing && (
-        <WallGeometryEditorContainer
-          isCollapsed={false}
-          isSectionOrthographic={props.isSectionOrthographic}
-          onExitEditMode={props.onExitWallEditMode}
-          selectedWallIds={props.selectedWallIds}
-          wallId={props.wallId}
-        />
+        <Suspense fallback={null}>
+          <WallGeometryEditorContainer
+            isCollapsed={false}
+            isSectionOrthographic={props.isSectionOrthographic}
+            onExitEditMode={props.onExitWallEditMode}
+            selectedWallIds={props.selectedWallIds}
+            wallId={props.wallId}
+          />
+        </Suspense>
       )}
     </>
   );

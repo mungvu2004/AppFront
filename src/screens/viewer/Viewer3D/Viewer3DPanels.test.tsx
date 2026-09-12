@@ -79,6 +79,20 @@ afterEach(() => {
 });
 
 /** Một mã tường hợp lệ theo `domain/spatial/ids.ts` — tiền tố `W`, thân base36. */
+/**
+ * Hạn chờ cho các panel nạp bằng `lazy` (xem đầu `Viewer3DPanels.tsx`).
+ *
+ * Hạn mặc định của `waitFor` là 1000 ms, và lượt `import()` ĐẦU TIÊN của một
+ * panel trong vitest phải biên dịch cả cây module nên thường vượt mốc đó — bài
+ * đầu tiên đo được 1043 ms. Đây là chi phí của lần nạp đầu trong môi trường
+ * test, không phải dấu hiệu panel chậm: sau khi chunk đã nằm trong bộ nhớ đệm
+ * của vitest, mọi lượt sau về gần như tức thì.
+ *
+ * Con số nằm dưới `testTimeout` 5000 ms của vitest, nên một panel thật sự hỏng
+ * vẫn làm bài kiểm đỏ chứ không treo.
+ */
+const LAZY_WAIT = { timeout: 4000 } as const;
+
 const WALL_ID = 'W-0000000000A';
 /** Một mã tầng hợp lệ; thư viện đồ đạc lọc "Đã phát hiện" theo tầng. */
 const FLOOR_ID = 'L-0000000000A';
@@ -146,7 +160,7 @@ describe('[VP-1] panel thanh tra thuộc tính', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Thanh tra đối tượng' })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
   });
 });
 
@@ -162,7 +176,7 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: /diện tích phòng/i })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
   });
 
   it('bấm "Thư viện đồ đạc" thì thư viện nội thất hiện ra', async () => {
@@ -172,7 +186,7 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Thư viện nội thất' })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
   });
 
   it('bấm "Lịch sử thao tác" thì bảng lịch sử chỉnh sửa hiện ra', async () => {
@@ -182,7 +196,7 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
   });
 
   it('mở bảng thứ hai thì bảng thứ nhất đóng lại — cột 344 chỉ chứa nổi một bảng', async () => {
@@ -191,13 +205,13 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
     fireEvent.click(screen.getByRole('button', { name: VIEWER_3D_ROOMS_PANEL_LABEL }));
     await waitFor(() => {
       expect(screen.getByRole('region', { name: /diện tích phòng/i })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
 
     fireEvent.click(screen.getByRole('button', { name: VIEWER_3D_HISTORY_PANEL_LABEL }));
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
     expect(screen.queryByRole('region', { name: /diện tích phòng/i })).toBeNull();
   });
 
@@ -221,14 +235,14 @@ describe('[VP-3] A12 — Esc đóng lớp trên cùng', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeInTheDocument();
-    });
+    }, LAZY_WAIT);
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(onTogglePanel).toHaveBeenCalledWith(null);
     await waitFor(() => {
       expect(screen.queryByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeNull();
-    });
+    }, LAZY_WAIT);
   });
 
   it('không bảng nào mở thì Esc KHÔNG bị cột panel nuốt mất', () => {
