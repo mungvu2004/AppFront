@@ -264,7 +264,7 @@ export const FORBIDDEN_PERMISSION_CAPTION = 'Chỉ chủ dự án hoặc thành 
  * 10. Hành động không làm gì — mỗi test tự ghi đè bằng `vi.fn()` khi cần.
  * ========================================================================== */
 
-/** Bảy hành động view phát ra, tách riêng khỏi phần dữ liệu của props. */
+/** Các hành động view phát ra, tách riêng khỏi phần dữ liệu của props. */
 export type ExportPanelActionHandlers = Pick<
   ExportPanelProps,
   | 'onSelectFormat'
@@ -276,6 +276,7 @@ export type ExportPanelActionHandlers = Pick<
   | 'onRetry'
   | 'onDownload'
   | 'onFollowFix'
+  | 'onShare'
 >;
 
 export const NOOP_EXPORT_PANEL_ACTIONS: ExportPanelActionHandlers = {
@@ -288,6 +289,7 @@ export const NOOP_EXPORT_PANEL_ACTIONS: ExportPanelActionHandlers = {
   onRetry: () => undefined,
   onDownload: () => undefined,
   onFollowFix: () => undefined,
+  onShare: () => undefined,
 };
 
 /* ==========================================================================
