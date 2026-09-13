@@ -66,13 +66,16 @@
  * those two modules already export.
  */
 
-import { Vector3 } from 'three';
-
-import { RADIANS_PER_TURN, metres, metresToMillimetres, millimetres } from '@/domain/units/types';
+import {
+  RADIANS_PER_TURN,
+  metres,
+  metresToMillimetres,
+  millimetres,
+  millimetresToMetres,
+} from '@/domain/units/types';
 import type { ColoringModeId } from '@/lib/coloring/modes';
 import type { LevelId } from '@/domain/spatial/types';
 
-import { toSceneLength } from '../build/scene';
 import type { CameraMode, Viewpoint } from './modes';
 
 /* -------------------------------------------------------------------------- */
@@ -80,13 +83,53 @@ import type { CameraMode, Viewpoint } from './modes';
 /* -------------------------------------------------------------------------- */
 
 /**
+ * The point a shared viewpoint looks at, in metres — three plain numbers.
+ *
+ * `Viewpoint.target` is a `THREE.Vector3`, and that is right for it: the camera
+ * modes and presets that consume a live viewpoint do real vector work on it
+ * (`clone`, `distanceTo`, `copy`). This type is the one place that differs,
+ * because a viewpoint which has been through a URL is not live — it is data.
+ *
+ * A `Vector3` still satisfies this shape, so `encodeViewpoint(controller.viewpoint())`
+ * needs no adapter. What changes is the other direction: this module no longer
+ * CONSTRUCTS a `Vector3`, and a caller that wants to fly the camera to a decoded
+ * viewpoint lifts it — which is the engine's job, and the engine has `three`
+ * loaded already.
+ *
+ * The 139 KiB this is worth, measured on `master @ bcd0c76`: constructing a
+ * `Vector3` here put the whole engine inside the static closure of
+ * `export/ExportPanel` (273,2 KiB against a 280 budget) and of
+ * `project/ShareRoute` (206,3) — neither of which renders anything in 3D.
+ * `useShareDialog.ts:13` had already written down the intent this restores:
+ * the embed preview is "TĨNH, không nạp three".
+ */
+export interface SharedTargetPoint {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+/**
  * A camera, plus the three things about the screen a colleague has to arrive in.
  *
- * Extends {@link Viewpoint} rather than repeating it, so a caller hands one
- * straight from `controller.viewpoint()` and gets one back that
- * `createCameraMode` accepts.
+ * Derived from {@link Viewpoint} rather than repeating it, so a caller hands one
+ * straight from `controller.viewpoint()` — a `Vector3` target satisfies
+ * {@link SharedTargetPoint}, so that direction needs no adapter.
+ *
+ * The return direction is NOT symmetric, and that is deliberate: what comes back
+ * out of a link carries a plain {@link SharedTargetPoint}, so `createCameraMode`
+ * takes it only after the engine lifts the target into a `Vector3`. Before, this
+ * module did that lift itself, and the price was the whole engine in the static
+ * closure of every screen that can make a link.
  */
-export interface SharedViewpoint extends Viewpoint {
+export interface SharedViewpoint extends Omit<Viewpoint, 'target'> {
+  /**
+   * The point being looked at, in metres.
+   *
+   * Restated from {@link Viewpoint} — the ONE field that differs — so this
+   * module never has to construct an engine object. See {@link SharedTargetPoint}.
+   */
+  readonly target: SharedTargetPoint;
   /** Which way of looking the sender was using. */
   readonly mode: CameraMode;
   /** The storey being reviewed. */
@@ -376,7 +419,7 @@ function lengthToMm(valueM: number, field: string): number {
 }
 
 function mmToLength(valueMm: number): number {
-  return toSceneLength(millimetres(valueMm));
+  return millimetresToMetres(millimetres(valueMm));
 }
 
 /** A heading folded into one turn and put on the 16-bit grid. */
@@ -427,7 +470,11 @@ export function quantiseViewpoint(shared: SharedViewpoint): SharedViewpoint {
   }
 
   return {
-    target: new Vector3(mmToLength(xMm), mmToLength(yMm), mmToLength(zMm)),
+    target: {
+      x: mmToLength(xMm),
+      y: mmToLength(yMm),
+      z: mmToLength(zMm),
+    },
     azimuthRad: codeToAzimuth(azimuthToCode(shared.azimuthRad)),
     polarRad: codeToPolar(polarToCode(shared.polarRad)),
     distanceM: mmToLength(distanceMm),
@@ -581,11 +628,11 @@ export function decodeViewpoint(code: unknown): ViewpointDecodeResult {
   return {
     ok: true,
     viewpoint: {
-      target: new Vector3(
-        mmToLength(readInt32(bytes, 1)),
-        mmToLength(readInt32(bytes, 5)),
-        mmToLength(readInt32(bytes, 9)),
-      ),
+      target: {
+        x: mmToLength(readInt32(bytes, 1)),
+        y: mmToLength(readInt32(bytes, 5)),
+        z: mmToLength(readInt32(bytes, 9)),
+      },
       azimuthRad: codeToAzimuth(readUint16(bytes, 17)),
       polarRad: codeToPolar(readUint16(bytes, 19)),
       distanceM: mmToLength(readUint32(bytes, 13)),
