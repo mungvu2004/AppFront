@@ -553,29 +553,49 @@ Ngưỡng bước 7 (`scripts/check-file-length.mjs`, đơn vị **dòng có n�
 
 ## 6b. ĐÃ LÀM TRONG LƯỢT NÀY
 
-Báo cáo này là giai đoạn 1 của một kế hoạch bốn giai đoạn. Ba giai đoạn còn lại đã chạy;
-dưới đây là kết quả, mỗi dòng một commit.
+Báo cáo này là giai đoạn 1 của một kế hoạch bốn giai đoạn. Ba giai đoạn còn lại đã chạy —
+bốn việc cuối chạy **song song** bằng bốn worker Orca, mỗi worker sở hữu một tập file rời
+nhau. Dưới đây là kết quả.
 
 | Độ lệch | Đã làm | Bằng chứng |
 |---|---|---|
-| **Đ1** | `src/api/schemas/spatial.ts` — zod cho bốn thực thể của `SpatialLayer`, nối vào `spatial.writeLayer`. Kèm ba phép kiểm không suy ra được từ kiểu: A5 (`{source:'ai', reviewed:true}` bị từ chối), đoạn thẳng phải có chiều dài, hộp bao phải đúng chiều | 24 bài kiểm mới; chốt chặn chống trôi đã chứng minh: bỏ `thicknessMm` khỏi schema → `pnpm typecheck` đỏ ngay tại dòng khai báo |
-| **Đ2** | Khối chú thích ở đầu `src/types/spatial.ts` nói rõ nó là hình dạng của hợp đồng nghiên cứu, kèm bảng lệch từng trường. Adapter **cố ý chưa viết** — xem khung ở mục 6 | `grep -rn "types/spatial" src` — chỉ `WallThickness` có 9 nơi dùng, phần còn lại có đúng 1 |
-| **Đ3** | **Cả hai màn đã dựng.** S-36 `SpatialJsonViewer` (route `/projects/:projectId/data`) và S-45 `ConnectionStates` (không route, đúng bảng 0.8) | 38 + 35 bài kiểm; đủ sáu file R-59; bảy story mỗi màn; khối lệnh kiểm R-59..R-73 sạch |
-| **Đ5** | `:id` → `:projectId` trên toàn cây route; năm route cũ không có ngữ cảnh dự án đã xoá | worker `g4-routes` |
-| **Đ8** | Ghi nhận, không thêm token chết (Q4). S-36 dùng ba tông đo được thay cho `--data-dimension` | bảng tương phản trong `SpatialJsonViewer/types.ts` |
+| **Đ1** | `src/api/schemas/spatial.ts` — zod cho bốn thực thể của `SpatialLayer`, nối vào `spatial.writeLayer`. Ba phép kiểm không suy ra được từ kiểu: A5 (`{source:'ai', reviewed:true}` bị từ chối), đoạn thẳng phải có chiều dài, hộp bao phải đúng chiều | 24 bài kiểm mới; chốt chặn chống trôi đã chứng minh cắn: bỏ `thicknessMm` khỏi schema → typecheck đỏ ngay tại dòng khai báo |
+| **Đ2** | Khối chú thích đầu `src/types/spatial.ts`, kèm bảng lệch từng trường. Adapter **cố ý chưa viết** — xem khung ở mục 6 | `grep -rn "types/spatial" src`: `WallThickness` 9 nơi dùng, phần còn lại đúng 1 |
+| **Đ3** | **Cả hai màn đã dựng.** S-36 `SpatialJsonViewer` (route `/projects/:projectId/data`) và S-45 `ConnectionStates` (không route, đúng bảng 0.8) | 38 + 35 bài kiểm; đủ sáu file R-59; khối lệnh kiểm R-59..R-73 sạch |
+| **Đ4** | Route `/share` **xoá hẳn**, `project/ShareScreen/` và `ShareRoute.tsx` xoá theo | đề xuất ban đầu ("trỏ `/share` sang ShareDialog") **sai**: bảng 0.8 ghi S-35 là "không route". `ExportPanel` đã mở `ShareDialogContainer` thật, có bài kiểm tích hợp |
+| **Đ5** | `:id` → `:projectId` trên toàn cây route; **năm** route cũ không có ngữ cảnh dự án đã xoá cùng `Placeholder` và `RouteCanvas` | worker `g4-routes`: 28 file, `rg ":id" src/routes/paths.ts` rỗng, `rg "useParams<\{ *id" src` rỗng |
+| **Đ6** | **Chưa quyết** — S-47 vẫn chỉ có ở bản dev. Đây là quyết định sản phẩm, không phải việc kỹ thuật | — |
+| **Đ7** | `overlay/Popover` đã dựng (229 dòng, 7 story, 8 bài kiểm); `CommentThread.tsx` chuyển sang dùng nó và ghi chú "Popover không tồn tại" đã xoá. Sáu component `viewer/*` ghi nợ theo Q3 | kiểm độc lập: 0 `framer-motion`, 0 màu thô trong `Popover.tsx` |
+| **Đ8** | Ghi nhận, không thêm token chết (Q4). S-36 dùng ba tông **đo được** thay cho `--data-dimension` | bảng tương phản trong `SpatialJsonViewer/types.ts` |
+| **Đ9** | Giữ nhánh phẳng (Q2); hai màn mới theo đúng quy ước đang chạy | `vi.json` 52 nhánh cấp một |
 | **Đ10, Đ11** | `CLAUDE.md` mục B và A14 sửa theo số đo; `docs/dinh-chinh-v2.3.md` đính chính mười một mục của v2.3 | worker `g4-docs` |
-| **Đ12** | Manifest `StateGallery` chưa sửa — nó phải đợi hai màn mới có story, và đó là việc tiếp theo | — |
-| **D7** (`BAO_CAO_DO_LECH.md`) | Gỡ `@react-three/fiber`, `@react-three/drei`, `react-hook-form`, `d3-zoom`, `@types/d3-zoom` | kiểm độc lập: cả bốn gói ra **0 nơi dùng** trong `src`, `e2e`, `.storybook`, `scripts`, và bốn file cấu hình |
+| **Đ12** | Manifest `StateGallery` nay **khớp đúng 48 thư mục màn thật** — bộ 47 của đặc tả cộng `viewer/ViewerShell`. Kiểm hai chiều: manifest-only rỗng, thư-mục-only rỗng | 336 ô trạng thái, từng tên story đã đối chiếu với file `.stories.tsx` thật — 0 tên khai khống |
+| **D7** (`BAO_CAO_DO_LECH.md`) | Gỡ `@react-three/fiber`, `@react-three/drei`, `react-hook-form`, `d3-zoom`, `@types/d3-zoom` | kiểm độc lập: cả bốn ra **0 nơi dùng** |
 
-### Một phát hiện của chính lượt gộp
+### Bốn điều lượt này học được, và chúng đều là lỗi tự bắt
 
-Worker `g4-routes` quét `useParams` **trước khi** S-36 kịp vào tầm nhìn của nó, nên nó bỏ sót
-đúng một file: `SpatialJsonViewer.container.tsx` vẫn đọc `useParams<{ id }>` trong khi
-`paths.ts` đã khai `:projectId`. Hậu quả nếu gộp thẳng: route mở ra một màn nói "không xác
-định được dự án", và không bài kiểm nào của worker bắt được vì nó không chạy bài kiểm của
-màn ấy.
+**1. Một lỗi mà không cổng nào bắt được.** Worker `g4-routes` đổi tên lỗ route sang
+`:projectId` nhưng spec cấm nó chạm thư mục của S-36, nên nó **báo lại thay vì làm liều**.
+`SpatialJsonViewer.container.tsx` vẫn đọc `useParams<{ id }>`; typecheck, lint và mọi bài
+kiểm **vẫn xanh**, vì `useParams` là generic tự do không ràng buộc với `ROUTE_PATTERNS`. Lỗi
+chỉ lộ lúc chạy, dưới dạng một màn nói "thiếu mã dự án" ở mọi lượt mở.
 
-Đây là lý do lời worker nói phải được kiểm lại bằng diff, không phải bằng bảng số nó tự in.
+**2. Worker dừng đúng lúc còn quý hơn worker làm xong.** Cùng worker ấy **dừng** việc C với
+lý do đúng: lúc nó kiểm, manifest vẫn khai `ShareScreen` là một trong 47 màn, nên xoá thư mục
+mà giữ dòng manifest sẽ cho ra "xanh mà sai" — và xoá dòng manifest thì R-70 cấm nó sửa test.
+Nó hỏi, rồi dừng. Rào cản ấy biến mất khi Đ12 xong, và việc C làm được ngay sau đó.
+
+**3. Một regex tham lam xoá 19 mục thay vì 1.** Lần xoá `ShareScreen` khỏi manifest đầu tiên
+dùng `(?:[^
+]*
+)*?` để dò khối; nó bắt từ một đầu khối sớm hơn nhiều và nuốt 19 mục,
+làm `export/SpatialJsonViewer` biến mất. **Bài kiểm vừa thêm ở commit ngay trước đó đỏ ngay** —
+đúng lớp lỗi nó sinh ra để bắt. Làm lại bằng cách dò biên khối theo mức thụt lề, có khẳng
+định "khối chỉ chứa đúng một `id:`".
+
+**4. Câu hỏi của worker có hạn 900 giây.** Worker `g4-routes` hỏi qua `ask` và hết hạn không
+có trả lời vì tôi dò hộp thư quá thưa. Nó xử lý đúng — settle với báo cáo đầy đủ và một
+escalation riêng — nhưng lần sau điều phối viên phải dò hộp thư theo nhịp, không theo cảm tính.
 
 ---
 
