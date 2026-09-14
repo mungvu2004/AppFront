@@ -201,7 +201,15 @@ export function SpatialJsonViewerContainer(props: SpatialJsonViewerContainerProp
 
 /** Route thật, đăng ký tại `src/routes/router.tsx`. */
 export function SpatialJsonViewerRoute() {
-  const { id } = useParams<{ id: string }>();
+  /*
+   * Tên lỗ route là `:projectId`, không phải `:id`.
+   *
+   * Đây là chỗ mà không một cổng kiểm nào bắt được: `useParams` không ràng buộc
+   * kiểu với `ROUTE_PATTERNS`, nên đọc nhầm tên tham số vẫn qua typecheck, qua
+   * lint và qua mọi bài kiểm — rồi hiện ra lúc chạy dưới dạng một màn nói "thiếu
+   * mã dự án" ở mọi lượt mở.
+   */
+  const { projectId: id } = useParams<{ projectId: string }>();
 
   if (id === undefined || id.length === 0) {
     return (
