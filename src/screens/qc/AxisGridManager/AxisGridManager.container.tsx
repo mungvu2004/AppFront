@@ -228,7 +228,7 @@ function AxisGridManagerRouteBody({
 
 /** Route thật của màn Trục và gốc toạ độ, đăng ký tại `src/routes/router.tsx`. */
 export function AxisGridManagerRoute() {
-  const { floorId, id } = useParams<{ floorId: string; id: string }>();
+  const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {

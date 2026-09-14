@@ -272,7 +272,7 @@ function WallLayerReviewRouteBody({
 
 /** Route thật của màn Duyệt lớp tường, đăng ký tại `src/routes/router.tsx`. */
 export function WallLayerReviewRoute() {
-  const { floorId, id } = useParams<{ floorId: string; id: string }>();
+  const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {

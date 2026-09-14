@@ -135,7 +135,7 @@ function InputQualityGateRouteBody({
 
 /** Route thật của màn kiểm tra chất lượng, đăng ký tại `src/routes/router.tsx`. */
 export function InputQualityGateRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {

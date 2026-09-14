@@ -21,7 +21,7 @@ import { SHARE_GATEWAY_UNAVAILABLE, useShareLinkGateway } from '@/hooks/useShare
 import { ShareScreen } from './ShareScreen';
 
 export function ShareRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
   const gateway = useShareLinkGateway();
 

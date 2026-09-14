@@ -409,7 +409,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
  * xem (A11).
  */
 export function Viewer3DRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {

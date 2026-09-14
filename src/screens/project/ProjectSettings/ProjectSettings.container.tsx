@@ -115,7 +115,7 @@ function ProjectSettingsRouteBody({ projectId, roles }: { projectId: string; rol
 
 /** Route thật của màn cài đặt, đăng ký tại `src/routes/router.tsx`. */
 export function ProjectSettingsRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {
