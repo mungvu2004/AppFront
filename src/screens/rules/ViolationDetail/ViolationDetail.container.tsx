@@ -128,8 +128,8 @@ function WiredViolationDetail(props: WiredViolationDetailProps) {
  * dùng vẫn nhìn thấy bản vẽ.
  */
 export function ViolationDetailContainer(props: ViolationDetailContainerProps) {
-  const params = useParams<{ id: string }>();
-  const projectId = props.projectId ?? params.id;
+  const params = useParams<{ projectId: string }>();
+  const projectId = props.projectId ?? params.projectId;
   const opened = props.violations[props.initialIndex];
 
   if (projectId === undefined || projectId.length === 0) {

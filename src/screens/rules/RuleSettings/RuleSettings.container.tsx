@@ -104,8 +104,8 @@ function WiredRuleSettings(props: WiredRuleSettingsProps) {
  * `<RuleSettingsContainer projectId={...} />` khi một màn khác nhúng nó.
  */
 export function RuleSettingsContainer(props: RuleSettingsContainerProps) {
-  const params = useParams<{ id: string }>();
-  const projectId = props.projectId ?? params.id;
+  const params = useParams<{ projectId: string }>();
+  const projectId = props.projectId ?? params.projectId;
 
   if (projectId === undefined || projectId.length === 0) {
     return (

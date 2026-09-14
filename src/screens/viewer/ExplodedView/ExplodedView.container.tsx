@@ -182,7 +182,7 @@ export function ExplodedViewContainer(props: ExplodedViewContainerProps) {
  * một prop bắt buộc" ở trên.
  */
 export function ExplodedViewRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
 
   if (id === undefined || id.length === 0) {
     return (

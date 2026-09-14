@@ -159,7 +159,7 @@ export function ViewerShellContainer(props: ViewerShellContainerProps) {
  * không có gì để xem (A11).
  */
 export function ViewerShellRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {

@@ -137,7 +137,7 @@ export function OverlayComparisonContainer(props: OverlayComparisonContainerProp
  * không phải một prop bắt buộc" ở trên. Route chỉ bắc hai tham số đường dẫn.
  */
 export function OverlayComparisonRoute() {
-  const { floorId, id } = useParams<{ floorId: string; id: string }>();
+  const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (

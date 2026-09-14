@@ -112,7 +112,7 @@ export function PipelineGraphContainer(props: PipelineGraphContainerProps) {
 
 /** Route thật của màn Sơ đồ xử lý, đăng ký tại `src/routes/router.tsx`. */
 export function PipelineGraphRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {

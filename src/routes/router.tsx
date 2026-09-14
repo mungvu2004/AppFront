@@ -1,8 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- file này xuất `router`,
  * tức bảng route, nên fast refresh không có gì để làm mới ở đây dù trong file có
- * định nghĩa `Placeholder` và `UndoShortcuts`. `UndoShortcuts` được xuất có chủ
- * đích: xem docblock của nó — một binding không test được là một binding không ai
- * chứng minh được. */
+ * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
+ * của nó — một binding không test được là một binding không ai chứng minh được. */
 import React, { lazy, useCallback, useState } from 'react';
 import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom';
 
@@ -17,17 +16,13 @@ import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
 
-// Placeholder components
-const Placeholder = ({ name }: { name: string }) => <div>{name}</div>;
-
 /** Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu. */
 const suspended = (node: React.ReactNode) => (
   <React.Suspense fallback={<div>Loading...</div>}>{node}</React.Suspense>
 );
 
-// Lazy load 3D and canvas routes
+// Lazy load screen routes
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
-const RouteCanvas = lazy(() => Promise.resolve({ default: () => <Placeholder name="Canvas" /> }));
 const RouteShare = lazy(() => import('../screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
@@ -330,11 +325,6 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
       { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
       { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
-      { path: ROUTE_PATTERNS.layerObjects, element: <RouteCanvas /> },
-      { path: ROUTE_PATTERNS.layerDimensions, element: <RouteCanvas /> },
-      { path: ROUTE_PATTERNS.layerGrids, element: suspended(<RouteAxisGridManager />) },
-      { path: ROUTE_PATTERNS.floors, element: <RouteCanvas /> },
-      { path: ROUTE_PATTERNS.layerRooms, element: suspended(<RouteRoomLabelReview />) },
       { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
       { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
       { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
@@ -349,7 +339,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
       { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
       { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
-      // Màn di động: route MỚI, không thay chỗ một `<Placeholder>` nào (R-66).
+      // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspended(<RouteMobileViewer />) },
       ...STATE_GALLERY_DEV_ONLY_ROUTES,
       { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
