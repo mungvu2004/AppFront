@@ -91,16 +91,21 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
 | A10 | Ghi vào store qua `commit(patch, label)`, không gọi `set()` | `project.js:65`, `lib/tools/toolMachine.ts:37` |
 | A11 | **Bảy trạng thái màn hình.** Màn trắng là thất bại duy nhất mà A11 tồn tại để chặn | `useShareLinks.ts:172`, `AuthScreen.container.tsx:129` |
 | A12 | Bàn phím là đường đi hạng nhất, không phải phương án dự phòng. **Esc đóng lớp trên cùng** — lời hứa không tính năng nào được lấy mất | `lib/input/shortcutRegistry.ts:21,108,573`, `lib/input/dragDrop.ts:23` |
-| A14 | Bộ mẫu chuẩn dùng chung là `createSampleBuilding()` (`domain/spatial/__fixtures__/sampleBuilding.ts`): **14 phòng, 4 trục, 16 ô mở (9 cửa + 7 cửa sổ), 21 đồ đạc, 34 kích thước**; 248,60 m² là tổng diện tích cả 14 phòng. `coloring.test.ts:34-38,91` tự khai lại một bộ **khác** (34 phòng, 21 trục, 14 ô mở, 248,60 m² là diện tích MỘT sảnh) thay vì gọi `createSampleBuilding()` — hai con số 21 và 34 ở đó là số đồ đạc/kích thước của bộ thật bị gán nhầm sang trục/phòng. Đừng chép số của `coloring.test.ts` làm "bộ mẫu chuẩn" | `domain/spatial/__fixtures__/sampleBuilding.ts:36-38`, `lib/coloring/__tests__/coloring.test.ts:34-38,91`, `legend.test.ts:106` |
+| A14 | Bộ mẫu chuẩn dùng chung là `createSampleBuilding()` (`domain/spatial/__fixtures__/sampleBuilding.ts`): **4 tầng, 48 tường, 16 ô mở (9 cửa + 7 cửa sổ), 21 đồ đạc, 14 phòng, 4 trục, 34 kích thước**. Về diện tích: `SAMPLE_TOTAL_AREA_M2` khai **248,60 m²**, nhưng đo bằng chính `totalArea()` (công thức dây giày, `domain/rooms/area.ts`) trên 14 đường bao thật của `createSampleBuilding()` ra **238,00 m²** — phòng cuối cùng có `areaM2` khai 27,60 m² nhưng đường bao của nó vẫn là hình chữ nhật 4000×4250 mm giống 13 phòng kia nên đo hình học ra 17,00 m², không phải 27,60. Hai con số đến từ hai nguồn khác nhau — 248,60 là hằng số khai báo tay, 238,00 là kết quả đo hình học thật — và **chưa chốt cái nào là chuẩn**, chỉ ghi lại để người sửa fixture biết lệch ở đâu. `coloring.test.ts:34-38,91` tự khai lại một bộ **khác** (34 phòng, 21 trục, 14 ô mở, 248,60 m² là diện tích MỘT sảnh) thay vì gọi `createSampleBuilding()` — hai con số 21 và 34 ở đó là số đồ đạc/kích thước của bộ thật bị gán nhầm sang trục/phòng. Đừng chép số của `coloring.test.ts` làm "bộ mẫu chuẩn" | `domain/spatial/__fixtures__/sampleBuilding.ts:34-44`, `domain/rooms/area.ts:204-207`, `lib/coloring/__tests__/coloring.test.ts:34-38,91`, `legend.test.ts:106` |
 | A15 | Định dạng số xảy ra ở viewmodel, không ở view. Dấu thập phân là **dấu phẩy** | `project.js:57`, `gizmo.ts:417` |
 
 ---
 
 ## Mục B — chuyển động, ngôn ngữ định danh, chỗ đặt tính toán
 
-- **Thang chuyển động có đúng năm giá trị: 120, 180, 260, 340, 700 ms.** Không con số nào
-  khác. `tailwind.config.ts:14` và `hooks/useListReview.ts:102` đều dẫn luật này; nguồn
-  duy nhất là `MOTION_DURATIONS_MS` trong `src/lib/motion/tokens.ts`.
+- **Thang tốc độ có đúng bốn giá trị: 120, 180, 260, 340 ms.** Không con số nào khác.
+  Nguồn duy nhất là `MOTION_DURATIONS_MS` trong `src/lib/motion/tokens.ts` — bốn khoá
+  `instant` 120, `fast` 180, `standard` 260, `slow` 340. **700 ms** (`AMBIENT_LOOP_MS`,
+  cùng file) là một hằng số **riêng**, cố ý không phải khoá thứ năm: nó pace cho hiệu ứng
+  lặp (skeleton sweep, thanh tiến trình), không phần tử nào *chuyển* từ trạng thái này
+  sang trạng thái khác ở tốc độ đó. Luật `local/no-raw-duration` vẫn nhận cả năm con số
+  120/180/260/340/700 — chỉ khác là 700 không đến từ bảng `MOTION_DURATIONS_MS`.
+  `tailwind.config.ts:14` và `hooks/useListReview.ts:102` đều dẫn luật này.
 - **Định danh trong mã viết bằng tiếng Anh**, kể cả khi đặc tả nghiệp vụ đặt tên tiếng Việt.
   Đặc tả gọi màn này là `manHinhChiaSe`, mã gọi nó là `ShareScreen`; chuỗi người đọc vẫn
   là tiếng Việt. Xem `ShareScreen/ShareScreen.tsx:39`, `lib/coloring/modes.ts:52`, `lib/export/screenshot.ts:65`.
