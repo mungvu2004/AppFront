@@ -104,8 +104,20 @@ lại và kiểm bất biến nội bộ của dữ liệu **đã có kiểu TS*
 | `vertices` | `Record<string, Point2D>` | không có khái niệm đỉnh riêng — toạ độ nằm trong `centreline` |
 | Ai dùng | `src/mocks/spatial.ts` + 3 màn QC đọc thẳng | store, api, domain — **mô hình thật** |
 
-Hợp đồng của tài liệu nghiên cứu hiện chỉ khớp với **hệ kiểu của dữ liệu giả**. Chưa có
-adapter nào nối hai bên, và không nguồn nào được tuyên bố là đúng.
+Đo tiếp bằng `grep -rn "types/spatial" src` thì bức tranh sắc hơn "hai hệ song song": file
+`src/types/spatial.ts` có **hai nửa số phận khác hẳn nhau**.
+
+| Nửa | Nơi dùng | Kết luận |
+|---|---|---|
+| `WallThickness` (110 · 220 · 330 · `CONCRETE_COLUMN`) | **chín nơi** — `components/canvas/{materialMap,WallThicknessLegend}`, `hooks/useWallThicknessLegend`, `lib/geometry/standardize`, và bốn màn QC | đang sống, và **nằm sai tầng**: đây là hằng số nghiệp vụ, chỗ của nó là `src/domain/walls` |
+| `SpatialProject`, `Geometry`, `Wall`, `Door`, `Window`, `Room`, `Dimension`, `Point2D`, `Level`, `GlobalAnchor`, `ProjectMetadata` | **đúng một** — `src/mocks/spatial.ts` | hợp đồng của đặc tả nghiên cứu hiện chỉ định hình **dữ liệu giả** |
+
+Không một màn, hook hay module `src/lib` nào nhập nửa thứ hai. Chưa có adapter nào nối hai
+bên, và trước lượt này không nguồn nào được tuyên bố là đúng.
+
+**Đã làm trong lượt này:** viết khối chú thích vào đầu `src/types/spatial.ts` nói rõ nó là
+hình dạng của hợp đồng nghiên cứu chứ không phải mô hình chạy thật, kèm bảng lệch từng
+trường và câu "đừng thêm kiểu mới vào file này". **Chưa làm:** viết adapter — xem mục 6.
 
 Bảng đối chiếu đầy đủ từng trường:
 
@@ -454,8 +466,28 @@ lượt — dấu hiệu của tải máy, không phải của hồi quy: một 
 lần. Cả hai lượt chạy trong lúc máy còn chạy việc khác.
 
 Việc đúng theo E.10 là ghi lại đúng như vậy: **bước 4 chưa đạt trên máy này**, và phán quyết
-xanh chỉ có giá trị khi đo lúc máy rảnh. Ba bước sau nó **chưa chạy**, nên không có số về
-kích thước gói và độ dài file trong báo cáo này.
+xanh chỉ có giá trị khi đo lúc máy rảnh.
+
+Vì `verify` dừng ở bước 4, ba bước cuối được chạy **riêng từng lệnh**, sau khi lượt này thêm
+`src/api/schemas/spatial.ts` và bài kiểm của nó:
+
+```
+BUILD_EXIT=0   SIZE_EXIT=0   LENGTH_EXIT=0
+```
+
+| Cổng kích thước gói | Đo được | Ngưỡng | Còn dư |
+|---|---:|---:|---:|
+| màn hình đầu tiên (chunk vào + nhập tĩnh) | 158,9 KiB | 175 | 16,1 |
+| chunk JS lớn nhất | 158,9 KiB | 170 | 11,1 |
+| **chi phí thêm cho một màn** | 258,6 KiB | 280 | **21,4** |
+| tổng CSS | 10,9 KiB | 12 | 1,1 |
+| *tổng JS mọi chunk (chỉ cảnh báo)* | *1.058,8 KiB* | *800* | *quá 258,8* |
+
+Độ dài file: 339 file đã quét · 59 vượt mốc nhắc 250 · **0 vượt mốc hỏng 400** → đạt.
+
+> Hai con số đáng nhớ trước khi dựng thêm màn: **chi phí thêm cho một màn chỉ còn dư
+> 21,4 KiB**, và **CSS chỉ còn dư 1,1 KiB**. S-36 dựng cây JSON lớn, nên đó là hai ngân
+> sách phải canh chứ không phải hai con số để trích lại.
 
 > Lưu ý cách đo, vì nó suýt làm hỏng chính báo cáo này: lượt đầu chạy
 > `pnpm verify 2>&1 | tail -60`, và **ống dẫn nuốt mã thoát** — vỏ trả về mã của `tail`
@@ -487,7 +519,8 @@ Ngưỡng bước 7 (`scripts/check-file-length.mjs`, đơn vị **dòng có n�
 | Thứ tự | Việc | Vì sao trước | Đụng tầng nào |
 |---|---|---|---|
 | 1 | **Đ1** — `src/api/schemas/spatial.ts` + nối vào `spatial.readFloor` | Đây là chỗ duy nhất trong báo cáo mà lỗi biểu hiện thành **màn vỡ trước mặt người dùng**, và đầu vào của nó là đầu ra xác suất của ba mô hình AI | `src/api` |
-| 2 | **Đ2** — adapter hợp đồng nghiên cứu → mô hình miền; chốt số phận `src/types/spatial.ts` | Không chốt thì mọi màn đọc Spatial JSON về sau phải tự đoán dùng hệ nào | `src/api`, `src/domain` |
+| 2 | **Đ2** — chốt số phận `src/types/spatial.ts` ✅ đã làm | Không chốt thì mọi màn đọc Spatial JSON về sau phải tự đoán dùng hệ nào | `src/types` |
+| 2b | **Đ2** — adapter hợp đồng nghiên cứu → mô hình miền ⏸ **cố ý chưa làm** | xem khung ngay dưới bảng | — |
 | 3 | **Đ3** — dựng S-36 `SpatialJsonViewer` | Là màn đầu tiên hưởng việc 1: dải "Hợp lệ theo schema — 0 lỗi" cần một schema thật mới nói được | `src/screens` |
 | 4 | **Đ3** — dựng S-45 `ConnectionStates` | Bất biến "mất kết nối không bao giờ làm mất việc" hiện không có màn nào nói ra | `src/screens` |
 | 5 | **Đ12** — sửa manifest StateGallery cho đúng bộ 47 | Làm sau việc 3 và 4, vì lúc đó hai màn mới đã có story để khai | `src/screens` |
@@ -496,6 +529,23 @@ Ngưỡng bước 7 (`scripts/check-file-length.mjs`, đơn vị **dòng có n�
 | 8 | **Đ5/Q1** — `:id` → `:projectId`; xử lý 3 route `Placeholder` | Diff cơ học — làm khi không có nhánh tính năng lớn nào mở | `src/routes` |
 | 9 | **Đ6** — quyết định S-47 dev-only | Cần người quyết, không phải việc kỹ thuật | `src/routes` |
 | 10 | **Đ8, Đ9, Đ10, Đ11** — đính chính tài liệu | Sau khi mã đã đúng, tài liệu mới chép theo được | tài liệu |
+
+> **Lệch khỏi kế hoạch đã duyệt, nói rõ ở đây thay vì lặng lẽ bỏ qua.** Kế hoạch có mục
+> "viết adapter một chiều từ hợp đồng nghiên cứu sang mô hình miền". Sau khi đo, mục đó
+> **chưa được làm**, và lý do là chính lý lẽ mà kế hoạch dùng để bác sáu component
+> `viewer/*` của CL-08: **chưa có nơi gọi.**
+>
+> Backend AI chưa tồn tại; đặc tả của S-36 nói màn đọc dữ liệu từ D-11/D-12, tức mô hình
+> miền, không phải hình dạng của hợp đồng nghiên cứu. Một adapter viết bây giờ sẽ không có
+> bài kiểm nào chạm vào đầu vào thật của nó, và hình dạng thật của nó chỉ lộ ra khi có phản
+> hồi thật đầu tiên. Viết nó lúc này là đoán, và R-69 cấm đoán.
+>
+> Cái làm được ngay mà không phải đoán thì đã làm: độ lệch từng trường được ghi thành bảng
+> **trong chính `src/types/spatial.ts`**, kèm câu nói rõ quy đổi mét ↔ milimét chỉ được đi
+> qua `domain/units` (R-44). Người nối backend thật đọc được nó ở đúng chỗ họ sẽ mở ra.
+>
+> Nếu bạn muốn adapter có mặt trước khi backend có, nói một câu là tôi viết — nhưng nó sẽ
+> là mã chưa ai gọi, và nên được ghi nhận như vậy.
 
 ---
 
