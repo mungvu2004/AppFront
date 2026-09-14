@@ -599,6 +599,87 @@ escalation riêng — nhưng lần sau điều phối viên phải dò hộp th�
 
 ---
 
+## 6c. CÒN LẠI — hai việc cố ý để ngỏ, và một việc cần người quyết
+
+**1. S-45 `ConnectionStates` đã dựng nhưng chưa ai gắn.**
+
+Kiểm bằng `rg -l "ConnectionStates" src --glob '!src/screens/system/ConnectionStates/**'`:
+chỉ ra ba nơi, và cả ba đều **không phải** nơi gắn — `stateGalleryManifest.ts` và
+`StateGallery.test.tsx` là dữ liệu tra, `lib/offline/queueStore.ts` chỉ nhắc tên nó trong một
+khối chú thích.
+
+Đối lại, S-36 thì đã gắn thật: `src/routes/router.tsx` mount nó ở `/projects/:projectId/data`.
+
+Đây là điều kiện đúng theo đặc tả — S-45 là **lớp dùng chung của mọi màn**, bảng 0.8 ghi
+"không route", và chỗ của nó là vỏ ứng dụng. Nhưng "đúng theo đặc tả" không có nghĩa là
+"xong": một lớp chưa ai gắn là một lớp chưa chạy, và repo này đã có tiền lệ chín màn dựng
+xong mà không ai gắn.
+
+Việc gắn nó **không** làm trong lượt này vì nó là một quyết định kiến trúc thật, không phải
+một dòng import: `AppShell` là component dùng chung và không biết `projectId`, còn
+`ViewerShell` chỉ bọc phần việc 3D nên gắn ở đó thì các màn QC không được che. Chọn chỗ gắn
+là chọn "ngữ cảnh dự án đến từ đâu", và đó là việc nên quyết một lần cho đúng.
+
+**2. Adapter hợp đồng nghiên cứu → mô hình miền** (Đ2) — xem khung lý do ở mục 6.
+
+**3. Đ6 — S-47 `StateGallery` chỉ có ở bản dev.** Trang duyệt bảy trạng thái của cả dự án
+nằm trong nhánh `import.meta.env.DEV`, nên người dùng sản phẩm không với tới. Mục 8.1 gọi nó
+là "cổng chất lượng của cả dự án". Hai đường đi: cho nó vào bản dựng sản phẩm sau tường
+quyền, hoặc ghi rõ trong tài liệu rằng nó là công cụ nội bộ. **Đây là quyết định sản phẩm,
+không phải việc kỹ thuật**, nên nó không được quyết trong một lượt audit.
+
+---
+
+## 6d. CỔNG TỔNG SAU KHI GỘP — đo, và so với mốc trên `master`
+
+`pnpm verify` chạy trên nhánh đã gộp, sau toàn bộ lượt này:
+
+```
+  đạt       typecheck
+  đạt       lint
+  đạt       import vòng
+  HỎNG      test + độ phủ        17 hỏng / 5.942 đạt  (5.959 bài, 310 file)
+  chưa chạy build
+  chưa chạy kích thước gói
+  chưa chạy độ dài file
+```
+
+**Cổng đỏ ở bước 4 — và nó đỏ y như vậy trên `master` trước khi lượt này bắt đầu.** Mốc đo
+trên `master` (`f13dbb2`): 15 hỏng / 5.858 đạt. Tổng số bài tăng 5.873 → 5.959 (+86 bài mới).
+
+Vì con số thô không phân biệt được "đỏ sẵn" với "tôi vừa làm hỏng", tôi chạy đúng **19 file**
+của 11 thư mục có bài hỏng, trên **cả hai** nhánh, rồi so **tên bài** chứ không so số:
+
+| | `master` (f13dbb2) | nhánh này |
+|---|---:|---:|
+| Bài hỏng trong 19 file đó | 9 | 14 |
+| Hỏng ở **cả hai** | 8 | 8 |
+| Chỉ hỏng trên `master` | 1 | — |
+| **Chỉ hỏng trên nhánh này** | — | **6** |
+
+Sáu bài ấy nằm trọn trong `Viewer3D/Viewer3DPanels.test.tsx` và `Viewer3D/Viewer3DOverlays.test.tsx`.
+Chạy riêng thư mục `src/screens/viewer/Viewer3D`: còn **1** hỏng, 62 đạt. Chạy riêng đúng
+file ấy, **hai lần liên tiếp: 12/12 đạt**.
+
+Kết luận đo được: sáu bài đó **chập chờn dưới tải**, không phải hồi quy. Kiểm thêm hai đường
+có thể quy trách nhiệm cho lượt này, cả hai đều loại trừ:
+
+- Lượt đổi `:id` → `:projectId` không chạm được `PropertyInspector.container.tsx` — chính
+  docblock của nó ghi nó **không đọc `useParams`**, và bài kiểm cũng không dựng `MemoryRouter`.
+- Lượt chuyển `CommentThread` sang `Popover` có test riêng của `CollaborationLayer`, xanh.
+
+**Vì thế báo cáo này KHÔNG ghi "cổng tổng xanh".** Nó ghi: ba bước đầu đạt, bước bốn đỏ ở
+cùng mức và cùng kiểu với `master`, ba bước cuối chưa chạy trong lượt `verify` ấy — nhưng
+**đã chạy riêng từng lệnh** và đều đạt (`BUILD_EXIT=0`, `SIZE_EXIT=0`, `LENGTH_EXIT=0`; bốn
+cổng kích thước: màn đầu 160,0/175 · chunk lớn nhất 160,0/170 · chi phí thêm một màn
+258,5/280 · CSS 10,9/12; độ dài 345 file, 0 vượt 400).
+
+Mọi lỗi của bước 4 là `Test timed out in 5000ms`; **không một lỗi khẳng định nào**. Muốn một
+phán quyết xanh thật thì phải đo lúc máy rảnh — và đó là việc của một lượt CI, không phải của
+một máy đang chạy bốn worker.
+
+---
+
 ## 7. VIỆC KHÔNG LÀM
 
 | Không làm | Vì sao |
