@@ -101,7 +101,6 @@ export const ROUTE_PATTERNS = {
   projectRuleSettings: `${PROJECTS_ROOT}/:projectId/rules/settings`,
   projectScale: `${PROJECTS_ROOT}/:projectId/floors/:floorId/scale`,
   projectSettings: `${PROJECTS_ROOT}/:projectId/settings`,
-  projectShare: `${PROJECTS_ROOT}/:projectId/share`,
   projectThickness: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/thickness`,
   projectUpload: `${PROJECTS_ROOT}/:projectId/upload`,
   projectVersions: `${PROJECTS_ROOT}/:projectId/versions`,
@@ -159,7 +158,6 @@ export const ROUTES = {
     scale: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/scale`,
     settings: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
-    share: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/share`,
     thickness: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/thickness`,
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,

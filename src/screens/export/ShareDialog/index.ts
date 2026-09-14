@@ -8,7 +8,13 @@
  * - {@link useShareDialog} là toàn bộ logic, cho ai muốn dựng một vỏ khác.
  *
  * **Không có route ở đây, và đó là chủ ý.** Đây là một hộp thoại, không phải một
- * màn có địa chỉ; `ROUTE_PATTERNS.projectShare` đã trỏ `ShareRoute.tsx` rồi.
+ * màn có địa chỉ — bảng route chuẩn (mục 0.8 của bộ prompt) ghi S-35 là "không
+ * route", và `ExportPanel` mở nó bằng `<ShareDialogContainer isOpen … />`.
+ *
+ * Cho tới 14-09-2026 còn một route `/projects/:projectId/share` trỏ vào
+ * `project/ShareScreen` — khuôn hai file cũ, màn duy nhất trong repo không đủ
+ * sáu file R-59. Cả route lẫn thư mục ấy đã bị xoá: hai bản chia sẻ trong một
+ * repo là một bản quá nhiều, và bản còn lại là bản này.
  *
  * Kiểu công khai có đúng **một** nơi định nghĩa — `./types`, hợp đồng đông cứng của
  * ba worker viết song song — mà container, view và hook cùng nhập; barrel này chỉ

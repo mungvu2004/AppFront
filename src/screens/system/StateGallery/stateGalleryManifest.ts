@@ -363,22 +363,6 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    id: 'project/ShareScreen',
-    name: 'ShareScreen',
-    area: 'project',
-    group: 'C',
-    label: 'chia sẻ dự án',
-    storyExportNames: {
-      empty: 'Empty',
-      loading: 'Loading',
-      partial: 'Partial',
-      error: 'ErrorState',
-      success: 'Success',
-      forbidden: 'Forbidden',
-      collapsed: 'Collapsed',
-    },
-  },
-  {
     id: 'qc/AxisGridManager',
     name: 'AxisGridManager',
     area: 'qc',

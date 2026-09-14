@@ -23,7 +23,6 @@ const suspended = (node: React.ReactNode) => (
 
 // Lazy load screen routes
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
-const RouteShare = lazy(() => import('../screens/project/ShareRoute').then(m => ({ default: m.ShareRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
@@ -331,7 +330,6 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
       { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
       { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
-      { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
       { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
       { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
       { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
