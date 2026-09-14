@@ -26,7 +26,7 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
-import type { RegisterInput, SignInInput } from './schemas';
+import { SpatialLayerSchema, type RegisterInput, type SignInInput } from './schemas';
 import {
   NotificationSchema,
   type MarkNotificationsReadInput,
@@ -199,14 +199,20 @@ export interface PatchSpatialFloorInput extends WriteRequestOptions {
  * a shape to the four entity lists a floor actually holds, so autosave had
  * nowhere to send them (`PERSIST_PROPERTIES_UNSUPPORTED_REASON`,
  * `screens/viewer/PropertyInspector/propertyInspectorGateway.ts`). Fields are
- * `readonly Wall[]` etc. straight from `@/domain/spatial/types` rather than a
- * wire-schema mirror: the domain shapes are already flat, JSON-safe records
- * (no class instances, no branded-at-runtime fields beyond string ids), so a
- * second copy of the same field list would only be a place for the two to
- * drift. A write always sends the floor's complete four lists — this is the
- * autosave flush of "everything on this floor right now", not a per-field
- * patch, so there is no `Partial<SpatialLayer>` counterpart the way
- * `PatchSpatialFloorInput` has one for `Floor`.
+ * `readonly Wall[]` etc. straight from `@/domain/spatial/types`. A write always
+ * sends the floor's complete four lists — this is the autosave flush of
+ * "everything on this floor right now", not a per-field patch, so there is no
+ * `Partial<SpatialLayer>` counterpart the way `PatchSpatialFloorInput` has one
+ * for `Floor`.
+ *
+ * **Đính chính 2026-09-14.** Chỗ này từng viết rằng KHÔNG nên có wire schema,
+ * vì "hình dạng miền đã phẳng và an toàn với JSON, nên một bản sao thứ hai của
+ * cùng danh sách trường chỉ tạo thêm một chỗ để hai bên trôi ra xa nhau". Lập
+ * luận ấy đúng về kiểu và sai về thời điểm: `readonly Wall[]` là lời hứa của
+ * trình biên dịch về dữ liệu do ba mô hình AI sinh ra lúc chạy. `SpatialLayerSchema`
+ * (`./schemas/spatial.ts`) nay giải mã lượt trả về, và nó tránh được đúng nỗi
+ * lo trên bằng cách khai kiểu trả về là chính interface của miền — lệch một
+ * trường là `pnpm typecheck` đỏ, không phải một lỗi lúc chạy.
  */
 export interface SpatialLayer {
   furniture: readonly Furniture[];
@@ -914,12 +920,18 @@ export const createApiClient = (http: HttpClient): ApiClient => ({
         VersionSchema,
         'spatial.readVersion',
       ),
-    /** Same undecoded reasoning as `propertyTemplates` above — no wire schema for the four domain entities yet. */
+    /**
+     * Giải mã qua `SpatialLayerSchema` — nhóm cuối cùng rời khỏi diện "đi thẳng
+     * không schema". Xem `./schemas/spatial.ts` để biết nó kiểm gì và cố ý
+     * không kiểm gì.
+     */
     writeLayer: async (input) => {
       const { body, floorId, projectId } = input;
 
-      return asApiResult(
-        await callPatch<SpatialLayer, SpatialLayer>(http, ENDPOINTS.spatial.layer(projectId, floorId), body, input),
+      return decodeSingle(
+        await callPatch<SpatialLayer, unknown>(http, ENDPOINTS.spatial.layer(projectId, floorId), body, input),
+        SpatialLayerSchema,
+        'spatial.writeLayer',
       );
     },
   },
