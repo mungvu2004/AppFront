@@ -3851,5 +3851,27 @@
     "missingProjectTitle": "Không xác định được dự án",
     "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải hiện dữ liệu không gian của dự án nào.",
     "reopenFloors": "Mở lại từ quản lý tầng"
+  },
+  "connectionStates": {
+    "offline": "Đang làm việc ngoại tuyến · {{count}} thay đổi chờ đồng bộ.",
+    "degraded": "Kết nối chậm, thao tác có thể trễ.",
+    "syncing": "Đang đồng bộ lại những thay đổi đã làm khi ngoại tuyến.",
+    "synced": "Đã đồng bộ xong.",
+    "sessionExpired": "Đăng nhập lại để lưu {{count}} thay đổi chờ đồng bộ.",
+    "sessionExpiredBody": "Những thay đổi này vẫn được giữ nguyên trong máy của bạn. Đăng nhập lại là chúng được gửi đi tiếp, không mất gì cả.",
+    "queueFull": "Hàng đợi ngoại tuyến đã đầy với {{count}} thay đổi chờ đồng bộ. Nối mạng lại để đồng bộ; làm tiếp lúc này có thể mất thay đổi mới.",
+    "pending": "{{count}} thay đổi chờ đồng bộ",
+    "lastSync": "Đã đồng bộ xong lúc {{time}}",
+    "dropped": "{{count}} lệnh không phát lại được và đã bị bỏ. Mở chi tiết để xem chúng là gì.",
+    "viewDetail": "Xem chi tiết",
+    "signInAgain": "Đăng nhập lại",
+    "detailTitle": "Việc đang chờ đồng bộ",
+    "detailEmpty": "Không còn thay đổi nào chờ đồng bộ.",
+    "replayNow": "Thử đồng bộ lại ngay",
+    "unnamedCommand": "thay đổi chưa đặt tên",
+    "checking": "Đang kiểm tra kết nối.",
+    "queueReadFailed": "Không đọc được hàng đợi ngoại tuyến trên máy này. Trình duyệt có thể đang chặn bộ nhớ cục bộ; mọi thay đổi mới sẽ chỉ nằm trong bộ nhớ tạm cho tới khi nối lại mạng.",
+    "forbidden": "Bạn không có quyền xem hàng đợi ngoại tuyến của dự án này. Hãy hỏi quản trị viên dự án.",
+    "collapsedLabel": "Kết nối bình thường"
   }
 }
