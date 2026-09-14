@@ -13,7 +13,9 @@
 > rút ra sau khi chín con số của nó lệch ở lần đo thứ nhất. Mục nào chưa chạy thì ghi **"chưa
 > chạy"**, không ghi "đạt" (mục E.10 của `CLAUDE.md`, `scripts/verify.mjs:14`).
 >
-> Báo cáo này **không sửa một dòng mã nào**. Nó là giai đoạn 1 của kế hoạch bốn giai đoạn.
+> Mọi con số trong mục 0 đến mục 5 là ảnh chụp **trước** khi lượt này sửa gì — đó là ích lợi
+> của một báo cáo đối chiếu, nên chúng cố ý không được cập nhật sau đó. Những gì lượt này đã
+> làm nằm ở **mục 6b**, và chỉ ở đó.
 
 ---
 
@@ -386,7 +388,7 @@ Cột "Sáu file" là kết quả `ls` từng thư mục theo R-59
 | S-33 | `rules/RuleSettings` | ✅ | 6/6 | route | `/projects/:id/rules/settings` |
 | S-34 | `export/ExportPanel` | ✅ | 6/6 | route | `/projects/:id/export` |
 | S-35 | `export/ShareDialog` | ✅ | 6/6 | hộp thoại trong S-34 | `ExportPanel.container.tsx:69` — **xem Đ4** |
-| **S-36** | `export/SpatialJsonViewer` | ❌ **KHÔNG CÓ** | — | — | — |
+| **S-36** | `export/SpatialJsonViewer` | ✅ **đã dựng trong lượt này** | 6/6 | route | `/projects/:projectId/data` |
 | S-37 | `export/VersionHistory` | ✅ | 6/6 | route | `/projects/:id/versions` |
 | S-38 | `admin/ModelLibrary` | ✅ | 6/6 | route | `/admin/models` |
 | S-39 | `admin/UserManagement` | ✅ | 6/6 | route | `/admin/users` |
@@ -395,7 +397,7 @@ Cột "Sáu file" là kết quả `ls` từng thư mục theo R-59
 | S-42 | `system/CollaborationLayer` | ✅ | 6/6 | lớp phủ, nạp động | `Viewer3DOverlays.tsx:65` |
 | S-43 | `system/NotFound` | ✅ | 6/6 | route | `*` |
 | S-44 | `system/AccessDenied` | ✅ | 6/6 | route | `/khong-co-quyen` |
-| **S-45** | `system/ConnectionStates` | ❌ **KHÔNG CÓ** | — | — | — |
+| **S-45** | `system/ConnectionStates` | ✅ **đã dựng trong lượt này** | 6/6 | lớp dùng chung, **không route** (đúng bảng 0.8) | — |
 | S-46 | `system/MobileViewer` | ✅ | 6/6 | route | `/m/du-an/:projectId` |
 | S-47 | `system/StateGallery` | ✅ | 6/6 | route **chỉ dev** | `/design-system/states` — **xem Đ6** |
 
@@ -404,7 +406,7 @@ Cột "Sáu file" là kết quả `ls` từng thư mục theo R-59
 `src/screens/system/StateGallery.tsx` (file lẻ **trùng tên** với thư mục cùng tên),
 `MotionDemo.tsx` (không đăng ký route nào), 7 file demo rời khác.
 
-**Tổng:** 45/47 có mã · **45/45 đủ sáu file** (màn duy nhất thiếu file là `ShareScreen`, mà
+**Tổng sau lượt này: 47/47 có mã.** Trước lượt này: 45/47 · **45/45 đủ sáu file** (màn duy nhất thiếu file là `ShareScreen`, mà
 nó không thuộc bộ 47) · 34 mở bằng URL riêng · 11 sống như panel/hộp
 thoại/lớp phủ trong màn khác (cả 11 đều xác nhận được bằng import thật từ ngoài thư mục — không
 màn nào chết).
@@ -546,6 +548,34 @@ Ngưỡng bước 7 (`scripts/check-file-length.mjs`, đơn vị **dòng có n�
 >
 > Nếu bạn muốn adapter có mặt trước khi backend có, nói một câu là tôi viết — nhưng nó sẽ
 > là mã chưa ai gọi, và nên được ghi nhận như vậy.
+
+---
+
+## 6b. ĐÃ LÀM TRONG LƯỢT NÀY
+
+Báo cáo này là giai đoạn 1 của một kế hoạch bốn giai đoạn. Ba giai đoạn còn lại đã chạy;
+dưới đây là kết quả, mỗi dòng một commit.
+
+| Độ lệch | Đã làm | Bằng chứng |
+|---|---|---|
+| **Đ1** | `src/api/schemas/spatial.ts` — zod cho bốn thực thể của `SpatialLayer`, nối vào `spatial.writeLayer`. Kèm ba phép kiểm không suy ra được từ kiểu: A5 (`{source:'ai', reviewed:true}` bị từ chối), đoạn thẳng phải có chiều dài, hộp bao phải đúng chiều | 24 bài kiểm mới; chốt chặn chống trôi đã chứng minh: bỏ `thicknessMm` khỏi schema → `pnpm typecheck` đỏ ngay tại dòng khai báo |
+| **Đ2** | Khối chú thích ở đầu `src/types/spatial.ts` nói rõ nó là hình dạng của hợp đồng nghiên cứu, kèm bảng lệch từng trường. Adapter **cố ý chưa viết** — xem khung ở mục 6 | `grep -rn "types/spatial" src` — chỉ `WallThickness` có 9 nơi dùng, phần còn lại có đúng 1 |
+| **Đ3** | **Cả hai màn đã dựng.** S-36 `SpatialJsonViewer` (route `/projects/:projectId/data`) và S-45 `ConnectionStates` (không route, đúng bảng 0.8) | 38 + 35 bài kiểm; đủ sáu file R-59; bảy story mỗi màn; khối lệnh kiểm R-59..R-73 sạch |
+| **Đ5** | `:id` → `:projectId` trên toàn cây route; năm route cũ không có ngữ cảnh dự án đã xoá | worker `g4-routes` |
+| **Đ8** | Ghi nhận, không thêm token chết (Q4). S-36 dùng ba tông đo được thay cho `--data-dimension` | bảng tương phản trong `SpatialJsonViewer/types.ts` |
+| **Đ10, Đ11** | `CLAUDE.md` mục B và A14 sửa theo số đo; `docs/dinh-chinh-v2.3.md` đính chính mười một mục của v2.3 | worker `g4-docs` |
+| **Đ12** | Manifest `StateGallery` chưa sửa — nó phải đợi hai màn mới có story, và đó là việc tiếp theo | — |
+| **D7** (`BAO_CAO_DO_LECH.md`) | Gỡ `@react-three/fiber`, `@react-three/drei`, `react-hook-form`, `d3-zoom`, `@types/d3-zoom` | kiểm độc lập: cả bốn gói ra **0 nơi dùng** trong `src`, `e2e`, `.storybook`, `scripts`, và bốn file cấu hình |
+
+### Một phát hiện của chính lượt gộp
+
+Worker `g4-routes` quét `useParams` **trước khi** S-36 kịp vào tầm nhìn của nó, nên nó bỏ sót
+đúng một file: `SpatialJsonViewer.container.tsx` vẫn đọc `useParams<{ id }>` trong khi
+`paths.ts` đã khai `:projectId`. Hậu quả nếu gộp thẳng: route mở ra một màn nói "không xác
+định được dự án", và không bài kiểm nào của worker bắt được vì nó không chạy bài kiểm của
+màn ấy.
+
+Đây là lý do lời worker nói phải được kiểm lại bằng diff, không phải bằng bảng số nó tự in.
 
 ---
 
