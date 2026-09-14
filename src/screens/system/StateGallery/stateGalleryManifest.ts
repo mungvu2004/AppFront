@@ -62,7 +62,7 @@ function buildEntry(def: ScreenDef): GalleryScreenEntry {
   };
 }
 
-/* ── 46 màn từ khảo sát I2, cộng chính trang này (#47) ────────────────────── */
+/* ── 46 màn từ khảo sát I2, cộng chính trang này, cộng hai màn dựng 14-09-2026 ── */
 
 const SCREEN_DEFS: readonly ScreenDef[] = [
   {
@@ -183,6 +183,31 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     area: 'export',
     group: 'G',
     label: 'chia sẻ liên kết',
+    storyExportNames: {
+      empty: 'Empty',
+      loading: 'Loading',
+      partial: 'Partial',
+      error: 'ErrorState',
+      success: 'Success',
+      forbidden: 'Forbidden',
+      collapsed: 'Collapsed',
+    },
+  },
+  {
+    /**
+     * S-36 — dựng ngày 14-09-2026, cùng lượt với `system/ConnectionStates`.
+     *
+     * Trước lượt ấy, manifest này khai 47 màn nhưng **không phải bộ 47 của đặc
+     * tả**: nó thay hai màn thật còn thiếu bằng `project/ShareScreen` (một khoản
+     * nợ đã ghi nhận) và `viewer/ViewerShell` (khối vỏ dùng chung). Con số
+     * 329 = 47 × 7 vì thế đúng về số học mà không chứng minh bộ 47 đã phủ đủ —
+     * đúng thứ khối `[NGHIỆM THU]` gọi là "xanh mà sai".
+     */
+    id: 'export/SpatialJsonViewer',
+    name: 'SpatialJsonViewer',
+    area: 'export',
+    group: 'G',
+    label: 'xem Spatial JSON',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -535,6 +560,23 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     area: 'system',
     group: 'H',
     label: 'lớp cộng tác',
+    storyExportNames: {
+      empty: 'Empty',
+      loading: 'Loading',
+      partial: 'Partial',
+      error: 'ErrorState',
+      success: 'Success',
+      forbidden: 'Forbidden',
+      collapsed: 'Collapsed',
+    },
+  },
+  {
+    /** S-45 — lớp dùng chung, không route. Dựng ngày 14-09-2026. */
+    id: 'system/ConnectionStates',
+    name: 'ConnectionStates',
+    area: 'system',
+    group: 'H',
+    label: 'trạng thái kết nối',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',

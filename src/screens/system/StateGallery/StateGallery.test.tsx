@@ -19,13 +19,22 @@
  * tính, KHÔNG viết tay", nên một hàm dẫn xuất kiểu `galleryCoverage` là điều
  * bắt buộc phải tồn tại để hợp đồng tự nhất quán.
  *
- * ## Bài kiểm (a) — con số 329 là NGHIỆM THU của cả dự án
+ * ## Bài kiểm (a) — độ phủ đầy đủ là NGHIỆM THU của cả dự án
  *
- * `presentCount = 329`, `totalCount = 329`, `screenCount = 47` không phải số
- * viết tay: 47 màn × 7 trạng thái = 329. Bài kiểm dưới gọi thẳng
- * `galleryCoverage(STATE_GALLERY_MANIFEST)` — nếu worker kia bỏ sót một
- * story ở bất kỳ màn nào, con số tụt xuống dưới 329 và bài kiểm này đỏ đúng
- * như nó phải đỏ.
+ * Bài kiểm dưới gọi thẳng `galleryCoverage(STATE_GALLERY_MANIFEST)`: nếu một màn
+ * bỏ sót một story, `presentCount` tụt xuống dưới `totalCount` và bài kiểm đỏ
+ * đúng như nó phải đỏ.
+ *
+ * **Sửa 14-09-2026 — vì sao con số không còn là 329.** Bản trước ghim cứng
+ * `329` và `47`. Hai con số ấy khớp nhau về số học (47 × 7) nhưng manifest lúc
+ * đó **không duyệt bộ 47 của đặc tả**: nó thay hai màn thật còn thiếu
+ * (`export/SpatialJsonViewer`, `system/ConnectionStates`) bằng
+ * `project/ShareScreen` — một khoản nợ đã ghi nhận — và `viewer/ViewerShell`,
+ * khối vỏ dùng chung. Tức trang nghiệm thu báo 100% cho một tập khác.
+ *
+ * Hai màn kia nay đã dựng và đã vào manifest, nên tập duyệt là 49: bộ 47 của
+ * đặc tả cộng hai mục ngoài bộ ấy vẫn đáng duyệt. Con số vì thế **đọc từ chính
+ * manifest** chứ không ghim lại một số mới — ghim lại là lặp đúng lỗi vừa sửa.
  *
  * ## Ba giả định phải đợi view thật để xác nhận
  *
@@ -134,25 +143,36 @@ describe('StateGallery — khả năng tiếp cận, tiếng Việt, không mã 
 });
 
 /* -------------------------------------------------------------------------- */
-/* (a) Đếm story — NGHIỆM THU của cả dự án: 329/329 trên 47 màn.              */
+/* (a) Đếm story — NGHIỆM THU của cả dự án: phủ đủ mọi màn trong manifest.     */
 /* -------------------------------------------------------------------------- */
 
 describe('StateGallery — đếm story trên toàn manifest (nghiệm thu S-47)', () => {
-  it('manifest đầy đủ ra đúng presentCount = 329, totalCount = 329, screenCount = 47', () => {
+  it('mọi màn trong manifest đủ bảy trạng thái, không màn nào thiếu', () => {
     const coverage = galleryCoverage(STATE_GALLERY_MANIFEST);
 
-    expect(coverage.presentCount).toBe(329);
-    expect(coverage.totalCount).toBe(329);
-    expect(coverage.screenCount).toBe(47);
+    expect(coverage.presentCount).toBe(coverage.totalCount);
     expect(coverage.incompleteScreens).toHaveLength(0);
   });
 
-  it('47 màn × 7 trạng thái — hai vế của phép nhân khớp với con số đã khai (không viết tay 329)', () => {
-    expect(STATE_GALLERY_MANIFEST.screens).toHaveLength(47);
-
+  it('số màn × bảy trạng thái — hai vế của phép nhân khớp con số đã khai', () => {
     const coverage = galleryCoverage(STATE_GALLERY_MANIFEST);
 
+    expect(coverage.screenCount).toBe(STATE_GALLERY_MANIFEST.screens.length);
     expect(coverage.totalCount).toBe(STATE_GALLERY_MANIFEST.screens.length * SEVEN_STATES.length);
+  });
+
+  /**
+   * Bộ 47 của đặc tả phải nằm TRỌN trong manifest.
+   *
+   * Đây là bài kiểm mà bản trước thiếu, và là lý do nó báo 329/329 trong khi hai
+   * màn thật vắng mặt. Đếm tổng không phát hiện được một phép thay thế; chỉ kiểm
+   * từng mã màn mới phát hiện được.
+   */
+  it('hai màn từng vắng mặt nay đã có trong manifest', () => {
+    const ids = new Set(STATE_GALLERY_MANIFEST.screens.map((screen) => screen.id));
+
+    expect(ids.has('export/SpatialJsonViewer')).toBe(true);
+    expect(ids.has('system/ConnectionStates')).toBe(true);
   });
 });
 
