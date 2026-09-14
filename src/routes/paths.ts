@@ -72,6 +72,7 @@ export const ROUTE_PATTERNS = {
   notifications: '/thong-bao',
   onboarding: '/onboarding',
   projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
+  projectData: `${PROJECTS_ROOT}/:id/data`,
   projectDimensions: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/dimensions`,
   projectExploded: `${PROJECTS_ROOT}/:id/3d/exploded`,
   projectExport: `${PROJECTS_ROOT}/:id/export`,
@@ -126,6 +127,8 @@ export const ROUTES = {
   project: {
     cadConfirm: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,
+    /** S-36 — Spatial JSON chỉ đọc của dự án. */
+    data: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/data`,
     dimensions: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/dimensions`,
     exploded: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d/exploded`,

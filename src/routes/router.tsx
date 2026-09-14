@@ -58,6 +58,7 @@ const RouteAxisGridManager = lazy(() => import('../screens/qc/AxisGridManager').
 const RouteRoomLabelReview = lazy(() => import('../screens/qc/RoomLabelReview').then(m => ({ default: m.RoomLabelReviewRoute })));
 const RouteFloorManager = lazy(() => import('../screens/qc/FloorManager').then(m => ({ default: m.FloorManagerRoute })));
 const RouteThicknessStandardization = lazy(() => import('../screens/qc/ThicknessStandardization').then(m => ({ default: m.ThicknessStandardizationRoute })));
+const RouteSpatialJsonViewer = lazy(() => import('../screens/export/SpatialJsonViewer').then(m => ({ default: m.SpatialJsonViewerRoute })));
 const RouteVersionHistory = lazy(() => import('../screens/export/VersionHistory').then(m => ({ default: m.VersionHistoryRoute })));
 const RouteModelLibrary = lazy(() => import('../screens/admin/ModelLibrary').then(m => ({ default: m.ModelLibraryRoute })));
 const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
@@ -341,6 +342,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
       { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
       { path: ROUTE_PATTERNS.projectShare, element: suspended(<RouteShare />) },
+      { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
       { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
       { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
       { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
