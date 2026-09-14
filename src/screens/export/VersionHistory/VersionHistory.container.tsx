@@ -181,7 +181,7 @@ export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
  * Thiếu một trong hai thì màn nói ra một câu thay vì dựng một lịch sử của không bản vẽ nào.
  */
 export function VersionHistoryRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const activeFloorId = useStore((state) => state.activeFloorId);
 
   if (id === undefined || id.length === 0 || activeFloorId === null) {

@@ -161,8 +161,8 @@ function WiredExportPanel(props: WiredExportPanelProps) {
  * `<ExportPanelContainer projectId={...} />` khi một màn khác nhúng nó.
  */
 export function ExportPanelContainer(props: ExportPanelContainerProps) {
-  const params = useParams<{ id: string }>();
-  const projectId = props.projectId ?? params.id;
+  const params = useParams<{ projectId: string }>();
+  const projectId = props.projectId ?? params.projectId;
 
   if (projectId === undefined || projectId.length === 0) {
     return (

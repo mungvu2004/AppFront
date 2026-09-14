@@ -159,7 +159,7 @@ export function MeasurementToolContainer(props: MeasurementToolContainerProps) {
  * không đọc ở đây mà để container tự đọc `useSession()`.
  */
 export function MeasurementToolRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
 
   if (id === undefined || id.length === 0) {
     return (

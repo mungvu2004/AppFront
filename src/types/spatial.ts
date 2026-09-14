@@ -1,3 +1,49 @@
+/**
+ * Hình dạng Spatial JSON như **đặc tả nghiên cứu** mô tả nó (Phần IV) — không
+ * phải mô hình không gian mà ứng dụng chạy trên đó.
+ *
+ * ## Hai nửa của file này có số phận khác hẳn nhau
+ *
+ * Đo ngày 2026-09-14 bằng `grep -rn "types/spatial" src`:
+ *
+ * - **`WallThickness` là nửa đang sống.** Chín nơi nhập nó — `components/canvas`,
+ *   `hooks/useWallThicknessLegend`, `lib/geometry/standardize`, và bốn màn QC.
+ *   Đây là bốn giá trị độ dày sau chuẩn hoá của đặc tả nghiên cứu (Bước 3.3):
+ *   110, 220, 330 mm, hoặc cột bê tông cốt thép.
+ * - **Phần còn lại chỉ có đúng một nơi dùng:** `src/mocks/spatial.ts`, tức dữ
+ *   liệu demo. `SpatialProject`, `Geometry`, `Wall`, `Door`, `Window`, `Room`,
+ *   `Dimension`, `Point2D`, `Level`, `GlobalAnchor`, `ProjectMetadata` **không**
+ *   được một màn, một hook hay một module `src/lib` nào nhập.
+ *
+ * Nói cách khác: hợp đồng của đặc tả nghiên cứu hiện chỉ định hình **dữ liệu
+ * giả**. Mô hình thật của ứng dụng là `src/domain/spatial/types.ts`.
+ *
+ * ## Nó khác mô hình thật ở đâu
+ *
+ * | Ở đây (hợp đồng nghiên cứu) | `domain/spatial/types.ts` (mô hình thật) |
+ * |---|---|
+ * | `level_id`, `elevation_m`, `height_m` — **mét** | `id`, `elevationMm`, `heightMm` — **milimét** |
+ * | `Wall.from`/`to` trỏ vào `Point2D` theo mã | `Wall.centreline: Segment` mang thẳng toạ độ |
+ * | `thickness_mm` là bốn giá trị đóng | `thicknessMm: Millimetres`, số bất kỳ, cộng `kind` |
+ * | `Door.position_t` trong `[0, 1]` | `Opening.offsetMm` tính từ đầu trục tường |
+ * | `Window.elevation_m` | `Opening.sillHeightMm` |
+ * | `Room.vertices` là mảng **mã** điểm | `Room.outline` là mảng **toạ độ** |
+ * | `Furniture.type` trộn cả `door`/`window` | `Furniture.kind` tám nhóm, cửa là `Opening` riêng |
+ * | không có mỏ neo → có `global_anchor` | không có khái niệm tương đương |
+ *
+ * ## Nếu bạn đang nối backend thật vào
+ *
+ * Chỗ chuyển đổi giữa hai hình dạng trên **chưa tồn tại**, và nó không nên nằm
+ * trong một màn. Quy đổi mét ↔ milimét chỉ được đi qua
+ * `src/domain/units/types.ts` (`metresToMillimetres`) — R-44. Phần kiểm hình
+ * dạng của lượt trả về đã có: `src/api/schemas/spatial.ts`, viết theo mô hình
+ * thật chứ không theo file này.
+ *
+ * Trạng thái mong muốn: `WallThickness` chuyển xuống `src/domain/walls`, phần
+ * còn lại rời đi cùng `src/mocks/spatial.ts` khi màn thật thay hết chín màn
+ * demo. Đừng thêm kiểu mới vào file này.
+ */
+
 export type ReviewState = 'pending' | 'approved' | 'rejected';
 
 export interface BaseEntity {

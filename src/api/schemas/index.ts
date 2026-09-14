@@ -281,3 +281,14 @@ export * from './users';
  * bị gỡ; R-71 không cho một quyết định có hai nguồn.
  */
 export * from './notifications';
+
+/**
+ * Nhóm schema lớp không gian một tầng — tường, ô mở, phòng, đồ đạc. Tách file
+ * cùng lý do với bốn nhóm trên: nó mượn kiểu của `src/domain`, và ranh giới ấy
+ * đáng nhìn thấy ở đầu một file.
+ *
+ * Đây là nhóm duy nhất kiểm dữ liệu do **mô hình AI** sinh ra, nên khối chú
+ * thích của nó nói kỹ hơn về chỗ nó dừng lại và chỗ `domain/spatial/integrity.ts`
+ * tiếp tục.
+ */
+export * from './spatial';

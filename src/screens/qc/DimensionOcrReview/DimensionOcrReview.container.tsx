@@ -154,7 +154,7 @@ export function DimensionOcrReviewContainer(props: DimensionOcrReviewContainerPr
 
 /** Route thật của màn Đọc kích thước OCR, đăng ký tại `src/routes/router.tsx`. */
 export function DimensionOcrReviewRoute() {
-  const { floorId, id } = useParams<{ floorId: string; id: string }>();
+  const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const session = useSession();
   const roles = useMemo(() => session.roles, [session.roles]);
 

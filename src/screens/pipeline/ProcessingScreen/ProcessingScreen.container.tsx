@@ -182,7 +182,7 @@ function ProcessingScreenRouteBody({
  * vi nhiệm vụ này, xem ghi chú đầu file).
  */
 export function ProcessingScreenRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {

@@ -113,7 +113,7 @@ const LOG_PREFIX = '[viewer3d]';
 const PROJECT_ID = 'P-01';
 
 /** Đường dẫn thật của màn, dựng từ hằng của `src/routes/paths.ts`. */
-const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':id', PROJECT_ID);
+const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', PROJECT_ID);
 
 /** Bao nhiêu nấc cuộn cho một lượt "lại gần một chỗ". */
 const ZOOM_NOTCHES = 5;

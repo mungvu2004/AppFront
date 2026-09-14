@@ -1,8 +1,17 @@
 import { DEAD_LETTER_STORE, openOfflineDb, PENDING_COMMANDS_STORE, type OpenOfflineDbOptions } from './db';
 import type { Result } from '@/lib/http/types';
 
-const MAX_PENDING_COMMANDS = 200;
-const MAX_PENDING_BYTES = 5 * 1024 * 1024;
+/**
+ * Trần của hàng đợi ngoại tuyến.
+ *
+ * Xuất khẩu vì một lớp CHỈ ĐỌC cũng cần trả lời được "sắp đầy chưa" —
+ * `screens/system/ConnectionStates` là nơi gọi đầu tiên. Trước lượt này, hai
+ * con số chỉ lộ ra trong `QueueFullError`, tức chỉ sau khi một lượt GHI đã
+ * hỏng; một lớp không bao giờ ghi thì không có đường nào hỏi, và nó sẽ phải
+ * chép lại hai con số này — đúng thứ R-71 cấm.
+ */
+export const MAX_PENDING_COMMANDS = 200;
+export const MAX_PENDING_BYTES = 5 * 1024 * 1024;
 
 export interface PendingCommandInput {
   command: unknown;

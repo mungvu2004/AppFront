@@ -135,7 +135,7 @@ function FloorUploadRouteBody({
 
 /** Route thật của màn tải bản vẽ, đăng ký tại `src/routes/router.tsx`. */
 export function FloorUploadRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {

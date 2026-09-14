@@ -20,10 +20,10 @@
  *
  * ## Two tables, because a route is written twice
  *
- * `ROUTE_PATTERNS` is what `createBrowserRouter` registers: `:id` is a hole the
- * router fills. `ROUTES` is what `navigate()` is given: the hole is already
+ * `ROUTE_PATTERNS` is what `createBrowserRouter` registers: `:projectId` is a hole
+ * the router fills. `ROUTES` is what `navigate()` is given: the hole is already
  * filled. Keeping them apart means a screen cannot accidentally navigate to the
- * literal string `/projects/:id/export`, which renders a page that looks almost
+ * literal string `/projects/:projectId/export`, which renders a page that looks almost
  * right and is entirely wrong.
  */
 
@@ -40,7 +40,24 @@ const DESIGN_SYSTEM_ROOT = '/design-system';
  */
 const MOBILE_ROOT = '/m';
 
-/** What `createBrowserRouter` registers. `:id` and `:floorId` are the router's holes. */
+/**
+ * What `createBrowserRouter` registers. `:projectId` and `:floorId` are the
+ * router's holes.
+ *
+ * **Đúng một quy ước đặt tên tham số, không phải hai.** Cho tới 14-09-2026 bảng
+ * này đặt lỗ cấp dự án tên cộc lốc là `id` nhưng lỗ cấp tầng là `:floorId` — hai
+ * quy ước trong một cây route, và mỗi `useParams` phải nhớ mình đang đứng ở
+ * nhánh nào. Nay mọi lỗ đều mang tên đầy đủ của thứ nó giữ: `:projectId`,
+ * `:floorId`. `/m/du-an/:projectId` vốn đã đúng nên không đổi.
+ *
+ * **Năm khoá không còn ở đây, và đó là chủ ý:** `floors`, `layerDimensions`,
+ * `layerGrids`, `layerObjects`, `layerRooms` — năm đường dẫn cũ ở gốc
+ * (`/floors`, `/layers/*`) không mang mã dự án lẫn mã tầng, nên không màn nào
+ * mở nổi dữ liệu nào từ chúng: ba cái đầu render một `<div>Canvas</div>` rỗng,
+ * hai cái sau trỏ trùng đích với bản đã có `:projectId`. Đường thật của năm
+ * việc đó là `projectFloors` và bốn builder `ROUTES.project.{dimensions,grids,
+ * objects,rooms}(projectId, floorId)`.
+ */
 export const ROUTE_PATTERNS = {
   // Ngoại lệ duy nhất của quy ước "đường dẫn viết bằng tiếng Anh": đường dẫn của
   // màn cài đặt tài khoản là thứ người dùng đọc và gõ, nên nó là tiếng Việt.
@@ -58,11 +75,6 @@ export const ROUTE_PATTERNS = {
   designSystem: DESIGN_SYSTEM_ROOT,
   designSystemStates: `${DESIGN_SYSTEM_ROOT}/states`,
   feedbackDemo: '/feedback-demo',
-  floors: '/floors',
-  layerDimensions: `${LAYERS_ROOT}/dimensions`,
-  layerGrids: `${LAYERS_ROOT}/grids`,
-  layerObjects: `${LAYERS_ROOT}/objects`,
-  layerRooms: `${LAYERS_ROOT}/rooms`,
   listReviewDemo: '/list-review-demo',
   login: '/login',
   // Đường dẫn tiếng Việt, cùng ngoại lệ đã ghi ở `accessDenied` và `account`:
@@ -71,29 +83,29 @@ export const ROUTE_PATTERNS = {
   notFound: '*',
   notifications: '/thong-bao',
   onboarding: '/onboarding',
-  projectCadConfirm: `${PROJECTS_ROOT}/:id/floors/:floorId/cad-confirm`,
-  projectDimensions: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/dimensions`,
-  projectExploded: `${PROJECTS_ROOT}/:id/3d/exploded`,
-  projectExport: `${PROJECTS_ROOT}/:id/export`,
-  projectFloors: `${PROJECTS_ROOT}/:id/floors`,
-  projectGrids: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/grids`,
-  projectMeasure: `${PROJECTS_ROOT}/:id/3d/measure`,
-  projectObjects: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/objects`,
-  projectOverlay: `${PROJECTS_ROOT}/:id/floors/:floorId/overlay`,
-  projectPipeline: `${PROJECTS_ROOT}/:id/pipeline`,
-  projectPipelineGraph: `${PROJECTS_ROOT}/:id/pipeline/graph`,
-  projectQuality: `${PROJECTS_ROOT}/:id/quality`,
-  projectRooms: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/rooms`,
-  projectRules: `${PROJECTS_ROOT}/:id/rules`,
-  projectRuleSettings: `${PROJECTS_ROOT}/:id/rules/settings`,
-  projectScale: `${PROJECTS_ROOT}/:id/floors/:floorId/scale`,
-  projectSettings: `${PROJECTS_ROOT}/:id/settings`,
-  projectShare: `${PROJECTS_ROOT}/:id/share`,
-  projectThickness: `${PROJECTS_ROOT}/:id/floors/:floorId${LAYERS_ROOT}/thickness`,
-  projectUpload: `${PROJECTS_ROOT}/:id/upload`,
-  projectVersions: `${PROJECTS_ROOT}/:id/versions`,
-  projectViewer: `${PROJECTS_ROOT}/:id/3d`,
-  projectWalls: `${PROJECTS_ROOT}/:id/floors/:floorId/layers/walls`,
+  projectCadConfirm: `${PROJECTS_ROOT}/:projectId/floors/:floorId/cad-confirm`,
+  projectData: `${PROJECTS_ROOT}/:projectId/data`,
+  projectDimensions: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/dimensions`,
+  projectExploded: `${PROJECTS_ROOT}/:projectId/3d/exploded`,
+  projectExport: `${PROJECTS_ROOT}/:projectId/export`,
+  projectFloors: `${PROJECTS_ROOT}/:projectId/floors`,
+  projectGrids: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/grids`,
+  projectMeasure: `${PROJECTS_ROOT}/:projectId/3d/measure`,
+  projectObjects: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/objects`,
+  projectOverlay: `${PROJECTS_ROOT}/:projectId/floors/:floorId/overlay`,
+  projectPipeline: `${PROJECTS_ROOT}/:projectId/pipeline`,
+  projectPipelineGraph: `${PROJECTS_ROOT}/:projectId/pipeline/graph`,
+  projectQuality: `${PROJECTS_ROOT}/:projectId/quality`,
+  projectRooms: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/rooms`,
+  projectRules: `${PROJECTS_ROOT}/:projectId/rules`,
+  projectRuleSettings: `${PROJECTS_ROOT}/:projectId/rules/settings`,
+  projectScale: `${PROJECTS_ROOT}/:projectId/floors/:floorId/scale`,
+  projectSettings: `${PROJECTS_ROOT}/:projectId/settings`,
+  projectThickness: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/thickness`,
+  projectUpload: `${PROJECTS_ROOT}/:projectId/upload`,
+  projectVersions: `${PROJECTS_ROOT}/:projectId/versions`,
+  projectViewer: `${PROJECTS_ROOT}/:projectId/3d`,
+  projectWalls: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
 } as const;
 
@@ -114,11 +126,6 @@ export const ROUTES = {
   demoGallery: ROUTE_PATTERNS.demoGallery,
   designSystem: ROUTE_PATTERNS.designSystem,
   designSystemStates: ROUTE_PATTERNS.designSystemStates,
-  floors: ROUTE_PATTERNS.floors,
-  layerDimensions: ROUTE_PATTERNS.layerDimensions,
-  layerGrids: ROUTE_PATTERNS.layerGrids,
-  layerObjects: ROUTE_PATTERNS.layerObjects,
-  layerRooms: ROUTE_PATTERNS.layerRooms,
   login: ROUTE_PATTERNS.login,
   mobileViewer: (projectId: string): string => `${MOBILE_ROOT}/du-an/${projectId}`,
   notifications: ROUTE_PATTERNS.notifications,
@@ -126,6 +133,8 @@ export const ROUTES = {
   project: {
     cadConfirm: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,
+    /** S-36 — Spatial JSON chỉ đọc của dự án. */
+    data: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/data`,
     dimensions: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/dimensions`,
     exploded: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d/exploded`,
@@ -149,7 +158,6 @@ export const ROUTES = {
     scale: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/scale`,
     settings: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
-    share: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/share`,
     thickness: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/thickness`,
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,

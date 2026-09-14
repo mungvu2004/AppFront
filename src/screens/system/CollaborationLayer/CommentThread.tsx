@@ -1,15 +1,16 @@
 /**
- * Ghim bình luận trên bản vẽ, bóng 320 khi bấm ghim, danh sách ở panel phải.
+ * Ghim bình luận trên bản vẽ, bóng khi bấm ghim, danh sách ở panel phải.
  *
  * VIEW THUẦN (R-60): mọi thứ tới qua {@link CommentThreadProps}. `useState` ở
  * đây giữ đúng hai chuyện trình bày — ghim nào đang mở bóng, danh sách có mở
  * không — chứ không phải trạng thái tải tự viết (R-64).
  *
- * **Bóng 320 tự dựng.** `src/components/overlay/Popover.tsx` không tồn tại (đã
- * grep, 0 kết quả) và lượt này bị cấm thêm component vào `src/components`.
- * `Modal.Root` phủ kín màn và bẫy tiêu điểm, `Drawer.Root` dán cạnh màn hình —
- * không cái nào là "bóng nổi cạnh một điểm neo". Nên bóng đặt theo chính toạ độ
- * `at` của ghim: cùng hệ toạ độ nên không phải đo `getBoundingClientRect`.
+ * **Bóng dùng `src/components/overlay/Popover.tsx`.** Nó neo vào chính nút
+ * ghim đang mở (qua `openPinAnchorRef`, cập nhật từ `pinRefs` — một map các
+ * ref nút ghim, đăng ký qua `registerPinRef`) và tự lo vị trí/lật, Esc, bấm ra
+ * ngoài, và trả tiêu điểm khi đóng — không còn phải tự tính toạ độ `at` +
+ * lệch cứng như bản cũ. `Modal.Root`/`Drawer.Root` phủ kín màn hoặc dán cạnh
+ * màn hình; đây là cái còn thiếu trong bộ ba — bóng nổi cạnh một điểm neo.
  *
  * **Ba thứ đặc tả đòi mà file này cố ý không dựng:** ô nhập, nhắc tên bằng `@`,
  * nút đánh dấu đã xử lý. Bình luận không có tầng logic nào trong repo (không
@@ -33,6 +34,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Check, MessageSquare, X } from 'lucide-react';
 
+import { Popover } from '@/components/overlay/Popover';
 import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -61,18 +63,16 @@ const EMPTY_LIST_MESSAGE = 'Chưa có bình luận nào trên bản vẽ này.';
 const READ_ONLY_NOTICE = 'Bạn chỉ xem được bình luận, không viết được ở dự án này.';
 const ESC_DESCRIPTION = 'đóng bóng bình luận, rồi tới danh sách bình luận';
 
-/* --- Số đo và hai khe chuyển động. --- */
+/* --- Số đo và khe chuyển động của danh sách (bóng lấy khe riêng từ Popover). --- */
 
-/** Bề ngang ghim (đặc tả chốt 20) và bề ngang bóng (đặc tả chốt 320). */
+/** Bề ngang ghim (đặc tả chốt 20). */
 const PIN_SIZE_PX = 20;
-const POPOVER_WIDTH_PX = 320;
 const LIST_WIDTH_PX = 320;
+/** Danh sách trượt vào từ mép phải một quãng ngắn — chỉ dùng cho hoạt ảnh của nó. */
+const LIST_SLIDE_OFFSET_PX = 16;
 
-/** Bóng nở từ cạnh phải ghim, chừa một quãng để không đè lên chính ghim. */
-const POPOVER_OFFSET_PX = 16;
-
-/* Bóng và danh sách là "thứ nhỏ hiện đúng chỗ đang nhìn": vào ở khe `fast`
-   (180ms) đường cong `enter`, biến mất là mờ dần ở `exit`. */
+/* Danh sách là "thứ nhỏ hiện đúng chỗ đang nhìn": vào ở khe `fast` (180ms)
+   đường cong `enter`, biến mất là mờ dần ở `exit`. */
 const ENTER_TRANSITION = {
   duration: durationSeconds('fast'),
   ease: MOTION_EASINGS.enter.points,
@@ -104,14 +104,19 @@ interface CommentPinProps {
   readonly comment: CommentPinVm;
   readonly isOpen: boolean;
   readonly onToggle: (commentId: string) => void;
+  /** Đăng ký nút DOM của ghim này — `Popover` neo vào đúng nút đang mở. */
+  readonly onRegisterRef: (commentId: string, element: HTMLButtonElement | null) => void;
 }
 
 /** Ghim 20px neo vào đúng toạ độ của nó. Đã xử lý khác chưa xử lý bằng HÌNH
     (dấu tích so với số trả lời) chứ không bằng màu trạng thái: A5 giữ xanh "đã
     xác minh" cho riêng việc người duyệt, mà đóng một bình luận không phải duyệt. */
-function CommentPin({ comment, isOpen, onToggle }: CommentPinProps) {
+function CommentPin({ comment, isOpen, onToggle, onRegisterRef }: CommentPinProps) {
   return (
     <button
+      ref={(element) => {
+        onRegisterRef(comment.id, element);
+      }}
       type="button"
       aria-label={`${statusLabelOf(comment.isResolved)}. ${replyLabelOf(comment.replyCount)}.`}
       aria-expanded={isOpen}
@@ -137,33 +142,19 @@ function CommentPin({ comment, isOpen, onToggle }: CommentPinProps) {
   );
 }
 
-/* --- Bóng 320. --- */
+/* --- Nội dung bên trong bóng — `Popover` lo khung, vị trí, Esc, focus. --- */
 
-interface CommentPopoverProps {
+interface CommentPopoverContentProps {
   readonly comment: CommentPinVm;
   readonly canWrite: boolean;
+  readonly titleId: string;
   readonly onClose: () => void;
   readonly onFrameComment: (commentId: string) => void;
 }
 
-function CommentPopover({ comment, canWrite, onClose, onFrameComment }: CommentPopoverProps) {
-  const titleId = useId();
-
+function CommentPopoverContent({ comment, canWrite, titleId, onClose, onFrameComment }: CommentPopoverContentProps) {
   return (
-    <motion.div
-      role="group"
-      aria-labelledby={titleId}
-      className="pointer-events-auto absolute flex flex-col gap-3 rounded-lg border border-border-default bg-bg-surface p-3 shadow-overlay"
-      style={{
-        left: comment.at.x + POPOVER_OFFSET_PX,
-        top: comment.at.y,
-        width: POPOVER_WIDTH_PX,
-        zIndex: Z_INDEX.dropdown,
-      }}
-      initial={{ opacity: 0, y: -PIN_SIZE_PX }}
-      animate={{ opacity: 1, y: 0, transition: ENTER_TRANSITION }}
-      exit={{ opacity: 0, transition: EXIT_TRANSITION }}
-    >
+    <>
       <div className="flex items-start justify-between gap-2">
         <h3 id={titleId} className="text-[15px] font-medium leading-[20px] text-text-primary">
           {OBJECT_LABEL} <code className="font-mono">{comment.objectId}</code>
@@ -199,7 +190,7 @@ function CommentPopover({ comment, canWrite, onClose, onFrameComment }: CommentP
       >
         {FRAME_LABEL}
       </Button>
-    </motion.div>
+    </>
   );
 }
 
@@ -222,7 +213,7 @@ function CommentList({ comments, canWrite, isCollapsed, onClose, onFrameComment 
       aria-labelledby={titleId}
       className="pointer-events-auto fixed bottom-0 right-0 top-0 flex flex-col gap-3 overflow-y-auto border-l border-border-default bg-bg-surface p-4 shadow-panel"
       style={{ width: LIST_WIDTH_PX, zIndex: Z_INDEX.panel }}
-      initial={{ opacity: 0, x: POPOVER_OFFSET_PX }}
+      initial={{ opacity: 0, x: LIST_SLIDE_OFFSET_PX }}
       animate={{ opacity: 1, x: 0, transition: ENTER_TRANSITION }}
       exit={{ opacity: 0, transition: EXIT_TRANSITION }}
     >
@@ -306,7 +297,25 @@ export function CommentThread({
 }: CommentThreadProps) {
   const [openCommentId, setOpenCommentId] = useState<string | null>(null);
   const [isListOpen, setIsListOpen] = useState(false);
-  const pinLayerRef = useRef<HTMLDivElement | null>(null);
+  const popoverTitleId = useId();
+
+  // Map nút DOM của từng ghim, để `openPinAnchorRef` luôn trỏ đúng ghim đang
+  // mở — `Popover` neo vào đó. Gán trong thân render (không phải effect):
+  // effect của component con chạy TRƯỚC effect của cha trong cùng một lượt
+  // commit, nên nếu gán ở effect thì `Popover` sẽ đọc phải giá trị cũ của
+  // đúng lượt nó cần giá trị mới nhất.
+  const pinRefs = useRef(new Map<string, HTMLButtonElement>());
+  const openPinAnchorRef = useRef<HTMLButtonElement | null>(null);
+  openPinAnchorRef.current = openCommentId === null ? null : pinRefs.current.get(openCommentId) ?? null;
+
+  const registerPinRef = (commentId: string, element: HTMLButtonElement | null): void => {
+    if (element === null) {
+      pinRefs.current.delete(commentId);
+      return;
+    }
+
+    pinRefs.current.set(commentId, element);
+  };
 
   const hasComments = capabilities.comments;
   const openComment = comments.find((comment) => comment.id === openCommentId) ?? null;
@@ -318,35 +327,15 @@ export function CommentThread({
     }
   }, [openCommentId, openComment]);
 
-  /* Bấm ra ngoài thì đóng bóng — cùng khuôn `hooks/useSelect.ts:90-106`. Ghim và
-     bóng cùng nằm trong `pinLayerRef` nên không bị đóng oan; bấm lại chính ghim
-     đang mở là đóng, việc đó do `togglePin` lo. */
-  useEffect(() => {
-    if (openCommentId === null) {
-      return undefined;
-    }
-
-    const closeOnOutside = (event: MouseEvent): void => {
-      const layer = pinLayerRef.current;
-
-      if (layer !== null && !layer.contains(event.target as Node)) {
-        setOpenCommentId(null);
-      }
-    };
-
-    document.addEventListener('mousedown', closeOnOutside);
-
-    return (): void => {
-      document.removeEventListener('mousedown', closeOnOutside);
-    };
-  }, [openCommentId]);
-
   /*
     A12: Esc đóng lớp trên cùng — bóng trước, rồi tới danh sách. Đúng MỘT đăng
     ký cho cả hai, vì hai đăng ký cùng phím trong cùng tầng sẽ bị registry báo
     trùng. Tầng `canvas` chứ không phải `dialog`: không lớp nào ở đây khoá bàn
     phím sau lưng nó, và tấm xung đột đăng ký Esc ở `sidePanel` — ưu tiên cao
     hơn — nên khi nó mở thì Esc thuộc về nó trước, đúng nghĩa "lớp trên cùng".
+    Nhánh đóng-bóng ở đây là lưới an toàn cho trường hợp hiếm tiêu điểm đang ở
+    NGOÀI bóng: bình thường `Popover` tự bắt Esc cục bộ (focus trap của nó) và
+    dừng lan truyền trước khi phím tới được registry này.
   */
   useShortcut(
     {
@@ -377,7 +366,6 @@ export function CommentThread({
   return (
     <>
       <div
-        ref={pinLayerRef}
         role="group"
         aria-label={PINS_LAYER_LABEL}
         className="pointer-events-none absolute inset-0"
@@ -389,26 +377,34 @@ export function CommentThread({
             comment={comment}
             isOpen={comment.id === openCommentId}
             onToggle={togglePin}
+            onRegisterRef={registerPinRef}
           />
         ))}
-
-        <AnimatePresence>
-          {openComment !== null && (
-            <CommentPopover
-              key={openComment.id}
-              comment={openComment}
-              canWrite={canWrite}
-              onClose={() => {
-                setOpenCommentId(null);
-              }}
-              onFrameComment={(commentId) => {
-                onFrameComment(commentId);
-                setOpenCommentId(null);
-              }}
-            />
-          )}
-        </AnimatePresence>
       </div>
+
+      <Popover
+        isOpen={openComment !== null}
+        onClose={() => {
+          setOpenCommentId(null);
+        }}
+        anchorRef={openPinAnchorRef}
+        aria-labelledby={popoverTitleId}
+      >
+        {openComment !== null && (
+          <CommentPopoverContent
+            comment={openComment}
+            canWrite={canWrite}
+            titleId={popoverTitleId}
+            onClose={() => {
+              setOpenCommentId(null);
+            }}
+            onFrameComment={(commentId) => {
+              onFrameComment(commentId);
+              setOpenCommentId(null);
+            }}
+          />
+        )}
+      </Popover>
 
       <div
         className="pointer-events-auto absolute right-4 top-4"

@@ -233,7 +233,7 @@ function FloorManagerRouteBody({
 
 /** Route thật của màn Quản lý tầng, đăng ký tại `src/routes/router.tsx`. */
 export function FloorManagerRoute() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
 
   if (id === undefined || id.length === 0) {
