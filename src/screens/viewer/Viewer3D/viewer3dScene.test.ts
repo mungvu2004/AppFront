@@ -361,6 +361,9 @@ describe('mountViewerScene', () => {
     // được dựng. Đó là tính chất của bộ mẫu, không phải của nấc chi tiết.
     expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
     expect(host.renderer.shadowMap.type).toBe(shadowMapTypeFor('soft'));
+    // Giá trị canh: từ three r182 `'soft'` và `'hard'` cùng là `PCFShadowMap`, nên
+    // chỉ khi xoá giá trị lúc gắn thì mới biết hạ nấc có thật sự ghi kiểu bóng.
+    host.renderer.shadowMap.type = -1;
 
     // Một cửa sổ đo dài hơn `DEGRADE_WINDOW_MS` với đúng hai khung hình: khung
     // hình đo được xuống dưới ngưỡng, và nó ở dưới đủ lâu để R-04 hạ nấc.
