@@ -365,7 +365,9 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
     const handle = mounted(test);
 
     expect(handle.currentDetail()).toBe('full');
-    const softShadow = test.renderer.shadowMap.type;
+    // Giá trị canh: từ three r182 `'soft'` và `'hard'` cùng là `PCFShadowMap`, nên
+    // chỉ khi xoá giá trị lúc gắn thì mới biết hạ mức có thật sự ghi kiểu bóng.
+    test.renderer.shadowMap.type = -1;
 
     // Mỗi vòng là một cửa sổ đo dài hơn 500 ms với đúng một khung hình — khoảng
     // 1,7 fps, sâu dưới `SCENE_BUDGET.minFrameRate.mobile`.
@@ -377,10 +379,7 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
 
     expect(handle.currentDetail()).toBe('reduced');
     expect(test.details).toEqual(['reduced']);
-    // Từ three r182 hai mức cùng vẽ bằng `PCFShadowMap` (`PCFSoftShadowMap` đã bị
-    // gỡ): hạ mức vẫn chọn bộ lọc của mức `'hard'`, chỉ là nó trùng mức `'soft'`.
     expect(test.renderer.shadowMap.type).toBe(shadowMapTypeFor('hard'));
-    expect(test.renderer.shadowMap.type).toBe(softShadow);
 
     handle.dispose();
   });
