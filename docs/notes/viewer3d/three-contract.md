@@ -214,7 +214,7 @@ nguyên các tên dưới đây từ `buildCore.ts` (build.worker.ts:21-29) — 
 | `DEGRADE_WINDOW_MS` | monitor.ts:72 | `number = 3_000` | Khung hình phải thấp liên tục bao lâu mới hạ chất lượng. |
 | `DEGRADE_FRAME_RATE` | monitor.ts:81 | `number = SCENE_BUDGET.minFrameRate.mobile` **= 30** | Ngưỡng kích hoạt hạ chất lượng — LUÔN LÀ 30, bất kể `profile` truyền vào là gì. Xem mục (c). |
 | `ShadowQuality` | monitor.ts:90 | `type = 'soft' \| 'hard'` | Chất lượng lọc bóng đổ. |
-| `shadowMapTypeFor` | monitor.ts:99 | `(quality: ShadowQuality) => ShadowMapType` | `'soft'→PCFSoftShadowMap`, `'hard'→PCFShadowMap`. |
+| `shadowMapTypeFor` | monitor.ts:99 | `(quality: ShadowQuality) => ShadowMapType` | Cả hai mức → `PCFShadowMap` từ three r182 (`PCFSoftShadowMap` đã bị gỡ), nên hạ mức không còn đổi bộ lọc bóng. |
 | `coarserDetail` | monitor.ts:104 | `(detail: DetailLevel) => DetailLevel` | Rung LOD kế tiếp rẻ hơn (hoặc giữ nguyên nếu đã ở `'block'`). |
 | `PerfSample` | monitor.ts:111 | `interface { readonly atMs: number; readonly durationMs: number; readonly frames: number; readonly frameRate: number; readonly drawCalls: number; readonly triangles: number; readonly materials: number; readonly graphicsMemoryMb: number; readonly drawCallsPerSecond: number; readonly trianglesPerSecond: number; readonly warnings: readonly BudgetWarning[] }` | Một cửa sổ 500 ms đã đóng. |
 | `DegradeAction` | monitor.ts:135 | `interface { readonly detail: DetailLevel; readonly shadows: ShadowQuality; readonly frameRate: number; readonly belowMs: number; readonly message: string }` | Quyết định hạ chất lượng — chỉ MÔ TẢ, không tự áp dụng. |
