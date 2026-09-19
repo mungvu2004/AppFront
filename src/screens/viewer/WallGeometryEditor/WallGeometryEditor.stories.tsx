@@ -299,7 +299,7 @@ export const WALL_GEOMETRY_EDITOR_SCENARIOS: Readonly<Record<SevenState, WallGeo
 const meta = {
   component: WallGeometryEditor,
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <div className={FRAME_CLASS}>
         <Story />
       </div>

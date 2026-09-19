@@ -44,7 +44,7 @@ const meta = {
      dòng này thì Storybook nhận nhầm chúng là story và cả file ra trắng. */
   excludeStories: ['PANEL_FRAME_CLASS', 'argsFor'],
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <div className={PANEL_FRAME_CLASS}>
         <Story />
       </div>

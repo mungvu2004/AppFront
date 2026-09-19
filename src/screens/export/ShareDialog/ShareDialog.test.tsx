@@ -102,7 +102,7 @@ async function loadUseShareDialog(): Promise<(options: UseShareDialogOptions) =>
  * kiện nào của bài bị nới: chỉ có cái provider mà container thật cũng có.
  * Tiền lệ: `useFloorUploadScreen.test.ts:205`, `ViewerShell.test.tsx:554`.
  */
-function withQueryClient(): ({ children }: { readonly children: ReactNode }) => JSX.Element {
+function withQueryClient(): ({ children }: { readonly children: ReactNode }) => React.JSX.Element {
   const client = createTestQueryClient();
 
   return function QueryWrapper({ children }: { readonly children: ReactNode }) {

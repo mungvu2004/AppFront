@@ -32,8 +32,8 @@ interface SelectContextValue {
   selectOption: (val: string) => void;
   handleKeyDown: (e: React.KeyboardEvent) => void;
   toggle: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement>;
-  listboxRef: React.RefObject<HTMLDivElement>;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  listboxRef: React.RefObject<HTMLDivElement | null>;
   triggerId: string;
   listboxId: string;
 }

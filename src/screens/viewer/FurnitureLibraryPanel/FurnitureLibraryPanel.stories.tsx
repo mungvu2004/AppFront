@@ -217,7 +217,7 @@ const meta = {
     'scenarioFor',
   ],
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <div className={PANEL_FRAME_CLASS}>
         <Story />
       </div>
