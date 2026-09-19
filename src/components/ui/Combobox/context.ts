@@ -28,9 +28,9 @@ export interface ComboboxContextValue {
   query: string;
   setQuery: (q: string) => void;
   filteredOptions: SelectOption[];
-  triggerRef: RefObject<HTMLButtonElement>;
-  listboxRef: RefObject<HTMLDivElement>;
-  inputRef: RefObject<HTMLInputElement>;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  listboxRef: RefObject<HTMLDivElement | null>;
+  inputRef: RefObject<HTMLInputElement | null>;
   triggerId: string;
   listboxId: string;
   searchId: string;
