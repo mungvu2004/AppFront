@@ -360,7 +360,7 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
     handle.dispose();
   });
 
-  it('fps dưới ngưỡng đủ lâu thì HẠ mức chi tiết thật và đổi luôn bộ lọc bóng', () => {
+  it('fps dưới ngưỡng đủ lâu thì HẠ mức chi tiết thật và chọn bộ lọc bóng của mức hard', () => {
     const test = harness({ initialDetail: 'full' });
     const handle = mounted(test);
 
@@ -377,8 +377,10 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
 
     expect(handle.currentDetail()).toBe('reduced');
     expect(test.details).toEqual(['reduced']);
+    // Từ three r182 hai mức cùng vẽ bằng `PCFShadowMap` (`PCFSoftShadowMap` đã bị
+    // gỡ): hạ mức vẫn chọn bộ lọc của mức `'hard'`, chỉ là nó trùng mức `'soft'`.
     expect(test.renderer.shadowMap.type).toBe(shadowMapTypeFor('hard'));
-    expect(test.renderer.shadowMap.type).not.toBe(softShadow);
+    expect(test.renderer.shadowMap.type).toBe(softShadow);
 
     handle.dispose();
   });
