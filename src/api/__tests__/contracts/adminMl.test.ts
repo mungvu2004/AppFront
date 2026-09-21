@@ -64,11 +64,30 @@ function without(source: object, key: string): Record<string, unknown> {
   return Object.fromEntries(Object.entries(source).filter(([name]) => name !== key));
 }
 
+/**
+ * Hai dạng "không có" của một trường: vắng hẳn khoá, và khoá mang `undefined`.
+ * zod 3 bỏ khoá vắng nhưng GIỮ khoá mang `undefined`, nên luật kiểm sự có mặt
+ * phải qua cả hai.
+ */
+function missing(source: object, key: string): [string, Record<string, unknown>][] {
+  return [
+    ['vắng khoá', without(source, key)],
+    ['khoá mang undefined', { ...source, [key]: undefined }],
+  ];
+}
+
+/** Bỏ riêng từng khoá bắt buộc thì hỏng đúng ở khoá đó. */
+function itRequiresKeys(schema: z.ZodTypeAny, sample: object, keys: string[]): void {
+  it.each(keys)('từ chối thiếu khoá bắt buộc %s', (key) => {
+    expect(issuePaths(schema, without(sample, key))).toStrictEqual([[key]]);
+  });
+}
+
 function accepts(schema: z.ZodTypeAny, input: unknown): boolean {
   return schema.safeParse(input).success;
 }
 
-/** Bốn phép kiểm mà mọi trang danh sách đều phải qua, với một mục đạt và một mục hỏng. */
+/** Năm phép kiểm mà mọi trang danh sách đều phải qua, với một mục đạt và một mục hỏng. */
 function describePage(name: string, schema: z.ZodTypeAny, item: object, badItem: object): void {
   describe(name, () => {
     it('nhận trang đầy đủ', () => {
@@ -78,8 +97,12 @@ function describePage(name: string, schema: z.ZodTypeAny, item: object, badItem:
       });
     });
 
-    it('nhận trang tối thiểu và bỏ hẳn nextCursor', () => {
+    it('nhận trang tối thiểu, không có nextCursor', () => {
       expect(schema.parse({ items: [] })).toStrictEqual({ items: [] });
+    });
+
+    it('từ chối thiếu items', () => {
+      expect(issuePaths(schema, {})).toStrictEqual([['items']]);
     });
 
     it('từ chối khoá lạ và null ở nextCursor', () => {
@@ -110,6 +133,7 @@ describe('hằng — khớp HOP-DONG-MOI §8', () => {
   });
 
   it('TRAINABLE_MODEL_FAMILIES là hai họ đầu', () => {
+    expect([...TRAINABLE_MODEL_FAMILIES]).toStrictEqual(ML_MODEL_FAMILIES.slice(0, 2));
     expect([...TRAINABLE_MODEL_FAMILIES]).toStrictEqual([
       'wallSegmentation',
       'openingAndFurnitureDetection',
@@ -153,8 +177,14 @@ describe('ModelMetricsSchema', () => {
     expect(ModelMetricsSchema.parse(full)).toStrictEqual(full);
   });
 
-  it('nhận mẫu tối thiểu — khớp khoá với họ là việc của ModelVersionSchema', () => {
+  it('nhận mẫu tối thiểu (rỗng)', () => {
     expect(ModelMetricsSchema.parse({})).toStrictEqual({});
+  });
+
+  it('bỏ khoá mang undefined khỏi đầu ra', () => {
+    expect(
+      ModelMetricsSchema.parse({ cer: undefined, iou: undefined, map50: undefined }),
+    ).toStrictEqual({});
   });
 
   it('từ chối khoá lạ', () => {
@@ -191,9 +221,17 @@ describe('ModelFamilySchema', () => {
     expect(ModelFamilySchema.parse(fullFamily)).toStrictEqual(fullFamily);
   });
 
-  it('nhận mẫu tối thiểu — họ tường đang chạy đường cổ điển', () => {
+  it('nhận mẫu tối thiểu, không có activeVersionId', () => {
     expect(ModelFamilySchema.parse(minimalFamily)).toStrictEqual(minimalFamily);
   });
+
+  it('bỏ khoá mang undefined khỏi đầu ra', () => {
+    expect(ModelFamilySchema.parse({ ...minimalFamily, activeVersionId: undefined })).toStrictEqual(
+      minimalFamily,
+    );
+  });
+
+  itRequiresKeys(ModelFamilySchema, fullFamily, ['family', 'revision']);
 
   it('từ chối khoá lạ và null ở activeVersionId', () => {
     expect(accepts(ModelFamilySchema, { ...minimalFamily, label: 'tường' })).toBe(false);
@@ -216,7 +254,7 @@ describePage('ModelFamilyPageSchema', ModelFamilyPageSchema, fullFamily, {
 });
 
 describe('SetActiveModelVersionSchema', () => {
-  it('nhận versionId: null — quay về đường cổ điển', () => {
+  it('nhận versionId: null', () => {
     const body = { baseVersion: 0, body: { versionId: null } };
     expect(SetActiveModelVersionSchema.parse(body)).toStrictEqual(body);
   });
@@ -226,14 +264,18 @@ describe('SetActiveModelVersionSchema', () => {
     expect(SetActiveModelVersionSchema.parse(body)).toStrictEqual(body);
   });
 
+  itRequiresKeys(SetActiveModelVersionSchema, { baseVersion: 3, body: { versionId: MDL } }, [
+    'baseVersion',
+    'body',
+  ]);
+
   it.each([
     ['thân vắng versionId', { baseVersion: 0, body: {} }],
     ['versionId rỗng', { baseVersion: 0, body: { versionId: '' } }],
     ['id tiền tố dsv_', { baseVersion: 0, body: { versionId: DSV } }],
-    ['thiếu baseVersion — máy chủ trả 428', { body: { versionId: MDL } }],
     ['baseVersion âm', { baseVersion: -1, body: { versionId: MDL } }],
     [
-      'khoá lạ trong thân — họ nằm trên đường',
+      'khoá lạ family trong thân',
       { baseVersion: 0, body: { family: 'wallSegmentation', versionId: null } },
     ],
     ['khoá lạ ở vỏ', { baseVersion: 0, body: { versionId: MDL }, force: true }],
@@ -274,9 +316,31 @@ describe('ModelVersionSchema', () => {
     expect(ModelVersionSchema.parse(fullModelVersion)).toStrictEqual(fullModelVersion);
   });
 
-  it('nhận mẫu tối thiểu và bỏ hẳn metrics, trainingJobId, datasetVersionId', () => {
+  it('nhận mẫu tối thiểu, không có metrics, trainingJobId, datasetVersionId', () => {
     expect(ModelVersionSchema.parse(minimalModelVersion)).toStrictEqual(minimalModelVersion);
   });
+
+  it('bỏ khoá mang undefined khỏi đầu ra', () => {
+    expect(
+      ModelVersionSchema.parse({
+        ...minimalModelVersion,
+        datasetVersionId: undefined,
+        metrics: undefined,
+        trainingJobId: undefined,
+      }),
+    ).toStrictEqual(minimalModelVersion);
+  });
+
+  itRequiresKeys(ModelVersionSchema, minimalModelVersion, [
+    'checksumSha256',
+    'createdAt',
+    'creatorId',
+    'evaluationStatus',
+    'family',
+    'id',
+    'label',
+    'weightsFormat',
+  ]);
 
   it('từ chối khoá lạ', () => {
     expect(accepts(ModelVersionSchema, { ...minimalModelVersion, isActive: true })).toBe(false);
@@ -302,7 +366,15 @@ describe('ModelVersionSchema', () => {
   });
 
   it('từ chối trainingJobId sai tiền tố', () => {
-    expect(accepts(ModelVersionSchema, { ...fullModelVersion, trainingJobId: MDL })).toBe(false);
+    expect(
+      issuePaths(ModelVersionSchema, { ...fullModelVersion, trainingJobId: MDL }),
+    ).toStrictEqual([['trainingJobId']]);
+  });
+
+  it('từ chối datasetVersionId sai tiền tố', () => {
+    expect(
+      issuePaths(ModelVersionSchema, { ...fullModelVersion, datasetVersionId: DST }),
+    ).toStrictEqual([['datasetVersionId']]);
   });
 
   it('nhận nhãn đúng 80 ký tự', () => {
@@ -316,10 +388,12 @@ describe('ModelVersionSchema', () => {
       expect(accepts(ModelVersionSchema, { ...minimalModelVersion, evaluationStatus })).toBe(true);
     });
 
-    it('completed thiếu metrics → path evaluationStatus', () => {
-      const body = without(fullModelVersion, 'metrics');
-      expect(issuePaths(ModelVersionSchema, body)).toStrictEqual([['evaluationStatus']]);
-    });
+    it.each(missing(fullModelVersion, 'metrics'))(
+      'completed thiếu metrics (%s) → path evaluationStatus',
+      (_form, body) => {
+        expect(issuePaths(ModelVersionSchema, body)).toStrictEqual([['evaluationStatus']]);
+      },
+    );
 
     it('pending có metrics → path evaluationStatus', () => {
       expect(
@@ -341,23 +415,34 @@ describe('ModelVersionSchema', () => {
       ['khoá của họ khác', { map50: 0.6 }],
       ['thừa một khoá', { cer: 0.1, iou: 0.8 }],
       ['rỗng', {}],
+      ['chỉ có khoá của họ nhưng mang undefined', { iou: undefined }],
     ])('họ tường với metrics %s → path metrics', (_label, metrics) => {
       expect(issuePaths(ModelVersionSchema, { ...fullModelVersion, metrics })).toStrictEqual([
         ['metrics'],
       ]);
     });
+
+    it('khoá thừa mang undefined bị bỏ trước khi đếm', () => {
+      expect(
+        ModelVersionSchema.parse({ ...fullModelVersion, metrics: { iou: 0.5, map50: undefined } }),
+      ).toStrictEqual({ ...fullModelVersion, metrics: { iou: 0.5 } });
+    });
   });
 
   describe('refine: trainingJobId ⇔ datasetVersionId', () => {
-    it('chỉ có trainingJobId → path datasetVersionId', () => {
-      const body = without(fullModelVersion, 'datasetVersionId');
-      expect(issuePaths(ModelVersionSchema, body)).toStrictEqual([['datasetVersionId']]);
-    });
+    it.each(missing(fullModelVersion, 'datasetVersionId'))(
+      'chỉ có trainingJobId (%s) → path datasetVersionId',
+      (_form, body) => {
+        expect(issuePaths(ModelVersionSchema, body)).toStrictEqual([['datasetVersionId']]);
+      },
+    );
 
-    it('chỉ có datasetVersionId → path datasetVersionId', () => {
-      const body = without(fullModelVersion, 'trainingJobId');
-      expect(issuePaths(ModelVersionSchema, body)).toStrictEqual([['datasetVersionId']]);
-    });
+    it.each(missing(fullModelVersion, 'trainingJobId'))(
+      'chỉ có datasetVersionId (%s) → path datasetVersionId',
+      (_form, body) => {
+        expect(issuePaths(ModelVersionSchema, body)).toStrictEqual([['datasetVersionId']]);
+      },
+    );
   });
 });
 
@@ -374,9 +459,16 @@ describe('CreateModelVersionMetadataSchema', () => {
     weightsFormat: 'safetensors',
   };
 
-  it('nhận thân — đầy đủ và tối thiểu là một, bốn khoá đều bắt buộc', () => {
+  it('nhận thân', () => {
     expect(CreateModelVersionMetadataSchema.parse(body)).toStrictEqual(body);
   });
+
+  itRequiresKeys(CreateModelVersionMetadataSchema, body, [
+    'checksumSha256',
+    'family',
+    'label',
+    'weightsFormat',
+  ]);
 
   it.each(['checksumSha256', 'family', 'label', 'weightsFormat'])('từ chối null ở %s', (key) => {
     expect(accepts(CreateModelVersionMetadataSchema, { ...body, [key]: null })).toBe(false);
@@ -405,9 +497,11 @@ const dataset = {
 };
 
 describe('DatasetSchema', () => {
-  it('nhận mẫu — đầy đủ và tối thiểu là một, không trường tuỳ chọn', () => {
+  it('nhận mẫu', () => {
     expect(DatasetSchema.parse(dataset)).toStrictEqual(dataset);
   });
+
+  itRequiresKeys(DatasetSchema, dataset, ['createdAt', 'family', 'id', 'name']);
 
   it.each(['createdAt', 'family', 'id', 'name'])('từ chối null ở %s', (key) => {
     expect(accepts(DatasetSchema, { ...dataset, [key]: null })).toBe(false);
@@ -432,6 +526,8 @@ describe('CreateDatasetSchema', () => {
   it('nhận thân', () => {
     expect(CreateDatasetSchema.parse(body)).toStrictEqual(body);
   });
+
+  itRequiresKeys(CreateDatasetSchema, body, ['family', 'name']);
 
   it.each([
     ['khoá lạ', { id: DST }],
@@ -474,11 +570,31 @@ describe('DatasetVersionSchema', () => {
     expect(DatasetVersionSchema.parse(readyDatasetVersion)).toStrictEqual(readyDatasetVersion);
   });
 
-  it('nhận mẫu tối thiểu (building) và bỏ hẳn mọi trường tuỳ chọn', () => {
+  it('nhận mẫu tối thiểu (building), không có trường tuỳ chọn nào', () => {
     expect(DatasetVersionSchema.parse(buildingDatasetVersion)).toStrictEqual(
       buildingDatasetVersion,
     );
   });
+
+  it('bỏ khoá mang undefined khỏi đầu ra', () => {
+    expect(
+      DatasetVersionSchema.parse({
+        ...buildingDatasetVersion,
+        failureCode: undefined,
+        manifestSha256: undefined,
+        splitCounts: undefined,
+      }),
+    ).toStrictEqual(buildingDatasetVersion);
+  });
+
+  itRequiresKeys(DatasetVersionSchema, buildingDatasetVersion, [
+    'createdAt',
+    'datasetId',
+    'id',
+    'sequence',
+    'source',
+    'status',
+  ]);
 
   it('nhận bản failed kèm failureCode', () => {
     expect(DatasetVersionSchema.parse(failedDatasetVersion)).toStrictEqual(failedDatasetVersion);
@@ -513,9 +629,17 @@ describe('DatasetVersionSchema', () => {
     ['manifest sai mẫu', { manifestSha256: SHA.slice(2) }],
     ['splitCounts âm', { splitCounts: { test: -1, train: 96, validation: 12 } }],
     ['splitCounts thập phân', { splitCounts: { test: 1.5, train: 96, validation: 12 } }],
-    ['splitCounts thiếu khoá', { splitCounts: { train: 96, validation: 12 } }],
   ])('từ chối %s', (_label, patch) => {
     expect(accepts(DatasetVersionSchema, { ...readyDatasetVersion, ...patch })).toBe(false);
+  });
+
+  it.each(['test', 'train', 'validation'])('từ chối splitCounts thiếu khoá %s', (key) => {
+    expect(
+      issuePaths(DatasetVersionSchema, {
+        ...readyDatasetVersion,
+        splitCounts: without(readyDatasetVersion.splitCounts, key),
+      }),
+    ).toStrictEqual([['splitCounts', key]]);
   });
 
   it.each([
@@ -526,10 +650,12 @@ describe('DatasetVersionSchema', () => {
   });
 
   describe('refine: splitCounts ⇔ ready', () => {
-    it('ready thiếu splitCounts → path status', () => {
-      const body = without(readyDatasetVersion, 'splitCounts');
-      expect(issuePaths(DatasetVersionSchema, body)).toStrictEqual([['status']]);
-    });
+    it.each(missing(readyDatasetVersion, 'splitCounts'))(
+      'ready thiếu splitCounts (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(DatasetVersionSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
     it('building có splitCounts → path status', () => {
       expect(
@@ -542,10 +668,12 @@ describe('DatasetVersionSchema', () => {
   });
 
   describe('refine: manifestSha256 ⇔ ready', () => {
-    it('ready thiếu manifestSha256 → path status', () => {
-      const body = without(readyDatasetVersion, 'manifestSha256');
-      expect(issuePaths(DatasetVersionSchema, body)).toStrictEqual([['status']]);
-    });
+    it.each(missing(readyDatasetVersion, 'manifestSha256'))(
+      'ready thiếu manifestSha256 (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(DatasetVersionSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
     it('building có manifestSha256 → path status', () => {
       expect(
@@ -555,10 +683,12 @@ describe('DatasetVersionSchema', () => {
   });
 
   describe('refine: failureCode ⇔ failed', () => {
-    it('failed thiếu failureCode → path status', () => {
-      const body = without(failedDatasetVersion, 'failureCode');
-      expect(issuePaths(DatasetVersionSchema, body)).toStrictEqual([['status']]);
-    });
+    it.each(missing(failedDatasetVersion, 'failureCode'))(
+      'failed thiếu failureCode (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(DatasetVersionSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
     it('building có failureCode → path status', () => {
       expect(
@@ -635,14 +765,42 @@ const failedJob = {
 
 const cancellingJob = { ...runningJob, currentEpoch: 3, status: 'cancelling' };
 
+const cancelledJob = { ...runningJob, endedAt: ENDED, status: 'cancelled' };
+
+const cancelledFromQueuedJob = { ...queuedJob, endedAt: STARTED, status: 'cancelled' };
+
 describe('TrainingJobSchema', () => {
-  it('nhận mẫu đầy đủ — succeeded mang mọi trường tuỳ chọn trừ failureCode, vốn loại trừ nhau', () => {
+  it('nhận mẫu đầy đủ (succeeded: mọi trường tuỳ chọn trừ failureCode)', () => {
     expect(TrainingJobSchema.parse(succeededJob)).toStrictEqual(succeededJob);
   });
 
-  it('nhận mẫu tối thiểu (queued) và bỏ hẳn mọi trường tuỳ chọn', () => {
+  it('nhận mẫu tối thiểu (queued), không có trường tuỳ chọn nào', () => {
     expect(TrainingJobSchema.parse(queuedJob)).toStrictEqual(queuedJob);
   });
+
+  it('bỏ khoá mang undefined khỏi đầu ra', () => {
+    expect(
+      TrainingJobSchema.parse({
+        ...queuedJob,
+        currentEpoch: undefined,
+        endedAt: undefined,
+        failureCode: undefined,
+        resultModelVersionId: undefined,
+        startedAt: undefined,
+      }),
+    ).toStrictEqual(queuedJob);
+  });
+
+  itRequiresKeys(TrainingJobSchema, queuedJob, [
+    'baseModel',
+    'createdAt',
+    'creatorId',
+    'datasetVersionId',
+    'epochs',
+    'family',
+    'id',
+    'status',
+  ]);
 
   it.each([
     ['running', runningJob],
@@ -653,11 +811,8 @@ describe('TrainingJobSchema', () => {
     ],
     ['cancelling', cancellingJob],
     ['cancelling ngay từ queued', { ...queuedJob, status: 'cancelling' }],
-    ['cancelled sau khi chạy', { ...runningJob, endedAt: ENDED, status: 'cancelled' }],
-    [
-      'cancelled ngay từ queued, chưa có startedAt',
-      { ...queuedJob, endedAt: STARTED, status: 'cancelled' },
-    ],
+    ['cancelled sau khi chạy', cancelledJob],
+    ['cancelled ngay từ queued, chưa có startedAt', cancelledFromQueuedJob],
   ])('nhận trạng thái %s', (_label, job) => {
     expect(TrainingJobSchema.parse(job)).toStrictEqual(job);
   });
@@ -668,7 +823,7 @@ describe('TrainingJobSchema', () => {
 
   it.each([
     ['currentEpoch', runningJob],
-    ['endedAt', succeededJob],
+    ['endedAt', cancelledFromQueuedJob],
     ['failureCode', failedJob],
     ['resultModelVersionId', succeededJob],
     ['startedAt', runningJob],
@@ -725,10 +880,12 @@ describe('TrainingJobSchema', () => {
   });
 
   describe('refine: resultModelVersionId ⇔ succeeded', () => {
-    it('succeeded thiếu resultModelVersionId → path status', () => {
-      const body = without(succeededJob, 'resultModelVersionId');
-      expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
-    });
+    it.each(missing(succeededJob, 'resultModelVersionId'))(
+      'succeeded thiếu resultModelVersionId (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
     it('running có resultModelVersionId → path status', () => {
       expect(
@@ -738,10 +895,12 @@ describe('TrainingJobSchema', () => {
   });
 
   describe('refine: failureCode ⇔ failed', () => {
-    it('failed thiếu failureCode → path status', () => {
-      const body = without(failedJob, 'failureCode');
-      expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
-    });
+    it.each(missing(failedJob, 'failureCode'))(
+      'failed thiếu failureCode (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
     it('cancelled có failureCode → path status', () => {
       expect(
@@ -756,16 +915,19 @@ describe('TrainingJobSchema', () => {
   });
 
   describe('refine: endedAt ⇔ succeeded | failed | cancelled', () => {
-    it('succeeded thiếu endedAt → path status', () => {
-      const body = without(succeededJob, 'endedAt');
-      expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
-    });
+    it.each(missing(succeededJob, 'endedAt'))(
+      'succeeded thiếu endedAt (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
-    it('cancelled thiếu endedAt → path status', () => {
-      expect(issuePaths(TrainingJobSchema, { ...runningJob, status: 'cancelled' })).toStrictEqual([
-        ['status'],
-      ]);
-    });
+    it.each(missing(cancelledJob, 'endedAt'))(
+      'cancelled thiếu endedAt (%s) → path status',
+      (_form, body) => {
+        expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['status']]);
+      },
+    );
 
     it.each([
       ['running', runningJob],
@@ -784,15 +946,19 @@ describe('TrainingJobSchema', () => {
   });
 
   describe('refine: running | succeeded ⇒ có startedAt', () => {
-    it('running thiếu startedAt → path startedAt', () => {
-      const body = without(runningJob, 'startedAt');
-      expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['startedAt']]);
-    });
+    it.each(missing(runningJob, 'startedAt'))(
+      'running thiếu startedAt (%s) → path startedAt',
+      (_form, body) => {
+        expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['startedAt']]);
+      },
+    );
 
-    it('succeeded thiếu startedAt → path startedAt', () => {
-      const body = without(succeededJob, 'startedAt');
-      expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['startedAt']]);
-    });
+    it.each(missing(succeededJob, 'startedAt'))(
+      'succeeded thiếu startedAt (%s) → path startedAt',
+      (_form, body) => {
+        expect(issuePaths(TrainingJobSchema, body)).toStrictEqual([['startedAt']]);
+      },
+    );
   });
 
   describe('refine: endedAt ≥ startedAt', () => {
@@ -821,9 +987,16 @@ describe('CreateTrainingJobSchema', () => {
     family: 'openingAndFurnitureDetection',
   };
 
-  it('nhận thân — đầy đủ và tối thiểu là một, bốn khoá đều bắt buộc', () => {
+  it('nhận thân', () => {
     expect(CreateTrainingJobSchema.parse(body)).toStrictEqual(body);
   });
+
+  itRequiresKeys(CreateTrainingJobSchema, body, [
+    'baseModel',
+    'datasetVersionId',
+    'epochs',
+    'family',
+  ]);
 
   it.each(['baseModel', 'datasetVersionId', 'epochs', 'family'])('từ chối null ở %s', (key) => {
     expect(accepts(CreateTrainingJobSchema, { ...body, [key]: null })).toBe(false);
@@ -870,9 +1043,22 @@ describe('TrainingMetricPointSchema', () => {
     expect(TrainingMetricPointSchema.parse(fullMetricPoint)).toStrictEqual(fullMetricPoint);
   });
 
-  it('nhận mẫu tối thiểu và bỏ hẳn iou, map50', () => {
+  it('nhận mẫu tối thiểu, không có iou, map50', () => {
     expect(TrainingMetricPointSchema.parse(minimalMetricPoint)).toStrictEqual(minimalMetricPoint);
   });
+
+  it('bỏ khoá mang undefined khỏi đầu ra', () => {
+    expect(
+      TrainingMetricPointSchema.parse({ ...minimalMetricPoint, iou: undefined, map50: undefined }),
+    ).toStrictEqual(minimalMetricPoint);
+  });
+
+  itRequiresKeys(TrainingMetricPointSchema, minimalMetricPoint, [
+    'epoch',
+    'recordedAt',
+    'split',
+    'step',
+  ]);
 
   it('từ chối khoá lạ', () => {
     expect(accepts(TrainingMetricPointSchema, { ...minimalMetricPoint, cer: 0.1 })).toBe(false);
@@ -883,7 +1069,7 @@ describe('TrainingMetricPointSchema', () => {
   });
 
   it.each([
-    ['split test — chưa có ở v1', { split: 'test' }],
+    ['split test', { split: 'test' }],
     ['step âm', { step: -1 }],
     ['step thập phân', { step: 1.5 }],
     ['epoch 0', { epoch: 0 }],
@@ -906,8 +1092,13 @@ describe('TrainingMetricPointSchema', () => {
       expect(accepts(TrainingMetricPointSchema, { ...base, ...measure })).toBe(true);
     });
 
-    it('không số đo nào → path []', () => {
-      const body = without(minimalMetricPoint, 'loss');
+    it.each([
+      ['vắng cả ba khoá', without(minimalMetricPoint, 'loss')],
+      [
+        'cả ba khoá mang undefined',
+        { ...minimalMetricPoint, iou: undefined, loss: undefined, map50: undefined },
+      ],
+    ])('không số đo nào (%s) → path []', (_form, body) => {
       expect(issuePaths(TrainingMetricPointSchema, body)).toStrictEqual([[]]);
     });
   });
@@ -921,9 +1112,11 @@ describePage('TrainingMetricPageSchema', TrainingMetricPageSchema, fullMetricPoi
 const logLine = { at: STARTED, level: 'warning', message: 'epoch 3: loss tăng', seq: 0 };
 
 describe('TrainingLogLineSchema', () => {
-  it('nhận mẫu — đầy đủ và tối thiểu là một, không trường tuỳ chọn', () => {
+  it('nhận mẫu', () => {
     expect(TrainingLogLineSchema.parse(logLine)).toStrictEqual(logLine);
   });
+
+  itRequiresKeys(TrainingLogLineSchema, logLine, ['at', 'level', 'message', 'seq']);
 
   it.each(['at', 'level', 'message', 'seq'])('từ chối null ở %s', (key) => {
     expect(accepts(TrainingLogLineSchema, { ...logLine, [key]: null })).toBe(false);

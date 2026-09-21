@@ -20,10 +20,12 @@ import { CursorPageSchema, VersionedWriteSchema, isoInstantSchema } from './comm
  *
  * Mỗi trạng thái kéo theo một tập trường có mặt: bản `completed` có `metrics`,
  * phiên bản dataset `ready` có `splitCounts`, job `succeeded` có
- * `resultModelVersionId`. Kiểm chúng ở đây (HOP-DONG-MOI §0.2 A) để F-11/F-12
- * rẽ nhánh theo trạng thái mà không phải tự hỏi "trường này có không". `path`
- * của mọi luật ⇔ là trường ở **vế phải** như §8 viết — với luật theo trạng
- * thái, đó là chính trường trạng thái.
+ * `resultModelVersionId`. Kiểm chúng ở đây (HOP-DONG-MOI §0.2 A) để một
+ * response lệch trạng thái bị chặn ngay ở biên giới. Đó là bảo đảm **lúc
+ * chạy**, không phải lúc biên dịch: `z.infer` vẫn để mọi trường ấy tuỳ chọn —
+ * không có union theo trạng thái — nên TypeScript vẫn buộc F-11/F-12 kiểm
+ * `!== undefined` trước khi đọc. `path` của mọi luật ⇔ là trường ở **vế phải**
+ * như §8 viết — với luật theo trạng thái, đó là chính trường trạng thái.
  *
  * ## `family` nằm trên đường chứ không trong thân của N24
  *
@@ -50,7 +52,10 @@ export const ML_MODEL_FAMILIES = [
 
 type MlModelFamily = (typeof ML_MODEL_FAMILIES)[number];
 
-/** Họ huấn luyện được. `dimensionReading` chỉ có bản gốc của nhà cung cấp. */
+/**
+ * Họ huấn luyện tại chỗ được (N33). `dimensionReading` thì không: bản của họ
+ * này là bản gốc seed sẵn hoặc bản tải lên qua N26.
+ */
 export const TRAINABLE_MODEL_FAMILIES = [
   'wallSegmentation',
   'openingAndFurnitureDetection',
@@ -472,8 +477,9 @@ export const TrainingMetricPointSchema = z
 export type TrainingMetricPoint = z.infer<typeof TrainingMetricPointSchema>;
 
 /**
- * N36, `step` tăng dần. `nextCursor` luôn có tới hết cửa sổ muộn 600 s sau khi
- * job kết thúc — F-12 không dừng polling vì trang rỗng.
+ * N36, `step` tăng dần. `nextCursor` luôn có khi job chưa kết thúc; nó **chỉ**
+ * vắng khi job đã kết thúc quá cửa sổ muộn 600 s **và** đã đọc hết. F-12 không
+ * dừng polling chỉ vì trang rỗng.
  */
 export const TrainingMetricPageSchema = CursorPageSchema(TrainingMetricPointSchema);
 
