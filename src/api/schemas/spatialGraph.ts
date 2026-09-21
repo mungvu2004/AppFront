@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { SpatialGraph } from '@/domain/spatial/types';
+import type { LevelId, SpatialGraph } from '@/domain/spatial/types';
 
 import {
   AxisSchema,
@@ -46,11 +46,28 @@ import {
 /**
  * Mã tầng trên dây: chuỗi không rỗng, không regex — luật id của HOP-DONG-MOI §0.1.
  *
- * Khai lại ở đây thay vì nhập `entityId` từ `./spatial`: ba mảnh lá của file đó
- * cố ý không export. Bản sao không mang nhãn kiểu `LevelId` và không cần: chỗ
- * duy nhất dùng nó là phép so chuỗi với `Level['id']` ngay bên dưới.
+ * ## Vì sao khai lại thay vì dùng chung
+ *
+ * `entityId` của `./spatial.ts:150-154` làm đúng việc này, và nó cố ý **không
+ * export** — cùng lệ với `reviewMetadataShape` và `humanOnlyReview`. Ba mảnh ấy
+ * là lệ nội bộ của biên giới không gian; mở chúng ra để tiết kiệm bốn dòng ở
+ * đây là mở đúng cái cửa mà A5 đóng. Nên bản sao, không phải lời nhập.
+ *
+ * ## Vì sao vẫn phải gán nhãn `LevelId`
+ *
+ * Bản đầu của file này dừng ở `z.string().min(1)`, và hệ quả là
+ * `FloorRevision.floorId` ra kiểu `string`. Mọi nơi gọi — F-04a băm cặp
+ * `floorId:revision`, F-04c gửi một PUT cho mỗi tầng, F-08 so với `revision`
+ * hiện tại — đều làm việc với `LevelId`, nên chúng sẽ phải ép kiểu ở biên. Ép
+ * kiểu ở nơi gọi là đúng thứ mà một biên giới có nhãn tồn tại để khỏi phải làm:
+ * biên giới là chỗ **duy nhất** một giá trị chưa có nhãn được nhận nhãn (R-44),
+ * và nó phải nhìn thấy được. Nên phép gán nhãn nằm ở đây, đúng một chỗ, đúng
+ * khuôn `entityId`.
  */
-const floorIdSchema = z.string().min(1);
+const floorIdSchema: z.ZodType<LevelId, z.ZodTypeDef, unknown> = z
+  .string()
+  .min(1)
+  .transform((value) => value as LevelId);
 
 /** Số hiệu bản ghi của một tài liệu tầng. Bắt đầu từ 0 và chỉ tăng. */
 const revisionSchema = z.number().int().nonnegative();

@@ -10,6 +10,15 @@ export interface FieldChange {
 export interface RemoteFieldChange extends FieldChange {
   changedAt: string;
   changedBy: string;
+  /**
+   * Tên người đổi, do máy chủ ghép sẵn; `system:pipeline` thành "hệ thống AI".
+   *
+   * Bắt buộc, không tuỳ chọn: màn lịch sử phiên bản và panel cộng tác đều in
+   * dòng "ai vừa đổi gì", và không màn nào tra được `changedBy` (`usr_` + ULID)
+   * ra tên người. Thiếu trường này thì thứ hiện ra là một chuỗi id thô — xem
+   * `screens/export/VersionHistory/types.ts:37`, vốn đã ghi lại đúng nỗi lo đó.
+   */
+  changedByName: string;
 }
 
 export interface FieldConflict {

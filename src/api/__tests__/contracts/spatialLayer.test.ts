@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import {
   FloorLayerDocumentSchema,
@@ -185,11 +186,31 @@ describe('FloorLayerWriteBodySchema', () => {
     expect(FloorLayerWriteBodySchema.safeParse({ scaleMillimetresPerPixel }).success).toBe(false);
   });
 
-  it('refine ít nhất một khoá: thân rỗng hỏng, path rỗng', () => {
-    const parsed = FloorLayerWriteBodySchema.safeParse({});
+  it.each([
+    ['thân rỗng', {}],
+    ['khoá có mặt nhưng mang undefined: layer', { layer: undefined }],
+    ['khoá có mặt nhưng mang undefined: tỉ lệ', { scaleMillimetresPerPixel: undefined }],
+    ['cả hai khoá mang undefined', { layer: undefined, scaleMillimetresPerPixel: undefined }],
+  ])('refine ít nhất một giá trị: %s hỏng, path rỗng', (_label, body) => {
+    const parsed = FloorLayerWriteBodySchema.safeParse(body);
 
     expect(parsed.success).toBe(false);
     expect(parsed.success ? ['chưa hỏng'] : parsed.error.issues[0]?.path).toStrictEqual([]);
+  });
+
+  /**
+   * Ghim lại chỗ mà phép đếm khoá từng lọt.
+   *
+   * `zod` 3 giữ khoá có mặt mà mang `undefined`, nên `{ layer: undefined }` có
+   * `Object.keys().length === 1` — đủ qua một refine đếm khoá, rồi
+   * `JSON.stringify` biến nó thành `{}` trên dây. Bài kiểm này đọc thẳng cái
+   * hình dạng ấy để lần sau ai viết lại refine bằng `Object.keys` sẽ thấy đỏ.
+   */
+  it('khoá mang undefined VẪN có mặt sau khi zod phân tích — nên không được đếm khoá', () => {
+    const passthrough = z.object({ layer: z.unknown() }).safeParse({ layer: undefined });
+
+    expect(passthrough.success && Object.keys(passthrough.data)).toStrictEqual(['layer']);
+    expect(JSON.stringify({ layer: undefined })).toBe('{}');
   });
 });
 

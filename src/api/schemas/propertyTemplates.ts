@@ -36,9 +36,6 @@ import { isoInstantSchema } from './common';
  * đặt `kind` và `thicknessMm`, để chiều cao của mỗi bức tường giữ nguyên.
  */
 
-/** Bốn loại đối tượng có mẫu. Khớp `PropertyTemplateObjectKind` của `../client.ts:341`. */
-export const PROPERTY_TEMPLATE_OBJECT_KINDS = ['wall', 'opening', 'room', 'furniture'] as const;
-
 /** Dài nhất một tên mẫu: đủ cho "tường ngăn 100 có cách âm", ngắn hơn một câu. */
 const MAX_TEMPLATE_NAME_LENGTH = 120;
 
@@ -147,6 +144,52 @@ export const PropertyTemplateSchema = z
   .transform((wireTemplate) => ({ ...wireTemplate }));
 
 export type PropertyTemplateBody = z.infer<typeof PropertyTemplateSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Bốn loại đối tượng — suy ra từ chính union.                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bốn loại đối tượng có mẫu, **đọc ra từ union** chứ không khai song song với nó.
+ *
+ * Bản đầu của file này khai hằng ở đầu file bằng một mảng `as const` riêng, và
+ * bốn nhánh dưới kia khai `z.literal('wall')`… của chúng. Hai danh sách ấy
+ * không có gì buộc vào nhau: thêm nhánh thứ năm, hoặc sửa một chữ trong hằng,
+ * thì trình biên dịch im lặng và hai bên trôi khỏi nhau — hằng thành thứ mà H1
+ * đối chiếu **sai**, mà không cổng nào đỏ.
+ *
+ * Ba lời khai dưới đây buộc chúng lại, **hai chiều**, và không thêm một phép
+ * kiểm lúc chạy nào:
+ *
+ * - `PropertyTemplateObjectKind` đọc thẳng từ `z.infer` của union, nên nó
+ *   **là** tập các `objectKind` mà union nhận, theo định nghĩa.
+ * - `z.ZodEnum<T>` phơi ra `options: T` và `enum: { [k in T[number]]: k }`. Lời
+ *   khai kiểu trên {@link objectKindListSchema} vì thế đòi cả hai chiều cùng
+ *   lúc: `options` bắt mọi chuỗi trong danh sách phải là một `objectKind` có
+ *   thật (chiều **thừa**), còn `enum` bắt phải có đủ **khoá** cho từng nhánh
+ *   của union (chiều **thiếu**). Bỏ một nhánh khỏi danh sách thì đỏ ngay dòng
+ *   ấy, với câu "Property 'room' is missing" gọi đúng tên loại bị bỏ quên.
+ * - Hằng export là `options` của chính schema ấy, nên lời khai kia được **dùng**
+ *   chứ không nằm đó làm cảnh — một hằng canh gác không ai đọc thì chính nó là
+ *   thứ bị xoá ở lượt dọn dẹp sau.
+ *
+ * Cái giá: hằng ra kiểu `readonly PropertyTemplateObjectKind[]` thay vì một
+ * tuple bốn literal. Đổi lại nó nói đúng thứ nó là — tập loại mà union nhận —
+ * và không nơi nào trong repo cần độ dài hay thứ tự của nó ở mức kiểu.
+ *
+ * Danh sách trải ra một bản sao mới: `options` trả về chính mảng `zod` đang
+ * giữ, và một hằng export trỏ thẳng vào ruột của schema là một đường sửa schema
+ * mà không ai ngờ tới.
+ */
+type PropertyTemplateObjectKind = z.infer<typeof PropertyTemplateSchema>['objectKind'];
+
+const objectKindListSchema: z.ZodEnum<
+  [PropertyTemplateObjectKind, ...PropertyTemplateObjectKind[]]
+> = z.enum(['wall', 'opening', 'room', 'furniture']);
+
+export const PROPERTY_TEMPLATE_OBJECT_KINDS: readonly PropertyTemplateObjectKind[] = [
+  ...objectKindListSchema.options,
+];
 
 /**
  * Thứ `POST` gửi lên: ba trường, không năm.

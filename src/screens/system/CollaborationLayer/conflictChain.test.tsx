@@ -39,6 +39,7 @@ const INPUT: ResolveConflictInput = {
       value: 100,
       changedAt: '2026-09-09T09:30:00.000Z',
       changedBy: 'user-nguyen',
+      changedByName: 'Nguyễn Văn An',
     },
   ],
   serverVersion: 5,

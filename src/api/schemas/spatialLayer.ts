@@ -107,7 +107,20 @@ export const FloorLayerWriteBodySchema = z
     scaleMillimetresPerPixel: scaleMillimetresPerPixelSchema.optional(),
   })
   .strict()
-  .refine((body) => Object.keys(body).length > 0, { path: [] });
+  .refine(
+    /*
+     * Đếm **giá trị**, không đếm khoá.
+     *
+     * `Object.keys(body).length > 0` trông tương đương và không phải: `zod` 3
+     * giữ lại khoá nào **có mặt** trên đầu vào, kể cả khi giá trị là
+     * `undefined` (`alwaysSet`). Nên `{ layer: undefined }` có một khoá, lọt
+     * refine, rồi `JSON.stringify` gửi đi đúng `{}` — chính cái request rỗng mà
+     * refine này tồn tại để chặn. Một vòng mạng, một `baseVersion` bị tiêu, một
+     * `revision` mới, không đổi gì.
+     */
+    (body) => body.layer !== undefined || body.scaleMillimetresPerPixel !== undefined,
+    { path: [] },
+  );
 
 export type FloorLayerWriteBody = z.infer<typeof FloorLayerWriteBodySchema>;
 

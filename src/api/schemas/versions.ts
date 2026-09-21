@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { LevelId } from '@/domain/spatial/types';
+
 import { CursorPageSchema, VersionedWriteSchema, isoInstantSchema } from './common';
 import { DimensionSchema, SpatialLayerSchema } from './spatial';
 
@@ -41,8 +43,23 @@ const versionIdSchema = z.string().regex(/^ver_[0-9A-HJKMNP-TV-Z]{26}$/);
 /** Người tạo phiên bản, hoặc chính ống pipeline. */
 const actorIdSchema = z.string().regex(/^(usr_[0-9A-HJKMNP-TV-Z]{26}|system:pipeline)$/);
 
-/** Mã tầng: chuỗi không rỗng, không regex — xem `./spatialGraph.ts`. */
-const floorIdSchema = z.string().min(1);
+/**
+ * Mã tầng: chuỗi không rỗng, không regex, gán nhãn `LevelId` tại biên giới.
+ *
+ * Khai lại chứ không nhập `entityId` từ `./spatial.ts:150-154` — mảnh lá ấy cố
+ * ý không export, và giữ nó không export đáng giá hơn bốn dòng trùng lặp. Lý do
+ * đầy đủ, kèm cái giá của việc bỏ nhãn, nằm ở docblock cùng tên trong
+ * `./spatialGraph.ts`.
+ *
+ * Ở file này nhãn ấy đi thẳng vào thân `POST …/restore`: F-08 dựng
+ * `{ baseVersion, body: { floorId } }` từ một `LevelId` nó đang giữ, nên nếu
+ * schema ra `string` thì chỗ gọi phải ép kiểu ngược lại chính cái nhãn nó vừa
+ * bỏ đi.
+ */
+const floorIdSchema: z.ZodType<LevelId, z.ZodTypeDef, unknown> = z
+  .string()
+  .min(1)
+  .transform((value) => value as LevelId);
 
 /**
  * Dài nhất một nhãn phiên bản được phép.
