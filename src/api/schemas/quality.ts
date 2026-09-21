@@ -275,3 +275,33 @@ export const DrawingCornersInputSchema = z
   .strict();
 
 export type DrawingCornersInput = z.infer<typeof DrawingCornersInputSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Năm mã chất lượng ảnh.                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Năm điều mà bước đo chất lượng biết nói về một tấm bản vẽ.
+ *
+ * Nguồn là chính bộ rẽ nhánh của màn — `screens/upload/InputQualityGate/useInputQualityGate.ts:275-351`
+ * có đúng năm `case`, mỗi mã một câu tiếng Việt giải thích hậu quả và một lời
+ * khuyên. Danh sách này nói cho máy chủ biết nó được gửi những gì.
+ *
+ * `ImageQualityFindingSchema.code` ở trên **vẫn** là `z.string().min(1)`, cố ý
+ * không siết theo danh sách này. Một mã thứ sáu do máy chủ thêm vào là chuyện
+ * sẽ xảy ra, và khi nó xảy ra thì màn nên hiện một phát hiện chưa có lời khuyên
+ * — chứ không nên làm hỏng cả lượt giải mã của tấm ảnh và để người dùng nhìn
+ * một màn rỗng (A11). Cặp hằng + enum dưới đây là chỗ cho H1 và test đối chiếu,
+ * không phải một cái van mới trên đường dữ liệu.
+ */
+export const IMAGE_QUALITY_FINDING_CODES = [
+  'RESOLUTION_TOO_LOW',
+  'SKEW_DETECTED',
+  'FRAME_NOT_FOUND',
+  'LOW_CONTRAST',
+  'HIGH_NOISE',
+] as const;
+
+export const ImageQualityFindingCodeSchema = z.enum(IMAGE_QUALITY_FINDING_CODES);
+
+export type ImageQualityFindingCode = z.infer<typeof ImageQualityFindingCodeSchema>;

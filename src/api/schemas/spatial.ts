@@ -1,8 +1,14 @@
 import { z } from 'zod';
 
 import type {
+  Axis,
   BoundingBox,
+  Building,
+  Dimension,
+  EntityId,
   Furniture,
+  Level,
+  Note,
   Opening,
   Point,
   ReviewMetadata,
@@ -10,6 +16,9 @@ import type {
   Segment,
   Wall,
 } from '@/domain/spatial/types';
+import { millimetresPerPixel } from '@/domain/units/scale';
+
+import { isoInstantSchema } from './common';
 
 /**
  * Hợp đồng dây của lớp không gian một tầng — tường, ô mở, phòng, đồ đạc.
@@ -93,12 +102,20 @@ import type {
  * - **Hộp bao phải đúng chiều.** `max` nhỏ hơn `min` ở bất kỳ trục nào là hộp
  *   lộn trong ra ngoài.
  *
- * ## Phạm vi: đúng bốn thực thể đang đi trên dây
+ * ## Phạm vi: cả chín thực thể của đồ thị
  *
- * `Axis`, `Dimension`, `Level` và `Note` **chưa** có schema ở đây, vì chưa nhóm
- * API nào chở chúng — `spatial.readFloor` chỉ trả siêu dữ liệu tầng
- * (`FloorSchema`). Dựng sẵn schema cho một mặt dây chưa tồn tại đúng là thứ
- * R-69 cấm. Khi một nhóm API chở chúng, chúng vào đây theo cùng khuôn này.
+ * Bốn thực thể của lớp một tầng — tường, ô mở, phòng, đồ đạc — nằm ở khối
+ * giữa. Năm thực thể còn lại của `SpatialGraph` — `Building`, `Level`, `Axis`,
+ * `Dimension`, `Note` — nằm ở khối cuối file, vì `GET /api/projects/{id}/spatial`
+ * (N15) và `GET …/floors/{id}/spatial/layer` (N16) chở chúng thật
+ * (HOP-DONG-MOI §4). Cho tới lượt hợp đồng mới thì đúng là chưa nhóm API nào
+ * chở chúng, và khối chú thích này từng ghi lý do không dựng sẵn — R-69. Giờ có
+ * nơi gọi, nên chúng vào đây theo đúng khuôn của bốn thực thể kia.
+ *
+ * Chúng ở **cùng file** chứ không ở `spatialGraph.ts` vì ba mảnh chúng cần —
+ * `entityId`, `reviewMetadataShape`, `humanOnlyReview` — cố ý không export:
+ * đó là lệ của biên giới này, và export chúng ra để dùng ở file khác là mở
+ * đúng cái cửa mà A5 đóng.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -311,3 +328,170 @@ export const SpatialLayerSchema: z.ZodType<SpatialLayerShape, z.ZodTypeDef, unkn
     walls: z.array(WallSchema),
   })
   .strict();
+
+/* -------------------------------------------------------------------------- */
+/* Năm thực thể còn lại của đồ thị.                                            */
+/* -------------------------------------------------------------------------- */
+
+const axisIdSchema = entityId<Axis['id']>();
+const dimensionIdSchema = entityId<Dimension['id']>();
+const levelOwnIdSchema = entityId<Level['id']>();
+
+/**
+ * Mã của bất kỳ thực thể nào — `Dimension.referenceIds` và `Note.entityId` trỏ
+ * tới cả bảy họ, nên nhãn của chúng là hợp của cả bảy.
+ */
+const anyEntityIdSchema = entityId<EntityId>();
+
+/**
+ * Công trình mà đồ thị mô tả. Đúng một cái cho mỗi dự án.
+ *
+ * `datumElevationMm` là cao độ `+0.000` đặt trong hệ toạ độ dự án, nên nó **có
+ * dấu**: một tầng hầm nằm dưới mốc là số âm, và `positiveMillimetresSchema` ở
+ * đây sẽ từ chối đúng những công trình có tầng hầm.
+ */
+export const BuildingSchema: z.ZodType<Building, z.ZodTypeDef, unknown> = z
+  .object({
+    ...reviewMetadataShape,
+    address: z.string().min(1).optional(),
+    datumElevationMm: millimetresSchema,
+    grossFloorAreaM2: squareMetresSchema.optional(),
+    name: z.string().min(1),
+  })
+  .strict()
+  .refine(humanOnlyReview, { path: ['reviewed'] })
+  .transform((wireBuilding) => ({
+    ...(wireBuilding.address !== undefined ? { address: wireBuilding.address } : {}),
+    confidence: wireBuilding.confidence,
+    datumElevationMm: wireBuilding.datumElevationMm,
+    ...(wireBuilding.grossFloorAreaM2 !== undefined
+      ? { grossFloorAreaM2: wireBuilding.grossFloorAreaM2 }
+      : {}),
+    name: wireBuilding.name,
+    reviewed: wireBuilding.reviewed,
+    source: wireBuilding.source,
+  }));
+
+/**
+ * Một tầng, kèm tỉ lệ bản vẽ của chính nó.
+ *
+ * `scaleMillimetresPerPixel` nhận nhãn `MillimetresPerPixel` bằng lời gọi
+ * `millimetresPerPixel()` của `domain/units/scale.ts:85-88`, **không** bằng
+ * `as`. Khác biệt không phải thẩm mỹ: hàm ấy còn `assertFinite`, nên một
+ * `Infinity` lọt qua JSON bị chặn ở đây thay vì thành một phép chia cho vô cực
+ * ở chỗ vẽ. `.positive().finite()` phía trên đã lọc trước, nên lời gọi kia
+ * không bao giờ `throw` trên dữ liệu đã qua schema — nó là lớp thứ hai, và là
+ * chỗ duy nhất một số chưa nhãn nhận được nhãn (R-44).
+ *
+ * Tầng chưa hiệu chỉnh thì **vắng** khoá này. Tỉ lệ "tạm" mà pipeline suy ra
+ * vẫn đi kèm `scaleStatus: 'unresolved'` ở N16 (`spatialLayer.ts`), nên chỗ đọc
+ * phân biệt được "chưa có" với "có nhưng chưa ai xác nhận".
+ */
+export const LevelSchema: z.ZodType<Level, z.ZodTypeDef, unknown> = z
+  .object({
+    ...reviewMetadataShape,
+    areaM2: squareMetresSchema.optional(),
+    elevationMm: millimetresSchema,
+    heightMm: positiveMillimetresSchema,
+    id: levelOwnIdSchema,
+    name: z.string().min(1),
+    order: z.number().int(),
+    scaleMillimetresPerPixel: z.number().positive().finite().optional(),
+  })
+  .strict()
+  .refine(humanOnlyReview, { path: ['reviewed'] })
+  .transform((wireLevel) => ({
+    ...(wireLevel.areaM2 !== undefined ? { areaM2: wireLevel.areaM2 } : {}),
+    confidence: wireLevel.confidence,
+    elevationMm: wireLevel.elevationMm,
+    heightMm: wireLevel.heightMm,
+    id: wireLevel.id,
+    name: wireLevel.name,
+    order: wireLevel.order,
+    reviewed: wireLevel.reviewed,
+    ...(wireLevel.scaleMillimetresPerPixel !== undefined
+      ? { scaleMillimetresPerPixel: millimetresPerPixel(wireLevel.scaleMillimetresPerPixel) }
+      : {}),
+    source: wireLevel.source,
+  }));
+
+/** Một trục định vị. `line` đi qua `segmentSchema`, nên trục dài 0 mm bị chặn. */
+export const AxisSchema: z.ZodType<Axis, z.ZodTypeDef, unknown> = z
+  .object({
+    ...reviewMetadataShape,
+    direction: z.enum(['horizontal', 'vertical']),
+    id: axisIdSchema,
+    label: z.string().min(1),
+    levelId: levelIdSchema,
+    line: segmentSchema,
+  })
+  .strict()
+  .refine(humanOnlyReview, { path: ['reviewed'] });
+
+/**
+ * Một chuỗi kích thước đọc được trên bản vẽ.
+ *
+ * Hai phép kiểm không suy ra được từ kiểu, và chúng đi theo thứ tự đó:
+ *
+ * - **A5**, như mọi thực thể khác;
+ * - **`valueMm > 0` trừ khi `kind === 'elevation'`.** Một chiều dài bằng 0 là
+ *   một chuỗi OCR đọc hỏng. Cao độ thì khác hẳn: `±0.000` là cốt nền, và một
+ *   tầng hầm có cao độ âm — nên đúng loại ấy được miễn, chứ không phải mọi loại
+ *   được nới.
+ *
+ * `referenceIds` **được rỗng**: một kích thước người dùng tự vẽ chưa gắn vào
+ * thực thể nào là chuyện bình thường (`lib/commands/business/wallCommands.ts:1138`),
+ * và B3-03 còn gỡ mã của thực thể đã xoá khỏi danh sách này.
+ */
+export const DimensionSchema: z.ZodType<Dimension, z.ZodTypeDef, unknown> = z
+  .object({
+    ...reviewMetadataShape,
+    id: dimensionIdSchema,
+    kind: z.enum(['linear', 'chain', 'radial', 'angular', 'elevation']),
+    levelId: levelIdSchema,
+    line: segmentSchema,
+    overrideValueMm: millimetresSchema.optional(),
+    referenceIds: z.array(anyEntityIdSchema),
+    valueMm: millimetresSchema,
+  })
+  .strict()
+  .refine(humanOnlyReview, { path: ['reviewed'] })
+  .refine((dimension) => dimension.kind === 'elevation' || dimension.valueMm > 0, {
+    path: ['valueMm'],
+  })
+  .transform((wireDimension) => ({
+    confidence: wireDimension.confidence,
+    id: wireDimension.id,
+    kind: wireDimension.kind,
+    levelId: wireDimension.levelId,
+    line: wireDimension.line,
+    ...(wireDimension.overrideValueMm !== undefined
+      ? { overrideValueMm: wireDimension.overrideValueMm }
+      : {}),
+    referenceIds: wireDimension.referenceIds,
+    reviewed: wireDimension.reviewed,
+    source: wireDimension.source,
+    valueMm: wireDimension.valueMm,
+  }));
+
+/**
+ * Một ghi chú gắn vào bất kỳ thực thể nào.
+ *
+ * `id` là chuỗi tự do, không phải `entityId`: `NoteId` không nằm trong bảng
+ * tiền tố của `domain/spatial/types.ts:85-87`. `entityId` — thứ nó trỏ tới —
+ * thì có, nên nó đi qua `anyEntityIdSchema`.
+ *
+ * `createdAt` dùng `isoInstantSchema`, chặt hơn `isoDateTimeSchema` của hợp
+ * đồng cũ: UTC `Z`, đúng ba chữ số mili giây.
+ */
+export const NoteSchema: z.ZodType<Note, z.ZodTypeDef, unknown> = z
+  .object({
+    ...reviewMetadataShape,
+    authorId: z.string().min(1),
+    body: z.string().min(1),
+    createdAt: isoInstantSchema,
+    entityId: anyEntityIdSchema,
+    id: z.string().min(1),
+  })
+  .strict()
+  .refine(humanOnlyReview, { path: ['reviewed'] });

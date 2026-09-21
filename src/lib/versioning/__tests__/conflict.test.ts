@@ -15,9 +15,11 @@ const remote = (
   value: unknown,
   changedBy = 'user-2',
   changedAt = '2026-08-13T09:00:00.000Z',
+  changedByName = 'Nguyễn Thị Hai',
 ): RemoteFieldChange => ({
   changedAt,
   changedBy,
+  changedByName,
   entityId,
   entityType: 'wall',
   field,
