@@ -12,7 +12,12 @@ import { CursorPageSchema } from './common';
 
 const uploadIdSchema = z.string().regex(/^upl_[0-9A-HJKMNP-TV-Z]{26}$/);
 
-/** Mã tầng: chuỗi không rỗng, không regex (HOP-DONG-MOI §0.1). `ProcessingFloorUpload.floorId` là `string`. */
+/**
+ * Mã tầng: chuỗi không rỗng, không regex (HOP-DONG-MOI §0.1). Cố ý **không** gán
+ * nhãn `LevelId` như `spatialGraph.ts`, `versions.ts`: `ProcessingFloorUpload.floorId`
+ * là `string`, còn `LevelId` là `` `L-${string}` `` (`domain/spatial/types.ts:68`) —
+ * gán nhãn là khẳng định một tiền tố mà §0.1 không đòi.
+ */
 const floorIdSchema = z.string().min(1);
 
 /** `sourceImageUrl` là ảnh trang **đã nắn** (HOP-DONG-MOI §4.2), không phải tệp gốc. */

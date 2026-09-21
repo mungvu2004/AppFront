@@ -30,7 +30,8 @@ const countSchema = z.number().int().nonnegative();
  * Mã tầng: chuỗi không rỗng, không regex — cùng luật với `entityId` của
  * `./spatial.ts` (HOP-DONG-MOI §0.1). Không gán nhãn `LevelId`: dashboard chỉ
  * đặt nó vào đường `/floors/:floorId/…`, và `DashboardProject.defaultFloorId`
- * là `string`.
+ * là `string`; còn `LevelId` là `` `L-${string}` `` (`domain/spatial/types.ts:68`),
+ * gán nhãn là khẳng định một tiền tố mà §0.1 không đòi.
  */
 const floorIdSchema = z.string().min(1);
 

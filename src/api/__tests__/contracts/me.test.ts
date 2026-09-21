@@ -111,7 +111,7 @@ describe('MeSchema', () => {
    * object đơn, cả màn tài khoản hỏng theo. Đừng thêm lại refine ấy.
    */
   it('nhận fullName kết thúc bằng U+FEFF, đầu ra giữ nguyên chuỗi', () => {
-    const fullName = 'Nam﻿';
+    const fullName = 'Nam\uFEFF';
     expect(MeSchema.parse({ ...fullMe, fullName })).toStrictEqual({ ...fullMe, fullName });
   });
 
