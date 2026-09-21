@@ -135,11 +135,21 @@ export type ApiErrorBody = z.infer<typeof ApiErrorBodySchema>;
 /**
  * Bảy loại thực thể mà nhật ký thay đổi theo trường biết nói về.
  *
- * `satisfies` chứ không chỉ `as const`: danh sách này phải **bằng** `EntityKind`
- * của `lib/versioning/mergeStrategies.ts:1`, và `satisfies` làm phép so ấy thành
- * việc của `pnpm typecheck` thay vì của người đọc diff. Hai đầu tường là
- * `vertex`, không phải `wall`, vì kéo một đầu tường là một thay đổi trộn được
- * với việc người khác kéo đầu kia.
+ * Danh sách này phải **bằng** `EntityKind` của
+ * `lib/versioning/mergeStrategies.ts:1`, và phép so ấy là việc của
+ * `pnpm typecheck` — nhưng nó cần **hai** lời khai, không một, vì một phép so
+ * bằng là hai phép so bao hàm:
+ *
+ * - `satisfies readonly EntityKind[]` ngay dưới đây canh chiều **thừa**: thêm
+ *   một chuỗi không phải `EntityKind` vào mảng thì đỏ tại chỗ.
+ * - Chiều **thiếu** — ai đó thêm loại thứ tám vào `mergeStrategies.ts` mà quên
+ *   file này — `satisfies` **không** bắt được: một tập con vẫn thoả
+ *   `readonly EntityKind[]`, nên mã vẫn biên dịch sạch, test vẫn xanh, và
+ *   schema lặng lẽ từ chối loại mới. Chiều ấy do lời khai kiểu của
+ *   {@link entityTypeSchema} canh, và đó là lý do nó tồn tại.
+ *
+ * Hai đầu tường là `vertex`, không phải `wall`, vì kéo một đầu tường là một
+ * thay đổi trộn được với việc người khác kéo đầu kia.
  */
 export const VERSION_ENTITY_KINDS = [
   'vertex',
@@ -150,6 +160,20 @@ export const VERSION_ENTITY_KINDS = [
   'room',
   'dimension',
 ] as const satisfies readonly EntityKind[];
+
+/**
+ * Chiều còn lại của phép so bằng: **mọi** `EntityKind` phải nằm trong mảng.
+ *
+ * `z.ZodEnum<T>` phơi ra `enum: { [k in T[number]]: k }`, nên gán một
+ * `ZodEnum` bảy giá trị vào `ZodEnum<[EntityKind, ...EntityKind[]]>` bắt
+ * TypeScript đòi đủ **khoá** cho từng `EntityKind`. Thiếu một loại thì đỏ ngay
+ * dòng này, với câu "Property 'x' is missing" gọi đúng tên loại bị bỏ quên.
+ *
+ * Nó là một lời khai kiểu chứ không phải một phép kiểm lúc chạy, và nó được
+ * **dùng** ngay bên dưới — một hằng canh gác không ai đọc thì chính nó là thứ
+ * bị xoá trong lượt dọn dẹp tiếp theo.
+ */
+const entityTypeSchema: z.ZodEnum<[EntityKind, ...EntityKind[]]> = z.enum(VERSION_ENTITY_KINDS);
 
 /**
  * Một trường mà người khác đã đổi trong lúc mình đang sửa.
@@ -175,7 +199,7 @@ export const RemoteFieldChangeSchema = z
     changedBy: actorIdSchema,
     changedByName: z.string().min(1),
     entityId: z.string().min(1),
-    entityType: z.enum(VERSION_ENTITY_KINDS),
+    entityType: entityTypeSchema,
     field: z.string().min(1),
     value: z.unknown(),
   })

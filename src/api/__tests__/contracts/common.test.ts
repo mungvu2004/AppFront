@@ -137,8 +137,10 @@ describe('VersionedWriteSchema', () => {
   });
 });
 
-describe('Refine', () => {
-  it('không áp dụng — không schema nào trong common.ts có refine', () => {
-    expect(true).toBe(true);
-  });
-});
+/*
+ * Refine: không áp dụng — không schema nào trong `common.ts` có refine.
+ *
+ * Ghi bằng chú thích chứ không bằng một `it()` rỗng: một bài kiểm không đọc gì
+ * và không bao giờ đỏ được thì nó không phải một bài kiểm, nó là một con số
+ * cộng thêm vào tổng số test.
+ */

@@ -188,22 +188,27 @@ describe('SpatialGraphDocumentSchema', () => {
 });
 
 /**
- * Bộ mẫu chuẩn A14 **hỏng** hợp đồng mới, và nó hỏng ở đúng một chỗ.
+ * Bộ mẫu chuẩn A14 **hỏng** hợp đồng mới, và nó hỏng ở đúng MỘT chỗ.
  *
- * `sampleBuilding.ts:200` ghi `createdAt: '2026-08-13T09:00:00+07:00'`, còn
- * hợp đồng mới đòi UTC `Z` ba chữ số (W3). Bài kiểm này ghim lại chỗ lệch ấy để
- * người sửa fixture thấy ngay nó ở đâu — và để không ai "sửa" bằng cách nới
- * `isoInstantSchema`.
+ * `sampleBuilding.ts:200` ghi `createdAt: '2026-08-13T09:00:00+07:00'`, còn hợp
+ * đồng mới đòi UTC `Z` ba chữ số (W3). Bài kiểm này khẳng định **trọn** danh
+ * sách issue chứ không chỉ "có chứa": khác biệt không phải chuyện chặt chẽ suông
+ * mà là một thông tin về fixture. Danh sách đúng một phần tử nghĩa là cả 4 tầng,
+ * 48 tường, 16 ô mở, 21 đồ đạc, 14 phòng, 4 trục và 34 kích thước của bộ mẫu
+ * **đã** hợp hợp đồng mới — kể cả A5, chiều dài đoạn thẳng, hộp bao và tỉ lệ.
+ * Việc phải làm khi seed B3-02 là đổi đúng một dấu thời gian, không phải dựng
+ * lại bộ mẫu.
+ *
+ * Nếu về sau danh sách dài ra, bài kiểm này đỏ và nói ngay chỗ mới lệch — thứ mà
+ * `toContain` sẽ nuốt mất.
  */
 describe('Bộ mẫu A14 đối chiếu hợp đồng mới', () => {
-  it('hỏng đúng ở notes[0].createdAt vì bộ mẫu dùng +07:00', () => {
+  it('hỏng đúng MỘT chỗ, và chỗ đó là notes[0].createdAt', () => {
     const parsed = SpatialGraphSchema.safeParse(createSampleBuilding());
 
     expect(parsed.success).toBe(false);
     expect(
-      parsed.success
-        ? []
-        : parsed.error.issues.map((issue) => issue.path.join('.')),
-    ).toContain('notes.0.createdAt');
+      parsed.success ? [] : parsed.error.issues.map((issue) => issue.path.join('.')),
+    ).toStrictEqual(['notes.0.createdAt']);
   });
 });

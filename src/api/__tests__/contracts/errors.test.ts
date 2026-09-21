@@ -120,12 +120,19 @@ describe('ApiErrorBodySchema', () => {
 });
 
 describe('step — bản sao của PIPELINE_STAGES', () => {
-  it('nhận đúng sáu id bước mà lib/realtime/pipeline.ts khai', () => {
-    const stageIds = PIPELINE_STAGES.map((stage) => stage.id);
+  /**
+   * `ApiErrorBodySchema` là `ZodEffects` vì nó có `.transform()`, nên đường
+   * xuống tới danh sách enum đi qua `innerType()` rồi `unwrap()` khỏi
+   * `.optional()`. Cả ba bước đều có kiểu, không cần một phép ép nào.
+   */
+  const declaredSteps = ApiErrorBodySchema.innerType().shape.step.unwrap().options;
 
-    expect(stageIds).toHaveLength(6);
+  it('khai ĐÚNG BẰNG danh sách id của lib/realtime/pipeline.ts, không nhiều không ít', () => {
+    expect(declaredSteps).toStrictEqual(PIPELINE_STAGES.map((stage) => stage.id));
+  });
 
-    for (const step of stageIds) {
+  it('và cả sáu id ấy đi qua được schema', () => {
+    for (const step of declaredSteps) {
       expect(ApiErrorBodySchema.safeParse({ ...minimalError, step }).success).toBe(true);
     }
   });
