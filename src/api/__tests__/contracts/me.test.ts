@@ -87,8 +87,6 @@ describe('MeSchema', () => {
     ['email sai dạng', { email: 'an.pham' }, 'email'],
     ['fullName rỗng', { fullName: '' }, 'fullName'],
     ['fullName 121 ký tự', { fullName: 'a'.repeat(121) }, 'fullName'],
-    ['fullName còn dấu cách đầu', { fullName: ' Phạm An' }, 'fullName'],
-    ['fullName còn dấu cách cuối', { fullName: 'Phạm An ' }, 'fullName'],
     ['jobTitle rỗng', { jobTitle: '' }, 'jobTitle'],
     ['jobTitle 121 ký tự', { jobTitle: 'a'.repeat(121) }, 'jobTitle'],
     ['phone rỗng', { phone: '' }, 'phone'],
@@ -97,6 +95,24 @@ describe('MeSchema', () => {
     ['avatarUrl không phải URL', { avatarUrl: 'data-avatar' }, 'avatarUrl'],
   ])('từ chối %s', (_label, patch, key) => {
     expect(issuePaths(MeSchema, { ...fullMe, ...patch })).toStrictEqual([[key]]);
+  });
+
+  it.each([
+    ['còn dấu cách đầu', ' Phạm An'],
+    ['còn dấu cách cuối', 'Phạm An '],
+  ])('nhận fullName %s, đầu ra giữ nguyên chuỗi', (_label, fullName) => {
+    expect(MeSchema.parse({ ...fullMe, fullName })).toStrictEqual({ ...fullMe, fullName });
+  });
+
+  /*
+   * BE lưu `nfc(strip)` (`B1-04.md:70`): `strip()` của Python không cắt U+FEFF,
+   * còn `trim()` của JS thì cắt. Nên đây là tên một BE đúng đặc tả vẫn trả
+   * được — một refine `name === name.trim()` sẽ từ chối nó, và vì N11 là
+   * object đơn, cả màn tài khoản hỏng theo. Đừng thêm lại refine ấy.
+   */
+  it('nhận fullName kết thúc bằng U+FEFF, đầu ra giữ nguyên chuỗi', () => {
+    const fullName = 'Nam﻿';
+    expect(MeSchema.parse({ ...fullMe, fullName })).toStrictEqual({ ...fullMe, fullName });
   });
 
   it('nhận biên trên: fullName 120, jobTitle 120, phone 32', () => {
@@ -161,10 +177,14 @@ describe('UpdateMeSchema', () => {
     expect(issuePaths(UpdateMeSchema, { ...fullUpdate, ...patch })).toStrictEqual([[key]]);
   });
 
-  it('nhận biên trên: jobTitle 120, phone 32', () => {
-    expect(accepts(UpdateMeSchema, { jobTitle: 'a'.repeat(120), phone: '1'.repeat(32) })).toBe(
-      true,
-    );
+  it('nhận biên trên: fullName 120, jobTitle 120, phone 32', () => {
+    expect(
+      accepts(UpdateMeSchema, {
+        fullName: 'a'.repeat(120),
+        jobTitle: 'a'.repeat(120),
+        phone: '1'.repeat(32),
+      }),
+    ).toBe(true);
   });
 
   describe('refine: ≥ 1 khoá có giá trị', () => {
@@ -231,7 +251,7 @@ describe('UploadAvatarSchema', () => {
     expect(issuePaths(UploadAvatarSchema, { ...body, mimeType })).toStrictEqual([['mimeType']]);
   });
 
-  describe('refine: contentBase64.length ≤ 699052', () => {
+  describe('contentBase64 ≤ 699052 ký tự (.max — dòng bảng A của HOP-DONG-MOI §0.2)', () => {
     it('699052 ký tự đạt', () => {
       expect(accepts(UploadAvatarSchema, { ...body, contentBase64: 'A'.repeat(699_052) })).toBe(
         true,

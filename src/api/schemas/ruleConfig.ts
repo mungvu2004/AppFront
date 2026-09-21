@@ -14,11 +14,11 @@ import { VersionedWriteSchema } from './common';
  *
  * ## `RuleOverrideSchema` không transform
  *
- * Mục ghi đè đi cả hai chiều: trong bản nhận N21 và trong thân gửi N22. Nó theo
- * luật "schema hai chiều" của HOP-DONG-MOI §0 — thân dùng chung strict và
- * không transform, bản nhận dựng lại ở tầng ngoài cùng — nên bản gửi vẫn chỉ
- * là `.strict()`, còn `ProjectRuleConfigSchema` dựng lại từng mục bằng
- * {@link toRuleOverride}.
+ * Mục ghi đè đi cả hai chiều: trong bản nhận N21 và trong thân gửi N22.
+ * HOP-DONG-MOI §6 chỉ ghi cho nó strict và hai refine, không có transform; và
+ * schema gửi chỉ `.strict()` (§0). Nên một schema chung, không transform, dùng
+ * được ở cả hai chỗ, còn bản nhận `ProjectRuleConfigSchema` dựng lại từng mục
+ * bằng {@link toRuleOverride} để vắng vẫn là vắng.
  */
 
 export const RULE_OVERRIDE_SEVERITIES = ['critical', 'warning', 'suggestion'] as const;

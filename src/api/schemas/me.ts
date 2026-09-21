@@ -6,12 +6,17 @@ import { z } from 'zod';
  * Chỉ hồ sơ. Giao diện và tuỳ chọn thông báo vẫn nằm trong bộ nhớ ở v1 (AC1),
  * nên không có trường nào cho chúng ở đây.
  *
- * ## Trim: bản nhận từ chối, bản gửi tự cắt
+ * ## Trim: bản gửi tự cắt, bản nhận không kiểm
  *
- * `MeSchema.fullName` **từ chối** tên còn dấu cách ở hai đầu — máy chủ hứa trả
- * tên đã trim, và cổng H1 chỉ bắt được lời hứa ấy bị phá nếu schema nói "không".
- * `UpdateMeSchema.fullName` thì `.trim()` trước khi đo: người gõ thừa dấu cách
+ * `UpdateMeSchema.fullName` `.trim()` trước khi đo: người gõ thừa dấu cách
  * không phải lỗi, và dây mang đúng bản máy chủ sẽ lưu.
+ *
+ * `MeSchema.fullName` **không** kiểm "đã trim", và cũng không tự cắt. BE lưu
+ * `nfc(strip)` (`B1-04.md:70`) — `strip()` của Python không cắt U+FEFF, còn
+ * `trim()` của JS thì cắt; U+FEFF (Cf) cũng không nằm trong danh sách ký tự BE
+ * chặn (`B1-03.md:35`). Refine theo `trim()` sẽ báo động giả trên một tên BE
+ * trả đúng đặc tả, và vì N11 là object đơn, báo động giả là hỏng cả màn tài
+ * khoản. Lời hứa kiểu này của máy chủ không vào zod (HOP-DONG-MOI §0.2 B).
  */
 
 export const ACCOUNT_LANGUAGES = ['vi', 'en'] as const;
@@ -31,11 +36,7 @@ export const MeSchema = z
   .object({
     avatarUrl: z.string().url().optional(),
     email: z.string().email(),
-    fullName: z
-      .string()
-      .min(1)
-      .max(120)
-      .refine((name) => name === name.trim()),
+    fullName: z.string().min(1).max(120),
     jobTitle: z.string().min(1).max(120).optional(),
     language: languageSchema,
     phone: z.string().min(1).max(32).optional(),

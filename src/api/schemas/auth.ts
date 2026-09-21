@@ -38,7 +38,8 @@ export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirmSchema>;
  *
  * `fullName` trim **trước** khi đo, nên một tên toàn dấu cách là tên chưa nhập,
  * và dây mang đúng bản đã trim (khuôn `FullNameSchema` của `./index.ts`). Trần
- * 120 là của `MeSchema.fullName`: tên nhận ở đây chính là tên N11 trả về.
+ * 120: BE trả 422 `field:"fullName"` khi tên dài quá 120 (`B1-03.md:35`) — và
+ * tên nhận ở đây cũng là tên mà `MeSchema` (1–120) của N11 trả về.
  */
 export const AcceptInvitationSchema = z
   .object({

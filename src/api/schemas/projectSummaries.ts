@@ -35,17 +35,17 @@ const countSchema = z.number().int().nonnegative();
 const floorIdSchema = z.string().min(1);
 
 /**
- * Tên dự án, 3–80 (`domain/project/limits.ts`), và đã **trim** sẵn.
+ * Tên dự án, 3–80 (`domain/project/limits.ts`).
  *
- * Bản nhận **từ chối** tên còn dấu cách ở hai đầu thay vì tự cắt: máy chủ hứa
- * gửi tên đã trim, và cổng H1 chỉ bắt được lời hứa đó bị phá nếu schema nói
- * "không" — một `.trim()` ở đây sẽ lặng lẽ sửa hộ máy chủ.
+ * **Không** kiểm "đã trim", và cũng không tự cắt: chuỗi ra đúng như trên dây.
+ * Trim là việc của BE khi ghi (`B2-01.md:36-37`), nhưng BE cắt bằng `strip()`
+ * của Python, còn `trim()` của JS cắt thêm U+FEFF — ký tự Cf, không nằm trong
+ * danh sách BE chặn (`B2-01.md:40`). Refine `name === name.trim()` sẽ báo động
+ * giả trên một tên mà BE làm đúng đặc tả vẫn trả, và mục hỏng là một dự án
+ * biến khỏi dashboard. Lời hứa kiểu này của máy chủ không vào zod
+ * (HOP-DONG-MOI §0.2 B).
  */
-const projectNameSchema = z
-  .string()
-  .min(3)
-  .max(80)
-  .refine((name) => name === name.trim());
+const projectNameSchema = z.string().min(3).max(80);
 
 export const ProjectSummaryMemberSchema = z
   .object({

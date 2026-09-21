@@ -110,11 +110,11 @@ describe('ProjectSummaryMemberSchema', () => {
   });
 
   it.each([
-    ['id sai tiền tố', { id: PRJ }],
-    ['id kiểu mock cũ', { id: 'user-1' }],
-    ['tên rỗng', { name: '' }],
-  ])('từ chối %s', (_label, patch) => {
-    expect(accepts(ProjectSummaryMemberSchema, { ...member, ...patch })).toBe(false);
+    ['id sai tiền tố', { id: PRJ }, 'id'],
+    ['id kiểu mock cũ', { id: 'user-1' }, 'id'],
+    ['tên rỗng', { name: '' }, 'name'],
+  ])('từ chối %s', (_label, patch, key) => {
+    expect(issuePaths(ProjectSummaryMemberSchema, { ...member, ...patch })).toStrictEqual([[key]]);
   });
 });
 
@@ -173,9 +173,6 @@ describe('ProjectSummarySchema', () => {
     ['trạng thái ngoài tập', { status: 'approved' }, ['status']],
     ['tên 2 ký tự', { name: 'Ab' }, ['name']],
     ['tên 81 ký tự', { name: 'a'.repeat(81) }, ['name']],
-    ['tên còn dấu cách đầu', { name: ' Nhà A' }, ['name']],
-    ['tên còn dấu cách cuối', { name: 'Nhà A ' }, ['name']],
-    ['tên toàn dấu cách', { name: '   ' }, ['name']],
     ['id sai tiền tố', { id: USR }, ['id']],
     ['id kiểu mock cũ', { id: 'project-1' }, ['id']],
     ['id ULID chữ thường', { id: `prj_${ULID.toLowerCase()}` }, ['id']],
@@ -199,6 +196,21 @@ describe('ProjectSummarySchema', () => {
     expect(accepts(ProjectSummarySchema, { ...qcSummary, name: 'Abc' })).toBe(true);
     expect(accepts(ProjectSummarySchema, { ...qcSummary, name: 'a'.repeat(80) })).toBe(true);
     expect(ProjectSummarySchema.parse(qcSummary).updatedAt).toBe('2026-09-21T03:00:00.123Z');
+  });
+
+  /*
+   * Bản nhận không kiểm "đã trim" và không tự cắt — lý do (U+FEFF, HOP-DONG-MOI
+   * §0.2 B) ở docblock của `projectNameSchema`.
+   */
+  it.each([
+    ['còn dấu cách đầu', ' Nhà A'],
+    ['còn dấu cách cuối', 'Nhà A '],
+    ['toàn dấu cách, dài 3 — bản nhận không kiểm trim', '   '],
+  ])('nhận tên %s, đầu ra giữ nguyên chuỗi', (_label, name) => {
+    expect(ProjectSummarySchema.parse({ ...qcSummary, name })).toStrictEqual({
+      ...qcSummary,
+      name,
+    });
   });
 
   it('nhận defaultFloorId không theo mẫu ULID', () => {
