@@ -6,8 +6,8 @@
  *
  *  1. **Dựng `ShareLinkGateway` thật.** `createHttpShareLinkGateway(http)` là
  *     bộ chuyển đổi duy nhất của `src/lib/export/shareLink.ts`; `http` đến từ
- *     `createHttpClient` của `src/lib/http`, với đúng base URL mà
- *     `src/api/appClient.ts` đã chốt cho cả ứng dụng. File này **không** gọi
+ *     `createAppHttpClient` của `src/api/appClient.ts`, thứ đã chốt base URL
+ *     **và** phiên đăng nhập cho cả ứng dụng. File này **không** gọi
  *     `fetch` và **không** ghép một đường dẫn nào — `SHARE_LINK_ENDPOINTS` nằm
  *     bên trong bộ chuyển đổi kia, và luật `local/no-fetch-outside-http` canh
  *     phần còn lại.
@@ -29,7 +29,7 @@
  * `ShareDialogContainerProps.gateway` — đó là lý do prop ấy tồn tại.
  */
 
-import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
+import { createAppApiClient, createAppHttpClient } from '@/api/appClient';
 import type { ApiClient, User } from '@/api/client';
 import type { Level, LevelId } from '@/domain/spatial/types';
 import {
@@ -52,7 +52,6 @@ import {
   type SharePermission,
   type ShareLinkGateway,
 } from '@/lib/export/shareLink';
-import { createHttpClient } from '@/lib/http';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ProjectRole } from '@/types/project';
 
@@ -66,12 +65,12 @@ import type { EmbedSizePreset, MemberRowModel, ShareDialogOption } from './types
  * `ShareLinkGateway` thật, trên `HttpClient` của ứng dụng.
  *
  * Dựng một lần cho mỗi lần gắn hộp thoại (container bọc trong `useMemo`): cổng
- * này không giữ trạng thái, nhưng `createHttpClient` thì có — hàng đợi
+ * này không giữ trạng thái, nhưng client bên dưới thì có — hàng đợi
  * single-flight và bộ đếm thử lại của nó chỉ có nghĩa khi cùng một client sống
  * qua nhiều lượt vẽ.
  */
 export function createShareDialogGateway(): ShareLinkGateway {
-  return createHttpShareLinkGateway(createHttpClient({ baseUrl: resolveApiBaseUrl() }));
+  return createHttpShareLinkGateway(createAppHttpClient());
 }
 
 /** `ApiClient` cho lượt đọc thành viên. Cùng một quyết định thật/giả với cả ứng dụng. */

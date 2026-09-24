@@ -21,6 +21,21 @@ export interface HttpError {
   requestId: string;
   retryable: boolean;
   raw: unknown;
+  /**
+   * Số giây của header `Retry-After`, làm tròn lên, chỉ có khi lỗi `kind: 'http'`
+   * mang header đọc được. Không có header thì khoá **vắng** hẳn, không phải
+   * `undefined`: `exactOptionalPropertyTypes` bật và nơi gọi so `toStrictEqual`.
+   *
+   * **Bị chặn trên ở 120 s.** Giá trị đi qua `parseRetryAfterMs`, và hàm đó kẹp
+   * kết quả vào `MAX_RETRY_AFTER_DELAY_MS` (`./retry.ts:7,40`), nên một header
+   * `Retry-After: 300` đọc ra **120**, không phải 300. Trần này không cắn ở
+   * đường thật: BE-00 W9 giới hạn `Retry-After` ở 10 s trở xuống — nó là lưới
+   * chặn cho một server nói quá, không phải một phép quy đổi.
+   *
+   * Màn từ W08 rẽ theo `code` rồi đọc số này để nói còn phải chờ bao lâu (BE-00
+   * W7, W17; HOP-DONG-MOI §1.1). Luật thử lại vẫn ở `./retry.ts`, không ở đây.
+   */
+  retryAfterSeconds?: number;
 }
 
 export type HttpFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

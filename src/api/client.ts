@@ -97,6 +97,15 @@ export interface RequestOptions {
 
 export interface WriteRequestOptions extends RequestOptions {
   idempotencyKey?: string;
+  /** R3 (BE-00 §7): lượt ghi này an toàn khi gửi lại. Nơi gọi bật, không phải tầng này. */
+  idempotent?: boolean;
+  /**
+   * Ngân sách thời gian của lượt gửi.
+   *
+   * Hẹp hơn `HttpTimeoutMode` một nhánh: `'stream'` dành cho SSE, thứ không đi
+   * qua một lượt ghi của `ApiClient`. Union hẹp gán vào trường rộng vẫn hợp lệ.
+   */
+  timeoutMode?: 'default' | 'file';
 }
 
 export interface ProjectWriteBody extends Omit<ProjectPayload, 'name'> {
@@ -595,6 +604,16 @@ export interface NotificationsApi {
  * turning that into a session is `bootstrapSession()`'s job, one layer up. There
  * is no token in the body for this module to model, which is why the result is
  * `void` rather than a schema nobody could write yet.
+ *
+ * **Nhóm này đi một `HttpClient` TRẦN — không token, không refresh** (BE-00
+ * W10, tham số `authHttp` của {@link createApiClient}). Đăng nhập sai mật khẩu
+ * trả 401 `INVALID_CREDENTIALS`; trên một client có refresh thì 401 ấy kích
+ * một lượt refresh, refresh cũng 401, rồi `onAuthError` đăng xuất **mọi thẻ**
+ * đang mở — một người gõ sai mật khẩu ở thẻ A đá văng phiên ở thẻ B. Gửi kèm
+ * `Authorization` cũng vô nghĩa: đây chính là lượt gọi để CÓ được thẻ bài.
+ *
+ * N8–N10 của F-09a (quên mật khẩu, đặt lại, xác minh email) vào đúng nhóm này,
+ * vì cùng một lý do.
  */
 export interface AuthApi {
   register(input: RegisterApiInput): Promise<ApiResult<void>>;
@@ -641,11 +660,20 @@ const decodeList = <S extends ZodTypeAny>(
   return safeParseList(schema, result.data, source) as ApiResult<z.output<S>[]>;
 };
 
-type TransportWriteOptions = Pick<HttpRequestOptions, 'idempotencyKey' | 'signal'>;
+type TransportWriteOptions = Pick<HttpRequestOptions, 'idempotencyKey' | 'idempotent' | 'signal' | 'timeoutMode'>;
 
+/**
+ * Bốn khoá đi thẳng xuống transport, từng khoá chép khi `!== undefined`.
+ *
+ * Trải cả `undefined` xuống sẽ dựng ra `{ idempotent: undefined }`, thứ mà
+ * `exactOptionalPropertyTypes` từ chối và `toStrictEqual` trong bài kiểm bắt
+ * được: "khoá vắng" và "khoá mang undefined" là hai thứ khác nhau ở đây.
+ */
 const toRequestOptions = (options: WriteRequestOptions = {}): TransportWriteOptions => ({
   ...(options.idempotencyKey !== undefined ? { idempotencyKey: options.idempotencyKey } : {}),
+  ...(options.idempotent !== undefined ? { idempotent: options.idempotent } : {}),
   ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  ...(options.timeoutMode !== undefined ? { timeoutMode: options.timeoutMode } : {}),
 });
 
 const callGet = async <T>(http: HttpClient, path: string, signal?: AbortSignal): Promise<Result<T, HttpError>> =>
@@ -703,10 +731,16 @@ const postWithoutBody = async <TBody>(
   return result.ok ? { ok: true, data: undefined } : asApiResult(result);
 };
 
-export const createApiClient = (http: HttpClient): ApiClient => ({
+/**
+ * Mọi nhóm đi `http`; riêng nhóm `auth` đi `options.authHttp` khi có.
+ *
+ * Vắng `authHttp` thì cả hai là một client — nơi gọi `createApiClient(http)` cũ
+ * không đổi nghĩa.
+ */
+export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClient } = {}): ApiClient => ({
   auth: {
-    register: async (input) => postWithoutBody(http, ENDPOINTS.auth.register, input.body, input),
-    signIn: async (input) => postWithoutBody(http, ENDPOINTS.auth.login, input.body, input),
+    register: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.register, input.body, input),
+    signIn: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.login, input.body, input),
   },
   drawings: {
     complete: async (input) => {

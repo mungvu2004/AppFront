@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiErrorBodySchema } from '@/api/schemas/errors';
+
 import { createHttpClient } from '../client';
 
 describe('http/client.ts', () => {
@@ -506,5 +508,349 @@ describe('http/client.ts', () => {
     }
 
     expect(result.error.kind).toBe('aborted');
+  });
+
+  it('keeps the base path when the base has no trailing slash', async () => {
+    let requestedUrl = '';
+    const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com/api',
+      fetchImpl,
+    });
+
+    await client.get('/projects');
+
+    expect(requestedUrl).toBe('https://api.example.com/api/projects');
+  });
+
+  it('keeps the base path when the base has a trailing slash', async () => {
+    let requestedUrl = '';
+    const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com/api/',
+      fetchImpl,
+    });
+
+    await client.get('/projects');
+
+    expect(requestedUrl).toBe('https://api.example.com/api/projects');
+  });
+
+  it('joins onto a base with no path as before', async () => {
+    let requestedUrl = '';
+    const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    await client.get('/projects');
+
+    expect(requestedUrl).toBe('https://api.example.com/projects');
+  });
+
+  it('does not double the base path when the request path already includes it', async () => {
+    let requestedUrl = '';
+    const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com/api',
+      fetchImpl,
+    });
+
+    await client.get('/api/telemetry');
+
+    expect(requestedUrl).toBe('https://api.example.com/api/telemetry');
+  });
+
+  it('uses an absolute request path unchanged', async () => {
+    let requestedUrl = '';
+    const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com/api',
+      fetchImpl,
+    });
+
+    await client.get('https://other.example.com/status', { disableSingleFlight: true });
+
+    expect(requestedUrl).toBe('https://other.example.com/status');
+  });
+
+  it('still appends query params after joining the base path', async () => {
+    let requestedUrl = '';
+    const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com/api',
+      fetchImpl,
+    });
+
+    await client.get('/projects', { query: { page: 2 } });
+
+    expect(requestedUrl).toBe('https://api.example.com/api/projects?page=2');
+  });
+
+  it('sets retryAfterSeconds from a numeric Retry-After header on an http error', async () => {
+    const body = ApiErrorBodySchema.parse({
+      code: 'RATE_LIMITED',
+      requestId: 'req-1',
+    });
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(body), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': '7',
+          },
+          status: 429,
+        }),
+      ),
+    );
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const result = await client.post('/plans', { body: { id: 1 } });
+
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error.kind).toBe('http');
+    expect(result.error.retryAfterSeconds).toBe(7);
+  });
+
+  it('rounds an HTTP-date Retry-After up to whole seconds', async () => {
+    vi.setSystemTime(500);
+
+    const body = ApiErrorBodySchema.parse({
+      code: 'RATE_LIMITED',
+      requestId: 'req-1',
+    });
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(body), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': 'Thu, 01 Jan 1970 00:00:02 GMT',
+          },
+          status: 429,
+        }),
+      ),
+    );
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const result = await client.post('/plans', { body: { id: 1 } });
+
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    // 2000ms deadline - 500ms "now" = 1500ms left, must round UP to 2s, not 1s.
+    expect(result.error.retryAfterSeconds).toBe(2);
+  });
+
+  it('leaves retryAfterSeconds absent (not undefined) when there is no Retry-After header', async () => {
+    const body = ApiErrorBodySchema.parse({
+      code: 'BAD_REQUEST',
+      requestId: 'req-1',
+    });
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(body), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 400,
+        }),
+      ),
+    );
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const result = await client.get('/plans', { disableSingleFlight: true });
+
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error).toStrictEqual({
+      code: 'BAD_REQUEST',
+      kind: 'http',
+      raw: body,
+      requestId: expect.any(String),
+      retryable: false,
+      status: 400,
+    });
+    expect('retryAfterSeconds' in result.error).toBe(false);
+  });
+
+  it('maps an AbortError rejected by the transport to an aborted Result', async () => {
+    const fetchImpl = vi.fn(() => {
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      return Promise.reject(abortError);
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const controller = new AbortController();
+    controller.abort();
+
+    const result = await client.get('/floors', { signal: controller.signal });
+
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error.kind).toBe('aborted');
+  });
+
+  it('groups GET requests under an explicit singleFlightKey', async () => {
+    const fetchImpl = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => {
+            resolve(
+              new Response(JSON.stringify({ value: 1 }), {
+                headers: { 'Content-Type': 'application/json' },
+                status: 200,
+              }),
+            );
+          }, 10);
+        }),
+    );
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const pending = Promise.all([
+      client.get<{ value: number }>('/floors', { singleFlightKey: 'shared' }),
+      client.get<{ value: number }>('/rooms', { singleFlightKey: 'shared' }),
+    ]);
+
+    await vi.advanceTimersByTimeAsync(10);
+    const results = await pending;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(results.every((result) => result.ok)).toBe(true);
+  });
+
+  it('sends DELETE and PATCH requests through the same request pipeline', async () => {
+    const capturedInits: Array<RequestInit | undefined> = [];
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedInits.push(init);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const deleteResult = await client.delete('/floors/1');
+    const patchResult = await client.patch('/floors/1', { body: { level: 'L2' } });
+
+    expect(deleteResult.ok).toBe(true);
+    expect(patchResult.ok).toBe(true);
+    expect(capturedInits[0]).toMatchObject({ method: 'DELETE' });
+    expect(capturedInits[1]).toMatchObject({ method: 'PATCH' });
+  });
+
+  it('sends an explicit idempotencyKey as the Idempotency-Key header', async () => {
+    const capturedInits: Array<RequestInit | undefined> = [];
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedInits.push(init);
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        }),
+      );
+    });
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    await client.post('/plans', { body: { id: 1 }, idempotencyKey: 'caller-key-1' });
+
+    const headers = new Headers(capturedInits[0]?.headers);
+    expect(headers.get('Idempotency-Key')).toBe('caller-key-1');
+  });
+
+  it('returns an auth error for a 401 response when there is no refresh handler', async () => {
+    const body = ApiErrorBodySchema.parse({
+      code: 'EXPIRED_TOKEN',
+      requestId: 'req-1',
+    });
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(body), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 401,
+        }),
+      ),
+    );
+
+    const client = createHttpClient({
+      baseUrl: 'https://api.example.com',
+      fetchImpl,
+    });
+
+    const result = await client.get('/floors', { disableSingleFlight: true });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error.kind).toBe('auth');
+    expect(result.error.code).toBe('EXPIRED_TOKEN');
   });
 });

@@ -4,6 +4,7 @@ import { createIdempotencyKey, createRequestId } from './ids';
 import {
   computeRetryDelayMs,
   isRetryableMethod,
+  parseRetryAfterMs,
   shouldRetryRequest,
   waitForRetry,
 } from './retry';
@@ -56,12 +57,30 @@ const isRequestBodyInit = (body: unknown): body is BodyInit =>
 const isJsonContentType = (contentType: string | null): boolean =>
   Boolean(contentType && /(^|\/|\+)json($|;)/i.test(contentType));
 
+const hasScheme = (path: string): boolean => /^[a-z][a-z0-9+.-]*:\/\//i.test(path);
+
+const resolveRequestUrl = (baseUrl: URL, path: string): URL => {
+  if (hasScheme(path)) {
+    return new URL(path);
+  }
+
+  const basePath = baseUrl.pathname.replace(/\/+$/, '');
+
+  if (basePath && (path === basePath || path.startsWith(`${basePath}/`))) {
+    return new URL(path, baseUrl);
+  }
+
+  const joinedPath = `${basePath}/${path.replace(/^\/+/, '')}`;
+
+  return new URL(joinedPath, baseUrl);
+};
+
 const buildUrl = (
   baseUrl: URL,
   path: string,
   query?: Record<string, QueryParamValue>,
 ): URL => {
-  const url = new URL(path, baseUrl);
+  const url = resolveRequestUrl(baseUrl, path);
 
   if (!query) {
     return url;
@@ -165,6 +184,7 @@ const createHttpError = ({
   raw,
   requestId,
   retryable,
+  retryAfterSeconds,
   status,
 }: {
   code?: string;
@@ -172,6 +192,7 @@ const createHttpError = ({
   raw: unknown;
   requestId: string;
   retryable: boolean;
+  retryAfterSeconds?: number;
   status?: number;
 }): HttpError => ({
   kind,
@@ -180,6 +201,7 @@ const createHttpError = ({
   retryable,
   ...(code ? { code } : {}),
   ...(typeof status === 'number' ? { status } : {}),
+  ...(typeof retryAfterSeconds === 'number' ? { retryAfterSeconds } : {}),
 });
 
 const serializeBody = (body: unknown, headers: Headers): BodyInit | undefined => {
@@ -470,6 +492,7 @@ export const createHttpClient = ({
                 status: response.status,
                 ...(idempotencyKey ? { idempotencyKey } : {}),
               });
+            const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
             const httpError = createHttpError({
               kind: 'http',
               raw,
@@ -477,6 +500,7 @@ export const createHttpClient = ({
               retryable,
               status: response.status,
               ...(errorCode ? { code: errorCode } : {}),
+              ...(retryAfterMs !== null ? { retryAfterSeconds: Math.ceil(retryAfterMs / 1000) } : {}),
             });
 
             if (

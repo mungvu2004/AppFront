@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -13,28 +13,45 @@ import path from 'path';
  * Cấu hình test — môi trường, setup, ngưỡng độ phủ theo tầng — nằm ở
  * `vitest.config.ts`, và chỉ ở đó.
  */
-export default defineConfig({
-  plugins: [react()],
-  build: {
-    // terser thay vì esbuild: chậm hơn vài giây mỗi lần dựng, đổi lấy ~1,5%
-    // gzip trên toàn bộ JS — đúng tinh thần cổng kích thước gói: sửa cách dựng,
-    // không nới ngưỡng. Không mangle property nào; `passes: 2` cho terser nén
-    // thêm một lượt (thêm ~2 s dựng, bớt ~2 KiB gzip nữa).
-    minify: 'terser',
-    terserOptions: { compress: { passes: 2, pure_getters: true } },
-    // `dist/.vite/manifest.json` — bật vì cổng kích thước gói cần ĐỒ THỊ nhập,
-    // không chỉ danh sách file. Từ khi router `lazy()` 25 màn, "tổng JS" không
-    // còn là "chi phí màn hình đầu tiên": muốn biết cái sau thì phải đi từ chunk
-    // `isEntry` theo `imports` (nhập tĩnh) và tách riêng `dynamicImports` (nhập
-    // động, tải muộn). Manifest là chỗ duy nhất vite ghi sẵn đồ thị đó ra đĩa;
-    // không có nó thì `scripts/check-bundle-size.mjs` chỉ cộng được kích thước
-    // file và lại đo nhầm thứ nó sinh ra để chặn. Xem `docs/notes/bundle-size.md`.
-    // File này chỉ nằm trong `dist/`, không được nhập vào gói và không đi ra dây.
-    manifest: true,
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        // AppBack đọc `Origin` để so với `PUBLIC_BASE_URL`; dev server phải đặt
+        // biến đó bằng origin của Vite (mặc định http://localhost:5173), không
+        // thì POST /api/auth/* trả 403 ORIGIN_MISMATCH (BE-00 §5). Vì vậy không
+        // rewrite path và không đổi Origin ở đây — proxy chỉ chuyển tiếp nguyên
+        // trạng.
+        '/api': {
+          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+          changeOrigin: false,
+        },
+      },
     },
-  },
+    build: {
+      // terser thay vì esbuild: chậm hơn vài giây mỗi lần dựng, đổi lấy ~1,5%
+      // gzip trên toàn bộ JS — đúng tinh thần cổng kích thước gói: sửa cách dựng,
+      // không nới ngưỡng. Không mangle property nào; `passes: 2` cho terser nén
+      // thêm một lượt (thêm ~2 s dựng, bớt ~2 KiB gzip nữa).
+      minify: 'terser',
+      terserOptions: { compress: { passes: 2, pure_getters: true } },
+      // `dist/.vite/manifest.json` — bật vì cổng kích thước gói cần ĐỒ THỊ nhập,
+      // không chỉ danh sách file. Từ khi router `lazy()` 25 màn, "tổng JS" không
+      // còn là "chi phí màn hình đầu tiên": muốn biết cái sau thì phải đi từ chunk
+      // `isEntry` theo `imports` (nhập tĩnh) và tách riêng `dynamicImports` (nhập
+      // động, tải muộn). Manifest là chỗ duy nhất vite ghi sẵn đồ thị đó ra đĩa;
+      // không có nó thì `scripts/check-bundle-size.mjs` chỉ cộng được kích thước
+      // file và lại đo nhầm thứ nó sinh ra để chặn. Xem `docs/notes/bundle-size.md`.
+      // File này chỉ nằm trong `dist/`, không được nhập vào gói và không đi ra dây.
+      manifest: true,
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
+  };
 });

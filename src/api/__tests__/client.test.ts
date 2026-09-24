@@ -433,4 +433,81 @@ describe('api client', () => {
       }
     });
   });
+  describe('auth group on its own transport (BE-00 W10)', () => {
+    it('sends auth.signIn through authHttp, never through the token-bearing client', async () => {
+      const tokenHttp = createHttpMock({ [`POST ${ENDPOINTS.auth.login}`]: undefined });
+      const plainHttp = createHttpMock({ [`POST ${ENDPOINTS.auth.login}`]: undefined });
+
+      const result = await createApiClient(tokenHttp, { authHttp: plainHttp }).auth.signIn({
+        body: { email: 'a@b.vn', password: 'sai-mat-khau', rememberMe: false },
+      });
+
+      expect(result).toEqual({ ok: true, data: undefined });
+      expect(plainHttp.post).toHaveBeenCalledWith(ENDPOINTS.auth.login, expect.anything());
+      expect(tokenHttp.post).not.toHaveBeenCalled();
+    });
+
+    it('keeps every other group on the main client even when authHttp is given', async () => {
+      const tokenHttp = createHttpMock({ [`GET ${ENDPOINTS.projects.list}`]: [sampleProject] });
+      const plainHttp = createHttpMock();
+
+      await createApiClient(tokenHttp, { authHttp: plainHttp }).projects.list();
+
+      expect(tokenHttp.get).toHaveBeenCalledWith(ENDPOINTS.projects.list, undefined);
+      expect(plainHttp.get).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('R3 write pipeline (BE-00 §7)', () => {
+    it('forwards idempotent and timeoutMode to the transport on post and delete', async () => {
+      const http = createHttpMock({
+        [`POST ${ENDPOINTS.projects.create}`]: sampleProject,
+        [`DELETE ${ENDPOINTS.projects.delete('project-1')}`]: sampleProject,
+      });
+      const client = createApiClient(http);
+
+      await client.projects.create({
+        body: { name: 'New project' },
+        idempotencyKey: 'key-create',
+        idempotent: true,
+        timeoutMode: 'file',
+      });
+      await client.projects.delete({
+        idempotencyKey: 'key-delete',
+        idempotent: true,
+        projectId: 'project-1',
+        timeoutMode: 'file',
+      });
+
+      expect(http.post).toHaveBeenCalledWith(ENDPOINTS.projects.create, {
+        body: { name: 'New project' },
+        idempotencyKey: 'key-create',
+        idempotent: true,
+        timeoutMode: 'file',
+      });
+      expect(http.delete).toHaveBeenCalledWith(ENDPOINTS.projects.delete('project-1'), {
+        idempotencyKey: 'key-delete',
+        idempotent: true,
+        timeoutMode: 'file',
+      });
+    });
+
+    it('leaves both keys absent — not undefined — when the caller omits them', async () => {
+      const http = createHttpMock({ [`POST ${ENDPOINTS.projects.create}`]: sampleProject });
+
+      await createApiClient(http).projects.create({
+        body: { name: 'New project' },
+        idempotencyKey: 'key-create',
+      });
+
+      expect(http.post).toHaveBeenCalledWith(ENDPOINTS.projects.create, {
+        body: { name: 'New project' },
+        idempotencyKey: 'key-create',
+      });
+      const [, sentOptions] = vi.mocked(http.post).mock.calls[0] ?? [];
+      expect(sentOptions).toStrictEqual({ body: { name: 'New project' }, idempotencyKey: 'key-create' });
+      expect(Object.keys(sentOptions ?? {})).not.toContain('idempotent');
+      expect(Object.keys(sentOptions ?? {})).not.toContain('timeoutMode');
+    });
+  });
 });

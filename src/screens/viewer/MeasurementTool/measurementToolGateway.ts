@@ -60,7 +60,7 @@
 
 import type { QueryClient } from '@tanstack/react-query';
 
-import { resolveApiBaseUrl } from '@/api/appClient';
+import { createAppHttpClient } from '@/api/appClient';
 import { ENDPOINTS } from '@/api/endpoints';
 import {
   createMeasurementNoteId,
@@ -76,7 +76,7 @@ import { snapToTargets, type AnchorKind, type SnapResult, type SnapTarget } from
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, parseNumber } from '@/lib/format/number';
-import { createHttpClient, type HttpClient } from '@/lib/http';
+import type { HttpClient } from '@/lib/http';
 import type {
   DeleteMeasurementVariables,
   SaveMeasurementVariables,
@@ -609,9 +609,11 @@ export function createMeasurementToolFixtureGateway(
 /**
  * Cổng mạng của phiên đang chạy.
  *
- * Base URL lấy từ `resolveApiBaseUrl` của `src/api/appClient` — nơi DUY NHẤT
- * quyết định API nằm ở đâu, không một bản sao thứ hai (R-65, R-07).
+ * Base URL **và** phiên đăng nhập đều lấy từ `createAppHttpClient` của
+ * `src/api/appClient` — nơi DUY NHẤT quyết định cả hai, không một bản sao thứ
+ * hai (R-65, R-07). Bản tự dựng trước đây không gắn token, nên mọi lượt đo trên
+ * một server thật trả 401.
  */
 export function createMeasurementHttpClient(): HttpClient {
-  return createHttpClient({ baseUrl: resolveApiBaseUrl() });
+  return createAppHttpClient();
 }
