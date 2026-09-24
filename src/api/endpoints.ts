@@ -111,6 +111,13 @@ export const ENDPOINTS = {
    * vẫn đứng ở đây vì đây là "một đường của tầng API", đúng chỗ mọi đường
    * khác được khai.
    *
+   * `stream` là đường ĐÃ GHÉP với `API_BASE_PATH`, cùng lý do `telemetry` ở dưới
+   * là đường tuyệt đối chứ không tương đối: `EventSource` không đi qua
+   * `createHttpClient`, nên không có bước nào tự ghép `API_BASE_PATH` vào cho nó
+   * như `new URL(path, baseUrl)` làm với các đường khác. `GET /api/streams/notifications`
+   * là hợp đồng S2 (`docs/charter/BE-BIND.md`), FIX-099/NO-086 — không lồng dưới
+   * `NOTIFICATIONS_ROOT` vì đường thật nằm dưới `/streams`, không dưới `/notifications`.
+   *
    * `acceptInvite` nhận `notificationId`, không `inviteId`: người NHẬN chỉ
    * cầm trong tay đúng một khoá — mục thông báo đang hiện trên màn — nên đó
    * là thứ duy nhất có sẵn ở nơi gọi. Đây là phép ghi mà
@@ -123,7 +130,7 @@ export const ENDPOINTS = {
     list: NOTIFICATIONS_ROOT,
     markAllRead: `${NOTIFICATIONS_ROOT}/read-all`,
     markRead: `${NOTIFICATIONS_ROOT}/read`,
-    stream: `${NOTIFICATIONS_ROOT}/stream`,
+    stream: `${API_BASE_PATH}/streams/notifications`,
   },
   projects: {
     create: PROJECTS_ROOT,
