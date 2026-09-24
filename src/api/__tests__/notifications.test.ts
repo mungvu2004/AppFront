@@ -231,8 +231,8 @@ describe('ENDPOINTS.notifications', () => {
     expect(ENDPOINTS.notifications.markAllRead).toBe('/notifications/read-all');
   });
 
-  it('exposes the SSE stream address alongside every other path', () => {
-    expect(ENDPOINTS.notifications.stream).toBe('/notifications/stream');
+  it('exposes the SSE stream address per BE-BIND S2, prefixed with API_BASE_PATH', () => {
+    expect(ENDPOINTS.notifications.stream).toBe('/api/streams/notifications');
   });
 
   it('addresses acceptInvite off the notification, not off an invite resource', () => {
