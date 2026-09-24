@@ -166,23 +166,44 @@ export const USER_MANAGEMENT_TEXT = {
 /**
  * Nhãn tiếng Việt của một dòng nhật ký.
  *
- * `UserActivity.kind` là MÃ máy đọc (`'wall.edit'`), và schema nói thẳng rằng câu tiếng
+ * `UserActivity.kind` là MÃ máy đọc (`'floor.upload'`), và schema nói thẳng rằng câu tiếng
  * Việt là việc của tầng trình bày — nên bảng này sống ở đây chứ không ở `src/api`. Một mã
  * chưa có trong bảng rơi về {@link USER_MANAGEMENT_TEXT.activityFallback} thay vì in mã
  * máy ra cho người đọc.
+ *
+ * Đủ 27 `kind` của `ActivityKind` (`apps/api/access/kinds.py:21-47`) — FIX-098/NO-099.
+ * Bảng cũ chỉ khai 11 mã và phần lớn không khớp `ActivityKind` nào (`'wall.edit'`,
+ * `'room.edit'`… chưa từng là mã BE ghi), nên mọi dòng nhật ký thật rơi về
+ * {@link USER_MANAGEMENT_TEXT.activityFallback} thay vì có nhãn riêng — đó là NO-099.
  */
-const ACTIVITY_KIND_LABELS: Readonly<Record<string, string>> = Object.freeze({
-  'wall.edit': 'sửa tường',
-  'room.edit': 'sửa phòng',
-  'opening.edit': 'sửa ô mở',
-  'furniture.move': 'dời nội thất',
-  'dimension.edit': 'sửa kích thước',
-  'axis.edit': 'sửa trục',
+export const ACTIVITY_KIND_LABELS: Readonly<Record<string, string>> = Object.freeze({
   'floor.upload': 'tải bản vẽ',
-  'rules.run': 'chạy bộ luật',
-  'export.file': 'xuất tệp',
-  'share.create': 'tạo liên kết chia sẻ',
-  'project.open': 'mở dự án',
+  'floor.upload_complete': 'hoàn tất tải bản vẽ',
+  'floor.create': 'tạo tầng',
+  'floor.delete': 'xoá tầng',
+  'floor.edit': 'sửa tầng',
+  'floor.reorder': 'sắp lại thứ tự tầng',
+  'project.create': 'tạo dự án',
+  'project.update': 'sửa dự án',
+  'project.delete': 'xoá dự án',
+  'project.settings_update': 'sửa cài đặt dự án',
+  'member.add': 'thêm thành viên',
+  'member.remove': 'gỡ thành viên',
+  'version.restore': 'khôi phục phiên bản',
+  'version.label': 'đặt nhãn phiên bản',
+  'rules.config_update': 'sửa cấu hình luật',
+  'user.role_change': 'đổi vai người dùng',
+  'user.disable': 'vô hiệu hoá người dùng',
+  'user.enable': 'bật lại người dùng',
+  'user.delete': 'xoá người dùng',
+  'user.invite': 'mời người dùng',
+  'user.invite_resend': 'gửi lại lời mời',
+  'model.activate': 'kích hoạt mô hình',
+  'model.upload': 'tải lên mô hình',
+  'dataset.create': 'tạo bộ dữ liệu',
+  'dataset.build': 'dựng bộ dữ liệu',
+  'training.create': 'tạo lượt huấn luyện',
+  'training.cancel': 'huỷ lượt huấn luyện',
 });
 
 /* -------------------------------------------------------------------------- */
