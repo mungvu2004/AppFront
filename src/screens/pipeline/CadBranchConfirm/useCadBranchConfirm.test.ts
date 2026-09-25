@@ -29,11 +29,9 @@ import {
   CAD_SAMPLE_LAYERS_MAPPED,
   CAD_SAMPLE_UNSUPPORTED_ENTITIES,
   CAD_SAMPLE_UNSUPPORTED_FILE_FORMAT_VERSION,
-  clearPersistedBranchChoices,
   createAppCadBranchConfirmGateway,
   createCadBranchConfirmGateway,
   createMockCadBranchConfirmGateway,
-  readPersistedBranchChoice,
   unsupported,
   type CadBranchConfirmGateway,
 } from './cadBranchConfirmGateway';
@@ -81,14 +79,10 @@ beforeEach(() => {
       dispatchEvent: vi.fn(),
     })),
   });
-
-  clearPersistedBranchChoices();
 });
 
 afterEach(() => {
-  cleanup();
-  clearPersistedBranchChoices();
-  vi.restoreAllMocks();
+  cleanup();  vi.restoreAllMocks();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -211,14 +205,14 @@ async function mountInState(state: CadBranchConfirmState): Promise<Mounted> {
 /* -------------------------------------------------------------------------- */
 
 describe('cadBranchConfirmGateway — khai đúng việc chưa có đường làm', () => {
-  it('bản thật chỉ bật hai khả năng có nguồn thật', () => {
+  it('bản thật chỉ bật một khả năng có nguồn thật', () => {
     const gateway = createCadBranchConfirmGateway(createMockApiClient());
 
     expect(gateway.supports).toStrictEqual({
       inspectCadFile: false,
       readFloorAvailability: true,
       setProcessingBranch: false,
-      rememberChoice: true,
+      rememberChoice: false,
       saveLayerMapping: false,
     });
   });
@@ -554,18 +548,20 @@ describe('useCadBranchConfirm — thực thể không hỗ trợ', () => {
 
 describe('useCadBranchConfirm — ghi nhớ lựa chọn theo dự án', () => {
   it('không đánh dấu ô thì không ghi nhớ gì', async () => {
-    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    const gateway = createMockCadBranchConfirmGateway();
+    const mounted = mountHook(gateway);
     await settle(mounted);
 
     act(() => {
       mounted.result.current.actions.onChooseBranch('cad');
     });
 
-    expect(readPersistedBranchChoice(PROJECT_ID)).toBeUndefined();
+    expect(gateway.readRememberedChoice(PROJECT_ID)).toBeNull();
   });
 
   it('đánh dấu ô rồi chốt nhánh thì lựa chọn được giữ theo đúng dự án đó', async () => {
-    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    const gateway = createMockCadBranchConfirmGateway();
+    const mounted = mountHook(gateway);
     await settle(mounted);
 
     act(() => {
@@ -575,14 +571,13 @@ describe('useCadBranchConfirm — ghi nhớ lựa chọn theo dự án', () => {
       mounted.result.current.actions.onChooseBranch('cad');
     });
 
-    expect(readPersistedBranchChoice(PROJECT_ID)).toBe('cad');
-    expect(readPersistedBranchChoice(OTHER_PROJECT_ID)).toBeUndefined();
+    expect(gateway.readRememberedChoice(PROJECT_ID)).toBe('cad');
+    expect(gateway.readRememberedChoice(OTHER_PROJECT_ID)).toBeNull();
   });
 
-  it('dự án khác đọc lại đúng lựa chọn của riêng nó', async () => {
-    const other = mountHook(createMockCadBranchConfirmGateway(), {
-      projectId: OTHER_PROJECT_ID,
-    });
+  it('dự án khác đọc lại đúng lựa chọn của riêng nó, qua cùng một cổng', async () => {
+    const gateway = createMockCadBranchConfirmGateway();
+    const other = mountHook(gateway, { projectId: OTHER_PROJECT_ID });
     await settle(other);
 
     act(() => {
@@ -592,19 +587,35 @@ describe('useCadBranchConfirm — ghi nhớ lựa chọn theo dự án', () => {
       other.result.current.actions.onChooseBranch('ai');
     });
 
-    expect(readPersistedBranchChoice(OTHER_PROJECT_ID)).toBe('ai');
-    expect(readPersistedBranchChoice(PROJECT_ID)).toBeUndefined();
+    expect(gateway.readRememberedChoice(OTHER_PROJECT_ID)).toBe('ai');
+    expect(gateway.readRememberedChoice(PROJECT_ID)).toBeNull();
 
-    const reopened = mountHook(createMockCadBranchConfirmGateway(), {
-      projectId: OTHER_PROJECT_ID,
-    });
+    const reopened = mountHook(gateway, { projectId: OTHER_PROJECT_ID });
     await settle(reopened);
 
     expect(reopened.result.current.model.dialog.isRememberChoiceChecked).toBe(true);
   });
 
+  it('hai cổng mock dựng riêng không thấy lựa chọn của nhau', async () => {
+    const first = createMockCadBranchConfirmGateway();
+    const second = createMockCadBranchConfirmGateway();
+    const mounted = mountHook(first);
+    await settle(mounted);
+
+    act(() => {
+      mounted.result.current.actions.onToggleRemember(true);
+    });
+    act(() => {
+      mounted.result.current.actions.onChooseBranch('cad');
+    });
+
+    expect(first.readRememberedChoice(PROJECT_ID)).toBe('cad');
+    expect(second.readRememberedChoice(PROJECT_ID)).toBeNull();
+  });
+
   it('bỏ đánh dấu ô xoá lượt ghi nhớ', async () => {
-    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    const gateway = createMockCadBranchConfirmGateway();
+    const mounted = mountHook(gateway);
     await settle(mounted);
 
     act(() => {
@@ -617,11 +628,17 @@ describe('useCadBranchConfirm — ghi nhớ lựa chọn theo dự án', () => {
       mounted.result.current.actions.onToggleRemember(false);
     });
 
-    expect(readPersistedBranchChoice(PROJECT_ID)).toBeUndefined();
+    expect(gateway.readRememberedChoice(PROJECT_ID)).toBeNull();
   });
 
-  it('cổng nói thẳng rằng lượt ghi nhớ chỉ sống bằng một phiên trình duyệt', () => {
-    expect(createAppCadBranchConfirmGateway().isRememberedChoiceSessionOnly).toBe(true);
+  it('cổng thật không hứa ghi nhớ: supports.rememberChoice false, trả unsupported', async () => {
+    const gateway = createAppCadBranchConfirmGateway();
+
+    expect(gateway.supports.rememberChoice).toBe(false);
+    await expect(gateway.rememberChoice({ choice: 'cad', projectId: PROJECT_ID })).resolves.toEqual(
+      expect.objectContaining({ supported: false, capability: 'rememberChoice' }),
+    );
+    expect(gateway.readRememberedChoice(PROJECT_ID)).toBeNull();
   });
 });
 

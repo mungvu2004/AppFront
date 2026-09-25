@@ -59,7 +59,6 @@ import {
 import { CadBranchConfirmContainer } from './CadBranchConfirm.container';
 import {
   CAD_SAMPLE_LAYERS,
-  clearPersistedBranchChoices,
   createMockCadBranchConfirmGateway,
 } from './cadBranchConfirmGateway';
 import {
@@ -128,14 +127,10 @@ beforeEach(() => {
       dispatchEvent: vi.fn(),
     })),
   });
-
-  clearPersistedBranchChoices();
 });
 
 afterEach(() => {
-  cleanup();
-  clearPersistedBranchChoices();
-  vi.restoreAllMocks();
+  cleanup();  vi.restoreAllMocks();
 });
 
 /* -------------------------------------------------------------------------- */

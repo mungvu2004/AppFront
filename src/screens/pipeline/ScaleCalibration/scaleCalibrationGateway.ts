@@ -21,7 +21,7 @@
  *
  * ## Phần KHÔNG CÓ — và vì sao vẫn khai
  *
- * Năm việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
+ * Sáu việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
  * {@link ScaleCalibrationGateway} với một kết quả `supported: false` nói rõ
  * endpoint nào còn thiếu, thay vì bị bỏ trắng: một cổng im lặng thì màn không
  * phân biệt được "chưa có dữ liệu" với "không có đường lấy dữ liệu", và người
@@ -33,14 +33,12 @@
  * để dựng đủ bảy trạng thái. Đây là quyết định của điều phối viên (R-69), không
  * phải chỗ tự thêm endpoint.
  *
- * ## Ghi tỷ lệ — không có máy chủ, và đó là quyết định
+ * ## Ghi tỷ lệ — chưa có máy chủ, nên không có lượt "đã lưu"
  *
- * `FloorWriteBody` không có trường tỷ lệ nào, và không endpoint nào nhận nó.
- * Nguồn sự thật của tỷ lệ là store (`Level.scaleMillimetresPerPixel`, ghi qua
- * `commit()`); {@link ScaleCalibrationGateway.persistScale} chỉ giữ lượt ghi
- * trong phiên, đúng khuôn "bảy trường chưa có dây" của
- * `projectSettingsGateway.ts`. Nó trả `ok` thật vì nó thật sự đã giữ giá trị —
- * cho tới khi tải lại trang. Không có gì được hứa hơn thế.
+ * `FloorWriteBody` không có trường tỷ lệ nào; endpoint thật (`PUT .../spatial/layer`)
+ * tới ở F-04c. Tới lúc đó `supports.persistScale` là `false` và `persistScale`
+ * trả `unsupported`: tỷ lệ chỉ nằm trong store (`Level.scaleMillimetresPerPixel`,
+ * ghi qua `commit()`), màn nói thẳng là chưa lưu lên máy chủ.
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
@@ -61,13 +59,14 @@ import type { ImageRatioBox } from './types';
 /** Mã máy đọc của một phát hiện "không tìm thấy khung bản vẽ". */
 export const FRAME_NOT_FOUND_CODE = 'FRAME_NOT_FOUND';
 
-/** Năm việc màn cần mà tầng dữ liệu chưa có đường nào để làm. */
+/** Sáu việc màn cần mà tầng dữ liệu chưa có đường nào để làm. */
 export const SCALE_MISSING_CAPABILITIES = [
   'dimensionStrings',
   'referenceWallWidth',
   'typicalDoorWidth',
   'largestRoomBox',
   'snapTargets',
+  'persistScale',
 ] as const;
 
 export type ScaleMissingCapability = (typeof SCALE_MISSING_CAPABILITIES)[number];
@@ -82,6 +81,7 @@ export const SCALE_MISSING_ENDPOINTS: Readonly<Record<ScaleMissingCapability, st
   typicalDoorWidth: 'GET .../floors/:floorId/detected-geometry (bề rộng cửa đi)',
   largestRoomBox: 'GET .../floors/:floorId/detected-geometry (hộp bao phòng lớn nhất)',
   snapTargets: 'GET .../floors/:floorId/detected-geometry (đỉnh tường, giao điểm)',
+  persistScale: 'PUT .../spatial/layer — F-04c',
 };
 
 /** Một việc chưa có đường làm, kèm endpoint còn thiếu. */
@@ -196,7 +196,7 @@ export interface ScaleCalibrationGateway {
     input: ReadFloorGeometryInput,
   ) => Promise<ScaleCapabilityResult<readonly ScaleRawSnapTarget[]>>;
   /** Giữ tỷ lệ vừa áp. Xem ghi chú "Ghi tỷ lệ" ở đầu file. */
-  readonly persistScale: (input: PersistScaleInput) => Promise<ApiResult<void>>;
+  readonly persistScale: (input: PersistScaleInput) => Promise<ScaleCapabilityResult<void>>;
   readonly now: () => number;
 }
 
@@ -237,34 +237,6 @@ function toDrawingSnapshot(floor: FloorImageQuality): ScaleDrawingSnapshot {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Lượt ghi giữ trong phiên.                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Tỷ lệ đã ghi, khoá theo `projectId::floorId`.
- *
- * Cùng khuôn `unwiredByProject` của `projectSettingsGateway.ts`: một bản đồ ở
- * mức module, sống đúng bằng phiên trình duyệt. Không endpoint thì đây là thứ
- * trung thực nhất một lượt "đã lưu" có thể là.
- */
-const persistedScales = new Map<string, MillimetresPerPixel>();
-
-const persistKey = (projectId: string, floorId: string): string => `${projectId}::${floorId}`;
-
-/** Tỷ lệ đã ghi trong phiên cho một tầng, nếu có. Dùng bởi test và story. */
-export function readPersistedScale(
-  projectId: string,
-  floorId: string,
-): MillimetresPerPixel | undefined {
-  return persistedScales.get(persistKey(projectId, floorId));
-}
-
-/** Xoá mọi lượt ghi trong phiên. Test gọi giữa hai lượt kiểm. */
-export function clearPersistedScales(): void {
-  persistedScales.clear();
-}
-
-/* -------------------------------------------------------------------------- */
 /* Factory.                                                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -280,7 +252,7 @@ export function createScaleCalibrationGateway(
   const now = options.now ?? ((): number => Date.now());
 
   return {
-    // Một việc làm được hôm nay: đọc bản vẽ đã nắn. Năm việc còn lại `false`
+    // Một việc làm được hôm nay: đọc bản vẽ đã nắn. Sáu việc còn lại `false`
     // cho tới khi có endpoint — xem `SCALE_MISSING_ENDPOINTS`.
     supports: {
       dimensionStrings: false,
@@ -288,6 +260,7 @@ export function createScaleCalibrationGateway(
       typicalDoorWidth: false,
       largestRoomBox: false,
       snapTargets: false,
+      persistScale: false,
     },
 
     readFloorDrawing: async ({ floorId, projectId, signal }) => {
@@ -327,10 +300,7 @@ export function createScaleCalibrationGateway(
     readLargestRoomBox: async () => unsupported('largestRoomBox'),
     readSnapTargets: async () => unsupported('snapTargets'),
 
-    persistScale: async ({ floorId, millimetresPerPixel: ratio, projectId }) => {
-      persistedScales.set(persistKey(projectId, floorId), ratio);
-      return { ok: true, data: undefined };
-    },
+    persistScale: async () => unsupported('persistScale'),
 
     now,
   };

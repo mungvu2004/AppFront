@@ -42,18 +42,12 @@
  * bảy trạng thái của `types.ts` đã khai. Test và story cắm
  * {@link createMockCadBranchConfirmGateway} để dựng đủ bảy trạng thái.
  *
- * ## Ghi nhớ lựa chọn — MẤT KHI TẢI LẠI TRANG
+ * ## Ghi nhớ lựa chọn — chưa có máy chủ, nên bản thật không hứa gì
  *
- * Đặc tả gọi O-02 là "ghi nhớ lựa chọn cho dự án này". Sự thật hôm nay: không
- * endpoint nào nhận nó và không có kho lưu theo dự án nào ở tầng dưới, nên
- * {@link CadBranchConfirmGateway.rememberChoice} giữ lượt ghi trong một `Map` ở
- * mức module — đúng khuôn `persistedScales` của `scaleCalibrationGateway.ts`.
- * Nó trả `ok` THẬT vì nó thật sự đã giữ giá trị, và nó giữ đúng bằng một phiên
- * trình duyệt: **lựa chọn ghi nhớ mất khi tải lại trang.** Không có gì được hứa
- * hơn thế — {@link CAD_REMEMBER_SESSION_NOTICE} là câu tiếng Việt để giao diện
- * nói ra điều đó ngay cạnh ô đánh dấu, và
- * {@link CadBranchConfirmGateway.isRememberedChoiceSessionOnly} là cờ máy đọc
- * mang cùng nội dung.
+ * Nhánh CAD là v2: không endpoint nào nhận "ghi nhớ lựa chọn cho dự án này".
+ * Bản thật có `supports.rememberChoice === false`, `rememberChoice` trả
+ * `unsupported` và `readRememberedChoice` trả `null`. Chỉ cổng mock (được tiêm
+ * tường minh) nhớ lựa chọn, trong closure của chính nó.
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
@@ -95,6 +89,7 @@ export type CadCapability = (typeof CAD_CAPABILITIES)[number];
 export const CAD_MISSING_CAPABILITIES = [
   'inspectCadFile',
   'setProcessingBranch',
+  'rememberChoice',
   'saveLayerMapping',
 ] as const;
 
@@ -109,6 +104,8 @@ export const CAD_MISSING_ENDPOINTS: Readonly<Record<CadMissingCapability, string
     'GET .../floors/:floorId/drawings/:uploadId/cad-inspection — chưa có; không hàm nào trong src/api đọc nội dung .dwg, và không schema nào trong src/api/schemas/** mang hình dạng kết quả đọc CAD (lớp, thực thể, phiên bản định dạng)',
   setProcessingBranch:
     'PUT .../floors/:floorId/processing-branch — chưa có; không khái niệm nhánh CAD / nhánh AI nào tồn tại ở src/api/endpoints.ts, src/api/schemas/** hay src/lib/realtime/**',
+  rememberChoice:
+    'PUT .../projects/:projectId/cad-branch-choice — chưa có; nhánh CAD là v2, không kho lưu lựa chọn theo dự án nào ở tầng dưới',
   saveLayerMapping:
     'PUT .../floors/:floorId/drawings/:uploadId/layer-mapping — chưa có; không endpoint nào nhận ánh xạ lớp CAD sang vai trò',
 };
@@ -271,14 +268,9 @@ export interface CadBranchConfirmGateway {
     input: SetProcessingBranchInput,
   ) => Promise<CadCapabilityResult<undefined>>;
   /** Giữ lựa chọn theo dự án. Xem "Ghi nhớ lựa chọn" ở đầu file. */
-  readonly rememberChoice: (input: RememberChoiceInput) => Promise<ApiResult<void>>;
+  readonly rememberChoice: (input: RememberChoiceInput) => Promise<CadCapabilityResult<void>>;
   /** Lựa chọn đã ghi nhớ của dự án, đọc đồng bộ. `null` khi chưa ghi lần nào. */
   readonly readRememberedChoice: (projectId: string) => CadBranchChoice | null;
-  /**
-   * `true` khi lượt ghi nhớ chỉ sống bằng một phiên trình duyệt. Giao diện đọc
-   * cờ này để nói ra {@link CAD_REMEMBER_SESSION_NOTICE} thay vì hứa nhiều hơn.
-   */
-  readonly isRememberedChoiceSessionOnly: boolean;
   /** Lưu ánh xạ lớp sang vai trò, kèm tuỳ chọn nhập. */
   readonly saveLayerMapping: (
     input: SaveLayerMappingInput,
@@ -312,29 +304,6 @@ function looksLikeCadFile(name: string): boolean {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Lượt ghi giữ trong phiên.                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Lựa chọn đã ghi nhớ, khoá theo `projectId`.
- *
- * Cùng khuôn `persistedScales` của `scaleCalibrationGateway.ts:250`: một bản đồ
- * ở mức module, sống đúng bằng phiên trình duyệt. Không endpoint thì đây là thứ
- * trung thực nhất một lượt "đã ghi nhớ" có thể là.
- */
-const persistedBranchChoices = new Map<string, CadBranchChoice>();
-
-/** Lựa chọn đã ghi nhớ trong phiên của một dự án, nếu có. Test và story dùng. */
-export function readPersistedBranchChoice(projectId: string): CadBranchChoice | undefined {
-  return persistedBranchChoices.get(projectId);
-}
-
-/** Xoá mọi lượt ghi nhớ trong phiên. Test gọi giữa hai lượt kiểm. */
-export function clearPersistedBranchChoices(): void {
-  persistedBranchChoices.clear();
-}
-
-/* -------------------------------------------------------------------------- */
 /* Factory.                                                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -356,7 +325,7 @@ export function createCadBranchConfirmGateway(
       inspectCadFile: false,
       readFloorAvailability: true,
       setProcessingBranch: false,
-      rememberChoice: true,
+      rememberChoice: false,
       saveLayerMapping: false,
     },
 
@@ -385,19 +354,9 @@ export function createCadBranchConfirmGateway(
     setProcessingBranch: () => Promise.resolve(unsupported('setProcessingBranch')),
     saveLayerMapping: () => Promise.resolve(unsupported('saveLayerMapping')),
 
-    rememberChoice: async ({ choice, projectId }) => {
-      if (choice === null) {
-        persistedBranchChoices.delete(projectId);
-      } else {
-        persistedBranchChoices.set(projectId, choice);
-      }
+    rememberChoice: () => Promise.resolve(unsupported('rememberChoice')),
 
-      return { ok: true, data: undefined };
-    },
-
-    readRememberedChoice: (projectId) => persistedBranchChoices.get(projectId) ?? null,
-
-    isRememberedChoiceSessionOnly: true,
+    readRememberedChoice: () => null,
 
     describeApiFailure: (error) => toFailure(error),
 
@@ -787,9 +746,8 @@ export interface CreateMockCadBranchConfirmGatewayOptions
  * Cổng giả có đủ dữ liệu — story và test cắm cái này vào để phần giao diện phụ
  * thuộc dữ liệu chưa nối được vẫn kiểm được (R-73).
  *
- * Lượt ghi nhớ vẫn đi qua đúng bản đồ trong phiên của bản thật, nên test kiểm
- * được đúng hành vi bản sản phẩm có — nhớ gọi {@link clearPersistedBranchChoices}
- * giữa hai lượt kiểm.
+ * Lượt ghi nhớ nằm trong closure của từng cổng, nên hai cổng dựng riêng không
+ * thấy lựa chọn của nhau.
  */
 export function createMockCadBranchConfirmGateway(
   options: CreateMockCadBranchConfirmGatewayOptions = {},
@@ -812,9 +770,26 @@ export function createMockCadBranchConfirmGateway(
   ): CadCapabilityResult<TValue> =>
     supports[capability] ? { supported: true, value } : unsupported(capability);
 
+  // Lựa chọn nhớ trong closure của TỪNG cổng — hai cổng mock không thấy nhau.
+  const remembered = new Map<string, CadBranchChoice>();
+
   return {
     ...base,
     supports,
+    rememberChoice: ({ choice, projectId }) => {
+      if (!supports.rememberChoice) {
+        return Promise.resolve(unsupported('rememberChoice'));
+      }
+
+      if (choice === null) {
+        remembered.delete(projectId);
+      } else {
+        remembered.set(projectId, choice);
+      }
+
+      return Promise.resolve({ supported: true, value: undefined });
+    },
+    readRememberedChoice: (projectId) => remembered.get(projectId) ?? null,
     readFloorAvailability: () => Promise.resolve({ ok: true, data: floors }),
     inspectCadFile: () => Promise.resolve(guard('inspectCadFile', inspection)),
     setProcessingBranch: () => Promise.resolve(guard('setProcessingBranch', undefined)),
