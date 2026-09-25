@@ -52,7 +52,7 @@
 import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 
 import type { ApiClient } from '@/api/client';
-import { mockApiClient } from '@/api/__mocks__/client';
+import { createAppApiClient } from '@/api/appClient';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -1749,7 +1749,7 @@ export const OBJECT_LAYER_DEFAULT_ACTOR_ID = 'object-layer-reviewer';
 export function createObjectLayerReviewGateway(
   options: CreateObjectLayerReviewGatewayOptions = {},
 ): ObjectLayerReviewGateway {
-  const apiClient = options.apiClient ?? mockApiClient;
+  const apiClient = options.apiClient ?? createAppApiClient();
   const graph: ObjectLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
@@ -1929,12 +1929,15 @@ export function createObjectLayerMutation(
         options.afterSuccess(variables);
       },
       applyOptimistic: options.applyOptimistic,
-      callServer: (variables) =>
-        options.gateway.persistObjectLayer({
+      callServer: (variables) => {
+        const graph = options.gateway.graph.read();
+        if (graph === null) return Promise.resolve(unsupported('persistObjectLayer'));
+        return options.gateway.persistObjectLayer({
           floorId: variables.floorId,
           projectId: variables.projectId,
-          graph: options.gateway.graph.read() ?? OBJECT_LAYER_SAMPLE_GRAPH,
-        }),
+          graph: graph,
+        });
+      },
       entityId: (variables) => variables.objectId,
       rollback: options.rollback,
     },

@@ -29,7 +29,7 @@
  * phẩy), và mọi phép đo vẫn do `src/domain/measure` (M-15).
  */
 
-import { mockApiClient } from '@/api/__mocks__/client';
+import { createAppApiClient } from '@/api/appClient';
 import type { ProjectsApi } from '@/api/client';
 import type { Measurement } from '@/domain/measure/measure';
 import { MEASUREMENT_LABELS } from '@/domain/measure/measure';
@@ -102,7 +102,7 @@ export function createMobileViewerGateway(
   overrides: Partial<MobileViewerGateway> = {},
 ): MobileViewerGateway {
   return {
-    projectsApi: overrides.projectsApi ?? mockApiClient.projects,
+    projectsApi: overrides.projectsApi ?? createAppApiClient().projects,
     createMonitor: overrides.createMonitor ?? ((): NetworkMonitor => createNetworkMonitor()),
     openMail: overrides.openMail ?? openMailInBrowser,
     copyText: overrides.copyText ?? copyToClipboard,

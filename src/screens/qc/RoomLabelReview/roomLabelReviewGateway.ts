@@ -120,7 +120,7 @@
  */
 
 import type { ApiClient } from '@/api/client';
-import { mockApiClient } from '@/api/__mocks__/client';
+import { createAppApiClient } from '@/api/appClient';
 import {
   computeArea,
   computeCentroid,
@@ -431,7 +431,7 @@ export const ROOM_LABEL_DEFAULT_ACTOR_ID = 'room-label-reviewer';
 export function createRoomLabelReviewGateway(
   options: CreateRoomLabelReviewGatewayOptions = {},
 ): RoomLabelReviewGateway {
-  const apiClient = options.apiClient ?? mockApiClient;
+  const apiClient = options.apiClient ?? createAppApiClient();
   const graph: RoomLabelGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };

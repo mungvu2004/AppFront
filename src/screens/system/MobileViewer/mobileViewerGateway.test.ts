@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { createMockApiClient } from '@/api/__mocks__/client';
 import { measureDistance, MEASUREMENT_LABELS } from '@/domain/measure/measure';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -46,7 +47,7 @@ function firstIdOfKind(kind: 'wall' | 'room'): string {
 
 describe('cổng', () => {
   it('vắng chỗ tiêm thì dùng cửa THẬT, không dùng cổng giả im lặng', () => {
-    const gateway = createMobileViewerGateway();
+    const gateway = createMobileViewerGateway({ projectsApi: createMockApiClient().projects });
 
     expect(typeof gateway.projectsApi.read).toBe('function');
     expect(typeof gateway.createMonitor).toBe('function');

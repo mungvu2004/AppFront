@@ -74,7 +74,7 @@
 import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 
 import type { ApiClient } from '@/api/client';
-import { mockApiClient } from '@/api/__mocks__/client';
+import { createAppApiClient } from '@/api/appClient';
 import { measureDistance } from '@/domain/measure/measure';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
@@ -1028,7 +1028,7 @@ export const DIMENSION_OCR_DEFAULT_ACTOR_ID = 'dimension-ocr-reviewer';
 export function createDimensionOcrReviewGateway(
   options: CreateDimensionOcrReviewGatewayOptions = {},
 ): DimensionOcrReviewGateway {
-  const apiClient = options.apiClient ?? mockApiClient;
+  const apiClient = options.apiClient ?? createAppApiClient();
   const graph: DimensionOcrGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
@@ -1192,12 +1192,15 @@ export function createDimensionOcrMutation(
         options.afterSuccess(variables);
       },
       applyOptimistic: options.applyOptimistic,
-      callServer: (variables) =>
-        options.gateway.persistDimensionLayer({
+      callServer: (variables) => {
+        const graph = options.gateway.graph.read();
+        if (graph === null) return Promise.resolve(unsupported('persistDimensionLayer'));
+        return options.gateway.persistDimensionLayer({
           floorId: variables.floorId,
           projectId: variables.projectId,
-          graph: options.gateway.graph.read() ?? DIMENSION_OCR_SAMPLE_GRAPH,
-        }),
+          graph: graph,
+        });
+      },
       entityId: (variables) => variables.dimensionId,
       rollback: options.rollback,
     },
