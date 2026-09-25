@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HttpClient, HttpError, Result } from '@/lib/http';
 import { parseFeatureFlagPayload } from '@/lib/telemetry/flags';
 import { createApiClient } from '../client';
+import { FloorSchema, ProgressSchema } from '../schemas';
 import { API_BASE_PATH, ENDPOINTS } from '../endpoints';
 import { createMockApiClient } from '../__mocks__/client';
 
@@ -172,7 +173,7 @@ describe('api client', () => {
       [`POST ${ENDPOINTS.projects.create}`]: sampleProject,
       [`PATCH ${ENDPOINTS.projects.update('project-1')}`]: sampleProject,
       [`DELETE ${ENDPOINTS.projects.delete('project-1')}`]: sampleProject,
-      [`POST ${ENDPOINTS.floors.create}`]: sampleFloor,
+      [`POST ${ENDPOINTS.floors.create('project-1')}`]: sampleFloor,
       [`PATCH ${ENDPOINTS.floors.reorder}`]: [sampleFloor],
       [`DELETE ${ENDPOINTS.floors.delete('floor-1')}`]: sampleFloor,
       [`POST ${ENDPOINTS.drawings.initUpload('project-1', 'floor-1')}`]: sampleProgress,
@@ -196,8 +197,9 @@ describe('api client', () => {
       projectId: 'project-1',
     });
     await client.floors.create({
-      body: { elevationMm: 0, heightMm: 3900, name: 'Floor 1', order: 1 },
+      body: { elevationMm: 0, heightMm: 3900, id: 'L-0000000001', name: 'Floor 1', order: 1 },
       idempotencyKey: 'key-floor-create',
+      projectId: 'project-1',
     });
     await client.floors.reorder({
       body: { floorIds: ['floor-1'] },
@@ -238,7 +240,7 @@ describe('api client', () => {
     expect(http.post).toHaveBeenCalledWith(ENDPOINTS.projects.create, expect.objectContaining({ idempotencyKey: 'key-project-create' }));
     expect(http.patch).toHaveBeenCalledWith(ENDPOINTS.projects.update('project-1'), expect.objectContaining({ idempotencyKey: 'key-project-update' }));
     expect(http.delete).toHaveBeenCalledWith(ENDPOINTS.projects.delete('project-1'), expect.objectContaining({ idempotencyKey: 'key-project-delete' }));
-    expect(http.post).toHaveBeenCalledWith(ENDPOINTS.floors.create, expect.objectContaining({ idempotencyKey: 'key-floor-create' }));
+    expect(http.post).toHaveBeenCalledWith(ENDPOINTS.floors.create('project-1'), expect.objectContaining({ idempotencyKey: 'key-floor-create' }));
     expect(http.patch).toHaveBeenCalledWith(ENDPOINTS.floors.reorder, expect.objectContaining({ idempotencyKey: 'key-floor-reorder' }));
     expect(http.delete).toHaveBeenCalledWith(ENDPOINTS.floors.delete('floor-1'), expect.objectContaining({ idempotencyKey: 'key-floor-delete' }));
     expect(http.post).toHaveBeenCalledWith(ENDPOINTS.drawings.initUpload('project-1', 'floor-1'), expect.objectContaining({ idempotencyKey: 'key-drawing-init' }));
@@ -247,15 +249,63 @@ describe('api client', () => {
     expect(http.patch).toHaveBeenCalledWith(ENDPOINTS.spatial.floor('project-1', 'floor-1'), expect.objectContaining({ idempotencyKey: 'key-spatial-patch' }));
   });
 
+  it('nests floor create/list under the project and keeps delete/reorder flat', async () => {
+    const wireFloor = { drawings: [], elevationMm: 0, heightMm: 3900, id: 'L-0000000001', name: 'Tầng 1', order: 0 };
+    const wireProgress = { id: 'u-1', progressPercent: 0, status: 'pending', step: 'upload' };
+    expect(FloorSchema.parse(wireFloor).id).toBe('L-0000000001');
+    expect(ProgressSchema.parse(wireProgress).id).toBe('u-1');
+    const http = createHttpMock({
+      'POST /projects/p/floors': wireFloor,
+      'GET /projects/p/floors': [wireFloor],
+      'DELETE /floors/L-0000000001': wireFloor,
+      'PATCH /floors/reorder': [wireFloor],
+      'POST /projects/p/floors/L-0000000001/drawings/uploads': wireProgress,
+    });
+    const client = createApiClient(http);
+
+    await client.floors.create({
+      body: { elevationMm: 0, heightMm: 3900, id: 'L-0000000001', name: 'Tầng 1', order: 0 },
+      projectId: 'p',
+    });
+    await client.floors.list({ projectId: 'p' });
+    await client.floors.delete({ floorId: 'L-0000000001' });
+    await client.floors.reorder({ body: { floorIds: ['L-0000000001'] } });
+
+    const createCall = vi.mocked(http.post).mock.calls[0];
+    expect(createCall?.[0]).toBe('/projects/p/floors');
+    const createBody = (createCall?.[1] as { body: Record<string, unknown> }).body;
+    expect(createBody.id).toBe('L-0000000001');
+    expect('projectId' in createBody).toBe(false);
+    expect(vi.mocked(http.get).mock.calls[0]?.[0]).toBe('/projects/p/floors');
+    expect(vi.mocked(http.delete).mock.calls[0]?.[0]).toBe('/floors/L-0000000001');
+    expect(vi.mocked(http.patch).mock.calls[0]?.[0]).toBe('/floors/reorder');
+  });
+
+  it('sends pageIndex on initUpload only when given', async () => {
+    const wireProgress = { id: 'u-1', progressPercent: 0, status: 'pending', step: 'upload' };
+    const http = createHttpMock({
+      'POST /projects/p/floors/L-0000000001/drawings/uploads': wireProgress,
+    });
+    const client = createApiClient(http);
+    const base = { fileName: 'a.pdf', floorId: 'L-0000000001', mimeType: 'application/pdf', projectId: 'p', sizeBytes: 1 };
+
+    await client.drawings.initUpload({ body: { ...base, pageIndex: 3 } });
+    await client.drawings.initUpload({ body: base });
+
+    const bodies = vi.mocked(http.post).mock.calls.map((c) => (c[1] as { body: Record<string, unknown> }).body);
+    expect(bodies[0]?.pageIndex).toBe(3);
+    expect('pageIndex' in (bodies[1] ?? {})).toBe(false);
+  });
+
   it('decodes response data with the matching schema', async () => {
     const http = createHttpMock({
-      [`GET ${ENDPOINTS.floors.list}`]: [sampleFloor],
+      [`GET ${ENDPOINTS.floors.list('project-1')}`]: [sampleFloor],
       [`GET ${ENDPOINTS.drawings.progress('project-1', 'upload-1')}`]: sampleProgress,
       [`GET ${ENDPOINTS.spatial.version('project-1', 'version-1')}`]: sampleVersion,
     });
     const client = createApiClient(http);
 
-    const floorsResult = await client.floors.list();
+    const floorsResult = await client.floors.list({ projectId: 'project-1' });
     const progressResult = await client.drawings.progress({
       projectId: 'project-1',
       uploadId: 'upload-1',
@@ -312,7 +362,7 @@ describe('api client', () => {
     const client = createMockApiClient();
 
     const projectsResult = await client.projects.list();
-    const floorsResult = await client.floors.list();
+    const floorsResult = await client.floors.list({ projectId: 'project-1' });
     const spatialResult = await client.spatial.readFloor({
       floorId: 'floor-1',
       projectId: 'project-1',

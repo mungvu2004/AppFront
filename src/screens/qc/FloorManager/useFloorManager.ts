@@ -78,24 +78,31 @@ import { alignFloors, type FloorAlignmentReport, type FloorIssue } from '@/domai
 import { explainHealthScore, groupViolationsByLevel, HEALTH_SCORE_MAX } from '@/domain/rules/healthScore';
 import type { Violation } from '@/domain/rules/registry';
 import type { Level, LevelId } from '@/domain/spatial/types';
+import { HUMAN_TEXT_MAX_LENGTH, normalizeHumanText } from '@/domain/text/humanText';
+import { PROJECT_LIMITS } from '@/domain/project/limits';
 import {
   metres,
   metresToMillimetres,
   millimetres,
   millimetresToMetres,
+  roundMeasurement,
   squareMetres,
 } from '@/domain/units/types';
 
 import type { Floor } from '@/api/contracts';
 
 import { can } from '@/lib/auth/permissions';
+import type { UndoEntryId } from '@/lib/commands/dispatch';
+import type { HistoryStep } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
 import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE, parseNumber } from '@/lib/format/number';
 import { getAppAnnouncer, type Announcer } from '@/lib/input/announcer';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { runExclusive } from '@/lib/mutations/entityQueue';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -168,7 +175,49 @@ export const FLOOR_MANAGER_TEXT = {
     'tải bản vẽ lên ở màn hình bản vẽ của tầng này; danh sách tầng chỉ cho biết tầng nào còn thiếu.',
   duplicateSuffix: 'bản sao',
   newFloorPrefix: 'Tầng',
+  addRefusedTitle: 'chưa thêm được tầng',
+  renameRefusedTitle: 'chưa đổi được tên tầng',
+  undoRefusedTitle: 'chưa hoàn tác được thay đổi tầng',
+  idTaken: 'mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.',
+  limitReached: 'dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.',
+  listChangedElsewhere: 'danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.',
+  idAmbiguous:
+    'mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.',
+  floorGone: 'tầng này không còn trên máy chủ.',
+  undoExpired: 'đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.',
+  undoNotLatest:
+    'thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.',
 } as const;
+
+/**
+ * Máy chủ giữ tầng đã xoá 600 s rồi mới dọn; chừa 30 s cho đường truyền, nên
+ * quá 570 s là không dám gửi POST khôi phục nữa.
+ */
+export const FLOOR_RESTORE_WINDOW_MS = 570_000;
+
+/** Bảng mã dây → câu, cùng khuôn `useUserManagement.ts` — mã không bao giờ tới người dùng. */
+const FLOOR_ERROR_SENTENCE_BY_CODE: ReadonlyMap<string, string> = new Map([
+  ['FLOOR_ID_TAKEN', FLOOR_MANAGER_TEXT.idTaken],
+  ['FLOOR_LIMIT_REACHED', FLOOR_MANAGER_TEXT.limitReached],
+  ['FLOOR_REORDER_MISMATCH', FLOOR_MANAGER_TEXT.listChangedElsewhere],
+  ['FLOOR_ID_AMBIGUOUS', FLOOR_MANAGER_TEXT.idAmbiguous],
+]);
+
+/** Lỗi ghi tầng → câu người đọc. Mã lạ rơi về `describeError` như `reportPersist` từng làm. */
+export function floorErrorSentence(error: unknown): string {
+  const wire = readWireError(error);
+  const byCode = wire?.code === undefined ? undefined : FLOOR_ERROR_SENTENCE_BY_CODE.get(wire.code);
+
+  if (byCode !== undefined) {
+    return byCode;
+  }
+
+  if (wire?.status === 404 && wire.resource === 'floor') {
+    return FLOOR_MANAGER_TEXT.floorGone;
+  }
+
+  return describeError(toAppError(error)).description;
+}
 
 /** Đơn vị của cột "Cao độ (m)" và "Chiều cao (m)": một chữ số sau dấu phẩy. */
 const METRE_FRACTION_DIGITS = 1;
@@ -198,7 +247,7 @@ export const metreText = (valueMm: number): string =>
 export const draftToMillimetres = (draftValue: string): number | null => {
   const parsed = parseNumber(draftValue);
 
-  return parsed === undefined ? null : metresToMillimetres(metres(parsed));
+  return parsed === undefined ? null : roundMeasurement(metresToMillimetres(metres(parsed)));
 };
 
 /** Một phép đếm viết thành chữ; `"—"` khi chưa đếm được (`MISSING_VALUE`). */
@@ -297,12 +346,81 @@ const withoutDraft = (
   Object.fromEntries(Object.entries(drafts).filter(([key]) => key !== floorId));
 
 /** Tên của tầng mới, ví dụ `"Tầng 5"`. Nhãn giao diện, không phải mã. */
-export const newFloorName = (index: number): string =>
-  `${FLOOR_MANAGER_TEXT.newFloorPrefix} ${formatNumber(index, { fractionDigits: 0, grouping: false })}`;
+export const newFloorName = (index: number): string => {
+  const raw = `${FLOOR_MANAGER_TEXT.newFloorPrefix} ${formatNumber(index, { fractionDigits: 0, grouping: false })}`;
+  const normalized = normalizeHumanText(raw);
+
+  return normalized.ok ? normalized.value : raw;
+};
 
 /** Tên của bản sao, ví dụ `"Tầng 2 (bản sao)"`. */
-export const duplicateFloorName = (sourceName: string): string =>
-  `${sourceName} (${FLOOR_MANAGER_TEXT.duplicateSuffix})`;
+export const duplicateFloorName = (sourceName: string): string => {
+  const suffix = ` (${FLOOR_MANAGER_TEXT.duplicateSuffix})`;
+  const room = HUMAN_TEXT_MAX_LENGTH - [...suffix].length;
+  const stem = [...sourceName.trim()].slice(0, room).join('').trimEnd();
+  const normalized = normalizeHumanText(`${stem}${suffix}`);
+
+  return normalized.ok ? normalized.value : `${sourceName}${suffix}`;
+};
+
+/** Một tầng đổi trong một bước lịch sử, đã gộp: `before` của bản đầu, `after` của bản cuối. */
+interface LevelChangeSummary {
+  readonly id: string;
+  readonly before: Level | null;
+  readonly after: Level | null;
+}
+
+/** `HistoryStep` không có `.changes` — chúng nằm trong từng lệnh của bước. */
+export function levelChangesOfStep(step: HistoryStep): readonly LevelChangeSummary[] {
+  const merged = new Map<string, LevelChangeSummary>();
+
+  for (const change of step.commands.flatMap((command) => command.changes)) {
+    if (change.kind !== 'level') {
+      continue;
+    }
+
+    const id = String(change.id);
+
+    merged.set(id, { id, before: merged.get(id)?.before ?? change.before, after: change.after });
+  }
+
+  return [...merged.values()];
+}
+
+/** Tầng vừa được thêm bởi lệnh thêm / nhân bản. */
+const addedLevelOf = (command: Command): Level | null => {
+  const added = command.changes.find((change) => change.kind === 'level' && change.after !== null);
+
+  return added?.kind === 'level' ? added.after : null;
+};
+
+type FloorRequest = () => Promise<ApiResult<unknown>>;
+
+/** Gửi tuần tự, dừng ở lỗi đầu tiên; `index` cho biết đã có request nào thành công trước nó chưa. */
+async function sendInOrder(
+  requests: readonly FloorRequest[],
+): Promise<{ readonly index: number; readonly error: unknown } | null> {
+  for (const [index, request] of requests.entries()) {
+    const result = await request();
+
+    if (!result.ok) {
+      return { index, error: result.error };
+    }
+  }
+
+  return null;
+}
+
+/** Kế hoạch của một bước thuận: lệnh, và các request phải gửi SAU khi lệnh đã áp cục bộ. */
+interface FloorStepPlan {
+  readonly commands: readonly Command[];
+  readonly label: string;
+  readonly requests: readonly FloorRequest[];
+  /** Ngay sau khi lệnh áp cục bộ, TRƯỚC request đầu — chỗ phát vé hoàn tác 8 giây. */
+  readonly onApplied?: (stepId: UndoEntryId | undefined) => void;
+  /** Sau khi mọi request thành công. */
+  readonly onSynced?: () => Promise<void> | void;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Hook.                                                                       */
@@ -537,20 +655,25 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     [projectId, queryClient],
   );
 
-  /** Nói ra một lượt ghi máy chủ KHÔNG xong — cấm im lặng, cấm bịa một lượt lưu. */
-  const reportPersist = useCallback(
-    (result: ApiResult<unknown>): void => {
-      if (result.ok) {
-        return;
-      }
-
+  /** Nói ra một điều người dùng phải biết: toast (thấy được) VÀ aria-live (nghe được). */
+  const say = useCallback(
+    (title: string, sentence: string): void => {
       notifications.publish({
         type: FLOOR_PERSIST_FAILED_NOTIFICATION_TYPE,
-        title: FLOOR_MANAGER_TEXT.persistFailedTitle,
-        description: describeError(toAppError(result.error)).description,
+        title,
+        description: sentence,
       });
+      announce(sentence);
     },
-    [notifications],
+    [announce, notifications],
+  );
+
+  /** Nói ra một lượt ghi máy chủ KHÔNG xong — cấm im lặng, cấm bịa một lượt lưu. */
+  const reportFailure = useCallback(
+    (error: unknown): void => {
+      say(FLOOR_MANAGER_TEXT.persistFailedTitle, floorErrorSentence(error));
+    },
+    [say],
   );
 
   /** Ngữ cảnh lệnh đọc đồ thị MỚI NHẤT — không phải bản chụp của lượt vẽ này. */
@@ -561,13 +684,61 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   }, [gateway]);
 
   /**
-   * Ghi lên máy chủ những tầng mà lệnh THẬT SỰ đổi.
+   * Mốc máy khách của lần xoá thành công (#11) — chỉ để tính cửa sổ khôi phục
+   * 570 s. KHÔNG phải kho tầng: dữ liệu tầng vẫn chỉ nằm ở đồ thị và máy chủ.
+   */
+  const removedAtRef = useRef(new Map<string, number>());
+
+  /** Mọi thao tác tầng của một dự án nối đuôi nhau trong MỘT hàng đợi. */
+  const queueKey = `floors:${projectId}`;
+
+  const removeRequest = useCallback(
+    (floorId: string): FloorRequest =>
+      async () => {
+        const result = await gateway.persistRemoveFloor({ projectId, floorId });
+
+        if (result.ok) {
+          removedAtRef.current.set(floorId, gateway.now());
+        }
+
+        return result;
+      },
+    [gateway, projectId],
+  );
+
+  const createRequest = useCallback(
+    (level: Level): FloorRequest =>
+      async () => {
+        const result = await gateway.persistAddFloor({ projectId, level });
+
+        if (result.ok) {
+          removedAtRef.current.delete(String(level.id));
+        }
+
+        return result;
+      },
+    [gateway, projectId],
+  );
+
+  const patchRequest = useCallback(
+    (level: Level): FloorRequest =>
+      () =>
+        gateway.persistFloorFields({
+          projectId,
+          floorId: String(level.id),
+          body: floorWriteBodyOf(level),
+        }),
+    [gateway, projectId],
+  );
+
+  /**
+   * #34 cho những tầng mà lệnh THẬT SỰ đổi.
    *
    * Đọc thẳng ảnh chụp `after` của từng `change` — dữ liệu đã có trong tay, nên
    * không phải đoán tầng nào đã dịch. Trùng mã thì bản sau thắng.
    */
-  const persistChangedLevels = useCallback(
-    async (commands: readonly Command[]): Promise<void> => {
+  const patchRequestsOf = useCallback(
+    (commands: readonly Command[]): readonly FloorRequest[] => {
       const changed = new Map<string, Level>();
 
       for (const command of commands) {
@@ -578,17 +749,9 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         }
       }
 
-      for (const level of changed.values()) {
-        reportPersist(
-          await gateway.persistFloorFields({
-            projectId,
-            floorId: String(level.id),
-            body: floorWriteBodyOf(level),
-          }),
-        );
-      }
+      return [...changed.values()].map(patchRequest);
     },
-    [gateway, projectId, reportPersist],
+    [patchRequest],
   );
 
   /** Chạy một lệnh qua đủ năm bước; `false` khi vai trò không cho sửa hoặc lệnh rỗng. */
@@ -627,40 +790,213 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     [canEdit, dispatchBundle, invalidate, projectId],
   );
 
-  const applyUndo = useCallback((): boolean => {
-    if (!canEdit) {
-      return false;
-    }
+  /**
+   * Một bước thuận: dựng lệnh, `dispatch` cục bộ, rồi gửi máy chủ — TẤT CẢ trong
+   * một task của hàng đợi, nên bước hỏng luôn còn ở đỉnh khi ta xét lùi.
+   *
+   * Request ĐẦU hỏng → lùi cả bước, cục bộ, không gửi thêm gì. Request sau hỏng
+   * (máy chủ đã nhận request đầu) → giữ bước, chỉ nói ra.
+   */
+  const executeStep = useCallback(
+    (build: (context: CommandContext) => FloorStepPlan | null): Promise<void> =>
+      runExclusive(queueKey, async () => {
+        const context = readContext();
+        const plan = context === null ? null : build(context);
 
-    const transition = dispatchBundle.history.undo();
+        if (plan === null) {
+          return;
+        }
 
-    if (transition === null) {
-      return false;
-    }
+        const [only] = plan.commands;
+        const applied =
+          plan.commands.length === 1 && only !== undefined
+            ? await run(only)
+            : await runAll(plan.commands, plan.label);
 
-    dispatchBundle.deps.spatial.applyPatches(transition.patches);
-    invalidate(projectId);
+        if (!applied) {
+          return;
+        }
 
-    return true;
-  }, [canEdit, dispatchBundle, invalidate, projectId]);
+        const { history, deps } = dispatchBundle;
+        const stepId = history.undoSteps().at(-1)?.id;
+
+        plan.onApplied?.(stepId);
+
+        const failure = await sendInOrder(plan.requests);
+
+        if (failure === null) {
+          await plan.onSynced?.();
+
+          return;
+        }
+
+        if (
+          failure.index === 0 &&
+          stepId !== undefined &&
+          history.undoSteps().at(-1)?.id === stepId
+        ) {
+          const transition = history.undo();
+
+          if (transition !== null) {
+            deps.spatial.revertPatches?.(transition.patches);
+            invalidate(String(plan.commands[0]?.scope.levelIds[0] ?? projectId));
+          }
+        }
+
+        reportFailure(failure.error);
+      }).catch((error: unknown) => {
+        reportFailure(error);
+      }),
+    [dispatchBundle, invalidate, projectId, queueKey, readContext, reportFailure, run, runAll],
+  );
+
+  /** Kế hoạch nghịch đảo của một bước, dựng SAU khi đồ thị đã lùi cục bộ. */
+  const inverseRequestsOf = useCallback(
+    (changes: readonly LevelChangeSummary[]): readonly FloorRequest[] => {
+      const structural: FloorRequest[] = [];
+      const fields: FloorRequest[] = [];
+
+      for (const change of changes) {
+        if (change.before === null) {
+          structural.push(removeRequest(change.id));
+        } else if (change.after === null) {
+          structural.push(createRequest(change.before));
+        } else {
+          fields.push(patchRequest(change.before));
+        }
+      }
+
+      const orderChanged = changes.some(
+        (change) =>
+          change.before !== null &&
+          change.after !== null &&
+          change.before.order !== change.after.order,
+      );
+      const reorder: FloorRequest[] = orderChanged
+        ? [
+            () =>
+              gateway.persistReorderFloors({
+                projectId,
+                floorIds: [...levelsOf(gateway.graph.read())]
+                  .sort((first, second) => first.order - second.order)
+                  .map((level) => String(level.id)),
+              }),
+          ]
+        : [];
+
+      return [...structural, ...reorder, ...fields];
+    },
+    [createRequest, gateway, patchRequest, projectId, removeRequest],
+  );
+
+  /**
+   * Hoàn tác MỘT bước — và gọi máy chủ để nó đổi theo (A8). Vé 8 giây và Mod+Z
+   * cùng đi qua đây. `expectedStepId` là bước mà vé ghi lúc phát: tới lúc bấm mà
+   * bước đó không còn ở đỉnh thì KHÔNG hoàn tác bước khác.
+   */
+  const applyUndo = useCallback(
+    (expectedStepId?: UndoEntryId): Promise<boolean> =>
+      runExclusive(queueKey, async (): Promise<boolean> => {
+        if (!canEdit) {
+          return false;
+        }
+
+        const { history, deps } = dispatchBundle;
+        const step = history.undoSteps().at(-1);
+
+        if (step === undefined) {
+          if (expectedStepId !== undefined) {
+            say(FLOOR_MANAGER_TEXT.undoRefusedTitle, FLOOR_MANAGER_TEXT.undoNotLatest);
+          }
+
+          return false;
+        }
+
+        if (expectedStepId !== undefined && step.id !== expectedStepId) {
+          say(FLOOR_MANAGER_TEXT.undoRefusedTitle, FLOOR_MANAGER_TEXT.undoNotLatest);
+
+          return false;
+        }
+
+        const changes = levelChangesOfStep(step);
+        const now = gateway.now();
+        const isExpired = changes.some((change) => {
+          const removedAt = removedAtRef.current.get(change.id);
+
+          return (
+            change.after === null &&
+            (removedAt === undefined || now - removedAt > FLOOR_RESTORE_WINDOW_MS)
+          );
+        });
+
+        if (isExpired) {
+          say(FLOOR_MANAGER_TEXT.undoRefusedTitle, FLOOR_MANAGER_TEXT.undoExpired);
+
+          return false;
+        }
+
+        const transition = history.undo();
+
+        if (transition === null) {
+          return false;
+        }
+
+        deps.spatial.applyPatches(transition.patches);
+        invalidate(changes[0]?.id ?? projectId);
+
+        const failure = await sendInOrder(inverseRequestsOf(changes));
+
+        if (failure === null) {
+          return true;
+        }
+
+        if (failure.index === 0 && history.redoSteps()[0]?.id === step.id) {
+          const redone = history.redo();
+
+          if (redone !== null) {
+            deps.spatial.revertPatches?.(redone.patches);
+            invalidate(changes[0]?.id ?? projectId);
+          }
+        }
+
+        reportFailure(failure.error);
+
+        return false;
+      }).catch((error: unknown) => {
+        reportFailure(error);
+
+        return false;
+      }),
+    [
+      canEdit,
+      dispatchBundle,
+      gateway,
+      inverseRequestsOf,
+      invalidate,
+      projectId,
+      queueKey,
+      reportFailure,
+      say,
+    ],
+  );
 
   const onUndo = useCallback(() => {
-    applyUndo();
+    void applyUndo();
   }, [applyUndo]);
 
   /**
    * Vé hoàn tác 8 giây + toast (A8). KHÔNG hộp thoại.
    *
    * `UNDO_WINDOW_MS` là mặc định của `createUndoTicket`, nên con số 8000 không
-   * xuất hiện ở màn (R-71).
+   * xuất hiện ở màn (R-71). Vé ghi id bước lúc phát.
    */
   const publishUndoTicket = useCallback(
-    (type: string, description: string) => {
+    (type: string, description: string, stepId: UndoEntryId | undefined) => {
       const ticket = createFloorUndoTicket({
         description,
         now: gateway.now,
         undo: () => {
-          applyUndo();
+          void applyUndo(stepId);
         },
       });
 
@@ -817,17 +1153,23 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       };
 
       if (field === 'name') {
-        const result = createRenameFloorCommand({ levelId, name: draft.name }, context);
-
         clearDraft();
 
-        if (result.ok) {
-          void run(result.data).then((ok) => {
-            if (ok) {
-              void persistChangedLevels([result.data]);
-            }
-          });
-        }
+        void executeStep((fresh) => {
+          const result = createRenameFloorCommand({ levelId, name: draft.name }, fresh);
+
+          if (!result.ok) {
+            say(FLOOR_MANAGER_TEXT.renameRefusedTitle, result.error.reasons.join(' '));
+
+            return null;
+          }
+
+          return {
+            commands: [result.data],
+            label: result.data.description,
+            requests: patchRequestsOf([result.data]),
+          };
+        });
 
         return;
       }
@@ -853,215 +1195,197 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         }
 
         setDuplicateElevation(null);
-
-        const result = createChangeLevelElevationCommand({ levelId, elevationMm: valueMm }, context);
-
         clearDraft();
 
-        if (result.ok) {
-          void run(result.data).then((ok) => {
-            if (ok) {
-              void persistChangedLevels([result.data]);
-              announceStackIssue();
-            }
-          });
-        }
+        void executeStep((fresh) => {
+          const result = createChangeLevelElevationCommand({ levelId, elevationMm: valueMm }, fresh);
+
+          return result.ok
+            ? {
+                commands: [result.data],
+                label: result.data.description,
+                requests: patchRequestsOf([result.data]),
+                onApplied: announceStackIssue,
+              }
+            : null;
+        });
 
         return;
       }
-
-      const built = createChangeFloorHeightCommands({ levelId, heightMm: valueMm }, context);
 
       clearDraft();
 
-      if (!built.ok) {
-        return;
-      }
+      void executeStep((fresh) => {
+        const built = createChangeFloorHeightCommands({ levelId, heightMm: valueMm }, fresh);
 
-      const label = built.commands[0]?.description ?? '';
-
-      void runAll(built.commands, label).then((ok) => {
-        if (ok) {
-          void persistChangedLevels(built.commands);
-          announceStackIssue();
-        }
+        return built.ok
+          ? {
+              commands: built.commands,
+              label: built.commands[0]?.description ?? '',
+              requests: patchRequestsOf(built.commands),
+              onApplied: announceStackIssue,
+            }
+          : null;
       });
     },
-    [announce, announceStackIssue, persistChangedLevels, readContext, run, runAll, updateDrafts],
+    [announce, announceStackIssue, executeStep, patchRequestsOf, readContext, say, updateDrafts],
   );
 
   /* ---------------------------------------------------------------------- */
   /* Thêm, nhân bản, xoá, đổi thứ tự.                                        */
   /* ---------------------------------------------------------------------- */
 
+  /** Đủ trần thì báo câu và KHÔNG dựng lệnh — dựng rồi mới bị từ chối là "tầng ma". */
+  const isAtFloorLimit = useCallback(
+    (context: CommandContext): boolean => {
+      if (levelsOf(context.graph).length < PROJECT_LIMITS.floorCountMax) {
+        return false;
+      }
+
+      say(FLOOR_MANAGER_TEXT.addRefusedTitle, FLOOR_MANAGER_TEXT.limitReached);
+
+      return true;
+    },
+    [say],
+  );
+
   const onAddFloor = useCallback(() => {
-    const context = readContext();
-
-    if (context === null) {
-      return;
-    }
-
-    const result = createAddFloorCommand(
-      { id: gateway.nextLevelId(), name: newFloorName(levelsOf(context.graph).length + 1) },
-      context,
-    );
-
-    if (!result.ok) {
-      return;
-    }
-
-    void run(result.data).then(async (ok) => {
-      if (!ok) {
-        return;
+    void executeStep((context) => {
+      if (isAtFloorLimit(context)) {
+        return null;
       }
 
-      const added = result.data.changes.find(
-        (change) => change.kind === 'level' && change.after !== null,
+      const result = createAddFloorCommand(
+        { id: gateway.nextLevelId(), name: newFloorName(levelsOf(context.graph).length + 1) },
+        context,
       );
+      const added = result.ok ? addedLevelOf(result.data) : null;
 
-      if (added?.kind === 'level' && added.after !== null) {
-        reportPersist(await gateway.persistAddFloor({ projectId, level: added.after }));
-      }
+      return result.ok && added !== null
+        ? {
+            commands: [result.data],
+            label: result.data.description,
+            requests: [createRequest(added)],
+          }
+        : null;
     });
-  }, [gateway, projectId, readContext, reportPersist, run]);
+  }, [createRequest, executeStep, gateway, isAtFloorLimit]);
 
   const onDuplicateFloor = useCallback(
     (floorId: string, duplicateOptions: { readonly copyFurniture: boolean }) => {
-      const context = readContext();
+      void executeStep((context) => {
+        const source = levelsOf(context.graph).find((level) => String(level.id) === floorId);
 
-      if (context === null) {
-        return;
-      }
-
-      const source = levelsOf(context.graph).find((level) => String(level.id) === floorId);
-
-      if (source === undefined) {
-        return;
-      }
-
-      const result = createDuplicateFloorCommand(
-        {
-          sourceLevelId: source.id,
-          targetLevelId: gateway.nextLevelId(),
-          name: duplicateFloorName(source.name),
-          copyFurniture: duplicateOptions.copyFurniture,
-        },
-        context,
-      );
-
-      if (!result.ok) {
-        return;
-      }
-
-      void run(result.data).then(async (ok) => {
-        if (!ok) {
-          return;
+        if (source === undefined || isAtFloorLimit(context)) {
+          return null;
         }
 
-        publishUndoTicket(
-          FLOOR_DUPLICATE_NOTIFICATION_TYPE,
-          duplicateFloorToastDescription(source.name),
+        const result = createDuplicateFloorCommand(
+          {
+            sourceLevelId: source.id,
+            targetLevelId: gateway.nextLevelId(),
+            name: duplicateFloorName(source.name),
+            copyFurniture: duplicateOptions.copyFurniture,
+          },
+          context,
         );
+        const added = result.ok ? addedLevelOf(result.data) : null;
 
-        const added = result.data.changes.find(
-          (change) => change.kind === 'level' && change.after !== null,
-        );
-
-        if (added?.kind === 'level' && added.after !== null) {
-          reportPersist(await gateway.persistAddFloor({ projectId, level: added.after }));
+        if (!result.ok || added === null) {
+          return null;
         }
 
-        /* Nội dung sao chép được KHÔNG có chỗ ghi trên máy chủ — nói ra, đừng im. */
-        const contents = await gateway.persistFloorContents({
-          projectId,
-          floorId: String(result.data.scope.levelIds[0] ?? floorId),
-        });
+        return {
+          commands: [result.data],
+          label: result.data.description,
+          requests: [createRequest(added)],
+          onApplied: (stepId) => {
+            publishUndoTicket(
+              FLOOR_DUPLICATE_NOTIFICATION_TYPE,
+              duplicateFloorToastDescription(source.name),
+              stepId,
+            );
+          },
+          onSynced: async () => {
+            /* Nội dung sao chép được KHÔNG có chỗ ghi trên máy chủ — nói ra, đừng im. */
+            const contents = await gateway.persistFloorContents({
+              projectId,
+              floorId: String(result.data.scope.levelIds[0] ?? floorId),
+            });
 
-        if (!contents.supported) {
-          announce(contents.notice);
-        }
+            if (!contents.supported) {
+              announce(contents.notice);
+            }
+          },
+        };
       });
     },
-    [announce, gateway, projectId, publishUndoTicket, readContext, reportPersist, run],
+    [announce, createRequest, executeStep, gateway, isAtFloorLimit, projectId, publishUndoTicket],
   );
 
   const onRemoveFloor = useCallback(
     (floorId: string) => {
-      const context = readContext();
+      void executeStep((context) => {
+        const level = levelsOf(context.graph).find((entry) => String(entry.id) === floorId);
+        const result =
+          level === undefined ? null : createRemoveFloorCommand({ levelId: level.id }, context);
 
-      if (context === null) {
-        return;
-      }
-
-      const level = levelsOf(context.graph).find((entry) => String(entry.id) === floorId);
-
-      if (level === undefined) {
-        return;
-      }
-
-      const result = createRemoveFloorCommand({ levelId: level.id }, context);
-
-      if (!result.ok) {
-        return;
-      }
-
-      void run(result.data).then(async (ok) => {
-        if (!ok) {
-          return;
+        if (level === undefined || result === null || !result.ok) {
+          return null;
         }
 
-        if (selectedFloorId === floorId) {
-          setSelectedFloorId(null);
-        }
+        return {
+          commands: [result.data],
+          label: result.data.description,
+          requests: [removeRequest(floorId)],
+          onApplied: (stepId) => {
+            if (selectedFloorId === floorId) {
+              setSelectedFloorId(null);
+            }
 
-        publishUndoTicket(FLOOR_REMOVE_NOTIFICATION_TYPE, removeFloorToastDescription(level.name));
-        reportPersist(await gateway.persistRemoveFloor({ projectId, floorId }));
+            publishUndoTicket(
+              FLOOR_REMOVE_NOTIFICATION_TYPE,
+              removeFloorToastDescription(level.name),
+              stepId,
+            );
+          },
+        };
       });
     },
-    [gateway, projectId, publishUndoTicket, readContext, reportPersist, run, selectedFloorId],
+    [executeStep, publishUndoTicket, removeRequest, selectedFloorId],
   );
 
   const onReorderFloors = useCallback(
     (floorIdsBottomUp: readonly string[]) => {
-      const context = readContext();
+      void executeStep((context) => {
+        const result = createReorderLevelsCommand(
+          { levelIds: floorIdsBottomUp.map((id) => id as LevelId) },
+          context,
+        );
 
-      if (context === null) {
-        return;
-      }
-
-      const result = createReorderLevelsCommand(
-        { levelIds: floorIdsBottomUp.map((id) => id as LevelId) },
-        context,
-      );
-
-      if (!result.ok) {
-        return;
-      }
-
-      void run(result.data).then(async (ok) => {
-        if (!ok) {
-          return;
+        if (!result.ok) {
+          return null;
         }
 
-        publishUndoTicket(FLOOR_REORDER_NOTIFICATION_TYPE, REORDER_FLOORS_TOAST_DESCRIPTION);
-        announceStackIssue();
-
-        reportPersist(
-          await gateway.persistReorderFloors({ projectId, floorIds: floorIdsBottomUp }),
-        );
-        await persistChangedLevels([result.data]);
+        return {
+          commands: [result.data],
+          label: result.data.description,
+          requests: [
+            () => gateway.persistReorderFloors({ projectId, floorIds: floorIdsBottomUp }),
+            ...patchRequestsOf([result.data]),
+          ],
+          onApplied: (stepId) => {
+            publishUndoTicket(
+              FLOOR_REORDER_NOTIFICATION_TYPE,
+              REORDER_FLOORS_TOAST_DESCRIPTION,
+              stepId,
+            );
+            announceStackIssue();
+          },
+        };
       });
     },
-    [
-      announceStackIssue,
-      gateway,
-      persistChangedLevels,
-      projectId,
-      publishUndoTicket,
-      readContext,
-      reportPersist,
-      run,
-    ],
+    [announceStackIssue, executeStep, gateway, patchRequestsOf, projectId, publishUndoTicket],
   );
 
   /* ---------------------------------------------------------------------- */

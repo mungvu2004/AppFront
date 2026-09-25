@@ -550,6 +550,10 @@
     "aria": {
       "uploadProgress": "Đã tải {{percent}}% của {{total}}",
       "uploadComplete": "Tải xong {{fileName}}"
+    },
+    "notices": {
+      "cadNotSupported": "bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.",
+      "pickPageToStart": "hãy chọn trang bản vẽ để bắt đầu tải"
     }
   },
   "inputQualityGate": {
@@ -1894,6 +1898,23 @@
     "route": {
       "missingProjectTitle": "Thiếu mã dự án",
       "missingProjectMessage": "Đường dẫn không mang mã dự án, nên chưa mở được danh sách tầng. Quay lại bảng dự án rồi chọn lại dự án cần xem."
+    },
+    "notices": {
+      "addRefusedTitle": "chưa thêm được tầng",
+      "floorGone": "tầng này không còn trên máy chủ.",
+      "floorNotFoundInDrawing": "không tìm thấy tầng này trong bản vẽ.",
+      "idAmbiguous": "mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.",
+      "idTaken": "mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.",
+      "limitReached": "dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.",
+      "listChangedElsewhere": "danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.",
+      "nameEmpty": "tên tầng không được để trống.",
+      "nameForbiddenCharacter": "tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.",
+      "nameTooLong": "tên tầng dài quá 120 ký tự, hãy rút gọn lại.",
+      "nameUnchanged": "tên tầng không đổi nên không có gì để lưu.",
+      "renameRefusedTitle": "chưa đổi được tên tầng",
+      "undoExpired": "đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.",
+      "undoNotLatest": "thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.",
+      "undoRefusedTitle": "chưa hoàn tác được thay đổi tầng"
     }
   },
   "roomLabelReview": {

@@ -277,9 +277,9 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
     },
 
     deleteAllFloors: async ({ projectId }) => {
-      // Bước đọc quyết định tập tầng hợp lệ. `floors.list()` không nhận mã dự
-      // án, nên tự nó trả về mọi tầng máy chủ đang giữ; lọc theo `project.floors`
-      // là thứ giữ cho lượt xoá không chạm tầng của dự án khác.
+      // Bước đọc quyết định tập tầng hợp lệ. `floors.list({ projectId })` đã
+      // nhận mã dự án; lọc thêm theo `project.floors` vẫn giữ cho lượt xoá không
+      // chạm tầng ngoài dự án này.
       const projectResult = await client.projects.read({ projectId });
 
       if (!projectResult.ok) {
@@ -287,7 +287,7 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       }
 
       const allowedIds = new Set(projectResult.data.floors.map((floor) => floor.id));
-      const listResult = await client.floors.list();
+      const listResult = await client.floors.list({ projectId });
 
       if (!listResult.ok) {
         return listResult;

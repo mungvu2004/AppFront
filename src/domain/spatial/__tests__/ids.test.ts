@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createId, type EntityKind, ID_PREFIX_BY_KIND, isIdOfKind, isValidId, readKindFromId } from '../ids';
 
@@ -114,5 +114,77 @@ describe('isValidId', () => {
 
     expect(isValidId('wall-1')).toBe(false);
     expect(isValidId('W_000001AB2C')).toBe(false);
+  });
+});
+
+describe('id body', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('is 16 characters of [0-9A-Z]', () => {
+    for (const kind of ALL_KINDS) {
+      expect(createId(kind).slice(2)).toMatch(/^[0-9A-Z]{16}$/);
+    }
+  });
+
+  it('draws randomness from crypto.getRandomValues', () => {
+    const spy = vi.spyOn(globalThis.crypto, 'getRandomValues');
+
+    createId('level');
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('skips bytes >= 252 and maps the rest modulo 36', () => {
+    vi.stubGlobal('crypto', {
+      getRandomValues: (bytes: Uint8Array) => {
+        bytes.fill(255);
+        bytes[0] = 35;
+        bytes[1] = 36;
+        bytes[2] = 251;
+        bytes[19] = 0;
+        return bytes;
+      },
+    });
+
+    // 35->Z, 36->0, 251->(251%36=35)->Z; the rest of the first batch is rejected.
+    expect(createId('level').slice(8, 11)).toBe('Z0Z');
+  });
+
+  it('falls back to Math.random when crypto is absent', () => {
+    vi.stubGlobal('crypto', undefined);
+    const spy = vi.spyOn(Math, 'random');
+    const id = createId('wall');
+
+    expect(spy).toHaveBeenCalled();
+    expect(id.slice(2)).toMatch(/^[0-9A-Z]{16}$/);
+    expect(isIdOfKind('wall', id)).toBe(true);
+  });
+
+  it('still accepts legacy ids with a 10-character body', () => {
+    expect(isIdOfKind('wall', 'W-000001AB2C')).toBe(true);
+    expect(isValidId('L-0000010000')).toBe(true);
+  });
+
+  it('never repeats across one load and three module reloads', async () => {
+    const ids = new Set<string>();
+
+    for (let index = 0; index < 10_000; index += 1) {
+      ids.add(createId('level'));
+    }
+
+    for (let reload = 0; reload < 3; reload += 1) {
+      vi.resetModules();
+      const fresh = await import('../ids');
+
+      for (let index = 0; index < 100; index += 1) {
+        ids.add(fresh.createId('level'));
+      }
+    }
+
+    expect(ids.size).toBe(10_300);
   });
 });

@@ -5,8 +5,10 @@
  * made of two parts joined together:
  * - the first 6 characters are a per-kind counter, so two ids can never
  *   collide within one session;
- * - the last 4 characters are random, which keeps collisions unlikely when
- *   data from several sessions or machines is merged.
+ * - the last 10 characters are random, which keeps collisions unlikely when
+ *   data from several sessions or machines is merged. They come from
+ *   `crypto.getRandomValues` (rejection-sampled, so unbiased) and only fall
+ *   back to `Math.random` when `crypto` is absent.
  */
 
 import type { AxisId, DimensionId, FurnitureId, LevelId, OpeningId, RoomId, WallId } from './types';
@@ -38,9 +40,12 @@ export interface IdByKind {
 
 const BASE36_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const COUNTER_LENGTH = 6;
-const RANDOM_LENGTH = 4;
+const RANDOM_LENGTH = 10;
+// Fixed on purpose: ids stored with a 10-character body must stay valid.
+const MIN_BODY_LENGTH = 10;
+// 252 = 7 * 36, so bytes 0..251 map evenly onto the 36 symbols.
+const BYTE_LIMIT = 252;
 const ID_BODY_PATTERN = /^[0-9A-Z]+$/;
-const MIN_BODY_LENGTH = COUNTER_LENGTH + RANDOM_LENGTH;
 
 const counterByKind: { [K in EntityKind]: number } = {
   level: 0,
@@ -69,7 +74,22 @@ const encodeBase36 = (value: number, minLength: number): string => {
 };
 
 const randomSuffix = (length: number): string => {
+  const cryptoObject = globalThis.crypto;
   let suffix = '';
+
+  if (cryptoObject?.getRandomValues) {
+    while (suffix.length < length) {
+      const bytes = cryptoObject.getRandomValues(new Uint8Array(length * 2));
+
+      for (const byte of bytes) {
+        if (byte < BYTE_LIMIT && suffix.length < length) {
+          suffix += BASE36_ALPHABET.charAt(byte % BASE36_ALPHABET.length);
+        }
+      }
+    }
+
+    return suffix;
+  }
 
   for (let index = 0; index < length; index += 1) {
     suffix += BASE36_ALPHABET.charAt(Math.floor(Math.random() * BASE36_ALPHABET.length));

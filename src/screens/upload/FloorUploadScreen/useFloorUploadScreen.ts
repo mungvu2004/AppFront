@@ -61,18 +61,16 @@ import type { Millimetres } from '@/domain/units/types';
 import { can } from '@/lib/auth/permissions';
 import { formatFileSize } from '@/lib/format/bytes';
 import { formatLength } from '@/lib/format/measure';
-import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
+import { formatNumber, formatPercent, MISSING_VALUE, parseNumber } from '@/lib/format/number';
+import { getAppAnnouncer } from '@/lib/input/announcer';
 import { staggerDelayMs } from '@/lib/motion/stagger';
 import { durationMs } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
-import {
-  ACCEPTED_UPLOAD_EXTENSIONS,
-  MAX_PDF_PAGE_COUNT,
-  MAX_UPLOAD_FILE_SIZE_BYTES,
-} from '@/lib/upload';
+import { MAX_PDF_PAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from '@/lib/upload';
 import type { UploadBranch, UploadRejection, UploadTask, UploadTaskState } from '@/lib/upload';
 import { ROUTES } from '@/routes/paths';
+import { PICKER_UPLOAD_EXTENSIONS } from '@/lib/upload/validate';
 import type { ProjectRole } from '@/types/project';
 
 import type { FloorUploadGateway } from './floorUploadGateway';
@@ -219,6 +217,28 @@ interface Attachment {
   readonly status: FloorUploadStatus;
   readonly percent: number;
   readonly problem: FloorUploadInlineError | null;
+}
+
+const PICK_PAGE_SENTENCE = 'hãy chọn trang bản vẽ để bắt đầu tải';
+
+/** Trang PDF người dùng chọn (đếm từ 1) thành `pageIndex` (đếm từ 0); vắng thì `undefined`. */
+function pageIndexOf(attachment: Attachment): number | undefined {
+  if (attachment.branch !== 'pdf' || attachment.selectedPage === null) {
+    return undefined;
+  }
+
+  const page = parseNumber(attachment.selectedPage);
+
+  return page === undefined ? undefined : page - 1;
+}
+
+/** PDF nhiều trang chưa chọn trang: ghép tầng được, nhưng chưa tải. */
+function isAwaitingPage(attachment: Attachment): boolean {
+  return (
+    attachment.branch === 'pdf' &&
+    (attachment.pageCount ?? 0) > 1 &&
+    pageIndexOf(attachment) === undefined
+  );
 }
 
 /** Trạng thái hàng suy ra từ trạng thái một lượt tải. */
@@ -480,6 +500,13 @@ export function useFloorUploadScreen(
   };
 
   const startUpload = (attachment: Attachment, floorId: string): void => {
+    if (isAwaitingPage(attachment)) {
+      getAppAnnouncer().announce(PICK_PAGE_SENTENCE);
+      return;
+    }
+
+    const pageIndex = pageIndexOf(attachment);
+
     if (!onlineRef.current) {
       // Mất mạng: ghi ý định vào hàng đợi ngoại tuyến và để tệp ở "chờ xử lý".
       // Hàng đợi giữ dữ liệu thuần, không giữ được chính `File`.
@@ -488,6 +515,7 @@ export function useFloorUploadScreen(
         floorId,
         fileName: attachment.file.name,
         sizeBytes: attachment.file.size,
+        ...(pageIndex !== undefined ? { pageIndex } : {}),
       });
       patchAttachment(attachment.id, { status: 'waiting', percent: 0, problem: null });
       return;
@@ -498,6 +526,7 @@ export function useFloorUploadScreen(
       floorId,
       projectId,
       id: attachment.id,
+      ...(pageIndex !== undefined ? { pageIndex } : {}),
       onProgress: (taskState) => {
         applyTaskState(attachment.id, floorId, taskState);
       },
@@ -629,6 +658,21 @@ export function useFloorUploadScreen(
     if (floorId !== null) {
       startUpload({ ...attachment, floorId, isAutoMatched: false }, floorId);
     }
+  };
+
+  const pickPdfPage = (fileId: string, page: string): void => {
+    const attachment = findAttachment(fileId);
+
+    patchAttachment(fileId, { selectedPage: page });
+
+    if (!canEdit || attachment === null || attachment.floorId === null) {
+      return;
+    }
+
+    // Closure cũ còn giữ trang cũ, nên dựng lại đối tượng với trang mới.
+    cancelTask(fileId);
+    patchAttachment(fileId, { status: 'waiting', percent: 0, problem: null });
+    startUpload({ ...attachment, selectedPage: page }, attachment.floorId);
   };
 
   const removeFile = (fileId: string): void => {
@@ -973,9 +1017,9 @@ export function useFloorUploadScreen(
       // Cả hai con số lấy từ hằng của `src/lib/upload`; thư mục màn không chứa
       // một trần dung lượng nào viết tay.
       formatsLine:
-        `Định dạng hỗ trợ: ${ACCEPTED_UPLOAD_EXTENSIONS.join(', ')}. ` +
+        `Định dạng hỗ trợ: ${PICKER_UPLOAD_EXTENSIONS.join(', ')}. ` +
         `Kích thước tối đa: ${formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}.`,
-      acceptAttribute: ACCEPTED_UPLOAD_EXTENSIONS.join(','),
+      acceptAttribute: PICKER_UPLOAD_EXTENSIONS.join(','),
       isEnabled: canEdit,
     },
     floors: rows,
@@ -997,7 +1041,7 @@ export function useFloorUploadScreen(
       setDragDepth((depth) => (depth > 0 ? depth - 1 : 0));
     },
     onReassign: reassign,
-    onPickPdfPage: (fileId, page) => patchAttachment(fileId, { selectedPage: page }),
+    onPickPdfPage: pickPdfPage,
     onCancelUpload: (fileId) => {
       if (canEdit) cancelTask(fileId);
     },

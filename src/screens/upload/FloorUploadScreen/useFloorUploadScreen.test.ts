@@ -17,6 +17,9 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import type { ApiResult, Progress } from '@/api/client';
+import { ApiErrorBodySchema } from '@/api/schemas/errors';
+import { ProgressSchema } from '@/api/schemas';
 import type {
   NetworkMonitor,
   NetworkMonitorStatus,
@@ -25,7 +28,10 @@ import type {
 import { staggerDelayMs } from '@/lib/motion/stagger';
 import { durationMs } from '@/lib/motion/tokens';
 import { createTestQueryClient } from '@/lib/testing/render';
+import type { HttpError } from '@/lib/http';
 import type { UploadTask, UploadTaskState } from '@/lib/upload';
+import { createUploadTask } from '@/lib/upload/uploadTask';
+import type { UploadCandidate } from '@/lib/upload/validate';
 import { ROUTES } from '@/routes/paths';
 
 import { createFloorUploadGateway, type FloorUploadGateway } from './floorUploadGateway';
@@ -769,8 +775,198 @@ describe('useFloorUploadScreen — quyền và chuyển động', () => {
       expect(result.current.floors).toHaveLength(4);
     });
 
-    expect(result.current.dropZone.formatsLine).toContain('.dwg');
+    expect(result.current.dropZone.formatsLine).not.toContain('.dwg');
     expect(result.current.dropZone.formatsLine).toContain('MB');
-    expect(result.current.dropZone.acceptAttribute).toBe('.png,.jpg,.pdf,.dwg');
+    expect(result.current.dropZone.acceptAttribute).toBe('.png,.jpg,.pdf');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* pageIndex và PDF nhiều trang chờ chọn trang.                                */
+/* -------------------------------------------------------------------------- */
+
+const PICK_PAGE_SENTENCE = 'hãy chọn trang bản vẽ để bắt đầu tải';
+
+const pdfValidation =
+  (pageCount: number): FloorUploadGateway['validateFile'] =>
+  async (file: UploadCandidate) => ({
+    branch: 'pdf',
+    extension: '.pdf',
+    ok: true,
+    pageCount,
+    sizeBytes: file.size,
+  });
+
+const bodyOf = (call: unknown[] | undefined): { pageIndex?: number } =>
+  (call?.[0] ?? {}) as { pageIndex?: number };
+
+const pdfFile = (name: string): File => makeFile(name, 16, 'application/pdf');
+
+describe('useFloorUploadScreen — trang PDF', () => {
+  const setup = async (overrides: Partial<FloorUploadGateway> = {}, online = true) => {
+    const harness = createHarness(overrides, online);
+    const createUpload = vi.spyOn(harness.gateway, 'createUpload');
+    const view = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(view.result.current.floors).toHaveLength(4);
+    });
+
+    return { ...harness, createUpload, ...view };
+  };
+
+  it('PDF 3 trang ghép tầng nhưng chưa tải, và nhắc chọn trang', async () => {
+    const { createUpload, result } = await setup({ validateFile: pdfValidation(3) });
+
+    act(() => {
+      result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file).not.toBeNull();
+    });
+
+    expect(createUpload).not.toHaveBeenCalled();
+    expect(result.current.floors[2]?.status).toBe('waiting');
+    await waitFor(() => {
+      expect(document.body.textContent).toContain(PICK_PAGE_SENTENCE);
+    });
+  });
+
+  it('chọn trang 3 thì tải đúng một lần, mang pageIndex 2', async () => {
+    const { createUpload, result } = await setup({ validateFile: pdfValidation(3) });
+
+    act(() => {
+      result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file).not.toBeNull();
+    });
+
+    act(() => {
+      result.current.onPickPdfPage(result.current.floors[2]?.file?.id ?? '', '3');
+    });
+
+    expect(createUpload).toHaveBeenCalledTimes(1);
+    expect(bodyOf(createUpload.mock.calls[0]).pageIndex).toBe(2);
+    expect(result.current.floors[2]?.status).toBe('uploading');
+  });
+
+  it('đổi trang sau đó thì huỷ lượt cũ rồi tải lại', async () => {
+    const { createUpload, result, uploads } = await setup({ validateFile: pdfValidation(3) });
+
+    act(() => {
+      result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file).not.toBeNull();
+    });
+
+    const fileId = result.current.floors[2]?.file?.id ?? '';
+
+    act(() => {
+      result.current.onPickPdfPage(fileId, '3');
+    });
+
+    const first = [...uploads.values()][0];
+
+    act(() => {
+      result.current.onPickPdfPage(fileId, '1');
+    });
+
+    expect(first?.cancelled()).toBe(true);
+    expect(createUpload).toHaveBeenCalledTimes(2);
+    expect(bodyOf(createUpload.mock.calls[1]).pageIndex).toBe(0);
+  });
+
+  it('PDF một trang và ảnh tải ngay, thân vắng pageIndex', async () => {
+    const { createUpload, result } = await setup({ validateFile: pdfValidation(1) });
+
+    act(() => {
+      result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
+    });
+    await waitFor(() => {
+      expect(createUpload).toHaveBeenCalledTimes(1);
+    });
+    expect('pageIndex' in bodyOf(createUpload.mock.calls[0])).toBe(false);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+    });
+    await waitFor(() => {
+      expect(createUpload).toHaveBeenCalledTimes(2);
+    });
+    expect('pageIndex' in bodyOf(createUpload.mock.calls[1])).toBe(false);
+  });
+
+  it('hàng ngoại tuyến mang theo pageIndex khi đã chọn trang', async () => {
+    const enqueue = vi.fn<FloorUploadGateway['enqueueOffline']>(async () => true);
+    const { result } = await setup(
+      { validateFile: pdfValidation(3), enqueueOffline: enqueue },
+      false,
+    );
+
+    act(() => {
+      result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file).not.toBeNull();
+    });
+
+    // Chưa chọn trang: ngoại tuyến cũng chờ.
+    expect(enqueue).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.onPickPdfPage(result.current.floors[2]?.file?.id ?? '', '2');
+    });
+
+    await waitFor(() => {
+      expect(enqueue).toHaveBeenCalledTimes(1);
+    });
+    expect(enqueue.mock.calls[0]?.[0].pageIndex).toBe(1);
+  });
+
+  it('#5 trả 422 CAD_NOT_SUPPORTED thì thẻ nói câu về CAD, không in mã', async () => {
+    const body = ApiErrorBodySchema.parse({ code: 'CAD_NOT_SUPPORTED', requestId: 'req-cad' });
+    const error: HttpError = {
+      code: body.code,
+      kind: 'http',
+      raw: { code: body.code, requestId: body.requestId },
+      requestId: body.requestId,
+      retryable: false,
+      status: 422,
+    };
+
+    expect(() =>
+      ProgressSchema.parse({ id: 'upload-1', progressPercent: 0, status: 'running', step: 'x' }),
+    ).not.toThrow();
+
+    const fail = async (): Promise<ApiResult<Progress>> => ({ error, ok: false });
+    const api = { complete: fail, initUpload: fail, progress: fail, sendChunk: fail };
+    const { result } = await setup({
+      createUpload: ({ file, floorId, id, onProgress, projectId }) =>
+        createUploadTask({
+          api,
+          file,
+          floorId,
+          projectId,
+          onProgress,
+          ...(id !== undefined ? { id } : {}),
+        }),
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-2.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[2]?.status).toBe('error');
+    });
+
+    const sentence = result.current.floors[2]?.error?.sentence ?? '';
+
+    expect(sentence).toBe('bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.');
+    expect(sentence).not.toContain('CAD_NOT_SUPPORTED');
+    expect(result.current.floors[2]?.canRetryUpload).toBe(false);
   });
 });

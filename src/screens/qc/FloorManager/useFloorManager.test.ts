@@ -19,11 +19,15 @@
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId } from '@/domain/spatial/types';
 import { metres, metresToMillimetres } from '@/domain/units/types';
+import { createApiClient, type ApiResult } from '@/api/client';
+import { FloorSchema, type Floor } from '@/api/contracts';
+import { ApiErrorBodySchema } from '@/api/schemas/errors';
+import { createHttpClient, type HttpError } from '@/lib/http';
 import { formatLength } from '@/lib/format/measure';
 import type { Announcer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -33,8 +37,11 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import {
+  createFloorManagerGateway,
   createFloorManagerSampleGraph,
   createMockFloorManagerGateway,
+  floorWriteBodyOf,
+  type FloorManagerGatewaySeed,
   entitiesOnLevel,
   findElevationConflict,
   FLOOR_MANAGER_SAMPLE_GROUND_ID,
@@ -46,7 +53,13 @@ import {
   type FloorManagerGateway,
 } from './floorManagerGateway';
 import type { UseFloorManagerResult } from './floorManagerTypes';
-import { useFloorManager, type UseFloorManagerOptions } from './useFloorManager';
+import {
+  draftToMillimetres,
+  FLOOR_MANAGER_TEXT,
+  FLOOR_RESTORE_WINDOW_MS,
+  useFloorManager,
+  type UseFloorManagerOptions,
+} from './useFloorManager';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — đọc ra, không viết tay lại.                                        */
@@ -659,5 +672,533 @@ describe('bảng tầng', () => {
       'thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
     );
     expect(mounted.result.current.bands).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* F-03: lồng dự án, hoàn tác gọi máy chủ, lùi khi ghi hỏng.                    */
+/* -------------------------------------------------------------------------- */
+
+const NEW_ID = 'L-0000000001' as LevelId;
+const BASEMENT_ID = 'L-FLOORBASEMENT';
+const GROUND_ID = String(FLOOR_MANAGER_SAMPLE_GROUND_ID);
+const SECOND_ID = String(FLOOR_MANAGER_SAMPLE_SECOND_ID);
+const ROOF_ID = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+const SAMPLE_ORDER = [BASEMENT_ID, GROUND_ID, SECOND_ID, ROOF_ID];
+
+/** Thân tầng như máy chủ trả — dữ liệu DÂY; schema chỉ khẳng định nó hợp lệ. */
+function wireFloorBody(id: string): Record<string, unknown> {
+  return { id, name: 'Tầng', order: 0, elevationMm: 0, heightMm: 3000, drawings: [] };
+}
+
+function wireFloor(id: string): Floor {
+  return FloorSchema.parse(wireFloorBody(id));
+}
+
+/** Lỗi dây: `HttpError` có `status`, `code`, và `raw` khớp `ApiErrorBodySchema`. */
+function wireFailure<TValue>(
+  status: number,
+  code: string,
+  resource?: 'floor' | 'project',
+): Promise<ApiResult<TValue>> {
+  const raw = { code, requestId: 'REQ-F03', ...(resource === undefined ? {} : { resource }) };
+
+  ApiErrorBodySchema.parse(raw);
+
+  const error: HttpError = { kind: 'http', status, code, requestId: 'REQ-F03', retryable: false, raw };
+
+  return Promise.resolve({ ok: false, error });
+}
+
+type Persist<TKey extends 'persistAddFloor' | 'persistRemoveFloor' | 'persistReorderFloors' | 'persistFloorFields'> =
+  Mock<FloorManagerGateway[TKey]>;
+
+/** Cổng mẫu, nhưng mỗi lượt ghi là một `vi.fn` để đọc lại từng request. */
+function spiedGateway(seed: FloorManagerGatewaySeed = {}): {
+  readonly gateway: FloorManagerGateway;
+  readonly add: Persist<'persistAddFloor'>;
+  readonly remove: Persist<'persistRemoveFloor'>;
+  readonly reorder: Persist<'persistReorderFloors'>;
+  readonly patch: Persist<'persistFloorFields'>;
+} {
+  const base = createMockFloorManagerGateway(seed);
+  const add = vi.fn(base.persistAddFloor);
+  const remove = vi.fn(base.persistRemoveFloor);
+  const reorder = vi.fn(base.persistReorderFloors);
+  const patch = vi.fn(base.persistFloorFields);
+
+  return {
+    gateway: {
+      ...base,
+      persistAddFloor: add,
+      persistRemoveFloor: remove,
+      persistReorderFloors: reorder,
+      persistFloorFields: patch,
+    },
+    add,
+    remove,
+    reorder,
+    patch,
+  };
+}
+
+const sleep = (): Promise<void> =>
+  act(async () => {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  });
+
+const undoWithKey = (mounted: Mounted): Promise<void> =>
+  pressKey(mounted.registry, 'z', { ctrlKey: true });
+
+const levelIds = (): readonly string[] => levelsOf(storeGraph()).map((level) => String(level.id));
+
+const descriptionsOf = (notifications: NotificationBus): readonly string[] =>
+  notifications.list().map((entry) => entry.description);
+
+const fiftyLevels = Array.from({ length: 50 }, (_, index) => ({
+  id: `L-${String(index + 1).padStart(10, '0')}` as LevelId,
+  name: `Tầng ${String(index)}`,
+  elevationMm: index * 3000,
+  heightMm: 3000,
+  drawingCount: 0,
+  wallCount: 0,
+  roomCount: 0,
+  furnitureCount: 0,
+}));
+
+describe('làm tròn milimét', () => {
+  it('gõ 3,95 m ra milimét nguyên, kể cả số lẻ dưới milimét', () => {
+    expect(draftToMillimetres('3,95')).toBe(3950);
+    expect(draftToMillimetres('3,9549')).toBe(3955);
+    expect(Number.isInteger(draftToMillimetres('1,0004'))).toBe(true);
+  });
+
+  it('thân ghi tầng làm tròn cao độ và chiều cao', () => {
+    const level: Level = {
+      ...levelIn(createFloorManagerSampleGraph(), GROUND_ID),
+      elevationMm: 1234.6,
+      heightMm: 2999.5,
+    };
+    const body = floorWriteBodyOf(level);
+
+    expect(body.elevationMm).toBe(1235);
+    expect(body.heightMm).toBe(3000);
+  });
+});
+
+describe('cổng thật', () => {
+  it('đọc tầng theo dự án, và POST gửi id trong thân chứ không gửi projectId', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(JSON.stringify([]), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        }),
+      ),
+    );
+    const gateway = createFloorManagerGateway({
+      api: createApiClient(createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl })),
+      graph: { read: () => null },
+    });
+
+    await gateway.readFloorList({ projectId: 'P-0000000001' });
+
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain('/projects/P-0000000001/floors');
+
+    fetchImpl.mockClear();
+    fetchImpl.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(wireFloorBody(String(NEW_ID))), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 201,
+        }),
+      ),
+    );
+
+    await gateway.persistAddFloor({
+      projectId: 'P-0000000001',
+      level: { ...levelIn(createFloorManagerSampleGraph(), GROUND_ID), id: NEW_ID },
+    });
+
+    const [url, init] = fetchImpl.mock.calls[0] ?? [];
+    const sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+
+    expect(String(url)).toContain('/projects/P-0000000001/floors');
+    expect(sent.id).toBe(NEW_ID);
+    expect(sent).not.toHaveProperty('projectId');
+  });
+});
+
+describe('thêm tầng', () => {
+  it('gửi đúng id của tầng vừa dựng cho dự án này', async () => {
+    const { gateway, add } = spiedGateway({ nextLevelId: () => NEW_ID });
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onAddFloor();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(add).toHaveBeenCalledTimes(1);
+    });
+
+    const input = add.mock.calls[0]?.[0];
+
+    expect(input?.projectId).toBe(PROJECT_ID);
+    expect(String(input?.level.id)).toBe(String(NEW_ID));
+    expect(wireFloor(String(NEW_ID)).id).toBe(String(NEW_ID));
+  });
+
+  it('đủ 50 tầng thì KHÔNG POST, không dựng lệnh, và nói ra câu', async () => {
+    const { gateway, add } = spiedGateway({
+      graph: createFloorManagerSampleGraph({ levels: fiftyLevels, withContents: false }),
+      floors: [],
+    });
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onAddFloor();
+      mounted.result.current.onDuplicateFloor(String(fiftyLevels[0]?.id), { copyFurniture: false });
+      await Promise.resolve();
+    });
+    await sleep();
+
+    expect(add).not.toHaveBeenCalled();
+    expect(levelIds()).toHaveLength(50);
+    expect(mounted.result.current.historyStepCount()).toBe(0);
+    expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.limitReached);
+    expect(mounted.spoken).toContain(FLOOR_MANAGER_TEXT.limitReached);
+  });
+
+  it.each([
+    [409, 'FLOOR_ID_TAKEN', FLOOR_MANAGER_TEXT.idTaken],
+    [422, 'FLOOR_LIMIT_REACHED', FLOOR_MANAGER_TEXT.limitReached],
+  ])(
+    'máy chủ từ chối %i %s thì tầng rời khỏi đồ thị, có câu riêng, không dải tải lại',
+    async (status, code, sentence) => {
+      const { gateway, add } = spiedGateway({ nextLevelId: () => NEW_ID });
+      const mounted = await mountSettled({ gateway });
+
+      add.mockImplementation(() => wireFailure(status, code));
+
+      await act(async () => {
+        mounted.result.current.onAddFloor();
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(descriptionsOf(mounted.notifications)).toContain(sentence);
+      });
+
+      expect(levelIds()).toEqual(SAMPLE_ORDER);
+      expect(mounted.result.current.historyStepCount()).toBe(0);
+      expect(mounted.result.current.state).not.toBe('error');
+      expect(mounted.result.current.errorMessage).toBeNull();
+      expect(descriptionsOf(mounted.notifications).join(' ')).not.toContain(code);
+    },
+  );
+});
+
+describe('hoàn tác gọi máy chủ', () => {
+  it('hoàn tác "thêm" gửi DELETE đúng tầng đó', async () => {
+    const { gateway, remove } = spiedGateway({ nextLevelId: () => NEW_ID });
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onAddFloor();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(levelIds()).toContain(String(NEW_ID));
+    });
+    await sleep();
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    expect(remove.mock.calls[0]?.[0]).toEqual({ projectId: PROJECT_ID, floorId: String(NEW_ID) });
+    expect(levelIds()).toEqual(SAMPLE_ORDER);
+  });
+
+  it.each([
+    [569 * 1000, true],
+    [571 * 1000, false],
+  ])('hoàn tác "xoá" sau %i ms: gửi POST khôi phục = %s', async (elapsedMs, restores) => {
+    let clock = 1_000_000;
+    const { gateway, add } = spiedGateway({ now: () => clock });
+    const mounted = await mountSettled({ gateway });
+
+    expect(FLOOR_RESTORE_WINDOW_MS).toBe(570 * 1000);
+
+    await act(async () => {
+      mounted.result.current.onRemoveFloor(SECOND_ID);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(levelIds()).not.toContain(SECOND_ID);
+    });
+    await sleep();
+
+    const afterRemove = stackReadings(storeGraph());
+
+    clock += elapsedMs;
+    await undoWithKey(mounted);
+    await sleep();
+
+    if (restores) {
+      await waitFor(() => {
+        expect(add).toHaveBeenCalledTimes(1);
+      });
+
+      expect(String(add.mock.calls[0]?.[0].level.id)).toBe(SECOND_ID);
+      expect(levelIds()).toContain(SECOND_ID);
+    } else {
+      expect(add).not.toHaveBeenCalled();
+      expect(stackReadings(storeGraph())).toEqual(afterRemove);
+      expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.undoExpired);
+    }
+  });
+
+  it('hoàn tác đổi tên và đổi cao độ gửi PATCH mang giá trị cũ', async () => {
+    const { gateway, patch } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+    const before = levelIn(storeGraph(), ROOF_ID);
+
+    await commitField(mounted, ROOF_ID, 'name', 'Mái mới');
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledTimes(1);
+    });
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledTimes(2);
+    });
+
+    expect(patch.mock.calls[1]?.[0].floorId).toBe(ROOF_ID);
+    expect(patch.mock.calls[1]?.[0].body.name).toBe(before.name);
+
+    patch.mockClear();
+    await commitField(mounted, ROOF_ID, 'elevation', '8');
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledTimes(1);
+    });
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledTimes(2);
+    });
+
+    expect(patch.mock.calls[1]?.[0].body.elevationMm).toBe(before.elevationMm);
+  });
+
+  it('hoàn tác sắp xếp gửi #13 thứ tự cũ (đủ 4 tầng) rồi mới #34', async () => {
+    const { gateway, reorder, patch } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+    const swapped = [BASEMENT_ID, SECOND_ID, GROUND_ID, ROOF_ID];
+
+    await act(async () => {
+      mounted.result.current.onReorderFloors(swapped);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(levelIds()).toEqual(swapped);
+    });
+    await sleep();
+
+    expect(reorder.mock.calls[0]?.[0].floorIds).toEqual(swapped);
+
+    reorder.mockClear();
+    patch.mockClear();
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(reorder).toHaveBeenCalledTimes(1);
+      expect(patch.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    expect(reorder.mock.calls[0]?.[0]).toEqual({ projectId: PROJECT_ID, floorIds: SAMPLE_ORDER });
+    expect(Math.max(...reorder.mock.invocationCallOrder)).toBeLessThan(
+      Math.min(...patch.mock.invocationCallOrder),
+    );
+  });
+
+  it('hoàn tác đổi chiều cao tầng 1 KHÔNG gửi #13, chỉ #34', async () => {
+    const { gateway, reorder, patch } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await commitField(mounted, GROUND_ID, 'height', '4,2');
+    await waitFor(() => {
+      expect(patch.mock.calls.length).toBeGreaterThan(0);
+    });
+    await sleep();
+    patch.mockClear();
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(patch.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    expect(reorder).not.toHaveBeenCalled();
+    expect(patch.mock.calls.map((call) => call[0].floorId)).toContain(GROUND_ID);
+  });
+
+  it('máy chủ từ chối lúc hoàn tác thì đồ thị trở lại đúng như sau thao tác', async () => {
+    const { gateway, patch } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await commitField(mounted, ROOF_ID, 'name', 'Mái mới');
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledTimes(1);
+    });
+    await sleep();
+
+    const afterEdit = stackReadings(storeGraph());
+    const stepsAfterEdit = mounted.result.current.historyStepCount();
+    const pastBefore = useStore.temporal.getState().pastStates.length;
+
+    patch.mockImplementation(() => wireFailure(404, 'NOT_FOUND', 'floor'));
+    await undoWithKey(mounted);
+    await waitFor(() => {
+      expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.floorGone);
+    });
+
+    expect(levelIn(storeGraph(), ROOF_ID).name).toBe('Mái mới');
+    expect(stackReadings(storeGraph())).toEqual(afterEdit);
+    expect(mounted.result.current.historyStepCount()).toBe(stepsAfterEdit);
+    /* Nhiều nhất là bước của chính lượt hoàn tác cục bộ; lượt lùi vì máy chủ từ chối không thêm bước nào. */
+    expect(useStore.temporal.getState().pastStates.length).toBeLessThanOrEqual(pastBefore + 1);
+    expect(patch).toHaveBeenCalledTimes(2);
+  });
+
+  it('bấm vé khi đã có thao tác mới hơn thì KHÔNG hoàn tác bước khác', async () => {
+    const { gateway, add } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onRemoveFloor(SECOND_ID);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.notifications.list()).toHaveLength(1);
+    });
+
+    const ticket = mounted.notifications.list()[0]?.undoTicket;
+
+    await commitField(mounted, ROOF_ID, 'name', 'Mái mới');
+    await sleep();
+    add.mockClear();
+    ticket?.undo();
+    await sleep();
+
+    expect(levelIds()).not.toContain(SECOND_ID);
+    expect(levelIn(storeGraph(), ROOF_ID).name).toBe('Mái mới');
+    expect(add).not.toHaveBeenCalled();
+    expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.undoNotLatest);
+  });
+
+  it('bấm vé lúc #11 còn bay thì POST khôi phục chạy SAU khi #11 xong', async () => {
+    const { gateway, add, remove } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+    const settled = wireFloor(SECOND_ID);
+    let finishRemove: () => void = () => undefined;
+
+    remove.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRemove = () => {
+            resolve({ ok: true, data: settled });
+          };
+        }),
+    );
+
+    await act(async () => {
+      mounted.result.current.onRemoveFloor(SECOND_ID);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.notifications.list()).toHaveLength(1);
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    mounted.notifications.list()[0]?.undoTicket?.undo();
+    await sleep();
+
+    expect(add).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishRemove();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(add).toHaveBeenCalledTimes(1);
+    });
+
+    expect(Math.max(...remove.mock.invocationCallOrder)).toBeLessThan(
+      Math.min(...add.mock.invocationCallOrder),
+    );
+    expect(levelIds()).toContain(SECOND_ID);
+  });
+
+  it('#11 hỏng thì lùi cục bộ, tầng trở lại, không mở thêm bước hoàn tác', async () => {
+    const { gateway, remove } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+    const before = stackReadings(storeGraph());
+    const pastBefore = useStore.temporal.getState().pastStates.length;
+
+    remove.mockImplementation(() => wireFailure(409, 'FLOOR_ID_AMBIGUOUS'));
+
+    await act(async () => {
+      mounted.result.current.onRemoveFloor(SECOND_ID);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.idAmbiguous);
+    });
+
+    expect(stackReadings(storeGraph())).toEqual(before);
+    expect(mounted.result.current.historyStepCount()).toBe(0);
+    /* Chỉ lượt xoá cục bộ mở một bước zundo; lượt lùi thì không. */
+    expect(useStore.temporal.getState().pastStates.length).toBe(pastBefore + 1);
+  });
+
+  it('#11 hỏng rồi bấm vé (lịch sử đã rỗng) thì vé nói ra, không im lặng', async () => {
+    const { gateway, remove } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    remove.mockImplementation(() => wireFailure(409, 'FLOOR_ID_AMBIGUOUS'));
+
+    await act(async () => {
+      mounted.result.current.onRemoveFloor(SECOND_ID);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.idAmbiguous);
+    });
+
+    expect(mounted.result.current.historyStepCount()).toBe(0);
+
+    const ticket = mounted.notifications.list().find((entry) => entry.undoTicket !== undefined)
+      ?.undoTicket;
+
+    ticket?.undo();
+    await sleep();
+
+    expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.undoNotLatest);
+  });
+});
+
+describe('tên tầng', () => {
+  it('tên chứa U+202E thì KHÔNG PATCH, và nói ra cả toast lẫn aria-live', async () => {
+    const { gateway, patch } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+    const before = stackReadings(storeGraph());
+
+    await commitField(mounted, ROOF_ID, 'name', 'Mái‮mới');
+    await sleep();
+
+    const sentence = 'tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.';
+
+    expect(patch).not.toHaveBeenCalled();
+    expect(stackReadings(storeGraph())).toEqual(before);
+    expect(descriptionsOf(mounted.notifications)).toContain(sentence);
+    expect(mounted.spoken).toContain(sentence);
   });
 });

@@ -329,8 +329,8 @@ export function createCadBranchConfirmGateway(
       saveLayerMapping: false,
     },
 
-    readFloorAvailability: async ({ signal }) => {
-      const result = await client.floors.list(signal !== undefined ? { signal } : {});
+    readFloorAvailability: async ({ projectId, signal }) => {
+      const result = await client.floors.list(signal !== undefined ? { projectId, signal } : { projectId });
 
       if (!result.ok) {
         return result;

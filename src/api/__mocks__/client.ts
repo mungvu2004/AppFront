@@ -1038,7 +1038,7 @@ export const createMockApiClient = (): ApiClient => {
           drawings: body.drawings ?? [],
           elevationMm: body.elevationMm,
           heightMm: body.heightMm,
-          id: `floor-${floors.length + 1}`,
+          id: body.id,
           name: body.name,
           order: body.order,
         };

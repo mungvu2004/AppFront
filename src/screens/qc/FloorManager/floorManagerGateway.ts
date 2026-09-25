@@ -101,7 +101,8 @@ import type {
   Wall,
   WallId,
 } from '@/domain/spatial/types';
-import { millimetres, type Millimetres } from '@/domain/units/types';
+import { normalizeHumanText, type HumanTextFailureReason } from '@/domain/text/humanText';
+import { millimetres, roundMeasurement, type Millimetres } from '@/domain/units/types';
 
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient, ApiResult, FloorWriteBody } from '@/api/client';
@@ -696,7 +697,7 @@ export function createDuplicateFloorCommand(
 
   if (source === null) {
     return refuse(FLOOR_COMMAND_TYPES.duplicate, [
-      `Không tìm thấy tầng ${input.sourceLevelId} trong bản vẽ.`,
+      'không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -773,7 +774,7 @@ export function createRemoveFloorCommand(
 
   if (level === null) {
     return refuse(FLOOR_COMMAND_TYPES.remove, [
-      `Không tìm thấy tầng ${input.levelId} trong bản vẽ.`,
+      'không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -816,6 +817,21 @@ export function createRemoveFloorCommand(
   );
 }
 
+/** Câu từ chối của tên tầng, mỗi `reason` một câu — đúng chữ khối `notices` của `vi.json`. */
+const RENAME_REFUSAL_BY_REASON: Readonly<Record<HumanTextFailureReason, string>> = {
+  empty: 'tên tầng không được để trống.',
+  tooLong: 'tên tầng dài quá 120 ký tự, hãy rút gọn lại.',
+  forbiddenCharacter:
+    'tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.',
+};
+
+/** Tên đã chuẩn hoá để so trùng; tên cũ hỏng (không chuẩn hoá được) thì so nguyên chuỗi. */
+const comparableFloorName = (name: string): string => {
+  const normalized = normalizeHumanText(name);
+
+  return normalized.ok ? normalized.value : name;
+};
+
 export interface RenameFloorInput {
   readonly levelId: LevelId;
   readonly name: string;
@@ -839,19 +855,21 @@ export function createRenameFloorCommand(
 
   if (level === null) {
     return refuse(FLOOR_COMMAND_TYPES.rename, [
-      `Không tìm thấy tầng ${input.levelId} trong bản vẽ.`,
+      'không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
-  const name = input.name.trim();
+  const normalized = normalizeHumanText(input.name);
 
-  if (name === '') {
-    return refuse(FLOOR_COMMAND_TYPES.rename, ['Tên tầng không được để trống.']);
+  if (!normalized.ok) {
+    return refuse(FLOOR_COMMAND_TYPES.rename, [RENAME_REFUSAL_BY_REASON[normalized.reason]]);
   }
 
-  if (name === level.name) {
+  const name = normalized.value;
+
+  if (name === comparableFloorName(level.name)) {
     return refuse(FLOOR_COMMAND_TYPES.rename, [
-      `Tầng "${level.name}" đã mang đúng tên đó nên không có gì thay đổi.`,
+      'tên tầng không đổi nên không có gì để lưu.',
     ]);
   }
 
@@ -893,7 +911,7 @@ export function createChangeFloorHeightCommands(
   const level = readOf(context.graph, 'level', input.levelId);
 
   if (level === null) {
-    return { ok: false, reasons: [`Không tìm thấy tầng ${input.levelId} trong bản vẽ.`] };
+    return { ok: false, reasons: ['không tìm thấy tầng này trong bản vẽ.'] };
   }
 
   if (level.heightMm === input.heightMm) {
@@ -1187,8 +1205,8 @@ export const FLOOR_MANAGER_DEFAULT_ACTOR_ID = 'floor-manager-reviewer';
 export function floorWriteBodyOf(level: Level): FloorWriteBody {
   return {
     drawings: [],
-    elevationMm: level.elevationMm,
-    heightMm: level.heightMm,
+    elevationMm: roundMeasurement(millimetres(level.elevationMm)),
+    heightMm: roundMeasurement(millimetres(level.heightMm)),
     name: level.name,
     order: level.order,
     ...(level.areaM2 === undefined ? {} : { areaM2: level.areaM2 }),
@@ -1229,9 +1247,10 @@ export function createFloorManagerGateway(
     },
 
     readFloorList: async (input) => {
-      const result = await api.floors.list(
-        input.signal === undefined ? {} : { signal: input.signal },
-      );
+      const result = await api.floors.list({
+        projectId: input.projectId,
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
+      });
 
       if (!result.ok) {
         /* `useQuery` đọc lượt hỏng qua `isError`; A11 gọi đó là trạng thái `error`. */
@@ -1243,7 +1262,11 @@ export function createFloorManagerGateway(
 
     graph,
 
-    persistAddFloor: (input) => api.floors.create({ body: floorWriteBodyOf(input.level) }),
+    persistAddFloor: (input) =>
+      api.floors.create({
+        body: { ...floorWriteBodyOf(input.level), id: String(input.level.id) },
+        projectId: input.projectId,
+      }),
     persistRemoveFloor: (input) => api.floors.delete({ floorId: input.floorId }),
     persistReorderFloors: (input) =>
       api.floors.reorder({ body: { floorIds: [...input.floorIds] } }),
@@ -1542,6 +1565,8 @@ export interface FloorManagerGatewaySeed {
   readonly failReadFloorList?: boolean;
   /** `true` thì mọi lượt ghi lên máy chủ trả lỗi — cảnh "lưu không xong". */
   readonly failPersist?: boolean;
+  /** Như `failPersist` nhưng với đúng lỗi này — để bài kiểm dựng 409, 422, 404 của máy chủ. */
+  readonly failPersistWith?: HttpError;
   readonly actorId?: string;
   readonly now?: () => number;
   readonly nextLevelId?: () => LevelId;
@@ -1561,14 +1586,15 @@ export function createMockFloorManagerGateway(
 ): FloorManagerGateway {
   const graph = seed.graph === undefined ? createFloorManagerSampleGraph() : seed.graph;
   const floors = seed.floors ?? createFloorManagerSampleFloors();
-  const failPersist = seed.failPersist ?? false;
+  const failPersistWith =
+    seed.failPersistWith ?? (seed.failPersist === true ? FLOOR_MANAGER_SAMPLE_PERSIST_ERROR : null);
   let counter = 0;
 
   const persisted = <TValue>(value: TValue): Promise<ApiResult<TValue>> =>
     Promise.resolve(
-      failPersist
-        ? { ok: false, error: FLOOR_MANAGER_SAMPLE_PERSIST_ERROR }
-        : { ok: true, data: value },
+      failPersistWith === null
+        ? { ok: true, data: value }
+        : { ok: false, error: failPersistWith },
     );
 
   return {

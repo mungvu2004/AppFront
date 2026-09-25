@@ -144,8 +144,17 @@ export interface FloorWriteBody extends Omit<FloorPayload, 'elevationMm' | 'heig
   order: FloorOrder;
 }
 
+export interface FloorCreateBody extends FloorWriteBody {
+  id: string;
+}
+
 export interface CreateFloorInput extends WriteRequestOptions {
-  body: FloorWriteBody;
+  body: FloorCreateBody;
+  projectId: string;
+}
+
+export interface ListFloorsInput extends RequestOptions {
+  projectId: string;
 }
 
 export interface ReorderFloorsInput extends WriteRequestOptions {
@@ -163,6 +172,7 @@ export interface InitDrawingUploadInput extends WriteRequestOptions {
     fileName: string;
     floorId: string;
     mimeType: string;
+    pageIndex?: number;
     projectId: string;
     sizeBytes: number;
   };
@@ -442,7 +452,7 @@ export interface FeatureFlagsApi {
 export interface FloorsApi {
   create(input: CreateFloorInput): Promise<ApiResult<Floor>>;
   delete(input: DeleteFloorInput): Promise<ApiResult<Floor>>;
-  list(options?: RequestOptions): Promise<ApiResult<Floor[]>>;
+  list(input: ListFloorsInput): Promise<ApiResult<Floor[]>>;
   reorder(input: ReorderFloorsInput): Promise<ApiResult<Floor[]>>;
 }
 
@@ -783,10 +793,10 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
   },
   floors: {
     create: async (input) => {
-      const { body } = input;
+      const { body, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.floors.create, toFloorWirePayload(body), input),
+        await callPost(http, ENDPOINTS.floors.create(projectId), { ...toFloorWirePayload(body), id: body.id }, input),
         FloorSchema,
         'floors.create',
       );
@@ -800,8 +810,12 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         'floors.delete',
       );
     },
-    list: async (options) =>
-      decodeList(await callGet<unknown>(http, ENDPOINTS.floors.list, options?.signal), FloorSchema, 'floors.list'),
+    list: async (input) =>
+      decodeList(
+        await callGet<unknown>(http, ENDPOINTS.floors.list(input.projectId), input.signal),
+        FloorSchema,
+        'floors.list',
+      ),
     reorder: async (input) => {
       const { body } = input;
 

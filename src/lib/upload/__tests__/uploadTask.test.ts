@@ -8,6 +8,7 @@ import type {
   Progress,
   SendDrawingChunkInput,
 } from '@/api/client';
+import { ProgressSchema } from '@/api/schemas';
 import type { HttpError } from '@/lib/http';
 
 import { encodeBytesBase64 } from '../chunk';
@@ -699,5 +700,49 @@ describe('runUploadQueue', () => {
     }, manual);
 
     expect(states.fileName).toBe('done/failed');
+  });
+});
+
+describe('createUploadTask — pageIndex', () => {
+  const runInit = async (pageIndex?: number): Promise<InitDrawingUploadInput['body']> => {
+    const manual = createManualClock();
+    const recording = createRecordingApi();
+    const task = createUploadTask({
+      api: recording.api,
+      clock: manual.clock,
+      file: fakeFile(rampBytes(4)),
+      floorId: 'floor-1',
+      id: 'task-page',
+      projectId: 'project-1',
+      ...(pageIndex !== undefined ? { pageIndex } : {}),
+    });
+
+    await runToEnd(task.start, manual);
+
+    return recording.initialised[0] as InitDrawingUploadInput['body'];
+  };
+
+  it('carries the page index into the init body exactly as given', async () => {
+    const body = await runInit(2);
+
+    expect(body.pageIndex).toBe(2);
+    expect(JSON.parse(JSON.stringify(body))).toHaveProperty('pageIndex', 2);
+  });
+
+  it('keeps page 0 — zero is a page, not an absence', async () => {
+    expect((await runInit(0)).pageIndex).toBe(0);
+  });
+
+  it('leaves the key out of the JSON when no page was chosen', async () => {
+    const body = await runInit();
+
+    expect('pageIndex' in body).toBe(false);
+    expect(JSON.stringify(body)).not.toContain('pageIndex');
+  });
+
+  it('is fed by a wire-shaped progress body that the schema accepts', () => {
+    const wire = { id: 'upload-1', progressPercent: 0, status: 'running', step: 'khởi tạo' };
+
+    expect(() => ProgressSchema.parse(wire)).not.toThrow();
   });
 });

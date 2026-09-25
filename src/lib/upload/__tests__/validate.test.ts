@@ -5,6 +5,7 @@ import {
   guessFloorFromFileName,
   MAX_PDF_PAGE_COUNT,
   MAX_UPLOAD_FILE_SIZE_BYTES,
+  PICKER_UPLOAD_EXTENSIONS,
   readExtension,
   readPdfPageCount,
   validateUploadFile,
@@ -44,6 +45,8 @@ describe('the limits', () => {
     expect(MAX_UPLOAD_FILE_SIZE_BYTES).toBe(100 * 1024 * 1024);
     expect(MAX_PDF_PAGE_COUNT).toBe(20);
     expect(ACCEPTED_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.pdf', '.dwg']);
+    expect(PICKER_UPLOAD_EXTENSIONS).toStrictEqual(['.png', '.jpg', '.pdf']);
+    expect(PICKER_UPLOAD_EXTENSIONS).not.toContain('.dwg');
   });
 });
 
@@ -86,7 +89,7 @@ describe('validateUploadFile', () => {
     expect(check).toStrictEqual({
       ok: false,
       reason: {
-        acceptedExtensions: ACCEPTED_UPLOAD_EXTENSIONS,
+        acceptedExtensions: PICKER_UPLOAD_EXTENSIONS,
         extension: '.txt',
         kind: 'unsupportedFormat',
       },
@@ -98,7 +101,7 @@ describe('validateUploadFile', () => {
 
     expect(check.ok).toBe(false);
     expect(check.ok ? null : check.reason).toStrictEqual({
-      acceptedExtensions: ACCEPTED_UPLOAD_EXTENSIONS,
+      acceptedExtensions: PICKER_UPLOAD_EXTENSIONS,
       extension: '',
       kind: 'unsupportedFormat',
     });

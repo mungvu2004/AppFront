@@ -31,10 +31,8 @@ import { formatPercent } from '@/lib/format/number';
 import { staggerDelayMs } from '@/lib/motion/stagger';
 import { durationMs } from '@/lib/motion/tokens';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
-import {
-  ACCEPTED_UPLOAD_EXTENSIONS,
-  MAX_UPLOAD_FILE_SIZE_BYTES,
-} from '@/lib/upload';
+import { MAX_UPLOAD_FILE_SIZE_BYTES } from '@/lib/upload';
+import { PICKER_UPLOAD_EXTENSIONS } from '@/lib/upload/validate';
 
 import { FloorUploadScreenView } from './FloorUploadScreen';
 import type {
@@ -240,9 +238,9 @@ const DROP_ZONE = {
   titleKey: 'floorUpload.dropZone.title',
   selectFileLabel: 'Chọn tệp',
   formatsLine:
-    `Định dạng hỗ trợ: ${ACCEPTED_UPLOAD_EXTENSIONS.join(', ')}. ` +
+    `Định dạng hỗ trợ: ${PICKER_UPLOAD_EXTENSIONS.join(', ')}. ` +
     `Kích thước tối đa: ${formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}.`,
-  acceptAttribute: ACCEPTED_UPLOAD_EXTENSIONS.join(','),
+  acceptAttribute: PICKER_UPLOAD_EXTENSIONS.join(','),
   isEnabled: true,
 };
 

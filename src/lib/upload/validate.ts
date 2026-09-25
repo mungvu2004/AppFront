@@ -56,6 +56,16 @@ export const ACCEPTED_UPLOAD_EXTENSIONS = ['.png', '.jpg', '.pdf', '.dwg'] as co
 export type AcceptedUploadExtension = (typeof ACCEPTED_UPLOAD_EXTENSIONS)[number];
 
 /**
+ * The formats the file picker offers: the accepted list minus `.dwg`, which the
+ * server refuses (422 `CAD_NOT_SUPPORTED`). A dropped `.dwg` still validates.
+ */
+export const PICKER_UPLOAD_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.pdf',
+] as const satisfies readonly AcceptedUploadExtension[];
+
+/**
  * Which pipeline a file takes once it is uploaded.
  *
  * The screen reads this to show the "Nhánh CAD" pill instead of sniffing the
@@ -248,7 +258,7 @@ export async function validateUploadFile(file: UploadCandidate): Promise<UploadV
     return {
       ok: false,
       reason: {
-        acceptedExtensions: ACCEPTED_UPLOAD_EXTENSIONS,
+        acceptedExtensions: PICKER_UPLOAD_EXTENSIONS,
         extension,
         kind: 'unsupportedFormat',
       },

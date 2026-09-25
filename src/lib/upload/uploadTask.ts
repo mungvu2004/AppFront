@@ -146,6 +146,8 @@ export interface CreateUploadTaskOptions {
   readonly api: DrawingsApi;
   readonly file: UploadFile;
   readonly floorId: string;
+  /** Zero-based PDF page to trace (0…19). Absent for images and one-page PDFs. */
+  readonly pageIndex?: number;
   readonly projectId: string;
   /** Called with every state change, throttled to {@link PROGRESS_EMITS_PER_SECOND}. */
   readonly onProgress?: (state: UploadTaskState) => void;
@@ -424,6 +426,7 @@ export function createUploadTask(options: CreateUploadTaskOptions): UploadTask {
           fileName: options.file.name,
           floorId: options.floorId,
           mimeType: options.file.type,
+          ...(options.pageIndex === undefined ? {} : { pageIndex: options.pageIndex }),
           projectId: options.projectId,
           sizeBytes: options.file.size,
         },

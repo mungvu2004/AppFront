@@ -77,9 +77,9 @@ export const ENDPOINTS = {
     read: FEATURE_FLAGS_ROOT,
   },
   floors: {
-    create: FLOORS_ROOT,
+    create: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/floors`,
     delete: (floorId: string): string => `${FLOORS_ROOT}/${floorId}`,
-    list: FLOORS_ROOT,
+    list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/floors`,
     reorder: `${FLOORS_ROOT}/reorder`,
   },
   /**

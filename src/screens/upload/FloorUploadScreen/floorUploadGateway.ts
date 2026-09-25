@@ -8,11 +8,16 @@
  *
  * ## Vì sao đọc tầng qua `projects.read`, không qua `floors.list`
  *
- * `client.floors.list()` **không nhận mã dự án** — `ENDPOINTS.floors.list` là
- * một đường dẫn phẳng không mang mã dự án, nên tự nó trả mọi tầng máy chủ đang
- * giữ, của mọi dự án. `projectSettingsGateway.ts:279-296` đã gặp đúng chỗ này và giải bằng
- * cách đọc `projects.read({ projectId }).data.floors`. Màn này chép cách đó:
+ * `client.floors.list({ projectId })` nay đã lồng dưới dự án
+ * (`ENDPOINTS.floors.list(projectId)`), nhưng màn này vẫn đọc tầng qua
+ * `projects.read({ projectId }).data.floors` như `projectSettingsGateway.ts`
+ * và giữ cách đó từ trước F-03 — một lượt đọc đủ cho cả dự án lẫn tầng:
  * danh sách tầng của một dự án là một trường của chính dự án đó.
+ *
+ * ## `pageIndex`
+ *
+ * Trang PDF được chọn (từ 0) đi qua `CreateFloorUploadInput` xuống thân #5, và
+ * qua `EnqueueOfflineUploadInput` vào lệnh hàng đợi. Vắng thì khoá không xuất hiện.
  *
  * ## Bốn việc file này KHÔNG làm
  *
@@ -58,6 +63,9 @@ import type {
 /* Kiểu.                                                                       */
 /* -------------------------------------------------------------------------- */
 
+const CAD_NOT_SUPPORTED_CODE = 'CAD_NOT_SUPPORTED';
+const CAD_NOT_SUPPORTED_SENTENCE = 'bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.';
+
 export interface ReadProjectFloorsInput {
   readonly projectId: string;
 }
@@ -67,6 +75,8 @@ export interface CreateFloorUploadInput {
   readonly floorId: string;
   readonly projectId: string;
   readonly onProgress: (state: UploadTaskState) => void;
+  /** Trang PDF (từ 0) cần dựng; vắng với ảnh và PDF một trang. */
+  readonly pageIndex?: number;
   readonly id?: string;
 }
 
@@ -82,6 +92,7 @@ export interface EnqueueOfflineUploadInput {
   readonly floorId: string;
   readonly fileName: string;
   readonly sizeBytes: number;
+  readonly pageIndex?: number;
 }
 
 /** Một thất bại, đã thành câu người đọc được. */
@@ -147,6 +158,12 @@ export { UNDO_WINDOW_MS };
 /* -------------------------------------------------------------------------- */
 
 function toFailure(error: AppError): FloorUploadFailure {
+  // Lỗi của #5 đã bị `uploadTask` bọc thành `AppError`, nên `readWireError`
+  // trả `null`; mã dây còn nguyên ở `error.code`.
+  if (error.code === CAD_NOT_SUPPORTED_CODE) {
+    return { sentence: CAD_NOT_SUPPORTED_SENTENCE, kind: error.kind, isRetryable: false };
+  }
+
   return {
     sentence: describeError(error).description,
     kind: error.kind,
@@ -177,20 +194,28 @@ export function createFloorUploadGateway(
 
     guessFloor: (name) => guessFloorFromFileName(name),
 
-    createUpload: ({ file, floorId, id, onProgress, projectId }) =>
+    createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) =>
       createUploadTask({
         api: client.drawings,
         file,
         floorId,
         projectId,
         onProgress,
+        ...(pageIndex !== undefined ? { pageIndex } : {}),
         ...(id !== undefined ? { id } : {}),
       }),
 
-    enqueueOffline: async ({ fileName, floorId, projectId, sizeBytes }) => {
+    enqueueOffline: async ({ fileName, floorId, pageIndex, projectId, sizeBytes }) => {
       const result = await addPendingCommand({
         projectId,
-        command: { kind: 'uploadDrawing', fileName, floorId, projectId, sizeBytes },
+        command: {
+          kind: 'uploadDrawing',
+          fileName,
+          floorId,
+          projectId,
+          sizeBytes,
+          ...(pageIndex !== undefined ? { pageIndex } : {}),
+        },
       });
 
       return result.ok;
