@@ -2870,6 +2870,15 @@
       "escape": "thoát chế độ đo (phím Esc)",
       "toggleTool": "bật tắt công cụ đo (phím M)"
     },
+    "error": {
+      "limitReached": "dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại",
+      "idTaken": "mã phép đo vừa bị một phiên khác dùng; hãy ghim lại",
+      "forbidden": "bạn không có quyền ghim phép đo trong dự án này",
+      "deleteGone": "phép đo này đã bị xoá ở nơi khác",
+      "pinFailed": "chưa ghim được phép đo, hãy thử lại",
+      "deleteFailed": "chưa xoá được phép đo, hãy thử lại",
+      "undoFailed": "chưa hoàn tác được việc xoá phép đo"
+    },
     "mode": {
       "pointToPoint": "điểm đến điểm",
       "perpendicular": "vuông góc với bề mặt",

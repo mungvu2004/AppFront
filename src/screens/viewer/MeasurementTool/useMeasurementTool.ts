@@ -116,6 +116,8 @@ import {
   formatMeasurementRow,
   INITIAL_MEASURE_UNIT,
   measurementCountLabel,
+  measurementErrorCodeOf,
+  type MeasurementToolHttpGateway,
   nextMeasurementIdentity,
   NO_SNAP_LABEL,
   snapIndicatorOf,
@@ -194,6 +196,22 @@ const PIN_BLOCKED_CAPTION =
 
 /** Câu của toast hoàn tác — cửa sổ tám giây do chính vé mang (`UNDO_WINDOW_MS`). */
 const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
+
+/** Câu lỗi theo mã máy chủ — người dùng KHÔNG bao giờ thấy mã trần. */
+const MEASUREMENT_ERROR_TEXT: Readonly<Record<string, string>> = {
+  MEASUREMENT_LIMIT_REACHED:
+    'dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại',
+  MEASUREMENT_ID_TAKEN: 'mã phép đo vừa bị một phiên khác dùng; hãy ghim lại',
+  FORBIDDEN: 'bạn không có quyền ghim phép đo trong dự án này',
+};
+const PIN_FAILED_TEXT = 'chưa ghim được phép đo, hãy thử lại';
+const DELETE_FAILED_TEXT = 'chưa xoá được phép đo, hãy thử lại';
+const DELETE_GONE_TEXT = 'phép đo này đã bị xoá ở nơi khác';
+const UNDO_FAILED_TEXT = 'chưa hoàn tác được việc xoá phép đo';
+
+const PIN_ERROR_NOTIFICATION_TYPE = 'measurementTool.pinFailed';
+const DELETE_ERROR_NOTIFICATION_TYPE = 'measurementTool.deleteFailed';
+const UNDO_ERROR_NOTIFICATION_TYPE = 'measurementTool.undoFailed';
 
 /** Không có phép đo nào. */
 const NO_ROWS: readonly PinnedMeasurement[] = Object.freeze([]);
@@ -305,10 +323,36 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
   const queryClient = useQueryClient();
   const http = useMemo(() => createMeasurementHttpClient(), []);
 
-  const saveMutation = useMutation(saveMeasurement({ http, queryClient }));
-  const deleteMutation = useMutation(deleteMeasurement({ http, queryClient }));
-
   const notifications = options.notifications ?? appNotificationBus;
+
+  /* Cổng thật giữ TÁCH khỏi `options.gateway`: vé hoàn tác cần hàm hoà giải của
+     nó, mà deps của mutation dựng trước cổng nên nối qua ref. Cổng được tiêm thì
+     không có hàm này, và 409 của hoàn tác đi thẳng `onUndoFailed`. */
+  const httpGatewayRef = useRef<MeasurementToolHttpGateway | null>(null);
+  const injectedGateway = options.gateway !== undefined;
+
+  const saveMutation = useMutation(saveMeasurement({ http, queryClient }));
+  const deleteMutation = useMutation(
+    deleteMeasurement({
+      http,
+      queryClient,
+      onUndoFailed: () => {
+        notifications.publish({
+          type: UNDO_ERROR_NOTIFICATION_TYPE,
+          title: UNDO_FAILED_TEXT,
+          description: '',
+        });
+      },
+      ...(injectedGateway
+        ? {}
+        : {
+            resolveUndoConflict: (targetProject: string, measurement: MeasurementRecord) =>
+              httpGatewayRef.current !== null
+                ? httpGatewayRef.current.resolveUndoConflict(targetProject, measurement)
+                : Promise.reject(new Error('Cổng đo chưa dựng xong.')),
+          }),
+    }),
+  );
 
   /**
    * Vé hoàn tác thành một toast có nút "Hoàn tác" (A8).
@@ -335,9 +379,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
   const runnersRef = useRef({ save: saveMutation.mutateAsync, remove: deleteMutation.mutateAsync });
   runnersRef.current = { save: saveMutation.mutateAsync, remove: deleteMutation.mutateAsync };
 
-  const gateway = useMemo(
-    (): MeasurementToolGateway =>
-      options.gateway ??
+  const httpGateway = useMemo(
+    (): MeasurementToolHttpGateway =>
       createMeasurementToolGateway({
         http,
         queryClient,
@@ -345,8 +388,11 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         remove: (variables) => runnersRef.current.remove(variables),
         onUndoTicket: publishUndo,
       }),
-    [options.gateway, http, queryClient, publishUndo],
+    [http, queryClient, publishUndo],
   );
+  httpGatewayRef.current = httpGateway;
+
+  const gateway: MeasurementToolGateway = options.gateway ?? httpGateway;
 
   const { projectId } = options;
 
@@ -708,21 +754,43 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   const canPin = shell.state !== 'forbidden';
 
+  /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
+     nguyên đó, cùng một câu lỗi, và người dùng ghim lại được. */
   const onPin = useCallback((): void => {
     if (!canPin || draftRow === null) {
       return;
     }
 
-    void gateway.saveMeasurement(projectId, draftRow);
-    clearDraft();
-  }, [canPin, draftRow, gateway, projectId, clearDraft]);
+    gateway
+      .saveMeasurement(projectId, draftRow)
+      .then(clearDraft)
+      .catch((error: unknown) => {
+        notifications.publish({
+          type: PIN_ERROR_NOTIFICATION_TYPE,
+          title: MEASUREMENT_ERROR_TEXT[measurementErrorCodeOf(error).code ?? ''] ?? PIN_FAILED_TEXT,
+          description: '',
+        });
+      });
+  }, [canPin, draftRow, gateway, projectId, clearDraft, notifications]);
 
   const onDelete = useCallback(
     (id: PinnedMeasurementId): void => {
       setHighlightedId((current) => (current === id ? null : current));
-      void gateway.deleteMeasurement(projectId, id);
+      gateway.deleteMeasurement(projectId, id).catch((error: unknown) => {
+        const gone = measurementErrorCodeOf(error).resource === 'measurement';
+
+        notifications.publish({
+          type: DELETE_ERROR_NOTIFICATION_TYPE,
+          title: gone ? DELETE_GONE_TEXT : DELETE_FAILED_TEXT,
+          description: '',
+        });
+
+        if (gone) {
+          void queryClient.invalidateQueries({ queryKey: measurementKeys.all(projectId) });
+        }
+      });
     },
-    [gateway, projectId],
+    [gateway, projectId, notifications, queryClient],
   );
 
   const onToggleVisibility = useCallback((id: PinnedMeasurementId): void => {

@@ -439,6 +439,9 @@ export type MeasurementNoteId = `MS-${string}`;
 /** Prefix every measurement note id carries. */
 export const MEASUREMENT_NOTE_PREFIX = 'MS';
 
+/** Largest sequence the server accepts: 15 digits (`^MS-[0-9]{4,15}$`). */
+export const MEASUREMENT_NOTE_SEQUENCE_MAX = 999_999_999_999_999;
+
 /** Digits in the sequence part of a note id, so ids sort as they were made. */
 const SEQUENCE_LENGTH = 4;
 
@@ -471,8 +474,10 @@ export interface MeasurementNote {
 
 /** Build the id for a given sequence number. */
 export function createMeasurementNoteId(sequence: number): MeasurementNoteId {
-  if (!Number.isInteger(sequence) || sequence < 1) {
-    throw new RangeError(`Note sequence must be a positive integer: ${String(sequence)}`);
+  if (!Number.isInteger(sequence) || sequence < 1 || sequence > MEASUREMENT_NOTE_SEQUENCE_MAX) {
+    throw new RangeError(
+      `Note sequence must be a positive integer up to ${String(MEASUREMENT_NOTE_SEQUENCE_MAX)}: ${String(sequence)}`,
+    );
   }
   return `${MEASUREMENT_NOTE_PREFIX}-${String(sequence).padStart(SEQUENCE_LENGTH, '0')}`;
 }
@@ -485,7 +490,38 @@ export function readMeasurementNoteSequence(id: string): number | null {
     return null;
   }
   const sequence = Number.parseInt(digits, 10);
-  return Number.isInteger(sequence) && sequence >= 1 ? sequence : null;
+  return Number.isSafeInteger(sequence) && sequence >= 1 ? sequence : null;
+}
+
+/**
+ * The sequence a new note should take, given the ids already in use.
+ *
+ * One past the highest while that still fits the server's 15 digits; past the
+ * ceiling, the smallest positive sequence nobody holds (the server hard-deletes,
+ * so a freed id may be taken again).
+ */
+export function nextMeasurementNoteSequence(ids: readonly string[]): number {
+  const used = new Set<number>();
+  let highest = 0;
+
+  for (const id of ids) {
+    const sequence = readMeasurementNoteSequence(id);
+    if (sequence !== null) {
+      used.add(sequence);
+      highest = Math.max(highest, sequence);
+    }
+  }
+
+  if (highest < MEASUREMENT_NOTE_SEQUENCE_MAX) {
+    return highest + 1;
+  }
+
+  let candidate = 1;
+  while (used.has(candidate)) {
+    candidate += 1;
+  }
+
+  return candidate;
 }
 
 export interface CreateMeasurementNoteOptions {
@@ -528,20 +564,15 @@ export interface AppendMeasurementNoteOptions {
  *
  * The next sequence is one past the highest already in the list — across every
  * level, so the codes on screen never repeat even when the engineer is measuring
- * two floors at once. Ids are never reused after a deletion, because a note that
- * was discussed as `MS-0003` must not come back as a different measurement.
+ * two floors at once. The server hard-deletes, so it lets a deleted id be taken
+ * again; within one session the gateway still remembers what it deleted.
  */
 export function appendMeasurementNote(
   notes: readonly MeasurementNote[],
   measurement: Measurement,
   options: AppendMeasurementNoteOptions,
 ): readonly MeasurementNote[] {
-  const highest = notes.reduce<number>(
-    (highestSoFar, note) => Math.max(highestSoFar, readMeasurementNoteSequence(note.id) ?? 0),
-    0,
-  );
-
-  const sequence = highest + 1;
+  const sequence = nextMeasurementNoteSequence(notes.map((note) => note.id));
   const note =
     options.label === undefined
       ? createMeasurementNote(measurement, { levelId: options.levelId, sequence })

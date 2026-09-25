@@ -25,6 +25,7 @@ import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 
 import { ENDPOINTS } from '@/api/endpoints';
 import type { AppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import type { HttpClient } from '@/lib/http';
 import type { MeasurementRecord } from '@/types/measurement';
 
@@ -39,7 +40,19 @@ export interface MeasurementMutationDeps {
   readonly queryClient: QueryClient;
   /** Đồng hồ tiêm được (R-29), cho vé hoàn tác của `deleteMeasurement`. */
   readonly now?: () => number;
+  /**
+   * Cấp cho bản ghi một mã và tên mới khi hoàn tác gặp 409 `MEASUREMENT_ID_TAKEN`.
+   * Vắng thì 409 đi thẳng `onUndoFailed`.
+   */
+  readonly resolveUndoConflict?: (
+    projectId: string,
+    measurement: MeasurementRecord,
+  ) => Promise<MeasurementRecord>;
+  /** Lượt hoàn tác hỏng (kể cả sau một lần hoà giải) — chỗ hook đăng thông báo. */
+  readonly onUndoFailed?: (error: unknown) => void;
 }
+
+const ID_TAKEN_CODE = 'MEASUREMENT_ID_TAKEN';
 
 export interface SaveMeasurementVariables {
   readonly projectId: string;
@@ -100,7 +113,7 @@ async function postMeasurementToServer(
 }
 
 /**
- * Tạo hoặc ghi đè một phép đo đã ghim.
+ * Tạo một phép đo đã ghim; cùng id khác thân thì máy chủ trả 409.
  *
  * Cập nhật lạc quan trước (thêm/thay vào danh sách trong bộ nhớ đệm), gửi
  * lên máy chủ, rồi làm mất hiệu lực đúng khoá `measurementKeys.all` qua
@@ -139,7 +152,7 @@ export function saveMeasurement(
 export function deleteMeasurement(
   deps: MeasurementMutationDeps,
 ): UseMutationOptions<UndoTicket, AppError, DeleteMeasurementVariables> {
-  const { http, now, queryClient } = deps;
+  const { http, now, onUndoFailed, queryClient, resolveUndoConflict } = deps;
 
   return createOptimisticMutation(queryClient, {
     affectedKeys: ({ projectId }) => [measurementKeys.all(projectId)],
@@ -164,12 +177,26 @@ export function deleteMeasurement(
         ...(now !== undefined ? { now } : {}),
         undo: () => {
           void postMeasurementToServer(http, projectId, measurement)
+            .catch(async (error: unknown) => {
+              // Lỗi ở đây là `HttpError` nguyên (xem `postMeasurementToServer`).
+              if (readWireError(error)?.code !== ID_TAKEN_CODE || resolveUndoConflict === undefined) {
+                throw error;
+              }
+
+              return postMeasurementToServer(
+                http,
+                projectId,
+                await resolveUndoConflict(projectId, measurement),
+              );
+            })
             .then((restored) => {
               queryClient.setQueryData<readonly MeasurementRecord[]>(measurementKeys.all(projectId), (current) =>
                 upsertMeasurement(current ?? [], restored),
               );
             })
-            .catch(() => undefined)
+            .catch((error: unknown) => {
+              onUndoFailed?.(error);
+            })
             .finally(() => {
               applyInvalidation(queryClient, 'saveMeasurement', { projectId });
             });
