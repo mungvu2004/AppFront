@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HttpClient, HttpError, Result } from '@/lib/http';
 
 import { createApiClient } from '../client';
-import { ENDPOINTS } from '../endpoints';
+import { ENDPOINTS, toApiUrl } from '../endpoints';
 import {
   MarkNotificationsReadSchema,
   NOTIFICATION_KINDS,
@@ -231,8 +231,19 @@ describe('ENDPOINTS.notifications', () => {
     expect(ENDPOINTS.notifications.markAllRead).toBe('/notifications/read-all');
   });
 
-  it('exposes the SSE stream address per BE-BIND S2, prefixed with API_BASE_PATH', () => {
-    expect(ENDPOINTS.notifications.stream).toBe('/api/streams/notifications');
+  it('exposes the SSE stream addresses per B4-01 as relative paths under /streams', () => {
+    expect(ENDPOINTS.streams.notifications()).toBe('/streams/notifications');
+    expect(ENDPOINTS.streams.uploadProgress('p1', 'u1')).toBe('/streams/projects/p1/uploads/u1/progress');
+  });
+
+  it('joins a stream path after the base root with toApiUrl, whatever the base looks like', () => {
+    const path = ENDPOINTS.streams.notifications();
+
+    expect(toApiUrl('http://host/api', path)).toBe('http://host/api/streams/notifications');
+    expect(toApiUrl('http://host/api/', path)).toBe('http://host/api/streams/notifications');
+    expect(toApiUrl('http://host', path)).toBe('http://host/streams/notifications');
+    expect(toApiUrl('http://host/api', '/api/streams/notifications')).toBe('http://host/api/streams/notifications');
+    expect(toApiUrl('http://host/api', 'https://other/x')).toBe('https://other/x');
   });
 
   it('addresses acceptInvite off the notification, not off an invite resource', () => {

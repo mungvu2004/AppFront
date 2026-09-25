@@ -167,3 +167,54 @@ export const ROUTES = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,
   },
 } as const;
+
+/**
+ * Những đường một người chưa đăng nhập vẫn phải vào được.
+ *
+ * `SessionBootstrap` đọc bảng này để biết lúc nào **không** được chặn màn con
+ * lại chờ phiên. Ba chuỗi viết thẳng chứ không lấy từ `ROUTE_PATTERNS`, và đó là
+ * chủ ý: hai đường sau là route F-09a sắp thêm, còn bảng trên chỉ ghi những
+ * route đã tồn tại. Một hằng ở đây không dựng ra route nào — nó chỉ nói "nếu
+ * đường này tồn tại thì nó công khai".
+ *
+ * ## Vì sao hai đường sau mang `/*` còn `/login` thì không
+ *
+ * `matchesPublicRoute` so bằng `matchPath({ end: true })`. Đường lời mời và
+ * đường đặt lại mật khẩu mang tham số (`/login/invitation/:token`), và một mẫu
+ * trần **không** khớp chúng — người bấm link mời sẽ bị đá về `/login?next=…`
+ * thay vì thấy màn nhận lời mời. Đuôi `/*` khớp cả dạng có tham số lẫn dạng
+ * trần, nên lời hứa ở trên đứng vững. `/login` thì cố ý để trần: nó là một màn
+ * cụ thể, không phải một nhánh.
+ *
+ * **F-09a không phải làm gì thêm ở đây** — chỉ cần đặt route thật dưới đúng hai
+ * tiền tố này. Đặt route công khai ở tiền tố KHÁC thì phải thêm một dòng vào
+ * bảng, và thêm một ca vào `SessionBootstrap.test.tsx`.
+ */
+export const PUBLIC_ROUTE_PATTERNS = [
+  '/login',
+  '/login/invitation/*',
+  '/login/reset-password/*',
+] as const;
+
+/**
+ * Tám đường chỉ có trong bản dev, và cũng không cần phiên.
+ *
+ * Bảy khoá của `buildDevOnlyRoutes` (`router.tsx`) cộng màn duyệt bảy trạng
+ * thái. Chúng là màn của lập trình viên, không đọc dữ liệu của ai, nên bắt
+ * chúng chờ một lượt gia hạn không bao giờ tới (ví dụ `pnpm dev` không có máy
+ * chủ sau lưng) là dựng một cái cổng chắn ngay lối đi hằng ngày.
+ *
+ * File này **không đọc `import.meta.env`** — `e2e/viewer3d.spec.ts` nhập nó
+ * trong Node, nơi `import.meta.env` không tồn tại. Chỗ hỏi "có phải bản dev
+ * không" là nơi gọi.
+ */
+export const DEV_PUBLIC_ROUTE_PATTERNS = [
+  ROUTE_PATTERNS.demoGallery,
+  ROUTE_PATTERNS.designSystem,
+  ROUTE_PATTERNS.dataEntryDemo,
+  ROUTE_PATTERNS.listReviewDemo,
+  ROUTE_PATTERNS.shellDemo,
+  ROUTE_PATTERNS.canvasOverlaysDemo,
+  ROUTE_PATTERNS.feedbackDemo,
+  ROUTE_PATTERNS.designSystemStates,
+] as const;

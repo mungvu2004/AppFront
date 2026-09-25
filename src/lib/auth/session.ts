@@ -6,6 +6,7 @@ import {
   type HttpRequestOptions,
   type Result,
 } from '@/lib/http';
+import { __resetLastKnownUserForTests, resolveAuthUrl } from './bootstrap';
 import { broadcastAuthIntent, configureAuthBroadcast, emitAuthSignedOut, resetAuthEvents } from './events';
 import {
   bootstrapSession as bootstrapFromRefresh,
@@ -44,7 +45,14 @@ const DEFAULT_REFRESH_PATH = '/auth/refresh';
 const getDefaultFetch = (): AuthFetch =>
   requirePlatformFetch('globalThis.fetch is required to configure auth.') as AuthFetch;
 
-const isConfigured = (): boolean => getOptionalAuthConfig() !== null;
+/**
+ * Tầng phiên đã được cấu hình chưa — đọc trạng thái THẬT, không đọc một cờ.
+ *
+ * Xuất ra ngoài vì `src/routes/sessionSetup.ts` phải hỏi đúng câu này: một cờ
+ * riêng ở phía nó sẽ nói dối ngay sau `__resetAuthForTests()`, lúc tầng phiên
+ * vừa quên sạch còn cờ kia vẫn bảo là đã cấu hình.
+ */
+export const isAuthConfigured = (): boolean => getOptionalAuthConfig() !== null;
 
 interface CombinedSignal {
   cleanup: () => void;
@@ -143,6 +151,7 @@ const createConfig = (options: ConfigureAuthOptions): AuthConfig => ({
   baseUrl: options.baseUrl,
   broadcastChannelName: options.broadcastChannelName ?? DEFAULT_BROADCAST_CHANNEL_NAME,
   clearQueryCache: options.clearQueryCache ?? (() => undefined),
+  clearUserData: options.clearUserData ?? (() => undefined),
   fetchImpl: options.fetchImpl ?? getDefaultFetch(),
   logoutPath: options.logoutPath ?? DEFAULT_LOGOUT_PATH,
   now: options.now ?? (() => Date.now()),
@@ -188,7 +197,7 @@ const clearSession = async ({
   }
 
   try {
-    await config.fetchImpl(new URL(config.logoutPath, config.baseUrl), {
+    await config.fetchImpl(resolveAuthUrl(config.baseUrl, config.logoutPath), {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
@@ -200,9 +209,19 @@ const clearSession = async ({
   }
 };
 
+/**
+ * Một lượt gọi vừa trả 401. Đó có phải bằng chứng phiên đã chết không?
+ *
+ * Không, nếu lượt gia hạn gần nhất chỉ không với tới được máy chủ: giữa lúc
+ * mạng chập chờn, một 401 lẻ nói về đường truyền chứ không nói về phiên.
+ */
 const handleAuthError = async (): Promise<void> => {
   const sessionState = getSessionState();
-  if (sessionState.refreshFailed || sessionState.status === 'anonymous') {
+  if (
+    sessionState.refreshFailed ||
+    sessionState.serverUnreachable ||
+    sessionState.status === 'anonymous'
+  ) {
     return;
   }
 
@@ -239,7 +258,7 @@ export const createAuthHttpClientOptions = (): Pick<
   CreateHttpClientOptions,
   'fetchImpl' | 'getToken' | 'onAuthError' | 'onRefreshToken'
 > => {
-  if (!isConfigured()) {
+  if (!isAuthConfigured()) {
     throw new Error('Auth is not configured. Call configureAuth() before creating auth HTTP options.');
   }
 
@@ -301,5 +320,8 @@ export const __resetAuthForTests = (): void => {
   resetAuthEvents();
   resetRefreshState();
   resetAuthState();
+  // `lastKnownUserId` cố ý sống qua lúc ẩn danh, nhưng KHÔNG được sống qua
+  // ranh giới hai bài kiểm: để nó rò là một cái bẫy phụ thuộc thứ tự chạy.
+  __resetLastKnownUserForTests();
 };
 

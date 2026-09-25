@@ -20,6 +20,38 @@ const NOTIFICATIONS_ROOT = '/notifications';
  */
 export const API_BASE_PATH = '/api';
 
+/**
+ * Ghép `path` vào `baseUrl` thành URL tuyệt đối cho `EventSource`.
+ *
+ * `new URL('/streams/x', 'http://host/api')` cho `http://host/streams/x` — mất `/api` —
+ * nên đường gốc của `baseUrl` được nối tay: `path` có scheme thì giữ nguyên, đã mang sẵn
+ * đường gốc thì không ghép lần nữa, còn lại nối sau đường gốc.
+ *
+ * **Có một bản sinh đôi ở `src/lib/auth/bootstrap.ts` (`resolveAuthUrl`), và đó là cố
+ * ý — đừng gộp hai hàm lại.** `src/lib/auth/**` không được nhập `src/api` (CLAUDE.md
+ * mục 0.4), nên tầng phiên phải mang bản của riêng nó.
+ *
+ * Hai bản phải cho **cùng một kết quả trên cùng một đầu vào**, và điều đó được khoá
+ * lại bằng một bảng đầu vào dùng chung chạy qua cả hai hàm
+ * (`src/api/__tests__/urlJoiners.test.ts`). Trước đây chúng lệch nhau ở ba chỗ —
+ * nhận diện scheme (`^https?:` so với mọi scheme), và `?`/`#` bị setter `pathname`
+ * của WHATWG URL mã hoá thành `%3F`/`%23` — nên bản này đã được đưa về đúng thuật
+ * toán của bản kia. Sửa một bên thì sửa cả hai, rồi chạy bảng ấy.
+ */
+export function toApiUrl(baseUrl: string, path: string): string {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
+
+  const base = new URL(baseUrl);
+  const root = base.pathname.replace(/\/+$/, '');
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+
+  if (root === '' || suffix === root || suffix.startsWith(`${root}/`)) {
+    return new URL(suffix, base.origin).toString();
+  }
+
+  return new URL(`${root}${suffix}`, base.origin).toString();
+}
+
 export const ENDPOINTS = {
   /**
    * The credential exchange, and the only two paths a signed-out visitor posts to.
@@ -105,19 +137,6 @@ export const ENDPOINTS = {
    * một request rỗng có chủ đích và một request rỗng do lỗi ở nơi gọi thì
    * nhật ký máy chủ phải phân biệt được.
    *
-   * `stream` là địa chỉ của kênh SSE thời gian thực (T-06/T-09) —
-   * `EventSource` mở thẳng vào đây, không đi qua `HttpClient`, nên nó không có
-   * phương thức tương ứng trong `NotificationsApi` (`src/api/client.ts`); nó
-   * vẫn đứng ở đây vì đây là "một đường của tầng API", đúng chỗ mọi đường
-   * khác được khai.
-   *
-   * `stream` là đường ĐÃ GHÉP với `API_BASE_PATH`, cùng lý do `telemetry` ở dưới
-   * là đường tuyệt đối chứ không tương đối: `EventSource` không đi qua
-   * `createHttpClient`, nên không có bước nào tự ghép `API_BASE_PATH` vào cho nó
-   * như `new URL(path, baseUrl)` làm với các đường khác. `GET /api/streams/notifications`
-   * là hợp đồng S2 (`docs/charter/BE-BIND.md`), FIX-099/NO-086 — không lồng dưới
-   * `NOTIFICATIONS_ROOT` vì đường thật nằm dưới `/streams`, không dưới `/notifications`.
-   *
    * `acceptInvite` nhận `notificationId`, không `inviteId`: người NHẬN chỉ
    * cầm trong tay đúng một khoá — mục thông báo đang hiện trên màn — nên đó
    * là thứ duy nhất có sẵn ở nơi gọi. Đây là phép ghi mà
@@ -130,7 +149,6 @@ export const ENDPOINTS = {
     list: NOTIFICATIONS_ROOT,
     markAllRead: `${NOTIFICATIONS_ROOT}/read-all`,
     markRead: `${NOTIFICATIONS_ROOT}/read`,
-    stream: `${API_BASE_PATH}/streams/notifications`,
   },
   projects: {
     create: PROJECTS_ROOT,
@@ -189,6 +207,19 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial/layer`,
     version: (projectId: string, versionId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/versions/${versionId}`,
+  },
+  /**
+   * Hai luồng SSE của BE (S1 tiến độ tải lên, S2 thông báo) — B4-01.
+   *
+   * Đứng riêng, không lồng dưới `notifications` hay `drawings`: đường thật nằm dưới
+   * `/streams`, và một nhóm chung cho cả hai luồng khớp hợp đồng hơn. Là đường TƯƠNG ĐỐI
+   * (không ghép `API_BASE_PATH`); `EventSource` không đi qua `createHttpClient`, nên nơi
+   * gọi ghép bằng `toApiUrl(resolveApiBaseUrl(), ...)`.
+   */
+  streams: {
+    notifications: (): string => '/streams/notifications',
+    uploadProgress: (projectId: string, uploadId: string): string =>
+      `/streams/projects/${projectId}/uploads/${uploadId}/progress`,
   },
   /**
    * Đường dẫn ĐÃ GHÉP với `API_BASE_PATH`, khác khuôn tương đối của mọi mục

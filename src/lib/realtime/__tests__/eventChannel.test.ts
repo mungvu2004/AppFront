@@ -2,6 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import type { Progress } from '@/api/schemas';
+import {
+  __resetAuthForTests,
+  bootstrapSession,
+  configureAuth,
+  getSession,
+  onAuthSignedOut,
+  refreshSingleFlight,
+} from '@/lib/auth';
+import { __resetLastKnownUserForTests } from '@/lib/auth/bootstrap';
+import type { AuthFetch } from '@/lib/auth/types';
 
 import { createBackoff } from '../backoff';
 import { createEventChannel } from '../eventChannel';
@@ -429,5 +439,277 @@ describe('createEventChannel with an injected schema', () => {
     expect(events[0]?.data.progressPercent).toBe(42);
 
     handle.close();
+  });
+
+  describe('refreshAuth', () => {
+    beforeEach(() => {
+      MockEventSource.instances = [];
+    });
+
+    // Đồng hồ giả: hẹn giờ chỉ chạy khi test gọi `flush`, nên "nối ngay" và "chờ lùi" phân biệt được.
+    function makeManualClock(): ChannelClock & { flush(): void; pending(): number } {
+      const timers = new Map<number, () => void>();
+      let nextId = 0;
+      return {
+        now: () => 0,
+        setTimeout: (fn) => {
+          nextId += 1;
+          timers.set(nextId, fn);
+          return nextId as unknown as ReturnType<typeof setTimeout>;
+        },
+        clearTimeout: (id) => {
+          timers.delete(id as unknown as number);
+        },
+        flush: () => {
+          const fns = [...timers.values()];
+          timers.clear();
+          fns.forEach((fn) => fn());
+        },
+        pending: () => timers.size,
+      };
+    }
+
+    function failThrice(clock: { flush(): void }): void {
+      last().triggerError();
+      clock.flush();
+      last().triggerError();
+      clock.flush();
+      last().triggerError();
+    }
+
+    function last(): MockEventSource {
+      const source = MockEventSource.instances.at(-1);
+      if (source === undefined) throw new Error('no source');
+      return source;
+    }
+
+    it('calls refreshAuth once on the 3rd consecutive failure, not on 4th and 5th', () => {
+      const clock = makeManualClock();
+      const refreshAuth = vi.fn(() => new Promise<boolean>(() => undefined));
+      const { handle } = makeChannel({ clock, refreshAuth });
+
+      last().triggerError();
+      clock.flush();
+      last().triggerError();
+      clock.flush();
+      expect(refreshAuth).not.toHaveBeenCalled();
+      last().triggerError();
+      expect(refreshAuth).toHaveBeenCalledTimes(1);
+
+      clock.flush();
+      last().triggerError();
+      clock.flush();
+      last().triggerError();
+      expect(refreshAuth).toHaveBeenCalledTimes(1);
+
+      handle.close();
+    });
+
+    it('starts a new chain after an open', () => {
+      const clock = makeManualClock();
+      const refreshAuth = vi.fn(() => new Promise<boolean>(() => undefined));
+      const { handle } = makeChannel({ clock, refreshAuth });
+
+      for (let index = 0; index < 3; index += 1) {
+        last().triggerError();
+        clock.flush();
+      }
+      expect(refreshAuth).toHaveBeenCalledTimes(1);
+
+      last().triggerOpen();
+      for (let index = 0; index < 3; index += 1) {
+        last().triggerError();
+        clock.flush();
+      }
+      expect(refreshAuth).toHaveBeenCalledTimes(2);
+
+      handle.close();
+    });
+
+    it('reconnects immediately when refreshAuth resolves true', async () => {
+      const clock = makeManualClock();
+      const { handle } = makeChannel({ clock, refreshAuth: () => Promise.resolve(true) });
+
+      failThrice(clock);
+      expect(MockEventSource.instances).toHaveLength(3);
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(MockEventSource.instances).toHaveLength(4);
+      expect(clock.pending()).toBe(0);
+
+      handle.close();
+    });
+
+    it.each([
+      ['resolves false', () => Promise.resolve(false)],
+      ['rejects', () => Promise.reject(new Error('boom'))],
+    ])('only waits for the backoff when refreshAuth %s', async (_label, refreshAuth) => {
+      const clock = makeManualClock();
+      const { handle } = makeChannel({ clock, refreshAuth });
+
+      failThrice(clock);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(MockEventSource.instances).toHaveLength(3);
+      expect(clock.pending()).toBe(1);
+      clock.flush();
+      expect(MockEventSource.instances).toHaveLength(4);
+
+      handle.close();
+    });
+
+    it('does not reconnect when the channel is closed while refreshAuth is in flight', async () => {
+      const clock = makeManualClock();
+      let resolveRefresh: (ok: boolean) => void = () => undefined;
+      const refreshAuth = () => new Promise<boolean>((resolve) => (resolveRefresh = resolve));
+      const { handle } = makeChannel({ clock, refreshAuth });
+
+      failThrice(clock);
+      handle.close();
+      resolveRefresh(true);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(MockEventSource.instances).toHaveLength(3);
+    });
+
+    /**
+     * Lượt lùi và lượt gia hạn CHỒNG nhau — đúng cái khe mà CON-01 sống trong đó.
+     *
+     * Mọi ca `refreshAuth` khác giải quyết promise trước `flush()` hoặc sau
+     * `flush()`, nên hai đường gọi `connect()` không bao giờ gặp nhau. Ca này
+     * cho hẹn giờ lùi NỔ TRƯỚC rồi mới để lượt gia hạn thành công về — tình
+     * huống thật khi máy chủ chậm mà còn sống, và cửa sổ ấy rộng 11 giây
+     * (`REFRESH_TIMEOUT_MS` 15 s trừ lượt lùi thứ ba 4 s).
+     *
+     * Đếm kết nối còn SỐNG chứ không đếm số lần dựng: số lần dựng vẫn tăng
+     * đúng, thứ rò ra là cái không ai đóng.
+     */
+    it('leaves exactly one live EventSource when a slow refresh lands after the backoff fired', async () => {
+      const clock = makeManualClock();
+      let resolveRefresh: (ok: boolean) => void = () => undefined;
+      const refreshAuth = () => new Promise<boolean>((resolve) => (resolveRefresh = resolve));
+      const { handle } = makeChannel({ clock, refreshAuth });
+
+      failThrice(clock);
+
+      /* Hẹn giờ lùi nổ TRƯỚC — lượt gia hạn vẫn đang bay. */
+      clock.flush();
+      const afterBackoff = MockEventSource.instances.length;
+
+      resolveRefresh(true);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const live = MockEventSource.instances.filter((source) => !source.closed);
+      expect(live).toHaveLength(1);
+      expect(live[0]).toBe(MockEventSource.instances.at(-1));
+
+      /* Lượt do gia hạn dựng thêm đúng một kết nối, và kết nối của lượt lùi đã đóng. */
+      expect(MockEventSource.instances).toHaveLength(afterBackoff + 1);
+      expect(MockEventSource.instances[afterBackoff - 1]?.closed).toBe(true);
+
+      handle.close();
+    });
+
+    it('behaves as before when refreshAuth is absent', () => {
+      const clock = makeManualClock();
+      const { handle } = makeChannel({ clock });
+
+      for (let index = 0; index < 5; index += 1) {
+        last().triggerError();
+        clock.flush();
+      }
+
+      expect(MockEventSource.instances).toHaveLength(6);
+
+      handle.close();
+    });
+
+    /**
+     * Mối nối giữa kênh này và tầng phiên thật — không giả `refreshAuth`.
+     *
+     * Đây là P1 mà review DEBT-01 bác FIX-097: trước khi tầng phiên biết phân
+     * loại lỗi, một chuỗi lỗi SSE (cookie luồng hết hạn, máy chủ đang ốm) đi
+     * thẳng thành một lượt ĐĂNG XUẤT phát ra mọi thẻ. Ca này nối đúng thứ
+     * `notificationCenterGateway.ts` nối — `refreshSingleFlight({ source:
+     * 'local' })` — và bắt lượt gia hạn ấy gặp 502.
+     */
+    describe('nối với tầng phiên thật', () => {
+      let signedOut: ReturnType<typeof vi.fn>;
+      let unsubscribe: () => void;
+
+      beforeEach(() => {
+        __resetAuthForTests();
+        __resetLastKnownUserForTests();
+        signedOut = vi.fn();
+        unsubscribe = onAuthSignedOut(signedOut);
+      });
+
+      afterEach(() => {
+        unsubscribe();
+        __resetAuthForTests();
+        __resetLastKnownUserForTests();
+      });
+
+      it('keeps the session signed in when the refresh behind three SSE failures hits a 502', async () => {
+        const broadcast: unknown[] = [];
+        let refreshCalls = 0;
+        const fetchImpl: AuthFetch = async () => {
+          refreshCalls += 1;
+
+          if (refreshCalls === 1) {
+            return new Response(
+              JSON.stringify({
+                accessToken: 'token-1',
+                expiresAt: '2026-08-03T00:10:00.000Z',
+                roles: ['engineer'],
+                user: { id: 'u1' },
+              }),
+              { headers: { 'Content-Type': 'application/json' } },
+            );
+          }
+
+          return new Response(JSON.stringify({ code: 'DEPENDENCY_UNAVAILABLE' }), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 502,
+          });
+        };
+
+        configureAuth({ baseUrl: 'https://api.example.com/api', fetchImpl });
+        await bootstrapSession();
+        expect(getSession().status).toBe('authenticated');
+
+        const listenChannel = new BroadcastChannel('auth');
+        listenChannel.addEventListener('message', (event: MessageEvent<unknown>) => {
+          broadcast.push(event.data);
+        });
+
+        const clock = makeManualClock();
+        const { handle } = makeChannel({
+          clock,
+          refreshAuth: () => refreshSingleFlight({ source: 'local' }),
+        });
+
+        failThrice(clock);
+        // Ba lần nhường để lượt gia hạn và các `then` của nó chạy hết.
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(refreshCalls).toBe(2);
+        expect(getSession().status).toBe('authenticated');
+        expect(getSession().serverUnreachable).toBe(true);
+        expect(getSession().user?.id).toBe('u1');
+        expect(signedOut).not.toHaveBeenCalled();
+        expect(broadcast).toEqual([]);
+
+        handle.close();
+        listenChannel.close();
+      });
+    });
   });
 });

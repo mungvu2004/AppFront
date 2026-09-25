@@ -158,11 +158,12 @@ const ROOM_ID = 'R-011';
  */
 const SIGNED_IN_ROLES = ['engineer'] as const;
 
-/** Bao lâu thì token hết hạn. Đủ dài để không lượt gia hạn nào chen vào giữa bài. */
-const SESSION_TTL_SECONDS = 3600;
-
-/** Địa chỉ và mật khẩu gõ vào biểu mẫu — máy chủ giả nhận mọi thứ, nên chỉ cần hợp lệ về hình dạng. */
+/**
+ * Địa chỉ gõ vào biểu mẫu. Bộ mẫu suy vai theo địa chỉ (`roleOfEmail`,
+ * `src/api/__mocks__/client.ts`): `viewer@` cho vai chỉ-xem, còn lại là kỹ sư.
+ */
 const SIGN_IN_EMAIL = 'engineer@example.com';
+const VIEWER_SIGN_IN_EMAIL = 'viewer@example.com';
 const SIGN_IN_PASSWORD = 'matkhau-du-dai';
 
 /** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
@@ -171,15 +172,11 @@ const PASSWORD_LABEL = 'Mật khẩu';
 const SIGN_IN_LABEL = 'Đăng nhập';
 
 /**
- * Đăng nhập THẬT rồi đi tiếp tới màn 3D, với hai lượt gọi mạng do bài kiểm trả lời.
+ * Đăng nhập qua biểu mẫu rồi đi tiếp tới màn 3D, chạy trên BỘ MẪU (`VITE_USE_MOCK_API=true`).
  *
- * Bài này KHÔNG tự đặt phiên vào trang. Nó chạy đúng chuỗi của sản phẩm —
- * `POST /auth/login` → `bootstrapSession()` → `POST /auth/refresh` →
- * `setAuthenticatedSession({ roles })` → `useSession().roles` — và chỉ thay hai
- * chuyến đi ngoài cùng, vì máy dựng của dev không có máy chủ nào sau lưng.
- * Chặn ở tầng trình duyệt (`page.route`) chứ không ở tầng ứng dụng: mọi mắt
- * xích trong `src` vẫn là mắt xích thật, kể cả `configureAuth()` và bộ phân
- * tích thân trả lời của `src/lib/auth/refresh.ts`.
+ * Bài này KHÔNG tự đặt phiên vào trang và KHÔNG phủ dây `/api/auth/*` thật: bộ mẫu
+ * trả lời đăng nhập và gia hạn ngay trong trình duyệt, nên không lượt nào ra mạng
+ * (bài khẳng định điều đó bằng `page.on('request')`). Vai theo địa chỉ đăng nhập.
  *
  * `?next=` là đường quay lại mà chính màn đăng nhập khai (`safeDestination`),
  * nên sau lượt đăng nhập trình duyệt tự sang màn 3D — không `goto` lần hai,
@@ -189,37 +186,85 @@ async function signInThenOpenViewer(
   page: Page,
   roles: readonly string[] = SIGNED_IN_ROLES,
 ): Promise<void> {
-  await page.route('**/auth/login', async (route) => {
-    await route.fulfill({ body: '{}', contentType: 'application/json', status: 200 });
-  });
-
-  await page.route('**/auth/refresh', async (route) => {
-    await route.fulfill({
-      body: JSON.stringify({
-        accessToken: 'e2e-access-token',
-        expiresIn: SESSION_TTL_SECONDS,
-        roles,
-        user: {
-          email: SIGN_IN_EMAIL,
-          id: 'user-2',
-          name: 'Engineer',
-          roles,
-        },
-      }),
-      contentType: 'application/json',
-      status: 200,
-    });
+  const authRequests: string[] = [];
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url());
+    if (/\/auth\/(login|refresh)$/.test(pathname)) authRequests.push(pathname);
   });
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(VIEWER_PATH)}`);
 
-  await page.getByLabel(EMAIL_LABEL).fill(SIGN_IN_EMAIL);
+  const email = roles.includes('viewer') ? VIEWER_SIGN_IN_EMAIL : SIGN_IN_EMAIL;
+  await page.getByLabel(EMAIL_LABEL).fill(email);
   await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
   await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
 
   await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  expect(authRequests).toEqual([]);
+
+  await settleViewer(page);
 }
+
+/**
+ * Chờ khung nhìn thật sự sẵn sàng cho một cú bấm.
+ *
+ * Hai tiền đề mà các bài dưới đây vẫn ngầm dựa vào mà không nói ra, và cả hai
+ * đều biểu hiện giống hệt nhau: `locator.click` hết 30 giây với
+ * `subtree intercepts pointer events`.
+ *
+ * 1. **Mô hình còn đang dựng.** `Viewer3D` phủ kín khung bằng một lớp
+ *    `role="status"` — "Đang dựng mô hình N tầng" — cho tới khi dựng xong. Lớp
+ *    ấy nuốt mọi cú bấm vào ViewCube và vào khung nhìn.
+ * 2. **Lớp hướng dẫn đang mở.** Mục 4.10 chuyển e2e sang bộ mẫu, nên mỗi lượt
+ *    chạy là một NGƯỜI DÙNG LẦN ĐẦU — và người dùng lần đầu thì đúng là phải
+ *    thấy `EditorTour`. Sản phẩm không sai; bài kiểm mới là chỗ thiếu một bước.
+ *    Lớp phủ của tour là `pointer-events-auto`, nên nó che danh sách bên dưới.
+ *
+ * Tour được đóng bằng đúng nút "bỏ qua" mà `EditorTour` bày ra cho người dùng,
+ * KHÔNG tắt bằng cờ hay biến môi trường: tắt bằng cờ là đi kiểm một sản phẩm
+ * khác với sản phẩm người dùng nhận.
+ *
+ * ## Hàm này chữa được gì, và KHÔNG chữa được gì
+ *
+ * Chữa được: lớp "đang dựng mô hình" — đo trước/sau, P2 đổi từ bị lớp ấy chặn
+ * sang qua được nó.
+ *
+ * KHÔNG chữa được, và đừng tưởng là nó chữa:
+ * - **P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ
+ *   (`<span aria-label="Người dùng thử">`, đến từ `src/api/__mocks__/client.ts:320`).
+ * - **Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong,
+ *   trong lúc `findOneRoom` đang chạy. Không phải sai cách đóng: `handleSkip`
+ *   (`src/screens/system/EditorTour/useEditorTour.ts:555`) đóng tour hẳn cả
+ *   phiên, nên một cú bấm là đủ — vấn đề là THỜI ĐIỂM.
+ *
+ * Gốc rễ chung: mục 4.10 bật bộ mẫu cho e2e, biến mỗi lượt thành "người dùng
+ * lần đầu có bạn cộng tác giả". Bộ spec này viết cho máy chủ KHÔNG mock và
+ * chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt riêng, không phải
+ * của F-01b. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ */
+async function settleViewer(page: Page): Promise<void> {
+  const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
+  await expect(building).toHaveCount(0, { timeout: VIEWER_READY_TIMEOUT_MS });
+
+  const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
+  await skip
+    .first()
+    .waitFor({ state: 'visible', timeout: VIEWER_READY_TIMEOUT_MS })
+    .catch(() => undefined);
+
+  if ((await skip.count()) === 0) {
+    return;
+  }
+
+  await skip.first().click();
+
+  /* Chờ lớp phủ biến mất HẲN — bấm tiếp lúc nó còn đang tan là bấm vào nó. */
+  await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
+}
+
+/** Dựng mô hình bộ mẫu rồi mở lớp hướng dẫn tốn bao lâu là cùng. */
+const VIEWER_READY_TIMEOUT_MS = 20_000;
 
 /** Mỗi bước kéo đi ngang bấy nhiêu pixel. */
 const DRAG_STEP_X_PX = 15;
@@ -248,6 +293,7 @@ async function openViewer(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(VIEWER_PATH);
   await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  await settleViewer(page);
 }
 
 /** Nhãn mức thu phóng, đọc từ chính nút của cụm thu phóng. */

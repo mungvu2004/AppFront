@@ -40,18 +40,29 @@
  * `//evil.example` is a *relative* URL to a browser but an absolute one to a
  * person reading it.
  *
- * ## Developing without a server
+ * ## Cấu hình phiên không còn xảy ra ở đây
  *
- * `VITE_USE_MOCK_API=true pnpm dev` swaps `useAuthGateway`'s client for
- * `src/api/__mocks__/client.ts`, which accepts any credentials — see
- * `src/api/appClient.ts`, the one place that decision and the API's base URL
- * are resolved, for why it cannot reach a production build.
+ * Tầng phiên được cấu hình lúc **tải trang**, ở `src/routes/sessionSetup.ts`,
+ * chứ không phải lúc ai đó bấm nút. Màn này chỉ còn *gọi lại* chỗ ấy để chắc
+ * chắn cấu hình đã xong trước lượt post — `configureAppSession()` không làm gì
+ * khi tầng phiên đã được cấu hình.
  *
- * Dưới cờ ấy, lượt gia hạn cũng do bộ mẫu trả lời:
- * `createMockAuthTransport()` được đưa vào `configureAuth({ fetchImpl })`, nên
- * `bootstrapSession()` chạy trọn vẹn và phiên mở ra THẬT — có `accessToken`,
- * có `roles`. Đây không phải một đường đăng nhập thứ hai: cùng `withSession`,
- * cùng thứ tự, chỉ khác chuyến đi. Vai cấp theo địa chỉ đã gõ
+ * Nói rõ để không ai tin nhầm: `fetchImpl` truyền vào đây **không tới nơi** trên
+ * đường chạy thật. `ensureAuthConfigured` thoát sớm khi `isAuthConfigured()`, và
+ * từ lượt này `SessionBootstrap` luôn cấu hình trước ở lúc tải trang — nên lượt
+ * gọi ở đây luôn là lượt thứ hai. Vô hại, vì dưới cờ mock thì chính
+ * `sessionSetup` đã chọn đúng chuyến đi ấy; chỗ duy nhất tham số này còn tác
+ * dụng là bài kiểm gọi thẳng màn khi chưa ai cấu hình.
+ *
+ * Trước lượt ấy, `configureAuth()` chỉ chạy từ đây, nên tải lại trang ở bất cứ
+ * màn nào cũng vào với `roles: []`. Việc mở phiên là việc của cả ứng dụng, và
+ * đặt nó sau một cái nút là đặt nó sau một điều kiện không phải lúc nào cũng
+ * đúng.
+ *
+ * `VITE_USE_MOCK_API=true pnpm dev` vẫn đổi client của `useAuthGateway` sang
+ * `src/api/__mocks__/client.ts` và vẫn đưa `createMockAuthTransport()` xuống
+ * làm chuyến đi của lượt gia hạn, nên phiên ở dev mở ra THẬT — có
+ * `accessToken`, có `roles`. Vai cấp theo địa chỉ đã gõ
  * (`viewer@example.com` → chỉ-xem, còn lại → kỹ sư), nên cả hai nhánh quyền
  * của A11 quan sát được mà không cần cờ thứ hai.
  */
@@ -60,7 +71,7 @@ import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { createMockAuthTransport } from '@/api/__mocks__/client';
-import { createAppApiClient, resolveApiBaseUrl, resolveUseMockApi } from '@/api/appClient';
+import { createAppApiClient, resolveUseMockApi } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
 import type { RegisterInput, SignInInput } from '@/api/schemas';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -69,9 +80,10 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { bootstrapSession, configureAuth, type ConfigureAuthOptions } from '@/lib/auth';
+import type { ConfigureAuthOptions } from '@/lib/auth';
 import type { Result } from '@/lib/http';
 import { ROUTES } from '@/routes/paths';
+import { bootstrapAfterNewCookie, configureAppSession } from '@/routes/sessionSetup';
 
 import { AuthScreen } from './AuthScreen';
 import type { AuthGateway } from './useAuthScreen';
@@ -101,17 +113,26 @@ export function safeDestination(candidate: unknown): string {
 /**
  * The credential post, followed by the session it is worth nothing without.
  *
- * `bootstrapSession()` returning false means the cookie did not become a
+ * `bootstrapAfterNewCookie()` đợi lượt mở phiên lúc tải trang xong đã — nếu nó
+ * còn đang bay thì single-flight của `src/lib/http` trả lại đúng kết quả ấy chứ
+ * không gửi thêm một lượt thứ hai — rồi mới đổi cookie vừa nhận thành phiên.
+ *
+ * `bootstrapAfterNewCookie()` returning false means the cookie did not become a
  * session. There is no server error to classify in that case, so the failure is
  * an ordinary `Error` and `useAuthScreen` hands it to `describeError` — which is
  * the module that owns wording for anything the screen cannot explain itself.
  */
-async function withSession(posted: Result<void, unknown>): Promise<Result<void, unknown>> {
+async function withSession(
+  posted: Result<void, unknown>,
+  transport?: SessionTransport,
+): Promise<Result<void, unknown>> {
   if (!posted.ok) {
     return posted;
   }
 
-  const established = await bootstrapSession();
+  await configureAppSession(transport === undefined ? {} : { fetchImpl: transport });
+
+  const established = await bootstrapAfterNewCookie();
 
   if (!established) {
     return { ok: false, error: new Error('Sign-in succeeded but no session was established.') };
@@ -133,48 +154,21 @@ async function withSession(posted: Result<void, unknown>): Promise<Result<void, 
  */
 export function createHttpAuthGateway(client: ApiClient, transport?: SessionTransport): AuthGateway {
   return {
-    register: async (input: RegisterInput, signal?: AbortSignal): Promise<Result<void, unknown>> => {
-      configureSessionOnce(transport);
-
-      return withSession(await client.auth.register({ body: input, ...(signal !== undefined ? { signal } : {}) }));
-    },
-    signIn: async (input: SignInInput, signal?: AbortSignal): Promise<Result<void, unknown>> => {
-      configureSessionOnce(transport);
-
-      return withSession(await client.auth.signIn({ body: input, ...(signal !== undefined ? { signal } : {}) }));
-    },
+    register: async (input: RegisterInput, signal?: AbortSignal): Promise<Result<void, unknown>> =>
+      withSession(
+        await client.auth.register({ body: input, ...(signal !== undefined ? { signal } : {}) }),
+        transport,
+      ),
+    signIn: async (input: SignInInput, signal?: AbortSignal): Promise<Result<void, unknown>> =>
+      withSession(
+        await client.auth.signIn({ body: input, ...(signal !== undefined ? { signal } : {}) }),
+        transport,
+      ),
   };
 }
 
 /** Chuyến đi mà lượt gia hạn dùng; vắng mặt nghĩa là `globalThis.fetch`. */
 type SessionTransport = NonNullable<ConfigureAuthOptions['fetchImpl']>;
-
-/**
- * Cấu hình tầng phiên, đúng một lần, ngay TRƯỚC lượt gọi đầu tiên cần tới nó.
- *
- * `bootstrapSession()` ném khi `configureAuth()` chưa chạy, và trước lượt này
- * **không nơi nào trong `src` gọi `configureAuth()`** — nên mắt xích
- * `signIn → bootstrapSession → setAuthenticatedSession → useSession().roles`
- * đứt ngay ở đầu, và mọi màn đọc vai đều thấy `[]`. Đó là nửa đầu của lỗi "bấm
- * chuột trong khung nhìn 3D không chọn được gì".
- *
- * Lười chứ không phải lúc dựng gateway, và có lý do đo được: `AuthRoute` phải
- * vẽ được biểu mẫu KỂ CẢ khi chưa ai cấu hình auth — đó là một hồi quy đã ghi
- * trong `AuthScreen.test.tsx`. Gọi lúc render sẽ biến tiền đề của bài kiểm ấy
- * thành sai; gọi ngay trước lượt post thì không đụng vào nó.
- *
- * Gọi lại ở mỗi lượt post chứ không nhớ bằng một cờ ở cấp module:
- * `configureAuth()` chỉ ghi đè cấu hình và đăng ký lại đúng một người nghe kênh
- * phát (nó gỡ người cũ trước), còn một cờ thì nói dối ngay sau
- * `__resetAuthForTests()` — bảo là đã cấu hình trong khi tầng phiên vừa quên
- * sạch.
- */
-function configureSessionOnce(transport?: SessionTransport): void {
-  configureAuth({
-    baseUrl: resolveApiBaseUrl(),
-    ...(transport === undefined ? {} : { fetchImpl: transport }),
-  });
-}
 
 /**
  * The gateway. There is always one.

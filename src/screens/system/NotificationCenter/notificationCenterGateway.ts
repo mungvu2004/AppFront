@@ -44,11 +44,12 @@
  * màn tường vẫn "chạy", chỉ là dẫn sai chỗ và không ai thấy.
  */
 
-import { createAppApiClient } from '@/api/appClient';
+import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
 import type { ApiClient, ApiResult, Notification } from '@/api/client';
-import { ENDPOINTS } from '@/api/endpoints';
+import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import { NOTIFICATION_PLACES, NotificationSchema } from '@/api/schemas/notifications';
 import type { NotificationPlace } from '@/api/schemas/notifications';
+import { refreshSingleFlight } from '@/lib/auth';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { createEventChannel } from '@/lib/realtime/eventChannel';
 import { ROUTES } from '@/routes/paths';
@@ -302,7 +303,8 @@ export function createNotificationCenterGateway(
 
     subscribe: (listener) => {
       const channel = createEventChannel({
-        url: ENDPOINTS.notifications.stream,
+        url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.notifications()),
+        refreshAuth: () => refreshSingleFlight({ source: 'local' }),
         schema: NotificationSchema,
         eventType: NOTIFICATION_EVENT_TYPE,
         onEvent: (event) => {

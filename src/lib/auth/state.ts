@@ -5,6 +5,7 @@ const initialState = (): SessionState => ({
   expiresAt: null,
   refreshFailed: false,
   roles: [],
+  serverUnreachable: false,
   status: 'unknown',
   user: null,
 });
@@ -13,6 +14,7 @@ let authConfig: AuthConfig | null = null;
 let sessionState = initialState();
 let sessionSnapshot: SessionSnapshot = {
   roles: sessionState.roles,
+  serverUnreachable: sessionState.serverUnreachable,
   status: sessionState.status,
   user: sessionState.user,
 };
@@ -34,6 +36,7 @@ const hasSessionStateChanged = (nextState: SessionState, currentState: SessionSt
     nextState.accessToken !== currentState.accessToken ||
     nextState.expiresAt !== currentState.expiresAt ||
     nextState.refreshFailed !== currentState.refreshFailed ||
+    nextState.serverUnreachable !== currentState.serverUnreachable ||
     nextState.status !== currentState.status ||
     nextState.user !== currentState.user ||
     nextState.roles.length !== currentState.roles.length
@@ -52,6 +55,7 @@ const updateSessionState = (nextState: SessionState): void => {
   sessionState = nextState;
   sessionSnapshot = {
     roles: nextState.roles,
+    serverUnreachable: nextState.serverUnreachable,
     status: nextState.status,
     user: nextState.user,
   };
@@ -90,6 +94,7 @@ export const setAuthenticatedSession = (payload: RefreshSessionPayload): void =>
     expiresAt: payload.expiresAt,
     refreshFailed: false,
     roles: payload.roles,
+    serverUnreachable: false,
     status: 'authenticated',
     user: payload.user,
   });
@@ -101,9 +106,20 @@ export const setAnonymousSession = ({ refreshFailed }: { refreshFailed: boolean 
     expiresAt: null,
     refreshFailed,
     roles: [],
+    serverUnreachable: false,
     status: 'anonymous',
     user: null,
   });
+};
+
+/**
+ * Máy chủ không với tới được — cờ này bật, còn `status` KHÔNG đổi.
+ *
+ * Đi qua `updateSessionState` để người nghe được báo: một thẻ đang mở cần
+ * biết ngay rằng số liệu trên màn có thể đã cũ, mà không bị đá ra ngoài.
+ */
+export const setServerUnreachable = (serverUnreachable: boolean): void => {
+  updateSessionState({ ...sessionState, serverUnreachable });
 };
 
 export const setUnknownSession = (): void => {
@@ -128,6 +144,7 @@ export const resetAuthState = (): void => {
   sessionState = initialState();
   sessionSnapshot = {
     roles: sessionState.roles,
+    serverUnreachable: sessionState.serverUnreachable,
     status: sessionState.status,
     user: sessionState.user,
   };

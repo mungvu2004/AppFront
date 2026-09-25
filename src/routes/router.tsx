@@ -15,6 +15,7 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
+import { SessionBootstrap } from './SessionBootstrap';
 
 /** Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu. */
 const suspended = (node: React.ReactNode) => (
@@ -299,9 +300,11 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
 export const router = createBrowserRouter([
   {
     element: (
-      <UndoShortcuts>
-        <Outlet />
-      </UndoShortcuts>
+      <SessionBootstrap>
+        <UndoShortcuts>
+          <Outlet />
+        </UndoShortcuts>
+      </SessionBootstrap>
     ),
     children: [
       ...DEV_ONLY_ROUTES,

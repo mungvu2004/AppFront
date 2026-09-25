@@ -51,7 +51,8 @@ import { renderWithProviders } from '@/lib/testing/render';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import type { SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 import { createMockApiClient, MOCK_NOTIFICATIONS } from '@/api/__mocks__/client';
-import { ENDPOINTS } from '@/api/endpoints';
+import { resolveApiBaseUrl } from '@/api/appClient';
+import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import { ROUTES } from '@/routes/paths';
 
 import { NotificationCenter } from './NotificationCenter';
@@ -68,6 +69,13 @@ import { useNotificationCenter } from './useNotificationCenter';
 import type { NotificationCenterProps, UseNotificationCenterOptions } from './useNotificationCenter';
 
 const noop = (): void => undefined;
+
+const refreshSingleFlightMock = vi.hoisted(() => vi.fn(() => Promise.resolve(false)));
+
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  refreshSingleFlight: refreshSingleFlightMock,
+}));
 
 // `beforeEach`, KHÔNG `beforeAll`: `afterEach` dưới đây gọi `vi.restoreAllMocks()`,
 // thứ xoá luôn `mockImplementation` của polyfill này — nên đặt một lần ở đầu file
@@ -564,6 +572,10 @@ class StubEventSource {
   send(data: unknown): void {
     this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data), lastEventId: '' }));
   }
+
+  fail(): void {
+    this.onerror?.(new Event('error'));
+  }
 }
 
 const GATEWAY_NOW_MS = Date.parse('2026-09-08T09:00:00.000Z');
@@ -654,7 +666,7 @@ describe('createNotificationCenterGateway — dây thật', () => {
     await expect(createNotificationCenterGateway(client).list()).rejects.toBe(failure);
   });
 
-  it('subscribe mở kênh dùng chung trên ENDPOINTS.notifications.stream và đóng lại được', () => {
+  it('subscribe mở kênh dùng chung trên đường S2 (/api/streams/notifications) và đóng lại được', () => {
     StubEventSource.instances = [];
     vi.stubGlobal('EventSource', StubEventSource);
 
@@ -665,11 +677,43 @@ describe('createNotificationCenterGateway — dây thật', () => {
 
     const source = StubEventSource.instances[0];
 
-    expect(source?.url).toContain(ENDPOINTS.notifications.stream);
+    expect(source?.url).toContain(toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.notifications()));
+    expect(source?.url).toContain('/api/streams/notifications');
 
     unsubscribe();
 
     expect(source?.closed).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('subscribe truyền refreshAuth xuống kênh: ba lỗi liên tiếp thì xin refresh một lần', () => {
+    StubEventSource.instances = [];
+    refreshSingleFlightMock.mockClear();
+    vi.stubGlobal('EventSource', StubEventSource);
+
+    const unsubscribe = createNotificationCenterGateway(
+      createMockApiClient(),
+      () => GATEWAY_NOW_MS,
+    ).subscribe(() => undefined);
+
+    vi.useFakeTimers();
+    try {
+      const failLatest = (): void => StubEventSource.instances.at(-1)?.fail();
+
+      failLatest();
+      vi.advanceTimersByTime(2_000);
+      failLatest();
+      vi.advanceTimersByTime(4_000);
+      expect(refreshSingleFlightMock).not.toHaveBeenCalled();
+
+      failLatest();
+      expect(refreshSingleFlightMock).toHaveBeenCalledTimes(1);
+      expect(refreshSingleFlightMock).toHaveBeenCalledWith({ source: 'local' });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    unsubscribe();
     vi.unstubAllGlobals();
   });
 

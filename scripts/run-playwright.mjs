@@ -76,11 +76,17 @@ const runCommand = (command, args) =>
   });
 
 const serverWasRunning = await requestUrl(baseUrl);
+if (serverWasRunning) {
+  console.warn(
+    'Cảnh báo: máy chủ Vite đã chạy sẵn. Bài e2e cần VITE_USE_MOCK_API=true; máy chủ này có thể chưa bật cờ đó.',
+  );
+}
 const serverProcess = serverWasRunning
   ? undefined
   : spawn(packageRunner, ['exec', 'vite', '--host', '127.0.0.1'], {
       cwd: projectRoot,
       detached: process.platform !== 'win32',
+      env: { ...process.env, VITE_USE_MOCK_API: 'true' },
       shell: useShell,
       stdio: 'ignore',
     });

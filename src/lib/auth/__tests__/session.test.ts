@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AUTH_SIGNED_OUT_EVENT, __resetAuthForTests, bootstrapSession, configureAuth, createAuthHttpClient, getSession, signOut } from '../index';
+import { RETRY_MIN_DELAY_MS } from '../bootstrap';
 import type { AuthFetch } from '../types';
 
 interface BroadcastMessage { data: unknown }
@@ -255,7 +256,16 @@ describe('src/lib/auth/session', () => {
 
     setVisibilityState('visible');
     document.dispatchEvent(new Event('visibilitychange'));
-    await flush();
+
+    /*
+     * Quay lại thẻ thì lượt gia hạn nối lại sau `RETRY_MIN_DELAY_MS`, không
+     * phải ngay lập tức. Token đã chết trong lúc thẻ bị ẩn (`remainingMs` bằng
+     * 0), và lịch hẹn cấm dựng một độ trễ 0 từ một `remainingMs` thoái hoá —
+     * đó đúng là chỗ vòng lặp gia hạn liên tục sinh ra (RES-04, docblock của
+     * `scheduleRefreshFromSession`). Bài này vẫn khoá đúng điều nó vẫn khoá:
+     * ẩn thì DỪNG, hiện lại thì NỐI LẠI. Chỉ nhịp nối lại là đổi.
+     */
+    await vi.advanceTimersByTimeAsync(RETRY_MIN_DELAY_MS);
 
     expect(refreshCalls).toBe(2);
   });

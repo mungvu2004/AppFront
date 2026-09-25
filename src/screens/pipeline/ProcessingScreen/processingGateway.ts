@@ -70,9 +70,9 @@
  * một lần đọc báo hỏng.
  */
 
-import { createAppApiClient } from '@/api/appClient';
+import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
 import type { ApiClient, ApiResult } from '@/api/client';
-import { ENDPOINTS } from '@/api/endpoints';
+import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
@@ -660,7 +660,7 @@ export function createProcessingGateway(
       };
 
       const stream = createProgressStream({
-        url: ENDPOINTS.drawings.progress(projectId, uploadId),
+        url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.uploadProgress(projectId, uploadId)),
         fetchEvents: async ({ signal }) => {
           const result = await client.drawings.progress({ projectId, uploadId, signal });
 

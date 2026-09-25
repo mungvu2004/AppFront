@@ -6,6 +6,8 @@ import type { Progress } from '@/api/schemas';
 import { createBackoff } from './backoff';
 
 const STABLE_RESET_DELAY_MS = 30_000;
+/** Số lỗi liên tiếp thì coi cookie luồng đã hết hạn và xin refresh (một lần mỗi chuỗi). */
+const AUTH_REFRESH_FAILURE_THRESHOLD = 3;
 
 type TimerId = ReturnType<typeof setTimeout>;
 
@@ -44,6 +46,12 @@ export interface CreateEventChannelOptions<TData extends object = Progress> {
   schema?: z.ZodType<TData, z.ZodTypeDef, unknown>;
   /** Nhãn gắn vào `ChannelEvent.type`. Bỏ trống thì vẫn là `'progress'`. */
   eventType?: string;
+  /**
+   * Cookie luồng hết hạn thì `EventSource` chỉ thấy lỗi kết nối, không có mã trạng thái.
+   * Đủ `AUTH_REFRESH_FAILURE_THRESHOLD` lỗi liên tiếp thì gọi hàm này một lần; trả `true`
+   * thì nối lại ngay thay vì chờ lượt lùi. Bỏ trống: hành vi không đổi.
+   */
+  refreshAuth?: () => Promise<boolean>;
   clock?: ChannelClock;
   EventSourceImpl?: typeof EventSource;
   random?: () => number;
@@ -90,6 +98,7 @@ export function createEventChannel<TData extends object = Progress>(
     clock = defaultClock,
     EventSourceImpl = EventSource,
     random,
+    refreshAuth,
   } = options;
 
   const backoff = createBackoff({
@@ -102,6 +111,7 @@ export function createEventChannel<TData extends object = Progress>(
   let reconnectTimer: TimerId | null = null;
   let stableTimer: TimerId | null = null;
   let lastEventId = options.lastEventId ?? '';
+  let consecutiveFailures = 0;
 
   function emit(status: ChannelStatus, nextRetryAt: number | null = null): void {
     onStateChange({
@@ -155,6 +165,20 @@ export function createEventChannel<TData extends object = Progress>(
   function connect(): void {
     if (closed) return;
 
+    /*
+     * Đóng lượt cũ TRƯỚC khi mở lượt mới — `connect()` có hơn một người gọi.
+     *
+     * Lượt lùi và lượt gia hạn thành công đều gọi hàm này, và hai đường ấy
+     * chồng nhau được: hẹn giờ lùi nổ ở giây thứ 4, còn cửa sổ chờ gia hạn rộng
+     * tới `REFRESH_TIMEOUT_MS` (15 s). Gia hạn về SAU khi hẹn giờ đã bắn thì
+     * `clearReconnectTimer()` là lệnh rỗng, và nếu không có dòng này thì
+     * `source` cũ bị gán đè mà không ai đóng nó: trình duyệt tự nối lại cái bị
+     * bỏ rơi ấy mãi, cộng dồn tới trần 6 kết nối/host rồi chặn mọi request
+     * cùng origin. Dòng này làm `connect()` an toàn với MỌI người gọi, không
+     * riêng ca ấy.
+     */
+    closeCurrentSource();
+
     emit('dang-noi');
 
     const nextSource = new EventSourceImpl(appendLastEventId(url, lastEventId));
@@ -163,6 +187,7 @@ export function createEventChannel<TData extends object = Progress>(
     nextSource.onopen = () => {
       if (closed || source !== nextSource) return;
 
+      consecutiveFailures = 0;
       backoff.markConnected();
       emit('da-noi');
       clearStableTimer();
@@ -202,6 +227,18 @@ export function createEventChannel<TData extends object = Progress>(
       clearStableTimer();
       closeCurrentSource();
       scheduleReconnect();
+
+      consecutiveFailures += 1;
+      if (refreshAuth !== undefined && consecutiveFailures === AUTH_REFRESH_FAILURE_THRESHOLD) {
+        void refreshAuth().then(
+          (ok) => {
+            if (!ok || closed) return;
+            clearReconnectTimer();
+            connect();
+          },
+          () => undefined,
+        );
+      }
     };
   }
 
