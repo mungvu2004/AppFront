@@ -777,7 +777,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     (id: PinnedMeasurementId): void => {
       setHighlightedId((current) => (current === id ? null : current));
       gateway.deleteMeasurement(projectId, id).catch((error: unknown) => {
-        const gone = measurementErrorCodeOf(error).resource === 'measurement';
+        const { code, resource } = measurementErrorCodeOf(error);
+        const gone = resource === 'measurement' && code === 'NOT_FOUND';
 
         notifications.publish({
           type: DELETE_ERROR_NOTIFICATION_TYPE,

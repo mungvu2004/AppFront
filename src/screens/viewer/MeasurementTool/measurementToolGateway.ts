@@ -548,16 +548,17 @@ export interface MeasurementErrorCode {
 export function measurementErrorCodeOf(error: unknown): MeasurementErrorCode {
   const wire = readWireError(error);
 
-  if (wire?.code !== undefined) {
-    return { code: wire.code, resource: wire.resource ?? null };
+  if (wire !== null) {
+    // Có hình dạng HttpError: mã không qua mẫu thì là `null`, không đọc lại `code` thô.
+    return { code: wire.code ?? null, resource: wire.resource ?? null };
   }
 
   if (!isRecord(error)) {
-    return { code: null, resource: wire?.resource ?? null };
+    return { code: null, resource: null };
   }
 
   const params = isRecord(error.params) ? error.params : null;
-  const resource = wire?.resource ?? (typeof params?.resource === 'string' ? params.resource : null);
+  const resource = typeof params?.resource === 'string' ? params.resource : null;
 
   return { code: typeof error.code === 'string' ? error.code : null, resource };
 }
@@ -657,7 +658,13 @@ export function createMeasurementToolGateway(
         }
 
         row = { ...row, ...(await freshIdentity(projectId)) };
-        await deps.save({ projectId, measurement: toMeasurementRecord(row) });
+
+        try {
+          await deps.save({ projectId, measurement: toMeasurementRecord(row) });
+        } catch {
+          // Lần hai hỏng thì ném lỗi GỐC (lần một), không phải lỗi lần hai.
+          throw error;
+        }
       }
 
       return row;

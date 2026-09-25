@@ -623,7 +623,7 @@ export function useScaleCalibration(
 
     if (!result.supported) {
       // Chưa có endpoint thì không được hiện "đã lưu lúc …" cho lượt chưa rời máy.
-      throw new Error(result.missingEndpoint);
+      throw new Error('chưa lưu được tỉ lệ, máy chủ chưa hỗ trợ');
     }
   }, []);
 

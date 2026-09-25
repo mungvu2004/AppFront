@@ -209,8 +209,9 @@ describe('deleteMeasurement — undo that meets a taken id', () => {
     expect(onUndoFailed).not.toHaveBeenCalled();
   });
 
-  it('reports a second failure instead of swallowing it', async () => {
-    const { post, spy } = queuePost(takenResult());
+  it('reports the ORIGINAL error when the second attempt fails differently', async () => {
+    const limit: HttpError = { ...taken, code: 'MEASUREMENT_LIMIT_REACHED', status: 422 };
+    const { post, spy } = queuePost(takenResult(), { error: limit, ok: false });
     const onUndoFailed = vi.fn();
     const { options } = setup(post, {
       onUndoFailed,
@@ -224,6 +225,7 @@ describe('deleteMeasurement — undo that meets a taken id', () => {
       expect(onUndoFailed).toHaveBeenCalledTimes(1);
     });
     expect(spy).toHaveBeenCalledTimes(2);
+    expect(onUndoFailed.mock.calls[0]?.[0]).toBe(taken);
   });
 
   it('sends a 409 straight to onUndoFailed when nothing resolves conflicts', async () => {

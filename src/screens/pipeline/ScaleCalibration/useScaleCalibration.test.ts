@@ -110,7 +110,8 @@ beforeEach(() => {
     })),
   });
 
-  clock = installFakeClock();  seedStore();
+  clock = installFakeClock();
+  seedStore();
 });
 
 afterEach(() => {

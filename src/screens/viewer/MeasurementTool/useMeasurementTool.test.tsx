@@ -31,7 +31,7 @@ import {
 } from '@/screens/viewer/ViewerShell';
 
 import { createMeasurementToolFixtureGateway } from './measurementToolGateway';
-import type { MeasurementToolGateway } from './measurementToolTypes';
+import type { MeasurementToolGateway, PinnedMeasurement } from './measurementToolTypes';
 import type {
   MeasurementSceneHandle,
   MeasurementSceneMount,
@@ -340,12 +340,21 @@ describe('useMeasurementTool — ghim hỏng thì hiện câu tiếng Việt và
 
   it('bản nháp còn đủ điểm sau khi ghim hỏng, nên ghim lại được', async () => {
     const notifications = createNotificationBus();
+    const saved: PinnedMeasurement[] = [];
+    const base = failingPinGateway(toAppError(wireError(422, 'MEASUREMENT_LIMIT_REACHED')));
 
     renderHook({
       notifications,
       mountScene: sceneSpy().mount,
       pick: pickAtPointer,
-      gateway: failingPinGateway(toAppError(wireError(422, 'MEASUREMENT_LIMIT_REACHED'))),
+      gateway: {
+        ...base,
+        saveMeasurement: (projectId, row) => {
+          saved.push(row);
+
+          return base.saveMeasurement(projectId, row);
+        },
+      },
     });
     measureTwoPoints();
     fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
@@ -354,7 +363,14 @@ describe('useMeasurementTool — ghim hỏng thì hiện câu tiếng Việt và
       expect(notifications.list()).toHaveLength(1);
     });
 
-    expect(screen.getByRole('button', { name: /ghim/iu })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
+
+    await waitFor(() => {
+      expect(saved).toHaveLength(2);
+    });
+
+    expect(saved[0]?.points).toHaveLength(2);
+    expect(saved[1]?.points).toEqual(saved[0]?.points);
   });
 });
 
@@ -381,8 +397,12 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 /** GET trả một phép đo; DELETE 204; POST lần lượt theo `postStatuses`. */
-function stubServer(postStatuses: readonly number[]): { readonly posts: Record<string, unknown>[] } {
+function stubServer(
+  postStatuses: readonly number[],
+  deleteFailure?: { readonly status: number; readonly code: string },
+): { readonly posts: Record<string, unknown>[]; readonly lists: () => number } {
   const posts: Record<string, unknown>[] = [];
+  let listCalls = 0;
 
   vi.stubGlobal(
     'fetch',
@@ -403,11 +423,24 @@ function stubServer(postStatuses: readonly number[]): { readonly posts: Record<s
         return Promise.resolve(jsonResponse({ code, requestId: 'req-9' }, status));
       }
 
+      if (method === 'DELETE' && deleteFailure !== undefined) {
+        return Promise.resolve(
+          jsonResponse(
+            { code: deleteFailure.code, requestId: 'req-9', resource: 'measurement' },
+            deleteFailure.status,
+          ),
+        );
+      }
+
+      if (method !== 'DELETE') {
+        listCalls += 1;
+      }
+
       return Promise.resolve(method === 'DELETE' ? jsonResponse(null, 204) : jsonResponse([WIRE_RECORD], 200));
     }),
   );
 
-  return { posts };
+  return { posts, lists: () => listCalls };
 }
 
 /** Xoá phép đo đầu tiên rồi bấm hoàn tác trên toast của lượt xoá. */
@@ -420,6 +453,41 @@ async function deleteThenUndo(notifications: NotificationBus): Promise<void> {
 
   notifications.list().find((entry) => entry.undoTicket !== undefined)?.undoTicket?.undo();
 }
+
+describe('useMeasurementTool — xoá hỏng qua cổng thật', () => {
+  it('404 mang resource "measurement" hiện câu "đã bị xoá ở nơi khác" và làm mới danh sách', async () => {
+    const notifications = createNotificationBus();
+    const { lists } = stubServer([], { code: 'NOT_FOUND', status: 404 });
+
+    renderRealGateway({ notifications });
+    fireEvent.click(await screen.findByRole('button', { name: /Xoá Phép đo 1/iu }));
+
+    await waitFor(() => {
+      expect(titlesOf(notifications)).toContain('phép đo này đã bị xoá ở nơi khác');
+    });
+    await waitFor(() => {
+      expect(lists()).toBeGreaterThan(1);
+    });
+  });
+
+  it('403 mang resource "measurement" KHÔNG hiện câu "đã bị xoá", không làm mới danh sách', async () => {
+    const notifications = createNotificationBus();
+    const { lists } = stubServer([], { code: 'FORBIDDEN', status: 403 });
+
+    renderRealGateway({ notifications });
+    fireEvent.click(await screen.findByRole('button', { name: /Xoá Phép đo 1/iu }));
+
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    const listsBefore = lists();
+
+    expect(titlesOf(notifications)).not.toContain('phép đo này đã bị xoá ở nơi khác');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(lists()).toBe(listsBefore);
+  });
+});
 
 describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
   it('POST hoàn tác 500 hiện đúng MỘT thông báo lỗi hoàn tác', async () => {

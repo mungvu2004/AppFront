@@ -183,11 +183,12 @@ export function deleteMeasurement(
                 throw error;
               }
 
-              return postMeasurementToServer(
-                http,
-                projectId,
-                await resolveUndoConflict(projectId, measurement),
-              );
+              const renumbered = await resolveUndoConflict(projectId, measurement);
+
+              // Lần hai hỏng thì báo lỗi GỐC (lần một), không phải lỗi lần hai.
+              return postMeasurementToServer(http, projectId, renumbered).catch(() => {
+                throw error;
+              });
             })
             .then((restored) => {
               queryClient.setQueryData<readonly MeasurementRecord[]>(measurementKeys.all(projectId), (current) =>

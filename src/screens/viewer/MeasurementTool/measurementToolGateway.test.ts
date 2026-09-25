@@ -126,12 +126,13 @@ describe('measurementToolGateway — ghim gặp 409 đổi mã', () => {
 
   it('409 hai lần thì ném lại lỗi gốc và đã ghim đúng hai lần', async () => {
     const { http } = httpWithLists([wireRecord('MS-0001')]);
-    const save = vi.fn().mockRejectedValue(idTaken());
+    const first = idTaken();
+    const second = toAppErrorThrown(httpError(422, 'MEASUREMENT_LIMIT_REACHED'));
+    const save = vi.fn().mockRejectedValueOnce(first).mockRejectedValueOnce(second);
     const { gateway } = build(http, save);
 
-    await expect(gateway.saveMeasurement(PROJECT, pinned('MS-0001'))).rejects.toMatchObject({
-      code: 'MEASUREMENT_ID_TAKEN',
-    });
+    // Đúng đối tượng lỗi LẦN MỘT, không phải lỗi lần hai.
+    await expect(gateway.saveMeasurement(PROJECT, pinned('MS-0001'))).rejects.toBe(first);
     expect(save).toHaveBeenCalledTimes(2);
   });
 
@@ -213,5 +214,11 @@ describe('measurementErrorCodeOf', () => {
       'measurement',
     );
     expect(measurementErrorCodeOf('lạ')).toEqual({ code: null, resource: null });
+  });
+
+  it('does not read a raw code that fails the UPPER_SNAKE pattern on an HttpError', () => {
+    const odd: HttpError = { kind: 'http', status: 500, code: 'lỗi lạ', requestId: 'r', retryable: false, raw: { code: 'lỗi lạ', requestId: 'r' } };
+
+    expect(measurementErrorCodeOf(odd).code).toBeNull();
   });
 });

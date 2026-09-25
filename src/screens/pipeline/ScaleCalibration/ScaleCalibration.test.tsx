@@ -200,7 +200,8 @@ beforeEach(() => {
     writable: true,
     value: FakeResizeObserver,
   });
-  clock = installFakeClock();  seedStore();
+  clock = installFakeClock();
+  seedStore();
 });
 
 afterEach(() => {
