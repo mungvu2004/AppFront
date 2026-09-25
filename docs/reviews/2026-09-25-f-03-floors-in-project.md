@@ -344,3 +344,189 @@ trong khoảng, nhưng `selectedPage` là `string` tự do trong `Attachment`; m
 
 Vá **P1-1, P1-2, P1-3** (ước lượng ~10 dòng mã + 1–2 test + 5 khoá JSON), chạy lại `pnpm verify`
 một lượt, rồi gộp. Năm món P2 ghi vào sổ nợ của W09, không chặn.
+
+---
+
+# Lượt 2 — soát vòng sửa · `217f0fc..728e183`
+
+**Ngày:** 2026-09-25 · **Phạm vi:** CHỈ diff của vòng sửa (6 file, +45 −11). Lượt 1 đã soát toàn
+nhánh và không con số nào lệch, nên lượt này không soát lại.
+
+## PHÁN QUYẾT CUỐI: APPROVE
+
+Ba món P1 **đóng đúng cả ba**. Hai món P2 cũng được vá kèm (P2-1, P2-2) dù chỉ P2-1 nằm trong
+yêu cầu. Không tìm thấy hồi quy nào.
+
+| món | trạng thái | ghi chú |
+|---|---|---|
+| P1-1 A6 + in mã tầng thô | **ĐÓNG** | sửa cả 5 chỗ, nhiều hơn 2 chỗ bắt buộc |
+| P1-2 vé hoàn tác im lặng | **ĐÓNG** | tôi tự chứng minh test mới bắt đúng kịch bản |
+| P1-3 ba khoá `vi.json` | **ĐÓNG** | thêm 5 khoá, JSON hợp lệ, đúng chữ cái |
+| P2-1 regex trojan source | **ĐÓNG** | tập điểm mã y hệt, tôi dò từng điểm |
+| P2-2 chú thích `floorUploadGateway` | **ĐÓNG (thêm)** | không nằm trong yêu cầu vòng này |
+| P2-3 / P2-4 / P2-5 | còn mở | đúng thoả thuận, ghi sổ nợ W09 |
+
+---
+
+## 1. P1-1 — A6 + không in mã kỹ thuật · **ĐÓNG**
+
+`floorManagerGateway.ts:700, 777, 858, 872, 914`.
+
+Bốn câu `Không tìm thấy tầng ${levelId} trong bản vẽ.` thành `'không tìm thấy tầng này trong bản
+vẽ.'` — viết thường, **không còn nội suy mã thực thể**. Câu trùng tên (`:872`) thành `'tên tầng
+không đổi nên không có gì để lưu.'`.
+
+Worker sửa **cả năm chỗ**, trong khi chỉ hai chỗ (`:858`, `:872`, đường `createRenameFloorCommand`)
+thật sự tới người dùng qua `say()`. Ba chỗ kia (`duplicate:700`, `remove:777`, `changeHeight:914`)
+hôm nay bị `executeStep` nuốt vì `build` trả `null`. Sửa thừa ở đây là đúng: nếu mai có ai nối
+chúng vào `say()` thì không tái sinh lỗi.
+
+**Kiểm đường `say()` cho kín** — sáu chỗ gọi `say()` trong hook sau vòng sửa
+(`useFloorManager.ts:674, 909, 916, 933, 1162, 1245`). Năm chỗ dùng hằng của `FLOOR_MANAGER_TEXT`
+(đều đã đúng A6 từ lượt 1). Chỗ thứ sáu, `:1162`, là chỗ duy nhất chuyển tiếp
+`result.error.reasons` — và **cả ba nhánh** `refuse` của `createRenameFloorCommand` nay đều viết
+thường, không mã: `'không tìm thấy tầng này…'`, `RENAME_REFUSAL_BY_REASON[...]` (ba câu đã đúng từ
+lượt 1), `'tên tầng không đổi…'`. Không còn lối rò.
+
+**Nợ đứng ngoài F-03, ghi để khỏi nhầm là hồi quy:** `src/lib/commands/business/roomFloorCommands.ts:566,
+627, 712`, `openingCommands.ts:223, 660`, `wallCommands.ts:235` **vẫn** dựng
+`Không tìm thấy tầng ${levelId}…` viết hoa kèm mã thô. Chúng nằm trong `src/lib/commands/**` —
+khối [12] cấm F-03 chạm — và **không chỗ nào chảy vào đường `say()` mới mở** của FloorManager.
+`furnitureLibraryPanelGateway.ts:318` tự ghi rằng câu loại này tới người dùng qua `blockReasons` ở
+màn khác. Cần một vé cho chủ tầng đó; **không** chặn F-03.
+
+## 2. P1-2 — vé hoàn tác im lặng · **ĐÓNG**, và tôi tự chứng minh test bắt thật
+
+`useFloorManager.ts:905-911`. Guard đúng y đề xuất lượt 1:
+
+```ts
+if (step === undefined) {
+  if (expectedStepId !== undefined) {
+    say(FLOOR_MANAGER_TEXT.undoRefusedTitle, FLOOR_MANAGER_TEXT.undoNotLatest);
+  }
+
+  return false;
+}
+```
+
+**Mod+Z có thật sự còn im lặng không? — Có.** `onUndo` (`:984`) gọi `void applyUndo()` **không đối
+số**, nên `expectedStepId === undefined` và nhánh `say` bị bỏ qua. Vé thì luôn có đối số:
+`publishUndoTicket(type, description, stepId)` dựng `undo: () => { void applyUndo(stepId); }`, và
+`stepId` lấy từ `history.undoSteps().at(-1)?.id` **sau** khi lệnh đã áp cục bộ, nên nó luôn xác
+định. Hai đường tách nhau đúng chỗ. Giá trị trả về vẫn `false` như cũ, không nơi gọi nào đổi nghĩa.
+
+**Test mới có bắt đúng kịch bản, hay chỉ bắt một biến thể dễ hơn?** Tôi không đoán — tôi chép
+nguyên `useFloorManager.test.ts` của `728e183` vào worktree soát của tôi (còn đứng ở `217f0fc`,
+tức hook **chưa vá**) rồi chạy:
+
+```
+× hoàn tác gọi máy chủ > #11 hỏng rồi bấm vé (lịch sử đã rỗng) thì vé nói ra, không im lặng
+AssertionError: expected [ '', …(1) ] to include 'thay đổi này không còn là thay đổi gầ…'
+Tests  1 failed | 36 passed (37)     EXIT=1
+```
+
+Hai điều đọc ra từ đó:
+
+1. **Test bắt đúng cái nó nói.** Nó đỏ trên mã chưa vá, và đỏ vì đúng lý do — mảng mô tả chỉ có
+   `''` (mô tả rỗng của chính toast vé, `publishUndoTicket` publish với `description: ''`) chứ
+   không có câu `undoNotLatest`. Đó chính xác là "nút chết" lượt 1 mô tả. Không phải biến thể dễ.
+2. **36 test anh em vẫn xanh trên mã cũ**, nên file test không mang theo thay đổi nào khác; đúng
+   một hành vi được thêm.
+
+Chạy lại trên `728e183`: `useFloorManager.test.ts` **37/37 xanh**.
+
+Test này cũng đi qua `ticket.undo()` thật (`notifications.list()` → `entry.undoTicket`), không gọi
+tắt `applyUndo`, nên nó bao luôn cả chặng `createUndoTicket.getStatus() === 'active'`.
+
+## 3. P1-3 — khoá `vi.json` · **ĐÓNG**
+
+`vi.json` khối `floorManager.notices`. Thêm **năm** khoá, không phải ba:
+
+- ba tiêu đề: `addRefusedTitle`, `renameRefusedTitle`, `undoRefusedTitle`;
+- hai câu mới của P1-1: `floorNotFoundInDrawing`, `nameUnchanged`.
+
+Kiểm bằng `json.load`: **tệp hợp lệ**, khối `notices` có **15 khoá và đúng thứ tự chữ cái**.
+
+Tên khoá worker chọn (`addRefusedTitle`…) **tốt hơn** tên tôi đề xuất lượt 1 (`addFailedTitle`…):
+nó khớp đúng khoá của `FLOOR_MANAGER_TEXT`, nên tra ngược từ mã sang từ điển là một bước. Không có
+gì để bắt bẻ.
+
+Hai câu mới đúng A6: viết thường, kiểu câu, không mã kỹ thuật, tiếng Việt có dấu đủ.
+
+## 4. P2-1 — regex `humanText.ts` · **ĐÓNG, tập điểm mã y hệt**
+
+Tôi không đọc chú thích; tôi đổ điểm mã của **dòng cũ** ra:
+
+```
+'[', '\u0000-\u001F', '\u007F-\u009F', 0x202a, '-', 0x202e, 0x2066, '-', 0x2069, ']'
+```
+
+tức lớp cũ = `U+0000–U+001F` ∪ `U+007F–U+009F` ∪ `U+202A–U+202E` ∪ `U+2066–U+2069`.
+
+Dòng mới: `/[\u0000-\u001F\u007F-\u009F‪-‮⁦-⁩]/`.
+
+**Trùng khít, không thừa không thiếu một điểm mã nào.** Thuần đổi cách viết, không đổi hành vi;
+`humanText.test.ts` 11/11 xanh.
+
+(Ghi nhỏ, không phải finding: `humanText.test.ts:27` vẫn nhúng nguyên bản ba ký tự bidi trong bảng
+`it.each`. Chúng là **dữ liệu đầu vào** của test chứ không phải định nghĩa luật, nên rủi ro đọc
+nhầm thấp hơn hẳn; để lại được.)
+
+## 5. P2-2 — chú thích `floorUploadGateway.ts` · **ĐÓNG (thêm, ngoài yêu cầu)**
+
+Mục `:9-15` viết lại, nay nói đúng: `floors.list({ projectId })` đã lồng dưới dự án, nhưng màn vẫn
+đọc tầng qua `projects.read` vì một lượt đọc lấy được cả dự án lẫn tầng. Câu sai
+"**không nhận mã dự án**" đã biến mất.
+
+## 6. Hồi quy — soát từng thứ lượt 1 đã xác nhận đạt
+
+| lượt 1 xác nhận | vòng sửa có đụng? | phán quyết |
+|---|---|---|
+| bảng mã → câu (`FLOOR_ERROR_SENTENCE_BY_CODE`) | không, diff không chạm | **giữ** |
+| đường hoàn tác (`inverseRequestsOf`, `sendInOrder`, lùi ở `index === 0`) | chỉ thêm 4 dòng **bên trong** nhánh `step === undefined` | **giữ** — nhánh đó chỉ chạy khi không có gì để hoàn tác, giá trị trả về vẫn `false` |
+| `pageIndex` (hook, gateway, `uploadTask`) | `floorUploadGateway.ts` chỉ đổi khối chú thích đầu file | **giữ** |
+| A6 ở các câu khác | chỉ hạ chữ hoa, không thêm chuỗi người đọc nào ngoài 2 câu đã kể | **giữ** |
+| thân #10/#34 không `projectId`, id client sinh | không chạm `client.ts` / `endpoints.ts` | **giữ** |
+| lấy mẫu loại bỏ `ids.ts` | không chạm | **giữ** |
+| A10, mục D, bảy luật ESLint | xem kiểm dưới | **giữ** |
+
+**Hai lượt chạy của riêng tôi** (không phải chép số của worker):
+
+- `pnpm exec vitest run src/screens/qc/FloorManager src/domain/text` trên `728e183` →
+  **3 file, 67/67 xanh**, `EXIT=0`. Trong đó `useFloorManager.test.ts` 37 test (lượt 1 là 36, +1
+  đúng như worker khai), `FloorManager.test.tsx` 19 (A11 bảy trạng thái vẫn xanh),
+  `humanText.test.ts` 11.
+- `pnpm exec eslint --max-warnings 0` trên đúng năm file `.ts` đã đổi → **`LINT_OK`, `EXIT=0`**.
+  Tôi chạy thêm bước này vì việc bỏ nội suy làm mấy mảng `refuse([...])` ngắn lại, và một lượt
+  prettier đòi gộp dòng sẽ đủ làm cổng lint đỏ. Không đỏ.
+
+**Không tìm thấy hồi quy nào.**
+
+### Điều tôi **không** kiểm lượt này, và vì sao
+
+Theo chỉ dẫn, tôi **không** chạy lại `pnpm verify` bảy bước. Nên các con số sau là **của worker**,
+không phải của tôi, và tôi ghi rõ như vậy (E.10): 341 file · 7184 test qua · 0 hỏng ·
+entry 163,5/175 · chunk lớn nhất 163,5/170 · routeChunk 264,2/280 · `EXIT=0`.
+
+Chúng khớp khuôn lượt 1 (7183 + 1 test mới = 7184; gói nhích 163,4 → 163,5 KiB, hợp với 5 khoá
+JSON và vài chuỗi ngắn hơn). Hai lượt chạy riêng ở trên bịt hai khoảng trống dễ vỡ nhất của vòng
+sửa này (test và lint). Bước `build` / `kích thước gói` / `import vòng` / `độ dài file` tôi
+**chưa chạy lượt 2** — chúng dựa trên `EXIT=0` của worker.
+
+**Biên gói vẫn hẹp:** chunk JS lớn nhất 163,5 / trần 170, dư **6,5 KiB**. F-07 / F-10 / F-11 đọc
+số này trước khi viết dòng đầu tiên.
+
+## 7. Kết luận
+
+Ba món P1 đóng, hai món P2 đóng thêm, không hồi quy. **APPROVE** — gộp được.
+
+Còn mở, ghi sổ nợ W09 (đều đã thống nhất lượt 1, không món nào chặn):
+
+- **P2-3** `ids.ts:77-85` — vòng lấy mẫu không có trần.
+- **P2-4** `floorWriteBodyOf` gửi `drawings: []` qua #34 — **cần hỏi BE** trước khi xử.
+- **P2-5** `pageIndexOf` không kẹp biên 0…19.
+- **Nợ A8** — thêm / đổi tên / đổi cao độ / đổi chiều cao vẫn chỉ hoàn tác bằng Mod+Z.
+- **Nợ #34 nửa vời** — máy chủ lệch một phần sau khi #13 hoặc #34 trước đã thành công; người dùng
+  chưa được nói rằng màn và máy chủ nay khác nhau.
+- **Nợ ngoài F-03** — câu `Không tìm thấy tầng ${id}…` viết hoa kèm mã thô còn sống trong
+  `src/lib/commands/business/**` (sáu chỗ), chảy ra người dùng ở màn khác.
