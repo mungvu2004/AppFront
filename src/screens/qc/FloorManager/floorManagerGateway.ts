@@ -590,6 +590,12 @@ export const duplicateFloorToastDescription = (name: string): string =>
 /** Câu trên toast hoàn tác sau khi đổi thứ tự ngăn xếp. */
 export const REORDER_FLOORS_TOAST_DESCRIPTION = 'Đã đổi thứ tự tầng.';
 
+/** Câu trên toast hoàn tác của thêm tầng và ba lượt sửa một trường (A6: viết thường). */
+export const ADD_FLOOR_TOAST_DESCRIPTION = 'đã thêm tầng.';
+export const RENAME_FLOOR_TOAST_DESCRIPTION = 'đã đổi tên tầng.';
+export const CHANGE_ELEVATION_TOAST_DESCRIPTION = 'đã đổi cao độ tầng.';
+export const CHANGE_HEIGHT_TOAST_DESCRIPTION = 'đã đổi chiều cao tầng.';
+
 export interface CreateLevelEntityInput {
   readonly id: LevelId;
   readonly name: string;
@@ -1071,6 +1077,12 @@ export const FLOOR_REMOVE_NOTIFICATION_TYPE = 'floorManager.remove';
 
 /** Loại thông báo của lượt nhân bản tầng. */
 export const FLOOR_DUPLICATE_NOTIFICATION_TYPE = 'floorManager.duplicate';
+
+/** Loại thông báo của thêm tầng, đổi tên, đổi cao độ, đổi chiều cao. */
+export const FLOOR_ADD_NOTIFICATION_TYPE = 'floorManager.add';
+export const FLOOR_RENAME_NOTIFICATION_TYPE = 'floorManager.rename';
+export const FLOOR_ELEVATION_NOTIFICATION_TYPE = 'floorManager.elevation';
+export const FLOOR_HEIGHT_NOTIFICATION_TYPE = 'floorManager.height';
 
 /** Loại thông báo của lượt đổi thứ tự tầng. */
 export const FLOOR_REORDER_NOTIFICATION_TYPE = 'floorManager.reorder';

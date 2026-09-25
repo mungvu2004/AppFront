@@ -134,6 +134,14 @@ import {
   FLOOR_PERSIST_FAILED_NOTIFICATION_TYPE,
   FLOOR_REMOVE_NOTIFICATION_TYPE,
   FLOOR_REORDER_NOTIFICATION_TYPE,
+  FLOOR_ADD_NOTIFICATION_TYPE,
+  FLOOR_ELEVATION_NOTIFICATION_TYPE,
+  FLOOR_HEIGHT_NOTIFICATION_TYPE,
+  FLOOR_RENAME_NOTIFICATION_TYPE,
+  ADD_FLOOR_TOAST_DESCRIPTION,
+  CHANGE_ELEVATION_TOAST_DESCRIPTION,
+  CHANGE_HEIGHT_TOAST_DESCRIPTION,
+  RENAME_FLOOR_TOAST_DESCRIPTION,
   findElevationConflict,
   floorWriteBodyOf,
   floorPlansOf,
@@ -1168,6 +1176,9 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
             commands: [result.data],
             label: result.data.description,
             requests: patchRequestsOf([result.data]),
+            onApplied: (stepId) => {
+              publishUndoTicket(FLOOR_RENAME_NOTIFICATION_TYPE, RENAME_FLOOR_TOAST_DESCRIPTION, stepId);
+            },
           };
         });
 
@@ -1205,7 +1216,14 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
                 commands: [result.data],
                 label: result.data.description,
                 requests: patchRequestsOf([result.data]),
-                onApplied: announceStackIssue,
+                onApplied: (stepId) => {
+                  publishUndoTicket(
+                    FLOOR_ELEVATION_NOTIFICATION_TYPE,
+                    CHANGE_ELEVATION_TOAST_DESCRIPTION,
+                    stepId,
+                  );
+                  announceStackIssue();
+                },
               }
             : null;
         });
@@ -1223,12 +1241,28 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
               commands: built.commands,
               label: built.commands[0]?.description ?? '',
               requests: patchRequestsOf(built.commands),
-              onApplied: announceStackIssue,
+              onApplied: (stepId) => {
+                publishUndoTicket(
+                  FLOOR_HEIGHT_NOTIFICATION_TYPE,
+                  CHANGE_HEIGHT_TOAST_DESCRIPTION,
+                  stepId,
+                );
+                announceStackIssue();
+              },
             }
           : null;
       });
     },
-    [announce, announceStackIssue, executeStep, patchRequestsOf, readContext, say, updateDrafts],
+    [
+      announce,
+      announceStackIssue,
+      executeStep,
+      patchRequestsOf,
+      publishUndoTicket,
+      readContext,
+      say,
+      updateDrafts,
+    ],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1266,10 +1300,13 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
             commands: [result.data],
             label: result.data.description,
             requests: [createRequest(added)],
+            onApplied: (stepId) => {
+              publishUndoTicket(FLOOR_ADD_NOTIFICATION_TYPE, ADD_FLOOR_TOAST_DESCRIPTION, stepId);
+            },
           }
         : null;
     });
-  }, [createRequest, executeStep, gateway, isAtFloorLimit]);
+  }, [createRequest, executeStep, gateway, isAtFloorLimit, publishUndoTicket]);
 
   const onDuplicateFloor = useCallback(
     (floorId: string, duplicateOptions: { readonly copyFurniture: boolean }) => {

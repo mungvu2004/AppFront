@@ -1901,8 +1901,11 @@
     },
     "notices": {
       "addRefusedTitle": "chưa thêm được tầng",
+      "addToast": "đã thêm tầng.",
+      "elevationToast": "đã đổi cao độ tầng.",
       "floorGone": "tầng này không còn trên máy chủ.",
       "floorNotFoundInDrawing": "không tìm thấy tầng này trong bản vẽ.",
+      "heightToast": "đã đổi chiều cao tầng.",
       "idAmbiguous": "mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.",
       "idTaken": "mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.",
       "limitReached": "dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.",
@@ -1912,6 +1915,7 @@
       "nameTooLong": "tên tầng dài quá 120 ký tự, hãy rút gọn lại.",
       "nameUnchanged": "tên tầng không đổi nên không có gì để lưu.",
       "renameRefusedTitle": "chưa đổi được tên tầng",
+      "renameToast": "đã đổi tên tầng.",
       "undoExpired": "đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.",
       "undoNotLatest": "thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.",
       "undoRefusedTitle": "chưa hoàn tác được thay đổi tầng"

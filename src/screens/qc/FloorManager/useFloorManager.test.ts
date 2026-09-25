@@ -1185,6 +1185,78 @@ describe('hoàn tác gọi máy chủ', () => {
   });
 });
 
+describe('vé hoàn tác của bốn thao tác còn lại (A8)', () => {
+  const latestTicket = (mounted: Awaited<ReturnType<typeof mountSettled>>) =>
+    mounted.notifications.list().find((entry) => entry.undoTicket !== undefined)?.undoTicket;
+
+  it('thêm tầng có vé, bấm vé gửi DELETE tầng đó', async () => {
+    const { gateway, remove } = spiedGateway({ nextLevelId: () => NEW_ID });
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onAddFloor();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(latestTicket(mounted)).toBeDefined();
+    });
+    await sleep();
+    latestTicket(mounted)?.undo();
+    await waitFor(() => {
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    expect(remove.mock.calls[0]?.[0]).toEqual({ projectId: PROJECT_ID, floorId: String(NEW_ID) });
+  });
+
+  it.each([
+    ['name', 'Mái mới', 'name'],
+    ['elevation', '8', 'elevationMm'],
+    ['height', '4,2', 'heightMm'],
+  ] as const)('đổi %s có vé, bấm vé gửi #34 giá trị cũ', async (field, value, key) => {
+    const { gateway, patch } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+    const before = levelIn(storeGraph(), ROOF_ID);
+
+    await commitField(mounted, ROOF_ID, field, value);
+    await waitFor(() => {
+      expect(latestTicket(mounted)).toBeDefined();
+      expect(patch.mock.calls.length).toBeGreaterThan(0);
+    });
+    await sleep();
+    patch.mockClear();
+    latestTicket(mounted)?.undo();
+    await waitFor(() => {
+      expect(patch.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    const body = patch.mock.calls.find((call) => call[0].floorId === ROOF_ID)?.[0].body;
+
+    expect(body?.[key]).toBe(before[key]);
+  });
+
+  it('bấm vé đổi tên khi đã có thao tác mới hơn thì không hoàn tác bước khác', async () => {
+    const { gateway } = spiedGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await commitField(mounted, ROOF_ID, 'name', 'Mái mới');
+    await waitFor(() => {
+      expect(latestTicket(mounted)).toBeDefined();
+    });
+
+    const ticket = latestTicket(mounted);
+
+    await commitField(mounted, GROUND_ID, 'name', 'Trệt mới');
+    await sleep();
+    ticket?.undo();
+    await sleep();
+
+    expect(levelIn(storeGraph(), ROOF_ID).name).toBe('Mái mới');
+    expect(levelIn(storeGraph(), GROUND_ID).name).toBe('Trệt mới');
+    expect(descriptionsOf(mounted.notifications)).toContain(FLOOR_MANAGER_TEXT.undoNotLatest);
+  });
+});
+
 describe('tên tầng', () => {
   it('tên chứa U+202E thì KHÔNG PATCH, và nói ra cả toast lẫn aria-live', async () => {
     const { gateway, patch } = spiedGateway();
