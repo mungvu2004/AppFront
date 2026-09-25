@@ -157,3 +157,103 @@ describe('deleteMeasurement', () => {
     expect(http.post).not.toHaveBeenCalled();
   });
 });
+
+describe('deleteMeasurement — undo that meets a taken id', () => {
+  const taken: HttpError = {
+    code: 'MEASUREMENT_ID_TAKEN',
+    kind: 'http',
+    raw: { code: 'MEASUREMENT_ID_TAKEN', requestId: 'req-2' },
+    requestId: 'req-2',
+    retryable: false,
+    status: 409,
+  };
+  const takenResult = (): Result<never, HttpError> => ({ error: taken, ok: false });
+  const renumbered: MeasurementRecord = { ...measurement, id: createMeasurementNoteId(2), name: 'Phép đo 2' };
+
+  /** Answers each POST in turn, then repeats the last answer; no type assertion. */
+  const queuePost = (...answers: readonly Result<unknown, HttpError>[]) => {
+    const spy = vi.fn();
+    answers.forEach((answer) => spy.mockResolvedValueOnce(answer));
+    spy.mockResolvedValue(answers[answers.length - 1]);
+    const post: HttpClient['post'] = (path, options) => spy(path, options);
+
+    return { post, spy };
+  };
+
+  const setup = (post: HttpClient['post'], extra: Partial<Parameters<typeof deleteMeasurement>[0]> = {}) => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(measurementKeys.all(projectId), [measurement]);
+    const http = createHttpMock({ post });
+
+    return { http, queryClient, options: deleteMeasurement({ http, queryClient, ...extra }) };
+  };
+
+  it('resends once under the new id and puts the measurement back with it', async () => {
+    const { post, spy } = queuePost(takenResult(), ok(renumbered));
+    const resolveUndoConflict = vi.fn(() => Promise.resolve(renumbered));
+    const onUndoFailed = vi.fn();
+    const { queryClient, options } = setup(post, {
+      onUndoFailed,
+      resolveUndoConflict,
+    });
+
+    const ticket = await options.mutationFn?.({ measurement, projectId });
+    ticket?.undo();
+
+    await vi.waitFor(() => {
+      expect(queryClient.getQueryData(measurementKeys.all(projectId))).toEqual([renumbered]);
+    });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy.mock.calls[1]?.[1]).toMatchObject({ body: renumbered });
+    expect(resolveUndoConflict).toHaveBeenCalledWith(projectId, measurement);
+    expect(onUndoFailed).not.toHaveBeenCalled();
+  });
+
+  it('reports the ORIGINAL error when the second attempt fails differently', async () => {
+    const limit: HttpError = { ...taken, code: 'MEASUREMENT_LIMIT_REACHED', status: 422 };
+    const { post, spy } = queuePost(takenResult(), { error: limit, ok: false });
+    const onUndoFailed = vi.fn();
+    const { options } = setup(post, {
+      onUndoFailed,
+      resolveUndoConflict: () => Promise.resolve(renumbered),
+    });
+
+    const ticket = await options.mutationFn?.({ measurement, projectId });
+    ticket?.undo();
+
+    await vi.waitFor(() => {
+      expect(onUndoFailed).toHaveBeenCalledTimes(1);
+    });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(onUndoFailed.mock.calls[0]?.[0]).toBe(taken);
+  });
+
+  it('sends a 409 straight to onUndoFailed when nothing resolves conflicts', async () => {
+    const { post, spy } = queuePost(takenResult());
+    const onUndoFailed = vi.fn();
+    const { options } = setup(post, { onUndoFailed });
+
+    const ticket = await options.mutationFn?.({ measurement, projectId });
+    ticket?.undo();
+
+    await vi.waitFor(() => {
+      expect(onUndoFailed).toHaveBeenCalledTimes(1);
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a server error on undo without a retry', async () => {
+    const { post } = queuePost(err());
+    const onUndoFailed = vi.fn();
+    const resolveUndoConflict = vi.fn();
+    const { options } = setup(post, { onUndoFailed, resolveUndoConflict });
+
+    const ticket = await options.mutationFn?.({ measurement, projectId });
+    ticket?.undo();
+
+    await vi.waitFor(() => {
+      expect(onUndoFailed).toHaveBeenCalledTimes(1);
+    });
+    expect(resolveUndoConflict).not.toHaveBeenCalled();
+  });
+});

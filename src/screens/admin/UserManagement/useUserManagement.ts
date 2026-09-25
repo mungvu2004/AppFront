@@ -206,6 +206,10 @@ export const ACTIVITY_KIND_LABELS: Readonly<Record<string, string>> = Object.fre
   'training.cancel': 'huỷ lượt huấn luyện',
 });
 
+export function activityKindLabel(kind: string): string {
+  return ACTIVITY_KIND_LABELS[kind] ?? USER_MANAGEMENT_TEXT.activityFallback;
+}
+
 /* -------------------------------------------------------------------------- */
 /* 3 — Một hàng: định dạng xảy ra ở đây, không ở view (A15)                    */
 /* -------------------------------------------------------------------------- */
@@ -857,7 +861,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
 
           return {
             id: activity.id,
-            kindLabel: ACTIVITY_KIND_LABELS[activity.kind] ?? USER_MANAGEMENT_TEXT.activityFallback,
+            kindLabel: activityKindLabel(activity.kind),
             atLabel: formatTimestamp(at, nowMs),
             atExactLabel: `${formatCalendarDate(at)} ${formatClockTime(at)}`,
             objectCode: activity.objectCode,

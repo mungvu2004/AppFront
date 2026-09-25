@@ -22,6 +22,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createMockApiClient } from '@/api/__mocks__/client';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -278,7 +279,7 @@ describe('phép ghép thuần của màn Đọc kích thước OCR', () => {
   });
 
   it('bản kê nợ endpoint chỉ mang việc thật sự chưa có đường', () => {
-    const gateway = createDimensionOcrReviewGateway();
+    const gateway = createDimensionOcrReviewGateway({ apiClient: createMockApiClient() });
 
     expect([...DIMENSION_OCR_MISSING_CAPABILITIES]).toEqual(['persistDimensionLayer']);
     expect(gateway.supports.persistDimensionLayer).toBe(false);

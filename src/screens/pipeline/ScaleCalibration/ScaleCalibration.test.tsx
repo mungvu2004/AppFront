@@ -73,7 +73,6 @@ import { useStore } from '@/store';
 import { ScaleCalibration } from './ScaleCalibration';
 import { compactScenario, scenarioFor } from './ScaleCalibration.stories';
 import {
-  clearPersistedScales,
   createScaleCalibrationGateway,
   withScaleCapabilities,
   type ScaleCalibrationGateway,
@@ -202,7 +201,6 @@ beforeEach(() => {
     value: FakeResizeObserver,
   });
   clock = installFakeClock();
-  clearPersistedScales();
   seedStore();
 });
 
@@ -332,6 +330,8 @@ function sampleDimensionRows(): readonly ScaleRawDimensionString[] {
 interface HarnessOptions {
   readonly referenceWallWidthPx?: Pixels;
   readonly rows?: readonly ScaleRawDimensionString[];
+  /** Bật `persistScale` như thể đã có endpoint (F-04c). Mặc định: cổng thật, tắt. */
+  readonly persistSupported?: boolean;
 }
 
 async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
@@ -345,6 +345,7 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
     supports: {
       dimensionStrings: rows !== undefined,
       referenceWallWidth: referenceWallWidthPx !== undefined,
+      persistScale: options.persistSupported === true,
     },
     readFloorDrawing: async () => ({ ok: true, data: drawing }),
     readDimensionStrings: async () =>
@@ -357,7 +358,9 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
         : { supported: true, value: referenceWallWidthPx },
     persistScale: async (input) => {
       persisted.push(input.millimetresPerPixel);
-      return base.persistScale(input);
+      return options.persistSupported === true
+        ? { supported: true, value: undefined }
+        : base.persistScale(input);
     },
   });
 
@@ -628,7 +631,7 @@ describe('ScaleCalibration — phép tính hiện đủ ba vế [NGHIEM-4]', () 
 
 describe('ScaleCalibration — kịch bản bốn bước [NGHIEM-2]', () => {
   it('kéo 400 px → nhập 4800 → màn hiện 12 mm/px → tự lưu → hoàn tác trả về tỷ lệ cũ', async () => {
-    const harness = await makeHarness();
+    const harness = await makeHarness({ persistSupported: true });
     const mounted = mountScreen(harness.gateway);
     await settle(mounted);
 

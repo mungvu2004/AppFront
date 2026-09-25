@@ -46,7 +46,6 @@ import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import {
-  clearPersistedScales,
   createScaleCalibrationGateway,
   withScaleCapabilities,
   type ScaleCalibrationGateway,
@@ -112,7 +111,6 @@ beforeEach(() => {
   });
 
   clock = installFakeClock();
-  clearPersistedScales();
   seedStore();
 });
 
@@ -218,6 +216,7 @@ interface HarnessOptions {
   readonly sourceFloorId?: string;
   readonly rows?: readonly ScaleRawDimensionString[];
   readonly referenceWallWidthPx?: Pixels;
+  readonly persistSupported?: boolean;
 }
 
 interface Harness {
@@ -241,6 +240,7 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
     supports: {
       dimensionStrings: options.rows !== undefined,
       referenceWallWidth: options.referenceWallWidthPx !== undefined,
+      persistScale: options.persistSupported === true,
     },
     readFloorDrawing: async () => ({ ok: true, data: drawing }),
     readDimensionStrings: async () =>
@@ -253,7 +253,9 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
         : { supported: true, value: options.referenceWallWidthPx },
     persistScale: async (input) => {
       persisted.push(input.millimetresPerPixel);
-      return base.persistScale(input);
+      return options.persistSupported === true
+        ? { supported: true, value: undefined }
+        : base.persistScale(input);
     },
   });
 
@@ -407,7 +409,7 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
 
 describe('useScaleCalibration — áp dụng, tự lưu, hoàn tác', () => {
   it('áp tỷ lệ ghi vào store, tự lưu chạy, và hoàn tác trả về tỷ lệ cũ', async () => {
-    const harness = await makeHarness();
+    const harness = await makeHarness({ persistSupported: true });
     const mounted = mountHook(harness.gateway);
     await settle(mounted);
     await dragReferenceLine(mounted);
@@ -443,6 +445,30 @@ describe('useScaleCalibration — áp dụng, tự lưu, hoàn tác', () => {
     });
 
     expect(storedRatio()).toBeUndefined();
+  });
+
+  it('cổng thật không hứa lưu: không gọi persistScale, nói thẳng là chưa lên máy chủ, nút không quay mãi', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+
+    expect(harness.gateway.supports.persistScale).toBe(false);
+    expect(harness.persistCalls()).toHaveLength(0);
+    expect(mounted.result.current.model.statusBar.saveText).toBe(
+      'tỉ lệ chỉ áp trong phiên này, chưa lưu lên máy chủ',
+    );
+    expect(mounted.result.current.model.panel.isApplying).toBe(false);
   });
 
   it('trả về `appliedScale` dùng được ngay sau khi áp', async () => {

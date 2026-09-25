@@ -610,16 +610,21 @@ export function useScaleCalibration(
 
     const ratio = entity.scaleMillimetresPerPixel;
 
-    if (ratio === undefined) {
+    if (ratio === undefined || !current.gateway.supports.persistScale) {
       return;
     }
 
-    await current.gateway.persistScale({
+    const result = await current.gateway.persistScale({
       floorId: current.floorId,
       projectId: current.projectId,
       millimetresPerPixel: ratio,
       appliesToEveryFloor: current.appliesToEveryFloor,
     });
+
+    if (!result.supported) {
+      // Chưa có endpoint thì không được hiện "đã lưu lúc …" cho lượt chưa rời máy.
+      throw new Error('chưa lưu được tỉ lệ, máy chủ chưa hỗ trợ');
+    }
   }, []);
 
   const saveLabel = useAutosave(handleSave);
@@ -1499,7 +1504,7 @@ export function useScaleCalibration(
         applyScope,
         applyScopeOptions,
         canApply,
-        isApplying: saveLabel === null && hasApplied,
+        isApplying: gateway.supports.persistScale && saveLabel === null && hasApplied,
         areActionsHidden: state === 'forbidden',
         recalculationCaption: COPY.recalculationCaption,
         statusCode: state === 'success' ? 'verified' : 'neutral',
@@ -1510,7 +1515,9 @@ export function useScaleCalibration(
         y: cursorPixels.y,
         scaleRatio: scaleRatioLabel,
         scaleDensity: scaleDensityLabel,
-        saveText: saveLabel ?? '',
+        saveText: gateway.supports.persistScale
+          ? (saveLabel ?? '')
+          : 'tỉ lệ chỉ áp trong phiên này, chưa lưu lên máy chủ',
       },
       isCompact,
       isPanelCollapsed: state === 'collapsed',
@@ -1523,6 +1530,7 @@ export function useScaleCalibration(
       successNotice: state === 'success' ? COPY.successNotice : null,
     };
   }, [
+    gateway.supports.persistScale,
     activeStep,
     aiInference,
     applyScope,

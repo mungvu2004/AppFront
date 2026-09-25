@@ -53,6 +53,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Vector3 } from 'three';
 
+import { resolveUseMockApi } from '@/api/appClient';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSceneTransition } from '@/hooks/useSceneTransition';
 import { can } from '@/lib/auth/permissions';
@@ -87,6 +88,7 @@ import type { ProjectRole } from '@/types/project';
 
 import {
   createViewerShellFixtureGateway,
+  createViewerShellGateway,
   footprintOf,
   shellDataOf,
   type ViewerShellData,
@@ -359,6 +361,13 @@ const LIBRARY_PRESET: Readonly<Partial<Record<ViewerPresetId, CameraPresetId>>> 
   top: 'top',
 });
 
+/** Mock → nhà mẫu; ngược lại → đọc kho. */
+export function defaultViewerShellGateway(useMock: boolean): ViewerShellGateway {
+  return useMock
+    ? createViewerShellFixtureGateway()
+    : createViewerShellGateway(() => useStore.getState().spatial);
+}
+
 /**
  * Điểm nhìn của một góc nhìn vỏ.
  *
@@ -407,7 +416,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   /* ---- Dữ liệu ---------------------------------------------------------- */
 
   const gateway = useMemo(
-    () => options.gateway ?? createViewerShellFixtureGateway(),
+    () => options.gateway ?? defaultViewerShellGateway(resolveUseMockApi()),
     [options.gateway],
   );
 

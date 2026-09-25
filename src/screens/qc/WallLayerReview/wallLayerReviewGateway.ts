@@ -48,7 +48,7 @@
  */
 
 import type { ApiClient } from '@/api/client';
-import { mockApiClient } from '@/api/__mocks__/client';
+import { createAppApiClient } from '@/api/appClient';
 import { createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
@@ -322,7 +322,7 @@ export const WALL_LAYER_DEFAULT_ACTOR_ID = 'wall-layer-reviewer';
 export function createWallLayerReviewGateway(
   options: CreateWallLayerReviewGatewayOptions = {},
 ): WallLayerReviewGateway {
-  const apiClient = options.apiClient ?? mockApiClient;
+  const apiClient = options.apiClient ?? createAppApiClient();
   const graph: WallLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };

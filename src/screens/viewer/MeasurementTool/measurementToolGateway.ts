@@ -62,10 +62,12 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import { createAppHttpClient } from '@/api/appClient';
 import { ENDPOINTS } from '@/api/endpoints';
+import { MeasurementRecordSchema, type MeasurementRecordBody } from '@/api/schemas/measurements';
+import { safeParseList } from '@/api/schemas/decode';
 import {
   createMeasurementNoteId,
   measurePolygonArea,
-  readMeasurementNoteSequence,
+  nextMeasurementNoteSequence,
   squareMillimetres,
   type MeasurePoint,
 } from '@/domain/measure/measure';
@@ -76,6 +78,7 @@ import { snapToTargets, type AnchorKind, type SnapResult, type SnapTarget } from
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, parseNumber } from '@/lib/format/number';
+import { readWireError } from '@/lib/errors/wireError';
 import type { HttpClient } from '@/lib/http';
 import type {
   DeleteMeasurementVariables,
@@ -435,20 +438,17 @@ export function measurementCountLabel(count: number): string {
 /**
  * Mã và tên của phép đo tiếp theo.
  *
- * Số thứ tự là một bước sau số cao nhất đang có, đọc bằng
- * `readMeasurementNoteSequence` của domain — mã đã dùng không bao giờ quay lại,
- * vì một phép đo từng được nhắc tới là `MS-0003` không được trở thành một phép
- * đo khác.
+ * Số thứ tự là một bước sau số cao nhất đang có (hàm `nextMeasurementNoteSequence`
+ * của domain; quá trần 15 chữ số thì lấy số nhỏ nhất chưa dùng). Máy chủ xoá
+ * cứng nên CHO tái dùng mã đã xoá; còn trong một phiên FE thì không — cổng nhớ
+ * mọi mã đã xoá và đưa danh sách hợp vào đây, để một phép đo từng được nhắc tới
+ * là `MS-0003` không trở thành một phép đo khác ngay trước mắt người dùng.
  */
 export function nextMeasurementIdentity(rows: readonly { readonly id: string }[]): {
   readonly id: PinnedMeasurementId;
   readonly name: string;
 } {
-  const highest = rows.reduce<number>(
-    (highestSoFar, row) => Math.max(highestSoFar, readMeasurementNoteSequence(row.id) ?? 0),
-    0,
-  );
-  const sequence = highest + 1;
+  const sequence = nextMeasurementNoteSequence(rows.map((row) => row.id));
 
   return {
     id: createMeasurementNoteId(sequence),
@@ -526,6 +526,67 @@ function cachedRecords(
   );
 }
 
+/** Mã lỗi máy chủ trả khi cùng id khác thân (#17). */
+const ID_TAKEN_CODE = 'MEASUREMENT_ID_TAKEN';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+/** Mã và tài nguyên của một lỗi, dù là `HttpError` hay `AppError`. */
+export interface MeasurementErrorCode {
+  readonly code: string | null;
+  readonly resource: string | null;
+}
+
+/**
+ * Đọc mã lỗi từ MỌI hình dạng lỗi mà màn gặp.
+ *
+ * `readWireError` đọc `HttpError` (lỗi của lượt GET) nhưng trả `null` với
+ * `AppError` — thứ `mutateAsync` luôn ném. Nên khi vắng, đọc thẳng `code` và
+ * `params.resource` của `AppError` (`toAppError` giữ cả hai từ `error.raw`).
+ */
+export function measurementErrorCodeOf(error: unknown): MeasurementErrorCode {
+  const wire = readWireError(error);
+
+  if (wire !== null) {
+    // Có hình dạng HttpError: mã không qua mẫu thì là `null`, không đọc lại `code` thô.
+    return { code: wire.code ?? null, resource: wire.resource ?? null };
+  }
+
+  if (!isRecord(error)) {
+    return { code: null, resource: null };
+  }
+
+  const params = isRecord(error.params) ? error.params : null;
+  const resource = typeof params?.resource === 'string' ? params.resource : null;
+
+  return { code: typeof error.code === 'string' ? error.code : null, resource };
+}
+
+/** Thân dây (đã qua schema) thành bản ghi của ứng dụng, không ép kiểu. */
+function toRecordFromWire(body: MeasurementRecordBody): MeasurementRecord {
+  return {
+    id: `MS-${body.id.slice(3)}`,
+    name: body.name,
+    mode: body.mode,
+    points: body.points.map((point) => ({
+      x: millimetres(point.x),
+      y: millimetres(point.y),
+      ...(point.z !== undefined ? { z: millimetres(point.z) } : {}),
+    })),
+    rawValueMm: millimetres(body.rawValueMm),
+  };
+}
+
+/** Cổng thật, cộng hàm hoà giải 409 của vé hoàn tác (E5) — kiểu mở rộng khai ở đây. */
+export type MeasurementToolHttpGateway = MeasurementToolGateway & {
+  /** Đọc lại #16 rồi cấp cho bản ghi một mã và tên chưa ai dùng. */
+  readonly resolveUndoConflict: (
+    projectId: string,
+    measurement: MeasurementRecord,
+  ) => Promise<MeasurementRecord>;
+};
+
 /**
  * Cổng đọc và ghi thật.
  *
@@ -535,28 +596,78 @@ function cachedRecords(
  */
 export function createMeasurementToolGateway(
   deps: MeasurementToolGatewayDeps,
-): MeasurementToolGateway {
+): MeasurementToolHttpGateway {
+  /** Mọi mã đã xoá trong phiên này — máy chủ cho tái dùng, phiên FE thì không. */
+  const deletedIds = new Set<string>();
+
+  const withDeleted = (rows: readonly { readonly id: string }[]): readonly { readonly id: string }[] => [
+    ...rows,
+    ...[...deletedIds].map((id) => ({ id })),
+  ];
+
+  const readRecords = async (projectId: string): Promise<readonly MeasurementRecord[]> => {
+    const result = await deps.http.get<unknown>(ENDPOINTS.measurements.list(projectId));
+
+    if (!result.ok) {
+      // Ném nguyên `HttpError`: `useQuery` của hook là chỗ lỗi thành trạng
+      // thái màn (R-64), và bọc lại ở đây chỉ làm mất `kind` gốc.
+      throw result.error;
+    }
+
+    const decoded = safeParseList(MeasurementRecordSchema, result.data, 'measurements.list');
+
+    if (!decoded.ok) {
+      throw decoded.error;
+    }
+
+    return decoded.data.map(toRecordFromWire);
+  };
+
+  /** Đọc lại #16, ghi vào bộ nhớ đệm, và cấp mã mới trên danh sách hợp mã đã xoá. */
+  const freshIdentity = async (projectId: string): Promise<ReturnType<typeof nextMeasurementIdentity>> => {
+    const records = await readRecords(projectId);
+
+    deps.queryClient.setQueryData(measurementKeys.all(projectId), records);
+
+    return nextMeasurementIdentity(withDeleted(records));
+  };
+
   return {
-    listMeasurements: async (projectId) => {
-      const result = await deps.http.get<readonly MeasurementRecord[]>(
-        ENDPOINTS.measurements.list(projectId),
-      );
-
-      if (!result.ok) {
-        // Ném nguyên `HttpError`: `useQuery` của hook là chỗ lỗi thành trạng
-        // thái màn (R-64), và bọc lại ở đây chỉ làm mất `kind` gốc.
-        throw result.error;
-      }
-
-      return result.data.map((record) =>
+    listMeasurements: async (projectId) =>
+      (await readRecords(projectId)).map((record) =>
         formatMeasurementRow(toMeasurementRowCore(record), INITIAL_MEASURE_UNIT),
-      );
-    },
+      ),
 
     saveMeasurement: async (projectId, measurement) => {
-      await deps.save({ projectId, measurement: toMeasurementRecord(measurement) });
+      // Mã bản nháp sinh ở hook chỉ thấy danh sách; mã đã xoá trong phiên thì
+      // chỉ cổng biết, nên sinh lại trước khi gửi.
+      let row: PinnedMeasurement = deletedIds.has(measurement.id)
+        ? {
+            ...measurement,
+            ...nextMeasurementIdentity(withDeleted(cachedRecords(deps.queryClient, projectId))),
+          }
+        : measurement;
 
-      return measurement;
+      try {
+        await deps.save({ projectId, measurement: toMeasurementRecord(row) });
+      } catch (error) {
+        // Chỉ 409 đổi mã mới đáng thử lại; mọi mã khác (kể cả 422 hết hạn mức)
+        // ném ngay, không đọc lại.
+        if (measurementErrorCodeOf(error).code !== ID_TAKEN_CODE) {
+          throw error;
+        }
+
+        row = { ...row, ...(await freshIdentity(projectId)) };
+
+        try {
+          await deps.save({ projectId, measurement: toMeasurementRecord(row) });
+        } catch {
+          // Lần hai hỏng thì ném lỗi GỐC (lần một), không phải lỗi lần hai.
+          throw error;
+        }
+      }
+
+      return row;
     },
 
     deleteMeasurement: async (projectId, id) => {
@@ -571,7 +682,13 @@ export function createMeasurementToolGateway(
       }
 
       deps.onUndoTicket?.(await deps.remove({ projectId, measurement }));
+      deletedIds.add(id);
     },
+
+    resolveUndoConflict: async (projectId, measurement) => ({
+      ...measurement,
+      ...(await freshIdentity(projectId)),
+    }),
   };
 }
 

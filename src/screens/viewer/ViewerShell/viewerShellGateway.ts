@@ -40,7 +40,7 @@ import type { PointMm } from '@/domain/units/compare';
 import { totalArea } from '@/domain/rooms/area';
 import { squareMetres, type SquareMetres } from '@/domain/units/types';
 import type { ApiClient } from '@/api/client';
-import { mockApiClient } from '@/api/__mocks__/client';
+import { createAppApiClient } from '@/api/appClient';
 import type { ProjectRole } from '@/types/project';
 
 import { GROUND, toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
@@ -271,7 +271,7 @@ export function footprintOf(spatial: NormalizedSpatial | null): ViewerFootprintM
  */
 export function createViewerShellGateway(
   readSpatial: () => NormalizedSpatial | null,
-  apiClient: ApiClient = mockApiClient,
+  apiClient: ApiClient = createAppApiClient(),
 ): ViewerShellGateway {
   return {
     readProjectName: async (projectId: string): Promise<string | null> => {

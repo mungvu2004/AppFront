@@ -21,6 +21,8 @@ import {
   measureDistance,
   measureHeight,
   measurePolygonArea,
+  MEASUREMENT_NOTE_SEQUENCE_MAX,
+  nextMeasurementNoteSequence,
   readMeasurementNoteSequence,
   type MeasurePoint,
   type MeasurementNote,
@@ -452,7 +454,7 @@ describe('measurement notes', () => {
     expect(after).toHaveLength(1);
   });
 
-  it('never reuses a code after a note was deleted', () => {
+  it('takes one past the highest code in the list and leaves the gap of a removed note', () => {
     const three = [1, 2, 3].map((sequence) =>
       createMeasurementNote(distance, { levelId: GROUND_LEVEL, sequence }),
     );
@@ -461,6 +463,24 @@ describe('measurement notes', () => {
 
     expect(withoutTheLast.map((note) => note.id)).toEqual(['MS-0001', 'MS-0002']);
     expect(reopened.map((note) => note.id)).toEqual(['MS-0002', 'MS-0003', 'MS-0004']);
+  });
+
+  it('reads no sequence from an id beyond the safe integers, and one from the last safe id', () => {
+    expect(readMeasurementNoteSequence('MS-9007199254740993')).toBeNull();
+    expect(readMeasurementNoteSequence('MS-9007199254740991')).toBe(9007199254740991);
+  });
+
+  it('refuses to build an id past the 15-digit ceiling', () => {
+    expect(() => createMeasurementNoteId(MEASUREMENT_NOTE_SEQUENCE_MAX + 1)).toThrow(RangeError);
+    expect(createMeasurementNoteId(MEASUREMENT_NOTE_SEQUENCE_MAX)).toBe('MS-999999999999999');
+  });
+
+  it('gives the smallest unused sequence once the highest sits at the ceiling', () => {
+    const ids = ['MS-0001', 'MS-0002', 'MS-0004', createMeasurementNoteId(MEASUREMENT_NOTE_SEQUENCE_MAX)];
+
+    expect(nextMeasurementNoteSequence(ids)).toBe(3);
+    expect(nextMeasurementNoteSequence([])).toBe(1);
+    expect(nextMeasurementNoteSequence(['MS-0007', 'not-an-id'])).toBe(8);
   });
 
   it('throws every saved measurement away at once', () => {

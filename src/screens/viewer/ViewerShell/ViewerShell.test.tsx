@@ -61,7 +61,7 @@ import {
 } from './viewerShellFixture';
 import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
-import { ALL_VIEWER_TOOLS, useViewerShell } from './useViewerShell';
+import { ALL_VIEWER_TOOLS, defaultViewerShellGateway, useViewerShell } from './useViewerShell';
 import {
   VIEWER_LAYOUT,
   type ViewerSceneActions,
@@ -808,5 +808,17 @@ describe('R-72 — expectAccessible và expectVietnamese', () => {
 
   it('không mã màu thô trong toàn thư mục màn (A1)', () => {
     expectNoRawColor('src/screens/viewer/ViewerShell');
+  });
+});
+
+describe('[VS-DG] cổng mặc định theo chế độ mock', () => {
+  it('không mock: đọc kho — kho rỗng thì không có tầng nào', () => {
+    expect(defaultViewerShellGateway(false).readShellData().storeys).toHaveLength(0);
+  });
+
+  it('mock: dùng bộ mẫu', () => {
+    expect(defaultViewerShellGateway(true).readShellData()).toEqual(
+      shellDataOf(VIEWER_FIXTURE_SPATIAL),
+    );
   });
 });
