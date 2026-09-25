@@ -42,8 +42,8 @@
  * hai chỗ tiêm đã có sẵn (`ViewerShellContainerProps.gateway` và `.spatial`):
  *
  * - kho có đồ thị thật → đó là nguồn, và cổng là cổng THẬT;
- * - kho rỗng → dùng ĐÚNG bộ mẫu mà vỏ vẫn đang dùng
- *   (`VIEWER_FIXTURE_SPATIAL`), chứ không dựng một bảng dữ liệu thứ ba.
+ * - kho rỗng VÀ ở chế độ mock (`resolveUseMockApi()`) → dùng ĐÚNG bộ mẫu
+ *   (`VIEWER_FIXTURE_SPATIAL`); nối BE thật thì kho rỗng vẫn là kho rỗng.
  *
  * **Đây là đường TẠM.** Nó ở đây vì chưa endpoint nào trả về `NormalizedSpatial`
  * — `data-gateway-contract.md` mục A ghi rõ khoảng trống ấy, và `FloorSchema`
@@ -141,7 +141,7 @@
  * dự án khác thì ranh giới gắn LẠI.
  */
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -157,9 +157,6 @@ import type { ColoringModeId } from '@/lib/coloring/modes';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { useStore } from '@/store';
 import {
-  createViewerShellFixtureGateway,
-  createViewerShellGateway,
-  VIEWER_FIXTURE_SPATIAL,
   ViewerShellContainer,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell';
@@ -175,6 +172,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { Viewer3DPanels, type Viewer3DPanelId } from './Viewer3DPanels';
 import { Viewer3DSceneSlot } from './Viewer3DSceneSlot';
+import { useViewer3DSource } from './useViewer3DSource';
 import type { MountViewerScene, Viewer3DTelemetry } from './viewer3dTypes';
 
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
@@ -235,23 +233,11 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   const [openPanelId, setOpenPanelId] = useState<Viewer3DPanelId | null>(null);
   const [isWallEditing, setIsWallEditing] = useState(false);
 
-  /* Kho rỗng là chuyện thường ở dev, không phải một sự cố: rơi về đúng bộ mẫu
-     vỏ vẫn dùng, và ghi rõ đây là đường tạm (xem đầu file). */
-  const usesFixture = props.spatial === undefined && storeSpatial === null;
-
-  const resolvedSpatial: NormalizedSpatial | null = usesFixture
-    ? VIEWER_FIXTURE_SPATIAL
-    : (props.spatial ?? storeSpatial);
-
-  const resolvedGateway = useMemo((): ViewerShellGateway => {
-    if (props.gateway !== undefined) {
-      return props.gateway;
-    }
-
-    return usesFixture
-      ? createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL)
-      : createViewerShellGateway(() => useStore.getState().spatial);
-  }, [props.gateway, usesFixture]);
+  /* Nhà mẫu chỉ còn ở chế độ mock (xem `useViewer3DSource`). */
+  const { spatial: resolvedSpatial, gateway: resolvedGateway } = useViewer3DSource(
+    props,
+    storeSpatial,
+  );
 
   const onOpenSearch = useCallback((): void => {
     setIsSearchOpen(true);
