@@ -26,11 +26,9 @@ export {
   type UseScaleCalibrationHookOptions,
 } from './useScaleCalibration';
 export {
-  clearPersistedScales,
   createAppScaleCalibrationGateway,
   createMockScaleCalibrationGateway,
   createScaleCalibrationGateway,
-  readPersistedScale,
   withScaleCapabilities,
   type CreateScaleCalibrationGatewayOptions,
   type PersistScaleInput,
