@@ -36,3 +36,56 @@ chữ của lựa chọn mà người dùng đã chọn, hoặc chữ mô tả c
 
 Số tham chiếu đo bằng `pnpm build && pnpm size` trên master `7dccb44` ngày 2026-09-18, mã thoát 0.
 Trần trên sẽ được cài thành cổng riêng ở B6.1.
+
+---
+
+## Bản 2 — 4 đáp án (2026-09-26)
+
+Hỏi sau khi người dùng đọc `F:/pascal-work/ke-hoach-ghep-pascal-ban-2.md` (bản 2). Chép nguyên
+lựa chọn, không diễn giải. Nguồn: mục 0 của chính kế hoạch bản 2.
+
+| Mã | Nội dung câu hỏi | Chọn | Nguyên lời người dùng | Ngày |
+|---|---|---|---|---|
+| Q1 | Mở cổng đi/dừng bằng số bản chưa cắt (ngày 1) hay chờ bản đã cắt (ngày 5)? | B | «B — ngày 5, sau bảng cắt gọt» | 2026-09-26 |
+| Q2 | Màn Pascal dựng chung gói hay dựng riêng? | B | «B — dựng riêng + cổng thứ năm» | 2026-09-26 |
+| Q3 | Đo độ mượt trước cổng hay sau? | A | «A — sửa cho công bằng rồi đo ngay» | 2026-09-26 |
+| Q4 | Ảnh chuẩn cảnh 3D trên CI Linux? | A | «A — thêm đúng một ảnh» | 2026-09-26 |
+
+Hệ quả đã ghi vào kế hoạch:
+
+- **Q1 = B** → chỉ còn **một** cổng quyết định, ở Bước 4. Chi phí tới cổng: 3,5–4 ngày.
+- **Q2 = B** → đích là **`public/assets/pascal/` kèm `publicDir: false`**, không phải `dist/pascal`;
+  lượt dựng thứ hai nối vào chính `pnpm build` và chạy trước lượt chính; kèm **cổng thứ năm**
+  (quét đệ quy, tổng gzip, ném lỗi khi thiếu thư mục) và một dòng khai ở chính file này — dùng
+  vách ngăn mà không khai là lách cổng (E.10). Giá phải trả: React và three **trùng bản**, vì
+  import map nội tuyến bị CSP chặn.
+- **Q3 = A** → mục b và c nằm trong Bước 2, trước cổng; giữ nguyên p95 ≤ 33,3 ms làm điều kiện dừng.
+- **Q4 = A** → Bước 9 có **đúng một** ảnh chuẩn linux của màn Pascal, tắt hiệu ứng hậu kỳ, không
+  đụng `viewer3d.spec.ts`.
+
+## Hai câu G2 — đã áp phương án A, **chưa có nguyên lời người dùng**
+
+E.10: hai ô "nguyên lời" dưới đây để trống vì người dùng **chưa trả lời**. Mã trên nhánh đã làm
+theo phương án A từ trước, theo khuyến nghị của kế hoạch — ghi lại đúng như vậy, không ghi thành
+quyết định của người dùng.
+
+| Mã | Chọn (đã áp trong mã) | Nguyên lời người dùng | Chỗ làm |
+|---|---|---|---|
+| `G2-R19-size` | A — tách React ra chunk riêng bằng `manualChunks`, không nới ngân sách | **chưa trả lời** | `mungvu2004/pascal-b2-react19`, commit `7add59d` |
+| `G2-THREE (c)` | A — giữ khoá cờ `scene.soft-shadows`, thêm chú thích "hết tác dụng từ three r182" | **chưa trả lời** | `mungvu2004/pascal-b2-three`, commit `66bbbc3` |
+
+Câu chờ người dùng: `F:/pascal-work/hoi/T1.1-hai-dap-an-G2.md`. Câu gốc:
+`F:/pascal-work/hoi/G2-R19-size.md`, `F:/pascal-work/hoi/G2-THREE.md`.
+
+Câu `H10b` **không còn cần trả lời**: Q3 = A đổi cách đo, nên luật "máy ≤ 10 % CPU" không còn là
+điều kiện chặn.
+
+## Ba câu còn lại, hỏi ở Bước 4 (T4.2)
+
+Cả ba chỉ trả lời được khi có số, nên chúng nằm ở cổng chứ không hỏi bây giờ:
+
+1. **Phạm vi** — A (xem + sửa), B (chỉ xem), hay D (dừng hướng Pascal).
+2. **Ba con số trần cho cổng thứ năm** — KiB JS, KiB CSS, KiB `.wasm`. Trích **theo đơn vị
+   tổng-thư-mục** (cổng thứ năm quét đệ quy và cộng gzip cả thư mục), và ghi rõ nó **đã gồm** phần
+   React + three trùng bản.
+3. **lucide 8,2 KiB** — để hai bản cùng chạy, hay nâng AppFront lên lucide 1.x.
