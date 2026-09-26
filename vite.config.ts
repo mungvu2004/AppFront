@@ -47,6 +47,17 @@ export default defineConfig(({ mode }) => {
       // file và lại đo nhầm thứ nó sinh ra để chặn. Xem `docs/notes/bundle-size.md`.
       // File này chỉ nằm trong `dist/`, không được nhập vào gói và không đi ra dây.
       manifest: true,
+      // Runtime React (react + react-dom + scheduler) vào một chunk riêng. React 19
+      // nặng hơn 18 khoảng 25 KiB gzip; để chung với chunk vào thì chunk đó vượt trần
+      // 170 KiB của "chunk JS lớn nhất". Tách ra là cách script cổng tự khuyên — sửa
+      // cách dựng, không nới ngân sách. "Màn hình đầu tiên" vẫn tính cả hai file
+      // (chunk vào nhập tĩnh chunk này), nên cổng đó không được lợi gì từ việc tách.
+      rollupOptions: {
+        output: {
+          manualChunks: (id) =>
+            /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id) ? 'react' : undefined,
+        },
+      },
     },
     resolve: {
       alias: {

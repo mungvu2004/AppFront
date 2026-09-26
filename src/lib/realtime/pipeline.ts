@@ -1,4 +1,6 @@
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
+import { pipeline as pipelineMessages } from '@/i18n/vi.json';
 
 const PIPELINE_STAGE_IDS = [
   'preprocess',
@@ -106,7 +108,7 @@ const isAtInitialProgress = (stages: readonly PipelineStageState[]): boolean =>
 export function getPipelineStages(): PipelineStage[] {
   return PIPELINE_STAGES.map((stage) => ({
     ...stage,
-    label: viMessages.pipeline[stage.labelKey],
+    label: pipelineMessages[stage.labelKey],
   }));
 }
 

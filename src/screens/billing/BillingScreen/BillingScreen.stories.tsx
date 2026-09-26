@@ -8,7 +8,7 @@
  * **Không một con số nào viết tay ở đây.** Lệnh của người duyệt (hợp đồng mục 0)
  * nói mọi con số sống trong đúng một bảng dữ liệu có kiểu ở `billingGateway.ts`,
  * và cấm chuỗi tiền hay diện tích viết thẳng vào hook, view **hay story**. Nên
- * file này đọc một ảnh chụp thật của cổng ở cấp module rồi định dạng bằng đúng
+ * file này đọc một ảnh chụp thật của cổng (qua `loaders`) rồi định dạng bằng đúng
  * những hàm hook dùng — `formatMoney`, `formatArea`, `formatNumber`,
  * `formatCalendarDate`. Đổi giá gói trong bảng dữ liệu là bảy story đổi theo,
  * không ai phải sửa file này.
@@ -48,24 +48,34 @@ const meta = {
 } satisfies Meta<typeof BillingScreen>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+// Args tuỳ chọn: mọi story dựng props từ `loaded`, không từ `args`.
+type Story = StoryObj<typeof BillingScreen>;
 
 const noop = (): void => undefined;
 
 /* -------------------------------------------------------------------------- */
-/* Nguồn số: một ảnh chụp thật của cổng, đọc một lần lúc nạp module.           */
+/* Nguồn số: ảnh chụp thật của cổng, đọc qua `loaders` của Storybook.         */
+/* Không `await` ở cấp module: bản dựng Storybook nhắm es2020, không có nó.    */
 /* -------------------------------------------------------------------------- */
 
 const PERIOD: BillingPeriod = 'monthly';
 
-const snapshot: BillingSnapshot = await createBillingGateway().read(PERIOD);
-
 /** Nửa đường từ ngưỡng "cần chú ý" tới đầy — một cảnh dẫn ra, không một con số chọn tay. */
 const ATTENTION_MIDPOINT = QUOTA_ATTENTION_THRESHOLD + (1 - QUOTA_ATTENTION_THRESHOLD) / 2;
 
-const nearLimitSnapshot: BillingSnapshot = await createBillingGateway({
-  quotaOverride: { digitisedAreaM2: Math.round(snapshot.quota.limitAreaM2 * ATTENTION_MIDPOINT) },
-}).read(PERIOD);
+interface Snapshots {
+  readonly snapshot: BillingSnapshot;
+  readonly nearLimitSnapshot: BillingSnapshot;
+}
+
+async function loadSnapshots(): Promise<Snapshots> {
+  const snapshot = await createBillingGateway().read(PERIOD);
+  const nearLimitSnapshot = await createBillingGateway({
+    quotaOverride: { digitisedAreaM2: Math.round(snapshot.quota.limitAreaM2 * ATTENTION_MIDPOINT) },
+  }).read(PERIOD);
+
+  return { snapshot, nearLimitSnapshot };
+}
 
 /** Tiền Việt không có phần lẻ — cùng tuỳ chọn hook dùng cho mọi chuỗi số nguyên. */
 const WHOLE: NumberFormatOptions = { fractionDigits: 0 };
@@ -180,7 +190,7 @@ function invoicePageOf(source: BillingSnapshot): BillingInvoicePage {
 }
 
 /** Mọi trường không đổi giữa bảy trạng thái, một chỗ. */
-const BASE: BillingScreenProps = {
+const baseOf = (snapshot: BillingSnapshot): BillingScreenProps => ({
   state: 'ready',
   isReadOnly: false,
   readOnlyNotice: null,
@@ -202,79 +212,77 @@ const BASE: BillingScreenProps = {
   onChangePlanRequest: noop,
   onConfirmDismiss: noop,
   onConfirmAccept: noop,
-};
+});
 
 /** Lỗi của trạng thái 4 phân loại qua đúng đường hook đi — L-03, không bịa mã. */
 const SAMPLE_FAILURE = toAppError(new Error('network: fetch failed'));
+
+/** Một story: đọc hai ảnh chụp, rồi dựng props từ chúng. */
+function fromSnapshots(propsOf: (loaded: Snapshots) => BillingScreenProps): Story {
+  return {
+    loaders: [loadSnapshots],
+    render: (_args, { loaded }) => <BillingScreen {...propsOf(loaded as Snapshots)} />,
+  };
+}
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái.                                                             */
 /* -------------------------------------------------------------------------- */
 
 /** 1 — rỗng: chưa có hoá đơn nào. Ba khối trên vẫn đầy đủ (hợp đồng mục 4). */
-export const Empty: Story = {
-  args: {
-    ...BASE,
+export const Empty: Story = fromSnapshots(({ snapshot }) => {
+  const base = baseOf(snapshot);
+
+  return {
+    ...base,
     state: 'empty',
     invoices: [],
-    invoicePage: { ...BASE.invoicePage, count: 1 },
-  },
-};
+    invoicePage: { ...base.invoicePage, count: 1 },
+  };
+});
 
 /** 2 — đang tải: tám dòng khung xương bảng, cộng ba thẻ gói khung xương. */
-export const Loading: Story = {
-  args: { ...BASE, state: 'loading' },
-};
+export const Loading: Story = fromSnapshots(({ snapshot }) => ({ ...baseOf(snapshot), state: 'loading' }));
 
 /** 3 — một phần: hạn mức đang tính lại và mất lịch sử hoá đơn; khối 2, 3 vẫn đủ. */
-export const Partial: Story = {
-  args: {
-    ...BASE,
-    state: 'partial',
-    degraded: [
-      { block: 'quota', message: RECALCULATING },
-      { block: 'invoices', message: INVOICES_UNAVAILABLE },
-    ],
-    invoices: [],
-  },
-};
+export const Partial: Story = fromSnapshots(({ snapshot }) => ({
+  ...baseOf(snapshot),
+  state: 'partial',
+  degraded: [
+    { block: 'quota', message: RECALCULATING },
+    { block: 'invoices', message: INVOICES_UNAVAILABLE },
+  ],
+  invoices: [],
+}));
 
 /** 4 — lỗi: câu nêu lý do, mã chữ đều nhỏ, và một nút thử lại. */
-export const ErrorState: Story = {
-  args: {
-    ...BASE,
-    state: 'error',
-    error: {
-      message: describeError(SAMPLE_FAILURE).description,
-      code: SAMPLE_FAILURE.code,
-      retryLabel: 'Thử lại',
-      onRetry: noop,
-    },
+export const ErrorState: Story = fromSnapshots(({ snapshot }) => ({
+  ...baseOf(snapshot),
+  state: 'error',
+  error: {
+    message: describeError(SAMPLE_FAILURE).description,
+    code: SAMPLE_FAILURE.code,
+    retryLabel: 'Thử lại',
+    onRetry: noop,
   },
-};
+}));
 
 /** 5 — xong: đủ bốn khối, hạn mức đã qua ngưỡng nên khối 1 kèm dải cảnh báo. */
-export const Ready: Story = {
-  args: {
-    ...BASE,
-    plan: currentPlanOf(nearLimitSnapshot, true),
-    quotaAlert: quotaAlertOf(nearLimitSnapshot),
-  },
-};
+export const Ready: Story = fromSnapshots(({ snapshot, nearLimitSnapshot }) => ({
+  ...baseOf(snapshot),
+  plan: currentPlanOf(nearLimitSnapshot, true),
+  quotaAlert: quotaAlertOf(nearLimitSnapshot),
+}));
 
 /** 6 — không có quyền: toàn bộ ở chế độ đọc, không khối nào bị ẩn. */
-export const Forbidden: Story = {
-  args: {
-    ...BASE,
-    state: 'forbidden',
-    isReadOnly: true,
-    readOnlyNotice: READ_ONLY_NOTICE,
-    plan: currentPlanOf(snapshot, false),
-    plans: planCardsOf(snapshot, true),
-  },
-};
+export const Forbidden: Story = fromSnapshots(({ snapshot }) => ({
+  ...baseOf(snapshot),
+  state: 'forbidden',
+  isReadOnly: true,
+  readOnlyNotice: READ_ONLY_NOTICE,
+  plan: currentPlanOf(snapshot, false),
+  plans: planCardsOf(snapshot, true),
+}));
 
 /** 7 — thu gọn: tên gói, `usageLabel`, thanh hạn mức — không gì khác. */
-export const Collapsed: Story = {
-  args: { ...BASE, state: 'collapsed' },
-};
+export const Collapsed: Story = fromSnapshots(({ snapshot }) => ({ ...baseOf(snapshot), state: 'collapsed' }));

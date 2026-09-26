@@ -1,4 +1,6 @@
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
+import { common } from '@/i18n/vi.json';
 import { createUuid } from '@/lib/http/ids';
 
 import { combineUndoTickets, type UndoTicket } from './undoTicket';
@@ -43,7 +45,7 @@ interface PendingGroup {
 }
 
 const formatUndoGroupLabel = (count: number): string =>
-  viMessages.common.undo_group.replace('{{count}}', String(count));
+  common.undo_group.replace('{{count}}', String(count));
 
 /** The tickets among these entries, oldest first; entries without one are skipped. */
 const ticketsOf = (entries: readonly NotificationInput[]): readonly UndoTicket[] =>

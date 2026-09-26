@@ -71,7 +71,7 @@ const meta = {
      một hàm vào file CSF sẽ làm Storybook coi nó là story và bỏ trắng cả file. */
   excludeStories: ['scenarioArgsFor'],
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <QueryClientProvider client={createTestQueryClient()}>
         <MemoryRouter>
           <div className="h-screen w-screen">

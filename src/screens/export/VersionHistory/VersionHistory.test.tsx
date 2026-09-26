@@ -85,7 +85,7 @@ async function loadUseVersionHistory(): Promise<
   return mod.useVersionHistory;
 }
 
-function withQueryClient(): ({ children }: { readonly children: ReactNode }) => JSX.Element {
+function withQueryClient(): ({ children }: { readonly children: ReactNode }) => React.JSX.Element {
   const client = createTestQueryClient();
 
   return function QueryWrapper({ children }: { readonly children: ReactNode }) {

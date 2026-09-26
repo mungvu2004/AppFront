@@ -131,7 +131,7 @@ const noop = (): void => {
 const meta = {
   component: RoomAreaPanelContainer,
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <div className={FRAME_CLASS}>
         <Story />
       </div>
