@@ -93,8 +93,8 @@ export type ShadowQuality = 'soft' | 'hard';
  * The three.js shadow map that draws a given quality.
  *
  * Turning soft shadows off means the cheaper filter, never no shadows (a plan reads flat
- * without them). Since three r182 both are `PCFShadowMap`: `PCFSoftShadowMap` was removed
- * ("PCFShadowMap is now soft as well"), so degrading no longer changes the filter.
+ * without them). Both rungs are `PCFShadowMap`: three still exports `PCFSoftShadowMap` but
+ * deprecated it, and its renderer warns then draws `PCFShadowMap` in place of it anyway.
  */
 export function shadowMapTypeFor(quality: ShadowQuality): ShadowMapType {
   return { soft: PCFShadowMap, hard: PCFShadowMap }[quality];

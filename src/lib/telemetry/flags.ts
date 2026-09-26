@@ -129,7 +129,7 @@ export const FEATURE_FLAGS = {
       'Dựng tường bằng lưới thực thể hoá (instanced mesh) để giảm số lệnh vẽ trên mặt bằng lớn; tốn thêm bộ nhớ GPU.',
     removeBy: '2026-10-31',
   },
-  'scene.soft-shadows': { // hết tác dụng từ three r182, xem shadowMapTypeFor; giữ khoá cho BE
+  'scene.soft-shadows': { // hết tác dụng: shadowMapTypeFor chỉ còn PCFShadowMap; giữ khoá cho BE
     key: 'scene.soft-shadows',
     defaultValue: false,
     description: 'Bóng mềm trong khung nhìn 3D; đẹp hơn nhưng nặng GPU, chỉ bật cho nhóm máy mạnh.',

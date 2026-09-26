@@ -361,8 +361,8 @@ describe('mountViewerScene', () => {
     // được dựng. Đó là tính chất của bộ mẫu, không phải của nấc chi tiết.
     expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
     expect(host.renderer.shadowMap.type).toBe(shadowMapTypeFor('soft'));
-    // Giá trị canh: từ three r182 `'soft'` và `'hard'` cùng là `PCFShadowMap`, nên
-    // chỉ khi xoá giá trị lúc gắn thì mới biết hạ nấc có thật sự ghi kiểu bóng.
+    // Giá trị canh: `'soft'` và `'hard'` nay cùng ra `PCFShadowMap` — `PCFSoftShadowMap` còn
+    // nhưng renderer thay nó — nên chỉ khi xoá giá trị lúc gắn mới biết hạ nấc có thật sự ghi.
     host.renderer.shadowMap.type = -1;
 
     // Một cửa sổ đo dài hơn `DEGRADE_WINDOW_MS` với đúng hai khung hình: khung
