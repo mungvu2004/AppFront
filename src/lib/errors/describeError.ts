@@ -1,4 +1,6 @@
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
+import { common, errors } from '@/i18n/vi.json';
 
 import { APP_ERROR_KIND_CONFIG, type AppError, type AppErrorKind } from './kinds';
 
@@ -34,6 +36,12 @@ const formatTemplate = (template: string, params: AppError['params']): string =>
 
     return String(value);
   });
+
+/**
+ * Gốc cây mà `readPath` đi vào. Đúng hai khoá, vì kiểu đường dẫn ở `./kinds.ts:40-46`
+ * đóng kín: chỉ `common.*` và `errors.<kind>.{title,description}`, không đường nào khác.
+ */
+const viMessages = { common, errors };
 
 const readMessage = (path: string): string => readPath(viMessages, path) ?? '';
 
