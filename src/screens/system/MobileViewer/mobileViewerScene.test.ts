@@ -365,8 +365,8 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
     const handle = mounted(test);
 
     expect(handle.currentDetail()).toBe('full');
-    // Giá trị canh: từ three r182 `'soft'` và `'hard'` cùng là `PCFShadowMap`, nên
-    // chỉ khi xoá giá trị lúc gắn thì mới biết hạ mức có thật sự ghi kiểu bóng.
+    // Giá trị canh: `'soft'` và `'hard'` nay cùng ra `PCFShadowMap` — `PCFSoftShadowMap` còn
+    // nhưng renderer thay nó — nên chỉ khi xoá giá trị lúc gắn mới biết hạ mức có thật sự ghi.
     test.renderer.shadowMap.type = -1;
 
     // Mỗi vòng là một cửa sổ đo dài hơn 500 ms với đúng một khung hình — khoảng

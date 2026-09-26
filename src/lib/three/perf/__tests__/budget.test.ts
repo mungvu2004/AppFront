@@ -770,7 +770,7 @@ describe('PerfMonitor degrading', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('shadowMapTypeFor', () => {
-  it('draws both qualities with PCFShadowMap, which is soft since three r182', () => {
+  it('draws both qualities with PCFShadowMap, because three deprecated the soft filter', () => {
     expect(shadowMapTypeFor('soft')).toBe(PCFShadowMap);
     expect(shadowMapTypeFor('hard')).toBe(PCFShadowMap);
   });
