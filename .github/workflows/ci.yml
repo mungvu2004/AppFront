@@ -135,12 +135,46 @@ jobs:
       # Không sinh ảnh linux tại máy Windows được, và ảnh sinh trong container khác
       # phiên bản ubuntu vẫn có thể lệch phông chữ — commit ảnh đoán mò còn tệ hơn
       # không có ảnh nào.
-      - name: Đẩy ảnh chuẩn linux ra artifact khi hỏng
-        if: failure()
+      #
+      # `always()` chứ không `failure()`. Đừng đọc đây như "failure() không nổ khi
+      # bước cài gói hỏng" — nó CÓ nổ: `failure()` trong điều kiện của một bước là
+      # đúng ngay khi bất kỳ bước nào trước đó hỏng. Chỗ nó KHÔNG nổ là khi job bị
+      # HUỶ: hết hạn mức 6 giờ, hay một lượt push mới huỷ lượt đang chạy. Đúng lúc
+      # đó ta vẫn muốn xem `test-results/` kịp ghi được gì. Giá phải trả: lượt xanh
+      # cũng đẩy artifact, nội dung là hai ảnh `win32` đang nằm trong repo — 120 KB.
+      #
+      # Hai đường dưới đây đã đối chiếu với cây thật của repo, không chép từ mặc
+      # định của tài liệu:
+      #
+      # - `e2e/**/*-snapshots/**` — nơi ảnh chuẩn MỚI được ghi. Mặc định
+      #   `snapshotPathTemplate` (playwright 1.45.2, `lib/common/config.js:159`) cho
+      #   `e2e/<tên file spec>-snapshots/<arg>-chromium-<process.platform>.png`, tức
+      #   `dashboard-1440-chromium-linux.png` ở đây. `updateSnapshots` mặc định là
+      #   `'missing'`: ảnh thiếu thì Playwright GHI RA rồi vẫn để bài đỏ
+      #   (`lib/matchers/toMatchSnapshot.js:159-175`) — đúng điều job này cần, nên
+      #   `playwright.config.ts` cố ý không đặt lại trường đó.
+      # - `test-results/**` — `outputDir` mặc định (`config.js:164`), nơi ghi
+      #   `*-actual.png`, `*-diff.png` và trace của lần chạy lại. Trước đây THIẾU,
+      #   nên một bài hỏng vì hết thời gian chờ (không phải vì thiếu ảnh chuẩn) đẩy
+      #   về một artifact không có gì để xem.
+      #
+      # `playwright-report/**` bị bỏ khỏi danh sách: ở CI nó không bao giờ tồn tại.
+      # `pnpm e2e` truyền `--reporter=line`, và tham số dòng lệnh thắng
+      # `reporter: 'html'` trong config (`config.js:77`), nên trình báo cáo html
+      # không chạy.
+      #
+      # Giữ ĐỦ HAI đường cũng là thứ làm zip giải nén đúng chỗ: upload-artifact v4
+      # lấy tổ tiên chung gần nhất của các search path làm gốc artifact. Hai đường
+      # `e2e/` và `test-results/` cho gốc là thư mục làm việc, nên trong zip đường
+      # dẫn là `e2e/<spec>-snapshots/...` — giải nén tại gốc repo là đã đúng chỗ để
+      # `git add`. Bỏ một đường thì gốc thành `e2e/`, mất tiền tố, và người duyệt
+      # phải tự đoán chỗ đặt.
+      - name: Đẩy ảnh chuẩn linux và test-results ra artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-snapshots-linux
           path: |
             e2e/**/*-snapshots/**
-            playwright-report/**
+            test-results/**
           retention-days: 14
