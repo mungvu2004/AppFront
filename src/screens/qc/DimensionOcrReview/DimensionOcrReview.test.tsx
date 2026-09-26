@@ -539,10 +539,26 @@ describe('[NGHIEM-4] độ lệch chỉ tô màu khi thật sự đáng kể', (
         ).relativeDeviation,
       );
 
-      /* Lượt chạy số 260 ms kết thúc ở đúng giá trị đích trước khi đọc màu. */
-      await waitFor(() => {
-        expect(screen.getByLabelText(COMPARE_BAR_LABEL).textContent ?? '').toContain(expected);
-      });
+      /*
+       * Lượt chạy số 260 ms kết thúc ở đúng giá trị đích trước khi đọc màu.
+       *
+       * Hạn truyền TƯỜNG MINH, vì hạn mặc định ở đây không phải hạn của vitest.
+       * `@testing-library/dom` có đồng hồ riêng — `asyncUtilTimeout`, mặc định **1 000 ms** — và
+       * repo không gọi `configure()` ở đâu. Nên `}, 60000)` ở cuối bài (hạn của vitest) không
+       * cứu được lời gọi này: nó chết ở 1 000 ms với thông điệp của lần khẳng định cuối, không
+       * phải với `Test timed out`.
+       *
+       * Thứ đang chờ là `COUNT_UP_DURATION` — khoá `standard` 260 ms của `lib/motion` — chạy trên
+       * `requestAnimationFrame` và `performance.now()` THẬT. Khi worker bị bỏ đói, `step` đầu
+       * tiên chưa kịp chạy trong 1 000 ms, nên DOM vẫn giữ mẫu đầu (1,5 %) thay vì giá trị cuối
+       * (2,5 %). Đo được trong một lượt `verify` mà cả tệp mất 88 s so với 10–17 s khi máy rảnh.
+       */
+      await waitFor(
+        () => {
+          expect(screen.getByLabelText(COMPARE_BAR_LABEL).textContent ?? '').toContain(expected);
+        },
+        { timeout: 4000 },
+      );
 
       return {
         text: bar.textContent ?? '',

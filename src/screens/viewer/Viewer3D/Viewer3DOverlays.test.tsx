@@ -14,6 +14,18 @@ import { renderWithProviders } from '@/lib/testing/render';
 
 import { Viewer3DOverlays, type Viewer3DOverlaysProps } from './Viewer3DOverlays';
 
+/*
+ * Nạp trước hai module mà `Viewer3DOverlays` nhập bằng `lazy()`.
+ *
+ * `LAZY_WAIT` dưới đây là 4 000 ms và đã kẹt trần: nó phải nằm dưới `testTimeout` 5 000 ms
+ * (mặc định của vitest — `vitest.config.ts` không khai nó), mà 4 000 ms ấy đang phải gánh cả
+ * lượt biên dịch `CollaborationLayer` và `WallGeometryEditor` — màn thứ hai nặng tới mức bộ
+ * test của riêng nó chạy 24 s. Nạp trước ở đây để 4 000 ms chỉ còn đo việc render, nên một
+ * lớp phủ hỏng THẬT báo đỏ nhanh hơn, không chậm hơn. `lazy()` trong mã sản phẩm không đổi.
+ */
+import '@/screens/system/CollaborationLayer';
+import '@/screens/viewer/WallGeometryEditor';
+
 /**
  * Hạn chờ cho hai lớp phủ nạp bằng lazy — xem đầu `Viewer3DOverlays.tsx`.
  *
