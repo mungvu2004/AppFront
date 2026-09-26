@@ -72,7 +72,14 @@ quyết định của người dùng.
 | Mã | Chọn (đã áp trong mã) | Nguyên lời người dùng | Chỗ làm |
 |---|---|---|---|
 | `G2-R19-size` | A — tách React ra chunk riêng bằng `manualChunks`, không nới ngân sách | **chưa trả lời** | `mungvu2004/pascal-t51-vijson`, commit `a922118` |
-| `G2-THREE (c)` | A — giữ khoá cờ `scene.soft-shadows`, thêm chú thích "hết tác dụng từ three r182" | **chưa trả lời** | `mungvu2004/pascal-b2-three`, commit `df8b783` |
+| `G2-THREE (c)` | A — giữ khoá cờ `scene.soft-shadows`, thêm chú thích "hết tác dụng" | **chưa trả lời** | `mungvu2004/pascal-b2-three`, commit `df8b783`, chú thích sửa lại ở `3e8c4ca` |
+
+> **Chuỗi chú thích của `G2-THREE (c)` cũng đã sửa, và bảng trên trích bản MỚI.** Bản đầu ghi
+> "hết tác dụng từ **three r182**". Con số r182 **không truy được về tệp nào**: gói đã cài khai
+> `@deprecated since **r186**` (`three/src/constants.js:73-75`), và hằng `PCFSoftShadowMap` **vẫn còn**
+> — cái bị gỡ là **bộ lọc** (`WebGLShadowMap.js:99-104` cảnh báo rồi tự ép `PCFShadowMap`). Sáu chỗ
+> trong mã và tài liệu nói "đã bị gỡ" đã sửa ở `3e8c4ca`, và mốc "r182" bị gỡ khỏi cả sáu thay vì đổi
+> thành r186. **Quyết định A không đổi** — chỉ chữ mô tả nó đổi.
 
 > **Hai băm ở bảng trên đã đổi một lần, và lý do đáng ghi lại.** Bản đầu trỏ `7add59d` và
 > `66bbbc3` — hai băm **trước** khi hai nhánh được rebase lên master. Sau rebase chúng thành commit
