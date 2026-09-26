@@ -49,6 +49,20 @@ import {
   type MobileViewerSceneOptions,
 } from './mobileViewerTypes';
 
+/*
+ * Nạp trước nhánh sau `lazy()` — ở PHẠM VI MODULE, không trong thân hàm mà bài kiểm gọi.
+ *
+ * Lượt nạp này từng nằm trong `mountContainer()`, kèm đúng lời giải thích rằng nó tồn tại để
+ * `waitFor` bên dưới chỉ đo việc của màn chứ không đo lượt biên dịch `three`. Chẩn đoán đúng,
+ * chỗ đặt sai: `mountContainer()` được gọi TỪ TRONG bài kiểm, nên lượt biên dịch `three` cùng
+ * ~15 module `lib/three` vẫn đếm vào 5 000 ms của bài. Nhập tĩnh ở đây đưa nó sang pha
+ * `collect`, pha không bị `testTimeout` chặn.
+ *
+ * `lazy()` trong `MobileViewer.container.tsx` KHÔNG đổi — promise của nó chỉ phân giải từ cache
+ * module, nên đường sản phẩm vẫn là đường sản phẩm.
+ */
+import './MobileViewer.connected';
+
 const SPATIAL = normalizeSpatial(createSampleBuilding());
 const PROJECT_ID = 'P-000000001';
 
@@ -104,12 +118,6 @@ interface Mounted {
  * nó trước `waitFor` là cách chắc chắn nhất để `waitFor` treo tới hết giờ.
  */
 async function mountContainer(): Promise<Mounted> {
-  // Nạp trước nhánh sau `lazy()`, để đồng hồ của `waitFor` bên dưới chỉ đo việc
-  // của màn chứ không đo lượt biên dịch `three`. Không có dòng này thì bài kiểm
-  // xanh khi chạy một mình và đỏ khi chạy cùng cả bộ — cùng module, cùng khẳng
-  // định, chỉ khác chỗ tốn thời gian.
-  await import('./MobileViewer.connected');
-
   let captured: MobileViewerSceneOptions | null = null;
   const notices: NotificationInput[] = [];
 
