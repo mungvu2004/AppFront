@@ -71,8 +71,15 @@ quyết định của người dùng.
 
 | Mã | Chọn (đã áp trong mã) | Nguyên lời người dùng | Chỗ làm |
 |---|---|---|---|
-| `G2-R19-size` | A — tách React ra chunk riêng bằng `manualChunks`, không nới ngân sách | **chưa trả lời** | `mungvu2004/pascal-b2-react19`, commit `7add59d` |
-| `G2-THREE (c)` | A — giữ khoá cờ `scene.soft-shadows`, thêm chú thích "hết tác dụng từ three r182" | **chưa trả lời** | `mungvu2004/pascal-b2-three`, commit `66bbbc3` |
+| `G2-R19-size` | A — tách React ra chunk riêng bằng `manualChunks`, không nới ngân sách | **chưa trả lời** | `mungvu2004/pascal-t51-vijson`, commit `a922118` |
+| `G2-THREE (c)` | A — giữ khoá cờ `scene.soft-shadows`, thêm chú thích "hết tác dụng từ three r182" | **chưa trả lời** | `mungvu2004/pascal-b2-three`, commit `df8b783` |
+
+> **Hai băm ở bảng trên đã đổi một lần, và lý do đáng ghi lại.** Bản đầu trỏ `7add59d` và
+> `66bbbc3` — hai băm **trước** khi hai nhánh được rebase lên master. Sau rebase chúng thành commit
+> **mồ côi**: `git cat-file -e` vẫn nói "có", nên một phép kiểm hời sẽ báo xanh, nhưng
+> `git branch --contains` trả về **rỗng** và chúng sẽ mất sau `gc`. Băm ở bảng nay là băm **đã push**,
+> nên chúng ổn định. Bài học cho lần sau: trích băm trong tài liệu thì kiểm bằng
+> `git branch -a --contains`, không bằng `cat-file`.
 
 Câu chờ người dùng: `F:/pascal-work/hoi/T1.1-hai-dap-an-G2.md`. Câu gốc:
 `F:/pascal-work/hoi/G2-R19-size.md`, `F:/pascal-work/hoi/G2-THREE.md`.
