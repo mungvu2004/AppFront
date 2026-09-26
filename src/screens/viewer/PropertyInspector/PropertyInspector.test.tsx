@@ -1111,6 +1111,22 @@ describe('[N8] bốn phím tắt', () => {
       fireEvent.keyDown(document.body, { key: 'Escape' });
     });
 
+    /* Và phải ĐỢI sổ trống, không đọc một lần ngay sau `act`.
+     *
+     * `ASYNC_TIMEOUT_MS` ở trên tự khai là trần chờ "cho chunk tải muộn VÀ cho hoạt cảnh thoát
+     * của bảng", nhưng đường đóng chưa bao giờ dùng nó: nó đọc sổ đồng bộ. Lượt mở có `findByRole`
+     * để chờ, lượt đóng thì không — nên bài này đạt khi máy rảnh và đỏ khi máy có tải, ở đúng một
+     * dòng, mà không phải vì A12 hỏng. Đo được: đạt ở tải nền 25,9 %, đỏ ở 30,7 %.
+     *
+     * `waitFor` không nới một khẳng định nào — nó vẫn đòi sổ về **0**, tức bảng thật sự đóng. Nó
+     * chỉ thôi đòi điều đó xảy ra trong cùng một nhịp flush, mà A12 chưa bao giờ hứa nhịp. */
+    await waitFor(
+      () => {
+        expect(dialogScopeBindingCount()).toBe(0);
+      },
+      { timeout: ASYNC_TIMEOUT_MS },
+    );
+
     const dialogBindingsAfter = dialogScopeBindingCount();
     const helpClosed = dialogBindingsAfter === 0;
 
