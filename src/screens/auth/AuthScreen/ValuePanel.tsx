@@ -12,11 +12,11 @@
 
 import { useEffect, useRef } from 'react';
 
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
+import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import type { HouseSceneHandle } from './houseScene';
-
-const AUTH_MESSAGES = viMessages.auth;
 
 /**
  * The model, loaded only once the form is already on screen.
