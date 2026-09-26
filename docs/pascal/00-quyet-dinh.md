@@ -89,3 +89,24 @@ Cả ba chỉ trả lời được khi có số, nên chúng nằm ở cổng ch
    tổng-thư-mục** (cổng thứ năm quét đệ quy và cộng gzip cả thư mục), và ghi rõ nó **đã gồm** phần
    React + three trùng bản.
 3. **lucide 8,2 KiB** — để hai bản cùng chạy, hay nâng AppFront lên lucide 1.x.
+
+## Hồ sơ trình cổng (T4.1) — nơi đặt số
+
+Số để trả lời ba câu trên nằm ở `F:/pascal-work/G3/T4.1-ho-so-cong.md` (đợt G3, 2026-09-26),
+kèm nhật ký `F:/pascal-work/G3/nhat-ky.md` và output thô `F:/pascal-work/G3/raw/`.
+
+Ba con số nên đọc trước khi chốt trần:
+
+- **Đơn vị của cổng thứ năm lớn hơn con số 1 563,8 KiB mà mọi tài liệu đang nhắc 5,6 lần.**
+  1 563,8 là `X_a` — chỉ JS của chunk màn. Tổng-thư-mục (quét đệ quy, cộng gzip mọi tệp) là
+  **8 693,0 KiB** chưa cắt và **8 198,1 KiB** đã cắt. Chốt trần theo `X_a` rồi đo bằng
+  tổng-thư-mục là chốt sai đơn vị.
+- **Thư mục vách ngăn đo riêng: 2 170,4 KiB** mã (8 tệp), **≈ 1 727,6 KiB** sau nhát cắt C2,
+  **cộng 5 398,2 KiB** tài sản Pascal phải chuyển vào cùng thư mục theo luật số 6 của T9.1 →
+  **≈ 7 125,8 KiB**.
+- **Ba con số đó đã gồm React và three trùng bản**, vì vách ngăn là một lượt dựng riêng
+  (Q2 = B). Không trừ chúng ra rồi báo số nhỏ hơn.
+
+Dưới mạng chậm (Slow 4G + CPU ×4), Pascal mở chậm hơn màn cũ **3,2 %** trước cắt và **5,3 %**
+sau cắt — nhưng đó là số của **dự án thử**, và dung lượng **không** biểu hiện thành giây ở phép
+đo này. Đừng dùng hai con số ấy để nới trần.
