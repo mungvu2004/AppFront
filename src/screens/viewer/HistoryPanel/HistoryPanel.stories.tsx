@@ -40,7 +40,7 @@ const FRAME_CLASS = 'h-[720px] w-[344px] bg-bg-app';
 const meta = {
   component: HistoryPanel,
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <div className={FRAME_CLASS}>
         <Story />
       </div>

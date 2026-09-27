@@ -52,7 +52,9 @@ import type { Result } from '@/lib/http';
 import { durationMs } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
+import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 export { MIN_PASSWORD_LENGTH, RegisterSchema, SignInSchema };
 export type { RegisterInput, SignInInput };
@@ -60,8 +62,6 @@ export type { RegisterInput, SignInInput };
 /* -------------------------------------------------------------------------- */
 /* Wording.                                                                    */
 /* -------------------------------------------------------------------------- */
-
-const AUTH_MESSAGES = viMessages.auth;
 
 /**
  * `{{name}}` filled from a table.

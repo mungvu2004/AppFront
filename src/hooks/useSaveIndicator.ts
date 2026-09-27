@@ -3,7 +3,10 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Autosave, AutosaveState } from '@/lib/autosave/createAutosave';
 import { formatClockTime } from '@/lib/format/datetime';
 import { getAppAnnouncer, type Announcer } from '@/lib/input/announcer';
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default.
+   `autosave` phải đổi tên vì `useSaveIndicator` đã có tham số cùng tên. */
+import { autosave as autosaveMessages, common } from '@/i18n/vi.json';
 
 export interface SaveIndicatorResult {
   detail: string;
@@ -26,10 +29,10 @@ const interpolate = (template: string, values: Record<string, string>): string =
 
 const buildSavedResult = (lastSavedAt: number | undefined, now: number): SaveIndicatorResult => {
   if (lastSavedAt === undefined) {
-    return { detail: viMessages.autosave.idle, label: viMessages.autosave.idle, state: 'saved' };
+    return { detail: autosaveMessages.idle, label: autosaveMessages.idle, state: 'saved' };
   }
 
-  const absoluteLabel = interpolate(viMessages.common.saved_at, { time: formatClockTime(new Date(lastSavedAt)) });
+  const absoluteLabel = interpolate(common.saved_at, { time: formatClockTime(new Date(lastSavedAt)) });
   const elapsedMs = now - lastSavedAt;
 
   if (elapsedMs <= SAVED_RELATIVE_THRESHOLD_MS) {
@@ -37,7 +40,7 @@ const buildSavedResult = (lastSavedAt: number | undefined, now: number): SaveInd
   }
 
   const minutes = Math.floor(elapsedMs / 60_000);
-  const relativeLabel = interpolate(viMessages.autosave.savedRelative, { minutes: String(minutes) });
+  const relativeLabel = interpolate(autosaveMessages.savedRelative, { minutes: String(minutes) });
 
   return { detail: absoluteLabel, label: relativeLabel, state: 'saved' };
 };
@@ -49,13 +52,13 @@ const buildSaveIndicatorResult = (
 ): SaveIndicatorResult => {
   switch (state) {
     case 'dirty':
-      return { detail: viMessages.autosave.dirty, label: viMessages.autosave.dirty, state };
+      return { detail: autosaveMessages.dirty, label: autosaveMessages.dirty, state };
     case 'saving':
-      return { detail: viMessages.autosave.saving, label: viMessages.autosave.saving, state };
+      return { detail: autosaveMessages.saving, label: autosaveMessages.saving, state };
     case 'failed':
-      return { detail: viMessages.autosave.failed, label: viMessages.autosave.failed, state };
+      return { detail: autosaveMessages.failed, label: autosaveMessages.failed, state };
     case 'offline':
-      return { detail: viMessages.autosave.offline, label: viMessages.autosave.offline, state };
+      return { detail: autosaveMessages.offline, label: autosaveMessages.offline, state };
     case 'saved':
       return buildSavedResult(lastSavedAt, now);
   }

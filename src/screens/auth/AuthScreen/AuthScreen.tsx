@@ -37,7 +37,9 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
 import { Tabs } from '@/components/ui/Tabs';
 
-import viMessages from '@/i18n/vi.json';
+/* Nhập THEO TÊN, không default: default export của `vi.json` là một object literal liền
+   khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
+import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import {
   useAuthScreen,
@@ -48,8 +50,6 @@ import {
   type UseAuthScreenOptions,
 } from './useAuthScreen';
 import { ValuePanel } from './ValuePanel';
-
-const AUTH_MESSAGES = viMessages.auth;
 
 /** The one panel both tabs point at. Fixed, because there is only ever one. */
 const PANEL_ID = 'auth-tab-panel';

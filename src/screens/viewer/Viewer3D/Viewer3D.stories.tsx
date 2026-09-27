@@ -103,7 +103,7 @@ const meta = {
      file. */
   excludeStories: ['scenarioPropsFor'],
   decorators: [
-    (Story): JSX.Element => (
+    (Story): React.JSX.Element => (
       <div className="h-screen w-screen">
         <Story />
       </div>

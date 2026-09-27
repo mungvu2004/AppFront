@@ -11,7 +11,7 @@ export interface MiniMapState {
   viewport: ViewportRect;
   isDragging: boolean;
   isHovered: boolean;
-  mapRef: React.RefObject<HTMLDivElement>;
+  mapRef: React.RefObject<HTMLDivElement | null>;
   handlePointerDown: (e: React.PointerEvent) => void;
   handlePointerMove: (e: React.PointerEvent) => void;
   handlePointerUp: (e: React.PointerEvent) => void;
