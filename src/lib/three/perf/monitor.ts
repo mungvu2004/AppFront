@@ -47,7 +47,7 @@
  * module that reached into one could not be tested without a WebGL context.
  */
 
-import { PCFShadowMap, PCFSoftShadowMap, type ShadowMapType } from 'three';
+import { PCFShadowMap, type ShadowMapType } from 'three';
 
 import { formatNumber } from '@/lib/format/number';
 
@@ -92,12 +92,12 @@ export type ShadowQuality = 'soft' | 'hard';
 /**
  * The three.js shadow map that draws a given quality.
  *
- * Turning soft shadows off means the cheaper filter, not no shadows at all: a
- * plan with its shadows removed reads as a flat drawing and stops showing which
- * wall stands in front of which, which is a worse loss than a hard edge.
+ * Turning soft shadows off means the cheaper filter, never no shadows (a plan reads flat
+ * without them). Both rungs are `PCFShadowMap`: three still exports `PCFSoftShadowMap` but
+ * deprecated it, and its renderer warns then draws `PCFShadowMap` in place of it anyway.
  */
 export function shadowMapTypeFor(quality: ShadowQuality): ShadowMapType {
-  return quality === 'soft' ? PCFSoftShadowMap : PCFShadowMap;
+  return { soft: PCFShadowMap, hard: PCFShadowMap }[quality];
 }
 
 /** The next rung down, or the same rung when there is nothing cheaper. */
