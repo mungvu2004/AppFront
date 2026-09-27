@@ -71,6 +71,8 @@ import type {
   RuleReportViewProps,
   SkippedRuleGroup,
 } from './types';
+import * as RuleReportModule from './RuleReport';
+import * as RuleReportContainerModule from './RuleReport.container';
 
 afterEach(() => {
   cleanup();
@@ -81,8 +83,27 @@ afterEach(() => {
  * ========================================================================== */
 
 /** Xem lời giải thích ở đầu file. */
+
+/*
+ * Nhập TĨNH, tra qua map — trước đây là một lượt `import()` động có `@vite-ignore`.
+ *
+ * Giàn giáo động ấy có lý do thật lúc nó được viết: các tệp anh em trong thư mục CHƯA tồn tại, và
+ * một lượt nhập tĩnh làm Vite sập lúc transform, kéo sập cả tệp. Nay cả thư mục đã đủ tệp và
+ * không bài nào trong tệp này dùng `vi.mock`, nên giàn giáo hết việc — còn cái giá thì vẫn trả:
+ * `@vite-ignore` làm Vite bỏ phân tích import, nên cả cây module của màn mới được
+ * resolve/transform/nạp BÊN TRONG bài kiểm đầu tiên gọi tới, và bài đó đếm luôn lượt biên dịch
+ * vào 5 000 ms của nó (`testTimeout` mặc định của vitest — `vitest.config.ts` không khai nó).
+ *
+ * Nhập tĩnh chuyển việc ấy sang pha `collect`, pha không bị `testTimeout` chặn. Chữ ký của
+ * `importFromScreen` và mọi chỗ gọi giữ nguyên, nên diff chỉ nằm ở đây.
+ */
+const MODULE_MAN: Record<string, unknown> = {
+  './RuleReport': RuleReportModule,
+  './RuleReport.container': RuleReportContainerModule,
+};
+
 async function importFromScreen<T>(specifier: string): Promise<T> {
-  return import(/* @vite-ignore */ specifier) as Promise<T>;
+  return MODULE_MAN[specifier] as T;
 }
 
 async function loadRuleReportView(): Promise<ComponentType<RuleReportViewProps>> {

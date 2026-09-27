@@ -31,6 +31,23 @@ import {
   type Viewer3DPanelsProps,
 } from './Viewer3DPanels';
 
+/*
+ * Nạp trước bốn module mà `Viewer3DPanels` nhập bằng `lazy()` (`Viewer3DPanels.tsx:57-68`).
+ *
+ * `LAZY_WAIT` dưới đây là 4 000 ms và đã kẹt trần: nó phải nằm dưới `testTimeout` 5 000 ms
+ * (mặc định của vitest — `vitest.config.ts` không khai nó). Khi bài này chạy cùng cả bộ 341 tệp,
+ * 4 000 ms ấy phải gánh cả lượt resolve/transform/nạp bốn cây module panel, nên nó hết hạn ở
+ * `:161` — cùng một bài, cùng một khẳng định, chỉ khác chỗ tốn thời gian. Nạp trước ở đây đưa
+ * việc biên dịch sang pha `collect`, pha không bị `testTimeout` chặn, nên 4 000 ms chỉ còn đo
+ * việc render: một panel hỏng THẬT báo đỏ nhanh hơn, không chậm hơn.
+ *
+ * `lazy()` trong mã sản phẩm KHÔNG đổi — promise của nó chỉ phân giải từ cache module.
+ */
+import '@/screens/viewer/FurnitureLibraryPanel';
+import '@/screens/viewer/HistoryPanel';
+import '@/screens/viewer/PropertyInspector';
+import '@/screens/viewer/RoomAreaPanel';
+
 /** `window.matchMedia` thật của môi trường, trả lại nguyên vẹn sau mỗi lượt. */
 let originalMatchMedia: typeof window.matchMedia;
 
