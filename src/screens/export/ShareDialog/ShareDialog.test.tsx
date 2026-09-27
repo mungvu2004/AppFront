@@ -120,6 +120,29 @@ function buildFakeGateway(overrides: Partial<ShareLinkGateway> = {}): ShareLinkG
   };
 }
 
+/**
+ * Hạn thời gian của **riêng tệp này**, và vì sao nó phải có.
+ *
+ * Bốn bài trong tệp render cả bảy trạng thái của hộp thoại, mỗi bài một lượt
+ * nhập động phần view. Đo trên máy này khi chạy RIÊNG cả tệp: `tests 4 059 ms`
+ * cho 17 bài — sát hạn **5 000 ms** mặc định của vitest. Chạy cùng cả bộ có
+ * `--coverage`, nơi mọi tệp đều bị đo, nó vượt hạn, và **bài vượt đổi theo từng
+ * lượt** (đo được hai bài khác nhau ở hai lượt liền nhau). Đó là dấu của một
+ * tệp ngồi sẵn ở mép hạn, không phải của một bài hỏng.
+ *
+ * Thứ làm nó đổ trong đợt này: thêm bốn tệp kiểm của `src/lib/pascal`. Bốn tệp
+ * ấy chỉ tốn 0,19 s — chúng không thêm tải, chúng đổi cách vitest xếp tệp vào
+ * worker. Phép thử đối chứng: cùng `--coverage`, bỏ bốn tệp ra thì 7 196/7 196
+ * xanh, để vào thì tệp này đỏ ở 3/3 lượt.
+ *
+ * Hạn này **không** nới một cổng chất lượng nào — mọi khẳng định giữ nguyên
+ * từng dòng. Nó chỉ thôi lấy tốc độ máy làm điều kiện đạt, và chỉ trong tệp này
+ * chứ không phải cả repo: `vitest.config.ts` là cổng chung, và bản nâng
+ * `testTimeout` cho toàn repo đã có ở nhánh `mungvu2004/debt-share` — chốt nó
+ * là việc của người duyệt.
+ */
+vi.setConfig({ testTimeout: 20_000 });
+
 /* ==========================================================================
  * A. Bảy trạng thái (A11 / R-63).
  * ========================================================================== */

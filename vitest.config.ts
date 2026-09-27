@@ -67,6 +67,10 @@ export default defineConfig({
       ['src/lib/offline/**', 'node'],
       ['src/lib/realtime/**', 'node'],
       ['src/lib/motion/**', 'node'],
+      // Bộ đổi dữ liệu Pascal: thuần, không chạm DOM. Đã chạy
+      // `npx vitest run src/lib/pascal --environment node` trước khi thêm dòng
+      // này — 36/36 xanh, 0,9 s so với 36 s dưới jsdom.
+      ['src/lib/pascal/**', 'node'],
     ],
 
     globals: true,
