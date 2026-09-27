@@ -124,3 +124,41 @@ Ba con số nên đọc trước khi chốt trần:
 Dưới mạng chậm (Slow 4G + CPU ×4), Pascal mở chậm hơn màn cũ **3,2 %** trước cắt và **5,3 %**
 sau cắt — nhưng đó là số của **dự án thử**, và dung lượng **không** biểu hiện thành giây ở phép
 đo này. Đừng dùng hai con số ấy để nới trần.
+
+---
+
+## Bản 3 — cổng T4.2 đã mở (2026-09-27)
+
+Người dùng mở phiên bằng một câu: «hãy thực hiện triển khai theo kế hoạch trên chính nhánh này»
+(kèm đường dẫn sổ tay bản 2.2). Câu đó **không** tự trả lời T4.2, nên cổng được hỏi trước khi thi
+công, và dưới đây là nguyên lựa chọn người dùng đã chọn — không diễn giải.
+
+| Mã | Nội dung câu hỏi | Chọn | Nguyên lời người dùng | Ngày |
+|---|---|---|---|---|
+| T4.2 (1) | Phạm vi Pascal: A xem + sửa · B chỉ xem · D dừng | **A** | «A — xem + sửa (khuyên)» | 2026-09-27 |
+| T8.1 | Được thêm cổng nhập ESLint cho gói Pascal trong đợt này? | **được** | «Cổng nhập ESLint (T8.1)» | 2026-09-27 |
+| T8.2 | Được sửa `CLAUDE.md` (câu react-three-fiber, ranh giới tầng)? | **được** | «Sửa CLAUDE.md (T8.2)» | 2026-09-27 |
+
+**Hai câu còn lại của T4.2 vẫn TREO** (E.10 — không ghi thành quyết định thứ đã không được hỏi):
+
+| Mã | Nội dung | Trạng thái | Cần khi nào |
+|---|---|---|---|
+| T4.2 (2) | Ba con số trần cho cổng thứ năm, theo đơn vị **tổng-thư-mục** (≈ 7 125,8 KiB sau C2) | **chưa hỏi** | T9.1 — lúc cài cổng, sau khi có fork |
+| T4.2 (3) | lucide 8,2 KiB: để hai bản cùng chạy, hay nâng AppFront lên lucide 1.x | **chưa hỏi** | T5.4 — trước khi thêm gói Pascal |
+
+Hai câu ấy chưa cần cho Bước 8, nên đợt này không hỏi. `G2-R19-size` và `G2-THREE (c)` vẫn để trống
+ô "nguyên lời" như bảng bản 2 đã ghi.
+
+### Cái người dùng biết khi chọn A
+
+Phạm vi được chốt **sau** khi một đính chính được đặt lên bàn: điều kiện dừng duy nhất mà đợt G3 báo
+là "CHẠM" — độ mượt 5/5 cặp — đo phải một **trần nhịp vẽ mặc định** của Pascal (`maxFps = 50`,
+`@pascal-app/viewer/dist/components/viewer/index.js:229`), không phải một engine chậm. Chi tiết và
+bốn dòng bằng chứng ở `01-ho-so-cong-T4.1.md` §11. Hệ quả cho hồ sơ cổng: phán quyết độ mượt đọc là
+**"chưa đo được"**, và phép đo lại vẫn **chưa chạy**.
+
+### Việc thi hành ngay sau cổng, trên nhánh `mungvu2004/tich-hop-pascal`
+
+Bước 8 — bộ đổi dữ liệu ở `src/lib/pascal`, cộng T8.1 và T8.2. Bước 5 (thêm gói Pascal), Bước 6–7
+(fork) và Bước 9 (màn xem) **chưa chạy được**: cả ba đứng sau một bản phát hành của fork mà quyền
+tạo fork chưa được dùng tới trong đợt này.

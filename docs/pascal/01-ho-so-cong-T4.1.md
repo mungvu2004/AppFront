@@ -1122,3 +1122,40 @@ chunk cưỡng bức phá tree-shaking xuyên chunk. Nhưng riêng dòng `src-i1
 lại bằng cách khác, nên hai phép đo độc lập cùng chỉ một chỗ.
 
 Thô: `A-T5.1-vijson-do.txt`.
+
+---
+
+## 11. Đính chính sau cổng (2026-09-27): điều kiện dừng duy nhất bị chạm đo **một prop mặc định**
+
+§5c và §8d của chính hồ sơ này ghi phán quyết "độ mượt — điều kiện dừng CHẠM ở 5/5 cặp", với tỉ số
+trung vị 2,571 (cách 1) và 7,750 (cách 2), Pascal ~50 fps so với màn cũ ~150 fps, vsync tắt cả hai
+bên. Con số ấy vẫn đúng như **phép đo**. Ý nghĩa của nó thì không.
+
+**Pascal giới hạn nhịp vẽ ở 50 fps bằng mặc định của chính component `Viewer`:**
+
+| Bằng chứng | Chỗ đọc được |
+|---|---|
+| `maxFps = 50` là **giá trị mặc định của prop** | `@pascal-app/viewer/dist/components/viewer/index.js:229` |
+| Prop ấy có trong hợp đồng công khai (`maxFps?: number`) | `index.d.ts:61` |
+| `Viewer` đặt `frameloop: 'never'` rồi tự lái vòng vẽ | `frame-limiter.js` (`set({ frameloop: 'never' })`) |
+| Vòng vẽ bỏ qua mọi khung đến sớm hơn `1000 / fps` | `frame-limiter.js:16-22` (`if (elapsedMs < intervalMs) return null`) |
+
+Ba con số của đợt đo khớp đúng với cái trần đó, không khớp với một engine đang thở dốc:
+
+- 10 giây đo được **501–503 khung** → 50,1 fps. Trần là 50,0.
+- `1000 / 50 = 20` ms, và **p95 của Pascal là 18,20 / 24,90 ms** — nằm quanh chính con số 20 ms.
+- p95 **không** chạm ngưỡng 33,3 ms ở bất cứ lượt nào, tức không lượt nào thấy một khung chậm thật.
+
+Màn cũ chạy **không trần**. Vậy tỉ số 2,571 và 7,750 là tỉ số giữa "một bên tự hãm ở 20 ms" và "một
+bên vẽ hết sức", chứ không phải giữa hai engine cùng điều kiện. Đây là **đúng một biến bị lệch**,
+cùng loại lỗi mà §4 của hồ sơ này đã ghi hai lần (ép cỡ canvas, đường kéo đơn điệu).
+
+**Cái này KHÔNG chứng minh Pascal đủ mượt.** Nó chứng minh đúng một điều: phép đo hiện có **không
+trả lời được** câu hỏi độ mượt, nên phán quyết "chạm điều kiện dừng" phải đọc là **"chưa đo được"**
+(E.10), không phải "đã hỏng". Phép đo lại tốn một lượt: truyền `maxFps` cao hơn — `mount()` chuyển
+được prop ấy vì nó nằm trong hợp đồng công khai — rồi chạy lại đúng bộ đo của T2.2/T2.3 mà không
+đổi biến nào khác. Việc ấy **chưa chạy**.
+
+Ghi lại vì §4 nói đúng một câu và câu đó áp cho chính chỗ này: *"giữ nguyên mọi thứ, đổi đúng một
+biến"*. Đợt G3 đã đổi một biến — nhưng là biến của bên đo, trong khi bên bị đo có sẵn một cái trần
+không ai tra.
