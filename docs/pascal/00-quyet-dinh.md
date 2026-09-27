@@ -149,13 +149,28 @@ công, và dưới đây là nguyên lựa chọn người dùng đã chọn —
 Hai câu ấy chưa cần cho Bước 8, nên đợt này không hỏi. `G2-R19-size` và `G2-THREE (c)` vẫn để trống
 ô "nguyên lời" như bảng bản 2 đã ghi.
 
-### Cái người dùng biết khi chọn A
+### Cái người dùng biết khi chọn A — và một đính chính PHẢI đọc kèm
 
-Phạm vi được chốt **sau** khi một đính chính được đặt lên bàn: điều kiện dừng duy nhất mà đợt G3 báo
-là "CHẠM" — độ mượt 5/5 cặp — đo phải một **trần nhịp vẽ mặc định** của Pascal (`maxFps = 50`,
-`@pascal-app/viewer/dist/components/viewer/index.js:229`), không phải một engine chậm. Chi tiết và
-bốn dòng bằng chứng ở `01-ho-so-cong-T4.1.md` §11. Hệ quả cho hồ sơ cổng: phán quyết độ mượt đọc là
-**"chưa đo được"**, và phép đo lại vẫn **chưa chạy**.
+Lúc hỏi, tôi đặt lên bàn một câu: điều kiện dừng duy nhất mà đợt G3 báo là "CHẠM" — độ mượt 5/5 cặp
+— đo phải một **trần nhịp vẽ mặc định** của Pascal (`maxFps = 50`,
+`@pascal-app/viewer/dist/components/viewer/index.js:229`).
+
+**Câu đó đúng phần cơ chế, nhưng thiếu, và phần thiếu quan trọng.** §8d của
+`01-ho-so-cong-T4.1.md` **đã** phát hiện đúng cái trần ấy từ lượt thi công 2026-09-26 và **đã** đo
+lại bằng đại lượng cân theo thời lượng:
+
+| Điều kiện | Cặp vượt | Chạm? |
+|---|---|---|
+| Nhịp khung, cân theo thời lượng | 0 / 5 | **không** |
+| **CPU luồng chính mỗi giây** | **5 / 5** | **CÓ** — 1,202 đến 2,032 |
+
+Nên phát biểu đúng là: **Pascal vẫn chạm một điều kiện dừng**, chỉ khác lý do — nó tốn **~1,6 lần
+CPU luồng chính** để cho ra nhịp khung gần bằng màn cũ (19,7 → 22,2 ms, +13 %). Chốt phạm vi A vì
+thế là **chấp nhận chi phí CPU ấy**, không phải là "không còn điều kiện dừng nào bị chạm".
+
+Đính chính này ghi ở `01-ho-so-cong-T4.1.md` §11. Nếu biết trước mà người dùng vẫn chọn A thì quyết
+định không đổi; nếu không, đây là chỗ mở lại cổng, và Bước 8 đã thi công **dùng được cho cả A lẫn B**
+(chỉ phương án D mới bỏ nó đi).
 
 ### Việc thi hành ngay sau cổng, trên nhánh `mungvu2004/tich-hop-pascal`
 

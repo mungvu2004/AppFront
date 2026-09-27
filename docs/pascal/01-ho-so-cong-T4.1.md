@@ -1125,37 +1125,43 @@ Thô: `A-T5.1-vijson-do.txt`.
 
 ---
 
-## 11. Đính chính sau cổng (2026-09-27): điều kiện dừng duy nhất bị chạm đo **một prop mặc định**
+## 11. Đính chính của bản đính chính (2026-09-27) — §8d đã đo rồi, và tôi đã nói sai
 
-§5c và §8d của chính hồ sơ này ghi phán quyết "độ mượt — điều kiện dừng CHẠM ở 5/5 cặp", với tỉ số
-trung vị 2,571 (cách 1) và 7,750 (cách 2), Pascal ~50 fps so với màn cũ ~150 fps, vsync tắt cả hai
-bên. Con số ấy vẫn đúng như **phép đo**. Ý nghĩa của nó thì không.
+**Bản đầu của mục 11 này nói sai, và sai theo hướng có lợi cho Pascal.** Nó viết rằng phán quyết độ
+mượt "phải đọc là *chưa đo được*" và rằng lượt đo lại "**chưa chạy**". Cả hai câu đều sai: **§8d của
+chính hồ sơ này đã chạy lượt đo lại**, đã nhận ra `maxFps = 50`, và đã ra một phán quyết đầy đủ hơn.
+Tôi viết mục 11 sau khi đọc bảng tóm tắt của sổ tay bản 2.2 mà **không** đọc §8d — đúng cái lỗi
+"trích tỉ số mà bỏ bốn chỗ phải đọc kèm" mà §8d đã cảnh báo ngay dưới bảng của nó.
 
-**Pascal giới hạn nhịp vẽ ở 50 fps bằng mặc định của chính component `Viewer`:**
+Phán quyết đúng, theo §8d:
+
+| Điều kiện | Đại lượng | Cặp vượt | Chạm? |
+|---|---|---|---|
+| 1 | w50 nhịp khung, **cân theo thời lượng** | **0 / 5** | **không** |
+| 2 | **CPU luồng chính mỗi giây** | **5 / 5** | **CÓ** (1,202–2,032) |
+
+Tức: `maxFps = 50` giải thích được con số 7,750 cũ, và sau khi bỏ méo ấy thì **nhịp khung người dùng
+thấy gần như bằng nhau** (19,7 → 22,2 ms, +13 %). Nhưng **Pascal VẪN chạm một điều kiện dừng** — nó
+tốn **~1,6 lần CPU luồng chính** để cho ra cùng mức mượt đó. Chốt hay không chốt vì thế là **quyết
+định về chi phí CPU**, không phải về độ mượt. Ai đọc mục 11 bản đầu rồi kết luận "không còn điều
+kiện dừng nào bị chạm" là đọc phải chữ của tôi, không phải số của phép đo.
+
+### Phần duy nhất của mục 11 bản đầu còn giá trị: cơ chế cái trần
+
+§8d trích `maxFps = 50` ở một dòng (`viewer/index.js:229`). Bốn dòng dưới đây là cơ chế đầy đủ của
+nó, và chúng đáng giữ vì lượt đo lại nào cũng phải tắt đúng cái trần này:
 
 | Bằng chứng | Chỗ đọc được |
 |---|---|
-| `maxFps = 50` là **giá trị mặc định của prop** | `@pascal-app/viewer/dist/components/viewer/index.js:229` |
-| Prop ấy có trong hợp đồng công khai (`maxFps?: number`) | `index.d.ts:61` |
-| `Viewer` đặt `frameloop: 'never'` rồi tự lái vòng vẽ | `frame-limiter.js` (`set({ frameloop: 'never' })`) |
-| Vòng vẽ bỏ qua mọi khung đến sớm hơn `1000 / fps` | `frame-limiter.js:16-22` (`if (elapsedMs < intervalMs) return null`) |
+| `maxFps = 50` là **giá trị mặc định của prop**, không phải hằng số nội bộ | `@pascal-app/viewer/dist/components/viewer/index.js:229` |
+| Prop ấy nằm trong **hợp đồng công khai** (`maxFps?: number`) → `mount()` truyền được | `index.d.ts:61` |
+| `Viewer` đặt `frameloop: 'never'` rồi tự lái vòng vẽ bằng `FrameLimiter` | `frame-limiter.js` |
+| Vòng vẽ **bỏ** mọi khung đến sớm hơn `1000 / fps` | `frame-limiter.js:16-22` (`if (elapsedMs < intervalMs) return null`) |
 
-Ba con số của đợt đo khớp đúng với cái trần đó, không khớp với một engine đang thở dốc:
+Ba con số của lượt đo cũ khớp đúng cái trần đó: 10 giây cho **501–503 khung** (= 50,1 fps), p95 của
+Pascal **18,20 / 24,90 ms** quanh đúng `1000 / 50 = 20` ms, và p95 **không** chạm ngưỡng 33,3 ms ở
+lượt nào.
 
-- 10 giây đo được **501–503 khung** → 50,1 fps. Trần là 50,0.
-- `1000 / 50 = 20` ms, và **p95 của Pascal là 18,20 / 24,90 ms** — nằm quanh chính con số 20 ms.
-- p95 **không** chạm ngưỡng 33,3 ms ở bất cứ lượt nào, tức không lượt nào thấy một khung chậm thật.
-
-Màn cũ chạy **không trần**. Vậy tỉ số 2,571 và 7,750 là tỉ số giữa "một bên tự hãm ở 20 ms" và "một
-bên vẽ hết sức", chứ không phải giữa hai engine cùng điều kiện. Đây là **đúng một biến bị lệch**,
-cùng loại lỗi mà §4 của hồ sơ này đã ghi hai lần (ép cỡ canvas, đường kéo đơn điệu).
-
-**Cái này KHÔNG chứng minh Pascal đủ mượt.** Nó chứng minh đúng một điều: phép đo hiện có **không
-trả lời được** câu hỏi độ mượt, nên phán quyết "chạm điều kiện dừng" phải đọc là **"chưa đo được"**
-(E.10), không phải "đã hỏng". Phép đo lại tốn một lượt: truyền `maxFps` cao hơn — `mount()` chuyển
-được prop ấy vì nó nằm trong hợp đồng công khai — rồi chạy lại đúng bộ đo của T2.2/T2.3 mà không
-đổi biến nào khác. Việc ấy **chưa chạy**.
-
-Ghi lại vì §4 nói đúng một câu và câu đó áp cho chính chỗ này: *"giữ nguyên mọi thứ, đổi đúng một
-biến"*. Đợt G3 đã đổi một biến — nhưng là biến của bên đo, trong khi bên bị đo có sẵn một cái trần
-không ai tra.
+**Bài học, ghi lại vì nó lặp lần thứ hai trong cùng hồ sơ:** đọc bảng tóm tắt của sổ tay không thay
+được đọc mục gốc. Sổ tay bản 2.2 tóm §5c ("độ mượt CHẠM 5/5") và chưa hợp nhất §8d viết sau nó; một
+người đọc chỉ bảng tóm tắt sẽ tưởng phán quyết cũ còn nguyên, còn tôi thì tưởng nó chưa ai sửa.
