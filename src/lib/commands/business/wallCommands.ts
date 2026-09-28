@@ -45,6 +45,7 @@ import { compareNearly, nearlyEqualLength, nearlyEqualPoint } from '@/domain/uni
 import { distanceBetween } from '@/domain/units/snap';
 import { millimetres } from '@/domain/units/types';
 import { nearestStandardThickness } from '@/domain/walls/cleanup';
+import { endsWeldedTo } from '@/domain/walls/joints';
 import {
   mergeWalls,
   MIN_WALL_LENGTH_MM,
@@ -368,6 +369,68 @@ export function validateDragWallEnd(input: DragWallEndInput, context: CommandCon
  * the way down the wall, and every opening whose stored offset changes as a
  * result is part of the same command.
  */
+/**
+ * Quyết định 3A: kéo một góc thì mọi tường hàn chung góc ấy đi theo — và chúng
+ * **mất dấu xác minh**.
+ *
+ * Người dùng chốt điều này ngày 2026-09-18. Hai nửa của nó, và vì sao nửa sau
+ * không mâu thuẫn với luật ở đầu `shared.ts`:
+ *
+ * `shared.ts` nói *"việc sửa có rút lại phê duyệt hay không là câu hỏi chính
+ * sách QC, không phải của tầng lệnh"*, và luật ấy **giữ nguyên** cho tường
+ * người dùng kéo trực tiếp: nó mang theo siêu dữ liệu nó có.
+ *
+ * Tường đi theo thì khác. Không ai chạm vào nó; hệ thống dời nó. Dấu xanh của
+ * A5 nghĩa là *một người đã soát hình học này* — mà hình học vừa đổi và không
+ * người nào soát cái mới. Giữ dấu xanh ở đó là để dấu ấy nói dối. Nên nó bị gỡ,
+ * và `source` chuyển về `'ai'` vì lượt dời là do máy quyết, không phải người.
+ *
+ * Hình học **không** tính ở đây: `endsWeldedTo` là hàm thuần của
+ * `domain/walls/joints`, cùng bộ hàn dựng nên đường bao của tường.
+ */
+const cascadeChanges = (
+  context: CommandContext,
+  level: Level,
+  draggedWall: GraphWall,
+  input: DragWallEndInput,
+): readonly EntityChange[] => {
+  const siblings = entitiesOfKind(context.graph, 'wall').filter(
+    (wall: GraphWall) => wall.levelId === level.id && wallIsUsable(wall, level),
+  );
+
+  if (siblings.length < 2) {
+    return [];
+  }
+
+  const welded = endsWeldedTo(
+    siblings.map((wall) => toSolidWall(wall, level)),
+    { wallId: draggedWall.id, end: input.end },
+  );
+
+  return welded.flatMap((ref) => {
+    const wall = siblings.find((candidate: GraphWall) => candidate.id === ref.wallId);
+
+    if (wall === undefined || wall.id === draggedWall.id) {
+      return [];
+    }
+
+    const centreline: Segment =
+      ref.end === 'start'
+        ? { start: { ...input.to }, end: { ...wall.centreline.end } }
+        : { start: { ...wall.centreline.start }, end: { ...input.to } };
+
+    return [
+      changeForUpdate('wall', wall, {
+        ...wall,
+        centreline,
+        // Nửa sau của 3A. Xem khối chú thích trên.
+        reviewed: false,
+        source: 'ai',
+      }),
+    ];
+  });
+};
+
 export function createDragWallEndCommand(
   input: DragWallEndInput,
   context: CommandContext,
@@ -398,6 +461,8 @@ export function createDragWallEndCommand(
     return stored === undefined ? [] : openingMoveChange(stored, wall.id, offsetOnWall(moved, after));
   });
 
+  const cascade = cascadeChanges(context, level, wall, input);
+
   const fromLengthMm = centrelineLength(before);
   const toLengthMm = centrelineLength(after);
   const movedCount = openingChanges.length;
@@ -409,8 +474,11 @@ export function createDragWallEndCommand(
         `${formatPoint(input.end === 'start' ? wall.centreline.start : wall.centreline.end)} sang ` +
         `${formatPoint(input.to)}; tường dài ${formatLengthMm(fromLengthMm)} thành ` +
         `${formatLengthMm(toLengthMm)}` +
-        (movedCount === 0 ? '.' : `, ${formatCount(movedCount)} lỗ mở dịch theo.`),
-      [changeForUpdate('wall', wall, nextWall), ...openingChanges],
+        (movedCount === 0 ? '' : `, ${formatCount(movedCount)} lỗ mở dịch theo`) +
+        (cascade.length === 0
+          ? '.'
+          : `, ${formatCount(cascade.length)} tường nối đi theo và mất dấu xác minh.`),
+      [changeForUpdate('wall', wall, nextWall), ...openingChanges, ...cascade],
       context,
     ),
   );
