@@ -70,6 +70,26 @@ import type {
  * ========================================================================== */
 
 /** `library-table-1` — `src/api/__mocks__/client.ts:418-427`, chép nguyên văn (R-70). */
+/**
+ * Hạn thời gian cho riêng tệp này.
+ *
+ * Bài "bảy trạng thái" nạp view qua `import()` lúc chạy (xem khối chú thích đầu
+ * tệp), nên nó phải chờ một lượt phân giải module — và dưới bộ toàn bài, lượt ấy
+ * vượt hạn mặc định 5 000 ms. Đo 2026-09-28: đỏ ở lượt `verify` đầu phiên và ở
+ * hai lượt sau, **đạt mọi lượt khi chạy riêng tệp**. Lỗi luôn là
+ * *"Test timed out in 5000ms"*, không phải một khẳng định sai.
+ *
+ * Đây là tệp **thứ ba** cùng lớp khuyết tật, sau
+ * `screens/export/ShareDialog/ShareDialog.test.tsx:144` và
+ * `routes/router.test.tsx`. Lời chữa chung — nâng `testTimeout` cho cả repo —
+ * đã có sẵn ở nhánh `mungvu2004/debt-share`; chốt nó là việc của người duyệt,
+ * nên ở đây vẫn vá theo từng tệp và không đụng `vitest.config.ts`.
+ *
+ * Nâng hạn **không** nới cổng chất lượng nào: mọi khẳng định giữ nguyên từng
+ * dòng, chỉ chỗ đợi rộng ra.
+ */
+vi.setConfig({ testTimeout: 20_000 });
+
 const SAMPLE_TABLE_1: LibraryItem = {
   depthMm: 900,
   fileSizeBytes: 412_000,
