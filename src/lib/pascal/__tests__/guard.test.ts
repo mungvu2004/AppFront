@@ -37,12 +37,15 @@ const sceneWithWalls = (wallCount: number): PascalScene => {
       type: 'site',
       parentId: null,
       children: [BUILDING_NODE_ID],
+      polygon: { type: 'polygon', points: [[-15, -15], [15, -15], [15, 15], [-15, 15]] },
     },
     [BUILDING_NODE_ID]: {
       object: 'node',
       id: BUILDING_NODE_ID,
       type: 'building',
       parentId: SITE_NODE_ID,
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
       children: [LEVEL_ID],
     },
     [LEVEL_ID]: {
@@ -148,6 +151,7 @@ describe('createChangeGate', () => {
           parentId: 'wall_W-WALL0',
           wallId: 'wall_W-WALL0',
           position: [0.5, 1.1, 0],
+          rotation: [0, 0, 0],
           width: 0.9,
           height: 2.2,
         },

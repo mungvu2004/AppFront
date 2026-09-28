@@ -213,6 +213,7 @@ describe('toSpatialGraph — đường hỏng', () => {
     type: 'site',
     parentId: null,
     children,
+    polygon: { type: 'polygon', points: [[-15, -15], [15, -15], [15, 15], [-15, 15]] },
   });
 
   const building = (id: string, children: readonly string[]): PascalBuildingNode => ({
@@ -220,6 +221,8 @@ describe('toSpatialGraph — đường hỏng', () => {
     id,
     type: 'building',
     parentId: SITE_NODE_ID,
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
     children,
   });
 

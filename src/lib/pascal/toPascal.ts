@@ -40,6 +40,7 @@ import type {
   PascalNode,
   PascalNodeId,
   PascalPoint2,
+  PascalSiteNode,
   PascalVec3,
   PascalWallNode,
   PascalWindowNode,
@@ -50,6 +51,12 @@ import type {
 
 /** Số điểm tối thiểu để một đường bao là một đa giác. */
 const MIN_OUTLINE_POINTS = 3;
+
+/** Khoảng lùi từ mép công trình ra mép khu đất, mét. */
+const SITE_MARGIN_M = 5;
+
+/** Nửa cạnh khu đất khi bản vẽ chưa có hình học nào, mét — bằng mặc định của lược đồ Pascal. */
+const SITE_FALLBACK_HALF_SIZE_M = 15;
 
 /** Đồ đạc của AppFront chỉ có kích thước mặt bằng; chiều cao chưa được lưu. */
 // ponytail: đồ đạc cao 0 m vì đồ thị không lưu chiều cao. Ngày nào
@@ -200,6 +207,7 @@ const openingNodeOf = (
     parentId: wallNodeId,
     wallId: wallNodeId,
     position: openingPositionOf(opening),
+    rotation: [0, 0, 0],
     width: metresOf(opening.widthMm),
     height: metresOf(opening.heightMm),
     metadata: { appfront: originOf(opening, { swing: opening.swing }) },
@@ -271,6 +279,60 @@ const itemNodeOf = (furniture: Furniture, levelNodeId: PascalNodeId): PascalItem
  * Không đọc store, không chạm mạng, không ném lỗi: cùng một đồ thị vào thì
  * cùng một cảnh ra, kể cả khi đồ thị có tham chiếu gãy.
  */
+/**
+ * Đường bao khu đất, tính từ chính hình học đã dựng.
+ *
+ * Bắt buộc phải có: `setScene` không parse qua zod nên mặc định `.default()`
+ * của lược đồ không bao giờ được áp, và bộ vẽ khu đất trả `null` — **bỏ luôn
+ * cả cây con, im lặng** — khi không dựng được đường bao
+ * (`nodes/dist/site/renderer.js:293`). Mặc định của lược đồ là ô vuông 30×30
+ * quanh gốc, nhỏ hơn nhiều công trình thật, nên không mượn được.
+ */
+const sitePolygonOf = (nodes: Record<PascalNodeId, PascalNode>): PascalSiteNode['polygon'] => {
+  const xs: number[] = [];
+  const zs: number[] = [];
+
+  for (const node of Object.values(nodes)) {
+    if (node.type === 'wall') {
+      xs.push(node.start[0], node.end[0]);
+      zs.push(node.start[1], node.end[1]);
+    } else if (node.type === 'zone') {
+      for (const [x, z] of node.polygon) {
+        xs.push(x);
+        zs.push(z);
+      }
+    }
+  }
+
+  if (xs.length === 0 || zs.length === 0) {
+    const half = SITE_FALLBACK_HALF_SIZE_M;
+    return {
+      type: 'polygon',
+      points: [
+        [-half, -half],
+        [half, -half],
+        [half, half],
+        [-half, half],
+      ],
+    };
+  }
+
+  const minX = Math.min(...xs) - SITE_MARGIN_M;
+  const maxX = Math.max(...xs) + SITE_MARGIN_M;
+  const minZ = Math.min(...zs) - SITE_MARGIN_M;
+  const maxZ = Math.max(...zs) + SITE_MARGIN_M;
+
+  return {
+    type: 'polygon',
+    points: [
+      [minX, minZ],
+      [maxX, minZ],
+      [maxX, maxZ],
+      [minX, maxZ],
+    ],
+  };
+};
+
 export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   const nodes: Record<PascalNodeId, PascalNode> = {};
   const skipped: SkippedEntity[] = [];
@@ -450,6 +512,8 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     name: graph.building.name,
     parentId: SITE_NODE_ID,
     children: childrenFor(BUILDING_NODE_ID),
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
     metadata: {
       appfront: originOf(graph.building, {
         name: graph.building.name,
@@ -469,6 +533,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     name: 'khu đất',
     parentId: null,
     children: [BUILDING_NODE_ID],
+    polygon: sitePolygonOf(nodes),
   };
 
   return { scene: { nodes, rootNodeIds: [SITE_NODE_ID] }, skipped };

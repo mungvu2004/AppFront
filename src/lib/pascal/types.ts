@@ -94,16 +94,37 @@ interface PascalNodeCommon {
   readonly metadata?: PascalMetadata;
 }
 
-/** Khu đất — gốc của cây cảnh. */
+/**
+ * Khu đất — gốc của cây cảnh.
+ *
+ * `polygon` **bắt buộc**, dù lược đồ khai nó `.optional().default(...)`. Lý do:
+ * đường chạy thật nạp cảnh bằng `setScene`, mà `setScene` **không** parse qua
+ * zod — nên mặc định của lược đồ không bao giờ được áp. Thiếu nó thì bộ vẽ khu
+ * đất trả `null` và **cả cây con biến mất, im lặng**
+ * (`nodes/dist/site/renderer.js:293`). Mặc định của lược đồ cũng không dùng
+ * được: nó là ô vuông 30×30 quanh gốc, nhỏ hơn nhiều công trình thật.
+ */
 export interface PascalSiteNode extends PascalNodeCommon {
   readonly type: 'site';
   readonly children: readonly PascalNodeId[];
+  readonly polygon: {
+    readonly type: 'polygon';
+    readonly points: readonly PascalPoint2[];
+  };
 }
 
-/** Công trình; con của khu đất, cha của các tầng. */
+/**
+ * Công trình; con của khu đất, cha của các tầng.
+ *
+ * `position` và `rotation` **bắt buộc**, cùng một lý do như `polygon` ở trên:
+ * bộ vẽ đọc thẳng `node.rotation[0]` (`nodes/dist/building/renderer.js`), nên
+ * thiếu chúng là **ném lỗi** và ranh giới lỗi của viewer nuốt mất.
+ */
 export interface PascalBuildingNode extends PascalNodeCommon {
   readonly type: 'building';
   readonly children: readonly PascalNodeId[];
+  readonly position: PascalVec3;
+  readonly rotation: PascalVec3;
 }
 
 /**
@@ -132,11 +153,17 @@ export interface PascalWallNode extends PascalNodeCommon {
   readonly height: number;
 }
 
-/** Cửa đi; con của tường, `position` trong hệ toạ độ của tường. */
+/**
+ * Cửa đi; con của tường, `position` trong hệ toạ độ của tường.
+ *
+ * `rotation` khai tường minh vì lược đồ để nó `.default([0,0,0])` mà đường
+ * chạy thật (`setScene`) không parse — xem chú thích của `PascalSiteNode`.
+ */
 export interface PascalDoorNode extends PascalNodeCommon {
   readonly type: 'door';
   readonly wallId: PascalNodeId;
   readonly position: PascalVec3;
+  readonly rotation: PascalVec3;
   readonly width: number;
   readonly height: number;
   readonly leafCount?: 1 | 2;
@@ -144,11 +171,12 @@ export interface PascalDoorNode extends PascalNodeCommon {
   readonly doorType?: 'hinged' | 'sliding';
 }
 
-/** Cửa sổ; con của tường, `position` trong hệ toạ độ của tường. */
+/** Cửa sổ; con của tường. Xem `PascalDoorNode` về `rotation`. */
 export interface PascalWindowNode extends PascalNodeCommon {
   readonly type: 'window';
   readonly wallId: PascalNodeId;
   readonly position: PascalVec3;
+  readonly rotation: PascalVec3;
   readonly width: number;
   readonly height: number;
 }
