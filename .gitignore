@@ -18,6 +18,18 @@ dist-ssr/
 # Pascal và kiểm cả 90 013 dòng dưới luật strict của AppFront: đo được 1 618
 # lỗi. Chỉ sinh lại khi bề mặt API của Pascal đổi. Xem vendor/pascal/NGUON.md.
 !vendor/pascal/packages/*/dist/
+
+# Tài sản màn Pascal, do `pnpm pascal:assets` sinh ra từ `vendor/pascal/assets`
+# và từ `node_modules/three`. Chép chứ không commit, cùng lý do như `public/draco`
+# ngay dưới: bản chép luôn khớp nguồn, và 18 MB vật liệu không nằm hai lần trong
+# git. Chạy lại sau mỗi lần nâng `three` hoặc đổi tài sản Pascal.
+public/pascal/
+public/basis/
+
+# Lượt dựng thứ hai của Pascal (`pnpm build:pascal`, xem vite.pascal.config.ts).
+# Kết quả dựng, sinh lại được; đích nằm trong `public/` để lượt dựng chính chép
+# nó sang `dist/` như tài sản tĩnh.
+public/assets/pascal/
 *.local
 
 # Editor directories and files

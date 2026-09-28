@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => {
       // Để rỗng là cố ý: mặc định của Pascal trỏ ra `https://editor.pascal.app`,
       // một CDN ngoài. Tài sản đã tự host ở `vendor/pascal/assets/`, và luật
       // `local/no-fetch-outside-http` không cho AppFront gọi thẳng ra ngoài.
-      'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '""',
+      'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '"/pascal"',
       'process.env.NEXT_PUBLIC_SUPABASE_URL': '""',
       'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': '""',
       'process.env.NEXT_PUBLIC_APP_URL': '""',

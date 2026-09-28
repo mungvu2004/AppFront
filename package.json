@@ -20,7 +20,9 @@
     "e2e": "node scripts/run-playwright.mjs --reporter=line",
     "e2e:visual": "node scripts/run-playwright.mjs --update-snapshots --reporter=line",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "pascal:assets": "node scripts/copy-pascal-assets.mjs",
+    "build:pascal": "vite build --config vite.pascal.config.ts"
   },
   "dependencies": {
     "@pascal-app/core": "workspace:*",

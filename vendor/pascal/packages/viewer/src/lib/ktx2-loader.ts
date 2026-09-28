@@ -120,7 +120,11 @@ class AlignmentSafeKTX2Loader extends KTX2Loader {
  * the scene, so catalog `.ktx2` finishes still load).
  */
 export const ktx2Loader = new AlignmentSafeKTX2Loader()
-ktx2Loader.setTranscoderPath('https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/basis/')
+// AppFront tự host bộ giải Basis: đường gốc trỏ jsDelivr là một yêu cầu ra
+// ngoài, vi phạm `connect-src` của CSP và để lộ hoạt động người dùng. Hai tệp
+// này do `pnpm pascal:assets` chép từ chính `three` đang cài, nên chúng luôn
+// khớp phiên bản. Xem `scripts/copy-pascal-assets.mjs`.
+ktx2Loader.setTranscoderPath('/basis/')
 
 const configuredRenderers = new WeakSet<object>()
 const warnedRenderers = new WeakSet<object>()

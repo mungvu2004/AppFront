@@ -22,17 +22,22 @@ const LIBRARY_THRESHOLD = 80;
  * Bảy biến `process.env.NEXT_PUBLIC_*` mà mã Pascal đọc ở TẦNG MODULE.
  * Giữ khớp với `vite.config.ts` — lý do đầy đủ nằm ở đó.
  */
-const PASCAL_ENV_DEFINES = Object.fromEntries(
-  [
-    'NEXT_PUBLIC_ASSETS_CDN_URL',
-    'NEXT_PUBLIC_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    'NEXT_PUBLIC_APP_URL',
-    'NEXT_PUBLIC_VERCEL_ENV',
-    'NEXT_PUBLIC_VERCEL_URL',
-    'NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL',
-  ].map((key) => [`process.env.${key}`, '""']),
-);
+const PASCAL_ENV_DEFINES = {
+  ...Object.fromEntries(
+    [
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'NEXT_PUBLIC_APP_URL',
+      'NEXT_PUBLIC_VERCEL_ENV',
+      'NEXT_PUBLIC_VERCEL_URL',
+      'NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL',
+    ].map((key) => [`process.env.${key}`, '""']),
+  ),
+  // Đặt riêng, KHÔNG để rỗng: dòng khai của Pascal là
+  // `process.env.X || 'https://editor.pascal.app'`, mà `''` là falsy nên chuỗi
+  // rỗng rơi thẳng về CDN ngoài. Phải trỏ về chính mình.
+  'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '"/pascal"',
+};
 
 export default defineConfig({
   plugins: [react()],
