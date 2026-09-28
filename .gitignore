@@ -11,6 +11,13 @@ lerna-debug.log*
 node_modules/
 dist/
 dist-ssr/
+
+# Ngoại lệ của `dist/` ngay trên: `vendor/pascal/packages/*/dist` KHÔNG phải
+# kết quả dựng bỏ đi được — nó chỉ chứa `.d.ts`, và bốn gói Pascal trỏ trường
+# `types` vào đó. Thiếu chúng thì `tsc` đi theo đường nhập vào tận mã nguồn
+# Pascal và kiểm cả 90 013 dòng dưới luật strict của AppFront: đo được 1 618
+# lỗi. Chỉ sinh lại khi bề mặt API của Pascal đổi. Xem vendor/pascal/NGUON.md.
+!vendor/pascal/packages/*/dist/
 *.local
 
 # Editor directories and files

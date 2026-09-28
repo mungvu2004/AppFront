@@ -1,0 +1,3 @@
+export type BlockSfxAction = 'tool-select' | 'component-select' | 'drag-start' | 'move-step' | 'rotate-step' | 'resize-step' | 'operation-start' | 'operation-commit' | 'delete' | 'cancel' | 'finish';
+export declare function blockSfx(action: BlockSfxAction): "sfx:grid-snap" | "sfx:item-pick" | "sfx:item-place" | "sfx:item-rotate" | "sfx:resize" | "sfx:structure-build-start" | "sfx:structure-build" | "sfx:structure-delete" | "sfx:menu-click";
+//# sourceMappingURL=interaction-sfx.d.ts.map
