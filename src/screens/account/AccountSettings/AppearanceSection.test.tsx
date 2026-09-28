@@ -381,13 +381,14 @@ describe('bộ token tối trong globals.css', () => {
 });
 
 describe('R2 — không cài đặt nào của màn này có khoá O-02', () => {
-  it('năm khoá cờ tính năng không chứa một cài đặt nào ở đây', () => {
+  it('không khoá cờ tính năng nào chứa một cài đặt nào ở đây', () => {
     expect([...FEATURE_FLAG_KEYS]).toEqual([
       'scene.instanced-walls',
       'scene.soft-shadows',
       'rules.parallel-run',
       'export.pdf-vector',
       'qc.live-collaboration',
+      'scene.pascal-viewer',
     ]);
 
     for (const setting of ['theme', 'viewportDark', 'reducedMotion', 'showGrid', 'density']) {

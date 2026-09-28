@@ -24,6 +24,7 @@ const suspended = (node: React.ReactNode) => (
 
 // Lazy load screen routes
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
+const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
@@ -328,6 +329,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
       { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
       { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
+      { path: ROUTE_PATTERNS.projectViewerPascal, element: suspended(<RoutePascalViewer />) },
       { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
       { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
       { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },

@@ -62,6 +62,7 @@ const MOCK_SERVER_FEATURE_FLAGS: Readonly<Record<FeatureFlagKey, boolean>> = {
   'rules.parallel-run': false,
   'export.pdf-vector': false,
   'qc.live-collaboration': false,
+  'scene.pascal-viewer': false,
 };
 
 const makeVersion = (): Version => ({
