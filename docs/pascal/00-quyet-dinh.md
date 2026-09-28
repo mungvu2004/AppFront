@@ -177,3 +177,79 @@ thế là **chấp nhận chi phí CPU ấy**, không phải là "không còn đ
 Bước 8 — bộ đổi dữ liệu ở `src/lib/pascal`, cộng T8.1 và T8.2. Bước 5 (thêm gói Pascal), Bước 6–7
 (fork) và Bước 9 (màn xem) **chưa chạy được**: cả ba đứng sau một bản phát hành của fork mà quyền
 tạo fork chưa được dùng tới trong đợt này.
+
+---
+
+## Bản 4 — hướng đi đổi, sau khi đo lại gói Pascal (2026-09-28)
+
+Hỏi sau khi phiên điều tra 28/09 đo được ba thứ mà các bản trước chưa có: gói Pascal **đã công bố
+công khai trên npm ở 1.0.3**; bề mặt Next.js của `editor` **đóng lại ở đúng hai module**; và hướng
+chỉ-xem **không phải một nhát cắt dung lượng**. Số đo ở `IMPLEMENTATION_STATUS.md` mục 4.5–4.7.
+
+| Mã | Nội dung câu hỏi | Chọn | Nguyên lời người dùng | Ngày |
+|---|---|---|---|---|
+| Hướng `editor` | fork Bước 6–7 · npm + 17 dòng shim · chỉ-xem trước rồi mở sửa sau | **chỉ-xem trước** | «Chỉ-xem trước (core+viewer), mở sửa sau» | 2026-09-28 |
+| T4.2 (3) lucide | khai `allowedVersions` giữ 0.414.0 · nâng lên 1.x · chưa cần quyết | **nâng lên 1.x** | «Nâng AppFront lên lucide 1.x» | 2026-09-28 |
+| Tài sản Pascal 5 398,2 KiB | không tự host · tự host một tập con · tự host toàn bộ | **chưa chọn** | «mô tả khá khó hiêu chưa đủ thông tin để quyết quyếtddinhj » | 2026-09-28 |
+
+### Hệ quả của "chỉ-xem trước"
+
+- Đích đợt này là **`core` + `viewer`**. `editor` và `nodes` **không** được cài. Fork **không** được
+  tạo. Bước 6, Bước 7, Bước 10 hoãn — **không** bỏ.
+- Phạm vi A (xem + sửa) mà bản 3 đã chốt **không bị rút lại**; nó bị **hoãn** phần sửa. Lý do người
+  dùng thấy khi chọn: Bước 10 dù sao cũng đang bị backend F-04b/F-04c/F-05/F-08 chặn.
+- Hai chỗ `viewer/dist` vướng bất biến AppFront, phải xử trong Bước 9 chứ không phải bằng fork:
+  màn dự phòng GPU bằng **tiếng Anh** (`unsupported-gpu-fallback.js:3`, vỡ A6) và
+  `transition-colors duration-700` trên Canvas (`components/viewer/index.js:319`, mục B).
+- Bộ đổi dữ liệu của Bước 8 **dùng được nguyên vẹn** cho hướng này — bản 3 đã ghi trước điều đó:
+  *"Bước 8 đã thi công dùng được cho cả A lẫn B"*.
+
+### Về lucide — một câu phải nói rõ, E.10
+
+Người dùng chọn **nâng lên 1.x**. Nhưng ở hướng chỉ-xem, `nodes` (nơi `lucide-react` là
+**peerDependency `^1`**) **không được cài**, và `core`/`viewer` **không dính lucide chút nào** — nên
+việc nâng **không còn là điều kiện cần của đợt này**. Nó là một bậc major trên toàn bộ chỗ dùng icon
+của AppFront, đổi lấy: hết chỗ lệch với Pascal về sau, và có hai icon `RulerDimensionLine`, `Drone`
+mà 0.414.0 thiếu. Ghi lại như **một PR độc lập đã được cho phép**, không phải một mắt trong chuỗi
+Bước 9. Nếu người dùng muốn nó đi cùng đợt này thì nói thêm một câu.
+
+### Câu tài sản Pascal — chưa chốt, và lý do là lỗi trình bày của tôi
+
+Người dùng nói câu hỏi khó hiểu và chưa đủ thông tin. Đúng: tôi hỏi *có tự host thư viện tài sản
+không* trong khi chính tôi còn ghi "chưa đo" cho việc **viewer có cần tệp nào trong đó để dựng cảnh
+AppFront hay không**. Hỏi một câu mà dữ kiện quyết định chưa có là hỏi sai lúc. Việc đúng là **đo
+trước**: dựng cảnh thật trong trình duyệt, ghi mọi yêu cầu mạng, xem Pascal đòi tệp nào. Kết quả đo
+ghi ở `IMPLEMENTATION_STATUS.md`, và câu hỏi sẽ được đặt lại kèm số.
+
+### ĐÍNH CHÍNH bản 4 — tiền đề tôi đưa ra lúc hỏi có một chỗ SAI (2026-09-28, cùng ngày)
+
+Lúc hỏi, tôi mô tả hướng "chỉ-xem" là **`core` + `viewer`**, và nói mớ phụ thuộc của Pascal nằm gọn
+trong `editor`/`nodes`. Phần phụ thuộc đúng. Phần *"`core` + `viewer` dựng được cảnh"* **sai**, và
+tôi chưa đo trước khi nói.
+
+Phép đo sau đó (`IMPLEMENTATION_STATUS.md` §4.9):
+
+- `nodes/dist/index.d.ts` nói *"every kind dispatches through the registry"* và app phải gọi
+  `loadPlugin(builtinPlugin)` **trước khi mount viewer** → **`nodes` là bắt buộc để vẽ**.
+- `nodes/dist` nhập `@pascal-app/editor` **220 lần**, `lucide-react` **31 lần**.
+- Chỉ đăng ký 6 loại node cũng không né được: `wall/definition.js:2` nhập một hằng từ `editor`, và
+  lượt dựng **hỏng** ở `next/image` khi bỏ shim.
+
+**Hệ quả cho quyết định của người dùng:**
+
+1. **Không có lựa chọn "chỉ cài `core` + `viewer`".** Mọi hướng kéo đủ bốn gói và bắt buộc có lớp
+   shim `next/*` (17 dòng). Khác biệt xem/sửa là **render `<Viewer/>` hay `<Editor/>`**, không phải
+   cài gói nào.
+2. **Lựa chọn "chỉ-xem trước" vẫn còn nghĩa**, nhưng nghĩa hẹp hơn tôi trình bày: nó tiết kiệm
+   **việc và rủi ro giao diện sửa**, không tiết kiệm **cây phụ thuộc**. Người dùng có quyền xem lại
+   lựa chọn với tiền đề đã sửa.
+3. **Câu trả lời lucide của người dùng là ĐÚNG, và câu "không còn cần" của tôi là SAI.** `nodes`
+   khai `lucide-react` peer `^1`; AppFront có 0.414.0. Nâng lên 1.x quay lại thành việc trên đường
+   đi, không còn là PR độc lập ngoài lề.
+4. Mục "Hệ quả của chỉ-xem trước" ở bản 4 phía trên — dòng *"`editor` và `nodes` không được cài"* —
+   **không còn đúng**. Giữ nguyên chữ cũ để thấy nó đã sai ở đâu, và đọc kèm đính chính này.
+
+Một việc **chưa giải được**, ghi để không ai tưởng là đã xong: dựng cảnh trong Chromium headless với
+48 loại node đã đăng ký và 105 node trong store, viewer vẫn báo `ready: false` và **không vẽ gì**.
+Chưa phân biệt được là do thứ tự nhúng sai hay do `three/webgpu` dưới SwiftShader. Phải chạy lại
+trên GPU thật trước khi kết luận.
