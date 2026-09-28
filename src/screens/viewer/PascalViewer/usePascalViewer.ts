@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import { useShortcut } from '@/hooks/useShortcut';
 import { formatNumber } from '@/lib/format/number';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { SkippedEntity } from '@/lib/pascal/types';
@@ -103,13 +104,26 @@ export function usePascalViewer({
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  /** Người dùng tự thu khung lại bằng Esc. Khác `collapsed` do nơi gọi truyền vào. */
+  const [selfCollapsed, setSelfCollapsed] = useState(false);
 
-  const isCollapsed = collapsed && !expanded;
+  const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
   const result = useMemo(() => (graph === null ? null : toPascalScene(graph)), [graph]);
 
-  /** Bản vẽ rỗng: không có node nào ngoài khu đất và công trình. */
-  const isEmpty = result !== null && Object.keys(result.scene.nodes).length <= 2;
+  /**
+   * Bản vẽ rỗng: không có gì để dựng.
+   *
+   * Đếm theo ĐỒ THỊ chứ không theo số node của cảnh Pascal: cảnh luôn có khu
+   * đất, công trình và các tầng, nên đếm node thì một bản vẽ trống vẫn ra sáu
+   * node và không bao giờ rỗng. Tầng không có tường thì không dựng ra hình gì.
+   */
+  const isEmpty =
+    graph !== null &&
+    graph.walls.length === 0 &&
+    graph.rooms.length === 0 &&
+    graph.openings.length === 0 &&
+    graph.furniture.length === 0;
 
   const shouldMount = enabled && !isCollapsed && result !== null && !isEmpty;
 
@@ -155,8 +169,54 @@ export function usePascalViewer({
   }, []);
 
   const onExpand = useCallback(() => {
+    setSelfCollapsed(false);
     setExpanded(true);
   }, []);
+
+  /**
+   * Bàn phím là đường đi hạng nhất, không phải phương án dự phòng (A12).
+   *
+   * Ba phím, mỗi phím có nút chuột song song — không phím nào là cách DUY NHẤT
+   * làm được việc gì:
+   *
+   * - **Esc** thu khung xem lại. Đây là lời hứa "Esc đóng lớp trên cùng" mà A12
+   *   nói không tính năng nào được lấy mất; khung 3D là lớp trên cùng của màn
+   *   này. Nó chỉ nhận khi khung đang mở, nên không giành Esc của hộp thoại.
+   * - **R** thử lại, chỉ khi đang lỗi.
+   * - **E** mở lại khung xem, chỉ khi đang thu gọn.
+   */
+  useShortcut(
+    {
+      id: 'pascalViewer.collapse',
+      combo: 'Escape',
+      scope: 'canvas',
+      description: 'thu khung xem 3d lại',
+      onTrigger: () => setSelfCollapsed(true),
+    },
+    { enabled: enabled && !isCollapsed },
+  );
+
+  useShortcut(
+    {
+      id: 'pascalViewer.retry',
+      combo: 'R',
+      scope: 'canvas',
+      description: 'thử nạp lại khung dựng hình',
+      onTrigger: onRetry,
+    },
+    { enabled: enabled && failure !== null },
+  );
+
+  useShortcut(
+    {
+      id: 'pascalViewer.expand',
+      combo: 'E',
+      scope: 'canvas',
+      description: 'mở lại khung xem 3d',
+      onTrigger: onExpand,
+    },
+    { enabled: enabled && isCollapsed },
+  );
 
   const skipped = useMemo(
     () => (result === null ? [] : summariseSkipped(result.skipped)),
