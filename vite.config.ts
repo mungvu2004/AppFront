@@ -62,7 +62,31 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        // Mã Pascal ở `vendor/pascal` viết cho Next.js. Bề mặt Next của nó
+        // ĐÓNG LẠI Ở ĐÚNG HAI module — đã đếm: `next/image` 26 tệp,
+        // `next/link` 1 tệp, không có `next/router`/`next/head`/`next/navigation`.
+        // Hai dòng dưới là toàn bộ cái cần để nó chạy trên Vite; đừng cài `next`.
+        'next/image': path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx'),
+        'next/link': path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx'),
       },
+    },
+    define: {
+      // Mã Pascal đọc `process.env.NEXT_PUBLIC_*` Ở TẦNG MODULE, không trong
+      // hàm — ví dụ `viewer/src/lib/asset-url.ts` đặt `ASSETS_CDN_URL` ngay lúc
+      // nhập. Vite không polyfill `process`, nên thiếu những dòng này là
+      // `ReferenceError: process is not defined` NGAY LÚC NHẬP MODULE, trước
+      // khi có dòng mã nào chạy.
+      //
+      // Để rỗng là cố ý: mặc định của Pascal trỏ ra `https://editor.pascal.app`,
+      // một CDN ngoài. Tài sản đã tự host ở `vendor/pascal/assets/`, và luật
+      // `local/no-fetch-outside-http` không cho AppFront gọi thẳng ra ngoài.
+      'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '""',
+      'process.env.NEXT_PUBLIC_SUPABASE_URL': '""',
+      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': '""',
+      'process.env.NEXT_PUBLIC_APP_URL': '""',
+      'process.env.NEXT_PUBLIC_VERCEL_ENV': '""',
+      'process.env.NEXT_PUBLIC_VERCEL_URL': '""',
+      'process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL': '""',
     },
   };
 });

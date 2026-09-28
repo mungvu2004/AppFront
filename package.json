@@ -23,6 +23,12 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@pascal-app/core": "workspace:*",
+    "@pascal-app/editor": "workspace:*",
+    "@pascal-app/nodes": "workspace:*",
+    "@pascal-app/viewer": "workspace:*",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@tanstack/react-query": "5.53.1",
     "@tanstack/react-virtual": "3.11.0",
     "clsx": "^2.1.1",
@@ -81,5 +87,11 @@
     "typescript": "5.5.3",
     "vite": "5.3.4",
     "vitest": "2.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.18",
+      "@types/react-dom": "19.2.7"
+    }
   }
 }
