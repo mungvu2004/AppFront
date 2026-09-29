@@ -95,7 +95,16 @@ Ghi ra để không ai tưởng là đã xong:
 - **Chưa có trong CI.** jsdom không có WebGL, nên việc dựng hình đo bằng tay
   trong trình duyệt. 41 bài kiểm của màn canh máy trạng thái, bảy trạng thái,
   tiếng Việt, khả năng tiếp cận và vòng đời — **không** canh một khung hình.
-- **Chưa có lối vào trên thanh điều hướng.** Phải gõ đường dẫn.
+- **Không có lối vào trên giao diện, và đó là quyết định chứ không phải bỏ sót.**
+  Đường duy nhất để cắm một liên kết vào màn 3D cũ là khe `inspectorSections`, mà khe ấy đi qua
+  `Viewer3DPanels` — nơi bài kiểm khẳng định **đúng ba bảng phụ loại trừ nhau**
+  (`Viewer3DPanels.test.tsx:188-234`). Thêm mục thứ tư là phá một bất biến thật của màn cũ để đổi
+  lấy một phím tắt.
+  Và bản thân cờ đã là cơ chế mở dần: máy chủ quyết ai thấy màn này theo vai. Một liên kết cố định
+  sẽ hoặc hiện cho người chưa được bật (rồi dẫn tới trạng thái "chưa bật"), hoặc phải tự đọc cờ lần
+  nữa — tức chép lại quyết định đã nằm ở chỗ khác.
+  Nên hiện tại vào bằng đường dẫn. Khi nào chốt đưa màn này thành màn chính thì lối vào đi cùng
+  quyết định ấy, không đi trước nó.
 - **Đồ đạc dựng ra phẳng.** Đồ thị của AppFront chưa lưu chiều cao đồ đạc, nên
   `asset.dimensions` ra `[rộng, 0, sâu]`.
 - **Cảnh không có mặt sàn.** Pascal tính diện tích sàn từ node `slab`, mà

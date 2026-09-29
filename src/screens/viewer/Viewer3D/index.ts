@@ -61,3 +61,10 @@ export type {
   ViewerSceneMount,
   ViewerSceneMountOptions,
 } from './viewer3dTypes';
+/*
+ * `shouldUseViewerFixture` xuất ra đây vì màn `PascalViewer` cần ĐÚNG luật này:
+ * kho rỗng + chế độ mock thì dùng nhà mẫu, nối BE thật thì kho rỗng là kho rỗng.
+ * Hai màn 3D phải thấy cùng một bản vẽ, nên luật ấy được dùng chung chứ không
+ * được chép lại.
+ */
+export { shouldUseViewerFixture, useViewer3DSource } from './useViewer3DSource';

@@ -75,6 +75,28 @@ const runCommand = (command, args) =>
     });
   });
 
+/*
+ * Vách ngăn Pascal phải có TRƯỚC khi máy chủ chạy.
+ *
+ * `e2e/pascal-viewer.spec.ts` nạp `/assets/pascal/pascal-mount.js` lúc chạy —
+ * một tệp tĩnh do lượt dựng thứ hai sinh ra, không phải thứ Vite dịch từ `src`.
+ * Script này gọi thẳng `vite`, KHÔNG đi qua `pnpm dev` (vốn đã tự chạy
+ * `pnpm pascal`), nên trên một bản checkout sạch thư mục ấy rỗng và bài e2e sẽ
+ * đỏ vì `PASCAL-01` chứ không vì màn hỏng.
+ *
+ * Chạy lại rẻ khi đã có: `cpSync` chép đè và `vite build` đọc cache.
+ */
+const pascalResult = spawnSync(packageRunner, ['run', 'pascal'], {
+  cwd: projectRoot,
+  shell: useShell,
+  stdio: 'inherit',
+});
+
+if (pascalResult.status !== 0) {
+  console.error('Không dựng được vách ngăn Pascal; bài e2e của màn Pascal sẽ đỏ.');
+  process.exit(pascalResult.status ?? 1);
+}
+
 const serverWasRunning = await requestUrl(baseUrl);
 if (serverWasRunning) {
   console.warn(

@@ -104,16 +104,18 @@ describe('khả năng tiếp cận', () => {
 });
 
 describe('khung nhúng chỉ có mặt khi có cảnh thật', () => {
-  it('success và partial có hộp cho Pascal cắm vào', () => {
-    for (const state of ['success', 'partial'] as const) {
+  it('loading, success và partial đều có hộp cho Pascal cắm vào', () => {
+    // `loading` PHẢI có hộp. Thiếu nó là vòng chết: hook cần hộp mới nạp gói,
+    // mà muốn tới `success` thì phải nạp xong. Xem chú thích trong PascalViewer.tsx.
+    for (const state of ['loading', 'success', 'partial'] as const) {
       const { unmount } = renderState(state);
       expect(screen.getByTestId('pascal-canvas')).toBeInTheDocument();
       unmount();
     }
   });
 
-  it('năm trạng thái còn lại KHÔNG dựng hộp — không chạy WebGL khi không cần', () => {
-    for (const state of ['empty', 'loading', 'error', 'forbidden', 'collapsed'] as const) {
+  it('bốn trạng thái còn lại KHÔNG dựng hộp — không chạy WebGL khi không cần', () => {
+    for (const state of ['empty', 'error', 'forbidden', 'collapsed'] as const) {
       const { unmount } = renderState(state);
       expect(screen.queryByTestId('pascal-canvas')).not.toBeInTheDocument();
       unmount();

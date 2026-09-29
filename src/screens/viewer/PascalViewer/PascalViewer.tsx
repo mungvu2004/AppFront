@@ -23,7 +23,7 @@ function Frame({ caption, children }: { caption: string; children: React.ReactNo
   return (
     <section
       aria-label="mô hình 3d"
-      className="flex h-full min-h-0 flex-col gap-3 bg-bg-app p-4"
+      className="flex h-full min-h-[24rem] flex-col gap-3 bg-bg-app p-4"
     >
       <p className="text-sm text-text-muted" role="status">
         {caption}
@@ -38,21 +38,13 @@ function Skeleton() {
   return (
     <div
       aria-hidden="true"
-      className="h-full min-h-48 w-full animate-pulse rounded-md bg-bg-sunken"
+      className="h-full w-full animate-pulse rounded-md bg-bg-sunken"
     />
   );
 }
 
 export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode } = viewModel;
-
-  if (state === 'loading') {
-    return (
-      <Frame caption={caption}>
-        <Skeleton />
-      </Frame>
-    );
-  }
 
   if (state === 'forbidden') {
     return (
@@ -108,16 +100,39 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
     );
   }
 
-  // success và partial: khung nhúng có mặt, kèm số đo.
+  /*
+   * `loading`, `success` và `partial` — cả ba đều dựng hộp cho Pascal cắm vào.
+   *
+   * **`loading` PHẢI có hộp, và đây là chỗ từng có một vòng chết.** Bản đầu chỉ
+   * dựng hộp ở `success`/`partial`, nên: hook cần `canvasRef.current` mới nạp
+   * gói → nhưng muốn tới `success` thì phải nạp xong → mà hộp chưa có nên hook
+   * không bao giờ nạp. Màn kẹt ở `loading` vĩnh viễn, và không request nào tới
+   * `/assets/pascal/pascal-mount.js` được gửi đi.
+   *
+   * Bốn mươi mốt bài kiểm đơn vị KHÔNG bắt được, vì bộ dựng thử của hook gắn ref
+   * vào một `div` vô điều kiện — đi vòng qua đúng nhánh điều kiện này. Bài e2e
+   * `e2e/pascal-viewer.spec.ts` là thứ đầu tiên chạy qua cây component thật.
+   *
+   * Đừng "dọn" nhánh `loading` khỏi đây.
+   */
+  const isBooting = state === 'loading';
+
   return (
     <Frame caption={caption}>
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div
-          ref={canvasRef}
-          data-testid="pascal-canvas"
-          aria-label="khung dựng mô hình 3d"
-          className="min-h-48 flex-1 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
-        />
+        <div className="relative min-h-[12rem] flex-1">
+          <div
+            ref={canvasRef}
+            data-testid="pascal-canvas"
+            aria-label="khung dựng mô hình 3d"
+            className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
+          />
+          {isBooting && (
+            <div className="absolute inset-0">
+              <Skeleton />
+            </div>
+          )}
+        </div>
 
         {summary !== null && (
           <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-text-muted">
