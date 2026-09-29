@@ -51,10 +51,16 @@ const mountHook = (options: UsePascalViewerOptions) => {
 
       return box.current.viewModel;
     },
-    /** Chờ gói giả nạp xong rồi mới bật cờ sẵn sàng — thứ tự thật của vòng đời. */
+    /**
+     * Chờ khung ĐÃ GẮN rồi mới bật cờ sẵn sàng.
+     *
+     * Không chờ trạng thái `loading`: đó là trạng thái đầu tiên, nên nó đúng
+     * ngay lập tức và lượt chờ không chờ gì cả. Từ khi bộ đổi dữ liệu nạp muộn,
+     * giữa lúc dựng và lúc gắn khung có thêm một nhịp bất đồng bộ.
+     */
     ready: async (bench: Harness) => {
       await vi.waitFor(() => {
-        expect(box.current?.viewModel.state).toBe('loading');
+        expect(bench.mounted()).toBe(true);
       });
       act(() => bench.setReady(true));
     },
@@ -81,6 +87,8 @@ interface Harness {
   readonly setReady: (ready: boolean) => void;
   readonly fail: (message: string) => void;
   readonly loadMount: () => Promise<never>;
+  /** Đã gắn khung vào DOM chưa — mốc chờ đúng, xem `Probe.ready`. */
+  readonly mounted: () => boolean;
 }
 
 /** Gói vách ngăn giả, đủ để chạy đúng hợp đồng `mount(el, options)`. */
@@ -88,9 +96,11 @@ const harness = (): Harness => {
   let onReadyChange: ((ready: boolean) => void) | undefined;
   let onFatal: ((error: Error) => void) | undefined;
   const dispose = vi.fn();
+  let didMount = false;
 
   return {
     dispose,
+    mounted: () => didMount,
     setReady: (ready) => onReadyChange?.(ready),
     fail: (message) => onFatal?.(new Error(message)),
     loadMount: (() =>
@@ -98,6 +108,7 @@ const harness = (): Harness => {
         mount: (_element: HTMLElement, options: Record<string, unknown>) => {
           onReadyChange = options['onReadyChange'] as (ready: boolean) => void;
           onFatal = options['onFatal'] as (error: Error) => void;
+          didMount = true;
 
           return { dispose };
         },
@@ -175,8 +186,10 @@ describe('máy trạng thái', () => {
     const bench = harness();
     const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
 
+    // Chờ khung GẮN XONG: `onFatal` chỉ tồn tại sau lượt `mount`, và trước đó
+    // `fail()` không có ai nghe.
     await vi.waitFor(() => {
-      expect(probe.state).not.toBe('error');
+      expect(bench.mounted()).toBe(true);
     });
 
     act(() => {
@@ -192,13 +205,7 @@ describe('máy trạng thái', () => {
     const bench = harness();
     const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
 
-    await vi.waitFor(() => {
-      expect(probe.state).toBe('loading');
-    });
-
-    act(() => {
-      bench.setReady(true);
-    });
+    await probe.ready(bench);
 
     await vi.waitFor(() => {
       expect(probe.state).toBe('partial');
@@ -267,8 +274,9 @@ describe('dọn dẹp', () => {
     const bench = harness();
     const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
 
+    // Phải chờ khung GẮN XONG rồi mới gỡ; gỡ trước thì không có gì để dọn.
     await vi.waitFor(() => {
-      expect(bench.dispose).not.toHaveBeenCalled();
+      expect(bench.mounted()).toBe(true);
     });
 
     probe.unmount();

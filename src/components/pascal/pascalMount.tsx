@@ -95,3 +95,27 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
     },
   };
 }
+
+/**
+ * Gói tự treo mình lên `window` — và đây KHÔNG phải thói quen xấu.
+ *
+ * Màn nạp gói này bằng một thẻ `<script src>` chứ không bằng `import()`. Lý do
+ * đã đo: ở `vite dev`, một `import()` tới đường dẫn tĩnh bị bộ phân tích của
+ * Vite viết lại thành `/assets/pascal/pascal-mount.js?import`, và Vite trả
+ * **500** khi cố dịch một gói 14 MB đã dựng sẵn. Thẻ `<script src>` đi thẳng
+ * qua tầng phục vụ tệp tĩnh, giống hệt nhau ở dev và ở bản sản phẩm.
+ *
+ * Vì sao không chuyển bản dựng sang IIFE cho gọn: IIFE buộc `inlineDynamicImports`,
+ * tức gộp cả 251 chunk thành một tệp và người dùng tải hết mọi bộ vẽ ngay từ
+ * đầu. Đo được: một cảnh AppFront chỉ cần 8 chunk bộ vẽ. Giữ ES module là giữ
+ * phần chia nhỏ ấy.
+ */
+declare global {
+  interface Window {
+    __pascalMount?: { readonly mount: typeof mount };
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__pascalMount = { mount };
+}

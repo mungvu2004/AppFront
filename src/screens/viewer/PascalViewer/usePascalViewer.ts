@@ -24,8 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useShortcut } from '@/hooks/useShortcut';
 import { formatNumber } from '@/lib/format/number';
-import { toPascalScene } from '@/lib/pascal/toPascal';
-import type { SkippedEntity } from '@/lib/pascal/types';
+import type { PascalScene, SkippedEntity } from '@/lib/pascal/types';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
 import {
@@ -45,7 +44,7 @@ interface MountModule {
   readonly mount: (
     element: HTMLElement,
     options: {
-      readonly scene: ReturnType<typeof toPascalScene>['scene'];
+      readonly scene: PascalScene;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
     },
@@ -72,8 +71,62 @@ export interface UsePascalViewerResult {
   readonly onExpand: () => void;
 }
 
-const defaultLoadMount = async (): Promise<MountModule> =>
-  (await import(/* @vite-ignore */ MOUNT_URL)) as MountModule;
+/** Lượt nạp đang chạy hoặc đã xong; gói chỉ được kéo về một lần cho cả phiên. */
+let mountModulePromise: Promise<MountModule> | null = null;
+
+/**
+ * Nạp gói vách ngăn bằng thẻ `<script src>`, KHÔNG bằng `import()`.
+ *
+ * Đã đo: `import()` tới đường dẫn tĩnh bị bộ phân tích của `vite dev` viết lại
+ * thành `…/pascal-mount.js?import`, và Vite trả **500** khi cố dịch một gói
+ * 14 MB đã dựng sẵn — màn rơi vào `PASCAL-01` dù tệp nằm đúng chỗ. Thẻ script
+ * đi thẳng qua tầng phục vụ tệp tĩnh, giống nhau ở dev và bản sản phẩm.
+ *
+ * `type="module"` vì gói là ES module có chia chunk; nó tự treo `mount` lên
+ * `window.__pascalMount` (xem `components/pascal/pascalMount.tsx`).
+ */
+const defaultLoadMount = (): Promise<MountModule> => {
+  if (mountModulePromise !== null) {
+    return mountModulePromise;
+  }
+
+  mountModulePromise = new Promise<MountModule>((resolve, reject) => {
+    const existing = window.__pascalMount;
+
+    if (existing !== undefined) {
+      resolve(existing as MountModule);
+
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = MOUNT_URL;
+    script.addEventListener('load', () => {
+      const loaded = window.__pascalMount;
+
+      if (loaded === undefined) {
+        reject(new Error('Gói vách ngăn nạp xong nhưng không treo `mount` lên window.'));
+
+        return;
+      }
+
+      resolve(loaded as MountModule);
+    });
+    script.addEventListener('error', () => {
+      reject(new Error(`Không tải được ${MOUNT_URL}.`));
+    });
+
+    document.head.append(script);
+  }).catch((cause: unknown) => {
+    // Hỏng một lần không được khoá vĩnh viễn: nút "thử lại" phải nạp lại được.
+    mountModulePromise = null;
+
+    throw cause instanceof Error ? cause : new Error(String(cause));
+  });
+
+  return mountModulePromise;
+};
 
 /** Gộp danh sách bỏ qua thành mỗi loại một dòng, đếm sẵn thành chuỗi (A15). */
 const summariseSkipped = (skipped: readonly SkippedEntity[]): readonly SkippedSummary[] => {
@@ -109,8 +162,6 @@ export function usePascalViewer({
 
   const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
-  const result = useMemo(() => (graph === null ? null : toPascalScene(graph)), [graph]);
-
   /**
    * Bản vẽ rỗng: không có gì để dựng.
    *
@@ -124,6 +175,41 @@ export function usePascalViewer({
     graph.rooms.length === 0 &&
     graph.openings.length === 0 &&
     graph.furniture.length === 0;
+
+  /**
+   * Cảnh Pascal, dựng trong hiệu ứng chứ không trong `useMemo`.
+   *
+   * `toPascalScene` nhập ở tầng module thì nó rơi vào chunk DÙNG CHUNG của các
+   * route, và cổng "chi phí thêm cho một màn" đo được đúng điều đó: 280,0 / 280,
+   * vượt. Nhập muộn đẩy nó sang chunk riêng của màn này — thứ chỉ tải khi ai đó
+   * thật sự mở màn.
+   */
+  const [result, setResult] = useState<{
+    readonly scene: PascalScene;
+    readonly skipped: readonly SkippedEntity[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (graph === null || isEmpty) {
+      setResult(null);
+
+      return;
+    }
+
+    let cancelled = false;
+
+    import('@/lib/pascal/toPascal')
+      .then(({ toPascalScene }) => {
+        if (!cancelled) setResult(toPascalScene(graph));
+      })
+      .catch(() => {
+        if (!cancelled) setFailure('PASCAL-01');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [graph, isEmpty]);
 
   const shouldMount = enabled && !isCollapsed && result !== null && !isEmpty;
 
@@ -229,10 +315,10 @@ export function usePascalViewer({
       ? 'collapsed'
       : failure !== null
         ? 'error'
-        : result === null
-          ? 'loading'
-          : isEmpty
-            ? 'empty'
+        : isEmpty
+          ? 'empty'
+          : result === null
+            ? 'loading'
             : !ready
               ? 'loading'
               : skipped.length > 0
