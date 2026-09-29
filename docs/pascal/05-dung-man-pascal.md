@@ -92,6 +92,12 @@ telemetry.
 Ghi ra để không ai tưởng là đã xong:
 
 - **Chưa sửa được gì.** Đây là màn **xem**. Mọi thay đổi vẫn đi qua màn 3D cũ.
+
+  Tầng lượt-về thì **đã dựng xong**: `fromPascal.ts` · `toSpatial.ts` ·
+  `diff.ts` · `guard.ts` — 1 232 dòng, có bài kiểm, và **chưa có nơi gọi nào
+  ngoài chính bài kiểm ấy**. Đó là nền cho Bước 10, không phải mã chết bỏ quên
+  (sổ quyết định bản 4: «chỉ-xem trước, mở sửa sau»). Đừng đọc bài kiểm xanh của
+  chúng thành "đường sửa đã chạy".
 - ~~**Chưa có trong CI.**~~ — **đã có.** `e2e/pascal-viewer.spec.ts` chạy trong
   Chromium thật và canh ba việc mà jsdom không canh được: hộp Pascal dựng ra một
   `<canvas>` có vùng đệm vẽ thật; ảnh PNG chụp canvas vượt sàn 8 000 byte, tức

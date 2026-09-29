@@ -19,6 +19,23 @@
  * Cổng lọc thay đổi ma (`guard.ts`) chạy **trước** file này. Hai thứ tách nhau
  * vì chúng trả lời hai câu khác nhau: cổng hỏi "lượt ghi này có thật không",
  * còn đây hỏi "lượt ghi thật ấy đổi những gì".
+ *
+ * ## File này CHƯA có nơi gọi thật, và đó là một quyết định đã ghi
+ *
+ * Tính tới 2026-09-29, `fromPascal.ts` · `toSpatial.ts` · `diff.ts` · `guard.ts`
+ * — **1 232 dòng** — chỉ được gọi từ chính bài kiểm của chúng. Màn
+ * `screens/viewer/PascalViewer` là màn **xem**: nó gọi `toPascal.ts` một chiều
+ * và không bao giờ đọc ngược ra.
+ *
+ * **Đây không phải mã chết bỏ quên.** `docs/pascal/00-quyet-dinh.md` bản 4 ghi
+ * người dùng chọn «chỉ-xem trước (core+viewer), mở sửa sau» ngày 2026-09-28, và
+ * ghi rõ phạm vi "xem + sửa" **bị hoãn chứ không bị rút**. Bốn file này là nền
+ * cho Bước 10, dựng xong và có hàng rào trước khi cần tới.
+ *
+ * Ghi ra ở đây vì CLAUDE.md phân biệt đúng chuyện này cho `src/lib/query` và
+ * `src/lib/mutations` («đã có nơi gọi thật — không còn là tầng logic chờ màn đầu
+ * tiên cắm vào. Đây chưa từng là mã chết»). Bốn file này thì **vẫn đang** chờ,
+ * nên đừng đọc bài kiểm xanh của chúng thành "đường sửa đã chạy".
  */
 
 import { readKindFromId, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
