@@ -45,11 +45,29 @@ Mỗi dòng dưới đây đọc từ `F:/pascal-spike/node_modules/@pascal-app/
 Hai chỗ phải tự quyết vì AppFront không có dữ liệu tương ứng:
 
 - **Đồ đạc không có chiều cao.** `Furniture.boundingBox` là hộp **mặt bằng** (`{min, max}` chỉ có
-  `x`, `y`). `asset.dimensions` vì thế ra `[rộng, 0, sâu]`, có dấu `ponytail:` ở
-  `toPascal.ts` nêu đúng ngưỡng ấy. Hệ quả cần biết ở Bước 9: một `item` cao 0 m là một đồ đạc
-  **phẳng** trong cảnh 3D.
+  `x`, `y`). Bản đầu vì thế viết `asset.dimensions = [rộng, 0, sâu]` — và **đó là một lỗi, không
+  phải một sự chờ đợi**: `PreviewModel` (`nodes/item/renderer.tsx:521`) dựng
+  `boxGeometry [w, h, d]`, nên một `item` cao 0 m không phải "đồ đạc phẳng" mà là đồ đạc **không
+  nhìn thấy được**. Nay `FURNITURE_HEIGHT_MM` trong `toPascal.ts` giữ chiều cao **danh nghĩa** theo
+  loại (bàn 750, tủ áo 2 000, …), còn cái thang lấy **chiều cao tầng thật** vì số ấy đồ thị CÓ lưu.
+  Số danh nghĩa không thể nhiễm vào dữ liệu người dùng: lượt về dựng lại hộp bao từ
+  `metadata.appfront.boundingBox`, và `boxAround` (`toSpatial.ts:294-302`) chỉ đọc `dimensions[0]`
+  với `dimensions[2]`.
 - **`asset.src` là chỗ giữ chỗ** `asset://appfront/<loại>`. Nó hợp lệ với lược đồ, nhưng không trỏ
-  tới mô hình nào. Đồ đạc hiện ra thế nào là việc của Bước 9, không phải của bộ đổi dữ liệu.
+  tới mô hình nào, nên Pascal rơi về `PreviewModel` — một khối hộp mờ đúng kích thước. Kèm với đó,
+  `scale` phải khai đích danh `[1, 1, 1]`: `getScaledDimensions`
+  (`core/schema/nodes/item.ts:210`) viết `const [sx, sy, sz] = item.scale`, và `setScene` không
+  chạy zod nên mặc định của lược đồ không tới. Thiếu trường là `TypeError` giữa lượt render, bị
+  ranh giới lỗi của Pascal nuốt — cảnh vẫn hiện, chỉ là **thiếu hẳn đồ đạc**.
+
+Và một chỗ AppFront có dữ liệu nhưng bản đầu không viết ra:
+
+- **Mỗi phòng nay ra HAI node.** `zone` là khối không gian — Pascal đọc nó để đếm phòng, gán công
+  năng, tính thể tích — nhưng nó **không dựng ra mặt sàn nào**. Mặt sàn là node `slab`. Cảnh chỉ có
+  `zone` thì nhìn xuống thấy nền trời. `slabNodeOf` dùng đúng đường bao của `zone`, đặt
+  `elevation: 0` và `thickness: 0,05 m` để tấm sàn dày **xuống dưới** mặt phẳng tầng — tường và đồ
+  đạc đều mọc từ 0, nên đó là cách duy nhất không chèn vào chân tường. Lược đồ Pascal mặc định
+  `elevation: 0,05`; AppFront cố ý không mượn nó.
 
 ---
 

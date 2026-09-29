@@ -105,7 +105,8 @@ Ghi ra để không ai tưởng là đã xong:
   nữa — tức chép lại quyết định đã nằm ở chỗ khác.
   Nên hiện tại vào bằng đường dẫn. Khi nào chốt đưa màn này thành màn chính thì lối vào đi cùng
   quyết định ấy, không đi trước nó.
-- **Đồ đạc dựng ra phẳng.** Đồ thị của AppFront chưa lưu chiều cao đồ đạc, nên
-  `asset.dimensions` ra `[rộng, 0, sâu]`.
-- **Cảnh không có mặt sàn.** Pascal tính diện tích sàn từ node `slab`, mà
-  AppFront sinh `zone`.
+- **Chiều cao đồ đạc là số danh nghĩa, không phải số đo.** Đồ thị của AppFront
+  chưa lưu chiều cao đồ đạc, nên `toPascal.ts` giữ một bảng theo loại (bàn 750
+  mm, tủ áo 2 000 mm, …). Cái thang là ngoại lệ: nó lấy chiều cao tầng thật, vì
+  số ấy đồ thị CÓ lưu. Số danh nghĩa không bao giờ đi ngược về bản vẽ — lượt về
+  dựng lại hộp bao từ siêu dữ liệu và chỉ đọc bề rộng với bề sâu.
