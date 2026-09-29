@@ -26,7 +26,15 @@
  * trong repo hoặc trong `node_modules`, và lệnh chạy lại được bất cứ lúc nào bằng
  * `pnpm pascal:assets`. Chạy lại sau mỗi lần nâng `three` hoặc đổi tài sản Pascal.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { join, dirname } from 'node:path';
 
 /** Vật liệu của Pascal: nguồn nằm trong repo, ở thư mục mã đã chép về. */
@@ -86,6 +94,13 @@ const walk = (dir, prefix = '') => {
   return found;
 };
 
+/*
+ * Dọn đích TRƯỚC khi chép. Lượt chép chỉ ghi đè, không xoá, nên một tệp bị gỡ
+ * khỏi `vendor/` vẫn nằm lại ở đích mãi mãi — và cổng vách ngăn quét đệ quy nên
+ * nó SẼ đếm phần rác ấy. `01-ho-so-cong-T4.1.md` đã ghi đúng cái bẫy này: một
+ * lượt dựng xếp chồng làm số đo lệch 29 % trong im lặng.
+ */
+rmSync(MATERIAL_TARGET, { force: true, recursive: true });
 mkdirSync(MATERIAL_TARGET, { recursive: true });
 
 let materialCount = 0;

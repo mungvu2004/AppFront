@@ -143,7 +143,7 @@ công, và dưới đây là nguyên lựa chọn người dùng đã chọn —
 
 | Mã | Nội dung | Trạng thái | Cần khi nào |
 |---|---|---|---|
-| T4.2 (2) | Ba con số trần cho cổng thứ năm, theo đơn vị **tổng-thư-mục** (≈ 7 125,8 KiB sau C2) | **chưa hỏi** | T9.1 — lúc cài cổng, sau khi có fork |
+| T4.2 (2) | Ba con số trần cho cổng thứ năm, theo đơn vị **tổng-thư-mục** (≈ 7 125,8 KiB sau C2) | **cổng đã cài, số CHƯA duyệt** — xem dưới | người duyệt, bất cứ lúc nào |
 | T4.2 (3) | lucide 8,2 KiB: để hai bản cùng chạy, hay nâng AppFront lên lucide 1.x | **chưa hỏi** | T5.4 — trước khi thêm gói Pascal |
 
 Hai câu ấy chưa cần cho Bước 8, nên đợt này không hỏi. `G2-R19-size` và `G2-THREE (c)` vẫn để trống
@@ -253,3 +253,46 @@ Một việc **chưa giải được**, ghi để không ai tưởng là đã xo
 48 loại node đã đăng ký và 105 node trong store, viewer vẫn báo `ready: false` và **không vẽ gì**.
 Chưa phân biệt được là do thứ tự nhúng sai hay do `three/webgpu` dưới SwiftShader. Phải chạy lại
 trên GPU thật trước khi kết luận.
+
+---
+
+## Bản 5 — cổng thứ năm đã cài, ba con số chờ duyệt (2026-09-29)
+
+Cổng nằm ở `scripts/check-bundle-size.mjs`, chạy trong `pnpm verify`, đo **KiB thô của cả thư
+mục** chứ không đo gzip — bốn cổng trên đo "thứ đi qua dây ở khung hình đầu tiên", cổng này đo
+"khối lượng phải mang đi deploy". Ảnh `.ktx2` đã nén sẵn nên gzip ở đây không nói lên điều gì.
+
+Ba con số **do người thi công đặt từ số đo**, để dư ~13 % — đúng dải 6–40 % mà bốn cổng trên dùng.
+E.10: đây **không** phải một quyết định đã được hỏi.
+
+| Phần | Tệp | Đo 2026-09-29 | Trần đề xuất | Dư |
+|---|---|---|---|---|
+| mã vách ngăn (`assets/pascal`) | 251 | 19 379,3 KiB | 22 000 | 2 620,7 |
+| tài sản (`pascal` + `basis`) | 64 | 7 097,6 KiB | 8 000 | 902,4 |
+| **tổng-thư-mục** | **315** | **26 476,9 KiB** | **30 000** | 3 523,1 |
+
+Cổng đã được thử cho **đỏ** (hạ trần tổng xuống 26 000 → `VƯỢT … quá 476,9 KiB`) rồi trả lại. Một
+cổng chưa từng đỏ thì chưa chứng minh được gì.
+
+**Vì sao số thực tế khác xa con số 7 125,8 KiB mà bản 3 ước:** bản ấy tính theo hướng `core+viewer`
+rút gọn sau C2. Bản thi công thật giữ cả `nodes` (bắt buộc — registry dispatch) và tự host tài sản,
+nên khối lượng khác hẳn loại.
+
+### C2 — đã có số để quyết, và câu trả lời là KHÔNG
+
+C2 đề xuất bỏ transcoder KTX2 (−571,2 KiB). Đo trên một cảnh thật
+(`e2e/pascal-viewer.spec.ts`): **12 lượt gọi tài sản, cả 12 đều là `.ktx2`**. Bỏ transcoder tiết
+kiệm 571,2 KiB và làm hỏng **mọi** bề mặt. Không đáng, và giờ điều đó dựa trên số chứ không trên
+phán đoán.
+
+### Tài sản Pascal — câu «chưa đủ thông tin để quyết» nay đã có thông tin
+
+Người dùng ngày 2026-09-28 không quyết được vì mô tả khó hiểu. Số đo 2026-09-29:
+
+- một cảnh AppFront chạm **12 trên 293** tệp vật liệu — 95 % chưa bao giờ được gọi;
+- cả 12 đều là `.ktx2`; **không lượt nào** chạm `.webp` hay `.jpg` (ảnh nguồn và ảnh xem trước của
+  bảng chọn vật liệu, mà màn chỉ-xem không dựng bảng ấy);
+- nên lượt chép nay chỉ lấy `.ktx2`: **293 tệp 17 330,7 KiB → 62 tệp 6 526,4 KiB** (−62 %).
+
+Đây là **tự host một tập con**, phương án giữa trong ba phương án đã bày ra — chọn theo số đo, và
+ghi ở đây để người duyệt bác được nếu muốn.
