@@ -181,6 +181,35 @@ export interface PascalWindowNode extends PascalNodeCommon {
   readonly height: number;
 }
 
+/**
+ * Tấm sàn của một phòng. Pascal tính diện tích sàn và đặt đồ từ node này.
+ *
+ * `zone` KHÔNG dựng ra mặt sàn — nó là khối không gian, không phải vật thể. Nên
+ * một cảnh chỉ có `zone` thì nhìn xuống là thấy nền trời, và đó là điều đã xảy
+ * ra ở bản đầu.
+ *
+ * **Mọi trường dưới đây khai đích danh, kể cả những trường lược đồ Pascal có
+ * `.default()`.** `setScene` không parse qua zod nên mặc định không bao giờ được
+ * áp — cùng cái bẫy đã ăn `site.polygon` và `building.rotation`. Xem
+ * `__tests__/renderContract.test.ts`.
+ */
+export interface PascalSlabNode extends PascalNodeCommon {
+  readonly type: 'slab';
+  readonly polygon: readonly PascalPoint2[];
+  readonly holes: readonly (readonly PascalPoint2[])[];
+  readonly holeMetadata: readonly never[];
+  /**
+   * Mặt đi lại, mét trên mặt phẳng tầng. AppFront đặt **0** chứ không lấy 0,05
+   * của lược đồ: tường và đồ đạc đều mọc từ 0, nên sàn dày xuống dưới 0 là thứ
+   * duy nhất không chèn vào chân tường.
+   */
+  readonly elevation: number;
+  /** Bề dày, mọc XUỐNG từ `elevation`; khối chiếm `[elevation − thickness, elevation]`. */
+  readonly thickness: number;
+  readonly recessed: boolean;
+  readonly autoFromWalls: boolean;
+}
+
 /** Phòng. Pascal gọi là `zone`; `spaceRole: 'room'` mới là phòng kiến trúc. */
 export interface PascalZoneNode extends PascalNodeCommon {
   readonly type: 'zone';
@@ -201,6 +230,13 @@ export interface PascalItemNode extends PascalNodeCommon {
   readonly type: 'item';
   readonly position: PascalVec3;
   readonly rotation: PascalVec3;
+  /**
+   * Tỉ lệ sửa của mô hình. **Bắt buộc phải có**, không để lược đồ tự điền:
+   * `getScaledDimensions` (`core/schema/nodes/item.ts:210`) bung mảng này bằng
+   * `const [sx, sy, sz] = item.scale` — thiếu nó là `TypeError` giữa lượt render,
+   * và ranh giới lỗi của Pascal nuốt trọn cả món đồ.
+   */
+  readonly scale: PascalVec3;
   readonly asset: {
     readonly id: string;
     readonly category: string;
@@ -220,6 +256,7 @@ export type PascalNode =
   | PascalDoorNode
   | PascalWindowNode
   | PascalZoneNode
+  | PascalSlabNode
   | PascalItemNode;
 
 /** Loại node AppFront viết ra, đọc từ chính hợp trên. */

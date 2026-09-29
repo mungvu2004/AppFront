@@ -89,6 +89,9 @@ const KIND_OF_NODE_TYPE: Readonly<Record<PascalNodeType, EntityKind | null>> = {
   door: 'opening',
   window: 'opening',
   zone: 'room',
+  // Sàn dựng ra từ đường bao phòng, nên nó không sở hữu đối tượng AppFront nào:
+  // lượt sửa một tấm sàn phải đi qua chính cái phòng của nó.
+  slab: null,
   item: 'furniture',
 };
 

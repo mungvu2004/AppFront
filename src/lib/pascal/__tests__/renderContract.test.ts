@@ -105,6 +105,103 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
     }
   });
 
+  it('mọi món đồ có `scale`, vì `getScaledDimensions` bung mảng ấy không hỏi', () => {
+    const items = Object.values(sceneOf().nodes).filter((node) => node.type === 'item');
+
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      if (item.type !== 'item') continue;
+      // `core/schema/nodes/item.ts:210` viết `const [sx, sy, sz] = item.scale`.
+      // Thiếu trường là `TypeError` giữa lượt render, và ranh giới lỗi của
+      // Pascal nuốt trọn món đồ — cảnh vẫn hiện, chỉ là thiếu đồ đạc.
+      expect(item.scale).toHaveLength(3);
+      expect(item.scale.every(Number.isFinite)).toBe(true);
+    }
+  });
+
+  it('không món đồ nào cao 0 m — hộp dày 0 mm là món đồ vô hình', () => {
+    const items = Object.values(sceneOf().nodes).filter((node) => node.type === 'item');
+
+    for (const item of items) {
+      if (item.type !== 'item') continue;
+      // `PreviewModel` (`nodes/item/renderer.tsx:521`) dựng `boxGeometry [w, h, d]`.
+      expect(item.asset.dimensions[1]).toBeGreaterThan(0);
+    }
+  });
+
+  it('cái thang cao trọn tầng, không lấy số danh nghĩa', () => {
+    // Bộ mẫu chuẩn chỉ có đồ đạc loại `table`, nên đổi loại của một món để có
+    // cái thang — thay vì dựng một bộ mẫu thứ hai.
+    const graph = createSampleBuilding();
+    const first = graph.furniture[0];
+
+    expect(first).toBeDefined();
+    if (first === undefined) return;
+
+    graph.furniture = [{ ...first, kind: 'stair' }, ...graph.furniture.slice(1)];
+
+    const level = graph.levels.find((item) => item.id === first.levelId);
+    const node = sceneOf(graph).nodes[`item_${first.id}`];
+
+    expect(level?.heightMm).toBeGreaterThan(0);
+    expect(node?.type).toBe('item');
+    if (node?.type !== 'item') return;
+    expect(node.asset.dimensions[1]).toBe((level?.heightMm ?? 0) / 1000);
+  });
+
+  it('mỗi phòng có MỘT tấm sàn, và tấm sàn khai đủ trường bộ vẽ đọc thẳng', () => {
+    const graph = createSampleBuilding();
+    const scene = sceneOf(graph);
+    const slabs = Object.values(scene.nodes).filter((node) => node.type === 'slab');
+
+    expect(slabs).toHaveLength(graph.rooms.length);
+
+    for (const slab of slabs) {
+      if (slab.type !== 'slab') continue;
+      // `zone` KHÔNG dựng mặt sàn; thiếu `slab` là nhìn xuống thấy nền trời.
+      expect(slab.polygon.length).toBeGreaterThanOrEqual(3);
+      expect(slab.polygon.flat().every(Number.isFinite)).toBe(true);
+      // Năm trường dưới đây đều là `.default()` của lược đồ, mà `setScene`
+      // không parse — nên chúng phải có mặt đích danh.
+      expect(slab.holes).toEqual([]);
+      expect(slab.holeMetadata).toEqual([]);
+      expect(slab.elevation).toBe(0);
+      expect(slab.thickness).toBeGreaterThan(0);
+      expect(slab.recessed).toBe(false);
+      expect(slab.autoFromWalls).toBe(false);
+    }
+  });
+
+  it('sàn dày XUỐNG dưới mặt phẳng tầng, không chèn vào chân tường', () => {
+    const slab = Object.values(sceneOf().nodes).find((node) => node.type === 'slab');
+
+    expect(slab?.type).toBe('slab');
+    if (slab?.type !== 'slab') return;
+
+    // Khối chiếm `[elevation − thickness, elevation]`. Tường và đồ đạc mọc từ
+    // 0, nên mặt trên của sàn phải đúng bằng 0 chứ không phải 0,05 của lược đồ.
+    expect(slab.elevation).toBe(0);
+    expect(slab.elevation - slab.thickness).toBeLessThan(0);
+  });
+
+  it('sàn và phòng cùng một đường bao — hai node, một hình học', () => {
+    const graph = createSampleBuilding();
+    const scene = sceneOf(graph);
+    const room = graph.rooms[0];
+
+    expect(room).toBeDefined();
+    if (room === undefined) return;
+
+    const zone = scene.nodes[`zone_${room.id}`];
+    const slab = scene.nodes[`slab_${room.id}`];
+
+    expect(zone?.type).toBe('zone');
+    expect(slab?.type).toBe('slab');
+    if (zone?.type !== 'zone' || slab?.type !== 'slab') return;
+    expect(slab.polygon).toEqual(zone.polygon);
+    expect(slab.parentId).toBe(zone.parentId);
+  });
+
   it('không node nào của tám loại thiếu `object`, `id`, `type`, `parentId`', () => {
     const scene = sceneOf();
 

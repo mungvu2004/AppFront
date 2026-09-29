@@ -68,6 +68,7 @@ const DEPTH_OF_TYPE: Readonly<Record<PascalNodeType, number>> = {
   level: 2,
   wall: 3,
   zone: 3,
+  slab: 3,
   item: 3,
   door: 4,
   window: 4,

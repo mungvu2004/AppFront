@@ -1,10 +1,12 @@
 /**
  * AppFront → Pascal: đồ thị không gian thành cảnh `{ nodes, rootNodeIds }`.
  *
- * Bản đầu chuyển **sáu** loại đối tượng — tầng, tường, cửa đi, cửa sổ, phòng,
- * đồ đạc — cộng hai node tổng hợp là khu đất và công trình. Trục định vị, kích
- * thước và ghi chú **không** có loại node tương ứng bên Pascal, nên chúng vào
- * danh sách bỏ qua kèm lý do đọc được, chứ không biến mất im lặng.
+ * Chuyển **sáu** loại đối tượng — tầng, tường, cửa đi, cửa sổ, phòng, đồ đạc —
+ * thành **bảy** loại node, cộng hai node tổng hợp là khu đất và công trình. Một
+ * phòng ra hai node: `zone` là khối không gian, `slab` là mặt sàn thật nhìn
+ * thấy được. Trục định vị, kích thước và ghi chú **không** có loại node tương
+ * ứng bên Pascal, nên chúng vào danh sách bỏ qua kèm lý do đọc được, chứ không
+ * biến mất im lặng.
  *
  * ## Ba luật của file này
  *
@@ -22,6 +24,7 @@
 import type {
   Building,
   Furniture,
+  FurnitureKind,
   Level,
   Opening,
   Room,
@@ -41,6 +44,7 @@ import type {
   PascalNodeId,
   PascalPoint2,
   PascalSiteNode,
+  PascalSlabNode,
   PascalVec3,
   PascalWallNode,
   PascalWindowNode,
@@ -58,10 +62,37 @@ const SITE_MARGIN_M = 5;
 /** Nửa cạnh khu đất khi bản vẽ chưa có hình học nào, mét — bằng mặc định của lược đồ Pascal. */
 const SITE_FALLBACK_HALF_SIZE_M = 15;
 
-/** Đồ đạc của AppFront chỉ có kích thước mặt bằng; chiều cao chưa được lưu. */
-// ponytail: đồ đạc cao 0 m vì đồ thị không lưu chiều cao. Ngày nào
-// `Furniture` có `heightMm`, sửa đúng dòng dựng `dimensions` bên dưới.
-const FURNITURE_HEIGHT_M = 0;
+/**
+ * Chiều cao DANH NGHĨA của từng loại đồ đạc, milimét.
+ *
+ * `Furniture` của AppFront chỉ lưu hộp bao mặt bằng, không lưu chiều cao. Bản
+ * đầu vì thế đặt chiều cao 0 — và 0 không phải "chưa biết", nó là một hộp dày
+ * 0 mm: `PreviewModel` (`nodes/item/renderer.tsx:521`) dựng
+ * `boxGeometry [w, h, d]` nên đồ đạc ra một tờ giấy không nhìn thấy.
+ *
+ * Bảng này là **số danh nghĩa, không phải số đo**, và nó không bao giờ đi
+ * ngược về đồ thị: lượt về dựng lại hộp bao từ `metadata.appfront.boundingBox`
+ * và `boxAround` chỉ đọc `dimensions[0]` với `dimensions[2]`
+ * (`toSpatial.ts:294-302`), nên chiều cao bịa ở đây không thể nhiễm vào dữ
+ * liệu người dùng.
+ *
+ * `stair` không có trong bảng: một thang chiếm trọn chiều cao tầng, và chiều
+ * cao tầng thì đồ thị CÓ lưu — nên nó lấy số thật thay vì số danh nghĩa.
+ */
+// ponytail: chiều cao danh nghĩa theo loại. Ngày nào `Furniture` có `heightMm`
+// thì bảng này biến mất và `heightOfFurniture` đọc thẳng trường ấy.
+const FURNITURE_HEIGHT_MM: Readonly<Record<Exclude<FurnitureKind, 'stair'>, number>> = {
+  table: 750,
+  chair: 850,
+  bed: 500,
+  wardrobe: 2000,
+  kitchenCabinet: 850,
+  sanitaryFixture: 800,
+  other: 800,
+};
+
+/** Bề dày tấm sàn, mét — mặc định của chính lược đồ Pascal. */
+const SLAB_THICKNESS_M = 0.05;
 
 /** Một độ dài hữu hạn — điều kiện để được đổi sang mét mà không ném lỗi. */
 const isUsable = (...values: readonly number[]): boolean => values.every(Number.isFinite);
@@ -222,6 +253,31 @@ const openingNodeOf = (
 /* Phòng và đồ đạc.                                                            */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Tấm sàn của một phòng, dựng từ đúng đường bao mà `zone` dùng.
+ *
+ * Hai node cho một phòng không phải trùng lặp: `zone` là khối không gian —
+ * Pascal đọc nó để đếm phòng, gán công năng, tính thể tích — còn `slab` là vật
+ * thể có mặt để nhìn và để đặt đồ lên. Bỏ `slab` thì bản vẽ có phòng mà không
+ * có nền.
+ */
+const slabNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalSlabNode => ({
+  object: 'node',
+  id: toPascalId('slab', room.id),
+  type: 'slab',
+  parentId: levelNodeId,
+  polygon: room.outline.map((point): PascalPoint2 => [metresOf(point.x), metresOf(point.y)]),
+  holes: [],
+  holeMetadata: [],
+  elevation: 0,
+  thickness: SLAB_THICKNESS_M,
+  recessed: false,
+  autoFromWalls: false,
+  metadata: {
+    appfront: originOf(room, { usage: room.usage }),
+  },
+});
+
 const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalZoneNode => ({
   object: 'node',
   id: toPascalId('zone', room.id),
@@ -236,10 +292,21 @@ const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalZoneNode => ({
   },
 });
 
-const itemNodeOf = (furniture: Furniture, levelNodeId: PascalNodeId): PascalItemNode => {
+/** Chiều cao dựng hình của một món đồ, mét: thang lấy chiều cao tầng, còn lại lấy bảng. */
+const heightOfFurniture = (furniture: Furniture, levelHeightMm: number): number =>
+  furniture.kind === 'stair'
+    ? metresOf(levelHeightMm)
+    : metresOf(FURNITURE_HEIGHT_MM[furniture.kind]);
+
+const itemNodeOf = (
+  furniture: Furniture,
+  levelNodeId: PascalNodeId,
+  levelHeightMm: number,
+): PascalItemNode => {
   const label = FURNITURE_KIND_LABELS[furniture.kind];
   const widthM = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
   const depthM = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
+  const heightM = heightOfFurniture(furniture, levelHeightMm);
 
   return {
     object: 'node',
@@ -249,6 +316,7 @@ const itemNodeOf = (furniture: Furniture, levelNodeId: PascalNodeId): PascalItem
     parentId: levelNodeId,
     position: [metresOf(furniture.centre.x), 0, metresOf(furniture.centre.y)],
     rotation: [0, yawOf(furniture.rotationDeg), 0],
+    scale: [1, 1, 1],
     asset: {
       id: `appfront-${furniture.kind}`,
       category: furniture.kind,
@@ -257,7 +325,7 @@ const itemNodeOf = (furniture: Furniture, levelNodeId: PascalNodeId): PascalItem
       // `asset://…` là dạng nội bộ mà `AssetUrl` nhận (`schema/asset-url.js`);
       // AppFront chưa có mô hình GLB cho đồ đạc nên đây là chỗ giữ chỗ hợp lệ.
       src: `asset://appfront/${furniture.kind}`,
-      dimensions: [widthM, FURNITURE_HEIGHT_M, depthM],
+      dimensions: [widthM, heightM, depthM],
     },
     metadata: {
       appfront: originOf(furniture, {
@@ -366,6 +434,8 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     orderedLevels.filter((level) => isUsable(level.elevationMm, level.heightMm)),
   );
   const levelNodeIdOf = new Map<string, PascalNodeId>();
+  /* Chiều cao tầng, cho đúng một nơi cần: cái thang dựng cao trọn tầng. */
+  const levelHeightMmOf = new Map<string, number>();
   let elevationIndex = 0;
 
   for (const level of orderedLevels) {
@@ -383,6 +453,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     elevationIndex += 1;
     nodes[node.id] = node;
     levelNodeIdOf.set(level.id, node.id);
+    levelHeightMmOf.set(level.id, level.heightMm);
     adopt(BUILDING_NODE_ID, node.id);
   }
 
@@ -456,16 +527,19 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    const node = zoneNodeOf(room, levelNodeId);
-
-    nodes[node.id] = node;
-    adopt(levelNodeId, node.id);
+    for (const node of [zoneNodeOf(room, levelNodeId), slabNodeOf(room, levelNodeId)]) {
+      nodes[node.id] = node;
+      adopt(levelNodeId, node.id);
+    }
   }
 
   for (const furniture of graph.furniture) {
     const levelNodeId = levelNodeIdOf.get(furniture.levelId);
+    /* Hai bảng luôn được đặt cùng lúc, nên `undefined` ở đây nghĩa là tầng đã bị
+       bỏ qua — cùng một lý do, không phải hai. */
+    const levelHeightMm = levelHeightMmOf.get(furniture.levelId);
 
-    if (levelNodeId === undefined) {
+    if (levelNodeId === undefined || levelHeightMm === undefined) {
       skipped.push(
         skip(furniture.id, 'đồ đạc', `Đồ đạc thuộc tầng ${furniture.levelId} mà tầng ấy không có trong bản vẽ.`),
       );
@@ -487,7 +561,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    const node = itemNodeOf(furniture, levelNodeId);
+    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm);
 
     nodes[node.id] = node;
     adopt(levelNodeId, node.id);

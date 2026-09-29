@@ -65,7 +65,7 @@ describe('toPascalScene — lượt đi', () => {
     expect(scene.nodes[BUILDING_NODE_ID]?.parentId).toBe(SITE_NODE_ID);
   });
 
-  it('viết đủ sáu loại node, mỗi loại đúng số lượng của bộ mẫu chuẩn', () => {
+  it('viết đủ bảy loại node, mỗi loại đúng số lượng của bộ mẫu chuẩn', () => {
     const countOf = (type: string): number =>
       Object.values(scene.nodes).filter((node) => node.type === type).length;
 
@@ -74,6 +74,8 @@ describe('toPascalScene — lượt đi', () => {
     expect(countOf('door')).toBe(SAMPLE_DOOR_COUNT);
     expect(countOf('window')).toBe(SAMPLE_WINDOW_COUNT);
     expect(countOf('zone')).toBe(SAMPLE_ROOM_COUNT);
+    // Mỗi phòng có HAI node: `zone` là khối không gian, `slab` là mặt sàn thật.
+    expect(countOf('slab')).toBe(SAMPLE_ROOM_COUNT);
     expect(countOf('item')).toBe(SAMPLE_FURNITURE_COUNT);
   });
 

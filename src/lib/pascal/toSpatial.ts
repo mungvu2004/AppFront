@@ -443,6 +443,26 @@ const collectLevelChildren = (
         break;
       }
 
+      case 'slab': {
+        /*
+         * Sàn dựng RA từ đường bao phòng ở lượt đi, nên lượt về không mang gì
+         * mới: `zone` cùng phòng đã chở đủ đường bao, công năng và dấu xác
+         * minh. Bỏ qua trong im lặng là đúng — báo "bỏ qua" cho một tấm sàn mà
+         * chính AppFront vừa sinh ra thì mỗi vòng lại thêm một dòng nhiễu.
+         *
+         * Tấm sàn NGƯỜI DÙNG vẽ trong Pascal thì khác: id của nó là nanoid nên
+         * `appFrontIdOf` trả `null`, và nó được nói ra.
+         */
+        if (appFrontIdOf('room', child.id) === null) {
+          collector.skip(
+            child.id,
+            'sàn',
+            'Tấm sàn vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ AppFront.',
+          );
+        }
+        break;
+      }
+
       default:
         collector.skip(
           child.id,

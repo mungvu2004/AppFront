@@ -77,8 +77,18 @@ const graphOf = (parts: Partial<SpatialGraph>): SpatialGraph => ({
 });
 
 /** Số node thật sự viết ra, không tính hai node tổng hợp. */
+/**
+ * Số node ứng với MỘT đối tượng của bản vẽ.
+ *
+ * Trừ ba loại. `site` và `building` là node tổng hợp — không đối tượng nào của
+ * bản vẽ sinh ra chúng. `slab` là node **thứ hai** của một cái phòng: cùng một
+ * phòng ra `zone` (khối không gian) và `slab` (mặt sàn), nên đếm nó là đếm
+ * phòng hai lần và phép cân bằng dưới đây sẽ lệch đúng bằng số phòng.
+ */
 const entityNodeCount = (scene: PascalScene): number =>
-  Object.values(scene.nodes).filter((node) => node.type !== 'site' && node.type !== 'building').length;
+  Object.values(scene.nodes).filter(
+    (node) => node.type !== 'site' && node.type !== 'building' && node.type !== 'slab',
+  ).length;
 
 describe('toPascalScene — đường hỏng', () => {
   it('bỏ qua tầng có cao độ không đo được, và mọi thứ đứng trên tầng ấy', () => {
@@ -328,6 +338,7 @@ describe('toSpatialGraph — đường hỏng', () => {
       parentId: 'level_L-AAAA000001',
       position: [2, 0, 3],
       rotation: [0, 0, 0],
+      scale: [1, 1, 1],
       asset: {
         id: 'x',
         category: 'table',
