@@ -92,9 +92,15 @@ telemetry.
 Ghi ra để không ai tưởng là đã xong:
 
 - **Chưa sửa được gì.** Đây là màn **xem**. Mọi thay đổi vẫn đi qua màn 3D cũ.
-- **Chưa có trong CI.** jsdom không có WebGL, nên việc dựng hình đo bằng tay
-  trong trình duyệt. 41 bài kiểm của màn canh máy trạng thái, bảy trạng thái,
-  tiếng Việt, khả năng tiếp cận và vòng đời — **không** canh một khung hình.
+- ~~**Chưa có trong CI.**~~ — **đã có.** `e2e/pascal-viewer.spec.ts` chạy trong
+  Chromium thật và canh ba việc mà jsdom không canh được: hộp Pascal dựng ra một
+  `<canvas>` có vùng đệm vẽ thật; ảnh PNG chụp canvas vượt sàn 8 000 byte, tức
+  trên khung hình **có hình học** chứ không phải một mảng trời trơn (đo được
+  33 440 byte khi chạy riêng, 208 492 khi chạy cả bộ); và **không node nào** bị
+  store Pascal dọn đi trong im lặng.
+
+  49 bài đơn vị của màn vẫn canh máy trạng thái, bảy trạng thái, tiếng Việt, khả
+  năng tiếp cận và vòng đời — chúng không canh khung hình, và không cần canh.
 - **Không có lối vào trên giao diện, và đó là quyết định chứ không phải bỏ sót.**
   Đường duy nhất để cắm một liên kết vào màn 3D cũ là khe `inspectorSections`, mà khe ấy đi qua
   `Viewer3DPanels` — nơi bài kiểm khẳng định **đúng ba bảng phụ loại trừ nhau**
