@@ -31,7 +31,7 @@ import { createRoot } from 'react-dom/client';
 import type { PascalScene } from '@/lib/pascal/types';
 
 import { PascalFrame } from './PascalFrame';
-import { clearPascalScene } from './pascalScene';
+import { clearPascalScene, type PascalSceneCensus } from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
 export interface PascalMountHandle {
@@ -49,6 +49,8 @@ export interface PascalMountOptions {
   readonly onReadyChange?: (ready: boolean) => void;
   /** Lỗi chết người ở gốc thứ hai. `ScreenErrorBoundary` không với tới đây được. */
   readonly onFatal?: (error: Error) => void;
+  /** Số node vào store và số node store dọn đi — xem `PascalFrameProps.onSceneLoaded`. */
+  readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
 }
 
 /**
@@ -76,6 +78,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           sceneKey={sceneKey}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
+          onSceneLoaded={options.onSceneLoaded}
         />
       </StrictMode>,
     );

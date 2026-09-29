@@ -24,6 +24,24 @@ import {
 import { usePascalViewer, type UsePascalViewerOptions, type UsePascalViewerResult } from './usePascalViewer';
 
 /**
+ * Trần chờ rộng hơn mặc định, và có lý do đo được.
+ *
+ * Từ khi `toPascalScene` nạp muộn bằng `import()` (để giữ cổng "chi phí thêm
+ * cho một màn"), giữa lúc dựng hook và lúc gắn khung có **thêm một nhịp bất
+ * đồng bộ**. Chạy riêng thư mục này thì 1 000 ms của `vi.waitFor` thừa sức;
+ * chạy cả 353 tệp cùng lúc thì không — cổng tổng ngày 2026-09-29 đỏ đúng một
+ * bài vì thế, trong khi chạy riêng nó xanh 49/49.
+ *
+ * Nâng trần chờ **không** nới một khẳng định nào: mọi `expect` giữ nguyên từng
+ * dòng. Cùng cách xử lý và cùng lý do với `routes/router.test.tsx:51` và
+ * `screens/admin/ModelLibrary/ModelLibrary.test.tsx:91` — phạm vi một tệp,
+ * không đụng `vitest.config.ts` vì tệp ấy là cổng chung.
+ */
+const ASYNC_TIMEOUT_MS = 15_000;
+
+vi.setConfig({ testTimeout: 20_000 });
+
+/**
  * Hook cần một phần tử DOM thật cho `canvasRef` — nó chỉ nạp gói khi có chỗ để
  * cắm vào. `renderHook` không cho cái đó, nên đây là một component tí hon vừa
  * gọi hook vừa gắn ref, và đẩy kết quả mới nhất ra ngoài.
@@ -61,11 +79,14 @@ const mountHook = (options: UsePascalViewerOptions) => {
     ready: async (bench: Harness) => {
       await vi.waitFor(() => {
         expect(bench.mounted()).toBe(true);
-      });
+      }, { timeout: ASYNC_TIMEOUT_MS });
       act(() => bench.setReady(true));
     },
     expand: () => {
       act(() => box.current?.onExpand());
+    },
+    retry: () => {
+      act(() => box.current?.onRetry());
     },
     unmount: view.unmount,
   };
@@ -89,12 +110,16 @@ interface Harness {
   readonly loadMount: () => Promise<never>;
   /** Đã gắn khung vào DOM chưa — mốc chờ đúng, xem `Probe.ready`. */
   readonly mounted: () => boolean;
+  /** Giả lập store Pascal dọn đi mấy node, như nó vẫn làm trong im lặng. */
+  readonly dropNodes: (ids: readonly string[]) => void;
 }
 
 /** Gói vách ngăn giả, đủ để chạy đúng hợp đồng `mount(el, options)`. */
 const harness = (): Harness => {
   let onReadyChange: ((ready: boolean) => void) | undefined;
   let onFatal: ((error: Error) => void) | undefined;
+  let onSceneLoaded: ((census: { nodeCount: number; droppedIds: readonly string[] }) => void)
+    | undefined;
   const dispose = vi.fn();
   let didMount = false;
 
@@ -103,11 +128,16 @@ const harness = (): Harness => {
     mounted: () => didMount,
     setReady: (ready) => onReadyChange?.(ready),
     fail: (message) => onFatal?.(new Error(message)),
+    dropNodes: (ids) => onSceneLoaded?.({ nodeCount: 0, droppedIds: ids }),
     loadMount: (() =>
       Promise.resolve({
         mount: (_element: HTMLElement, options: Record<string, unknown>) => {
           onReadyChange = options['onReadyChange'] as (ready: boolean) => void;
           onFatal = options['onFatal'] as (error: Error) => void;
+          onSceneLoaded = options['onSceneLoaded'] as (census: {
+            nodeCount: number;
+            droppedIds: readonly string[];
+          }) => void;
           didMount = true;
 
           return { dispose };
@@ -177,7 +207,7 @@ describe('máy trạng thái', () => {
 
     await vi.waitFor(() => {
       expect(probe.state).toBe('error');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     expect(probe.viewModel.errorCode).toBe('PASCAL-01');
   });
@@ -190,7 +220,7 @@ describe('máy trạng thái', () => {
     // `fail()` không có ai nghe.
     await vi.waitFor(() => {
       expect(bench.mounted()).toBe(true);
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     act(() => {
       bench.fail('WebGL context lost');
@@ -198,7 +228,7 @@ describe('máy trạng thái', () => {
 
     await vi.waitFor(() => {
       expect(probe.viewModel.errorCode).toBe('PASCAL-02');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
   });
 
   it('dựng xong mà có thứ bị bỏ qua thì "partial", kèm số đếm đã định dạng', async () => {
@@ -209,7 +239,7 @@ describe('máy trạng thái', () => {
 
     await vi.waitFor(() => {
       expect(probe.state).toBe('partial');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     // Bộ mẫu chuẩn có 4 trục và 34 kích thước không sang Pascal được (A14).
     const kinds = probe.viewModel.skipped.map((item) => item.kind);
@@ -226,13 +256,13 @@ describe('[A12] bàn phím', () => {
     await probe.ready(bench);
     await vi.waitFor(() => {
       expect(probe.state).not.toBe('loading');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     press('Escape');
 
     await vi.waitFor(() => {
       expect(probe.state).toBe('collapsed');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
   });
 
   it('E mở lại khung xem sau khi Esc thu nó lại', async () => {
@@ -242,17 +272,17 @@ describe('[A12] bàn phím', () => {
     await probe.ready(bench);
     await vi.waitFor(() => {
       expect(probe.state).not.toBe('loading');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     press('Escape');
     await vi.waitFor(() => {
       expect(probe.state).toBe('collapsed');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     press('e');
     await vi.waitFor(() => {
       expect(probe.state).not.toBe('collapsed');
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
   });
 
   it('nút chuột làm được đúng việc phím làm — phím không phải đường duy nhất', async () => {
@@ -265,7 +295,62 @@ describe('[A12] bàn phím', () => {
 
     await vi.waitFor(() => {
       expect(probe.state).not.toBe('collapsed');
+    }, { timeout: ASYNC_TIMEOUT_MS });
+  });
+});
+
+describe('node bị store dọn đi thì màn NÓI RA', () => {
+  it('store dọn node thì màn sang "partial" và liệt kê số bị dọn', async () => {
+    const bench = harness();
+    const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
+
+    await probe.ready(bench);
+    act(() => bench.dropNodes(['slab_R-ROOM0000001', 'slab_R-ROOM0000002']));
+
+    await vi.waitFor(() => {
+      expect(probe.state).toBe('partial');
+    }, { timeout: ASYNC_TIMEOUT_MS });
+
+    const entry = probe.viewModel.skipped.find((item) => item.kind === 'phần mô hình');
+
+    expect(entry).toBeDefined();
+    expect(entry?.countLabel).toBe('2');
+    expect(entry?.reason.length).toBeGreaterThan(0);
+  });
+
+  it('store không dọn gì thì KHÔNG thêm dòng nào', async () => {
+    const bench = harness();
+    const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
+
+    await probe.ready(bench);
+    const before = probe.viewModel.skipped.length;
+
+    act(() => bench.dropNodes([]));
+
+    // Bộ mẫu chuẩn luôn có trục và kích thước nên màn vẫn `partial`; điều được
+    // kiểm ở đây là lượt nạp SẠCH không thêm dòng thứ n + 1.
+    expect(probe.viewModel.skipped).toHaveLength(before);
+    expect(probe.viewModel.skipped.some((item) => item.kind === 'phần mô hình')).toBe(false);
+  });
+
+  it('thử lại thì dòng của lượt trước MẤT — nó nói về một lượt nạp đã chết', async () => {
+    const bench = harness();
+    const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
+
+    await probe.ready(bench);
+    act(() => bench.dropNodes(['slab_R-ROOM0000001']));
+
+    await vi.waitFor(() => {
+      expect(probe.viewModel.skipped.some((item) => item.kind === 'phần mô hình')).toBe(true);
+    }, { timeout: ASYNC_TIMEOUT_MS });
+
+    act(() => {
+      probe.retry();
     });
+
+    await vi.waitFor(() => {
+      expect(probe.viewModel.skipped.some((item) => item.kind === 'phần mô hình')).toBe(false);
+    }, { timeout: ASYNC_TIMEOUT_MS });
   });
 });
 
@@ -277,12 +362,12 @@ describe('dọn dẹp', () => {
     // Phải chờ khung GẮN XONG rồi mới gỡ; gỡ trước thì không có gì để dọn.
     await vi.waitFor(() => {
       expect(bench.mounted()).toBe(true);
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
 
     probe.unmount();
 
     await vi.waitFor(() => {
       expect(bench.dispose).toHaveBeenCalled();
-    });
+    }, { timeout: ASYNC_TIMEOUT_MS });
   });
 });

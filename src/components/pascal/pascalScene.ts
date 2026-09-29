@@ -42,7 +42,7 @@ export const loadPascalPlugins = async (): Promise<void> => {
 };
 
 /** Cái `loadSceneIntoPascal` trả về, đủ để nơi gọi tự kiểm mà không cần chạm store Pascal. */
-export interface PascalLoadResult {
+export interface PascalSceneCensus {
   /** Số node thật sự nằm trong store sau lượt nạp. */
   readonly nodeCount: number;
   /** Node bị store dọn đi vì mồ côi hoặc không với tới được từ gốc. */
@@ -55,7 +55,7 @@ export interface PascalLoadResult {
  * Trả về số đo thay vì `void`: store **im lặng** bỏ node mồ côi và node không với tới được
  * từ `rootNodeIds`, nên nơi gọi cần thấy được điều đó.
  */
-export const loadSceneIntoPascal = async (scene: PascalScene): Promise<PascalLoadResult> => {
+export const loadSceneIntoPascal = async (scene: PascalScene): Promise<PascalSceneCensus> => {
   await loadPascalPlugins();
 
   const store = useScene.getState();

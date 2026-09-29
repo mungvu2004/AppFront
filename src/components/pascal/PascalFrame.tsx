@@ -10,7 +10,7 @@ import { Viewer } from '@pascal-app/viewer';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
-import { loadSceneIntoPascal } from './pascalScene';
+import { loadSceneIntoPascal, type PascalSceneCensus } from './pascalScene';
 
 export interface PascalFrameProps {
   readonly scene: PascalScene;
@@ -21,17 +21,34 @@ export interface PascalFrameProps {
   readonly sceneKey: number;
   readonly onReadyChange: ((ready: boolean) => void) | undefined;
   readonly onFatal: ((error: Error) => void) | undefined;
+  /**
+   * Số đo của lượt nạp, sau khi store đã dọn.
+   *
+   * Store Pascal **im lặng** bỏ node mồ côi và node không với tới được từ
+   * `rootNodeIds`. `loadSceneIntoPascal` trả số đo ấy ra từ đầu, nhưng trước
+   * đây không ai nghe — nên một tấm sàn bị dọn đi là một mặt sàn biến mất mà
+   * màn hình vẫn nói "xong".
+   */
+  readonly onSceneLoaded: ((census: PascalSceneCensus) => void) | undefined;
 }
 
-export function PascalFrame({ scene, sceneKey, onReadyChange, onFatal }: PascalFrameProps) {
+export function PascalFrame({
+  scene,
+  sceneKey,
+  onReadyChange,
+  onFatal,
+  onSceneLoaded,
+}: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     loadSceneIntoPascal(scene)
-      .then(() => {
-        if (!cancelled) setLoaded(true);
+      .then((census) => {
+        if (cancelled) return;
+        onSceneLoaded?.(census);
+        setLoaded(true);
       })
       .catch((cause: unknown) => {
         if (!cancelled) onFatal?.(cause instanceof Error ? cause : new Error(String(cause)));
@@ -40,7 +57,7 @@ export function PascalFrame({ scene, sceneKey, onReadyChange, onFatal }: PascalF
     return () => {
       cancelled = true;
     };
-  }, [scene, onFatal]);
+  }, [scene, onFatal, onSceneLoaded]);
 
   const handleReady = useCallback(
     (ready: boolean) => {

@@ -91,6 +91,17 @@ const SCREEN_REGION_NAME = 'mô hình 3d';
  */
 const PASCAL_RENDER_TIMEOUT_MS = 60_000;
 
+/**
+ * Sàn của kích thước ảnh PNG chụp canvas, byte.
+ *
+ * Không phải một con số tuỳ ý: nó phân biệt "có hình học" với "một màu trơn".
+ * PNG nén theo hàng, nên một canvas đúng một màu — đúng thứ hiện ra khi cả cây
+ * node bị bỏ trong im lặng — xuống cỡ vài trăm byte tới 2 KiB dù to bao nhiêu.
+ * Số đo thật in ra ngay trong bài kiểm, nên lần sau ai sửa cũng thấy khoảng dư.
+ * Đo 2026-09-29 trên Chromium, bộ mẫu chuẩn A14: **33 440 byte** — dư 4,2 lần.
+ */
+const PASCAL_FRAME_MIN_PNG_BYTES = 8_000;
+
 /** Cho hai bài chạm tới cảnh thật đủ giờ: đăng nhập + dựng cảnh có thể vượt 30 s mặc định. */
 const HEAVY_TEST_TIMEOUT_MS = 90_000;
 
@@ -219,6 +230,23 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
   });
   expect(drawBuffer.width).toBeGreaterThan(0);
   expect(drawBuffer.height).toBeGreaterThan(0);
+
+  /* Việc 3b — trên khung hình có HÌNH HỌC, không phải một mảng trời trơn.
+     Một canvas một màu nén PNG xuống cỡ vài trăm byte đến 2 KiB, vì PNG đi
+     theo hàng và mọi hàng giống nhau. Cảnh thật có tường, sàn, đồ đạc và bóng
+     đổ nên nó không nén được như thế. Ngưỡng dưới đặt dưới số đo thật khá xa
+     (đo 2026-09-29, xem dòng log ngay dưới) để nó không đỏ vì một lượt đổi
+     màu nền hay một góc camera khác. */
+  const frame = await canvasEl.screenshot();
+
+  console.log(`[đo] ảnh canvas Pascal: ${frame.length} byte PNG`);
+  expect(frame.length).toBeGreaterThan(PASCAL_FRAME_MIN_PNG_BYTES);
+
+  /* Việc 3c — KHÔNG node nào bị store Pascal dọn đi. Nó dọn node mồ côi và
+     node không với tới được từ gốc, trong im lặng; màn hình nay nói ra điều đó
+     thành một dòng "phần mô hình". Dòng ấy vắng mặt nghĩa là cả cảnh — kể cả
+     mỗi tấm sàn của mỗi phòng — sống trọn vào store. */
+  await expect(page.getByText('phần mô hình')).toHaveCount(0);
 
   /* Việc 4 — suốt đăng nhập + dựng cảnh, không lượt nào rời máy. Đặc biệt
      không `editor.pascal.app` (CDN mặc định của Pascal) hay `cdn.jsdelivr.net`. */

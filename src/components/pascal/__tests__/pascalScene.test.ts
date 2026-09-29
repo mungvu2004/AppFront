@@ -26,14 +26,20 @@ import { toPascalScene } from '@/lib/pascal/toPascal';
 
 import { clearPascalScene, loadPascalPlugins, loadSceneIntoPascal } from '../pascalScene';
 
-/** Site + building + tầng + tường + ô mở + phòng + đồ đạc. */
+/**
+ * Site + building + tầng + tường + ô mở + phòng + **sàn** + đồ đạc.
+ *
+ * `SAMPLE_ROOM_COUNT` đếm HAI lần, và đó không phải lỗi gõ: một phòng ra hai
+ * node — `zone` là khối không gian, `slab` là mặt sàn nhìn thấy được. Bỏ `slab`
+ * thì nhìn xuống chỉ thấy nền trời.
+ */
 const EXPECTED_NODE_COUNT =
   2 +
   SAMPLE_LEVEL_COUNT +
   SAMPLE_WALL_COUNT +
   SAMPLE_DOOR_COUNT +
   SAMPLE_WINDOW_COUNT +
-  SAMPLE_ROOM_COUNT +
+  SAMPLE_ROOM_COUNT * 2 +
   SAMPLE_FURNITURE_COUNT;
 
 describe('nạp cảnh AppFront vào Pascal thật', () => {

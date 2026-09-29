@@ -39,6 +39,12 @@ import {
 /** Đường dẫn tĩnh của gói vách ngăn. Xem `vite.pascal.config.ts`. */
 const MOUNT_URL = '/assets/pascal/pascal-mount.js';
 
+/** Số node vào store Pascal và số node store dọn đi. */
+interface PascalSceneCensus {
+  readonly nodeCount: number;
+  readonly droppedIds: readonly string[];
+}
+
 /** Hình dạng tối thiểu của gói vách ngăn mà màn này dựa vào. */
 interface MountModule {
   readonly mount: (
@@ -47,6 +53,7 @@ interface MountModule {
       readonly scene: PascalScene;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
+      readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
     },
   ) => { readonly dispose: () => void };
 }
@@ -157,6 +164,16 @@ export function usePascalViewer({
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  /**
+   * Node mà store Pascal dọn đi trong im lặng.
+   *
+   * Nó dọn node mồ côi và node không với tới được từ `rootNodeIds`, không báo
+   * ai. Một tấm sàn bị dọn là một mặt sàn biến mất trong khi màn hình vẫn nói
+   * "xong" — nên số này đi vào cùng danh sách "chưa chuyển sang được" mà bản vẽ
+   * dùng cho trục định vị và kích thước. Luật ở đây giống luật của
+   * `lib/pascal/toPascal.ts`: không đối tượng nào rơi không dấu vết.
+   */
+  const [droppedCount, setDroppedCount] = useState(0);
   /** Người dùng tự thu khung lại bằng Esc. Khác `collapsed` do nơi gọi truyền vào. */
   const [selfCollapsed, setSelfCollapsed] = useState(false);
 
@@ -224,6 +241,9 @@ export function usePascalViewer({
 
     setReady(false);
     setFailure(null);
+    /* Số của lượt trước KHÔNG được sống sang lượt này: thử lại xong mà dòng
+       "phần mô hình" vẫn đứng đó thì nó đang nói về một lượt nạp đã chết. */
+    setDroppedCount(0);
 
     loadMount()
       .then((module) => {
@@ -236,6 +256,9 @@ export function usePascalViewer({
           onFatal: () => {
             // Thông điệp thô KHÔNG lên màn hình — xem `PascalViewerErrorCode`.
             if (!disposed) setFailure('PASCAL-02');
+          },
+          onSceneLoaded: (census) => {
+            if (!disposed) setDroppedCount(census.droppedIds.length);
           },
         });
       })
@@ -304,10 +327,20 @@ export function usePascalViewer({
     { enabled: enabled && isCollapsed },
   );
 
-  const skipped = useMemo(
-    () => (result === null ? [] : summariseSkipped(result.skipped)),
-    [result],
-  );
+  const skipped = useMemo(() => {
+    const fromAdapter = result === null ? [] : summariseSkipped(result.skipped);
+
+    if (droppedCount === 0) return fromAdapter;
+
+    return [
+      ...fromAdapter,
+      {
+        kind: 'phần mô hình',
+        countLabel: formatNumber(droppedCount),
+        reason: 'Khung dựng hình dọn đi vì không nối được vào cây của cảnh.',
+      },
+    ];
+  }, [result, droppedCount]);
 
   const state: PascalViewerState = !enabled
     ? 'forbidden'
