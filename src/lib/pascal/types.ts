@@ -208,6 +208,21 @@ export interface PascalSlabNode extends PascalNodeCommon {
   readonly thickness: number;
   readonly recessed: boolean;
   readonly autoFromWalls: boolean;
+  /**
+   * Vật liệu của từng mặt sàn, theo mô hình khe của Pascal (`surface`, `side`).
+   *
+   * **Phải khai, và lý do đo được.** Mặc định của Pascal là
+   * `SLAB_TOP_SLOT_DEFAULT = 'library:wood-woodplank48'`
+   * (`nodes/src/slab/slots.ts`) — một mặt sàn gỗ mà repo Pascal **không commit**
+   * bốn tệp `.ktx2` của nó. Tự host thì bốn lượt gọi ấy hỏng, mặt sàn ra không
+   * vân, và **không gì đổ**: máy chủ dev trả `index.html` kèm mã 200, Pascal
+   * nuốt lỗi phân tích trong bộ nạp texture của nó.
+   *
+   * Bản kê vật liệu trỏ tới 249 tệp `.ktx2` mà repo chỉ có 62 (17/65 vật liệu),
+   * nên chọn bừa một cái tên là 74 % khả năng rơi vào lỗ. `concrete-polished`
+   * nằm trong 17 cái có thật.
+   */
+  readonly slots: Readonly<Record<string, string>>;
 }
 
 /** Phòng. Pascal gọi là `zone`; `spaceRole: 'room'` mới là phòng kiến trúc. */

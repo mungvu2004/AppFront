@@ -94,6 +94,15 @@ const FURNITURE_HEIGHT_MM: Readonly<Record<Exclude<FurnitureKind, 'stair'>, numb
 /** Bề dày tấm sàn, mét — mặc định của chính lược đồ Pascal. */
 const SLAB_THICKNESS_M = 0.05;
 
+/**
+ * Vật liệu mặt sàn. Xem `PascalSlabNode.slots` về việc vì sao KHÔNG để mặc định.
+ *
+ * `concrete-polished` là một trong 17 vật liệu mà repo Pascal có đủ tệp `.ktx2`;
+ * 48 vật liệu còn lại của bản kê chỉ sống trên CDN của họ. Đổi tên ở đây thì
+ * đối chiếu lại bằng `pnpm pascal:assets` — nó in ra danh sách thiếu.
+ */
+const SLAB_SURFACE_MATERIAL = 'library:concrete-polished';
+
 /** Một độ dài hữu hạn — điều kiện để được đổi sang mét mà không ném lỗi. */
 const isUsable = (...values: readonly number[]): boolean => values.every(Number.isFinite);
 
@@ -273,6 +282,7 @@ const slabNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalSlabNode => ({
   thickness: SLAB_THICKNESS_M,
   recessed: false,
   autoFromWalls: false,
+  slots: { surface: SLAB_SURFACE_MATERIAL },
   metadata: {
     appfront: originOf(room, { usage: room.usage }),
   },

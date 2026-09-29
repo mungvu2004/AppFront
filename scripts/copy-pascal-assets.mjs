@@ -26,8 +26,8 @@
  * trong repo hoặc trong `node_modules`, và lệnh chạy lại được bất cứ lúc nào bằng
  * `pnpm pascal:assets`. Chạy lại sau mỗi lần nâng `three` hoặc đổi tài sản Pascal.
  */
-import { cpSync, copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 
 /** Vật liệu của Pascal: nguồn nằm trong repo, ở thư mục mã đã chép về. */
 const MATERIAL_SOURCE = join('vendor', 'pascal', 'assets', 'material');
@@ -40,6 +40,30 @@ const BASIS_TARGET = join('public', 'basis');
 /** Chỉ cần bộ giải; `README.md` đi kèm không phục vụ lượt chạy nào. */
 const BASIS_WANTED = /^basis_transcoder\.(js|wasm)$/;
 
+/**
+ * Bản kê vật liệu của Pascal — nguồn duy nhất nói tệp nào SẼ được gọi lúc chạy.
+ *
+ * Đo ngày 2026-09-29: bản kê trỏ tới **249** tệp `.ktx2`, repo chỉ commit **62**
+ * (17 trong 65 vật liệu). 187 tệp còn lại sống trên CDN của Pascal, và tự host
+ * mà không đối chiếu thì chúng thành **404 trong im lặng** — đúng thứ đã xảy ra
+ * với `woodplank_48`: bốn lượt gọi hỏng, mặt gỗ ra không có vân, không một dòng
+ * báo nào. Lượt chép nay nói ra con số ấy.
+ */
+const LIBRARY_SOURCE = join('vendor', 'pascal', 'packages', 'core', 'src', 'material-library.ts');
+
+/**
+ * Chỉ chép thứ lúc chạy CÓ gọi tới.
+ *
+ * Đo trên một cảnh thật (`e2e/pascal-viewer.spec.ts`): 12 lượt gọi tài sản, cả
+ * 12 đều là `.ktx2`. Không một lượt nào chạm `.webp` hay `.jpg` — chúng là ảnh
+ * NGUỒN và ảnh xem trước của bảng chọn vật liệu, mà màn chỉ-xem không dựng bảng
+ * ấy. Chép cả cụm là 17 330,7 KiB; chép đúng `.ktx2` là 6 526,4 KiB.
+ *
+ * Ngày nào mở phần sửa và bảng chọn vật liệu hiện ra, thêm `.webp` vào đây —
+ * đừng gỡ dòng này đi mà không đo lại.
+ */
+const MATERIAL_WANTED = /\.ktx2$/;
+
 /** Đếm đệ quy, để dòng tổng kết nói được số thật chứ không nói "xong". */
 const countFiles = (dir) => {
   let total = 0;
@@ -50,9 +74,43 @@ const countFiles = (dir) => {
   return total;
 };
 
+/** Mọi tệp dưới `dir`, đường dẫn tương đối so với chính nó. */
+const walk = (dir, prefix = '') => {
+  const found = [];
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    const rel = prefix === '' ? entry : `${prefix}/${entry}`;
+    if (statSync(path).isDirectory()) found.push(...walk(path, rel));
+    else found.push(rel);
+  }
+  return found;
+};
+
 mkdirSync(MATERIAL_TARGET, { recursive: true });
-cpSync(MATERIAL_SOURCE, MATERIAL_TARGET, { recursive: true });
-const materialCount = countFiles(MATERIAL_TARGET);
+
+let materialCount = 0;
+for (const rel of walk(MATERIAL_SOURCE)) {
+  if (!MATERIAL_WANTED.test(rel)) continue;
+  const target = join(MATERIAL_TARGET, rel);
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(join(MATERIAL_SOURCE, rel), target);
+  materialCount += 1;
+}
+
+/*
+ * Đối chiếu bản kê với thứ vừa chép. Không ném lỗi: 187 tệp thiếu là trạng thái
+ * THẬT của repo Pascal, không phải hỏng cài đặt, và ném ở đây sẽ chặn cả `pnpm
+ * dev`. Nhưng nó phải được NÓI RA — một con số in ra mỗi lượt dựng là thứ duy
+ * nhất ngăn nó lại thành 404 không ai thấy.
+ */
+const referenced = [
+  ...new Set(
+    [...readFileSync(LIBRARY_SOURCE, 'utf8').matchAll(/'(\/material\/[^']+\.ktx2)'/g)].map(
+      (match) => match[1].replace('/material/', ''),
+    ),
+  ),
+];
+const missing = referenced.filter((rel) => !existsSync(join(MATERIAL_TARGET, rel)));
 
 mkdirSync(BASIS_TARGET, { recursive: true });
 const basisCopied = readdirSync(BASIS_SOURCE).filter((name) => BASIS_WANTED.test(name));
@@ -61,4 +119,16 @@ for (const name of basisCopied) {
 }
 
 console.log(`Đã chép ${String(materialCount)} tệp vật liệu Pascal vào ${MATERIAL_TARGET}/`);
+
+if (missing.length > 0) {
+  const materials = [...new Set(missing.map((rel) => rel.split('/')[1]))];
+  console.warn(
+    `CẢNH BÁO: bản kê vật liệu trỏ tới ${String(referenced.length)} tệp .ktx2, ` +
+      `THIẾU ${String(missing.length)} (${String(materials.length)} vật liệu). ` +
+      'Repo Pascal chỉ commit một phần; phần còn lại sống trên CDN của họ. ' +
+      'Cảnh nào dùng tới chúng sẽ nhận 404 và mất vân bề mặt. ' +
+      `Vật liệu thiếu: ${materials.slice(0, 6).join(', ')}` +
+      (materials.length > 6 ? ` … và ${String(materials.length - 6)} nữa.` : '.'),
+  );
+}
 console.log(`Đã chép ${String(basisCopied.length)} tệp bộ giải Basis vào ${BASIS_TARGET}/: ${basisCopied.join(', ')}`);

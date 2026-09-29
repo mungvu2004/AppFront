@@ -169,7 +169,38 @@ describe('hợp đồng dựng hình — trường bộ vẽ đọc thẳng', ()
       expect(slab.thickness).toBeGreaterThan(0);
       expect(slab.recessed).toBe(false);
       expect(slab.autoFromWalls).toBe(false);
+      // Mặc định của Pascal là `library:wood-woodplank48`, mà repo Pascal KHÔNG
+      // commit bốn tệp `.ktx2` của nó — bốn lượt gọi hỏng, mặt sàn mất vân, và
+      // không gì đổ. Phải khai đích danh một vật liệu CÓ tệp thật.
+      expect(slab.slots['surface']).toBe('library:concrete-polished');
     }
+  });
+
+  it('vật liệu mặt sàn nằm trong nhóm Pascal CÓ đủ tệp, không phải nhóm chỉ có trên CDN', () => {
+    const slab = Object.values(sceneOf().nodes).find((node) => node.type === 'slab');
+
+    expect(slab?.type).toBe('slab');
+    if (slab?.type !== 'slab') return;
+
+    /*
+     * Bản kê vật liệu trỏ tới 249 tệp `.ktx2`; repo commit 62, tức 17 trong 65
+     * vật liệu. Chọn bừa một tên là 74 % khả năng rơi vào lỗ, và lỗ ấy im lặng.
+     * Danh sách dưới đây là 17 cái có thật, đo 2026-09-29 bằng
+     * `pnpm pascal:assets` — lệnh ấy in ra phần thiếu mỗi lượt chạy.
+     */
+    const SHIPPED = [
+      'library:concrete-plaster',
+      'library:concrete-polished',
+      'library:concrete-raw',
+      'library:concrete-plate',
+      'library:concrete-stucco',
+      'library:concrete-drywall',
+      'library:metal-copper',
+      'library:metal-polished',
+      'library:metal-steel',
+    ];
+
+    expect(SHIPPED).toContain(slab.slots['surface']);
   });
 
   it('sàn dày XUỐNG dưới mặt phẳng tầng, không chèn vào chân tường', () => {

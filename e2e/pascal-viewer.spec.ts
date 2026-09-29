@@ -167,6 +167,58 @@ function trackRequestUrls(page: Page): readonly string[] {
 }
 
 /**
+ * Lượt gọi tài sản nào KHÔNG nhận về tài sản.
+ *
+ * Vì sao phép kiểm này không đo mã trạng thái, dù mã trạng thái là thứ ai cũng
+ * nghĩ tới đầu tiên: **máy chủ dev trả 200 cho tệp không tồn tại.** Nó rơi về
+ * `index.html` cho mọi đường dẫn không khớp, nên một tệp `.ktx2` thiếu về tới
+ * trình duyệt dưới dạng một trang HTML mã 200, và Pascal nuốt lỗi phân tích
+ * trong bộ nạp texture của nó. Đo ngày 2026-09-29: bốn lượt gọi
+ * `woodplank_48_*_512.ktx2` đi qua đúng như thế — mặt sàn ra không vân, cảnh
+ * vẫn dựng, bài vẫn xanh, và một cổng theo mã trạng thái **cũng vẫn xanh**.
+ *
+ * Nên dấu hiệu đúng là **kiểu nội dung**: một tài sản trả về `text/html` là một
+ * tệp thiếu đang mặc áo trang chủ. Bản kê vật liệu của Pascal trỏ tới 249 tệp
+ * `.ktx2` mà repo chỉ commit 62, nên đây là một lỗ có **187** chỗ rơi.
+ */
+function trackBadAssetResponses(page: Page): readonly string[] {
+  const bad: string[] = [];
+  const isAsset = (url: string): boolean => {
+    const path = new URL(url).pathname;
+
+    return path.startsWith('/pascal/') || path.startsWith('/basis/') || path.startsWith('/assets/');
+  };
+
+  page.on('requestfailed', (request) => {
+    if (isAsset(request.url())) {
+      bad.push(`hỏng ${new URL(request.url()).pathname} — ${request.failure()?.errorText ?? '?'}`);
+    }
+  });
+  page.on('response', (response) => {
+    if (!isAsset(response.url())) return;
+
+    const path = new URL(response.url()).pathname;
+    const status = response.status();
+
+    if (status < 200 || status >= 300) {
+      bad.push(`${String(status)} ${path}`);
+
+      return;
+    }
+
+    const type = response.headers()['content-type'] ?? '';
+
+    // `.js` và `.css` của vách ngăn ĐÚNG là mã; chỉ tài sản nhị phân mới không
+    // bao giờ được là HTML.
+    if (type.includes('text/html') && !path.endsWith('.js') && !path.endsWith('.css')) {
+      bad.push(`${path} trả về text/html — tệp không tồn tại`);
+    }
+  });
+
+  return bad;
+}
+
+/**
  * Không request nào rời máy. Bỏ qua `data:`/`blob:` — `new URL` không phân
  * tích được các lược đồ ấy thành host, và chúng vốn không phải lượt ra mạng.
  */
@@ -211,6 +263,7 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
 
   // Đăng ký TRƯỚC lượt goto đầu tiên để không bỏ lỡ request nào của cả chuỗi.
   const requestUrls = trackRequestUrls(page);
+  const badResponses = trackBadAssetResponses(page);
 
   await enablePascalFlag(page);
   await signInThenOpenPascalViewer(page);
@@ -264,6 +317,11 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
   /* Việc 4 — suốt đăng nhập + dựng cảnh, không lượt nào rời máy. Đặc biệt
      không `editor.pascal.app` (CDN mặc định của Pascal) hay `cdn.jsdelivr.net`. */
   expect(findOffMachineRequests(requestUrls)).toEqual([]);
+
+  /* Việc 5 — và không lượt nào HỎNG. Tự host thì thiếu tệp là lỗi của mình, và
+     nó không làm gì đổ: cảnh vẫn dựng, chỉ mất vân bề mặt. Xem
+     {@link trackBadResponses}. */
+  expect(badResponses).toEqual([]);
 });
 
 test('Esc thu khung xem lại, phần còn lại của màn vẫn nguyên (A12, việc 5)', async ({ page }) => {

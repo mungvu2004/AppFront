@@ -111,6 +111,18 @@ Ghi ra để không ai tưởng là đã xong:
   nữa — tức chép lại quyết định đã nằm ở chỗ khác.
   Nên hiện tại vào bằng đường dẫn. Khi nào chốt đưa màn này thành màn chính thì lối vào đi cùng
   quyết định ấy, không đi trước nó.
+- **Bảng vật liệu của Pascal chỉ có 17 trên 65 vật liệu.** Bản kê
+  (`core/src/material-library.ts`) trỏ tới **249** tệp `.ktx2`; repo Pascal
+  commit **62**. 187 tệp còn lại sống trên CDN của họ, mà AppFront thì tự host
+  để không lượt nào rời máy. Hệ quả: đặt một vật liệu ngoài 17 cái ấy là mặt bề
+  mặt mất vân — và **không gì đổ**, vì máy chủ dev trả `index.html` mã 200 cho
+  đường dẫn không có tệp.
+
+  Hai hàng rào cho chuyện đó: `pnpm pascal:assets` in ra con số thiếu mỗi lượt
+  chạy, và `e2e/pascal-viewer.spec.ts` đỏ khi một tài sản trả về `text/html`.
+  Hàng rào thứ hai đã được thử bằng cách dựng lại đúng lỗi cũ: nó đỏ, kèm tên
+  bốn tệp.
+
 - **Chiều cao đồ đạc là số danh nghĩa, không phải số đo.** Đồ thị của AppFront
   chưa lưu chiều cao đồ đạc, nên `toPascal.ts` giữ một bảng theo loại (bàn 750
   mm, tủ áo 2 000 mm, …). Cái thang là ngoại lệ: nó lấy chiều cao tầng thật, vì
