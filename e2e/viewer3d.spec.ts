@@ -231,17 +231,34 @@ async function signInThenOpenViewer(
  * sang qua được nó.
  *
  * KHÔNG chữa được, và đừng tưởng là nó chữa:
- * - **P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ
- *   (`<span aria-label="Người dùng thử">`, đến từ `src/api/__mocks__/client.ts:320`).
+ * - ~~**P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ~~ — **chẩn đoán này
+ *   SAI, và cái sai của nó là chỗ đáng đọc nhất đoạn văn này.** Thứ chặn không
+ *   phải con trỏ và không phải người cộng tác giả: `PresenceOverlay` lọc
+ *   `!person.isSelf` nên ở chế độ mock KHÔNG con trỏ nào được vẽ. Thứ chặn là
+ *   **thanh hiện diện của CHÍNH BẠN** — `visibleCollaborators` luôn chứa
+ *   `isSelf`, nên nút ảnh đại diện 36 × 36 ở `right-4 top-4` luôn được dựng, và
+ *   nó rơi trọn vào ô ViewCube 72 × 72 ở `right-2 top-2`, tại `Z_INDEX.panel`
+ *   (20) so với z tự động của ViewCube.
+ *
+ *   Hệ quả của cái sai: P2 bị xếp vào nợ "chờ thẩm định lại dưới máy chủ không
+ *   mock", trong khi bỏ mock đi thì nó vẫn đỏ y nguyên — bạn vẫn là một người
+ *   trong danh sách hiện diện. Đây là lỗi SẢN PHẨM, mọi người dùng đều gặp, và
+ *   nó đã được chữa ở `Viewer3DOverlays.tsx` (thanh hiện diện xuống dưới cụm
+ *   ViewCube + bản đồ nhỏ) cộng với việc khung 280 px của thanh ấy thôi nuốt
+ *   chuột ở chỗ nó không vẽ gì.
  * - **Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong,
  *   trong lúc `findOneRoom` đang chạy. Không phải sai cách đóng: `handleSkip`
  *   (`src/screens/system/EditorTour/useEditorTour.ts:555`) đóng tour hẳn cả
  *   phiên, nên một cú bấm là đủ — vấn đề là THỜI ĐIỂM.
  *
- * Gốc rễ chung: mục 4.10 bật bộ mẫu cho e2e, biến mỗi lượt thành "người dùng
- * lần đầu có bạn cộng tác giả". Bộ spec này viết cho máy chủ KHÔNG mock và
- * chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt riêng, không phải
- * của F-01b. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ * Gốc rễ chung — đúng cho Q2, **không** đúng cho P2: mục 4.10 bật bộ mẫu cho
+ * e2e, biến mỗi lượt thành "người dùng lần đầu". Bộ spec này viết cho máy chủ
+ * KHÔNG mock và chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt
+ * riêng. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ *
+ * Bài học từ P2: "cả hai đều là chuyện của chế độ mock" là một lời giải thích
+ * gộp, và nó đã che mất một lỗi sản phẩm thật trong hai ngày. Trước khi xếp một
+ * bài đỏ vào chung một nợ, hãy đo xem nó có ĐỎ VÌ CÙNG LÝ DO không.
  */
 async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
