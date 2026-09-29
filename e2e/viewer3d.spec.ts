@@ -246,10 +246,27 @@ async function signInThenOpenViewer(
  *   nó đã được chữa ở `Viewer3DOverlays.tsx` (thanh hiện diện xuống dưới cụm
  *   ViewCube + bản đồ nhỏ) cộng với việc khung 280 px của thanh ấy thôi nuốt
  *   chuột ở chỗ nó không vẽ gì.
- * - **Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong,
- *   trong lúc `findOneRoom` đang chạy. Không phải sai cách đóng: `handleSkip`
- *   (`src/screens/system/EditorTour/useEditorTour.ts:555`) đóng tour hẳn cả
- *   phiên, nên một cú bấm là đủ — vấn đề là THỜI ĐIỂM.
+ * - ~~**Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong~~
+ *   — đúng triệu chứng, nhưng **thiếu mất cơ chế**, và thiếu cơ chế thì không
+ *   sửa được. Đo ngày 2026-09-29, hai việc:
+ *
+ *   1. `settleViewer` chờ **20 giây** mà KHÔNG lần nào thấy nút "bỏ qua". Lý
+ *      do nằm ở `useEditorTour.ts:480-483`: một bước chỉ sống khi nó có phím
+ *      THẬT *hoặc* neo THẬT. Trên màn 3D, bốn bước kia bám phím
+ *      `wallLayerReview.*` và bước còn lại bám neo `[aria-label="Chế độ xem"]`
+ *      — lúc màn vừa mở thì không cái nào có, nên `steps.length === 0`, trạng
+ *      thái về `empty`, và lớp phủ **không được dựng**. Không có gì để bấm.
+ *   2. Mở ô tìm lên thì phím tắt và neo của lớp ấy vào sổ, một bước **sống
+ *      lại**, và lớp phủ hiện ngay trên chính cái danh sách vừa mở.
+ *
+ *   Nên thứ tự đúng là: mở ô tìm TRƯỚC, đóng hướng dẫn SAU, rồi mới gõ —
+ *   `findOneRoom` nay làm đúng thế.
+ *
+ *   Việc thứ ba, thuần lỗi của bài kiểm: hai lượt chờ trong `settleViewer` DÙNG
+ *   CHUNG một trần 20 000 ms, cộng lại 40 giây trong một bài có trần 30 giây.
+ *   Khi lượt dựng mô hình chạy lâu, bài chết ngay trong `settleViewer` và báo
+ *   "Target page… has been closed" — một câu không nói được nó đang chờ gì.
+ *   Nay tách làm hai ngân sách: 20 000 cho mô hình, 6 000 cho hướng dẫn.
  *
  * Gốc rễ chung — đúng cho Q2, **không** đúng cho P2: mục 4.10 bật bộ mẫu cho
  * e2e, biến mỗi lượt thành "người dùng lần đầu". Bộ spec này viết cho máy chủ
@@ -259,16 +276,29 @@ async function signInThenOpenViewer(
  * Bài học từ P2: "cả hai đều là chuyện của chế độ mock" là một lời giải thích
  * gộp, và nó đã che mất một lỗi sản phẩm thật trong hai ngày. Trước khi xếp một
  * bài đỏ vào chung một nợ, hãy đo xem nó có ĐỎ VÌ CÙNG LÝ DO không.
+ *
+ * Bài học từ Q2: một ghi chú nói ĐÚNG triệu chứng ("tour hiện ra sau") mà không
+ * nói cơ chế thì đọc như đã hiểu rồi, và nó chặn người sau đi tìm. Cơ chế thật
+ * — bước hướng dẫn sống lại khi neo của nó xuất hiện — mất một lượt chạy có in
+ * số ra mới thấy, và nó chỉ ra luôn chỗ phải chèn lượt đóng thứ hai.
  */
 async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
   await expect(building).toHaveCount(0, { timeout: VIEWER_READY_TIMEOUT_MS });
 
+  await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+}
+
+/**
+ * Đóng lớp hướng dẫn NẾU nó đang mở, và không chờ quá phần ngân sách của mình.
+ *
+ * Gọi được nhiều lần, và phải gọi nhiều lần — xem đoạn "đo được gì" ở
+ * {@link settleViewer}.
+ */
+async function dismissTourIfPresent(page: Page, budgetMs: number): Promise<void> {
   const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
-  await skip
-    .first()
-    .waitFor({ state: 'visible', timeout: VIEWER_READY_TIMEOUT_MS })
-    .catch(() => undefined);
+
+  await skip.first().waitFor({ state: 'visible', timeout: budgetMs }).catch(() => undefined);
 
   if ((await skip.count()) === 0) {
     return;
@@ -280,8 +310,23 @@ async function settleViewer(page: Page): Promise<void> {
   await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
 }
 
-/** Dựng mô hình bộ mẫu rồi mở lớp hướng dẫn tốn bao lâu là cùng. */
+/** Dựng mô hình bộ mẫu tốn bao lâu là cùng. */
 const VIEWER_READY_TIMEOUT_MS = 20_000;
+
+/**
+ * Phần ngân sách dành cho việc CHỜ lớp hướng dẫn hiện ra, tách khỏi phần chờ
+ * dựng mô hình.
+ *
+ * Trước đây hai phần dùng CHUNG một con số 20 000, cộng lại thành 40 giây bên
+ * trong một bài có trần 30 giây — nên khi lượt dựng mô hình chạy lâu, bài chết
+ * vì hết giờ NGAY TRONG `settleViewer`, và thông báo là "Target page… has been
+ * closed" chứ không phải một câu nói được nó đang chờ gì. Đo 2026-09-29: đúng
+ * thế, dấu vết dừng ở `skip.count()`.
+ *
+ * 6 000 ms vì lớp hướng dẫn hiện ngay sau khi mô hình dựng xong, chứ không chờ
+ * mạng thêm lần nào. Cộng cả hai phần là 26 giây, vẫn nằm trong trần 30.
+ */
+const TOUR_APPEAR_TIMEOUT_MS = 6_000;
 
 /** Mỗi bước kéo đi ngang bấy nhiêu pixel. */
 const DRAG_STEP_X_PX = 15;
@@ -446,6 +491,21 @@ async function findOneRoom(page: Page): Promise<void> {
 
   const box = page.getByRole('combobox', { name: SEARCH_INPUT_LABEL });
   await expect(box).toBeVisible();
+
+  /*
+   * Đóng lớp hướng dẫn LẦN NỮA, và đây không phải vá bừa — đo được nó hiện ra
+   * ĐÚNG LÚC này.
+   *
+   * Một bước hướng dẫn chỉ sống khi nó có phím THẬT *hoặc* neo THẬT
+   * (`useEditorTour.ts:480-483`); không bước nào sống thì `steps.length === 0`,
+   * trạng thái về `empty`, và lớp phủ KHÔNG dựng — nên `settleViewer` chờ đủ
+   * 20 giây vẫn không thấy nút "bỏ qua" nào để bấm. Mở ô tìm lên thì phím tắt
+   * và neo của màn ấy vào sổ, một bước sống lại, và lớp phủ hiện ngay trên cái
+   * danh sách vừa mở — nuốt đúng cú bấm tiếp theo.
+   *
+   * Nên thứ tự ở đây là cố ý: mở ô tìm TRƯỚC, đóng hướng dẫn SAU, rồi mới gõ.
+   */
+  await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
 
   await box.fill(ROOM_QUERY);
 

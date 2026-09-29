@@ -98,7 +98,16 @@ const PASCAL_RENDER_TIMEOUT_MS = 60_000;
  * PNG nén theo hàng, nên một canvas đúng một màu — đúng thứ hiện ra khi cả cây
  * node bị bỏ trong im lặng — xuống cỡ vài trăm byte tới 2 KiB dù to bao nhiêu.
  * Số đo thật in ra ngay trong bài kiểm, nên lần sau ai sửa cũng thấy khoảng dư.
- * Đo 2026-09-29 trên Chromium, bộ mẫu chuẩn A14: **33 440 byte** — dư 4,2 lần.
+ * Đo 2026-09-29 trên Chromium, bộ mẫu chuẩn A14: **33 440 byte** khi chạy một
+ * mình, **208 492 byte** khi chạy cả bộ song song (góc camera và thời điểm chụp
+ * khác nhau). Sàn 8 000 nằm dưới cả hai từ 4,2 tới 26 lần — rộng có chủ đích,
+ * vì nó chỉ cần phân biệt "có hình học" với "một màu trơn".
+ *
+ * **Phải CHỜ chứ không chụp một phát.** Cùng ngày, cùng máy, chạy 6 worker song
+ * song: lượt chụp đơn ra **2 801 byte** — `onReadyChange` đã báo xong nhưng
+ * khung hình thật chưa kịp lên, và bài đỏ vì một khoảnh khắc chứ không vì cảnh
+ * rỗng. `expect.poll` chờ tới khi có hình, nên nó đo "cuối cùng CÓ hình học"
+ * thay vì "đúng mili giây này có hình học".
  */
 const PASCAL_FRAME_MIN_PNG_BYTES = 8_000;
 
@@ -237,10 +246,14 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
      đổ nên nó không nén được như thế. Ngưỡng dưới đặt dưới số đo thật khá xa
      (đo 2026-09-29, xem dòng log ngay dưới) để nó không đỏ vì một lượt đổi
      màu nền hay một góc camera khác. */
-  const frame = await canvasEl.screenshot();
+  await expect
+    .poll(async () => (await canvasEl.screenshot()).length, {
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+      message: 'khung hình Pascal vẫn nén xuống như một mảng màu trơn',
+    })
+    .toBeGreaterThan(PASCAL_FRAME_MIN_PNG_BYTES);
 
-  console.log(`[đo] ảnh canvas Pascal: ${frame.length} byte PNG`);
-  expect(frame.length).toBeGreaterThan(PASCAL_FRAME_MIN_PNG_BYTES);
+  console.log(`[đo] ảnh canvas Pascal: ${(await canvasEl.screenshot()).length} byte PNG`);
 
   /* Việc 3c — KHÔNG node nào bị store Pascal dọn đi. Nó dọn node mồ côi và
      node không với tới được từ gốc, trong im lặng; màn hình nay nói ra điều đó
