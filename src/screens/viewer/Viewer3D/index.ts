@@ -62,9 +62,9 @@ export type {
   ViewerSceneMountOptions,
 } from './viewer3dTypes';
 /*
- * `shouldUseViewerFixture` xuất ra đây vì màn `PascalViewer` cần ĐÚNG luật này:
- * kho rỗng + chế độ mock thì dùng nhà mẫu, nối BE thật thì kho rỗng là kho rỗng.
- * Hai màn 3D phải thấy cùng một bản vẽ, nên luật ấy được dùng chung chứ không
- * được chép lại.
+ * `shouldUseViewerFixture` KHÔNG tái xuất ở đây, và đó là chuyện của cổng kích
+ * thước gói chứ không phải chuyện gu. Barrel này là chunk của màn 3D cũ, và
+ * chunk ấy đang ở 280,03 KiB trên ngân sách 280 — thêm một dòng tái xuất là
+ * thừa 28 byte và cổng đỏ. `PascalViewer.container.tsx` vì thế nhập thẳng
+ * `./useViewer3DSource`, đúng một đường, không đi vòng qua barrel.
  */
-export { shouldUseViewerFixture, useViewer3DSource } from './useViewer3DSource';

@@ -21,11 +21,17 @@ import {
 import { resolveUseMockApi } from '@/api/appClient';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
-// Nhập THẲNG hai module, KHÔNG qua barrel `index.ts` của hai màn kia: đi qua
-// barrel là kéo cả cụm màn ấy vào chunk của route này, và cổng "chi phí thêm
-// cho một màn" đo được đúng điều đó — 282,1 / 280 KiB, vượt 2,1.
-import { shouldUseViewerFixture } from '@/screens/viewer/Viewer3D/useViewer3DSource';
-import { VIEWER_FIXTURE_SPATIAL } from '@/screens/viewer/ViewerShell/viewerShellGateway';
+// Nhập THẲNG module, KHÔNG qua barrel `index.ts` của màn kia: đi qua barrel là
+// kéo cả cụm màn ấy vào chunk của route này, và cổng "chi phí thêm cho một màn"
+// đo được đúng điều đó — 282,1 / 280 KiB, vượt 2,1.
+//
+// Và `shouldUseViewerFixture` nhập từ ĐÚNG module giữ `VIEWER_FIXTURE_SPATIAL`,
+// không từ `Viewer3D/useViewer3DSource`: hai màn cùng nhập module thứ hai ấy thì
+// Rollup tách nó ra một chunk dùng chung 507 byte và cổng lại đỏ vì 39 byte.
+import {
+  shouldUseViewerFixture,
+  VIEWER_FIXTURE_SPATIAL,
+} from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';

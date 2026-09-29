@@ -6,18 +6,14 @@ import { useStore } from '@/store';
 import {
   createViewerShellFixtureGateway,
   createViewerShellGateway,
+  shouldUseViewerFixture,
   VIEWER_FIXTURE_SPATIAL,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell';
 
-/* Nhà mẫu chỉ sống ở chế độ mock: nối BE thật thì kho rỗng là kho rỗng. */
-export function shouldUseViewerFixture(input: {
-  readonly hasInjectedSpatial: boolean;
-  readonly storeSpatial: NormalizedSpatial | null;
-  readonly useMock: boolean;
-}): boolean {
-  return input.useMock && !input.hasInjectedSpatial && input.storeSpatial === null;
-}
+/* Vị ngữ sống ở `ViewerShell/viewerShellGateway.ts` — xem chú thích tại đó về
+ * cổng kích thước gói. Tái xuất giữ nguyên đường nhập cho nơi gọi cũ. */
+export { shouldUseViewerFixture };
 
 export function useViewer3DSource(
   props: {

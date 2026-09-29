@@ -290,6 +290,29 @@ export function createViewerShellGateway(
 /** Đồ thị của bộ mẫu, chuẩn hoá đúng một lần. */
 export const VIEWER_FIXTURE_SPATIAL: NormalizedSpatial = normalizeSpatial(VIEWER_FIXTURE_GRAPH);
 
+/**
+ * Khi nào một màn 3D được dựng nhà mẫu thay cho kho rỗng.
+ *
+ * Nhà mẫu chỉ sống ở chế độ mock: nối BE thật thì kho rỗng là kho rỗng, và
+ * một căn nhà không ai vẽ hiện ra trên màn là lời nói dối tệ hơn màn rỗng.
+ *
+ * **Vị ngữ này ở đây, không ở `Viewer3D/useViewer3DSource.ts`, vì lý do đo
+ * được.** Hai màn 3D dùng chung nó (`Viewer3D` và `PascalViewer`), và khi nó
+ * còn nằm trong `useViewer3DSource.ts` thì Rollup tách đúng module ấy ra một
+ * chunk dùng chung 507 byte — chunk mà trước đó được gộp thẳng vào chunk của
+ * màn 3D cũ. Trừ 76 byte gộp lại được, cổng "chi phí thêm cho một màn" nhích
+ * từ 279,6 lên 280,03 KiB trên ngân sách 280 và đỏ vì 39 byte. Đặt vị ngữ
+ * cạnh `VIEWER_FIXTURE_SPATIAL` — module mà **cả hai màn vốn đã nhập** — thì
+ * không có chunk thứ ba nào được đẻ ra.
+ */
+export function shouldUseViewerFixture(input: {
+  readonly hasInjectedSpatial: boolean;
+  readonly storeSpatial: NormalizedSpatial | null;
+  readonly useMock: boolean;
+}): boolean {
+  return input.useMock && !input.hasInjectedSpatial && input.storeSpatial === null;
+}
+
 /** Đồ thị "một phần": đủ bốn tầng, nhưng mới có phòng của tầng dưới cùng. */
 export const VIEWER_PARTIAL_SPATIAL: NormalizedSpatial = normalizeSpatial({
   ...VIEWER_FIXTURE_GRAPH,

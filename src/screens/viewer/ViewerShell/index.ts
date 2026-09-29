@@ -30,6 +30,7 @@ export {
   createViewerShellGateway,
   footprintOf,
   shellDataOf,
+  shouldUseViewerFixture,
   storeysOf,
   VIEWER_EMPTY_SPATIAL,
   VIEWER_FIXTURE_SPATIAL,
