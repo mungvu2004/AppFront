@@ -40,7 +40,16 @@ export type PascalViewerErrorCode =
   /** Không tải được gói vách ngăn từ `/assets/pascal/`. */
   | 'PASCAL-01'
   /** Gói tải được nhưng khung dựng hình chết giữa chừng. */
-  | 'PASCAL-02';
+  | 'PASCAL-02'
+  /**
+   * Máy không dựng được WebGPU lẫn WebGL — không phải lỗi của bản vẽ.
+   *
+   * Tách riêng khỏi hai mã trên vì **đường đi tiếp khác hẳn**: PASCAL-01 và
+   * -02 thì thử lại có nghĩa, còn cái này thì không — thử lại bao nhiêu lần
+   * máy vẫn không có tăng tốc phần cứng. Một nút "thử lại" ở đây là một lời
+   * nói dối, nên nhánh của nó không dựng nút.
+   */
+  | 'PASCAL-03';
 
 /** Số đo của cảnh đang hiện, tất cả đã là chuỗi (A15). */
 export interface SceneSummary {

@@ -30,6 +30,17 @@ export interface PascalFrameProps {
    * màn hình vẫn nói "xong".
    */
   readonly onSceneLoaded: ((census: PascalSceneCensus) => void) | undefined;
+  /**
+   * Máy không dựng được WebGPU lẫn WebGL.
+   *
+   * Không có nó thì `<Viewer>` dựng thẻ dự phòng CỦA RIÊNG NÓ
+   * (`viewer/src/components/viewer/unsupported-gpu-fallback.tsx`): chữ tiếng
+   * Anh mời người dùng "open the editor", và màu viết cứng
+   * `bg-[#fafafa]` · `text-neutral-900` · `bg-white`. Tức một màn hình vi phạm
+   * cả A6 lẫn A1, ở đúng cái trạng thái mà không bài kiểm nào của AppFront
+   * chạm tới — bài đơn vị giả lập `mount`, còn máy chạy e2e thì có GPU.
+   */
+  readonly onRendererUnavailable: (() => void) | undefined;
 }
 
 export function PascalFrame({
@@ -38,6 +49,7 @@ export function PascalFrame({
   onReadyChange,
   onFatal,
   onSceneLoaded,
+  onRendererUnavailable,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
 
@@ -68,5 +80,11 @@ export function PascalFrame({
 
   if (!loaded) return null;
 
-  return <Viewer sceneReadyKey={sceneKey} onSceneReadyChange={handleReady} />;
+  return (
+    <Viewer
+      sceneReadyKey={sceneKey}
+      onSceneReadyChange={handleReady}
+      {...(onRendererUnavailable === undefined ? {} : { onRendererUnavailable })}
+    />
+  );
 }

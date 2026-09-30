@@ -123,6 +123,81 @@ describe('khung nhúng chỉ có mặt khi có cảnh thật', () => {
   });
 });
 
+describe('máy không dựng được 3D — nhánh riêng, không có nút thử lại', () => {
+  const noGpu = (): PascalViewerViewModel => ({
+    ...viewModelFor('error'),
+    errorCode: 'PASCAL-03',
+  });
+
+  it('nói ra việc phải làm, và việc ấy nằm NGOÀI trang', () => {
+    renderWithProviders(
+      <PascalViewer
+        viewModel={noGpu()}
+        canvasRef={{ current: null }}
+        onRetry={vi.fn()}
+        onExpand={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/tăng tốc phần cứng/)).toBeInTheDocument();
+    expect(screen.getByText(/PASCAL-03/)).toBeInTheDocument();
+  });
+
+  it('KHÔNG dựng nút "thử lại" — thử lại không đổi được việc máy thiếu GPU', () => {
+    renderWithProviders(
+      <PascalViewer
+        viewModel={noGpu()}
+        canvasRef={{ current: null }}
+        onRetry={vi.fn()}
+        onExpand={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'thử lại' })).not.toBeInTheDocument();
+  });
+
+  it('không sót chữ Anh và không mất dấu — thẻ dự phòng của Pascal thì có cả hai', () => {
+    const { container } = renderWithProviders(
+      <PascalViewer
+        viewModel={noGpu()}
+        canvasRef={{ current: null }}
+        onRetry={vi.fn()}
+        onExpand={vi.fn()}
+      />,
+    );
+
+    // `unsupported-gpu-fallback.tsx` của Pascal viết "This browser or
+    // environment could not initialize WebGPU or WebGL…" kèm `bg-[#fafafa]`.
+    expectVietnamese(container, { allowWords: ['PASCAL'] });
+  });
+
+  it('qua được bộ soát khả năng tiếp cận', () => {
+    const { container } = renderWithProviders(
+      <PascalViewer
+        viewModel={noGpu()}
+        canvasRef={{ current: null }}
+        onRetry={vi.fn()}
+        onExpand={vi.fn()}
+      />,
+    );
+
+    expectAccessible(container);
+  });
+
+  it('KHÔNG dựng hộp cho Pascal — máy không vẽ được thì đừng chạy WebGL', () => {
+    renderWithProviders(
+      <PascalViewer
+        viewModel={noGpu()}
+        canvasRef={{ current: null }}
+        onRetry={vi.fn()}
+        onExpand={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('pascal-canvas')).not.toBeInTheDocument();
+  });
+});
+
 describe('lỗi và thu gọn đều có đường đi tiếp', () => {
   it('lỗi hiện mã đọc được, để báo người trực', () => {
     renderState('error');

@@ -51,6 +51,8 @@ export interface PascalMountOptions {
   readonly onFatal?: (error: Error) => void;
   /** Số node vào store và số node store dọn đi — xem `PascalFrameProps.onSceneLoaded`. */
   readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
+  /** Máy không dựng được 3D — xem `PascalFrameProps.onRendererUnavailable`. */
+  readonly onRendererUnavailable?: () => void;
 }
 
 /**
@@ -79,6 +81,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
+          onRendererUnavailable={options.onRendererUnavailable}
         />
       </StrictMode>,
     );

@@ -91,6 +91,21 @@ telemetry.
 
 Ghi ra để không ai tưởng là đã xong:
 
+- **Tìm đối tượng bằng `/` và Ctrl+F: BỎ, và đây là lời khai.** Kế hoạch bản 2
+  (Bước 9, "Đạt khi") cho phép bỏ *nếu ghi rõ là bỏ* — nên ghi ở đây. Ô tìm của
+  màn 3D cũ đọc kho chọn dùng chung và trả về đối tượng để **chọn**; màn này
+  không có vùng chọn, không có panel thanh tra, nên một ô tìm ở đây sẽ tìm ra
+  thứ không bấm vào đâu được. Ngày nào mở phần sửa thì nó đi cùng vùng chọn,
+  không đi trước.
+
+- **Cổng phím: CHƯA cần, và đã đo.** Kế hoạch (Bước 7, mục 8) đòi tắt phần nghe
+  phím của Pascal. Đo ngày 2026-09-30 trên cảnh thật: **4 listener `keydown`,
+  cả 4 của `lib/input/shortcutRegistry.ts:202`, 0 của Pascal.** Gói `viewer`
+  chỉ nghe phím sau `walkthroughMode`, mặc định `false` và không nơi nào bật;
+  hàng loạt listener pha capture của gói `nodes` nằm ở công cụ sửa, mà màn
+  chỉ-xem không dựng công cụ nào. `e2e/pascal-viewer.spec.ts` nay canh điều
+  này, nên ngày nào một công cụ Pascal được mount thì bài đỏ.
+
 - **Chưa sửa được gì.** Đây là màn **xem**. Mọi thay đổi vẫn đi qua màn 3D cũ.
 
   Tầng lượt-về thì **đã dựng xong**: `fromPascal.ts` · `toSpatial.ts` ·

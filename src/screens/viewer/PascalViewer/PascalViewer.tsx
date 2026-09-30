@@ -12,7 +12,7 @@
  * `success`/`partial` và không bao giờ là thứ duy nhất trên màn.
  */
 
-import { AlertTriangle, Box, EyeOff, Lock } from 'lucide-react';
+import { AlertTriangle, Box, EyeOff, Lock, MonitorOff } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 
@@ -65,6 +65,34 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
           icon={<Box aria-hidden="true" />}
           title="chưa có gì để dựng"
           description="bản vẽ này chưa có tường, phòng hay ô mở nào. dò lại bản vẽ rồi quay lại đây."
+        />
+      </Frame>
+    );
+  }
+
+  /*
+   * Máy không dựng được 3D: cùng trạng thái `error`, **khác hẳn đường đi tiếp**.
+   *
+   * Không có nút "thử lại" ở nhánh này, và đó là chủ ý: thử lại bao nhiêu lần
+   * thì máy vẫn không có tăng tốc phần cứng, nên một cái nút ở đây là một lời
+   * nói dối đội lốt lối thoát. Việc phải làm nằm ngoài trang, nên màn nói ra
+   * việc ấy thay vì bày một cái nút.
+   *
+   * Nhánh này tồn tại vì Pascal có sẵn thẻ dự phòng của riêng nó — chữ tiếng
+   * Anh, màu viết cứng — và `onRendererUnavailable` tắt thẻ ấy đi để màn chủ
+   * nói bằng tiếng của mình.
+   */
+  if (state === 'error' && errorCode === 'PASCAL-03') {
+    return (
+      <Frame caption={caption}>
+        <EmptyState
+          icon={<MonitorOff aria-hidden="true" />}
+          title="máy này chưa dựng được mô hình 3d"
+          description={
+            'trình duyệt không bật được tăng tốc phần cứng, nên không có gì vẽ ' +
+            'ra hình được. bật tăng tốc phần cứng trong cài đặt trình duyệt rồi ' +
+            'tải lại trang; nếu vẫn vậy thì mở bằng máy khác. mã PASCAL-03.'
+          }
         />
       </Frame>
     );

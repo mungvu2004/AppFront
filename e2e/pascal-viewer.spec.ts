@@ -181,6 +181,55 @@ function trackRequestUrls(page: Page): readonly string[] {
  * tệp thiếu đang mặc áo trang chủ. Bản kê vật liệu của Pascal trỏ tới 249 tệp
  * `.ktx2` mà repo chỉ commit 62, nên đây là một lỗ có **187** chỗ rơi.
  */
+/** Chỗ DUY NHẤT của AppFront được phép gắn `keydown`. */
+const SHORTCUT_REGISTRY_PATH = 'lib/input/shortcutRegistry';
+
+/**
+ * Ghi lại MỌI lượt gắn `key*` lên `window`/`document`, kèm chỗ gọi.
+ *
+ * Vì sao cần một cổng chứ không phải một lượt đo: kế hoạch bản 2 (Bước 7, mục
+ * 8) đòi một "cổng phím" tắt hẳn phần nghe phím của Pascal, vì A12 nói **Esc
+ * đóng lớp trên cùng** là lời hứa không tính năng nào được lấy mất — hai sổ
+ * phím cùng nghe thì lời hứa ấy vỡ theo cách rất khó dựng lại.
+ *
+ * Đo ngày 2026-09-30 trên cảnh thật: **4 listener, cả 4 của
+ * `shortcutRegistry.ts:202`, 0 của Pascal.** Không phải may: gói `viewer` chỉ
+ * nghe phím sau `walkthroughMode`, mà mặc định của nó là `false`
+ * (`viewer/src/store/use-viewer.ts:543`) và không nơi nào gọi
+ * `setWalkthroughMode`; `GlbWalkthroughController` thì không được mount ở đâu
+ * cả. Còn hàng loạt listener **pha capture** trong gói `nodes` nằm ở công cụ
+ * sửa — màn chỉ-xem không dựng công cụ nào.
+ *
+ * Nên cổng phím CHƯA cần viết. Cổng này là thứ giữ cho câu ấy còn đúng: ngày
+ * nào một công cụ của Pascal được mount, bài này đỏ và nói ra chỗ gắn.
+ */
+async function trackKeyListeners(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const store: string[] = [];
+    (window as unknown as { __keyListeners: string[] }).__keyListeners = store;
+
+    for (const target of [window, document] as EventTarget[]) {
+      const original = target.addEventListener.bind(target);
+
+      target.addEventListener = ((type: string, fn: unknown, opts: unknown) => {
+        if (type.startsWith('key')) {
+          const frames = String(new Error().stack).split(String.fromCharCode(10));
+          store.push(frames[2]?.trim() ?? 'không rõ chỗ gọi');
+        }
+
+        return original(type, fn as EventListener, opts as boolean);
+      }) as typeof target.addEventListener;
+    }
+  });
+}
+
+/** Chỗ gọi của mọi lượt gắn phím đã ghi được. */
+async function readKeyListeners(page: Page): Promise<readonly string[]> {
+  return page.evaluate(
+    () => (window as unknown as { __keyListeners?: string[] }).__keyListeners ?? [],
+  );
+}
+
 function trackBadAssetResponses(page: Page): readonly string[] {
   const bad: string[] = [];
   const isAsset = (url: string): boolean => {
@@ -265,6 +314,8 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
   const requestUrls = trackRequestUrls(page);
   const badResponses = trackBadAssetResponses(page);
 
+  await trackKeyListeners(page);
+
   await enablePascalFlag(page);
   await signInThenOpenPascalViewer(page);
 
@@ -313,6 +364,12 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
      thành một dòng "phần mô hình". Dòng ấy vắng mặt nghĩa là cả cảnh — kể cả
      mỗi tấm sàn của mỗi phòng — sống trọn vào store. */
   await expect(page.getByText('phần mô hình')).toHaveCount(0);
+
+  /* Việc 3d — KHÔNG ai ngoài sổ phím tắt của AppFront được nghe phím (A12). */
+  const keyListeners = await readKeyListeners(page);
+
+  console.log(`[đo] listener phím: ${String(keyListeners.length)}`);
+  expect(keyListeners.filter((origin) => !origin.includes(SHORTCUT_REGISTRY_PATH))).toEqual([]);
 
   /* Việc 4 — suốt đăng nhập + dựng cảnh, không lượt nào rời máy. Đặc biệt
      không `editor.pascal.app` (CDN mặc định của Pascal) hay `cdn.jsdelivr.net`. */

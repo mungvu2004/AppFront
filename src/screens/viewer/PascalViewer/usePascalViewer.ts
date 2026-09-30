@@ -54,6 +54,7 @@ interface MountModule {
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
+      readonly onRendererUnavailable?: () => void;
     },
   ) => { readonly dispose: () => void };
 }
@@ -259,6 +260,9 @@ export function usePascalViewer({
           },
           onSceneLoaded: (census) => {
             if (!disposed) setDroppedCount(census.droppedIds.length);
+          },
+          onRendererUnavailable: () => {
+            if (!disposed) setFailure('PASCAL-03');
           },
         });
       })

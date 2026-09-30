@@ -439,6 +439,16 @@ interface ViewerProps {
    */
   onRenderError?: (cause: unknown) => void
   /**
+   * The machine cannot initialize WebGPU or WebGL at all.
+   *
+   * AppFront addition. Without it the viewer renders its own English fallback
+   * card (`unsupported-gpu-fallback.tsx`) with hard-coded neutral colours — a
+   * host with its own empty states, its own language and its own colour tokens
+   * has no way to take over that screen. Pass this and the viewer renders
+   * nothing instead, leaving the message to the host.
+   */
+  onRendererUnavailable?: () => void
+  /**
    * Wall-clock give-up cap for scene readiness, replacing the default
    * frame-count cap. Set it on hosts whose frame cadence is decoupled from
    * real time (the headless bake page's timer-driven loop runs the default
@@ -497,6 +507,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     sceneReadyKey,
     onSceneReadyChange,
     onRenderError,
+    onRendererUnavailable,
     sceneReadyMaxWaitMs,
     maxFps = 50,
     disablePostFx = false,
@@ -619,6 +630,10 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   }, [showGpuFallback, onSceneReadyChange])
 
   useEffect(() => {
+    if (showGpuFallback) onRendererUnavailable?.()
+  }, [showGpuFallback, onRendererUnavailable])
+
+  useEffect(() => {
     if (!immersive) return
     const timeout = window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0)
     return () => window.clearTimeout(timeout)
@@ -628,7 +643,8 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const immersiveActive = immersive != null
 
   if (showGpuFallback) {
-    return <UnsupportedGpuViewerFallback />
+    // Host took over the message: render nothing rather than two cards stacked.
+    return onRendererUnavailable === undefined ? <UnsupportedGpuViewerFallback /> : null
   }
   return (
     <>
