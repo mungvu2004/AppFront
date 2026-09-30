@@ -1,12 +1,311 @@
-# Những câu phải hỏi người dùng
+# Quyết định và bằng chứng
 
-Mỗi câu kèm **số đã đo**, hai phương án A/B, và khuyến nghị. Không câu nào ở đây có dữ kiện
-quyết định còn đang ghi "chưa đo" — chỗ nào chưa đo thì nó nằm ở mục cuối, dưới dạng
-"cần đo trước khi hỏi".
+Tệp này có hai nửa, và nửa đầu là **kết luận**.
+
+**Nửa đầu — QUYẾT ĐỊNH.** 24 câu đã chốt, mỗi câu ghi chọn gì · vì sao · đổi cái gì trong
+`plan.md` và `coverage-map.md`. Ba quyết định đánh dấu **↺** là chỗ tôi **đổi ý** so với
+lượt trước, vì đi kiểm thêm và dữ kiện mới lật chúng.
+
+**Nửa sau — BẰNG CHỨNG.** 22 câu đầy đủ, mỗi câu kèm **số đã đo** và hai phương án A/B.
+Đọc nửa này khi muốn kiểm lại một quyết định, hoặc khi bạn muốn chọn khác. Không câu nào ở
+đây có dữ kiện quyết định còn ghi "chưa đo" — chỗ chưa đo nằm riêng ở mục
+"cần đo trước khi hỏi", và chúng **không** chặn Chặng 0.
+
+Sau đó là phần **hai vai đối nghịch** (hai vòng) và **phụ lục** câu hỏi cấp nhóm.
+
+Ranh giới giữ suốt: quyết định về **kế hoạch test** thì đã chốt và đã áp vào `plan.md`;
+quyết định là **thay đổi sản phẩm** thì chỉ chốt *khuyến nghị* và ghi ra — mục 7.2 của kế
+hoạch cấm sửa mã sản phẩm để bài xanh. Bảy việc sản phẩm nằm ở cuối phần QUYẾT ĐỊNH.
 
 Kế hoạch: `plan.md` · bảng hở: `coverage-map.md` · điều phối: `dag.md`.
 
 ---
+
+# QUYẾT ĐỊNH — 24 câu, đã chốt
+
+Người dùng yêu cầu tự tranh luận rồi chọn. Phần này là **kết luận**; phần dưới (Q1…Q13 và
+"Hai vai đối nghịch") là **bằng chứng** dẫn tới nó. Mỗi quyết định ghi: chọn gì · vì sao ·
+**đổi cái gì** trong `plan.md` / `coverage-map.md`.
+
+Ba quyết định **đổi khác** khuyến nghị tôi viết ở lượt trước, vì lượt này đi kiểm thêm và
+dữ kiện mới lật chúng: **Q6**, **Q10g**, **Q11**. Chúng được đánh dấu **↺**.
+
+Ranh giới tôi giữ suốt: quyết định về **kế hoạch test** thì tôi chốt và áp luôn; quyết định
+là **thay đổi sản phẩm** thì tôi chốt *khuyến nghị* và ghi ra, **không tự sửa mã** — mục 7.2
+của kế hoạch cấm đúng việc đó.
+
+---
+
+## Bảng chốt nhanh
+
+| Câu | Chọn | Một dòng |
+|---|---|---|
+| **Q1** | **A′** | Dùng cửa bơm kho, nhưng mỗi màn QC kèm **một ca mồi** không bơm — ca ấy đỏ đúng lúc sản phẩm có đường nạp thật |
+| **Q2** | **A, sắc hơn** | Ghi thành nợ. Nợ thật không phải "không có tự lưu" mà "engine chạy, không ai nói ra" |
+| **Q3** | **A** | Khẳng định thứ tự **phạm vi** như đo được; đổi sang thứ tự thấy-được là thay đổi sản phẩm, không phải việc của bài kiểm |
+| **Q4** | **B** | Không khẳng định con số nào trên màn Pascal; gộp hai bộ mẫu là việc riêng |
+| **Q5** | **B, cộng một việc sửa tài liệu** | Không viết ca CSP khi chưa có chính sách thật; nhưng dòng "CSP 4 → 0" **phải sửa** — số đúng là 1 |
+| **Q6** ↺ | **C — không phải A cũng không phải B** | Màn **không có nguồn dữ liệu nào**; thiếu `:floorId` chỉ là vấn đề thứ hai |
+| **Q7** | **B′** | Lỗi diễn đạt, không phải lỗi dữ liệu. Một ca khẳng định `empty` trung thực |
+| **Q8** | **A** | Lỗi hiển thị thật — gốc là `code: storey.id`, mọi dữ liệu đều lộ, không riêng bộ mẫu |
+| **Q9** | **A** | Sinh tệp bằng `Buffer`; chỉ commit tệp thật nếu có ca cần nội dung bản vẽ thật |
+| **Q10** | **A** | Giữ trong bảng kèm lý do và điều kiện mở cổng; không bỏ khỏi phạm vi |
+| **Q10b** | **B** | `ConnectionStates` ghi `chưa phủ` + lý do; không viết mục 13 trường cho thứ không ai dựng |
+| **Q10c** | **A** | `navigate(-1)` mù phải thành một đích xác định; ca kiểm rẻ và chắc |
+| **Q10d** | **A** | Sửa chuỗi, đừng mọc nút lưu. Kiểm ở **tầng đơn vị**, không phải e2e |
+| **Q10e** | **A** | Đăng ký `TOOL_SHORTCUTS`; ca kiểm tự tổng quát hoá |
+| **Q10f** | **B cho kế hoạch, A là việc riêng** | Kế hoạch không khẳng định "viết thường kiểu câu" khi chưa có nơi phát ngôn và chưa có hàm khẳng định |
+| **Q10g** ↺ | **A′** | Kiểm bằng `goto`, **cộng** một ca `test.fixme` cho liên kết còn thiếu — không phải ca đỏ thường trực |
+| **Q10h** | **A cho A6, B cho A8/A9** | Chữ tiếng Việt lấp ở tầng đơn vị; xoá/đổi tên dự án đi qua store + toast + render lại nên thuộc e2e |
+| **Q10i** | **A, cộng B** | Thêm thẻ icon (một dòng, chữa gốc) **và** giữ bộ lọc ở một chỗ cho những 404 nhiễu chưa ai gặp |
+| **Q10j** | **A** | Ghi vào tài liệu — **đã làm**, docblock `run-playwright.mjs` |
+| **Q11** ↺ | **Giữ, KHÔNG dựng cổng riêng** | `scripts/` có **12** tệp `.mjs`, **không tệp nào** được lint. Bắt riêng một tệp theo luật mười một tệp kia không theo là bất nhất |
+| **Q12** | **Trước Chặng 0** | Một cổng CI đỏ vì lý do đã biết dạy cả nhóm bỏ qua màu đỏ |
+| **Q13** *(mới)* | **Phát hiện, không phải ca** | `useAutosave` khoá cứng vào slice `spatial`, nên năm màn tự lưu đúng mà `Ctrl+S` không với tới |
+| **QA/B-1** | **B, dưới dạng `test.fixme`** | Ca tồn tại, đọc được, tự bật xanh khi ai đó chữa — thứ một mục tài liệu không làm được |
+| **QA/B-2** | **A7 = `đơn vị` · A8 = `chưa phủ` · HistoryPanel A7 = `chưa phủ`** | Không ca riêng; thêm **một khẳng định** vào `V7-ROOMS-03` |
+| **QA/B-3** | **Bài sinh từ dữ liệu** | Một bảng `[màn, chuỗi mong đợi]`, bảy `test()` sinh ra — cùng hình dạng đã giải xong Chặng 1 |
+
+---
+
+## Phần tranh luận — những câu không hiển nhiên
+
+Mười lăm câu còn lại chọn đúng như bảng và đúng lý do đã viết ở phần bằng chứng bên dưới;
+chín câu dưới đây là chỗ tôi phải cân, hoặc phải đổi ý.
+
+### Q1 — keystone, và cả hai phương án ban đầu đều thiếu một thứ
+
+**Bên A (dùng cửa):** bảy màn QC, ~34 ca. Không có cửa thì A7 · A8 · A12 · A15 của **cả
+tầng QC** không chứng minh được ở e2e. Và cửa ấy chạy thật trong CI, vì CI cũng dùng máy
+chủ dev của Vite.
+
+**Bên B (không dùng):** một bài kiểm đi qua cửa người dùng không có thì chứng minh sai thứ —
+nó nói "màn duyệt tường chạy được" trong khi đường thật của người dùng vẫn rỗng. Tệ hơn: nó
+**che đúng cái khiếm khuyết** mà e2e đáng ra phải phơi ra. Và nó buộc bộ test vào một đường
+nội bộ (`/src/store/index.ts`), thứ vỡ ngay khi kho dời chỗ.
+
+**Câu hỏi quyết định, mà cả hai bên đều không hỏi: *khi sản phẩm được chữa thì bộ test nói gì?***
+
+- Bên B: **không gì cả.** Tầng QC vẫn không được phủ, và không ai biết nó đã chữa.
+- Bên A: **không gì cả.** Ca bơm vẫn xanh, và cái nạng lặng lẽ thành vĩnh viễn.
+
+Cả hai đều không tự sửa được. Nên chọn **A′**:
+
+1. Dùng cửa, qua **một** fixture tên `seedSpatial`, docblock nói thẳng nó chạm vào nội bộ
+   dev và vì sao.
+2. **Tên bài** của mọi ca bơm phải nói ra rằng nó bơm.
+3. **Mỗi màn QC thêm một "ca mồi" KHÔNG bơm**, khẳng định đúng chuỗi người dùng thấy hôm
+   nay (`empty`/skeleton). Ngày sản phẩm có đường nạp thật, **ca mồi đỏ** — và tên nó nói
+   người đọc hãy xoá `seedSpatial`.
+
+A′ là phương án duy nhất **tự nhắc mình gỡ cái nạng**. Giá phải trả: bảy ca mồi. Rẻ.
+
+Thêm một lợi ích không tính trước: ca bơm **bơm sau khi đã tới màn** (`goto` → bơm → khẳng
+định), nên nó không cần điều hướng trong ứng dụng — và mục "chưa đo" *"kho có sống sót qua
+điều hướng nội bộ không"* **thôi chặn**. Một quyết định làm biến mất một phép đo còn thiếu.
+
+### Q2 — nợ thật không phải nợ tôi tưởng
+
+Lượt trước tôi viết "không cờ `persist*` nào bật ⇒ A7 không kiểm được". Lượt này truy sâu
+hơn: `rooms` và `thickness` **có** dựng engine tự lưu thật (`useRoomLabelReview.ts:602`,
+`useThicknessStandardization.ts:534`). Engine chạy, 800 ms chạy, lưu chạy — **chỉ là không
+có gì nói ra**, vì chúng không đi qua `useSaveIndicator`/`SaveIndicator`.
+
+Nên nợ đúng tên là: **"tự lưu chạy nhưng câm"**, không phải "không có tự lưu". Khác nhau ở
+chỗ chữa: cái sau cần dựng cơ chế, cái trước chỉ cần nối một chỉ báo.
+
+Giữ **A** (ghi thành nợ, không viết ca giả vờ), nhưng câu ghi phải là câu đúng.
+
+### Q5 — chia làm hai, vì hai nửa có giá khác hẳn nhau
+
+Không viết ca CSP: **đúng**, vì chính sách thật không có trong repo, và một ca dựng trên
+chính sách tự bịa thì đo một sản phẩm khác.
+
+Nhưng dòng *"CSP 4 → 0"* trong `docs/pascal/` **đang nói một điều không còn đúng** — nhát vá
+`jitless` ở `src/vach-ngan.tsx` đã không còn trong cây, và đo thật ra **1** vi phạm
+(`script-src | eval | pascalMount-*.js`). Ai đọc dòng ấy sẽ tưởng chỗ đó xong.
+
+Hai nửa tách được, nên tách: **hoãn ca, sửa tài liệu ngay.** Một dòng sai trong tài liệu
+không đắt hơn một dòng sai trong mã, nó chỉ chậm lộ hơn.
+
+### Q6 ↺ — đổi ý, vì cả hai phương án cũ đều chữa sai chỗ
+
+Lượt trước tôi chọn B ("màn tự chọn tầng"). Lượt này đọc
+`versionHistoryGateway.ts` và thấy:
+
+```ts
+/** Câu nói ra khi chưa nơi nào bơm danh sách phiên bản vào màn. */
+export const NO_VERSION_SOURCE_REASON =
+  'chưa có nguồn dữ liệu phiên bản nào được nối vào màn này';
+```
+
+**Màn không có nguồn dữ liệu nào.** Nên kể cả khi route mang `:floorId`, và kể cả khi màn
+tự chọn tầng, nó vẫn không có gì để liệt kê. A và B đều chữa **vấn đề thứ hai** trong khi
+vấn đề thứ nhất còn nguyên.
+
+⇒ **C:** kế hoạch ghi `projectVersions` là `empty` **trung thực** (nó tự nói ra lý do), có
+đúng một ca khẳng định điều đó, **không** có ca luồng. Hai việc sản phẩm xếp đúng thứ tự:
+(1) nối một nguồn dữ liệu; (2) *rồi mới* bàn route mang `:floorId` hay màn tự chọn tầng.
+Bàn (2) trước (1) là bàn màu sơn của một căn phòng chưa xây.
+
+Đây là chỗ đáng ghi lại về cách làm: **tôi đã suýt trả lời một câu hỏi đặt sai.** Hai phương
+án nghe hợp lý, tôi có khuyến nghị, và chỉ vì lượt này đi đọc thêm một tệp mới thấy cả hai
+đều lạc. Câu hỏi có hai phương án nghe hợp lý **không** bảo đảm một trong hai đúng.
+
+### Q10g ↺ — đổi ý nhờ một quyết định khác
+
+Lượt trước tôi chọn A "kèm điều kiện bạn chấp nhận một ca đỏ có chủ đích", và tự thấy gợn.
+
+Sau khi chốt **QA/B-1 = `test.fixme` kèm lý do và điều kiện mở lại**, chỗ gợn biến mất: ca
+"phải có đường vào từ vỏ 3D" viết được ngay, dưới dạng `fixme`, và nó **tự bật xanh** ngày
+ai đó thêm liên kết. Không ai phải sống với một bộ test đỏ thường trực, và cái lỗ không bị
+quên.
+
+⇒ **A′.** Bài học: một quyết định có thể mở khoá một quyết định khác, nên đừng chốt từng
+câu độc lập rồi cộng lại.
+
+### Q10i — chọn cả hai, và đó không phải nước đôi
+
+`index.html` không có thẻ icon ⇒ mọi trang xin `/favicon.ico` và nhận 404. Ba worker độc
+lập gặp nó và đoán **ba nguồn khác nhau**; chỉ CDP Network mới truy ra (bộ nghe `response`
+của Playwright **không** thấy).
+
+Thêm thẻ icon (A) chữa gốc. Nhưng bộ lọc (B) vẫn nên có: nó không phải để chữa favicon, nó
+là lưới cho những 404 nhiễu **chưa ai gặp** — và lượt này đã chứng minh loại nhiễu ấy tốn
+một buổi chiều để truy. Hai việc khác mục đích, nên làm cả hai không phải là không quyết.
+
+### Q11 ↺ — đổi ý, vì một phép đếm
+
+Lượt trước tôi viết: *"Giữ, nhưng kèm điều kiện: thêm nó vào `pnpm lint`… Một script không
+cổng nào bảo vệ sẽ mục."* Lượt này đếm: `scripts/` có **12** tệp `.mjs`, và
+`eslint . --ext ts,tsx` **không đọc tệp nào trong số đó** — kể cả `verify.mjs`,
+`check-bundle-size.mjs`, `check-file-length.mjs`, tức chính ba tệp dựng nên cổng tổng.
+
+Lập luận cũ của tôi vẫn đúng ở phần "sẽ mục". Nó sai ở phần **phạm vi**: nếu mười hai tệp
+chịu lực đều không được lint, thì bắt riêng tệp thứ mười ba theo một luật không tệp nào theo
+là bất nhất, và nó giấu vấn đề thật đi sau một ngoại lệ.
+
+⇒ **Giữ `probe-survey.mjs` đúng như mười một tệp kia.** Và ghi ra vấn đề thật thành một
+dòng: *12 tệp `.mjs` chịu lực trong `scripts/` không cổng nào đọc* — đó là câu đáng hỏi,
+không phải câu về một tệp.
+
+### QA/B-1 — chỗ hai vai lệch xa nhất, và một hình dạng thứ ba giải được
+
+Vai cắt: một ca đỏ thường trực làm giảm tin cậy của **mọi** ca xanh. Đúng.
+Vai bịt lỗ: bỏ bốn ca ấy thì **ba lỗ nghiêm trọng nhất không ai chứng minh**. Cũng đúng.
+
+Vai cắt tự nói ra cái giá của phương án mình, nguyên văn: *"khi đó ba lỗ nghiêm trọng nhất
+không có ca nào chứng minh, và tôi nói thẳng đó là cái giá."*
+
+Hình dạng thứ ba: **`test.fixme` kèm lý do và điều kiện mở lại.** Kế hoạch cấm `test.skip`
+*không* có hai thứ đó — có thì được, và cấm ấy tồn tại chính vì hình dạng này.
+
+Nó lấy được cả hai: CI không đỏ (vai cắt hài lòng), ca tồn tại và đọc được và **tự bật
+xanh** đúng lúc ai đó chữa (vai bịt lỗ hài lòng). Một mục PHÁT HIỆN trong tài liệu không
+làm được vế sau — tài liệu không biết khi nào nó hết đúng.
+
+Áp cho: bốn ca của QA/B-1, cộng `W-3` (toast tường lộ mã máy — cả hai vai đã đồng ý), cộng
+ca liên kết còn thiếu của Q10g.
+
+### QA/B-3 — cùng một hình dạng đã giải xong Chặng 1
+
+Vai cắt muốn một ca `forbidden` dùng chung; vai bịt lỗ muốn bảy ca vì mỗi màn tự khai một
+câu giải thích **khác nhau**.
+
+Nhưng bảy ca khác nhau ở đúng **một chuỗi chữ** là định nghĩa của một bài sinh từ dữ liệu:
+một bảng `[màn, chuỗi mong đợi]`, một vòng `for` sinh bảy lời gọi `test()`. Vai cắt được một
+khuôn mã để bảo trì; vai bịt lỗ được bảy kết quả độc lập, chạy song song, mỗi cái nói rõ màn
+nào vỡ.
+
+Đây **lần thứ hai** trong lượt này một tranh chấp "một ca hay N ca" tan ra khi tách
+**đơn vị bảo trì** khỏi **số lời gọi `test()`**. Lần đầu là Chặng 1. Đủ hai lần để thành
+một quy ước của kế hoạch — xem mục dưới.
+
+---
+
+## Hai quy ước rút ra, áp cho cả kế hoạch
+
+### 1. Đếm hai con số, đừng đếm một
+
+Suốt hai vòng, vai cắt và vai bịt lỗ cãi nhau bằng **cùng một con số** mang hai nghĩa khác
+nhau. Tách ra thì phần lớn tranh chấp biến mất:
+
+| Con số | Nghĩa | Ai quan tâm |
+|---|---|---|
+| **Đơn vị bảo trì** | bao nhiêu khuôn mã một người phải đọc và sửa | vai cắt |
+| **Lời gọi `test()`** | bao nhiêu kết quả độc lập CI báo về | vai bịt lỗ |
+
+Một bài sinh từ dữ liệu cho **1** đơn vị bảo trì và **N** lời gọi `test()`. Hai bên cùng
+thắng, và không mất bằng chứng nào — đó là lý do cả Chặng 1 lẫn QA/B-3 đều giải được.
+
+`plan.md` từ đây ghi **cả hai** con số cho mỗi nhóm.
+
+### 2. Ca ghi nhận khiếm khuyết đi bằng `test.fixme`, không bằng một dòng tài liệu
+
+Điều kiện đủ: **lý do** và **điều kiện mở lại**, cả hai viết trong chính bài. Thiếu một
+trong hai thì nó là `test.skip` trá hình và kế hoạch cấm.
+
+Vì sao hơn một mục PHÁT HIỆN: tài liệu không biết khi nào nó hết đúng; một bài `fixme` thì
+biết — nó xanh lên.
+
+---
+
+## Ước lượng lại số ca sau khi chốt
+
+Lấy con số **53** của vai cắt sau vòng 2 làm gốc (nó đã gồm việc gộp Chặng 1), rồi cộng trừ
+theo các quyết định trên:
+
+| Thay đổi | Đơn vị bảo trì |
+|---|---|
+| Gốc — vai cắt, sau vòng 2 | 53 |
+| Chặng 1 tách làm hai lưới (35 route + 13 màn không route) thay vì một | +1 |
+| QA/B-3 — bảy ca vai `viewer` thành **một** lưới sinh từ dữ liệu | +1 |
+| **Q1 = A′** — bảy ca mồi không bơm | +7 |
+| Q10g = A′ — một ca `fixme` cho liên kết còn thiếu | +1 |
+| `B-DIM-A7`, `B-GRID-KBD` — nhận, vì Q1 = A′ làm dữ liệu có thật | +2 |
+| `B-RA-RENAME` — gộp thành một khẳng định trong `V7-ROOMS-03` | 0 |
+| **Tổng** | **~65 đơn vị bảo trì** |
+
+Quy ra lời gọi `test()`: ~65 − 3 lưới + (35 + 13 + 7) = **~117 lời gọi `test()`**.
+
+So với **173** của bản lắp ghép đầu. Phần lớn chỗ cắt đến từ đúng một quyết định — **lưới
+sinh từ dữ liệu thay cho 48 mục viết tay** — và quyết định ấy không mất bằng chứng nào.
+
+Hai chỗ con số này còn mềm, nói thẳng: vai cắt ghi **ba** chỗ nó cắt **có điều kiện**, dựa
+vào nội dung bài đơn vị nó **chưa đọc**; nếu đọc ra bài ấy không khẳng định điều kế hoạch
+nói thì ba ca được khôi phục. Và bảy ca mồi của Q1 chưa ai viết thử nên chưa biết có màn nào
+cần hai ca thay vì một.
+
+---
+
+## Việc sản phẩm — tôi khuyến nghị, KHÔNG tự sửa
+
+Bảy việc dưới đây là thay đổi mã hoặc tài liệu sản phẩm. Kế hoạch mục 7.2 cấm tôi sửa mã để
+bài xanh, nên tôi ghi ra kèm chủ và mức. **Không việc nào chặn Chặng 0.**
+
+| # | Việc | Ở đâu | Mức |
+|---|---|---|---|
+| 1 | `Escape` ở `/thong-bao` gọi `navigate(-1)` mù ⇒ ra `about:blank` | màn thông báo | **cao** — một màn trắng do phím gây ra |
+| 2 | Thêm `<link rel="icon">` | `index.html` | **cao** — một dòng, xoá một bộ lọc mọi bài sau phải nhớ |
+| 3 | `vi.json:70` bảo "lưu lại thủ công" khi không có nút lưu | `src/i18n/vi.json` | trung bình |
+| 4 | Đăng ký `TOOL_SHORTCUTS` vào sổ phím (`R·H·C·V` hiện không tồn tại lúc chạy) | tầng công cụ | trung bình |
+| 5 | Nhãn tầng hiện `storey.id` (`L-01FIXTURE0`) | `ViewerStoreyRail.tsx:78` | trung bình |
+| 6 | `ProjectDashboard` đọc khoá trạng thái **tiếng Anh** cho trình đọc màn hình | `ProjectDashboard.tsx:343` | trung bình |
+| 7 | Sửa dòng "CSP 4 → 0" — số đúng là **1** | `docs/pascal/` | thấp, nhưng rẻ |
+
+Hai việc lớn hơn, cần bạn quyết chứ không chỉ sửa:
+
+- **Bảy màn QC đọc vòng tròn** (`read: () => useStore.getState().spatial`). Đây là gốc của
+  Q1, Q2 và phần lớn ô `chưa phủ`. Chữa nó thì bảy ca mồi của Q1 đỏ lên — đúng như thiết kế.
+- **`useAutosave` khoá cứng vào slice `spatial`** (Q13), nên năm màn tự lưu đúng mà `Ctrl+S`
+  không với tới. Ba trong năm có lý do đã ghi; `rooms` và `thickness` thì **không** — hai
+  màn ấy *có* `spatial` nên dùng được hook, mà lại không dùng.
+
+---
+
+# Bằng chứng — 22 câu, mỗi câu kèm số đã đo và hai phương án
+
+Phần trên đã chốt. Phần này là thứ dẫn tới chốt ấy; đọc khi muốn kiểm lại một quyết định.
 
 ## Q1 — Bảy màn QC: dùng cửa `import('/src/store/index.ts')` của dev server, hay chờ đường thật?
 
@@ -609,6 +908,44 @@ linux một lần.** Câu duy nhất là **khi nào**: trước chặng 0, hay s
 
 **Khuyến nghị: trước chặng 0.** Một cổng CI đỏ vì lý do đã biết sẽ dạy cả nhóm bỏ qua màu
 đỏ, và đó là thứ đắt nhất một bộ test có thể mất.
+
+---
+
+## Q13 — `useAutosave` khoá cứng vào slice `spatial`, nên năm màn tự lưu đúng mà `Ctrl+S` không với tới
+
+**Đã truy ra bằng đọc mã, ba chặng:**
+
+1. `flushAutosaves()` lặp qua **`mountedAutosaves`** (`hooks/useAutosave.ts:27,40`).
+2. Engine vào tập ấy ở **đúng một** chỗ: `mountedAutosaves.add(autosave)` (`:112`) — tức
+   **chỉ khi màn gọi hook `useAutosave`**. Dựng engine thẳng bằng `createAutosave<T>({…})`
+   thì engine chạy đúng nhưng **không ai đăng ký nó**.
+3. `useProjectSettings.ts:15-19` nói thẳng vì sao nó không dùng hook ấy:
+   *"Cũng không dùng `useAutosave` hay `ConnectedSaveIndicator` — **cả hai khoá cứng vào
+   slice `spatial` của store, thứ màn này không có**."*
+
+| Màn | Cơ chế | `Ctrl+S` xả được? | Có `spatial` không? |
+|---|---|---|---|
+| `ScaleCalibration:630` · `DimensionOcrReview:576` · `PropertyInspector:1119` | `useAutosave(…)` | **có** | — |
+| `ProjectSettings` · `RuleSettings` · `AccountSettings` | `createAutosave<T>` + `SaveIndicator` thuần | không | **không** — nên buộc phải thế |
+| `RoomLabelReview:602` · `ThicknessStandardization:534` | `createAutosave<T>` trần | không | **có** — nên **không buộc** phải thế |
+
+`ConnectedSaveIndicator` (biến thể **có** gọi `useAutosave`) **không màn nào render**.
+
+Hai nhóm dưới cùng khác nhau ở chỗ quyết định: ba màn cài đặt không có `spatial` nên chỗ
+ghép cứng **bắt** chúng đi đường vòng — có lý do, đã ghi. `rooms` và `thickness` thì **có**
+`spatial`, tức dùng được hook, mà lại không dùng — và **không dòng nào giải thích vì sao**.
+
+| | Phương án |
+|---|---|
+| **A** | Gỡ chỗ ghép cứng: `useAutosave` nhận nguồn thay đổi qua tham số thay vì đọc thẳng slice `spatial`. Rồi cả năm màn đăng ký được, và `Ctrl+S` giữ đúng lời hứa A7 ở mọi màn. |
+| **B** | Để nguyên chỗ ghép cứng, chỉ nối `rooms` và `thickness` sang `useAutosave` (hai màn ấy có `spatial` nên nối được ngay). Ba màn cài đặt vẫn nằm ngoài `Ctrl+S`, và điều đó được ghi thành nợ. |
+
+**Khuyến nghị: B trước, A khi có người chủ.** B là hai dòng và lấy lại hai màn; A là thay
+đổi một hook mà ba màn đang phụ thuộc, nên nó cần một lượt riêng có người duyệt.
+
+**Hệ quả cho kế hoạch, và đây là phần bắt buộc:** **không** viết một ca "Ctrl+S xả sớm"
+dùng chung. Ở tám màn nó sẽ **xanh vì không có gì xảy ra** — thứ tệ hơn một ca đỏ. Mỗi mục
+phải nói rõ màn của nó nằm ở hàng nào của bảng trên. Xem `plan.md` mục 2.1.
 
 ---
 

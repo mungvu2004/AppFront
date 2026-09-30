@@ -89,6 +89,49 @@ giữ hàng để không ai mất dấu chúng.
 
 ---
 
+## 0c. Quyết định đã chốt, và chúng đổi bảng thế nào
+
+`questions.md` đã chốt cả 24 câu. Ba chốt đổi cách đọc bảng dưới đây — áp chúng **khi đọc**,
+tôi không sửa tay 63 hàng của worker để khỏi làm hỏng chú thích của từng nhóm.
+
+### Q1 = A′ ⇒ mọi ô ghi `e2e *` đọc là **`e2e`**
+
+Hai nhóm (V7, V12) đánh dấu `e2e *` hoặc `†`/`[bơm]` cho ô **phụ thuộc cửa bơm kho**, kèm
+câu "nếu Q1 = B thì ô rơi về `chưa phủ`". Q1 chốt **A′** — dùng cửa, qua fixture
+`seedSpatial`, kèm một **ca mồi không bơm** cho mỗi màn QC.
+
+⇒ Mọi ô ấy là **`e2e`**. Và mỗi màn QC có thêm **một** hàng không nằm trong bảng: ca mồi,
+thứ đỏ lên đúng ngày sản phẩm có đường nạp thật (xem `plan.md` mục 6.1).
+
+### QA/B-2 ⇒ ba ô sửa giá trị
+
+Cả hai vai đối nghịch đều sai ở vòng 1 về ba ô này; vòng 2 mới có người mở tệp test ra.
+
+| Ô | Bảng dưới ghi | **Đúng là** | Bằng chứng |
+|---|---|---|---|
+| `RoomAreaPanel · A7` | `không áp dụng` | **`đơn vị`** | `RoomAreaPanel.test.tsx:223` — *"cửa sổ đủ rộng để lượt tự lưu 800 ms của A7 … chạy xong"*; `:262` chạy một lượt đổi tên bị từ chối |
+| `RoomAreaPanel · A8` | `không áp dụng` ("panel chỉ đọc") | **`chưa phủ`** | panel **ghi** thật — `RoomAreaPanel.rows.tsx:152-156`, `useRoomAreaPanel.ts:353,433,462` |
+| `HistoryPanel · A7` | `không áp dụng` ("panel chỉ đọc") | **`chưa phủ`** | nhảy lịch sử là undo/redo trên kho — `useHistoryPanel.ts:13,262-276` |
+
+Hai ô `chưa phủ` ấy **không** sinh ca riêng: chúng lấp bằng **một khẳng định** thêm vào
+`V7-ROOMS-03` (cùng việc ấy làm được từ panel). Rẻ hơn một ca mới.
+
+### QA/B-3 ⇒ bảy ô `forbidden` thành một lưới
+
+Bảy ca "vai `viewer` từng màn" gộp thành **một** lưới sinh từ dữ liệu: một bảng
+`[màn, chuỗi mong đợi]`, bảy lời gọi `test()`. Giá trị ô không đổi; chỉ số **đơn vị bảo
+trì** đổi (xem `plan.md` mục 0.1).
+
+### Số ô `chưa phủ` sau khi chốt: **36**
+
+34 đếm được bằng máy, cộng **2** ô của QA/B-2 vừa sửa từ `không áp dụng` sang `chưa phủ`.
+
+Con số này vẫn là **sàn**, không phải số chính xác: 84 ô mang giá trị kèm điều kiện mà
+script không xếp được vào một ô (ví dụ "e2e (chỉ `loading`)"). Muốn con số thật thì đọc
+bảng của từng nhóm — đó là lý do chúng được giữ nguyên chữ của worker.
+
+---
+
 ## 1. Bảng chính
 
 

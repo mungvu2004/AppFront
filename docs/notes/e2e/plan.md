@@ -18,6 +18,34 @@ Câu phải hỏi người dùng: `questions.md`.
 Ca nào không trả lời được câu thứ ba thì **không có trong kế hoạch này**. Bỏ một bề mặt
 thì có một dòng nói vì sao bỏ — đó là một quyết định, không phải một chỗ thiếu.
 
+### 0.1 Đếm hai con số, đừng đếm một
+
+| Con số | Nghĩa |
+|---|---|
+| **Đơn vị bảo trì** | bao nhiêu khuôn mã một người phải đọc và sửa |
+| **Lời gọi `test()`** | bao nhiêu kết quả độc lập CI báo về |
+
+Một **lưới sinh từ dữ liệu** (một bảng + một vòng `for` sinh ra N lời gọi `test()`) cho
+**1** đơn vị bảo trì và **N** kết quả. Kế hoạch này dùng hình dạng ấy ở ba chỗ, và mỗi lần
+nó làm tan một tranh chấp "một ca hay N ca" mà không mất bằng chứng nào.
+
+**Chú ý:** một lưới **không** phải một `test()` chứa vòng lặp bên trong. Cái sau chết ở
+route đầu tiên hỏng và không đo những route còn lại — `expect.soft` tiếp tục qua một
+`expect` hỏng, **không** tiếp tục qua `goto`/`click` quá hạn.
+
+Tổng của kế hoạch này: **~65 đơn vị bảo trì · ~117 lời gọi `test()`**. Cách tính và chỗ con
+số còn mềm: xem `questions.md`, phần QUYẾT ĐỊNH.
+
+### 0.2 Ca ghi nhận khiếm khuyết đi bằng `test.fixme`
+
+Sáu ca trong kế hoạch này **đỏ ngay từ lúc sinh ra** vì chúng khẳng định một bất biến mà
+sản phẩm hiện vi phạm. Chúng vào bộ dưới dạng **`test.fixme` kèm lý do và điều kiện mở
+lại**, cả hai viết trong chính bài.
+
+Mục 7.4 cấm `test.skip` *không* có hai thứ đó — có thì được, và cấm ấy tồn tại chính vì
+hình dạng này. Vì sao hơn một dòng trong mục PHÁT HIỆN: tài liệu không biết khi nào nó hết
+đúng; một bài `fixme` thì biết — **nó xanh lên**.
+
 ---
 
 ## 1. Bước A — bảng đo, và không có kết luận nào không có số đứng sau
@@ -203,25 +231,44 @@ Thứ tự tài liệu khi xung đột: `LUAT_MAN_HINH.md` → `RULE.md` → `CL
 | **A12** | Bàn phím là đường hạng nhất. **Esc đóng lớp trên cùng**, `?` mở bảng phím tắt | `Tab` đi hết luồng chính không cần chuột; `Escape` đóng **đúng một** lớp mỗi lượt |
 | **A15** | Định dạng số ở viewmodel; **dấu thập phân là dấu phẩy** | khẳng định trên chuỗi hiện ra. Xem cảnh báo dấu-nghìn ở 1.5 |
 
-### 2.1 `Ctrl+S` chỉ xả được ba màn, không phải cả vỏ
+### 2.1 `Ctrl+S` xả được rất ít màn, và lý do nằm ở một chỗ ghép cứng
 
-`SAVE_SHORTCUT` của `src/routes/router.tsx` gọi `flushAutosaves()`, và docblock của
-`hooks/useAutosave.ts:20-25` nói rõ nó chỉ xả **engine mà màn đang mở đã dựng** —
-tức engine tạo bằng `createAutosave`/`useAutosave`. Grep ra hai họ màn **khác nhau**:
+`SAVE_SHORTCUT` của `src/routes/router.tsx` gọi `flushAutosaves()`, và hàm ấy lặp qua
+**`mountedAutosaves`** (`hooks/useAutosave.ts:27,40`). Engine chỉ vào tập ấy ở **một** chỗ:
+`mountedAutosaves.add(autosave)` tại `useAutosave.ts:112`, tức **chỉ khi màn gọi hook
+`useAutosave`**. Dựng engine thẳng bằng `createAutosave<T>({…})` thì engine chạy đúng —
+800 ms, lưu thật — nhưng **không ai đăng ký nó**, nên `Ctrl+S` không thấy.
 
-| Cơ chế | Màn | `Ctrl+S` xả được? |
+Và `useAutosave` **khoá cứng vào slice `spatial`** của store. `useProjectSettings.ts:15-19`
+nói thẳng lý do nó không dùng hook ấy:
+
+> *"Cũng không dùng `useAutosave` hay `ConnectedSaveIndicator` — cả hai khoá cứng vào slice
+> `spatial` của store, thứ màn này không có."*
+
+| | Màn | `Ctrl+S` xả được? |
 |---|---|---|
-| `useAutosave` / `createAutosave` | `ScaleCalibration` · `DimensionOcrReview` · `PropertyInspector` | **có** |
-| `useSaveIndicator` | `AccountSettings` · `ProjectSettings` · `DimensionOcrReview` · `WallLayerReview` · `RuleSettings` | **không** |
+| gọi `useAutosave(…)` | `ScaleCalibration:630` · `DimensionOcrReview:576` · `PropertyInspector:1119` | **có** |
+| dựng `createAutosave<T>({…})` trần | `RoomLabelReview:602` · `ThicknessStandardization:534` · `ProjectSettings` · `RuleSettings` · `AccountSettings` | **không** |
+| `useSaveIndicator`, `persistWallLayer: false` | `WallLayerReview` | không (không có gì để xả) |
 
-Chỉ `DimensionOcrReview` nằm trong cả hai họ. Nên **bốn màn** —
-`AccountSettings`, `ProjectSettings`, `WallLayerReview`, `RuleSettings` — hiện chỉ báo
-trạng thái lưu mà `Ctrl+S` **không** tác động tới. Trong đó `projectSettings` là màn
-**duy nhất** mà tự lưu kiểm được đầy đủ ở tầng e2e.
+`ConnectedSaveIndicator` — biến thể **có** gọi `useAutosave` — **không màn nào render**.
+Ba màn cài đặt render bản thuần trình bày `SaveIndicator` (`ProjectSettings.tsx:87,153`,
+`RuleSettings.tsx:256`, `AccountSettings.tsx:113`), thứ chỉ nhận `saveState`/`label` làm props.
 
-⇒ Kế hoạch **không** được viết một ca "Ctrl+S xả sớm" dùng chung cho mọi màn. Ca ấy chỉ
-đúng ở ba màn, và ở bốn màn kia nó sẽ xanh **vì không có gì xảy ra** — thứ tệ hơn một
-ca đỏ. Mỗi mục phải nói rõ màn của nó thuộc họ nào.
+⇒ Hai điều cho kế hoạch:
+
+1. **Không viết một ca "Ctrl+S xả sớm" dùng chung.** Ở tám màn nó sẽ **xanh vì không có gì
+   xảy ra** — tệ hơn một ca đỏ. Mỗi mục phải nói rõ màn của nó nằm ở hàng nào của bảng trên.
+2. **Năm màn tự lưu ĐÚNG mà `Ctrl+S` không với tới** là một phát hiện, không phải một lỗ
+   kiểm thử. Với ba màn cài đặt, đó là hệ quả **có lý do đã ghi** của chỗ ghép cứng; với
+   `rooms` và `thickness` thì **không có lý do nào được ghi** — hai màn ấy *có* `spatial`
+   nên dùng được `useAutosave`, mà lại không dùng. Xem `questions.md` **Q13**.
+
+**Sửa một lần đã công bố:** bảng ở lượt trước chia theo `useAutosave` ↔ `useSaveIndicator`.
+Cách chia ấy sai — `useSaveIndicator` không liên quan tới việc đăng ký. Trục đúng là **có
+gọi hook `useAutosave` hay không**. Lượt đầu tôi grep `createAutosave(` nên hụt
+`createAutosave<NormalizedSpatial>({` của `rooms`/`thickness`; worker V7 dẫn đúng hai dòng
+ấy và tôi đã bỏ qua.
 
 **A12 là bất biến quan trọng nhất của 14 màn không route**, vì `SCOPE_PRIORITY`
 (`lib/input/shortcutRegistry.ts:59`) đặt `dialog`/`sidePanel`/`canvas` trước `global`:
@@ -321,7 +368,7 @@ thường, và **một lượt chờ không phải phép đo nhịp khung**.
 | Việc | Chốt |
 |---|---|
 | Chỗ đặt tệp | `e2e/<nhóm>/<man-hinh>.spec.ts`, ví dụ `e2e/qc/wall-layer-review.spec.ts` |
-| Fixture dùng chung | `e2e/fixtures/` — **năm** tệp: `session.ts` (đăng nhập theo vai) · `clock.ts` (ghim giờ) · `routes.ts` (dựng URL từ `ROUTE_PATTERNS`) · `flags.ts` (bật cờ tính năng) · `tour.ts` (bỏ qua `EditorTour` bằng nút của sản phẩm — xem 1.4.1) |
+| Fixture dùng chung | `e2e/fixtures/` — **sáu** tệp: `session.ts` (đăng nhập theo vai) · `clock.ts` (ghim giờ) · `routes.ts` (dựng URL từ `ROUTE_PATTERNS`) · `flags.ts` (bật cờ tính năng) · `tour.ts` (bỏ qua `EditorTour` bằng nút của sản phẩm — xem 1.4.1) · **`seedSpatial.ts`** (bơm `store.spatial`; docblock phải nói thẳng nó chạm nội bộ dev — xem 6.1) |
 | Nguyên liệu fixture | **chép, đừng phát minh**: đăng nhập `e2e/viewer3d.spec.ts:185-205` · bật cờ `e2e/pascal-viewer.spec.ts:121-131` · ghim giờ `e2e/app.visual.spec.ts` |
 | Tên bài | tiếng Việt, một câu nói ra **điều được chứng minh**, không phải tên hàm |
 | Ảnh chuẩn | chỉ cho màn có giá trị hình ảnh thật. Bắt buộc ghim `clock.setFixedTime` + `emulateMedia({ reducedMotion: 'reduce' })` + `setViewportSize` cố định |
@@ -352,9 +399,9 @@ Mỗi chặng ghi: việc · cổng · lệnh nghiệm thu · việc **không** 
 
 ### Chặng 0 — móng
 
-- **Việc:** năm fixture (`session` · `clock` · `routes` · `flags` · `tour`), nguyên liệu chép
-  từ ba spec đã có (xem 5).
-- **Cổng:** một bài mẫu dùng đủ năm fixture chạy xanh **hai lượt liên tiếp**, và
+- **Việc:** sáu fixture (`session` · `clock` · `routes` · `flags` · `tour` · `seedSpatial`),
+  nguyên liệu chép từ ba spec đã có (xem 5).
+- **Cổng:** một bài mẫu dùng đủ sáu fixture chạy xanh **hai lượt liên tiếp**, và
   `E2E_PORT=5181 pnpm e2e` chạy xanh **cùng lúc** với `E2E_PORT=5182 pnpm e2e`.
 - **Lệnh:** `E2E_PORT=5181 pnpm e2e e2e/fixtures` (hai lượt) · hai lượt song song.
 - **Không làm:** không viết bài cho màn nào.
@@ -362,10 +409,15 @@ Mỗi chặng ghi: việc · cổng · lệnh nghiệm thu · việc **không** 
 
 ### Chặng 1 — lưới an toàn chống màn trắng
 
-- **Việc:** 35 màn có route, mỗi màn một bài rẻ (mở đúng đường · có nội dung · `console`
-  không có lỗi chưa bắt — **xem cảnh báo favicon ngay dưới**). 13 màn không route (trừ `ConnectionStates` nếu xác minh là không
+- **Việc:** **hai lưới sinh từ dữ liệu** (xem 0.1), không 48 mục viết tay.
+  - **Lưới 1 — 35 màn có route.** Một bảng `[khoá route, chuỗi mong đợi]` + một vòng `for`
+    sinh 35 lời gọi `test()`: mở đúng đường · có nội dung · `console` không có lỗi chưa bắt
+    (**xem cảnh báo favicon ngay dưới**).
+  - **Lưới 2 — 13 màn không route**, mỗi màn một bài mở-rồi-`Escape`.
+  ⇒ **2 đơn vị bảo trì · 48 lời gọi `test()`.** 13 màn không route (trừ `ConnectionStates` nếu xác minh là không
   có nơi gọi), mỗi màn một bài mở-rồi-`Escape`.
-- **Cổng:** 35 + 13 bài xanh; tổng thời gian ≤ 5 ph tại máy.
+- **Cổng:** 48 lời gọi `test()` xanh; tổng thời gian ≤ 5 ph tại máy (chạy song song được,
+  vì chúng là 48 bài rời chứ không phải một vòng lặp).
 - **Lệnh:** `pnpm e2e e2e/smoke-grid`.
 - **Không làm:** không luồng sâu, không ảnh chuẩn, không kiểm A7/A8/A9.
 - **Ghi chú:** bộ dò đã đo **35/35 màn không trắng**, nên chặng này là **lưới an toàn cho
@@ -401,12 +453,35 @@ Thứ tự theo giá trị nghiệp vụ, và nhóm nào bị chặn thì xếp 
 | 6 | **V5** dây chuyền | không |
 | 7 | **V3** dự án | không |
 | 8 | **V2** lớp tự mở | cần xác minh `ConnectionStates` có nơi gọi hay không |
-| 9 | **V7** QC-b | cần chốt cách bơm `store.spatial` (xem `questions.md`) |
-| 10 | **V6** QC-a | cùng điều kiện V7, cộng `:floorId` phải là mã Level của đồ thị |
+| 9 | **V7** QC-b | **đã mở** — Q1 = A′ chốt dùng `seedSpatial`. Mỗi màn kèm một **ca mồi** không bơm (6.1) |
+| 10 | **V6** QC-a | **đã mở**, cùng Q1 = A′. Thêm ràng buộc: `:floorId` phải là **mã `Level` của đồ thị** (`L-000001LVL0`, `L-AXISFLOOR1`), không phải chuỗi `L1` |
 | 11 | **V10** Pascal vỏ | không — mở rộng `e2e/pascal-viewer.spec.ts` đã có |
 | 12 | **V11** Pascal editor | **không mở được** — sản phẩm chưa cắm `Editor` vào. Chỉ một ca hàng rào |
 
 - **Trạng thái:** **chưa chạy.**
+
+### 6.1 Ca mồi — cái nạng phải tự nhắc mình được gỡ
+
+Q1 chốt **A′**: dùng cửa bơm kho, **và** mỗi màn QC kèm **một ca mồi KHÔNG bơm**, khẳng
+định đúng chuỗi người dùng thấy hôm nay (`empty` hoặc skeleton).
+
+Ngày sản phẩm có đường nạp thật, **ca mồi đỏ** — và tên bài nói người đọc hãy xoá
+`seedSpatial`. Đó là điều mà cả "dùng cửa" lẫn "không dùng cửa" đều **không** làm được:
+phương án thứ nhất để cái nạng lặng lẽ thành vĩnh viễn; phương án thứ hai để cả tầng QC
+không phủ và không ai biết khi nào nó được chữa.
+
+Bảy ca mồi, một cho mỗi màn: `walls` · `objects` · `dimensions` · `grids` · `rooms` ·
+`floors` · `thickness`.
+
+Ba ràng buộc của mọi ca **có** bơm:
+
+1. **Tên bài phải nói ra rằng nó bơm.** Một bài xanh đọc như "màn duyệt tường chạy được"
+   trong khi đường thật của người dùng vẫn rỗng là một bài nói dối bằng cái tên của nó.
+2. **Bơm SAU khi đã tới màn** (`goto` → bơm → khẳng định). Không cần điều hướng trong ứng
+   dụng, nên mục "chưa đo" *"kho có sống sót qua điều hướng nội bộ không"* **không chặn**
+   chặng này.
+3. **Không `Ctrl+Z` trong một ca bơm.** Lượt bơm tự nó là một bước `zundo`, nên `Ctrl+Z`
+   thừa sẽ hoàn tác chính lượt bơm (đã đo ở `thickness`).
 
 ### Chặng cuối — CI
 
