@@ -13,6 +13,20 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * kiểm mã của worker thứ nhất và báo XANH. Không đỏ, không xung đột, không dấu
  * vết. Đặt `E2E_PORT` là nói "tôi muốn cổng riêng", nên từ lượt này việc cổng
  * đã có người là một lỗi, không phải một dòng cảnh báo.
+ *
+ * ## `E2E_PORT` cô lập CỔNG, không cô lập THƯ MỤC DỰNG
+ *
+ * Đo 2026-09-30: hai lượt `pnpm e2e` song song trong **cùng một worktree**, hai cổng
+ * khác nhau, vẫn đụng nhau — nhưng ở chỗ khác. `vite.pascal.config.ts:65-66` dựng vách
+ * ngăn vào `public/assets/pascal` với `emptyOutDir: true`, và `pnpm pascal` chạy ở đầu
+ * mỗi lượt, nên một lượt đang ghi trong lúc lượt kia đang xoá sạch:
+ *
+ *     EPERM, Permission denied: …\publicssets\pascalloorplan-tool-*.js
+ *         at emptyDir (…vite…) ← prepareOutDir
+ *
+ * Lỗi này ồn ào (exit 1, thông báo rõ) nên nó không nguy hiểm như lỗi cổng ở trên. Nhưng
+ * đừng đọc `E2E_PORT` thành "chạy bao nhiêu lượt song song cũng được": nó để hai
+ * **worktree** không đi kiểm mã của nhau. Trong một worktree, **một lượt một lúc**.
  */
 const port = process.env.E2E_PORT ?? '5173';
 const portWasRequested = process.env.E2E_PORT !== undefined;
