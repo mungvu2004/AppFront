@@ -5,7 +5,18 @@ import path from 'node:path';
 import process from 'node:process';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const baseUrl = 'http://127.0.0.1:5173';
+/*
+ * Cổng của máy chủ dev, lấy từ `E2E_PORT` chứ không viết cứng.
+ *
+ * Hai worktree cùng chạy `pnpm e2e` đều lấy 5173 — và nhánh "máy chủ đã chạy
+ * sẵn" bên dưới trước đây chỉ cảnh báo rồi chạy tiếp, nên worker thứ hai đi
+ * kiểm mã của worker thứ nhất và báo XANH. Không đỏ, không xung đột, không dấu
+ * vết. Đặt `E2E_PORT` là nói "tôi muốn cổng riêng", nên từ lượt này việc cổng
+ * đã có người là một lỗi, không phải một dòng cảnh báo.
+ */
+const port = process.env.E2E_PORT ?? '5173';
+const portWasRequested = process.env.E2E_PORT !== undefined;
+const baseUrl = `http://127.0.0.1:${port}`;
 const useShell = process.platform === 'win32';
 const packageRunner = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const testArgs = process.argv.slice(2);
@@ -99,13 +110,21 @@ if (pascalResult.status !== 0) {
 
 const serverWasRunning = await requestUrl(baseUrl);
 if (serverWasRunning) {
+  if (portWasRequested) {
+    console.error(
+      `Cổng ${port} đã có người. E2E_PORT được đặt tường minh nên lượt này DỪNG:`
+      + ' chạy tiếp là đi kiểm mã của một worktree khác và báo xanh.',
+    );
+    process.exit(1);
+  }
+
   console.warn(
     'Cảnh báo: máy chủ Vite đã chạy sẵn. Bài e2e cần VITE_USE_MOCK_API=true; máy chủ này có thể chưa bật cờ đó.',
   );
 }
 const serverProcess = serverWasRunning
   ? undefined
-  : spawn(packageRunner, ['exec', 'vite', '--host', '127.0.0.1'], {
+  : spawn(packageRunner, ['exec', 'vite', '--host', '127.0.0.1', '--port', port, '--strictPort'], {
       cwd: projectRoot,
       detached: process.platform !== 'win32',
       env: { ...process.env, VITE_USE_MOCK_API: 'true' },
