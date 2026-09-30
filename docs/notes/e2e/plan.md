@@ -42,6 +42,20 @@ trong tài liệu này mang đúng chữ **"chưa đo"**; mọi bước chưa ch
 
 Cổng nền **xanh sẵn**, nên bất cứ màu đỏ nào ở chặng sau là của chặng sau.
 
+**Chính xác về việc phép đo nào phủ cây nào** (mục E.10 — không làm tròn):
+
+| Phép đo | Cây nó phủ | Kết quả |
+|---|---|---|
+| `pnpm verify` | cây có phần **chức năng** của P0 (`E2E_PORT` ở `run-playwright.mjs` + `playwright.config.ts`) | **7/7 đạt**, exit 0 |
+| `pnpm e2e` | **đúng nội dung cuối** của `scripts/run-playwright.mjs`, sau khi thêm khối docblock | **18/18 xanh**, exit 0 |
+| `pnpm verify` chạy lại trên **commit cuối** | — | **CHƯA CHẠY XONG.** Qua bốn bước (typecheck · lint · import vòng · test+độ phủ) rồi bị hệ thống dừng ở bước build vì máy cạn bộ nhớ. Không có mã thoát ⇒ **không có phán quyết** cho ba bước cuối (build · kích thước gói · độ dài file) |
+
+Khoảng cách giữa hàng một và commit cuối là: một khối **chú thích** trong một tệp `.mjs`, cộng
+bốn tệp markdown trong `docs/notes/e2e/`. Không cổng nào trong bảy cổng đọc `.md`
+(`check-file-length.mjs` chỉ đọc `.tsx`; `check-bundle-size.mjs` chỉ đọc `dist/assets`;
+`eslint . --ext ts,tsx` không đọc `.mjs`), và `node --check` trên tệp `.mjs` ấy đã qua.
+Nhưng **suy luận ấy không phải một phép đo**, nên hàng thứ ba vẫn ghi "chưa chạy xong".
+
 **Một cảnh báo không thuộc e2e nhưng phải ghi:** hạng mục "chi phí thêm cho một màn"
 của cổng kích thước gói đang ở **279,8 / 280 KiB — còn dư 0,2 KiB**. Ai thêm một `import`
 vào đường tải màn đầu tiên sẽ làm nó đỏ, và triệu chứng sẽ trông như "màn mới làm hỏng
