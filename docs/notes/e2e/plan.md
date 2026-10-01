@@ -409,6 +409,28 @@ Mỗi chặng ghi: việc · cổng · lệnh nghiệm thu · việc **không** 
 - **Không làm:** không viết bài cho màn nào.
 - **Trạng thái:** **chưa chạy.**
 
+### Chặng 0b — chữa hai hạn 5 s trước khi Chặng 1 thêm 48 bài
+
+**Việc chen vào giữa Chặng 0 và Chặng 1, vì nó rẻ và nó chặn một thứ sẽ đắt.**
+
+Đo sau khi Chặng 0 thêm 11 bài: bộ 29 lời gọi `test()` **đỏ một bài** —
+`viewer3d.spec.ts:546`, qua hạn `expect.poll` 5 s ở `:452` (nhãn thu phóng nhận `100` khi
+mốc trước cũng là `100`). Cùng tệp ấy chạy **riêng** thì xanh 7/7, hai lượt liền. Nên biến
+quyết định là **số bài chạy song song**, không phải dev server — bảng đầy đủ bảy lượt đo ở
+`dag.md` mục 3, phép đo 6.
+
+Chặng 1 thêm **48** lời gọi `test()` nữa. Cùng hạn 5 s, cùng `fullyParallel: true`, cùng sáu
+worker — flake sẽ nổ thường xuyên hơn, và nổ ở một bài **không ai vừa sửa**.
+
+- **Việc:** chữa hai hạn 5 s của `e2e/viewer3d.spec.ts` — `:203` (`toBeVisible` sau đăng
+  nhập, route tải muộn) và `:452` (`expect.poll` nhãn thu phóng).
+- **Cách:** chờ một khẳng định có thật thay vì chờ một con số đổi trong một cửa sổ thời
+  gian; hoặc một hằng có tên đủ rộng cho tải thật. **Không** nâng hạn mặc định của cả bộ —
+  mục 7.4 cấm nâng timeout, và nâng toàn cục che mọi flake khác.
+- **Cổng:** cả bộ chạy xanh **ba lượt liên tiếp**, không phải một.
+- **Không làm:** không đụng bài nào khác của `viewer3d.spec.ts`; không thêm ảnh chuẩn.
+- **Trạng thái:** **chưa chạy.**
+
 ### Chặng 1 — lưới an toàn chống màn trắng
 
 - **Việc:** **hai lưới sinh từ dữ liệu** (xem 0.1), không 48 mục viết tay.

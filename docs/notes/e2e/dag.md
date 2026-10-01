@@ -197,6 +197,44 @@ phóng). Fixture `session.ts` của chặng 0 **chép khuôn đăng nhập từ 
 nó **không** được chép luôn hạn 5 s. Đây là một khuyến nghị cụ thể cho chặng 0, và nó đến
 từ một lượt đỏ thật.
 
+**6. SỬA phép đo 5 — nguyên nhân không phải dev server, mà là TẢI SONG SONG.**
+
+Phép đo 5 ở trên kết luận "một `pnpm dev` còn chạy làm bộ e2e chập chờn". Sau khi Chặng 0
+thêm 11 bài, đo lại và kết luận ấy **quá mạnh**. Bảng đầy đủ:
+
+| Lượt | Tải | Kết quả |
+|---|---|---|
+| cả bộ 18 bài, dev server **đang chạy** | cao | **đỏ** `viewer3d.spec.ts:656` |
+| cả bộ 18 bài, dev server **đang chạy** | cao | **đỏ** `viewer3d.spec.ts:546` |
+| chỉ bài `:656`, chạy riêng | thấp | xanh |
+| cả bộ 18 bài, dev server **đã tắt** | trung bình | xanh 18/18 |
+| cả bộ 18 bài trên 5181, **song song** với 5182 | cao | xanh 18/18 |
+| cả bộ **29** bài, dev server **đã tắt** | cao hơn — thêm 11 bài | **đỏ** `viewer3d.spec.ts:546` |
+| `e2e/viewer3d.spec.ts` chạy riêng, hai lượt | thấp | xanh 7/7 · xanh 7/7 |
+
+Hai hàng cuối là hai hàng quyết định: **đỏ khi không có dev server nào**, và **xanh hai lượt
+liền khi chạy riêng**. Nên biến quyết định là **số bài chạy song song**, không phải dev
+server. Dev server chỉ là một nguồn tải; thêm 11 bài là một nguồn khác.
+
+Chỗ mỏng là hai hạn chờ **5 s** trong `e2e/viewer3d.spec.ts`:
+
+- `:452` — `expect.poll` nhãn thu phóng, `toBeGreaterThan(before)`; nó nhận `100` khi
+  `before` cũng là `100`, tức cú cuộn chưa kịp đổi nhãn trong 5 s.
+- `:203` — `toBeVisible` sau lượt đăng nhập, trên một route tải muộn.
+
+⇒ **Một dự đoán cụ thể, và nó đáng chặn trước Chặng 1:** bộ hiện có 29 lời gọi `test()` và
+flake đã nổ một lần. Chặng 1 thêm **48** lời gọi nữa (hai lưới sinh từ dữ liệu). Cùng một
+hạn 5 s, cùng `fullyParallel: true`, cùng 6 worker — nó sẽ nổ thường xuyên hơn, và nó sẽ nổ
+ở một bài **không ai vừa sửa**, nên người gặp sẽ đi tìm lỗi ở chỗ khác.
+
+Việc đúng: chữa hai hạn 5 s ấy **trước** khi Chặng 1 thêm bài. Chữa bằng cách chờ một
+khẳng định có thật thay vì chờ một con số đổi trong một cửa sổ thời gian, hoặc bằng một
+hằng có tên đủ rộng cho tải thật — **không** bằng cách nâng hạn mặc định của cả bộ
+(kế hoạch mục 7.4 cấm nâng timeout, và nâng toàn cục sẽ che mọi flake khác).
+
+Quy ước ở phép đo 5 **vẫn đúng và vẫn giữ** — tắt `pnpm dev` trước khi chạy `pnpm e2e` là
+việc nên làm, nó chỉ không phải *nguyên nhân duy nhất*.
+
 Commit: `e1554b0` trên `e2e/prep`.
 
 ---
