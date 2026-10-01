@@ -377,6 +377,8 @@ thường, và **một lượt chờ không phải phép đo nhịp khung**.
 | Giả lập lỗi | `page.route` chặn **đúng một** endpoint; endpoint lấy từ `src/api/endpoints.ts`, không viết tay |
 | Song song | `fullyParallel: true` ⇒ bài không được dùng chung trạng thái ngoài trình duyệt |
 | Cổng riêng | `E2E_PORT` (đã có, xem `dag.md` mục 3). Worker nào chạy e2e cũng phải đặt nó |
+| **Lặp trên một màn** | `E2E_SKIP_PASCAL=1 E2E_PORT=<cổng> pnpm e2e <đường tệp>`. Đo 01-10-2026: một lượt một-màn mất **100 s**, trong đó dựng vách ngăn Pascal **56,9 s** và bài test **6,3 s**. Bỏ lượt dựng ⇒ **17 s**. Chốt an toàn: thiếu `pascal-mount.js` thì runner **vẫn dựng** và nói ra vì sao — đã kiểm bằng cách dời tệp ra ngoài |
+| Khi nào KHÔNG đặt `E2E_SKIP_PASCAL` | chạy cả bộ · bài của màn Pascal · trong CI · sau khi sửa gì trong `vendor/pascal` |
 | **Tắt `pnpm dev` trước khi chạy `pnpm e2e`** | **Đo được:** một dev server còn chạy trên cùng worktree làm bộ e2e chập chờn — hai lượt liền, mỗi lượt một bài khác đỏ; tắt nó thì 18/18 xanh. Máy còn 8,8 GB rảnh lúc ấy, nên **không** phải thiếu RAM: hai bản Vite giành cùng tệp. Xem `dag.md` mục 3, phép đo 5 |
 | Hạn chờ trong fixture | `session.ts` chép khuôn từ `viewer3d.spec.ts:185-205` **nhưng đừng chép hạn 5 s** của dòng 203 — nó là chỗ mỏng đã lộ ra khi máy bị giành tệp. Dùng hạn của `expect` mặc định hoặc một hằng có tên |
 | Ngân sách | mỗi bài ≤ 30 s ở máy (Pascal ≤ 60 s vì 1,6× CPU); cả bộ ≤ 15 ph với `workers: 1` của CI. Vượt thì **tách bài, đừng nâng timeout** |

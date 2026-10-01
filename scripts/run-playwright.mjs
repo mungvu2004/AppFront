@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -111,15 +112,49 @@ const runCommand = (command, args) =>
  *
  * Chạy lại rẻ khi đã có: `cpSync` chép đè và `vite build` đọc cache.
  */
-const pascalResult = spawnSync(packageRunner, ['run', 'pascal'], {
-  cwd: projectRoot,
-  shell: useShell,
-  stdio: 'inherit',
-});
+/*
+ * `E2E_SKIP_PASCAL=1` — bỏ lượt dựng ấy khi đang lặp trên MỘT màn không phải Pascal.
+ *
+ * Đo 01-10-2026, một lượt `pnpm e2e e2e/smoke.spec.ts`: **100 s** tổng, trong đó vách
+ * ngăn Pascal `built in 56,87 s` và bài test chạy **6,3 s**. Tức 94 % thời gian chờ là
+ * dựng, và hơn một nửa là dựng một thứ màn ấy không chạm tới. Lặp hai mươi lượt trên một
+ * màn là mất gần hai mươi phút cho không.
+ *
+ * **Chốt an toàn, và nó là phần quan trọng hơn cái cờ:** chỉ bỏ khi
+ * `public/assets/pascal/pascal-mount.js` ĐÃ có. Thiếu tệp ấy thì màn Pascal rơi trạng thái
+ * `PASCAL-01` — một bài đỏ vì hạ tầng, trông y như một bài đỏ vì sản phẩm. Đó đúng là loại
+ * lỗi cả kế hoạch này tồn tại để chặn, nên cờ không được phép tạo ra nó: xin bỏ mà chưa có
+ * tệp thì runner **vẫn dựng** và nói ra vì sao.
+ *
+ * Đừng đặt cờ này khi chạy cả bộ, và đừng đặt nó trong CI — ở đó lượt dựng là bắt buộc.
+ */
+const pascalEntry = path.join(projectRoot, 'public', 'assets', 'pascal', 'pascal-mount.js');
+const skipAsked = process.env.E2E_SKIP_PASCAL === '1';
+const pascalEntryExists = fs.existsSync(pascalEntry);
 
-if (pascalResult.status !== 0) {
-  console.error('Không dựng được vách ngăn Pascal; bài e2e của màn Pascal sẽ đỏ.');
-  process.exit(pascalResult.status ?? 1);
+if (skipAsked && !pascalEntryExists) {
+  console.warn(
+    'E2E_SKIP_PASCAL=1 bị bỏ qua: chưa có public/assets/pascal/pascal-mount.js, nên vẫn dựng'
+    + ' vách ngăn. Bỏ bước này lúc thiếu tệp sẽ cho một bài đỏ PASCAL-01 trông như lỗi sản phẩm.',
+  );
+}
+
+if (skipAsked && pascalEntryExists) {
+  console.log(
+    'Bỏ lượt dựng vách ngăn Pascal (E2E_SKIP_PASCAL=1); dùng bản đang có trong'
+    + ' public/assets/pascal. Đừng dùng cờ này khi chạy cả bộ.',
+  );
+} else {
+  const pascalResult = spawnSync(packageRunner, ['run', 'pascal'], {
+    cwd: projectRoot,
+    shell: useShell,
+    stdio: 'inherit',
+  });
+
+  if (pascalResult.status !== 0) {
+    console.error('Không dựng được vách ngăn Pascal; bài e2e của màn Pascal sẽ đỏ.');
+    process.exit(pascalResult.status ?? 1);
+  }
 }
 
 const serverWasRunning = await requestUrl(baseUrl);
