@@ -74,8 +74,16 @@ test('đích do màn trước đặt trong state.from thắng đích trong ?next
 
   await page.goto(loginUrl(fromQuery));
 
-  // Mock luôn cấp phiên nên không có màn nào đá được tới /login kèm state.from;
-  // dựng đúng thứ nó sẽ để lại: một mục lịch sử mà react-router đọc state từ `usr`.
+  /* Mock luôn cấp phiên nên không màn nào đá được tới /login kèm state.from; bài này dựng
+     đúng thứ màn ấy sẽ để lại: một mục lịch sử mà react-router đọc state từ `usr`.
+
+     GIÁ PHẢI TRẢ, nói ra để người sau không mất thời gian đoán: hình dạng `{ usr, key, idx }`
+     là NỘI BỘ của react-router, không phải hợp đồng công khai. Nâng phiên bản react-router
+     có thể làm bài này đỏ mà sản phẩm không sai gì. Gặp nó đỏ sau một lượt nâng gói thì
+     kiểm hình dạng `history.state` trước khi đi tìm lỗi ở `AuthScreen.container.tsx`.
+
+     Vẫn đáng giữ: `safeDestination` và thứ tự ưu tiên ở `AuthScreen.container.tsx:238-248`
+     không có bài đơn vị nào, nên đây là bằng chứng duy nhất rằng `state.from` thắng `?next=`. */
   await page.evaluate((from) => {
     const current = window.history.state as { idx?: number } | null;
     window.history.pushState(
