@@ -14,6 +14,7 @@
  * có sẵn. Không nút giả, không canvas rỗng vờ như sắp vẽ.
  */
 
+import { formatNumber } from '@/lib/format/number';
 import { cn } from '@/lib/utils';
 
 import { tokenizeJsonLine } from './spatialJsonModel';
@@ -64,7 +65,7 @@ function RawJson({ rawText }: { readonly rawText: string }) {
 
       {hiddenCount > 0 ? (
         <p className="mt-5 text-[13px] leading-[18px] text-text-muted">
-          Còn {hiddenCount} dòng nữa. Thu gọn bớt nhánh ở cây bên trái để xem phần bạn cần.
+          Còn {formatNumber(hiddenCount)} dòng nữa. Thu gọn bớt nhánh ở cây bên trái để xem phần bạn cần.
         </p>
       ) : null}
     </div>

@@ -134,10 +134,7 @@ const ROWS = {
     known: 'chưa có gì được duyệt — kho rỗng',
   },
   projectData: { anchor: { label: 'Tìm theo khoá hoặc giá trị' } },
-  projectVersions: {
-    anchor: { text: 'Không xác định được bản vẽ' },
-    known: 'màn đang ở nhánh lỗi — không xác định được bản vẽ',
-  },
+  projectVersions: { anchor: { role: 'navigation', name: 'Danh sách phiên bản' } },
 } as const satisfies Record<ProductRouteKey, Row>;
 
 function pathFor(key: ProductRouteKey, row: Row): string {

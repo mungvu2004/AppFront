@@ -422,3 +422,28 @@ describe('trạng thái "error": mã lỗi chữ đều, có gợi ý, thử l�
     expect(onChangeOptions).not.toHaveBeenCalled();
   });
 });
+
+describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua router, không nạp lại trang', () => {
+  it('bấm trái thường: chặn hành vi mặc định của thẻ <a> và gọi onFollowFix', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const onFollowFix = vi.fn();
+
+    render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
+    const [link] = screen.getAllByRole('link', { name: 'sửa' });
+
+    // `fireEvent` trả `false` khi trình xử lý đã gọi `preventDefault()`.
+    expect(fireEvent.click(link as HTMLElement)).toBe(false);
+    expect(onFollowFix).toHaveBeenCalledTimes(1);
+  });
+
+  it('Ctrl-click (mở tab khác) để nguyên cho trình duyệt', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const onFollowFix = vi.fn();
+
+    render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
+    const [link] = screen.getAllByRole('link', { name: 'sửa' });
+
+    expect(fireEvent.click(link as HTMLElement, { ctrlKey: true })).toBe(true);
+    expect(onFollowFix).not.toHaveBeenCalled();
+  });
+});

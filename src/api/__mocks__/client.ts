@@ -11,6 +11,7 @@ import type {
   Drawing,
   FloorImageQuality,
   Floor,
+  FloorVersionPage,
   FloorWriteBody,
   ImageQualityAssessment,
   ImageQualityFinding,
@@ -72,6 +73,45 @@ const makeVersion = (): Version => ({
   note: 'Mock snapshot',
   projectId: 'project-1',
   sequence: 1,
+});
+
+/**
+ * N17 — ba phiên bản cho mỗi tầng có thật trong bộ mẫu, mới trước cũ sau (`sequence` giảm
+ * dần, đúng thứ tự BE trả). Chỉ có siêu dữ liệu: nội dung bản chụp là N18, chưa nối.
+ */
+const makeFloorVersionPage = (floorId: string): FloorVersionPage => ({
+  items: [
+    {
+      createdAt: '2026-08-05T09:30:00.000Z',
+      creatorId: 'usr_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+      creatorName: 'Kỹ sư mẫu',
+      floorRevision: 3,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T3C',
+      note: `sửa tay lớp tường của ${floorId}`,
+      sequence: 3,
+    },
+    {
+      createdAt: '2026-08-04T14:10:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'Dây chuyền xử lý',
+      floorRevision: 2,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T2B',
+      note: 'trạng thái trước khi ghi kết quả AI',
+      sequence: 2,
+    },
+    {
+      createdAt: '2026-08-03T08:00:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'Dây chuyền xử lý',
+      floorRevision: 1,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+      note: 'bản dựng đầu tiên',
+      sequence: 1,
+    },
+  ],
 });
 
 const makeFloor = (levelId: string, name: string, elevationM: number, heightM: number, order: number): Floor => ({
@@ -1217,6 +1257,9 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
+      /** Tầng lạ thì trang rỗng — bộ mẫu không bịa lịch sử cho tầng không có. */
+      listVersions: async ({ floorId }) =>
+        ok(floors.some((floor) => floor.id === floorId) ? makeFloorVersionPage(floorId) : { items: [] }),
       /** Echoes the layer back, like every other write in this file that has no separate read endpoint to reconcile with (see `auth.signIn`, `drawings.complete`). */
       writeLayer: async ({ body }) => ok(clone(body)),
     },

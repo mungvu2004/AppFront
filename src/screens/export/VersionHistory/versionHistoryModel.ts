@@ -189,8 +189,9 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         id: metadata.id,
         label: `v${formatNumber(metadata.sequence, { grouping: false })}`,
         description: metadata.note ?? 'không có ghi chú cho phiên bản này',
-        authorName: metadata.creatorId,
-        authorInitials: initialsOf(metadata.creatorId),
+        // Tên máy chủ gửi kèm (N17) nếu có; không thì lùi về chuỗi thô như trước.
+        authorName: metadata.creatorName ?? metadata.creatorId,
+        authorInitials: initialsOf(metadata.creatorName ?? metadata.creatorId),
         // Không có nguồn ảnh đại diện nào ở tầng logic, nên ô đại diện dựng bằng chữ
         // cái đầu — một đường dẫn bịa ra còn tệ hơn một ô chữ thành thật (R-69).
         avatarUrl: null,

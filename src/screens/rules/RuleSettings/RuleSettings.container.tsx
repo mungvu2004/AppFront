@@ -13,11 +13,12 @@
  * `EmptyState` từ `report.description`, cùng khuôn `RuleReport` và
  * `ExplodedView`.
  *
- * `onToast` đi lên chứ không đi xuống: repo chưa có nhà cung cấp toast toàn cục
- * (`components/feedback/Toast.tsx` là một component, không phải một cổng), nên
- * chủ của bề mặt toast là người quyết định toast hiện ở đâu. Vắng nó thì mọi
- * thay đổi **vẫn** hoàn tác được bằng vé D-05 — chỉ là không ai mời người dùng
- * bấm, và đó là điều container phải nói ra chứ không giấu đi.
+ * `onToast` vẫn là prop để màn nhúng tự quyết toast hiện ở đâu. Route thì đẩy vào
+ * `appNotificationBus` — `NotificationHost` (`src/main.tsx`) vẽ nó với nút "Hoàn tác"
+ * gọi đúng vé của lượt sửa, và nó còn sống khi người dùng rời màn trong cửa sổ hoàn
+ * tác. Cùng khuôn `FloorManager.container.tsx`, `UserManagement.container.tsx`; không
+ * bọc `Toast.Provider` (nó tháo cùng màn). Trước đây route không truyền gì nên không
+ * có toast nào (A8, B-V12-04).
  */
 
 import { useParams } from 'react-router-dom';
@@ -28,6 +29,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import type { Announcer } from '@/lib/input/announcer';
 
 import { RuleSettings } from './RuleSettings';
@@ -142,5 +144,17 @@ export function RuleSettingsContainer(props: RuleSettingsContainerProps) {
 
 /** Route thật của màn cài đặt bộ luật, đăng ký tại `src/routes/router.tsx`. */
 export function RuleSettingsRoute() {
-  return <RuleSettingsContainer />;
+  return <RuleSettingsContainer onToast={publishRuleSettingsToast} />;
+}
+
+/** Loại thông báo của màn này trong `notificationBus` — bus gộp các lượt cùng loại. */
+const RULE_SETTINGS_NOTIFICATION_TYPE = 'rule-settings';
+
+function publishRuleSettingsToast(toast: RuleSettingsToast): void {
+  appNotificationBus.publish({
+    type: RULE_SETTINGS_NOTIFICATION_TYPE,
+    title: toast.message,
+    description: '',
+    undoTicket: toast.undoTicket,
+  });
 }

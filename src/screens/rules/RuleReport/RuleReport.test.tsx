@@ -32,7 +32,7 @@ import { join } from 'node:path';
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentType } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ALL_RULES, createDefaultRuleRegistry } from '@/domain/rules/defaults';
@@ -567,6 +567,48 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
     // `report.description` (R-62). Lỗi này không thử lại được nên phần dự phòng
     // KHÔNG có nút — cái nhìn thấy được là đầu đề của nó.
     expect(screen.getByRole('heading', { name: 'Có trục trặc' })).toBeTruthy();
+  });
+
+  it('B-V12-02: kho chưa có mô hình thì màn nói thẳng điều đó và không mời bấm một lượt chạy chắc chắn hỏng', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <RuleReportContainer projectId="P-000001" />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chưa có mô hình để kiểm tra luật' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Chạy kiểm tra/u })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Không chạy được lượt kiểm tra' })).toBeNull();
+  });
+
+  it('B-V12-11 / B-V12-06: liên kết "cài đặt bộ luật" đi qua router, không nạp lại trang', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.project.rules('P-000001')]}>
+        <Routes>
+          <Route
+            path={ROUTES.project.rules('P-000001')}
+            element={<RuleReportContainer projectId="P-000001" />}
+          />
+          <Route
+            path={ROUTES.project.ruleSettings('P-000001')}
+            element={<p>màn cài đặt bộ luật</p>}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const link = await screen.findByRole('link', { name: 'cài đặt bộ luật' });
+    expect(link.getAttribute('href')).toBe(ROUTES.project.ruleSettings('P-000001'));
+
+    // `fireEvent` trả `false` khi lượt bấm đã bị `preventDefault()` — router đi thay trình duyệt.
+    expect(fireEvent.click(link)).toBe(false);
+    expect(await screen.findByText('màn cài đặt bộ luật')).toBeTruthy();
   });
 
   it('bọc trong MemoryRouter thì dựng được, không ném lỗi', async () => {

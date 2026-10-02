@@ -271,8 +271,8 @@ export function RuleSettings(props: RuleSettingsProps) {
         {model.status === 'empty' && (
           <EmptyState
             icon={<ClipboardList aria-hidden="true" />}
-            title="chưa có bộ luật để cài đặt"
-            description="Chưa có luật không gian nào được nạp cho dự án này."
+            title="chưa có mô hình để áp bộ luật"
+            description="Bản vẽ này chưa được xử lý xong, nên chưa có mô hình không gian nào để áp bộ luật lên. Chạy pipeline cho tầng rồi quay lại đây."
           />
         )}
 

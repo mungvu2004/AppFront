@@ -35,22 +35,28 @@
  * provider nào bên trên.
  */
 
+import { useQuery } from '@tanstack/react-query';
+import { History } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
+
+import { createAppApiClient } from '@/api/appClient';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Skeleton } from '@/components/feedback/Skeleton';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { VersionHistory } from './VersionHistory';
-import { createVersionHistoryGateway } from './versionHistoryGateway';
+import { createApiVersionLoader, createVersionHistoryGateway } from './versionHistoryGateway';
 import type { VersionHistoryContainerProps, VersionHistoryGateway } from './types';
 import { useVersionHistory } from './useVersionHistory';
 
@@ -65,7 +71,14 @@ const NO_CREATOR_ID = '';
 
 const MISSING_PARAMS_TITLE = 'Không xác định được bản vẽ';
 const MISSING_PARAMS_MESSAGE =
-  'Đường dẫn thiếu mã dự án hoặc chưa có tầng nào đang mở, nên không biết phải hiện lịch sử phiên bản của bản vẽ nào.';
+  'Đường dẫn thiếu mã dự án, nên không biết phải hiện lịch sử phiên bản của dự án nào.';
+
+const FLOORS_FAILED_MESSAGE =
+  'Chưa đọc được danh sách tầng của dự án, nên chưa biết phải hiện lịch sử phiên bản của tầng nào. Tải lại trang sau ít phút.';
+
+const NO_FLOOR_TITLE = 'Dự án chưa có tầng nào';
+const NO_FLOOR_MESSAGE =
+  'Lịch sử phiên bản đi theo từng tầng. Thêm tầng và xử lý bản vẽ của nó, rồi quay lại đây.';
 
 /**
  * Ngưỡng thu gọn, theo dõi tại chỗ.
@@ -136,8 +149,15 @@ function WiredVersionHistory(props: VersionHistoryContainerProps) {
   const canExportVersion = onExportVersion !== undefined;
 
   const gateway: VersionHistoryGateway = useMemo(
-    () => injectedGateway ?? createVersionHistoryGateway({ canExportVersion, creatorId, floorId }),
-    [injectedGateway, canExportVersion, creatorId, floorId],
+    () =>
+      injectedGateway ??
+      createVersionHistoryGateway({
+        canExportVersion,
+        creatorId,
+        floorId,
+        loadVersions: createApiVersionLoader(createAppApiClient(), projectId),
+      }),
+    [injectedGateway, canExportVersion, creatorId, floorId, projectId],
   );
 
   const [model, actions] = useVersionHistory({
@@ -174,27 +194,84 @@ export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
 }
 
 /**
+ * Tầng đầu tiên (theo `order`) của dự án — dùng khi đường dẫn không nói tầng nào.
+ *
+ * Khoá con riêng dưới `floor.list`: khoá cha mang hình dạng của màn quản lý tầng, và một
+ * khoá hai người ghi hai hình dạng là đúng lỗi B-G-01. Nằm dưới khoá cha nên một lượt vô
+ * hiệu hoá danh sách tầng vẫn kéo theo nó.
+ */
+function useFirstFloorId(projectId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...queryKeys.floor.list(projectId), 'firstFloorId'],
+    enabled,
+    queryFn: async ({ signal }): Promise<string | null> => {
+      const result = await createAppApiClient().floors.list({ projectId, signal });
+
+      if (!result.ok) {
+        throw new Error(FLOORS_FAILED_MESSAGE);
+      }
+
+      const [first] = [...result.data].sort((a, b) => a.order - b.order);
+
+      return first?.id ?? null;
+    },
+  });
+}
+
+/**
  * Route thật của màn lịch sử phiên bản, đăng ký tại `src/routes/router.tsx`.
  *
- * Mã dự án đọc từ URL, mã tầng đọc từ tầng đang mở trong kho — mẫu đường dẫn của repo chỉ có
- * một lỗ `:id` cho các route cấp dự án (`paths.ts`), và không có lỗ nào cho tầng ở cấp này.
- * Thiếu một trong hai thì màn nói ra một câu thay vì dựng một lịch sử của không bản vẽ nào.
+ * Mã dự án đọc từ URL. Tầng: `?floorId=` nếu đường dẫn mang nó, không thì tầng đang mở
+ * trong kho, không nữa thì tầng đầu tiên của dự án — trước đây chỉ có nguồn thứ hai, mà
+ * không màn nào đặt nó, nên màn không bao giờ mở được (B-V12-10).
  */
 export function VersionHistoryRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
   const activeFloorId = useStore((state) => state.activeFloorId);
+  const projectId = id ?? '';
+  const requestedFloorId = searchParams.get('floorId') ?? activeFloorId;
+  const firstFloor = useFirstFloorId(projectId, projectId.length > 0 && requestedFloorId === null);
 
-  if (id === undefined || id.length === 0 || activeFloorId === null) {
+  if (projectId.length === 0) {
     return (
       <div className="p-6">
-        <InlineAlert
-          level="violation"
-          title={MISSING_PARAMS_TITLE}
-          message={MISSING_PARAMS_MESSAGE}
+        <InlineAlert level="violation" title={MISSING_PARAMS_TITLE} message={MISSING_PARAMS_MESSAGE} />
+      </div>
+    );
+  }
+
+  if (requestedFloorId !== null) {
+    return <VersionHistoryContainer projectId={projectId} floorId={requestedFloorId} />;
+  }
+
+  if (firstFloor.isPending) {
+    return (
+      <div className="p-6">
+        <Skeleton preset="property-panel" />
+      </div>
+    );
+  }
+
+  if (firstFloor.isError) {
+    return (
+      <div className="p-6">
+        <InlineAlert level="violation" title={MISSING_PARAMS_TITLE} message={FLOORS_FAILED_MESSAGE} />
+      </div>
+    );
+  }
+
+  if (firstFloor.data === null) {
+    return (
+      <div className="p-6">
+        <EmptyState
+          icon={<History aria-hidden="true" />}
+          title={NO_FLOOR_TITLE}
+          description={NO_FLOOR_MESSAGE}
         />
       </div>
     );
   }
 
-  return <VersionHistoryContainer projectId={id} floorId={activeFloorId} />;
+  return <VersionHistoryContainer projectId={projectId} floorId={firstFloor.data} />;
 }
