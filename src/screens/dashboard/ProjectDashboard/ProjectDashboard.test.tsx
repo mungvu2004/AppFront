@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 import { renderWithProviders } from '@/lib/testing/render';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
+import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
 import { ProjectDashboardRoute } from './ProjectDashboard.container';
@@ -113,6 +114,16 @@ describe('ProjectDashboardView, seven states', () => {
         error: null,
       })),
     );
+  });
+
+  // B-V3-01: the sr-only status used to read the raw key ("success") aloud — the one
+  // screen of 49 that never ran `expectVietnamese` (questions.md Q10h).
+  it.each(SEVEN_STATES)('says its state in Vietnamese to a screen reader — %s (A6)', (state) => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE[state]()} />);
+
+    expect(screen.getAllByRole('status').map((node) => node.textContent)).not.toContain(state);
+    // The sample project's own name is user data, not product copy.
+    expectVietnamese(container, { ignore: [SAMPLE_ROW.name] });
   });
 
   it('shows skeletons rather than an empty grid while loading', () => {

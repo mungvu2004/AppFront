@@ -45,6 +45,7 @@ import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
+import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
 import { DashboardSidebar } from './DashboardSidebar';
@@ -61,6 +62,23 @@ import {
 } from './useProjectDashboard';
 
 const SKELETON_CARD_COUNT = 6;
+
+/**
+ * What the `sr-only` status line says — the screen reader's only way to learn
+ * which of the seven states the dashboard is in. It used to print the raw
+ * `SevenState` key ("success", "forbidden"), English in a Vietnamese product
+ * (A6). Its own copy, like `ProjectSettings.tsx` and `CreateProjectModal.tsx`:
+ * `SEVEN_STATE_LABELS` lives in test infrastructure that never ships.
+ */
+const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
+  empty: 'rỗng',
+  loading: 'đang tải',
+  partial: 'một phần',
+  error: 'lỗi',
+  success: 'thành công',
+  forbidden: 'không có quyền',
+  collapsed: 'thu gọn',
+};
 const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
 export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {}
@@ -341,7 +359,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       </Modal.Root>
 
       <span className="sr-only" role="status">
-        {state}
+        {STATE_ANNOUNCEMENT[state]}
       </span>
     </div>
   );
