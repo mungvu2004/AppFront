@@ -4,6 +4,8 @@ import type { HttpError, Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
+import type { LevelId } from '@/domain/spatial/types';
+import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
   AdminUser,
   AdminUserList,
@@ -21,6 +23,7 @@ import type {
   Project,
   ProjectWriteBody,
   PropertyTemplate,
+  SpatialLayer,
   UserActivity,
   UserMembership,
   Version,
@@ -93,6 +96,48 @@ const makeFallbackFloor = (floorId: string): Floor => ({
   name: floorId,
   order: 0,
 });
+
+/**
+ * Lớp của một tầng theo N16 (B-V6-01): tầng nào là một tầng của bộ mẫu chuẩn A14
+ * thì nhận đúng phần của tầng ấy; tầng khác nhận lớp RỖNG — như BE trả
+ * `empty_document` cho tầng chưa có tài liệu (`spatial_read/router.py`).
+ *
+ * Tên tầng viết lại bằng tiếng Việt: bộ mẫu đặt `Level n`, và tên ấy hiện lên nav
+ * tầng của màn tường (A6). Trục đi kèm dù N16 v1 của BE luôn trả `axes: []` — xem
+ * B-V6 trong `docs/notes/e2e/fragments/W04.md`.
+ */
+const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer): FloorLayerDocument => {
+  const sampleLevel = SAMPLE_BUILDING.levels.find((level) => level.id === floor.id);
+  const onFloor = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
+    sampleLevel === undefined ? [] : clone(items.filter((item) => item.levelId === sampleLevel.id));
+  const walls = onFloor(SAMPLE_BUILDING.walls);
+  const wallIds = new Set<string>(walls.map((wall) => wall.id));
+
+  return {
+    axes: onFloor(SAMPLE_BUILDING.axes),
+    dimensions: onFloor(SAMPLE_BUILDING.dimensions),
+    layer: layer ?? {
+      furniture: onFloor(SAMPLE_BUILDING.furniture),
+      openings: clone(SAMPLE_BUILDING.openings.filter((opening) => wallIds.has(opening.wallId))),
+      rooms: onFloor(SAMPLE_BUILDING.rooms),
+      walls,
+    },
+    level:
+      sampleLevel === undefined
+        ? {
+            confidence: 1,
+            elevationMm: floor.elevationMm,
+            heightMm: floor.heightMm,
+            id: floor.id as LevelId,
+            name: floor.name,
+            order: floor.order,
+            reviewed: true,
+            source: 'human',
+          }
+        : { ...clone(sampleLevel), name: `Tầng ${String(sampleLevel.order + 1)}` },
+    revision,
+  };
+};
 
 const buildProject = (): Project => {
   const floors = MOCK_SPATIAL_PROJECT.levels.map((level, index) =>
@@ -929,6 +974,8 @@ const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => (
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
+  const layerRevisions = new Map<string, number>();
+  const writtenLayers = new Map<string, SpatialLayer>();
   const uploads = new Map<string, Progress>();
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
@@ -1217,8 +1264,23 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
-      /** Echoes the layer back, like every other write in this file that has no separate read endpoint to reconcile with (see `auth.signIn`, `drawings.complete`). */
-      writeLayer: async ({ body }) => ok(clone(body)),
+      readLayer: async ({ floorId }) => {
+        const floor = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
+
+        return ok(makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId)));
+      },
+      /**
+       * Lưu lớp và tăng `revision`, như #35. Không trả 409 khi `baseVersion` cũ:
+       * chưa nơi gọi nào xử lý xung đột, và một mock tự bịa luật ấy là nguồn thứ hai.
+       */
+      writeLayer: async ({ body, floorId }) => {
+        const revision = (layerRevisions.get(floorId) ?? 0) + 1;
+
+        layerRevisions.set(floorId, revision);
+        writtenLayers.set(floorId, clone(body));
+
+        return ok({ layer: clone(body), revision });
+      },
     },
     /**
      * Quản trị người dùng — T-04/T-05.

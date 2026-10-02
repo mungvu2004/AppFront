@@ -8,23 +8,31 @@ import { createSpatialLayerSave, type SpatialLayerChanges } from '../spatialLaye
 
 const EMPTY_LAYER: SpatialLayer = { furniture: [], openings: [], rooms: [], walls: [] };
 
+const SAVED = { data: { layer: EMPTY_LAYER, revision: 4 }, ok: true } as const;
+
 const changesOf = (layer: SpatialLayer = EMPTY_LAYER): SpatialLayerChanges => ({
+  baseVersion: 3,
   floorId: 'floor-1',
   layer,
   projectId: 'project-1',
 });
 
 describe('createSpatialLayerSave', () => {
-  it('resolves when writeLayer succeeds, passing floorId/projectId/body through', async () => {
-    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue({ data: EMPTY_LAYER, ok: true });
+  it('resolves when writeLayer succeeds, passing baseVersion/floorId/projectId/body through', async () => {
+    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(SAVED);
     const save = createSpatialLayerSave({ writeLayer });
 
     await expect(save(changesOf())).resolves.toBeUndefined();
-    expect(writeLayer).toHaveBeenCalledWith({ body: EMPTY_LAYER, floorId: 'floor-1', projectId: 'project-1' });
+    expect(writeLayer).toHaveBeenCalledWith({
+      baseVersion: 3,
+      body: EMPTY_LAYER,
+      floorId: 'floor-1',
+      projectId: 'project-1',
+    });
   });
 
   it('throws when writeLayer reports a failure, instead of silently swallowing it', async () => {
-    const failure: Result<SpatialLayer, HttpError> = {
+    const failure: Result<never, HttpError> = {
       error: { kind: 'network', raw: undefined, requestId: 'req-1', retryable: true },
       ok: false,
     };
@@ -38,7 +46,7 @@ describe('createSpatialLayerSave', () => {
     vi.useFakeTimers();
 
     try {
-      const failure: Result<SpatialLayer, HttpError> = {
+      const failure: Result<never, HttpError> = {
         error: { kind: 'network', raw: undefined, requestId: 'req-1', retryable: true },
         ok: false,
       };
@@ -60,7 +68,7 @@ describe('createSpatialLayerSave', () => {
       await vi.advanceTimersByTimeAsync(5_000);
       expect(writeLayer).toHaveBeenCalledTimes(2);
 
-      writeLayer.mockResolvedValue({ data: EMPTY_LAYER, ok: true });
+      writeLayer.mockResolvedValue(SAVED);
       pending = changesOf();
       await vi.advanceTimersByTimeAsync(15_000);
       expect(writeLayer).toHaveBeenCalledTimes(3);
@@ -74,7 +82,7 @@ describe('createSpatialLayerSave', () => {
     vi.useFakeTimers();
 
     try {
-      const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue({ data: EMPTY_LAYER, ok: true });
+      const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(SAVED);
       const save = createSpatialLayerSave({ writeLayer });
       const autosave = createAutosave<SpatialLayerChanges>({ getChanges: () => undefined, save });
 
