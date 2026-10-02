@@ -2522,6 +2522,32 @@ Không màn nào trong nhóm ≤ 10 bài; màn mỏng nhất (VersionHistory, Mo
 
 # 9. Phát hiện — thứ sai trong SẢN PHẨM, không phải trong kế hoạch
 
+## 9.0 ĐÃ SỬA — hai lỗi dựng lại được bằng trình duyệt, đã chữa tận gốc
+
+Cả hai do `scripts/probe-interact.mjs` tìm ra — bộ dò **bấm** từng điều khiển của từng
+màn như một người dùng. Bộ dò trước đó chỉ **tải** trang nên không thể thấy chúng.
+
+| | **404 → bảng điều khiển đổ** | **`Escape` ở `/thong-bao` ra `about:blank`** |
+|---|---|---|
+| Dựng lại | mở `/duong-khong-ton-tai-xyz`, bấm "về danh sách dự án" | mở `/thong-bao` **trực tiếp**, bấm `Escape` |
+| Triệu chứng | `ProjectCardTile.tsx:149` ném `Cannot read properties of undefined (reading 'length')` | trình duyệt rịi ứng dụng |
+| Vì sao sống lâu | mở `/` **thẳng** thì không vỡ — chỉ vỡ khi điều hướng trong ứng dụng | không gì trong `src` điều hướng tới route này, nên nhánh đúng **chưa bao giờ chạy** |
+| Gốc | **một khoá bộ đệm, hai người ghi, hai hình dạng.** 404 đọc `client.projects.list()`; `fetchProjectList()` **không gọi API nào**, trả `SAMPLE_PROJECTS` có thêm `members` | `navigate(-1)` là một lượt lùi **mù** |
+| Sửa | 404 nhận khoá riêng `queryKeys.project.recent()` | hỏi `location.key`; không có chỗ lùi thì `navigate(ROUTES.dashboard, { replace: true })` |
+| Commit | `e63300c` | `a73007b` |
+
+**Hai chỗ cố ý KHÔNG làm, và lý do:**
+
+- **Không thêm `?.` vào `ProjectCardTile`.** `members` là trường bắt buộc của
+  `DashboardProject`; một dấu chắn ở đó biến cú đổ thành một bảng điều khiển hiển thị
+  **sai âm thầm** — nó sẽ vẽ danh sách rút gọn của màn 404 như thể là danh sách dự án
+  đầy đủ. Đổ còn đỡ hơn.
+- **Không viết `*.spec.ts` cho hai lỗi này.** Một bài kiểm để chứng minh một lỗi vừa
+  dựng lại được và vừa chữa xong thì vòng. Bản ghi nằm ở đây; bộ dò là thứ tìm lại
+  được nếu ai đó dựng lại chúng.
+
+---
+
 Cấm sửa mã sản phẩm để bài xanh (mục 7.2). Mọi thứ dưới đây là phát hiện để người quyết định.
 
 
