@@ -333,6 +333,30 @@ describe('BÀI NGHIỆM THU 1 — đổi phím tắt trong registry thì thẻ �
   });
 });
 
+describe('B-V2-01 — màn chủ đăng ký phím SAU lượt render đầu thì tour vẫn hiện, không chờ resize', () => {
+  it('sổ phím rỗng lúc dựng ⇒ chưa hiện; màn chủ đăng ký phím ⇒ hiện ngay, không cần sự kiện cửa sổ nào', () => {
+    const registry = createShortcutRegistry();
+
+    mountTour({ registry, resolveAnchor: () => null, hasModel: true, hostId: 'wall-layer-review' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    act(() => {
+      registry.register({
+        id: 'wallLayerReview.next',
+        combo: 'N',
+        scope: 'canvas',
+        description: STEP_TEXT.reviewWall.comboDescription,
+        onTrigger: noop,
+      });
+    });
+
+    expect(tourProps().screenState).not.toBe('empty');
+    expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    expect(screen.getByRole('region', { name: tourProps().steps[0]?.title ?? '' })).toBeInTheDocument();
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* (d) BÀI NGHIỆM THU 2 — bấm phím thật thì tự sang bước kế tiếp.              */
 /* -------------------------------------------------------------------------- */

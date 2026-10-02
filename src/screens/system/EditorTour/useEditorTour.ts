@@ -435,6 +435,14 @@ function readViewportKey(): string {
   return `${window.innerWidth}:${window.innerHeight}:${window.scrollX}:${window.scrollY}`;
 }
 
+/** Ảnh chụp sổ phím cho `useSyncExternalStore` — đổi khi một phím vào hoặc ra. */
+function readRegistryKey(registry: ShortcutRegistry): string {
+  return registry
+    .listShortcuts()
+    .map((entry) => `${entry.id}:${entry.scope}:${entry.combo}`)
+    .join('|');
+}
+
 const SERVER_VIEWPORT_KEY = (): string => '';
 const SERVER_COLLAPSED = (): boolean => false;
 
@@ -464,6 +472,16 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
 
   // Buộc đo lại neo khi cửa sổ đổi cỡ hoặc màn chủ cuộn.
   useSyncExternalStore(subscribeViewport, readViewportKey, SERVER_VIEWPORT_KEY);
+
+  // Và khi sổ phím đổi. Màn chủ đăng ký phím trong effect, tức SAU lượt render
+  // đầu của lớp phủ; không nghe thì lượt ấy thấy 0 bước sống, về `empty`, và
+  // tour chỉ hiện khi một `resize` tình cờ tới — giữa lúc người dùng đang làm
+  // việc khác (B-V2-01). Ảnh chụp là một chuỗi nên so bằng giá trị: không lặp.
+  useSyncExternalStore(
+    registry.subscribe,
+    () => readRegistryKey(registry),
+    SERVER_VIEWPORT_KEY,
+  );
 
   // Đọc lại mỗi lượt render, KHÔNG giữ bản chép nào: người dùng đổi phím thì thẻ
   // đổi theo trong cùng một lượt render. Đây là khuôn `GlobalShortcutHelp.tsx:77`.
