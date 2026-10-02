@@ -6,12 +6,15 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { useStore } from '@/store';
 import { createAxisGridManagerGateway } from '@/screens/qc/AxisGridManager/axisGridManagerGateway';
 import { createDimensionOcrReviewGateway } from '@/screens/qc/DimensionOcrReview/dimensionOcrReviewGateway';
+import { createFloorManagerGateway } from '@/screens/qc/FloorManager/floorManagerGateway';
 import { createObjectLayerReviewGateway } from '@/screens/qc/ObjectLayerReview/objectLayerReviewGateway';
+import { createRoomLabelReviewGateway } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
+import { createThicknessStandardizationGateway } from '@/screens/qc/ThicknessStandardization/thicknessStandardizationGateway';
 import { createWallLayerReviewGateway } from '@/screens/qc/WallLayerReview/wallLayerReviewGateway';
 
 import { createMockApiClient } from '../__mocks__/client';
 import type { ApiClient } from '../client';
-import { floorLayerToGraph, readFloorLayerGraph } from '../floorLayerGraph';
+import { floorLayerToGraph, readFloorLayerGraph, readProjectLayerGraph } from '../floorLayerGraph';
 
 /**
  * B-V6-01 — đường nạp thật của màn QC. Trước bản sửa, cổng mặc định của bốn màn
@@ -81,6 +84,8 @@ const GATEWAYS = [
   ['đối tượng', (apiClient: ApiClient) => createObjectLayerReviewGateway({ apiClient }).readObjectLayer],
   ['kích thước', (apiClient: ApiClient) => createDimensionOcrReviewGateway({ apiClient }).readDimensionLayer],
   ['trục', (apiClient: ApiClient) => createAxisGridManagerGateway({ apiClient }).readAxisLayer],
+  ['phòng', (apiClient: ApiClient) => createRoomLabelReviewGateway({ apiClient }).readRoomLayer],
+  ['độ dày', (apiClient: ApiClient) => createThicknessStandardizationGateway({ apiClient }).readThicknessLayer],
 ] as const;
 
 describe.each(GATEWAYS)('cổng thật của màn %s', (_name, readOf) => {
@@ -104,5 +109,76 @@ describe.each(GATEWAYS)('cổng thật của màn %s', (_name, readOf) => {
 
     expect(readLayer).not.toHaveBeenCalled();
     expect(graph).toBe(useStore.getState().spatial);
+  });
+});
+
+describe('readProjectLayerGraph — màn quản lý tầng (B-V6-01 phần V7)', () => {
+  it('ghép N16 của mọi tầng thành một đồ thị: đủ tầng, tường của tầng nào ở tầng ấy', async () => {
+    const floorIds = SAMPLE_BUILDING.levels.map((level) => level.id);
+    const graph = await readProjectLayerGraph(createMockApiClient().spatial, { floorIds, projectId: PROJECT_ID });
+
+    expect(graph.byKind.level).toEqual(floorIds);
+    expect(graph.byKind.wall).toHaveLength(SAMPLE_BUILDING.walls.length);
+  });
+
+  it('một tầng hỏng thì cả lượt NÉM — không vẽ nửa dự án như thể đó là tất cả', async () => {
+    const error = { kind: 'network', raw: undefined, requestId: 'req-1', retryable: true } as const;
+    const apiClient = createMockApiClient();
+    const readLayer = vi
+      .spyOn(apiClient.spatial, 'readLayer')
+      .mockImplementation(async (input) =>
+        input.floorId === 'L2' ? { error, ok: false } : createMockApiClient().spatial.readLayer(input),
+      );
+
+    await expect(
+      readProjectLayerGraph(apiClient.spatial, { floorIds: ['L1', 'L2'], projectId: PROJECT_ID }),
+    ).rejects.toBe(error);
+    expect(readLayer).toHaveBeenCalledTimes(2);
+  });
+
+  it('cổng thật của màn tầng: kho rỗng thì đọc danh sách tầng rồi N16 của từng tầng', async () => {
+    const apiClient = createMockApiClient();
+    const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
+
+    const { floors, graph } = await createFloorManagerGateway({ api: apiClient }).readFloorList({
+      projectId: PROJECT_ID,
+    });
+
+    expect(floors.length).toBeGreaterThan(0);
+    expect(readLayer).toHaveBeenCalledTimes(floors.length);
+    expect(graph?.byKind.level).toEqual(floors.map((floor) => floor.id));
+  });
+
+  it('cổng thật của màn tầng: kho đã có thì giữ kho', async () => {
+    const apiClient = createMockApiClient();
+    const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
+
+    useStore.getState().setSpatial(normalizeSpatial(SAMPLE_BUILDING), null);
+    const { graph } = await createFloorManagerGateway({ api: apiClient }).readFloorList({ projectId: PROJECT_ID });
+
+    expect(readLayer).not.toHaveBeenCalled();
+    expect(graph).toBe(useStore.getState().spatial);
+  });
+});
+
+const PERSISTS = [
+  ['tường', (apiClient: ApiClient) => createWallLayerReviewGateway({ apiClient }).persistWallLayer],
+  ['đối tượng', (apiClient: ApiClient) => createObjectLayerReviewGateway({ apiClient }).persistObjectLayer],
+  ['phòng', (apiClient: ApiClient) => createRoomLabelReviewGateway({ apiClient }).persistRoomLabels],
+  ['độ dày', (apiClient: ApiClient) => createThicknessStandardizationGateway({ apiClient }).persistThicknessStandardization],
+] as const;
+
+describe.each(PERSISTS)('cổng thật của màn %s lưu qua #35 (B-V6-03)', (_name, persistOf) => {
+  it('PUT lớp của đúng tầng trong URL, baseVersion lấy từ N16', async () => {
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const graph = normalizeSpatial(SAMPLE_BUILDING);
+
+    const result = await persistOf(apiClient)({ floorId: SAMPLE_FLOOR, graph, projectId: PROJECT_ID });
+
+    expect(result.supported).toBe(true);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ baseVersion: 0, floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
+    expect(writeLayer.mock.calls[0]?.[0].body.walls.every((wall) => wall.levelId === SAMPLE_FLOOR)).toBe(true);
   });
 });

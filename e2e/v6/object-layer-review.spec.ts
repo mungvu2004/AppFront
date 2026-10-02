@@ -87,3 +87,21 @@ test('[bơm] phím D chọn nhóm qua sổ phím thật, Escape bỏ chọn đ�
   await page.keyboard.press('Escape');
   await expect(page.getByRole('option', { selected: true })).toHaveCount(0);
 });
+
+/*
+ * Trước B-V6-03 mỗi lệnh bắn một lượt ghi lạc quan vào `persistObjectLayer: false` — không
+ * lượt nào rời khỏi máy và không một lời nào cho trình đọc màn hình. Nay màn tự lưu 800 ms
+ * sau thao tác cuối qua #35 và nói ra kết quả (vùng `role="status"` của bộ đọc dùng chung —
+ * màn này không có chữ lưu nhìn thấy được).
+ */
+test('[bơm] duyệt một đối tượng thì hệ thống tự lưu và trình đọc màn hình nghe "Đã lưu lúc …" (A7, B-V6-03)', async ({
+  page,
+}) => {
+  await openSeeded(page);
+
+  await page.getByRole('option', { name: /^#D-004 /u }).click();
+  await page.getByRole('button', { name: 'Duyệt đối tượng này' }).click();
+  await expect(page.getByText('10/21 đối tượng đã duyệt').first()).toBeVisible();
+
+  await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);
+});

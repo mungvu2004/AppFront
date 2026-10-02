@@ -22,6 +22,22 @@ describe('IconButton', () => {
     expect(btn.className).not.toMatch(/bg-black/);
   });
 
+  it('announces its on/off state via aria-pressed when isActive is given (B-V6-12)', () => {
+    const { rerender } = render(<IconButton icon={<Settings size={18} />} aria-label="Cài đặt" isActive />);
+    expect(screen.getByRole('button', { name: 'Cài đặt', pressed: true })).toBeInTheDocument();
+
+    rerender(<IconButton icon={<Settings size={18} />} aria-label="Cài đặt" isActive={false} />);
+    expect(screen.getByRole('button', { name: 'Cài đặt', pressed: false })).toBeInTheDocument();
+  });
+
+  it('is not a toggle when isActive is absent or the button is a disclosure', () => {
+    const { rerender } = render(<IconButton icon={<Settings size={18} />} aria-label="Cài đặt" />);
+    expect(screen.getByRole('button')).not.toHaveAttribute('aria-pressed');
+
+    rerender(<IconButton icon={<Settings size={18} />} aria-label="Cài đặt" isActive aria-expanded />);
+    expect(screen.getByRole('button')).not.toHaveAttribute('aria-pressed');
+  });
+
   it('applies sm size', () => {
     render(<IconButton icon={<Settings size={16} />} aria-label="Cài đặt" size="sm" />);
     expect(screen.getByRole('button').className).toMatch(/h-8/);

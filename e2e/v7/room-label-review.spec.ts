@@ -1,9 +1,6 @@
-import { readFileSync } from 'node:fs';
-
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { RETRY_SCHEDULE_MS } from '../../src/lib/autosave/retrySchedule';
 import { ROUTES } from '../fixtures/routes';
 import { seedSpatial } from '../fixtures/seedSpatial';
 import { dismissTourIfShown } from '../fixtures/tour';
@@ -13,13 +10,13 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 /**
  * Nhóm V7 — `projectRooms` "Duyệt tên phòng" (`plan.md` V7 mục 1).
  *
- * Màn đọc đồ thị từ `store.spatial` và không nơi nào nạp nó từ mạng (B-V6-01), nên
- * mọi ca có nội dung đi qua `seedQcb` — tên bài nói ra điều đó. Ca mồi đầu tiên
- * KHÔNG bơm: nó ghim chuỗi người dùng thấy hôm nay, và đỏ đúng ngày sản phẩm có
- * đường nạp thật (`plan.md` 6.1).
- *
- * Bộ mẫu là bộ riêng của màn (14 phòng, 248,60 m²), không phải `createSampleBuilding()`
- * của A14 — mọi con số dưới đây là số của bộ ấy (`roomLabelFixture.ts`).
+ * Hai loại bài, tên bài nói ra mình thuộc loại nào:
+ * - **đường nạp thật** — KHÔNG bơm. Từ B-V6-01 (phần V7) màn đọc N16 khi kho rỗng; bộ
+ *   mẫu dev phục vụ tầng A14 `L-LEVEL000001` (4 phòng, mã `R-ROOM00000n0`) và lớp rỗng
+ *   cho tầng khác. Ca mồi của `plan.md` 6.1 đỏ đúng thiết kế ngày ấy, nên chúng thành
+ *   bài khẳng định đường thật.
+ * - **bơm bộ mẫu** — bộ riêng của màn (14 phòng, 248,60 m², `roomLabelFixture.ts`), vì
+ *   các ca ấy đếm trên đúng bộ ấy (chưa đặt tên, gộp bị từ chối vì không kèm tường).
  *
  * Đơn vị (30 bài) đã phủ: bảy trạng thái, diện tích, chuẩn hoá tên, vé hoàn tác của
  * chuẩn hoá, vai Người xem. Ở đây chỉ đi những gì trình duyệt thật mới chứng minh.
@@ -28,16 +25,18 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 /** Lần tải đầu của một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-/**
- * Câu tự lưu thất bại, đọc từ CHÍNH từ điển (`vi.json` `autosave.failed`) — Node của
- * Playwright không nhập được `.json` khi thiếu `with { type: 'json' }`, nên đọc tệp.
- * Đường tương đối theo gốc repo: Playwright chạy từ đó.
- */
-const AUTOSAVE_FAILED = (
-  JSON.parse(readFileSync('src/i18n/vi.json', 'utf8')) as { autosave: { failed: string } }
-).autosave.failed;
-
 const ROOM_COUNT = 14;
+
+/** Tầng 2 của bộ mẫu A14 qua N16: Room 1, 5, 9, 13. */
+const A14_FLOOR = 'L-LEVEL000001';
+const A14_ROOMS = ['Room 1', 'Room 5', 'Room 9', 'Room 13'] as const;
+
+/**
+ * Hàng phòng theo tên truy cập "#R-… · <TÊN IN HOA> · …" — chữ hiện của hàng dính tên với
+ * diện tích ("Room 117,00 m²") nên không lọc bằng chữ được.
+ */
+const roomOption = (page: Page, name: string, code = '#R-\\S+') =>
+  roomList(page).getByRole('option', { name: new RegExp(`^${code} · ${name} · `, 'iu') });
 const FIRST_ROOM = { code: '#R-001', name: 'phòng khách chung' } as const;
 const NEW_NAME = 'Phòng thử e2e';
 
@@ -58,8 +57,8 @@ function nameField(page: Page) {
   return page.getByRole('textbox', { name: 'Tên phòng' });
 }
 
-async function open(page: Page): Promise<void> {
-  await page.goto(ROUTES.project.rooms(QCB_PROJECT, QCB_FLOOR.rooms));
+async function open(page: Page, floorId: string = QCB_FLOOR.rooms): Promise<void> {
+  await page.goto(ROUTES.project.rooms(QCB_PROJECT, floorId));
   await expect(page.getByRole('heading', { name: 'duyệt tên phòng' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
@@ -71,6 +70,12 @@ async function openSeeded(page: Page): Promise<void> {
   await expect(roomOptions(page)).toHaveCount(ROOM_COUNT);
 }
 
+/** Mở thẳng tầng A14, không bơm: đồ thị đến từ N16. */
+async function openReal(page: Page): Promise<void> {
+  await open(page, A14_FLOOR);
+  await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);
+}
+
 /** Chọn phòng đầu, đổi tên, Enter — đường ghi thật của người duyệt. */
 async function renameFirstRoom(page: Page): Promise<void> {
   await roomOptions(page).filter({ hasText: FIRST_ROOM.code }).click();
@@ -79,10 +84,32 @@ async function renameFirstRoom(page: Page): Promise<void> {
   await expect(roomOptions(page).filter({ hasText: FIRST_ROOM.code })).toContainText(NEW_NAME);
 }
 
-test('ca mồi, KHÔNG bơm: mở thẳng thì màn nói thật "chưa dò ra phòng nào" — đỏ ngày có đường nạp thật, khi ấy xoá seedQcb (V7-ROOMS-01)', async ({
+test('đường nạp thật: mở thẳng ở một tầng có lớp thì danh sách hiện các phòng đọc từ máy chủ (V7-ROOMS-01, B-V6-01)', async ({
   page,
 }) => {
-  await open(page);
+  await openReal(page);
+
+  for (const name of A14_ROOMS) {
+    await expect(roomOption(page, name)).toHaveCount(1);
+  }
+});
+
+/*
+ * Mã A14 `R-ROOM0000010`… có chỉ số ĐỨNG SAU: quy tắc cũ đọc sáu ký tự đầu thân mã làm số
+ * đếm, nên cả bốn phòng cùng nhãn "#R-ROOM00" (B-V6-09). Mã ULID của BE hỏng y như vậy.
+ */
+test('đường nạp thật: mỗi phòng một mã hiển thị riêng, theo thứ tự tạo (B-V6-09)', async ({ page }) => {
+  await openReal(page);
+
+  for (const [index, name] of A14_ROOMS.entries()) {
+    await expect(roomOption(page, name, `#R-${String(index + 1).padStart(3, '0')}`)).toHaveCount(1);
+  }
+});
+
+test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chưa dò ra phòng nào" (V7-ROOMS-01, B-V7-10)', async ({
+  page,
+}) => {
+  await open(page, 'L1');
 
   await expect(page.getByRole('heading', { name: 'chưa dò ra phòng nào' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Kiểm tra lại vòng hở' })).toBeVisible();
@@ -166,23 +193,24 @@ test('bơm bộ mẫu: rời ô nhập rồi Ctrl+Z thì tên về cũ (V7-ROOMS
   await expect(roomOptions(page)).toHaveCount(ROOM_COUNT);
 });
 
-test('bơm bộ mẫu: đổi tên xong thì trình đọc màn hình nghe được trạng thái lưu — không câm (A7, B-V7-01)', async ({
+/*
+ * Trước B-V6-03 cổng phòng khai `persistRoomLabels: false`: engine thử lại 5/15/45 s rồi
+ * nói "Lưu thất bại" — không lượt đổi tên nào rời khỏi máy. Nay lưu qua #35 (`PUT` lớp
+ * tầng). Máy chủ dev là mock trong tiến trình nên không có lượt HTTP để đếm; điều quan sát
+ * được là lời trình đọc màn hình nghe (vùng `role="status"` của bộ đọc dùng chung).
+ */
+test('đường nạp thật: đổi tên phòng thì hệ thống tự lưu và trình đọc màn hình nghe "Đã lưu lúc …" (A7, B-V6-03, B-V7-01)', async ({
   page,
 }) => {
-  await page.clock.install();
-  await openSeeded(page);
+  await openReal(page);
 
-  await renameFirstRoom(page);
+  const room = roomOptions(page).filter({ hasText: '#R-001' });
+  await room.click();
+  await nameField(page).fill(NEW_NAME);
+  await nameField(page).press('Enter');
+  await expect(room).toContainText(NEW_NAME);
 
-  /* `persistRoomLabels` chưa có đầu máy chủ: engine thử lại theo lịch 5/15/45 s rồi
-     mới báo thất bại. Tua qua hết lịch ấy cộng cửa sổ 800 ms của A7 — đồng hồ giả,
-     không chờ thật. */
-  const pastEveryRetryMs = RETRY_SCHEDULE_MS.reduce((sum, ms) => sum + ms, 0) + 1_000;
-  await page.clock.runFor(pastEveryRetryMs);
-
-  /* Vùng `role="alert"` của bộ đọc dùng chung (`lib/input/announcer.ts`) — ẩn với mắt,
-     không ẩn với trình đọc màn hình. */
-  await expect(page.getByRole('alert').filter({ hasText: AUTOSAVE_FAILED })).toHaveCount(1);
+  await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -280,14 +308,14 @@ test('bơm bộ mẫu: mở lại hộp thoại gộp ở phòng khác thì khô
 /* Lượt nạp không phải một bước hoàn tác.                                      */
 /* -------------------------------------------------------------------------- */
 
-test('bơm bộ mẫu: Ctrl+Z ngay sau lượt nạp không trả màn về rỗng (B-V7-04)', async ({ page }) => {
-  await openSeeded(page);
+test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn về rỗng (B-V7-04)', async ({ page }) => {
+  await openReal(page);
 
   /* Ngoài ô nhập, để phím đi tới `global.undo` của vỏ (`router.tsx`). */
   await page.getByRole('heading', { name: 'duyệt tên phòng' }).click();
   await page.keyboard.press('Control+z');
 
-  await expect(roomOptions(page)).toHaveCount(ROOM_COUNT);
+  await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);
   await expect(page.getByRole('heading', { name: 'chưa dò ra phòng nào' })).toHaveCount(0);
 });
 

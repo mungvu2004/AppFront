@@ -73,8 +73,6 @@ const PROJECT_ID = 'project-1';
 /** Lần tải đầu của một route bắt Vite dịch nguội; tiền lệ `app.visual.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-const QC_SKELETON = 'nội dung treo skeleton — màn QC đọc vòng tròn từ kho rỗng (plan.md 1.4)';
-
 const ROWS = {
   login: { anchor: { role: 'button', name: 'Đăng nhập' } },
   onboarding: { anchor: { role: 'button', name: 'Tạo dự án' } },
@@ -114,7 +112,7 @@ const ROWS = {
   projectDimensions: { anchor: { role: 'region', name: 'đọc kích thước OCR' } },
   projectGrids: { anchor: { role: 'heading', name: 'quản lý trục và gốc toạ độ' } },
   projectRooms: { anchor: { role: 'heading', name: 'duyệt tên phòng' } },
-  projectFloors: { anchor: { role: 'heading', name: 'quản lý tầng' }, known: QC_SKELETON },
+  projectFloors: { anchor: { role: 'heading', name: 'quản lý tầng' } },
   projectThickness: { anchor: { role: 'heading', name: 'chuẩn hoá độ dày tường' } },
   projectOverlay: { anchor: { role: 'region', name: 'Màn đối chiếu bản vẽ' } },
   projectViewer: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },

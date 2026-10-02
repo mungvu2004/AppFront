@@ -22,11 +22,12 @@ export type QcScreen = 'walls' | 'objects' | 'dimensions' | 'grids';
 /**
  * Mã tầng cho URL. Tường và trục lọc theo `levelId` của URL, nên phải là mã `Level`
  * của đồ thị bơm vào — `L1` cho ra "rỗng GIẢ" (plan.md V6 mục 0, bẫy tầng F2).
- * Đối tượng và kích thước không lọc theo tầng.
+ * Đối tượng và kích thước không lọc theo tầng; đối tượng vẫn dùng mã tầng của đồ thị bơm
+ * vì tự lưu chỉ ghi khi đồ thị có tầng của URL (`createFloorLayerSave`, B-V6-03).
  */
 export const QC_FLOOR: Readonly<Record<QcScreen, string>> = {
   walls: 'L-000001LVL0',
-  objects: 'L1',
+  objects: 'L-000001LVL0',
   dimensions: 'L1',
   grids: 'L-AXISFLOOR1',
 };

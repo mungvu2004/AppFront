@@ -40,17 +40,16 @@
  * `src/lib/commands/business/shared.ts` — ba hàm đã có, không chép lại công
  * thức (R-61).
  *
- * ## Hai việc chưa có đường
+ * ## Đọc và lưu
  *
- * - `persistObjectLayer` — **NOT FOUND**, cùng lý do đã ghi ở màn tường:
- *   `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>` và không có chỗ
- *   nào cho một đồ thị không gian.
+ * - `persistObjectLayer` — lưu lớp của tầng (ô mở, nội thất cùng tường và
+ *   phòng) qua #35, cùng `createFloorLayerSave` với màn tường (B-V6-03).
  * - `readObjectGraph` — đồ thị sống trong `src/store`, không có endpoint nào
  *   trả nó. Cổng đọc qua một cửa tiêm được, mặc định là chính store.
  */
 
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
-import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
+import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
@@ -155,7 +154,6 @@ import {
   type CoalescedCommand,
   type Command as SyncCommand,
 } from '@/lib/mutations/coalesce';
-import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { generateLegend, type Legend } from '@/lib/coloring/legend';
 import { createColoringMode, type ColoringMode, type PaintSubject } from '@/lib/coloring/modes';
@@ -163,8 +161,6 @@ import { createLookupScale, type ColorTokenName } from '@/lib/coloring/scales';
 import { wallBearing } from '@/domain/walls/edit';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import { boxAround } from '@/lib/input/dragDrop';
-import type { AppError } from '@/lib/errors';
-import type { QueryKey } from '@/lib/query/queryKeys';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { confidenceLevel } from '@/lib/format/semantic';
@@ -216,17 +212,14 @@ export const OBJECT_LAYER_CAPABILITIES = [
 export type ObjectLayerCapability = (typeof OBJECT_LAYER_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const OBJECT_LAYER_MISSING_CAPABILITIES = ['persistObjectLayer'] as const;
+export const OBJECT_LAYER_MISSING_CAPABILITIES = [] as const;
 
 export type ObjectLayerMissingCapability = (typeof OBJECT_LAYER_MISSING_CAPABILITIES)[number];
 
 /** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
 export const OBJECT_LAYER_MISSING_ENDPOINTS: Readonly<
   Record<ObjectLayerMissingCapability, string>
-> = {
-  persistObjectLayer:
-    'ENDPOINTS.spatial.floor chấp nhận một đồ thị không gian trong thân yêu cầu — chưa có; PatchSpatialFloorInput.body là Partial<FloorWriteBody> (src/api/client.ts:87-92,144-148), chỉ mang name/order/elevationMm/heightMm/drawings, không có chỗ cho lỗ mở hay đồ đạc',
-};
+> = {};
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
 export interface ObjectLayerUnsupported {
@@ -1722,7 +1715,7 @@ export interface ObjectLayerReviewGateway {
    * nào thật sự đọc ra con số 0 — chứ không mượn một bảng toàn cục.
    */
   readonly seed: readonly ObjectSeedEntry[];
-  /** NOT FOUND — `persistObjectLayer`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
+  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
   readonly persistObjectLayer: (
     input: PersistObjectLayerInput,
   ) => Promise<ObjectLayerCapabilityResult<void>>;
@@ -1758,13 +1751,14 @@ export function createObjectLayerReviewGateway(
   const graph: ObjectLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
+  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
 
   return {
     supports: {
       readBackground: true,
       readObjectGraph: true,
       writeObjectGraph: true,
-      persistObjectLayer: false,
+      persistObjectLayer: true,
     },
 
     readBackground: async ({ floorId, projectId, signal }) => {
@@ -1792,7 +1786,11 @@ export function createObjectLayerReviewGateway(
     graph,
     seed: options.seed ?? OBJECT_LAYER_SEED,
 
-    persistObjectLayer: () => Promise.resolve(unsupported('persistObjectLayer')),
+    persistObjectLayer: async (input) => {
+      await saveFloorLayer(input);
+
+      return { supported: true, value: undefined };
+    },
 
     actorId: options.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
@@ -1881,72 +1879,13 @@ export function createMockObjectLayerReviewGateway(
     seed: seed.seed ?? OBJECT_LAYER_SEED,
 
     persistObjectLayer: () =>
-      Promise.resolve(
-        canPersist ? { supported: true, value: undefined } : unsupported('persistObjectLayer'),
-      ),
+      canPersist
+        ? Promise.resolve({ supported: true, value: undefined })
+        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     actorId: seed.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: seed.now ?? ((): number => Date.now()),
   };
-}
-
-/* -------------------------------------------------------------------------- */
-/* D-04 — một lượt ghi lạc quan, xếp hàng theo đối tượng.                       */
-/* -------------------------------------------------------------------------- */
-
-/** Biến của một lượt ghi lạc quan trên đúng một đối tượng. */
-export interface ObjectWriteVariables {
-  /** Mã hiển thị — cũng là khoá `runExclusive` xếp hàng theo, một đối tượng một hàng. */
-  readonly objectId: string;
-  readonly projectId: string;
-  readonly floorId: string;
-}
-
-export interface CreateObjectLayerMutationOptions {
-  readonly gateway: ObjectLayerReviewGateway;
-  /** Áp lệnh ngay, trước khi máy chủ trả lời. */
-  readonly applyOptimistic: (variables: ObjectWriteVariables) => void;
-  /** Gỡ lượt áp lạc quan khi máy chủ từ chối — chạy trên ngăn xếp hoàn tác của S-06. */
-  readonly rollback: (variables: ObjectWriteVariables) => void;
-  /** Khoá cần dọn sau một lượt ghi thành công. */
-  readonly affectedKeys: (variables: ObjectWriteVariables) => readonly QueryKey[];
-  readonly afterSuccess: (variables: ObjectWriteVariables) => void;
-}
-
-/**
- * Cấu hình `useMutation` của một lượt ghi lạc quan (D-04).
- *
- * `callServer` KHÔNG ném khi `persistObjectLayer` trả `supported: false`: đó là
- * một câu trả lời thật ("chưa có endpoint"), không phải một lượt ghi hỏng, và
- * biến nó thành lỗi sẽ khiến MỌI lượt sửa bị `rollback` gỡ ra ngay trước mắt
- * người duyệt. Nhánh đó đi ra ngoài dưới dạng kết quả để thanh trạng thái nói
- * đúng sự thật, còn `rollback` để dành cho lỗi truyền thật.
- */
-export function createObjectLayerMutation(
-  queryClient: QueryClient,
-  options: CreateObjectLayerMutationOptions,
-): UseMutationOptions<ObjectLayerCapabilityResult<void>, AppError, ObjectWriteVariables> {
-  return createOptimisticMutation<ObjectWriteVariables, ObjectLayerCapabilityResult<void>>(
-    queryClient,
-    {
-      affectedKeys: options.affectedKeys,
-      afterSuccess: (_result, variables) => {
-        options.afterSuccess(variables);
-      },
-      applyOptimistic: options.applyOptimistic,
-      callServer: (variables) => {
-        const graph = options.gateway.graph.read();
-        if (graph === null) return Promise.resolve(unsupported('persistObjectLayer'));
-        return options.gateway.persistObjectLayer({
-          floorId: variables.floorId,
-          projectId: variables.projectId,
-          graph: graph,
-        });
-      },
-      entityId: (variables) => variables.objectId,
-      rollback: options.rollback,
-    },
-  );
 }
 
 /* -------------------------------------------------------------------------- */

@@ -34,20 +34,17 @@
  * tham số nào cho phép người gọi truyền `source`, nên không tồn tại đường để
  * đầu ra AI bật cờ xanh "đã xác minh".
  *
- * ## Hai việc chưa có đường
+ * ## Đọc và lưu
  *
- * - `persistWallLayer` — **NOT FOUND**. `ENDPOINTS.spatial.floor` có thật,
- *   nhưng `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>`
- *   (`src/api/client.ts:87-92,144-148`) và `FloorWriteBody` chỉ mang
- *   `name`/`order`/`elevationMm`/`heightMm`/`drawings` — không có chỗ nào cho
- *   mảng tường. Cổng thật trả nhánh `supported: false` có kiểu, và tự lưu nói
- *   ra sự thật đó bằng chính nhãn của nó thay vì bịa một lượt lưu đã xong.
+ * - `persistWallLayer` — lưu lớp của tầng qua #35 (`spatial.writeLayer`,
+ *   `createFloorLayerSave`), 800 ms sau thao tác cuối (B-V6-03).
  * - `readWallGraph` — đồ thị tường sống trong `src/store` (nơi `commit` ghi
  *   vào), không có endpoint nào trả về nó. Cổng đọc nó qua một cửa tiêm được,
  *   mặc định là chính store; ảnh nền thì đọc thật qua `spatial.readFloor`.
  */
 
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { createId } from '@/domain/spatial/ids';
@@ -143,17 +140,14 @@ export const WALL_LAYER_CAPABILITIES = [
 export type WallLayerCapability = (typeof WALL_LAYER_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const WALL_LAYER_MISSING_CAPABILITIES = ['persistWallLayer'] as const;
+export const WALL_LAYER_MISSING_CAPABILITIES = [] as const;
 
 export type WallLayerMissingCapability = (typeof WALL_LAYER_MISSING_CAPABILITIES)[number];
 
 /** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
 export const WALL_LAYER_MISSING_ENDPOINTS: Readonly<
   Record<WallLayerMissingCapability, string>
-> = {
-  persistWallLayer:
-    'ENDPOINTS.spatial.floor chấp nhận một đồ thị không gian trong thân yêu cầu — chưa có; PatchSpatialFloorInput.body là Partial<FloorWriteBody> (src/api/client.ts:87-92,144-148), chỉ mang name/order/elevationMm/heightMm/drawings, không có chỗ cho mảng tường',
-};
+> = {};
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
 export interface WallLayerUnsupported {
@@ -252,7 +246,7 @@ export interface WallLayerReviewGateway {
   readonly readWallLayer: (input: ReadBackgroundInput) => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: WallLayerGraphPort;
-  /** NOT FOUND — `persistWallLayer`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
+  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
   readonly persistWallLayer: (
     input: PersistWallLayerInput,
   ) => Promise<WallLayerCapabilityResult<void>>;
@@ -334,13 +328,14 @@ export function createWallLayerReviewGateway(
   const graph: WallLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
+  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
 
   return {
     supports: {
       readBackground: true,
       readWallGraph: true,
       writeWallGraph: true,
-      persistWallLayer: false,
+      persistWallLayer: true,
     },
 
     readBackground: async ({ floorId, projectId, signal }) => {
@@ -366,7 +361,11 @@ export function createWallLayerReviewGateway(
 
     graph,
 
-    persistWallLayer: () => Promise.resolve(unsupported('persistWallLayer')),
+    persistWallLayer: async (input) => {
+      await saveFloorLayer(input);
+
+      return { supported: true, value: undefined };
+    },
 
     nextWallId: options.nextWallId ?? ((): WallId => createId('wall')),
     actorId: options.actorId ?? WALL_LAYER_DEFAULT_ACTOR_ID,
@@ -449,7 +448,9 @@ export function createMockWallLayerReviewGateway(
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
 
     persistWallLayer: () =>
-      Promise.resolve(canPersist ? { supported: true, value: undefined } : unsupported('persistWallLayer')),
+      canPersist
+        ? Promise.resolve({ supported: true, value: undefined })
+        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     /*
      * Mã tường mới của bộ mẫu — cùng khuôn `createId`, KHÔNG phải "W-M1".

@@ -25,9 +25,9 @@
  * 5. **Mọi lượt ghi kèm vé hoàn tác tám giây (A8)** — một lệnh, một mục trong
  *    ngăn xếp 100 bước của S-06, một toast mang `UNDO_WINDOW_MS` do chính vé
  *    giữ (R-71: con số không viết lại ở đây).
- * 6. **Tự lưu (A7)** — `createAutosave` gọi `gateway.persistRoomLabels`; khả
- *    năng đó chưa có endpoint nên lượt lưu NÉM, và thanh trạng thái của vỏ ứng
- *    dụng nói ra sự thật thay vì hiện "Đã lưu lúc…" cho một lượt chưa rời máy.
+ * 6. **Tự lưu (A7)** — `createAutosave` gọi `gateway.persistRoomLabels` (#35,
+ *    B-V6-03); lượt hỏng thì NÉM, và thanh trạng thái của vỏ ứng dụng nói ra sự
+ *    thật thay vì hiện "Đã lưu lúc…" cho một lượt chưa rời máy.
  * 7. **Nhắc công năng M-14 không bao giờ CHẶN** — `notices` chỉ đi kèm từng
  *    dòng phòng; không một hàm `on…` nào dưới đây hỏi `notices` trước khi chạy.
  *
@@ -67,6 +67,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { computeCentroid, explainRoom, outlineContains } from '@/domain/rooms/area';
+import { displayCodesOf } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   EntityId,
@@ -295,6 +296,7 @@ export function deriveRoomLabelScreenState(input: {
 export function mergeCandidatesOf(
   rooms: readonly Room[],
   selectedRoomId: RoomId | null,
+  codes?: ReadonlyMap<string, string>,
 ): readonly RoomLabelMergeCandidate[] {
   if (selectedRoomId === null) {
     return NO_CANDIDATES;
@@ -302,7 +304,7 @@ export function mergeCandidatesOf(
 
   return rooms
     .filter((room) => room.id !== selectedRoomId)
-    .map((room) => ({ id: room.id, codeLabel: roomCodeLabel(room.id), name: room.name }));
+    .map((room) => ({ id: room.id, codeLabel: roomCodeLabel(room.id, codes), name: room.name }));
 }
 
 /**
@@ -456,22 +458,30 @@ export function useRoomLabelReview(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của `roomLayerQuery`
+   * (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = roomLayerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
   const rooms = useMemo(() => roomsOfLevel(graph, levelId), [graph, levelId]);
+  /* Nhãn phòng tính trên mọi phòng của tầng, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
+  const roomCodes = useMemo(() => displayCodesOf(rooms.map((room) => room.id)), [rooms]);
   const walls = useMemo(() => wallsOfLevel(graph, levelId), [graph, levelId]);
   const scale = useMemo(() => scaleOfLevel(level), [level]);
 
@@ -543,9 +553,10 @@ export function useRoomLabelReview(
           notices: noticesOfRoom(violations, room.id, ruleRouteHref),
           backgroundImageUrl,
           scale,
+          codes: roomCodes,
         }),
       ),
-    [backgroundImageUrl, measures, rooms, ruleRouteHref, scale, violations],
+    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, violations],
   );
 
   const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms), [rooms]);
@@ -813,8 +824,8 @@ export function useRoomLabelReview(
 
   const onOpenNormalizePreview = useCallback(() => {
     /* Dựng BẢNG, không phát lệnh: không một tên nào đổi ở bước này. */
-    setNormalizePreview(buildNormalizePreview(rooms));
-  }, [rooms]);
+    setNormalizePreview(buildNormalizePreview(rooms, roomCodes));
+  }, [roomCodes, rooms]);
 
   const onCancelNormalize = useCallback(() => {
     setNormalizePreview(null);
@@ -908,8 +919,8 @@ export function useRoomLabelReview(
   /* ---------------------------------------------------------------------- */
 
   const mergeCandidates = useMemo(
-    () => mergeCandidatesOf(rooms, selectedRoomId),
-    [rooms, selectedRoomId],
+    () => mergeCandidatesOf(rooms, selectedRoomId, roomCodes),
+    [roomCodes, rooms, selectedRoomId],
   );
 
   const splitPointMm = useMemo(

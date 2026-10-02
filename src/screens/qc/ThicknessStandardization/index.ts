@@ -68,7 +68,6 @@ export {
   toHistogramBins,
   toSegmentRows,
   toThicknessWallShapes,
-  wallCodeLabel,
   withThresholdAt,
   THICKNESS_CAPABILITIES,
   THICKNESS_DEFAULT_ACTOR_ID,

@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OpeningId } from '@/domain/spatial/types';
 import { toAttachedOpening } from '@/lib/commands/business/shared';
+import { flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -897,5 +898,73 @@ describe('mã hiển thị và mã máy', () => {
     }
 
     expect(entityIdOf('S-003', 'window')).toBe('D-000003WNDW' as OpeningId);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tự lưu (A7) — B-V6-03.                                                      */
+/* -------------------------------------------------------------------------- */
+
+describe('tự lưu lớp đối tượng (B-V6-03)', () => {
+  it('một thao tác duyệt không gửi ngay — lưu 800 ms sau thao tác cuối, một lượt cho hai thao tác liền tay (A7, B-V6-03)', async () => {
+    const gateway = createMockObjectLayerReviewGateway();
+    const persist = vi.spyOn(gateway, 'persistObjectLayer');
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onApprove('D-004'));
+    await run(() => mounted.result.current.onDelete('D-002'));
+
+    await waitFor(() => {
+      expect(entityInStore('D-002', 'door')).toBeUndefined();
+    });
+    expect(persist).not.toHaveBeenCalled();
+
+    /* Qua cửa sổ 800 ms của A7: đúng MỘT lượt lưu cho cả hai thao tác. */
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    });
+
+    expect(persist).toHaveBeenCalledTimes(1);
+
+    mounted.unmount();
+  });
+
+  it('Ctrl+S với tới màn đối tượng — flushAutosaves lưu ngay', async () => {
+    const gateway = createMockObjectLayerReviewGateway();
+    const persist = vi.spyOn(gateway, 'persistObjectLayer');
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onApprove('D-004'));
+    expect(persist).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(persist).toHaveBeenCalledTimes(1);
+
+    mounted.unmount();
+  });
+
+  it('lượt lưu hỏng không gỡ thao tác của người duyệt', async () => {
+    const gateway = createMockObjectLayerReviewGateway();
+    const persist = vi.spyOn(gateway, 'persistObjectLayer').mockRejectedValue(new Error('x'));
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onDelete('D-002'));
+    await waitFor(() => {
+      expect(entityInStore('D-002', 'door')).toBeUndefined();
+    });
+
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+      await Promise.resolve();
+    });
+
+    expect(persist).toHaveBeenCalled();
+    /* Cũ: lượt hỏng gọi applyUndo và cửa D-002 hiện lại. */
+    expect(entityInStore('D-002', 'door')).toBeUndefined();
+
+    mounted.unmount();
   });
 });
