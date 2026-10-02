@@ -152,20 +152,6 @@ function locate(page: Page, anchor: Anchor) {
   return page.getByLabel(anchor.label, { exact: true });
 }
 
-/**
- * Lỗi console duy nhất được lọc cho MỌI màn: `index.html` không có
- * `<link rel="icon">` nên trình duyệt xin `/favicon.ico` và nhận 404. Lọc theo
- * ĐƯỜNG của lượt xin, không theo chữ — chữ "Failed to load resource" cũng là chữ
- * của mọi 404/500 API thật.
- */
-function isFavicon(location: string): boolean {
-  try {
-    return new URL(location).pathname === '/favicon.ico';
-  } catch {
-    return false;
-  }
-}
-
 for (const [key, row] of Object.entries(ROWS) as [ProductRouteKey, Row][]) {
   const title =
     row.known === undefined
@@ -176,7 +162,9 @@ for (const [key, row] of Object.entries(ROWS) as [ProductRouteKey, Row][]) {
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
     page.on('console', (message) => {
-      if (message.type() !== 'error' || isFavicon(message.location().url)) return;
+      /* Không lọc gì cho mọi màn: lỗi `/favicon.ico` 404 từng phải lọc ở đây đã được
+         chữa ở gốc — `index.html` có thẻ icon (B-G-03). */
+      if (message.type() !== 'error') return;
       consoleErrors.push(`${message.text()} @ ${message.location().url}`);
     });
     page.on('pageerror', (error) => pageErrors.push(error.message));

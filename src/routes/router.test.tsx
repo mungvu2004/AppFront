@@ -25,11 +25,13 @@
  */
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
 
-import { UndoShortcuts } from './router';
+import { ROUTES } from './paths';
+import { routes, UndoShortcuts } from './router';
 
 /**
  * Trần chờ cho lượt tải chunk `LazyGlobalShortcutHelp` dưới tải cao.
@@ -144,5 +146,21 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
     pressEscape();
 
     expect(useStore.getState().openDialog).toBeNull();
+  });
+});
+
+describe('[router] vỏ chờ lúc chunk màn còn trên đường (B-G-04)', () => {
+  it('nói "đang tải màn hình" bằng tiếng Việt, không còn chữ "Loading..."', () => {
+    /* `/login` là route công khai nên `SessionGate` cho qua ngay, và thứ đầu tiên
+       vẽ ra là đúng fallback của `suspended` — chunk màn chưa kịp về. */
+    const memoryRouter = createMemoryRouter(routes, { initialEntries: [ROUTES.login] });
+
+    render(<RouterProvider router={memoryRouter} />);
+
+    expect(screen.getByRole('status', { name: 'đang tải màn hình' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
   });
 });
