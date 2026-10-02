@@ -183,7 +183,7 @@ const labelOf = (state: SevenState): string => SEVEN_STATE_LABELS[state];
  *
  * Bốn đoạn tường CÓ mặt và một trong bốn còn hở 62 mm: đó là lý do màn rỗng, và
  * là hai lời mời đi tiếp mà `emptyNotice` phải nói ra (sang lớp tường khép đoạn
- * hở, rồi bấm "Kiểm tra vòng hở" để dò lại).
+ * hở, rồi bấm "Kiểm tra lại vòng hở" để dò lại).
  */
 export const ROOM_LABEL_SCENARIO_EMPTY: RoomLabelReviewScenario = {
   state: 'empty',

@@ -79,12 +79,15 @@ import type {
   Wall,
 } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
-import { toPoint, toPointMm, type CommandContext } from '@/lib/commands/business/shared';
+import { toPoint, toPointMm, type CommandContext, type CommandResult } from '@/lib/commands/business/shared';
 import type { Command } from '@/lib/commands/types';
 import { describeError } from '@/lib/errors/describeError';
+import { ok } from '@/lib/http/types';
 import { toAppError } from '@/lib/errors/toAppError';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
@@ -149,7 +152,7 @@ import type {
  */
 export const ROOM_LABEL_SCREEN_TEXT = {
   emptyNotice:
-    'Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm "Kiểm tra vòng hở" để dò lại.',
+    'Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm "Kiểm tra lại vòng hở" để dò lại.',
   emptyFilteredNotice:
     'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
   viewerRoleNotice:
@@ -622,6 +625,11 @@ export function useRoomLabelReview(
 
   const autosave = autosaveRef.current;
 
+  /* Ctrl+S xả được engine này, và trình đọc màn hình nghe được trạng thái lưu
+     (A7) — trước đây engine chạy mà câm, Ctrl+S không thấy nó (B-V7-01). */
+  useFlushOnSave(autosave);
+  useSaveIndicator(autosave);
+
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.    */
   /* ---------------------------------------------------------------------- */
@@ -678,22 +686,42 @@ export function useRoomLabelReview(
    * phải truyền ở đây (R-71).
    */
   const run = useCallback(
-    async (build: (context: CommandContext) => Command | null): Promise<Command | null> => {
+    async (build: (context: CommandContext) => CommandResult | null): Promise<Command | null> => {
       const current = useStore.getState().spatial;
 
       if (!canEdit || current === null) {
         return null;
       }
 
-      const command = build(commandContextOf(current, gateway.actorId));
+      const built = build(commandContextOf(current, gateway.actorId));
 
-      if (command === null) {
+      if (built === null) {
         return null;
       }
 
+      /* Một lệnh bị từ chối phải NÓI RA vì sao (B-V7-08) — cổng đã soạn sẵn câu
+         "Chưa gộp được: …"; nuốt nó thì người duyệt bấm xác nhận mà không thấy gì. */
+      if (!built.ok) {
+        const [title = '', ...rest] = built.error.reasons;
+        notifications.publish({
+          type: `${built.error.type}.refused`,
+          title,
+          description: rest.join(' '),
+        });
+
+        return null;
+      }
+
+      const command = built.data;
       const result = await runRoomCommand(command, dispatchBundle);
 
       if (!result.ok) {
+        notifications.publish({
+          type: `${command.type}.refused`,
+          title: result.error.message,
+          description: result.error.reasons.join(' '),
+        });
+
         return null;
       }
 
@@ -730,22 +758,14 @@ export function useRoomLabelReview(
 
   const onRename = useCallback(
     (roomId: RoomId, name: string) => {
-      void run((context) => {
-        const result = buildRenameRoomCommand({ roomId, name }, context);
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) => buildRenameRoomCommand({ roomId, name }, context));
     },
     [run],
   );
 
   const onChangeUsage = useCallback(
     (roomId: RoomId, usage: RoomUsage) => {
-      void run((context) => {
-        const result = buildChangeUsageCommand({ roomId, usage }, context);
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) => buildChangeUsageCommand({ roomId, usage }, context));
     },
     [run],
   );
@@ -758,16 +778,9 @@ export function useRoomLabelReview(
 
   const onMerge = useCallback(
     (roomId: RoomId, otherRoomId: RoomId) => {
-      void run((context) => {
-        const result = buildMergeRoomCommand(
-          { targetRoomId: roomId, absorbedRoomId: otherRoomId },
-          context,
-          walls,
-          level,
-        );
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) =>
+        buildMergeRoomCommand({ targetRoomId: roomId, absorbedRoomId: otherRoomId }, context, walls, level),
+      );
     },
     [level, run, walls],
   );
@@ -776,16 +789,7 @@ export function useRoomLabelReview(
     (roomId: RoomId, at: Point) => {
       const newRoomId = gateway.nextRoomId();
 
-      void run((context) => {
-        const result = buildSplitRoomCommandFromWalls(
-          { roomId, newRoomId, at },
-          context,
-          walls,
-          level,
-        );
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) => buildSplitRoomCommandFromWalls({ roomId, newRoomId, at }, context, walls, level));
     },
     [gateway, level, run, walls],
   );
@@ -798,7 +802,7 @@ export function useRoomLabelReview(
         return;
       }
 
-      void run(() => buildApproveRoomCommand(room, gateway.actorId));
+      void run(() => ok(buildApproveRoomCommand(room, gateway.actorId)));
     },
     [gateway, roomById, run],
   );
@@ -825,7 +829,11 @@ export function useRoomLabelReview(
 
     setNormalizePreview(null);
     /* MỘT lệnh mang nhiều thay đổi → MỘT mục hoàn tác, MỘT toast tám giây. */
-    void run(() => buildNormalizeNamesCommand(rooms, preview, gateway.actorId));
+    void run(() => {
+      const command = buildNormalizeNamesCommand(rooms, preview, gateway.actorId);
+
+      return command === null ? null : ok(command);
+    });
   }, [gateway, normalizePreview, rooms, run]);
 
   /* ---------------------------------------------------------------------- */
