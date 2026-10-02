@@ -119,13 +119,7 @@ const ROWS = {
   projectOverlay: { anchor: { role: 'region', name: 'Màn đối chiếu bản vẽ' } },
   projectViewer: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
   projectExploded: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
-  projectMeasure: {
-    anchor: { role: 'main', name: 'Khung nhìn mô hình' },
-    expectedConsole: {
-      match: /\/api\/projects\/project-1\/measurements/u,
-      why: 'cổng đo gọi thẳng mạng (measurementToolGateway.ts), bộ mẫu dev không phục vụ đường ấy — 404',
-    },
-  },
+  projectMeasure: { anchor: { role: 'main', name: 'Khung nhìn mô hình' } },
   projectViewerPascal: { anchor: { text: 'màn xem 3D mới chưa bật cho tài khoản này.' } },
   projectRules: { anchor: { role: 'heading', name: 'Kiểm tra luật không gian' } },
   projectRuleSettings: { anchor: { role: 'heading', name: 'cài đặt bộ luật không gian' } },

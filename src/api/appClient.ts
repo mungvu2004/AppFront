@@ -19,7 +19,7 @@
 import { createAuthHttpClientOptions, getSession } from '@/lib/auth';
 import { createHttpClient, requirePlatformFetch, type CreateHttpClientOptions, type HttpClient } from '@/lib/http';
 
-import { createMockApiClient } from './__mocks__/client';
+import { createMockApiClient, createMockHttpTransport } from './__mocks__/client';
 import { createApiClient, type ApiClient } from './client';
 import { API_BASE_PATH } from './endpoints';
 
@@ -112,6 +112,12 @@ export function createAppHttpClient(): HttpClient {
   // Chưa có ai lúc dựng thì ghim ở lượt gửi đầu tiên CÓ người dùng.
   let pinnedUserId = currentUserId();
 
+  // Chế độ mock: nhóm không đi qua `ApiClient` (phép đo) do bộ mẫu trả lời,
+  // đường khác vẫn ra mạng như cũ — B-G-05.
+  const platformSend: NonNullable<CreateHttpClientOptions['fetchImpl']> = (input, init) =>
+    requirePlatformFetch(NO_FETCH_MESSAGE)(input, init);
+  const send = resolveUseMockApi() ? createMockHttpTransport(platformSend) : platformSend;
+
   const fetchImpl: NonNullable<CreateHttpClientOptions['fetchImpl']> = async (input, init) => {
     const userId = currentUserId();
 
@@ -121,7 +127,7 @@ export function createAppHttpClient(): HttpClient {
       throw Object.assign(new Error(OWNER_CHANGED_MESSAGE), { name: 'AbortError' });
     }
 
-    return requirePlatformFetch(NO_FETCH_MESSAGE)(input, init);
+    return send(input, init);
   };
 
   return createHttpClient({

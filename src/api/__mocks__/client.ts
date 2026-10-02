@@ -350,6 +350,59 @@ export const createMockAuthTransport =
     });
   };
 
+/** `/projects/:projectId/measurements` và `/…/measurements/:measurementId` — `ENDPOINTS.measurements`. */
+const MEASUREMENTS_PATH = /\/projects\/([^/]+)\/measurements(?:\/([^/]+))?\/?$/u;
+
+/** Phép đo đã ghim, theo dự án, ở cấp module — cùng lý do `lastSignedInEmail`. */
+const pinnedMeasurements = new Map<string, readonly { readonly id: string }[]>();
+
+const jsonResponse = (body: unknown, status: number): Response =>
+  new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' }, status });
+
+/**
+ * Transport HTTP của bộ mẫu cho những nhóm KHÔNG đi qua `ApiClient` — B-G-05.
+ *
+ * Màn đo đọc và ghi phép đo bằng `HttpClient` trần (`lib/mutations/measurement.ts`
+ * giải thích vì sao), nên `createMockApiClient()` không bao giờ được hỏi và lượt
+ * `GET` rơi ra máy chủ dev — 404, màn đo luôn ở `error`. Hàm này trả lời đúng ba
+ * lượt của `ENDPOINTS.measurements` từ bộ nhớ; mọi đường khác đi tiếp `next`, nên
+ * hành vi của những nơi gọi khác không đổi. Không mô phỏng 409 trùng mã.
+ */
+export const createMockHttpTransport =
+  (next: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response>) =>
+  async (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const match = MEASUREMENTS_PATH.exec(new URL(url, 'http://mock.invalid').pathname);
+
+    if (match === null) {
+      return next(input, init);
+    }
+
+    const [, projectId = '', measurementId] = match;
+    const rows = pinnedMeasurements.get(projectId) ?? [];
+    const method = (init?.method ?? 'GET').toUpperCase();
+
+    if (method === 'GET' && measurementId === undefined) {
+      return jsonResponse(rows, 200);
+    }
+
+    if (method === 'POST' && measurementId === undefined) {
+      const record = JSON.parse(String(init?.body)) as { readonly id: string };
+      pinnedMeasurements.set(projectId, [...rows.filter((row) => row.id !== record.id), record]);
+      return jsonResponse(record, 201);
+    }
+
+    if (method === 'DELETE' && measurementId !== undefined) {
+      pinnedMeasurements.set(
+        projectId,
+        rows.filter((row) => row.id !== decodeURIComponent(measurementId)),
+      );
+      return new Response(null, { status: 204 });
+    }
+
+    return jsonResponse({ code: 'METHOD_NOT_ALLOWED' }, 405);
+  };
+
 /** Vai mà bộ mẫu cấp cho một địa chỉ — xuất ra để bài kiểm khỏi chép lại bảng. */
 export const mockRolesForEmail = (email: string): readonly ProjectRole[] => roleOfEmail(email);
 

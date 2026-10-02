@@ -19,7 +19,7 @@
     },
     "key": {
       "pin": "ghim phép đo (phím Enter)",
-      "escape": "thoát chế độ đo (phím Esc)",
+      "escape": "bỏ phần đo dở (phím Esc)",
       "toggleTool": "bật tắt công cụ đo (phím M)"
     },
     "mode": {

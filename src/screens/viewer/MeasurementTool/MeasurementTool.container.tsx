@@ -45,7 +45,11 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 // Nhập THẲNG module thay vì qua cửa nhập — xem ghi chú trong
 // `useMeasurementToolScene.ts`.
 import { ViewerShell } from '@/screens/viewer/ViewerShell/ViewerShell';
-import type { ViewerShellGateway } from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import {
+  resolveViewerSpatial,
+  type ViewerShellGateway,
+} from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import type { MeasurementScreenState, MeasurementToolGateway } from './measurementToolTypes';
@@ -160,6 +164,8 @@ export function MeasurementToolContainer(props: MeasurementToolContainerProps) {
  */
 export function MeasurementToolRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
+  // Cùng luật nhà mẫu với `/3d` và Pascal; gọi trước câu trả sớm (luật hook).
+  const storeSpatial = useStore((state) => state.spatial);
 
   if (id === undefined || id.length === 0) {
     return (
@@ -173,5 +179,5 @@ export function MeasurementToolRoute() {
     );
   }
 
-  return <MeasurementToolContainer projectId={id} />;
+  return <MeasurementToolContainer projectId={id} spatial={resolveViewerSpatial(storeSpatial)} />;
 }
