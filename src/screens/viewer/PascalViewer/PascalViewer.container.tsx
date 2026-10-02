@@ -131,5 +131,13 @@ export function PascalViewerRoute() {
   // `null` đẩy màn sang "đang nạp" chứ không dựng một đồ thị rỗng giả.
   const graph = useMemo(() => (spatial === null ? null : denormalizeSpatial(spatial)), [spatial]);
 
-  return <PascalViewerContainer graph={graph} />;
+  /* Màn đứng một mình dưới router, không vỏ nào cấp chiều cao: thiếu `h-screen`
+     thì `h-full` của khung ra 0 và cả màn co về `min-h-[24rem]` — đo 1440×900:
+     trang 384 px, hộp dựng 192 px (B-V10-02). Bọc ở đây chứ không ở `Frame`, để
+     chỗ nhúng màn vào bố cục khác vẫn tự quyết chiều cao. */
+  return (
+    <div className="h-screen">
+      <PascalViewerContainer graph={graph} />
+    </div>
+  );
 }

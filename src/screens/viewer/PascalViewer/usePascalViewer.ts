@@ -83,6 +83,20 @@ export interface UsePascalViewerResult {
 let mountModulePromise: Promise<MountModule> | null = null;
 
 /**
+ * Số lượt nạp đã hỏng — để lượt sau xin một URL KHÁC.
+ *
+ * Trình duyệt giữ kết quả của một module script theo URL suốt đời trang, kể cả
+ * khi kết quả ấy là lỗi: thêm lại thẻ `<script>` cùng `src` thì nó trả lỗi cũ
+ * mà không gửi request nào. Đo 2026-10-03 (`e2e/pascal-viewer.spec.ts`, B-V10-01):
+ * gói hỏng rồi trở lại, bấm "thử lại" hay phím R bao nhiêu lần cũng chỉ có đúng
+ * một request — nút thử lại là một lối thoát giả.
+ *
+ * ponytail: chỉ đổi URL của tệp vào; chunk con hỏng thì vẫn bị giữ lỗi theo URL
+ * của chunk, và chỉ tải lại trang mới gỡ được.
+ */
+let failedLoads = 0;
+
+/**
  * Nạp gói vách ngăn bằng thẻ `<script src>`, KHÔNG bằng `import()`.
  *
  * Đã đo: `import()` tới đường dẫn tĩnh bị bộ phân tích của `vite dev` viết lại
@@ -109,7 +123,7 @@ const defaultLoadMount = (): Promise<MountModule> => {
 
     const script = document.createElement('script');
     script.type = 'module';
-    script.src = MOUNT_URL;
+    script.src = failedLoads === 0 ? MOUNT_URL : `${MOUNT_URL}?attempt=${String(failedLoads)}`;
     script.addEventListener('load', () => {
       const loaded = window.__pascalMount;
 
@@ -122,6 +136,7 @@ const defaultLoadMount = (): Promise<MountModule> => {
       resolve(loaded as MountModule);
     });
     script.addEventListener('error', () => {
+      script.remove();
       reject(new Error(`Không tải được ${MOUNT_URL}.`));
     });
 
@@ -129,6 +144,7 @@ const defaultLoadMount = (): Promise<MountModule> => {
   }).catch((cause: unknown) => {
     // Hỏng một lần không được khoá vĩnh viễn: nút "thử lại" phải nạp lại được.
     mountModulePromise = null;
+    failedLoads += 1;
 
     throw cause instanceof Error ? cause : new Error(String(cause));
   });
@@ -208,7 +224,8 @@ export function usePascalViewer({
   } | null>(null);
 
   useEffect(() => {
-    if (graph === null || isEmpty) {
+    // Cờ tắt thì không ai xem cảnh — đổi bản vẽ là việc thừa (B-V10-03).
+    if (!enabled || graph === null || isEmpty) {
       setResult(null);
 
       return;
@@ -227,7 +244,9 @@ export function usePascalViewer({
     return () => {
       cancelled = true;
     };
-  }, [graph, isEmpty]);
+    /* `attempt` có mặt vì "thử lại" phải chạy lại CẢ lượt nạp này: thiếu nó thì
+       nạp hỏng → thử lại → `result` vẫn `null` và màn kẹt "đang nạp" mãi (B-V10-04). */
+  }, [enabled, graph, isEmpty, attempt]);
 
   const shouldMount = enabled && !isCollapsed && result !== null && !isEmpty;
 
