@@ -81,7 +81,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Progress } from '@/api/schemas';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -254,10 +254,9 @@ const EMPTY_GEOMETRY: readonly string[] = [];
 /**
  * Một lượt xử lý đang chạy: một bản vẽ của một tầng.
  *
- * Màn nhận danh sách này qua props chứ không tự đi tìm: `ENDPOINTS.drawings.progress`
- * cần `(projectId, uploadId)` còn route chỉ mang `:id`, và KHÔNG endpoint nào
- * liệt kê được các `uploadId` đang chạy của một dự án. Nơi biết `uploadId` là màn
- * tải bản vẽ — nó truyền sang (R-73).
+ * Nguồn mặc định là N7 (`client.drawings.latestUploads`, lượt tải mới nhất của
+ * từng tầng). Nơi gọi vẫn truyền thẳng được qua `floorUploads` — test và story
+ * làm thế (R-73).
  */
 export interface ProcessingFloorUpload {
   readonly floorId: string;
@@ -270,7 +269,7 @@ export interface ProcessingFloorUpload {
 
 export interface UseProcessingScreenOptions {
   readonly projectId: string;
-  /** Rỗng (hoặc bỏ trống) là câu trả lời hợp lệ: màn ở trạng thái `empty`. */
+  /** Truyền thì dùng nguyên (rỗng ⇒ `empty`); bỏ trống thì màn tự đọc N7. */
   readonly floorUploads?: readonly ProcessingFloorUpload[];
   readonly roles?: readonly ProjectRole[];
   /** Cổng dữ liệu. Có mặc định thật bên trong; test và story cắm bản giả vào. */
@@ -522,7 +521,24 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   // sinh ra trong `useEffect` dưới, và phải trao được sang sổ theo dõi nền.
   const stopsRef = useRef<ReadonlyMap<string, () => void>>(new Map());
 
-  const floorUploads = options.floorUploads ?? EMPTY_UPLOADS;
+  // Nơi mở màn truyền danh sách thì dùng nó (test, story); không truyền — đường
+  // của route — thì đọc N7. Trước đây vắng là rỗng, nên màn luôn `empty` dù dự án
+  // có bản vẽ đang xử lý (B-V4-01).
+  const readsLatestUploads = options.floorUploads === undefined;
+  const latestUploadsQuery = useQuery({
+    queryKey: queryKeys.progress.latestUploads(projectId),
+    queryFn: async ({ signal }): Promise<readonly ProcessingFloorUpload[]> => {
+      const result = await gateway.readLatestUploads({ projectId, signal });
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+    enabled: readsLatestUploads,
+  });
+  const floorUploads = options.floorUploads ?? latestUploadsQuery.data ?? EMPTY_UPLOADS;
   // Danh tính của danh sách tầng dưới dạng một chuỗi: nơi gọi truyền một mảng
   // mới mỗi lượt render vẫn không làm các đăng ký bị mở lại.
   const floorsKey = floorUploads.map((upload) => `${upload.floorId}:${upload.uploadId}`).join('|');
@@ -708,10 +724,15 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     (upload, index) => floorQueries[index]?.data ?? emptyRecord(upload),
   );
 
-  const isLoading = floorQueries.some((query) => query.isPending);
+  // `enabled: false` vẫn là `isPending` trong TanStack v5 — chỉ tính khi đang đọc thật.
+  const isListLoading = readsLatestUploads && latestUploadsQuery.isPending;
+  const hasListFailed = readsLatestUploads && latestUploadsQuery.isError;
+  const isLoading = isListLoading || floorQueries.some((query) => query.isPending);
   const hasEveryReadFailed =
-    floorQueries.length > 0 && floorQueries.every((query) => query.isError);
-  const firstReadError = floorQueries.find((query) => query.isError)?.error;
+    hasListFailed || (floorQueries.length > 0 && floorQueries.every((query) => query.isError));
+  const firstReadError = hasListFailed
+    ? latestUploadsQuery.error
+    : floorQueries.find((query) => query.isError)?.error;
 
   const canEdit = can('upload', 'floor', { roles });
 
@@ -772,6 +793,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   }, [gateway, logLines]);
 
   const onRetry = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.progress.latestUploads.root() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.progress.byFloor.root() });
   }, [queryClient]);
 

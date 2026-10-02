@@ -653,9 +653,11 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
       comparisonRows,
       evidenceRows,
       reasonLine:
-        activeBranch === undefined
-          ? PIPELINE_GRAPH_TEXT.reasonUnknown
-          : PIPELINE_GRAPH_TEXT.reasonByBranch[activeBranch],
+        activeBranch !== undefined
+          ? PIPELINE_GRAPH_TEXT.reasonByBranch[activeBranch]
+          : isMixedBranch
+            ? PIPELINE_GRAPH_TEXT.reasonUnknown
+            : PIPELINE_GRAPH_TEXT.reasonNoReport,
       // Nút đổi nhánh chỉ có nghĩa khi còn nhánh khác để đổi sang: hồ sơ đã chạy
       // nhánh ảnh quét rồi thì "đổi sang nhánh ảnh quét" là một nút không làm gì.
       ...(canSeeDetail && gateway.supports.switchBranch && activeBranch !== SWITCH_TARGET_BRANCH

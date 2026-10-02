@@ -583,6 +583,16 @@ describe('useFloorUploadScreen — gán lại và xoá', () => {
       expect(result.current.floors[2]?.file).not.toBeNull();
     });
 
+    act(() => {
+      for (const upload of harness.uploads.values()) {
+        upload.finish({ percent: 100, status: 'done' });
+      }
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[2]?.status).toBe('attached');
+    });
+
     const fileId = result.current.floors[2]?.file?.id ?? '';
 
     act(() => {
@@ -600,6 +610,8 @@ describe('useFloorUploadScreen — gán lại và xoá', () => {
     await waitFor(() => {
       expect(result.current.floors[2]?.file).not.toBeNull();
     });
+    // B-V4-03: trả về ĐÚNG trạng thái lúc xoá — "chờ xử lý" thì treo mãi.
+    expect(result.current.floors[2]?.status).toBe('attached');
   });
 });
 
@@ -831,6 +843,14 @@ describe('useFloorUploadScreen — trang PDF', () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain(PICK_PAGE_SENTENCE);
     });
+    // B-V4-04: tệp chưa tải chưa phải bản vẽ của tầng — nút chính phải chặn.
+    expect(result.current.footer.blockReasons).toContainEqual(
+      expect.objectContaining({
+        floorId: 'L2',
+        kind: 'missingFile',
+        sentence: 'Tầng 2 chưa tải xong bản vẽ.',
+      }),
+    );
   });
 
   it('chọn trang 3 thì tải đúng một lần, mang pageIndex 2', async () => {

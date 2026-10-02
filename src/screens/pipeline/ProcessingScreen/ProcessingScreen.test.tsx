@@ -42,6 +42,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationHost } from '@/components/feedback/NotificationHost';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import viMessages from '@/i18n/vi.json';
+import { toAppError } from '@/lib/errors';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import {
   createBackgroundWatchRegistry,
@@ -445,6 +446,40 @@ describe('ProcessingScreenContainer — R-73', () => {
 
     expect(container.textContent?.trim()).not.toBe('');
     expect(screen.getByText('Xử lý')).toBeInTheDocument();
+  });
+
+  it('không ai truyền floorUploads thì màn tự đọc N7 và theo dõi lượt có sẵn (B-V4-01)', async () => {
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={gatewayWithCancel(() => undefined)}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByText('Đã xong 1/1 tầng')).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
+  });
+
+  it('N7 hỏng thì màn ở trạng thái lỗi có lối thử lại, không giả vờ rỗng (B-V4-01)', async () => {
+    const real = gatewayWithCancel(() => undefined);
+
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={{
+          ...real,
+          readLatestUploads: () =>
+            Promise.resolve({ ok: false, error: toAppError(new Error('mất kết nối')) }),
+        }}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: /thử lại/iu })).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
   });
 });
 

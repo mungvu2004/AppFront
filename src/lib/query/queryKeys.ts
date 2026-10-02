@@ -73,6 +73,7 @@ const floorListRoot = freezeKey(['floor', 'list'] as const);
 const floorDetailRoot = freezeKey(['floor', 'detail'] as const);
 const drawingByFloorRoot = freezeKey(['drawing', 'byFloor'] as const);
 const progressByFloorRoot = freezeKey(['progress', 'byFloor'] as const);
+const progressLatestUploadsRoot = freezeKey(['progress', 'latestUploads'] as const);
 const spaceByFloorRoot = freezeKey(['space', 'byFloor'] as const);
 const qualityAssessmentRoot = freezeKey(['quality', 'assessment'] as const);
 const roomByFloorRoot = freezeKey(['room', 'byFloor'] as const);
@@ -121,6 +122,11 @@ export const queryKeys = {
     byFloor: createQueryKeyFactory(progressByFloorRoot, (floorId: string) => [
       ...progressByFloorRoot,
       floorId,
+    ] as const),
+    /** N7 — lượt tải mới nhất của từng tầng trong dự án: màn xử lý theo dõi danh sách này. */
+    latestUploads: createQueryKeyFactory(progressLatestUploadsRoot, (projectId: string) => [
+      ...progressLatestUploadsRoot,
+      projectId,
     ] as const),
   },
   project: {
