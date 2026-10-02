@@ -37,6 +37,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
 import { standardizeThickness } from '@/lib/geometry/standardize';
+import { flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -481,6 +482,31 @@ describe('áp chuẩn hoá', () => {
 
     expect(mounted.history.undoSteps()).toHaveLength(0);
     expect(mounted.history.canRedo()).toBe(true);
+  });
+
+  it('Ctrl+S với tới màn này: flushAutosaves lưu NGAY sau một lượt áp (B-V7-01)', async () => {
+    const gateway = createMockThicknessStandardizationGateway();
+    const persist = vi.spyOn(gateway, 'persistThicknessStandardization');
+    const mounted = await mountSettled({ gateway });
+
+    acceptAndPreview(mounted, THREE_MEASUREMENTS);
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.history.undoSteps()).toHaveLength(1);
+    });
+
+    /* Còn trong cửa sổ 800 ms: chưa lượt lưu nào. */
+    expect(persist).not.toHaveBeenCalled();
+
+    /* Đúng thứ `SAVE_SHORTCUT` của `router.tsx` gọi. */
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(persist).toHaveBeenCalledTimes(1);
   });
 
   it('áp xong thì M-04 dựng lại hình tường của phần xem trước', async () => {

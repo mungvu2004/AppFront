@@ -310,6 +310,21 @@ describe('store composition', () => {
   });
 });
 
+/* B-V7-04: một lượt nạp thay cả đồ thị, không phải một lần người dùng sửa — Ctrl+Z
+   (`useStore.temporal.undo`, `router.tsx`) không được trả màn về kho rỗng. */
+describe('loading spatial data is not an undo step', () => {
+  it('leaves no undo step behind, so undo cannot empty the screen', () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), 'v1');
+
+    expect(useStore.temporal.getState().pastStates).toHaveLength(0);
+
+    useStore.temporal.getState().undo();
+
+    expect(useStore.getState().spatial).not.toBeNull();
+  });
+});
+
 describe('slice state shape', () => {
   const dataFields = (state: object): string[] =>
     Object.entries(state)

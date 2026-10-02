@@ -158,7 +158,16 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                 >
                   {APPROVE_LABEL}
                 </Button>
-                <Button fullWidth onClick={() => setMergeOpen(true)} variant="secondary">
+                <Button
+                  fullWidth
+                  onClick={() => {
+                    /* Mỗi lần hỏi là một câu hỏi mới (A9): lựa chọn của lần trước —
+                       có khi của một phòng khác — không được chọn sẵn (B-V7-03). */
+                    setMergeCandidateId(null);
+                    setMergeOpen(true);
+                  }}
+                  variant="secondary"
+                >
                   {MERGE_LABEL}
                 </Button>
                 {extras.splitPointMm === null ? (

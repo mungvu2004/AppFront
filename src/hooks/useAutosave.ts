@@ -42,6 +42,25 @@ export function flushAutosaves(): Promise<void> {
   );
 }
 
+/**
+ * Ghi một engine vào sổ của {@link flushAutosaves} suốt thời gian component còn
+ * gắn, gỡ khi tháo.
+ *
+ * Tách khỏi {@link useAutosave} vì hook ấy khoá cứng vào `state.spatial`: màn nào
+ * tự dựng `createAutosave` (vì cần chọn đích lưu, hay cần `useSaveIndicator`) thì
+ * trước đây không có đường nào vào sổ, nên Ctrl+S không thấy nó (B-V7-01).
+ * Một engine chỉ được đăng ký ở MỘT chỗ — đăng ký hai lần là hai lượt lưu.
+ */
+export function useFlushOnSave(autosave: Autosave): void {
+  useEffect(() => {
+    mountedAutosaves.add(autosave);
+
+    return () => {
+      mountedAutosaves.delete(autosave);
+    };
+  }, [autosave]);
+}
+
 export interface UseAutosaveHandle {
   /**
    * The exact string this hook has always returned: `null` before the first
@@ -105,16 +124,9 @@ function useAutosaveHandle(onSave: (data: RootState['spatial']) => Promise<void>
   const state = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
   const [label, setLabel] = useState<string | null>(null);
 
-  /* Ghi tên engine này vào sổ dùng chung suốt thời gian hook còn gắn, để Ctrl+S
-     của vỏ xả được nó mà không cần biết màn nào đang mở. Gỡ tên khi tháo: một
-     engine đã tháo không còn `getChanges` nào đọc được nữa. */
-  useEffect(() => {
-    mountedAutosaves.add(autosave);
-
-    return () => {
-      mountedAutosaves.delete(autosave);
-    };
-  }, [autosave]);
+  /* Ghi tên engine này vào sổ dùng chung, để Ctrl+S của vỏ xả được nó mà không
+     cần biết màn nào đang mở. */
+  useFlushOnSave(autosave);
 
   useEffect(() => {
     if (!spatial) {

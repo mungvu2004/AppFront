@@ -434,6 +434,35 @@ describe('[NGHIEM-5] thao tác hàng loạt luôn xem trước trước khi áp'
 });
 
 /* -------------------------------------------------------------------------- */
+/* A9 — hộp thoại gộp: mỗi lần hỏi là một câu hỏi mới (B-V7-03).                */
+/* -------------------------------------------------------------------------- */
+
+describe('hộp thoại gộp phòng', () => {
+  it('không chọn sẵn ứng viên của lần hỏi trước — kể cả khi đã đổi sang phòng khác', async () => {
+    await renderSettled('partial');
+
+    const [first, second] = ROOM_LABEL_FIXTURE_ROOMS;
+    const optionOf = (room: Room | undefined) =>
+      screen.getByRole('option', { name: new RegExp(`^${roomCodeLabel(room?.id ?? '')} · `, 'u') });
+
+    /* Lần hỏi đầu ở phòng thứ nhất: chọn phòng thứ hai làm ứng viên, rồi Huỷ. */
+    fireEvent.click(optionOf(first));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp phòng' }));
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Phòng sẽ gộp vào' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: `${roomCodeLabel(second?.id ?? '')} · ${second?.name ?? ''}` }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+
+    /* Lần hỏi sau ở CHÍNH phòng thứ hai: ứng viên cũ là chính nó. */
+    fireEvent.click(optionOf(second));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp phòng' }));
+
+    expect(await screen.findByRole('button', { name: 'Gộp hai phòng' })).toBeDisabled();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Ba bộ khẳng định dùng chung.                                                */
 /* -------------------------------------------------------------------------- */
 

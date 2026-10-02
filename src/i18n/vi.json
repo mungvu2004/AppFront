@@ -67,7 +67,7 @@
     "idle": "Chưa có thay đổi",
     "dirty": "Có thay đổi chưa lưu",
     "saving": "Đang lưu…",
-    "failed": "Lưu thất bại sau nhiều lần thử. Chỉnh sửa hoặc lưu lại thủ công.",
+    "failed": "Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.",
     "offline": "Ngoại tuyến — sẽ lưu khi có mạng",
     "savedRelative": "Đã lưu {{minutes}} phút trước"
   },
@@ -1933,7 +1933,7 @@
       "empty": {
         "title": "chưa dò ra phòng nào",
         "action": "Kiểm tra lại vòng hở",
-        "notice": "Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm \"Kiểm tra vòng hở\" để dò lại.",
+        "notice": "Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm \"Kiểm tra lại vòng hở\" để dò lại.",
         "filteredNotice": "Không còn phòng nào chưa đặt tên. Tắt bộ lọc \"Chưa đặt tên\" để xem lại toàn bộ phòng của tầng."
       },
       "error": {

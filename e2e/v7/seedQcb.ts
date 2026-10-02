@@ -1,0 +1,79 @@
+/**
+ * Bơm `store.spatial` bằng bộ mẫu RIÊNG của từng màn QC-b, qua cửa dev.
+ *
+ * **Hàm này CHẠM VÀO NỘI BỘ DEV** — cùng cái nạng của `e2e/fixtures/seedSpatial.ts`
+ * (Q1 = A′, `plan.md` mục 6.1), đọc docblock ở đó trước. Khác một chỗ: mỗi màn nạp
+ * đúng bộ mẫu mà story và bài đơn vị của chính nó dùng, không `createSampleBuilding()`
+ * — ba màn này có bộ mẫu riêng (14 phòng / 48 đoạn tường / 4 tầng), và mọi con số
+ * bài khẳng định là số của bộ ấy.
+ *
+ * Fixture dùng chung là của điều phối viên (hợp đồng chung mục 3), nên trình trợ giúp
+ * này sống trong thư mục nhóm — cùng khuôn `e2e/v6/seedQc.ts` của nhóm QC-a.
+ *
+ * Ba ràng buộc của mọi ca có bơm: tên bài nói ra rằng nó bơm · `goto` rồi mới bơm ·
+ * không `Ctrl+Z` thừa (lượt bơm là một bước `zundo`).
+ *
+ * B-V6-01 (gốc "đọc vòng tròn", nhóm V6 sở hữu): ngày sản phẩm có đường nạp thật,
+ * ca mồi của từng màn đỏ — khi ấy xoá tệp này.
+ */
+import type { Page } from '@playwright/test';
+
+export type QcbScreen = 'rooms' | 'floors' | 'thickness';
+
+export const QCB_PROJECT = 'project-1';
+
+/**
+ * Mã tầng cho URL. Phòng và độ dày lọc theo `levelId` của URL, nên phải là mã `Level`
+ * của đồ thị bơm vào — `L1` cho ra "rỗng GIẢ" (plan.md V6 mục 0, bẫy tầng F2).
+ * `floors` không có `:floorId`.
+ */
+export const QCB_FLOOR = {
+  rooms: 'L-000001LVL0',
+  thickness: 'L-000001TFL1',
+} as const;
+
+export async function seedQcb(page: Page, screen: QcbScreen): Promise<void> {
+  await page.evaluate(async (which) => {
+    // Biến, không chuỗi trần: TypeScript không tìm tệp ở `/src/...` trong Node.
+    const load = (path: string): Promise<Record<string, unknown>> =>
+      import(/* @vite-ignore */ path) as Promise<Record<string, unknown>>;
+
+    const graphOf = async (): Promise<unknown> => {
+      switch (which) {
+        case 'rooms': {
+          // Đúng đường `RoomLabelReview.stories.tsx` dựng đồ thị: bộ mẫu chủ ý không kèm tường.
+          const fixture = await load('/src/screens/qc/RoomLabelReview/roomLabelFixture.ts');
+          const { normalizeSpatial } = (await load('/src/domain/spatial/normalize.ts')) as {
+            normalizeSpatial: (graph: unknown) => unknown;
+          };
+          return normalizeSpatial({
+            building: fixture.ROOM_LABEL_FIXTURE_BUILDING,
+            levels: [fixture.ROOM_LABEL_FIXTURE_LEVEL],
+            walls: [],
+            openings: [],
+            furniture: [],
+            rooms: [...(fixture.ROOM_LABEL_FIXTURE_ROOMS as unknown[])],
+            axes: [],
+            dimensions: [],
+            notes: [],
+          });
+        }
+        case 'floors':
+          return (
+            (await load('/src/screens/qc/FloorManager/floorManagerGateway.ts'))
+              .createFloorManagerSampleGraph as () => unknown
+          )();
+        case 'thickness':
+          return (
+            await load('/src/screens/qc/ThicknessStandardization/thicknessStandardizationGateway.ts')
+          ).THICKNESS_FIXTURE_GRAPH;
+      }
+    };
+
+    const graph = await graphOf();
+    const store = (await load('/src/store/index.ts')).useStore as {
+      getState: () => { setSpatial: (spatial: unknown, versionId: null) => void };
+    };
+    store.getState().setSpatial(graph, null);
+  }, screen);
+}

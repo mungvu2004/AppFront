@@ -50,7 +50,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { EntityId, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
@@ -553,6 +555,11 @@ export function useThicknessStandardization(
   });
 
   const autosave = autosaveRef.current;
+
+  /* Ctrl+S xả được engine này, và trình đọc màn hình nghe được trạng thái lưu
+     (A7) — trước đây engine chạy mà câm, Ctrl+S không thấy nó (B-V7-01). */
+  useFlushOnSave(autosave);
+  useSaveIndicator(autosave);
 
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — MỘT transaction, MỘT bước hoàn tác 100 bước của S-06.        */
