@@ -12,8 +12,10 @@
  * trình duyệt tự sang đó bằng điều hướng trong ứng dụng. Muốn tới màn khác thì
  * truyền `destination`, đừng điều hướng tay.
  *
- * Hạn chờ: dùng hạn mặc định của `expect`. KHÔNG chép hạn 5 s ở
- * `viewer3d.spec.ts:203` — nó là chỗ mỏng đã lộ ra khi hai bản Vite giành tệp.
+ * Hạn chờ: {@link SIGN_IN_LANDING_TIMEOUT_MS}, không phải hạn mặc định 5 s của
+ * `expect` — `playwright.config.ts` không đặt `expect.timeout`, nên "mặc định"
+ * chính là 5 s, đúng hạn mỏng đã lộ ở `viewer3d.spec.ts:203` khi nhiều bài chạy
+ * song song.
  *
  * Nguyên liệu chép từ `e2e/viewer3d.spec.ts:163-205`.
  */
@@ -47,6 +49,14 @@ export async function submitSignInForm(page: Page, email: string): Promise<void>
   await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
 }
 
+/**
+ * Hạn chờ trình duyệt hạ cánh ở đích sau khi gửi biểu mẫu. Chờ một trạng thái
+ * dương (đường dẫn = đích), hạn chỉ là trần: lượt đầu của một route bắt Vite dịch
+ * nguội, và nhiều worker cùng tải làm việc ấy chậm hơn 5 s. Cùng số với
+ * `FIRST_PAINT_TIMEOUT_MS` của `smoke-grid.spec.ts`.
+ */
+export const SIGN_IN_LANDING_TIMEOUT_MS = 15_000;
+
 /** Đăng nhập với `role` rồi hạ cánh ở `destination` (mặc định: danh sách dự án). */
 export async function signInAs(
   page: Page,
@@ -56,5 +66,7 @@ export async function signInAs(
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(loginUrl(destination));
   await submitSignInForm(page, EMAIL_BY_ROLE[role]);
-  await expect.poll(() => pathOf(page.url())).toBe(destination);
+  await expect
+    .poll(() => pathOf(page.url()), { timeout: SIGN_IN_LANDING_TIMEOUT_MS })
+    .toBe(destination);
 }
