@@ -128,7 +128,6 @@ export function ObjectLayerToolRail({
                 )}
                 <IconButton
                   aria-label={`chọn nhóm ${OBJECT_LAYER_LABELS[tool.id]} (phím ${tool.kbd})`}
-                  disabled={activeLayer === null}
                   icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
                   isActive={isActive}
                   onClick={() => onSelectLayer(tool.id)}

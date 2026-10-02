@@ -82,19 +82,19 @@ const PROJECT_ID = 'project-1';
 const FLOOR_ID = DIMENSION_OCR_SAMPLE_LEVEL.id;
 
 /** Ví dụ nghiệm thu độ lệch NHỎ — `M-018`, đọc 6.090 mm, đo 6.000 mm. */
-const MINOR_ID = 'M-018';
+const MINOR_ID = dimensionEntityIdOf('M-018');
 
 /** Ví dụ nghiệm thu độ lệch ĐÁNG KỂ — `M-028`, đọc 9.225 mm, đo 9.000 mm. */
-const SIGNIFICANT_ID = 'M-028';
+const SIGNIFICANT_ID = dimensionEntityIdOf('M-028');
 
 /** Chuỗi chưa duyệt của bộ mẫu, dùng cho lượt duyệt và lượt hoàn tác. */
-const UNREVIEWED_ID = 'M-002';
+const UNREVIEWED_ID = dimensionEntityIdOf('M-002');
 
 /** Chuỗi chưa duyệt KẾ TIẾP sau `M-002` — `M-003` đã duyệt nên bị bỏ qua. */
-const NEXT_UNREVIEWED_ID = 'M-004';
+const NEXT_UNREVIEWED_ID = dimensionEntityIdOf('M-004');
 
 /** Chuỗi dưới ngưỡng tin cậy, dùng cho phép kiểm giá trị vô lý. */
-const IMPLAUSIBLE_TARGET_ID = 'M-014';
+const IMPLAUSIBLE_TARGET_ID = dimensionEntityIdOf('M-014');
 
 /** "Phòng dài 30 mét" của đặc tả — con số vô lý so với 33 chuỗi còn lại. */
 const IMPLAUSIBLE_VALUE_MM = 30000;
@@ -254,7 +254,7 @@ describe('phép ghép thuần của màn Đọc kích thước OCR', () => {
 
   it('chuỗi chưa duyệt kế tiếp bỏ qua chuỗi đã duyệt và vòng lại từ đầu', () => {
     const rows = DIMENSION_OCR_FIXTURE_DIMENSIONS.map((dimension, index) => ({
-      id: `M-${String(index + 1).padStart(3, '0')}`,
+      id: dimensionEntityIdOf(`M-${String(index + 1).padStart(3, '0')}`),
       isReviewed: dimension.reviewed,
       isLowConfidence: isLowConfidenceDimension(dimension.confidence),
     }));
@@ -453,8 +453,8 @@ describe('[NGHIEM-2] duyệt một chuỗi kích thước', () => {
     expect(approve.type).toBe(DIMENSION_APPROVE_COMMAND_TYPE);
     expect(approved.reviewed).toBe(true);
     expect(approved.source).toBe('human');
-    /* Hàm dựng lệnh duyệt nhận ĐÚNG hai tham số: không có chỗ nào truyền `source`. */
-    expect(buildApproveDimensionCommand).toHaveLength(2);
+    /* Ngoài `before` và `actorId` chỉ còn bảng nhãn (`codes`): không có chỗ nào truyền `source`. */
+    expect(buildApproveDimensionCommand).toHaveLength(3);
     /* Hoàn tác được: ảnh chụp `before` đầy đủ, không phải diff từng trường. */
     expect(approve.changes[0]?.before).not.toBeNull();
 

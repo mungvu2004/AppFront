@@ -60,6 +60,7 @@ import {
   scaleOfLevel,
   toPixelPoint,
   toWallInspector,
+  wallDisplayCode,
   UNDO_WINDOW_MS,
   WALL_APPROVE_COMMAND_TYPE,
   WALL_LAYER_THICKNESS_CHOICES,
@@ -432,6 +433,40 @@ describe('nghiệm thu bàn phím', () => {
     expect(first).toBe(wallAt(0).id);
     expect(second).toBe(wallAt(1).id);
     expect(mounted.result.current.panel.selectedWallId).toBe(first);
+
+    mounted.unmount();
+  });
+
+  it('Escape bỏ chọn tường (B-V6-11 — trước bản sửa Escape không làm gì ở màn này)', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, 'J');
+    expect(mounted.result.current.panel.selectedWallId).toBe(wallAt(0).id);
+
+    await pressKey(mounted.registry, 'Escape');
+
+    expect(mounted.result.current.panel.selectedWallId).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('Escape giữa lúc vẽ bỏ nét đang dở, không thêm tường', async () => {
+    const mounted = await mountSettled();
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, 'Escape');
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20000 }));
+      await Promise.resolve();
+    });
+
+    /* Điểm thứ hai giờ là điểm ĐẦU của một nét mới, nên chưa có tường nào được chốt. */
+    expect(wallCount()).toBe(before);
 
     mounted.unmount();
   });
@@ -1181,6 +1216,9 @@ describe('toast hoàn tác sau khi xoá', () => {
 
     /* Câu trên toast là câu của chính vé, không phải một bản chép thứ hai. */
     expect(notification?.title).toBe(deleteToastDescription(target.id));
+    /* B-V6-02: toast gọi tường bằng nhãn của danh sách, không lộ mã máy. */
+    expect(notification?.title).toBe(`Đã xoá tường #${wallDisplayCode(target.id)}.`);
+    expect(notification?.title).not.toContain(target.id);
     expect(notification?.undoTicket).toBeDefined();
 
     /* Bấm "Hoàn tác" của `NotificationHost` chính là gọi vé này. */
