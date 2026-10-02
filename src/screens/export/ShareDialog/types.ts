@@ -213,6 +213,11 @@ export interface ShareDialogModel {
   readonly errorMessage: string | null;
   /** Đổi khoá thì liên kết cũ hết hiệu lực. Một dòng nhắc, không phải hộp thoại. */
   readonly staleLinkNotice: string | null;
+  /**
+   * Liên kết đang chờ người dùng xác nhận thu hồi; `null` là không hỏi gì. Thu hồi
+   * không có đường khôi phục (A8 không hoàn tác được), nên A9 đòi hỏi trước.
+   */
+  readonly pendingRevokeUrl: string | null;
 }
 
 export interface ShareDialogActions {
@@ -222,7 +227,10 @@ export interface ShareDialogActions {
   readonly setPassword: (password: string) => void;
   readonly setIncludeViewpoint: (include: boolean) => void;
   readonly createLink: () => void;
+  /** HỎI trước khi thu hồi (A9) — chưa gửi gì. `confirmRevoke` mới gửi. */
   readonly revokeLink: (id: string) => void;
+  readonly confirmRevoke: () => void;
+  readonly cancelRevoke: () => void;
   readonly copyLink: (id: string) => void;
   readonly copyEmbedCode: () => void;
   readonly setEmbedLevel: (levelId: LevelId | null) => void;
