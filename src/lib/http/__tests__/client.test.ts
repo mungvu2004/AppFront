@@ -15,6 +15,37 @@ describe('http/client.ts', () => {
     vi.useRealTimers();
   });
 
+  // B-V3-04: StrictMode (or any unmount) aborts the first GET; the remount's GET for the
+  // same URL joined it through single-flight and inherited the abort — ShareDialog opened
+  // on "thao tác chia sẻ đã bị huỷ" with a healthy server behind it.
+  it('a GET joining an in-flight request that its OWN caller aborts still gets a real answer', async () => {
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      const signal = init?.signal;
+
+      return new Promise<Response>((resolve, reject) => {
+        if (signal?.aborted === true) {
+          reject(signal.reason);
+          return;
+        }
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+        setTimeout(() => {
+          resolve(new Response(JSON.stringify({ links: [] }), { headers: { 'Content-Type': 'application/json' } }));
+        }, 10);
+      });
+    });
+    const client = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl });
+
+    const first = new AbortController();
+    const abandoned = client.get('/share-links', { signal: first.signal });
+    const live = client.get('/share-links', { signal: new AbortController().signal });
+    first.abort();
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect((await abandoned).ok).toBe(false);
+    const result = await live;
+    expect(result.ok).toBe(true);
+  });
+
   it('cancels requests on timeout', async () => {
     const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       const signal = init?.signal;

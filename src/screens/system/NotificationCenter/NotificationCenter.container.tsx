@@ -31,7 +31,7 @@
  * `EditorTour.container.tsx` đang dùng.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -184,10 +184,11 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
  * `replace` để `/thong-bao` không nằm lại trong lịch sử và `Escape` lần hai
  * không quay lại nó.
  *
- * **Nhánh `navigate(-1)` hôm nay không với tồi được, và đó là lý do lỗi trên sống
+ * **Nhánh `navigate(-1)` hôm nay không với tới được, và đó là lý do lỗi trên sống
  * lâu.** Không chỗ nào trong `src` điều hướng tới `/thong-bao`: `onViewAll`
- * (`useNotificationCenter.ts:676`) gọi `onNavigate?.(ROUTES.notifications)`, nhưng
- * không vỏ nào truyền `onNavigate` vào hook. Nên mọi lượt tới route này đều là
+ * (`useNotificationCenter.ts`) gọi `onNavigate?.(ROUTES.notifications)` và
+ * `useWiredNotificationCenter` có nối `onNavigate`, nhưng nút ấy chỉ nằm trong quả
+ * chuông, mà quả chuông chưa vỏ nào dựng. Nên mọi lượt tới route này đều là
  * một lượt tải trang, tức `location.key` luôn là `'default'` — và `navigate(-1)`
  * luôn lùi ra khỏi ứng dụng. Giữ nhánh lùi là để đúng cho ngày có người thêm
  * một liên kết; đừng đọc một lượt chạy xanh là bằng chứng rằng nhánh ấy đúng.
@@ -195,8 +196,23 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
 export function NotificationCenterRoute() {
   const navigate = useNavigate();
   const { key: historyKey } = useLocation();
+  // Hook gọi `onNavigate(đích)` rồi `onClose()` liền sau (và view gọi `onClose` thêm
+  // một lần nữa sau quãng mờ). Ở route, "đóng" là "rời route" — nên lượt đóng ấy
+  // từng đè lên chính lượt điều hướng vừa đi và đưa người dùng về `/` thay vì tới
+  // màn của thông báo (B-V2-04). Đã điều hướng đi thì không còn gì để đóng.
+  const hasLeftRef = useRef(false);
+
+  const goTo = useCallback(
+    (to: string): void => {
+      hasLeftRef.current = true;
+      navigate(to);
+    },
+    [navigate],
+  );
 
   const goBack = useCallback((): void => {
+    if (hasLeftRef.current) return;
+
     if (historyKey === 'default') {
       navigate(ROUTES.dashboard, { replace: true });
       return;
@@ -205,5 +221,5 @@ export function NotificationCenterRoute() {
     navigate(-1);
   }, [historyKey, navigate]);
 
-  return <NotificationCenterContainer isOpen isCompact onDismiss={goBack} />;
+  return <NotificationCenterContainer isOpen isCompact onNavigate={goTo} onDismiss={goBack} />;
 }

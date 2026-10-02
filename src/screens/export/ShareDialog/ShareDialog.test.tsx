@@ -32,7 +32,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -409,6 +409,69 @@ describe('A8 — mọi thay đổi hoàn tác được, kèm toast hoàn tác', 
     expect(typeof toast.message).toBe('string');
     expect(toast.message.length).toBeGreaterThan(0);
     expect(typeof toast.onUndo).toBe('function');
+  });
+});
+
+describe('B-V3-09 — hộp thoại đóng thì không đọc danh sách liên kết', () => {
+  it('isOpen=false: list không được gọi; mở ra thì đọc', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const list = vi.fn(() => Promise.resolve({ ok: true as const, data: [] }));
+    const { rerender } = renderHook(
+      ({ isOpen }: { isOpen: boolean }) =>
+        useShareDialog({
+          gateway: buildFakeGateway({ list }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          isOpen,
+        }),
+      { wrapper: withQueryClient(), initialProps: { isOpen: false } },
+    );
+
+    await Promise.resolve();
+    expect(list).not.toHaveBeenCalled();
+
+    rerender({ isOpen: true });
+    await waitFor(() => {
+      expect(list).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('A9 — thu hồi không hoàn tác được nên hỏi trước (B-V3-06)', () => {
+  it('"thu hồi" chỉ mở câu hỏi; "để nguyên" không gửi gì; xác nhận mới gửi lệnh thu hồi', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const revoke = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+    const { result } = renderHook(
+      () =>
+        useShareDialog({
+          gateway: buildFakeGateway({
+            list: () => Promise.resolve({ ok: true, data: [SAMPLE_ACTIVE_LINK] }),
+            revoke,
+          }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          members: SAMPLE_MEMBERS,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].rows).toHaveLength(1);
+    });
+    const linkId = result.current[0].rows[0]?.id ?? '';
+
+    act(() => result.current[1].revokeLink(linkId));
+    expect(result.current[0].pendingRevokeUrl).toBe(result.current[0].rows[0]?.url);
+    act(() => result.current[1].cancelRevoke());
+    expect(result.current[0].pendingRevokeUrl).toBeNull();
+    expect(revoke).not.toHaveBeenCalled();
+
+    act(() => result.current[1].revokeLink(linkId));
+    act(() => result.current[1].confirmRevoke());
+    await waitFor(() => {
+      expect(revoke).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current[0].pendingRevokeUrl).toBeNull();
   });
 });
 

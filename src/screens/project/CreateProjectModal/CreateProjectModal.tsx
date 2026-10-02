@@ -38,7 +38,7 @@
  * computation — legal in a view (mục D).
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
@@ -306,8 +306,28 @@ export interface CreateProjectModalProps extends UseCreateProjectModalOptions {
   readonly isOpen: boolean;
 }
 
-/** The dialog, wired to its hook. */
+/**
+ * The dialog, wired to its hook — and a fresh form on every opening.
+ *
+ * Both callers keep this mounted and only flip `isOpen`, so the hook's state
+ * outlived each close: reopening after "tạo dự án" landed on step 3 with the
+ * project just made (one click from a duplicate), and "đóng, bỏ thay đổi"
+ * discarded nothing (B-V3-02). A new `key` per opening resets every field in
+ * one place; the close itself keeps the old key, so its exit animation plays.
+ */
 export function CreateProjectModal({ isOpen, ...options }: CreateProjectModalProps) {
+  const [openingCount, setOpeningCount] = useState(0);
+  const [wasOpen, setWasOpen] = useState(isOpen);
+
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setOpeningCount((count) => count + 1);
+  }
+
+  return <WiredCreateProjectModal key={openingCount} isOpen={isOpen} {...options} />;
+}
+
+function WiredCreateProjectModal({ isOpen, ...options }: CreateProjectModalProps) {
   const { model, actions } = useCreateProjectModal(options);
 
   return <CreateProjectModalView isOpen={isOpen} {...model} {...actions} />;

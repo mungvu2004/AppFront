@@ -65,7 +65,7 @@ import type {
   NotificationItemVm,
   NotificationKind,
 } from './notificationModel';
-import { useNotificationCenter } from './useNotificationCenter';
+import { NOTIFICATION_CENTER_TEXT, useNotificationCenter } from './useNotificationCenter';
 import type { NotificationCenterProps, UseNotificationCenterOptions } from './useNotificationCenter';
 
 const noop = (): void => undefined;
@@ -506,6 +506,45 @@ describe('BÀI NGHIỆM THU — mở tấm trượt rồi đóng thì số chưa
     expect(after).toBe(before);
     expect(fake.markRead).not.toHaveBeenCalled();
     expect(fake.markAllRead).not.toHaveBeenCalled();
+  });
+});
+
+describe('B-V2-03 — tấm trượt có tên truy cập', () => {
+  it('role="dialog" mang tên "Thông báo", không phải một hộp thoại không tên', () => {
+    renderWithProviders(<NotificationCenter {...baseProps()} />);
+
+    expect(screen.getByRole('dialog', { name: 'Thông báo' })).toBeInTheDocument();
+  });
+});
+
+describe('B-V2-02 — đánh dấu hết đã đọc thì vùng status nói "hết chưa đọc", không nói "không có thông báo"', () => {
+  it('danh sách còn nguyên ⇒ câu là liveAllRead; hộp thư rỗng thật ⇒ câu là liveEmpty', async () => {
+    const fake = createFakeGateway([
+      buildItem({ id: 'u-1', isRead: false }),
+      buildItem({ id: 'u-2', isRead: true }),
+    ]);
+
+    mountNotificationCenter({ gateway: fake.gateway });
+
+    await waitFor(() => {
+      expect(notificationProps().unreadCount).toBe(1);
+    });
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+
+    await waitFor(() => {
+      expect(notificationProps().liveMessage).toBe(NOTIFICATION_CENTER_TEXT.liveAllRead);
+    });
+    expect(allItems(notificationProps().groups)).toHaveLength(2);
+
+    cleanup();
+    mountNotificationCenter({ gateway: createFakeGateway([]).gateway });
+
+    await waitFor(() => {
+      expect(notificationProps().liveMessage).toBe(NOTIFICATION_CENTER_TEXT.liveEmpty);
+    });
   });
 });
 

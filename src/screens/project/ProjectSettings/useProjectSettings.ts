@@ -215,6 +215,9 @@ export interface ProjectSettingsActions {
 /** Mọi prop view nhận — mô hình cộng hành động, đã gộp sẵn (mục D). */
 export interface ProjectSettingsViewProps extends ProjectSettingsModel, ProjectSettingsActions {}
 
+/** Câu báo xoá dự án xong. */
+export const PROJECT_DELETED_NOTICE = 'Đã xoá dự án.';
+
 export interface UseProjectSettingsOptions {
   readonly gateway: ProjectSettingsGateway;
   readonly projectId: string;
@@ -227,8 +230,13 @@ export interface UseProjectSettingsOptions {
   readonly announcer?: Announcer;
   /** Toast hoàn tác của A8. Tiêm vào; `Toast.Provider` do nơi gọi dựng. */
   readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
-  /** Gọi sau khi dự án đã bị xoá, để nơi gọi điều hướng đi nơi khác. */
-  readonly onProjectDeleted?: () => void;
+  /**
+   * Gọi sau khi dự án đã bị xoá, để nơi gọi điều hướng đi nơi khác — và mang theo
+   * câu báo kết quả. Có hàm này thì hook KHÔNG toast tại chỗ: nơi gọi sắp rời màn,
+   * và `Toast.Provider` của màn rời theo, nên câu báo phải đi tới chỗ còn sống sau
+   * lượt điều hướng (B-V3-05).
+   */
+  readonly onProjectDeleted?: (notice: string) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -745,8 +753,11 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       invalidateProjectQueries();
       // A9 đã hỏi trước bằng hộp thoại, nên A8 không nợ một toast hoàn tác ở đây:
       // không có đường khôi phục nào để hứa.
-      options.onToast?.({ message: 'Đã xoá dự án.' });
-      options.onProjectDeleted?.();
+      if (options.onProjectDeleted === undefined) {
+        options.onToast?.({ message: PROJECT_DELETED_NOTICE });
+      } else {
+        options.onProjectDeleted(PROJECT_DELETED_NOTICE);
+      }
     });
   };
 

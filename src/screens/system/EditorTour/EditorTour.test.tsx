@@ -19,7 +19,7 @@
  * xanh trọn vẹn; không điều kiện nào bị nới để lấy màu xanh đó (R-70).
  */
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -330,6 +330,54 @@ describe('BÀI NGHIỆM THU 1 — đổi phím tắt trong registry thì thẻ �
     expect(comboAfterSecondBind).toBe('Y');
     expect(screen.getByText('Y')).toBeInTheDocument();
     expect(screen.queryByText('A')).not.toBeInTheDocument();
+  });
+});
+
+describe('B-V2-01 — màn chủ đăng ký phím SAU lượt render đầu thì tour vẫn hiện, không chờ resize', () => {
+  it('sổ phím rỗng lúc dựng ⇒ chưa hiện; màn chủ đăng ký phím ⇒ hiện ngay, không cần sự kiện cửa sổ nào', () => {
+    const registry = createShortcutRegistry();
+
+    mountTour({ registry, resolveAnchor: () => null, hasModel: true, hostId: 'wall-layer-review' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    act(() => {
+      registry.register({
+        id: 'wallLayerReview.next',
+        combo: 'N',
+        scope: 'canvas',
+        description: STEP_TEXT.reviewWall.comboDescription,
+        onTrigger: noop,
+      });
+    });
+
+    expect(tourProps().screenState).not.toBe('empty');
+    expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    expect(screen.getByRole('region', { name: tourProps().steps[0]?.title ?? '' })).toBeInTheDocument();
+  });
+});
+
+describe('B-V2-01 — neo của màn chủ xuất hiện muộn thì tour vẫn hiện, không chờ resize', () => {
+  it('chưa có neo ⇒ chưa hiện; neo vào trang ⇒ hiện, không cần sự kiện cửa sổ nào', async () => {
+    const rect = { top: 10, left: 10, width: 40, height: 20 };
+    const resolveAnchor = (id: string) =>
+      id === 'reviewWall' && document.getElementById('tour-late-anchor') !== null ? rect : null;
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, hasModel: true, hostId: 'viewer-shell' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    const late = document.createElement('div');
+    late.id = 'tour-late-anchor';
+    await act(async () => {
+      document.body.append(late);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    });
+    late.remove();
   });
 });
 

@@ -277,6 +277,14 @@ export interface ShortcutRegistry {
    * that cares about grouping or priority sorts this itself.
    */
   listShortcuts(): readonly RegisteredShortcut[];
+  /**
+   * Calls `listener` after every `register` and every unregister — the signal
+   * a reader of {@link listShortcuts} needs, because bindings arrive in effects
+   * that run AFTER the reader's render. Without it `EditorTour` read an empty
+   * list on first paint and stayed hidden until some unrelated resize
+   * (B-V2-01). Returns the unsubscribe.
+   */
+  subscribe(listener: () => void): () => void;
 }
 
 export interface ShortcutRegistryOptions {
@@ -384,7 +392,14 @@ export function createShortcutRegistry(
    */
   const entries: RegistryEntry[] = [];
   const claims = new Map<ShortcutScope, number>();
+  const listeners = new Set<() => void>();
   let attached = false;
+
+  const notify = (): void => {
+    for (const listener of [...listeners]) {
+      listener();
+    }
+  };
 
   const scopeIsActive = (scope: ShortcutScope): boolean =>
     (claims.get(scope) ?? 0) > 0 ||
@@ -420,12 +435,14 @@ export function createShortcutRegistry(
     const entry: RegistryEntry = { definition, parsed, canonical };
 
     entries.push(entry);
+    notify();
 
     return (): void => {
       const index = entries.indexOf(entry);
 
       if (index >= 0) {
         entries.splice(index, 1);
+        notify();
       }
     };
   };
@@ -585,6 +602,14 @@ export function createShortcutRegistry(
         : {}),
     }));
 
+  const subscribe = (listener: () => void): (() => void) => {
+    listeners.add(listener);
+
+    return (): void => {
+      listeners.delete(listener);
+    };
+  };
+
   return {
     register,
     claimScope,
@@ -593,6 +618,7 @@ export function createShortcutRegistry(
     findOverlaps,
     reportOverlaps,
     listShortcuts,
+    subscribe,
   };
 }
 

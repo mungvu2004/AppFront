@@ -29,13 +29,16 @@
  * `useNavigate()` làm mặc định; `onNavigateToFix` chỉ tồn tại để một màn nhúng
  * container này thay bằng điều hướng riêng của nó.
  *
- * ## Không có `onToast`, `announcer`, `now` hay `isOnline`
+ * ## Không có `announcer`, `now` hay `isOnline` — và `onToast` chỉ đi tới hộp thoại chia sẻ
  *
- * Bốn prop đó từng đứng ở đây như những khe cắm tuỳ chọn. `useExportPanel` —
+ * Bốn prop (kể cả `onToast`) từng đứng ở đây như những khe cắm tuỳ chọn. `useExportPanel` —
  * viết song song trên nhánh khác — không nhận cái nào: repo chưa có nhà cung
  * cấp toast toàn cục, hook không xướng gì riêng, còn đồng hồ lẫn trạng thái
  * mạng đều đọc từ tầng dưới. Một prop không đi tới đâu là đúng thứ R-73 tồn
  * tại để chặn, nên lượt gộp gỡ cả bốn thay vì giữ một chữ ký đẹp mà rỗng.
+ * `onToast` quay lại vì nó CÓ chỗ đi: hộp thoại chia sẻ phát toast (A8 đổi quyền),
+ * và thiếu nó thì mọi câu ấy câm trên route thật (B-V3-07). `ExportPanelRoute`
+ * dựng `Toast.Provider` như `ProjectSettingsRoute`.
  *
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản `src/App.tsx` đang gắn
  * (R-62), **không** phải bản chưa nối ở `src/lib/screen-state`. Phần dự phòng
@@ -61,6 +64,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Toast, useToast } from '@/components/feedback/Toast';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -93,6 +97,11 @@ export interface ExportPanelContainerProps {
    * nhúng container và cần tự quyết định cách điều hướng.
    */
   readonly onNavigateToFix?: (href: string) => void;
+  /**
+   * Toast của hộp thoại chia sẻ (A8: đổi quyền kèm "Hoàn tác"). Vắng nó thì mọi
+   * câu báo của hộp thoại câm — đúng chuyện từng xảy ra trên route thật (B-V3-07).
+   */
+  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
 }
 
 /** Cùng khuôn `RuleSettingsCrashFallback` — R-62, chữ lấy từ `report.description`. */
@@ -151,6 +160,7 @@ function WiredExportPanel(props: WiredExportPanelProps) {
         onDismiss={() => setShareOpen(false)}
         projectId={props.projectId}
         roles={roles}
+        {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
       />
     </>
   );
@@ -188,13 +198,25 @@ export function ExportPanelContainer(props: ExportPanelContainerProps) {
         projectId={projectId}
         {...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {})}
         {...(props.onNavigateToFix !== undefined ? { onNavigateToFix: props.onNavigateToFix } : {})}
+        {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
       />
       <EditorTourContainer hostId="export-panel" />
     </ScreenErrorBoundary>
   );
 }
 
+/** Bên trong `Toast.Provider`, nên `useToast` ở đây chắc chắn tìm được provider. */
+function ExportPanelRouteBody() {
+  const { addToast } = useToast();
+
+  return <ExportPanelContainer onToast={addToast} />;
+}
+
 /** Route thật của màn xuất, đăng ký tại `src/routes/router.tsx`. */
 export function ExportPanelRoute() {
-  return <ExportPanelContainer />;
+  return (
+    <Toast.Provider>
+      <ExportPanelRouteBody />
+    </Toast.Provider>
+  );
 }

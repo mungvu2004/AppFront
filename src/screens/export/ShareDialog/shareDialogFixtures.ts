@@ -381,7 +381,7 @@ export function buildShareLinkForm(overrides: Partial<ShareLinkFormModel> = {}):
 export const SEVEN_DAY_EXPIRY_LABEL = SHARE_EXPIRY_LABELS[SEVEN_DAY_CHOICE];
 
 /* ==========================================================================
- * 6. Mười sáu hành động — không làm gì; test tự ghi đè bằng `vi.fn()`.
+ * 6. Mười tám hành động — không làm gì; test tự ghi đè bằng `vi.fn()`.
  * ========================================================================== */
 
 export const NOOP_SHARE_DIALOG_ACTIONS: ShareDialogActions = {
@@ -392,6 +392,8 @@ export const NOOP_SHARE_DIALOG_ACTIONS: ShareDialogActions = {
   setIncludeViewpoint: () => undefined,
   createLink: () => undefined,
   revokeLink: () => undefined,
+  confirmRevoke: () => undefined,
+  cancelRevoke: () => undefined,
   copyLink: () => undefined,
   copyEmbedCode: () => undefined,
   setEmbedLevel: () => undefined,
@@ -428,6 +430,7 @@ function modelForState(state: SevenState): ShareDialogModel {
     copiedTargetId: null,
     errorMessage: null,
     staleLinkNotice: null,
+    pendingRevokeUrl: null,
   };
 
   switch (state) {

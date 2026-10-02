@@ -285,7 +285,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
   }
 
   return (
-    <Drawer.Root isOpen={isOpen} onClose={onClose}>
+    <Drawer.Root isOpen={isOpen} onClose={onClose} label={TITLE_LABEL}>
       <Drawer.Header>
         {/*
           Trạng thái 7 ("thu gọn"): khung hẹp thì tiêu đề và nhóm nút xếp dọc

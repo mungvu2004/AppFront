@@ -672,7 +672,9 @@ describe('ProjectSettings đã nối dây', () => {
     await tick(MOTION_SETTLE_MS);
 
     expect(gateway.deleteProject).toHaveBeenCalledWith({ projectId: 'project-delete' });
+    // B-V3-05: câu báo đi cùng lời gọi rời màn, không vào toast của màn sắp gỡ.
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
+    expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
   });
 });
 
