@@ -112,4 +112,27 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.getByText('Item 1 tường')).toBeInTheDocument();
     expect(screen.queryByText('Đã sửa 2 tường')).not.toBeInTheDocument();
   });
+
+  it('bấm "Hoàn tác" chạy lượt hoàn tác đúng một lần rồi toast rời đi (B-V12b-06)', () => {
+    const onUndo = vi.fn();
+    const Single = () => {
+      const { addToast } = useToast();
+      return <Button onClick={() => addToast({ message: 'đã vô hiệu hoá tài khoản', onUndo })}>Add</Button>;
+    };
+
+    render(
+      <Toast.Provider>
+        <Single />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('đã vô hiệu hoá tài khoản')).not.toBeInTheDocument();
+  });
 });
