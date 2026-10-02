@@ -429,7 +429,21 @@ worker — flake sẽ nổ thường xuyên hơn, và nổ ở một bài **khô
   mục 7.4 cấm nâng timeout, và nâng toàn cục che mọi flake khác.
 - **Cổng:** cả bộ chạy xanh **ba lượt liên tiếp**, không phải một.
 - **Không làm:** không đụng bài nào khác của `viewer3d.spec.ts`; không thêm ảnh chuẩn.
-- **Trạng thái:** **chưa chạy.**
+- **Trạng thái:** **đạt** (2026-10-02). Cả bộ ba lượt liền: 29 passed + 3 skipped mỗi lượt
+  (1,2 ph · 46 s · 44 s). Lượt nền trước khi sửa: 29 → 28 + **1 failed** ở `:452`.
+  - **Chẩn đoán `:452` khác kế hoạch:** không phải hạn 5 s quá ngắn. `stepRotate` để màn ở
+    "Trên xuống", và ở góc ấy thu phóng **không làm gì** — bài từng xanh chỉ nhờ đọc `before`
+    lúc camera còn bay 340 ms. Sửa: thu phóng trước khi quay.
+  - **PHÁT HIỆN SẢN PHẨM, đo bằng trình duyệt thật:** cuộn chuột và nút "Phóng to" đứng ở 100%
+    ở ba góc Trục đo / Trên xuống / Mặt cắt; Phối cảnh thì 112,6 → 197,6 → 390,6%.
+    `onViewportWheel` (`useViewerShell.ts`) chỉ chạy khi bộ điều khiển có `dolly`, còn
+    `FlatCameraMode` chỉ có `zoom`. Ghi bằng ba bài `test.fixme` — đã bật tạm thành `test`
+    để xác nhận: đỏ đúng chỗ thu phóng, góc Phối cảnh làm đối chứng thì xanh.
+  - `:203` và `:357` (cùng khuôn, kế hoạch chỉ nêu một): thay `toBeVisible()` 5 s bằng
+    `waitForViewerReady` — chờ câu `sr-only` "Mô hình 3D đã dựng xong." của `Viewer3D.tsx`
+    (hoặc câu của nhánh `forbidden` cho vai Người xem), trong ngân sách 20 s sẵn có. KHÔNG
+    dùng "Mô hình đã dựng xong." của thanh trạng thái: câu ấy của vỏ không biết cảnh đã dựng.
+  - Còn mở: `session.ts:59` vẫn dùng hạn mặc định 5 s — chưa thấy nó đỏ, chưa sửa.
 
 ### Chặng 1 — lưới an toàn chống màn trắng
 
@@ -461,7 +475,20 @@ worker — flake sẽ nổ thường xuyên hơn, và nổ ở một bài **khô
 > dùng chung nên đặt bộ lọc ấy **một chỗ** để 35 bài không mỗi bài viết một kiểu. Cách rẻ hơn
 > và chữa gốc: thêm một thẻ `<link rel="icon">` vào `index.html` — nhưng đó là sửa sản phẩm,
 > nên nó là một dòng trong `questions.md`, không phải việc kế hoạch tự làm.
-- **Trạng thái:** **chưa chạy.**
+- **Trạng thái:** **đạt** (2026-10-03). Cả bộ ba lượt liền: **69 passed + 3 skipped** mỗi lượt (1,6 · 1,5 · 1,4 ph).
+  - `e2e/smoke-grid.spec.ts`: 35 bài lưới 1 + 1 bài hộp thoại tạo dự án. `--repeat-each=3`
+    cho lưới 1: **105/105**. Mốc neo riêng từng màn (đã đo: "≥1 nút" đỏ 7 màn vốn khoẻ).
+    Bảng là `Record<ProductRouteKey, Row>` — đã thử bỏ một dòng: `tsc` đỏ.
+  - Lưới 2 trên màn 3D nằm trong `viewer3d.spec.ts` (dùng lại `openViewer`): bốn lớp
+    (diện tích phòng · lịch sử · thư viện đồ đạc · ai đang xem) + Escape bỏ chọn ở bài Q2.
+    Tổng lưới 2: **6**, không 13 — bỏ/hoãn có lý do: EditorTour (cơ chế hiện còn là giả
+    thuyết), ShareDialog/ViolationDetail (cần bơm), WallGeometryEditor (toạ độ chưa đo),
+    PipelineFailure/ConnectionStates/StateGallery (không đường mở).
+  - Lỗi console được phép, mỗi cái **bắt buộc phải thấy** (nên chúng cũng là ca tự kiểm của
+    bộ thu): SSE `/api/streams/notifications` ở `notifications`, và
+    `/api/projects/project-1/measurements` ở `projectMeasure` — lỗi thứ hai do lưới bắt
+    được, bộ dò lúc tải trang trước đó bỏ sót. Favicon lọc theo đường lượt xin, không theo chữ.
+  - Lượt đầu của cổng (2026-10-02) bị dừng vì máy cạn RAM; đo lại: một lượt cả bộ ăn ~9 GB RAM.
 
 ### Chặng 2..n — luồng sâu theo V1 → V12
 

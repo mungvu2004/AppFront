@@ -200,7 +200,7 @@ async function signInThenOpenViewer(
   await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
   await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
 
-  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  await waitForViewerReady(page);
   expect(authRequests).toEqual([]);
 
   await settleViewer(page);
@@ -298,7 +298,10 @@ async function settleViewer(page: Page): Promise<void> {
 async function dismissTourIfPresent(page: Page, budgetMs: number): Promise<void> {
   const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
 
-  await skip.first().waitFor({ state: 'visible', timeout: budgetMs }).catch(() => undefined);
+  await skip
+    .first()
+    .waitFor({ state: 'visible', timeout: budgetMs })
+    .catch(() => undefined);
 
   if ((await skip.count()) === 0) {
     return;
@@ -310,8 +313,33 @@ async function dismissTourIfPresent(page: Page, budgetMs: number): Promise<void>
   await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
 }
 
-/** Dựng mô hình bộ mẫu tốn bao lâu là cùng. */
+/** Tải route + dựng mô hình bộ mẫu tốn bao lâu là cùng. */
 const VIEWER_READY_TIMEOUT_MS = 20_000;
+
+/**
+ * Chờ màn TỰ NÓI rằng cảnh đã tới trạng thái cuối — câu `sr-only` của
+ * `Viewer3D.tsx`: "Mô hình 3D đã dựng xong." chỉ có ở `success`/`collapsed`
+ * (tức mọi tầng đã dựng, `useViewer3D.ts`), còn vai Người xem thì `forbidden`
+ * được xét TRƯỚC `loading` nên lớp "Đang dựng" không bao giờ hiện và câu chờ
+ * được là câu của nhánh `forbidden`.
+ *
+ * KHÔNG dùng "Mô hình đã dựng xong." của thanh trạng thái: câu ấy của vỏ chỉ
+ * biết dữ liệu dự án đã tải, không biết cảnh đã dựng.
+ *
+ * Thay cho `toBeVisible()` trần trên khung nhìn: lượt chờ ấy dùng hạn mặc định
+ * 5 s cho một route tải muộn, và đỏ khi nhiều bài cùng giành Vite (đo
+ * 2026-10-02: ba bài song song đỏ cả ba ở đúng dòng ấy). Một lượt chờ, một ngân
+ * sách — tải route và dựng mô hình nằm chung trong `VIEWER_READY_TIMEOUT_MS`.
+ */
+async function waitForViewerReady(page: Page): Promise<void> {
+  const built = page.getByText('Mô hình 3D đã dựng xong.', { exact: true });
+  const viewerRole = page.getByText(
+    'Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.',
+    { exact: true },
+  );
+  await expect(built.or(viewerRole)).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
+  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+}
 
 /**
  * Phần ngân sách dành cho việc CHỜ lớp hướng dẫn hiện ra, tách khỏi phần chờ
@@ -324,7 +352,9 @@ const VIEWER_READY_TIMEOUT_MS = 20_000;
  * thế, dấu vết dừng ở `skip.count()`.
  *
  * 6 000 ms vì lớp hướng dẫn hiện ngay sau khi mô hình dựng xong, chứ không chờ
- * mạng thêm lần nào. Cộng cả hai phần là 26 giây, vẫn nằm trong trần 30.
+ * mạng thêm lần nào. Cộng cả hai phần là 26 giây, vẫn nằm trong trần 30 — nay
+ * đúng như thế: trước 2026-10-02 còn một lượt chờ khung nhìn 5 s ĐỨNG TRƯỚC hai
+ * phần này, thành 31 giây. `waitForViewerReady` gộp nó vào phần 20 giây.
  */
 const TOUR_APPEAR_TIMEOUT_MS = 6_000;
 
@@ -354,7 +384,7 @@ async function timed(label: string, work: () => Promise<void>): Promise<number> 
 async function openViewer(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(VIEWER_PATH);
-  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  await waitForViewerReady(page);
   await settleViewer(page);
 }
 
@@ -546,12 +576,80 @@ test('mở được màn 3D và màn không trắng', async ({ page }) => {
 test('ba việc chỉ bằng thứ nhìn thấy trên màn: quay, thu phóng, chọn tầng', async ({ page }) => {
   await openViewer(page);
 
-  const rotateMs = await timed('quay', () => stepRotate(page));
+  /* Thu phóng TRƯỚC khi quay. `stepRotate` để màn ở "Trên xuống", và ở góc ấy
+     thu phóng không làm gì — xem bài `test.fixme` ngay dưới. Thứ tự cũ (quay
+     rồi mới thu phóng) chỉ xanh khi `before` được đọc lúc camera còn đang bay
+     340 ms; máy bận thì đọc sau khi đáp, ra 100 và đỏ (đo 2026-10-02: một lượt
+     đỏ trong hai). */
   const zoomMs = await timed('thu phóng', () => stepZoom(page));
+  const rotateMs = await timed('quay', () => stepRotate(page));
   const storeyMs = await timed('chọn tầng', () => stepChooseStorey(page));
 
   logDuration('tổng ba việc', rotateMs + zoomMs + storeyMs);
 });
+
+/**
+ * Mức thu phóng sau khi camera đã ĐÁP: hai lần đọc cách nhau 400 ms trùng nhau.
+ * 400 > 340 ms của một lượt bay (`presets.ts`), nên trùng nhau là đã đứng yên.
+ */
+async function settledZoomPercent(page: Page): Promise<number> {
+  let last = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const now = percentOf((await zoomLabel(page).innerText()).trim());
+        const settled = now === last;
+        last = now;
+        return settled;
+      },
+      { intervals: [400] },
+    )
+    .toBe(true);
+
+  return last;
+}
+
+for (const face of ['Trục đo', 'Trên xuống', 'Mặt cắt'] as const) {
+  /*
+   * PHÁT HIỆN, đo 2026-10-02 bằng trình duyệt thật: ở ba góc này cả cuộn chuột
+   * lẫn nút "Phóng to" đều để nhãn đứng ở 100%; ở "Phối cảnh" thì 112,6 → 197,6
+   * → 390,6%. `onViewportWheel` (`useViewerShell.ts`) chỉ chạy khi bộ điều khiển
+   * có `dolly`, mà `FlatCameraMode` (`lib/three/camera/modes.ts`) chỉ có `zoom`.
+   *
+   * Mở lại khi: `onViewportWheel` xử lý được bộ điều khiển chỉ có `zoom`. Lúc ấy
+   * bài này xanh — đổi `test.fixme` thành `test`.
+   */
+  test.fixme(`thu phóng được ở góc "${face}" — bằng cuộn chuột và bằng nút`, async ({ page }) => {
+    await openViewer(page);
+
+    const cube = page.getByRole('group', { name: 'Khối định hướng' });
+    await cube.getByRole('button', { name: face, exact: true }).click();
+    await expect(cube.getByRole('button', { name: face, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    const beforeWheel = await settledZoomPercent(page);
+    const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    for (let notch = 0; notch < ZOOM_NOTCHES; notch += 1) {
+      await page.mouse.wheel(0, -WHEEL_DELTA_PX);
+    }
+    await expect
+      .poll(async () => percentOf((await zoomLabel(page).innerText()).trim()))
+      .toBeGreaterThan(beforeWheel);
+
+    const beforeButton = await settledZoomPercent(page);
+    await page
+      .getByRole('group', { name: 'Cụm thu phóng' })
+      .getByRole('button', { name: 'Phóng to', exact: true })
+      .click();
+    await expect
+      .poll(async () => percentOf((await zoomLabel(page).innerText()).trim()))
+      .toBeGreaterThan(beforeButton);
+  });
+}
 
 test('ViewCube bấm được bằng chuột, bản đồ nhỏ không đè lên nó (P2)', async ({ page }) => {
   await openViewer(page);
@@ -599,7 +697,37 @@ test('tìm được một phòng chỉ bằng thứ nhìn thấy trên màn (Q2)
   await openViewer(page);
 
   await timed('tìm một phòng', () => findOneRoom(page));
+
+  /* Lưới 2 (Chặng 1): Escape bỏ chọn, và panel thanh tra thôi nói về phòng ấy.
+     Bài đơn vị chỉ có `fireEvent`; đây là đường đi qua sổ phím tắt thật. */
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('complementary', { name: 'Thanh tra đối tượng' })).not.toContainText(
+    ROOM_ID,
+  );
 });
+
+/*
+ * Lưới 2 (Chặng 1) — lớp không có route của màn 3D: mở bằng nút nhìn thấy được,
+ * `Escape` đóng đúng lớp ấy (A12), đường dẫn không đổi, khung nhìn còn nguyên.
+ */
+for (const label of ['Diện tích phòng', 'Lịch sử thao tác', 'Thư viện đồ đạc', 'Ai đang xem']) {
+  test(`lớp "${label}" mở được bằng nút, Escape đóng nó và chỉ nó (A12)`, async ({ page }) => {
+    await openViewer(page);
+    const before = page.url();
+    const toggle = page.getByRole('button', { name: label, exact: true });
+
+    await toggle.click();
+    /* Cú bấm đầu trên màn này có thể gọi lớp hướng dẫn lên — xem `findOneRoom`. */
+    await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await page.keyboard.press('Escape');
+
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(page.url()).toBe(before);
+    await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  });
+}
 
 /**
  * R1 — **bấm chuột vào khung nhìn 3D và chọn được một đối tượng.**
