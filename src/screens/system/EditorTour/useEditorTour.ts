@@ -435,6 +435,28 @@ function readViewportKey(): string {
   return `${window.innerWidth}:${window.innerHeight}:${window.scrollX}:${window.scrollY}`;
 }
 
+/**
+ * Neo của bước là phần tử của MÀN CHỦ, và nó có thể xuất hiện muộn — vỏ 3D dựng
+ * "Chế độ xem" sau khi mô hình về, màn xuất dựng nút xuất khi có thứ để xuất. Không
+ * nghe DOM thì một bước chỉ-có-neo không bao giờ sống lại cho tới một `resize`
+ * tình cờ (B-V2-01, phần của `/3d` và màn xuất).
+ */
+function subscribeDom(onStoreChange: () => void): () => void {
+  if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') {
+    return (): void => {};
+  }
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['aria-label', 'data-tour-anchor'],
+  });
+  return (): void => {
+    observer.disconnect();
+  };
+}
+
 /** Ảnh chụp sổ phím cho `useSyncExternalStore` — đổi khi một phím vào hoặc ra. */
 function readRegistryKey(registry: ShortcutRegistry): string {
   return registry
@@ -480,6 +502,14 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   useSyncExternalStore(
     registry.subscribe,
     () => readRegistryKey(registry),
+    SERVER_VIEWPORT_KEY,
+  );
+
+  // …và khi một neo vào hoặc rời trang. Ảnh chụp chỉ ghi CÓ/KHÔNG từng neo, nên
+  // DOM đổi chỗ khác không vẽ lại lớp phủ.
+  useSyncExternalStore(
+    subscribeDom,
+    () => TOUR_STEPS.map((step) => (resolveAnchor(step.id) === null ? '0' : '1')).join(''),
     SERVER_VIEWPORT_KEY,
   );
 
