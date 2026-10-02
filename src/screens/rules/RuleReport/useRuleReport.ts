@@ -580,8 +580,13 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   );
 
   const onRerun = useCallback((): void => {
+    // `refetch` bỏ qua `enabled`, nên không có mô hình thì nó chỉ ném lỗi (B-V12-02).
+    if (graph === null) {
+      return;
+    }
+
     void query.refetch();
-  }, [query]);
+  }, [graph, query]);
 
   /**
    * "Xác nhận đã xử lý" — đưa người dùng sang bước xuất bản.
@@ -640,5 +645,6 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     onRerun,
     onConfirmResolved,
     previewRef,
+    settingsPath: ROUTES.project.ruleSettings(projectId),
   };
 }

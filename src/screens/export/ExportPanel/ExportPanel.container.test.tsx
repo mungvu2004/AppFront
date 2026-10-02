@@ -16,16 +16,20 @@
  * khung, container không khi nào trống.
  */
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import { renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
 import { ExportPanelContainer } from './ExportPanel.container';
+import { createExportPanelGateway } from './exportPanelGateway';
+import { useExportPanel } from './useExportPanel';
 
 const PROJECT_ID = 'P-000000001';
 
@@ -89,5 +93,30 @@ describe('ExportPanelContainer — nút "chia sẻ" mở ShareDialogContainer (R
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+  });
+});
+
+describe('B-V12-05 — xuất xong thì tệp tải về máy, đúng lời màn đã hứa', () => {
+  it('một lượt xuất thành công gọi `deliver` đúng một lần với chính tệp vừa xuất', async () => {
+    const deliver = vi.fn();
+    const gateway = createExportPanelGateway({ deliver });
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useExportPanel({ projectId: PROJECT_ID, gateway }), { wrapper });
+
+    act(() => {
+      result.current.onSelectFormat('spatial-json');
+    });
+    act(() => {
+      result.current.onExport();
+    });
+
+    await waitFor(() => {
+      expect(deliver).toHaveBeenCalledTimes(1);
+    });
+    expect(deliver.mock.calls[0]?.[0]).toMatchObject({ fileName: expect.stringMatching(/\.json$/u) });
   });
 });

@@ -153,4 +153,9 @@ export interface RuleReportViewProps {
    * View CHỈ gọi ref này, KHÔNG tự nhập three.js.
    */
   readonly previewRef: (canvas: HTMLCanvasElement | null) => void;
+  /**
+   * Đường sang màn cài đặt bộ luật, dựng từ `@/routes/paths`. Vắng thì không có liên kết —
+   * story và test dựng view thẳng không cần nó.
+   */
+  readonly settingsPath?: string;
 }

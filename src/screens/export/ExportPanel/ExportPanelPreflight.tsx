@@ -43,7 +43,14 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
             {row.fixHref !== null && (
               <a
                 href={row.fixHref}
-                onClick={() => {
+                onClick={(event) => {
+                  // Bấm trái thường đi qua router: để thẻ `<a>` tự đi thì cả trang nạp
+                  // lại và kho mất sạch (B-V12-06). Phím bổ trợ / chuột giữa = tab khác.
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                  }
+
+                  event.preventDefault();
                   onFollowFix(row.id);
                 }}
                 className={cn(

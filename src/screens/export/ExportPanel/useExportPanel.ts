@@ -433,6 +433,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     },
 
     onSuccess: (file, formatId) => {
+      // Lời màn đã hứa (`DESTINATION_CAPTION`): xuất xong là tệp về thư mục tải xuống.
+      // Nút ở hàng là "tải lại" — lượt tải đầu là việc của đây (B-V12-05).
+      gateway.deliver(file);
       gateway.track({
         formatId,
         outcome: 'success',

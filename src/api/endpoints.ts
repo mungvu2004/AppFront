@@ -207,6 +207,8 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial/layer`,
     version: (projectId: string, versionId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/versions/${versionId}`,
+    /** N17 — lịch sử phiên bản của MỘT tầng; tầng đi bằng query `floorId` (`http.get`, `query`). */
+    versions: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/versions`,
   },
   /**
    * Hai luồng SSE của BE (S1 tiến độ tải lên, S2 thông báo) — B4-01.

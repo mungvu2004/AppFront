@@ -42,8 +42,8 @@
  * tệ hơn không mở tấm trượt nào".
  */
 
-import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useMemo, useState, type MouseEvent } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -127,6 +127,7 @@ function toViolation(row: RuleReportRow): Violation {
 function WiredRuleReport(props: WiredRuleReportProps) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
   const activeFloorId = useStore((state) => state.activeFloorId);
+  const navigate = useNavigate();
 
   const viewProps = useRuleReport({
     projectId: props.projectId,
@@ -142,8 +143,25 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   const openRow = openIndex === -1 ? null : (allRows[openIndex] ?? null);
   const floorId = openRow === null ? null : (activeFloorId ?? openRow.levelId);
 
+  /**
+   * View vẽ liên kết trong ứng dụng bằng `<a href>` thường (story dựng nó ngoài router).
+   * Để nguyên thì trình duyệt nạp lại cả trang và kho mất sạch (B-V12-06), nên chỗ ráp
+   * chặn lượt bấm và đẩy đường qua router — cùng khuôn `UserManagement.container.tsx`.
+   * Chỉ chặn bấm trái không phím bổ trợ: mở ở tab khác vẫn là của người dùng.
+   */
+  const onClickCapture = (event: MouseEvent<HTMLDivElement>): void => {
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+    const href = (event.target as Element | null)?.closest?.('a[href]')?.getAttribute('href');
+    if (href == null || !href.startsWith('/')) return;
+
+    event.preventDefault();
+    void navigate(href);
+  };
+
   return (
-    <div className="relative h-full">
+    <div className="relative h-full" onClickCapture={onClickCapture}>
       <RuleReport
         {...viewProps}
         onSelectRow={(rowKey) => {

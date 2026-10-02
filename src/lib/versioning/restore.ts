@@ -3,6 +3,8 @@ import type { VersionSnapshot } from './diff';
 export interface VersionMetadata {
   createdAt: string;
   creatorId: string;
+  /** Display name the server sends alongside `creatorId` (N17), when there is one. */
+  creatorName?: string;
   id: string;
   note?: string;
   sequence: number;
