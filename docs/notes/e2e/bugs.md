@@ -46,11 +46,11 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 | Trạng thái | Số mục |
 |---|---|
-| đã sửa | 76 |
+| đã sửa | 77 |
 | chờ quyết | 20 |
 | không phải lỗi | 22 |
 | ngoài FE | 8 |
-| mở | 3 |
+| mở | 2 |
 | **cộng** | **129** |
 
 ## Mục lục
@@ -175,7 +175,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V12-06 | Link "sửa" (màn xuất) và link khắc phục (màn luật) nạp lại cả trang | đã sửa | trung bình | W09 |
 | B-V12-07 | Màn dữ liệu rỗng vẫn khoe "Hợp lệ … — 0 lỗi" | đã sửa | thấp | W09 |
 | B-V12-08 | "Còn 2487 dòng nữa" không có dấu nhóm nghìn | đã sửa | thấp | W09 |
-| B-V12-09 | Chip "xem hướng dẫn" che nút "chia sẻ" ở màn xuất | mở | trung bình | W09 |
+| B-V12-09 | Chip "xem hướng dẫn" che nút "chia sẻ" ở màn xuất | đã sửa | trung bình | W09 |
 | B-V12-10 | Màn lịch sử phiên bản không mở được bằng bất kỳ đường nào | đã sửa | cao | W09 |
 | B-V12-11 | Màn cài đặt bộ luật không có lối vào trong giao diện | đã sửa | thấp | W09 |
 | B-V12b-01 | Bấm "xoá" trên hàng người dùng không hỏi gì — hộp thoại xoá hẳn không bao giờ hiện | đã sửa | trung bình | W10 |
@@ -1950,7 +1950,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 ### B-V12-09 · Chip "xem hướng dẫn" che nút "chia sẻ" ở màn xuất
 
-- **Trạng thái:** mở — chuyển W02 (đang sửa `EditorTour`); điều phối chốt 2026-10-03: KHÔNG dời chip ở W09
+- **Trạng thái:** đã sửa (`b51b966`) — sửa dưới mã **B-V2-05** (W02): chip xuống giữa đáy; bài e2e của B-V2-05 đo cả ba màn chủ ở hai cỡ khung nhìn
 - **Mức:** trung bình — sau khi bỏ qua tour, bấm chuột vào "chia sẻ" trúng chip, không mở hộp chia sẻ
 - **Bất biến vi phạm:** A12 (điều khiển nhìn thấy mà không bấm được bằng chuột)
 - **Phát hiện:** 2026-09-30 · V12 (`elementFromPoint` = `SPAN:xem hướng dẫn`) — plan.md mục 9 F6

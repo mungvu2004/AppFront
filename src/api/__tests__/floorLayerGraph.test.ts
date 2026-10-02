@@ -146,7 +146,13 @@ describe('readProjectLayerGraph — màn quản lý tầng (B-V6-01 phần V7)',
 
     expect(floors.length).toBeGreaterThan(0);
     expect(readLayer).toHaveBeenCalledTimes(floors.length);
-    expect(graph?.byKind.level).toEqual(floors.map((floor) => floor.id));
+    /* Một Level cho mỗi tầng. KHÔNG so mã với `floor.id`: trên BE hai mã trùng nhau
+       (`level_out`, id = floor.id), nhưng bộ mẫu ánh xạ mã tầng `L1` thành một
+       `LevelId` hợp lệ (`levelIdOfFloor`, `__mocks__/client.ts`) — B-V9-08. */
+    expect(graph?.byKind.level).toHaveLength(floors.length);
+    expect(readLayer.mock.calls.map(([input]) => input.floorId)).toEqual(
+      floors.map((floor) => floor.id),
+    );
   });
 
   it('cổng thật của màn tầng: kho đã có thì giữ kho', async () => {
