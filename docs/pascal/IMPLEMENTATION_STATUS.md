@@ -682,7 +682,7 @@ bác bỏ bằng số.** Vai 1 tự nhận điểm yếu này trước.
 | Việc | Cần fork? | Bằng chứng |
 |---|---|---|
 | Dùng `editor` ngoài Next.js | **không** | mục 4.5 — 17 dòng shim, đã chạy |
-| 4 vi phạm CSP | **không** | đã sửa xong phía AppFront, 0 vi phạm (§8e) |
+| 4 vi phạm CSP | **không** | 3 vi phạm Iconify đã sửa phía AppFront (alias `@iconify/react/offline`, còn hiệu lực). **Vi phạm `eval` của zod CÒN 1 trên màn thật** — nhát vá `jitless` của §8e chỉ nằm trong trang spike `src/vach-ngan.tsx`, không theo sang `/projects/:id/3d/pascal` (đo 2026-10-03, `docs/notes/e2e/fragments/W08.md` B-V10-05) |
 | Nhát cắt C2 (−74,9 % `.wasm`) | **không** | đo được ở cấu hình vite của dự án thử; cần vá thêm lượt dựng **worker** |
 | Nhát cắt C3 | có | nhưng nó đổi **0,0 KiB** — không đáng |
 | **Đổi tên 89 `@property` `--tw-`** | **có, hoặc một tiền tố Tailwind** | phạm vi tài liệu, không bọc scope được. Tailwind 4 có `prefix()` — **chưa đo** liệu nó đủ |

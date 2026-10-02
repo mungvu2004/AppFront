@@ -104,7 +104,7 @@ chữa, trên cây cố ý không có lời chữa. Thứ tự đúng của sổ
 | 4 | `G2-THREE (c)` | 1 — y như trên, cho #7 |
 | 5 | Câu 2 — ngưỡng độ mượt | **0 trực tiếp**, nhưng là **dữ kiện của câu mở 45 việc**. Chốt phạm vi trước khi biết điều kiện dừng là thật hay là hằng số `maxFps = 50` là chốt trên một con số chưa biết nghĩa |
 | 6 | Câu 3 — ảnh chuẩn linux | 0 bây giờ, 2 sau khi gỡ khoá thanh toán. **Câu trả lời một mình không đủ** |
-| 7 | Câu 4 — CSP | 0 — **đã bị việc làm trả lời trước**: đo 4 → 0. Thiếu một câu xác nhận hồi tố |
+| 7 | Câu 4 — CSP | 0 — **đã bị việc làm trả lời trước**: đo 4 → 0 (trên trang spike; màn thật đo lại 2026-10-03 ra **1** — `01-ho-so-cong-T4.1.md` §8e). Thiếu một câu xác nhận hồi tố |
 | 8 | Câu 5 — thi công T5.1 | 0 — y như trên: phương án **B đã thi hành** (PR #6) mà chưa có câu |
 | 9 | Câu 6 — đồng bộ sổ tay | 0 — **đã xong**, sổ tay nay bản **2.4** |
 | 10 | Câu 7 — `T2.7 sau T2.5` | 0 — chỉ ảnh hưởng thứ tự đợt sau |

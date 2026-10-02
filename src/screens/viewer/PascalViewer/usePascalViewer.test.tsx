@@ -16,12 +16,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { SpatialGraph } from '@/domain/spatial/types';
+import type * as ToPascalModule from '@/lib/pascal/toPascal';
 import {
   __resetFeatureFlagsForTests,
   setFeatureFlagOverride,
 } from '@/lib/telemetry/flags';
 
 import { usePascalViewer, type UsePascalViewerOptions, type UsePascalViewerResult } from './usePascalViewer';
+
+/**
+ * Bộ đổi dữ liệu THẬT, bọc một lớp đếm lượt gọi và hỏng theo yêu cầu.
+ *
+ * Không thay nó bằng đồ giả: mọi bài khác của tệp vẫn cần cảnh thật. Lớp bọc chỉ
+ * để trả lời hai câu mà trạng thái màn không nói ra — cờ tắt thì nó có chạy
+ * không (B-V10-03), và "thử lại" có chạy lại nó không (B-V10-04).
+ */
+const adapter = vi.hoisted(() => ({ calls: 0, failNext: 0 }));
+
+vi.mock('@/lib/pascal/toPascal', async (importOriginal) => {
+  const actual = await importOriginal<typeof ToPascalModule>();
+
+  return {
+    ...actual,
+    toPascalScene: (graph: SpatialGraph) => {
+      adapter.calls += 1;
+      if (adapter.failNext > 0) {
+        adapter.failNext -= 1;
+        throw new Error('Failed to fetch dynamically imported module');
+      }
+
+      return actual.toPascalScene(graph);
+    },
+  };
+});
 
 /**
  * Trần chờ rộng hơn mặc định, và có lý do đo được.
@@ -40,6 +67,18 @@ import { usePascalViewer, type UsePascalViewerOptions, type UsePascalViewerResul
 const ASYNC_TIMEOUT_MS = 15_000;
 
 vi.setConfig({ testTimeout: 20_000 });
+
+/**
+ * Đủ cho lượt `import()` + `then` của hook chạy xong trong jsdom.
+ *
+ * Một lượt chờ theo thời gian, và đó là chỗ yếu có chủ ý: không có mốc dương
+ * nào cho "hook KHÔNG làm gì". Đo 2026-10-03 trên mã CHƯA sửa B-V10-03: chờ một
+ * microtask hay 50 ms thì bài vẫn xanh (vitest dựng module mock qua nhiều nhịp);
+ * 1 500 ms thì đỏ đúng. Nếu máy chậm hơn thế, bài chỉ có thể sai về phía XANH,
+ * không bao giờ đỏ oan. Đường chặn hồi quy chắc chắn là bài e2e "cờ tắt" (đếm
+ * request mạng sau `networkidle`).
+ */
+const ADAPTER_SETTLE_MS = 1_500;
 
 /**
  * Hook cần một phần tử DOM thật cho `canvasRef` — nó chỉ nạp gói khi có chỗ để
@@ -155,6 +194,8 @@ const press = (key: string): void => {
 beforeEach(() => {
   __resetFeatureFlagsForTests();
   setFeatureFlagOverride('scene.pascal-viewer', true);
+  adapter.calls = 0;
+  adapter.failNext = 0;
 });
 
 afterEach(() => {
@@ -171,6 +212,71 @@ describe('máy trạng thái', () => {
 
     expect(probe.state).toBe('forbidden');
     expect(loadMount).not.toHaveBeenCalled();
+  });
+
+  it('cờ tắt thì KHÔNG chạy cả bộ đổi dữ liệu — không ai xem cảnh ấy (B-V10-03)', async () => {
+    setFeatureFlagOverride('scene.pascal-viewer', false);
+    mountHook({ graph: GRAPH, loadMount: harness().loadMount });
+
+    // Xem `ADAPTER_SETTLE_MS`: không có mốc dương cho "không làm gì".
+    await import('@/lib/pascal/toPascal');
+    await new Promise((resolve) => {
+      setTimeout(resolve, ADAPTER_SETTLE_MS);
+    });
+
+    expect(adapter.calls).toBe(0);
+  });
+
+  it('bộ đổi dữ liệu hỏng rồi "thử lại" thì CHẠY LẠI nó, không kẹt "loading" (B-V10-04)', async () => {
+    adapter.failNext = 1;
+    const bench = harness();
+    const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
+
+    await vi.waitFor(() => {
+      expect(probe.viewModel.errorCode).toBe('PASCAL-01');
+    }, { timeout: ASYNC_TIMEOUT_MS });
+
+    probe.retry();
+    await probe.ready(bench);
+
+    expect(adapter.calls).toBe(2);
+    expect(['success', 'partial']).toContain(probe.state);
+  });
+
+  it('gói hỏng rồi "thử lại" thì xin gói ở URL KHÁC — trình duyệt giữ lỗi theo URL (B-V10-01)', async () => {
+    const mountScript = (): HTMLScriptElement | null =>
+      document.head.querySelector<HTMLScriptElement>('script[src*="pascal-mount"]');
+    // Không truyền `loadMount`: đây là bài duy nhất chạy bộ nạp thật.
+    const probe = mountHook({ graph: GRAPH });
+
+    await vi.waitFor(() => {
+      expect(mountScript()).not.toBeNull();
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    const first = mountScript()!;
+    const firstSrc = first.src;
+
+    act(() => {
+      first.dispatchEvent(new Event('error'));
+    });
+    await vi.waitFor(() => {
+      expect(probe.viewModel.errorCode).toBe('PASCAL-01');
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(first.isConnected).toBe(false);
+
+    probe.retry();
+
+    await vi.waitFor(() => {
+      expect(mountScript()).not.toBeNull();
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    const second = mountScript()!;
+
+    expect(second.src).not.toBe(firstSrc);
+
+    // Dọn: lượt nạp thứ hai không bao giờ về trong jsdom.
+    act(() => {
+      second.dispatchEvent(new Event('error'));
+    });
+    probe.unmount();
   });
 
   it('chưa có bản vẽ thì "loading"', () => {
