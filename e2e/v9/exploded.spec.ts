@@ -3,7 +3,14 @@ import type { Page } from '@playwright/test';
 
 import { signInAs } from '../fixtures/session';
 
-import { EXPLODED_PATH, FIRST_PAINT_TIMEOUT_MS, FIXTURE_STATUS, expectSceneDrawn, openWithFixture } from './v9';
+import {
+  EXPLODED_PATH,
+  FIRST_PAINT_TIMEOUT_MS,
+  FIXTURE_STATUS,
+  MEASURE_PATH,
+  expectSceneDrawn,
+  openWithFixture,
+} from './v9';
 
 /**
  * Màn tách tầng (`ExplodedView`) — `plan.md` V9 mục 1.
@@ -82,15 +89,17 @@ test.fixme(
   },
 );
 
-test.fixme(
-  'ray tầng gọi tầng bằng tên, không lộ mã bộ mẫu kiểu "L-01FIXTURE0" (B-V9-08, cùng gốc Q8)',
-  // Lý do: vỏ dựng nhãn nút tầng từ `code: storey.id` (`useViewerShell.ts:600`), nên mã
-  // lộ ra ở mọi màn dùng vỏ — nay cả tách tầng và đo, vì hai màn dựng nhà mẫu. Q8 = A
-  // đã chốt; chủ sửa là vỏ 3D (nhóm V8). Mở lại khi bản sửa Q8 được gộp.
-  async ({ page }) => {
-    await openWithFixture(page, EXPLODED_PATH);
+for (const [screen, path] of [
+  ['tách tầng', EXPLODED_PATH],
+  ['đo', MEASURE_PATH],
+] as const) {
+  test(`ray tầng của màn ${screen} gọi tầng bằng tên, không lộ mã bộ mẫu kiểu "L-01FIXTURE0" (B-V9-08)`, async ({
+    page,
+  }) => {
+    await openWithFixture(page, path);
     // Chữ NHÌN THẤY, không tên truy cập: nút đã mang aria-label "Tầng trệt, cao độ …",
-    // chỉ chữ in trên nút là mã — nên lỗi chỉ người nhìn màn thấy.
+    // chỉ chữ in trên nút từng là mã — nên lỗi chỉ người nhìn màn thấy.
     await expect(page.getByText(/FIXTURE/u)).toHaveCount(0);
-  },
-);
+    await expect(page.getByRole('option', { name: /cao độ/u })).toHaveText(['Trệt', '02', '03', 'Mái']);
+  });
+}

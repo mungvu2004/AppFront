@@ -113,33 +113,17 @@ test('vai Người xem theo phiên thật thấy bản vẽ nhưng không áp đ
   await expect(page.getByRole('button', { name: 'Áp dụng tỷ lệ' })).toHaveCount(0);
 });
 
-test('B-V5-01: kho chưa có tầng thì "Áp dụng tỷ lệ" nói lý do tại chỗ, không im lặng (A11)', async ({
-  page,
-}) => {
+// B-V5-01: route nạp tầng qua N16 khi kho rỗng (`useScaleCalibration.ts`, `layerQuery`).
+// Nhánh "N16 hỏng thì nói lý do tại chỗ" không dựng được ở đây — bộ mẫu không làm
+// N16 hỏng, và `page.route` không bắt được client giả trong trình duyệt — nên nó ở
+// bài đơn vị `useScaleCalibration.test.ts`.
+test('B-V5-01: vào thẳng route, áp tỷ lệ xong thì màn nói "Đã áp tỷ lệ cho bản vẽ"', async ({ page }) => {
   const canvas = await openScale(page, 'L2');
   await drag(page, canvas);
   await page.getByLabel('Chiều dài thật').fill('4800');
 
   await page.getByRole('button', { name: 'Áp dụng tỷ lệ' }).click();
 
-  await expect(page.getByRole('alert').filter({ hasText: 'Chưa nạp dữ liệu không gian của tầng này' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Đã áp tỷ lệ cho bản vẽ' })).toBeVisible();
+  await expect(page.getByText('Chưa nạp dữ liệu không gian của tầng này', { exact: false })).toHaveCount(0);
 });
-
-test.fixme(
-  'B-V5-01: áp tỷ lệ xong thì màn nói "Đã áp tỷ lệ cho bản vẽ"',
-  // Lý do: route chưa nạp đồ thị không gian của tầng, và `:floorId` của route
-  // (`L2`, mã tầng API) không phải mã `Level` của đồ thị — nên `onApply`
-  // (`useScaleCalibration.ts`) không có gì để vá. Đường nạp là
-  // `apiClient.spatial.readLayer` (N16, nhận mã tầng API, trả kèm mã Level) mà W04
-  // đang thêm.
-  // Mở lại khi: đã gộp `readLayer` của W04 (B-V6-01) và màn tỷ lệ nạp tầng qua nó.
-  async ({ page }) => {
-    const canvas = await openScale(page, 'L2');
-    await drag(page, canvas);
-    await page.getByLabel('Chiều dài thật').fill('4800');
-
-    await page.getByRole('button', { name: 'Áp dụng tỷ lệ' }).click();
-
-    await expect(page.getByRole('heading', { name: 'Đã áp tỷ lệ cho bản vẽ' })).toBeVisible();
-  },
-);

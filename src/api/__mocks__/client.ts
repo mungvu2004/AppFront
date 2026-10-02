@@ -146,6 +146,19 @@ const makeFallbackFloor = (floorId: string): Floor => ({
  * tầng của màn tường (A6). Trục đi kèm dù N16 v1 của BE luôn trả `axes: []` — xem
  * B-V6 trong `docs/notes/e2e/fragments/W04.md`.
  */
+/**
+ * Mã `Level` N16 giả trả cho một tầng ngoài bộ mẫu A14.
+ *
+ * BE đặt `level.id = floor.id` (`spatial_read/assemble.py`), và mã tầng của BE là
+ * một `LevelId` hợp lệ vì FE tạo nó bằng `createId`. Mã tầng của bộ mẫu API
+ * (`L1`, `L2`…) thì KHÔNG hợp lệ, nên ép thẳng nó thành `LevelId` làm
+ * `isEntityOfKind`/`applyPatch` từ chối tầng ấy và "Áp dụng tỷ lệ" không vá được
+ * gì (B-V5-01). Đây là ánh xạ của riêng bộ mẫu: thân mã là mã tầng viết hoa, `-`
+ * thành `X`, đệm `0` đủ mười ký tự.
+ */
+const levelIdOfFloor = (floorId: string): LevelId =>
+  `L-${floorId.toUpperCase().replace(/[^0-9A-Z]/gu, 'X').padStart(10, '0')}` as LevelId;
+
 const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer): FloorLayerDocument => {
   const sampleLevel = SAMPLE_BUILDING.levels.find((level) => level.id === floor.id);
   const onFloor = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
@@ -168,7 +181,7 @@ const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer)
             confidence: 1,
             elevationMm: floor.elevationMm,
             heightMm: floor.heightMm,
-            id: floor.id as LevelId,
+            id: levelIdOfFloor(floor.id),
             name: floor.name,
             order: floor.order,
             reviewed: true,

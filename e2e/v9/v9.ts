@@ -15,7 +15,10 @@ export const PROJECT_ID = 'project-1';
 
 export const EXPLODED_PATH = ROUTES.project.exploded(PROJECT_ID);
 export const MEASURE_PATH = ROUTES.project.measure(PROJECT_ID);
-/** `L1` không có trong nhà mẫu — màn rơi về tầng đầu (`useOverlayComparison.ts:368`). */
+/**
+ * `L1` là mã tầng API của bộ mẫu; màn đọc nó qua N16 (B-V9-06). Bộ mẫu không tìm
+ * thấy khung bản vẽ của `L1` (`FRAME_NOT_FOUND`), nên màn ở `error` theo thiết kế.
+ */
 export const OVERLAY_PATH = ROUTES.project.overlay(PROJECT_ID, 'L1');
 
 /** Lần tải đầu của một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */

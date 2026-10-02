@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { isIdOfKind } from '@/domain/spatial/ids';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { useStore } from '@/store';
 import { createAxisGridManagerGateway } from '@/screens/qc/AxisGridManager/axisGridManagerGateway';
@@ -42,7 +43,11 @@ describe('readFloorLayerGraph', () => {
   it('tầng chưa có tài liệu nhận lớp rỗng thật — không phải `null`, không treo', async () => {
     const graph = await readFloorLayerGraph(createMockApiClient().spatial, { floorId: 'L1', projectId: PROJECT_ID });
 
-    expect(graph.byKind.level).toEqual(['L1']);
+    // Mã `Level` hợp lệ, khác mã tầng API — như BE (B-V5-01: `L1` trần bị
+    // `isEntityOfKind`/`applyPatch` từ chối, nên không lệnh nào vá được tầng ấy).
+    expect(graph.byKind.level).toHaveLength(1);
+    expect(graph.byKind.level[0]).not.toBe('L1');
+    expect(isIdOfKind('level', graph.byKind.level[0] ?? '')).toBe(true);
     expect(graph.byKind.wall).toEqual([]);
   });
 

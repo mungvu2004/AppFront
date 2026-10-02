@@ -137,11 +137,10 @@ test.fixme(
   },
 );
 
-test.fixme(
-  'phím R/H/C/V trên nhãn ray đổi được công cụ trên màn đo (B-V9-07, chủ sửa: W04, Q10e)',
-  // Lý do: `TOOL_SHORTCUTS` (`lib/tools/shortcuts.ts:81`) khai bốn phím, nhãn ray
-  // quảng cáo chúng, nhưng không tầng nào đăng ký vào sổ phím. Mở lại sau khi gộp
-  // nhánh W04 (Q10e = A); điều phối viên bật ở lớp gộp.
+test(
+  'phím R/H/C/V trên nhãn ray đổi được công cụ trên màn đo (B-V9-07)',
+  // Vỏ 3D dùng chung với `/3d`: `TOOL_COMBOS` (`viewerShellShortcuts.ts`) là nguồn
+  // của cả nhãn lẫn binding — bản sửa B-V6-08 của W04.
   async ({ page }) => {
     await openWithFixture(page, MEASURE_PATH);
     for (const [key, name] of [

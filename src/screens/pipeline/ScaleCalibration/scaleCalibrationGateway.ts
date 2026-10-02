@@ -19,6 +19,10 @@
  *
  * Tên tầng đọc từ cùng lượt đó (`floorName`), nên màn không cần lượt gọi thứ hai.
  *
+ * Lượt đọc thứ hai là của ĐƯỜNG GHI, không phải của khung vẽ: `readFloorLayer`
+ * (N16) đưa tầng vào kho khi kho rỗng, vì "Áp dụng tỷ lệ" vá `Level` trong kho
+ * — B-V5-01.
+ *
  * ## Phần KHÔNG CÓ — và vì sao vẫn khai
  *
  * Sáu việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
@@ -42,6 +46,8 @@
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { toAppError } from '@/lib/errors';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
@@ -195,6 +201,12 @@ export interface ScaleCalibrationGateway {
   readonly readSnapTargets: (
     input: ReadFloorGeometryInput,
   ) => Promise<ScaleCapabilityResult<readonly ScaleRawSnapTarget[]>>;
+  /**
+   * Đồ thị một tầng qua N16 — nhận MÃ TẦNG API của route, trả `Level` kèm mã
+   * `Level` thật. Nguồn của kho khi kho rỗng, để "Áp dụng tỷ lệ" có tầng mà vá
+   * (B-V5-01). Lỗi thì ném, như `readFloorLayerGraph`.
+   */
+  readonly readFloorLayer: (input: ReadFloorDrawingInput) => Promise<NormalizedSpatial>;
   /** Giữ tỷ lệ vừa áp. Xem ghi chú "Ghi tỷ lệ" ở đầu file. */
   readonly persistScale: (input: PersistScaleInput) => Promise<ScaleCapabilityResult<void>>;
   readonly now: () => number;
@@ -299,6 +311,8 @@ export function createScaleCalibrationGateway(
     readTypicalDoorWidth: async () => unsupported('typicalDoorWidth'),
     readLargestRoomBox: async () => unsupported('largestRoomBox'),
     readSnapTargets: async () => unsupported('snapTargets'),
+
+    readFloorLayer: (input) => readFloorLayerGraph(client.spatial, input),
 
     persistScale: async () => unsupported('persistScale'),
 

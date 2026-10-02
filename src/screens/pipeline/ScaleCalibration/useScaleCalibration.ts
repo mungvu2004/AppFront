@@ -486,6 +486,29 @@ export function useScaleCalibration(
 
   const record = query.data ?? null;
   const drawing = record?.drawing ?? null;
+
+  /*
+   * Đồ thị của tầng qua N16, cùng khoá và cùng khuôn nạp với các màn QC
+   * (`useWallLayerReview.ts`): kho rỗng thì nạp vào kho, kho có đồ thị thì kho
+   * thắng. `:floorId` của route là mã tầng API, đồ thị khoá theo mã `Level`. Trên
+   * BE hai mã trùng; bộ mẫu API thì không (`L2` không phải `LevelId` hợp lệ), nên
+   * `levelId` lấy từ chính tầng N16 trả (B-V5-01). Lượt đọc hỏng không chặn
+   * khung vẽ; "Áp dụng tỷ lệ" khi ấy nói lý do tại chỗ.
+   */
+  const layerQuery = useQuery({
+    queryKey: queryKeys.space.byFloor(floorId),
+    queryFn: ({ signal }) => gateway.readFloorLayer({ floorId, projectId, signal }),
+  });
+  const loadedLayer = layerQuery.data ?? null;
+  const levelId = loadedLayer?.byKind.level[0] ?? floorId;
+  const hasSpatial = useStore((state) => state.spatial !== null);
+  const setSpatial = useStore((state) => state.setSpatial);
+
+  useEffect(() => {
+    if (!hasSpatial && loadedLayer !== null) {
+      setSpatial(loadedLayer, null);
+    }
+  }, [hasSpatial, loadedLayer, setSpatial]);
   const frame = useMemo(() => imageFrameOf(drawing), [drawing]);
 
   /* ---------------------------------------------------------------------- */
@@ -516,7 +539,7 @@ export function useScaleCalibration(
   /* ---------------------------------------------------------------------- */
 
   const storedRatio = useStore((state) => {
-    const entity = state.spatial?.byId[floorId];
+    const entity = state.spatial?.byId[levelId];
 
     if (entity === undefined || !isEntityOfKind('level', entity)) {
       return null;
@@ -595,9 +618,10 @@ export function useScaleCalibration(
   /* Tự lưu (D-07 / A7) — 800 ms là mặc định của chính `useAutosave`.         */
   /* ---------------------------------------------------------------------- */
 
-  const persistRef = useRef({ floorId, gateway, projectId, appliesToEveryFloor: false });
+  const persistRef = useRef({ floorId, levelId, gateway, projectId, appliesToEveryFloor: false });
   persistRef.current = {
     floorId,
+    levelId,
     gateway,
     projectId,
     appliesToEveryFloor: applyScope === 'allFloors',
@@ -605,7 +629,7 @@ export function useScaleCalibration(
 
   const handleSave = useCallback(async (): Promise<void> => {
     const current = persistRef.current;
-    const entity = useStore.getState().spatial?.byId[current.floorId];
+    const entity = useStore.getState().spatial?.byId[current.levelId];
 
     if (entity === undefined || !isEntityOfKind('level', entity)) {
       return;
@@ -957,10 +981,10 @@ export function useScaleCalibration(
       return;
     }
 
-    // Mã tầng đến từ đường dẫn nên nó chỉ là `string`; `LevelId` là mã đã qua
-    // kiểm. Lấy nó ra khỏi chính đồ thị bằng `isEntityOfKind` thay vì ép kiểu:
-    // không có tầng đó trong dữ liệu đang mở thì cũng không có gì để vá.
-    const entity = useStore.getState().spatial?.byId[floorId];
+    // `levelId` là mã `Level` N16 trả cho mã tầng của route (rơi về chính mã
+    // route khi chưa đọc xong). Lấy thực thể ra khỏi đồ thị bằng `isEntityOfKind`
+    // thay vì ép kiểu: không có tầng đó trong kho thì cũng không có gì để vá.
+    const entity = useStore.getState().spatial?.byId[levelId];
 
     if (entity === undefined || !isEntityOfKind('level', entity)) {
       // Kho chưa có tầng này (vào thẳng route, chưa nạp đồ thị): không có gì để
@@ -982,7 +1006,7 @@ export function useScaleCalibration(
     );
 
     setHasApplied(true);
-  }, [floorId]);
+  }, [levelId]);
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (I-01) — không một `addEventListener` nào ở đây (R-72).        */

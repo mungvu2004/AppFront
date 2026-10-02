@@ -471,10 +471,39 @@ describe('useScaleCalibration — áp dụng, tự lưu, hoàn tác', () => {
     expect(mounted.result.current.model.panel.isApplying).toBe(false);
   });
 
-  it('kho chưa có tầng thì bấm áp nói lý do tại chỗ, không im lặng (B-V5-01)', async () => {
+  it('kho rỗng thì nạp tầng qua N16, và áp vào đúng mã Level N16 trả, không phải mã route (B-V5-01)', async () => {
     useStore.getState().setSpatial(null, null);
     const harness = await makeHarness();
-    const mounted = mountHook(harness.gateway);
+    const otherLevel = sampleLevelId(1);
+    // Route mang `FLOOR_ID`; N16 trả một tầng có mã `Level` khác — như BE thật.
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readFloorLayer: () =>
+        harness.gateway.readFloorLayer({ floorId: otherLevel, projectId: PROJECT_ID }),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBeUndefined();
+    const level = useStore.getState().spatial?.byId[otherLevel];
+    expect(level !== undefined && 'scaleMillimetresPerPixel' in level).toBe(true);
+    expect(mounted.result.current.appliedScale).not.toBeNull();
+  });
+
+  it('kho rỗng và N16 hỏng thì bấm áp nói lý do tại chỗ, không im lặng (B-V5-01)', async () => {
+    useStore.getState().setSpatial(null, null);
+    const harness = await makeHarness();
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readFloorLayer: () => Promise.reject(new Error('N16 hỏng')),
+    });
+    const mounted = mountHook(gateway);
     await settle(mounted);
     await dragReferenceLine(mounted);
 
