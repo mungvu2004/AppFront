@@ -632,7 +632,19 @@ export const createHttpClient = ({
         ? options.singleFlightKey
         : `${method}:${url.toString()}`;
 
-      return runSingleFlight(singleFlightKey, () => executeRequest<TRes, TBody>(method, url, options));
+      const shared = await runSingleFlight(singleFlightKey, () =>
+        executeRequest<TRes, TBody>(method, url, options),
+      );
+
+      // The flight runs on its INITIATOR's signal. When that caller walks away (an
+      // unmount, StrictMode's double mount) every caller that joined it inherited the
+      // abort — ShareDialog opened on "bị huỷ" with a healthy server (B-V3-04). A
+      // caller that did not abort asks again, on its own signal.
+      if (!shared.ok && shared.error.kind === 'aborted' && options.signal?.aborted !== true) {
+        return executeRequest<TRes, TBody>(method, url, options);
+      }
+
+      return shared;
     }
 
     return executeRequest<TRes, TBody>(method, url, options);
