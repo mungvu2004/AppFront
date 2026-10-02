@@ -62,6 +62,8 @@ import {
 import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import { ALL_VIEWER_TOOLS, defaultViewerShellGateway, useViewerShell } from './useViewerShell';
+import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { buildViewerShortcuts } from './viewerShellShortcuts';
 import {
   VIEWER_LAYOUT,
   type ViewerSceneActions,
@@ -820,5 +822,93 @@ describe('[VS-DG] cổng mặc định theo chế độ mock', () => {
     expect(defaultViewerShellGateway(true).readShellData()).toEqual(
       shellDataOf(VIEWER_FIXTURE_SPATIAL),
     );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phím của ray công cụ — nhãn in trên ray phải có binding thật (A12).         */
+/* -------------------------------------------------------------------------- */
+
+describe('phím của ray công cụ', () => {
+  const noop = (): void => undefined;
+  const handlers = {
+    selectStorey: noop,
+    fitAll: noop,
+    toggleOrthographic: noop,
+    hideSelection: noop,
+    isolateSelection: noop,
+    frameSelection: noop,
+    toggleSeparation: noop,
+    activateTool: noop,
+    openSearch: noop,
+    clearSelection: noop,
+  };
+
+  it('mọi công cụ có phím đơn đều có đúng một binding mang phím ấy', () => {
+    const bindings = buildViewerShortcuts(handlers);
+    const single = ALL_VIEWER_TOOLS.filter((tool) => !tool.keyLabel.includes('+'));
+
+    expect(single.length).toBeGreaterThanOrEqual(5);
+
+    for (const tool of single) {
+      expect(
+        bindings.filter((binding) => binding.combo === tool.keyLabel),
+        `công cụ ${tool.id} quảng cáo phím ${tool.keyLabel} mà không có binding`,
+      ).toHaveLength(1);
+    }
+  });
+
+  function renderWithRegistry(forceState?: ViewerScreenState) {
+    const registry = createShortcutRegistry();
+    const queryClient = createTestQueryClient();
+    const view = renderHook(
+      () =>
+        useViewerShell({
+          projectId: 'P-001',
+          spatial: VIEWER_FIXTURE_SPATIAL,
+          registry,
+          ...(forceState === undefined ? {} : { forceState }),
+        }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    const press = (key: string): void => {
+      act(() => {
+        registry.handleKeyDown({ key }, null);
+      });
+    };
+
+    return { ...view, press };
+  }
+
+  it('bấm c bật mặt cắt, bấm v bật chọn, bấm r về quay quanh', () => {
+    const { result, press, unmount } = renderWithRegistry();
+
+    press('c');
+    expect(result.current.activeToolId).toBe('section');
+    press('v');
+    expect(result.current.activeToolId).toBe('select');
+    press('r');
+    expect(result.current.activeToolId).toBe('orbit');
+    press('h');
+    expect(result.current.activeToolId).toBe('pan');
+    press('m');
+    expect(result.current.activeToolId).toBe('measure');
+
+    unmount();
+  });
+
+  it('vai người xem: bấm m không bật công cụ đo đã bị gỡ khỏi ray', () => {
+    const { result, press, unmount } = renderWithRegistry('forbidden');
+
+    press('m');
+    expect(result.current.activeToolId).toBe('orbit');
+    press('c');
+    expect(result.current.activeToolId).toBe('section');
+
+    unmount();
   });
 });

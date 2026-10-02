@@ -102,6 +102,7 @@ import {
   ISOLATE_COMBO,
   MEASURE_COMBO,
   ORTHOGRAPHIC_COMBO,
+  TOOL_COMBOS,
   type ViewerShortcutHandlers,
 } from './viewerShellShortcuts';
 import {
@@ -148,11 +149,11 @@ const ZOOM_BUTTON_NOTCHES = 2;
 /** Sáu công cụ của ray trái, kèm phím của chúng. */
 const VIEWER_TOOLS: readonly (ViewerToolViewModel & { readonly requiresEdit: boolean })[] =
   Object.freeze([
-    { id: 'orbit', label: 'quay quanh mô hình', keyLabel: 'R', requiresEdit: false },
-    { id: 'pan', label: 'kéo màn', keyLabel: 'H', requiresEdit: false },
-    { id: 'measure', label: 'đo', keyLabel: MEASURE_COMBO, requiresEdit: true },
-    { id: 'section', label: 'mặt cắt', keyLabel: 'C', requiresEdit: false },
-    { id: 'select', label: 'chọn', keyLabel: 'V', requiresEdit: false },
+    { id: 'orbit', label: 'quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit, requiresEdit: false },
+    { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan, requiresEdit: false },
+    { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure, requiresEdit: true },
+    { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section, requiresEdit: false },
+    { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select, requiresEdit: false },
     { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO, requiresEdit: false },
   ]);
 
@@ -827,8 +828,10 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     toggleSeparation: (): void => {
       setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
     },
-    activateMeasure: (): void => {
-      setActiveToolId('measure');
+    activateTool: (id): void => {
+      if (tools.some((tool) => tool.id === id)) {
+        setActiveToolId(id);
+      }
     },
     openSearch: (): void => {
       onOpenSearch?.();
@@ -845,7 +848,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       isolateSelection: () => handlersRef.current?.isolateSelection(),
       frameSelection: () => handlersRef.current?.frameSelection(),
       toggleSeparation: () => handlersRef.current?.toggleSeparation(),
-      activateMeasure: () => handlersRef.current?.activateMeasure(),
+      activateTool: (id) => handlersRef.current?.activateTool(id),
       openSearch: () => handlersRef.current?.openSearch(),
       clearSelection: () => handlersRef.current?.clearSelection(),
     };
