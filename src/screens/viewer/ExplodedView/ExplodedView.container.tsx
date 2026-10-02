@@ -68,6 +68,8 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { ViewerShell, type ViewerShellGateway } from '@/screens/viewer/ViewerShell';
+import { resolveViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import type { MountExplodedScene } from './explodedViewScene';
@@ -183,6 +185,8 @@ export function ExplodedViewContainer(props: ExplodedViewContainerProps) {
  */
 export function ExplodedViewRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
+  // Cùng luật nhà mẫu với `/3d` và Pascal; gọi trước câu trả sớm (luật hook).
+  const storeSpatial = useStore((state) => state.spatial);
 
   if (id === undefined || id.length === 0) {
     return (
@@ -196,5 +200,5 @@ export function ExplodedViewRoute() {
     );
   }
 
-  return <ExplodedViewContainer projectId={id} />;
+  return <ExplodedViewContainer projectId={id} spatial={resolveViewerSpatial(storeSpatial)} />;
 }

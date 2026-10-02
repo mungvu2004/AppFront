@@ -40,7 +40,7 @@ import type { PointMm } from '@/domain/units/compare';
 import { totalArea } from '@/domain/rooms/area';
 import { squareMetres, type SquareMetres } from '@/domain/units/types';
 import type { ApiClient } from '@/api/client';
-import { createAppApiClient } from '@/api/appClient';
+import { createAppApiClient, resolveUseMockApi } from '@/api/appClient';
 import type { ProjectRole } from '@/types/project';
 
 import { GROUND, toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
@@ -311,6 +311,21 @@ export function shouldUseViewerFixture(input: {
   readonly useMock: boolean;
 }): boolean {
   return input.useMock && !input.hasInjectedSpatial && input.storeSpatial === null;
+}
+
+/**
+ * Đồ thị một route 3D dựng từ kho: kho, hoặc nhà mẫu khi {@link shouldUseViewerFixture}.
+ *
+ * Route tách tầng và route đo từng đọc kho trần, nên ở chế độ mock chúng dựng
+ * khung nhìn rỗng (canvas 300×150) trong khi `/3d` ngay bên cạnh có nhà bốn tầng.
+ */
+export function resolveViewerSpatial(
+  storeSpatial: NormalizedSpatial | null,
+  useMock: boolean = resolveUseMockApi(),
+): NormalizedSpatial | null {
+  return shouldUseViewerFixture({ hasInjectedSpatial: false, storeSpatial, useMock })
+    ? VIEWER_FIXTURE_SPATIAL
+    : storeSpatial;
 }
 
 /** Đồ thị "một phần": đủ bốn tầng, nhưng mới có phòng của tầng dưới cùng. */
