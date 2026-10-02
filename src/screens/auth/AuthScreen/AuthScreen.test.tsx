@@ -11,8 +11,10 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import { ROUTES } from '@/routes/paths';
+
 import { AuthScreen, AuthScreenView, type AuthScreenViewProps } from './AuthScreen';
-import { AuthRoute, createHttpAuthGateway } from './AuthScreen.container';
+import { AuthRoute, createHttpAuthGateway, safeDestination } from './AuthScreen.container';
 import { LOCKOUT_SECONDS, MIN_PASSWORD_LENGTH, type AuthGateway } from './useAuthScreen';
 
 const AUTH_MESSAGES = viMessages.auth;
@@ -682,6 +684,46 @@ describe('AuthRoute — the form is never withheld', () => {
     expect(screen.getByLabelText(AUTH_MESSAGES.fields.email)).toBeInTheDocument();
     expect(screen.getByLabelText(AUTH_MESSAGES.fields.password)).toBeInTheDocument();
     expect(screen.getAllByRole('tab')).toHaveLength(2);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Where a successful sign-in lands.                                           */
+/* -------------------------------------------------------------------------- */
+
+describe('safeDestination — never off this origin, never back onto the sign-in page', () => {
+  /** Every row lands on the dashboard; the second column says why it must. */
+  const REJECTED = [
+    ['//evil.example', 'two leading slashes name another host'],
+    ['https://evil.example', 'an absolute address'],
+    ['evil', 'no leading slash'],
+    ['', 'empty'],
+    [`/${String.fromCharCode(92)}evil.example`, 'the browser reads a backslash as a slash'],
+    [`/${String.fromCharCode(9)}/evil.example`, 'the browser drops a tab, leaving two slashes'],
+    ['//evil.example:99999', 'a host that does not even parse'],
+    ['/login', 'the sign-in page itself (B-V1-02)'],
+    ['/LOGIN/', 'the same page: routes match case-insensitively and ignore a trailing slash'],
+    ['/tai-khoan/../login', 'the same page once the dots resolve'],
+  ] as const;
+
+  for (const [candidate, why] of REJECTED) {
+    it(`rejects ${JSON.stringify(candidate)} — ${why}`, () => {
+      expect(safeDestination(candidate)).toBe(ROUTES.dashboard);
+    });
+  }
+
+  it('rejects anything that is not a string', () => {
+    expect(safeDestination(undefined)).toBe(ROUTES.dashboard);
+    expect(safeDestination({ pathname: '/tai-khoan' })).toBe(ROUTES.dashboard);
+  });
+
+  it('keeps a path on this site whole — query and hash included', () => {
+    expect(safeDestination('/tai-khoan?x=1#h')).toBe('/tai-khoan?x=1#h');
+    expect(safeDestination('/m/du-an/project-1')).toBe('/m/du-an/project-1');
+  });
+
+  it('lets a page under the sign-in prefix through — only the sign-in page itself is refused', () => {
+    expect(safeDestination('/login/invitation/abc')).toBe('/login/invitation/abc');
   });
 });
 

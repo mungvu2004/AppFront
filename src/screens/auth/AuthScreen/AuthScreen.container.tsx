@@ -94,20 +94,45 @@ const SCREEN_ID = 'auth';
 /** Where the visitor lands when they arrived at `/login` directly. */
 const DEFAULT_DESTINATION = ROUTES.dashboard;
 
+/** A host no real request can reach — only there so `URL` has a base to resolve against. */
+const PARSE_BASE = 'http://app.invalid';
+
 /**
- * A redirect target that cannot leave this origin.
+ * A redirect target that cannot leave this origin, and is not the sign-in page.
  *
- * A single leading slash not followed by a second one is the whole test: a path
- * on this site stays, `//evil.example` and `https://evil.example` do not.
+ * The candidate must start with `/`, and is then resolved the way the browser
+ * would: `URL` treats `\` as `/` and drops tabs, so `/\evil.example` and
+ * `/<tab>/evil.example` name another host exactly like `//evil.example` does —
+ * a `startsWith('//')` test let them through (B-V1-02). Today the router happens
+ * to drop the host again, but that is luck, not a guarantee.
+ *
+ * `/login` itself is rejected too: landing there after signing in leaves the
+ * visitor on an empty sign-in form with nothing telling them it worked (B-V1-02).
+ * Routes match case-insensitively and ignore a trailing slash, so the check does.
+ *
  * Anything rejected falls back to the dashboard rather than failing the sign-in
  * — the visitor asked to log in, not to go somewhere in particular.
  */
 export function safeDestination(candidate: unknown): string {
-  if (typeof candidate !== 'string' || !candidate.startsWith('/') || candidate.startsWith('//')) {
+  if (typeof candidate !== 'string' || !candidate.startsWith('/')) {
     return DEFAULT_DESTINATION;
   }
 
-  return candidate;
+  let url: URL;
+  try {
+    url = new URL(candidate, PARSE_BASE);
+  } catch {
+    // `//host:99999` — a host with an impossible port does not parse at all.
+    return DEFAULT_DESTINATION;
+  }
+
+  const pathname = url.pathname.toLowerCase().replace(/\/+$/u, '');
+
+  if (url.origin !== PARSE_BASE || pathname === ROUTES.login) {
+    return DEFAULT_DESTINATION;
+  }
+
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 /**

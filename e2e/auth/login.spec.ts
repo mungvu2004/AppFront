@@ -44,6 +44,8 @@ const UNSAFE_DESTINATIONS = [
   ['địa chỉ tuyệt đối', 'https://evil.example'],
   ['đường không bắt đầu bằng gạch chéo', 'khong-bat-dau-bang-gach-cheo'],
   ['đích rỗng', ''],
+  // B-V1-02: đích là chính màn đăng nhập thì người vừa đăng nhập bị bỏ lại trước biểu mẫu trống.
+  ['chính màn đăng nhập', ROUTES.login],
 ] as const;
 
 for (const [label, next] of UNSAFE_DESTINATIONS) {
@@ -57,14 +59,20 @@ for (const [label, next] of UNSAFE_DESTINATIONS) {
   });
 }
 
-test('đích có dấu gạch ngược sau gạch chéo vẫn ở lại cùng origin (chỉ khẳng định kết quả, chưa điều tra cơ chế)', async ({ page }) => {
+/**
+ * Trình duyệt đọc `\` như `/`, nên `/\evil.example/tai-khoan` là một địa chỉ của
+ * host khác. Trước B-V1-02 nó lọt `safeDestination` và người dùng hạ cánh
+ * `/tai-khoan` chỉ vì react-router tình cờ vứt host đi (`encodeLocation`). Nay nó bị
+ * từ chối ngay ở bộ lọc, nên đích là danh sách dự án.
+ */
+test('đích có dấu gạch ngược sau gạch chéo bị từ chối: về danh sách dự án, cùng origin', async ({ page }) => {
   const backslash = String.fromCharCode(92);
-  await page.goto(loginUrl(`/${backslash}evil.example`));
+  await page.goto(loginUrl(`/${backslash}evil.example${ROUTES.account}`));
   const startOrigin = new URL(page.url()).origin;
 
   await submitSignInForm(page, EMAIL_BY_ROLE.engineer);
 
-  await expect(page).not.toHaveURL(/\/login(\?|$)/);
+  await expect.poll(() => pathOf(page.url())).toBe(ROUTES.dashboard);
   expect(new URL(page.url()).origin).toBe(startOrigin);
 });
 
