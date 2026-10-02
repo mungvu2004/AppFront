@@ -167,7 +167,7 @@ describe('[VP-1] panel thanh tra thuộc tính', () => {
     renderPanels();
 
     expect(screen.queryByRole('region', { name: VIEWER_3D_INSPECTOR_LABEL })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Thanh tra đối tượng' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Thuộc tính đối tượng' })).toBeNull();
   });
 
   it('chọn một bức tường thì panel thật sự hiện ra trong DOM', async () => {
@@ -176,7 +176,7 @@ describe('[VP-1] panel thanh tra thuộc tính', () => {
     expect(screen.getByRole('region', { name: VIEWER_3D_INSPECTOR_LABEL })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Thanh tra đối tượng' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Thuộc tính đối tượng' })).toBeInTheDocument();
     }, LAZY_WAIT);
   });
 });

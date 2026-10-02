@@ -144,7 +144,13 @@ function WiredWallGeometryEditor(props: WallGeometryEditorContainerInput) {
       ? { kind: 'loading' as const, message: WALL_GEOMETRY_EDITOR_TEXT.states.loading.message }
       : model.state;
 
-  return <WallGeometryEditor overlayRef={setOverlayElement} state={state} />;
+  return (
+    <WallGeometryEditor
+      bandEndInsetClassName={props.bandEndInsetClassName}
+      overlayRef={setOverlayElement}
+      state={state}
+    />
+  );
 }
 
 /** `<WallGeometryEditorContainer>` — lớp phủ đã nối dây, gắn được bằng một thẻ. */
