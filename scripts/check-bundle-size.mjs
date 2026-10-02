@@ -67,6 +67,33 @@ const MANIFEST_PATH = join('dist', '.vite', 'manifest.json');
 const KIB = 1024;
 
 /**
+ * Bảy màn demo chỉ bản dev (`buildDevOnlyRoutes`, `src/routes/router.tsx`) —
+ * mỗi màn một chuỗi chỉ nó có. Bản dựng production mang chuỗi nào là hỏng.
+ *
+ * Chuỗi chứ không khoá manifest: một `import` tĩnh lỡ tay gộp màn demo vào chunk
+ * của màn khác thì manifest không còn khoá riêng cho nó, còn chuỗi vẫn ở đó.
+ * `scripts/__tests__/check-bundle-size.test.mjs` kiểm mỗi chuỗi còn trong đúng
+ * tệp nguồn — đổi chữ màn demo mà quên bảng này thì bộ test đỏ, không phải cổng
+ * này lặng lẽ xanh mãi.
+ */
+const DEV_ONLY_MARKERS = [
+  { source: 'src/App.tsx', marker: 'Motion & Transitions' },
+  { source: 'src/screens/DesignSystem.tsx', marker: 'Quiet Blueprint v1.1' },
+  { source: 'src/screens/DataEntryDemo.tsx', marker: 'Data Entry Components' },
+  { source: 'src/screens/ListReviewDemo.tsx', marker: 'Duyệt dữ liệu thành công!' },
+  { source: 'src/screens/ShellDemo.tsx', marker: 'Cmd+K to search' },
+  { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo' },
+  { source: 'src/screens/FeedbackDemo.tsx', marker: 'Test Undo Toast' },
+];
+
+/** Cặp (chuỗi đánh dấu, tệp dựng) nào có mặt. `files`: `{ name, text }[]`. */
+function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
+  return markers.flatMap(({ source, marker }) =>
+    files.filter((file) => file.text.includes(marker)).map((file) => ({ source, marker, file: file.name })),
+  );
+}
+
+/**
  * Ngân sách CỔNG, tính bằng KiB sau gzip. Vượt là hỏng, mã thoát 1.
  *
  * Ngân sách rộng gấp đôi số đo thật thì không phải cổng, chỉ là số trang trí:
@@ -582,6 +609,21 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
 
   console.log('');
 
+  const leaks = findDevOnlyLeaks(
+    readdirSync(ASSETS_DIR)
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => ({ name, text: readFileSync(join(ASSETS_DIR, name), 'utf8') })),
+  );
+
+  if (leaks.length > 0) {
+    throw new Error(
+      'Màn demo chỉ bản dev lọt vào bản dựng production:\n' +
+        leaks.map((leak) => `  ${leak.source} — "${leak.marker}" trong ${leak.file}`).join('\n'),
+    );
+  }
+
+  console.log(`màn demo chỉ bản dev trong bản dựng: 0/${DEV_ONLY_MARKERS.length} — đạt\n`);
+
   if (over.length > 0) {
     const names = over.map((gate) => gate.label).join(', ');
 
@@ -595,14 +637,14 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
 }
 
 /*
- * Ba hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
+ * Các hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
  *
  * Chúng không đọc đĩa và không in gì: đưa manifest vào, nhận tập khoá ra. Nhờ
  * vậy bộ test khoá được PHÉP TÍNH mà không cần một bản dựng, và bảng đối chiếu
  * của lượt gộp này được sinh bằng CHÍNH những hàm đã cắm vào cổng — chứ không
  * bằng một script riêng rồi hy vọng hai bên khớp nhau.
  */
-export { closure, presentWhenLoaded, baselineFor, closureGzip };
+export { closure, presentWhenLoaded, baselineFor, closureGzip, findDevOnlyLeaks, DEV_ONLY_MARKERS };
 
 /*
  * Chỉ chạy cổng khi file này được gọi thẳng. Khi bộ test `import` nó, đoạn dưới

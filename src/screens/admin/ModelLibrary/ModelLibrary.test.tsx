@@ -437,6 +437,16 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
  *    thay vì Việt hoá gượng ép — xem `ModelLibrary.stories.tsx` mục 1.
  * ========================================================================== */
 
+describe('A6 — đường dẫn trang viết thường như màn quản trị người dùng (lỗi B-V12b-04)', () => {
+  it('nav tên đúng "đường dẫn trang", chữ "quản trị › thư viện model"', async () => {
+    const ModelLibraryView = await loadModelLibraryView();
+    renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
+
+    const nav = screen.getByRole('navigation', { name: 'đường dẫn trang' });
+    expect(nav.textContent).toBe('quản trị › thư viện model');
+  });
+});
+
 describe('R-67 — expectVietnamese trên cây render thật', () => {
   it('trạng thái "thành công": toàn chữ tiếng Việt có dấu, trừ từ mượn "sofa"', async () => {
     const ModelLibraryView = await loadModelLibraryView();

@@ -3362,9 +3362,9 @@
       "filteredEmptyMessage": "Không tìm thấy model phù hợp."
     },
     "breadcrumb": {
-      "navLabel": "Đường dẫn trang",
-      "parent": "Quản trị",
-      "current": "Thư viện model"
+      "navLabel": "đường dẫn trang",
+      "parent": "quản trị",
+      "current": "thư viện model"
     },
     "toolbar": {
       "searchLabel": "tìm model",

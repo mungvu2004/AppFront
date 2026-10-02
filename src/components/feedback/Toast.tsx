@@ -41,10 +41,16 @@ export interface ToastItemProps {
   index: number;
   onRemove: (id: string) => void;
   resetKey?: number; // Used to trigger timer reset for grouped toast
+  /**
+   * Toast gộp nhiều lượt: bấm "Hoàn tác" chỉ gỡ một lượt khỏi nhóm, nên nó ở lại.
+   * Mọi toast khác rời đi ngay sau khi hoàn tác (A8): lời mời đã dùng xong mà còn
+   * treo đó là hứa hoàn tác thêm một lần nữa.
+   */
+  keepAfterUndo?: boolean;
 }
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
-  ({ toast, index, onRemove, resetKey = 0 }, ref) => {
+  ({ toast, index, onRemove, resetKey = 0, keepAfterUndo = false }, ref) => {
     const [isHovered, setIsHovered] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const [progress, setProgress] = useState(100);
@@ -89,6 +95,10 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     const onUndoClick = () => {
       if (toast.onUndo) {
         toast.onUndo();
+      }
+      if (!keepAfterUndo) {
+        setIsExiting(true);
+        setTimeout(() => onRemove(toast.id), durationMs('fast'));
       }
     };
 
@@ -240,6 +250,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             index={index}
             onRemove={handleRemoveSlot}
             resetKey={toast.resetKey ?? 0}
+            keepAfterUndo={toast.id === 'summary-toast-group'}
           />
         ))}
       </div>

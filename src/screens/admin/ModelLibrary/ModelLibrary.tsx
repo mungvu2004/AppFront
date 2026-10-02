@@ -33,9 +33,9 @@ import { ModelLibraryTable } from './ModelLibraryTable';
 import { ModelLibraryToolbar } from './ModelLibraryToolbar';
 import type { ModelLibraryProps } from './types';
 
-const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
-const BREADCRUMB_PARENT = 'Quản trị';
-const BREADCRUMB_CURRENT = 'Thư viện model';
+const BREADCRUMB_NAV_LABEL = 'đường dẫn trang';
+const BREADCRUMB_PARENT = 'quản trị';
+const BREADCRUMB_CURRENT = 'thư viện model';
 const EMPTY_TITLE = 'chưa có model nào';
 const EMPTY_DESCRIPTION = 'Thư viện chưa có model nào.';
 const ERROR_TITLE = 'không tải được thư viện model';
