@@ -25,6 +25,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSession } from '@/hooks/useSession';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
@@ -41,7 +42,7 @@ export interface ProjectSettingsContainerProps {
   readonly roles?: readonly ProjectRole[];
   /** Toast của A8. Tiêm vào bởi nơi đã dựng `Toast.Provider`. */
   readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
-  readonly onProjectDeleted?: () => void;
+  readonly onProjectDeleted?: (notice: string) => void;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
 }
@@ -108,7 +109,12 @@ function ProjectSettingsRouteBody({ projectId, roles }: { projectId: string; rol
       projectId={projectId}
       roles={roles}
       onToast={addToast}
-      onProjectDeleted={() => navigate(ROUTES.dashboard)}
+      onProjectDeleted={(notice) => {
+        // Bus của phiên, không `addToast`: provider của màn này rời cùng lượt điều
+        // hướng, còn `NotificationHost` đứng cạnh `RouterProvider` thì ở lại.
+        appNotificationBus.publish({ title: notice, description: '', type: 'project.deleted' });
+        navigate(ROUTES.dashboard);
+      }}
     />
   );
 }
