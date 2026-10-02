@@ -170,7 +170,7 @@ import { isIdOfKind } from '@/domain/spatial/ids';
 import type { EntityId } from '@/domain/spatial/types';
 import type { ProjectRole } from '@/types/project';
 
-import { Viewer3DPanels, type Viewer3DPanelId } from './Viewer3DPanels';
+import { Viewer3DPanels, type Viewer3DPanelId, type Viewer3DSiblingScreenId } from './Viewer3DPanels';
 import { Viewer3DSceneSlot } from './Viewer3DSceneSlot';
 import { useViewer3DSource } from './useViewer3DSource';
 import type { MountViewerScene, Viewer3DTelemetry } from './viewer3dTypes';
@@ -267,6 +267,17 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
     navigate(ROUTES.project.export(props.projectId));
   }, [navigate, props.projectId]);
 
+  const onOpenScreen = useCallback(
+    (screenId: Viewer3DSiblingScreenId): void => {
+      if (screenId !== 'overlay') {
+        navigate(ROUTES.project[screenId](props.projectId));
+      } else if (resolvedFloorId !== null) {
+        navigate(ROUTES.project.overlay(props.projectId, resolvedFloorId));
+      }
+    },
+    [navigate, props.projectId, resolvedFloorId],
+  );
+
   const onCheckWallGaps = useCallback((): void => {
     /* Soát khe hở tường là việc của lớp tường MỘT tầng. Chưa biết tầng thì đi
        tới danh sách tầng — cùng phép rơi về `qcHref` của `useViewer3D.ts:733`. */
@@ -322,6 +333,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
       onNavigateToObject={onNavigateToObject}
       onOpenExport={onOpenExport}
       onOpenRuleScreen={onOpenRuleScreen}
+      onOpenScreen={onOpenScreen}
       onTogglePanel={setOpenPanelId}
       onToggleWallEditing={onToggleWallEditing}
       openPanelId={openPanelId}
