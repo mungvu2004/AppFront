@@ -281,6 +281,11 @@ export interface UseShareDialogOptions {
   readonly copyToClipboard?: (text: string) => Promise<void> | void;
   readonly onToast?: (toast: ShareDialogToast) => void;
   readonly onDismiss?: () => void;
+  /**
+   * Hộp thoại đang mở hay không — mặc định `true`. Đóng thì lượt đọc danh sách liên
+   * kết không chạy, cùng luật lượt đọc thành viên của container (B-V3-09).
+   */
+  readonly isOpen?: boolean;
 }
 
 export type ShareDialogResult = readonly [ShareDialogModel, ShareDialogActions];

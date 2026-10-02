@@ -321,7 +321,9 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
 
       return result.data.links;
     },
-    enabled: canCreateLink,
+    // Hộp thoại đóng thì không gọi mạng: `ExportPanel` gắn sẵn hộp thoại, nên không có
+    // điều kiện này mỗi lượt tải `/export` đọc danh sách liên kết (B-V3-09).
+    enabled: canCreateLink && (options.isOpen ?? true),
   });
 
   const links = listQuery.data ?? EMPTY_LINKS;

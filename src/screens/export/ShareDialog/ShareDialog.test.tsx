@@ -412,6 +412,31 @@ describe('A8 — mọi thay đổi hoàn tác được, kèm toast hoàn tác', 
   });
 });
 
+describe('B-V3-09 — hộp thoại đóng thì không đọc danh sách liên kết', () => {
+  it('isOpen=false: list không được gọi; mở ra thì đọc', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const list = vi.fn(() => Promise.resolve({ ok: true as const, data: [] }));
+    const { rerender } = renderHook(
+      ({ isOpen }: { isOpen: boolean }) =>
+        useShareDialog({
+          gateway: buildFakeGateway({ list }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          isOpen,
+        }),
+      { wrapper: withQueryClient(), initialProps: { isOpen: false } },
+    );
+
+    await Promise.resolve();
+    expect(list).not.toHaveBeenCalled();
+
+    rerender({ isOpen: true });
+    await waitFor(() => {
+      expect(list).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
 describe('A9 — thu hồi không hoàn tác được nên hỏi trước (B-V3-06)', () => {
   it('"thu hồi" chỉ mở câu hỏi; "để nguyên" không gửi gì; xác nhận mới gửi lệnh thu hồi', async () => {
     const useShareDialog = await loadUseShareDialog();

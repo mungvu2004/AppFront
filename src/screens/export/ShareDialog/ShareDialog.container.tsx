@@ -102,6 +102,7 @@ function WiredShareDialog(props: ShareDialogContainerProps) {
     members: membersQuery.data ?? NO_MEMBERS,
     viewpoint: props.viewpoint ?? null,
     onDismiss: props.onDismiss,
+    isOpen: props.isOpen,
     ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
   });
 
