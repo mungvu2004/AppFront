@@ -509,7 +509,22 @@ Thứ tự theo giá trị nghiệp vụ, và nhóm nào bị chặn thì xếp 
 | 11 | **V10** Pascal vỏ | không — mở rộng `e2e/pascal-viewer.spec.ts` đã có |
 | 12 | **V11** Pascal editor | **không mở được** — sản phẩm chưa cắm `Editor` vào. Chỉ một ca hàng rào |
 
-- **Trạng thái:** **chưa chạy.**
+- **Trạng thái:** **đã thi công** (2026-10-03, 10 worker đợt 1 + 2 worker đợt 2, nhánh `e2e/integrate`).
+  Trạng thái từng nhóm, số đo thật và chỗ kế hoạch sai so với mã: `docs/notes/e2e/fragments/W01…W12.md`.
+  Lỗi: `docs/notes/e2e/bugs.md` (129 mục). Cổng tổng trên nhánh gộp: xem mục ghi ngay dưới, chỉ ghi "đạt" sau khi chạy.
+
+  | Worker | Nhóm | Thư mục bài |
+  |---|---|---|
+  | W01 | V1 | `e2e/v1`, `e2e/auth` |
+  | W02 | V2 + V3 | `e2e/v2v3` |
+  | W03 | V4 + V5 | `e2e/v4v5` |
+  | W04, W11 | V6 (+ V7 đợt 2) | `e2e/v6` |
+  | W05, W11 | V7 | `e2e/v7` |
+  | W06 | V8 | `e2e/v8`, `e2e/viewer3d.spec.ts` |
+  | W07, W12 | V9 | `e2e/v9` |
+  | W08 | V10 + V11 | `e2e/pascal-viewer.spec.ts` |
+  | W09 | V12a | `e2e/v12a` |
+  | W10 | V12b + chéo | `e2e/v12b`, `e2e/cross`, ca demo trong `pnpm size` |
 
 ### 6.1 Ca mồi — cái nạng phải tự nhắc mình được gỡ
 
