@@ -667,6 +667,47 @@ describe('useOverlayComparison — cổng và định dạng', () => {
     expect(model.marks.filter((mark) => mark.isSelected)).toHaveLength(1);
   });
 
+  it('kho rỗng thì đọc tầng của route qua N16: có tầng, có nét, không nói "chưa có tầng" (B-V9-06)', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const mounted = await mountMeasured();
+    await act(async () => {
+      await clock.advance(1);
+    });
+    await settle(mounted);
+
+    const model = mounted.result.current.model;
+
+    expect(model.floors.map((floor) => floor.levelId)).toEqual([FLOOR_WITH_SCAN]);
+    expect(model.geometry.length).toBeGreaterThan(0);
+    // Chỉ đọc: kho vẫn rỗng, `/3d` không bị thay đồ thị.
+    expect(useStore.getState().spatial).toBeNull();
+  });
+
+  it('tầng N16 mang mã Level khác mã tầng API vẫn tìm ra ảnh quét và lối sửa tỷ lệ của tầng ấy (B-V9-06)', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const gateway = createOverlayComparisonGateway(createMockApiClient(), {
+      now: () => clock.epochMs(),
+    });
+    // `L1` là mã tầng API của bộ mẫu, đã đo nhưng không tìm thấy khung; N16 trả nó
+    // với một mã `Level` riêng.
+    const mounted = mountHook(gateway, { floorId: 'L1' as LevelId });
+    // Hai lượt đọc nối nhau: N16 cho ra tầng, rồi lượt đo của tầng ấy.
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await clock.advance(1);
+      });
+    }
+
+    const [floor] = mounted.result.current.model.floors;
+
+    expect(floor?.levelId).not.toBe('L1');
+    expect(floor?.hasScan).toBe(true);
+    // Lối sang màn tỷ lệ mang mã tầng API — route ấy đọc bản vẽ theo mã này.
+    expect(mounted.result.current.model.scaleFixHref).toBe(ROUTES.project.scale(PROJECT_ID, 'L1'));
+  });
+
   it('lớp hình học có nét ở MỌI trạng thái, kể cả khi tầng không có ảnh gốc', async () => {
     const mounted = await mountMeasured();
     const drawn = mounted.result.current.model.geometry;

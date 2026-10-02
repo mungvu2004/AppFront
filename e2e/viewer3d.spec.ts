@@ -41,7 +41,8 @@ import { ROUTE_PATTERNS } from '../src/routes/paths';
  *    `RoomLabelReview`, `FloorManager`, …) đều nạp từ một cổng mà bản thật của
  *    nó là `read: () => useStore.getState().spatial` — tức đọc lại chính cái kho
  *    đang rỗng. `FloorManager` có đường không vòng tròn (`api.floors.list`)
- *    nhưng vẫn lấy `graph` từ kho, nên nó hiện "0 tầng".
+ *    nhưng vẫn lấy `graph` từ kho, nên kho rỗng thì nó treo khung xương (bảng chỉ
+ *    có hàng tiêu đề) — không phải "0 tầng" như bản trước ghi (đo: B-V7-13, W05).
  * 3. **`VITE_USE_MOCK_API=true` là cửa thật, và nó KHÔNG lấp được chỗ này.** Đã
  *    bật và xác nhận `resolveUseMockApi() === true`, không còn lượt `/api/**`
  *    nào 404 — nhưng lý do 2 nằm ở phía sau nó, nên kho vẫn rỗng.

@@ -53,7 +53,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { idsOnLevel, isEntityOfKind } from '@/domain/spatial/normalize';
+import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId, Point } from '@/domain/spatial/types';
 import { createScale, pixels, type Scale } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
@@ -173,6 +173,16 @@ const EMPTY_IDS: readonly string[] = Object.freeze([]);
 const EMPTY_ROWS: readonly DeviationRowViewModel[] = Object.freeze([]);
 const EMPTY_MARKS: readonly DeviationMarkViewModel[] = Object.freeze([]);
 const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
+
+/** Tầng của đồ thị, theo thứ tự đồ thị giữ — nguồn danh sách khi kho chưa có `floors`. */
+function levelsOf(spatial: NormalizedSpatial | null): readonly Level[] {
+  const levels = (spatial?.byKind.level ?? []).flatMap((id) => {
+    const entity = spatial?.byId[id];
+    return entity !== undefined && isEntityOfKind('level', entity) ? [entity] : [];
+  });
+
+  return levels.length === 0 ? EMPTY_FLOORS : levels;
+}
 const EMPTY_GEOMETRY: readonly GeometryPolyline[] = Object.freeze([]);
 const EMPTY_ROLES: readonly ProjectRole[] = Object.freeze([]);
 
@@ -358,9 +368,36 @@ export function useOverlayComparison(
   const storeFloors = useStore((state) => state.floors);
   const storeActiveFloorId = useStore((state) => state.activeFloorId);
   const storeRoles = useStore((state) => state.userRoles);
-  const spatial = useStore((state) => state.spatial);
+  const storeSpatial = useStore((state) => state.spatial);
 
-  const floors = storeFloors.length === 0 ? EMPTY_FLOORS : storeFloors;
+  /*
+   * Kho rỗng thì đọc tầng của route qua N16 — cùng đường nạp các màn QC và màn
+   * tỷ lệ (B-V9-06). Trước đó màn chỉ đọc kho mà không ai nạp kho, nên đi từ
+   * `/3d` sang đây là gặp "chưa có tầng nào". Chỉ ĐỌC: màn này không ghi đồ thị,
+   * nên không nạp vào kho thay `/3d`.
+   */
+  const layerQuery = useQuery({
+    queryKey: queryKeys.space.byFloor(floorId),
+    queryFn: ({ signal }) => gateway.readFloorLayer({ floorId, projectId, signal }),
+    enabled: storeSpatial === null,
+  });
+  const spatial = storeSpatial ?? layerQuery.data ?? null;
+  /*
+   * Ảnh quét khoá theo mã tầng API, đồ thị khoá theo mã `Level`. Trên BE hai mã
+   * trùng; bộ mẫu API thì không (`L1` → mã `Level` riêng). Tầng N16 vừa đọc là
+   * tầng của route, nên nó mang mã route khi tra ảnh; tầng của kho giữ mã của
+   * chính nó như trước.
+   */
+  const loadedLevelId = storeSpatial === null ? layerQuery.data?.byKind.level[0] : undefined;
+  const scanFloorIdOf = useCallback(
+    (levelId: string): string => (levelId === loadedLevelId ? floorId : levelId),
+    [floorId, loadedLevelId],
+  );
+
+  const floors = useMemo(
+    () => (storeFloors.length > 0 ? storeFloors : levelsOf(spatial)),
+    [storeFloors, spatial],
+  );
   const roles = options.roles ?? (storeRoles.length === 0 ? EMPTY_ROLES : storeRoles);
   const activeFloorId: LevelId | null =
     floors.some((floor) => floor.id === storeActiveFloorId) && storeActiveFloorId !== null
@@ -377,7 +414,7 @@ export function useOverlayComparison(
   const query = useQuery({
     queryKey: queryKeys.quality.assessment(activeFloorId ?? ''),
     queryFn: async (): Promise<OverlayComparisonRecord> => {
-      const readFloorId = activeFloorId ?? floorId;
+      const readFloorId = activeFloorId === null ? floorId : scanFloorIdOf(activeFloorId);
       const scans = await gateway.readFloorScans({ floorId: readFloorId, projectId });
 
       if (!scans.ok) {
@@ -396,7 +433,10 @@ export function useOverlayComparison(
 
   const scans = query.data?.scans ?? EMPTY_SCANS;
   const regions = query.data?.regions ?? EMPTY_REGIONS;
-  const activeScan = scans.find((scan) => scan.floorId === activeFloorId) ?? null;
+  const activeScan =
+    activeFloorId === null
+      ? null
+      : (scans.find((scan) => scan.floorId === scanFloorIdOf(activeFloorId)) ?? null);
 
   /* ---------------------------------------------------------------------- */
   /* Trạng thái của riêng giao diện.                                         */
@@ -428,7 +468,7 @@ export function useOverlayComparison(
   const floorOptions = useMemo<readonly FloorOptionViewModel[]>(
     () =>
       floors.map((floor) => {
-        const scan = scans.find((candidate) => candidate.floorId === floor.id);
+        const scan = scans.find((candidate) => candidate.floorId === scanFloorIdOf(floor.id));
 
         return {
           levelId: floor.id,
@@ -437,7 +477,7 @@ export function useOverlayComparison(
           hasGeometry: spatial === null ? false : idsOnLevel(spatial, floor.id).length > 0,
         };
       }),
-    [floors, scans, spatial],
+    [floors, scanFloorIdOf, scans, spatial],
   );
 
   /**
@@ -776,8 +816,9 @@ export function useOverlayComparison(
       return null;
     }
 
-    return ROUTES.project.scale(projectId, activeFloorId);
-  }, [activeFloorId, hasScaleConflict, isFrameMissing, projectId, state]);
+    // Route tỷ lệ nhận mã tầng API, như route này — không phải mã `Level`.
+    return ROUTES.project.scale(projectId, scanFloorIdOf(activeFloorId));
+  }, [activeFloorId, hasScaleConflict, isFrameMissing, projectId, scanFloorIdOf, state]);
 
   /* ---------------------------------------------------------------------- */
   /* Ba lớp thị giác, và kiểu đối chiếu còn dùng được.                       */

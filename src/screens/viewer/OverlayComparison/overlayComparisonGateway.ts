@@ -81,10 +81,12 @@
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import type { FloorImageQuality } from '@/api/schemas/quality';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { pixels, type Pixels } from '@/domain/units/scale';
 import { toAppError } from '@/lib/errors';
 
@@ -234,6 +236,11 @@ export interface OverlayComparisonGateway {
     input: ReadFloorScanInput,
   ) => Promise<ApiResult<readonly OverlayScanSnapshot[]>>;
   /**
+   * Đồ thị một tầng qua N16 — tầng và hình học của lớp `geometry` khi kho rỗng
+   * (B-V9-06). Cùng đường nạp các màn QC dùng; lỗi thì ném.
+   */
+  readonly readFloorLayer: (input: ReadFloorScanInput) => Promise<NormalizedSpatial>;
+  /**
    * Chỗ ảnh quét nằm trong khung đối chiếu sau khi đặt vào không gian mô hình.
    *
    * `alignFloors` (M-11) không làm được việc này: `FloorTransform.scale` khai
@@ -363,6 +370,8 @@ export function createOverlayComparisonGateway(
 
       return { ok: true, data: result.data.floors.map(toScanSnapshot) };
     },
+
+    readFloorLayer: (input) => readFloorLayerGraph(client.spatial, input),
 
     readScanPlacement: async () => unsupported('imageToModelTransform'),
     readDeviationRegions: async () => unsupported('deviationRegions'),
