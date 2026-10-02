@@ -101,7 +101,10 @@ const ROWS = {
   projectQuality: { anchor: { role: 'region', name: 'Báo cáo chất lượng' } },
   projectPipeline: {
     anchor: { role: 'navigation', name: 'Xử lý' },
-    known: 'danh sách lượt xử lý luôn rỗng — route không truyền floorUploads (plan.md V4)',
+    expectedConsole: {
+      match: /\/api\/streams\/projects\/project-1\/uploads\/[^/]+\/progress/u,
+      why: 'bộ mẫu dev không có luồng SSE tiến độ, màn lùi về đọc định kỳ — 404 (B-V4-10)',
+    },
   },
   projectPipelineGraph: { anchor: { role: 'heading', name: 'Sơ đồ xử lý' } },
   projectScale: { anchor: { role: 'heading', name: 'Hiệu chỉnh tỷ lệ' } },
