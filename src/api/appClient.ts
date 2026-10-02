@@ -116,7 +116,11 @@ export function createAppHttpClient(): HttpClient {
   // đường khác vẫn ra mạng như cũ — B-G-05.
   const platformSend: NonNullable<CreateHttpClientOptions['fetchImpl']> = (input, init) =>
     requirePlatformFetch(NO_FETCH_MESSAGE)(input, init);
-  const send = resolveUseMockApi() ? createMockHttpTransport(platformSend) : platformSend;
+  // `import.meta.env.DEV` viết thẳng ở đây, không chỉ trong `resolveUseMockApi`: bản dựng
+  // thay nó bằng `false` NGAY TẠI CHỖ nên nhánh mock và `createMockHttpTransport` bị bỏ khỏi
+  // gói sản phẩm. Một lời gọi hàm thì không — đo 2026-10-03: +2,7 KiB vào chunk màn 3D.
+  const send =
+    import.meta.env.DEV && resolveUseMockApi() ? createMockHttpTransport(platformSend) : platformSend;
 
   const fetchImpl: NonNullable<CreateHttpClientOptions['fetchImpl']> = async (input, init) => {
     const userId = currentUserId();
@@ -155,7 +159,8 @@ export function createAppHttpClient(): HttpClient {
  * refresh sẽ thành một lượt đăng xuất mọi thẻ (BE-00 W10).
  */
 export function createAppApiClient(): ApiClient {
-  return resolveUseMockApi()
+  // Cùng lý do với `send` trong `createAppHttpClient`: chữ `DEV` tại chỗ gọi.
+  return import.meta.env.DEV && resolveUseMockApi()
     ? createMockApiClient()
     : createApiClient(createAppHttpClient(), {
         authHttp: createHttpClient({ baseUrl: resolveApiBaseUrl() }),
