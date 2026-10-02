@@ -27,7 +27,9 @@
  *
  * Hai giá trị này có thể khác nhau: dòng trong bảng cũng gọi được `onOpenRemove` mà không
  * cần mở panel chi tiết trước. Hộp thoại vì vậy luôn dựng theo `removeConfirm.user` và hiện
- * bất kể `detail` đang là gì — đặt ở gốc component, ngoài nhánh rẽ theo `isCollapsed`.
+ * bất kể `detail` đang là gì. {@link RemoveConfirmDialog} được XUẤT để `UserManagement.tsx`
+ * đặt nó ở gốc màn: panel này chỉ được dựng khi `detail !== null`, nên một hộp thoại nằm
+ * trong nó không bao giờ hiện khi người duyệt bấm "xoá" trên hàng (lỗi B-V12b-01).
  */
 
 import { UserRound, X } from 'lucide-react';
@@ -248,7 +250,7 @@ interface RemoveDialogProps {
   readonly actions: UserManagementActions;
 }
 
-function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProps) {
+export function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProps) {
   const { user } = removeConfirm;
 
   return (
@@ -342,7 +344,6 @@ export function UserManagementDetail({
   detail,
   isCollapsed,
   permissionMatrix,
-  removeConfirm,
   roleOptions,
 }: UserManagementDetailProps) {
   const body =
@@ -357,36 +358,28 @@ export function UserManagementDetail({
       />
     );
 
-  const removeDialog = <RemoveConfirmDialog actions={actions} removeConfirm={removeConfirm} />;
-
   if (isCollapsed) {
     return (
-      <>
-        <Drawer
-          isOpen={detail !== null}
-          onClose={() => {
-            actions.onSelectUser(null);
-          }}
-        >
-          <div className="p-6">{body}</div>
-        </Drawer>
-        {removeDialog}
-      </>
+      <Drawer
+        isOpen={detail !== null}
+        onClose={() => {
+          actions.onSelectUser(null);
+        }}
+      >
+        <div className="p-6">{body}</div>
+      </Drawer>
     );
   }
 
   return (
-    <>
-      <aside
-        aria-label="chi tiết người dùng"
-        className={cn(
-          'flex h-full flex-col gap-4 overflow-y-auto border-l border-border-default bg-bg-surface p-4',
-          PANEL_WIDTH,
-        )}
-      >
-        {body}
-      </aside>
-      {removeDialog}
-    </>
+    <aside
+      aria-label="chi tiết người dùng"
+      className={cn(
+        'flex h-full flex-col gap-4 overflow-y-auto border-l border-border-default bg-bg-surface p-4',
+        PANEL_WIDTH,
+      )}
+    >
+      {body}
+    </aside>
   );
 }
