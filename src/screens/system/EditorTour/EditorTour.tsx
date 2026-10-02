@@ -378,8 +378,11 @@ export function EditorTour(props: EditorTourProps) {
         </div>
       )}
 
+      {/* Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không
+          đè điều khiển nào — góc phải trên che "chia sẻ"/"Góc nhìn sẵn", góc dưới-phải là
+          chỗ của toast, góc dưới-trái là cột danh sách tường. Bài: e2e/v2v3/tour-chip.spec.ts. */}
       {isSkipChipVisible && (
-        <div className="pointer-events-auto fixed right-[16px] top-[16px]">
+        <div className="pointer-events-auto fixed bottom-[16px] left-1/2 -translate-x-1/2">
           <Button variant="secondary" size="sm" onClick={onReopen}>
             xem hướng dẫn
           </Button>
