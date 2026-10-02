@@ -181,7 +181,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
           <KeyAction
             hint="Esc"
             icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="thoát chế độ đo (phím Esc)"
+            label="bỏ phần đo dở (phím Esc)"
             onClick={props.onEscape}
           />
 

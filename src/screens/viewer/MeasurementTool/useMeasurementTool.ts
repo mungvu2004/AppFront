@@ -166,7 +166,7 @@ const PIN_COMBO = 'Enter';
 const DELETE_COMBO = 'Delete';
 
 /** Câu tiếng Việt cho bảng phím tắt, viết thường kiểu câu (A6). */
-const ESCAPE_DESCRIPTION = 'thoát chế độ đo, bỏ phần đường dở dang';
+const ESCAPE_DESCRIPTION = 'bỏ phần đường đo dở dang, vẫn ở chế độ đo';
 const PIN_DESCRIPTION = 'ghim phép đo đang đọc';
 const DELETE_DESCRIPTION = 'xoá phép đo đang chọn';
 
