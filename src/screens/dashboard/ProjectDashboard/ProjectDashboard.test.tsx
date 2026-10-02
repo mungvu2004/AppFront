@@ -126,6 +126,14 @@ describe('ProjectDashboardView, seven states', () => {
     expectVietnamese(container, { ignore: [SAMPLE_ROW.name] });
   });
 
+  // B-V3-03: the in-place rename field had no accessible name — a screen reader
+  // announced a bare "edit text" with no hint of which project it renames.
+  it.each(['grid', 'table'] as const)('names the in-place rename field after its project — %s view', (viewMode) => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode={viewMode} renamingId={SAMPLE_ROW.id} />);
+
+    expect(screen.getByRole('textbox', { name: `đổi tên ${SAMPLE_ROW.name}` })).toBeInTheDocument();
+  });
+
   it('shows skeletons rather than an empty grid while loading', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
 

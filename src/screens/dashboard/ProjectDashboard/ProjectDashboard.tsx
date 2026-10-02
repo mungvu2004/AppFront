@@ -114,6 +114,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
     props.renamingId === project.id ? (
       <input
         autoFocus
+        aria-label={`đổi tên ${project.name}`}
         value={props.renameDraft}
         onChange={(event) => props.setRenameDraft(event.target.value)}
         onBlur={props.commitRename}
