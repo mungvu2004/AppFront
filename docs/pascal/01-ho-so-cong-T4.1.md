@@ -753,7 +753,14 @@ cùng mức mượt đó. Chốt hay không chốt thành **quyết định về
 
 ---
 
-## 8e. CSP — **4 vi phạm → 0**, chỉ sửa hai tệp phía AppFront
+## 8e. CSP — **4 vi phạm → 0** trên trang spike, chỉ sửa hai tệp phía AppFront
+
+> **Sửa 2026-10-03 — số đúng hôm nay là 1, không 0.** Con số 0 dưới đây đo trên trang spike
+> `vach-ngan.html`. Màn thật `/projects/:id/3d/pascal` không có tệp `src/vach-ngan.tsx`, và không chỗ
+> nào trong `src`/`vite.pascal.config.ts` đặt `jitless` — nên vi phạm `script-src | eval |
+> …/assets/pascal/pascalMount-*.js` vẫn còn (1 vi phạm dưới CSP tự dựng; cảnh vẫn dựng). Alias Iconify
+> (`vite.pascal.config.ts`) thì còn hiệu lực: ba vi phạm `connect-src` không tái hiện. Chi tiết:
+> `docs/notes/e2e/fragments/W08.md` B-V10-05.
 
 Thô: `F-W3-csp-sau-va.txt` · `F-W3-vach-ngan-sau-va.json`.
 (Spec **ghi đè** `F-T3.7-vach-ngan.json` mỗi lượt, nên bản "sau vá" đã cất tên riêng.)

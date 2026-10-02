@@ -194,7 +194,9 @@ chỉ-xem **không phải một nhát cắt dung lượng**. Số đo ở `IMPLE
 
 ### Hệ quả của "chỉ-xem trước"
 
-- Đích đợt này là **`core` + `viewer`**. `editor` và `nodes` **không** được cài. Fork **không** được
+- Đích đợt này là **`core` + `viewer`**. `editor` và `nodes` **không** được cài. *(Lạc hậu, ghi
+  2026-10-03: `package.json` nay cài đủ bốn gói; `nodes` được nạp thật ở
+  `src/components/pascal/pascalScene.ts`, `editor` cài nhưng chưa nơi nào dựng — `grep pascal-app/editor src` ra 0.)* Fork **không** được
   tạo. Bước 6, Bước 7, Bước 10 hoãn — **không** bỏ.
 - Phạm vi A (xem + sửa) mà bản 3 đã chốt **không bị rút lại**; nó bị **hoãn** phần sửa. Lý do người
   dùng thấy khi chọn: Bước 10 dù sao cũng đang bị backend F-04b/F-04c/F-05/F-08 chặn.
