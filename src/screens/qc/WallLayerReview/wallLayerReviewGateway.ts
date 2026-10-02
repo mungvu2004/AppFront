@@ -47,6 +47,7 @@
  *   mặc định là chính store; ảnh nền thì đọc thật qua `spatial.readFloor`.
  */
 
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { createId } from '@/domain/spatial/ids';
@@ -299,6 +300,13 @@ export function wallDisplayCode(id: string): string {
   return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
 }
 
+/**
+ * Nhãn `#W-014` của một tường, ưu tiên bảng mã của cả tầng (`displayCodesOf`,
+ * mã BE / bộ mẫu A14 không có số đếm đứng đầu), rơi về `wallDisplayCode`.
+ */
+const wallLabelOf = (id: string, codes?: ReadonlyMap<string, string>): string =>
+  `#${codes?.get(id) ?? wallDisplayCode(id)}`;
+
 export interface CreateWallLayerReviewGatewayOptions {
   /** Client tiêm được. Vắng mặt thì cổng dùng client giả dùng chung của repo. */
   readonly apiClient?: ApiClient;
@@ -354,7 +362,7 @@ export function createWallLayerReviewGateway(
       };
     },
 
-    readWallLayer: () => Promise.resolve(graph.read()),
+    readWallLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
 
     graph,
 
@@ -683,12 +691,19 @@ export const NO_WALL_SELECTION: SelectionSnapshot = NO_SELECTION;
 /* Vé hoàn tác (D-05) — xoá là tức thì, không hộp thoại.                       */
 /* -------------------------------------------------------------------------- */
 
-/** Câu trên toast hoàn tác sau khi xoá. */
-export const deleteToastDescription = (wallId: WallId): string =>
-  `Đã xoá tường ${wallId}.`;
+/**
+ * Câu trên toast hoàn tác sau khi xoá — gọi tường bằng đúng nhãn danh sách gọi nó
+ * (`#W-001`), không bằng mã máy `W-000001WALL` (B-V6-02).
+ */
+export const deleteToastDescription = (
+  wallId: WallId,
+  wallCodes?: ReadonlyMap<string, string>,
+): string => `Đã xoá tường ${wallLabelOf(wallId, wallCodes)}.`;
 
 export interface CreateWallUndoTicketOptions {
   readonly wallId: WallId;
+  /** Bảng mã của tầng TRƯỚC khi xoá, để toast gọi tường đúng nhãn danh sách. */
+  readonly wallCodes?: ReadonlyMap<string, string>;
   readonly undo: () => void;
   readonly now: () => number;
 }
@@ -702,7 +717,7 @@ export interface CreateWallUndoTicketOptions {
  */
 export function createWallUndoTicket(options: CreateWallUndoTicketOptions): UndoTicket {
   return createUndoTicket({
-    description: deleteToastDescription(options.wallId),
+    description: deleteToastDescription(options.wallId, options.wallCodes),
     now: options.now,
     undo: options.undo,
   });
@@ -1002,6 +1017,7 @@ export function toCanvasShapes(
   walls: readonly Wall[],
   level: Level,
   statusOf: (wall: Wall) => ViewStatusCode,
+  wallCodes?: ReadonlyMap<string, string>,
 ): readonly WallLayerCanvasShape[] {
   const scale = scaleOfLevel(level);
   const outlines = new Map(toWallShapes(walls, level, statusOf).map((shape) => [shape.id, shape]));
@@ -1025,7 +1041,7 @@ export function toCanvasShapes(
       id: wall.id,
       outline,
       statusCode: shape.statusCode,
-      codeLabel: `#${wallDisplayCode(wall.id)}`,
+      codeLabel: wallLabelOf(wall.id, wallCodes),
       thicknessMm: wall.thicknessMm,
       centrelinePx: {
         start: toPixelPoint(wall.centreline.start, scale),
@@ -1229,10 +1245,10 @@ export function wallStatusCode(wall: Wall): ViewStatusCode {
 }
 
 /** Một dòng của danh sách 48 tường. */
-export function toWallRow(wall: Wall): WallRowViewModel {
+export function toWallRow(wall: Wall, wallCodes?: ReadonlyMap<string, string>): WallRowViewModel {
   return {
     id: wall.id,
-    codeLabel: `#${wallDisplayCode(wall.id)}`,
+    codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
     thicknessLabel: formatThickness(wall.thicknessMm),
     confidence: wall.confidence,
@@ -1244,10 +1260,14 @@ export function toWallRow(wall: Wall): WallRowViewModel {
 }
 
 /** Thanh tra tường đang chọn. Mọi con số đã thành chuỗi ở đây, không ở view (A15). */
-export function toWallInspector(wall: Wall, level: Level): WallInspectorViewModel {
+export function toWallInspector(
+  wall: Wall,
+  level: Level,
+  wallCodes?: ReadonlyMap<string, string>,
+): WallInspectorViewModel {
   return {
     id: wall.id,
-    codeLabel: `#${wallDisplayCode(wall.id)}`,
+    codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
     lengthLabel: formatCentrelineLength(wall, level),
     /*

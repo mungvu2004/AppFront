@@ -420,36 +420,72 @@ describe('api client', () => {
       );
     });
 
-    it('writeLayer PATCHes the layer path with an idempotency key and hands the response straight back', async () => {
+    it('writeLayer PUTs {baseVersion, body: {layer}} — the only verb BE #35 has on this path (B-G-07)', async () => {
+      const saved = { layer: sampleSpatialLayer, revision: 8 };
       const http = createHttpMock({
-        [`PATCH ${ENDPOINTS.spatial.layer('project-1', 'floor-1')}`]: sampleSpatialLayer,
+        [`PUT ${ENDPOINTS.spatial.layer('project-1', 'floor-1')}`]: saved,
       });
       const client = createApiClient(http);
 
       const result = await client.spatial.writeLayer({
+        baseVersion: 7,
         body: sampleSpatialLayer,
         floorId: 'floor-1',
         idempotencyKey: 'key-spatial-layer',
         projectId: 'project-1',
       });
 
-      expect(http.patch).toHaveBeenCalledWith(
+      expect(http.patch).not.toHaveBeenCalled();
+      expect(http.put).toHaveBeenCalledWith(
         ENDPOINTS.spatial.layer('project-1', 'floor-1'),
-        expect.objectContaining({ body: sampleSpatialLayer, idempotencyKey: 'key-spatial-layer' }),
+        expect.objectContaining({
+          body: { baseVersion: 7, body: { layer: sampleSpatialLayer } },
+          idempotencyKey: 'key-spatial-layer',
+        }),
       );
-      expect(result).toEqual({ data: sampleSpatialLayer, ok: true });
+      expect(result).toEqual({ data: saved, ok: true });
     });
 
-    it('mock client echoes whatever layer it is given back, unchanged', async () => {
+    it('readLayer GETs N16 on the same path and decodes the floor document', async () => {
+      const document = {
+        axes: [],
+        dimensions: [],
+        layer: sampleSpatialLayer,
+        level: {
+          confidence: 1,
+          elevationMm: 0,
+          heightMm: 3000,
+          id: 'L-LEVEL000001',
+          name: 'Tầng 2',
+          order: 1,
+          reviewed: true,
+          source: 'human',
+        },
+        revision: 3,
+      };
+      const http = createHttpMock({ [`GET ${ENDPOINTS.spatial.layer('project-1', 'L-LEVEL000001')}`]: document });
+
+      const result = await createApiClient(http).spatial.readLayer({ floorId: 'L-LEVEL000001', projectId: 'project-1' });
+
+      expect(result).toEqual({ data: document, ok: true });
+    });
+
+    it('mock client bumps the revision on every write and serves the written layer back on read', async () => {
       const client = createMockApiClient();
+      const before = await client.spatial.readLayer({ floorId: 'floor-1', projectId: 'project-1' });
 
       const result = await client.spatial.writeLayer({
+        baseVersion: before.ok ? before.data.revision : -1,
         body: sampleSpatialLayer,
         floorId: 'floor-1',
         projectId: 'project-1',
       });
+      const after = await client.spatial.readLayer({ floorId: 'floor-1', projectId: 'project-1' });
 
-      expect(result).toEqual({ data: sampleSpatialLayer, ok: true });
+      expect(before.ok && before.data.revision).toBe(0);
+      expect(result).toEqual({ data: { layer: sampleSpatialLayer, revision: 1 }, ok: true });
+      expect(after.ok && after.data.layer).toEqual(sampleSpatialLayer);
+      expect(after.ok && after.data.revision).toBe(1);
     });
   });
 

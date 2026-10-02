@@ -71,7 +71,6 @@ import {
 } from './dimensionOcrFixture';
 import {
   deviationOf,
-  dimensionDisplayCode,
   dimensionEntityIdOf,
   dimensionProgressLabel,
   formatDeviation,
@@ -85,14 +84,13 @@ const TOTAL_DIMENSIONS = DIMENSION_OCR_FIXTURE_TOTAL;
 const REVIEWED_DIMENSIONS = DIMENSION_OCR_FIXTURE_REVIEWED;
 
 /**
- * Hai ví dụ nghiệm thu độ lệch, lấy MÃ HIỂN THỊ ra khỏi chính bộ mẫu.
+ * Hai ví dụ nghiệm thu độ lệch, lấy MÃ THỰC THỂ ra khỏi chính bộ mẫu.
  *
- * `Dimension.id` là định danh thực thể (`M-000018DIMS`); thứ màn hình vẽ là mã
- * hiển thị `M-018`, và `dimensionDisplayCode` của cổng là hàm đổi giữa hai
- * dạng — bài kiểm không tự cắt chuỗi.
+ * Khoá của hàng (`data-dimension-id`) là `Dimension.id` (`M-000018DIMS`), không phải
+ * nhãn `#M-018` — nhãn chỉ để đọc, và mã BE / mã A14 có thể cho nhãn khác.
  */
-const MINOR_ID = dimensionDisplayCode(DIMENSION_OCR_FIXTURE_MINOR_DEVIATION.id);
-const SIGNIFICANT_ID = dimensionDisplayCode(DIMENSION_OCR_FIXTURE_SIGNIFICANT_DEVIATION.id);
+const MINOR_ID = DIMENSION_OCR_FIXTURE_MINOR_DEVIATION.id;
+const SIGNIFICANT_ID = DIMENSION_OCR_FIXTURE_SIGNIFICANT_DEVIATION.id;
 
 /**
  * `zoom` — chữ tiếng Anh DUY NHẤT được phép, và nó không phải chuỗi của màn này.
@@ -467,7 +465,7 @@ describe('[NGHIEM-3] chế độ duyệt bàn phím', () => {
     const displayId = (approveButtons()[0]?.getAttribute('aria-label') ?? '')
       .replace(DIMENSION_OCR_TEXT.row.approveButtonAriaLabelPrefix, '')
       .replace('#', '');
-    const row = rowOf(displayId);
+    const row = rowOf(dimensionEntityIdOf(displayId));
 
     expect(row).not.toBeNull();
 

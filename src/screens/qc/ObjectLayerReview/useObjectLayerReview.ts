@@ -54,6 +54,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { displayCodesOf } from '@/domain/spatial/ids';
 import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
@@ -402,18 +403,24 @@ export function useObjectLayerReview(
   const selectedIds = useStore((state) => state.selectedIds);
   const setSelection = useStore((state) => state.setSelection);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
+   * `objectLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = objectLayerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph), [graph]);
   const hasError = objectLayerQuery.isError;
@@ -1221,7 +1228,16 @@ export function useObjectLayerReview(
     [layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
   );
 
-  const rows = useMemo(() => visibleObjects.map(toObjectRow), [visibleObjects]);
+  /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
+  const wallCodes = useMemo(
+    () => displayCodesOf(solidWalls.map((wall) => wall.id)),
+    [solidWalls],
+  );
+
+  const rows = useMemo(
+    () => visibleObjects.map((object) => toObjectRow(object, wallCodes)),
+    [visibleObjects, wallCodes],
+  );
 
   const inspector = useMemo(() => {
     if (selectedObject === null) {
@@ -1230,8 +1246,8 @@ export function useObjectLayerReview(
 
     const wall = isOrphanObject(selectedObject) ? null : wallOfObject(selectedObject.hostWallId);
 
-    return toObjectInspector(selectedObject, wall);
-  }, [selectedObject, wallOfObject]);
+    return toObjectInspector(selectedObject, wall, wallCodes);
+  }, [selectedObject, wallCodes, wallOfObject]);
 
   const paintSubjects = useMemo(
     () => (level === null ? [] : objects.map((object) => toPaintSubject(object, level.id))),

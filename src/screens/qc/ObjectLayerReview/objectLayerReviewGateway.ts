@@ -49,6 +49,7 @@
  *   trả nó. Cổng đọc qua một cửa tiêm được, mặc định là chính store.
  */
 
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 
 import type { ApiClient } from '@/api/client';
@@ -1570,7 +1571,10 @@ export const lowConfidenceObjectsOf = (
 /* -------------------------------------------------------------------------- */
 
 /** Một dòng của danh sách gộp theo ba nhóm. */
-export function toObjectRow(object: ReviewObject): ObjectListRowViewModel {
+export function toObjectRow(
+  object: ReviewObject,
+  wallCodes?: ReadonlyMap<string, string>,
+): ObjectListRowViewModel {
   const attached = isOrphanObject(object) ? null : object;
   const isOrphan = attached === null;
 
@@ -1580,7 +1584,7 @@ export function toObjectRow(object: ReviewObject): ObjectListRowViewModel {
     subtype: object.subtype,
     codeLabel: `#${object.id}`,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
-    hostWallLabel: attached === null ? null : `#${hostWallDisplayCode(attached.hostWallId)}`,
+    hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     confidence: object.confidence,
     statusCode: objectStatusCode(
       { confidence: object.confidence, source: object.reviewed ? 'human' : 'ai', reviewed: object.reviewed },
@@ -1603,6 +1607,7 @@ export function toObjectRow(object: ReviewObject): ObjectListRowViewModel {
 export function toObjectInspector(
   object: ReviewObject,
   wall: SolidWall | null,
+  wallCodes?: ReadonlyMap<string, string>,
 ): ObjectInspectorViewModel {
   const attached = isOrphanObject(object) ? null : object;
   const isOrphan = attached === null;
@@ -1616,7 +1621,7 @@ export function toObjectInspector(
     widthLabel: formatMillimetres(object.widthMm),
     heightLabel: formatMillimetres(object.heightMm),
     sillHeightLabel: object.sillHeightMm === null ? null : formatMillimetres(object.sillHeightMm),
-    hostWallLabel: attached === null ? null : `#${hostWallDisplayCode(attached.hostWallId)}`,
+    hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     hostWallId: attached?.hostWallId ?? null,
     relativePosition: attached?.relativePosition ?? null,
     distanceToStartLabel: span === null ? null : formatMillimetres(span.lowMm),
@@ -1781,7 +1786,7 @@ export function createObjectLayerReviewGateway(
       };
     },
 
-    readObjectLayer: () => Promise.resolve(graph.read()),
+    readObjectLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
     readFurnitureBranch: () => Promise.resolve(null),
 
     graph,

@@ -10,6 +10,8 @@ export interface SpatialLayerChanges {
   readonly floorId: string;
   readonly projectId: string;
   readonly layer: SpatialLayer;
+  /** `revision` mà lớp này dựa trên — #35 là `PUT` có version (B-G-07). */
+  readonly baseVersion: number;
 }
 
 /**
@@ -34,6 +36,7 @@ export function createSpatialLayerSave(
 ): (changes: SpatialLayerChanges) => Promise<void> {
   return async (changes) => {
     const result = await spatialApi.writeLayer({
+      baseVersion: changes.baseVersion,
       body: changes.layer,
       floorId: changes.floorId,
       projectId: changes.projectId,

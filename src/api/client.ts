@@ -26,7 +26,13 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
-import { SpatialLayerSchema, type RegisterInput, type SignInInput } from './schemas';
+import { type RegisterInput, type SignInInput } from './schemas';
+import {
+  FloorLayerDocumentSchema,
+  FloorLayerWriteResultSchema,
+  type FloorLayerDocument,
+  type FloorLayerWriteResult,
+} from './schemas/spatialLayer';
 import {
   NotificationSchema,
   type MarkNotificationsReadInput,
@@ -248,7 +254,17 @@ export interface SpatialLayer {
   walls: readonly Wall[];
 }
 
+export interface ReadSpatialLayerInput extends RequestOptions {
+  floorId: string;
+  projectId: string;
+}
+
 export interface WriteSpatialLayerInput extends WriteRequestOptions {
+  /**
+   * `revision` của lượt đọc mà lớp này dựa trên (`readLayer`). BE #35 là một
+   * `PUT` có version: thiếu nó là 428, cũ là 409 — không có lượt ghi "mù".
+   */
+  baseVersion: number;
   body: SpatialLayer;
   floorId: string;
   projectId: string;
@@ -513,8 +529,13 @@ export interface SpatialApi {
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
   /** N17 — lịch sử phiên bản của một tầng (trang đầu). */
   listVersions(input: ListFloorVersionsInput): Promise<ApiResult<FloorVersionPage>>;
-  /** Saves the floor's whole spatial layer and hands the persisted copy back — U4 gap #4. */
-  writeLayer(input: WriteSpatialLayerInput): Promise<ApiResult<SpatialLayer>>;
+  /** N16 — the floor's layer document: `revision`, `level`, four lists, axes, dimensions. */
+  readLayer(input: ReadSpatialLayerInput): Promise<ApiResult<FloorLayerDocument>>;
+  /**
+   * #35 — saves the floor's whole spatial layer against `baseVersion` and hands
+   * the persisted copy back with its new `revision` (`PUT`, B-G-07).
+   */
+  writeLayer(input: WriteSpatialLayerInput): Promise<ApiResult<FloorLayerWriteResult>>;
 }
 
 /**
@@ -738,6 +759,13 @@ const callPost = async <T, TBody>(
   body: TBody,
   options: WriteRequestOptions,
 ): Promise<Result<T, HttpError>> => http.post<T, TBody>(path, { body, ...toRequestOptions(options) });
+
+const callPut = async <T, TBody>(
+  http: HttpClient,
+  path: string,
+  body: TBody,
+  options: WriteRequestOptions,
+): Promise<Result<T, HttpError>> => http.put<T, TBody>(path, { body, ...toRequestOptions(options) });
 
 const callPatch = async <T, TBody>(
   http: HttpClient,
@@ -1030,17 +1058,23 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         FloorVersionPageSchema,
         'spatial.listVersions',
       ),
+    readLayer: async ({ floorId, projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.spatial.layer(projectId, floorId), signal),
+        FloorLayerDocumentSchema,
+        'spatial.readLayer',
+      ),
     /**
-     * Giải mã qua `SpatialLayerSchema` — nhóm cuối cùng rời khỏi diện "đi thẳng
-     * không schema". Xem `./schemas/spatial.ts` để biết nó kiểm gì và cố ý
-     * không kiểm gì.
+     * `PUT {baseVersion, body: {layer}}` — đúng route #35 của BE
+     * (`spatial_write/router.py`). Bản trước gửi `PATCH` trần lớp, mà BE không
+     * có `PATCH` nào ở đường này: mọi lượt lưu trên máy chủ thật là 405 (B-G-07).
      */
     writeLayer: async (input) => {
-      const { body, floorId, projectId } = input;
+      const { baseVersion, body, floorId, projectId } = input;
 
       return decodeSingle(
-        await callPatch<SpatialLayer, unknown>(http, ENDPOINTS.spatial.layer(projectId, floorId), body, input),
-        SpatialLayerSchema,
+        await callPut(http, ENDPOINTS.spatial.layer(projectId, floorId), { baseVersion, body: { layer: body } }, input),
+        FloorLayerWriteResultSchema,
         'spatial.writeLayer',
       );
     },

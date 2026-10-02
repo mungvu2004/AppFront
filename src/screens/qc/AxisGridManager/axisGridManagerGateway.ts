@@ -60,6 +60,9 @@
  *   chính nhãn của nó, thay vì im lặng hoặc bịa một lượt lưu đã xong.
  */
 
+import { createAppApiClient } from '@/api/appClient';
+import type { ApiClient } from '@/api/client';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import {
   axisLine,
   detectAxes,
@@ -1086,12 +1089,15 @@ export interface CreateAxisGridManagerGatewayOptions {
   readonly now?: () => number;
   readonly nextAxisId?: () => AxisId;
   readonly scale?: Scale;
+  /** Client tiêm được. Vắng mặt thì cổng dùng client của ứng dụng. */
+  readonly apiClient?: ApiClient;
 }
 
 /** Cổng thật — thứ container lớp 3 gọi. */
 export function createAxisGridManagerGateway(
   options: CreateAxisGridManagerGatewayOptions = {},
 ): AxisGridManagerGateway {
+  const apiClient = options.apiClient ?? createAppApiClient();
   const graph: AxisGridGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
@@ -1105,7 +1111,7 @@ export function createAxisGridManagerGateway(
       persistAxisOrigin: false,
     },
 
-    readAxisLayer: () => Promise.resolve(graph.read()),
+    readAxisLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
 
     graph,
 

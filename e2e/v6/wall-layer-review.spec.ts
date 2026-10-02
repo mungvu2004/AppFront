@@ -1,0 +1,166 @@
+import { expect, test, type Page } from '@playwright/test';
+
+import { ROUTES } from '../fixtures/routes';
+import { dismissTourIfShown } from '../fixtures/tour';
+
+import { QC_FLOOR, QC_PROJECT, seedQc } from './seedQc';
+
+/**
+ * `projectWalls` — Duyệt lớp tường (`plan.md` V6 mục 1).
+ *
+ * Hai loại bài, và tên bài nói ra mình thuộc loại nào:
+ * - **đường nạp thật** — KHÔNG bơm. Từ B-V6-01 màn đọc N16 (`spatial.readLayer`) khi kho
+ *   rỗng; đây là chỗ các "ca mồi" của `plan.md` 6.1 đỏ lên đúng thiết kế, nên chúng thành
+ *   bài khẳng định đường thật. Bộ mẫu dev phục vụ bộ mẫu chuẩn A14 cho các tầng `L-LEVEL…`
+ *   và lớp rỗng cho tầng khác (`src/api/__mocks__/client.ts`, `makeLayerDocument`).
+ * - **[bơm]** — bộ mẫu riêng của màn qua `seedQc` (48 tường, 12 đã duyệt), vì các ca thao
+ *   tác đếm trên đúng bộ ấy. Ràng buộc 6.1: `goto` rồi bơm, không `Ctrl+Z` thừa.
+ *
+ * Không kiểm lại thứ 61 bài đơn vị đã phủ (đếm, độ dày, vé hoàn tác, vai).
+ */
+
+/** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
+const FIRST_PAINT_TIMEOUT_MS = 15_000;
+
+/** Tầng 2 của bộ mẫu A14: 48 tường chia đều bốn tầng ⇒ 12 tường. */
+const A14_FLOOR = 'L-LEVEL000001';
+const A14_WALLS_ON_FLOOR = 12;
+
+const FIXTURE_WALLS = 48;
+
+const list = (page: Page) => page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
+
+async function openSeeded(page: Page): Promise<void> {
+  await page.goto(ROUTES.project.walls(QC_PROJECT, QC_FLOOR.walls));
+  await expect(page.getByRole('region', { name: 'Duyệt lớp tường' })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await seedQc(page, 'walls');
+  await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS);
+  /* Tour hướng dẫn phủ màn tường (W02): bỏ nó trước cú bấm đầu, không để cú bấm bỏ hộ. */
+  await dismissTourIfShown(page);
+}
+
+test.describe('đường nạp thật (không bơm)', () => {
+  test('mở thẳng màn ở một tầng có lớp thì danh sách hiện đúng các tường đọc từ máy chủ, không treo skeleton', async ({
+    page,
+  }) => {
+    await page.goto(ROUTES.project.walls(QC_PROJECT, A14_FLOOR));
+
+    await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR, {
+      timeout: FIRST_PAINT_TIMEOUT_MS,
+    });
+    await expect(page.getByText(`0/${String(A14_WALLS_ON_FLOOR)} tường đã duyệt`)).toBeVisible();
+  });
+
+  test('tầng chưa có lớp thì màn nói thật "Chưa có đoạn tường nào"', async ({ page }) => {
+    await page.goto(ROUTES.project.walls(QC_PROJECT, 'L1'));
+
+    await expect(page.getByText('Chưa có đoạn tường nào', { exact: true })).toBeVisible({
+      timeout: FIRST_PAINT_TIMEOUT_MS,
+    });
+  });
+});
+
+test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
+  test('[bơm] Backspace xoá tường đang chọn, Ctrl+Z trả lại — qua sổ phím thật (A12, A8)', async ({ page }) => {
+    await openSeeded(page);
+
+    await list(page).getByRole('option').first().click();
+    await page.keyboard.press('Backspace');
+    await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS - 1);
+
+    await page.keyboard.press('Control+z');
+    await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS);
+  });
+
+  test('[bơm] toast xoá gọi tường bằng nhãn của danh sách, không lộ mã máy (B-V6-02)', async ({ page }) => {
+    await openSeeded(page);
+
+    await list(page).getByRole('option', { name: /^#W-001 / }).click();
+    await page.keyboard.press('Backspace');
+
+    const toasts = page.getByRole('region', { name: 'Thông báo' });
+    await expect(toasts.getByText('Đã xoá tường #W-001.', { exact: true })).toBeVisible();
+    await expect(toasts).not.toContainText(/W-\d{6}WALL/u);
+  });
+
+  test('[bơm] sau một lượt xoá, thanh trạng thái nói "chưa lưu" và không nói "Đã lưu" (A7 — màn không nói dối)', async ({
+    page,
+  }) => {
+    await openSeeded(page);
+
+    await list(page).getByRole('option').first().click();
+    await page.keyboard.press('Backspace');
+
+    const statusBar = page.getByRole('status', { name: 'Thanh trạng thái' });
+    await expect(statusBar).toContainText('Có thay đổi chưa lưu');
+    await expect(statusBar).not.toContainText(/Đã lưu/u);
+  });
+
+  test('[bơm] J/K đi giữa các hàng và phím 1 đổi độ dày của tường đang chọn', async ({ page }) => {
+    await openSeeded(page);
+
+    await list(page).getByRole('option', { name: /^#W-001 / }).click();
+    await page.keyboard.press('j');
+    await expect(list(page).getByRole('option', { name: /^#W-002 / })).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('k');
+    await expect(list(page).getByRole('option', { name: /^#W-001 / })).toHaveAttribute('aria-selected', 'true');
+
+    await page.keyboard.press('1');
+    await expect(page.getByRole('radio', { name: '110 mm' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('[bơm] Escape bỏ chọn tường (B-V6-11)', async ({ page }) => {
+    await openSeeded(page);
+
+    const first = list(page).getByRole('option', { name: /^#W-001 / });
+    await first.click();
+    await expect(first).toHaveAttribute('aria-selected', 'true');
+
+    await page.keyboard.press('Escape');
+    await expect(list(page).getByRole('option', { selected: true })).toHaveCount(0);
+  });
+
+  test.fixme(
+    '[bơm] một lượt xoá được tự lưu 800 ms sau và thanh trạng thái nói "Đã lưu" (A7, B-V6-03)',
+    async ({ page }) => {
+      /*
+       * Lý do fixme: cổng tường khai `persistWallLayer: false` — tự lưu NÉM, nên chữ ở lại
+       * "Có thay đổi chưa lưu" mãi (đo 2026-10-03: 0,5 s và 2 s sau xoá).
+       * Mở lại khi: `persistWallLayer` gọi `spatial.writeLayer` với `baseVersion` lấy từ
+       * lượt đọc N16 (B-V6-03). Ca này khi ấy phải xanh mà không sửa gì thêm.
+       */
+      await openSeeded(page);
+      await list(page).getByRole('option').first().click();
+      await page.keyboard.press('Backspace');
+      await expect(page.getByRole('status', { name: 'Thanh trạng thái' })).toContainText(/Đã lưu/u);
+    },
+  );
+
+  test.fixme('[bơm] phím W bật công cụ vẽ và ray nói ra công cụ đang bật bằng aria-pressed (B-V6-12)', async ({ page }) => {
+    /*
+     * Lý do fixme: `IconButton` (components/ui) nhận `isActive` nhưng không phát `aria-pressed`,
+     * nên ray tường và ray đối tượng không cho trình đọc màn hình (hay trình duyệt) biết công cụ
+     * nào đang bật — đo 2026-10-03: sau W/M/V không phần tử nào mang `aria-pressed="true"`.
+     * Mở lại khi: nút công cụ phát `aria-pressed` (vỏ 3D đã làm, `ViewerToolRail.tsx`).
+     */
+    await openSeeded(page);
+    await page.keyboard.press('w');
+    await expect(
+      page.getByRole('toolbar', { name: 'Công cụ lớp tường' }).getByRole('button', { name: 'vẽ tường (phím W)' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test.fixme('[bơm] nút ẩn lớp viết thường kiểu câu: "Ẩn lớp tường" (A6, B-V6-04)', async ({ page }) => {
+    /*
+     * Lý do fixme: nhãn ghép tên lớp viết hoa giữa câu ("Ẩn lớp Tường"), trong khi màn đối
+     * tượng viết "Ẩn lớp cửa đi". Q10f chốt: kế hoạch không khẳng định "viết thường kiểu câu"
+     * khi luật chưa có ở tài liệu ưu tiên cao — việc riêng.
+     * Mở lại khi: việc riêng của Q10f đưa luật vào `LUAT_MAN_HINH.md`/`RULE.md` và cây lớp
+     * đổi tên lớp sang chữ thường.
+     */
+    await openSeeded(page);
+    await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toBeVisible();
+  });
+});
