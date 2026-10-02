@@ -140,6 +140,7 @@ export const NOTIFICATION_CENTER_TEXT = {
   headingToday: 'Hôm nay',
   headingYesterday: 'Hôm qua',
   liveEmpty: 'không có thông báo nào',
+  liveAllRead: 'không còn thông báo chưa đọc',
   loadFailed: 'không đọc được danh sách thông báo',
   markReadFailed: 'không đánh dấu được là đã đọc',
   settingsLabel: 'cài đặt thông báo',
@@ -806,15 +807,21 @@ export function useNotificationCenter(
 
   /**
    * Câu cho `aria-live`. Lỗi nói ra là lỗi; không còn gì chưa đọc thì nói ra
-   * điều đó thay vì im lặng — trình đọc màn hình không thấy được cái danh sách
-   * rỗng, nó chỉ nghe được câu này.
+   * điều đó thay vì im lặng — trình đọc màn hình không thấy được cái danh sách,
+   * nó chỉ nghe được câu này.
+   *
+   * "Hết chưa đọc" và "hộp thư rỗng" là hai câu: sau "Đánh dấu tất cả đã đọc"
+   * danh sách vẫn còn nguyên, và câu "không có thông báo nào" từng nói dối người
+   * dùng trình đọc màn hình đúng lúc ấy (B-V2-02).
    */
   const liveMessage =
     errorMessage !== null
       ? NOTIFICATION_CENTER_TEXT.loadFailed
-      : unreadCount === 0
-        ? NOTIFICATION_CENTER_TEXT.liveEmpty
-        : unreadLiveMessage(unreadBadge);
+      : unreadCount > 0
+        ? unreadLiveMessage(unreadBadge)
+        : visibleItems.length === 0
+          ? NOTIFICATION_CENTER_TEXT.liveEmpty
+          : NOTIFICATION_CENTER_TEXT.liveAllRead;
 
   return {
     screenState,
