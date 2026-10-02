@@ -8,12 +8,14 @@ import { QCB_PROJECT, seedQcb } from './seedQcb';
 /**
  * Nhóm V7 — `projectFloors` "Quản lý tầng" (`plan.md` V7 mục 2).
  *
- * `isLoading = floorListQuery.isPending || graph === null` (`useFloorManager.ts`), và
- * không nơi nào nạp `graph` từ mạng (B-V6-01): mở thẳng thì bảng tầng treo khung
- * xương mãi. Mọi ca có hàng tầng đi qua `seedQcb` — tên bài nói ra điều đó.
+ * Từ B-V6-01 (phần V7) cổng đọc danh sách tầng rồi N16 của từng tầng khi kho rỗng
+ * (`readProjectLayerGraph`) — màn không còn treo khung xương. Nhưng mã tầng của bộ mẫu
+ * dev (`L-1`, `L1`, `L2`, `L3`, `src/mocks/spatial.ts`) không phải `LevelId` hợp lệ, nên
+ * `levelsOf` lọc bỏ cả bốn và bảng nói "chưa có tầng nào" (B-V7-21, ngoài FE — bộ mẫu).
+ * Vì thế các ca cần hàng tầng vẫn đi qua `seedQcb` — tên bài nói ra điều đó.
  *
- * Màn KHÔNG có tự lưu: nó nói thật bằng hai câu nợ `role="status"`. Ca mồi ghim hai
- * câu ấy — đó là ghim hiện trạng "không nói sai", không phải bài đạt A7.
+ * Nội dung tầng và "ẩn khỏi 3D" chưa có đầu máy chủ (B-V7-12): màn nói thật bằng hai câu
+ * nợ `role="status"`.
  *
  * Đơn vị (48 bài) đã phủ: đổi chiều cao kéo cao độ tầng trên = một bước, chặn trùng
  * cao độ, xoá tầng có vé 8 s, nhân bản. Ở đây chỉ đi đường trình duyệt thật.
@@ -49,21 +51,36 @@ async function openSeeded(page: Page): Promise<void> {
   await expect(floorRows(page)).toHaveCount(4);
 }
 
-test('ca mồi, KHÔNG bơm: hai câu nợ nói thật mà chưa có hàng tầng nào — đỏ ngày có đường nạp thật, khi ấy xoá seedQcb (V7-FLOORS-01)', async ({
+test('đường nạp thật: mở thẳng thì màn không treo khung xương — có nút "Thêm tầng", hai câu nợ nói thật (V7-FLOORS-01, B-V6-01)', async ({
   page,
 }) => {
   await open(page);
 
+  /* Nút "Thêm tầng" chỉ vắng khi bảng còn khung xương (`isLoading`) — trước B-V6-01 là mãi. */
+  await expect(page.getByRole('button', { name: 'Thêm tầng' })).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'những thay đổi chỉ sống trong phiên làm việc này' }),
   ).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: DEBT_HIDE })).toBeVisible();
-  /* Hôm nay: khung xương, không hàng, không nút "Thêm tầng" (B-V6-01). Không khẳng
-     định số khung xương — chỉ khẳng định điều người dùng thiếu. */
-  await expect(floorRows(page)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Thêm tầng' })).toHaveCount(0);
 });
+
+test.fixme(
+  'đường nạp thật: bảng hiện đủ bốn tầng của danh sách tầng, không nói "chưa có tầng nào" (B-V7-21)',
+  /*
+   * Lý do fixme: kho đã có bốn tầng đọc qua N16 (đo: `byKind.level` = L-1, L1, L2, L3), nhưng
+   * mã tầng của bộ mẫu dev không phải `LevelId` hợp lệ (`L-<thân ≥10 ký tự>`,
+   * `src/domain/spatial/ids.ts`), nên `isEntityOfKind('level', …)` của `levelsOf` bỏ cả bốn.
+   * BE thật trả mã hợp lệ. Đổi mã tầng của bộ mẫu chạm mọi bài đang dùng `L1` — quyết của
+   * điều phối viên.
+   * Mở lại khi: bộ mẫu dev phát mã tầng hợp lệ (hoặc màn tầng không lọc theo khuôn mã).
+   */
+  async ({ page }) => {
+    await open(page);
+
+    await expect(floorRows(page)).toHaveCount(4);
+  },
+);
 
 test('bơm bộ mẫu: bốn tầng, cao độ và tổng cao dùng dấu phẩy (V7-FLOORS-02, A15)', async ({ page }) => {
   await openSeeded(page);

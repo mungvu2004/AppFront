@@ -8,13 +8,13 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 /**
  * Nhóm V7 — `projectThickness` "Chuẩn hoá độ dày tường" (`plan.md` V7 mục 3).
  *
- * Màn đọc đồ thị từ `store.spatial` và không nơi nào nạp nó từ mạng (B-V6-01), nên
- * mọi ca có nội dung đi qua `seedQcb` — tên bài nói ra điều đó. Ca mồi đầu tiên
- * KHÔNG bơm: nó ghim chuỗi người dùng thấy hôm nay, và đỏ đúng ngày sản phẩm có
- * đường nạp thật (`plan.md` 6.1).
- *
- * Màn đếm CẢ CÔNG TRÌNH: URL `L-000001TFL1` ra 48 đoạn, tức đủ ba tầng của bộ mẫu
- * (mỗi tầng 16, `thicknessFixture.ts`) — đo.
+ * Hai loại bài, tên bài nói ra mình thuộc loại nào:
+ * - **đường nạp thật** — KHÔNG bơm. Từ B-V6-01 (phần V7) màn đọc N16 khi kho rỗng: tầng
+ *   A14 `L-LEVEL000001` cho 12 tường 220 mm, tầng khác cho lớp rỗng. Ca mồi của
+ *   `plan.md` 6.1 đỏ đúng thiết kế ngày ấy, nên nó thành bài khẳng định đường thật.
+ * - **bơm bộ mẫu** — bộ riêng của màn: các ca chuẩn hoá cần những tường LỆCH chuẩn, mà
+ *   tầng A14 không có. Màn đếm CẢ đồ thị trong kho: URL `L-000001TFL1` ra 48 đoạn, tức
+ *   đủ ba tầng của bộ mẫu (mỗi tầng 16, `thicknessFixture.ts`) — đo.
  *
  * Đơn vị (35 bài) đã phủ: một lượt áp = một bước hoàn tác, kéo ngưỡng không ghi
  * lịch sử, cảnh báo áp lại. Ở đây chỉ đi những gì trình duyệt thật mới chứng minh.
@@ -24,6 +24,10 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const TITLE = 'chuẩn hoá độ dày tường';
+
+/** Tầng 2 của bộ mẫu A14 qua N16: 12 tường ngăn, đều 220 mm. */
+const A14_FLOOR = 'L-LEVEL000001';
+const A14_WALLS_ON_FLOOR = 12;
 
 /** Bốn thẻ đếm là `<p role="status">` không nhãn riêng — phân biệt bằng chữ. */
 function stat(page: Page, label: string) {
@@ -35,11 +39,11 @@ function toast(page: Page) {
   return page.getByRole('region', { name: 'Thông báo' });
 }
 
-async function open(page: Page): Promise<void> {
+async function open(page: Page, floorId: string = QCB_FLOOR.thickness): Promise<void> {
   /* Hàng nhóm là `motion.tr` có `layoutId` (260 ms): tắt chuyển động để cú bấm
      không rơi vào một hàng đang trượt. */
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(ROUTES.project.thickness(QCB_PROJECT, QCB_FLOOR.thickness));
+  await page.goto(ROUTES.project.thickness(QCB_PROJECT, floorId));
   await expect(page.getByRole('heading', { name: TITLE })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
@@ -51,10 +55,19 @@ async function openSeeded(page: Page): Promise<void> {
   await expect(stat(page, 'tổng số đoạn tường')).toHaveText(/^48\s+tổng số đoạn tường$/u);
 }
 
-test('ca mồi, KHÔNG bơm: mở thẳng thì màn nói thật "chưa có đoạn tường nào" — đỏ ngày có đường nạp thật, khi ấy xoá seedQcb (V7-THICK-01)', async ({
+test('đường nạp thật: mở thẳng ở một tầng có lớp thì thẻ đếm đọc tường từ máy chủ (V7-THICK-01, B-V6-01)', async ({
   page,
 }) => {
-  await open(page);
+  await open(page, A14_FLOOR);
+
+  await expect(stat(page, 'tổng số đoạn tường')).toHaveText(
+    new RegExp(`^${String(A14_WALLS_ON_FLOOR)}\\s+tổng số đoạn tường$`, 'u'),
+  );
+  await expect(page.getByRole('heading', { name: 'chưa có đoạn tường nào để chuẩn hoá' })).toHaveCount(0);
+});
+
+test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chưa có đoạn tường nào" (V7-THICK-01)', async ({ page }) => {
+  await open(page, 'L1');
 
   await expect(page.getByRole('heading', { name: 'chưa có đoạn tường nào để chuẩn hoá' })).toBeVisible();
   for (const label of ['tổng số đoạn tường', 'đã ở đúng nhóm chuẩn', 'lệch quá dung sai', 'cột bê tông cốt thép']) {

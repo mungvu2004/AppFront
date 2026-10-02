@@ -10,11 +10,14 @@
  * Fixture dùng chung là của điều phối viên (hợp đồng chung mục 3), nên trình trợ giúp
  * này sống trong thư mục nhóm — cùng khuôn `e2e/v6/seedQc.ts` của nhóm QC-a.
  *
- * Ba ràng buộc của mọi ca có bơm: tên bài nói ra rằng nó bơm · `goto` rồi mới bơm ·
- * không `Ctrl+Z` thừa (lượt bơm là một bước `zundo`).
+ * Hai ràng buộc của mọi ca có bơm: tên bài nói ra rằng nó bơm · `goto` rồi mới bơm.
+ * (Ràng buộc cũ "không `Ctrl+Z` thừa" hết lý do từ B-V7-04: lượt nạp không còn là một
+ * bước `zundo`.)
  *
- * B-V6-01 (gốc "đọc vòng tròn", nhóm V6 sở hữu): ngày sản phẩm có đường nạp thật,
- * ca mồi của từng màn đỏ — khi ấy xoá tệp này.
+ * B-V6-01 phần V7 đã sửa — ba màn có đường nạp thật, và các ca mồi đã thành bài khẳng định
+ * đường ấy. Tệp này còn sống cho những ca đếm trên bộ mẫu RIÊNG (14 phòng có ba phòng chưa
+ * đặt tên, tường lệch chuẩn, bốn tầng) mà N16 của bộ mẫu dev không có, và vì màn tầng chưa
+ * hiện được tầng nào của bộ mẫu dev (B-V7-21).
  */
 import type { Page } from '@playwright/test';
 
@@ -24,7 +27,8 @@ export const QCB_PROJECT = 'project-1';
 
 /**
  * Mã tầng cho URL. Phòng và độ dày lọc theo `levelId` của URL, nên phải là mã `Level`
- * của đồ thị bơm vào — `L1` cho ra "rỗng GIẢ" (plan.md V6 mục 0, bẫy tầng F2).
+ * của đồ thị bơm vào — `L1` cho ra "rỗng GIẢ" (plan.md V6 mục 0, bẫy tầng F2); tự lưu
+ * cũng chỉ ghi khi đồ thị có tầng của URL (`createFloorLayerSave`).
  * `floors` không có `:floorId`.
  */
 export const QCB_FLOOR = {
