@@ -577,7 +577,7 @@ test('ba việc chỉ bằng thứ nhìn thấy trên màn: quay, thu phóng, ch
   await openViewer(page);
 
   /* Thu phóng TRƯỚC khi quay. `stepRotate` để màn ở "Trên xuống", và ở góc ấy
-     thu phóng không làm gì — xem bài `test.fixme` ngay dưới. Thứ tự cũ (quay
+     thu phóng từng không làm gì (B-V8-01, ba bài ngay dưới). Thứ tự cũ (quay
      rồi mới thu phóng) chỉ xanh khi `before` được đọc lúc camera còn đang bay
      340 ms; máy bận thì đọc sau khi đáp, ra 100 và đỏ (đo 2026-10-02: một lượt
      đỏ trong hai). */
@@ -611,15 +611,12 @@ async function settledZoomPercent(page: Page): Promise<number> {
 
 for (const face of ['Trục đo', 'Trên xuống', 'Mặt cắt'] as const) {
   /*
-   * PHÁT HIỆN, đo 2026-10-02 bằng trình duyệt thật: ở ba góc này cả cuộn chuột
-   * lẫn nút "Phóng to" đều để nhãn đứng ở 100%; ở "Phối cảnh" thì 112,6 → 197,6
-   * → 390,6%. `onViewportWheel` (`useViewerShell.ts`) chỉ chạy khi bộ điều khiển
-   * có `dolly`, mà `FlatCameraMode` (`lib/three/camera/modes.ts`) chỉ có `zoom`.
-   *
-   * Mở lại khi: `onViewportWheel` xử lý được bộ điều khiển chỉ có `zoom`. Lúc ấy
-   * bài này xanh — đổi `test.fixme` thành `test`.
+   * B-V8-01 (đã sửa): ở ba góc này cả cuộn chuột lẫn nút "Phóng to" từng để
+   * nhãn đứng ở 100%, vì `onViewportWheel` (`useViewerShell.ts`) chỉ biết `dolly`
+   * mà `FlatCameraMode` (`lib/three/camera/modes.ts`) chỉ có `zoom`. Nay là bài
+   * chặn hồi quy; bài đơn vị cùng lỗi là `[VS-15]` của `ViewerShell.test.tsx`.
    */
-  test.fixme(`thu phóng được ở góc "${face}" — bằng cuộn chuột và bằng nút`, async ({ page }) => {
+  test(`thu phóng được ở góc "${face}" — bằng cuộn chuột và bằng nút`, async ({ page }) => {
     await openViewer(page);
 
     const cube = page.getByRole('group', { name: 'Khối định hướng' });
