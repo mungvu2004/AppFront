@@ -32,13 +32,14 @@
  */
 
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { ROUTES } from '@/routes/paths';
 
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { useNotificationCenter, type UseNotificationCenterOptions } from './useNotificationCenter';
@@ -167,13 +168,42 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
  *
  * `isOpen` ghim `true` và `onDismiss` đưa người dùng lùi lại: ở một route thì
  * không có màn chủ nào để trượt về, nên "đóng" nghĩa là rời route.
+ *
+ * ## Vì sao không gọi thẳng `navigate(-1)`
+ *
+ * `navigate(-1)` là một lượt lùi **mù**. Mở `/thong-bao` trực tiếp — một liên kết được
+ * chia sẻ, một thông báo đẩy, một tab mới — thì tab không có mục lịch sử nào phía
+ * trước, và `Escape` đưa trình duyệt ra **`about:blank`**. Đã dựng lại được bằng
+ * trình duyệt thật: một màn trắng do một phím gây ra — đúng thứ A11 tồn tại để
+ * chặn, và ngược lời hứa A12 ("Esc đóng lớp trên cùng", không phải "Esc rời
+ * ứng dụng").
+ *
+ * `location.key` là `'default'` ở đúng mục lịch sử **đầu tiên** của router
+ * (react-router 6.25.1), nên nó trả lời được câu "có chỗ nào trong ứng dụng để
+ * lùi về không". Không có thì đi tới một đích xác định thay vì lùi ra ngoài;
+ * `replace` để `/thong-bao` không nằm lại trong lịch sử và `Escape` lần hai
+ * không quay lại nó.
+ *
+ * **Nhánh `navigate(-1)` hôm nay không với tồi được, và đó là lý do lỗi trên sống
+ * lâu.** Không chỗ nào trong `src` điều hướng tới `/thong-bao`: `onViewAll`
+ * (`useNotificationCenter.ts:676`) gọi `onNavigate?.(ROUTES.notifications)`, nhưng
+ * không vỏ nào truyền `onNavigate` vào hook. Nên mọi lượt tới route này đều là
+ * một lượt tải trang, tức `location.key` luôn là `'default'` — và `navigate(-1)`
+ * luôn lùi ra khỏi ứng dụng. Giữ nhánh lùi là để đúng cho ngày có người thêm
+ * một liên kết; đừng đọc một lượt chạy xanh là bằng chứng rằng nhánh ấy đúng.
  */
 export function NotificationCenterRoute() {
   const navigate = useNavigate();
+  const { key: historyKey } = useLocation();
 
   const goBack = useCallback((): void => {
+    if (historyKey === 'default') {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
+
     navigate(-1);
-  }, [navigate]);
+  }, [historyKey, navigate]);
 
   return <NotificationCenterContainer isOpen isCompact onDismiss={goBack} />;
 }
