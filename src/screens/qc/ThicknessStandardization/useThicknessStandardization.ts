@@ -49,6 +49,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { displayCodesOf } from '@/domain/spatial/ids';
 import type { EntityId, LevelId, Wall, WallId } from '@/domain/spatial/types';
 import { useFlushOnSave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
@@ -361,20 +362,28 @@ export function useThicknessStandardization(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của `layerQuery`
+   * (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = layerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
   const walls = useMemo(() => wallsOfGraph(graph), [graph]);
+  /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
+  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
   const levels = useMemo(() => levelsOfGraph(graph), [graph]);
   const levelIndex = useMemo<ReadonlyMap<LevelId, typeof levels[number]>>(
     () => levelIndexOf(levels),
@@ -392,8 +401,9 @@ export function useThicknessStandardization(
         toleranceMm,
         levels: levelIndex,
         groupOverrides,
+        codes: wallCodes,
       }),
-    [groupOverrides, levelIndex, thresholds, toleranceMm, walls],
+    [groupOverrides, levelIndex, thresholds, toleranceMm, wallCodes, walls],
   );
 
   const segmentRows = useMemo(() => sortSegmentRows(allRows, sortKey), [allRows, sortKey]);

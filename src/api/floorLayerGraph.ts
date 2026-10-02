@@ -65,3 +65,49 @@ export async function readFloorLayerGraph(
 
   return normalizeSpatial(floorLayerToGraph(result.data));
 }
+
+export interface ReadProjectLayerGraphInput {
+  readonly floorIds: readonly string[];
+  readonly projectId: string;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/**
+ * Đồ thị của MỌI tầng trong dự án — thứ màn quản lý tầng vẽ (cao độ, số tường,
+ * số phòng, diện tích theo tầng). Không có endpoint cả dự án, nên đọc N16 của
+ * từng tầng rồi ghép. Một tầng hỏng thì cả lượt NÉM (A11 `error`), không vẽ nửa
+ * dự án như thể đó là tất cả.
+ *
+ * ponytail: một lượt N16 cho mỗi tầng (trần `PROJECT_LIMITS.floorCountMax`); có
+ * endpoint cả dự án thì thay đúng hàm này.
+ */
+export async function readProjectLayerGraph(
+  spatialApi: Pick<SpatialApi, 'readLayer'>,
+  { floorIds, projectId, signal }: ReadProjectLayerGraphInput,
+): Promise<NormalizedSpatial> {
+  const graphs = await Promise.all(
+    floorIds.map(async (floorId) => {
+      const result = await spatialApi.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return floorLayerToGraph(result.data);
+    }),
+  );
+
+  return normalizeSpatial({
+    axes: graphs.flatMap((graph) => graph.axes),
+    building: FLOOR_LAYER_BUILDING,
+    dimensions: graphs.flatMap((graph) => graph.dimensions),
+    furniture: graphs.flatMap((graph) => graph.furniture),
+    levels: graphs.flatMap((graph) => graph.levels),
+    notes: [],
+    openings: graphs.flatMap((graph) => graph.openings),
+    rooms: graphs.flatMap((graph) => graph.rooms),
+    walls: graphs.flatMap((graph) => graph.walls),
+  });
+}

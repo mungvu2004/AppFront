@@ -30,6 +30,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         ref={ref}
         disabled={isDisabled}
         aria-label={ariaLabel}
+        // `isActive` là trạng thái bật/tắt: nói nó ra cho trình đọc màn hình, không
+        // chỉ bằng màu (B-V6-12). Nút mở/đóng (`aria-expanded`) không phải nút bật.
+        aria-pressed={props['aria-expanded'] === undefined ? isActive : undefined}
         className={cn(
           'group relative box-content flex -m-0.5 p-0.5 items-center justify-center outline-none',
           sizeMap[size],

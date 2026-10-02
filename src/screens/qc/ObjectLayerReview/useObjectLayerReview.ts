@@ -52,16 +52,20 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -96,7 +100,6 @@ import {
   confidenceModeOf,
   countsOf,
   createObjectLayerDispatchDeps,
-  createObjectLayerMutation,
   createObjectLayerReviewGateway,
   createObjectUndoTicket,
   dataLayerTokens,
@@ -131,7 +134,6 @@ import {
   type ObjectLayerGraphPort,
   type ObjectLayerReviewGateway,
   type ObjectSeedEntry,
-  type ObjectWriteVariables,
 } from './objectLayerReviewGateway';
 import {
   OBJECT_SUBTYPES,
@@ -462,16 +464,39 @@ export function useObjectLayerReview(
   selectionSnapshotRef.current = selectedIds;
   const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
-  /**
-   * Lượt ghi đang chờ máy chủ — bước `sync` của `dispatch` đọc nó.
+  /*
+   * Tự lưu (A7) — 800 ms sau thao tác cuối, cùng khuôn màn tường (B-V6-03).
    *
-   * `SyncPort.enqueue` là chỗ S-11 nói "bản vẽ bẩn rồi", và ở màn này nó châm
-   * ngòi cho lượt ghi lạc quan của D-04: lệnh đã áp vào kho TRƯỚC khi máy chủ
-   * trả lời, còn `rollback` của mutation gỡ nó ra bằng đúng ngăn xếp hoàn tác
-   * của S-06 nếu lượt gửi hỏng.
+   * `SyncPort.enqueue` là chỗ S-11 nói "bản vẽ bẩn rồi"; nó chỉ châm bộ đếm. Trước
+   * đây nó bắn một lượt ghi lạc quan cho MỖI lệnh, và lượt hỏng thì hoàn tác lệnh
+   * của người duyệt — với #35 có version, hai lượt duyệt liền tay là hai `PUT` cùng
+   * `baseVersion`, lượt sau 409, công duyệt bị gỡ. Một engine thì xếp hàng sẵn,
+   * thử lại theo lịch chung, và nói ra trạng thái thay vì gỡ việc đã làm.
    */
-  const pendingWriteRef = useRef<ObjectWriteVariables | null>(null);
-  const persistRef = useRef<(variables: ObjectWriteVariables) => void>(() => undefined);
+  const autosaveRef = useRef<Autosave | null>(null);
+  const persistTargetRef = useRef({ floorId, gateway, projectId });
+  persistTargetRef.current = { floorId, gateway, projectId };
+
+  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
+    getChanges: () => useStore.getState().spatial ?? undefined,
+    save: async (changes) => {
+      const current = persistTargetRef.current;
+      const result = await current.gateway.persistObjectLayer({
+        floorId: current.floorId,
+        projectId: current.projectId,
+        graph: changes,
+      });
+
+      if (!result.supported) {
+        throw new Error(result.missing);
+      }
+    },
+  });
+
+  const autosave = autosaveRef.current;
+
+  useFlushOnSave(autosave);
+  useSaveIndicator(autosave);
 
   const dispatchBundle = useMemo<ObjectLayerDispatchDeps>(
     () =>
@@ -480,14 +505,10 @@ export function useObjectLayerReview(
         selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
         selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
         onSynced: () => {
-          const pending = pendingWriteRef.current;
-
-          if (pending !== null) {
-            persistRef.current(pending);
-          }
+          autosave.notifyChange();
         },
       }),
-    [storePort],
+    [autosave, storePort],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -664,15 +685,13 @@ export function useObjectLayerReview(
         return;
       }
 
-      pendingWriteRef.current = { objectId, projectId, floorId };
-
       const result = await runObjectCommand(command, dispatchBundle);
 
       if (result.ok) {
         invalidate(layer);
       }
     },
-    [canEdit, dispatchBundle, floorId, gateway, invalidate, projectId],
+    [canEdit, dispatchBundle, gateway, invalidate],
   );
 
   /** Một khối lệnh đi cùng nhau — sinh ĐÚNG MỘT bước hoàn tác, không gộp với lượt kéo. */
@@ -694,15 +713,13 @@ export function useObjectLayerReview(
         return;
       }
 
-      pendingWriteRef.current = { objectId, projectId, floorId };
-
       const result = await runObjectTransaction([command], dispatchBundle, command.description);
 
       if (result.ok) {
         invalidate(layer);
       }
     },
-    [canEdit, dispatchBundle, floorId, gateway, invalidate, projectId],
+    [canEdit, dispatchBundle, gateway, invalidate],
   );
 
   const wallOfObject = useCallback(
@@ -842,44 +859,13 @@ export function useObjectLayerReview(
 
     dispatchBundle.deps.spatial.applyPatches(transition.patches);
     setSelection([...transition.selection.selectedIds]);
+    autosave.notifyChange();
     invalidate('door');
-  }, [canEdit, dispatchBundle, invalidate, setSelection]);
+  }, [autosave, canEdit, dispatchBundle, invalidate, setSelection]);
 
   const onUndo = useCallback(() => {
     applyUndo();
   }, [applyUndo]);
-
-  /* ---------------------------------------------------------------------- */
-  /* D-04 — lượt ghi lạc quan, xếp hàng theo từng đối tượng.                  */
-  /* ---------------------------------------------------------------------- */
-
-  /*
-   * `applyOptimistic` để trống có chủ đích: thay đổi ĐÃ được áp vào kho bởi
-   * `dispatch` ngay trước khi mutation chạy, và đó chính là "lạc quan" theo
-   * nghĩa của D-04 — người duyệt thấy kết quả trước khi máy chủ trả lời. Việc
-   * còn lại của mutation là chụp ảnh cache, gỡ ra khi lượt gửi hỏng (`rollback`
-   * chạy trên ngăn xếp hoàn tác 100 bước của S-06), và dọn khoá đã cũ.
-   */
-  const persistMutation = useMutation(
-    createObjectLayerMutation(queryClient, {
-      gateway,
-      applyOptimistic: () => undefined,
-      rollback: () => {
-        applyUndo();
-      },
-      affectedKeys: (variables) => [queryKeys.space.byFloor(variables.floorId)],
-      afterSuccess: (variables) => {
-        applyInvalidation(queryClient, 'editWall', {
-          floorId: variables.floorId,
-          projectId: variables.projectId,
-        });
-      },
-    }),
-  );
-
-  persistRef.current = (variables) => {
-    persistMutation.mutate(variables);
-  };
 
   /* ---------------------------------------------------------------------- */
   /* Xoá (A8) — tức thì, không hộp thoại, kèm vé hoàn tác 8000 ms.            */

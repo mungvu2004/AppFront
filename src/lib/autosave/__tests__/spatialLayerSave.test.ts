@@ -3,8 +3,17 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SpatialApi, SpatialLayer } from '@/api/client';
 import type { HttpError, Result } from '@/lib/http';
 
+import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { isTransientWireError } from '@/lib/errors/wireError';
+
 import { createAutosave } from '../createAutosave';
-import { createSpatialLayerSave, type SpatialLayerChanges } from '../spatialLayerSave';
+import {
+  createFloorLayerSave,
+  createSpatialLayerSave,
+  spatialLayerOf,
+  type SpatialLayerChanges,
+} from '../spatialLayerSave';
 
 const EMPTY_LAYER: SpatialLayer = { furniture: [], openings: [], rooms: [], walls: [] };
 
@@ -93,5 +102,59 @@ describe('createSpatialLayerSave', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('createFloorLayerSave (B-V6-03)', () => {
+  const FLOOR = sampleLevelId(1);
+  const graph = normalizeSpatial(SAMPLE_BUILDING);
+  const readOk = (revision: number) =>
+    vi.fn<SpatialApi['readLayer']>().mockResolvedValue({
+      data: {
+        axes: [],
+        dimensions: [],
+        layer: EMPTY_LAYER,
+        level: SAMPLE_BUILDING.levels[1]!,
+        revision,
+      },
+      ok: true,
+    });
+
+  it('lượt đầu lấy baseVersion từ N16; lượt sau dùng revision vừa ghi, không đọc lại', async () => {
+    const readLayer = readOk(7);
+    const writeLayer = vi
+      .fn<SpatialApi['writeLayer']>()
+      .mockResolvedValueOnce({ data: { layer: EMPTY_LAYER, revision: 8 }, ok: true })
+      .mockResolvedValueOnce({ data: { layer: EMPTY_LAYER, revision: 9 }, ok: true });
+    const save = createFloorLayerSave({ readLayer, writeLayer });
+
+    await save({ floorId: FLOOR, graph, projectId: 'project-1' });
+    await save({ floorId: FLOOR, graph, projectId: 'project-1' });
+
+    expect(readLayer).toHaveBeenCalledTimes(1);
+    expect(writeLayer.mock.calls.map(([input]) => input.baseVersion)).toEqual([7, 8]);
+    expect(writeLayer.mock.calls[0]?.[0].body).toEqual(spatialLayerOf(graph, FLOOR));
+  });
+
+  it('đồ thị không có tầng của URL thì KHÔNG ghi — một PUT rỗng là xoá sạch tầng ấy', async () => {
+    const readLayer = readOk(1);
+    const writeLayer = vi.fn<SpatialApi['writeLayer']>();
+    const save = createFloorLayerSave({ readLayer, writeLayer });
+
+    await expect(save({ floorId: 'L-OTHERFLOOR01', graph, projectId: 'project-1' })).rejects.toThrow(
+      'L-OTHERFLOOR01',
+    );
+    expect(writeLayer).not.toHaveBeenCalled();
+  });
+
+  it('409 của máy chủ ném kèm HttpError gốc, nên tự lưu không thử lại vô ích', async () => {
+    const conflict = { kind: 'http', raw: undefined, requestId: 'req-2', retryable: false, status: 409 } as const;
+    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue({ error: conflict, ok: false });
+    const save = createFloorLayerSave({ readLayer: readOk(1), writeLayer });
+
+    const error: unknown = await save({ floorId: FLOOR, graph, projectId: 'project-1' }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(isTransientWireError(error)).toBe(false);
   });
 });

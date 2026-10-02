@@ -28,6 +28,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
+import { flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -1286,6 +1287,36 @@ describe('ngưỡng "cần chú ý"', () => {
     expect(
       mounted.result.current.panel.rows.every((row) => row.isLowConfidence),
     ).toBe(true);
+
+    mounted.unmount();
+  });
+});
+
+describe('tự lưu — Ctrl+S với tới màn tường (B-V6-03)', () => {
+  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
+    const gateway = createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH });
+    const persist = vi.spyOn(gateway, 'persistWallLayer');
+    const mounted = await mountSettled({ gateway });
+    const wall = wallAt(0);
+
+    await act(async () => {
+      mounted.result.current.panel.onChangeThickness(wall.id, thicknessChoice(0));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(
+        wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id).find((item) => item.id === wall.id)
+          ?.thicknessMm,
+      ).toBe(thicknessChoice(0));
+    });
+
+    expect(persist).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(persist).toHaveBeenCalledTimes(1);
 
     mounted.unmount();
   });

@@ -60,9 +60,12 @@
  * 2. Thanh trạng thái cần đúng chuỗi "Đã lưu lúc 14:32"; hệ 2 dựng nó từ
  *    `viMessages.common.saved_at`, và tự chuyển sang "Đã lưu N phút trước" sau
  *    một phút.
- * 3. `persistWallLayer` hôm nay chưa có endpoint. Chỉ hệ 2 có trạng thái
- *    `failed`/`offline` để NÓI RA sự thật đó; hệ 1 chỉ có một chuỗi
+ * 3. `persistWallLayer` đi qua #35 (B-V6-03) và có thể hỏng. Chỉ hệ 2 có trạng
+ *    thái `failed`/`offline` để NÓI RA điều đó; hệ 1 chỉ có một chuỗi
  *    "Lưu thất bại" sau khi `console.error`.
+ *
+ * Engine tự dựng thì phải tự vào sổ của Ctrl+S (`useFlushOnSave`) — trước đây
+ * nó nằm ngoài sổ, nên Ctrl+S ở màn này không lưu gì (B-V6-03).
  *
  * Cả hai hệ dùng chung 800 ms của A7 (`DEFAULT_DEBOUNCE_MS`), nên không con số
  * nào phải viết lại ở đây.
@@ -98,6 +101,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -709,6 +713,7 @@ export function useWallLayerReview(
   });
 
   const autosave = autosaveRef.current;
+  useFlushOnSave(autosave);
   const saveIndicator = useSaveIndicator(autosave);
 
   const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
