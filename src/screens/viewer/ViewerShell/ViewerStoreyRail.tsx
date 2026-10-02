@@ -75,7 +75,7 @@ export function ViewerStoreyRail({
                 role="option"
                 type="button"
               >
-                {storey.code}
+                <span className="max-w-full truncate px-0.5">{storey.code}</span>
               </button>
 
               <button

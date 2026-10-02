@@ -469,6 +469,8 @@ export interface WallGeometryEditorContent {
  */
 export interface WallGeometryEditorProps {
   readonly state: WallGeometryEditorState;
+  /** Xem `WallGeometryEditorContainerProps.bandEndInsetClassName`. */
+  readonly bandEndInsetClassName?: string | undefined;
   /**
    * Callback ref nhận lớp phủ sau khi view gắn, để CONTAINER đưa nó vào hook.
    *
@@ -675,6 +677,12 @@ export interface WallGeometryEditorContainerProps {
   readonly onGeometryChanged?: ((wallId: string) => void) | undefined;
   readonly isSectionOrthographic?: boolean | undefined;
   readonly isCollapsed?: boolean | undefined;
+  /**
+   * Lớp Tailwind lùi đầu phải của dải "Đang sửa … Xong" khỏi thứ màn chủ đặt ở
+   * góc trên phải khung nhìn. Lớp phủ gắn được vào nhiều màn nên không tự biết góc
+   * ấy có gì — màn chủ nói (cùng khuôn `presenceAnchorClassName` của lớp cộng tác).
+   */
+  readonly bandEndInsetClassName?: string | undefined;
 
   /** Chỗ tiêm của story và bài kiểm — R-73 đòi bản giả cắm được vào. */
   readonly forceState?: WallGeometryEditorStateKind | undefined;

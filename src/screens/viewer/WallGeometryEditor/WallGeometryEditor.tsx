@@ -131,7 +131,11 @@ function ContentBody({
   );
 }
 
-export function WallGeometryEditor({ state, overlayRef }: WallGeometryEditorProps): ReactNode {
+export function WallGeometryEditor({
+  state,
+  overlayRef,
+  bandEndInsetClassName,
+}: WallGeometryEditorProps): ReactNode {
   const overlayNodeRef = useRef<HTMLDivElement | null>(null);
 
   const setOverlayNode = (element: HTMLDivElement | null): void => {
@@ -198,7 +202,7 @@ export function WallGeometryEditor({ state, overlayRef }: WallGeometryEditorProp
 
   return (
     <div aria-label={TEXT.regionLabel} className="pointer-events-none absolute inset-0 flex flex-col" role="region">
-      <div className="pointer-events-auto shrink-0">
+      <div className={`pointer-events-auto shrink-0 ${bandEndInsetClassName ?? ''}`}>
         <WallGeometryEditorBand band={state.band} />
       </div>
 

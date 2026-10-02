@@ -61,7 +61,12 @@ import {
 } from './viewerShellFixture';
 import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
-import { ALL_VIEWER_TOOLS, defaultViewerShellGateway, useViewerShell } from './useViewerShell';
+import {
+  ALL_VIEWER_TOOLS,
+  defaultViewerShellGateway,
+  storeyShortLabel,
+  useViewerShell,
+} from './useViewerShell';
 import {
   VIEWER_LAYOUT,
   type ViewerSceneActions,
@@ -255,6 +260,24 @@ describe('[VS-5] bộ mẫu', () => {
     expect(statusBar).toHaveTextContent('14 phòng');
     expect(statusBar).toHaveTextContent('248,60');
     expect(statusBar).toHaveTextContent('58 fps');
+  });
+
+  it('nút ray tầng hiện chữ rút từ tên tầng, không hiện mã máy của tầng (Q8)', () => {
+    renderState('success');
+
+    const options = within(screen.getByRole('listbox')).getAllByRole('option');
+    const texts = options.map((option) => option.textContent);
+
+    console.log(`[VIEWER-SHELL][VS-5] chữ trên ray tầng = ${texts.join(' | ')}`);
+
+    expect(texts).toEqual(['Trệt', '02', '03', 'Mái']);
+    for (const level of VIEWER_FIXTURE_LEVELS) {
+      expect(texts.join(' ')).not.toContain(level.id);
+    }
+    /* Tên không mở đầu bằng "Tầng " thì giữ nguyên; chỉ "Tầng" thì không về rỗng. */
+    expect(storeyShortLabel('Lửng')).toBe('Lửng');
+    expect(storeyShortLabel('Tầng')).toBe('Tầng');
+    expect(storeyShortLabel('Tầng hầm 1')).toBe('Hầm 1');
   });
 });
 
@@ -477,6 +500,20 @@ describe('[VS-9] bản đồ nhỏ không đè lên ViewCube (P2)', () => {
 
     unmount();
   });
+
+  it('khoảng trống của cụm góc trên phải không nhận chuột, chỉ ViewCube và bản đồ nhỏ nhận (B-V8-11)', () => {
+    const { unmount } = renderState('success');
+
+    const cube = screen.getByRole('group', { name: 'Khối định hướng' });
+    const miniMap = screen.getByRole('region', { name: 'Bản đồ thu nhỏ' });
+    const cluster = cube.parentElement?.parentElement;
+
+    expect(cluster?.className).toMatch(/(?:^|\s)pointer-events-none(?:\s|$)/);
+    expect(cube.className).toMatch(/(?:^|\s)pointer-events-auto(?:\s|$)/);
+    expect(miniMap.className).toMatch(/(?:^|\s)pointer-events-auto(?:\s|$)/);
+
+    unmount();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -507,13 +544,15 @@ describe('[VS-10] mã bộ mẫu hợp lệ', () => {
 /* [VS-11] frameStorey — khuôn khung nhìn vào một tầng (D1).                   */
 /* -------------------------------------------------------------------------- */
 
-describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
+/**
+ * Giảm chuyển động: `director.goTo` hoàn tất NGAY trong lượt gọi, nên
+ * `director.viewpoint()` (qua `frame`) phản ánh đích đến tức thì, không
+ * phải đợi vòng `requestAnimationFrame` của `wake()`.
+ */
+function stubReducedMotionPerTest(): void {
   let originalMatchMedia: typeof window.matchMedia;
 
   beforeEach(() => {
-    // Giảm chuyển động: `director.goTo` hoàn tất NGAY trong lượt gọi, nên
-    // `director.viewpoint()` (qua `frame`) phản ánh đích đến tức thì, không
-    // phải đợi vòng `requestAnimationFrame` của `wake()`.
     originalMatchMedia = window.matchMedia;
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -538,25 +577,29 @@ describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
       value: originalMatchMedia,
     });
   });
+}
 
-  /**
-   * Dựng thẳng `useViewerShell` — không qua container — vì `ViewerSceneFrame`
-   * (đúng ranh giới D) cố ý không mang `target` của camera, nên phép kiểm
-   * "nhìn đúng cao độ tầng nào" phải rình đối số của `CameraDirector.goTo`,
-   * chứ không đọc được từ props của view.
-   */
-  function renderShellHook() {
-    const queryClient = createTestQueryClient();
+/**
+ * Dựng thẳng `useViewerShell` — không qua container — vì `ViewerSceneFrame`
+ * (đúng ranh giới D) cố ý không mang `target` của camera, nên phép kiểm
+ * "nhìn đúng cao độ tầng nào" phải rình đối số của `CameraDirector.goTo`,
+ * chứ không đọc được từ props của view.
+ */
+function renderShellHook() {
+  const queryClient = createTestQueryClient();
 
-    return renderHook(
-      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
-      {
-        wrapper: ({ children }: { children: ReactNode }) => (
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        ),
-      },
-    );
-  }
+  return renderHook(
+    () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+    {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+}
+
+describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
+  stubReducedMotionPerTest();
 
   it('mã tầng có thật: điểm nhìn ĐỔI, và nhìn đúng vào cao độ của tầng ấy', () => {
     const goToSpy = vi.spyOn(CameraDirector.prototype, 'goTo');
@@ -662,6 +705,48 @@ describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
     goToSpy.mockRestore();
     unmount();
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-15] thu phóng ở mọi góc nhìn (B-V8-01).                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-15] thu phóng ở mọi góc nhìn (B-V8-01)', () => {
+  stubReducedMotionPerTest();
+
+  /* Ba góc phẳng dùng `FlatCameraMode`, chỉ có `zoom` chứ không có `dolly`. */
+  it.each(['perspective', 'axonometric', 'top', 'section'] as const)(
+    'góc "%s": cuộn chuột lại gần và nút Phóng to đều làm nhãn thu phóng tăng',
+    (preset) => {
+      const { result, unmount } = renderShellHook();
+
+      act(() => {
+        result.current.onPresetChange(preset);
+      });
+      const before = result.current.frame.distanceM;
+      const labelBefore = result.current.zoomLabel;
+
+      act(() => {
+        result.current.onViewportWheel(-1);
+      });
+      const afterWheel = result.current.frame.distanceM;
+
+      act(() => {
+        result.current.onZoomIn();
+      });
+      const afterButton = result.current.frame.distanceM;
+
+      console.log(
+        `[VIEWER-SHELL][VS-15] ${preset}: ${String(before)} → cuộn ${String(afterWheel)} → nút ${String(afterButton)} m; nhãn ${labelBefore} → ${result.current.zoomLabel}`,
+      );
+
+      expect(afterWheel).toBeLessThan(before);
+      expect(afterButton).toBeLessThan(afterWheel);
+      expect(result.current.zoomLabel).not.toBe(labelBefore);
+
+      unmount();
+    },
+  );
 });
 
 /* -------------------------------------------------------------------------- */

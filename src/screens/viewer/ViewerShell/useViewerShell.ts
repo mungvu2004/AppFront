@@ -145,6 +145,17 @@ const DOLLY_NOTCH = 1;
 /** Bước một lần bấm `+` / `−` của cụm thu phóng, theo nấc dolly. */
 const ZOOM_BUTTON_NOTCHES = 2;
 
+/**
+ * Chữ trên nút ray tầng: tên tầng bỏ chữ "Tầng " đứng đầu — "Tầng trệt" → "Trệt",
+ * "Tầng 02" → "02". Nút chỉ rộng 40 px nên không vẽ đủ tên; tên đủ vẫn ở
+ * `aria-label`. Từng là `storey.id`, nên mọi đồ thị lộ mã máy lên nút (Q8).
+ */
+export function storeyShortLabel(name: string): string {
+  const short = name.replace(/^Tầng\s+/u, '');
+
+  return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
+}
+
 /** Sáu công cụ của ray trái, kèm phím của chúng. */
 const VIEWER_TOOLS: readonly (ViewerToolViewModel & { readonly requiresEdit: boolean })[] =
   Object.freeze([
@@ -597,7 +608,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       data.storeys.map((storey) => ({
         id: storey.id,
         name: storey.name,
-        code: storey.id,
+        code: storeyShortLabel(storey.name),
         elevationLabel: formatLength(millimetres(storey.elevationMm), { unit: 'm' }),
         isActive: activeStoreyIds.includes(storey.id),
         isVisible: !hiddenStoreyIds.includes(storey.id),
@@ -784,12 +795,20 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     dragRef.current = null;
   }, []);
 
+  /**
+   * Phối cảnh thu phóng bằng `dolly` (dời mắt), ba góc phẳng — Trục đo, Trên
+   * xuống, Mặt cắt — bằng `zoom` (`FlatCameraMode`, đổi nửa chiều cao khung).
+   * Chỉ biết `dolly` thì ba góc ấy cuộn chuột lẫn nút `+`/`−` đều chết (B-V8-01).
+   */
   const onViewportWheel = useCallback(
     (notches: number): void => {
       const controller = director.controller;
 
       if ('dolly' in controller) {
         (controller as { dolly: (n: number) => void }).dolly(notches * DOLLY_NOTCH);
+        wake();
+      } else if ('zoom' in controller) {
+        (controller as { zoom: (n: number) => void }).zoom(notches * DOLLY_NOTCH);
         wake();
       }
     },

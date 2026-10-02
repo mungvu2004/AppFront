@@ -991,7 +991,12 @@ function startScene(
       sharedMaterialCache.release(hoverMaterial);
 
       renderer.dispose();
-      renderer.forceContextLoss();
+      /* KHÔNG `forceContextLoss()`, khác `lib/three/present/mount.ts`: canvas ở đây
+         được dựng lại — `useViewer3D` gọi lại `mountViewerScene` trên CÙNG canvas khi
+         đổi dữ liệu hay bấm "Thử lại" — mà một canvas chỉ có một ngữ cảnh WebGL suốt
+         đời; ép mất nó thì renderer sau nhận lại ngữ cảnh chết và màn báo "Trình
+         duyệt này chưa xem được mô hình 3D" (B-V8-12). Rời màn thì canvas rời DOM và
+         ngữ cảnh đi theo nó. */
     },
   };
 }
