@@ -241,6 +241,13 @@ const makeFallbackQualityFloor = (floorId: string): FloorImageQuality => ({
 
 const uploadKey = (projectId: string, uploadId: string): string => `${projectId}::${uploadId}`;
 
+/**
+ * `uploadId` của bản vẽ có sẵn trên Tầng 1 (`L1-drawing-1`) — đúng dạng
+ * `upl_<ULID>` mà `LatestFloorUploadSchema` đòi, và đã xử lý xong, để N7 của bộ
+ * mẫu có một mục hợp lệ ngay từ đầu (B-V4-01).
+ */
+const SEEDED_UPLOAD_ID = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZABC';
+
 const applyProjectBody = (project: Project, body: Partial<ProjectWriteBody>): Project => ({
   ...project,
   ...(body.address !== undefined ? { address: body.address } : {}),
@@ -929,7 +936,16 @@ const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => (
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
-  const uploads = new Map<string, Progress>();
+  const uploads = new Map<string, Progress>([
+    [
+      uploadKey(project.id, SEEDED_UPLOAD_ID),
+      makeProgress({ id: SEEDED_UPLOAD_ID, progressPercent: 100, status: 'completed' }),
+    ],
+  ]);
+  /** Lượt tải mới nhất của từng tầng — nguồn của N7. Tầng có bản vẽ sẵn mang lượt mồi. */
+  const latestUploadByFloor = new Map<string, string>(
+    floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
+  );
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
@@ -1015,8 +1031,19 @@ export const createMockApiClient = (): ApiClient => {
       initUpload: async ({ body }) => {
         const progress = makeProgress({ id: `${body.projectId}-${body.floorId}`, step: 'Initialize upload' });
         uploads.set(uploadKey(body.projectId, body.floorId), progress);
+        latestUploadByFloor.set(body.floorId, progress.id);
         return ok(progress);
       },
+      latestUploads: async () =>
+        ok(
+          [...floors]
+            .sort((left, right) => left.order - right.order)
+            .flatMap((floor) => {
+              const uploadId = latestUploadByFloor.get(floor.id);
+
+              return uploadId === undefined ? [] : [{ floorId: floor.id, floorName: floor.name, uploadId }];
+            }),
+        ),
       progress: async ({ projectId, uploadId }) =>
         ok(uploads.get(uploadKey(projectId, uploadId)) ?? makeProgress({ id: uploadId, progressPercent: 0 })),
       sendChunk: async ({ body, projectId, uploadId }) => {

@@ -468,6 +468,8 @@ export interface ScalePanelViewModel {
    * Cảnh báo không bao giờ hạ cờ này xuống.
    */
   readonly canApply: boolean;
+  /** Lượt bấm áp gần nhất không áp được, và vì sao. Vắng khi không có gì để nói (B-V5-01). */
+  readonly applyBlockedNotice?: string;
   readonly isApplying: boolean;
   /**
    * `true` đúng khi và chỉ khi màn ở `'forbidden'`: nút "áp dụng tỷ lệ" và ô
@@ -542,6 +544,11 @@ export interface ScaleCalibrationViewModel {
   readonly errorMessage: string | null;
   /** Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. */
   readonly errorCode: string | null;
+  /**
+   * Tiêu đề của `'error'` khi lỗi là lượt ĐỌC hỏng, không phải ảnh méo. Vắng thì
+   * view dùng tiêu đề "nắn ảnh thất bại" — chỉ đúng cho ảnh méo (B-V5-04).
+   */
+  readonly errorTitle?: string;
   /** Câu của trạng thái `'empty'`. `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
   /** Câu của trạng thái `'partial'`. `null` ở trạng thái khác. */

@@ -20,6 +20,7 @@ import { readdirSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
+import { createMockApiClient } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -32,6 +33,7 @@ import {
   SEVEN_STATE_LABELS,
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
+import { createProcessingGateway } from '@/screens/pipeline/ProcessingScreen/processingGateway';
 import { useStore } from '@/store';
 
 import { PipelineGraph } from './PipelineGraph';
@@ -43,7 +45,7 @@ import {
   rerunWarningScenario,
   scenarioFor,
 } from './PipelineGraph.stories';
-import { createMockPipelineGraphGateway } from './pipelineGraphGateway';
+import { createMockPipelineGraphGateway, createPipelineGraphGateway } from './pipelineGraphGateway';
 import { PIPELINE_GRAPH_TEXT, PIPELINE_NODE_TEXT } from './pipelineGraphText';
 
 const SCREEN_DIRECTORY = 'src/screens/pipeline/PipelineGraph';
@@ -218,6 +220,20 @@ describe('PipelineGraph — mục [CẤM TUYỆT ĐỐI]', () => {
 });
 
 describe('PipelineGraph — nghiệm thu', () => {
+  it('chưa có báo cáo nhánh thì không nói "mỗi tầng một nhánh" (B-V5-03)', async () => {
+    // Cổng THẬT của route: `branchReport` không được hỗ trợ ⇒ không có báo cáo nào.
+    renderWithProviders(
+      <PipelineGraphContainer
+        gateway={createPipelineGraphGateway(createProcessingGateway(createMockApiClient()))}
+        projectId="project-1"
+        roles={['admin']}
+      />,
+    );
+
+    expect(await screen.findByText(PIPELINE_GRAPH_TEXT.reasonNoReport)).toBeTruthy();
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.reasonUnknown)).toBeNull();
+  });
+
   it('vai Kỹ sư không thấy chế độ chi tiết kỹ thuật', async () => {
     renderWithProviders(
       <PipelineGraphContainer

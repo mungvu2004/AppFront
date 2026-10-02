@@ -989,20 +989,34 @@ export function useInputQualityGate(
 
     const key = queryKeys.quality.assessment(activeFloorId);
     const previous = queryClient.getQueryData<ImageQualityAssessment>(key);
+    const findingIds = findingIdsForCodes(['SKEW_DETECTED']);
 
     straightenMutation.mutate(
-      { floorId: activeFloorId, findingIds: findingIdsForCodes(['SKEW_DETECTED']) },
+      { floorId: activeFloorId, findingIds },
       {
         onSuccess: () => {
           finishWrite(COPY.straightenedToast, () => {
             if (previous !== undefined) {
               queryClient.setQueryData(key, previous);
             }
+
+            // Lượt ghi đã đánh dấu các phát hiện này là xong (`markResolved`);
+            // hoàn tác mà không gỡ dấu thì bộ đếm "N phát hiện còn lại" lệch
+            // với chính hàng tầng vừa trả về (B-V4-05).
+            unmarkResolved(findingIds);
           });
         },
       },
     );
-  }, [activeFloorId, canEdit, queryClient, straightenMutation, findingIdsForCodes, finishWrite]);
+  }, [
+    activeFloorId,
+    canEdit,
+    queryClient,
+    straightenMutation,
+    findingIdsForCodes,
+    finishWrite,
+    unmarkResolved,
+  ]);
 
   const sendCorners = useCallback(
     (corners: readonly InputQualityCorner[]) => {
@@ -1026,11 +1040,13 @@ export function useInputQualityGate(
         yRatio: corner.yRatio,
       });
 
+      const findingIds = findingIdsForCodes(['FRAME_NOT_FOUND']);
+
       cornersMutation.mutate(
         {
           floorId: activeFloorId,
           body: { corners: [toPoint(first), toPoint(second), toPoint(third), toPoint(fourth)] },
-          findingIds: findingIdsForCodes(['FRAME_NOT_FOUND']),
+          findingIds,
         },
         {
           onSuccess: () => {
@@ -1040,7 +1056,10 @@ export function useInputQualityGate(
               // Lượt gửi bốn góc CÓ nghịch đảo thật khi khung cũ còn bốn góc:
               // gửi lại chính bốn góc đó. Khi khung cũ không có góc nào thì máy
               // chủ không có lệnh nào để quay về, nên vé chỉ trả bộ nhớ đệm về
-              // kết quả đo trước lượt ghi.
+              // kết quả đo trước lượt ghi. Cả hai nhánh gỡ dấu "đã xong" của lượt
+              // ghi — cùng lý do với `onStraighten` (B-V4-05).
+              unmarkResolved(findingIds);
+
               if (previousCorners !== undefined) {
                 cornersMutation.mutate({
                   floorId: activeFloorId,
@@ -1058,7 +1077,15 @@ export function useInputQualityGate(
         },
       );
     },
-    [activeFloorId, activeFloor, queryClient, cornersMutation, findingIdsForCodes, finishWrite],
+    [
+      activeFloorId,
+      activeFloor,
+      queryClient,
+      cornersMutation,
+      findingIdsForCodes,
+      finishWrite,
+      unmarkResolved,
+    ],
   );
 
   /**
@@ -1123,7 +1150,16 @@ export function useInputQualityGate(
     },
     onChangeReveal: (ratio) => setRevealRatio(clampRatio(ratio)),
     onToggleAcknowledgement: (next) => setAcknowledged(next),
-    onContinue: () => options.onNavigate?.(ROUTES.project.pipeline(projectId)),
+    // Nút bấm được ở mọi trạng thái (không chặn cứng), nhưng chưa tích ô thì lượt
+    // bấm dừng ở đây: lời "Đánh dấu ô xác nhận bên trên rồi thử lại." đã hiện cạnh
+    // nút — đi tiếp là làm trái chính câu đó. Cùng khuôn `submit` của màn tải lên.
+    onContinue: () => {
+      if (!footer.canContinue) {
+        return;
+      }
+
+      options.onNavigate?.(ROUTES.project.pipeline(projectId));
+    },
     onUploadAnother: () => options.onNavigate?.(ROUTES.project.upload(projectId)),
   };
 

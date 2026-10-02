@@ -690,11 +690,19 @@ export function useFloorUploadScreen(
     const ticket = gateway.createRemovalTicket({
       description: `Hoàn tác xoá bản vẽ ${removed.file.name}`,
       undo: () => {
+        // Trả lại ĐÚNG thứ đã xoá: tệp đã gắn kèm vẫn là đã gắn kèm (máy chủ đã
+        // nhận nó, xoá không gọi máy chủ). Hạ nó về "chờ xử lý" là để thẻ treo ở
+        // đó mãi, vì không ai tải lại (B-V4-03). Chỉ lượt tải bị chính lần xoá
+        // cắt ngang mới phải chạy lại.
         setAttachments((previous) =>
           previous.some((attachment) => attachment.id === removed.id)
             ? previous
-            : [...previous, { ...removed, status: 'waiting', percent: 0, problem: null }],
+            : [...previous, removed],
         );
+
+        if (removed.status === 'uploading' && removed.floorId !== null) {
+          startUpload(removed, removed.floorId);
+        }
       },
       ...(options.now !== undefined ? { now: options.now } : {}),
     });
@@ -720,14 +728,21 @@ export function useFloorUploadScreen(
     // thành `Tầng Tầng 2 chưa có bản vẽ.`. Nhãn xuất hiện đúng một lần.
     for (const floor of floors) {
       const attachment = attachmentByFloor.get(floor.id) ?? null;
-      const hasFile = attachment !== null || floor.drawings.length > 0;
+      // Cùng luật với bộ đếm "N / M tầng đã có bản vẽ": một tệp ĐANG CHỜ (PDF chưa
+      // chọn trang, hàng đợi ngoại tuyến) hay ĐÃ HỎNG chưa phải bản vẽ của tầng.
+      // Đếm nó là để bộ đếm nói "3 / 4" mà nút vẫn đi tiếp (B-V4-04). Tệp đang
+      // tải có lý do riêng (`uploading`) ngay dưới.
+      const isUnfinished =
+        attachment !== null && (attachment.status === 'waiting' || attachment.status === 'error');
 
-      if (!hasFile) {
+      if (attachment === null ? floor.drawings.length === 0 : isUnfinished) {
         reasons.push({
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingFile',
-          sentence: `${floor.name} chưa có bản vẽ.`,
+          sentence: isUnfinished
+            ? `${floor.name} chưa tải xong bản vẽ.`
+            : `${floor.name} chưa có bản vẽ.`,
         });
       }
 

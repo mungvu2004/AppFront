@@ -70,6 +70,10 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/complete`,
     initUpload: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${DRAWINGS_ROOT}/uploads`,
+    /** N7 — lượt tải mới nhất của từng tầng; `cursor` là `nextCursor` của trang trước. */
+    latestUploads: (projectId: string, cursor?: string): string =>
+      `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/latest` +
+      (cursor === undefined ? '' : `?cursor=${encodeURIComponent(cursor)}`),
     progress: (projectId: string, uploadId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/progress`,
   },

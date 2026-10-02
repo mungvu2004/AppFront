@@ -178,6 +178,32 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('FloorUploadScreenView — khả năng tiếp cận và tiếng Việt (R-72)', () => {
+  it('nút tuỳ chọn của thẻ nói bảng đang mở hay đóng, và chỉ có mặt khi có mục để chọn (B-V4-07)', () => {
+    const scenario = scenarioFor('partial');
+    renderWithProviders(<FloorUploadScreenView {...scenario} />);
+
+    const menuButtons = screen.queryAllByRole('button', { name: /^Tùy chọn của tầng / });
+    const rowsWithActions = scenario.floors.filter(
+      (row) =>
+        row.file !== null &&
+        (row.canCancelUpload || row.canRetryUpload || (row.canRemoveFile && row.removeLabel !== null)),
+    );
+
+    expect(menuButtons).toHaveLength(rowsWithActions.length);
+
+    const first = menuButtons[0];
+
+    if (first === undefined) {
+      throw new Error('kịch bản partial phải có ít nhất một thẻ có tuỳ chọn');
+    }
+
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(first);
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(first, { key: 'Escape' });
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('đi qua expectAccessible ở trạng thái đầy đủ nhất', () => {
     const { container } = renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
 

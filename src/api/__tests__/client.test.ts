@@ -281,6 +281,46 @@ describe('api client', () => {
     expect(vi.mocked(http.patch).mock.calls[0]?.[0]).toBe('/floors/reorder');
   });
 
+  it('reads every page of N7 latestUploads, following nextCursor', async () => {
+    const first = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB1';
+    const second = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB2';
+    const http = createHttpMock({
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1')}`]: {
+        items: [
+          { floorId: 'L1', floorName: 'Tầng 1', uploadId: first },
+        ],
+        nextCursor: 'trang-2',
+      },
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1', 'trang-2')}`]: {
+        items: [{ floorId: 'L2', floorName: 'Tầng 2', uploadId: second }],
+      },
+    });
+    const result = await createApiClient(http).drawings.latestUploads({ projectId: 'project-1' });
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        { floorId: 'L1', floorName: 'Tầng 1', uploadId: first },
+        { floorId: 'L2', floorName: 'Tầng 2', uploadId: second },
+      ],
+    });
+    expect(ENDPOINTS.drawings.latestUploads('project-1', 'a b')).toBe(
+      '/projects/project-1/drawings/uploads/latest?cursor=a%20b',
+    );
+  });
+
+  it('mock N7 lists the floor that already has a drawing, with a completed upload', async () => {
+    const client = createMockApiClient();
+    const latest = await client.drawings.latestUploads({ projectId: 'project-1' });
+
+    expect(latest.ok && latest.data.map((upload) => upload.floorId)).toEqual(['L1']);
+
+    const uploadId = latest.ok ? (latest.data[0]?.uploadId ?? '') : '';
+    const progress = await client.drawings.progress({ projectId: 'project-1', uploadId });
+
+    expect(progress.ok && progress.data.status).toBe('completed');
+  });
+
   it('sends pageIndex on initUpload only when given', async () => {
     const wireProgress = { id: 'u-1', progressPercent: 0, status: 'pending', step: 'upload' };
     const http = createHttpMock({

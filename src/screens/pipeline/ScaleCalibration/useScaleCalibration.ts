@@ -192,6 +192,7 @@ const COPY = {
     'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.',
   successNotice: 'Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.',
   applyCommitLabel: 'Áp dụng tỷ lệ',
+  applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
 } as const;
 
 /** Ví dụ `"1 pixel = 12 mm · bản vẽ ở tỷ lệ khoảng 1:100"`. */
@@ -505,6 +506,8 @@ export function useScaleCalibration(
   });
   const [cursorPoint, setCursorPoint] = useState<ImageRatioPoint | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
+  /** Lượt bấm áp gần nhất không tìm thấy tầng trong kho — phải nói ra, không im lặng (B-V5-01). */
+  const [isApplyBlocked, setApplyBlocked] = useState(false);
 
   const { viewport, pan, zoomTo, flyToBounds } = useCanvasViewport();
 
@@ -960,8 +963,13 @@ export function useScaleCalibration(
     const entity = useStore.getState().spatial?.byId[floorId];
 
     if (entity === undefined || !isEntityOfKind('level', entity)) {
+      // Kho chưa có tầng này (vào thẳng route, chưa nạp đồ thị): không có gì để
+      // vá, nhưng người dùng vừa bấm — nói lý do tại chỗ thay vì im lặng.
+      setApplyBlocked(true);
       return;
     }
+
+    setApplyBlocked(false);
 
     commit(
       {
@@ -1456,7 +1464,9 @@ export function useScaleCalibration(
             : pixelLabel(draftForView.pixelLength),
         isInteractive: state !== 'forbidden',
         isImageLoading: state === 'loading',
-        warpingNotice: state === 'error' ? COPY.warpingNotice : null,
+        // Chỉ ảnh MÉO mới nói "nắn ảnh thất bại"; lượt đọc hỏng không có ảnh nào
+        // để mà méo (B-V5-04).
+        warpingNotice: state === 'error' && !query.isError ? COPY.warpingNotice : null,
       },
       panel: {
         currentScaleLabel,
@@ -1504,6 +1514,7 @@ export function useScaleCalibration(
         applyScope,
         applyScopeOptions,
         canApply,
+        ...(isApplyBlocked ? { applyBlockedNotice: COPY.applyNoSpatial } : {}),
         isApplying: gateway.supports.persistScale && saveLabel === null && hasApplied,
         areActionsHidden: state === 'forbidden',
         recalculationCaption: COPY.recalculationCaption,
@@ -1524,6 +1535,9 @@ export function useScaleCalibration(
       prefersReducedMotion,
       errorMessage: errorDescription?.description ?? null,
       errorCode,
+      ...(state === 'error' && query.isError && errorDescription !== null
+        ? { errorTitle: errorDescription.title }
+        : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
@@ -1547,6 +1561,7 @@ export function useScaleCalibration(
     errorDescription,
     hasApplied,
     highlightedRowId,
+    isApplyBlocked,
     isCompact,
     isEmptyState,
     lowConfidenceCount,
@@ -1554,6 +1569,7 @@ export function useScaleCalibration(
     nearestOcrValue,
     prefersReducedMotion,
     proposedRatio,
+    query.isError,
     realLengthText,
     rows,
     saveLabel,

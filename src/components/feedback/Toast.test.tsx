@@ -75,6 +75,33 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Test message')).not.toBeInTheDocument();
   });
 
+  it('bấm "Hoàn tác" thì toast rời đi, kể cả khi chuột còn nằm trên nó (B-V4-11)', () => {
+    const onUndo = vi.fn();
+    const UndoComponent = () => {
+      const { addToast } = useToast();
+      return <Button onClick={() => addToast({ message: 'Đã xoá', onUndo })}>Add</Button>;
+    };
+
+    render(
+      <Toast.Provider>
+        <UndoComponent />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const undo = screen.getByRole('button', { name: 'Hoàn tác' });
+    // Chuột đi vào toast để bấm — đồng hồ 8 giây dừng vì đang di chuột lên.
+    fireEvent.mouseEnter(undo);
+    fireEvent.click(undo);
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Đã xoá')).not.toBeInTheDocument();
+  });
+
   it('groups 4 toasts correctly and uses safe domain label', async () => {
     render(
       <Toast.Provider>

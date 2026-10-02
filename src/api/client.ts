@@ -46,6 +46,8 @@ import {
   type UserMembership,
 } from './schemas/users';
 import { decode, safeParseList } from './schemas/decode';
+import { CursorEnvelopeSchema } from './schemas/common';
+import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 
 export type {
   Drawing,
@@ -68,6 +70,7 @@ export type {
   Version,
 } from './contracts';
 export type { RegisterInput, SignInInput } from './schemas';
+export type { LatestFloorUpload } from './schemas/uploads';
 export type {
   MarkNotificationsReadInput,
   Notification,
@@ -197,6 +200,10 @@ export interface CompleteDrawingUploadInput extends WriteRequestOptions {
 export interface ReadDrawingProgressInput extends RequestOptions {
   projectId: string;
   uploadId: string;
+}
+
+export interface ListLatestUploadsInput extends RequestOptions {
+  projectId: string;
 }
 
 export interface ReadSpatialFloorInput extends RequestOptions {
@@ -459,6 +466,12 @@ export interface FloorsApi {
 export interface DrawingsApi {
   complete(input: CompleteDrawingUploadInput): Promise<ApiResult<Progress>>;
   initUpload(input: InitDrawingUploadInput): Promise<ApiResult<Progress>>;
+  /**
+   * N7 — lượt tải mới nhất của từng tầng, theo `Floor.order`, đã đọc HẾT các
+   * trang. Đây là nguồn của danh sách màn xử lý theo dõi (B-V4-01): nó biết cả
+   * tầng có bản vẽ từ trước, và mọi lối vào `/pipeline` đều đọc được nó.
+   */
+  latestUploads(input: ListLatestUploadsInput): Promise<ApiResult<LatestFloorUpload[]>>;
   progress(input: ReadDrawingProgressInput): Promise<ApiResult<Progress>>;
   sendChunk(input: SendDrawingChunkInput): Promise<ApiResult<Progress>>;
 }
@@ -770,6 +783,35 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         ProgressSchema,
         'drawings.initUpload',
       );
+    },
+    latestUploads: async ({ projectId, signal }) => {
+      const uploads: LatestFloorUpload[] = [];
+      let cursor: string | undefined;
+
+      // Phong bì kiểm chặt, từng mục qua `safeParseList`: một mục hỏng bị bỏ kèm
+      // cảnh báo chứ không làm rỗng cả màn (`CursorEnvelopeSchema`).
+      do {
+        const page = decodeSingle(
+          await callGet<unknown>(http, ENDPOINTS.drawings.latestUploads(projectId, cursor), signal),
+          CursorEnvelopeSchema,
+          'drawings.latestUploads',
+        );
+
+        if (!page.ok) {
+          return page;
+        }
+
+        const items = safeParseList(LatestFloorUploadSchema, page.data.items, 'drawings.latestUploads');
+
+        if (!items.ok) {
+          return items;
+        }
+
+        uploads.push(...items.data);
+        cursor = page.data.nextCursor;
+      } while (cursor !== undefined);
+
+      return { ok: true, data: uploads };
     },
     progress: async ({ projectId, signal, uploadId }) =>
       decodeSingle(

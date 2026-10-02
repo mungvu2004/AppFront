@@ -86,10 +86,16 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
     }, [isHovered, isExiting, onRemove, toast.id, resetKey]);
 
+    // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì chuột vừa
+    // bấm vẫn nằm trên toast — đồng hồ dừng vì `isHovered` — và toast ở lại mãi,
+    // che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
     const onUndoClick = () => {
       if (toast.onUndo) {
         toast.onUndo();
       }
+
+      setIsExiting(true);
+      setTimeout(() => onRemove(toast.id), durationMs('fast'));
     };
 
     const isPeek = index > 0;
