@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
 
+import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
+
 /**
  * Nhóm V12b — `adminModels` (`/admin/models`), `plan.md` mục 8 · V12 · 9.
  *
@@ -27,7 +29,7 @@ test.describe('engineer (vai mặc định, goto thẳng)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ROUTES.adminModels);
-    await expect(figure(page, 'tổng số model')).toHaveText(new RegExp(`tổng số model\\s*${MODEL_COUNT}$`, 'u'));
+    await expect(figure(page, 'tổng số model')).toHaveText(new RegExp(`tổng số model\\s*${MODEL_COUNT}$`, 'u'), { timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 
   test('B-V12b-04 đường dẫn trang viết thường như mọi màn quản trị khác (A6)', async ({ page }) => {
@@ -87,7 +89,7 @@ for (const row of ROLE_ROWS) {
     page,
   }) => {
     await signInAs(page, row.role, ROUTES.adminModels);
-    await expect(search(page)).toBeVisible();
+    await expect(search(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
     // Banner chứ không chặn: bảng vẫn hiện ở mọi vai.
     await expect(page.getByRole('button', { name: 'bàn ăn sáu chỗ' })).toBeVisible();
     await expect(page.getByText(READ_ONLY_REASON)).toHaveCount(row.readOnly ? 1 : 0);

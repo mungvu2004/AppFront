@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
+import { FIRST_PAINT_TIMEOUT_MS } from '../v12b/firstPaint';
 
 /**
  * Lưới vai `viewer` — QA/B-3 (`questions.md`, "Bảng chốt nhanh"): một bảng
@@ -49,6 +50,6 @@ const ROWS = [
 for (const row of ROWS) {
   test(`vai viewer ở ${row.screen}: màn nói rõ vì sao chỉ được xem (A11 forbidden)`, async ({ page }) => {
     await signInAs(page, 'viewer', row.path);
-    await expect(page.getByText(row.expected, { exact: true })).toBeVisible();
+    await expect(page.getByText(row.expected, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 }

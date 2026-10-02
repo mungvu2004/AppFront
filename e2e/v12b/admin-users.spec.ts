@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
 
+import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
+
 /**
  * Nhóm V12b — `adminUsers` (`/admin/users`), `plan.md` mục 8 · V12 · 10.
  *
@@ -52,7 +54,7 @@ for (const row of ROLE_ROWS) {
 
     const invite = page.getByRole('button', { name: 'Mời người dùng' });
     if (row.canManage) {
-      await expect(invite).toBeVisible();
+      await expect(invite).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
       await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toHaveCount(0);
       await expect(targetRow(page)).toBeVisible();
       await expect(page.getByRole('row').filter({ hasText: 'admin@example.com' })).toContainText(
@@ -61,7 +63,7 @@ for (const row of ROLE_ROWS) {
       return;
     }
 
-    await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
     await expect(page.getByText('ma trận quyền theo vai trò')).toBeVisible();
     await expect(page.getByText('quản trị: được phép tải bản vẽ', { exact: true })).toBeAttached();
     await expect(page.getByText('người xem: không được phép tải bản vẽ', { exact: true })).toBeAttached();
@@ -77,7 +79,7 @@ for (const row of ROLE_ROWS) {
 test.describe('admin', () => {
   test.beforeEach(async ({ page }) => {
     await signInAs(page, 'admin', ROUTES.adminUsers);
-    await expect(targetRow(page)).toBeVisible();
+    await expect(targetRow(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 
   test('UM-2 · B-V12b-06 vô hiệu hoá có toast "Hoàn tác"; bấm nó thì tài khoản hoạt động lại và toast đi mất (A8)', async ({

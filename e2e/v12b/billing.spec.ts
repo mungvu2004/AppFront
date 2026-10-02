@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test';
 import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
 
+import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
+
 /**
  * Nhóm V12b — `billing` (`/billing`), `plan.md` mục 8 · V12 · 8.
  *
@@ -33,7 +35,7 @@ for (const row of ROLE_ROWS) {
     page,
   }) => {
     await signInAs(page, row.role, ROUTES.billing);
-    await expect(page.getByRole('heading', { level: 1, name: 'Thanh toán' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Thanh toán' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
     const upgrade = page.getByRole('button', { name: 'Nâng gói', exact: true });
     await expect(upgrade).toHaveCount(2);
@@ -55,7 +57,7 @@ test('BI-2 nâng gói hỏi trước bằng hộp thoại có số tiền; Esc h
   page,
 }) => {
   await signInAs(page, 'admin', ROUTES.billing);
-  await expect(currentPlan(page)).toHaveText('Cơ bản');
+  await expect(currentPlan(page)).toHaveText('Cơ bản', { timeout: FIRST_PAINT_TIMEOUT_MS });
 
   const dialog = page.getByRole('dialog', { name: 'Xác nhận nâng gói' });
   // Hai nút cùng tên "Nâng gói" (hai gói cao hơn); nút đầu là gói kế tiếp.
@@ -85,7 +87,7 @@ test('BI-3 diện tích hoá đơn dùng dấu phẩy thập phân trên mọi h
   const table = page.getByRole('table');
   // Hàng dữ liệu mang mã hoá đơn `HD-…`; hàng tiêu đề (`th`) cũng lộ ra như `cell` nên không lọc theo role được.
   const dataRows = table.getByRole('row').filter({ hasText: 'HD-' });
-  await expect(dataRows.first()).toBeVisible();
+  await expect(dataRows.first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   // Cột thứ ba (`Diện tích`, `InvoiceTable.tsx`). `2.016,00 m²`: chấm nhóm nghìn, phẩy thập phân.
   const count = await dataRows.count();

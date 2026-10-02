@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
 
+import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
+
 /**
  * Nhóm V12b — `account` (`/tai-khoan`), `plan.md` mục 8 · V12 · 7.
  *
@@ -42,7 +44,7 @@ function saveIndicator(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto(ROUTES.account);
-  await expect(page.getByRole('heading', { level: 1, name: 'cài đặt tài khoản' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'cài đặt tài khoản' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 });
 
 test('AC-1 sửa họ tên: báo "chờ đồng bộ" ngay, tự lưu sau ≥ 800 ms đồng hồ thật (A7)', async ({ page }) => {
