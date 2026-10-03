@@ -570,7 +570,8 @@ export type PropertyInspectorCapability =
 /** Kết quả của một khả năng có thể chưa có đường. */
 export type PropertyInspectorCapabilityResult<TValue> =
   | { readonly ok: true; readonly data: TValue }
-  | { readonly ok: false; readonly reason: string };
+  /** `cause`: lỗi gốc của tầng dưới (`HttpError`), để tự lưu tách 409/422 khỏi rớt mạng (B-V8-61). */
+  | { readonly ok: false; readonly reason: string; readonly cause?: unknown };
 
 /**
  * Câu nói ra khi một lượt ghi không có ĐÍCH, chứ không phải không có ĐƯỜNG.
@@ -764,9 +765,9 @@ export function createPropertyInspectorGateway(
       try {
         return { data: await saveChangedFloors(current, target.projectId), ok: true };
       } catch (error) {
-        const kind = (error as { cause?: { kind?: string } }).cause?.kind;
+        const cause = (error as { cause?: { kind?: string } }).cause;
 
-        return { ok: false, reason: persistFailedReason(kind ?? 'unknown') };
+        return { cause, ok: false, reason: persistFailedReason(cause?.kind ?? 'unknown') };
       }
     },
     copyAsTemplate: async (entity) => {

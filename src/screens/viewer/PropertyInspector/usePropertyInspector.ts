@@ -1120,7 +1120,8 @@ export function usePropertyInspector(
       const result = await gateway.persistProperties(current);
 
       if (!result.ok) {
-        throw new Error(result.reason);
+        /* Mang `cause` theo: `isTransientWireError` đọc nó để không thử lại một 409 (B-V8-61). */
+        throw Object.assign(new Error(result.reason), { cause: result.cause });
       }
     },
     [gateway, hostSaves],

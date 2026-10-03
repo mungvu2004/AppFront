@@ -4,6 +4,7 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import { SAMPLE_BUILDING, sampleLevelId, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { applySinglePatch } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { isTransientWireError } from '@/lib/errors/wireError';
 
 import { createPropertyInspectorGateway } from './propertyInspectorGateway';
 
@@ -80,6 +81,17 @@ describe('createPropertyInspectorGateway — đích và baseVersion của lượ
 
     expect(result.ok).toBe(false);
     expect(writeLayer).not.toHaveBeenCalled();
+  });
+
+  it('409 của máy chủ: kết quả mang HttpError gốc, nên tự lưu không thử lại (B-V8-61)', async () => {
+    const { gateway, writeLayer } = setup(() => [base]);
+    const conflict = { kind: 'http', raw: undefined, requestId: 'req-2', retryable: false, status: 409 } as const;
+    writeLayer.mockResolvedValue({ error: conflict, ok: false });
+
+    const result = await gateway.persistProperties(thicken(base, 2));
+
+    expect(result.ok ? null : result.cause).toBe(conflict);
+    expect(isTransientWireError(result)).toBe(false);
   });
 
   it('hoàn tác về giữa lịch sử: mốc là hai đầu [G0, G2], hiện tại G1 — gửi cả L2 lẫn L3', async () => {
