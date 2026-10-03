@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
-import { seedSpatial } from '../fixtures/seedSpatial';
 
 import { DESKTOP_VIEWPORT, VIEWER_PROJECT_ID, openViewer } from './viewer-helpers';
 
@@ -17,15 +16,14 @@ import { DESKTOP_VIEWPORT, VIEWER_PROJECT_ID, openViewer } from './viewer-helper
  * - **Màn tường: tự hiện lúc tải** (sau bản sửa B-V2-01 — hook nghe sổ phím, nên
  *   lượt màn chủ đăng ký phím trong effect làm bốn bước sống lại). Bài đầu tiên
  *   khẳng định điều đó và KHÔNG có sự kiện cửa sổ nào.
- * - **Vỏ 3D và màn xuất (có bơm): cũng tự hiện**, ngay khi neo của bước xuất
+ * - **Vỏ 3D và màn xuất: cũng tự hiện**, ngay khi neo của bước xuất
  *   hiện trong trang. Bước duy nhất của mỗi host (`view3d`, `exportResult`) không
  *   có phím, chỉ có neo DOM; bản sửa đầu của B-V2-01 chỉ nghe sổ phím nên hai host
  *   này từng phải chờ một `resize` (đo: mô hình dựng xong + 8 s vẫn 0 thẻ, rồi thẻ
  *   bật lên ở cú bấm đầu tiên). Nay hook nghe cả neo vào/rời DOM.
- * - **Màn xuất không bơm: không có tour nào** kể cả sau khi đổi khung nhìn — neo
- *   `data-tour-anchor="exportResult"` chỉ có khi có thứ để xuất, nên 0 bước sống,
- *   trạng thái `empty`. Đó là luật sống sót của hook (bước không phím không neo
- *   biến mất lặng lẽ), không phải lỗi; không viết bài cho sự vắng mặt ấy.
+ * - **Màn xuất khi kho rỗng: không có tour nào** — neo `data-tour-anchor="exportResult"`
+ *   chỉ có khi có thứ để xuất, nên 0 bước sống, trạng thái `empty`. Từ B-V12-01 cổng
+ *   nạp kho trước khi màn vẽ, nên đường sản phẩm không còn rơi vào đây.
  *
  * ## Bấm nền tối = bỏ qua tour (đo, không có bài riêng)
  *
@@ -202,20 +200,18 @@ test('màn tường: bấm chip "xem hướng dẫn" sau khi bỏ qua mở lại
   await expect(chip).toHaveCount(0);
 });
 
-test('màn xuất có bơm bộ mẫu: nút xuất vừa có là tour tự hiện đúng một bước "lấy tệp mang đi", không cần sự kiện cửa sổ', async ({
+test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện đúng một bước "lấy tệp mang đi", không cần sự kiện cửa sổ', async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT);
   await page.goto(EXPORT_PATH);
-  // Kho rỗng: màn nói "chưa có gì được duyệt để xuất" (mốc của `smoke-grid`).
-  await expect(page.getByRole('heading', { name: 'chưa có gì được duyệt để xuất' })).toBeVisible({
+
+  // Nút "xuất" mang neo `data-tour-anchor="exportResult"` và chỉ có khi có thứ để
+  // xuất — nó xuất hiện SAU lượt nạp kho bất đồng bộ của cổng (B-V12-01), và neo
+  // vào trang là đủ để bước sống lại (B-V2-01).
+  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-
-  await seedSpatial(page);
-  // Nút "xuất" mang neo `data-tour-anchor="exportResult"` và chỉ có khi có thứ để
-  // xuất — neo vào trang là đủ để bước sống lại (B-V2-01).
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
 
   await expect(tourCard(page, 'lấy tệp mang đi')).toBeVisible({
     timeout: TOUR_SELF_APPEAR_TIMEOUT_MS,

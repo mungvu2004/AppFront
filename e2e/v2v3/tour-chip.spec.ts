@@ -2,13 +2,12 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
-import { seedSpatial } from '../fixtures/seedSpatial';
 
 /**
  * Chip "xem hướng dẫn" của `EditorTour` — thứ còn lại sau khi người dùng bỏ qua tour —
  * không được che điều khiển nào của màn chủ. Ba màn chủ: duyệt tường
  * (`ROUTES.project.walls`), vỏ 3D (`ROUTES.project.viewer`), xuất (`ROUTES.project.export`,
- * có bơm kho). Lỗi B-V2-05 (nhóm V2, `EditorTour`).
+ * cổng nạp kho B-V12-01). Lỗi B-V2-05 (nhóm V2, `EditorTour`).
  *
  * ## Lỗi đã sửa
  *
@@ -83,20 +82,18 @@ async function openViewer(page: Page): Promise<void> {
   });
 }
 
-/** goto → bơm kho → nút "xuất" (neo của bước tour) có mặt. */
-async function openExportSeeded(page: Page): Promise<void> {
+/** goto → cổng nạp kho (B-V12-01) → nút "xuất" (neo của bước tour) có mặt. */
+async function openExport(page: Page): Promise<void> {
   await page.goto(EXPORT);
-  await expect(page.getByText('chưa có gì được duyệt để xuất')).toBeVisible({
+  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
 }
 
 const HOSTS: readonly Host[] = [
   { name: 'màn tường', tourTitle: 'chọn công cụ ở ray bên trái', open: openWalls },
   { name: 'vỏ 3D', tourTitle: 'đổi sang khung nhìn khối', open: openViewer },
-  { name: 'màn xuất (bơm kho)', tourTitle: 'lấy tệp mang đi', open: openExportSeeded },
+  { name: 'màn xuất', tourTitle: 'lấy tệp mang đi', open: openExport },
 ];
 
 /** 1280 là cỡ rộng nhỏ nhất (dưới đó tour thu gọn); 1440×900 là cỡ bàn làm việc thường gặp. */
@@ -162,11 +159,11 @@ for (const host of HOSTS) {
   }
 }
 
-test('màn xuất có bơm kho, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp thoại "chia sẻ bản vẽ" (B-V2-05)', async ({
+test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp thoại "chia sẻ bản vẽ" (B-V2-05)', async ({
   page,
 }) => {
   await page.setViewportSize(VIEWPORTS[0]);
-  await openExportSeeded(page);
+  await openExport(page);
   await skipTour(page, 'lấy tệp mang đi');
 
   await page.getByRole('button', { name: 'chia sẻ', exact: true }).click({ timeout: ACTIONABLE_TIMEOUT_MS });

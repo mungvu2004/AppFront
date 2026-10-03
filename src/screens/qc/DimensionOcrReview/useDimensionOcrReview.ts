@@ -432,7 +432,7 @@ export function useDimensionOcrReview(
     }
   }, [gateway, graph, loaded, setSpatial]);
 
-  const level = useMemo<Level | null>(() => levelOfGraph(graph), [graph]);
+  const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = dimensionLayerQuery.isError;
   const isLoading = dimensionLayerQuery.isPending || graph === null;
   const hasPartialOcr = ocrProgressQuery.data?.isComplete === false;

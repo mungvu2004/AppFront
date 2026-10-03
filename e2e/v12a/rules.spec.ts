@@ -6,9 +6,10 @@ import { seedSpatial } from '../fixtures/seedSpatial';
 /**
  * V12a — `projectRules` và tấm trượt `ViolationDetail` (`docs/notes/e2e/plan.md` V12 mục 1, 3).
  *
- * Kho `spatial` không route nào nạp (B-V12-01), nên ca có nội dung phải BƠM — và tên
- * bài nói ra điều đó (plan.md 6.1). Ca mồi không bơm khẳng định đúng chữ người dùng
- * thấy hôm nay; ngày sản phẩm có đường nạp thật nó đỏ, và khi ấy hãy gỡ `seedSpatial`.
+ * Route nạp kho qua cổng `ProjectSpatialGate` (B-V12-01, đã sửa) — ca đầu chứng minh
+ * điều đó KHÔNG bơm. Mock trả bốn tầng chưa có hình cho `project-1`, nên các ca cần vi
+ * phạm thật vẫn BƠM bộ mẫu A14 (tên bài nói ra), và bơm SAU khi cổng đã nạp xong
+ * (`seedSpatial({ projectId })`).
  *
  * Không hard-code số vi phạm: chúng đến từ `createSampleBuilding()` và đổi theo bộ mẫu.
  */
@@ -24,31 +25,15 @@ const EMPTY_TITLE = 'Chưa có mô hình để kiểm tra luật';
 /** Vỏ màn — có ở mọi trạng thái, nên chờ nó không phụ thuộc chữ của `empty`. */
 const SCREEN_HEADING = 'Kiểm tra luật không gian';
 
-test('ca mồi, không bơm: màn luật nói thẳng là chưa có mô hình và không mời bấm một lượt chạy chắc chắn hỏng (B-V12-02)', async ({
+test('B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) thì cổng nạp kho dự án và màn có kết quả kiểm tra, không nói "chưa có mô hình"', async ({
   page,
 }) => {
   await page.goto(RULES_URL);
-
-  await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
+  await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Chạy kiểm tra', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Không chạy được lượt kiểm tra' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toHaveCount(0);
 });
-
-test.fixme(
-  'B-V12-01: vào màn luật bằng đường sản phẩm (không bơm) thì có kết quả kiểm tra của mô hình thật',
-  // Lý do: không route nào nạp `store.spatial` (`setSpatial`/`setFloors` chỉ có ở kho và
-  // test), nên màn luôn `empty`. Chờ quyết (questions.md Q1 — đường nạp thật là tính năng
-  // mới). Mở lại khi có bộ nạp kho theo dự án; khi ấy gỡ `seedSpatial` khỏi tệp này.
-  async ({ page }) => {
-    await page.goto(RULES_URL);
-    await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible({
-      timeout: FIRST_PAINT_TIMEOUT_MS,
-    });
-  },
-);
 
 test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại không rơi về rỗng, và "Xác nhận đã xử lý" khoá khi còn vi phạm', async ({
   page,
@@ -57,7 +42,7 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   const rerun = page.getByRole('button', { name: 'Chạy kiểm tra lại' });
   await expect(rerun).toBeVisible();
@@ -81,7 +66,7 @@ test('có bơm kho: tấm chi tiết vi phạm mở từ một dòng, J sang vi 
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   await page.getByRole('button', { name: /^lỗ mở nằm trọn/u }).click();
   const rows = page.getByRole('button', { name: /^Lỗ mở #D-\d{3}/u });
@@ -124,7 +109,7 @@ test('có bơm kho: chip của hàng và tấm chi tiết gọi lỗ mở bằng
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   await page.getByRole('button', { name: /^lỗ mở nằm trọn/u }).click();
   // Neo vào MỘT hàng rồi đọc chip của chính nó — mã `#D-001` lặp lại ở mỗi tầng (strict mode).

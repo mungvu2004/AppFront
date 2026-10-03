@@ -12,7 +12,8 @@ import { seedSpatial } from '../fixtures/seedSpatial';
  * sai dạng không bao giờ vào kho ở sản phẩm.
  */
 
-const DATA_URL = ROUTES.project.data('project-1');
+const PROJECT_ID = 'project-1';
+const DATA_URL = ROUTES.project.data(PROJECT_ID);
 
 /** Lần tải đầu của một route bắt Vite dịch nguội; cùng hằng `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
@@ -22,18 +23,18 @@ const EMPTY_TITLE = 'Chưa có dữ liệu không gian';
 /** Ô tìm của thanh công cụ — có ở mọi trạng thái; cùng mốc `smoke-grid.spec.ts`. */
 const SCREEN_ANCHOR = 'Tìm theo khoá hoặc giá trị';
 
-test('ca mồi, không bơm: màn dữ liệu nói chưa có dữ liệu và không tự khen "hợp lệ, 0 lỗi" khi chưa có gì để kiểm (B-V12-07)', async ({
+test('B-V12-01: vào màn dữ liệu bằng đường sản phẩm (không bơm) thì cổng nạp kho — bản xem trước mang các tầng của dự án từ máy chủ, và vì tầng chưa có hình nên màn nói thật "chưa có dữ liệu", không tự khen hợp lệ (B-V12-07)', async ({
   page,
 }) => {
   await page.goto(DATA_URL);
 
-  await expect(page.getByLabel(SCREEN_ANCHOR)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  /*
+   * Mock trả bốn tầng chưa có hình cho `project-1` (`makeLayerDocument`), nên `empty` là câu
+   * ĐÚNG ở đây. Bằng chứng cổng đã nạp là tên tầng của máy chủ trong bản xem trước JSON —
+   * trước B-V12-01 kho `null` và bản xem trước không có tầng nào.
+   */
+  await expect(page.getByText(/"name": "Tầng hầm"/u)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible();
-  await expect(
-    page.getByText(
-      'Bản vẽ này chưa được xử lý xong, nên chưa có Spatial JSON để xem. Chạy pipeline cho tầng rồi quay lại đây.',
-    ),
-  ).toBeVisible();
   await expect(page.getByText(/Hợp lệ theo hợp đồng Spatial JSON/u)).toHaveCount(0);
 });
 
@@ -42,8 +43,7 @@ test('có bơm kho: cây dùng dấu phẩy thập phân, tab JSON giữ dấu c
 }) => {
   await page.goto(DATA_URL);
   await expect(page.getByLabel(SCREEN_ANCHOR)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible();
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   const tree = page.getByRole('tree', { name: 'Cấu trúc dữ liệu không gian' });
   await expect(tree.getByRole('treeitem').filter({ hasText: /grossFloorAreaM2/u }).first()).toContainText(

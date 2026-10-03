@@ -6,14 +6,16 @@ import { seedSpatial } from '../fixtures/seedSpatial';
 /**
  * V12a — `projectRuleSettings` (`docs/notes/e2e/plan.md` V12 mục 2).
  *
- * Kho rỗng ở mọi đường sản phẩm (B-V12-01) nên ca có nội dung phải BƠM, và tên bài nói
- * ra điều đó. Ca mồi không bơm khẳng định chữ người dùng thấy hôm nay.
+ * Route nạp kho qua cổng `ProjectSpatialGate` (B-V12-01, đã sửa) — ca đầu KHÔNG bơm.
+ * Ca sửa luật vẫn BƠM bộ mẫu A14 sau khi cổng nạp xong (`seedSpatial({ projectId })`),
+ * và tên bài nói ra điều đó.
  *
  * Tự lưu chạy bằng đồng hồ THẬT — đơn vị dùng đồng hồ giả nên chỉ tầng này chứng minh
  * được A7. Bài chờ trạng thái dương ("Đã lưu lúc …"), không đo khoảng thời gian.
  */
 
-const RULE_SETTINGS_URL = ROUTES.project.ruleSettings('project-1');
+const PROJECT_ID = 'project-1';
+const RULE_SETTINGS_URL = ROUTES.project.ruleSettings(PROJECT_ID);
 
 /** Lần tải đầu của một route bắt Vite dịch nguội; cùng hằng `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
@@ -30,7 +32,7 @@ const EMPTY_TITLE = 'chưa có mô hình để áp bộ luật';
 const SCREEN_HEADING = 'cài đặt bộ luật không gian';
 const OPENING_RULE_SWITCH = /^bật hoặc tắt luật: lỗ mở nằm trọn/u;
 
-test('ca mồi, không bơm: màn cài đặt đếm luật đang bật và nói thiếu MÔ HÌNH, không nói thiếu luật (B-V12-03)', async ({
+test('B-V12-01: vào màn cài đặt luật bằng đường sản phẩm (không bơm) thì cổng nạp kho và màn đếm luật đang bật, không nói thiếu mô hình', async ({
   page,
 }) => {
   await page.goto(RULE_SETTINGS_URL);
@@ -38,8 +40,9 @@ test('ca mồi, không bơm: màn cài đặt đếm luật đang bật và nói
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible();
-  await expect(page.getByText(/^\d+\/\d+ luật đang bật$/u)).toBeVisible();
+  // Số chạy hiệu ứng đếm (`useCountUp`) — đọc khi nó đã đứng ở giá trị cuối.
+  await expect(page.getByText(/^\d+\/\d+ luật đang bật$/u)).toHaveText(/^23\/25/u);
+  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toHaveCount(0);
   await expect(page.getByText(/chưa có (bộ )?luật/iu)).toHaveCount(0);
 });
 
@@ -50,7 +53,7 @@ test('có bơm kho: tắt một luật thì dòng đếm giảm một và tự l
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   const ruleSwitch = page.getByRole('switch', { name: OPENING_RULE_SWITCH });
   await expect(ruleSwitch).toHaveAttribute('aria-checked', 'true');
@@ -75,7 +78,7 @@ test('có bơm kho: tắt một luật hiện toast có nút "Hoàn tác", bấm
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
 
   const ruleSwitch = page.getByRole('switch', { name: OPENING_RULE_SWITCH });
   await ruleSwitch.click();

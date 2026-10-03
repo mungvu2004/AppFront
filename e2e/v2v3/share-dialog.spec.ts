@@ -2,18 +2,16 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
 
 import { ROUTES, pathOf } from '../fixtures/routes';
-import { seedSpatial } from '../fixtures/seedSpatial';
 
 /**
  * Hộp thoại "chia sẻ bản vẽ" (`ShareDialog`, không có route) — mở từ nút "chia sẻ"
  * của `ExportPanel` (`ROUTES.project.export`). Nhóm V3, kế hoạch mục 4
  * (`docs/notes/e2e/plan.md`, ca V3-SHARE-1) + phát hiện F2.
  *
- * ## Vì sao có bơm kho
+ * ## Vì sao KHÔNG còn bơm kho
  *
- * Trên bộ mẫu `ExportPanel` luôn rỗng nên nút "chia sẻ" không có. Q1 = A′: bài được
- * bơm `store.spatial` + `floors` bằng `seedSpatial` SAU `goto`, tên bài nói ra điều đó,
- * và có một ca mồi KHÔNG bơm để biết ngày cái nạng này hết cần.
+ * Từ B-V12-01 route `/export` nạp kho qua cổng `ProjectSpatialGate`, nên nút "chia sẻ"
+ * có mặt bằng đường sản phẩm; ca đầu khẳng định điều đó. Trước đó các bài phải bơm.
  *
  * ## Vì sao có `page.route` trên `/share-links`
  *
@@ -25,10 +23,9 @@ import { seedSpatial } from '../fixtures/seedSpatial';
  * - Bảy trạng thái, A8 đổi quyền, mã nhúng: `ShareDialog.test.tsx` đã phủ.
  * - Vai viewer: chưa đo đường nạp + đăng nhập viewer cùng lúc; đơn vị có `forbidden`.
  * - Sao chép ra clipboard thật: cần quyền `clipboard-read`.
- * - Tour: từ bản sửa `f35ce7a` (B-V2-01), sau khi bơm và nút "xuất" có mặt thì `EditorTour`
+ * - Tour: từ bản sửa `f35ce7a` (B-V2-01), khi nút "xuất" có mặt (cổng nạp kho xong) thì `EditorTour`
  *   TỰ HIỆN thẻ "lấy tệp mang đi" — bài CHỜ thẻ ấy rồi bấm "bỏ qua" trước cú bấm "chia sẻ"
  *   (không dùng `dismissTourIfShown`: hàm ấy đếm một lần, không chờ, nên chập chờn ở đây).
- *   Không bơm thì không có tour (ca mồi).
  */
 
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
@@ -46,12 +43,13 @@ const COLD_START_TIMEOUT_MS = 60_000;
 
 const PROJECT_ID = 'project-1';
 const EXPORT = ROUTES.project.export(PROJECT_ID);
+const SCREEN_HEADING = 'xuất bản vẽ';
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(COLD_START_TIMEOUT_MS);
   const page = await browser.newPage();
   await page.goto(EXPORT);
-  await expect(page.getByText('chưa có gì được duyệt để xuất')).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+  await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
   await page.close();
 });
 
@@ -77,9 +75,10 @@ const ACTIVE_LINK = {
   label: null,
 } as const;
 
+/** goto → cổng nạp kho dự án xong (B-V12-01): màn ở trạng thái có dữ liệu. */
 async function openExport(page: Page): Promise<void> {
   await page.goto(EXPORT);
-  await expect(page.getByText('chưa có gì được duyệt để xuất')).toBeVisible({
+  await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -88,10 +87,9 @@ function shareButton(page: Page): Locator {
   return page.getByRole('button', { name: 'chia sẻ', exact: true });
 }
 
-/** goto → bơm kho → bỏ thẻ tour tự hiện; nút "chia sẻ" đã có. */
-async function seedAndSkipTour(page: Page): Promise<void> {
+/** goto → cổng nạp kho → bỏ thẻ tour tự hiện; nút "chia sẻ" đã có. */
+async function openAndSkipTour(page: Page): Promise<void> {
   await openExport(page);
-  await seedSpatial(page);
   await expect(shareButton(page)).toBeVisible();
   // `EditorTour` không mang `role="dialog"`; thẻ là `region` đặt tên theo tiêu đề bước.
   const tourCard = page.getByRole('region', { name: 'lấy tệp mang đi', exact: true });
@@ -100,9 +98,9 @@ async function seedAndSkipTour(page: Page): Promise<void> {
   await expect(tourCard).toHaveCount(0);
 }
 
-/** {@link seedAndSkipTour} rồi mở "chia sẻ"; trả về hộp thoại đã mở. */
-async function openShareDialogWithSeed(page: Page): Promise<Locator> {
-  await seedAndSkipTour(page);
+/** {@link openAndSkipTour} rồi mở "chia sẻ"; trả về hộp thoại đã mở. */
+async function openShareDialog(page: Page): Promise<Locator> {
+  await openAndSkipTour(page);
   // Chuột thường: chip "xem hướng dẫn" từng đè nút này (B-V2-05, đã sửa) —
   // bài riêng ở `tour-chip.spec.ts`.
   await shareButton(page).click({ timeout: ACTIONABLE_TIMEOUT_MS });
@@ -111,17 +109,17 @@ async function openShareDialogWithSeed(page: Page): Promise<Locator> {
   return dialog;
 }
 
-test('không bơm kho: /export báo "chưa có gì được duyệt để xuất" và không có nút "chia sẻ" — ngày bài này đỏ là ngày sản phẩm có đường nạp thật, hãy gỡ bơm khỏi các bài bên cạnh', async ({
+test('không bơm kho: /export đi bằng đường sản phẩm thì cổng nạp kho và nút "chia sẻ" có mặt (B-V12-01)', async ({
   page,
 }) => {
   await openExport(page);
-  await expect(shareButton(page)).toHaveCount(0);
+  await expect(shareButton(page)).toBeVisible();
 });
 
-test('bơm kho: nút "chia sẻ" mở hộp thoại với tiêu điểm đầu ở "Đóng hộp thoại", Escape đóng đúng nó và vẫn ở /export cạnh nút "chia sẻ" (V3-SHARE-1)', async ({
+test('nút "chia sẻ" mở hộp thoại với tiêu điểm đầu ở "Đóng hộp thoại", Escape đóng đúng nó và vẫn ở /export cạnh nút "chia sẻ" (V3-SHARE-1)', async ({
   page,
 }) => {
-  const dialog = await openShareDialogWithSeed(page);
+  const dialog = await openShareDialog(page);
   await expect(dialog.getByRole('button', { name: 'Đóng hộp thoại' })).toBeFocused();
 
   await page.keyboard.press('Escape');
@@ -135,10 +133,10 @@ test('bơm kho: nút "chia sẻ" mở hộp thoại với tiêu điểm đầu �
  * thoại xong thì `EditorTour` hiện lên và nền tối của nó chặn cú bấm mở lại. Tách bài thì
  * không bài nào phải bấm qua thời điểm ấy, dù tour hiện ở bước nào.
  */
-test('bơm kho: trong hộp thoại "chia sẻ bản vẽ", 30 lần Tab không đưa tiêu điểm ra ngoài (V3-SHARE-1)', async ({
+test('trong hộp thoại "chia sẻ bản vẽ", 30 lần Tab không đưa tiêu điểm ra ngoài (V3-SHARE-1)', async ({
   page,
 }) => {
-  const dialog = await openShareDialogWithSeed(page);
+  const dialog = await openShareDialog(page);
   for (let i = 0; i < TAB_PRESSES; i += 1) {
     await page.keyboard.press('Tab');
     expect(await dialog.evaluate((node) => node.contains(document.activeElement)), `Tab lần ${i + 1}`).toBe(
@@ -153,11 +151,11 @@ test('bơm kho: trong hộp thoại "chia sẻ bản vẽ", 30 lần Tab không 
  * bay và ăn theo cú huỷ của người khởi xướng (`src/lib/http/client.ts`, single-flight).
  * Đã kiểm đỏ trên mã chưa sửa.
  */
-test('bơm kho + máy chủ giả trả danh sách rỗng: mở hộp thoại chia sẻ thì không hiện lỗi "thao tác chia sẻ đã bị huỷ"', async ({
+test('máy chủ giả trả danh sách rỗng: mở hộp thoại chia sẻ thì không hiện lỗi "thao tác chia sẻ đã bị huỷ"', async ({
   page,
 }) => {
   await page.route(SHARE_LINKS, (route) => route.fulfill({ json: [] }));
-  const dialog = await openShareDialogWithSeed(page);
+  const dialog = await openShareDialog(page);
   await expect(dialog.getByRole('region', { name: 'liên kết chia sẻ' })).toBeVisible();
   await expect(dialog.getByRole('alert')).toHaveCount(0);
 });
@@ -167,7 +165,7 @@ test('bơm kho + máy chủ giả trả danh sách rỗng: mở hộp thoại ch
  * là việc A8 không hoàn tác được. Nay nó mở hộp thoại "thu hồi liên kết này?" — ANH EM
  * của hộp thoại chia sẻ, nên lúc mở có 2 dialog. Đã kiểm đỏ trên mã chưa sửa.
  */
-test('bơm kho + máy chủ giả có một liên kết: "thu hồi" hỏi xác nhận trước; "để nguyên" và Escape không gửi gì, xác nhận "thu hồi" gửi đúng một lệnh (F2, A9)', async ({
+test('máy chủ giả có một liên kết: "thu hồi" hỏi xác nhận trước; "để nguyên" và Escape không gửi gì, xác nhận "thu hồi" gửi đúng một lệnh (F2, A9)', async ({
   page,
 }) => {
   const deletes: string[] = [];
@@ -178,7 +176,7 @@ test('bơm kho + máy chủ giả có một liên kết: "thu hồi" hỏi xác 
     deletes.push(route.request().url());
     return route.fulfill({ json: { ...ACTIVE_LINK, status: 'revoked', revokedAt: '2026-10-02T00:00:00.000Z' } });
   });
-  const dialog = await openShareDialogWithSeed(page);
+  const dialog = await openShareDialog(page);
   const revoke = dialog.getByRole('button', { name: 'thu hồi' });
   const confirm = page.getByRole('dialog', { name: 'thu hồi liên kết này?' });
 
@@ -211,7 +209,7 @@ test('bơm kho + máy chủ giả có một liên kết: "thu hồi" hỏi xác 
  * `onToast` cho hộp thoại chia sẻ, nên mọi toast của hộp thoại câm. Đã kiểm đỏ trên mã
  * chưa sửa.
  */
-test('bơm kho + máy chủ giả: "tạo liên kết" trong hộp thoại chia sẻ hiện toast "đã tạo liên kết chia sẻ"', async ({
+test('máy chủ giả: "tạo liên kết" trong hộp thoại chia sẻ hiện toast "đã tạo liên kết chia sẻ"', async ({
   page,
 }) => {
   await page.route(SHARE_LINKS, (route: Route) =>
@@ -219,7 +217,7 @@ test('bơm kho + máy chủ giả: "tạo liên kết" trong hộp thoại chia 
       ? route.fulfill({ status: 201, json: ACTIVE_LINK })
       : route.fulfill({ json: [] }),
   );
-  const dialog = await openShareDialogWithSeed(page);
+  const dialog = await openShareDialog(page);
 
   await dialog.getByRole('button', { name: 'tạo liên kết' }).click();
 

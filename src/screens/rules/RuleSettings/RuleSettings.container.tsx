@@ -24,6 +24,7 @@
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -144,7 +145,13 @@ export function RuleSettingsContainer(props: RuleSettingsContainerProps) {
 
 /** Route thật của màn cài đặt bộ luật, đăng ký tại `src/routes/router.tsx`. */
 export function RuleSettingsRoute() {
-  return <RuleSettingsContainer onToast={publishRuleSettingsToast} />;
+  const { projectId } = useParams<{ projectId: string }>();
+
+  return (
+    <ProjectSpatialGate projectId={projectId}>
+      <RuleSettingsContainer onToast={publishRuleSettingsToast} />
+    </ProjectSpatialGate>
+  );
 }
 
 /** Loại thông báo của màn này trong `notificationBus` — bus gộp các lượt cùng loại. */

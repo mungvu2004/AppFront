@@ -63,6 +63,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import {
@@ -214,9 +215,13 @@ function ExportPanelRouteBody() {
 
 /** Route thật của màn xuất, đăng ký tại `src/routes/router.tsx`. */
 export function ExportPanelRoute() {
+  const { projectId } = useParams<{ projectId: string }>();
+
   return (
     <Toast.Provider>
-      <ExportPanelRouteBody />
+      <ProjectSpatialGate projectId={projectId}>
+        <ExportPanelRouteBody />
+      </ProjectSpatialGate>
     </Toast.Provider>
   );
 }

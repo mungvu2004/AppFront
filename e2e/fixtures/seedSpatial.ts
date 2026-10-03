@@ -17,20 +17,34 @@
  *
  * Bơm cả `floors`: chỉ `setSpatial` thì `ExportPanel` vẫn rỗng (đo lớp 2); màn đọc
  * `floors` từ `projectSlice`. `versionId` để `null`.
+ *
+ * `{ projectId }` — BẮT BUỘC trên mọi route có cổng nạp kho dự án (B-V12-01: luật,
+ * xuất, dữ liệu, 3D, điện thoại). Hàm chờ trong trang tới khi cổng đã nạp đúng dự án
+ * ấy (`project.id === projectId`) rồi mới bơm, để lượt nạp không ghi đè lượt bơm. Nó
+ * KHÔNG gọi `setProject` giả: dự án trong kho là dự án cổng đã đọc từ máy chủ.
  */
 import type { Page } from '@playwright/test';
 
-export async function seedSpatial(page: Page): Promise<void> {
-  await page.evaluate(async () => {
+export interface SeedSpatialOptions {
+  /** Dự án mà cổng nạp kho phải nạp xong trước khi bơm — xem docblock. */
+  readonly projectId?: string;
+}
+
+export async function seedSpatial(page: Page, options: SeedSpatialOptions = {}): Promise<void> {
+  await page.evaluate(async (projectId) => {
     // Biến, không chuỗi trần: TypeScript không tìm tệp ở `/src/...` trong Node.
     const load = (path: string): Promise<unknown> => import(/* @vite-ignore */ path);
 
+    interface SeedState {
+      project: { id: string } | null;
+      setSpatial: (spatial: unknown, versionId: null) => void;
+      setFloors: (floors: unknown) => void;
+    }
+
     const store = (await load('/src/store/index.ts')) as {
       useStore: {
-        getState: () => {
-          setSpatial: (spatial: unknown, versionId: null) => void;
-          setFloors: (floors: unknown) => void;
-        };
+        getState: () => SeedState;
+        subscribe: (listener: (state: SeedState) => void) => () => void;
       };
     };
     const fixture = (await load('/src/domain/spatial/__fixtures__/sampleBuilding.ts')) as {
@@ -40,9 +54,26 @@ export async function seedSpatial(page: Page): Promise<void> {
       normalizeSpatial: (graph: unknown) => unknown;
     };
 
+    if (projectId !== undefined) {
+      /* Chờ một trạng thái dương — cổng đã ghi dự án — không chờ theo đồng hồ. */
+      await new Promise<void>((resolve) => {
+        if (store.useStore.getState().project?.id === projectId) {
+          resolve();
+          return;
+        }
+
+        const unsubscribe = store.useStore.subscribe((state) => {
+          if (state.project?.id === projectId) {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+    }
+
     const graph = fixture.createSampleBuilding();
     const state = store.useStore.getState();
     state.setSpatial(normalize.normalizeSpatial(graph), null);
     state.setFloors(graph.levels);
-  });
+  }, options.projectId);
 }

@@ -321,9 +321,18 @@ export const DIMENSION_OCR_SAMPLE_GRAPH: NormalizedSpatial = buildDimensionOcrGr
 
 const NO_DIMENSIONS: readonly Dimension[] = [];
 
-/** Tầng đang duyệt, hoặc tầng đầu tiên khi nơi gọi chưa chỉ định. */
-export function levelOfGraph(graph: NormalizedSpatial | null): Level | null {
-  return graph === null ? null : (entitiesOfKind(graph, 'level')[0] ?? null);
+/**
+ * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu —
+ * cùng lý do với `levelOfGraph` của lớp đối tượng (kho cả dự án, B-V12-01).
+ */
+export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
+  if (graph === null) {
+    return null;
+  }
+
+  const levels = entitiesOfKind(graph, 'level');
+
+  return levels.find((level) => level.id === levelId) ?? levels[0] ?? null;
 }
 
 /** Mọi chuỗi kích thước của đồ thị, đúng thứ tự gốc của bộ mẫu. */
