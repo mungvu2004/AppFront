@@ -511,7 +511,15 @@ Thứ tự theo giá trị nghiệp vụ, và nhóm nào bị chặn thì xếp 
 
 - **Trạng thái:** **đã thi công** (2026-10-03, 10 worker đợt 1 + 2 worker đợt 2, nhánh `e2e/integrate`).
   Trạng thái từng nhóm, số đo thật và chỗ kế hoạch sai so với mã: `docs/notes/e2e/fragments/W01…W12.md`.
-  Lỗi: `docs/notes/e2e/bugs.md` (129 mục). Cổng tổng trên nhánh gộp: xem mục ghi ngay dưới, chỉ ghi "đạt" sau khi chạy.
+  Lỗi: `docs/notes/e2e/bugs.md` (129 mục).
+
+  **Cổng tổng trên nhánh gộp `e2e/integrate` — đạt (2026-10-03):**
+  - `pnpm verify` **7/7 đạt**: vitest 362 tệp · 7 481 / 7 481 passed; độ phủ 85,66 % stmts (nền đầu lượt 84,42 %);
+    kích thước gói đạt sau khi lớp hướng dẫn của màn 3D chuyển sang nạp động (276,9 / 280 KiB; nhánh gốc 279,9).
+  - `pnpm e2e --workers=3` **hai lượt liền: 298 passed · 0 failed · 20 skipped** (4,4 ph mỗi lượt).
+    20 skipped = đúng 20 `test.fixme` trong `e2e/` — bài tái hiện của lỗi `mở` / `chờ quyết`.
+  - Với 6 trình duyệt (mặc định) bộ 318 bài đẩy Chrome lên ~14,8 GB và lượt bị dừng vì cạn RAM ⇒ trên
+    máy này chạy cả bộ với `--workers=3`.
 
   | Worker | Nhóm | Thư mục bài |
   |---|---|---|
@@ -546,8 +554,9 @@ Ba ràng buộc của mọi ca **có** bơm:
 2. **Bơm SAU khi đã tới màn** (`goto` → bơm → khẳng định). Không cần điều hướng trong ứng
    dụng, nên mục "chưa đo" *"kho có sống sót qua điều hướng nội bộ không"* **không chặn**
    chặng này.
-3. **Không `Ctrl+Z` trong một ca bơm.** Lượt bơm tự nó là một bước `zundo`, nên `Ctrl+Z`
-   thừa sẽ hoàn tác chính lượt bơm (đã đo ở `thickness`).
+3. ~~**Không `Ctrl+Z` trong một ca bơm.**~~ **Hết hiệu lực từ B-V7-04 (2026-10-03):**
+   `setSpatial` nay xoá lịch sử `zundo` sau mỗi lượt nạp, nên lượt bơm không còn là một bước
+   hoàn tác. Ghi lại để người đọc bài cũ hiểu vì sao có những ca né `Ctrl+Z`.
 
 ### Chặng cuối — CI
 

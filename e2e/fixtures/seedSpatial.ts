@@ -10,8 +10,9 @@
  *
  * Quy tắc dùng:
  * 1. Bơm SAU khi đã tới màn: `goto` -> `seedSpatial` -> khẳng định.
- * 2. KHÔNG `Ctrl+Z` trong ca có bơm: lượt bơm tự nó là một bước `zundo`, nên
- *    `Ctrl+Z` thừa hoàn tác chính lượt bơm (đo ở `thickness`).
+ * 2. (Đã hết hiệu lực từ B-V7-04, 2026-10-03.) Trước đây lượt bơm là một bước `zundo` nên
+ *    `Ctrl+Z` thừa hoàn tác chính lượt bơm; nay `setSpatial` xoá lịch sử hoàn tác sau mỗi
+ *    lượt nạp (`src/store/spatialSlice.ts`), nên `Ctrl+Z` trong ca có bơm là an toàn.
  * 3. Tên bài phải nói ra rằng nó bơm.
  *
  * Bơm cả `floors`: chỉ `setSpatial` thì `ExportPanel` vẫn rỗng (đo lớp 2); màn đọc
