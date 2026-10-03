@@ -302,7 +302,10 @@ export interface PipelineFailureGateway {
   readonly retryStep: (
     input: RetryStepInput,
   ) => Promise<PipelineFailureCapabilityResult<PipelineFailureRetryOutcome>>;
-  /** NOT FOUND — `skipFloor`. Hành động mất mát; A9 nói ra điều đó trước khi gọi. */
+  /**
+   * NOT FOUND — `skipFloor`. Hành động mất mát. Câu cảnh báo trên màn KHÔNG thoả A9
+   * (A9 đòi hộp thoại thật); khi bật thì thoả A8 bằng cách giữ lệnh — xem B-V4-09.
+   */
   readonly skipFloor: (
     input: SkipFloorInput,
   ) => Promise<PipelineFailureCapabilityResult<void>>;
@@ -366,6 +369,8 @@ export function createPipelineFailureGateway(
       retryStep: false,
       stepFailureDetail: false,
       technicalLog: false,
+      // Bật cờ này thì phải làm hoãn A8 trước: hẹn `UNDO_WINDOW_MS` kèm toast. Thử lại
+      // hay đổi ngưỡng trong lúc chờ thì huỷ vé. Rời màn thì không gửi sớm. Xem B-V4-09.
       skipFloor: false,
       copyLog: true,
       reportFailure: true,

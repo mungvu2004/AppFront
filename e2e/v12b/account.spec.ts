@@ -13,7 +13,7 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
  * - AC-1: tự lưu bằng **đồng hồ thật** (đơn vị `AccountSettings.test.tsx:194` dùng
  *   đồng hồ giả).
  * - AC-2: `Esc` qua sổ phím thật đóng hộp thoại xoá tài khoản và **trả focus** về nút gọi.
- * - F3 (`test.fixme`): sửa hồ sơ không có toast hoàn tác (A8).
+ * - F3: sửa hồ sơ có toast hoàn tác đưa giá trị cũ trở lại (A8, B-V12b-03).
  *
  * Dữ liệu là bộ nhớ của module (`accountSettingsGateway.ts`), không có endpoint để
  * `page.route` — nên các trạng thái A11 khác `success` thuộc tầng đơn vị.
@@ -38,7 +38,7 @@ const FRAME_SLACK_MS = 50;
 function saveIndicator(page: Page) {
   return page
     .getByRole('status')
-    .filter({ hasText: /^(Chưa có thay đổi|Có thay đổi chờ đồng bộ|Đang lưu\.\.\.|Đã lưu.*|Lưu thất bại)$/u })
+    .filter({ hasText: /^(Chưa có thay đổi|Có thay đổi chờ đồng bộ|Đang lưu\.\.\.|Đã lưu lúc.*|Lưu thất bại)$/u })
     .first();
 }
 
@@ -91,19 +91,20 @@ test('AC-2 hộp thoại xoá tài khoản: Esc đóng đúng nó, URL giữ, fo
   await expect(opener).toBeFocused();
 });
 
-test.fixme(
-  'F3 sửa họ tên có toast "Hoàn tác" đưa họ tên cũ trở lại (A8)',
-  // Lý do: `useAccountSettings.ts` (`save`) không phát toast; chỉ đăng xuất phiên có vé
-  // hoàn tác (`useAccountAuth.ts`). Lỗi B-V12b-03 — chờ quyết: mỗi lượt tự lưu một toast
-  // là đổi hành vi (A7 × A8). Mở lại khi người duyệt chọn cách nối toast cho hồ sơ.
-  async ({ page }) => {
-    const nameField = page.getByLabel('họ tên');
-    const before = await nameField.inputValue();
-    await nameField.fill(NAME);
-    await expect(saveIndicator(page)).toHaveText(/^Đã lưu lúc/u);
+/*
+ * B-V12b-03 (đã sửa): lượt tự lưu từng không phát vé hoàn tác. Nay mỗi lượt lưu kèm
+ * toast "Hoàn tác" trên kênh chung; hoàn tác ghi lại giá trị cũ qua chính đường tự
+ * lưu. Đã kiểm đỏ trước sửa.
+ */
+test('F3 sửa họ tên có toast "Hoàn tác" đưa họ tên cũ trở lại (A8)', async ({ page }) => {
+  const nameField = page.getByLabel('họ tên');
+  const before = await nameField.inputValue();
+  await nameField.fill(NAME);
+  await expect(saveIndicator(page)).toHaveText(/^Đã lưu lúc/u);
 
-    await page.getByRole('button', { name: 'Hoàn tác' }).click();
+  const undo = page.getByRole('button', { name: 'Hoàn tác' });
+  await expect(undo).toBeVisible();
+  await undo.click();
 
-    await expect(nameField).toHaveValue(before);
-  },
-);
+  await expect(nameField).toHaveValue(before);
+});

@@ -13,9 +13,11 @@
 
 import { readFileSync } from 'node:fs';
 
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { NotificationHost } from '@/components/feedback/NotificationHost';
+import { createNotificationBus } from '@/lib/mutations/notificationBus';
 import { CONTRAST_MINIMUM_BODY, checkContrast, parsePalette } from '@/lib/coloring/legend';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatNumber } from '@/lib/format/number';
@@ -209,7 +211,9 @@ describe('mối nối tự lưu (D-07)', () => {
   it('một lượt port.stage đi trọn đường tới cổng lưu sau khi hết 800 ms', async () => {
     const { gateway, saves } = createRecordingGateway();
 
-    renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
+    renderWithProviders(
+      <AccountSettingsContainer gateway={gateway} notifications={createNotificationBus()} />,
+    );
 
     await waitFor(() => {
       expect(mockCapturedPort).not.toBeNull();
@@ -251,6 +255,92 @@ describe('mối nối tự lưu (D-07)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* B-V12b-03 — mỗi lượt tự lưu kèm toast hoàn tác (A8).                          */
+/* -------------------------------------------------------------------------- */
+
+describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác ghi lại giá trị cũ', () => {
+  /** Lượt tự lưu 800 ms cộng lượt render — đồng hồ thật, không đồng hồ giả. */
+  const SAVE_WAIT = { timeout: 3000 };
+
+  async function mountWithName(fullName: string) {
+    const { gateway, saves } = createRecordingGateway();
+    const read = (): Promise<AccountDraft> =>
+      Promise.resolve({ ...EMPTY_ACCOUNT_DRAFT, profile: { fullName } });
+    const bus = createNotificationBus();
+
+    renderWithProviders(
+      <>
+        <AccountSettingsContainer gateway={{ ...gateway, read }} notifications={bus} />
+        <NotificationHost bus={bus} />
+      </>,
+    );
+
+    const field = await screen.findByLabelText('họ tên');
+    await waitFor(() => {
+      expect(field).toHaveValue(fullName);
+    });
+
+    return { bus, field, saves };
+  }
+
+  const undoButtons = () => screen.queryAllByRole('button', { name: 'Hoàn tác' });
+
+  it('sửa họ tên, qua 800 ms thì hiện đúng một nút "Hoàn tác", và ô vẫn giữ chữ vừa gõ', async () => {
+    const { field, saves } = await mountWithName('An');
+
+    fireEvent.change(field, { target: { value: 'Bình' } });
+
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+    expect(saves).toHaveLength(1);
+    expect(saves[0]?.profile['fullName']).toBe('Bình');
+    // Lưu xong không được xoá chữ đang có trong ô.
+    expect(field).toHaveValue('Bình');
+  });
+
+  it('bấm Hoàn tác thì ô về tên cũ, máy chủ được ghi lại tên cũ, và lượt ấy không sinh toast mới', async () => {
+    const { bus, field, saves } = await mountWithName('An');
+
+    fireEvent.change(field, { target: { value: 'Bình' } });
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('họ tên')).toHaveValue('An');
+    });
+    await waitFor(() => {
+      expect(saves).toHaveLength(2);
+    }, SAVE_WAIT);
+    expect(saves[1]?.profile['fullName']).toBe('An');
+    expect(bus.list()).toHaveLength(1);
+    expect(undoButtons()).toHaveLength(0);
+  });
+
+  it('hoàn tác xong sửa lại trong 5 giây thì nút "Hoàn tác" hiện lại', async () => {
+    const { field } = await mountWithName('An');
+
+    fireEvent.change(field, { target: { value: 'Bình' } });
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+    await waitFor(() => {
+      expect(screen.getByLabelText('họ tên')).toHaveValue('An');
+    });
+
+    fireEvent.change(screen.getByLabelText('họ tên'), { target: { value: 'Châu' } });
+
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
   });
 });
 

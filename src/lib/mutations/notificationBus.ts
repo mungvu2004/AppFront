@@ -150,7 +150,14 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
     const currentTime = now();
     const pending = pendingByType.get(input.type);
 
-    if (pending && currentTime - pending.firstAt < groupWindowMs) {
+    // A group whose ticket was already pressed is closed: its toast is gone from
+    // the screen, so folding the next change into it would hide that change's
+    // only "Hoàn tác" — and a spent ticket cannot take it back anyway.
+    if (
+      pending &&
+      currentTime - pending.firstAt < groupWindowMs &&
+      ticketsOf(pending.entries).every((ticket) => ticket.getStatus() === 'active')
+    ) {
       pending.entries.push(input);
 
       const groupedTicket = buildGroupedTicket(pending.entries, now);

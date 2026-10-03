@@ -25,8 +25,8 @@
  * `createUuid` from it.)
  */
 
-import type { ReactElement } from 'react';
-import { AlertCircle, Bell, FolderPlus, Lock, Plus, Search } from 'lucide-react';
+import type { ReactElement, ReactNode } from 'react';
+import { AlertCircle, FolderPlus, Lock, Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -81,7 +81,14 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
 };
 const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
-export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {}
+export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
+  /**
+   * Chuông thông báo đã nối, do container cắm vào — view không nhập gì từ
+   * NotificationCenter. Khe trống thì không vẽ chuông nào: một nút không làm gì
+   * mà vẫn nằm trong thứ tự Tab là thứ A2 chặn (B-V3-08).
+   */
+  readonly notificationBell?: ReactNode | undefined;
+}
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
 export function ProjectDashboardView(props: ProjectDashboardViewProps) {
@@ -191,9 +198,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           wrapperClassName="w-[320px] max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
-          <button type="button" aria-label="Thông báo" className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary">
-            <Bell size={18} aria-hidden="true" />
-          </button>
+          {props.notificationBell}
           <Avatar alt="Tài khoản của bạn" />
           {props.canCreate && (
             <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
@@ -366,7 +371,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   );
 }
 
-export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {}
+export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {
+  /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.notificationBell}. */
+  readonly notificationBell?: ReactNode | undefined;
+}
 
 /**
  * Wires the hook to the router and whichever `Toast.Provider` is nearest, then
@@ -378,7 +386,7 @@ export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 
  * two lines down. Two independent `Toast.Provider`s would each draw their own
  * fixed-position stack in the same corner (R-73's container/props boundary).
  */
-export function ProjectDashboardConnected(options: ProjectDashboardProps) {
+export function ProjectDashboardConnected({ notificationBell, ...options }: ProjectDashboardProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -388,7 +396,7 @@ export function ProjectDashboardConnected(options: ProjectDashboardProps) {
     onToast: addToast,
   });
 
-  return <ProjectDashboardView {...model} {...actions} />;
+  return <ProjectDashboardView {...model} {...actions} notificationBell={notificationBell} />;
 }
 
 /** `ProjectDashboard`, standalone — its own `Toast.Provider`. For stories, tests and the demo picker; the real route is `ProjectDashboardRoute` (`./ProjectDashboard.container`). */
