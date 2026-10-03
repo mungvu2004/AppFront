@@ -106,7 +106,7 @@ export interface WelcomeScreenViewModel {
   readonly onFinish: () => void;
   /** true trong lúc nội dung hoà tan trước khi chuyển trang. */
   readonly isDissolving: boolean;
-  /** Câu hiện sau khi bấm 'Bỏ qua'. */
+  /** Mô tả (aria-describedby) của "bỏ qua", luôn hiện: nói trước hệ quả của cú bấm. Cờ theo tài khoản, trên trình duyệt này (welcomeSeenKey). */
   readonly skipNotice: string;
 }
 
@@ -135,7 +135,7 @@ const STRINGS = Object.freeze({
   tutorial: 'xem hướng dẫn 2 phút',
   tutorialDisabled: 'Hướng dẫn hai phút chưa sẵn sàng.',
   skip: 'bỏ qua',
-  skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
+  skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
   finish: 'vào danh sách dự án',
   errorDescription: 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 });

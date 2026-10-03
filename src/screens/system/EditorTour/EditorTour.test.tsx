@@ -493,7 +493,7 @@ const S06_SENTENCES: readonly string[] = [
   'xem dự án mẫu',
   'xem hướng dẫn 2 phút',
   'Hướng dẫn hai phút chưa sẵn sàng.',
-  'Có thể xem lại hướng dẫn trong menu trợ giúp.',
+  'Màn chào sẽ không hiện lại trên trình duyệt này.',
   'vào danh sách dự án',
   'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 ];

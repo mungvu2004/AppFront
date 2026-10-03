@@ -483,9 +483,36 @@ describe('useMeasurementTool — xoá hỏng qua cổng thật', () => {
 
     const listsBefore = lists();
 
-    expect(titlesOf(notifications)).not.toContain('phép đo này đã bị xoá ở nơi khác');
+    expect(titlesOf(notifications)).toEqual(['bạn không có quyền xoá phép đo trong dự án này']);
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(lists()).toBe(listsBefore);
+  });
+});
+
+describe('useMeasurementTool — vai chỉ xem không xoá được phép đo (B-V9-41)', () => {
+  it('không có nút "Xoá", chỉ còn phím Esc, và không một DELETE nào được gửi', async () => {
+    const registry = createShortcutRegistry({ isDev: false });
+    stubServer([]);
+
+    renderRealGateway({ roles: ['viewer'], registry });
+
+    const row = (await screen.findByRole('button', { name: /Ẩn Phép đo 1/iu })).closest('li');
+
+    expect(screen.queryByRole('button', { name: /Xoá Phép đo 1/iu })).not.toBeInTheDocument();
+    expect(
+      registry
+        .listShortcuts()
+        .filter((shortcut) => shortcut.id.startsWith('measurementTool.'))
+        .map((shortcut) => shortcut.combo),
+    ).toEqual(['ESCAPE']);
+
+    // Trỏ vào hàng (đường đặt `highlightedId`) rồi nhấn Delete: vẫn không xoá.
+    if (row !== null) fireEvent.mouseEnter(row);
+    fireEvent.keyDown(document.body, { key: 'Delete' });
+
+    const methods = vi.mocked(fetch).mock.calls.map(([, init]) => init?.method ?? 'GET');
+
+    expect(methods).not.toContain('DELETE');
   });
 });
 

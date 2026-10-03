@@ -126,8 +126,8 @@ export function WelcomeScreenContainer(props: WelcomeScreenContainerProps) {
  * Ai đã xem màn chào (đi hết ba bước, hoặc bấm "Bỏ qua") thì mở lại
  * `/onboarding` là về thẳng `/` — cờ "đã xem" giữ lời hứa "lần sau không hiện
  * nữa" (B-V1-04). Không có đường xem lại màn chào là CỐ Ý: xem lại hướng dẫn
- * thuộc S-40, không thuộc màn này. Câu `skipNotice` đang hứa một "menu trợ giúp"
- * chưa tồn tại — lệch đó ghi riêng ở sổ lỗi (B-V1-41).
+ * thuộc S-40, không thuộc màn này. Câu `skipNotice` nói trước đúng hệ quả này
+ * (B-V1-41).
  *
  * Cờ chỉ đọc MỘT lần, lúc route gắn: chính màn này ghi cờ khi sang `success`,
  * và đọc lại ở mỗi lần dựng sẽ đá người dùng khỏi màn ngay trước khi họ kịp bấm

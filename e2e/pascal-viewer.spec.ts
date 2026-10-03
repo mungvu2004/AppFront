@@ -167,7 +167,7 @@ async function openPascalViewer(page: Page): Promise<void> {
  */
 const COLD_ROUTE_TIMEOUT_MS = 30_000;
 
-/** Đúng tệp gói vách ngăn — `MOUNT_URL`, `usePascalViewer.ts:40`. Có `*` cuối để khớp cả `?attempt=`. */
+/** Đúng tệp gói vách ngăn — `MOUNT_URL`/`mountUrl`, `usePascalViewer.ts`. Có `*` cuối để khớp cả `?v=` và `?attempt=` (B-V10-41). */
 const PASCAL_BUNDLE_GLOB = '**/assets/pascal/pascal-mount.js*';
 
 /**
@@ -426,6 +426,10 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
     .toBeGreaterThan(PASCAL_FRAME_MIN_PNG_BYTES);
 
   console.log(`[đo] ảnh canvas Pascal: ${(await canvasEl.screenshot()).length} byte PNG`);
+
+  /* B-V10-41 — gói vách ngăn mang tên cố định mà `/assets/` gửi `immutable`: URL nạp
+     phải mang mã băm nội dung (`vite.config.ts`), không thì bản cũ nằm lì sau triển khai. */
+  expect(requestUrls).toContainEqual(expect.stringMatching(/\/assets\/pascal\/pascal-mount\.js\?v=[0-9a-f]{8}$/u));
 
   /* H-1 (V11) — hàng rào: hộp chỉ chứa khung dựng, KHÔNG chứa điều khiển nào của
      trình soạn thảo Pascal. Hôm nay AppFront chỉ dựng gói `viewer`

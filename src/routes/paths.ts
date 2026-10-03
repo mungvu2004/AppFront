@@ -182,15 +182,17 @@ export const ROUTES = {
  * ## Vì sao hai đường sau mang `/*` còn `/login` thì không
  *
  * `matchesPublicRoute` so bằng `matchPath({ end: true })`. Đường lời mời và
- * đường đặt lại mật khẩu mang tham số (`/login/invitation/:token`), và một mẫu
- * trần **không** khớp chúng — người bấm link mời sẽ bị đá về `/login?next=…`
- * thay vì thấy màn nhận lời mời. Đuôi `/*` khớp cả dạng có tham số lẫn dạng
+ * đường đặt lại mật khẩu có thể mang đoạn đuôi (`/login/invitation/<…>`; link
+ * mời thật chỉ mang `#token=` — `HOP-DONG-MOI.md:266`, và hash không vào
+ * `matchPath`), và một mẫu trần **không** khớp dạng có đuôi — người bấm link
+ * mời sẽ bị đá về `/login?next=…` thay vì thấy màn nhận lời mời. Đuôi `/*` khớp cả dạng có tham số lẫn dạng
  * trần, nên lời hứa ở trên đứng vững. `/login` thì cố ý để trần: nó là một màn
  * cụ thể, không phải một nhánh.
  *
  * **F-09a không phải làm gì thêm ở đây** — chỉ cần đặt route thật dưới đúng hai
  * tiền tố này. Đặt route công khai ở tiền tố KHÁC thì phải thêm một dòng vào
  * bảng, và thêm một ca vào `SessionBootstrap.test.tsx`.
+ * Màn nhận lời mời: sau N10 thành công → `ROUTES.onboarding` (B-V1-42).
  */
 export const PUBLIC_ROUTE_PATTERNS = [
   '/login',

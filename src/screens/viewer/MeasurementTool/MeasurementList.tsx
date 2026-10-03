@@ -86,6 +86,8 @@ interface MeasurementRowProps {
   readonly onHighlight: (id: PinnedMeasurementId | null) => void;
   readonly onToggleVisibility: (id: PinnedMeasurementId) => void;
   readonly onDelete: (id: PinnedMeasurementId) => void;
+  /** `false` ⇒ không vẽ nút xoá (vai chỉ xem — B-V9-41). */
+  readonly canDelete: boolean;
 }
 
 function MeasurementRow({
@@ -94,6 +96,7 @@ function MeasurementRow({
   onHighlight,
   onToggleVisibility,
   onDelete,
+  canDelete,
 }: MeasurementRowProps) {
   const ModeIcon = MODE_ICON[measurement.mode];
 
@@ -146,14 +149,16 @@ function MeasurementRow({
         size="sm"
       />
 
-      <IconButton
-        aria-label={`Xoá ${measurement.name}`}
-        icon={<Trash2 aria-hidden="true" className="h-[16px] w-[16px]" />}
-        onClick={() => {
-          onDelete(measurement.id);
-        }}
-        size="sm"
-      />
+      {canDelete && (
+        <IconButton
+          aria-label={`Xoá ${measurement.name}`}
+          icon={<Trash2 aria-hidden="true" className="h-[16px] w-[16px]" />}
+          onClick={() => {
+            onDelete(measurement.id);
+          }}
+          size="sm"
+        />
+      )}
     </li>
   );
 }
@@ -228,6 +233,7 @@ export function MeasurementList({
         <ul className="flex flex-col">
           {measurements.map((measurement) => (
             <MeasurementRow
+              canDelete={canPin}
               isHighlighted={highlightedId === measurement.id}
               key={measurement.id}
               measurement={measurement}

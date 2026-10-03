@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -15,6 +17,14 @@ import path from 'path';
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  // B-V10-41: `pascal-mount.js` mang tên cố định (`vite.pascal.config.ts`) mà `/assets/`
+  // được gửi `immutable` một năm — đuôi `?v=` theo nội dung bắt trình duyệt nạp bản mới
+  // sau mỗi lần triển khai. `pnpm build`/`pnpm dev` dựng gói đó TRƯỚC khi nạp file này.
+  // Thiếu tệp (Storybook cũng nạp file này, `E2E_SKIP_PASCAL`) thì `''` — không ném.
+  const pascalMountFile = path.resolve(__dirname, 'public/assets/pascal/pascal-mount.js');
+  const pascalMountVersion = existsSync(pascalMountFile)
+    ? createHash('sha256').update(readFileSync(pascalMountFile)).digest('hex').slice(0, 8)
+    : '';
 
   return {
     plugins: [react()],
@@ -87,6 +97,7 @@ export default defineConfig(({ mode }) => {
       'process.env.NEXT_PUBLIC_VERCEL_ENV': '""',
       'process.env.NEXT_PUBLIC_VERCEL_URL': '""',
       'process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL': '""',
+      'import.meta.env.VITE_PASCAL_MOUNT_VERSION': JSON.stringify(pascalMountVersion),
     },
   };
 });

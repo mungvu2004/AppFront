@@ -255,7 +255,7 @@ function propsFor(scenario: SevenStateScenario): WelcomeScreenProps {
     finishLabel: isDone ? 'vào danh sách dự án' : null,
     onFinish: noop,
     isDissolving: false,
-    skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
+    skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
   };
 }
 
@@ -589,6 +589,10 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
     mountRoute(listOf([]));
 
     expect(await screen.findByRole('button', { name: 'bỏ qua' })).toBeInTheDocument();
+    // B-V1-41: câu mô tả nói đúng hệ quả, không hứa một "menu trợ giúp" không có.
+    expect(screen.getByRole('button', { name: 'bỏ qua' })).toHaveAccessibleDescription(
+      'Màn chào sẽ không hiện lại trên trình duyệt này.',
+    );
     expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
   });
 

@@ -641,6 +641,40 @@ describe('[FLP-3] không có quyền quản lý thư viện', () => {
     }
   });
 
+  it.each([
+    { role: 'vai chỉ xem', canPlaceModel: false },
+    { role: 'kỹ sư', canPlaceModel: true },
+  ])(
+    '[N6d] khung nhìn < 1024px ($role): tấm trượt đáy vẫn nói đúng quyền (B-V8-46)',
+    async ({ canPlaceModel }) => {
+      vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+        matches: query === '(max-width: 1023px)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+      renderWithProviders(
+        <WiredFurnitureLibraryPanel canUploadModel={false} canPlaceModel={canPlaceModel} />,
+        { keepStore: true },
+      );
+
+      const region = await waitForCatalogue();
+
+      expect(within(region).getByRole('list', { name: GRID_LABEL })).toHaveClass('overflow-x-auto');
+
+      if (canPlaceModel) {
+        expect(within(region).queryByText(/vai chỉ xem/)).not.toBeInTheDocument();
+      } else {
+        expect(within(region).getByText(/vai chỉ xem/)).toBeVisible();
+      }
+    },
+  );
+
   it('[N6b] R-73 — container gắn được bằng ĐÚNG một thẻ, và mặc định đóng quyền', async () => {
     renderWithProviders(
       <FurnitureLibraryPanelContainer floorId={FLOOR_ID} onModelDropped={(): void => undefined} />,

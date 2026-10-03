@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /**
  * Toàn bộ phần khó của màn xem Pascal, để view ở bên cạnh còn thuần.
  *
@@ -38,6 +40,28 @@ import {
 
 /** Đường dẫn tĩnh của gói vách ngăn. Xem `vite.pascal.config.ts`. */
 const MOUNT_URL = '/assets/pascal/pascal-mount.js';
+
+/**
+ * URL nạp gói: `v` là 8 hex sha256 của chính tệp, `vite.config.ts` tính lúc dựng
+ * (B-V10-41 — tên cố định + `immutable` thì không có nó trình duyệt giữ bản cũ);
+ * `attempt` phá bộ nhớ đệm của lượt nạp hỏng trước. Đọc biến lúc gọi, không lúc nhập.
+ */
+export function mountUrl(attempt: number): string {
+  const version: unknown = import.meta.env.VITE_PASCAL_MOUNT_VERSION;
+  const query = new URLSearchParams();
+
+  if (typeof version === 'string' && version.length > 0) {
+    query.set('v', version);
+  }
+
+  if (attempt > 0) {
+    query.set('attempt', String(attempt));
+  }
+
+  const search = query.toString();
+
+  return search === '' ? MOUNT_URL : `${MOUNT_URL}?${search}`;
+}
 
 /** Số node vào store Pascal và số node store dọn đi. */
 interface PascalSceneCensus {
@@ -138,7 +162,7 @@ const defaultLoadMount = (): Promise<MountModule> => {
 
     const script = document.createElement('script');
     script.type = 'module';
-    script.src = failedLoads === 0 ? MOUNT_URL : `${MOUNT_URL}?attempt=${String(failedLoads)}`;
+    script.src = mountUrl(failedLoads);
     script.addEventListener('load', () => {
       const loaded = window.__pascalMount;
 
