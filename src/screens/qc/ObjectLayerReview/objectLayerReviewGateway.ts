@@ -53,7 +53,7 @@ import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
-import { counterLabelOf, displayCodesOf } from '@/domain/spatial/ids';
+import { counterLabelOf, createId, displayCodesOf } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -119,7 +119,6 @@ import {
 } from '@/lib/commands/business/openingCommands';
 import {
   accept,
-  AUTHORED_BY_HAND,
   entitiesOfKind,
   offsetOnWall,
   openingsOfWall,
@@ -253,9 +252,6 @@ export function unsupported(capability: ObjectLayerMissingCapability): ObjectLay
 /* -------------------------------------------------------------------------- */
 /* Hằng của bộ mẫu — mã hiển thị, mã máy, và ba con số của đặc tả.             */
 /* -------------------------------------------------------------------------- */
-
-/** Bề rộng nhãn người đọc: "#W-014", không phải "#W-14". */
-const DISPLAY_CODE_DIGITS = 3;
 
 /**
  * Cao độ bệ cửa của một cửa sổ mới đổi loại — đặc tả gốc: "cửa sổ 900".
@@ -2097,23 +2093,6 @@ const AT_WALL_MIDDLE: RelativePosition = clampRelativePosition((AT_WALL_START + 
 const MANUAL_DOOR_TEMPLATE: ReviewObject | null =
   OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.subtype === 'singleDoor') ?? null;
 
-/** Mã hiển thị kế tiếp của lớp cửa đi — lớn hơn mọi mã cửa đi đang có đúng một. */
-function nextDoorDisplayId(seed: readonly ObjectSeedEntry[]): string {
-  const counters = seed
-    .filter((entry) => entry.layer === 'door')
-    .map((entry) => Number.parseInt(entry.displayId.slice(2), 10))
-    .filter((counter) => Number.isFinite(counter));
-  const next = (counters.length === 0 ? 0 : Math.max(...counters)) + 1;
-
-  return `D-${String(next).padStart(DISPLAY_CODE_DIGITS, '0')}`;
-}
-
-/** Một đối tượng thêm tay: dòng bộ mẫu của nó, và đầu vào lệnh `opening.add`. */
-export interface ManualObjectProposal {
-  readonly entry: ObjectSeedEntry;
-  readonly input: AddOpeningInput;
-}
-
 /**
  * Đề nghị MỘT cửa đơn thêm tay, hoặc `null` khi tầng chưa có tường nào để đặt.
  *
@@ -2126,48 +2105,33 @@ export interface ManualObjectProposal {
  * Đối tượng thêm tay KHÔNG mang cờ duyệt: `createAddOpeningCommand` gắn
  * `AUTHORED_BY_HAND` (`reviewed: false`), và A5 giữ nguyên — chỉ lệnh duyệt của
  * người mới đặt `reviewed: true`.
+ *
+ * Mã máy là mã MỚI của `createId`, không suy từ bảng mẫu: kiểm trùng mã chạy
+ * trên cả đồ thị, nên mã `D-000001DOOR` suy từ bảng mẫu bị từ chối ngay ở tầng
+ * rỗng thứ hai (B-V6-41). Mã hiển thị do `objectsOf` đặt như mọi đối tượng khác.
  */
 export function manualDoorProposalOf(
   graph: NormalizedSpatial,
   level: Level,
-  seed: readonly ObjectSeedEntry[] = OBJECT_LAYER_SEED,
-): ManualObjectProposal | null {
+  id: OpeningId = createId('opening'),
+): AddOpeningInput | null {
   const wall = solidWallsOf(graph, level)[0];
 
   if (wall === undefined || MANUAL_DOOR_TEMPLATE === null) {
     return null;
   }
 
-  const displayId = nextDoorDisplayId(seed);
-  const entityId = entityIdOf(displayId, 'door');
   const template = MANUAL_DOOR_TEMPLATE;
 
   return {
-    entry: {
-      displayId,
-      entityId,
-      layer: 'door',
-      subtype: 'singleDoor',
-      widthMm: template.widthMm,
-      heightMm: template.heightMm,
-      sillHeightMm: null,
-      swing: template.swing,
-      confidence: AUTHORED_BY_HAND.confidence,
-      reviewed: AUTHORED_BY_HAND.reviewed,
-      hostWallId: wall.id,
-      relativePosition: AT_WALL_MIDDLE,
-      tracedCentre: null,
-    },
-    input: {
-      id: entityId as OpeningId,
-      levelId: level.id,
-      kind: 'door',
-      centre: positionOnWall(wall, AT_WALL_MIDDLE),
-      widthMm: template.widthMm,
-      heightMm: template.heightMm,
-      sillHeightMm: OPENING_RULES.doorSillHeightMm,
-      swing: template.swing,
-    },
+    id,
+    levelId: level.id,
+    kind: 'door',
+    centre: positionOnWall(wall, AT_WALL_MIDDLE),
+    widthMm: template.widthMm,
+    heightMm: template.heightMm,
+    sillHeightMm: OPENING_RULES.doorSillHeightMm,
+    swing: template.swing,
   };
 }
 
