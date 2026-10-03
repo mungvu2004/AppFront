@@ -21,7 +21,7 @@ import { createDefaultRuleRegistry, ALL_RULES } from '@/domain/rules/defaults';
 import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { VIOLATED_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
@@ -88,6 +88,7 @@ function toRow(violation: Violation): RuleReportRow {
     message: violation.message,
     suggestion: violation.suggestion,
     entityId: violation.entityId,
+    entityCode: displayCodeIn(NORMALIZED, violation.entityId),
     levelId: violation.levelId,
     levelLabel: levelLabelOf(violation.levelId, NORMALIZED),
     resolved: false,

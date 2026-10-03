@@ -38,6 +38,7 @@ import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry
 import type { Rule, Violation } from '@/domain/rules/registry';
 import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
 import {
+  displayCodeIn,
   idsOnLevel,
   isEntityOfKind,
   normalizeSpatial,
@@ -196,6 +197,7 @@ const SUCCESS_CAUSES: readonly ViolationCause[] = [
 const SUCCESS_OBJECTS: readonly ViolationObject[] = [
   {
     entityId: SUCCESS_ENTITY.id,
+    code: displayCodeIn(NORMALIZED_CLEAN, SUCCESS_ENTITY.id),
     kindLabel: 'đồ đạc',
     confidenceLabel: SUCCESS_CONFIDENCE_LABEL,
     isSubject: true,
@@ -246,6 +248,7 @@ const PARTIAL_CAUSES: readonly ViolationCause[] = [
 const PARTIAL_OBJECTS: readonly ViolationObject[] = [
   {
     entityId: PARTIAL_ENTITY.id,
+    code: displayCodeIn(NORMALIZED_VIOLATED, PARTIAL_ENTITY.id),
     kindLabel: 'tường',
     confidenceLabel: PARTIAL_CONFIDENCE_LABEL,
     isSubject: true,
@@ -288,7 +291,7 @@ function emptyProps(): ViolationDetailViewProps {
     title: '',
     severity: null,
     severityLabel: '',
-    subjectEntityId: '',
+    subjectCode: '',
     ruleSentence: '',
     measureLabel: null,
     thresholdLabel: null,
@@ -359,7 +362,7 @@ function loadedProps(args: LoadedArgs): ViolationDetailViewProps {
     title: args.violation.message,
     severity: args.rule.severity,
     severityLabel: RULE_SEVERITY_LABELS[args.rule.severity],
-    subjectEntityId: args.violation.entityId,
+    subjectCode: args.objects.find((object) => object.isSubject)?.code ?? '',
     ruleSentence: args.rule.name,
     measureLabel: null,
     thresholdLabel: null,
@@ -743,6 +746,25 @@ function WiredForFixLoop(props: {
 
   return <ViolationDetail {...viewProps} />;
 }
+
+describe('B-V7-31 — khối "phát hiện" gọi đối tượng bằng mã người đọc', () => {
+  it('hook in đúng mã câu luật dùng, không in mã máy', async () => {
+    const { entityId } = SUCCESS_VIOLATION;
+
+    renderWithProviders(
+      <WiredForFixLoop floorId={SUCCESS_VIOLATION.levelId ?? 'level-1'} violations={[SUCCESS_VIOLATION]} />,
+    );
+
+    await act(async () => {
+      useStore.getState().setSpatial(NORMALIZED_CLEAN, 'version-1');
+      await Promise.resolve();
+    });
+
+    // Đầu tấm (mã đối tượng gây lỗi) và khối "phát hiện" cùng in một mã.
+    expect(screen.getAllByText(displayCodeIn(NORMALIZED_CLEAN, entityId))).toHaveLength(2);
+    expect(screen.queryByText(entityId)).toBeNull();
+  });
+});
 
 describe('[NGHIỆM THU] sửa một vi phạm → luật chuyển sang đạt → Ctrl+Z trả về vi phạm', () => {
   it('ba lần kiểm: vi phạm → đạt → vi phạm trở lại, qua đúng ngăn xếp mà Ctrl+Z đọc', async () => {

@@ -28,7 +28,7 @@
  * cấm ở docblock của `ViolationDetailContainerProps`): nó dựng lại từ
  * `RuleReportRow` — kiểu này mang đủ sáu trường của `Violation`
  * (`entityId`/`message`/`suggestion`/`ruleCode`/`severity`/`levelId`), chỉ thừa
- * ba trường tầng hiển thị (`key`/`levelLabel`/`resolved`). Nguồn là
+ * bốn trường tầng hiển thị (`key`/`entityCode`/`levelLabel`/`resolved`). Nguồn là
  * `viewProps.groups` — nó đã gộp cả hàng đang mở lẫn hàng đã xử lý
  * (`useRuleReport.ts` dựng bằng `groupRowsByRule([...visibleRows,
  * ...resolvedRows])`), nên đây là đúng một nguồn, không phải hai sự thật khác

@@ -93,7 +93,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ROOM_USAGE_LABELS } from '@/domain/rules/registry';
 import type { Violation } from '@/domain/rules/registry';
 import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
-import { isEntityOfKind } from '@/domain/spatial/normalize';
+import { displayCodeIn, displayLabelIn, isEntityOfKind } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Furniture,
@@ -284,13 +284,15 @@ const TEXT = PROPERTY_INSPECTOR_TEXT;
 const selectionSummaryLabel = (count: number): string => `Đang chọn ${formatNumber(count)} đối tượng`;
 
 /** Mẫu `relations.onWall` của T4. */
-const onWallLabel = (wallId: string): string => `Nằm trên #${wallId}`;
+const onWallLabel = (graph: NormalizedSpatial, wallId: string): string =>
+  `Nằm trên ${displayCodeIn(graph, wallId)}`;
 
 /** Bộ đếm duyệt toàn cục, ghép vào caption chân panel để nó là con số NHÌN THẤY được. */
 const approvedCountLabel = (count: number): string => `Đã duyệt ${formatNumber(count)} đối tượng`;
 
 /** Mẫu `relations.inRoom` của T4. */
-const inRoomLabel = (roomId: string): string => `Thuộc phòng #${roomId}`;
+const inRoomLabel = (graph: NormalizedSpatial, roomId: string): string =>
+  `Thuộc phòng ${displayCodeIn(graph, roomId)}`;
 
 /** Nhãn tóm tắt của thẻ phụ khi panel thu gọn, ví dụ "Tường W-014". */
 const collapsedSummaryLabel = (kind: ObjectKind, entityId: string): string =>
@@ -475,7 +477,7 @@ function wallRows(wall: Wall): readonly RowDraft[] {
 }
 
 /** Ô mở — năm trường mặc định, dòng cuối là liên kết tới tường chủ (P7). */
-function openingRows(opening: Opening): readonly RowDraft[] {
+function openingRows(opening: Opening, graph: NormalizedSpatial): readonly RowDraft[] {
   return [
     numericRow('width', TEXT.fields.opening.width, 'geometry', opening.widthMm),
     numericRow('height', TEXT.fields.opening.height, 'geometry', opening.heightMm),
@@ -499,7 +501,7 @@ function openingRows(opening: Opening): readonly RowDraft[] {
         id: 'hostWallId',
         label: TEXT.fields.opening.hostWallId,
         controlType: 'link',
-        value: singleValue(onWallLabel(opening.wallId)),
+        value: singleValue(onWallLabel(graph, opening.wallId)),
         isLocked: true,
         linkedEntityId: opening.wallId,
       },
@@ -555,7 +557,7 @@ function roomRows(room: Room, graph: NormalizedSpatial): readonly RowDraft[] {
  * Bề rộng và bề sâu đọc thẳng hai đầu hộp bao đã lưu — đọc kích thước của một
  * hộp có sẵn, không dựng lại hình học nào.
  */
-function furnitureRows(furniture: Furniture): readonly RowDraft[] {
+function furnitureRows(furniture: Furniture, graph: NormalizedSpatial): readonly RowDraft[] {
   const { max, min } = furniture.boundingBox;
   const roomId = furniture.roomId;
 
@@ -594,7 +596,7 @@ function furnitureRows(furniture: Furniture): readonly RowDraft[] {
         id: 'roomId',
         label: TEXT.fields.furniture.roomId,
         controlType: roomId === undefined ? 'readonly' : 'link',
-        value: roomId === undefined ? unavailableValue() : singleValue(inRoomLabel(roomId)),
+        value: roomId === undefined ? unavailableValue() : singleValue(inRoomLabel(graph, roomId)),
         isLocked: true,
         linkedEntityId: roomId,
       },
@@ -718,10 +720,10 @@ function draftsOf(entity: InspectableEntity, graph: NormalizedSpatial): readonly
   const own = isEntityOfKind('wall', entity)
     ? wallRows(entity)
     : isEntityOfKind('opening', entity)
-      ? openingRows(entity)
+      ? openingRows(entity, graph)
       : isEntityOfKind('room', entity)
         ? roomRows(entity, graph)
-        : furnitureRows(entity);
+        : furnitureRows(entity, graph);
 
   return [...own, ...advancedRows(entity, graph)];
 }
@@ -1365,6 +1367,10 @@ export function usePropertyInspector(
   }, [graph, options.selectedEntityIds, primaryId]);
 
   const primaryEntity = entities.find((entity) => entity.id === primaryId) ?? entities[0] ?? null;
+  const primaryLabel = useMemo(
+    () => (primaryEntity === null || graph === null ? null : displayLabelIn(graph, primaryEntity.id)),
+    [graph, primaryEntity],
+  );
   const entityViolations = violationsOfEntity(violations, primaryEntity?.id ?? null);
 
   /* Nút "khuôn" đọc đối tượng qua ref chứ không qua danh sách phụ thuộc: nó là
@@ -1675,9 +1681,9 @@ export function usePropertyInspector(
          * ngưỡng bằng tay (R-71). Tấm trượt là quyết định của tầng view. */
         variant: 'chip',
         summaryLabel:
-          primaryEntity === null || primaryKind === null
+          primaryLabel === null || primaryKind === null
             ? TEXT.collapsed.expandChip
-            : collapsedSummaryLabel(primaryKind, primaryEntity.id),
+            : collapsedSummaryLabel(primaryKind, primaryLabel),
         onExpand: (): void => {
           setPanelOpen('right', true);
         },
@@ -1702,7 +1708,8 @@ export function usePropertyInspector(
         objectKindLabel: isMultiple
           ? selectionSummaryLabel(entities.length)
           : capitalise(TEXT.objectKind[primaryKind]),
-        objectCode: primaryEntity.id,
+        objectCode: primaryLabel ?? primaryEntity.id,
+        entityId: primaryEntity.id,
         statusBadge,
         selectionCount: entities.length,
         onCopyAsTemplate: copyAsTemplate,
@@ -1752,6 +1759,7 @@ export function usePropertyInspector(
     options.onDismiss,
     primaryEntity,
     primaryKind,
+    primaryLabel,
     readFailedRowId,
     refusal,
     saveLabel,

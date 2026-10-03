@@ -63,6 +63,7 @@ import {
 import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
 import { readKindFromId, type EntityKind } from '@/domain/spatial/ids';
 import {
+  displayCodeIn,
   isEntityOfKind,
   idsOnLevel,
   type NormalizedSpatial,
@@ -320,6 +321,7 @@ const objectOf = (
 
   return {
     entityId,
+    code: graph === null ? entityId : displayCodeIn(graph, entityId),
     kindLabel: kind === null ? UNKNOWN_KIND_LABEL : ENTITY_KIND_LABELS[kind],
     confidenceLabel: confidence === null ? null : formatNumber(confidence, { fractionDigits: 2 }),
     isSubject,
@@ -1230,7 +1232,7 @@ export function useViolationDetail(
     title: violation?.message ?? '',
     severity,
     severityLabel: severity === null ? '' : RULE_SEVERITY_LABELS[severity],
-    subjectEntityId,
+    subjectCode: graph === null ? subjectEntityId : displayCodeIn(graph, subjectEntityId),
 
     ruleSentence: rule?.name ?? '',
 

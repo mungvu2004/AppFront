@@ -8,7 +8,7 @@
  * | mã | đo cái gì | ngưỡng |
  * |---|---|---|
  * | `[VS-1]` | bảy trạng thái của A11, không trạng thái nào ra màn trắng | 7/7 |
- * | `[VS-2]` | vai Người xem GỠ công cụ sửa khỏi ray, không làm mờ | 6 → 5 nút |
+ * | `[VS-2]` | vai Người xem có đủ ray như kỹ sư — không công cụ nào sửa mô hình (B-V9-04) | 6 = 6 nút |
  * | `[VS-3]` | `separation = 0` trả lại ĐÚNG cao độ thật của cả bốn tầng | 0 mm sai lệch |
  * | `[VS-4]` | mặt phẳng cắt: nóc bị cắt, nền không | 2/2 |
  * | `[VS-5]` | bộ mẫu cộng lại đúng con số A14 | 248,60 m², 14 phòng, 4 tầng |
@@ -58,7 +58,9 @@ import {
   FIXTURE_TOTAL_AREA_M2,
   VIEWER_FIXTURE_LEVELS,
   VIEWER_FIXTURE_ROOMS,
+  VIEWER_FIXTURE_WALLS,
 } from './viewerShellFixture';
+import { wallCodesOnLevel } from '../WallGeometryEditor/wallGeometryEditorGateway';
 import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import {
@@ -142,10 +144,7 @@ describe('[VS-1] bảy trạng thái', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('[VS-2] vai Người xem', () => {
-  it('gỡ công cụ sửa khỏi ray thay vì làm mờ nó', () => {
-    const editingTools = ALL_VIEWER_TOOLS.filter((tool) => tool.requiresEdit);
-    expect(editingTools.length).toBeGreaterThan(0);
-
+  it('có đủ sáu công cụ như kỹ sư, kể cả "đo" — đo chỉ đọc mô hình (B-V9-04)', () => {
     const { unmount } = renderState('success');
     const fullRail = within(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' }));
     const fullCount = fullRail.getAllByRole('button').length;
@@ -159,17 +158,14 @@ describe('[VS-2] vai Người xem', () => {
       `[VIEWER-SHELL][VS-2] ray công cụ: kỹ sư ${fullCount} nút → Người xem ${viewerButtons.length} nút`,
     );
 
-    expect(viewerButtons.length).toBe(fullCount - editingTools.length);
+    expect(viewerButtons.length).toBe(fullCount);
+    expect(viewerButtons.length).toBe(ALL_VIEWER_TOOLS.length);
 
-    /* GỠ, không phải làm mờ: không nút nào còn lại bị vô hiệu hoá, và tên công
-       cụ sửa không còn xuất hiện ở bất kỳ đâu trên ray. */
     for (const button of viewerButtons) {
       expect(button).not.toBeDisabled();
     }
 
-    for (const tool of editingTools) {
-      expect(viewerRail.queryByLabelText(new RegExp(tool.label, 'i'))).toBeNull();
-    }
+    expect(viewerRail.getByRole('button', { name: /^đo/u })).toBeInTheDocument();
   });
 });
 
@@ -986,14 +982,48 @@ describe('phím của ray công cụ', () => {
     unmount();
   });
 
-  it('vai người xem: bấm m không bật công cụ đo đã bị gỡ khỏi ray', () => {
+  it('vai người xem: bấm m bật công cụ đo, như mọi vai (A12 · B-V9-04)', () => {
     const { result, press, unmount } = renderWithRegistry('forbidden');
 
     press('m');
-    expect(result.current.activeToolId).toBe('orbit');
+    expect(result.current.activeToolId).toBe('measure');
     press('c');
     expect(result.current.activeToolId).toBe('section');
 
+    unmount();
+  });
+});
+
+describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
+  stubReducedMotionPerTest();
+
+  it('tiêu đề thanh tra và nhãn di chuột dùng đúng mã dải "Đang sửa"; hàng "mã đối tượng" giữ mã máy', () => {
+    const wall = VIEWER_FIXTURE_WALLS[0];
+
+    if (wall === undefined) {
+      throw new Error('bộ mẫu cần ít nhất một bức tường');
+    }
+
+    const bandCode = wallCodesOnLevel(VIEWER_FIXTURE_SPATIAL, wall.levelId).get(wall.id);
+    const { result, unmount } = renderShellHook();
+
+    act(() => {
+      result.current.sceneActions.selectEntity(wall.id, false);
+      result.current.sceneActions.hoverEntity(wall.id);
+    });
+
+    const selection = result.current.selection;
+
+    expect(bandCode).toBeDefined();
+    expect(selection?.title).toBe(`tường ${String(bandCode)}`);
+    expect(selection?.title).not.toContain('FIXTURE');
+    expect(selection?.rows[0]?.value).toBe(wall.id);
+    expect(result.current.hoverLabel).toBe(bandCode);
+
+    act(() => {
+      result.current.sceneActions.selectEntity(null, false);
+      result.current.sceneActions.hoverEntity(null);
+    });
     unmount();
   });
 });

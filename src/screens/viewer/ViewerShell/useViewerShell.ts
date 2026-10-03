@@ -65,7 +65,7 @@ import {
 } from '@/lib/input/shortcutRegistry';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { millimetres } from '@/domain/units/types';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayLabelIn, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import {
   CameraDirector,
   isFlatMode,
@@ -157,16 +157,18 @@ export function storeyShortLabel(name: string): string {
   return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
 }
 
-/** Sáu công cụ của ray trái, kèm phím của chúng. */
-const VIEWER_TOOLS: readonly (ViewerToolViewModel & { readonly requiresEdit: boolean })[] =
-  Object.freeze([
-    { id: 'orbit', label: 'quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit, requiresEdit: false },
-    { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan, requiresEdit: false },
-    { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure, requiresEdit: true },
-    { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section, requiresEdit: false },
-    { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select, requiresEdit: false },
-    { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO, requiresEdit: false },
-  ]);
+/**
+ * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
+ * cũng chỉ đọc — nên vai Người xem có đủ sáu (B-V9-04).
+ */
+const VIEWER_TOOLS: readonly ViewerToolViewModel[] = Object.freeze([
+  { id: 'orbit', label: 'quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
+  { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan },
+  { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure },
+  { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section },
+  { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select },
+  { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO },
+]);
 
 /** Bốn góc nhìn của `Select` trên thanh trên. */
 const VIEWER_PRESETS: readonly ViewerPresetViewModel[] = Object.freeze([
@@ -589,14 +591,6 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     return data.isPartial ? 'partial' : 'success';
   }, [forceState, canEdit, roles, projectQuery.isError, projectQuery.isLoading, data]);
 
-  const tools = useMemo(
-    () =>
-      VIEWER_TOOLS.filter((tool) => !tool.requiresEdit || state !== 'forbidden').map(
-        ({ id, label, keyLabel }): ViewerToolViewModel => ({ id, label, keyLabel }),
-      ),
-    [state],
-  );
-
   /* ---- Tầng -------------------------------------------------------------- */
 
   const visibleStoreyIds = useMemo(
@@ -847,11 +841,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     toggleSeparation: (): void => {
       setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
     },
-    activateTool: (id): void => {
-      if (tools.some((tool) => tool.id === id)) {
-        setActiveToolId(id);
-      }
-    },
+    activateTool: setActiveToolId,
     openSearch: (): void => {
       onOpenSearch?.();
     },
@@ -972,7 +962,9 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
     const kindLabel = entityId.startsWith('R-') ? 'phòng' : entityId.startsWith('W-') ? 'tường' : 'đối tượng';
 
-    return { entityId, kindLabel, title: `${kindLabel} ${entityId}`, rows };
+    // Tiêu đề gọi đối tượng bằng mã người đọc — cùng mã dải "Đang sửa"; hàng "mã đối tượng"
+    // ở trên giữ mã máy (B-V8-05).
+    return { entityId, kindLabel, title: `${kindLabel} ${displayLabelIn(spatial, entityId)}`, rows };
   }, [selectedIds, spatial]);
 
   const status = useMemo(() => {
@@ -1021,7 +1013,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       return String((entity as { name: string }).name);
     }
 
-    return hoveredId;
+    return displayLabelIn(spatial, hoveredId);
   }, [hoveredId, spatial]);
 
   /**
@@ -1076,7 +1068,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     activePresetId,
     onPresetChange: goToPreset,
 
-    tools,
+    tools: VIEWER_TOOLS,
     activeToolId,
     onToolChange: setActiveToolId,
 
@@ -1133,5 +1125,5 @@ export const VIEWER_KEY_LABELS = Object.freeze({
   orthographic: ORTHOGRAPHIC_COMBO,
 });
 
-/** Danh sách công cụ chưa lọc theo vai — story và bài kiểm đếm trên nó. */
+/** Danh sách công cụ của ray — mọi vai thấy đủ, story và bài kiểm đếm trên nó. */
 export const ALL_VIEWER_TOOLS = VIEWER_TOOLS;

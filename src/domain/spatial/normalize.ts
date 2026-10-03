@@ -230,25 +230,35 @@ export const denormalizeSpatial = (normalized: NormalizedSpatial): SpatialGraph 
 export const idsOnLevel = (normalized: NormalizedSpatial, levelId: LevelId): readonly EntityId[] =>
   normalized.byLevel[levelId] ?? NO_IDS;
 
+/** The kind an id's prefix names, or `undefined` for an id outside the prefix table (`BUILDING`). */
+const kindOfPrefix = (id: string): EntityKind | undefined =>
+  (Object.keys(ID_PREFIX_BY_KIND) as EntityKind[]).find(
+    (candidate) => ID_PREFIX_BY_KIND[candidate] === id.slice(0, 1),
+  );
+
 /**
- * `#R-001` — the code a person reads for one entity, the same one its QC list shows:
- * `displayCodesOf` over every entity of the same kind on the same level (levels:
- * over every level), which is how the list screens number their rows. Sentences
- * the command layer and the rules write go through this, so a toast and the row
- * it talks about never name the entity two ways. An id the graph does not hold
- * (a refusal naming a missing entity) falls back to the counter rule alone.
+ * `R-001` — the code a person reads for one entity, without the `#` a sentence puts in
+ * front: the label a panel title or a hover tag prints next to the kind name. Numbered
+ * by `displayCodesOf` over every entity of the same kind on the same level (levels:
+ * over every level), which is how the list screens number their rows. An id the graph
+ * does not hold (a refusal naming a missing entity) falls back to the counter rule
+ * alone; an id with no known prefix (`BUILDING`) comes back verbatim, since the
+ * counter rule would cut it into `B-ILDING` (B-V7-31).
  *
  * ponytail: rebuilds the sibling table per call, O(n log n) per sentence; memoise
  * per graph if a rule pass naming hundreds of entities shows up in a profile.
  */
-export const displayCodeIn = (graph: NormalizedSpatial, id: string): string => {
-  const entity = graph.byId[id];
-  const kind = (Object.keys(ID_PREFIX_BY_KIND) as EntityKind[]).find(
-    (candidate) => ID_PREFIX_BY_KIND[candidate] === id.slice(0, 1),
-  );
+export const displayLabelIn = (graph: NormalizedSpatial, id: string): string => {
+  const kind = kindOfPrefix(id);
 
-  if (entity === undefined || kind === undefined) {
-    return `#${displayCodesOf([id]).get(id) ?? id}`;
+  if (kind === undefined) {
+    return id;
+  }
+
+  const entity = graph.byId[id];
+
+  if (entity === undefined) {
+    return displayCodesOf([id]).get(id) ?? id;
   }
 
   const levelId = resolveLevelId(entity, graph.byId);
@@ -258,5 +268,14 @@ export const displayCodeIn = (graph: NormalizedSpatial, id: string): string => {
     return sibling !== undefined && resolveLevelId(sibling, graph.byId) === levelId;
   });
 
-  return `#${displayCodesOf(siblings).get(id) ?? id}`;
+  return displayCodesOf(siblings).get(id) ?? id;
 };
+
+/**
+ * `#R-001` — `displayLabelIn` as a sentence names it, the same code its QC list shows.
+ * Sentences the command layer and the rules write go through this, so a toast and the
+ * row it talks about never name the entity two ways. Only a known prefix gets the `#`:
+ * `BUILDING` stays `BUILDING`, not `#BUILDING`.
+ */
+export const displayCodeIn = (graph: NormalizedSpatial, id: string): string =>
+  kindOfPrefix(id) === undefined ? id : `#${displayLabelIn(graph, id)}`;

@@ -106,7 +106,7 @@ export interface WallGeometryPointPx {
 /** Dải cao `editBandHeightPx` trên cùng canvas. */
 export interface WallGeometryEditBand {
   /**
-   * Đã ghép sẵn: "Đang sửa: #W-014". Mã tường viết hoa là ngoại lệ chữ hoa của
+   * Đã ghép sẵn: "Đang sửa: W-014". Mã tường viết hoa là ngoại lệ chữ hoa của
    * A6; phần còn lại viết thường kiểu câu.
    */
   readonly label: string;

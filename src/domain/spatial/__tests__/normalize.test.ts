@@ -20,6 +20,7 @@ import { applyPatch, readEntity, type SpatialPatch } from '../applyPatch';
 import {
   denormalizeSpatial,
   displayCodeIn,
+  displayLabelIn,
   idsOnLevel,
   normalizeSpatial,
   type NormalizedSpatial,
@@ -335,5 +336,16 @@ describe('displayCodeIn', () => {
 
   it('keeps the counter a createId id carries, even for an id the graph does not hold', () => {
     expect(displayCodeIn(graph, 'R-000005ROOMABCD')).toBe('#R-005');
+  });
+
+  it('gives an id with no known prefix back verbatim, never a cut-up code (B-V7-31)', () => {
+    expect(displayCodeIn(graph, 'BUILDING')).toBe('BUILDING');
+    expect(displayLabelIn(graph, 'BUILDING')).toBe('BUILDING');
+  });
+
+  it('labels are the same codes without the sentence `#` (B-V8-05)', () => {
+    for (const id of [roomIdAt(0), roomIdAt(4), levelIdAt(3), sampleDoorId(0), sampleWindowId(0), 'R-000005ROOMABCD']) {
+      expect(`#${displayLabelIn(graph, id)}`).toBe(displayCodeIn(graph, id));
+    }
   });
 });

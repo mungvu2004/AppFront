@@ -298,6 +298,7 @@ function contentOf(seeds: readonly RowSeed[], selectionCount: number): PropertyI
         ? `Đang chọn ${formatNumber(selectionCount)} đối tượng`
         : 'Tường',
       objectCode: INSPECTED_WALL.id,
+      entityId: INSPECTED_WALL.id,
       statusBadge: { label: TEXT.status.neutral, tone: 'neutral' },
       selectionCount,
       onCopyAsTemplate: noop,

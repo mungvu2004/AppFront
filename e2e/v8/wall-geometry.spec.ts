@@ -116,19 +116,23 @@ test('chế độ sửa hình học thoát được bằng nút "Xong" của ch�
 });
 
 /*
- * B-V8-05 — cùng một bức tường, dải chế độ sửa nói `W-403FI` (rút gọn theo khuôn
- * `createId`, `wallGeometryEditorGateway.ts` `wallDisplayCode`) còn thanh tra của vỏ
- * nói mã máy đầy đủ `W-0403FIXTURE0`.
- * Mở lại khi: người duyệt chốt một mã hiển thị cho tường và cả hai nơi dùng nó —
- * đổi `test.fixme` thành `test`.
+ * B-V8-05 — cùng một bức tường từng mang hai mã: dải chế độ sửa nói `W-403FI` (nhãn
+ * người đọc), thanh tra của vỏ nói mã máy `W-0403FIXTURE0`. Nay cả hai — và đầu panel
+ * thuộc tính — đọc `displayLabelIn` (`domain/spatial/normalize.ts`).
+ * Đầu panel thuộc tính không khẳng định ở đây: trên `/3d` panel ấy kẹt "đang tải" vì
+ * không route nào nạp kho `spatial` (B-V8-04); bài đơn vị `PropertyInspector.test.tsx`
+ * [N10] giữ phần đó. Mở thêm khẳng định ấy khi B-V8-04 được sửa.
  */
-test.fixme('cùng một bức tường mang cùng một mã ở thanh tra và ở dải chế độ sửa (B-V8-05)', async ({
+test('cùng một bức tường mang cùng một mã ở thanh tra và ở dải chế độ sửa (B-V8-05)', async ({
   page,
 }) => {
   await openViewer(page);
   await openHistoryAndSettleTour(page);
   await selectAWall(page);
   const inspectorCode = (await shellInspector(page).innerText()).match(/tường (W-[A-Z0-9]+)/u)?.[1];
+  expect(inspectorCode).toBeDefined();
+  // Không đòi `W-0403FIXTURE0` biến khỏi thanh tra: hàng "mã đối tượng" giữ mã máy, có chủ đích.
+  expect(inspectorCode).not.toContain('FIXTURE');
 
   await page.getByRole('button', { name: ENTER_LABEL, exact: true }).click();
   await expect(editorRegion(page)).toContainText(`Đang sửa: ${inspectorCode ?? '?'}`);

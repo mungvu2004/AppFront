@@ -54,8 +54,10 @@ export interface ViolationDetailCapabilities {
 
 /** Một đối tượng dính tới vi phạm, hiện thành liên kết chữ đều bấm được. */
 export interface ViolationObject {
-  /** Mã đối tượng, ví dụ `W-000012ABCD`. Hiện bằng chữ đều. */
+  /** Mã máy, ví dụ `W-000012ABCD` — khoá và đích của `onSelectObject`, không in ra màn. */
   readonly entityId: string;
+  /** Mã người đọc, ví dụ `#W-012` — cùng mã câu luật gọi (B-V7-31). Hiện bằng chữ đều. */
+  readonly code: string;
   /** Nhãn tiếng Việt của loại bộ phận, ví dụ "tường", "phòng". */
   readonly kindLabel: string;
   /**
@@ -139,8 +141,8 @@ export interface ViolationDetailViewProps {
   readonly severity: RuleSeverity | null;
   /** Nhãn mức tiếng Việt cho Badge, từ `RULE_SEVERITY_LABELS`. */
   readonly severityLabel: string;
-  /** Mã đối tượng gây lỗi, chữ đều. */
-  readonly subjectEntityId: string;
+  /** Mã người đọc của đối tượng gây lỗi (`#D-001`), chữ đều — không phải mã máy (B-V7-31). */
+  readonly subjectCode: string;
 
   /* -- Khối 2 "Luật" -- */
   /** Luật viết thành MỘT CÂU THƯỜNG. Lấy từ `Rule.name`; cấm tự soạn căn cứ. */

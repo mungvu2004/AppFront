@@ -43,7 +43,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/client';
-import { displayCodeIn, normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, displayLabelIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import {
   sampleDoorId,
   sampleFurnitureId,
@@ -551,6 +551,25 @@ describe('[N4] ba bức tường lệch độ dày', () => {
 /* -------------------------------------------------------------------------- */
 /* [N3] Bố cục không nhảy khi đổi loại đối tượng.                              */
 /* -------------------------------------------------------------------------- */
+
+describe('[N10] đầu panel gọi tường bằng mã người đọc (B-V8-05)', () => {
+  beforeEach(() => {
+    seedStore(createCleanBuildingScenario().graph);
+  });
+
+  it('hiện cùng mã dải "Đang sửa" hiện, không hiện mã máy', async () => {
+    const { container } = await renderWired([WALL_ID]);
+    const panel = within(container);
+    const graph = useStore.getState().spatial;
+
+    if (graph === null) {
+      throw new Error('kho chưa có đồ thị');
+    }
+
+    expect(panel.getByText(displayLabelIn(graph, WALL_ID))).toBeInTheDocument();
+    expect(panel.queryByText(WALL_ID)).toBeNull();
+  });
+});
 
 describe('[N3] đổi qua lại tường ↔ phòng mười lần', () => {
   const SWITCH_COUNT = 10;

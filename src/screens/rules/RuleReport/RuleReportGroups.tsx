@@ -170,8 +170,8 @@ function RowMessage({ row, onSelectRow }: RowContentProps) {
 }
 
 /** The object code, in a tag `expectVietnamese` reads as code rather than as prose. */
-function EntityCode({ entityId }: { readonly entityId: string }) {
-  return <code className="font-mono text-xs text-text-secondary">{entityId}</code>;
+function EntityCode({ code }: { readonly code: string }) {
+  return <code className="font-mono text-xs text-text-secondary">{code}</code>;
 }
 
 /** The floor a finding sits on, or a dash where the rule looked at the whole building. */
@@ -222,7 +222,7 @@ export function RuleReportRows({
             >
               <div className="flex items-center justify-between gap-2">
                 <Badge variant={SEVERITY_BADGE[row.severity]}>{SEVERITY_LABELS[row.severity]}</Badge>
-                <EntityCode entityId={row.entityId} />
+                <EntityCode code={row.entityCode} />
               </div>
               <RowMessage row={row} onSelectRow={onSelectRow} />
               <div className="flex items-center justify-between gap-2">
@@ -270,7 +270,7 @@ export function RuleReportRows({
                 <LevelText levelLabel={row.levelLabel} />
               </Table.Cell>
               <Table.Cell>
-                <EntityCode entityId={row.entityId} />
+                <EntityCode code={row.entityCode} />
               </Table.Cell>
               <Table.Cell>
                 <RowActions row={row} onViewRow={onViewRow} />

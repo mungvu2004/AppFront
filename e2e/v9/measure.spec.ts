@@ -117,25 +117,32 @@ test('"?" mở bảng phím tắt trên chế độ đo; Esc đóng bảng trư�
 test('vai Người xem: vẫn vào được chế độ đo, và màn nói vì sao không ghim được', async ({ page }) => {
   await signInAs(page, 'viewer', MEASURE_PATH);
   await expect(page.getByText(FIXTURE_STATUS, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expectSceneDrawn(page);
 
   await expect(page.getByRole('alert').filter({ hasText: PIN_BLOCKED })).toHaveCount(1);
   await page.keyboard.press('m');
-  await expect(page.getByRole('button', { name: DROP_DRAFT })).toBeVisible();
+  await expectActiveTool(page, MEASURE_TOOL);
+
+  // Đang đo thật: bấm canvas ra bản nháp, nút ghim hiện nhưng khoá — chỉ ghim bị chặn.
+  await clickSceneCentre(page);
+  await expect(page.getByRole('button', { name: PIN })).toBeDisabled();
 });
 
-test.fixme(
-  'vai Người xem: ray công cụ cho thấy đang đo (B-V9-04, chờ quyết)',
-  // Lý do: màn đo cho Người xem đo (`MeasurementTool.test.tsx:540-560`) nhưng vỏ gỡ
-  // `đo (M)` khỏi ray vì `requiresEdit: true` (`useViewerShell.ts:153`), nên đang đo
-  // mà không nút nào `aria-pressed`. Hai đặc tả mâu thuẫn; bỏ cờ làm đỏ bài vỏ VS-2
-  // (`ViewerShell.test.tsx:139-140`) và đổi ray `/3d`. Mở lại khi người duyệt chọn.
-  async ({ page }) => {
-    await signInAs(page, 'viewer', MEASURE_PATH);
-    await expect(page.getByText(FIXTURE_STATUS, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    await page.keyboard.press('m');
-    await expectActiveTool(page, MEASURE_TOOL);
-  },
-);
+test('vai Người xem: ray công cụ cho thấy đang đo, qua phím M lẫn qua nút bật tắt (A12 · B-V9-04)', async ({
+  page,
+}) => {
+  await signInAs(page, 'viewer', MEASURE_PATH);
+  await expect(page.getByText(FIXTURE_STATUS, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+
+  await page.keyboard.press('m');
+  await expectActiveTool(page, MEASURE_TOOL);
+
+  await page.getByRole('button', { name: TOGGLE_TOOL }).click();
+  await expectActiveTool(page, ORBIT_TOOL);
+
+  await page.getByRole('button', { name: TOGGLE_TOOL }).click();
+  await expectActiveTool(page, MEASURE_TOOL);
+});
 
 test(
   'phím R/H/C/V trên nhãn ray đổi được công cụ trên màn đo (B-V9-07)',
