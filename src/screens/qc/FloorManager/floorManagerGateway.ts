@@ -78,7 +78,7 @@ import {
 } from '@/domain/axes/alignFloors';
 import { copyFloor, type CopyFloorResult, type FloorContents } from '@/domain/axes/copyFloor';
 import { applyPatch } from '@/domain/spatial/applyPatch';
-import { SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { computeArea } from '@/domain/rooms/area';
 import { createId } from '@/domain/spatial/ids';
 import {
   idsOnLevel,
@@ -1330,19 +1330,17 @@ export interface FloorManagerSampleLevel {
   readonly drawingCount: number;
   /** Số tường của bộ mẫu — dựng ra bấy nhiêu tường thật để phép đếm có gì để đếm. */
   readonly wallCount: number;
-  /** Số phòng của bộ mẫu. A14 cố định 34 phòng cho bộ mẫu chuẩn. */
+  /** Số phòng của bộ mẫu — bộ riêng của màn, không phải A14. */
   readonly roomCount: number;
   /**
    * Số món nội thất của bộ mẫu.
    *
-   * Bốn con số cộng lại đúng `SAMPLE_FURNITURE_COUNT` (21) của công trình mẫu
-   * chuẩn (`src/domain/spatial/__fixtures__/sampleBuilding.ts:35`), nên bộ mẫu
-   * của màn không dựng thêm một tổng thứ hai.
+   * Bốn con số cộng lại là 21 — chỉ trùng số, không lấy từ A14.
    */
   readonly furnitureCount: number;
 }
 
-/** Số phòng của một tầng có bản vẽ — A14: *34 phòng và sảnh 248,60 m²*. */
+/** Số phòng của một tầng có bản vẽ — bộ riêng của màn, không phải A14. */
 export const FLOOR_MANAGER_SAMPLE_ROOM_COUNT = 34;
 
 export const FLOOR_MANAGER_SAMPLE_LEVELS: readonly FloorManagerSampleLevel[] = [
@@ -1418,7 +1416,13 @@ const pad = (value: number): string =>
 /** Bề dày và chiều dài tường mẫu — hình học tối thiểu để một tường hợp lệ tồn tại. */
 const SAMPLE_WALL_LENGTH_MM = 4000;
 const SAMPLE_WALL_THICKNESS_MM = 220;
-const SAMPLE_ROOM_DEPTH_MM = 4250;
+/**
+ * Chiều sâu phòng mẫu (bề rộng giữ 4000 mm): 33 phòng × 4,00 × 1,83 = 7,32 m² và
+ * phòng cuối 4,00 × 1,76 = 7,04 m², nên mỗi tầng có phòng cộng đúng
+ * 33 × 7,32 + 7,04 = 248,60 m². Nguồn: `notes/floor-manager/blueprint.md:638-640`.
+ */
+const SAMPLE_ROOM_DEPTH_MM = 1830;
+const SAMPLE_LAST_ROOM_DEPTH_MM = 1760;
 
 const sampleWallId = (levelIndex: number, index: number): WallId =>
   `W-${pad(levelIndex)}${pad(index)}W` as WallId;
@@ -1431,14 +1435,6 @@ const sampleFurnitureId = (levelIndex: number, index: number): FurnitureId =>
 
 /** Cạnh của một món nội thất mẫu, milimét. */
 const SAMPLE_FURNITURE_SIZE_MM = 800;
-
-/**
- * Diện tích một phòng của bộ mẫu.
- *
- * `SAMPLE_TOTAL_AREA_M2` (248,6 — A14) chia đều cho số phòng, nên tổng của cả
- * tầng đọc ra đúng `"248,60 m²"` mà không con số nào viết tay ở đây.
- */
-const sampleRoomAreaM2 = SAMPLE_TOTAL_AREA_M2 / FLOOR_MANAGER_SAMPLE_ROOM_COUNT;
 
 const DETECTED = { confidence: 0.82, reviewed: false, source: 'ai' } as const;
 
@@ -1495,6 +1491,16 @@ export function createFloorManagerSampleGraph(
       }
 
       for (let index = 0; index < entry.roomCount; index += 1) {
+        const depth =
+          index === entry.roomCount - 1 ? SAMPLE_LAST_ROOM_DEPTH_MM : SAMPLE_ROOM_DEPTH_MM;
+        const left = millimetres(index * SAMPLE_WALL_LENGTH_MM);
+        const right = millimetres((index + 1) * SAMPLE_WALL_LENGTH_MM);
+        const outline = [
+          { x: left, y: millimetres(0) },
+          { x: right, y: millimetres(0) },
+          { x: right, y: millimetres(depth) },
+          { x: left, y: millimetres(depth) },
+        ];
         rooms.push({
           confidence: 1,
           source: 'human',
@@ -1503,13 +1509,8 @@ export function createFloorManagerSampleGraph(
           levelId: entry.id,
           name: `Phòng ${formatNumber(index + 1, { grouping: false, fractionDigits: 0 })}`,
           usage: 'bedroom',
-          areaM2: sampleRoomAreaM2,
-          outline: [
-            { x: index * SAMPLE_WALL_LENGTH_MM, y: 0 },
-            { x: (index + 1) * SAMPLE_WALL_LENGTH_MM, y: 0 },
-            { x: (index + 1) * SAMPLE_WALL_LENGTH_MM, y: SAMPLE_ROOM_DEPTH_MM },
-            { x: index * SAMPLE_WALL_LENGTH_MM, y: SAMPLE_ROOM_DEPTH_MM },
-          ],
+          areaM2: computeArea(outline),
+          outline,
           wallIds: [sampleWallId(levelIndex, index)],
         });
       }

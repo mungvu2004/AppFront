@@ -43,6 +43,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/client';
+import { displayCodesOf } from '@/domain/spatial/ids';
 import { displayCodeIn, displayLabelIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import {
   sampleDoorId,
@@ -362,6 +363,7 @@ const clashMessageOf = (entityId: string): string =>
 const VIEWER_ROOMS: readonly ViewerRoomOption[] = [
   {
     areaLabel: '17,00 m²',
+    codeLabel: displayCodesOf([sampleRoomId(0)]).get(sampleRoomId(0)) ?? '',
     id: sampleRoomId(0),
     name: 'Room 0',
     storeyName: 'Level 0',

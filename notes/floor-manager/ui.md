@@ -600,7 +600,7 @@ export function formatLength(valueMm: MaybeNumber, options: LengthFormatOptions 
 // formatLength(850) → "850 mm" ; formatLength(3450) → "3,45 m" (tự chọn đơn vị theo ngưỡng 1000mm)
 
 export function formatArea(areaM2: MaybeNumber, options: MeasureFormatOptions = {}): string;
-// formatArea(248.6) → "248,60 m²" — khớp bộ mẫu chuẩn A14 "34 phòng và sảnh 248,60 m²"
+// formatArea(248.6) → "248,60 m²" — khớp bộ mẫu riêng của màn (248,60 m² mỗi tầng có bản vẽ)
 
 export function formatAngle(angleDeg: MaybeNumber, options: MeasureFormatOptions = {}): string;
 // formatAngle(90) → "90,0°"
@@ -671,7 +671,7 @@ export function renderWithProviders(
 // Bọc sẵn QueryClientProvider (retry tắt) + reset store (nếu đã configureTestProviders) — DÙNG
 // CÁI NÀY thay vì render() trần của RTL cho mọi test màn.
 
-// fixtures.ts — dữ liệu QC dùng chung, theo bộ mẫu chuẩn A14
+// fixtures.ts — dữ liệu QC dùng chung, theo bộ mẫu riêng của màn
 export function createCleanBuildingScenario(): QcScenario;
 export function createViolatedBuildingScenario(): QcScenario; // 7 lỗi, health score 44
 export function createEmptyProjectScenario(): QcScenario;

@@ -15,7 +15,7 @@
  * This module only reshapes data. No geometry, no derived measurements.
  */
 
-import { displayCodesOf, ID_PREFIX_BY_KIND, isIdOfKind, type EntityKind } from './ids';
+import { counterLabelOf, displayCodesOf, ID_PREFIX_BY_KIND, isIdOfKind, type EntityKind } from './ids';
 import type {
   Axis,
   Building,
@@ -241,9 +241,10 @@ const kindOfPrefix = (id: string): EntityKind | undefined =>
  * front: the label a panel title or a hover tag prints next to the kind name. Numbered
  * by `displayCodesOf` over every entity of the same kind on the same level (levels:
  * over every level), which is how the list screens number their rows. An id the graph
- * does not hold (a refusal naming a missing entity) falls back to the counter rule
- * alone; an id with no known prefix (`BUILDING`) comes back verbatim, since the
- * counter rule would cut it into `B-ILDING` (B-V7-31).
+ * does not hold (a refusal naming a missing entity) falls back to `counterLabelOf`:
+ * the counter rule when the body is counter-led, verbatim otherwise (`W-MISSING1AA`
+ * would be cut into `W-MISSIN`, B-V7-42); an id with no known prefix (`BUILDING`)
+ * comes back verbatim, since the counter rule would cut it into `B-ILDING` (B-V7-31).
  *
  * ponytail: rebuilds the sibling table per call, O(n log n) per sentence; memoise
  * per graph if a rule pass naming hundreds of entities shows up in a profile.
@@ -258,7 +259,7 @@ export const displayLabelIn = (graph: NormalizedSpatial, id: string): string => 
   const entity = graph.byId[id];
 
   if (entity === undefined) {
-    return displayCodesOf([id]).get(id) ?? id;
+    return counterLabelOf(id);
   }
 
   const levelId = resolveLevelId(entity, graph.byId);

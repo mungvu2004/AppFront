@@ -249,7 +249,7 @@ export function ObjectSearch({
                 >
                   <span className="truncate">{room.name}</span>
                   <span className="shrink-0 text-[11px] text-text-secondary">
-                    {room.id} · {room.storeyName} · {room.areaLabel}
+                    {room.codeLabel} · {room.storeyName} · {room.areaLabel}
                   </span>
                 </li>
               ))}

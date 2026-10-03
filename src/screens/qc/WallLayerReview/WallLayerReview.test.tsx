@@ -421,6 +421,12 @@ describe('nhãn mã tường', () => {
     expect(fourteenth?.confidence).toBe(0.71);
     expect(fourteenth?.levelId).toBe(WALL_LAYER_FIXTURE_LEVEL.id);
   });
+
+  it('mã BE đứng riêng trả nguyên văn, không cắt thành nhãn rác (B-V7-42, B-V7-81)', () => {
+    const backendId = `W-01J${'A'.repeat(22)}`;
+
+    expect(wallDisplayCode(backendId)).toBe(backendId);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

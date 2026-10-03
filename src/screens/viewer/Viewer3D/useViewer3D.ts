@@ -60,7 +60,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ENDPOINTS } from '@/api/endpoints';
-import { isEntityOfKind, resolveLevelId, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import {
+  displayLabelIn,
+  isEntityOfKind,
+  resolveLevelId,
+  type NormalizedSpatial,
+} from '@/domain/spatial/normalize';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { isValidId } from '@/domain/spatial/ids';
 import type { EntityId, LevelId, Room } from '@/domain/spatial/types';
@@ -311,16 +316,17 @@ function selectionContextOf(
 /**
  * Mọi phòng của đồ thị, rút gọn về đúng những gì ô tìm vẽ ra.
  *
- * Đọc theo HÌNH DẠNG (`'name' in entity`), **không** qua `isEntityOfKind` — và
- * đó không phải một lối tắt. `isEntityOfKind` hỏi `isValidId`, thứ đòi phần
- * thân của mã dài ít nhất mười ký tự (`domain/spatial/ids.ts:40-43`); bộ mẫu
- * của vỏ đánh mã `R-001`, thân dài ba. Nên với bộ mẫu ấy `isEntityOfKind('room', …)`
- * trả `false` cho **cả mười bốn phòng**, và một danh sách phòng rỗng là thứ
- * người dùng nhìn thấy.
+ * Đọc theo HÌNH DẠNG (`'name' in entity`), cùng cách `shellDataOf` và `storeysOf`
+ * của vỏ đọc: một thực thể thiếu tên hay diện tích bị bỏ qua thay vì làm hỏng
+ * cả danh sách.
  *
- * `shellDataOf` và `storeysOf` của vỏ đã đọc theo hình dạng đúng vì lý do này;
- * file này theo chúng thay vì dựng một danh sách rỗng rồi gọi đó là "không có
- * phòng nào".
+ * `codeLabel` là nhãn người đọc (`R-011`) của `displayLabelIn` — đúng chuỗi tiêu
+ * đề thanh tra in ra, nên ô tìm và thanh tra gọi một phòng bằng cùng một tên
+ * (B-V8-45).
+ *
+ * ponytail: `displayLabelIn` dựng lại bảng anh em mỗi phòng, O(R²) trên số
+ * phòng; gom phòng theo tầng trên `spatial.byKind.room` rồi gọi `displayCodesOf`
+ * một lần mỗi tầng nếu một toà nhà hàng nghìn phòng hiện lên trong profile.
  */
 function roomOptionsOf(
   spatial: NormalizedSpatial | null,
@@ -344,6 +350,7 @@ function roomOptionsOf(
 
     options.push({
       id: room.id,
+      codeLabel: displayLabelIn(spatial, room.id),
       name: room.name,
       storeyName: storeyNameById.get(room.levelId) ?? UNNAMED_STOREY,
       // A15: định dạng xảy ra ở viewmodel, không ở view — cùng `formatArea` mà

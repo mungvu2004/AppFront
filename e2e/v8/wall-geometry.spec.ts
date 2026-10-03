@@ -116,8 +116,8 @@ test('chế độ sửa hình học thoát được bằng nút "Xong" của ch�
 });
 
 /*
- * B-V8-05 — cùng một bức tường từng mang hai mã: dải chế độ sửa nói `W-403FI` (nhãn
- * người đọc), thanh tra của vỏ nói mã máy `W-0403FIXTURE0`. Nay cả hai — và đầu panel
+ * B-V8-05 — cùng một bức tường từng mang hai mã: dải chế độ sửa nói nhãn người đọc,
+ * thanh tra của vỏ nói mã máy (`W-000403FIXTURE0`). Nay cả hai — và đầu panel
  * thuộc tính — đọc `displayLabelIn` (`domain/spatial/normalize.ts`).
  * Đầu panel thuộc tính không khẳng định ở đây: trên `/3d` panel ấy kẹt "đang tải" vì
  * không route nào nạp kho `spatial` (B-V8-04); bài đơn vị `PropertyInspector.test.tsx`
@@ -131,8 +131,10 @@ test('cùng một bức tường mang cùng một mã ở thanh tra và ở dả
   await selectAWall(page);
   const inspectorCode = (await shellInspector(page).innerText()).match(/tường (W-[A-Z0-9]+)/u)?.[1];
   expect(inspectorCode).toBeDefined();
-  // Không đòi `W-0403FIXTURE0` biến khỏi thanh tra: hàng "mã đối tượng" giữ mã máy, có chủ đích.
+  // Không đòi mã máy biến khỏi thanh tra: hàng "mã đối tượng" giữ nó, có chủ đích.
   expect(inspectorCode).not.toContain('FIXTURE');
+  // Nhãn sạch ba chữ số, không phải `W-403FI` (B-V8-45).
+  expect(inspectorCode).toMatch(/^W-\d{3}$/u);
 
   await page.getByRole('button', { name: ENTER_LABEL, exact: true }).click();
   await expect(editorRegion(page)).toContainText(`Đang sửa: ${inspectorCode ?? '?'}`);

@@ -23,6 +23,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { isIdOfKind } from '@/domain/spatial/ids';
 import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Furniture,
@@ -63,6 +64,9 @@ import {
   dataLayerTokens,
   entityIdOf,
   formatObjectSize,
+  manualDoorProposalOf,
+  OBJECT_LAYER_TEXT,
+  type ObjectLayerReviewGateway,
   graphOpeningsOf,
   objectsOf,
   objectStatusCode,
@@ -1170,5 +1174,73 @@ describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
 
   it('cổng thật không mang bảng mẫu — dòng mồ côi D-009 không lọt vào tầng nào', () => {
     expect(createObjectLayerReviewGateway({ apiClient: {} as never }).seed).toEqual([]);
+  });
+});
+
+describe('"thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () => {
+  /** Bộ A14 bỏ hết ô mở và nội thất — mọi tầng đều rỗng, nhưng còn tường. */
+  const emptyGraph = (): NormalizedSpatial => {
+    const raw = denormalizeSpatial(normalizeSpatial(createSampleBuilding()));
+
+    return normalizeSpatial({
+      ...raw,
+      openings: [],
+      furniture: [],
+      walls: raw.walls.map((wall) => ({ ...wall, openingIds: [] })),
+    });
+  };
+
+  const emptyGateway = (): ObjectLayerReviewGateway => {
+    const graph = emptyGraph();
+
+    return { ...createMockObjectLayerReviewGateway({ graph }), seed: [] };
+  };
+
+  it('hai tầng rỗng liên tiếp: cả hai cửa được thêm, không bị từ chối vì trùng mã', async () => {
+    const gateway = emptyGateway();
+    const notifications = createNotificationBus();
+    const publish = vi.spyOn(notifications, 'publish');
+    const openingCount = (): number =>
+      Object.keys(useStore.getState().spatial?.byId ?? {}).filter((id) => isIdOfKind('opening', id)).length;
+
+    const first = await mountSettled({ gateway, floorId: sampleLevelId(1), notifications });
+
+    await run(() => first.result.current.onAddManually());
+    await waitFor(() => {
+      expect(openingCount()).toBe(1);
+    });
+    first.unmount();
+
+    const second = await mountSettled({ gateway, floorId: sampleLevelId(2), notifications });
+
+    await run(() => second.result.current.onAddManually());
+    await waitFor(() => {
+      expect(openingCount()).toBe(2);
+    });
+
+    const refused = publish.mock.calls.filter(([n]) => n.title === OBJECT_LAYER_TEXT.addRefused);
+    const ids = second.result.current.objects.map((object) => object.id);
+
+    console.log(`tầng 2 sau khi thêm: ${ids.join(', ')}`);
+    expect(refused).toEqual([]);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toMatch(/^D-[0-9A-Z]{3}$/u);
+    expect(ids[0]).not.toContain('DOOR');
+
+    second.unmount();
+  });
+
+  it('đề nghị mang mã mới chưa có trong đồ thị, đúng dạng mã cửa, và lệnh được nhận', () => {
+    const graph = emptyGraph();
+    const level = graph.byId[sampleLevelId(2)] as Level;
+    const input = manualDoorProposalOf(graph, level);
+
+    expect(input).not.toBeNull();
+
+    const id = (input as NonNullable<typeof input>).id;
+
+    expect(graph.byId[id]).toBeUndefined();
+    expect(isIdOfKind('opening', id)).toBe(true);
+    expect(buildAddOpeningCommand(input as NonNullable<typeof input>, commandContextOf(graph, 'test-actor')).ok).toBe(true);
   });
 });

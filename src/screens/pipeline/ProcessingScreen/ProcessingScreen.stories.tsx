@@ -215,7 +215,7 @@ function previewOf(
 }
 
 /**
- * Báo cáo tổng kết — bộ mẫu chuẩn của A14: **34 phòng và sảnh, 248,60 m²**.
+ * Báo cáo tổng kết — bộ số riêng của story: **34 phòng và sảnh, 248,60 m²**.
  *
  * Dấu thập phân là dấu phẩy (A15), và mọi con số ở đây đã là chuỗi: view không
  * làm tròn, không ghép câu.
@@ -393,7 +393,7 @@ export const DangTai: Story = { args: scenarioFor('loading') };
 export const MotPhan: Story = { args: scenarioFor('partial') };
 /** Lỗi — cảnh báo kèm mã kỹ thuật; mã không đứng một mình, luôn có câu giải thích. */
 export const Loi: Story = { args: scenarioFor('error') };
-/** Xong — sáu bước xong và khối tổng kết theo bộ mẫu A14. */
+/** Xong — sáu bước xong và khối tổng kết theo bộ số riêng của story. */
 export const Xong: Story = { args: scenarioFor('success') };
 /** Không có quyền — hai cột vẫn đọc được, nút huỷ biến mất hẳn (không khoá mờ). */
 export const KhongCoQuyen: Story = { args: scenarioFor('forbidden') };

@@ -40,9 +40,9 @@ const BASE_FRAME: ViewerSceneFrame = {
  * việc chọn một phòng KHÔNG nằm ở tầng dưới cùng.
  */
 const DEMO_ROOMS: readonly ViewerRoomOption[] = [
-  { id: 'R-001', name: 'Phòng khách', storeyName: 'Tầng trệt', areaLabel: '32,40 m²' },
-  { id: 'R-003', name: 'Phòng ngủ 1', storeyName: 'Tầng trệt', areaLabel: '12,60 m²' },
-  { id: 'R-011', name: 'Phòng ngủ 4', storeyName: 'Tầng 03', areaLabel: '19,60 m²' },
+  { id: 'R-001', codeLabel: 'R-001', name: 'Phòng khách', storeyName: 'Tầng trệt', areaLabel: '32,40 m²' },
+  { id: 'R-003', codeLabel: 'R-003', name: 'Phòng ngủ 1', storeyName: 'Tầng trệt', areaLabel: '12,60 m²' },
+  { id: 'R-011', codeLabel: 'R-011', name: 'Phòng ngủ 4', storeyName: 'Tầng 03', areaLabel: '19,60 m²' },
 ];
 
 /**

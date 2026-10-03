@@ -129,7 +129,7 @@ import {
 import { detectRooms, type DetectRoomsResult } from '@/domain/rooms/detect';
 import { ROOM_USAGE_LABELS, type Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { createId, displayCodesOf } from '@/domain/spatial/ids';
+import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Level,
@@ -380,11 +380,12 @@ const ID_COUNTER_LENGTH = 6;
  *
  * Mã máy phải dài (thân ≥ 10 ký tự) để tầng lệnh nhận; nhãn thanh tra thì đặc
  * tả đòi đúng "#R-005". Đọc ngược sáu chữ số đếm mà `createId` sinh ra, nên nó
- * đúng cho cả phòng của bộ mẫu lẫn phòng người dùng vừa tách — không có bảng
- * tra nào phải giữ đồng bộ. Thuần cắt chuỗi: không một phép số học nào.
+ * đúng cho cả phòng của bộ mẫu lẫn phòng người dùng vừa tách. Mã không có số đếm
+ * đứng đầu (mã BE) trả NGUYÊN VĂN (`counterLabelOf`) — đánh số nó cần cả danh
+ * sách anh em, việc của `displayCodesOf` (B-V7-81). Thuần cắt chuỗi.
  */
 export function roomDisplayCode(id: string): string {
-  return displayCodesOf([id]).get(id) ?? id;
+  return counterLabelOf(id);
 }
 
 /**

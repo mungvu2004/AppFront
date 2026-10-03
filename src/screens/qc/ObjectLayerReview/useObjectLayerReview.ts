@@ -132,7 +132,6 @@ import {
   type ObjectLayerDispatchDeps,
   type ObjectLayerGraphPort,
   type ObjectLayerReviewGateway,
-  type ObjectSeedEntry,
 } from './objectLayerReviewGateway';
 import {
   OBJECT_SUBTYPES,
@@ -342,16 +341,6 @@ export function useObjectLayerReview(
    */
   const [lowConfidenceChoice, setLowConfidenceChoice] = useState<boolean | null>(null);
 
-  /**
-   * Dòng bộ mẫu của những đối tượng người duyệt tự thêm trong phiên này.
-   *
-   * `objectsOf` dựng danh sách từ đồ thị (B-V6-13), nên đối tượng vừa thêm hiện ra
-   * dù không có dòng nào; dòng ở đây giữ cho nó đúng mã hiển thị đã đề nghị
-   * (`D-010`…) thay vì mã đánh lại theo thứ tự. Cổng không sửa được (bộ mẫu của nó
-   * là hằng), nên dòng mới sống ở đây, cạnh chính lượt ghi đã tạo ra nó.
-   */
-  const [manualEntries, setManualEntries] = useState<readonly ObjectSeedEntry[]>([]);
-
   const isCollapsed = options.forceCollapsed ?? ownCollapsed;
 
   const onToggleCollapsed = useCallback(() => {
@@ -427,15 +416,9 @@ export function useObjectLayerReview(
   const hasError = objectLayerQuery.isError;
   const isLoading = objectLayerQuery.isPending || graph === null;
 
-  /** Bộ mẫu của cổng cộng những dòng người duyệt tự thêm trong phiên này. */
-  const seed = useMemo<readonly ObjectSeedEntry[]>(
-    () => (manualEntries.length === 0 ? gateway.seed : [...gateway.seed, ...manualEntries]),
-    [gateway, manualEntries],
-  );
-
   const objects = useMemo<readonly ReviewObject[]>(
-    () => (hasError ? NO_OBJECTS : objectsOf(graph, level, seed)),
-    [graph, hasError, level, seed],
+    () => (hasError ? NO_OBJECTS : objectsOf(graph, level, gateway.seed)),
+    [gateway, graph, hasError, level],
   );
 
   const counts = useMemo(() => countsOf(objects), [objects]);
@@ -927,14 +910,14 @@ export function useObjectLayerReview(
    */
   const onAttachToNearestWall = useCallback(
     (objectId: string) => {
-      const entry = seed.find((candidate) => candidate.displayId === objectId) ?? null;
+      const entry = gateway.seed.find((candidate) => candidate.displayId === objectId) ?? null;
       const current = useStore.getState().spatial;
 
       if (entry === null || level === null || current === null || !canEdit) {
         return;
       }
 
-      const input = attachOrphanToNearestWall(entry, current, level, seed);
+      const input = attachOrphanToNearestWall(entry, current, level, gateway.seed);
 
       if (input === null) {
         notifications.publish({
@@ -960,7 +943,7 @@ export function useObjectLayerReview(
 
       void runSingle(entry.displayId, entry.layer, () => built.data);
     },
-    [canEdit, gateway, level, notifications, runSingle, seed],
+    [canEdit, gateway, level, notifications, runSingle],
   );
 
   /*
@@ -978,7 +961,7 @@ export function useObjectLayerReview(
       return;
     }
 
-    const proposal = manualDoorProposalOf(current, level, seed);
+    const proposal = manualDoorProposalOf(current, level);
 
     if (proposal === null) {
       notifications.publish({
@@ -991,7 +974,7 @@ export function useObjectLayerReview(
     }
 
     const built = buildAddOpeningCommand(
-      proposal.input,
+      proposal,
       commandContextOf(current, gateway.actorId),
     );
 
@@ -1005,9 +988,8 @@ export function useObjectLayerReview(
       return;
     }
 
-    setManualEntries((entries) => [...entries, proposal.entry]);
-    void runSingle(proposal.entry.displayId, 'door', () => built.data);
-  }, [canEdit, gateway, level, notifications, runSingle, seed]);
+    void runSingle(proposal.id, 'door', () => built.data);
+  }, [canEdit, gateway, level, notifications, runSingle]);
 
   /* ---------------------------------------------------------------------- */
   /* Bấm liên kết tường chủ — chọn tường đó và bay khung nhìn tới (R-07).     */

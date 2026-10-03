@@ -5,7 +5,8 @@
  * bảng phòng thứ hai gõ tay ở đây (R-70): 14 phòng trên 4 tầng, đúng những cái
  * tên mà bài e2e sẽ gõ vào ô tìm trên trình duyệt thật.
  *
- * Phép so là **khớp chuỗi con trên tên + mã + tên tầng**, nên nó rộng chứ không
+ * Phép so là **khớp chuỗi con trên tên + nhãn mã (`R-011`, không phải mã máy) +
+ * tên tầng**, nên nó rộng chứ không
  * chính xác: gõ `2` cũng đụng phải "Tầng 02". Đó là hành vi đúng của một cái
  * lọc — người dùng nhìn thấy mọi kết quả rồi chọn — nên bài kiểm dưới đây khẳng
  * định những truy vấn PHÂN BIỆT ĐƯỢC, chứ không giả vờ rằng một từ khoá mơ hồ
@@ -21,6 +22,8 @@ import {
 
 /* `foldForSearch` đã xuống `@/lib/format/fold` — xem docblock của module đó. */
 import { foldForSearch } from '@/lib/format/fold';
+import { displayLabelIn } from '@/domain/spatial/normalize';
+import { VIEWER_FIXTURE_SPATIAL } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 
 import { matchRoomOptions, MAX_ROOM_RESULTS } from './roomSearch';
 import type { ViewerRoomOption } from './roomSearch';
@@ -30,6 +33,7 @@ const STOREY_NAMES = new Map(VIEWER_FIXTURE_LEVELS.map((level) => [level.id, lev
 /** Bộ mẫu của vỏ, đổi sang đúng hình dạng ô tìm đọc. */
 const ROOMS: readonly ViewerRoomOption[] = VIEWER_FIXTURE_ROOMS.map((room) => ({
   id: room.id,
+  codeLabel: displayLabelIn(VIEWER_FIXTURE_SPATIAL, room.id),
   name: room.name,
   storeyName: STOREY_NAMES.get(room.levelId) ?? 'Tầng',
   areaLabel: '0,00 m²',
@@ -72,6 +76,10 @@ describe('matchRoomOptions', () => {
     expect(namesOf('R-011')).toEqual(['Phòng ngủ 4']);
   });
 
+  it('không tìm theo mã máy — đuôi bộ mẫu không khớp phòng nào (B-V8-45)', () => {
+    expect(namesOf('fixture')).toEqual([]);
+  });
+
   it('không khớp gì thì trả danh sách rỗng, không phải cả bộ', () => {
     const result = matchRoomOptions(ROOMS, 'khong co phong nao ten nhu vay');
 
@@ -82,8 +90,8 @@ describe('matchRoomOptions', () => {
   it('tìm được bằng TÊN TẦNG, để hai phòng trùng tên vẫn phân biệt được', () => {
     const result = matchRoomOptions(
       [
-        { id: 'R-001', name: 'Kho', storeyName: 'Tầng trệt', areaLabel: '1,00 m²' },
-        { id: 'R-009', name: 'Kho', storeyName: 'Tầng mái', areaLabel: '2,00 m²' },
+        { id: 'R-001', codeLabel: 'R-001', name: 'Kho', storeyName: 'Tầng trệt', areaLabel: '1,00 m²' },
+        { id: 'R-009', codeLabel: 'R-009', name: 'Kho', storeyName: 'Tầng mái', areaLabel: '2,00 m²' },
       ],
       'kho mai',
     );

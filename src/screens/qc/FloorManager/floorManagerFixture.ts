@@ -4,7 +4,7 @@
  * KHÔNG gọi mạng, KHÔNG `Math.*`/số ngẫu nhiên (R-61: dữ liệu mẫu phải tất định).
  * Giá trị lấy nguyên từ `notes/floor-manager/blueprint.md` mục D — cao độ
  * -3,0 / 0,0 / 3,9 / 7,5 m, chiều cao 3,0 / 3,9 / 3,6 / 3,6 m, tổng 14,1 m,
- * diện tích bộ mẫu chuẩn A14 = 248,60 m².
+ * diện tích mỗi tầng có bản vẽ = 248,60 m² (bộ riêng của màn).
  *
  * `floorManagerScenarioFor(state)` và `FLOOR_MANAGER_SCENARIOS` là bộ MỘT
  * dùng chung cho cả `FloorManager.stories.tsx` (T6) và `FloorManager.test.tsx`
@@ -125,7 +125,7 @@ const ROOF_SEED_PARTIAL: FloorSeed = {
 };
 
 /**
- * Tầng mái ở trạng thái Xong — bản vẽ đã có, dùng đúng bộ mẫu chuẩn A14 như ba
+ * Tầng mái ở trạng thái Xong — bản vẽ đã có, dùng đúng bộ riêng của màn như ba
  * tầng kia (T6 dựng cho story `success`; không tự bịa endpoint, chỉ tái dùng
  * đúng con số 248,60 m² / 72 tường / 34 phòng đã ghi trong bảng D).
  */
