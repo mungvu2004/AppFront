@@ -201,6 +201,7 @@ beforeEach(() => {
 afterEach(() => {
   __resetFeatureFlagsForTests();
   delete window.__zod_globalConfig;
+  vi.unstubAllEnvs();
 });
 
 describe('máy trạng thái', () => {
@@ -247,6 +248,8 @@ describe('máy trạng thái', () => {
   it('gói hỏng rồi "thử lại" thì xin gói ở URL KHÁC — trình duyệt giữ lỗi theo URL (B-V10-01)', async () => {
     const mountScript = (): HTMLScriptElement | null =>
       document.head.querySelector<HTMLScriptElement>('script[src*="pascal-mount"]');
+    // Không có mã băm (Storybook, Vitest): URL trần, tất định.
+    vi.stubEnv('VITE_PASCAL_MOUNT_VERSION', '');
     // Không truyền `loadMount`: đây là bài duy nhất chạy bộ nạp thật.
     const probe = mountHook({ graph: GRAPH });
 
@@ -255,6 +258,7 @@ describe('máy trạng thái', () => {
     }, { timeout: ASYNC_TIMEOUT_MS });
     const first = mountScript()!;
     const firstSrc = first.src;
+    expect(firstSrc.endsWith('/assets/pascal/pascal-mount.js')).toBe(true);
     // B-V10-05 — phạm vi thật của khẳng định này: cờ CÓ MẶT khi thẻ script đã vào
     // DOM. Cờ đặt đồng bộ trước `append`, còn script module luôn chạy sau.
     expect(window.__zod_globalConfig?.jitless).toBe(true);
@@ -267,6 +271,8 @@ describe('máy trạng thái', () => {
     }, { timeout: ASYNC_TIMEOUT_MS });
     expect(first.isConnected).toBe(false);
 
+    // B-V10-41: mã băm nội dung (`vite.config.ts` tính lúc dựng) đi cùng `attempt`.
+    vi.stubEnv('VITE_PASCAL_MOUNT_VERSION', 'abc12345');
     probe.retry();
 
     await vi.waitFor(() => {
@@ -275,6 +281,8 @@ describe('máy trạng thái', () => {
     const second = mountScript()!;
 
     expect(second.src).not.toBe(firstSrc);
+    expect(second.src).toContain('v=abc12345');
+    expect(second.src).toContain('attempt=1');
 
     // Dọn: lượt nạp thứ hai không bao giờ về trong jsdom.
     act(() => {
