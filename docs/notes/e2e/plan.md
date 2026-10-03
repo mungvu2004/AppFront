@@ -511,13 +511,13 @@ Thứ tự theo giá trị nghiệp vụ, và nhóm nào bị chặn thì xếp 
 
 - **Trạng thái:** **đã thi công** (2026-10-03, 10 worker đợt 1 + 2 worker đợt 2, nhánh `e2e/integrate`).
   Trạng thái từng nhóm, số đo thật và chỗ kế hoạch sai so với mã: `docs/notes/e2e/fragments/W01…W12.md`.
-  Lỗi: `docs/notes/e2e/bugs.md` (129 mục).
+  Lỗi: `docs/notes/e2e/bugs.md` (131 mục, gồm đợt 3 — W13).
 
   **Cổng tổng trên nhánh gộp `e2e/integrate` — đạt (2026-10-03):**
-  - `pnpm verify` **7/7 đạt**: vitest 362 tệp · 7 481 / 7 481 passed; độ phủ 85,66 % stmts (nền đầu lượt 84,42 %);
+  - `pnpm verify` **7/7 đạt**: vitest 7 488 / 7 488 passed; độ phủ 85,66 % stmts (nền đầu lượt 84,42 %);
     kích thước gói đạt sau khi lớp hướng dẫn của màn 3D chuyển sang nạp động (276,9 / 280 KiB; nhánh gốc 279,9).
-  - `pnpm e2e --workers=3` **hai lượt liền: 298 passed · 0 failed · 20 skipped** (4,4 ph mỗi lượt).
-    20 skipped = đúng 20 `test.fixme` trong `e2e/` — bài tái hiện của lỗi `mở` / `chờ quyết`.
+  - `pnpm e2e --workers=3` **hai lượt liền: 301 passed · 0 failed · 18 skipped** (4,4 và 5,2 ph; sau W13).
+    18 skipped = đúng 18 `test.fixme` trong `e2e/` — bài tái hiện của lỗi `mở` / `chờ quyết`.
   - Với 6 trình duyệt (mặc định) bộ 318 bài đẩy Chrome lên ~14,8 GB và lượt bị dừng vì cạn RAM ⇒ trên
     máy này chạy cả bộ với `--workers=3`.
 
