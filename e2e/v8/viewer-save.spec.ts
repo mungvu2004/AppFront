@@ -20,8 +20,13 @@ const SAVE_FLOW_TIMEOUT_MS = 90_000;
 
 /*
  * B-V8-60 — tự lưu từng chỉ gắn với panel thuộc tính, mà panel chỉ dựng khi có vùng chọn:
- * đổi tên phòng ở bảng diện tích lúc không chọn gì thì không có lượt lưu nào. Nay màn giữ
- * tự lưu suốt lượt ở `/3d`; chọn phòng sau đó thì chân panel nói giờ lưu của chính lượt ấy.
+ * đổi tên phòng ở bảng diện tích lúc không chọn gì rồi rời màn thì không có lượt lưu nào.
+ * Nay màn giữ tự lưu suốt lượt ở `/3d`, và chân panel nói nhãn của màn.
+ *
+ * Bài CANH đường nối nhãn màn → panel, KHÔNG phải bài tái hiện: nó xanh cả trên mã cũ (đo
+ * 2026-10-04), vì panel cũ khi gắn thấy lịch sử không rỗng nên tự hẹn lưu. Lỗ thật — rời
+ * màn mà không chọn gì — không đo được ở e2e: mock giữ lớp đã ghi trong closure của từng
+ * máy khách. Bài đơn vị `useViewer3DSave.test.ts` giữ phần ấy.
  */
 test('đổi tên phòng ở bảng diện tích lúc không chọn gì vẫn được tự lưu (B-V8-60)', async ({ page }) => {
   test.setTimeout(SAVE_FLOW_TIMEOUT_MS);

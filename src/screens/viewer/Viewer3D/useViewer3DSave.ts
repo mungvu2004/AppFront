@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 
 import { createAppApiClient } from '@/api/appClient';
+import type { ApiClient } from '@/api/client';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { useAutosave } from '@/hooks/useAutosave';
 import { createChangedFloorsSave, historyEndsOf } from '@/lib/autosave/spatialLayerSave';
@@ -14,14 +15,16 @@ import { useStore } from '@/store';
  * dựng một lần, sống suốt màn; nhãn trả về chuyền vào chân panel.
  *
  * Lỗi được ném nguyên (có `cause`), nên tự lưu dừng ở 409/422 và chỉ thử lại khi rớt mạng.
+ *
+ * @param apiClient Chỉ dành cho test — mặc định là `createAppApiClient()`.
  */
-export function useViewer3DSave(): string | null {
+export function useViewer3DSave(apiClient?: Pick<ApiClient, 'spatial'>): string | null {
   const saveChangedFloors = useMemo(
     () =>
-      createChangedFloorsSave(createAppApiClient().spatial, () =>
+      createChangedFloorsSave((apiClient ?? createAppApiClient()).spatial, () =>
         historyEndsOf(useStore.temporal.getState()),
       ),
-    [],
+    [apiClient],
   );
 
   const persist = useCallback(
