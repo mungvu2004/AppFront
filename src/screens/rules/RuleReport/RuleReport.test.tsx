@@ -40,7 +40,7 @@ import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
 import { RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -289,6 +289,7 @@ function toRow(violation: Violation, normalized: NormalizedSpatial): RuleReportR
     message: violation.message,
     suggestion: violation.suggestion,
     entityId: violation.entityId,
+    entityCode: displayCodeIn(normalized, violation.entityId),
     levelId: violation.levelId,
     levelLabel: levelLabelOf(violation.levelId, normalized),
     resolved: false,
@@ -505,7 +506,7 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
     const props = propsFor(scenarioOf('success'));
     const { container } = renderRuleReport(RuleReportView, props);
 
-    // Mã đối tượng (W-WALL0000000…) là mã kỹ thuật viết hoa, được
+    // Mã đối tượng (#W-001…) là mã kỹ thuật viết hoa, được
     // `expectVietnamese` chấp nhận (xem ui.md mục A về Table) — đó không phải
     // một từ tiếng Anh.
     //
@@ -835,6 +836,15 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     });
 
     const clickedMessage = messageButton.textContent ?? '';
+
+    // B-V7-31 — chip mã đối tượng là mã người đọc, cùng mã câu luật gọi, không phải
+    // mã máy `D-DOOR0000000`.
+    const chips = [...container.querySelectorAll('tbody code')].map((chip) => chip.textContent);
+
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip).toMatch(/^#[A-Z]-\d{3}$/u);
+    }
 
     expect(clickedMessage.length).toBeGreaterThan(0);
 

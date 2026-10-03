@@ -74,4 +74,8 @@ describe('màn sửa hình học tường với mã bộ mẫu A14', () => {
     expect(first).toBe(WALL_GEOMETRY_EDITOR_TEXT.band.editing('W-001'));
     expect(second).toBe(WALL_GEOMETRY_EDITOR_TEXT.band.editing('W-002'));
   });
+
+  it('kho chưa giữ tường: dải gọi nó bằng quy tắc số đếm như vỏ, không bằng mã máy (B-V8-05)', async () => {
+    expect(await bandLabelOf('W-0403FIXTURE0')).toBe(WALL_GEOMETRY_EDITOR_TEXT.band.editing('W-403FI'));
+  });
 });

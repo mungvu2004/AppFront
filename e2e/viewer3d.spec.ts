@@ -142,7 +142,11 @@ const ROOM_QUERY = 'phong ngu 4';
 /** Phòng phải tìm ra. Nó ở TẦNG 03 — không phải tầng dưới cùng (S-10). */
 const ROOM_NAME = 'Phòng ngủ 4';
 
-/** Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. */
+/**
+ * Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. Khớp hàng "mã đối tượng"
+ * (mã máy `R-011FIXTURE0`), KHÔNG khớp tiêu đề: từ B-V8-05 tiêu đề in nhãn người đọc
+ * (`displayLabelIn`), với bộ mẫu này ra `R-11FIX` — xấu nhưng cùng mã dải "Đang sửa".
+ */
 const ROOM_ID = 'R-011';
 
 /* -------------------------------------------------------------------------- */

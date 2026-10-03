@@ -116,3 +116,28 @@ test('có bơm kho: tấm chi tiết vi phạm mở từ một dòng, J sang vi 
   expect(pathOf(page.url())).toBe(RULES_URL);
   await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
 });
+
+test('có bơm kho: chip của hàng và tấm chi tiết gọi lỗ mở bằng mã người đọc như câu luật, không bằng mã máy (B-V7-31)', async ({
+  page,
+}) => {
+  await page.goto(RULES_URL);
+  await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await seedSpatial(page);
+
+  await page.getByRole('button', { name: /^lỗ mở nằm trọn/u }).click();
+  // Neo vào MỘT hàng rồi đọc chip của chính nó — mã `#D-001` lặp lại ở mỗi tầng (strict mode).
+  const row = page
+    .getByRole('row')
+    .filter({ has: page.getByRole('button', { name: /^Lỗ mở #D-\d{3}/u }) })
+    .first();
+  const message = row.getByRole('button', { name: /^Lỗ mở #D-\d{3}/u });
+  await expect(row.locator('code')).toHaveText(/^#D-\d{3}$/u);
+
+  await message.click();
+  const panel = page.getByRole('complementary', { name: 'chi tiết vi phạm' });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText(/^#D-\d{3}$/u).first()).toBeVisible();
+  await expect(panel.getByText(/^D-DOOR/u)).toHaveCount(0);
+});

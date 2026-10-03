@@ -103,7 +103,7 @@ function PanelContent({
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
-        key={content.header.objectCode}
+        key={content.header.entityId}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

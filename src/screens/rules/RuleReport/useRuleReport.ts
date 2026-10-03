@@ -60,7 +60,7 @@ import {
   type Violation,
 } from '@/domain/rules/registry';
 import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
@@ -104,6 +104,7 @@ const DEFAULT_FILTERS: RuleReportFilters = Object.freeze({
 });
 
 const EMPTY_VIOLATIONS: readonly Violation[] = Object.freeze([]);
+const EMPTY_CODES: ReadonlyMap<string, string> = new Map();
 const EMPTY_ROWS: readonly RuleReportRow[] = Object.freeze([]);
 const EMPTY_GROUPS: readonly RuleReportGroup[] = Object.freeze([]);
 const EMPTY_PASSED: readonly PassedRule[] = Object.freeze([]);
@@ -132,6 +133,11 @@ interface RuleReportRun {
   /** Mã những luật THẬT SỰ đã chạy lượt này, mỗi mã một lần. */
   readonly ranRuleCodes: readonly RuleCode[];
   readonly ranAtEpochMs: number;
+  /**
+   * Mã người đọc của mọi đối tượng có vi phạm, tính trên CÙNG ảnh chụp đồ thị mà
+   * câu luật đã dùng — chip và câu không bao giờ gọi một đối tượng hai cách (B-V7-31).
+   */
+  readonly codeByEntityId: ReadonlyMap<string, string>;
 }
 
 /**
@@ -148,6 +154,9 @@ const runReport = (graph: NormalizedSpatial, registry: RuleRegistry): RuleReport
     violations: result.violations,
     ranRuleCodes: evaluatedRuleCodes(result),
     ranAtEpochMs: Date.now(),
+    codeByEntityId: new Map(
+      result.violations.map((violation) => [violation.entityId, displayCodeIn(graph, violation.entityId)]),
+    ),
   };
 };
 
@@ -191,6 +200,7 @@ interface BuiltRows {
 const buildRows = (
   violations: readonly Violation[],
   levelNames: ReadonlyMap<LevelId, string>,
+  codes: ReadonlyMap<string, string>,
 ): BuiltRows => {
   const seen = new Map<string, number>();
   const rows: RuleReportRow[] = [];
@@ -208,6 +218,7 @@ const buildRows = (
       message: violation.message,
       suggestion: violation.suggestion,
       entityId: violation.entityId,
+      entityCode: codes.get(violation.entityId) ?? violation.entityId,
       levelId: violation.levelId,
       levelLabel: violation.levelId === null ? null : levelNames.get(violation.levelId) ?? null,
       resolved: false,
@@ -376,7 +387,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const run = query.data ?? null;
   const levelNames = useMemo(() => levelNamesOf(graph), [graph]);
   const built = useMemo(
-    () => buildRows(run?.violations ?? EMPTY_VIOLATIONS, levelNames),
+    () => buildRows(run?.violations ?? EMPTY_VIOLATIONS, levelNames, run?.codeByEntityId ?? EMPTY_CODES),
     [levelNames, run],
   );
 
