@@ -119,7 +119,7 @@ const BASE: WelcomeScreenProps = {
   finishLabel: null,
   onFinish: noop,
   isDissolving: false,
-  skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
+  skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
 };
 
 /* -------------------------------------------------------------------------- */

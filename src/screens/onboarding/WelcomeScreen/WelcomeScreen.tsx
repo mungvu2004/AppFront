@@ -7,6 +7,10 @@
  * một cột rộng 960, một tiêu đề, một đoạn hai câu, ba thẻ ngang cùng cỡ, rồi
  * ba liên kết chìm cho người muốn đi đường khác.
  *
+ * Hôm nay chỉ tới được bằng cách gõ URL; F-09a sẽ dẫn người vừa nhận lời mời
+ * (N10) tới đây qua `ROUTES.onboarding` — B-V1-42. Admin tạo bằng CLI không đi
+ * qua đây.
+ *
  * **Mục D / R-60 — view thuần.** Mọi thứ vẽ ra đến từ `WelcomeScreenProps`:
  * không store, không mạng, không `Date`, không một phép định dạng số nào.
  * `WelcomeScreenProps` KHÔNG còn là một khối khai lại: nó là chính
