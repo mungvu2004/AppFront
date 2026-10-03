@@ -8,7 +8,8 @@
  *   số nào khỏi URL, nên bất kỳ story hay bài kiểm nào cũng mở được nó bằng một
  *   dòng (R-73).
  * - {@link WelcomeRoute} là tên router mount. Màn này không có tham số đường dẫn
- *   — nó chào người đang đăng nhập — nên route chỉ giao lại.
+ *   — nó chào người đang đăng nhập — nên route chỉ làm một việc: ai đã xem màn
+ *   chào rồi thì chuyển về `/` (B-V1-04), còn lại giao cho container.
  *
  * ## `onCreateProject` nối vào đâu, và vì sao phải nối
  *
@@ -31,6 +32,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
@@ -39,10 +41,15 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
+import { ROUTES } from '@/routes/paths';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
 
 import { WelcomeScreen } from './WelcomeScreen';
-import { useWelcomeScreen, type UseWelcomeScreenOptions } from './useWelcomeScreen';
+import {
+  readWelcomeSeen,
+  useWelcomeScreen,
+  type UseWelcomeScreenOptions,
+} from './useWelcomeScreen';
 
 /** Tên màn này với ranh giới lỗi, và với bất cứ ai đọc báo cáo của nó. */
 const SCREEN_ID = 'onboarding-welcome';
@@ -116,10 +123,20 @@ export function WelcomeScreenContainer(props: WelcomeScreenContainerProps) {
 /**
  * Route thật của màn chào, đăng ký tại `src/routes/router.tsx`.
  *
- * Không tham số đường dẫn nào để đọc và không provider nào phải thêm — container
- * đã tự đủ — nên lớp này mỏng đúng một dòng. Nó vẫn tồn tại vì router mount tên
- * này, và vì ngày màn chào cần một provider chỉ route mới có thì chỗ thêm là đây.
+ * Ai đã xem màn chào (đi hết ba bước, hoặc bấm "Bỏ qua") thì mở lại
+ * `/onboarding` là về thẳng `/` — cờ "đã xem" giữ lời hứa "lần sau không hiện
+ * nữa" (B-V1-04). Không có đường xem lại màn chào là CỐ Ý: xem lại hướng dẫn
+ * thuộc S-40, không thuộc màn này. Câu `skipNotice` đang hứa một "menu trợ giúp"
+ * chưa tồn tại — lệch đó ghi riêng ở sổ lỗi (B-V1-41).
+ *
+ * Cờ chỉ đọc MỘT lần, lúc route gắn: chính màn này ghi cờ khi sang `success`,
+ * và đọc lại ở mỗi lần dựng sẽ đá người dùng khỏi màn ngay trước khi họ kịp bấm
+ * "Vào danh sách dự án".
  */
-export function WelcomeRoute() {
-  return <WelcomeScreenContainer />;
+export function WelcomeRoute(props: WelcomeScreenContainerProps) {
+  const session = useSession();
+  const [seen] = useState(() => readWelcomeSeen(session.user?.id ?? null));
+
+  if (seen) return <Navigate replace to={ROUTES.dashboard} />;
+  return <WelcomeScreenContainer {...props} />;
 }

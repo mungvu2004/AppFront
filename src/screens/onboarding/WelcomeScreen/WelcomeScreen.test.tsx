@@ -23,7 +23,7 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { QueryFunction } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionSnapshot } from '@/lib/auth/types';
@@ -41,7 +41,7 @@ import {
 import type { DashboardProject } from '../../dashboard/ProjectDashboard/projectsGateway';
 import { WelcomeScreen } from './WelcomeScreen';
 import type { OnboardingStepCard, WelcomeScreenProps } from './WelcomeScreen';
-import { WelcomeScreenContainer } from './WelcomeScreen.container';
+import { WelcomeRoute, WelcomeScreenContainer } from './WelcomeScreen.container';
 import {
   readWelcomeSeen,
   useWelcomeScreen,
@@ -558,6 +558,60 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
     });
 
     expect(readWelcomeSeen(USER_ID)).toBe(false);
+  });
+
+  /* -- B-V1-04: route đọc cờ. `/` giả chỉ là một tiêu đề để nhận ra đã tới. -- */
+
+  /** `tree()` dựng phần tử MỚI mỗi lần gọi — `rerender` với cùng một phần tử thì React bỏ qua. */
+  function mountRoute(fetchList: QueryFunction<readonly DashboardProject[]>) {
+    const tree = () => (
+      <MemoryRouter initialEntries={['/onboarding']}>
+        <Routes>
+          <Route path="/onboarding" element={<WelcomeRoute fetchList={fetchList} />} />
+          <Route path="/" element={<h1>Dự án của tôi</h1>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const view = renderWithProviders(tree());
+    return { view, tree };
+  }
+
+  it('đã xem màn chào rồi thì mở lại /onboarding là về danh sách dự án (B-V1-04)', async () => {
+    window.localStorage.setItem('appfront:onboarding-welcome-seen:u-minh', 'true');
+
+    mountRoute(listOf([]));
+
+    expect(await screen.findByRole('heading', { name: 'Dự án của tôi' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bỏ qua' })).not.toBeInTheDocument();
+  });
+
+  it('chưa xem thì /onboarding vẫn là màn chào', async () => {
+    mountRoute(listOf([]));
+
+    expect(await screen.findByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
+  });
+
+  it('cờ ghi giữa chừng không đá người dùng khỏi màn — route chỉ đọc cờ một lần', async () => {
+    const { view, tree } = mountRoute(
+      listOf([
+        sampleProject({
+          wallsTotalCount: SAMPLE_WALL_COUNT,
+          wallsReviewedCount: SAMPLE_WALL_COUNT,
+        }),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(readWelcomeSeen(USER_ID)).toBe(true);
+    });
+
+    // `useSession` là mock tĩnh, nên không gì tự dựng lại route — phải ép một
+    // lần dựng lại thì bài này mới bắt được bản đọc cờ ở mỗi lần dựng.
+    view.rerender(tree());
+
+    expect(screen.getByRole('button', { name: 'Vào danh sách dự án' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
   });
 });
 

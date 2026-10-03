@@ -7,7 +7,7 @@ import { ROUTES, pathOf } from '../fixtures/routes';
  * Màn chào (V1-ONBOARDING) — màn đầu tiên người dùng mới thấy. Đỏ ở đây thì họ kẹt
  * ở màn chào hoặc không biết bắt đầu từ đâu.
  *
- * Đơn vị (`WelcomeScreen.test.tsx`, 22 bài) đã phủ bảy trạng thái, chữ, logic từng
+ * Đơn vị (`WelcomeScreen.test.tsx`, 25 bài) đã phủ bảy trạng thái, chữ, logic từng
  * bước và việc ghi cờ đã-xem. Ở đây chỉ có thứ cần router thật.
  */
 
@@ -62,22 +62,17 @@ test('"Xem hướng dẫn 2 phút" đang tắt: Enter trên nó không đi đâu
 });
 
 /*
- * B-V1-04 — chờ quyết. Màn ghi cờ đã-xem (`appfront:onboarding-welcome-seen:<userId>`)
- * nhưng không ai đọc nó và không route nào dẫn người dùng mới tới đây, nên "đã xem"
- * không đổi được gì: mở lại `/onboarding` vẫn là màn chào.
+ * B-V1-04 — đã sửa. Màn ghi cờ đã-xem (`appfront:onboarding-welcome-seen:<userId>`);
+ * `WelcomeRoute` đọc nó một lần lúc gắn, và ai đã xem thì về thẳng `/`.
  */
-test.fixme(
-  'đã "Bỏ qua" rồi thì mở lại /onboarding không thấy lại màn chào',
-  // Lý do: hành vi đúng (chuyển về `/`? hiện màn chào rút gọn?) chưa ai chốt — B-V1-04.
-  // Mở lại khi: người duyệt chốt hành vi và sản phẩm đọc cờ `readWelcomeSeen`.
-  async ({ page }) => {
-    await page.goto(ROUTES.onboarding);
-    await skipButton(page).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+test('đã "Bỏ qua" rồi thì mở lại /onboarding không thấy lại màn chào', async ({ page }) => {
+  await page.goto(ROUTES.onboarding);
+  await skipButton(page).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
-    await page.goto(ROUTES.onboarding);
+  await page.goto(ROUTES.onboarding);
 
-    await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    await expect(skipButton(page)).toHaveCount(0);
-  },
-);
+  await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect(skipButton(page)).toHaveCount(0);
+  expect(pathOf(page.url())).toBe(ROUTES.dashboard);
+});
