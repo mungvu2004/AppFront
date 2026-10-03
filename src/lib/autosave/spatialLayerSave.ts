@@ -167,3 +167,53 @@ export function createFloorLayerSave(
     revisions.set(floorId, result.data.revision);
   };
 }
+
+/** Một ô lịch sử zundo của kho — chỉ phần `spatial` được theo dõi (`store/index.ts`). */
+interface SpatialHistoryEntry {
+  readonly spatial?: NormalizedSpatial | null | undefined;
+}
+
+/**
+ * Hai đầu lịch sử hoàn tác: ô cũ nhất của `pastStates` và ô gần nhất của `futureStates`.
+ * Lấy hợp cả hai để hoàn tác về giữa lịch sử không sót tầng. Nhận trạng thái zundo làm
+ * tham số vì `src/lib` không đọc store.
+ */
+export const historyEndsOf = (temporal: {
+  readonly pastStates: readonly SpatialHistoryEntry[];
+  readonly futureStates: readonly SpatialHistoryEntry[];
+}): NormalizedSpatial[] =>
+  [temporal.pastStates[0]?.spatial, temporal.futureStates[0]?.spatial].filter(
+    (spatial): spatial is NormalizedSpatial => spatial !== null && spatial !== undefined,
+  );
+
+/**
+ * Lưu mọi tầng có thứ bị đổi, mỗi tầng một PUT (B-V8-41); trả danh sách tầng đã gửi.
+ * Ném lỗi của `createFloorLayerSave` nguyên vẹn (có `cause`), để tự lưu phân biệt
+ * 409/422 với rớt mạng.
+ *
+ * Mốc so là đồ thị của lượt lưu xong gần nhất; chưa có mốc (hay kho đã nạp đồ thị khác)
+ * thì so với `historyEnds()`. Dựng một lần cho cả màn (B-V8-60) để mốc sống qua lúc panel
+ * tháo: hoàn tác qua ngăn lệnh ghi lại đúng tham chiếu cũ (`invert.ts`), nên so với hai
+ * đầu lịch sử sẽ không thấy tầng vừa lưu bị đổi lại.
+ * ponytail: lượt đầu vẫn chỉ thấy hai đầu lịch sử — sót tầng nếu lịch sử vượt `limit: 100`.
+ */
+export function createChangedFloorsSave(
+  spatialApi: Pick<SpatialApi, 'readLayer' | 'writeLayer'>,
+  historyEnds: () => readonly NormalizedSpatial[],
+): (current: NormalizedSpatial, projectId: string) => Promise<readonly LevelId[]> {
+  const saveFloor = createFloorLayerSave(spatialApi);
+  let lastSaved: NormalizedSpatial | null = null;
+
+  return async (current, projectId) => {
+    const baselines = lastSaved?.building === current.building ? [lastSaved] : historyEnds();
+    const floorIds = [...new Set(baselines.flatMap((baseline) => changedLevelIds(baseline, current)))];
+
+    for (const floorId of floorIds) {
+      await saveFloor({ floorId, graph: current, projectId });
+    }
+
+    lastSaved = current;
+
+    return floorIds;
+  };
+}

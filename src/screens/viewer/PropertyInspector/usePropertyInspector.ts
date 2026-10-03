@@ -1107,9 +1107,13 @@ export function usePropertyInspector(
    * thể bắt được một thay đổi mới hơn và làm lượt lưu này báo xong cho một thứ
    * chưa ai hẹn giờ.
    */
+  const hostSaves = options.saveLabel !== undefined;
+
   const persist = useCallback(
     async (current: NormalizedSpatial | null): Promise<void> => {
-      if (current === null) {
+      /* Màn chủ tự lưu (`/3d`, B-V8-60) thì panel không gửi lượt thứ hai.
+       * ponytail: engine của panel vẫn gắn và "lưu" rỗng; tách hook nếu nó phiền. */
+      if (current === null || hostSaves) {
         return;
       }
 
@@ -1119,10 +1123,11 @@ export function usePropertyInspector(
         throw new Error(result.reason);
       }
     },
-    [gateway],
+    [gateway, hostSaves],
   );
 
-  const saveLabel = useAutosave(persist);
+  const ownSaveLabel = useAutosave(persist);
+  const saveLabel = hostSaves ? (options.saveLabel ?? null) : ownSaveLabel;
 
   /* ---------------------------------------------------------------------- */
   /* Ghi — build lệnh, dispatch, rồi nhớ dòng vừa ghi.                       */

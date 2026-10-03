@@ -114,7 +114,7 @@ function renderFromProps(state: SevenState) {
 
 /** Panel ĐÃ NỐI DÂY: hook thật, store thật, ngăn xếp hoàn tác thật. */
 function WiredInspector(
-  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds'> & {
+  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds' | 'saveLabel'> & {
     readonly canEdit?: boolean;
     readonly gateway?: PropertyInspectorGateway | undefined;
   },
@@ -127,6 +127,7 @@ function WiredInspector(
       onOpenRuleScreen: noop,
       selectedEntityId: props.selectedEntityId,
       selectedEntityIds: props.selectedEntityIds,
+      ...(props.saveLabel !== undefined ? { saveLabel: props.saveLabel } : {}),
     },
     props.gateway,
   );
@@ -1308,6 +1309,37 @@ describe('[N9] tự lưu', () => {
     expect(spied.layerFloors.slice(writesBefore)).toEqual([sampleLevelId(2)]);
     expect(lastLayer?.walls.length ?? 0).toBeGreaterThan(0);
     expect(savedLabel).toMatch(/^Đã lưu lúc \d{2}:\d{2}$/);
+  });
+
+  it('màn chủ tự lưu (B-V8-60): chân panel nói nhãn của màn, panel không gửi lượt thứ hai', async () => {
+    const spied = createSpiedGateway();
+    const hostLabel = 'Đã lưu lúc 09:41';
+    const view = render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <WiredInspector
+          gateway={spied.gateway}
+          saveLabel={hostLabel}
+          selectedEntityId={WALL_ID}
+          selectedEntityIds={[WALL_ID]}
+        />
+      </QueryClientProvider>,
+    );
+
+    await view.findByText(new RegExp(hostLabel));
+    clock = installFakeClock();
+
+    await act(async () => {
+      fireEvent.click(view.getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }));
+      await clock.flushMicrotasks();
+    });
+
+    await act(async () => {
+      await clock.runAllTimers();
+      await clock.flushMicrotasks();
+    });
+
+    expect(spied.layerWrites).toHaveLength(0);
+    expect(view.getByText(new RegExp(hostLabel))).toBeInTheDocument();
   });
 
   it('nút "khuôn" ở đầu panel gửi một khuôn mẫu thật, và panel nói ra kết quả', async () => {

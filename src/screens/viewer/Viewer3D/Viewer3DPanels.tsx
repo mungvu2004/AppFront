@@ -128,6 +128,8 @@ export interface Viewer3DPanelsProps {
   readonly selectedEntityId: string | null;
   /** Cả danh sách đang chọn — panel thuộc tính cần nó để nói "đang chọn 3 tường". */
   readonly selectedEntityIds: readonly string[];
+  /** Nhãn tự lưu của cả màn (B-V8-60) — chân panel thuộc tính nói nó. */
+  readonly saveLabel: string | null;
   /** Bảng phụ đang mở, hoặc `null`. */
   readonly openPanelId: Viewer3DPanelId | null;
   /** Bấm một nút bật: cùng mã đang mở thì đóng, khác thì đổi sang. */
@@ -233,6 +235,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
               onDismiss={props.onDismissInspector}
               onNavigateToObject={props.onNavigateToObject}
               onOpenRuleScreen={props.onOpenRuleScreen}
+              saveLabel={props.saveLabel}
               selectedEntityId={props.selectedEntityId}
               selectedEntityIds={props.selectedEntityIds}
             />

@@ -159,6 +159,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { Viewer3DPanels, type Viewer3DPanelId, type Viewer3DSiblingScreenId } from './Viewer3DPanels';
 import { Viewer3DSceneSlot } from './Viewer3DSceneSlot';
+import { useViewer3DSave } from './useViewer3DSave';
 import { useViewer3DSource } from './useViewer3DSource';
 import type { MountViewerScene, Viewer3DTelemetry } from './viewer3dTypes';
 
@@ -220,6 +221,8 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   const [openPanelId, setOpenPanelId] = useState<Viewer3DPanelId | null>(null);
   const [isWallEditing, setIsWallEditing] = useState(false);
 
+  /* Tự lưu sống suốt màn, không chỉ lúc panel thuộc tính đang dựng (B-V8-60). */
+  const saveLabel = useViewer3DSave();
   /* Nhà mẫu chỉ còn ở chế độ mock (xem `useViewer3DSource`). */
   const { spatial: resolvedSpatial, gateway: resolvedGateway } = useViewer3DSource(
     props,
@@ -326,6 +329,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
       onToggleWallEditing={onToggleWallEditing}
       openPanelId={openPanelId}
       projectId={props.projectId}
+      saveLabel={saveLabel}
       selectedEntityId={selectedIds[0] ?? null}
       selectedEntityIds={selectedIds}
     />

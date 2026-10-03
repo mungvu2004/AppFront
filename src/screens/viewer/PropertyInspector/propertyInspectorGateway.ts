@@ -72,7 +72,7 @@ import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
-import { changedLevelIds, createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
+import { createChangedFloorsSave, historyEndsOf } from '@/lib/autosave/spatialLayerSave';
 import type {
   Furniture,
   LevelId,
@@ -730,15 +730,6 @@ function storeSaveTarget(): PropertyInspectorSaveTarget | null {
   return projectId === undefined || projectId === '' ? null : { projectId };
 }
 
-/** Hai đầu lịch sử zundo của kho — lấy hợp cả hai để hoàn tác về giữa lịch sử không sót tầng. */
-function storeHistoryEnds(): readonly NormalizedSpatial[] {
-  const { futureStates, pastStates } = useStore.temporal.getState();
-
-  return [pastStates[0]?.spatial, futureStates[0]?.spatial].filter(
-    (spatial): spatial is NormalizedSpatial => spatial !== null && spatial !== undefined,
-  );
-}
-
 /** Cổng thật — đọc store, ghi qua `dispatch`, lưu qua `src/api`. */
 export function createPropertyInspectorGateway(
   options: CreatePropertyInspectorGatewayOptions,
@@ -746,16 +737,12 @@ export function createPropertyInspectorGateway(
   const graph = options.graph ?? { read: (): NormalizedSpatial | null => null };
   const apiClient = options.apiClient ?? createAppApiClient();
   const saveTarget = options.target ?? storeSaveTarget;
-  const historyEnds = options.historyEnds ?? storeHistoryEnds;
-  /** `revision` theo tầng làm `baseVersion` (B-G-07) — giữ trong `createFloorLayerSave`. */
-  const saveFloor = createFloorLayerSave(apiClient.spatial);
-  /**
-   * Đồ thị của lượt lưu xong gần nhất — mốc so của lượt sau.
-   * ponytail: khi chưa có mốc, so với hai đầu lịch sử zundo; sót tầng nếu lịch sử
-   * vượt `limit: 100` (`store/index.ts`) hoặc hoàn tác qua ngăn lệnh lúc panel đã tháo.
-   * B-V8-60 bịt cả hai bằng cách giữ cổng (và mốc này) suốt màn `/3d`.
-   */
-  let lastSaved: NormalizedSpatial | null = null;
+  /* Mốc so và `revision` theo tầng sống trong cổng — tức trong panel. Trên `/3d` màn tự
+   * lưu bằng một bộ dựng một lần cho cả màn (`useViewer3DSave`, B-V8-60). */
+  const saveChangedFloors = createChangedFloorsSave(
+    apiClient.spatial,
+    options.historyEnds ?? (() => historyEndsOf(useStore.temporal.getState())),
+  );
 
   return {
     supports: {
@@ -774,22 +761,13 @@ export function createPropertyInspectorGateway(
         return { ok: false, reason: NO_SAVE_TARGET_REASON };
       }
 
-      const baselines = lastSaved?.building === current.building ? [lastSaved] : historyEnds();
-      const floorIds = [...new Set(baselines.flatMap((baseline) => changedLevelIds(baseline, current)))];
-
       try {
-        for (const floorId of floorIds) {
-          await saveFloor({ floorId, graph: current, projectId: target.projectId });
-        }
+        return { data: await saveChangedFloors(current, target.projectId), ok: true };
       } catch (error) {
         const kind = (error as { cause?: { kind?: string } }).cause?.kind;
 
         return { ok: false, reason: persistFailedReason(kind ?? 'unknown') };
       }
-
-      lastSaved = current;
-
-      return { data: floorIds, ok: true };
     },
     copyAsTemplate: async (entity) => {
       const target = saveTarget();
