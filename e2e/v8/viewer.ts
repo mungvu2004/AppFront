@@ -10,7 +10,6 @@ import type { Page } from '@playwright/test';
 
 import { ROUTE_PATTERNS } from '../fixtures/routes';
 import { signInAs, type Role } from '../fixtures/session';
-import { dismissTourIfShown } from '../fixtures/tour';
 
 /** Dự án nào cũng được: vỏ đọc bộ mẫu, không đọc mã dự án. */
 export const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', 'P-01');
@@ -56,9 +55,9 @@ export async function openViewer(page: Page, role?: Role): Promise<void> {
     await signInAs(page, role, VIEWER_PATH);
   }
   await waitForViewerReady(page);
-  /* Hôm nay tour chỉ hiện khi một neo của nó xuất hiện (sau cú bấm đầu); bản sửa
-     của W02 cho nó hiện ngay lúc tải. Đóng nó nếu nó ĐÃ có mặt — không chờ. */
-  await dismissTourIfShown(page);
+  /* /3d: lớp hướng dẫn nạp ĐỘNG (`ViewerShell.container.tsx`, lazy) nên có thể hiện SAU khi
+     cảnh dựng xong — đếm một lần không chờ là bấm trúng nền tối của nó. Chờ nút bỏ qua. */
+  await dismissTourIfPresent(page);
 }
 
 /**

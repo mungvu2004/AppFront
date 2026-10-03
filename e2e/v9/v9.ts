@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
-import { dismissTourIfShown } from '../fixtures/tour';
+import { dismissTourIfPresent } from '../v8/viewer';
 
 export const PROJECT_ID = 'project-1';
 
@@ -49,7 +49,9 @@ export async function openViewerSettled(page: Page): Promise<void> {
   await expect(page.getByText('Mô hình 3D đã dựng xong.', { exact: true })).toBeAttached({
     timeout: VIEWER_READY_TIMEOUT_MS,
   });
-  await dismissTourIfShown(page);
+  /* /3d: lớp hướng dẫn nạp ĐỘNG (`ViewerShell.container.tsx`, lazy) nên có thể hiện SAU khi
+     cảnh dựng xong — đếm một lần không chờ là bấm trúng nền tối của nó. Chờ nút bỏ qua. */
+  await dismissTourIfPresent(page);
 }
 
 /** Thanh trạng thái của nhà mẫu vỏ (`VIEWER_FIXTURE_SPATIAL`) — cùng bộ `/3d` hiện. */

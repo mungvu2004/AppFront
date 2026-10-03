@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
-import { dismissTourIfShown } from '../fixtures/tour';
+import { dismissTourIfPresent } from '../v8/viewer';
 
 /**
  * B-V6-08 (`questions.md` "Việc sản phẩm" #4, Q10e = A) — mọi phím mà ray công cụ
@@ -28,8 +28,9 @@ test('mỗi phím đơn mà ray công cụ 3D ghi trong nhãn đều chọn đú
 
   const rail = page.getByRole('toolbar', { name: 'Công cụ khung nhìn' });
   await expect(rail.getByRole('button').first()).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-  /* Tour hướng dẫn phủ `/3d` (W02): một phím bấm vào thẻ tour không tới sổ phím. */
-  await dismissTourIfShown(page);
+  /* Tour hướng dẫn phủ `/3d` (W02) và nạp động nên có thể hiện muộn: CHỜ nó rồi bỏ qua —
+     một phím bấm vào thẻ tour không tới sổ phím. */
+  await dismissTourIfPresent(page);
 
   const labels = await rail.getByRole('button').evaluateAll((buttons) =>
     buttons.map((button) => button.getAttribute('aria-label') ?? ''),
