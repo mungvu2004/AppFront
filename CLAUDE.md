@@ -99,7 +99,7 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
 | A2 | Màu nhấn dành cho thứ tương tác được, và chỉ nhờ nó là thứ tương tác được | `lib/three/interaction/gizmo.ts:440` |
 | A4 | Đúng **ba** màu trạng thái. Màu thứ tư là thứ A4 tồn tại để chặn | `gizmo.ts:439`, `lib/viewmodel/types.ts:60` |
 | A5 | Xanh "đã xác minh" **chỉ** đánh dấu việc người duyệt. Đầu ra của AI không bao giờ được đặt nó | `viewmodel/types.ts:18`, `toViewModel.ts:30,208` |
-| A6 | Nhãn giao diện tiếng Việt, **viết thường, kiểu câu**. Ngoại lệ chữ hoa: mã trục, mã lỗi, tên phím, viết tắt (AI, OCR, SSO, PDF, CAD, 2D/3D) và tên riêng (AppFront). Câu (không phải nhãn) viết hoa chữ đầu; tên vai là danh từ chung ("vai người xem") | `toolMachine.ts:120,326`, `shortcuts.ts:106`, `gizmo.ts:81` |
+| A6 | Nhãn giao diện tiếng Việt, **kiểu câu, viết hoa chữ đầu** ("Đăng nhập", "Tạo dự án", "Ẩn lớp tường") — chỉ chữ đầu, phần còn lại viết thường. Câu cũng viết hoa chữ đầu. Giữ hoa: mã trục, mã lỗi, tên phím, viết tắt (AI, OCR, SSO, PDF, CAD, 2D/3D), tên riêng (AppFront). Tên vai là danh từ chung, viết thường khi đứng giữa câu ("vai người xem"). Người dùng chốt 2026-10-04, thay quy ước "viết thường" cũ | `toolMachine.ts:120,326`, `shortcuts.ts:106`, `gizmo.ts:81` |
 | A7 | **Không có nút lưu.** Hệ thống tự lưu 800 ms sau thao tác cuối, và nói ra trạng thái đó cho trình đọc màn hình | `hooks/useAutosave.ts:6`, `useSaveIndicator.ts:86` |
 | A8 | Mọi thay đổi hoàn tác được, kèm toast hoàn tác | `useShareLinks.ts:225,415`, `lib/telemetry/events.ts:214` |
 | A9 | Hành động mà A8 **không** hoàn tác được thì phải hỏi trước bằng hộp thoại | `screens/dashboard/ProjectDashboard/ProjectDashboard.tsx:342-344` ("Xoá dự án?"), `screens/export/ShareDialog/ShareDialog.tsx:96` (thu hồi liên kết) |
