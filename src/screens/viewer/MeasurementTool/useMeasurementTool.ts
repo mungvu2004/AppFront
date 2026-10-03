@@ -207,6 +207,7 @@ const MEASUREMENT_ERROR_TEXT: Readonly<Record<string, string>> = {
 const PIN_FAILED_TEXT = 'chưa ghim được phép đo, hãy thử lại';
 const DELETE_FAILED_TEXT = 'chưa xoá được phép đo, hãy thử lại';
 const DELETE_GONE_TEXT = 'phép đo này đã bị xoá ở nơi khác';
+const DELETE_FORBIDDEN_TEXT = 'bạn không có quyền xoá phép đo trong dự án này';
 const UNDO_FAILED_TEXT = 'chưa hoàn tác được việc xoá phép đo';
 
 const PIN_ERROR_NOTIFICATION_TYPE = 'measurementTool.pinFailed';
@@ -752,6 +753,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     clearDraft();
   }, [shell, isMeasuring, clearDraft]);
 
+  /** Cờ của MỌI thao tác ghi (ghim, xoá — B-V9-41), không riêng ghim. */
   const canPin = shell.state !== 'forbidden';
 
   /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
@@ -775,6 +777,10 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   const onDelete = useCallback(
     (id: PinnedMeasurementId): void => {
+      if (!canPin) {
+        return;
+      }
+
       setHighlightedId((current) => (current === id ? null : current));
       gateway.deleteMeasurement(projectId, id).catch((error: unknown) => {
         const { code, resource } = measurementErrorCodeOf(error);
@@ -782,7 +788,11 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
         notifications.publish({
           type: DELETE_ERROR_NOTIFICATION_TYPE,
-          title: gone ? DELETE_GONE_TEXT : DELETE_FAILED_TEXT,
+          title: gone
+            ? DELETE_GONE_TEXT
+            : code === 'FORBIDDEN'
+              ? DELETE_FORBIDDEN_TEXT
+              : DELETE_FAILED_TEXT,
           description: '',
         });
 
@@ -791,7 +801,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         }
       });
     },
-    [gateway, projectId, notifications, queryClient],
+    [canPin, gateway, projectId, notifications, queryClient],
   );
 
   const onToggleVisibility = useCallback((id: PinnedMeasurementId): void => {
@@ -856,7 +866,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   useShortcut(
     { id: PIN_ID, combo: PIN_COMBO, scope: 'canvas', description: PIN_DESCRIPTION, onTrigger: onPin },
-    registryOption,
+    { ...registryOption, enabled: canPin },
   );
 
   useShortcut(
@@ -871,7 +881,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         }
       },
     },
-    registryOption,
+    { ...registryOption, enabled: canPin },
   );
 
   /* ---- Bảy trạng thái (A11, R-63) ---------------------------------------- */

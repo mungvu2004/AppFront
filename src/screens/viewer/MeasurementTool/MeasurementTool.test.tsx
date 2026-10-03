@@ -594,6 +594,18 @@ describe('MeasurementTool — trạng thái không có quyền vẫn đo đượ
 
     expect(onPin).not.toHaveBeenCalled();
   });
+
+  // Danh sách đi vào panel phải qua `inspectorSections` của hook, không qua
+  // view — nên dựng thẳng `MeasurementList` bằng props của kịch bản (B-V9-41).
+  it('danh sách phép đo ở forbidden: không nút "Xoá" nào, vẫn đủ nút "Ẩn/Hiện"', () => {
+    const props = measurementToolScenarioFor('forbidden');
+
+    renderWithProviders(<MeasurementList {...props} />);
+
+    expect(props.measurements.length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('button', { name: /^Xoá /u })).toHaveLength(0);
+    expect(screen.getAllByRole('button', { name: /^(Ẩn|Hiện) /u })).toHaveLength(props.measurements.length);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

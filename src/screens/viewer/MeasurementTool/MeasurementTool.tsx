@@ -23,7 +23,7 @@
  * | `partial` | Câu nhắc chuỗi đo chưa đóng; hàng hết neo mang chấm cần chú ý |
  * | `error` | `errorMessage` + nút gọi `onRetry` |
  * | `ready` | Lớp phủ vẽ các phép đo đã ghim |
- * | `forbidden` | **Vẫn đo được**; chỉ chặn ghim, và nói ra `pinBlockedCaption` |
+ * | `forbidden` | **Vẫn đo được**; chỉ chặn ghim và xoá, và nói ra `pinBlockedCaption` |
  * | `collapsed` | Danh sách thành chip đếm trong cụm trôi |
  *
  * Không trạng thái nào tháo viên thuốc chế độ hay chip bắt điểm đi. Chip đặc
@@ -33,7 +33,7 @@
  * ## `forbidden` không phải là một màn chặn
  *
  * Đây là chỗ dễ đọc sai nhất của bảng trên. Người xem không ghim được, nhưng
- * vẫn kéo được thước ra đọc số — nên `canPin` chỉ tắt đường ghim và thêm một
+ * vẫn kéo được thước ra đọc số — nên `canPin` chỉ chặn ghim và xoá, thêm một
  * câu giải thích, chứ không tắt viên thuốc, không tắt lớp phủ, và không thay
  * khung nhìn bằng một tấm bảng "không có quyền".
  *
