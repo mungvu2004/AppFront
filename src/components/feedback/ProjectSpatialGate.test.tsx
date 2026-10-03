@@ -1,7 +1,8 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { MOCK_MISSING_PROJECT_ID, createMockApiClient } from '@/api/__mocks__/client';
 import { SAMPLE_BUILDING } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { WallId } from '@/domain/spatial/types';
@@ -164,5 +165,54 @@ describe('ProjectSpatialGate', () => {
     rendered.unmount();
 
     expect(useStore.getState().spatialLoading).toBe(false);
+  });
+
+  /* B-V1-43 — 404 của dự án: một lối ra, không treo ở khung "tải lại" không có nút. */
+  it('404 của dự án: khung `alert` cố định, màn con vắng, chỉ nút "về danh sách dự án", bấm thì về "/"', async () => {
+    const api = createMockApiClient();
+    const rendered = renderWithProviders(
+      <MemoryRouter initialEntries={['/p']}>
+        <Routes>
+          <Route path="/" element={<h1>danh sách dự án</h1>} />
+          <Route
+            path="/p"
+            element={
+              <ProjectSpatialGate api={api} projectId={MOCK_MISSING_PROJECT_ID}>
+                <p>{CHILD}</p>
+              </ProjectSpatialGate>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(screen.getByText('không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+    expect(alert.textContent).not.toMatch(/quyền/iu);
+
+    const focusable = alert.querySelectorAll('button, a[href], input, select, textarea, [tabindex]');
+    const button = screen.getByRole('button', { name: 'về danh sách dự án' });
+    expect(focusable).toHaveLength(1);
+    expect(focusable[0]).toBe(button);
+    expectVietnamese(rendered);
+
+    fireEvent.click(button);
+
+    expect(await screen.findByRole('heading', { name: 'danh sách dự án' })).toBeInTheDocument();
+  });
+
+  it('404 của một tầng (`resource: floor`) không mượn câu "không tìm thấy dự án này"', async () => {
+    const { api, read } = apiWithSpy();
+    read.mockResolvedValue({
+      error: { kind: 'http', raw: { resource: 'floor' }, requestId: 'req-floor', retryable: false, status: 404 },
+      ok: false,
+    });
+
+    renderGate(api, 'project-1');
+
+    await screen.findByRole('alert');
+    expect(screen.queryByText('không tìm thấy dự án này')).not.toBeInTheDocument();
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
   });
 });

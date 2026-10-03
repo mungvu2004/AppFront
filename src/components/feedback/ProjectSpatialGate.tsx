@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import type { ApiClient } from '@/api/client';
 import { useProjectSpatial } from '@/hooks/useProjectSpatial';
+import { ROUTES } from '@/routes/paths';
 
 import { EmptyState } from './EmptyState';
 
@@ -21,8 +23,33 @@ export interface ProjectSpatialGateProps {
   readonly api?: Pick<ApiClient, 'projects' | 'spatial'>;
 }
 
+/**
+ * 404 của dự án — B-V1-43. Một câu cố định cho mọi 404 (K08: không tiết lộ là
+ * "không có" hay "không có quyền") và một lối ra. Nhãn nút cố ý trùng
+ * `useNotFound.ts` (`dashboardLabel`). `useNavigate` chỉ sống ở đây để cổng vẫn
+ * dựng được không cần router khi không có 404.
+ */
+function ProjectNotFound() {
+  const navigate = useNavigate();
+
+  return (
+    <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
+      <EmptyState
+        icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+        title="không tìm thấy dự án này"
+        description="dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án."
+        action={{ label: 'về danh sách dự án', onClick: () => navigate(ROUTES.dashboard) }}
+      />
+    </div>
+  );
+}
+
 export function ProjectSpatialGate({ api, children, projectId }: ProjectSpatialGateProps) {
   const { report, retry, status } = useProjectSpatial({ api, projectId });
+
+  if (status === 'notFound') {
+    return <ProjectNotFound />;
+  }
 
   if (status !== 'error' || report === null) {
     return <>{children}</>;

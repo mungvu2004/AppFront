@@ -49,3 +49,24 @@ test('chuyển sang màn chưa tải: vỏ chờ tiếng Việt, không có "Loa
   await expect(page.getByRole('status', { name: PENDING_LABEL, exact: true })).toHaveCount(0);
   expect(pathOf(page.url())).toBe(ROUTES.dashboard);
 });
+
+/*
+ * B-V1-43 — dự án không có (hoặc người dùng không phải thành viên) trên route bọc
+ * `ProjectSpatialGate`: từng kẹt ở khung "không tìm thấy" không nút, không lối ra.
+ * `project-missing` là id mà bộ mẫu API trả 404 `resource: 'project'`.
+ */
+test('B-V1-43: mở dự án không có ở /3d thì có câu và nút về danh sách dự án', async ({ page }) => {
+  await page.goto(ROUTES.project.viewer('project-missing'));
+
+  await expect(page.getByRole('heading', { name: 'không tìm thấy dự án này', exact: true })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình', exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'về danh sách dự án', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  expect(pathOf(page.url())).toBe(ROUTES.dashboard);
+});
