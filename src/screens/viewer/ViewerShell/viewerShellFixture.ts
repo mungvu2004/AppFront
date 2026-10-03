@@ -8,13 +8,12 @@
  * viewmodel đã tính sẵn. Story, bài kiểm và cổng giả cắm chung bộ này, nên
  * không có bảng số thứ hai để trôi khỏi bảng số thứ nhất (R-70).
  *
- * ## Vì sao 248,60 m², và quan hệ với A14
+ * ## Quan hệ với bộ mẫu chuẩn A14 — bộ RIÊNG của màn, có chủ ý
  *
- * A14 chốt bộ mẫu chuẩn của repo là "34 phòng và sảnh 248,60 m²" — con số diện
- * tích ấy là thứ mọi bài kiểm diện tích trong repo đối chiếu. Đặc tả vỏ 3D lại
- * in "4 tầng · 14 phòng · 248,60 m²": cùng **diện tích**, khác số phòng, vì vỏ
- * đếm phòng của một toà bốn tầng chứ không phải của một mặt bằng. Bộ mẫu này
- * giữ nguyên con số A14 bảo vệ (248,60 m²) và chia nó cho 14 phòng trên 4 tầng.
+ * Đây KHÔNG phải bộ mẫu chuẩn A14 (`createSampleBuilding()`), và A14 không cấm một
+ * màn có bộ mẫu riêng (khuôn B-V7-14, B-V10-06). Hai bộ trùng ba số — 4 tầng ·
+ * 14 phòng · 248,60 m² — và khác năm loại: tường 16/48, ô mở 0/16, đồ đạc 0/21,
+ * trục 0/4, kích thước 0/34. Đừng chép số của bộ này làm số A14.
  *
  * Diện tích ghi trong `Room.areaM2` là số đã chốt của bộ mẫu; `outline` của mỗi
  * phòng là hình chữ nhật dựng ra ĐÚNG diện tích đó, nên `selectRoomsWithArea`
@@ -94,7 +93,7 @@ export const FIXTURE_STOREY_COUNT = 4;
 /** Số phòng của bộ mẫu. */
 export const FIXTURE_ROOM_COUNT = 14;
 
-/** Tổng diện tích, mét vuông — con số A14 bảo vệ. */
+/** Tổng diện tích, mét vuông — trùng `SAMPLE_TOTAL_AREA_M2` của A14, nhưng là số của bộ này. */
 export const FIXTURE_TOTAL_AREA_M2 = 248.6;
 
 /** Chiều cao mỗi tầng, milimét. Bốn tầng đều nhau. */

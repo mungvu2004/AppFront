@@ -53,7 +53,7 @@ test('chưa bơm kho: bảng diện tích không kẹt "đang tính" — cổng 
  * mẫu chỉ vào vỏ + cảnh, không vào kho (`shouldUseViewerFixture`, B-V8-10).
  * Mở lại khi: kho được nạp (không bơm) có ít nhất một phòng — mock N16 trả hình cho dự án.
  */
-test.fixme('chưa bơm kho: bảng diện tích vẫn ra tổng diện tích sàn (B-V8-04)', async ({ page }) => {
+test.fixme('chưa bơm kho: bảng diện tích vẫn ra tổng diện tích sàn (B-V8-04 · chờ kho nạp có phòng)', async ({ page }) => {
   await openViewer(page);
   await openPanel(page, 'Diện tích phòng');
 
@@ -64,7 +64,7 @@ test.fixme('chưa bơm kho: bảng diện tích vẫn ra tổng diện tích sà
 });
 
 /* Nửa panel thuộc tính — cùng điều kiện mở lại. */
-test.fixme('chưa bơm kho: chọn một phòng thì panel thuộc tính ra thuộc tính, không kẹt "Đang tải" (B-V8-04)', async ({
+test.fixme('chưa bơm kho: chọn một phòng thì panel thuộc tính ra thuộc tính, không kẹt "Đang tải" (B-V8-04 · chờ kho nạp có phòng)', async ({
   page,
 }) => {
   await openViewer(page);
@@ -72,19 +72,23 @@ test.fixme('chưa bơm kho: chọn một phòng thì panel thuộc tính ra thu�
 
   const properties = page.getByRole('region', { name: 'Thuộc tính đối tượng', exact: true });
   await expect(properties).toBeVisible();
-  await expect(properties.getByText('Đang tải thuộc tính…')).toHaveCount(0, {
+  /* Siết trước khi mở lại (B-V8-10): câu "Chưa chọn đối tượng nào" cũng làm bài cũ xanh
+     dù đang có phòng được chọn (N2) — đòi heading "Phòng" của panel. */
+  await expect(properties.getByRole('heading', { name: 'Phòng', exact: true })).toBeVisible({
     timeout: PANEL_SETTLE_TIMEOUT_MS,
   });
+  await expect(properties.getByText('Đang tải thuộc tính…')).toHaveCount(0);
+  await expect(properties.getByText(/^Chưa chọn đối tượng nào/u)).toHaveCount(0);
 });
 
 /*
  * BƠM KHO (Q1 = A′) — bài tích hợp bằng `seedSpatial`, chạm nội bộ dev: nó KHÔNG
  * chứng minh dữ liệu tải từ máy chủ, chỉ chứng minh panel tính và in đúng khi kho có
- * đồ thị. Ca mồi không bơm là hai bài ngay trên.
+ * đồ thị. Ca mồi không bơm ở đầu tệp (B-V8-04).
  *
- * Bơm thì cả màn đổi sang `createSampleBuilding()` (tên tầng `Level N`), và tổng là
- * số đo HÌNH HỌC 238,00 chứ không phải 248,60 khai tay — đúng chỗ lệch A14 của
- * `CLAUDE.md`. Bài không ghim con số ấy (chưa chốt, B-V8-10); nó ghim hình dạng.
+ * Bơm thì cả màn đổi sang `createSampleBuilding()` (tên tầng `Level N`). Từ B-V8-10
+ * đường bao của bộ mẫu đo đúng số nó khai, nên tổng hình học là 248,60 (trước đó 238,00);
+ * bài ghim hình dạng số, không ghim con số ấy.
  */
 test('BƠM KHO: bảng diện tích ra tổng, đủ 14 phòng, bốn tầng, số có dấu phẩy thập phân (A15)', async ({
   page,

@@ -9,10 +9,9 @@
  *
  * ## KHÔNG dùng bộ mẫu chuẩn A14 (`createSampleBuilding`/`fixtures.ts`)
  *
- * Ghi chú khảo sát `a14-fixture-is-not-a-valid-floor-plan` (và câu cảnh báo
- * trong đặc tả T8) đã đo: hình học của bộ mẫu chuẩn đo ra 238,00 m² chứ không
- * phải 248,60 m² đã khai, và một số tên phòng của nó là tiếng Anh — rớt thẳng
- * `expectVietnamese`. `measurementToolScenarios.ts` dùng được bộ đó vì nó chỉ
+ * Một số tên phòng của bộ mẫu chuẩn là tiếng Anh — rớt thẳng `expectVietnamese`
+ * (ghi chú khảo sát `a14-fixture-is-not-a-valid-floor-plan` còn đo hình học ra
+ * 238,00 m² thay vì 248,60 m²; chỗ lệch ấy đã sửa ở B-V8-10). `measurementToolScenarios.ts` dùng được bộ đó vì nó chỉ
  * đọc TOẠ ĐỘ tường (không hiển thị tên phòng); màn này thì hiển thị nhãn tầng
  * và tiêu đề đối tượng ra màn hình, nên rủi ro cao hơn. An toàn hơn là tự dựng
  * bốn tầng bằng tay (giống cách `explodedViewScenarios.ts` tự dựng bốn tầng

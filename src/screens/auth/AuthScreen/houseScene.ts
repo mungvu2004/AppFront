@@ -18,8 +18,8 @@
  *
  * The fixture in `src/domain/spatial/__fixtures__` cannot draw a house: all
  * forty-eight of its walls run `(index·1000, 0) → ((index+1)·1000, 0)`, laid end
- * to end on a single straight line, and its fourteen rooms are identical
- * rectangles in one row. It exists to satisfy invariant A14 — forty-eight walls,
+ * to end on a single straight line, and its fourteen rooms are rectangles in
+ * one row (thirteen 4000×4250 mm, one 4000×6900 mm). It exists to satisfy invariant A14 — forty-eight walls,
  * fourteen rooms, 248,60 m² — and every test that reads it counts or sums.
  * Rendering it draws a fifty-metre ruler.
  *

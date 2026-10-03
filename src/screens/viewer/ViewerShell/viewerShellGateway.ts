@@ -18,9 +18,9 @@
  *   ("mặc định là chính store"), và nó đúng ở đây vì không endpoint nào trả về
  *   ba con số ấy: `FloorSchema` không mang phòng.
  *
- *   {@link shellDataOf} cộng `Room.areaM2` — con số `src/domain` đã tính từ
- *   `outline` khi chuẩn hoá — chứ không tự tính lại diện tích đa giác. Tính lại
- *   ở đây là dựng bản thứ hai của một phép đo đã có test đạt ngưỡng 90% (R-61).
+ *   {@link shellDataOf} đo tổng bằng `totalArea()` của `src/domain` trên `outline`
+ *   của các phòng — không cộng `Room.areaM2` khai tay, và không tự viết lại công
+ *   thức dây giày: đó là bản thứ hai của một phép đo đã có test đạt ngưỡng 90% (R-61).
  *
  * ## Một việc chưa có đường: đếm phòng của CẢ TOÀ NHÀ
  *

@@ -33,7 +33,6 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Room, RoomUsage, SpatialGraph } from '@/domain/spatial/types';
-import { SQUARE_MILLIMETRES_PER_SQUARE_METRE } from '@/domain/units/types';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { useStore } from '@/store';
 
@@ -42,9 +41,6 @@ import type { RoomAreaScreenState } from './roomAreaTypes';
 
 /** Khung nền của story — bề rộng 344 của panel, cao cố định để thấy hết cột. */
 export const FRAME_CLASS = 'h-[760px] w-[344px] bg-bg-app';
-
-/** Bề rộng mọi phòng của bảng nghiệm thu — cùng con số `area.test.ts` dùng. */
-export const SCHEDULE_ROOM_WIDTH_MM = 4000;
 
 /** Tám công năng của `RoomUsage`, đúng thứ tự khai trong `spatial/types.ts`. */
 export const ALL_ROOM_USAGES: readonly RoomUsage[] = [
@@ -59,30 +55,15 @@ export const ALL_ROOM_USAGES: readonly RoomUsage[] = [
 ];
 
 /**
- * Bộ mẫu chuẩn A14 với mỗi vòng phòng đo đúng `Room.areaM2` mà nó khai.
+ * Bộ mẫu chuẩn A14, tên phòng và tên tầng bằng tiếng Việt.
  *
- * Bề rộng cố định, chiều sâu = diện tích ÷ bề rộng. 17,00 m² ra 4.250 mm và
- * 27,60 m² ra 6.900 mm — cả hai là số nguyên milimét, nên `computeArea` đọc lại
- * đúng con số bộ mẫu khai, không sai một phần nghìn nào.
+ * Đường bao giữ nguyên của bộ mẫu: từ B-V8-10 mỗi vòng phòng đã đo đúng
+ * `Room.areaM2` nó khai (13 × 17,00 m² + 1 × 27,60 m² = 248,60 m²).
  */
 export function createRoomAreaSampleGraph(): SpatialGraph {
   const graph = createCleanBuildingScenario().graph;
 
-  const rooms: Room[] = graph.rooms.map((room, index) => {
-    const depthMm = (room.areaM2 * SQUARE_MILLIMETRES_PER_SQUARE_METRE) / SCHEDULE_ROOM_WIDTH_MM;
-    const left = index * SCHEDULE_ROOM_WIDTH_MM;
-
-    return {
-      ...room,
-      name: `Phòng ${String(index)}`,
-      outline: [
-        { x: left, y: 0 },
-        { x: left + SCHEDULE_ROOM_WIDTH_MM, y: 0 },
-        { x: left + SCHEDULE_ROOM_WIDTH_MM, y: depthMm },
-        { x: left, y: depthMm },
-      ],
-    };
-  });
+  const rooms: Room[] = graph.rooms.map((room, index) => ({ ...room, name: `Phòng ${String(index)}` }));
 
   const levels: Level[] = graph.levels.map((level, index) => ({
     ...level,
@@ -142,7 +123,6 @@ const meta = {
   excludeStories: [
     'ALL_ROOM_USAGES',
     'FRAME_CLASS',
-    'SCHEDULE_ROOM_WIDTH_MM',
     'argsFor',
     'createEveryUsageGraph',
     'createRoomAreaSampleGraph',
