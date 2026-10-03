@@ -28,17 +28,21 @@
  * nhánh ấy.**
  */
 
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
 import {
   __resetFeatureFlagsForTests,
   setFeatureFlagOverride,
 } from '@/lib/telemetry/flags';
 
-import { PascalViewerContainer } from './PascalViewer.container';
+import { useStore } from '@/store';
+
+import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
 
 const GRAPH = createSampleBuilding();
 
@@ -144,5 +148,55 @@ describe('cây thật: container → view → hook', () => {
     await waitFor(() => {
       expect(bench.dispose).toHaveBeenCalled();
     });
+  });
+});
+
+describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
+  const PROJECT = { created_at: '', id: 'project-1', members: [], name: 'Dự án mẫu', updated_at: '' };
+
+  const renderRoute = () =>
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/projects/project-1/3d/pascal']}>
+        <Routes>
+          <Route path="/projects/:projectId/3d/pascal" element={<PascalViewerRoute />} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+  afterEach(() => {
+    act(() => {
+      useStore.getState().setSpatial(null, null);
+      useStore.getState().setProject(null);
+    });
+  });
+
+  it('cổng đang nạp thì màn ở "đang nạp", không vẽ kho của dự án trước', () => {
+    act(() => {
+      useStore.getState().setProject(PROJECT);
+      useStore.getState().setSpatial(normalizeSpatial(GRAPH), null);
+      useStore.getState().setSpatialLoading(true);
+    });
+
+    renderRoute();
+
+    expect(screen.getByRole('status')).toHaveTextContent('đang nạp');
+    expect(screen.queryByText('48')).not.toBeInTheDocument();
+  });
+
+  it('nối BE thật, kho đã nạp mà dự án chưa có hình thì màn ở "rỗng" — không "đang nạp" mãi', () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'false');
+    act(() => {
+      useStore.getState().setProject(PROJECT);
+      useStore.getState().setSpatial(normalizeSpatial({ ...GRAPH, axes: [], dimensions: [], furniture: [], levels: [], openings: [], rooms: [], walls: [] }), null);
+    });
+
+    try {
+      renderRoute();
+
+      expect(screen.getByRole('status')).toHaveTextContent('bản vẽ chưa có đối tượng nào để dựng.');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

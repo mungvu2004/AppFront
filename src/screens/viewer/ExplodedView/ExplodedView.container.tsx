@@ -59,6 +59,7 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -68,7 +69,7 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { ViewerShell, type ViewerShellGateway } from '@/screens/viewer/ViewerShell';
-import { resolveViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
@@ -186,7 +187,7 @@ export function ExplodedViewContainer(props: ExplodedViewContainerProps) {
 export function ExplodedViewRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
   // Cùng luật nhà mẫu với `/3d` và Pascal; gọi trước câu trả sớm (luật hook).
-  const storeSpatial = useStore((state) => state.spatial);
+  const spatial = useStore(selectViewerSpatial);
 
   if (id === undefined || id.length === 0) {
     return (
@@ -200,5 +201,9 @@ export function ExplodedViewRoute() {
     );
   }
 
-  return <ExplodedViewContainer projectId={id} spatial={resolveViewerSpatial(storeSpatial)} />;
+  return (
+    <ProjectSpatialGate projectId={id}>
+      <ExplodedViewContainer projectId={id} spatial={spatial} />
+    </ProjectSpatialGate>
+  );
 }

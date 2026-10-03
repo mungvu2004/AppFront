@@ -338,6 +338,16 @@ export function resolveViewerSpatial(
     : storeSpatial;
 }
 
+/**
+ * Bộ chọn kho của ba route 3D anh em (tách tầng, đo, Pascal): đang nạp thì `null`,
+ * để kho của dự án TRƯỚC không hiện dưới tên dự án mới (B-V12-01). Chốt nằm ngoài
+ * luật nhà mẫu, nên ở mock nhà mẫu không chớp ra rồi biến mất trong lúc nạp.
+ */
+export const selectViewerSpatial = (state: {
+  readonly spatial: NormalizedSpatial | null;
+  readonly spatialLoading: boolean;
+}): NormalizedSpatial | null => (state.spatialLoading ? null : resolveViewerSpatial(state.spatial));
+
 /** Đồ thị "một phần": đủ bốn tầng, nhưng mới có phòng của tầng dưới cùng. */
 export const VIEWER_PARTIAL_SPATIAL: NormalizedSpatial = normalizeSpatial({
   ...VIEWER_FIXTURE_GRAPH,

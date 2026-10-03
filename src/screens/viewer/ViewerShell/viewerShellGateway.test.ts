@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 
 import { VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
-import { VIEWER_PARTIAL_SPATIAL, VIEWER_FIXTURE_SPATIAL, resolveViewerSpatial } from './viewerShellGateway';
+import {
+  VIEWER_PARTIAL_SPATIAL,
+  VIEWER_FIXTURE_SPATIAL,
+  resolveViewerSpatial,
+  selectViewerSpatial,
+} from './viewerShellGateway';
 
 /** Thứ cổng nạp kho đưa vào kho ở mock: đủ tầng, chưa có tường nào (B-V8-04). */
 const LEVELS_ONLY = normalizeSpatial({ ...VIEWER_FIXTURE_GRAPH, openings: [], rooms: [], walls: [] });
@@ -27,5 +32,26 @@ describe('resolveViewerSpatial — route tách tầng và route đo dùng cùng 
 
   it('nối máy chủ thật → kho 0 tường vẫn là kho ấy, không bịa nhà', () => {
     expect(resolveViewerSpatial(LEVELS_ONLY, false)).toBe(LEVELS_ONLY);
+  });
+});
+
+describe('selectViewerSpatial — ba route 3D anh em đọc kho qua cổng nạp kho (B-V12-01)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('cổng đang nạp → `null`, kể cả khi kho còn đồ thị của dự án trước', () => {
+    expect(selectViewerSpatial({ spatial: VIEWER_PARTIAL_SPATIAL, spatialLoading: true })).toBeNull();
+  });
+
+  it('nạp xong → đúng đồ thị trong kho', () => {
+    expect(selectViewerSpatial({ spatial: VIEWER_PARTIAL_SPATIAL, spatialLoading: false })).toBe(VIEWER_PARTIAL_SPATIAL);
+  });
+
+  it('mock + nạp xong bốn tầng chưa có tường → nhà mẫu; đang nạp thì không chớp nhà mẫu', () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+
+    expect(selectViewerSpatial({ spatial: LEVELS_ONLY, spatialLoading: false })).toBe(VIEWER_FIXTURE_SPATIAL);
+    expect(selectViewerSpatial({ spatial: null, spatialLoading: true })).toBeNull();
   });
 });

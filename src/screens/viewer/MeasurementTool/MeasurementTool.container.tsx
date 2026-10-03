@@ -34,6 +34,7 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -46,7 +47,7 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 // `useMeasurementToolScene.ts`.
 import { ViewerShell } from '@/screens/viewer/ViewerShell/ViewerShell';
 import {
-  resolveViewerSpatial,
+  selectViewerSpatial,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
@@ -165,7 +166,7 @@ export function MeasurementToolContainer(props: MeasurementToolContainerProps) {
 export function MeasurementToolRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
   // Cùng luật nhà mẫu với `/3d` và Pascal; gọi trước câu trả sớm (luật hook).
-  const storeSpatial = useStore((state) => state.spatial);
+  const spatial = useStore(selectViewerSpatial);
 
   if (id === undefined || id.length === 0) {
     return (
@@ -179,5 +180,9 @@ export function MeasurementToolRoute() {
     );
   }
 
-  return <MeasurementToolContainer projectId={id} spatial={resolveViewerSpatial(storeSpatial)} />;
+  return (
+    <ProjectSpatialGate projectId={id}>
+      <MeasurementToolContainer projectId={id} spatial={spatial} />
+    </ProjectSpatialGate>
+  );
 }
