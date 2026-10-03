@@ -87,7 +87,7 @@ Màn thứ hai Pascal có đồ tương đương — và là chỗ khung tương
 | # | Tính năng | Bằng chứng AppFront | Pascal | Bằng chứng Pascal | Bất biến |
 |---|---|---|---|---|---|
 | 29 | Bảy trạng thái màn | `ViewerShell.test.tsx:96-136`, `viewerShellTypes.ts:46-53` | KHÔNG | chỉ `isLoading` boolean (`editor/index.tsx:1471`) + `SceneErrorBoundary fallback={null}` (`viewer/render-error.tsx:29-45`) — lỗi render ra **màn trắng thật** | A11 |
-| 30 | Vai Người xem gỡ công cụ sửa (VS-2) | test `:138-172` | MỘT PHẦN | `isVersionPreviewMode` chặn nhiều nhánh phím sửa (`use-keyboard.ts:423,436,449`) nhưng là cờ xem bản cũ, **không phải vai RBAC** | — |
+| 30 | Vai Người xem có đủ ray, kể cả đo (VS-2, B-V9-04 — trước đây gỡ `đo`) | test `:138-172` | MỘT PHẦN | `isVersionPreviewMode` chặn nhiều nhánh phím sửa (`use-keyboard.ts:423,436,449`) nhưng là cờ xem bản cũ, **không phải vai RBAC** | — |
 | 31 | Xếp tầng + độ tách **liên tục** (VS-3) | test `:173-207` | MỘT PHẦN | `levelModeLabels: stacked/exploded/solo` — ba nấc **rời rạc** (`viewer-controls-bar.tsx:43-47`) | — |
 | 32 | Mặt phẳng cắt kéo được (VS-4, VS-7) | test `:208-234,297-363` | KHÔNG | grep `sectionPlane\|clipping` chỉ ra `near/far` của camera (`viewer-camera.tsx:44-57`), không phải mặt cắt | — |
 | 33 | Panel phải trượt vào/ra, tôn trọng giảm chuyển động (VS-8) | test `:364-456` | MỘT PHẦN | sidebar đổi tab có thật (`app-sidebar.tsx`, `icon-rail.tsx`), **không thấy cơ chế giảm-chuyển-động** | B |

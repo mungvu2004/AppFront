@@ -345,10 +345,9 @@ if (!canEdit && roles !== undefined) {
 toàn (không truyền gì) được coi là "chưa biết vai, coi như chỉ xem được nhưng
 không chặn màn", khác với "đã biết vai và vai đó là `viewer`" (chặn). Đây là một
 điểm caller phải cố ý: quên truyền `roles` không tạo ra trạng thái `forbidden`
-dù người dùng thực sự là `viewer` — nó chỉ ẩn công cụ sửa
-(`tools` lọc `!tool.requiresEdit || state !== 'forbidden'`, `useViewerShell.ts:506-512`,
-nhưng vì `state` không phải `'forbidden'` nên **filter này không lọc gì cả khi
-quên truyền `roles`** — mọi công cụ, kể cả `requiresEdit: true`, vẫn hiện).
+dù người dùng thực sự là `viewer`. Ray công cụ không còn lọc theo vai (B-V9-04,
+2026-10-03): không công cụ nào sửa mô hình — đo cũng chỉ đọc — nên mọi vai thấy
+đủ sáu công cụ, và quên `roles` không làm lộ thêm công cụ nào.
 
 ### `EDITING_ROLES` — một nguồn thứ hai cùng nội dung, KHÔNG được `useViewerShell.ts` dùng
 
