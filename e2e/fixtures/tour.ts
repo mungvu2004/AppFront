@@ -7,9 +7,11 @@
  * Ba điều đã đo, và chúng quyết định hình dạng của hàm này:
  * 1. `EditorTour` KHÔNG mang `role="dialog"`/`aria-modal` (`EditorTour.tsx:15-17`).
  *    Đừng bám `getByRole('dialog')`. Thẻ là `region` đặt tên theo tiêu đề bước, nên
- *    mốc neo ở đây là nút `bỏ qua` (chữ thường; "Bỏ qua" hoa của onboarding không khớp).
- * 2. Nó hiện SAU một sự kiện (`resize`, hoặc một cú bấm trên `/3d`), không theo thời
- *    gian. Vì thế hàm này KHÔNG chờ thẻ: chờ sẽ treo ở ca không có sự kiện nào.
+ *    mốc neo ở đây là nút `bỏ qua` TRONG `region` của thẻ. Màn chào cũng có nút "bỏ qua"
+ *    (viết thường từ A6 · B-V1-06) nhưng không nằm trong `region` nào, nên không khớp.
+ * 2. Từ bản sửa W02 thẻ hiện NGAY lúc mở màn tường / xuất; ở `/3d` nó nạp động nên có thể
+ *    hiện muộn một nhịp — ở đó dùng `dismissTourIfPresent` (`e2e/v8/viewer.ts`), hàm CHỜ.
+ *    Hàm này KHÔNG chờ: đếm một lần, cho màn không chắc có tour.
  *    Nó chỉ đếm MỘT lần; có thì bấm. Gọi lại sau mỗi `setViewportSize`/điều hướng.
  * 3. Đóng bằng nút của sản phẩm, KHÔNG đặt trước khoá `appfront:system-editor-tour-seen:*`
  *    bằng `addInitScript` — đó là kiểm một sản phẩm khác.
