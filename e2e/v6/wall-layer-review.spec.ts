@@ -169,15 +169,8 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
     await expect(rail.getByRole('button', { pressed: true })).toHaveCount(1);
   });
 
-  test.fixme('[bơm] nút ẩn lớp viết thường kiểu câu: "Ẩn lớp tường" (A6, B-V6-04)', async ({ page }) => {
-    /*
-     * Lý do fixme: nhãn ghép tên lớp viết hoa giữa câu ("Ẩn lớp Tường"), trong khi màn đối
-     * tượng viết "Ẩn lớp cửa đi". Q10f chốt: kế hoạch không khẳng định "viết thường kiểu câu"
-     * khi luật chưa có ở tài liệu ưu tiên cao — việc riêng.
-     * Mở lại khi: việc riêng của Q10f đưa luật vào `LUAT_MAN_HINH.md`/`RULE.md` và cây lớp
-     * đổi tên lớp sang chữ thường.
-     */
+  test('[bơm] nút ẩn lớp viết thường hoàn toàn: "ẩn lớp tường" (A6, B-V6-04)', async ({ page }) => {
     await openSeeded(page);
-    await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ẩn lớp tường', exact: true })).toBeVisible();
   });
 });

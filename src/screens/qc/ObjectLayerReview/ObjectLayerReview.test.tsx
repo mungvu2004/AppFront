@@ -175,6 +175,8 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 
     /* 1. Cây lớp — ba lớp con, mỗi lớp một số đếm trong ngoặc. */
     const tree = screen.getByRole('tree', { name: LAYER_TREE_LABEL });
+    /* A6 · B-V6-04: nút con mắt ghép tiền tố viết thường với tên lớp viết thường. */
+    expect(screen.getByRole('button', { name: 'ẩn lớp cửa đi' })).toBeInTheDocument();
     const layerCounts = within(tree)
       .getAllByRole('treeitem')
       .map((item) => firstNumberIn(item.textContent ?? ''));

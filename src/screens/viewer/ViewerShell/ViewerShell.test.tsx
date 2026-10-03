@@ -166,6 +166,8 @@ describe('[VS-2] vai Người xem', () => {
     }
 
     expect(viewerRail.getByRole('button', { name: /^đo/u })).toBeInTheDocument();
+    /* B-V9-05: tên vai là danh từ chung, viết thường giữa câu. */
+    expect(screen.getByText('Bạn đang xem ở vai người xem nên không sửa được mô hình.')).toBeInTheDocument();
   });
 });
 

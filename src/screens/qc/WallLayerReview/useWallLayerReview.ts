@@ -225,9 +225,6 @@ export const WALL_LAYER_TEXT = {
   centrelinesLabel: 'Hiện tim tường',
   /** Nhãn khối điều hướng tầng của panel trái (BC-05). */
   floorNavLabel: 'Tầng của bản vẽ',
-  /** Nhãn nút con mắt của hàng cây lớp "Tường" (BC-19). */
-  showWallLayerLabel: 'Hiện lớp Tường',
-  hideWallLayerLabel: 'Ẩn lớp Tường',
   /** Nhãn nút thu gọn / mở lại hai panel (BT-16). */
   collapsePanelsLabel: 'Thu gọn hai panel',
   expandPanelsLabel: 'Mở lại hai panel',

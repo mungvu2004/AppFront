@@ -116,6 +116,10 @@ describe('[V5-2] nội dung theo trạng thái', () => {
     render(<Viewer3D {...scenarioPropsFor('forbidden')} />);
 
     expect(screen.queryByRole('button', { name: 'Sửa hình học đã chọn' })).toBeNull();
+    /* B-V9-05: tên vai là danh từ chung, viết thường giữa câu. */
+    expect(
+      screen.getByText('Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.'),
+    ).toBeInTheDocument();
   });
 
   /* Ca này trước đây khẳng định "công cụ sửa CÓ mặt và không bị disabled". Nút ấy

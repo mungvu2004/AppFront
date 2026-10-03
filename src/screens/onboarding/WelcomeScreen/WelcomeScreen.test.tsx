@@ -164,9 +164,9 @@ function cardOne(state: OnboardingStepCard['state'], isPrimary: boolean): Onboar
   return stepCard(
     'createProject',
     '1',
-    'Tạo dự án',
+    'tạo dự án',
     'Khai báo tên công trình và danh sách tầng.',
-    'Tạo dự án',
+    'tạo dự án',
     state,
     isPrimary,
     null,
@@ -177,9 +177,9 @@ function cardTwo(state: OnboardingStepCard['state'], isPrimary: boolean): Onboar
   return stepCard(
     'uploadDrawings',
     '2',
-    'Tải bản vẽ theo từng tầng',
+    'tải bản vẽ theo từng tầng',
     'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-    'Tải bản vẽ',
+    'tải bản vẽ',
     state,
     isPrimary,
     'Cần tạo dự án trước.',
@@ -190,9 +190,9 @@ function cardThree(state: OnboardingStepCard['state'], isPrimary: boolean): Onbo
   return stepCard(
     'reviewAndBuild',
     '3',
-    'Duyệt kết quả và dựng 3D',
+    'duyệt kết quả và dựng 3D',
     'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-    'Duyệt kết quả',
+    'duyệt kết quả',
     state,
     isPrimary,
     'Cần tải bản vẽ trước.',
@@ -237,22 +237,22 @@ function propsFor(scenario: SevenStateScenario): WelcomeScreenProps {
   return {
     screenState: scenario.state,
     isCollapsed: scenario.isCollapsed,
-    greeting: 'Chào Minh, bắt đầu trong ba bước',
+    greeting: 'chào Minh, bắt đầu trong ba bước',
     intro:
       'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
     cards,
-    sampleProjectLink: { label: 'Xem dự án mẫu', disabledReason: null, onActivate: noop },
+    sampleProjectLink: { label: 'xem dự án mẫu', disabledReason: null, onActivate: noop },
     tutorialLink: {
-      label: 'Xem hướng dẫn 2 phút',
+      label: 'xem hướng dẫn 2 phút',
       disabledReason: 'Hướng dẫn hai phút chưa sẵn sàng.',
       onActivate: noop,
     },
-    skipLink: { label: 'Bỏ qua', disabledReason: null, onActivate: noop },
+    skipLink: { label: 'bỏ qua', disabledReason: null, onActivate: noop },
     errorMessage: isError
       ? 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.'
       : null,
     onRetry: noop,
-    finishLabel: isDone ? 'Vào danh sách dự án' : null,
+    finishLabel: isDone ? 'vào danh sách dự án' : null,
     onFinish: noop,
     isDissolving: false,
     skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
@@ -306,14 +306,14 @@ describe('A11 — bảy trạng thái, đo trên cả màn', () => {
     render(<WelcomeScreen {...propsFor(scenarioOf('loading'))} />);
 
     expect(screen.getByRole('status')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Tạo dự án' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'tạo dự án' })).not.toBeInTheDocument();
   });
 
   it('trạng thái 4 nói ra lý do và mời thử lại', () => {
     render(<WelcomeScreen {...propsFor(scenarioOf('error'))} />);
 
-    expect(screen.getByText('Không đọc được tiến độ')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.getByText('không đọc được tiến độ')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'thử lại' })).toBeInTheDocument();
   });
 
   it('trạng thái 6 còn đúng một thẻ, và nói ra vì sao', () => {
@@ -322,7 +322,7 @@ describe('A11 — bảy trạng thái, đo trên cả màn', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(
       screen.getByText(
-        'Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
+        'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
       ),
     ).toBeInTheDocument();
   });
@@ -338,12 +338,12 @@ describe('màn cho đúng sáu lựa chọn, không nhiều hơn', () => {
 
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     expect(screen.getAllByRole('button')).toHaveLength(6);
-    expect(screen.getByRole('button', { name: 'Xem dự án mẫu' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Xem hướng dẫn 2 phút' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'xem dự án mẫu' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'xem hướng dẫn 2 phút' })).toHaveAttribute(
       'aria-disabled',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'bỏ qua' })).toBeInTheDocument();
   });
 });
 
@@ -456,7 +456,7 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
     });
 
     expect(vm().cards.map((card) => card.state)).toEqual(['done', 'done', 'done']);
-    expect(vm().finishLabel).toBe('Vào danh sách dự án');
+    expect(vm().finishLabel).toBe('vào danh sách dự án');
   });
 
   it('đọc dự án cập nhật gần nhất, không phải dự án đầu mảng', async () => {
@@ -582,13 +582,13 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
     mountRoute(listOf([]));
 
     expect(await screen.findByRole('heading', { name: 'Dự án của tôi' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Bỏ qua' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'bỏ qua' })).not.toBeInTheDocument();
   });
 
   it('chưa xem thì /onboarding vẫn là màn chào', async () => {
     mountRoute(listOf([]));
 
-    expect(await screen.findByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'bỏ qua' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
   });
 
@@ -610,7 +610,7 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
     // lần dựng lại thì bài này mới bắt được bản đọc cờ ở mỗi lần dựng.
     view.rerender(tree());
 
-    expect(screen.getByRole('button', { name: 'Vào danh sách dự án' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'vào danh sách dự án' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
   });
 });
@@ -627,7 +627,7 @@ describe('WelcomeScreenContainer — mối nối R-73', () => {
       </MemoryRouter>,
     );
 
-    const create = await screen.findByRole('button', { name: 'Tạo dự án' });
+    const create = await screen.findByRole('button', { name: 'tạo dự án' });
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
@@ -645,7 +645,7 @@ describe('WelcomeScreenContainer — mối nối R-73', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Tạo dự án' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'tạo dự án' }));
 
     expect(onCreateProject).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

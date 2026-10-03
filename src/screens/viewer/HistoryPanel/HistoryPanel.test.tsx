@@ -108,6 +108,12 @@ describe('[G] bốn bộ khẳng định dùng chung', () => {
     }
 
     console.log(`${REPORT}[G3] expectVietnamese = ${String(checked)}/${String(SEVEN_STATES.length)}`);
+
+    /* A6 · B-V8-07: expectVietnamese không phân biệt "AI" với "ai", nên khẳng định đúng chữ trên phần đã vẽ. */
+    const { getByRole, unmount } = render(<HistoryPanel {...propsOf('success')} />);
+    const chips = getByRole('group', { name: 'Lọc theo loại việc' }).querySelectorAll('button');
+    expect(Array.from(chips, (c) => c.textContent)).toStrictEqual(['tất cả', 'chỉnh sửa', 'duyệt', 'AI']);
+    unmount();
   });
 
   it('[G4] expectNoRawColor — cả thư mục màn, màu chỉ đến từ token (A1)', () => {

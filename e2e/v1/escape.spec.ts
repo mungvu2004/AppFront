@@ -19,7 +19,7 @@ import { ROUTES, UNKNOWN_PATH, pathOf } from '../fixtures/routes';
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const ROWS = [
-  { name: 'onboarding', path: ROUTES.onboarding, anchor: { role: 'button', name: 'Bỏ qua' } },
+  { name: 'onboarding', path: ROUTES.onboarding, anchor: { role: 'button', name: 'bỏ qua' } },
   {
     name: 'accessDenied',
     path: ROUTES.accessDenied,

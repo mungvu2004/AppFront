@@ -88,26 +88,26 @@
       "subtitle": "Số hóa bản vẽ 2D thành mô hình 3D tương tác."
     },
     "tabs": {
-      "signIn": "Đăng nhập",
-      "register": "Đăng ký"
+      "signIn": "đăng nhập",
+      "register": "đăng ký"
     },
     "fields": {
-      "email": "Thư điện tử",
-      "password": "Mật khẩu",
-      "fullName": "Họ và tên",
-      "rememberMe": "Ghi nhớ máy này"
+      "email": "thư điện tử",
+      "password": "mật khẩu",
+      "fullName": "họ và tên",
+      "rememberMe": "ghi nhớ máy này"
     },
     "actions": {
-      "signIn": "Đăng nhập",
-      "register": "Tạo tài khoản",
-      "submitting": "Đang gửi…",
-      "expand": "Mở lại biểu mẫu",
-      "or": "Hoặc",
-      "ssoSignIn": "Đăng nhập bằng SSO công ty",
-      "forgotPassword": "Quên mật khẩu",
-      "resetPassword": "Đặt lại mật khẩu",
-      "showPassword": "Hiện mật khẩu",
-      "hidePassword": "Ẩn mật khẩu"
+      "signIn": "đăng nhập",
+      "register": "tạo tài khoản",
+      "submitting": "đang gửi…",
+      "expand": "mở lại biểu mẫu",
+      "or": "hoặc",
+      "ssoSignIn": "đăng nhập bằng SSO công ty",
+      "forgotPassword": "quên mật khẩu",
+      "resetPassword": "đặt lại mật khẩu",
+      "showPassword": "hiện mật khẩu",
+      "hidePassword": "ẩn mật khẩu"
     },
     "problems": {
       "emailRequired": "Chưa nhập thư điện tử.",
@@ -118,15 +118,15 @@
     },
     "errors": {
       "invalidCredentials": {
-        "title": "Sai thư điện tử hoặc mật khẩu",
+        "title": "sai thư điện tử hoặc mật khẩu",
         "description": "Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên."
       },
       "tooManyAttempts": {
-        "title": "Đã thử quá nhiều lần",
+        "title": "đã thử quá nhiều lần",
         "description": "Đợi {{seconds}} giây rồi đăng nhập lại."
       },
       "accountDisabled": {
-        "title": "Tài khoản đã bị vô hiệu",
+        "title": "tài khoản đã bị vô hiệu",
         "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."
       }
     },
@@ -471,36 +471,36 @@
     }
   },
   "onboarding": {
-    "greeting": "Chào {{name}}, bắt đầu trong ba bước",
-    "greetingFallback": "Chào bạn, bắt đầu trong ba bước",
+    "greeting": "chào {{name}}, bắt đầu trong ba bước",
+    "greetingFallback": "chào bạn, bắt đầu trong ba bước",
     "intro": "AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
     "step1": {
-      "title": "Tạo dự án",
+      "title": "tạo dự án",
       "sentence": "Khai báo tên công trình và danh sách tầng.",
-      "action": "Tạo dự án"
+      "action": "tạo dự án"
     },
     "step2": {
-      "title": "Tải bản vẽ theo từng tầng",
+      "title": "tải bản vẽ theo từng tầng",
       "sentence": "Kéo ảnh quét hoặc tệp CAD vào từng tầng.",
-      "action": "Tải bản vẽ",
+      "action": "tải bản vẽ",
       "locked": "Cần tạo dự án trước."
     },
     "step3": {
-      "title": "Duyệt kết quả và dựng 3D",
+      "title": "duyệt kết quả và dựng 3D",
       "sentence": "Kiểm tra tường, cửa, phòng rồi xem mô hình.",
-      "action": "Duyệt kết quả",
+      "action": "duyệt kết quả",
       "locked": "Cần tải bản vẽ trước."
     },
-    "sampleProject": "Xem dự án mẫu",
-    "tutorial": "Xem hướng dẫn 2 phút",
+    "sampleProject": "xem dự án mẫu",
+    "tutorial": "xem hướng dẫn 2 phút",
     "tutorialDisabled": "Hướng dẫn hai phút chưa sẵn sàng.",
-    "skip": "Bỏ qua",
+    "skip": "bỏ qua",
     "skipNotice": "Có thể xem lại hướng dẫn trong menu trợ giúp.",
-    "finish": "Vào danh sách dự án",
-    "errorTitle": "Không đọc được tiến độ",
+    "finish": "vào danh sách dự án",
+    "errorTitle": "không đọc được tiến độ",
     "errorDescription": "Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.",
-    "retry": "Thử lại",
-    "forbiddenNote": "Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
+    "retry": "thử lại",
+    "forbiddenNote": "Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
   },
   "floorUpload": {
     "breadcrumb": {
@@ -1410,19 +1410,19 @@
     },
     "state": {
       "emptyDescription": "Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.",
-      "successContinue": "Sang lớp Cửa và nội thất",
+      "successContinue": "sang lớp cửa và nội thất",
       "forbiddenNotice": "Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.",
       "filterNoMatch": "Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.",
       "emptyListTitle": "Chưa có đoạn tường nào"
     },
     "layerTree": {
-      "walls": "Tường",
-      "openingsAndFurniture": "Cửa và nội thất",
-      "dimensions": "Kích thước",
-      "axes": "Trục",
-      "rooms": "Phòng",
-      "showWalls": "Hiện lớp Tường",
-      "hideWalls": "Ẩn lớp Tường"
+      "walls": "tường",
+      "openingsAndFurniture": "cửa và nội thất",
+      "dimensions": "kích thước",
+      "axes": "trục",
+      "rooms": "phòng",
+      "showWalls": "hiện lớp tường",
+      "hideWalls": "ẩn lớp tường"
     },
     "aria": {
       "screen": "Duyệt lớp tường",
@@ -1483,8 +1483,8 @@
       "furniture": "nội thất"
     },
     "layerTree": {
-      "showPrefix": "Hiện lớp ",
-      "hidePrefix": "Ẩn lớp "
+      "showPrefix": "hiện lớp ",
+      "hidePrefix": "ẩn lớp "
     },
     "subtype": {
       "singleDoor": "cửa đơn",
@@ -1942,7 +1942,7 @@
       },
       "forbidden": {
         "title": "không có quyền sửa lớp phòng",
-        "notice": "Bạn đang xem với vai Người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng."
+        "notice": "Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng."
       }
     },
     "missingParams": {
@@ -2061,7 +2061,7 @@
       },
       "forbidden": {
         "title": "không có quyền sửa độ dày tường",
-        "notice": "Bạn đang xem với vai Người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường."
+        "notice": "Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường."
       }
     },
     "missingParams": {
@@ -2160,7 +2160,7 @@
       "retryButton": "Thử lại"
     },
     "forbidden": {
-      "description": "Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D."
+      "description": "Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D."
     },
     "loading": {
       "progress": "Đang dựng mô hình {{count}} tầng"
@@ -2253,7 +2253,7 @@
     },
     "forbidden": {
       "title": "Chỉ xem",
-      "message": "Bạn đang xem ở vai Người xem nên không sửa được mô hình."
+      "message": "Bạn đang xem ở vai người xem nên không sửa được mô hình."
     },
     "error": {
       "title": "Không đọc được dữ liệu",

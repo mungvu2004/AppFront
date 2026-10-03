@@ -60,10 +60,10 @@ export type WelcomeScreenProps = WelcomeScreenViewModel;
 export type { OnboardingLink, OnboardingStepCard, OnboardingStepId, OnboardingStepState } from './useWelcomeScreen';
 
 /** Bốn câu không trường nào chở, viết thẳng theo bảng chuỗi của hợp đồng. */
-const ERROR_TITLE = 'Không đọc được tiến độ';
+const ERROR_TITLE = 'không đọc được tiến độ';
 const ERROR_FALLBACK = 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.';
-const RETRY_LABEL = 'Thử lại';
-const FORBIDDEN_NOTE = 'Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.';
+const RETRY_LABEL = 'thử lại';
+const FORBIDDEN_NOTE = 'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.';
 
 /** Cỡ thẻ và cỡ khung xương lúc đang tải là MỘT con số, nên nó là một hằng. */
 const CARD_SIZE_CLASS = 'w-[300px] h-[220px]';

@@ -130,29 +130,11 @@ test('lịch sử mở ra ca rỗng thật: lời giải thích, bốn chip lo�
     ),
   ).toBeVisible();
 
+  /* A6 · B-V8-07: "AI" là viết tắt, giữ hoa */
   const chips = history.getByRole('group', { name: 'Lọc theo loại việc' }).getByRole('button');
   await expect(chips).toHaveText(['tất cả', 'chỉnh sửa', 'duyệt', 'AI']);
   await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
   await expect(history.getByRole('combobox')).toContainText('mọi người');
-});
-
-/*
- * B-V8-07 — chip "AI" viết hoa; A6 chỉ miễn mã trục, mã lỗi, tên phím. Người duyệt
- * có thể coi "AI" là viết tắt được miễn (thêm vào CLAUDE.md) thay vì sửa chữ.
- * Mở lại khi: người duyệt chọn "viết thường" — đổi `test.fixme` thành `test`.
- */
-test.fixme('chip lọc lịch sử viết thường kiểu câu, kể cả chip "ai" (A6 · B-V8-07)', async ({ page }) => {
-  await openViewer(page);
-  await openPanel(page, 'Lịch sử thao tác');
-
-  const chips = page
-    .getByRole('group', { name: 'Lọc theo loại việc' })
-    .getByRole('button');
-  /* Chờ đủ bốn chip trước: `allInnerTexts` không chờ, và bảng nạp lười. */
-  await expect(chips).toHaveCount(4);
-  for (const text of await chips.allInnerTexts()) {
-    expect(text).toBe(text.toLocaleLowerCase('vi'));
-  }
 });
 
 /* -------------------------------------------------------------------------- */

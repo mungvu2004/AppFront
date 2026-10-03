@@ -341,7 +341,7 @@ describe('[NGHIEM-7] R-73', () => {
       </MemoryRouter>,
     );
 
-    const goOn = await screen.findByRole('button', { name: 'Sang lớp Cửa và nội thất' });
+    const goOn = await screen.findByRole('button', { name: 'sang lớp cửa và nội thất' });
 
     goOn.click();
 
@@ -528,7 +528,9 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
 
     expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
 
-    const hide = screen.getByRole('button', { name: 'Ẩn lớp Tường' });
+    /* A6 · B-V6-04: tên lớp trong cây và trong nút con mắt cùng viết thường. */
+    expect(screen.getByRole('treeitem', { name: 'tường' })).toBeInTheDocument();
+    const hide = screen.getByRole('button', { name: 'ẩn lớp tường' });
 
     /* Hai lỗi của `TreeItem` dùng chung mà hàng riêng của màn này không mắc. */
     expect(hide.getAttribute('tabindex')).toBeNull();
@@ -542,7 +544,7 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
       expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
     });
 
-    const show = screen.getByRole('button', { name: 'Hiện lớp Tường' });
+    const show = screen.getByRole('button', { name: 'hiện lớp tường' });
 
     await act(async () => {
       show.click();
@@ -636,7 +638,7 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('thanh tiến độ và con số chuyển sang token "đã xác minh"', async () => {
     const { container } = renderState('success');
 
-    await screen.findByRole('button', { name: 'Sang lớp Cửa và nội thất' });
+    await screen.findByRole('button', { name: 'sang lớp cửa và nội thất' });
 
     /*
      * A5 vẫn nguyên: xanh "đã xác minh" ở đây tới từ `reviewed === total` —

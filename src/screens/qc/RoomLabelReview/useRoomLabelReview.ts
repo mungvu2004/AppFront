@@ -157,7 +157,7 @@ export const ROOM_LABEL_SCREEN_TEXT = {
   emptyFilteredNotice:
     'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
   viewerRoleNotice:
-    'Bạn đang xem với vai Người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
+    'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
 } as const;
 
 /* -------------------------------------------------------------------------- */

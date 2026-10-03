@@ -36,9 +36,9 @@ export const EMAIL_BY_ROLE: Readonly<Record<Role, string>> = {
 export const SIGN_IN_PASSWORD = 'matkhau-du-dai';
 
 /** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
-export const EMAIL_LABEL = 'Thư điện tử';
-export const PASSWORD_LABEL = 'Mật khẩu';
-export const SIGN_IN_LABEL = 'Đăng nhập';
+export const EMAIL_LABEL = 'thư điện tử';
+export const PASSWORD_LABEL = 'mật khẩu';
+export const SIGN_IN_LABEL = 'đăng nhập';
 
 /** Điền và gửi biểu mẫu — tách ra để bài của màn đăng nhập dùng lại. */
 export async function submitSignInForm(page: Page, email: string): Promise<void> {
