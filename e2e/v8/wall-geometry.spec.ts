@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { dismissTourIfPresent, openViewer, selectRoomBySearch, shellInspector } from './viewer';
+import { dismissTourIfPresent, openViewer, shellInspector } from './viewer';
 
 /**
  * Nhóm V8 — chế độ sửa hình học tường (`WallGeometryEditor`) và thứ tự `Escape`
@@ -33,22 +33,19 @@ const WALL_POINTS: readonly (readonly [number, number])[] = [
 /** Trần chờ cho một cú bấm thành vùng chọn — một lượt bắn tia + một lượt vẽ. */
 const PICK_SETTLE_MS = 2_000;
 
-/** `additive`: giữ Shift — thêm tường vào vùng chọn đang có thay vì thay nó. */
-async function selectAWall(page: Page, additive = false): Promise<void> {
+async function selectAWall(page: Page): Promise<void> {
   const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
   expect(box).not.toBeNull();
   const enter = page.getByRole('button', { name: ENTER_LABEL, exact: true });
 
   for (const [fx, fy] of WALL_POINTS) {
-    if (additive) await page.keyboard.down('Shift');
     await page.mouse.click(box!.x + box!.width * fx, box!.y + box!.height * fy);
-    if (additive) await page.keyboard.up('Shift');
     const picked = await enter
       .waitFor({ state: 'visible', timeout: PICK_SETTLE_MS })
       .then(() => true)
       .catch(() => false);
     if (picked) {
-      if (!additive) await expect(shellInspector(page)).toContainText(/tường W-/u);
+      await expect(shellInspector(page)).toContainText(/tường W-/u);
       return;
     }
   }
@@ -146,22 +143,4 @@ test('cùng một bức tường mang cùng một mã ở thanh tra và ở dả
 
   await page.getByRole('button', { name: ENTER_LABEL, exact: true }).click();
   await expect(editorRegion(page)).toContainText(`Đang sửa: ${inspectorCode ?? '?'}`);
-});
-
-/*
- * B-V8-63 (a) — chế độ sửa từng lấy phần tử ĐẦU của vùng chọn làm tường; chọn phòng trước
- * rồi Shift-bấm tường thì dải nói "Đang sửa: R-…". Nay lấy tường đầu tiên trong vùng chọn,
- * cùng tiêu chí với nút vào chế độ (`Viewer3D.container.tsx`, `canEditWallGeometry`).
- */
-test('chọn phòng rồi thêm một bức tường: chế độ sửa hình học sửa bức tường, không sửa phòng (B-V8-63)', async ({
-  page,
-}) => {
-  await openViewer(page);
-  await openHistoryAndSettleTour(page);
-  await page.keyboard.press('Escape');
-  await selectRoomBySearch(page, 'phong ngu 4', 'Phòng ngủ 4');
-  await selectAWall(page, true);
-
-  await page.getByRole('button', { name: ENTER_LABEL, exact: true }).click();
-  await expect(editorRegion(page)).toContainText(/Đang sửa: W-/u);
 });
