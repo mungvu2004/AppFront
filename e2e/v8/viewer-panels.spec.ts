@@ -220,6 +220,23 @@ test('người xem mở thư viện đồ đạc thì được báo "vai chỉ x
 });
 
 /*
+ * B-V8-46 (đã sửa) — dưới 1024 px thư viện thành tấm trượt đáy (`collapsed`), và nhánh
+ * ấy từng đi trước nhánh quyền nên câu "vai chỉ xem" biến mất. Bề rộng chọn hình dạng,
+ * quyền vẫn mang câu nói.
+ */
+test('người xem ở khung nhìn hẹp (< 1024 px) vẫn được báo "vai chỉ xem" (B-V8-46)', async ({ page }) => {
+  await openViewer(page, 'viewer');
+  await page.setViewportSize({ width: 900, height: 900 });
+  await dismissTourIfPresent(page);
+  await openPanel(page, 'Thư viện đồ đạc');
+
+  const library = page.getByRole('region', { name: 'Thư viện nội thất' });
+  await expect(library).toHaveCSS('position', 'fixed');
+  await expect(library.getByRole('list', { name: 'Lưới mô hình nội thất' })).toBeVisible();
+  await expect(library.getByText(/vai chỉ xem/u)).toBeVisible();
+});
+
+/*
  * B-V8-03 (nửa kéo-thả) chờ B-V8-04 — `Viewer3DPanels` chưa có đích thả nên
  * `canDrag` khoá cứng `false` (`useFurnitureLibraryPanel.ts`, chú thích `ponytail:`).
  * Mở lại khi: màn 3D nối đường thả và `canDrag = options.canPlaceModel` — đổi

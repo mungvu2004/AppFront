@@ -225,9 +225,13 @@ export interface FurnitureLibraryPanelForbiddenState extends FurnitureLibraryPan
   readonly kind: 'forbidden';
 }
 
-/** 7. Thu gọn — tấm trượt đáy cuộn ngang, dưới `collapsedBreakpointPx`. */
+/** 7. Thu gọn — tấm trượt đáy cuộn ngang, dưới `collapsedBreakpointPx`.
+ *
+ * Hai trục bề rộng và quyền là độc lập (cùng khuôn `useProjectSettings.ts:126-129`):
+ * khung nhìn hẹp chọn hình dạng, `isReadOnly` vẫn mang câu "vai chỉ xem" (B-V8-46). */
 export interface FurnitureLibraryPanelCollapsedState extends FurnitureLibraryPanelContent {
   readonly kind: 'collapsed';
+  readonly isReadOnly: boolean;
 }
 
 export type FurnitureLibraryPanelState =
@@ -263,8 +267,9 @@ export interface UseFurnitureLibraryPanelOptions {
    * quyết nút "Tải lên mô hình". */
   readonly canUploadModel: boolean;
   /** Container tự tính qua `can('edit', 'layer', { roles })`: vai này được đặt/thay
-   * đồ đạc vào bản vẽ. `false` ⇒ trạng thái `forbidden` ("vai chỉ xem") và không có
-   * "Thay thế tất cả" (B-V8-03). */
+   * đồ đạc vào bản vẽ. `false` ⇒ `forbidden` ("vai chỉ xem"), hoặc `collapsed` với
+   * `isReadOnly: true` khi khung nhìn hẹp (B-V8-46); và không có "Thay thế tất cả"
+   * (B-V8-03). */
   readonly canPlaceModel: boolean;
   readonly onModelDropped: (modelId: string, targetEntityId: string | null) => void;
   readonly onUploadModel: () => void;

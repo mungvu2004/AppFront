@@ -195,7 +195,7 @@ export const FURNITURE_LIBRARY_PANEL_STORY_SCENARIOS: Readonly<
     kind: 'forbidden',
     ...contentFor({ cards: cardsFor(CARD_SEEDS, { locked: true }), onUploadModel: null }),
   },
-  collapsed: { kind: 'collapsed', ...contentFor() },
+  collapsed: { kind: 'collapsed', isReadOnly: false, ...contentFor() },
 };
 
 /** Props của một trạng thái, dùng chung giữa story và bài kiểm (R-70). */

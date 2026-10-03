@@ -51,9 +51,9 @@
  * ## Hai chỗ hợp đồng cứng quyết định hành vi, không phải hook
  *
  * - **Quyền (trạng thái 6).** Hai phán quyết CONTAINER tính, hai câu hỏi khác
- *   nhau: `canPlaceModel` (`can('edit', 'layer')`) quyết `forbidden` và "Thay thế
- *   tất cả"; `canUploadModel` (`can('manage', 'library')` + màn cha cấp đường)
- *   chỉ quyết `onUploadModel` có hay `null` (B-V8-03). Hook tính lại các phép ấy
+ *   nhau: `canPlaceModel` (`can('edit', 'layer')`) quyết `forbidden` (hay
+ *   `collapsed.isReadOnly` khi khung nhìn hẹp — B-V8-46) và "Thay thế tất cả";
+ *   `canUploadModel` (`can('manage', 'library')` + màn cha cấp đường) chỉ quyết `onUploadModel` có hay `null` (B-V8-03). Hook tính lại các phép ấy
  *   sẽ dựng nguồn sự thật thứ hai, nên nó chỉ nhận phán quyết.
  * - **Nạp trước.** `FurnitureModelCard` không có trường trỏ chuột, nên đường
  *   `prefetchLibraryItemOnHover` được gọi trong `onSelect` — chỗ gần nhất mà hợp
@@ -471,7 +471,7 @@ export function useFurnitureLibraryPanel(
    * `collapsedBreakpointPx` (1024px) của hợp đồng, và nó là hook theo dõi khung
    * nhìn duy nhất của repo. Không `matchMedia` thứ hai ở đây (R-54). */
   if (shell.leftAsDrawer) {
-    return { state: { kind: 'collapsed', ...content } };
+    return { state: { kind: 'collapsed', isReadOnly: !options.canPlaceModel, ...content } };
   }
 
   if (!options.canPlaceModel) {
