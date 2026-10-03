@@ -332,7 +332,6 @@ export function useWallGeometryEditor(
   const zoom = useStore((state) => state.zoom);
   const viewCentre = useStore((state) => state.viewCenter);
   const projectId = useStore((state) => state.project?.id ?? null);
-  const floorId = useStore((state) => state.activeFloorId);
 
   /** Hình đang HIỆN: bản nháp của phiên kéo nếu có, còn lại là hình đã lưu. */
   const graph = draftGraph ?? spatial;
@@ -341,6 +340,8 @@ export function useWallGeometryEditor(
     () => (wallId === null ? null : readWallTarget(graph, wallId)),
     [graph, wallId],
   );
+  /** Tầng của chính bức tường đang sửa — không phải tầng đang xem (B-V8-41). */
+  const floorId = target?.level.id ?? null;
 
   /**
    * M-04 → M-05 → M-09, chạy lại sau MỖI lệnh.

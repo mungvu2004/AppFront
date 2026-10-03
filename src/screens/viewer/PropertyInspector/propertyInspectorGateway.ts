@@ -66,14 +66,13 @@ import type {
   ApiClient,
   PropertyTemplate,
   PropertyTemplateDraft,
-  SpatialLayer,
 } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
-import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
+import { changedLevelIds, createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type {
   Furniture,
   LevelId,
@@ -654,10 +653,12 @@ export function propertyTemplateDraftOf(entity: InspectableEntity): PropertyTemp
   return null;
 }
 
-/** Dự án và tầng lượt ghi đi tới. `null` khi phiên làm việc chưa mở đủ cả hai. */
+/**
+ * Dự án lượt ghi đi tới. `null` khi chưa mở dự án nào. Không mang tầng: lượt lưu
+ * gửi mọi tầng có thứ bị đổi (B-V8-41), không phải tầng đang xem.
+ */
 export interface PropertyInspectorSaveTarget {
   readonly projectId: string;
-  readonly floorId: LevelId;
 }
 
 /** Mỗi phương thức là một việc panel cần từ bên ngoài, và không có việc nào khác. */
@@ -677,7 +678,8 @@ export interface PropertyInspectorGateway {
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: PropertyInspectorGraphPort;
   /**
-   * Gửi lớp không gian của tầng đang mở lên máy chủ — lượt lưu THẬT của A7.
+   * Gửi lớp không gian của mọi tầng có thứ bị đổi lên máy chủ, mỗi tầng một PUT —
+   * lượt lưu THẬT của A7. Trả danh sách tầng đã gửi.
    *
    * Nhận đồ thị chứ không tự đọc kho: nơi gọi là `useAutosave`, và chính nó đã
    * cầm ảnh chụp `state.spatial` của đúng lượt lưu này. Cổng tự đọc lại sẽ là
@@ -685,12 +687,12 @@ export interface PropertyInspectorGateway {
    */
   readonly persistProperties: (
     graph: NormalizedSpatial,
-  ) => Promise<PropertyInspectorCapabilityResult<SpatialLayer>>;
+  ) => Promise<PropertyInspectorCapabilityResult<readonly LevelId[]>>;
   /** Lưu bộ thuộc tính của đối tượng này thành một khuôn mẫu của dự án. */
   readonly copyAsTemplate: (
     entity: InspectableEntity,
   ) => Promise<PropertyInspectorCapabilityResult<PropertyTemplate>>;
-  /** Dự án và tầng lượt ghi đi tới, đọc ĐỒNG BỘ; `null` khi chưa mở đủ. */
+  /** Dự án lượt ghi đi tới, đọc ĐỒNG BỘ; `null` khi chưa mở dự án. */
   readonly saveTarget: () => PropertyInspectorSaveTarget | null;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
   readonly actorId: string;
@@ -709,24 +711,33 @@ export interface CreatePropertyInspectorGatewayOptions {
    */
   readonly apiClient?: ApiClient;
   /**
-   * Dự án và tầng lượt ghi đi tới. Vắng mặt thì đọc `projectSlice` của store.
+   * Dự án lượt ghi đi tới. Vắng mặt thì đọc `projectSlice` của store.
    *
-   * Là một HÀM chứ không phải một giá trị: người dùng đổi tầng giữa hai lượt
-   * tự lưu, và một cổng dựng đúng một lần (`useMemo` của hook) sẽ giữ mãi cái
-   * tầng đang mở lúc panel gắn.
+   * Là một HÀM chứ không phải một giá trị: cổng dựng đúng một lần (`useMemo` của
+   * hook), còn dự án có thể mở sau lúc panel gắn.
    */
   readonly target?: () => PropertyInspectorSaveTarget | null;
+  /**
+   * Hai đầu lịch sử hoàn tác — mốc so khi cổng chưa lưu lượt nào. Vắng mặt thì đọc
+   * `useStore.temporal`: đầu cũ nhất của `pastStates` và đầu gần nhất của `futureStates`.
+   */
+  readonly historyEnds?: () => readonly NormalizedSpatial[];
 }
 
-/** Dự án và tầng đang mở, đọc thẳng store. `null` khi thiếu một trong hai. */
+/** Dự án đang mở, đọc thẳng store. `null` khi chưa mở dự án. */
 function storeSaveTarget(): PropertyInspectorSaveTarget | null {
-  const state = useStore.getState();
-  const projectId = state.project?.id;
-  const floorId = state.activeFloorId;
+  const projectId = useStore.getState().project?.id;
 
-  return projectId === undefined || projectId === '' || floorId === null
-    ? null
-    : { floorId, projectId };
+  return projectId === undefined || projectId === '' ? null : { projectId };
+}
+
+/** Hai đầu lịch sử zundo của kho — lấy hợp cả hai để hoàn tác về giữa lịch sử không sót tầng. */
+function storeHistoryEnds(): readonly NormalizedSpatial[] {
+  const { futureStates, pastStates } = useStore.temporal.getState();
+
+  return [pastStates[0]?.spatial, futureStates[0]?.spatial].filter(
+    (spatial): spatial is NormalizedSpatial => spatial !== null && spatial !== undefined,
+  );
 }
 
 /** Cổng thật — đọc store, ghi qua `dispatch`, lưu qua `src/api`. */
@@ -736,25 +747,16 @@ export function createPropertyInspectorGateway(
   const graph = options.graph ?? { read: (): NormalizedSpatial | null => null };
   const apiClient = options.apiClient ?? createAppApiClient();
   const saveTarget = options.target ?? storeSaveTarget;
+  const historyEnds = options.historyEnds ?? storeHistoryEnds;
+  /** `revision` theo tầng làm `baseVersion` (B-G-07) — giữ trong `createFloorLayerSave`. */
+  const saveFloor = createFloorLayerSave(apiClient.spatial);
   /**
-   * `revision` của lượt ghi gần nhất theo tầng — `baseVersion` của lượt sau (#35 là
-   * `PUT` có version, B-G-07). Lượt đầu chưa có thì đọc N16 một lần.
-   * ponytail: lượt đầu lấy revision MỚI NHẤT nên không thấy một lượt sửa của người
-   * khác xảy ra trước nó; muốn chặn cả lượt ấy thì cổng phải giữ revision của lượt
-   * đọc mà panel dựa vào — việc của đường nạp thật cho vỏ 3D.
+   * Đồ thị của lượt lưu xong gần nhất — mốc so của lượt sau.
+   * ponytail: khi chưa có mốc, so với hai đầu lịch sử zundo; sót tầng nếu lịch sử
+   * vượt `limit: 100` (`store/index.ts`) hoặc hoàn tác qua ngăn lệnh lúc panel đã tháo.
+   * B-V8-60 bịt cả hai bằng cách giữ cổng (và mốc này) suốt màn `/3d`.
    */
-  const revisions = new Map<string, number>();
-  const baseVersionOf = async (target: PropertyInspectorSaveTarget): Promise<number | null> => {
-    const known = revisions.get(target.floorId);
-
-    if (known !== undefined) {
-      return known;
-    }
-
-    const read = await apiClient.spatial.readLayer({ floorId: target.floorId, projectId: target.projectId });
-
-    return read.ok ? read.data.revision : null;
-  };
+  let lastSaved: NormalizedSpatial | null = null;
 
   return {
     supports: {
@@ -773,26 +775,22 @@ export function createPropertyInspectorGateway(
         return { ok: false, reason: NO_SAVE_TARGET_REASON };
       }
 
-      const baseVersion = await baseVersionOf(target);
+      const baselines = lastSaved?.building === current.building ? [lastSaved] : historyEnds();
+      const floorIds = [...new Set(baselines.flatMap((baseline) => changedLevelIds(baseline, current)))];
 
-      if (baseVersion === null) {
-        return { ok: false, reason: persistFailedReason('read') };
+      try {
+        for (const floorId of floorIds) {
+          await saveFloor({ floorId, graph: current, projectId: target.projectId });
+        }
+      } catch (error) {
+        const kind = (error as { cause?: { kind?: string } }).cause?.kind;
+
+        return { ok: false, reason: persistFailedReason(kind ?? 'unknown') };
       }
 
-      const result = await apiClient.spatial.writeLayer({
-        baseVersion,
-        body: spatialLayerOf(current, target.floorId),
-        floorId: target.floorId,
-        projectId: target.projectId,
-      });
+      lastSaved = current;
 
-      if (!result.ok) {
-        return { ok: false, reason: persistFailedReason(result.error.kind) };
-      }
-
-      revisions.set(target.floorId, result.data.revision);
-
-      return { data: result.data.layer, ok: true };
+      return { data: floorIds, ok: true };
     },
     copyAsTemplate: async (entity) => {
       const target = saveTarget();

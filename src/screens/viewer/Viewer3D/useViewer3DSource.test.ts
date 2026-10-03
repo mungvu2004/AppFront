@@ -24,14 +24,14 @@ describe('shouldUseViewerFixture', () => {
   });
 });
 
-describe('useViewer3DSource — tầng đang xem (B-V8-04)', () => {
-  it('gắn thì xoá `activeFloorId` cũ, để đường lưu của panel không ghi vào tầng của màn trước', () => {
+describe('useViewer3DSource — tầng đang xem (B-V8-41)', () => {
+  it('gắn thì KHÔNG đụng `activeFloorId` — đích lưu nay theo tầng có thứ bị đổi, không theo tầng đang xem', () => {
     act(() => {
       useStore.getState().setActiveFloor('L-OLDFLOOR01' as LevelId);
     });
 
     renderHook(() => useViewer3DSource({}, null, true));
 
-    expect(useStore.getState().activeFloorId).toBeNull();
+    expect(useStore.getState().activeFloorId).toBe('L-OLDFLOOR01');
   });
 });

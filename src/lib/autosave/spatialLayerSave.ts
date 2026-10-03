@@ -1,4 +1,5 @@
 import type { SpatialApi, SpatialLayer } from '@/api/client';
+import { isIdOfKind } from '@/domain/spatial/ids';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
 
@@ -86,6 +87,25 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
   }
 
   return { furniture, openings, rooms, walls };
+}
+
+/**
+ * Các tầng của `next` có thực thể hoặc mảng `byLevel` khác tham chiếu với `previous` —
+ * đích lưu là mọi tầng có thứ bị đổi, không phải tầng đang xem (B-V8-41). So tham
+ * chiếu là đủ: `applyPatch` chỉ chép mảng `byLevel` và thực thể bị chạm.
+ * Chỉ duyệt tầng còn trong `next`, nên guard tầng của `createFloorLayerSave` không bị kích.
+ * ponytail: trục và kích thước cũng nằm trong `byLevel`; đổi chúng sinh một PUT thừa, vô hại.
+ */
+export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpatial): LevelId[] {
+  return next.byKind.level.filter((levelId): levelId is LevelId => {
+    if (!isIdOfKind('level', levelId)) {
+      return false;
+    }
+
+    const ids = idsOnLevel(next, levelId);
+
+    return idsOnLevel(previous, levelId) !== ids || ids.some((id) => previous.byId[id] !== next.byId[id]);
+  });
 }
 
 /** Một lượt tự lưu của màn QC: đồ thị trong kho, và tầng mà URL của màn trỏ tới. */

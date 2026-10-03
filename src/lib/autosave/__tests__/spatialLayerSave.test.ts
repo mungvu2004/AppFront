@@ -1,14 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { SpatialApi, SpatialLayer } from '@/api/client';
+import type { Furniture } from '@/domain/spatial/types';
 import type { HttpError, Result } from '@/lib/http';
 
-import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import {
+  SAMPLE_BUILDING,
+  sampleFurnitureId,
+  sampleLevelId,
+  sampleWindowId,
+} from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { isTransientWireError } from '@/lib/errors/wireError';
 
 import { createAutosave } from '../createAutosave';
 import {
+  changedLevelIds,
   createFloorLayerSave,
   createSpatialLayerSave,
   spatialLayerOf,
@@ -156,5 +164,50 @@ describe('createFloorLayerSave (B-V6-03)', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect(isTransientWireError(error)).toBe(false);
+  });
+});
+
+describe('changedLevelIds — B-V8-41: đích lưu là mọi tầng có thứ bị đổi', () => {
+  const base = normalizeSpatial(SAMPLE_BUILDING);
+  const furnitureId = sampleFurnitureId(0);
+  const furniture = readEntity(base, 'furniture', furnitureId);
+
+  if (furniture === null) {
+    throw new Error('bộ mẫu thiếu đồ đạc 0');
+  }
+
+  it('cùng một đồ thị thì không tầng nào', () => {
+    expect(changedLevelIds(base, base)).toEqual([]);
+  });
+
+  it('sửa một ô mở thì ra tầng của tường chủ', () => {
+    const windowId = sampleWindowId(0);
+    const opening = readEntity(base, 'opening', windowId);
+    const host = opening === null ? null : readEntity(base, 'wall', opening.wallId);
+    const next = applyPatch(base, [{ changes: { widthMm: 1234 }, id: windowId, kind: 'opening', op: 'update' }]);
+
+    expect(changedLevelIds(base, next)).toEqual([host?.levelId]);
+  });
+
+  it('đồ đạc dời sang tầng khác thì ra cả tầng cũ lẫn tầng mới', () => {
+    const target = furniture.levelId === sampleLevelId(2) ? sampleLevelId(3) : sampleLevelId(2);
+    const next = applyPatch(base, [{ changes: { levelId: target }, id: furnitureId, kind: 'furniture', op: 'update' }]);
+
+    expect([...changedLevelIds(base, next)].sort()).toEqual([furniture.levelId, target].sort());
+  });
+
+  it('thêm rồi xoá một đồ đạc thì vẫn ra tầng ấy — mảng byLevel đã đổi tham chiếu', () => {
+    const extra: Furniture = { ...furniture, id: sampleFurnitureId(99) };
+    const added = applyPatch(base, [{ entity: extra, kind: 'furniture', op: 'add' }]);
+    const removed = applyPatch(added, [{ id: extra.id, kind: 'furniture', op: 'remove' }]);
+
+    expect(changedLevelIds(base, removed)).toEqual([furniture.levelId]);
+  });
+
+  it('tầng đã bị xoá khỏi đồ thị mới thì không ra', () => {
+    const levelId = furniture.levelId;
+    const next = applyPatch(base, [{ id: levelId, kind: 'level', op: 'remove' }]);
+
+    expect(changedLevelIds(base, next)).not.toContain(levelId);
   });
 });
