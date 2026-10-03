@@ -2,9 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { useStore as useVanillaStore } from 'zustand';
 
-import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
-import { readProjectSpatial } from '@/api/floorLayerGraph';
 import { CACHE_POLICY } from '@/lib/query/cachePolicy';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { createScreenErrorRecorder, type ScreenErrorReport } from '@/lib/screen-state/screenErrorBoundary';
@@ -63,8 +61,25 @@ export interface UseProjectSpatialResult {
 
 const pastCountOf = (state: { pastStates: readonly unknown[] }): number => state.pastStates.length;
 
+/**
+ * Nạp lười client và bộ đọc: cổng bọc cả màn luật, xuất, dữ liệu, 3D, điện thoại, và
+ * nhập tĩnh `appClient` (kèm client giả của bản dev) đẩy "chi phí thêm cho một màn"
+ * của màn luật qua trần 280 KiB (`pnpm size`). Cả hai module vốn đã là chunk dùng chung.
+ */
+async function loadProjectSpatial(
+  api: UseProjectSpatialOptions['api'],
+  projectId: string,
+  signal: AbortSignal,
+) {
+  const [{ readProjectSpatial }, client] = await Promise.all([
+    import('@/api/floorLayerGraph'),
+    api ?? import('@/api/appClient').then((module) => module.createAppApiClient()),
+  ]);
+
+  return readProjectSpatial(client, { projectId, signal });
+}
+
 export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions): UseProjectSpatialResult {
-  const client = useMemo(() => api ?? createAppApiClient(), [api]);
   const recorder = useMemo(() => createScreenErrorRecorder(SCREEN_ID), []);
 
   const project = useStore((state) => state.project);
@@ -76,7 +91,7 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
 
   const query = useQuery({
     enabled: needsLoad,
-    queryFn: ({ signal }) => readProjectSpatial(client, { projectId: projectId ?? '', signal }),
+    queryFn: ({ signal }) => loadProjectSpatial(api, projectId ?? '', signal),
     queryKey: [...queryKeys.project.detail(projectId ?? ''), 'spatial'] as const,
     staleTime: CACHE_POLICY.projectSpatialLoad.staleTime,
   });
