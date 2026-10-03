@@ -66,7 +66,7 @@ import {
   resolveLevelId,
   type NormalizedSpatial,
 } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
+import { hasBuildableParts, toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { isValidId } from '@/domain/spatial/ids';
 import type { EntityId, LevelId, Room } from '@/domain/spatial/types';
 import { can } from '@/lib/auth/permissions';
@@ -118,6 +118,12 @@ import type {
 
 /** Câu dưới một tầng chưa dựng xong. Khoá `viewer3d.partial.wireframeCaption`. */
 const WIREFRAME_CAPTION_SUFFIX = ' — chưa dựng xong';
+
+/**
+ * Câu dưới một tầng không có tường hay phòng nào — không phải "chưa dựng xong":
+ * không có gì để dựng (B-V1-11). Khoá `viewer3d.partial.noPartsCaption`.
+ */
+const NO_PARTS_CAPTION_SUFFIX = ' — chưa có tường hay phòng nào';
 
 /** Tên dự phòng khi đồ thị chưa mang tên tầng nào. */
 const UNNAMED_STOREY = 'Tầng';
@@ -559,7 +565,9 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   const mountScene = options.mountScene ?? mountViewerScene;
 
   useEffect(() => {
-    if (canvas === null || levels.length === 0) {
+    // Không tầng nào có gì để dựng thì không lắp cảnh: màn là `empty`, và máy
+    // không có WebGL không vì thế mà rơi vào `error` (B-V1-11).
+    if (canvas === null || !levels.some(hasBuildableParts)) {
       return;
     }
 
@@ -645,10 +653,13 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   const wireframeCaptionOf = useCallback(
     (storeyId: string): string => {
       const storey = data.storeys.find((candidate) => candidate.id === storeyId);
+      const input = levels.find((candidate) => String(candidate.level.id) === storeyId);
+      const suffix =
+        input !== undefined && hasBuildableParts(input) ? WIREFRAME_CAPTION_SUFFIX : NO_PARTS_CAPTION_SUFFIX;
 
-      return `${storey?.name ?? UNNAMED_STOREY}${WIREFRAME_CAPTION_SUFFIX}`;
+      return `${storey?.name ?? UNNAMED_STOREY}${suffix}`;
     },
-    [data.storeys],
+    [data.storeys, levels],
   );
 
   const buildFailed = conversion.failed || sceneStatus.phase === 'failed';
@@ -668,7 +679,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     if (projectQuery.isLoading || spatialLoading || sceneStatus.phase === 'building') {
       return 'loading';
     }
-    if (data.storeys.length === 0) {
+    if (!levels.some(hasBuildableParts)) {
       return 'empty';
     }
     if (data.isPartial || readyStoreyIds.length < data.storeys.length) {
@@ -686,6 +697,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     roles,
     sceneStatus.phase,
     data,
+    levels,
     readyStoreyIds.length,
   ]);
 

@@ -2167,7 +2167,8 @@
     },
     "partial": {
       "readyLabel": "Tầng đã dựng xong",
-      "wireframeCaption": "{{name}} — chưa dựng xong"
+      "wireframeCaption": "{{name}} — chưa dựng xong",
+      "noPartsCaption": "{{name}} — chưa có tường hay phòng nào"
     },
     "search": {
       "openButton": "tìm phòng",
