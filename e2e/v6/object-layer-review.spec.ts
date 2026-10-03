@@ -9,7 +9,8 @@ import { QC_FLOOR, QC_PROJECT, seedQc } from './seedQc';
  *
  * Kế hoạch tự rút mục này về ít ca nếu phím chạy y hệt tường. Đo ra hai hành vi riêng của
  * màn: ba nút "chọn nhóm" khoá cứng lúc đầu (B-V6-10, đã sửa) và màn chỉ liệt kê đối tượng
- * có trong bảng mẫu cứng (B-V6-13, chờ quyết). Gộp lệnh, gắn tường, vai: 42 bài đơn vị.
+ * có trong bảng mẫu cứng (B-V6-13, đã sửa: danh sách dựng từ đồ thị). Gộp lệnh, gắn tường,
+ * vai: bài đơn vị.
  */
 
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
@@ -27,7 +28,7 @@ async function openSeeded(page: Page): Promise<void> {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'objects');
-  await expect(page.getByText('9/21 đối tượng đã duyệt').first()).toBeVisible();
+  await expect(page.getByText('9/20 đối tượng đã duyệt').first()).toBeVisible();
 }
 
 test('đường nạp thật: mở thẳng màn ở một tầng có lớp thì kho được nạp — bộ đếm duyệt có mẫu số khác 0 (không bơm)', async ({
@@ -36,32 +37,29 @@ test('đường nạp thật: mở thẳng màn ở một tầng có lớp thì 
   await page.goto(ROUTES.project.objects(QC_PROJECT, A14_FLOOR));
 
   /*
-   * Mẫu số khác 0 nghĩa là kho đã được nạp. Kho rỗng (trước B-V6-01) cho "0/0". Ca này KHÔNG
-   * khẳng định đúng số đối tượng — số ấy đang sai vì B-V6-13 (ca fixme ngay dưới).
+   * Mẫu số khác 0 nghĩa là kho đã được nạp. Kho rỗng (trước B-V6-01) cho "0/0". Đúng số đối
+   * tượng là việc của ca B-V6-13 ngay dưới.
    */
   await expect(
     page.getByRole('status', { name: 'Thanh trạng thái' }).getByText(/^\d+\/[1-9]\d* đối tượng đã duyệt$/u),
   ).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 });
 
-test.fixme(
-  'đường nạp thật: màn liệt kê đúng ô mở và nội thất của tầng từ đồ thị, không bịa dòng mồ côi #D-009 (B-V6-13)',
-  async ({ page }) => {
-    /*
-     * Lý do fixme: `objectsOf` (objectLayerReviewGateway.ts) lặp bảng mẫu cứng
-     * `OBJECT_LAYER_SEED`, không lặp đồ thị. Đo 2026-10-03 ở tầng này: màn hiện đúng một
-     * dòng "#D-009 — 0/1" lấy từ bảng mẫu, trong khi đồ thị có 9 đối tượng.
-     * Mở lại khi: người dùng chốt ánh xạ kind miền → loại con (mục B-V6-13) và danh sách
-     * được dựng từ đồ thị.
-     */
-    await page.goto(ROUTES.project.objects(QC_PROJECT, A14_FLOOR));
+test('đường nạp thật: màn liệt kê đúng ô mở và nội thất của tầng từ đồ thị, không bịa dòng mồ côi #D-009 (B-V6-13)', async ({
+  page,
+}) => {
+  /*
+   * Trước B-V6-13 `objectsOf` lặp bảng mẫu cứng `OBJECT_LAYER_SEED` thay vì đồ thị: ở tầng này
+   * màn hiện đúng một dòng "#D-009 — 0/1" lấy từ bảng mẫu, trong khi đồ thị có 9 đối tượng.
+   */
+  await page.goto(ROUTES.project.objects(QC_PROJECT, A14_FLOOR));
 
-    await expect(page.getByText(`0/${String(A14_OBJECTS_ON_FLOOR)} đối tượng đã duyệt`).first()).toBeVisible({
-      timeout: FIRST_PAINT_TIMEOUT_MS,
-    });
-    await expect(page.getByRole('option', { name: /^#D-009/u })).toHaveCount(0);
-  },
-);
+  await expect(page.getByText(`0/${String(A14_OBJECTS_ON_FLOOR)} đối tượng đã duyệt`).first()).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await expect(page.getByRole('option')).toHaveCount(A14_OBJECTS_ON_FLOOR);
+  await expect(page.getByRole('option', { name: /^#D-009/u })).toHaveCount(0);
+});
 
 test('[bơm] ba nút "chọn nhóm" bấm được bằng chuột ngay từ đầu (B-V6-10)', async ({ page }) => {
   await openSeeded(page);
@@ -101,7 +99,7 @@ test('[bơm] duyệt một đối tượng thì hệ thống tự lưu và trìn
 
   await page.getByRole('option', { name: /^#D-004 /u }).click();
   await page.getByRole('button', { name: 'Duyệt đối tượng này' }).click();
-  await expect(page.getByText('10/21 đối tượng đã duyệt').first()).toBeVisible();
+  await expect(page.getByText('10/20 đối tượng đã duyệt').first()).toBeVisible();
 
   await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);
 });

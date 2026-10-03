@@ -104,8 +104,6 @@ import {
   createObjectLayerReviewGateway,
   createObjectUndoTicket,
   dataLayerTokens,
-  displayIdOf,
-  entityIdOf,
   graphWallsOf,
   isLowConfidenceObject,
   layerTreeTotalLabel,
@@ -140,6 +138,7 @@ import {
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LAYER,
   isOrphanObject,
+  isUnattachedOpening,
   type ObjectLayerId,
   type ObjectLayerReviewModel,
   type ObjectLayerScreenState,
@@ -264,8 +263,8 @@ export function applyObjectFilters(
 /**
  * Ba ô 1/2/3 của một nhóm loại.
  *
- * Nhóm cửa đi có hai loại con, nhóm cửa sổ có một, nhóm nội thất có năm — nên ô
- * thứ ba của hai nhóm đầu trống, và hai loại con cuối của nhóm nội thất không
+ * Nhóm cửa đi có hai loại con, nhóm cửa sổ có một, nhóm nội thất có sáu — nên ô
+ * thứ ba của hai nhóm đầu trống, và ba loại con cuối của nhóm nội thất không
  * có phím tắt. Danh sách cắt từ {@link OBJECT_SUBTYPES}, không gõ tay lần thứ hai.
  */
 export const subtypeSlotsOf = (layer: ObjectLayerId): readonly ObjectSubtype[] =>
@@ -346,11 +345,10 @@ export function useObjectLayerReview(
   /**
    * Dòng bộ mẫu của những đối tượng người duyệt tự thêm trong phiên này.
    *
-   * `objectsOf` đọc đồ thị QUA bộ mẫu (một dòng bộ mẫu là chỗ mã hiển thị gặp
-   * mã máy), nên một đối tượng vừa thêm mà không có dòng của nó sẽ nằm trong đồ
-   * thị mà không hiện ra ở đâu — đúng thứ một nút "thêm" im lặng trông như.
-   * Cổng không sửa được (bộ mẫu của nó là hằng), nên dòng mới sống ở đây, cạnh
-   * chính lượt ghi đã tạo ra nó.
+   * `objectsOf` dựng danh sách từ đồ thị (B-V6-13), nên đối tượng vừa thêm hiện ra
+   * dù không có dòng nào; dòng ở đây giữ cho nó đúng mã hiển thị đã đề nghị
+   * (`D-010`…) thay vì mã đánh lại theo thứ tự. Cổng không sửa được (bộ mẫu của nó
+   * là hằng), nên dòng mới sống ở đây, cạnh chính lượt ghi đã tạo ra nó.
    */
   const [manualEntries, setManualEntries] = useState<readonly ObjectSeedEntry[]>([]);
 
@@ -535,7 +533,7 @@ export function useObjectLayerReview(
     (objectId: string): EntityId | null => {
       const object = objectById(objectId);
 
-      return object === null ? null : (entityIdOf(object.id, object.layer) as EntityId);
+      return object === null ? null : (object.entityId as EntityId);
     },
     [objectById],
   );
@@ -551,9 +549,7 @@ export function useObjectLayerReview(
       return null;
     }
 
-    const displayId = displayIdOf(anchor);
-
-    return objects.some((object) => object.id === displayId) ? displayId : null;
+    return objects.find((object) => object.entityId === anchor)?.id ?? null;
   }, [objects, orphanSelection, selectedIds]);
 
   const pushSelection = useCallback(
@@ -586,8 +582,11 @@ export function useObjectLayerReview(
         return;
       }
 
-      /* Đối tượng chưa gắn không nằm trong đồ thị, nên nó đi đường riêng. */
-      if (isOrphanObject(object)) {
+      /*
+       * Lỗ mở chưa gắn không nằm trong đồ thị, nên nó đi đường riêng. Nội thất đứng tự
+       * do thì có trên đồ thị, nên nó đi vùng chọn thật như mọi thực thể khác.
+       */
+      if (isUnattachedOpening(object)) {
         pushSelection(NO_SELECTION_IDS);
         setOrphanSelection(objectId);
 
@@ -626,7 +625,7 @@ export function useObjectLayerReview(
 
       const ids = objects
         .filter((object) => object.layer === layer)
-        .map((object) => entityIdOf(object.id, object.layer) as EntityId);
+        .map((object) => object.entityId as EntityId);
 
       pushSelection(combineSelection(selectedIds, ids, 'replace', selectionContext));
     },
@@ -734,8 +733,7 @@ export function useObjectLayerReview(
       }
 
       void runBlock(object.id, object.layer, (context) => {
-        const entityId = entityIdOf(object.id, object.layer);
-        const before = context.graph.byId[entityId];
+        const before = context.graph.byId[object.entityId];
         const wall = wallOfObject(object.hostWallId);
 
         if (before === undefined || wall === null || !('wallId' in before)) {
@@ -744,6 +742,7 @@ export function useObjectLayerReview(
 
         const built = buildChangeObjectKindCommand({
           before,
+          displayId: object.id,
           wall,
           siblings: siblingOpeningsOf(context.graph, wall),
           subtype,
@@ -765,13 +764,18 @@ export function useObjectLayerReview(
       }
 
       void runBlock(object.id, object.layer, (context) => {
-        const before = context.graph.byId[entityIdOf(object.id, object.layer)];
+        const before = context.graph.byId[object.entityId];
 
         if (before === undefined || !('wallId' in before)) {
           return null;
         }
 
-        const built = buildChangeObjectSwingCommand({ before, swing, actorId: context.actorId });
+        const built = buildChangeObjectSwingCommand({
+          before,
+          displayId: object.id,
+          swing,
+          actorId: context.actorId,
+        });
 
         return built.ok ? built.data : null;
       });
@@ -788,13 +792,13 @@ export function useObjectLayerReview(
       }
 
       void runBlock(object.id, object.layer, (context) => {
-        const before = context.graph.byId[entityIdOf(object.id, object.layer)];
+        const before = context.graph.byId[object.entityId];
 
         if (before === undefined || (!('wallId' in before) && !('boundingBox' in before))) {
           return null;
         }
 
-        return buildApproveObjectCommand(before, context.actorId);
+        return buildApproveObjectCommand(before, context.actorId, object.id);
       });
     },
     [objectById, runBlock],
@@ -817,7 +821,7 @@ export function useObjectLayerReview(
       setDraggingObjectId(object.id);
 
       void runSingle(object.id, object.layer, (context) => {
-        const entityId = entityIdOf(object.id, object.layer);
+        const { entityId } = object;
 
         if (object.layer === 'furniture') {
           const built = buildMoveFurnitureCommand(
@@ -879,7 +883,7 @@ export function useObjectLayerReview(
       }
 
       void runSingle(object.id, object.layer, (context) => {
-        const entityId = entityIdOf(object.id, object.layer);
+        const { entityId } = object;
         const built =
           object.layer === 'furniture'
             ? buildDeleteFurnitureCommand({ furnitureId: entityId as never }, context)
