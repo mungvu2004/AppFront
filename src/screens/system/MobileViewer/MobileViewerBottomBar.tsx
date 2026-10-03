@@ -145,7 +145,7 @@ export function MobileViewerBottomBar({
                   onActivate={() => {
                     onSelectFloor(floor.id);
                   }}
-                  {...(floor.isLoaded ? {} : { trailing: <Badge variant="neutral">chưa tải</Badge> })}
+                  {...(floor.hasRooms ? {} : { trailing: <Badge variant="neutral">chưa có phòng</Badge> })}
                 />
               ))}
             </div>

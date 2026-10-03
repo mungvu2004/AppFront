@@ -74,21 +74,16 @@ const SAMPLE_FLOOR_DEFS: readonly SampleFloorDef[] = Object.freeze([
   FLOOR_ROOF,
 ]);
 
-function buildFloor(def: SampleFloorDef, isLoaded: boolean): MobileViewerFloor {
-  return { id: def.id, label: def.label, isLoaded };
+function buildFloor(def: SampleFloorDef, hasRooms: boolean): MobileViewerFloor {
+  return { id: def.id, label: def.label, hasRooms };
 }
 
-/** Bốn tầng, tất cả đã dựng xong. */
+/** Bốn tầng, tầng nào cũng đã có phòng. */
 const ALL_FLOORS_LOADED: readonly MobileViewerFloor[] = Object.freeze(
   SAMPLE_FLOOR_DEFS.map((def) => buildFloor(def, true)),
 );
 
-/** Bốn tầng, chưa tầng nào dựng xong — mức gọn đang tải. */
-const ALL_FLOORS_LOADING: readonly MobileViewerFloor[] = Object.freeze(
-  SAMPLE_FLOOR_DEFS.map((def) => buildFloor(def, false)),
-);
-
-/** Đúng hai tầng dưới đã dựng xong, hai tầng trên còn đang tải — "mạng yếu, chỉ tải được 2 tầng". */
+/** Đúng hai tầng dưới đã có phòng, hai tầng trên chưa có phòng nào được dựng từ bản vẽ. */
 const TWO_FLOORS_LOADED: readonly MobileViewerFloor[] = Object.freeze([
   buildFloor(FLOOR_GROUND, true),
   buildFloor(FLOOR_1, true),
@@ -184,6 +179,7 @@ const BASE: MobileViewerProps = {
   onSendDesktopLink: NO_OP,
   measurements: SAMPLE_MEASUREMENTS,
   detailLabel: null,
+  partialReason: null,
   fallback2dHref: SAMPLE_FALLBACK_2D_HREF,
 };
 
@@ -203,17 +199,17 @@ const PROPS_BY_STATE: Readonly<Record<MobileViewerState, MobileViewerProps>> = O
   loading: {
     ...BASE,
     state: 'loading',
-    floors: ALL_FLOORS_LOADING,
     activeFloorId: null,
     selection: null,
     measurements: Object.freeze([]),
     detailLabel: 'đang tải mức gọn',
   },
 
-  // Mạng yếu: chỉ tải được 2 tầng.
+  // Mới có một phần: hai tầng trên chưa có phòng nào.
   partial: {
     ...BASE,
     state: 'partial',
+    partialReason: 'missing-rooms',
     floors: TWO_FLOORS_LOADED,
     activeFloorId: FLOOR_GROUND.id,
     selection: null,

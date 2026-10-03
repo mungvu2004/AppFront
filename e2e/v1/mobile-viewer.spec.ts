@@ -64,7 +64,9 @@ test('không bơm: bốn tầng của dự án có thật, và nói thật rằn
   await screen.getByRole('button', { name: 'tầng', exact: true }).click();
   const floorRows = screen.getByRole('group', { name: 'tầng', exact: true }).getByRole('button');
   await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
-  await expect(floorRows.first()).toHaveAccessibleName(/^tầng hầm/);
+  // B-V1-11: tầng chưa có phòng nói "chưa có phòng", không nói "chưa tải" (câu về mạng).
+  await expect(floorRows.first()).toHaveAccessibleName(/^tầng hầm chưa có phòng/);
+  await expect(screen.getByText('chưa tải', { exact: true })).toHaveCount(0);
 });
 
 test('bơm bộ mẫu A14 vào dự án đã nạp: thấy mô hình, không thấy "chưa có mô hình để xem"', async ({
@@ -83,8 +85,8 @@ test('bơm bộ mẫu A14 vào dự án đã nạp: thấy mô hình, không th�
 
   await screen.getByRole('button', { name: 'tầng', exact: true }).click();
   const floorRows = screen.getByRole('group', { name: 'tầng', exact: true }).getByRole('button');
-  // Bơm thay `floors` bằng bốn tầng của bộ mẫu (`Level 0..3`), có phòng nên không tầng nào "chưa tải".
+  // Bơm thay `floors` bằng bốn tầng của bộ mẫu (`Level 0..3`), có phòng nên không tầng nào "chưa có phòng".
   await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
   await expect(floorRows.first()).toHaveAccessibleName(/^level 0/);
-  await expect(screen.getByText('chưa tải', { exact: true })).toHaveCount(0);
+  await expect(screen.getByText('chưa có phòng', { exact: true })).toHaveCount(0);
 });
