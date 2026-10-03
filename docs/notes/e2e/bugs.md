@@ -46,12 +46,12 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 | Trạng thái | Số mục |
 |---|---|
-| đã sửa | 97 |
-| không phải lỗi | 24 |
+| đã sửa | 116 |
+| không phải lỗi | 25 |
 | ngoài FE | 9 |
-| mở | 19 |
+| mở | 22 |
 | đã quyết | 1 |
-| **cộng** | **150** |
+| **cộng** | **173** |
 
 ## Mục lục
 
@@ -74,12 +74,20 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V1-08 | `role="status"` rỗng và 404 trên màn không có quyền | không phải lỗi | — | khung |
 | B-V1-09 | Chữ nhân đôi trong `textContent` của nút ("Đăng nhậpĐăng nhập") | không phải lỗi | — | khung |
 | B-V1-10 | Canvas của bản điện thoại không có mốc neo | không phải lỗi | — | khung |
-| B-V1-11 | Tầng chưa có hình bị gắn "chưa tải"/mạng yếu; quy tắc `empty` của bản máy tính lệch bản điện thoại | mở | trung bình | khung |
-| B-V1-12 | Khoá `project.detail(id)` mang ba hình dữ liệu; đi `/3d` rồi sang `/m/du-an` thì ném lỗi | mở | trung bình | khung |
-| B-V1-41 | Câu `skipNotice` hứa "xem lại trong menu trợ giúp", nhưng menu đó không tồn tại | mở | thấp | khung |
-| B-V1-42 | Người đăng nhập lần đầu không được dẫn tới `/onboarding` | mở | thấp | khung |
-| B-V1-43 | Người ngoài dự án mở `/3d` ra trạng thái `error` thay vì màn không-tìm-thấy | mở | thấp | khung |
+| B-V1-11 | Tầng chưa có tường/phòng bị gọi là "chưa tải" hoặc "mạng yếu"; /3d và điện thoại xếp `empty` theo hai luật khác nhau | đã sửa | trung bình | J4 |
+| B-V1-12 | Khoá `project.detail(id)` bị ghi ba hình dữ liệu; rê chuột lên thẻ "Nhà máy Bắc Ninh" rồi "Mở" thì màn /3d sập | đã sửa | cao | J4 |
+| B-V1-41 | Câu `skipNotice` hứa "xem lại trong menu trợ giúp", nhưng menu đó không tồn tại | đã sửa | thấp | J1 |
+| B-V1-42 | Người đăng nhập lần đầu không được dẫn tới `/onboarding` | không phải lỗi | thấp | J1 |
+| B-V1-43 | Mở một dự án không có, hoặc mình không phải thành viên, thì kẹt ở khung "Không tìm thấy": màn bảo tải lại nhưng không có nút, không có lối ra | đã sửa | thấp | J4 |
 | B-V1-44 | Chuỗi dùng chung `vi.json:2-72` viết hoa, và mẫu dữ liệu NotFound lệch khỏi hook | mở | thấp | khung |
+| B-V1-50 | Tab "đăng ký" gọi `/api/auth/register`, máy chủ v1 không có route này | mở | trung bình | J1 |
+| B-V1-70 | Bộ hẹn giờ `prefetchOnHover` không bị huỷ khi dashboard gỡ | mở | thấp | J4 |
+| B-V1-71 | Trạng thái `error` của điện thoại luôn nói "máy này chưa dựng nổi mô hình 3D" | mở | thấp | J4 |
+| B-V1-72 | Vỏ chọn trạng thái bằng `storeys.length` và đoán tầng chưa sẵn sàng bằng `order>0` | mở | trung bình | J4 |
+| B-V1-73 | Ba màn khác vẫn lắp cảnh khi mọi tầng rỗng | mở | trung bình | J4 |
+| B-V1-74 | Cấu hình 404 tự mâu thuẫn: khai nút "tải lại" nhưng `retryable: false`, câu bảo "Tải lại…" | mở | thấp | J4 |
+| B-V1-75 | /m/du-an với dự án không tìm thấy: khung lỗi của màn điện thoại chớp lên trước khung của cổng | mở | thấp | J4 |
+| B-V1-76 | Mỗi lỗi của cổng bị ghi telemetry hai lần | mở | thấp | J4 |
 | B-V2-01 | Tour hướng dẫn không hiện khi người dùng lần đầu mở màn; nó bật lên giữa chừng ở cú bấm/resize sau | đã sửa | cao | khung |
 | B-V2-02 | Sau "Đánh dấu tất cả đã đọc", trình đọc màn hình nghe "không có thông báo nào" trong khi danh sách vẫn còn | đã sửa | trung bình | khung |
 | B-V2-03 | Tấm trượt thông báo là một "hộp thoại" không tên | đã sửa | trung bình | khung |
@@ -130,9 +138,12 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V6-12 | Ray công cụ tường/đối tượng không nói công cụ nào đang bật (`aria-pressed` vắng) | đã sửa | thấp | khung |
 | B-V6-13 | Màn đối tượng chỉ hiện đối tượng có trong bảng mẫu cứng; dữ liệu thật vô hình | đã sửa | cao | khung |
 | B-V6-14 | Màn trục sẽ luôn rỗng trên BE thật — N16 v1 trả `axes: []` | ngoài FE | trung bình | khung |
-| B-V6-40 | Màn đối tượng: `levelOfGraph` luôn lấy tầng đầu tiên của đồ thị, không theo tầng của URL | mở | trung bình | khung |
-| B-V6-41 | Màn đối tượng: "thêm thủ công" đề nghị mã cửa kế tiếp chỉ từ bảng mẫu | mở | thấp | khung |
+| B-V6-40 | Màn đối tượng: `levelOfGraph` rơi về tầng đầu khi tầng của URL không có trong đồ thị | đã sửa | trung bình | J4 |
+| B-V6-41 | Màn đối tượng: "thêm thủ công" đề nghị mã cửa kế tiếp chỉ từ bảng mẫu | đã sửa | thấp | J3 |
 | B-V6-42 | Nhãn viết hoa chữ đầu ở các màn QC còn lại | mở | thấp | khung |
+| B-V6-70 | Màn kích thước liệt kê kích thước của mọi tầng và vẫn rơi về tầng đầu | mở | trung bình | J4 |
+| B-V6-71 | Kho chỉ giữ một đồ thị: màn QC ở tầng chưa nạp báo rỗng giả | mở | trung bình | J4 |
+| B-V6-72 | Lỗi chốt ở `spatialLayerSave.ts:121` bị coi là lỗi tạm thời, tự lưu thử lại 3 lượt vô ích | mở | thấp | J4 |
 | B-V7-01 | Phòng và độ dày tự lưu mà câm | đã sửa | trung bình | khung |
 | B-V7-02 | Lưu thất bại thì câu báo bảo "lưu lại thủ công" — mà không có nút lưu nào | đã sửa | trung bình | khung |
 | B-V7-03 | Mở lại hộp thoại "Gộp hai phòng" ở phòng khác thì ứng viên cũ vẫn được chọn ngầm, nút xác nhận bật | đã sửa | trung bình | khung |
@@ -152,8 +163,12 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V7-22 | Kích thước và trục không có đường lưu nào — #35 chỉ nhận bốn danh sách | ngoài FE | cao | khung |
 | B-V7-30 | Hoàn tác giữ phòng đang chọn nhưng ô "Tên phòng" vẫn hiện tên vừa bị hoàn tác | đã sửa | thấp | khung |
 | B-V7-31 | Báo cáo luật: chip của hàng vi phạm và tấm chi tiết in mã máy (`D-DOOR0000000`) trong khi câu luật nói `#D-001` | đã sửa | thấp | khung |
-| B-V7-41 | Bộ mẫu màn quản lý tầng khai 7,31 m² mỗi phòng nhưng đường bao đo 17,00 | mở | thấp | khung |
-| B-V7-42 | Mã có tiền tố loại nhưng không có thực thể ra nhãn rác (`W-MISSING1AA` → `#W-MISSIN`) | mở | thấp | khung |
+| B-V7-41 | Bộ mẫu màn quản lý tầng khai 7,31 m² mỗi phòng nhưng đường bao đo 17,00 | đã sửa | thấp | J3 |
+| B-V7-42 | Mã có tiền tố loại nhưng không có thực thể ra nhãn rác (`W-MISSING1AA` → `#W-MISSIN`) | đã sửa | thấp | J3 |
+| B-V7-80 | Mã `createId` xếp trước mã A14/BE ở nhánh đánh số theo thứ tự: vẽ thêm một tường làm mọi tường cũ dịch số | mở | thấp | J3 |
+| B-V7-81 | Docblock `wallDisplayCode`/`roomDisplayCode` sai với mã BE | đã sửa | — | J3 |
+| B-V7-83 | `floorManagerFixture.ts` chép lại số và mã tầng thay vì nhập từ cổng | mở | thấp | J3 |
+| B-V7-84 | `ProcessingScreen.stories.tsx` gọi một bộ số sai là "bộ mẫu chuẩn A14" | đã sửa | — | J3 |
 | B-V8-01 | Thu phóng (cuộn chuột và nút "Phóng to") chết ở 3/4 góc nhìn 3D | đã sửa | cao | khung |
 | B-V8-02 | Nút ray tầng hiện mã máy `L-01FIXTURE0` thay cho tên tầng | đã sửa | trung bình | khung |
 | B-V8-03 | Thư viện đồ đạc nói sai lý do "vai chỉ xem" với admin/kỹ sư, và khoá kéo-thả với mọi vai | đã sửa | trung bình | khung |
@@ -166,12 +181,18 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V8-10 | Ba con số "248,60 m²" từ hai bộ mẫu; số hình học của bộ mẫu chuẩn là 238,00 (F9) | đã sửa | thấp | khung |
 | B-V8-11 | Nút "Xong" của chế độ sửa hình học tường bấm không được — ViewCube đè lên | đã sửa | trung bình | khung |
 | B-V8-12 | Kho đổi (hay bấm "Thử lại") thì cảnh 3D chết: "Trình duyệt này chưa xem được mô hình 3D" | đã sửa | cao | khung |
-| B-V8-41 | Đích lưu trên `/3d` không theo tầng của đối tượng đang sửa (N1) | mở | cao | khung |
-| B-V8-42 | Câu chữ khi rỗng / không có đích lưu nói sai (N2) | mở | trung bình | khung |
+| B-V8-41 | Đích lưu trên `/3d` không theo tầng của đối tượng đang sửa (N1) | đã sửa | cao | J2 |
+| B-V8-42 | Câu chữ khi rỗng / không có đích lưu nói sai (N2) | đã sửa | trung bình | J2 |
 | B-V8-43 | Nhãn viết hoa trong HistoryPanel | mở | thấp | khung |
 | B-V8-44 | Tiêu đề cảnh báo ở ViewerInspector viết hoa chữ đầu | mở | thấp | khung |
-| B-V8-45 | Bộ mẫu vỏ 3D cho nhãn người đọc xấu (`W-403FI`, `R-11FIX`); ô tìm phòng in `room.id` | mở | thấp | khung |
-| B-V8-46 | Thư viện đồ đạc: dưới 1024 px, nhánh `collapsed` che câu "vai chỉ xem" | mở | thấp | khung |
+| B-V8-45 | Bộ mẫu vỏ 3D cho nhãn người đọc xấu (`W-403FI`, `R-11FIX`); ô tìm phòng in `room.id` | đã sửa | thấp | J3 |
+| B-V8-46 | Thư viện đồ đạc: dưới 1024 px, nhánh `collapsed` che câu "vai chỉ xem" | đã sửa | thấp | J1 |
+| B-V8-50 | Dưới 1024 px, tấm thư viện đồ đạc nhảy chỗ theo trạng thái dữ liệu | mở | thấp | J1 |
+| B-V8-51 | Thư viện đồ đạc: tìm không khớp thì ô tìm bị gỡ khỏi trang, mất tiêu điểm bàn phím | mở | thấp | J1 |
+| B-V8-60 | Trên `/3d`, chỉ panel thuộc tính gắn tự lưu, mà panel chỉ dựng khi có vùng chọn | đã sửa | cao | J2 |
+| B-V8-61 | `usePropertyInspector` ném `new Error(result.reason)` nên làm rơi `cause` | đã sửa | thấp | J2 |
+| B-V8-62 | `/3d` không có bộ chọn tầng; thư viện đồ đạc đặt vật vào tầng còn sót từ màn đối chiếu | mở | thấp | J2 |
+| B-V8-63 | Chế độ sửa hình học tường: lấy phần tử đầu vùng chọn; tường không có trong kho nói "Chưa có đỉnh" | đã sửa | thấp | J2 |
 | B-V9-01 | Ba màn 3D (tách tầng, đo, đối chiếu) không có lối vào nào từ sản phẩm | đã sửa | trung bình | khung |
 | B-V9-02 | Ở dev, tách tầng và đo hiện khung nhìn rỗng (canvas 300×150, "0 tầng") trong khi `/3d` có nhà bốn tầng | đã sửa | trung bình | khung |
 | B-V9-03 | Nút "thoát chế độ đo (phím Esc)" không thoát chế độ đo | đã sửa | thấp | khung |
@@ -180,14 +201,16 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V9-06 | Từ `/3d` (nhà bốn tầng) sang đối chiếu, màn nói "dự án này chưa có tầng nào" | đã sửa | trung bình | khung |
 | B-V9-07 | Nhãn ray quảng cáo phím `R`/`H`/`C`/`V` nhưng không phím nào hoạt động | đã sửa | trung bình | khung |
 | B-V9-08 | Ray tầng của tách tầng và đo hiện mã bộ mẫu `L-01FIXTURE0…` | đã sửa | thấp | khung |
-| B-V9-41 | Màn đo: nút xoá và phím Delete không bị chặn khi `forbidden` | mở | thấp | khung |
+| B-V9-41 | Màn đo: nút xoá và phím Delete không bị chặn khi `forbidden` | đã sửa | thấp | J1 |
+| B-V9-51 | Bộ mẫu dev `createMockHttpTransport` không xét vai: viewer vẫn POST/DELETE phép đo được | mở | thấp | J1 |
+| B-V9-52 | Màn đo: phím Delete chỉ dùng được sau khi rê chuột qua hàng | mở | thấp | J1 |
 | B-V10-01 | Sau `PASCAL-01`, bấm "thử lại" hay phím R không bao giờ nạp lại — kể cả khi gói đã trở lại | đã sửa | cao | khung |
 | B-V10-02 | Màn Pascal chỉ cao 384 px; khung 3D là một dải 190 px trong cửa sổ 900 px | đã sửa | trung bình | khung |
 | B-V10-03 | Cờ tắt vẫn tải và chạy bộ đổi bản vẽ sang Pascal | đã sửa | thấp | khung |
 | B-V10-04 | Bộ đổi dữ liệu nạp hỏng rồi bấm "thử lại" thì kẹt khung xương "đang nạp…" mãi | đã sửa | trung bình | khung |
 | B-V10-05 | Gói Pascal gây 1 vi phạm CSP `script-src eval` | đã sửa | thấp | khung |
 | B-V10-06 | Bốn số Pascal không phải bộ A14; trang chỉ có tường bao + phòng (P2 của V10) | không phải lỗi | thấp | khung |
-| B-V10-41 | `pascal-mount.js` không có mã băm nhưng `/assets/` gửi `immutable` một năm | mở | trung bình | khung |
+| B-V10-41 | `pascal-mount.js` không có mã băm nhưng `/assets/` gửi `immutable` một năm | đã sửa | trung bình | J1 |
 | B-V12-01 | Bốn màn luật/xuất/dữ liệu luôn rỗng khi đi bằng đường sản phẩm | đã sửa | cao | khung |
 | B-V12-02 | Nút chính "Chạy kiểm tra" của màn luật rỗng dẫn thẳng vào màn lỗi | đã sửa | trung bình | khung |
 | B-V12-03 | Cài đặt bộ luật nói "chưa có luật nào" ngay dưới dòng "23/25 luật đang bật" | đã sửa | thấp | khung |
@@ -473,64 +496,124 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Trạng thái:** không phải lỗi
 - **Phép đo đã bác:** canvas là mặt vẽ trang trí, `aria-hidden="true"` là đúng (`MobileViewer.tsx:208`); mốc của màn là `region` "xem mô hình 3D trên điện thoại". Không ca nào hôm nay cần neo canvas (`success` không dựng được — B-V1-03). Thêm `data-testid` khi có ca đầu tiên cần nó.
 
-### B-V1-11 · Tầng chưa có hình bị gắn "chưa tải"/mạng yếu; quy tắc `empty` của bản máy tính lệch bản điện thoại
+### B-V1-11 · Tầng chưa có tường/phòng bị gọi là "chưa tải" hoặc "mạng yếu"; /3d và điện thoại xếp `empty` theo hai luật khác nhau
 
-- **Trạng thái:** mở
-- **Mức:** trung bình — câu sai về lý do màn không có hình
+- **Trạng thái:** đã sửa (`9c63efb9`, `7a71d112`)
+- **Mức:** trung bình — câu sai về lý do màn không có hình; /3d còn lắp cảnh lên tầng rỗng (máy không
+  WebGL rơi vào `error` thay vì `empty`)
 - **Bất biến vi phạm:** A11
 - **Phát hiện:** 2026-10-03 · tranh luận nguồn dữ liệu (đọc mã)
-- **Tái hiện bằng tay:** —
-- **Tái hiện bằng máy:** chưa có bài (mục mới — lệnh giao: không làm)
-- **Gốc:** `useViewer3D.ts` nhánh `empty` (`data.storeys.length === 0`) — tầng có tên mà 0 tường vẫn
-  không `empty`; bản điện thoại nay dùng `hasGeometry` (B-V1-03). Trên điện thoại, hàng tầng chưa
-  có hình vẫn mang huy hiệu "chưa tải" (đo: tên nút "tầng hầm chưa tải…" ở `project-1`) — câu ấy
-  nói về mạng, không về việc tầng chưa được dựng.
-- **Sửa:** chưa. Hướng: dùng chung một vị ngữ "có hình" cho hai bản.
+- **Tái hiện bằng tay:** `/m/du-an` của `project-1` (bốn tầng có tên, 0 tường/phòng), mở "tầng" → hàng
+  "tầng hầm chưa tải". /3d với đồ thị 4 tầng rỗng → `partial` + chú thích "— chưa dựng xong".
+- **Tái hiện bằng máy:** `e2e/v1/mobile-viewer.spec.ts` › "không bơm: bốn tầng của dự án có thật, và nói
+  thật rằng chưa có mô hình để xem" (`toHaveAccessibleName(/^tầng hầm chưa có phòng/)`, "chưa tải" đếm 0)
+  và › "bơm bộ mẫu A14 vào dự án đã nạp…" ("chưa có phòng" đếm 0) — `test` xanh, đã kiểm đỏ trước sửa.
+  /3d: không có e2e (mock thay đồ thị 0 tường bằng nhà mẫu); bài đơn vị `useViewer3D.preview.test.tsx`
+  (2 ca) đã kiểm đỏ trước sửa.
+- **Gốc:** `useViewer3D.ts` chọn `empty` theo `data.storeys.length` (tầng có tên mà 0 tường vẫn không
+  `empty`) và lắp cảnh khi `levels.length > 0`; điện thoại dùng `hasGeometry` (tường hoặc phòng). Điện
+  thoại gắn huy hiệu "chưa tải" và câu "mạng yếu…" theo phép thử "có phòng" — nói về mạng trong khi tầng
+  chỉ chưa có phòng.
+- **Sửa:** commit 1 — `toBuildFloorInput.ts:299` `hasBuildableParts` (tường hoặc phòng, đúng hai nguồn
+  việc dựng của `planFullBuild`); `useViewer3D.ts:570` không lắp cảnh, `:682` `empty`, `:658` chú thích
+  "<tên tầng> — chưa có tường hay phòng nào"; `vi.json` `viewer3d.partial.noPartsCaption`. Commit 2 —
+  `mobileViewerGateway.ts:161` `floorHasRooms`/`hasRooms`; `mobileViewerTypes.ts` `MobilePartialReason`
+  + `partialReason`; `useMobileViewer.ts:316` dùng `hasBuildableParts`, `:673` `partialReason` (thiếu
+  phòng thắng mạng yếu); `MobileViewerBottomBar.tsx` huy hiệu "chưa có phòng"; `MobileViewer.tsx` nhánh
+  `partial` luôn một `FloatingNote` theo lý do; `mobileViewerScenarios.ts` bỏ `ALL_FLOORS_LOADING`;
+  `vi.json` `floorWithoutRooms`, `partialMissingRoomsNote`, `partialWeakNetworkNote`. Bài đơn vị
+  `toBuildFloorInput.test.ts` (3), `useViewer3D.preview.test.tsx` (2), `mobileViewerGateway.test.ts`,
+  `useMobileViewer.test.tsx` (2 siết + 1 mới), `MobileViewer.test.tsx` (3).
 
-### B-V1-12 · Khoá `project.detail(id)` mang ba hình dữ liệu; đi `/3d` rồi sang `/m/du-an` thì ném lỗi
+### B-V1-12 · Khoá `project.detail(id)` bị ghi ba hình dữ liệu; rê chuột lên thẻ "Nhà máy Bắc Ninh" rồi "Mở" thì màn /3d sập
 
-- **Trạng thái:** mở
-- **Mức:** trung bình — màn điện thoại sập khi đến từ `/3d` trong cùng phiên
+- **Trạng thái:** đã sửa (`58684eed`)
+- **Mức:** cao — màn /3d sập (không đường dẫn, không khung nhìn) ở luồng dashboard → "Mở" bình thường
 - **Bất biến vi phạm:** A11
-- **Phát hiện:** 2026-10-03 · tranh luận nguồn dữ liệu (đọc mã)
-- **Tái hiện bằng máy:** chưa có bài (mục mới — lệnh giao: không làm)
-- **Gốc:** `useViewer3D.ts` lưu CHUỖI tên dự án dưới `queryKeys.project.detail(id)`;
-  `useMobileViewer.ts` đọc cùng khoá như một đối tượng và gọi `.name.trim()`. Cổng nạp kho của đợt
-  này dùng khoá riêng `[...project.detail(id), 'spatial']` nên không thêm hình thứ tư.
-- **Sửa:** chưa.
+- **Phát hiện:** 2026-10-03 · tranh luận nguồn dữ liệu (đọc mã); đường sập thật tìm ra ở tranh luận đợt 5
+- **Tái hiện bằng tay:** dashboard, rê chuột lên thẻ "Nhà máy Bắc Ninh" quá 200 ms, bấm "Mở" → /3d không
+  có vùng "Đường dẫn màn hình", màn sập.
+- **Tái hiện bằng máy:** `e2e/v2v3/dashboard.spec.ts` › "V3-DASH-1 — rê chuột rồi mở /3d (B-V1-12)" ›
+  "rê lên "Nhà máy Bắc Ninh" cho lượt nạp trước chạy, rồi "Mở": màn 3D dựng được" — `test` xanh, đã kiểm
+  đỏ trước sửa.
+- **Gốc:** `useProjectDashboard.ts` (`prefetchOnHover`) ghi đối tượng thẻ dự án vào
+  `queryKeys.project.detail(id)`; `useViewerShell.ts`/`useViewer3D.ts` đọc cùng khoá như CHUỖI tên dự án
+  (staleTime 30 s nên không nạp lại), `ViewerChrome.tsx` vẽ đối tượng làm chữ → React ném. Điện thoại
+  (`mobileViewerQueries.ts`) đọc cùng khoá như đối tượng dự án — hình thứ ba.
+- **Sửa:** `useViewerShell.ts:1138` `projectNameQueryKey` = `[...project.detail(id), 'name']`, dùng ở
+  `useViewerShell.ts:442` và `useViewer3D.ts:406` (qua barrel `ViewerShell/index.ts`); dashboard
+  `useProjectDashboard.ts:319` nạp trước ở `'summary'`. Khoá con nằm dưới tiền tố gốc nên
+  `useProjectSettings.ts:611` vẫn vô hiệu hoá cả hai. Chú thích: `projectsGateway.ts:104`,
+  `viewerShellGateway.ts:14`, `useExplodedView.ts:539`. Bài đơn vị `ViewerShell.test.tsx` (2 ca),
+  `useViewer3D.preview.test.tsx` (1 ca). Commit `58684eed`.
 
 ### B-V1-41 · Câu `skipNotice` hứa "xem lại trong menu trợ giúp", nhưng menu đó không tồn tại
 
-- **Trạng thái:** mở
+- **Trạng thái:** đã sửa (`acd1b01`) — lệch đặc tả `BO-PROMPT-FE-HOP-NHAT-v2.md:1252` có chủ ý (S-40 chưa dựng)
 - **Mức:** thấp — câu chữ hứa một đường không có
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận B-V1-04 (đọc mã)
-- **Tái hiện bằng tay:** bấm "Bỏ qua" ở `/onboarding`, đọc câu "Có thể xem lại hướng dẫn trong menu trợ giúp."
-- **Tái hiện bằng máy:** chưa có bài
-- **Gốc:** `useWelcomeScreen.ts:138` (`STRINGS.skipNotice`), `src/i18n/vi.json:498`; xem lại hướng dẫn thuộc S-40, chưa dựng
-- **Sửa:** chưa
+- **Tái hiện bằng tay:**
+  1. Mở `/onboarding` với một tài khoản chưa có cờ đã-xem.
+  2. Đọc mô tả (`aria-describedby`) của liên kết "bỏ qua".
+  - Kỳ vọng: câu nói đúng hệ quả của cú bấm.
+  - Thực tế (trước sửa): "Có thể xem lại hướng dẫn trong menu trợ giúp." — không có menu trợ giúp nào
+    (liên kết hướng dẫn đã tắt, `/onboarding` đẩy về `/` sau khi đã xem, `?` chỉ mở bảng phím tắt,
+    `AppShell` chỉ có ở bản demo).
+- **Tái hiện bằng máy:** bài đơn vị `WelcomeScreen.test.tsx` › "chưa xem thì /onboarding vẫn là màn chào"
+  (`toHaveAccessibleDescription('Màn chào sẽ không hiện lại trên trình duyệt này.')`) — đã kiểm đỏ trước
+  sửa. Không bài e2e mới theo Q10h (`questions.md:59`, chữ tiếng Việt lấp ở tầng đơn vị); thiết kế để Q10h
+  thắng `bugs.md:17-19` vì nó cụ thể hơn. `e2e/v1/onboarding.spec.ts` xanh hai lượt.
+- **Gốc:** `useWelcomeScreen.ts:138` (`STRINGS.skipNotice`), `src/i18n/vi.json:498`; xem lại hướng dẫn
+  thuộc S-40, chưa dựng.
+- **Sửa:** `useWelcomeScreen.ts` (chuỗi + docblock `:109`), `src/i18n/vi.json:498`,
+  `WelcomeScreen.container.tsx` (docblock `WelcomeRoute`), `WelcomeScreen.stories.tsx`,
+  `WelcomeScreen.test.tsx`, `EditorTour.test.tsx` (`S06_SENTENCES`) · commit `acd1b01`.
+  Câu mới: "Màn chào sẽ không hiện lại trên trình duyệt này." — cờ theo tài khoản, trên trình duyệt
+  này (`welcomeSeenKey`). Câu chỉ còn đúng sau F-09a nếu F-09a đi qua `WelcomeRoute` — ràng buộc ghi ở B-V1-42.
 
 ### B-V1-42 · Người đăng nhập lần đầu không được dẫn tới `/onboarding`
 
-- **Trạng thái:** mở — quyết định thuộc luồng đăng nhập
+- **Trạng thái:** không phải lỗi
 - **Mức:** thấp — màn chào chỉ tới được bằng cách gõ URL
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận B-V1-04 (đọc mã)
-- **Tái hiện bằng tay:** đăng nhập bằng một tài khoản chưa có cờ đã-xem ⇒ về `/`, không qua màn chào
-- **Tái hiện bằng máy:** chưa có bài
-- **Gốc:** `AuthScreen.container.tsx:262-276` chuyển thẳng tới `next` hoặc `/`
-- **Sửa:** chưa
+- **Tái hiện bằng tay:** đăng nhập bằng một tài khoản chưa có cờ đã-xem ⇒ về `/`, không qua màn chào.
+- **Phép đo đã bác:** ở `/login` không có "lần đầu" nào để dẫn. Máy chủ chọn K7 = B: người mới chỉ vào
+  qua N10 — nhận lời mời (`AppBack/apps/api/auth/router.py:4`, `AppBack/docs/charter/BE-BIND.md:26`,
+  `HOP-DONG-MOI.md:265`). Chỗ dẫn đúng là màn nhận lời mời F-09a, chưa có route (`src/routes/paths.ts`,
+  khối `PUBLIC_ROUTE_PATTERNS`). Ngoại lệ duy nhất là admin tạo bằng `AppBack/apps/api/auth/cli.py:76-77`
+  — một người vận hành, chấp nhận được. Tiền lệ: B-V1-07 (`bugs.md:456-459`).
+- **Giao F-09a:** sau khi N10 thành công và `bootstrapAfterNewCookie()` trả `true`, gọi
+  `navigate(ROUTES.onboarding, { replace: true })`; không cần `next` (link mời chỉ mang `#token=`,
+  `HOP-DONG-MOI.md:266`); **phải đi qua `ROUTES.onboarding` / `WelcomeRoute`**, không gắn container vòng
+  qua route — nếu không câu mới của B-V1-41 thành sai (`WelcomeRoute` đọc `readWelcomeSeen` lúc gắn).
+- **Tái hiện bằng máy:** không có — route F-09a chưa tồn tại, không lập `test.fixme`.
+- **Gốc:** `AuthScreen.container.tsx:262-276` chuyển thẳng tới `next` hoặc `/` — đúng cho `/login`.
+- **Sửa:** chỉ chú thích — `WelcomeScreen.tsx` (docblock đầu tệp), `src/routes/paths.ts` (ví dụ đường
+  lời mời + dòng "sau N10 thành công → `ROUTES.onboarding` (B-V1-42)") · commit `acd1b01`.
 
-### B-V1-43 · Người ngoài dự án mở `/3d` ra trạng thái `error` thay vì màn không-tìm-thấy
+### B-V1-43 · Mở một dự án không có, hoặc mình không phải thành viên, thì kẹt ở khung "Không tìm thấy": màn bảo tải lại nhưng không có nút, không có lối ra
 
-- **Trạng thái:** mở
-- **Mức:** thấp — BE trả 404 (K08) nhưng màn nói "lỗi", không nói "không tìm thấy"
-- **Bất biến vi phạm:** —
+- **Trạng thái:** đã sửa (`9e959d67`)
+- **Mức:** thấp — BE trả 404 (K08); người dùng kẹt ở một khung không lối ra trên cả chín route bọc cổng
+- **Bất biến vi phạm:** A11
 - **Phát hiện:** 2026-10-03 · tranh luận B-V1-05 (đọc mã)
-- **Tái hiện bằng tay:** chưa đo được với bộ mẫu trong trang (không có request mạng để trả 404)
-- **Tái hiện bằng máy:** chưa có bài
-- **Gốc:** `useViewer3D.ts:652` gộp mọi lỗi đọc dự án vào `error`
-- **Sửa:** chưa
+- **Tái hiện bằng tay:** mở `/projects/project-missing/3d` (mock) → khung "không tìm thấy", câu "tải lại…",
+  không nút.
+- **Tái hiện bằng máy:** `e2e/v1/route-fallback.spec.ts` › "B-V1-43: mở dự án không có ở /3d thì có câu
+  và nút về danh sách dự án" — `test` xanh, đã kiểm đỏ trước sửa.
+- **Gốc:** không phải `useViewer3D.ts:652` như mục cũ ghi (cổng chặn trước; `readProjectName` nuốt lỗi).
+  Gốc thật: `ProjectSpatialGate.tsx` dựng khung lỗi chung từ `report`, mà cấu hình 404 (`kinds.ts:90-99`,
+  `vi.json:29-31`) có `retryable: false` → không nút, trong khi câu bảo tải lại (B-V1-74); bảng route
+  không có vỏ bao nào khác đưa lối ra.
+- **Sửa:** `useProjectSpatial.ts:48` trạng thái `'notFound'`, `:54` `isProjectNotFound` (status 404 +
+  `resource: 'project'` của dây, không theo `kind`); `ProjectSpatialGate.tsx:32` `ProjectNotFound`
+  (`role="alert"` + `EmptyState`, "không tìm thấy dự án này" / "dự án có thể đã bị xoá, đường dẫn chưa
+  đúng, hoặc bạn chưa được thêm vào dự án." / nút "về danh sách dự án" → `ROUTES.dashboard`, nhập từ
+  `@/routes/paths` để tránh vòng); `src/api/__mocks__/client.ts` `MOCK_MISSING_PROJECT_ID`. Bài đơn vị
+  `ProjectSpatialGate.test.tsx` (2), `useProjectSpatial.test.ts` (mới). `/m/du-an` không viết e2e
+  (chập chờn vì B-V1-75).
 
 ### B-V1-44 · Chuỗi dùng chung `vi.json:2-72` viết hoa, và mẫu dữ liệu NotFound lệch khỏi hook
 
@@ -543,6 +626,96 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Tái hiện bằng máy:** chưa lập
 - **Gốc:** nhãn dùng chung viết kiểu câu; mẫu dữ liệu chép tay không theo hook
 - **Sửa:** chưa
+
+### B-V1-50 · Tab "đăng ký" gọi `/api/auth/register`, máy chủ v1 không có route này
+
+- **Trạng thái:** mở — sẽ có nhóm tranh luận riêng (thiết kế gỡ tab mới qua một lượt, chưa phản biện)
+- **Mức:** trung bình — trên máy thật người dùng nhận 404 và bị báo lỗi kết nối sai
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-42 (đọc mã)
+- **Tái hiện bằng tay:** chưa đo (cần máy chủ v1 thật)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `AuthScreen.tsx:349-351`, `useAuthScreen.ts:570-577`, `src/api/client.ts:804`, `endpoints.ts:64`;
+  BE: `BE-BIND.md:26`. Việc tắt tab đã chốt trong hợp đồng (`HOP-DONG-MOI.md:269`). Người chốt đề nghị
+  gỡ tab (~−150/+15 dòng, 12 tệp).
+- **Sửa:** chưa
+
+### B-V1-70 · Bộ hẹn giờ `prefetchOnHover` không bị huỷ khi dashboard gỡ
+
+- **Trạng thái:** mở
+- **Mức:** thấp — lượt nạp trước chạy sau khi đã rời màn, ghi vào khoá `'summary'` mà chưa ai đọc
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-12 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `useProjectDashboard.ts:309-325` dựng `prefetchOnHover` trong `useMemo`, không dọn;
+  `prefetch.ts:21-46` giữ `setTimeout`. Khoá `'summary'` (B-V1-12) chưa có người đọc — `ponytail:` ở `:316`.
+- **Sửa:** chưa. Hướng: một `useEffect` dọn gọi `onPointerLeave` của mọi handler khi gỡ (~3 dòng).
+
+### B-V1-71 · Trạng thái `error` của điện thoại luôn nói "máy này chưa dựng nổi mô hình 3D"
+
+- **Trạng thái:** mở
+- **Mức:** thấp — lỗi đọc dự án/đồ thị bị gọi là máy yếu
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-11/B-V1-43 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `MobileViewer.tsx` nhánh `error` luôn `WeakDeviceLayer`. Ở /3d, vế `projectQuery.isError`
+  (`useViewer3D.ts`, `useViewerShell.ts` nhánh `state`) không bao giờ đúng vì `readProjectName` nuốt lỗi.
+- **Sửa:** chưa. Hướng: xoá vế `projectQuery.isError` ở /3d (không nối thêm lượt gọi lại); điện thoại tách
+  câu theo nguồn lỗi.
+
+### B-V1-72 · Vỏ chọn trạng thái bằng `storeys.length` và đoán tầng chưa sẵn sàng bằng `order>0`
+
+- **Trạng thái:** mở
+- **Mức:** trung bình — sau B-V1-11, khung nhìn nói `empty` trong khi dải tầng của vỏ nói `partial`
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-11 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `useViewerShell.ts` nhánh `state` (`storeys.length`) và phép đoán tầng chưa sẵn sàng theo
+  `order > 0`.
+- **Sửa:** chưa. Hướng: dùng `hasBuildableParts` (`toBuildFloorInput.ts:299`) như /3d.
+
+### B-V1-73 · Ba màn khác vẫn lắp cảnh khi mọi tầng rỗng
+
+- **Trạng thái:** mở
+- **Mức:** trung bình — máy không WebGL rơi vào `error` thay vì `empty`; khung trống không cổng nào bắt
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-11 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `useExplodedView.ts:667`, `useMeasurementToolScene.ts:108`, `versionHistoryScene.ts:105` lắp
+  cảnh khi `levels.length > 0`.
+- **Sửa:** chưa. Hướng: `levels.some(hasBuildableParts)`.
+
+### B-V1-74 · Cấu hình 404 tự mâu thuẫn: khai nút "tải lại" nhưng `retryable: false`, câu bảo "Tải lại…"
+
+- **Trạng thái:** mở
+- **Mức:** thấp — khung nào ẩn nút theo `retryable` cũng bảo người dùng tải lại mà không có nút
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-43 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `kinds.ts:90-99` (`notFound`), `vi.json:29-31`. Khối `errors` của `vi.json` được nhập lúc chạy
+  (`describeError.ts:3`) — sửa nó đổi chữ thật và kích thước gói.
+- **Sửa:** chưa. Bài cổng B-V1-43 ca "404 của tầng" cố ý KHÔNG khẳng định vắng nút để không khoá lỗi này.
+
+### B-V1-75 · /m/du-an với dự án không tìm thấy: khung lỗi của màn điện thoại chớp lên trước khung của cổng
+
+- **Trạng thái:** mở
+- **Mức:** thấp — chớp một khung sai trước khung đúng
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-43 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài (bài e2e cho /m/du-an sẽ chập chờn vì chính lỗi này)
+- **Gốc:** `useMobileViewer.ts` xét `projectQuery.isError` trước `spatialLoading` trong nhánh `state`.
+- **Sửa:** chưa.
+
+### B-V1-76 · Mỗi lỗi của cổng bị ghi telemetry hai lần
+
+- **Trạng thái:** mở
+- **Mức:** thấp — số sự cố trên bảng đo gấp đôi; trái docblock "one telemetry event"
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V1-43 (đọc mã, điều phối nhóm tự xác minh)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `queryClient.ts:51-54` và `screenErrorBoundary.ts:96` đều gọi `reportError` cho cùng lỗi của
+  `useProjectSpatial`.
+- **Sửa:** chưa.
 
 ## V2
 
@@ -1411,26 +1584,49 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Gốc:** BE chưa lưu/trả trục ở N16; `persistAxisLayer` của FE cũng chưa có đường (B-V6-03)
 - **Sửa:** chưa — việc của BE
 
-### B-V6-40 · Màn đối tượng: `levelOfGraph` luôn lấy tầng đầu tiên của đồ thị, không theo tầng của URL
+### B-V6-40 · Màn đối tượng: `levelOfGraph` rơi về tầng đầu khi tầng của URL không có trong đồ thị
 
-- **Trạng thái:** mở
-- **Mức:** trung bình — chưa thấy ở đường nạp thật (N16 trả đồ thị MỘT tầng), nhưng đồ thị nhiều tầng trong kho (vd.
-  sau màn khác nạp cả dự án) sẽ cho màn duyệt tầng 0 dưới URL của tầng khác
+- **Trạng thái:** đã sửa (`96a7e271`)
+- **Mức:** trung bình — kho giữ tầng A, mở tầng B → màn cho duyệt và sửa đồ vật của tầng A dưới URL tầng B
+- **Bất biến vi phạm:** A11
 - **Phát hiện:** 2026-10-03 · tranh luận thiết kế B-V6-13 ("Mục mới nên mở")
-- **Gốc:** `levelOfGraph` (`objectLayerReviewGateway.ts:566`) đọc `graph.byKind.level[0]`, không nhận `floorId`.
-- **Tái hiện bằng máy:** chưa có bài.
-- **Sửa:** chưa
+- **Tái hiện bằng tay:** mở màn đối tượng tầng `L-LEVEL000001` (9 đối tượng), đổi URL trong trang sang
+  `L-LEVEL000000` → màn vẫn "0/9 đối tượng đã duyệt".
+- **Tái hiện bằng máy:** `e2e/v6/object-layer-review.spec.ts` › "mã tầng của URL không có trong kho thì
+  màn báo rỗng, không hiện và cho sửa đồ của tầng khác (B-V6-40)" — `test` xanh, đã kiểm đỏ trước sửa.
+  Kèm `test.fixme` › "mở tầng khác của cùng dự án ngay trong trang thì màn đọc được đối tượng của tầng ấy
+  (B-V6-71)" — lý do: kho chỉ giữ một đồ thị; mở lại khi B-V6-71 được sửa; đã tạm bật, đỏ đúng lý do.
+- **Gốc:** `objectLayerReviewGateway.ts` `levelOfGraph` — `isLevel(levelId) ?? isLevel(byKind.level[0])`
+  rơi về tầng đầu cả khi URL CÓ mã tầng. Commit `6dbbe4d0` (B-V12-01) mới cho hàm nhận `levelId`.
+- **Sửa:** `objectLayerReviewGateway.ts:582` `isLevel(levelId ?? graph.byKind.level[0])` — vắng mã tầng
+  mới lấy tầng đầu, có mà đồ thị không giữ thì `null` → `empty`; `useObjectLayerReview.ts:967`
+  `onAddManually` báo `addNoWall` khi `level === null` thay vì im lặng (câu có thể sai tạm ở ca tầng
+  chưa nạp — B-V6-71). Chú thích B-V6-70 ở `dimensionOcrReviewGateway.ts`; `e2e/v6/seedQc.ts` bỏ câu
+  "lượt bơm là một bước zundo" (`setSpatial` xoá lịch sử, `spatialSlice.ts:45`) và ghi kích thước `L1`
+  sống nhờ nhánh rơi tầng đầu của màn kích thước. Bài đơn vị `floorLayerGraph.test.ts` (tách hai bài +
+  `objectsOf(…, []) === 10`), `useObjectLayerReview.test.ts` (1 mới).
 
 ### B-V6-41 · Màn đối tượng: "thêm thủ công" đề nghị mã cửa kế tiếp chỉ từ bảng mẫu
 
-- **Trạng thái:** mở
-- **Mức:** thấp — rủi ro, chưa dựng lại được: nút chỉ hiện ở trạng thái rỗng, lúc ấy tầng không có cửa nào nên mã đề
-  nghị không trùng thực thể nào trên tầng
+- **Trạng thái:** đã sửa (`1a8624f4`)
+- **Mức:** thấp — chỉ BE thật nhiều tầng mới gặp: tầng rỗng thứ hai bị từ chối thêm cửa; lệnh không ghi
+  đè nên không mất dữ liệu
+- **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận thiết kế B-V6-13 ("Rủi ro còn lại")
-- **Gốc:** `nextDoorDisplayId` (`objectLayerReviewGateway.ts:2097`) chỉ đọc `seed`; cổng thật nay có `seed` rỗng nên
-  luôn đề nghị `D-001` → mã máy `D-000001DOOR`, không kiểm mã ấy đã có trên đồ thị chưa.
-- **Tái hiện bằng máy:** chưa có bài.
-- **Sửa:** chưa
+- **Tái hiện bằng tay:** kho nhiều tầng (qua `ProjectSpatialGate`), hai tầng có tường mà chưa có ô mở.
+  1. Ở tầng 1 bấm "thêm thủ công" → cửa `D-000001DOOR` vào kho.
+  2. Sang tầng 2 bấm "thêm thủ công".
+  - Kỳ vọng: cửa thứ hai vào kho.
+  - Thực tế: lệnh bị từ chối vì trùng mã (`openingCommands.ts` kiểm trùng trên cả đồ thị).
+- **Tái hiện bằng máy:** không có bài e2e (A14 không có tầng có tường mà chưa có ô mở). Bài đơn vị
+  `useObjectLayerReview.test.ts` › khối `"thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)` — đã kiểm đỏ
+  trước sửa (`expected 1 to be 2`).
+- **Gốc:** `nextDoorDisplayId` (`objectLayerReviewGateway.ts`) chỉ đọc `seed` (cổng thật có seed rỗng ⇒ luôn
+  `D-001` ⇒ `D-000001DOOR`); hook dựng lại mỗi lần đổi tầng nên `manualEntries` cũng mất.
+- **Sửa:** `manualDoorProposalOf(graph, level, id = createId('opening'))` trả thẳng `AddOpeningInput`; xoá
+  `nextDoorDisplayId`, `ManualObjectProposal`, `DISPLAY_CODE_DIGITS`, import `AUTHORED_BY_HAND`, state
+  `manualEntries` và `useMemo seed` (dùng `gateway.seed`); `index.ts` bỏ `ManualObjectProposal`. Mã hiển thị
+  do `objectsOf` đặt (`D-00n`), khớp câu toast `#D-00n` · commit `1a8624f4`.
 
 ### B-V6-42 · Nhãn viết hoa chữ đầu ở các màn QC còn lại
 
@@ -1444,6 +1640,43 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Tái hiện bằng máy:** chưa lập
 - **Gốc:** nhãn viết kiểu câu trước khi quy ước A6 được chốt
 - **Sửa:** chưa
+
+### B-V6-70 · Màn kích thước liệt kê kích thước của mọi tầng và vẫn rơi về tầng đầu
+
+- **Trạng thái:** mở
+- **Mức:** trung bình — duyệt kích thước tầng khác dưới URL của tầng này
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V6-40 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `dimensionOcrReviewGateway.ts` `dimensionsOf` không lọc tầng; `levelOfGraph` của màn này vẫn
+  rơi về `byKind.level[0]` (chú thích B-V6-70 đã đặt tại chỗ). Kéo theo `e2e/v6/seedQc.ts` (kích thước
+  `L1` sống nhờ nhánh rơi) và `useDimensionOcrReview.displayCodes.test.ts:59`.
+- **Sửa:** chưa.
+
+### B-V6-71 · Kho chỉ giữ một đồ thị: màn QC ở tầng chưa nạp báo rỗng giả
+
+- **Trạng thái:** mở
+- **Mức:** trung bình — sau B-V6-40, đổi tầng trong trang ra `empty` thay vì đồ vật của tầng mới
+- **Bất biến vi phạm:** A11
+- **Phát hiện:** 2026-10-04 · tranh luận B-V6-40 (đọc mã)
+- **Tái hiện bằng máy:** `e2e/v6/object-layer-review.spec.ts` › "mở tầng khác của cùng dự án ngay trong
+  trang thì màn đọc được đối tượng của tầng ấy (B-V6-71)" — `test.fixme`, đã tạm bật: đỏ đúng lý do
+  ("0/10 đối tượng đã duyệt" không hiện). Mở lại khi B-V6-71 được sửa.
+- **Gốc:** kho giữ một `spatial`; bộ đệm `space.byFloor` bị đầu độc ở 5 màn; engine tự lưu không xả khi
+  gỡ màn.
+- **Sửa:** chưa — cần thiết kế riêng. Bản sửa phải thoả ba điều kiện: cổng không trả kho thiếu tầng; chỉ
+  nạp đè khi tự lưu đã xả; không dùng `loading` vô hạn thay thế. Vế `pastCount===0` bỏ sót luồng "sửa tầng
+  A rồi sang tầng B".
+
+### B-V6-72 · Lỗi chốt ở `spatialLayerSave.ts:121` bị coi là lỗi tạm thời, tự lưu thử lại 3 lượt vô ích
+
+- **Trạng thái:** mở
+- **Mức:** thấp — ba lượt gọi thừa trước khi báo lỗi
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V6-40 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `spatialLayerSave.ts:121` ném lỗi mà `wireError.ts:137-138` xếp là tạm thời.
+- **Sửa:** chưa. Hướng: `failure()` ở `:24` với `cause` không tạm thời.
 
 ## V7
 
@@ -1701,25 +1934,89 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 ### B-V7-41 · Bộ mẫu màn quản lý tầng khai 7,31 m² mỗi phòng nhưng đường bao đo 17,00
 
-- **Trạng thái:** mở
+- **Trạng thái:** đã sửa (`bc955839`)
 - **Mức:** thấp — cùng bệnh B-V8-10, chỉ bẫy người viết bài
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận nguồn dữ liệu (đọc mã)
-- **Gốc:** `floorManagerGateway.ts:1421,1441` — 34 phòng khai `areaM2` 7,31, đường bao 4000×4250.
-- **Sửa:** chưa.
+- **Tái hiện bằng máy:** không có bài e2e (`floor-manager.spec.ts` không đọc diện tích phòng). Bài đơn vị
+  `useFloorManager.test.ts` › "đường bao thật của mọi tầng có phòng cộng ra đúng 248,6 m² (B-V7-41)" — đã
+  kiểm đỏ trước sửa (`Tầng hầm: expected 578 to be 248.6`).
+- **Gốc:** `floorManagerGateway.ts` — 34 phòng khai `areaM2 = SAMPLE_TOTAL_AREA_M2 / 34` (7,31) mà đường
+  bao 4000×4250 mm (17,00 m²); màn nhập hằng A14 cho một bộ không phải A14.
+- **Sửa:** `SAMPLE_ROOM_DEPTH_MM = 1830`, `SAMPLE_LAST_ROOM_DEPTH_MM = 1760` (33 × 7,32 + 7,04 = 248,60 m²
+  mỗi tầng, nguồn `notes/floor-manager/blueprint.md`); `areaM2 = computeArea(outline)`; xoá
+  `sampleRoomAreaM2` và import `__fixtures__`. Chữ "A14" bỏ khỏi chú thích cổng/fixture, ghi chú
+  `notes/floor-manager/{blueprint,ui}.md` · commit `bc955839`.
 
 ### B-V7-42 · Mã có tiền tố loại nhưng không có thực thể ra nhãn rác (`W-MISSING1AA` → `#W-MISSIN`)
 
-- **Trạng thái:** mở
-- **Mức:** thấp — câu từ chối nêu một thực thể đã mất bằng một mã không ai nhận ra
+- **Trạng thái:** đã sửa (`a0550559`)
+- **Mức:** thấp — câu từ chối nêu một thực thể đã mất bằng một mã không ai nhận ra; mã BE đứng riêng ra
+  `R-3ABCD`, trục A14 đứng riêng ra `A-AXIS00`
 - **Bất biến vi phạm:** A6
 - **Phát hiện:** 2026-10-03 · tranh luận B-V7-31 (đọc mã)
-- **Tái hiện bằng tay:** một câu luật/từ chối nêu id có tiền tố hợp lệ mà đồ thị không giữ, và thân id không có
-  số đếm ở sáu ký tự đầu.
-- **Tái hiện bằng máy:** chưa — chép từ "Mục mới nên mở", không viết bài.
-- **Gốc:** `domain/spatial/normalize.ts` `displayLabelIn` — nhánh `entity === undefined` dùng `displayCodesOf([id])`,
-  tức quy tắc số đếm cắt sáu ký tự đầu bất kể có phải số hay không.
+- **Tái hiện bằng tay:** một câu luật/từ chối nêu id có tiền tố hợp lệ mà đồ thị không giữ (vd. lệnh
+  `changeWallHeight` trên `W-MISSING1AA`).
+  - Kỳ vọng: "Không tìm thấy tường #W-MISSING1AA".
+  - Thực tế: "Không tìm thấy tường #W-MISSIN".
+- **Tái hiện bằng máy:** không có bài e2e (theo thiết kế: mock không có mã dạng BE, không có `fixme` liên
+  quan). Bài đơn vị: `ids.test.ts` › `counterLabelOf` + "numbers a lone BE id…", `normalize.test.ts` ›
+  "gives a missing id with no counter up front back whole…", `geometryCommands.test.ts` › "says which
+  wall…", `WallLayerReview.test.tsx` › "mã BE đứng riêng trả nguyên văn…" — đã kiểm đỏ trước sửa.
+- **Gốc:** `domain/spatial/ids.ts` `counterCodeOf` coi 6 ký tự đầu của MỌI thân mã là số đếm; nhánh số
+  đếm của `displayCodesOf` không kiểm thân có thật sự mang số đếm, và sáu nơi gọi `displayCodesOf([một id])`
+  (`normalize.ts` `displayLabelIn`, `useWallGeometryEditor.ts`, bốn cổng QC) thừa hưởng nhãn rác.
+- **Sửa:** `ids.ts` thêm `isCounterLed` (thân bắt đầu bằng `0`, dài ≤ 16) + `counterLabelOf`; nhánh số đếm
+  của `displayCodesOf` đòi `ids.every(isCounterLed)`. Sáu nơi gọi đổi sang `counterLabelOf`. `displayCodeIn`
+  giữ `#`. Docblock `wallDisplayCode`/`roomDisplayCode` sửa cùng commit (B-V7-81). Bài đơn vị như trên ·
+  commit `a0550559`.
+
+### B-V7-80 · Mã `createId` xếp trước mã A14/BE ở nhánh đánh số theo thứ tự: vẽ thêm một tường làm mọi tường cũ dịch số
+
+- **Trạng thái:** mở
+- **Mức:** thấp–trung bình — trên bộ A14 (và BE), vẽ thêm một tường thì mọi tường cũ dịch số +1, và câu tạo
+  `#W-00E` không khớp dòng QC
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V7-42 (đọc mã)
+- **Tái hiện bằng máy:** chưa — chép từ "Mục lỗi mới", không viết bài. Tái hiện tất định được trên A14.
+- **Gốc:** `domain/spatial/ids.ts` `displayCodesOf` nhánh thứ tự xếp `[...new Set(ids)].sort()`: mã `createId`
+  bắt đầu `00…` nên đứng trước mọi mã A14/BE. Câu tạo ở `wallCommands.ts:304`, `openingCommands.ts:321`,
+  `furnitureCommands :731`, `roomFloorCommands.ts:542`. Docblock `displayCodesOf` ("thực thể mới nối đuôi")
+  sai cho trường hợp trộn.
 - **Sửa:** chưa.
+
+### B-V7-81 · Docblock `wallDisplayCode`/`roomDisplayCode` sai với mã BE
+
+- **Trạng thái:** đã sửa (`a0550559`)
+- **Mức:** rất thấp — chỉ đánh lừa người đọc mã
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V7-42 (đọc mã)
+- **Tái hiện bằng máy:** không (chú thích).
+- **Gốc:** `wallLayerReviewGateway.ts` / `roomLabelReviewGateway.ts` docblock nói hàm "đọc ngược sáu chữ số
+  đếm" đúng cho mọi tường/phòng, trong khi mã BE không có số đếm đứng đầu.
+- **Sửa:** docblock nói mã không có số đếm đứng đầu trả nguyên văn (`counterLabelOf`) · commit `a0550559`.
+
+### B-V7-83 · `floorManagerFixture.ts` chép lại số và mã tầng thay vì nhập từ cổng
+
+- **Trạng thái:** mở
+- **Mức:** thấp — hai nguồn số cho một bộ mẫu (R-70)
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V7-41 (đọc mã)
+- **Tái hiện bằng máy:** chưa — chép từ "Mục lỗi mới", không viết bài.
+- **Gốc:** `FloorManager/floorManagerFixture.ts:64,78-139` chép lại số và mã tầng thay vì nhập
+  `FLOOR_MANAGER_SAMPLE_LEVELS`; `ROOF_SEED_SUCCESS` khai 72/34 trong khi cổng khai 0
+  (`floorManagerGateway.ts` ~`:1384-1386`). Sửa tận gốc sẽ đổi id dòng trong story và test, nên để mục riêng.
+- **Sửa:** chưa.
+
+### B-V7-84 · `ProcessingScreen.stories.tsx` gọi một bộ số sai là "bộ mẫu chuẩn A14"
+
+- **Trạng thái:** đã sửa (`bc955839`)
+- **Mức:** rất thấp — chú thích đánh lừa người đọc
+- **Bất biến vi phạm:** — (A14 trong CLAUDE.md)
+- **Phát hiện:** 2026-10-04 · tranh luận B-V7-41 (đọc mã)
+- **Tái hiện bằng máy:** không (chú thích).
+- **Gốc:** `ProcessingScreen.stories.tsx` (hai chỗ) gọi "34 phòng / sảnh 248,60 m²" là bộ mẫu chuẩn A14.
+- **Sửa:** đổi cách gọi thành "bộ số riêng của story", dữ liệu không đổi · commit `bc955839`.
 
 ## V8
 
@@ -1921,28 +2218,37 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 ### B-V8-41 · Đích lưu trên `/3d` không theo tầng của đối tượng đang sửa (N1)
 
-- **Trạng thái:** mở
-- **Mức:** cao — sau B-V8-04 panel thuộc tính tới được đường lưu; đích lưu là `activeFloorId`
+- **Trạng thái:** đã sửa
+- **Mức:** cao
 - **Bất biến vi phạm:** A7 (báo "Đã lưu" cho một lượt ghi sai tầng)
 - **Phát hiện:** 2026-10-03 · tranh luận nguồn dữ liệu (phản biện B-V8-04)
-- **Tái hiện bằng máy:** chưa có bài (lệnh giao: không làm)
-- **Gốc:** `propertyInspectorGateway.ts` chọn đích lưu theo `activeFloorId`; đi màn đối chiếu → `/3d`
-  để lại tầng cũ. Vá tạm trong `1632fa9`: `useViewer3DSource` gọi `setActiveFloor(null)` khi gắn
-  (`ponytail:`), nên đường lưu rơi về "không có đích" thay vì ghi tầng cũ.
-- **Sửa:** chưa. Hướng: đích lưu theo `levelId` của đối tượng; xong thì gỡ `setActiveFloor(null)`.
+- **Tái hiện bằng máy:** không có bài e2e — máy khách mock chạy trong trang (`src/api/appClient.ts`),
+  `page.route` không thấy lượt PUT (thiết kế đã chốt). Bài đơn vị: `PropertyInspector.test.tsx` ›
+  `[N9]` (L0 đang xem, sửa tường tầng 2 ⇒ `layerFloors` = `[L2]`), `propertyInspectorGateway.revision.test.ts`
+  (một tầng / hai tầng / không đổi ⇒ 0 PUT / `baseVersion` `[0, 1]` / đọc hỏng / hoàn tác giữa lịch
+  sử ⇒ L2 + L3), `spatialLayerSave.test.ts` › `changedLevelIds` (5 ca).
+- **Gốc:** cổng chọn đích lưu theo `activeFloorId`; vá tạm `setActiveFloor(null)` trong `useViewer3DSource`.
+- **Sửa:** `8217308`. Đích lưu = mọi tầng có thực thể / mảng `byLevel` khác tham chiếu so với mốc
+  (`changedLevelIds`), mỗi tầng một PUT qua `createFloorLayerSave`. Mốc = lượt lưu trước, hoặc hai
+  đầu lịch sử zundo. `PropertyInspectorSaveTarget` chỉ còn `{ projectId }`; gỡ chốt ở
+  `useViewer3DSource` (hết luôn việc mất bản nháp khi mở `/3d`); sửa hình học tường lấy tầng của chính
+  tường. Bài `[N8]` thêm một lượt sửa trước Ctrl+S ("không đổi gì thì không gửi").
 
 ### B-V8-42 · Câu chữ khi rỗng / không có đích lưu nói sai (N2)
 
-- **Trạng thái:** mở
+- **Trạng thái:** đã sửa
 - **Mức:** trung bình
 - **Bất biến vi phạm:** A11
 - **Phát hiện:** 2026-10-03 · tranh luận nguồn dữ liệu; đo lại bằng bài `fixme` tạm bật ở B-V8-04
-- **Tái hiện bằng máy:** `e2e/v8/viewer-panels.spec.ts` › "chưa bơm kho: chọn một phòng thì panel
-  thuộc tính ra thuộc tính…" (`fixme`) — ở mock, panel không có heading "Phòng" dù vừa chọn
-  "Phòng ngủ 4" trên cảnh nhà mẫu.
-- **Gốc:** `NO_SAVE_TARGET_REASON` nói "Chưa mở dự án" dù dự án đã mở (câu chép 3 nơi); ở mock panel
-  nói "Chưa chọn đối tượng nào" dù đang có đối tượng được chọn (đối tượng của nhà mẫu không có trong kho).
-- **Sửa:** chưa.
+- **Tái hiện bằng máy:** `e2e/v8/viewer-panels.spec.ts` › "chưa bơm kho: chọn phòng của nhà mẫu thì
+  panel nói nó không có trong dữ liệu dự án, không nói "chưa chọn" (B-V8-42)" — đã kiểm đỏ trước sửa.
+  Bài đơn vị: `PropertyInspector.test.tsx` › `[B-V8-42]` (bốn ca: không có trong kho / chỉ trục /
+  trục + id lạ ⇒ `missing` / không chọn gì), `WallGeometryEditor.test.tsx` › `[B-V8-42]`.
+- **Gốc:** panel gộp ba ca rỗng vào một câu "Chưa chọn đối tượng nào"; `NO_SAVE_TARGET_REASON` nói
+  "Chưa mở dự án và tầng" dù dự án đã mở.
+- **Sửa:** `c30bac4`. Hai khoá `empty.missing` / `empty.unsupported` (phép `every`);
+  `NO_SAVE_TARGET_REASON` chỉ còn nói dự án; `refusal.noSaveTarget` → `wallMissing` + `readFailed`
+  (mã, `vi.json`, `strings.md`, `contract-screen.md`).
 
 ### B-V8-43 · Nhãn viết hoa trong HistoryPanel
 
@@ -1970,26 +2276,137 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 ### B-V8-45 · Bộ mẫu vỏ 3D cho nhãn người đọc xấu (`W-403FI`, `R-11FIX`); ô tìm phòng in `room.id`
 
-- **Trạng thái:** mở
+- **Trạng thái:** đã sửa (`054009ab`)
 - **Mức:** thấp — nhãn nhất quán nhưng khó đọc; ô tìm phòng lộ mã máy
 - **Bất biến vi phạm:** — (mục B)
 - **Phát hiện:** 2026-10-03 · tranh luận B-V8-05 (đọc mã)
-- **Tái hiện bằng tay:** mở `/3d`, chọn tường hoặc phòng: tiêu đề "tường W-403FI" / "phòng R-11FIX".
-- **Tái hiện bằng máy:** chưa — chép từ "Mục mới nên mở", không viết bài.
-- **Gốc:** `ViewerShell/viewerShellFixture.ts:78` `fixtureId` ghép mã số ngắn (`"0403"`, `"011"`) với `FIXTURE0`
-  thay vì đệm đủ sáu chữ số đếm như `createId`; `Viewer3D/ObjectSearch.tsx:252` in `room.id`.
-- **Sửa:** chưa — padStart mã bộ mẫu kéo theo các bài khớp chuỗi con (`viewer3d.spec.ts` `ROOM_ID`), làm cùng ô tìm.
+- **Tái hiện bằng tay:**
+  1. Mở `/3d`, mở ô tìm phòng, gõ "phong ngu 4".
+  2. Chọn một tường.
+  - Kỳ vọng: dòng kết quả "R-011 · Tầng 03 · 19,60 m²"; tiêu đề thanh tra "tường W-403".
+  - Thực tế: dòng "R-011FIXTURE0 · Tầng 03 · …"; tiêu đề "tường W-403FI" / "phòng R-11FIX".
+- **Tái hiện bằng máy:** `e2e/viewer3d.spec.ts` › "tìm được một phòng chỉ bằng thứ nhìn thấy trên màn (Q2)"
+  (`findOneRoom`: `match` chứa `R-011`, không chứa `FIXTURE`; thanh tra chứa `phòng R-011`) và
+  `e2e/v8/wall-geometry.spec.ts` › "cùng một bức tường mang cùng một mã ở thanh tra và ở dải chế độ sửa
+  (B-V8-05)" (`toMatch(/^W-\d{3}$/u)`) — đã kiểm đỏ trước sửa.
+  `E2E_PORT=5195 E2E_SKIP_PASCAL=1 pnpm e2e e2e/viewer3d.spec.ts -g "Q2"` ·
+  `E2E_PORT=5195 E2E_SKIP_PASCAL=1 pnpm e2e e2e/v8/wall-geometry.spec.ts -g "B-V8-05"`
+- **Gốc:** `ViewerShell/viewerShellFixture.ts` `fixtureId` ghép mã số ngắn (`"0403"`, `"011"`) với
+  `FIXTURE0` thay vì đệm đủ sáu chữ số đếm; `Viewer3D/ObjectSearch.tsx` in `room.id` và `roomSearch.ts`
+  tìm theo `id`.
+- **Sửa:** `fixtureId` → `code.padStart(6, '0')` (mã `W-000403FIXTURE0` → `W-403`, `R-000011FIXTURE0` →
+  `R-011`, `L-000001FIXTURE0` → `L-001`); `ViewerRoomOption.codeLabel` (`displayLabelIn`, ở
+  `useViewer3D.ts` `roomOptionsOf`, kèm `ponytail:` O(R²)); `ObjectSearch.tsx` in `codeLabel`; chuỗi tìm bỏ
+  `id` (thân mã BE 25 ký tự làm một chữ số khớp bừa). Bài đơn vị `ViewerShell.test.tsx` `[VS-16]` (ghim
+  `W-101`; mọi nhãn `/^[LRW]-\d{3}$/u`, không `FIXTURE`, 34 id khác nhau), `roomSearch.test.ts` ("fixture"
+  ra rỗng) · commit `054009ab`.
 
 ### B-V8-46 · Thư viện đồ đạc: dưới 1024 px, nhánh `collapsed` che câu "vai chỉ xem"
 
-- **Trạng thái:** mở
-- **Mức:** thấp — Người xem ở màn hẹp không được nói vì sao thẻ khoá (câu thẻ "Chỉ xem được, không kéo vào bản vẽ." vẫn còn)
+- **Trạng thái:** đã sửa (`d7a08a5`)
+- **Mức:** thấp — người xem ở màn hẹp không được nói vì sao thẻ khoá (câu thẻ "Chỉ xem được, không kéo
+  vào bản vẽ." vẫn còn)
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận B-V8-03 (đọc mã)
-- **Tái hiện bằng tay:** vai Người xem, khung nhìn < 1024 px, mở "Thư viện đồ đạc"
+- **Tái hiện bằng tay:**
+  1. Đăng nhập vai Người xem, mở `/projects/P-01/3d`, thu khung nhìn còn 900 px.
+  2. Mở "Thư viện đồ đạc".
+  - Kỳ vọng: tấm trượt đáy, và câu "vai chỉ xem".
+  - Thực tế (trước sửa): tấm trượt đáy, không có câu "vai chỉ xem".
+- **Tái hiện bằng máy:** `e2e/v8/viewer-panels.spec.ts` › "người xem ở khung nhìn hẹp (< 1024 px) vẫn
+  được báo "vai chỉ xem" (B-V8-46)" — đã kiểm đỏ trước sửa.
+  `E2E_PORT=5181 E2E_SKIP_PASCAL=1 pnpm e2e e2e/v8/viewer-panels.spec.ts -g "khung nhìn hẹp"`
+  Bài đơn vị `FurnitureLibraryPanel.test.tsx` [FLP-3] › `[N6d]` (`it.each` hai vai, `matchMedia` khớp
+  `(max-width: 1023px)`; danh sách có `overflow-x-auto`).
+- **Gốc:** `useFurnitureLibraryPanel.ts`, `if (shell.leftAsDrawer)` trả `collapsed` TRƯỚC
+  `if (!options.canPlaceModel)`; `collapsed` không mang quyền.
+- **Sửa:** `furnitureLibraryPanelTypes.ts` (`FurnitureLibraryPanelCollapsedState.isReadOnly` bắt buộc —
+  hai trục bề rộng và quyền độc lập, khuôn `useProjectSettings.ts:126-129`; docblock `canPlaceModel`),
+  `useFurnitureLibraryPanel.ts:474` (`isReadOnly: !options.canPlaceModel`, docblock),
+  `FurnitureLibraryPanel.tsx:257` (`forbidden={state.isReadOnly}`), `FurnitureLibraryPanel.stories.tsx`
+  (`isReadOnly: false`) · commit `d7a08a5`. Story `ThuGon` với `isReadOnly: true` CHƯA xem bằng mắt
+  (Storybook không chạy trong lượt này) — e2e đã khẳng định câu hiện trên tấm `fixed`.
+
+### B-V8-50 · Dưới 1024 px, tấm thư viện đồ đạc nhảy chỗ theo trạng thái dữ liệu
+
+- **Trạng thái:** mở
+- **Mức:** thấp — lúc tải/lỗi/rỗng nằm trong panel phải; có nội dung thì thành tấm `fixed` ở đáy
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V8-46 (đọc mã)
 - **Tái hiện bằng máy:** chưa có bài
-- **Gốc:** `useFurnitureLibraryPanel.ts`, `if (shell.leftAsDrawer)` trả `collapsed` TRƯỚC `if (!options.canPlaceModel)`
+- **Gốc:** `FurnitureLibraryPanel.tsx:226,232,107-114`; `useFurnitureLibraryPanel.ts:440-468` trả về
+  trước nhánh `collapsed` (`:473`).
 - **Sửa:** chưa
+
+### B-V8-51 · Thư viện đồ đạc: tìm không khớp thì ô tìm bị gỡ khỏi trang, mất tiêu điểm bàn phím
+
+- **Trạng thái:** mở
+- **Mức:** thấp (A12) — ở mọi bề rộng
+- **Bất biến vi phạm:** A12
+- **Phát hiện:** 2026-10-04 · tranh luận B-V8-46 (đọc mã; người chốt đã đọc mã xác nhận, chưa dựng lại bằng e2e)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `useFurnitureLibraryPanel.ts:456-465` → `FurnitureLibraryPanel.tsx:123-157, 235` —
+  `EmptyBranch` không vẽ `FurnitureLibrarySearchBox`.
+- **Sửa:** chưa
+
+### B-V8-60 · Trên `/3d`, chỉ panel thuộc tính gắn tự lưu, mà panel chỉ dựng khi có vùng chọn
+
+- **Trạng thái:** đã sửa
+- **Mức:** cao
+- **Bất biến vi phạm:** A7
+- **Phát hiện:** 2026-10-04 · tranh luận "lưu trên /3d" (KQ-luu-3d.md, mục lỗi mới)
+- **Tái hiện bằng máy:** không có bài e2e tái hiện — xem "Lệch thiết kế" 4 (mock giữ lớp trong closure;
+  đã đo `viewer-save.spec.ts` xanh cả trên mã cũ). Bài đơn vị: `useViewer3DSave.test.ts` (không panel,
+  đổi tên phòng tầng 2 ⇒ một PUT vào L2 + nhãn "Đã lưu lúc"), `spatialLayerSave.test.ts` ›
+  `createChangedFloorsSave` (hoàn tác về đúng tham chiếu cũ sau một lượt lưu vẫn gửi lại tầng ấy),
+  `PropertyInspector.test.tsx` › `[N9]` (màn chủ tự lưu ⇒ panel không gửi, chân panel nói nhãn màn).
+  Bài canh: `e2e/v8/viewer-save.spec.ts`.
+- **Gốc:** `useAutosave` chỉ gọi trong `usePropertyInspector`; đổi tên phòng ở bảng diện tích lúc không
+  chọn gì (`useRoomAreaPanel.ts` `savePending`) không có engine nào lưu kho lên máy; rời màn là mất.
+- **Sửa:** `76db7f8`, `f67faf1`. `useViewer3DSave` (Viewer3D) dựng một engine + `createChangedFloorsSave`
+  cho cả màn; nhãn chuyền `Viewer3D.container` → `Viewer3DPanels` → `PropertyInspectorContainer`
+  (`saveLabel`, tuỳ chọn) → hook. Panel có `saveLabel` thì không gửi lượt thứ hai.
+
+### B-V8-61 · `usePropertyInspector` ném `new Error(result.reason)` nên làm rơi `cause`
+
+- **Trạng thái:** đã sửa
+- **Mức:** thấp
+- **Bất biến vi phạm:** — (tự lưu thử lại vô ích một 409/422)
+- **Phát hiện:** 2026-10-04 · tranh luận "lưu trên /3d"
+- **Tái hiện bằng máy:** không có bài e2e — mock không bao giờ trả 409 (`__mocks__/client.ts`
+  `writeLayer`). Bài đơn vị: `propertyInspectorGateway.revision.test.ts` › "409 của máy chủ: kết quả mang
+  HttpError gốc…" (`isTransientWireError(result) === false`; trên mã cũ kết quả không có `cause` ⇒ true).
+- **Gốc:** cổng trả `{ ok: false, reason }` không kèm lỗi gốc; hook ném một `Error` trần.
+- **Sửa:** `6799203`. Nhánh hỏng của `PropertyInspectorCapabilityResult` mang `cause?`; cổng đặt
+  `HttpError` gốc vào đó; hook ném `Object.assign(new Error(reason), { cause })`. Đường cấp màn
+  (`useViewer3DSave`) vốn ném nguyên lỗi của `createFloorLayerSave` nên không cần sửa.
+
+### B-V8-62 · `/3d` không có bộ chọn tầng; thư viện đồ đạc đặt vật vào tầng còn sót từ màn đối chiếu
+
+- **Trạng thái:** mở
+- **Mức:** thấp
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận "lưu trên /3d"
+- **Tái hiện bằng máy:** chưa có bài (lệnh giao: chỉ ghi sổ)
+- **Gốc:** chỉ màn đối chiếu đặt `activeFloorId` (`useOverlayComparison.ts:922`); sau B-V8-41 gỡ chốt
+  `setActiveFloor(null)`, `activeFloorId` trên `/3d` lại mang tầng cũ, và `useFurnitureLibraryPanel.ts:163`
+  đặt vật vào tầng ấy. Nút thư viện / đối chiếu đọc `resolvedFloorId` (`Viewer3D.container.tsx`).
+- **Sửa:** chưa. Thuộc vùng J1 (`FurnitureLibraryPanel`).
+
+### B-V8-63 · Chế độ sửa hình học tường: lấy phần tử đầu vùng chọn; tường không có trong kho nói "Chưa có đỉnh"
+
+- **Trạng thái:** đã sửa
+- **Mức:** thấp
+- **Bất biến vi phạm:** A11 (câu nói sai sự thật trên một bức tường đang nhìn thấy)
+- **Phát hiện:** 2026-10-04 · tranh luận "lưu trên /3d" (B-V8-42)
+- **Tái hiện bằng máy:** (b) `e2e/v8/wall-geometry.spec.ts` › "Esc khi bảng phụ, chế độ sửa hình học và
+  vùng chọn cùng mở…" — khẳng định câu `wallMissing` (`:85`), đã kiểm đỏ trước sửa. (a) không có bài —
+  xem "Lệch thiết kế" 2.
+- **Gốc:** (a) `Viewer3DSceneSlot.tsx` truyền `selectedEntityIds[0]` làm `wallId`; (b)
+  `useWallGeometryEditor.ts` nói `vertexTable.empty` cả khi tường không có trong kho.
+- **Sửa:** `c30bac4`. (a) `Viewer3D.container.tsx` chốt `editedWallId` = tường đầu tiên trong vùng chọn
+  (cùng tiêu chí nút vào chế độ), khe cảnh nhận prop `wallId`; (b) `emptyMessage` = `wallMissing` khi
+  `target === null`, giữ trạng thái `success` (bài `displayCodes` không đổi).
 
 ## V9
 
@@ -2173,16 +2590,51 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 ### B-V9-41 · Màn đo: nút xoá và phím Delete không bị chặn khi `forbidden`
 
-- **Trạng thái:** mở
+- **Trạng thái:** đã sửa (`74f9ec0`) — gộp B-V9-50 (câu 403 của đường xoá)
 - **Mức:** thấp — vai chỉ xem vẫn được mời xoá phép đo (có toast hoàn tác, nhưng lệnh lẽ ra không được gửi)
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận B-V9-04 (đọc mã)
-- **Tái hiện bằng tay:** đăng nhập `viewer@example.com`, mở `/3d/measure` có ít nhất một phép đo đã ghim, bấm
-  "Xoá …" hoặc chọn rồi nhấn Delete.
-- **Tái hiện bằng máy:** chưa — chép từ "Mục mới nên mở", không viết bài.
-- **Gốc:** `MeasurementTool/useMeasurementTool.ts` `onDelete` (`:776-779`) và đường phím Delete (`:862-873`)
-  không xét `canPin`/trạng thái `forbidden`, khác `onPin`.
-- **Sửa:** chưa.
+- **Tái hiện bằng tay:**
+  1. Đăng nhập `viewer@example.com`, mở `/3d/measure` có ít nhất một phép đo đã ghim.
+  2. Bấm "Xoá …", hoặc rê chuột vào hàng rồi nhấn Delete.
+  - Kỳ vọng: không có nút xoá, phím Delete không đăng ký (bảng "?" không liệt kê một phím chết).
+  - Thực tế (trước sửa): nút có mặt, DELETE được gửi; 403 hiện câu chung "chưa xoá được phép đo, hãy thử lại".
+- **Tái hiện bằng máy:** bài đơn vị (đã kiểm đỏ trước sửa):
+  `useMeasurementTool.test.tsx` › "vai chỉ xem không xoá được phép đo (B-V9-41)" (vai `viewer`, cổng
+  thật trên `fetch` giả: không nút "Xoá Phép đo 1", `listShortcuts()` của màn chỉ còn `ESCAPE`, rê hàng
+  + Delete không gửi DELETE nào); `useMeasurementTool.test.tsx` › "403 mang resource "measurement"…"
+  (tiêu đề "bạn không có quyền xoá phép đo trong dự án này"); `MeasurementTool.test.tsx` [9] ›
+  "danh sách phép đo ở forbidden: không nút "Xoá" nào, vẫn đủ nút "Ẩn/Hiện"". Không bài e2e: từ màn
+  đo không có lối đăng xuất/đổi vai mà không tải lại trang, và bộ mẫu dev không xét vai — điều kiện
+  viết bài chuyển sang B-V9-51. `e2e/v9/measure.spec.ts` + `entry.spec.ts` xanh hai lượt.
+- **Gốc:** `useMeasurementTool.ts` `onDelete` và đường phím Delete/Enter không xét `canPin`, khác `onPin`;
+  `MeasurementList.tsx` vẽ nút xoá vô điều kiện.
+- **Sửa:** `useMeasurementTool.ts` (`onDelete` chốt `!canPin`; Enter và Delete đăng ký với
+  `{ ...registryOption, enabled: canPin }` theo khuôn `enabled: canEdit`; `DELETE_FORBIDDEN_TEXT` khi
+  `code === 'FORBIDDEN'`; chú thích `canPin` là cờ của mọi thao tác ghi), `MeasurementList.tsx`
+  (`MeasurementRow.canDelete`, list truyền `canDelete={canPin}`), `MeasurementTool.tsx` (chú thích
+  "chặn ghim và xoá") · bài đơn vị `useMeasurementTool.test.tsx`, `MeasurementTool.test.tsx` · commit `74f9ec0`.
+
+### B-V9-51 · Bộ mẫu dev `createMockHttpTransport` không xét vai: viewer vẫn POST/DELETE phép đo được
+
+- **Trạng thái:** mở
+- **Mức:** thấp (dev) — che lỗi quyền khỏi e2e; là điều kiện để viết e2e cho B-V9-41
+- **Bất biến vi phạm:** —
+- **Phát hiện:** 2026-10-04 · tranh luận B-V9-41 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `src/api/__mocks__/client.ts:494-506` — không đọc vai.
+- **Sửa:** chưa — hướng: khuôn `roleOfEmail(lastSignedInEmail)` (`:1117`), kèm một phép đo ghim sẵn.
+
+### B-V9-52 · Màn đo: phím Delete chỉ dùng được sau khi rê chuột qua hàng
+
+- **Trạng thái:** mở
+- **Mức:** thấp (A12 không gãy hẳn — vẫn Tab tới được nút "Xoá")
+- **Bất biến vi phạm:** A12 (một phần)
+- **Phát hiện:** 2026-10-04 · tranh luận B-V9-41 (đọc mã)
+- **Tái hiện bằng máy:** chưa có bài
+- **Gốc:** `MeasurementList.tsx:107` — `highlightedId` chỉ đặt qua `onMouseEnter`;
+  `useMeasurementTool.ts` (phím Delete) xoá `highlightedId`.
+- **Sửa:** chưa
 
 ## V10
 
@@ -2295,14 +2747,40 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 ### B-V10-41 · `pascal-mount.js` không có mã băm nhưng `/assets/` gửi `immutable` một năm
 
-- **Trạng thái:** mở — cần FE và BE cùng quyết
+- **Trạng thái:** đã sửa phía FE (`4fa3b89`) · phía BE **ngoài FE** (chủ: người giữ `AppBack/deploy`;
+  lớp phòng thêm, FE không chờ)
 - **Mức:** trung bình — sau mỗi lần triển khai, trình duyệt có thể giữ tệp vào cũ trỏ tới chunk đã xoá ⇒ `PASCAL-01`
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · tranh luận B-V10-05 (đọc mã)
-- **Tái hiện bằng tay:** chưa đo (cần môi trường triển khai thật)
-- **Tái hiện bằng máy:** chưa có bài
-- **Gốc:** `AppBack/deploy/nginx/.../app_locations.conf:62` (`immutable`), `vite.pascal.config.ts:72` (tệp vào tên cố định)
-- **Sửa:** chưa
+- **Tái hiện bằng tay:** chưa đo trên môi trường triển khai thật. Trên dev: mở `/projects/P-01/3d/pascal`
+  với cờ `scene.pascal-viewer` bật, xem tab Network — trước sửa URL là `/assets/pascal/pascal-mount.js`
+  trần; sau sửa là `/assets/pascal/pascal-mount.js?v=<8 hex>`.
+- **Tái hiện bằng máy:** `e2e/pascal-viewer.spec.ts` › "cờ bật: hộp Pascal dựng ra một cảnh thật, không
+  request nào rời máy (việc 2+3+4)" — khẳng định mới: có request khớp
+  `/\/assets\/pascal\/pascal-mount\.js\?v=[0-9a-f]{8}$/` — đã kiểm đỏ trước sửa.
+  `E2E_PORT=5181 pnpm e2e e2e/pascal-viewer.spec.ts -g "không request nào rời máy"` (KHÔNG `E2E_SKIP_PASCAL`).
+  Bài đơn vị `usePascalViewer.test.tsx` › "gói hỏng rồi "thử lại" thì xin gói ở URL KHÁC…" (`stubEnv('')`
+  ⇒ URL trần; `stubEnv('abc12345')` ⇒ `v=abc12345` + `attempt=1`).
+- **Gốc:** `AppBack/deploy/nginx/.../app_locations.conf:62` (`immutable`), `vite.pascal.config.ts:72`
+  (tệp vào tên cố định).
+- **Sửa (FE):** `vite.config.ts` (`pascalMountVersion` = 8 hex đầu sha256 của
+  `public/assets/pascal/pascal-mount.js`, thiếu tệp thì `''` — không ném vì Storybook cũng nạp tệp này;
+  `define` `import.meta.env.VITE_PASCAL_MOUNT_VERSION`), `usePascalViewer.ts` (`/// <reference types="vite/client" />`,
+  hàm thuần `mountUrl(attempt)` đọc biến lúc gọi, `URLSearchParams` ghép `v` + `attempt`),
+  `e2e/pascal-viewer.spec.ts` (chú thích `PASCAL_BUNDLE_GLOB` + khẳng định) · commit `4fa3b89`.
+  `pnpm size` sau sửa: routeChunk **278,3 / 280** — đạt.
+- **Phần BE (ngoài FE, không sửa repo BE):** chèn khối sau vào
+  `AppBack/deploy/nginx/snippets/app_locations.conf`, ngay sau `:63`:
+  ```nginx
+  location = /assets/pascal/pascal-mount.js {
+      include /etc/nginx/appback/snippets/security_headers.conf;
+      try_files $uri =404;
+      add_header Cache-Control "no-cache" always;
+  }
+  ```
+  Dòng `include` là bắt buộc: thiếu nó thì `test_nginx.py:97-115` đỏ. Tuỳ chọn: thêm
+  `&& test -f dist/assets/pascal/pascal-mount.js` vào `web.Dockerfile:16` (`:14-15` đã nối `pnpm build`
+  — có cả `pnpm pascal` — bằng `&&`, nên đây chỉ là lớp phòng).
 
 ## V12
 
