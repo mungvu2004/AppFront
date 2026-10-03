@@ -47,7 +47,7 @@ import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
-import { createId } from '@/domain/spatial/ids';
+import { createId, displayCodesOf } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { measureDistance, type Measurement } from '@/domain/measure/measure';
@@ -273,9 +273,6 @@ export const backgroundImageAlt = (floorName: string): string =>
 /** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
 const ID_COUNTER_LENGTH = 6;
 
-/** Bề rộng nhãn người đọc: "#W-014", không phải "#W-14". */
-const DISPLAY_CODE_DIGITS = 3;
-
 /**
  * Nhãn người đọc của một mã tường: `W-000014WALL` → `W-014`.
  *
@@ -289,9 +286,7 @@ const DISPLAY_CODE_DIGITS = 3;
  * Thuần cắt chuỗi: không một lời gọi hàm hình học hay số học nào.
  */
 export function wallDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
 
 /**
@@ -491,7 +486,8 @@ export const WALL_LAYER_SAMPLE_WALLS = WALL_LAYER_FIXTURE_WALLS;
 export const WALL_APPROVE_COMMAND_TYPE = 'wall.approve';
 
 /** Câu mô tả trên nút hoàn tác và nhật ký hoạt động — `validateCommands` đòi nó khác rỗng. */
-export const approveDescription = (wallId: WallId): string => `Duyệt tường ${wallId}.`;
+export const approveDescription = (wallId: WallId, codes?: ReadonlyMap<string, string>): string =>
+  `Duyệt tường ${wallLabelOf(wallId, codes)}.`;
 
 /**
  * Lệnh duyệt một tường.
@@ -504,13 +500,17 @@ export const approveDescription = (wallId: WallId): string => `Duyệt tường 
  * ghi, không phải diff từng trường), nên `invertCommand` hoàn tác được lệnh này
  * mà không cần biết nó nghĩa là gì.
  */
-export function buildApproveWallCommand(before: Wall, actorId: string): Command {
+export function buildApproveWallCommand(
+  before: Wall,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command {
   const after: Wall = { ...before, reviewed: true, source: 'human' };
 
   return createCommand({
     type: WALL_APPROVE_COMMAND_TYPE,
     actorId,
-    description: approveDescription(before.id),
+    description: approveDescription(before.id, codes),
     changes: [changeForUpdate('wall', before, after)],
   });
 }

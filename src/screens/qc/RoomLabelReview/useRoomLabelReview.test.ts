@@ -325,6 +325,41 @@ describe('diện tích — M-07 tính, màn chỉ đọc', () => {
   });
 });
 
+describe('hoàn tác trả lại vùng chọn LÚC LỆNH CHẠY (B-V7-09, A8)', () => {
+  it('chọn phòng khác rồi chọn #R-005, đổi tên, hoàn tác bằng vé: #R-005 vẫn đang chọn', async () => {
+    const notifications: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const other = ROOM_LABEL_FIXTURE_ROOMS.find((room) => room.id !== ROOM_R005.id);
+
+    act(() => {
+      mounted.result.current.onSelect(other?.id as RoomId);
+    });
+    act(() => {
+      mounted.result.current.onSelect(ROOM_R005.id);
+    });
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+    });
+
+    await act(async () => {
+      notifications.list()[0]?.undoTicket?.undo();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe(ROOM_R005.name);
+    });
+    /* Trước bản sửa: vùng chọn trước lần bấm gần nhất — phòng kia, thanh tra #R-005 đóng. */
+    expect(useStore.getState().selectedIds).toEqual([ROOM_R005.id]);
+  });
+});
+
 describe('lệnh bị từ chối phải nói ra vì sao (B-V7-08)', () => {
   it('gộp khi chưa đọc được tường: toast nói lý do, không phòng nào mất', async () => {
     const notifications: NotificationBus = createNotificationBus();

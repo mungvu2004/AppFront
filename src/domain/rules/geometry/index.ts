@@ -43,6 +43,7 @@
  */
 
 import { compareNearly, isNearlyZero } from '../../units/compare';
+import { displayCodeIn } from '../../spatial/normalize';
 import type { Furniture, Level, Point, Wall } from '../../spatial/types';
 import {
   entitiesInScope,
@@ -438,7 +439,11 @@ export const checkWallOverlap: GeometryCheck = (context) => {
 
         findings.push(
           finding(
-            wallOverlapAlongText({ wallId: wall.id, otherWallId: secondWall.id, overlapMm }),
+            wallOverlapAlongText({
+              wallId: displayCodeIn(context.graph, wall.id),
+              otherWallId: displayCodeIn(context.graph, secondWall.id),
+              overlapMm,
+            }),
             wall.id,
             [wall.id, secondWall.id],
           ),
@@ -454,10 +459,15 @@ export const checkWallOverlap: GeometryCheck = (context) => {
       }
 
       findings.push(
-        finding(wallCrossingText({ wallId: wall.id, otherWallId: secondWall.id, at }), wall.id, [
+        finding(
+          wallCrossingText({
+            wallId: displayCodeIn(context.graph, wall.id),
+            otherWallId: displayCodeIn(context.graph, secondWall.id),
+            at,
+          }),
           wall.id,
-          secondWall.id,
-        ]),
+          [wall.id, secondWall.id],
+        ),
       );
     }
   }
@@ -523,10 +533,10 @@ export const checkDanglingWallEnds: GeometryCheck = (context) => {
       findings.push(
         finding(
           danglingEndText({
-            wallId: wall.id,
+            wallId: displayCodeIn(context.graph, wall.id),
             at,
             nearestGapMm,
-            nearestWallId,
+            nearestWallId: nearestWallId === null ? null : displayCodeIn(context.graph, nearestWallId),
             toleranceMm: jointToleranceMm,
           }),
           wall.id,
@@ -643,7 +653,7 @@ export const checkRoomClosure: GeometryCheck = (context) => {
     findings.push(
       finding(
         roomNotClosedText({
-          roomId: room.id,
+          roomId: displayCodeIn(context.graph, room.id),
           roomName: room.name,
           uncoveredMm,
           perimeterMm,
@@ -794,9 +804,9 @@ export const checkDoorSwing: GeometryCheck = (context) => {
     findings.push(
       finding(
         doorSwingBlockedText({
-          openingId: opening.id,
-          hostWallId: host.id,
-          blockingWallIds,
+          openingId: displayCodeIn(context.graph, opening.id),
+          hostWallId: displayCodeIn(context.graph, host.id),
+          blockingWallIds: blockingWallIds.map((id) => displayCodeIn(context.graph, id)),
           leafMm,
           bestClearanceMm,
         }),
@@ -861,9 +871,9 @@ export const checkOpeningOverlap: GeometryCheck = (context) => {
         findings.push(
           finding(
             openingOverlapText({
-              openingId: opening.id,
-              otherOpeningId: secondOpening.id,
-              wallId,
+              openingId: displayCodeIn(context.graph, opening.id),
+              otherOpeningId: displayCodeIn(context.graph, secondOpening.id),
+              wallId: displayCodeIn(context.graph, wallId),
               overlapMm,
               fromMm,
               toMm,
@@ -963,12 +973,12 @@ export const checkLoadBearingSupport: GeometryCheck = (context) => {
       findings.push(
         finding(
           wallUnsupportedText({
-            wallId: wall.id,
+            wallId: displayCodeIn(context.graph, wall.id),
             levelName: level.name,
             levelBelowName: levelBelow.name,
             wallLengthMm,
             supportedShare,
-            bestSupportWallId,
+            bestSupportWallId: bestSupportWallId === null ? null : displayCodeIn(context.graph, bestSupportWallId),
             requiredShare: minSupportShare,
           }),
           wall.id,
@@ -1042,8 +1052,8 @@ export const checkStairAlignment: GeometryCheck = (context) => {
       findings.push(
         finding(
           stairAlignmentText({
-            stairId: stair.id,
-            stairBelowId: nearest.id,
+            stairId: displayCodeIn(context.graph, stair.id),
+            stairBelowId: displayCodeIn(context.graph, nearest.id),
             levelName: level.name,
             levelBelowName: levelBelow.name,
             offsetMm,

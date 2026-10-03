@@ -48,7 +48,15 @@ export interface RoomLabelNameFieldProps {
 
 export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: RoomLabelNameFieldProps) {
   const [draft, setDraft] = useState(name);
+  const [savedName, setSavedName] = useState(name);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  /* Tên đổi từ ngoài ô (hoàn tác giữ phòng đang chọn, B-V7-09) thì ô theo tên ấy —
+     không giữ chữ cũ. Chỉnh state ngay lúc vẽ, không `useEffect`: tiêu điểm không mất. */
+  if (name !== savedName) {
+    setSavedName(name);
+    setDraft(name);
+  }
 
   const commit = () => {
     if (draft === name) {

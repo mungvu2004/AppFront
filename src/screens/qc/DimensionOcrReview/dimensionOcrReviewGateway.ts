@@ -77,7 +77,7 @@ import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { measureDistance } from '@/domain/measure/measure';
-import { isIdOfKind } from '@/domain/spatial/ids';
+import { displayCodesOf, isIdOfKind } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -224,9 +224,6 @@ export function unsupported(capability: DimensionOcrMissingCapability): Dimensio
 /** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
 const ID_COUNTER_LENGTH = 6;
 
-/** Bề rộng nhãn người đọc: "M-014", không phải "M-14". */
-const DISPLAY_CODE_DIGITS = 3;
-
 /** Bốn ký tự đuôi của bộ mẫu — cùng hằng mà `dimensionOcrFixture.ts` sinh mã. */
 const DIMENSION_ID_SUFFIX = 'DIMS';
 
@@ -238,9 +235,7 @@ const DIMENSION_ID_SUFFIX = 'DIMS';
  * đúng "#M-014".
  */
 export function dimensionDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
 
 /**

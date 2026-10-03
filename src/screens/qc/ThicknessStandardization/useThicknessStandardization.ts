@@ -50,7 +50,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
-import type { EntityId, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import type { LevelId, Wall, WallId } from '@/domain/spatial/types';
 import { useFlushOnSave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
@@ -68,6 +68,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -451,13 +452,8 @@ export function useThicknessStandardization(
     [selectedIds, wallIdIndex],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
-
   const replaceSelection = useCallback(
     (ids: readonly WallId[]) => {
-      selectionBeforeRef.current = useStore.getState().selectedIds;
       setSelection([...ids]);
     },
     [setSelection],
@@ -579,8 +575,8 @@ export function useThicknessStandardization(
     () =>
       createThicknessDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },

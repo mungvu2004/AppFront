@@ -53,6 +53,7 @@ import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
+import { displayCodesOf } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -329,9 +330,7 @@ export const isLowConfidenceObject = (confidence: number): boolean =>
  * "#W-014".
  */
 export function hostWallDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
 
 /**

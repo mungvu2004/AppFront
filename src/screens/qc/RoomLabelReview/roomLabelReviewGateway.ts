@@ -129,7 +129,7 @@ import {
 import { detectRooms, type DetectRoomsResult } from '@/domain/rooms/detect';
 import { ROOM_USAGE_LABELS, type Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { createId } from '@/domain/spatial/ids';
+import { createId, displayCodesOf } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Level,
@@ -375,9 +375,6 @@ export interface RoomLabelReviewGateway {
 /** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
 const ID_COUNTER_LENGTH = 6;
 
-/** Bề rộng nhãn người đọc: "#R-005", không phải "#R-5". */
-const DISPLAY_CODE_DIGITS = 3;
-
 /**
  * Nhãn người đọc của một mã phòng: `R-000005ROOM` → `R-005`.
  *
@@ -387,9 +384,7 @@ const DISPLAY_CODE_DIGITS = 3;
  * tra nào phải giữ đồng bộ. Thuần cắt chuỗi: không một phép số học nào.
  */
 export function roomDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
 
 /**
@@ -1273,8 +1268,8 @@ export const ROOM_APPROVE_COMMAND_TYPE = 'room.approve';
 export const ROOM_NORMALIZE_COMMAND_TYPE = 'room.normalizeNames';
 
 /** Câu mô tả trên nút hoàn tác và nhật ký hoạt động — `validateCommands` đòi nó khác rỗng. */
-export const approveDescription = (roomId: RoomId): string =>
-  `Duyệt tên phòng ${roomCodeLabel(roomId)}.`;
+export const approveDescription = (roomId: RoomId, codes?: ReadonlyMap<string, string>): string =>
+  `Duyệt tên phòng ${roomCodeLabel(roomId, codes)}.`;
 
 /** Câu mô tả của lượt chuẩn hoá — cũng là câu trên toast hoàn tác. */
 export const normalizeDescription = (changedCount: number): string =>
@@ -1287,13 +1282,17 @@ export const normalizeDescription = (changedCount: number): string =>
  * `source: 'human'` — không có tham số nào cho phép nơi gọi truyền `source`,
  * nên đầu ra AI không có đường nào bật được cờ xanh "đã xác minh".
  */
-export function buildApproveRoomCommand(before: Room, actorId: string): Command {
+export function buildApproveRoomCommand(
+  before: Room,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command {
   const after: Room = { ...before, reviewed: true, source: 'human' };
 
   return createCommand({
     type: ROOM_APPROVE_COMMAND_TYPE,
     actorId,
-    description: approveDescription(before.id),
+    description: approveDescription(before.id, codes),
     changes: [changeForUpdate('room', before, after)],
   });
 }

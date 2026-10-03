@@ -727,7 +727,9 @@ describe('câu mô tả lấy nguyên văn từ violation.message, không bị v
 
     renderRuleReport(RuleReportView, props);
 
-    expect(screen.getByText(sampleMessage)).toBeTruthy();
+    /* Bộ mẫu A14 lặp cùng mặt bằng ở bốn tầng, và câu luật gọi thực thể bằng mã theo tầng
+       (#D-001…, B-V7-05) — nên cùng một câu có thể đứng ở nhiều hàng. */
+    expect(screen.getAllByText(sampleMessage).length).toBeGreaterThan(0);
   });
 });
 
@@ -755,7 +757,7 @@ describe('mục đã xử lý phải còn nhìn thấy trong nhóm gộp (CẤM 
 
     renderRuleReport(RuleReportView, withResolved);
 
-    expect(screen.getByText(resolvedRow.message)).toBeTruthy();
+    expect(screen.getAllByText(resolvedRow.message).length).toBeGreaterThan(0);
   });
 });
 

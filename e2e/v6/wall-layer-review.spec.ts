@@ -119,6 +119,30 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
     await expect(page.getByRole('radio', { name: '110 mm' })).toHaveAttribute('aria-checked', 'true');
   });
 
+  /*
+   * Trước B-V7-09 vé hoàn tác trả vùng chọn TRƯỚC lần chọn gần nhất (#W-001), không phải
+   * vùng chọn lúc lệnh chạy (#W-002) — hoàn tác nhảy vùng chọn về hàng cũ.
+   */
+  test('[bơm] Ctrl+Z trả độ dày và giữ tường đang chọn lúc đổi (B-V7-09, A8)', async ({ page }) => {
+    await openSeeded(page);
+
+    await list(page).getByRole('option', { name: /^#W-001 / }).click();
+    await page.keyboard.press('j');
+    const second = list(page).getByRole('option', { name: /^#W-002 / });
+    await expect(second).toHaveAttribute('aria-selected', 'true');
+    /* #W-002 của bộ mẫu là tường bao 330 mm (`wallLayerReviewFixture.ts`). */
+    await expect(page.getByRole('radio', { name: '330 mm' })).toHaveAttribute('aria-checked', 'true');
+
+    await page.keyboard.press('1');
+    await expect(page.getByRole('radio', { name: '110 mm' })).toHaveAttribute('aria-checked', 'true');
+
+    await page.keyboard.press('Control+z');
+
+    await expect(page.getByRole('radio', { name: '330 mm' })).toHaveAttribute('aria-checked', 'true');
+    await expect(second).toHaveAttribute('aria-selected', 'true');
+    await expect(list(page).getByRole('option', { selected: true })).toHaveCount(1);
+  });
+
   test('[bơm] Escape bỏ chọn tường (B-V6-11)', async ({ page }) => {
     await openSeeded(page);
 

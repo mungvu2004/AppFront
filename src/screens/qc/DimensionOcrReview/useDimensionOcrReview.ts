@@ -74,7 +74,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
-import type { Dimension, EntityId, Level } from '@/domain/spatial/types';
+import type { Dimension, Level } from '@/domain/spatial/types';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -89,6 +89,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -410,7 +411,6 @@ export function useDimensionOcrReview(
 
   const graph = useStore((state) => state.spatial);
   const setSpatial = useStore((state) => state.setSpatial);
-  const selectedIds = useStore((state) => state.selectedIds);
   const setSelection = useStore((state) => state.setSelection);
 
   /*
@@ -473,9 +473,6 @@ export function useDimensionOcrReview(
     [],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
   /**
    * Lượt ghi đang chờ gửi đi — bước `sync` của `dispatch` đặt nó.
@@ -493,8 +490,8 @@ export function useDimensionOcrReview(
     () =>
       createDimensionOcrDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => undefined,
       }),
     [storePort],
@@ -727,7 +724,6 @@ export function useDimensionOcrReview(
 
   const onSelect = useCallback(
     (dimensionId: string | null) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setDraft(null);
       setSelectedDimensionId(dimensionId);
 

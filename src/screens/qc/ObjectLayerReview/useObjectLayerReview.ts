@@ -82,6 +82,7 @@ import {
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -460,9 +461,6 @@ export function useObjectLayerReview(
     [],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
   /*
    * Tự lưu (A7) — 800 ms sau thao tác cuối, cùng khuôn màn tường (B-V6-03).
@@ -502,8 +500,8 @@ export function useObjectLayerReview(
     () =>
       createObjectLayerDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
@@ -560,7 +558,6 @@ export function useObjectLayerReview(
 
   const pushSelection = useCallback(
     (next: readonly EntityId[]) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection([...next]);
       /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
       channel.push([...next]);

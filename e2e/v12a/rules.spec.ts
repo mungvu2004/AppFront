@@ -84,7 +84,7 @@ test('có bơm kho: tấm chi tiết vi phạm mở từ một dòng, J sang vi 
   await seedSpatial(page);
 
   await page.getByRole('button', { name: /^lỗ mở nằm trọn/u }).click();
-  const rows = page.getByRole('button', { name: /^Lỗ mở D-DOOR/u });
+  const rows = page.getByRole('button', { name: /^Lỗ mở #D-\d{3}/u });
   const firstMessage = (await rows.first().innerText()).trim();
   await rows.first().click();
 

@@ -70,7 +70,6 @@ import { computeCentroid, explainRoom, outlineContains } from '@/domain/rooms/ar
 import { displayCodesOf } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
-  EntityId,
   Level,
   LevelId,
   Point,
@@ -95,6 +94,7 @@ import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -581,13 +581,8 @@ export function useRoomLabelReview(
     [rooms, selectedRoomId],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
-
   const onSelect = useCallback(
     (roomId: RoomId | null) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection(roomId === null ? [] : [roomId]);
     },
     [setSelection],
@@ -649,8 +644,8 @@ export function useRoomLabelReview(
     () =>
       createRoomLabelDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
@@ -813,9 +808,9 @@ export function useRoomLabelReview(
         return;
       }
 
-      void run(() => ok(buildApproveRoomCommand(room, gateway.actorId)));
+      void run(() => ok(buildApproveRoomCommand(room, gateway.actorId, roomCodes)));
     },
-    [gateway, roomById, run],
+    [gateway, roomById, roomCodes, run],
   );
 
   /* ---------------------------------------------------------------------- */
