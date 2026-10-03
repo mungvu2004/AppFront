@@ -724,6 +724,7 @@ describe('useProcessingScreen', () => {
 
     expect(props.state).toBe('empty');
     // Các việc chưa có endpoint, phản ánh trung thực ra props — không giá trị bịa.
+    // `cancelProcessing` bật thì phải có hoãn A8 trước — B-V4-09.
     expect(props.canCancel).toBe(false);
     expect(props.queueLine).toBeUndefined();
     expect(props.summary).toBeUndefined();

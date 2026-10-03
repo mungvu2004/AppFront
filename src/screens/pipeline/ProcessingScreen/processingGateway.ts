@@ -636,6 +636,9 @@ export function createProcessingGateway(
     // cái cuối chỉ làm được một nửa, xem giả định C3 ở đầu file. Sáu việc còn
     // lại `false` cho tới khi có endpoint thật.
     supports: {
+      // Bật cờ này thì giữ lệnh `UNDO_WINDOW_MS` kèm toast hoàn tác (A8). Hết giờ chỉ
+      // huỷ những lượt tải lên chụp lúc xác nhận mà vẫn đang chạy. Câu toast phải đúng
+      // cả khi lượt chạy xong trước hạn. Xem B-V4-09.
       cancelProcessing: false,
       queuePosition: false,
       parallelFloorPipeline: false,
