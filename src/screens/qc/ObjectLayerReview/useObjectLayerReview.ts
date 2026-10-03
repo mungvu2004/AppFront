@@ -953,15 +953,18 @@ export function useObjectLayerReview(
    * tiên, toạ độ do `placeOnWall` của M-08 trả) rồi để `validateOpening` phán
    * quyết. Bị từ chối thì người duyệt đọc được câu từ chối của domain; màn
    * không đi tìm một tường thứ hai (CẤM TUYỆT ĐỐI).
+   *
+   * Tầng của URL không có trong đồ thị (`level === null`) thì báo `addNoWall`,
+   * không im lặng (A11). Ở ca tầng chưa nạp, câu này có thể sai: xem B-V6-71.
    */
   const onAddManually = useCallback(() => {
     const current = useStore.getState().spatial;
 
-    if (!canEdit || current === null || level === null) {
+    if (!canEdit || current === null) {
       return;
     }
 
-    const proposal = manualDoorProposalOf(current, level);
+    const proposal = level === null ? null : manualDoorProposalOf(current, level);
 
     if (proposal === null) {
       notifications.publish({

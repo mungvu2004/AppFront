@@ -11,7 +11,7 @@
  * này sống trong thư mục nhóm.
  *
  * Ba ràng buộc của mọi ca có bơm: tên bài nói ra rằng nó bơm · `goto` rồi mới bơm ·
- * không `Ctrl+Z` thừa (lượt bơm là một bước `zundo`).
+ * không `Ctrl+Z` thừa (`setSpatial` xoá lịch sử hoàn tác nên lượt bơm không để lại bước nào).
  *
  * B-V6-01: ngày sản phẩm có đường nạp thật, ca mồi của từng màn đỏ — khi ấy xoá tệp này.
  */
@@ -23,7 +23,9 @@ export type QcScreen = 'walls' | 'objects' | 'dimensions' | 'grids';
  * Mã tầng cho URL. Tường và trục lọc theo `levelId` của URL, nên phải là mã `Level`
  * của đồ thị bơm vào — `L1` cho ra "rỗng GIẢ" (plan.md V6 mục 0, bẫy tầng F2).
  * Đối tượng và kích thước không lọc theo tầng; đối tượng vẫn dùng mã tầng của đồ thị bơm
- * vì tự lưu chỉ ghi khi đồ thị có tầng của URL (`createFloorLayerSave`, B-V6-03).
+ * vì tự lưu chỉ ghi khi đồ thị có tầng của URL (`createFloorLayerSave`, B-V6-03) và
+ * `levelOfGraph` của lớp đối tượng không còn rơi về tầng đầu (B-V6-40).
+ * Kích thước `L1` chỉ sống nhờ đường rơi về tầng đầu của màn kích thước (B-V6-70).
  */
 export const QC_FLOOR: Readonly<Record<QcScreen, string>> = {
   walls: 'L-000001LVL0',
