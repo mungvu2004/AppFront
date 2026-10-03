@@ -22,8 +22,9 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { totalArea } from '@/domain/rooms/area';
 import type { Level, LevelId } from '@/domain/spatial/types';
-import { metres, metresToMillimetres } from '@/domain/units/types';
+import { metres, metresToMillimetres, millimetres } from '@/domain/units/types';
 import { createApiClient, type ApiResult } from '@/api/client';
 import { FloorSchema, type Floor } from '@/api/contracts';
 import { ApiErrorBodySchema } from '@/api/schemas/errors';
@@ -50,6 +51,7 @@ import {
   FLOOR_MANAGER_SAMPLE_SECOND_ID,
   FLOOR_MANAGER_UNSUPPORTED_NOTICES,
   levelsOf,
+  roomsOfLevel,
   type FloorManagerGateway,
 } from './floorManagerGateway';
 import type { UseFloorManagerResult } from './floorManagerTypes';
@@ -607,6 +609,20 @@ describe('bảng tầng', () => {
     expect(ground.wallCountText).toBe(String(sample?.wallCount));
     expect(ground.roomCountText).toBe(String(sample?.roomCount));
     expect(ground.areaText).toBe('248,60 m²');
+  });
+
+  it('đường bao thật của mọi tầng có phòng cộng ra đúng 248,6 m² (B-V7-41)', () => {
+    // 248.6 viết thẳng: notes/floor-manager/blueprint.md:638-640 (33 × 7,32 + 7,04).
+    const graph = createFloorManagerSampleGraph();
+    const levelsWithRooms = FLOOR_MANAGER_SAMPLE_LEVELS.filter((level) => level.roomCount > 0);
+
+    expect(levelsWithRooms.length).toBeGreaterThan(0);
+    for (const level of levelsWithRooms) {
+      const outlines = roomsOfLevel(graph, level.id).map((room) =>
+        room.outline.map((corner) => ({ x: millimetres(corner.x), y: millimetres(corner.y) })),
+      );
+      expect(totalArea(outlines), level.name).toBe(248.6);
+    }
   });
 
   it('vai Người xem ẩn mọi thao tác sửa và nói ra vì sao', async () => {
