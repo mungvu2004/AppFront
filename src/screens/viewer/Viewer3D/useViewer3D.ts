@@ -76,7 +76,6 @@ import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatArea } from '@/lib/format/measure';
 import { formatPercent } from '@/lib/format/number';
 import { createUuid } from '@/lib/http/ids';
-import { queryKeys } from '@/lib/query/queryKeys';
 import {
   clearSelection,
   selectSingle,
@@ -93,6 +92,7 @@ import { useStore } from '@/store';
 import { selectDraftEntityIds, selectDraftPreviewGraph } from '@/store/graphSelectors';
 import {
   createViewerShellGateway,
+  projectNameQueryKey,
   shellDataOf,
   type ViewerShellData,
 } from '@/screens/viewer/ViewerShell';
@@ -397,7 +397,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   );
 
   const projectQuery = useQuery({
-    queryKey: queryKeys.project.detail(projectId),
+    queryKey: projectNameQueryKey(projectId),
     queryFn: (): Promise<string | null> => gateway.readProjectName(projectId),
   });
 

@@ -101,7 +101,7 @@ export function fetchProjectList(): Promise<readonly DashboardProject[]> {
   return Promise.resolve(SAMPLE_PROJECTS);
 }
 
-/** One project — `queryKeys.project.detail(id)`'s fetcher, for the hover prefetch. */
+/** One project — fetcher of the hover prefetch under `[...queryKeys.project.detail(id), 'summary']` (B-V1-12). */
 export function fetchProjectDetail(projectId: string): Promise<DashboardProject | undefined> {
   return Promise.resolve(SAMPLE_PROJECTS.find((project) => project.id === projectId));
 }

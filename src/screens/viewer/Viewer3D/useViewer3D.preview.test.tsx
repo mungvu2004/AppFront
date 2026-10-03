@@ -20,7 +20,12 @@ import type { Wall } from '@/domain/spatial/types';
 import { renderWithProviders } from '@/lib/testing/render';
 import { discardPreview, previewEdit } from '@/store/commit';
 import { useStore } from '@/store';
-import { createViewerShellFixtureGateway, VIEWER_FIXTURE_SPATIAL } from '@/screens/viewer/ViewerShell';
+import { queryKeys } from '@/lib/query/queryKeys';
+import {
+  createViewerShellFixtureGateway,
+  projectNameQueryKey,
+  VIEWER_FIXTURE_SPATIAL,
+} from '@/screens/viewer/ViewerShell';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { useViewer3D } from './useViewer3D';
@@ -300,5 +305,22 @@ describe('useViewer3D — cổng nạp kho đang nạp (B-V8-04)', () => {
         useStore.getState().setSpatial(null, null);
       });
     }
+  });
+});
+
+describe('useViewer3D — tên dự án ở khoá con (B-V1-12)', () => {
+  it('chuỗi tên vào khoá `name`, khoá gốc của dự án không bị ghi', async () => {
+    const gateway = createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL, 'Nhà mẫu');
+
+    const { queryClient, unmount } = renderWithProviders(
+      <Probe options={{ projectId: 'P-000000001', canvas: null, frame: FRAME, gateway }} />,
+    );
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(projectNameQueryKey('P-000000001'))).toBe('Nhà mẫu');
+    });
+    expect(queryClient.getQueryData(queryKeys.project.detail('P-000000001'))).toBeUndefined();
+
+    unmount();
   });
 });
