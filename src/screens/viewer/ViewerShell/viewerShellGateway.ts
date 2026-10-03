@@ -18,9 +18,9 @@
  *   ("mặc định là chính store"), và nó đúng ở đây vì không endpoint nào trả về
  *   ba con số ấy: `FloorSchema` không mang phòng.
  *
- *   {@link shellDataOf} cộng `Room.areaM2` — con số `src/domain` đã tính từ
- *   `outline` khi chuẩn hoá — chứ không tự tính lại diện tích đa giác. Tính lại
- *   ở đây là dựng bản thứ hai của một phép đo đã có test đạt ngưỡng 90% (R-61).
+ *   {@link shellDataOf} đo tổng bằng `totalArea()` của `src/domain` trên `outline`
+ *   của các phòng — không cộng `Room.areaM2` khai tay, và không tự viết lại công
+ *   thức dây giày: đó là bản thứ hai của một phép đo đã có test đạt ngưỡng 90% (R-61).
  *
  * ## Một việc chưa có đường: đếm phòng của CẢ TOÀ NHÀ
  *
@@ -310,7 +310,17 @@ export function shouldUseViewerFixture(input: {
   readonly storeSpatial: NormalizedSpatial | null;
   readonly useMock: boolean;
 }): boolean {
-  return input.useMock && !input.hasInjectedSpatial && input.storeSpatial === null;
+  /*
+   * ponytail: đồ thị 0 tường cũng tính là rỗng — cổng nạp kho (B-V12-01) nạp bốn tầng
+   * CHƯA có hình của mock, và đó là vĩnh viễn ở mock vì mock không trả nhà. Nhà mẫu chỉ
+   * vào vỏ và cảnh, không vào kho: panel đọc kho vẫn thấy kho thật. Nâng cấp: bỏ vế
+   * `wall.length === 0` khi mock N16 trả hình cho dự án mẫu.
+   */
+  return (
+    input.useMock &&
+    !input.hasInjectedSpatial &&
+    (input.storeSpatial === null || input.storeSpatial.byKind.wall.length === 0)
+  );
 }
 
 /**
@@ -327,6 +337,16 @@ export function resolveViewerSpatial(
     ? VIEWER_FIXTURE_SPATIAL
     : storeSpatial;
 }
+
+/**
+ * Bộ chọn kho của ba route 3D anh em (tách tầng, đo, Pascal): đang nạp thì `null`,
+ * để kho của dự án TRƯỚC không hiện dưới tên dự án mới (B-V12-01). Chốt nằm ngoài
+ * luật nhà mẫu, nên ở mock nhà mẫu không chớp ra rồi biến mất trong lúc nạp.
+ */
+export const selectViewerSpatial = (state: {
+  readonly spatial: NormalizedSpatial | null;
+  readonly spatialLoading: boolean;
+}): NormalizedSpatial | null => (state.spatialLoading ? null : resolveViewerSpatial(state.spatial));
 
 /** Đồ thị "một phần": đủ bốn tầng, nhưng mới có phòng của tầng dưới cùng. */
 export const VIEWER_PARTIAL_SPATIAL: NormalizedSpatial = normalizeSpatial({

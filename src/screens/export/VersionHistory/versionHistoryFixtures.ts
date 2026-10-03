@@ -8,9 +8,8 @@
  *
  * ## Vì sao KHÔNG dùng bộ mẫu A14
  *
- * Bộ mẫu chuẩn (34 phòng / 248,60 m², `SAMPLE_BUILDING`) đã bị đo và loại: đường bao đo ra
- * 238,00 chứ không phải 248,60, và tên phòng của nó là tiếng Anh nên trượt `expectVietnamese`
- * (xem ghi chú khảo sát nội bộ). Vì màn này chỉ cần MỘT `VersionSnapshot` hai tường/một
+ * Bộ mẫu chuẩn (14 phòng / 248,60 m², `SAMPLE_BUILDING`) đã bị loại: tên phòng của nó là
+ * tiếng Anh nên trượt `expectVietnamese` (đường bao từng đo ra 238,00 — đã sửa ở B-V8-10). Vì màn này chỉ cần MỘT `VersionSnapshot` hai tường/một
  * phòng, không cần toàn bộ toà nhà, dữ liệu dưới đây được viết tay có chủ đích — đúng vai
  * một fixture: đóng vai "hai bản ghi máy chủ", không phải một mặt bằng thật.
  *

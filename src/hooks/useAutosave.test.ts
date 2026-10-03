@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { RETRY_SCHEDULE_MS } from '@/lib/autosave/retrySchedule';
 import { CLEAN_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
+import type { WallId } from '@/domain/spatial/types';
 import { useStore } from '@/store';
+import { commit } from '@/store/commit';
 
 import { useAutosave, useAutosaveFlush } from './useAutosave';
 
@@ -137,6 +139,35 @@ describe('useAutosave', () => {
       rerender();
     });
 
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * B-V12-01 · Q13: cổng nạp kho dự án ghi `spatial` bằng `setSpatial`. Một lượt
+   * nạp không phải bản sửa — lưu ngược thứ vừa đọc từ máy chủ là ghi thừa.
+   */
+  it('does not schedule a save for a load (`setSpatial` empties undo history), but does for a `commit`', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useAutosave(onSave));
+
+    act(() => {
+      useStore.getState().setSpatial(SAMPLE_SPATIAL, 'v-1');
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(onSave).not.toHaveBeenCalled();
+
+    const wallId = SAMPLE_SPATIAL.byKind.wall[0] as WallId;
+
+    act(() => {
+      commit({ changes: { reviewed: true }, id: wallId, kind: 'wall', op: 'update' }, 'Duyệt tường');
+    });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });

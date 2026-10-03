@@ -9,10 +9,10 @@ import { dismissTourIfShown } from '../fixtures/tour';
 /**
  * V12a — `projectExport` (`docs/notes/e2e/plan.md` V12 mục 4).
  *
- * `empty` khi vào thẳng đã có ở `smoke-grid.spec.ts` (dòng `projectExport`), không lặp.
- * `ShareDialog` (EX-4) thuộc nhóm V3/W02. Ca có nội dung phải BƠM (B-V12-01), và tên bài
- * nói ra điều đó; `seedSpatial` bơm cả `floors` — đủ cho màn này (`useExportPanel.ts`
- * chỉ cần `graph` + `floors`).
+ * Vào thẳng (không bơm) đã có ở `smoke-grid.spec.ts` (dòng `projectExport`, mốc heading
+ * "xuất bản vẽ" — cổng nạp kho B-V12-01), không lặp. `ShareDialog` (EX-4) thuộc nhóm
+ * V3/W02. Ca cần bộ mẫu A14 BƠM sau khi cổng nạp xong (`seedSpatial({ projectId })`), và
+ * tên bài nói ra điều đó; `seedSpatial` bơm cả `floors` — đủ cho màn này.
  *
  * Tour (`EditorTour`) gắn neo vào nút `xuất`, nên nó có thể hiện ngay khi bơm làm nút ấy
  * xuất hiện (W02 đang đổi để tour hiện lúc mở màn). Mọi bài có bơm đi qua {@link seedAndSettle}:
@@ -31,15 +31,16 @@ const GLB_EXPORT_TIMEOUT_MS = 20_000;
 /** Bấm `chia sẻ` khi bị che: đủ để Playwright thử vài lượt rồi đỏ, không ngồi hết 30 s. */
 const COVERED_CLICK_TIMEOUT_MS = 3_000;
 
-const EMPTY_TITLE = 'chưa có gì được duyệt để xuất';
+/** Màn đã có dữ liệu — từ B-V12-01 cổng nạp kho trước khi màn vẽ. */
+const SCREEN_HEADING = 'xuất bản vẽ';
 
-/** `goto` → thấy `empty` → bơm → nút `xuất` hiện → bỏ qua tour nếu nó đã hiện. */
+/** `goto` → cổng nạp kho xong (heading "xuất bản vẽ") → bơm → nút `xuất` hiện → bỏ qua tour nếu nó đã hiện. */
 async function seedAndSettle(page: Page): Promise<void> {
   await page.goto(EXPORT_URL);
-  await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toBeVisible({
+  await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: PROJECT_ID });
   await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
   await dismissTourIfShown(page);
 }

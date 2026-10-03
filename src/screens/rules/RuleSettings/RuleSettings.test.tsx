@@ -499,16 +499,19 @@ describe('2.(b).7 — áp bộ luật sẵn "nhà xưởng": số luật đổi 
 
 describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn tác" (A8)', () => {
   it('tắt một luật đẩy đúng một thông báo mang vé hoàn tác vào bus của phiên; dùng vé thì luật bật lại', async () => {
+    /* Kho đã khớp dự án TRƯỚC khi gắn, để cổng nạp kho (B-V12-01) không nạp đè. */
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+    });
     renderWithProviders(
       <MemoryRouter initialEntries={['/projects/P-1/rules/settings']}>
         <Routes>
           <Route path={ROUTE_PATTERNS.projectRuleSettings} element={<RuleSettingsRoute />} />
         </Routes>
       </MemoryRouter>,
+      { keepStore: true },
     );
-    act(() => {
-      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
-    });
 
     const before = appNotificationBus.list().length;
     const ruleSwitch = await screen.findByRole('switch', {

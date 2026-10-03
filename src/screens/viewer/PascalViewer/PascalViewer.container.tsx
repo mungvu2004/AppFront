@@ -12,26 +12,24 @@
  */
 
 import { useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
-import { resolveUseMockApi } from '@/api/appClient';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
 // Nhập THẲNG module, KHÔNG qua barrel `index.ts` của màn kia: đi qua barrel là
 // kéo cả cụm màn ấy vào chunk của route này, và cổng "chi phí thêm cho một màn"
 // đo được đúng điều đó — 282,1 / 280 KiB, vượt 2,1.
 //
-// Và `shouldUseViewerFixture` nhập từ ĐÚNG module giữ `VIEWER_FIXTURE_SPATIAL`,
-// không từ `Viewer3D/useViewer3DSource`: hai màn cùng nhập module thứ hai ấy thì
-// Rollup tách nó ra một chunk dùng chung 507 byte và cổng lại đỏ vì 39 byte.
-import {
-  shouldUseViewerFixture,
-  VIEWER_FIXTURE_SPATIAL,
-} from '@/screens/viewer/ViewerShell/viewerShellGateway';
+// Và luật nhà mẫu nhập từ ĐÚNG module giữ `VIEWER_FIXTURE_SPATIAL`, không từ
+// `Viewer3D/useViewer3DSource`: hai màn cùng nhập module thứ hai ấy thì Rollup
+// tách nó ra một chunk dùng chung 507 byte và cổng lại đỏ vì 39 byte.
+import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';
@@ -106,27 +104,15 @@ export function PascalViewerContainer({
  *
  * ## Vì sao không đọc thẳng `store.spatial`
  *
- * Bản đầu của màn này làm thế, và nó **kẹt ở "đang nạp" mãi**: đồ thị không
- * gian trong kho là `null` trong thực tế, và `e2e/viewer3d.spec.ts` đã ghi lại
- * đo đạc ấy từ trước — bảy màn QC đọc vòng tròn, `read: () => useStore.getState().spatial`
- * tức đọc lại chính cái kho đang rỗng.
- *
- * Màn 3D cũ đã giải chuyện này và luật của nó nằm ở `shouldUseViewerFixture`:
- * **chế độ mock + kho rỗng thì dùng nhà mẫu; nối BE thật thì kho rỗng là kho
- * rỗng.** Màn này dùng lại đúng luật ấy chứ không chép lại, để hai màn 3D luôn
- * thấy cùng một bản vẽ — hai màn nhìn hai nguồn khác nhau là cách chắc nhất để
- * người soát đọc ra hai con số khác nhau.
+ * Bản đầu của màn này làm thế, và nó **kẹt ở "đang nạp" mãi**: không ai nạp kho.
+ * Nay cổng `ProjectSpatialGate` nạp kho theo `:projectId` (B-V12-01), và màn đọc
+ * qua `selectViewerSpatial` — cùng luật nhà mẫu với `/3d` (mock + kho chưa có
+ * tường thì nhà mẫu; nối BE thật thì kho rỗng là kho rỗng), cộng một chốt: cổng
+ * đang nạp thì `null`, để kho của dự án trước không hiện dưới tên dự án này.
  */
 export function PascalViewerRoute() {
-  const storeSpatial = useStore((state) => state.spatial);
-
-  const spatial = shouldUseViewerFixture({
-    hasInjectedSpatial: false,
-    storeSpatial,
-    useMock: resolveUseMockApi(),
-  })
-    ? VIEWER_FIXTURE_SPATIAL
-    : storeSpatial;
+  const { projectId } = useParams<{ projectId: string }>();
+  const spatial = useStore(selectViewerSpatial);
 
   // `null` đẩy màn sang "đang nạp" chứ không dựng một đồ thị rỗng giả.
   const graph = useMemo(() => (spatial === null ? null : denormalizeSpatial(spatial)), [spatial]);
@@ -137,7 +123,9 @@ export function PascalViewerRoute() {
      chỗ nhúng màn vào bố cục khác vẫn tự quyết chiều cao. */
   return (
     <div className="h-screen">
-      <PascalViewerContainer graph={graph} />
+      <ProjectSpatialGate projectId={projectId}>
+        <PascalViewerContainer graph={graph} />
+      </ProjectSpatialGate>
     </div>
   );
 }

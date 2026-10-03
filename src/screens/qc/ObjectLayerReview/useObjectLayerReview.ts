@@ -423,7 +423,7 @@ export function useObjectLayerReview(
     }
   }, [gateway, graph, loaded, setSpatial]);
 
-  const level = useMemo<Level | null>(() => levelOfGraph(graph), [graph]);
+  const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = objectLayerQuery.isError;
   const isLoading = objectLayerQuery.isPending || graph === null;
 

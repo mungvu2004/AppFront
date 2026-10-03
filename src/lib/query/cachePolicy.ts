@@ -60,6 +60,18 @@ export const CACHE_POLICY = {
   },
 
   /**
+   * The project-store load behind `ProjectSpatialGate` (B-V12-01).
+   * 0s because the query only runs when the store does NOT already hold the
+   * project: a cached answer then is by definition one the store has dropped
+   * or replaced, and the default 30s would leave the gate stuck on it after
+   * A → B → A. `refetchOnMount` alone does not cover a key change or `enabled`
+   * flipping back on.
+   */
+  projectSpatialLoad: {
+    staleTime: 0,
+  },
+
+  /**
    * Retry counts.
    * Read queries: 1, enough to survive a momentary network blip without a long wait.
    * Mutations: 0, because writes are not idempotent and a retry can create duplicates.

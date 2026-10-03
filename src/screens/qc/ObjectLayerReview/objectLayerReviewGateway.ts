@@ -562,21 +562,25 @@ export const OBJECT_LAYER_SAMPLE_GRAPH: NormalizedSpatial = buildObjectLayerGrap
 const NO_SOLID_WALLS: readonly SolidWall[] = [];
 const NO_OBJECTS: readonly ReviewObject[] = [];
 
-/** Tầng đang duyệt, hoặc tầng đầu tiên khi nơi gọi chưa chỉ định. */
-export function levelOfGraph(graph: NormalizedSpatial | null): Level | null {
+/**
+ * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu.
+ *
+ * Kho có thể mang đồ thị CẢ dự án (cổng nạp kho, B-V12-01): lấy tầng đầu khi ấy
+ * là hiện tầng 1 mà lưu theo tầng của URL. Mã tầng không có trong đồ thị (bộ mẫu
+ * một tầng, mã tầng API khác mã `Level` — B-V5-01) thì vẫn rơi về tầng đầu.
+ */
+export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
   if (graph === null) {
     return null;
   }
 
-  const id = graph.byKind.level[0];
+  const isLevel = (id: string | undefined): Level | null => {
+    const entity = id === undefined ? undefined : graph.byId[id];
 
-  if (id === undefined) {
-    return null;
-  }
+    return entity !== undefined && 'elevationMm' in entity ? entity : null;
+  };
 
-  const entity = graph.byId[id];
-
-  return entity !== undefined && 'elevationMm' in entity ? entity : null;
+  return isLevel(levelId) ?? isLevel(graph.byKind.level[0]);
 }
 
 /** Tường của tầng, dạng đồ thị. */

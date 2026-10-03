@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
+import { seedSpatial } from '../fixtures/seedSpatial';
 
 /**
  * Xem 3D trên điện thoại (V1-MOBILE) — chỗ người nhận một liên kết chia sẻ mở dự án
@@ -19,6 +20,9 @@ const PROJECT_ID = 'project-1';
 /** Tên dự án mà bộ mẫu API trả cho `project-1` (`src/api/__mocks__`). */
 const PROJECT_NAME = 'Chung cư Hoàng Anh';
 const EMPTY_TITLE = 'chưa có mô hình để xem';
+const WEAK_DEVICE_TITLE = 'máy này chưa dựng nổi mô hình 3D';
+/** Bốn tầng của `MOCK_SPATIAL_PROJECT` và cũng bốn tầng của bộ mẫu A14. */
+const MOCK_FLOOR_COUNT = 4;
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize(PHONE);
@@ -37,23 +41,50 @@ test('mở bản điện thoại của một dự án: tên dự án đến từ
 });
 
 /*
- * B-V1-03 — chờ quyết. Route chỉ truyền `projectId` + `roles`
- * (`MobileViewer.container.tsx`), hình học đọc từ `store.spatial`
- * (`useMobileViewer.ts:249-250`) mà không gì trên đường này nạp nó, và không có
- * request hình học nào. Nên bản điện thoại LUÔN nói "chưa có mô hình để xem".
+ * B-V1-03 — đường nạp thật. Route bọc `ProjectSpatialGate`, nên kho dự án được nạp từ
+ * máy chủ giả. Mock `project-1` có đúng bốn tầng và KHÔNG có tường lẫn phòng, nên câu
+ * trung thực duy nhất của bản điện thoại là "chưa có mô hình để xem" — kèm đủ bốn tầng.
+ *
+ * Đỏ khi mock N16 trả hình cho project-1: lúc ấy câu "chưa có mô hình" thành nói dối,
+ * và bài này phải đổi sang khẳng định có mô hình.
  */
-test.fixme(
-  'mở bản điện thoại của một dự án có mô hình thì thấy mô hình, không thấy "chưa có mô hình để xem"',
-  // Lý do: chọn đường nạp hình học cho route này là quyết định kiến trúc dữ liệu (cùng gốc
-  // với bảy màn QC, Q1 = A′) — B-V1-03.
-  // Mở lại khi: route `/m/du-an/:projectId` có nguồn hình học thật.
-  async ({ page }) => {
-    await page.goto(ROUTES.mobileViewer(PROJECT_ID));
+test('không bơm: bốn tầng của dự án có thật, và nói thật rằng chưa có mô hình để xem', async ({
+  page,
+}) => {
+  await page.goto(ROUTES.mobileViewer(PROJECT_ID));
 
-    const screen = page.getByRole('region', { name: 'xem mô hình 3D trên điện thoại', exact: true });
-    await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME, {
-      timeout: FIRST_PAINT_TIMEOUT_MS,
-    });
-    await expect(screen.getByText(EMPTY_TITLE, { exact: true })).toHaveCount(0);
-  },
-);
+  const screen = page.getByRole('region', { name: 'xem mô hình 3D trên điện thoại', exact: true });
+  await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME, {
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await expect(screen.getByText(EMPTY_TITLE, { exact: true })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+
+  await screen.getByRole('button', { name: 'tầng', exact: true }).click();
+  const floorRows = screen.getByRole('group', { name: 'tầng', exact: true }).getByRole('button');
+  await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
+  await expect(floorRows.first()).toHaveAccessibleName(/^tầng hầm/);
+});
+
+test('bơm bộ mẫu A14 vào dự án đã nạp: thấy mô hình, không thấy "chưa có mô hình để xem"', async ({
+  page,
+}) => {
+  await page.goto(ROUTES.mobileViewer(PROJECT_ID));
+
+  const screen = page.getByRole('region', { name: 'xem mô hình 3D trên điện thoại', exact: true });
+  await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME, {
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+  await seedSpatial(page, { projectId: PROJECT_ID });
+
+  await expect(screen.getByText(EMPTY_TITLE, { exact: true })).toHaveCount(0);
+  await expect(screen.getByText(WEAK_DEVICE_TITLE, { exact: true })).toHaveCount(0);
+
+  await screen.getByRole('button', { name: 'tầng', exact: true }).click();
+  const floorRows = screen.getByRole('group', { name: 'tầng', exact: true }).getByRole('button');
+  // Bơm thay `floors` bằng bốn tầng của bộ mẫu (`Level 0..3`), có phòng nên không tầng nào "chưa tải".
+  await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
+  await expect(floorRows.first()).toHaveAccessibleName(/^level 0/);
+  await expect(screen.getByText('chưa tải', { exact: true })).toHaveCount(0);
+});

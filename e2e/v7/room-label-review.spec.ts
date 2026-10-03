@@ -163,7 +163,7 @@ test('bơm bộ mẫu chuẩn: đổi tên phòng từ bảng diện tích của
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(ROUTES.project.viewer(QCB_PROJECT));
   await expect(page.getByText('Mô hình 3D đã dựng xong.')).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: QCB_PROJECT });
   await dismissTourIfShown(page);
 
   const toggle = page.getByRole('button', { name: 'Diện tích phòng', exact: true });

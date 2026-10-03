@@ -41,6 +41,7 @@ import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -138,5 +139,11 @@ export function MobileViewerRoute() {
     );
   }
 
-  return <MobileViewerContainer projectId={projectId} roles={session.roles} />;
+  // Nạp kho dự án (B-V1-03): không có cổng này `store.spatial` luôn rỗng và màn
+  // nói "chưa có mô hình để xem" cho mọi dự án.
+  return (
+    <ProjectSpatialGate projectId={projectId}>
+      <MobileViewerContainer projectId={projectId} roles={session.roles} />
+    </ProjectSpatialGate>
+  );
 }

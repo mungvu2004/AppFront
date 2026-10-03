@@ -56,6 +56,8 @@ const WINDOW_HEIGHT_MM = 1400;
 const WINDOW_SILL_MM = 900;
 const ROOM_WIDTH_MM = 4000;
 const ROOM_DEPTH_MM = 4250;
+/** 4000 × 6900 mm = 27,60 m² — the large room's outline measures what it declares (B-V8-10). */
+const LARGE_ROOM_DEPTH_MM = 6900;
 const FURNITURE_SIZE_MM = 800;
 
 const pad = (value: number): string => String(value).padStart(6, '0');
@@ -146,23 +148,32 @@ const createFurniture = (): Furniture[] =>
     rotationDeg: 0,
   }));
 
-/** Thirteen rooms of 17,00 m² plus one of 27,60 m² make 248,60 m². */
+/**
+ * Thirteen rooms of 4000 × 4250 mm (17,00 m²) plus one of 4000 × 6900 mm (27,60 m²)
+ * make 248,60 m² — and the outlines measure exactly that with the shoelace
+ * `totalArea()`, so the declared `areaM2` and the geometry agree (B-V8-10).
+ */
 const createRooms = (): Room[] =>
-  Array.from({ length: SAMPLE_ROOM_COUNT }, (_unused, index) => ({
-    ...APPROVED,
-    areaM2: index === SAMPLE_ROOM_COUNT - 1 ? LARGE_ROOM_AREA_M2 : SMALL_ROOM_AREA_M2,
-    id: sampleRoomId(index),
-    levelId: sampleLevelOf(index),
-    name: `Room ${index}`,
-    outline: [
-      { x: index * ROOM_WIDTH_MM, y: 0 },
-      { x: (index + 1) * ROOM_WIDTH_MM, y: 0 },
-      { x: (index + 1) * ROOM_WIDTH_MM, y: ROOM_DEPTH_MM },
-      { x: index * ROOM_WIDTH_MM, y: ROOM_DEPTH_MM },
-    ],
-    usage: 'bedroom' as const,
-    wallIds: [sampleWallId(index)],
-  }));
+  Array.from({ length: SAMPLE_ROOM_COUNT }, (_unused, index) => {
+    const isLarge = index === SAMPLE_ROOM_COUNT - 1;
+    const depthMm = isLarge ? LARGE_ROOM_DEPTH_MM : ROOM_DEPTH_MM;
+
+    return {
+      ...APPROVED,
+      areaM2: isLarge ? LARGE_ROOM_AREA_M2 : SMALL_ROOM_AREA_M2,
+      id: sampleRoomId(index),
+      levelId: sampleLevelOf(index),
+      name: `Room ${index}`,
+      outline: [
+        { x: index * ROOM_WIDTH_MM, y: 0 },
+        { x: (index + 1) * ROOM_WIDTH_MM, y: 0 },
+        { x: (index + 1) * ROOM_WIDTH_MM, y: depthMm },
+        { x: index * ROOM_WIDTH_MM, y: depthMm },
+      ],
+      usage: 'bedroom' as const,
+      wallIds: [sampleWallId(index)],
+    };
+  });
 
 const createAxes = (): Axis[] =>
   Array.from({ length: SAMPLE_AXIS_COUNT }, (_unused, index) => ({

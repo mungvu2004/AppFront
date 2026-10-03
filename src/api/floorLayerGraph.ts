@@ -1,7 +1,8 @@
-import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Building, SpatialGraph } from '@/domain/spatial/types';
+import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { Building, Level, SpatialGraph } from '@/domain/spatial/types';
+import type { Project as StoreProject } from '@/types/project';
 
-import type { SpatialApi } from './client';
+import type { ApiClient, Project as ApiProject, SpatialApi } from './client';
 import type { FloorLayerDocument } from './schemas/spatialLayer';
 
 /**
@@ -110,4 +111,64 @@ export async function readProjectLayerGraph(
     rooms: graphs.flatMap((graph) => graph.rooms),
     walls: graphs.flatMap((graph) => graph.walls),
   });
+}
+
+export interface ReadProjectSpatialInput {
+  readonly projectId: string;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** Thứ cổng nạp kho dự án ghi vào kho, theo đúng hình của từng lát. */
+export interface ProjectSpatial {
+  readonly graph: NormalizedSpatial;
+  readonly levels: readonly Level[];
+  readonly project: StoreProject;
+  readonly versionId: string | null;
+}
+
+/** Dự án N3 thành hình `projectSlice` giữ — kho không mang email thành viên. */
+const toStoreProject = (project: ApiProject): StoreProject => ({
+  created_at: project.createdAt,
+  id: project.id,
+  members: project.members.map((member) => ({
+    ...(member.avatarUrl !== undefined ? { avatar_url: member.avatarUrl } : {}),
+    id: member.id,
+    name: member.name,
+    role: member.role,
+  })),
+  name: project.name,
+  updated_at: project.updatedAt,
+});
+
+/**
+ * Đường nạp kho của một dự án (B-V12-01): N3 cho dự án và danh sách tầng, rồi
+ * N16 của từng tầng qua {@link readProjectLayerGraph}. Dự án 0 tầng ra đồ thị
+ * rỗng thật — không `null`, vì `null` là "chưa nạp" và cổng sẽ nạp lại mãi.
+ * Lỗi thì NÉM, như mọi hàm đọc của tệp này.
+ *
+ * ponytail: hai lượt gọi (N3 + N16×tầng). N15 chưa thay được: nó không trả tên
+ * và thành viên, và FE chưa có hàm client lẫn mock cho nó.
+ */
+export async function readProjectSpatial(
+  api: Pick<ApiClient, 'projects' | 'spatial'>,
+  { projectId, signal }: ReadProjectSpatialInput,
+): Promise<ProjectSpatial> {
+  const result = await api.projects.read(signal === undefined ? { projectId } : { projectId, signal });
+
+  if (!result.ok) {
+    throw result.error;
+  }
+
+  const graph = await readProjectLayerGraph(api.spatial, {
+    floorIds: result.data.floors.map((floor) => floor.id),
+    projectId,
+    signal,
+  });
+
+  return {
+    graph,
+    levels: denormalizeSpatial(graph).levels,
+    project: toStoreProject(result.data),
+    versionId: result.data.currentVersion?.id ?? null,
+  };
 }

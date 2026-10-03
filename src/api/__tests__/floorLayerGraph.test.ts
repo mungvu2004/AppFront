@@ -5,16 +5,22 @@ import { isIdOfKind } from '@/domain/spatial/ids';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { useStore } from '@/store';
 import { createAxisGridManagerGateway } from '@/screens/qc/AxisGridManager/axisGridManagerGateway';
-import { createDimensionOcrReviewGateway } from '@/screens/qc/DimensionOcrReview/dimensionOcrReviewGateway';
+import {
+  createDimensionOcrReviewGateway,
+  levelOfGraph as dimensionLevelOfGraph,
+} from '@/screens/qc/DimensionOcrReview/dimensionOcrReviewGateway';
 import { createFloorManagerGateway } from '@/screens/qc/FloorManager/floorManagerGateway';
-import { createObjectLayerReviewGateway } from '@/screens/qc/ObjectLayerReview/objectLayerReviewGateway';
+import {
+  createObjectLayerReviewGateway,
+  levelOfGraph as objectLevelOfGraph,
+} from '@/screens/qc/ObjectLayerReview/objectLayerReviewGateway';
 import { createRoomLabelReviewGateway } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { createThicknessStandardizationGateway } from '@/screens/qc/ThicknessStandardization/thicknessStandardizationGateway';
 import { createWallLayerReviewGateway } from '@/screens/qc/WallLayerReview/wallLayerReviewGateway';
 
 import { createMockApiClient } from '../__mocks__/client';
 import type { ApiClient } from '../client';
-import { floorLayerToGraph, readFloorLayerGraph, readProjectLayerGraph } from '../floorLayerGraph';
+import { floorLayerToGraph, readFloorLayerGraph, readProjectLayerGraph, readProjectSpatial } from '../floorLayerGraph';
 
 /**
  * B-V6-01 — đường nạp thật của màn QC. Trước bản sửa, cổng mặc định của bốn màn
@@ -186,5 +192,73 @@ describe.each(PERSISTS)('cổng thật của màn %s lưu qua #35 (B-V6-03)', (_
     expect(writeLayer).toHaveBeenCalledTimes(1);
     expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ baseVersion: 0, floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
     expect(writeLayer.mock.calls[0]?.[0].body.walls.every((wall) => wall.levelId === SAMPLE_FLOOR)).toBe(true);
+  });
+});
+
+describe('readProjectSpatial — cổng nạp kho dự án (B-V12-01)', () => {
+  it('đọc dự án rồi N16 của mọi tầng: dự án dạng kho (không email), đủ tầng, mã phiên bản hiện hành', async () => {
+    const api = createMockApiClient();
+    const projectResult = await api.projects.read({ projectId: PROJECT_ID });
+    const project = projectResult.ok ? projectResult.data : null;
+
+    const loaded = await readProjectSpatial(api, { projectId: PROJECT_ID });
+
+    expect(project).not.toBeNull();
+    expect(loaded.project.id).toBe(PROJECT_ID);
+    expect(loaded.project.name).toBe(project?.name);
+    expect(loaded.project.members.map((member) => member.id)).toEqual(project?.members.map((member) => member.id));
+    expect(JSON.stringify(loaded.project)).not.toContain('@');
+    expect(loaded.levels).toHaveLength(project?.floors.length ?? -1);
+    expect(loaded.graph.byKind.level).toEqual(loaded.levels.map((level) => level.id));
+    expect(loaded.versionId).toBe(project?.currentVersion?.id ?? null);
+  });
+
+  it('`projects.read` hỏng thì NÉM, và không đọc tầng nào', async () => {
+    const error = { kind: 'network', raw: undefined, requestId: 'req-2', retryable: true } as const;
+    const api = createMockApiClient();
+    const readLayer = vi.spyOn(api.spatial, 'readLayer');
+
+    vi.spyOn(api.projects, 'read').mockResolvedValue({ error, ok: false });
+
+    await expect(readProjectSpatial(api, { projectId: PROJECT_ID })).rejects.toBe(error);
+    expect(readLayer).not.toHaveBeenCalled();
+  });
+
+  it('dự án 0 tầng ra đồ thị rỗng thật — không `null` (`null` là "chưa nạp", cổng sẽ nạp lại mãi)', async () => {
+    const api = createMockApiClient();
+    const projectResult = await api.projects.read({ projectId: PROJECT_ID });
+
+    if (!projectResult.ok) {
+      throw new Error('mock projects.read phải trả dự án');
+    }
+
+    vi.spyOn(api.projects, 'read').mockResolvedValue({ data: { ...projectResult.data, floors: [] }, ok: true });
+
+    const loaded = await readProjectSpatial(api, { projectId: PROJECT_ID });
+
+    expect(loaded.graph).not.toBeNull();
+    expect(loaded.graph.byKind.level).toEqual([]);
+    expect(loaded.levels).toEqual([]);
+  });
+});
+
+describe('levelOfGraph của hai màn QC — kho cả dự án (B-V12-01)', () => {
+  const whole = normalizeSpatial(SAMPLE_BUILDING);
+  const second = sampleLevelId(2);
+
+  it.each([
+    ['lớp đối tượng', objectLevelOfGraph],
+    ['kích thước OCR', dimensionLevelOfGraph],
+  ])('%s: có `levelId` của URL thì ra đúng tầng ấy, không phải tầng đầu', (_name, levelOfGraph) => {
+    expect(levelOfGraph(whole, second)?.id).toBe(second);
+  });
+
+  it.each([
+    ['lớp đối tượng', objectLevelOfGraph],
+    ['kích thước OCR', dimensionLevelOfGraph],
+  ])('%s: không có `levelId` (hoặc mã không có trong đồ thị) thì ra tầng đầu', (_name, levelOfGraph) => {
+    expect(levelOfGraph(whole)?.id).toBe(whole.byKind.level[0]);
+    expect(levelOfGraph(whole, 'L1')?.id).toBe(whole.byKind.level[0]);
+    expect(levelOfGraph(null, second)).toBeNull();
   });
 });

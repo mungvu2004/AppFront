@@ -46,6 +46,7 @@ import { useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -220,5 +221,11 @@ export function RuleReportContainer(props: RuleReportContainerProps) {
 
 /** Route thật của màn báo cáo luật, đăng ký tại `src/routes/router.tsx`. */
 export function RulesRoute() {
-  return <RuleReportContainer />;
+  const { projectId } = useParams<{ projectId: string }>();
+
+  return (
+    <ProjectSpatialGate projectId={projectId}>
+      <RuleReportContainer />
+    </ProjectSpatialGate>
+  );
 }

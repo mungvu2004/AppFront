@@ -127,10 +127,7 @@ const ROWS = {
   projectViewerPascal: { anchor: { text: 'màn xem 3D mới chưa bật cho tài khoản này.' } },
   projectRules: { anchor: { role: 'heading', name: 'Kiểm tra luật không gian' } },
   projectRuleSettings: { anchor: { role: 'heading', name: 'cài đặt bộ luật không gian' } },
-  projectExport: {
-    anchor: { role: 'heading', name: 'chưa có gì được duyệt để xuất' },
-    known: 'chưa có gì được duyệt — kho rỗng',
-  },
+  projectExport: { anchor: { role: 'heading', name: 'xuất bản vẽ' } },
   projectData: { anchor: { label: 'Tìm theo khoá hoặc giá trị' } },
   projectVersions: { anchor: { role: 'navigation', name: 'Danh sách phiên bản' } },
 } as const satisfies Record<ProductRouteKey, Row>;

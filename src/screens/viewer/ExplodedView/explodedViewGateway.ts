@@ -462,7 +462,7 @@ export function createExplodedViewGateway(
 /* Cổng có dữ liệu — story và bài kiểm.                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Cổng giả — cùng bộ mẫu của vỏ, không bảng dữ liệu thứ hai (A14). */
+/** Cổng giả — cùng bộ mẫu của vỏ, không bảng dữ liệu thứ hai (R-70). */
 export function createExplodedViewFixtureGateway(
   spatial: NormalizedSpatial | null = VIEWER_FIXTURE_SPATIAL,
 ): ExplodedViewGateway {
