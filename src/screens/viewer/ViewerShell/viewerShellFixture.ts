@@ -50,31 +50,29 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Đuôi cố định gắn sau mã số đọc được, để thân mã đạt tối thiểu mười ký tự mà
- * `domain/spatial/ids.ts:43` (`MIN_BODY_LENGTH`) đòi.
+ * Đuôi cố định gắn sau sáu chữ số đếm, để thân mã đạt tối thiểu mười ký tự mà
+ * `domain/spatial/ids.ts` (`MIN_BODY_LENGTH`) đòi.
  *
  * `createId` của `ids.ts` KHÔNG dùng được ở đây: nó vừa mang một mẩu ngẫu
- * nhiên bốn ký tự, vừa cộng dồn vào một bộ đếm cấp module — hai thứ bộ mẫu
- * này không được phép có, vì ảnh chuẩn và bài kiểm đối chiếu mã phải lặp lại
- * y hệt giữa các lượt chạy. Nên mã ở đây là chuỗi gõ tay, nhưng vẫn giữ đúng
- * hình dạng `createId` sinh ra: tiền tố lấy từ `ID_PREFIX_BY_KIND` (không tự
- * bịa chữ cái), thân chỉ gồm `[0-9A-Z]`, dài hơn ngưỡng tối thiểu.
- *
- * Tám ký tự, tất cả nằm trong bảng chữ base36 mà `ids.ts` dùng, nên thân mã
- * ngắn nhất của bộ mẫu (mã tầng, hai chữ số) vẫn chạm đúng mười ký tự tối
- * thiểu: `"01" + "FIXTURE0"` = mười ký tự.
+ * nhiên, vừa cộng dồn vào một bộ đếm cấp module — hai thứ bộ mẫu này không
+ * được phép có, vì ảnh chuẩn và bài kiểm đối chiếu mã phải lặp lại y hệt giữa
+ * các lượt chạy. Nên mã ở đây là chuỗi gõ tay, nhưng giữ đúng hình dạng
+ * `createId` sinh ra: tiền tố lấy từ `ID_PREFIX_BY_KIND`, rồi SÁU chữ số đếm,
+ * rồi phần đuôi chỉ gồm `[0-9A-Z]` — thân 14 ký tự.
  */
 const FIXTURE_ID_SUFFIX = 'FIXTURE0';
 
 /**
  * Một mã hợp lệ cho một loại thực thể, từ mã số đọc được của bộ mẫu.
  *
- * `code` giữ nguyên các mã số đã có từ trước (`"01"`, `"001"`, `"0101"`…) làm
- * TIỀN TỐ của thân mã, nên mọi nơi soát bằng khớp chuỗi con (ô tìm phòng của
- * `Viewer3D/roomSearch.ts`) vẫn khớp đúng thứ đã khớp trước khi sửa.
+ * `code` (`"01"`, `"011"`, `"0403"`…) được đệm đủ sáu chữ số đếm, cùng khuôn
+ * các bộ mẫu QC (`roomLabelFixture.ts`), nên `displayCodesOf` đọc ra nhãn sạch:
+ * `W-000403FIXTURE0` → `W-403`, `R-000011FIXTURE0` → `R-011`, `L-000001FIXTURE0`
+ * → `L-001`. Ghép thẳng `code` với đuôi (mã cũ `W-0403FIXTURE0`) cho nhãn rác
+ * `W-403FI` (B-V8-45).
  */
 function fixtureId<K extends keyof typeof ID_PREFIX_BY_KIND>(kind: K, code: string): string {
-  return `${ID_PREFIX_BY_KIND[kind]}-${code}${FIXTURE_ID_SUFFIX}`;
+  return `${ID_PREFIX_BY_KIND[kind]}-${code.padStart(6, '0')}${FIXTURE_ID_SUFFIX}`;
 }
 
 /** Mã phòng hợp lệ, từ số phòng đọc được (`"001"`…`"014"`). */
@@ -248,7 +246,7 @@ const ROOF: LevelId = roofLevel.id;
  * Bề rộng và bề sâu của từng phòng, chọn sao cho tổng đúng 248,60 m².
  *
  * Bốn tầng cộng lại: 80,00 + 70,00 + 60,00 + 38,60 = 248,60 m².
- * `viewerShellFixture.test` cộng lại và khẳng định con số ấy chứ không tin
+ * `ViewerShell.test.tsx` cộng lại và khẳng định con số ấy chứ không tin
  * dòng chú thích này.
  */
 export const VIEWER_FIXTURE_ROOMS: readonly Room[] = Object.freeze([

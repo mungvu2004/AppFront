@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 const ROOMS: readonly ViewerRoomOption[] = [
-  { id: 'R-001', name: 'Phòng ngủ 1', storeyName: 'Tầng 1', areaLabel: '18,40 m²' },
+  { id: 'R-001', codeLabel: 'R-001', name: 'Phòng ngủ 1', storeyName: 'Tầng 1', areaLabel: '18,40 m²' },
 ];
 
 describe('[ObjectSearch] Ctrl+F', () => {

@@ -143,9 +143,10 @@ const ROOM_QUERY = 'phong ngu 4';
 const ROOM_NAME = 'Phòng ngủ 4';
 
 /**
- * Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. Khớp hàng "mã đối tượng"
- * (mã máy `R-011FIXTURE0`), KHÔNG khớp tiêu đề: từ B-V8-05 tiêu đề in nhãn người đọc
- * (`displayLabelIn`), với bộ mẫu này ra `R-11FIX` — xấu nhưng cùng mã dải "Đang sửa".
+ * Nhãn người đọc của chính phòng ấy (`displayLabelIn` trên mã máy `R-000011FIXTURE0`),
+ * để ô tìm và tiêu đề thanh tra ("phòng R-011") nói ra cả hai. Mã máy không còn chứa
+ * chuỗi `R-011`, nên khớp được ở đâu là nhờ nhãn chứ không nhờ hàng "mã đối tượng"
+ * (B-V8-45).
  */
 const ROOM_ID = 'R-011';
 
@@ -546,6 +547,9 @@ async function findOneRoom(page: Page): Promise<void> {
 
   const match = page.getByRole('option', { name: new RegExp(ROOM_NAME, 'u') });
   await expect(match).toHaveCount(1);
+  // Dòng kết quả in nhãn người đọc, không in mã máy của bộ mẫu (B-V8-45).
+  await expect(match).toContainText(ROOM_ID);
+  await expect(match).not.toContainText('FIXTURE');
 
   await match.click();
 
@@ -555,7 +559,7 @@ async function findOneRoom(page: Page): Promise<void> {
   const inspector = page.getByRole('complementary', { name: 'Thanh tra đối tượng' });
 
   await expect(inspector).toContainText(ROOM_NAME);
-  await expect(inspector).toContainText(ROOM_ID);
+  await expect(inspector).toContainText(`phòng ${ROOM_ID}`);
 }
 
 /* -------------------------------------------------------------------------- */

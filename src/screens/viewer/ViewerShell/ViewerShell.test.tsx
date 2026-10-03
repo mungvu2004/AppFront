@@ -37,6 +37,7 @@ import { millimetres } from '@/domain/units/types';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
 import { CameraDirector } from '@/lib/three/camera/presets';
+import { displayLabelIn } from '@/domain/spatial/normalize';
 import { toSceneLength } from '@/lib/three/build/scene';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -1016,7 +1017,7 @@ describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
 
     const selection = result.current.selection;
 
-    expect(bandCode).toBeDefined();
+    expect(bandCode).toBe('W-101');
     expect(selection?.title).toBe(`tường ${String(bandCode)}`);
     expect(selection?.title).not.toContain('FIXTURE');
     expect(selection?.rows[0]?.value).toBe(wall.id);
@@ -1027,5 +1028,17 @@ describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
       result.current.sceneActions.hoverEntity(null);
     });
     unmount();
+  });
+
+  it('mọi nhãn bộ mẫu là mã ba chữ số sạch, không đuôi FIXTURE, và 34 mã khác nhau (B-V8-45)', () => {
+    const ids = [...VIEWER_FIXTURE_LEVELS, ...VIEWER_FIXTURE_WALLS, ...VIEWER_FIXTURE_ROOMS].map((entity) => entity.id);
+
+    expect(new Set(ids).size).toBe(34);
+    for (const id of ids) {
+      const label = displayLabelIn(VIEWER_FIXTURE_SPATIAL, id);
+
+      expect(label).toMatch(/^[LRW]-\d{3}$/u);
+      expect(label).not.toContain('FIXTURE');
+    }
   });
 });
