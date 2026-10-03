@@ -200,6 +200,7 @@ beforeEach(() => {
 
 afterEach(() => {
   __resetFeatureFlagsForTests();
+  delete window.__zod_globalConfig;
 });
 
 describe('máy trạng thái', () => {
@@ -254,6 +255,9 @@ describe('máy trạng thái', () => {
     }, { timeout: ASYNC_TIMEOUT_MS });
     const first = mountScript()!;
     const firstSrc = first.src;
+    // B-V10-05 — phạm vi thật của khẳng định này: cờ CÓ MẶT khi thẻ script đã vào
+    // DOM. Cờ đặt đồng bộ trước `append`, còn script module luôn chạy sau.
+    expect(window.__zod_globalConfig?.jitless).toBe(true);
 
     act(() => {
       first.dispatchEvent(new Event('error'));

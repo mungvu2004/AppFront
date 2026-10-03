@@ -27,7 +27,8 @@
  * 2. **Chủ dự án — KHÔNG CÓ TRƯỜNG NÀO.** `Project` (`src/types/project.ts:10-17`)
  *    là `{id, name, created_at, updated_at, thumbnail_url?, members}`. Không
  *    `owner`, không `ownerId`, không `createdBy`. Và kể cả `members` cũng KHÔNG với
- *    tới được: đọc nó phải gọi `projects.read`, tức là đúng cái endpoint vừa trả 403.
+ *    tới được: đọc nó phải gọi `projects.read`, mà endpoint ấy trả 404 cho người
+ *    không phải thành viên (K08 của BE: 404 thắng 403) — B-V1-05.
  *
  * 3. **X-04 "đọc thông tin liên kết chia sẻ" — KHÔNG VỚI TỚI ĐƯỢC từ màn này.**
  *    `listShareLinks(projectId)` gọi `/projects/{id}/share-links` bằng chính bearer

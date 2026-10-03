@@ -168,8 +168,8 @@ function welcomeSeenKey(userId: string): string {
 /**
  * Người này đã xem màn chào chưa.
  *
- * Xuất ra vì chốt chặn định tuyến ở Layer 3 cần đọc nó trước khi dựng màn — cùng
- * một khoá, một chỗ. Cửa sổ ẩn danh ném ngay ở `localStorage.getItem`, nên mọi
+ * Xuất ra vì `WelcomeRoute` (`WelcomeScreen.container.tsx`) đọc nó trước khi
+ * dựng màn — cùng một khoá, một chỗ. Cửa sổ ẩn danh ném ngay ở `localStorage.getItem`, nên mọi
  * lần đọc đều nằm trong try/catch và "không đọc được" quy về "chưa xem".
  */
 export function readWelcomeSeen(userId: string | null): boolean {

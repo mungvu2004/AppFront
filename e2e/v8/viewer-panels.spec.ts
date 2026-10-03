@@ -205,20 +205,41 @@ test('thư viện đồ đạc: đủ mười nhóm, ô tìm thu hẹp lưới, 
 });
 
 /*
- * B-V8-03 — kéo-thả bị khoá với MỌI vai, kể cả admin, và câu khoá nói sai lý do
- * ("vai chỉ xem"): `canDrag = canUploadModel` (`useFurnitureLibraryPanel.ts:302`) mà
- * `Viewer3DPanels.tsx` không truyền `onUploadModel`.
- * Mở lại khi: người duyệt chốt quyền "đặt mô hình" tách khỏi quyền "tải lên" và màn
- * 3D nối đường thả — đổi `test.fixme` thành `test`.
+ * B-V8-03 — đã sửa nửa câu chữ: "vai chỉ xem" nay đi theo `can('edit', 'layer')`,
+ * không theo quyền tải lên. Thẻ VẪN khoá với mọi vai (câu "Chỉ xem được, không kéo
+ * vào bản vẽ." vẫn hiện) vì màn 3D chưa có đích thả — nửa đó là B-V8-04, bài fixme
+ * cuối nhóm này.
  */
-test.fixme('admin mở thư viện đồ đạc thì không bị báo "vai chỉ xem", thẻ kéo được (B-V8-03)', async ({
-  page,
-}) => {
+test('admin mở thư viện đồ đạc thì không bị báo "vai chỉ xem" (B-V8-03)', async ({ page }) => {
   await openViewer(page, 'admin');
   await openPanel(page, 'Thư viện đồ đạc');
 
   const library = page.getByRole('region', { name: 'Thư viện nội thất' });
   await expect(library.getByRole('list', { name: 'Lưới mô hình nội thất' })).toBeVisible();
   await expect(library.getByText(/vai chỉ xem/u)).toHaveCount(0);
+});
+
+test('người xem mở thư viện đồ đạc thì được báo "vai chỉ xem" (B-V8-03)', async ({ page }) => {
+  await openViewer(page, 'viewer');
+  await openPanel(page, 'Thư viện đồ đạc');
+
+  const library = page.getByRole('region', { name: 'Thư viện nội thất' });
+  await expect(library.getByRole('list', { name: 'Lưới mô hình nội thất' })).toBeVisible();
+  await expect(library.getByText(/vai chỉ xem/u)).toBeVisible();
+});
+
+/*
+ * B-V8-03 (nửa kéo-thả) chờ B-V8-04 — `Viewer3DPanels` chưa có đích thả nên
+ * `canDrag` khoá cứng `false` (`useFurnitureLibraryPanel.ts`, chú thích `ponytail:`).
+ * Mở lại khi: màn 3D nối đường thả và `canDrag = options.canPlaceModel` — đổi
+ * `test.fixme` thành `test`.
+ */
+test.fixme('kỹ sư kéo được thẻ đồ đạc vào khung nhìn (B-V8-03 · chờ B-V8-04)', async ({ page }) => {
+  await openViewer(page, 'engineer');
+  await openPanel(page, 'Thư viện đồ đạc');
+
+  const library = page.getByRole('region', { name: 'Thư viện nội thất' });
+  const card = library.getByRole('list', { name: 'Lưới mô hình nội thất' }).getByRole('button').first();
+  await expect(card).toHaveAttribute('draggable', 'true');
   await expect(library.getByText('Chỉ xem được, không kéo vào bản vẽ.')).toHaveCount(0);
 });

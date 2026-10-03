@@ -28,10 +28,15 @@
  * `FurnitureLibraryPanelContainerProps` cố ý không có trường `roles`/`canEdit`:
  * màn gọi panel này không cần biết chuyện phân quyền. Container đọc
  * `useSession().roles` rồi hỏi đúng cổng phân quyền dùng chung
- * `can('manage', 'library', { roles })` (`@/lib/auth/permissions.ts`) — cùng
- * khoá `library.manage` mà `.notes` mục (h) đã khảo sát: `admin: true`,
- * `engineer: false`, `viewer: false`. `false` là lý do hook trả trạng thái
- * `forbidden`: thẻ vẫn xem được, nhưng khoá kéo và không có nút tải lên.
+ * hai câu ở cổng phân quyền dùng chung (`@/lib/auth/permissions.ts`), vì đó là
+ * hai quyền khác nhau (B-V8-03):
+ *
+ * - `can('edit', 'layer', { roles })` → `canPlaceModel`: đặt/thay đồ đạc vào bản
+ *   vẽ. `admin`/`engineer` có, `viewer` không — `false` là lý do hook trả trạng
+ *   thái `forbidden` ("vai chỉ xem") và giấu "Thay thế tất cả".
+ * - `can('manage', 'library', { roles })` → `canUploadModel`: khoá
+ *   `library.manage` (`admin: true`, `engineer: false`, `viewer: false`). Chỉ
+ *   quyết nút tải lên.
  *
  * ## `onUploadModel` — tuỳ chọn, và đó là câu trả lời trung thực
  *
@@ -111,11 +116,17 @@ function WiredFurnitureLibraryPanel(props: FurnitureLibraryPanelContainerProps) 
     [session.roles],
   );
 
+  const canPlaceModel = useMemo(
+    () => can('edit', 'layer', { roles: session.roles }),
+    [session.roles],
+  );
+
   const uploadModel = props.onUploadModel;
 
   const model = useFurnitureLibraryPanel({
     floorId: props.floorId,
     canUploadModel: canManageLibrary && uploadModel !== undefined,
+    canPlaceModel,
     onModelDropped: props.onModelDropped,
     onUploadModel: uploadModel ?? ((): void => undefined),
   });

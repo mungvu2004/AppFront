@@ -52,7 +52,10 @@ import { ROUTE_PATTERNS } from './fixtures/routes';
  * - **Không khẳng định con số nào** trong bảng `tầng · tường · ô mở · phòng`
  *   (`questions.md` Q4 = B: bộ mẫu của màn khác bộ A14, gộp là việc riêng).
  * - **Không kiểm CSP.** Máy chủ dev không gửi header CSP và chính sách thật
- *   chưa có trong repo (Q5 = B).
+ *   nằm ở BE (`AppBack/deploy/nginx/snippets/security_headers.conf:6`), không
+ *   trong repo này (Q5 = B). Vi phạm `script-src eval` duy nhất (zod 4 dò
+ *   `new Function`) đã gỡ ở mã: `defaultLoadMount` bật `jitless` trước khi thêm
+ *   thẻ script (B-V10-05); bài đơn vị giữ nó ở `usePascalViewer.test.tsx`.
  *
  * ## Vách ngăn
  *

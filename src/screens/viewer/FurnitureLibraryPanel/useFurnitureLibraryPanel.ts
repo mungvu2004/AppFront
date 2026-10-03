@@ -50,11 +50,11 @@
  *
  * ## Hai chỗ hợp đồng cứng quyết định hành vi, không phải hook
  *
- * - **Quyền (trạng thái 6).** `UseFurnitureLibraryPanelOptions.canUploadModel`
- *   là kết quả `can('manage', 'library', { roles })` mà CONTAINER tính — đúng
- *   như `furnitureLibraryPanelTypes.ts` khai. Hook tính lại phép ấy sẽ dựng
- *   nguồn sự thật thứ hai cho cùng một câu hỏi, nên nó nhận phán quyết và chỉ
- *   quyết phần thuộc về mình: thẻ nào khoá, `onUploadModel` có hay `null`.
+ * - **Quyền (trạng thái 6).** Hai phán quyết CONTAINER tính, hai câu hỏi khác
+ *   nhau: `canPlaceModel` (`can('edit', 'layer')`) quyết `forbidden` và "Thay thế
+ *   tất cả"; `canUploadModel` (`can('manage', 'library')` + màn cha cấp đường)
+ *   chỉ quyết `onUploadModel` có hay `null` (B-V8-03). Hook tính lại các phép ấy
+ *   sẽ dựng nguồn sự thật thứ hai, nên nó chỉ nhận phán quyết.
  * - **Nạp trước.** `FurnitureModelCard` không có trường trỏ chuột, nên đường
  *   `prefetchLibraryItemOnHover` được gọi trong `onSelect` — chỗ gần nhất mà hợp
  *   đồng props cho phép chạm tới.
@@ -299,7 +299,9 @@ export function useFurnitureLibraryPanel(
     [apiClient, queryClient],
   );
 
-  const canDrag = options.canUploadModel;
+  // ponytail: kéo-thả khoá với MỌI vai vì `Viewer3DPanels` chưa có đích thả
+  // (B-V8-04). Nối đích thả xong thì `canDrag = options.canPlaceModel`.
+  const canDrag: boolean = false;
 
   const cards = useMemo<readonly FurnitureModelCard[]>(
     () =>
@@ -360,7 +362,7 @@ export function useFurnitureLibraryPanel(
   );
 
   const detectedGroups = useMemo<readonly DetectedFurnitureGroup[] | null>(() => {
-    if (detected.length === 0) {
+    if (detected.length === 0 || !options.canPlaceModel) {
       return null;
     }
 
@@ -370,7 +372,7 @@ export function useFurnitureLibraryPanel(
       /* (h) — XEM TRƯỚC RỒI MỚI ÁP: lượt bấm này KHÔNG đổi gì, nó chỉ mở hộp. */
       onReplaceAll: (): void => setPendingGroupKind(group.kind),
     }));
-  }, [detected]);
+  }, [detected, options.canPlaceModel]);
 
   const applyReplaceAll = useCallback(
     (group: DetectedFurnitureCount, target: LibraryItem): void => {
@@ -472,7 +474,7 @@ export function useFurnitureLibraryPanel(
     return { state: { kind: 'collapsed', ...content } };
   }
 
-  if (!options.canUploadModel) {
+  if (!options.canPlaceModel) {
     return { state: { kind: 'forbidden', ...content } };
   }
 
