@@ -129,18 +129,31 @@ test('bấm một thông báo ở /thong-bao mở thẳng đưa người dùng t
 });
 
 /*
- * FIXME (QV2-3, chờ quyết) — A8 cho "Đánh dấu tất cả đã đọc".
- * Đo: bấm nút ⇒ 0 `role="alert"`, 0 nút "Hoàn tác", 0 toast; hook dùng
- * `useMutation` không kèm toast/undo. Chưa chốt A8 có áp cho đánh dấu đã đọc không.
- * Mở lại khi: QV2-3 chốt "có" và sản phẩm thêm toast hoàn tác; nếu chốt "không"
- * thì xoá bài này và ghi lý do vào kế hoạch.
+ * B-V2-06 (đã sửa): "Đánh dấu tất cả đã đọc" từng ghi ngay, không toast, không đường
+ * quay lại — máy chủ không có lệnh "đánh dấu lại chưa đọc". Nay lệnh được giữ 8 giây
+ * sau toast "Hoàn tác" (A8). Bước bấm lại phủ phần sửa kênh chung: toast đã hoàn tác
+ * không được nuốt lượt kế tiếp trong cửa sổ gộp 5 giây. Đã kiểm đỏ trước sửa.
  */
-test.fixme('"Đánh dấu tất cả đã đọc" hiện toast kèm nút "Hoàn tác" (A8 — chờ quyết QV2-3)', async ({
+test('"Đánh dấu tất cả đã đọc" hiện toast kèm nút "Hoàn tác", và Hoàn tác trả lại số chưa đọc (B-V2-06)', async ({
   page,
 }) => {
   await openDirect(page);
 
-  await panel(page).getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }).click();
+  const drawer = panel(page);
+  const markAll = drawer.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
+  const undo = page.getByRole('button', { name: 'Hoàn tác' });
+  const unreadStatus = page.getByRole('status').filter({ hasText: 'thông báo chưa đọc' });
 
-  await expect(page.getByRole('button', { name: 'Hoàn tác' })).toBeVisible();
+  await expect(unreadStatus).toHaveText(`có ${UNREAD_COUNT} thông báo chưa đọc`);
+
+  await markAll.click();
+  await expect(unreadStatus).toHaveText('không còn thông báo chưa đọc');
+  await undo.click();
+
+  await expect(unreadStatus).toHaveText(`có ${UNREAD_COUNT} thông báo chưa đọc`);
+  await expect(undo).toHaveCount(0);
+
+  // Bấm lại ngay, trong cửa sổ gộp 5 giây của kênh chung: toast mới phải hiện thật.
+  await markAll.click();
+  await expect(undo).toBeVisible();
 });

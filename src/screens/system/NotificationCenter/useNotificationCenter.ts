@@ -39,7 +39,8 @@
  * {@link NotificationCenterGateway.markRead} là ba hàm người dùng bấm —
  * {@link UseNotificationCenterResult.markRead},
  * {@link UseNotificationCenterResult.markAllRead} và
- * {@link UseNotificationCenterResult.openNotification}. Mở rồi đóng tấm trượt
+ * {@link UseNotificationCenterResult.openNotification} (hai hàm đầu giữ lệnh 8 giây
+ * cho toast hoàn tác rồi mới gửi — B-V2-06). Mở rồi đóng tấm trượt
  * không gọi hàm nào trong ba hàm ấy, nên `unreadCount` không đổi. Đó là lời hứa
  * được giữ bằng cấu trúc chứ không bằng trí nhớ.
  *
@@ -66,11 +67,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { appNotificationBus } from '@/hooks/useNotifications';
 import { describeError, toAppError } from '@/lib/errors';
 import { formatCalendarDate, formatTimestamp, isSameCalendarDay } from '@/lib/format/datetime';
 import { formatNumber } from '@/lib/format/number';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
+import type { NotificationBus } from '@/lib/mutations/notificationBus';
+import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys, type QueryKey } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
@@ -115,12 +119,22 @@ export const notificationListQueryKey: QueryKey = queryKeys.notification.list();
 /**
  * Mọi phép ghi của màn dùng chung một `entityId`.
  *
- * `createOptimisticMutation` xếp hàng theo `entityId` (`entityQueue.ts`), và cả
- * `markRead` lẫn `markAllRead` đều viết lại CÙNG một danh sách. Hai id khác nhau
- * sẽ cho chúng chạy chồng nhau, và ảnh chụp lùi của lượt hỏng sẽ xoá mất kết quả
- * của lượt kia.
+ * `createOptimisticMutation` xếp hàng theo `entityId` (`entityQueue.ts`), và mọi
+ * lô `markRead` đều viết lại CÙNG một danh sách. Hai id khác nhau sẽ cho chúng
+ * chạy chồng nhau, và ảnh chụp lùi của lượt hỏng sẽ xoá mất kết quả của lượt kia.
  */
 const NOTIFICATION_ENTITY_ID = 'notification-inbox';
+
+/**
+ * Trần số id của một lượt `markRead` — máy chủ trả 422 ngoài khoảng 1–200
+ * (`AppBack/apps/api/notifications/settings.py:16`, `schemas.py:43-45`). Mục mới
+ * tới qua luồng thời gian thực trong lúc chờ có thể đẩy số id quá trần, nên lệnh
+ * giữ lại được cắt thành lô.
+ */
+const MARK_READ_MAX_IDS = 200;
+
+/** Loại thông báo của toast "đã đánh dấu" trên kênh chung. */
+const MARK_READ_NOTIFICATION_TYPE = 'notification-mark-read';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Chữ của hook (A6)                                                       */
@@ -143,6 +157,8 @@ export const NOTIFICATION_CENTER_TEXT = {
   liveAllRead: 'không còn thông báo chưa đọc',
   loadFailed: 'không đọc được danh sách thông báo',
   markReadFailed: 'không đánh dấu được là đã đọc',
+  markedAllRead: 'đã đánh dấu tất cả là đã đọc',
+  markedRead: 'đã đánh dấu là đã đọc',
   settingsLabel: 'cài đặt thông báo',
 } as const;
 
@@ -200,6 +216,8 @@ export interface UseNotificationCenterOptions {
    * trạng thái mở của riêng nó cắm vào mà không có hai nguồn sự thật.
    */
   readonly isOpen?: boolean;
+  /** Kênh của toast hoàn tác. Mặc định kênh chung của ứng dụng; test tiêm kênh riêng. */
+  readonly notifications?: NotificationBus;
 }
 
 /**
@@ -399,6 +417,7 @@ export function useNotificationCenter(
   const enabledKinds = options.enabledKinds ?? NOTIFICATION_KINDS;
   const isCompact = options.isCompact ?? false;
   const { onNavigate, onClose } = options;
+  const notifications = options.notifications ?? appNotificationBus;
 
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [bellNudgeToken, setBellNudgeToken] = useState(0);
@@ -430,7 +449,26 @@ export function useNotificationCenter(
     queryFn: () => gateway.list(),
   });
 
-  const items = useMemo<readonly NotificationItemVm[]>(() => listQuery.data ?? [], [listQuery.data]);
+  /**
+   * Id đang chờ hết cửa sổ hoàn tác trước khi gửi `markRead` — hiện như đã đọc.
+   *
+   * ponytail: lớp phủ chỉ sống trong MỘT bản hook; khi `NotificationBellContainer`
+   * và `/thong-bao` cùng gắn thì bản kia vẫn thấy chưa đọc tới lúc gửi. Cần đồng bộ
+   * hai bản thì chuyển lớp phủ vào bộ đệm truy vấn.
+   */
+  const [pendingReadIds, setPendingReadIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  const items = useMemo<readonly NotificationItemVm[]>(() => {
+    const listed = listQuery.data ?? [];
+
+    if (pendingReadIds.size === 0) {
+      return listed;
+    }
+
+    return listed.map((item) =>
+      !item.isRead && pendingReadIds.has(item.id) ? { ...item, isRead: true } : item,
+    );
+  }, [listQuery.data, pendingReadIds]);
 
   /* ---- Giữ vị trí cuộn khi mục mới chen vào ĐẦU danh sách ---------------- */
 
@@ -525,14 +563,14 @@ export function useNotificationCenter(
   /**
    * Đánh dấu vài id là đã đọc ngay trong bộ đệm.
    *
-   * `rollback` của cả hai phép ghi là hàm rỗng, và đó là đúng: mọi thứ
+   * `rollback` là hàm rỗng, và đó là đúng: mọi thứ
    * `applyOptimistic` đổi đều nằm TRONG bộ đệm truy vấn, mà
    * `createOptimisticMutation` đã tự chụp lại và trả về khi máy chủ hỏng
    * (`createOptimisticMutation.ts:54-58`). `rollback` chỉ dành cho thứ nằm ngoài
    * bộ đệm, và ở đây không có thứ nào.
    */
   const applyReadInCache = useCallback(
-    (ids: readonly string[] | null): void => {
+    (ids: readonly string[]): void => {
       queryClient.setQueryData<readonly NotificationItemVm[]>(
         notificationListQueryKey,
         (previous) => {
@@ -540,10 +578,10 @@ export function useNotificationCenter(
             return previous;
           }
 
-          const wanted = ids === null ? null : new Set(ids);
+          const wanted = new Set(ids);
 
           return previous.map((item) =>
-            item.isRead || (wanted !== null && !wanted.has(item.id))
+            item.isRead || !wanted.has(item.id)
               ? item
               : { ...item, isRead: true },
           );
@@ -564,21 +602,6 @@ export function useNotificationCenter(
         applyReadInCache(ids);
       },
       callServer: (ids) => gateway.markRead(ids),
-      afterSuccess: () => {
-        invalidateList();
-      },
-      entityId: () => NOTIFICATION_ENTITY_ID,
-      rollback: () => undefined,
-    }),
-  );
-
-  const markAllReadMutation = useMutation(
-    createOptimisticMutation<null, void>(queryClient, {
-      affectedKeys: () => [notificationListQueryKey],
-      applyOptimistic: () => {
-        applyReadInCache(null);
-      },
-      callServer: () => gateway.markAllRead(),
       afterSuccess: () => {
         invalidateList();
       },
@@ -609,19 +632,87 @@ export function useNotificationCenter(
   });
 
   const { mutate: mutateMarkRead } = markReadMutation;
-  const { mutate: mutateMarkAllRead } = markAllReadMutation;
   const { mutate: mutateAcceptInvite } = acceptInviteMutation;
+
+  /* ---- Giữ lệnh đánh dấu trong cửa sổ hoàn tác (A8) --------------------- */
+
+  /**
+   * Máy chủ không có lệnh "đánh dấu lại chưa đọc", nên nút bấm không gửi ngay:
+   * lệnh được giữ {@link UNDO_WINDOW_MS}, toast trên kênh chung mang nút "Hoàn
+   * tác", và chỉ khi hết giờ mà không ai bấm thì `markRead` mới đi.
+   *
+   * Nghĩa lệnh đổi có chủ ý: trước đây "tất cả" gọi `markAllRead`, máy chủ đánh
+   * dấu mọi dòng kể cả dòng đang ẩn và loại đã tắt (`service.py:178-184`). Nay chỉ
+   * những id người dùng thấy lúc bấm — thông báo tới trong 8 giây chờ không bị
+   * đánh dấu oan.
+   *
+   * Rời màn KHÔNG gửi sớm: toast nằm trên `NotificationHost` của cả ứng dụng nên
+   * vẫn còn nút "Hoàn tác" sau khi màn đóng; gửi sớm thì nút ấy báo "ok" cho một
+   * lệnh đã đi (B-V4-09). Hẹn giờ chạy tiếp, và nếu lúc hết giờ màn đã tháo thì
+   * gọi thẳng cổng rồi làm mới bộ đệm.
+   */
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const clearPending = useCallback((ids: readonly string[]): void => {
+    setPendingReadIds((current) => {
+      const next = new Set(current);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  const sendMarkRead = useCallback(
+    (ids: readonly string[]): void => {
+      for (let start = 0; start < ids.length; start += MARK_READ_MAX_IDS) {
+        const lot = ids.slice(start, start + MARK_READ_MAX_IDS);
+
+        if (mountedRef.current) {
+          mutateMarkRead(lot, { onSettled: () => clearPending(lot) });
+        } else {
+          void gateway.markRead(lot).finally(invalidateList);
+        }
+      }
+    },
+    [mutateMarkRead, clearPending, gateway, invalidateList],
+  );
+
+  const deferMarkRead = useCallback(
+    (ids: readonly string[], title: string): void => {
+      if (ids.length === 0) {
+        return;
+      }
+
+      setPendingReadIds((current) => new Set([...current, ...ids]));
+
+      const timer = setTimeout(() => sendMarkRead(ids), UNDO_WINDOW_MS);
+      const undoTicket = createUndoTicket({
+        description: title,
+        now,
+        undo: () => {
+          clearTimeout(timer);
+          clearPending(ids);
+        },
+      });
+
+      notifications.publish({ type: MARK_READ_NOTIFICATION_TYPE, title, description: '', undoTicket });
+    },
+    [sendMarkRead, clearPending, notifications, now],
+  );
 
   const onMarkRead = useCallback(
     (id: string): void => {
-      mutateMarkRead([id]);
+      deferMarkRead([id], NOTIFICATION_CENTER_TEXT.markedRead);
     },
-    [mutateMarkRead],
+    [deferMarkRead],
   );
-
-  const onMarkAllRead = useCallback((): void => {
-    mutateMarkAllRead(null);
-  }, [mutateMarkAllRead]);
 
   /* ---- Mở một thông báo -------------------------------------------------- */
 
@@ -699,6 +790,13 @@ export function useNotificationCenter(
     [visibleItems],
   );
 
+  const onMarkAllRead = useCallback((): void => {
+    deferMarkRead(
+      visibleItems.filter((item) => !item.isRead).map((item) => item.id),
+      NOTIFICATION_CENTER_TEXT.markedAllRead,
+    );
+  }, [deferMarkRead, visibleItems]);
+
   const unreadBadge =
     unreadCount > UNREAD_BADGE_CAP
       ? `${formatNumber(UNREAD_BADGE_CAP, { fractionDigits: 0 })}+`
@@ -743,7 +841,7 @@ export function useNotificationCenter(
   /* ---- Bảy trạng thái của A11 ------------------------------------------- */
 
   const queryError: unknown = listQuery.error;
-  const mutationError: unknown = markReadMutation.error ?? markAllReadMutation.error;
+  const mutationError: unknown = markReadMutation.error;
 
   const errorMessage =
     queryError === null || queryError === undefined
