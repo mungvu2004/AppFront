@@ -290,3 +290,12 @@ export function toBuildFloorInput(
 
   return { level: toBuildableLevel(level), walls, rooms, openings };
 }
+
+/**
+ * Tầng có gì để dựng không — đúng hai nguồn việc dựng của `planFullBuild`
+ * (`lib/three/build/buildQueue.ts`): tường và phòng. Ô mở treo trên tường nên
+ * không tự thành việc. Vị ngữ chung của /3d và điện thoại cho `empty` (B-V1-11).
+ */
+export function hasBuildableParts(input: BuildFloorInput): boolean {
+  return input.walls.length > 0 || input.rooms.length > 0;
+}

@@ -20,6 +20,7 @@ export {
   useViewerShell,
   ALL_VIEWER_TOOLS,
   INSPECTOR_HINT,
+  projectNameQueryKey,
   SEPARATION_STEP,
   VIEWER_KEY_LABELS,
   type UseViewerShellOptions,

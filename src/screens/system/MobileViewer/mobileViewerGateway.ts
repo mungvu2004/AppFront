@@ -150,14 +150,15 @@ function floorLabelOf(storey: ViewerStorey): string {
 }
 
 /**
- * Một tầng đã dựng xong hình thật chưa.
+ * Tầng đã có ít nhất một phòng chưa (B-V1-11 — không phải "đã tải": tầng chưa
+ * có phòng là bản vẽ chưa dựng ra phòng, không phải mạng chậm).
  *
  * Cùng phép đọc mà `shellDataOf` dùng để đặt `isPartial`: một tầng CÓ hình khi
  * đồ thị đã mang ít nhất một phòng trên tầng ấy. Đọc qua `byLevel` và
  * `isEntityOfKind` — hai cửa công khai của `src/domain/spatial` — chứ không
  * dựng lại chỉ mục riêng.
  */
-function isFloorLoaded(spatial: NormalizedSpatial, levelId: LevelId): boolean {
+function floorHasRooms(spatial: NormalizedSpatial, levelId: LevelId): boolean {
   const ids = spatial.byLevel[levelId];
 
   if (ids === undefined) {
@@ -185,7 +186,7 @@ export function floorsOf(
   return storeys.map((storey) => ({
     id: storey.id,
     label: floorLabelOf(storey),
-    isLoaded: isFloorLoaded(spatial, storey.id),
+    hasRooms: floorHasRooms(spatial, storey.id),
   }));
 }
 

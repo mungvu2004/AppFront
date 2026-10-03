@@ -68,7 +68,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
+import { hasBuildableParts, toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { can } from '@/lib/auth/permissions';
 import {
   createShareLink,
@@ -106,6 +106,7 @@ import { projectDetailQueryOptions } from './mobileViewerQueries';
 import {
   MOBILE_VIEWER_COMPACT_WIDTH_PX,
   MOBILE_VIEWER_MODEL_TOKEN,
+  type MobilePartialReason,
   type MobileViewerMeasurement,
   type MobileViewerModel,
   type MobileViewerSceneHandle,
@@ -310,11 +311,9 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   const levels = conversion.levels;
 
   // Tầng có tên mà không có tường lẫn phòng (mock `project-1`) chưa phải mô hình:
-  // dựng cảnh lên nó chỉ cho một khung trống mà không cổng nào bắt được.
-  const hasGeometry = useMemo(
-    () => levels.some((level) => level.walls.length > 0 || level.rooms.length > 0),
-    [levels],
-  );
+  // dựng cảnh lên nó chỉ cho một khung trống mà không cổng nào bắt được. Cùng vị
+  // ngữ mà /3d dùng cho `empty` (B-V1-11).
+  const hasGeometry = useMemo(() => levels.some(hasBuildableParts), [levels]);
 
   /**
    * Một token cho cả mô hình — màn chỉ đọc này không có bộ chọn chế độ tô.
@@ -666,6 +665,19 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
    * nói bề ngang màn hình chứ không nói được rằng dữ liệu chưa về. Nên
    * `collapsed` thay chỗ của `success`, không thay chỗ của sáu nhánh kia.
    */
+  /**
+   * Lý do của `partial` (B-V1-11). Thiếu phòng thắng mạng yếu: nó là sự thật về
+   * mô hình, còn mạng có thể khá lên ngay. `data.isPartial` là cùng phép thử
+   * "tầng có phòng" mà huy hiệu của dải tầng dùng (`floorHasRooms`).
+   */
+  const partialReason = useMemo((): MobilePartialReason | null => {
+    if (data.isPartial) {
+      return 'missing-rooms';
+    }
+
+    return isNetworkWeak ? 'weak-network' : null;
+  }, [data.isPartial, isNetworkWeak]);
+
   const state = useMemo((): MobileViewerState => {
     if (isForbidden) {
       return 'forbidden';
@@ -683,7 +695,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     if (!hasGeometry) {
       return 'empty';
     }
-    if (data.isPartial || isNetworkWeak || floors.some((floor) => !floor.isLoaded)) {
+    if (partialReason !== null) {
       return 'partial';
     }
     if (isCompact) {
@@ -701,9 +713,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     canvas,
     hasGeometry,
     isSceneMounted,
-    data.isPartial,
-    isNetworkWeak,
-    floors,
+    partialReason,
     isCompact,
   ]);
 
@@ -729,6 +739,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     onSendDesktopLink,
     measurements,
     detailLabel,
+    partialReason: state === 'partial' ? partialReason : null,
     // Bản 2D của cùng dự án là danh sách tầng — lối thoát luôn hợp lệ, kể cả
     // khi đồ thị chưa có tầng nào để đặt tên vào đường dẫn.
     fallback2dHref: ROUTES.project.floors(projectId),

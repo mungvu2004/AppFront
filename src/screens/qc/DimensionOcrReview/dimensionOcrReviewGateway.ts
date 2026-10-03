@@ -324,6 +324,10 @@ const NO_DIMENSIONS: readonly Dimension[] = [];
 /**
  * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu —
  * cùng lý do với `levelOfGraph` của lớp đối tượng (kho cả dự án, B-V12-01).
+ *
+ * B-V6-70 (mở, chưa sửa): màn kích thước vẫn rơi về tầng đầu khi URL chỉ tầng
+ * không có trong đồ thị, và `dimensionsOf` không lọc theo tầng. Lớp đối tượng đã
+ * bỏ đường rơi này (B-V6-40).
  */
 export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
   if (graph === null) {

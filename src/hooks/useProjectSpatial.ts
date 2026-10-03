@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { useStore as useVanillaStore } from 'zustand';
 
 import type { ApiClient } from '@/api/client';
+import { readWireError } from '@/lib/errors/wireError';
 import { CACHE_POLICY } from '@/lib/query/cachePolicy';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { createScreenErrorRecorder, type ScreenErrorReport } from '@/lib/screen-state/screenErrorBoundary';
@@ -44,7 +45,17 @@ export function needsProjectSpatial(
   return state.project !== null ? state.project.id !== projectId : pastCount === 0;
 }
 
-export type ProjectSpatialStatus = 'idle' | 'loading' | 'error' | 'ready';
+export type ProjectSpatialStatus = 'idle' | 'loading' | 'error' | 'notFound' | 'ready';
+
+/**
+ * 404 của chính dự án (không tồn tại, hoặc không phải thành viên — K08). Đọc theo
+ * `resource` của dây, không theo `kind`: `kind: 'notFound'` còn đến từ regex /missing/.
+ */
+export function isProjectNotFound(error: unknown): boolean {
+  const wire = readWireError(error);
+
+  return wire?.status === 404 && wire.resource === 'project';
+}
 
 export interface UseProjectSpatialOptions {
   readonly projectId: string | undefined;
@@ -149,7 +160,15 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
   );
 
   const status: ProjectSpatialStatus =
-    projectId === undefined ? 'idle' : failed ? 'error' : needsLoad ? 'loading' : 'ready';
+    projectId === undefined
+      ? 'idle'
+      : failed
+        ? isProjectNotFound(query.error)
+          ? 'notFound'
+          : 'error'
+        : needsLoad
+          ? 'loading'
+          : 'ready';
 
   return { report, retry, status };
 }

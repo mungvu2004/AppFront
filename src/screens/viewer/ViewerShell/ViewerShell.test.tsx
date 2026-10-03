@@ -28,14 +28,15 @@
  */
 
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { millimetres } from '@/domain/units/types';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { CameraDirector } from '@/lib/three/camera/presets';
 import { displayLabelIn } from '@/domain/spatial/normalize';
 import { toSceneLength } from '@/lib/three/build/scene';
@@ -62,12 +63,18 @@ import {
   VIEWER_FIXTURE_WALLS,
 } from './viewerShellFixture';
 import { wallCodesOnLevel } from '../WallGeometryEditor/wallGeometryEditorGateway';
-import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
+import {
+  createViewerShellFixtureGateway,
+  shellDataOf,
+  VIEWER_FIXTURE_SPATIAL,
+  type ViewerShellGateway,
+} from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import {
   ALL_VIEWER_TOOLS,
   defaultViewerShellGateway,
   storeyShortLabel,
+  projectNameQueryKey,
   useViewerShell,
 } from './useViewerShell';
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -586,11 +593,17 @@ function stubReducedMotionPerTest(): void {
  * "nhìn đúng cao độ tầng nào" phải rình đối số của `CameraDirector.goTo`,
  * chứ không đọc được từ props của view.
  */
-function renderShellHook() {
-  const queryClient = createTestQueryClient();
+function renderShellHook(
+  options: { readonly queryClient?: QueryClient; readonly gateway?: ViewerShellGateway } = {},
+) {
+  const queryClient = options.queryClient ?? createTestQueryClient();
 
   return renderHook(
-    () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+    () => useViewerShell({
+        projectId: 'P-001',
+        spatial: VIEWER_FIXTURE_SPATIAL,
+        ...(options.gateway === undefined ? {} : { gateway: options.gateway }),
+      }),
     {
       wrapper: ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -598,6 +611,39 @@ function renderShellHook() {
     },
   );
 }
+
+describe('[B-V1-12] tên dự án nằm ở khoá con, không ở khoá gốc của dự án', () => {
+  it('khoá gốc đã mang một đối tượng (lượt nạp trước của nơi khác): đường dẫn vẫn hiện tên', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.project.detail('P-001'), { id: 'P-001', name: 'Nhà máy Bắc Ninh' });
+
+    const { result, unmount } = renderShellHook({
+      queryClient,
+      gateway: createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL, 'Nhà mẫu'),
+    });
+
+    await waitFor(() => {
+      expect(result.current.breadcrumbs[0]?.label).toBe('Nhà mẫu');
+    });
+    unmount();
+  });
+
+  it('không đặt sẵn gì: chuỗi tên vào khoá con, khoá gốc để trống', async () => {
+    const queryClient = createTestQueryClient();
+
+    const { result, unmount } = renderShellHook({
+      queryClient,
+      gateway: createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL, 'Nhà mẫu'),
+    });
+
+    await waitFor(() => {
+      expect(result.current.breadcrumbs[0]?.label).toBe('Nhà mẫu');
+    });
+    expect(queryClient.getQueryData(queryKeys.project.detail('P-001'))).toBeUndefined();
+    expect(queryClient.getQueryData(projectNameQueryKey('P-001'))).toBe('Nhà mẫu');
+    unmount();
+  });
+});
 
 describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
   stubReducedMotionPerTest();

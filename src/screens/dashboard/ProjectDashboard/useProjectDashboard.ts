@@ -21,8 +21,8 @@
  *
  * ## Why the data source is injected
  *
- * `fetchList`/`fetchDetail` default to `./projectsGateway`'s sample-backed
- * functions but are options, not imports, for the same reason
+ * `fetchList` defaults to `./projectsGateway`'s sample-backed function but
+ * is an option, not an import, for the same reason
  * `useShareLinks` takes a `ShareLinkGateway`: a test drives every one of the
  * seven states by resolving, rejecting or never settling a promise, with no
  * network and no fake timers wired into the query cache.
@@ -311,7 +311,14 @@ export function useProjectDashboard(
     for (const project of allProjects) {
       map.set(
         project.id,
-        prefetchOnHover(queryClient, queryKeys.project.detail(project.id), () => fetchProjectDetail(project.id)),
+        // Khoá con 'summary', không phải khoá gốc: khoá gốc của dự án không được
+        // mang hình thẻ dashboard, vì /3d đọc khoá con 'name' cạnh nó — B-V1-12.
+        // ponytail: chưa ai đọc 'summary' — xem B-V1-70
+        prefetchOnHover(
+          queryClient,
+          [...queryKeys.project.detail(project.id), 'summary'] as const,
+          () => fetchProjectDetail(project.id),
+        ),
       );
     }
     return map;

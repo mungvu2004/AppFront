@@ -46,7 +46,7 @@ import {
   MOBILE_VIEWER_MIN_HIT_TARGET_PX,
   MOBILE_VIEWER_TOP_BAR_PX,
 } from './mobileViewerTypes';
-import type { MobileViewerProps, MobileViewerState } from './mobileViewerTypes';
+import type { MobilePartialReason, MobileViewerProps, MobileViewerState } from './mobileViewerTypes';
 
 /** Lớp phủ kín khung nhìn, nền đặc — chỗ ba trạng thái không có gì để xem. */
 function CoveringLayer({ children }: { readonly children: ReactNode }) {
@@ -92,11 +92,12 @@ function WeakDeviceLayer({ fallback2dHref }: { readonly fallback2dHref: string }
 interface StateLayerProps {
   readonly state: MobileViewerState;
   readonly detailLabel: string | null;
+  readonly partialReason: MobilePartialReason | null;
   readonly fallback2dHref: string;
 }
 
 /** Bảy nhánh, mỗi nhánh vẽ một thứ. Không nhánh nào trả về `null`. */
-function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
+function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: StateLayerProps) {
   if (state === 'error') {
     return <WeakDeviceLayer fallback2dHref={fallback2dHref} />;
   }
@@ -132,10 +133,14 @@ function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
     return <FloatingNote>{detailLabel ?? 'đang tải mô hình'}</FloatingNote>;
   }
 
+  // `partial` luôn có một câu nói lý do — không bao giờ rơi xuống câu "đã dựng
+  // xong" bên dưới (B-V1-11). Thiếu lý do thì câu thiếu phòng, câu chắc đúng hơn.
   if (state === 'partial') {
     return (
       <FloatingNote>
-        mạng yếu nên mới tải được một phần các tầng. các tầng còn lại sẽ hiện khi mạng khá hơn.
+        {partialReason === 'weak-network'
+          ? 'mạng đang yếu. mô hình đã tải xong vẫn xem được.'
+          : 'mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.'}
       </FloatingNote>
     );
   }
@@ -163,6 +168,7 @@ export function MobileViewer({
   onSendDesktopLink,
   measurements,
   detailLabel,
+  partialReason,
   fallback2dHref,
 }: MobileViewerProps) {
   // `collapsed` là "màn rất nhỏ", tức cùng một điều kiện mà `isCompact` mang.
@@ -226,7 +232,12 @@ export function MobileViewer({
       </header>
 
       <main className="relative min-h-0 flex-1">
-        <StateLayer detailLabel={detailLabel} fallback2dHref={fallback2dHref} state={state} />
+        <StateLayer
+          detailLabel={detailLabel}
+          fallback2dHref={fallback2dHref}
+          partialReason={partialReason}
+          state={state}
+        />
       </main>
 
       <MobileViewerBottomBar

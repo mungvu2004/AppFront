@@ -91,10 +91,10 @@ describe('tầng', () => {
     }
   });
 
-  it('tầng có phòng trong đồ thị là tầng đã dựng xong hình', () => {
+  it('tầng có phòng trong đồ thị mang `hasRooms` (B-V1-11)', () => {
     const floors = floorsOf(SPATIAL, STOREYS);
 
-    expect(floors.every((floor) => floor.isLoaded)).toBe(true);
+    expect(floors.every((floor) => floor.hasRooms)).toBe(true);
   });
 
   it('đồ thị chưa nạp thì không có tầng nào, không phải một mục rỗng', () => {

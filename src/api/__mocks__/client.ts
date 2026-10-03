@@ -831,6 +831,9 @@ const mockUsersHttpError = (status: number, requestId: string): HttpError => ({
 
 const failed = <T>(error: HttpError): Result<T, HttpError> => ({ error, ok: false });
 
+/** Id dự án không có (hoặc người dùng không phải thành viên): `projects.read` trả 404 `resource: 'project'` — B-V1-43. */
+export const MOCK_MISSING_PROJECT_ID = 'project-missing';
+
 const AVATAR_ROOT = 'https://example.com/avatars';
 
 export const MOCK_ADMIN_USERS: readonly AdminUser[] = [
@@ -1314,7 +1317,16 @@ export const createMockApiClient = (): ApiClient => {
         return ok({ ...removed, id: projectId });
       },
       list: async () => ok([clone(project)]),
-      read: async ({ projectId }) => ok({ ...clone(project), id: projectId }),
+      read: async ({ projectId }) =>
+        projectId === MOCK_MISSING_PROJECT_ID
+          ? failed({
+              kind: 'http',
+              raw: { resource: 'project' },
+              requestId: 'req-project-missing',
+              retryable: false,
+              status: 404,
+            })
+          : ok({ ...clone(project), id: projectId }),
       update: async ({ body, projectId }) => {
         project = {
           ...applyProjectBody(project, body),

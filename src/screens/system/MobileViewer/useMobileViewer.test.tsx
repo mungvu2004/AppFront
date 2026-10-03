@@ -276,6 +276,7 @@ describe('bảy trạng thái', () => {
     await waitFor(() => {
       expect(harness.model().state).toBe('partial');
     });
+    expect(harness.model().partialReason).toBe('weak-network');
   });
 
   it('error: máy không có WebGL — và lối thoát trỏ sang bản 2D', async () => {
@@ -790,7 +791,35 @@ describe('nạp kho dự án — B-V1-03', () => {
         expect(harness.model().state).toBe('partial');
       });
 
+      expect(harness.model().partialReason).toBe('missing-rooms');
       expect(spy.options()).not.toBeNull();
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
+  });
+
+  it('chỉ có tường + mạng yếu: lý do là thiếu phòng, không phải mạng (B-V1-11)', async () => {
+    const spy = sceneSpy();
+
+    try {
+      const harness = render({
+        mountScene: spy.mount,
+        spatial: wallsOnlySpatial(),
+        gateway: {
+          projectsApi: projectsApiOf(),
+          createMonitor: monitorOf({ pingOnline: false, online: false }),
+          openMail: () => undefined,
+          copyText: async () => true,
+        },
+      });
+
+      await waitFor(() => {
+        expect(harness.model().state).toBe('partial');
+      });
+
+      expect(harness.model().partialReason).toBe('missing-rooms');
     } finally {
       act(() => {
         useStore.getState().setSpatial(null, null);

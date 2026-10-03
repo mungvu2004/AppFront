@@ -439,7 +439,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   const spatial = options.spatial !== undefined ? options.spatial : storeSpatial;
 
   const projectQuery = useQuery({
-    queryKey: queryKeys.project.detail(projectId),
+    queryKey: projectNameQueryKey(projectId),
     queryFn: (): Promise<string | null> => gateway.readProjectName(projectId),
   });
 
@@ -1129,3 +1129,11 @@ export const VIEWER_KEY_LABELS = Object.freeze({
 
 /** Danh sách công cụ của ray — mọi vai thấy đủ, story và bài kiểm đếm trên nó. */
 export const ALL_VIEWER_TOOLS = VIEWER_TOOLS;
+
+/**
+ * Khoá CON chứa tên dự án (một chuỗi) — B-V1-12. Khoá gốc `project.detail(id)`
+ * thuộc về đối tượng dự án; ghi chuỗi vào đó thì nơi khác đọc nó như đối tượng
+ * và sập. Khoá con vẫn nằm dưới tiền tố gốc, nên vô hiệu hoá theo dự án lan xuống.
+ */
+export const projectNameQueryKey = (projectId: string) =>
+  [...queryKeys.project.detail(projectId), 'name'] as const;

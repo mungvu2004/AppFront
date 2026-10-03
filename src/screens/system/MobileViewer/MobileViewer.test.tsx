@@ -220,6 +220,37 @@ describe('MobileViewer — vùng bấm >= 44px, ở mức suy ra được từ j
 /* Thu gọn ở 320.                                                              */
 /* -------------------------------------------------------------------------- */
 
+describe('MobileViewer — `partial` nói đúng lý do (B-V1-11)', () => {
+  const MISSING_ROOMS_NOTE = 'mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.';
+  const WEAK_NETWORK_NOTE = 'mạng đang yếu. mô hình đã tải xong vẫn xem được.';
+
+  it('thiếu phòng: câu thiếu phòng, không câu mạng; hàng tầng mang "chưa có phòng"', () => {
+    const props = { ...mobileViewerScenarioFor('partial'), activeTool: 'floors' as const };
+    const { getByText, queryByText, getAllByText } = renderMobileViewer(props);
+
+    expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
+    expect(queryByText(WEAK_NETWORK_NOTE)).toBeNull();
+    expect(getAllByText('chưa có phòng')).toHaveLength(2);
+    expect(queryByText('chưa tải')).toBeNull();
+  });
+
+  it('mạng yếu: câu mạng, không câu thiếu phòng', () => {
+    const props = { ...mobileViewerScenarioFor('partial'), partialReason: 'weak-network' as const };
+    const { getByText, queryByText } = renderMobileViewer(props);
+
+    expect(getByText(WEAK_NETWORK_NOTE)).toBeInTheDocument();
+    expect(queryByText(MISSING_ROOMS_NOTE)).toBeNull();
+  });
+
+  it('`partial` không bao giờ đọc "mô hình đã dựng xong.", kể cả khi thiếu lý do và không có nhãn mức chi tiết', () => {
+    const props = { ...mobileViewerScenarioFor('partial'), partialReason: null, detailLabel: null };
+    const { queryAllByText, getByText } = renderMobileViewer(props);
+
+    expect(queryAllByText('mô hình đã dựng xong.')).toHaveLength(0);
+    expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
+  });
+});
+
 describe('MobileViewer — thu gọn ở 320 (MOBILE_VIEWER_COMPACT_WIDTH_PX)', () => {
   it('MOBILE_VIEWER_TOOLS_COMPACT gộp còn ba — "view" là cái bị gộp vào, không phải cái bị bỏ (dữ liệu hợp đồng, không phụ thuộc view)', () => {
     expect(MOBILE_VIEWER_TOOLS).toHaveLength(4);

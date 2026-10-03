@@ -112,7 +112,7 @@ export const MOBILE_VIEWER_SHEET_FULL_RATIO = 0.9;
  *
  * Ý nghĩa riêng của màn này, theo đặc tả:
  * - `loading`  — đang tải, **hiện mức gọn trước** rồi mới nâng dần.
- * - `partial`  — mạng yếu, chỉ tải được 2 tầng.
+ * - `partial`  — mô hình mới có một phần; lý do ở `partialReason`.
  * - `error`    — máy yếu: mời xem bản 2D thay vì cố dựng.
  * - `collapsed`— màn rất nhỏ (320): thanh dưới còn ba biểu tượng.
  */
@@ -124,6 +124,12 @@ export type MobileViewerState =
   | 'success'
   | 'forbidden'
   | 'collapsed';
+
+/**
+ * Vì sao `partial` (B-V1-11): một số tầng chưa có phòng nào được dựng từ bản
+ * vẽ, hay mạng đang yếu. Hai lý do khác nhau thì hai câu khác nhau.
+ */
+export type MobilePartialReason = 'missing-rooms' | 'weak-network';
 
 /** Bốn biểu tượng của thanh dưới: tầng · chế độ xem · đo · thông tin. */
 export type MobileViewerToolId = 'floors' | 'view' | 'measure' | 'info';
@@ -161,8 +167,8 @@ export interface MobileViewerFloor {
   readonly id: string;
   /** Nhãn tiếng Việt, viết thường kiểu câu (A6) — ví dụ "tầng 2". */
   readonly label: string;
-  /** Đã dựng xong hình thật chưa. `false` ở trạng thái `partial`. */
-  readonly isLoaded: boolean;
+  /** Tầng đã có ít nhất một phòng chưa. `false` thì hàng mang huy hiệu "chưa có phòng". */
+  readonly hasRooms: boolean;
 }
 
 /**
@@ -366,6 +372,9 @@ export interface MobileViewerProps {
    * `null` khi không có gì để nói.
    */
   readonly detailLabel: string | null;
+
+  /** Lý do của `partial`; `null` ở mọi trạng thái khác. */
+  readonly partialReason: MobilePartialReason | null;
 
   /** Liên kết sang bản 2D — lối thoát của trạng thái `error` (máy yếu). */
   readonly fallback2dHref: string;

@@ -13,6 +13,7 @@ import { createFloorManagerGateway } from '@/screens/qc/FloorManager/floorManage
 import {
   createObjectLayerReviewGateway,
   levelOfGraph as objectLevelOfGraph,
+  objectsOf,
 } from '@/screens/qc/ObjectLayerReview/objectLayerReviewGateway';
 import { createRoomLabelReviewGateway } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { createThicknessStandardizationGateway } from '@/screens/qc/ThicknessStandardization/thicknessStandardizationGateway';
@@ -253,12 +254,23 @@ describe('levelOfGraph của hai màn QC — kho cả dự án (B-V12-01)', () =
     expect(levelOfGraph(whole, second)?.id).toBe(second);
   });
 
-  it.each([
-    ['lớp đối tượng', objectLevelOfGraph],
-    ['kích thước OCR', dimensionLevelOfGraph],
-  ])('%s: không có `levelId` (hoặc mã không có trong đồ thị) thì ra tầng đầu', (_name, levelOfGraph) => {
-    expect(levelOfGraph(whole)?.id).toBe(whole.byKind.level[0]);
-    expect(levelOfGraph(whole, 'L1')?.id).toBe(whole.byKind.level[0]);
-    expect(levelOfGraph(null, second)).toBeNull();
+  it('lớp đối tượng: URL không có `levelId` thì ra tầng đầu; mã không có trong đồ thị thì `null` (B-V6-40)', () => {
+    expect(objectLevelOfGraph(whole)?.id).toBe(whole.byKind.level[0]);
+    expect(objectLevelOfGraph(whole, 'L1')).toBeNull();
+    expect(objectLevelOfGraph(whole, 'L-LEVEL000099')).toBeNull();
+    expect(objectLevelOfGraph(null, second)).toBeNull();
+  });
+
+  it('lớp đối tượng: tầng đầu của bộ mẫu có đúng 10 đối tượng khi không có bảng mẫu (B-V6-40)', () => {
+    const first = objectLevelOfGraph(whole, sampleLevelId(0));
+
+    expect(objectsOf(whole, first, [])).toHaveLength(10);
+  });
+
+  // B-V6-70 (mở): màn kích thước vẫn rơi về tầng đầu khi mã tầng không có trong đồ thị.
+  it('kích thước OCR: không có `levelId` (hoặc mã không có trong đồ thị) thì ra tầng đầu', () => {
+    expect(dimensionLevelOfGraph(whole)?.id).toBe(whole.byKind.level[0]);
+    expect(dimensionLevelOfGraph(whole, 'L1')?.id).toBe(whole.byKind.level[0]);
+    expect(dimensionLevelOfGraph(null, second)).toBeNull();
   });
 });

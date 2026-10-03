@@ -11,7 +11,7 @@
  *
  * - **Tên dự án** là trạng thái máy chủ. {@link ViewerShellGateway.readProjectName}
  *   chỉ là hàm đọc; `useViewerShell.ts` bọc nó trong `useQuery` với khoá
- *   `queryKeys.project.detail(projectId)` của `@/lib/query`, nên `isLoading` và
+ *   con `projectNameQueryKey(projectId)` (dưới `queryKeys.project.detail`), nên `isLoading` và
  *   `error` là của react-query chứ không phải hai `useState` viết tay (R-64).
  * - **Tầng, phòng, diện tích** đọc từ ĐỒ THỊ KHÔNG GIAN trong kho
  *   (`state.spatial`). Đây là tiền lệ mà `wallLayerReviewGateway.ts` đã chốt

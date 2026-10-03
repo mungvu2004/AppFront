@@ -559,11 +559,14 @@ const NO_SOLID_WALLS: readonly SolidWall[] = [];
 const NO_OBJECTS: readonly ReviewObject[] = [];
 
 /**
- * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu.
+ * Tầng đang duyệt: tầng `levelId` của URL; chỉ khi URL KHÔNG mang `levelId` mới
+ * lấy tầng đầu của đồ thị.
  *
- * Kho có thể mang đồ thị CẢ dự án (cổng nạp kho, B-V12-01): lấy tầng đầu khi ấy
- * là hiện tầng 1 mà lưu theo tầng của URL. Mã tầng không có trong đồ thị (bộ mẫu
- * một tầng, mã tầng API khác mã `Level` — B-V5-01) thì vẫn rơi về tầng đầu.
+ * Kho có thể mang đồ thị CẢ dự án (cổng nạp kho, B-V12-01): rơi về tầng đầu khi
+ * URL chỉ tầng khác là hiện, và cho sửa, đồ vật của tầng 1 dưới URL của tầng 2
+ * (B-V6-40). Nên thiếu tầng của URL thì `null` → màn vào `empty`.
+ * Còn mở, chưa sửa: B-V6-71 — kho chỉ giữ một đồ thị, màn QC ở tầng chưa nạp
+ * báo rỗng giả.
  */
 export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
   if (graph === null) {
@@ -576,7 +579,7 @@ export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string):
     return entity !== undefined && 'elevationMm' in entity ? entity : null;
   };
 
-  return isLevel(levelId) ?? isLevel(graph.byKind.level[0]);
+  return isLevel(levelId ?? graph.byKind.level[0]);
 }
 
 /** Tường của tầng, dạng đồ thị. */

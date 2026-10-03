@@ -1244,3 +1244,25 @@ describe('"thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () 
     expect(buildAddOpeningCommand(input as NonNullable<typeof input>, commandContextOf(graph, 'test-actor')).ok).toBe(true);
   });
 });
+
+describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
+  const openingCount = (): number =>
+    Object.keys(useStore.getState().spatial?.byId ?? {}).filter((id) => isIdOfKind('opening', id)).length;
+
+  it('màn vào `empty`, không dòng nào, và "thêm thủ công" báo không có tường thay vì im lặng', async () => {
+    const notifications = createNotificationBus();
+    const publish = vi.spyOn(notifications, 'publish');
+    const mounted = await mountSettled({ floorId: 'L-LEVEL000099', notifications });
+    const before = openingCount();
+
+    expect(mounted.result.current.state).toBe('empty');
+    expect(mounted.result.current.objects).toEqual([]);
+
+    await run(() => mounted.result.current.onAddManually());
+
+    expect(publish.mock.calls.map(([n]) => n.title)).toContain(OBJECT_LAYER_TEXT.addNoWall);
+    expect(openingCount()).toBe(before);
+
+    mounted.unmount();
+  });
+});
