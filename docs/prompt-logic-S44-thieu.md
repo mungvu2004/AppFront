@@ -72,8 +72,9 @@ Không `owner`, không `ownerId`, không `createdBy`. `ProjectMember` có
    một dự án có thể có nhiều admin, mà câu "liên hệ ai" cần đúng một người.
 
 2. **Đường đọc được khi CHƯA có quyền.** Đây mới là phần khó, và là lý do khoản này không
-   tự giải quyết bằng cách thêm một trường. `projects.read` trả đúng cái 403 vừa chặn
-   người dùng, nên `members` hiện **không với tới được từ màn này**. Cần một hình chiếu
+   tự giải quyết bằng cách thêm một trường. `projects.read` trả 404 cho người không phải
+   thành viên (K08 của BE: 404 luôn thắng 403 — `AppBack/apps/api/projects/access.py:5-6,82-83`),
+   nên `members` hiện **không với tới được từ màn này**. Cần một hình chiếu
    tối thiểu, an toàn để lộ: chỉ tên + email của người cấp được quyền, không kèm gì khác
    về dự án.
 
@@ -118,6 +119,12 @@ Khi có: `canSubmitLinkPassword: true` và cấp `submitLinkPassword` cho cổng
 
 Cách này hoạt động vì `toAppError` **giữ nguyên `code` của máy chủ**
 (`fromHttpError` → `resolveCode`), chỉ `kind` mới bị gộp thành `'forbidden'`.
+
+> **Ghi chú 2026-10-03 (B-V1-05).** Bộ mã 403 mà BE khai hôm nay chỉ có ba:
+> `FORBIDDEN`, `ACCOUNT_DISABLED`, `ORIGIN_MISMATCH` (`AppBack/packages/core/error_codes.py:11,21-22`).
+> Không mã nào chứa `REVOK`/`EXPIR`/`PASSWORD`, nên ba lý do riêng của màn chưa bao giờ được
+> chọn bởi một phản hồi thật — chúng chờ lối mở liên kết chia sẻ công khai (phương án PA-B ở
+> `docs/notes/e2e/fragments/I3.md` B-V1-05).
 
 **Vì sao chỉ nhận ra một từ chứ không tra bảng mã cứng:** repo không định nghĩa bộ mã 403
 của máy chủ ở đâu cả. Viết `'SHARE_LINK_REVOKED' -> 'revoked'` là bịa ra một hợp đồng
