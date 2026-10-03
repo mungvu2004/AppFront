@@ -74,18 +74,13 @@ test('vai Người xem: màn nói vì sao không sửa được vị trí tầng
   await expect(page.getByText(/^Bạn đang xem ở vai người xem nên không sửa được vị trí tầng\.$/iu)).toHaveCount(1);
 });
 
-test.fixme(
-  'vai Người xem: hai câu "không có quyền" cạnh nhau viết tên vai giống nhau (B-V9-05, chờ quyết)',
-  // Lý do: `ExplodedView.tsx:130` viết "vai người xem", `ViewerInspector.tsx:86` viết
-  // "vai Người xem"; cả sản phẩm cũng trộn hai cách. Mở lại khi người duyệt chốt một
-  // cách viết tên vai (A6) và chuỗi đã sửa theo.
+test(
+  'vai người xem: hai câu "không có quyền" cạnh nhau viết tên vai giống nhau (B-V9-05)',
   async ({ page }) => {
     await signInAs(page, 'viewer', EXPLODED_PATH);
-    const roleNames = page.getByText(/vai [Nn]gười xem/u);
+    // Phân biệt hoa thường: cả hai câu phải viết tên vai là danh từ chung.
+    const roleNames = page.getByText(/vai người xem/u);
     await expect(roleNames).toHaveCount(2, { timeout: FIRST_PAINT_TIMEOUT_MS });
-
-    const spellings = (await roleNames.allTextContents()).map((text) => /vai [Nn]gười xem/u.exec(text)?.[0]);
-    expect(new Set(spellings).size).toBe(1);
   },
 );
 

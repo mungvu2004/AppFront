@@ -258,7 +258,7 @@ export function Viewer3D(props: Viewer3DProps) {
       {state === 'forbidden' && !isErrorLike && (
         <div className="pointer-events-none relative flex h-full w-full items-center justify-center">
           <span className="sr-only">
-            Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.
+            Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.
           </span>
         </div>
       )}

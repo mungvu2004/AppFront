@@ -172,9 +172,9 @@ const VIEWER_SIGN_IN_EMAIL = 'viewer@example.com';
 const SIGN_IN_PASSWORD = 'matkhau-du-dai';
 
 /** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
-const EMAIL_LABEL = 'Thư điện tử';
-const PASSWORD_LABEL = 'Mật khẩu';
-const SIGN_IN_LABEL = 'Đăng nhập';
+const EMAIL_LABEL = 'thư điện tử';
+const PASSWORD_LABEL = 'mật khẩu';
+const SIGN_IN_LABEL = 'đăng nhập';
 
 /**
  * Đăng nhập qua biểu mẫu rồi đi tiếp tới màn 3D, chạy trên BỘ MẪU (`VITE_USE_MOCK_API=true`).
@@ -339,7 +339,7 @@ const VIEWER_READY_TIMEOUT_MS = 20_000;
 async function waitForViewerReady(page: Page): Promise<void> {
   const built = page.getByText('Mô hình 3D đã dựng xong.', { exact: true });
   const viewerRole = page.getByText(
-    'Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.',
+    'Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.',
     { exact: true },
   );
   await expect(built.or(viewerRole)).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });

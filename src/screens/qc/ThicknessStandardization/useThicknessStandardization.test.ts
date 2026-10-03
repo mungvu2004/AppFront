@@ -763,7 +763,9 @@ describe('bảy trạng thái', () => {
     const target = wallsOfMeasurement(195)[0] as Wall;
 
     expect(mounted.result.current.isViewerRole).toBe(true);
-    expect(mounted.result.current.viewerRoleNotice).not.toBeNull();
+    expect(mounted.result.current.viewerRoleNotice).toBe(
+      'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
+    );
 
     acceptAndPreview(mounted, [195]);
 

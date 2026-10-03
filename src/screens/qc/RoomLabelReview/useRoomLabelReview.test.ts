@@ -639,7 +639,9 @@ describe('bảy trạng thái', () => {
     const mounted = await mountScenario(ROOM_LABEL_SCENARIO_FORBIDDEN);
 
     expect(mounted.result.current.isViewerRole).toBe(true);
-    expect(mounted.result.current.viewerRoleNotice).not.toBeNull();
+    expect(mounted.result.current.viewerRoleNotice).toBe(
+      'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
+    );
 
     await act(async () => {
       mounted.result.current.onRename(ROOM_R005.id, 'tên của người xem');

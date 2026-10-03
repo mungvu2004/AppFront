@@ -27,7 +27,7 @@ export const TOUR_APPEAR_TIMEOUT_MS = 6_000;
 export async function waitForViewerReady(page: Page): Promise<void> {
   const built = page.getByText('Mô hình 3D đã dựng xong.', { exact: true });
   const viewerRole = page.getByText(
-    'Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.',
+    'Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.',
     { exact: true },
   );
   /* Nhánh "không có WebGL" là trạng thái cuối khác: chờ cả nó để bài đỏ NGAY với

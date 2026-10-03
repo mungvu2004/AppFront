@@ -130,7 +130,7 @@ export const THICKNESS_SCREEN_TEXT = {
   emptyNoMeasurementNotice:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.',
   viewerRoleNotice:
-    'Bạn đang xem với vai Người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
+    'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
   escapeShortcut: 'Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc.',
 } as const;
 

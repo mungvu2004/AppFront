@@ -75,9 +75,9 @@ const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewerPascal.replace(':projectI
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 
 /** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` (`auth.fields`, `auth.actions`) giữ. */
-const EMAIL_LABEL = 'Thư điện tử';
-const PASSWORD_LABEL = 'Mật khẩu';
-const SIGN_IN_LABEL = 'Đăng nhập';
+const EMAIL_LABEL = 'thư điện tử';
+const PASSWORD_LABEL = 'mật khẩu';
+const SIGN_IN_LABEL = 'đăng nhập';
 const SIGN_IN_EMAIL = 'engineer@example.com';
 const SIGN_IN_PASSWORD = 'matkhau-du-dai';
 

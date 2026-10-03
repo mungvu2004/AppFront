@@ -88,11 +88,11 @@ const FILTER_KEYS: readonly WallLayerFilterKey[] = [
 const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
 const FLOOR_NAV_ARIA_LABEL = 'Tầng của bản vẽ';
 const CENTRELINES_LABEL = 'Hiện tim tường';
-const SHOW_WALL_LAYER_LABEL = 'Hiện lớp Tường';
-const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp Tường';
+const SHOW_WALL_LAYER_LABEL = 'hiện lớp tường';
+const HIDE_WALL_LAYER_LABEL = 'ẩn lớp tường';
 const REVIEWED_SUFFIX = ' tường đã duyệt';
-/** Cùng hành động với mục cây lớp "Cửa và nội thất" — xem `onNavigateLayer`. */
-const SUCCESS_CONTINUE_LABEL = 'Sang lớp Cửa và nội thất';
+/** Cùng hành động với mục cây lớp "cửa và nội thất" — xem `onNavigateLayer`. */
+const SUCCESS_CONTINUE_LABEL = 'sang lớp cửa và nội thất';
 
 /**
  * Một hàng cây lớp — dựng tại chỗ thay vì gọi `TreeItem` dùng chung.
@@ -112,7 +112,7 @@ const SUCCESS_CONTINUE_LABEL = 'Sang lớp Cửa và nội thất';
  * màn dùng hàng của riêng nó: một `<button role="treeitem">` thật, bàn phím tới
  * được, nhãn tiếng Việt có dấu, không có nút phụ nào chết bên trong.
  *
- * Cờ hiện/ẩn lớp Tường KHÔNG mất đi — nó sống ở cây lớp của kho
+ * Cờ hiện/ẩn lớp tường KHÔNG mất đi — nó sống ở cây lớp của kho
  * (`hiddenLayers`), và chú giải độ dày đọc thẳng cờ đó.
  */
 function WallLayerTreeRow({
@@ -234,7 +234,7 @@ function WallLayerFloorNav({
 }
 
 /** Lớp đang mở. Bốn lớp còn lại nằm ở {@link OTHER_LAYERS}. */
-const WALL_LAYER_LABEL = 'Tường';
+const WALL_LAYER_LABEL = 'tường';
 
 /** Bốn lớp còn lại của cây, đúng thứ tự đặc tả đọc chúng. */
 const OTHER_LAYERS: readonly {
@@ -244,12 +244,12 @@ const OTHER_LAYERS: readonly {
 }[] = [
   {
     kind: 'openingsAndFurniture',
-    label: 'Cửa và nội thất',
+    label: 'cửa và nội thất',
     icon: <DoorOpen className="h-4 w-4" />,
   },
-  { kind: 'dimensions', label: 'Kích thước', icon: <Ruler className="h-4 w-4" /> },
-  { kind: 'axes', label: 'Trục', icon: <Crosshair className="h-4 w-4" /> },
-  { kind: 'rooms', label: 'Phòng', icon: <LayoutGrid className="h-4 w-4" /> },
+  { kind: 'dimensions', label: 'kích thước', icon: <Ruler className="h-4 w-4" /> },
+  { kind: 'axes', label: 'trục', icon: <Crosshair className="h-4 w-4" /> },
+  { kind: 'rooms', label: 'phòng', icon: <LayoutGrid className="h-4 w-4" /> },
 ];
 
 export function WallLayerLeftPanel({

@@ -89,7 +89,7 @@ export interface WelcomeScreenViewModel {
   readonly screenState: SevenState;
   /** true khi phải xếp dọc — story/test bật tay, lúc chạy thật CSS tự lo dưới 1024. */
   readonly isCollapsed: boolean;
-  /** 'Chào Minh, bắt đầu trong ba bước' — đã ghép tên, view không ghép gì. */
+  /** 'chào Minh, bắt đầu trong ba bước' — đã ghép tên, view không ghép gì. */
   readonly greeting: string;
   /** Đoạn hai câu nói sản phẩm làm gì. */
   readonly intro: string;
@@ -115,28 +115,28 @@ export interface WelcomeScreenViewModel {
 /* -------------------------------------------------------------------------- */
 
 const STRINGS = Object.freeze({
-  greetingPrefix: 'Chào ',
+  greetingPrefix: 'chào ',
   greetingSuffix: ', bắt đầu trong ba bước',
-  greetingFallback: 'Chào bạn, bắt đầu trong ba bước',
+  greetingFallback: 'chào bạn, bắt đầu trong ba bước',
   intro:
     'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
-  step1Title: 'Tạo dự án',
+  step1Title: 'tạo dự án',
   step1Sentence: 'Khai báo tên công trình và danh sách tầng.',
-  step1Action: 'Tạo dự án',
-  step2Title: 'Tải bản vẽ theo từng tầng',
+  step1Action: 'tạo dự án',
+  step2Title: 'tải bản vẽ theo từng tầng',
   step2Sentence: 'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-  step2Action: 'Tải bản vẽ',
+  step2Action: 'tải bản vẽ',
   step2Locked: 'Cần tạo dự án trước.',
-  step3Title: 'Duyệt kết quả và dựng 3D',
+  step3Title: 'duyệt kết quả và dựng 3D',
   step3Sentence: 'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-  step3Action: 'Duyệt kết quả',
+  step3Action: 'duyệt kết quả',
   step3Locked: 'Cần tải bản vẽ trước.',
-  sampleProject: 'Xem dự án mẫu',
-  tutorial: 'Xem hướng dẫn 2 phút',
+  sampleProject: 'xem dự án mẫu',
+  tutorial: 'xem hướng dẫn 2 phút',
   tutorialDisabled: 'Hướng dẫn hai phút chưa sẵn sàng.',
-  skip: 'Bỏ qua',
+  skip: 'bỏ qua',
   skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
-  finish: 'Vào danh sách dự án',
+  finish: 'vào danh sách dự án',
   errorDescription: 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 });
 
