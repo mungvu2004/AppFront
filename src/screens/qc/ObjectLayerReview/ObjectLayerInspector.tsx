@@ -65,6 +65,7 @@ import {
   ArrowRight,
   Bed,
   Blinds,
+  Box,
   Columns2,
   DoorOpen,
   Sofa,
@@ -144,6 +145,7 @@ const SUBTYPE_ICONS: Readonly<Record<ObjectSubtype, ComponentType<OutlineIconPro
   diningTable: UtensilsCrossed,
   toilet: ToiletIcon,
   basin: BasinIcon,
+  otherFurniture: Box,
 };
 
 /** Bốn hướng mở có radio riêng — xem lý do "bốn, không phải năm" ở đầu file. */
@@ -176,6 +178,8 @@ const POSITION_LABEL = 'vị trí trên tường';
 const SWING_LABEL = 'hướng mở';
 const CONFIDENCE_LABEL = 'độ tin cậy';
 const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
+/** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm (B-V6-13). */
+const FREE_STANDING_LABEL = 'đứng tự do';
 const ATTACH_NEAREST_LABEL = 'Gắn vào tường gần nhất';
 const APPROVE_LABEL = 'Duyệt đối tượng này';
 const EMPTY_MESSAGE = 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
@@ -308,17 +312,16 @@ function ObjectInspectorBody({
                 </Button>
               )}
             </div>
+          ) : hostWallId === null || hostWallLabel === null ? (
+            <span className="flex h-9 items-center text-[14px] text-text-muted">{FREE_STANDING_LABEL}</span>
           ) : (
-            hostWallId !== null &&
-            hostWallLabel !== null && (
-              <button
-                className="flex h-9 items-center rounded font-mono text-[14px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                onClick={() => onSelectHostWall(hostWallId)}
-                type="button"
-              >
-                {hostWallLabel}
-              </button>
-            )
+            <button
+              className="flex h-9 items-center rounded font-mono text-[14px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              onClick={() => onSelectHostWall(hostWallId)}
+              type="button"
+            >
+              {hostWallLabel}
+            </button>
           )}
         </FieldRow>
 

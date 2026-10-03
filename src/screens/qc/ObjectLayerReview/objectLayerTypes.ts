@@ -57,7 +57,13 @@ export type ObjectLayerVisibility = Readonly<Record<ObjectLayerId, boolean>>;
 /* Tám loại con cụ thể (chip lọc).                                             */
 /* -------------------------------------------------------------------------- */
 
-/** Tám loại con, đúng thứ tự hàng chip lọc của đặc tả gốc. */
+/**
+ * Chín loại con, đúng thứ tự hàng chip lọc: tám của đặc tả gốc, rồi `otherFurniture`.
+ *
+ * `otherFurniture` ("nội thất khác") là chỗ đứng của mọi `FurnitureKind` của đồ thị
+ * không trùng nghĩa tuyệt đối với một loại con có sẵn (B-V6-13): ẩn chúng đi chính là
+ * lỗi, còn gán "bàn ăn" cho mọi `table` là bịa một thông tin miền không có.
+ */
 export type ObjectSubtype =
   | 'singleDoor'
   | 'doubleDoor'
@@ -66,7 +72,8 @@ export type ObjectSubtype =
   | 'sofa'
   | 'diningTable'
   | 'toilet'
-  | 'basin';
+  | 'basin'
+  | 'otherFurniture';
 
 /** Mọi loại con, theo thứ tự hàng chip lọc. */
 export const OBJECT_SUBTYPES: readonly ObjectSubtype[] = [
@@ -78,6 +85,7 @@ export const OBJECT_SUBTYPES: readonly ObjectSubtype[] = [
   'diningTable',
   'toilet',
   'basin',
+  'otherFurniture',
 ];
 
 /** Nhãn tiếng Việt của một loại con — viết thường, kiểu câu (A6). */
@@ -90,6 +98,7 @@ export const OBJECT_SUBTYPE_LABELS: Readonly<Record<ObjectSubtype, string>> = {
   diningTable: 'bàn ăn',
   toilet: 'bồn cầu',
   basin: 'chậu rửa',
+  otherFurniture: 'nội thất khác',
 };
 
 /**
@@ -105,6 +114,7 @@ export const OBJECT_SUBTYPE_LAYER: Readonly<Record<ObjectSubtype, ObjectLayerId>
   diningTable: 'furniture',
   toilet: 'furniture',
   basin: 'furniture',
+  otherFurniture: 'furniture',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -156,6 +166,13 @@ export interface ObjectReviewCounter {
 export interface ReviewObjectCore {
   /** Mã hiển thị, ví dụ `"D-007"`, `"S-003"`, `"F-002"` — không phải id domain đầy đủ. */
   readonly id: string;
+  /**
+   * Mã máy của thực thể trên đồ thị — khoá của tầng lệnh và của vùng chọn.
+   *
+   * Thêm theo quyết định của điều phối (B-V6-13): danh sách nay dựng từ đồ thị, nên mã
+   * hiển thị không còn suy ngược được ra mã máy qua một bảng mẫu.
+   */
+  readonly entityId: string;
   readonly layer: ObjectLayerId;
   readonly subtype: ObjectSubtype;
   readonly widthMm: Millimetres;
@@ -206,6 +223,58 @@ export function isAttachedObject(object: ReviewObject): object is AttachedReview
 /** Đối tượng này còn đang trôi, chưa gắn tường nào? */
 export function isOrphanObject(object: ReviewObject): object is OrphanReviewObject {
   return object.hostWallId === null;
+}
+
+/**
+ * Một LỖ MỞ chưa gắn tường — thứ người duyệt phải đi tìm tường cho nó.
+ *
+ * Nội thất đứng tự do cũng không có tường chủ (`Furniture` của đồ thị không có
+ * `wallId`), nhưng đó là chỗ đứng bình thường của nó: không tô màu chú ý, không có
+ * hành động "gắn vào tường gần nhất", và nó vẫn nằm trên đồ thị nên chọn được.
+ */
+export const isUnattachedOpening = (object: ReviewObject): object is OrphanReviewObject =>
+  isOrphanObject(object) && object.layer !== 'furniture';
+
+/* -------------------------------------------------------------------------- */
+/* Mã máy suy từ mã hiển thị — bộ mẫu và đối tượng thêm tay.                   */
+/* -------------------------------------------------------------------------- */
+
+/** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
+const ID_COUNTER_LENGTH = 6;
+
+/**
+ * Bốn ký tự đuôi của mã máy, mỗi lớp con một đuôi.
+ *
+ * Cửa đi và cửa sổ CÙNG là `Opening` của đồ thị nên cùng tiền tố `D-`
+ * (`ID_PREFIX_BY_KIND.opening`); hai đuôi khác nhau là thứ giữ cho `D-001` và
+ * `S-001` không cùng một mã máy. Đuôi là hằng chứ không ngẫu nhiên — bộ mẫu
+ * phải TẤT ĐỊNH, đúng khuôn `wallLayerReviewFixture.ts`.
+ */
+const ENTITY_ID_SUFFIX: Readonly<Record<ObjectLayerId, string>> = {
+  door: 'DOOR',
+  window: 'WNDW',
+  furniture: 'FURN',
+};
+
+/** Tiền tố mã máy theo lớp con — `ID_PREFIX_BY_KIND.opening` / `.furniture`. */
+const ENTITY_ID_PREFIX: Readonly<Record<ObjectLayerId, string>> = {
+  door: 'D',
+  window: 'D',
+  furniture: 'F',
+};
+
+/**
+ * Mã máy của một đối tượng, suy từ mã hiển thị của bộ mẫu.
+ *
+ * `D-007` → `D-000007DOOR`, `S-003` → `D-000003WNDW`, `F-002` → `F-000002FURN`.
+ * Chỉ dùng ở chiều DỰNG (bộ mẫu, đối tượng thêm tay); đối tượng đọc từ đồ thị mang
+ * sẵn {@link ReviewObjectCore.entityId}. Đặt ở đây chứ không ở cổng để bộ mẫu dùng
+ * được mà không tạo vòng import (cổng nhập bộ mẫu).
+ */
+export function entityIdOf(displayId: string, layer: ObjectLayerId): string {
+  const counter = displayId.slice(2).padStart(ID_COUNTER_LENGTH, '0');
+
+  return `${ENTITY_ID_PREFIX[layer]}-${counter}${ENTITY_ID_SUFFIX[layer]}`;
 }
 
 /* -------------------------------------------------------------------------- */

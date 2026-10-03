@@ -22,7 +22,17 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { OpeningId } from '@/domain/spatial/types';
+import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import type {
+  Furniture,
+  FurnitureId,
+  FurnitureKind,
+  Level,
+  OpeningId,
+  SwingDirection,
+} from '@/domain/spatial/types';
+import { boxAround } from '@/lib/input/dragDrop';
 import { toAttachedOpening } from '@/lib/commands/business/shared';
 import { flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -49,6 +59,7 @@ import {
   commandContextOf,
   countsOf,
   createMockObjectLayerReviewGateway,
+  createObjectLayerReviewGateway,
   dataLayerTokens,
   entityIdOf,
   formatObjectSize,
@@ -61,8 +72,11 @@ import {
   OBJECT_LAYER_SAMPLE_GRAPH,
   OBJECT_LAYER_SAMPLE_LEVEL,
   OBJECT_LAYER_SEED,
+  reviewCounterOf,
   reviewProgressLabel,
+  scaleOfLevel,
   solidWallsOf,
+  toPixelPoint,
 } from './objectLayerReviewGateway';
 import {
   OBJECT_LAYER_REVIEW_SCENARIOS,
@@ -75,7 +89,12 @@ import {
   OBJECT_LAYER_FIXTURE_OBJECTS,
   OBJECT_LAYER_FIXTURE_REVIEWED,
 } from './objectLayerFixture';
-import { OBJECT_LAYER_IDS, type ObjectLayerReviewModel } from './objectLayerTypes';
+import {
+  OBJECT_LAYER_IDS,
+  type ObjectLayerReviewModel,
+  type ObjectSubtype,
+  type ReviewObject,
+} from './objectLayerTypes';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — đọc ra, không viết tay lại.                                        */
@@ -247,10 +266,10 @@ describe('phép ghép thuần của màn Lớp đối tượng', () => {
     ).toBe('success');
   });
 
-  it('ba ô 1/2/3 của mỗi nhóm cắt đúng từ tám loại con', () => {
+  it('ba ô 1/2/3 của mỗi nhóm cắt đúng từ chín loại con', () => {
     expect(subtypeSlotsOf('door')).toEqual(['singleDoor', 'doubleDoor']);
     expect(subtypeSlotsOf('window')).toEqual(['window']);
-    expect(subtypeSlotsOf('furniture')).toEqual(['bed', 'sofa', 'diningTable', 'toilet', 'basin']);
+    expect(subtypeSlotsOf('furniture')).toEqual(['bed', 'sofa', 'diningTable', 'toilet', 'basin', 'otherFurniture']);
   });
 
   it('bộ lọc lớp con và chip lọc cắt đúng danh sách', () => {
@@ -560,6 +579,7 @@ describe('ba lệnh dựng bằng nguyên thuỷ công khai', () => {
     const command = buildApproveObjectCommand(
       opening as NonNullable<typeof opening>,
       'test-actor',
+      'D-004',
     );
     const change = command.changes[0];
 
@@ -966,5 +986,189 @@ describe('tự lưu lớp đối tượng (B-V6-03)', () => {
     expect(entityInStore('D-002', 'door')).toBeUndefined();
 
     mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Danh sách dựng từ đồ thị — B-V6-13.                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Một món nội thất KHÔNG có dòng mẫu, đặt xa mọi tường của bộ mẫu (lưới 12.500 × 8.800 mm). */
+const FREE_FURNITURE_ID = 'F-000099FREE' as FurnitureId;
+const FREE_FURNITURE_CENTRE = { x: 14500, y: 4000 };
+const FREE_FURNITURE_SIZE_MM = 800;
+
+function freeFurniture(kind: FurnitureKind, confidence = 0.95): Furniture {
+  return {
+    id: FREE_FURNITURE_ID,
+    levelId: OBJECT_LAYER_SAMPLE_LEVEL.id,
+    kind,
+    centre: FREE_FURNITURE_CENTRE,
+    boundingBox: boxAround(FREE_FURNITURE_CENTRE, FREE_FURNITURE_SIZE_MM, FREE_FURNITURE_SIZE_MM),
+    rotationDeg: 0,
+    confidence,
+    source: 'ai',
+    reviewed: false,
+  };
+}
+
+/** Đồ thị bộ mẫu cộng thêm một món nội thất. */
+function sampleGraphWith(item: Furniture): NormalizedSpatial {
+  const raw = denormalizeSpatial(OBJECT_LAYER_SAMPLE_GRAPH);
+
+  return normalizeSpatial({ ...raw, furniture: [...raw.furniture, item] });
+}
+
+/** Đồ thị bộ mẫu với lỗ mở `D-001` đổi kind/swing. */
+function sampleGraphWithOpening(kind: 'door' | 'window', swing: SwingDirection): NormalizedSpatial {
+  const raw = denormalizeSpatial(OBJECT_LAYER_SAMPLE_GRAPH);
+  const target = entityIdOf('D-001', 'door');
+
+  return normalizeSpatial({
+    ...raw,
+    openings: raw.openings.map((opening) => (opening.id === target ? { ...opening, kind, swing } : opening)),
+  });
+}
+
+describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
+  it.each<[FurnitureKind, ObjectSubtype]>([
+    ['bed', 'bed'],
+    ['table', 'otherFurniture'],
+    ['chair', 'otherFurniture'],
+    ['sanitaryFixture', 'otherFurniture'],
+    ['wardrobe', 'otherFurniture'],
+    ['kitchenCabinet', 'otherFurniture'],
+    ['stair', 'otherFurniture'],
+    ['other', 'otherFurniture'],
+  ])('nội thất kind %s không có dòng mẫu hiện ra với loại con %s — không bị ẩn', (kind, subtype) => {
+    const objects = objectsOf(sampleGraphWith(freeFurniture(kind)), OBJECT_LAYER_SAMPLE_LEVEL);
+    const found = objects.find((object) => object.entityId === FREE_FURNITURE_ID);
+
+    expect(objects).toHaveLength(OBJECT_LAYER_FIXTURE_OBJECTS.length + 1);
+    expect(found?.layer).toBe('furniture');
+    expect(found?.subtype).toBe(subtype);
+    expect(found?.hostWallId).toBeNull();
+  });
+
+  const SWINGS: readonly SwingDirection[] = ['left', 'right', 'double', 'sliding', 'fixed'];
+
+  it.each(
+    (['door', 'window'] as const).flatMap((kind) => SWINGS.map((swing) => [kind, swing] as const)),
+  )('ô mở kind %s, swing %s đọc ra đúng loại con từ đồ thị', (kind, swing) => {
+    const object = objectsOf(sampleGraphWithOpening(kind, swing), OBJECT_LAYER_SAMPLE_LEVEL).find(
+      (candidate) => candidate.entityId === entityIdOf('D-001', 'door'),
+    );
+    const expected: ObjectSubtype = kind === 'window' ? 'window' : swing === 'double' ? 'doubleDoor' : 'singleDoor';
+
+    expect(object?.subtype).toBe(expected);
+    expect(object?.id).toBe('D-001');
+  });
+
+  it('tầng L-LEVEL000001 của bộ mẫu A14, không dòng mẫu: 9 đối tượng, 0 đã duyệt, không D-009, mã không trùng', () => {
+    const graph = normalizeSpatial(createSampleBuilding());
+    const level = graph.byId[sampleLevelId(1)] as Level;
+    const objects = objectsOf(graph, level, []);
+    const ids = objects.map((object) => object.id);
+
+    console.log(`A14 tầng 1: ${ids.join(', ')}`);
+    expect(objects).toHaveLength(9);
+    expect(countsOf(objects)).toEqual({ doorCount: 2, windowCount: 2, furnitureCount: 5, total: 9 });
+    expect(reviewCounterOf(objects)).toEqual({ reviewed: 0, total: 9 });
+    expect(ids).not.toContain('D-009');
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id.startsWith('S-'))).toHaveLength(2);
+
+    for (const object of objects) {
+      expect(graph.byId[object.entityId]).toBeDefined();
+    }
+  });
+
+  it('mô tả lệnh duyệt in mã hiển thị ("D-001"), không in mã máy ("DOOR")', () => {
+    const graph = normalizeSpatial(createSampleBuilding());
+    const level = graph.byId[sampleLevelId(1)] as Level;
+    const door = objectsOf(graph, level, []).find((object) => object.layer === 'door');
+    const entity = graphOpeningsOf(graph).find((opening) => opening.id === door?.entityId);
+
+    expect(door?.id).toBe('D-001');
+
+    const command = buildApproveObjectCommand(
+      entity as NonNullable<typeof entity>,
+      'test-actor',
+      (door as ReviewObject).id,
+    );
+
+    expect(command.description).toContain('D-001');
+    expect(command.description).not.toContain('DOOR');
+  });
+
+  it('bàn đứng tự do cách tường 2.000 mm: không bị tô chú ý, vẽ đúng ở tâm, duyệt và xoá được', async () => {
+    const gateway = createMockObjectLayerReviewGateway({ graph: sampleGraphWith(freeFurniture('table')) });
+    const mounted = await mountSettled({ gateway });
+    const table = (): ReviewObject | undefined =>
+      mounted.result.current.objects.find((object) => object.entityId === FREE_FURNITURE_ID);
+    const id = (table() as ReviewObject).id;
+
+    expect(id).toMatch(/^F-\d{3}$/u);
+    expect(mounted.result.current.counts.total).toBe(OBJECT_LAYER_FIXTURE_OBJECTS.length + 1);
+
+    await run(() => mounted.result.current.onToggleLowConfidenceOnly());
+    const row = mounted.result.current.rows.find((candidate) => candidate.id === id);
+
+    expect(row?.statusCode).not.toBe('attention');
+    expect(row?.isOrphan).toBe(false);
+    expect(row?.hostWallLabel).toBeNull();
+
+    const placement = mounted.result.current.placements.find((candidate) => candidate.id === id);
+
+    expect(placement?.centrePx).toEqual(
+      toPixelPoint(FREE_FURNITURE_CENTRE, scaleOfLevel(OBJECT_LAYER_SAMPLE_LEVEL)),
+    );
+    expect(placement?.isOrphan).toBe(false);
+
+    await run(() => mounted.result.current.onSelect(id));
+    expect(mounted.result.current.selectedObjectId).toBe(id);
+    expect(mounted.result.current.inspector?.isOrphan).toBe(false);
+
+    await run(() => mounted.result.current.onApprove(id));
+    await waitFor(() => {
+      expect(table()?.reviewed).toBe(true);
+    });
+
+    await run(() => mounted.result.current.onDelete(id));
+    await waitFor(() => {
+      expect(table()).toBeUndefined();
+    });
+    expect(useStore.getState().spatial?.byId[FREE_FURNITURE_ID]).toBeUndefined();
+
+    mounted.unmount();
+  });
+
+  it('gắn D-009 vào tường trên cổng giả: tổng không đổi, D-009 đọc từ đồ thị đúng một lần', async () => {
+    /* Đồ thị mà `W-008` còn trống — xem bài "dựng được lệnh khi tường gợi ý còn trống". */
+    const freeSeed = OBJECT_LAYER_SEED.filter((entry) => entry.displayId !== 'D-008');
+    const gateway = createMockObjectLayerReviewGateway({
+      graph: buildObjectLayerGraph(freeSeed),
+      seed: freeSeed,
+    });
+    const mounted = await mountSettled({ gateway });
+    const before = mounted.result.current.counts.total;
+
+    await run(() => mounted.result.current.onAttachToNearestWall(ORPHAN_OBJECT_ID));
+    await waitFor(() => {
+      expect(entityInStore(ORPHAN_OBJECT_ID, 'door')).toBeDefined();
+    });
+
+    const copies = mounted.result.current.objects.filter((object) => object.id === ORPHAN_OBJECT_ID);
+
+    console.log(`tổng trước/sau khi gắn D-009: ${before}/${mounted.result.current.counts.total}`);
+    expect(mounted.result.current.counts.total).toBe(before);
+    expect(copies).toHaveLength(1);
+    expect(copies[0]?.hostWallId).not.toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('cổng thật không mang bảng mẫu — dòng mồ côi D-009 không lọt vào tầng nào', () => {
+    expect(createObjectLayerReviewGateway({ apiClient: {} as never }).seed).toEqual([]);
   });
 });
