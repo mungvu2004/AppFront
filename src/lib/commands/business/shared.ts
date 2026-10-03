@@ -33,7 +33,7 @@ import { describeOpeningKind, clampRelativePosition } from '@/domain/openings/ty
 import type { AttachedOpening, RelativePosition } from '@/domain/openings/types';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { EntityKind, IdByKind } from '@/domain/spatial/ids';
-import { isEntityOfKind, type EntityByKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, type EntityByKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   FurnitureKind,
   Level,
@@ -222,9 +222,9 @@ export const FURNITURE_KINDS: readonly FurnitureKind[] = [
   'other',
 ];
 
-/** "cửa đi D-3", for the middle of a sentence. */
-export const nameOfOpening = (opening: GraphOpening): string =>
-  `${describeOpeningKind(opening.kind).toLowerCase()} ${opening.id}`;
+/** "cửa đi #D-003", for the middle of a sentence. */
+export const nameOfOpening = (opening: GraphOpening, graph: NormalizedSpatial): string =>
+  `${describeOpeningKind(opening.kind).toLowerCase()} ${displayCodeIn(graph, opening.id)}`;
 
 /* -------------------------------------------------------------------------- */
 /* Numbers, as Vietnamese reads them.                                          */

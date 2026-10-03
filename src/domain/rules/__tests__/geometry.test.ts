@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeSpatial } from '../../spatial/normalize';
+import { displayCodeIn, normalizeSpatial } from '../../spatial/normalize';
 import type {
   Furniture,
   FurnitureId,
@@ -470,13 +470,14 @@ describe('the geometry group', () => {
   });
 
   it('gives every one of them an entity code, a sentence with numbers and a fix', () => {
-    const result = runRules(normalizeSpatial(createFaultyPlan()), {
+    const graph = normalizeSpatial(createFaultyPlan());
+    const result = runRules(graph, {
       registry: createRuleRegistry(GEOMETRY_RULES),
     });
 
     for (const found of result.violations) {
       expect(found.entityId).toMatch(/^[A-Z]-[0-9A-Z]{10,}$/);
-      expect(found.message).toContain(found.entityId);
+      expect(found.message).toContain(displayCodeIn(graph, found.entityId));
       expect(found.message).toMatch(/\d/);
       expect(found.message.trim().endsWith('.')).toBe(true);
       expect(found.suggestion.trim().endsWith('.')).toBe(true);
@@ -563,7 +564,7 @@ describe('wall ends joined to nothing', () => {
     expect(found[0]?.relatedIds).toEqual([FIRST_STUB, FIRST_COLUMN]);
     expect(found[0]?.message).toContain('(700; 3.000)');
     expect(found[0]?.message).toContain(lengthText(190));
-    expect(found[0]?.suggestion).toContain(FIRST_COLUMN);
+    expect(found[0]?.suggestion).toContain(displayCodeIn(normalizeSpatial(createFaultyPlan()), FIRST_COLUMN));
   });
 
   it('reports both ends of a wall standing on its own', () => {
@@ -863,7 +864,7 @@ describe('load-bearing walls standing on air', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('50%');
-    expect(found[0]?.message).toContain(wallId('WBASEA'));
+    expect(found[0]?.message).toContain(displayCodeIn(normalizeSpatial(plan), wallId('WBASEA')));
     expect(MIN_SUPPORT_SHARE).toBeGreaterThan(0.5);
   });
 });

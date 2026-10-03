@@ -320,44 +320,33 @@ test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn v�
 });
 
 /* -------------------------------------------------------------------------- */
-/* Nợ đã ghi.                                                                  */
+/* Câu lệnh gọi phòng bằng mã của danh sách; hoàn tác giữ vùng chọn.            */
 /* -------------------------------------------------------------------------- */
 
-test.fixme(
-  'bơm bộ mẫu: toast đổi tên gọi phòng bằng mã hiển thị #R-001, không lộ mã máy R-000001ROOM (B-V7-05, A6)',
-  /*
-   * Lý do fixme: mô tả lệnh dựng từ `room.id` (`roomFloorCommands.ts:230`) — và cùng khuôn
-   * ấy lặp ở ~40 câu của `src/lib/commands/business/*`, cùng họ W-3 của tường (nhóm V6).
-   * Một bộ định dạng mã hiển thị dùng chung cho tầng lệnh phải được chốt một lần cho cả
-   * hai nhóm, không vá riêng câu đổi tên phòng.
-   * Mở lại khi: tầng lệnh có hàm mã hiển thị dùng chung và câu đổi tên phòng dùng nó.
-   */
-  async ({ page }) => {
-    await openSeeded(page);
+/*
+ * Trước bản sửa câu lệnh dựng từ `room.id` (`roomFloorCommands.ts`): toast nói
+ * "Đổi tên phòng R-000001ROOM…" trong khi hàng gọi phòng ấy là #R-001 (B-V7-05).
+ */
+test('bơm bộ mẫu: toast đổi tên gọi phòng bằng mã hiển thị #R-001, không lộ mã máy R-000001ROOM (B-V7-05, A6)', async ({
+  page,
+}) => {
+  await openSeeded(page);
 
-    await renameFirstRoom(page);
+  await renameFirstRoom(page);
 
-    await expect(toast(page)).toContainText(`Đổi tên phòng ${FIRST_ROOM.code.slice(1)} từ`);
-    await expect(toast(page)).not.toContainText('R-000001ROOM');
-  },
-);
+  await expect(toast(page)).toContainText(`Đổi tên phòng ${FIRST_ROOM.code} từ`);
+  await expect(toast(page)).not.toContainText('R-000001ROOM');
+});
 
-test.fixme(
-  'bơm bộ mẫu: hoàn tác đổi tên bằng toast giữ nguyên phòng đang chọn (B-V7-09)',
-  /*
-   * Lý do fixme: vé hoàn tác trả vùng chọn về `selectionBeforeRef` — vùng chọn TRƯỚC lần
-   * chọn phòng gần nhất (`useRoomLabelReview.ts`, `onSelect`), không phải vùng chọn lúc
-   * chạy lệnh. Đổi tên #R-001 rồi bấm "Hoàn tác" thì tên về đúng nhưng thanh tra đóng
-   * lại vì #R-001 bị bỏ chọn. Cùng khuôn `selectionBefore` có ở các màn QC anh em (tường,
-   * độ dày) — sửa một chỗ chung, không vá riêng màn phòng.
-   * Mở lại khi: `selectionBefore` của tầng lệnh là vùng chọn lúc lệnh chạy.
-   */
-  async ({ page }) => {
-    await openSeeded(page);
+/*
+ * Trước bản sửa vé hoàn tác trả vùng chọn TRƯỚC lần chọn phòng gần nhất, không phải
+ * vùng chọn lúc chạy lệnh: tên về đúng nhưng #R-001 bị bỏ chọn, thanh tra đóng (B-V7-09).
+ */
+test('bơm bộ mẫu: hoàn tác đổi tên bằng toast giữ nguyên phòng đang chọn (B-V7-09)', async ({ page }) => {
+  await openSeeded(page);
 
-    await renameFirstRoom(page);
-    await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
+  await renameFirstRoom(page);
+  await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 
-    await expect(nameField(page)).toHaveValue(FIRST_ROOM.name);
-  },
-);
+  await expect(nameField(page)).toHaveValue(FIRST_ROOM.name);
+});

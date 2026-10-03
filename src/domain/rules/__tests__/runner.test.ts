@@ -10,7 +10,7 @@ import {
   sampleWallId,
 } from '../../spatial/__fixtures__/sampleBuilding';
 import { isValidId } from '../../spatial/ids';
-import { normalizeSpatial, type NormalizedSpatial } from '../../spatial/normalize';
+import { displayCodeIn, normalizeSpatial, type NormalizedSpatial } from '../../spatial/normalize';
 import type { LevelId, Room, RoomId, SpatialGraph, Wall, WallId } from '../../spatial/types';
 import { ALL_RULES, createDefaultRuleRegistry } from '../defaults';
 import { SUPERSEDED_BUILT_IN_CODES } from '../function';
@@ -330,11 +330,15 @@ describe('a violation', () => {
   });
 
   it('always names an entity code that exists in the model', () => {
+    const graph = normalizedSample();
+
     expect(result.violations.length).toBeGreaterThan(0);
 
     for (const found of result.violations) {
       expect(isValidId(found.entityId)).toBe(true);
-      expect(found.message).toContain(found.entityId);
+      // The sentence names it the way the lists do, never by its machine id (B-V7-05).
+      expect(found.message).toContain(displayCodeIn(graph, found.entityId));
+      expect(found.message).not.toContain(found.entityId);
     }
   });
 

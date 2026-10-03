@@ -26,7 +26,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyPatch } from '@/domain/spatial/applyPatch';
 import { checkIntegrity } from '@/domain/spatial/integrity';
-import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Dimension,
   Furniture,
@@ -905,8 +905,8 @@ describe('wall commands', () => {
     const reasons = validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: 2000 }, context);
 
     expect(reasons).toHaveLength(2);
-    expect(reasons.join(' ')).toContain(FRONT_DOOR);
-    expect(reasons.join(' ')).toContain(FRONT_WINDOW);
+    expect(reasons.join(' ')).toContain(displayCodeIn(baseGraph, FRONT_DOOR));
+    expect(reasons.join(' ')).toContain(displayCodeIn(baseGraph, FRONT_WINDOW));
     expect(reasons.join(' ')).toContain('còn thiếu 200 mm');
     expect(reasons.join(' ')).toContain('còn thiếu 300 mm');
   });
@@ -918,8 +918,8 @@ describe('wall commands', () => {
     );
 
     expect(reasons).toHaveLength(1);
-    expect(reasons.join(' ')).toContain(FRONT_WINDOW);
-    expect(reasons.join(' ')).not.toContain(FRONT_DOOR);
+    expect(reasons.join(' ')).toContain(displayCodeIn(baseGraph, FRONT_WINDOW));
+    expect(reasons.join(' ')).not.toContain(displayCodeIn(baseGraph, FRONT_DOOR));
     expect(reasons.join(' ')).toContain('còn thiếu 50 mm');
     expect(baseGraph.byId[FRONT_WINDOW]).toMatchObject({ heightMm: 1400, sillHeightMm: 900 });
   });
@@ -1182,10 +1182,20 @@ describe('opening and furniture commands', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('room and level commands', () => {
+  it('names the room by the code its list shows, not by its machine id (B-V7-05)', () => {
+    const command = expectCommand(
+      createRenameRoomCommand({ roomId: LEFT_ROOM, name: 'Phòng đọc sách' }, context),
+    );
+
+    expect(command.description).toContain(`Đổi tên phòng ${displayCodeIn(baseGraph, LEFT_ROOM)} từ`);
+    expect(command.description).not.toContain(LEFT_ROOM);
+  });
+
+
   it('refuses a name another room on the same level already carries', () => {
     expect(
       validateRenameRoom({ roomId: LEFT_ROOM, name: 'Phòng ngủ phải' }, context).join(' '),
-    ).toContain(RIGHT_ROOM);
+    ).toContain(displayCodeIn(baseGraph, RIGHT_ROOM));
   });
 
   it('measures the merged room from the outline it was given', () => {

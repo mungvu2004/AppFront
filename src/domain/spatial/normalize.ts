@@ -15,7 +15,7 @@
  * This module only reshapes data. No geometry, no derived measurements.
  */
 
-import { isIdOfKind, type EntityKind } from './ids';
+import { displayCodesOf, ID_PREFIX_BY_KIND, isIdOfKind, type EntityKind } from './ids';
 import type {
   Axis,
   Building,
@@ -229,3 +229,34 @@ export const denormalizeSpatial = (normalized: NormalizedSpatial): SpatialGraph 
 /** Reads the ids placed on a level; returns a shared empty array when unknown. */
 export const idsOnLevel = (normalized: NormalizedSpatial, levelId: LevelId): readonly EntityId[] =>
   normalized.byLevel[levelId] ?? NO_IDS;
+
+/**
+ * `#R-001` — the code a person reads for one entity, the same one its QC list shows:
+ * `displayCodesOf` over every entity of the same kind on the same level (levels:
+ * over every level), which is how the list screens number their rows. Sentences
+ * the command layer and the rules write go through this, so a toast and the row
+ * it talks about never name the entity two ways. An id the graph does not hold
+ * (a refusal naming a missing entity) falls back to the counter rule alone.
+ *
+ * ponytail: rebuilds the sibling table per call, O(n log n) per sentence; memoise
+ * per graph if a rule pass naming hundreds of entities shows up in a profile.
+ */
+export const displayCodeIn = (graph: NormalizedSpatial, id: string): string => {
+  const entity = graph.byId[id];
+  const kind = (Object.keys(ID_PREFIX_BY_KIND) as EntityKind[]).find(
+    (candidate) => ID_PREFIX_BY_KIND[candidate] === id.slice(0, 1),
+  );
+
+  if (entity === undefined || kind === undefined) {
+    return `#${displayCodesOf([id]).get(id) ?? id}`;
+  }
+
+  const levelId = resolveLevelId(entity, graph.byId);
+  const siblings = graph.byKind[kind].filter((other) => {
+    const sibling = graph.byId[other];
+
+    return sibling !== undefined && resolveLevelId(sibling, graph.byId) === levelId;
+  });
+
+  return `#${displayCodesOf(siblings).get(id) ?? id}`;
+};

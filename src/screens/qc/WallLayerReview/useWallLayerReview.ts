@@ -130,6 +130,7 @@ import type {
 } from '@/lib/tools/toolMachine';
 import { TOOLS } from '@/lib/tools/tools';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -718,14 +719,13 @@ export function useWallLayerReview(
 
   const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
   selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
   const dispatchBundle = useMemo(
     () =>
       createWallLayerDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
@@ -754,7 +754,6 @@ export function useWallLayerReview(
 
   const pushSelection = useCallback(
     (next: readonly EntityId[]) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection([...next]);
       /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
       channel.push([...next]);
@@ -886,13 +885,13 @@ export function useWallLayerReview(
       /* Tự chuyển mục: tìm tường chưa duyệt kế tiếp TRƯỚC khi tường này đổi cờ. */
       const nextId = nextUnreviewedWallId(walls, wallId);
 
-      void run(() => buildApproveWallCommand(wall, gateway.actorId)).then(() => {
+      void run(() => buildApproveWallCommand(wall, gateway.actorId, wallCodes)).then(() => {
         if (nextId !== null && nextId !== wallId) {
           onSelect(nextId);
         }
       });
     },
-    [gateway, onSelect, run, wallById, walls],
+    [gateway, onSelect, run, wallById, wallCodes, walls],
   );
 
   const onSkip = useCallback(

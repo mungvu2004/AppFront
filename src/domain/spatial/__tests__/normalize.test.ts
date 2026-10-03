@@ -10,13 +10,16 @@ import {
   SAMPLE_ROOM_COUNT,
   SAMPLE_WALL_COUNT,
   SAMPLE_WINDOW_COUNT,
+  sampleDoorId,
   sampleLevelId,
   sampleRoomId,
+  sampleWindowId,
   sampleWallId,
 } from '../__fixtures__/sampleBuilding';
 import { applyPatch, readEntity, type SpatialPatch } from '../applyPatch';
 import {
   denormalizeSpatial,
+  displayCodeIn,
   idsOnLevel,
   normalizeSpatial,
   type NormalizedSpatial,
@@ -310,5 +313,27 @@ describe('applyPatch', () => {
     expect(rebuilt.walls.map((item) => item.id)).toEqual(graph.walls.map((item) => item.id));
     expect(rebuilt.walls[0]?.thicknessMm).toBe(330);
     expect(normalizeSpatial(rebuilt).byId[wall.id]).toEqual(patched.byId[wall.id]);
+  });
+});
+
+describe('displayCodeIn', () => {
+  const graph = normalizeSpatial(buildGraph());
+
+  it('numbers each kind per level, the way the QC lists do, never the machine id (B-V7-05)', () => {
+    // A14 ids carry no counter up front, so each level is numbered in id order.
+    expect(displayCodeIn(graph, roomIdAt(0))).toBe('#R-001');
+    expect(displayCodeIn(graph, roomIdAt(4))).toBe('#R-002');
+    // Another level starts its own count.
+    expect(displayCodeIn(graph, roomIdAt(1))).toBe('#R-001');
+    expect(displayCodeIn(graph, levelIdAt(3))).toBe('#L-004');
+  });
+
+  it('places an opening on the level of its wall, doors and windows in one count', () => {
+    expect(displayCodeIn(graph, sampleDoorId(0))).toBe('#D-001');
+    expect(displayCodeIn(graph, sampleWindowId(0))).toBe('#D-003');
+  });
+
+  it('keeps the counter a createId id carries, even for an id the graph does not hold', () => {
+    expect(displayCodeIn(graph, 'R-000005ROOMABCD')).toBe('#R-005');
   });
 });
