@@ -43,7 +43,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/client';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import {
   sampleDoorId,
   sampleFurnitureId,
@@ -930,7 +930,11 @@ describe('[N6] chiều cao tường', () => {
     expect(before).not.toBe(HEIGHT_ACCEPTED_MM);
     expect(afterAccepted).toBe(HEIGHT_ACCEPTED_MM);
     expect(afterRefused).toBe(HEIGHT_ACCEPTED_MM);
-    expect(refusalSentence).toContain(HEIGHT_DOOR_ID);
+    /* Câu gọi cửa bằng mã của danh sách, không bằng mã máy (B-V7-05). */
+    const graphNow = useStore.getState().spatial;
+    expect(graphNow).not.toBeNull();
+    expect(refusalSentence).toContain(displayCodeIn(graphNow as NonNullable<typeof graphNow>, HEIGHT_DOOR_ID));
+    expect(refusalSentence).not.toContain(HEIGHT_DOOR_ID);
     expect(refusalSentence).toContain(String(headMm - HEIGHT_REFUSED_MM));
   });
 });
