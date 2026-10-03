@@ -46,39 +46,6 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 
 | Trạng thái | Số mục |
 |---|---|
-| đã sửa | 77 |
-| chờ quyết | 20 |
-| không phải lỗi | 22 |
-| ngoài FE | 8 |
-| mở | 2 |
-| **cộng** | **129** |
-
-## Tổng
-
-| Trạng thái | Số mục |
-|---|---|
-| đã sửa | 80 |
-| chờ quyết | 20 |
-| không phải lỗi | 22 |
-| ngoài FE | 8 |
-| mở | 1 |
-| **cộng** | **131** |
-
-## Tổng
-
-| Trạng thái | Số mục |
-|---|---|
-| đã sửa | 97 |
-| không phải lỗi | 24 |
-| ngoài FE | 9 |
-| mở | 16 |
-| đã quyết | 1 |
-| **cộng** | **147** |
-
-## Tổng
-
-| Trạng thái | Số mục |
-|---|---|
 | đã sửa | 97 |
 | không phải lỗi | 24 |
 | ngoài FE | 9 |
@@ -99,26 +66,26 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-G-07 | Mọi lượt lưu lớp không gian lên máy chủ thật trả 405 — FE gửi PATCH, BE chỉ có PUT | đã sửa | cao | khung |
 | B-V1-01 | Mở thẳng một đường chết rồi bấm "quay lại" thì bị đưa ra khỏi ứng dụng | đã sửa | cao | khung |
 | B-V1-02 | Đăng nhập với `?next=/login` bỏ người dùng lại trước biểu mẫu trống; `/\evil` lọt bộ lọc đích | đã sửa | trung bình | khung |
-| B-V1-03 | Bản điện thoại `/m/du-an/:projectId` luôn nói "chưa có mô hình để xem" | đã sửa | cao | I6 |
-| B-V1-04 | Cờ "đã xem màn chào" được ghi mà không ai đọc — mở lại `/onboarding` vẫn là màn chào | đã sửa | thấp | I3 |
-| B-V1-05 | Màn "không có quyền" `/khong-co-quyen` không ai dẫn tới | ngoài FE | thấp | I3 |
-| B-V1-06 | Nhãn login/onboarding viết hoa đầu câu, ba màn hệ thống viết thường hoàn toàn | đã sửa | thấp | I5 |
+| B-V1-03 | Bản điện thoại `/m/du-an/:projectId` luôn nói "chưa có mô hình để xem" | đã sửa | cao | khung |
+| B-V1-04 | Cờ "đã xem màn chào" được ghi mà không ai đọc — mở lại `/onboarding` vẫn là màn chào | đã sửa | thấp | khung |
+| B-V1-05 | Màn "không có quyền" `/khong-co-quyen` không ai dẫn tới | ngoài FE | thấp | khung |
+| B-V1-06 | Nhãn login/onboarding viết hoa đầu câu, ba màn hệ thống viết thường hoàn toàn | đã sửa | thấp | khung |
 | B-V1-07 | `/login/invitation/*` và `/login/reset-password/*` ra màn 404 | không phải lỗi | — | khung |
 | B-V1-08 | `role="status"` rỗng và 404 trên màn không có quyền | không phải lỗi | — | khung |
 | B-V1-09 | Chữ nhân đôi trong `textContent` của nút ("Đăng nhậpĐăng nhập") | không phải lỗi | — | khung |
 | B-V1-10 | Canvas của bản điện thoại không có mốc neo | không phải lỗi | — | khung |
-| B-V1-11 | Tầng chưa có hình bị gắn "chưa tải"/mạng yếu; quy tắc `empty` của bản máy tính lệch bản điện thoại | mở | trung bình | I6 |
-| B-V1-12 | Khoá `project.detail(id)` mang ba hình dữ liệu; đi `/3d` rồi sang `/m/du-an` thì ném lỗi | mở | trung bình | I6 |
-| B-V1-41 | Câu `skipNotice` hứa "xem lại trong menu trợ giúp", nhưng menu đó không tồn tại | mở | thấp | I3 |
-| B-V1-42 | Người đăng nhập lần đầu không được dẫn tới `/onboarding` | mở | thấp | I3 |
-| B-V1-43 | Người ngoài dự án mở `/3d` ra trạng thái `error` thay vì màn không-tìm-thấy | mở | thấp | I3 |
-| B-V1-44 | Chuỗi dùng chung `vi.json:2-72` viết hoa, và mẫu dữ liệu NotFound lệch khỏi hook | mở | thấp | I5 |
+| B-V1-11 | Tầng chưa có hình bị gắn "chưa tải"/mạng yếu; quy tắc `empty` của bản máy tính lệch bản điện thoại | mở | trung bình | khung |
+| B-V1-12 | Khoá `project.detail(id)` mang ba hình dữ liệu; đi `/3d` rồi sang `/m/du-an` thì ném lỗi | mở | trung bình | khung |
+| B-V1-41 | Câu `skipNotice` hứa "xem lại trong menu trợ giúp", nhưng menu đó không tồn tại | mở | thấp | khung |
+| B-V1-42 | Người đăng nhập lần đầu không được dẫn tới `/onboarding` | mở | thấp | khung |
+| B-V1-43 | Người ngoài dự án mở `/3d` ra trạng thái `error` thay vì màn không-tìm-thấy | mở | thấp | khung |
+| B-V1-44 | Chuỗi dùng chung `vi.json:2-72` viết hoa, và mẫu dữ liệu NotFound lệch khỏi hook | mở | thấp | khung |
 | B-V2-01 | Tour hướng dẫn không hiện khi người dùng lần đầu mở màn; nó bật lên giữa chừng ở cú bấm/resize sau | đã sửa | cao | khung |
 | B-V2-02 | Sau "Đánh dấu tất cả đã đọc", trình đọc màn hình nghe "không có thông báo nào" trong khi danh sách vẫn còn | đã sửa | trung bình | khung |
 | B-V2-03 | Tấm trượt thông báo là một "hộp thoại" không tên | đã sửa | trung bình | khung |
 | B-V2-04 | Bấm một thông báo ở `/thong-bao` đưa người dùng về danh sách dự án thay vì màn của thông báo | đã sửa | cao | khung |
 | B-V2-05 | Chip "xem hướng dẫn" che nút của màn chủ ("chia sẻ", "Góc nhìn sẵn") | đã sửa | trung bình | khung |
-| B-V2-06 | "Đánh dấu tất cả đã đọc" không có toast/Hoàn tác | đã sửa | thấp | I4 |
+| B-V2-06 | "Đánh dấu tất cả đã đọc" không có toast/Hoàn tác | đã sửa | thấp | khung |
 | B-V3-01 | Bảng điều khiển đọc trạng thái màn bằng tiếng Anh cho trình đọc màn hình | đã sửa | trung bình | khung |
 | B-V3-02 | Mở lại hộp thoại tạo dự án thì nó đứng ở bước 3 với dự án vừa tạo; "bỏ thay đổi" không bỏ gì | đã sửa | cao | khung |
 | B-V3-03 | Ô đổi tên dự án tại chỗ không có tên truy cập | đã sửa | thấp | khung |
@@ -126,7 +93,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V3-05 | Xoá dự án xong, danh sách dự án không báo gì (F4) | đã sửa | trung bình | khung |
 | B-V3-06 | "Thu hồi" liên kết chia sẻ gửi ngay, không hỏi (F2) | đã sửa | cao | khung |
 | B-V3-07 | Mọi toast của hộp thoại chia sẻ câm trên route thật (gồm Hoàn tác của "đổi quyền") | đã sửa | trung bình | khung |
-| B-V3-08 | Nút chuông "Thông báo" ở danh sách dự án không làm gì | đã sửa | trung bình | I4 |
+| B-V3-08 | Nút chuông "Thông báo" ở danh sách dự án không làm gì | đã sửa | trung bình | khung |
 | B-V3-09 | Mỗi lượt tải `/export` đọc danh sách liên kết chia sẻ dù hộp thoại đóng | đã sửa | thấp | khung |
 | B-V4-01 | Màn xử lý luôn "Chưa có bước nào để theo dõi", dù dự án có bản vẽ | đã sửa | cao | khung |
 | B-V4-02 | "Tiếp tục xử lý" đi tiếp dù ô xác nhận mức Kém chưa tích | đã sửa | trung bình | khung |
@@ -136,7 +103,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V4-06 | Tệp `.dwg` kéo thả vào qua được kiểm tra nhưng bộ mẫu dev không trả 422 | ngoài FE | thấp | khung |
 | B-V4-07 | Menu thẻ tải lên không nói mở/đóng, và mở ra bảng rỗng ở tầng có bản vẽ sẵn | đã sửa | thấp | khung |
 | B-V4-08 | Bản vẽ vừa tải lên không hiện ở màn xử lý trên môi trường dev | ngoài FE | thấp | khung |
-| B-V4-09 | A9 và xác nhận inline ở "Huỷ xử lý" / "Bỏ qua tầng đó" | đã quyết | thấp | I4 |
+| B-V4-09 | A9 và xác nhận inline ở "Huỷ xử lý" / "Bỏ qua tầng đó" | đã quyết | thấp | khung |
 | B-V4-10 | Màn xử lý mở luồng SSE `/api/streams/projects/:id/uploads/:uploadId/progress` → 404 ở dev | ngoài FE | thấp | khung |
 | B-V4-11 | Bấm "Hoàn tác" xong, toast ở lại mãi và che nút chính | đã sửa | trung bình | khung |
 | B-V5-01 | "Áp dụng tỷ lệ" bấm không làm gì, không nói gì | đã sửa | cao | khung |
@@ -152,7 +119,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V6-01 | Bảy màn QC treo skeleton / rỗng vĩnh viễn — cổng đọc lại chính cái kho rỗng | đã sửa | cao | khung |
 | B-V6-02 | Toast xoá tường lộ mã máy `W-000001WALL` trong khi danh sách gọi nó `#W-001` | đã sửa | trung bình | khung |
 | B-V6-03 | Màn QC không bao giờ tự lưu; "Có thay đổi chưa lưu" ở lại mãi | đã sửa | cao | khung |
-| B-V6-04 | Nhãn A6 không nhất quán trong nhóm: "Ẩn lớp Tường" viết hoa giữa câu | đã sửa | thấp | I5 |
+| B-V6-04 | Nhãn A6 không nhất quán trong nhóm: "Ẩn lớp Tường" viết hoa giữa câu | đã sửa | thấp | khung |
 | B-V6-05 | Ghi chú lớp 1 ghi "NOT FOUND" cho ba chuỗi có thật (P4) | không phải lỗi | — | khung |
 | B-V6-06 | Vùng trạng thái biến mất sau `Ctrl+Z` ở màn kích thước (F6/P7) | không phải lỗi | — | khung |
 | B-V6-07 | Mô tả ảnh nền "Bản vẽ gốc của L-000001LVL0" lộ mã tầng | không phải lỗi | — | khung |
@@ -161,11 +128,11 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V6-10 | Màn đối tượng: ba nút "chọn nhóm" bị khoá cho tới khi đã chọn một nhóm bằng bàn phím | đã sửa | trung bình | khung |
 | B-V6-11 | Màn tường: Escape không bỏ chọn, không bỏ nét đang vẽ dở | đã sửa | trung bình | khung |
 | B-V6-12 | Ray công cụ tường/đối tượng không nói công cụ nào đang bật (`aria-pressed` vắng) | đã sửa | thấp | khung |
-| B-V6-13 | Màn đối tượng chỉ hiện đối tượng có trong bảng mẫu cứng; dữ liệu thật vô hình | đã sửa | cao | I2 |
+| B-V6-13 | Màn đối tượng chỉ hiện đối tượng có trong bảng mẫu cứng; dữ liệu thật vô hình | đã sửa | cao | khung |
 | B-V6-14 | Màn trục sẽ luôn rỗng trên BE thật — N16 v1 trả `axes: []` | ngoài FE | trung bình | khung |
-| B-V6-40 | Màn đối tượng: `levelOfGraph` luôn lấy tầng đầu tiên của đồ thị, không theo tầng của URL | mở | trung bình | I2 |
-| B-V6-41 | Màn đối tượng: "thêm thủ công" đề nghị mã cửa kế tiếp chỉ từ bảng mẫu | mở | thấp | I2 |
-| B-V6-42 | Nhãn viết hoa chữ đầu ở các màn QC còn lại | mở | thấp | I5 |
+| B-V6-40 | Màn đối tượng: `levelOfGraph` luôn lấy tầng đầu tiên của đồ thị, không theo tầng của URL | mở | trung bình | khung |
+| B-V6-41 | Màn đối tượng: "thêm thủ công" đề nghị mã cửa kế tiếp chỉ từ bảng mẫu | mở | thấp | khung |
+| B-V6-42 | Nhãn viết hoa chữ đầu ở các màn QC còn lại | mở | thấp | khung |
 | B-V7-01 | Phòng và độ dày tự lưu mà câm | đã sửa | trung bình | khung |
 | B-V7-02 | Lưu thất bại thì câu báo bảo "lưu lại thủ công" — mà không có nút lưu nào | đã sửa | trung bình | khung |
 | B-V7-03 | Mở lại hộp thoại "Gộp hai phòng" ở phòng khác thì ứng viên cũ vẫn được chọn ngầm, nút xác nhận bật | đã sửa | trung bình | khung |
@@ -184,44 +151,44 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V7-21 | Màn tầng nói "chưa có tầng nào" khi danh sách tầng có bốn tầng (bộ mẫu dev) | ngoài FE | trung bình | khung |
 | B-V7-22 | Kích thước và trục không có đường lưu nào — #35 chỉ nhận bốn danh sách | ngoài FE | cao | khung |
 | B-V7-30 | Hoàn tác giữ phòng đang chọn nhưng ô "Tên phòng" vẫn hiện tên vừa bị hoàn tác | đã sửa | thấp | khung |
-| B-V7-31 | Báo cáo luật: chip của hàng vi phạm và tấm chi tiết in mã máy (`D-DOOR0000000`) trong khi câu luật nói `#D-001` | đã sửa | thấp | I1 |
-| B-V7-41 | Bộ mẫu màn quản lý tầng khai 7,31 m² mỗi phòng nhưng đường bao đo 17,00 | mở | thấp | I6 |
-| B-V7-42 | Mã có tiền tố loại nhưng không có thực thể ra nhãn rác (`W-MISSING1AA` → `#W-MISSIN`) | mở | thấp | I1 |
+| B-V7-31 | Báo cáo luật: chip của hàng vi phạm và tấm chi tiết in mã máy (`D-DOOR0000000`) trong khi câu luật nói `#D-001` | đã sửa | thấp | khung |
+| B-V7-41 | Bộ mẫu màn quản lý tầng khai 7,31 m² mỗi phòng nhưng đường bao đo 17,00 | mở | thấp | khung |
+| B-V7-42 | Mã có tiền tố loại nhưng không có thực thể ra nhãn rác (`W-MISSING1AA` → `#W-MISSIN`) | mở | thấp | khung |
 | B-V8-01 | Thu phóng (cuộn chuột và nút "Phóng to") chết ở 3/4 góc nhìn 3D | đã sửa | cao | khung |
 | B-V8-02 | Nút ray tầng hiện mã máy `L-01FIXTURE0` thay cho tên tầng | đã sửa | trung bình | khung |
-| B-V8-03 | Thư viện đồ đạc nói sai lý do "vai chỉ xem" với admin/kỹ sư, và khoá kéo-thả với mọi vai | đã sửa | trung bình | I3 |
-| B-V8-04 | Bảng diện tích và panel thuộc tính trên màn 3D kẹt "đang tải" mãi | đã sửa | cao | I6 |
-| B-V8-05 | Cùng một bức tường mang hai mã: tiêu đề thanh tra `W-0403FIXTURE0`, dải chế độ sửa `W-403FI` | đã sửa | thấp | I1 |
+| B-V8-03 | Thư viện đồ đạc nói sai lý do "vai chỉ xem" với admin/kỹ sư, và khoá kéo-thả với mọi vai | đã sửa | trung bình | khung |
+| B-V8-04 | Bảng diện tích và panel thuộc tính trên màn 3D kẹt "đang tải" mãi | đã sửa | cao | khung |
+| B-V8-05 | Cùng một bức tường mang hai mã: tiêu đề thanh tra `W-0403FIXTURE0`, dải chế độ sửa `W-403FI` | đã sửa | thấp | khung |
 | B-V8-06 | Hai mốc trùng tên "Thanh tra đối tượng" khi có đối tượng đang chọn | đã sửa | thấp | khung |
-| B-V8-07 | Chip lọc lịch sử "AI" viết hoa | không phải lỗi | — | I5 |
+| B-V8-07 | Chip lọc lịch sử "AI" viết hoa | không phải lỗi | — | khung |
 | B-V8-08 | "Hai `role=status` cùng lúc khi dựng xong" (F7) | không phải lỗi | — | khung |
 | B-V8-09 | Tour chắn cú bấm đầu trên màn 3D (F8) | không phải lỗi | — | khung |
-| B-V8-10 | Ba con số "248,60 m²" từ hai bộ mẫu; số hình học của bộ mẫu chuẩn là 238,00 (F9) | đã sửa | thấp | I6 |
+| B-V8-10 | Ba con số "248,60 m²" từ hai bộ mẫu; số hình học của bộ mẫu chuẩn là 238,00 (F9) | đã sửa | thấp | khung |
 | B-V8-11 | Nút "Xong" của chế độ sửa hình học tường bấm không được — ViewCube đè lên | đã sửa | trung bình | khung |
 | B-V8-12 | Kho đổi (hay bấm "Thử lại") thì cảnh 3D chết: "Trình duyệt này chưa xem được mô hình 3D" | đã sửa | cao | khung |
-| B-V8-41 | Đích lưu trên `/3d` không theo tầng của đối tượng đang sửa (N1) | mở | cao | I6 |
-| B-V8-42 | Câu chữ khi rỗng / không có đích lưu nói sai (N2) | mở | trung bình | I6 |
-| B-V8-43 | Nhãn viết hoa trong HistoryPanel | mở | thấp | I5 |
-| B-V8-44 | Tiêu đề cảnh báo ở ViewerInspector viết hoa chữ đầu | mở | thấp | I5 |
-| B-V8-45 | Bộ mẫu vỏ 3D cho nhãn người đọc xấu (`W-403FI`, `R-11FIX`); ô tìm phòng in `room.id` | mở | thấp | I1 |
-| B-V8-46 | Thư viện đồ đạc: dưới 1024 px, nhánh `collapsed` che câu "vai chỉ xem" | mở | thấp | I3 |
+| B-V8-41 | Đích lưu trên `/3d` không theo tầng của đối tượng đang sửa (N1) | mở | cao | khung |
+| B-V8-42 | Câu chữ khi rỗng / không có đích lưu nói sai (N2) | mở | trung bình | khung |
+| B-V8-43 | Nhãn viết hoa trong HistoryPanel | mở | thấp | khung |
+| B-V8-44 | Tiêu đề cảnh báo ở ViewerInspector viết hoa chữ đầu | mở | thấp | khung |
+| B-V8-45 | Bộ mẫu vỏ 3D cho nhãn người đọc xấu (`W-403FI`, `R-11FIX`); ô tìm phòng in `room.id` | mở | thấp | khung |
+| B-V8-46 | Thư viện đồ đạc: dưới 1024 px, nhánh `collapsed` che câu "vai chỉ xem" | mở | thấp | khung |
 | B-V9-01 | Ba màn 3D (tách tầng, đo, đối chiếu) không có lối vào nào từ sản phẩm | đã sửa | trung bình | khung |
 | B-V9-02 | Ở dev, tách tầng và đo hiện khung nhìn rỗng (canvas 300×150, "0 tầng") trong khi `/3d` có nhà bốn tầng | đã sửa | trung bình | khung |
 | B-V9-03 | Nút "thoát chế độ đo (phím Esc)" không thoát chế độ đo | đã sửa | thấp | khung |
-| B-V9-04 | Vai Người xem: phím M không vào chế độ đo, và vào bằng nút "bật tắt công cụ đo" thì ray không nút nào sáng | đã sửa | thấp | I1 |
-| B-V9-05 | Hai câu "không có quyền" cạnh nhau ở tách tầng viết tên vai khác nhau | đã sửa | thấp | I5 |
+| B-V9-04 | Vai Người xem: phím M không vào chế độ đo, và vào bằng nút "bật tắt công cụ đo" thì ray không nút nào sáng | đã sửa | thấp | khung |
+| B-V9-05 | Hai câu "không có quyền" cạnh nhau ở tách tầng viết tên vai khác nhau | đã sửa | thấp | khung |
 | B-V9-06 | Từ `/3d` (nhà bốn tầng) sang đối chiếu, màn nói "dự án này chưa có tầng nào" | đã sửa | trung bình | khung |
 | B-V9-07 | Nhãn ray quảng cáo phím `R`/`H`/`C`/`V` nhưng không phím nào hoạt động | đã sửa | trung bình | khung |
 | B-V9-08 | Ray tầng của tách tầng và đo hiện mã bộ mẫu `L-01FIXTURE0…` | đã sửa | thấp | khung |
-| B-V9-41 | Màn đo: nút xoá và phím Delete không bị chặn khi `forbidden` | mở | thấp | I1 |
+| B-V9-41 | Màn đo: nút xoá và phím Delete không bị chặn khi `forbidden` | mở | thấp | khung |
 | B-V10-01 | Sau `PASCAL-01`, bấm "thử lại" hay phím R không bao giờ nạp lại — kể cả khi gói đã trở lại | đã sửa | cao | khung |
 | B-V10-02 | Màn Pascal chỉ cao 384 px; khung 3D là một dải 190 px trong cửa sổ 900 px | đã sửa | trung bình | khung |
 | B-V10-03 | Cờ tắt vẫn tải và chạy bộ đổi bản vẽ sang Pascal | đã sửa | thấp | khung |
 | B-V10-04 | Bộ đổi dữ liệu nạp hỏng rồi bấm "thử lại" thì kẹt khung xương "đang nạp…" mãi | đã sửa | trung bình | khung |
-| B-V10-05 | Gói Pascal gây 1 vi phạm CSP `script-src eval` | đã sửa | thấp | I3 |
-| B-V10-06 | Bốn số Pascal không phải bộ A14; trang chỉ có tường bao + phòng (P2 của V10) | không phải lỗi | thấp | I6 |
-| B-V10-41 | `pascal-mount.js` không có mã băm nhưng `/assets/` gửi `immutable` một năm | mở | trung bình | I3 |
-| B-V12-01 | Bốn màn luật/xuất/dữ liệu luôn rỗng khi đi bằng đường sản phẩm | đã sửa | cao | I6 |
+| B-V10-05 | Gói Pascal gây 1 vi phạm CSP `script-src eval` | đã sửa | thấp | khung |
+| B-V10-06 | Bốn số Pascal không phải bộ A14; trang chỉ có tường bao + phòng (P2 của V10) | không phải lỗi | thấp | khung |
+| B-V10-41 | `pascal-mount.js` không có mã băm nhưng `/assets/` gửi `immutable` một năm | mở | trung bình | khung |
+| B-V12-01 | Bốn màn luật/xuất/dữ liệu luôn rỗng khi đi bằng đường sản phẩm | đã sửa | cao | khung |
 | B-V12-02 | Nút chính "Chạy kiểm tra" của màn luật rỗng dẫn thẳng vào màn lỗi | đã sửa | trung bình | khung |
 | B-V12-03 | Cài đặt bộ luật nói "chưa có luật nào" ngay dưới dòng "23/25 luật đang bật" | đã sửa | thấp | khung |
 | B-V12-04 | Sửa luật ở cài đặt bộ luật không có toast hoàn tác | đã sửa | trung bình | khung |
@@ -234,7 +201,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 | B-V12-11 | Màn cài đặt bộ luật không có lối vào trong giao diện | đã sửa | thấp | khung |
 | B-V12b-01 | Bấm "xoá" trên hàng người dùng không hỏi gì — hộp thoại xoá hẳn không bao giờ hiện | đã sửa | trung bình | khung |
 | B-V12b-02 | Khối mời người dùng không đóng bằng Esc (F11) | đã sửa | thấp | khung |
-| B-V12b-03 | Sửa hồ sơ/giao diện ở `/tai-khoan` không có toast hoàn tác (F3) | đã sửa | trung bình | I4 |
+| B-V12b-03 | Sửa hồ sơ/giao diện ở `/tai-khoan` không có toast hoàn tác (F3) | đã sửa | trung bình | khung |
 | B-V12b-04 | Đường dẫn trang `/admin/models` viết hoa, lệch mọi màn quản trị khác (F14) | đã sửa | thấp | khung |
 | B-V12b-05 | Nhánh 403 của bộ mẫu `/admin/users` không bao giờ được gọi (F10) | không phải lỗi | — | khung |
 | B-V12b-06 | Bấm "Hoàn tác" xong toast vẫn treo, mời hoàn tác thêm lần nữa | đã sửa | trung bình | khung |
@@ -2336,15 +2303,6 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Tái hiện bằng máy:** chưa có bài
 - **Gốc:** `AppBack/deploy/nginx/.../app_locations.conf:62` (`immutable`), `vite.pascal.config.ts:72` (tệp vào tên cố định)
 - **Sửa:** chưa
-
-## Tổng theo trạng thái (mục của I3)
-
-| Trạng thái | Số | Mục |
-|---|---|---|
-| đã sửa | 2 + 1 một nửa | B-V1-04, B-V10-05; B-V8-03 (nửa câu chữ/quyền, nửa kéo-thả chờ B-V8-04) |
-| ngoài FE | 1 | B-V1-05 |
-| mở (mới) | 5 | B-V1-41, B-V1-42, B-V1-43, B-V8-41, B-V10-41 |
-| chờ quyết / không phải lỗi | 0 | — |
 
 ## V12
 
