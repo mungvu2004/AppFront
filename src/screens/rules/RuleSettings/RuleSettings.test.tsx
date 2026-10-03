@@ -20,11 +20,18 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentType } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ALL_RULES } from '@/domain/rules/defaults';
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import { renderWithProviders } from '@/lib/testing/render';
+import { ROUTE_PATTERNS } from '@/routes/paths';
+import { useStore } from '@/store';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -48,6 +55,7 @@ import {
 } from './ruleSettingsFixtures';
 import type { RuleSettingsProps, RuleSettingsStatus } from './types';
 import * as RuleSettingsModule from './RuleSettings';
+import { RuleSettingsRoute } from './RuleSettings.container';
 
 afterEach(() => {
   cleanup();
@@ -202,6 +210,17 @@ describe('A11 — bảy trạng thái của RuleSettings', () => {
     );
 
     expect(covered).toHaveLength(SEVEN_STATES.length);
+  });
+});
+
+describe('B-V12-03 — trạng thái "empty" không nói ngược dòng đếm luật ngay trên nó', () => {
+  it('đầu màn đếm luật đang bật, thân màn nói thiếu MÔ HÌNH chứ không nói thiếu luật', async () => {
+    const RuleSettingsView = await loadRuleSettingsView();
+
+    render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'empty' })} />);
+
+    expect(screen.getByRole('heading', { name: 'chưa có mô hình để áp bộ luật' })).toBeTruthy();
+    expect(screen.queryByText(/chưa có (bộ )?luật/iu)).toBeNull();
   });
 });
 
@@ -475,5 +494,45 @@ describe('2.(b).7 — áp bộ luật sẵn "nhà xưởng": số luật đổi 
     const restoreButton = screen.getByRole('button', { name: /khôi phục mặc định/i });
     fireEvent.click(restoreButton);
     expect(onRestoreDefaults).toHaveBeenCalled();
+  });
+});
+
+describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn tác" (A8)', () => {
+  it('tắt một luật đẩy đúng một thông báo mang vé hoàn tác vào bus của phiên; dùng vé thì luật bật lại', async () => {
+    /* Kho đã khớp dự án TRƯỚC khi gắn, để cổng nạp kho (B-V12-01) không nạp đè. */
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+    });
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/projects/P-1/rules/settings']}>
+        <Routes>
+          <Route path={ROUTE_PATTERNS.projectRuleSettings} element={<RuleSettingsRoute />} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+    const before = appNotificationBus.list().length;
+    const ruleSwitch = await screen.findByRole('switch', {
+      name: /^bật hoặc tắt luật: lỗ mở nằm trọn/u,
+    });
+    expect(ruleSwitch.getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(ruleSwitch);
+
+    await waitFor(() => {
+      expect(ruleSwitch.getAttribute('aria-checked')).toBe('false');
+    });
+    const published = appNotificationBus.list().slice(before);
+    expect(published).toHaveLength(1);
+
+    act(() => {
+      published[0]?.undoTicket?.undo();
+    });
+
+    await waitFor(() => {
+      expect(ruleSwitch.getAttribute('aria-checked')).toBe('true');
+    });
   });
 });

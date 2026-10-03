@@ -247,7 +247,10 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   const shareLinks = options.shareLinks !== undefined ? options.shareLinks : sessionShareLinks;
 
   const storeSpatial = useStore((state) => state.spatial);
-  const spatial = options.spatial !== undefined ? options.spatial : storeSpatial;
+  const storeLoading = useStore((state) => state.spatialLoading);
+  // Đang nạp dự án mới thì kho còn giữ mô hình của dự án trước: không vẽ nó dưới tên dự án này.
+  const spatialLoading = storeLoading && options.spatial === undefined;
+  const spatial = options.spatial ?? (spatialLoading ? null : storeSpatial);
 
   const nowRef = useRef<() => number>(Date.now);
   nowRef.current = options.now ?? Date.now;
@@ -305,6 +308,13 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   }, [spatial, data.storeys]);
 
   const levels = conversion.levels;
+
+  // Tầng có tên mà không có tường lẫn phòng (mock `project-1`) chưa phải mô hình:
+  // dựng cảnh lên nó chỉ cho một khung trống mà không cổng nào bắt được.
+  const hasGeometry = useMemo(
+    () => levels.some((level) => level.walls.length > 0 || level.rooms.length > 0),
+    [levels],
+  );
 
   /**
    * Một token cho cả mô hình — màn chỉ đọc này không có bộ chọn chế độ tô.
@@ -523,7 +533,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   }, [canvas]);
 
   useEffect(() => {
-    if (canvas === null || floorIds.length === 0) {
+    if (canvas === null || floorIds.length === 0 || !hasGeometry) {
       return undefined;
     }
 
@@ -557,7 +567,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
       handleRef.current = null;
       setIsSceneMounted(false);
     };
-  }, [canvas, floorIds, levels, tokenOfPartKind, mountScene]);
+  }, [canvas, floorIds, hasGeometry, levels, tokenOfPartKind, mountScene]);
 
   useEffect(() => {
     handleRef.current?.setActiveFloor(activeFloorId);
@@ -663,10 +673,14 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     if (sceneFailure !== null || conversion.failed || projectQuery.isError) {
       return 'error';
     }
-    if (projectQuery.isLoading || (canvas !== null && floorIds.length > 0 && !isSceneMounted)) {
+    if (
+      projectQuery.isLoading ||
+      spatialLoading ||
+      (canvas !== null && hasGeometry && !isSceneMounted)
+    ) {
       return 'loading';
     }
-    if (data.storeys.length === 0) {
+    if (!hasGeometry) {
       return 'empty';
     }
     if (data.isPartial || isNetworkWeak || floors.some((floor) => !floor.isLoaded)) {
@@ -683,10 +697,10 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     conversion.failed,
     projectQuery.isError,
     projectQuery.isLoading,
+    spatialLoading,
     canvas,
-    floorIds.length,
+    hasGeometry,
     isSceneMounted,
-    data.storeys.length,
     data.isPartial,
     isNetworkWeak,
     floors,

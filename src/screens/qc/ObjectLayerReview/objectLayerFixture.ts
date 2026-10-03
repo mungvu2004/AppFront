@@ -35,6 +35,7 @@ import { millimetres } from '@/domain/units/types';
 
 import {
   countObjectsByLayer,
+  entityIdOf,
   type AttachedReviewObject,
   type ObjectLayerCounts,
   type ObjectSubtype,
@@ -67,6 +68,7 @@ function attached(
 ): AttachedReviewObject {
   return {
     id,
+    entityId: entityIdOf(id, layer),
     layer,
     subtype,
     widthMm: millimetres(widthMm),
@@ -94,6 +96,7 @@ function orphan(
 ): OrphanReviewObject {
   return {
     id,
+    entityId: entityIdOf(id, layer),
     layer,
     subtype,
     widthMm: millimetres(widthMm),

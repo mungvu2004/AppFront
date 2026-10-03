@@ -35,15 +35,19 @@
  * lần cần vẽ, và sau mỗi lượt áp nó chạy lại trên đồ thị mới — đó là cách phần
  * xem trước dựng lại mối nối.
  *
- * ## Một việc chưa có đường
+ * ## Đọc và lưu
  *
- * `persistThicknessStandardization` — **NOT FOUND**, cùng lỗ hổng đã ghi ở
- * `WallLayerReview`: `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>`
- * và không mang mảng tường. Cổng thật trả nhánh `supported: false` có kiểu, và
- * tự lưu nói ra sự thật đó thay vì bịa một lượt lưu đã xong (A7).
+ * Kho rỗng thì cổng đọc N16 (`readFloorLayerGraph`, B-V6-01), kho có thì giữ.
+ * `persistThicknessStandardization` lưu lớp của tầng qua #35
+ * (`createFloorLayerSave`, B-V6-03) — chỉ tầng của URL; tường tầng khác trong
+ * kho (bộ mẫu ba tầng) không đi theo lượt lưu ấy.
  */
 
+import type { ApiClient } from '@/api/client';
+import { createAppApiClient } from '@/api/appClient';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type { Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { wallStrokeToken } from '@/components/canvas/materialMap';
@@ -115,15 +119,12 @@ export const THICKNESS_CAPABILITIES = [
 export type ThicknessCapability = (typeof THICKNESS_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const THICKNESS_MISSING_CAPABILITIES = ['persistThicknessStandardization'] as const;
+export const THICKNESS_MISSING_CAPABILITIES = [] as const;
 
 export type ThicknessMissingCapability = (typeof THICKNESS_MISSING_CAPABILITIES)[number];
 
 /** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
-export const THICKNESS_MISSING_ENDPOINTS: Readonly<Record<ThicknessMissingCapability, string>> = {
-  persistThicknessStandardization:
-    'ENDPOINTS.spatial.floor chấp nhận một đồ thị không gian trong thân yêu cầu — chưa có; PatchSpatialFloorInput.body là Partial<FloorWriteBody> (src/api/client.ts:87-92,144-148), chỉ mang name/order/elevationMm/heightMm/drawings, không có chỗ cho mảng tường. Lượt chuẩn hoá độ dày vì thế chạy trong bộ nhớ: kho cộng ngăn xếp hoàn tác 100 bước, không có đường đẩy lên máy chủ.',
-};
+export const THICKNESS_MISSING_ENDPOINTS: Readonly<Record<ThicknessMissingCapability, string>> = {};
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
 export interface ThicknessUnsupported {
@@ -180,7 +181,7 @@ export interface ThicknessStandardizationGateway {
   ) => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: ThicknessGraphPort;
-  /** NOT FOUND. Tự lưu nói ra sự thật này, không bịa một lượt lưu đã xong. */
+  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
   readonly persistThicknessStandardization: (
     input: PersistThicknessInput,
   ) => Promise<ThicknessCapabilityResult<void>>;
@@ -200,6 +201,8 @@ export interface ThicknessStandardizationGateway {
 export const THICKNESS_DEFAULT_ACTOR_ID = 'thickness-standardizer';
 
 export interface CreateThicknessStandardizationGatewayOptions {
+  /** Client tiêm được. Vắng mặt thì cổng dùng client chung của repo (`createAppApiClient`). */
+  readonly apiClient?: ApiClient;
   /** Cửa đọc đồ thị. Vắng mặt thì cổng đọc thẳng kho. */
   readonly graph?: ThicknessGraphPort;
   readonly actorId?: string;
@@ -210,23 +213,28 @@ export interface CreateThicknessStandardizationGatewayOptions {
 export function createThicknessStandardizationGateway(
   options: CreateThicknessStandardizationGatewayOptions = {},
 ): ThicknessStandardizationGateway {
+  const apiClient = options.apiClient ?? createAppApiClient();
   const graph: ThicknessGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
+  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
 
   return {
     supports: {
       readThicknessLayer: true,
       writeWallThickness: true,
-      persistThicknessStandardization: false,
+      persistThicknessStandardization: true,
     },
 
-    readThicknessLayer: () => Promise.resolve(graph.read()),
+    readThicknessLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
 
     graph,
 
-    persistThicknessStandardization: () =>
-      Promise.resolve(unsupported('persistThicknessStandardization')),
+    persistThicknessStandardization: async (input) => {
+      await saveFloorLayer(input);
+
+      return { supported: true, value: undefined };
+    },
 
     actorId: options.actorId ?? THICKNESS_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
@@ -299,11 +307,9 @@ export function createMockThicknessStandardizationGateway(
     graph: { read: graphOfSeed },
 
     persistThicknessStandardization: () =>
-      Promise.resolve(
-        canPersist
-          ? { supported: true, value: undefined }
-          : unsupported('persistThicknessStandardization'),
-      ),
+      canPersist
+        ? Promise.resolve({ supported: true, value: undefined })
+        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     actorId: seed.actorId ?? THICKNESS_DEFAULT_ACTOR_ID,
     now: seed.now ?? ((): number => Date.now()),
@@ -331,31 +337,6 @@ export function levelsOfGraph(graph: NormalizedSpatial | null): readonly Level[]
 export function levelIndexOf(levels: readonly Level[]): ReadonlyMap<LevelId, Level> {
   return new Map(levels.map((level) => [level.id, level]));
 }
-
-/* -------------------------------------------------------------------------- */
-/* Nhãn mã tường — mã máy dài, nhãn người đọc ngắn.                            */
-/* -------------------------------------------------------------------------- */
-
-/** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts`. */
-const ID_COUNTER_LENGTH = 6;
-
-/** Bề rộng nhãn người đọc: "#W-014", không phải "#W-14". */
-const DISPLAY_CODE_DIGITS = 3;
-
-/**
- * Nhãn người đọc của một mã tường: `W-000014THIK` → `W-014`.
- *
- * Thuần cắt chuỗi: không một lời gọi hàm hình học hay số học nào. Khuôn chép
- * từ `wallLayerReviewGateway.ts#wallDisplayCode` (R-68: chép, không nhập chéo).
- */
-export function wallDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
-}
-
-/** Mã hiển thị chữ đều của bảng chi tiết. */
-export const wallCodeLabel = (id: WallId): string => `#${wallDisplayCode(id)}`;
 
 /* -------------------------------------------------------------------------- */
 /* Gán nhóm — M-05 quyết, kể cả khi ba ngưỡng đã bị kéo.                        */
@@ -510,6 +491,8 @@ export interface ToSegmentRowOptions {
    * {@link groupOfMeasurement}.
    */
   readonly groupOverrides?: ReadonlyMap<WallId, ThicknessGroup>;
+  /** Nhãn người đọc của mọi tường (`displayCodesOf`, B-V6-09), không có dấu `#`. */
+  readonly codes: ReadonlyMap<string, string>;
 }
 
 /** Một chữ số thập phân, dấu phẩy — A15, định dạng ở đây chứ không ở view. */
@@ -530,7 +513,7 @@ export function toSegmentRow(wall: Wall, options: ToSegmentRowOptions): Thicknes
 
   return {
     wallId: wall.id,
-    code: wallCodeLabel(wall.id),
+    code: `#${options.codes.get(wall.id) ?? wall.id}`,
     measuredMm: wall.thicknessMm,
     measuredLabel: lengthLabel(wall.thicknessMm),
     normalizedGroup: group,

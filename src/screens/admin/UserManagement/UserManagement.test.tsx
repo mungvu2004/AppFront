@@ -332,6 +332,54 @@ describe('Xoá hẳn (A9/Đ-8): nút xác nhận không bật khi email gõ chư
   });
 });
 
+describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
+  it('nút "xoá" trên hàng mở hộp hỏi trước cả khi chưa chọn ai (detail: null)', async () => {
+    const target = requireRow(USER_MANAGEMENT_SCENARIO_SUCCESS, (row) => !row.isSelf, 'một hàng không phải chính mình');
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      detail: null,
+      removeConfirm: { ...USER_MANAGEMENT_SCENARIO_SUCCESS.removeConfirm, user: target, typedEmail: '', isMatch: false, canConfirm: false },
+    };
+
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    expect(await screen.findByRole('dialog', { name: `xoá hẳn ${target.name}?` })).toBeInTheDocument();
+  });
+
+  it('Esc đóng khối mời khi nó đang mở', async () => {
+    const actions = buildActions();
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      detail: null,
+      invite: { ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite, isOpen: true },
+    };
+
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={actions} model={model} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(actions.onCloseInvite).toHaveBeenCalledTimes(1);
+    expect(actions.onSelectUser).not.toHaveBeenCalled();
+  });
+
+  it('Esc đóng tấm chi tiết ở bố cục rộng khi khối mời đóng', async () => {
+    const actions = buildActions();
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      isCollapsed: false,
+      invite: { ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite, isOpen: false },
+    };
+    expect(model.detail, 'kịch bản success cần một người đang được chọn').not.toBeNull();
+
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={actions} model={model} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(actions.onSelectUser).toHaveBeenCalledWith(null);
+  });
+});
+
 describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng, nêu địa chỉ hỏng ngay khi gõ', () => {
   it('gõ vào ô mời: actions.onInviteEmailsChange nhận đúng chuỗi thô, giữ nguyên dấu phẩy và xuống dòng', async () => {
     const actions = buildActions();

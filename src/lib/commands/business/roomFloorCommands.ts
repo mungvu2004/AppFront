@@ -26,6 +26,7 @@
 import { computeArea, outlineContains, totalArea } from '@/domain/rooms/area';
 import { describeUsage } from '@/domain/rooms/classify';
 import { isIdOfKind } from '@/domain/spatial/ids';
+import { displayCodeIn } from '@/domain/spatial/normalize';
 import type {
   Furniture,
   Level,
@@ -151,8 +152,8 @@ const furnitureOfRoom = (context: CommandContext, roomId: RoomId): readonly Furn
 const levelsInOrder = (context: CommandContext): readonly Level[] =>
   [...entitiesOfKind(context.graph, 'level')].sort((first, second) => first.order - second.order);
 
-/** "Phòng khách" R-3, for the middle of a sentence. */
-const nameOfRoom = (room: Room): string => `"${room.name}" ${room.id}`;
+/** "Phòng khách" #R-003, for the middle of a sentence. */
+const nameOfRoom = (room: Room, context: CommandContext): string => `"${room.name}" ${displayCodeIn(context.graph, room.id)}`;
 
 /* -------------------------------------------------------------------------- */
 /* 1. Đặt tên phòng — room.rename                                              */
@@ -168,7 +169,7 @@ export function validateRenameRoom(input: RenameRoomInput, context: CommandConte
   const room = readOf(context.graph, 'room', input.roomId);
 
   if (room === null) {
-    return [`Không tìm thấy phòng ${input.roomId} trong bản vẽ.`];
+    return [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)} trong bản vẽ.`];
   }
 
   const name = input.name.trim();
@@ -188,7 +189,7 @@ export function validateRenameRoom(input: RenameRoomInput, context: CommandConte
   }
 
   if (name === room.name) {
-    reasons.push(`Phòng ${room.id} đã tên là "${name}" nên không có gì thay đổi.`);
+    reasons.push(`Phòng ${displayCodeIn(context.graph, room.id)} đã tên là "${name}" nên không có gì thay đổi.`);
   }
 
   const clash = entitiesOfKind(context.graph, 'room').find(
@@ -199,7 +200,7 @@ export function validateRenameRoom(input: RenameRoomInput, context: CommandConte
   );
 
   if (clash !== undefined) {
-    reasons.push(`Tầng ${room.levelId} đã có phòng ${clash.id} mang tên "${clash.name}".`);
+    reasons.push(`Tầng ${displayCodeIn(context.graph, room.levelId)} đã có phòng ${displayCodeIn(context.graph, clash.id)} mang tên "${clash.name}".`);
   }
 
   return reasons;
@@ -219,7 +220,7 @@ export function createRenameRoomCommand(
   const room = readOf(context.graph, 'room', input.roomId);
 
   if (room === null) {
-    return refuse(ROOM_FLOOR_COMMAND_TYPES.renameRoom, [`Không tìm thấy phòng ${input.roomId}.`]);
+    return refuse(ROOM_FLOOR_COMMAND_TYPES.renameRoom, [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)}.`]);
   }
 
   const name = input.name.trim();
@@ -227,7 +228,7 @@ export function createRenameRoomCommand(
   return accept(
     buildCommand(
       ROOM_FLOOR_COMMAND_TYPES.renameRoom,
-      `Đổi tên phòng ${room.id} từ "${room.name}" thành "${name}", diện tích ` +
+      `Đổi tên phòng ${displayCodeIn(context.graph, room.id)} từ "${room.name}" thành "${name}", diện tích ` +
         `${formatAreaM2(room.areaM2)}.`,
       [changeForUpdate('room', room, { ...room, name })],
       context,
@@ -252,7 +253,7 @@ export function validateChangeRoomUsage(
   const room = readOf(context.graph, 'room', input.roomId);
 
   if (room === null) {
-    return [`Không tìm thấy phòng ${input.roomId} trong bản vẽ.`];
+    return [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)} trong bản vẽ.`];
   }
 
   if (!isKnownUsage(input.usage)) {
@@ -261,7 +262,7 @@ export function validateChangeRoomUsage(
 
   if (room.usage === input.usage) {
     return [
-      `Phòng ${room.id} đã là ${describeUsage(input.usage).toLowerCase()} nên không có gì thay đổi.`,
+      `Phòng ${displayCodeIn(context.graph, room.id)} đã là ${describeUsage(input.usage).toLowerCase()} nên không có gì thay đổi.`,
     ];
   }
 
@@ -289,14 +290,14 @@ export function createChangeRoomUsageCommand(
 
   if (room === null) {
     return refuse(ROOM_FLOOR_COMMAND_TYPES.changeRoomUsage, [
-      `Không tìm thấy phòng ${input.roomId}.`,
+      `Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)}.`,
     ]);
   }
 
   return accept(
     buildCommand(
       ROOM_FLOOR_COMMAND_TYPES.changeRoomUsage,
-      `Đổi công năng phòng ${nameOfRoom(room)} từ ${describeUsage(room.usage).toLowerCase()} sang ` +
+      `Đổi công năng phòng ${nameOfRoom(room, context)} từ ${describeUsage(room.usage).toLowerCase()} sang ` +
         `${describeUsage(input.usage).toLowerCase()}, diện tích ${formatAreaM2(room.areaM2)}.`,
       [changeForUpdate('room', room, { ...room, usage: input.usage })],
       context,
@@ -318,7 +319,7 @@ export interface MergeRoomsInput {
 /** Everything wrong with this merge; empty when it may be applied. */
 export function validateMergeRooms(input: MergeRoomsInput, context: CommandContext): string[] {
   if (input.targetRoomId === input.absorbedRoomId) {
-    return [`Hai mã phòng cùng là ${input.targetRoomId}; cần hai phòng khác nhau để gộp.`];
+    return [`Hai mã phòng cùng là ${displayCodeIn(context.graph, input.targetRoomId)}; cần hai phòng khác nhau để gộp.`];
   }
 
   const target = readOf(context.graph, 'room', input.targetRoomId);
@@ -326,11 +327,11 @@ export function validateMergeRooms(input: MergeRoomsInput, context: CommandConte
   const reasons: string[] = [];
 
   if (target === null) {
-    reasons.push(`Không tìm thấy phòng ${input.targetRoomId} trong bản vẽ.`);
+    reasons.push(`Không tìm thấy phòng ${displayCodeIn(context.graph, input.targetRoomId)} trong bản vẽ.`);
   }
 
   if (absorbed === null) {
-    reasons.push(`Không tìm thấy phòng ${input.absorbedRoomId} trong bản vẽ.`);
+    reasons.push(`Không tìm thấy phòng ${displayCodeIn(context.graph, input.absorbedRoomId)} trong bản vẽ.`);
   }
 
   if (target === null || absorbed === null) {
@@ -339,7 +340,7 @@ export function validateMergeRooms(input: MergeRoomsInput, context: CommandConte
 
   if (target.levelId !== absorbed.levelId) {
     reasons.push(
-      `Phòng ${target.id} ở tầng ${target.levelId} còn ${absorbed.id} ở tầng ${absorbed.levelId}; ` +
+      `Phòng ${displayCodeIn(context.graph, target.id)} ở tầng ${displayCodeIn(context.graph, target.levelId)} còn ${displayCodeIn(context.graph, absorbed.id)} ở tầng ${displayCodeIn(context.graph, absorbed.levelId)}; ` +
         'chỉ gộp được hai phòng trên cùng một tầng.',
     );
   }
@@ -411,8 +412,8 @@ export function createMergeRoomsCommand(
   return accept(
     buildCommand(
       ROOM_FLOOR_COMMAND_TYPES.mergeRooms,
-      `Gộp phòng ${nameOfRoom(absorbed)} ${formatAreaM2(absorbed.areaM2)} vào phòng ` +
-        `${nameOfRoom(target)} ${formatAreaM2(target.areaM2)}; phòng sau khi gộp rộng ` +
+      `Gộp phòng ${nameOfRoom(absorbed, context)} ${formatAreaM2(absorbed.areaM2)} vào phòng ` +
+        `${nameOfRoom(target, context)} ${formatAreaM2(target.areaM2)}; phòng sau khi gộp rộng ` +
         `${formatAreaM2(mergedM2)}` +
         (rehomed.length === 0 ? '.' : `, kèm ${formatCount(rehomed.length)} đồ đạc đổi phòng.`),
       changes,
@@ -444,7 +445,7 @@ export function validateSplitRoom(input: SplitRoomInput, context: CommandContext
   const room = readOf(context.graph, 'room', input.roomId);
 
   if (room === null) {
-    return [`Không tìm thấy phòng ${input.roomId} trong bản vẽ.`];
+    return [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)} trong bản vẽ.`];
   }
 
   const reasons: string[] = [];
@@ -474,7 +475,7 @@ export function validateSplitRoom(input: SplitRoomInput, context: CommandContext
   if (partsM2 > wholeM2 + AREA_TOLERANCE_M2) {
     reasons.push(
       `Hai phần cộng lại ${formatAreaM2(partsM2)}, lớn hơn ${formatAreaM2(wholeM2)} của phòng ` +
-        `${room.id}; tách phòng không tạo thêm được mét vuông nào.`,
+        `${displayCodeIn(context.graph, room.id)}; tách phòng không tạo thêm được mét vuông nào.`,
     );
   }
 
@@ -503,7 +504,7 @@ export function createSplitRoomCommand(
   const room = readOf(context.graph, 'room', input.roomId);
 
   if (room === null) {
-    return refuse(ROOM_FLOOR_COMMAND_TYPES.splitRoom, [`Không tìm thấy phòng ${input.roomId}.`]);
+    return refuse(ROOM_FLOOR_COMMAND_TYPES.splitRoom, [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)}.`]);
   }
 
   const firstM2 = areaOf(input.firstOutline);
@@ -537,8 +538,8 @@ export function createSplitRoomCommand(
   return accept(
     buildCommand(
       ROOM_FLOOR_COMMAND_TYPES.splitRoom,
-      `Tách phòng ${nameOfRoom(room)} ${formatAreaM2(room.areaM2)} thành ${formatAreaM2(firstM2)} và ` +
-        `phòng mới "${newRoom.name}" ${newRoom.id} ${formatAreaM2(secondM2)}` +
+      `Tách phòng ${nameOfRoom(room, context)} ${formatAreaM2(room.areaM2)} thành ${formatAreaM2(firstM2)} và ` +
+        `phòng mới "${newRoom.name}" ${displayCodeIn(context.graph, newRoom.id)} ${formatAreaM2(secondM2)}` +
         (rehomed.length === 0 ? '.' : `, kèm ${formatCount(rehomed.length)} đồ đạc sang phòng mới.`),
       changes,
       context,
@@ -563,7 +564,7 @@ export function validateChangeLevelElevation(
   const level = readOf(context.graph, 'level', input.levelId);
 
   if (level === null) {
-    return [`Không tìm thấy tầng ${input.levelId} trong bản vẽ.`];
+    return [`Không tìm thấy tầng ${displayCodeIn(context.graph, input.levelId)} trong bản vẽ.`];
   }
 
   if (!Number.isFinite(input.elevationMm)) {
@@ -624,7 +625,7 @@ export function createChangeLevelElevationCommand(
 
   if (level === null) {
     return refuse(ROOM_FLOOR_COMMAND_TYPES.changeLevelElevation, [
-      `Không tìm thấy tầng ${input.levelId}.`,
+      `Không tìm thấy tầng ${displayCodeIn(context.graph, input.levelId)}.`,
     ]);
   }
 
@@ -633,7 +634,7 @@ export function createChangeLevelElevationCommand(
   return accept(
     buildCommand(
       ROOM_FLOOR_COMMAND_TYPES.changeLevelElevation,
-      `Đổi cao độ tầng "${level.name}" ${level.id} từ ${formatElevationM(level.elevationMm)} ` +
+      `Đổi cao độ tầng "${level.name}" ${displayCodeIn(context.graph, level.id)} từ ${formatElevationM(level.elevationMm)} ` +
         `${risen ? 'lên' : 'xuống'} ${formatElevationM(input.elevationMm)}, chênh ` +
         `${formatMetres(Math.abs(input.elevationMm - level.elevationMm))}.`,
       [changeForUpdate('level', level, { ...level, elevationMm: input.elevationMm })],
@@ -701,7 +702,7 @@ export function validateReorderLevels(
 
   for (const levelId of input.levelIds) {
     if (seen.has(levelId)) {
-      reasons.push(`Thứ tự mới lặp lại tầng ${levelId}.`);
+      reasons.push(`Thứ tự mới lặp lại tầng ${displayCodeIn(context.graph, levelId)}.`);
 
       continue;
     }
@@ -709,7 +710,7 @@ export function validateReorderLevels(
     seen.add(levelId);
 
     if (readOf(context.graph, 'level', levelId) === null) {
-      reasons.push(`Không tìm thấy tầng ${levelId} trong bản vẽ.`);
+      reasons.push(`Không tìm thấy tầng ${displayCodeIn(context.graph, levelId)} trong bản vẽ.`);
     }
   }
 
@@ -718,7 +719,7 @@ export function validateReorderLevels(
   if (missing.length > 0) {
     reasons.push(
       `Thứ tự mới bỏ sót ${formatCount(missing.length)} trên ${formatCount(levels.length)} tầng: ` +
-        `${missing.map((level) => level.id).join(', ')}.`,
+        `${missing.map((level) => displayCodeIn(context.graph, level.id)).join(', ')}.`,
     );
   }
 

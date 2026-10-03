@@ -24,25 +24,17 @@
  * một lượt đổi tên thành chuỗi rỗng (tầng lệnh TỪ CHỐI thật) cho `error`. Một
  * bài kiểm gõ lại chính thứ nó cần chứng minh thì không kiểm gì cả (R-70).
  *
- * ## Bộ mẫu A14 và một khiếm khuyết CỦA BỘ MẪU, không phải của màn
+ * ## Bộ mẫu A14
  *
- * A14 nói bộ mẫu chuẩn là **14 phòng, 248,60 m²**, và bảng diện tích của bộ mẫu
- * đúng như vậy: mười ba phòng 17,00 m² cộng một phòng 27,60 m²
- * (`sampleBuilding.ts:149`, `SAMPLE_TOTAL_AREA_M2 = 248.6`). Nhưng **vòng phòng**
- * lưu trong bộ mẫu lại là mười bốn hình chữ nhật giống hệt nhau, mỗi hình 17,00
- * m² — nên `selectRoomsWithArea`, thứ đo TỪ VÒNG chứ không đọc `Room.areaM2`,
- * cộng ra 238,00 chứ không phải 248,60. Đã kiểm chứng bằng tay.
+ * A14 nói bộ mẫu chuẩn là **14 phòng, 248,60 m²**: mười ba phòng 17,00 m² cộng
+ * một phòng 27,60 m² (`SAMPLE_TOTAL_AREA_M2 = 248.6`). Từ B-V8-10 vòng phòng của
+ * bộ mẫu cũng đo ra đúng số ấy (13 × 4000×4250 mm + 1 × 4000×6900 mm), nên
+ * `selectRoomsWithArea` — thứ đo TỪ VÒNG — cộng ra 248,60; `area.test.ts` khẳng
+ * định. Trước đó vòng phòng cuối là 4000×4250 và tổng hình học ra 238,00.
  *
- * `src/domain/rooms/__tests__/area.test.ts:79-92` đã gặp đúng chuyện này và xử
- * lý đúng một cách: dựng lại vòng phòng cho khớp bảng diện tích của chính bộ
- * mẫu — bề rộng cố định 4.000 mm, chiều sâu suy ra từ `Room.areaM2`, cả hai ra
- * số nguyên milimét. `createRoomAreaSampleGraph` lặp lại đúng phép đó, và nó
- * sống trong `RoomAreaPanel.stories.tsx`: story và bài kiểm phải nhìn CÙNG một
- * bộ dữ liệu, nếu không thì một story xanh chẳng nói gì về màn được kiểm
- * (R-70). Ba hàm dựng ở đó nằm trong `meta.excludeStories`, nên chúng không
- * biến thành story.
- * Không con số nào bịa ra ở đây: diện tích vẫn là diện tích bộ mẫu khai, và
- * `computeArea` vẫn là thứ đo chúng.
+ * `createRoomAreaSampleGraph` sống trong `RoomAreaPanel.stories.tsx`: story và bài
+ * kiểm phải nhìn CÙNG một bộ dữ liệu (R-70). Ba hàm dựng ở đó nằm trong
+ * `meta.excludeStories`, nên chúng không biến thành story.
  *
  * Cùng chỗ đó, TÊN phòng và tầng được đặt lại thành tiếng Việt ("Phòng 0",
  * "Tầng 0"): bộ mẫu đặt tên chúng là `Room 0` và `Level 0`, và một màn hình

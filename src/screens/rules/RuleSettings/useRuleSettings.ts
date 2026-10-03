@@ -94,7 +94,7 @@ import { toSaveIndicatorState } from '@/lib/autosave/toSaveIndicatorState';
 import { describeError, toAppError } from '@/lib/errors';
 import { formatNumber } from '@/lib/format/number';
 import type { Announcer } from '@/lib/input/announcer';
-import { createUndoTicket } from '@/lib/mutations/undoTicket';
+import { createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
 import { selectRuleConfig, selectRuleImpactCounts } from '@/store/selectors';
@@ -119,6 +119,8 @@ import type {
 export interface RuleSettingsToast {
   readonly message: string;
   readonly onUndo: () => void;
+  /** Đúng vé của lượt sửa — để vỏ đưa vào `notificationBus` mà không dựng vé thứ hai. */
+  readonly undoTicket: UndoTicket;
 }
 
 export interface UseRuleSettingsOptions {
@@ -458,6 +460,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
         onUndo: () => {
           ticket.undo();
         },
+        undoTicket: ticket,
       });
     },
     [autosave, canEditRules, nowOption, onToast],

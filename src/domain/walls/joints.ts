@@ -800,3 +800,40 @@ export function resolveWallShapes(
     unresolved,
   };
 }
+
+/**
+ * Những đầu tường **hàn chung một nút** với đầu đang kéo.
+ *
+ * Đây là hình học mà quyết định 3A dựa vào: kéo một góc thì mọi tường gặp nhau
+ * ở góc ấy phải đi theo, nếu không góc nứt ra và phòng quanh nó mất diện tích —
+ * đúng thứ khối chú thích đầu tệp này gọi là "no gap".
+ *
+ * Hàm trả về **các đầu khác**, không kể chính đầu được hỏi. Đầu nào không hàn
+ * với ai thì trả về mảng rỗng, và đó là câu trả lời hợp lệ chứ không phải lỗi.
+ *
+ * Nút chưa hàn được (`unresolved` — quá nhiều đầu, hoặc tường tự nối vào mình)
+ * **không** được coi là hàn: thà không kéo theo còn hơn kéo theo một thứ chính
+ * bộ hàn cũng không dám kết luận.
+ *
+ * @throws RangeError khi một tường không dùng được, hoặc ngưỡng không dương.
+ * @throws Error khi hai tường trùng id.
+ */
+export function endsWeldedTo(
+  walls: readonly Wall[],
+  ref: WallEndRef,
+  thresholdMm: Millimetres = DEFAULT_JOINT_THRESHOLD_MM,
+): readonly WallEndRef[] {
+  const { joints } = resolveJoints(walls, thresholdMm);
+
+  const joint = joints.find((candidate) =>
+    candidate.members.some((member) => member.wallId === ref.wallId && member.end === ref.end),
+  );
+
+  if (joint === undefined) {
+    return [];
+  }
+
+  return joint.members
+    .filter((member) => !(member.wallId === ref.wallId && member.end === ref.end))
+    .map(({ wallId, end }) => ({ wallId, end }));
+}

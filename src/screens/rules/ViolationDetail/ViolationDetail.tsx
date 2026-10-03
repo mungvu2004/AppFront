@@ -127,7 +127,7 @@ function ViolationDetailHead({ props }: HeadProps) {
               severityLabel={props.severityLabel}
             />
             <span className="font-mono text-[13px] text-text-secondary">
-              {props.subjectEntityId}
+              {props.subjectCode}
             </span>
           </div>
         </div>

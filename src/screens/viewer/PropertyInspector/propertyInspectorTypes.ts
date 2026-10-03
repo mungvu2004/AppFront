@@ -331,8 +331,10 @@ export interface PropertyInspectorHeader {
   readonly objectKind: ObjectKind;
   /** Tiêu đề h3, ví dụ "Tường" hoặc "3 tường" khi chọn nhiều — đã định dạng, số nhiều tính sẵn. */
   readonly objectKindLabel: string;
-  /** Mã đối tượng, font mono cỡ lớn, ví dụ "W-014". */
+  /** Mã người đọc, font mono cỡ lớn, ví dụ "W-014" — cùng mã dải "Đang sửa" (B-V8-05). */
   readonly objectCode: string;
+  /** Mã máy — khoá của khối nội dung; mã người đọc có thể trùng giữa hai tầng. */
+  readonly entityId: string;
   readonly statusBadge: PropertyStatusBadge;
   /** Số đối tượng đang chọn — 1 ở trạng thái `success`/`error`/`forbidden`, ≥ 1 ở `partial`. */
   readonly selectionCount: number;

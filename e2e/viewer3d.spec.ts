@@ -41,7 +41,8 @@ import { ROUTE_PATTERNS } from '../src/routes/paths';
  *    `RoomLabelReview`, `FloorManager`, …) đều nạp từ một cổng mà bản thật của
  *    nó là `read: () => useStore.getState().spatial` — tức đọc lại chính cái kho
  *    đang rỗng. `FloorManager` có đường không vòng tròn (`api.floors.list`)
- *    nhưng vẫn lấy `graph` từ kho, nên nó hiện "0 tầng".
+ *    nhưng vẫn lấy `graph` từ kho, nên kho rỗng thì nó treo khung xương (bảng chỉ
+ *    có hàng tiêu đề) — không phải "0 tầng" như bản trước ghi (đo: B-V7-13, W05).
  * 3. **`VITE_USE_MOCK_API=true` là cửa thật, và nó KHÔNG lấp được chỗ này.** Đã
  *    bật và xác nhận `resolveUseMockApi() === true`, không còn lượt `/api/**`
  *    nào 404 — nhưng lý do 2 nằm ở phía sau nó, nên kho vẫn rỗng.
@@ -141,7 +142,11 @@ const ROOM_QUERY = 'phong ngu 4';
 /** Phòng phải tìm ra. Nó ở TẦNG 03 — không phải tầng dưới cùng (S-10). */
 const ROOM_NAME = 'Phòng ngủ 4';
 
-/** Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. */
+/**
+ * Mã của chính phòng ấy, để panel thanh tra nói ra cả hai. Khớp hàng "mã đối tượng"
+ * (mã máy `R-011FIXTURE0`), KHÔNG khớp tiêu đề: từ B-V8-05 tiêu đề in nhãn người đọc
+ * (`displayLabelIn`), với bộ mẫu này ra `R-11FIX` — xấu nhưng cùng mã dải "Đang sửa".
+ */
 const ROOM_ID = 'R-011';
 
 /* -------------------------------------------------------------------------- */
@@ -167,9 +172,9 @@ const VIEWER_SIGN_IN_EMAIL = 'viewer@example.com';
 const SIGN_IN_PASSWORD = 'matkhau-du-dai';
 
 /** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
-const EMAIL_LABEL = 'Thư điện tử';
-const PASSWORD_LABEL = 'Mật khẩu';
-const SIGN_IN_LABEL = 'Đăng nhập';
+const EMAIL_LABEL = 'thư điện tử';
+const PASSWORD_LABEL = 'mật khẩu';
+const SIGN_IN_LABEL = 'đăng nhập';
 
 /**
  * Đăng nhập qua biểu mẫu rồi đi tiếp tới màn 3D, chạy trên BỘ MẪU (`VITE_USE_MOCK_API=true`).
@@ -200,7 +205,7 @@ async function signInThenOpenViewer(
   await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
   await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
 
-  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  await waitForViewerReady(page);
   expect(authRequests).toEqual([]);
 
   await settleViewer(page);
@@ -231,26 +236,76 @@ async function signInThenOpenViewer(
  * sang qua được nó.
  *
  * KHÔNG chữa được, và đừng tưởng là nó chữa:
- * - **P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ
- *   (`<span aria-label="Người dùng thử">`, đến từ `src/api/__mocks__/client.ts:320`).
- * - **Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong,
- *   trong lúc `findOneRoom` đang chạy. Không phải sai cách đóng: `handleSkip`
- *   (`src/screens/system/EditorTour/useEditorTour.ts:555`) đóng tour hẳn cả
- *   phiên, nên một cú bấm là đủ — vấn đề là THỜI ĐIỂM.
+ * - ~~**P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ~~ — **chẩn đoán này
+ *   SAI, và cái sai của nó là chỗ đáng đọc nhất đoạn văn này.** Thứ chặn không
+ *   phải con trỏ và không phải người cộng tác giả: `PresenceOverlay` lọc
+ *   `!person.isSelf` nên ở chế độ mock KHÔNG con trỏ nào được vẽ. Thứ chặn là
+ *   **thanh hiện diện của CHÍNH BẠN** — `visibleCollaborators` luôn chứa
+ *   `isSelf`, nên nút ảnh đại diện 36 × 36 ở `right-4 top-4` luôn được dựng, và
+ *   nó rơi trọn vào ô ViewCube 72 × 72 ở `right-2 top-2`, tại `Z_INDEX.panel`
+ *   (20) so với z tự động của ViewCube.
  *
- * Gốc rễ chung: mục 4.10 bật bộ mẫu cho e2e, biến mỗi lượt thành "người dùng
- * lần đầu có bạn cộng tác giả". Bộ spec này viết cho máy chủ KHÔNG mock và
- * chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt riêng, không phải
- * của F-01b. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ *   Hệ quả của cái sai: P2 bị xếp vào nợ "chờ thẩm định lại dưới máy chủ không
+ *   mock", trong khi bỏ mock đi thì nó vẫn đỏ y nguyên — bạn vẫn là một người
+ *   trong danh sách hiện diện. Đây là lỗi SẢN PHẨM, mọi người dùng đều gặp, và
+ *   nó đã được chữa ở `Viewer3DOverlays.tsx` (thanh hiện diện xuống dưới cụm
+ *   ViewCube + bản đồ nhỏ) cộng với việc khung 280 px của thanh ấy thôi nuốt
+ *   chuột ở chỗ nó không vẽ gì.
+ * - ~~**Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong~~
+ *   — đúng triệu chứng, nhưng **thiếu mất cơ chế**, và thiếu cơ chế thì không
+ *   sửa được. Đo ngày 2026-09-29, hai việc:
+ *
+ *   1. `settleViewer` chờ **20 giây** mà KHÔNG lần nào thấy nút "bỏ qua". Lý
+ *      do nằm ở `useEditorTour.ts:480-483`: một bước chỉ sống khi nó có phím
+ *      THẬT *hoặc* neo THẬT. Trên màn 3D, bốn bước kia bám phím
+ *      `wallLayerReview.*` và bước còn lại bám neo `[aria-label="Chế độ xem"]`
+ *      — lúc màn vừa mở thì không cái nào có, nên `steps.length === 0`, trạng
+ *      thái về `empty`, và lớp phủ **không được dựng**. Không có gì để bấm.
+ *   2. Mở ô tìm lên thì phím tắt và neo của lớp ấy vào sổ, một bước **sống
+ *      lại**, và lớp phủ hiện ngay trên chính cái danh sách vừa mở.
+ *
+ *   Nên thứ tự đúng là: mở ô tìm TRƯỚC, đóng hướng dẫn SAU, rồi mới gõ —
+ *   `findOneRoom` nay làm đúng thế.
+ *
+ *   Việc thứ ba, thuần lỗi của bài kiểm: hai lượt chờ trong `settleViewer` DÙNG
+ *   CHUNG một trần 20 000 ms, cộng lại 40 giây trong một bài có trần 30 giây.
+ *   Khi lượt dựng mô hình chạy lâu, bài chết ngay trong `settleViewer` và báo
+ *   "Target page… has been closed" — một câu không nói được nó đang chờ gì.
+ *   Nay tách làm hai ngân sách: 20 000 cho mô hình, 6 000 cho hướng dẫn.
+ *
+ * Gốc rễ chung — đúng cho Q2, **không** đúng cho P2: mục 4.10 bật bộ mẫu cho
+ * e2e, biến mỗi lượt thành "người dùng lần đầu". Bộ spec này viết cho máy chủ
+ * KHÔNG mock và chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt
+ * riêng. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ *
+ * Bài học từ P2: "cả hai đều là chuyện của chế độ mock" là một lời giải thích
+ * gộp, và nó đã che mất một lỗi sản phẩm thật trong hai ngày. Trước khi xếp một
+ * bài đỏ vào chung một nợ, hãy đo xem nó có ĐỎ VÌ CÙNG LÝ DO không.
+ *
+ * Bài học từ Q2: một ghi chú nói ĐÚNG triệu chứng ("tour hiện ra sau") mà không
+ * nói cơ chế thì đọc như đã hiểu rồi, và nó chặn người sau đi tìm. Cơ chế thật
+ * — bước hướng dẫn sống lại khi neo của nó xuất hiện — mất một lượt chạy có in
+ * số ra mới thấy, và nó chỉ ra luôn chỗ phải chèn lượt đóng thứ hai.
  */
 async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
   await expect(building).toHaveCount(0, { timeout: VIEWER_READY_TIMEOUT_MS });
 
+  await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+}
+
+/**
+ * Đóng lớp hướng dẫn NẾU nó đang mở, và không chờ quá phần ngân sách của mình.
+ *
+ * Gọi được nhiều lần, và phải gọi nhiều lần — xem đoạn "đo được gì" ở
+ * {@link settleViewer}.
+ */
+async function dismissTourIfPresent(page: Page, budgetMs: number): Promise<void> {
   const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
+
   await skip
     .first()
-    .waitFor({ state: 'visible', timeout: VIEWER_READY_TIMEOUT_MS })
+    .waitFor({ state: 'visible', timeout: budgetMs })
     .catch(() => undefined);
 
   if ((await skip.count()) === 0) {
@@ -263,8 +318,50 @@ async function settleViewer(page: Page): Promise<void> {
   await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
 }
 
-/** Dựng mô hình bộ mẫu rồi mở lớp hướng dẫn tốn bao lâu là cùng. */
+/** Tải route + dựng mô hình bộ mẫu tốn bao lâu là cùng. */
 const VIEWER_READY_TIMEOUT_MS = 20_000;
+
+/**
+ * Chờ màn TỰ NÓI rằng cảnh đã tới trạng thái cuối — câu `sr-only` của
+ * `Viewer3D.tsx`: "Mô hình 3D đã dựng xong." chỉ có ở `success`/`collapsed`
+ * (tức mọi tầng đã dựng, `useViewer3D.ts`), còn vai Người xem thì `forbidden`
+ * được xét TRƯỚC `loading` nên lớp "Đang dựng" không bao giờ hiện và câu chờ
+ * được là câu của nhánh `forbidden`.
+ *
+ * KHÔNG dùng "Mô hình đã dựng xong." của thanh trạng thái: câu ấy của vỏ chỉ
+ * biết dữ liệu dự án đã tải, không biết cảnh đã dựng.
+ *
+ * Thay cho `toBeVisible()` trần trên khung nhìn: lượt chờ ấy dùng hạn mặc định
+ * 5 s cho một route tải muộn, và đỏ khi nhiều bài cùng giành Vite (đo
+ * 2026-10-02: ba bài song song đỏ cả ba ở đúng dòng ấy). Một lượt chờ, một ngân
+ * sách — tải route và dựng mô hình nằm chung trong `VIEWER_READY_TIMEOUT_MS`.
+ */
+async function waitForViewerReady(page: Page): Promise<void> {
+  const built = page.getByText('Mô hình 3D đã dựng xong.', { exact: true });
+  const viewerRole = page.getByText(
+    'Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.',
+    { exact: true },
+  );
+  await expect(built.or(viewerRole)).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
+  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+}
+
+/**
+ * Phần ngân sách dành cho việc CHỜ lớp hướng dẫn hiện ra, tách khỏi phần chờ
+ * dựng mô hình.
+ *
+ * Trước đây hai phần dùng CHUNG một con số 20 000, cộng lại thành 40 giây bên
+ * trong một bài có trần 30 giây — nên khi lượt dựng mô hình chạy lâu, bài chết
+ * vì hết giờ NGAY TRONG `settleViewer`, và thông báo là "Target page… has been
+ * closed" chứ không phải một câu nói được nó đang chờ gì. Đo 2026-09-29: đúng
+ * thế, dấu vết dừng ở `skip.count()`.
+ *
+ * 6 000 ms vì lớp hướng dẫn hiện ngay sau khi mô hình dựng xong, chứ không chờ
+ * mạng thêm lần nào. Cộng cả hai phần là 26 giây, vẫn nằm trong trần 30 — nay
+ * đúng như thế: trước 2026-10-02 còn một lượt chờ khung nhìn 5 s ĐỨNG TRƯỚC hai
+ * phần này, thành 31 giây. `waitForViewerReady` gộp nó vào phần 20 giây.
+ */
+const TOUR_APPEAR_TIMEOUT_MS = 6_000;
 
 /** Mỗi bước kéo đi ngang bấy nhiêu pixel. */
 const DRAG_STEP_X_PX = 15;
@@ -292,7 +389,7 @@ async function timed(label: string, work: () => Promise<void>): Promise<number> 
 async function openViewer(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(VIEWER_PATH);
-  await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  await waitForViewerReady(page);
   await settleViewer(page);
 }
 
@@ -430,6 +527,21 @@ async function findOneRoom(page: Page): Promise<void> {
   const box = page.getByRole('combobox', { name: SEARCH_INPUT_LABEL });
   await expect(box).toBeVisible();
 
+  /*
+   * Đóng lớp hướng dẫn LẦN NỮA, và đây không phải vá bừa — đo được nó hiện ra
+   * ĐÚNG LÚC này.
+   *
+   * Một bước hướng dẫn chỉ sống khi nó có phím THẬT *hoặc* neo THẬT
+   * (`useEditorTour.ts:480-483`); không bước nào sống thì `steps.length === 0`,
+   * trạng thái về `empty`, và lớp phủ KHÔNG dựng — nên `settleViewer` chờ đủ
+   * 20 giây vẫn không thấy nút "bỏ qua" nào để bấm. Mở ô tìm lên thì phím tắt
+   * và neo của màn ấy vào sổ, một bước sống lại, và lớp phủ hiện ngay trên cái
+   * danh sách vừa mở — nuốt đúng cú bấm tiếp theo.
+   *
+   * Nên thứ tự ở đây là cố ý: mở ô tìm TRƯỚC, đóng hướng dẫn SAU, rồi mới gõ.
+   */
+  await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+
   await box.fill(ROOM_QUERY);
 
   const match = page.getByRole('option', { name: new RegExp(ROOM_NAME, 'u') });
@@ -469,12 +581,77 @@ test('mở được màn 3D và màn không trắng', async ({ page }) => {
 test('ba việc chỉ bằng thứ nhìn thấy trên màn: quay, thu phóng, chọn tầng', async ({ page }) => {
   await openViewer(page);
 
-  const rotateMs = await timed('quay', () => stepRotate(page));
+  /* Thu phóng TRƯỚC khi quay. `stepRotate` để màn ở "Trên xuống", và ở góc ấy
+     thu phóng từng không làm gì (B-V8-01, ba bài ngay dưới). Thứ tự cũ (quay
+     rồi mới thu phóng) chỉ xanh khi `before` được đọc lúc camera còn đang bay
+     340 ms; máy bận thì đọc sau khi đáp, ra 100 và đỏ (đo 2026-10-02: một lượt
+     đỏ trong hai). */
   const zoomMs = await timed('thu phóng', () => stepZoom(page));
+  const rotateMs = await timed('quay', () => stepRotate(page));
   const storeyMs = await timed('chọn tầng', () => stepChooseStorey(page));
 
   logDuration('tổng ba việc', rotateMs + zoomMs + storeyMs);
 });
+
+/**
+ * Mức thu phóng sau khi camera đã ĐÁP: hai lần đọc cách nhau 400 ms trùng nhau.
+ * 400 > 340 ms của một lượt bay (`presets.ts`), nên trùng nhau là đã đứng yên.
+ */
+async function settledZoomPercent(page: Page): Promise<number> {
+  let last = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const now = percentOf((await zoomLabel(page).innerText()).trim());
+        const settled = now === last;
+        last = now;
+        return settled;
+      },
+      { intervals: [400] },
+    )
+    .toBe(true);
+
+  return last;
+}
+
+for (const face of ['Trục đo', 'Trên xuống', 'Mặt cắt'] as const) {
+  /*
+   * B-V8-01 (đã sửa): ở ba góc này cả cuộn chuột lẫn nút "Phóng to" từng để
+   * nhãn đứng ở 100%, vì `onViewportWheel` (`useViewerShell.ts`) chỉ biết `dolly`
+   * mà `FlatCameraMode` (`lib/three/camera/modes.ts`) chỉ có `zoom`. Nay là bài
+   * chặn hồi quy; bài đơn vị cùng lỗi là `[VS-15]` của `ViewerShell.test.tsx`.
+   */
+  test(`thu phóng được ở góc "${face}" — bằng cuộn chuột và bằng nút`, async ({ page }) => {
+    await openViewer(page);
+
+    const cube = page.getByRole('group', { name: 'Khối định hướng' });
+    await cube.getByRole('button', { name: face, exact: true }).click();
+    await expect(cube.getByRole('button', { name: face, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    const beforeWheel = await settledZoomPercent(page);
+    const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    for (let notch = 0; notch < ZOOM_NOTCHES; notch += 1) {
+      await page.mouse.wheel(0, -WHEEL_DELTA_PX);
+    }
+    await expect
+      .poll(async () => percentOf((await zoomLabel(page).innerText()).trim()))
+      .toBeGreaterThan(beforeWheel);
+
+    const beforeButton = await settledZoomPercent(page);
+    await page
+      .getByRole('group', { name: 'Cụm thu phóng' })
+      .getByRole('button', { name: 'Phóng to', exact: true })
+      .click();
+    await expect
+      .poll(async () => percentOf((await zoomLabel(page).innerText()).trim()))
+      .toBeGreaterThan(beforeButton);
+  });
+}
 
 test('ViewCube bấm được bằng chuột, bản đồ nhỏ không đè lên nó (P2)', async ({ page }) => {
   await openViewer(page);
@@ -522,7 +699,37 @@ test('tìm được một phòng chỉ bằng thứ nhìn thấy trên màn (Q2)
   await openViewer(page);
 
   await timed('tìm một phòng', () => findOneRoom(page));
+
+  /* Lưới 2 (Chặng 1): Escape bỏ chọn, và panel thanh tra thôi nói về phòng ấy.
+     Bài đơn vị chỉ có `fireEvent`; đây là đường đi qua sổ phím tắt thật. */
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('complementary', { name: 'Thanh tra đối tượng' })).not.toContainText(
+    ROOM_ID,
+  );
 });
+
+/*
+ * Lưới 2 (Chặng 1) — lớp không có route của màn 3D: mở bằng nút nhìn thấy được,
+ * `Escape` đóng đúng lớp ấy (A12), đường dẫn không đổi, khung nhìn còn nguyên.
+ */
+for (const label of ['Diện tích phòng', 'Lịch sử thao tác', 'Thư viện đồ đạc', 'Ai đang xem']) {
+  test(`lớp "${label}" mở được bằng nút, Escape đóng nó và chỉ nó (A12)`, async ({ page }) => {
+    await openViewer(page);
+    const before = page.url();
+    const toggle = page.getByRole('button', { name: label, exact: true });
+
+    await toggle.click();
+    /* Cú bấm đầu trên màn này có thể gọi lớp hướng dẫn lên — xem `findOneRoom`. */
+    await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await page.keyboard.press('Escape');
+
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(page.url()).toBe(before);
+    await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
+  });
+}
 
 /**
  * R1 — **bấm chuột vào khung nhìn 3D và chọn được một đối tượng.**

@@ -29,7 +29,12 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { createMockApiClient } from '@/api/__mocks__/client';
+import { ROUTE_PATTERNS } from '@/routes/paths';
+import { useStore } from '@/store';
 
 import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -55,6 +60,8 @@ import {
 } from './versionHistoryFixtures';
 import * as UseVersionHistoryModule from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
+import { VersionHistoryRoute } from './VersionHistory.container';
+import { createApiVersionLoader } from './versionHistoryGateway';
 
 afterEach(() => {
   cleanup();
@@ -497,5 +504,53 @@ describe('nút phục hồi rời khỏi DOM khi canRestore false', () => {
     renderWithProviders(<VersionHistoryView {...props} />);
 
     expect(screen.queryByRole('button', { name: /phục hồi/iu })).not.toBeNull();
+  });
+});
+
+describe('B-V12-10 — màn có nguồn dữ liệu thật (N17) và tự tìm được tầng', () => {
+  it('bộ nạp N17 đổi mỗi bản tóm tắt thành một dòng chỉ-siêu-dữ-liệu, giữ tên người tạo', async () => {
+    const client = createMockApiClient();
+    const floors = await client.floors.list({ projectId: 'project-1' });
+    const floorId = floors.ok ? floors.data[0]?.id : undefined;
+
+    expect(floorId).toBeDefined();
+
+    const entries = await createApiVersionLoader(client, 'project-1')(floorId ?? '');
+
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries.every((entry) => entry.kind === 'metadataOnly')).toBe(true);
+    expect(entries[0]?.version.creatorName).toBeTruthy();
+  });
+
+  it('route không mang tầng và kho không có tầng đang mở: mở lịch sử của tầng đầu tiên, không báo "thiếu"', async () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+    // jsdom không có `matchMedia`; màn hỏi nó để biết có thu gọn không (`useIsNarrow`).
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) =>
+        ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }) as unknown,
+    );
+
+    try {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/projects/project-1/versions']}>
+          <Routes>
+            <Route path={ROUTE_PATTERNS.projectVersions} element={<VersionHistoryRoute />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      // Vai của dự án đang mở — trong trình duyệt bộ mẫu cấp `engineer` cho phiên chưa đăng nhập.
+      act(() => {
+        useStore.getState().setUserRoles(['engineer']);
+      });
+
+      expect(
+        await screen.findByRole('navigation', { name: 'Danh sách phiên bản' }, { timeout: 5_000 }),
+      ).toBeTruthy();
+      expect(screen.queryByText('Không xác định được bản vẽ')).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
   });
 });

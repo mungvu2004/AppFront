@@ -27,6 +27,7 @@ import { reflowOpenings, reflowOpeningsAcrossSplit } from '@/domain/openings/ref
 import { isAttached, type AttachedOpening } from '@/domain/openings/types';
 import { validateOpening } from '@/domain/openings/validate';
 import { isIdOfKind } from '@/domain/spatial/ids';
+import { displayCodeIn } from '@/domain/spatial/normalize';
 import type {
   Dimension,
   EntityId,
@@ -45,6 +46,7 @@ import { compareNearly, nearlyEqualLength, nearlyEqualPoint } from '@/domain/uni
 import { distanceBetween } from '@/domain/units/snap';
 import { millimetres } from '@/domain/units/types';
 import { nearestStandardThickness } from '@/domain/walls/cleanup';
+import { endsWeldedTo } from '@/domain/walls/joints';
 import {
   mergeWalls,
   MIN_WALL_LENGTH_MM,
@@ -125,18 +127,18 @@ export const WALL_END_LABELS: Readonly<Record<WallEnd, string>> = {
  * unit mix-up, not a rounding error — so a command hands it nothing it would
  * throw on, and reports the same facts as sentences instead.
  */
-const geometryReasons = (wall: GraphWall, level: Level): string[] => {
+const geometryReasons = (wall: GraphWall, level: Level, context: CommandContext): string[] => {
   const reasons: string[] = [];
 
   if (!isFinitePoint(wall.centreline.start) || !isFinitePoint(wall.centreline.end)) {
-    reasons.push(`Tường ${wall.id} có toạ độ tim tường không đọc được.`);
+    reasons.push(`Tường ${displayCodeIn(context.graph, wall.id)} có toạ độ tim tường không đọc được.`);
 
     return reasons;
   }
 
   if (!Number.isFinite(wall.thicknessMm) || !isThicknessInRange(millimetres(wall.thicknessMm))) {
     reasons.push(
-      `Tường ${wall.id} dày ${formatLengthMm(wall.thicknessMm)}, ngoài khoảng ` +
+      `Tường ${displayCodeIn(context.graph, wall.id)} dày ${formatLengthMm(wall.thicknessMm)}, ngoài khoảng ` +
         `${formatLengthMm(MIN_WALL_THICKNESS_MM).replace(' mm', '')}–${formatLengthMm(MAX_WALL_THICKNESS_MM)} cho phép.`,
     );
   }
@@ -144,15 +146,15 @@ const geometryReasons = (wall: GraphWall, level: Level): string[] => {
   const lengthMm = distanceBetween(toPointMm(wall.centreline.start), toPointMm(wall.centreline.end));
 
   if (compareNearly(lengthMm, 0) <= 0) {
-    reasons.push(`Tường ${wall.id} có tim tường dài 0 mm nên không xử lý hình học được.`);
+    reasons.push(`Tường ${displayCodeIn(context.graph, wall.id)} có tim tường dài 0 mm nên không xử lý hình học được.`);
   }
 
   if (!Number.isFinite(wall.heightMm) || compareNearly(wall.heightMm, 0) <= 0) {
-    reasons.push(`Tường ${wall.id} cao ${formatLengthMm(wall.heightMm)}, phải lớn hơn 0 mm.`);
+    reasons.push(`Tường ${displayCodeIn(context.graph, wall.id)} cao ${formatLengthMm(wall.heightMm)}, phải lớn hơn 0 mm.`);
   }
 
   if (!Number.isFinite(level.elevationMm)) {
-    reasons.push(`Tầng ${level.id} có cao độ không đọc được.`);
+    reasons.push(`Tầng ${displayCodeIn(context.graph, level.id)} có cao độ không đọc được.`);
   }
 
   return reasons;
@@ -169,16 +171,16 @@ const lookupWall = (context: CommandContext, wallId: WallId): WallLookup => {
   const wall = readOf(context.graph, 'wall', wallId);
 
   if (wall === null) {
-    return { wall: null, level: null, reasons: [`Không tìm thấy tường ${wallId} trong bản vẽ.`] };
+    return { wall: null, level: null, reasons: [`Không tìm thấy tường ${displayCodeIn(context.graph, wallId)} trong bản vẽ.`] };
   }
 
   const level = levelOfWall(context.graph, wall);
 
   if (level === null) {
-    return { wall, level: null, reasons: [`Tường ${wallId} đang trỏ tới tầng ${wall.levelId} không tồn tại.`] };
+    return { wall, level: null, reasons: [`Tường ${displayCodeIn(context.graph, wallId)} đang trỏ tới tầng ${displayCodeIn(context.graph, wall.levelId)} không tồn tại.`] };
   }
 
-  return { wall, level, reasons: geometryReasons(wall, level) };
+  return { wall, level, reasons: geometryReasons(wall, level, context) };
 };
 
 /** The openings of a wall, ready for the openings domain. */
@@ -232,7 +234,7 @@ export function validateDrawWall(input: DrawWallInput, context: CommandContext):
   }
 
   if (readOf(context.graph, 'level', input.levelId) === null) {
-    reasons.push(`Không tìm thấy tầng ${input.levelId} để đặt tường lên.`);
+    reasons.push(`Không tìm thấy tầng ${displayCodeIn(context.graph, input.levelId)} để đặt tường lên.`);
   }
 
   if (!WALL_KINDS.includes(input.kind)) {
@@ -299,9 +301,9 @@ export function createDrawWallCommand(input: DrawWallInput, context: CommandCont
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.draw,
-      `Vẽ ${WALL_KIND_LABELS[input.kind]} ${input.id} dài ${formatLengthMm(lengthMm)}, dày ` +
+      `Vẽ ${WALL_KIND_LABELS[input.kind]} ${displayCodeIn(context.graph, input.id)} dài ${formatLengthMm(lengthMm)}, dày ` +
         `${formatLengthMm(input.thicknessMm)}, cao ${formatLengthMm(input.heightMm)} trên tầng ` +
-        `${level === null ? input.levelId : level.name}.`,
+        `${level === null ? displayCodeIn(context.graph, input.levelId) : level.name}.`,
       [changeForAdd('wall', wall)],
       context,
     ),
@@ -344,7 +346,7 @@ export function validateDragWallEnd(input: DragWallEndInput, context: CommandCon
 
   if (nearlyEqualPoint(toPointMm(from), toPointMm(input.to))) {
     reasons.push(
-      `Đỉnh ${WALL_END_LABELS[input.end]} của tường ${input.wallId} đã ở ${formatPoint(input.to)} nên không có gì thay đổi.`,
+      `Đỉnh ${WALL_END_LABELS[input.end]} của tường ${displayCodeIn(context.graph, input.wallId)} đã ở ${formatPoint(input.to)} nên không có gì thay đổi.`,
     );
   }
 
@@ -368,6 +370,68 @@ export function validateDragWallEnd(input: DragWallEndInput, context: CommandCon
  * the way down the wall, and every opening whose stored offset changes as a
  * result is part of the same command.
  */
+/**
+ * Quyết định 3A: kéo một góc thì mọi tường hàn chung góc ấy đi theo — và chúng
+ * **mất dấu xác minh**.
+ *
+ * Người dùng chốt điều này ngày 2026-09-18. Hai nửa của nó, và vì sao nửa sau
+ * không mâu thuẫn với luật ở đầu `shared.ts`:
+ *
+ * `shared.ts` nói *"việc sửa có rút lại phê duyệt hay không là câu hỏi chính
+ * sách QC, không phải của tầng lệnh"*, và luật ấy **giữ nguyên** cho tường
+ * người dùng kéo trực tiếp: nó mang theo siêu dữ liệu nó có.
+ *
+ * Tường đi theo thì khác. Không ai chạm vào nó; hệ thống dời nó. Dấu xanh của
+ * A5 nghĩa là *một người đã soát hình học này* — mà hình học vừa đổi và không
+ * người nào soát cái mới. Giữ dấu xanh ở đó là để dấu ấy nói dối. Nên nó bị gỡ,
+ * và `source` chuyển về `'ai'` vì lượt dời là do máy quyết, không phải người.
+ *
+ * Hình học **không** tính ở đây: `endsWeldedTo` là hàm thuần của
+ * `domain/walls/joints`, cùng bộ hàn dựng nên đường bao của tường.
+ */
+const cascadeChanges = (
+  context: CommandContext,
+  level: Level,
+  draggedWall: GraphWall,
+  input: DragWallEndInput,
+): readonly EntityChange[] => {
+  const siblings = entitiesOfKind(context.graph, 'wall').filter(
+    (wall: GraphWall) => wall.levelId === level.id && wallIsUsable(wall, level),
+  );
+
+  if (siblings.length < 2) {
+    return [];
+  }
+
+  const welded = endsWeldedTo(
+    siblings.map((wall) => toSolidWall(wall, level)),
+    { wallId: draggedWall.id, end: input.end },
+  );
+
+  return welded.flatMap((ref) => {
+    const wall = siblings.find((candidate: GraphWall) => candidate.id === ref.wallId);
+
+    if (wall === undefined || wall.id === draggedWall.id) {
+      return [];
+    }
+
+    const centreline: Segment =
+      ref.end === 'start'
+        ? { start: { ...input.to }, end: { ...wall.centreline.end } }
+        : { start: { ...wall.centreline.start }, end: { ...input.to } };
+
+    return [
+      changeForUpdate('wall', wall, {
+        ...wall,
+        centreline,
+        // Nửa sau của 3A. Xem khối chú thích trên.
+        reviewed: false,
+        source: 'ai',
+      }),
+    ];
+  });
+};
+
 export function createDragWallEndCommand(
   input: DragWallEndInput,
   context: CommandContext,
@@ -398,6 +462,8 @@ export function createDragWallEndCommand(
     return stored === undefined ? [] : openingMoveChange(stored, wall.id, offsetOnWall(moved, after));
   });
 
+  const cascade = cascadeChanges(context, level, wall, input);
+
   const fromLengthMm = centrelineLength(before);
   const toLengthMm = centrelineLength(after);
   const movedCount = openingChanges.length;
@@ -405,12 +471,15 @@ export function createDragWallEndCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.dragEnd,
-      `Kéo đỉnh ${WALL_END_LABELS[input.end]} tường ${wall.id} từ ` +
+      `Kéo đỉnh ${WALL_END_LABELS[input.end]} tường ${displayCodeIn(context.graph, wall.id)} từ ` +
         `${formatPoint(input.end === 'start' ? wall.centreline.start : wall.centreline.end)} sang ` +
         `${formatPoint(input.to)}; tường dài ${formatLengthMm(fromLengthMm)} thành ` +
         `${formatLengthMm(toLengthMm)}` +
-        (movedCount === 0 ? '.' : `, ${formatCount(movedCount)} lỗ mở dịch theo.`),
-      [changeForUpdate('wall', wall, nextWall), ...openingChanges],
+        (movedCount === 0 ? '' : `, ${formatCount(movedCount)} lỗ mở dịch theo`) +
+        (cascade.length === 0
+          ? '.'
+          : `, ${formatCount(cascade.length)} tường nối đi theo và mất dấu xác minh.`),
+      [changeForUpdate('wall', wall, nextWall), ...openingChanges, ...cascade],
       context,
     ),
   );
@@ -433,7 +502,7 @@ export function validateChangeWallThickness(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return [`Không tìm thấy tường ${input.wallId} trong bản vẽ.`];
+    return [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)} trong bản vẽ.`];
   }
 
   const reasons: string[] = [];
@@ -448,7 +517,7 @@ export function validateChangeWallThickness(
   }
 
   if (nearlyEqualLength(millimetres(wall.thicknessMm), millimetres(input.thicknessMm))) {
-    reasons.push(`Tường ${wall.id} đã dày ${formatLengthMm(wall.thicknessMm)} nên không có gì thay đổi.`);
+    reasons.push(`Tường ${displayCodeIn(context.graph, wall.id)} đã dày ${formatLengthMm(wall.thicknessMm)} nên không có gì thay đổi.`);
   }
 
   return reasons;
@@ -474,7 +543,7 @@ export function createChangeWallThicknessCommand(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return refuse(WALL_COMMAND_TYPES.changeThickness, [`Không tìm thấy tường ${input.wallId}.`]);
+    return refuse(WALL_COMMAND_TYPES.changeThickness, [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)}.`]);
   }
 
   const standardMm = nearestStandardThickness(millimetres(input.thicknessMm));
@@ -482,7 +551,7 @@ export function createChangeWallThicknessCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.changeThickness,
-      `Đổi độ dày tường ${wall.id} từ ${formatLengthMm(wall.thicknessMm)} sang ` +
+      `Đổi độ dày tường ${displayCodeIn(context.graph, wall.id)} từ ${formatLengthMm(wall.thicknessMm)} sang ` +
         `${formatLengthMm(input.thicknessMm)}` +
         (standardMm === null ? '.' : `, gần độ dày chuẩn ${formatLengthMm(standardMm)}.`),
       [changeForUpdate('wall', wall, { ...wall, thicknessMm: input.thicknessMm })],
@@ -534,8 +603,8 @@ const openingHeadReasons = (
     const headMm = opening.sillHeightMm + opening.heightMm;
 
     return [
-      `Hạ tường ${wall.id} xuống ${formatLengthMm(heightMm)} sẽ cắt qua ` +
-        `${nameOfOpening(opening)} có đỉnh ở ${formatLengthMm(headMm)}; còn thiếu ` +
+      `Hạ tường ${displayCodeIn(context.graph, wall.id)} xuống ${formatLengthMm(heightMm)} sẽ cắt qua ` +
+        `${nameOfOpening(opening, context.graph)} có đỉnh ở ${formatLengthMm(headMm)}; còn thiếu ` +
         `${formatLengthMm(headMm - heightMm)}.`,
     ];
   });
@@ -549,7 +618,7 @@ export function validateChangeWallHeight(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return [`Không tìm thấy tường ${input.wallId} trong bản vẽ.`];
+    return [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)} trong bản vẽ.`];
   }
 
   if (!Number.isFinite(input.heightMm) || compareNearly(input.heightMm, 0) <= 0) {
@@ -563,7 +632,7 @@ export function validateChangeWallHeight(
     Number.isFinite(wall.heightMm) &&
     nearlyEqualLength(millimetres(wall.heightMm), millimetres(input.heightMm))
   ) {
-    return [`Tường ${wall.id} đã cao ${formatLengthMm(wall.heightMm)} nên không có gì thay đổi.`];
+    return [`Tường ${displayCodeIn(context.graph, wall.id)} đã cao ${formatLengthMm(wall.heightMm)} nên không có gì thay đổi.`];
   }
 
   const openings = openingsOfWall(context.graph, wall.id);
@@ -575,12 +644,12 @@ export function validateChangeWallHeight(
   const level = levelOfWall(context.graph, wall);
 
   if (level === null) {
-    return [`Tường ${wall.id} đang trỏ tới tầng ${wall.levelId} không tồn tại.`];
+    return [`Tường ${displayCodeIn(context.graph, wall.id)} đang trỏ tới tầng ${displayCodeIn(context.graph, wall.levelId)} không tồn tại.`];
   }
 
   if (!wallIsUsable({ ...wall, heightMm: input.heightMm }, level)) {
     return [
-      `Tường ${wall.id} có số đo không dùng được nên chưa kiểm được ` +
+      `Tường ${displayCodeIn(context.graph, wall.id)} có số đo không dùng được nên chưa kiểm được ` +
         `${formatCount(openings.length)} lỗ mở trên nó.`,
     ];
   }
@@ -614,7 +683,7 @@ export function createChangeWallHeightCommand(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return refuse(WALL_COMMAND_TYPES.changeHeight, [`Không tìm thấy tường ${input.wallId}.`]);
+    return refuse(WALL_COMMAND_TYPES.changeHeight, [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)}.`]);
   }
 
   const openingCount = openingsOfWall(context.graph, wall.id).length;
@@ -622,7 +691,7 @@ export function createChangeWallHeightCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.changeHeight,
-      `Đổi chiều cao tường ${wall.id} từ ${formatLengthMm(wall.heightMm)} sang ` +
+      `Đổi chiều cao tường ${displayCodeIn(context.graph, wall.id)} từ ${formatLengthMm(wall.heightMm)} sang ` +
         `${formatLengthMm(input.heightMm)}` +
         (openingCount === 0
           ? '.'
@@ -650,7 +719,7 @@ export function validateChangeWallKind(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return [`Không tìm thấy tường ${input.wallId} trong bản vẽ.`];
+    return [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)} trong bản vẽ.`];
   }
 
   if (!WALL_KINDS.includes(input.kind)) {
@@ -658,7 +727,7 @@ export function validateChangeWallKind(
   }
 
   if (wall.kind === input.kind) {
-    return [`Tường ${wall.id} đã là ${WALL_KIND_LABELS[input.kind]} nên không có gì thay đổi.`];
+    return [`Tường ${displayCodeIn(context.graph, wall.id)} đã là ${WALL_KIND_LABELS[input.kind]} nên không có gì thay đổi.`];
   }
 
   return [];
@@ -678,7 +747,7 @@ export function createChangeWallKindCommand(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return refuse(WALL_COMMAND_TYPES.changeKind, [`Không tìm thấy tường ${input.wallId}.`]);
+    return refuse(WALL_COMMAND_TYPES.changeKind, [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)}.`]);
   }
 
   const lengthMm = distanceBetween(
@@ -689,7 +758,7 @@ export function createChangeWallKindCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.changeKind,
-      `Đổi loại tường ${wall.id} từ ${WALL_KIND_LABELS[wall.kind]} sang ` +
+      `Đổi loại tường ${displayCodeIn(context.graph, wall.id)} từ ${WALL_KIND_LABELS[wall.kind]} sang ` +
         `${WALL_KIND_LABELS[input.kind]}, dài ${formatLengthMm(lengthMm)}, dày ` +
         `${formatLengthMm(wall.thicknessMm)}.`,
       [changeForUpdate('wall', wall, { ...wall, kind: input.kind })],
@@ -748,7 +817,7 @@ export function validateSplitWall(input: SplitWallInput, context: CommandContext
     const lengthMm = centrelineLength(toSolidWall(found.wall, found.level));
 
     reasons.push(
-      `${SPLIT_REFUSAL_REASONS[outcome.reason]} Tường ${found.wall.id} dài ` +
+      `${SPLIT_REFUSAL_REASONS[outcome.reason]} Tường ${displayCodeIn(context.graph, found.wall.id)} dài ` +
         `${formatLengthMm(lengthMm)}, đoạn ngắn nhất cho phép là ` +
         `${formatLengthMm(MIN_WALL_LENGTH_MM)}.`,
     );
@@ -829,9 +898,9 @@ export function createSplitWallCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.split,
-      `Cắt tường ${wall.id} dài ${formatLengthMm(centrelineLength(original))} tại ` +
+      `Cắt tường ${displayCodeIn(context.graph, wall.id)} dài ${formatLengthMm(centrelineLength(original))} tại ` +
         `${formatPoint(input.at)} thành ${formatLengthMm(centrelineLength(firstSolid))} và ` +
-        `${formatLengthMm(centrelineLength(secondSolid))} (đoạn mới ${input.secondWallId})` +
+        `${formatLengthMm(centrelineLength(secondSolid))} (đoạn mới ${displayCodeIn(context.graph, input.secondWallId)})` +
         (undecided === 0 ? '.' : `; ${formatCount(undecided)} lỗ mở nằm vắt qua nhát cắt, cần người xem.`),
       [
         changeForUpdate('wall', wall, firstWall),
@@ -907,7 +976,7 @@ const MERGE_REFUSAL_REASONS: Readonly<Record<MergeRefusal, string>> = {
 /** Everything wrong with welding these two walls; empty when they may be welded. */
 export function validateMergeWalls(input: MergeWallsInput, context: CommandContext): string[] {
   if (input.wallId === input.otherWallId) {
-    return [`Hai mã tường cùng là ${input.wallId}; cần hai tường khác nhau để gộp.`];
+    return [`Hai mã tường cùng là ${displayCodeIn(context.graph, input.wallId)}; cần hai tường khác nhau để gộp.`];
   }
 
   const first = lookupWall(context, input.wallId);
@@ -926,7 +995,7 @@ export function validateMergeWalls(input: MergeWallsInput, context: CommandConte
 
   if (first.wall.levelId !== second.wall.levelId) {
     reasons.push(
-      `Tường ${first.wall.id} ở tầng ${first.level.name} còn ${second.wall.id} ở tầng ` +
+      `Tường ${displayCodeIn(context.graph, first.wall.id)} ở tầng ${first.level.name} còn ${displayCodeIn(context.graph, second.wall.id)} ở tầng ` +
         `${second.level.name}; chỉ gộp được hai tường trên cùng một tầng.`,
     );
 
@@ -935,7 +1004,7 @@ export function validateMergeWalls(input: MergeWallsInput, context: CommandConte
 
   if (first.wall.kind !== second.wall.kind) {
     reasons.push(
-      `Tường ${first.wall.id} là ${WALL_KIND_LABELS[first.wall.kind]} còn ${second.wall.id} là ` +
+      `Tường ${displayCodeIn(context.graph, first.wall.id)} là ${WALL_KIND_LABELS[first.wall.kind]} còn ${displayCodeIn(context.graph, second.wall.id)} là ` +
         `${WALL_KIND_LABELS[second.wall.kind]}; hai tường khác loại thì không gộp.`,
     );
   }
@@ -1056,8 +1125,8 @@ export function createMergeWallsCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.merge,
-      `Gộp tường ${removedGraphWall.id} dài ${formatLengthMm(centrelineLength(removedSolid))} vào ` +
-        `${keptGraphWall.id} dài ${formatLengthMm(centrelineLength(keptSolid))}; tường sau khi gộp dài ` +
+      `Gộp tường ${displayCodeIn(context.graph, removedGraphWall.id)} dài ${formatLengthMm(centrelineLength(removedSolid))} vào ` +
+        `${displayCodeIn(context.graph, keptGraphWall.id)} dài ${formatLengthMm(centrelineLength(keptSolid))}; tường sau khi gộp dài ` +
         `${formatLengthMm(centrelineLength(outcome.wall))} và giữ ${formatCount(keptOpeningIds.length)} lỗ mở.`,
       [
         changeForUpdate('wall', keptGraphWall, { ...mergedWall, openingIds: keptOpeningIds }),
@@ -1081,7 +1150,7 @@ export interface DeleteWallInput {
 /** Everything wrong with deleting this wall; empty when it may be deleted. */
 export function validateDeleteWall(input: DeleteWallInput, context: CommandContext): string[] {
   if (readOf(context.graph, 'wall', input.wallId) === null) {
-    return [`Không tìm thấy tường ${input.wallId} trong bản vẽ.`];
+    return [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)} trong bản vẽ.`];
   }
 
   return [];
@@ -1112,7 +1181,7 @@ export function createDeleteWallCommand(
   const wall = readOf(context.graph, 'wall', input.wallId);
 
   if (wall === null) {
-    return refuse(WALL_COMMAND_TYPES.remove, [`Không tìm thấy tường ${input.wallId}.`]);
+    return refuse(WALL_COMMAND_TYPES.remove, [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)}.`]);
   }
 
   const openings = openingsOfWall(context.graph, wall.id);
@@ -1154,14 +1223,14 @@ export function createDeleteWallCommand(
   return accept(
     buildCommand(
       WALL_COMMAND_TYPES.remove,
-      `Xoá ${WALL_KIND_LABELS[wall.kind]} ${wall.id} dài ${formatLengthMm(lengthMm)}, dày ` +
+      `Xoá ${WALL_KIND_LABELS[wall.kind]} ${displayCodeIn(context.graph, wall.id)} dài ${formatLengthMm(lengthMm)}, dày ` +
         `${formatLengthMm(wall.thicknessMm)}` +
         (carried.length === 0
           ? '.'
           : `; kéo theo ${carried.join(', ')}` +
             (openings.length === 0
               ? '.'
-              : ` (${openings.map((opening) => nameOfOpening(opening)).join(', ')}).`)),
+              : ` (${openings.map((opening) => nameOfOpening(opening, context.graph)).join(', ')}).`)),
       changes,
       context,
     ),

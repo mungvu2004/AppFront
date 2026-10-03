@@ -25,8 +25,8 @@
  * `createUuid` from it.)
  */
 
-import type { ReactElement } from 'react';
-import { AlertCircle, Bell, FolderPlus, Lock, Plus, Search } from 'lucide-react';
+import type { ReactElement, ReactNode } from 'react';
+import { AlertCircle, FolderPlus, Lock, Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -45,6 +45,7 @@ import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
+import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
 import { DashboardSidebar } from './DashboardSidebar';
@@ -61,9 +62,33 @@ import {
 } from './useProjectDashboard';
 
 const SKELETON_CARD_COUNT = 6;
+
+/**
+ * What the `sr-only` status line says — the screen reader's only way to learn
+ * which of the seven states the dashboard is in. It used to print the raw
+ * `SevenState` key ("success", "forbidden"), English in a Vietnamese product
+ * (A6). Its own copy, like `ProjectSettings.tsx` and `CreateProjectModal.tsx`:
+ * `SEVEN_STATE_LABELS` lives in test infrastructure that never ships.
+ */
+const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
+  empty: 'rỗng',
+  loading: 'đang tải',
+  partial: 'một phần',
+  error: 'lỗi',
+  success: 'thành công',
+  forbidden: 'không có quyền',
+  collapsed: 'thu gọn',
+};
 const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
-export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {}
+export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
+  /**
+   * Chuông thông báo đã nối, do container cắm vào — view không nhập gì từ
+   * NotificationCenter. Khe trống thì không vẽ chuông nào: một nút không làm gì
+   * mà vẫn nằm trong thứ tự Tab là thứ A2 chặn (B-V3-08).
+   */
+  readonly notificationBell?: ReactNode | undefined;
+}
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
 export function ProjectDashboardView(props: ProjectDashboardViewProps) {
@@ -96,6 +121,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
     props.renamingId === project.id ? (
       <input
         autoFocus
+        aria-label={`đổi tên ${project.name}`}
         value={props.renameDraft}
         onChange={(event) => props.setRenameDraft(event.target.value)}
         onBlur={props.commitRename}
@@ -172,9 +198,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           wrapperClassName="w-[320px] max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
-          <button type="button" aria-label="Thông báo" className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary">
-            <Bell size={18} aria-hidden="true" />
-          </button>
+          {props.notificationBell}
           <Avatar alt="Tài khoản của bạn" />
           {props.canCreate && (
             <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
@@ -341,13 +365,16 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       </Modal.Root>
 
       <span className="sr-only" role="status">
-        {state}
+        {STATE_ANNOUNCEMENT[state]}
       </span>
     </div>
   );
 }
 
-export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {}
+export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {
+  /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.notificationBell}. */
+  readonly notificationBell?: ReactNode | undefined;
+}
 
 /**
  * Wires the hook to the router and whichever `Toast.Provider` is nearest, then
@@ -359,7 +386,7 @@ export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 
  * two lines down. Two independent `Toast.Provider`s would each draw their own
  * fixed-position stack in the same corner (R-73's container/props boundary).
  */
-export function ProjectDashboardConnected(options: ProjectDashboardProps) {
+export function ProjectDashboardConnected({ notificationBell, ...options }: ProjectDashboardProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -369,7 +396,7 @@ export function ProjectDashboardConnected(options: ProjectDashboardProps) {
     onToast: addToast,
   });
 
-  return <ProjectDashboardView {...model} {...actions} />;
+  return <ProjectDashboardView {...model} {...actions} notificationBell={notificationBell} />;
 }
 
 /** `ProjectDashboard`, standalone — its own `Toast.Provider`. For stories, tests and the demo picker; the real route is `ProjectDashboardRoute` (`./ProjectDashboard.container`). */

@@ -581,6 +581,19 @@ describe('ScaleCalibration — khả năng tiếp cận, tiếng Việt, màu (R
     expectVietnamese(container, { allowWords: ALLOWED_WORDS, ignore: [MACHINE_ERROR_CODE] });
   });
 
+  it('lỗi đọc dùng tiêu đề của chính nó thay cho tiêu đề ảnh méo (B-V5-04)', () => {
+    const scenario = scenarioFor('error');
+    renderWithProviders(
+      <ScaleCalibration
+        {...scenario}
+        model={{ ...scenario.model, errorTitle: 'Không tải được bản vẽ của tầng' }}
+      />,
+    );
+
+    expect(screen.getByText('Không tải được bản vẽ của tầng')).toBeInTheDocument();
+    expect(screen.queryByText('Nắn ảnh thất bại nên bản vẽ có thể méo')).toBeNull();
+  });
+
   it('mọi chuỗi hiển thị của trạng thái lỗi cũng là tiếng Việt có dấu', () => {
     const { container } = renderWithProviders(<ScaleCalibration {...scenarioFor('error')} />);
 

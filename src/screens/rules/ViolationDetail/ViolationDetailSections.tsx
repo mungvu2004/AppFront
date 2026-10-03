@@ -158,7 +158,7 @@ export function ViolationFindingsSection({
               }}
               type="button"
             >
-              <span className="font-mono text-[13px] text-accent underline">{object.entityId}</span>
+              <span className="font-mono text-[13px] text-accent underline">{object.code}</span>
               <span className="text-[13px] text-text-secondary">{object.kindLabel}</span>
 
               {canShowConfidence && object.confidenceLabel !== null ? (

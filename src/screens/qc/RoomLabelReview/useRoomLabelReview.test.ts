@@ -31,6 +31,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Room, RoomId, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
+import { flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -50,6 +51,7 @@ import {
 import {
   createMockRoomLabelReviewGateway,
   roomCodeLabel,
+  ROOM_LABEL_TEXT,
   ROOM_NAME_TARGETS,
   ROOM_NORMALIZE_COMMAND_TYPE,
 } from './roomLabelReviewGateway';
@@ -323,6 +325,105 @@ describe('diện tích — M-07 tính, màn chỉ đọc', () => {
   });
 });
 
+describe('hoàn tác trả lại vùng chọn LÚC LỆNH CHẠY (B-V7-09, A8)', () => {
+  it('chọn phòng khác rồi chọn #R-005, đổi tên, hoàn tác bằng vé: #R-005 vẫn đang chọn', async () => {
+    const notifications: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const other = ROOM_LABEL_FIXTURE_ROOMS.find((room) => room.id !== ROOM_R005.id);
+
+    act(() => {
+      mounted.result.current.onSelect(other?.id as RoomId);
+    });
+    act(() => {
+      mounted.result.current.onSelect(ROOM_R005.id);
+    });
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+    });
+
+    await act(async () => {
+      notifications.list()[0]?.undoTicket?.undo();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe(ROOM_R005.name);
+    });
+    /* Trước bản sửa: vùng chọn trước lần bấm gần nhất — phòng kia, thanh tra #R-005 đóng. */
+    expect(useStore.getState().selectedIds).toEqual([ROOM_R005.id]);
+  });
+});
+
+describe('lệnh bị từ chối phải nói ra vì sao (B-V7-08)', () => {
+  it('gộp khi chưa đọc được tường: toast nói lý do, không phòng nào mất', async () => {
+    const notifications: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const [target, absorbed] = ROOM_LABEL_FIXTURE_ROOMS;
+
+    await act(async () => {
+      mounted.result.current.onMerge(target?.id as RoomId, absorbed?.id as RoomId);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    const [refusal] = notifications.list();
+
+    /* Bộ mẫu không kèm tường, nên lý do là câu "chưa đọc được đồ thị tường" của cổng. */
+    expect(refusal?.title).toBe(ROOM_LABEL_TEXT.wallsNotReadable);
+    expect(refusal?.undoTicket).toBeUndefined();
+    expect(mounted.result.current.rooms).toHaveLength(ROOM_LABEL_FIXTURE_TOTAL);
+  });
+});
+
+describe('tự lưu — Ctrl+S với tới màn này (B-V7-01)', () => {
+  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
+    const gateway = createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []) });
+    const persist = vi.spyOn(gateway, 'persistRoomLabels');
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+    });
+
+    /* Còn trong cửa sổ 800 ms: chưa lượt lưu nào. */
+    expect(persist).not.toHaveBeenCalled();
+
+    /* Đúng thứ `SAVE_SHORTCUT` của `router.tsx` gọi. Trước bản sửa engine của màn
+       không có trong sổ, nên lời gọi này không chạm tới nó. */
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it('tháo màn thì gỡ engine khỏi sổ — Ctrl+S ở màn sau không lưu hộ màn này', async () => {
+    const gateway = createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []) });
+    const persist = vi.spyOn(gateway, 'persistRoomLabels');
+    const mounted = await mountSettled({ gateway });
+
+    mounted.unmount();
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(persist).not.toHaveBeenCalled();
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* 2 + 3. Chuẩn hoá tên: xem trước, rồi áp, rồi hoàn tác.                       */
 /* -------------------------------------------------------------------------- */
@@ -486,7 +587,8 @@ describe('vòng tường hở', () => {
 
     expect(mounted.result.current.state).toBe('empty');
     expect(notice).toContain('lớp tường');
-    expect(notice).toContain('Kiểm tra vòng hở');
+    /* Gọi ĐÚNG tên nút đang có trên màn (`RoomLabelReview.tsx`, B-V7-10). */
+    expect(notice).toContain('bấm "Kiểm tra lại vòng hở"');
   });
 
   it('"sang lớp tường" đi đúng đường dẫn ROUTES ghép ra', async () => {
@@ -537,7 +639,9 @@ describe('bảy trạng thái', () => {
     const mounted = await mountScenario(ROOM_LABEL_SCENARIO_FORBIDDEN);
 
     expect(mounted.result.current.isViewerRole).toBe(true);
-    expect(mounted.result.current.viewerRoleNotice).not.toBeNull();
+    expect(mounted.result.current.viewerRoleNotice).toBe(
+      'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
+    );
 
     await act(async () => {
       mounted.result.current.onRename(ROOM_R005.id, 'tên của người xem');

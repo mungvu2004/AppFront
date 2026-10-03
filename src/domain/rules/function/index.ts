@@ -35,6 +35,7 @@
 
 import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area';
 import { openingsOfRoom as openingsOfRoomOfAnyKind } from '../../spatial/roomOpenings';
+import { displayCodeIn } from '../../spatial/normalize';
 import type { BoundingBox, Opening, Point, Room, RoomUsage, Wall } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
@@ -201,8 +202,8 @@ function countText(value: number): string {
 }
 
 /** "phòng ngủ P-3 (Ngủ 1)", for the start of a sentence. */
-function roomText(room: Room): string {
-  return `${ROOM_USAGE_LABELS[room.usage]} ${room.id} (${room.name})`;
+function roomText(room: Room, context: RuleContext): string {
+  return `${ROOM_USAGE_LABELS[room.usage]} ${displayCodeIn(context.graph, room.id)} (${room.name})`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -525,7 +526,7 @@ export const checkRoomHasDoor: FunctionCheck = (context) => {
       finding(
         room.id,
         [room.id, ...room.wallIds],
-        `${roomText(room)} không có cửa đi nào trên ${countText(room.wallIds.length)} tường bao ` +
+        `${roomText(room, context)} không có cửa đi nào trên ${countText(room.wallIds.length)} tường bao ` +
           'của nó, nên không vào được.',
         'Thêm một cửa đi vào một tường bao, hoặc gộp phòng này với không gian bên cạnh.',
       ),
@@ -568,7 +569,7 @@ export const checkCorridorWidth: FunctionCheck = (context) => {
       finding(
         room.id,
         [room.id, ...room.wallIds],
-        `${roomText(room)} chỉ rộng ${lengthText(widthMm)} chỗ hẹp nhất, dưới mức ` +
+        `${roomText(room, context)} chỉ rộng ${lengthText(widthMm)} chỗ hẹp nhất, dưới mức ` +
           `${lengthText(requiredMm)} của lối đi.`,
         `Nới lối đi thêm ${lengthText(requiredMm - widthMm)}, hoặc dời tường bao ra để đạt ` +
           `${lengthText(requiredMm)} thông thuỷ.`,
@@ -606,7 +607,7 @@ export const checkHabitableWindow: FunctionCheck = (context) => {
       finding(
         room.id,
         [room.id, ...room.wallIds],
-        `${roomText(room)} rộng ${areaText(room.areaM2)} nhưng không có cửa sổ nào, nên không ` +
+        `${roomText(room, context)} rộng ${areaText(room.areaM2)} nhưng không có cửa sổ nào, nên không ` +
           'có ánh sáng và thông gió tự nhiên.',
         'Mở một cửa sổ trên tường bao ngoài, hoặc đổi công năng phòng sang loại không cần chiếu sáng.',
       ),
@@ -825,7 +826,7 @@ export const checkEscapeDistance: FunctionCheck = (context) => {
         finding(
           room.id,
           [room.id],
-          `${roomText(room)} không có đường nào dẫn ra lối thoát: không cửa nào của nó nối tới ` +
+          `${roomText(room, context)} không có đường nào dẫn ra lối thoát: không cửa nào của nó nối tới ` +
             'thang bộ hay cửa ra ngoài.',
           'Nối phòng này vào hành lang thoát nạn, hoặc mở một cửa ra tường bao ngoài.',
         ),
@@ -842,7 +843,7 @@ export const checkEscapeDistance: FunctionCheck = (context) => {
       finding(
         room.id,
         node.anchorId === null ? [room.id] : [room.id, node.anchorId],
-        `${roomText(room)} cách lối thoát gần nhất ${metreText(node.distanceMm)} đi qua các cửa, ` +
+        `${roomText(room, context)} cách lối thoát gần nhất ${metreText(node.distanceMm)} đi qua các cửa, ` +
           `vượt ngưỡng ${metreText(maxDistanceMm)}.`,
         `Thêm một lối thoát trong bán kính ${metreText(maxDistanceMm)}, hoặc mở thêm ` +
           'cửa để rút ngắn đường đi.',
@@ -905,7 +906,7 @@ export const checkDoorBlocksPath: FunctionCheck = (context) => {
         finding(
           opening.id,
           [opening.id, opening.wallId, room.id],
-          `Cửa đi ${opening.id} mở vào ${roomText(room)} rộng ${lengthText(widthMm)}: cánh ` +
+          `Cửa đi ${displayCodeIn(context.graph, opening.id)} mở vào ${roomText(room, context)} rộng ${lengthText(widthMm)}: cánh ` +
             `${lengthText(leafMm)} chỉ chừa lại ${lengthText(Math.max(0, leftMm))}, dưới mức ` +
             `${lengthText(minPassageMm)} để đi lọt.`,
           `Đổi sang cửa trượt hoặc cửa mở ngược ra khỏi lối đi, hoặc thu hẹp cánh xuống ` +
@@ -947,7 +948,7 @@ export const checkRoomArea: FunctionCheck = (context) => {
       finding(
         room.id,
         [room.id],
-        `${roomText(room)} rộng ${areaText(room.areaM2)}, thiếu ` +
+        `${roomText(room, context)} rộng ${areaText(room.areaM2)}, thiếu ` +
           `${areaText(requiredM2 - room.areaM2)} so với mức tối thiểu ${areaText(requiredM2)} ` +
           `của ${ROOM_USAGE_LABELS[room.usage]}.`,
         `Mở rộng phòng lên ${areaText(requiredM2)}, hoặc đổi công năng sang loại phù hợp với ` +
@@ -1036,8 +1037,8 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
       finding(
         item.id,
         [item.id, ...wallIds, ...otherIds],
-        `Đồ đạc ${item.id} chồng lên ${parts.join(' và ')}, chỗ lấn sâu nhất ${lengthText(worstMm)}.`,
-        `Dời đồ đạc ${item.id} ra ${lengthText(worstMm)}, hoặc thu nhỏ kích thước cho vừa chỗ trống.`,
+        `Đồ đạc ${displayCodeIn(context.graph, item.id)} chồng lên ${parts.join(' và ')}, chỗ lấn sâu nhất ${lengthText(worstMm)}.`,
+        `Dời đồ đạc ${displayCodeIn(context.graph, item.id)} ra ${lengthText(worstMm)}, hoặc thu nhỏ kích thước cho vừa chỗ trống.`,
       ),
     );
   }

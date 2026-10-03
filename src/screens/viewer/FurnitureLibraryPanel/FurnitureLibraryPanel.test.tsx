@@ -238,6 +238,7 @@ async function seedSofas(item: LibraryItem): Promise<void> {
  */
 function WiredFurnitureLibraryPanel(
   props: Pick<UseFurnitureLibraryPanelOptions, 'canUploadModel'> & {
+    readonly canPlaceModel?: boolean;
     readonly onModelDropped?: UseFurnitureLibraryPanelOptions['onModelDropped'];
     readonly onUploadModel?: UseFurnitureLibraryPanelOptions['onUploadModel'];
   },
@@ -245,6 +246,7 @@ function WiredFurnitureLibraryPanel(
   const model = useFurnitureLibraryPanel({
     floorId: FLOOR_ID,
     canUploadModel: props.canUploadModel,
+    canPlaceModel: props.canPlaceModel ?? true,
     onModelDropped: props.onModelDropped ?? ((): void => undefined),
     onUploadModel: props.onUploadModel ?? ((): void => undefined),
   });
@@ -587,10 +589,15 @@ describe('[FLP-2] thao tác hàng loạt luôn xem trước trước khi áp', (
 /* -------------------------------------------------------------------------- */
 
 describe('[FLP-3] không có quyền quản lý thư viện', () => {
-  it('[N6] nút tải lên biến mất, thẻ vẫn xem được, thẻ không kéo được', async () => {
-    renderWithProviders(<WiredFurnitureLibraryPanel canUploadModel={false} />, {
-      keepStore: true,
-    });
+  it('[N6] vai chỉ xem: nút tải lên biến mất, thẻ vẫn xem được, thẻ không kéo được', async () => {
+    // Có sofa trên tầng thì có dòng "Đã phát hiện" — để việc thiếu "Thay thế tất
+    // cả" bên dưới là do vai, không phải do tầng rỗng.
+    await seedSofas(sofaItem());
+
+    renderWithProviders(
+      <WiredFurnitureLibraryPanel canUploadModel={false} canPlaceModel={false} />,
+      { keepStore: true },
+    );
 
     const region = await waitForCatalogue();
     const cards = within(within(region).getByRole('list', { name: GRID_LABEL })).getAllByRole(
@@ -607,10 +614,30 @@ describe('[FLP-3] không có quyền quản lý thư viện', () => {
     expect(uploadButtons).toHaveLength(0);
     expect(cardCount(region)).toBe(libraryItems.length);
     expect(draggable).toHaveLength(0);
+    expect(within(region).getByText(/vai chỉ xem/)).toBeVisible();
+    expect(within(region).queryAllByRole('button', { name: REPLACE_ALL_LABEL })).toHaveLength(0);
 
     for (const card of cards) {
       expect(card).toHaveAttribute('aria-disabled', 'true');
       expect(card).toBeVisible();
+    }
+  });
+
+  it('[N6c] kỹ sư: không bị báo "vai chỉ xem", nhưng thẻ vẫn khoá vì chưa có đích thả (B-V8-03/04)', async () => {
+    renderWithProviders(<WiredFurnitureLibraryPanel canUploadModel={false} />, {
+      keepStore: true,
+    });
+
+    const region = await waitForCatalogue();
+    const cards = within(within(region).getByRole('list', { name: GRID_LABEL })).getAllByRole(
+      'button',
+    );
+
+    expect(within(region).queryByText(/vai chỉ xem/)).not.toBeInTheDocument();
+    expect(cards.filter((card) => card.getAttribute('draggable') === 'true')).toHaveLength(0);
+
+    for (const card of cards) {
+      expect(card).toHaveAttribute('aria-disabled', 'true');
     }
   });
 

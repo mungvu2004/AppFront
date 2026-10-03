@@ -7,24 +7,22 @@
  *   `useNavigate` hay `useParams`, nên bất kỳ màn nào cũng mở được nó bằng một
  *   dòng, kể cả trong test hay story (R-73). Nó cũng là nơi tiêm cổng dữ liệu
  *   thật vào hook.
- * - {@link ProcessingScreenRoute} là nơi duy nhất biết tới router. Nó chưa được
- *   đăng ký ở `src/routes/router.tsx` — route đó vẫn là `<Placeholder>` (phạm vi
- *   `src/routes/**` không thuộc nhiệm vụ này) — nhưng đã đủ hình dạng để nhiệm vụ
- *   nối route thật cắm vào bằng một dòng `lazy(...)`.
+ * - {@link ProcessingScreenRoute} là nơi duy nhất biết tới router; nó được đăng ký
+ *   ở `src/routes/router.tsx` cho `ROUTE_PATTERNS.projectPipeline`.
  *
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản đang được `src/App.tsx`
  * gắn (R-62), **không** phải bản chưa nối ở `src/lib/screen-state`. Phần dự
  * phòng dựng bằng `EmptyState` từ `report.description`, nên màn không bao giờ
  * trắng (A11).
  *
- * ## Vì sao `floorUploads` là props chứ không đọc từ URL
+ * ## `floorUploads` đến từ N7, không từ màn trước
  *
  * `ENDPOINTS.drawings.progress` cần `(projectId, uploadId)`, còn route chỉ mang
- * `:id`. KHÔNG endpoint nào liệt kê được các `uploadId` đang chạy của một dự án
- * (đã soát `src/api/endpoints.ts` toàn bộ). Nơi biết `uploadId` là màn tải bản
- * vẽ, nên nó truyền sang. Mở màn này từ URL trần là hợp lệ và trung thực: không
- * có lượt xử lý nào để theo dõi thì màn ở trạng thái `empty`, không phải một
- * thanh tiến độ bịa.
+ * `:id`. Danh sách `uploadId` đọc từ N7 (`ENDPOINTS.drawings.latestUploads`, lượt
+ * tải mới nhất của từng tầng), nên mọi lối vào `/pipeline` — tải lên, kiểm tra
+ * chất lượng, CAD, bảng điều khiển — thấy cùng một danh sách, kể cả tầng có bản
+ * vẽ từ trước. Trước đây route không truyền gì và màn luôn `empty` (B-V4-01).
+ * Prop `floorUploads` còn lại cho test và story muốn một danh sách cố định.
  *
  * ## Gắn S-11 `PipelineFailure` khi một bước AI hỏng
  *
@@ -66,12 +64,9 @@ const MISSING_PROJECT_TITLE = 'Không xác định được dự án';
 const MISSING_PROJECT_MESSAGE =
   'Đường dẫn thiếu mã dự án, nên không biết phải mở màn xử lý của dự án nào.';
 
-/** Ổn định qua các lượt render — nơi gọi không truyền gì thì vẫn là cùng một mảng. */
-const NO_UPLOADS: readonly ProcessingFloorUpload[] = [];
-
 export interface ProcessingScreenContainerProps {
   readonly projectId: string;
-  /** Các lượt xử lý đang chạy. Rỗng là câu trả lời hợp lệ — xem ghi chú đầu file. */
+  /** Các lượt xử lý cố định. Bỏ trống thì màn tự đọc N7 — xem ghi chú đầu file. */
   readonly floorUploads?: readonly ProcessingFloorUpload[];
   readonly roles?: readonly ProjectRole[];
   /** Điều hướng sau khi bấm các hành động của màn (ví dụ xem lại tường). */
@@ -117,7 +112,7 @@ function WiredProcessingScreen(props: ProcessingScreenContainerProps) {
 
   const { failedPipelineStep, ...screenProps } = useProcessingScreen({
     projectId: props.projectId,
-    floorUploads: props.floorUploads ?? NO_UPLOADS,
+    ...(props.floorUploads !== undefined ? { floorUploads: props.floorUploads } : {}),
     gateway: props.gateway ?? appGateway,
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
     ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
@@ -177,10 +172,7 @@ function ProcessingScreenRouteBody({
   );
 }
 
-/**
- * Route thật của màn Xử lý — CHƯA đăng ký tại `src/routes/router.tsx` (ngoài phạm
- * vi nhiệm vụ này, xem ghi chú đầu file).
- */
+/** Route thật của màn Xử lý — đăng ký tại `src/routes/router.tsx`. */
 export function ProcessingScreenRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();

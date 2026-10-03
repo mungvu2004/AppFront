@@ -163,13 +163,15 @@ interface RuleReportBodyProps {
 function RuleReportBody({ props, isResolvedOpen, onToggleResolved }: RuleReportBodyProps) {
   const { status, filters, groups, passedRules, resolvedRows, summary } = props;
 
+  // `empty` chỉ xảy ra khi kho chưa có mô hình (có mô hình mà chưa có kết quả là
+  // `loading`), nên ở đây không có nút chạy: một lượt chạy không mô hình chỉ rơi
+  // vào `error` (B-V12-02).
   if (status === 'empty') {
     return (
       <EmptyState
         icon={<ClipboardCheck aria-hidden="true" />}
-        title="Chưa chạy kiểm tra luật"
-        description="Bản vẽ này chưa được đối chiếu với bộ luật không gian. Chạy một lượt để biết những gì cần sửa trước khi xuất bản."
-        action={{ label: 'Chạy kiểm tra', onClick: props.onRerun, variant: 'primary' }}
+        title="Chưa có mô hình để kiểm tra luật"
+        description="Bản vẽ này chưa được xử lý xong, nên chưa có mô hình không gian nào để đối chiếu với bộ luật. Chạy pipeline cho tầng rồi quay lại đây."
       />
     );
   }
@@ -286,9 +288,20 @@ export function RuleReport(props: RuleReportViewProps) {
             {lastRunLabel === null ? null : (
               <p className="text-sm text-text-secondary">{lastRunLabel}</p>
             )}
-            <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
-              Chạy kiểm tra lại
-            </Button>
+            {props.settingsPath === undefined ? null : (
+              <a
+                href={props.settingsPath}
+                className={cn('rounded text-sm text-accent underline', FOCUS_RING)}
+              >
+                cài đặt bộ luật
+              </a>
+            )}
+            {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02). */}
+            {status === 'empty' ? null : (
+              <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
+                Chạy kiểm tra lại
+              </Button>
+            )}
           </div>
         </header>
 

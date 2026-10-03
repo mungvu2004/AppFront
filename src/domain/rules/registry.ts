@@ -29,6 +29,7 @@
  */
 
 import {
+  displayCodeIn,
   idsOnLevel,
   isEntityOfKind,
   type EntityByKind,
@@ -462,7 +463,7 @@ const wallThicknessRule: Rule = {
         {
           entityId: wall.id,
           message:
-            `Tường ${wall.id} dày ${formatLength(wall.thicknessMm, { unit: 'mm' })}, ngoài khoảng ` +
+            `Tường ${displayCodeIn(context.graph, wall.id)} dày ${formatLength(wall.thicknessMm, { unit: 'mm' })}, ngoài khoảng ` +
             `${formatLength(minMm, { unit: 'mm' })} đến ${formatLength(maxMm, { unit: 'mm' })}.`,
           suggestion: tooThin
             ? `Tăng bề dày lên tối thiểu ${formatLength(minMm, { unit: 'mm' })}, hoặc xoá nếu đây là nét thừa.`
@@ -494,7 +495,7 @@ const wallLengthRule: Rule = {
         {
           entityId: wall.id,
           message:
-            `Tường ${wall.id} chỉ dài ${formatLength(lengthMm, { unit: 'mm' })}, ngắn hơn mức dựng được ` +
+            `Tường ${displayCodeIn(context.graph, wall.id)} chỉ dài ${formatLength(lengthMm, { unit: 'mm' })}, ngắn hơn mức dựng được ` +
             `${formatLength(minLengthMm, { unit: 'mm' })}.`,
           suggestion: 'Kéo dài tường tới nút giao gần nhất, hoặc xoá đoạn thừa này.',
         },
@@ -531,8 +532,8 @@ const openingInWallRule: Rule = {
         {
           entityId: opening.id,
           message:
-            `Lỗ mở ${opening.id} trải từ ${formatLength(opening.offsetMm, { unit: 'mm' })} đến ${formatLength(endMm, { unit: 'mm' })} ` +
-            `trên tường ${wall.id} chỉ dài ${formatLength(wallLengthMm, { unit: 'mm' })}.`,
+            `Lỗ mở ${displayCodeIn(context.graph, opening.id)} trải từ ${formatLength(opening.offsetMm, { unit: 'mm' })} đến ${formatLength(endMm, { unit: 'mm' })} ` +
+            `trên tường ${displayCodeIn(context.graph, wall.id)} chỉ dài ${formatLength(wallLengthMm, { unit: 'mm' })}.`,
           suggestion:
             roomToMoveMm > 0
               ? `Dời lỗ mở về khoảng 0 đến ${formatLength(roomToMoveMm, { unit: 'mm' })}, hoặc thu hẹp bề rộng.`
@@ -561,7 +562,7 @@ const doorWidthRule: Rule = {
         {
           entityId: opening.id,
           message:
-            `Cửa đi ${opening.id} rộng ${formatLength(opening.widthMm, { unit: 'mm' })}, hẹp hơn mức lọt người ` +
+            `Cửa đi ${displayCodeIn(context.graph, opening.id)} rộng ${formatLength(opening.widthMm, { unit: 'mm' })}, hẹp hơn mức lọt người ` +
             `${formatLength(minWidthMm, { unit: 'mm' })}.`,
           suggestion: `Mở rộng cửa lên tối thiểu ${formatLength(minWidthMm, { unit: 'mm' })}.`,
         },
@@ -590,7 +591,7 @@ const roomMinAreaRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${room.id} rộng ${formatArea(room.areaM2)}, dưới mức tối thiểu ` +
+            `Phòng ${displayCodeIn(context.graph, room.id)} rộng ${formatArea(room.areaM2)}, dưới mức tối thiểu ` +
             `${formatArea(minimumM2)} của ${ROOM_USAGE_LABELS[room.usage]}.`,
           suggestion: `Mở rộng phòng lên ${formatArea(minimumM2)}, hoặc đổi công năng cho phù hợp.`,
         },
@@ -629,7 +630,7 @@ const roomHasDoorRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${room.id} không có cửa đi nào trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} ` +
+            `Phòng ${displayCodeIn(context.graph, room.id)} không có cửa đi nào trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} ` +
             'tường bao của nó.',
           suggestion: 'Thêm một cửa đi vào một tường bao, hoặc gộp phòng này với phòng bên cạnh.',
         },
@@ -653,7 +654,7 @@ const roomNamedRule: Rule = {
       return [
         {
           entityId: room.id,
-          message: `Phòng ${room.id} chưa được đặt tên.`,
+          message: `Phòng ${displayCodeIn(context.graph, room.id)} chưa được đặt tên.`,
           suggestion: 'Đặt tên phòng theo công năng để bảng thống kê đọc được.',
         },
       ];
@@ -682,9 +683,9 @@ const levelElevationRule: Rule = {
       findings.push({
         entityId: upper.id,
         message:
-          `Tầng ${upper.id} ở cao độ ${metreText(upper.elevationMm)}, không cao hơn tầng ` +
-          `${lower.id} ở ${metreText(lower.elevationMm)}.`,
-        suggestion: `Nâng cao độ tầng ${upper.id} lên trên ${metreText(lower.elevationMm)}, hoặc đổi thứ tự tầng.`,
+          `Tầng ${displayCodeIn(context.graph, upper.id)} ở cao độ ${metreText(upper.elevationMm)}, không cao hơn tầng ` +
+          `${displayCodeIn(context.graph, lower.id)} ở ${metreText(lower.elevationMm)}.`,
+        suggestion: `Nâng cao độ tầng ${displayCodeIn(context.graph, upper.id)} lên trên ${metreText(lower.elevationMm)}, hoặc đổi thứ tự tầng.`,
       });
     }
 

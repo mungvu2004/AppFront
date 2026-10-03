@@ -24,11 +24,26 @@
 /** Thông điệp ranh giới, viết một lần để sáu override không lệch chữ nhau. */
 const FORBIDS = {
   react: 'lib TUYỆT ĐỐI không import React.',
+  pascal:
+    'Chỉ src/components/pascal được nhập gói Pascal. Tầng khác đi qua src/lib/pascal, và chính nó chỉ được import type.',
+  pascalTypeOnly:
+    'src/lib/pascal chỉ được `import type` từ gói Pascal — tầng thuần không được kéo mã Pascal vào bao đóng của nó.',
   store: 'Tầng này KHÔNG được import store.',
   hooks: 'Tầng này KHÔNG được import hooks.',
   components: 'Tầng này KHÔNG được import components.',
   screens: 'Tầng này KHÔNG được import screens.',
 };
+
+/**
+ * Mọi đường nhập tới gói Pascal, kể cả đường vòng qua một barrel tái xuất.
+ *
+ * Mẫu theo kiểu gitignore, nên `@pascal-app/*` bắt cả `@pascal-app/core` lẫn
+ * `@pascal-app/editor`; dòng `@pascal-app` bắt lượt nhập gói trần. Đường vòng
+ * duy nhất còn lại là một file trong repo tái xuất gói Pascal rồi cho tầng khác
+ * nhập file ấy — và đường ấy bị chặn ở ngay chính file tái xuất, vì file đó
+ * cũng phải qua cổng này. Bài kiểm `pascalGate.test.ts` dựng đúng tình huống đó.
+ */
+const PASCAL_PACKAGES = ['@pascal-app', '@pascal-app/*'];
 
 /** `no-restricted-imports` cho một tầng, dựng từ danh sách tầng bị cấm. */
 const forbidLayers = (layers) => ({
@@ -84,6 +99,20 @@ module.exports = {
     // luật này chặn là chuyện THIẾU một lời gọi useReducedMotion, và thứ thiếu
     // thì không hiện ra trong diff — nên nó phải đóng bằng cấu trúc.
     'local/no-framer-outside-motion': 'error',
+
+    // Bước 8.1: cổng nhập gói Pascal. Dùng bản `@typescript-eslint` chứ không
+    // phải luật gốc vì chỉ bản này có `allowTypeImports` — thứ để `src/lib/pascal`
+    // khai được kiểu của hợp đồng `mount()` mà không kéo một dòng mã Pascal nào
+    // vào bao đóng nhập tĩnh của tầng thuần. Luật gốc `no-restricted-imports`
+    // vẫn bật song song cho ranh giới tầng (mục 0.4); hai luật cấu hình hai tập
+    // mẫu khác nhau nên chúng không báo trùng.
+    //
+    // KHÔNG viết luật nội bộ thứ tám cho việc này: hai khối `overrides` bên dưới
+    // làm đủ, và một luật mới là một luật nữa phải tự kiểm.
+    '@typescript-eslint/no-restricted-imports': [
+      'error',
+      { patterns: [{ group: PASCAL_PACKAGES, message: FORBIDS.pascal }] },
+    ],
 
     // R-60: `<Name>.tsx` của một màn là view thuần — không import src/api,
     // src/store, src/domain hay src/lib/http. Luật tự khoanh phạm vi (chỉ file
@@ -171,6 +200,30 @@ module.exports = {
               group: ['**/' + layer + '/*', '**/' + layer],
               message: 'types không import gì bên ngoài.',
             })),
+          },
+        ],
+      },
+    },
+
+    // -- 2b. CỔNG NHẬP GÓI PASCAL (Bước 8.1) ----------------------------------
+    {
+      // Thư mục duy nhất được nhập mã Pascal thật: nó dựng gốc React thứ hai và
+      // gọi `mount()`. Mọi thứ khác nói chuyện với Pascal qua `src/lib/pascal`.
+      files: ['src/components/pascal/**/*'],
+      rules: { '@typescript-eslint/no-restricted-imports': 'off' },
+    },
+    {
+      // Bộ đổi dữ liệu: chỉ kiểu, không mã. `src/lib` chạy trong worker và test
+      // được không cần DOM (mục 0.4), và một lượt nhập mã Pascal ở đây kéo cả
+      // `@react-three/fiber` vào đúng cái tầng đang giữ được tính chất ấy.
+      files: ['src/lib/pascal/**/*'],
+      rules: {
+        '@typescript-eslint/no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              { group: PASCAL_PACKAGES, allowTypeImports: true, message: FORBIDS.pascalTypeOnly },
+            ],
           },
         ],
       },

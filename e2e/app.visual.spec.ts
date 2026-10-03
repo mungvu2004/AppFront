@@ -37,6 +37,8 @@ test('captures the app shell at desktop width', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Dự án của tôi' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('list', { name: 'Danh sách dự án' })).toBeVisible({ timeout: 15_000 });
+  // Huy hiệu chuông (B-V3-08) đến từ một lượt đọc riêng — chụp trước nó là ảnh chập chờn.
+  await expect(page.getByRole('button', { name: 'Thông báo', exact: true }).getByText('3', { exact: true })).toBeVisible();
 
   // Worst-case card entrance: 168ms stagger cap (MAX_STAGGERED_ITEMS - 1) × 24ms
   // (`src/lib/motion/stagger.ts`) + 180ms 'fast' opacity fade

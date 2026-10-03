@@ -175,6 +175,8 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 
     /* 1. Cây lớp — ba lớp con, mỗi lớp một số đếm trong ngoặc. */
     const tree = screen.getByRole('tree', { name: LAYER_TREE_LABEL });
+    /* A6 · B-V6-04: nút con mắt ghép tiền tố viết thường với tên lớp viết thường. */
+    expect(screen.getByRole('button', { name: 'ẩn lớp cửa đi' })).toBeInTheDocument();
     const layerCounts = within(tree)
       .getAllByRole('treeitem')
       .map((item) => firstNumberIn(item.textContent ?? ''));
@@ -218,6 +220,26 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 /* -------------------------------------------------------------------------- */
 /* [NGHIEM-3] Hai trạng thái dễ thành màn trắng nhất.                          */
 /* -------------------------------------------------------------------------- */
+
+describe('B-V6-10 — chọn nhóm bằng chuột ngay từ đầu', () => {
+  it('ba nút "chọn nhóm" bấm được khi chưa nhóm nào được chọn, và bấm thì chọn đúng nhóm', async () => {
+    renderState('success');
+
+    const rail = screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL });
+    const door = within(rail).getByRole('button', { name: 'chọn nhóm cửa đi (phím D)' });
+
+    for (const name of ['chọn nhóm cửa đi (phím D)', 'chọn nhóm cửa sổ (phím W)', 'chọn nhóm nội thất (phím F)']) {
+      expect(within(rail).getByRole('button', { name })).toBeEnabled();
+    }
+
+    fireEvent.click(door);
+
+    /* Nhóm đã chọn thì ray mở các ô loại con của nó — "đổi thành … (phím 1)". */
+    await waitFor(() => {
+      expect(within(rail).getByRole('button', { name: /^đổi thành .* \(phím 1\)$/u })).toBeInTheDocument();
+    });
+  });
+});
 
 describe('[NGHIEM-3] thu gọn và không có quyền', () => {
   it('trạng thái thu gọn: hai panel ẩn, canvas và thanh trạng thái vẫn còn', () => {

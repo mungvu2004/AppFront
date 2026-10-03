@@ -49,8 +49,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { EntityId, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import { displayCodesOf } from '@/domain/spatial/ids';
+import type { LevelId, Wall, WallId } from '@/domain/spatial/types';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
@@ -65,6 +68,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -126,7 +130,7 @@ export const THICKNESS_SCREEN_TEXT = {
   emptyNoMeasurementNotice:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.',
   viewerRoleNotice:
-    'Bạn đang xem với vai Người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
+    'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
   escapeShortcut: 'Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc.',
 } as const;
 
@@ -359,20 +363,28 @@ export function useThicknessStandardization(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của `layerQuery`
+   * (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = layerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
   const walls = useMemo(() => wallsOfGraph(graph), [graph]);
+  /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
+  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
   const levels = useMemo(() => levelsOfGraph(graph), [graph]);
   const levelIndex = useMemo<ReadonlyMap<LevelId, typeof levels[number]>>(
     () => levelIndexOf(levels),
@@ -390,8 +402,9 @@ export function useThicknessStandardization(
         toleranceMm,
         levels: levelIndex,
         groupOverrides,
+        codes: wallCodes,
       }),
-    [groupOverrides, levelIndex, thresholds, toleranceMm, walls],
+    [groupOverrides, levelIndex, thresholds, toleranceMm, wallCodes, walls],
   );
 
   const segmentRows = useMemo(() => sortSegmentRows(allRows, sortKey), [allRows, sortKey]);
@@ -439,13 +452,8 @@ export function useThicknessStandardization(
     [selectedIds, wallIdIndex],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
-
   const replaceSelection = useCallback(
     (ids: readonly WallId[]) => {
-      selectionBeforeRef.current = useStore.getState().selectedIds;
       setSelection([...ids]);
     },
     [setSelection],
@@ -554,6 +562,11 @@ export function useThicknessStandardization(
 
   const autosave = autosaveRef.current;
 
+  /* Ctrl+S xả được engine này, và trình đọc màn hình nghe được trạng thái lưu
+     (A7) — trước đây engine chạy mà câm, Ctrl+S không thấy nó (B-V7-01). */
+  useFlushOnSave(autosave);
+  useSaveIndicator(autosave);
+
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — MỘT transaction, MỘT bước hoàn tác 100 bước của S-06.        */
   /* ---------------------------------------------------------------------- */
@@ -562,8 +575,8 @@ export function useThicknessStandardization(
     () =>
       createThicknessDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },

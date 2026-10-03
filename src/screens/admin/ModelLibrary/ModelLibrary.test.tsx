@@ -70,6 +70,26 @@ import type {
  * ========================================================================== */
 
 /** `library-table-1` — `src/api/__mocks__/client.ts:418-427`, chép nguyên văn (R-70). */
+/**
+ * Hạn thời gian cho riêng tệp này.
+ *
+ * Bài "bảy trạng thái" nạp view qua `import()` lúc chạy (xem khối chú thích đầu
+ * tệp), nên nó phải chờ một lượt phân giải module — và dưới bộ toàn bài, lượt ấy
+ * vượt hạn mặc định 5 000 ms. Đo 2026-09-28: đỏ ở lượt `verify` đầu phiên và ở
+ * hai lượt sau, **đạt mọi lượt khi chạy riêng tệp**. Lỗi luôn là
+ * *"Test timed out in 5000ms"*, không phải một khẳng định sai.
+ *
+ * Đây là tệp **thứ ba** cùng lớp khuyết tật, sau
+ * `screens/export/ShareDialog/ShareDialog.test.tsx:144` và
+ * `routes/router.test.tsx`. Lời chữa chung — nâng `testTimeout` cho cả repo —
+ * đã có sẵn ở nhánh `mungvu2004/debt-share`; chốt nó là việc của người duyệt,
+ * nên ở đây vẫn vá theo từng tệp và không đụng `vitest.config.ts`.
+ *
+ * Nâng hạn **không** nới cổng chất lượng nào: mọi khẳng định giữ nguyên từng
+ * dòng, chỉ chỗ đợi rộng ra.
+ */
+vi.setConfig({ testTimeout: 20_000 });
+
 const SAMPLE_TABLE_1: LibraryItem = {
   depthMm: 900,
   fileSizeBytes: 412_000,
@@ -416,6 +436,16 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
  * 3. Toàn chữ tiếng Việt có dấu (R-67). "sofa" là từ mượn không dấu, cho qua qua allowWords
  *    thay vì Việt hoá gượng ép — xem `ModelLibrary.stories.tsx` mục 1.
  * ========================================================================== */
+
+describe('A6 — đường dẫn trang viết thường như màn quản trị người dùng (lỗi B-V12b-04)', () => {
+  it('nav tên đúng "đường dẫn trang", chữ "quản trị › thư viện model"', async () => {
+    const ModelLibraryView = await loadModelLibraryView();
+    renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
+
+    const nav = screen.getByRole('navigation', { name: 'đường dẫn trang' });
+    expect(nav.textContent).toBe('quản trị › thư viện model');
+  });
+});
 
 describe('R-67 — expectVietnamese trên cây render thật', () => {
   it('trạng thái "thành công": toàn chữ tiếng Việt có dấu, trừ từ mượn "sofa"', async () => {

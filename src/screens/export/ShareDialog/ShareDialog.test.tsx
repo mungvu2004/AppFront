@@ -32,7 +32,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -119,6 +119,29 @@ function buildFakeGateway(overrides: Partial<ShareLinkGateway> = {}): ShareLinkG
     ...overrides,
   };
 }
+
+/**
+ * Hạn thời gian của **riêng tệp này**, và vì sao nó phải có.
+ *
+ * Bốn bài trong tệp render cả bảy trạng thái của hộp thoại, mỗi bài một lượt
+ * nhập động phần view. Đo trên máy này khi chạy RIÊNG cả tệp: `tests 4 059 ms`
+ * cho 17 bài — sát hạn **5 000 ms** mặc định của vitest. Chạy cùng cả bộ có
+ * `--coverage`, nơi mọi tệp đều bị đo, nó vượt hạn, và **bài vượt đổi theo từng
+ * lượt** (đo được hai bài khác nhau ở hai lượt liền nhau). Đó là dấu của một
+ * tệp ngồi sẵn ở mép hạn, không phải của một bài hỏng.
+ *
+ * Thứ làm nó đổ trong đợt này: thêm bốn tệp kiểm của `src/lib/pascal`. Bốn tệp
+ * ấy chỉ tốn 0,19 s — chúng không thêm tải, chúng đổi cách vitest xếp tệp vào
+ * worker. Phép thử đối chứng: cùng `--coverage`, bỏ bốn tệp ra thì 7 196/7 196
+ * xanh, để vào thì tệp này đỏ ở 3/3 lượt.
+ *
+ * Hạn này **không** nới một cổng chất lượng nào — mọi khẳng định giữ nguyên
+ * từng dòng. Nó chỉ thôi lấy tốc độ máy làm điều kiện đạt, và chỉ trong tệp này
+ * chứ không phải cả repo: `vitest.config.ts` là cổng chung, và bản nâng
+ * `testTimeout` cho toàn repo đã có ở nhánh `mungvu2004/debt-share` — chốt nó
+ * là việc của người duyệt.
+ */
+vi.setConfig({ testTimeout: 20_000 });
 
 /* ==========================================================================
  * A. Bảy trạng thái (A11 / R-63).
@@ -386,6 +409,69 @@ describe('A8 — mọi thay đổi hoàn tác được, kèm toast hoàn tác', 
     expect(typeof toast.message).toBe('string');
     expect(toast.message.length).toBeGreaterThan(0);
     expect(typeof toast.onUndo).toBe('function');
+  });
+});
+
+describe('B-V3-09 — hộp thoại đóng thì không đọc danh sách liên kết', () => {
+  it('isOpen=false: list không được gọi; mở ra thì đọc', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const list = vi.fn(() => Promise.resolve({ ok: true as const, data: [] }));
+    const { rerender } = renderHook(
+      ({ isOpen }: { isOpen: boolean }) =>
+        useShareDialog({
+          gateway: buildFakeGateway({ list }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          isOpen,
+        }),
+      { wrapper: withQueryClient(), initialProps: { isOpen: false } },
+    );
+
+    await Promise.resolve();
+    expect(list).not.toHaveBeenCalled();
+
+    rerender({ isOpen: true });
+    await waitFor(() => {
+      expect(list).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('A9 — thu hồi không hoàn tác được nên hỏi trước (B-V3-06)', () => {
+  it('"thu hồi" chỉ mở câu hỏi; "để nguyên" không gửi gì; xác nhận mới gửi lệnh thu hồi', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const revoke = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+    const { result } = renderHook(
+      () =>
+        useShareDialog({
+          gateway: buildFakeGateway({
+            list: () => Promise.resolve({ ok: true, data: [SAMPLE_ACTIVE_LINK] }),
+            revoke,
+          }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          members: SAMPLE_MEMBERS,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].rows).toHaveLength(1);
+    });
+    const linkId = result.current[0].rows[0]?.id ?? '';
+
+    act(() => result.current[1].revokeLink(linkId));
+    expect(result.current[0].pendingRevokeUrl).toBe(result.current[0].rows[0]?.url);
+    act(() => result.current[1].cancelRevoke());
+    expect(result.current[0].pendingRevokeUrl).toBeNull();
+    expect(revoke).not.toHaveBeenCalled();
+
+    act(() => result.current[1].revokeLink(linkId));
+    act(() => result.current[1].confirmRevoke());
+    await waitFor(() => {
+      expect(revoke).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current[0].pendingRevokeUrl).toBeNull();
   });
 });
 

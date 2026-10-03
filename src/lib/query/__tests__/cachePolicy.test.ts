@@ -17,6 +17,7 @@ describe('CACHE_POLICY', () => {
     expect(CACHE_POLICY.branches.static).toBe(300_000);
     expect(CACHE_POLICY.branches.aiProgress).toBe(0);
     expect(CACHE_POLICY.branches.spatialDraft).toBe(10_000);
+    expect(CACHE_POLICY.projectSpatialLoad.staleTime).toBe(0);
   });
 
   it('retries read queries once and mutations zero times', () => {

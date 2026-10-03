@@ -293,6 +293,19 @@ function setHeight(label: string, text: string): void {
 }
 
 describe('CreateProjectModal, wired to its hook', () => {
+  it('opens on a fresh form every time — closing does not keep what was typed (B-V3-02)', () => {
+    const { gateway } = buildGateway();
+    const { rerender } = render(
+      <CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('tên dự án'), { target: { value: 'Dự án gõ dở' } });
+    rerender(<CreateProjectModal isOpen={false} gateway={gateway} forceCompact={false} onDismiss={noop} />);
+    rerender(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    expect(screen.getByLabelText('tên dự án')).toHaveValue('');
+  });
+
   it('starts the stack at four floors, so a wizard need not be clicked open row by row', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 

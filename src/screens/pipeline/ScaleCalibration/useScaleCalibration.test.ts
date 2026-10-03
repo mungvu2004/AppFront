@@ -471,6 +471,58 @@ describe('useScaleCalibration — áp dụng, tự lưu, hoàn tác', () => {
     expect(mounted.result.current.model.panel.isApplying).toBe(false);
   });
 
+  it('kho rỗng thì nạp tầng qua N16, và áp vào đúng mã Level N16 trả, không phải mã route (B-V5-01)', async () => {
+    useStore.getState().setSpatial(null, null);
+    const harness = await makeHarness();
+    const otherLevel = sampleLevelId(1);
+    // Route mang `FLOOR_ID`; N16 trả một tầng có mã `Level` khác — như BE thật.
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readFloorLayer: () =>
+        harness.gateway.readFloorLayer({ floorId: otherLevel, projectId: PROJECT_ID }),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBeUndefined();
+    const level = useStore.getState().spatial?.byId[otherLevel];
+    expect(level !== undefined && 'scaleMillimetresPerPixel' in level).toBe(true);
+    expect(mounted.result.current.appliedScale).not.toBeNull();
+  });
+
+  it('kho rỗng và N16 hỏng thì bấm áp nói lý do tại chỗ, không im lặng (B-V5-01)', async () => {
+    useStore.getState().setSpatial(null, null);
+    const harness = await makeHarness();
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readFloorLayer: () => Promise.reject(new Error('N16 hỏng')),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBeUndefined();
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+
+    expect(mounted.result.current.model.state).not.toBe('success');
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBe(
+      'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
+    );
+  });
+
   it('trả về `appliedScale` dùng được ngay sau khi áp', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);
@@ -649,6 +701,29 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     collapsed.unmount();
 
     expect([...reached].sort()).toEqual([...SEVEN_STATES].sort());
+  });
+
+  it('lượt đọc hỏng có tiêu đề riêng, không mượn tiêu đề "nắn ảnh thất bại" (B-V5-04)', async () => {
+    const harness = await makeHarness();
+    const failing = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: () => Promise.reject(new Error('mất kết nối')),
+    });
+    await settle(failing);
+
+    expect(failing.result.current.model.state).toBe('error');
+    expect(failing.result.current.model.errorTitle).toBeDefined();
+    expect(failing.result.current.model.canvas.warpingNotice).toBeNull();
+    failing.unmount();
+
+    const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const warped = mountHook(warpedHarness.gateway);
+    await settle(warped);
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.errorTitle).toBeUndefined();
+    expect(warped.result.current.model.canvas.warpingNotice).not.toBeNull();
+    warped.unmount();
   });
 
   it('trạng thái `partial` cũng đến từ chuỗi kích thước tin cậy thấp', async () => {

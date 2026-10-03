@@ -386,7 +386,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
     expect(onToggleTool).toHaveBeenCalledTimes(1);
   });
 
-  it('nút "thoát chế độ" gọi onEscape khi đang đo dở (phím Esc)', () => {
+  it('nút "bỏ phần đo dở" gọi onEscape khi đang đo dở (phím Esc)', () => {
     const onEscape = vi.fn();
     const props = buildProps({
       state: 'measuring',
@@ -396,7 +396,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
 
     renderWithProviders(<MeasurementTool {...props} />);
 
-    const button = screen.getByRole('button', { name: /thoát/iu });
+    const button = screen.getByRole('button', { name: 'bỏ phần đo dở (phím Esc)' });
 
     fireEvent.click(button);
 

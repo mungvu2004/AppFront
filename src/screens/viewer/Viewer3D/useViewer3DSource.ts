@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { resolveUseMockApi } from '@/api/appClient';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -6,18 +6,14 @@ import { useStore } from '@/store';
 import {
   createViewerShellFixtureGateway,
   createViewerShellGateway,
+  shouldUseViewerFixture,
   VIEWER_FIXTURE_SPATIAL,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell';
 
-/* Nhà mẫu chỉ sống ở chế độ mock: nối BE thật thì kho rỗng là kho rỗng. */
-export function shouldUseViewerFixture(input: {
-  readonly hasInjectedSpatial: boolean;
-  readonly storeSpatial: NormalizedSpatial | null;
-  readonly useMock: boolean;
-}): boolean {
-  return input.useMock && !input.hasInjectedSpatial && input.storeSpatial === null;
-}
+/* Vị ngữ sống ở `ViewerShell/viewerShellGateway.ts` — xem chú thích tại đó về
+ * cổng kích thước gói. Tái xuất giữ nguyên đường nhập cho nơi gọi cũ. */
+export { shouldUseViewerFixture };
 
 export function useViewer3DSource(
   props: {
@@ -27,6 +23,15 @@ export function useViewer3DSource(
   storeSpatial: NormalizedSpatial | null,
   useMock: boolean = resolveUseMockApi(),
 ): { readonly spatial: NormalizedSpatial | null; readonly gateway: ViewerShellGateway } {
+  /*
+   * B-V8-04: đi màn đối chiếu → `/3d` để lại `activeFloorId` của tầng cũ, và đường lưu
+   * của panel thuộc tính sẽ ghi lớp của tầng ấy trong khi màn báo "Đã lưu" (A7).
+   * ponytail: xoá tầng đang xem khi gắn; gỡ khi N1 (đích lưu theo `levelId` của đối tượng).
+   */
+  useEffect(() => {
+    useStore.getState().setActiveFloor(null);
+  }, []);
+
   const usesFixture = shouldUseViewerFixture({
     hasInjectedSpatial: props.spatial !== undefined,
     storeSpatial,

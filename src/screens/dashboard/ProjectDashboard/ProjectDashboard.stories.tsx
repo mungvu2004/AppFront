@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
+import { NotificationBell } from '@/screens/system/NotificationCenter';
+
 import { ProjectDashboardView, type ProjectDashboardViewProps } from './ProjectDashboard';
 import type { ProjectCardModel } from './useProjectDashboard';
 
@@ -107,6 +109,7 @@ const base: ProjectDashboardViewProps = {
   retryLoad: noop,
   onCardPointerEnter: noop,
   onCardPointerLeave: noop,
+  notificationBell: <NotificationBell unreadBadge="3" isOpen={false} onToggle={noop} bellNudgeToken={0} />,
 };
 
 /** thành công — ba dự án mẫu, một mỗi trạng thái pipeline. */

@@ -71,8 +71,9 @@ import type {
 import { createAppApiClient } from '@/api/appClient';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
-import { idsOnLevel, isEntityOfKind } from '@/domain/spatial/normalize';
+import { isEntityOfKind } from '@/domain/spatial/normalize';
 import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
+import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import type {
   Furniture,
   LevelId,
@@ -653,43 +654,6 @@ export function propertyTemplateDraftOf(entity: InspectableEntity): PropertyTemp
   return null;
 }
 
-/**
- * Bốn danh sách thực thể của MỘT tầng, đúng hình dạng `SpatialLayer` mà
- * `SpatialApi.writeLayer` nhận.
- *
- * Lọc theo tầng chứ không gửi cả toà nhà: `writeLayer` khoá theo
- * `projects/:id/floors/:floorId/spatial/layer`, nên gửi kèm tường của tầng
- * khác là ghi dữ liệu của tầng đó vào đường dẫn của tầng này. `idsOnLevel` là
- * chỉ mục `byLevel` mà `normalizeSpatial` đã dựng sẵn — không một phép duyệt
- * hình học nào ở đây, chỉ đọc id.
- */
-export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): SpatialLayer {
-  const furniture: Furniture[] = [];
-  const openings: Opening[] = [];
-  const rooms: Room[] = [];
-  const walls: Wall[] = [];
-
-  for (const id of idsOnLevel(graph, floorId)) {
-    const entity = graph.byId[id];
-
-    if (entity === undefined) {
-      continue;
-    }
-
-    if (isEntityOfKind('wall', entity)) {
-      walls.push(entity);
-    } else if (isEntityOfKind('opening', entity)) {
-      openings.push(entity);
-    } else if (isEntityOfKind('room', entity)) {
-      rooms.push(entity);
-    } else if (isEntityOfKind('furniture', entity)) {
-      furniture.push(entity);
-    }
-  }
-
-  return { furniture, openings, rooms, walls };
-}
-
 /** Dự án và tầng lượt ghi đi tới. `null` khi phiên làm việc chưa mở đủ cả hai. */
 export interface PropertyInspectorSaveTarget {
   readonly projectId: string;
@@ -772,6 +736,25 @@ export function createPropertyInspectorGateway(
   const graph = options.graph ?? { read: (): NormalizedSpatial | null => null };
   const apiClient = options.apiClient ?? createAppApiClient();
   const saveTarget = options.target ?? storeSaveTarget;
+  /**
+   * `revision` của lượt ghi gần nhất theo tầng — `baseVersion` của lượt sau (#35 là
+   * `PUT` có version, B-G-07). Lượt đầu chưa có thì đọc N16 một lần.
+   * ponytail: lượt đầu lấy revision MỚI NHẤT nên không thấy một lượt sửa của người
+   * khác xảy ra trước nó; muốn chặn cả lượt ấy thì cổng phải giữ revision của lượt
+   * đọc mà panel dựa vào — việc của đường nạp thật cho vỏ 3D.
+   */
+  const revisions = new Map<string, number>();
+  const baseVersionOf = async (target: PropertyInspectorSaveTarget): Promise<number | null> => {
+    const known = revisions.get(target.floorId);
+
+    if (known !== undefined) {
+      return known;
+    }
+
+    const read = await apiClient.spatial.readLayer({ floorId: target.floorId, projectId: target.projectId });
+
+    return read.ok ? read.data.revision : null;
+  };
 
   return {
     supports: {
@@ -790,15 +773,26 @@ export function createPropertyInspectorGateway(
         return { ok: false, reason: NO_SAVE_TARGET_REASON };
       }
 
+      const baseVersion = await baseVersionOf(target);
+
+      if (baseVersion === null) {
+        return { ok: false, reason: persistFailedReason('read') };
+      }
+
       const result = await apiClient.spatial.writeLayer({
+        baseVersion,
         body: spatialLayerOf(current, target.floorId),
         floorId: target.floorId,
         projectId: target.projectId,
       });
 
-      return result.ok
-        ? { data: result.data, ok: true }
-        : { ok: false, reason: persistFailedReason(result.error.kind) };
+      if (!result.ok) {
+        return { ok: false, reason: persistFailedReason(result.error.kind) };
+      }
+
+      revisions.set(target.floorId, result.data.revision);
+
+      return { data: result.data.layer, ok: true };
     },
     copyAsTemplate: async (entity) => {
       const target = saveTarget();

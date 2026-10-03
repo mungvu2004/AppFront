@@ -195,7 +195,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
                     ? `${noticeMessage} ${ERROR_CODE_PREFIX}${model.errorCode}`
                     : noticeMessage
                 }
-                title={NOTICE_TITLES[model.state]}
+                title={(isError ? model.errorTitle : undefined) ?? NOTICE_TITLES[model.state]}
               />
               {isError && (
                 <div className="flex flex-wrap items-center gap-2">

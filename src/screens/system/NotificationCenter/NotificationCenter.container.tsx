@@ -11,13 +11,14 @@
  * - {@link NotificationBellContainer} là cái chuông, xuất RIÊNG. `AppShell.tsx`
  *   nằm trong `src/components/**` — thư mục R-68 khoá — nên màn này không gắn
  *   được vào vỏ ứng dụng; nó cấp một chuông đã nối đủ để bất kỳ vỏ nào cũng
- *   gắn vào bằng một dòng khi vỏ ấy mở khoá.
+ *   gắn vào bằng một dòng. Người gắn đầu tiên là danh sách dự án
+ *   (`ProjectDashboard.container.tsx`, B-V3-08).
  * - {@link NotificationCenterRoute} là bản toàn màn cho `/thong-bao`.
  *
  * ## Vì sao `isOpen`/`onDismiss` là props chứ không phải trạng thái nội bộ
  *
- * Hôm nay chưa có màn nào mở tấm trượt này. R-73 nói thẳng rằng "chưa có ai
- * dùng" không phải lý do hoãn: một màn chủ đã giữ sẵn trạng thái mở của riêng
+ * Chuông ở danh sách dự án để hook tự giữ trạng thái mở. R-73 nói thẳng rằng
+ * "chưa có ai cần" không phải lý do hoãn: một màn chủ đã giữ sẵn trạng thái mở của riêng
  * nó (một menu, một phím tắt) phải cắm vào được mà không sinh ra nguồn sự thật
  * thứ hai. Nên `isOpen` truyền xuống thì hook nhường quyền giữ, bỏ trống thì
  * hook tự giữ và `onToggle` đủ dùng cho một cái chuông đứng một mình.
@@ -31,14 +32,15 @@
  * `EditorTour.container.tsx` đang dùng.
  */
 
-import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { ROUTES } from '@/routes/paths';
 
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { useNotificationCenter, type UseNotificationCenterOptions } from './useNotificationCenter';
@@ -167,13 +169,56 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
  *
  * `isOpen` ghim `true` và `onDismiss` đưa người dùng lùi lại: ở một route thì
  * không có màn chủ nào để trượt về, nên "đóng" nghĩa là rời route.
+ *
+ * ## Vì sao không gọi thẳng `navigate(-1)`
+ *
+ * `navigate(-1)` là một lượt lùi **mù**. Mở `/thong-bao` trực tiếp — một liên kết được
+ * chia sẻ, một thông báo đẩy, một tab mới — thì tab không có mục lịch sử nào phía
+ * trước, và `Escape` đưa trình duyệt ra **`about:blank`**. Đã dựng lại được bằng
+ * trình duyệt thật: một màn trắng do một phím gây ra — đúng thứ A11 tồn tại để
+ * chặn, và ngược lời hứa A12 ("Esc đóng lớp trên cùng", không phải "Esc rời
+ * ứng dụng").
+ *
+ * `location.key` là `'default'` ở đúng mục lịch sử **đầu tiên** của router
+ * (react-router 6.25.1), nên nó trả lời được câu "có chỗ nào trong ứng dụng để
+ * lùi về không". Không có thì đi tới một đích xác định thay vì lùi ra ngoài;
+ * `replace` để `/thong-bao` không nằm lại trong lịch sử và `Escape` lần hai
+ * không quay lại nó.
+ *
+ * **Hai nhánh đều với tới được.** Trước B-V3-08 không chỗ nào trong `src` điều
+ * hướng tới `/thong-bao` — nút "Xem tất cả" chỉ nằm trong quả chuông, mà quả chuông
+ * chưa vỏ nào dựng — nên mọi lượt tới đây là một lượt tải trang và `navigate(-1)`
+ * từng lùi ra khỏi ứng dụng (lỗi trên sống lâu vì thế). Nay chuông ở danh sách dự
+ * án dẫn tới đây qua "Xem tất cả", nên nhánh `navigate(-1)` có bài e2e riêng
+ * (`e2e/v2v3/dashboard.spec.ts`, B-V3-08).
  */
 export function NotificationCenterRoute() {
   const navigate = useNavigate();
+  const { key: historyKey } = useLocation();
+  // Hook gọi `onNavigate(đích)` rồi `onClose()` liền sau (và view gọi `onClose` thêm
+  // một lần nữa sau quãng mờ). Ở route, "đóng" là "rời route" — nên lượt đóng ấy
+  // từng đè lên chính lượt điều hướng vừa đi và đưa người dùng về `/` thay vì tới
+  // màn của thông báo (B-V2-04). Đã điều hướng đi thì không còn gì để đóng.
+  const hasLeftRef = useRef(false);
+
+  const goTo = useCallback(
+    (to: string): void => {
+      hasLeftRef.current = true;
+      navigate(to);
+    },
+    [navigate],
+  );
 
   const goBack = useCallback((): void => {
-    navigate(-1);
-  }, [navigate]);
+    if (hasLeftRef.current) return;
 
-  return <NotificationCenterContainer isOpen isCompact onDismiss={goBack} />;
+    if (historyKey === 'default') {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
+
+    navigate(-1);
+  }, [historyKey, navigate]);
+
+  return <NotificationCenterContainer isOpen isCompact onNavigate={goTo} onDismiss={goBack} />;
 }

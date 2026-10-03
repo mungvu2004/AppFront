@@ -29,7 +29,10 @@
  * kể cả một màn `lazy()` hoàn hảo.
  *
  * Nên bây giờ nó đo **bốn** đại lượng, và mức nghiêm khắc thì giữ nguyên — chỉ
- * đổi *thứ được đo*, không đổi *mức được phép*:
+ * đổi *thứ được đo*, không đổi *mức được phép*. (Từ 2026-09-29 có thêm **ba**
+ * đại lượng nữa cho vách ngăn Pascal — xem `PASCAL_BUDGETS_KIB` bên dưới. Bốn
+ * cái đầu đo gzip của bản dựng chính; ba cái sau đo thô của một lượt dựng riêng,
+ * và hai nhóm ấy không so được với nhau.)
  *
  *   - `entry` 175 KiB — đúng con số cũ, đặt lên đại lượng mà nó luôn muốn chặn;
  *   - `largestJsChunk` 170 KiB — không đổi một KiB nào;
@@ -45,7 +48,7 @@
  * định riêng, có người duyệt, kèm lý do trong PR.
  */
 import { gzipSync } from 'node:zlib';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 /** Thư mục vite ghi bản dựng ra. */
@@ -55,13 +58,40 @@ const ASSETS_DIR = join('dist', 'assets');
  * Đồ thị nhập của bản dựng, do `build.manifest` trong `vite.config.ts` ghi ra.
  *
  * Danh sách file trong `assets/` chỉ cho biết *có bao nhiêu KiB*, không cho biết
- * *ai kéo ai*. Hai trong bốn ngưỡng dưới đây cần đồ thị: phải đi từ chunk
+ * *ai kéo ai*. Hai trong bốn ngưỡng gzip dưới đây cần đồ thị: phải đi từ chunk
  * `isEntry` theo `imports` (nhập tĩnh, tải ngay) và tách riêng `dynamicImports`
  * (nhập động, tải muộn). Manifest là chỗ duy nhất vite ghi sẵn đồ thị đó ra đĩa.
  */
 const MANIFEST_PATH = join('dist', '.vite', 'manifest.json');
 
 const KIB = 1024;
+
+/**
+ * Bảy màn demo chỉ bản dev (`buildDevOnlyRoutes`, `src/routes/router.tsx`) —
+ * mỗi màn một chuỗi chỉ nó có. Bản dựng production mang chuỗi nào là hỏng.
+ *
+ * Chuỗi chứ không khoá manifest: một `import` tĩnh lỡ tay gộp màn demo vào chunk
+ * của màn khác thì manifest không còn khoá riêng cho nó, còn chuỗi vẫn ở đó.
+ * `scripts/__tests__/check-bundle-size.test.mjs` kiểm mỗi chuỗi còn trong đúng
+ * tệp nguồn — đổi chữ màn demo mà quên bảng này thì bộ test đỏ, không phải cổng
+ * này lặng lẽ xanh mãi.
+ */
+const DEV_ONLY_MARKERS = [
+  { source: 'src/App.tsx', marker: 'Motion & Transitions' },
+  { source: 'src/screens/DesignSystem.tsx', marker: 'Quiet Blueprint v1.1' },
+  { source: 'src/screens/DataEntryDemo.tsx', marker: 'Data Entry Components' },
+  { source: 'src/screens/ListReviewDemo.tsx', marker: 'Duyệt dữ liệu thành công!' },
+  { source: 'src/screens/ShellDemo.tsx', marker: 'Cmd+K to search' },
+  { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo' },
+  { source: 'src/screens/FeedbackDemo.tsx', marker: 'Test Undo Toast' },
+];
+
+/** Cặp (chuỗi đánh dấu, tệp dựng) nào có mặt. `files`: `{ name, text }[]`. */
+function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
+  return markers.flatMap(({ source, marker }) =>
+    files.filter((file) => file.text.includes(marker)).map((file) => ({ source, marker, file: file.name })),
+  );
+}
 
 /**
  * Ngân sách CỔNG, tính bằng KiB sau gzip. Vượt là hỏng, mã thoát 1.
@@ -112,6 +142,52 @@ const BUDGETS_KIB = {
 };
 
 /**
+ * Cổng thứ năm — **vách ngăn Pascal**, đo bằng KiB THÔ của cả thư mục.
+ *
+ * ## Vì sao bốn cổng trên không đo được nó
+ *
+ * Vách ngăn là một lượt dựng RIÊNG (`vite.pascal.config.ts`) ra
+ * `public/assets/pascal/`, cộng hai thư mục tài sản do `pnpm pascal:assets`
+ * chép. Bốn cổng trên đọc `dist/assets` **không đệ quy** và lọc theo đuôi
+ * `.js`/`.css`, mà `assets/pascal` là một thư mục — thư mục thì không có đuôi.
+ * Nên chúng bỏ qua vách ngăn **theo cấu tạo**, và nếu không có cổng này thì
+ * 26 MiB lớn dần mà không cổng nào thấy.
+ *
+ * ## Vì sao đo THÔ chứ không gzip
+ *
+ * Bốn cổng trên đo gzip vì chúng đo "thứ đi qua dây ở khung hình đầu tiên".
+ * Cổng này đo một thứ khác: **khối lượng phải mang đi deploy và phải giữ trên
+ * đĩa**. Ảnh `.ktx2` đã nén sẵn, gzip lần nữa không đổi gì, nên gzip ở đây là
+ * một con số không nói lên điều gì.
+ *
+ * ## Ba con số, và chúng đến từ đâu
+ *
+ * Số đo 2026-09-29, ngay sau khi chép đúng `.ktx2` (bỏ `.webp`/`.jpg` nguồn):
+ *
+ * | phần | tệp | thô |
+ * |---|---|---|
+ * | mã vách ngăn `assets/pascal` | 251 | 19 379,3 KiB |
+ * | tài sản `pascal` + `basis` | 64 | 7 097,6 KiB |
+ * | **tổng-thư-mục** | **315** | **26 476,9 KiB** |
+ *
+ * Trần dưới đây để dư ~13 %, đúng dải 6–40 % mà bốn cổng trên đang dùng. Ba con
+ * số này do người thi công đặt từ số đo, **không phải** một quyết định đã được
+ * duyệt: `docs/pascal/00-quyet-dinh.md` ghi T4.2 (2) là câu **chưa hỏi**. Đổi
+ * chúng là việc của người duyệt, và nới để cho qua thì vẫn là nới.
+ */
+const PASCAL_BUDGETS_KIB = {
+  code: 22_000,
+  assets: 8_000,
+  total: 30_000,
+};
+
+/** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */
+const PASCAL_DIRS = {
+  code: [join('dist', 'assets', 'pascal')],
+  assets: [join('dist', 'pascal'), join('dist', 'basis')],
+};
+
+/**
  * Mốc CẢNH BÁO. In ra, KHÔNG làm hỏng cổng — mã thoát của bước này không bao giờ
  * đỏ vì con số này.
  *
@@ -123,6 +199,37 @@ const BUDGETS_KIB = {
 const WARN_KIB = {
   js: 800,
 };
+
+const ZERO_MEASURE = { bytes: 0, files: 0 };
+
+const sumMeasures = (left, right) => ({
+  bytes: left.bytes + right.bytes,
+  files: left.files + right.files,
+});
+
+/** Tổng byte và số tệp dưới một thư mục, đệ quy. Thiếu thư mục ⇒ số không. */
+function measureDir(dir) {
+  if (!existsSync(dir)) return { bytes: 0, files: 0 };
+
+  let bytes = 0;
+  let files = 0;
+
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    const stat = statSync(path);
+
+    if (stat.isDirectory()) {
+      const inner = measureDir(path);
+      bytes += inner.bytes;
+      files += inner.files;
+    } else {
+      bytes += stat.size;
+      files += 1;
+    }
+  }
+
+  return { bytes, files };
+}
 
 /** KiB, một chữ số thập phân, dấu phẩy theo A15. */
 const formatKib = (bytes) => (bytes / KIB).toFixed(1).replace('.', ',');
@@ -414,6 +521,42 @@ function main() {
   ];
 
   /*
+   * Vách ngăn Pascal. Vắng mặt ⇒ 0 byte và cổng xanh, KHÔNG phải lỗi: một bản
+   * dựng chưa chạy `pnpm pascal` là chuyện thường ở máy làm việc, và bắt nó đỏ
+   * ở đây là bắt cổng kích thước gánh việc của bước dựng.
+   */
+  const pascalCode = PASCAL_DIRS.code.map(measureDir).reduce(sumMeasures, ZERO_MEASURE);
+  const pascalAssets = PASCAL_DIRS.assets.map(measureDir).reduce(sumMeasures, ZERO_MEASURE);
+  const pascalTotal = sumMeasures(pascalCode, pascalAssets);
+
+  if (pascalTotal.files > 0) {
+    console.log(
+      `
+vách ngăn Pascal — đo THÔ, cả thư mục:
+` +
+        `  mã       ${String(pascalCode.files).padStart(4)} tệp  ${formatKib(pascalCode.bytes)} KiB
+` +
+        `  tài sản  ${String(pascalAssets.files).padStart(4)} tệp  ${formatKib(pascalAssets.bytes)} KiB
+` +
+        `  tổng     ${String(pascalTotal.files).padStart(4)} tệp  ${formatKib(pascalTotal.bytes)} KiB`,
+    );
+
+    gates.push(
+      { label: 'vách ngăn Pascal — mã', actual: pascalCode.bytes, budgetKib: PASCAL_BUDGETS_KIB.code },
+      {
+        label: 'vách ngăn Pascal — tài sản',
+        actual: pascalAssets.bytes,
+        budgetKib: PASCAL_BUDGETS_KIB.assets,
+      },
+      {
+        label: 'vách ngăn Pascal — tổng thư mục',
+        actual: pascalTotal.bytes,
+        budgetKib: PASCAL_BUDGETS_KIB.total,
+      },
+    );
+  }
+
+  /*
    * Chuỗi phép tính của hàng "chi phí thêm", in ra chứ không giấu.
    *
    * Không có dòng này thì con số cuối là một hộp đen: người đọc không kiểm được
@@ -466,6 +609,21 @@ function main() {
 
   console.log('');
 
+  const leaks = findDevOnlyLeaks(
+    readdirSync(ASSETS_DIR)
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => ({ name, text: readFileSync(join(ASSETS_DIR, name), 'utf8') })),
+  );
+
+  if (leaks.length > 0) {
+    throw new Error(
+      'Màn demo chỉ bản dev lọt vào bản dựng production:\n' +
+        leaks.map((leak) => `  ${leak.source} — "${leak.marker}" trong ${leak.file}`).join('\n'),
+    );
+  }
+
+  console.log(`màn demo chỉ bản dev trong bản dựng: 0/${DEV_ONLY_MARKERS.length} — đạt\n`);
+
   if (over.length > 0) {
     const names = over.map((gate) => gate.label).join(', ');
 
@@ -479,14 +637,14 @@ function main() {
 }
 
 /*
- * Ba hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
+ * Các hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
  *
  * Chúng không đọc đĩa và không in gì: đưa manifest vào, nhận tập khoá ra. Nhờ
  * vậy bộ test khoá được PHÉP TÍNH mà không cần một bản dựng, và bảng đối chiếu
  * của lượt gộp này được sinh bằng CHÍNH những hàm đã cắm vào cổng — chứ không
  * bằng một script riêng rồi hy vọng hai bên khớp nhau.
  */
-export { closure, presentWhenLoaded, baselineFor, closureGzip };
+export { closure, presentWhenLoaded, baselineFor, closureGzip, findDevOnlyLeaks, DEV_ONLY_MARKERS };
 
 /*
  * Chỉ chạy cổng khi file này được gọi thẳng. Khi bộ test `import` nó, đoạn dưới

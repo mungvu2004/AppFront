@@ -60,9 +60,12 @@
  * 2. Thanh trạng thái cần đúng chuỗi "Đã lưu lúc 14:32"; hệ 2 dựng nó từ
  *    `viMessages.common.saved_at`, và tự chuyển sang "Đã lưu N phút trước" sau
  *    một phút.
- * 3. `persistWallLayer` hôm nay chưa có endpoint. Chỉ hệ 2 có trạng thái
- *    `failed`/`offline` để NÓI RA sự thật đó; hệ 1 chỉ có một chuỗi
+ * 3. `persistWallLayer` đi qua #35 (B-V6-03) và có thể hỏng. Chỉ hệ 2 có trạng
+ *    thái `failed`/`offline` để NÓI RA điều đó; hệ 1 chỉ có một chuỗi
  *    "Lưu thất bại" sau khi `console.error`.
+ *
+ * Engine tự dựng thì phải tự vào sổ của Ctrl+S (`useFlushOnSave`) — trước đây
+ * nó nằm ngoài sổ, nên Ctrl+S ở màn này không lưu gì (B-V6-03).
  *
  * Cả hai hệ dùng chung 800 ms của A7 (`DEFAULT_DEBOUNCE_MS`), nên không con số
  * nào phải viết lại ở đây.
@@ -93,11 +96,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createId, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
+import { createId, displayCodesOf, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -126,6 +130,7 @@ import type {
 } from '@/lib/tools/toolMachine';
 import { TOOLS } from '@/lib/tools/tools';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -220,9 +225,6 @@ export const WALL_LAYER_TEXT = {
   centrelinesLabel: 'Hiện tim tường',
   /** Nhãn khối điều hướng tầng của panel trái (BC-05). */
   floorNavLabel: 'Tầng của bản vẽ',
-  /** Nhãn nút con mắt của hàng cây lớp "Tường" (BC-19). */
-  showWallLayerLabel: 'Hiện lớp Tường',
-  hideWallLayerLabel: 'Ẩn lớp Tường',
   /** Nhãn nút thu gọn / mở lại hai panel (BT-16). */
   collapsePanelsLabel: 'Thu gọn hai panel',
   expandPanelsLabel: 'Mở lại hai panel',
@@ -651,22 +653,30 @@ export function useWallLayerReview(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
+   * `wallLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = wallLayerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
   const walls = useMemo(() => wallsOfLevel(graph, levelId), [graph, levelId]);
+  /* Nhãn tường tính trên mọi tường của tầng, nên không trùng dù mã BE hay mã A14. */
+  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
 
   /* ---------------------------------------------------------------------- */
   /* Cổng ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.     */
@@ -701,18 +711,18 @@ export function useWallLayerReview(
   });
 
   const autosave = autosaveRef.current;
+  useFlushOnSave(autosave);
   const saveIndicator = useSaveIndicator(autosave);
 
   const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
   selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
   const dispatchBundle = useMemo(
     () =>
       createWallLayerDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
@@ -741,7 +751,6 @@ export function useWallLayerReview(
 
   const pushSelection = useCallback(
     (next: readonly EntityId[]) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection([...next]);
       /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
       channel.push([...next]);
@@ -873,13 +882,13 @@ export function useWallLayerReview(
       /* Tự chuyển mục: tìm tường chưa duyệt kế tiếp TRƯỚC khi tường này đổi cờ. */
       const nextId = nextUnreviewedWallId(walls, wallId);
 
-      void run(() => buildApproveWallCommand(wall, gateway.actorId)).then(() => {
+      void run(() => buildApproveWallCommand(wall, gateway.actorId, wallCodes)).then(() => {
         if (nextId !== null && nextId !== wallId) {
           onSelect(nextId);
         }
       });
     },
-    [gateway, onSelect, run, wallById, walls],
+    [gateway, onSelect, run, wallById, wallCodes, walls],
   );
 
   const onSkip = useCallback(
@@ -991,6 +1000,7 @@ export function useWallLayerReview(
       }).then(() => {
         const ticket = createWallUndoTicket({
           wallId,
+          wallCodes,
           now: gateway.now,
           undo: () => {
             applyUndo();
@@ -1021,7 +1031,7 @@ export function useWallLayerReview(
         });
       });
     },
-    [applyUndo, gateway, notifications, run],
+    [applyUndo, gateway, notifications, run, wallCodes],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1186,13 +1196,13 @@ export function useWallLayerReview(
   const visibleWalls = useMemo(() => applyWallFilters(walls, filters), [filters, walls]);
 
   const rows = useMemo<readonly WallRowViewModel[]>(
-    () => (hasError ? NO_ROWS : visibleWalls.map(toWallRow)),
-    [hasError, visibleWalls],
+    () => (hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes))),
+    [hasError, visibleWalls, wallCodes],
   );
 
   const shapes = useMemo<readonly WallLayerCanvasShape[]>(
-    () => (level === null ? [] : toCanvasShapes(walls, level, wallStatusCode)),
-    [level, walls],
+    () => (level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes)),
+    [level, walls, wallCodes],
   );
 
   const inspector = useMemo(() => {
@@ -1202,8 +1212,8 @@ export function useWallLayerReview(
 
     const wall = wallById(selectedWallId);
 
-    return wall === null ? null : toWallInspector(wall, level);
-  }, [level, selectedWallId, wallById]);
+    return wall === null ? null : toWallInspector(wall, level, wallCodes);
+  }, [level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
   const reviewedCount = useCountUp(counter.reviewed, { format: { fractionDigits: 0 } });
@@ -1287,6 +1297,34 @@ export function useWallLayerReview(
       onTrigger: onUndo,
     },
     { ...shortcutOptions, enabled: canEdit },
+  );
+
+  /*
+   * `Escape` (A12, B-V6-11): bỏ cử chỉ đang vẽ dở trước, rồi mới bỏ chọn — cùng
+   * thứ tự `objectLayerReview.closeTopLayer`. Chỉ bật khi có thứ để bỏ: một binding
+   * thường trực ở phạm vi `canvas` sẽ nuốt `global.closeTopLayer`.
+   */
+  const gestureInFlight = toolState.values.length > 0 || toolState.pending !== null;
+
+  useShortcut(
+    {
+      id: 'wallLayerReview.closeTopLayer',
+      combo: 'Escape',
+      scope: 'canvas',
+      description: 'bỏ nét đang vẽ, hoặc bỏ chọn tường',
+      onTrigger: () => {
+        const current = toolStateRef.current;
+
+        if (current.values.length > 0 || current.pending !== null) {
+          runToolEvent({ type: 'cancel' });
+
+          return;
+        }
+
+        onSelect(null);
+      },
+    },
+    { ...shortcutOptions, enabled: gestureInFlight || selectedWallId !== null },
   );
 
   const thicknessRef = useRef(onChangeThickness);

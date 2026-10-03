@@ -146,6 +146,7 @@ function scenarioIndex(): readonly SevenStateScenario[] {
 
 interface MountOptions {
   readonly onToast?: (toast: InputQualityToast) => void;
+  readonly onNavigate?: (path: string) => void;
 }
 
 /**
@@ -162,6 +163,7 @@ async function mountScreen(clock: FakeClock, options: MountOptions = {}) {
       gateway={gateway}
       projectId={PROJECT_ID}
       {...(options.onToast !== undefined ? { onToast: options.onToast } : {})}
+      {...(options.onNavigate !== undefined ? { onNavigate: options.onNavigate } : {})}
     />,
   );
 
@@ -408,7 +410,8 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
   });
 
   it('chặn cho tới khi tích ô, và tích ô xong thì qua — chứng minh qua giao diện', async () => {
-    await mountScreen(clock);
+    const onNavigate = vi.fn();
+    await mountScreen(clock, { onNavigate });
     await selectMeasuredFloor(clock);
 
     // Tầng 1 có độ phân giải cạnh ngắn 900 px — mức Kém theo `@/domain/quality`,
@@ -428,6 +431,10 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
 
     const blockedBefore = screen.queryAllByText(/đánh dấu ô xác nhận bên trên rồi thử lại/iu).length;
 
+    // B-V4-02: bấm được nhưng không đi — lời chặn nói "rồi thử lại".
+    fireEvent.click(primary);
+    expect(onNavigate).not.toHaveBeenCalled();
+
     fireEvent.click(checkbox);
     await settle(clock);
 
@@ -441,6 +448,9 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
 
     expect(blockedBefore).toBe(1);
     expect(blockedAfter).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /tiếp tục xử lý/iu }));
+    expect(onNavigate).toHaveBeenCalledWith('/projects/project-1/pipeline');
     expect(screen.getByRole('button', { name: /tiếp tục xử lý/iu })).not.toHaveAttribute(
       'aria-describedby',
     );
@@ -639,5 +649,16 @@ describe('InputQualityGate — toast hoàn tác sau khi nắn thẳng (A8, R-73)
     expect(within(panel).queryByText('Ảnh bị nghiêng')).toBeNull();
     expect(within(panel).getByText('Độ phân giải thấp')).toBeInTheDocument();
     expect(within(panel).getByText('Không tìm thấy khung bản vẽ')).toBeInTheDocument();
+    expect(screen.getByText(/^2 phát hiện còn lại/u)).toBeInTheDocument();
+
+    // B-V4-05: hoàn tác trả cả danh sách LẪN bộ đếm — không chỉ một nửa.
+    act(() => {
+      toast?.onUndo?.();
+    });
+    await settle(clock);
+
+    expect(within(panel).getByText('Ảnh bị nghiêng')).toBeInTheDocument();
+    expect(screen.getAllByText(/^3 phát hiện còn lại/u).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^2 phát hiện còn lại/u)).toBeNull();
   });
 });

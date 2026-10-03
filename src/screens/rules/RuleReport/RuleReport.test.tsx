@@ -32,7 +32,7 @@ import { join } from 'node:path';
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentType } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ALL_RULES, createDefaultRuleRegistry } from '@/domain/rules/defaults';
@@ -40,7 +40,7 @@ import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
 import { RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -289,6 +289,7 @@ function toRow(violation: Violation, normalized: NormalizedSpatial): RuleReportR
     message: violation.message,
     suggestion: violation.suggestion,
     entityId: violation.entityId,
+    entityCode: displayCodeIn(normalized, violation.entityId),
     levelId: violation.levelId,
     levelLabel: levelLabelOf(violation.levelId, normalized),
     resolved: false,
@@ -505,7 +506,7 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
     const props = propsFor(scenarioOf('success'));
     const { container } = renderRuleReport(RuleReportView, props);
 
-    // Mã đối tượng (W-WALL0000000…) là mã kỹ thuật viết hoa, được
+    // Mã đối tượng (#W-001…) là mã kỹ thuật viết hoa, được
     // `expectVietnamese` chấp nhận (xem ui.md mục A về Table) — đó không phải
     // một từ tiếng Anh.
     //
@@ -567,6 +568,48 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
     // `report.description` (R-62). Lỗi này không thử lại được nên phần dự phòng
     // KHÔNG có nút — cái nhìn thấy được là đầu đề của nó.
     expect(screen.getByRole('heading', { name: 'Có trục trặc' })).toBeTruthy();
+  });
+
+  it('B-V12-02: kho chưa có mô hình thì màn nói thẳng điều đó và không mời bấm một lượt chạy chắc chắn hỏng', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <RuleReportContainer projectId="P-000001" />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chưa có mô hình để kiểm tra luật' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Chạy kiểm tra/u })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Không chạy được lượt kiểm tra' })).toBeNull();
+  });
+
+  it('B-V12-11 / B-V12-06: liên kết "cài đặt bộ luật" đi qua router, không nạp lại trang', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.project.rules('P-000001')]}>
+        <Routes>
+          <Route
+            path={ROUTES.project.rules('P-000001')}
+            element={<RuleReportContainer projectId="P-000001" />}
+          />
+          <Route
+            path={ROUTES.project.ruleSettings('P-000001')}
+            element={<p>màn cài đặt bộ luật</p>}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const link = await screen.findByRole('link', { name: 'cài đặt bộ luật' });
+    expect(link.getAttribute('href')).toBe(ROUTES.project.ruleSettings('P-000001'));
+
+    // `fireEvent` trả `false` khi lượt bấm đã bị `preventDefault()` — router đi thay trình duyệt.
+    expect(fireEvent.click(link)).toBe(false);
+    expect(await screen.findByText('màn cài đặt bộ luật')).toBeTruthy();
   });
 
   it('bọc trong MemoryRouter thì dựng được, không ném lỗi', async () => {
@@ -685,7 +728,9 @@ describe('câu mô tả lấy nguyên văn từ violation.message, không bị v
 
     renderRuleReport(RuleReportView, props);
 
-    expect(screen.getByText(sampleMessage)).toBeTruthy();
+    /* Bộ mẫu A14 lặp cùng mặt bằng ở bốn tầng, và câu luật gọi thực thể bằng mã theo tầng
+       (#D-001…, B-V7-05) — nên cùng một câu có thể đứng ở nhiều hàng. */
+    expect(screen.getAllByText(sampleMessage).length).toBeGreaterThan(0);
   });
 });
 
@@ -713,7 +758,7 @@ describe('mục đã xử lý phải còn nhìn thấy trong nhóm gộp (CẤM 
 
     renderRuleReport(RuleReportView, withResolved);
 
-    expect(screen.getByText(resolvedRow.message)).toBeTruthy();
+    expect(screen.getAllByText(resolvedRow.message).length).toBeGreaterThan(0);
   });
 });
 
@@ -791,6 +836,15 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     });
 
     const clickedMessage = messageButton.textContent ?? '';
+
+    // B-V7-31 — chip mã đối tượng là mã người đọc, cùng mã câu luật gọi, không phải
+    // mã máy `D-DOOR0000000`.
+    const chips = [...container.querySelectorAll('tbody code')].map((chip) => chip.textContent);
+
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip).toMatch(/^#[A-Z]-\d{3}$/u);
+    }
 
     expect(clickedMessage.length).toBeGreaterThan(0);
 

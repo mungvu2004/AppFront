@@ -6,7 +6,6 @@ import {
   Mesh,
   MeshStandardMaterial,
   PCFShadowMap,
-  PCFSoftShadowMap,
   Points,
   type Material,
 } from 'three';
@@ -771,8 +770,8 @@ describe('PerfMonitor degrading', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('shadowMapTypeFor', () => {
-  it('turns soft shadows into the cheap filter rather than into no shadows', () => {
-    expect(shadowMapTypeFor('soft')).toBe(PCFSoftShadowMap);
+  it('draws both qualities with PCFShadowMap, because three deprecated the soft filter', () => {
+    expect(shadowMapTypeFor('soft')).toBe(PCFShadowMap);
     expect(shadowMapTypeFor('hard')).toBe(PCFShadowMap);
   });
 });

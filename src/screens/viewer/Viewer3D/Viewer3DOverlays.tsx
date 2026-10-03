@@ -68,6 +68,47 @@ const WallGeometryEditorContainer = lazy(async () => ({
   default: (await import('@/screens/viewer/WallGeometryEditor')).WallGeometryEditorContainer,
 }));
 
+/**
+ * Thanh hiện diện xuống DƯỚI cụm ViewCube + bản đồ nhỏ, không đứng cạnh nó.
+ *
+ * Góc trên phải có chủ, và hằng số của chính vỏ nói ra: `VIEWER_LAYOUT.cubePx`
+ * ghi "cạnh của ViewCube **góc trên phải**". Đo ngày 2026-09-29 trên `master`:
+ *
+ * | | từ mép phải | từ mép trên |
+ * |---|---|---|
+ * | ViewCube (`right-2 top-2`, 72 px) | 8–80 px | 8–80 px |
+ * | nút ảnh đại diện (`right-4 top-4`, 36 px) | 16–52 px | 16–52 px |
+ *
+ * Nút nằm **trọn** trong ô ViewCube, và nó ở `Z_INDEX.panel` (20) còn ViewCube
+ * thì z tự động — nên ViewCube không bấm được bằng chuột.
+ * `e2e/viewer3d.spec.ts:479` đỏ đúng vì thế, kèm `subtree intercepts pointer
+ * events`, và bài ấy cấm `force: true` chính để không ai bịt mắt đi qua.
+ *
+ * Đây là **lần thứ hai** góc ấy bị lấn: lần đầu là `MiniMap` mang theo lớp
+ * `absolute top-4 right-4 z-20` của riêng nó, đã chữa ở
+ * `ViewerOverlays.tsx:188-199`. Cùng một hình dạng lỗi, cùng một bài kiểm bắt
+ * được.
+ *
+ * 216 px = 8 (top-2) + 72 (ViewCube) + 8 (gap-2) + 128 (bản đồ nhỏ 120 + viền).
+ * Con số nằm ở ĐÂY chứ không nằm trong lớp phủ, vì lớp phủ cộng tác gắn được
+ * vào bất cứ màn nào và không được biết màn này có gì ở góc nào.
+ */
+const PRESENCE_ANCHOR = 'right-4 top-[216px]';
+
+/**
+ * Dải "Đang sửa … Xong" của chế độ sửa hình học lùi đầu phải khỏi ViewCube.
+ *
+ * Dải ấy trải hết bề ngang, cao 36 px, đặt "Xong" ở mép phải — tức nằm gọn dưới ô
+ * ViewCube `right-2 top-2` 72 px (z cao hơn). Đo 2026-10-03: `click()` vào "Xong"
+ * hết hạn với `subtree intercepts pointer events` từ nút "Trục đo" của ViewCube
+ * (B-V8-11). Lần thứ BA góc này bị lấn — xem `PRESENCE_ANCHOR` ngay trên. Nửa kia
+ * của cùng lỗi — khoảng trống bên trái ViewCube nuốt chuột — chữa ở
+ * `ViewerShell/ViewerOverlays.tsx` (`ViewerTopRightControls`).
+ *
+ * 88 px = 8 (right-2) + 72 (ViewCube) + 8 (khe).
+ */
+const WALL_EDIT_BAND_END_INSET = 'pr-[88px]';
+
 export interface Viewer3DOverlaysProps {
   /** Chế độ sửa hình học tường đang bật. `false` ⇒ lớp phủ ấy không được dựng. */
   readonly isWallEditing: boolean;
@@ -87,12 +128,13 @@ export function Viewer3DOverlays(props: Viewer3DOverlaysProps) {
       {/* Không có phần dự phòng nhìn thấy được: lớp phủ vắng mặt trong lúc chunk
           đang tải là đúng, một khung xương lơ lửng trên khung nhìn 3D thì không. */}
       <Suspense fallback={null}>
-        <CollaborationLayerContainer />
+        <CollaborationLayerContainer presenceAnchorClassName={PRESENCE_ANCHOR} />
       </Suspense>
 
       {props.isWallEditing && (
         <Suspense fallback={null}>
           <WallGeometryEditorContainer
+            bandEndInsetClassName={WALL_EDIT_BAND_END_INSET}
             isCollapsed={false}
             isSectionOrthographic={props.isSectionOrthographic}
             onExitEditMode={props.onExitWallEditMode}

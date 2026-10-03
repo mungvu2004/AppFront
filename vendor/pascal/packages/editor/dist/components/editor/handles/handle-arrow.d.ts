@@ -1,0 +1,55 @@
+import { type Cursor } from '@pascal-app/core';
+import type { ThreeEvent } from '@react-three/fiber';
+import { type ReactNode } from 'react';
+import { type BufferGeometry, CylinderGeometry, ExtrudeGeometry, type Intersection, Mesh, type Raycaster, TorusGeometry } from 'three';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+export declare function hitAreaRaycast(this: Mesh, raycaster: Raycaster, intersects: Intersection[]): void;
+export declare const ARROW_SCALE = 0.65;
+export declare const ARROW_COLOR = "#8381ed";
+export declare const ARROW_HOVER_COLOR = "#a5b4fc";
+export declare const NO_RAYCAST: () => null;
+export declare const HIT_AREA_MARGIN = 0.035;
+export declare const CORNER_HEX_RADIUS = 0.11;
+export type HandleArrowShape = 'chevron' | 'cross' | 'plus' | 'curved-arrow' | 'tracker' | 'corner-picker';
+export type HandleArrowInputShape = HandleArrowShape | 'arrow' | 'move-cross';
+export type HandleArrowPlacement = {
+    position: readonly [number, number, number];
+    rotation?: readonly [number, number, number];
+    baseScale: number;
+};
+type PointerHandler = (event: ThreeEvent<PointerEvent>) => void;
+export type HandleArrowProps = {
+    shape: HandleArrowInputShape;
+    placement: HandleArrowPlacement;
+    hover: boolean;
+    cursor: Cursor;
+    onHoverChange: (hovered: boolean) => void;
+    onPointerDown: PointerHandler;
+    activeCursor?: Cursor;
+    children?: ReactNode;
+    hoverScale?: number;
+    indicatorRotation?: readonly [number, number, number];
+    onPointerEnter?: PointerHandler;
+    onPointerLeave?: PointerHandler;
+    thin?: boolean;
+    round?: boolean;
+};
+export declare function createRotateArrowHandleGeometry(): ExtrudeGeometry;
+export declare function createArrowHandleGeometry(thin?: boolean): ExtrudeGeometry;
+export declare function createMoveCrossHandleGeometry(): BufferGeometry<import("three").NormalBufferAttributes, import("three").BufferGeometryEventMap>;
+export declare function createArrowHitAreaGeometry(): CylinderGeometry;
+export declare function createRotateArrowHitAreaGeometry(): TorusGeometry;
+export declare function createEndpointHitAreaGeometry(radius: number): CylinderGeometry;
+export declare function useInvisibleHitAreaMaterial(): MeshBasicNodeMaterial;
+export declare function InvisibleHandleHitArea({ geometry, material, onPointerDown, onPointerEnter, onPointerLeave, scale, }: {
+    geometry: BufferGeometry;
+    material: MeshBasicNodeMaterial;
+    onPointerDown: PointerHandler;
+    onPointerEnter: PointerHandler;
+    onPointerLeave: PointerHandler;
+    scale: number;
+}): import("react").JSX.Element;
+export declare function useArrowMaterial(): MeshBasicNodeMaterial;
+export declare function HandleArrow({ shape, placement, hover, cursor, activeCursor, children, hoverScale, indicatorRotation, onHoverChange, onPointerDown, onPointerEnter, onPointerLeave, thin, round, }: HandleArrowProps): import("react").JSX.Element;
+export {};
+//# sourceMappingURL=handle-arrow.d.ts.map

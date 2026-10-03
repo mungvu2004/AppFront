@@ -284,9 +284,22 @@ export function useNotFound(options: UseNotFoundOptions = {}): NotFoundVm {
     navigate(ROUTES.login, { state: { from: `${location.pathname}${location.search}` } });
   }, [navigate, location.pathname, location.search]);
 
+  /*
+   * Không lùi mù (B-V1-01). Mở thẳng một đường chết — liên kết cũ, gõ nhầm, tab
+   * mới — thì tab không có mục lịch sử nào của ứng dụng phía trước, và
+   * `navigate(-1)` đưa người dùng ra khỏi ứng dụng (`about:blank` hoặc trang họ
+   * đứng trước đó). `location.key` là `'default'` ở đúng mục lịch sử đầu tiên của
+   * router — cùng cách `NotificationCenterRoute` đã chữa B-G-02 (`a73007b`). Không
+   * có chỗ lùi thì về danh sách dự án, `replace` để đường chết không nằm lại.
+   */
   const goBack = useCallback((): void => {
+    if (location.key === 'default') {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
+
     navigate(-1);
-  }, [navigate]);
+  }, [navigate, location.key]);
 
   const primaryAction = useMemo<NotFoundAction>(
     () =>

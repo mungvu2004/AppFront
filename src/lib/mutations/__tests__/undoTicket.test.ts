@@ -183,6 +183,37 @@ describe('createNotificationBus', () => {
     expect(listener).toHaveBeenCalledWith([expect.objectContaining({ type: 'editWall' })]);
   });
 
+  it('opens a new notification after the previous one was undone, instead of folding into it', () => {
+    const bus = createNotificationBus();
+
+    bus.publish(buildInput('Sửa tường A', () => {}));
+    bus.list()[0]?.undoTicket?.undo();
+    vi.advanceTimersByTime(1000);
+    bus.publish(buildInput('Sửa tường B', () => {}));
+
+    const notifications = bus.list();
+    expect(notifications).toHaveLength(2);
+    expect(notifications[0]?.id).not.toBe(notifications[1]?.id);
+    expect(notifications[1]?.title).toBe('Sửa tường B');
+  });
+
+  it('a grouped notification that was undone does not swallow the next change', () => {
+    const bus = createNotificationBus();
+    const calls: string[] = [];
+
+    bus.publish(buildInput('Sửa tường 1', () => calls.push('undo-1')));
+    bus.publish(buildInput('Sửa tường 2', () => calls.push('undo-2')));
+    const grouped = bus.list()[0];
+    grouped?.undoTicket?.undo();
+    bus.publish(buildInput('Sửa tường 3', () => calls.push('undo-3')));
+
+    const fresh = bus.list().find((item) => item.id !== grouped?.id);
+    expect(fresh?.title).toBe('Sửa tường 3');
+    expect(fresh?.description).toBe('Sửa tường 3');
+    expect(fresh?.undoTicket?.undo()).toEqual({ data: undefined, ok: true });
+    expect(calls).toEqual(['undo-2', 'undo-1', 'undo-3']);
+  });
+
   it('a listener that unsubscribed stops receiving further updates', () => {
     const bus = createNotificationBus();
     const listener = vi.fn();

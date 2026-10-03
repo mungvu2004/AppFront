@@ -86,6 +86,26 @@ function GateStrip({
  * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
  * biểu mẫu sau khi đã đăng nhập thành công.
  */
+/**
+ * Vỏ chờ toàn màn: khung xương cùng nền ứng dụng, và một câu nói ra thành lời
+ * cho trình đọc màn hình (A11 — chờ không phải màn trắng).
+ *
+ * Dùng chung với vỏ chờ chunk route của `router.tsx` (B-G-04), để từ "đang mở
+ * phiên" sang "đang tải màn hình" màn không nháy: cùng khối, chỉ đổi câu.
+ */
+export function PendingShell({ label }: { label: string }) {
+  return (
+    <div
+      aria-busy="true"
+      aria-label={label}
+      className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6"
+      role="status"
+    >
+      <Skeleton preset="canvas" className="w-full max-w-3xl" />
+    </div>
+  );
+}
+
 export function SessionGate({
   children,
   isPublic,
@@ -120,16 +140,7 @@ export function SessionGate({
       );
     }
 
-    return (
-      <div
-        aria-busy="true"
-        aria-label="đang mở phiên"
-        className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6"
-        role="status"
-      >
-        <Skeleton preset="canvas" className="w-full max-w-3xl" />
-      </div>
-    );
+    return <PendingShell label="đang mở phiên" />;
   }
 
   if (status === 'anonymous') {

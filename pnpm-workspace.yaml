@@ -1,5 +1,10 @@
 packages:
   - .
+  # Ma Pascal da chep vao lam ma cua AppFront - xem vendor/pascal/NGUON.md.
+  # Bon goi nay tro thang vao src/, khong co buoc dung: sua nguon la Vite thay
+  # ngay. Cong tong khong quet chung (chi `lint` va `test` can mot dong loai tru).
+  - vendor/pascal/packages/*
+  - vendor/pascal/tooling/*
 
 allowBuilds:
   esbuild: true

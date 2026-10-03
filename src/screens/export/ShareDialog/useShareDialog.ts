@@ -300,6 +300,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
   const [savedAtMs, setSavedAtMs] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [staleLinkNotice, setStaleLinkNotice] = useState<string | null>(null);
+  const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
 
   const [recentlyChangedKey, flashEmbedKey] = useFlash<EmbedEditableKey>(
     MOTION_DURATIONS_MS.standard,
@@ -320,7 +321,9 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
 
       return result.data.links;
     },
-    enabled: canCreateLink,
+    // Hộp thoại đóng thì không gọi mạng: `ExportPanel` gắn sẵn hộp thoại, nên không có
+    // điều kiện này mỗi lượt tải `/export` đọc danh sách liên kết (B-V3-09).
+    enabled: canCreateLink && (options.isOpen ?? true),
   });
 
   const links = listQuery.data ?? EMPTY_LINKS;
@@ -596,7 +599,13 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
         flashEmbedKey('viewpointCode');
       },
       createLink: () => createMutation.mutate(),
-      revokeLink: (id: string) => revokeMutation.mutate(id),
+      // A9: thu hồi không có đường khôi phục, nên bấm "thu hồi" chỉ HỎI (B-V3-06).
+      revokeLink: (id: string) => setPendingRevokeId(id),
+      confirmRevoke: () => {
+        if (pendingRevokeId !== null) revokeMutation.mutate(pendingRevokeId);
+        setPendingRevokeId(null);
+      },
+      cancelRevoke: () => setPendingRevokeId(null),
       copyLink: (id: string) => {
         const row = rows.find((candidate) => candidate.id === id);
         if (row !== undefined) {
@@ -618,7 +627,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setEmbedHeight: setHeightPx,
       dismiss: () => onDismiss?.(),
     }),
-    [setPermission, flashEmbedKey, createMutation, revokeMutation, rows, copy, embedCode, changeEmbed, onDismiss],
+    [setPermission, flashEmbedKey, createMutation, revokeMutation, pendingRevokeId, rows, copy, embedCode, changeEmbed, onDismiss],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -661,6 +670,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       copiedTargetId,
       errorMessage,
       staleLinkNotice,
+      pendingRevokeUrl: rows.find((row) => row.id === pendingRevokeId)?.url ?? null,
     }),
     [
       state,
@@ -686,6 +696,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       copiedTargetId,
       errorMessage,
       staleLinkNotice,
+      pendingRevokeId,
     ],
   );
 

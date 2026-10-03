@@ -14,9 +14,18 @@
  * kế. Ca nào mất đi thì cách sai ấy quay lại mà không ai biết.
  */
 
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
-import { baselineFor, closure, closureGzip, presentWhenLoaded } from '../check-bundle-size.mjs';
+import {
+  DEV_ONLY_MARKERS,
+  baselineFor,
+  closure,
+  closureGzip,
+  findDevOnlyLeaks,
+  presentWhenLoaded,
+} from '../check-bundle-size.mjs';
 
 /** Dựng một mục manifest. `imports` là nhập tĩnh, `dynamicImports` là tải muộn. */
 function chunk(file, { imports = [], dynamicImports = [], isEntry = false } = {}) {
@@ -302,5 +311,34 @@ describe('route không đổi một byte', () => {
 
     const added = [...closure(['route.ts'], manifest)].filter((key) => !baseline.has(key));
     expect(closureGzip(added, manifest, gzip)).toBe(50 * KIB);
+  });
+});
+
+/*
+ * Ca chặn hồi quy "bản dựng production không mang màn demo" (plan.md mục 6).
+ * Cổng chạy trên `dist/` thật ở `pnpm size`; ở đây chỉ khoá hai điều cổng không
+ * tự kiểm được: phép dò bắt đúng, và chuỗi đánh dấu vẫn còn trong nguồn.
+ * Đường tệp tính từ gốc repo — cùng chỗ cổng đọc `dist/`.
+ */
+describe('màn demo chỉ bản dev', () => {
+  it('bảng có đúng bảy màn của buildDevOnlyRoutes', () => {
+    expect(DEV_ONLY_MARKERS).toHaveLength(7);
+  });
+
+  it.each(DEV_ONLY_MARKERS)('chuỗi đánh dấu của $source còn trong tệp nguồn', ({ source, marker }) => {
+    const text = readFileSync(source, 'utf8');
+    expect(text).toContain(marker);
+  });
+
+  it('bắt chuỗi đánh dấu trong tệp dựng, và chỉ ở tệp mang nó', () => {
+    const files = [
+      { name: 'index.js', text: 'createRoot(...)' },
+      { name: 'leak.js', text: 'x="Canvas Overlays Demo",y=1' },
+    ];
+
+    expect(findDevOnlyLeaks(files)).toEqual([
+      { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo', file: 'leak.js' },
+    ]);
+    expect(findDevOnlyLeaks(files.slice(0, 1))).toEqual([]);
   });
 });

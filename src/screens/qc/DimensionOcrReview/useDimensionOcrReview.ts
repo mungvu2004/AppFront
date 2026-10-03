@@ -73,7 +73,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { Dimension, EntityId, Level } from '@/domain/spatial/types';
+import { displayCodesOf } from '@/domain/spatial/ids';
+import type { Dimension, Level } from '@/domain/spatial/types';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -88,6 +89,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -98,9 +100,9 @@ import {
   createDimensionOcrReviewGateway,
   createDimensionUndoTicket,
   deviationOf,
-  dimensionEntityIdOf,
   dimensionProgressLabel,
   dimensionsOf,
+  wallsOfGraph,
   drawingSizePxOf,
   formatDeviation,
   hostWallOf,
@@ -409,23 +411,28 @@ export function useDimensionOcrReview(
 
   const graph = useStore((state) => state.spatial);
   const setSpatial = useStore((state) => state.setSpatial);
-  const selectedIds = useStore((state) => state.selectedIds);
   const setSelection = useStore((state) => state.setSelection);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
+   * `dimensionLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = dimensionLayerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
-  const level = useMemo<Level | null>(() => levelOfGraph(graph), [graph]);
+  const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = dimensionLayerQuery.isError;
   const isLoading = dimensionLayerQuery.isPending || graph === null;
   const hasPartialOcr = ocrProgressQuery.data?.isComplete === false;
@@ -433,6 +440,20 @@ export function useDimensionOcrReview(
   const dimensions = useMemo<readonly Dimension[]>(
     () => (hasError ? NO_DIMENSIONS : dimensionsOf(graph)),
     [graph, hasError],
+  );
+
+  /* Mã hiển thị tính trên cả tầng — hàng và khoá tra cứu luôn là mã thực thể. */
+  const displayCodes = useMemo<ReadonlyMap<string, string>>(
+    () =>
+      new Map([
+        ...displayCodesOf(dimensions.map((dimension) => dimension.id)),
+        ...displayCodesOf(
+          wallsOfGraph(graph)
+            .filter((wall) => level === null || wall.levelId === level.id)
+            .map((wall) => wall.id),
+        ),
+      ]),
+    [dimensions, graph, level],
   );
 
   const reviewCounter = useMemo(() => reviewCounterOf(dimensions), [dimensions]);
@@ -452,9 +473,6 @@ export function useDimensionOcrReview(
     [],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
   /**
    * Lượt ghi đang chờ gửi đi — bước `sync` của `dispatch` đặt nó.
@@ -472,8 +490,8 @@ export function useDimensionOcrReview(
     () =>
       createDimensionOcrDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => undefined,
       }),
     [storePort],
@@ -581,9 +599,7 @@ export function useDimensionOcrReview(
 
   const dimensionById = useCallback(
     (displayId: string): Dimension | null => {
-      const entityId = dimensionEntityIdOf(displayId);
-
-      return dimensions.find((dimension) => dimension.id === entityId) ?? null;
+      return dimensions.find((dimension) => dimension.id === displayId) ?? null;
     },
     [dimensions],
   );
@@ -667,12 +683,12 @@ export function useDimensionOcrReview(
       let staged: Dimension = dimension;
 
       if (pendingValue !== null && pendingValue !== readValueOf(dimension)) {
-        commands.push(buildOverrideDimensionCommand(dimension, pendingValue, gateway.actorId));
+        commands.push(buildOverrideDimensionCommand(dimension, pendingValue, gateway.actorId, displayCodes));
         staged = { ...dimension, overrideValueMm: pendingValue };
       }
 
       if (!dimension.reviewed) {
-        commands.push(buildApproveDimensionCommand(staged, gateway.actorId));
+        commands.push(buildApproveDimensionCommand(staged, gateway.actorId, displayCodes));
       }
 
       if (commands.length === 0) {
@@ -686,7 +702,7 @@ export function useDimensionOcrReview(
 
       void runBlock(displayId, commands, label);
     },
-    [canEdit, dimensionById, draft, gateway, runBlock],
+    [canEdit, dimensionById, displayCodes, draft, gateway, runBlock],
   );
 
   const onApprove = useCallback(
@@ -708,7 +724,6 @@ export function useDimensionOcrReview(
 
   const onSelect = useCallback(
     (dimensionId: string | null) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setDraft(null);
       setSelectedDimensionId(dimensionId);
 
@@ -755,7 +770,7 @@ export function useDimensionOcrReview(
     () =>
       draft === null
         ? NO_OVERRIDES
-        : new Map([[dimensionEntityIdOf(draft.dimensionId), draft.valueMm]]),
+        : new Map([[draft.dimensionId, draft.valueMm]]),
     [draft],
   );
 
@@ -770,7 +785,7 @@ export function useDimensionOcrReview(
       dimensions.map((dimension) => {
         const displayId = dimension.id;
         const draftValue =
-          draft !== null && dimensionEntityIdOf(draft.dimensionId) === displayId
+          draft !== null && draft.dimensionId === displayId
             ? draft.valueMm
             : undefined;
         const row = toDimensionRow(
@@ -779,6 +794,7 @@ export function useDimensionOcrReview(
           scale,
           imageUrl,
           draftValue,
+          displayCodes,
         );
 
         return {
@@ -801,6 +817,7 @@ export function useDimensionOcrReview(
       onCancelEdit,
       onEdit,
       scale,
+      displayCodes,
     ],
   );
 
@@ -819,8 +836,7 @@ export function useDimensionOcrReview(
         toDimensionChain(
           dimension,
           scale,
-          selectedDimensionId !== null &&
-            dimensionEntityIdOf(selectedDimensionId) === dimension.id,
+          selectedDimensionId !== null && selectedDimensionId === dimension.id,
         ),
       ),
     [dimensions, scale, selectedDimensionId],

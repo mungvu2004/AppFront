@@ -40,19 +40,20 @@
  * `src/lib/commands/business/shared.ts` — ba hàm đã có, không chép lại công
  * thức (R-61).
  *
- * ## Hai việc chưa có đường
+ * ## Đọc và lưu
  *
- * - `persistObjectLayer` — **NOT FOUND**, cùng lý do đã ghi ở màn tường:
- *   `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>` và không có chỗ
- *   nào cho một đồ thị không gian.
+ * - `persistObjectLayer` — lưu lớp của tầng (ô mở, nội thất cùng tường và
+ *   phòng) qua #35, cùng `createFloorLayerSave` với màn tường (B-V6-03).
  * - `readObjectGraph` — đồ thị sống trong `src/store`, không có endpoint nào
  *   trả nó. Cổng đọc qua một cửa tiêm được, mặc định là chính store.
  */
 
-import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
+import { displayCodesOf } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -154,7 +155,6 @@ import {
   type CoalescedCommand,
   type Command as SyncCommand,
 } from '@/lib/mutations/coalesce';
-import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { generateLegend, type Legend } from '@/lib/coloring/legend';
 import { createColoringMode, type ColoringMode, type PaintSubject } from '@/lib/coloring/modes';
@@ -162,8 +162,6 @@ import { createLookupScale, type ColorTokenName } from '@/lib/coloring/scales';
 import { wallBearing } from '@/domain/walls/edit';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import { boxAround } from '@/lib/input/dragDrop';
-import type { AppError } from '@/lib/errors';
-import type { QueryKey } from '@/lib/query/queryKeys';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { confidenceLevel } from '@/lib/format/semantic';
@@ -173,7 +171,9 @@ import { useStore } from '@/store';
 
 import {
   countObjectsByLayer,
+  entityIdOf,
   isOrphanObject,
+  isUnattachedOpening,
   OBJECT_LAYER_IDS,
   OBJECT_SUBTYPE_LABELS,
   OBJECT_SUBTYPE_LAYER,
@@ -215,17 +215,14 @@ export const OBJECT_LAYER_CAPABILITIES = [
 export type ObjectLayerCapability = (typeof OBJECT_LAYER_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const OBJECT_LAYER_MISSING_CAPABILITIES = ['persistObjectLayer'] as const;
+export const OBJECT_LAYER_MISSING_CAPABILITIES = [] as const;
 
 export type ObjectLayerMissingCapability = (typeof OBJECT_LAYER_MISSING_CAPABILITIES)[number];
 
 /** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
 export const OBJECT_LAYER_MISSING_ENDPOINTS: Readonly<
   Record<ObjectLayerMissingCapability, string>
-> = {
-  persistObjectLayer:
-    'ENDPOINTS.spatial.floor chấp nhận một đồ thị không gian trong thân yêu cầu — chưa có; PatchSpatialFloorInput.body là Partial<FloorWriteBody> (src/api/client.ts:87-92,144-148), chỉ mang name/order/elevationMm/heightMm/drawings, không có chỗ cho lỗ mở hay đồ đạc',
-};
+> = {};
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
 export interface ObjectLayerUnsupported {
@@ -257,32 +254,8 @@ export function unsupported(capability: ObjectLayerMissingCapability): ObjectLay
 /* Hằng của bộ mẫu — mã hiển thị, mã máy, và ba con số của đặc tả.             */
 /* -------------------------------------------------------------------------- */
 
-/** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
-const ID_COUNTER_LENGTH = 6;
-
 /** Bề rộng nhãn người đọc: "#W-014", không phải "#W-14". */
 const DISPLAY_CODE_DIGITS = 3;
-
-/**
- * Bốn ký tự đuôi của mã máy, mỗi lớp con một đuôi.
- *
- * Cửa đi và cửa sổ CÙNG là `Opening` của đồ thị nên cùng tiền tố `D-`
- * (`ID_PREFIX_BY_KIND.opening`); hai đuôi khác nhau là thứ giữ cho `D-001` và
- * `S-001` không cùng một mã máy. Đuôi là hằng chứ không ngẫu nhiên — bộ mẫu
- * phải TẤT ĐỊNH, đúng khuôn `wallLayerReviewFixture.ts`.
- */
-const ENTITY_ID_SUFFIX: Readonly<Record<ObjectLayerId, string>> = {
-  door: 'DOOR',
-  window: 'WNDW',
-  furniture: 'FURN',
-};
-
-/** Tiền tố mã máy theo lớp con — `ID_PREFIX_BY_KIND.opening` / `.furniture`. */
-const ENTITY_ID_PREFIX: Readonly<Record<ObjectLayerId, string>> = {
-  door: 'D',
-  window: 'D',
-  furniture: 'F',
-};
 
 /**
  * Cao độ bệ cửa của một cửa sổ mới đổi loại — đặc tả gốc: "cửa sổ 900".
@@ -305,6 +278,9 @@ const DEFAULT_WINDOW_SWING: SwingDirection = 'fixed';
 
 /** Góc xoay của một món nội thất áp tường trong bộ mẫu. */
 const FURNITURE_ROTATION_DEG = 0;
+
+/** Nội thất không có cánh mở — `ReviewObjectCore.swing` của nó luôn là `'fixed'`. */
+const FURNITURE_SWING: SwingDirection = 'fixed';
 
 /**
  * Ngưỡng "cần chú ý" của màn — 0,75.
@@ -335,23 +311,11 @@ export const isLowConfidenceObject = (confidence: number): boolean =>
  * "#W-014".
  */
 export function hostWallDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
 
-/**
- * Mã máy của một đối tượng, suy từ mã hiển thị của bộ mẫu.
- *
- * `D-007` → `D-000007DOOR`, `S-003` → `D-000003WNDW`, `F-002` → `F-000002FURN`.
- * Ánh xạ TẤT ĐỊNH và một chiều đủ dùng: mã hiển thị là khoá của mọi hàm xử lý
- * mà view gọi, mã máy là khoá của đồ thị và của tầng lệnh.
- */
-export function entityIdOf(displayId: string, layer: ObjectLayerId): string {
-  const counter = displayId.slice(2).padStart(ID_COUNTER_LENGTH, '0');
-
-  return `${ENTITY_ID_PREFIX[layer]}-${counter}${ENTITY_ID_SUFFIX[layer]}`;
-}
+/** Mã máy suy từ mã hiển thị — khai ở hợp đồng kiểu, xuất lại cho nơi gọi cũ. */
+export { entityIdOf };
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — 21 đối tượng của `objectLayerFixture.ts` thành một đồ thị thật.     */
@@ -394,6 +358,27 @@ const FURNITURE_KIND_BY_SUBTYPE: Readonly<Record<ObjectSubtype, FurnitureKind>> 
   diningTable: 'table',
   toilet: 'sanitaryFixture',
   basin: 'sanitaryFixture',
+  otherFurniture: 'other',
+};
+
+/**
+ * Loại con của một món nội thất KHÔNG có dòng mẫu, đọc từ `FurnitureKind` của đồ thị
+ * (B-V6-13).
+ *
+ * Chỉ `bed` trùng nghĩa tuyệt đối với một loại con; mọi kind khác thành "nội thất
+ * khác" chứ không bị ẩn. `table` → `diningTable` bị bác vì "bàn ăn" thêm một thông
+ * tin miền không có (cùng lý do `chair` không thành `sofa`) — đổi lại chỉ là một dòng.
+ * `Record` đủ khoá: thêm một `FurnitureKind` mà quên dòng ở đây là lỗi biên dịch.
+ */
+const SUBTYPE_BY_FURNITURE_KIND: Readonly<Record<FurnitureKind, ObjectSubtype>> = {
+  bed: 'bed',
+  table: 'otherFurniture',
+  chair: 'otherFurniture',
+  sanitaryFixture: 'otherFurniture',
+  wardrobe: 'otherFurniture',
+  kitchenCabinet: 'otherFurniture',
+  stair: 'otherFurniture',
+  other: 'otherFurniture',
 };
 
 /**
@@ -432,7 +417,7 @@ function toSeedEntry(object: ReviewObject): ObjectSeedEntry {
 
   return {
     displayId: object.id,
-    entityId: entityIdOf(object.id, object.layer),
+    entityId: object.entityId,
     layer: object.layer,
     subtype: object.subtype,
     widthMm: object.widthMm,
@@ -450,14 +435,6 @@ function toSeedEntry(object: ReviewObject): ObjectSeedEntry {
 /** 21 dòng bộ mẫu — 9 cửa đi, 7 cửa sổ, 5 nội thất. Thứ tự giữ nguyên của bộ mẫu. */
 export const OBJECT_LAYER_SEED: readonly ObjectSeedEntry[] =
   OBJECT_LAYER_FIXTURE_OBJECTS.map(toSeedEntry);
-
-/** Tra một dòng bộ mẫu theo mã hiển thị. */
-export const seedOf = (displayId: string): ObjectSeedEntry | null =>
-  OBJECT_LAYER_SEED.find((entry) => entry.displayId === displayId) ?? null;
-
-/** Tra một dòng bộ mẫu theo mã máy — đường về từ đồ thị ra mã hiển thị. */
-export const seedOfEntity = (entityId: string): ObjectSeedEntry | null =>
-  OBJECT_LAYER_SEED.find((entry) => entry.entityId === entityId) ?? null;
 
 /** Tường của bộ mẫu, dạng hình học của `src/domain/walls`. */
 export const solidWallOf = (wall: GraphWall, level: Level): SolidWall => toSolidWall(wall, level);
@@ -579,43 +556,31 @@ export function buildObjectLayerGraph(
 export const OBJECT_LAYER_SAMPLE_GRAPH: NormalizedSpatial = buildObjectLayerGraph();
 
 /* -------------------------------------------------------------------------- */
-/* Mã hiển thị — mã máy dài, nhãn người đọc ngắn.                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Mã hiển thị của một thực thể: `D-000003WNDW` → `S-003`.
- *
- * Bảng tra là chính bộ mẫu, nên cửa sổ giữ được tiền tố `S-` mà đặc tả đòi dù
- * mã máy của nó phải mang tiền tố `D-` của `ID_PREFIX_BY_KIND.opening`. Một
- * thực thể không có trong bộ mẫu (người dùng vừa thêm) rơi về cách đọc chung
- * sáu chữ số đếm, cùng khuôn {@link hostWallDisplayCode}.
- */
-export function displayIdOf(entityId: string): string {
-  return seedOfEntity(entityId)?.displayId ?? hostWallDisplayCode(entityId);
-}
-
-/* -------------------------------------------------------------------------- */
 /* Đọc đồ thị — tường, lỗ mở, đồ đạc của tầng đang duyệt.                      */
 /* -------------------------------------------------------------------------- */
 
 const NO_SOLID_WALLS: readonly SolidWall[] = [];
 const NO_OBJECTS: readonly ReviewObject[] = [];
 
-/** Tầng đang duyệt, hoặc tầng đầu tiên khi nơi gọi chưa chỉ định. */
-export function levelOfGraph(graph: NormalizedSpatial | null): Level | null {
+/**
+ * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu.
+ *
+ * Kho có thể mang đồ thị CẢ dự án (cổng nạp kho, B-V12-01): lấy tầng đầu khi ấy
+ * là hiện tầng 1 mà lưu theo tầng của URL. Mã tầng không có trong đồ thị (bộ mẫu
+ * một tầng, mã tầng API khác mã `Level` — B-V5-01) thì vẫn rơi về tầng đầu.
+ */
+export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
   if (graph === null) {
     return null;
   }
 
-  const id = graph.byKind.level[0];
+  const isLevel = (id: string | undefined): Level | null => {
+    const entity = id === undefined ? undefined : graph.byId[id];
 
-  if (id === undefined) {
-    return null;
-  }
+    return entity !== undefined && 'elevationMm' in entity ? entity : null;
+  };
 
-  const entity = graph.byId[id];
-
-  return entity !== undefined && 'elevationMm' in entity ? entity : null;
+  return isLevel(levelId) ?? isLevel(graph.byKind.level[0]);
 }
 
 /** Tường của tầng, dạng đồ thị. */
@@ -939,6 +904,8 @@ export const SAME_SWING_REASON = 'Đối tượng đã mở đúng chiều đó 
 
 export interface ChangeObjectKindInput {
   readonly before: GraphOpening;
+  /** Mã hiển thị của đối tượng — câu mô tả lệnh in mã này, không in mã máy. */
+  readonly displayId: string;
   readonly wall: SolidWall;
   /** Lỗ mở khác trên CÙNG tường — `validateOpening` cần chúng để kiểm chồng lấn. */
   readonly siblings: readonly DomainOpening[];
@@ -992,7 +959,7 @@ export function buildChangeObjectKindCommand(input: ChangeObjectKindInput): Comm
     createCommand({
       type: OBJECT_CHANGE_KIND_COMMAND_TYPE,
       actorId: input.actorId,
-      description: changeKindDescription(displayIdOf(input.before.id), input.subtype),
+      description: changeKindDescription(input.displayId, input.subtype),
       changes: [changeForUpdate('opening', input.before, after)],
     }),
   );
@@ -1000,6 +967,8 @@ export function buildChangeObjectKindCommand(input: ChangeObjectKindInput): Comm
 
 export interface ChangeObjectSwingInput {
   readonly before: GraphOpening;
+  /** Mã hiển thị của đối tượng — câu mô tả lệnh in mã này, không in mã máy. */
+  readonly displayId: string;
   readonly swing: SwingDirection;
   readonly actorId: string;
 }
@@ -1021,7 +990,7 @@ export function buildChangeObjectSwingCommand(input: ChangeObjectSwingInput): Co
     createCommand({
       type: OBJECT_CHANGE_SWING_COMMAND_TYPE,
       actorId: input.actorId,
-      description: changeSwingDescription(displayIdOf(input.before.id), input.swing),
+      description: changeSwingDescription(input.displayId, input.swing),
       changes: [
         changeForUpdate('opening', input.before, { ...input.before, swing: input.swing }),
       ],
@@ -1043,6 +1012,7 @@ export function buildChangeObjectSwingCommand(input: ChangeObjectSwingInput): Co
 export function buildApproveObjectCommand(
   before: GraphOpening | Furniture,
   actorId: string,
+  displayId: string,
 ): Command {
   const isOpening = 'wallId' in before;
   const changes = isOpening
@@ -1052,7 +1022,7 @@ export function buildApproveObjectCommand(
   return createCommand({
     type: OBJECT_APPROVE_COMMAND_TYPE,
     actorId,
-    description: approveDescription(displayIdOf(before.id)),
+    description: approveDescription(displayId),
     changes,
   });
 }
@@ -1403,7 +1373,7 @@ export function attachedOpeningOfObject(
   wall: SolidWall,
 ): AttachedOpening {
   return {
-    id: entityIdOf(object.id, object.layer) as OpeningId,
+    id: object.entityId as OpeningId,
     kind: object.layer === 'window' ? 'window' : 'door',
     widthMm: millimetres(object.widthMm),
     heightMm: millimetres(object.heightMm),
@@ -1445,12 +1415,21 @@ export function furniturePositionOnWall(
 }
 
 /**
- * 21 đối tượng của màn, đọc từ ĐỒ THỊ (không phải từ bộ mẫu).
+ * Mã hiển thị cho những thực thể KHÔNG có dòng mẫu: `displayCodesOf` của domain trên
+ * đúng nhóm ấy, rồi đặt tiền tố của lớp con — cửa sổ là `S-` dù mã máy mang `D-`.
+ */
+const fallbackCodesOf = (ids: readonly string[], prefix: string): ReadonlyMap<string, string> =>
+  new Map([...displayCodesOf(ids)].map(([id, code]) => [id, `${prefix}${code.slice(1)}`] as const));
+
+/**
+ * Mọi ô mở và nội thất của tầng, dựng từ ĐỒ THỊ (B-V6-13).
  *
- * Bộ mẫu chỉ còn giữ hai thứ đồ thị không mang: loại con của một món nội thất,
- * và toạ độ dò được của đối tượng chưa gắn tường. Mọi thứ khác — vị trí, kích
- * thước, cờ duyệt, độ tin cậy — đọc từ đồ thị, nên một lượt `Ctrl+Z` là đủ để
- * cả màn quay lại đúng trạng thái cũ.
+ * Bộ mẫu chỉ còn là siêu dữ liệu tuỳ chọn: thực thể có dòng mẫu lấy mã hiển thị (và
+ * loại con, nếu là nội thất) từ dòng ấy; không có thì mã đọc bằng `displayCodesOf`
+ * và loại con bằng {@link subtypeOfOpening} / {@link SUBTYPE_BY_FURNITURE_KIND}.
+ * Không đối tượng thật nào bị bỏ qua: nội thất không áp được vào tường thành một
+ * đối tượng đứng tự do ở đúng `centre` của nó, cỡ lấy từ `boundingBox`. Dòng mẫu
+ * chưa gắn (`tracedCentre`) chỉ được nối thêm khi thực thể chưa có trên đồ thị.
  */
 export function objectsOf(
   graph: NormalizedSpatial | null,
@@ -1462,55 +1441,56 @@ export function objectsOf(
   }
 
   const solidById = new Map(solidWallsOf(graph, level).map((wall) => [wall.id, wall] as const));
+  const seedByEntity = new Map(seed.map((entry) => [entry.entityId, entry] as const));
+  const openings = graphOpeningsOf(graph).filter((opening) => solidById.has(opening.wallId));
+  const furniture = graphFurnitureOf(graph).filter((item) => item.levelId === level.id);
+  const unseeded = (ids: readonly string[]): readonly string[] =>
+    ids.filter((id) => !seedByEntity.has(id));
+  const codes = new Map([
+    ...fallbackCodesOf(unseeded(openings.filter((o) => o.kind !== 'window').map((o) => o.id)), 'D'),
+    ...fallbackCodesOf(unseeded(openings.filter((o) => o.kind === 'window').map((o) => o.id)), 'S'),
+    ...fallbackCodesOf(unseeded(furniture.map((item) => item.id)), 'F'),
+  ]);
+  const codeOf = (entityId: string): string =>
+    seedByEntity.get(entityId)?.displayId ?? codes.get(entityId) ?? entityId;
   const objects: ReviewObject[] = [];
 
-  for (const entry of seed) {
-    const entity = graph.byId[entry.entityId];
+  for (const entity of openings) {
+    const solid = solidById.get(entity.wallId);
 
-    if (entity === undefined) {
-      if (entry.tracedCentre !== null) {
-        objects.push(orphanObjectOf(entry));
-      }
-
+    if (solid === undefined) {
       continue;
     }
 
-    if ('wallId' in entity) {
-      const solid = solidById.get(entity.wallId);
+    const subtype = subtypeOfOpening(entity);
 
-      if (solid === undefined) {
-        continue;
-      }
+    objects.push({
+      id: codeOf(entity.id),
+      entityId: entity.id,
+      layer: OBJECT_SUBTYPE_LAYER[subtype],
+      subtype,
+      widthMm: millimetres(entity.widthMm),
+      heightMm: millimetres(entity.heightMm),
+      sillHeightMm: entity.kind === 'window' ? millimetres(entity.sillHeightMm) : null,
+      swing: entity.swing,
+      confidence: entity.confidence,
+      reviewed: entity.reviewed,
+      hostWallId: entity.wallId,
+      relativePosition: relativePositionOf(entity, solid),
+    });
+  }
 
-      const subtype = subtypeOfOpening(entity);
+  for (const entity of furniture) {
+    const entry = seedByEntity.get(entity.id) ?? null;
+    const solid =
+      entry === null || entry.hostWallId === null ? undefined : solidById.get(entry.hostWallId);
+    const position =
+      entry === null || solid === undefined ? null : furniturePositionOnWall(entity, entry, solid);
 
+    if (entry !== null && solid !== undefined && position !== null) {
       objects.push({
         id: entry.displayId,
-        layer: OBJECT_SUBTYPE_LAYER[subtype],
-        subtype,
-        widthMm: millimetres(entity.widthMm),
-        heightMm: millimetres(entity.heightMm),
-        sillHeightMm: entity.kind === 'window' ? millimetres(entity.sillHeightMm) : null,
-        swing: entity.swing,
-        confidence: entity.confidence,
-        reviewed: entity.reviewed,
-        hostWallId: entity.wallId,
-        relativePosition: relativePositionOf(entity, solid),
-      });
-
-      continue;
-    }
-
-    if ('boundingBox' in entity && entry.hostWallId !== null) {
-      const solid = solidById.get(entry.hostWallId);
-      const position = solid === undefined ? null : furniturePositionOnWall(entity, entry, solid);
-
-      if (solid === undefined || position === null) {
-        continue;
-      }
-
-      objects.push({
-        id: entry.displayId,
+        entityId: entity.id,
         layer: 'furniture',
         subtype: entry.subtype,
         widthMm: millimetres(entry.widthMm),
@@ -1522,6 +1502,31 @@ export function objectsOf(
         hostWallId: solid.id,
         relativePosition: position,
       });
+
+      continue;
+    }
+
+    const { min, max } = entity.boundingBox;
+
+    objects.push({
+      id: codeOf(entity.id),
+      entityId: entity.id,
+      layer: 'furniture',
+      subtype: entry?.subtype ?? SUBTYPE_BY_FURNITURE_KIND[entity.kind],
+      widthMm: millimetres(max.x - min.x),
+      heightMm: millimetres(max.y - min.y),
+      sillHeightMm: null,
+      swing: FURNITURE_SWING,
+      confidence: entity.confidence,
+      reviewed: entity.reviewed,
+      hostWallId: null,
+      tracedCentre: entity.centre,
+    });
+  }
+
+  for (const entry of seed) {
+    if (entry.tracedCentre !== null && graph.byId[entry.entityId] === undefined) {
+      objects.push(orphanObjectOf(entry));
     }
   }
 
@@ -1532,6 +1537,7 @@ export function objectsOf(
 export function orphanObjectOf(entry: ObjectSeedEntry): OrphanReviewObject {
   return {
     id: entry.displayId,
+    entityId: entry.entityId,
     layer: entry.layer,
     subtype: entry.subtype,
     widthMm: millimetres(entry.widthMm),
@@ -1570,9 +1576,12 @@ export const lowConfidenceObjectsOf = (
 /* -------------------------------------------------------------------------- */
 
 /** Một dòng của danh sách gộp theo ba nhóm. */
-export function toObjectRow(object: ReviewObject): ObjectListRowViewModel {
+export function toObjectRow(
+  object: ReviewObject,
+  wallCodes?: ReadonlyMap<string, string>,
+): ObjectListRowViewModel {
   const attached = isOrphanObject(object) ? null : object;
-  const isOrphan = attached === null;
+  const isOrphan = isUnattachedOpening(object);
 
   return {
     id: object.id,
@@ -1580,7 +1589,7 @@ export function toObjectRow(object: ReviewObject): ObjectListRowViewModel {
     subtype: object.subtype,
     codeLabel: `#${object.id}`,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
-    hostWallLabel: attached === null ? null : `#${hostWallDisplayCode(attached.hostWallId)}`,
+    hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     confidence: object.confidence,
     statusCode: objectStatusCode(
       { confidence: object.confidence, source: object.reviewed ? 'human' : 'ai', reviewed: object.reviewed },
@@ -1603,9 +1612,10 @@ export function toObjectRow(object: ReviewObject): ObjectListRowViewModel {
 export function toObjectInspector(
   object: ReviewObject,
   wall: SolidWall | null,
+  wallCodes?: ReadonlyMap<string, string>,
 ): ObjectInspectorViewModel {
   const attached = isOrphanObject(object) ? null : object;
-  const isOrphan = attached === null;
+  const isOrphan = isUnattachedOpening(object);
   const span =
     attached === null || wall === null ? null : spanOfObject(wall, attachedOpeningOfObject(attached, wall));
 
@@ -1616,7 +1626,7 @@ export function toObjectInspector(
     widthLabel: formatMillimetres(object.widthMm),
     heightLabel: formatMillimetres(object.heightMm),
     sillHeightLabel: object.sillHeightMm === null ? null : formatMillimetres(object.sillHeightMm),
-    hostWallLabel: attached === null ? null : `#${hostWallDisplayCode(attached.hostWallId)}`,
+    hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     hostWallId: attached?.hostWallId ?? null,
     relativePosition: attached?.relativePosition ?? null,
     distanceToStartLabel: span === null ? null : formatMillimetres(span.lowMm),
@@ -1717,7 +1727,7 @@ export interface ObjectLayerReviewGateway {
    * nào thật sự đọc ra con số 0 — chứ không mượn một bảng toàn cục.
    */
   readonly seed: readonly ObjectSeedEntry[];
-  /** NOT FOUND — `persistObjectLayer`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
+  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
   readonly persistObjectLayer: (
     input: PersistObjectLayerInput,
   ) => Promise<ObjectLayerCapabilityResult<void>>;
@@ -1730,7 +1740,10 @@ export interface ObjectLayerReviewGateway {
 export interface CreateObjectLayerReviewGatewayOptions {
   readonly apiClient?: ApiClient;
   readonly graph?: ObjectLayerGraphPort;
-  /** Dòng bộ mẫu. Vắng mặt thì cổng dùng bộ mẫu 21 đối tượng của màn. */
+  /**
+   * Dòng bộ mẫu. Vắng mặt thì RỖNG: dữ liệu thật đọc từ đồ thị, bảng mẫu 21 đối tượng
+   * chỉ thuộc về cổng giả (B-V6-13 — trước đó dòng mồ côi `D-009` hiện trên mọi tầng).
+   */
   readonly seed?: readonly ObjectSeedEntry[];
   readonly actorId?: string;
   readonly now?: () => number;
@@ -1753,13 +1766,14 @@ export function createObjectLayerReviewGateway(
   const graph: ObjectLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
+  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
 
   return {
     supports: {
       readBackground: true,
       readObjectGraph: true,
       writeObjectGraph: true,
-      persistObjectLayer: false,
+      persistObjectLayer: true,
     },
 
     readBackground: async ({ floorId, projectId, signal }) => {
@@ -1781,13 +1795,17 @@ export function createObjectLayerReviewGateway(
       };
     },
 
-    readObjectLayer: () => Promise.resolve(graph.read()),
+    readObjectLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
     readFurnitureBranch: () => Promise.resolve(null),
 
     graph,
-    seed: options.seed ?? OBJECT_LAYER_SEED,
+    seed: options.seed ?? [],
 
-    persistObjectLayer: () => Promise.resolve(unsupported('persistObjectLayer')),
+    persistObjectLayer: async (input) => {
+      await saveFloorLayer(input);
+
+      return { supported: true, value: undefined };
+    },
 
     actorId: options.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
@@ -1876,72 +1894,13 @@ export function createMockObjectLayerReviewGateway(
     seed: seed.seed ?? OBJECT_LAYER_SEED,
 
     persistObjectLayer: () =>
-      Promise.resolve(
-        canPersist ? { supported: true, value: undefined } : unsupported('persistObjectLayer'),
-      ),
+      canPersist
+        ? Promise.resolve({ supported: true, value: undefined })
+        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     actorId: seed.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: seed.now ?? ((): number => Date.now()),
   };
-}
-
-/* -------------------------------------------------------------------------- */
-/* D-04 — một lượt ghi lạc quan, xếp hàng theo đối tượng.                       */
-/* -------------------------------------------------------------------------- */
-
-/** Biến của một lượt ghi lạc quan trên đúng một đối tượng. */
-export interface ObjectWriteVariables {
-  /** Mã hiển thị — cũng là khoá `runExclusive` xếp hàng theo, một đối tượng một hàng. */
-  readonly objectId: string;
-  readonly projectId: string;
-  readonly floorId: string;
-}
-
-export interface CreateObjectLayerMutationOptions {
-  readonly gateway: ObjectLayerReviewGateway;
-  /** Áp lệnh ngay, trước khi máy chủ trả lời. */
-  readonly applyOptimistic: (variables: ObjectWriteVariables) => void;
-  /** Gỡ lượt áp lạc quan khi máy chủ từ chối — chạy trên ngăn xếp hoàn tác của S-06. */
-  readonly rollback: (variables: ObjectWriteVariables) => void;
-  /** Khoá cần dọn sau một lượt ghi thành công. */
-  readonly affectedKeys: (variables: ObjectWriteVariables) => readonly QueryKey[];
-  readonly afterSuccess: (variables: ObjectWriteVariables) => void;
-}
-
-/**
- * Cấu hình `useMutation` của một lượt ghi lạc quan (D-04).
- *
- * `callServer` KHÔNG ném khi `persistObjectLayer` trả `supported: false`: đó là
- * một câu trả lời thật ("chưa có endpoint"), không phải một lượt ghi hỏng, và
- * biến nó thành lỗi sẽ khiến MỌI lượt sửa bị `rollback` gỡ ra ngay trước mắt
- * người duyệt. Nhánh đó đi ra ngoài dưới dạng kết quả để thanh trạng thái nói
- * đúng sự thật, còn `rollback` để dành cho lỗi truyền thật.
- */
-export function createObjectLayerMutation(
-  queryClient: QueryClient,
-  options: CreateObjectLayerMutationOptions,
-): UseMutationOptions<ObjectLayerCapabilityResult<void>, AppError, ObjectWriteVariables> {
-  return createOptimisticMutation<ObjectWriteVariables, ObjectLayerCapabilityResult<void>>(
-    queryClient,
-    {
-      affectedKeys: options.affectedKeys,
-      afterSuccess: (_result, variables) => {
-        options.afterSuccess(variables);
-      },
-      applyOptimistic: options.applyOptimistic,
-      callServer: (variables) => {
-        const graph = options.gateway.graph.read();
-        if (graph === null) return Promise.resolve(unsupported('persistObjectLayer'));
-        return options.gateway.persistObjectLayer({
-          floorId: variables.floorId,
-          projectId: variables.projectId,
-          graph: graph,
-        });
-      },
-      entityId: (variables) => variables.objectId,
-      rollback: options.rollback,
-    },
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2280,7 +2239,7 @@ export function toObjectPlacement(
     depthPx: scale.millimetresToPixels(millimetres(depthMm)),
     boundsPx: boundsPxOf(centreMm, object.widthMm, depthMm, scale),
     codeLabel: `#${object.id}`,
-    isOrphan: attached === null,
+    isOrphan: isUnattachedOpening(object),
   };
 }
 

@@ -13,15 +13,11 @@
  * Bốn khoảng trống này đã được ghi trong docblock đầu `types.ts`; chép lại đây ở dạng
  * hệ quả kỹ thuật, vì file này là nơi từng khoảng trống biến thành một quyết định.
  *
- * 1. **Endpoint LIỆT KÊ phiên bản — NOT FOUND.** `src/api/endpoints.ts` chỉ có
- *    `spatial.version(projectId, versionId)`, một đường CHI TIẾT cần biết trước
- *    `versionId`. Không có `spatial.versions(projectId)`, và không có mock versioning nào
- *    trong `src/lib/testing`. Nên {@link VersionHistoryGateway.listVersions} **không ghép
- *    một đường mạng mới** — nó trả về lịch sử được **bơm vào** qua
- *    {@link CreateVersionHistoryGatewayOptions.entries}, hoặc gọi bộ nạp
- *    {@link CreateVersionHistoryGatewayOptions.loadVersions} mà nơi ráp truyền xuống.
- *    Ngày endpoint ấy tồn tại, bộ nạp đó là chỗ duy nhất phải sửa, và nó vẫn phải đi qua
- *    `src/lib/http` như `local/no-fetch-outside-http` đòi.
+ * 1. **Endpoint LIỆT KÊ phiên bản — đã nối (N17, B-V12-10).** `ENDPOINTS.spatial.versions`
+ *    + `client.spatial.listVersions`; {@link createApiVersionLoader} là bộ nạp mà route
+ *    truyền xuống qua {@link CreateVersionHistoryGatewayOptions.loadVersions}. N17 chỉ trả
+ *    siêu dữ liệu, nên mọi dòng là `metadataOnly` cho tới khi N18 (nội dung bản chụp) được
+ *    nối. `entries` vẫn là đường bơm cho test và story.
  *
  * 2. **Đường GHI phục hồi — NOT FOUND.** Không có `PUT`/`POST` nào cho phục hồi phiên
  *    bản, nên cũng không có nguồn 409 thật. `restoreVersion` là hàm THUẦN và
@@ -68,6 +64,7 @@
  * không dựng lại bản cũ.
  */
 
+import type { ApiClient } from '@/api/client';
 import { formatCalendarDate } from '@/lib/format/datetime';
 import { createUuid } from '@/lib/http';
 import { createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
@@ -128,6 +125,43 @@ export const SNAPSHOT_MISSING_REASON =
 /** Câu nói ra khi chưa nơi nào bơm danh sách phiên bản vào màn. */
 export const NO_VERSION_SOURCE_REASON =
   'chưa có nguồn dữ liệu phiên bản nào được nối vào màn này';
+
+/** Câu nói ra khi N17 không trả được lịch sử. */
+export const VERSION_LIST_FAILED_REASON =
+  'máy chủ chưa trả được lịch sử phiên bản của tầng này';
+
+/**
+ * Bộ nạp thật cho {@link CreateVersionHistoryGatewayOptions.loadVersions}: N17
+ * (`GET /projects/{id}/versions?floorId=`), qua `ApiClient` nên vẫn đi qua `src/lib/http`.
+ *
+ * N17 chỉ trả siêu dữ liệu — nội dung bản chụp là N18, chưa nối — nên mọi dòng là
+ * `metadataOnly`: danh sách hiện đủ, còn so sánh/phục hồi nói thẳng là chưa có nội dung
+ * ({@link SNAPSHOT_MISSING_REASON}). Chỉ đọc trang đầu (tối đa 200 bản, giới hạn của BE).
+ */
+export function createApiVersionLoader(
+  client: Pick<ApiClient, 'spatial'>,
+  projectId: string,
+): (floorId: string) => Promise<readonly VersionHistoryEntry[]> {
+  return async (floorId) => {
+    const result = await client.spatial.listVersions({ floorId, projectId });
+
+    if (!result.ok) {
+      throw new Error(VERSION_LIST_FAILED_REASON);
+    }
+
+    return result.data.items.map((summary) => ({
+      kind: 'metadataOnly' as const,
+      version: {
+        createdAt: summary.createdAt,
+        creatorId: summary.creatorId,
+        creatorName: summary.creatorName,
+        id: summary.id,
+        ...(summary.note !== undefined ? { note: summary.note } : {}),
+        sequence: summary.sequence,
+      },
+    }));
+  };
+}
 
 /* -------------------------------------------------------------------------- */
 /* 3 — Tham số dựng cổng                                                      */

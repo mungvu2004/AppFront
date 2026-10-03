@@ -99,27 +99,23 @@
  * hằng `AREA_TOLERANCE_M2` đã có; không một dung sai mới, không một phép so
  * sánh hình học tự chế nào (R-61).
  *
- * ## Ba việc chưa có đường
+ * ## Đọc, lưu, và một việc chưa có đường
  *
- * - `persistRoomLabels` — **NOT FOUND**. `ENDPOINTS.spatial.floor` có thật,
- *   nhưng `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>` và
- *   `FloorWriteBody` chỉ mang `name`/`order`/`elevationMm`/`heightMm`/
- *   `drawings` — không có chỗ nào cho mảng phòng. Cổng thật trả nhánh
- *   `supported: false` có kiểu, và tự lưu nói ra sự thật đó thay vì bịa một
- *   lượt lưu đã xong.
+ * - `persistRoomLabels` — lưu lớp của tầng qua #35 (`createFloorLayerSave`,
+ *   B-V6-03); trước đây cổng trả `supported: false` và tự lưu nói "Lưu thất bại".
  * - `readClearHeight` — **NOT FOUND**. `Room` không có `heightMm`; chỉ
  *   `Level.heightMm` có, và đó là CHIỀU CAO TẦNG, khác chiều cao thông thuỷ
  *   đúng bằng chiều dày sàn/trần. Hiện số chiều cao tầng dưới nhãn "thông thuỷ"
  *   là nói dối, nên `clearHeightText` luôn `null` và panel hiện nhánh "chưa có
  *   số đo" — đúng phán quyết của điều phối viên.
- * - `readRoomLayer` — phòng sống trong `src/store` (nơi `commit` ghi vào),
- *   không có endpoint nào trả về chúng (`ENDPOINTS` không có nhóm `room`).
- *   Cổng đọc chúng qua một cửa tiêm được, mặc định là chính store, dưới khoá
- *   `queryKeys.room.byFloor` — cùng cách `wallLayerReviewGateway` đọc đồ thị
- *   tường. Ảnh nền thì đọc THẬT qua `spatial.readFloor`.
+ * - `readRoomLayer` — phòng sống trong `src/store` (nơi `commit` ghi vào); kho
+ *   rỗng thì cổng đọc N16 (`readFloorLayerGraph`, B-V6-01), kho có thì giữ —
+ *   không đè thay đổi chưa lưu. Ảnh nền đọc THẬT qua `spatial.readFloor`.
  */
 
 import type { ApiClient } from '@/api/client';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import { createAppApiClient } from '@/api/appClient';
 import {
   computeArea,
@@ -133,7 +129,7 @@ import {
 import { detectRooms, type DetectRoomsResult } from '@/domain/rooms/detect';
 import { ROOM_USAGE_LABELS, type Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { createId } from '@/domain/spatial/ids';
+import { createId, displayCodesOf } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Level,
@@ -266,10 +262,7 @@ export const ROOM_LABEL_CAPABILITIES = [
 export type RoomLabelCapability = (typeof ROOM_LABEL_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const ROOM_LABEL_MISSING_CAPABILITIES = [
-  'readClearHeight',
-  'persistRoomLabels',
-] as const;
+export const ROOM_LABEL_MISSING_CAPABILITIES = ['readClearHeight'] as const;
 
 export type RoomLabelMissingCapability = (typeof ROOM_LABEL_MISSING_CAPABILITIES)[number];
 
@@ -279,8 +272,6 @@ export const ROOM_LABEL_MISSING_ENDPOINTS: Readonly<
 > = {
   readClearHeight:
     'Room (src/domain/spatial/types.ts:188-197) không có trường heightMm; chỉ Level.heightMm (types.ts:110) tồn tại và đó là CHIỀU CAO TẦNG, khác chiều cao thông thuỷ đúng bằng chiều dày sàn/trần — hiện nó dưới nhãn "thông thuỷ" là nói dối, nên trường này để null',
-  persistRoomLabels:
-    'ENDPOINTS.spatial.floor chấp nhận một danh sách phòng trong thân yêu cầu — chưa có; PatchSpatialFloorInput.body là Partial<FloorWriteBody> (src/api/client.ts:87-92,144-148), chỉ mang name/order/elevationMm/heightMm/drawings, không có chỗ cho mảng phòng',
 };
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
@@ -365,7 +356,7 @@ export interface RoomLabelReviewGateway {
   readonly readRoomLayer: (input: ReadRoomLayerInput) => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: RoomLabelGraphPort;
-  /** NOT FOUND — `persistRoomLabels`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
+  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
   readonly persistRoomLabels: (
     input: PersistRoomLabelsInput,
   ) => Promise<RoomLabelCapabilityResult<void>>;
@@ -384,9 +375,6 @@ export interface RoomLabelReviewGateway {
 /** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
 const ID_COUNTER_LENGTH = 6;
 
-/** Bề rộng nhãn người đọc: "#R-005", không phải "#R-5". */
-const DISPLAY_CODE_DIGITS = 3;
-
 /**
  * Nhãn người đọc của một mã phòng: `R-000005ROOM` → `R-005`.
  *
@@ -396,13 +384,15 @@ const DISPLAY_CODE_DIGITS = 3;
  * tra nào phải giữ đồng bộ. Thuần cắt chuỗi: không một phép số học nào.
  */
 export function roomDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
 
-/** Nhãn mono của một hàng — "#R-005". */
-export const roomCodeLabel = (id: string): string => `#${roomDisplayCode(id)}`;
+/**
+ * Nhãn mono của một hàng — "#R-005". Ưu tiên bảng mã của cả tầng (`displayCodesOf`:
+ * mã BE / bộ mẫu A14 không có số đếm đứng đầu, B-V6-09), rơi về `roomDisplayCode`.
+ */
+export const roomCodeLabel = (id: string, codes?: ReadonlyMap<string, string>): string =>
+  `#${codes?.get(id) ?? roomDisplayCode(id)}`;
 
 /* -------------------------------------------------------------------------- */
 /* Cửa vào — cổng thật.                                                        */
@@ -435,6 +425,7 @@ export function createRoomLabelReviewGateway(
   const graph: RoomLabelGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
+  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
 
   return {
     supports: {
@@ -442,7 +433,7 @@ export function createRoomLabelReviewGateway(
       readRoomLayer: true,
       writeRoomLayer: true,
       readClearHeight: false,
-      persistRoomLabels: false,
+      persistRoomLabels: true,
     },
 
     readBackground: async ({ floorId, projectId, signal }) => {
@@ -464,11 +455,15 @@ export function createRoomLabelReviewGateway(
       };
     },
 
-    readRoomLayer: () => Promise.resolve(graph.read()),
+    readRoomLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
 
     graph,
 
-    persistRoomLabels: () => Promise.resolve(unsupported('persistRoomLabels')),
+    persistRoomLabels: async (input) => {
+      await saveFloorLayer(input);
+
+      return { supported: true, value: undefined };
+    },
 
     nextRoomId: options.nextRoomId ?? ((): RoomId => createId('room')),
     actorId: options.actorId ?? ROOM_LABEL_DEFAULT_ACTOR_ID,
@@ -552,9 +547,9 @@ export function createMockRoomLabelReviewGateway(
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
 
     persistRoomLabels: () =>
-      Promise.resolve(
-        canPersist ? { supported: true, value: undefined } : unsupported('persistRoomLabels'),
-      ),
+      canPersist
+        ? Promise.resolve({ supported: true, value: undefined })
+        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     /*
      * Mã phòng mới của bộ mẫu — cùng khuôn `createId`, KHÔNG phải "R-M1".
@@ -853,6 +848,7 @@ export function cropOfRoom(
   measures: RoomLabelMeasures,
   scale: Scale,
   imageUrl: string,
+  codes?: ReadonlyMap<string, string>,
 ): RoomLabelCropViewModel {
   const centre = toPixelPoint(measures.labelAnchorMm, scale);
   const box = boxAround(
@@ -871,7 +867,7 @@ export function cropOfRoom(
     },
     displayWidthPx: ROOM_LABEL_CROP_DISPLAY_WIDTH_PX,
     displayHeightPx: ROOM_LABEL_CROP_DISPLAY_HEIGHT_PX,
-    alt: roomImageAlt(roomCodeLabel(room.id)),
+    alt: roomImageAlt(roomCodeLabel(room.id, codes)),
   };
 }
 
@@ -930,11 +926,13 @@ export interface ToRoomLabelRowOptions {
   /** Ảnh nền của tầng; `null` thì không có gì để cắt. */
   readonly backgroundImageUrl: string | null;
   readonly scale: Scale;
+  /** Bảng mã người đọc của cả tầng (`displayCodesOf`); vắng thì cắt số đếm từ mã. */
+  readonly codes?: ReadonlyMap<string, string>;
 }
 
 /** Một dòng phòng đã sẵn sàng để VẼ, không còn phép tính nào. */
 export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): RoomLabelViewModel {
-  const codeLabel = roomCodeLabel(room.id);
+  const codeLabel = roomCodeLabel(room.id, options.codes);
   const nameFromOcr = room.source === 'ai';
   const hasName = room.name.trim() !== '';
 
@@ -962,7 +960,7 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
     nameFromOcr,
     crop:
       nameFromOcr && hasName && options.backgroundImageUrl !== null
-        ? cropOfRoom(room, options.measures, options.scale, options.backgroundImageUrl)
+        ? cropOfRoom(room, options.measures, options.scale, options.backgroundImageUrl, options.codes)
         : null,
     status: statusOfRoom(room),
     notices: options.notices,
@@ -1056,7 +1054,10 @@ export function canonicalRoomName(raw: string): string | null {
  * dòng như vậy là một lệnh chắc chắn hỏng — bỏ nó ở đây trung thực hơn là để
  * người dùng bấm "Áp dụng" rồi mới thấy nó rơi.
  */
-export function buildNormalizePreview(rooms: readonly Room[]): RoomLabelNormalizePreview {
+export function buildNormalizePreview(
+  rooms: readonly Room[],
+  codes?: ReadonlyMap<string, string>,
+): RoomLabelNormalizePreview {
   const taken = new Set(
     rooms.map((room) => room.name.trim().toLowerCase()).filter((name) => name !== ''),
   );
@@ -1090,7 +1091,7 @@ export function buildNormalizePreview(rooms: readonly Room[]): RoomLabelNormaliz
     taken.add(nextKey);
     rows.push({
       roomId: room.id,
-      codeLabel: roomCodeLabel(room.id),
+      codeLabel: roomCodeLabel(room.id, codes),
       from: room.name,
       to: next,
     });
@@ -1267,8 +1268,8 @@ export const ROOM_APPROVE_COMMAND_TYPE = 'room.approve';
 export const ROOM_NORMALIZE_COMMAND_TYPE = 'room.normalizeNames';
 
 /** Câu mô tả trên nút hoàn tác và nhật ký hoạt động — `validateCommands` đòi nó khác rỗng. */
-export const approveDescription = (roomId: RoomId): string =>
-  `Duyệt tên phòng ${roomCodeLabel(roomId)}.`;
+export const approveDescription = (roomId: RoomId, codes?: ReadonlyMap<string, string>): string =>
+  `Duyệt tên phòng ${roomCodeLabel(roomId, codes)}.`;
 
 /** Câu mô tả của lượt chuẩn hoá — cũng là câu trên toast hoàn tác. */
 export const normalizeDescription = (changedCount: number): string =>
@@ -1281,13 +1282,17 @@ export const normalizeDescription = (changedCount: number): string =>
  * `source: 'human'` — không có tham số nào cho phép nơi gọi truyền `source`,
  * nên đầu ra AI không có đường nào bật được cờ xanh "đã xác minh".
  */
-export function buildApproveRoomCommand(before: Room, actorId: string): Command {
+export function buildApproveRoomCommand(
+  before: Room,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command {
   const after: Room = { ...before, reviewed: true, source: 'human' };
 
   return createCommand({
     type: ROOM_APPROVE_COMMAND_TYPE,
     actorId,
-    description: approveDescription(before.id),
+    description: approveDescription(before.id, codes),
     changes: [changeForUpdate('room', before, after)],
   });
 }

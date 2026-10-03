@@ -63,7 +63,10 @@ import {
   type PropertyInspectorProps,
 } from './propertyInspectorTypes';
 
-const REGION_LABEL = 'Thanh tra đối tượng';
+/* Không trùng tên `aside` "Thanh tra đối tượng" của vỏ 3D (`ViewerInspector.tsx`),
+   nơi vùng này được dựng bên trong: hai mốc cùng tên là hai điểm dừng không
+   phân biệt được cho trình đọc màn hình (F5). */
+const REGION_LABEL = 'Thuộc tính đối tượng';
 const LOADING_LABEL = 'Đang tải thuộc tính…';
 const FORBIDDEN_MESSAGE = 'Bạn đang xem ở vai chỉ xem nên không sửa được thuộc tính này.';
 const COLLAPSED_CHIP_LABEL = 'Mở lại thanh tra đối tượng';
@@ -100,7 +103,7 @@ function PanelContent({
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
-        key={content.header.objectCode}
+        key={content.header.entityId}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

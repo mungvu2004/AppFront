@@ -155,6 +155,8 @@ export const PIPELINE_GRAPH_TEXT = {
   } as Readonly<Record<PipelineBranchId, string>>,
   reasonUnknown:
     'Mỗi tầng đang đi một nhánh khác nhau, nên chưa có một câu trả lời chung cho cả hồ sơ.',
+  /** Chưa đọc được báo cáo nhánh nào — không được nói "mỗi tầng một nhánh" (B-V5-03). */
+  reasonNoReport: 'Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào.',
 
   statusLabels: {
     queued: 'chờ chạy',

@@ -83,7 +83,7 @@ export function ViewerInspector({
           <InlineAlert
             className="mb-4"
             level="attention"
-            message="Bạn đang xem ở vai Người xem nên không sửa được mô hình."
+            message="Bạn đang xem ở vai người xem nên không sửa được mô hình."
             title="Chỉ xem"
           />
         )}

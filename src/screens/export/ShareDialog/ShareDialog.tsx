@@ -16,6 +16,7 @@
  */
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Modal } from '@/components/overlay/Modal';
 
@@ -26,7 +27,16 @@ import { ShareDialogPeople } from './ShareDialogPeople';
 import { EMBED_COPY_TARGET_ID } from './types';
 import type { ShareDialogProps } from './types';
 
-export function ShareDialog({ isOpen, model, actions, titleId }: ShareDialogProps) {
+export function ShareDialog(props: ShareDialogProps) {
+  return (
+    <>
+      <ShareDialogMain {...props} />
+      <RevokeConfirm url={props.model.pendingRevokeUrl} actions={props.actions} />
+    </>
+  );
+}
+
+function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) {
   return (
     <Modal.Root
       isOpen={isOpen}
@@ -70,6 +80,33 @@ export function ShareDialog({ isOpen, model, actions, titleId }: ShareDialogProp
       </Modal.Body>
       <Modal.Footer>
         <ShareDialogFooter onDismiss={actions.dismiss} />
+      </Modal.Footer>
+    </Modal.Root>
+  );
+}
+
+/**
+ * A9: thu hồi không có đường khôi phục, nên hỏi trước (B-V3-06). Anh em của hộp thoại
+ * chia sẻ, không phải con: `Modal.Root` có `transform`, một `fixed` bên trong sẽ bám
+ * theo nó. Esc của hộp thoại này đăng ký sau nên trả lời trước.
+ */
+function RevokeConfirm({ url, actions }: { url: string | null; actions: ShareDialogProps['actions'] }) {
+  return (
+    <Modal.Root isOpen={url !== null} onClose={actions.cancelRevoke}>
+      <Modal.Header>thu hồi liên kết này?</Modal.Header>
+      <Modal.Body>
+        <p className="text-sm text-text-secondary">
+          ai đang giữ liên kết sẽ không mở được bản vẽ nữa, và không lấy lại được liên kết này.
+        </p>
+        <p className="mt-2 truncate font-mono text-xs text-text-primary">{url}</p>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="ghost" onClick={actions.cancelRevoke}>
+          để nguyên
+        </Button>
+        <Button variant="danger" onClick={actions.confirmRevoke}>
+          thu hồi
+        </Button>
       </Modal.Footer>
     </Modal.Root>
   );

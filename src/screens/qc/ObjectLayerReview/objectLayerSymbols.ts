@@ -661,6 +661,17 @@ function basinSymbol(halfWidth: number, halfDepth: number): ObjectSymbol {
   };
 }
 
+/** Nội thất khác — miền không nói nó là gì, nên chỉ vẽ đúng khung hộp bao (B-V6-13). */
+function otherFurnitureSymbol(halfWidth: number, halfDepth: number): ObjectSymbol {
+  const outline = rect(-halfWidth, -halfDepth, halfWidth * 2, halfDepth * 2);
+
+  return {
+    footprint: outline,
+    strokes: [{ id: 'outline', d: outline, dashArray: null }],
+    hasSwingArc: false,
+  };
+}
+
 /**
  * Ký hiệu kiến trúc của một đối tượng, trong hệ toạ độ cục bộ của nó.
  *
@@ -700,6 +711,8 @@ export function buildObjectSymbol(request: ObjectSymbolRequest): ObjectSymbol {
       return toiletSymbol(halfWidth, halfDepth);
     case 'basin':
       return basinSymbol(halfWidth, halfDepth);
+    case 'otherFurniture':
+      return otherFurnitureSymbol(halfWidth, halfDepth);
     default:
       return windowSymbol(halfWidth, halfDepth, false);
   }

@@ -72,3 +72,22 @@ describe('listShortcuts', () => {
     expect(scopes).toEqual(['global', 'canvas', 'sidePanel']);
   });
 });
+
+describe('subscribe', () => {
+  it('fires after a register and after its unregister, and stops after unsubscribe (B-V2-01)', () => {
+    const registry = devRegistry();
+    const listener = vi.fn();
+    const unsubscribe = registry.subscribe(listener);
+
+    const unregister = registry.register({ id: 'test.sub', combo: 'K', scope: 'canvas', onTrigger: () => {} });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unregister();
+    unregister();
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    registry.register({ id: 'test.sub2', combo: 'L', scope: 'canvas', onTrigger: () => {} });
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+});

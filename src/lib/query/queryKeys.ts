@@ -52,10 +52,28 @@ const createQueryKeyFactory = <
 const projectListRoot = freezeKey(['project', 'list'] as const);
 const projectDetailRoot = freezeKey(['project', 'detail'] as const);
 const projectMembersRoot = freezeKey(['project', 'members'] as const);
+/*
+ * Danh sách dự án gần đây của màn "không tìm thấy trang" — khoá RIÊNG, không
+ * dùng lại `project.list`.
+ *
+ * Hai màn từng dùng chung `project.list`, và nó đổ. `notFoundGateway` đọc
+ * `client.projects.list()` nên nó ghi hình dạng `Project` của API;
+ * `projectsGateway.fetchProjectList()` KHÔNG gọi API nào, nó trả `SAMPLE_PROJECTS`
+ * — hình dạng `DashboardProject` có thêm `members`. Hai người ghi, hai hình dạng,
+ * một khoá: vào 404 trước rồi bấm "về danh sách dự án" thì bảng điều khiển đọc lại
+ * bộ đệm của 404 và `ProjectCardTile` ném
+ * `Cannot read properties of undefined (reading 'length')` ở `project.members`.
+ *
+ * React Query không thấy được chỗ này (khoá chỉ là một mảng chuỗi) và TypeScript
+ * cũng không (mỗi cổng tự khai kiểu trả về của mình). Nên lời chặn duy nhất là
+ * **một khoá một hình dạng**.
+ */
+const projectRecentRoot = freezeKey(['project', 'recent'] as const);
 const floorListRoot = freezeKey(['floor', 'list'] as const);
 const floorDetailRoot = freezeKey(['floor', 'detail'] as const);
 const drawingByFloorRoot = freezeKey(['drawing', 'byFloor'] as const);
 const progressByFloorRoot = freezeKey(['progress', 'byFloor'] as const);
+const progressLatestUploadsRoot = freezeKey(['progress', 'latestUploads'] as const);
 const spaceByFloorRoot = freezeKey(['space', 'byFloor'] as const);
 const qualityAssessmentRoot = freezeKey(['quality', 'assessment'] as const);
 const roomByFloorRoot = freezeKey(['room', 'byFloor'] as const);
@@ -105,10 +123,16 @@ export const queryKeys = {
       ...progressByFloorRoot,
       floorId,
     ] as const),
+    /** N7 — lượt tải mới nhất của từng tầng trong dự án: màn xử lý theo dõi danh sách này. */
+    latestUploads: createQueryKeyFactory(progressLatestUploadsRoot, (projectId: string) => [
+      ...progressLatestUploadsRoot,
+      projectId,
+    ] as const),
   },
   project: {
     detail: createQueryKeyFactory(projectDetailRoot, (projectId: string) => [...projectDetailRoot, projectId] as const),
     list: createQueryKeyFactory(projectListRoot, () => projectListRoot),
+    recent: createQueryKeyFactory(projectRecentRoot, () => projectRecentRoot),
     members: createQueryKeyFactory(projectMembersRoot, (projectId: string) => [
       ...projectMembersRoot,
       projectId,

@@ -302,6 +302,18 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
   // `Partial` chồng lên nhau, vì `exactOptionalPropertyTypes` biến mỗi trường
   // tuỳ chọn thành `T | undefined` và cả mười trường phải kiểm lại một lần nữa.
   const [edits, setEdits] = useState<PreferenceValues | null>(null);
+
+  // Nạp lại ngay trong lượt render khi bản đã lưu đổi — khuôn `useAccountTables`.
+  // Chỉ lượt đọc và nút "Hoàn tác" của `useAccountSettings` được đổi `port.saved`
+  // (B-V12b-03): ai đổi nó sau MỖI lượt lưu (`setQueryData`, làm mới truy vấn) thì
+  // chữ đang gõ dở sẽ mất.
+  const [syncedSaved, setSyncedSaved] = useState(port.saved);
+
+  if (port.saved !== syncedSaved) {
+    setSyncedSaved(port.saved);
+    setEdits(null);
+  }
+
   const values = edits ?? base;
 
   const [flashedField, setFlashedField] = useState<string | null>(null);

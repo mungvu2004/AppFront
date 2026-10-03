@@ -2,13 +2,34 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
+import { MOCK_NOTIFICATIONS } from '@/api/__mocks__/client';
 import { renderWithProviders } from '@/lib/testing/render';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
+import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
 import { ProjectDashboardRoute } from './ProjectDashboard.container';
 import { ProjectDashboardView, type ProjectDashboardViewProps } from './ProjectDashboard';
 import type { ProjectCardModel } from './useProjectDashboard';
+import type * as NotificationGatewayModule from '@/screens/system/NotificationCenter/notificationCenterGateway';
+import type { NotificationCenterGateway } from '@/screens/system/NotificationCenter/notificationModel';
+
+// Chuông thật dựng cổng thông báo thật, mà jsdom không có `EventSource` — và ranh
+// giới lỗi của chuông sẽ nuốt lỗi ấy, để bài hỏng mà không ai thấy. Khuôn
+// `NotificationCenterRoute.test.tsx`.
+vi.mock('@/screens/system/NotificationCenter/notificationCenterGateway', async (importActual) => {
+  const actual = await importActual<typeof NotificationGatewayModule>();
+  const items = MOCK_NOTIFICATIONS.map((wire) => actual.toNotificationItemVm(wire, Date.now()));
+  const gateway: NotificationCenterGateway = {
+    list: () => Promise.resolve(items),
+    markRead: () => Promise.resolve(),
+    markAllRead: () => Promise.resolve(),
+    acceptInvite: () => Promise.resolve(),
+    subscribe: () => () => undefined,
+  };
+
+  return { ...actual, createNotificationCenterGateway: () => gateway };
+});
 
 // jsdom has no matchMedia; matches: false renders the desktop layout, the one
 // `ProjectDashboardRoute` (real hook, real viewport probe) needs below.
@@ -115,6 +136,24 @@ describe('ProjectDashboardView, seven states', () => {
     );
   });
 
+  // B-V3-01: the sr-only status used to read the raw key ("success") aloud — the one
+  // screen of 49 that never ran `expectVietnamese` (questions.md Q10h).
+  it.each(SEVEN_STATES)('says its state in Vietnamese to a screen reader — %s (A6)', (state) => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE[state]()} />);
+
+    expect(screen.getAllByRole('status').map((node) => node.textContent)).not.toContain(state);
+    // The sample project's own name is user data, not product copy.
+    expectVietnamese(container, { ignore: [SAMPLE_ROW.name] });
+  });
+
+  // B-V3-03: the in-place rename field had no accessible name — a screen reader
+  // announced a bare "edit text" with no hint of which project it renames.
+  it.each(['grid', 'table'] as const)('names the in-place rename field after its project — %s view', (viewMode) => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode={viewMode} renamingId={SAMPLE_ROW.id} />);
+
+    expect(screen.getByRole('textbox', { name: `đổi tên ${SAMPLE_ROW.name}` })).toBeInTheDocument();
+  });
+
   it('shows skeletons rather than an empty grid while loading', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
 
@@ -209,5 +248,29 @@ describe('ProjectDashboardRoute', () => {
     // `role="region", aria-label="Thông báo"` — exactly one means this file's
     // `DashboardWithCreateModal` really did share a single provider.
     expect(screen.getAllByRole('region', { name: 'Thông báo' })).toHaveLength(1);
+  });
+
+  it('bấm chuông "Thông báo" mở tấm trượt thông báo (B-V3-08)', async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/']}>
+        <ProjectDashboardRoute />
+      </MemoryRouter>,
+    );
+
+    const bell = await screen.findByRole('button', { name: 'Thông báo' });
+    expect(bell).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(bell);
+
+    expect(await screen.findByRole('dialog', { name: 'Thông báo' })).toBeInTheDocument();
+    expect(bell).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+describe('ProjectDashboardView — khe chuông', () => {
+  it('không ai cắm chuông thì không vẽ nút "Thông báo" chết nào (A2, B-V3-08)', () => {
+    render(<MemoryRouter><ProjectDashboardView {...baseProps()} /></MemoryRouter>);
+
+    expect(screen.queryAllByRole('button', { name: 'Thông báo' })).toHaveLength(0);
   });
 });

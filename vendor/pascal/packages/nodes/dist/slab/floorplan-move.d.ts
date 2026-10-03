@@ -1,0 +1,12 @@
+import type { FloorplanMoveTarget, SlabNode } from '@pascal-app/core';
+/**
+ * 2D floor-plan move handler for slab. Delegates to the shared polygon
+ * centroid-pivot mover: the slab's centroid snaps to the (grid-snapped,
+ * Figma-aligned) cursor — the same pivot semantics as a regular item's
+ * origin — instead of the old grab-relative delta. See
+ * `shared/polygon-centroid-move.ts` for the live-drag / commit rationale.
+ *
+ * `meshY = 0`: `GeometrySystem` parks the slab group at y=0 on rebuild.
+ */
+export declare const slabFloorplanMoveTarget: FloorplanMoveTarget<SlabNode>;
+//# sourceMappingURL=floorplan-move.d.ts.map

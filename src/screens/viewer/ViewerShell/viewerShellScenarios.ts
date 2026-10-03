@@ -50,7 +50,7 @@ export const FIXTURE_PERF = Object.freeze({ frameRate: 58, triangles: 51_700 });
 /** Vai mặc định: kỹ sư, dùng được mọi công cụ. */
 const ENGINEER: readonly ProjectRole[] = Object.freeze(['engineer']);
 
-/** Vai Người xem: công cụ sửa bị gỡ khỏi ray. */
+/** Vai Người xem: trạng thái `forbidden` — ray vẫn đủ sáu công cụ vì không công cụ nào sửa mô hình. */
 const VIEWER_ONLY: readonly ProjectRole[] = Object.freeze(['viewer']);
 
 const scenario = (

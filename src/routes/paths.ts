@@ -105,6 +105,7 @@ export const ROUTE_PATTERNS = {
   projectUpload: `${PROJECTS_ROOT}/:projectId/upload`,
   projectVersions: `${PROJECTS_ROOT}/:projectId/versions`,
   projectViewer: `${PROJECTS_ROOT}/:projectId/3d`,
+  projectViewerPascal: `${PROJECTS_ROOT}/:projectId/3d/pascal`,
   projectWalls: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
 } as const;
@@ -163,6 +164,7 @@ export const ROUTES = {
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,
     versions: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/versions`,
     viewer: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d`,
+    viewerPascal: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d/pascal`,
     walls: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,
   },

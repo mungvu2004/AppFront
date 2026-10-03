@@ -52,15 +52,20 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { displayCodesOf } from '@/domain/spatial/ids';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -77,6 +82,7 @@ import {
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -95,12 +101,9 @@ import {
   confidenceModeOf,
   countsOf,
   createObjectLayerDispatchDeps,
-  createObjectLayerMutation,
   createObjectLayerReviewGateway,
   createObjectUndoTicket,
   dataLayerTokens,
-  displayIdOf,
-  entityIdOf,
   graphWallsOf,
   isLowConfidenceObject,
   layerTreeTotalLabel,
@@ -130,12 +133,12 @@ import {
   type ObjectLayerGraphPort,
   type ObjectLayerReviewGateway,
   type ObjectSeedEntry,
-  type ObjectWriteVariables,
 } from './objectLayerReviewGateway';
 import {
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LAYER,
   isOrphanObject,
+  isUnattachedOpening,
   type ObjectLayerId,
   type ObjectLayerReviewModel,
   type ObjectLayerScreenState,
@@ -260,8 +263,8 @@ export function applyObjectFilters(
 /**
  * Ba ô 1/2/3 của một nhóm loại.
  *
- * Nhóm cửa đi có hai loại con, nhóm cửa sổ có một, nhóm nội thất có năm — nên ô
- * thứ ba của hai nhóm đầu trống, và hai loại con cuối của nhóm nội thất không
+ * Nhóm cửa đi có hai loại con, nhóm cửa sổ có một, nhóm nội thất có sáu — nên ô
+ * thứ ba của hai nhóm đầu trống, và ba loại con cuối của nhóm nội thất không
  * có phím tắt. Danh sách cắt từ {@link OBJECT_SUBTYPES}, không gõ tay lần thứ hai.
  */
 export const subtypeSlotsOf = (layer: ObjectLayerId): readonly ObjectSubtype[] =>
@@ -342,11 +345,10 @@ export function useObjectLayerReview(
   /**
    * Dòng bộ mẫu của những đối tượng người duyệt tự thêm trong phiên này.
    *
-   * `objectsOf` đọc đồ thị QUA bộ mẫu (một dòng bộ mẫu là chỗ mã hiển thị gặp
-   * mã máy), nên một đối tượng vừa thêm mà không có dòng của nó sẽ nằm trong đồ
-   * thị mà không hiện ra ở đâu — đúng thứ một nút "thêm" im lặng trông như.
-   * Cổng không sửa được (bộ mẫu của nó là hằng), nên dòng mới sống ở đây, cạnh
-   * chính lượt ghi đã tạo ra nó.
+   * `objectsOf` dựng danh sách từ đồ thị (B-V6-13), nên đối tượng vừa thêm hiện ra
+   * dù không có dòng nào; dòng ở đây giữ cho nó đúng mã hiển thị đã đề nghị
+   * (`D-010`…) thay vì mã đánh lại theo thứ tự. Cổng không sửa được (bộ mẫu của nó
+   * là hằng), nên dòng mới sống ở đây, cạnh chính lượt ghi đã tạo ra nó.
    */
   const [manualEntries, setManualEntries] = useState<readonly ObjectSeedEntry[]>([]);
 
@@ -402,20 +404,26 @@ export function useObjectLayerReview(
   const selectedIds = useStore((state) => state.selectedIds);
   const setSelection = useStore((state) => state.setSelection);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
+   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
+   * `objectLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   */
+  const loaded = objectLayerQuery.data ?? null;
+
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read();
+    const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
       setSpatial(seed, null);
     }
-  }, [gateway, graph, setSpatial]);
+  }, [gateway, graph, loaded, setSpatial]);
 
-  const level = useMemo<Level | null>(() => levelOfGraph(graph), [graph]);
+  const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = objectLayerQuery.isError;
   const isLoading = objectLayerQuery.isPending || graph === null;
 
@@ -451,36 +459,52 @@ export function useObjectLayerReview(
     [],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
-  /**
-   * Lượt ghi đang chờ máy chủ — bước `sync` của `dispatch` đọc nó.
+  /*
+   * Tự lưu (A7) — 800 ms sau thao tác cuối, cùng khuôn màn tường (B-V6-03).
    *
-   * `SyncPort.enqueue` là chỗ S-11 nói "bản vẽ bẩn rồi", và ở màn này nó châm
-   * ngòi cho lượt ghi lạc quan của D-04: lệnh đã áp vào kho TRƯỚC khi máy chủ
-   * trả lời, còn `rollback` của mutation gỡ nó ra bằng đúng ngăn xếp hoàn tác
-   * của S-06 nếu lượt gửi hỏng.
+   * `SyncPort.enqueue` là chỗ S-11 nói "bản vẽ bẩn rồi"; nó chỉ châm bộ đếm. Trước
+   * đây nó bắn một lượt ghi lạc quan cho MỖI lệnh, và lượt hỏng thì hoàn tác lệnh
+   * của người duyệt — với #35 có version, hai lượt duyệt liền tay là hai `PUT` cùng
+   * `baseVersion`, lượt sau 409, công duyệt bị gỡ. Một engine thì xếp hàng sẵn,
+   * thử lại theo lịch chung, và nói ra trạng thái thay vì gỡ việc đã làm.
    */
-  const pendingWriteRef = useRef<ObjectWriteVariables | null>(null);
-  const persistRef = useRef<(variables: ObjectWriteVariables) => void>(() => undefined);
+  const autosaveRef = useRef<Autosave | null>(null);
+  const persistTargetRef = useRef({ floorId, gateway, projectId });
+  persistTargetRef.current = { floorId, gateway, projectId };
+
+  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
+    getChanges: () => useStore.getState().spatial ?? undefined,
+    save: async (changes) => {
+      const current = persistTargetRef.current;
+      const result = await current.gateway.persistObjectLayer({
+        floorId: current.floorId,
+        projectId: current.projectId,
+        graph: changes,
+      });
+
+      if (!result.supported) {
+        throw new Error(result.missing);
+      }
+    },
+  });
+
+  const autosave = autosaveRef.current;
+
+  useFlushOnSave(autosave);
+  useSaveIndicator(autosave);
 
   const dispatchBundle = useMemo<ObjectLayerDispatchDeps>(
     () =>
       createObjectLayerDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
-          const pending = pendingWriteRef.current;
-
-          if (pending !== null) {
-            persistRef.current(pending);
-          }
+          autosave.notifyChange();
         },
       }),
-    [storePort],
+    [autosave, storePort],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -509,7 +533,7 @@ export function useObjectLayerReview(
     (objectId: string): EntityId | null => {
       const object = objectById(objectId);
 
-      return object === null ? null : (entityIdOf(object.id, object.layer) as EntityId);
+      return object === null ? null : (object.entityId as EntityId);
     },
     [objectById],
   );
@@ -525,14 +549,11 @@ export function useObjectLayerReview(
       return null;
     }
 
-    const displayId = displayIdOf(anchor);
-
-    return objects.some((object) => object.id === displayId) ? displayId : null;
+    return objects.find((object) => object.entityId === anchor)?.id ?? null;
   }, [objects, orphanSelection, selectedIds]);
 
   const pushSelection = useCallback(
     (next: readonly EntityId[]) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection([...next]);
       /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
       channel.push([...next]);
@@ -561,8 +582,11 @@ export function useObjectLayerReview(
         return;
       }
 
-      /* Đối tượng chưa gắn không nằm trong đồ thị, nên nó đi đường riêng. */
-      if (isOrphanObject(object)) {
+      /*
+       * Lỗ mở chưa gắn không nằm trong đồ thị, nên nó đi đường riêng. Nội thất đứng tự
+       * do thì có trên đồ thị, nên nó đi vùng chọn thật như mọi thực thể khác.
+       */
+      if (isUnattachedOpening(object)) {
         pushSelection(NO_SELECTION_IDS);
         setOrphanSelection(objectId);
 
@@ -601,7 +625,7 @@ export function useObjectLayerReview(
 
       const ids = objects
         .filter((object) => object.layer === layer)
-        .map((object) => entityIdOf(object.id, object.layer) as EntityId);
+        .map((object) => object.entityId as EntityId);
 
       pushSelection(combineSelection(selectedIds, ids, 'replace', selectionContext));
     },
@@ -657,15 +681,13 @@ export function useObjectLayerReview(
         return;
       }
 
-      pendingWriteRef.current = { objectId, projectId, floorId };
-
       const result = await runObjectCommand(command, dispatchBundle);
 
       if (result.ok) {
         invalidate(layer);
       }
     },
-    [canEdit, dispatchBundle, floorId, gateway, invalidate, projectId],
+    [canEdit, dispatchBundle, gateway, invalidate],
   );
 
   /** Một khối lệnh đi cùng nhau — sinh ĐÚNG MỘT bước hoàn tác, không gộp với lượt kéo. */
@@ -687,15 +709,13 @@ export function useObjectLayerReview(
         return;
       }
 
-      pendingWriteRef.current = { objectId, projectId, floorId };
-
       const result = await runObjectTransaction([command], dispatchBundle, command.description);
 
       if (result.ok) {
         invalidate(layer);
       }
     },
-    [canEdit, dispatchBundle, floorId, gateway, invalidate, projectId],
+    [canEdit, dispatchBundle, gateway, invalidate],
   );
 
   const wallOfObject = useCallback(
@@ -713,8 +733,7 @@ export function useObjectLayerReview(
       }
 
       void runBlock(object.id, object.layer, (context) => {
-        const entityId = entityIdOf(object.id, object.layer);
-        const before = context.graph.byId[entityId];
+        const before = context.graph.byId[object.entityId];
         const wall = wallOfObject(object.hostWallId);
 
         if (before === undefined || wall === null || !('wallId' in before)) {
@@ -723,6 +742,7 @@ export function useObjectLayerReview(
 
         const built = buildChangeObjectKindCommand({
           before,
+          displayId: object.id,
           wall,
           siblings: siblingOpeningsOf(context.graph, wall),
           subtype,
@@ -744,13 +764,18 @@ export function useObjectLayerReview(
       }
 
       void runBlock(object.id, object.layer, (context) => {
-        const before = context.graph.byId[entityIdOf(object.id, object.layer)];
+        const before = context.graph.byId[object.entityId];
 
         if (before === undefined || !('wallId' in before)) {
           return null;
         }
 
-        const built = buildChangeObjectSwingCommand({ before, swing, actorId: context.actorId });
+        const built = buildChangeObjectSwingCommand({
+          before,
+          displayId: object.id,
+          swing,
+          actorId: context.actorId,
+        });
 
         return built.ok ? built.data : null;
       });
@@ -767,13 +792,13 @@ export function useObjectLayerReview(
       }
 
       void runBlock(object.id, object.layer, (context) => {
-        const before = context.graph.byId[entityIdOf(object.id, object.layer)];
+        const before = context.graph.byId[object.entityId];
 
         if (before === undefined || (!('wallId' in before) && !('boundingBox' in before))) {
           return null;
         }
 
-        return buildApproveObjectCommand(before, context.actorId);
+        return buildApproveObjectCommand(before, context.actorId, object.id);
       });
     },
     [objectById, runBlock],
@@ -796,7 +821,7 @@ export function useObjectLayerReview(
       setDraggingObjectId(object.id);
 
       void runSingle(object.id, object.layer, (context) => {
-        const entityId = entityIdOf(object.id, object.layer);
+        const { entityId } = object;
 
         if (object.layer === 'furniture') {
           const built = buildMoveFurnitureCommand(
@@ -835,44 +860,13 @@ export function useObjectLayerReview(
 
     dispatchBundle.deps.spatial.applyPatches(transition.patches);
     setSelection([...transition.selection.selectedIds]);
+    autosave.notifyChange();
     invalidate('door');
-  }, [canEdit, dispatchBundle, invalidate, setSelection]);
+  }, [autosave, canEdit, dispatchBundle, invalidate, setSelection]);
 
   const onUndo = useCallback(() => {
     applyUndo();
   }, [applyUndo]);
-
-  /* ---------------------------------------------------------------------- */
-  /* D-04 — lượt ghi lạc quan, xếp hàng theo từng đối tượng.                  */
-  /* ---------------------------------------------------------------------- */
-
-  /*
-   * `applyOptimistic` để trống có chủ đích: thay đổi ĐÃ được áp vào kho bởi
-   * `dispatch` ngay trước khi mutation chạy, và đó chính là "lạc quan" theo
-   * nghĩa của D-04 — người duyệt thấy kết quả trước khi máy chủ trả lời. Việc
-   * còn lại của mutation là chụp ảnh cache, gỡ ra khi lượt gửi hỏng (`rollback`
-   * chạy trên ngăn xếp hoàn tác 100 bước của S-06), và dọn khoá đã cũ.
-   */
-  const persistMutation = useMutation(
-    createObjectLayerMutation(queryClient, {
-      gateway,
-      applyOptimistic: () => undefined,
-      rollback: () => {
-        applyUndo();
-      },
-      affectedKeys: (variables) => [queryKeys.space.byFloor(variables.floorId)],
-      afterSuccess: (variables) => {
-        applyInvalidation(queryClient, 'editWall', {
-          floorId: variables.floorId,
-          projectId: variables.projectId,
-        });
-      },
-    }),
-  );
-
-  persistRef.current = (variables) => {
-    persistMutation.mutate(variables);
-  };
 
   /* ---------------------------------------------------------------------- */
   /* Xoá (A8) — tức thì, không hộp thoại, kèm vé hoàn tác 8000 ms.            */
@@ -889,7 +883,7 @@ export function useObjectLayerReview(
       }
 
       void runSingle(object.id, object.layer, (context) => {
-        const entityId = entityIdOf(object.id, object.layer);
+        const { entityId } = object;
         const built =
           object.layer === 'furniture'
             ? buildDeleteFurnitureCommand({ furnitureId: entityId as never }, context)
@@ -1221,7 +1215,16 @@ export function useObjectLayerReview(
     [layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
   );
 
-  const rows = useMemo(() => visibleObjects.map(toObjectRow), [visibleObjects]);
+  /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
+  const wallCodes = useMemo(
+    () => displayCodesOf(solidWalls.map((wall) => wall.id)),
+    [solidWalls],
+  );
+
+  const rows = useMemo(
+    () => visibleObjects.map((object) => toObjectRow(object, wallCodes)),
+    [visibleObjects, wallCodes],
+  );
 
   const inspector = useMemo(() => {
     if (selectedObject === null) {
@@ -1230,8 +1233,8 @@ export function useObjectLayerReview(
 
     const wall = isOrphanObject(selectedObject) ? null : wallOfObject(selectedObject.hostWallId);
 
-    return toObjectInspector(selectedObject, wall);
-  }, [selectedObject, wallOfObject]);
+    return toObjectInspector(selectedObject, wall, wallCodes);
+  }, [selectedObject, wallCodes, wallOfObject]);
 
   const paintSubjects = useMemo(
     () => (level === null ? [] : objects.map((object) => toPaintSubject(object, level.id))),

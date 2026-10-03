@@ -157,4 +157,14 @@ describe('[VO-2] chế độ sửa hình học tường', () => {
     expect(region).toBeInTheDocument();
     expect(region.textContent?.length ?? 0).toBeGreaterThan(0);
   });
+
+  it('dải "Xong" lùi đầu phải khỏi ô ViewCube, để nút không nằm dưới nó (B-V8-11)', async () => {
+    renderOverlays({ isWallEditing: true, selectedWallIds: [WALL_ID], wallId: WALL_ID });
+
+    const done = await screen.findByRole('button', { name: 'Xong' }, LAZY_WAIT);
+
+    /* jsdom không dàn trang, nên đây chỉ là nửa đơn vị: màn chủ có truyền khoảng lùi.
+       Nửa hình học — ViewCube thôi chặn cú bấm — là bài e2e `wall-geometry.spec.ts`. */
+    expect(done.closest('[class~="pr-[88px]"]')).not.toBeNull();
+  });
 });

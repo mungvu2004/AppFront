@@ -1,0 +1,23 @@
+import type { MeasurementFeature, MeasurementFeatureBinding } from '../registry/types.js';
+import type { ConstructionDimensionNode } from '../schema/nodes/construction-dimension.js';
+import type { MeasurementAnchor, MeasurementPayload, MeasurementPoint } from '../schema/nodes/measurement.js';
+import type { AnyNodeId } from '../schema/types.js';
+export declare const MEASUREMENT_PLANAR_TOLERANCE = 0.01;
+export declare function measurementDistance(start: MeasurementPoint, end: MeasurementPoint): number;
+export declare function measurementAnchorFallback(anchor: MeasurementAnchor): MeasurementPoint;
+export declare function measurementAngle(start: MeasurementPoint, vertex: MeasurementPoint, end: MeasurementPoint): number;
+export declare function measurementPerimeter(points: readonly MeasurementPoint[]): number;
+export declare function measurementFeatureLength(feature: MeasurementFeature): number | null;
+export declare function closestMeasurementFeatureBinding(features: readonly MeasurementFeature[], point: MeasurementPoint, maxDistance: number): MeasurementFeatureBinding | null;
+export declare function remapMeasurementReferences(measurement: MeasurementPayload, idMap: ReadonlyMap<string, string>): MeasurementPayload;
+export declare function remapMeasurementAnchors(anchors: readonly MeasurementAnchor[], idMap: ReadonlyMap<string, string>): MeasurementAnchor[];
+export declare function remapConstructionDimensionReferences(dimension: ConstructionDimensionNode, idMap: ReadonlyMap<string, string>): ConstructionDimensionNode;
+export declare function measurementAnchorReferenceNodeIds(anchors: readonly MeasurementAnchor[]): AnyNodeId[];
+export declare function measurementReferenceNodeIds(measurement: MeasurementPayload): AnyNodeId[];
+export declare function measurementAreaVector(points: readonly MeasurementPoint[]): MeasurementPoint;
+export declare function measurementArea(points: readonly MeasurementPoint[]): number;
+export declare function measurementNormal(points: readonly MeasurementPoint[]): MeasurementPoint | null;
+export declare function areMeasurementPointsCoplanar(points: readonly MeasurementPoint[], tolerance?: number): boolean;
+export declare function measurementCentroid(points: readonly MeasurementPoint[]): MeasurementPoint | null;
+export declare function measurementPrismVolume(base: readonly MeasurementPoint[], extrusion: MeasurementPoint): number;
+//# sourceMappingURL=measurement-geometry.d.ts.map

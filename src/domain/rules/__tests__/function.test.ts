@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeSpatial } from '../../spatial/normalize';
+import { displayCodeIn, normalizeSpatial } from '../../spatial/normalize';
 import type {
   Furniture,
   FurnitureId,
@@ -490,13 +490,14 @@ describe('the function group', () => {
   });
 
   it('gives every finding an entity code, numbers and a fix', () => {
-    const result = runRules(normalizeSpatial(createFaultyFlat()), {
+    const graph = normalizeSpatial(createFaultyFlat());
+    const result = runRules(graph, {
       registry: createRuleRegistry(FUNCTION_RULES),
     });
 
     for (const found of result.violations) {
       expect(found.entityId).toMatch(/^[A-Z]-[0-9A-Z]{10,}$/);
-      expect(found.message).toContain(found.entityId);
+      expect(found.message).toContain(displayCodeIn(graph, found.entityId));
       expect(found.message).toMatch(/\d/);
       expect(found.message.trim().endsWith('.')).toBe(true);
       expect(found.suggestion.trim().endsWith('.')).toBe(true);

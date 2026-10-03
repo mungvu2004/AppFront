@@ -18,7 +18,8 @@
  * CẤM TUYỆT ĐỐI của đặc tả gốc: "mọi đối tượng phải nói rõ tường nào chứa nó,
  * hoặc bị gắn cờ nếu không có". `hostWallLabel === null` là cách hợp đồng nói
  * "chưa gắn", và dòng đó KHÔNG hiện một ô trống: nó hiện chip cần chú ý "Chưa
- * gắn vào tường nào" cùng hành động "Gắn vào tường gần nhất". Hành động ấy chỉ
+ * gắn vào tường nào" cùng hành động "Gắn vào tường gần nhất" (`row.isOrphan` —
+ * chỉ lỗ mở; nội thất đứng tự do ghi "đứng tự do", B-V6-13). Hành động ấy chỉ
  * GỌI ra props — việc tìm tường nào gần nhất là của M-08 ở tầng hook, màn không
  * tự tìm.
  *
@@ -46,6 +47,8 @@ import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS } from './objectLayerTypes';
 const LIST_LABEL = 'danh sách đối tượng';
 const ORPHAN_BADGE = 'Chưa gắn vào tường nào';
 const ATTACH_ACTION = 'Gắn vào tường gần nhất';
+/** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
+const FREE_STANDING = 'đứng tự do';
 const EMPTY_GROUP = 'chưa có đối tượng nào trong nhóm này';
 const TOTAL_PREFIX = 'tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
@@ -125,7 +128,7 @@ function ObjectLayerListRow({
         Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
         gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
       */}
-      {row.hostWallLabel === null ? (
+      {row.isOrphan ? (
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="attention">{ORPHAN_BADGE}</Badge>
           <button
@@ -144,6 +147,8 @@ function ObjectLayerListRow({
             {ATTACH_ACTION}
           </button>
         </div>
+      ) : row.hostWallLabel === null ? (
+        <span className="text-[12px] text-text-muted">{FREE_STANDING}</span>
       ) : (
         <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
       )}

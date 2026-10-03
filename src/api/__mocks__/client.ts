@@ -4,6 +4,8 @@ import type { HttpError, Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
+import type { LevelId } from '@/domain/spatial/types';
+import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
   AdminUser,
   AdminUserList,
@@ -11,6 +13,7 @@ import type {
   Drawing,
   FloorImageQuality,
   Floor,
+  FloorVersionPage,
   FloorWriteBody,
   ImageQualityAssessment,
   ImageQualityFinding,
@@ -21,6 +24,7 @@ import type {
   Project,
   ProjectWriteBody,
   PropertyTemplate,
+  SpatialLayer,
   UserActivity,
   UserMembership,
   Version,
@@ -62,6 +66,7 @@ const MOCK_SERVER_FEATURE_FLAGS: Readonly<Record<FeatureFlagKey, boolean>> = {
   'rules.parallel-run': false,
   'export.pdf-vector': false,
   'qc.live-collaboration': false,
+  'scene.pascal-viewer': false,
 };
 
 const makeVersion = (): Version => ({
@@ -71,6 +76,45 @@ const makeVersion = (): Version => ({
   note: 'Mock snapshot',
   projectId: 'project-1',
   sequence: 1,
+});
+
+/**
+ * N17 — ba phiên bản cho mỗi tầng có thật trong bộ mẫu, mới trước cũ sau (`sequence` giảm
+ * dần, đúng thứ tự BE trả). Chỉ có siêu dữ liệu: nội dung bản chụp là N18, chưa nối.
+ */
+const makeFloorVersionPage = (floorId: string): FloorVersionPage => ({
+  items: [
+    {
+      createdAt: '2026-08-05T09:30:00.000Z',
+      creatorId: 'usr_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+      creatorName: 'Kỹ sư mẫu',
+      floorRevision: 3,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T3C',
+      note: `sửa tay lớp tường của ${floorId}`,
+      sequence: 3,
+    },
+    {
+      createdAt: '2026-08-04T14:10:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'Dây chuyền xử lý',
+      floorRevision: 2,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T2B',
+      note: 'trạng thái trước khi ghi kết quả AI',
+      sequence: 2,
+    },
+    {
+      createdAt: '2026-08-03T08:00:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'Dây chuyền xử lý',
+      floorRevision: 1,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+      note: 'bản dựng đầu tiên',
+      sequence: 1,
+    },
+  ],
 });
 
 const makeFloor = (levelId: string, name: string, elevationM: number, heightM: number, order: number): Floor => ({
@@ -92,6 +136,61 @@ const makeFallbackFloor = (floorId: string): Floor => ({
   name: floorId,
   order: 0,
 });
+
+/**
+ * Lớp của một tầng theo N16 (B-V6-01): tầng nào là một tầng của bộ mẫu chuẩn A14
+ * thì nhận đúng phần của tầng ấy; tầng khác nhận lớp RỖNG — như BE trả
+ * `empty_document` cho tầng chưa có tài liệu (`spatial_read/router.py`).
+ *
+ * Tên tầng viết lại bằng tiếng Việt: bộ mẫu đặt `Level n`, và tên ấy hiện lên nav
+ * tầng của màn tường (A6). Trục đi kèm dù N16 v1 của BE luôn trả `axes: []` — xem
+ * B-V6 trong `docs/notes/e2e/fragments/W04.md`.
+ */
+/**
+ * Mã `Level` N16 giả trả cho một tầng ngoài bộ mẫu A14.
+ *
+ * BE đặt `level.id = floor.id` (`spatial_read/assemble.py`), và mã tầng của BE là
+ * một `LevelId` hợp lệ vì FE tạo nó bằng `createId`. Mã tầng của bộ mẫu API
+ * (`L1`, `L2`…) thì KHÔNG hợp lệ, nên ép thẳng nó thành `LevelId` làm
+ * `isEntityOfKind`/`applyPatch` từ chối tầng ấy và "Áp dụng tỷ lệ" không vá được
+ * gì (B-V5-01). Đây là ánh xạ của riêng bộ mẫu: thân mã là mã tầng viết hoa, `-`
+ * thành `X`, đệm `0` đủ mười ký tự.
+ */
+const levelIdOfFloor = (floorId: string): LevelId =>
+  `L-${floorId.toUpperCase().replace(/[^0-9A-Z]/gu, 'X').padStart(10, '0')}` as LevelId;
+
+const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer): FloorLayerDocument => {
+  const sampleLevel = SAMPLE_BUILDING.levels.find((level) => level.id === floor.id);
+  const onFloor = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
+    sampleLevel === undefined ? [] : clone(items.filter((item) => item.levelId === sampleLevel.id));
+  const walls = onFloor(SAMPLE_BUILDING.walls);
+  const wallIds = new Set<string>(walls.map((wall) => wall.id));
+
+  return {
+    axes: onFloor(SAMPLE_BUILDING.axes),
+    dimensions: onFloor(SAMPLE_BUILDING.dimensions),
+    layer: layer ?? {
+      furniture: onFloor(SAMPLE_BUILDING.furniture),
+      openings: clone(SAMPLE_BUILDING.openings.filter((opening) => wallIds.has(opening.wallId))),
+      rooms: onFloor(SAMPLE_BUILDING.rooms),
+      walls,
+    },
+    level:
+      sampleLevel === undefined
+        ? {
+            confidence: 1,
+            elevationMm: floor.elevationMm,
+            heightMm: floor.heightMm,
+            id: levelIdOfFloor(floor.id),
+            name: floor.name,
+            order: floor.order,
+            reviewed: true,
+            source: 'human',
+          }
+        : { ...clone(sampleLevel), name: `Tầng ${String(sampleLevel.order + 1)}` },
+    revision,
+  };
+};
 
 const buildProject = (): Project => {
   const floors = MOCK_SPATIAL_PROJECT.levels.map((level, index) =>
@@ -240,6 +339,13 @@ const makeFallbackQualityFloor = (floorId: string): FloorImageQuality => ({
 
 const uploadKey = (projectId: string, uploadId: string): string => `${projectId}::${uploadId}`;
 
+/**
+ * `uploadId` của bản vẽ có sẵn trên Tầng 1 (`L1-drawing-1`) — đúng dạng
+ * `upl_<ULID>` mà `LatestFloorUploadSchema` đòi, và đã xử lý xong, để N7 của bộ
+ * mẫu có một mục hợp lệ ngay từ đầu (B-V4-01).
+ */
+const SEEDED_UPLOAD_ID = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZABC';
+
 const applyProjectBody = (project: Project, body: Partial<ProjectWriteBody>): Project => ({
   ...project,
   ...(body.address !== undefined ? { address: body.address } : {}),
@@ -347,6 +453,59 @@ export const createMockAuthTransport =
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });
+  };
+
+/** `/projects/:projectId/measurements` và `/…/measurements/:measurementId` — `ENDPOINTS.measurements`. */
+const MEASUREMENTS_PATH = /\/projects\/([^/]+)\/measurements(?:\/([^/]+))?\/?$/u;
+
+/** Phép đo đã ghim, theo dự án, ở cấp module — cùng lý do `lastSignedInEmail`. */
+const pinnedMeasurements = new Map<string, readonly { readonly id: string }[]>();
+
+const jsonResponse = (body: unknown, status: number): Response =>
+  new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' }, status });
+
+/**
+ * Transport HTTP của bộ mẫu cho những nhóm KHÔNG đi qua `ApiClient` — B-G-05.
+ *
+ * Màn đo đọc và ghi phép đo bằng `HttpClient` trần (`lib/mutations/measurement.ts`
+ * giải thích vì sao), nên `createMockApiClient()` không bao giờ được hỏi và lượt
+ * `GET` rơi ra máy chủ dev — 404, màn đo luôn ở `error`. Hàm này trả lời đúng ba
+ * lượt của `ENDPOINTS.measurements` từ bộ nhớ; mọi đường khác đi tiếp `next`, nên
+ * hành vi của những nơi gọi khác không đổi. Không mô phỏng 409 trùng mã.
+ */
+export const createMockHttpTransport =
+  (next: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response>) =>
+  async (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const match = MEASUREMENTS_PATH.exec(new URL(url, 'http://mock.invalid').pathname);
+
+    if (match === null) {
+      return next(input, init);
+    }
+
+    const [, projectId = '', measurementId] = match;
+    const rows = pinnedMeasurements.get(projectId) ?? [];
+    const method = (init?.method ?? 'GET').toUpperCase();
+
+    if (method === 'GET' && measurementId === undefined) {
+      return jsonResponse(rows, 200);
+    }
+
+    if (method === 'POST' && measurementId === undefined) {
+      const record = JSON.parse(String(init?.body)) as { readonly id: string };
+      pinnedMeasurements.set(projectId, [...rows.filter((row) => row.id !== record.id), record]);
+      return jsonResponse(record, 201);
+    }
+
+    if (method === 'DELETE' && measurementId !== undefined) {
+      pinnedMeasurements.set(
+        projectId,
+        rows.filter((row) => row.id !== decodeURIComponent(measurementId)),
+      );
+      return new Response(null, { status: 204 });
+    }
+
+    return jsonResponse({ code: 'METHOD_NOT_ALLOWED' }, 405);
   };
 
 /** Vai mà bộ mẫu cấp cho một địa chỉ — xuất ra để bài kiểm khỏi chép lại bảng. */
@@ -928,7 +1087,18 @@ const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => (
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
-  const uploads = new Map<string, Progress>();
+  const uploads = new Map<string, Progress>([
+    [
+      uploadKey(project.id, SEEDED_UPLOAD_ID),
+      makeProgress({ id: SEEDED_UPLOAD_ID, progressPercent: 100, status: 'completed' }),
+    ],
+  ]);
+  /** Lượt tải mới nhất của từng tầng — nguồn của N7. Tầng có bản vẽ sẵn mang lượt mồi. */
+  const latestUploadByFloor = new Map<string, string>(
+    floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
+  );
+  const layerRevisions = new Map<string, number>();
+  const writtenLayers = new Map<string, SpatialLayer>();
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
@@ -1014,8 +1184,19 @@ export const createMockApiClient = (): ApiClient => {
       initUpload: async ({ body }) => {
         const progress = makeProgress({ id: `${body.projectId}-${body.floorId}`, step: 'Initialize upload' });
         uploads.set(uploadKey(body.projectId, body.floorId), progress);
+        latestUploadByFloor.set(body.floorId, progress.id);
         return ok(progress);
       },
+      latestUploads: async () =>
+        ok(
+          [...floors]
+            .sort((left, right) => left.order - right.order)
+            .flatMap((floor) => {
+              const uploadId = latestUploadByFloor.get(floor.id);
+
+              return uploadId === undefined ? [] : [{ floorId: floor.id, floorName: floor.name, uploadId }];
+            }),
+        ),
       progress: async ({ projectId, uploadId }) =>
         ok(uploads.get(uploadKey(projectId, uploadId)) ?? makeProgress({ id: uploadId, progressPercent: 0 })),
       sendChunk: async ({ body, projectId, uploadId }) => {
@@ -1216,8 +1397,26 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
-      /** Echoes the layer back, like every other write in this file that has no separate read endpoint to reconcile with (see `auth.signIn`, `drawings.complete`). */
-      writeLayer: async ({ body }) => ok(clone(body)),
+      /** Tầng lạ thì trang rỗng — bộ mẫu không bịa lịch sử cho tầng không có. */
+      listVersions: async ({ floorId }) =>
+        ok(floors.some((floor) => floor.id === floorId) ? makeFloorVersionPage(floorId) : { items: [] }),
+      readLayer: async ({ floorId }) => {
+        const floor = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
+
+        return ok(makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId)));
+      },
+      /**
+       * Lưu lớp và tăng `revision`, như #35. Không trả 409 khi `baseVersion` cũ:
+       * chưa nơi gọi nào xử lý xung đột, và một mock tự bịa luật ấy là nguồn thứ hai.
+       */
+      writeLayer: async ({ body, floorId }) => {
+        const revision = (layerRevisions.get(floorId) ?? 0) + 1;
+
+        layerRevisions.set(floorId, revision);
+        writtenLayers.set(floorId, clone(body));
+
+        return ok({ layer: clone(body), revision });
+      },
     },
     /**
      * Quản trị người dùng — T-04/T-05.

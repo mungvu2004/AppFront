@@ -238,6 +238,9 @@ export function ScaleCalibrationPanel({
               >
                 {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}
               </Button>
+              {panel.applyBlockedNotice !== undefined && (
+                <InlineAlert level="attention" message={panel.applyBlockedNotice} />
+              )}
               <p className="text-[12px] text-text-muted">{panel.recalculationCaption}</p>
             </div>
           )}

@@ -25,14 +25,32 @@
  */
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
 
-import { UndoShortcuts } from './router';
+import { ROUTES } from './paths';
+import { routes, UndoShortcuts } from './router';
 
-/** Trần chờ rộng rãi cho lượt tải chunk `LazyGlobalShortcutHelp` dưới tải cao. */
-const ASYNC_TIMEOUT_MS = 5000;
+/**
+ * Trần chờ cho lượt tải chunk `LazyGlobalShortcutHelp` dưới tải cao.
+ *
+ * Con số cũ là 5 000 — **đúng bằng hạn mặc định của cả bài kiểm**, nên hai trần
+ * hết hạn cùng lúc và bài không bao giờ có cơ hội chờ đủ. Đo ngày 2026-09-28
+ * trên bộ toàn bài: **đỏ 3 / 5 lượt** khi chạy cả bộ, **đạt 4/4 mọi lượt** khi
+ * chạy riêng tệp này (2,70 s). Lỗi luôn là `Unable to find role="dialog"`, tức
+ * `findByRole` tiêu hết trần của chính nó — lượt tải chunk chậm hơn 5 giây dưới
+ * tải, đúng như khối chú thích đầu tệp đã lường trước.
+ *
+ * Nâng trần chờ **không** nới cổng chất lượng nào: mọi khẳng định giữ nguyên
+ * từng dòng, chỉ chỗ đợi rộng ra. Cùng cách xử lý đã dùng ở
+ * `screens/export/ShareDialog/ShareDialog.test.tsx:144`, và cùng lý do: phạm vi
+ * một tệp, không đụng `vitest.config.ts` — tệp ấy là cổng chung.
+ */
+const ASYNC_TIMEOUT_MS = 15_000;
+
+vi.setConfig({ testTimeout: 20_000 });
 
 afterEach(() => {
   cleanup();
@@ -128,5 +146,21 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
     pressEscape();
 
     expect(useStore.getState().openDialog).toBeNull();
+  });
+});
+
+describe('[router] vỏ chờ lúc chunk màn còn trên đường (B-G-04)', () => {
+  it('nói "đang tải màn hình" bằng tiếng Việt, không còn chữ "Loading..."', () => {
+    /* `/login` là route công khai nên `SessionGate` cho qua ngay, và thứ đầu tiên
+       vẽ ra là đúng fallback của `suspended` — chunk màn chưa kịp về. */
+    const memoryRouter = createMemoryRouter(routes, { initialEntries: [ROUTES.login] });
+
+    render(<RouterProvider router={memoryRouter} />);
+
+    expect(screen.getByRole('status', { name: 'đang tải màn hình' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
   });
 });

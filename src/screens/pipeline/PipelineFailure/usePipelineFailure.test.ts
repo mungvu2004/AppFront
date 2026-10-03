@@ -139,6 +139,7 @@ describe('pipelineFailureGateway', () => {
       retryStep: false,
       stepFailureDetail: false,
       technicalLog: false,
+      // Bật thì phải có hoãn A8 trước — B-V4-09.
       skipFloor: false,
       copyLog: true,
       reportFailure: true,

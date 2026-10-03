@@ -42,6 +42,25 @@ export function flushAutosaves(): Promise<void> {
   );
 }
 
+/**
+ * Ghi một engine vào sổ của {@link flushAutosaves} suốt thời gian component còn
+ * gắn, gỡ khi tháo.
+ *
+ * Tách khỏi {@link useAutosave} vì hook ấy khoá cứng vào `state.spatial`: màn nào
+ * tự dựng `createAutosave` (vì cần chọn đích lưu, hay cần `useSaveIndicator`) thì
+ * trước đây không có đường nào vào sổ, nên Ctrl+S không thấy nó (B-V7-01).
+ * Một engine chỉ được đăng ký ở MỘT chỗ — đăng ký hai lần là hai lượt lưu.
+ */
+export function useFlushOnSave(autosave: Autosave): void {
+  useEffect(() => {
+    mountedAutosaves.add(autosave);
+
+    return () => {
+      mountedAutosaves.delete(autosave);
+    };
+  }, [autosave]);
+}
+
 export interface UseAutosaveHandle {
   /**
    * The exact string this hook has always returned: `null` before the first
@@ -105,23 +124,27 @@ function useAutosaveHandle(onSave: (data: RootState['spatial']) => Promise<void>
   const state = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
   const [label, setLabel] = useState<string | null>(null);
 
-  /* Ghi tên engine này vào sổ dùng chung suốt thời gian hook còn gắn, để Ctrl+S
-     của vỏ xả được nó mà không cần biết màn nào đang mở. Gỡ tên khi tháo: một
-     engine đã tháo không còn `getChanges` nào đọc được nữa. */
-  useEffect(() => {
-    mountedAutosaves.add(autosave);
+  /* Ghi tên engine này vào sổ dùng chung, để Ctrl+S của vỏ xả được nó mà không
+     cần biết màn nào đang mở. */
+  useFlushOnSave(autosave);
 
-    return () => {
-      mountedAutosaves.delete(autosave);
-    };
-  }, [autosave]);
-
+  /*
+   * Chỉ một bản SỬA mới hẹn lưu. Một lượt nạp (`setSpatial`, kể cả của cổng nạp
+   * kho dự án — B-V12-01) đổi `spatial` nhưng xoá lịch sử hoàn tác, nên hai ngăn
+   * zundo cùng rỗng; lưu lại thứ vừa đọc từ máy chủ là ghi thừa, và với panel
+   * thuộc tính là ghi đè (Q13). Hoàn tác về đúng bản đã nạp vẫn hẹn lưu, vì khi
+   * ấy ngăn `futureStates` có một bước.
+   */
   useEffect(() => {
     if (!spatial) {
       return;
     }
 
-    autosave.notifyChange();
+    const { futureStates, pastStates } = useStore.temporal.getState();
+
+    if (pastStates.length + futureStates.length > 0) {
+      autosave.notifyChange();
+    }
   }, [spatial, autosave]);
 
   useEffect(() => {

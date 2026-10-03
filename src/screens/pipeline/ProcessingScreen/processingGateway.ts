@@ -71,7 +71,7 @@
  */
 
 import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
-import type { ApiClient, ApiResult } from '@/api/client';
+import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import { describeError, toAppError } from '@/lib/errors';
@@ -351,6 +351,15 @@ export interface ProcessingGateway {
    * bật `true` để nhánh "có hỗ trợ" vẫn được kiểm.
    */
   readonly supports: Readonly<Record<ProcessingCapability, boolean>>;
+  /**
+   * N7 — lượt tải mới nhất của từng tầng: danh sách màn theo dõi khi nơi mở màn
+   * không truyền `floorUploads`. Nhờ nó mọi lối vào `/pipeline` (tải lên, kiểm
+   * tra chất lượng, CAD, bảng điều khiển) thấy cùng một danh sách (B-V4-01).
+   */
+  readonly readLatestUploads: (input: {
+    readonly projectId: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<ApiResult<LatestFloorUpload[]>>;
   /** Lượt đọc mồi cho `useQuery` — một lần, không phải dòng sự kiện. */
   readonly readProgressOnce: (input: ReadProgressInput) => Promise<ApiResult<Progress>>;
   /**
@@ -627,6 +636,9 @@ export function createProcessingGateway(
     // cái cuối chỉ làm được một nửa, xem giả định C3 ở đầu file. Sáu việc còn
     // lại `false` cho tới khi có endpoint thật.
     supports: {
+      // Bật cờ này thì giữ lệnh `UNDO_WINDOW_MS` kèm toast hoàn tác (A8). Hết giờ chỉ
+      // huỷ những lượt tải lên chụp lúc xác nhận mà vẫn đang chạy. Câu toast phải đúng
+      // cả khi lượt chạy xong trước hạn. Xem B-V4-09.
       cancelProcessing: false,
       queuePosition: false,
       parallelFloorPipeline: false,
@@ -637,6 +649,9 @@ export function createProcessingGateway(
       detectedGeometry: false,
       stageBreakdown: true,
     },
+
+    readLatestUploads: ({ projectId, signal }) =>
+      client.drawings.latestUploads({ projectId, ...(signal !== undefined ? { signal } : {}) }),
 
     readProgressOnce: ({ projectId, signal, uploadId }) =>
       client.drawings.progress({

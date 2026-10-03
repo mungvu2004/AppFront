@@ -146,5 +146,45 @@ export const readKindFromId = (id: string): EntityKind | null => {
   return kindByPrefix.get(parts.prefix) ?? null;
 };
 
+const DISPLAY_CODE_DIGITS = 3;
+
+const counterCodeOf = (id: string): string => {
+  const counter = id.slice(2, 2 + COUNTER_LENGTH).replace(/^0+/u, '');
+
+  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+};
+
+/**
+ * Nhãn người đọc (không có dấu `#`) cho một danh sách mã CÙNG LOẠI trên cùng một tầng.
+ *
+ * Quy tắc:
+ * 1. Đọc sáu ký tự đầu của thân mã làm số đếm, bỏ số 0 đầu, đệm đủ 3 chữ số
+ *    (`W-000014WALL` -> `W-014`). Nếu mọi nhãn đó KHÔNG trùng nhau thì dùng chúng,
+ *    nên mã do `createId` sinh và bộ mẫu QC giữ nguyên nhãn, và nhãn không dịch
+ *    chỗ khi một thực thể bị xoá.
+ * 2. Ngược lại (mã BE `<chữ>-<25 ký tự base36>` có mốc thời gian đứng đầu, hoặc mã
+ *    bộ mẫu A14 `M-DIMN0000010` có chỉ số đứng sau) thì đánh số cả danh sách theo
+ *    THỨ TỰ của mã xếp tăng dần (`X-001`, `X-002`...). Với cả ba dạng mã, thứ tự
+ *    tăng dần chính là thứ tự tạo, nên thực thể mới nối đuôi mà không đánh lại số cũ.
+ *
+ * ponytail: ở nhánh thứ tự, xoá một thực thể làm nhãn các thực thể sau nó dịch đi
+ * một. Đường nâng cấp: đánh số trên hợp của ảnh chụp máy chủ đã tải và các mã hiện có.
+ */
+export const displayCodesOf = (ids: readonly string[]): ReadonlyMap<string, string> => {
+  const counterCodes = ids.map(counterCodeOf);
+
+  if (new Set(counterCodes).size === new Set(ids).size) {
+    return new Map(ids.map((id, index) => [id, counterCodes[index] as string] as const));
+  }
+
+  const sorted = [...new Set(ids)].sort();
+
+  return new Map(
+    sorted.map(
+      (id, index) => [id, `${id.slice(0, 1)}-${String(index + 1).padStart(DISPLAY_CODE_DIGITS, '0')}`] as const,
+    ),
+  );
+};
+
 /** Checks whether a string is a valid id of any entity kind. */
 export const isValidId = (id: string): boolean => readKindFromId(id) !== null;

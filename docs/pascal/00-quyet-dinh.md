@@ -124,3 +124,177 @@ Ba con số nên đọc trước khi chốt trần:
 Dưới mạng chậm (Slow 4G + CPU ×4), Pascal mở chậm hơn màn cũ **3,2 %** trước cắt và **5,3 %**
 sau cắt — nhưng đó là số của **dự án thử**, và dung lượng **không** biểu hiện thành giây ở phép
 đo này. Đừng dùng hai con số ấy để nới trần.
+
+---
+
+## Bản 3 — cổng T4.2 đã mở (2026-09-27)
+
+Người dùng mở phiên bằng một câu: «hãy thực hiện triển khai theo kế hoạch trên chính nhánh này»
+(kèm đường dẫn sổ tay bản 2.2). Câu đó **không** tự trả lời T4.2, nên cổng được hỏi trước khi thi
+công, và dưới đây là nguyên lựa chọn người dùng đã chọn — không diễn giải.
+
+| Mã | Nội dung câu hỏi | Chọn | Nguyên lời người dùng | Ngày |
+|---|---|---|---|---|
+| T4.2 (1) | Phạm vi Pascal: A xem + sửa · B chỉ xem · D dừng | **A** | «A — xem + sửa (khuyên)» | 2026-09-27 |
+| T8.1 | Được thêm cổng nhập ESLint cho gói Pascal trong đợt này? | **được** | «Cổng nhập ESLint (T8.1)» | 2026-09-27 |
+| T8.2 | Được sửa `CLAUDE.md` (câu react-three-fiber, ranh giới tầng)? | **được** | «Sửa CLAUDE.md (T8.2)» | 2026-09-27 |
+
+**Hai câu còn lại của T4.2 vẫn TREO** (E.10 — không ghi thành quyết định thứ đã không được hỏi):
+
+| Mã | Nội dung | Trạng thái | Cần khi nào |
+|---|---|---|---|
+| T4.2 (2) | Ba con số trần cho cổng thứ năm, theo đơn vị **tổng-thư-mục** (≈ 7 125,8 KiB sau C2) | **cổng đã cài, số CHƯA duyệt** — xem dưới | người duyệt, bất cứ lúc nào |
+| T4.2 (3) | lucide 8,2 KiB: để hai bản cùng chạy, hay nâng AppFront lên lucide 1.x | **chưa hỏi** | T5.4 — trước khi thêm gói Pascal |
+
+Hai câu ấy chưa cần cho Bước 8, nên đợt này không hỏi. `G2-R19-size` và `G2-THREE (c)` vẫn để trống
+ô "nguyên lời" như bảng bản 2 đã ghi.
+
+### Cái người dùng biết khi chọn A — và một đính chính PHẢI đọc kèm
+
+Lúc hỏi, tôi đặt lên bàn một câu: điều kiện dừng duy nhất mà đợt G3 báo là "CHẠM" — độ mượt 5/5 cặp
+— đo phải một **trần nhịp vẽ mặc định** của Pascal (`maxFps = 50`,
+`@pascal-app/viewer/dist/components/viewer/index.js:229`).
+
+**Câu đó đúng phần cơ chế, nhưng thiếu, và phần thiếu quan trọng.** §8d của
+`01-ho-so-cong-T4.1.md` **đã** phát hiện đúng cái trần ấy từ lượt thi công 2026-09-26 và **đã** đo
+lại bằng đại lượng cân theo thời lượng:
+
+| Điều kiện | Cặp vượt | Chạm? |
+|---|---|---|
+| Nhịp khung, cân theo thời lượng | 0 / 5 | **không** |
+| **CPU luồng chính mỗi giây** | **5 / 5** | **CÓ** — 1,202 đến 2,032 |
+
+Nên phát biểu đúng là: **Pascal vẫn chạm một điều kiện dừng**, chỉ khác lý do — nó tốn **~1,6 lần
+CPU luồng chính** để cho ra nhịp khung gần bằng màn cũ (19,7 → 22,2 ms, +13 %). Chốt phạm vi A vì
+thế là **chấp nhận chi phí CPU ấy**, không phải là "không còn điều kiện dừng nào bị chạm".
+
+Đính chính này ghi ở `01-ho-so-cong-T4.1.md` §11. Nếu biết trước mà người dùng vẫn chọn A thì quyết
+định không đổi; nếu không, đây là chỗ mở lại cổng, và Bước 8 đã thi công **dùng được cho cả A lẫn B**
+(chỉ phương án D mới bỏ nó đi).
+
+### Việc thi hành ngay sau cổng, trên nhánh `mungvu2004/tich-hop-pascal`
+
+Bước 8 — bộ đổi dữ liệu ở `src/lib/pascal`, cộng T8.1 và T8.2. Bước 5 (thêm gói Pascal), Bước 6–7
+(fork) và Bước 9 (màn xem) **chưa chạy được**: cả ba đứng sau một bản phát hành của fork mà quyền
+tạo fork chưa được dùng tới trong đợt này.
+
+---
+
+## Bản 4 — hướng đi đổi, sau khi đo lại gói Pascal (2026-09-28)
+
+Hỏi sau khi phiên điều tra 28/09 đo được ba thứ mà các bản trước chưa có: gói Pascal **đã công bố
+công khai trên npm ở 1.0.3**; bề mặt Next.js của `editor` **đóng lại ở đúng hai module**; và hướng
+chỉ-xem **không phải một nhát cắt dung lượng**. Số đo ở `IMPLEMENTATION_STATUS.md` mục 4.5–4.7.
+
+| Mã | Nội dung câu hỏi | Chọn | Nguyên lời người dùng | Ngày |
+|---|---|---|---|---|
+| Hướng `editor` | fork Bước 6–7 · npm + 17 dòng shim · chỉ-xem trước rồi mở sửa sau | **chỉ-xem trước** | «Chỉ-xem trước (core+viewer), mở sửa sau» | 2026-09-28 |
+| T4.2 (3) lucide | khai `allowedVersions` giữ 0.414.0 · nâng lên 1.x · chưa cần quyết | **nâng lên 1.x** | «Nâng AppFront lên lucide 1.x» | 2026-09-28 |
+| Tài sản Pascal 5 398,2 KiB | không tự host · tự host một tập con · tự host toàn bộ | **chưa chọn** | «mô tả khá khó hiêu chưa đủ thông tin để quyết quyếtddinhj » | 2026-09-28 |
+
+### Hệ quả của "chỉ-xem trước"
+
+- Đích đợt này là **`core` + `viewer`**. `editor` và `nodes` **không** được cài. *(Lạc hậu, ghi
+  2026-10-03: `package.json` nay cài đủ bốn gói; `nodes` được nạp thật ở
+  `src/components/pascal/pascalScene.ts`, `editor` cài nhưng chưa nơi nào dựng — `grep pascal-app/editor src` ra 0.)* Fork **không** được
+  tạo. Bước 6, Bước 7, Bước 10 hoãn — **không** bỏ.
+- Phạm vi A (xem + sửa) mà bản 3 đã chốt **không bị rút lại**; nó bị **hoãn** phần sửa. Lý do người
+  dùng thấy khi chọn: Bước 10 dù sao cũng đang bị backend F-04b/F-04c/F-05/F-08 chặn.
+- Hai chỗ `viewer/dist` vướng bất biến AppFront, phải xử trong Bước 9 chứ không phải bằng fork:
+  màn dự phòng GPU bằng **tiếng Anh** (`unsupported-gpu-fallback.js:3`, vỡ A6) và
+  `transition-colors duration-700` trên Canvas (`components/viewer/index.js:319`, mục B).
+- Bộ đổi dữ liệu của Bước 8 **dùng được nguyên vẹn** cho hướng này — bản 3 đã ghi trước điều đó:
+  *"Bước 8 đã thi công dùng được cho cả A lẫn B"*.
+
+### Về lucide — một câu phải nói rõ, E.10
+
+Người dùng chọn **nâng lên 1.x**. Nhưng ở hướng chỉ-xem, `nodes` (nơi `lucide-react` là
+**peerDependency `^1`**) **không được cài**, và `core`/`viewer` **không dính lucide chút nào** — nên
+việc nâng **không còn là điều kiện cần của đợt này**. Nó là một bậc major trên toàn bộ chỗ dùng icon
+của AppFront, đổi lấy: hết chỗ lệch với Pascal về sau, và có hai icon `RulerDimensionLine`, `Drone`
+mà 0.414.0 thiếu. Ghi lại như **một PR độc lập đã được cho phép**, không phải một mắt trong chuỗi
+Bước 9. Nếu người dùng muốn nó đi cùng đợt này thì nói thêm một câu.
+
+### Câu tài sản Pascal — chưa chốt, và lý do là lỗi trình bày của tôi
+
+Người dùng nói câu hỏi khó hiểu và chưa đủ thông tin. Đúng: tôi hỏi *có tự host thư viện tài sản
+không* trong khi chính tôi còn ghi "chưa đo" cho việc **viewer có cần tệp nào trong đó để dựng cảnh
+AppFront hay không**. Hỏi một câu mà dữ kiện quyết định chưa có là hỏi sai lúc. Việc đúng là **đo
+trước**: dựng cảnh thật trong trình duyệt, ghi mọi yêu cầu mạng, xem Pascal đòi tệp nào. Kết quả đo
+ghi ở `IMPLEMENTATION_STATUS.md`, và câu hỏi sẽ được đặt lại kèm số.
+
+### ĐÍNH CHÍNH bản 4 — tiền đề tôi đưa ra lúc hỏi có một chỗ SAI (2026-09-28, cùng ngày)
+
+Lúc hỏi, tôi mô tả hướng "chỉ-xem" là **`core` + `viewer`**, và nói mớ phụ thuộc của Pascal nằm gọn
+trong `editor`/`nodes`. Phần phụ thuộc đúng. Phần *"`core` + `viewer` dựng được cảnh"* **sai**, và
+tôi chưa đo trước khi nói.
+
+Phép đo sau đó (`IMPLEMENTATION_STATUS.md` §4.9):
+
+- `nodes/dist/index.d.ts` nói *"every kind dispatches through the registry"* và app phải gọi
+  `loadPlugin(builtinPlugin)` **trước khi mount viewer** → **`nodes` là bắt buộc để vẽ**.
+- `nodes/dist` nhập `@pascal-app/editor` **220 lần**, `lucide-react` **31 lần**.
+- Chỉ đăng ký 6 loại node cũng không né được: `wall/definition.js:2` nhập một hằng từ `editor`, và
+  lượt dựng **hỏng** ở `next/image` khi bỏ shim.
+
+**Hệ quả cho quyết định của người dùng:**
+
+1. **Không có lựa chọn "chỉ cài `core` + `viewer`".** Mọi hướng kéo đủ bốn gói và bắt buộc có lớp
+   shim `next/*` (17 dòng). Khác biệt xem/sửa là **render `<Viewer/>` hay `<Editor/>`**, không phải
+   cài gói nào.
+2. **Lựa chọn "chỉ-xem trước" vẫn còn nghĩa**, nhưng nghĩa hẹp hơn tôi trình bày: nó tiết kiệm
+   **việc và rủi ro giao diện sửa**, không tiết kiệm **cây phụ thuộc**. Người dùng có quyền xem lại
+   lựa chọn với tiền đề đã sửa.
+3. **Câu trả lời lucide của người dùng là ĐÚNG, và câu "không còn cần" của tôi là SAI.** `nodes`
+   khai `lucide-react` peer `^1`; AppFront có 0.414.0. Nâng lên 1.x quay lại thành việc trên đường
+   đi, không còn là PR độc lập ngoài lề.
+4. Mục "Hệ quả của chỉ-xem trước" ở bản 4 phía trên — dòng *"`editor` và `nodes` không được cài"* —
+   **không còn đúng**. Giữ nguyên chữ cũ để thấy nó đã sai ở đâu, và đọc kèm đính chính này.
+
+Một việc **chưa giải được**, ghi để không ai tưởng là đã xong: dựng cảnh trong Chromium headless với
+48 loại node đã đăng ký và 105 node trong store, viewer vẫn báo `ready: false` và **không vẽ gì**.
+Chưa phân biệt được là do thứ tự nhúng sai hay do `three/webgpu` dưới SwiftShader. Phải chạy lại
+trên GPU thật trước khi kết luận.
+
+---
+
+## Bản 5 — cổng thứ năm đã cài, ba con số chờ duyệt (2026-09-29)
+
+Cổng nằm ở `scripts/check-bundle-size.mjs`, chạy trong `pnpm verify`, đo **KiB thô của cả thư
+mục** chứ không đo gzip — bốn cổng trên đo "thứ đi qua dây ở khung hình đầu tiên", cổng này đo
+"khối lượng phải mang đi deploy". Ảnh `.ktx2` đã nén sẵn nên gzip ở đây không nói lên điều gì.
+
+Ba con số **do người thi công đặt từ số đo**, để dư ~13 % — đúng dải 6–40 % mà bốn cổng trên dùng.
+E.10: đây **không** phải một quyết định đã được hỏi.
+
+| Phần | Tệp | Đo 2026-09-29 | Trần đề xuất | Dư |
+|---|---|---|---|---|
+| mã vách ngăn (`assets/pascal`) | 251 | 19 379,3 KiB | 22 000 | 2 620,7 |
+| tài sản (`pascal` + `basis`) | 64 | 7 097,6 KiB | 8 000 | 902,4 |
+| **tổng-thư-mục** | **315** | **26 476,9 KiB** | **30 000** | 3 523,1 |
+
+Cổng đã được thử cho **đỏ** (hạ trần tổng xuống 26 000 → `VƯỢT … quá 476,9 KiB`) rồi trả lại. Một
+cổng chưa từng đỏ thì chưa chứng minh được gì.
+
+**Vì sao số thực tế khác xa con số 7 125,8 KiB mà bản 3 ước:** bản ấy tính theo hướng `core+viewer`
+rút gọn sau C2. Bản thi công thật giữ cả `nodes` (bắt buộc — registry dispatch) và tự host tài sản,
+nên khối lượng khác hẳn loại.
+
+### C2 — đã có số để quyết, và câu trả lời là KHÔNG
+
+C2 đề xuất bỏ transcoder KTX2 (−571,2 KiB). Đo trên một cảnh thật
+(`e2e/pascal-viewer.spec.ts`): **12 lượt gọi tài sản, cả 12 đều là `.ktx2`**. Bỏ transcoder tiết
+kiệm 571,2 KiB và làm hỏng **mọi** bề mặt. Không đáng, và giờ điều đó dựa trên số chứ không trên
+phán đoán.
+
+### Tài sản Pascal — câu «chưa đủ thông tin để quyết» nay đã có thông tin
+
+Người dùng ngày 2026-09-28 không quyết được vì mô tả khó hiểu. Số đo 2026-09-29:
+
+- một cảnh AppFront chạm **12 trên 293** tệp vật liệu — 95 % chưa bao giờ được gọi;
+- cả 12 đều là `.ktx2`; **không lượt nào** chạm `.webp` hay `.jpg` (ảnh nguồn và ảnh xem trước của
+  bảng chọn vật liệu, mà màn chỉ-xem không dựng bảng ấy);
+- nên lượt chép nay chỉ lấy `.ktx2`: **293 tệp 17 330,7 KiB → 62 tệp 6 526,4 KiB** (−62 %).
+
+Đây là **tự host một tập con**, phương án giữa trong ba phương án đã bày ra — chọn theo số đo, và
+ghi ở đây để người duyệt bác được nếu muốn.

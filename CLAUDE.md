@@ -3,8 +3,11 @@
 AppFront — công cụ dựng mô hình không gian từ bản vẽ kiến trúc: nhận bản vẽ, dò trục,
 tường, phòng, ô mở, rồi xuất ra mô hình.
 
-three.js dựng tay (**không** dùng react-three-fiber) · Tailwind với bảng màu thay hoàn
-toàn bằng token. Phiên bản các gói: xem `package.json`.
+three.js **của AppFront** : `src/lib/three` được dùng react-three-fiber gói Pascal dùng `@react-three/fiber` **trực
+tiếp** (đo ở T3.3 — 45,5 KiB, cộng 6,7 KiB `drei`), nên khi gói ấy được cài, R3F có mặt
+trong repo. Nó bị khoanh vào đúng `src/components/pascal` bằng cổng nhập ở
+`eslint-rules/configs/project.js` — xem mục 0.4. · Tailwind với bảng màu thay hoàn toàn
+bằng token. Phiên bản các gói: xem `package.json`.
 
 **Ngôn ngữ:** mọi thứ người dùng đọc là tiếng Việt có dấu. Mọi định danh trong mã là
 tiếng Anh — xem mục B và E.11.
@@ -35,7 +38,7 @@ nào `needs:` job nào: một lượt chạy phải cho năm phán quyết, khô
 ## Kiến trúc và ranh giới import — mục 0.4
 
 Nhóm file theo **loại**, không theo tính năng. Ranh giới dưới đây được ESLint ép,
-khai tại `eslint-rules/configs/project.js:75-156`, hiện **0 vi phạm**.
+khai tại `eslint-rules/configs/project.js:126-231`, hiện **0 vi phạm**.
 
 | Tầng | Không được import |
 |---|---|
@@ -54,6 +57,18 @@ khai tại `eslint-rules/configs/project.js:75-156`, hiện **0 vi phạm**.
 Ngoại lệ duy nhất: `src/lib/testing/**` được import `@testing-library/react` (nó phải
 dựng được cây React để test màn hình), nhưng `react` và `react-dom` vẫn bị chặn đích danh.
 
+**Cổng nhập gói Pascal** (`@pascal-app/*`) là ranh giới thứ hai, cùng chỗ khai:
+
+| Thư mục | Được nhập gói Pascal |
+|---|---|
+| `src/components/pascal/**` | **có** — thư mục duy nhất; nó dựng gốc React thứ hai và gọi `mount()` |
+| `src/lib/pascal/**` | chỉ `import type` (`allowTypeImports`) — bộ đổi dữ liệu là tầng thuần |
+| mọi chỗ khác | không, kể cả nhập kiểu |
+
+Cổng này dùng `@typescript-eslint/no-restricted-imports` chứ không phải luật nội bộ thứ
+tám, và nó chặn cả đường vòng qua một file tái xuất — vì chính file tái xuất cũng phải qua
+cổng. Bài kiểm gọi thẳng ESLint: `eslint-rules/__tests__/pascalGate.test.ts`.
+
 ---
 
 ## Bảy luật ESLint nội bộ
@@ -70,7 +85,7 @@ Tất cả ở mức `error`. Nguồn: `eslint-rules/`, ghép vào qua `plugin:l
 | `local/no-fetch-outside-http` | mọi truy cập mạng đi qua `src/lib/http` |
 | `local/no-framer-outside-motion` | R-39 — `framer-motion` nhập ở đúng `src/components/motion` |
 
-**Sổ nợ** nằm ở `project.js:158-174`: bốn file được miễn `no-raw-number`. Danh sách này
+**Sổ nợ** nằm ở `project.js:254-267`: bốn file được miễn `no-raw-number`. Danh sách này
 **chỉ được ngắn đi**. Thêm một dòng vào đó là quyết định của người duyệt, không phải của
 người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết và bị xoá — đừng dựng lại nó.
 
@@ -80,19 +95,19 @@ người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết v
 
 | Mã | Bất biến | Trích dẫn |
 |---|---|---|
-| A1 | Màu lấy từ token, không mã màu thô ở tầng giao diện | `project.js:54` |
+| A1 | Màu lấy từ token, không mã màu thô ở tầng giao diện | `project.js:70` |
 | A2 | Màu nhấn dành cho thứ tương tác được, và chỉ nhờ nó là thứ tương tác được | `lib/three/interaction/gizmo.ts:440` |
 | A4 | Đúng **ba** màu trạng thái. Màu thứ tư là thứ A4 tồn tại để chặn | `gizmo.ts:439`, `lib/viewmodel/types.ts:60` |
 | A5 | Xanh "đã xác minh" **chỉ** đánh dấu việc người duyệt. Đầu ra của AI không bao giờ được đặt nó | `viewmodel/types.ts:18`, `toViewModel.ts:30,208` |
-| A6 | Nhãn giao diện tiếng Việt, **viết thường, kiểu câu**. Ngoại lệ chữ hoa: mã trục, mã lỗi, tên phím | `toolMachine.ts:120,326`, `shortcuts.ts:106`, `gizmo.ts:81` |
+| A6 | Nhãn giao diện tiếng Việt, **viết thường, kiểu câu**. Ngoại lệ chữ hoa: mã trục, mã lỗi, tên phím, viết tắt (AI, OCR, SSO, PDF, CAD, 2D/3D) và tên riêng (AppFront). Câu (không phải nhãn) viết hoa chữ đầu; tên vai là danh từ chung ("vai người xem") | `toolMachine.ts:120,326`, `shortcuts.ts:106`, `gizmo.ts:81` |
 | A7 | **Không có nút lưu.** Hệ thống tự lưu 800 ms sau thao tác cuối, và nói ra trạng thái đó cho trình đọc màn hình | `hooks/useAutosave.ts:6`, `useSaveIndicator.ts:86` |
 | A8 | Mọi thay đổi hoàn tác được, kèm toast hoàn tác | `useShareLinks.ts:225,415`, `lib/telemetry/events.ts:214` |
-| A9 | Hành động mà A8 **không** hoàn tác được thì phải hỏi trước bằng hộp thoại | `screens/project/ShareScreen/ShareScreen.tsx:20-26,127` |
-| A10 | Ghi vào store qua `commit(patch, label)`, không gọi `set()` | `project.js:65`, `lib/tools/toolMachine.ts:37` |
+| A9 | Hành động mà A8 **không** hoàn tác được thì phải hỏi trước bằng hộp thoại | `screens/dashboard/ProjectDashboard/ProjectDashboard.tsx:342-344` ("Xoá dự án?"), `screens/export/ShareDialog/ShareDialog.tsx:96` (thu hồi liên kết) |
+| A10 | Ghi vào store qua `commit(patch, label)`, không gọi `set()` | `project.js:80`, `lib/tools/toolMachine.ts:37` |
 | A11 | **Bảy trạng thái màn hình.** Màn trắng là thất bại duy nhất mà A11 tồn tại để chặn | `useShareLinks.ts:172`, `AuthScreen.container.tsx:129` |
 | A12 | Bàn phím là đường đi hạng nhất, không phải phương án dự phòng. **Esc đóng lớp trên cùng** — lời hứa không tính năng nào được lấy mất | `lib/input/shortcutRegistry.ts:21,108,573`, `lib/input/dragDrop.ts:23` |
-| A14 | Bộ mẫu chuẩn dùng chung là `createSampleBuilding()` (`domain/spatial/__fixtures__/sampleBuilding.ts`): **4 tầng, 48 tường, 16 ô mở (9 cửa + 7 cửa sổ), 21 đồ đạc, 14 phòng, 4 trục, 34 kích thước**. Về diện tích: `SAMPLE_TOTAL_AREA_M2` khai **248,60 m²**, nhưng đo bằng chính `totalArea()` (công thức dây giày, `domain/rooms/area.ts`) trên 14 đường bao thật của `createSampleBuilding()` ra **238,00 m²** — phòng cuối cùng có `areaM2` khai 27,60 m² nhưng đường bao của nó vẫn là hình chữ nhật 4000×4250 mm giống 13 phòng kia nên đo hình học ra 17,00 m², không phải 27,60. Hai con số đến từ hai nguồn khác nhau — 248,60 là hằng số khai báo tay, 238,00 là kết quả đo hình học thật — và **chưa chốt cái nào là chuẩn**, chỉ ghi lại để người sửa fixture biết lệch ở đâu. `coloring.test.ts:34-38,91` tự khai lại một bộ **khác** (34 phòng, 21 trục, 14 ô mở, 248,60 m² là diện tích MỘT sảnh) thay vì gọi `createSampleBuilding()` — hai con số 21 và 34 ở đó là số đồ đạc/kích thước của bộ thật bị gán nhầm sang trục/phòng. Đừng chép số của `coloring.test.ts` làm "bộ mẫu chuẩn" | `domain/spatial/__fixtures__/sampleBuilding.ts:34-44`, `domain/rooms/area.ts:204-207`, `lib/coloring/__tests__/coloring.test.ts:34-38,91`, `legend.test.ts:106` |
-| A15 | Định dạng số xảy ra ở viewmodel, không ở view. Dấu thập phân là **dấu phẩy** | `project.js:57`, `gizmo.ts:417` |
+| A14 | Bộ mẫu chuẩn dùng chung là `createSampleBuilding()` (`domain/spatial/__fixtures__/sampleBuilding.ts`): **4 tầng, 48 tường, 16 ô mở (9 cửa + 7 cửa sổ), 21 đồ đạc, 14 phòng, 4 trục, 34 kích thước**. Về diện tích: `SAMPLE_TOTAL_AREA_M2` = **248,60 m²**, và `totalArea()` (công thức dây giày, `domain/rooms/area.ts`) trên 14 đường bao thật của `createSampleBuilding()` ra đúng số ấy (13 × 4000×4250 mm + 1 × 4000×6900 mm) — `area.test.ts` khẳng định. Số 238,00 trong ghi chú cũ là của đường bao trước B-V8-10; đừng dùng. `coloring.test.ts:34-38,91` tự khai lại một bộ **khác** (34 phòng, 21 trục, 14 ô mở, 248,60 m² là diện tích MỘT sảnh) thay vì gọi `createSampleBuilding()` — hai con số 21 và 34 ở đó là số đồ đạc/kích thước của bộ thật bị gán nhầm sang trục/phòng. Đừng chép số của `coloring.test.ts` làm "bộ mẫu chuẩn" | `domain/spatial/__fixtures__/sampleBuilding.ts:34-44`, `domain/rooms/area.ts:204-207`, `lib/coloring/__tests__/coloring.test.ts:34-38,91`, `legend.test.ts:106` |
+| A15 | Định dạng số xảy ra ở viewmodel, không ở view. Dấu thập phân là **dấu phẩy** | `project.js:74`, `gizmo.ts:417` |
 
 ---
 

@@ -258,28 +258,31 @@ describe('spatial.writeLayer', () => {
     ({
       del: vi.fn(),
       get: vi.fn(),
-      patch: vi.fn(() => ({ data: response, ok: true }) as Result<unknown, HttpError>),
+      patch: vi.fn(),
       post: vi.fn(),
-      put: vi.fn(),
+      put: vi.fn(() => ({ data: { layer: response, revision: 2 }, ok: true }) as Result<unknown, HttpError>),
     }) as unknown as HttpClient;
 
   it('trả về lớp đã giải mã khi phản hồi đúng hợp đồng', async () => {
     const client = createApiClient(createHttp(layer));
 
     const result = await client.spatial.writeLayer({
+      baseVersion: 1,
       body: layer,
       floorId: 'L-LEVEL01',
       projectId: 'p-1',
     });
 
     expect(result.ok).toBe(true);
-    expect(result.ok && result.data.walls).toHaveLength(1);
+    expect(result.ok && result.data.layer.walls).toHaveLength(1);
+    expect(result.ok && result.data.revision).toBe(2);
   });
 
   it('biến phản hồi hỏng thành lỗi hợp đồng thay vì để nó đi tiếp', async () => {
     const client = createApiClient(createHttp({ ...layer, walls: [{ ...wall, thicknessMm: 0 }] }));
 
     const result = await client.spatial.writeLayer({
+      baseVersion: 1,
       body: layer,
       floorId: 'L-LEVEL01',
       projectId: 'p-1',
@@ -293,12 +296,13 @@ describe('spatial.writeLayer', () => {
     const http = {
       del: vi.fn(),
       get: vi.fn(),
-      patch: vi.fn(() => ({ error: httpError, ok: false }) as Result<unknown, HttpError>),
+      patch: vi.fn(),
       post: vi.fn(),
-      put: vi.fn(),
+      put: vi.fn(() => ({ error: httpError, ok: false }) as Result<unknown, HttpError>),
     } as unknown as HttpClient;
 
     const result = await createApiClient(http).spatial.writeLayer({
+      baseVersion: 1,
       body: layer,
       floorId: 'L-LEVEL01',
       projectId: 'p-1',

@@ -19,7 +19,7 @@
  * xanh trọn vẹn; không điều kiện nào bị nới để lấy màu xanh đó (R-70).
  */
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -333,6 +333,54 @@ describe('BÀI NGHIỆM THU 1 — đổi phím tắt trong registry thì thẻ �
   });
 });
 
+describe('B-V2-01 — màn chủ đăng ký phím SAU lượt render đầu thì tour vẫn hiện, không chờ resize', () => {
+  it('sổ phím rỗng lúc dựng ⇒ chưa hiện; màn chủ đăng ký phím ⇒ hiện ngay, không cần sự kiện cửa sổ nào', () => {
+    const registry = createShortcutRegistry();
+
+    mountTour({ registry, resolveAnchor: () => null, hasModel: true, hostId: 'wall-layer-review' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    act(() => {
+      registry.register({
+        id: 'wallLayerReview.next',
+        combo: 'N',
+        scope: 'canvas',
+        description: STEP_TEXT.reviewWall.comboDescription,
+        onTrigger: noop,
+      });
+    });
+
+    expect(tourProps().screenState).not.toBe('empty');
+    expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    expect(screen.getByRole('region', { name: tourProps().steps[0]?.title ?? '' })).toBeInTheDocument();
+  });
+});
+
+describe('B-V2-01 — neo của màn chủ xuất hiện muộn thì tour vẫn hiện, không chờ resize', () => {
+  it('chưa có neo ⇒ chưa hiện; neo vào trang ⇒ hiện, không cần sự kiện cửa sổ nào', async () => {
+    const rect = { top: 10, left: 10, width: 40, height: 20 };
+    const resolveAnchor = (id: string) =>
+      id === 'reviewWall' && document.getElementById('tour-late-anchor') !== null ? rect : null;
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, hasModel: true, hostId: 'viewer-shell' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    const late = document.createElement('div');
+    late.id = 'tour-late-anchor';
+    await act(async () => {
+      document.body.append(late);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    });
+    late.remove();
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* (d) BÀI NGHIỆM THU 2 — bấm phím thật thì tự sang bước kế tiếp.              */
 /* -------------------------------------------------------------------------- */
@@ -416,37 +464,37 @@ describe('BÀI NGHIỆM THU 3 — mất neo thì bộ đếm rút, giao diện k
 /* -------------------------------------------------------------------------- */
 
 /**
- * 26 câu nguyên văn của S-06 (`WelcomeScreen`), chép từ
+ * 24 câu nguyên văn của S-06 (`WelcomeScreen`), chép từ
  * `notes-1D-s06-anchors.md` mục (a). Hai mục #5/#6 là mảnh câu ghép (tiền tố/
  * hậu tố lời chào) — giữ nguyên theo đúng bảng khảo sát, đã cắt khoảng trắng
  * thừa để so khớp công bằng với văn bản đã `trim()` lấy từ DOM.
+ * Bỏ "thử lại" và "bỏ qua": từ A6 (B-V1-06) cả hai màn viết thường nhãn, và đó
+ * là động từ dùng chung với tour, không phải câu riêng của S-06.
  */
 const S06_SENTENCES: readonly string[] = [
-  'Không đọc được tiến độ',
+  'không đọc được tiến độ',
   'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
-  'Thử lại',
-  'Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
-  'Chào',
+  'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
+  'chào',
   ', bắt đầu trong ba bước',
-  'Chào bạn, bắt đầu trong ba bước',
+  'chào bạn, bắt đầu trong ba bước',
   'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
-  'Tạo dự án',
+  'tạo dự án',
   'Khai báo tên công trình và danh sách tầng.',
-  'Tạo dự án',
-  'Tải bản vẽ theo từng tầng',
+  'tạo dự án',
+  'tải bản vẽ theo từng tầng',
   'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-  'Tải bản vẽ',
+  'tải bản vẽ',
   'Cần tạo dự án trước.',
-  'Duyệt kết quả và dựng 3D',
+  'duyệt kết quả và dựng 3D',
   'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-  'Duyệt kết quả',
+  'duyệt kết quả',
   'Cần tải bản vẽ trước.',
-  'Xem dự án mẫu',
-  'Xem hướng dẫn 2 phút',
+  'xem dự án mẫu',
+  'xem hướng dẫn 2 phút',
   'Hướng dẫn hai phút chưa sẵn sàng.',
-  'Bỏ qua',
   'Có thể xem lại hướng dẫn trong menu trợ giúp.',
-  'Vào danh sách dự án',
+  'vào danh sách dự án',
   'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 ];
 

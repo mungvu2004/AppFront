@@ -89,6 +89,7 @@ export const FEATURE_FLAG_KEYS = [
   'rules.parallel-run',
   'export.pdf-vector',
   'qc.live-collaboration',
+  'scene.pascal-viewer',
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -129,7 +130,7 @@ export const FEATURE_FLAGS = {
       'Dựng tường bằng lưới thực thể hoá (instanced mesh) để giảm số lệnh vẽ trên mặt bằng lớn; tốn thêm bộ nhớ GPU.',
     removeBy: '2026-10-31',
   },
-  'scene.soft-shadows': {
+  'scene.soft-shadows': { // hết tác dụng: shadowMapTypeFor chỉ còn PCFShadowMap; giữ khoá cho BE
     key: 'scene.soft-shadows',
     defaultValue: false,
     description: 'Bóng mềm trong khung nhìn 3D; đẹp hơn nhưng nặng GPU, chỉ bật cho nhóm máy mạnh.',
@@ -152,6 +153,15 @@ export const FEATURE_FLAGS = {
     defaultValue: false,
     description: 'Đồng bộ con trỏ và ghi chú theo thời gian thực giữa nhiều người soát; tốn băng thông và kết nối.',
     removeBy: '2027-03-31',
+  },
+  'scene.pascal-viewer': {
+    key: 'scene.pascal-viewer',
+    defaultValue: false,
+    description:
+      'Màn xem 3D dựng bằng Pascal thay cho khung nhìn cũ. Nó nạp một gói riêng ~1,5 MB từ '
+      + '`/assets/pascal/`, dựng gốc React thứ hai, và tốn khoảng 1,6 lần CPU luồng chính so với '
+      + 'màn cũ để cho ra nhịp khung tương đương — nên mặc định tắt và chỉ bật theo nhóm máy.',
+    removeBy: '2027-06-30',
   },
 } as const satisfies Readonly<Record<FeatureFlagKey, FeatureFlagDefinition>>;
 

@@ -50,6 +50,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { displayCodesOf } from '@/domain/spatial/ids';
 import { useShortcut } from '@/hooks/useShortcut';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys, type QueryKey } from '@/lib/query/queryKeys';
@@ -80,7 +81,7 @@ import {
   reviewWallGeometry,
   vertexDisplayCode,
   vertexIdOf,
-  wallDisplayCode,
+  wallCodesOnLevel,
   WALL_GEOMETRY_SNAP_KIND_IDS,
   WALL_GEOMETRY_SNAP_LABELS,
   type WallGeometryEditorGateway,
@@ -614,7 +615,18 @@ export function useWallGeometryEditor(
   /* Sáu công cụ — ba chế độ và ba thao tác chạy ngay.                        */
   /* ---------------------------------------------------------------------- */
 
-  const wallCode = wallId === null ? '' : wallDisplayCode(wallId);
+  const wallCodes = useMemo(
+    () =>
+      graph === null || target === null
+        ? new Map<string, string>()
+        : wallCodesOnLevel(graph, target.level.id),
+    [graph, target],
+  );
+  // Kho chưa giữ tường này (trên `/3d` kho chưa nạp — B-V8-04) thì rơi về quy tắc số đếm,
+  // đúng đường `displayLabelIn` đi với một mã đồ thị không giữ — không rơi về mã máy, để
+  // dải và thanh tra vỏ gọi bức tường bằng cùng một mã (B-V8-05).
+  const wallCode =
+    wallId === null ? '' : (wallCodes.get(wallId) ?? displayCodesOf([wallId]).get(wallId) ?? wallId);
 
   const onRemoveVertex = useCallback((): void => {
     if (wallId === null || selectedVertexId === null || !isEditable) {
@@ -1033,14 +1045,14 @@ export function useWallGeometryEditor(
       review.findings.map((finding) => ({
         ariaLabel:
           finding.severity === 'violation'
-            ? TEXT.handles.offendingEdge(wallDisplayCode(finding.wallId))
+            ? TEXT.handles.offendingEdge(wallCodes.get(finding.wallId) ?? finding.wallId)
             : finding.message,
         edgeId: edgeIdOf(finding.wallId),
         fromPx: projection.toPx(finding.fromMm),
         toPx: projection.toPx(finding.toMm),
         tone: finding.severity,
       })),
-    [projection, review.findings],
+    [projection, review.findings, wallCodes],
   );
 
   /* ---------------------------------------------------------------------- */

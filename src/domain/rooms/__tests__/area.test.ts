@@ -7,7 +7,7 @@ import {
 } from '../../spatial/__fixtures__/sampleBuilding';
 import type { WallId } from '../../spatial/types';
 import type { PointMm } from '../../units/compare';
-import { millimetres, SQUARE_MILLIMETRES_PER_SQUARE_METRE } from '../../units/types';
+import { millimetres } from '../../units/types';
 import type { Wall } from '../../walls/types';
 import { detectRooms } from '../detect';
 import {
@@ -67,31 +67,16 @@ const U_SHAPED_ROOM: readonly PointMm[] = [
 ];
 
 /**
- * The fourteen rooms of the standard sample building, as outlines.
+ * The fourteen rooms of the standard sample building — their REAL outlines, read
+ * from `createSampleBuilding()` rather than rebuilt here from `areaM2`.
  *
- * The width is fixed and the depth follows from the standard area, so each
- * outline measures exactly what the sample schedule says it does: thirteen of
- * 17,00 m² and one of 27,60 m². Both depths come out a whole number of
- * millimetres, which the first test checks rather than assumes.
+ * Rebuilding them from the declared area is how this file used to pass while the
+ * fixture's last room was drawn 4000 × 4250 mm (17,00 m²) yet declared 27,60 m²:
+ * the test measured its own outlines, not the fixture's (B-V8-10).
  */
-const SAMPLE_ROOM_WIDTH_MM = 4000;
-
-function createSampleRoomOutlines(): readonly (readonly PointMm[])[] {
-  return SAMPLE_BUILDING.rooms.map((room, index) => {
-    const targetMm2 = Math.round(room.areaM2 * SQUARE_MILLIMETRES_PER_SQUARE_METRE);
-    const depthMm = targetMm2 / SAMPLE_ROOM_WIDTH_MM;
-    const left = index * SAMPLE_ROOM_WIDTH_MM;
-
-    return [
-      point(left, 0),
-      point(left + SAMPLE_ROOM_WIDTH_MM, 0),
-      point(left + SAMPLE_ROOM_WIDTH_MM, depthMm),
-      point(left, depthMm),
-    ];
-  });
-}
-
-const SAMPLE_ROOM_OUTLINES = createSampleRoomOutlines();
+const SAMPLE_ROOM_OUTLINES: readonly (readonly PointMm[])[] = SAMPLE_BUILDING.rooms.map((room) =>
+  room.outline.map((corner) => point(corner.x, corner.y)),
+);
 
 /** Reads a Vietnamese-formatted number back, for checking the explanation. */
 function parseVietnameseNumber(text: string): number {

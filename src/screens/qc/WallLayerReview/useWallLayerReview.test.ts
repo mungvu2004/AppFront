@@ -28,6 +28,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
+import { flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -60,6 +61,7 @@ import {
   scaleOfLevel,
   toPixelPoint,
   toWallInspector,
+  wallDisplayCode,
   UNDO_WINDOW_MS,
   WALL_APPROVE_COMMAND_TYPE,
   WALL_LAYER_THICKNESS_CHOICES,
@@ -432,6 +434,40 @@ describe('nghiệm thu bàn phím', () => {
     expect(first).toBe(wallAt(0).id);
     expect(second).toBe(wallAt(1).id);
     expect(mounted.result.current.panel.selectedWallId).toBe(first);
+
+    mounted.unmount();
+  });
+
+  it('Escape bỏ chọn tường (B-V6-11 — trước bản sửa Escape không làm gì ở màn này)', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, 'J');
+    expect(mounted.result.current.panel.selectedWallId).toBe(wallAt(0).id);
+
+    await pressKey(mounted.registry, 'Escape');
+
+    expect(mounted.result.current.panel.selectedWallId).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('Escape giữa lúc vẽ bỏ nét đang dở, không thêm tường', async () => {
+    const mounted = await mountSettled();
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, 'Escape');
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20000 }));
+      await Promise.resolve();
+    });
+
+    /* Điểm thứ hai giờ là điểm ĐẦU của một nét mới, nên chưa có tường nào được chốt. */
+    expect(wallCount()).toBe(before);
 
     mounted.unmount();
   });
@@ -1181,6 +1217,9 @@ describe('toast hoàn tác sau khi xoá', () => {
 
     /* Câu trên toast là câu của chính vé, không phải một bản chép thứ hai. */
     expect(notification?.title).toBe(deleteToastDescription(target.id));
+    /* B-V6-02: toast gọi tường bằng nhãn của danh sách, không lộ mã máy. */
+    expect(notification?.title).toBe(`Đã xoá tường #${wallDisplayCode(target.id)}.`);
+    expect(notification?.title).not.toContain(target.id);
     expect(notification?.undoTicket).toBeDefined();
 
     /* Bấm "Hoàn tác" của `NotificationHost` chính là gọi vé này. */
@@ -1248,6 +1287,36 @@ describe('ngưỡng "cần chú ý"', () => {
     expect(
       mounted.result.current.panel.rows.every((row) => row.isLowConfidence),
     ).toBe(true);
+
+    mounted.unmount();
+  });
+});
+
+describe('tự lưu — Ctrl+S với tới màn tường (B-V6-03)', () => {
+  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
+    const gateway = createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH });
+    const persist = vi.spyOn(gateway, 'persistWallLayer');
+    const mounted = await mountSettled({ gateway });
+    const wall = wallAt(0);
+
+    await act(async () => {
+      mounted.result.current.panel.onChangeThickness(wall.id, thicknessChoice(0));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(
+        wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id).find((item) => item.id === wall.id)
+          ?.thicknessMm,
+      ).toBe(thicknessChoice(0));
+    });
+
+    expect(persist).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(persist).toHaveBeenCalledTimes(1);
 
     mounted.unmount();
   });

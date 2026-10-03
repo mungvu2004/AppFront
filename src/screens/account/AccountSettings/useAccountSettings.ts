@@ -49,11 +49,14 @@ import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { SaveState } from '@/components/feedback/SaveIndicator';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import type { AutosaveState } from '@/lib/autosave/createAutosave';
 import { createAutosave } from '@/lib/autosave/createAutosave';
 import { describeError, toAppError } from '@/lib/errors';
 import type { Announcer } from '@/lib/input/announcer';
+import type { NotificationBus } from '@/lib/mutations/notificationBus';
+import { createUndoTicket } from '@/lib/mutations/undoTicket';
 
 import {
   EMPTY_ACCOUNT_DRAFT,
@@ -90,6 +93,9 @@ export const accountSettingsQueryKey = ['account', 'settings'] as const;
  */
 export const ACCOUNT_AUTOSAVE_DEBOUNCE_MS = 800;
 
+/** Câu của toast hoàn tác sau một lượt tự lưu (A8). */
+export const ACCOUNT_SAVED_UNDO_TITLE = 'Đã lưu cài đặt tài khoản.';
+
 /** Cách gọi hook trong test và story. Sản phẩm gọi `useAccountSettings()` không tham số. */
 export interface UseAccountSettingsOptions {
   /** Nguồn dữ liệu. Mặc định là cổng thật của ứng dụng. */
@@ -100,6 +106,8 @@ export interface UseAccountSettingsOptions {
   readonly isOnline?: () => boolean;
   /** Bộ đọc màn hình, tiêm vào để soát rằng A7 nói ra được. */
   readonly announcer?: Announcer;
+  /** Kênh của toast hoàn tác. Mặc định kênh chung của ứng dụng; test tiêm kênh riêng. */
+  readonly notifications?: NotificationBus;
 }
 
 /**
@@ -156,6 +164,16 @@ export function useAccountSettings(
   options: UseAccountSettingsOptions = {},
 ): AccountSettingsViewModel {
   const [gateway] = useState(() => options.gateway ?? createAccountSettingsGateway());
+  const notifications = options.notifications ?? appNotificationBus;
+  /** Bản nháp mà nút "Hoàn tác" vừa dựng lại — lượt lưu của nó không sinh vé mới. */
+  const restoringRef = useRef<AccountDraft | null>(null);
+  /**
+   * Bản đã lưu mà nút "Hoàn tác" trả về, đứng thay ảnh chụp truy vấn trong `port.saved`
+   * để hai hook con nạp lại ô nhập. Không đi qua `setQueryData`: chia sẻ cấu trúc của
+   * TanStack giữ nguyên tham chiếu cũ khi giá trị cũ bằng ảnh chụp đang giữ — đúng
+   * trường hợp hay gặp nhất (hoàn tác lượt sửa đầu tiên) — và hook con không thấy gì đổi.
+   */
+  const [restoredDraft, setRestoredDraft] = useState<AccountDraft | null>(null);
 
   const [draft, setDraft] = useState<AccountDraft | null>(null);
   const [saved, setSaved] = useState<AccountDraft | null>(null);
@@ -176,6 +194,7 @@ export function useAccountSettings(
     setSyncedToken(reloadToken);
     setDraft(snapshot);
     setSaved(snapshot);
+    setRestoredDraft(null);
   }
 
   // Khuôn "ref mới nhất" (`src/hooks/useShortcut.ts:180-182`): bộ tự lưu dựng
@@ -209,9 +228,39 @@ export function useAccountSettings(
 
       return draft;
     },
+    // A8: mỗi lượt tự lưu kèm toast hoàn tác. Lệnh ngược là chính `PATCH /me` với
+    // giá trị cũ, và nó đi qua đúng đường tự lưu để chỉ báo A7 vẫn nói thật.
+    // Gõ liên tục không thành toast liên tục: kênh chung gộp cùng loại trong 5 giây.
     save: async (changes) => {
+      const previous = saved;
+      const isRestore = changes === restoringRef.current;
+      restoringRef.current = null;
+
       await gateway.save(changes);
       setSaved(changes);
+
+      if (isRestore || previous === null) {
+        return;
+      }
+
+      const undoTicket = createUndoTicket({
+        description: ACCOUNT_SAVED_UNDO_TITLE,
+        ...(options.now !== undefined ? { now: options.now } : {}),
+        undo: () => {
+          restoringRef.current = previous;
+          // Bản sao mới mỗi lượt: `port.saved` đổi tham chiếu thì hai hook con nạp lại.
+          setRestoredDraft(structuredClone(previous));
+          setDraft(previous);
+          autosave.notifyChange();
+        },
+      });
+
+      notifications.publish({
+        type: 'account-settings',
+        title: ACCOUNT_SAVED_UNDO_TITLE,
+        description: '',
+        undoTicket,
+      });
     },
   };
 
@@ -221,13 +270,13 @@ export function useAccountSettings(
   // đánh thức mỗi khung hình.
   const port = useMemo<AccountDraftPort>(
     () => ({
-      saved: snapshot ?? undefined,
+      saved: restoredDraft ?? snapshot ?? undefined,
       stage: (section: AccountDraftSection, fields: AccountDraftFields): void => {
         setDraft((current) => mergeAccountDraft(current ?? EMPTY_ACCOUNT_DRAFT, section, fields));
         autosave.notifyChange();
       },
     }),
-    [autosave, snapshot],
+    [autosave, restoredDraft, snapshot],
   );
 
   const auth = useAccountAuth();

@@ -43,7 +43,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/client';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, displayLabelIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import {
   sampleDoorId,
   sampleFurnitureId,
@@ -552,6 +552,25 @@ describe('[N4] ba bức tường lệch độ dày', () => {
 /* [N3] Bố cục không nhảy khi đổi loại đối tượng.                              */
 /* -------------------------------------------------------------------------- */
 
+describe('[N10] đầu panel gọi tường bằng mã người đọc (B-V8-05)', () => {
+  beforeEach(() => {
+    seedStore(createCleanBuildingScenario().graph);
+  });
+
+  it('hiện cùng mã dải "Đang sửa" hiện, không hiện mã máy', async () => {
+    const { container } = await renderWired([WALL_ID]);
+    const panel = within(container);
+    const graph = useStore.getState().spatial;
+
+    if (graph === null) {
+      throw new Error('kho chưa có đồ thị');
+    }
+
+    expect(panel.getByText(displayLabelIn(graph, WALL_ID))).toBeInTheDocument();
+    expect(panel.queryByText(WALL_ID)).toBeNull();
+  });
+});
+
 describe('[N3] đổi qua lại tường ↔ phòng mười lần', () => {
   const SWITCH_COUNT = 10;
 
@@ -930,7 +949,11 @@ describe('[N6] chiều cao tường', () => {
     expect(before).not.toBe(HEIGHT_ACCEPTED_MM);
     expect(afterAccepted).toBe(HEIGHT_ACCEPTED_MM);
     expect(afterRefused).toBe(HEIGHT_ACCEPTED_MM);
-    expect(refusalSentence).toContain(HEIGHT_DOOR_ID);
+    /* Câu gọi cửa bằng mã của danh sách, không bằng mã máy (B-V7-05). */
+    const graphNow = useStore.getState().spatial;
+    expect(graphNow).not.toBeNull();
+    expect(refusalSentence).toContain(displayCodeIn(graphNow as NonNullable<typeof graphNow>, HEIGHT_DOOR_ID));
+    expect(refusalSentence).not.toContain(HEIGHT_DOOR_ID);
     expect(refusalSentence).toContain(String(headMm - HEIGHT_REFUSED_MM));
   });
 });

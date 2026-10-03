@@ -65,7 +65,7 @@ import {
 } from '@/lib/input/shortcutRegistry';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { millimetres } from '@/domain/units/types';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayLabelIn, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import {
   CameraDirector,
   isFlatMode,
@@ -102,6 +102,7 @@ import {
   ISOLATE_COMBO,
   MEASURE_COMBO,
   ORTHOGRAPHIC_COMBO,
+  TOOL_COMBOS,
   type ViewerShortcutHandlers,
 } from './viewerShellShortcuts';
 import {
@@ -145,16 +146,29 @@ const DOLLY_NOTCH = 1;
 /** Bước một lần bấm `+` / `−` của cụm thu phóng, theo nấc dolly. */
 const ZOOM_BUTTON_NOTCHES = 2;
 
-/** Sáu công cụ của ray trái, kèm phím của chúng. */
-const VIEWER_TOOLS: readonly (ViewerToolViewModel & { readonly requiresEdit: boolean })[] =
-  Object.freeze([
-    { id: 'orbit', label: 'quay quanh mô hình', keyLabel: 'R', requiresEdit: false },
-    { id: 'pan', label: 'kéo màn', keyLabel: 'H', requiresEdit: false },
-    { id: 'measure', label: 'đo', keyLabel: MEASURE_COMBO, requiresEdit: true },
-    { id: 'section', label: 'mặt cắt', keyLabel: 'C', requiresEdit: false },
-    { id: 'select', label: 'chọn', keyLabel: 'V', requiresEdit: false },
-    { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO, requiresEdit: false },
-  ]);
+/**
+ * Chữ trên nút ray tầng: tên tầng bỏ chữ "Tầng " đứng đầu — "Tầng trệt" → "Trệt",
+ * "Tầng 02" → "02". Nút chỉ rộng 40 px nên không vẽ đủ tên; tên đủ vẫn ở
+ * `aria-label`. Từng là `storey.id`, nên mọi đồ thị lộ mã máy lên nút (Q8).
+ */
+export function storeyShortLabel(name: string): string {
+  const short = name.replace(/^Tầng\s+/u, '');
+
+  return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
+}
+
+/**
+ * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
+ * cũng chỉ đọc — nên vai Người xem có đủ sáu (B-V9-04).
+ */
+const VIEWER_TOOLS: readonly ViewerToolViewModel[] = Object.freeze([
+  { id: 'orbit', label: 'quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
+  { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan },
+  { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure },
+  { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section },
+  { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select },
+  { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO },
+]);
 
 /** Bốn góc nhìn của `Select` trên thanh trên. */
 const VIEWER_PRESETS: readonly ViewerPresetViewModel[] = Object.freeze([
@@ -421,6 +435,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   );
 
   const storeSpatial = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const spatial = options.spatial !== undefined ? options.spatial : storeSpatial;
 
   const projectQuery = useQuery({
@@ -566,7 +581,8 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       return 'error';
     }
 
-    if (projectQuery.isLoading) {
+    /* Cổng nạp kho đang nạp (B-V8-04): chưa có gì để nói "rỗng". */
+    if (projectQuery.isLoading || spatialLoading) {
       return 'loading';
     }
 
@@ -575,15 +591,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     }
 
     return data.isPartial ? 'partial' : 'success';
-  }, [forceState, canEdit, roles, projectQuery.isError, projectQuery.isLoading, data]);
-
-  const tools = useMemo(
-    () =>
-      VIEWER_TOOLS.filter((tool) => !tool.requiresEdit || state !== 'forbidden').map(
-        ({ id, label, keyLabel }): ViewerToolViewModel => ({ id, label, keyLabel }),
-      ),
-    [state],
-  );
+  }, [forceState, canEdit, roles, projectQuery.isError, projectQuery.isLoading, spatialLoading, data]);
 
   /* ---- Tầng -------------------------------------------------------------- */
 
@@ -597,7 +605,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       data.storeys.map((storey) => ({
         id: storey.id,
         name: storey.name,
-        code: storey.id,
+        code: storeyShortLabel(storey.name),
         elevationLabel: formatLength(millimetres(storey.elevationMm), { unit: 'm' }),
         isActive: activeStoreyIds.includes(storey.id),
         isVisible: !hiddenStoreyIds.includes(storey.id),
@@ -784,12 +792,20 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     dragRef.current = null;
   }, []);
 
+  /**
+   * Phối cảnh thu phóng bằng `dolly` (dời mắt), ba góc phẳng — Trục đo, Trên
+   * xuống, Mặt cắt — bằng `zoom` (`FlatCameraMode`, đổi nửa chiều cao khung).
+   * Chỉ biết `dolly` thì ba góc ấy cuộn chuột lẫn nút `+`/`−` đều chết (B-V8-01).
+   */
   const onViewportWheel = useCallback(
     (notches: number): void => {
       const controller = director.controller;
 
       if ('dolly' in controller) {
         (controller as { dolly: (n: number) => void }).dolly(notches * DOLLY_NOTCH);
+        wake();
+      } else if ('zoom' in controller) {
+        (controller as { zoom: (n: number) => void }).zoom(notches * DOLLY_NOTCH);
         wake();
       }
     },
@@ -827,9 +843,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     toggleSeparation: (): void => {
       setSeparation((current) => (current > 0 ? 0 : rememberedSeparation));
     },
-    activateMeasure: (): void => {
-      setActiveToolId('measure');
-    },
+    activateTool: setActiveToolId,
     openSearch: (): void => {
       onOpenSearch?.();
     },
@@ -845,7 +859,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       isolateSelection: () => handlersRef.current?.isolateSelection(),
       frameSelection: () => handlersRef.current?.frameSelection(),
       toggleSeparation: () => handlersRef.current?.toggleSeparation(),
-      activateMeasure: () => handlersRef.current?.activateMeasure(),
+      activateTool: (id) => handlersRef.current?.activateTool(id),
       openSearch: () => handlersRef.current?.openSearch(),
       clearSelection: () => handlersRef.current?.clearSelection(),
     };
@@ -950,7 +964,9 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
     const kindLabel = entityId.startsWith('R-') ? 'phòng' : entityId.startsWith('W-') ? 'tường' : 'đối tượng';
 
-    return { entityId, kindLabel, title: `${kindLabel} ${entityId}`, rows };
+    // Tiêu đề gọi đối tượng bằng mã người đọc — cùng mã dải "Đang sửa"; hàng "mã đối tượng"
+    // ở trên giữ mã máy (B-V8-05).
+    return { entityId, kindLabel, title: `${kindLabel} ${displayLabelIn(spatial, entityId)}`, rows };
   }, [selectedIds, spatial]);
 
   const status = useMemo(() => {
@@ -999,7 +1015,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       return String((entity as { name: string }).name);
     }
 
-    return hoveredId;
+    return displayLabelIn(spatial, hoveredId);
   }, [hoveredId, spatial]);
 
   /**
@@ -1054,7 +1070,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     activePresetId,
     onPresetChange: goToPreset,
 
-    tools,
+    tools: VIEWER_TOOLS,
     activeToolId,
     onToolChange: setActiveToolId,
 
@@ -1111,5 +1127,5 @@ export const VIEWER_KEY_LABELS = Object.freeze({
   orthographic: ORTHOGRAPHIC_COMBO,
 });
 
-/** Danh sách công cụ chưa lọc theo vai — story và bài kiểm đếm trên nó. */
+/** Danh sách công cụ của ray — mọi vai thấy đủ, story và bài kiểm đếm trên nó. */
 export const ALL_VIEWER_TOOLS = VIEWER_TOOLS;

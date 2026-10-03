@@ -34,22 +34,20 @@
  * tham số nào cho phép người gọi truyền `source`, nên không tồn tại đường để
  * đầu ra AI bật cờ xanh "đã xác minh".
  *
- * ## Hai việc chưa có đường
+ * ## Đọc và lưu
  *
- * - `persistWallLayer` — **NOT FOUND**. `ENDPOINTS.spatial.floor` có thật,
- *   nhưng `PatchSpatialFloorInput.body` là `Partial<FloorWriteBody>`
- *   (`src/api/client.ts:87-92,144-148`) và `FloorWriteBody` chỉ mang
- *   `name`/`order`/`elevationMm`/`heightMm`/`drawings` — không có chỗ nào cho
- *   mảng tường. Cổng thật trả nhánh `supported: false` có kiểu, và tự lưu nói
- *   ra sự thật đó bằng chính nhãn của nó thay vì bịa một lượt lưu đã xong.
+ * - `persistWallLayer` — lưu lớp của tầng qua #35 (`spatial.writeLayer`,
+ *   `createFloorLayerSave`), 800 ms sau thao tác cuối (B-V6-03).
  * - `readWallGraph` — đồ thị tường sống trong `src/store` (nơi `commit` ghi
  *   vào), không có endpoint nào trả về nó. Cổng đọc nó qua một cửa tiêm được,
  *   mặc định là chính store; ảnh nền thì đọc thật qua `spatial.readFloor`.
  */
 
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
-import { createId } from '@/domain/spatial/ids';
+import { createId, displayCodesOf } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { measureDistance, type Measurement } from '@/domain/measure/measure';
@@ -142,17 +140,14 @@ export const WALL_LAYER_CAPABILITIES = [
 export type WallLayerCapability = (typeof WALL_LAYER_CAPABILITIES)[number];
 
 /** Việc trong danh sách trên mà bản cài đặt THẬT chưa làm được. Chỉ được ngắn đi. */
-export const WALL_LAYER_MISSING_CAPABILITIES = ['persistWallLayer'] as const;
+export const WALL_LAYER_MISSING_CAPABILITIES = [] as const;
 
 export type WallLayerMissingCapability = (typeof WALL_LAYER_MISSING_CAPABILITIES)[number];
 
 /** Endpoint còn thiếu của từng khả năng, viết nguyên văn cho người nối dây sau. */
 export const WALL_LAYER_MISSING_ENDPOINTS: Readonly<
   Record<WallLayerMissingCapability, string>
-> = {
-  persistWallLayer:
-    'ENDPOINTS.spatial.floor chấp nhận một đồ thị không gian trong thân yêu cầu — chưa có; PatchSpatialFloorInput.body là Partial<FloorWriteBody> (src/api/client.ts:87-92,144-148), chỉ mang name/order/elevationMm/heightMm/drawings, không có chỗ cho mảng tường',
-};
+> = {};
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
 export interface WallLayerUnsupported {
@@ -251,7 +246,7 @@ export interface WallLayerReviewGateway {
   readonly readWallLayer: (input: ReadBackgroundInput) => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: WallLayerGraphPort;
-  /** NOT FOUND — `persistWallLayer`. Tự lưu nói ra sự thật này, không bịa một lượt lưu. */
+  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
   readonly persistWallLayer: (
     input: PersistWallLayerInput,
   ) => Promise<WallLayerCapabilityResult<void>>;
@@ -278,9 +273,6 @@ export const backgroundImageAlt = (floorName: string): string =>
 /** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
 const ID_COUNTER_LENGTH = 6;
 
-/** Bề rộng nhãn người đọc: "#W-014", không phải "#W-14". */
-const DISPLAY_CODE_DIGITS = 3;
-
 /**
  * Nhãn người đọc của một mã tường: `W-000014WALL` → `W-014`.
  *
@@ -294,10 +286,15 @@ const DISPLAY_CODE_DIGITS = 3;
  * Thuần cắt chuỗi: không một lời gọi hàm hình học hay số học nào.
  */
 export function wallDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return displayCodesOf([id]).get(id) ?? id;
 }
+
+/**
+ * Nhãn `#W-014` của một tường, ưu tiên bảng mã của cả tầng (`displayCodesOf`,
+ * mã BE / bộ mẫu A14 không có số đếm đứng đầu), rơi về `wallDisplayCode`.
+ */
+const wallLabelOf = (id: string, codes?: ReadonlyMap<string, string>): string =>
+  `#${codes?.get(id) ?? wallDisplayCode(id)}`;
 
 export interface CreateWallLayerReviewGatewayOptions {
   /** Client tiêm được. Vắng mặt thì cổng dùng client giả dùng chung của repo. */
@@ -326,13 +323,14 @@ export function createWallLayerReviewGateway(
   const graph: WallLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
+  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
 
   return {
     supports: {
       readBackground: true,
       readWallGraph: true,
       writeWallGraph: true,
-      persistWallLayer: false,
+      persistWallLayer: true,
     },
 
     readBackground: async ({ floorId, projectId, signal }) => {
@@ -354,11 +352,15 @@ export function createWallLayerReviewGateway(
       };
     },
 
-    readWallLayer: () => Promise.resolve(graph.read()),
+    readWallLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
 
     graph,
 
-    persistWallLayer: () => Promise.resolve(unsupported('persistWallLayer')),
+    persistWallLayer: async (input) => {
+      await saveFloorLayer(input);
+
+      return { supported: true, value: undefined };
+    },
 
     nextWallId: options.nextWallId ?? ((): WallId => createId('wall')),
     actorId: options.actorId ?? WALL_LAYER_DEFAULT_ACTOR_ID,
@@ -441,7 +443,9 @@ export function createMockWallLayerReviewGateway(
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
 
     persistWallLayer: () =>
-      Promise.resolve(canPersist ? { supported: true, value: undefined } : unsupported('persistWallLayer')),
+      canPersist
+        ? Promise.resolve({ supported: true, value: undefined })
+        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     /*
      * Mã tường mới của bộ mẫu — cùng khuôn `createId`, KHÔNG phải "W-M1".
@@ -482,7 +486,8 @@ export const WALL_LAYER_SAMPLE_WALLS = WALL_LAYER_FIXTURE_WALLS;
 export const WALL_APPROVE_COMMAND_TYPE = 'wall.approve';
 
 /** Câu mô tả trên nút hoàn tác và nhật ký hoạt động — `validateCommands` đòi nó khác rỗng. */
-export const approveDescription = (wallId: WallId): string => `Duyệt tường ${wallId}.`;
+export const approveDescription = (wallId: WallId, codes?: ReadonlyMap<string, string>): string =>
+  `Duyệt tường ${wallLabelOf(wallId, codes)}.`;
 
 /**
  * Lệnh duyệt một tường.
@@ -495,13 +500,17 @@ export const approveDescription = (wallId: WallId): string => `Duyệt tường 
  * ghi, không phải diff từng trường), nên `invertCommand` hoàn tác được lệnh này
  * mà không cần biết nó nghĩa là gì.
  */
-export function buildApproveWallCommand(before: Wall, actorId: string): Command {
+export function buildApproveWallCommand(
+  before: Wall,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command {
   const after: Wall = { ...before, reviewed: true, source: 'human' };
 
   return createCommand({
     type: WALL_APPROVE_COMMAND_TYPE,
     actorId,
-    description: approveDescription(before.id),
+    description: approveDescription(before.id, codes),
     changes: [changeForUpdate('wall', before, after)],
   });
 }
@@ -683,12 +692,19 @@ export const NO_WALL_SELECTION: SelectionSnapshot = NO_SELECTION;
 /* Vé hoàn tác (D-05) — xoá là tức thì, không hộp thoại.                       */
 /* -------------------------------------------------------------------------- */
 
-/** Câu trên toast hoàn tác sau khi xoá. */
-export const deleteToastDescription = (wallId: WallId): string =>
-  `Đã xoá tường ${wallId}.`;
+/**
+ * Câu trên toast hoàn tác sau khi xoá — gọi tường bằng đúng nhãn danh sách gọi nó
+ * (`#W-001`), không bằng mã máy `W-000001WALL` (B-V6-02).
+ */
+export const deleteToastDescription = (
+  wallId: WallId,
+  wallCodes?: ReadonlyMap<string, string>,
+): string => `Đã xoá tường ${wallLabelOf(wallId, wallCodes)}.`;
 
 export interface CreateWallUndoTicketOptions {
   readonly wallId: WallId;
+  /** Bảng mã của tầng TRƯỚC khi xoá, để toast gọi tường đúng nhãn danh sách. */
+  readonly wallCodes?: ReadonlyMap<string, string>;
   readonly undo: () => void;
   readonly now: () => number;
 }
@@ -702,7 +718,7 @@ export interface CreateWallUndoTicketOptions {
  */
 export function createWallUndoTicket(options: CreateWallUndoTicketOptions): UndoTicket {
   return createUndoTicket({
-    description: deleteToastDescription(options.wallId),
+    description: deleteToastDescription(options.wallId, options.wallCodes),
     now: options.now,
     undo: options.undo,
   });
@@ -1002,6 +1018,7 @@ export function toCanvasShapes(
   walls: readonly Wall[],
   level: Level,
   statusOf: (wall: Wall) => ViewStatusCode,
+  wallCodes?: ReadonlyMap<string, string>,
 ): readonly WallLayerCanvasShape[] {
   const scale = scaleOfLevel(level);
   const outlines = new Map(toWallShapes(walls, level, statusOf).map((shape) => [shape.id, shape]));
@@ -1025,7 +1042,7 @@ export function toCanvasShapes(
       id: wall.id,
       outline,
       statusCode: shape.statusCode,
-      codeLabel: `#${wallDisplayCode(wall.id)}`,
+      codeLabel: wallLabelOf(wall.id, wallCodes),
       thicknessMm: wall.thicknessMm,
       centrelinePx: {
         start: toPixelPoint(wall.centreline.start, scale),
@@ -1229,10 +1246,10 @@ export function wallStatusCode(wall: Wall): ViewStatusCode {
 }
 
 /** Một dòng của danh sách 48 tường. */
-export function toWallRow(wall: Wall): WallRowViewModel {
+export function toWallRow(wall: Wall, wallCodes?: ReadonlyMap<string, string>): WallRowViewModel {
   return {
     id: wall.id,
-    codeLabel: `#${wallDisplayCode(wall.id)}`,
+    codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
     thicknessLabel: formatThickness(wall.thicknessMm),
     confidence: wall.confidence,
@@ -1244,10 +1261,14 @@ export function toWallRow(wall: Wall): WallRowViewModel {
 }
 
 /** Thanh tra tường đang chọn. Mọi con số đã thành chuỗi ở đây, không ở view (A15). */
-export function toWallInspector(wall: Wall, level: Level): WallInspectorViewModel {
+export function toWallInspector(
+  wall: Wall,
+  level: Level,
+  wallCodes?: ReadonlyMap<string, string>,
+): WallInspectorViewModel {
   return {
     id: wall.id,
-    codeLabel: `#${wallDisplayCode(wall.id)}`,
+    codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
     lengthLabel: formatCentrelineLength(wall, level),
     /*

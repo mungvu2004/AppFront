@@ -30,8 +30,10 @@ export interface RuleReportRow {
   readonly message: string;
   /** Câu việc-cần-làm, nguyên văn từ `violation.suggestion`. */
   readonly suggestion: string;
-  /** Mã đối tượng, hiện bằng chữ đều (mono). */
+  /** Mã máy của đối tượng — khoá tra ngược, không in ra màn. */
   readonly entityId: string;
+  /** Mã người đọc (`#D-001`), cùng mã câu luật gọi đối tượng; hiện bằng chữ đều (mono). */
+  readonly entityCode: string;
   readonly levelId: LevelId | null;
   /** Nhãn tầng để người đọc; null nếu là luật toàn nhà. */
   readonly levelLabel: string | null;
@@ -153,4 +155,9 @@ export interface RuleReportViewProps {
    * View CHỈ gọi ref này, KHÔNG tự nhập three.js.
    */
   readonly previewRef: (canvas: HTMLCanvasElement | null) => void;
+  /**
+   * Đường sang màn cài đặt bộ luật, dựng từ `@/routes/paths`. Vắng thì không có liên kết —
+   * story và test dựng view thẳng không cần nó.
+   */
+  readonly settingsPath?: string;
 }

@@ -31,6 +31,7 @@ export const FeatureFlagsSchema = z
     'qc.live-collaboration': z.boolean().optional(),
     'rules.parallel-run': z.boolean().optional(),
     'scene.instanced-walls': z.boolean().optional(),
+    'scene.pascal-viewer': z.boolean().optional(),
     'scene.soft-shadows': z.boolean().optional(),
   })
   .strict()
@@ -46,6 +47,9 @@ export const FeatureFlagsSchema = z
       : {}),
     ...(wireFlags['scene.instanced-walls'] !== undefined
       ? { 'scene.instanced-walls': wireFlags['scene.instanced-walls'] }
+      : {}),
+    ...(wireFlags['scene.pascal-viewer'] !== undefined
+      ? { 'scene.pascal-viewer': wireFlags['scene.pascal-viewer'] }
       : {}),
     ...(wireFlags['scene.soft-shadows'] !== undefined
       ? { 'scene.soft-shadows': wireFlags['scene.soft-shadows'] }

@@ -27,6 +27,7 @@ import { isAttached, type AttachedOpening, type TracedOpening } from '@/domain/o
 import { validateOpening } from '@/domain/openings/validate';
 import { outlineContains } from '@/domain/rooms/area';
 import { isIdOfKind } from '@/domain/spatial/ids';
+import { displayCodeIn } from '@/domain/spatial/normalize';
 import type {
   BoundingBox,
   Furniture,
@@ -111,7 +112,7 @@ const lookupOpening = (context: CommandContext, openingId: OpeningId): OpeningLo
       opening: null,
       wall: null,
       solid: null,
-      reasons: [`Không tìm thấy lỗ mở ${openingId} trong bản vẽ.`],
+      reasons: [`Không tìm thấy lỗ mở ${displayCodeIn(context.graph, openingId)} trong bản vẽ.`],
     };
   }
 
@@ -122,7 +123,7 @@ const lookupOpening = (context: CommandContext, openingId: OpeningId): OpeningLo
       opening,
       wall: null,
       solid: null,
-      reasons: [`Lỗ mở ${openingId} đang trỏ tới tường ${opening.wallId} không tồn tại.`],
+      reasons: [`Lỗ mở ${displayCodeIn(context.graph, openingId)} đang trỏ tới tường ${displayCodeIn(context.graph, opening.wallId)} không tồn tại.`],
     };
   }
 
@@ -133,7 +134,7 @@ const lookupOpening = (context: CommandContext, openingId: OpeningId): OpeningLo
       opening,
       wall,
       solid: null,
-      reasons: [`Tường ${wall.id} đang trỏ tới tầng ${wall.levelId} không tồn tại.`],
+      reasons: [`Tường ${displayCodeIn(context.graph, wall.id)} đang trỏ tới tầng ${displayCodeIn(context.graph, wall.levelId)} không tồn tại.`],
     };
   }
 
@@ -142,7 +143,7 @@ const lookupOpening = (context: CommandContext, openingId: OpeningId): OpeningLo
       opening,
       wall,
       solid: null,
-      reasons: [`Tường ${wall.id} có số đo không dùng được nên chưa xử lý lỗ mở trên nó được.`],
+      reasons: [`Tường ${displayCodeIn(context.graph, wall.id)} có số đo không dùng được nên chưa xử lý lỗ mở trên nó được.`],
     };
   }
 
@@ -220,7 +221,7 @@ export function validateAddOpening(input: AddOpeningInput, context: CommandConte
   }
 
   if (readOf(context.graph, 'level', input.levelId) === null) {
-    reasons.push(`Không tìm thấy tầng ${input.levelId} để đặt lỗ mở lên.`);
+    reasons.push(`Không tìm thấy tầng ${displayCodeIn(context.graph, input.levelId)} để đặt lỗ mở lên.`);
   }
 
   if (!isFinitePoint(input.centre)) {
@@ -257,7 +258,7 @@ export function validateAddOpening(input: AddOpeningInput, context: CommandConte
   const host = walls.find((wall) => wall.id === landed.wallId);
 
   if (host === undefined) {
-    reasons.push(`Không tìm thấy lại tường ${landed.wallId} vừa chọn để gắn lỗ mở.`);
+    reasons.push(`Không tìm thấy lại tường ${displayCodeIn(context.graph, landed.wallId)} vừa chọn để gắn lỗ mở.`);
 
     return reasons;
   }
@@ -297,7 +298,7 @@ export function createAddOpeningCommand(
 
   if (host === undefined || hostWall === null) {
     return refuse(OPENING_COMMAND_TYPES.addOpening, [
-      `Không tìm thấy lại tường ${landed.wallId} vừa chọn để gắn lỗ mở.`,
+      `Không tìm thấy lại tường ${displayCodeIn(context.graph, landed.wallId)} vừa chọn để gắn lỗ mở.`,
     ]);
   }
 
@@ -317,8 +318,8 @@ export function createAddOpeningCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.addOpening,
-      `Thêm ${nameOfOpening(opening)} rộng ${formatLengthMm(input.widthMm)}, cao ` +
-        `${formatLengthMm(input.heightMm)} vào tường ${landed.wallId} dài ` +
+      `Thêm ${nameOfOpening(opening, context.graph)} rộng ${formatLengthMm(input.widthMm)}, cao ` +
+        `${formatLengthMm(input.heightMm)} vào tường ${displayCodeIn(context.graph, landed.wallId)} dài ` +
         `${formatLengthMm(centrelineLength(host))}, cách đầu tường ${formatLengthMm(offsetMm)}.`,
       [
         changeForAdd('opening', opening),
@@ -356,7 +357,7 @@ export function validateMoveOpening(input: MoveOpeningInput, context: CommandCon
 
   if (nearlyEqualLength(millimetres(found.opening.offsetMm), millimetres(input.offsetMm))) {
     return [
-      `${nameOfOpening(found.opening)} đã cách đầu tường ${formatLengthMm(found.opening.offsetMm)} ` +
+      `${nameOfOpening(found.opening, context.graph)} đã cách đầu tường ${formatLengthMm(found.opening.offsetMm)} ` +
         'nên không có gì thay đổi.',
     ];
   }
@@ -388,7 +389,7 @@ export function createMoveOpeningCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.moveOpening,
-      `Di chuyển ${nameOfOpening(opening)} trên tường ${opening.wallId} từ ` +
+      `Di chuyển ${nameOfOpening(opening, context.graph)} trên tường ${displayCodeIn(context.graph, opening.wallId)} từ ` +
         `${formatLengthMm(opening.offsetMm)} sang ${formatLengthMm(input.offsetMm)} tính từ đầu ` +
         `tường; dịch ${formatLengthMm(Math.abs(input.offsetMm - opening.offsetMm))} trên đoạn dài ` +
         `${formatLengthMm(centrelineLength(solid))}.`,
@@ -482,7 +483,7 @@ export function validateResizeOpening(
     nearlyEqualLength(millimetres(resized.heightMm), millimetres(found.opening.heightMm)) &&
     nearlyEqualLength(millimetres(resized.sillHeightMm), millimetres(found.opening.sillHeightMm))
   ) {
-    reasons.push(`${nameOfOpening(found.opening)} đã có đúng kích thước đó nên không có gì thay đổi.`);
+    reasons.push(`${nameOfOpening(found.opening, context.graph)} đã có đúng kích thước đó nên không có gì thay đổi.`);
 
     return reasons;
   }
@@ -528,7 +529,7 @@ export function createResizeOpeningCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.resizeOpening,
-      `Đổi kích thước ${nameOfOpening(opening)} trên tường ${opening.wallId}: ${parts.join(', ')}.`,
+      `Đổi kích thước ${nameOfOpening(opening, context.graph)} trên tường ${displayCodeIn(context.graph, opening.wallId)}: ${parts.join(', ')}.`,
       [changeForUpdate('opening', opening, after)],
       context,
     ),
@@ -549,7 +550,7 @@ export function validateDeleteOpening(
   context: CommandContext,
 ): string[] {
   if (readOf(context.graph, 'opening', input.openingId) === null) {
-    return [`Không tìm thấy lỗ mở ${input.openingId} trong bản vẽ.`];
+    return [`Không tìm thấy lỗ mở ${displayCodeIn(context.graph, input.openingId)} trong bản vẽ.`];
   }
 
   return [];
@@ -575,7 +576,7 @@ export function createDeleteOpeningCommand(
   const opening = readOf(context.graph, 'opening', input.openingId);
 
   if (opening === null) {
-    return refuse(OPENING_COMMAND_TYPES.removeOpening, [`Không tìm thấy lỗ mở ${input.openingId}.`]);
+    return refuse(OPENING_COMMAND_TYPES.removeOpening, [`Không tìm thấy lỗ mở ${displayCodeIn(context.graph, input.openingId)}.`]);
   }
 
   const wall = readOf(context.graph, 'wall', opening.wallId);
@@ -593,8 +594,8 @@ export function createDeleteOpeningCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.removeOpening,
-      `Xoá ${nameOfOpening(opening)} rộng ${formatLengthMm(opening.widthMm)}, cao ` +
-        `${formatLengthMm(opening.heightMm)} khỏi tường ${opening.wallId}.`,
+      `Xoá ${nameOfOpening(opening, context.graph)} rộng ${formatLengthMm(opening.widthMm)}, cao ` +
+        `${formatLengthMm(opening.heightMm)} khỏi tường ${displayCodeIn(context.graph, opening.wallId)}.`,
       changes,
       context,
     ),
@@ -657,7 +658,7 @@ export function validateAddFurniture(input: AddFurnitureInput, context: CommandC
   }
 
   if (readOf(context.graph, 'level', input.levelId) === null) {
-    reasons.push(`Không tìm thấy tầng ${input.levelId} để đặt đồ đạc lên.`);
+    reasons.push(`Không tìm thấy tầng ${displayCodeIn(context.graph, input.levelId)} để đặt đồ đạc lên.`);
   }
 
   if (!FURNITURE_KINDS.includes(input.kind)) {
@@ -683,15 +684,15 @@ export function validateAddFurniture(input: AddFurnitureInput, context: CommandC
     const room = readOf(context.graph, 'room', input.roomId);
 
     if (room === null) {
-      reasons.push(`Không tìm thấy phòng ${input.roomId} để gán đồ đạc vào.`);
+      reasons.push(`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)} để gán đồ đạc vào.`);
     } else if (room.levelId !== input.levelId) {
       reasons.push(
-        `Phòng ${room.id} ở tầng ${room.levelId} còn đồ đạc đặt trên tầng ${input.levelId}.`,
+        `Phòng ${displayCodeIn(context.graph, room.id)} ở tầng ${displayCodeIn(context.graph, room.levelId)} còn đồ đạc đặt trên tầng ${displayCodeIn(context.graph, input.levelId)}.`,
       );
     } else if (isFinitePoint(input.centre) && !roomContains(room, input.centre)) {
       reasons.push(
         `Tâm đồ đạc ở ${formatPoint(input.centre)} nằm ngoài ranh phòng "${room.name}" ` +
-          `${room.id} rộng ${formatAreaM2(room.areaM2)}.`,
+          `${displayCodeIn(context.graph, room.id)} rộng ${formatAreaM2(room.areaM2)}.`,
       );
     }
   }
@@ -727,10 +728,10 @@ export function createAddFurnitureCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.addFurniture,
-      `Thêm ${FURNITURE_KIND_LABELS[input.kind]} ${input.id} cỡ ${formatLengthMm(widthMm)} × ` +
+      `Thêm ${FURNITURE_KIND_LABELS[input.kind]} ${displayCodeIn(context.graph, input.id)} cỡ ${formatLengthMm(widthMm)} × ` +
         `${formatLengthMm(depthMm)} tại ${formatPoint(input.centre)}, xoay ` +
         `${formatAngleDeg(item.rotationDeg)}` +
-        (input.roomId === undefined ? '.' : ` trong phòng ${input.roomId}.`),
+        (input.roomId === undefined ? '.' : ` trong phòng ${displayCodeIn(context.graph, input.roomId)}.`),
       [changeForAdd('furniture', item)],
       context,
     ),
@@ -769,7 +770,7 @@ export function validateMoveFurniture(
   const item = readOf(context.graph, 'furniture', input.furnitureId);
 
   if (item === null) {
-    return [`Không tìm thấy đồ đạc ${input.furnitureId} trong bản vẽ.`];
+    return [`Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)} trong bản vẽ.`];
   }
 
   if (!isFinitePoint(input.to)) {
@@ -780,7 +781,7 @@ export function validateMoveFurniture(
 
   if (nearlyEqualPoint(toPointMm(item.centre), toPointMm(input.to))) {
     reasons.push(
-      `${FURNITURE_KIND_LABELS[item.kind]} ${item.id} đã ở ${formatPoint(input.to)} nên không có gì thay đổi.`,
+      `${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} đã ở ${formatPoint(input.to)} nên không có gì thay đổi.`,
     );
   }
 
@@ -789,7 +790,7 @@ export function validateMoveFurniture(
 
     if (room !== null && !roomContains(room, input.to)) {
       reasons.push(
-        `${formatPoint(input.to)} nằm ngoài ranh phòng "${room.name}" ${room.id}; hãy bỏ gán ` +
+        `${formatPoint(input.to)} nằm ngoài ranh phòng "${room.name}" ${displayCodeIn(context.graph, room.id)}; hãy bỏ gán ` +
           'phòng trước khi đưa đồ đạc ra ngoài.',
       );
     }
@@ -813,7 +814,7 @@ export function createMoveFurnitureCommand(
 
   if (item === null) {
     return refuse(OPENING_COMMAND_TYPES.moveFurniture, [
-      `Không tìm thấy đồ đạc ${input.furnitureId}.`,
+      `Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)}.`,
     ]);
   }
 
@@ -822,7 +823,7 @@ export function createMoveFurnitureCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.moveFurniture,
-      `Di chuyển ${FURNITURE_KIND_LABELS[item.kind]} ${item.id} từ ${formatPoint(item.centre)} sang ` +
+      `Di chuyển ${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} từ ${formatPoint(item.centre)} sang ` +
         `${formatPoint(input.to)}, đi ${formatLengthMm(travelledMm)}.`,
       [changeForUpdate('furniture', item, movedFurniture(item, input.to))],
       context,
@@ -847,7 +848,7 @@ export function validateRotateFurniture(
   const item = readOf(context.graph, 'furniture', input.furnitureId);
 
   if (item === null) {
-    return [`Không tìm thấy đồ đạc ${input.furnitureId} trong bản vẽ.`];
+    return [`Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)} trong bản vẽ.`];
   }
 
   if (!Number.isFinite(input.rotationDeg)) {
@@ -858,7 +859,7 @@ export function validateRotateFurniture(
 
   if (compareNearly(wanted, normaliseDegrees(degrees(item.rotationDeg))) === 0) {
     return [
-      `${FURNITURE_KIND_LABELS[item.kind]} ${item.id} đã xoay ${formatAngleDeg(wanted)} nên không có gì thay đổi.`,
+      `${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} đã xoay ${formatAngleDeg(wanted)} nên không có gì thay đổi.`,
     ];
   }
 
@@ -885,7 +886,7 @@ export function createRotateFurnitureCommand(
 
   if (item === null) {
     return refuse(OPENING_COMMAND_TYPES.rotateFurniture, [
-      `Không tìm thấy đồ đạc ${input.furnitureId}.`,
+      `Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)}.`,
     ]);
   }
 
@@ -894,7 +895,7 @@ export function createRotateFurnitureCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.rotateFurniture,
-      `Xoay ${FURNITURE_KIND_LABELS[item.kind]} ${item.id} tại ${formatPoint(item.centre)} từ ` +
+      `Xoay ${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} tại ${formatPoint(item.centre)} từ ` +
         `${formatAngleDeg(item.rotationDeg)} sang ${formatAngleDeg(rotationDeg)}.`,
       [changeForUpdate('furniture', item, { ...item, rotationDeg })],
       context,
@@ -953,7 +954,7 @@ export function validateResizeFurniture(
   const item = readOf(context.graph, 'furniture', input.furnitureId);
 
   if (item === null) {
-    return [`Không tìm thấy đồ đạc ${input.furnitureId} trong bản vẽ.`];
+    return [`Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)} trong bản vẽ.`];
   }
 
   if (input.widthMm === undefined && input.depthMm === undefined) {
@@ -991,7 +992,7 @@ export function validateResizeFurniture(
     nearlyEqualLength(millimetres(before.depthMm), millimetres(after.depthMm))
   ) {
     reasons.push(
-      `${FURNITURE_KIND_LABELS[item.kind]} ${item.id} đã đo ${formatLengthMm(before.widthMm)} × ` +
+      `${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} đã đo ${formatLengthMm(before.widthMm)} × ` +
         `${formatLengthMm(before.depthMm)} nên không có gì thay đổi.`,
     );
   }
@@ -1025,7 +1026,7 @@ export function createResizeFurnitureCommand(
 
   if (item === null) {
     return refuse(OPENING_COMMAND_TYPES.resizeFurniture, [
-      `Không tìm thấy đồ đạc ${input.furnitureId}.`,
+      `Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)}.`,
     ]);
   }
 
@@ -1043,7 +1044,7 @@ export function createResizeFurnitureCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.resizeFurniture,
-      `Đổi kích thước ${FURNITURE_KIND_LABELS[item.kind]} ${item.id} giữ nguyên tâm ` +
+      `Đổi kích thước ${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} giữ nguyên tâm ` +
         `${formatPoint(item.centre)}: ${parts.join(', ')}.`,
       [changeForUpdate('furniture', item, after)],
       context,
@@ -1065,7 +1066,7 @@ export function validateDeleteFurniture(
   context: CommandContext,
 ): string[] {
   if (readOf(context.graph, 'furniture', input.furnitureId) === null) {
-    return [`Không tìm thấy đồ đạc ${input.furnitureId} trong bản vẽ.`];
+    return [`Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)} trong bản vẽ.`];
   }
 
   return [];
@@ -1086,7 +1087,7 @@ export function createDeleteFurnitureCommand(
 
   if (item === null) {
     return refuse(OPENING_COMMAND_TYPES.removeFurniture, [
-      `Không tìm thấy đồ đạc ${input.furnitureId}.`,
+      `Không tìm thấy đồ đạc ${displayCodeIn(context.graph, input.furnitureId)}.`,
     ]);
   }
 
@@ -1096,7 +1097,7 @@ export function createDeleteFurnitureCommand(
   return accept(
     buildCommand(
       OPENING_COMMAND_TYPES.removeFurniture,
-      `Xoá ${FURNITURE_KIND_LABELS[item.kind]} ${item.id} cỡ ${formatLengthMm(widthMm)} × ` +
+      `Xoá ${FURNITURE_KIND_LABELS[item.kind]} ${displayCodeIn(context.graph, item.id)} cỡ ${formatLengthMm(widthMm)} × ` +
         `${formatLengthMm(depthMm)} tại ${formatPoint(item.centre)}.`,
       [changeForRemove('furniture', item)],
       context,

@@ -38,6 +38,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -223,5 +224,9 @@ export function SpatialJsonViewerRoute() {
     );
   }
 
-  return <SpatialJsonViewerContainer projectId={id} />;
+  return (
+    <ProjectSpatialGate projectId={id}>
+      <SpatialJsonViewerContainer projectId={id} />
+    </ProjectSpatialGate>
+  );
 }

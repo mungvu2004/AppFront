@@ -2,9 +2,22 @@ import { useStore } from './index';
 import type { RootState } from './index';
 import { draftEntityId, type EditEntityDraft } from './draftSlice';
 import { MERGE_WINDOW_MS } from '../lib/commands/mergeCommands';
+import type { SelectionSnapshot } from '../lib/commands/history';
 import type { SpatialPatch } from '../domain/spatial/applyPatch';
 import type { SpatialEntity } from '../domain/spatial/normalize';
 import type { EntityId } from '../domain/spatial/types';
+
+/**
+ * The selection as it stands right now, for a command recorder to stamp on its history step.
+ *
+ * Read live at the moment `dispatch` pushes the step, so undo hands back the selection the
+ * person had WHEN the command ran (A8, S-06) — not the one before their last click, which is
+ * what a ref updated on every selection change gave (B-V7-09: undoing a rename deselected
+ * the room and closed its inspector).
+ */
+export const currentSelection = (): SelectionSnapshot => ({
+  selectedIds: useStore.getState().selectedIds,
+});
 
 export interface CommitResult {
   undo: () => void;

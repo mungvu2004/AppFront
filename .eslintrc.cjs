@@ -19,7 +19,12 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:local/project',
   ],
-  ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs'],
+  // `vendor/pascal` là mã Pascal đã chép vào làm mã của AppFront (xem
+  // `vendor/pascal/NGUON.md`). Nó viết theo luật Biome của Pascal, không theo
+  // bảy luật nội bộ ở `eslint-rules/`, nên để `eslint .` quét nó là biến cổng
+  // lint thành hàng nghìn lỗi không ai định sửa. Ba cổng còn lại — độ dài,
+  // typecheck, import vòng — vốn đã chỉ nhìn `src/**` nên không cần dòng nào.
+  ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs', 'vendor'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', 'local', 'import'],
   settings: {

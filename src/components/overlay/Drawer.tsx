@@ -56,9 +56,14 @@ export interface DrawerRootProps {
   children: React.ReactNode;
   /** Chiều rộng drawer desktop */
   size?: number | undefined;
+  /**
+   * Tên truy cập của `role="dialog"`. Không có nó, trình đọc màn hình chỉ đọc
+   * "hộp thoại" không tên và không ai gọi được nó bằng tên (B-V2-03).
+   */
+  label?: string | undefined;
 }
 
-function DrawerRoot({ isOpen, onClose, children, size }: DrawerRootProps) {
+function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps) {
   const drawerWidth = size ?? 400;
 
   const prefersReducedMotion = useReducedMotion();
@@ -140,6 +145,7 @@ function DrawerRoot({ isOpen, onClose, children, size }: DrawerRootProps) {
                 ref={containerRef}
                 role="dialog"
                 aria-modal="true"
+                aria-label={label}
                 tabIndex={-1}
                 initial="hidden"
                 animate="visible"
@@ -158,6 +164,7 @@ function DrawerRoot({ isOpen, onClose, children, size }: DrawerRootProps) {
               /* Mobile — bottom-sheet 3 mức snap */
               <BottomSheet
                 ref={containerRef}
+                label={label}
                 snapLevel={snapLevel}
                 onSnapChange={setSnapLevel}
                 onClose={onClose}
@@ -178,6 +185,7 @@ DrawerRoot.displayName = 'Drawer.Root';
 
 interface BottomSheetProps {
   children: React.ReactNode;
+  label: string | undefined;
   snapLevel: SnapLevel;
   onSnapChange: (level: SnapLevel) => void;
   onClose: () => void;
@@ -185,7 +193,7 @@ interface BottomSheetProps {
 }
 
 const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
-  ({ children, snapLevel, onSnapChange, onClose, prefersReducedMotion }, ref) => {
+  ({ children, label, snapLevel, onSnapChange, onClose, prefersReducedMotion }, ref) => {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
     const height = getSnapHeight(snapLevel, windowHeight);
 
@@ -198,6 +206,7 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
         ref={ref}
         role="dialog"
         aria-modal="true"
+        aria-label={label}
         tabIndex={-1}
         initial="hidden"
         animate="visible"

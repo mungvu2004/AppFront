@@ -192,7 +192,7 @@ export const MotPhan: Story = { args: scenarioArgsFor('partial') };
 /** 4. Lỗi — không tải được bản vẽ gốc; canvas VẪN không trắng. */
 export const Loi: Story = { args: scenarioArgsFor('error') };
 
-/** 5. Xong — 48/48 đã duyệt, panel trái mời sang lớp Cửa và nội thất. */
+/** 5. Xong — 48/48 đã duyệt, panel trái mời sang lớp cửa và nội thất. */
 export const ThanhCong: Story = { args: scenarioArgsFor('success') };
 
 /** 6. Không có quyền — vai Người xem: ray ẩn công cụ sửa, thanh tra bỏ viền. */

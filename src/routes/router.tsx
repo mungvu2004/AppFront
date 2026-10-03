@@ -15,15 +15,24 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
-import { SessionBootstrap } from './SessionBootstrap';
+import { PendingShell, SessionBootstrap } from './SessionBootstrap';
 
-/** Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu. */
+/**
+ * Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu.
+ *
+ * Từng là `<div>Loading...</div>`: chữ tiếng Anh trên màn sản phẩm (A6) và một ô
+ * trống ở góc thay cho trạng thái chờ (A11) — B-G-04. Nay là đúng vỏ chờ của
+ * `SessionGate`, nên lượt tải chunk nối liền lượt mở phiên mà không nháy.
+ * `PendingShell` đã nằm trong chunk vào (qua `SessionBootstrap`), nhập lại nó
+ * không thêm byte nào vào đường tải đầu.
+ */
 const suspended = (node: React.ReactNode) => (
-  <React.Suspense fallback={<div>Loading...</div>}>{node}</React.Suspense>
+  <React.Suspense fallback={<PendingShell label="đang tải màn hình" />}>{node}</React.Suspense>
 );
 
 // Lazy load screen routes
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
+const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
@@ -297,7 +306,8 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
   );
 }
 
-export const router = createBrowserRouter([
+/** Bảng route — xuất riêng để bài kiểm dựng nó trên `createMemoryRouter`. */
+export const routes: RouteObject[] = [
   {
     element: (
       <SessionBootstrap>
@@ -328,6 +338,7 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
       { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
       { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
+      { path: ROUTE_PATTERNS.projectViewerPascal, element: suspended(<RoutePascalViewer />) },
       { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
       { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
       { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
@@ -346,4 +357,6 @@ export const router = createBrowserRouter([
       { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
     ],
   },
-]);
+];
+
+export const router = createBrowserRouter(routes);

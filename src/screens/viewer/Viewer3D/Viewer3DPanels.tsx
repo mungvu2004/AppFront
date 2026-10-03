@@ -97,6 +97,23 @@ const PANEL_LABELS: Readonly<Record<Viewer3DPanelId, string>> = {
 /** Nhãn vùng của cột panel phụ, cho trình đọc màn hình và cho bài kiểm. */
 export const VIEWER_3D_PANELS_LABEL = 'Bảng phụ của khung nhìn 3D';
 
+/**
+ * Ba màn 3D anh em. Trước đây chúng chỉ tới được bằng gõ địa chỉ — không nơi
+ * nào trong sản phẩm dẫn tới (`docs/notes/e2e` Q10g, B-V9-01).
+ */
+export type Viewer3DSiblingScreenId = 'exploded' | 'measure' | 'overlay';
+
+export const VIEWER_3D_SIBLINGS_LABEL = 'Màn 3D khác';
+export const VIEWER_3D_EXPLODED_LINK_LABEL = 'Tách tầng';
+export const VIEWER_3D_MEASURE_LINK_LABEL = 'Công cụ đo';
+export const VIEWER_3D_OVERLAY_LINK_LABEL = 'Đối chiếu bản vẽ';
+
+const SIBLING_LABELS: Readonly<Record<Viewer3DSiblingScreenId, string>> = {
+  exploded: VIEWER_3D_EXPLODED_LINK_LABEL,
+  measure: VIEWER_3D_MEASURE_LINK_LABEL,
+  overlay: VIEWER_3D_OVERLAY_LINK_LABEL,
+};
+
 /** Nhãn vùng của panel thanh tra thuộc tính. */
 export const VIEWER_3D_INSPECTOR_LABEL = 'Thuộc tính đối tượng đã chọn';
 
@@ -122,6 +139,8 @@ export interface Viewer3DPanelsProps {
   readonly onOpenRuleScreen: (entityId: string) => void;
   readonly onOpenExport: () => void;
   readonly onCheckWallGaps: () => void;
+  /** Mở một màn 3D anh em. `overlay` chỉ được dựng khi có `floorId`. */
+  readonly onOpenScreen: (screenId: Viewer3DSiblingScreenId) => void;
 
   /**
    * Tầng đang mở. `null` ⇒ nút "Thư viện đồ đạc" KHÔNG được dựng.
@@ -199,6 +218,8 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
   /* Tầng chưa biết thì không dựng nút thư viện — xem `floorId` ở trên. */
   const togglePanelIds: readonly Viewer3DPanelId[] =
     props.floorId === null ? ['rooms', 'history'] : ['rooms', 'furniture', 'history'];
+  const siblingScreenIds: readonly Viewer3DSiblingScreenId[] =
+    props.floorId === null ? ['exploded', 'measure'] : ['exploded', 'measure', 'overlay'];
 
   return (
     <div className="flex min-h-0 shrink-0 flex-col border-t border-border-default">
@@ -248,6 +269,24 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
             onToggle={onTogglePanel}
             panelId={panelId}
           />
+        ))}
+      </nav>
+
+      <nav aria-label={VIEWER_3D_SIBLINGS_LABEL} className="flex shrink-0 flex-wrap gap-1 px-2 pb-2">
+        {siblingScreenIds.map((screenId) => (
+          <button
+            className={cn(
+              'rounded-[6px] px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+            )}
+            key={screenId}
+            onClick={() => {
+              props.onOpenScreen(screenId);
+            }}
+            type="button"
+          >
+            {SIBLING_LABELS[screenId]}
+          </button>
         ))}
       </nav>
 
