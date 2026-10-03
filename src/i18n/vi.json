@@ -2342,6 +2342,8 @@
     },
     "empty": {
       "message": "Chưa chọn đối tượng nào để xem thuộc tính.",
+      "missing": "Đối tượng đang chọn không có trong dữ liệu của dự án này nên chưa xem được thuộc tính.",
+      "unsupported": "Trục, tầng và kích thước chưa có bảng thuộc tính. Bảng này dành cho tường, ô mở, phòng và nội thất.",
       "tabHint": "Nhấn Tab để duyệt vòng qua các đối tượng trên mô hình."
     },
     "loading": {
@@ -2566,7 +2568,8 @@
       "joinNeedsTwoEnds": "Nối tường cần đúng hai đầu mút đang chọn.",
       "splitOffWall": "Điểm tách nằm ngoài bức tường nên chưa tách được.",
       "heightBelowOpening": "Chiều cao mới thấp hơn đỉnh một ô mở trên tường này nên chưa đặt được.",
-      "noSaveTarget": "Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.",
+      "wallMissing": "Bức tường đang chọn không có trong dữ liệu của dự án này nên chưa sửa được hình học.",
+      "readFailed": "Chưa đọc được hình học của bức tường này.",
       "serverRejected": "Máy chủ chưa nhận được hình học mới ({{kind}}). Thay đổi vẫn còn trên máy này."
     },
     "undo": {

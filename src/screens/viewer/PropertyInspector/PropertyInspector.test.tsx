@@ -46,6 +46,7 @@ import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/clien
 import { displayCodesOf } from '@/domain/spatial/ids';
 import { displayCodeIn, displayLabelIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import {
+  sampleAxisId,
   sampleDoorId,
   sampleFurnitureId,
   sampleLevelId,
@@ -114,7 +115,7 @@ function renderFromProps(state: SevenState) {
 
 /** Panel ĐÃ NỐI DÂY: hook thật, store thật, ngăn xếp hoàn tác thật. */
 function WiredInspector(
-  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds'> & {
+  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds' | 'saveLabel'> & {
     readonly canEdit?: boolean;
     readonly gateway?: PropertyInspectorGateway | undefined;
   },
@@ -127,6 +128,7 @@ function WiredInspector(
       onOpenRuleScreen: noop,
       selectedEntityId: props.selectedEntityId,
       selectedEntityIds: props.selectedEntityIds,
+      ...(props.saveLabel !== undefined ? { saveLabel: props.saveLabel } : {}),
     },
     props.gateway,
   );
@@ -134,7 +136,7 @@ function WiredInspector(
   return <PropertyInspector {...model} />;
 }
 
-/** Mã dự án của phiên nghiệm thu — chỉ để `saveTarget` có đủ hai nửa. */
+/** Mã dự án của phiên nghiệm thu — đích của `saveTarget`. */
 const ACCEPTANCE_PROJECT_ID = 'P-NGHIEMTHU';
 
 /** Cổng thật, nhưng máy khách API bị theo dõi — mọi lượt ghi ra ngoài đếm được. */
@@ -142,6 +144,8 @@ interface SpiedGateway {
   readonly gateway: PropertyInspectorGateway;
   /** Mỗi phần tử là một thân yêu cầu `spatial.writeLayer` đã gửi đi. */
   readonly layerWrites: SpatialLayer[];
+  /** `floorId` của từng lượt `spatial.writeLayer`, cùng thứ tự với {@link layerWrites}. */
+  readonly layerFloors: string[];
   /** Mỗi phần tử là một thân yêu cầu `propertyTemplates.create` đã gửi đi. */
   readonly templateWrites: PropertyTemplateDraft[];
 }
@@ -158,6 +162,7 @@ interface SpiedGateway {
 function createSpiedGateway(): SpiedGateway {
   const base = createMockApiClient();
   const layerWrites: SpatialLayer[] = [];
+  const layerFloors: string[] = [];
   const templateWrites: PropertyTemplateDraft[] = [];
 
   const apiClient: ApiClient = {
@@ -174,6 +179,7 @@ function createSpiedGateway(): SpiedGateway {
       ...base.spatial,
       writeLayer: async (input) => {
         layerWrites.push(input.body);
+        layerFloors.push(input.floorId);
 
         return base.spatial.writeLayer(input);
       },
@@ -184,8 +190,9 @@ function createSpiedGateway(): SpiedGateway {
     gateway: createPropertyInspectorGateway({
       apiClient,
       graph: { read: () => useStore.getState().spatial },
-      target: () => ({ floorId: sampleLevelId(0), projectId: ACCEPTANCE_PROJECT_ID }),
+      target: () => ({ projectId: ACCEPTANCE_PROJECT_ID }),
     }),
+    layerFloors,
     layerWrites,
     templateWrites,
   };
@@ -553,6 +560,45 @@ describe('[N4] ba bức tường lệch độ dày', () => {
 /* -------------------------------------------------------------------------- */
 /* [N3] Bố cục không nhảy khi đổi loại đối tượng.                              */
 /* -------------------------------------------------------------------------- */
+
+describe('[B-V8-42] ba ca rỗng nói ba câu khác nhau', () => {
+  const MISSING_ID = 'W-KHONG-CO';
+
+  beforeEach(() => {
+    seedStore(createCleanBuildingScenario().graph);
+  });
+
+  const renderEmpty = async (selectedIds: readonly string[], message: string) => {
+    const view = render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <WiredInspector selectedEntityId={selectedIds[0] ?? null} selectedEntityIds={selectedIds} />
+      </QueryClientProvider>,
+    );
+
+    await view.findByText(message);
+
+    return view;
+  };
+
+  it('chọn thứ không có trong kho: nói nó không có trong dữ liệu dự án, không nói "chưa chọn"', async () => {
+    const view = await renderEmpty([MISSING_ID], PROPERTY_INSPECTOR_TEXT.empty.missing);
+
+    expect(view.queryAllByText(/^Chưa chọn đối tượng nào/u)).toHaveLength(0);
+    expectVietnamese(view.container);
+  });
+
+  it('chỉ chọn trục: nói trục chưa có bảng thuộc tính', async () => {
+    await renderEmpty([sampleAxisId(0)], PROPERTY_INSPECTOR_TEXT.empty.unsupported);
+  });
+
+  it('trục cộng một id không có trong kho: vẫn là "không có trong dữ liệu" — phép every, không phải some', async () => {
+    await renderEmpty([sampleAxisId(0), MISSING_ID], PROPERTY_INSPECTOR_TEXT.empty.missing);
+  });
+
+  it('không chọn gì: vẫn là câu "chưa chọn"', async () => {
+    await renderEmpty([], PROPERTY_INSPECTOR_TEXT.empty.message);
+  });
+});
 
 describe('[N10] đầu panel gọi tường bằng mã người đọc (B-V8-05)', () => {
   beforeEach(() => {
@@ -1163,6 +1209,14 @@ describe('[N8] bốn phím tắt', () => {
 
     /* ---- 4. Ctrl+S xả bộ tự lưu — một lượt ghi THẬT ra endpoint ---------- */
 
+    /* Không đổi gì thì không có gì để gửi (B-V8-41) — một lượt sửa trước đã. */
+    await act(async () => {
+      fireEvent.click(
+        within(view.container).getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }),
+      );
+      await Promise.resolve();
+    });
+
     const writesBefore = spied.layerWrites.length;
 
     await act(async () => {
@@ -1216,7 +1270,7 @@ describe('[N9] tự lưu', () => {
     clock?.restore();
   });
 
-  it('gửi lớp không gian của tầng đang mở, và chân panel hiện "Đã lưu lúc …"', async () => {
+  it('gửi lớp không gian của tầng có tường bị sửa — không phải tầng đang xem — và chân panel hiện "Đã lưu lúc …"', async () => {
     const spied = createSpiedGateway();
     const { container } = await renderWired([WALL_ID], { gateway: spied.gateway });
 
@@ -1248,13 +1302,46 @@ describe('[N9] tự lưu', () => {
         `${String(sent.length)} lượt gọi spatial.writeLayer; thân yêu cầu cuối mang ` +
         `${String(lastLayer?.walls.length ?? 0)} tường · ${String(lastLayer?.openings.length ?? 0)} ô mở · ` +
         `${String(lastLayer?.rooms.length ?? 0)} phòng · ${String(lastLayer?.furniture.length ?? 0)} nội thất ` +
-        `của tầng ${sampleLevelId(0)}.`,
+        `của tầng ${spied.layerFloors.at(-1) ?? '?'}.`,
     );
     console.log(`[PROPERTY-INSPECTOR][N9] chỉ báo lưu ở chân panel: "${savedLabel}"`);
 
-    expect(sent.length).toBeGreaterThanOrEqual(1);
+    /* `seedStore` đặt tầng đang xem là L0, còn tường #W-014 nằm ở L2 (B-V8-41). */
+    expect(useStore.getState().activeFloorId).toBe(sampleLevelId(0));
+    expect(spied.layerFloors.slice(writesBefore)).toEqual([sampleLevelId(2)]);
     expect(lastLayer?.walls.length ?? 0).toBeGreaterThan(0);
     expect(savedLabel).toMatch(/^Đã lưu lúc \d{2}:\d{2}$/);
+  });
+
+  it('màn chủ tự lưu (B-V8-60): chân panel nói nhãn của màn, panel không gửi lượt thứ hai', async () => {
+    const spied = createSpiedGateway();
+    const hostLabel = 'Đã lưu lúc 09:41';
+    const view = render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <WiredInspector
+          gateway={spied.gateway}
+          saveLabel={hostLabel}
+          selectedEntityId={WALL_ID}
+          selectedEntityIds={[WALL_ID]}
+        />
+      </QueryClientProvider>,
+    );
+
+    await view.findByText(new RegExp(hostLabel));
+    clock = installFakeClock();
+
+    await act(async () => {
+      fireEvent.click(view.getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }));
+      await clock.flushMicrotasks();
+    });
+
+    await act(async () => {
+      await clock.runAllTimers();
+      await clock.flushMicrotasks();
+    });
+
+    expect(spied.layerWrites).toHaveLength(0);
+    expect(view.getByText(new RegExp(hostLabel))).toBeInTheDocument();
   });
 
   it('nút "khuôn" ở đầu panel gửi một khuôn mẫu thật, và panel nói ra kết quả', async () => {

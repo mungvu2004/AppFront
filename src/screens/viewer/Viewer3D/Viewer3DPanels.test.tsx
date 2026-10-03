@@ -148,6 +148,7 @@ function StatefulPanels(
       onOpenRuleScreen={noop}
       onOpenScreen={noop}
       projectId={PROJECT_ID}
+      saveLabel={null}
       selectedEntityId={null}
       selectedEntityIds={[]}
       {...overrides}

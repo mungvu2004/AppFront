@@ -66,14 +66,13 @@ import type {
   ApiClient,
   PropertyTemplate,
   PropertyTemplateDraft,
-  SpatialLayer,
 } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
-import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
+import { createChangedFloorsSave, historyEndsOf } from '@/lib/autosave/spatialLayerSave';
 import type {
   Furniture,
   LevelId,
@@ -571,20 +570,20 @@ export type PropertyInspectorCapability =
 /** Kết quả của một khả năng có thể chưa có đường. */
 export type PropertyInspectorCapabilityResult<TValue> =
   | { readonly ok: true; readonly data: TValue }
-  | { readonly ok: false; readonly reason: string };
+  /** `cause`: lỗi gốc của tầng dưới (`HttpError`), để tự lưu tách 409/422 khỏi rớt mạng (B-V8-61). */
+  | { readonly ok: false; readonly reason: string; readonly cause?: unknown };
 
 /**
  * Câu nói ra khi một lượt ghi không có ĐÍCH, chứ không phải không có ĐƯỜNG.
  *
  * Cả hai khả năng dưới đây nay đã có đủ endpoint (lỗ hổng #4 và #5, U4). Thứ
  * còn thiếu được là ngữ cảnh của phiên làm việc: chưa mở dự án nào thì không
- * có `projectId` để gửi tới, và chưa chọn tầng nào thì không biết lấy lớp
- * không gian của tầng nào. Câu chữ nói rõ đó là việc người dùng làm tiếp được,
+ * có `projectId` để gửi tới. Câu chữ nói rõ đó là việc người dùng làm tiếp được,
  * không phải một lỗi của bản vẽ — panel hiện nó ở nhóm "Kiểm tra", nơi vốn
  * dành cho vi phạm quy tắc.
  */
 export const NO_SAVE_TARGET_REASON =
-  'Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.';
+  'Chưa mở dự án nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.';
 
 /** Câu nói ra khi máy chủ từ chối lượt lưu lớp không gian. */
 export const persistFailedReason = (kind: string): string =>
@@ -654,10 +653,12 @@ export function propertyTemplateDraftOf(entity: InspectableEntity): PropertyTemp
   return null;
 }
 
-/** Dự án và tầng lượt ghi đi tới. `null` khi phiên làm việc chưa mở đủ cả hai. */
+/**
+ * Dự án lượt ghi đi tới. `null` khi chưa mở dự án nào. Không mang tầng: lượt lưu
+ * gửi mọi tầng có thứ bị đổi (B-V8-41), không phải tầng đang xem.
+ */
 export interface PropertyInspectorSaveTarget {
   readonly projectId: string;
-  readonly floorId: LevelId;
 }
 
 /** Mỗi phương thức là một việc panel cần từ bên ngoài, và không có việc nào khác. */
@@ -677,7 +678,8 @@ export interface PropertyInspectorGateway {
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: PropertyInspectorGraphPort;
   /**
-   * Gửi lớp không gian của tầng đang mở lên máy chủ — lượt lưu THẬT của A7.
+   * Gửi lớp không gian của mọi tầng có thứ bị đổi lên máy chủ, mỗi tầng một PUT —
+   * lượt lưu THẬT của A7. Trả danh sách tầng đã gửi.
    *
    * Nhận đồ thị chứ không tự đọc kho: nơi gọi là `useAutosave`, và chính nó đã
    * cầm ảnh chụp `state.spatial` của đúng lượt lưu này. Cổng tự đọc lại sẽ là
@@ -685,12 +687,12 @@ export interface PropertyInspectorGateway {
    */
   readonly persistProperties: (
     graph: NormalizedSpatial,
-  ) => Promise<PropertyInspectorCapabilityResult<SpatialLayer>>;
+  ) => Promise<PropertyInspectorCapabilityResult<readonly LevelId[]>>;
   /** Lưu bộ thuộc tính của đối tượng này thành một khuôn mẫu của dự án. */
   readonly copyAsTemplate: (
     entity: InspectableEntity,
   ) => Promise<PropertyInspectorCapabilityResult<PropertyTemplate>>;
-  /** Dự án và tầng lượt ghi đi tới, đọc ĐỒNG BỘ; `null` khi chưa mở đủ. */
+  /** Dự án lượt ghi đi tới, đọc ĐỒNG BỘ; `null` khi chưa mở dự án. */
   readonly saveTarget: () => PropertyInspectorSaveTarget | null;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
   readonly actorId: string;
@@ -709,24 +711,24 @@ export interface CreatePropertyInspectorGatewayOptions {
    */
   readonly apiClient?: ApiClient;
   /**
-   * Dự án và tầng lượt ghi đi tới. Vắng mặt thì đọc `projectSlice` của store.
+   * Dự án lượt ghi đi tới. Vắng mặt thì đọc `projectSlice` của store.
    *
-   * Là một HÀM chứ không phải một giá trị: người dùng đổi tầng giữa hai lượt
-   * tự lưu, và một cổng dựng đúng một lần (`useMemo` của hook) sẽ giữ mãi cái
-   * tầng đang mở lúc panel gắn.
+   * Là một HÀM chứ không phải một giá trị: cổng dựng đúng một lần (`useMemo` của
+   * hook), còn dự án có thể mở sau lúc panel gắn.
    */
   readonly target?: () => PropertyInspectorSaveTarget | null;
+  /**
+   * Hai đầu lịch sử hoàn tác — mốc so khi cổng chưa lưu lượt nào. Vắng mặt thì đọc
+   * `useStore.temporal`: đầu cũ nhất của `pastStates` và đầu gần nhất của `futureStates`.
+   */
+  readonly historyEnds?: () => readonly NormalizedSpatial[];
 }
 
-/** Dự án và tầng đang mở, đọc thẳng store. `null` khi thiếu một trong hai. */
+/** Dự án đang mở, đọc thẳng store. `null` khi chưa mở dự án. */
 function storeSaveTarget(): PropertyInspectorSaveTarget | null {
-  const state = useStore.getState();
-  const projectId = state.project?.id;
-  const floorId = state.activeFloorId;
+  const projectId = useStore.getState().project?.id;
 
-  return projectId === undefined || projectId === '' || floorId === null
-    ? null
-    : { floorId, projectId };
+  return projectId === undefined || projectId === '' ? null : { projectId };
 }
 
 /** Cổng thật — đọc store, ghi qua `dispatch`, lưu qua `src/api`. */
@@ -736,25 +738,12 @@ export function createPropertyInspectorGateway(
   const graph = options.graph ?? { read: (): NormalizedSpatial | null => null };
   const apiClient = options.apiClient ?? createAppApiClient();
   const saveTarget = options.target ?? storeSaveTarget;
-  /**
-   * `revision` của lượt ghi gần nhất theo tầng — `baseVersion` của lượt sau (#35 là
-   * `PUT` có version, B-G-07). Lượt đầu chưa có thì đọc N16 một lần.
-   * ponytail: lượt đầu lấy revision MỚI NHẤT nên không thấy một lượt sửa của người
-   * khác xảy ra trước nó; muốn chặn cả lượt ấy thì cổng phải giữ revision của lượt
-   * đọc mà panel dựa vào — việc của đường nạp thật cho vỏ 3D.
-   */
-  const revisions = new Map<string, number>();
-  const baseVersionOf = async (target: PropertyInspectorSaveTarget): Promise<number | null> => {
-    const known = revisions.get(target.floorId);
-
-    if (known !== undefined) {
-      return known;
-    }
-
-    const read = await apiClient.spatial.readLayer({ floorId: target.floorId, projectId: target.projectId });
-
-    return read.ok ? read.data.revision : null;
-  };
+  /* Mốc so và `revision` theo tầng sống trong cổng — tức trong panel. Trên `/3d` màn tự
+   * lưu bằng một bộ dựng một lần cho cả màn (`useViewer3DSave`, B-V8-60). */
+  const saveChangedFloors = createChangedFloorsSave(
+    apiClient.spatial,
+    options.historyEnds ?? (() => historyEndsOf(useStore.temporal.getState())),
+  );
 
   return {
     supports: {
@@ -773,31 +762,19 @@ export function createPropertyInspectorGateway(
         return { ok: false, reason: NO_SAVE_TARGET_REASON };
       }
 
-      const baseVersion = await baseVersionOf(target);
+      try {
+        return { data: await saveChangedFloors(current, target.projectId), ok: true };
+      } catch (error) {
+        const cause = (error as { cause?: { kind?: string } }).cause;
 
-      if (baseVersion === null) {
-        return { ok: false, reason: persistFailedReason('read') };
+        return { cause, ok: false, reason: persistFailedReason(cause?.kind ?? 'unknown') };
       }
-
-      const result = await apiClient.spatial.writeLayer({
-        baseVersion,
-        body: spatialLayerOf(current, target.floorId),
-        floorId: target.floorId,
-        projectId: target.projectId,
-      });
-
-      if (!result.ok) {
-        return { ok: false, reason: persistFailedReason(result.error.kind) };
-      }
-
-      revisions.set(target.floorId, result.data.revision);
-
-      return { data: result.data.layer, ok: true };
     },
     copyAsTemplate: async (entity) => {
       const target = saveTarget();
       const draft = propertyTemplateDraftOf(entity);
 
+      /* `draft` null là nhánh chết: cùng bốn phép `isEntityOfKind` của `toInspectableEntity`. */
       if (target === null || draft === null) {
         return { ok: false, reason: NO_SAVE_TARGET_REASON };
       }

@@ -76,7 +76,14 @@ test('Esc khi bảng phụ, chế độ sửa hình học và vùng chọn cùng
   const editor = editorRegion(page);
   await expect(editor).toBeVisible();
   await expect(editor.getByText(/^Đang sửa: W-/u)).toBeVisible();
-  await expect(editor.getByText('Chưa có đỉnh nào để sửa.')).toBeVisible();
+  /* Tường của nhà mẫu không có trong kho: nói đúng điều đó, không nói "chưa có đỉnh"
+     trên một bức tường đang nhìn thấy (B-V8-63 b). */
+  await expect(
+    editor.getByText('Bức tường đang chọn không có trong dữ liệu của dự án này nên chưa sửa được hình học.', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(editor.getByText('Chưa có đỉnh nào để sửa.')).toHaveCount(0);
   await expect(editor.getByRole('toolbar').getByRole('button')).toHaveCount(6);
   await expect(page.getByRole('button', { name: EXIT_LABEL })).toHaveAttribute('aria-pressed', 'true');
   await expect(historyToggle).toHaveAttribute('aria-expanded', 'true');

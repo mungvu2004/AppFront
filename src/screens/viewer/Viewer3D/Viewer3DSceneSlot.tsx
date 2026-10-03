@@ -53,6 +53,8 @@ export interface Viewer3DSceneSlotProps {
   readonly onCloseSearch: () => void;
   /** Chế độ sửa hình học tường đang bật — lớp phủ của nó vẽ đè lên khung nhìn. */
   readonly isWallEditing: boolean;
+  /** Tường đầu tiên trong vùng chọn — container chốt, cùng tiêu chí nút vào chế độ (B-V8-63). */
+  readonly wallId: string | null;
   readonly onExitWallEditMode: () => void;
 }
 
@@ -104,7 +106,7 @@ export function Viewer3DSceneSlot(props: Viewer3DSceneSlotProps) {
         isWallEditing={props.isWallEditing}
         onExitWallEditMode={props.onExitWallEditMode}
         selectedWallIds={props.frame.selectedEntityIds}
-        wallId={props.frame.selectedEntityIds[0] ?? null}
+        wallId={props.wallId}
       />
     </div>
   );

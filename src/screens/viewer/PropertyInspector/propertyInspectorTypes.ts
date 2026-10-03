@@ -515,6 +515,11 @@ export interface UsePropertyInspectorOptions {
   readonly onOpenRuleScreen: (entityId: string) => void;
   /** Callback ra ngoài — hook gọi khi panel cần đóng (nút đóng, Esc, A12). */
   readonly onDismiss: () => void;
+  /**
+   * Nhãn tự lưu của màn chủ, khi màn ấy tự lưu (`/3d`, B-V8-60). Vắng mặt thì panel tự
+   * lưu bằng cổng của nó.
+   */
+  readonly saveLabel?: string | null;
 }
 
 /**
@@ -530,4 +535,6 @@ export interface PropertyInspectorContainerProps {
   readonly onDismiss: () => void;
   readonly onNavigateToObject: (entityId: string) => void;
   readonly onOpenRuleScreen: (entityId: string) => void;
+  /** Nhãn tự lưu của màn chủ — xem `UsePropertyInspectorOptions.saveLabel`. */
+  readonly saveLabel?: string | null;
 }

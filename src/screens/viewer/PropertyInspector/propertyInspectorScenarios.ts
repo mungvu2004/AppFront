@@ -312,7 +312,7 @@ function contentOf(seeds: readonly RowSeed[], selectionCount: number): PropertyI
       onApprove: noop,
       onSkip: noop,
       /* Kịch bản tĩnh không có phiên làm việc nào, nên chỉ báo lưu nói ra đúng
-       * điều đó: chưa mở dự án và tầng thì chưa có nơi để gửi lớp không gian tới. */
+       * điều đó: chưa mở dự án thì chưa có nơi để gửi lớp không gian tới. */
       lastEditedCaption: NO_SAVE_TARGET_REASON,
     },
   };

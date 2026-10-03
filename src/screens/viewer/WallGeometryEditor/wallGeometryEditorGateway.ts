@@ -1135,7 +1135,7 @@ export function createWallGeometryEditorGateway(
     ...(options.history === undefined ? {} : { history: options.history }),
   });
 
-  /** Đồ thị và bức tường đang sửa, hoặc câu "chưa có nơi để lưu". */
+  /** Đồ thị và bức tường đang sửa, hoặc câu "bức tường không có trong dữ liệu của dự án". */
   const targetOf = (
     wallId: string,
   ):
@@ -1145,7 +1145,7 @@ export function createWallGeometryEditorGateway(
     const target = readWallTarget(graph, wallId);
 
     if (graph === null || target === null) {
-      return { ok: false, refusal: { explanation: TEXT.refusal.noSaveTarget, offendingEdgeIds: [] } };
+      return { ok: false, refusal: { explanation: TEXT.refusal.wallMissing, offendingEdgeIds: [] } };
     }
 
     return { ok: true, graph, target };
