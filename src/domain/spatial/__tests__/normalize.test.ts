@@ -338,6 +338,11 @@ describe('displayCodeIn', () => {
     expect(displayCodeIn(graph, 'R-000005ROOMABCD')).toBe('#R-005');
   });
 
+  it('gives a missing id with no counter up front back whole, never `#W-MISSIN` (B-V7-42)', () => {
+    expect(displayLabelIn(graph, 'W-MISSING1AA')).toBe('W-MISSING1AA');
+    expect(displayCodeIn(graph, 'W-MISSING1AA')).toBe('#W-MISSING1AA');
+  });
+
   it('gives an id with no known prefix back verbatim, never a cut-up code (B-V7-31)', () => {
     expect(displayCodeIn(graph, 'BUILDING')).toBe('BUILDING');
     expect(displayLabelIn(graph, 'BUILDING')).toBe('BUILDING');

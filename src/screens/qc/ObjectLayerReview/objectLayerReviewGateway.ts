@@ -53,7 +53,7 @@ import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
-import { displayCodesOf } from '@/domain/spatial/ids';
+import { counterLabelOf, displayCodesOf } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -311,7 +311,7 @@ export const isLowConfidenceObject = (confidence: number): boolean =>
  * "#W-014".
  */
 export function hostWallDisplayCode(id: string): string {
-  return displayCodesOf([id]).get(id) ?? id;
+  return counterLabelOf(id);
 }
 
 /** Mã máy suy từ mã hiển thị — khai ở hợp đồng kiểu, xuất lại cho nơi gọi cũ. */

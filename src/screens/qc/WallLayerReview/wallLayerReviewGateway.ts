@@ -47,7 +47,7 @@ import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
-import { createId, displayCodesOf } from '@/domain/spatial/ids';
+import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { measureDistance, type Measurement } from '@/domain/measure/measure';
@@ -282,11 +282,12 @@ const ID_COUNTER_LENGTH = 6;
  * chứ không phải chọn một.
  *
  * Đọc ngược sáu chữ số đếm mà `createId` sinh ra, nên nó đúng cho cả tường của
- * bộ mẫu lẫn tường người dùng vừa vẽ — không có bảng tra nào phải giữ đồng bộ.
- * Thuần cắt chuỗi: không một lời gọi hàm hình học hay số học nào.
+ * bộ mẫu lẫn tường người dùng vừa vẽ. Mã không có số đếm đứng đầu (mã BE) trả
+ * NGUYÊN VĂN (`counterLabelOf`) — đánh số nó cần cả danh sách anh em, việc của
+ * `displayCodesOf` (B-V7-81). Thuần cắt chuỗi.
  */
 export function wallDisplayCode(id: string): string {
-  return displayCodesOf([id]).get(id) ?? id;
+  return counterLabelOf(id);
 }
 
 /**

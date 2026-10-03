@@ -77,7 +77,7 @@ import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { measureDistance } from '@/domain/measure/measure';
-import { displayCodesOf, isIdOfKind } from '@/domain/spatial/ids';
+import { counterLabelOf, isIdOfKind } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -235,7 +235,7 @@ const DIMENSION_ID_SUFFIX = 'DIMS';
  * đúng "#M-014".
  */
 export function dimensionDisplayCode(id: string): string {
-  return displayCodesOf([id]).get(id) ?? id;
+  return counterLabelOf(id);
 }
 
 /**

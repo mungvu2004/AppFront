@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  counterLabelOf,
   createId,
   displayCodesOf,
   type EntityKind,
@@ -243,5 +244,24 @@ describe('displayCodesOf', () => {
 
   it('returns an empty map for an empty list', () => {
     expect(displayCodesOf([]).size).toBe(0);
+  });
+
+  it('numbers a lone BE id or a lone A14 axis by ordinal, never by its first six chars (B-V7-42)', () => {
+    expect(displayCodesOf([`W-03${'A'.repeat(23)}`]).get(`W-03${'A'.repeat(23)}`)).toBe('W-001');
+    expect(displayCodesOf(['A-AXIS0000000']).get('A-AXIS0000000')).toBe('A-001');
+  });
+});
+
+describe('counterLabelOf', () => {
+  it('reads the counter of a counter-led id, up to the 16-char body edge', () => {
+    expect(counterLabelOf('W-000014WALL')).toBe('W-014');
+    expect(counterLabelOf('W-00000ZABCDEFGHIJ')).toBe('W-00Z');
+    expect(counterLabelOf('W-0403FIXTURE0')).toBe('W-403FI');
+  });
+
+  it('gives any other id back verbatim rather than a cut-up code (B-V7-42)', () => {
+    for (const id of ['W-MISSING1AA', `W-03${'A'.repeat(23)}`, 'M-DIMN0000010', `W-0${'A'.repeat(16)}`]) {
+      expect(counterLabelOf(id)).toBe(id);
+    }
   });
 });

@@ -50,7 +50,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { displayCodesOf } from '@/domain/spatial/ids';
+import { counterLabelOf } from '@/domain/spatial/ids';
 import { useShortcut } from '@/hooks/useShortcut';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys, type QueryKey } from '@/lib/query/queryKeys';
@@ -626,7 +626,7 @@ export function useWallGeometryEditor(
   // đúng đường `displayLabelIn` đi với một mã đồ thị không giữ — không rơi về mã máy, để
   // dải và thanh tra vỏ gọi bức tường bằng cùng một mã (B-V8-05).
   const wallCode =
-    wallId === null ? '' : (wallCodes.get(wallId) ?? displayCodesOf([wallId]).get(wallId) ?? wallId);
+    wallId === null ? '' : (wallCodes.get(wallId) ?? counterLabelOf(wallId));
 
   const onRemoveVertex = useCallback((): void => {
     if (wallId === null || selectedVertexId === null || !isEditable) {
