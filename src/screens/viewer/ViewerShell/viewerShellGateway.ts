@@ -310,7 +310,17 @@ export function shouldUseViewerFixture(input: {
   readonly storeSpatial: NormalizedSpatial | null;
   readonly useMock: boolean;
 }): boolean {
-  return input.useMock && !input.hasInjectedSpatial && input.storeSpatial === null;
+  /*
+   * ponytail: đồ thị 0 tường cũng tính là rỗng — cổng nạp kho (B-V12-01) nạp bốn tầng
+   * CHƯA có hình của mock, và đó là vĩnh viễn ở mock vì mock không trả nhà. Nhà mẫu chỉ
+   * vào vỏ và cảnh, không vào kho: panel đọc kho vẫn thấy kho thật. Nâng cấp: bỏ vế
+   * `wall.length === 0` khi mock N16 trả hình cho dự án mẫu.
+   */
+  return (
+    input.useMock &&
+    !input.hasInjectedSpatial &&
+    (input.storeSpatial === null || input.storeSpatial.byKind.wall.length === 0)
+  );
 }
 
 /**

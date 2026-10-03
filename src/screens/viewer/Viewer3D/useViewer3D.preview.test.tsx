@@ -20,6 +20,7 @@ import type { Wall } from '@/domain/spatial/types';
 import { renderWithProviders } from '@/lib/testing/render';
 import { discardPreview, previewEdit } from '@/store/commit';
 import { useStore } from '@/store';
+import { createViewerShellFixtureGateway, VIEWER_FIXTURE_SPATIAL } from '@/screens/viewer/ViewerShell';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { useViewer3D } from './useViewer3D';
@@ -262,5 +263,42 @@ describe('[U7] useViewer3D — người tiêu thụ bản nháp', () => {
     });
 
     unmount();
+  });
+});
+
+describe('useViewer3D — cổng nạp kho đang nạp (B-V8-04)', () => {
+  /** Cổng có dữ liệu: tên dự án trả ngay, để `loading` chỉ còn do cờ của kho. */
+  const GATEWAY = createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL);
+
+  /** Ghi lại trạng thái mà hook trả về ở lượt vẽ cuối. */
+  function StateProbe({ onState }: { readonly onState: (state: string) => void }): null {
+    onState(useViewer3D({ projectId: 'P-000000001', canvas: null, frame: FRAME, gateway: GATEWAY }).state);
+
+    return null;
+  }
+
+  it('`spatialLoading` bật thì màn ở `loading`, tắt thì rời `loading`', async () => {
+    const states: string[] = [];
+
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), 'v-test');
+      useStore.getState().setSpatialLoading(true);
+    });
+
+    try {
+      renderWithProviders(<StateProbe onState={(state) => states.push(state)} />, { keepStore: true });
+      expect(states.at(-1)).toBe('loading');
+
+      act(() => {
+        useStore.getState().setSpatialLoading(false);
+      });
+      await waitFor(() => {
+        expect(states.at(-1)).not.toBe('loading');
+      });
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
   });
 });

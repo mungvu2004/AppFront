@@ -18,7 +18,8 @@
  *    lần. Không chỗ nào trong màn cộng tay hai con số đã làm tròn.
  * 3. **Bảy trạng thái suy ra từ dữ liệu thật** — {@link deriveRoomAreaScreenState},
  *    một hàm thuần kiểm được không cần dựng hook. Không một `useState` nào
- *    đứng thay cho "đang tải": `state.spatial === null` đã là sự thật đó.
+ *    đứng thay cho "đang tải": kho chưa có đồ thị, hoặc cổng nạp kho đang nạp
+ *    (`state.spatialLoading`, B-V8-04), đã là sự thật đó.
  * 4. **Đổi tên đi qua lệnh nghiệp vụ, không qua một đường ghi tắt.**
  *    `createRenameRoomCommand` (S-07) dựng lệnh, `dispatch` chạy đủ năm bước,
  *    và bước "apply" của nó gọi `commit(patches, label)` — A10 giữ nguyên, và
@@ -211,6 +212,7 @@ export function useRoomAreaPanel(options: UseRoomAreaPanelOptions): RoomAreaPane
   /* ---- Đọc kho ----------------------------------------------------------- */
 
   const spatial = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const entries = useStore(selectRoomsWithArea);
   const storeTotalM2 = useStore(selectTotalAreaM2);
   const storeFloorId = useStore((state) => state.activeFloorId);
@@ -280,7 +282,7 @@ export function useRoomAreaPanel(options: UseRoomAreaPanelOptions): RoomAreaPane
   const derivedState = deriveRoomAreaScreenState({
     isViewerRole: roles !== undefined && !canEdit,
     hasWriteFailure: writeFailure !== null,
-    spatialLoaded: spatial !== null,
+    spatialLoaded: spatial !== null && !spatialLoading,
     isCollapsed: options.isCollapsed === true,
     visibleRoomCount: visibleEntries.length,
     unnamedCount,

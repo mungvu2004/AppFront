@@ -435,6 +435,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   );
 
   const storeSpatial = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const spatial = options.spatial !== undefined ? options.spatial : storeSpatial;
 
   const projectQuery = useQuery({
@@ -580,7 +581,8 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       return 'error';
     }
 
-    if (projectQuery.isLoading) {
+    /* Cổng nạp kho đang nạp (B-V8-04): chưa có gì để nói "rỗng". */
+    if (projectQuery.isLoading || spatialLoading) {
       return 'loading';
     }
 
@@ -589,7 +591,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     }
 
     return data.isPartial ? 'partial' : 'success';
-  }, [forceState, canEdit, roles, projectQuery.isError, projectQuery.isLoading, data]);
+  }, [forceState, canEdit, roles, projectQuery.isError, projectQuery.isLoading, spatialLoading, data]);
 
   /* ---- Tầng -------------------------------------------------------------- */
 

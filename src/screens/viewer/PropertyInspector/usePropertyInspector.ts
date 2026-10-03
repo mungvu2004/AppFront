@@ -1015,6 +1015,7 @@ export function usePropertyInspector(
   injectedGateway?: PropertyInspectorGateway,
 ): UsePropertyInspectorResult {
   const graph = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const activeFloorId = useStore((state) => state.activeFloorId);
   const isPanelOpen = useStore((state) => state.rightPanelOpen);
   const setPanelOpen = useStore((state) => state.setPanelOpen);
@@ -1650,7 +1651,7 @@ export function usePropertyInspector(
     hasSelection: primaryId !== null || options.selectedEntityIds.length > 0,
     isMultiple,
     isPanelCollapsed: !isPanelOpen,
-    isPending: spatialQuery.isPending || graph === null,
+    isPending: spatialQuery.isPending || graph === null || spatialLoading,
   });
 
   /* Lượt đọc lớp không gian hỏng: nói ra ngay tại dòng đầu tiên, và nút "Thử

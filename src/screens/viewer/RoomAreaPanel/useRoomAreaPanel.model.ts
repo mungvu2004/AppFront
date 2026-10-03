@@ -547,9 +547,9 @@ export function buildTotals(input: {
  * bảng rỗng thì thứ cần nói vẫn là "chưa có phòng nào".
  *
  * KHÔNG có `useState` nào cho việc đang tải: `spatialLoaded` là "kho đã có đồ
- * thị chưa", một sự thật đọc thẳng từ `state.spatial`. Phòng không tới từ mạng
- * (không endpoint nào trả về chúng — PQ-3), nên không có trạng thái máy chủ để
- * cắm vào `lib/query`, và cũng không có gì để giả vờ bằng một cờ tự giữ.
+ * thị và cổng nạp kho không còn đang nạp" — đọc thẳng `state.spatial` và
+ * `state.spatialLoading` (B-V8-04). Lượt nạp là của cổng `ProjectSpatialGate`,
+ * không phải của panel, nên panel không tự giữ cờ nào.
  */
 export function deriveRoomAreaScreenState(input: {
   readonly isViewerRole: boolean;

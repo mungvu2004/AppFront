@@ -12,7 +12,8 @@ import { ROUTE_PATTERNS } from '../fixtures/routes';
 import { signInAs, type Role } from '../fixtures/session';
 
 /** Dự án nào cũng được: vỏ đọc bộ mẫu, không đọc mã dự án. */
-export const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', 'P-01');
+export const VIEWER_PROJECT_ID = 'P-01';
+export const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', VIEWER_PROJECT_ID);
 
 /** Tải route + dựng mô hình bộ mẫu tốn bao lâu là cùng (đo ở `viewer3d.spec.ts`). */
 const VIEWER_READY_TIMEOUT_MS = 20_000;

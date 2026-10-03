@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 
 import { seedSpatial } from '../fixtures/seedSpatial';
 import {
+  VIEWER_PROJECT_ID,
   dismissTourIfPresent,
   openViewer,
   selectRoomBySearch,
@@ -27,7 +28,13 @@ const PANEL_SETTLE_TIMEOUT_MS = 8_000;
 /* Diện tích phòng.                                                            */
 /* -------------------------------------------------------------------------- */
 
-test('bảng diện tích mở ra có vùng tên rõ và nói ra trạng thái của nó, không trắng (chưa bơm kho)', async ({
+/*
+ * B-V8-04 (đã sửa) — ca mồi Q1 của /3d: KHÔNG bơm. Trước bản sửa, panel đọc một kho
+ * không ai nạp và kẹt "Đang tính diện tích…" (`aria-busy`) mãi. Nay cổng nạp kho của
+ * route nạp dự án; mock trả bốn tầng chưa có phòng nên bảng nói ra trạng thái của nó
+ * (heading) thay vì đang tải mãi.
+ */
+test('chưa bơm kho: bảng diện tích không kẹt "đang tính" — cổng nạp kho xong thì bảng nói ra trạng thái của nó (B-V8-04)', async ({
   page,
 }) => {
   await openViewer(page);
@@ -35,18 +42,16 @@ test('bảng diện tích mở ra có vùng tên rõ và nói ra trạng thái c
 
   const panel = page.getByRole('region', { name: 'Bảng diện tích phòng' });
   await expect(panel).toBeVisible();
-  /* Hoặc đang tính (hôm nay), hoặc đã có tổng (khi B-V8-04 được chữa): cả hai đều
-     là một trạng thái nói ra được, không phải một khung rỗng. */
+  await expect(panel.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: PANEL_SETTLE_TIMEOUT_MS });
   await expect(
-    panel.getByLabel('Đang tính diện tích…').or(panel.getByText('Tổng diện tích sàn toàn nhà', { exact: false })),
-  ).toHaveCount(1);
+    panel.getByRole('heading').or(panel.getByText('Tổng diện tích sàn toàn nhà', { exact: false })).first(),
+  ).toBeVisible();
 });
 
 /*
- * B-V8-04 — panel đọc `store.spatial`, mà màn 3D chỉ tiêm bộ mẫu vào vỏ + cảnh,
- * không vào kho: bảng kẹt "Đang tính diện tích…" mãi.
- * Mở lại khi: `projectViewer` có đường nạp kho thật (Q1 của `questions.md`) — lúc ấy
- * đổi `test.fixme` thành `test`.
+ * Hai bài dưới cần một PHÒNG trong kho nạp thật: mock nạp bốn tầng chưa có hình, và nhà
+ * mẫu chỉ vào vỏ + cảnh, không vào kho (`shouldUseViewerFixture`, B-V8-10).
+ * Mở lại khi: kho được nạp (không bơm) có ít nhất một phòng — mock N16 trả hình cho dự án.
  */
 test.fixme('chưa bơm kho: bảng diện tích vẫn ra tổng diện tích sàn (B-V8-04)', async ({ page }) => {
   await openViewer(page);
@@ -58,7 +63,7 @@ test.fixme('chưa bơm kho: bảng diện tích vẫn ra tổng diện tích sà
   });
 });
 
-/* B-V8-04, nửa panel thuộc tính — cùng gốc, cùng điều kiện mở lại. */
+/* Nửa panel thuộc tính — cùng điều kiện mở lại. */
 test.fixme('chưa bơm kho: chọn một phòng thì panel thuộc tính ra thuộc tính, không kẹt "Đang tải" (B-V8-04)', async ({
   page,
 }) => {
@@ -85,7 +90,7 @@ test('BƠM KHO: bảng diện tích ra tổng, đủ 14 phòng, bốn tầng, s�
   page,
 }) => {
   await openViewer(page);
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: VIEWER_PROJECT_ID });
   /* Kho đổi thì màn dựng lại, và lớp hướng dẫn có thể hiện ngay sau đó. */
   await dismissTourIfPresent(page);
   await openPanel(page, 'Diện tích phòng');
@@ -104,7 +109,7 @@ test('BƠM KHO: bảng diện tích ra tổng, đủ 14 phòng, bốn tầng, s�
  */
 test('BƠM KHO: kho đổi thì cảnh 3D dựng lại được trên cùng khung nhìn (B-V8-12)', async ({ page }) => {
   await openViewer(page);
-  await seedSpatial(page);
+  await seedSpatial(page, { projectId: VIEWER_PROJECT_ID });
 
   /* Vỏ thôi dùng bộ mẫu của nó (tên "Tầng trệt") khi kho có đồ thị — mốc dương cho
      "lượt dựng lại đã bắt đầu", không ghim con số nào của bộ mẫu chuẩn. */

@@ -31,25 +31,11 @@
  *
  * ## MỘT nguồn dữ liệu, không phải hai
  *
- * Trước đây vỏ và màn nội dung nhìn hai đồ thị khác nhau: `useViewerShell` mặc
- * định dùng cổng BỘ MẪU (`useViewerShell.ts:345-346`) nên thanh trạng thái hiện
- * "4 tầng · 14 phòng · 248,60 m²", còn `useViewer3D` mặc định đọc KHO — thứ ở
- * môi trường dev vẫn là `null`, vì bảy màn QC nạp kho đều đọc vòng tròn lại
- * chính nó. Kết quả: vỏ có 14 phòng, cảnh không có phòng nào, và không có phòng
- * nào để tìm.
- *
- * Container chốt đồ thị MỘT LẦN ở đây rồi tiêm cùng giá trị ấy vào cả hai qua
- * hai chỗ tiêm đã có sẵn (`ViewerShellContainerProps.gateway` và `.spatial`):
- *
- * - kho có đồ thị thật → đó là nguồn, và cổng là cổng THẬT;
- * - kho rỗng VÀ ở chế độ mock (`resolveUseMockApi()`) → dùng ĐÚNG bộ mẫu
- *   (`VIEWER_FIXTURE_SPATIAL`); nối BE thật thì kho rỗng vẫn là kho rỗng.
- *
- * **Đây là đường TẠM.** Nó ở đây vì chưa endpoint nào trả về `NormalizedSpatial`
- * — `data-gateway-contract.md` mục A ghi rõ khoảng trống ấy, và `FloorSchema`
- * không mang phòng. Ngày có endpoint thật, nhánh bộ mẫu này bị xoá và
- * `createViewerShellGateway` là nhánh duy nhất còn lại. Không ai được lấp chỗ
- * đó bằng một lượt gọi mạng tự chế (R-69).
+ * Container chốt đồ thị MỘT LẦN (`useViewer3DSource`) rồi tiêm cùng giá trị vào
+ * vỏ (`gateway`) và màn (`spatial`), để thanh trạng thái và cảnh không lệch nhau.
+ * Kho được cổng `ProjectSpatialGate` nạp theo dự án (B-V12-01, B-V8-04); kho chưa
+ * có tường VÀ đang ở mock thì vỏ và cảnh dùng bộ mẫu vỏ (`shouldUseViewerFixture`),
+ * còn panel đọc kho — nối BE thật thì kho rỗng vẫn là kho rỗng.
  *
  * ## Vai người dùng vẫn chưa chảy tới màn — hệ quả, đã đo
  *
@@ -145,6 +131,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -422,5 +409,9 @@ export function Viewer3DRoute() {
     );
   }
 
-  return <Viewer3DContainer projectId={id} roles={session.roles} />;
+  return (
+    <ProjectSpatialGate projectId={id}>
+      <Viewer3DContainer projectId={id} roles={session.roles} />
+    </ProjectSpatialGate>
+  );
 }

@@ -373,6 +373,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   /* ---- Kho: đọc một lần ------------------------------------------------- */
 
   const storeSpatial = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const draftGraph = useStore(selectDraftPreviewGraph);
   const draftEntityIds = useStore(selectDraftEntityIds);
   const selectedIds = useStore((state) => state.selectedIds);
@@ -657,7 +658,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     if (!canEdit && roles !== undefined) {
       return 'forbidden';
     }
-    if (projectQuery.isLoading || sceneStatus.phase === 'building') {
+    if (projectQuery.isLoading || spatialLoading || sceneStatus.phase === 'building') {
       return 'loading';
     }
     if (data.storeys.length === 0) {
@@ -673,6 +674,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     buildFailed,
     projectQuery.isError,
     projectQuery.isLoading,
+    spatialLoading,
     canEdit,
     roles,
     sceneStatus.phase,

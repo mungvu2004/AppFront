@@ -13,11 +13,14 @@
  * `renderWithProviders` cấp đúng hai thứ ấy.
  */
 
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
+import { useStore } from '@/store';
 
 import {
   Viewer3DPanels,
@@ -199,6 +202,32 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
     await waitFor(() => {
       expect(screen.getByRole('region', { name: /diện tích phòng/i })).toBeInTheDocument();
     }, LAZY_WAIT);
+  });
+
+  it('cổng nạp kho đang nạp thì bảng diện tích ở "đang tải"; nạp xong thì rời trạng thái ấy (B-V8-04)', async () => {
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+      useStore.getState().setSpatialLoading(true);
+    });
+
+    try {
+      renderWithProviders(<StatefulPanels />, { keepStore: true });
+      fireEvent.click(screen.getByRole('button', { name: VIEWER_3D_ROOMS_PANEL_LABEL }));
+
+      const busy = await screen.findByLabelText('Đang tính diện tích…', {}, LAZY_WAIT);
+      expect(busy).toHaveAttribute('aria-busy', 'true');
+
+      act(() => {
+        useStore.getState().setSpatialLoading(false);
+      });
+      await waitFor(() => {
+        expect(screen.queryByLabelText('Đang tính diện tích…')).toBeNull();
+      });
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
   });
 
   it('bấm "Thư viện đồ đạc" thì thư viện nội thất hiện ra', async () => {
