@@ -577,13 +577,12 @@ export type PropertyInspectorCapabilityResult<TValue> =
  *
  * Cả hai khả năng dưới đây nay đã có đủ endpoint (lỗ hổng #4 và #5, U4). Thứ
  * còn thiếu được là ngữ cảnh của phiên làm việc: chưa mở dự án nào thì không
- * có `projectId` để gửi tới, và chưa chọn tầng nào thì không biết lấy lớp
- * không gian của tầng nào. Câu chữ nói rõ đó là việc người dùng làm tiếp được,
+ * có `projectId` để gửi tới. Câu chữ nói rõ đó là việc người dùng làm tiếp được,
  * không phải một lỗi của bản vẽ — panel hiện nó ở nhóm "Kiểm tra", nơi vốn
  * dành cho vi phạm quy tắc.
  */
 export const NO_SAVE_TARGET_REASON =
-  'Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.';
+  'Chưa mở dự án nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.';
 
 /** Câu nói ra khi máy chủ từ chối lượt lưu lớp không gian. */
 export const persistFailedReason = (kind: string): string =>
@@ -796,6 +795,7 @@ export function createPropertyInspectorGateway(
       const target = saveTarget();
       const draft = propertyTemplateDraftOf(entity);
 
+      /* `draft` null là nhánh chết: cùng bốn phép `isEntityOfKind` của `toInspectableEntity`. */
       if (target === null || draft === null) {
         return { ok: false, reason: NO_SAVE_TARGET_REASON };
       }

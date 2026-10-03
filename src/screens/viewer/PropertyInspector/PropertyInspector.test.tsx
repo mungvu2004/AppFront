@@ -45,6 +45,7 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/client';
 import { displayCodeIn, displayLabelIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import {
+  sampleAxisId,
   sampleDoorId,
   sampleFurnitureId,
   sampleLevelId,
@@ -556,6 +557,45 @@ describe('[N4] ba bức tường lệch độ dày', () => {
 /* -------------------------------------------------------------------------- */
 /* [N3] Bố cục không nhảy khi đổi loại đối tượng.                              */
 /* -------------------------------------------------------------------------- */
+
+describe('[B-V8-42] ba ca rỗng nói ba câu khác nhau', () => {
+  const MISSING_ID = 'W-KHONG-CO';
+
+  beforeEach(() => {
+    seedStore(createCleanBuildingScenario().graph);
+  });
+
+  const renderEmpty = async (selectedIds: readonly string[], message: string) => {
+    const view = render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <WiredInspector selectedEntityId={selectedIds[0] ?? null} selectedEntityIds={selectedIds} />
+      </QueryClientProvider>,
+    );
+
+    await view.findByText(message);
+
+    return view;
+  };
+
+  it('chọn thứ không có trong kho: nói nó không có trong dữ liệu dự án, không nói "chưa chọn"', async () => {
+    const view = await renderEmpty([MISSING_ID], PROPERTY_INSPECTOR_TEXT.empty.missing);
+
+    expect(view.queryAllByText(/^Chưa chọn đối tượng nào/u)).toHaveLength(0);
+    expectVietnamese(view.container);
+  });
+
+  it('chỉ chọn trục: nói trục chưa có bảng thuộc tính', async () => {
+    await renderEmpty([sampleAxisId(0)], PROPERTY_INSPECTOR_TEXT.empty.unsupported);
+  });
+
+  it('trục cộng một id không có trong kho: vẫn là "không có trong dữ liệu" — phép every, không phải some', async () => {
+    await renderEmpty([sampleAxisId(0), MISSING_ID], PROPERTY_INSPECTOR_TEXT.empty.missing);
+  });
+
+  it('không chọn gì: vẫn là câu "chưa chọn"', async () => {
+    await renderEmpty([], PROPERTY_INSPECTOR_TEXT.empty.message);
+  });
+});
 
 describe('[N10] đầu panel gọi tường bằng mã người đọc (B-V8-05)', () => {
   beforeEach(() => {

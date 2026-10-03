@@ -818,6 +818,20 @@ describe('[N6] chip đối chiếu bản vẽ gốc', () => {
 /* [R] Luật màn hình — một thẻ mở được lớp phủ, và Esc phân lớp.               */
 /* -------------------------------------------------------------------------- */
 
+describe('[B-V8-42] tường không có trong kho', () => {
+  it('lượt ghi nói bức tường không có trong dữ liệu dự án, không nói "chưa mở dự án"', async () => {
+    const gateway = createWallGeometryEditorGateway({ history: createHistoryStack() });
+
+    const result = await gateway.commitVertexMove({
+      toMm: { xMm: 0, yMm: 0 },
+      vertexId: 'V-0',
+      wallId: 'W-KHONG-CO',
+    });
+
+    expect(result.ok ? null : result.refusal.explanation).toBe(TEXT.refusal.wallMissing);
+  });
+});
+
 describe('[R] luật màn hình', () => {
   it('[R-73] container mở được lớp phủ bằng ĐÚNG MỘT thẻ, không một dòng logic nào thêm', async () => {
     const { container, findByText } = render(

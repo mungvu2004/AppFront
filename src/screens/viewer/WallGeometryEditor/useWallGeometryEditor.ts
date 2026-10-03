@@ -304,8 +304,8 @@ function modifierNoticeOf(modifiers: ModifierState): string | null {
 function readErrorExplanation(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : '';
 
-  /* Không có câu nào của tầng dưới thì nói đúng thứ đang thiếu: chỗ để đọc và để lưu. */
-  return message === '' ? TEXT.refusal.noSaveTarget : message;
+  /* Không có câu nào của tầng dưới thì nói đúng việc vừa hỏng: lượt đọc. */
+  return message === '' ? TEXT.refusal.readFailed : message;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1154,7 +1154,14 @@ export function useWallGeometryEditor(
           x: TEXT.vertexTable.columnX,
           y: TEXT.vertexTable.columnY,
         },
-        emptyMessage: vertexRows.length === 0 ? TEXT.vertexTable.empty : null,
+        /* Tường không có trong kho (nhà mẫu của mock) thì nói đúng điều đó, không nói
+         * "chưa có đỉnh" trên một bức tường đang nhìn thấy (B-V8-63). */
+        emptyMessage:
+          vertexRows.length === 0
+            ? target === null
+              ? TEXT.refusal.wallMissing
+              : TEXT.vertexTable.empty
+            : null,
         rows: vertexRows,
       },
     }),
@@ -1171,6 +1178,7 @@ export function useWallGeometryEditor(
       onExitEditMode,
       returningHandleId,
       snapKinds,
+      target,
       toolButtons,
       totalLengthMm,
       vertexRows,

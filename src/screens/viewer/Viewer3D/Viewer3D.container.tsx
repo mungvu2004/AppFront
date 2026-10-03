@@ -298,7 +298,8 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
      nhất đọc được lúc chạy (`domain/spatial/normalize.ts:60-64`). Vùng chọn
      đổi sang thứ khác thì chế độ tự đóng — không có nhánh nào để lại một lớp
      phủ sửa tường lơ lửng trên một cái ghế. */
-  const canEditWallGeometry = selectedIds.some((entityId) => isIdOfKind('wall', entityId));
+  const editedWallId = selectedIds.find((entityId) => isIdOfKind('wall', entityId)) ?? null;
+  const canEditWallGeometry = editedWallId !== null;
   const isWallEditingNow = isWallEditing && canEditWallGeometry;
 
   const onToggleWallEditing = useCallback((): void => {
@@ -346,10 +347,12 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
         resolvedGateway={resolvedGateway}
         resolvedSpatial={resolvedSpatial}
         sceneActions={actions}
+        wallId={editedWallId}
       />
     ),
     [
       props,
+      editedWallId,
       isSearchOpen,
       isWallEditingNow,
       onCloseSearch,

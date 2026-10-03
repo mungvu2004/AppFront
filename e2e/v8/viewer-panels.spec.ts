@@ -72,13 +72,37 @@ test.fixme('chưa bơm kho: chọn một phòng thì panel thuộc tính ra thu�
 
   const properties = page.getByRole('region', { name: 'Thuộc tính đối tượng', exact: true });
   await expect(properties).toBeVisible();
-  /* Siết trước khi mở lại (B-V8-10): câu "Chưa chọn đối tượng nào" cũng làm bài cũ xanh
-     dù đang có phòng được chọn (N2) — đòi heading "Phòng" của panel. */
+  /* Đòi heading "Phòng" (B-V8-10): từ B-V8-42 panel nói "không có trong dữ liệu của dự
+     án" khi phòng chưa vào kho — bài ngay dưới giữ ca ấy và loại trừ bài này; mở bài
+     này thì xoá bài dưới. */
   await expect(properties.getByRole('heading', { name: 'Phòng', exact: true })).toBeVisible({
     timeout: PANEL_SETTLE_TIMEOUT_MS,
   });
   await expect(properties.getByText('Đang tải thuộc tính…')).toHaveCount(0);
   await expect(properties.getByText(/^Chưa chọn đối tượng nào/u)).toHaveCount(0);
+});
+
+/*
+ * B-V8-42 — phòng của nhà mẫu không có trong kho, và panel từng nói "Chưa chọn đối tượng
+ * nào" dù vừa chọn nó. Loại trừ bài fixme ngay trên (`viewerShellGateway.ts`): mock N16
+ * trả hình thật thì bài này đỏ — xoá nó và mở bài trên.
+ */
+test('chưa bơm kho: chọn phòng của nhà mẫu thì panel nói nó không có trong dữ liệu dự án, không nói "chưa chọn" (B-V8-42)', async ({
+  page,
+}) => {
+  await openViewer(page);
+  await selectRoomBySearch(page, 'phong ngu 4', 'Phòng ngủ 4');
+
+  const properties = page.getByRole('region', { name: 'Thuộc tính đối tượng', exact: true });
+  await expect(
+    properties.getByText(
+      'Đối tượng đang chọn không có trong dữ liệu của dự án này nên chưa xem được thuộc tính.',
+      { exact: true },
+    ),
+  ).toBeVisible({ timeout: PANEL_SETTLE_TIMEOUT_MS });
+  await expect(properties.getByText(/^Chưa chọn đối tượng nào/u)).toHaveCount(0);
+  await expect(properties.getByText('Đang tải thuộc tính…')).toHaveCount(0);
+  await expect(properties.getByRole('heading', { name: 'Phòng', exact: true })).toHaveCount(0);
 });
 
 /*

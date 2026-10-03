@@ -245,6 +245,9 @@ export const PROPERTY_INSPECTOR_TEXT = {
   },
   empty: {
     message: 'Chưa chọn đối tượng nào để xem thuộc tính.',
+    missing: 'Đối tượng đang chọn không có trong dữ liệu của dự án này nên chưa xem được thuộc tính.',
+    unsupported:
+      'Trục, tầng và kích thước chưa có bảng thuộc tính. Bảng này dành cho tường, ô mở, phòng và nội thất.',
     tabHint: 'Nhấn Tab để duyệt vòng qua các đối tượng trên mô hình.',
   },
   partial: {
@@ -1643,12 +1646,14 @@ export function usePropertyInspector(
 
   const hasIncompleteValue = drafts.some((draft) => draft.row.value.kind !== 'single');
 
+  const hasSelection = primaryId !== null || options.selectedEntityIds.length > 0;
+
   const stateName = derivePropertyInspectorState({
     canEdit: options.canEdit,
     hasBlockingRow,
     hasEntity: primaryEntity !== null,
     hasIncompleteValue,
-    hasSelection: primaryId !== null || options.selectedEntityIds.length > 0,
+    hasSelection,
     isMultiple,
     isPanelCollapsed: !isPanelOpen,
     isPending: spatialQuery.isPending || graph === null || spatialLoading,
@@ -1673,6 +1678,15 @@ export function usePropertyInspector(
     }
   }, [hasReadFailed, readFailedRowId, refetchSpatial]);
 
+  /* Ba ca "rỗng" nói ba câu khác nhau (B-V8-42): chưa chọn gì; chọn thứ không có
+   * trong đồ thị (nhà mẫu của mock); hay chỉ chọn loại không có bảng (trục, tầng…). */
+  const selectedIds = [primaryId, ...options.selectedEntityIds].filter((id) => id !== null);
+  const emptyMessage = !hasSelection
+    ? TEXT.empty.message
+    : selectedIds.every((id) => graph?.byId[id] !== undefined)
+      ? TEXT.empty.unsupported
+      : TEXT.empty.missing;
+
   const state = useMemo((): PropertyInspectorState => {
     if (stateName === 'collapsed') {
       return {
@@ -1692,7 +1706,7 @@ export function usePropertyInspector(
     }
 
     if (stateName === 'empty') {
-      return { kind: 'empty', message: TEXT.empty.message, tabHint: TEXT.empty.tabHint };
+      return { kind: 'empty', message: emptyMessage, tabHint: TEXT.empty.tabHint };
     }
 
     if (stateName === 'loading') {
@@ -1700,7 +1714,7 @@ export function usePropertyInspector(
     }
 
     if (primaryEntity === null || primaryKind === null) {
-      return { kind: 'empty', message: TEXT.empty.message, tabHint: TEXT.empty.tabHint };
+      return { kind: 'empty', message: emptyMessage, tabHint: TEXT.empty.tabHint };
     }
 
     const content = {
@@ -1754,6 +1768,7 @@ export function usePropertyInspector(
     approve,
     approvedCount,
     copyAsTemplate,
+    emptyMessage,
     entities.length,
     groups,
     isMultiple,
