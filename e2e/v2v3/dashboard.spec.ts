@@ -224,21 +224,46 @@ test.describe('V3-DASH-4 — tìm và thu gọn', () => {
 });
 
 /*
- * FIXME (B-V3-08, chờ quyết) — nút chuông "Thông báo" trên đầu danh sách dự án không làm
- * gì: `ProjectDashboard.tsx:194` là một `<button aria-label="Thông báo">` không có
- * `onClick` (đo: bấm thì URL không đổi, không panel nào mở). Nó trông bấm được và
- * nằm trong thứ tự Tab — một điều khiển chết (A2: màu nhấn/hover dành cho thứ tương
- * tác được). Chưa chốt nó nên mở tấm trượt (`NotificationBellContainer`) hay dẫn tới
- * `/thong-bao` — cả hai đều cho ra một `dialog` tên "Thông báo", nên bài khẳng định
- * điều chung ấy.
- * Mở lại khi: người duyệt chốt đích của nút và sản phẩm nối nó.
+ * B-V3-08 (đã sửa): nút chuông "Thông báo" từng là một `<button>` không `onClick` —
+ * điều khiển chết trong thứ tự Tab (A2). Nay container cắm `NotificationBellContainer`
+ * vào khe của view: chuông mở tấm trượt, Esc đóng và trả tiêu điểm về chuông (A12).
+ * Đã kiểm đỏ trước sửa.
  */
-test.fixme('bấm chuông "Thông báo" ở danh sách dự án mở các thông báo (B-V3-08)', async ({ page }) => {
-  await openDashboard(page);
+test.describe('chuông "Thông báo" ở danh sách dự án (B-V3-08)', () => {
+  function bell(page: Page) {
+    return page.getByRole('button', { name: 'Thông báo', exact: true });
+  }
 
-  await page.getByRole('button', { name: 'Thông báo', exact: true }).click();
+  test('bấm chuông mở tấm trượt thông báo; Esc đóng và trả tiêu điểm về chuông', async ({ page }) => {
+    await openDashboard(page);
 
-  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
+    await bell(page).click();
+
+    const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+    await expect(drawer).toBeVisible();
+    await expect(bell(page)).toHaveAttribute('aria-expanded', 'true');
+
+    await page.keyboard.press('Escape');
+
+    await expect(drawer).toHaveCount(0);
+    await expect(bell(page)).toBeFocused();
+    await expect(bell(page)).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('chuông → "Xem tất cả" tới /thong-bao, Esc ở đó quay về danh sách dự án', async ({ page }) => {
+    await openDashboard(page);
+
+    await bell(page).click();
+    await page.getByRole('dialog', { name: 'Thông báo' }).getByRole('button', { name: 'Xem tất cả' }).click();
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.notifications);
+    await expect(page.getByRole('heading', { name: 'Thông báo' })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.dashboard);
+    await expect(projectList(page)).toBeVisible();
+  });
 });
 
 test.describe('F1 — trình đọc màn hình nghe trạng thái màn bằng tiếng Việt (A6)', () => {

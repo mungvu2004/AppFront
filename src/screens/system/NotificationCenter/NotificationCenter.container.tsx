@@ -11,13 +11,14 @@
  * - {@link NotificationBellContainer} là cái chuông, xuất RIÊNG. `AppShell.tsx`
  *   nằm trong `src/components/**` — thư mục R-68 khoá — nên màn này không gắn
  *   được vào vỏ ứng dụng; nó cấp một chuông đã nối đủ để bất kỳ vỏ nào cũng
- *   gắn vào bằng một dòng khi vỏ ấy mở khoá.
+ *   gắn vào bằng một dòng. Người gắn đầu tiên là danh sách dự án
+ *   (`ProjectDashboard.container.tsx`, B-V3-08).
  * - {@link NotificationCenterRoute} là bản toàn màn cho `/thong-bao`.
  *
  * ## Vì sao `isOpen`/`onDismiss` là props chứ không phải trạng thái nội bộ
  *
- * Hôm nay chưa có màn nào mở tấm trượt này. R-73 nói thẳng rằng "chưa có ai
- * dùng" không phải lý do hoãn: một màn chủ đã giữ sẵn trạng thái mở của riêng
+ * Chuông ở danh sách dự án để hook tự giữ trạng thái mở. R-73 nói thẳng rằng
+ * "chưa có ai cần" không phải lý do hoãn: một màn chủ đã giữ sẵn trạng thái mở của riêng
  * nó (một menu, một phím tắt) phải cắm vào được mà không sinh ra nguồn sự thật
  * thứ hai. Nên `isOpen` truyền xuống thì hook nhường quyền giữ, bỏ trống thì
  * hook tự giữ và `onToggle` đủ dùng cho một cái chuông đứng một mình.
@@ -184,14 +185,12 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
  * `replace` để `/thong-bao` không nằm lại trong lịch sử và `Escape` lần hai
  * không quay lại nó.
  *
- * **Nhánh `navigate(-1)` hôm nay không với tới được, và đó là lý do lỗi trên sống
- * lâu.** Không chỗ nào trong `src` điều hướng tới `/thong-bao`: `onViewAll`
- * (`useNotificationCenter.ts`) gọi `onNavigate?.(ROUTES.notifications)` và
- * `useWiredNotificationCenter` có nối `onNavigate`, nhưng nút ấy chỉ nằm trong quả
- * chuông, mà quả chuông chưa vỏ nào dựng. Nên mọi lượt tới route này đều là
- * một lượt tải trang, tức `location.key` luôn là `'default'` — và `navigate(-1)`
- * luôn lùi ra khỏi ứng dụng. Giữ nhánh lùi là để đúng cho ngày có người thêm
- * một liên kết; đừng đọc một lượt chạy xanh là bằng chứng rằng nhánh ấy đúng.
+ * **Hai nhánh đều với tới được.** Trước B-V3-08 không chỗ nào trong `src` điều
+ * hướng tới `/thong-bao` — nút "Xem tất cả" chỉ nằm trong quả chuông, mà quả chuông
+ * chưa vỏ nào dựng — nên mọi lượt tới đây là một lượt tải trang và `navigate(-1)`
+ * từng lùi ra khỏi ứng dụng (lỗi trên sống lâu vì thế). Nay chuông ở danh sách dự
+ * án dẫn tới đây qua "Xem tất cả", nên nhánh `navigate(-1)` có bài e2e riêng
+ * (`e2e/v2v3/dashboard.spec.ts`, B-V3-08).
  */
 export function NotificationCenterRoute() {
   const navigate = useNavigate();

@@ -36,6 +36,7 @@ import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feed
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
+import { NotificationBellContainer } from '@/screens/system/NotificationCenter';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
 
@@ -69,6 +70,7 @@ function DashboardWithCreateModal() {
       <ProjectDashboardConnected
         {...(role !== undefined ? { role } : {})}
         onCreateProject={() => setCreateOpen(true)}
+        notificationBell={<NotificationBellContainer />}
       />
       <CreateProjectModalContainer
         isOpen={isCreateOpen}

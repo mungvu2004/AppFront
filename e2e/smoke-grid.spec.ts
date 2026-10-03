@@ -89,7 +89,13 @@ const ROWS = {
       why: 'bộ mẫu dev không có luồng SSE thông báo — 404',
     },
   },
-  dashboard: { anchor: { role: 'heading', name: 'Dự án của tôi' } },
+  dashboard: {
+    anchor: { role: 'heading', name: 'Dự án của tôi' },
+    expectedConsole: {
+      match: /\/api\/streams\/notifications/u,
+      why: 'chuông thông báo (B-V3-08) mở luồng SSE mà bộ mẫu dev không có — 404',
+    },
+  },
   projectSettings: { anchor: { role: 'heading', name: 'cài đặt dự án' } },
   account: { anchor: { role: 'heading', name: 'cài đặt tài khoản' } },
   billing: { anchor: { role: 'heading', name: 'Thanh toán' } },
