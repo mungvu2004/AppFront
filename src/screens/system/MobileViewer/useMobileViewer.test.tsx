@@ -27,6 +27,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NotificationInput } from '@/lib/mutations/notificationBus';
 import type { NetworkMonitor, NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
 import { renderWithProviders } from '@/lib/testing/render';
+import { useStore } from '@/store';
 import type { DetailLevel } from '@/lib/three/build/lod';
 import type { EntityHit } from '@/lib/three/interaction/hitTest';
 import { SCENE_BUDGET } from '@/lib/three/perf/budget';
@@ -691,6 +692,110 @@ describe('chia sẻ', () => {
 
     expect(opened[0]?.startsWith('mailto:?')).toBe(true);
     expect(decodeURIComponent(opened[0] ?? '')).toContain('chỉ sửa được trên máy tính');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Nạp kho dự án — B-V1-03.                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Bốn tầng có tên mà không có tường, phòng, ô mở nào — hình `project-1` của mock. */
+function emptyFloorsSpatial(): NonNullable<UseMobileViewerOptions['spatial']> {
+  return normalizeSpatial({
+    ...createSampleBuilding(),
+    walls: [],
+    openings: [],
+    rooms: [],
+    furniture: [],
+    dimensions: [],
+    notes: [],
+  });
+}
+
+/** Tường nhưng chưa có phòng: có hình để dựng, chưa có tầng nào "đã tải". */
+function wallsOnlySpatial(): NonNullable<UseMobileViewerOptions['spatial']> {
+  const graph = createSampleBuilding();
+
+  return normalizeSpatial({
+    ...graph,
+    walls: graph.walls.map((wall) => ({ ...wall, openingIds: [] })),
+    openings: [],
+    rooms: [],
+    furniture: [],
+    dimensions: [],
+    notes: [],
+  });
+}
+
+describe('nạp kho dự án — B-V1-03', () => {
+  it('đang nạp thì loading và chưa dựng cảnh; nạp xong thì success', async () => {
+    const spy = sceneSpy();
+
+    try {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+        useStore.getState().setSpatialLoading(true);
+      });
+
+      const harness = render({ mountScene: spy.mount, spatial: undefined });
+
+      await waitFor(() => {
+        expect(harness.model().state).toBe('loading');
+      });
+
+      expect(spy.options()).toBeNull();
+
+      act(() => {
+        useStore.getState().setSpatial(SPATIAL, null);
+      });
+
+      await waitFor(() => {
+        expect(harness.model().state).toBe('success');
+      });
+
+      expect(spy.options()).not.toBeNull();
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
+  });
+
+  it('bốn tầng không tường, không phòng thì empty và không dựng cảnh', async () => {
+    const spy = sceneSpy();
+
+    try {
+      const harness = render({ mountScene: spy.mount, spatial: emptyFloorsSpatial() });
+
+      await waitFor(() => {
+        expect(harness.model().state).toBe('empty');
+      });
+
+      expect(harness.model().floors).toHaveLength(4);
+      expect(spy.options()).toBeNull();
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
+  });
+
+  it('tầng chỉ có tường thì partial, không phải empty', async () => {
+    const spy = sceneSpy();
+
+    try {
+      const harness = render({ mountScene: spy.mount, spatial: wallsOnlySpatial() });
+
+      await waitFor(() => {
+        expect(harness.model().state).toBe('partial');
+      });
+
+      expect(spy.options()).not.toBeNull();
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
   });
 });
 
