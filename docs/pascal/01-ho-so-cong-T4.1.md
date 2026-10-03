@@ -761,6 +761,14 @@ cùng mức mượt đó. Chốt hay không chốt thành **quyết định về
 > …/assets/pascal/pascalMount-*.js` vẫn còn (1 vi phạm dưới CSP tự dựng; cảnh vẫn dựng). Alias Iconify
 > (`vite.pascal.config.ts`) thì còn hiệu lực: ba vi phạm `connect-src` không tái hiện. Chi tiết:
 > `docs/notes/e2e/fragments/W08.md` B-V10-05.
+>
+> **Sửa mã 2026-10-03 (đợt 4, I3) — nay 0 trên màn thật.** `defaultLoadMount`
+> (`src/screens/viewer/PascalViewer/usePascalViewer.ts`) bật `window.__zod_globalConfig.jitless`
+> **trước** khi thêm thẻ script Pascal — cùng nhát vá của `vach-ngan.tsx:30`, chuyển sang đúng chỗ
+> màn thật nạp gói. Đo bằng bài tạm (đã xoá) dưới `script-src 'self' 'wasm-unsafe-eval'
+> 'unsafe-inline'; worker-src 'self' blob:` (phần `script-src`/`worker-src` của chính sách BE,
+> cộng `'unsafe-inline'` cho phần mở đầu của `vite dev`): trước vá **1** (`script-src | eval |
+> …/pascalMount-D-XGBRdU.js`), sau vá **0**. Chi tiết: `docs/notes/e2e/fragments/I3.md` B-V10-05.
 
 Thô: `F-W3-csp-sau-va.txt` · `F-W3-vach-ngan-sau-va.json`.
 (Spec **ghi đè** `F-T3.7-vach-ngan.json` mỗi lượt, nên bản "sau vá" đã cất tên riêng.)

@@ -96,6 +96,13 @@ let mountModulePromise: Promise<MountModule> | null = null;
  */
 let failedLoads = 0;
 
+/** Cờ toàn cục mà zod 4 đọc lúc nạp — cùng khuôn `pascalMount.tsx` khai `__pascalMount`. */
+declare global {
+  interface Window {
+    __zod_globalConfig?: { jitless?: boolean };
+  }
+}
+
 /**
  * Nạp gói vách ngăn bằng thẻ `<script src>`, KHÔNG bằng `import()`.
  *
@@ -106,6 +113,8 @@ let failedLoads = 0;
  *
  * `type="module"` vì gói là ES module có chia chunk; nó tự treo `mount` lên
  * `window.__pascalMount` (xem `components/pascal/pascalMount.tsx`).
+ *
+ * Trước khi thêm thẻ script, bật `window.__zod_globalConfig.jitless` (B-V10-05).
  */
 const defaultLoadMount = (): Promise<MountModule> => {
   if (mountModulePromise !== null) {
@@ -120,6 +129,12 @@ const defaultLoadMount = (): Promise<MountModule> => {
 
       return;
     }
+
+    // B-V10-05: zod 4 trong gói Pascal dò `new Function` để chọn đường JIT — một
+    // vi phạm CSP `script-src eval` mỗi lần nạp. `jitless` bỏ hẳn phép dò. Sửa
+    // TẠI CHỖ, không thay đối tượng: zod giữ tham chiếu tới nó lúc nạp
+    // (`zod/v4/core/core.js:135-136`), nên một đối tượng mới sẽ không tới được nó.
+    (window.__zod_globalConfig ??= {}).jitless = true;
 
     const script = document.createElement('script');
     script.type = 'module';
