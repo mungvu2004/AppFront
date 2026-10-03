@@ -511,7 +511,13 @@ Thứ tự theo giá trị nghiệp vụ, và nhóm nào bị chặn thì xếp 
 
 - **Trạng thái:** **đã thi công** (2026-10-03, 10 worker đợt 1 + 2 worker đợt 2, nhánh `e2e/integrate`).
   Trạng thái từng nhóm, số đo thật và chỗ kế hoạch sai so với mã: `docs/notes/e2e/fragments/W01…W12.md`.
-  Lỗi: `docs/notes/e2e/bugs.md` (131 mục, gồm đợt 3 — W13).
+  Lỗi: `docs/notes/e2e/bugs.md` (150 mục: 97 đã sửa · 19 mở · 24 không phải lỗi · 9 ngoài FE · 1 đã quyết · **0 chờ quyết**).
+
+  **Đợt 4 (2026-10-03):** mỗi mục chờ quyết được hai agent tranh luận ba lượt (đề xuất ↔ phản biện ↔ chốt;
+  nhóm cùng chính sách đi lần lượt, nhóm độc lập song song) rồi sáu worker I1–I6 sửa. Kết quả tranh luận:
+  thư mục điều phối `debate/KQ-*.md`. Cổng tổng sau đợt 4: `pnpm verify` 7/7 (7 563 bài, độ phủ 85,81 %,
+  kích thước 278,3/280 KiB); `pnpm e2e --workers=3` hai lượt liền **316 passed · 0 failed · 6 skipped**
+  (6 = đúng 6 `test.fixme` còn lại).
 
   **Cổng tổng trên nhánh gộp `e2e/integrate` — đạt (2026-10-03):**
   - `pnpm verify` **7/7 đạt**: vitest 7 488 / 7 488 passed; độ phủ 85,66 % stmts (nền đầu lượt 84,42 %);
