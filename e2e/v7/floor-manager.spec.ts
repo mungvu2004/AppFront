@@ -92,6 +92,12 @@ test('bơm bộ mẫu: bốn tầng, cao độ và tổng cao dùng dấu phẩy
   await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
 });
 
+test('bơm bộ mẫu: thang cao độ là một nhóm có tên "Thang cao độ" (B-V6-44)', async ({ page }) => {
+  await openSeeded(page);
+
+  await expect(page.getByRole('group', { name: 'Thang cao độ', exact: true })).toBeVisible();
+});
+
 test('bơm bộ mẫu: thêm tầng có toast hoàn tác, bấm hoàn tác thì về bốn tầng (V7-FLOORS-03, A8)', async ({
   page,
 }) => {
