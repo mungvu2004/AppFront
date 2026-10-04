@@ -4,11 +4,15 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import process from 'node:process';
 
+import { warmDevServer } from './warm-dev-server.mjs';
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const baseUrl = 'http://127.0.0.1:5173';
 const useShell = process.platform === 'win32';
 const packageRunner = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const testArgs = process.argv.slice(2);
+/** Trần cho bước làm ấm — xem `warm-dev-server.mjs`. */
+const WARM_UP_TIMEOUT_MS = 180_000;
 
 const requestUrl = (url) =>
   new Promise((resolve) => {
@@ -97,6 +101,9 @@ let exitCode = 1;
 
 try {
   await waitForServer(baseUrl, 120_000);
+  // Lạnh hoàn toàn (không `node_modules/.vite`) đo được 28,6 s / 891 module / 2 lượt
+  // trên máy dev — trần 180 s chừa chỗ cho máy tải cao, và quá trần là DỪNG.
+  await warmDevServer(baseUrl, { timeoutMs: WARM_UP_TIMEOUT_MS });
   const result = await runCommand(packageRunner, ['exec', 'playwright', 'test', ...testArgs]);
   exitCode = result.code;
 } finally {
