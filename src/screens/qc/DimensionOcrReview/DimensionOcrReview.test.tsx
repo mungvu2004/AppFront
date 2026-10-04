@@ -335,6 +335,18 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     expect(rendered).toBe(7);
   });
 
+  it('chữ trên nút duyệt là phần đầu tên truy cập của nó (WCAG 2.5.3, B-V6-46)', async () => {
+    renderState('partial');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    await waitFor(() => {
+      expect(approveButtons().length).toBeGreaterThan(0);
+    });
+    for (const button of approveButtons()) {
+      expect(button.getAttribute('aria-label') ?? '').toMatch(new RegExp(`^${button.textContent?.trim() ?? '∅'} #`, 'u'));
+    }
+  });
+
   it('trạng thái lỗi có nút "Thử lại", bấm thì đọc lại lớp kích thước (B-V6-45, A11)', async () => {
     emptyStore();
     const args = scenarioArgsFor('error');
