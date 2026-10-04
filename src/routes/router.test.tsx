@@ -150,14 +150,14 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
 });
 
 describe('[router] vỏ chờ lúc chunk màn còn trên đường (B-G-04)', () => {
-  it('nói "đang tải màn hình" bằng tiếng Việt, không còn chữ "Loading..."', () => {
+  it('nói "Đang tải màn hình" bằng tiếng Việt, không còn chữ "Loading..."', () => {
     /* `/login` là route công khai nên `SessionGate` cho qua ngay, và thứ đầu tiên
        vẽ ra là đúng fallback của `suspended` — chunk màn chưa kịp về. */
     const memoryRouter = createMemoryRouter(routes, { initialEntries: [ROUTES.login] });
 
     render(<RouterProvider router={memoryRouter} />);
 
-    expect(screen.getByRole('status', { name: 'đang tải màn hình' })).toHaveAttribute(
+    expect(screen.getByRole('status', { name: 'Đang tải màn hình' })).toHaveAttribute(
       'aria-busy',
       'true',
     );

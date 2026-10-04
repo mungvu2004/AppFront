@@ -18,7 +18,7 @@ import { ROUTES, UNKNOWN_PATH, pathOf } from '../fixtures/routes';
 /** Lần tải đầu của một route bắt Vite dịch nguội; cùng hạn `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-const PENDING_LABEL = 'đang tải màn hình';
+const PENDING_LABEL = 'Đang tải màn hình';
 
 test('chuyển sang màn chưa tải: vỏ chờ tiếng Việt, không có "Loading...", rồi màn hiện ra', async ({
   page,
