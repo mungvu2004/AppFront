@@ -29,7 +29,7 @@ const ROWS = [
   {
     name: 'mobileViewer',
     path: ROUTES.mobileViewer('project-1'),
-    anchor: { role: 'region', name: 'xem mô hình 3D trên điện thoại' },
+    anchor: { role: 'region', name: 'Xem mô hình 3D trên điện thoại' },
     viewport: { width: 390, height: 844 },
   },
 ] as const;

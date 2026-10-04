@@ -39,12 +39,12 @@ import type {
   MobileViewerToolId,
 } from './mobileViewerTypes';
 
-/** Nhãn của bốn công cụ. Tiếng Việt, viết thường kiểu câu (A6). */
+/** Nhãn của bốn công cụ. Tiếng Việt, kiểu câu viết hoa chữ đầu (A6). */
 const TOOL_LABELS: Readonly<Record<MobileViewerToolId, string>> = {
-  floors: 'tầng',
-  view: 'chế độ xem',
-  measure: 'đo',
-  info: 'thông tin',
+  floors: 'Tầng',
+  view: 'Chế độ xem',
+  measure: 'Đo',
+  info: 'Thông tin',
 };
 
 /** Biểu tượng của một công cụ. `lucide-react`, không chữ nên không dính A6. */
@@ -137,6 +137,8 @@ export function MobileViewerBottomBar({
             </p>
           ) : (
             <div className="flex flex-col gap-1">
+              {/* Huy hiệu viết thường: chữ của nó nối vào tên truy cập của hàng thành một câu —
+                  "Tầng hầm chưa có phòng". */}
               {floors.map((floor) => (
                 <PanelRow
                   isActive={floor.id === activeFloorId}
@@ -171,7 +173,7 @@ export function MobileViewerBottomBar({
         <ToolPanel label={TOOL_LABELS.measure}>
           {measurements.length === 0 ? (
             <p className="px-3 py-2 text-[13px] leading-relaxed text-text-secondary">
-              chưa có phép đo nào. chạm hai điểm trên mô hình để đo.
+              Chưa có phép đo nào. Chạm hai điểm trên mô hình để đo.
             </p>
           ) : (
             <ul className="flex flex-col gap-1">
@@ -190,7 +192,7 @@ export function MobileViewerBottomBar({
       )}
 
       <nav
-        aria-label="công cụ xem mô hình"
+        aria-label="Công cụ xem mô hình"
         className="flex items-center justify-around border-t border-border-default bg-bg-surface px-2"
         style={{ height: MOBILE_VIEWER_BOTTOM_BAR_PX }}
       >

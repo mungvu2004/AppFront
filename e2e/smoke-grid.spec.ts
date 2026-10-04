@@ -79,7 +79,7 @@ const ROWS = {
   accessDenied: { anchor: { role: 'heading', name: 'Bạn chưa có quyền truy cập' } },
   notFound: { anchor: { role: 'heading', name: 'Không tìm thấy trang này' } },
   mobileViewer: {
-    anchor: { role: 'region', name: 'xem mô hình 3D trên điện thoại' },
+    anchor: { role: 'region', name: 'Xem mô hình 3D trên điện thoại' },
     viewport: { width: 390, height: 844 },
   },
   notifications: {

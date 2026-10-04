@@ -221,8 +221,8 @@ describe('MobileViewer — vùng bấm >= 44px, ở mức suy ra được từ j
 /* -------------------------------------------------------------------------- */
 
 describe('MobileViewer — `partial` nói đúng lý do (B-V1-11)', () => {
-  const MISSING_ROOMS_NOTE = 'mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.';
-  const WEAK_NETWORK_NOTE = 'mạng đang yếu. mô hình đã tải xong vẫn xem được.';
+  const MISSING_ROOMS_NOTE = 'Mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.';
+  const WEAK_NETWORK_NOTE = 'Mạng đang yếu. Mô hình đã tải xong vẫn xem được.';
 
   it('thiếu phòng: câu thiếu phòng, không câu mạng; hàng tầng mang "chưa có phòng"', () => {
     const props = { ...mobileViewerScenarioFor('partial'), activeTool: 'floors' as const };
@@ -231,7 +231,7 @@ describe('MobileViewer — `partial` nói đúng lý do (B-V1-11)', () => {
     expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
     expect(queryByText(WEAK_NETWORK_NOTE)).toBeNull();
     expect(getAllByText('chưa có phòng')).toHaveLength(2);
-    expect(queryByText('chưa tải')).toBeNull();
+    expect(queryByText(/^chưa tải$/iu)).toBeNull();
   });
 
   it('mạng yếu: câu mạng, không câu thiếu phòng', () => {
@@ -242,11 +242,11 @@ describe('MobileViewer — `partial` nói đúng lý do (B-V1-11)', () => {
     expect(queryByText(MISSING_ROOMS_NOTE)).toBeNull();
   });
 
-  it('`partial` không bao giờ đọc "mô hình đã dựng xong.", kể cả khi thiếu lý do và không có nhãn mức chi tiết', () => {
+  it('`partial` không bao giờ đọc "Mô hình đã dựng xong.", kể cả khi thiếu lý do và không có nhãn mức chi tiết', () => {
     const props = { ...mobileViewerScenarioFor('partial'), partialReason: null, detailLabel: null };
     const { queryAllByText, getByText } = renderMobileViewer(props);
 
-    expect(queryAllByText('mô hình đã dựng xong.')).toHaveLength(0);
+    expect(queryAllByText(/^mô hình đã dựng xong\.$/iu)).toHaveLength(0);
     expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
   });
 });
@@ -266,9 +266,9 @@ describe('MobileViewer — thu gọn ở 320 (MOBILE_VIEWER_COMPACT_WIDTH_PX)', 
     expect(props.isCompact).toBe(true);
     expect(props.activeTool).toBe('floors');
 
-    const { getByText } = renderMobileViewer(props);
+    const { getByRole } = renderMobileViewer(props);
 
-    expect(getByText(/chế độ xem/iu)).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Chế độ xem' })).toBeInTheDocument();
   });
 });
 

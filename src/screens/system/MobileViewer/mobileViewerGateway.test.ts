@@ -82,13 +82,10 @@ describe('mạng yếu — T-09', () => {
 });
 
 describe('tầng', () => {
-  it('mỗi tầng của đồ thị thành đúng một mục, nhãn viết thường (A6)', () => {
+  it('mỗi tầng của đồ thị thành đúng một mục, nhãn tầng là tên tầng nguyên văn (dữ liệu, không hạ chữ)', () => {
     const floors = floorsOf(SPATIAL, STOREYS);
 
-    expect(floors).toHaveLength(STOREYS.length);
-    for (const floor of floors) {
-      expect(floor.label).toBe(floor.label.toLocaleLowerCase('vi-VN'));
-    }
+    expect(floors.map((floor) => floor.label)).toEqual(STOREYS.map((storey) => storey.name.trim()));
   });
 
   it('tầng có phòng trong đồ thị mang `hasRooms` (B-V1-11)', () => {

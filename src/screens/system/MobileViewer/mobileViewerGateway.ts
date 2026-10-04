@@ -135,18 +135,13 @@ export function isNetworkDegraded(status: {
 /* -------------------------------------------------------------------------- */
 
 /** Tiền tố cho một tầng chưa mang tên trong đồ thị. */
-const UNNAMED_FLOOR_PREFIX = 'tầng ';
+const UNNAMED_FLOOR_PREFIX = 'Tầng ';
 
-/** Mã vùng để hạ chữ hoa của nhãn tầng — cùng mã vùng `src/lib/format/number` dùng. */
-const LOCALE = 'vi-VN';
-
-/** Nhãn một tầng, viết thường kiểu câu (A6). Đồ thị chưa đặt tên thì gọi theo thứ tự. */
+/** Nhãn một tầng: tên tầng nguyên văn — là dữ liệu, không hạ/nâng chữ. Đồ thị chưa đặt tên thì gọi theo thứ tự. */
 function floorLabelOf(storey: ViewerStorey): string {
   const name = storey.name.trim();
 
-  return name === ''
-    ? `${UNNAMED_FLOOR_PREFIX}${String(storey.order)}`
-    : name.toLocaleLowerCase(LOCALE);
+  return name === '' ? `${UNNAMED_FLOOR_PREFIX}${String(storey.order)}` : name;
 }
 
 /**
@@ -194,14 +189,14 @@ export function floorsOf(
 /* 4. Thứ đang chọn — tấm thông tin CHỈ ĐỌC.                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Tên tiếng Việt của từng loại đối tượng bắt được, viết thường kiểu câu (A6). */
+/** Tên tiếng Việt của từng loại đối tượng bắt được, đứng riêng nên viết hoa chữ đầu (A6). */
 export const MOBILE_KIND_LABELS: Readonly<Record<SelectableKind, string>> = Object.freeze({
-  wall: 'tường',
-  opening: 'ô mở',
-  room: 'phòng',
-  furniture: 'đồ nội thất',
-  axis: 'trục',
-  dimension: 'kích thước',
+  wall: 'Tường',
+  opening: 'Ô mở',
+  room: 'Phòng',
+  furniture: 'Đồ nội thất',
+  axis: 'Trục',
+  dimension: 'Kích thước',
 });
 
 /**
@@ -344,7 +339,7 @@ export function toMobileMeasurement(
 /* -------------------------------------------------------------------------- */
 
 /** Dòng chủ đề của thư, đứng trước tên dự án. */
-const MAIL_SUBJECT_PREFIX = 'liên kết xem mô hình dự án ';
+const MAIL_SUBJECT_PREFIX = 'Liên kết xem mô hình dự án ';
 
 /**
  * Câu giải thích trong thân thư.
@@ -353,7 +348,7 @@ const MAIL_SUBJECT_PREFIX = 'liên kết xem mô hình dự án ';
  * được gửi một đường dẫn, và người gửi phải thấy trước mình sắp gửi cái gì.
  */
 const MAIL_BODY_LEAD =
-  'mục này chỉ sửa được trên máy tính, nên đây là liên kết mở đúng dự án đó bằng trình duyệt máy tính:';
+  'Mục này chỉ sửa được trên máy tính, nên đây là liên kết mở đúng dự án đó bằng trình duyệt máy tính:';
 
 /**
  * Địa chỉ `mailto:` cho nút "gửi liên kết sang máy tính".

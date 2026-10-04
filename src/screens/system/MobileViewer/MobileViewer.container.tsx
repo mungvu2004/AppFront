@@ -53,9 +53,9 @@ import type { ConnectedMobileViewerProps } from './MobileViewer.connected';
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
 export const MOBILE_VIEWER_SCREEN_ID = 'mobile-viewer';
 
-const MISSING_PARAMS_TITLE = 'thiếu mã dự án';
+const MISSING_PARAMS_TITLE = 'Thiếu mã dự án';
 const MISSING_PARAMS_MESSAGE =
-  'đường dẫn không mang mã dự án, nên chưa mở được mô hình. quay lại danh sách dự án rồi chọn lại dự án cần xem.';
+  'Đường dẫn không mang mã dự án, nên chưa mở được mô hình. Quay lại danh sách dự án rồi chọn lại dự án cần xem.';
 
 /**
  * Nhánh đã nối, tải muộn.

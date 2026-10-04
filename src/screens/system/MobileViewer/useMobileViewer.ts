@@ -123,32 +123,32 @@ import {
 
 /** Nhãn mức chi tiết trong lúc còn đang nâng dần lên. `full` là "hết chuyện để nói". */
 const RISING_DETAIL_LABELS: Readonly<Record<DetailLevel, string | null>> = Object.freeze({
-  block: 'đang tải mức gọn',
-  reduced: 'đang tải mức vừa',
+  block: 'Đang tải mức gọn',
+  reduced: 'Đang tải mức vừa',
   full: null,
 });
 
 /** Nhãn mức chi tiết sau khi R-04 vừa HẠ xuống vì máy không theo kịp. */
 const DEGRADED_DETAIL_LABELS: Readonly<Record<DetailLevel, string | null>> = Object.freeze({
-  block: 'đã hạ xuống mức gọn để hình chạy mượt',
-  reduced: 'đã hạ xuống mức vừa để hình chạy mượt',
+  block: 'Đã hạ xuống mức gọn để hình chạy mượt',
+  reduced: 'Đã hạ xuống mức vừa để hình chạy mượt',
   full: null,
 });
 
 /** Tên hiện trên thanh trên khi đồ thị và máy chủ đều chưa cho biết tên nào. */
-const UNNAMED_PROJECT = 'dự án chưa có tên';
+const UNNAMED_PROJECT = 'Dự án chưa có tên';
 
 /** Loại của mọi toast màn này phát ra — `NotificationBus` gộp theo trường này. */
 const SHARE_NOTIFICATION_TYPE = 'shareLink';
 
-const SHARE_COPIED_TITLE = 'đã tạo liên kết chia sẻ';
-const SHARE_COPIED_BODY = 'liên kết chỉ xem đã được chép vào bộ nhớ tạm.';
-const SHARE_COPY_BLOCKED_BODY = 'máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.';
-const SHARE_MAILED_TITLE = 'đã tạo liên kết cho máy tính';
-const SHARE_MAILED_BODY = 'ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.';
-const SHARE_FAILED_TITLE = 'chưa tạo được liên kết chia sẻ';
-const SHARE_FAILED_BODY = 'chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.';
-const SHARE_UNDO_LABEL = 'thu hồi liên kết vừa tạo';
+const SHARE_COPIED_TITLE = 'Đã tạo liên kết chia sẻ';
+const SHARE_COPIED_BODY = 'Liên kết chỉ xem đã được chép vào bộ nhớ tạm.';
+const SHARE_COPY_BLOCKED_BODY = 'Máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.';
+const SHARE_MAILED_TITLE = 'Đã tạo liên kết cho máy tính';
+const SHARE_MAILED_BODY = 'Ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.';
+const SHARE_FAILED_TITLE = 'Chưa tạo được liên kết chia sẻ';
+const SHARE_FAILED_BODY = 'Chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.';
+const SHARE_UNDO_LABEL = 'Thu hồi liên kết vừa tạo';
 
 /* -------------------------------------------------------------------------- */
 /* Tham số và những kiểu riêng của hook.                                       */

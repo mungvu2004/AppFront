@@ -19,8 +19,8 @@ const PHONE = { width: 390, height: 844 } as const;
 const PROJECT_ID = 'project-1';
 /** Tên dự án mà bộ mẫu API trả cho `project-1` (`src/api/__mocks__`). */
 const PROJECT_NAME = 'Chung cư Hoàng Anh';
-const EMPTY_TITLE = 'chưa có mô hình để xem';
-const WEAK_DEVICE_TITLE = 'máy này chưa dựng nổi mô hình 3D';
+const EMPTY_TITLE = 'Chưa có mô hình để xem';
+const WEAK_DEVICE_TITLE = 'Máy này chưa dựng nổi mô hình 3D';
 /** Bốn tầng của `MOCK_SPATIAL_PROJECT` và cũng bốn tầng của bộ mẫu A14. */
 const MOCK_FLOOR_COUNT = 4;
 
@@ -33,11 +33,11 @@ test('mở bản điện thoại của một dự án: tên dự án đến từ
 }) => {
   await page.goto(ROUTES.mobileViewer(PROJECT_ID));
 
-  const screen = page.getByRole('region', { name: 'xem mô hình 3D trên điện thoại', exact: true });
+  const screen = page.getByRole('region', { name: 'Xem mô hình 3D trên điện thoại', exact: true });
   await expect(screen).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   // Tên mặc định đứng đó cho tới khi truy vấn về — chờ tên thật, không đọc một lần.
   await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME);
-  await expect(screen.getByRole('button', { name: 'chia sẻ dự án', exact: true })).toBeVisible();
+  await expect(screen.getByRole('button', { name: 'Chia sẻ dự án', exact: true })).toBeVisible();
 });
 
 /*
@@ -53,7 +53,7 @@ test('không bơm: bốn tầng của dự án có thật, và nói thật rằn
 }) => {
   await page.goto(ROUTES.mobileViewer(PROJECT_ID));
 
-  const screen = page.getByRole('region', { name: 'xem mô hình 3D trên điện thoại', exact: true });
+  const screen = page.getByRole('region', { name: 'Xem mô hình 3D trên điện thoại', exact: true });
   await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME, {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
@@ -61,12 +61,12 @@ test('không bơm: bốn tầng của dự án có thật, và nói thật rằn
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 
-  await screen.getByRole('button', { name: 'tầng', exact: true }).click();
-  const floorRows = screen.getByRole('group', { name: 'tầng', exact: true }).getByRole('button');
+  await screen.getByRole('button', { name: 'Tầng', exact: true }).click();
+  const floorRows = screen.getByRole('group', { name: 'Tầng', exact: true }).getByRole('button');
   await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
   // B-V1-11: tầng chưa có phòng nói "chưa có phòng", không nói "chưa tải" (câu về mạng).
-  await expect(floorRows.first()).toHaveAccessibleName(/^tầng hầm chưa có phòng/);
-  await expect(screen.getByText('chưa tải', { exact: true })).toHaveCount(0);
+  await expect(floorRows.first()).toHaveAccessibleName(/^Tầng hầm chưa có phòng/u);
+  await expect(screen.getByText(/^chưa tải$/iu)).toHaveCount(0);
 });
 
 test('bơm bộ mẫu A14 vào dự án đã nạp: thấy mô hình, không thấy "chưa có mô hình để xem"', async ({
@@ -74,7 +74,7 @@ test('bơm bộ mẫu A14 vào dự án đã nạp: thấy mô hình, không th�
 }) => {
   await page.goto(ROUTES.mobileViewer(PROJECT_ID));
 
-  const screen = page.getByRole('region', { name: 'xem mô hình 3D trên điện thoại', exact: true });
+  const screen = page.getByRole('region', { name: 'Xem mô hình 3D trên điện thoại', exact: true });
   await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME, {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
@@ -83,10 +83,10 @@ test('bơm bộ mẫu A14 vào dự án đã nạp: thấy mô hình, không th�
   await expect(screen.getByText(EMPTY_TITLE, { exact: true })).toHaveCount(0);
   await expect(screen.getByText(WEAK_DEVICE_TITLE, { exact: true })).toHaveCount(0);
 
-  await screen.getByRole('button', { name: 'tầng', exact: true }).click();
-  const floorRows = screen.getByRole('group', { name: 'tầng', exact: true }).getByRole('button');
+  await screen.getByRole('button', { name: 'Tầng', exact: true }).click();
+  const floorRows = screen.getByRole('group', { name: 'Tầng', exact: true }).getByRole('button');
   // Bơm thay `floors` bằng bốn tầng của bộ mẫu (`Level 0..3`), có phòng nên không tầng nào "chưa có phòng".
   await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
-  await expect(floorRows.first()).toHaveAccessibleName(/^level 0/);
+  await expect(floorRows.first()).toHaveAccessibleName(/^Level 0/u);
   await expect(screen.getByText('chưa có phòng', { exact: true })).toHaveCount(0);
 });

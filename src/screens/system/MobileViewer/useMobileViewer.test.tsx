@@ -236,7 +236,7 @@ describe('bảy trạng thái', () => {
     });
 
     // Đúng lời hứa của mục (B): lúc đang tải, nhãn nói rõ đang ở mức GỌN.
-    expect(harness.model().detailLabel).toBe('đang tải mức gọn');
+    expect(harness.model().detailLabel).toBe('Đang tải mức gọn');
   });
 
   it('empty: dự án không có tầng nào', async () => {
@@ -392,7 +392,7 @@ describe('mức chi tiết — R-04', () => {
       spy.options()?.onDetailChange('block');
     });
 
-    expect(harness.model().detailLabel).toBe('đã hạ xuống mức gọn để hình chạy mượt');
+    expect(harness.model().detailLabel).toBe('Đã hạ xuống mức gọn để hình chạy mượt');
   });
 
   it('fps thấp một nhịp KHÔNG thành error — R-04 hạ mức chi tiết trước đã', async () => {
@@ -607,7 +607,7 @@ describe('chia sẻ', () => {
       expect(harness.notices).toHaveLength(1);
     });
 
-    expect(harness.notices[0]?.title).toBe('chưa tạo được liên kết chia sẻ');
+    expect(harness.notices[0]?.title).toBe('Chưa tạo được liên kết chia sẻ');
     expect(harness.notices[0]?.undoTicket).toBeUndefined();
   });
 
