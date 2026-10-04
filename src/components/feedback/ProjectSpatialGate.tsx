@@ -36,9 +36,9 @@ function ProjectNotFound() {
     <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
       <EmptyState
         icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
-        title="không tìm thấy dự án này"
-        description="dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án."
-        action={{ label: 'về danh sách dự án', onClick: () => navigate(ROUTES.dashboard) }}
+        title="Không tìm thấy dự án này"
+        description="Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án."
+        action={{ label: 'Về danh sách dự án', onClick: () => navigate(ROUTES.dashboard) }}
       />
     </div>
   );

@@ -59,31 +59,31 @@ export const SAMPLE_RECENT_PROJECTS: readonly RecentProjectVm[] = [
     id: 'p-nha-pho-nguyen-trai',
     name: 'Nhà phố Nguyễn Trãi',
     to: ROUTES.project.floors('p-nha-pho-nguyen-trai'),
-    recencyLabel: 'cập nhật 2 giờ trước',
+    recencyLabel: 'Cập nhật 2 giờ trước',
   },
   {
     id: 'p-chung-cu-hoang-anh',
     name: 'Chung cư Hoàng Anh',
     to: ROUTES.project.floors('p-chung-cu-hoang-anh'),
-    recencyLabel: 'cập nhật hôm qua',
+    recencyLabel: 'Cập nhật hôm qua',
   },
   {
     id: 'p-biet-thu-thao-dien',
     name: 'Biệt thự Thảo Điền',
     to: ROUTES.project.floors('p-biet-thu-thao-dien'),
-    recencyLabel: 'cập nhật 3 ngày trước',
+    recencyLabel: 'Cập nhật 3 ngày trước',
   },
   {
     id: 'p-van-phong-ben-thanh',
     name: 'Văn phòng Bến Thành',
     to: ROUTES.project.floors('p-van-phong-ben-thanh'),
-    recencyLabel: 'cập nhật tuần trước',
+    recencyLabel: 'Cập nhật tuần trước',
   },
   {
     id: 'p-nha-xuong-binh-tan',
     name: 'Nhà xưởng Bình Tân',
     to: ROUTES.project.floors('p-nha-xuong-binh-tan'),
-    recencyLabel: 'cập nhật tháng trước',
+    recencyLabel: 'Cập nhật tháng trước',
   },
 ];
 

@@ -17,7 +17,7 @@ import { EMAIL_BY_ROLE, submitSignInForm } from '../fixtures/session';
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const DASHBOARD_HEADING = 'Dự án của tôi';
-const TO_DASHBOARD = 'về danh sách dự án';
+const TO_DASHBOARD = 'Về danh sách dự án';
 
 function collectPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -29,10 +29,10 @@ const dashboardHeading = (page: Page) =>
   page.getByRole('heading', { name: DASHBOARD_HEADING, exact: true });
 
 const EXIT_ROWS = [
-  { name: 'màn không có quyền', path: ROUTES.accessDenied, heading: 'bạn chưa có quyền truy cập' },
+  { name: 'màn không có quyền', path: ROUTES.accessDenied, heading: 'Bạn chưa có quyền truy cập' },
   // B-G-01: 404 ghi bộ đệm danh sách dự án theo hình dạng API, bảng điều khiển đọc nó và đổ.
-  { name: 'màn 404', path: UNKNOWN_PATH, heading: 'không tìm thấy trang này' },
-  { name: 'màn 404 của một đường sâu có query và hash', path: '/a/b/c?x=1#h', heading: 'không tìm thấy trang này' },
+  { name: 'màn 404', path: UNKNOWN_PATH, heading: 'Không tìm thấy trang này' },
+  { name: 'màn 404 của một đường sâu có query và hash', path: '/a/b/c?x=1#h', heading: 'Không tìm thấy trang này' },
 ] as const;
 
 for (const row of EXIT_ROWS) {
@@ -54,13 +54,13 @@ for (const row of EXIT_ROWS) {
   });
 }
 
-test('mở thẳng một đường chết rồi bấm "quay lại" thì về danh sách dự án, không ra khỏi ứng dụng (B-V1-01)', async ({
+test('mở thẳng một đường chết rồi bấm "Quay lại" thì về danh sách dự án, không ra khỏi ứng dụng (B-V1-01)', async ({
   page,
 }) => {
   await page.goto(UNKNOWN_PATH);
   const origin = new URL(page.url()).origin;
 
-  await page.getByRole('button', { name: 'quay lại', exact: true }).click({
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 
@@ -87,7 +87,7 @@ test('từ màn không có quyền, đăng nhập bằng tài khoản khác rồ
 }) => {
   await page.goto(ROUTES.accessDenied);
 
-  await page.getByRole('button', { name: 'đăng nhập bằng tài khoản khác', exact: true }).click({
+  await page.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác', exact: true }).click({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   // Nút đăng xuất trước rồi mới sang /login kèm `state.from` (`useAccessDenied.ts:439-445`).
@@ -97,6 +97,6 @@ test('từ màn không có quyền, đăng nhập bằng tài khoản khác rồ
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.accessDenied);
   await expect(
-    page.getByRole('heading', { name: 'bạn chưa có quyền truy cập', exact: true }),
+    page.getByRole('heading', { name: 'Bạn chưa có quyền truy cập', exact: true }),
   ).toBeVisible();
 });

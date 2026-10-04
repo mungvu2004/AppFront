@@ -66,7 +66,7 @@ export const SAMPLE_PROJECT_OWNER: ProjectOwnerVm = {
 
 /** Một yêu cầu đã gửi thành công — dùng khi `capabilities.canRequestAccess` bật. */
 export const SAMPLE_ACCESS_REQUEST: AccessRequestVm = {
-  sentAtLabel: 'đã gửi lúc 14:32',
+  sentAtLabel: 'Đã gửi lúc 14:32',
 };
 
 /**

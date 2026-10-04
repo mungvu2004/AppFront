@@ -1,5 +1,5 @@
 /**
- * `AccessDenied` — view thuần của màn "bạn chưa có quyền truy cập" (S-44). Mọi
+ * `AccessDenied` — view thuần của màn "Bạn chưa có quyền truy cập" (S-44). Mọi
  * chuỗi tiếng Việt và mọi con số đã thành chữ đến từ `AccessDeniedVm`
  * (`accessDeniedModel.ts`, hợp đồng đông lạnh); file này chỉ in ra (A15).
  * Không store, không mạng, không `src/api`, không `src/domain` — test được chỉ
@@ -164,7 +164,7 @@ export function AccessDenied({
           <div className={PANEL_CLASS}>
             {request !== null ? (
               <div className={cn('flex flex-col gap-2', SWAP_ANIMATION_NAME)}>
-                <Badge variant="neutral">đã gửi yêu cầu</Badge>
+                <Badge variant="neutral">Đã gửi yêu cầu</Badge>
                 <span className="text-[13px] text-text-secondary">{request.sentAtLabel}</span>
                 {request.declineMessage !== undefined && (
                   <p className="text-[13px] leading-relaxed text-text-secondary">

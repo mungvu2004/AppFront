@@ -47,7 +47,7 @@ describe('useNotFound — "quay lại"', () => {
   it('mở thẳng đường chết (không có lịch sử của ứng dụng) thì về danh sách dự án', () => {
     renderAt([DEAD_PATH]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'quay lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
 
     expect(screen.getByText('danh sách dự án')).toBeInTheDocument();
   });
@@ -55,7 +55,7 @@ describe('useNotFound — "quay lại"', () => {
   it('có màn trước trong ứng dụng thì lùi về đúng màn ấy', () => {
     renderAt([PREVIOUS_PATH, DEAD_PATH]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'quay lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
 
     expect(screen.getByText('màn trước')).toBeInTheDocument();
   });

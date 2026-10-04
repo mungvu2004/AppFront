@@ -24,7 +24,7 @@ test('chuyển sang màn chưa tải: vỏ chờ tiếng Việt, không có "Loa
   page,
 }) => {
   await page.goto(UNKNOWN_PATH);
-  const toDashboard = page.getByRole('button', { name: 'về danh sách dự án', exact: true });
+  const toDashboard = page.getByRole('button', { name: 'Về danh sách dự án', exact: true });
   await expect(toDashboard).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   let release: () => void = () => undefined;
@@ -58,12 +58,12 @@ test('chuyển sang màn chưa tải: vỏ chờ tiếng Việt, không có "Loa
 test('B-V1-43: mở dự án không có ở /3d thì có câu và nút về danh sách dự án', async ({ page }) => {
   await page.goto(ROUTES.project.viewer('project-missing'));
 
-  await expect(page.getByRole('heading', { name: 'không tìm thấy dự án này', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Không tìm thấy dự án này', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await expect(page.getByRole('main', { name: 'Khung nhìn mô hình', exact: true })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'về danh sách dự án', exact: true }).click();
+  await page.getByRole('button', { name: 'Về danh sách dự án', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: 'Dự án của tôi', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,

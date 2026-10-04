@@ -23,9 +23,9 @@ const ROWS = [
   {
     name: 'accessDenied',
     path: ROUTES.accessDenied,
-    anchor: { role: 'heading', name: 'bạn chưa có quyền truy cập' },
+    anchor: { role: 'heading', name: 'Bạn chưa có quyền truy cập' },
   },
-  { name: 'notFound', path: UNKNOWN_PATH, anchor: { role: 'heading', name: 'không tìm thấy trang này' } },
+  { name: 'notFound', path: UNKNOWN_PATH, anchor: { role: 'heading', name: 'Không tìm thấy trang này' } },
   {
     name: 'mobileViewer',
     path: ROUTES.mobileViewer('project-1'),

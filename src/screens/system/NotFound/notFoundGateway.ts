@@ -87,7 +87,7 @@ export const NOT_FOUND_RECENT_CACHE_POLICY: ResolvedCachePolicy = resolveCachePo
 );
 
 /** Tiền tố của `recencyLabel`. Xem khoản 2 của hợp đồng. */
-export const RECENCY_LABEL_PREFIX = 'cập nhật ';
+export const RECENCY_LABEL_PREFIX = 'Cập nhật ';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Ánh xạ                                                                  */
