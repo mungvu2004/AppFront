@@ -1410,19 +1410,19 @@
     },
     "state": {
       "emptyDescription": "Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.",
-      "successContinue": "sang lớp cửa và nội thất",
+      "successContinue": "Sang lớp cửa và nội thất",
       "forbiddenNotice": "Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.",
       "filterNoMatch": "Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.",
       "emptyListTitle": "Chưa có đoạn tường nào"
     },
     "layerTree": {
-      "walls": "tường",
-      "openingsAndFurniture": "cửa và nội thất",
-      "dimensions": "kích thước",
-      "axes": "trục",
-      "rooms": "phòng",
-      "showWalls": "hiện lớp tường",
-      "hideWalls": "ẩn lớp tường"
+      "walls": "Tường",
+      "openingsAndFurniture": "Cửa và nội thất",
+      "dimensions": "Kích thước",
+      "axes": "Trục",
+      "rooms": "Phòng",
+      "showWalls": "Hiện lớp tường",
+      "hideWalls": "Ẩn lớp tường"
     },
     "aria": {
       "screen": "Duyệt lớp tường",
@@ -1483,8 +1483,8 @@
       "furniture": "nội thất"
     },
     "layerTree": {
-      "showPrefix": "hiện lớp ",
-      "hidePrefix": "ẩn lớp "
+      "showPrefix": "Hiện lớp ",
+      "hidePrefix": "Ẩn lớp "
     },
     "subtype": {
       "singleDoor": "cửa đơn",

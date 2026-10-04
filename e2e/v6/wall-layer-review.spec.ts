@@ -169,8 +169,8 @@ test.describe('[bơm] bộ mẫu riêng của màn tường', () => {
     await expect(rail.getByRole('button', { pressed: true })).toHaveCount(1);
   });
 
-  test('[bơm] nút ẩn lớp viết thường hoàn toàn: "ẩn lớp tường" (A6, B-V6-04)', async ({ page }) => {
+  test('[bơm] nút ẩn lớp viết hoa chữ đầu, tên lớp viết thường: "Ẩn lớp tường" (A6, B-V6-04)', async ({ page }) => {
     await openSeeded(page);
-    await expect(page.getByRole('button', { name: 'ẩn lớp tường', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toBeVisible();
   });
 });
