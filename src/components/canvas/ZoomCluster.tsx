@@ -71,7 +71,7 @@ export function ZoomCluster({
           'opacity-60 group-hover:opacity-100 transition-opacity duration-180'
         )}
         role="group"
-        aria-label="Điều khiển zoom"
+        aria-label="Cụm thu phóng"
       >
         {/* Thu nhỏ */}
         <button
@@ -94,7 +94,7 @@ export function ZoomCluster({
             'hover:bg-bg-hover transition-colors duration-120',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
           )}
-          aria-label={`Zoom hiện tại ${zoomLabel}. Bấm để về 100%`}
+          aria-label={`Mức thu phóng ${zoomLabel}, bấm để về 100%`}
           title="Bấm để về 100%"
         >
           {zoomLabel}

@@ -123,11 +123,15 @@ test('"Tải bản vẽ khác" quay về màn tải lên của cùng dự án', 
   await expect(page.getByRole('navigation', { name: 'Tải lên bản vẽ' })).toBeVisible();
 });
 
-test('vai Người xem đọc được báo cáo nhưng hai nút hành động biến khỏi màn', async ({ page }) => {
+test('vai Người xem đọc được báo cáo nhưng hai nút hành động biến khỏi màn; cụm thu phóng nói tiếng Việt (B-V1-48)', async ({
+  page,
+}) => {
   await signInAs(page, 'viewer', QUALITY);
 
   await expect(page.getByRole('region', { name: 'Báo cáo chất lượng' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Điều khiển zoom' })).toBeVisible();
+  const zoom = page.getByRole('group', { name: 'Cụm thu phóng', exact: true });
+  await expect(zoom).toBeVisible();
+  await expect(zoom.getByRole('button', { name: /^Mức thu phóng \d+%, bấm để về 100%$/u })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tiếp tục xử lý' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Tải bản vẽ khác' })).toHaveCount(0);
 });

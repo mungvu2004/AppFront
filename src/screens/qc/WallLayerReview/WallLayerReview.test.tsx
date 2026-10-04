@@ -377,20 +377,8 @@ describe('ba bộ soát dùng chung', () => {
     expectAccessible(container);
   });
 
-  /*
-   * "zoom" — chữ DUY NHẤT được nới, và nó không đến từ màn này.
-   *
-   * `ZoomCluster` (`src/components/canvas/ZoomCluster.tsx`) tự đặt
-   * `aria-label="Điều khiển zoom"` và "Zoom hiện tại 100%…". Đó là chuỗi của
-   * một component dùng chung, và `src/components/**` nằm ngoài danh sách file
-   * được sửa (R-68) — chỗ đúng để sửa là component, không phải màn này.
-   *
-   * Nới ĐÚNG một chữ, chứ không nới cả phép kiểm: sáu chuỗi tiếng Anh khác mà
-   * lượt gộp này tìm thấy ("Ẩn layer" của `TreeItem`, "canvas" trong câu rỗng
-   * của thanh tra) đã được SỬA THẬT, không nới. Tiền lệ: `ScaleCalibration.test.tsx`
-   * cũng nới đúng chữ này, vì cùng một component.
-   */
-  const ALLOWED_WORDS = ['zoom'];
+  /* Không chữ nào được nới — nợ "zoom" của `ZoomCluster` đã trả (B-V1-48). */
+  const ALLOWED_WORDS: readonly string[] = [];
 
   it.each(SEVEN_STATES)('R-72 expectVietnamese — trạng thái %s', (state) => {
     const { container } = renderState(state);

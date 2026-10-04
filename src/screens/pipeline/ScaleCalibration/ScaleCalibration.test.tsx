@@ -139,14 +139,9 @@ const MACHINE_ERROR_CODE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
  * Xử lý. Ghi tên ở đây để chúng là quyết định đọc được, không phải hai chữ
  * tiếng Anh lọt lưới.
  *
- * `zoom` là chữ thứ ba, và nó KHÔNG phải chuỗi của màn này: nó là `aria-label`
- * của `src/components/canvas/ZoomCluster.tsx` — một component dùng chung mà
- * canvas tái sử dụng. Sửa nó là sửa `src/components/**`, ngoài phạm vi R-68 của
- * lượt dựng màn, nên chỗ này ghi nhận nó thành văn thay vì im lặng cho qua.
- * Đây là NỢ đã ghi, không phải một chữ được duyệt: nó thuộc về lượt dọn
- * `ZoomCluster`, và danh sách này chỉ được ngắn đi.
+ * Chữ thứ ba từng là `zoom` của `ZoomCluster` — đã trả (B-V1-48).
  */
-const ALLOWED_WORDS = ['panel', 'pixel', 'zoom'];
+const ALLOWED_WORDS = ['panel', 'pixel'];
 
 /* -------------------------------------------------------------------------- */
 /* Môi trường.                                                                 */

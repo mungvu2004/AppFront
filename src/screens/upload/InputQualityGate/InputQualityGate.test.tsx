@@ -79,21 +79,11 @@ const UNIT_WORDS = ['px'];
 /**
  * **Nợ A-6b — nợ CỦA REPO, không phải của màn Cổng chất lượng đầu vào.**
  *
- * `ZoomCluster` (`src/components/canvas/ZoomCluster.tsx:48` và `:71`) viết
- * `aria-label="Điều khiển zoom"` và `aria-label="Zoom hiện tại 100%…"` — hai
- * chữ tiếng Anh THẬT trong một component DÙNG CHUNG. Ba dòng dưới đây là chỗ
- * ghi nợ, **không** phải chỗ chấp nhận nó. `src/components/**` là thư mục màn
- * này không được sửa (R-68), và `InputQualityGateImagePanel` chỉ tình cờ là màn
- * đầu tiên chạy `expectVietnamese` trên một cây có `<ZoomCluster>` nên nợ lộ ra
- * ở đây. Cùng khuôn ghi nợ với `BillingScreen.test.tsx:317-328`.
- *
- * `to` là chuyện khác: `"Phóng to"` là tiếng Việt đúng, `expectVietnamese` chấm
- * nhầm nó thành từ tiếng Anh còn sót — một dương tính giả, không phải một lỗi.
- *
- * Cách trả nợ: đổi `ZoomCluster.tsx:48` thành `"Điều khiển thu phóng"` và
- * `:71` thành `"Mức thu phóng hiện tại…"`, rồi xoá đúng ba từ dưới đây.
+ * `to`: `"Phóng to"` là tiếng Việt đúng, `expectVietnamese` chấm nhầm nó thành
+ * từ tiếng Anh còn sót — một dương tính giả, không phải một lỗi. Nợ "zoom" của
+ * `ZoomCluster` đã trả (B-V1-48): "Cụm thu phóng", "Mức thu phóng …".
  */
-const SHARED_COMPONENT_DEBT_WORDS = ['zoom', 'to'];
+const SHARED_COMPONENT_DEBT_WORDS = ['to'];
 
 /** Mọi từ được cho qua khi soát tiếng Việt — đơn vị thật, cộng nợ đã nêu tên. */
 const ALLOWED_WORDS = [...UNIT_WORDS, ...SHARED_COMPONENT_DEBT_WORDS];

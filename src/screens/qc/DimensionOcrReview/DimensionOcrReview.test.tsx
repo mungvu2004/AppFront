@@ -92,17 +92,8 @@ const REVIEWED_DIMENSIONS = DIMENSION_OCR_FIXTURE_REVIEWED;
 const MINOR_ID = DIMENSION_OCR_FIXTURE_MINOR_DEVIATION.id;
 const SIGNIFICANT_ID = DIMENSION_OCR_FIXTURE_SIGNIFICANT_DEVIATION.id;
 
-/**
- * `zoom` — chữ tiếng Anh DUY NHẤT được phép, và nó không phải chuỗi của màn này.
- *
- * Nó là `aria-label` của `src/components/canvas/ZoomCluster.tsx`, component dùng
- * chung mà `DimensionOcrCanvas` tái sử dụng. Sửa nó là sửa `src/components/**`,
- * ngoài phạm vi R-68 của lượt dựng màn, nên chỗ này ghi nhận nó thành văn thay
- * vì im lặng cho qua. Đây là NỢ ĐÃ GHI, không phải một chữ được duyệt: nó thuộc
- * về lượt dọn `ZoomCluster`, và danh sách này chỉ được ngắn đi. Tiền lệ nguyên
- * văn: `ScaleCalibration.test.tsx:136-150`.
- */
-const ALLOWED_WORDS = ['zoom'];
+/** Không chữ tiếng Anh nào được nới — nợ "zoom" của `ZoomCluster` đã trả (B-V1-48). */
+const ALLOWED_WORDS: readonly string[] = [];
 
 /** Số giá trị mà phép đo bàn phím phải sửa xong trong một lượt. */
 const KEYBOARD_EDIT_TARGET = 5;
