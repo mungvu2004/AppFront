@@ -282,3 +282,34 @@ describe('B-V1-45 — email không hiện hai lần', () => {
     expect((container.textContent ?? '').split(SESSION_EMAIL)).toHaveLength(2);
   });
 });
+
+describe('bộ mẫu theo đúng chữ của hook (B-V1-44, mục D)', () => {
+  it('mọi chuỗi kịch bản "không có quyền" trùng chữ hook dựng với cùng phiên và cùng cổng', () => {
+    let seen: AccessDeniedVm | null = null;
+
+    function Probe() {
+      seen = useAccessDenied();
+
+      return null;
+    }
+
+    renderWithProviders(
+      <MemoryRouter>
+        <Probe />
+      </MemoryRouter>,
+    );
+
+    const fromHook = seen as AccessDeniedVm | null;
+    if (fromHook === null) throw new Error('hook chưa chạy');
+    const fromScenario = createAccessDeniedVm('forbidden', {
+      capabilities: fromHook.capabilities,
+      currentEmail: SESSION_EMAIL,
+    });
+
+    for (const field of ['title', 'restrictionSentence', 'reasonSentence', 'whoCanGrantSentence', 'identityLabel', 'errorCodeCaption'] as const) {
+      expect(fromScenario[field], field).toBe(fromHook[field]);
+    }
+    expect(fromScenario.switchAccount.label).toBe(fromHook.switchAccount.label);
+    expect(fromScenario.backToProjects.label).toBe(fromHook.backToProjects.label);
+  });
+});

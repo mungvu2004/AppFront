@@ -94,14 +94,14 @@ export const NOT_FOUND_TEXT = {
 } as const;
 
 /** Tiêu đề h2, một câu cho mỗi nguyên nhân. */
-const TITLE_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
+export const TITLE_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
   missing: 'Không tìm thấy trang này',
   forbidden: 'Cần đăng nhập để xem trang này',
   offline: 'Chưa kết nối được máy chủ',
 };
 
 /** Một câu giải thích cho mỗi nguyên nhân. Nói đúng thứ đang biết, không hơn. */
-const DESCRIPTION_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
+export const DESCRIPTION_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
   missing: 'Trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.',
   forbidden: 'Đăng nhập xong bạn sẽ được đưa lại đúng trang vừa mở.',
   offline: 'Đường truyền đang gián đoạn, nên chưa xác nhận được trang này còn hay không.',

@@ -122,7 +122,7 @@ export const ACCESS_DENIED_TEXT = {
  * Tách thành hàm chứ không viết thẳng vào bảng chữ vì nó là chỗ DUY NHẤT tên dự
  * án có thể lọt ra màn: một lối vào thì soát được, hai lối vào thì không.
  */
-function restrictionSentenceOf(projectName: string | undefined, canNameProject: boolean): string {
+export function restrictionSentenceOf(projectName: string | undefined, canNameProject: boolean): string {
   if (!canNameProject || projectName === undefined || projectName.length === 0) {
     return ACCESS_DENIED_TEXT.restrictionWithoutName;
   }
@@ -137,7 +137,7 @@ function restrictionSentenceOf(projectName: string | undefined, canNameProject: 
  * một lý do khi mã lỗi nói ra, còn lại nói một câu trung tính thay vì đoán.
  * Không câu nào nói người đọc làm sai điều gì.
  */
-const REASON_SENTENCE: Readonly<Record<AccessDeniedReason, string>> = {
+export const REASON_SENTENCE: Readonly<Record<AccessDeniedReason, string>> = {
   revoked: 'Quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.',
   expired: 'Đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.',
   password: 'Đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.',

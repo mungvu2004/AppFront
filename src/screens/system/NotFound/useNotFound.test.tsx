@@ -14,6 +14,8 @@ import { describe, expect, it } from 'vitest';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { ROUTES } from '@/routes/paths';
 
+import { createNotFoundVm } from './notFoundScenarios';
+import type { NotFoundVm } from './notFoundModel';
 import { useNotFound } from './useNotFound';
 
 const DEAD_PATH = '/duong-chet';
@@ -58,5 +60,34 @@ describe('useNotFound — "quay lại"', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
 
     expect(screen.getByText('màn trước')).toBeInTheDocument();
+  });
+});
+
+describe('bộ mẫu theo đúng chữ của hook (B-V1-44, mục D)', () => {
+  it('tiêu đề, mô tả, nút "Quay lại" và tiêu đề khối gợi ý của kịch bản trùng chữ hook dựng', () => {
+    let seen: NotFoundVm | null = null;
+
+    function Probe() {
+      seen = useNotFound({ gateway: { listRecentProjects: () => Promise.resolve([]) } });
+
+      return null;
+    }
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={[DEAD_PATH]}>
+          <Probe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const fromHook = seen as NotFoundVm | null;
+    const fromScenario = createNotFoundVm('success');
+
+    expect(fromHook?.reason).toBe('missing');
+    expect(fromScenario.title).toBe(fromHook?.title);
+    expect(fromScenario.description).toBe(fromHook?.description);
+    expect(fromScenario.secondaryAction.label).toBe(fromHook?.secondaryAction.label);
+    expect(fromScenario.recentHeading).toBe(fromHook?.recentHeading);
   });
 });
