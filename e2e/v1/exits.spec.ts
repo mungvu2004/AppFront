@@ -82,7 +82,7 @@ test('hàng dự án gần đây của màn 404 dẫn tới đúng dự án', as
   await expect.poll(() => pathOf(page.url())).toBe(href);
 });
 
-test('từ màn không có quyền, đăng nhập bằng tài khoản khác rồi quay lại đúng màn ấy', async ({
+test('từ màn không có quyền, đăng nhập bằng tài khoản khác rồi quay lại đúng màn ấy; email hiện một lần (B-V1-45)', async ({
   page,
 }) => {
   await page.goto(ROUTES.accessDenied);
@@ -99,4 +99,6 @@ test('từ màn không có quyền, đăng nhập bằng tài khoản khác rồ
   await expect(
     page.getByRole('heading', { name: 'Bạn chưa có quyền truy cập', exact: true }),
   ).toBeVisible();
+  // B-V1-45: hook ghép email vào nhãn, view vẽ email thêm một lần — "…bằng a@b a@b".
+  await expect(page.getByText(EMAIL_BY_ROLE.engineer)).toHaveCount(1);
 });

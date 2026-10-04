@@ -102,7 +102,7 @@ export const ACCESS_DENIED_TEXT = {
 
   whoCanGrant: 'Người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.',
 
-  identityPrefix: 'Bạn đang đăng nhập bằng ',
+  identityPrefix: 'Bạn đang đăng nhập bằng',
   identityUnknown: 'Phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.',
 
   switchAccountLabel: 'Đăng nhập bằng tài khoản khác',
@@ -302,10 +302,9 @@ export function useAccessDenied(options: UseAccessDeniedOptions = {}): AccessDen
    */
   const currentEmail = session.user?.email ?? null;
 
+  // Chỉ tiền tố: view tự vẽ email ngay sau nhãn (B-V1-45 — ghép ở đây thì email hiện hai lần).
   const identityLabel =
-    currentEmail === null
-      ? ACCESS_DENIED_TEXT.identityUnknown
-      : `${ACCESS_DENIED_TEXT.identityPrefix}${currentEmail}`;
+    currentEmail === null ? ACCESS_DENIED_TEXT.identityUnknown : ACCESS_DENIED_TEXT.identityPrefix;
 
   /* ---- Yêu cầu đã gửi và cửa sổ chặn gửi lại ----------------------------- */
 

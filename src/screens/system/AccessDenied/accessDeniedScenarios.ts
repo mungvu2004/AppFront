@@ -145,7 +145,7 @@ function whoCanGrantSentenceFor(capabilities: AccessDeniedCapabilities, owner: P
 function identityLabelFor(email: string | null): string {
   return email === null
     ? 'Không xác định được bạn đang đăng nhập bằng tài khoản nào.'
-    : `Bạn đang đăng nhập bằng ${email}.`;
+    : 'Bạn đang đăng nhập bằng';
 }
 
 function actionFor(label: string, onActivate: (() => void) | undefined): AccessDeniedAction {
