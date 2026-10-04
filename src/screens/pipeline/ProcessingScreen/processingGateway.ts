@@ -74,6 +74,7 @@ import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
 import type { ApiClient, ApiResult } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
+import { refreshSingleFlight } from '@/lib/auth';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import { createUuid } from '@/lib/http/ids';
@@ -661,6 +662,7 @@ export function createProcessingGateway(
 
       const stream = createProgressStream({
         url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.uploadProgress(projectId, uploadId)),
+        refreshAuth: () => refreshSingleFlight({ source: 'local' }),
         fetchEvents: async ({ signal }) => {
           const result = await client.drawings.progress({ projectId, uploadId, signal });
 
