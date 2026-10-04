@@ -434,6 +434,12 @@ export function useDimensionOcrReview(
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = dimensionLayerQuery.isError;
+
+  // Truy vấn duy nhất làm nên trạng thái lỗi — khuôn `useAxisGridManager` (B-V6-45).
+  const refetchDimensionLayer = dimensionLayerQuery.refetch;
+  const onRetry = useCallback(() => {
+    void refetchDimensionLayer();
+  }, [refetchDimensionLayer]);
   const isLoading = dimensionLayerQuery.isPending || graph === null;
   const hasPartialOcr = ocrProgressQuery.data?.isComplete === false;
 
@@ -1017,6 +1023,7 @@ export function useDimensionOcrReview(
     onToggleKeyboardMode,
     onUndo,
     onToggleCollapsed,
+    onRetry,
 
     keyboardReview,
   };

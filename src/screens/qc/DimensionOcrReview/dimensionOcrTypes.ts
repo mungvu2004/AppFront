@@ -310,6 +310,8 @@ export interface DimensionOcrModel {
   readonly onToggleKeyboardMode: () => void;
   readonly onUndo: () => void;
   readonly onToggleCollapsed: () => void;
+  /** Nút "Thử lại" của trạng thái lỗi — nạp lại lớp kích thước (B-V6-45, A11). */
+  readonly onRetry: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

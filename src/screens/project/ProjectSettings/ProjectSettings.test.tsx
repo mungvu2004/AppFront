@@ -569,6 +569,29 @@ describe('ProjectSettings đã nối dây', () => {
     expect(screen.queryAllByRole('button', { name: SAVE_BUTTON_NAMES })).toHaveLength(0);
   });
 
+  it('đã lưu rồi gõ tên sai: chỉ báo nói câu chờ, không giữ "Đã lưu lúc …" cũ (B-V1-47, A7)', async () => {
+    const gateway = spyGateway();
+    await mountSettings({ gateway, projectId: 'project-problem', roles: ['admin'] });
+
+    fireEvent.change(nameField(), { target: { value: 'Chung cư Bình Minh' } });
+    await tick(AUTOSAVE_DEBOUNCE_MS);
+    await tick(0);
+    expect(screen.getAllByRole('status').some((node) => /Đã lưu lúc/u.test(node.textContent ?? ''))).toBe(true);
+
+    fireEvent.change(nameField(), { target: { value: 'Ch' } });
+    // Qua hẳn cửa sổ tự lưu: lượt lưu không có gì để gửi (tên sai) không được biến thành "đã lưu".
+    await tick(AUTOSAVE_DEBOUNCE_MS);
+    await tick(0);
+
+    // Chỉ viên chỉ báo (có biểu tượng); vùng đọc sr-only còn giữ câu "Đã lưu lúc …" vừa đọc là đúng.
+    const texts = screen
+      .getAllByRole('status')
+      .filter((node) => node.querySelector('svg') !== null)
+      .map((node) => node.textContent ?? '');
+    expect(texts.some((text) => text.includes('Có thay đổi chờ đồng bộ')), JSON.stringify(texts)).toBe(true);
+    expect(texts.some((text) => /Đã lưu lúc/u.test(text)), JSON.stringify(texts)).toBe(false);
+  });
+
   it('mỗi lượt lưu xong kèm một vé hoàn tác, và hoàn tác trả ô về giá trị cũ (A8, D-05)', async () => {
     const toasts: ToastRecord[] = [];
     const gateway = spyGateway();

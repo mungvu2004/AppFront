@@ -341,7 +341,7 @@ describe('[NGHIEM-7] R-73', () => {
       </MemoryRouter>,
     );
 
-    const goOn = await screen.findByRole('button', { name: 'sang lớp cửa và nội thất' });
+    const goOn = await screen.findByRole('button', { name: 'Sang lớp cửa và nội thất' });
 
     goOn.click();
 
@@ -377,20 +377,8 @@ describe('ba bộ soát dùng chung', () => {
     expectAccessible(container);
   });
 
-  /*
-   * "zoom" — chữ DUY NHẤT được nới, và nó không đến từ màn này.
-   *
-   * `ZoomCluster` (`src/components/canvas/ZoomCluster.tsx`) tự đặt
-   * `aria-label="Điều khiển zoom"` và "Zoom hiện tại 100%…". Đó là chuỗi của
-   * một component dùng chung, và `src/components/**` nằm ngoài danh sách file
-   * được sửa (R-68) — chỗ đúng để sửa là component, không phải màn này.
-   *
-   * Nới ĐÚNG một chữ, chứ không nới cả phép kiểm: sáu chuỗi tiếng Anh khác mà
-   * lượt gộp này tìm thấy ("Ẩn layer" của `TreeItem`, "canvas" trong câu rỗng
-   * của thanh tra) đã được SỬA THẬT, không nới. Tiền lệ: `ScaleCalibration.test.tsx`
-   * cũng nới đúng chữ này, vì cùng một component.
-   */
-  const ALLOWED_WORDS = ['zoom'];
+  /* Không chữ nào được nới — nợ "zoom" của `ZoomCluster` đã trả (B-V1-48). */
+  const ALLOWED_WORDS: readonly string[] = [];
 
   it.each(SEVEN_STATES)('R-72 expectVietnamese — trạng thái %s', (state) => {
     const { container } = renderState(state);
@@ -535,8 +523,8 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
     expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
 
     /* A6 · B-V6-04: tên lớp trong cây và trong nút con mắt cùng viết thường. */
-    expect(screen.getByRole('treeitem', { name: 'tường' })).toBeInTheDocument();
-    const hide = screen.getByRole('button', { name: 'ẩn lớp tường' });
+    expect(screen.getByRole('treeitem', { name: 'Tường' })).toBeInTheDocument();
+    const hide = screen.getByRole('button', { name: 'Ẩn lớp tường' });
 
     /* Hai lỗi của `TreeItem` dùng chung mà hàng riêng của màn này không mắc. */
     expect(hide.getAttribute('tabindex')).toBeNull();
@@ -550,7 +538,7 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
       expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
     });
 
-    const show = screen.getByRole('button', { name: 'hiện lớp tường' });
+    const show = screen.getByRole('button', { name: 'Hiện lớp tường' });
 
     await act(async () => {
       show.click();
@@ -644,7 +632,7 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('thanh tiến độ và con số chuyển sang token "đã xác minh"', async () => {
     const { container } = renderState('success');
 
-    await screen.findByRole('button', { name: 'sang lớp cửa và nội thất' });
+    await screen.findByRole('button', { name: 'Sang lớp cửa và nội thất' });
 
     /*
      * A5 vẫn nguyên: xanh "đã xác minh" ở đây tới từ `reviewed === total` —

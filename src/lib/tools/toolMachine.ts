@@ -116,8 +116,9 @@ export const TOOL_PHASES = ['ready', 'drawing', 'confirming'] as const satisfies
 /**
  * What the status bar calls each phase.
  *
- * Lower case, sentence style, as invariant A6 requires of every interface label
- * that is not an axis code or an error code.
+ * Still lower case — written under the old A6 reading. A6 now asks for sentence
+ * case with a capital first letter (CLAUDE.md, 2026-10-04); these labels are
+ * left for R2 đợt 9, which settles the rest of lib.
  */
 export const TOOL_PHASE_LABELS: Readonly<Record<ToolPhase, string>> = {
   ready: 'sẵn sàng',

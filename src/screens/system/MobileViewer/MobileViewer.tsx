@@ -72,17 +72,17 @@ function WeakDeviceLayer({ fallback2dHref }: { readonly fallback2dHref: string }
     <CoveringLayer>
       <div className="flex flex-col items-center gap-4 px-6 text-center">
         <h2 className="text-[16px] font-semibold text-text-primary">
-          máy này chưa dựng nổi mô hình 3D
+          Máy này chưa dựng nổi mô hình 3D
         </h2>
         <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">
-          bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.
+          Bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.
         </p>
         <a
           className={getButtonStyles({ variant: 'primary' })}
           href={fallback2dHref}
           style={{ minHeight: MOBILE_VIEWER_MIN_HIT_TARGET_PX }}
         >
-          xem bản 2D
+          Xem bản 2D
         </a>
       </div>
     </CoveringLayer>
@@ -106,9 +106,9 @@ function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: State
     return (
       <CoveringLayer>
         <EmptyState
-          description="dự án này chưa có bản dựng 3D nào để mở trên điện thoại."
+          description="Dự án này chưa có bản dựng 3D nào để mở trên điện thoại."
           icon={<Box />}
-          title="chưa có mô hình để xem"
+          title="Chưa có mô hình để xem"
         />
       </CoveringLayer>
     );
@@ -118,9 +118,9 @@ function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: State
     return (
       <CoveringLayer>
         <EmptyState
-          description="hỏi chủ dự án để được cấp quyền xem mô hình."
+          description="Hỏi chủ dự án để được cấp quyền xem mô hình."
           icon={<Lock />}
-          title="bạn chưa có quyền xem mô hình này"
+          title="Bạn chưa có quyền xem mô hình này"
         />
       </CoveringLayer>
     );
@@ -130,7 +130,7 @@ function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: State
     // Mức gọn dựng trước rồi mới nâng dần, nên câu này là thứ nói cho người
     // dùng biết họ đang nhìn mức nào — không có nó thì mô hình thô trông như
     // mô hình hỏng.
-    return <FloatingNote>{detailLabel ?? 'đang tải mô hình'}</FloatingNote>;
+    return <FloatingNote>{detailLabel ?? 'Đang tải mô hình'}</FloatingNote>;
   }
 
   // `partial` luôn có một câu nói lý do — không bao giờ rơi xuống câu "đã dựng
@@ -139,8 +139,8 @@ function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: State
     return (
       <FloatingNote>
         {partialReason === 'weak-network'
-          ? 'mạng đang yếu. mô hình đã tải xong vẫn xem được.'
-          : 'mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.'}
+          ? 'Mạng đang yếu. Mô hình đã tải xong vẫn xem được.'
+          : 'Mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.'}
       </FloatingNote>
     );
   }
@@ -149,7 +149,7 @@ function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: State
     return <FloatingNote>{detailLabel}</FloatingNote>;
   }
 
-  return <span className="sr-only">mô hình đã dựng xong.</span>;
+  return <span className="sr-only">Mô hình đã dựng xong.</span>;
 }
 
 export function MobileViewer({
@@ -205,7 +205,7 @@ export function MobileViewer({
 
   return (
     <div
-      aria-label="xem mô hình 3D trên điện thoại"
+      aria-label="Xem mô hình 3D trên điện thoại"
       className="relative flex h-full w-full flex-col overflow-hidden bg-canvas-3d"
       role="region"
     >
@@ -223,7 +223,7 @@ export function MobileViewer({
         </h1>
 
         <IconButton
-          aria-label="chia sẻ dự án"
+          aria-label="Chia sẻ dự án"
           icon={<Share2 />}
           onClick={onShare}
           size="lg"

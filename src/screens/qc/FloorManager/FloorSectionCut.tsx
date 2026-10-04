@@ -67,7 +67,7 @@ function ElevationScale({ ticks }: { readonly ticks: FloorSectionCutProps['eleva
     <div
       aria-label={ELEVATION_SCALE_LABEL}
       className="relative w-12 shrink-0 border-r border-border-default"
-      role="presentation"
+      role="group"
     >
       {ticks.map((tick) => (
         <div

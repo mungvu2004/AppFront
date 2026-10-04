@@ -3,6 +3,9 @@ import type { Page } from '@playwright/test';
 
 import { ROUTE_PATTERNS } from '../src/routes/paths';
 
+import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
+import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from './fixtures/tour';
+
 /**
  * Màn `Viewer3D`, thao tác thật bằng chuột và bàn phím — KHÔNG phải nghiệm thu
  * khả dụng.
@@ -165,19 +168,6 @@ const ROOM_ID = 'R-011';
 const SIGNED_IN_ROLES = ['engineer'] as const;
 
 /**
- * Địa chỉ gõ vào biểu mẫu. Bộ mẫu suy vai theo địa chỉ (`roleOfEmail`,
- * `src/api/__mocks__/client.ts`): `viewer@` cho vai chỉ-xem, còn lại là kỹ sư.
- */
-const SIGN_IN_EMAIL = 'engineer@example.com';
-const VIEWER_SIGN_IN_EMAIL = 'viewer@example.com';
-const SIGN_IN_PASSWORD = 'matkhau-du-dai';
-
-/** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
-const EMAIL_LABEL = 'thư điện tử';
-const PASSWORD_LABEL = 'mật khẩu';
-const SIGN_IN_LABEL = 'đăng nhập';
-
-/**
  * Đăng nhập qua biểu mẫu rồi đi tiếp tới màn 3D, chạy trên BỘ MẪU (`VITE_USE_MOCK_API=true`).
  *
  * Bài này KHÔNG tự đặt phiên vào trang và KHÔNG phủ dây `/api/auth/*` thật: bộ mẫu
@@ -201,10 +191,8 @@ async function signInThenOpenViewer(
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(VIEWER_PATH)}`);
 
-  const email = roles.includes('viewer') ? VIEWER_SIGN_IN_EMAIL : SIGN_IN_EMAIL;
-  await page.getByLabel(EMAIL_LABEL).fill(email);
-  await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
-  await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
+  // Bộ mẫu suy vai theo địa chỉ (`roleOfEmail`): `viewer@` cho vai chỉ-xem, còn lại là kỹ sư.
+  await submitSignInForm(page, roles.includes('viewer') ? EMAIL_BY_ROLE.viewer : EMAIL_BY_ROLE.engineer);
 
   await waitForViewerReady(page);
   expect(authRequests).toEqual([]);
@@ -227,7 +215,7 @@ async function signInThenOpenViewer(
  *    thấy `EditorTour`. Sản phẩm không sai; bài kiểm mới là chỗ thiếu một bước.
  *    Lớp phủ của tour là `pointer-events-auto`, nên nó che danh sách bên dưới.
  *
- * Tour được đóng bằng đúng nút "bỏ qua" mà `EditorTour` bày ra cho người dùng,
+ * Tour được đóng bằng đúng nút "Bỏ qua hướng dẫn" mà `EditorTour` bày ra cho người dùng,
  * KHÔNG tắt bằng cờ hay biến môi trường: tắt bằng cờ là đi kiểm một sản phẩm
  * khác với sản phẩm người dùng nhận.
  *
@@ -292,31 +280,7 @@ async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
   await expect(building).toHaveCount(0, { timeout: VIEWER_READY_TIMEOUT_MS });
 
-  await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
-}
-
-/**
- * Đóng lớp hướng dẫn NẾU nó đang mở, và không chờ quá phần ngân sách của mình.
- *
- * Gọi được nhiều lần, và phải gọi nhiều lần — xem đoạn "đo được gì" ở
- * {@link settleViewer}.
- */
-async function dismissTourIfPresent(page: Page, budgetMs: number): Promise<void> {
-  const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
-
-  await skip
-    .first()
-    .waitFor({ state: 'visible', timeout: budgetMs })
-    .catch(() => undefined);
-
-  if ((await skip.count()) === 0) {
-    return;
-  }
-
-  await skip.first().click();
-
-  /* Chờ lớp phủ biến mất HẲN — bấm tiếp lúc nó còn đang tan là bấm vào nó. */
-  await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
+  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
 }
 
 /** Tải route + dựng mô hình bộ mẫu tốn bao lâu là cùng. */
@@ -346,23 +310,6 @@ async function waitForViewerReady(page: Page): Promise<void> {
   await expect(built.or(viewerRole)).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
   await expect(page.getByRole('main', { name: 'Khung nhìn mô hình' })).toBeVisible();
 }
-
-/**
- * Phần ngân sách dành cho việc CHỜ lớp hướng dẫn hiện ra, tách khỏi phần chờ
- * dựng mô hình.
- *
- * Trước đây hai phần dùng CHUNG một con số 20 000, cộng lại thành 40 giây bên
- * trong một bài có trần 30 giây — nên khi lượt dựng mô hình chạy lâu, bài chết
- * vì hết giờ NGAY TRONG `settleViewer`, và thông báo là "Target page… has been
- * closed" chứ không phải một câu nói được nó đang chờ gì. Đo 2026-09-29: đúng
- * thế, dấu vết dừng ở `skip.count()`.
- *
- * 6 000 ms vì lớp hướng dẫn hiện ngay sau khi mô hình dựng xong, chứ không chờ
- * mạng thêm lần nào. Cộng cả hai phần là 26 giây, vẫn nằm trong trần 30 — nay
- * đúng như thế: trước 2026-10-02 còn một lượt chờ khung nhìn 5 s ĐỨNG TRƯỚC hai
- * phần này, thành 31 giây. `waitForViewerReady` gộp nó vào phần 20 giây.
- */
-const TOUR_APPEAR_TIMEOUT_MS = 6_000;
 
 /** Mỗi bước kéo đi ngang bấy nhiêu pixel. */
 const DRAG_STEP_X_PX = 15;
@@ -541,7 +488,7 @@ async function findOneRoom(page: Page): Promise<void> {
    *
    * Nên thứ tự ở đây là cố ý: mở ô tìm TRƯỚC, đóng hướng dẫn SAU, rồi mới gõ.
    */
-  await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
 
   await box.fill(ROOM_QUERY);
 
@@ -724,7 +671,7 @@ for (const label of ['Diện tích phòng', 'Lịch sử thao tác', 'Thư việ
 
     await toggle.click();
     /* Cú bấm đầu trên màn này có thể gọi lớp hướng dẫn lên — xem `findOneRoom`. */
-    await dismissTourIfPresent(page, TOUR_APPEAR_TIMEOUT_MS);
+    await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     await page.keyboard.press('Escape');

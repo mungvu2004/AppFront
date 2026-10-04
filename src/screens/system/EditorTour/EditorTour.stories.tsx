@@ -54,34 +54,34 @@ function step(
 const STEPS: readonly TourStepView[] = [
   step(
     'switchTool',
-    'đổi công cụ đang dùng',
+    'Đổi công cụ đang dùng',
     'Bấm một biểu tượng khác trên dải công cụ bên trái để đổi công cụ đang chọn.',
     'W',
-    'đổi công cụ đang dùng',
+    'Đổi công cụ đang dùng',
   ),
   step(
     'reviewWall',
-    'chọn đoạn tường tiếp theo',
+    'Chọn đoạn tường tiếp theo',
     'Xuống danh sách để xem chi tiết đoạn tường kế tiếp.',
     'J',
-    'chọn đoạn tường tiếp theo',
+    'Chọn đoạn tường tiếp theo',
   ),
   step(
     'editThickness',
-    'gán độ dày cho đoạn đang chọn',
+    'Gán độ dày cho đoạn đang chọn',
     'Chọn một mức độ dày có sẵn cho đoạn tường vừa chọn ở panel bên phải.',
     '1',
-    'gán độ dày cho đoạn đang chọn',
+    'Gán độ dày cho đoạn đang chọn',
   ),
   step(
     'undo',
-    'hoàn tác thao tác gần nhất',
+    'Hoàn tác thao tác gần nhất',
     'Trả lại trạng thái ngay trước thao tác vừa thực hiện.',
     'Mod+Z',
-    'hoàn tác thao tác gần nhất',
+    'Hoàn tác thao tác gần nhất',
   ),
-  step('view3d', 'mở khung nhìn không gian', 'Chuyển sang chế độ dựng hình để nhìn toàn bộ khối nhà vừa lên.', null, null),
-  step('exportResult', 'lấy tệp mô hình về máy', 'Bấm nút này khi định dạng đã chọn đã sẵn sàng để tải xuống.', null, null),
+  step('view3d', 'Mở khung nhìn không gian', 'Chuyển sang chế độ dựng hình để nhìn toàn bộ khối nhà vừa lên.', null, null),
+  step('exportResult', 'Lấy tệp mô hình về máy', 'Bấm nút này khi định dạng đã chọn đã sẵn sàng để tải xuống.', null, null),
 ];
 
 /** Bốn phím thật sự học được — không bịa hai phím không tồn tại (CONTRACT.md mục 5). */
@@ -99,7 +99,7 @@ const BASE: EditorTourProps = {
   isReducedMotion: false,
   summary: [],
   isSkipChipVisible: false,
-  liveMessage: `đang ở bước 2 trên ${String(STEPS.length)}: chọn đoạn tường tiếp theo`,
+  liveMessage: `Đang ở bước 2 trên ${String(STEPS.length)}: Chọn đoạn tường tiếp theo`,
   onNext: noop,
   onSkip: noop,
   onJump: noop,
@@ -141,7 +141,7 @@ export const ErrorState: Story = {
     steps: STEPS.filter((item) => item.id !== 'view3d'),
     activeIndex: 0,
     cutout: STEPS[0]?.anchorRect ?? null,
-    liveMessage: 'mất một điểm neo — còn 5 bước',
+    liveMessage: 'Mất một điểm neo — còn 5 bước',
   },
 };
 

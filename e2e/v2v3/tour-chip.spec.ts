@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
+import { TOUR_CHIP_NAME, TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
 
 /**
  * Chip "xem hướng dẫn" của `EditorTour` — thứ còn lại sau khi người dùng bỏ qua tour —
@@ -91,9 +92,9 @@ async function openExport(page: Page): Promise<void> {
 }
 
 const HOSTS: readonly Host[] = [
-  { name: 'màn tường', tourTitle: 'chọn công cụ ở ray bên trái', open: openWalls },
-  { name: 'vỏ 3D', tourTitle: 'đổi sang khung nhìn khối', open: openViewer },
-  { name: 'màn xuất', tourTitle: 'lấy tệp mang đi', open: openExport },
+  { name: 'màn tường', tourTitle: TOUR_TITLES.switchTool, open: openWalls },
+  { name: 'vỏ 3D', tourTitle: TOUR_TITLES.view3d, open: openViewer },
+  { name: 'màn xuất', tourTitle: TOUR_TITLES.exportResult, open: openExport },
 ];
 
 /** 1280 là cỡ rộng nhỏ nhất (dưới đó tour thu gọn); 1440×900 là cỡ bàn làm việc thường gặp. */
@@ -116,13 +117,13 @@ test.beforeAll(async ({ browser }) => {
   await page.close();
 });
 
-/** Chờ thẻ tour tự hiện, bấm "bỏ qua", trả về chip "xem hướng dẫn" đã hiện. */
+/** Chờ thẻ tour tự hiện, bấm "Bỏ qua hướng dẫn", trả về chip "Xem hướng dẫn" đã hiện. */
 async function skipTour(page: Page, tourTitle: string): Promise<Locator> {
   const card = page.getByRole('region', { name: tourTitle, exact: true });
   await expect(card).toBeVisible({ timeout: TOUR_SELF_APPEAR_TIMEOUT_MS });
-  await card.getByRole('button', { name: /bỏ qua/u }).click();
+  await card.getByRole('button', { name: TOUR_SKIP_NAME, exact: true }).click();
   await expect(card).toHaveCount(0);
-  const chip = page.getByRole('button', { name: 'xem hướng dẫn', exact: true });
+  const chip = page.getByRole('button', { name: TOUR_CHIP_NAME, exact: true });
   await expect(chip).toBeVisible();
   return chip;
 }
@@ -147,7 +148,7 @@ async function controlsUnderChip(chip: Locator): Promise<string[]> {
 
 for (const host of HOSTS) {
   for (const viewport of VIEWPORTS) {
-    test(`${host.name}, ${viewport.width}×${viewport.height}: sau khi bỏ qua tour, chip "xem hướng dẫn" không nằm đè điều khiển nào của màn (B-V2-05)`, async ({
+    test(`${host.name}, ${viewport.width}×${viewport.height}: sau khi bỏ qua tour, chip "Xem hướng dẫn" không nằm đè điều khiển nào của màn (B-V2-05)`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
@@ -164,7 +165,7 @@ test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp tho�
 }) => {
   await page.setViewportSize(VIEWPORTS[0]);
   await openExport(page);
-  await skipTour(page, 'lấy tệp mang đi');
+  await skipTour(page, TOUR_TITLES.exportResult);
 
   await page.getByRole('button', { name: 'chia sẻ', exact: true }).click({ timeout: ACTIONABLE_TIMEOUT_MS });
 

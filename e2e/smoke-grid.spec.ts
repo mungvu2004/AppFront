@@ -74,12 +74,12 @@ const PROJECT_ID = 'project-1';
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const ROWS = {
-  login: { anchor: { role: 'button', name: 'đăng nhập' } },
-  onboarding: { anchor: { role: 'button', name: 'tạo dự án' } },
-  accessDenied: { anchor: { role: 'heading', name: 'bạn chưa có quyền truy cập' } },
-  notFound: { anchor: { role: 'heading', name: 'không tìm thấy trang này' } },
+  login: { anchor: { role: 'button', name: 'Đăng nhập' } },
+  onboarding: { anchor: { role: 'button', name: 'Tạo dự án' } },
+  accessDenied: { anchor: { role: 'heading', name: 'Bạn chưa có quyền truy cập' } },
+  notFound: { anchor: { role: 'heading', name: 'Không tìm thấy trang này' } },
   mobileViewer: {
-    anchor: { role: 'region', name: 'xem mô hình 3D trên điện thoại' },
+    anchor: { role: 'region', name: 'Xem mô hình 3D trên điện thoại' },
     viewport: { width: 390, height: 844 },
   },
   notifications: {

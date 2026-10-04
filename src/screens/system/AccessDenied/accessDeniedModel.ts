@@ -218,6 +218,11 @@ export interface AccessDeniedVm {
 
   /** Email đang đăng nhập. `null` khi phiên không mang email (`AuthUser.email` tuỳ chọn). */
   readonly currentEmail: string | null;
+  /**
+   * Phần chữ đứng trước email — KHÔNG chứa email. View vẽ `currentEmail` ở một
+   * `span` riêng ngay sau nhãn này (B-V1-45). Khi `currentEmail === null` thì là
+   * một câu trọn nói phiên không mang email.
+   */
   readonly identityLabel: string;
   readonly switchAccount: AccessDeniedAction;
 

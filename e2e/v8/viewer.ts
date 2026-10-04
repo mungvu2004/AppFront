@@ -10,6 +10,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTE_PATTERNS } from '../fixtures/routes';
 import { signInAs, type Role } from '../fixtures/session';
+import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../fixtures/tour';
 
 /** Dự án nào cũng được: vỏ đọc bộ mẫu, không đọc mã dự án. */
 export const VIEWER_PROJECT_ID = 'P-01';
@@ -17,12 +18,6 @@ export const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', VI
 
 /** Tải route + dựng mô hình bộ mẫu tốn bao lâu là cùng (đo ở `viewer3d.spec.ts`). */
 const VIEWER_READY_TIMEOUT_MS = 20_000;
-
-/**
- * Ngân sách chờ lớp hướng dẫn HIỆN RA sau khi một neo của nó xuất hiện. Tour
- * không hiện theo giờ mà theo sự kiện, nên đây là trần của một lượt "có thể có".
- */
-export const TOUR_APPEAR_TIMEOUT_MS = 6_000;
 
 /** Câu `sr-only` của `Viewer3D.tsx` khi cảnh đã dựng xong (hoặc câu của vai Người xem). */
 export async function waitForViewerReady(page: Page): Promise<void> {
@@ -57,27 +52,13 @@ export async function openViewer(page: Page, role?: Role): Promise<void> {
   }
   await waitForViewerReady(page);
   /* /3d: lớp hướng dẫn nạp ĐỘNG (`ViewerShell.container.tsx`, lazy) nên có thể hiện SAU khi
-     cảnh dựng xong — đếm một lần không chờ là bấm trúng nền tối của nó. Chờ nút bỏ qua. */
+     cảnh dựng xong — đếm một lần không chờ là bấm trúng nền tối của nó. Chờ nút bỏ tour. */
   await dismissTourIfPresent(page);
 }
 
-/**
- * Đóng lớp hướng dẫn NẾU nó hiện trong ngân sách, bằng nút "bỏ qua" của sản phẩm.
- * Gọi SAU khi đã mở thứ làm neo của tour xuất hiện (`viewer3d.spec.ts`, `findOneRoom`).
- */
+/** Bỏ tour ở `/3d`: nó nạp động nên CHỜ nó trong ngân sách — xem `fixtures/tour.ts`. */
 export async function dismissTourIfPresent(page: Page): Promise<void> {
-  const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
-
-  await skip
-    .first()
-    .waitFor({ state: 'visible', timeout: TOUR_APPEAR_TIMEOUT_MS })
-    .catch(() => undefined);
-  if ((await skip.count()) === 0) return;
-
-  await skip.first().click();
-  /* Nền tối của tour không có role nào để bám (`EditorTour.tsx:15`) — cùng mốc
-     `viewer3d.spec.ts` dùng. Bấm tiếp lúc nó còn đang tan là bấm vào nó. */
-  await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
+  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
 }
 
 /** Panel thanh tra của VỎ (`ViewerInspector.tsx`). */

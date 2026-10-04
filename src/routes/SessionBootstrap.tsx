@@ -125,8 +125,8 @@ export function SessionGate({
     if (setupFailed) {
       return (
         <GateStrip
-          message="chưa mở được ứng dụng, hãy tải lại trang"
-          action={{ label: 'tải lại trang', onClick: () => globalThis.location.reload() }}
+          message="Chưa mở được ứng dụng, hãy tải lại trang"
+          action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
         />
       );
     }
@@ -134,13 +134,13 @@ export function SessionGate({
     if (serverUnreachable === true) {
       return (
         <GateStrip
-          message="không kết nối được máy chủ"
-          action={{ label: 'thử lại', onClick: onRetry }}
+          message="Không kết nối được máy chủ"
+          action={{ label: 'Thử lại', onClick: onRetry }}
         />
       );
     }
 
-    return <PendingShell label="đang mở phiên" />;
+    return <PendingShell label="Đang mở phiên" />;
   }
 
   if (status === 'anonymous') {
@@ -168,8 +168,8 @@ export function SessionGate({
     <>
       {serverUnreachable === true ? (
         <GateStrip
-          message="mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
-          action={{ label: 'thử lại', onClick: onRetry }}
+          message="Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
+          action={{ label: 'Thử lại', onClick: onRetry }}
         />
       ) : null}
       <Fragment key={userId ?? ''}>{children}</Fragment>

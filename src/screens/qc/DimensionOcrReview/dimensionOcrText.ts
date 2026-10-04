@@ -43,8 +43,12 @@ export const comparisonLine = (
 export const outlierHint = (description: string): string =>
   `Giá trị này hàm ý phòng dài bất thường: ${description}. Kiểm tra lại sao cho phù hợp với bản vẽ.`;
 
-/** Nhãn nút duyệt — "Duyệt kích thước này". */
-export const approveActionLabel = 'Duyệt kích thước này';
+/**
+ * Nhãn nút duyệt — "Duyệt kích thước". Tên truy cập của nút là nhãn này cộng mã
+ * ("Duyệt kích thước #M-002"), nên chữ nhìn thấy phải là phần đầu của tên ấy
+ * (WCAG 2.5.3, B-V6-46): người dùng điều khiển bằng giọng nói đọc đúng chữ họ thấy.
+ */
+export const approveActionLabel = 'Duyệt kích thước';
 
 /** Nhãn nút bỏ qua — "Bỏ qua". */
 export const skipActionLabel = 'Bỏ qua';

@@ -111,15 +111,15 @@ test('mở màn: ô đầu có tiêu điểm, trạng thái rỗng; gõ email m�
   await page.goto(ROUTES.login);
 
   await expect(authState(page)).toHaveAttribute('data-auth-state', 'empty');
-  await expect(page.getByLabel(EMAIL_LABEL)).toBeFocused();
+  await expect(page.getByLabel(EMAIL_LABEL, { exact: true })).toBeFocused();
 
-  await page.getByLabel(EMAIL_LABEL).fill(EMAIL_BY_ROLE.engineer);
+  await page.getByLabel(EMAIL_LABEL, { exact: true }).fill(EMAIL_BY_ROLE.engineer);
   await expect(authState(page)).toHaveAttribute('data-auth-state', 'partial');
 });
 
 test('đăng nhập chỉ bằng bàn phím: gõ, Tab sang mật khẩu, Enter gửi', async ({ page }) => {
   await page.goto(loginUrl(ROUTES.account));
-  await expect(page.getByLabel(EMAIL_LABEL)).toBeFocused();
+  await expect(page.getByLabel(EMAIL_LABEL, { exact: true })).toBeFocused();
 
   await page.keyboard.type(EMAIL_BY_ROLE.engineer);
   await page.keyboard.press('Tab');

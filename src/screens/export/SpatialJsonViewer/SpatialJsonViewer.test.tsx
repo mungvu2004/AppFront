@@ -236,7 +236,7 @@ describe('bảy trạng thái', () => {
       );
 
       return { container, unmount };
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
   });
 
   it('trạng thái thu gọn ẩn hẳn nửa phải', () => {

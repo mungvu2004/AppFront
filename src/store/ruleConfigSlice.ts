@@ -32,6 +32,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { RuleConfig } from '../domain/rules/config';
+import { toggleUndoDescription } from '../lib/commands/invert';
 import type { HistorySlice } from './historySlice';
 
 /**
@@ -94,7 +95,8 @@ export const createRuleConfigSlice: StateCreator<
     // lượt lùi, nên toast của lượt lùi cũng lùi được (A8), thay vì rơi về
     // `temporal.undo()` của zundo — thứ chỉ biết dữ liệu không gian.
     const undo = (): void => {
-      get().commitRuleConfig(previous, `hoàn tác: ${label}`);
+      // Cùng tiền tố với lệnh không gian, và lùi lượt lùi thì bỏ tiền tố chứ không nhân đôi (B-V12-41).
+      get().commitRuleConfig(previous, toggleUndoDescription(label));
     };
 
     set({ ruleConfig: atVersion(next, previous.version + 1) });

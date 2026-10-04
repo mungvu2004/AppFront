@@ -154,6 +154,41 @@ describe('[N1] luật cốt lõi — mục đã hoàn tác vẫn còn nhìn th�
   });
 });
 
+describe('[N1b] mỗi mục nói ra người thực hiện cho trình đọc màn hình (B-V8-47)', () => {
+  it('tên người thực hiện là chữ trong mục (sr-only), không phải aria-label trên một span không vai', () => {
+    const props = propsOf('success');
+    const { getAllByTestId } = render(<HistoryPanel {...props} />);
+    const items = getAllByTestId(HISTORY_PANEL_TEST_IDS.item);
+
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      const srOnly = Array.from(item.querySelectorAll('.sr-only')).map((node) => node.textContent ?? '');
+      expect(srOnly.some((text) => text.length > 0 && !text.startsWith(' '))).toBe(true);
+      expect(item.querySelector('span[aria-label]:not([role])')).toBeNull();
+    }
+  });
+});
+
+describe('[N1c] bộ mẫu chỉ mang nhãn người thực hiện mà model sinh ra (B-V8-48)', () => {
+  /** Mọi `HistoryActor` nằm đâu đó trong props — mục, mục con, danh sách lọc người. */
+  function actorsIn(value: unknown): { readonly label: string }[] {
+    if (Array.isArray(value)) return value.flatMap(actorsIn);
+    if (value === null || typeof value !== 'object') return [];
+    const own = 'isAnonymised' in value && 'label' in value ? [value as { readonly label: string }] : [];
+
+    return [...own, ...Object.values(value).flatMap(actorsIn)];
+  }
+
+  it('mọi người trong bảy kịch bản đọc "Bạn" hoặc "Người dùng khác [N]" — không tên thật', () => {
+    const actors = SCENARIOS.flatMap((scenario) => actorsIn(scenario.props));
+
+    expect(actors.length).toBeGreaterThan(0);
+    for (const actor of actors) {
+      expect(actor.label).toMatch(/^(Bạn|Người dùng khác( \d+)?)$/u);
+    }
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* [N2] Mục có diff hiện cả hai vế.                                            */
 /* -------------------------------------------------------------------------- */

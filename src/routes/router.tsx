@@ -27,7 +27,7 @@ import { PendingShell, SessionBootstrap } from './SessionBootstrap';
  * không thêm byte nào vào đường tải đầu.
  */
 const suspended = (node: React.ReactNode) => (
-  <React.Suspense fallback={<PendingShell label="đang tải màn hình" />}>{node}</React.Suspense>
+  <React.Suspense fallback={<PendingShell label="Đang tải màn hình" />}>{node}</React.Suspense>
 );
 
 // Lazy load screen routes

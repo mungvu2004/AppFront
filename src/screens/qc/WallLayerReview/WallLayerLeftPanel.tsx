@@ -88,11 +88,11 @@ const FILTER_KEYS: readonly WallLayerFilterKey[] = [
 const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
 const FLOOR_NAV_ARIA_LABEL = 'Tầng của bản vẽ';
 const CENTRELINES_LABEL = 'Hiện tim tường';
-const SHOW_WALL_LAYER_LABEL = 'hiện lớp tường';
-const HIDE_WALL_LAYER_LABEL = 'ẩn lớp tường';
+const SHOW_WALL_LAYER_LABEL = 'Hiện lớp tường';
+const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp tường';
 const REVIEWED_SUFFIX = ' tường đã duyệt';
 /** Cùng hành động với mục cây lớp "cửa và nội thất" — xem `onNavigateLayer`. */
-const SUCCESS_CONTINUE_LABEL = 'sang lớp cửa và nội thất';
+const SUCCESS_CONTINUE_LABEL = 'Sang lớp cửa và nội thất';
 
 /**
  * Một hàng cây lớp — dựng tại chỗ thay vì gọi `TreeItem` dùng chung.
@@ -234,7 +234,7 @@ function WallLayerFloorNav({
 }
 
 /** Lớp đang mở. Bốn lớp còn lại nằm ở {@link OTHER_LAYERS}. */
-const WALL_LAYER_LABEL = 'tường';
+const WALL_LAYER_LABEL = 'Tường';
 
 /** Bốn lớp còn lại của cây, đúng thứ tự đặc tả đọc chúng. */
 const OTHER_LAYERS: readonly {
@@ -244,12 +244,12 @@ const OTHER_LAYERS: readonly {
 }[] = [
   {
     kind: 'openingsAndFurniture',
-    label: 'cửa và nội thất',
+    label: 'Cửa và nội thất',
     icon: <DoorOpen className="h-4 w-4" />,
   },
-  { kind: 'dimensions', label: 'kích thước', icon: <Ruler className="h-4 w-4" /> },
-  { kind: 'axes', label: 'trục', icon: <Crosshair className="h-4 w-4" /> },
-  { kind: 'rooms', label: 'phòng', icon: <LayoutGrid className="h-4 w-4" /> },
+  { kind: 'dimensions', label: 'Kích thước', icon: <Ruler className="h-4 w-4" /> },
+  { kind: 'axes', label: 'Trục', icon: <Crosshair className="h-4 w-4" /> },
+  { kind: 'rooms', label: 'Phòng', icon: <LayoutGrid className="h-4 w-4" /> },
 ];
 
 export function WallLayerLeftPanel({

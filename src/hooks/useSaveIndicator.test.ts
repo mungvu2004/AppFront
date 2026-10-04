@@ -60,7 +60,7 @@ describe('useSaveIndicator', () => {
     autosave.emit('dirty');
     const { result } = renderHook(() => useSaveIndicator(autosave));
 
-    expect(result.current.label).toBe('Có thay đổi chưa lưu');
+    expect(result.current.label).toBe('Có thay đổi chờ đồng bộ');
     expect(result.current.state).toBe('dirty');
   });
 
@@ -182,7 +182,7 @@ describe('useSaveIndicator', () => {
     autosave.emit('dirty');
     const { result } = renderHook(() => useSaveIndicator(autosave));
 
-    expect(result.current.label).toBe('Có thay đổi chưa lưu');
+    expect(result.current.label).toBe('Có thay đổi chờ đồng bộ');
     expect(autosave.notifyChange).not.toHaveBeenCalled();
     expect(autosave.saveNow).not.toHaveBeenCalled();
   });

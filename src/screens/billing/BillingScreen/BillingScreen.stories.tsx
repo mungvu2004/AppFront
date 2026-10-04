@@ -132,7 +132,7 @@ function planCardsOf(source: BillingSnapshot, isReadOnly: boolean): readonly Bil
       id: offer.id,
       name: offer.name,
       priceLabel: formatMoney(offer.priceVnd[PERIOD]),
-      unitLabel: 'mỗi tháng',
+      unitLabel: 'Mỗi tháng',
       features: offer.features,
       isRecommended: offer.isRecommended,
       isCurrent,

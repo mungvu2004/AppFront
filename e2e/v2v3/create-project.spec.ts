@@ -5,7 +5,7 @@ import { ROUTES } from '../fixtures/routes';
 
 /**
  * Nhóm V3 — hộp thoại tạo dự án (`CreateProjectModal`), MỘT bề mặt mở từ HAI
- * màn chủ: bảng điều khiển (nút "Dự án mới") và onboarding (nút "tạo dự án").
+ * màn chủ: bảng điều khiển (nút "Dự án mới") và onboarding (nút "Tạo dự án").
  * Kế hoạch: `docs/notes/e2e/plan.md` mục V3.2 (V3-CP-1…4) và phát hiện F3, F5.
  *
  * Mỗi màn chủ có `Toast.Provider` riêng (F5), nên V3-CP-1 chạy ở cả hai.
@@ -18,8 +18,8 @@ import { ROUTES } from '../fixtures/routes';
  * - Esc với form SẠCH: `smoke-grid.spec.ts` đã có.
  * - Nhánh `forbidden` (người xem): không tới được từ giao diện. Dashboard giấu
  *   nút "Dự án mới" và phím N với người xem; onboarding của người xem không có
- *   thẻ "tạo dự án" (đo 2026-10-03: chỉ "duyệt kết quả", "xem dự án mẫu",
- *   "xem hướng dẫn 2 phút", "bỏ qua"). Nhánh ấy chỉ đơn vị chạm được.
+ *   thẻ "Tạo dự án" (đo 2026-10-03: chỉ "Duyệt kết quả", "Xem dự án mẫu",
+ *   "Xem hướng dẫn 2 phút", "Bỏ qua"). Nhánh ấy chỉ đơn vị chạm được.
  */
 
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
@@ -27,12 +27,12 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 /**
  * Tên truy cập của nút dashboard mang cả phím tắt ("Dự án mới" + "N", F8) nên
- * khớp đầu chuỗi; ở onboarding "tạo dự án" còn là chữ của một `h2`, nên lọc
+ * khớp đầu chuỗi; ở onboarding "Tạo dự án" còn là chữ của một `h2`, nên lọc
  * bằng vai `button` và khớp trọn.
  */
 const HOSTS = [
   { host: 'dashboard', path: ROUTES.dashboard, opener: /^Dự án mới/u },
-  { host: 'onboarding', path: ROUTES.onboarding, opener: /^tạo dự án$/u },
+  { host: 'onboarding', path: ROUTES.onboarding, opener: /^Tạo dự án$/u },
 ] as const;
 
 const DASHBOARD = HOSTS[0];

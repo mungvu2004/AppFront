@@ -25,14 +25,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
+import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
 import { SEVEN_STATES, createSevenStateScenarios } from '@/lib/testing/sevenStateScenarios';
 import type { SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 
+import { STRINGS } from '@/screens/onboarding/WelcomeScreen/useWelcomeScreen';
+
 import { EditorTour } from './EditorTour';
-import { useEditorTour, TOUR_STEP_IDS } from './useEditorTour';
+import { useEditorTour, TOUR_STEP_IDS, TOUR_STEPS } from './useEditorTour';
 import type {
   EditorTourProps,
   TourRect,
@@ -62,34 +65,34 @@ const COMBO_BY_ID: Partial<Record<TourStepId, string>> = {
 
 const STEP_TEXT: Record<TourStepId, { readonly title: string; readonly body: string; readonly comboDescription: string }> = {
   switchTool: {
-    title: 'đổi công cụ đang dùng',
+    title: 'Đổi công cụ đang dùng',
     body: 'Bấm một biểu tượng khác trên dải công cụ bên trái để đổi công cụ đang chọn.',
-    comboDescription: 'đổi công cụ đang dùng',
+    comboDescription: 'Đổi công cụ đang dùng',
   },
   reviewWall: {
-    title: 'chọn đoạn tường tiếp theo',
+    title: 'Chọn đoạn tường tiếp theo',
     body: 'Xuống danh sách để xem chi tiết đoạn tường kế tiếp.',
-    comboDescription: 'chọn đoạn tường tiếp theo',
+    comboDescription: 'Chọn đoạn tường tiếp theo',
   },
   editThickness: {
-    title: 'gán độ dày cho đoạn đang chọn',
+    title: 'Gán độ dày cho đoạn đang chọn',
     body: 'Chọn một mức độ dày có sẵn cho đoạn tường vừa chọn ở panel bên phải.',
-    comboDescription: 'gán độ dày cho đoạn đang chọn',
+    comboDescription: 'Gán độ dày cho đoạn đang chọn',
   },
   undo: {
-    title: 'hoàn tác thao tác gần nhất',
+    title: 'Hoàn tác thao tác gần nhất',
     body: 'Trả lại trạng thái ngay trước thao tác vừa thực hiện.',
-    comboDescription: 'hoàn tác thao tác gần nhất',
+    comboDescription: 'Hoàn tác thao tác gần nhất',
   },
   view3d: {
-    title: 'mở khung nhìn không gian',
+    title: 'Mở khung nhìn không gian',
     body: 'Chuyển sang chế độ dựng hình để nhìn toàn bộ khối nhà vừa lên.',
-    comboDescription: 'mở khung nhìn không gian',
+    comboDescription: 'Mở khung nhìn không gian',
   },
   exportResult: {
-    title: 'lấy tệp mô hình về máy',
+    title: 'Lấy tệp mô hình về máy',
     body: 'Bấm nút này khi định dạng đã chọn đã sẵn sàng để tải xuống.',
-    comboDescription: 'lấy tệp mô hình về máy',
+    comboDescription: 'Lấy tệp mô hình về máy',
   },
 };
 
@@ -132,7 +135,7 @@ function baseProps(overrides: Partial<EditorTourProps> = {}): EditorTourProps {
     isReducedMotion: false,
     summary: [],
     isSkipChipVisible: false,
-    liveMessage: `đang ở bước 2 trên ${String(SIX_STEPS.length)}: ${STEP_TEXT.reviewWall.title}`,
+    liveMessage: `Đang ở bước 2 trên ${String(SIX_STEPS.length)}: ${STEP_TEXT.reviewWall.title}`,
     onNext: noop,
     onSkip: noop,
     onJump: noop,
@@ -255,13 +258,24 @@ describe('R-63 — bảy trạng thái, đo trên cả màn', () => {
       covered.push(scenario.label);
 
       return render(<EditorTour {...propsFor(scenario)} />);
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
 
     console.log(
       `[2C] expectSevenStates = ${String(covered.length)}/${String(SEVEN_STATES.length)} — ${covered.join(', ')}`,
     );
 
     expect(covered).toHaveLength(SEVEN_STATES.length);
+  });
+
+  it('tiêu đề và thân bài của sáu bước thật viết hoa chữ đầu (A6) — kể cả bước chỉ trạng thái hiếm mới hiện', () => {
+    expectSentenceCaseStrings(TOUR_STEPS.flatMap((step) => [step.title, step.body]));
+  });
+
+  it('nút bỏ tour đọc "Bỏ qua hướng dẫn", không phải "Bỏ qua" trần — trùng nút "Bỏ qua" của màn tường', () => {
+    render(<EditorTour {...baseProps()} />);
+
+    expect(screen.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bỏ qua' })).not.toBeInTheDocument();
   });
 });
 
@@ -464,39 +478,11 @@ describe('BÀI NGHIỆM THU 3 — mất neo thì bộ đếm rút, giao diện k
 /* -------------------------------------------------------------------------- */
 
 /**
- * 24 câu nguyên văn của S-06 (`WelcomeScreen`), chép từ
- * `notes-1D-s06-anchors.md` mục (a). Hai mục #5/#6 là mảnh câu ghép (tiền tố/
- * hậu tố lời chào) — giữ nguyên theo đúng bảng khảo sát, đã cắt khoảng trắng
- * thừa để so khớp công bằng với văn bản đã `trim()` lấy từ DOM.
- * Bỏ "thử lại" và "bỏ qua": từ A6 (B-V1-06) cả hai màn viết thường nhãn, và đó
- * là động từ dùng chung với tour, không phải câu riêng của S-06.
+ * Mọi chuỗi S-06 (`WelcomeScreen`) đọc thẳng từ bảng chữ thật của hook — bản chép tay
+ * cũ lệch chữ mỗi lần màn chào đổi chữ và bài vẫn xanh. Mảnh ghép lời chào đã `trim()`
+ * để so khớp công bằng với văn bản lấy từ DOM.
  */
-const S06_SENTENCES: readonly string[] = [
-  'không đọc được tiến độ',
-  'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
-  'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
-  'chào',
-  ', bắt đầu trong ba bước',
-  'chào bạn, bắt đầu trong ba bước',
-  'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
-  'tạo dự án',
-  'Khai báo tên công trình và danh sách tầng.',
-  'tạo dự án',
-  'tải bản vẽ theo từng tầng',
-  'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-  'tải bản vẽ',
-  'Cần tạo dự án trước.',
-  'duyệt kết quả và dựng 3D',
-  'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-  'duyệt kết quả',
-  'Cần tải bản vẽ trước.',
-  'xem dự án mẫu',
-  'xem hướng dẫn 2 phút',
-  'Hướng dẫn hai phút chưa sẵn sàng.',
-  'Màn chào sẽ không hiện lại trên trình duyệt này.',
-  'vào danh sách dự án',
-  'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
-];
+const S06_SENTENCES: readonly string[] = Object.values(STRINGS).map((text) => text.trim());
 
 /** Mọi text node không rỗng trong `container`, đã `trim()`, không lặp. */
 function collectVisibleText(container: HTMLElement): readonly string[] {
@@ -592,7 +578,7 @@ describe('Bỏ qua — Esc và bấm ra nền không hỏi lại, chip quay lạ
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('sau khi bỏ qua, chip "xem hướng dẫn" còn đó — đường quay lại nhìn thấy được', () => {
+  it('sau khi bỏ qua, chip "Xem hướng dẫn" còn đó — đường quay lại nhìn thấy được', () => {
     const onReopen = vi.fn();
 
     render(

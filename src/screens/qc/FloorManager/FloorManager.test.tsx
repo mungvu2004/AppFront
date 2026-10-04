@@ -507,6 +507,12 @@ describe('khả năng tiếp cận và tiếng Việt', () => {
     });
   }
 
+  it('thang cao độ là một nhóm có tên — aria-label trên role="presentation" bị trình đọc màn hình bỏ (B-V6-44)', () => {
+    renderState('success');
+
+    expect(screen.getByRole('group', { name: 'Thang cao độ' })).toBeInTheDocument();
+  });
+
   it('màn đã nối dây cũng đi qua expectAccessible và expectVietnamese', async () => {
     const { container } = renderWithProviders(
       <FloorManagerContainer

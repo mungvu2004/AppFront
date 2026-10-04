@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
 
 import { openViewer } from './viewer-helpers';
 
@@ -42,8 +43,8 @@ test('nút "Ai đang xem" nhận cú bấm ở tâm của nó, và danh sách n�
   await openViewer(page);
 
   await page
-    .getByRole('region', { name: 'đổi sang khung nhìn khối', exact: true })
-    .getByRole('button', { name: /bỏ qua/u })
+    .getByRole('region', { name: TOUR_TITLES.view3d, exact: true })
+    .getByRole('button', { name: TOUR_SKIP_NAME, exact: true })
     .click();
 
   const toggle = page.getByRole('button', { name: ROSTER_TOGGLE, exact: true });

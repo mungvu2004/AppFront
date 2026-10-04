@@ -2,6 +2,13 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
+import {
+  TOUR_CHIP_NAME,
+  TOUR_FINISH_NAME,
+  TOUR_NEXT_NAME,
+  TOUR_SKIP_NAME,
+  TOUR_TITLES,
+} from '../fixtures/tour';
 
 import { DESKTOP_VIEWPORT, VIEWER_PROJECT_ID, openViewer } from './viewer-helpers';
 
@@ -63,10 +70,10 @@ function seenKey(hostId: string): string {
 }
 
 const WALL_STEPS = [
-  'chọn công cụ ở ray bên trái',
-  'đi dọc từng đoạn tường',
-  'đặt lại độ dày cho đoạn đang chọn',
-  'lùi lại khi lỡ tay',
+  TOUR_TITLES.switchTool,
+  TOUR_TITLES.reviewWall,
+  TOUR_TITLES.editThickness,
+  TOUR_TITLES.undo,
 ] as const;
 
 /** Thẻ của một bước: `<section aria-labelledby>` — vai `region`, KHÔNG phải `dialog`. */
@@ -74,14 +81,18 @@ function tourCard(page: Page, title: string) {
   return page.getByRole('region', { name: title, exact: true });
 }
 
-/** Câu `aria-live` của tour — `bước N trên M: <tiêu đề>`. */
+/** Câu `aria-live` của tour — `Bước N trên M: <tiêu đề>`. */
 function tourAnnouncement(page: Page, text: string) {
   return page.getByText(text, { exact: true });
 }
 
-/** Mọi thẻ tour đang hiện, nhận ra qua nút "bỏ qua" chỉ thẻ bước mới có. */
+/**
+ * Mọi thẻ tour đang hiện, nhận ra qua nút bỏ tour chỉ thẻ bước mới có. `exact`: một
+ * regex phân biệt hoa thường từng làm phép đếm 0 ở `expectNoTourAfterReload` xanh rỗng
+ * khi chữ nút đổi.
+ */
 function anyTourSkip(page: Page) {
-  return page.getByRole('region').getByRole('button', { name: /bỏ qua/ });
+  return page.getByRole('region').getByRole('button', { name: TOUR_SKIP_NAME, exact: true });
 }
 
 /**
@@ -134,10 +145,10 @@ test('tour tự hiện khi người dùng lần đầu mở màn tường, khôn
   await openWalls(page);
 
   await expect(tourCard(page, WALL_STEPS[0])).toBeVisible({ timeout: TOUR_SELF_APPEAR_TIMEOUT_MS });
-  await expect(tourAnnouncement(page, `bước 1 trên 4: ${WALL_STEPS[0]}`)).toBeAttached();
+  await expect(tourAnnouncement(page, `Bước 1 trên 4: ${WALL_STEPS[0]}`)).toBeAttached();
 });
 
-test('màn tường: đi hết bốn bước bằng "tiếp theo", thẻ tổng kết, "bắt đầu làm việc" ghi khoá đã xem và tải lại không hiện lại', async ({
+test('màn tường: đi hết bốn bước bằng "Tiếp theo", thẻ tổng kết, "Bắt đầu làm việc" ghi khoá đã xem và tải lại không hiện lại', async ({
   page,
 }) => {
   await openWalls(page);
@@ -145,14 +156,13 @@ test('màn tường: đi hết bốn bước bằng "tiếp theo", thẻ tổng 
   for (const [index, title] of WALL_STEPS.entries()) {
     const card = tourCard(page, title);
     await expect(card).toBeVisible({ timeout: TOUR_SELF_APPEAR_TIMEOUT_MS });
-    await expect(tourAnnouncement(page, `bước ${index + 1} trên 4: ${title}`)).toBeAttached();
-    // Regex: chữ của nút lặp đôi trong `textContent` ("tiếp theotiếp theo").
-    await card.getByRole('button', { name: /tiếp theo/ }).click();
+    await expect(tourAnnouncement(page, `Bước ${index + 1} trên 4: ${title}`)).toBeAttached();
+    await card.getByRole('button', { name: TOUR_NEXT_NAME, exact: true }).click();
   }
 
-  const summary = tourCard(page, 'bấy nhiêu phím là đủ dùng');
+  const summary = tourCard(page, TOUR_TITLES.summary);
   await expect(summary).toBeVisible();
-  await summary.getByRole('button', { name: 'bắt đầu làm việc' }).click();
+  await summary.getByRole('button', { name: TOUR_FINISH_NAME, exact: true }).click();
 
   await expect(summary).toHaveCount(0);
   expect(await readKey(page, 'wall-layer-review')).toBe('true');
@@ -160,7 +170,7 @@ test('màn tường: đi hết bốn bước bằng "tiếp theo", thẻ tổng 
   await expectNoTourAfterReload(page);
 });
 
-test('màn tường: Escape bỏ tour, chip "xem hướng dẫn" hiện, khoá ghi đã xem và tải lại không hiện lại (A12)', async ({
+test('màn tường: Escape bỏ tour, chip "Xem hướng dẫn" hiện, khoá ghi đã xem và tải lại không hiện lại (A12)', async ({
   page,
 }) => {
   await openWalls(page);
@@ -169,7 +179,7 @@ test('màn tường: Escape bỏ tour, chip "xem hướng dẫn" hiện, khoá g
   await page.keyboard.press('Escape');
 
   await expect(tourCard(page, WALL_STEPS[0])).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'xem hướng dẫn' })).toBeVisible();
+  await expect(page.getByRole('button', { name: TOUR_CHIP_NAME, exact: true })).toBeVisible();
   expect(await readKey(page, 'wall-layer-review')).toBe('true');
   // Escape chỉ đóng tour: màn chủ vẫn còn, URL không đổi.
   await expect(page.getByRole('region', { name: 'Duyệt lớp tường' })).toBeVisible();
@@ -178,7 +188,7 @@ test('màn tường: Escape bỏ tour, chip "xem hướng dẫn" hiện, khoá g
   await expectNoTourAfterReload(page);
 });
 
-test('màn tường: bấm chip "xem hướng dẫn" sau khi bỏ qua mở lại tour từ bước đầu', async ({
+test('màn tường: bấm chip "Xem hướng dẫn" sau khi bỏ qua mở lại tour từ bước đầu', async ({
   page,
 }) => {
   await openWalls(page);
@@ -186,21 +196,21 @@ test('màn tường: bấm chip "xem hướng dẫn" sau khi bỏ qua mở lại
   await expect(first).toBeVisible({ timeout: TOUR_SELF_APPEAR_TIMEOUT_MS });
 
   // Sang bước 2 trước, để "từ bước đầu" là một khẳng định chứ không phải trùng hợp.
-  await first.getByRole('button', { name: /tiếp theo/ }).click();
+  await first.getByRole('button', { name: TOUR_NEXT_NAME, exact: true }).click();
   await expect(tourCard(page, WALL_STEPS[1])).toBeVisible();
 
   await page.keyboard.press('Escape');
-  const chip = page.getByRole('button', { name: 'xem hướng dẫn' });
+  const chip = page.getByRole('button', { name: TOUR_CHIP_NAME, exact: true });
   await expect(chip).toBeVisible();
 
   await chip.click();
 
   await expect(first).toBeVisible();
-  await expect(tourAnnouncement(page, `bước 1 trên 4: ${WALL_STEPS[0]}`)).toBeAttached();
+  await expect(tourAnnouncement(page, `Bước 1 trên 4: ${WALL_STEPS[0]}`)).toBeAttached();
   await expect(chip).toHaveCount(0);
 });
 
-test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện đúng một bước "lấy tệp mang đi", không cần sự kiện cửa sổ', async ({
+test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện đúng một bước "Lấy tệp mang đi", không cần sự kiện cửa sổ', async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT);
@@ -213,10 +223,10 @@ test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 
-  await expect(tourCard(page, 'lấy tệp mang đi')).toBeVisible({
+  await expect(tourCard(page, TOUR_TITLES.exportResult)).toBeVisible({
     timeout: TOUR_SELF_APPEAR_TIMEOUT_MS,
   });
-  await expect(tourAnnouncement(page, 'bước 1 trên 1: lấy tệp mang đi')).toBeAttached();
+  await expect(tourAnnouncement(page, `Bước 1 trên 1: ${TOUR_TITLES.exportResult}`)).toBeAttached();
 });
 
 /*
@@ -224,13 +234,13 @@ test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện
  * thẻ không hiện cho tới một `resize` hoặc cú bấm đầu tiên — tức bật lên GIỮA lúc
  * người dùng đang làm việc khác. Đã kiểm đỏ trên mã chưa nghe DOM.
  */
-test('vỏ 3D: tour tự hiện đúng một bước "đổi sang khung nhìn khối" khi người dùng lần đầu mở, không cần sự kiện cửa sổ nào', async ({
+test('vỏ 3D: tour tự hiện đúng một bước "Đổi sang khung nhìn khối" khi người dùng lần đầu mở, không cần sự kiện cửa sổ nào', async ({
   page,
 }) => {
   await openViewer(page);
 
-  await expect(tourCard(page, 'đổi sang khung nhìn khối')).toBeVisible({
+  await expect(tourCard(page, TOUR_TITLES.view3d)).toBeVisible({
     timeout: TOUR_SELF_APPEAR_TIMEOUT_MS,
   });
-  await expect(tourAnnouncement(page, 'bước 1 trên 1: đổi sang khung nhìn khối')).toBeAttached();
+  await expect(tourAnnouncement(page, `Bước 1 trên 1: ${TOUR_TITLES.view3d}`)).toBeAttached();
 });

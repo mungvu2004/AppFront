@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
 
 import { ROUTES, pathOf } from '../fixtures/routes';
+import { TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
 
 /**
  * Hộp thoại "chia sẻ bản vẽ" (`ShareDialog`, không có route) — mở từ nút "chia sẻ"
@@ -25,7 +26,7 @@ import { ROUTES, pathOf } from '../fixtures/routes';
  * - Sao chép ra clipboard thật: cần quyền `clipboard-read`.
  * - Tour: từ bản sửa `f35ce7a` (B-V2-01), khi nút "xuất" có mặt (cổng nạp kho xong) thì `EditorTour`
  *   TỰ HIỆN thẻ "lấy tệp mang đi" — bài CHỜ thẻ ấy rồi bấm "bỏ qua" trước cú bấm "chia sẻ"
- *   (không dùng `dismissTourIfShown`: hàm ấy đếm một lần, không chờ, nên chập chờn ở đây).
+ *   (không dùng `dismissTour` mặc định: nó đếm một lần, không chờ, nên chập chờn ở đây).
  */
 
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
@@ -92,9 +93,9 @@ async function openAndSkipTour(page: Page): Promise<void> {
   await openExport(page);
   await expect(shareButton(page)).toBeVisible();
   // `EditorTour` không mang `role="dialog"`; thẻ là `region` đặt tên theo tiêu đề bước.
-  const tourCard = page.getByRole('region', { name: 'lấy tệp mang đi', exact: true });
+  const tourCard = page.getByRole('region', { name: TOUR_TITLES.exportResult, exact: true });
   await expect(tourCard).toBeVisible();
-  await tourCard.getByRole('button', { name: /bỏ qua/u }).click();
+  await tourCard.getByRole('button', { name: TOUR_SKIP_NAME, exact: true }).click();
   await expect(tourCard).toHaveCount(0);
 }
 

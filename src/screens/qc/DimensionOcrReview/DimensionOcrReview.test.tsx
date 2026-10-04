@@ -92,17 +92,8 @@ const REVIEWED_DIMENSIONS = DIMENSION_OCR_FIXTURE_REVIEWED;
 const MINOR_ID = DIMENSION_OCR_FIXTURE_MINOR_DEVIATION.id;
 const SIGNIFICANT_ID = DIMENSION_OCR_FIXTURE_SIGNIFICANT_DEVIATION.id;
 
-/**
- * `zoom` — chữ tiếng Anh DUY NHẤT được phép, và nó không phải chuỗi của màn này.
- *
- * Nó là `aria-label` của `src/components/canvas/ZoomCluster.tsx`, component dùng
- * chung mà `DimensionOcrCanvas` tái sử dụng. Sửa nó là sửa `src/components/**`,
- * ngoài phạm vi R-68 của lượt dựng màn, nên chỗ này ghi nhận nó thành văn thay
- * vì im lặng cho qua. Đây là NỢ ĐÃ GHI, không phải một chữ được duyệt: nó thuộc
- * về lượt dọn `ZoomCluster`, và danh sách này chỉ được ngắn đi. Tiền lệ nguyên
- * văn: `ScaleCalibration.test.tsx:136-150`.
- */
-const ALLOWED_WORDS = ['zoom'];
+/** Không chữ tiếng Anh nào được nới — nợ "zoom" của `ZoomCluster` đã trả (B-V1-48). */
+const ALLOWED_WORDS: readonly string[] = [];
 
 /** Số giá trị mà phép đo bàn phím phải sửa xong trong một lượt. */
 const KEYBOARD_EDIT_TARGET = 5;
@@ -333,6 +324,41 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
 
     expect(rendered).toBe(SEVEN_STATES.length);
     expect(rendered).toBe(7);
+  });
+
+  it('chữ trên nút duyệt là phần đầu tên truy cập của nó (WCAG 2.5.3, B-V6-46)', async () => {
+    renderState('partial');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    await waitFor(() => {
+      expect(approveButtons().length).toBeGreaterThan(0);
+    });
+    for (const button of approveButtons()) {
+      expect(button.getAttribute('aria-label') ?? '').toMatch(new RegExp(`^${button.textContent?.trim() ?? '∅'} #`, 'u'));
+    }
+  });
+
+  it('trạng thái lỗi có nút "Thử lại", bấm thì đọc lại lớp kích thước (B-V6-45, A11)', async () => {
+    emptyStore();
+    const args = scenarioArgsFor('error');
+    const base = args.gateway;
+    if (base === undefined) throw new Error('kịch bản lỗi phải mang cổng giả');
+    const readDimensionLayer = vi.fn(base.readDimensionLayer);
+
+    renderWithProviders(
+      <MemoryRouter>
+        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readDimensionLayer }} />
+      </MemoryRouter>,
+    );
+
+    const retry = await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.states.error.actionLabel });
+    const callsBefore = readDimensionLayer.mock.calls.length;
+
+    fireEvent.click(retry);
+
+    await waitFor(() => {
+      expect(readDimensionLayer.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
   });
 
   it('trạng thái lỗi và thu gọn vẫn còn canvas — không màn trắng', async () => {

@@ -200,7 +200,7 @@ export function toPendingRow(pending: PendingCommandLike): PendingCommandRow {
     'label' in command &&
     typeof (command as { label: unknown }).label === 'string'
       ? (command as { label: string }).label
-      : 'thay đổi chưa đặt tên';
+      : 'Thay đổi chưa đặt tên';
 
   return {
     createdAtLabel: formatClockTime(pending.createdAt),

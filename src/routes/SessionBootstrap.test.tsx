@@ -221,8 +221,8 @@ describe('SessionGate — năm nhánh', () => {
   it('báo chưa mở được ứng dụng khi lượt dựng hỏng, với nút tới được bằng Tab', async () => {
     const { container } = renderGate({ setupFailed: true, status: 'unknown' });
 
-    const button = screen.getByRole('button', { name: 'tải lại trang' });
-    expect(screen.getByText('chưa mở được ứng dụng, hãy tải lại trang')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Tải lại trang' });
+    expect(screen.getByText('Chưa mở được ứng dụng, hãy tải lại trang')).toBeInTheDocument();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);
@@ -235,7 +235,7 @@ describe('SessionGate — năm nhánh', () => {
     const onRetry = vi.fn();
     const { container } = renderGate({ onRetry, serverUnreachable: true, status: 'unknown' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
@@ -246,7 +246,7 @@ describe('SessionGate — năm nhánh', () => {
   it('chờ bằng khung chờ có aria-busy, và KHÔNG mount màn con', () => {
     const { container } = renderGate({ status: 'unknown' });
 
-    expect(screen.getByRole('status', { name: 'đang mở phiên' })).toHaveAttribute(
+    expect(screen.getByRole('status', { name: 'Đang mở phiên' })).toHaveAttribute(
       'aria-busy',
       'true',
     );
@@ -279,12 +279,12 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
     expect(
-      screen.getByText('mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi'),
+      screen.getByText('Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi'),
     ).toBeInTheDocument();
     expectVietnamese(container);
     expectAccessible(container);
 
-    fireEvent.click(screen.getByRole('button', { name: 'thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
     update({ onRetry, serverUnreachable: false });
@@ -429,7 +429,7 @@ describe('SessionBootstrap', () => {
 
     const { container } = renderAt('/projects/p1/3d');
 
-    const button = await screen.findByRole('button', { name: 'tải lại trang' });
+    const button = await screen.findByRole('button', { name: 'Tải lại trang' });
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);

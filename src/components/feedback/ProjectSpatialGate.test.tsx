@@ -168,7 +168,7 @@ describe('ProjectSpatialGate', () => {
   });
 
   /* B-V1-43 — 404 của dự án: một lối ra, không treo ở khung "tải lại" không có nút. */
-  it('404 của dự án: khung `alert` cố định, màn con vắng, chỉ nút "về danh sách dự án", bấm thì về "/"', async () => {
+  it('404 của dự án: khung `alert` cố định, màn con vắng, chỉ nút "Về danh sách dự án", bấm thì về "/"', async () => {
     const api = createMockApiClient();
     const rendered = renderWithProviders(
       <MemoryRouter initialEntries={['/p']}>
@@ -187,12 +187,12 @@ describe('ProjectSpatialGate', () => {
     );
 
     const alert = await screen.findByRole('alert');
-    expect(screen.getByText('không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(alert.textContent).not.toMatch(/quyền/iu);
 
     const focusable = alert.querySelectorAll('button, a[href], input, select, textarea, [tabindex]');
-    const button = screen.getByRole('button', { name: 'về danh sách dự án' });
+    const button = screen.getByRole('button', { name: 'Về danh sách dự án' });
     expect(focusable).toHaveLength(1);
     expect(focusable[0]).toBe(button);
     expectVietnamese(rendered);
@@ -202,7 +202,7 @@ describe('ProjectSpatialGate', () => {
     expect(await screen.findByRole('heading', { name: 'danh sách dự án' })).toBeInTheDocument();
   });
 
-  it('404 của một tầng (`resource: floor`) không mượn câu "không tìm thấy dự án này"', async () => {
+  it('404 của một tầng (`resource: floor`) không mượn câu "Không tìm thấy dự án này"', async () => {
     const { api, read } = apiWithSpy();
     read.mockResolvedValue({
       error: { kind: 'http', raw: { resource: 'floor' }, requestId: 'req-floor', retryable: false, status: 404 },
@@ -212,7 +212,7 @@ describe('ProjectSpatialGate', () => {
     renderGate(api, 'project-1');
 
     await screen.findByRole('alert');
-    expect(screen.queryByText('không tìm thấy dự án này')).not.toBeInTheDocument();
+    expect(screen.queryByText('Không tìm thấy dự án này')).not.toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
   });
 });

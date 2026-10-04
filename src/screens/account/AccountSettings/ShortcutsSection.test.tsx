@@ -206,7 +206,7 @@ describe('ô tìm lọc ngay khi gõ', () => {
     expect(rows.length).toBeLessThan(REGISTRY_COUNT);
 
     for (const row of rows) {
-      expect(row.description).toContain('hoàn tác');
+      expect(row.description.toLocaleLowerCase('vi')).toContain('hoàn tác');
     }
   });
 

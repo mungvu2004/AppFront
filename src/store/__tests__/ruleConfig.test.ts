@@ -183,6 +183,16 @@ describe('store/ruleConfig — cấu hình bộ luật là dữ liệu', () => {
       );
       expect(selectTotalViolationCount(useStore.getState())).toBe(before);
     });
+
+    it('nhãn lượt lùi dùng tiền tố chung "Hoàn tác: ", lùi lần hai thì bỏ tiền tố, không nhân đôi (B-V12-41)', () => {
+      const label = `Tắt luật ${NOISY_RULE}`;
+
+      useStore.getState().commitRuleConfig(configWith({ [NOISY_RULE]: { enabled: false } }), label).undo();
+      expect(useStore.getState().lastCommitLabel).toBe(`Hoàn tác: ${label}`);
+
+      useStore.getState().lastCommitUndo?.();
+      expect(useStore.getState().lastCommitLabel).toBe(label);
+    });
   });
 
   describe('selectRuleImpactCounts', () => {

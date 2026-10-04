@@ -88,33 +88,32 @@ import { createAccessDeniedGateway } from './accessDeniedGateway';
 /* -------------------------------------------------------------------------- */
 
 /**
- * Mọi chuỗi màn nói ra. Viết thường, kiểu câu (A6), câu ngắn và điềm đạm.
+ * Mọi chuỗi màn nói ra. Kiểu câu, viết hoa chữ đầu (A6), câu ngắn và điềm đạm.
  *
  * Không câu nào giọng chỉ trích, không câu nào đổ lỗi cho người đọc, và không
  * câu nào nêu tên dự án hay số liệu — hai thứ sau là cấm tuyệt đối của đặc tả
- * khi người xem chưa có quyền. Ngoại lệ chữ hoa duy nhất là mã lỗi trong
- * caption chân trang.
+ * khi người xem chưa có quyền.
  */
 export const ACCESS_DENIED_TEXT = {
-  title: 'bạn chưa có quyền truy cập',
+  title: 'Bạn chưa có quyền truy cập',
 
   /** Người gọi không nói tên dự án, hoặc nói mà `canNameProject` đang tắt. */
-  restrictionWithoutName: 'nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.',
+  restrictionWithoutName: 'Nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.',
 
-  whoCanGrant: 'người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.',
+  whoCanGrant: 'Người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.',
 
-  identityPrefix: 'bạn đang đăng nhập bằng ',
-  identityUnknown: 'phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.',
+  identityPrefix: 'Bạn đang đăng nhập bằng',
+  identityUnknown: 'Phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.',
 
-  switchAccountLabel: 'đăng nhập bằng tài khoản khác',
-  backToProjectsLabel: 'về danh sách dự án',
-  enterProjectLabel: 'mở dự án',
+  switchAccountLabel: 'Đăng nhập bằng tài khoản khác',
+  backToProjectsLabel: 'Về danh sách dự án',
+  enterProjectLabel: 'Mở dự án',
 
-  requestSentPrefix: 'đã gửi ',
-  throttlePrefix: 'bạn vừa gửi một yêu cầu, nên lượt gửi tiếp theo mở lại sau ',
+  requestSentPrefix: 'Đã gửi ',
+  throttlePrefix: 'Bạn vừa gửi một yêu cầu, nên lượt gửi tiếp theo mở lại sau ',
   throttleSuffix: '.',
 
-  errorCodePrefix: 'mã lỗi: ',
+  errorCodePrefix: 'Mã lỗi: ',
 } as const;
 
 /**
@@ -123,12 +122,12 @@ export const ACCESS_DENIED_TEXT = {
  * Tách thành hàm chứ không viết thẳng vào bảng chữ vì nó là chỗ DUY NHẤT tên dự
  * án có thể lọt ra màn: một lối vào thì soát được, hai lối vào thì không.
  */
-function restrictionSentenceOf(projectName: string | undefined, canNameProject: boolean): string {
+export function restrictionSentenceOf(projectName: string | undefined, canNameProject: boolean): string {
   if (!canNameProject || projectName === undefined || projectName.length === 0) {
     return ACCESS_DENIED_TEXT.restrictionWithoutName;
   }
 
-  return `dự án “${projectName}” đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.`;
+  return `Dự án “${projectName}” đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.`;
 }
 
 /**
@@ -138,11 +137,11 @@ function restrictionSentenceOf(projectName: string | undefined, canNameProject: 
  * một lý do khi mã lỗi nói ra, còn lại nói một câu trung tính thay vì đoán.
  * Không câu nào nói người đọc làm sai điều gì.
  */
-const REASON_SENTENCE: Readonly<Record<AccessDeniedReason, string>> = {
-  revoked: 'quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.',
-  expired: 'đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.',
-  password: 'đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.',
-  unknown: 'hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này.',
+export const REASON_SENTENCE: Readonly<Record<AccessDeniedReason, string>> = {
+  revoked: 'Quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.',
+  expired: 'Đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.',
+  password: 'Đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.',
+  unknown: 'Hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này.',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -303,10 +302,9 @@ export function useAccessDenied(options: UseAccessDeniedOptions = {}): AccessDen
    */
   const currentEmail = session.user?.email ?? null;
 
+  // Chỉ tiền tố: view tự vẽ email ngay sau nhãn (B-V1-45 — ghép ở đây thì email hiện hai lần).
   const identityLabel =
-    currentEmail === null
-      ? ACCESS_DENIED_TEXT.identityUnknown
-      : `${ACCESS_DENIED_TEXT.identityPrefix}${currentEmail}`;
+    currentEmail === null ? ACCESS_DENIED_TEXT.identityUnknown : ACCESS_DENIED_TEXT.identityPrefix;
 
   /* ---- Yêu cầu đã gửi và cửa sổ chặn gửi lại ----------------------------- */
 

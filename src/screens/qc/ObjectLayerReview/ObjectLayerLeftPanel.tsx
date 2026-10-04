@@ -57,8 +57,8 @@ const LAYER_TREE_LABEL = 'cây lớp';
 const TOTAL_PREFIX = 'tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
 const FILTER_ROW_LABEL = 'lọc theo loại';
-const SHOW_LAYER_PREFIX = 'hiện lớp ';
-const HIDE_LAYER_PREFIX = 'ẩn lớp ';
+const SHOW_LAYER_PREFIX = 'Hiện lớp ';
+const HIDE_LAYER_PREFIX = 'Ẩn lớp ';
 
 /** Số đếm của một lớp con, đọc từ `counts` — không cộng lại ở view. */
 const LAYER_COUNT_READERS: Readonly<Record<ObjectLayerId, (counts: ObjectLayerCounts) => number>> = {

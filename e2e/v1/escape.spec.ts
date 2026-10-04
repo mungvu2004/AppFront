@@ -19,17 +19,17 @@ import { ROUTES, UNKNOWN_PATH, pathOf } from '../fixtures/routes';
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const ROWS = [
-  { name: 'onboarding', path: ROUTES.onboarding, anchor: { role: 'button', name: 'bỏ qua' } },
+  { name: 'onboarding', path: ROUTES.onboarding, anchor: { role: 'button', name: 'Bỏ qua' } },
   {
     name: 'accessDenied',
     path: ROUTES.accessDenied,
-    anchor: { role: 'heading', name: 'bạn chưa có quyền truy cập' },
+    anchor: { role: 'heading', name: 'Bạn chưa có quyền truy cập' },
   },
-  { name: 'notFound', path: UNKNOWN_PATH, anchor: { role: 'heading', name: 'không tìm thấy trang này' } },
+  { name: 'notFound', path: UNKNOWN_PATH, anchor: { role: 'heading', name: 'Không tìm thấy trang này' } },
   {
     name: 'mobileViewer',
     path: ROUTES.mobileViewer('project-1'),
-    anchor: { role: 'region', name: 'xem mô hình 3D trên điện thoại' },
+    anchor: { role: 'region', name: 'Xem mô hình 3D trên điện thoại' },
     viewport: { width: 390, height: 844 },
   },
 ] as const;

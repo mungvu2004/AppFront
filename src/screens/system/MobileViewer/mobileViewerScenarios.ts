@@ -25,7 +25,7 @@
  * "tầng 2" · "tầng mái".
  */
 
-import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
+import { MEASUREMENT_LABELS, measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import { millimetres } from '@/domain/units/types';
 import { formatLength } from '@/lib/format/measure';
 import { ROUTES } from '@/routes/paths';
@@ -62,10 +62,10 @@ interface SampleFloorDef {
   readonly label: string;
 }
 
-const FLOOR_GROUND: SampleFloorDef = { id: 'T-00', label: 'tầng trệt' };
-const FLOOR_1: SampleFloorDef = { id: 'T-01', label: 'tầng 1' };
-const FLOOR_2: SampleFloorDef = { id: 'T-02', label: 'tầng 2' };
-const FLOOR_ROOF: SampleFloorDef = { id: 'T-03', label: 'tầng mái' };
+const FLOOR_GROUND: SampleFloorDef = { id: 'T-00', label: 'Tầng trệt' };
+const FLOOR_1: SampleFloorDef = { id: 'T-01', label: 'Tầng 1' };
+const FLOOR_2: SampleFloorDef = { id: 'T-02', label: 'Tầng 2' };
+const FLOOR_ROOF: SampleFloorDef = { id: 'T-03', label: 'Tầng mái' };
 
 const SAMPLE_FLOOR_DEFS: readonly SampleFloorDef[] = Object.freeze([
   FLOOR_GROUND,
@@ -102,14 +102,14 @@ const WALL_LENGTH = measureDistance(WALL_START, WALL_END);
 const WALL_THICKNESS_MM = millimetres(220);
 
 const SELECTION_ROWS: readonly MobileViewerInfoRow[] = Object.freeze([
-  { id: 'r-length', label: 'chiều dài', value: formatLength(WALL_LENGTH.lengthMm, { unit: 'm' }) },
-  { id: 'r-thickness', label: 'độ dày', value: formatLength(WALL_THICKNESS_MM, { unit: 'mm' }) },
+  { id: 'r-length', label: 'Chiều dài', value: formatLength(WALL_LENGTH.lengthMm, { unit: 'm' }) },
+  { id: 'r-thickness', label: 'Bề dày', value: formatLength(WALL_THICKNESS_MM, { unit: 'mm' }) },
 ]);
 
 /** Một tường đang được chọn — sửa được chỉ trên máy tính (điểm chính của màn này). */
 const SAMPLE_SELECTION: MobileViewerSelection = Object.freeze({
   entityId: 'W-014',
-  kindLabel: 'tường',
+  kindLabel: 'Tường',
   title: 'Tường trục A-B',
   rows: SELECTION_ROWS,
   needsDesktopToEdit: true,
@@ -129,13 +129,13 @@ const MEASURE_B = measureDistance(MEASURE_B_START, MEASURE_B_END);
 
 const MEASUREMENT_A: MobileViewerMeasurement = {
   id: 'MS-M01',
-  kindLabel: 'khoảng cách',
+  kindLabel: MEASUREMENT_LABELS.distance,
   valueLabel: formatLength(MEASURE_A.lengthMm, { unit: 'm' }),
 };
 
 const MEASUREMENT_B: MobileViewerMeasurement = {
   id: 'MS-M02',
-  kindLabel: 'khoảng cách',
+  kindLabel: MEASUREMENT_LABELS.distance,
   valueLabel: formatLength(MEASURE_B.lengthMm, { unit: 'm' }),
 };
 
@@ -202,7 +202,7 @@ const PROPS_BY_STATE: Readonly<Record<MobileViewerState, MobileViewerProps>> = O
     activeFloorId: null,
     selection: null,
     measurements: Object.freeze([]),
-    detailLabel: 'đang tải mức gọn',
+    detailLabel: 'Đang tải mức gọn',
   },
 
   // Mới có một phần: hai tầng trên chưa có phòng nào.
@@ -214,7 +214,7 @@ const PROPS_BY_STATE: Readonly<Record<MobileViewerState, MobileViewerProps>> = O
     activeFloorId: FLOOR_GROUND.id,
     selection: null,
     measurements: Object.freeze([MEASUREMENT_A]),
-    detailLabel: 'đang tải mức gọn',
+    detailLabel: 'Đang tải mức gọn',
   },
 
   // Máy yếu: mời xem bản 2D thay vì cố dựng.

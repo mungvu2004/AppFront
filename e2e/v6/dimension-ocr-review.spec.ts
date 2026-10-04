@@ -45,12 +45,17 @@ test.describe('đường nạp thật (không bơm)', () => {
     expect(duplicateKeys).toEqual([]);
   });
 
-  test('nút duyệt của một dòng duyệt đúng dòng ấy, và Ctrl+Z trả lại bộ đếm (B-V6-09, P7)', async ({ page }) => {
+  test('nút duyệt của một dòng duyệt đúng dòng ấy, chữ trên nút nằm trong tên truy cập, và Ctrl+Z trả lại bộ đếm (B-V6-09, B-V6-46, P7)', async ({ page }) => {
     await page.goto(ROUTES.project.dimensions(QC_PROJECT, A14_FLOOR));
     const counter = page.getByText(`0/${String(A14_DIMENSIONS_ON_FLOOR)} kích thước đã duyệt`).first();
     await expect(counter).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
-    await page.getByRole('button', { name: 'Duyệt kích thước #M-002' }).click();
+    const approve = page.getByRole('button', { name: 'Duyệt kích thước #M-002' });
+    /* B-V6-46 (WCAG 2.5.3): chữ nhìn thấy trên nút nằm trong tên truy cập của nó. */
+    const visible = (await approve.innerText()).trim();
+    expect(visible.length).toBeGreaterThan(0);
+    expect(await approve.getAttribute('aria-label')).toContain(visible);
+    await approve.click();
 
     await expect(page.getByText(`1/${String(A14_DIMENSIONS_ON_FLOOR)} kích thước đã duyệt`).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Duyệt kích thước #M-002' })).toHaveCount(0);

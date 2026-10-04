@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
 import { seedSpatial } from '../fixtures/seedSpatial';
-import { dismissTourIfShown } from '../fixtures/tour';
+import { dismissTour } from '../fixtures/tour';
 
 import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 
@@ -98,6 +98,12 @@ test('đường nạp thật: mở thẳng ở một tầng có lớp thì danh 
  * Mã A14 `R-ROOM0000010`… có chỉ số ĐỨNG SAU: quy tắc cũ đọc sáu ký tự đầu thân mã làm số
  * đếm, nên cả bốn phòng cùng nhãn "#R-ROOM00" (B-V6-09). Mã ULID của BE hỏng y như vậy.
  */
+test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án > Nhãn phòng" (B-V6-43)', async ({ page }) => {
+  await open(page);
+
+  await expect(page.getByText('Dự án > Nhãn phòng', { exact: true })).toBeVisible();
+});
+
 test('đường nạp thật: mỗi phòng một mã hiển thị riêng, theo thứ tự tạo (B-V6-09)', async ({ page }) => {
   await openReal(page);
 
@@ -164,11 +170,11 @@ test('bơm bộ mẫu chuẩn: đổi tên phòng từ bảng diện tích của
   await page.goto(ROUTES.project.viewer(QCB_PROJECT));
   await expect(page.getByText('Mô hình 3D đã dựng xong.')).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
   await seedSpatial(page, { projectId: QCB_PROJECT });
-  await dismissTourIfShown(page);
+  await dismissTour(page);
 
   const toggle = page.getByRole('button', { name: 'Diện tích phòng', exact: true });
   await toggle.click();
-  await dismissTourIfShown(page);
+  await dismissTour(page);
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
   const field = page.getByRole('textbox', { name: 'tên phòng Room 0' });

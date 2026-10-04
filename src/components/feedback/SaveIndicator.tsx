@@ -24,12 +24,13 @@ export function SaveIndicator({ saveState, label, flash, className, ...props }: 
   switch (saveState) {
     case 'pending':
       Icon = CloudUpload;
-      text = 'Có thay đổi chờ đồng bộ';
+      // Nhãn của hook thắng ở MỌI trạng thái — chữ cố định chỉ là dự phòng (B-V1-47).
+      text = label || 'Có thay đổi chờ đồng bộ';
       iconColor = 'text-accent';
       break;
     case 'saving':
       Icon = CloudUpload;
-      text = 'Đang lưu...';
+      text = label || 'Đang lưu...';
       iconColor = 'text-accent animate-pulse';
       break;
     case 'saved':

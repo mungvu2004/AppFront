@@ -239,19 +239,27 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
           <div className="w-10 h-1 rounded-full bg-border-default" />
         </div>
 
-        {/* Nút snap nhanh */}
-        <div className="flex justify-center gap-2 pb-2" aria-hidden="true">
+        {/* Nút snap nhanh — đường bàn phím DUY NHẤT để đổi mức (A12), nên không
+            aria-hidden và không tabIndex=-1 (B-V1-46). Vùng bấm 24 px, chấm 6 px
+            vẽ bên trong. */}
+        <div className="flex justify-center gap-1 pb-1" role="group" aria-label="Chiều cao tấm trượt">
           {([0, 1, 2] as SnapLevel[]).map((level) => (
             <button
               key={level}
               type="button"
               onClick={() => onSnapChange(level)}
-              className={cn(
-                'w-1.5 h-1.5 rounded-full transition-colors duration-120',
-                snapLevel === level ? 'bg-accent' : 'bg-border-default',
-              )}
+              className="flex h-6 w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label={`Mức ${level + 1}`}
-            />
+              aria-pressed={snapLevel === level}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full transition-colors duration-120',
+                  snapLevel === level ? 'bg-accent' : 'bg-border-default',
+                )}
+              />
+            </button>
           ))}
         </div>
 

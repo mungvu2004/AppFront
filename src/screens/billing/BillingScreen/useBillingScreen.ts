@@ -182,7 +182,7 @@ const INVOICE_STATUS_LABELS: Readonly<Record<InvoiceStatus, string>> = Object.fr
 });
 
 const PERIOD_UNIT_LABELS: Readonly<Record<BillingPeriod, string>> = Object.freeze({
-  monthly: 'mỗi tháng', yearly: 'mỗi năm',
+  monthly: 'Mỗi tháng', yearly: 'Mỗi năm',
 });
 
 const PERIOD_OPTIONS: readonly { readonly label: string; readonly value: BillingPeriod }[] =
