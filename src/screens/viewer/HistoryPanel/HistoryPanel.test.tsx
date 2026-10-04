@@ -154,6 +154,21 @@ describe('[N1] luật cốt lõi — mục đã hoàn tác vẫn còn nhìn th�
   });
 });
 
+describe('[N1b] mỗi mục nói ra người thực hiện cho trình đọc màn hình (B-V8-47)', () => {
+  it('tên người thực hiện là chữ trong mục (sr-only), không phải aria-label trên một span không vai', () => {
+    const props = propsOf('success');
+    const { getAllByTestId } = render(<HistoryPanel {...props} />);
+    const items = getAllByTestId(HISTORY_PANEL_TEST_IDS.item);
+
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      const srOnly = Array.from(item.querySelectorAll('.sr-only')).map((node) => node.textContent ?? '');
+      expect(srOnly.some((text) => text.length > 0 && !text.startsWith(' '))).toBe(true);
+      expect(item.querySelector('span[aria-label]:not([role])')).toBeNull();
+    }
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* [N2] Mục có diff hiện cả hai vế.                                            */
 /* -------------------------------------------------------------------------- */
