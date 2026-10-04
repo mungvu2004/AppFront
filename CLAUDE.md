@@ -205,8 +205,12 @@ component, và D không cản đường ở đó.
   ở đó đặt `reducedMotion="user"` một lần cho toàn ứng dụng, và `local/no-framer-outside-motion`
   chặn mọi đường vòng. **Không** đặt ở `src/lib/motion`: `framer-motion` nhập React, mà
   `src/lib` cấm React (mục 0.4).
-- **`src/i18n/vi.json` không phải bảng dịch lúc chạy.** Chuỗi viết thẳng bằng tiếng Việt;
-  file đó là **từ điển để kiểm tra**, dùng bởi `lib/testing/expectVietnamese.ts:25-31`.
+- **`src/i18n/vi.json` vừa là từ điển kiểm tra, vừa có khối được đọc lúc chạy.** Phần lớn
+  chuỗi viết thẳng trong màn; tệp là **từ điển để kiểm tra** (`lib/testing/expectVietnamese.ts:25-31`).
+  NHƯNG các khối `common`, `errors`, `autosave`, `pipeline`, `auth` được nhập lúc chạy
+  (`describeError.ts`, `notificationBus.ts`, `useSaveIndicator.ts`, `AuthScreen.tsx`,
+  `lib/realtime/pipeline.ts`) — sửa chúng là sửa chữ thật trên màn và đổi kích thước gói. Các
+  khối khác là bản chép, có thể lệch mã; mã thắng.
 
 ---
 
