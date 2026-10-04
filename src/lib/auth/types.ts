@@ -120,6 +120,7 @@ export interface ConfigureAuthOptions {
   fetchImpl?: AuthFetch;
   logoutPath?: string;
   now?: () => number;
+  /** `now` là giờ máy chủ (giờ cục bộ đã trừ lệch theo tiêu đề `Date`), không phải `Date.now()`. */
   parseRefreshResponse?: (response: Response, now: number) => Promise<RefreshSessionPayload>;
   refreshPath?: string;
 }
