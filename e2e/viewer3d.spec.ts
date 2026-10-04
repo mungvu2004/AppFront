@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 
 import { ROUTE_PATTERNS } from '../src/routes/paths';
 
+import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
+
 /**
  * Màn `Viewer3D`, thao tác thật bằng chuột và bàn phím — KHÔNG phải nghiệm thu
  * khả dụng.
@@ -165,19 +167,6 @@ const ROOM_ID = 'R-011';
 const SIGNED_IN_ROLES = ['engineer'] as const;
 
 /**
- * Địa chỉ gõ vào biểu mẫu. Bộ mẫu suy vai theo địa chỉ (`roleOfEmail`,
- * `src/api/__mocks__/client.ts`): `viewer@` cho vai chỉ-xem, còn lại là kỹ sư.
- */
-const SIGN_IN_EMAIL = 'engineer@example.com';
-const VIEWER_SIGN_IN_EMAIL = 'viewer@example.com';
-const SIGN_IN_PASSWORD = 'matkhau-du-dai';
-
-/** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` giữ. */
-const EMAIL_LABEL = 'thư điện tử';
-const PASSWORD_LABEL = 'mật khẩu';
-const SIGN_IN_LABEL = 'đăng nhập';
-
-/**
  * Đăng nhập qua biểu mẫu rồi đi tiếp tới màn 3D, chạy trên BỘ MẪU (`VITE_USE_MOCK_API=true`).
  *
  * Bài này KHÔNG tự đặt phiên vào trang và KHÔNG phủ dây `/api/auth/*` thật: bộ mẫu
@@ -201,10 +190,8 @@ async function signInThenOpenViewer(
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(VIEWER_PATH)}`);
 
-  const email = roles.includes('viewer') ? VIEWER_SIGN_IN_EMAIL : SIGN_IN_EMAIL;
-  await page.getByLabel(EMAIL_LABEL).fill(email);
-  await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
-  await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
+  // Bộ mẫu suy vai theo địa chỉ (`roleOfEmail`): `viewer@` cho vai chỉ-xem, còn lại là kỹ sư.
+  await submitSignInForm(page, roles.includes('viewer') ? EMAIL_BY_ROLE.viewer : EMAIL_BY_ROLE.engineer);
 
   await waitForViewerReady(page);
   expect(authRequests).toEqual([]);

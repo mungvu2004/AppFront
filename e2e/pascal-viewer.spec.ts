@@ -3,6 +3,7 @@ import type { Page, Route } from '@playwright/test';
 
 import { enableFlags } from './fixtures/flags';
 import { ROUTE_PATTERNS } from './fixtures/routes';
+import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
 
 /**
  * Màn `PascalViewer` — mắt xích DUY NHẤT của cả đợt tích hợp Pascal chưa được
@@ -74,12 +75,6 @@ const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewerPascal.replace(':projectI
 /** Cờ của màn này — `scene.pascal-viewer`, `lib/telemetry/flags.ts:157-165`, mặc định TẮT. */
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 
-/** Nhãn ba điều khiển của biểu mẫu đăng nhập — cùng chữ `src/i18n/vi.json` (`auth.fields`, `auth.actions`) giữ. */
-const EMAIL_LABEL = 'thư điện tử';
-const PASSWORD_LABEL = 'mật khẩu';
-const SIGN_IN_LABEL = 'đăng nhập';
-const SIGN_IN_EMAIL = 'engineer@example.com';
-const SIGN_IN_PASSWORD = 'matkhau-du-dai';
 
 /** Tên khung ngoài cùng của màn — `<section aria-label="mô hình 3d">`, `PascalViewer.tsx:25`. */
 const SCREEN_REGION_NAME = 'mô hình 3d';
@@ -133,9 +128,7 @@ async function signInThenOpenPascalViewer(page: Page): Promise<void> {
   await page.setViewportSize(VIEWPORT);
   await page.goto(`${ROUTE_PATTERNS.login}?next=${encodeURIComponent(PASCAL_VIEWER_PATH)}`);
 
-  await page.getByLabel(EMAIL_LABEL).fill(SIGN_IN_EMAIL);
-  await page.getByLabel(PASSWORD_LABEL, { exact: true }).fill(SIGN_IN_PASSWORD);
-  await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
+  await submitSignInForm(page, EMAIL_BY_ROLE.engineer);
 
   /* Có mặt ở CẢ BẢY trạng thái — `Frame` bọc mọi nhánh (`PascalViewer.tsx:22-34`) —
      nên đây là điểm chờ đúng bất kể cờ đang bật hay tắt. */

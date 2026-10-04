@@ -88,26 +88,26 @@
       "subtitle": "Số hóa bản vẽ 2D thành mô hình 3D tương tác."
     },
     "tabs": {
-      "signIn": "đăng nhập",
-      "register": "đăng ký"
+      "signIn": "Đăng nhập",
+      "register": "Đăng ký"
     },
     "fields": {
-      "email": "thư điện tử",
-      "password": "mật khẩu",
-      "fullName": "họ và tên",
-      "rememberMe": "ghi nhớ máy này"
+      "email": "Thư điện tử",
+      "password": "Mật khẩu",
+      "fullName": "Họ và tên",
+      "rememberMe": "Ghi nhớ máy này"
     },
     "actions": {
-      "signIn": "đăng nhập",
-      "register": "tạo tài khoản",
-      "submitting": "đang gửi…",
-      "expand": "mở lại biểu mẫu",
-      "or": "hoặc",
-      "ssoSignIn": "đăng nhập bằng SSO công ty",
-      "forgotPassword": "quên mật khẩu",
-      "resetPassword": "đặt lại mật khẩu",
-      "showPassword": "hiện mật khẩu",
-      "hidePassword": "ẩn mật khẩu"
+      "signIn": "Đăng nhập",
+      "register": "Tạo tài khoản",
+      "submitting": "Đang gửi…",
+      "expand": "Mở lại biểu mẫu",
+      "or": "Hoặc",
+      "ssoSignIn": "Đăng nhập bằng SSO công ty",
+      "forgotPassword": "Quên mật khẩu",
+      "resetPassword": "Đặt lại mật khẩu",
+      "showPassword": "Hiện mật khẩu",
+      "hidePassword": "Ẩn mật khẩu"
     },
     "problems": {
       "emailRequired": "Chưa nhập thư điện tử.",
@@ -118,15 +118,15 @@
     },
     "errors": {
       "invalidCredentials": {
-        "title": "sai thư điện tử hoặc mật khẩu",
+        "title": "Sai thư điện tử hoặc mật khẩu",
         "description": "Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên."
       },
       "tooManyAttempts": {
-        "title": "đã thử quá nhiều lần",
+        "title": "Đã thử quá nhiều lần",
         "description": "Đợi {{seconds}} giây rồi đăng nhập lại."
       },
       "accountDisabled": {
-        "title": "tài khoản đã bị vô hiệu",
+        "title": "Tài khoản đã bị vô hiệu",
         "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."
       }
     },
@@ -471,35 +471,35 @@
     }
   },
   "onboarding": {
-    "greeting": "chào {{name}}, bắt đầu trong ba bước",
-    "greetingFallback": "chào bạn, bắt đầu trong ba bước",
+    "greeting": "Chào {{name}}, bắt đầu trong ba bước",
+    "greetingFallback": "Chào bạn, bắt đầu trong ba bước",
     "intro": "AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
     "step1": {
-      "title": "tạo dự án",
+      "title": "Tạo dự án",
       "sentence": "Khai báo tên công trình và danh sách tầng.",
-      "action": "tạo dự án"
+      "action": "Tạo dự án"
     },
     "step2": {
-      "title": "tải bản vẽ theo từng tầng",
+      "title": "Tải bản vẽ theo từng tầng",
       "sentence": "Kéo ảnh quét hoặc tệp CAD vào từng tầng.",
-      "action": "tải bản vẽ",
+      "action": "Tải bản vẽ",
       "locked": "Cần tạo dự án trước."
     },
     "step3": {
-      "title": "duyệt kết quả và dựng 3D",
+      "title": "Duyệt kết quả và dựng 3D",
       "sentence": "Kiểm tra tường, cửa, phòng rồi xem mô hình.",
-      "action": "duyệt kết quả",
+      "action": "Duyệt kết quả",
       "locked": "Cần tải bản vẽ trước."
     },
-    "sampleProject": "xem dự án mẫu",
-    "tutorial": "xem hướng dẫn 2 phút",
+    "sampleProject": "Xem dự án mẫu",
+    "tutorial": "Xem hướng dẫn 2 phút",
     "tutorialDisabled": "Hướng dẫn hai phút chưa sẵn sàng.",
-    "skip": "bỏ qua",
+    "skip": "Bỏ qua",
     "skipNotice": "Màn chào sẽ không hiện lại trên trình duyệt này.",
-    "finish": "vào danh sách dự án",
-    "errorTitle": "không đọc được tiến độ",
+    "finish": "Vào danh sách dự án",
+    "errorTitle": "Không đọc được tiến độ",
     "errorDescription": "Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.",
-    "retry": "thử lại",
+    "retry": "Thử lại",
     "forbiddenNote": "Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
   },
   "floorUpload": {

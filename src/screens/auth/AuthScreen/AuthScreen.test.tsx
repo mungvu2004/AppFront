@@ -223,6 +223,15 @@ describe('AuthScreenView — wording and colour', () => {
     }
   });
 
+  it('capitalises the first letter of every label (A6), typed out rather than read back from vi.json', () => {
+    renderScreen();
+
+    expect(screen.getByRole('tab', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Thư điện tử')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument();
+  });
+
   it('holds no raw colour in any of the three source files', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/AuthScreen/AuthScreen.tsx');

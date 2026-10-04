@@ -7,8 +7,8 @@
  * Ba điều đã đo, và chúng quyết định hình dạng của hàm này:
  * 1. `EditorTour` KHÔNG mang `role="dialog"`/`aria-modal` (`EditorTour.tsx:15-17`).
  *    Đừng bám `getByRole('dialog')`. Thẻ là `region` đặt tên theo tiêu đề bước, nên
- *    mốc neo ở đây là nút `bỏ qua` TRONG `region` của thẻ. Màn chào cũng có nút "bỏ qua"
- *    (viết thường từ A6 · B-V1-06) nhưng không nằm trong `region` nào, nên không khớp.
+ *    mốc neo ở đây là nút `bỏ qua` TRONG `region` của thẻ. Màn chào cũng có nút "Bỏ qua"
+ *    (viết hoa chữ đầu theo A6) nhưng không nằm trong `region` nào, nên không khớp.
  * 2. Từ bản sửa W02 thẻ hiện NGAY lúc mở màn tường / xuất; ở `/3d` nó nạp động nên có thể
  *    hiện muộn một nhịp — ở đó dùng `dismissTourIfPresent` (`e2e/v8/viewer.ts`), hàm CHỜ.
  *    Hàm này KHÔNG chờ: đếm một lần, cho màn không chắc có tour.

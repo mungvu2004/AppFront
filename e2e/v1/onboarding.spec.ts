@@ -14,7 +14,7 @@ import { ROUTES, pathOf } from '../fixtures/routes';
 /** Lần tải đầu của một route bắt Vite dịch nguội; cùng hạn `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-const skipButton = (page: Page) => page.getByRole('button', { name: 'bỏ qua', exact: true });
+const skipButton = (page: Page) => page.getByRole('button', { name: 'Bỏ qua', exact: true });
 const dashboardHeading = (page: Page) =>
   page.getByRole('heading', { name: 'Dự án của tôi', exact: true });
 
@@ -27,9 +27,9 @@ function recordTrail(page: Page): string[] {
   return trail;
 }
 
-test('"bỏ qua" đưa người dùng mới tới danh sách dự án', async ({ page }) => {
+test('"Bỏ qua" đưa người dùng mới tới danh sách dự án', async ({ page }) => {
   await page.goto(ROUTES.onboarding);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('bắt đầu trong ba bước', {
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Chào .+, bắt đầu trong ba bước$/u, {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 
@@ -39,12 +39,12 @@ test('"bỏ qua" đưa người dùng mới tới danh sách dự án', async ({
   expect(pathOf(page.url())).toBe(ROUTES.dashboard);
 });
 
-test('"xem hướng dẫn 2 phút" đang tắt: Enter trên nó không đi đâu, dù nó vẫn trong thứ tự Tab', async ({
+test('"Xem hướng dẫn 2 phút" đang tắt: Enter trên nó không đi đâu, dù nó vẫn trong thứ tự Tab', async ({
   page,
 }) => {
   await page.goto(ROUTES.onboarding);
 
-  const guide = page.getByRole('button', { name: 'xem hướng dẫn 2 phút', exact: true });
+  const guide = page.getByRole('button', { name: 'Xem hướng dẫn 2 phút', exact: true });
   await expect(guide).toHaveAttribute('aria-disabled', 'true', { timeout: FIRST_PAINT_TIMEOUT_MS });
   /* Ghi vệt SAU khi màn đã dựng: lúc khởi động react-router tự `replaceState` mục lịch sử
      đầu (gắn `idx`), và Playwright đếm đó là một lượt điều hướng cùng tài liệu. */
@@ -54,7 +54,7 @@ test('"xem hướng dẫn 2 phút" đang tắt: Enter trên nó không đi đâu
   await page.keyboard.press('Enter');
 
   /* Rào dương thay cho chờ một khoảng: điều hướng của màn này đi sau một nhịp chuyển
-     động, nên cú Enter — nếu nó điều hướng — phải hiện trong vệt TRƯỚC lượt "bỏ qua". */
+     động, nên cú Enter — nếu nó điều hướng — phải hiện trong vệt TRƯỚC lượt "Bỏ qua". */
   await skipButton(page).click();
   await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
@@ -65,7 +65,7 @@ test('"xem hướng dẫn 2 phút" đang tắt: Enter trên nó không đi đâu
  * B-V1-04 — đã sửa. Màn ghi cờ đã-xem (`appfront:onboarding-welcome-seen:<userId>`);
  * `WelcomeRoute` đọc nó một lần lúc gắn, và ai đã xem thì về thẳng `/`.
  */
-test('đã "bỏ qua" rồi thì mở lại /onboarding không thấy lại màn chào', async ({ page }) => {
+test('đã "Bỏ qua" rồi thì mở lại /onboarding không thấy lại màn chào', async ({ page }) => {
   await page.goto(ROUTES.onboarding);
   await skipButton(page).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(dashboardHeading(page)).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });

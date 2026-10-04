@@ -35,25 +35,25 @@ const noop = (): void => undefined;
 /* Chuỗi — bảng ở mục 3 của hợp đồng đông cứng, chép để story đọc được một mình.*/
 /* -------------------------------------------------------------------------- */
 
-const GREETING = 'chào Minh, bắt đầu trong ba bước';
+const GREETING = 'Chào Minh, bắt đầu trong ba bước';
 
 const INTRO =
   'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.';
 
 const SAMPLE_LINK: OnboardingLink = {
-  label: 'xem dự án mẫu',
+  label: 'Xem dự án mẫu',
   disabledReason: null,
   onActivate: noop,
 };
 
 const TUTORIAL_LINK: OnboardingLink = {
-  label: 'xem hướng dẫn 2 phút',
+  label: 'Xem hướng dẫn 2 phút',
   disabledReason: 'Hướng dẫn hai phút chưa sẵn sàng.',
   onActivate: noop,
 };
 
 const SKIP_LINK: OnboardingLink = {
-  label: 'bỏ qua',
+  label: 'Bỏ qua',
   disabledReason: null,
   onActivate: noop,
 };
@@ -66,9 +66,9 @@ function stepOne(state: OnboardingStepCard['state'], isPrimary: boolean): Onboar
   return {
     id: 'createProject',
     ordinal: '1',
-    title: 'tạo dự án',
+    title: 'Tạo dự án',
     sentence: 'Khai báo tên công trình và danh sách tầng.',
-    actionLabel: 'tạo dự án',
+    actionLabel: 'Tạo dự án',
     state,
     isPrimary,
     lockedReason: null,
@@ -80,9 +80,9 @@ function stepTwo(state: OnboardingStepCard['state'], isPrimary: boolean): Onboar
   return {
     id: 'uploadDrawings',
     ordinal: '2',
-    title: 'tải bản vẽ theo từng tầng',
+    title: 'Tải bản vẽ theo từng tầng',
     sentence: 'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-    actionLabel: 'tải bản vẽ',
+    actionLabel: 'Tải bản vẽ',
     state,
     isPrimary,
     lockedReason: state === 'locked' ? 'Cần tạo dự án trước.' : null,
@@ -94,9 +94,9 @@ function stepThree(state: OnboardingStepCard['state'], isPrimary: boolean): Onbo
   return {
     id: 'reviewAndBuild',
     ordinal: '3',
-    title: 'duyệt kết quả và dựng 3D',
+    title: 'Duyệt kết quả và dựng 3D',
     sentence: 'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-    actionLabel: 'duyệt kết quả',
+    actionLabel: 'Duyệt kết quả',
     state,
     isPrimary,
     lockedReason: state === 'locked' ? 'Cần tải bản vẽ trước.' : null,
@@ -158,7 +158,7 @@ export const Success: Story = {
     ...BASE,
     screenState: 'success',
     cards: [stepOne('done', false), stepTwo('done', false), stepThree('done', false)],
-    finishLabel: 'vào danh sách dự án',
+    finishLabel: 'Vào danh sách dự án',
   },
 };
 

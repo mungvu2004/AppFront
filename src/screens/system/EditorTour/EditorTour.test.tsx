@@ -468,33 +468,33 @@ describe('BÀI NGHIỆM THU 3 — mất neo thì bộ đếm rút, giao diện k
  * `notes-1D-s06-anchors.md` mục (a). Hai mục #5/#6 là mảnh câu ghép (tiền tố/
  * hậu tố lời chào) — giữ nguyên theo đúng bảng khảo sát, đã cắt khoảng trắng
  * thừa để so khớp công bằng với văn bản đã `trim()` lấy từ DOM.
- * Bỏ "thử lại" và "bỏ qua": từ A6 (B-V1-06) cả hai màn viết thường nhãn, và đó
- * là động từ dùng chung với tour, không phải câu riêng của S-06.
+ * Bỏ "Thử lại" và "Bỏ qua": đó là động từ dùng chung với tour, không phải câu
+ * riêng của S-06.
  */
 const S06_SENTENCES: readonly string[] = [
-  'không đọc được tiến độ',
+  'Không đọc được tiến độ',
   'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
   'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
-  'chào',
+  'Chào',
   ', bắt đầu trong ba bước',
-  'chào bạn, bắt đầu trong ba bước',
+  'Chào bạn, bắt đầu trong ba bước',
   'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
-  'tạo dự án',
+  'Tạo dự án',
   'Khai báo tên công trình và danh sách tầng.',
-  'tạo dự án',
-  'tải bản vẽ theo từng tầng',
+  'Tạo dự án',
+  'Tải bản vẽ theo từng tầng',
   'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-  'tải bản vẽ',
+  'Tải bản vẽ',
   'Cần tạo dự án trước.',
-  'duyệt kết quả và dựng 3D',
+  'Duyệt kết quả và dựng 3D',
   'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-  'duyệt kết quả',
+  'Duyệt kết quả',
   'Cần tải bản vẽ trước.',
-  'xem dự án mẫu',
-  'xem hướng dẫn 2 phút',
+  'Xem dự án mẫu',
+  'Xem hướng dẫn 2 phút',
   'Hướng dẫn hai phút chưa sẵn sàng.',
   'Màn chào sẽ không hiện lại trên trình duyệt này.',
-  'vào danh sách dự án',
+  'Vào danh sách dự án',
   'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 ];
 
