@@ -114,7 +114,7 @@ export interface WelcomeScreenViewModel {
 /* Chuỗi tiếng Việt — nguồn duy nhất, hợp đồng đông cứng mục 3.                */
 /* -------------------------------------------------------------------------- */
 
-const STRINGS = Object.freeze({
+export const STRINGS = Object.freeze({
   greetingPrefix: 'Chào ',
   greetingSuffix: ', bắt đầu trong ba bước',
   greetingFallback: 'Chào bạn, bắt đầu trong ba bước',

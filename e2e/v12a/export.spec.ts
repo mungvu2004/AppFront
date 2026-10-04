@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { ROUTES, pathOf } from '../fixtures/routes';
 import { seedSpatial } from '../fixtures/seedSpatial';
 import { signInAs } from '../fixtures/session';
-import { dismissTourIfShown } from '../fixtures/tour';
+import { TOUR_CHIP_NAME, dismissTour } from '../fixtures/tour';
 
 /**
  * V12a — `projectExport` (`docs/notes/e2e/plan.md` V12 mục 4).
@@ -42,7 +42,7 @@ async function seedAndSettle(page: Page): Promise<void> {
   });
   await seedSpatial(page, { projectId: PROJECT_ID });
   await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
-  await dismissTourIfShown(page);
+  await dismissTour(page);
 }
 
 test('vai người xem mở màn xuất thì thấy "không có quyền", không có nút xuất (A11 forbidden)', async ({
@@ -104,7 +104,7 @@ test('có bơm kho: link "sửa" của khối kiểm tra trước khi xuất đ�
 });
 
 test.fixme(
-  'có bơm kho: sau khi tour bị bỏ qua, chip "xem hướng dẫn" không che nút "chia sẻ" (B-V12-09)',
+  'có bơm kho: sau khi tour bị bỏ qua, chip "Xem hướng dẫn" không che nút "chia sẻ" (B-V12-09)',
   // Lý do: chip `fixed right-[16px] top-[16px]` (`EditorTour.tsx`) đè lên nút `chia sẻ`
   // của đầu màn xuất ở mọi bề rộng ≥ 1280 px. Mở — chuyển W02 (đang sửa `EditorTour`;
   // dời chip là việc của bề mặt dùng chung). Mở lại khi chip không còn đè nút nào.
@@ -112,8 +112,8 @@ test.fixme(
     await seedAndSettle(page);
 
     // Hôm nay tour chỉ hiện sau `resize` — đẩy nó ra rồi bỏ qua, để chip hiện.
-    await dismissTourIfShown(page, { nudge: true });
-    await expect(page.getByRole('button', { name: 'xem hướng dẫn' })).toBeVisible();
+    await dismissTour(page, { nudge: true });
+    await expect(page.getByRole('button', { name: TOUR_CHIP_NAME, exact: true })).toBeVisible();
 
     const share = page.getByRole('button', { name: 'chia sẻ' });
 

@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
 import { seedSpatial } from '../fixtures/seedSpatial';
-import { dismissTourIfShown } from '../fixtures/tour';
+import { dismissTour } from '../fixtures/tour';
 
 import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 
@@ -164,11 +164,11 @@ test('bơm bộ mẫu chuẩn: đổi tên phòng từ bảng diện tích của
   await page.goto(ROUTES.project.viewer(QCB_PROJECT));
   await expect(page.getByText('Mô hình 3D đã dựng xong.')).toBeAttached({ timeout: VIEWER_READY_TIMEOUT_MS });
   await seedSpatial(page, { projectId: QCB_PROJECT });
-  await dismissTourIfShown(page);
+  await dismissTour(page);
 
   const toggle = page.getByRole('button', { name: 'Diện tích phòng', exact: true });
   await toggle.click();
-  await dismissTourIfShown(page);
+  await dismissTour(page);
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
   const field = page.getByRole('textbox', { name: 'tên phòng Room 0' });

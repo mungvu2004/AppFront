@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES } from '../fixtures/routes';
-import { dismissTourIfShown } from '../fixtures/tour';
+import { dismissTour } from '../fixtures/tour';
 
 import { QC_FLOOR, QC_PROJECT, seedQc } from './seedQc';
 
@@ -38,7 +38,7 @@ async function openSeeded(page: Page): Promise<void> {
   await seedQc(page, 'walls');
   await expect(list(page).getByRole('option')).toHaveCount(FIXTURE_WALLS);
   /* Tour hướng dẫn phủ màn tường (W02): bỏ nó trước cú bấm đầu, không để cú bấm bỏ hộ. */
-  await dismissTourIfShown(page);
+  await dismissTour(page);
 }
 
 test.describe('đường nạp thật (không bơm)', () => {
@@ -63,7 +63,7 @@ test.describe('đường nạp thật (không bơm)', () => {
     await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR, {
       timeout: FIRST_PAINT_TIMEOUT_MS,
     });
-    await dismissTourIfShown(page);
+    await dismissTour(page);
 
     await list(page).getByRole('option').first().click();
     await page.keyboard.press('Backspace');

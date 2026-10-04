@@ -193,45 +193,45 @@ interface TourStepDefinition {
  * `components/shell/ShortcutHelp.tsx:43` là dữ liệu chết của vỏ demo, `onSelect`
  * rỗng và danh sách viết tay, không đi qua registry nào.
  */
-const TOUR_STEPS: readonly TourStepDefinition[] = [
+export const TOUR_STEPS: readonly TourStepDefinition[] = [
   {
     id: 'switchTool',
     anchorSelector: '[role="toolbar"][aria-label="Công cụ lớp tường"]',
     shortcutId: 'wallLayerReview.tool.drawWall',
-    title: 'chọn công cụ ở ray bên trái',
-    body: 'mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng.',
+    title: 'Chọn công cụ ở ray bên trái',
+    body: 'Mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng.',
     placement: 'right',
   },
   {
     id: 'reviewWall',
     anchorSelector: '[role="listbox"][aria-label="Danh sách đoạn tường"]',
     shortcutId: 'wallLayerReview.next',
-    title: 'đi dọc từng đoạn tường',
-    body: 'một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt.',
+    title: 'Đi dọc từng đoạn tường',
+    body: 'Một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt.',
     placement: 'right',
   },
   {
     id: 'editThickness',
     anchorSelector: '[aria-label="Độ dày tường"]',
     shortcutId: 'wallLayerReview.thickness.1',
-    title: 'đặt lại độ dày cho đoạn đang chọn',
-    body: 'ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số.',
+    title: 'Đặt lại độ dày cho đoạn đang chọn',
+    body: 'Ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số.',
     placement: 'left',
   },
   {
     id: 'undo',
     anchorSelector: null,
     shortcutId: 'wallLayerReview.undo',
-    title: 'lùi lại khi lỡ tay',
-    body: 'ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím.',
+    title: 'Lùi lại khi lỡ tay',
+    body: 'Ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím.',
     placement: 'bottom',
   },
   {
     id: 'view3d',
     anchorSelector: '[role="radiogroup"][aria-label="Chế độ xem"]',
     shortcutId: null,
-    title: 'đổi sang khung nhìn khối',
-    body: 'nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào.',
+    title: 'Đổi sang khung nhìn khối',
+    body: 'Nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào.',
     placement: 'bottom',
   },
   {
@@ -245,8 +245,8 @@ const TOUR_STEPS: readonly TourStepDefinition[] = [
      */
     anchorSelector: '[data-tour-anchor="exportResult"]',
     shortcutId: null,
-    title: 'lấy tệp mang đi',
-    body: 'nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào.',
+    title: 'Lấy tệp mang đi',
+    body: 'Nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào.',
     placement: 'top',
   },
 ];
@@ -577,7 +577,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   const liveMessage =
     activeStep === undefined
       ? ''
-      : `bước ${activeIndex + 1} trên ${steps.length}: ${activeStep.title}`;
+      : `Bước ${activeIndex + 1} trên ${steps.length}: ${activeStep.title}`;
 
   const goToStep = (index: number): void => {
     const next = steps[index];
@@ -626,7 +626,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
       combo: 'Escape',
       scope: 'canvas',
       preventDefault: false,
-      description: 'bỏ qua lớp hướng dẫn đang mở',
+      description: 'Bỏ qua lớp hướng dẫn đang mở',
       onTrigger: (): void => {
         skipRef.current();
       },
