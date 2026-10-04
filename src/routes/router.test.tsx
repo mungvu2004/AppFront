@@ -81,7 +81,7 @@ describe('[UndoShortcuts] phím ?', () => {
     pressHelp();
 
     expect(await findHelpDialog()).toBeInTheDocument();
-    expect(screen.getByText('hoàn tác thao tác gần nhất')).toBeInTheDocument();
+    expect(screen.getByText('Hoàn tác thao tác gần nhất')).toBeInTheDocument();
   });
 
   it('gõ ? lần hai trong lúc bảng đang mở thì đóng lại', async () => {

@@ -657,7 +657,7 @@ export const buildGlobalShortcuts = (
     id: 'global.undo',
     combo: 'Ctrl+Z',
     scope: 'global',
-    description: 'hoàn tác thao tác gần nhất',
+    description: 'Hoàn tác thao tác gần nhất',
     allowRepeat: true,
     onTrigger: (): void => {
       handlers.undo();
@@ -667,7 +667,7 @@ export const buildGlobalShortcuts = (
     id: 'global.redo',
     combo: 'Ctrl+Shift+Z',
     scope: 'global',
-    description: 'làm lại thao tác vừa hoàn tác',
+    description: 'Làm lại thao tác vừa hoàn tác',
     allowRepeat: true,
     onTrigger: (): void => {
       handlers.redo();
@@ -677,7 +677,7 @@ export const buildGlobalShortcuts = (
     id: 'global.save',
     combo: 'Ctrl+S',
     scope: 'global',
-    description: 'lưu ngay thay vì chờ tự lưu',
+    description: 'Lưu ngay thay vì chờ tự lưu',
     onTrigger: (): void => {
       handlers.save();
     },
@@ -686,7 +686,7 @@ export const buildGlobalShortcuts = (
     id: 'global.search',
     combo: 'Ctrl+F',
     scope: 'global',
-    description: 'mở tìm kiếm trong dự án',
+    description: 'Mở tìm kiếm trong dự án',
     onTrigger: (): void => {
       handlers.openSearch();
     },
@@ -695,7 +695,7 @@ export const buildGlobalShortcuts = (
     id: 'global.shortcutHelp',
     combo: '?',
     scope: 'global',
-    description: 'mở bảng phím tắt',
+    description: 'Mở bảng phím tắt',
     onTrigger: (): void => {
       handlers.openShortcutHelp();
     },
@@ -705,7 +705,7 @@ export const buildGlobalShortcuts = (
     combo: 'Escape',
     scope: 'global',
     preventDefault: false,
-    description: 'đóng lớp trên cùng',
+    description: 'Đóng lớp trên cùng',
     onTrigger: (): void => {
       handlers.closeTopLayer();
     },
