@@ -65,7 +65,7 @@
   },
   "autosave": {
     "idle": "Chưa có thay đổi",
-    "dirty": "Có thay đổi chưa lưu",
+    "dirty": "Có thay đổi chờ đồng bộ",
     "saving": "Đang lưu…",
     "failed": "Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.",
     "offline": "Ngoại tuyến — sẽ lưu khi có mạng",

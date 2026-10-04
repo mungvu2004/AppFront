@@ -58,20 +58,37 @@ test.describe('đường nạp thật (không bơm)', () => {
    * chưa lưu" mãi (đo 0,5 s và 2 s sau xoá). Nay lưu qua #35 — máy chủ dev là mock trong
    * tiến trình, nên điều quan sát được là chữ của thanh trạng thái, không phải lượt HTTP.
    */
-  test('xoá một tường thì hệ thống tự lưu và thanh trạng thái nói "Đã lưu lúc …" (A7, B-V6-03)', async ({ page }) => {
+  test('xoá một tường thì hệ thống tự lưu, thanh trạng thái nói câu "chờ" chung rồi "Đã lưu lúc …" (A7, B-V6-03, B-V1-47)', async ({ page }) => {
     await page.goto(ROUTES.project.walls(QC_PROJECT, A14_FLOOR));
     await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR, {
       timeout: FIRST_PAINT_TIMEOUT_MS,
     });
     await dismissTour(page);
 
+    const statusBar = page.getByRole('status', { name: 'Thanh trạng thái' });
+    // Ghi mọi lần chữ đổi TRƯỚC thao tác: câu "chờ" chỉ sống 800 ms (khuôn `account.spec.ts` AC-1).
+    await statusBar.evaluate((node) => {
+      const log: string[] = [];
+      (window as unknown as { __statusLog: string[] }).__statusLog = log;
+      new MutationObserver(() => log.push(node.textContent ?? '')).observe(node, {
+        subtree: true,
+        characterData: true,
+        childList: true,
+      });
+    });
+
     await list(page).getByRole('option').first().click();
     await page.keyboard.press('Backspace');
     await expect(list(page).getByRole('option')).toHaveCount(A14_WALLS_ON_FLOOR - 1);
 
-    const statusBar = page.getByRole('status', { name: 'Thanh trạng thái' });
     await expect(statusBar).toContainText(/Đã lưu lúc \d{2}:\d{2}/u);
-    await expect(statusBar).not.toContainText('Có thay đổi chưa lưu');
+    await expect(statusBar).not.toContainText('Có thay đổi chờ đồng bộ');
+
+    /* B-V1-47: thanh trạng thái (nhãn hook) và viên chỉ báo lưu nói CÙNG một câu "chờ" —
+       trước sửa thanh nói "Có thay đổi chưa lưu" còn viên nói "Có thay đổi chờ đồng bộ". */
+    const log = await page.evaluate(() => (window as unknown as { __statusLog: string[] }).__statusLog);
+    expect(log.some((text) => text.includes('Có thay đổi chờ đồng bộ')), JSON.stringify(log)).toBe(true);
+    expect(log.some((text) => text.includes('Có thay đổi chưa lưu')), JSON.stringify(log)).toBe(false);
   });
 
   test('tầng chưa có lớp thì màn nói thật "Chưa có đoạn tường nào"', async ({ page }) => {

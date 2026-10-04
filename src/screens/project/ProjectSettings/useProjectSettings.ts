@@ -152,7 +152,8 @@ export interface ProjectSettingsModel {
   readonly isReadOnly: boolean;
   readonly errorMessage: string | null;
   readonly saveState: SaveState;
-  readonly saveLabel: string;
+  /** `null` khi màn tự ép `pending` vì còn lỗi nhập — viên chỉ báo dùng câu chờ của nó. */
+  readonly saveLabel: string | null;
   readonly conflictMessage: string | null;
   readonly activeTab: ProjectSettingsTabId;
   readonly tabs: readonly ProjectSettingsTabModel[];
@@ -840,7 +841,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     isReadOnly: !canEdit,
     errorMessage: state === 'error' ? loadFailure : null,
     saveState,
-    saveLabel: indicator.label,
+    // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47).
+    saveLabel: hasProblem ? null : indicator.label,
     conflictMessage,
     activeTab,
     tabs,

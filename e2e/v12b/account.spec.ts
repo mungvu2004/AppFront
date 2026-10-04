@@ -38,7 +38,7 @@ const FRAME_SLACK_MS = 50;
 function saveIndicator(page: Page) {
   return page
     .getByRole('status')
-    .filter({ hasText: /^(Chưa có thay đổi|Có thay đổi chờ đồng bộ|Đang lưu\.\.\.|Đã lưu lúc.*|Lưu thất bại)$/u })
+    .filter({ hasText: /^(Chưa có thay đổi|Có thay đổi chờ đồng bộ|Đang lưu(…|\.\.\.)|Đã lưu lúc.*|Lưu thất bại.*)$/u })
     .first();
 }
 
