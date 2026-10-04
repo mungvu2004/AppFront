@@ -350,11 +350,13 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
   it('trạng thái lỗi có nút "Thử lại", bấm thì đọc lại lớp kích thước (B-V6-45, A11)', async () => {
     emptyStore();
     const args = scenarioArgsFor('error');
-    const readDimensionLayer = vi.fn(args.gateway.readDimensionLayer);
+    const base = args.gateway;
+    if (base === undefined) throw new Error('kịch bản lỗi phải mang cổng giả');
+    const readDimensionLayer = vi.fn(base.readDimensionLayer);
 
     renderWithProviders(
       <MemoryRouter>
-        <DimensionOcrReviewContainer {...args} gateway={{ ...args.gateway, readDimensionLayer }} />
+        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readDimensionLayer }} />
       </MemoryRouter>,
     );
 
