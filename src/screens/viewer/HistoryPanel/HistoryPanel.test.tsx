@@ -169,6 +169,26 @@ describe('[N1b] mỗi mục nói ra người thực hiện cho trình đọc mà
   });
 });
 
+describe('[N1c] bộ mẫu chỉ mang nhãn người thực hiện mà model sinh ra (B-V8-48)', () => {
+  /** Mọi `HistoryActor` nằm đâu đó trong props — mục, mục con, danh sách lọc người. */
+  function actorsIn(value: unknown): { readonly label: string }[] {
+    if (Array.isArray(value)) return value.flatMap(actorsIn);
+    if (value === null || typeof value !== 'object') return [];
+    const own = 'isAnonymised' in value && 'label' in value ? [value as { readonly label: string }] : [];
+
+    return [...own, ...Object.values(value).flatMap(actorsIn)];
+  }
+
+  it('mọi người trong bảy kịch bản đọc "Bạn" hoặc "Người dùng khác [N]" — không tên thật', () => {
+    const actors = SCENARIOS.flatMap((scenario) => actorsIn(scenario.props));
+
+    expect(actors.length).toBeGreaterThan(0);
+    for (const actor of actors) {
+      expect(actor.label).toMatch(/^(Bạn|Người dùng khác( \d+)?)$/u);
+    }
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* [N2] Mục có diff hiện cả hai vế.                                            */
 /* -------------------------------------------------------------------------- */

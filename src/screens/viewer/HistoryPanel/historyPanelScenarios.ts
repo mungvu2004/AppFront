@@ -27,7 +27,7 @@
  * - Ba mục cuối (`lo-undone`, `sua-cua-undone`, `duyet-san-undone`) mang
  *   `position: 'undone'` — lùi ba bước thì đúng ba mục này chuyển độ mờ, không
  *   mục nào biến mất khỏi cây (luật cốt lõi).
- * - Ba người khác nhau đứng sau các mục (`Lan Trần`, `Minh Nguyễn`, `Trợ lý AI`)
+ * - Ba người khác nhau đứng sau các mục ("Bạn", "Người dùng khác 1", "Người dùng khác 2")
  *   để `Select` lọc theo người có ít nhất hai lựa chọn thật để lọc.
  *
  * ## Kịch bản `partial` — cả hai `HistoryPartialReason`
@@ -49,7 +49,7 @@ import type {
   HistorySingleItem,
   HistoryTimelineItem,
 } from './historyPanelTypes';
-import { HISTORY_ANONYMOUS_ACTOR_LABEL } from './historyPanelTypes';
+import { actorOf } from './useHistoryPanel.model';
 
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
@@ -57,33 +57,21 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 /* Người thực hiện dùng chung giữa các kịch bản.                               */
 /* -------------------------------------------------------------------------- */
 
-const ACTOR_LAN: HistoryActor = {
-  id: 'u-lan-tran',
-  initials: 'LT',
-  label: 'Lan Trần',
-  isAnonymised: false,
-};
+/*
+ * Dựng bằng `actorOf` của chính model (B-V8-48): bộ mẫu từng ghi tên thật ("Lan Trần"…)
+ * mà model không bao giờ sinh ra — model chỉ nói "Bạn" hoặc "Người dùng khác N".
+ */
+const CURRENT_ACTOR_ID = 'u-lan-tran';
+const ACTOR_ORDINALS: ReadonlyMap<string, number> = new Map([
+  ['u-minh-nguyen', 1],
+  ['ai-system', 2],
+]);
 
-const ACTOR_MINH: HistoryActor = {
-  id: 'u-minh-nguyen',
-  initials: 'MN',
-  label: 'Minh Nguyễn',
-  isAnonymised: false,
-};
-
-const ACTOR_AI: HistoryActor = {
-  id: 'ai-system',
-  initials: 'AI',
-  label: 'Trợ lý AI',
-  isAnonymised: false,
-};
-
-const ACTOR_ANONYMOUS: HistoryActor = {
-  id: 'u-khac',
-  initials: '?',
-  label: HISTORY_ANONYMOUS_ACTOR_LABEL,
-  isAnonymised: true,
-};
+const ACTOR_LAN: HistoryActor = actorOf('u-lan-tran', CURRENT_ACTOR_ID, ACTOR_ORDINALS);
+const ACTOR_MINH: HistoryActor = actorOf('u-minh-nguyen', CURRENT_ACTOR_ID, ACTOR_ORDINALS);
+const ACTOR_AI: HistoryActor = actorOf('ai-system', CURRENT_ACTOR_ID, ACTOR_ORDINALS);
+/** Người khác không có số thứ tự — nhãn chung `HISTORY_ANONYMOUS_ACTOR_LABEL`. */
+const ACTOR_ANONYMOUS: HistoryActor = actorOf('u-khac', CURRENT_ACTOR_ID);
 
 const noop = (): void => {
   /* Chỗ nối có mặt để view gắn được; bài kiểm tự thay bằng bộ đếm khi cần đo. */
