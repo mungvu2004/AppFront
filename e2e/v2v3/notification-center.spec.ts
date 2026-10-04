@@ -62,6 +62,21 @@ test('mở trực tiếp /thong-bao rồi Escape về danh sách dự án trong 
   await expect(panel(page)).toHaveCount(0);
 });
 
+test('điện thoại: ba nút chọn chiều cao tấm trượt nằm trong cây truy cập, có tên và trạng thái (B-V1-46)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openDirect(page);
+
+  const levels = panel(page).getByRole('group', { name: 'Chiều cao tấm trượt', exact: true });
+  await expect(levels.getByRole('button')).toHaveCount(3);
+  await expect(levels.getByRole('button', { name: 'Mức 3', pressed: true })).toBeVisible();
+
+  await levels.getByRole('button', { name: 'Mức 2' }).click();
+
+  await expect(levels.getByRole('button', { name: 'Mức 2', pressed: true })).toBeVisible();
+});
+
 test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, và trạng thái nói "không còn thông báo chưa đọc" khi danh sách vẫn còn (B-V2-02)', async ({
   page,
 }) => {
