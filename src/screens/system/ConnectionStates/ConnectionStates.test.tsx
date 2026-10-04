@@ -247,7 +247,7 @@ describe('bảy trạng thái', () => {
       );
 
       return { container, unmount };
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
   });
 
   it('trạng thái rỗng cố ý không vẽ gì', () => {
@@ -309,7 +309,7 @@ describe('câu chữ', () => {
   it('lệnh không mang nhãn thì nói thẳng là chưa đặt tên, không bịa', () => {
     const row = toPendingRow({ command: { foo: 1 }, createdAt: Date.now(), id: 7, sizeBytes: 900 });
 
-    expect(row.label).toBe('thay đổi chưa đặt tên');
+    expect(row.label).toBe('Thay đổi chưa đặt tên');
   });
 
   it('số lệnh chờ định dạng ở model, không ở view (A15)', () => {

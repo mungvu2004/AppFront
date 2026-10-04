@@ -290,7 +290,7 @@ export function isVietnameseSyllable(word: string): boolean {
  * Key names sit here as well as in {@link OPAQUE_TAGS}: a shortcut is not always
  * wrapped in `<kbd>`, and "Esc" is not a translation failure.
  */
-const TECHNICAL_TOKENS = new Set([
+export const TECHNICAL_TOKENS: ReadonlySet<string> = new Set([
   'mm', 'cm', 'dm', 'km', 'kg', 'px', 'pt', 'ms', 'kb', 'mb', 'gb',
   'pdf', 'dxf', 'dwg', 'ifc', 'png', 'jpg', 'jpeg', 'svg', 'csv', 'json', 'xml',
   'id', 'url', 'api', 'qc', 'ui', 'ux', 'http', 'https', 'www',
@@ -389,7 +389,12 @@ function buildLexicon(phrases: readonly string[]): Lexicon {
   return { written, byStripped };
 }
 
-/** The bundle this application ships, read once. */
+/**
+ * The bundle this application ships, read once. Only a few blocks of it are read
+ * at run time (`common`, `errors`, `autosave`, `pipeline`, `auth`); the rest are
+ * copies kept as vocabulary for this check and are not kept in step with each
+ * screen's capitalisation (A6) — only the words matter here, never the case.
+ */
 const BUNDLE_PHRASES: readonly string[] = (() => {
   const phrases: string[] = [];
   collectBundleStrings(viMessages, phrases);

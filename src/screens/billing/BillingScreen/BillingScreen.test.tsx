@@ -230,7 +230,7 @@ describe('A11 — bảy trạng thái, đo trên cả màn', () => {
       covered.push(scenario.label);
 
       return render(<BillingScreen {...propsFor(scenario)} />);
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
 
     console.log(
       `[T7] expectSevenStates = ${String(covered.length)}/${String(SEVEN_STATES.length)} — ${covered.join(', ')}`,
