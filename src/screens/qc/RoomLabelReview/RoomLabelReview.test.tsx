@@ -466,6 +466,15 @@ describe('hộp thoại gộp phòng', () => {
 /* Ba bộ khẳng định dùng chung.                                                */
 /* -------------------------------------------------------------------------- */
 
+describe('đường dẫn đầu màn (B-V6-43)', () => {
+  it('không gõ cứng một tầng: "Dự án > Nhãn phòng"', () => {
+    renderState('success');
+
+    expect(screen.getByText('Dự án > Nhãn phòng')).toBeInTheDocument();
+    expect(screen.queryByText(/Tầng 01 >/u)).not.toBeInTheDocument();
+  });
+});
+
 describe('khả năng tiếp cận, tiếng Việt và màu', () => {
   it('expectAccessible xanh ở trạng thái chính', async () => {
     const { container } = await renderSettled('partial');

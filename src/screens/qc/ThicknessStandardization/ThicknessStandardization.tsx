@@ -98,7 +98,7 @@ export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_BREADCRUMB = 'Dự án > Tầng 01 > Độ dày tường';
+const SCREEN_BREADCRUMB = 'Dự án > Độ dày tường';
 const SCREEN_TITLE = 'chuẩn hoá độ dày tường';
 const SCREEN_DESCRIPTION =
   'Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.';

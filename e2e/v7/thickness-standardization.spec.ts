@@ -66,6 +66,14 @@ test('đường nạp thật: mở thẳng ở một tầng có lớp thì thẻ
   await expect(page.getByRole('heading', { name: 'chưa có đoạn tường nào để chuẩn hoá' })).toHaveCount(0);
 });
 
+test('đường dẫn đầu màn không gõ cứng "Tầng 01" — màn phủ mọi tầng: "Dự án > Độ dày tường" (B-V6-43)', async ({
+  page,
+}) => {
+  await open(page);
+
+  await expect(page.getByText('Dự án > Độ dày tường', { exact: true })).toBeVisible();
+});
+
 test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chưa có đoạn tường nào" (V7-THICK-01)', async ({ page }) => {
   await open(page, 'L1');
 

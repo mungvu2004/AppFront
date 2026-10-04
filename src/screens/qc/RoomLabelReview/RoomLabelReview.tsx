@@ -73,7 +73,7 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps;
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_BREADCRUMB = 'Dự án > Tầng 01 > Nhãn phòng';
+const SCREEN_BREADCRUMB = 'Dự án > Nhãn phòng';
 const SCREEN_TITLE = 'duyệt tên phòng';
 const SCREEN_DESCRIPTION =
   'Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.';

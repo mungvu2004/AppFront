@@ -98,6 +98,12 @@ test('đường nạp thật: mở thẳng ở một tầng có lớp thì danh 
  * Mã A14 `R-ROOM0000010`… có chỉ số ĐỨNG SAU: quy tắc cũ đọc sáu ký tự đầu thân mã làm số
  * đếm, nên cả bốn phòng cùng nhãn "#R-ROOM00" (B-V6-09). Mã ULID của BE hỏng y như vậy.
  */
+test('đường dẫn đầu màn không gõ cứng "Tầng 01": "Dự án > Nhãn phòng" (B-V6-43)', async ({ page }) => {
+  await open(page);
+
+  await expect(page.getByText('Dự án > Nhãn phòng', { exact: true })).toBeVisible();
+});
+
 test('đường nạp thật: mỗi phòng một mã hiển thị riêng, theo thứ tự tạo (B-V6-09)', async ({ page }) => {
   await openReal(page);
 

@@ -537,6 +537,15 @@ describe('[NGHIEM-4] áp dụng lại bộ lọc không bao giờ ghi đè im l�
 /* Bốn bộ khẳng định dùng chung.                                               */
 /* -------------------------------------------------------------------------- */
 
+describe('đường dẫn đầu màn (B-V6-43)', () => {
+  it('màn phủ mọi tầng nên không nêu tầng nào: "Dự án > Độ dày tường"', () => {
+    renderState('success');
+
+    expect(screen.getByText('Dự án > Độ dày tường')).toBeInTheDocument();
+    expect(screen.queryByText(/Tầng 01 >/u)).not.toBeInTheDocument();
+  });
+});
+
 describe('khả năng tiếp cận, tiếng Việt và màu', () => {
   it('expectAccessible xanh ở trạng thái chính', async () => {
     const { container } = await renderMain();
