@@ -335,6 +335,27 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     expect(rendered).toBe(7);
   });
 
+  it('trạng thái lỗi có nút "Thử lại", bấm thì đọc lại lớp kích thước (B-V6-45, A11)', async () => {
+    emptyStore();
+    const args = scenarioArgsFor('error');
+    const readDimensionLayer = vi.fn(args.gateway.readDimensionLayer);
+
+    renderWithProviders(
+      <MemoryRouter>
+        <DimensionOcrReviewContainer {...args} gateway={{ ...args.gateway, readDimensionLayer }} />
+      </MemoryRouter>,
+    );
+
+    const retry = await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.states.error.actionLabel });
+    const callsBefore = readDimensionLayer.mock.calls.length;
+
+    fireEvent.click(retry);
+
+    await waitFor(() => {
+      expect(readDimensionLayer.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
+  });
+
   it('trạng thái lỗi và thu gọn vẫn còn canvas — không màn trắng', async () => {
     renderState('error');
 
