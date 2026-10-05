@@ -43,17 +43,17 @@ const PROJECT_ID = 'P-000000001';
 const shareLinkFlag = vi.hoisted(() => ({ value: null as boolean | null }));
 
 /**
- * Số lần `ShareDialogContainer` THẬT được dựng. Bọc chứ không thay: ba bài cũ cần
+ * Số lần `ShareDialogContainer` THẬT được render. Bọc chứ không thay: ba bài cũ cần
  * hộp thoại thật; bài F-06 cần biết container có gắn hộp thoại hay không.
  */
-const shareDialogMounts = vi.hoisted(() => ({ count: 0 }));
+const shareDialogRenders = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('@/screens/export/ShareDialog', async (importOriginal) => {
   const actual = await importOriginal<typeof ShareDialogModule>();
   return {
     ...actual,
     ShareDialogContainer: (props: ComponentProps<typeof actual.ShareDialogContainer>) => {
-      shareDialogMounts.count += 1;
+      shareDialogRenders.count += 1;
       return createElement(actual.ShareDialogContainer, props);
     },
   };
@@ -99,7 +99,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   shareLinkFlag.value = null;
-  shareDialogMounts.count = 0;
+  shareDialogRenders.count = 0;
 });
 
 describe('F-06 — bản thật v1: không nút "chia sẻ", không request tới share-links', () => {
@@ -110,7 +110,7 @@ describe('F-06 — bản thật v1: không nút "chia sẻ", không request tớ
     expect(await screen.findByRole('button', { name: /xuất/iu })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /chia sẻ/iu })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(shareDialogMounts.count).toBe(0);
+    expect(shareDialogRenders.count).toBe(0);
     const urls = fetchSpy.mock.calls.map(([input]) =>
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     );
