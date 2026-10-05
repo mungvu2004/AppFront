@@ -132,7 +132,7 @@ const DRAG_STEPS = 12;
 const SEARCH_TRIGGER_LABEL = 'tìm phòng';
 
 /** Nhãn ô chữ của ô tìm. */
-const SEARCH_INPUT_LABEL = 'tìm phòng theo tên hoặc mã';
+const SEARCH_INPUT_LABEL = 'Tìm phòng theo tên hoặc mã';
 
 /**
  * Chuỗi người dùng gõ — KHÔNG DẤU, cố ý.
@@ -720,7 +720,7 @@ test('bấm chuột trong khung nhìn chọn được một đối tượng (R1)
        tượng thật của đồ thị không gian. */
     await expect(inspector).not.toContainText('Chưa chọn đối tượng');
     await expect(inspector).toContainText(/(phòng|tường) [A-Z]-[A-Z0-9]+/u);
-    await expect(inspector).toContainText('mã đối tượng');
+    await expect(inspector).toContainText('Mã đối tượng');
   });
 });
 

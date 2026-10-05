@@ -512,7 +512,7 @@ describe('A11 — bảy trạng thái của RuleReport', () => {
     expect(covered).toHaveLength(SEVEN_STATES.length);
   });
 
-  it('trạng thái "đang tải" và "thành công" không vẽ ra cùng một cây', async () => {
+  it('trạng thái "Đang tải" và "Thành công" không vẽ ra cùng một cây', async () => {
     const RuleReportView = await loadRuleReportView();
 
     const loading = renderRuleReport(RuleReportView, propsFor(scenarioOf('loading')));
@@ -634,7 +634,7 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
       </MemoryRouter>,
     );
 
-    const link = await screen.findByRole('link', { name: 'cài đặt bộ luật' });
+    const link = await screen.findByRole('link', { name: 'Cài đặt bộ luật' });
     expect(link.getAttribute('href')).toBe(ROUTES.project.ruleSettings('P-000001'));
 
     // `fireEvent` trả `false` khi lượt bấm đã bị `preventDefault()` — router đi thay trình duyệt.
@@ -670,7 +670,7 @@ describe('năng lực bị gỡ thì bị gỡ khỏi DOM, không render nút v�
     expect(screen.queryByRole('button', { name: /sửa tự động/i })).toBeNull();
   });
 
-  it('canDismiss=false: không nút "bỏ qua" nào trong DOM', async () => {
+  it('canDismiss=false: không nút "Bỏ qua" nào trong DOM', async () => {
     const RuleReportView = await loadRuleReportView();
     const props = propsFor(scenarioOf('success'));
     renderRuleReport(RuleReportView, props);
@@ -795,7 +795,7 @@ describe('mục đã xử lý phải còn nhìn thấy trong nhóm gộp (CẤM 
 });
 
 /* ==========================================================================
- * I. R-73 — "chọn" một vi phạm mở `ViolationDetailContainer` dạng tấm trượt.
+ * I. R-73 — "Chọn" một vi phạm mở `ViolationDetailContainer` dạng tấm trượt.
  *
  *    Đây là container THẬT (không phải view thuần), nên `useRuleReport` chạy
  *    `useQuery` thật và cần `QueryClientProvider` — `renderWithProviders`
@@ -837,13 +837,13 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     });
 
     // Chưa chọn gì: tấm trượt không có trong cây.
-    expect(screen.queryByRole('complementary', { name: 'chi tiết vi phạm' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết vi phạm' })).toBeNull();
 
     // Đợi lượt chạy xong rồi mở nhóm luật đầu tiên (mọi nhóm bắt đầu đóng —
     // `expandedRuleCodes` của `useRuleReport` rỗng lúc mở màn thật, khác
     // `propsFor` ở mục B vốn tự mở sẵn cho các phép kiểm view thuần). Neo vào
     // `h3 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h3>`; bộ lọc
-    // "nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
+    // "Nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
     // ô chọn) nên một selector không neo `h3` bắt nhầm đúng cái đó trước.
     const groupToggle = await waitFor(() => {
       const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
@@ -882,7 +882,7 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
 
     fireEvent.click(messageButton);
 
-    const panel = await waitFor(() => screen.getByRole('complementary', { name: 'chi tiết vi phạm' }));
+    const panel = await waitFor(() => screen.getByRole('complementary', { name: 'Chi tiết vi phạm' }));
 
     // Đúng vi phạm vừa bấm — không phải hàng đầu tiên của một danh sách khác.
     // Chứng minh `initialIndex` trỏ đúng chỗ trong `violations`, không lệch
@@ -893,7 +893,7 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     fireEvent.keyDown(window, { key: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.queryByRole('complementary', { name: 'chi tiết vi phạm' })).toBeNull();
+      expect(screen.queryByRole('complementary', { name: 'Chi tiết vi phạm' })).toBeNull();
     });
   });
 });

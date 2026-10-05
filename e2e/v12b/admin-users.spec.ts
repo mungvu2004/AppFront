@@ -23,7 +23,7 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
  */
 
 const FORBIDDEN_TEXT =
-  'vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì';
+  'Vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì';
 
 /** Một người không phải chính quản trị đang đăng nhập (`Phạm An`). */
 const TARGET = { name: 'Nguyễn Bình', email: 'engineer@example.com' } as const;
@@ -58,20 +58,20 @@ for (const row of ROLE_ROWS) {
       await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toHaveCount(0);
       await expect(targetRow(page)).toBeVisible();
       await expect(page.getByRole('row').filter({ hasText: 'admin@example.com' })).toContainText(
-        'bạn không thể tự đổi vai của mình',
+        'Bạn không thể tự đổi vai của mình',
       );
       return;
     }
 
     await expect(page.getByRole('alert').filter({ hasText: FORBIDDEN_TEXT })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
-    await expect(page.getByText('ma trận quyền theo vai trò')).toBeVisible();
+    await expect(page.getByText('Ma trận quyền theo vai trò')).toBeVisible();
     await expect(page.getByText('quản trị: được phép tải bản vẽ', { exact: true })).toBeAttached();
     await expect(page.getByText('người xem: không được phép tải bản vẽ', { exact: true })).toBeAttached();
     // Không rò người: không hàng, không địa chỉ của ai, không nút ghi.
     await expect(page.getByText(BYSTANDER_EMAIL)).toHaveCount(0);
     await expect(page.getByRole('row')).toHaveCount(0);
     await expect(invite).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'vô hiệu hoá' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Vô hiệu hoá' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'xoá' })).toHaveCount(0);
   });
 }
@@ -86,17 +86,17 @@ test.describe('admin', () => {
     page,
   }) => {
     const row = targetRow(page);
-    await row.getByRole('button', { name: 'vô hiệu hoá' }).click();
+    await row.getByRole('button', { name: 'Vô hiệu hoá' }).click();
 
-    await expect(row).toContainText('đã vô hiệu hoá');
+    await expect(row).toContainText('Đã vô hiệu hoá');
     await expect(row.getByRole('button', { name: 'bật lại' })).toBeVisible();
     const toast = page.getByRole('status').filter({ hasText: `đã vô hiệu hoá tài khoản — ${TARGET.name}` });
     await expect(toast).toBeVisible();
 
     await toast.getByRole('button', { name: 'Hoàn tác' }).click();
 
-    await expect(row.getByRole('button', { name: 'vô hiệu hoá' })).toBeVisible();
-    await expect(row).toContainText('đang hoạt động');
+    await expect(row.getByRole('button', { name: 'Vô hiệu hoá' })).toBeVisible();
+    await expect(row).toContainText('Đang hoạt động');
     // Lời mời hoàn tác đã dùng xong không được còn treo đó hứa thêm một lần nữa.
     await expect(toast).toHaveCount(0);
   });
@@ -111,7 +111,7 @@ test.describe('admin', () => {
     const dialog = page.getByRole('dialog', { name: `xoá hẳn ${TARGET.name}?` });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('không hoàn tác được');
-    await expect(dialog.getByRole('button', { name: 'xác nhận xoá vĩnh viễn' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Xác nhận xoá vĩnh viễn' })).toBeDisabled();
     await expect(dialog.locator(':focus')).toHaveCount(1);
 
     await page.keyboard.press('Escape');
@@ -125,7 +125,7 @@ test.describe('admin', () => {
     page,
   }) => {
     await page.getByRole('button', { name: TARGET.name, exact: true }).click();
-    const detail = page.getByRole('complementary', { name: 'chi tiết người dùng' });
+    const detail = page.getByRole('complementary', { name: 'Chi tiết người dùng' });
     await expect(detail).toBeVisible();
 
     await targetRow(page).getByRole('button', { name: 'xoá' }).click();
@@ -142,7 +142,7 @@ test.describe('admin', () => {
 
   test('UM-4 · B-V12b-02 Esc đóng khối mời người dùng (A12)', async ({ page }) => {
     await page.getByRole('button', { name: 'Mời người dùng' }).click();
-    const emails = page.getByRole('textbox', { name: /email người được mời/u });
+    const emails = page.getByRole('textbox', { name: /Email người được mời/u });
     await expect(emails).toBeVisible();
 
     await page.keyboard.press('Escape');

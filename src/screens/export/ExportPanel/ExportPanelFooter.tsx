@@ -37,7 +37,7 @@ export function ExportPanelFooter({
             <p className="text-xs text-text-secondary">{progress.countLabel}</p>
           </div>
           <Button variant="secondary" onClick={onCancel}>
-            huỷ
+            Huỷ
           </Button>
         </div>
 
@@ -66,7 +66,7 @@ export function ExportPanelFooter({
         // Nút này không có `aria-label`/`id` nào ổn định để bám, và tên khẳng định
         // của nó là chính chữ hiện trên nút — thứ `querySelector` không chọn được.
         <Button data-tour-anchor="exportResult" variant="primary" onClick={onExport}>
-          xuất
+          Xuất
         </Button>
       )}
     </footer>

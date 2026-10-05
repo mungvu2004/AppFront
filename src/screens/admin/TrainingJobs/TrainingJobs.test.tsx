@@ -140,10 +140,10 @@ describe('A11 — bảy trạng thái', () => {
 
 describe('Bốn bộ khẳng định dùng chung', () => {
   it.each([
-    ['thành công', TRAINING_JOBS_SCENARIO_SUCCESS],
-    ['một phần', TRAINING_JOBS_SCENARIO_PARTIAL],
-    ['không có quyền', TRAINING_JOBS_SCENARIO_FORBIDDEN],
-    ['thu gọn', TRAINING_JOBS_SCENARIO_COLLAPSED],
+    ['Thành công', TRAINING_JOBS_SCENARIO_SUCCESS],
+    ['Một phần', TRAINING_JOBS_SCENARIO_PARTIAL],
+    ['Không có quyền', TRAINING_JOBS_SCENARIO_FORBIDDEN],
+    ['Thu gọn', TRAINING_JOBS_SCENARIO_COLLAPSED],
   ])('expectAccessible: %s', (_label, model) => {
     renderView(model);
 
@@ -151,10 +151,10 @@ describe('Bốn bộ khẳng định dùng chung', () => {
   });
 
   it.each([
-    ['thành công', TRAINING_JOBS_SCENARIO_SUCCESS],
-    ['một phần', TRAINING_JOBS_SCENARIO_PARTIAL],
-    ['rỗng', TRAINING_JOBS_SCENARIO_EMPTY],
-    ['lỗi', TRAINING_JOBS_SCENARIO_ERROR],
+    ['Thành công', TRAINING_JOBS_SCENARIO_SUCCESS],
+    ['Một phần', TRAINING_JOBS_SCENARIO_PARTIAL],
+    ['Rỗng', TRAINING_JOBS_SCENARIO_EMPTY],
+    ['Lỗi', TRAINING_JOBS_SCENARIO_ERROR],
   ])('expectVietnamese: %s — chỉ bảy từ kỹ thuật được để không dấu', (_label, model) => {
     const { container } = renderView(model);
 
@@ -216,7 +216,7 @@ describe('Bảng và chi tiết', () => {
   it('đầu trang: breadcrumb nhãn, h1, liên kết sang model AI', () => {
     renderView(TRAINING_JOBS_SCENARIO_SUCCESS);
 
-    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' }).textContent).toBe('Quản trị›huấn luyện model');
+    expect(screen.getByRole('navigation', { name: 'Đường dẫn trang' }).textContent).toBe('Quản trị›Huấn luyện model');
     expect(screen.getByRole('heading', { level: 1, name: 'Huấn luyện model AI' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Model AI của chuỗi xử lý' })).toHaveAttribute('href', ROUTES.adminTrainingModels);
     expect(ROUTES.adminTrainingJobs).toBe('/admin/training/jobs');

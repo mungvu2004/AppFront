@@ -327,7 +327,7 @@ describe('levelOfGraph của hai màn QC — kho cả dự án (B-V12-01)', () =
   const second = sampleLevelId(2);
 
   it.each([
-    ['lớp đối tượng', objectLevelOfGraph],
+    ['Lớp đối tượng', objectLevelOfGraph],
     ['kích thước OCR', dimensionLevelOfGraph],
   ])('%s: có `levelId` của URL thì ra đúng tầng ấy, không phải tầng đầu', (_name, levelOfGraph) => {
     expect(levelOfGraph(whole, second)?.id).toBe(second);

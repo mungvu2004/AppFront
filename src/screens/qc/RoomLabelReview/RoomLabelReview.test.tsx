@@ -96,7 +96,7 @@ import { roomCodeLabel } from './roomLabelReviewGateway';
 /** Nền của khung canvas — thứ đa giác phòng ở `DIMMED_OPACITY` chồng lên. */
 const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
 
-const SCREEN_ARIA_LABEL = 'duyệt tên phòng';
+const SCREEN_ARIA_LABEL = 'Duyệt tên phòng';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
 const NORMALIZE_BUTTON_LABEL = 'Chuẩn hoá tên';
 const NORMALIZE_DIALOG_TITLE = 'Xem trước chuẩn hoá tên';

@@ -32,7 +32,7 @@ import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 import { cn } from '@/lib/utils';
 
 /** Nhãn tiếng Việt, viết thường (A6) — khớp `vi.canvas.fragment.json`. */
-const DIVIDER_ARIA_LABEL = 'đường chia đôi, dùng phím mũi tên trái và phải để dịch';
+const DIVIDER_ARIA_LABEL = 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch';
 
 /** Tỉ lệ `0..1` sang phần trăm CSS. */
 const PERCENT = 100;

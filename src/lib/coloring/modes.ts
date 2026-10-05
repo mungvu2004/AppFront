@@ -167,7 +167,7 @@ export interface ColoringMode {
 /** What the mode picker calls each mode. */
 export const COLORING_MODE_LABELS: Readonly<Record<ColoringModeId, string>> = {
   default: 'mặc định',
-  roomUsage: 'theo công năng phòng',
+  roomUsage: 'Theo công năng phòng',
   area: 'theo diện tích',
   aiConfidence: 'theo độ tin cậy AI',
   reviewState: 'theo trạng thái kiểm tra',
@@ -227,7 +227,7 @@ const USAGE_GROUP_LABELS: Readonly<Record<UsageGroup, string>> = {
   living: 'sinh hoạt chung',
   sleeping: 'phòng ngủ',
   service: 'khu phụ trợ',
-  circulation: 'lưu thông',
+  circulation: 'Lưu thông',
   other: 'khác',
 };
 
@@ -278,9 +278,9 @@ const SEVERITY_TOKENS: Readonly<Record<RuleSeverity, ColorTokenName>> = {
  * copy cannot drift from the original.
  */
 const SEVERITY_LABELS: Readonly<Record<RuleSeverity, string>> = {
-  critical: 'nghiêm trọng',
-  warning: 'cảnh báo',
-  suggestion: 'gợi ý',
+  critical: 'Nghiêm trọng',
+  warning: 'Cảnh báo',
+  suggestion: 'Gợi ý',
 };
 
 /** Severities worst first, matching the order the rule book lists them in. */

@@ -79,10 +79,10 @@ const MODE_OPTIONS: SegmentedControlOption<MeasureMode>[] = MEASURE_MODES.map((m
 }));
 
 /** Lời mời của trạng thái rỗng — nguyên văn bảng bảy trạng thái của hợp đồng. */
-const EMPTY_INVITATION = 'chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.';
+const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
 
 /** Câu nhắc của trạng thái một phần: chuỗi đo còn dở. */
-const PARTIAL_HINT = 'chuỗi đo chưa đóng. chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
+const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
 
 /** Nền chung của mọi mảnh chữ trôi trên canvas: đủ mờ để đọc được trên mọi nền. */
 const FLOATING_SURFACE = 'rounded-full bg-bg-surface/90 shadow-float';
@@ -173,7 +173,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               disabled={!props.canPin}
               hint="Enter"
               icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
-              label="ghim phép đo (phím Enter)"
+              label="Ghim phép đo (phím Enter)"
               onClick={props.onPin}
             />
           )}
@@ -181,14 +181,14 @@ export function MeasurementTool(props: MeasurementToolProps) {
           <KeyAction
             hint="Esc"
             icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="bỏ phần đo dở (phím Esc)"
+            label="Bỏ phần đo dở (phím Esc)"
             onClick={props.onEscape}
           />
 
           <KeyAction
             hint="M"
             icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="bật tắt công cụ đo (phím M)"
+            label="Bật tắt công cụ đo (phím M)"
             onClick={props.onToggleTool}
           />
         </div>

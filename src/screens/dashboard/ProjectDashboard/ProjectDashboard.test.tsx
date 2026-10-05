@@ -152,7 +152,7 @@ describe('ProjectDashboardView, seven states', () => {
   it.each(['grid', 'table'] as const)('names the in-place rename field after its project — %s view', (viewMode) => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode={viewMode} renamingId={SAMPLE_ROW.id} />);
 
-    expect(screen.getByRole('textbox', { name: `đổi tên ${SAMPLE_ROW.name}` })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` })).toBeInTheDocument();
   });
 
   it('shows skeletons rather than an empty grid while loading', () => {
@@ -219,7 +219,7 @@ describe('ProjectDashboardView, seven states', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('ProjectDashboardRoute', () => {
-  it('opens "tạo dự án mới" from its own button — the callback R-73 was written about', async () => {
+  it('opens "Tạo dự án mới" from its own button — the callback R-73 was written about', async () => {
     renderWithProviders(
       <MemoryRouter initialEntries={['/']}>
         <ProjectDashboardRoute />
@@ -232,7 +232,7 @@ describe('ProjectDashboardRoute', () => {
     fireEvent.click(screen.getByRole('button', { name: /Dự án mới/ }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('tạo dự án mới')).toBeInTheDocument();
+    expect(screen.getByText('Tạo dự án mới')).toBeInTheDocument();
   });
 
   it('shares one toast stack between the dashboard and the dialog it opens', async () => {

@@ -28,7 +28,7 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  *    build time); bài này là hàng rào giữ chúng đóng.
  * 5. `Esc` đóng ĐÚNG MỘT lớp: bảng phím tắt trước, khung Pascal sau — lời hứa
  *    A12 "Esc đóng lớp trên cùng" giữa hai phạm vi phím (`dialog` › `canvas`),
- *    kể cả khi gói còn đang nạp; `E` và nút "mở khung xem" mở lại.
+ *    kể cả khi gói còn đang nạp; `E` và nút "Mở khung xem" mở lại.
  * 6. Hộp chỉ chứa khung dựng — 0 nút/tab/hộp thoại/ô nhập: hàng rào H-1 của
  *    nhóm V11 (trình soạn thảo Pascal chưa được gắn ở đâu).
  * 7. Cờ tắt: không một request nào tới `/assets/pascal/` (A-2).
@@ -76,17 +76,17 @@ const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewerPascal.replace(':projectI
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 
 
-/** Tên khung ngoài cùng của màn — `<section aria-label="mô hình 3d">`, `PascalViewer.tsx:25`. */
-const SCREEN_REGION_NAME = 'mô hình 3d';
+/** Tên khung ngoài cùng của màn — `<section aria-label="Mô hình 3d">`, `PascalViewer.tsx:25`. */
+const SCREEN_REGION_NAME = 'Mô hình 3d';
 
 /** Khung nhìn của mọi bài — cùng cỡ các số đo trong tệp này. */
 const VIEWPORT = { width: 1440, height: 900 } as const;
 
 /** Chú thích trạng thái `success` — `PASCAL_VIEWER_CAPTIONS.success`, `pascalViewerTypes.ts:94`. */
-const SUCCESS_CAPTION = 'đã dựng xong toàn bộ bản vẽ.';
-const LOADING_CAPTION = 'đang nạp khung dựng hình…';
-const COLLAPSED_HEADING = 'khung xem đang thu gọn';
-const ERROR_HEADING = 'không nạp được khung dựng hình';
+const SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
+const LOADING_CAPTION = 'Đang nạp khung dựng hình…';
+const COLLAPSED_HEADING = 'Khung xem đang thu gọn';
+const ERROR_HEADING = 'Không nạp được khung dựng hình';
 
 /**
  * Pascal nặng ~1,5 MB gzip (`lib/telemetry/flags.ts:161`) và dựng cả trăm vật
@@ -343,7 +343,7 @@ test('cờ tắt: màn nói "chưa bật" chứ không dựng gì (forbidden, A1
   await openPascalViewer(page);
 
   await expect(
-    page.getByRole('heading', { name: 'chưa bật cho tài khoản này', exact: true }),
+    page.getByRole('heading', { name: 'Chưa bật cho tài khoản này', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('status')).toContainText('chưa bật');
 
@@ -530,7 +530,7 @@ test('Esc thu khung ngay cả khi gói còn đang nạp, và lượt nạp dở 
 
   /* Mở lại bằng nút chuột song song với phím `E`. Tên truy cập ĐÚNG MỘT LẦN dù
      `textContent` lặp đôi (bản sao `aria-hidden` giữ bề rộng, `Button.tsx:74`). */
-  await page.getByRole('button', { name: 'mở khung xem', exact: true }).click();
+  await page.getByRole('button', { name: 'Mở khung xem', exact: true }).click();
   await expect(canvasBox).toBeVisible();
   await expect(page.getByRole('status')).toHaveText(LOADING_CAPTION);
 
@@ -581,7 +581,7 @@ for (const [variant, response, retryBy] of [
     await openPascalViewer(page);
 
     await expect(page.getByRole('heading', { name: ERROR_HEADING, exact: true })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('không nạp được khung dựng hình.');
+    await expect(page.getByRole('status')).toHaveText('Không nạp được khung dựng hình.');
     await expect(page.getByText('kèm mã PASCAL-01.')).toBeVisible();
     await expect(page.getByTestId('pascal-canvas')).toHaveCount(0);
 
@@ -653,7 +653,7 @@ test('bộ đổi dữ liệu nạp hỏng thì báo PASCAL-01, và thử lại 
   /* Rời "đang nạp" thì phải tới một trạng thái có đường đi tiếp: cảnh, hoặc lỗi
      kèm nút thử lại. */
   const settled = (await statusLog()).at(-1);
-  expect([SUCCESS_CAPTION, 'không nạp được khung dựng hình.']).toContain(settled);
+  expect([SUCCESS_CAPTION, 'Không nạp được khung dựng hình.']).toContain(settled);
   if (settled !== SUCCESS_CAPTION) {
     await expect(page.getByRole('button', { name: 'thử lại', exact: true })).toBeVisible();
   }

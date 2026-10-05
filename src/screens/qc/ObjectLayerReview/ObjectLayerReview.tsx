@@ -62,11 +62,11 @@ export type ObjectLayerReviewViewProps = ObjectLayerReviewModel;
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
-const SCREEN_ARIA_LABEL = 'lớp đối tượng';
-const CANVAS_REGION_LABEL = 'mặt bằng lớp đối tượng';
-const EMPTY_TITLE = 'chưa nhận ra đối tượng nào';
-const EMPTY_ACTION = 'thêm thủ công';
-const LOW_CONFIDENCE_FILTER = 'chỉ hiện mục dưới ngưỡng';
+const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
+const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
+const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
+const EMPTY_ACTION = 'Thêm thủ công';
+const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
 
 /** Số dòng khung xương của panel trái lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
 const SKELETON_ROWS = [0, 1, 2, 3];

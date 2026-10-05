@@ -58,15 +58,15 @@ export type DensityChoice = 'comfortable' | 'compact';
  * cùng với mọi quyết định khác, và xuống đây bằng prop `rowClassName`.
  */
 const THEME_OPTIONS: readonly SegmentedControlOption<ThemeChoice>[] = [
-  { label: 'sáng', value: 'light' },
-  { label: 'tối', value: 'dark' },
-  { label: 'theo hệ thống', value: 'system' },
+  { label: 'Sáng', value: 'light' },
+  { label: 'Tối', value: 'dark' },
+  { label: 'Theo hệ thống', value: 'system' },
 ];
 
 /** Hai mức mật độ, cùng quy ước nhãn. */
 const DENSITY_OPTIONS: readonly SegmentedControlOption<DensityChoice>[] = [
-  { label: 'thoải mái', value: 'comfortable' },
-  { label: 'gọn', value: 'compact' },
+  { label: 'Thoải mái', value: 'comfortable' },
+  { label: 'Gọn', value: 'compact' },
 ];
 
 /** Khoá của một hàng, để hook nói được hàng nào vừa ghi xong và đang nháy. */
@@ -194,9 +194,9 @@ export function AppearanceSection(props: AppearanceSectionProps) {
 
   return (
     <div className="flex flex-col">
-      <FieldRow label="chủ đề" className={rowClass} flash={flashOf('theme')}>
+      <FieldRow label="Chủ đề" className={rowClass} flash={flashOf('theme')}>
         <SegmentedField
-          ariaLabel="chủ đề"
+          ariaLabel="Chủ đề"
           options={THEME_OPTIONS}
           value={props.theme}
           onChange={props.onThemeChange}
@@ -205,39 +205,39 @@ export function AppearanceSection(props: AppearanceSectionProps) {
       </FieldRow>
 
       <FieldRow
-        label="dùng nền tối cho khung nhìn 3D"
+        label="Dùng nền tối cho khung nhìn 3D"
         className={rowClass}
         flash={flashOf('viewportDark')}
       >
         <Toggle
           checked={props.viewportDark}
           onChange={props.onViewportDarkChange}
-          aria-label="dùng nền tối cho khung nhìn 3D"
+          aria-label="Dùng nền tối cho khung nhìn 3D"
           description="Chỉ đổi màu vùng mô hình, giao diện vẫn sáng."
         />
       </FieldRow>
 
-      <FieldRow label="giảm chuyển động" className={rowClass} flash={flashOf('reducedMotion')}>
+      <FieldRow label="Giảm chuyển động" className={rowClass} flash={flashOf('reducedMotion')}>
         <Toggle
           checked={props.reducedMotion}
           onChange={props.onReducedMotionChange}
-          aria-label="giảm chuyển động"
+          aria-label="Giảm chuyển động"
           description="Tắt hoạt cảnh trong ứng dụng, không riêng màn này."
         />
       </FieldRow>
 
-      <FieldRow label="hiện lưới 100 mm" className={rowClass} flash={flashOf('showGrid')}>
+      <FieldRow label="Hiện lưới 100 mm" className={rowClass} flash={flashOf('showGrid')}>
         <Toggle
           checked={props.showGrid}
           onChange={props.onShowGridChange}
-          aria-label="hiện lưới 100 mm"
+          aria-label="Hiện lưới 100 mm"
           description="Lưới nền của khung nhìn, bước 100 mm."
         />
       </FieldRow>
 
-      <FieldRow label="mật độ hiển thị" className={rowClass} flash={flashOf('density')} isLast>
+      <FieldRow label="Mật độ hiển thị" className={rowClass} flash={flashOf('density')} isLast>
         <SegmentedField
-          ariaLabel="mật độ hiển thị"
+          ariaLabel="Mật độ hiển thị"
           options={DENSITY_OPTIONS}
           value={props.density}
           onChange={props.onDensityChange}

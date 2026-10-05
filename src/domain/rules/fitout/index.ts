@@ -388,7 +388,7 @@ export const checkWindowOnInnerWall: FitoutCheck = (context) => {
  */
 export const roomFurnitureMismatchRule: Rule = {
   code: 'ROOM-FURNITURE-MISMATCH',
-  name: 'đồ đạc hợp với công năng phòng',
+  name: 'Đồ đạc hợp với công năng phòng',
   group: 'area',
   severity: 'warning',
   scope: 'level',
@@ -398,7 +398,7 @@ export const roomFurnitureMismatchRule: Rule = {
 
 export const fixtureOffWallRule: Rule = {
   code: 'FIXTURE-OFF-WALL',
-  name: 'thiết bị vệ sinh và tủ bếp áp sát tường',
+  name: 'Thiết bị vệ sinh và tủ bếp áp sát tường',
   group: 'geometry',
   severity: 'warning',
   scope: 'level',
@@ -408,7 +408,7 @@ export const fixtureOffWallRule: Rule = {
 
 export const windowOnInnerWallRule: Rule = {
   code: 'WINDOW-ON-INNER-WALL',
-  name: 'cửa sổ nằm trên tường bao ngoài',
+  name: 'Cửa sổ nằm trên tường bao ngoài',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',

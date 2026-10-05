@@ -133,13 +133,13 @@ export const EXPLODE_CYCLE_COMBO = 'Space';
 const EXPLODE_CYCLE_ID = 'explodedView.separation.cycle';
 
 /** Câu tiếng Việt cho bảng phím tắt. Khoá `explodedView.logic.cycleShortcut`. */
-const EXPLODE_CYCLE_DESCRIPTION = 'tách các tầng ra rồi hợp lại';
+const EXPLODE_CYCLE_DESCRIPTION = 'Tách các tầng ra rồi hợp lại';
 
 /** Ít hơn số này thì không có gì để tách — một tầng không tách khỏi chính nó. */
 const MIN_EXPLODABLE_STOREYS = 2;
 
 /** Khoá `explodedView.logic.liveSeparation`. */
-const LIVE_SEPARATION_PREFIX = 'đã tách ';
+const LIVE_SEPARATION_PREFIX = 'Đã tách ';
 
 /** Khoá `explodedView.logic.captureError`. */
 const CAPTURE_ERROR_MESSAGE =

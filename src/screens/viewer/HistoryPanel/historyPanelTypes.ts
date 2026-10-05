@@ -86,9 +86,9 @@ export type HistoryCategoryFilter = HistoryCategory | 'all';
 
 /** Nhãn tiếng Việt của từng chip. Viết thường hoàn toàn (A6); "AI" là viết tắt nên giữ hoa (quy ước viết tắt, chờ dòng CLAUDE.md). */
 export const HISTORY_CATEGORY_LABELS: Readonly<Record<HistoryCategoryFilter, string>> = {
-  all: 'tất cả',
-  edit: 'chỉnh sửa',
-  review: 'duyệt',
+  all: 'Tất cả',
+  edit: 'Chỉnh sửa',
+  review: 'Duyệt',
   ai: 'AI',
 };
 

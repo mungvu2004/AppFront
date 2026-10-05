@@ -77,16 +77,16 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps;
 /* -------------------------------------------------------------------------- */
 
 const SCREEN_BREADCRUMB = 'Dự án > Nhãn phòng';
-const SCREEN_TITLE = 'duyệt tên phòng';
+const SCREEN_TITLE = 'Duyệt tên phòng';
 const SCREEN_DESCRIPTION =
   'Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
-const EMPTY_TITLE = 'chưa dò ra phòng nào';
+const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
-const ERROR_TITLE = 'không đọc được lớp phòng';
+const ERROR_TITLE = 'Không đọc được lớp phòng';
 const ERROR_ACTION_LABEL = 'Thử lại';
-const FORBIDDEN_TITLE = 'không có quyền sửa lớp phòng';
-const EXPAND_PANEL_LABEL = 'bảng phòng đang thu gọn';
+const FORBIDDEN_TITLE = 'Không có quyền sửa lớp phòng';
+const EXPAND_PANEL_LABEL = 'Bảng phòng đang thu gọn';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — đúng khuôn `AxisGridManager`. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];

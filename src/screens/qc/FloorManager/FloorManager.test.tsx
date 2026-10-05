@@ -76,12 +76,12 @@ import {
 } from './floorManagerGateway';
 
 const PROJECT_ID = 'project-floor-manager';
-const SCREEN_ARIA_LABEL = 'quản lý tầng';
+const SCREEN_ARIA_LABEL = 'Quản lý tầng';
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
-const TABLE_CAPTION_TEXT = 'cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
+const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
-const REMOVE_FLOOR_MENU_ITEM = 'xoá tầng';
-const EXPAND_SECTION_LABEL = 'hiện lát cắt';
+const REMOVE_FLOOR_MENU_ITEM = 'Xoá tầng';
+const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
 
 /** Tầng của bộ mẫu mà bản nghiệm thu chỉ đích danh — đọc ra, không gõ lại tên. */
 const GROUND_FLOOR = FLOOR_MANAGER_SAMPLE_LEVELS[1];
@@ -146,7 +146,7 @@ async function mountScreen(): Promise<MountedScreen> {
     />,
   );
 
-  /* Trước lúc cổng trả lời, mọi kịch bản đều là "đang tải" — chờ bảng thật. */
+  /* Trước lúc cổng trả lời, mọi kịch bản đều là "Đang tải" — chờ bảng thật. */
   await waitFor(() => {
     expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
   });
@@ -396,7 +396,7 @@ describe('[NGHIEM-5] xoá tầng và hoàn tác', () => {
       console.log(`  ${line}`);
     }
 
-    /* Mở menu ngữ cảnh của dòng, rồi chọn "xoá tầng" — đường một người thật đi. */
+    /* Mở menu ngữ cảnh của dòng, rồi chọn "Xoá tầng" — đường một người thật đi. */
     fireEvent.click(
       screen.getByLabelText(`Thao tác khác cho tầng ${SECOND_FLOOR?.name ?? ''}`),
     );

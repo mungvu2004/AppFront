@@ -27,11 +27,11 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
  */
 const AUTOSAVE_SETTLE_TIMEOUT_MS = 10_000;
 
-const EMPTY_TITLE = 'chưa có mô hình để áp bộ luật';
+const EMPTY_TITLE = 'Chưa có mô hình để áp bộ luật';
 
 /** Vỏ màn — có ở mọi trạng thái, nên chờ nó không phụ thuộc chữ của `empty`. */
-const SCREEN_HEADING = 'cài đặt bộ luật không gian';
-const OPENING_RULE_SWITCH = /^bật hoặc tắt luật: lỗ mở nằm trọn/u;
+const SCREEN_HEADING = 'Cài đặt bộ luật không gian';
+const OPENING_RULE_SWITCH = /^Bật hoặc tắt luật: lỗ mở nằm trọn/u;
 
 test('B-V12-01: vào màn cài đặt luật bằng đường sản phẩm (không bơm) thì cổng nạp kho và màn đếm luật đang bật, không nói thiếu mô hình', async ({
   page,
@@ -119,5 +119,5 @@ test('màn cài đặt bộ luật tới được từ màn kiểm tra luật b�
   await page.getByRole('link', { name: 'cài đặt bộ luật' }).click();
 
   await expect.poll(() => pathOf(page.url())).toBe(RULE_SETTINGS_URL);
-  await expect(page.getByRole('heading', { name: 'cài đặt bộ luật không gian' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian' })).toBeVisible();
 });

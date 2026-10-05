@@ -36,7 +36,7 @@ test('B-V4-01: mở thẳng /pipeline thì màn theo dõi lượt tải sẵn c�
   await page.goto(PIPELINE);
 
   await expectSeededRun(page);
-  await expect(page.getByRole('progressbar', { name: 'tiền xử lý' })).toHaveAttribute(
+  await expect(page.getByRole('progressbar', { name: 'Tiền xử lý' })).toHaveAttribute(
     'aria-valuenow',
     '100',
   );

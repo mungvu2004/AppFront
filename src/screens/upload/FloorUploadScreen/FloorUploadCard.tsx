@@ -35,7 +35,7 @@ import type { FloorUploadActions, FloorUploadRowModel } from './types';
 
 /** Nhãn trường, đúng như `floorUpload.floorCard.*` và `common.*` trong `vi.json`. */
 const LABEL_ELEVATION = 'cao độ';
-const LABEL_HEIGHT = 'chiều cao thông thuỷ';
+const LABEL_HEIGHT = 'Chiều cao thông thuỷ';
 const LABEL_REASSIGN = 'Gán cho tầng khác';
 const LABEL_PAGE_PICKER = 'Chọn trang';
 const LABEL_CAD_PILL = 'Nhánh CAD · độ chính xác cao';

@@ -97,10 +97,10 @@ function baseProps(): ProjectSettingsViewProps {
     memberRemoveDialog: null,
     activeTab: 'general',
     tabs: [
-      { id: 'general', label: 'chung', problemCount: 0 },
-      { id: 'units', label: 'đơn vị đo', problemCount: 0 },
-      { id: 'members', label: 'thành viên', problemCount: 0 },
-      { id: 'danger', label: 'vùng nguy hiểm', problemCount: 0 },
+      { id: 'general', label: 'Chung', problemCount: 0 },
+      { id: 'units', label: 'Đơn vị đo', problemCount: 0 },
+      { id: 'members', label: 'Thành viên', problemCount: 0 },
+      { id: 'danger', label: 'Vùng nguy hiểm', problemCount: 0 },
     ],
     name: 'Chung cư Bình Minh',
     code: 'DA-BINHMINH',
@@ -115,8 +115,8 @@ function baseProps(): ProjectSettingsViewProps {
     problems: NO_PROBLEMS,
     lengthUnit: 'mm',
     lengthUnitOptions: [
-      { value: 'mm', label: 'milimét (mm)' },
-      { value: 'm', label: 'mét (m)' },
+      { value: 'mm', label: 'Milimét (mm)' },
+      { value: 'm', label: 'Mét (m)' },
     ],
     areaUnitLabel: 'mét vuông — ví dụ 248,60 m²',
     snapToleranceMm: 50,
@@ -128,7 +128,7 @@ function baseProps(): ProjectSettingsViewProps {
     scaleMmPerPx: 2.5,
     scaleLabel: '2,5 milimét trên mỗi điểm ảnh',
     scalePreviewLabel: '100 điểm ảnh ứng với 250 mm ngoài thực tế.',
-    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
+    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
     memberCountLabel: '1 thành viên',
     floorCount: 4,
     deleteAllFloorsLabel:
@@ -276,21 +276,21 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.loading()} />);
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByText('trạng thái: đang tải')).toBeInTheDocument();
+    expect(screen.getByText('Trạng thái: đang tải')).toBeInTheDocument();
   });
 
   it('giữ nguyên dữ liệu nhưng bỏ quyền sửa với vai người xem', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.forbidden()} />);
 
     expect(screen.getByText('Chung cư Bình Minh')).toBeInTheDocument();
-    expect(screen.queryByLabelText('tên dự án')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Tên dự án')).not.toBeInTheDocument();
   });
 
   it('đổi dải thẻ thành một ô chọn khi thu gọn', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.collapsed()} />);
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'nhóm cài đặt' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Nhóm cài đặt' })).toBeInTheDocument();
   });
 
   it('mời thử lại khi không đọc được cài đặt', () => {
@@ -329,7 +329,7 @@ describe('ProjectSettingsView, vùng nguy hiểm', () => {
     const dialog = within(screen.getByRole('dialog'));
 
     expect(dialog.getByRole('button', { name: 'Xoá dự án' })).toBeDisabled();
-    expect(screen.getByLabelText('gõ lại tên dự án để xác nhận')).toBeInTheDocument();
+    expect(screen.getByLabelText('Gõ lại tên dự án để xác nhận')).toBeInTheDocument();
     expect(confirmDanger).not.toHaveBeenCalled();
   });
 
@@ -373,7 +373,7 @@ describe('ProjectSettings', () => {
 
     renderWithProviders(<ProjectSettings gateway={gateway} projectId="project-1" roles={['admin']} />);
 
-    expect(await screen.findByLabelText('tên dự án')).toHaveValue('Chung cư Hoàng Anh');
+    expect(await screen.findByLabelText('Tên dự án')).toHaveValue('Chung cư Hoàng Anh');
     expect(screen.getByLabelText('địa chỉ')).toHaveValue('12 Nguyễn Huệ, Quận 1');
   });
 });
@@ -418,7 +418,7 @@ describe('ProjectSettingsView, bàn phím và lời hứa tự lưu', () => {
     const props = PROPS_BY_STATE.collapsed();
     render(<ProjectSettingsView {...props} />);
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'nhóm cài đặt' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Nhóm cài đặt' }));
 
     const listbox = within(await screen.findByRole('listbox'));
 
@@ -570,7 +570,7 @@ describe('ProjectSettings đã nối dây', () => {
   }
 
   const nameField = (): HTMLInputElement =>
-    screen.getByRole('textbox', { name: 'tên dự án' }) as HTMLInputElement;
+    screen.getByRole('textbox', { name: 'Tên dự án' }) as HTMLInputElement;
 
   it('gửi thay đổi đi 800 ms sau thao tác cuối, không cần ai bấm gì (D-07, A7)', async () => {
     const gateway = spyGateway();
@@ -679,7 +679,7 @@ describe('ProjectSettings đã nối dây', () => {
 
     expect(screen.getByText(viMessages.project.settings.readOnlyNotice)).toBeInTheDocument();
     expect(screen.queryAllByRole('textbox')).toHaveLength(0);
-    expect(screen.queryByRole('tab', { name: 'vùng nguy hiểm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Vùng nguy hiểm' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Xoá dự án' })).not.toBeInTheDocument();
   });
 
@@ -695,13 +695,13 @@ describe('ProjectSettings đã nối dây', () => {
 
     const expectedName = nameField().value;
 
-    fireEvent.click(screen.getByRole('tab', { name: 'vùng nguy hiểm' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá dự án' }));
     await tick(MOTION_SETTLE_MS);
 
     const dialog = within(screen.getByRole('dialog'));
-    const confirmation = dialog.getByRole('textbox', { name: 'gõ lại tên dự án để xác nhận' });
+    const confirmation = dialog.getByRole('textbox', { name: 'Gõ lại tên dự án để xác nhận' });
 
     expect(dialog.getByRole('button', { name: 'Xoá dự án' })).toBeDisabled();
 

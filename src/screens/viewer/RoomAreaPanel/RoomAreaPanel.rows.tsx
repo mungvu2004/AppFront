@@ -76,14 +76,14 @@ const STATUS_DOT_CLASS: Readonly<Record<RoomAreaStatus, string>> = {
 
 /** Chữ cho trình đọc màn hình, vì chấm màu là thứ duy nhất nhìn thấy được. */
 const STATUS_LABEL: Readonly<Record<RoomAreaStatus, string>> = {
-  trusted: 'máy dò được, chưa duyệt',
-  suspect: 'cần xem lại',
-  reviewed: 'đã xác minh',
+  trusted: 'Máy dò được, chưa duyệt',
+  suspect: 'Cần xem lại',
+  reviewed: 'Đã xác minh',
 };
 
-const NAME_FIELD_LABEL_PREFIX = 'tên phòng';
-const AREA_BUTTON_LABEL_PREFIX = 'xem cách tính và khuôn hình vào phòng';
-const UNNAMED_HINT = 'phòng chưa đặt tên';
+const NAME_FIELD_LABEL_PREFIX = 'Tên phòng';
+const AREA_BUTTON_LABEL_PREFIX = 'Xem cách tính và khuôn hình vào phòng';
+const UNNAMED_HINT = 'Phòng chưa đặt tên';
 const GROUP_COUNT_SUFFIX = 'phòng';
 
 /** Vòng tiêu điểm 2px, lệch 2px — đúng A12, và lấy hẳn từ token. */

@@ -137,7 +137,7 @@ import type {
 
 const COPY = {
   statusQueued: 'đang chờ',
-  statusRunning: 'đang xử lý',
+  statusRunning: 'Đang xử lý',
   statusDone: 'đã xong',
   statusFailed: 'lỗi',
   stepErrorFallback: 'Bước này gặp lỗi nên không hoàn tất được.',
@@ -161,12 +161,12 @@ const UNIT = {
   floor: 'tầng',
   wall: 'tường',
   object: 'đối tượng',
-  dimensionChain: 'chuỗi kích thước',
+  dimensionChain: 'Chuỗi kích thước',
   room: 'phòng',
 } as const;
 
 /** Ví dụ `"còn khoảng 2 phút"`. */
-const remainingSentence = (duration: string): string => `còn khoảng ${duration}`;
+const remainingSentence = (duration: string): string => `Còn khoảng ${duration}`;
 
 /** Ví dụ `"Đã xong 2/4 tầng"`. */
 const doneFloorsSentence = (done: string, total: string): string =>

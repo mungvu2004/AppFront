@@ -32,10 +32,10 @@ test.describe('đường nạp thật (không bơm)', () => {
     await expect(page.getByRole('option', { name: /^Trục A,/u })).toBeVisible();
   });
 
-  test('tầng chưa có lớp thì màn nói thật "chưa có trục nào"', async ({ page }) => {
+  test('tầng chưa có lớp thì màn nói thật "Chưa có trục nào"', async ({ page }) => {
     await page.goto(ROUTES.project.grids(QC_PROJECT, 'L1'));
 
-    await expect(page.getByText('chưa có trục nào', { exact: true })).toBeVisible({
+    await expect(page.getByText('Chưa có trục nào', { exact: true })).toBeVisible({
       timeout: FIRST_PAINT_TIMEOUT_MS,
     });
   });
@@ -45,7 +45,7 @@ test('[bơm] bộ mẫu trục ở đúng mã tầng hiện tám trục A–D, 1
   page,
 }) => {
   await page.goto(ROUTES.project.grids(QC_PROJECT, QC_FLOOR.grids));
-  await expect(page.getByRole('heading', { name: 'quản lý trục và gốc toạ độ' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Quản lý trục và gốc toạ độ' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'grids');
@@ -53,5 +53,5 @@ test('[bơm] bộ mẫu trục ở đúng mã tầng hiện tám trục A–D, 1
   await expect(axisOptions(page)).toHaveCount(8);
   await expect(page.getByRole('option', { name: 'Trục A, cách trục kế là 4.000 mm' })).toBeVisible();
   await expect(page.getByRole('option', { name: 'Trục 1, cách trục kế là 5.000 mm' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'gốc toạ độ 0,0' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Gốc toạ độ 0,0' })).toBeVisible();
 });

@@ -48,9 +48,9 @@ export const OBJECT_LAYER_IDS: readonly ObjectLayerId[] = ['door', 'window', 'fu
 
 /** Nhãn tiếng Việt của một lớp con — viết thường, kiểu câu (A6). */
 export const OBJECT_LAYER_LABELS: Readonly<Record<ObjectLayerId, string>> = {
-  door: 'cửa đi',
-  window: 'cửa sổ',
-  furniture: 'nội thất',
+  door: 'Cửa đi',
+  window: 'Cửa sổ',
+  furniture: 'Nội thất',
 };
 
 /** Cờ bật/tắt của ba lớp con — dùng cho cây lớp và cho canvas. */
@@ -93,15 +93,15 @@ export const OBJECT_SUBTYPES: readonly ObjectSubtype[] = [
 
 /** Nhãn tiếng Việt của một loại con — viết thường, kiểu câu (A6). */
 export const OBJECT_SUBTYPE_LABELS: Readonly<Record<ObjectSubtype, string>> = {
-  singleDoor: 'cửa đơn',
-  doubleDoor: 'cửa đôi',
-  window: 'cửa sổ',
-  bed: 'giường',
-  sofa: 'sofa',
-  diningTable: 'bàn ăn',
-  toilet: 'bồn cầu',
-  basin: 'chậu rửa',
-  otherFurniture: 'nội thất khác',
+  singleDoor: 'Cửa đơn',
+  doubleDoor: 'Cửa đôi',
+  window: 'Cửa sổ',
+  bed: 'Giường',
+  sofa: 'Sofa',
+  diningTable: 'Bàn ăn',
+  toilet: 'Bồn cầu',
+  basin: 'Chậu rửa',
+  otherFurniture: 'Nội thất khác',
 };
 
 /**

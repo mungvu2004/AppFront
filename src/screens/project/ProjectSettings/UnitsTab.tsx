@@ -43,7 +43,7 @@ export function UnitsTab(props: UnitsTabProps) {
   return (
     <div className="flex flex-col gap-4">
       <Select
-        label="đơn vị chiều dài"
+        label="Đơn vị chiều dài"
         options={[...props.lengthUnitOptions]}
         value={props.lengthUnit}
         onChange={props.setLengthUnit}
@@ -51,12 +51,12 @@ export function UnitsTab(props: UnitsTabProps) {
       />
 
       <div className="flex flex-col gap-1">
-        <span className="text-[14px] font-medium text-text-secondary">đơn vị diện tích</span>
+        <span className="text-[14px] font-medium text-text-secondary">Đơn vị diện tích</span>
         <p className="text-[14px] text-text-primary">{props.areaUnitLabel}</p>
       </div>
 
       <NumericField
-        label="dung sai bắt điểm"
+        label="Dung sai bắt điểm"
         value={props.snapToleranceMm ?? undefined}
         onChange={props.setSnapToleranceMm}
         min={props.snapToleranceMinMm}
@@ -68,7 +68,7 @@ export function UnitsTab(props: UnitsTabProps) {
       />
 
       <NumericField
-        label="ngưỡng tin cậy"
+        label="Ngưỡng tin cậy"
         value={props.confidenceThreshold}
         onChange={(value) => props.setConfidenceThreshold(value ?? props.confidenceThreshold)}
         min={PROJECT_SETTINGS_LIMITS.confidenceMin}
@@ -79,7 +79,7 @@ export function UnitsTab(props: UnitsTabProps) {
       />
 
       <NumericField
-        label="tỉ lệ bản vẽ"
+        label="Tỉ lệ bản vẽ"
         value={props.scaleMmPerPx ?? undefined}
         onChange={props.setScaleMmPerPx}
         min={PROJECT_SETTINGS_LIMITS.scaleMinMmPerPx}

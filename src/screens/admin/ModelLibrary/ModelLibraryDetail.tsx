@@ -100,7 +100,7 @@ interface PreviewProps {
  */
 function ModelPreviewFrame({ actions, modelId, preview }: PreviewProps) {
   return (
-    <section aria-label="xem trước mô hình" className="flex flex-col gap-2">
+    <section aria-label="Xem trước mô hình" className="flex flex-col gap-2">
       <div className={PREVIEW_FRAME}>
         <canvas
           aria-hidden="true"
@@ -124,7 +124,7 @@ function ModelPreviewFrame({ actions, modelId, preview }: PreviewProps) {
             ) : null}
 
             {/*
-              Hợp đồng đông cứng không có hành động "nạp lại khung 3D" riêng, và
+              Hợp đồng đông cứng không có hành động "Nạp lại khung 3D" riêng, và
               `retryPreviewImage` thuộc về ảnh 32px của hàng chứ không phải tấm canvas này.
               Điều phối viên đã chốt: mở lại chính model đang mở là đường thử lại — kèm ràng
               buộc `openDetail` phải nạp lại KỂ CẢ khi id không đổi, việc của lớp gộp.
@@ -170,7 +170,7 @@ interface TriangleCountsProps {
  */
 function TriangleCounts({ declaredLabel, measuredLabel }: TriangleCountsProps) {
   return (
-    <section aria-label="số tam giác" className="flex flex-col gap-2">
+    <section aria-label="Số tam giác" className="flex flex-col gap-2">
       <dl className="flex items-start gap-6">
         <div className="flex min-w-0 flex-col gap-1">
           <dt className="text-[12px] text-text-muted">Máy chủ khai</dt>
@@ -212,7 +212,7 @@ interface FieldsProps {
  */
 function ModelFields({ fields }: FieldsProps) {
   return (
-    <section aria-label="siêu dữ liệu model" className="flex flex-col">
+    <section aria-label="Siêu dữ liệu model" className="flex flex-col">
       {fields.map((field, index) => (
         <FieldRow isLast={index === fields.length - 1} key={field.label} label={field.label}>
           <span
@@ -254,7 +254,7 @@ function HeavyNotice({ item }: HeavyProps) {
 
   return (
     <section
-      aria-label="cảnh báo model nặng"
+      aria-label="Cảnh báo model nặng"
       className="flex flex-col items-start gap-2 rounded-[8px] bg-bg-sunken p-3"
     >
       <Badge variant="attention">Nặng</Badge>
@@ -282,7 +282,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
   // cùng lý do đã ghi tại `ViolationDetail.tsx:294-299`.
   useShortcut({
     combo: 'Escape',
-    description: 'đóng panel chi tiết model',
+    description: 'Đóng panel chi tiết model',
     id: 'sidePanel.modelLibraryDetail.close',
     onTrigger: actions.closeDetail,
     scope: 'sidePanel',
@@ -290,7 +290,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
 
   return (
     <aside
-      aria-label="chi tiết model"
+      aria-label="Chi tiết model"
       className={cn(
         'flex h-full flex-col gap-4 overflow-y-auto border-l border-border-default bg-bg-surface p-4',
         PANEL_WIDTH,
@@ -303,7 +303,7 @@ export function ModelLibraryDetail({ actions, model }: ModelLibraryDetailProps) 
         </h2>
 
         <IconButton
-          aria-label="đóng panel chi tiết model"
+          aria-label="Đóng panel chi tiết model"
           icon={<X aria-hidden="true" />}
           onClick={actions.closeDetail}
           size="sm"

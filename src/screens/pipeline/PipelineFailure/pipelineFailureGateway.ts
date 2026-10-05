@@ -109,11 +109,11 @@ export const PIPELINE_FAILURE_MISSING_ENDPOINTS: Readonly<
   retryStep:
     'ENDPOINTS.drawings.retryStep + DrawingsApi.retryStep — chưa có; rg "retryStep|retryStage|retryFrom|resumeFrom" src rỗng (khảo sát T-08)',
   stepFailureDetail:
-    'endpoint chi tiết MỘT bước đã hỏng (mã lỗi của riêng bước, mã nguyên nhân, số đối tượng đã giữ, uploadId của lượt) — chưa có; ProgressSchema (.strict(), 7 trường) chỉ mang error là chuỗi tự do của CẢ lượt',
+    'Endpoint chi tiết MỘT bước đã hỏng (mã lỗi của riêng bước, mã nguyên nhân, số đối tượng đã giữ, uploadId của lượt) — chưa có; ProgressSchema (.strict(), 7 trường) chỉ mang error là chuỗi tự do của CẢ lượt',
   technicalLog:
-    'endpoint đọc nhật ký kỹ thuật của một lượt xử lý — chưa có; nhật ký hiện có chỉ là bản dịch tiến độ tích luỹ trong bộ nhớ đệm của phiên (khảo sát T-10)',
+    'Endpoint đọc nhật ký kỹ thuật của một lượt xử lý — chưa có; nhật ký hiện có chỉ là bản dịch tiến độ tích luỹ trong bộ nhớ đệm của phiên (khảo sát T-10)',
   skipFloor:
-    'lệnh bỏ một tầng khỏi lượt xử lý (ENDPOINTS.drawings.skipFloor) — chưa có endpoint nào; invalidationMap cũng chưa có WriteOperation tương ứng',
+    'Lệnh bỏ một tầng khỏi lượt xử lý (ENDPOINTS.drawings.skipFloor) — chưa có endpoint nào; invalidationMap cũng chưa có WriteOperation tương ứng',
 };
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
@@ -462,7 +462,7 @@ export const PIPELINE_FAILURE_SAMPLE_ERROR = {
   retryable: true,
   raw: {
     message: 'pipeline step failed',
-    step: 'tách lớp tường',
+    step: 'Tách lớp tường',
   },
 } as const;
 

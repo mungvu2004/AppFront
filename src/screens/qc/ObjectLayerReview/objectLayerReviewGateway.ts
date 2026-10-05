@@ -1233,7 +1233,7 @@ export const reviewProgressLabel = (reviewed: number, total: number): string =>
 
 /** Tổng của cây lớp — "tổng 21 đối tượng". */
 export const layerTreeTotalLabel = (total: number): string =>
-  `tổng ${formatObjectCount(total)} đối tượng`;
+  `Tổng ${formatObjectCount(total)} đối tượng`;
 
 /** Câu của trạng thái một phần — "5 mục dưới ngưỡng tin cậy, đã lọc sẵn". */
 export const lowConfidenceNotice = (count: number): string =>
@@ -1247,12 +1247,12 @@ export const lowConfidenceNotice = (count: number): string =>
  * để T8 đưa vào `src/i18n/vi.json` (R-67).
  */
 export const OBJECT_LAYER_TEXT = {
-  emptyTitle: 'chưa nhận ra đối tượng nào',
+  emptyTitle: 'Chưa nhận ra đối tượng nào',
   emptyExplanation:
-    'nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.',
-  emptyAction: 'thêm thủ công',
-  furnitureAttention: 'nhận diện nội thất lỗi, cửa vẫn xong',
-  forbidden: 'bạn không có quyền xem lớp đối tượng của dự án này',
+    'Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.',
+  emptyAction: 'Thêm thủ công',
+  furnitureAttention: 'Nhận diện nội thất lỗi, cửa vẫn xong',
+  forbidden: 'Bạn không có quyền xem lớp đối tượng của dự án này',
   unattachedBadge: 'Chưa gắn vào tường nào',
   attachNearestAction: 'Gắn vào tường gần nhất',
   errorMessage: 'Không tải được lớp đối tượng của tầng.',

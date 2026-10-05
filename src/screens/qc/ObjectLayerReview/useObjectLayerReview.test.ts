@@ -251,7 +251,7 @@ describe('phép ghép thuần của màn Lớp đối tượng', () => {
     expect(derived).toEqual([...SEVEN_STATES]);
   });
 
-  it('nhánh nội thất lỗi giữ màn ở "một phần" chứ không đẩy sang "lỗi"', () => {
+  it('nhánh nội thất lỗi giữ màn ở "Một phần" chứ không đẩy sang "Lỗi"', () => {
     const scenario = OBJECT_LAYER_SCENARIO_FURNITURE_BRANCH;
 
     expect(
@@ -353,7 +353,7 @@ describe('[NGHIEM-3] tổng số đối tượng', () => {
 
     expect(reviewCounter.reviewed).toBe(OBJECT_LAYER_FIXTURE_REVIEWED);
     expect(model.reviewProgressLabel).toBe('9/21 đối tượng đã duyệt');
-    expect(model.layerTotalLabel).toBe('tổng 21 đối tượng');
+    expect(model.layerTotalLabel).toBe('Tổng 21 đối tượng');
 
     mounted.unmount();
   });
@@ -811,7 +811,7 @@ describe('vai trò và vỏ màn', () => {
 
     expect(mounted.result.current.state).toBe('forbidden');
     expect(mounted.result.current.viewerRoleNotice).toBe(
-      'bạn không có quyền xem lớp đối tượng của dự án này',
+      'Bạn không có quyền xem lớp đối tượng của dự án này',
     );
 
     await run(() => mounted.result.current.onApprove('D-004'));
@@ -845,7 +845,7 @@ describe('vai trò và vỏ màn', () => {
 
     await waitFor(() => {
       expect(mounted.result.current.furnitureAttentionNotice).toBe(
-        'nhận diện nội thất lỗi, cửa vẫn xong',
+        'Nhận diện nội thất lỗi, cửa vẫn xong',
       );
     });
 
@@ -1214,7 +1214,7 @@ describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
   });
 });
 
-describe('"thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () => {
+describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () => {
   /** Bộ A14 bỏ hết ô mở và nội thất — mọi tầng đều rỗng, nhưng còn tường. */
   const emptyGraph = (): NormalizedSpatial => {
     const raw = denormalizeSpatial(normalizeSpatial(createSampleBuilding()));
@@ -1291,7 +1291,7 @@ describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
    * `resource:"floor"` (cổng giả làm đúng thế), nên màn vào `error` với câu cố định
    * thay vì `empty` — trước đây đồ thị kho là nguồn, và tầng vắng chỉ là "không dòng".
    */
-  it('màn vào `error` với câu "Tầng này không còn tồn tại.", không dòng nào, và "thêm thủ công" báo không có tường', async () => {
+  it('màn vào `error` với câu "Tầng này không còn tồn tại.", không dòng nào, và "Thêm thủ công" báo không có tường', async () => {
     const notifications = createNotificationBus();
     const publish = vi.spyOn(notifications, 'publish');
     const mounted = await mountSettled({ floorId: 'L-LEVEL000099', notifications });

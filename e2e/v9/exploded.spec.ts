@@ -19,7 +19,7 @@ import {
  * chỉ những gì cần trình duyệt thật: canvas WebGL thật, phím thật qua sổ phím.
  */
 
-const SEPARATION = /^đã tách \d+%$/u;
+const SEPARATION = /^Đã tách \d+%$/u;
 
 const separation = (page: Page) => page.getByText(SEPARATION);
 
@@ -35,7 +35,7 @@ test('ca mồi Q1 (không bơm): màn dựng đúng nhà mẫu của /3d — can
   await openWithFixture(page, EXPLODED_PATH);
 
   await expectSceneDrawn(page);
-  await expect(separation(page)).toHaveText('đã tách 0%');
+  await expect(separation(page)).toHaveText('Đã tách 0%');
   await expect(page.getByText('Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.')).toHaveCount(0);
 });
 
@@ -43,27 +43,27 @@ test('độ tách đổi thật: ba mức sẵn, rồi phím E qua sổ phím', 
   await openWithFixture(page, EXPLODED_PATH);
   const presets = page.getByRole('radiogroup', { name: 'Mức tách sẵn' });
 
-  await presets.getByRole('radio', { name: 'tách hết' }).click();
-  await expect(separation(page)).toHaveText('đã tách 100%');
+  await presets.getByRole('radio', { name: 'Tách hết' }).click();
+  await expect(separation(page)).toHaveText('Đã tách 100%');
 
-  await presets.getByRole('radio', { name: 'gộp' }).click();
-  await expect(separation(page)).toHaveText('đã tách 0%');
+  await presets.getByRole('radio', { name: 'Gộp' }).click();
+  await expect(separation(page)).toHaveText('Đã tách 0%');
 
   await focusScene(page);
   await page.keyboard.press('e');
-  await expect(separation(page)).toHaveText('đã tách 100%');
+  await expect(separation(page)).toHaveText('Đã tách 100%');
 });
 
 test('Space tách hết rồi hợp lại về mức cũ (một chu kỳ, A12)', async ({ page }) => {
   await openWithFixture(page, EXPLODED_PATH);
-  await expect(separation(page)).toHaveText('đã tách 0%');
+  await expect(separation(page)).toHaveText('Đã tách 0%');
 
   await focusScene(page);
   await page.keyboard.press('Space');
 
   // Nửa chu kỳ là `AMBIENT_LOOP_MS` (700 ms) — đủ dài để thấy trạng thái giữa.
-  await expect(separation(page)).toHaveText('đã tách 100%');
-  await expect(separation(page)).toHaveText('đã tách 0%');
+  await expect(separation(page)).toHaveText('Đã tách 100%');
+  await expect(separation(page)).toHaveText('Đã tách 0%');
 });
 
 test('vai Người xem: màn nói vì sao không sửa được vị trí tầng', async ({ page }) => {

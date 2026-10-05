@@ -94,7 +94,7 @@ export const SHARE_PERMISSIONS: readonly SharePermission[] = ['view', 'comment']
 
 /** What each grant is called on screen. */
 export const SHARE_PERMISSION_LABELS: Readonly<Record<SharePermission, string>> = {
-  view: 'chỉ xem',
+  view: 'Chỉ xem',
   comment: 'góp ý',
 };
 
@@ -245,7 +245,7 @@ export type ShareLinkFailure =
 export type ShareLinkResult<T> = Result<T, ShareLinkFailure>;
 
 const TRANSPORT_MESSAGES: Readonly<Record<HttpErrorKind, string>> = {
-  network: 'không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi',
+  network: 'Không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi',
   timeout: 'máy chủ trả lời quá lâu; liên kết chia sẻ chưa thay đổi',
   aborted: 'thao tác chia sẻ đã bị huỷ',
   auth: 'phiên đăng nhập đã hết hiệu lực; đăng nhập lại rồi thử lại',
@@ -493,17 +493,17 @@ export function validateShareLinkRequest(
       // own author could not open.
       problems.push({
         field: 'password',
-        message: 'mật khẩu không được bắt đầu hoặc kết thúc bằng khoảng trắng',
+        message: 'Mật khẩu không được bắt đầu hoặc kết thúc bằng khoảng trắng',
       });
     } else if (password.length < MIN_SHARE_PASSWORD_LENGTH) {
       problems.push({
         field: 'password',
-        message: `mật khẩu cần ít nhất ${wholeNumber(MIN_SHARE_PASSWORD_LENGTH)} ký tự`,
+        message: `Mật khẩu cần ít nhất ${wholeNumber(MIN_SHARE_PASSWORD_LENGTH)} ký tự`,
       });
     } else if (password.length > MAX_SHARE_PASSWORD_LENGTH) {
       problems.push({
         field: 'password',
-        message: `mật khẩu không được quá ${wholeNumber(MAX_SHARE_PASSWORD_LENGTH)} ký tự`,
+        message: `Mật khẩu không được quá ${wholeNumber(MAX_SHARE_PASSWORD_LENGTH)} ký tự`,
       });
     }
   }

@@ -62,9 +62,9 @@ import {
 /* Chuỗi tiếng Việt tĩnh — khớp `docs/notes/thickness/t6.i18n.fragment.json`.  */
 /* -------------------------------------------------------------------------- */
 
-const CANVAS_LABEL = 'mặt bằng xem trước theo nhóm độ dày';
-const LEGEND_LABEL = 'chú giải độ dày tường';
-const EMPTY_NOTICE = 'chưa có hình tường để xem trước';
+const CANVAS_LABEL = 'Mặt bằng xem trước theo nhóm độ dày';
+const LEGEND_LABEL = 'Chú giải độ dày tường';
+const EMPTY_NOTICE = 'Chưa có hình tường để xem trước';
 
 /** Cạnh ô màu của một mục chú giải, px — cùng cỡ với ô của `WallThicknessLegend`. */
 const LEGEND_SWATCH_PX = 16;

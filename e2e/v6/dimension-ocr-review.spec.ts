@@ -66,10 +66,10 @@ test.describe('đường nạp thật (không bơm)', () => {
     await expect(counter).toBeVisible();
   });
 
-  test('tầng chưa có lớp thì màn nói thật "chưa đọc được chuỗi kích thước nào"', async ({ page }) => {
+  test('tầng chưa có lớp thì màn nói thật "Chưa đọc được chuỗi kích thước nào"', async ({ page }) => {
     await page.goto(ROUTES.project.dimensions(QC_PROJECT, 'L1'));
 
-    await expect(page.getByText('chưa đọc được chuỗi kích thước nào', { exact: true })).toBeVisible({
+    await expect(page.getByText('Chưa đọc được chuỗi kích thước nào', { exact: true })).toBeVisible({
       timeout: FIRST_PAINT_TIMEOUT_MS,
     });
   });
@@ -77,7 +77,7 @@ test.describe('đường nạp thật (không bơm)', () => {
 
 test('[bơm] phím R bật chế độ duyệt bàn phím qua sổ phím thật (D-1)', async ({ page }) => {
   await page.goto(ROUTES.project.dimensions(QC_PROJECT, QC_FLOOR.dimensions));
-  await expect(page.getByRole('region', { name: 'đọc kích thước OCR' })).toBeVisible({
+  await expect(page.getByRole('region', { name: 'Đọc kích thước OCR' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'dimensions');

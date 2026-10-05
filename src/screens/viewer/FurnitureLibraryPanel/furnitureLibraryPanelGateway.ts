@@ -80,7 +80,7 @@ export const FURNITURE_LIBRARY_PANEL_TEXT = {
   thumbnailAlt: 'Ảnh xem trước của',
   thumbnailAltMissing: 'Chưa có ảnh xem trước của',
   replaceAllLabel: 'Thay thế tất cả —',
-  replaceAllArrow: 'hiện tại →',
+  replaceAllArrow: 'Hiện tại →',
   sourceMine: 'Của tôi',
   sourceCatalogue: 'Danh mục',
   heavyModel: 'Model này nặng hơn phần ngân sách hiệu năng của cảnh.',

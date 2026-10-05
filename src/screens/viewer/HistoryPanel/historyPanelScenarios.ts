@@ -121,7 +121,7 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T07:00:00+07:00',
     relativeLabel: '2 giờ trước',
     position: 'past',
-    entityRefs: [{ id: 'wall-014', label: 'tường W-014' }],
+    entityRefs: [{ id: 'wall-014', label: 'Tường W-014' }],
     kind: 'single',
     diff: { fieldLabel: 'Độ dày #W-014', beforeText: '110 mm', afterText: '220 mm' },
   };
@@ -134,7 +134,7 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T07:20:00+07:00',
     relativeLabel: '1 giờ 40 phút trước',
     position: 'past',
-    entityRefs: [{ id: 'room-p02', label: 'phòng P-02' }],
+    entityRefs: [{ id: 'room-p02', label: 'Phòng P-02' }],
     kind: 'single',
     diff: null,
   };
@@ -147,7 +147,7 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T08:05:00+07:00',
     relativeLabel: '55 phút trước',
     position: 'current',
-    entityRefs: [{ id: 'window-021', label: 'ô cửa sổ WD-021' }],
+    entityRefs: [{ id: 'window-021', label: 'Ô cửa sổ WD-021' }],
     kind: 'single',
     diff: null,
   };
@@ -160,7 +160,7 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T08:10:00+07:00',
     relativeLabel: '50 phút trước',
     position: 'undone',
-    entityRefs: [{ id: 'wall-030', label: 'tường W-030' }],
+    entityRefs: [{ id: 'wall-030', label: 'Tường W-030' }],
     kind: 'single',
     diff: null,
   };
@@ -173,7 +173,7 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T08:11:00+07:00',
     relativeLabel: '49 phút trước',
     position: 'undone',
-    entityRefs: [{ id: 'wall-031', label: 'tường W-031' }],
+    entityRefs: [{ id: 'wall-031', label: 'Tường W-031' }],
     kind: 'single',
     diff: null,
   };
@@ -187,8 +187,8 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     relativeLabel: '49 phút trước',
     position: 'undone',
     entityRefs: [
-      { id: 'wall-030', label: 'tường W-030' },
-      { id: 'wall-031', label: 'tường W-031' },
+      { id: 'wall-030', label: 'Tường W-030' },
+      { id: 'wall-031', label: 'Tường W-031' },
     ],
     kind: 'batch',
     isExpanded: false,
@@ -203,7 +203,7 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T08:15:00+07:00',
     relativeLabel: '45 phút trước',
     position: 'undone',
-    entityRefs: [{ id: 'door-001', label: 'cửa D-001' }],
+    entityRefs: [{ id: 'door-001', label: 'Cửa D-001' }],
     kind: 'single',
     diff: null,
   };
@@ -216,9 +216,9 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T08:20:00+07:00',
     relativeLabel: '40 phút trước',
     position: 'undone',
-    entityRefs: [{ id: 'room-garden', label: 'sân vườn' }],
+    entityRefs: [{ id: 'room-garden', label: 'Sân vườn' }],
     kind: 'single',
-    diff: { fieldLabel: 'Loại nền #sân vườn', beforeText: 'cỏ tự nhiên', afterText: 'gạch lát' },
+    diff: { fieldLabel: 'Loại nền #sân vườn', beforeText: 'Cỏ tự nhiên', afterText: 'gạch lát' },
   };
 
   const items: readonly HistoryTimelineItem[] = [
@@ -233,11 +233,11 @@ function createSuccessGroups(): readonly HistoryDayGroup[] {
   return [
     {
       id: 'ngay-hom-nay',
-      label: 'hôm nay',
+      label: 'Hôm nay',
       sessions: [
         {
           id: 'phien-sang',
-          label: 'phiên sáng',
+          label: 'Phiên sáng',
           items,
         },
       ],
@@ -315,9 +315,9 @@ function createPartialSingleItem(): HistorySingleItem {
     category: 'edit',
     actor: ACTOR_LAN,
     timestampIso: '2026-09-06T09:00:00+07:00',
-    relativeLabel: 'hôm qua',
+    relativeLabel: 'Hôm qua',
     position: 'past',
-    entityRefs: [{ id: 'roof-001', label: 'mái nhà' }],
+    entityRefs: [{ id: 'roof-001', label: 'Mái nhà' }],
     kind: 'single',
     diff: null,
   };
@@ -327,11 +327,11 @@ function createPartialGroups(): readonly HistoryDayGroup[] {
   return [
     {
       id: 'ngay-hom-qua',
-      label: 'hôm qua',
+      label: 'Hôm qua',
       sessions: [
         {
           id: 'phien-hom-qua',
-          label: 'phiên chiều',
+          label: 'Phiên chiều',
           items: [createPartialSingleItem()],
         },
       ],
@@ -400,7 +400,7 @@ function createForbiddenGroups(): readonly HistoryDayGroup[] {
     timestampIso: '2026-09-07T06:00:00+07:00',
     relativeLabel: '3 giờ trước',
     position: 'past',
-    entityRefs: [{ id: 'wall-099', label: 'tường W-099' }],
+    entityRefs: [{ id: 'wall-099', label: 'Tường W-099' }],
     kind: 'single',
     diff: null,
   };
@@ -408,8 +408,8 @@ function createForbiddenGroups(): readonly HistoryDayGroup[] {
   return [
     {
       id: 'ngay-hom-nay-forbidden',
-      label: 'hôm nay',
-      sessions: [{ id: 'phien-sang-forbidden', label: 'phiên sáng', items: [item] }],
+      label: 'Hôm nay',
+      sessions: [{ id: 'phien-sang-forbidden', label: 'Phiên sáng', items: [item] }],
     },
   ];
 }
@@ -461,7 +461,7 @@ export function createHistoryPanelScenarios(): readonly HistoryPanelScenario[] {
     { state: 'partial', label: 'một phần', props: createPartialAtStepLimitProps() },
     { state: 'error', label: 'lỗi', props: createErrorProps() },
     { state: 'success', label: 'thành công', props: createSuccessProps() },
-    { state: 'forbidden', label: 'không có quyền', props: createForbiddenProps() },
+    { state: 'forbidden', label: 'Không có quyền', props: createForbiddenProps() },
     { state: 'collapsed', label: 'thu gọn', props: createCollapsedProps() },
   ];
 }

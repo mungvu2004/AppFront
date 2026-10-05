@@ -107,7 +107,7 @@ export function NotificationsSection({
                 {event.label}
               </span>
               {/* Nhóm có tên, nên hai `Toggle` cùng nhãn "Trong ứng dụng" ở hai
-                  sự việc khác nhau vẫn phân biệt được khi nghe. */}
+                  Sự việc khác nhau vẫn phân biệt được khi nghe. */}
               <div role="group" aria-labelledby={labelId} className="flex flex-col gap-2 pl-1">
                 {event.cells.map((cell) => (
                   <Toggle
@@ -131,7 +131,7 @@ export function NotificationsSection({
       <thead>
         <tr className="border-b border-border-default">
           <th scope="col" className="pb-2 text-[13px] font-semibold text-text-secondary">
-            sự việc
+            Sự việc
           </th>
           {channels.map((channel) => (
             <th

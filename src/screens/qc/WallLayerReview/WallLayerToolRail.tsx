@@ -68,7 +68,7 @@ interface WallLayerToolDef {
 const TOOLS: readonly WallLayerToolDef[] = [
   { id: 'select', label: 'chọn', icon: MousePointer2, kbd: 'V', isEditTool: false },
   { id: 'drawWall', label: 'vẽ tường', icon: Square, kbd: 'W', isEditTool: true },
-  { id: 'splitWall', label: 'tách đoạn', icon: Scissors, isEditTool: true },
+  { id: 'splitWall', label: 'Tách đoạn', icon: Scissors, isEditTool: true },
   { id: 'measure', label: 'đo', icon: Ruler, kbd: 'M', isEditTool: false },
 ];
 

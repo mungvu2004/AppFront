@@ -1,5 +1,5 @@
 /**
- * Bộ kiểm khối "giao diện" — của T4, và chỉ của T4.
+ * Bộ kiểm khối "Giao diện" — của T4, và chỉ của T4.
  *
  * Hai nửa, đúng như mục D chia: phần trên dựng `AppearanceSection` thẳng từ
  * props và hỏi về thứ nhìn thấy; phần dưới dựng `useAccountPreferences` qua một
@@ -94,11 +94,11 @@ describe('năm hàng của khối', () => {
     render(<AppearanceSection {...props()} />);
 
     for (const label of [
-      'chủ đề',
-      'dùng nền tối cho khung nhìn 3D',
-      'giảm chuyển động',
-      'hiện lưới 100 mm',
-      'mật độ hiển thị',
+      'Chủ đề',
+      'Dùng nền tối cho khung nhìn 3D',
+      'Giảm chuyển động',
+      'Hiện lưới 100 mm',
+      'Mật độ hiển thị',
     ]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
@@ -115,11 +115,11 @@ describe('chủ đề — ba nhánh trên một điều khiển', () => {
   it('vẽ đúng ba lựa chọn, và nhánh đang chọn được đánh dấu', () => {
     render(<AppearanceSection {...props({ theme: 'system' })} />);
 
-    const group = screen.getByRole('radiogroup', { name: 'chủ đề' });
+    const group = screen.getByRole('radiogroup', { name: 'Chủ đề' });
     const items = group.querySelectorAll('button');
 
     expect(items).toHaveLength(3);
-    expect(screen.getByRole('radio', { name: 'theo hệ thống' }).getAttribute('aria-checked')).toBe(
+    expect(screen.getByRole('radio', { name: 'Theo hệ thống' }).getAttribute('aria-checked')).toBe(
       'true',
     );
   });
@@ -128,7 +128,7 @@ describe('chủ đề — ba nhánh trên một điều khiển', () => {
     const onThemeChange = vi.fn();
     render(<AppearanceSection {...props({ onThemeChange })} />);
 
-    fireEvent.click(screen.getByRole('radio', { name: 'tối' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Tối' }));
 
     expect(onThemeChange).toHaveBeenCalledWith('dark');
   });
@@ -137,7 +137,7 @@ describe('chủ đề — ba nhánh trên một điều khiển', () => {
     const onThemeChange = vi.fn();
     render(<AppearanceSection {...props({ onThemeChange })} />);
 
-    const group = screen.getByRole('radiogroup', { name: 'chủ đề' });
+    const group = screen.getByRole('radiogroup', { name: 'Chủ đề' });
 
     fireEvent.keyDown(group, { key: 'ArrowRight' });
     expect(onThemeChange).toHaveBeenLastCalledWith('dark');
@@ -162,9 +162,9 @@ describe('ba công tắc', () => {
     // `Toggle.toggle` là `async`, nên lượt cập nhật lạc quan của nó rơi vào một
     // microtask sau `fireEvent`. Không bọc thì React kêu "không nằm trong act".
     await act(async () => {
-      fireEvent.click(screen.getByRole('switch', { name: 'dùng nền tối cho khung nhìn 3D' }));
-      fireEvent.click(screen.getByRole('switch', { name: 'giảm chuyển động' }));
-      fireEvent.click(screen.getByRole('switch', { name: 'hiện lưới 100 mm' }));
+      fireEvent.click(screen.getByRole('switch', { name: 'Dùng nền tối cho khung nhìn 3D' }));
+      fireEvent.click(screen.getByRole('switch', { name: 'Giảm chuyển động' }));
+      fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
     });
 
     expect(onViewportDarkChange).toHaveBeenCalledWith(true);
@@ -187,15 +187,15 @@ describe('mật độ hiển thị đổi chiều cao dòng giữa 40 và 36', (
   it('lớp ấy tới được từng hàng', () => {
     render(<AppearanceSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
 
-    expect(rowOf('chủ đề').className).toContain('min-h-[36px]');
-    expect(rowOf('mật độ hiển thị').className).toContain('min-h-[36px]');
+    expect(rowOf('Chủ đề').className).toContain('min-h-[36px]');
+    expect(rowOf('Mật độ hiển thị').className).toContain('min-h-[36px]');
   });
 
   it('bấm một mức thì báo lên hook', () => {
     const onDensityChange = vi.fn();
     render(<AppearanceSection {...props({ onDensityChange })} />);
 
-    fireEvent.click(screen.getByRole('radio', { name: 'gọn' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Gọn' }));
 
     expect(onDensityChange).toHaveBeenCalledWith('compact');
   });
@@ -216,18 +216,18 @@ describe('giảm chuyển động tắt mọi hoạt cảnh trong khối', () =>
 
     expect(withoutMotion.querySelectorAll('.absolute.inset-0')).toHaveLength(0);
     // …và ô đang chọn vẫn nhìn thấy được, bằng nền tĩnh thay cho con trượt.
-    expect(screen.getByRole('radio', { name: 'sáng' }).className).toContain('bg-bg-surface');
+    expect(screen.getByRole('radio', { name: 'Sáng' }).className).toContain('bg-bg-surface');
   });
 
   it('bật thì mọi hàng và mọi ô về duration-0, không còn nháy nền', () => {
     render(<AppearanceSection {...props({ motionOff: true, flashedField: 'theme' })} />);
 
-    const row = rowOf('chủ đề');
+    const row = rowOf('Chủ đề');
 
     expect(row.className).toContain('duration-0');
     expect(row.className).not.toContain('bg-accent-wash');
-    expect(screen.getByRole('radio', { name: 'sáng' }).className).toContain('duration-0');
-    expect(screen.getByRole('radio', { name: 'sáng' }).className).not.toContain('duration-120');
+    expect(screen.getByRole('radio', { name: 'Sáng' }).className).toContain('duration-0');
+    expect(screen.getByRole('radio', { name: 'Sáng' }).className).not.toContain('duration-120');
     expect(row.className).not.toContain('duration-260');
     expect(row.className).not.toContain('duration-340');
   });
@@ -235,11 +235,11 @@ describe('giảm chuyển động tắt mọi hoạt cảnh trong khối', () =>
   it('tắt thì hàng vừa ghi nháy bg-accent-wash — một token, không phải mã màu thô (R6)', () => {
     render(<AppearanceSection {...props({ flashedField: 'showGrid' })} />);
 
-    expect(rowOf('hiện lưới 100 mm').className).toContain('bg-accent-wash');
-    expect(rowOf('chủ đề').className).not.toContain('bg-accent-wash');
+    expect(rowOf('Hiện lưới 100 mm').className).toContain('bg-accent-wash');
+    expect(rowOf('Chủ đề').className).not.toContain('bg-accent-wash');
     // Đúng MỘT lớp thời lượng: 260 ms — chỗ của 240 ms mà đặc tả ghi (R1).
-    expect(rowOf('chủ đề').className).toContain('duration-260');
-    expect(rowOf('chủ đề').className).not.toContain('duration-340');
+    expect(rowOf('Chủ đề').className).toContain('duration-260');
+    expect(rowOf('Chủ đề').className).not.toContain('duration-340');
   });
 });
 
@@ -486,14 +486,14 @@ describe('D-07 — mỗi lượt sửa đi qua port.stage, và chỉ qua đó', 
 });
 
 describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
-  it('"theo hệ thống" giải ra ở màn, không ở store', () => {
+  it('"Theo hệ thống" giải ra ở màn, không ở store', () => {
     expect(resolveTheme('system', true)).toBe('dark');
     expect(resolveTheme('system', false)).toBe('light');
     expect(resolveTheme('dark', false)).toBe('dark');
     expect(resolveTheme('light', true)).toBe('light');
   });
 
-  it('chọn "tối" thì store đổi và <html> mang lớp dark — không tải lại trang', () => {
+  it('chọn "Tối" thì store đổi và <html> mang lớp dark — không tải lại trang', () => {
     const { port } = createPort();
 
     renderWithProviders(<Probe port={port} />);
@@ -532,7 +532,7 @@ describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
     ]);
   });
 
-  it('"theo hệ thống" đọc prefers-color-scheme ngay lượt render đầu', () => {
+  it('"Theo hệ thống" đọc prefers-color-scheme ngay lượt render đầu', () => {
     stubMatchMedia({ '(prefers-color-scheme: dark)': true });
 
     const { port } = createPort({

@@ -429,7 +429,7 @@ describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua rou
     const onFollowFix = vi.fn();
 
     render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
-    const [link] = screen.getAllByRole('link', { name: 'sửa' });
+    const [link] = screen.getAllByRole('link', { name: 'Sửa' });
 
     // `fireEvent` trả `false` khi trình xử lý đã gọi `preventDefault()`.
     expect(fireEvent.click(link as HTMLElement)).toBe(false);
@@ -441,7 +441,7 @@ describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua rou
     const onFollowFix = vi.fn();
 
     render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
-    const [link] = screen.getAllByRole('link', { name: 'sửa' });
+    const [link] = screen.getAllByRole('link', { name: 'Sửa' });
 
     expect(fireEvent.click(link as HTMLElement, { ctrlKey: true })).toBe(true);
     expect(onFollowFix).not.toHaveBeenCalled();

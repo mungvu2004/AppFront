@@ -107,13 +107,13 @@ import type {
  */
 const COPY = {
   emptyNotice:
-    'tệp CAD không có lớp nào được đặt tên. hệ thống sẽ ánh xạ theo loại hình học thay cho tên lớp.',
+    'Tệp CAD không có lớp nào được đặt tên. Hệ thống sẽ ánh xạ theo loại hình học thay cho tên lớp.',
   forbiddenNotice:
-    'bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
-  successNotice: 'đã nhập xong hình học từ tệp CAD.',
-  workingNotice: 'chọn vai trò cho từng lớp, xem trước cập nhật ngay khi bạn đổi.',
+    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
+  successNotice: 'Đã nhập xong hình học từ tệp CAD.',
+  workingNotice: 'Chọn vai trò cho từng lớp, xem trước cập nhật ngay khi bạn đổi.',
   unitWarning:
-    'tệp không khai báo đơn vị bản vẽ. hãy kiểm tra lại đơn vị ở khối "tuỳ chọn nhập" trước khi nhập hình học.',
+    'tệp không khai báo đơn vị bản vẽ. hãy kiểm tra lại đơn vị ở khối "Tuỳ chọn nhập" trước khi nhập hình học.',
   rememberSessionOnly: CAD_REMEMBER_SESSION_NOTICE,
   /**
    * Nhãn chú giải của mức dày duy nhất KHÔNG đo bằng mi-li-mét.
@@ -122,12 +122,12 @@ const COPY = {
    * Ba giá trị số thành "110 mm"; giá trị thứ tư không có số nào để in, nên nó
    * được gọi tên — A6, viết thường kiểu câu.
    */
-  concreteColumnThickness: 'cột bê tông',
+  concreteColumnThickness: 'Cột bê tông',
 } as const;
 
 /** Câu lỗi của tệp không đọc được — LUÔN nêu số phiên bản (L-03). */
 const unsupportedFormatMessage = (fileFormatVersion: string): string =>
-  `không đọc được tệp CAD này: bản vẽ lưu ở phiên bản định dạng ${fileFormatVersion}, mới hơn mức hệ thống đọc được. hãy xuất lại tệp ở phiên bản cũ hơn, hoặc dùng nhánh AI.`;
+  `Không đọc được tệp CAD này: bản vẽ lưu ở phiên bản định dạng ${fileFormatVersion}, mới hơn mức hệ thống đọc được. hãy xuất lại tệp ở phiên bản cũ hơn, hoặc dùng nhánh AI.`;
 
 /** Câu của trạng thái `partial` khi có tầng không kèm tệp CAD. */
 const floorsWithoutCadMessage = (floorNames: readonly string[]): string =>
@@ -147,13 +147,13 @@ const busyIgnoredLayersMessage = (layers: readonly CadLayer[]): string =>
 
 /** Nhãn tiếng Việt của bảy vai trò. Định danh tiếng Anh, nhãn tiếng Việt (E.11). */
 const ROLE_LABELS: Readonly<Record<CadLayerRole, string>> = {
-  wall: 'tường',
-  door: 'cửa đi',
-  window: 'cửa sổ',
-  dimension: 'kích thước',
-  grid: 'trục',
-  furniture: 'nội thất',
-  ignore: 'bỏ qua',
+  wall: 'Tường',
+  door: 'Cửa đi',
+  window: 'Cửa sổ',
+  dimension: 'Kích thước',
+  grid: 'Trục',
+  furniture: 'Nội thất',
+  ignore: 'Bỏ qua',
 };
 
 /** Thứ tự bảy vai trò trong Select — "bỏ qua" đứng cuối vì nó là mặc định. */
@@ -177,8 +177,8 @@ const UNIT_LABELS: Readonly<Record<CadDrawingUnit, string>> = {
 const UNIT_ORDER: readonly CadDrawingUnit[] = ['mm', 'cm', 'm', 'inch'];
 
 const ORIGIN_LABELS: Readonly<Record<CadOriginMode, string>> = {
-  'keep-cad': 'giữ gốc toạ độ của tệp CAD',
-  'grid-a1': 'đặt gốc ở giao trục A1',
+  'keep-cad': 'Giữ gốc toạ độ của tệp CAD',
+  'grid-a1': 'Đặt gốc ở giao trục A1',
 };
 
 const ORIGIN_ORDER: readonly CadOriginMode[] = ['keep-cad', 'grid-a1'];
@@ -193,21 +193,21 @@ const ORIGIN_ORDER: readonly CadOriginMode[] = ['keep-cad', 'grid-a1'];
 const COMPARISON_ROWS: readonly CadBranchComparisonCell[] = [
   {
     rowId: 'accuracy',
-    rowLabel: 'độ chính xác',
-    cadValueLabel: 'đúng theo đường nét của bản vẽ gốc',
-    aiValueLabel: 'suy ra từ ảnh, cần người duyệt lại',
+    rowLabel: 'Độ chính xác',
+    cadValueLabel: 'Đúng theo đường nét của bản vẽ gốc',
+    aiValueLabel: 'Suy ra từ ảnh, cần người duyệt lại',
   },
   {
     rowId: 'qcEffort',
-    rowLabel: 'công việc kiểm tra',
-    cadValueLabel: 'gán vai trò cho từng lớp một lần',
-    aiValueLabel: 'soát lại tường, phòng và ô mở sau khi máy dựng',
+    rowLabel: 'Công việc kiểm tra',
+    cadValueLabel: 'Gán vai trò cho từng lớp một lần',
+    aiValueLabel: 'Soát lại tường, phòng và ô mở sau khi máy dựng',
   },
   {
     rowId: 'time',
     rowLabel: 'thời gian',
-    cadValueLabel: 'nhập hình học xong ngay sau khi gán lớp',
-    aiValueLabel: 'chờ máy chạy hết các bước xử lý',
+    cadValueLabel: 'Nhập hình học xong ngay sau khi gán lớp',
+    aiValueLabel: 'Chờ máy chạy hết các bước xử lý',
   },
 ];
 
@@ -785,7 +785,7 @@ export function useCadBranchConfirm(
       id: 'cadBranchConfirm.collapseImportOptions',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'đóng khối tuỳ chọn nhập',
+      description: 'Đóng khối tuỳ chọn nhập',
       preventDefault: false,
       onTrigger: () => {
         setIsImportOptionsExpanded(false);

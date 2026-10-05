@@ -151,7 +151,7 @@ const EMAIL_REASON_LONG =
   'Thư điện tử là tên đăng nhập nên đổi nó phải qua một bước xác minh. ' +
   'Liên hệ quản trị viên của công ty để đổi.';
 
-const JOB_TITLE_PLACEHOLDER = 'chưa đặt';
+const JOB_TITLE_PLACEHOLDER = 'Chưa đặt';
 const AVATAR_UPLOADING_LABEL = 'Đang tải ảnh lên…';
 const AVATAR_FALLBACK_ALT = 'Ảnh đại diện';
 

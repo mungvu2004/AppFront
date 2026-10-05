@@ -326,10 +326,10 @@ export interface ObjectLayerListViewProps extends ObjectLayerListProps {
 
 /** Chuỗi tiếng Việt tĩnh của canvas — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 export const OBJECT_CANVAS_TEXT = {
-  canvasLabel: 'mặt bằng lớp đối tượng',
+  canvasLabel: 'Mặt bằng lớp đối tượng',
   objectCountSuffix: ' đối tượng',
-  legendLabel: 'chú giải màu lớp',
-  nothingToDraw: 'chưa có đối tượng nào để vẽ trên mặt bằng.',
+  legendLabel: 'Chú giải màu lớp',
+  nothingToDraw: 'Chưa có đối tượng nào để vẽ trên mặt bằng.',
   readOnlyNotice:
     'Mặt bằng vẫn xem và phóng to được, nhưng không chọn hay sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   orphanTitle: 'Chưa gắn vào tường nào',

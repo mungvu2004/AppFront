@@ -88,10 +88,10 @@ afterEach(() => {
 });
 
 /** Năm tiêu đề mà khung vẽ ở v1. Phiên đăng nhập và vùng nguy hiểm rời DOM (cổng không có năng lực). */
-const BLOCK_TITLES = ['hồ sơ', 'giao diện', 'thông báo', 'phím tắt', 'mật khẩu'] as const;
+const BLOCK_TITLES = ['Hồ sơ', 'Giao diện', 'Thông báo', 'Phím tắt', 'Mật khẩu'] as const;
 
 /** Hai khối của v2: vắng khỏi DOM chứ không bị vô hiệu hoá. */
-const ABSENT_BLOCK_TITLES = ['phiên đăng nhập', 'vùng nguy hiểm'] as const;
+const ABSENT_BLOCK_TITLES = ['Phiên đăng nhập', 'Vùng nguy hiểm'] as const;
 
 /** Cổng đọc được ngay, ghi vào một mảng để test đếm số lượt lưu. */
 function createRecordingGateway(): {
@@ -128,7 +128,7 @@ describe('khung của màn', () => {
     renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'cài đặt tài khoản' })).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' })).toBeTruthy();
     });
 
     for (const title of BLOCK_TITLES) {
@@ -149,7 +149,7 @@ describe('khung của màn', () => {
     const { container } = renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 2, name: 'hồ sơ' })).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 2, name: 'Hồ sơ' })).toBeTruthy();
     });
 
     expectVietnamese(container);
@@ -192,7 +192,7 @@ describe('lỗi đọc cấp trang', () => {
       expect(screen.getByText('Không tải được cài đặt tài khoản')).toBeTruthy();
     });
 
-    expect(screen.queryByRole('heading', { level: 2, name: 'hồ sơ' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Hồ sơ' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy();
   });
 });
@@ -283,7 +283,7 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
       </>,
     );
 
-    const field = await screen.findByLabelText('họ tên');
+    const field = await screen.findByLabelText('Họ tên');
     await waitFor(() => {
       expect(field).toHaveValue(fullName);
     });
@@ -318,7 +318,7 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
     fireEvent.click(undoButtons()[0] as HTMLElement);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('họ tên')).toHaveValue('An');
+      expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
     });
     await waitFor(() => {
       expect(saves).toHaveLength(2);
@@ -337,10 +337,10 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
     }, SAVE_WAIT);
     fireEvent.click(undoButtons()[0] as HTMLElement);
     await waitFor(() => {
-      expect(screen.getByLabelText('họ tên')).toHaveValue('An');
+      expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
     });
 
-    fireEvent.change(screen.getByLabelText('họ tên'), { target: { value: 'Châu' } });
+    fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'Châu' } });
 
     await waitFor(() => {
       expect(undoButtons()).toHaveLength(1);
@@ -437,7 +437,7 @@ function vmFor(
         onFullNameChange: vi.fn(),
         jobTitle: isEmpty ? '' : 'Kỹ sư kết cấu',
         onJobTitleChange: vi.fn(),
-        jobTitlePlaceholder: 'chưa đặt',
+        jobTitlePlaceholder: 'Chưa đặt',
         email: SAMPLE_EMAIL,
         emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
         onChangeEmail: vi.fn(),
@@ -614,7 +614,7 @@ const MOTION_SILENCERS = new Set(['transition-none', 'animate-none', 'duration-0
  * Lớp có chuyển động nhưng KHÔNG dịch chuyển gì.
  *
  * - `transition-colors` chỉ nội suy màu; không có gì di chuyển, nên nó không
- *   phải thứ mà "giảm chuyển động" nói tới.
+ *   phải thứ mà "Giảm chuyển động" nói tới.
  * - `animate-focus-ring` là vòng lấy nét. Tắt nó thì bàn phím mất dấu chỉ chỗ,
  *   mà A12 gọi bàn phím là đường đi hạng nhất.
  */
@@ -916,7 +916,7 @@ describe('đổi chủ đề năm lần liên tiếp — không nháy màu thô'
         .filter((style) => RAW_COLOR.test(style));
 
       observed.push(
-        `#${String(round + 1)} ${isDark ? 'tối' : 'sáng'}` +
+        `#${String(round + 1)} ${isDark ? 'Tối' : 'Sáng'}` +
           `${drifted ? ' CÂY ĐỔI' : ''}${raw.length > 0 ? ` MÀU THÔ×${String(raw.length)}` : ''}`,
       );
 

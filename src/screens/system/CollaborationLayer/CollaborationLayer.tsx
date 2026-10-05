@@ -85,20 +85,20 @@ const ROSTER_LIST_LABEL = 'Những người đang xem';
 const GO_TO_LABEL = 'Đi đến vị trí của họ';
 const SELF_SUFFIX = 'bạn';
 const SELECTING_PREFIX = 'đang chọn';
-const NOTHING_SELECTED_LABEL = 'chưa chọn gì';
-const ALONE_CAPTION = 'chỉ mình bạn đang xem';
+const NOTHING_SELECTED_LABEL = 'Chưa chọn gì';
+const ALONE_CAPTION = 'Chỉ mình bạn đang xem';
 
 /** Góc mặc định của thanh hiện diện; màn chủ đổi được qua `presenceAnchorClassName`. */
 const DEFAULT_PRESENCE_ANCHOR = 'right-4 top-4';
-const READ_ONLY_CAPTION = 'bạn đang xem, không sửa được';
+const READ_ONLY_CAPTION = 'Bạn đang xem, không sửa được';
 
 /** Caption của bốn trạng thái kênh không phải `'da-noi'`. */
 const SYNC_CAPTIONS: Readonly<Record<CollaborationSyncState, string | null>> = {
-  'dang-noi': 'đang nối phiên cộng tác',
+  'dang-noi': 'Đang nối phiên cộng tác',
   'da-noi': null,
-  'dong-bo-cham': 'đang đồng bộ chậm',
-  'lam-viec-rieng': 'đang làm việc riêng',
-  'mat-ket-noi': 'mất kết nối — thay đổi sẽ đồng bộ khi có mạng lại',
+  'dong-bo-cham': 'Đang đồng bộ chậm',
+  'lam-viec-rieng': 'Đang làm việc riêng',
+  'mat-ket-noi': 'Mất kết nối — thay đổi sẽ đồng bộ khi có mạng lại',
 };
 
 /** Số ảnh hiện tối đa trước khi phần dư gộp thành một chip "+N". */
@@ -254,7 +254,7 @@ export function CollaborationLayer({
       id: 'collaborationLayer.roster.close',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'đóng danh sách người đang xem',
+      description: 'Đóng danh sách người đang xem',
       onTrigger: () => setRosterOpen(false),
     },
     { enabled: isRosterOpen },

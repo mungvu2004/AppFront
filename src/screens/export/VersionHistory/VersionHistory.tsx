@@ -45,7 +45,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
     return (
       <EmptyState
         icon={<History aria-hidden="true" />}
-        title="chưa có phiên bản nào"
+        title="Chưa có phiên bản nào"
         description="Chưa có phiên bản nào được lưu cho bản vẽ này."
       />
     );
@@ -55,7 +55,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
     return (
       <EmptyState
         icon={<Lock aria-hidden="true" />}
-        title="không đủ quyền xem"
+        title="Không đủ quyền xem"
         description="Bạn không có quyền xem lịch sử phiên bản của bản vẽ này."
       />
     );
@@ -65,7 +65,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
     return (
       <InlineAlert
         level="violation"
-        title="không tải được lịch sử phiên bản"
+        title="Không tải được lịch sử phiên bản"
         message={model.errorMessage ?? 'Đã có lỗi xảy ra.'}
       />
     );
@@ -118,11 +118,11 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           {/*
             R-69: `canExportVersion` sai ⇒ nút RỜI KHỎI DOM, không phải bị tắt. Xuất một
             phiên bản là điều hướng sang S-34 và khả năng ấy đúng bằng "nơi gọi có cấp
-            `onExportVersion` không" — không có thì nút này gọi vào chỗ trống.
+            `onExportVersion` Không" — không có thì nút này gọi vào chỗ trống.
           */}
           {model.canExportVersion && reviewedVersionId !== null && (
             <Button variant="ghost" onClick={() => actions.exportVersion(reviewedVersionId)}>
-              xuất phiên bản này
+              Xuất phiên bản này
             </Button>
           )}
           {model.canRestore && (
@@ -135,7 +135,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
                 }
               }}
             >
-              phục hồi phiên bản này
+              Phục hồi phiên bản này
             </Button>
           )}
         </div>

@@ -21,10 +21,10 @@ import {
  */
 
 const REGION = 'Màn đối chiếu bản vẽ';
-const NO_FLOOR = 'dự án này chưa có tầng nào để đối chiếu.';
-const NO_FRAME = 'không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.';
-const NO_SCAN = 'tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.';
-const READ_ONLY = 'bạn không có quyền sửa, các điều khiển đang tắt.';
+const NO_FLOOR = 'Dự án này chưa có tầng nào để đối chiếu.';
+const NO_FRAME = 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.';
+const NO_SCAN = 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.';
+const READ_ONLY = 'Bạn không có quyền sửa, các điều khiển đang tắt.';
 
 test('vào thẳng một tầng: màn nói chưa căn được và mở lối sang hiệu chỉnh tỷ lệ; đổi sang "trượt" thì có thêm đường chia đôi', async ({
   page,
@@ -35,11 +35,11 @@ test('vào thẳng một tầng: màn nói chưa căn được và mở lối sa
   await expect(page.getByText(NO_FRAME, { exact: true })).toBeVisible();
   await expect(page.getByText(NO_FLOOR, { exact: true })).toHaveCount(0);
   // Lối sang màn tỷ lệ mang mã tầng API của route, không phải mã `Level` của N16.
-  await expect(page.getByRole('link', { name: 'sang màn hiệu chỉnh tỷ lệ' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Sang màn hiệu chỉnh tỷ lệ' })).toHaveAttribute(
     'href',
     ROUTES.project.scale(PROJECT_ID, 'L1'),
   );
-  await expect(page.getByRole('button', { name: 'xác nhận mô hình khớp bản vẽ' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Xác nhận mô hình khớp bản vẽ' })).toBeDisabled();
 
   const sliders = page.getByRole('slider');
   const before = await sliders.count();
@@ -53,7 +53,7 @@ test('vào thẳng một tầng: màn nói chưa căn được và mở lối sa
   await expect.poll(() => sliders.count()).toBeGreaterThan(before);
 });
 
-test('bàn phím: mũi tên phải trên nhóm "kiểu đối chiếu" chuyển sang kiểu kế tiếp (A12)', async ({ page }) => {
+test('bàn phím: mũi tên phải trên nhóm "Kiểu đối chiếu" chuyển sang kiểu kế tiếp (A12)', async ({ page }) => {
   await page.goto(OVERLAY_PATH);
 
   const overlayMode = page.getByRole('radio', { name: 'chồng lớp' });
@@ -69,7 +69,7 @@ test('vai Người xem: các điều khiển tắt, và màn nói vì sao', asyn
 
   await expect(page.getByText(READ_ONLY, { exact: true })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(page.getByRole('radio', { name: 'trượt' })).toBeDisabled();
-  await expect(page.getByRole('switch', { name: 'khoá căn' })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: 'Khoá căn' })).toBeDisabled();
 });
 
 test(

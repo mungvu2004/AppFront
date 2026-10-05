@@ -25,8 +25,8 @@ type BadgeVariant = 'verified' | 'attention' | 'violation' | 'neutral';
 /** Nhãn tiếng Việt của A4 — đúng ba trạng thái, không trạng thái thứ tư. */
 const STATUS_LABELS: Readonly<Record<RoomAreaStatus, string>> = {
   trusted: 'đã dò',
-  suspect: 'cần kiểm tra',
-  reviewed: 'đã xác minh',
+  suspect: 'Cần kiểm tra',
+  reviewed: 'Đã xác minh',
 };
 
 /** A5: xanh "đã xác minh" chỉ gắn với `reviewed`, giá trị người duyệt đặt. */
@@ -98,7 +98,7 @@ export function RoomAreaTableRow({
       <Table.Cell>
         {canRename ? (
           <input
-            aria-label={`tên phòng ${row.name}`}
+            aria-label={`Tên phòng ${row.name}`}
             className={cn(RENAME_INPUT_CLASS_NAME, row.isUnnamed && 'italic text-text-muted')}
             onChange={(event) => onRename(row.id, event.target.value)}
             onClick={stopBubbling}

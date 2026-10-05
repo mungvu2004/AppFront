@@ -37,7 +37,7 @@ export function GeneralTab(props: GeneralTabProps) {
   return (
     <div className="flex flex-col gap-4">
       <Input
-        label="tên dự án"
+        label="Tên dự án"
         value={props.name}
         onChange={(event) => props.setName(event.target.value)}
         maxLength={PROJECT_SETTINGS_LIMITS.nameMaxLength}
@@ -45,12 +45,12 @@ export function GeneralTab(props: GeneralTabProps) {
         isReadOnly={isReadOnly}
       />
       <Input
-        label="mã dự án"
+        label="Mã dự án"
         value={props.code}
         onChange={(event) => props.setCode(event.target.value)}
         maxLength={PROJECT_SETTINGS_LIMITS.codeMaxLength}
         error={problems.code}
-        hint="mã ngắn để tra cứu nhanh; bỏ trống cũng được"
+        hint="Mã ngắn để tra cứu nhanh; bỏ trống cũng được"
         isReadOnly={isReadOnly}
       />
       <Input
@@ -62,7 +62,7 @@ export function GeneralTab(props: GeneralTabProps) {
         isReadOnly={isReadOnly}
       />
       <Select
-        label="loại công trình"
+        label="Loại công trình"
         options={[...props.buildingTypeOptions]}
         value={props.buildingType}
         onChange={props.setBuildingType}
@@ -74,16 +74,16 @@ export function GeneralTab(props: GeneralTabProps) {
         // của nó bỏ mất viền tiêu điểm mà A12 đòi. Một đoạn văn nói đúng nội dung
         // ấy mà không hứa một ô nhập không nhập được.
         <div className="flex flex-col gap-1">
-          <span className="text-[14px] font-medium text-text-secondary">ghi chú</span>
+          <span className="text-[14px] font-medium text-text-secondary">Ghi chú</span>
           <p className="text-[14px] text-text-primary">{props.notes === '' ? '—' : props.notes}</p>
         </div>
       ) : (
         <Textarea
-          label="ghi chú"
+          label="Ghi chú"
           value={props.notes}
           onChange={(event) => props.setNotes(event.target.value)}
           hint={props.notesCountLabel}
-          placeholder="không bắt buộc"
+          placeholder="Không bắt buộc"
           {...(problems.notes !== null ? { error: problems.notes } : {})}
         />
       )}

@@ -30,9 +30,9 @@ import { useStateGallery } from './useStateGallery';
 /** Tên màn này với ranh giới lỗi. */
 const SCREEN_ID = 'state-gallery';
 
-const FORBIDDEN_TITLE = 'không có quyền truy cập';
+const FORBIDDEN_TITLE = 'Không có quyền truy cập';
 const FORBIDDEN_MESSAGE =
-  'trang này chỉ dùng nội bộ trong bản dựng phát triển, không có ở bản dựng thật.';
+  'Trang này chỉ dùng nội bộ trong bản dựng phát triển, không có ở bản dựng thật.';
 
 /** Cùng khuôn `RuleReportCrashFallback` — R-62, chữ lấy từ `report.description`. */
 function StateGalleryCrashFallback({ report, retry }: ScreenErrorFallback) {

@@ -115,7 +115,7 @@ describe('vùng nguy hiểm — view dựng chỉ từ props', () => {
     // `DangerZone.tsx`. Câu nhắc vẫn phải nói ra đúng địa chỉ ấy.
     expect(screen.getByText(EMAIL)).toBeTruthy();
 
-    const field = screen.getByLabelText('địa chỉ thư');
+    const field = screen.getByLabelText('Địa chỉ thư');
     fireEvent.change(field, { target: { value: EMAIL } });
 
     expect(onConfirmValueChange).toHaveBeenCalledWith(EMAIL);

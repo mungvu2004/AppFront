@@ -483,15 +483,15 @@ const BUILDING_TYPE_OPTIONS: readonly SelectOption[] = [
 ];
 
 const LENGTH_UNIT_OPTIONS: readonly SelectOption[] = [
-  { value: 'mm', label: 'milimét (mm)' },
+  { value: 'mm', label: 'Milimét (mm)' },
   { value: 'm', label: 'mét (m)' },
 ];
 
 const TAB_LABELS: Readonly<Record<ProjectSettingsTabId, string>> = {
-  general: 'chung',
-  units: 'đơn vị đo',
-  members: 'thành viên',
-  danger: 'vùng nguy hiểm',
+  general: 'Chung',
+  units: 'Đơn vị đo',
+  members: 'Thành viên',
+  danger: 'Vùng nguy hiểm',
 };
 
 const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = {
@@ -1298,7 +1298,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     problems,
     lengthUnit: current.lengthUnit,
     lengthUnitOptions: LENGTH_UNIT_OPTIONS,
-    areaUnitLabel: `mét vuông — ví dụ ${formatArea(LIMITS.areaExampleM2)}`,
+    areaUnitLabel: `Mét vuông — ví dụ ${formatArea(LIMITS.areaExampleM2)}`,
     snapToleranceMm: current.snapToleranceMm,
     snapToleranceLabel: formatLength(current.snapToleranceMm, { unit: 'mm' }),
     snapToleranceMinMm: LIMITS.snapToleranceMinMm,

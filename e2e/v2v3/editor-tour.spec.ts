@@ -219,7 +219,7 @@ test('màn xuất (cổng nạp kho): nút xuất vừa có là tour tự hiện
   // Nút "xuất" mang neo `data-tour-anchor="exportResult"` và chỉ có khi có thứ để
   // xuất — nó xuất hiện SAU lượt nạp kho bất đồng bộ của cổng (B-V12-01), và neo
   // vào trang là đủ để bước sống lại (B-V2-01).
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible({
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 

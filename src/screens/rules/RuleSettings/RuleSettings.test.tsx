@@ -259,7 +259,7 @@ describe('B-V12-03 — trạng thái "empty" không nói ngược dòng đếm l
 
     render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'empty' })} />);
 
-    expect(screen.getByRole('heading', { name: 'chưa có mô hình để áp bộ luật' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Chưa có mô hình để áp bộ luật' })).toBeTruthy();
     expect(screen.queryByText(/chưa có (bộ )?luật/iu)).toBeNull();
   });
 });
@@ -352,7 +352,7 @@ describe('2.(b).3 — A7: không có nút Lưu nào trong màn', () => {
   /**
    * Bản đầu của phép đo này soát MỌI nút mang chữ "lưu", và nó bắt trúng một
    * thứ không phải nút Lưu: nhãn nhóm `circulation` của sổ đăng ký là
-   * **"lưu thông"** (`RULE_GROUP_LABELS`), và màn không được đặt lại tên nhóm
+   * **"Lưu thông"** (`RULE_GROUP_LABELS`), và màn không được đặt lại tên nhóm
    * của domain. Phép đo vì thế báo đỏ trên một màn KHÔNG hề có nút Lưu nào.
    *
    * Bản này soát đúng thứ A7 nói: không phần tử tương tác nào mở một lượt lưu
@@ -376,7 +376,7 @@ describe('2.(b).3 — A7: không có nút Lưu nào trong màn', () => {
     ).toEqual([]);
 
     // Và cũng không có nút nào ở bất cứ đâu mang đúng chữ "lưu" đứng một mình —
-    // "lưu thông" là hai từ, nên phép soát này vẫn bắt được một nút Lưu thật.
+    // "Lưu thông" là hai từ, nên phép soát này vẫn bắt được một nút Lưu thật.
     expect(screen.queryByRole('button', { name: /^\s*lưu\s*$/i })).toBeNull();
   });
 });
@@ -439,7 +439,7 @@ describe('2.(b).5 — mỗi dòng luật nói rõ số đối tượng đang b�
 });
 
 describe('2.(b).6 — ô ngưỡng chặn giá trị ngoài khoảng hợp lệ, nêu đúng cả hai đầu', () => {
-  it('ngưỡng "bề dày tường tối thiểu" ngoài khoảng 10–200 hiện đúng câu lỗi đã giải, nêu cả hai đầu số', async () => {
+  it('ngưỡng "Bề dày tường tối thiểu" ngoài khoảng 10–200 hiện đúng câu lỗi đã giải, nêu cả hai đầu số', async () => {
     const RuleSettingsView = await loadRuleSettingsView();
     const props = buildRuleSettingsProps({ status: 'ready' });
     const groupsWithBadThreshold = props.model.groups.map((group) => ({
@@ -472,7 +472,7 @@ describe('2.(b).6 — ô ngưỡng chặn giá trị ngoài khoảng hợp lệ,
     expect(errorText).toContain(String(WALL_THICKNESS_THRESHOLD_OUT_OF_RANGE.max));
   });
 
-  it('gõ vào ô ngưỡng "bề dày tường tối thiểu" gọi lên onChangeThreshold với đúng mã luật và khoá', async () => {
+  it('gõ vào ô ngưỡng "Bề dày tường tối thiểu" gọi lên onChangeThreshold với đúng mã luật và khoá', async () => {
     const RuleSettingsView = await loadRuleSettingsView();
     const onChangeThreshold = vi.fn();
     const props = buildRuleSettingsProps({ status: 'ready' }, { actions: { onChangeThreshold } });
@@ -557,7 +557,7 @@ describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn
 
     const before = appNotificationBus.list().length;
     const ruleSwitch = await screen.findByRole('switch', {
-      name: /^bật hoặc tắt luật: lỗ mở nằm trọn/u,
+      name: /^Bật hoặc tắt luật: lỗ mở nằm trọn/u,
     });
     expect(ruleSwitch.getAttribute('aria-checked')).toBe('true');
 

@@ -189,7 +189,7 @@ export function MobileViewer({
       id: 'mobileViewer.closeTopLayer',
       combo: 'Escape',
       scope: 'dialog',
-      description: 'đóng lớp đang mở trên màn xem mô hình',
+      description: 'Đóng lớp đang mở trên màn xem mô hình',
       preventDefault: false,
       onTrigger: () => {
         if (isSheetOpen) {

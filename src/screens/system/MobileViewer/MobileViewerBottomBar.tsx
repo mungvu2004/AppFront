@@ -133,7 +133,7 @@ export function MobileViewerBottomBar({
         <ToolPanel label={TOOL_LABELS.floors}>
           {floors.length === 0 ? (
             <p className="px-3 py-2 text-[13px] leading-relaxed text-text-secondary">
-              chưa có tầng nào để hiện.
+              Chưa có tầng nào để hiện.
             </p>
           ) : (
             <div className="flex flex-col gap-1">
@@ -147,14 +147,14 @@ export function MobileViewerBottomBar({
                   onActivate={() => {
                     onSelectFloor(floor.id);
                   }}
-                  {...(floor.hasRooms ? {} : { trailing: <Badge variant="neutral">chưa có phòng</Badge> })}
+                  {...(floor.hasRooms ? {} : { trailing: <Badge variant="neutral">Chưa có phòng</Badge> })}
                 />
               ))}
             </div>
           )}
 
           {/* Ở 320, `view` sống ở đây thay vì trên thanh — cùng nhãn, cùng
-              hành động, nên không chức năng nào mất theo biểu tượng. */}
+              Hành động, nên không chức năng nào mất theo biểu tượng. */}
           {isCompact && (
             <div className="mt-2 border-t border-border-default pt-2">
               <PanelRow

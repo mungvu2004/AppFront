@@ -33,17 +33,17 @@ import { FieldRow } from '@/components/ui/FieldRow';
 
 import type { RoomLabelCropViewModel, RoomLabelNoticeViewModel } from './roomLabelTypes';
 
-const AREA_LABEL = 'diện tích';
+const AREA_LABEL = 'Diện tích';
 /*
  * "chu vi" một mình là một chuỗi tiếng Việt KHÔNG có dấu nào, và
  * `expectVietnamese` bắt đúng ca đó (hai âm tiết hình dạng tiếng Việt, không
  * một dấu). Nhãn đầy đủ "chu vi phòng" vừa đúng nghĩa hơn vừa mang dấu.
  */
-const PERIMETER_LABEL = 'chu vi phòng';
-const CLEAR_HEIGHT_LABEL = 'chiều cao thông thuỷ';
+const PERIMETER_LABEL = 'Chu vi phòng';
+const CLEAR_HEIGHT_LABEL = 'Chiều cao thông thuỷ';
 const CLEAR_HEIGHT_MISSING =
   'Chưa có số đo chiều cao thông thuỷ cho phòng này.';
-const CONFIDENCE_LABEL = 'độ tin cậy';
+const CONFIDENCE_LABEL = 'Độ tin cậy';
 const CROP_TITLE = 'Ảnh cắt gốc';
 const CROP_MISSING_OCR = 'Tên do máy đọc nhưng chưa có ảnh bản vẽ để cắt vùng ghi tên.';
 const CROP_MISSING_HUMAN = 'Tên do người duyệt đặt nên không có ảnh cắt gốc để đối chiếu.';

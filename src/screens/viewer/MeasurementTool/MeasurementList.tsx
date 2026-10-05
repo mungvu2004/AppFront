@@ -58,10 +58,10 @@ const FOCUS_RING_CLASS =
   'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 const SECTION_TITLE = 'Phép đo';
-const EMPTY_HINT = 'chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.';
+const EMPTY_HINT = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
 const UNIT_SELECT_LABEL = 'đơn vị';
 const COLLAPSE_BUTTON_LABEL = `Thu gọn mục ${SECTION_TITLE}`;
-const STALE_BADGE_TEXT = 'cần chú ý';
+const STALE_BADGE_TEXT = 'Cần chú ý';
 
 export interface MeasurementListProps
   extends Pick<

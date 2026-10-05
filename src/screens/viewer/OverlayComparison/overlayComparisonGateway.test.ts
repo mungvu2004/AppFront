@@ -68,7 +68,7 @@ describe('overlayComparisonGateway — bốn khả năng còn thiếu', () => {
       /* Câu phải nói thứ CẦN, nên nó bắt đầu bằng "cần" hoặc nêu thứ nó phụ
          thuộc. Một câu chỉ nói "chưa có" thì không cho người đọc sau này biết
          phải làm gì tiếp — đó chính là thứ lượt sửa này bỏ đi. */
-      expect(missing).toMatch(/^(cần|phụ thuộc)/u);
+      expect(missing).toMatch(/^(Cần|Phụ thuộc)/u);
     }
   });
 

@@ -66,7 +66,7 @@ test('không bơm: bốn tầng của dự án có thật, và nói thật rằn
   const floorRows = screen.getByRole('group', { name: 'Tầng', exact: true }).getByRole('button');
   await expect(floorRows).toHaveCount(MOCK_FLOOR_COUNT);
   // B-V1-11: tầng chưa có phòng nói "chưa có phòng", không nói "chưa tải" (câu về mạng).
-  await expect(floorRows.first()).toHaveAccessibleName(/^Tầng hầm chưa có phòng/u);
+  await expect(floorRows.first()).toHaveAccessibleName(/^Tầng hầm Chưa có phòng/u);
   await expect(screen.getByText(/^chưa tải$/iu)).toHaveCount(0);
 });
 

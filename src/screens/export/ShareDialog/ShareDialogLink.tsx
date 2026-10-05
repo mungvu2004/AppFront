@@ -67,7 +67,7 @@ function LinkRow({ row, isCopied, onCopy, onRevoke }: LinkRowProps) {
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={row.tone}>{row.statusLabel}</Badge>
         <Badge variant="neutral">{row.permissionLabel}</Badge>
-        {row.passwordProtected && <Badge variant="neutral">có mật khẩu</Badge>}
+        {row.passwordProtected && <Badge variant="neutral">Có mật khẩu</Badge>}
         <span className="ml-auto text-xs text-text-secondary">{row.expiryText}</span>
       </div>
 
@@ -76,7 +76,7 @@ function LinkRow({ row, isCopied, onCopy, onRevoke }: LinkRowProps) {
           {row.url}
         </p>
         <IconButton
-          aria-label={isCopied ? 'đã sao chép liên kết' : 'sao chép liên kết'}
+          aria-label={isCopied ? 'Đã sao chép liên kết' : 'Sao chép liên kết'}
           icon={isCopied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           onClick={onCopy}
         />
@@ -84,7 +84,7 @@ function LinkRow({ row, isCopied, onCopy, onRevoke }: LinkRowProps) {
 
       {row.canRevoke && (
         <Button variant="ghost" size="sm" onClick={onRevoke} className="self-start">
-          thu hồi
+          Thu hồi
         </Button>
       )}
     </li>
@@ -114,8 +114,8 @@ export function ShareDialogLink({
   };
 
   return (
-    <section aria-label="liên kết chia sẻ" className="flex flex-col gap-3">
-      <h3 className="text-sm font-medium text-text-secondary">liên kết chia sẻ</h3>
+    <section aria-label="Liên kết chia sẻ" className="flex flex-col gap-3">
+      <h3 className="text-sm font-medium text-text-secondary">Liên kết chia sẻ</h3>
 
       {!canCreateLink ? (
         <p className="text-xs text-text-secondary">{noPermissionReason}</p>
@@ -123,7 +123,7 @@ export function ShareDialogLink({
         <div className="flex flex-col gap-3 rounded-lg border border-border-default p-3">
           <div className="flex flex-col gap-1">
             <Select
-              label="quyền truy cập"
+              label="Quyền truy cập"
               options={permissionSelectOptions}
               value={form.permission}
               onChange={handlePermissionChange}
@@ -133,7 +133,7 @@ export function ShareDialogLink({
 
           <div className="flex flex-col gap-1">
             <Select
-              label="hạn dùng"
+              label="Hạn dùng"
               options={expirySelectOptions}
               value={form.expiryChoiceId}
               onChange={actions.setExpiryChoice}
@@ -143,15 +143,15 @@ export function ShareDialogLink({
 
           <div className="flex flex-col gap-2">
             <Toggle
-              label="yêu cầu mật khẩu"
-              description="người xem phải nhập đúng mật khẩu trước khi mở liên kết."
+              label="Yêu cầu mật khẩu"
+              description="Người xem phải nhập đúng mật khẩu trước khi mở liên kết."
               checked={form.passwordEnabled}
               onChange={actions.setPasswordEnabled}
             />
             {form.passwordEnabled && (
               <Input
                 type="password"
-                label="mật khẩu"
+                label="Mật khẩu"
                 value={form.password}
                 error={form.problems.password}
                 onChange={(event) => {
@@ -163,8 +163,8 @@ export function ShareDialogLink({
 
           <div className="flex flex-col gap-1">
             <Toggle
-              label="kèm góc nhìn hiện tại"
-              description="liên kết mở đúng vị trí đang xem, thay vì góc nhìn mặc định của tầng."
+              label="Kèm góc nhìn hiện tại"
+              description="Liên kết mở đúng vị trí đang xem, thay vì góc nhìn mặc định của tầng."
               checked={form.includeViewpoint}
               onChange={actions.setIncludeViewpoint}
             />
@@ -177,7 +177,7 @@ export function ShareDialogLink({
             onClick={actions.createLink}
             className="self-start"
           >
-            tạo liên kết
+            Tạo liên kết
           </Button>
         </div>
       )}

@@ -307,7 +307,7 @@ const minimalModelVersion = {
   evaluationStatus: 'pending',
   family: 'openingAndFurnitureDetection',
   id: MDL,
-  label: 'gốc',
+  label: 'Gốc',
   weightsFormat: 'onnx',
 };
 

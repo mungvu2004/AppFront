@@ -96,7 +96,7 @@ describe('[A6] nhãn tiếng Việt', () => {
   });
 });
 
-describe('khả năng tiếp cận', () => {
+describe('Khả năng tiếp cận', () => {
   it.each(STATES)('trạng thái "%s" qua được bộ soát', (state) => {
     const { container } = renderState(state);
     expectAccessible(container);
@@ -230,7 +230,7 @@ describe('lỗi và thu gọn đều có đường đi tiếp', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'mở khung xem' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở khung xem' }));
     expect(onExpand).toHaveBeenCalledTimes(1);
   });
 });

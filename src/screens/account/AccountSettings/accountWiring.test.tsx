@@ -120,7 +120,7 @@ function mount(
 }
 
 async function loaded() {
-  const field = await screen.findByLabelText('họ tên');
+  const field = await screen.findByLabelText('Họ tên');
 
   await waitFor(() => {
     expect(field).toHaveValue('An');
@@ -200,10 +200,10 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
     mount(settingsGateway({ save }));
     await loaded();
 
-    fireEvent.change(screen.getByLabelText('điện thoại'), { target: { value: 'x'.repeat(40) } });
+    fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: 'x'.repeat(40) } });
     expect(await screen.findByText('Số điện thoại tối đa 32 ký tự.', {}, SAVE_WAIT)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('điện thoại'), { target: { value: '0912' } });
+    fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: '0912' } });
     await waitFor(() => {
       expect(save).toHaveBeenCalledTimes(2);
     }, SAVE_WAIT);
@@ -535,7 +535,7 @@ describe('chủ đề và chỉ báo lưu của hai khối chưa có dây', () =
     mount(settingsGateway({ save }), { announcer });
     await loaded();
 
-    fireEvent.click(screen.getByRole('switch', { name: 'hiện lưới 100 mm' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
 
     await waitFor(() => {
       expect(save).toHaveBeenCalledTimes(1);
@@ -752,8 +752,8 @@ describe('phiên đăng nhập và vùng nguy hiểm', () => {
       await Promise.resolve();
     });
 
-    expect(screen.queryByRole('heading', { level: 2, name: 'phiên đăng nhập' })).toBeNull();
-    expect(screen.queryByRole('heading', { level: 2, name: 'vùng nguy hiểm' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Phiên đăng nhập' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Vùng nguy hiểm' })).toBeNull();
     expect(container.querySelector('#account-sessions, #account-danger')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xoá tài khoản' })).toBeNull();
     expect(auth.listSessions).not.toHaveBeenCalled();
@@ -774,8 +774,8 @@ describe('v2 — khi cổng bật năng lực', () => {
     mount(settingsGateway(), { auth });
     await loaded();
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'phiên đăng nhập' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'vùng nguy hiểm' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Phiên đăng nhập' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Vùng nguy hiểm' })).toBeTruthy();
     await waitFor(() => {
       expect(auth.listSessions).toHaveBeenCalled();
     });
@@ -813,7 +813,7 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
     await screen.findByDisplayValue('Phạm An');
     expect(readProfile).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('switch', { name: 'hiện lưới 100 mm' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
     await waitFor(() => {
       expect(
         client.getQueryData<AccountDraft>(queryKeys.me.profile())?.appearance['showGrid'],

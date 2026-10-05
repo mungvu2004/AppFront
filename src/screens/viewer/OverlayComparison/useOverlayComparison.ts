@@ -101,39 +101,39 @@ import { OVERLAY_MISSING_CAPABILITIES } from './types';
 /* -------------------------------------------------------------------------- */
 
 const COPY = {
-  confirmButton: 'xác nhận mô hình khớp bản vẽ',
+  confirmButton: 'Xác nhận mô hình khớp bản vẽ',
   confirmedWithinTolerance:
-    'mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
+    'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
   confirmedWithDeviations:
-    'bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai.',
-  emptyNotice: 'tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
-  errorFrameNotice: 'không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
-  errorReadNotice: 'không đọc được ảnh bản vẽ gốc của tầng này.',
-  errorScaleNotice: 'không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
-  forbiddenNotice: 'bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.',
+    'Bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai.',
+  emptyNotice: 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
+  errorFrameNotice: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
+  errorReadNotice: 'Không đọc được ảnh bản vẽ gốc của tầng này.',
+  errorScaleNotice: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
+  forbiddenNotice: 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.',
   layerDeviation: 'vùng lệch',
-  layerGeometry: 'hình học sinh ra',
-  layerScan: 'ảnh quét gốc',
-  loadingNotice: 'đang tải ảnh bản vẽ gốc.',
-  metricMax: 'sai số lớn nhất',
-  metricMean: 'sai số trung bình',
+  layerGeometry: 'Hình học sinh ra',
+  layerScan: 'Ảnh quét gốc',
+  loadingNotice: 'Đang tải ảnh bản vẽ gốc.',
+  metricMax: 'Sai số lớn nhất',
+  metricMean: 'Sai số trung bình',
   metricOverTolerance: 'số vùng vượt ngưỡng',
-  noFloorNotice: 'dự án này chưa có tầng nào để đối chiếu.',
-  sideBySideDisabled: 'khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.',
-  toleranceLabel: 'dung sai',
+  noFloorNotice: 'Dự án này chưa có tầng nào để đối chiếu.',
+  sideBySideDisabled: 'Khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.',
+  toleranceLabel: 'Dung sai',
 } as const;
 
 /** Ví dụ `"chỉ 2 trong 4 tầng có ảnh gốc để đối chiếu."`. */
 const partialScanNotice = (withScan: string, total: string): string =>
-  `chỉ ${withScan} trong ${total} tầng có ảnh gốc để đối chiếu.`;
+  `Chỉ ${withScan} trong ${total} tầng có ảnh gốc để đối chiếu.`;
 
 /** Ví dụ `"còn 1 tầng chưa dựng hình học."`. */
 const partialGeometryNotice = (pending: string): string =>
-  `còn ${pending} tầng chưa dựng hình học.`;
+  `Còn ${pending} tầng chưa dựng hình học.`;
 
 /** Ví dụ `"còn 3 vùng vượt dung sai."`. */
 const partialDeviationNotice = (overTolerance: string): string =>
-  `còn ${overTolerance} vùng vượt dung sai.`;
+  `Còn ${overTolerance} vùng vượt dung sai.`;
 
 /* -------------------------------------------------------------------------- */
 /* Hằng số của màn.                                                            */

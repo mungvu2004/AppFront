@@ -62,12 +62,12 @@ import {
 } from './axisGridManagerGateway';
 import { axisGridScenarioFor } from './axisGridManagerScenarios';
 
-const SCREEN_ARIA_LABEL = 'quản lý trục và gốc toạ độ';
+const SCREEN_ARIA_LABEL = 'Quản lý trục và gốc toạ độ';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
 const AXIS_PANEL_TITLE = 'Trục';
 const ORIGIN_PANEL_TITLE = 'Gốc toạ độ';
 const ALIGN_PANEL_TITLE = 'Căn chỉnh giữa các tầng';
-const EXPAND_PANEL_LABEL = 'bảng trục đang thu gọn';
+const EXPAND_PANEL_LABEL = 'Bảng trục đang thu gọn';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
@@ -186,7 +186,7 @@ describe('[NGHIEM-3] độ lệch gốc toạ độ hiện bằng chữ, đủ h
   it('bốn nhãn lệch — hai pixel, hai milimét — cùng có mặt trên màn', () => {
     renderState('success');
 
-    const labels = ['lệch X (pixel)', 'lệch Y (pixel)', 'lệch X (mm)', 'lệch Y (mm)'];
+    const labels = ['Lệch X (pixel)', 'Lệch Y (pixel)', 'Lệch X (mm)', 'Lệch Y (mm)'];
     const found = labels.filter((label) => screen.queryAllByText(label).length > 0);
 
     console.log(`nhãn độ lệch có mặt: ${String(found.length)}/4 — ${found.join(' · ')}`);

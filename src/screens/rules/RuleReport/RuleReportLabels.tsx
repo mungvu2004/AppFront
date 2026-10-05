@@ -46,9 +46,9 @@ export type BadgeVariant = 'verified' | 'attention' | 'violation' | 'neutral';
  * Mirror of `RULE_SEVERITY_LABELS` (`src/domain/rules/registry.ts:63-67`).
  */
 export const SEVERITY_LABELS: Readonly<Record<RuleSeverity, string>> = {
-  critical: 'nghiêm trọng',
-  warning: 'cảnh báo',
-  suggestion: 'gợi ý',
+  critical: 'Nghiêm trọng',
+  warning: 'Cảnh báo',
+  suggestion: 'Gợi ý',
 };
 
 /**
@@ -72,11 +72,11 @@ export const SEVERITY_BADGE: Readonly<Record<RuleSeverity, BadgeVariant>> = {
  * Mirror of `RULE_GROUP_LABELS` (`src/domain/rules/registry.ts:82-88`).
  */
 export const GROUP_LABELS: Readonly<Record<RuleGroup, string>> = {
-  geometry: 'hình học',
-  circulation: 'lưu thông',
-  area: 'diện tích',
-  annotation: 'ghi chú',
-  levels: 'cao độ tầng',
+  geometry: 'Hình học',
+  circulation: 'Lưu thông',
+  area: 'Diện tích',
+  annotation: 'Ghi chú',
+  levels: 'Cao độ tầng',
 };
 
 /** The order the group filter lists its options in. */

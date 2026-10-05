@@ -101,7 +101,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 p-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-[20px] font-semibold text-text-primary">cài đặt tài khoản</h1>
+            <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt tài khoản</h1>
             <p className="text-[13px] text-text-secondary">
               Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.
             </p>
@@ -114,7 +114,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
           <>
             <AccountBlock
               id="account-profile"
-              title="hồ sơ"
+              title="Hồ sơ"
               description="Tên, ảnh đại diện và thông tin liên hệ."
               isLoading={isLoading}
             >
@@ -123,7 +123,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
 
             <AccountBlock
               id="account-appearance"
-              title="giao diện"
+              title="Giao diện"
               description="Chủ đề sáng, tối, hoặc theo hệ thống."
               isLoading={isLoading}
             >
@@ -132,7 +132,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
 
             <AccountBlock
               id="account-notifications"
-              title="thông báo"
+              title="Thông báo"
               description="Việc nào báo qua thư điện tử, việc nào báo trong ứng dụng."
               isLoading={isLoading}
             >
@@ -141,7 +141,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
 
             <AccountBlock
               id="account-shortcuts"
-              title="phím tắt"
+              title="Phím tắt"
               description="Những phím tắt đang có hiệu lực trong ứng dụng."
               isLoading={isLoading}
             >
@@ -150,7 +150,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
 
             <AccountBlock
               id="account-password"
-              title="mật khẩu"
+              title="Mật khẩu"
               description="Đổi mật khẩu đăng nhập."
               isLoading={isLoading}
             >
@@ -161,7 +161,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
             {vm.auth.sessions === null ? null : (
               <AccountBlock
                 id="account-sessions"
-                title="phiên đăng nhập"
+                title="Phiên đăng nhập"
                 description="Những máy đang đăng nhập vào tài khoản này."
                 isLoading={isLoading}
               >
@@ -172,7 +172,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
             {vm.auth.danger === null ? null : (
               <AccountBlock
                 id="account-danger"
-                title="vùng nguy hiểm"
+                title="Vùng nguy hiểm"
                 description="Những việc không hoàn tác được."
                 isLoading={isLoading}
                 tone="danger"

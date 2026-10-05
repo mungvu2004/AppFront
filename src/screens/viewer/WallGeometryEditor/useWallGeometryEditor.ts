@@ -606,7 +606,7 @@ export function useWallGeometryEditor(
 
   useShortcut({
     combo: 'Escape',
-    description: 'thoát lớp trên cùng của chế độ sửa hình học',
+    description: 'Thoát lớp trên cùng của chế độ sửa hình học',
     id: 'wallGeometryEditor.escape',
     onTrigger: onEscape,
     scope: 'canvas',

@@ -145,7 +145,7 @@ export const ErrorState: Story = {
   },
 };
 
-/** 5 — thành công: thẻ tổng kết bốn phím thật sự học được, nút chính "bắt đầu làm việc". */
+/** 5 — thành công: thẻ tổng kết bốn phím thật sự học được, nút chính "Bắt đầu làm việc". */
 export const Success: Story = {
   args: {
     ...BASE,

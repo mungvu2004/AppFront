@@ -29,6 +29,7 @@
  * là thứ không ai trỏ trúng.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
@@ -70,8 +71,8 @@ const AXIS_TICK_TARGET = 6;
 /* Chuỗi tiếng Việt tĩnh — khớp `docs/notes/thickness/t6.i18n.fragment.json`.  */
 /* -------------------------------------------------------------------------- */
 
-const HISTOGRAM_LABEL = 'biểu đồ phân bố độ dày tường theo mi-li-mét';
-const LOADING_LABEL = 'đang tải biểu đồ phân bố độ dày';
+const HISTOGRAM_LABEL = 'Biểu đồ phân bố độ dày tường theo mi-li-mét';
+const LOADING_LABEL = 'Đang tải biểu đồ phân bố độ dày';
 const AXIS_UNIT_LABEL = 'mm';
 
 /**
@@ -84,7 +85,7 @@ const AXIS_UNIT_LABEL = 'mm';
 const THRESHOLD_LABELS: readonly string[] = THICKNESS_GROUPS_MM.map((group, index) => {
   const next: ThicknessGroup = THICKNESS_GROUP_DISPLAY_ORDER[index + 1] ?? CONCRETE_COLUMN_GROUP;
 
-  return `ngưỡng giữa ${THICKNESS_GROUP_LABELS[group]} và ${THICKNESS_GROUP_LABELS[next]}`;
+  return `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[group])} và ${lowerFirst(THICKNESS_GROUP_LABELS[next])}`;
 });
 
 /* -------------------------------------------------------------------------- */

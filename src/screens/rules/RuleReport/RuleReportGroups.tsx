@@ -240,12 +240,12 @@ export function RuleReportRows({
     <Table.Root>
       <Table.Header>
         <tr>
-          <Table.Head>mức độ</Table.Head>
-          <Table.Head>mô tả</Table.Head>
-          <Table.Head>tầng</Table.Head>
-          <Table.Head>mã đối tượng</Table.Head>
+          <Table.Head>Mức độ</Table.Head>
+          <Table.Head>Mô tả</Table.Head>
+          <Table.Head>Tầng</Table.Head>
+          <Table.Head>Mã đối tượng</Table.Head>
           <Table.Head>
-            <span className="sr-only">hành động</span>
+            <span className="sr-only">Hành động</span>
           </Table.Head>
         </tr>
       </Table.Header>

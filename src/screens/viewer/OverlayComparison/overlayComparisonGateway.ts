@@ -111,13 +111,13 @@ export const FRAME_NOT_FOUND_CODE = 'FRAME_NOT_FOUND';
  */
 export const OVERLAY_MISSING_SOURCES: Readonly<Record<OverlayMissingCapability, string>> = {
   imageToModelTransform:
-    'cần một endpoint trả về gốc ảnh quét trong không gian mô hình (originMm); tỷ lệ đã có ở Level.scaleMillimetresPerPixel và góc xoay đã có ở measurement.skewDeg của quality.assess, nên createOverlayTransform chỉ còn thiếu đúng gốc',
+    'Cần một endpoint trả về gốc ảnh quét trong không gian mô hình (originMm); tỷ lệ đã có ở Level.scaleMillimetresPerPixel và góc xoay đã có ở measurement.skewDeg của quality.assess, nên createOverlayTransform chỉ còn thiếu đúng gốc',
   deviationRegions:
-    'cần một endpoint trả về trục dò từ ảnh quét theo khung pixel của ảnh (drawingAxes); phép so đã sẵn ở compareDrawingToModel của @/domain/overlay, chỉ thiếu đầu vào',
+    'Cần một endpoint trả về trục dò từ ảnh quét theo khung pixel của ảnh (drawingAxes); phép so đã sẵn ở compareDrawingToModel của @/domain/overlay, chỉ thiếu đầu vào',
   matchMetrics:
-    'phụ thuộc deviationRegions: không có vùng lệch thì không có gì để tổng hợp; summariseDeviations và countOverTolerance đã sẵn ở @/domain/overlay',
+    'Phụ thuộc deviationRegions: không có vùng lệch thì không có gì để tổng hợp; summariseDeviations và countOverTolerance đã sẵn ở @/domain/overlay',
   confirmFloorMatch:
-    'cần một endpoint nhận lượt xác nhận của người duyệt, dạng POST .../projects/:projectId/floors/:floorId/overlay-confirmation; hôm nay lượt ghi chỉ sống trong phiên trình duyệt',
+    'Cần một endpoint nhận lượt xác nhận của người duyệt, dạng POST .../projects/:projectId/floors/:floorId/overlay-confirmation; hôm nay lượt ghi chỉ sống trong phiên trình duyệt',
 };
 
 /** Một việc làm được, kèm kết quả. */

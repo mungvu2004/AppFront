@@ -26,11 +26,11 @@
  */
 import type { GalleryScreenEntry, ScreenStateEntry } from './stateGalleryTypes';
 
-const FRAMES_REGION_LABEL = 'khung xem trước bảy trạng thái';
-const FRAME_MISSING = 'chưa có mẫu cho trạng thái này';
-const FRAME_PRESENT = 'đã có mẫu';
+const FRAMES_REGION_LABEL = 'Khung xem trước bảy trạng thái';
+const FRAME_MISSING = 'Chưa có mẫu cho trạng thái này';
+const FRAME_PRESENT = 'Đã có mẫu';
 const STORY_NAME_LABEL = 'tên mẫu';
-const SPACING_GRID_LABEL = 'lưới đo khoảng cách';
+const SPACING_GRID_LABEL = 'Lưới đo khoảng cách';
 
 /** Độ mờ của lưới đo. Đủ thấy để đếm ô, đủ nhạt để không ăn mất nội dung khung. */
 const SPACING_GRID_OPACITY = 0.4;

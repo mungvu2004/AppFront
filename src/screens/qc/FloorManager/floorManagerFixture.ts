@@ -157,7 +157,7 @@ function buildRow(seed: FloorSeed): FloorRowVm {
     elevationMm: seed.elevationMm,
     heightText,
     heightMm: seed.heightMm,
-    drawingCountText: hasDrawing ? `${seed.drawingCount} bản vẽ` : 'chưa có bản vẽ',
+    drawingCountText: hasDrawing ? `${seed.drawingCount} bản vẽ` : 'Chưa có bản vẽ',
     drawingCount: seed.drawingCount,
     hasDrawing,
     wallCountText: seed.wallCount === null ? MISSING_VALUE : formatNumber(seed.wallCount),
@@ -240,8 +240,8 @@ export const FLOOR_MANAGER_FIXTURE_TOTAL_HEIGHT_TEXT = formatLength(TOTAL_STACK_
 /* Chuỗi tĩnh — nguyên văn mục C của bản thiết kế, không gõ câu mới (A6).      */
 /* -------------------------------------------------------------------------- */
 
-const EMPTY_NOTICE = 'thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.';
-const FORBIDDEN_NOTICE = 'vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.';
+const EMPTY_NOTICE = 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.';
+const FORBIDDEN_NOTICE = 'Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.';
 
 const ERROR_MESSAGE = describeError(toAppError(new Error('network: không tải được danh sách tầng'))).description;
 

@@ -68,11 +68,11 @@ const DEFER_NOTE =
  * typecheck chứ không phải hiện ra chữ tiếng Anh trên màn của người dùng.
  */
 const ENTITY_KIND_LABEL: Readonly<Record<ConflictVm['entityType'], string>> = {
-  vertex: 'đỉnh',
+  vertex: 'Đỉnh',
   wall: 'tường',
-  door: 'cửa đi',
-  window: 'cửa sổ',
-  furniture: 'nội thất',
+  door: 'Cửa đi',
+  window: 'Cửa sổ',
+  furniture: 'Nội thất',
   room: 'phòng',
   dimension: 'kích thước',
 };
@@ -174,7 +174,7 @@ export function ConflictPanel({
       id: 'sidePanel.collaborationConflict.defer',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'hoãn lại, đóng tấm xung đột mà không chọn bản nào',
+      description: 'Hoãn lại, đóng tấm xung đột mà không chọn bản nào',
       onTrigger: onDeferConflict,
     },
     { enabled: conflict !== null },

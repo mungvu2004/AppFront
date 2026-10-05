@@ -228,7 +228,7 @@ describe('bộ mẫu chuẩn, đo từ chính fixture', () => {
 /* 3. Bảy trạng thái, khả năng tiếp cận, tiếng Việt.                           */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('không trạng thái nào dựng ra màn trắng', () => {
     expectSevenStates((scenario) => {
       const { container, unmount } = renderWithProviders(

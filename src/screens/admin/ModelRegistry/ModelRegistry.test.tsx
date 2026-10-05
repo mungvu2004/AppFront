@@ -133,10 +133,10 @@ describe('A11 — bảy trạng thái', () => {
 
 describe('Bốn bộ khẳng định dùng chung', () => {
   it.each([
-    ['thành công', MODEL_REGISTRY_SCENARIO_SUCCESS],
-    ['một phần', MODEL_REGISTRY_SCENARIO_PARTIAL],
-    ['không có quyền', MODEL_REGISTRY_SCENARIO_FORBIDDEN],
-    ['thu gọn', MODEL_REGISTRY_SCENARIO_COLLAPSED],
+    ['Thành công', MODEL_REGISTRY_SCENARIO_SUCCESS],
+    ['Một phần', MODEL_REGISTRY_SCENARIO_PARTIAL],
+    ['Không có quyền', MODEL_REGISTRY_SCENARIO_FORBIDDEN],
+    ['Thu gọn', MODEL_REGISTRY_SCENARIO_COLLAPSED],
   ])('expectAccessible: %s', (_label, model) => {
     renderView(model);
 
@@ -144,10 +144,10 @@ describe('Bốn bộ khẳng định dùng chung', () => {
   });
 
   it.each([
-    ['thành công', MODEL_REGISTRY_SCENARIO_SUCCESS],
-    ['một phần', MODEL_REGISTRY_SCENARIO_PARTIAL],
-    ['rỗng', MODEL_REGISTRY_SCENARIO_EMPTY],
-    ['lỗi', MODEL_REGISTRY_SCENARIO_ERROR],
+    ['Thành công', MODEL_REGISTRY_SCENARIO_SUCCESS],
+    ['Một phần', MODEL_REGISTRY_SCENARIO_PARTIAL],
+    ['Rỗng', MODEL_REGISTRY_SCENARIO_EMPTY],
+    ['Lỗi', MODEL_REGISTRY_SCENARIO_ERROR],
   ])('expectVietnamese: %s — chỉ bảy từ kỹ thuật được để không dấu', (_label, model) => {
     const { container } = renderView(model);
 
@@ -161,7 +161,7 @@ describe('Bốn bộ khẳng định dùng chung', () => {
   });
 });
 
-describe('A5 — đầu ra AI không bao giờ "đã xác minh"', () => {
+describe('A5 — đầu ra AI không bao giờ "Đã xác minh"', () => {
   it('màn thành công không có phần tử lớp state-verified', () => {
     const { container } = renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 
@@ -228,11 +228,11 @@ describe('Bảng phiên bản', () => {
 });
 
 describe('Đầu trang, chi tiết, dải 409', () => {
-  it('breadcrumb "Quản trị › model AI" là nhãn, không liên kết; h1 viết hoa chữ đầu', () => {
+  it('breadcrumb "Quản trị › Model AI" là nhãn, không liên kết; h1 viết hoa chữ đầu', () => {
     renderView(MODEL_REGISTRY_SCENARIO_SUCCESS);
 
     const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
-    expect(nav.textContent).toBe('Quản trị›model AI');
+    expect(nav.textContent).toBe('Quản trị›Model AI');
     expect(within(nav).queryByRole('link')).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Model AI của chuỗi xử lý' })).toBeInTheDocument();
   });

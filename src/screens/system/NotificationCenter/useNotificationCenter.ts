@@ -153,18 +153,18 @@ const MARK_READ_NOTIFICATION_TYPE = 'notification-mark-read';
 export const NOTIFICATION_CENTER_TEXT = {
   headingToday: 'Hôm nay',
   headingYesterday: 'Hôm qua',
-  liveEmpty: 'không có thông báo nào',
-  liveAllRead: 'không còn thông báo chưa đọc',
-  loadFailed: 'không đọc được danh sách thông báo',
-  markReadFailed: 'không đánh dấu được là đã đọc',
-  markedAllRead: 'đã đánh dấu tất cả là đã đọc',
-  markedRead: 'đã đánh dấu là đã đọc',
-  settingsLabel: 'cài đặt thông báo',
+  liveEmpty: 'Không có thông báo nào',
+  liveAllRead: 'Không còn thông báo chưa đọc',
+  loadFailed: 'Không đọc được danh sách thông báo',
+  markReadFailed: 'Không đánh dấu được là đã đọc',
+  markedAllRead: 'Đã đánh dấu tất cả là đã đọc',
+  markedRead: 'Đã đánh dấu là đã đọc',
+  settingsLabel: 'Cài đặt thông báo',
 } as const;
 
 /** Câu của vùng `aria-live` khi còn mục chưa đọc. Một chỗ dựng, một chỗ sửa. */
 function unreadLiveMessage(badge: string): string {
-  return `có ${badge} thông báo chưa đọc`;
+  return `Có ${badge} thông báo chưa đọc`;
 }
 
 /* -------------------------------------------------------------------------- */

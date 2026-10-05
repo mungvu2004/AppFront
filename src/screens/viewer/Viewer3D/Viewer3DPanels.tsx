@@ -209,7 +209,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
       id: 'viewer3d.panels.close',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'đóng bảng phụ đang mở',
+      description: 'Đóng bảng phụ đang mở',
       onTrigger: () => {
         onTogglePanel(null);
       },

@@ -5,7 +5,7 @@ import { ROUTES, pathOf } from '../fixtures/routes';
 import { TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
 
 /**
- * Hộp thoại "chia sẻ bản vẽ" (`ShareDialog`, không có route) — mở từ nút "chia sẻ"
+ * Hộp thoại "Chia sẻ bản vẽ" (`ShareDialog`, không có route) — mở từ nút "chia sẻ"
  * của `ExportPanel` (`ROUTES.project.export`). Nhóm V3, kế hoạch mục 4
  * (`docs/notes/e2e/plan.md`, ca V3-SHARE-1) + phát hiện F2.
  *
@@ -25,7 +25,7 @@ import { TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
  * - Vai viewer: chưa đo đường nạp + đăng nhập viewer cùng lúc; đơn vị có `forbidden`.
  * - Sao chép ra clipboard thật: cần quyền `clipboard-read`.
  * - Tour: từ bản sửa `f35ce7a` (B-V2-01), khi nút "xuất" có mặt (cổng nạp kho xong) thì `EditorTour`
- *   TỰ HIỆN thẻ "lấy tệp mang đi" — bài CHỜ thẻ ấy rồi bấm "bỏ qua" trước cú bấm "chia sẻ"
+ *   TỰ HIỆN thẻ "Lấy tệp mang đi" — bài CHỜ thẻ ấy rồi bấm "bỏ qua" trước cú bấm "chia sẻ"
  *   (không dùng `dismissTour` mặc định: nó đếm một lần, không chờ, nên chập chờn ở đây).
  */
 
@@ -53,7 +53,7 @@ const COLD_START_TIMEOUT_MS = 60_000;
 
 const PROJECT_ID = 'project-1';
 const EXPORT = ROUTES.project.export(PROJECT_ID);
-const SCREEN_HEADING = 'xuất bản vẽ';
+const SCREEN_HEADING = 'Xuất bản vẽ';
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(COLD_START_TIMEOUT_MS);
@@ -114,7 +114,7 @@ async function openShareDialog(page: Page): Promise<Locator> {
   // Chuột thường: chip "xem hướng dẫn" từng đè nút này (B-V2-05, đã sửa) —
   // bài riêng ở `tour-chip.spec.ts`.
   await shareButton(page).click({ timeout: ACTIONABLE_TIMEOUT_MS });
-  const dialog = page.getByRole('dialog', { name: 'chia sẻ bản vẽ' });
+  const dialog = page.getByRole('dialog', { name: 'Chia sẻ bản vẽ' });
   await expect(dialog).toBeVisible();
   return dialog;
 }
@@ -128,7 +128,7 @@ test('không bơm kho: /export đi bằng đường sản phẩm thì cổng n�
   });
 
   await openExport(page);
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
   await expect(shareButton(page)).toHaveCount(0);
   expect(shareLinkRequests).toEqual([]);
 });
@@ -151,7 +151,7 @@ test('nút "chia sẻ" mở hộp thoại với tiêu điểm đầu ở "Đóng
  * thoại xong thì `EditorTour` hiện lên và nền tối của nó chặn cú bấm mở lại. Tách bài thì
  * không bài nào phải bấm qua thời điểm ấy, dù tour hiện ở bước nào.
  */
-test('trong hộp thoại "chia sẻ bản vẽ", 30 lần Tab không đưa tiêu điểm ra ngoài (V3-SHARE-1)', async ({
+test('trong hộp thoại "Chia sẻ bản vẽ", 30 lần Tab không đưa tiêu điểm ra ngoài (V3-SHARE-1)', async ({
   page,
 }) => {
   test.skip(true, SHARE_LINKS_V2_SKIP);
@@ -176,7 +176,7 @@ test('máy chủ giả trả danh sách rỗng: mở hộp thoại chia sẻ th�
   test.skip(true, SHARE_LINKS_V2_SKIP);
   await page.route(SHARE_LINKS, (route) => route.fulfill({ json: [] }));
   const dialog = await openShareDialog(page);
-  await expect(dialog.getByRole('region', { name: 'liên kết chia sẻ' })).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Liên kết chia sẻ' })).toBeVisible();
   await expect(dialog.getByRole('alert')).toHaveCount(0);
 });
 
@@ -230,7 +230,7 @@ test('máy chủ giả có một liên kết: "thu hồi" hỏi xác nhận trư
  * `onToast` cho hộp thoại chia sẻ, nên mọi toast của hộp thoại câm. Đã kiểm đỏ trên mã
  * chưa sửa.
  */
-test('máy chủ giả: "tạo liên kết" trong hộp thoại chia sẻ hiện toast "đã tạo liên kết chia sẻ"', async ({
+test('máy chủ giả: "Tạo liên kết" trong hộp thoại chia sẻ hiện toast "Đã tạo liên kết chia sẻ"', async ({
   page,
 }) => {
   test.skip(true, SHARE_LINKS_V2_SKIP);
@@ -241,9 +241,9 @@ test('máy chủ giả: "tạo liên kết" trong hộp thoại chia sẻ hiện
   );
   const dialog = await openShareDialog(page);
 
-  await dialog.getByRole('button', { name: 'tạo liên kết' }).click();
+  await dialog.getByRole('button', { name: 'Tạo liên kết' }).click();
 
   await expect(
-    page.getByRole('region', { name: 'Thông báo' }).filter({ hasText: 'đã tạo liên kết chia sẻ' }),
+    page.getByRole('region', { name: 'Thông báo' }).filter({ hasText: 'Đã tạo liên kết chia sẻ' }),
   ).toBeVisible();
 });

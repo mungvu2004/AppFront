@@ -30,7 +30,7 @@ const TEXT = {
   noLogs: 'Chưa có dòng nhật ký.',
 } as const;
 
-const METRIC_HEADERS = ['Bước', 'Vòng', 'Tập', 'loss'] as const;
+const METRIC_HEADERS = ['Bước', 'Vòng', 'Tập', 'Loss'] as const;
 const METRIC_TAIL = 'Lúc';
 const LOG_HEADERS = ['Lúc', 'Mức', 'Nội dung'] as const;
 /** Cách mép dưới bao nhiêu px thì vẫn tính là "đang ở cuối". */

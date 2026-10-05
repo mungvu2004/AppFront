@@ -86,7 +86,7 @@ async function openViewer(page: Page): Promise<void> {
 /** goto → cổng nạp kho (B-V12-01) → nút "xuất" (neo của bước tour) có mặt. */
 async function openExport(page: Page): Promise<void> {
   await page.goto(EXPORT);
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible({
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -160,7 +160,7 @@ for (const host of HOSTS) {
   }
 }
 
-test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp thoại "chia sẻ bản vẽ" (B-V2-05)', async ({
+test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp thoại "Chia sẻ bản vẽ" (B-V2-05)', async ({
   page,
 }) => {
   // F-06 (E6=B): liên kết chia sẻ là v2 — bản v1 không có nút "chia sẻ". Gỡ khi v2 lật cờ.
@@ -171,5 +171,5 @@ test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp tho�
 
   await page.getByRole('button', { name: 'chia sẻ', exact: true }).click({ timeout: ACTIONABLE_TIMEOUT_MS });
 
-  await expect(page.getByRole('dialog', { name: 'chia sẻ bản vẽ' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Chia sẻ bản vẽ' })).toBeVisible();
 });

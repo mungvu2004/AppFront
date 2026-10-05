@@ -88,14 +88,14 @@ export interface PascalViewerProps {
 
 /** Nhãn tiếng Việt cho từng trạng thái, viết thường kiểu câu (A6). */
 export const PASCAL_VIEWER_CAPTIONS: Readonly<Record<PascalViewerState, string>> = {
-  loading: 'đang nạp khung dựng hình…',
-  empty: 'bản vẽ chưa có đối tượng nào để dựng.',
-  partial: 'đã dựng xong, nhưng một số đối tượng chưa chuyển sang được.',
-  success: 'đã dựng xong toàn bộ bản vẽ.',
-  error: 'không nạp được khung dựng hình.',
-  forbidden: 'màn xem 3D mới chưa bật cho tài khoản này.',
-  collapsed: 'khung xem đang thu gọn để đỡ tốn máy.',
+  loading: 'Đang nạp khung dựng hình…',
+  empty: 'Bản vẽ chưa có đối tượng nào để dựng.',
+  partial: 'Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được.',
+  success: 'Đã dựng xong toàn bộ bản vẽ.',
+  error: 'Không nạp được khung dựng hình.',
+  forbidden: 'Màn xem 3D mới chưa bật cho tài khoản này.',
+  collapsed: 'Khung xem đang thu gọn để đỡ tốn máy.',
 };
 
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */
-export const PASCAL_VIEWER_TITLE = 'mô hình 3d';
+export const PASCAL_VIEWER_TITLE = 'Mô hình 3d';

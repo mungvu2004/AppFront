@@ -79,7 +79,7 @@ const PREVIEW_WIDTH = 'w-[344px]';
 /** Where you are. Text, because the view was given nothing to navigate with. */
 function RuleReportTrail() {
   return (
-    <nav aria-label="đường dẫn trang" className="text-sm text-text-secondary">
+    <nav aria-label="Đường dẫn trang" className="text-sm text-text-secondary">
       <ol className="flex items-center gap-2">
         <li>Dự án</li>
         <li aria-hidden="true">›</li>
@@ -144,7 +144,7 @@ function DonePanel({ evaluated, onConfirmResolved }: DonePanelProps) {
         nào bắt được lỗi.
       </p>
       <Badge variant="neutral" noDot>
-        lượt chạy này không có vi phạm
+        Lượt chạy này không có vi phạm
       </Badge>
       <Button variant="secondary" onClick={onConfirmResolved}>
         Sang bước xuất bản
@@ -293,7 +293,7 @@ export function RuleReport(props: RuleReportViewProps) {
                 href={props.settingsPath}
                 className={cn('rounded text-sm text-accent underline', FOCUS_RING)}
               >
-                cài đặt bộ luật
+                Cài đặt bộ luật
               </a>
             )}
             {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02). */}

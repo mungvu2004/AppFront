@@ -24,7 +24,7 @@ const rail = (page: Page) => page.getByRole('toolbar', { name: 'Công cụ lớp
 
 async function openSeeded(page: Page): Promise<void> {
   await page.goto(ROUTES.project.objects(QC_PROJECT, QC_FLOOR.objects));
-  await expect(page.getByRole('region', { name: 'lớp đối tượng', exact: true })).toBeVisible({
+  await expect(page.getByRole('region', { name: 'Lớp đối tượng', exact: true })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedQc(page, 'objects');
@@ -69,14 +69,14 @@ test('[bơm] ba nút "chọn nhóm" bấm được bằng chuột ngay từ đ�
   await door.click();
 
   /* Nhóm đã chọn thì ray mở các ô loại con của nó. */
-  await expect(rail(page).getByRole('button', { name: /^đổi thành .* \(phím 1\)$/u })).toBeVisible();
+  await expect(rail(page).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeVisible();
 });
 
 test('[bơm] phím D chọn nhóm qua sổ phím thật, Escape bỏ chọn đối tượng (O-1)', async ({ page }) => {
   await openSeeded(page);
 
   await page.keyboard.press('d');
-  await expect(rail(page).getByRole('button', { name: /^đổi thành .* \(phím 1\)$/u })).toBeVisible();
+  await expect(rail(page).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeVisible();
 
   const first = page.getByRole('option').first();
   await first.click();

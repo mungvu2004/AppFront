@@ -134,7 +134,7 @@ export function WallThicknessLegend({
             className="font-mono text-[10px] text-accent leading-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             aria-label="Xoá lọc"
           >
-            xoá
+            Xoá
           </button>
         )}
       </div>

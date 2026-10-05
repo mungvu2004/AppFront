@@ -731,7 +731,7 @@ describe('áp dụng lại bộ lọc', () => {
 /* 6. Bảy trạng thái (A11/R-63).                                               */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('bảy kịch bản phủ đúng bảy nhánh của SEVEN_STATES', () => {
     expect(THICKNESS_STANDARDIZATION_SCENARIOS.map((scenario) => scenario.state)).toEqual([
       ...SEVEN_STATES,
@@ -750,11 +750,11 @@ describe('bảy trạng thái', () => {
   });
 
   it.each([
-    ['rỗng', THICKNESS_SCENARIO_EMPTY],
-    ['một phần', THICKNESS_SCENARIO_PARTIAL],
-    ['lỗi', THICKNESS_SCENARIO_ERROR],
-    ['không có quyền', THICKNESS_SCENARIO_FORBIDDEN],
-    ['thu gọn', THICKNESS_SCENARIO_COLLAPSED],
+    ['Rỗng', THICKNESS_SCENARIO_EMPTY],
+    ['Một phần', THICKNESS_SCENARIO_PARTIAL],
+    ['Lỗi', THICKNESS_SCENARIO_ERROR],
+    ['Không có quyền', THICKNESS_SCENARIO_FORBIDDEN],
+    ['Thu gọn', THICKNESS_SCENARIO_COLLAPSED],
   ])('kịch bản %s cho đúng trạng thái của nó', async (_label, scenario) => {
     const mounted = await mountScenario(scenario);
 

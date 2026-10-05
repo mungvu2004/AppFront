@@ -23,22 +23,22 @@ import type { ProjectRole } from '@/types/project';
 import { FILTER_ALL } from './types';
 import type { RoleFilter, StatusFilter, UserManagementToolbarProps } from './types';
 
-const SEARCH_LABEL = 'tìm người dùng';
+const SEARCH_LABEL = 'Tìm người dùng';
 const SEARCH_PLACEHOLDER = 'Tìm theo tên hoặc email...';
-const ROLE_FILTER_LABEL = 'vai';
-const STATUS_FILTER_LABEL = 'trạng thái';
-const ALL_OPTION_LABEL = 'tất cả';
+const ROLE_FILTER_LABEL = 'Vai';
+const STATUS_FILTER_LABEL = 'Trạng thái';
+const ALL_OPTION_LABEL = 'Tất cả';
 const INVITE_BUTTON_LABEL = 'Mời người dùng';
-const INVITE_ROLE_LABEL = 'vai cho lời mời';
-const INVITE_EMAILS_LABEL = 'email người được mời';
+const INVITE_ROLE_LABEL = 'Vai cho lời mời';
+const INVITE_EMAILS_LABEL = 'Email người được mời';
 const INVITE_EMAILS_PLACEHOLDER = 'Nhập email, cách nhau bằng dấu phẩy hoặc xuống dòng...';
 const INVITE_SUBMIT_LABEL = 'Gửi lời mời';
 const INVITE_CANCEL_LABEL = 'Huỷ';
-const INVALID_EMAILS_PREFIX = 'không hợp lệ:';
-const VALID_EMAIL_COUNT_SUFFIX = 'địa chỉ hợp lệ';
-const SUMMARY_USER_LABEL = 'người dùng';
-const SUMMARY_ADMIN_LABEL = 'quản trị';
-const SUMMARY_PENDING_LABEL = 'lời mời đang chờ';
+const INVALID_EMAILS_PREFIX = 'Không hợp lệ:';
+const VALID_EMAIL_COUNT_SUFFIX = 'Địa chỉ hợp lệ';
+const SUMMARY_USER_LABEL = 'Người dùng';
+const SUMMARY_ADMIN_LABEL = 'Quản trị';
+const SUMMARY_PENDING_LABEL = 'Lời mời đang chờ';
 
 export function UserManagementToolbar({ actions, invite, summary, toolbar }: UserManagementToolbarProps) {
   const roleFilterOptions = [

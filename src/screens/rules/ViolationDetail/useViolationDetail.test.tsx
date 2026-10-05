@@ -54,11 +54,11 @@ const mount = async (seed: ViolationDetailGatewaySeed): Promise<void> => {
 };
 
 /** Chính tấm trượt — announcer cũng in câu vào vùng sống của nó ở `document.body`. */
-const panel = (): HTMLElement => screen.getByRole('complementary', { name: 'chi tiết vi phạm' });
+const panel = (): HTMLElement => screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
 
 const quickFix = async (): Promise<void> => {
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'xoá đối tượng này' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá đối tượng này' }));
   });
   await waitFor(() => {
     expect(useStore.getState().spatial?.byId[VIOLATION.entityId]).toBeUndefined();

@@ -207,8 +207,8 @@ const toDomainValue = (spec: RuleThresholdSpec, shown: number): number =>
 
 /** Phạm vi một luật soi, thành câu. `RuleScope` không có bảng nhãn nào trong repo. */
 const SCOPE_PHRASE: Readonly<Record<RuleScope, string>> = Object.freeze({
-  level: 'soi trên từng tầng',
-  building: 'soi trên cả công trình',
+  level: 'Soi trên từng tầng',
+  building: 'Soi trên cả công trình',
 });
 
 /**

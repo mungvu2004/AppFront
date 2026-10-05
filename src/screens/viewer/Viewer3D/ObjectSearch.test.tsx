@@ -54,7 +54,7 @@ describe('[ObjectSearch] Ctrl+F', () => {
 
     render(
       <div>
-        <input aria-label="tên dự án" />
+        <input aria-label="Tên dự án" />
         <ObjectSearch
           isOpen={false}
           onClose={() => {}}
@@ -67,7 +67,7 @@ describe('[ObjectSearch] Ctrl+F', () => {
       </div>,
     );
 
-    fireEvent.keyDown(screen.getByLabelText('tên dự án'), { key: 'f', ctrlKey: true });
+    fireEvent.keyDown(screen.getByLabelText('Tên dự án'), { key: 'f', ctrlKey: true });
 
     expect(onOpen).not.toHaveBeenCalled();
   });

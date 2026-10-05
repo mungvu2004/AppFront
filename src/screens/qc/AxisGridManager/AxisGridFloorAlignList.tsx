@@ -50,12 +50,12 @@ export interface AxisGridFloorAlignListProps
 const PANEL_TITLE = 'Căn chỉnh giữa các tầng';
 const AUTO_ALIGN_BUTTON_LABEL = 'Căn chỉnh tự động';
 const ROOT_FLOOR_LABEL = 'tầng gốc';
-const APPROVED_BADGE_LABEL = 'đã duyệt';
+const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
 const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
   ok: 'trong dung sai',
-  warning: 'cần chú ý',
-  unalignable: 'không căn được',
+  warning: 'Cần chú ý',
+  unalignable: 'Không căn được',
 };
 
 const STATUS_DOT_TOKEN: Readonly<Record<FloorAlignStatus, string>> = {

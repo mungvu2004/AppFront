@@ -208,9 +208,9 @@ export const FLOOR_MANAGER_UNSUPPORTED_NOTICES: Readonly<
   Record<FloorManagerMissingCapability, string>
 > = {
   persistFloorContents:
-    'nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.',
+    'Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.',
   hideFloorFrom3d:
-    'ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.',
+    'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.',
 };
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
@@ -592,10 +592,10 @@ export const duplicateFloorToastDescription = (name: string): string =>
 export const REORDER_FLOORS_TOAST_DESCRIPTION = 'Đã đổi thứ tự tầng.';
 
 /** Câu trên toast hoàn tác của thêm tầng và ba lượt sửa một trường (A6: viết thường). */
-export const ADD_FLOOR_TOAST_DESCRIPTION = 'đã thêm tầng.';
-export const RENAME_FLOOR_TOAST_DESCRIPTION = 'đã đổi tên tầng.';
-export const CHANGE_ELEVATION_TOAST_DESCRIPTION = 'đã đổi cao độ tầng.';
-export const CHANGE_HEIGHT_TOAST_DESCRIPTION = 'đã đổi chiều cao tầng.';
+export const ADD_FLOOR_TOAST_DESCRIPTION = 'Đã thêm tầng.';
+export const RENAME_FLOOR_TOAST_DESCRIPTION = 'Đã đổi tên tầng.';
+export const CHANGE_ELEVATION_TOAST_DESCRIPTION = 'Đã đổi cao độ tầng.';
+export const CHANGE_HEIGHT_TOAST_DESCRIPTION = 'Đã đổi chiều cao tầng.';
 
 export interface CreateLevelEntityInput {
   readonly id: LevelId;
@@ -704,7 +704,7 @@ export function createDuplicateFloorCommand(
 
   if (source === null) {
     return refuse(FLOOR_COMMAND_TYPES.duplicate, [
-      'không tìm thấy tầng này trong bản vẽ.',
+      'Không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -781,7 +781,7 @@ export function createRemoveFloorCommand(
 
   if (level === null) {
     return refuse(FLOOR_COMMAND_TYPES.remove, [
-      'không tìm thấy tầng này trong bản vẽ.',
+      'Không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -826,10 +826,10 @@ export function createRemoveFloorCommand(
 
 /** Câu từ chối của tên tầng, mỗi `reason` một câu — đúng chữ khối `notices` của `vi.json`. */
 const RENAME_REFUSAL_BY_REASON: Readonly<Record<HumanTextFailureReason, string>> = {
-  empty: 'tên tầng không được để trống.',
-  tooLong: 'tên tầng dài quá 120 ký tự, hãy rút gọn lại.',
+  empty: 'Tên tầng không được để trống.',
+  tooLong: 'Tên tầng dài quá 120 ký tự, hãy rút gọn lại.',
   forbiddenCharacter:
-    'tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.',
+    'Tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.',
 };
 
 /** Tên đã chuẩn hoá để so trùng; tên cũ hỏng (không chuẩn hoá được) thì so nguyên chuỗi. */
@@ -862,7 +862,7 @@ export function createRenameFloorCommand(
 
   if (level === null) {
     return refuse(FLOOR_COMMAND_TYPES.rename, [
-      'không tìm thấy tầng này trong bản vẽ.',
+      'Không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -876,7 +876,7 @@ export function createRenameFloorCommand(
 
   if (name === comparableFloorName(level.name)) {
     return refuse(FLOOR_COMMAND_TYPES.rename, [
-      'tên tầng không đổi nên không có gì để lưu.',
+      'Tên tầng không đổi nên không có gì để lưu.',
     ]);
   }
 
@@ -918,7 +918,7 @@ export function createChangeFloorHeightCommands(
   const level = readOf(context.graph, 'level', input.levelId);
 
   if (level === null) {
-    return { ok: false, reasons: ['không tìm thấy tầng này trong bản vẽ.'] };
+    return { ok: false, reasons: ['Không tìm thấy tầng này trong bản vẽ.'] };
   }
 
   if (level.heightMm === input.heightMm) {

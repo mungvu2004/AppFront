@@ -51,7 +51,7 @@ export const SHEET_REGION_LABEL = 'Tấm trượt lịch sử chỉnh sửa';
 export const TIMELINE_LABEL = 'Dòng thời gian các bước đã làm';
 export const CATEGORY_CHIPS_LABEL = 'Lọc theo loại việc';
 const ACTOR_SELECT_LABEL = 'Lọc theo người thực hiện';
-const ACTOR_ALL_LABEL = 'mọi người';
+const ACTOR_ALL_LABEL = 'Mọi người';
 export const LOADING_LABEL = 'Đang tải lịch sử…';
 export const EMPTY_TITLE = 'Chưa có bước nào';
 export const EMPTY_DESCRIPTION =
@@ -68,8 +68,8 @@ export const STEP_LIMIT_DESCRIPTION =
   'Lịch sử giữ một trăm bước gần nhất. Bước cũ nhất sẽ rời khỏi danh sách khi bạn làm thêm một thao tác nữa, và không quay lại được nó nữa.';
 export const LOAD_MORE_LABEL = 'Tải thêm';
 const ARCHIVED_CAPTION = 'Những bước cũ hơn đã được lưu trữ.';
-export const COLLAPSED_CAPTION = 'bước đã làm';
-export const EXPAND_LABEL = 'mở bảng lịch sử';
+export const COLLAPSED_CAPTION = 'Bước đã làm';
+export const EXPAND_LABEL = 'Mở bảng lịch sử';
 
 /** `Select` khai `value: string`, nên "mọi người" mang một chuỗi rỗng. */
 const ALL_ACTORS_VALUE = '';

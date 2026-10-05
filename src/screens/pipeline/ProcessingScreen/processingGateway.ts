@@ -151,16 +151,16 @@ export const PROCESSING_MISSING_ENDPOINTS: Readonly<
   queuePosition:
     'ENDPOINTS.drawings.queue + trường vị trí hàng đợi trong ProgressSchema (.strict(), 7 trường) — chưa có',
   parallelFloorPipeline:
-    'endpoint trả trạng thái xử lý của MỌI tầng trong một lượt đọc — chưa có; màn tự ghép N lượt đọc drawings.progress độc lập',
+    'Endpoint trả trạng thái xử lý của MỌI tầng trong một lượt đọc — chưa có; màn tự ghép N lượt đọc drawings.progress độc lập',
   completionNotice:
-    'kênh ĐẨY từ máy chủ khi xử lý xong, sống qua cả lúc đóng thẻ (chuông thông báo) — chưa có',
+    'Kênh ĐẨY từ máy chủ khi xử lý xong, sống qua cả lúc đóng thẻ (chuông thông báo) — chưa có',
   extractionSummary:
-    'endpoint tổng kết trích xuất: wallCount, openingCount, dimensionCount, roomCount, confidencePercent — chưa có (areaM2 đã có qua spatial.readFloor)',
+    'Endpoint tổng kết trích xuất: wallCount, openingCount, dimensionCount, roomCount, confidencePercent — chưa có (areaM2 đã có qua spatial.readFloor)',
   stepDetails:
-    'endpoint chi tiết từng bước (số đối tượng tìm được, mã lỗi của riêng bước) — chưa có',
-  detectedGeometry: 'endpoint trả hình học dò được GIỮA CHỪNG lúc đang xử lý — chưa có',
+    'Endpoint chi tiết từng bước (số đối tượng tìm được, mã lỗi của riêng bước) — chưa có',
+  detectedGeometry: 'Endpoint trả hình học dò được GIỮA CHỪNG lúc đang xử lý — chưa có',
   stageBreakdown:
-    'ánh xạ Progress.step (chuỗi tự do) sang PipelineStageId — chưa có; toStageBreakdown tra cứu theo id/nhãn và chịu giả định C3',
+    'Ánh xạ Progress.step (chuỗi tự do) sang PipelineStageId — chưa có; toStageBreakdown tra cứu theo id/nhãn và chịu giả định C3',
 };
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */

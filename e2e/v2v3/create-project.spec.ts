@@ -41,7 +41,7 @@ async function openCreateDialog(page: Page, { path, opener }: (typeof HOSTS)[num
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(path);
   await page.getByRole('button', { name: opener }).click({ timeout: FIRST_PAINT_TIMEOUT_MS });
-  const dialog = page.getByRole('dialog', { name: 'tạo dự án mới' });
+  const dialog = page.getByRole('dialog', { name: 'Tạo dự án mới' });
   await expect(dialog).toBeVisible();
   return dialog;
 }
@@ -53,10 +53,10 @@ for (const host of HOSTS) {
     const name = `Dự án thử ${host.host}`;
     const dialog = await openCreateDialog(page, host);
 
-    await dialog.getByLabel('tên dự án').fill(name);
+    await dialog.getByLabel('Tên dự án').fill(name);
     await dialog.getByRole('button', { name: 'tiếp tục' }).click();
 
-    await dialog.getByLabel('chiều cao áp cho mọi tầng').fill('3,2');
+    await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill('3,2');
     await dialog.getByRole('button', { name: 'áp cho mọi tầng' }).click();
     await dialog.getByRole('button', { name: 'tiếp tục' }).click();
 
@@ -72,15 +72,15 @@ for (const host of HOSTS) {
   });
 }
 
-test('V3-CP-2: form đã gõ — Escape lần 1 hỏi "đóng và bỏ các thay đổi chưa lưu?", lần 2 mới đóng', async ({
+test('V3-CP-2: form đã gõ — Escape lần 1 hỏi "Đóng và bỏ các thay đổi chưa lưu?", lần 2 mới đóng', async ({
   page,
 }) => {
   const dialog = await openCreateDialog(page, DASHBOARD);
-  await dialog.getByLabel('tên dự án').fill('Dự án gõ dở');
+  await dialog.getByLabel('Tên dự án').fill('Dự án gõ dở');
 
   await page.keyboard.press('Escape');
   await expect(
-    dialog.getByText('đóng và bỏ các thay đổi chưa lưu?', { exact: true }),
+    dialog.getByText('Đóng và bỏ các thay đổi chưa lưu?', { exact: true }),
   ).toBeVisible();
   await expect(dialog).toBeVisible();
 
@@ -90,7 +90,7 @@ test('V3-CP-2: form đã gõ — Escape lần 1 hỏi "đóng và bỏ các thay
 });
 
 for (const host of HOSTS) {
-  test(`V3-CP-3 (${host.host}): hiện trạng — tiêu điểm đầu ở nút "Đóng hộp thoại", chưa ở ô "tên dự án" (F3)`, async ({
+  test(`V3-CP-3 (${host.host}): hiện trạng — tiêu điểm đầu ở nút "Đóng hộp thoại", chưa ở ô "Tên dự án" (F3)`, async ({
     page,
   }) => {
     const dialog = await openCreateDialog(page, host);
@@ -105,17 +105,17 @@ test('V3-CP-4: bước 1 khoá "tiếp tục" khi tên trống; bước 2 khoá 
   const next = dialog.getByRole('button', { name: 'tiếp tục' });
 
   await expect(next).toBeDisabled();
-  await dialog.getByLabel('tên dự án').fill('Dự án khoá bước');
+  await dialog.getByLabel('Tên dự án').fill('Dự án khoá bước');
   await expect(next).toBeEnabled();
   await next.click();
 
   // Bước 2 mở với bốn tầng chưa có chiều cao (đo 2026-10-03).
-  await expect(dialog.getByRole('status').filter({ hasText: /^bước 2 \/ 3$/u })).toHaveCount(1);
+  await expect(dialog.getByRole('status').filter({ hasText: /^Bước 2 \/ 3$/u })).toHaveCount(1);
   await expect(next).toBeDisabled();
   await dialog.getByLabel('chiều cao thông thuỷ tầng Tầng trệt').fill('3,2');
   await expect(next).toBeDisabled();
 
-  await dialog.getByLabel('chiều cao áp cho mọi tầng').fill('3,2');
+  await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill('3,2');
   await dialog.getByRole('button', { name: 'áp cho mọi tầng' }).click();
   await expect(next).toBeEnabled();
 });
@@ -130,12 +130,12 @@ test('V3-CP-4: bước 1 khoá "tiếp tục" khi tên trống; bước 2 khoá 
  */
 for (const host of HOSTS) {
   test(
-    `(${host.host}) tạo xong rồi mở lại: hộp thoại bắt đầu lại ở bước 1, ô "tên dự án" trống`,
+    `(${host.host}) tạo xong rồi mở lại: hộp thoại bắt đầu lại ở bước 1, ô "Tên dự án" trống`,
     async ({ page }) => {
       const dialog = await openCreateDialog(page, host);
-      await dialog.getByLabel('tên dự án').fill('Dự án tạo trước');
+      await dialog.getByLabel('Tên dự án').fill('Dự án tạo trước');
       await dialog.getByRole('button', { name: 'tiếp tục' }).click();
-      await dialog.getByLabel('chiều cao áp cho mọi tầng').fill('3,2');
+      await dialog.getByLabel('Chiều cao áp cho mọi tầng').fill('3,2');
       await dialog.getByRole('button', { name: 'áp cho mọi tầng' }).click();
       await dialog.getByRole('button', { name: 'tiếp tục' }).click();
       await dialog.getByRole('button', { name: 'tạo dự án' }).click();
@@ -143,29 +143,29 @@ for (const host of HOSTS) {
 
       await page.getByRole('button', { name: host.opener }).click();
 
-      await expect(dialog.getByRole('status').filter({ hasText: /^bước 1 \/ 3$/u })).toHaveCount(1);
-      await expect(dialog.getByLabel('tên dự án')).toHaveValue('');
+      await expect(dialog.getByRole('status').filter({ hasText: /^Bước 1 \/ 3$/u })).toHaveCount(1);
+      await expect(dialog.getByLabel('Tên dự án')).toHaveValue('');
     },
   );
 }
 
 test(
-  'bỏ thay đổi bằng Escape hai lần rồi mở lại: ô "tên dự án" trống, không còn lời hỏi bỏ thay đổi',
+  'bỏ thay đổi bằng Escape hai lần rồi mở lại: ô "Tên dự án" trống, không còn lời hỏi bỏ thay đổi',
   async ({ page }) => {
     const dialog = await openCreateDialog(page, DASHBOARD);
-    await dialog.getByLabel('tên dự án').fill('Dự án gõ dở');
+    await dialog.getByLabel('Tên dự án').fill('Dự án gõ dở');
     await page.keyboard.press('Escape');
     await expect(
-      dialog.getByText('đóng và bỏ các thay đổi chưa lưu?', { exact: true }),
+      dialog.getByText('Đóng và bỏ các thay đổi chưa lưu?', { exact: true }),
     ).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
 
     await page.getByRole('button', { name: DASHBOARD.opener }).click();
 
-    await expect(dialog.getByLabel('tên dự án')).toHaveValue('');
+    await expect(dialog.getByLabel('Tên dự án')).toHaveValue('');
     await expect(
-      dialog.getByText('đóng và bỏ các thay đổi chưa lưu?', { exact: true }),
+      dialog.getByText('Đóng và bỏ các thay đổi chưa lưu?', { exact: true }),
     ).toHaveCount(0);
   },
 );

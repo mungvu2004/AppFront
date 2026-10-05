@@ -646,7 +646,7 @@ describe('vòng tường hở', () => {
 /* Bảy trạng thái (A11/R-63).                                                  */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('bảy kịch bản phủ đúng bảy nhánh của SEVEN_STATES', () => {
     expect(ROOM_LABEL_REVIEW_SCENARIOS.map((scenario) => scenario.state)).toEqual([
       ...SEVEN_STATES,

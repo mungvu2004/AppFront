@@ -130,7 +130,7 @@ const EMPTY_SUMMARY: RuleReportSummary = Object.freeze({
 });
 
 /** Câu báo lỗi của trạng thái 4. Bộ luật chạy tại chỗ nên không có lỗi mạng để dịch. */
-const RUN_FAILED_MESSAGE = 'không chạy được bộ kiểm tra trên mô hình này.';
+const RUN_FAILED_MESSAGE = 'Không chạy được bộ kiểm tra trên mô hình này.';
 
 /** Câu báo lỗi khi N21 hỏng: chưa có cấu hình thì không chạy luật với sổ mặc định. */
 const CONFIG_FAILED_MESSAGE = 'Không tải được cấu hình bộ luật của dự án.';
@@ -339,8 +339,8 @@ const skippedGroupsOf = (
   const firstLevelId = levelIds[0];
   const remedy =
     firstLevelId === undefined
-      ? { path: ROUTES.project.floors(projectId), label: 'thêm tầng cho mô hình' }
-      : { path: ROUTES.project.rooms(projectId, firstLevelId), label: 'mở màn nhãn phòng' };
+      ? { path: ROUTES.project.floors(projectId), label: 'Thêm tầng cho mô hình' }
+      : { path: ROUTES.project.rooms(projectId, firstLevelId), label: 'Mở màn nhãn phòng' };
 
   return order.map((group) => ({
     group,

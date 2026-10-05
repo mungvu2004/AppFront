@@ -50,7 +50,7 @@ function panelPropsOf(
 
 /** Chốt tay: gõ rồi rời khỏi ô, đúng khuôn `CreateProjectModal.test.tsx:289-293`. */
 function setTolerance(text: string): void {
-  const field = screen.getByLabelText('dung sai');
+  const field = screen.getByLabelText('Dung sai');
   fireEvent.change(field, { target: { value: text } });
   fireEvent.blur(field);
 }
@@ -71,7 +71,7 @@ describe('OverlayComparisonPanel', () => {
     expect(within(metricsRegion as HTMLElement).getByText('41 mm')).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toBe('3 số vùng vượt ngưỡng');
 
-    /* "dung sai" (từ `toleranceLabel` đóng băng trong overlayComparisonScenarios.ts)
+    /* "Dung sai" (từ `toleranceLabel` đóng băng trong overlayComparisonScenarios.ts)
        là tiếng Việt đúng chính tả nhưng không âm tiết nào mang dấu — đúng "điểm
        mù đã biết" mà `expectVietnamese.ts:63-66` ghi rõ cho một cụm hai từ không
        dấu. `allowWords` là lối thoát tài liệu hoá sẵn cho đúng trường hợp này. */

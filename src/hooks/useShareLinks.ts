@@ -84,7 +84,7 @@ export type ShareExpiryChoice = (typeof SHARE_EXPIRY_CHOICES)[number];
 /** What each is called on the sheet — lower case, sentence style (A6). */
 export const SHARE_EXPIRY_LABELS: Readonly<Record<ShareExpiryChoice, string>> = {
   '1d': 'một ngày',
-  '7d': 'bảy ngày',
+  '7d': 'Bảy ngày',
   '30d': 'ba mươi ngày',
   '90d': 'chín mươi ngày',
   never: 'không đặt hạn',

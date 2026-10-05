@@ -149,7 +149,7 @@ export const REMEMBER_CHOICE_LABEL = 'Ghi nhớ lựa chọn cho dự án này';
 
 /** Chú thích nhỏ dưới ô tích: nói rõ lựa chọn chỉ sống trong phiên (chưa có API lưu). */
 export const REMEMBER_CHOICE_SESSION_NOTE =
-  'lựa chọn chỉ được giữ trong phiên làm việc này, tải lại trang sẽ hỏi lại';
+  'Lựa chọn chỉ được giữ trong phiên làm việc này, tải lại trang sẽ hỏi lại';
 
 /**
  * GIAI ĐOẠN 2 — Panel ánh xạ lớp
@@ -192,7 +192,7 @@ export const DRAWING_UNIT_LABEL = 'Đơn vị bản vẽ';
 
 /** Các tùy chọn đơn vị. */
 export const DRAWING_UNITS: Readonly<Record<string, string>> = {
-  mm: 'milimét (mm)',
+  mm: 'Milimét (mm)',
   cm: 'centimét (cm)',
   m: 'mét (m)',
   inch: 'inch',
@@ -390,16 +390,16 @@ export const CAD_BRANCH_CONFIRM_TEXT = {
 /* -------------------------------------------------------------------------- */
 
 /** Ghi chú cạnh Select "Đơn vị bản vẽ": giá trị hệ thống tự nhận là GỢI Ý, không phải quyết định. */
-export const DETECTED_UNIT_HINT_LABEL = 'gợi ý đọc được từ tệp';
+export const DETECTED_UNIT_HINT_LABEL = 'Gợi ý đọc được từ tệp';
 
 /** Nhãn trình đọc màn hình của khung canvas xem trước giai đoạn 2. */
 export const PREVIEW_CANVAS_ARIA_LABEL =
-  'xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán';
+  'Xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán';
 
 /** Nhãn trình đọc màn hình cho Select vai trò của TỪNG hàng — bảy Select giống hệt nhau thì phải phân biệt được bằng tên lớp. */
 export const layerRoleSelectAriaLabel = (layerName: string): string =>
-  `vai trò của lớp ${layerName}`;
+  `Vai trò của lớp ${layerName}`;
 
 /** Nhãn trình đọc màn hình cho ô màu CAD gốc của từng hàng. */
 export const layerSourceColorAriaLabel = (layerName: string): string =>
-  `màu gốc của lớp ${layerName}`;
+  `Màu gốc của lớp ${layerName}`;

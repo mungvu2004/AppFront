@@ -133,7 +133,7 @@ export function PasswordSection(props: PasswordSectionProps) {
   // không có ô nào để gõ, và cũng không có gì để kiểm.
   if (props.isManagedExternally) {
     return (
-      <FieldRow label="mật khẩu" isReadOnly isLast>
+      <FieldRow label="Mật khẩu" isReadOnly isLast>
         <div className="flex flex-col gap-1 py-1">
           <span className="text-[14px] text-text-primary">Đăng nhập một lần của công ty</span>
           <span className="text-[13px] text-text-secondary">{MANAGED_EXTERNALLY_REASON}</span>
@@ -152,7 +152,7 @@ export function PasswordSection(props: PasswordSectionProps) {
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
       <Input
-        label="mật khẩu hiện tại"
+        label="Mật khẩu hiện tại"
         type="password"
         autoComplete="current-password"
         value={props.currentPassword}
@@ -163,7 +163,7 @@ export function PasswordSection(props: PasswordSectionProps) {
 
       <div className="flex flex-col gap-2">
         <Input
-          label="mật khẩu mới"
+          label="Mật khẩu mới"
           type="password"
           autoComplete="new-password"
           value={props.newPassword}
@@ -175,7 +175,7 @@ export function PasswordSection(props: PasswordSectionProps) {
       </div>
 
       <Input
-        label="nhắc lại mật khẩu mới"
+        label="Nhắc lại mật khẩu mới"
         type="password"
         autoComplete="new-password"
         value={props.confirmPassword}

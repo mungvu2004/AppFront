@@ -130,13 +130,13 @@ export interface ExplodePresetViewModel {
  * `MIN_SEPARATION` và `MAX_SEPARATION`, rơi đúng vào mức phím `E` của vỏ nhảy tới.
  */
 export const EXPLODE_PRESETS: readonly ExplodePresetViewModel[] = Object.freeze([
-  Object.freeze({ id: 'merged' as const, label: 'gộp', separation: MIN_SEPARATION }),
+  Object.freeze({ id: 'merged' as const, label: 'Gộp', separation: MIN_SEPARATION }),
   Object.freeze({
     id: 'medium' as const,
-    label: 'tách vừa',
+    label: 'Tách vừa',
     separation: (MIN_SEPARATION + MAX_SEPARATION) / 2,
   }),
-  Object.freeze({ id: 'full' as const, label: 'tách hết', separation: MAX_SEPARATION }),
+  Object.freeze({ id: 'full' as const, label: 'Tách hết', separation: MAX_SEPARATION }),
 ]);
 
 /* -------------------------------------------------------------------------- */

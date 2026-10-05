@@ -43,7 +43,7 @@ test('phím / mở ô tìm và đưa con trỏ vào ô chữ; Esc đóng ô tìm
 }) => {
   await openViewer(page);
   const roomsToggle = page.getByRole('button', { name: 'Diện tích phòng', exact: true });
-  const searchBox = page.getByRole('combobox', { name: 'tìm phòng theo tên hoặc mã' });
+  const searchBox = page.getByRole('combobox', { name: 'Tìm phòng theo tên hoặc mã' });
 
   await roomsToggle.click();
   await dismissTourIfPresent(page);

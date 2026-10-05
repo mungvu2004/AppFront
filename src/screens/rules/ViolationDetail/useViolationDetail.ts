@@ -169,20 +169,20 @@ const NO_ENTITY_IDS: readonly string[] = Object.freeze([]);
  * luật hay một lời từ chối lệnh: `createDeleteFurnitureCommand` chỉ được gọi khi
  * đã có đồ thị, nên domain không có câu nào cho trường hợp này để mà mượn.
  */
-const NO_DRAWING_MESSAGE = 'chưa mở bản vẽ nào nên không áp được cách sửa.';
+const NO_DRAWING_MESSAGE = 'Chưa mở bản vẽ nào nên không áp được cách sửa.';
 
 /** Khi tiền tố của mã không nằm trong bảng — nói "đối tượng", không đoán bừa một loại. */
 const UNKNOWN_KIND_LABEL = 'đối tượng';
 
 /** Nhãn tiếng Việt của từng loại bộ phận, cho khối "Phát hiện". */
 const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
-  level: 'tầng',
+  level: 'Tầng',
   wall: 'tường',
-  opening: 'ô mở',
+  opening: 'Ô mở',
   furniture: 'đồ đạc',
   room: 'phòng',
   axis: 'trục',
-  dimension: 'kích thước ghi',
+  dimension: 'Kích thước ghi',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -197,35 +197,35 @@ const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
  */
 const CAUSE_BY_GROUP: Readonly<Record<RuleGroup, string>> = {
   geometry:
-    'hình học dựng lại từ bản vẽ có thể lệch nhẹ ở bước dò tường, nên số đo tính ra không khớp ngưỡng.',
+    'Hình học dựng lại từ bản vẽ có thể lệch nhẹ ở bước dò tường, nên số đo tính ra không khớp ngưỡng.',
   circulation:
-    'đường lưu thông được suy ra từ vị trí các ô mở, nên một ô mở đặt lệch ở bước dò làm lối đi tính ra khác thực tế.',
-  area: 'ranh phòng được khép lại từ những đoạn tường dò được, nên một đoạn còn hở làm diện tích tính ra khác dự kiến.',
+    'Đường lưu thông được suy ra từ vị trí các ô mở, nên một ô mở đặt lệch ở bước dò làm lối đi tính ra khác thực tế.',
+  area: 'Ranh phòng được khép lại từ những đoạn tường dò được, nên một đoạn còn hở làm diện tích tính ra khác dự kiến.',
   annotation:
-    'nhãn và ghi chú được gắn ở bước đọc chữ trên bản vẽ, nên một nhãn thiếu hoặc gắn nhầm phòng là khả năng thường gặp.',
+    'Nhãn và ghi chú được gắn ở bước đọc chữ trên bản vẽ, nên một nhãn thiếu hoặc gắn nhầm phòng là khả năng thường gặp.',
   levels:
-    'cao độ tầng lấy từ bảng cao độ của bản vẽ, nên một dòng đọc thiếu làm tầng này lệch so với các tầng còn lại.',
+    'Cao độ tầng lấy từ bảng cao độ của bản vẽ, nên một dòng đọc thiếu làm tầng này lệch so với các tầng còn lại.',
 };
 
 /** Một giả thuyết cho mỗi LOẠI BỘ PHẬN, nói về cách bước dò dựng ra chính nó. */
 const CAUSE_BY_KIND: Readonly<Record<EntityKind, string>> = {
-  level: 'tầng này được tách ra từ các trang bản vẽ, nên một trang xếp nhầm thứ tự cũng đủ làm cao độ lệch.',
-  wall: 'tường này có thể được dò gộp hoặc tách khác với nét vẽ gốc, nên hai đầu của nó chưa chắc nằm đúng chỗ.',
-  opening: 'ô mở này được gắn vào tường gần nhất ở bước gắn tường, nên nó có thể đang thuộc về một tường bên cạnh.',
-  furniture: 'đồ đạc này được nhận ra từ một ký hiệu trên bản vẽ, và vài ký hiệu trông rất giống nhau.',
-  room: 'phòng này được khép ranh rồi mới gắn nhãn, nên tên và ranh giới của nó chưa chắc khớp bản vẽ gốc.',
-  axis: 'trục này được dò từ nét mảnh kéo dài, nên một đường gióng cũng có thể được đọc thành trục.',
+  level: 'Tầng này được tách ra từ các trang bản vẽ, nên một trang xếp nhầm thứ tự cũng đủ làm cao độ lệch.',
+  wall: 'Tường này có thể được dò gộp hoặc tách khác với nét vẽ gốc, nên hai đầu của nó chưa chắc nằm đúng chỗ.',
+  opening: 'Ô mở này được gắn vào tường gần nhất ở bước gắn tường, nên nó có thể đang thuộc về một tường bên cạnh.',
+  furniture: 'Đồ đạc này được nhận ra từ một ký hiệu trên bản vẽ, và vài ký hiệu trông rất giống nhau.',
+  room: 'Phòng này được khép ranh rồi mới gắn nhãn, nên tên và ranh giới của nó chưa chắc khớp bản vẽ gốc.',
+  axis: 'Trục này được dò từ nét mảnh kéo dài, nên một đường gióng cũng có thể được đọc thành trục.',
   dimension:
-    'kích thước ghi này được đọc từ chuỗi chữ trên bản vẽ, nên giá trị đọc được chưa chắc khớp với hình.',
+    'Kích thước ghi này được đọc từ chuỗi chữ trên bản vẽ, nên giá trị đọc được chưa chắc khớp với hình.',
 };
 
 /** Khi mã luật không nằm trong sổ đăng ký đang dùng — một sự thật, không một lời trách. */
 const CAUSE_RULE_UNKNOWN =
-  'mã luật của phát hiện này không có trong sổ kiểm tra đang dùng, nên phần mô tả chi tiết của nó chưa đọc được.';
+  'Mã luật của phát hiện này không có trong sổ kiểm tra đang dùng, nên phần mô tả chi tiết của nó chưa đọc được.';
 
 /** Khi mã đối tượng không theo bảng tiền tố của đồ thị. */
 const CAUSE_KIND_UNKNOWN =
-  'mã đối tượng không theo bảng tiền tố của bản vẽ, nên loại bộ phận của nó chưa tra được.';
+  'Mã đối tượng không theo bảng tiền tố của bản vẽ, nên loại bộ phận của nó chưa tra được.';
 
 /**
  * Dựng danh sách nguyên nhân có thể — LUÔN ít nhất hai.
@@ -253,7 +253,7 @@ export const causesOf = (
   if (confidence !== null && confidenceLevel(confidence) !== 'certain') {
     causes.push({
       id: 'confidence',
-      text: `nhận diện tự động có thể sai — độ tin cậy chỉ ${formatNumber(confidence, {
+      text: `Nhận diện tự động có thể sai — độ tin cậy chỉ ${formatNumber(confidence, {
         fractionDigits: 2,
       })}.`,
     });
@@ -560,8 +560,8 @@ class ApplyFixError extends Error {
  */
 const resolvedMessageOf = (ruleName: string | null): string =>
   ruleName === null
-    ? 'đã sửa xong; lượt chạy lại không còn báo lỗi trên đối tượng này.'
-    : `đã sửa xong; luật ${ruleName} chạy lại và không còn báo lỗi trên đối tượng này.`;
+    ? 'Đã sửa xong; lượt chạy lại không còn báo lỗi trên đối tượng này.'
+    : `Đã sửa xong; luật ${ruleName} chạy lại và không còn báo lỗi trên đối tượng này.`;
 
 /* -------------------------------------------------------------------------- */
 /* Hook.                                                                       */
@@ -700,8 +700,8 @@ export function useViolationDetail(
     if (capabilities.canDeleteObject && kind === 'furniture') {
       rows.push({
         kind: 'deleteObject',
-        label: 'xoá đối tượng này',
-        description: `gỡ ${ENTITY_KIND_LABELS.furniture} ${violation.entityId} khỏi bản vẽ; hoàn tác được trong tám giây.`,
+        label: 'Xoá đối tượng này',
+        description: `Gỡ ${ENTITY_KIND_LABELS.furniture} ${violation.entityId} khỏi bản vẽ; hoàn tác được trong tám giây.`,
         affectedEntityIds: [violation.entityId],
       });
     }
@@ -709,7 +709,7 @@ export function useViolationDetail(
     if (capabilities.canRenameRoom && kind === 'room' && proposedRoomName !== null) {
       rows.push({
         kind: 'renameRoom',
-        label: 'đặt tên phòng theo công năng',
+        label: 'Đặt tên phòng theo công năng',
         description: `đặt tên phòng ${violation.entityId} thành "${proposedRoomName}"; hoàn tác được trong tám giây.`,
         affectedEntityIds: [violation.entityId],
       });

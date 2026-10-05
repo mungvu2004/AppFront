@@ -43,10 +43,10 @@ export const MEASURE_MODES = [
 
 /** Nhãn tiếng Việt, viết thường kiểu câu (A6). */
 export const MEASURE_MODE_LABELS: Readonly<Record<MeasureMode, string>> = {
-  pointToPoint: 'điểm đến điểm',
-  perpendicular: 'vuông góc với bề mặt',
-  height: 'chiều cao',
-  floorArea: 'diện tích mặt sàn',
+  pointToPoint: 'Điểm đến điểm',
+  perpendicular: 'Vuông góc với bề mặt',
+  height: 'Chiều cao',
+  floorArea: 'Diện tích mặt sàn',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -73,9 +73,9 @@ export const SNAP_KINDS = [
 
 /** Nhãn tiếng Việt của chip bắt điểm (A6). */
 export const SNAP_KIND_LABELS: Readonly<Record<SnapKind, string>> = {
-  vertex: 'đỉnh',
+  vertex: 'Đỉnh',
   midpoint: 'trung điểm',
-  axisIntersection: 'giao trục',
+  axisIntersection: 'Giao trục',
 };
 
 /**

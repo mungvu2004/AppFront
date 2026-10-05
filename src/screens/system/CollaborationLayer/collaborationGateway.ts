@@ -174,10 +174,10 @@ export function initialsOf(name: string): string {
  * tranh chấp, còn một nhãn bịa thì nói sai.
  */
 const FIELD_LABELS: Readonly<Record<string, string>> = Object.freeze({
-  area_m2: 'diện tích',
-  confidence: 'độ tin cậy',
+  area_m2: 'Diện tích',
+  confidence: 'Độ tin cậy',
   elevation_m: 'cao độ',
-  review_state: 'trạng thái duyệt',
+  review_state: 'Trạng thái duyệt',
   rotation_deg: 'góc xoay',
   thickness_mm: 'bề dày',
   vertices: 'các đỉnh',
@@ -191,8 +191,8 @@ export function toFieldLabel(field: string): string {
 
 /** Hai nhãn của một giá trị luận lý, viết thường kiểu câu (A6). */
 const BOOLEAN_LABELS: Readonly<Record<'true' | 'false', string>> = Object.freeze({
-  true: 'có',
-  false: 'không',
+  true: 'Có',
+  false: 'Không',
 });
 
 /**

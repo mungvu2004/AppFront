@@ -149,8 +149,8 @@ export type CompareModeId = (typeof COMPARE_MODE_IDS)[number];
 /** Tên ba kiểu trên `SegmentedControl`. Tiếng Việt, viết thường, kiểu câu (A6). */
 export const COMPARE_MODE_LABELS: Readonly<Record<CompareModeId, string>> = Object.freeze({
   overlay: 'chồng lớp',
-  swipe: 'trượt',
-  sideBySide: 'cạnh nhau',
+  swipe: 'Trượt',
+  sideBySide: 'Cạnh nhau',
 });
 
 /* -------------------------------------------------------------------------- */

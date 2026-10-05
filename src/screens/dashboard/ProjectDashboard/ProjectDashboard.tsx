@@ -77,7 +77,7 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   partial: 'một phần',
   error: 'lỗi',
   success: 'thành công',
-  forbidden: 'không có quyền',
+  forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
 const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
@@ -105,7 +105,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
     props.renamingId === project.id ? (
       <input
         autoFocus
-        aria-label={`đổi tên ${project.name}`}
+        aria-label={`Đổi tên ${project.name}`}
         value={props.renameDraft}
         onChange={(event) => props.setRenameDraft(event.target.value)}
         onBlur={props.commitRename}
@@ -275,11 +275,11 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                   <Table.Root>
                     <Table.Header>
                       <tr>
-                        <Table.Head>tên dự án</Table.Head>
-                        <Table.Head>trạng thái</Table.Head>
-                        <Table.Head>chi tiết</Table.Head>
-                        <Table.Head>tiến độ duyệt</Table.Head>
-                        <Table.Head>cập nhật</Table.Head>
+                        <Table.Head>Tên dự án</Table.Head>
+                        <Table.Head>Trạng thái</Table.Head>
+                        <Table.Head>Chi tiết</Table.Head>
+                        <Table.Head>Tiến độ duyệt</Table.Head>
+                        <Table.Head>Cập nhật</Table.Head>
                       </tr>
                     </Table.Header>
                     <Table.Body>

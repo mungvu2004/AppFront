@@ -44,7 +44,7 @@ function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) 
       width={720}
       {...(titleId !== undefined ? { titleId } : {})}
     >
-      <Modal.Header>chia sẻ bản vẽ</Modal.Header>
+      <Modal.Header>Chia sẻ bản vẽ</Modal.Header>
       <Modal.Body>
         <div className="flex flex-col gap-6 pb-8">
           {model.savedAtLabel !== null && <p className="text-xs text-text-secondary">{model.savedAtLabel}</p>}
@@ -97,19 +97,19 @@ function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) 
 function RevokeConfirm({ url, actions }: { url: string | null; actions: ShareDialogProps['actions'] }) {
   return (
     <Modal.Root isOpen={url !== null} onClose={actions.cancelRevoke}>
-      <Modal.Header>thu hồi liên kết này?</Modal.Header>
+      <Modal.Header>Thu hồi liên kết này?</Modal.Header>
       <Modal.Body>
         <p className="text-sm text-text-secondary">
-          ai đang giữ liên kết sẽ không mở được bản vẽ nữa, và không lấy lại được liên kết này.
+          Ai đang giữ liên kết sẽ không mở được bản vẽ nữa, và không lấy lại được liên kết này.
         </p>
         <p className="mt-2 truncate font-mono text-xs text-text-primary">{url}</p>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="ghost" onClick={actions.cancelRevoke}>
-          để nguyên
+          Để nguyên
         </Button>
         <Button variant="danger" onClick={actions.confirmRevoke}>
-          thu hồi
+          Thu hồi
         </Button>
       </Modal.Footer>
     </Modal.Root>

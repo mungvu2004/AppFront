@@ -23,7 +23,7 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
 /** Lần tải đầu của một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-const TITLE = 'chuẩn hoá độ dày tường';
+const TITLE = 'Chuẩn hoá độ dày tường';
 
 /** Tầng 2 của bộ mẫu A14 qua N16: 12 tường ngăn, đều 220 mm. */
 const A14_FLOOR = 'L-LEVEL000001';
@@ -52,7 +52,7 @@ async function open(page: Page, floorId: string = QCB_FLOOR.thickness): Promise<
 async function openSeeded(page: Page): Promise<void> {
   await open(page);
   await seedQcb(page, 'thickness');
-  await expect(stat(page, 'tổng số đoạn tường')).toHaveText(/^48\s+tổng số đoạn tường$/u);
+  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(/^48\s+Tổng số đoạn tường$/u);
 }
 
 test('đường nạp thật: mở thẳng ở một tầng có lớp thì thẻ đếm đọc tường từ máy chủ (V7-THICK-01, B-V6-01)', async ({
@@ -60,10 +60,10 @@ test('đường nạp thật: mở thẳng ở một tầng có lớp thì thẻ
 }) => {
   await open(page, A14_FLOOR);
 
-  await expect(stat(page, 'tổng số đoạn tường')).toHaveText(
-    new RegExp(`^${String(A14_WALLS_ON_FLOOR)}\\s+tổng số đoạn tường$`, 'u'),
+  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(
+    new RegExp(`^${String(A14_WALLS_ON_FLOOR)}\\s+Tổng số đoạn tường$`, 'u'),
   );
-  await expect(page.getByRole('heading', { name: 'chưa có đoạn tường nào để chuẩn hoá' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' })).toHaveCount(0);
 });
 
 test('đường dẫn đầu màn không gõ cứng "Tầng 01" — màn phủ mọi tầng: "Dự án > Độ dày tường" (B-V6-43)', async ({
@@ -77,8 +77,8 @@ test('đường dẫn đầu màn không gõ cứng "Tầng 01" — màn phủ m
 test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chưa có đoạn tường nào" (V7-THICK-01)', async ({ page }) => {
   await open(page, 'L1');
 
-  await expect(page.getByRole('heading', { name: 'chưa có đoạn tường nào để chuẩn hoá' })).toBeVisible();
-  for (const label of ['tổng số đoạn tường', 'đã ở đúng nhóm chuẩn', 'lệch quá dung sai', 'cột bê tông cốt thép']) {
+  await expect(page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' })).toBeVisible();
+  for (const label of ['Tổng số đoạn tường', 'Đã ở đúng nhóm chuẩn', 'Lệch quá dung sai', 'Cột bê tông cốt thép']) {
     await expect(stat(page, label)).toHaveText(new RegExp(`^0\\s+${label}$`, 'u'));
   }
 });
@@ -86,9 +86,9 @@ test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chư
 test('bơm bộ mẫu: bốn thẻ đếm đúng bộ mẫu, số thập phân dùng dấu phẩy (V7-THICK-02, A15)', async ({ page }) => {
   await openSeeded(page);
 
-  await expect(stat(page, 'đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+đã ở đúng nhóm chuẩn$/u);
-  await expect(stat(page, 'lệch quá dung sai')).toHaveText(/^6\s+lệch quá dung sai$/u);
-  await expect(stat(page, 'cột bê tông cốt thép')).toHaveText(/^3\s+cột bê tông cốt thép$/u);
+  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+Đã ở đúng nhóm chuẩn$/u);
+  await expect(stat(page, 'Lệch quá dung sai')).toHaveText(/^6\s+Lệch quá dung sai$/u);
+  await expect(stat(page, 'Cột bê tông cốt thép')).toHaveText(/^3\s+Cột bê tông cốt thép$/u);
   await expect(
     page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 30 tường 195 mm về 220 mm' }),
   ).not.toBeChecked();
@@ -112,7 +112,7 @@ test('bơm bộ mẫu: Esc đóng đúng lớp xem trước và không rời mà
 
   await expect(page.getByRole('button', { name: 'Áp dụng', exact: true })).toHaveCount(0);
   expect(page.url()).toBe(url);
-  await expect(stat(page, 'tổng số đoạn tường')).toHaveText(/^48\s+tổng số đoạn tường$/u);
+  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(/^48\s+Tổng số đoạn tường$/u);
 });
 
 /*
@@ -137,11 +137,11 @@ test('bơm bộ mẫu: tích đồng ý bằng phím, xem trước, áp — 30 t
   await page.getByRole('button', { name: 'Áp dụng', exact: true }).click();
 
   await expect(toast(page)).toContainText('Chuẩn hoá độ dày 30 tường.');
-  await expect(stat(page, 'đã ở đúng nhóm chuẩn')).toHaveText(/^33\s+đã ở đúng nhóm chuẩn$/u);
+  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^33\s+Đã ở đúng nhóm chuẩn$/u);
 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 
-  await expect(stat(page, 'đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+đã ở đúng nhóm chuẩn$/u);
+  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+Đã ở đúng nhóm chuẩn$/u);
   await expect(
     page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 30 tường 195 mm về 220 mm' }),
   ).toBeVisible();
