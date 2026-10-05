@@ -1,48 +1,24 @@
-import { useCallback, useMemo } from 'react';
-
-import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
-import { useAutosave } from '@/hooks/useAutosave';
-import { createChangedFloorsSave, historyEndsOf } from '@/lib/autosave/spatialLayerSave';
-import { useStore } from '@/store';
+import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
+
+export interface Viewer3DSave {
+  /** Nhãn tự lưu của cả màn — chân panel thuộc tính nói nó. */
+  label: string | null;
+  /** Dải của tầng bị khối đầu tiên (màn không có tầng riêng), câu kèm tên tầng. */
+  saveBlock: FloorLayerSaveBlock | null;
+}
 
 /**
  * Tự lưu của CẢ màn `/3d` (B-V8-60) — không của panel thuộc tính.
  *
  * Panel chỉ dựng khi có vùng chọn, nên một thay đổi lúc không chọn gì (đổi tên phòng ở
- * bảng diện tích) từng không có lượt lưu nào. Engine và mốc so (`createChangedFloorsSave`)
- * dựng một lần, sống suốt màn; nhãn trả về chuyền vào chân panel.
+ * bảng diện tích) vẫn phải được lưu. Nay đi qua saver lớp tầng dùng chung của người–dự án
+ * (F-04x-1): nó tự thấy mọi tầng bị đổi, giữ revision theo lượt đọc, và dừng ở 409.
  *
- * Lỗi được ném nguyên (có `cause`), nên tự lưu dừng ở 409/422 và chỉ thử lại khi rớt mạng.
- *
- * @param apiClient Chỉ dành cho test — mặc định là `createAppApiClient()`.
+ * @param apiClient Chỉ dành cho test — mặc định là client của ứng dụng.
  */
-export function useViewer3DSave(apiClient?: Pick<ApiClient, 'spatial'>): string | null {
-  const saveChangedFloors = useMemo(
-    () =>
-      createChangedFloorsSave((apiClient ?? createAppApiClient()).spatial, () =>
-        historyEndsOf(useStore.temporal.getState()),
-      ),
-    [apiClient],
-  );
+export function useViewer3DSave(projectId: string, apiClient?: Pick<ApiClient, 'spatial'>): Viewer3DSave {
+  const { label, saveBlock } = useFloorLayerAutosave({ projectId, ...(apiClient ? { apiClient } : {}) });
 
-  const persist = useCallback(
-    async (current: NormalizedSpatial | null): Promise<void> => {
-      const projectId = useStore.getState().project?.id;
-
-      if (current === null) {
-        return;
-      }
-
-      if (projectId === undefined || projectId === '') {
-        throw new Error('Chưa mở dự án nào nên chưa có nơi để lưu.');
-      }
-
-      await saveChangedFloors(current, projectId);
-    },
-    [saveChangedFloors],
-  );
-
-  return useAutosave(persist);
+  return { label, saveBlock };
 }

@@ -80,7 +80,10 @@ import { formatNumber } from '@/lib/format/number';
 import { confidenceLevel } from '@/lib/format/semantic';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { applyInvalidation } from '@/lib/query/invalidation';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
+import { getAppAnnouncer } from '@/lib/input/announcer';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
@@ -89,6 +92,8 @@ import type { BuildFloorInput } from '@/lib/three/build/floor';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 import type { ViewerSceneHandle } from '@/screens/viewer/Viewer3D';
 import { useStore } from '@/store';
+
+import type { ViolationDetailSaveProps } from './ViolationDetail';
 
 import {
   asFurnitureId,
@@ -571,7 +576,7 @@ const resolvedMessageOf = (ruleName: string | null): string =>
  */
 export function useViolationDetail(
   options: UseViolationDetailOptions,
-): ViolationDetailViewProps {
+): ViolationDetailViewProps & ViolationDetailSaveProps {
   const {
     violations,
     initialIndex,
@@ -733,13 +738,40 @@ export function useViolationDetail(
     () =>
       createViolationDetailDispatchDeps({
         graph: graphPort,
-        // Bước `sync` là no-op có chủ ý: `useAutosave` đã theo dõi thẳng
-        // `state.spatial`, nên không có hàng đợi thứ hai nào phải nuôi (A7).
+        // Bước `sync` là no-op có chủ ý: saver lớp tầng (dưới đây) đã theo dõi
+        // thẳng `state.spatial`, nên không có hàng đợi thứ hai nào phải nuôi (A7).
         onSynced: () => undefined,
         history: gateway.history,
       }),
     [gateway.history, graphPort],
   );
+
+  /* Tự lưu (F-04x-1): màn luật không có bộ lưu nào khác, nên sửa nhanh ở đây phải tự
+     gắn saver dùng chung. Tấm trượt không có dải — câu lỗi của tầng đọc qua announcer. */
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    floorId,
+    projectId,
+    ...(gateway.apiClient !== undefined ? { apiClient: gateway.apiClient } : {}),
+  });
+  const saveIndicator = useSaveIndicator(autosave);
+  const blockMessage = saveBlock?.message ?? null;
+
+  useEffect(() => {
+    if (blockMessage !== null) {
+      getAppAnnouncer().announce(blockMessage, 'assertive');
+    }
+  }, [blockMessage]);
+
+  /* R14: máy chủ thay tầng (tải lại sau 409) — các bước cũ của tấm trượt không còn đúng. */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+  const seenReplaceSeq = useRef(serverReplaceSeq);
+
+  useEffect(() => {
+    if (seenReplaceSeq.current !== serverReplaceSeq) {
+      seenReplaceSeq.current = serverReplaceSeq;
+      dispatchBundle.history.clear();
+    }
+  }, [dispatchBundle, serverReplaceSeq]);
 
   /** Đã có lệnh nào thực sự áp xuống kho chưa — quyết định `rollback` có được chạm vào lịch sử không. */
   const appliedRef = useRef(false);
@@ -1226,6 +1258,7 @@ export function useViolationDetail(
   return {
     state,
     capabilities,
+    saveLabel: saveIndicator.label,
 
     groupLabel: group === null ? '' : RULE_GROUP_LABELS[group],
     group,

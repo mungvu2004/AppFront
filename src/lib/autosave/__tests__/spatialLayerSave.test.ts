@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SpatialApi, SpatialLayer } from '@/api/client';
+import { FloorLayerWriteResultSchema, FloorLayerWriteSchema } from '@/api/schemas/spatialLayer';
 import type { Furniture } from '@/domain/spatial/types';
-import type { HttpError, Result } from '@/lib/http';
+import type { HttpError } from '@/lib/http';
 
 import {
   SAMPLE_BUILDING,
@@ -13,160 +14,29 @@ import {
 import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { isTransientWireError } from '@/lib/errors/wireError';
+import { runExclusive } from '@/lib/mutations/entityQueue';
 
-import { createAutosave } from '../createAutosave';
 import {
   changedLevelIds,
-  createChangedFloorsSave,
-  createFloorLayerSave,
-  historyEndsOf,
-  createSpatialLayerSave,
+  classifyLayerSaveError,
+  createFloorLayerSaver,
+  type FloorLayerSaver,
+  type FloorLayerSaverPorts,
+  LAYER_SAVE_MESSAGES,
   spatialLayerOf,
-  type SpatialLayerChanges,
 } from '../spatialLayerSave';
 
-const EMPTY_LAYER: SpatialLayer = { furniture: [], openings: [], rooms: [], walls: [] };
+describe('spatialLayerOf', () => {
+  it('chỉ lấy bốn danh sách của đúng một tầng — PUT không mang thực thể tầng khác', () => {
+    const floor = sampleLevelId(1);
+    const layer = spatialLayerOf(normalizeSpatial(SAMPLE_BUILDING), floor);
+    const onFloor = SAMPLE_BUILDING.walls.filter((wall) => wall.levelId === floor);
 
-const SAVED = { data: { layer: EMPTY_LAYER, revision: 4 }, ok: true } as const;
-
-const changesOf = (layer: SpatialLayer = EMPTY_LAYER): SpatialLayerChanges => ({
-  baseVersion: 3,
-  floorId: 'floor-1',
-  layer,
-  projectId: 'project-1',
-});
-
-describe('createSpatialLayerSave', () => {
-  it('resolves when writeLayer succeeds, passing baseVersion/floorId/projectId/body through', async () => {
-    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(SAVED);
-    const save = createSpatialLayerSave({ writeLayer });
-
-    await expect(save(changesOf())).resolves.toBeUndefined();
-    expect(writeLayer).toHaveBeenCalledWith({
-      baseVersion: 3,
-      body: EMPTY_LAYER,
-      floorId: 'floor-1',
-      projectId: 'project-1',
-    });
-  });
-
-  it('throws when writeLayer reports a failure, instead of silently swallowing it', async () => {
-    const failure: Result<never, HttpError> = {
-      error: { kind: 'network', raw: undefined, requestId: 'req-1', retryable: true },
-      ok: false,
-    };
-    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(failure);
-    const save = createSpatialLayerSave({ writeLayer });
-
-    await expect(save(changesOf())).rejects.toThrow();
-  });
-
-  it('plugs into createAutosave: a failed write is retried on the shared retry schedule, not a second one of its own', async () => {
-    vi.useFakeTimers();
-
-    try {
-      const failure: Result<never, HttpError> = {
-        error: { kind: 'network', raw: undefined, requestId: 'req-1', retryable: true },
-        ok: false,
-      };
-      const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(failure);
-      const save = createSpatialLayerSave({ writeLayer });
-
-      let pending: SpatialLayerChanges | undefined = changesOf();
-      const autosave = createAutosave<SpatialLayerChanges>({
-        getChanges: () => pending,
-        isOnline: () => true,
-        save,
-      });
-
-      autosave.notifyChange();
-      await vi.advanceTimersByTimeAsync(800);
-      expect(writeLayer).toHaveBeenCalledTimes(1);
-      expect(autosave.getState()).toBe('dirty');
-
-      await vi.advanceTimersByTimeAsync(5_000);
-      expect(writeLayer).toHaveBeenCalledTimes(2);
-
-      writeLayer.mockResolvedValue(SAVED);
-      pending = changesOf();
-      await vi.advanceTimersByTimeAsync(15_000);
-      expect(writeLayer).toHaveBeenCalledTimes(3);
-      expect(autosave.getState()).toBe('saved');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('does not attempt a write when there is nothing pending', async () => {
-    vi.useFakeTimers();
-
-    try {
-      const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(SAVED);
-      const save = createSpatialLayerSave({ writeLayer });
-      const autosave = createAutosave<SpatialLayerChanges>({ getChanges: () => undefined, save });
-
-      await autosave.saveNow();
-
-      expect(writeLayer).not.toHaveBeenCalled();
-      expect(autosave.getState()).toBe('saved');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-});
-
-const readOk = (revision: number) =>
-  vi.fn<SpatialApi['readLayer']>().mockResolvedValue({
-    data: {
-      axes: [],
-      dimensions: [],
-      layer: EMPTY_LAYER,
-      level: SAMPLE_BUILDING.levels[1]!,
-      revision,
-    },
-    ok: true,
-  });
-
-describe('createFloorLayerSave (B-V6-03)', () => {
-  const FLOOR = sampleLevelId(1);
-  const graph = normalizeSpatial(SAMPLE_BUILDING);
-
-  it('lượt đầu lấy baseVersion từ N16; lượt sau dùng revision vừa ghi, không đọc lại', async () => {
-    const readLayer = readOk(7);
-    const writeLayer = vi
-      .fn<SpatialApi['writeLayer']>()
-      .mockResolvedValueOnce({ data: { layer: EMPTY_LAYER, revision: 8 }, ok: true })
-      .mockResolvedValueOnce({ data: { layer: EMPTY_LAYER, revision: 9 }, ok: true });
-    const save = createFloorLayerSave({ readLayer, writeLayer });
-
-    await save({ floorId: FLOOR, graph, projectId: 'project-1' });
-    await save({ floorId: FLOOR, graph, projectId: 'project-1' });
-
-    expect(readLayer).toHaveBeenCalledTimes(1);
-    expect(writeLayer.mock.calls.map(([input]) => input.baseVersion)).toEqual([7, 8]);
-    expect(writeLayer.mock.calls[0]?.[0].body).toEqual(spatialLayerOf(graph, FLOOR));
-  });
-
-  it('đồ thị không có tầng của URL thì KHÔNG ghi — một PUT rỗng là xoá sạch tầng ấy', async () => {
-    const readLayer = readOk(1);
-    const writeLayer = vi.fn<SpatialApi['writeLayer']>();
-    const save = createFloorLayerSave({ readLayer, writeLayer });
-
-    await expect(save({ floorId: 'L-OTHERFLOOR01', graph, projectId: 'project-1' })).rejects.toThrow(
-      'L-OTHERFLOOR01',
-    );
-    expect(writeLayer).not.toHaveBeenCalled();
-  });
-
-  it('409 của máy chủ ném kèm HttpError gốc, nên tự lưu không thử lại vô ích', async () => {
-    const conflict = { kind: 'http', raw: undefined, requestId: 'req-2', retryable: false, status: 409 } as const;
-    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue({ error: conflict, ok: false });
-    const save = createFloorLayerSave({ readLayer: readOk(1), writeLayer });
-
-    const error: unknown = await save({ floorId: FLOOR, graph, projectId: 'project-1' }).catch((caught: unknown) => caught);
-
-    expect(error).toBeInstanceOf(Error);
-    expect(isTransientWireError(error)).toBe(false);
+    expect(layer.walls.map((wall) => wall.id)).toEqual(onFloor.map((wall) => wall.id));
+    expect(layer.rooms.every((room) => room.levelId === floor)).toBe(true);
+    expect(layer.furniture.every((item) => item.levelId === floor)).toBe(true);
+    expect(layer.openings.every((opening) => onFloor.some((wall) => wall.id === opening.wallId))).toBe(true);
+    expect(layer.walls.length + layer.openings.length).toBeGreaterThan(0);
   });
 });
 
@@ -215,40 +85,456 @@ describe('changedLevelIds — B-V8-41: đích lưu là mọi tầng có thứ b�
   });
 });
 
-describe('createChangedFloorsSave — mốc so sống suốt màn (B-V8-60)', () => {
-  const base = normalizeSpatial(SAMPLE_BUILDING);
-  const windowId = sampleWindowId(0);
-  const edited = applyPatch(base, [{ changes: { widthMm: 1234 }, id: windowId, kind: 'opening', op: 'update' }]);
-  const writer = () => {
-    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(SAVED);
+/* ------------------------------------------------------------------------ */
+/* createFloorLayerSaver — F-04x-1 bước 4                                    */
+/* ------------------------------------------------------------------------ */
 
-    return { save: createChangedFloorsSave({ readLayer: readOk(1), writeLayer }, () => [base]), writeLayer };
-  };
+const FLOOR_A = 'L-LEVEL00';
+const FLOOR_B = 'L-LEVEL01';
+const PROJECT = 'project-1';
 
-  it('hoàn tác về đúng tham chiếu cũ sau một lượt lưu vẫn gửi lại tầng ấy — so với lượt lưu, không với hai đầu lịch sử', async () => {
-    const { save, writeLayer } = writer();
+/** Lớp dây literal, qua schema đọc để có đúng kiểu `SpatialLayer`. */
+const wireLayer = (wallLengthMm: number): SpatialLayer =>
+  FloorLayerWriteResultSchema.parse({
+    layer: {
+      furniture: [],
+      openings: [],
+      rooms: [],
+      walls: [
+        {
+          centreline: { end: { x: wallLengthMm, y: 0 }, start: { x: 0, y: 0 } },
+          confidence: 0.82,
+          heightMm: 3900,
+          id: 'W-WALL000',
+          kind: 'partition',
+          levelId: FLOOR_A,
+          openingIds: [],
+          reviewed: false,
+          source: 'ai',
+          thicknessMm: 220,
+        },
+      ],
+    },
+    revision: 0,
+  }).layer;
 
-    const first = await save(edited, 'project-1');
-    /* `base` là chính mốc của hai đầu lịch sử: so với nó thì "không đổi gì". */
-    const undone = await save(base, 'project-1');
+const httpError = (status: number, raw: Record<string, unknown>): HttpError => ({
+  code: typeof raw.code === 'string' ? raw.code : 'UNKNOWN',
+  kind: 'http',
+  raw,
+  requestId: 'req-1',
+  retryable: false,
+  status,
+});
 
-    expect(undone).toEqual(first);
+const TIMEOUT: HttpError = { kind: 'timeout', raw: undefined, requestId: 'req-2', retryable: true };
+
+type WriteResult = Awaited<ReturnType<SpatialApi['writeLayer']>>;
+
+const savedAt = (revision: number, layer: SpatialLayer = wireLayer(4800)): WriteResult => ({
+  data: { layer, revision },
+  ok: true,
+});
+
+const failed = (error: HttpError): WriteResult => ({ error, ok: false });
+
+const deferred = (): { promise: Promise<WriteResult>; resolve: (value: WriteResult) => void } => {
+  let resolve: (value: WriteResult) => void = () => undefined;
+  const promise = new Promise<WriteResult>((settle) => {
+    resolve = settle;
+  });
+
+  return { promise, resolve };
+};
+
+interface Harness {
+  readonly layers: Map<string, SpatialLayer | null>;
+  readonly revisions: Map<string, number | null>;
+  readonly onSaved: ReturnType<typeof vi.fn<FloorLayerSaverPorts['onSaved']>>;
+  readonly writeLayer: ReturnType<typeof vi.fn<SpatialApi['writeLayer']>>;
+  readonly saver: FloorLayerSaver;
+}
+
+const harness = (queue?: FloorLayerSaverPorts['queue']): Harness => {
+  const layers = new Map<string, SpatialLayer | null>([
+    [FLOOR_A, wireLayer(4800)],
+    [FLOOR_B, wireLayer(3600)],
+  ]);
+  const revisions = new Map<string, number | null>([
+    [FLOOR_A, 3],
+    [FLOOR_B, 7],
+  ]);
+  const onSaved = vi.fn<FloorLayerSaverPorts['onSaved']>();
+  const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(savedAt(4));
+  const saver = createFloorLayerSaver(PROJECT, {
+    onSaved,
+    readLayer: (floorId) => layers.get(floorId) ?? null,
+    readRevision: (floorId) => revisions.get(floorId) ?? null,
+    writeLayer,
+    ...(queue ? { queue } : {}),
+  });
+
+  return { layers, onSaved, revisions, saver, writeLayer };
+};
+
+const sentWrite = (writeLayer: Harness['writeLayer'], call: number): { baseVersion: number; body: unknown } => {
+  const input = writeLayer.mock.calls[call]?.[0];
+
+  return { baseVersion: input?.baseVersion ?? -1, body: input?.body };
+};
+
+describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('lượt đầu lấy base từ readRevision, không đọc N16; thân gửi hợp FloorLayerWriteSchema', async () => {
+    const { saver, writeLayer } = harness();
+
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ floorId: FLOOR_A, projectId: PROJECT });
+
+    const { baseVersion, body } = sentWrite(writeLayer, 0);
+
+    expect(FloorLayerWriteSchema.parse({ baseVersion, body: { layer: body } })).toStrictEqual({
+      baseVersion: 3,
+      body: { layer: wireLayer(4800) },
+    });
+  });
+
+  it('lượt hai dùng revision của lượt một khi readRevision còn cũ; onSaved nhận kết quả', async () => {
+    const { onSaved, saver, writeLayer } = harness();
+
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+
+    expect(sentWrite(writeLayer, 1).baseVersion).toBe(4);
+    expect(onSaved).toHaveBeenCalledWith(FLOOR_A, { layer: wireLayer(4800), revision: 4 }, { redirtied: false });
+  });
+
+  it('readRevision mới hơn revision đã lưu thì dùng readRevision (max)', async () => {
+    const { revisions, saver, writeLayer } = harness();
+
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+    revisions.set(FLOOR_A, 9);
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+
+    expect(sentWrite(writeLayer, 1).baseVersion).toBe(9);
+  });
+
+  it('timeout: ném đúng lỗi gốc, lượt sau gửi lại đúng thân và base cũ TRƯỚC thân mới', async () => {
+    const { layers, onSaved, saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(TIMEOUT));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(TIMEOUT);
+    expect(saver.hasDirty()).toBe(true);
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+
+    layers.set(FLOOR_A, wireLayer(6000));
+    saver.markDirty([FLOOR_A]);
+    writeLayer.mockResolvedValueOnce(savedAt(4)).mockResolvedValueOnce(savedAt(5));
+    await saver.flush();
+
+    expect(sentWrite(writeLayer, 1)).toStrictEqual(sentWrite(writeLayer, 0));
+    expect(sentWrite(writeLayer, 2)).toStrictEqual({ baseVersion: 4, body: wireLayer(6000) });
+    expect(onSaved.mock.calls.map(([, , info]) => info.redirtied)).toStrictEqual([true, false]);
+    expect(saver.hasDirty()).toBe(false);
+  });
+
+  it('timeout không có sửa mới: lượt sau chỉ gửi lại bản giữ', async () => {
+    const { saver, writeLayer } = harness();
+
+    writeLayer.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBeInstanceOf(TypeError);
+    await saver.flush();
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(sentWrite(writeLayer, 1)).toStrictEqual(sentWrite(writeLayer, 0));
+  });
+
+  it('bản giữ lại hỏng tạm: thân mới chưa gửi, tầng vẫn bẩn để lượt sau chụp lại', async () => {
+    const { saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(TIMEOUT)).mockResolvedValueOnce(failed(TIMEOUT));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(TIMEOUT);
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(TIMEOUT);
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(4);
+  });
+
+  it.each([
+    ['409 VERSION_CONFLICT', httpError(409, { code: 'VERSION_CONFLICT', currentVersion: 8, remoteChanges: [], requestId: 'req-1' })],
+    ['422 field baseVersion', httpError(422, { code: 'VALIDATION', field: 'baseVersion', requestId: 'req-1' })],
+  ])('%s → reload: markDirty không gửi, hasDirty false, discardFloor gỡ', async (_name, error) => {
+    const { saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(error));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(error);
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'reload', message: LAYER_SAVE_MESSAGES.reload });
+    expect(saver.blockedFloorIds()).toStrictEqual([FLOOR_A]);
+
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(saver.hasDirty()).toBe(false);
+
+    saver.discardFloor(FLOOR_A);
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
     expect(writeLayer).toHaveBeenCalledTimes(2);
   });
 
-  it('không đổi gì so với lượt lưu trước thì không PUT', async () => {
-    const { save, writeLayer } = writer();
+  it('422 khác → blocked, câu nêu count; không tự gửi lại, markDirty mới thì gửi và gỡ khối', async () => {
+    const { saver, writeLayer } = harness();
+    const error = httpError(422, { code: 'LAYER_INTEGRITY_BROKEN', count: 3, requestId: 'req-1' });
 
-    await save(edited, 'project-1');
-    await expect(save(edited, 'project-1')).resolves.toEqual([]);
+    writeLayer.mockResolvedValueOnce(failed(error));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(error);
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'blocked', message: LAYER_SAVE_MESSAGES.integrity(3) });
+    expect(saver.getBlock(FLOOR_A)?.message).toContain('3');
+    expect(saver.hasDirty()).toBe(false);
+
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    saver.markDirty([FLOOR_A]);
+    expect(saver.hasDirty()).toBe(true);
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+  });
+
+  it.each([
+    [httpError(403, { code: 'FORBIDDEN', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.forbidden],
+    [httpError(413, { code: 'PAYLOAD_TOO_LARGE', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
+    [httpError(422, { code: 'LAYER_INTEGRITY_BROKEN', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
+    [httpError(400, { code: 'SOMETHING_ODD', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
+  ])('câu khối theo mã; mã lạ không in mã (%#)', async (error, message) => {
+    const { saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(error));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(error);
+
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'blocked', message });
+    expect(saver.getBlock(FLOOR_A)?.message).not.toContain(error.code ?? '');
+  });
+
+  it('flush() lúc đang gửi chỉ trả sau khi PUT về', async () => {
+    const { saver, writeLayer } = harness();
+    const pending = deferred();
+    let secondDone = false;
+
+    writeLayer.mockReturnValueOnce(pending.promise);
+    saver.markDirty([FLOOR_A]);
+    const first = saver.flush();
+    const second = saver.flush().then(() => {
+      secondDone = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(secondDone).toBe(false);
+    expect(saver.hasDirty()).toBe(true);
+
+    pending.resolve(savedAt(4));
+    await Promise.all([first, second]);
+    expect(secondDone).toBe(true);
     expect(writeLayer).toHaveBeenCalledTimes(1);
   });
 
-  it('historyEndsOf: ô cũ nhất của quá khứ và ô gần nhất của tương lai, bỏ ô rỗng', () => {
-    expect(historyEndsOf({ futureStates: [{ spatial: edited }], pastStates: [{ spatial: base }, { spatial: null }] })).toEqual([
-      base,
-      edited,
+  it('sửa lại trong lúc bay → redirtied true, lượt sau dùng revision vừa về', async () => {
+    const { onSaved, saver, writeLayer } = harness();
+    const pending = deferred();
+
+    writeLayer.mockReturnValueOnce(pending.promise);
+    saver.markDirty([FLOOR_A]);
+    const first = saver.flush();
+
+    saver.markDirty([FLOOR_A]);
+    pending.resolve(savedAt(4));
+    await first;
+
+    expect(onSaved).toHaveBeenCalledWith(FLOOR_A, expect.objectContaining({ revision: 4 }), { redirtied: true });
+    await saver.flush();
+    expect(sentWrite(writeLayer, 1).baseVersion).toBe(4);
+  });
+
+  it('khối của A không chặn B; lượt sau A không gửi lại → flush không ném, hasDirty false', async () => {
+    const { onSaved, saver, writeLayer } = harness();
+    const error = httpError(409, { code: 'VERSION_CONFLICT', currentVersion: 8, remoteChanges: [], requestId: 'req-1' });
+
+    writeLayer.mockImplementation(async ({ floorId }) => (floorId === FLOOR_A ? failed(error) : savedAt(8)));
+    saver.markDirty([FLOOR_A, FLOOR_B]);
+    await expect(saver.flush()).rejects.toBe(error);
+    expect(onSaved).toHaveBeenCalledWith(FLOOR_B, expect.objectContaining({ revision: 8 }), { redirtied: false });
+
+    saver.markDirty([FLOOR_B]);
+    await expect(saver.flush()).resolves.toBeUndefined();
+    expect(saver.hasDirty()).toBe(false);
+    expect(saver.blockedFloorIds()).toStrictEqual([FLOOR_A]);
+  });
+
+  it('lỗi tạm được ném trước lỗi khối', async () => {
+    const { saver, writeLayer } = harness();
+    const blocked = httpError(403, { code: 'FORBIDDEN', requestId: 'req-1' });
+
+    writeLayer.mockImplementation(async ({ floorId }) => failed(floorId === FLOOR_A ? blocked : TIMEOUT));
+    saver.markDirty([FLOOR_A, FLOOR_B]);
+
+    await expect(saver.flush()).rejects.toBe(TIMEOUT);
+  });
+
+  it('chỉ ném lỗi của tầng gửi trong lượt này', async () => {
+    const { saver, writeLayer } = harness();
+    const pending = deferred();
+
+    writeLayer.mockReturnValueOnce(pending.promise).mockResolvedValueOnce(savedAt(8));
+    saver.markDirty([FLOOR_A]);
+    const first = saver.flush();
+
+    saver.markDirty([FLOOR_B]);
+    const second = saver.flush();
+
+    pending.resolve(failed(TIMEOUT));
+    await expect(first).rejects.toBe(TIMEOUT);
+    await expect(second).resolves.toBeUndefined();
+  });
+
+  it('thân không hợp FloorLayerWriteSchema → blocked câu chung, không gửi, ném 422 không tạm thời', async () => {
+    const { layers, saver, writeLayer } = harness();
+    const [wall] = wireLayer(4800).walls;
+
+    layers.set(FLOOR_A, { ...wireLayer(4800), walls: wall ? [{ ...wall, thicknessMm: -1 }] : [] });
+    saver.markDirty([FLOOR_A]);
+
+    const error: unknown = await saver.flush().catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ kind: 'http', retryable: false, status: 422 });
+    expect(isTransientWireError(error)).toBe(false);
+    expect(writeLayer).toHaveBeenCalledTimes(0);
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
+    expect(saver.hasDirty()).toBe(false);
+  });
+
+  it('readRevision null → base 0', async () => {
+    const { revisions, saver, writeLayer } = harness();
+
+    revisions.set(FLOOR_A, null);
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+
+    expect(sentWrite(writeLayer, 0).baseVersion).toBe(0);
+  });
+
+  it('readLayer null → không PUT, tầng vẫn bẩn', async () => {
+    const { layers, saver, writeLayer } = harness();
+
+    layers.set(FLOOR_A, null);
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+
+    expect(writeLayer).toHaveBeenCalledTimes(0);
+    expect(saver.hasDirty()).toBe(true);
+  });
+
+  it('khoá riêng mỗi tầng qua queue; hai tầng bay song song', async () => {
+    const keys: string[] = [];
+    const queue: typeof runExclusive = (key, task) => {
+      keys.push(key);
+
+      return runExclusive(key, task);
+    };
+    const { saver, writeLayer } = harness(queue);
+    const a = deferred();
+    const b = deferred();
+
+    writeLayer.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise);
+    saver.markDirty([FLOOR_A, FLOOR_B]);
+    const flushed = saver.flush();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(keys).toStrictEqual([
+      `layer:${PROJECT}:${FLOOR_A}`,
+      `layer:${PROJECT}:${FLOOR_B}`,
     ]);
-    expect(historyEndsOf({ futureStates: [], pastStates: [{ spatial: null }] })).toEqual([]);
+
+    b.resolve(savedAt(8));
+    a.resolve(savedAt(4));
+    await flushed;
+  });
+
+  it('subscribe nhận bẩn ∪ đang gửi ∪ bị khối; huỷ đăng ký thì thôi nhận', async () => {
+    const { saver, writeLayer } = harness();
+    const listener = vi.fn();
+    const error = httpError(403, { code: 'FORBIDDEN', requestId: 'req-1' });
+    const unsubscribe = saver.subscribe(listener);
+
+    writeLayer.mockResolvedValueOnce(failed(error));
+    saver.markDirty([FLOOR_A]);
+    expect(listener).toHaveBeenLastCalledWith([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(error);
+    expect(listener).toHaveBeenLastCalledWith([FLOOR_A]);
+
+    saver.discardFloor(FLOOR_A);
+    expect(listener).toHaveBeenLastCalledWith([]);
+
+    unsubscribe();
+    saver.markDirty([FLOOR_B]);
+    expect(listener).not.toHaveBeenLastCalledWith([FLOOR_B]);
+  });
+
+  it('sau dispose: lượt đang bay không gọi onSaved, flush không gửi', async () => {
+    const { onSaved, saver, writeLayer } = harness();
+    const pending = deferred();
+
+    writeLayer.mockReturnValueOnce(pending.promise);
+    saver.markDirty([FLOOR_A]);
+    const flushed = saver.flush();
+
+    saver.dispose();
+    pending.resolve(savedAt(4));
+    await flushed;
+    expect(onSaved).not.toHaveBeenCalled();
+
+    saver.markDirty([FLOOR_A]);
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('classifyLayerSaveError', () => {
+  it.each([
+    [httpError(409, { code: 'VERSION_CONFLICT', requestId: 'r' }), 'reload'],
+    [httpError(422, { code: 'VALIDATION', field: 'baseVersion', requestId: 'r' }), 'reload'],
+    [httpError(422, { code: 'VALIDATION', field: 'layer', requestId: 'r' }), 'blocked'],
+    [httpError(413, { code: 'PAYLOAD_TOO_LARGE', requestId: 'r' }), 'blocked'],
+    [httpError(428, { code: 'PRECONDITION_REQUIRED', requestId: 'r' }), 'blocked'],
+    [httpError(404, { code: 'NOT_FOUND', requestId: 'r', resource: 'floor' }), 'blocked'],
+    [httpError(503, { code: 'DEPENDENCY_UNAVAILABLE', requestId: 'r' }), 'temporary'],
+    [TIMEOUT, 'temporary'],
+    [{ kind: 'network', raw: undefined, requestId: 'r', retryable: true }, 'temporary'],
+  ] as const)('%# → %s', (error, expected) => {
+    expect(classifyLayerSaveError(error)).toBe(expected);
   });
 });

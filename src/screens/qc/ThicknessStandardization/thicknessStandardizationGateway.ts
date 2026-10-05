@@ -38,16 +38,15 @@
  * ## Đọc và lưu
  *
  * Kho rỗng thì cổng đọc N16 (`readFloorLayerGraph`, B-V6-01), kho có thì giữ.
- * `persistThicknessStandardization` lưu lớp của tầng qua #35
- * (`createFloorLayerSave`, B-V6-03) — chỉ tầng của URL; tường tầng khác trong
- * kho (bộ mẫu ba tầng) không đi theo lượt lưu ấy.
+ * Lưu lớp của tầng qua #35 nằm ở `useFloorLayerAutosave` (một bộ lưu mỗi
+ * người–dự án, F-04x-1) — chỉ tầng bẩn được gửi; cổng chỉ lộ `apiClient`. Cờ
+ * `supports.persistThicknessStandardization` giữ nghĩa "cổng này có đường lưu".
  */
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
-import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
 import type { Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { resolveWallShapes } from '@/domain/walls/joints';
 import { wallStrokeToken } from '@/components/canvas/materialMap';
@@ -165,12 +164,6 @@ export interface ReadThicknessLayerInput {
   readonly signal?: AbortSignal;
 }
 
-export interface PersistThicknessInput {
-  readonly projectId: string;
-  readonly floorId: string;
-  readonly graph: NormalizedSpatial;
-}
-
 /** Mỗi phương thức là một việc màn cần từ bên ngoài, và không có việc nào khác. */
 export interface ThicknessStandardizationGateway {
   /** Khả năng nào cổng này làm được, trả lời ĐỒNG BỘ — màn phải biết trước lượt vẽ đầu. */
@@ -178,13 +171,11 @@ export interface ThicknessStandardizationGateway {
   /** Lớp số đo độ dày của tầng. Lỗi ở đây là trạng thái `error` của A11. */
   readonly readThicknessLayer: (
     input: ReadThicknessLayerInput,
-  ) => Promise<NormalizedSpatial | null>;
+  ) => Promise<FloorLayerGraphRead | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: ThicknessGraphPort;
-  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
-  readonly persistThicknessStandardization: (
-    input: PersistThicknessInput,
-  ) => Promise<ThicknessCapabilityResult<void>>;
+  /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
+  readonly apiClient?: ApiClient;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
   readonly actorId: string;
   /** Mốc giờ hiện tại. Tiêm được để bài kiểm không phụ thuộc đồng hồ thật. */
@@ -217,24 +208,21 @@ export function createThicknessStandardizationGateway(
   const graph: ThicknessGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
-  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
-
   return {
+    apiClient,
     supports: {
       readThicknessLayer: true,
       writeWallThickness: true,
       persistThicknessStandardization: true,
     },
 
-    readThicknessLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
+    readThicknessLayer: async (input) => {
+      const stored = graph.read();
+
+      return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
+    },
 
     graph,
-
-    persistThicknessStandardization: async (input) => {
-      await saveFloorLayer(input);
-
-      return { supported: true, value: undefined };
-    },
 
     actorId: options.actorId ?? THICKNESS_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
@@ -275,8 +263,10 @@ export interface ThicknessGatewaySeed {
   readonly graph?: NormalizedSpatial | null;
   /** `true` thì `readThicknessLayer` ném — đúng cảnh `error` của bảy kịch bản. */
   readonly failReadThicknessLayer?: boolean;
-  /** `true` thì lượt lưu chạy thật (bộ mẫu có đường lưu), cho nhãn "Đã lưu lúc…". */
+  /** Cờ `supports.persistThicknessStandardization` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
+  /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
+  readonly apiClient?: ApiClient;
   readonly actorId?: string;
   readonly now?: () => number;
 }
@@ -290,6 +280,7 @@ export function createMockThicknessStandardizationGateway(
     seed.graph === undefined ? THICKNESS_FIXTURE_GRAPH : seed.graph;
 
   return {
+    ...(seed.apiClient === undefined ? {} : { apiClient: seed.apiClient }),
     supports: {
       readThicknessLayer: true,
       writeWallThickness: true,
@@ -301,15 +292,12 @@ export function createMockThicknessStandardizationGateway(
         return Promise.reject(new Error('Không tải được lớp số đo độ dày tường của tầng.'));
       }
 
-      return Promise.resolve(graphOfSeed());
+      const stored = graphOfSeed();
+
+      return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
     },
 
     graph: { read: graphOfSeed },
-
-    persistThicknessStandardization: () =>
-      canPersist
-        ? Promise.resolve({ supported: true, value: undefined })
-        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     actorId: seed.actorId ?? THICKNESS_DEFAULT_ACTOR_ID,
     now: seed.now ?? ((): number => Date.now()),

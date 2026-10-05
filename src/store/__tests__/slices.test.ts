@@ -142,6 +142,41 @@ describe('spatialSlice', () => {
     expect(state.spatialLoading).toBe(false);
   });
 
+  it('writes spatial, spatialProjectId, floorMeta and lastServerSpatial in one set', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+    const spatial = normalizeSpatial(createSampleBuilding());
+    let writes = 0;
+
+    store.subscribe(() => {
+      writes += 1;
+    });
+    store.getState().setSpatial(spatial, 'v1', { projectId: 'p1', floorRevisions: { L1: 4 } });
+
+    const state = store.getState();
+
+    expect(writes).toBe(1);
+    expect(state.spatialProjectId).toBe('p1');
+    expect(state.floorMeta).toEqual({ L1: { revision: 4 } });
+    expect(state.lastServerSpatial).toBe(spatial);
+
+    store.getState().setSpatial(spatial, 'v1');
+
+    expect(store.getState().spatialProjectId).toBeNull();
+    expect(store.getState().floorMeta).toEqual({});
+  });
+
+  it('replaces a whole floorMeta entry and stores the unsaved floor ids', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+
+    store.getState().updateFloorMeta('L1', { revision: 1 });
+    store.getState().updateFloorMeta('L2', { revision: 2 });
+    store.getState().updateFloorMeta('L1', { revision: 3 });
+    store.getState().setUnsavedFloorIds(['L2']);
+
+    expect(store.getState().floorMeta).toEqual({ L1: { revision: 3 }, L2: { revision: 2 } });
+    expect(store.getState().unsavedFloorIds).toEqual(['L2']);
+  });
+
   it('ignores patches until data is loaded', () => {
     const store = create<SpatialSlice>()(createSpatialSlice);
     const wall = firstSampleWall();
@@ -338,7 +373,16 @@ describe('slice state shape', () => {
     const draftFields = dataFields(create<DraftSlice>()(createDraftSlice).getState());
 
     expect(projectFields).toEqual(['activeFloorId', 'floors', 'project', 'userRoles']);
-    expect(spatialFields).toEqual(['spatial', 'spatialLoading', 'versionId']);
+    expect(spatialFields).toEqual([
+      'floorMeta',
+      'lastServerSpatial',
+      'serverReplaceSeq',
+      'spatial',
+      'spatialLoading',
+      'spatialProjectId',
+      'unsavedFloorIds',
+      'versionId',
+    ]);
     expect(draftFields).toEqual(['draftOperations']);
 
     const derivedFieldPattern = /(area|violation|derived|computed|percent)/i;

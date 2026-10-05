@@ -36,15 +36,15 @@
  *
  * ## Đọc và lưu
  *
- * - `persistWallLayer` — lưu lớp của tầng qua #35 (`spatial.writeLayer`,
- *   `createFloorLayerSave`), 800 ms sau thao tác cuối (B-V6-03).
+ * - Lưu lớp của tầng qua #35 không nằm ở cổng: hook gọi `useFloorLayerAutosave`
+ *   (một bộ lưu mỗi người–dự án, F-04x-1) với `apiClient` cổng lộ ra; cờ
+ *   `supports.persistWallLayer` giữ nghĩa "cổng này có đường lưu".
  * - `readWallGraph` — đồ thị tường sống trong `src/store` (nơi `commit` ghi
  *   vào), không có endpoint nào trả về nó. Cổng đọc nó qua một cửa tiêm được,
  *   mặc định là chính store; ảnh nền thì đọc thật qua `spatial.readFloor`.
  */
 
-import { readFloorLayerGraph } from '@/api/floorLayerGraph';
-import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
+import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { counterLabelOf, createId } from '@/domain/spatial/ids';
@@ -226,12 +226,6 @@ export interface ReadBackgroundInput {
   readonly signal?: AbortSignal;
 }
 
-export interface PersistWallLayerInput {
-  readonly projectId: string;
-  readonly floorId: string;
-  readonly graph: NormalizedSpatial;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Cái seam.                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -243,13 +237,11 @@ export interface WallLayerReviewGateway {
   /** Ảnh nền của tầng. Lỗi ở ĐÂY chỉ làm mất ảnh nền, không phải hỏng lớp tường. */
   readonly readBackground: (input: ReadBackgroundInput) => Promise<WallLayerBackground>;
   /** Lớp tường của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
-  readonly readWallLayer: (input: ReadBackgroundInput) => Promise<NormalizedSpatial | null>;
+  readonly readWallLayer: (input: ReadBackgroundInput) => Promise<FloorLayerGraphRead | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: WallLayerGraphPort;
-  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
-  readonly persistWallLayer: (
-    input: PersistWallLayerInput,
-  ) => Promise<WallLayerCapabilityResult<void>>;
+  /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
+  readonly apiClient?: ApiClient;
   /** Mã tường mới. Cùng cửa với `ToolContext.nextId` của `toolMachine`. */
   readonly nextWallId: () => WallId;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
@@ -324,9 +316,8 @@ export function createWallLayerReviewGateway(
   const graph: WallLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
-  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
-
   return {
+    apiClient,
     supports: {
       readBackground: true,
       readWallGraph: true,
@@ -353,15 +344,13 @@ export function createWallLayerReviewGateway(
       };
     },
 
-    readWallLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
+    readWallLayer: async (input) => {
+      const stored = graph.read();
+
+      return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
+    },
 
     graph,
-
-    persistWallLayer: async (input) => {
-      await saveFloorLayer(input);
-
-      return { supported: true, value: undefined };
-    },
 
     nextWallId: options.nextWallId ?? ((): WallId => createId('wall')),
     actorId: options.actorId ?? WALL_LAYER_DEFAULT_ACTOR_ID,
@@ -396,8 +385,10 @@ export interface WallLayerGatewaySeed {
   readonly failReadWallLayer?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ. */
   readonly withoutImage?: boolean;
-  /** `true` thì `persistWallLayer` chạy thật (bộ mẫu có đường lưu), cho nhãn "Đã lưu lúc…". */
+  /** Cờ `supports.persistWallLayer` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
+  /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
+  readonly apiClient?: ApiClient;
   readonly actorId?: string;
   readonly now?: () => number;
   readonly nextWallId?: () => WallId;
@@ -411,6 +402,7 @@ export function createMockWallLayerReviewGateway(
   let counter = 0;
 
   return {
+    ...(seed.apiClient === undefined ? {} : { apiClient: seed.apiClient }),
     supports: {
       readBackground: true,
       readWallGraph: true,
@@ -438,15 +430,12 @@ export function createMockWallLayerReviewGateway(
         return Promise.reject(new Error('Không tải được lớp tường của tầng.'));
       }
 
-      return Promise.resolve(seed.graph ?? useStore.getState().spatial);
+      const stored = seed.graph ?? useStore.getState().spatial;
+
+      return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
     },
 
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
-
-    persistWallLayer: () =>
-      canPersist
-        ? Promise.resolve({ supported: true, value: undefined })
-        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     /*
      * Mã tường mới của bộ mẫu — cùng khuôn `createId`, KHÔNG phải "W-M1".

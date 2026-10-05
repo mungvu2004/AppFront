@@ -63,8 +63,18 @@ export async function seedQc(page: Page, screen: QcScreen): Promise<void> {
 
     const graph = await graphOf();
     const store = (await load('/src/store/index.ts')).useStore as {
-      getState: () => { setSpatial: (spatial: unknown, versionId: null) => void };
+      getState: () => {
+        setSpatial: (
+          spatial: unknown,
+          versionId: null,
+          source: { projectId: string; floorRevisions: Record<string, number> },
+        ) => void;
+      };
     };
-    store.getState().setSpatial(graph, null);
+    /* Dự án của URL và revision 0 mỗi tầng: thiếu `source` thì bộ lưu lớp không lưu. */
+    const projectId = /\/(?:projects|du-an)\/([^/]+)/.exec(location.pathname)?.[1] ?? 'project-1';
+    const levelIds = (graph as { byKind: { level: readonly string[] } }).byKind.level;
+    const floorRevisions = Object.fromEntries(levelIds.map((id) => [id, 0]));
+    store.getState().setSpatial(graph, null, { floorRevisions, projectId });
   }, screen);
 }

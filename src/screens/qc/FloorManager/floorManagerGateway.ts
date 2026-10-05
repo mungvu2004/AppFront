@@ -107,7 +107,7 @@ import { millimetres, roundMeasurement, type Millimetres } from '@/domain/units/
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient, ApiResult, FloorWriteBody } from '@/api/client';
 import type { Floor } from '@/api/contracts';
-import { readProjectLayerGraph } from '@/api/floorLayerGraph';
+import { readProjectLayerRead } from '@/api/floorLayerGraph';
 
 import {
   accept,
@@ -1135,6 +1135,8 @@ export interface ReadFloorListInput {
  * cho cả hai, nên màn có đúng một cờ đang-tải và đúng một cờ hỏng (R-64).
  */
 export interface FloorManagerSnapshot {
+  /** `revision` N16 mỗi tầng đã đọc; `{}` khi đồ thị tới từ kho hay bộ mẫu. */
+  readonly floorRevisions: Readonly<Record<string, number>>;
   readonly floors: readonly Floor[];
   readonly graph: NormalizedSpatial | null;
 }
@@ -1271,16 +1273,17 @@ export function createFloorManagerGateway(
       }
 
       /* Kho có thì giữ (không đè sửa chưa lưu); kho rỗng thì đọc N16 của từng tầng (B-V6-01). */
-      return {
-        floors: result.data,
-        graph:
-          graph.read() ??
-          (await readProjectLayerGraph(api.spatial, {
-            floorIds: result.data.map((floor) => floor.id),
-            projectId: input.projectId,
-            signal: input.signal,
-          })),
-      };
+      const stored = graph.read();
+      const read =
+        stored === null
+          ? await readProjectLayerRead(api.spatial, {
+              floorIds: result.data.map((floor) => floor.id),
+              projectId: input.projectId,
+              signal: input.signal,
+            })
+          : { floorRevisions: {}, graph: stored };
+
+      return { floorRevisions: read.floorRevisions, floors: result.data, graph: read.graph };
     },
 
     graph,
@@ -1641,7 +1644,7 @@ export function createMockFloorManagerGateway(
         return Promise.reject(new Error('Không tải được danh sách tầng của dự án.'));
       }
 
-      return Promise.resolve({ floors, graph });
+      return Promise.resolve({ floorRevisions: {}, floors, graph });
     },
 
     graph: { read: () => useStore.getState().spatial ?? graph },

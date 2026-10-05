@@ -42,14 +42,14 @@
  *
  * ## Đọc và lưu
  *
- * - `persistObjectLayer` — lưu lớp của tầng (ô mở, nội thất cùng tường và
- *   phòng) qua #35, cùng `createFloorLayerSave` với màn tường (B-V6-03).
+ * - Lưu lớp của tầng qua #35 nằm ở `useFloorLayerAutosave` (một bộ lưu mỗi
+ *   người–dự án, F-04x-1); cổng chỉ lộ `apiClient`. Cờ
+ *   `supports.persistObjectLayer` giữ nghĩa "cổng này có đường lưu".
  * - `readObjectGraph` — đồ thị sống trong `src/store`, không có endpoint nào
  *   trả nó. Cổng đọc qua một cửa tiêm được, mặc định là chính store.
  */
 
-import { readFloorLayerGraph } from '@/api/floorLayerGraph';
-import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
+import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
@@ -1693,19 +1693,13 @@ export interface ReadObjectLayerInput {
   readonly signal?: AbortSignal;
 }
 
-export interface PersistObjectLayerInput {
-  readonly projectId: string;
-  readonly floorId: string;
-  readonly graph: NormalizedSpatial;
-}
-
 /** Mỗi phương thức là một việc màn cần từ bên ngoài, và không có việc nào khác. */
 export interface ObjectLayerReviewGateway {
   readonly supports: Readonly<Record<ObjectLayerCapability, boolean>>;
   /** Ảnh nền của tầng. Lỗi ở ĐÂY chỉ làm mất ảnh nền, không phải hỏng lớp đối tượng. */
   readonly readBackground: (input: ReadObjectLayerInput) => Promise<ObjectLayerBackground>;
   /** Lớp đối tượng của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
-  readonly readObjectLayer: (input: ReadObjectLayerInput) => Promise<NormalizedSpatial | null>;
+  readonly readObjectLayer: (input: ReadObjectLayerInput) => Promise<FloorLayerGraphRead | null>;
   /**
    * Nhánh nội thất, đọc riêng.
    *
@@ -1726,10 +1720,8 @@ export interface ObjectLayerReviewGateway {
    * nào thật sự đọc ra con số 0 — chứ không mượn một bảng toàn cục.
    */
   readonly seed: readonly ObjectSeedEntry[];
-  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
-  readonly persistObjectLayer: (
-    input: PersistObjectLayerInput,
-  ) => Promise<ObjectLayerCapabilityResult<void>>;
+  /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
+  readonly apiClient?: ApiClient;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
   readonly actorId: string;
   /** Mốc giờ hiện tại. Tiêm được để test không phụ thuộc đồng hồ thật. */
@@ -1765,9 +1757,8 @@ export function createObjectLayerReviewGateway(
   const graph: ObjectLayerGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
-  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
-
   return {
+    apiClient,
     supports: {
       readBackground: true,
       readObjectGraph: true,
@@ -1794,17 +1785,15 @@ export function createObjectLayerReviewGateway(
       };
     },
 
-    readObjectLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
+    readObjectLayer: async (input) => {
+      const stored = graph.read();
+
+      return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
+    },
     readFurnitureBranch: () => Promise.resolve(null),
 
     graph,
     seed: options.seed ?? [],
-
-    persistObjectLayer: async (input) => {
-      await saveFloorLayer(input);
-
-      return { supported: true, value: undefined };
-    },
 
     actorId: options.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
@@ -1836,8 +1825,10 @@ export interface ObjectLayerGatewaySeed {
   readonly failFurnitureBranch?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ. */
   readonly withoutImage?: boolean;
-  /** `true` thì `persistObjectLayer` chạy thật (bộ mẫu có đường lưu). */
+  /** Cờ `supports.persistObjectLayer` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
+  /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
+  readonly apiClient?: ApiClient;
   readonly actorId?: string;
   readonly now?: () => number;
 }
@@ -1851,6 +1842,7 @@ export function createMockObjectLayerReviewGateway(
     seed.graph === undefined ? OBJECT_LAYER_SAMPLE_GRAPH : seed.graph;
 
   return {
+    ...(seed.apiClient === undefined ? {} : { apiClient: seed.apiClient }),
     supports: {
       readBackground: true,
       readObjectGraph: true,
@@ -1878,7 +1870,9 @@ export function createMockObjectLayerReviewGateway(
         return Promise.reject(new Error(OBJECT_LAYER_TEXT.errorMessage));
       }
 
-      return Promise.resolve(readGraph());
+      const stored = readGraph();
+
+      return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
     },
 
     readFurnitureBranch: () => {
@@ -1891,11 +1885,6 @@ export function createMockObjectLayerReviewGateway(
 
     graph: { read: readGraph },
     seed: seed.seed ?? OBJECT_LAYER_SEED,
-
-    persistObjectLayer: () =>
-      canPersist
-        ? Promise.resolve({ supported: true, value: undefined })
-        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     actorId: seed.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: seed.now ?? ((): number => Date.now()),

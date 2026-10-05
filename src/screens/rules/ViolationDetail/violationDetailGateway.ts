@@ -49,6 +49,7 @@
  * `@/screens/qc/ObjectLayerReview/objectLayerReviewGateway.ts:1076-1146`.
  */
 
+import type { ApiClient } from '@/api/client';
 import { describeUsage } from '@/domain/rooms/classify';
 import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { FurnitureId, RoomId } from '@/domain/spatial/types';
@@ -148,6 +149,8 @@ export interface ViolationDetailGatewaySeed {
    * bị xoá lúc dựng nên không một byte nào của màn kia đi vào gói này.
    */
   readonly mountScene?: MountViewerScene;
+  /** Máy khách của saver lớp tầng (F-04x-1); vắng mặt thì saver dùng client của ứng dụng. */
+  readonly apiClient?: Pick<ApiClient, 'spatial'>;
 }
 
 export interface ViolationDetailGateway {
@@ -163,6 +166,8 @@ export interface ViolationDetailGateway {
   readonly history: HistoryStack | undefined;
   /** Bản cảnh 3D bài kiểm ép vào; `undefined` là dùng bản thật, nhập động. */
   readonly mountScene: MountViewerScene | undefined;
+  /** Lộ cho `useFloorLayerAutosave` — tấm trượt không tự gọi `writeLayer`. */
+  readonly apiClient: Pick<ApiClient, 'spatial'> | undefined;
 }
 
 /** Cổng thật của màn. Chữ ký này không đổi khi hai năng lực kia được nối dây. */
@@ -179,6 +184,7 @@ export function createViolationDetailGateway(
     now: seed.now ?? Date.now,
     history: seed.history,
     mountScene: seed.mountScene,
+    apiClient: seed.apiClient,
   };
 }
 

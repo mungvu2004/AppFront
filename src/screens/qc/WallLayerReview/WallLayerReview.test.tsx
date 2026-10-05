@@ -38,7 +38,7 @@
  * (nới cho cả bảy là tắt phép kiểm chứ không phải vượt qua nó, R-70).
  */
 
-import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -194,6 +194,56 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     expect(screen.queryByRole('button', { name: /vẽ tường/u })).not.toBeInTheDocument();
     /* Vẫn xem được: khung canvas và thanh trạng thái không biến mất. */
     expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Dải lưu lớp (F-04x-1 bước 7).                                               */
+/* -------------------------------------------------------------------------- */
+
+describe('dải lưu lớp (F-04x-1)', () => {
+  const RELOAD_MESSAGE = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
+
+  it('xung đột: dải chú ý + "Tải lại", ngoài canvas; A9 hỏi trước khi bỏ sửa', () => {
+    const onReload = vi.fn();
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer
+          {...scenarioArgsFor('partial')}
+          forceSaveBlock={{ confirm: { onCancel, onConfirm, open: true }, kind: 'reload', message: RELOAD_MESSAGE, onReload }}
+        />
+      </MemoryRouter>,
+    );
+
+    const banner = screen.getAllByRole('alert').find((node) => node.textContent?.includes(RELOAD_MESSAGE));
+
+    expect(banner).toBeDefined();
+    expect(banner?.closest('section')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+
+    expect(screen.getByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('không lưu được: dải vi phạm với câu của ống, không có nút "Tải lại"', () => {
+    const message = 'Bạn không còn quyền sửa tầng này.';
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} forceSaveBlock={{ confirm: null, kind: 'blocked', message }} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Tải lại' })).not.toBeInTheDocument();
   });
 });
 

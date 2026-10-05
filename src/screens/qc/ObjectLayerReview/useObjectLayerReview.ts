@@ -55,17 +55,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
-import { useFlushOnSave } from '@/hooks/useAutosave';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -357,7 +355,7 @@ export function useObjectLayerReview(
   });
 
   const objectLayerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
+    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
     queryFn: ({ signal }) => gateway.readObjectLayer({ floorId, projectId, signal }),
   });
 
@@ -405,12 +403,12 @@ export function useObjectLayerReview(
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded;
+    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
     }
-  }, [gateway, graph, loaded, setSpatial]);
+  }, [gateway, graph, loaded, projectId, setSpatial]);
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = objectLayerQuery.isError;
@@ -443,38 +441,13 @@ export function useObjectLayerReview(
   );
 
 
-  /*
-   * Tự lưu (A7) — 800 ms sau thao tác cuối, cùng khuôn màn tường (B-V6-03).
-   *
-   * `SyncPort.enqueue` là chỗ S-11 nói "bản vẽ bẩn rồi"; nó chỉ châm bộ đếm. Trước
-   * đây nó bắn một lượt ghi lạc quan cho MỖI lệnh, và lượt hỏng thì hoàn tác lệnh
-   * của người duyệt — với #35 có version, hai lượt duyệt liền tay là hai `PUT` cùng
-   * `baseVersion`, lượt sau 409, công duyệt bị gỡ. Một engine thì xếp hàng sẵn,
-   * thử lại theo lịch chung, và nói ra trạng thái thay vì gỡ việc đã làm.
-   */
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistTargetRef = useRef({ floorId, gateway, projectId });
-  persistTargetRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistTargetRef.current;
-      const result = await current.gateway.persistObjectLayer({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        throw new Error(result.missing);
-      }
-    },
+  /* Tự lưu (A7) — bộ lưu lớp chung mỗi người–dự án (F-04x-1); 409 → dải "Tải lại". */
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const autosave = autosaveRef.current;
-
-  useFlushOnSave(autosave);
   useSaveIndicator(autosave);
 
   const dispatchBundle = useMemo<ObjectLayerDispatchDeps>(
@@ -489,6 +462,13 @@ export function useObjectLayerReview(
       }),
     [autosave, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+
+  useEffect(() => {
+    dispatchBundle.history.clear();
+  }, [dispatchBundle, serverReplaceSeq]);
 
   /* ---------------------------------------------------------------------- */
   /* Vùng chọn (S-10) và đồng bộ hai chiều (S-11).                            */
@@ -1349,5 +1329,6 @@ export function useObjectLayerReview(
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,
     onAddManually,
+    saveBlock,
   };
 }

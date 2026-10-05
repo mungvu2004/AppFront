@@ -40,6 +40,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MemoryRouter } from 'react-router-dom';
 
+import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Wall } from '@/domain/spatial/types';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
@@ -200,3 +201,21 @@ export const KhongCoQuyen: Story = { args: scenarioArgsFor('forbidden') };
 
 /** 7. Thu gọn — hai panel ẩn, ray công cụ nổi trên canvas, chú giải VẪN hiện. */
 export const ThuGon: Story = { args: scenarioArgsFor('collapsed') };
+
+/** Dải "Tải lại" — tầng vừa được sửa ở nơi khác (409, F-04x-1); bấm nút thì hook mới mở A9. */
+export const ConflictReload: Story = {
+  name: 'Xung đột — tải lại',
+  args: {
+    ...scenarioArgsFor('partial'),
+    forceSaveBlock: { confirm: null, kind: 'reload', message: LAYER_SAVE_MESSAGES.reload, onReload: () => undefined },
+  },
+};
+
+/** Dải "Không lưu được" — lỗi không tự hết (413, 422, 403…), lưu lại sau lượt sửa mới. */
+export const SaveBlocked: Story = {
+  name: 'Không lưu được',
+  args: {
+    ...scenarioArgsFor('partial'),
+    forceSaveBlock: { confirm: null, kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown },
+  },
+};

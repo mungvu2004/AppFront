@@ -125,6 +125,7 @@
 
 import type { Confidence, Point, WallId } from '@/domain/spatial/types';
 import type { WallThickness } from '@/types/spatial';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 /* -------------------------------------------------------------------------- */
@@ -491,6 +492,8 @@ export interface ThicknessApplyBarProps {
  */
 export interface ThicknessStandardizationProps {
   readonly state: ThicknessScreenState;
+  /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
+  readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
 
   /* -- Biểu đồ -------------------------------------------------------------- */
   readonly bins: readonly HistogramBin[];

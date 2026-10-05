@@ -1170,6 +1170,36 @@ const mockWireError = (status: number, code: string, requestId: string, raw: Rec
   status,
 });
 
+/**
+ * Lớp tầng của bộ mẫu, cấp module: mọi `createMockApiClient()` thấy chung một
+ * revision, như hai thẻ trình duyệt thấy chung một máy chủ (`createAppApiClient()`
+ * dựng mock mới mỗi lần gọi). Trạng thái này sống cùng trang; test gọi
+ * `__resetMockLayerState()` ở `beforeEach`.
+ */
+const layerRevisions = new Map<string, number>();
+const writtenLayers = new Map<string, SpatialLayer>();
+/** Lượt ghi cuối của mỗi tầng — nguồn của luật C09b (gửi lại trùng thì 200). */
+const lastLayerWrites = new Map<string, { base: number; body: string; revision: number }>();
+
+export const __resetMockLayerState = (): void => {
+  layerRevisions.clear();
+  writtenLayers.clear();
+  lastLayerWrites.clear();
+};
+
+const MOCK_REMOTE_ACTOR_ID = 'usr_01J9ZQK7X4N2M8P6R3T5V7W9Y1';
+
+/**
+ * Người khác vừa sửa tầng: tăng `revision` và xoá một tường khỏi lớp đã ghi (lớp mồi
+ * của bộ mẫu nếu chưa ai ghi). Spec e2e gọi qua `import('/src/api/__mocks__/client.ts')`.
+ */
+export const simulateRemoteLayerEdit = (floorId: string): void => {
+  const layer = writtenLayers.get(floorId) ?? makeLayerDocument(makeFallbackFloor(floorId), 0).layer;
+
+  writtenLayers.set(floorId, { ...clone(layer), walls: layer.walls.slice(1).map(clone) });
+  layerRevisions.set(floorId, (layerRevisions.get(floorId) ?? 0) + 1);
+};
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -1193,8 +1223,6 @@ export const createMockApiClient = (): ApiClient => {
   const latestUploadByFloor = new Map<string, string>(
     floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
   );
-  const layerRevisions = new Map<string, number>();
-  const writtenLayers = new Map<string, SpatialLayer>();
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
@@ -1637,14 +1665,57 @@ export const createMockApiClient = (): ApiClient => {
         return ok(makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId)));
       },
       /**
-       * Lưu lớp và tăng `revision`, như #35. Không trả 409 khi `baseVersion` cũ:
-       * chưa nơi gọi nào xử lý xung đột, và một mock tự bịa luật ấy là nguồn thứ hai.
+       * Lưu lớp theo luật base của #35 (`writer.py`): base > revision → 422 `baseVersion`;
+       * base cũ → 409 `VERSION_CONFLICT`, trừ lượt gửi lại ĐÚNG base và thân của lượt
+       * ghi cuối (C09b) → 200 kết quả hiện tại; còn lại tăng `revision`.
        */
-      writeLayer: async ({ body, floorId }) => {
-        const revision = (layerRevisions.get(floorId) ?? 0) + 1;
+      writeLayer: async ({ baseVersion, body, floorId }) => {
+        const current = layerRevisions.get(floorId) ?? 0;
+        const requestId = `req-layer-${floorId}`;
+        const bodyKey = JSON.stringify(body);
+        const last = lastLayerWrites.get(floorId);
+
+        if (baseVersion > current) {
+          return failed(
+            mockWireError(422, 'VALIDATION', requestId, {
+              code: 'VALIDATION',
+              field: 'baseVersion',
+              message: 'baseVersion vượt quá revision hiện tại',
+              requestId,
+            }),
+          );
+        }
+
+        if (baseVersion < current) {
+          if (last !== undefined && last.base === baseVersion && last.body === bodyKey && last.revision === current) {
+            return ok({ layer: clone(writtenLayers.get(floorId) ?? body), revision: current });
+          }
+
+          return failed(
+            mockWireError(409, 'VERSION_CONFLICT', requestId, {
+              code: 'VERSION_CONFLICT',
+              currentVersion: current,
+              remoteChanges: [
+                {
+                  changedAt: '2026-09-17T05:09:00.123Z',
+                  changedBy: MOCK_REMOTE_ACTOR_ID,
+                  changedByName: 'Trần Minh',
+                  entityId: 'W-WALL0014',
+                  entityType: 'wall',
+                  field: 'thickness_mm',
+                  value: 220,
+                },
+              ],
+              requestId,
+            }),
+          );
+        }
+
+        const revision = current + 1;
 
         layerRevisions.set(floorId, revision);
         writtenLayers.set(floorId, clone(body));
+        lastLayerWrites.set(floorId, { base: baseVersion, body: bodyKey, revision });
 
         return ok({ layer: clone(body), revision });
       },

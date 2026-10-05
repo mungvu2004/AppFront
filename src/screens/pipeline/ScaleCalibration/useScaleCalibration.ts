@@ -496,19 +496,20 @@ export function useScaleCalibration(
    * khung vẽ; "Áp dụng tỷ lệ" khi ấy nói lý do tại chỗ.
    */
   const layerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
+    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
     queryFn: ({ signal }) => gateway.readFloorLayer({ floorId, projectId, signal }),
   });
-  const loadedLayer = layerQuery.data ?? null;
+  const loadedRead = layerQuery.data ?? null;
+  const loadedLayer = loadedRead?.graph ?? null;
   const levelId = loadedLayer?.byKind.level[0] ?? floorId;
   const hasSpatial = useStore((state) => state.spatial !== null);
   const setSpatial = useStore((state) => state.setSpatial);
 
   useEffect(() => {
     if (!hasSpatial && loadedLayer !== null) {
-      setSpatial(loadedLayer, null);
+      setSpatial(loadedLayer, null, { floorRevisions: loadedRead?.floorRevisions ?? {}, projectId });
     }
-  }, [hasSpatial, loadedLayer, setSpatial]);
+  }, [hasSpatial, loadedLayer, loadedRead, projectId, setSpatial]);
   const frame = useMemo(() => imageFrameOf(drawing), [drawing]);
 
   /* ---------------------------------------------------------------------- */

@@ -55,6 +55,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { HistoryStack } from '@/lib/commands/history';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -89,6 +90,8 @@ export interface ThicknessStandardizationContainerProps {
   readonly notifications?: NotificationBus;
   /** Ép thu gọn canvas xem trước — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Ép dải lưu lớp (F-04x-1) — cho story "Xung đột — tải lại" / "Không lưu được". */
+  readonly forceSaveBlock?: FloorLayerSaveBlock;
   /**
    * Ngăn xếp hoàn tác tiêm được.
    *
@@ -140,7 +143,7 @@ function WiredThicknessStandardization(props: ThicknessStandardizationContainerP
     ...(props.history !== undefined ? { history: props.history } : {}),
   });
 
-  return <ThicknessStandardization {...model} />;
+  return <ThicknessStandardization {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<ThicknessStandardizationContainer … />` — màn S-18 thật, gắn được bằng một thẻ. */

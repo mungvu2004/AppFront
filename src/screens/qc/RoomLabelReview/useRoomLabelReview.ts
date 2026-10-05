@@ -25,9 +25,9 @@
  * 5. **Mọi lượt ghi kèm vé hoàn tác tám giây (A8)** — một lệnh, một mục trong
  *    ngăn xếp 100 bước của S-06, một toast mang `UNDO_WINDOW_MS` do chính vé
  *    giữ (R-71: con số không viết lại ở đây).
- * 6. **Tự lưu (A7)** — `createAutosave` gọi `gateway.persistRoomLabels` (#35,
- *    B-V6-03); lượt hỏng thì NÉM, và thanh trạng thái của vỏ ứng dụng nói ra sự
- *    thật thay vì hiện "Đã lưu lúc…" cho một lượt chưa rời máy.
+ * 6. **Tự lưu (A7)** — bộ lưu lớp chung `useFloorLayerAutosave` (#35, một bộ
+ *    mỗi người–dự án, F-04x-1); 409 → dải "Tải lại", lỗi khác → dải "Không lưu
+ *    được"; `useSaveIndicator` nói trạng thái ra cho trình đọc màn hình.
  * 7. **Nhắc công năng M-14 không bao giờ CHẶN** — `notices` chỉ đi kèm từng
  *    dòng phòng; không một hàm `on…` nào dưới đây hỏi `notices` trước khi chạy.
  *
@@ -68,7 +68,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { computeCentroid, explainRoom, outlineContains } from '@/domain/rooms/area';
 import { displayCodesOf } from '@/domain/spatial/ids';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Level,
   LevelId,
@@ -79,10 +78,9 @@ import type {
   Wall,
 } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
-import { useFlushOnSave } from '@/hooks/useAutosave';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import { toPoint, toPointMm, type CommandContext, type CommandResult } from '@/lib/commands/business/shared';
 import type { Command } from '@/lib/commands/types';
@@ -429,7 +427,7 @@ export function useRoomLabelReview(
   });
 
   const roomLayerQuery = useQuery({
-    queryKey: queryKeys.room.byFloor(floorId),
+    queryKey: [...queryKeys.room.byFloor(floorId), 'read'],
     queryFn: ({ signal }) => gateway.readRoomLayer({ floorId, projectId, signal }),
   });
 
@@ -470,12 +468,12 @@ export function useRoomLabelReview(
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded;
+    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
     }
-  }, [gateway, graph, loaded, setSpatial]);
+  }, [gateway, graph, loaded, projectId, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
@@ -604,36 +602,12 @@ export function useRoomLabelReview(
     [],
   );
 
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistRef = useRef({ floorId, gateway, projectId });
-  persistRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistRef.current;
-      const result = await current.gateway.persistRoomLabels({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        /*
-         * Một khả năng chưa có endpoint KHÔNG được biến thành một lượt lưu đã
-         * xong: ném ra là cách duy nhất để vỏ ứng dụng nói ra sự thật thay vì
-         * hiện "Đã lưu lúc…" cho một lượt chưa hề rời khỏi máy.
-         */
-        throw new Error(result.missing);
-      }
-    },
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const autosave = autosaveRef.current;
-
-  /* Ctrl+S xả được engine này, và trình đọc màn hình nghe được trạng thái lưu
-     (A7) — trước đây engine chạy mà câm, Ctrl+S không thấy nó (B-V7-01). */
-  useFlushOnSave(autosave);
   useSaveIndicator(autosave);
 
   /* ---------------------------------------------------------------------- */
@@ -652,6 +626,13 @@ export function useRoomLabelReview(
       }),
     [autosave, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+
+  useEffect(() => {
+    dispatchBundle.history.clear();
+  }, [dispatchBundle, serverReplaceSeq]);
 
   const invalidate = useCallback(() => {
     applyInvalidation(queryClient, 'editWall', { floorId, projectId });
@@ -968,6 +949,7 @@ export function useRoomLabelReview(
     onNavigateToWalls,
     onUndo,
     onToggleCollapsed,
+    saveBlock,
   };
 }
 

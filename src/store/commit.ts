@@ -3,7 +3,10 @@ import type { RootState } from './index';
 import { draftEntityId, type EditEntityDraft } from './draftSlice';
 import { MERGE_WINDOW_MS } from '../lib/commands/mergeCommands';
 import type { SelectionSnapshot } from '../lib/commands/history';
+import type { SpatialLayer } from '../api/client';
 import type { SpatialPatch } from '../domain/spatial/applyPatch';
+import { isIdOfKind } from '../domain/spatial/ids';
+import { replaceLevelEntities } from '../domain/spatial/replaceLevelEntities';
 import type { SpatialEntity } from '../domain/spatial/normalize';
 import type { EntityId } from '../domain/spatial/types';
 
@@ -203,6 +206,62 @@ export function applyRollbackPatches(patches: readonly SpatialPatch[]): void {
   // commit must not fold into it.
   resetCommitRun();
   discardPreview();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lớp tầng từ máy chủ: ghi thật, không mở bước hoàn tác, không toast.         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Puts a layer the server returned (a save result, or a reload) into the store.
+ *
+ * One `set` writes `spatial`, `lastServerSpatial` and `floorMeta` together (R14), and
+ * `temporal` is paused around it so the write opens no undo step. `external: true`
+ * means somebody else changed the floor: history is emptied and `serverReplaceSeq`
+ * bumped so screens that own a second history can clear theirs. A floor the store does
+ * not hold only gets its revision recorded.
+ */
+export function replaceFloorLayer(
+  floorId: string,
+  result: { layer: SpatialLayer; revision: number },
+  options?: { external?: boolean },
+): void {
+  const state = useStore.getState();
+  const entry = { revision: result.revision };
+  const current = state.spatial;
+
+  if (current === null || !isIdOfKind('level', floorId) || current.byId[floorId] === undefined) {
+    state.updateFloorMeta(floorId, entry);
+
+    return;
+  }
+
+  const spatial = replaceLevelEntities(current, floorId, result.layer);
+  const temporal = useStore.temporal.getState();
+  const tracking = temporal.isTracking;
+
+  if (tracking) {
+    temporal.pause();
+  }
+
+  try {
+    useStore.setState((latest) => ({
+      spatial,
+      lastServerSpatial: spatial,
+      floorMeta: { ...latest.floorMeta, [floorId]: entry },
+      ...(options?.external === true ? { serverReplaceSeq: latest.serverReplaceSeq + 1 } : {}),
+    }));
+  } finally {
+    if (tracking) {
+      useStore.temporal.getState().resume();
+    }
+  }
+
+  if (options?.external === true) {
+    useStore.temporal.getState().clear();
+  }
+
+  resetCommitRun();
 }
 
 /* -------------------------------------------------------------------------- */

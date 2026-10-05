@@ -557,9 +557,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   /* Nạp đồ thị của dự án vào kho một lần, nếu kho còn trống. */
   useEffect(() => {
     if (storeGraph === null && loadedGraph !== null) {
-      setSpatial(loadedGraph, null);
+      setSpatial(loadedGraph, null, {
+        floorRevisions: floorListQuery.data?.floorRevisions ?? {},
+        projectId,
+      });
     }
-  }, [loadedGraph, setSpatial, storeGraph]);
+  }, [floorListQuery.data?.floorRevisions, loadedGraph, projectId, setSpatial, storeGraph]);
 
   /*
    * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn

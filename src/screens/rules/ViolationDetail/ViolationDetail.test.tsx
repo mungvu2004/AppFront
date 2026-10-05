@@ -62,7 +62,7 @@ import {
 
 import { useStore } from '@/store';
 
-import { ViolationDetail } from './ViolationDetail';
+import { ViolationDetail, type ViolationDetailSaveProps } from './ViolationDetail';
 import { useViolationDetail } from './useViolationDetail';
 import type {
   ViolationAction,
@@ -80,7 +80,7 @@ afterEach(() => {
  * 0. Hạ tầng.
  * ========================================================================== */
 
-function renderView(props: ViolationDetailViewProps) {
+function renderView(props: ViolationDetailViewProps & ViolationDetailSaveProps) {
   return renderWithProviders(<ViolationDetail {...props} />);
 }
 
@@ -661,6 +661,19 @@ describe('A12 — J/K duyệt qua lại không đóng tấm, Esc đóng tấm', 
 /* ==========================================================================
  * K. Trỏ vào một hàng lựa chọn → xem trước hậu quả (onActionHover).
  * ========================================================================== */
+
+describe('nhãn tự lưu (F-04x-1 6.4) — chỉ nhãn, không dải', () => {
+  it('có nhãn thì hiện đúng chữ ở đầu tấm; vắng thì không hiện gì', () => {
+    const { unmount } = renderView({ ...propsFor(scenarioOf('success')), saveLabel: 'Lưu thất bại' });
+
+    expect(screen.getByText('Lưu thất bại')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải lại' })).toBeNull();
+    unmount();
+
+    renderView(propsFor(scenarioOf('success')));
+    expect(screen.queryByText(/Đã lưu|Lưu thất bại/)).toBeNull();
+  });
+});
 
 describe('trỏ vào một hàng lựa chọn → xem trước hậu quả', () => {
   it('trỏ vào báo onActionHover(kind), rời khỏi báo lại null', () => {

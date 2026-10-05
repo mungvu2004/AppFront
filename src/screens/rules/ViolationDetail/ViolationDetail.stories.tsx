@@ -368,6 +368,11 @@ export const Success: Story = {
   args: loadedProps(SUCCESS_ARGS),
 };
 
+/** 5 · xong, kèm nhãn tự lưu của saver lớp tầng (F-04x-1) — chỉ nhãn, không dải. */
+export const SuccessSaved: Story = {
+  args: { ...loadedProps(SUCCESS_ARGS), saveLabel: 'Đã lưu lúc 09:41' },
+};
+
 /** 6 · không có quyền — người xem không có quyền sửa; căn cứ vẫn xem được. */
 export const Forbidden: Story = {
   args: {

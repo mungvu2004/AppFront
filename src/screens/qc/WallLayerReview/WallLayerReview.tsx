@@ -50,7 +50,9 @@
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 
+import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
 import { WallLayerInspector } from './WallLayerInspector';
 import {
   WallLayerLeftPanel,
@@ -71,6 +73,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly onNavigateLayer?: ((layer: WallLayerOtherKind) => void) | undefined;
   /** Mở lớp tường của một tầng khác — container tra `ROUTES.project.walls`. */
   readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
+  /** Khối lưu lớp của tầng (F-04x-1) — dải trên màn, không trong canvas. */
+  readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
@@ -102,11 +106,17 @@ export function WallLayerReview({
   canvasSlot,
   onNavigateLayer,
   onNavigateFloor,
+  saveBlock,
 }: WallLayerReviewViewProps) {
   const isCollapsed = panel.state === 'collapsed';
 
   return (
     <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      {saveBlock != null && (
+        <div className="px-2 pt-2">
+          <FloorLayerSaveBanner saveBlock={saveBlock} />
+        </div>
+      )}
       <div className="relative flex min-h-0 flex-1 gap-2 p-2">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">

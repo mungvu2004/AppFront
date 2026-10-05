@@ -39,6 +39,8 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
@@ -188,6 +190,11 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       className="flex h-full min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
+      {model.saveBlock != null && (
+        <div className="px-2 pt-2">
+          <FloorLayerSaveBanner saveBlock={model.saveBlock} />
+        </div>
+      )}
       <div className="relative flex min-h-0 flex-1 gap-2 p-2">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">

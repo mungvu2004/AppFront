@@ -31,8 +31,8 @@ import { queryKeys, type QueryKeyOf } from './queryKeys';
  *
  * `ApiClient` trả `Result` chứ không ném. react-query thì ngược lại: một
  * `queryFn` trả về bình thường nghĩa là thành công. Nên `unwrap` ném NGUYÊN
- * `result.error` — không bọc lại thành `new Error(...)` như
- * `createSpatialLayerSave` (`src/lib/autosave/spatialLayerSave.ts`) phải làm cho
+ * `result.error` — không bọc lại thành `new Error(...)`, cùng cách
+ * `createFloorLayerSaver` (`src/lib/autosave/spatialLayerSave.ts`) ném lỗi gốc cho
  * `createAutosave`. Lý do là cụ thể: `queryClient` đưa mọi lỗi qua
  * `normalizeQueryError` → `toAppError`, và `toAppError` NHẬN RA một `HttpError`
  * nguyên bản (`isHttpError`, `src/lib/errors/toAppError.ts:120`). Bọc nó vào một
@@ -43,7 +43,7 @@ import { queryKeys, type QueryKeyOf } from './queryKeys';
  * ## Cổng vào là một cổng hẹp
  *
  * Mọi hàm ở đây nhận `Pick<LibraryApi, …>` chứ không nhận cả `ApiClient`, cùng
- * khuôn với `createSpatialLayerSave(spatialApi: Pick<SpatialApi, 'writeLayer'>)`:
+ * khuôn với cổng `writeLayer: SpatialApi['writeLayer']` của `createFloorLayerSaver`:
  * test dựng đúng một hàm giả thay vì cả tám nhóm của client, và `src/lib` không
  * giữ tham chiếu tới thứ nó không gọi.
  */

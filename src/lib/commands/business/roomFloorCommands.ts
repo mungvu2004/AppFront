@@ -27,6 +27,7 @@ import { computeArea, outlineContains, totalArea } from '@/domain/rooms/area';
 import { describeUsage } from '@/domain/rooms/classify';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import { displayCodeIn } from '@/domain/spatial/normalize';
+import { normalizeHumanText } from '@/domain/text/humanText';
 import type {
   Furniture,
   Level,
@@ -164,6 +165,25 @@ export interface RenameRoomInput {
   readonly name: string;
 }
 
+/**
+ * A room name as BE will see it: trimmed and NFC (`normalizeHumanText`). `forbidden`
+ * is set for control or bidi characters, which BE answers with 422.
+ */
+const normalizeRoomName = (raw: string): { readonly forbidden: boolean; readonly name: string } => {
+  const result = normalizeHumanText(raw);
+
+  if (result.ok) {
+    return { forbidden: false, name: result.value };
+  }
+
+  return {
+    forbidden: result.reason === 'forbiddenCharacter',
+    name: result.reason === 'empty' ? '' : raw.trim().normalize('NFC'),
+  };
+};
+
+const FORBIDDEN_NAME_REASON = 'Tên phòng chứa ký tự không hiển thị được.';
+
 /** Everything wrong with this name; empty when it may be used. */
 export function validateRenameRoom(input: RenameRoomInput, context: CommandContext): string[] {
   const room = readOf(context.graph, 'room', input.roomId);
@@ -172,11 +192,17 @@ export function validateRenameRoom(input: RenameRoomInput, context: CommandConte
     return [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)} trong bản vẽ.`];
   }
 
-  const name = input.name.trim();
+  const { forbidden, name } = normalizeRoomName(input.name);
   const reasons: string[] = [];
 
   if (name === '') {
     reasons.push('Tên phòng không được để trống.');
+
+    return reasons;
+  }
+
+  if (forbidden) {
+    reasons.push(FORBIDDEN_NAME_REASON);
 
     return reasons;
   }
@@ -196,7 +222,7 @@ export function validateRenameRoom(input: RenameRoomInput, context: CommandConte
     (candidate) =>
       candidate.id !== room.id &&
       candidate.levelId === room.levelId &&
-      candidate.name.trim().toLowerCase() === name.toLowerCase(),
+      normalizeRoomName(candidate.name).name.toLowerCase() === name.toLowerCase(),
   );
 
   if (clash !== undefined) {
@@ -223,7 +249,7 @@ export function createRenameRoomCommand(
     return refuse(ROOM_FLOOR_COMMAND_TYPES.renameRoom, [`Không tìm thấy phòng ${displayCodeIn(context.graph, input.roomId)}.`]);
   }
 
-  const name = input.name.trim();
+  const { name } = normalizeRoomName(input.name);
 
   return accept(
     buildCommand(
@@ -438,7 +464,7 @@ export interface SplitRoomInput {
 
 /** The name the second piece gets when the caller does not supply one. */
 const derivedName = (room: Room, input: SplitRoomInput): string =>
-  (input.newRoomName ?? `${room.name} (phần 2)`).trim();
+  normalizeRoomName(input.newRoomName ?? `${room.name} (phần 2)`).name;
 
 /** Everything wrong with this split; empty when it may be applied. */
 export function validateSplitRoom(input: SplitRoomInput, context: CommandContext): string[] {
@@ -458,6 +484,8 @@ export function validateSplitRoom(input: SplitRoomInput, context: CommandContext
 
   if (derivedName(room, input) === '') {
     reasons.push('Tên phòng mới không được để trống.');
+  } else if (normalizeRoomName(input.newRoomName ?? '').forbidden) {
+    reasons.push(FORBIDDEN_NAME_REASON);
   }
 
   reasons.push(...outlineReasons(input.firstOutline, 'Ranh phần thứ nhất'));

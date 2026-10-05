@@ -12,6 +12,16 @@ import type { NormalizedSpatial } from '../domain/spatial/normalize';
  * `applyPatch` from the domain layer, so the slice itself contains no
  * geometry logic.
  */
+export interface FloorMetaEntry {
+  revision: number;
+}
+
+/** Where a loaded graph came from: the project and the revision each floor was read at. */
+export interface SpatialSource {
+  projectId: string;
+  floorRevisions: Readonly<Record<string, number>>;
+}
+
 export interface SpatialSlice {
   /** Normalized spatial data of the floor being viewed; null before load. */
   spatial: NormalizedSpatial | null;
@@ -24,7 +34,24 @@ export interface SpatialSlice {
    * Also empties the undo history: a load replaces the graph, it is not an edit
    * the user made, so Ctrl+Z must never "undo" it back to an empty screen (B-V7-04).
    */
-  setSpatial: (spatial: NormalizedSpatial | null, versionId: string | null) => void;
+  setSpatial: (
+    spatial: NormalizedSpatial | null,
+    versionId: string | null,
+    source?: SpatialSource,
+  ) => void;
+  /** Server revision of each floor's layer, as of the last read or save. */
+  floorMeta: Readonly<Record<string, FloorMetaEntry>>;
+  /** Project the stored `spatial` was loaded for; null when unknown (nothing may be saved). */
+  spatialProjectId: string | null;
+  /** Floors with edits not yet on the server, mirrored from the layer saver. */
+  unsavedFloorIds: readonly string[];
+  /** Bumped when the server replaced a floor under the user (reload); history owners clear on it. */
+  serverReplaceSeq: number;
+  /** The last graph that came from the server; `spatial !== lastServerSpatial` means local edits. */
+  lastServerSpatial: NormalizedSpatial | null;
+  /** Replaces the whole entry of one floor. */
+  updateFloorMeta: (floorId: string, entry: FloorMetaEntry) => void;
+  setUnsavedFloorIds: (floorIds: readonly string[]) => void;
   setSpatialLoading: (spatialLoading: boolean) => void;
   setVersionId: (versionId: string | null) => void;
   /** Mutation gateway reserved for `commit(patch, label)`; never call it from a component. */
@@ -40,8 +67,25 @@ export const createSpatialSlice: StateCreator<SpatialSlice> = (set, _get, api) =
   spatial: null,
   spatialLoading: false,
   versionId: null,
-  setSpatial: (spatial, versionId) => {
-    set({ spatial, versionId, spatialLoading: false });
+  floorMeta: {},
+  spatialProjectId: null,
+  unsavedFloorIds: [],
+  serverReplaceSeq: 0,
+  lastServerSpatial: null,
+  updateFloorMeta: (floorId, entry) =>
+    set((state) => ({ floorMeta: { ...state.floorMeta, [floorId]: entry } })),
+  setUnsavedFloorIds: (unsavedFloorIds) => set({ unsavedFloorIds }),
+  setSpatial: (spatial, versionId, source) => {
+    set({
+      spatial,
+      versionId,
+      spatialLoading: false,
+      spatialProjectId: source?.projectId ?? null,
+      floorMeta: Object.fromEntries(
+        Object.entries(source?.floorRevisions ?? {}).map(([floorId, revision]) => [floorId, { revision }]),
+      ),
+      lastServerSpatial: spatial,
+    });
     (api as MaybeTemporalApi).temporal?.getState().clear();
   },
   setSpatialLoading: (spatialLoading) => set({ spatialLoading }),

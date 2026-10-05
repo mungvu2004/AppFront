@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { isIdOfKind } from '@/domain/spatial/ids';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import { useStore } from '@/store';
 import { createAxisGridManagerGateway } from '@/screens/qc/AxisGridManager/axisGridManagerGateway';
 import {
@@ -19,9 +19,16 @@ import { createRoomLabelReviewGateway } from '@/screens/qc/RoomLabelReview/roomL
 import { createThicknessStandardizationGateway } from '@/screens/qc/ThicknessStandardization/thicknessStandardizationGateway';
 import { createWallLayerReviewGateway } from '@/screens/qc/WallLayerReview/wallLayerReviewGateway';
 
-import { createMockApiClient } from '../__mocks__/client';
+import { __resetMockLayerState, createMockApiClient } from '../__mocks__/client';
 import type { ApiClient } from '../client';
-import { floorLayerToGraph, readFloorLayerGraph, readProjectLayerGraph, readProjectSpatial } from '../floorLayerGraph';
+import {
+  floorLayerToGraph,
+  readFloorLayerGraph,
+  readFloorLayerRead,
+  readProjectLayerGraph,
+  readProjectLayerRead,
+  readProjectSpatial,
+} from '../floorLayerGraph';
 
 /**
  * B-V6-01 — đường nạp thật của màn QC. Trước bản sửa, cổng mặc định của bốn màn
@@ -31,6 +38,10 @@ import { floorLayerToGraph, readFloorLayerGraph, readProjectLayerGraph, readProj
 
 const PROJECT_ID = 'project-1';
 const SAMPLE_FLOOR = sampleLevelId(1);
+
+beforeEach(() => {
+  __resetMockLayerState();
+});
 
 afterEach(() => {
   useStore.getState().setSpatial(null, null);
@@ -95,12 +106,18 @@ const GATEWAYS = [
   ['độ dày', (apiClient: ApiClient) => createThicknessStandardizationGateway({ apiClient }).readThicknessLayer],
 ] as const;
 
+/** Cổng QC trả `FloorLayerGraphRead`, cổng trục/kích thước vẫn trả đồ thị trần. */
+const graphOf = (read: unknown): NormalizedSpatial | null =>
+  read !== null && typeof read === 'object' && 'graph' in read
+    ? (read as { graph: NormalizedSpatial }).graph
+    : (read as NormalizedSpatial | null);
+
 describe.each(GATEWAYS)('cổng thật của màn %s', (_name, readOf) => {
   it('kho rỗng thì đọc N16 của đúng tầng trong URL', async () => {
     const apiClient = createMockApiClient();
     const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
 
-    const graph = await readOf(apiClient)({ floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
+    const graph = graphOf(await readOf(apiClient)({ floorId: SAMPLE_FLOOR, projectId: PROJECT_ID }));
 
     expect(readLayer).toHaveBeenCalledWith({ floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
     expect(graph?.byKind.level).toEqual([SAMPLE_FLOOR]);
@@ -112,10 +129,36 @@ describe.each(GATEWAYS)('cổng thật của màn %s', (_name, readOf) => {
     const inStore = normalizeSpatial(SAMPLE_BUILDING);
 
     useStore.getState().setSpatial(inStore, null);
-    const graph = await readOf(apiClient)({ floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
+    const graph = graphOf(await readOf(apiClient)({ floorId: SAMPLE_FLOOR, projectId: PROJECT_ID }));
 
     expect(readLayer).not.toHaveBeenCalled();
     expect(graph).toBe(useStore.getState().spatial);
+  });
+});
+
+describe('lượt đọc mang revision (F-04x-1 bước 2)', () => {
+  it('readFloorLayerRead trả revision N16 của tầng, cùng đồ thị với readFloorLayerGraph', async () => {
+    const apiClient = createMockApiClient();
+    const read = await readFloorLayerRead(apiClient.spatial, { floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
+
+    expect(read.floorRevisions).toEqual({ [SAMPLE_FLOOR]: expect.any(Number) });
+    expect(read.graph.byKind.level).toEqual([SAMPLE_FLOOR]);
+  });
+
+  it('readProjectLayerRead trả revision của mọi tầng; readProjectLayerGraph giữ chữ ký cũ', async () => {
+    const floorIds = SAMPLE_BUILDING.levels.map((level) => level.id);
+    const api = createMockApiClient().spatial;
+    const read = await readProjectLayerRead(api, { floorIds, projectId: PROJECT_ID });
+    const graph = await readProjectLayerGraph(api, { floorIds, projectId: PROJECT_ID });
+
+    expect(Object.keys(read.floorRevisions)).toEqual(floorIds);
+    expect(read.graph.byKind.level).toEqual(graph.byKind.level);
+  });
+
+  it('readProjectSpatial mang floorRevisions của mọi tầng', async () => {
+    const result = await readProjectSpatial(createMockApiClient(), { projectId: PROJECT_ID });
+
+    expect(Object.keys(result.floorRevisions)).toHaveLength(result.levels.length);
   });
 });
 
@@ -174,25 +217,44 @@ describe('readProjectLayerGraph — màn quản lý tầng (B-V6-01 phần V7)',
   });
 });
 
-const PERSISTS = [
-  ['tường', (apiClient: ApiClient) => createWallLayerReviewGateway({ apiClient }).persistWallLayer],
-  ['đối tượng', (apiClient: ApiClient) => createObjectLayerReviewGateway({ apiClient }).persistObjectLayer],
-  ['phòng', (apiClient: ApiClient) => createRoomLabelReviewGateway({ apiClient }).persistRoomLabels],
-  ['độ dày', (apiClient: ApiClient) => createThicknessStandardizationGateway({ apiClient }).persistThicknessStandardization],
+/*
+ * F-04x-1: bốn cổng QC không còn tự lưu (`persist*` và bộ lưu cũ đã gỡ —
+ * lượt đọc N16 ngay trước PUT để lấy base là đúng lỗi ghi đè lặng). Lượt lưu đi qua
+ * `useFloorLayerAutosave`; cổng chỉ lộ client cho nó và giữ cờ `supports`. Hành vi
+ * PUT/base nay kiểm ở `spatialLayerSave.test.ts`, `useAutosave.test.ts` và test màn.
+ */
+const SAVE_PORTS = [
+  ['tường', (apiClient: ApiClient) => {
+    const gateway = createWallLayerReviewGateway({ apiClient });
+
+    return { apiClient: gateway.apiClient, persists: gateway.supports.persistWallLayer };
+  }],
+  ['đối tượng', (apiClient: ApiClient) => {
+    const gateway = createObjectLayerReviewGateway({ apiClient });
+
+    return { apiClient: gateway.apiClient, persists: gateway.supports.persistObjectLayer };
+  }],
+  ['phòng', (apiClient: ApiClient) => {
+    const gateway = createRoomLabelReviewGateway({ apiClient });
+
+    return { apiClient: gateway.apiClient, persists: gateway.supports.persistRoomLabels };
+  }],
+  ['độ dày', (apiClient: ApiClient) => {
+    const gateway = createThicknessStandardizationGateway({ apiClient });
+
+    return { apiClient: gateway.apiClient, persists: gateway.supports.persistThicknessStandardization };
+  }],
 ] as const;
 
-describe.each(PERSISTS)('cổng thật của màn %s lưu qua #35 (B-V6-03)', (_name, persistOf) => {
-  it('PUT lớp của đúng tầng trong URL, baseVersion lấy từ N16', async () => {
+describe.each(SAVE_PORTS)('cổng thật của màn %s giao lượt lưu cho bộ lưu lớp chung (F-04x-1)', (_name, portOf) => {
+  it('lộ đúng client cho `useFloorLayerAutosave`, giữ cờ lưu, không tự PUT', () => {
     const apiClient = createMockApiClient();
     const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
-    const graph = normalizeSpatial(SAMPLE_BUILDING);
+    const port = portOf(apiClient);
 
-    const result = await persistOf(apiClient)({ floorId: SAMPLE_FLOOR, graph, projectId: PROJECT_ID });
-
-    expect(result.supported).toBe(true);
-    expect(writeLayer).toHaveBeenCalledTimes(1);
-    expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ baseVersion: 0, floorId: SAMPLE_FLOOR, projectId: PROJECT_ID });
-    expect(writeLayer.mock.calls[0]?.[0].body.walls.every((wall) => wall.levelId === SAMPLE_FLOOR)).toBe(true);
+    expect(port.apiClient).toBe(apiClient);
+    expect(port.persists).toBe(true);
+    expect(writeLayer).not.toHaveBeenCalled();
   });
 });
 

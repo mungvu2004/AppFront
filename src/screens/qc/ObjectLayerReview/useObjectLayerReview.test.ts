@@ -22,6 +22,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -35,7 +36,7 @@ import type {
 } from '@/domain/spatial/types';
 import { boxAround } from '@/lib/input/dragDrop';
 import { toAttachedOpening } from '@/lib/commands/business/shared';
-import { flushAutosaves } from '@/hooks/useAutosave';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -124,6 +125,9 @@ const ORPHAN_OBJECT_ID = 'D-009';
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -929,10 +933,19 @@ describe('mã hiển thị và mã máy', () => {
 /* Tự lưu (A7) — B-V6-03.                                                      */
 /* -------------------------------------------------------------------------- */
 
-describe('tự lưu lớp đối tượng (B-V6-03)', () => {
+/*
+ * Đổi vì bộ lưu mới (F-04x-1): cổng không còn `persistObjectLayer`; lượt lưu đi qua
+ * `useFloorLayerAutosave` với client cổng lộ ra, nên bài kiểm rình `writeLayer`.
+ */
+describe('tự lưu lớp đối tượng (B-V6-03, F-04x-1)', () => {
+  const savingGateway = () => {
+    const apiClient = createMockApiClient();
+
+    return { gateway: createMockObjectLayerReviewGateway({ apiClient }), writeLayer: vi.spyOn(apiClient.spatial, 'writeLayer') };
+  };
+
   it('một thao tác duyệt không gửi ngay — lưu 800 ms sau thao tác cuối, một lượt cho hai thao tác liền tay (A7, B-V6-03)', async () => {
-    const gateway = createMockObjectLayerReviewGateway();
-    const persist = vi.spyOn(gateway, 'persistObjectLayer');
+    const { gateway, writeLayer } = savingGateway();
     const mounted = await mountSettled({ gateway });
 
     await run(() => mounted.result.current.onApprove('D-004'));
@@ -941,38 +954,38 @@ describe('tự lưu lớp đối tượng (B-V6-03)', () => {
     await waitFor(() => {
       expect(entityInStore('D-002', 'door')).toBeUndefined();
     });
-    expect(persist).not.toHaveBeenCalled();
+    expect(writeLayer).not.toHaveBeenCalled();
 
     /* Qua cửa sổ 800 ms của A7: đúng MỘT lượt lưu cho cả hai thao tác. */
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     });
 
-    expect(persist).toHaveBeenCalledTimes(1);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
 
     mounted.unmount();
   });
 
   it('Ctrl+S với tới màn đối tượng — flushAutosaves lưu ngay', async () => {
-    const gateway = createMockObjectLayerReviewGateway();
-    const persist = vi.spyOn(gateway, 'persistObjectLayer');
+    const { gateway, writeLayer } = savingGateway();
     const mounted = await mountSettled({ gateway });
 
     await run(() => mounted.result.current.onApprove('D-004'));
-    expect(persist).not.toHaveBeenCalled();
+    expect(writeLayer).not.toHaveBeenCalled();
 
     await act(async () => {
       await flushAutosaves();
     });
 
-    expect(persist).toHaveBeenCalledTimes(1);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
 
     mounted.unmount();
   });
 
   it('lượt lưu hỏng không gỡ thao tác của người duyệt', async () => {
-    const gateway = createMockObjectLayerReviewGateway();
-    const persist = vi.spyOn(gateway, 'persistObjectLayer').mockRejectedValue(new Error('x'));
+    const { gateway, writeLayer } = savingGateway();
+
+    writeLayer.mockRejectedValue(new Error('x'));
     const mounted = await mountSettled({ gateway });
 
     await run(() => mounted.result.current.onDelete('D-002'));
@@ -985,9 +998,30 @@ describe('tự lưu lớp đối tượng (B-V6-03)', () => {
       await Promise.resolve();
     });
 
-    expect(persist).toHaveBeenCalled();
+    expect(writeLayer).toHaveBeenCalled();
     /* Cũ: lượt hỏng gọi applyUndo và cửa D-002 hiện lại. */
     expect(entityInStore('D-002', 'door')).toBeUndefined();
+
+    mounted.unmount();
+  });
+
+  it('409 → dải "Tải lại" (F-04x-1 [8].6)', async () => {
+    const { gateway, writeLayer } = savingGateway();
+
+    /* Máy chủ đã đi trước bản mà màn nạp — lượt lưu đầu nhận 409. */
+    simulateRemoteLayerEdit(FLOOR_ID);
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onApprove('D-004'));
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
+    expect(mounted.result.current.saveBlock?.onReload).toBeTypeOf('function');
 
     mounted.unmount();
   });

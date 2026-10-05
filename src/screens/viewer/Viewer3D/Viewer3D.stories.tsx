@@ -11,7 +11,9 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { ROUTES } from '@/routes/paths';
 import type { ViewerSceneFrame, ViewerScreenState } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
-import { Viewer3D } from './Viewer3D';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
+
+import { Viewer3D, Viewer3DSaveStrip } from './Viewer3D';
 import type { ViewerRoomOption } from './roomSearch';
 
 /** Dự án mẫu của story — mã giả, không phải một dự án thật (R-71). */
@@ -94,6 +96,35 @@ export function scenarioPropsFor(state: ViewerScreenState) {
   return base;
 }
 
+/** Dải lưu lớp mẫu (F-04x-1 bước 7) — dùng chung giữa story và bài kiểm. */
+export function saveBlockFor(kind: FloorLayerSaveBlock['kind'], confirmOpen = false): FloorLayerSaveBlock {
+  const noop = (): void => undefined;
+
+  return kind === 'blocked'
+    ? { confirm: null, kind, message: 'Tầng 2: Bạn không còn quyền sửa tầng này.' }
+    : {
+        confirm: { onCancel: noop, onConfirm: noop, open: confirmOpen },
+        kind,
+        message: 'Tầng 2: Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
+        onReload: noop,
+      };
+}
+
+/** Khung nhìn cộng panel phải chứa dải — dải không bao giờ nằm trong canvas. */
+const withSaveStrip = (saveBlock: FloorLayerSaveBlock): NonNullable<Story['render']> =>
+  function SaveStripStory(args) {
+    return (
+      <div className="flex h-full w-full">
+        <div className="min-w-0 flex-1">
+          <Viewer3D {...args} />
+        </div>
+        <aside aria-label="Panel thuộc tính" className="w-[320px] border-l border-border-default bg-bg-surface">
+          <Viewer3DSaveStrip saveBlock={saveBlock} />
+        </aside>
+      </div>
+    );
+  };
+
 const meta = {
   title: 'Screens/Viewer/Viewer3D',
   component: Viewer3D,
@@ -101,7 +132,7 @@ const meta = {
   /* `scenarioPropsFor` là hàm dùng chung, không phải một story — xuất khẩu
      thêm một hàm vào file CSF sẽ làm Storybook coi nó là story và bỏ trắng cả
      file. */
-  excludeStories: ['scenarioPropsFor'],
+  excludeStories: ['scenarioPropsFor', 'saveBlockFor'],
   decorators: [
     (Story): React.JSX.Element => (
       <div className="h-screen w-screen">
@@ -135,3 +166,17 @@ export const KhongCoQuyen: Story = { args: scenarioPropsFor('forbidden') };
 
 /** Thu gọn — vỏ ẩn hai ray và panel; nội dung khung nhìn giữ nguyên. */
 export const ThuGon: Story = { args: scenarioPropsFor('collapsed') };
+
+/** Tầng vừa được sửa ở nơi khác: dải "Tải lại", bấm thì hỏi A9 trước khi bỏ sửa. */
+export const XungDotTaiLai: Story = {
+  args: scenarioPropsFor('success'),
+  name: 'Xung đột — tải lại',
+  render: withSaveStrip(saveBlockFor('reload')),
+};
+
+/** Lỗi không tự khỏi (403, toàn vẹn): chỉ câu của ống, không nút. */
+export const KhongLuuDuoc: Story = {
+  args: scenarioPropsFor('success'),
+  name: 'Không lưu được',
+  render: withSaveStrip(saveBlockFor('blocked')),
+};

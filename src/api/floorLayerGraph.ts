@@ -42,6 +42,12 @@ export const floorLayerToGraph = (document: FloorLayerDocument): SpatialGraph =>
   walls: document.layer.walls,
 });
 
+/** Đồ thị kho kèm `revision` N16 của từng tầng đã đọc — base lượt ghi đầu. */
+export interface FloorLayerGraphRead {
+  readonly floorRevisions: Readonly<Record<string, number>>;
+  readonly graph: NormalizedSpatial;
+}
+
 export interface ReadFloorLayerGraphInput {
   readonly floorId: string;
   readonly projectId: string;
@@ -52,10 +58,10 @@ export interface ReadFloorLayerGraphInput {
  * Đọc lớp một tầng và trả về dạng kho. Lỗi thì NÉM — đó là cách `useQuery` của
  * màn đi vào trạng thái `error` của A11, thay vì `loading` mãi.
  */
-export async function readFloorLayerGraph(
+export async function readFloorLayerRead(
   spatialApi: Pick<SpatialApi, 'readLayer'>,
   { floorId, projectId, signal }: ReadFloorLayerGraphInput,
-): Promise<NormalizedSpatial> {
+): Promise<FloorLayerGraphRead> {
   const result = await spatialApi.readLayer(
     signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
   );
@@ -64,7 +70,18 @@ export async function readFloorLayerGraph(
     throw result.error;
   }
 
-  return normalizeSpatial(floorLayerToGraph(result.data));
+  return {
+    floorRevisions: { [floorId]: result.data.revision },
+    graph: normalizeSpatial(floorLayerToGraph(result.data)),
+  };
+}
+
+/** Như {@link readFloorLayerRead}, chỉ lấy đồ thị. */
+export async function readFloorLayerGraph(
+  spatialApi: Pick<SpatialApi, 'readLayer'>,
+  input: ReadFloorLayerGraphInput,
+): Promise<NormalizedSpatial> {
+  return (await readFloorLayerRead(spatialApi, input)).graph;
 }
 
 export interface ReadProjectLayerGraphInput {
@@ -82,11 +99,11 @@ export interface ReadProjectLayerGraphInput {
  * ponytail: một lượt N16 cho mỗi tầng (trần `PROJECT_LIMITS.floorCountMax`); có
  * endpoint cả dự án thì thay đúng hàm này.
  */
-export async function readProjectLayerGraph(
+export async function readProjectLayerRead(
   spatialApi: Pick<SpatialApi, 'readLayer'>,
   { floorIds, projectId, signal }: ReadProjectLayerGraphInput,
-): Promise<NormalizedSpatial> {
-  const graphs = await Promise.all(
+): Promise<FloorLayerGraphRead> {
+  const documents = await Promise.all(
     floorIds.map(async (floorId) => {
       const result = await spatialApi.readLayer(
         signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
@@ -96,11 +113,12 @@ export async function readProjectLayerGraph(
         throw result.error;
       }
 
-      return floorLayerToGraph(result.data);
+      return result.data;
     }),
   );
+  const graphs = documents.map(floorLayerToGraph);
 
-  return normalizeSpatial({
+  const graph = normalizeSpatial({
     axes: graphs.flatMap((graph) => graph.axes),
     building: FLOOR_LAYER_BUILDING,
     dimensions: graphs.flatMap((graph) => graph.dimensions),
@@ -109,8 +127,21 @@ export async function readProjectLayerGraph(
     notes: [],
     openings: graphs.flatMap((graph) => graph.openings),
     rooms: graphs.flatMap((graph) => graph.rooms),
-    walls: graphs.flatMap((graph) => graph.walls),
+    walls: graphs.flatMap((one) => one.walls),
   });
+
+  return {
+    floorRevisions: Object.fromEntries(floorIds.map((floorId, index) => [floorId, documents[index]?.revision ?? 0])),
+    graph,
+  };
+}
+
+/** Như {@link readProjectLayerRead}, chỉ lấy đồ thị. */
+export async function readProjectLayerGraph(
+  spatialApi: Pick<SpatialApi, 'readLayer'>,
+  input: ReadProjectLayerGraphInput,
+): Promise<NormalizedSpatial> {
+  return (await readProjectLayerRead(spatialApi, input)).graph;
 }
 
 export interface ReadProjectSpatialInput {
@@ -120,6 +151,7 @@ export interface ReadProjectSpatialInput {
 
 /** Thứ cổng nạp kho dự án ghi vào kho, theo đúng hình của từng lát. */
 export interface ProjectSpatial {
+  readonly floorRevisions: Readonly<Record<string, number>>;
   readonly graph: NormalizedSpatial;
   readonly levels: readonly Level[];
   readonly project: StoreProject;
@@ -159,13 +191,14 @@ export async function readProjectSpatial(
     throw result.error;
   }
 
-  const graph = await readProjectLayerGraph(api.spatial, {
+  const { floorRevisions, graph } = await readProjectLayerRead(api.spatial, {
     floorIds: result.data.floors.map((floor) => floor.id),
     projectId,
     signal,
   });
 
   return {
+    floorRevisions,
     graph,
     levels: denormalizeSpatial(graph).levels,
     project: toStoreProject(result.data),

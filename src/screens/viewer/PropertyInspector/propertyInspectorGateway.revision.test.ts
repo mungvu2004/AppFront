@@ -1,106 +1,118 @@
-import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
 import { SAMPLE_BUILDING, sampleLevelId, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
-import { applySinglePatch } from '@/domain/spatial/applyPatch';
-import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import { isTransientWireError } from '@/lib/errors/wireError';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { __resetFloorLayerSavers, useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { useStore } from '@/store';
+import { commit } from '@/store/commit';
 
 import { createPropertyInspectorGateway } from './propertyInspectorGateway';
 
-/** Tường `index` của bộ mẫu nằm ở tầng `index % 4`. */
-const thicken = (graph: NormalizedSpatial, index: number, thicknessMm = 330): NormalizedSpatial =>
-  applySinglePatch(graph, { changes: { thicknessMm }, id: sampleWallId(index), kind: 'wall', op: 'update' });
+const PROJECT = 'project-1';
+const base = normalizeSpatial(SAMPLE_BUILDING);
+
+/** Tường `index` của bộ mẫu nằm ở tầng `index % 4` — một lượt sửa thuộc tính qua `commit`. */
+const thicken = (index: number, thicknessMm = 330): void => {
+  act(() => {
+    commit({ changes: { thicknessMm }, id: sampleWallId(index), kind: 'wall', op: 'update' }, 'Đổi độ dày');
+  });
+};
+
+const settle = async (ms = 800): Promise<void> => {
+  await act(async () => {
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+};
 
 /**
- * B-V8-41 — lượt lưu gửi mọi tầng có thứ bị đổi so với mốc (lượt lưu trước, hoặc hai
- * đầu lịch sử hoàn tác), mỗi tầng một PUT; B-G-07 — mỗi PUT mang `baseVersion` đúng.
+ * Đổi test (F-04x-1): cổng panel không còn `persistProperties` — sửa thuộc tính đi qua
+ * saver lớp tầng dùng chung. Cùng các ý cũ (B-V8-41: mỗi tầng bị đổi một PUT; B-G-07:
+ * `baseVersion` đúng), nay kiểm trên saver, với revision của lượt đọc thay cho N16.
  */
-describe('createPropertyInspectorGateway — đích và baseVersion của lượt lưu', () => {
-  const base = normalizeSpatial(SAMPLE_BUILDING);
-
-  const setup = (historyEnds: () => readonly NormalizedSpatial[]) => {
+describe('sửa thuộc tính → saver lớp tầng: đích và baseVersion của lượt lưu', () => {
+  const setup = async () => {
     const apiClient = createMockApiClient();
     const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
     const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
-    const gateway = createPropertyInspectorGateway({
-      apiClient,
-      graph: { read: () => base },
-      historyEnds,
-      target: () => ({ projectId: 'project-1' }),
-    });
+
+    renderHook(() => useFloorLayerAutosave({ apiClient, projectId: PROJECT }));
+    await settle(0);
+
     const floors = (): string[] => writeLayer.mock.calls.map(([input]) => input.floorId);
 
-    return { floors, gateway, readLayer, writeLayer };
+    return { floors, readLayer, writeLayer };
   };
 
+  beforeEach(() => {
+    vi.useFakeTimers();
+    __resetFloorLayerSavers();
+    __resetMockLayerState();
+    useStore.getState().setSpatial(base, 'v-1', {
+      floorRevisions: Object.fromEntries(base.byKind.level.map((id) => [id, 0])),
+      projectId: PROJECT,
+    });
+  });
+
+  afterEach(() => {
+    __resetFloorLayerSavers();
+    useStore.getState().setSpatial(null, null);
+    vi.useRealTimers();
+  });
+
+  it('cổng panel không còn tự lưu', () => {
+    const gateway = createPropertyInspectorGateway({ apiClient: createMockApiClient() });
+
+    expect(gateway).not.toHaveProperty('persistProperties');
+    expect(gateway.supports).not.toHaveProperty('persistProperties');
+  });
+
   it('sửa ở tầng 2 thì đúng một PUT, vào tầng 2', async () => {
-    const { floors, gateway } = setup(() => [base]);
+    const { floors } = await setup();
 
-    const result = await gateway.persistProperties(thicken(base, 2));
+    thicken(2);
+    await settle();
 
-    expect(result).toEqual({ data: [sampleLevelId(2)], ok: true });
     expect(floors()).toEqual([sampleLevelId(2)]);
   });
 
   it('sửa ở hai tầng thì hai PUT', async () => {
-    const { floors, gateway } = setup(() => [base]);
+    const { floors } = await setup();
 
-    await gateway.persistProperties(thicken(thicken(base, 1), 3));
+    thicken(1);
+    thicken(3);
+    await settle();
 
     expect([...floors()].sort()).toEqual([sampleLevelId(1), sampleLevelId(3)]);
   });
 
-  it('gọi lại với cùng đồ thị thì không PUT nào nữa', async () => {
-    const { gateway, writeLayer } = setup(() => [base]);
-    const edited = thicken(base, 2);
+  it('sửa hai lần cùng một tầng: base lượt đầu là revision của lượt đọc, lượt sau là revision vừa ghi — N16 0 lần', async () => {
+    const { readLayer, writeLayer } = await setup();
 
-    await gateway.persistProperties(edited);
-    await gateway.persistProperties(edited);
+    thicken(2);
+    await settle();
+    thicken(2, 440);
+    await settle();
 
-    expect(writeLayer).toHaveBeenCalledTimes(1);
-  });
-
-  it('sửa hai lần cùng một tầng: lượt đầu đọc revision từ N16, lượt sau dùng revision vừa ghi', async () => {
-    const { gateway, readLayer, writeLayer } = setup(() => [base]);
-    const first = thicken(base, 2);
-
-    await gateway.persistProperties(first);
-    await gateway.persistProperties(thicken(first, 2, 440));
-
-    expect(readLayer).toHaveBeenCalledTimes(1);
+    expect(readLayer).not.toHaveBeenCalled();
     expect(writeLayer.mock.calls.map(([input]) => input.baseVersion)).toEqual([0, 1]);
   });
 
-  it('không đọc được revision thì nói ra, không gửi một lượt ghi mù', async () => {
-    const { gateway, readLayer, writeLayer } = setup(() => [base]);
-    const error = { kind: 'network', raw: undefined, requestId: 'req-1', retryable: true } as const;
-    readLayer.mockResolvedValue({ error, ok: false });
+  // Lượt lưu thay kho bằng bản máy chủ, nên ảnh hoàn tác khác tham chiếu ở cả L2: L2 gửi lại
+  // đúng nội dung đã lưu (thừa, vô hại); điều phải đúng là L3 có mặt.
+  it('hoàn tác một bước: tầng vừa đổi được gửi lại', async () => {
+    const { floors, writeLayer } = await setup();
 
-    const result = await gateway.persistProperties(thicken(base, 2));
+    thicken(2);
+    thicken(3);
+    await settle();
+    writeLayer.mockClear();
 
-    expect(result.ok).toBe(false);
-    expect(writeLayer).not.toHaveBeenCalled();
-  });
+    act(() => useStore.temporal.getState().undo());
+    await settle();
 
-  it('409 của máy chủ: kết quả mang HttpError gốc, nên tự lưu không thử lại (B-V8-61)', async () => {
-    const { gateway, writeLayer } = setup(() => [base]);
-    const conflict = { kind: 'http', raw: undefined, requestId: 'req-2', retryable: false, status: 409 } as const;
-    writeLayer.mockResolvedValue({ error: conflict, ok: false });
-
-    const result = await gateway.persistProperties(thicken(base, 2));
-
-    expect(result.ok ? null : result.cause).toBe(conflict);
-    expect(isTransientWireError(result)).toBe(false);
-  });
-
-  it('hoàn tác về giữa lịch sử: mốc là hai đầu [G0, G2], hiện tại G1 — gửi cả L2 lẫn L3', async () => {
-    const g1 = thicken(base, 2);
-    const g2 = thicken(g1, 3);
-    const { floors, gateway } = setup(() => [base, g2]);
-
-    await gateway.persistProperties(g1);
-
-    expect([...floors()].sort()).toEqual([sampleLevelId(2), sampleLevelId(3)]);
+    expect(floors()).toContain(sampleLevelId(3));
   });
 });

@@ -141,7 +141,7 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
 
     /* Đồng bộ, không chen `await`: không lượt vẽ nào thấy dự án mới với đồ thị cũ. */
     state.setProject(data.project);
-    state.setSpatial(data.graph, data.versionId);
+    state.setSpatial(data.graph, data.versionId, { floorRevisions: data.floorRevisions, projectId });
     state.setFloors(data.levels);
   }, [data, isFetchedAfterMount, isFetching, projectId]);
 

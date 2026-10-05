@@ -101,8 +101,9 @@
  *
  * ## Đọc, lưu, và một việc chưa có đường
  *
- * - `persistRoomLabels` — lưu lớp của tầng qua #35 (`createFloorLayerSave`,
- *   B-V6-03); trước đây cổng trả `supported: false` và tự lưu nói "Lưu thất bại".
+ * - Lưu lớp của tầng qua #35 nằm ở `useFloorLayerAutosave` (một bộ lưu mỗi
+ *   người–dự án, F-04x-1); cổng chỉ lộ `apiClient`. Cờ
+ *   `supports.persistRoomLabels` giữ nghĩa "cổng này có đường lưu".
  * - `readClearHeight` — **NOT FOUND**. `Room` không có `heightMm`; chỉ
  *   `Level.heightMm` có, và đó là CHIỀU CAO TẦNG, khác chiều cao thông thuỷ
  *   đúng bằng chiều dày sàn/trần. Hiện số chiều cao tầng dưới nhãn "thông thuỷ"
@@ -114,8 +115,7 @@
  */
 
 import type { ApiClient } from '@/api/client';
-import { readFloorLayerGraph } from '@/api/floorLayerGraph';
-import { createFloorLayerSave } from '@/lib/autosave/spatialLayerSave';
+import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { createAppApiClient } from '@/api/appClient';
 import {
   computeArea,
@@ -336,12 +336,6 @@ export interface ReadRoomLayerInput {
   readonly signal?: AbortSignal;
 }
 
-export interface PersistRoomLabelsInput {
-  readonly projectId: string;
-  readonly floorId: string;
-  readonly graph: NormalizedSpatial;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Cái seam.                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -353,13 +347,11 @@ export interface RoomLabelReviewGateway {
   /** Ảnh nền của tầng. Lỗi ở ĐÂY chỉ làm mất ảnh nền, không phải hỏng lớp phòng. */
   readonly readBackground: (input: ReadRoomLayerInput) => Promise<RoomLabelBackground>;
   /** Lớp phòng của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
-  readonly readRoomLayer: (input: ReadRoomLayerInput) => Promise<NormalizedSpatial | null>;
+  readonly readRoomLayer: (input: ReadRoomLayerInput) => Promise<FloorLayerGraphRead | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: RoomLabelGraphPort;
-  /** Lưu lớp của tầng (#35). Hỏng thì NÉM — tự lưu thử lại rồi nói ra. */
-  readonly persistRoomLabels: (
-    input: PersistRoomLabelsInput,
-  ) => Promise<RoomLabelCapabilityResult<void>>;
+  /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
+  readonly apiClient?: ApiClient;
   /** Mã phòng mới, cho lượt tách phòng. */
   readonly nextRoomId: () => RoomId;
   /** Ai đang thao tác — đi vào `Command.actorId` và nhật ký hoạt động. */
@@ -426,9 +418,8 @@ export function createRoomLabelReviewGateway(
   const graph: RoomLabelGraphPort = options.graph ?? {
     read: () => useStore.getState().spatial,
   };
-  const saveFloorLayer = createFloorLayerSave(apiClient.spatial);
-
   return {
+    apiClient,
     supports: {
       readBackground: true,
       readRoomLayer: true,
@@ -456,15 +447,13 @@ export function createRoomLabelReviewGateway(
       };
     },
 
-    readRoomLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
+    readRoomLayer: async (input) => {
+      const stored = graph.read();
+
+      return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
+    },
 
     graph,
-
-    persistRoomLabels: async (input) => {
-      await saveFloorLayer(input);
-
-      return { supported: true, value: undefined };
-    },
 
     nextRoomId: options.nextRoomId ?? ((): RoomId => createId('room')),
     actorId: options.actorId ?? ROOM_LABEL_DEFAULT_ACTOR_ID,
@@ -499,8 +488,10 @@ export interface RoomLabelGatewaySeed {
   readonly failReadRoomLayer?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ, ảnh cắt thành `null`. */
   readonly withoutImage?: boolean;
-  /** `true` thì `persistRoomLabels` chạy thật (bộ mẫu có đường lưu), cho nhãn "Đã lưu lúc…". */
+  /** Cờ `supports.persistRoomLabels` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
+  /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
+  readonly apiClient?: ApiClient;
   readonly actorId?: string;
   readonly now?: () => number;
   readonly nextRoomId?: () => RoomId;
@@ -514,6 +505,7 @@ export function createMockRoomLabelReviewGateway(
   let counter = 0;
 
   return {
+    ...(seed.apiClient === undefined ? {} : { apiClient: seed.apiClient }),
     supports: {
       readBackground: true,
       readRoomLayer: true,
@@ -542,15 +534,12 @@ export function createMockRoomLabelReviewGateway(
         return Promise.reject(new Error('Không tải được lớp phòng của tầng.'));
       }
 
-      return Promise.resolve(seed.graph ?? useStore.getState().spatial);
+      const stored = seed.graph ?? useStore.getState().spatial;
+
+      return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
     },
 
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
-
-    persistRoomLabels: () =>
-      canPersist
-        ? Promise.resolve({ supported: true, value: undefined })
-        : Promise.reject(new Error('Bộ mẫu dựng với canPersist: false — lượt lưu hỏng.')),
 
     /*
      * Mã phòng mới của bộ mẫu — cùng khuôn `createId`, KHÔNG phải "R-M1".

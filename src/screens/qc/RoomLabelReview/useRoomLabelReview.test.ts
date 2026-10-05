@@ -27,11 +27,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Room, RoomId, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
-import { flushAutosaves } from '@/hooks/useAutosave';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -110,6 +111,9 @@ const ROOM_R005: Room = ROOM_LABEL_FIXTURE_ROOM_R005 as Room;
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -384,12 +388,23 @@ describe('lệnh bị từ chối phải nói ra vì sao (B-V7-08)', () => {
   });
 });
 
-describe('tự lưu — Ctrl+S với tới màn này (B-V7-01)', () => {
-  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
-    const gateway = createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []) });
-    const persist = vi.spyOn(gateway, 'persistRoomLabels');
-    const mounted = await mountSettled({ gateway });
+/*
+ * Đổi vì bộ lưu mới (F-04x-1): cổng không còn `persistRoomLabels`; lượt lưu đi qua
+ * `useFloorLayerAutosave` với client cổng lộ ra, nên bài kiểm rình `writeLayer`.
+ */
+describe('tự lưu — Ctrl+S với tới màn này (B-V7-01, F-04x-1)', () => {
+  /* #35 từ chối phòng tên rỗng (`FloorLayerWriteSchema`) — bộ mẫu có phòng chưa tên, nên đặt tên tạm cho chúng. */
+  const namedRooms = ROOM_LABEL_FIXTURE_ROOMS.map((room, index) =>
+    room.name.trim() === '' ? { ...room, name: `Phòng ${String(index + 1)}` } : room,
+  );
+  const savingGateway = () => {
+    const apiClient = createMockApiClient();
+    const gateway = createMockRoomLabelReviewGateway({ apiClient, graph: graphOf(namedRooms, []) });
 
+    return { gateway, writeLayer: vi.spyOn(apiClient.spatial, 'writeLayer') };
+  };
+
+  const renameR005 = async (mounted: Awaited<ReturnType<typeof mountSettled>>): Promise<void> => {
     await act(async () => {
       mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
       await Promise.resolve();
@@ -397,22 +412,27 @@ describe('tự lưu — Ctrl+S với tới màn này (B-V7-01)', () => {
     await waitFor(() => {
       expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
     });
+  };
+
+  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
+    const { gateway, writeLayer } = savingGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await renameR005(mounted);
 
     /* Còn trong cửa sổ 800 ms: chưa lượt lưu nào. */
-    expect(persist).not.toHaveBeenCalled();
+    expect(writeLayer).not.toHaveBeenCalled();
 
-    /* Đúng thứ `SAVE_SHORTCUT` của `router.tsx` gọi. Trước bản sửa engine của màn
-       không có trong sổ, nên lời gọi này không chạm tới nó. */
+    /* Đúng thứ `SAVE_SHORTCUT` của `router.tsx` gọi. */
     await act(async () => {
       await flushAutosaves();
     });
 
-    expect(persist).toHaveBeenCalledTimes(1);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
   });
 
-  it('tháo màn thì gỡ engine khỏi sổ — Ctrl+S ở màn sau không lưu hộ màn này', async () => {
-    const gateway = createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []) });
-    const persist = vi.spyOn(gateway, 'persistRoomLabels');
+  it('tháo màn khi chưa sửa gì — Ctrl+S ở màn sau không gửi gì', async () => {
+    const { gateway, writeLayer } = savingGateway();
     const mounted = await mountSettled({ gateway });
 
     mounted.unmount();
@@ -420,7 +440,25 @@ describe('tự lưu — Ctrl+S với tới màn này (B-V7-01)', () => {
       await flushAutosaves();
     });
 
-    expect(persist).not.toHaveBeenCalled();
+    expect(writeLayer).not.toHaveBeenCalled();
+  });
+
+  it('409 → dải "Tải lại" (F-04x-1 [8].6)', async () => {
+    const { gateway, writeLayer } = savingGateway();
+
+    /* Máy chủ đã đi trước bản mà màn nạp — lượt lưu đầu nhận 409. */
+    simulateRemoteLayerEdit(FLOOR_ID);
+    const mounted = await mountSettled({ gateway });
+
+    await renameR005(mounted);
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
   });
 });
 

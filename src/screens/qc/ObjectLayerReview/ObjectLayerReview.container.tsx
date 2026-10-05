@@ -49,6 +49,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -81,6 +82,8 @@ export interface ObjectLayerReviewContainerProps {
   readonly registry?: ShortcutRegistry;
   /** Ép thu gọn hai panel — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Ép dải lưu lớp (F-04x-1) — cho story "Xung đột — tải lại" / "Không lưu được". */
+  readonly forceSaveBlock?: FloorLayerSaveBlock;
   /** Bus thông báo riêng — hai lượt kiểm không thấy toast của nhau. */
   readonly notifications?: NotificationBus;
 }
@@ -119,7 +122,7 @@ function WiredObjectLayerReview(props: ObjectLayerReviewContainerProps) {
     ...(props.notifications !== undefined ? { notifications: props.notifications } : {}),
   });
 
-  return <ObjectLayerReview {...model} />;
+  return <ObjectLayerReview {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<ObjectLayerReviewContainer … />` — màn S-13 thật, đã nối, gắn được bằng một thẻ. */

@@ -46,8 +46,7 @@
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
-import { readFloorLayerGraph } from '@/api/floorLayerGraph';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { toAppError } from '@/lib/errors';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
@@ -206,7 +205,7 @@ export interface ScaleCalibrationGateway {
    * `Level` thật. Nguồn của kho khi kho rỗng, để "Áp dụng tỷ lệ" có tầng mà vá
    * (B-V5-01). Lỗi thì ném, như `readFloorLayerGraph`.
    */
-  readonly readFloorLayer: (input: ReadFloorDrawingInput) => Promise<NormalizedSpatial>;
+  readonly readFloorLayer: (input: ReadFloorDrawingInput) => Promise<FloorLayerGraphRead>;
   /** Giữ tỷ lệ vừa áp. Xem ghi chú "Ghi tỷ lệ" ở đầu file. */
   readonly persistScale: (input: PersistScaleInput) => Promise<ScaleCapabilityResult<void>>;
   readonly now: () => number;
@@ -312,7 +311,7 @@ export function createScaleCalibrationGateway(
     readLargestRoomBox: async () => unsupported('largestRoomBox'),
     readSnapTargets: async () => unsupported('snapTargets'),
 
-    readFloorLayer: (input) => readFloorLayerGraph(client.spatial, input),
+    readFloorLayer: (input) => readFloorLayerRead(client.spatial, input),
 
     persistScale: async () => unsupported('persistScale'),
 
