@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { ROUTES, pathOf } from '../fixtures/routes';
 import { seedSpatial } from '../fixtures/seedSpatial';
+import { signInAs } from '../fixtures/session';
 
 /**
  * V12a — `projectRuleSettings` (`docs/notes/e2e/plan.md` V12 mục 2).
@@ -49,7 +50,9 @@ test('B-V12-01: vào màn cài đặt luật bằng đường sản phẩm (khô
 test('có bơm kho: tắt một luật thì dòng đếm giảm một và tự lưu nói ra "đã lưu" mà không cần nút nào (A7)', async ({
   page,
 }) => {
-  await page.goto(RULE_SETTINGS_URL);
+  // F-10: N22 `ruleset.edit` chỉ quản trị viên (HOP-DONG-MOI §6); vai mặc định của bộ
+  // mẫu là `engineer`, nay chỉ đọc — nên bài sửa luật đăng nhập vai `admin`.
+  await signInAs(page, 'admin', RULE_SETTINGS_URL);
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
@@ -74,7 +77,9 @@ test('có bơm kho: tắt một luật thì dòng đếm giảm một và tự l
 test('có bơm kho: tắt một luật hiện toast có nút "Hoàn tác", bấm thì luật bật lại (A8, B-V12-04)', async ({
   page,
 }) => {
-  await page.goto(RULE_SETTINGS_URL);
+  // F-10: N22 `ruleset.edit` chỉ quản trị viên (HOP-DONG-MOI §6); vai mặc định của bộ
+  // mẫu là `engineer`, nay chỉ đọc — nên bài sửa luật đăng nhập vai `admin`.
+  await signInAs(page, 'admin', RULE_SETTINGS_URL);
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
@@ -89,6 +94,18 @@ test('có bơm kho: tắt một luật hiện toast có nút "Hoàn tác", bấm
 
   await expect(ruleSwitch).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByText(/^\d+\/\d+ luật đang bật$/u)).toHaveText(/^23\/25/u);
+});
+
+test('F-10: vai kỹ sư (mặc định của bộ mẫu) xem được bộ luật ở chế độ chỉ đọc, kèm câu nói ai đổi được', async ({
+  page,
+}) => {
+  await page.goto(RULE_SETTINGS_URL);
+  await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
+
+  await expect(page.getByText('Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.')).toBeVisible();
+  await expect(page.getByRole('switch', { name: OPENING_RULE_SWITCH })).toBeDisabled();
 });
 
 test('màn cài đặt bộ luật tới được từ màn kiểm tra luật bằng liên kết, không phải gõ đường dẫn (B-V12-11)', async ({
