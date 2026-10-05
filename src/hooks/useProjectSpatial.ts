@@ -9,7 +9,6 @@ import { CACHE_POLICY } from '@/lib/query/cachePolicy';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { createScreenErrorRecorder, type ScreenErrorReport } from '@/lib/screen-state/screenErrorBoundary';
 import { useStore } from '@/store';
-import { loadProjectGraph } from '@/store/projectHydration';
 
 /**
  * Đường nạp kho của một dự án — B-V12-01, đổi sang #24 + N15 ở F-04x-2.
@@ -62,6 +61,8 @@ const loadClient = async (api: ProjectSpatialApi | undefined): Promise<ProjectSp
   api ?? (await import('@/api/appClient')).createAppApiClient();
 
 const loadReaders = () => import('@/api/floorLayerGraph');
+/** Nạp lười: nhập tĩnh `projectHydration` kéo `commit` vào chunk dùng chung của màn 3D, vượt trần 280 KiB (`pnpm size`). */
+const loadHydration = () => import('@/store/projectHydration');
 
 /** N21 một lần sau `hydrateProject`, khi chưa ai (RuleSettings) nạp cấu hình luật của dự án này. */
 async function hydrateRuleConfigOnce(api: ProjectSpatialApi | undefined, projectId: string): Promise<void> {
@@ -159,7 +160,7 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
 
     let cancelled = false;
 
-    void loadReaders().then(({ toProjectSpatial }) => {
+    void Promise.all([loadReaders(), loadHydration()]).then(([{ toProjectSpatial }, { loadProjectGraph }]) => {
       if (cancelled) {
         return;
       }
