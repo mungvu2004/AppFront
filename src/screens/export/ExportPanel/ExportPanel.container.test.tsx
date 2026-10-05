@@ -22,13 +22,14 @@
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { createElement, type ComponentProps, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type * as ShareLinkModule from '@/lib/export/shareLink';
+import type * as ShareDialogModule from '@/screens/export/ShareDialog';
 import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
@@ -40,6 +41,23 @@ const PROJECT_ID = 'P-000000001';
 
 /** Giá trị `SHARE_LINKS_SUPPORTED` mà mã đọc trong tệp này; `null` = giữ bản thật. */
 const shareLinkFlag = vi.hoisted(() => ({ value: null as boolean | null }));
+
+/**
+ * Số lần `ShareDialogContainer` THẬT được dựng. Bọc chứ không thay: ba bài cũ cần
+ * hộp thoại thật; bài F-06 cần biết container có gắn hộp thoại hay không.
+ */
+const shareDialogMounts = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock('@/screens/export/ShareDialog', async (importOriginal) => {
+  const actual = await importOriginal<typeof ShareDialogModule>();
+  return {
+    ...actual,
+    ShareDialogContainer: (props: ComponentProps<typeof actual.ShareDialogContainer>) => {
+      shareDialogMounts.count += 1;
+      return createElement(actual.ShareDialogContainer, props);
+    },
+  };
+});
 
 vi.mock('@/lib/export/shareLink', async (importOriginal) => {
   const actual = await importOriginal<typeof ShareLinkModule>();
@@ -81,6 +99,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   shareLinkFlag.value = null;
+  shareDialogMounts.count = 0;
 });
 
 describe('F-06 — bản thật v1: không nút "chia sẻ", không request tới share-links', () => {
@@ -91,6 +110,7 @@ describe('F-06 — bản thật v1: không nút "chia sẻ", không request tớ
     expect(await screen.findByRole('button', { name: /xuất/iu })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /chia sẻ/iu })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(shareDialogMounts.count).toBe(0);
     const urls = fetchSpy.mock.calls.map(([input]) =>
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     );

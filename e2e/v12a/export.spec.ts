@@ -108,6 +108,8 @@ test.fixme(
   // Lý do: chip `fixed right-[16px] top-[16px]` (`EditorTour.tsx`) đè lên nút `chia sẻ`
   // của đầu màn xuất ở mọi bề rộng ≥ 1280 px. Mở — chuyển W02 (đang sửa `EditorTour`;
   // dời chip là việc của bề mặt dùng chung). Mở lại khi chip không còn đè nút nào.
+  // F-06: bản v1 không còn nút "chia sẻ" (liên kết chia sẻ là v2, NO-355) — mở lại bài
+  // này cùng lúc gỡ các `test.skip` NO-355 khi v2 lật `SHARE_LINKS_SUPPORTED`.
   async ({ page }) => {
     await seedAndSettle(page);
 

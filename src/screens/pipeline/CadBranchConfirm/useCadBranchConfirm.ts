@@ -877,7 +877,7 @@ export function useCadBranchConfirm(
         },
         unitWarningMessage:
           inspection?.hasMissingUnitDeclaration === true ? COPY.unitWarning : null,
-        isRememberChoiceChecked: isRememberChecked,
+        isRememberChoiceChecked: canRememberChoice && isRememberChecked,
         canRememberChoice,
         isCadChoiceDisabled,
         cadChoiceDisabledReason: isCadChoiceDisabled

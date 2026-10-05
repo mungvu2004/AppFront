@@ -575,7 +575,13 @@ describe('F-06 — liên kết chia sẻ tắt (cổng `supported: false`)', () 
     act(() => result.current[1].createLink());
     act(() => result.current[1].revokeLink(SAMPLE_ACTIVE_LINK.id));
     act(() => result.current[1].confirmRevoke());
-    await Promise.resolve();
+    // `mutate` qua vài nhịp `await` rồi mới gọi `mutationFn`: chờ hết hàng vi tác vụ và
+    // một vòng macrotask, để bỏ chặn của `createLink` thì `create` kịp chạy và bài đỏ.
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    });
 
     const [model] = result.current;
     expect(model.linksSupported).toBe(false);
