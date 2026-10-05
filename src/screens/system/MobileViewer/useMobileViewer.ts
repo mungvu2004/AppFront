@@ -246,6 +246,9 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
 
   const sessionShareLinks = useShareLinkGateway();
   const shareLinks = options.shareLinks !== undefined ? options.shareLinks : sessionShareLinks;
+  // Không cổng, hoặc cổng nói máy chủ không phục vụ liên kết (v1, BE-BIND #47–#49):
+  // hai nút chia sẻ rời DOM và không lượt gọi nào đi ra.
+  const canShareLinks = shareLinks !== null && shareLinks.supported;
 
   const storeSpatial = useStore((state) => state.spatial);
   const storeLoading = useStore((state) => state.spatialLoading);
@@ -576,7 +579,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
 
   const shareMutation = useMutation<ShareOutcome, Error, ShareIntent>({
     mutationFn: async (intent: ShareIntent): Promise<ShareOutcome> => {
-      if (shareLinks === null) {
+      if (!canShareLinks) {
         return { intent, link: null };
       }
 
@@ -727,7 +730,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   return {
     state,
     projectName,
-    onShare,
+    onShare: canShareLinks ? onShare : null,
     isCompact,
     activeTool,
     onSelectTool,
@@ -736,7 +739,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     onSelectFloor,
     selection,
     onDismissSelection,
-    onSendDesktopLink,
+    onSendDesktopLink: canShareLinks ? onSendDesktopLink : null,
     measurements,
     detailLabel,
     partialReason: state === 'partial' ? partialReason : null,

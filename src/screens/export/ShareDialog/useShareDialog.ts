@@ -278,6 +278,11 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
 
   const canCreateLink = useMemo(() => readShareLinkPermission(roles), [roles]);
 
+  // Máy chủ v1 không phục vụ liên kết chia sẻ (BE-BIND #47–#49 là v2): phần liên
+  // kết và mã nhúng rời DOM, không lượt gọi nào tới cổng. Đây là năng lực tắt,
+  // không phải thiếu quyền — không dùng `forbidden`.
+  const linksSupported = gateway.supported;
+
   /* ---------------------------------------------------------------------- */
   /* Lựa chọn của người dùng — thứ duy nhất `useState` giữ                   */
   /* ---------------------------------------------------------------------- */
@@ -323,7 +328,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
     },
     // Hộp thoại đóng thì không gọi mạng: `ExportPanel` gắn sẵn hộp thoại, nên không có
     // điều kiện này mỗi lượt tải `/export` đọc danh sách liên kết (B-V3-09).
-    enabled: canCreateLink && (options.isOpen ?? true),
+    enabled: canCreateLink && linksSupported && (options.isOpen ?? true),
   });
 
   const links = listQuery.data ?? EMPTY_LINKS;
@@ -505,6 +510,11 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
    * đứng trước ba trạng thái đọc từ dữ liệu vì nó đúng bất kể dữ liệu ra sao.
    */
   const state = useMemo<SevenState>(() => {
+    // Năng lực tắt đi trước cả quyền: truy vấn tắt vẫn `isPending`, nên để nó
+    // rơi xuống sẽ treo ở `loading`; còn `forbidden` là chuyện thiếu quyền.
+    if (!linksSupported) {
+      return isCollapsed ? 'collapsed' : 'success';
+    }
     if (!canCreateLink) {
       return 'forbidden';
     }
@@ -522,7 +532,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
     }
 
     return activeLinks.length === 0 ? 'partial' : 'success';
-  }, [canCreateLink, isBusy, errorMessage, isCollapsed, links.length, activeLinks.length]);
+  }, [linksSupported, canCreateLink, isBusy, errorMessage, isCollapsed, links.length, activeLinks.length]);
 
   /* ---------------------------------------------------------------------- */
   /* Việc làm được                                                           */
@@ -598,9 +608,13 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
         setIncludeViewpoint(include);
         flashEmbedKey('viewpointCode');
       },
-      createLink: () => createMutation.mutate(),
+      createLink: () => {
+        if (linksSupported) createMutation.mutate();
+      },
       // A9: thu hồi không có đường khôi phục, nên bấm "thu hồi" chỉ HỎI (B-V3-06).
-      revokeLink: (id: string) => setPendingRevokeId(id),
+      revokeLink: (id: string) => {
+        if (linksSupported) setPendingRevokeId(id);
+      },
       confirmRevoke: () => {
         if (pendingRevokeId !== null) revokeMutation.mutate(pendingRevokeId);
         setPendingRevokeId(null);
@@ -627,7 +641,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setEmbedHeight: setHeightPx,
       dismiss: () => onDismiss?.(),
     }),
-    [setPermission, flashEmbedKey, createMutation, revokeMutation, pendingRevokeId, rows, copy, embedCode, changeEmbed, onDismiss],
+    [linksSupported, setPermission, flashEmbedKey, createMutation, revokeMutation, pendingRevokeId, rows, copy, embedCode, changeEmbed, onDismiss],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -639,7 +653,8 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       state,
       savedAtLabel: savedAtMs === null ? null : `Đã lưu lúc ${formatClockTime(savedAtMs)}`,
       canCreateLink,
-      noPermissionReason: canCreateLink ? null : SHARE_FORBIDDEN_REASON,
+      linksSupported,
+      noPermissionReason: !linksSupported || canCreateLink ? null : SHARE_FORBIDDEN_REASON,
       members,
       membersReadOnlyReason: MEMBERS_READ_ONLY_REASON,
       form: {
@@ -651,7 +666,8 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
         password,
         includeViewpoint,
         problems,
-        canSubmit: canCreateLink && Object.keys(problems).length === 0 && !isBusy,
+        canSubmit:
+          linksSupported && canCreateLink && Object.keys(problems).length === 0 && !isBusy,
       },
       rows,
       embed: {
@@ -676,6 +692,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       state,
       savedAtMs,
       canCreateLink,
+      linksSupported,
       members,
       permission,
       expiryChoice,

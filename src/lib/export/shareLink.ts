@@ -333,10 +333,25 @@ export interface ShareLinkRevokeInput {
  * tests, not in the adapter with the fetch.
  */
 export interface ShareLinkGateway {
+  /**
+   * Whether the server behind this port serves share links at all. `false`
+   * means the screens leave the link parts out of the DOM and send nothing.
+   */
+  readonly supported: boolean;
   create(input: ShareLinkCreateInput): Promise<Result<unknown, HttpError>>;
   list(input: ShareLinkListInput): Promise<Result<unknown, HttpError>>;
   revoke(input: ShareLinkRevokeInput): Promise<Result<unknown, HttpError>>;
 }
+
+/**
+ * Whether this build talks to a server that serves share links.
+ *
+ * The three routes — `GET`/`POST /projects/{id}/share-links` and
+ * `DELETE /projects/{id}/share-links/{linkId}` (BE-BIND #47–#49) — belong to v2;
+ * the v1 server does not mount them and answers 404. This is the one switch:
+ * every screen that offers a link reads it, so v2 flips this and nothing else.
+ */
+export const SHARE_LINKS_SUPPORTED: boolean = false;
 
 /** Where share links live. Ids are escaped: a project id is not a path. */
 export const SHARE_LINK_ENDPOINTS = {
@@ -355,6 +370,7 @@ export const SHARE_LINK_ENDPOINTS = {
  */
 export function createHttpShareLinkGateway(http: HttpClient): ShareLinkGateway {
   return {
+    supported: SHARE_LINKS_SUPPORTED,
     create: async ({ body, projectId, signal }) =>
       http.post<unknown, ShareLinkCreateBody>(SHARE_LINK_ENDPOINTS.collection(projectId), {
         body,

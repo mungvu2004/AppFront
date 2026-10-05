@@ -154,6 +154,7 @@ function dialogFor(state: SevenState): CadBranchConfirmDialogViewModel {
     },
     unitWarningMessage: isReading ? null : PHASE_1_TEXT.unitDeclarationWarning.message,
     isRememberChoiceChecked: false,
+    canRememberChoice: true,
     isCadChoiceDisabled: isBlocked,
     cadChoiceDisabledReason: isBlocked
       ? state === 'forbidden'

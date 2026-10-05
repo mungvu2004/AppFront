@@ -59,21 +59,25 @@ function ShareDialogMain({ isOpen, model, actions, titleId }: ShareDialogProps) 
             <>
               <ShareDialogPeople members={model.members} membersReadOnlyReason={model.membersReadOnlyReason} />
 
-              <ShareDialogLink
-                form={model.form}
-                rows={model.rows}
-                canCreateLink={model.canCreateLink}
-                noPermissionReason={model.noPermissionReason}
-                staleLinkNotice={model.staleLinkNotice}
-                copiedTargetId={model.copiedTargetId}
-                actions={actions}
-              />
+              {model.linksSupported && (
+                <>
+                  <ShareDialogLink
+                    form={model.form}
+                    rows={model.rows}
+                    canCreateLink={model.canCreateLink}
+                    noPermissionReason={model.noPermissionReason}
+                    staleLinkNotice={model.staleLinkNotice}
+                    copiedTargetId={model.copiedTargetId}
+                    actions={actions}
+                  />
 
-              <ShareDialogEmbed
-                embed={model.embed}
-                isCodeCopied={model.copiedTargetId === EMBED_COPY_TARGET_ID}
-                actions={actions}
-              />
+                  <ShareDialogEmbed
+                    embed={model.embed}
+                    isCodeCopied={model.copiedTargetId === EMBED_COPY_TARGET_ID}
+                    actions={actions}
+                  />
+                </>
+              )}
             </>
           )}
         </div>

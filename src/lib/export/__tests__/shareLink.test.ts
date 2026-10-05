@@ -30,6 +30,7 @@ import {
   MAX_SHARE_WINDOW_DAYS,
   MIN_SHARE_PASSWORD_LENGTH,
   SHARE_LINK_ENDPOINTS,
+  SHARE_LINKS_SUPPORTED,
   createHttpShareLinkGateway,
   createShareLink,
   describeShareLinkExpiry,
@@ -155,6 +156,7 @@ function harness(replies: GatewayReplies = {}): GatewayHarness {
     listInputs,
     revokeInputs,
     gateway: {
+      supported: true,
       create: async (input) => {
         createInputs.push(input);
 
@@ -1025,6 +1027,11 @@ function recordingHttpClient(calls: HttpCall[]): HttpClient {
 }
 
 describe('createHttpShareLinkGateway', () => {
+  it('says the v1 server does not serve share links (BE-BIND #47–#49 are v2)', () => {
+    expect(SHARE_LINKS_SUPPORTED).toBe(false);
+    expect(createHttpShareLinkGateway(recordingHttpClient([])).supported).toBe(false);
+  });
+
   it('posts a new link to the project’s collection, password in the body', async () => {
     const calls: HttpCall[] = [];
     const gateway = createHttpShareLinkGateway(recordingHttpClient(calls));

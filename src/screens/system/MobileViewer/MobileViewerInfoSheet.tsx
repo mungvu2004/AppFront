@@ -116,7 +116,7 @@ export interface MobileViewerInfoSheetProps {
   readonly isOpen: boolean;
   readonly selection: MobileViewerSelection | null;
   readonly onDismiss: () => void;
-  readonly onSendDesktopLink: () => void;
+  readonly onSendDesktopLink: (() => void) | null;
 }
 
 export function MobileViewerInfoSheet({
@@ -269,13 +269,15 @@ export function MobileViewerInfoSheet({
                 <p className="text-[13px] leading-relaxed text-text-secondary">
                   Sửa trên máy tính để chính xác hơn
                 </p>
-                <Button
-                  onClick={onSendDesktopLink}
-                  style={{ minHeight: MOBILE_VIEWER_MIN_HIT_TARGET_PX }}
-                  variant="secondary"
-                >
-                  Gửi liên kết sang máy tính
-                </Button>
+                {onSendDesktopLink !== null && (
+                  <Button
+                    onClick={onSendDesktopLink}
+                    style={{ minHeight: MOBILE_VIEWER_MIN_HIT_TARGET_PX }}
+                    variant="secondary"
+                  >
+                    Gửi liên kết sang máy tính
+                  </Button>
+                )}
               </div>
             )}
           </>

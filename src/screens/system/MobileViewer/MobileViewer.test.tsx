@@ -302,3 +302,27 @@ describe('MobileViewer — Esc đóng lớp trên cùng (A12)', () => {
     expect(onSelectTool).toHaveBeenCalledWith(null);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* F-06 — liên kết chia sẻ tắt (v1): nút rời DOM, câu mời sửa trên máy tính giữ. */
+/* -------------------------------------------------------------------------- */
+
+describe('MobileViewer — liên kết chia sẻ tắt thì hai nút chia sẻ rời DOM (F-06)', () => {
+  it('onShare và onSendDesktopLink là null: không nút "Chia sẻ dự án", không nút gửi; câu nhắc vẫn còn', () => {
+    const props = { ...mobileViewerScenarioFor('success'), onShare: null, onSendDesktopLink: null };
+    const { getByText, queryByRole } = renderMobileViewer(props);
+
+    expect(props.selection?.needsDesktopToEdit).toBe(true);
+    expect(queryByRole('button', { name: 'Chia sẻ dự án' })).toBeNull();
+    expect(queryByRole('button', { name: 'Gửi liên kết sang máy tính' })).toBeNull();
+    expect(getByText('Sửa trên máy tính để chính xác hơn')).toBeInTheDocument();
+  });
+
+  it('có hai hành động thì hai nút có mặt', () => {
+    const props = { ...mobileViewerScenarioFor('success'), onShare: vi.fn(), onSendDesktopLink: vi.fn() };
+    const { getByRole } = renderMobileViewer(props);
+
+    expect(getByRole('button', { name: 'Chia sẻ dự án' })).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Gửi liên kết sang máy tính' })).toBeInTheDocument();
+  });
+});

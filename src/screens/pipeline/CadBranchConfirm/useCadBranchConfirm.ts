@@ -240,7 +240,10 @@ const DEFAULT_DRAWING_UNIT: CadDrawingUnit = 'mm';
 /** Cách đặt gốc toạ độ mặc định: giữ nguyên gốc của tệp, không dịch chuyển gì. */
 const DEFAULT_ORIGIN_MODE: CadOriginMode = 'keep-cad';
 
-/** Vai trò mặc định khi không có vai trò nào đi kèm phiên đăng nhập. */
+/**
+ * Vai trò mặc định khi nơi gọi không truyền `roles` (chỉ story/test; route luôn
+ * truyền `session.roles`). Danh sách rỗng là "không có quyền", không dùng hằng này.
+ */
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 
 /**
@@ -355,7 +358,11 @@ export interface UseCadBranchConfirmHookOptions extends UseCadBranchConfirmOptio
 /* Hai hàm phụ thuần.                                                           */
 /* -------------------------------------------------------------------------- */
 
-/** Chỉ giữ những vai trò bảng phân quyền biết tới — `roles` vào là `string[]`. */
+/**
+ * Chỉ giữ những vai trò bảng phân quyền biết tới — `roles` vào là `string[]`.
+ * Lọc xong còn rỗng thì trả rỗng: vai rỗng hay vai lạ là không có quyền, không
+ * được nâng thành vai nào.
+ */
 function toProjectRoles(roles: readonly string[] | undefined): readonly ProjectRole[] {
   if (roles === undefined) {
     return DEFAULT_ROLES;
@@ -365,7 +372,7 @@ function toProjectRoles(roles: readonly string[] | undefined): readonly ProjectR
     (AUTH_ROLES as readonly string[]).includes(role),
   );
 
-  return known.length === 0 ? DEFAULT_ROLES : known;
+  return known;
 }
 
 /** Cổng đã tiêm, hoặc bản thật dựng đúng một lần và chỉ khi cần. */
@@ -423,8 +430,11 @@ export function useCadBranchConfirm(
   const [stage, setStage] = useState<CadBranchConfirmStage>('branchDialog');
   const [isDialogOpen, setIsDialogOpen] = useState(true);
   const [resolvedBranch, setResolvedBranch] = useState<CadBranchChoice | null>(null);
+  // Cổng không ghi nhớ được (bản thật v1) thì ô ghi nhớ rời DOM và hook không
+  // gọi `rememberChoice` lần nào.
+  const canRememberChoice = gateway.supports.rememberChoice;
   const [isRememberChecked, setIsRememberChecked] = useState(
-    () => gateway.readRememberedChoice(projectId) !== null,
+    () => canRememberChoice && gateway.readRememberedChoice(projectId) !== null,
   );
   const [roleByLayerId, setRoleByLayerId] = useState<Readonly<Record<string, CadLayerRole>>>({});
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -662,13 +672,17 @@ export function useCadBranchConfirm(
 
   const onToggleRemember = useCallback(
     (isChecked: boolean) => {
+      if (!canRememberChoice) {
+        return;
+      }
+
       setIsRememberChecked(isChecked);
 
       if (!isChecked) {
         void gateway.rememberChoice({ choice: null, projectId });
       }
     },
-    [gateway, projectId],
+    [canRememberChoice, gateway, projectId],
   );
 
   const onChooseBranch = useCallback(
@@ -682,7 +696,7 @@ export function useCadBranchConfirm(
       setResolvedBranch(choice);
       setIsDialogOpen(false);
 
-      if (isRememberChecked) {
+      if (canRememberChoice && isRememberChecked) {
         void gateway.rememberChoice({ choice, projectId });
       }
 
@@ -699,7 +713,7 @@ export function useCadBranchConfirm(
       setStage('branchDialog');
       options.onNavigate?.(ROUTES.project.pipeline(projectId));
     },
-    [floorId, gateway, isCadChoiceDisabled, isRememberChecked, options, projectId],
+    [canRememberChoice, floorId, gateway, isCadChoiceDisabled, isRememberChecked, options, projectId],
   );
 
   const onDismiss = useCallback(() => {
@@ -863,7 +877,8 @@ export function useCadBranchConfirm(
         },
         unitWarningMessage:
           inspection?.hasMissingUnitDeclaration === true ? COPY.unitWarning : null,
-        isRememberChoiceChecked: isRememberChecked,
+        isRememberChoiceChecked: canRememberChoice && isRememberChecked,
+        canRememberChoice,
         isCadChoiceDisabled,
         cadChoiceDisabledReason: isCadChoiceDisabled
           ? (state === 'forbidden'

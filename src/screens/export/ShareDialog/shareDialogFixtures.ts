@@ -421,6 +421,7 @@ function modelForState(state: SevenState): ShareDialogModel {
     state,
     savedAtLabel: SAMPLE_SAVED_AT_LABEL,
     canCreateLink: true,
+    linksSupported: true,
     noPermissionReason: null,
     members: SAMPLE_MEMBERS,
     membersReadOnlyReason: MEMBERS_READ_ONLY_REASON,
@@ -481,6 +482,19 @@ function modelForState(state: SevenState): ShareDialogModel {
     default:
       return base;
   }
+}
+
+/**
+ * Máy chủ không phục vụ liên kết chia sẻ (v1, BE-BIND #47–#49 là v2): trạng thái
+ * `success`, chỉ còn "người có quyền" — phần liên kết và mã nhúng rời DOM.
+ */
+export function buildLinksUnsupportedModel(): ShareDialogModel {
+  return {
+    ...modelForState('success'),
+    linksSupported: false,
+    rows: [],
+    form: buildShareLinkForm({ canSubmit: false }),
+  };
 }
 
 /**

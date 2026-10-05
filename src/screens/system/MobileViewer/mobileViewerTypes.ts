@@ -343,7 +343,8 @@ export interface MobileViewerProps {
 
   /* Thanh trên. */
   readonly projectName: string;
-  readonly onShare: () => void;
+  /** `null` khi liên kết chia sẻ tắt (v1): nút "Chia sẻ dự án" rời DOM. */
+  readonly onShare: (() => void) | null;
 
   /* Khung 3D. Container cấp, không phải hook — story và test bỏ trống. */
   readonly canvasRef?: ((element: HTMLCanvasElement | null) => void) | undefined;
@@ -361,8 +362,11 @@ export interface MobileViewerProps {
   /* Tấm thông tin — chỉ đọc. */
   readonly selection: MobileViewerSelection | null;
   readonly onDismissSelection: () => void;
-  /** Câu mời sửa trên máy tính, kèm nút gửi liên kết. */
-  readonly onSendDesktopLink: () => void;
+  /**
+   * Câu mời sửa trên máy tính, kèm nút gửi liên kết. `null` khi liên kết chia sẻ
+   * tắt: nút rời DOM, câu mời vẫn còn.
+   */
+  readonly onSendDesktopLink: (() => void) | null;
 
   /* Đo. */
   readonly measurements: readonly MobileViewerMeasurement[];

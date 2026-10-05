@@ -200,6 +200,11 @@ export interface ShareDialogModel {
   readonly savedAtLabel: string | null;
   /** Kết quả của `can('create', 'share', { roles })`. false dẫn tới trạng thái `forbidden`. */
   readonly canCreateLink: boolean;
+  /**
+   * `false` khi máy chủ không phục vụ liên kết chia sẻ (v1, `SHARE_LINKS_SUPPORTED`):
+   * phần liên kết và mã nhúng rời DOM, chỉ còn "người có quyền". Không phải `forbidden`.
+   */
+  readonly linksSupported: boolean;
   /** Một câu nói vì sao không đổi được, hiện ngay tại mục bị khoá. */
   readonly noPermissionReason: string | null;
   readonly members: readonly MemberRowModel[];

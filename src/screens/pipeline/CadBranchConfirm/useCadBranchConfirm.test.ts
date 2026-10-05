@@ -91,7 +91,8 @@ afterEach(() => {
 /* -------------------------------------------------------------------------- */
 
 interface MountOptions {
-  readonly roles?: readonly ProjectRole[];
+  /** `string`, không `ProjectRole`: phiên có thể mang vai lạ (F-06). */
+  readonly roles?: readonly string[];
   readonly forceMappingPanelCollapsed?: boolean;
   readonly projectId?: string;
   readonly onNavigate?: (path: string) => void;
@@ -640,6 +641,88 @@ describe('useCadBranchConfirm — ghi nhớ lựa chọn theo dự án', () => {
       expect.objectContaining({ supported: false, capability: 'rememberChoice' }),
     );
     expect(gateway.readRememberedChoice(PROJECT_ID)).toBeNull();
+  });
+});
+
+describe('useCadBranchConfirm — ô ghi nhớ khi cổng tắt', () => {
+  /** Cổng mock với `rememberChoice` bọc spy, cờ `supports.rememberChoice` theo tham số. */
+  function rememberGateway(canRemember: boolean) {
+    const base = createMockCadBranchConfirmGateway({ supports: { rememberChoice: canRemember } });
+    const rememberChoice = vi.fn(base.rememberChoice);
+
+    return { gateway: { ...base, rememberChoice }, rememberChoice };
+  }
+
+  it('cổng tắt: dialog.canRememberChoice false, không gọi rememberChoice lần nào', async () => {
+    const { gateway, rememberChoice } = rememberGateway(false);
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+
+    expect(mounted.result.current.model.dialog.canRememberChoice).toBe(false);
+
+    act(() => {
+      mounted.result.current.actions.onToggleRemember(true);
+    });
+    act(() => {
+      mounted.result.current.actions.onChooseBranch('cad');
+    });
+
+    expect(rememberChoice).not.toHaveBeenCalled();
+    expect(mounted.result.current.model.dialog.isRememberChoiceChecked).toBe(false);
+  });
+
+  it('cổng bật: dialog.canRememberChoice true, chốt nhánh gọi rememberChoice đúng một lần', async () => {
+    const { gateway, rememberChoice } = rememberGateway(true);
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+
+    expect(mounted.result.current.model.dialog.canRememberChoice).toBe(true);
+
+    act(() => {
+      mounted.result.current.actions.onToggleRemember(true);
+    });
+    act(() => {
+      mounted.result.current.actions.onChooseBranch('cad');
+    });
+
+    expect(rememberChoice).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Vai rỗng hay vai lạ là không có quyền (F-06, T6).                           */
+/* -------------------------------------------------------------------------- */
+
+describe('useCadBranchConfirm — vai rỗng hay vai lạ không được nâng thành vai nào', () => {
+  it.each([
+    ['rỗng', []],
+    ['lạ', ['guest']],
+  ] as const)('vai %s → forbidden', async (_label, roles) => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway(), { roles });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.state).toBe('forbidden');
+    expect(mounted.result.current.model.dialog.isCadChoiceDisabled).toBe(true);
+  });
+
+  it('nơi gọi không truyền roles (story/test) thì dùng vai mặc định, không forbidden', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway());
+    await settle(mounted);
+
+    expect(mounted.result.current.model.state).not.toBe('forbidden');
+  });
+
+  it('forbidden thì chọn nhánh CAD không đổi giai đoạn', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway(), { roles: [] });
+    await settle(mounted);
+    const before = mounted.result.current.model.stage;
+
+    act(() => {
+      mounted.result.current.actions.onChooseBranch('cad');
+    });
+
+    expect(mounted.result.current.model.stage).toBe(before);
+    expect(mounted.result.current.model.stage).not.toBe('layerMapping');
   });
 });
 
