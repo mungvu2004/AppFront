@@ -28,6 +28,8 @@ import {
   readProjectLayerGraph,
   readProjectLayerRead,
   readProjectSpatial,
+  rolesOf,
+  type SpatialReader,
 } from '../floorLayerGraph';
 
 /**
@@ -38,6 +40,7 @@ import {
 
 const PROJECT_ID = 'project-1';
 const SAMPLE_FLOOR = sampleLevelId(1);
+const READER: SpatialReader = { roles: ['engineer'], userId: null };
 
 beforeEach(() => {
   __resetMockLayerState();
@@ -155,10 +158,10 @@ describe('lượt đọc mang revision (F-04x-1 bước 2)', () => {
     expect(read.graph.byKind.level).toEqual(graph.byKind.level);
   });
 
-  it('readProjectSpatial mang floorRevisions của mọi tầng', async () => {
-    const result = await readProjectSpatial(createMockApiClient(), { projectId: PROJECT_ID });
+  it('readProjectSpatial mang floorRevisions của mọi tầng (N15)', async () => {
+    const result = await readProjectSpatial(createMockApiClient(), { projectId: PROJECT_ID }, READER);
 
-    expect(Object.keys(result.floorRevisions)).toHaveLength(result.levels.length);
+    expect(result.document.floorRevisions).toHaveLength(result.document.graph.levels.length);
   });
 });
 
@@ -258,50 +261,64 @@ describe.each(SAVE_PORTS)('cổng thật của màn %s giao lượt lưu cho b�
   });
 });
 
-describe('readProjectSpatial — cổng nạp kho dự án (B-V12-01)', () => {
-  it('đọc dự án rồi N16 của mọi tầng: dự án dạng kho (không email), đủ tầng, mã phiên bản hiện hành', async () => {
+/*
+ * F-04x-2: `readProjectSpatial` đọc #24 + N15 thay N16 từng tầng, và trả `document` N15 cùng
+ * `roles` thay `graph`/`levels`/`versionId` (versionId nay do kho băm từ `floorMeta`). Hai bài
+ * cũ đổi theo hợp đồng mới, không phải cho khớp lỗi.
+ */
+describe('readProjectSpatial — #24 + N15 (F-04x-2)', () => {
+  it('đọc dự án rồi N15 một lượt: dự án dạng kho (không email), đồ thị đủ tầng, không gọi N16', async () => {
     const api = createMockApiClient();
+    const readLayer = vi.spyOn(api.spatial, 'readLayer');
+    const readGraph = vi.spyOn(api.spatial, 'readGraph');
     const projectResult = await api.projects.read({ projectId: PROJECT_ID });
     const project = projectResult.ok ? projectResult.data : null;
 
-    const loaded = await readProjectSpatial(api, { projectId: PROJECT_ID });
+    const loaded = await readProjectSpatial(api, { projectId: PROJECT_ID }, READER);
 
     expect(project).not.toBeNull();
     expect(loaded.project.id).toBe(PROJECT_ID);
     expect(loaded.project.name).toBe(project?.name);
     expect(loaded.project.members.map((member) => member.id)).toEqual(project?.members.map((member) => member.id));
     expect(JSON.stringify(loaded.project)).not.toContain('@');
-    expect(loaded.levels).toHaveLength(project?.floors.length ?? -1);
-    expect(loaded.graph.byKind.level).toEqual(loaded.levels.map((level) => level.id));
-    expect(loaded.versionId).toBe(project?.currentVersion?.id ?? null);
-  });
-
-  it('`projects.read` hỏng thì NÉM, và không đọc tầng nào', async () => {
-    const error = { kind: 'network', raw: undefined, requestId: 'req-2', retryable: true } as const;
-    const api = createMockApiClient();
-    const readLayer = vi.spyOn(api.spatial, 'readLayer');
-
-    vi.spyOn(api.projects, 'read').mockResolvedValue({ error, ok: false });
-
-    await expect(readProjectSpatial(api, { projectId: PROJECT_ID })).rejects.toBe(error);
+    expect(loaded.document.graph.levels).toHaveLength(project?.floors.length ?? -1);
+    expect(readGraph).toHaveBeenCalledTimes(1);
     expect(readLayer).not.toHaveBeenCalled();
   });
 
-  it('dự án 0 tầng ra đồ thị rỗng thật — không `null` (`null` là "chưa nạp", cổng sẽ nạp lại mãi)', async () => {
+  it('`projects.read` hỏng thì NÉM, và không đọc N15', async () => {
+    const error = { kind: 'network', raw: undefined, requestId: 'req-2', retryable: true } as const;
+    const api = createMockApiClient();
+    const readGraph = vi.spyOn(api.spatial, 'readGraph');
+
+    vi.spyOn(api.projects, 'read').mockResolvedValue({ error, ok: false });
+
+    await expect(readProjectSpatial(api, { projectId: PROJECT_ID }, READER)).rejects.toBe(error);
+    expect(readGraph).not.toHaveBeenCalled();
+  });
+
+  it('N15 hỏng thì NÉM', async () => {
+    const error = { kind: 'network', raw: undefined, requestId: 'req-3', retryable: true } as const;
+    const api = createMockApiClient();
+
+    vi.spyOn(api.spatial, 'readGraph').mockResolvedValue({ error, ok: false });
+
+    await expect(readProjectSpatial(api, { projectId: PROJECT_ID }, READER)).rejects.toBe(error);
+  });
+
+  it('roles: vai của người đọc trong `members`; không phải thành viên thì vai của phiên', async () => {
     const api = createMockApiClient();
     const projectResult = await api.projects.read({ projectId: PROJECT_ID });
 
-    if (!projectResult.ok) {
-      throw new Error('mock projects.read phải trả dự án');
+    if (!projectResult.ok || projectResult.data.members[0] === undefined) {
+      throw new Error('mock projects.read phải trả dự án có thành viên');
     }
 
-    vi.spyOn(api.projects, 'read').mockResolvedValue({ data: { ...projectResult.data, floors: [] }, ok: true });
+    const member = projectResult.data.members[0];
 
-    const loaded = await readProjectSpatial(api, { projectId: PROJECT_ID });
-
-    expect(loaded.graph).not.toBeNull();
-    expect(loaded.graph.byKind.level).toEqual([]);
-    expect(loaded.levels).toEqual([]);
+    expect(rolesOf(projectResult.data, { roles: ['viewer'], userId: member.id })).toEqual([member.role]);
+    expect(rolesOf(projectResult.data, { roles: ['viewer'], userId: 'người-lạ' })).toEqual(['viewer']);
+    expect(rolesOf(projectResult.data, { roles: ['engineer'], userId: null })).toEqual(['engineer']);
   });
 });
 

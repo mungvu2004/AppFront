@@ -2,6 +2,7 @@ import type { StateCreator, StoreApi } from 'zustand';
 import type { TemporalState } from 'zundo';
 import { applyPatch, type SpatialPatch } from '../domain/spatial/applyPatch';
 import type { NormalizedSpatial } from '../domain/spatial/normalize';
+import { graphVersionOf } from '../lib/versioning/graphVersion';
 
 /**
  * Saved spatial data of the floor being viewed, in the normalized form built
@@ -14,20 +15,33 @@ import type { NormalizedSpatial } from '../domain/spatial/normalize';
  */
 export interface FloorMetaEntry {
   revision: number;
+  /** `'unresolved'`: the floor's scale is a server guess (N16); measures are not trustworthy yet. */
+  scaleStatus?: 'unresolved';
 }
 
 /** Where a loaded graph came from: the project and the revision each floor was read at. */
 export interface SpatialSource {
   projectId: string;
   floorRevisions: Readonly<Record<string, number>>;
+  /** Floors whose scale is provisional; N15 carries no `scaleStatus`, so only an N16 caller fills it. */
+  floorScaleStatus?: Readonly<Record<string, 'unresolved'>>;
 }
+
+/**
+ * `versionId` that goes with `floorMeta`, written in the same `set` as it: derived from the
+ * floor revisions, or `fallback` while no floor has one (F-04x-2).
+ */
+export const versionIdFor = (
+  floorMeta: Readonly<Record<string, FloorMetaEntry>>,
+  fallback: string | null,
+): string | null => (Object.keys(floorMeta).length === 0 ? fallback : graphVersionOf(floorMeta));
 
 export interface SpatialSlice {
   /** Normalized spatial data of the floor being viewed; null before load. */
   spatial: NormalizedSpatial | null;
   /** True while the floor's spatial data is being fetched. */
   spatialLoading: boolean;
-  /** Id of the version the loaded data belongs to; null before load. */
+  /** Version of the loaded data: `graphVersionOf(floorMeta)` once floors have revisions; null before load. */
   versionId: string | null;
   /**
    * Stores freshly loaded data; arriving data always ends the loading state.
@@ -73,17 +87,27 @@ export const createSpatialSlice: StateCreator<SpatialSlice> = (set, _get, api) =
   serverReplaceSeq: 0,
   lastServerSpatial: null,
   updateFloorMeta: (floorId, entry) =>
-    set((state) => ({ floorMeta: { ...state.floorMeta, [floorId]: entry } })),
+    set((state) => {
+      const floorMeta = { ...state.floorMeta, [floorId]: entry };
+
+      return { floorMeta, versionId: versionIdFor(floorMeta, state.versionId) };
+    }),
   setUnsavedFloorIds: (unsavedFloorIds) => set({ unsavedFloorIds }),
   setSpatial: (spatial, versionId, source) => {
+    const floorMeta: Record<string, FloorMetaEntry> = Object.fromEntries(
+      Object.entries(source?.floorRevisions ?? {}).map(([floorId, revision]) => {
+        const scaleStatus = source?.floorScaleStatus?.[floorId];
+
+        return [floorId, scaleStatus === undefined ? { revision } : { revision, scaleStatus }];
+      }),
+    );
+
     set({
       spatial,
-      versionId,
+      versionId: versionIdFor(floorMeta, versionId),
       spatialLoading: false,
       spatialProjectId: source?.projectId ?? null,
-      floorMeta: Object.fromEntries(
-        Object.entries(source?.floorRevisions ?? {}).map(([floorId, revision]) => [floorId, { revision }]),
-      ),
+      floorMeta,
       lastServerSpatial: spatial,
     });
     (api as MaybeTemporalApi).temporal?.getState().clear();

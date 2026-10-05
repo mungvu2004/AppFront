@@ -203,7 +203,7 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
 
     const { baseVersion, body } = sentWrite(writeLayer, 0);
 
-    expect(FloorLayerWriteSchema.parse({ baseVersion, body: { layer: body } })).toStrictEqual({
+    expect(FloorLayerWriteSchema.parse({ baseVersion, body })).toStrictEqual({
       baseVersion: 3,
       body: { layer: wireLayer(4800) },
     });
@@ -248,7 +248,7 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     await saver.flush();
 
     expect(sentWrite(writeLayer, 1)).toStrictEqual(sentWrite(writeLayer, 0));
-    expect(sentWrite(writeLayer, 2)).toStrictEqual({ baseVersion: 4, body: wireLayer(6000) });
+    expect(sentWrite(writeLayer, 2)).toStrictEqual({ baseVersion: 4, body: { layer: wireLayer(6000) } });
     expect(onSaved.mock.calls.map(([, , info]) => info.redirtied)).toStrictEqual([true, false]);
     expect(saver.hasDirty()).toBe(false);
   });
@@ -520,6 +520,195 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     saver.markDirty([FLOOR_A]);
     await saver.flush();
     expect(writeLayer).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('saveScale — F-04x-2 bước 5', () => {
+  const RATIO = 12.5;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('tầng sạch: thân chỉ tỉ lệ, base = max(readRevision, hint); onSaved có scaleSent', async () => {
+    const { onSaved, saver, writeLayer } = harness();
+
+    await saver.saveScale(FLOOR_A, RATIO, 5);
+    await saver.saveScale(FLOOR_B, RATIO, 2);
+
+    expect(sentWrite(writeLayer, 0)).toStrictEqual({ baseVersion: 5, body: { scaleMillimetresPerPixel: RATIO } });
+    expect(sentWrite(writeLayer, 1)).toStrictEqual({ baseVersion: 7, body: { scaleMillimetresPerPixel: RATIO } });
+    expect(onSaved).toHaveBeenCalledWith(FLOOR_A, expect.objectContaining({ revision: 4 }), {
+      redirtied: false,
+      scaleSent: true,
+    });
+  });
+
+  it('tầng sạch không hint: base = readRevision', async () => {
+    const { saver, writeLayer } = harness();
+
+    await saver.saveScale(FLOOR_A, RATIO);
+
+    expect(sentWrite(writeLayer, 0).baseVersion).toBe(3);
+  });
+
+  it('tầng bẩn: MỘT PUT lớp + tỉ lệ; hint lớn hơn vẫn giữ base của lớp; flush sau không gửi lại', async () => {
+    const { saver, writeLayer } = harness();
+
+    saver.markDirty([FLOOR_A]);
+    await saver.saveScale(FLOOR_A, RATIO, 9);
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(sentWrite(writeLayer, 0)).toStrictEqual({
+      baseVersion: 3,
+      body: { layer: wireLayer(4800), scaleMillimetresPerPixel: RATIO },
+    });
+
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(saver.hasDirty()).toBe(false);
+  });
+
+  it('tầng bị khối: không PUT, ném lại đúng lỗi đang giữ', async () => {
+    const { saver, writeLayer } = harness();
+    const error = httpError(403, { code: 'FORBIDDEN', requestId: 'req-1' });
+
+    writeLayer.mockResolvedValueOnce(failed(error));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(error);
+
+    await expect(saver.saveScale(FLOOR_A, RATIO, 9)).rejects.toBe(error);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('sửa lúc PUT tỉ lệ bay: không PUT tiếp, khối reload với câu tỉ lệ, tầng vẫn chưa lưu', async () => {
+    const { onSaved, saver, writeLayer } = harness();
+    const pending = deferred();
+    const listener = vi.fn();
+
+    saver.subscribe(listener);
+    writeLayer.mockReturnValueOnce(pending.promise);
+    const saving = saver.saveScale(FLOOR_A, RATIO);
+
+    await vi.advanceTimersByTimeAsync(0);
+    saver.markDirty([FLOOR_A]);
+    pending.resolve(savedAt(4));
+    await saving;
+
+    expect(onSaved).toHaveBeenCalledWith(FLOOR_A, expect.objectContaining({ revision: 4 }), {
+      redirtied: true,
+      scaleSent: true,
+    });
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'reload', message: LAYER_SAVE_MESSAGES.scaleRedirtied });
+    expect(LAYER_SAVE_MESSAGES.scaleRedirtied).toBe(
+      'Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
+    );
+
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenLastCalledWith([FLOOR_A]);
+
+    await expect(saver.saveScale(FLOOR_A, RATIO)).rejects.toThrow(LAYER_SAVE_MESSAGES.scaleRedirtied);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    saver.discardFloor(FLOOR_A);
+    await saver.saveScale(FLOOR_A, RATIO);
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+  });
+
+  it('chờ PUT lớp đang bay của cùng tầng, rồi lấy base từ revision vừa về', async () => {
+    const { saver, writeLayer } = harness();
+    const pending = deferred();
+
+    writeLayer.mockReturnValueOnce(pending.promise).mockResolvedValueOnce(savedAt(5));
+    saver.markDirty([FLOOR_A]);
+    const flushed = saver.flush();
+    const saving = saver.saveScale(FLOOR_A, RATIO);
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    pending.resolve(savedAt(4));
+    await Promise.all([flushed, saving]);
+
+    expect(sentWrite(writeLayer, 1)).toStrictEqual({ baseVersion: 4, body: { scaleMillimetresPerPixel: RATIO } });
+  });
+
+  it('thân chỉ tỉ lệ hỏng 422: ném lỗi gốc, không khối, không tự gửi lại', async () => {
+    const { saver, writeLayer } = harness();
+    const error = httpError(422, { code: 'VALIDATION', field: 'scaleMillimetresPerPixel', requestId: 'req-1' });
+
+    writeLayer.mockResolvedValueOnce(failed(error));
+    await expect(saver.saveScale(FLOOR_A, RATIO)).rejects.toBe(error);
+
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('thân chỉ tỉ lệ hỏng tạm: không giữ bản để gửi lại', async () => {
+    const { saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(TIMEOUT));
+    await expect(saver.saveScale(FLOOR_A, RATIO)).rejects.toBe(TIMEOUT);
+
+    expect(saver.hasDirty()).toBe(false);
+    await saver.flush();
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('lớp + tỉ lệ hỏng tạm: tầng bẩn lại, lượt sau chỉ gửi lớp', async () => {
+    const { saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(TIMEOUT));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.saveScale(FLOOR_A, RATIO)).rejects.toBe(TIMEOUT);
+
+    expect(saver.hasDirty()).toBe(true);
+    await saver.flush();
+    expect(sentWrite(writeLayer, 1)).toStrictEqual({ baseVersion: 3, body: { layer: wireLayer(4800) } });
+  });
+
+  it('lớp + tỉ lệ hỏng 409: khối reload như lượt lưu lớp', async () => {
+    const { saver, writeLayer } = harness();
+    const error = httpError(409, { code: 'VERSION_CONFLICT', currentVersion: 8, remoteChanges: [], requestId: 'req-1' });
+
+    writeLayer.mockResolvedValueOnce(failed(error));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.saveScale(FLOOR_A, RATIO)).rejects.toBe(error);
+
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'reload', message: LAYER_SAVE_MESSAGES.reload });
+  });
+
+  it('bản giữ (hỏng tạm) đi cùng tỉ lệ trong một PUT, đúng base của bản giữ', async () => {
+    const { revisions, saver, writeLayer } = harness();
+
+    writeLayer.mockResolvedValueOnce(failed(TIMEOUT));
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBe(TIMEOUT);
+
+    revisions.set(FLOOR_A, 6);
+    await saver.saveScale(FLOOR_A, RATIO, 9);
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(sentWrite(writeLayer, 1)).toStrictEqual({
+      baseVersion: 3,
+      body: { layer: wireLayer(4800), scaleMillimetresPerPixel: RATIO },
+    });
+    expect(saver.hasDirty()).toBe(false);
+  });
+
+  it('tỉ lệ không hợp lệ: không gửi, ném 422 không tạm thời, không khối', async () => {
+    const { saver, writeLayer } = harness();
+    const error: unknown = await saver.saveScale(FLOOR_A, 0).catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ kind: 'http', retryable: false, status: 422 });
+    expect(writeLayer).toHaveBeenCalledTimes(0);
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
   });
 });
 

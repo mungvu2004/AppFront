@@ -140,3 +140,15 @@ export const SaveBlocked: Story = {
     forceSaveBlock: { confirm: null, kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown },
   },
 };
+
+/** Dải "Tỉ lệ tạm" — tầng chưa hiệu chỉnh tỉ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
+export const ProvisionalScale: Story = {
+  name: 'Tỉ lệ tạm',
+  args: {
+    ...scenarioArgsFor('partial'),
+    gateway: createMockObjectLayerReviewGateway({
+      ...objectLayerScenarioFor('partial').gatewaySeed,
+      scaleStatus: 'unresolved',
+    }),
+  },
+};

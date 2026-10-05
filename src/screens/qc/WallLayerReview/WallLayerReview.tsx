@@ -53,6 +53,8 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 
 import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from './ProvisionalScaleBanner';
+import type { ProvisionalScaleNotice } from './provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
 import {
   WallLayerLeftPanel,
@@ -75,6 +77,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly onNavigateFloor?: ((floorId: string) => void) | undefined;
   /** Khối lưu lớp của tầng (F-04x-1) — dải trên màn, không trong canvas. */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
+  /** Dải tỉ lệ tạm (F-04x-2) — trên màn, không trong canvas. */
+  readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
@@ -107,6 +111,7 @@ export function WallLayerReview({
   onNavigateLayer,
   onNavigateFloor,
   saveBlock,
+  provisionalScaleNotice,
 }: WallLayerReviewViewProps) {
   const isCollapsed = panel.state === 'collapsed';
 
@@ -115,6 +120,11 @@ export function WallLayerReview({
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />
+        </div>
+      )}
+      {provisionalScaleNotice != null && (
+        <div className="px-2 pt-2">
+          <ProvisionalScaleBanner notice={provisionalScaleNotice} />
         </div>
       )}
       <div className="relative flex min-h-0 flex-1 gap-2 p-2">

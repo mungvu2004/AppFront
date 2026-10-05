@@ -73,6 +73,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { PROVISIONAL_MEASURE_TEXT, provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -83,7 +84,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
-import { scenarioArgsFor } from './RoomLabelReview.stories';
+import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
 import {
   ROOM_LABEL_FIXTURE_ROOMS,
   ROOM_LABEL_FIXTURE_ROOM_R005,
@@ -522,5 +523,29 @@ describe('dải lưu lớp (F-04x-1)', () => {
     expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(onReload).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Dải tỉ lệ tạm (F-04x-2 [8].7).                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('dải tỉ lệ tạm (F-04x-2)', () => {
+  const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
+
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} />);
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).toBeInTheDocument();
+    expect(screen.getAllByText(PROVISIONAL_MEASURE_TEXT).length).toBeGreaterThan(0);
+  });
+
+  it('tầng có tỉ lệ thật: không dải, không chữ tỉ lệ tạm', async () => {
+    await renderSettled('partial');
+
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
   });
 });

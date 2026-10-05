@@ -52,6 +52,7 @@
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 
 import type { ApiClient } from '@/api/client';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { createAppApiClient } from '@/api/appClient';
 import { counterLabelOf, createId, displayCodesOf } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -167,6 +168,8 @@ import { confidenceLevel } from '@/lib/format/semantic';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
+
+import { mockFloorLayerDocument } from '../WallLayerReview/mockFloorLayerDocument';
 
 import {
   countObjectsByLayer,
@@ -1700,6 +1703,8 @@ export interface ObjectLayerReviewGateway {
   readonly readBackground: (input: ReadObjectLayerInput) => Promise<ObjectLayerBackground>;
   /** Lớp đối tượng của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
   readonly readObjectLayer: (input: ReadObjectLayerInput) => Promise<FloorLayerGraphRead | null>;
+  /** N16 thô của tầng — nguồn của `useFloorLayer` (F-04x-2). Lỗi ở đây là trạng thái `error`. */
+  readonly readLayer: (input: ReadObjectLayerInput) => Promise<FloorLayerDocument>;
   /**
    * Nhánh nội thất, đọc riêng.
    *
@@ -1790,6 +1795,18 @@ export function createObjectLayerReviewGateway(
 
       return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
     },
+
+    readLayer: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
     readFurnitureBranch: () => Promise.resolve(null),
 
     graph,
@@ -1821,6 +1838,8 @@ export interface ObjectLayerGatewaySeed {
   readonly failReadBackground?: boolean;
   /** `true` thì `readObjectLayer` ném — đúng cảnh `error` của bảy kịch bản. */
   readonly failReadObjectLayer?: boolean;
+  /** `'unresolved'` thì N16 giả mang tỉ lệ tạm — story "Tỉ lệ tạm" (F-04x-2). */
+  readonly scaleStatus?: 'unresolved';
   /** `true` thì riêng nhánh nội thất ném — cửa vẫn xong, màn KHÔNG bị chặn. */
   readonly failFurnitureBranch?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ. */
@@ -1873,6 +1892,14 @@ export function createMockObjectLayerReviewGateway(
       const stored = readGraph();
 
       return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
+    },
+
+    readLayer: ({ floorId }) => {
+      if (seed.failReadObjectLayer === true) {
+        return Promise.reject(new Error(OBJECT_LAYER_TEXT.errorMessage));
+      }
+
+      return mockFloorLayerDocument(readGraph(), floorId, seed.scaleStatus);
     },
 
     readFurnitureBranch: () => {

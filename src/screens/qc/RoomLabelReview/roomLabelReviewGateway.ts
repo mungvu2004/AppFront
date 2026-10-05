@@ -115,6 +115,7 @@
  */
 
 import type { ApiClient } from '@/api/client';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { createAppApiClient } from '@/api/appClient';
 import {
@@ -190,9 +191,11 @@ import { formatNumber } from '@/lib/format/number';
 import { describeConfidence } from '@/lib/format/semantic';
 import { boxAround } from '@/lib/input/dragDrop';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
+import { measureTextOf } from '@/lib/viewmodel/provisionalScale';
 import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
 
+import { mockFloorLayerDocument } from '../WallLayerReview/mockFloorLayerDocument';
 import {
   ROOM_LABEL_CROP_DISPLAY_HEIGHT_PX,
   ROOM_LABEL_CROP_DISPLAY_WIDTH_PX,
@@ -348,6 +351,8 @@ export interface RoomLabelReviewGateway {
   readonly readBackground: (input: ReadRoomLayerInput) => Promise<RoomLabelBackground>;
   /** Lớp phòng của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
   readonly readRoomLayer: (input: ReadRoomLayerInput) => Promise<FloorLayerGraphRead | null>;
+  /** N16 thô của tầng — nguồn của `useFloorLayer` (F-04x-2). Lỗi ở đây là trạng thái `error`. */
+  readonly readLayer: (input: ReadRoomLayerInput) => Promise<FloorLayerDocument>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: RoomLabelGraphPort;
   /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
@@ -453,6 +458,18 @@ export function createRoomLabelReviewGateway(
       return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
     },
 
+    readLayer: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+
     graph,
 
     nextRoomId: options.nextRoomId ?? ((): RoomId => createId('room')),
@@ -488,6 +505,8 @@ export interface RoomLabelGatewaySeed {
   readonly failReadRoomLayer?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ, ảnh cắt thành `null`. */
   readonly withoutImage?: boolean;
+  /** `'unresolved'` thì N16 giả mang tỉ lệ tạm — story "Tỉ lệ tạm" (F-04x-2). */
+  readonly scaleStatus?: 'unresolved';
   /** Cờ `supports.persistRoomLabels` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
   /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
@@ -537,6 +556,14 @@ export function createMockRoomLabelReviewGateway(
       const stored = seed.graph ?? useStore.getState().spatial;
 
       return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
+    },
+
+    readLayer: ({ floorId }) => {
+      if (seed.failReadRoomLayer === true) {
+        return Promise.reject(new Error('Không tải được lớp phòng của tầng.'));
+      }
+
+      return mockFloorLayerDocument(seed.graph ?? useStore.getState().spatial, floorId, seed.scaleStatus);
     },
 
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
@@ -715,14 +742,15 @@ export interface RoomLabelMeasures {
  *   ấy — màn không viết `(min + max) / 2`). Phòng không có hộp nào lọt thì rơi
  *   về trọng tâm của chính đa giác.
  */
-export function measureRoom(room: Room, scale: Scale): RoomLabelMeasures {
+export function measureRoom(room: Room, scale: Scale, scaleStatus?: 'unresolved'): RoomLabelMeasures {
   const outlineMm = room.outline.map(toPointMm);
   const rect = computeLargestInnerRectangle(outlineMm);
 
   return {
     areaM2: computeArea(outlineMm),
-    areaText: formatArea(computeArea(outlineMm)),
-    perimeterText: formatLength(computePerimeter(outlineMm)),
+    /* Tầng ở tỉ lệ tạm thì số đo chưa tin được (F-04x-2). */
+    areaText: measureTextOf(formatArea(computeArea(outlineMm)), scaleStatus),
+    perimeterText: measureTextOf(formatLength(computePerimeter(outlineMm)), scaleStatus),
     labelAnchorMm:
       rect === null ? computeCentroid(outlineMm) : computeCentroid(cornersOfRectangle(rect)),
     labelBoxPx:
@@ -771,9 +799,12 @@ export function labelFitsIn(
  * Tổng diện tích tính bằng `totalArea` — cộng ở đơn vị mm² rồi làm tròn MỘT
  * lần, KHÔNG cộng các `areaText` đã làm tròn của từng phòng.
  */
-export function summaryOf(rooms: readonly Room[]): RoomLabelSummaryViewModel {
+export function summaryOf(rooms: readonly Room[], scaleStatus?: 'unresolved'): RoomLabelSummaryViewModel {
   return {
-    totalAreaText: formatArea(totalArea(rooms.map((room) => room.outline.map(toPointMm)))),
+    totalAreaText: measureTextOf(
+      formatArea(totalArea(rooms.map((room) => room.outline.map(toPointMm)))),
+      scaleStatus,
+    ),
     roomCount: rooms.length,
     unnamedCount: rooms.filter((room) => room.name.trim() === '').length,
   };

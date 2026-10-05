@@ -14,6 +14,27 @@ describe('invalidationMap', () => {
     expect(Object.keys(invalidationMap).sort()).toEqual([...WRITE_OPERATIONS].sort());
   });
 
+  it('appends persistFloorScale at the end and scopes it to drawing, floor, graph and that floor layer', () => {
+    expect(WRITE_OPERATIONS[WRITE_OPERATIONS.length - 1]).toBe('persistFloorScale');
+    expect(invalidationMap.persistFloorScale({ floorId, projectId })).toEqual([
+      queryKeys.drawing.byFloor(floorId),
+      queryKeys.floor.detail(floorId),
+      queryKeys.layer.graph(projectId),
+      queryKeys.layer.byFloor(projectId, floorId),
+    ]);
+  });
+
+  it('makes the floor layer stale on editFloor, but not on persistSpatialLayer (own save, R14)', () => {
+    expect(invalidationMap.editFloor({ floorId, projectId })).toEqual([
+      queryKeys.floor.detail(floorId),
+      queryKeys.floor.list(projectId),
+      queryKeys.layer.byFloor(projectId, floorId),
+    ]);
+    expect(invalidationMap.persistSpatialLayer({ floorId, projectId })).not.toContainEqual(
+      queryKeys.layer.byFloor(projectId, floorId),
+    );
+  });
+
   it('is pure data: same input always returns equal keys, no side effects', () => {
     const params = { floorId, projectId };
 

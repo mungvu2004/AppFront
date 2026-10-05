@@ -11,6 +11,7 @@ import {
 import { deriveActionName } from '../devtools';
 import { createProjectSlice, type ProjectSlice } from '../projectSlice';
 import { createSpatialSlice, type SpatialSlice } from '../spatialSlice';
+import { graphVersionOf } from '../../lib/versioning/graphVersion';
 import { useStore } from '../index';
 import { readEntity } from '../../domain/spatial/applyPatch';
 import { normalizeSpatial } from '../../domain/spatial/normalize';
@@ -163,6 +164,35 @@ describe('spatialSlice', () => {
 
     expect(store.getState().spatialProjectId).toBeNull();
     expect(store.getState().floorMeta).toEqual({});
+    expect(store.getState().versionId).toBe('v1');
+  });
+
+  it('derives versionId from floorMeta and carries scaleStatus through setSpatial', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+    const spatial = normalizeSpatial(createSampleBuilding());
+
+    store.getState().setSpatial(spatial, 'ver_1', {
+      floorRevisions: { L1: 4, L2: 1 },
+      floorScaleStatus: { L2: 'unresolved' },
+      projectId: 'p1',
+    });
+
+    expect(store.getState().floorMeta).toEqual({ L1: { revision: 4 }, L2: { revision: 1, scaleStatus: 'unresolved' } });
+    expect(store.getState().versionId).toBe(graphVersionOf({ L1: { revision: 4 }, L2: { revision: 1 } }));
+  });
+
+  it('rewrites versionId in the same set as updateFloorMeta', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+    let writes = 0;
+
+    store.getState().setVersionId('ver_1');
+    store.subscribe(() => {
+      writes += 1;
+    });
+    store.getState().updateFloorMeta('L1', { revision: 2, scaleStatus: 'unresolved' });
+
+    expect(writes).toBe(1);
+    expect(store.getState().versionId).toBe(graphVersionOf({ L1: { revision: 2 } }));
   });
 
   it('replaces a whole floorMeta entry and stores the unsaved floor ids', () => {

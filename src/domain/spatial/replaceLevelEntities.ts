@@ -12,7 +12,7 @@ import {
   type SpatialEntity,
 } from './normalize';
 import type { EntityKind } from './ids';
-import type { EntityId, Furniture, Level, LevelId, Opening, Room, Wall } from './types';
+import type { Axis, Dimension, EntityId, Furniture, Level, LevelId, Opening, Room, Wall } from './types';
 
 /** The parts of a level to replace; a missing key keeps what the level has now. */
 export interface LevelParts {
@@ -21,15 +21,24 @@ export interface LevelParts {
   openings?: readonly Opening[];
   rooms?: readonly Room[];
   furniture?: readonly Furniture[];
+  axes?: readonly Axis[];
+  dimensions?: readonly Dimension[];
 }
 
-type ReplaceableKind = 'wall' | 'opening' | 'room' | 'furniture';
+type ReplaceableKind = 'wall' | 'opening' | 'room' | 'furniture' | 'axis' | 'dimension';
 
 /** Order the ids of one level are listed in: walls first so openings resolve. */
-const ORDER: readonly ReplaceableKind[] = ['wall', 'opening', 'furniture', 'room'];
+const ORDER: readonly ReplaceableKind[] = ['wall', 'opening', 'furniture', 'room', 'axis', 'dimension'];
 
 const partsOfKind = (parts: LevelParts, kind: ReplaceableKind): readonly SpatialEntity[] | undefined =>
-  ({ wall: parts.walls, opening: parts.openings, furniture: parts.furniture, room: parts.rooms })[kind];
+  ({
+    wall: parts.walls,
+    opening: parts.openings,
+    furniture: parts.furniture,
+    room: parts.rooms,
+    axis: parts.axes,
+    dimension: parts.dimensions,
+  })[kind];
 
 export function replaceLevelEntities(
   normalized: NormalizedSpatial,

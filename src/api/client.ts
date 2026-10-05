@@ -32,6 +32,7 @@ import {
   FloorLayerDocumentSchema,
   FloorLayerWriteResultSchema,
   type FloorLayerDocument,
+  type FloorLayerWriteBody,
   type FloorLayerWriteResult,
 } from './schemas/spatialLayer';
 import {
@@ -64,6 +65,7 @@ import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig 
 import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import { FloorVersionPageSchema } from './schemas/versions';
+import { SpatialGraphDocumentSchema, type SpatialGraphDocument } from './schemas/spatialGraph';
 
 export type {
   Drawing,
@@ -271,6 +273,10 @@ export interface SpatialLayer {
   walls: readonly Wall[];
 }
 
+export interface ReadSpatialGraphInput extends RequestOptions {
+  projectId: string;
+}
+
 export interface ReadSpatialLayerInput extends RequestOptions {
   floorId: string;
   projectId: string;
@@ -282,7 +288,8 @@ export interface WriteSpatialLayerInput extends WriteRequestOptions {
    * `PUT` có version: thiếu nó là 428, cũ là 409 — không có lượt ghi "mù".
    */
   baseVersion: number;
-  body: SpatialLayer;
+  /** `{ layer?, scaleMillimetresPerPixel? }` — gửi nguyên; có cả hai thì `layer` hiểu ở tỉ lệ cũ (#35). */
+  body: FloorLayerWriteBody;
   floorId: string;
   projectId: string;
 }
@@ -546,6 +553,8 @@ export interface SpatialApi {
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
   /** N17 — lịch sử phiên bản của một tầng (trang đầu). */
   listVersions(input: ListFloorVersionsInput): Promise<ApiResult<FloorVersionPage>>;
+  /** N15 — the whole project graph plus one `revision` per floor. */
+  readGraph(input: ReadSpatialGraphInput): Promise<ApiResult<SpatialGraphDocument>>;
   /** N16 — the floor's layer document: `revision`, `level`, four lists, axes, dimensions. */
   readLayer(input: ReadSpatialLayerInput): Promise<ApiResult<FloorLayerDocument>>;
   /**
@@ -1272,6 +1281,12 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         FloorVersionPageSchema,
         'spatial.listVersions',
       ),
+    readGraph: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.spatial.graph(projectId), signal),
+        SpatialGraphDocumentSchema,
+        'spatial.readGraph',
+      ),
     readLayer: async ({ floorId, projectId, signal }) =>
       decodeSingle(
         await callGet<unknown>(http, ENDPOINTS.spatial.layer(projectId, floorId), signal),
@@ -1279,7 +1294,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         'spatial.readLayer',
       ),
     /**
-     * `PUT {baseVersion, body: {layer}}` — đúng route #35 của BE
+     * `PUT {baseVersion, body}` — `body` là `{ layer?, scaleMillimetresPerPixel? }`, gửi nguyên. Đúng route #35 của BE
      * (`spatial_write/router.py`). Bản trước gửi `PATCH` trần lớp, mà BE không
      * có `PATCH` nào ở đường này: mọi lượt lưu trên máy chủ thật là 405 (B-G-07).
      */
@@ -1287,7 +1302,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { baseVersion, body, floorId, projectId } = input;
 
       return decodeSingle(
-        await callPut(http, ENDPOINTS.spatial.layer(projectId, floorId), { baseVersion, body: { layer: body } }, input),
+        await callPut(http, ENDPOINTS.spatial.layer(projectId, floorId), { baseVersion, body }, input),
         FloorLayerWriteResultSchema,
         'spatial.writeLayer',
       );

@@ -37,6 +37,8 @@ import type {
 import { boxAround } from '@/lib/input/dragDrop';
 import { toAttachedOpening } from '@/lib/commands/business/shared';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { FLOOR_NOT_FOUND_MESSAGE } from '@/hooks/useFloorLayer';
+import { ROUTES } from '@/routes/paths';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -184,6 +186,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         registry,
         ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.forceCollapsed === undefined ? {} : { forceCollapsed: options.forceCollapsed }),
+        ...(options.onNavigate === undefined ? {} : { onNavigate: options.onNavigate }),
       }),
     { wrapper },
   );
@@ -1283,13 +1286,19 @@ describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
   const openingCount = (): number =>
     Object.keys(useStore.getState().spatial?.byId ?? {}).filter((id) => isIdOfKind('opening', id)).length;
 
-  it('màn vào `empty`, không dòng nào, và "thêm thủ công" báo không có tường thay vì im lặng', async () => {
+  /*
+   * F-04x-2: tầng nay đọc qua N16 (`useFloorLayer`). Tầng máy chủ không có trả 404
+   * `resource:"floor"` (cổng giả làm đúng thế), nên màn vào `error` với câu cố định
+   * thay vì `empty` — trước đây đồ thị kho là nguồn, và tầng vắng chỉ là "không dòng".
+   */
+  it('màn vào `error` với câu "Tầng này không còn tồn tại.", không dòng nào, và "thêm thủ công" báo không có tường', async () => {
     const notifications = createNotificationBus();
     const publish = vi.spyOn(notifications, 'publish');
     const mounted = await mountSettled({ floorId: 'L-LEVEL000099', notifications });
     const before = openingCount();
 
-    expect(mounted.result.current.state).toBe('empty');
+    expect(mounted.result.current.state).toBe('error');
+    expect(mounted.result.current.errorMessage).toBe(FLOOR_NOT_FOUND_MESSAGE);
     expect(mounted.result.current.objects).toEqual([]);
 
     await run(() => mounted.result.current.onAddManually());
@@ -1297,6 +1306,32 @@ describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
     expect(publish.mock.calls.map(([n]) => n.title)).toContain(OBJECT_LAYER_TEXT.addNoWall);
     expect(openingCount()).toBe(before);
 
+    mounted.unmount();
+  });
+});
+
+describe('tỉ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ của tầng', async () => {
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({
+      gateway: createMockObjectLayerReviewGateway({ scaleStatus: 'unresolved' }),
+      onNavigate,
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+    });
+    act(() => {
+      mounted.result.current.provisionalScaleNotice?.onCalibrate();
+    });
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
+    mounted.unmount();
+  });
+
+  it('tầng có tỉ lệ thật: không dải', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.provisionalScaleNotice).toBeNull();
     mounted.unmount();
   });
 });

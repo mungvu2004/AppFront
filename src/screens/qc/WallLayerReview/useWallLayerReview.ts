@@ -89,12 +89,12 @@ import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spa
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
-import { describeError, toAppError } from '@/lib/errors';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
@@ -168,6 +168,7 @@ import {
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
 import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
+import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from './provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
@@ -281,6 +282,8 @@ export interface UseWallLayerReviewOptions {
    * không thấy thông báo của nhau — cùng khuôn `useProcessingScreen`.
    */
   readonly notifications?: NotificationBus;
+  /** Lối ra của dải tỉ lệ tạm — container truyền `onNavigate` của nó. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /*
@@ -303,6 +306,8 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly leftPanel: WallLayerLeftPanelExtras;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock: FloorLayerSaveBlock | null;
+  /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
+  readonly provisionalScaleNotice: ProvisionalScaleNotice | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -608,10 +613,14 @@ export function useWallLayerReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const wallLayerQuery = useQuery({
-    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
-    queryFn: ({ signal }) => gateway.readWallLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const provisionalScaleNotice = useProvisionalScaleNotice(
+    floorLayer.scaleStatus,
+    projectId,
+    floorId,
+    options.onNavigate,
+  );
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -641,23 +650,21 @@ export function useWallLayerReview(
   const setHovered = useStore((state) => state.setHovered);
 
   /*
-   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
-   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
-   * `wallLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
    */
-  const loaded = wallLayerQuery.data ?? null;
-
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
+    const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, loaded, projectId, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
@@ -1156,8 +1163,8 @@ export function useWallLayerReview(
   /* ---------------------------------------------------------------------- */
 
   /* Trạng thái 4 nghe LỚP TƯỜNG, không nghe ảnh nền — xem khối hai lượt đọc trên. */
-  const hasError = wallLayerQuery.isError;
-  const isLoading = backgroundQuery.isPending || wallLayerQuery.isPending || graph === null;
+  const hasError = floorLayer.error !== null;
+  const isLoading = backgroundQuery.isPending || floorLayer.isPending || graph === null;
 
   const counter = useMemo<WallReviewCounter>(
     () => ({
@@ -1186,8 +1193,8 @@ export function useWallLayerReview(
 
     const wall = wallById(selectedWallId);
 
-    return wall === null ? null : toWallInspector(wall, level, wallCodes);
-  }, [level, selectedWallId, wallById, wallCodes]);
+    return wall === null ? null : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus);
+  }, [floorLayer.scaleStatus, level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
   const reviewedCount = useCountUp(counter.reviewed, { format: { fractionDigits: 0 } });
@@ -1195,13 +1202,7 @@ export function useWallLayerReview(
 
   const state = deriveScreenState({ isViewerRole, isCollapsed, hasError, isLoading, counter });
 
-  const errorMessage = useMemo(() => {
-    if (!hasError) {
-      return null;
-    }
-
-    return describeError(toAppError(wallLayerQuery.error)).description;
-  }, [hasError, wallLayerQuery.error]);
+  const errorMessage = hasError ? floorLayer.errorMessage : null;
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (I-01) — không một `addEventListener` nào ở đây (R-72).         */
@@ -1785,7 +1786,7 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock };
+  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */

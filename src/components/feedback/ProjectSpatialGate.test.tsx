@@ -1,15 +1,12 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MOCK_MISSING_PROJECT_ID, createMockApiClient } from '@/api/__mocks__/client';
-import { SAMPLE_BUILDING } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { MOCK_MISSING_PROJECT_ID, __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { WallId } from '@/domain/spatial/types';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
-import { renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
-import { commit } from '@/store/commit';
 
 import { ProjectSpatialGate } from './ProjectSpatialGate';
 
@@ -18,23 +15,33 @@ import { ProjectSpatialGate } from './ProjectSpatialGate';
  * điện thoại) đọc một kho không ai nạp nên luôn ở `empty`.
  */
 
-const SAMPLE = normalizeSpatial(SAMPLE_BUILDING);
 const CHILD = 'màn con';
+const NETWORK = { kind: 'network', raw: undefined, requestId: 'req-n15', retryable: true } as const;
 
 const apiWithSpy = () => {
   const api = createMockApiClient();
   const read = vi.spyOn(api.projects, 'read');
+  const readGraph = vi.spyOn(api.spatial, 'readGraph');
 
-  return { api, read };
+  return { api, read, readGraph };
 };
 
-const renderGate = (api: ReturnType<typeof createMockApiClient>, projectId: string, keepStore = false) =>
+const renderGate = (
+  api: ReturnType<typeof createMockApiClient>,
+  projectId: string,
+  keepStore = false,
+  queryClient = createTestQueryClient(),
+) =>
   renderWithProviders(
     <ProjectSpatialGate api={api} projectId={projectId}>
       <p>{CHILD}</p>
     </ProjectSpatialGate>,
-    { keepStore },
+    { keepStore, queryClient },
   );
+
+beforeEach(() => {
+  __resetMockLayerState();
+});
 
 const loadedProjectId = (): string | undefined => useStore.getState().project?.id;
 
@@ -62,47 +69,103 @@ describe('ProjectSpatialGate', () => {
     expect(screen.getByText(CHILD)).toBeInTheDocument();
   });
 
-  it('kho đã khớp dự án thì không gọi `projects.read`', async () => {
+  /*
+   * F-04x-2: hai bài `pastStates` cũ (giữ khi có lịch sử / nạp đè khi không) và bài "kho khớp
+   * thì không gọi" đổi theo cổng mới: quyết định nạp đọc `spatialProjectId`, không đọc lịch sử
+   * hoàn tác, và N15 luôn đọc lại khi cổng gắn ([4] bước 3).
+   */
+  it('cùng dự án gắn lại thì đọc N15 lại, không bật `spatialLoading`', async () => {
+    const queryClient = createTestQueryClient();
     const seed = apiWithSpy();
-    const first = renderGate(seed.api, 'project-1');
+    const first = renderGate(seed.api, 'project-1', false, queryClient);
+    await waitFor(() => expect(loadedProjectId()).toBe('project-1'));
+    first.unmount();
+    const spatial = useStore.getState().spatial;
+
+    const { api, readGraph } = apiWithSpy();
+    renderGate(api, 'project-1', true, queryClient);
+
+    expect(useStore.getState().spatialLoading).toBe(false);
+    await waitFor(() => expect(readGraph).toHaveBeenCalledTimes(1));
+    expect(useStore.getState().spatialLoading).toBe(false);
+    expect(screen.getByText(CHILD)).toBeInTheDocument();
+    /* Cùng revision: kho giữ nguyên tham chiếu. */
+    expect(useStore.getState().spatial).toBe(spatial);
+  });
+
+  it('kho do màn QC nạp, có tầng chưa lưu → tầng đó giữ cả `floorMeta`, tầng khác thay; dự án vào kho', async () => {
+    const { api } = apiWithSpy();
+    const document = await api.spatial.readGraph({ projectId: 'project-1' });
+
+    if (!document.ok) {
+      throw new Error('mock readGraph phải trả đồ thị');
+    }
+
+    const [kept = '', other = ''] = document.data.graph.levels.map((level) => level.id);
+
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(document.data.graph), null, {
+        floorRevisions: {},
+        projectId: 'project-1',
+      });
+      useStore.getState().setUnsavedFloorIds([kept]);
+    });
+    const before = useStore.getState().spatial;
+
+    renderGate(api, 'project-1', true);
+
+    await waitFor(() => expect(loadedProjectId()).toBe('project-1'));
+    const state = useStore.getState();
+    expect(state.spatial?.byLevel[kept]).toBe(before?.byLevel[kept]);
+    expect(state.floorMeta[kept]).toBeUndefined();
+    expect(state.floorMeta[other]).toBeDefined();
+    expect(state.spatial?.byLevel[other]).not.toBe(before?.byLevel[other]);
+    expect(state.floors).toHaveLength(document.data.graph.levels.length);
+    act(() => {
+      useStore.getState().setUnsavedFloorIds([]);
+    });
+  });
+
+  it('N15 hỏng khi kho đã có đồ thị → dải "Thử lại" trên màn con; bấm thì đọc lại', async () => {
+    const queryClient = createTestQueryClient();
+    const seed = apiWithSpy();
+    const first = renderGate(seed.api, 'project-1', false, queryClient);
     await waitFor(() => expect(loadedProjectId()).toBe('project-1'));
     first.unmount();
 
-    const { api, read } = apiWithSpy();
-    renderGate(api, 'project-1', true);
+    const { api, readGraph } = apiWithSpy();
+    readGraph.mockResolvedValue({ error: NETWORK, ok: false });
+    const rendered = renderGate(api, 'project-1', true, queryClient);
 
-    expect(read).not.toHaveBeenCalled();
+    expect(await screen.findByText('Không tải lại được mô hình.')).toBeInTheDocument();
+    expect(screen.getByText(CHILD)).toBeInTheDocument();
+    expectVietnamese(rendered);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    await waitFor(() => expect(readGraph).toHaveBeenCalledTimes(2));
+  });
+
+  it('N15 hỏng khi kho trống → khối toàn vùng, màn con vắng', async () => {
+    const { api, readGraph } = apiWithSpy();
+    readGraph.mockResolvedValue({ error: NETWORK, ok: false });
+
+    renderGate(api, 'project-1');
+
+    await screen.findByRole('alert');
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+    expect(screen.queryByText('Không tải lại được mô hình.')).not.toBeInTheDocument();
     expect(useStore.getState().spatialLoading).toBe(false);
   });
 
-  it('kho do màn QC nạp và đã có bản sửa (`pastStates`) thì giữ nguyên — không đè bản sửa chưa lưu', () => {
-    act(() => {
-      useStore.getState().setSpatial(SAMPLE, null);
-      commit(
-        { changes: { reviewed: true }, id: SAMPLE.byKind.wall[0] as WallId, kind: 'wall', op: 'update' },
-        'Duyệt tường',
-      );
-    });
-    const edited = useStore.getState().spatial;
-    const { api, read } = apiWithSpy();
+  it('N21: nạp cấu hình luật một lần sau khi nạp dự án', async () => {
+    const { api } = apiWithSpy();
+    const readRuleConfig = vi.spyOn(api.ruleConfig, 'read');
 
-    renderGate(api, 'project-1', true);
+    renderGate(api, 'project-1');
 
-    expect(read).not.toHaveBeenCalled();
-    expect(useStore.getState().spatial).toBe(edited);
-  });
-
-  it('kho do màn QC nạp mà chưa sửa (`pastStates` = 0) thì nạp đè bằng đồ thị cả dự án', async () => {
-    act(() => {
-      useStore.getState().setSpatial(SAMPLE, null);
-    });
-    const { api, read } = apiWithSpy();
-
-    renderGate(api, 'project-1', true);
-
-    await waitFor(() => expect(loadedProjectId()).toBe('project-1'));
-    expect(read).toHaveBeenCalledTimes(1);
-    expect(useStore.getState().spatial).not.toBe(SAMPLE);
+    await waitFor(() => expect(useStore.getState().ruleConfigProjectId).toBe('project-1'));
+    expect(readRuleConfig).toHaveBeenCalledTimes(1);
   });
 
   it('đổi dự án thì nạp lại', async () => {
@@ -120,8 +183,9 @@ describe('ProjectSpatialGate', () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
+  /* F-04x-2: #24 nay chung bộ đệm 30 s với `mobileViewerQueries.ts`, nên đếm N15 (staleTime 0). */
   it('đi A → B → A trong cửa sổ 30 s của bộ đệm vẫn nạp lại A — không kẹt trên bản đệm', async () => {
-    const { api, read } = apiWithSpy();
+    const { api, readGraph } = apiWithSpy();
     const gate = (projectId: string) => (
       <ProjectSpatialGate api={api} projectId={projectId}>
         <p>{CHILD}</p>
@@ -135,7 +199,7 @@ describe('ProjectSpatialGate', () => {
     rendered.rerender(gate('project-1'));
 
     await waitFor(() => expect(loadedProjectId()).toBe('project-1'));
-    expect(read).toHaveBeenCalledTimes(3);
+    expect(readGraph).toHaveBeenCalledTimes(3);
   });
 
   it('lỗi thì màn con vắng mặt, khung `alert` nói bằng tiếng Việt và chỉ nút "thử lại" nhận tiêu điểm', async () => {

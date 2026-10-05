@@ -9,7 +9,7 @@
  * ## Bảy thứ file này chịu trách nhiệm
  *
  * 1. **Hai lượt đọc máy chủ TÁCH BẠCH (R-64)** — ảnh nền dưới
- *    `queryKeys.drawing.byFloor`, lớp phòng dưới `queryKeys.room.byFloor`.
+ *    `queryKeys.drawing.byFloor`, lớp phòng là N16 dưới `queryKeys.layer.byFloor` (`useFloorLayer`).
  *    `isLoading`/`error` do `@tanstack/react-query` giữ; file này KHÔNG có một
  *    `useState` nào cho hai thứ đó (CLAUDE.md gọi `useShareLinks.ts` là ngoại
  *    lệ đi trước, "không phải khuôn mẫu để chép").
@@ -43,7 +43,7 @@
  * - **Một lượt ghi phòng làm mất hiệu lực đúng ba khoá `editWall` liệt kê.**
  *   `WRITE_OPERATIONS` (`src/lib/query/invalidation.ts`) không có mục nào tên
  *   `editRoom`, và thêm một mục là sửa `src/lib` — ngoài phạm vi của màn. Ba
- *   khoá `editWall` làm mất hiệu lực (`space.byFloor`, `room.byFloor`,
+ *   khoá `editWall` làm mất hiệu lực (khoá không gian và khoá phòng của tầng,
  *   `violation.byProject`) đúng bằng ba thứ một lượt đổi tên/gộp/tách phòng
  *   làm cũ đi, nên đây là lượt gọi ĐÚNG dưới một cái tên hẹp hơn thực tế.
  * - **Điều hướng đi qua `onNavigate` tiêm được, không phải `useNavigate`.**
@@ -79,14 +79,13 @@ import type {
 } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { can } from '@/lib/auth/permissions';
 import { toPoint, toPointMm, type CommandContext, type CommandResult } from '@/lib/commands/business/shared';
 import type { Command } from '@/lib/commands/types';
-import { describeError } from '@/lib/errors/describeError';
 import { ok } from '@/lib/http/types';
-import { toAppError } from '@/lib/errors/toAppError';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -128,6 +127,7 @@ import {
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
 } from './roomLabelReviewGateway';
+import { useProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
 import type {
   RoomLabelMergeCandidate,
   RoomLabelNormalizePreview,
@@ -426,10 +426,10 @@ export function useRoomLabelReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const roomLayerQuery = useQuery({
-    queryKey: [...queryKeys.room.byFloor(floorId), 'read'],
-    queryFn: ({ signal }) => gateway.readRoomLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const { scaleStatus } = floorLayer;
+  const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate);
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -457,23 +457,21 @@ export function useRoomLabelReview(
   const setHovered = useStore((state) => state.setHovered);
 
   /*
-   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
-   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của `roomLayerQuery`
-   * (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
    */
-  const loaded = roomLayerQuery.data ?? null;
-
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
+    const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, loaded, projectId, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
@@ -505,7 +503,7 @@ export function useRoomLabelReview(
     const next = new Map<RoomId, RoomLabelMeasures>();
 
     for (const room of rooms) {
-      const key = outlineKeyOf(room);
+      const key = `${outlineKeyOf(room)}|${scaleStatus ?? ''}`;
       const cached = cache.get(room.id);
 
       if (cached !== undefined && cached.key === key) {
@@ -513,14 +511,14 @@ export function useRoomLabelReview(
         continue;
       }
 
-      const value = measureRoom(room, scale);
+      const value = measureRoom(room, scale, scaleStatus);
 
       cache.set(room.id, { key, value });
       next.set(room.id, value);
     }
 
     return next;
-  }, [rooms, scale]);
+  }, [rooms, scale, scaleStatus]);
 
   /* ---------------------------------------------------------------------- */
   /* Nhắc công năng M-14 — NHẮC, không bao giờ CHẶN.                          */
@@ -547,17 +545,17 @@ export function useRoomLabelReview(
     () =>
       rooms.map((room) =>
         toRoomLabelRow(room, {
-          measures: measures.get(room.id) ?? measureRoom(room, scale),
+          measures: measures.get(room.id) ?? measureRoom(room, scale, scaleStatus),
           notices: noticesOfRoom(violations, room.id, ruleRouteHref),
           backgroundImageUrl,
           scale,
           codes: roomCodes,
         }),
       ),
-    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, violations],
+    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleStatus, violations],
   );
 
-  const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms), [rooms]);
+  const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms, scaleStatus), [rooms, scaleStatus]);
 
   const visibleRows = useMemo(
     () => applyUnnamedFilter(allRows, showOnlyUnnamed),
@@ -835,7 +833,7 @@ export function useRoomLabelReview(
     setOwnCollapsed((previous) => !previous);
   }, []);
 
-  const refetchRoomLayer = roomLayerQuery.refetch;
+  const refetchRoomLayer = floorLayer.refetch;
 
   /**
    * "Kiểm tra vòng hở" — đọc LẠI lớp phòng, rồi để M-06 chạy lại trên đồ thị mới.
@@ -846,7 +844,7 @@ export function useRoomLabelReview(
    */
   const onCheckWallGaps = useCallback(() => {
     invalidate();
-    void refetchRoomLayer();
+    refetchRoomLayer();
   }, [invalidate, refetchRoomLayer]);
 
   const navigate = options.onNavigate;
@@ -859,21 +857,13 @@ export function useRoomLabelReview(
   /* Bảy trạng thái và ba câu đi kèm.                                        */
   /* ---------------------------------------------------------------------- */
 
-  const roomLayerError: unknown = roomLayerQuery.error;
-
-  const errorMessage = useMemo<string | null>(
-    () =>
-      roomLayerError === null || roomLayerError === undefined
-        ? null
-        : describeError(toAppError(roomLayerError)).description,
-    [roomLayerError],
-  );
+  const errorMessage = floorLayer.error === null ? null : floorLayer.errorMessage;
 
   const state = deriveRoomLabelScreenState({
     isViewerRole,
     isCollapsed,
     hasError: errorMessage !== null,
-    isLoading: roomLayerQuery.isPending,
+    isLoading: floorLayer.isPending,
     visibleRooms: visibleRows,
     unnamedCount: summary.unnamedCount,
   });
@@ -950,6 +940,7 @@ export function useRoomLabelReview(
     onUndo,
     onToggleCollapsed,
     saveBlock,
+    provisionalScaleNotice,
   };
 }
 

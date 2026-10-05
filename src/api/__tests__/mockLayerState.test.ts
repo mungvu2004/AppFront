@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { HttpError } from '@/lib/http';
 import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { VersionConflictBodySchema } from '../schemas/errors';
-import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '../__mocks__/client';
+import { SpatialGraphDocumentSchema } from '../schemas/spatialGraph';
+import {
+  __resetMockLayerState,
+  createMockApiClient,
+  simulateProvisionalScale,
+  simulateRemoteLayerEdit,
+} from '../__mocks__/client';
 
 const PROJECT_ID = 'p-1';
 const FLOOR_ID = sampleLevelId(0);
@@ -12,7 +18,7 @@ const EMPTY = { furniture: [], openings: [], rooms: [], walls: [] };
 type Client = ReturnType<typeof createMockApiClient>;
 
 const write = (client: Client, baseVersion: number, body: Awaited<ReturnType<typeof read>> = EMPTY) =>
-  client.spatial.writeLayer({ baseVersion, body, floorId: FLOOR_ID, projectId: PROJECT_ID });
+  client.spatial.writeLayer({ baseVersion, body: { layer: body }, floorId: FLOOR_ID, projectId: PROJECT_ID });
 
 const read = async (client: Client) => {
   const result = await client.spatial.readLayer({ floorId: FLOOR_ID, projectId: PROJECT_ID });
@@ -98,5 +104,57 @@ describe('mock layer state', () => {
     expect(after.ok && after.data.revision).toBe(1);
     expect(after.ok && after.data.layer.walls).toHaveLength(before.walls.length - 1);
     expect(failure(await write(client, 0)).status).toBe(409);
+  });
+
+  it('readGraph pairs one revision with each level, one level per mock floor', async () => {
+    const client = createMockApiClient();
+    const floors = await client.floors.list({ projectId: PROJECT_ID });
+    const graph = await client.spatial.readGraph({ projectId: PROJECT_ID });
+
+    if (!floors.ok || !graph.ok) {
+      throw new Error('read failed');
+    }
+
+    expect(SpatialGraphDocumentSchema.safeParse(graph.data).success).toBe(true);
+    expect(graph.data.graph.levels.map((level) => level.name)).toEqual(floors.data.map((floor) => floor.name));
+    expect(graph.data.floorRevisions.map((row) => row.floorId)).toEqual(graph.data.graph.levels.map((level) => level.id));
+    expect('scaleStatus' in graph.data).toBe(false);
+  });
+
+  it('readGraph serves the shared layer state', async () => {
+    const client = createMockApiClient();
+    const floors = await client.floors.list({ projectId: PROJECT_ID });
+    const floorId = floors.ok ? (floors.data[0]?.id ?? '') : '';
+
+    await client.spatial.writeLayer({ baseVersion: 0, body: { layer: EMPTY }, floorId, projectId: PROJECT_ID });
+
+    const graph = await createMockApiClient().spatial.readGraph({ projectId: PROJECT_ID });
+
+    expect(graph.ok && graph.data.floorRevisions[0]?.revision).toBe(1);
+  });
+
+  it('a scale-only PUT keeps the walls, stores the scale and clears scaleStatus', async () => {
+    const client = createMockApiClient();
+    const before = await read(client);
+
+    simulateProvisionalScale(FLOOR_ID, 12);
+
+    const provisional = await client.spatial.readLayer({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+
+    expect(provisional.ok && provisional.data.scaleStatus).toBe('unresolved');
+
+    const saved = await client.spatial.writeLayer({
+      baseVersion: 0,
+      body: { scaleMillimetresPerPixel: 25 },
+      floorId: FLOOR_ID,
+      projectId: PROJECT_ID,
+    });
+    const after = await client.spatial.readLayer({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+
+    expect(saved.ok && saved.data.layer.walls).toEqual(before.walls);
+    expect(after.ok && after.data.layer.walls).toEqual(before.walls);
+    expect(after.ok && after.data.level.scaleMillimetresPerPixel).toBe(25);
+    expect(after.ok && 'scaleStatus' in after.data).toBe(false);
+    expect(after.ok && after.data.revision).toBe(1);
   });
 });

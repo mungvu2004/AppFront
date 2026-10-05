@@ -1,5 +1,9 @@
 import type { SpatialApi, SpatialLayer } from '@/api/client';
-import { FloorLayerWriteSchema, type FloorLayerWriteResult } from '@/api/schemas/spatialLayer';
+import {
+  FloorLayerWriteSchema,
+  type FloorLayerWriteBody,
+  type FloorLayerWriteResult,
+} from '@/api/schemas/spatialLayer';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
@@ -77,6 +81,7 @@ export const LAYER_SAVE_MESSAGES = {
   forbidden: 'Bạn không còn quyền sửa tầng này.',
   integrity: (count: number): string => `Tầng này có ${count} chỗ hỏng liên kết hình học nên chưa lưu được.`,
   reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
+  scaleRedirtied: 'Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
 
@@ -113,7 +118,8 @@ export interface FloorLayerSaverPorts {
   writeLayer: SpatialApi['writeLayer'];
   readLayer(floorId: string): SpatialLayer | null;
   readRevision(floorId: string): number | null;
-  onSaved(floorId: string, result: FloorLayerWriteResult, info: { redirtied: boolean }): void;
+  /** `scaleSent` chỉ có mặt (luôn `true`) khi thân mang tỉ lệ — kho gỡ `scaleStatus` của tầng. */
+  onSaved(floorId: string, result: FloorLayerWriteResult, info: { redirtied: boolean; scaleSent?: true }): void;
   queue?: typeof runExclusive;
 }
 
@@ -121,6 +127,13 @@ export interface FloorLayerSaver {
   markDirty(floorIds: readonly string[]): void;
   hasDirty(): boolean;
   flush(): Promise<void>;
+  /**
+   * Gửi tỉ lệ của một tầng qua #35, cùng khoá tầng với lớp (F-04x-2 bước 5). Tầng bị khối →
+   * không gửi, ném lại lỗi đang giữ. Tầng bẩn → một PUT lớp + tỉ lệ, base của lớp (`hint` bị bỏ:
+   * thân có `layer` mà base lấy từ N15 là đè im lặng). Tầng sạch → thân chỉ tỉ lệ, base nâng
+   * theo `hint`. Hỏng → ném lỗi gốc; thân tỉ lệ không bao giờ bị giữ để tự gửi lại.
+   */
+  saveScale(floorId: string, ratio: number, hint?: number): Promise<void>;
   discardFloor(floorId: string): void;
   getBlock(floorId: string): LayerSaveBlock | null;
   blockedFloorIds(): string[];
@@ -131,7 +144,7 @@ export interface FloorLayerSaver {
 
 interface LayerWrite {
   readonly baseVersion: number;
-  readonly body: SpatialLayer;
+  readonly body: FloorLayerWriteBody;
 }
 
 interface FloorFailure {
@@ -151,9 +164,14 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
   const held = new Map<string, LayerWrite>();
   const inFlight = new Map<string, Promise<FloorFailure | undefined>>();
   const blocks = new Map<string, LayerSaveBlock>();
+  /** Lỗi đã sinh ra khối — `saveScale` ném lại nó thay vì gửi. */
+  const blockErrors = new Map<string, unknown>();
   const revisions = new Map<string, number>();
   const listeners = new Set<(unsavedFloorIds: readonly string[]) => void>();
   let disposed = false;
+
+  const layerBase = (floorId: string): number =>
+    Math.max(revisions.get(floorId) ?? 0, ports.readRevision(floorId) ?? 0);
 
   const sendable = (floorId: string): boolean => dirty.has(floorId) && blocks.get(floorId)?.kind !== 'reload';
 
@@ -165,45 +183,60 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
 
   const send = async (floorId: string, write: LayerWrite, laterPending: boolean): Promise<FloorFailure | undefined> => {
     // Khối [6]: thân sai hợp đồng thì không gửi — gửi đi chỉ tiêu một `baseVersion` để nhận 422.
-    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: write.baseVersion, body: { layer: write.body } });
+    const parsed = FloorLayerWriteSchema.safeParse(write);
+    const scaleSent = write.body.scaleMillimetresPerPixel !== undefined;
+    let error: unknown;
+    let kind: LayerSaveErrorClass = 'blocked';
 
     if (!parsed.success) {
-      blocks.set(floorId, { kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
-
       // Lỗi hình dây 422, không phải `ZodError`: lỗi không đọc được bị coi là tạm thời,
       // và engine sẽ thử lại 5/15/45 s một thân không bao giờ hợp lệ.
       const invalid: HttpError = { code: 'VALIDATION', kind: 'http', raw: parsed.error.issues, requestId: '', retryable: false, status: 422 };
 
-      return { error: invalid, kind: 'blocked' };
-    }
+      error = invalid;
+    } else {
+      try {
+        const result = await ports.writeLayer({ ...write, floorId, projectId });
 
-    let error: unknown;
+        if (result.ok) {
+          const redirtied = laterPending || dirty.has(floorId);
 
-    try {
-      const result = await ports.writeLayer({ ...write, floorId, projectId });
+          revisions.set(floorId, result.data.revision);
+          blocks.delete(floorId);
+          blockErrors.delete(floorId);
 
-      if (result.ok) {
-        revisions.set(floorId, result.data.revision);
-        blocks.delete(floorId);
+          if (scaleSent && redirtied) {
+            // Máy chủ vừa quy đổi lại mm theo tỉ lệ mới; sửa đang chờ còn ở tỉ lệ cũ — gửi là đè.
+            blocks.set(floorId, { kind: 'reload', message: LAYER_SAVE_MESSAGES.scaleRedirtied });
+            blockErrors.set(floorId, new Error(LAYER_SAVE_MESSAGES.scaleRedirtied));
+          }
 
-        if (!disposed) {
-          ports.onSaved(floorId, result.data, { redirtied: laterPending || dirty.has(floorId) });
+          if (!disposed) {
+            ports.onSaved(floorId, result.data, scaleSent ? { redirtied, scaleSent } : { redirtied });
+          }
+
+          return undefined;
         }
 
-        return undefined;
+        error = result.error;
+      } catch (thrown) {
+        error = thrown;
       }
 
-      error = result.error;
-    } catch (thrown) {
-      error = thrown;
+      kind = classifyLayerSaveError(error);
     }
 
-    const kind = classifyLayerSaveError(error);
-
     if (kind === 'temporary') {
-      held.set(floorId, write);
-    } else {
+      // Thân tỉ lệ không được giữ: màn đã báo hỏng, tự gửi lại về sau là ghi điều người dùng không thấy.
+      if (!scaleSent) {
+        held.set(floorId, write);
+      } else if (write.body.layer) {
+        dirty.add(floorId);
+      }
+    } else if (!scaleSent || write.body.layer) {
+      // Thân chỉ tỉ lệ hỏng không khoá lớp: lỗi về tay màn đã bấm áp.
       blocks.set(floorId, { kind, message: blockMessageOf(kind, error) });
+      blockErrors.set(floorId, error);
     }
 
     return { error, kind };
@@ -231,9 +264,7 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
       return undefined;
     }
 
-    const baseVersion = Math.max(revisions.get(floorId) ?? 0, ports.readRevision(floorId) ?? 0);
-
-    return send(floorId, { baseVersion, body: layer }, false);
+    return send(floorId, { baseVersion: layerBase(floorId), body: { layer } }, false);
   };
 
   /** Chụp ĐỒNG BỘ bản giữ và lớp của tầng; không có gì để gửi thì trả `undefined`. */
@@ -252,7 +283,12 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
       dirty.delete(floorId);
     }
 
-    const settled = queue(`layer:${projectId}:${floorId}`, () => run(floorId, first, layer)).finally(() => {
+    return track(floorId, () => run(floorId, first, layer));
+  };
+
+  /** Chạy `task` dưới khoá tầng, tính nó vào "đang gửi" tới khi xong. */
+  const track = (floorId: string, task: () => Promise<FloorFailure | undefined>): Promise<FloorFailure | undefined> => {
+    const settled = queue(`layer:${projectId}:${floorId}`, task).finally(() => {
       if (inFlight.get(floorId) === settled) {
         inFlight.delete(floorId);
       }
@@ -265,12 +301,44 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     return settled;
   };
 
+  /** Thân của `saveScale`, chụp TRONG khoá tầng — sau mọi PUT lớp đang bay của tầng ấy. */
+  const scaleWrite = (floorId: string, ratio: number, hint: number | undefined): Promise<FloorFailure | undefined> => {
+    const block = blocks.get(floorId);
+
+    if (block) {
+      return Promise.resolve({ error: blockErrors.get(floorId) ?? new Error(block.message), kind: block.kind });
+    }
+
+    const pending = held.get(floorId);
+    const layer = (sendable(floorId) ? ports.readLayer(floorId) : null) ?? pending?.body.layer;
+
+    held.delete(floorId);
+
+    if (layer) {
+      dirty.delete(floorId);
+
+      // Bản giữ mang base của lần chụp; lượt hỏng tạm không đổi revision nên hai số bằng nhau.
+      return send(
+        floorId,
+        { baseVersion: pending?.baseVersion ?? layerBase(floorId), body: { layer, scaleMillimetresPerPixel: ratio } },
+        false,
+      );
+    }
+
+    return send(
+      floorId,
+      { baseVersion: Math.max(layerBase(floorId), hint ?? 0), body: { scaleMillimetresPerPixel: ratio } },
+      false,
+    );
+  };
+
   return {
     blockedFloorIds: () => [...blocks.keys()],
     discardFloor(floorId) {
       dirty.delete(floorId);
       held.delete(floorId);
       blocks.delete(floorId);
+      blockErrors.delete(floorId);
       notify();
     },
     dispose() {
@@ -296,6 +364,13 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
       }
     },
     getBlock: (floorId) => blocks.get(floorId) ?? null,
+    async saveScale(floorId, ratio, hint) {
+      const failure = await track(floorId, () => scaleWrite(floorId, ratio, hint));
+
+      if (failure) {
+        throw failure.error;
+      }
+    },
     hasDirty: () => held.size > 0 || inFlight.size > 0 || [...dirty].some(sendable),
     markDirty(floorIds) {
       floorIds.forEach((floorId) => dirty.add(floorId));

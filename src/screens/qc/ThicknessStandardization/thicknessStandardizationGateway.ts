@@ -44,6 +44,7 @@
  */
 
 import type { ApiClient } from '@/api/client';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { createAppApiClient } from '@/api/appClient';
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -82,6 +83,8 @@ import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutatio
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
+
+import { mockFloorLayerDocument } from '../WallLayerReview/mockFloorLayerDocument';
 
 import {
   THICKNESS_FIXTURE_BUILDING,
@@ -172,6 +175,8 @@ export interface ThicknessStandardizationGateway {
   readonly readThicknessLayer: (
     input: ReadThicknessLayerInput,
   ) => Promise<FloorLayerGraphRead | null>;
+  /** N16 thô của tầng — nguồn của `useFloorLayer` (F-04x-2). Lỗi ở đây là trạng thái `error`. */
+  readonly readLayer: (input: ReadThicknessLayerInput) => Promise<FloorLayerDocument>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: ThicknessGraphPort;
   /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
@@ -222,6 +227,18 @@ export function createThicknessStandardizationGateway(
       return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
     },
 
+    readLayer: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+
     graph,
 
     actorId: options.actorId ?? THICKNESS_DEFAULT_ACTOR_ID,
@@ -263,6 +280,8 @@ export interface ThicknessGatewaySeed {
   readonly graph?: NormalizedSpatial | null;
   /** `true` thì `readThicknessLayer` ném — đúng cảnh `error` của bảy kịch bản. */
   readonly failReadThicknessLayer?: boolean;
+  /** `'unresolved'` thì N16 giả mang tỉ lệ tạm — story "Tỉ lệ tạm" (F-04x-2). */
+  readonly scaleStatus?: 'unresolved';
   /** Cờ `supports.persistThicknessStandardization` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
   /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
@@ -295,6 +314,14 @@ export function createMockThicknessStandardizationGateway(
       const stored = graphOfSeed();
 
       return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
+    },
+
+    readLayer: ({ floorId }) => {
+      if (seed.failReadThicknessLayer === true) {
+        return Promise.reject(new Error('Không tải được lớp số đo độ dày tường của tầng.'));
+      }
+
+      return mockFloorLayerDocument(graphOfSeed(), floorId, seed.scaleStatus);
     },
 
     graph: { read: graphOfSeed },

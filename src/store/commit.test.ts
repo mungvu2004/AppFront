@@ -5,6 +5,7 @@ import { readEntity } from '../domain/spatial/applyPatch';
 import { normalizeSpatial } from '../domain/spatial/normalize';
 import type { Wall } from '../domain/spatial/types';
 import { createSampleBuilding, sampleLevelId } from '../domain/spatial/__fixtures__/sampleBuilding';
+import { graphVersionOf } from '../lib/versioning/graphVersion';
 
 const firstSampleWall = (): Wall => {
   const wall = createSampleBuilding().walls.at(0);
@@ -38,6 +39,8 @@ describe('store/commit.ts', () => {
     useStore.setState({
       spatial: normalizeSpatial(createSampleBuilding()),
       versionId: 'v1',
+      floorMeta: {},
+      serverReplaceSeq: 0,
     });
   });
 
@@ -161,6 +164,75 @@ describe('store/commit.ts', () => {
 
       expect(useStore.temporal.getState().pastStates).toHaveLength(0);
       expect(useStore.getState().serverReplaceSeq).toBe(1);
+    });
+
+    it('writes versionId from floorMeta in the same set', () => {
+      useStore.setState({ floorMeta: { [sampleLevelId(1)]: { revision: 2 } } });
+      const listener = vi.fn();
+      const stop = useStore.subscribe(listener);
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 7 });
+      stop();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(useStore.getState().versionId).toBe(
+        graphVersionOf({ [floorId]: { revision: 7 }, [sampleLevelId(1)]: { revision: 2 } }),
+      );
+    });
+
+    it('keeps scaleStatus on a layer save, takes it from N16, and drops it once a scale was sent', () => {
+      useStore.setState({ floorMeta: { [floorId]: { revision: 1, scaleStatus: 'unresolved' } } });
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 2 });
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 2, scaleStatus: 'unresolved' });
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 3 }, { scaleSent: true });
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 3 });
+
+      replaceFloorLayer(
+        floorId,
+        { layer: layerWithoutFirstWall(), revision: 4, scaleStatus: 'unresolved' },
+        { external: true },
+      );
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 4, scaleStatus: 'unresolved' });
+
+      replaceFloorLayer('L-UNKNOWN000', { layer: layerWithoutFirstWall(), revision: 1, scaleStatus: 'unresolved' });
+      expect(useStore.getState().floorMeta['L-UNKNOWN000']).toEqual({ revision: 1, scaleStatus: 'unresolved' });
+    });
+
+    it('adds a missing floor with its level in one set, keeping history and other floors', () => {
+      const wall = firstSampleWall();
+
+      commit({ op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 50 } }, 'Sửa');
+
+      const pastBefore = useStore.temporal.getState().pastStates.length;
+      const before = useStore.getState().spatial;
+      const newFloorId = sampleLevelId(9);
+      const sampleLevel = createSampleBuilding().levels[0];
+
+      if (sampleLevel === undefined) {
+        throw new Error('sample building has no levels');
+      }
+
+      const level = { ...sampleLevel, id: newFloorId };
+      const listener = vi.fn();
+      const stop = useStore.subscribe(listener);
+
+      replaceFloorLayer(
+        newFloorId,
+        { layer: { furniture: [], openings: [], rooms: [], walls: [] }, level, revision: 5 },
+        { external: true },
+      );
+      stop();
+
+      const state = useStore.getState();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(state.spatial?.byId[newFloorId]).toBe(level);
+      expect(state.spatial?.byLevel[floorId]).toBe(before?.byLevel[floorId]);
+      expect(state.floorMeta[newFloorId]).toEqual({ revision: 5 });
+      expect(state.serverReplaceSeq).toBe(0);
+      expect(useStore.temporal.getState().pastStates).toHaveLength(pastBefore);
     });
   });
 });

@@ -14,7 +14,7 @@
  *
  * Không `useState` nào giữ cờ đang-tải hay cờ hỏng. BA lượt đọc, ba khoá của
  * `src/lib/query`: ảnh nền (`drawing.byFloor`), lớp đối tượng
- * (`space.byFloor`), và nhánh nội thất (`progress.byFloor`). Mọi lượt ghi gọi
+ * (N16, `layer.byFloor` qua `useFloorLayer`), và nhánh nội thất (`progress.byFloor`). Mọi lượt ghi gọi
  * `applyInvalidation(queryClient, …)` với đúng thao tác đã khai trong
  * `invalidationMap`, không gọi `invalidateQueries` trần. `useState` ở đây chỉ
  * giữ trạng thái của riêng giao diện: ba cờ lớp, tập chip lọc, ba nhóm gấp, cờ
@@ -59,6 +59,7 @@ import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/t
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { isFloorNotFound, useFloorLayer } from '@/hooks/useFloorLayer';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
@@ -144,6 +145,7 @@ import {
   type ObjectSubtype,
   type ReviewObject,
 } from './objectLayerTypes';
+import { useProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Hợp đồng vào.                                                               */
@@ -161,6 +163,8 @@ export interface UseObjectLayerReviewOptions {
   readonly forceCollapsed?: boolean;
   /** Bus thông báo — chỗ toast hoàn tác của A8 đi ra. */
   readonly notifications?: NotificationBus;
+  /** Lối ra của dải tỉ lệ tạm (F-04x-2) — container truyền `onNavigate` của nó. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -354,10 +358,14 @@ export function useObjectLayerReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const objectLayerQuery = useQuery({
-    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
-    queryFn: ({ signal }) => gateway.readObjectLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const provisionalScaleNotice = useProvisionalScaleNotice(
+    floorLayer.scaleStatus,
+    projectId,
+    floorId,
+    options.onNavigate,
+  );
 
   /*
    * Nhánh nội thất, khoá RIÊNG.
@@ -392,27 +400,25 @@ export function useObjectLayerReview(
   const setSelection = useStore((state) => state.setSelection);
 
   /*
-   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
-   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
-   * `objectLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
    */
-  const loaded = objectLayerQuery.data ?? null;
-
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
+    const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, loaded, projectId, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
-  const hasError = objectLayerQuery.isError;
-  const isLoading = objectLayerQuery.isPending || graph === null;
+  const hasError = floorLayer.error !== null;
+  const isLoading = floorLayer.isPending || graph === null;
 
   const objects = useMemo<readonly ReviewObject[]>(
     () => (hasError ? NO_OBJECTS : objectsOf(graph, level, gateway.seed)),
@@ -1286,7 +1292,11 @@ export function useObjectLayerReview(
     isViewerRole,
     viewerRoleNotice: isViewerRole ? OBJECT_LAYER_TEXT.forbidden : null,
     emptyNotice: reviewCounter.total === 0 && !isLoading && !hasError ? OBJECT_LAYER_TEXT.emptyExplanation : null,
-    errorMessage: hasError ? OBJECT_LAYER_TEXT.errorMessage : null,
+    errorMessage: hasError
+      ? isFloorNotFound(floorLayer.error)
+        ? floorLayer.errorMessage
+        : OBJECT_LAYER_TEXT.errorMessage
+      : null,
     furnitureAttentionNotice: hasFurnitureAttention ? OBJECT_LAYER_TEXT.furnitureAttention : null,
 
     onChangeSubtype,
@@ -1330,5 +1340,6 @@ export function useObjectLayerReview(
     onToggleLowConfidenceOnly,
     onAddManually,
     saveBlock,
+    provisionalScaleNotice,
   };
 }

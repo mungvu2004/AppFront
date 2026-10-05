@@ -429,7 +429,7 @@ describe('api client', () => {
 
       const result = await client.spatial.writeLayer({
         baseVersion: 7,
-        body: sampleSpatialLayer,
+        body: { layer: sampleSpatialLayer },
         floorId: 'floor-1',
         idempotencyKey: 'key-spatial-layer',
         projectId: 'project-1',
@@ -470,13 +470,36 @@ describe('api client', () => {
       expect(result).toEqual({ data: document, ok: true });
     });
 
+    it('readGraph GETs N15 and decodes the graph document', async () => {
+      const wire = await createMockApiClient().spatial.readGraph({ projectId: 'project-1' });
+      const document = wire.ok ? wire.data : null;
+      const http = createHttpMock({ [`GET ${ENDPOINTS.spatial.graph('project-1')}`]: document });
+
+      const result = await createApiClient(http).spatial.readGraph({ projectId: 'project-1' });
+
+      expect(ENDPOINTS.spatial.graph('project-1')).toBe('/projects/project-1/spatial');
+      expect(vi.mocked(http.get).mock.calls[0]?.[0]).toBe(ENDPOINTS.spatial.graph('project-1'));
+      expect(result).toEqual({ data: document, ok: true });
+    });
+
+    it('readGraph turns an unknown key into a contract error', async () => {
+      const wire = await createMockApiClient().spatial.readGraph({ projectId: 'project-1' });
+      const http = createHttpMock({
+        [`GET ${ENDPOINTS.spatial.graph('project-1')}`]: { ...(wire.ok ? wire.data : {}), scaleStatus: 'unresolved' },
+      });
+
+      const result = await createApiClient(http).spatial.readGraph({ projectId: 'project-1' });
+
+      expect(!result.ok && result.error.code).toBe('CONTRACT_VALIDATION');
+    });
+
     it('mock client bumps the revision on every write and serves the written layer back on read', async () => {
       const client = createMockApiClient();
       const before = await client.spatial.readLayer({ floorId: 'floor-1', projectId: 'project-1' });
 
       const result = await client.spatial.writeLayer({
         baseVersion: before.ok ? before.data.revision : -1,
-        body: sampleSpatialLayer,
+        body: { layer: sampleSpatialLayer },
         floorId: 'floor-1',
         projectId: 'project-1',
       });

@@ -37,12 +37,15 @@ import { readdirSync } from 'node:fs';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
-import type { ApiClient } from '@/api/client';
+import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
+import type { ApiClient, SpatialApi } from '@/api/client';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import type { LevelId } from '@/domain/spatial/types';
+import { __resetFloorLayerSavers } from '@/hooks/useAutosave';
+import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import {
   createScale,
   millimetresPerPixel,
@@ -71,7 +74,12 @@ import {
 import { useStore } from '@/store';
 
 import { ScaleCalibration } from './ScaleCalibration';
-import { compactScenario, scenarioFor } from './ScaleCalibration.stories';
+import {
+  compactScenario,
+  confirmAllFloorsScenario,
+  provisionalScaleScenario,
+  scenarioFor,
+} from './ScaleCalibration.stories';
 import {
   createScaleCalibrationGateway,
   withScaleCapabilities,
@@ -196,11 +204,14 @@ beforeEach(() => {
     value: FakeResizeObserver,
   });
   clock = installFakeClock();
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   seedStore();
 });
 
 afterEach(() => {
   cleanup();
+  __resetFloorLayerSavers();
   clock.restore();
   Reflect.deleteProperty(globalThis, 'ResizeObserver');
   vi.restoreAllMocks();
@@ -209,7 +220,12 @@ afterEach(() => {
 /** Đồ thị của bộ mẫu chuẩn A14 trong store, và một ngăn xếp hoàn tác sạch. */
 function seedStore(): void {
   const scenario = createCleanBuildingScenario();
-  useStore.getState().setSpatial(normalizeSpatial(scenario.graph), 'version-1');
+  const graph = normalizeSpatial(scenario.graph);
+
+  useStore.getState().setSpatial(graph, 'version-1', {
+    floorRevisions: Object.fromEntries(graph.byKind.level.map((id) => [id, 0])),
+    projectId: PROJECT_ID,
+  });
   useStore.temporal.getState().clear();
 }
 
@@ -288,7 +304,8 @@ async function readMockDrawing(client: ApiClient): Promise<ScaleDrawingSnapshot>
 
 interface Harness {
   readonly gateway: ScaleCalibrationGateway;
-  readonly persistCalls: () => readonly MillimetresPerPixel[];
+  /** PUT #35 của bộ lưu lớp chung — nhận, trả lớp hiện tại của kho. */
+  readonly writeLayer: MockInstance<SpatialApi['writeLayer']>;
 }
 
 /**
@@ -325,8 +342,6 @@ function sampleDimensionRows(): readonly ScaleRawDimensionString[] {
 interface HarnessOptions {
   readonly referenceWallWidthPx?: Pixels;
   readonly rows?: readonly ScaleRawDimensionString[];
-  /** Bật `persistScale` như thể đã có endpoint (F-04c). Mặc định: cổng thật, tắt. */
-  readonly persistSupported?: boolean;
 }
 
 async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
@@ -334,13 +349,20 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
   const client = createMockApiClient();
   const base = createScaleCalibrationGateway(client, { now: () => clock.epochMs() });
   const drawing = await readMockDrawing(client);
-  const persisted: MillimetresPerPixel[] = [];
+  const writeLayer = vi.spyOn(client.spatial, 'writeLayer').mockImplementation(async (input) => {
+    const spatial = useStore.getState().spatial;
+    const layer =
+      spatial === null
+        ? { furniture: [], openings: [], rooms: [], walls: [] }
+        : spatialLayerOf(spatial, input.floorId as LevelId);
+
+    return { data: { layer, revision: input.baseVersion + 1 }, ok: true };
+  });
 
   const gateway = withScaleCapabilities(base, {
     supports: {
       dimensionStrings: rows !== undefined,
       referenceWallWidth: referenceWallWidthPx !== undefined,
-      persistScale: options.persistSupported === true,
     },
     readFloorDrawing: async () => ({ ok: true, data: drawing }),
     readDimensionStrings: async () =>
@@ -351,15 +373,9 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
       referenceWallWidthPx === undefined
         ? base.readReferenceWallWidth({ floorId: FLOOR_ID, projectId: PROJECT_ID })
         : { supported: true, value: referenceWallWidthPx },
-    persistScale: async (input) => {
-      persisted.push(input.millimetresPerPixel);
-      return options.persistSupported === true
-        ? { supported: true, value: undefined }
-        : base.persistScale(input);
-    },
   });
 
-  return { gateway, persistCalls: () => persisted };
+  return { gateway, writeLayer };
 }
 
 /**
@@ -544,6 +560,28 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     }
   });
 
+  it('tỉ lệ tạm: dải chú ý trên canvas, không thêm trạng thái', () => {
+    renderWithProviders(<ScaleCalibration {...provisionalScaleScenario()} />);
+
+    expect(screen.getByText('Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.')).toBeInTheDocument();
+  });
+
+  it('hỏi trước khi áp mọi tầng: hộp thoại A9 có câu, nút đồng ý và huỷ gọi đúng hành động', () => {
+    const base = confirmAllFloorsScenario();
+    const onConfirmAllFloors = vi.fn();
+    const onCancelAllFloors = vi.fn();
+
+    renderWithProviders(
+      <ScaleCalibration {...base} actions={{ ...base.actions, onCancelAllFloors, onConfirmAllFloors }} />,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Áp tỉ lệ này cho 3 tầng có bản vẽ?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(onCancelAllFloors).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(onConfirmAllFloors).toHaveBeenCalledTimes(1);
+  });
+
   it('khung hẹp vẫn dựng đủ canvas, panel và thanh trạng thái', () => {
     renderWithProviders(<ScaleCalibration {...compactScenario()} />);
 
@@ -638,8 +676,8 @@ describe('ScaleCalibration — phép tính hiện đủ ba vế [NGHIEM-4]', () 
 /* -------------------------------------------------------------------------- */
 
 describe('ScaleCalibration — kịch bản bốn bước [NGHIEM-2]', () => {
-  it('kéo 400 px → nhập 4800 → màn hiện 12 mm/px → tự lưu → hoàn tác trả về tỷ lệ cũ', async () => {
-    const harness = await makeHarness({ persistSupported: true });
+  it('kéo 400 px → nhập 4800 → màn hiện 12 mm/px → áp (PUT trước, kho sau) → hoàn tác trả về tỷ lệ cũ', async () => {
+    const harness = await makeHarness();
     const mounted = mountScreen(harness.gateway);
     await settle(mounted);
 
@@ -662,21 +700,33 @@ describe('ScaleCalibration — kịch bản bốn bước [NGHIEM-2]', () => {
       `${formatNumber(REFERENCE_SCALE.millimetresPerPixel)} mm/px`,
     );
 
-    /* Bước 4a — áp tỷ lệ qua nút thật, rồi tự lưu (A7: không có nút lưu). */
+    /* Bước 4a — áp tỷ lệ qua nút thật: PUT #35 trước, kho đổi khi máy chủ nhận (A7: không có nút lưu). */
     expect(storedRatio()).toBeUndefined();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: APPLY_LABEL }));
     });
 
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await vi.dynamicImportSettled();
+        await clock.advance(1);
+      });
+    }
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(
+      REFERENCE_SCALE.millimetresPerPixel,
+      6,
+    );
     expect(storedRatio()).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
 
     await act(async () => {
       await clock.advance(RETRY_SCHEDULE_MS[0]);
     });
 
-    expect(harness.persistCalls()).toHaveLength(1);
-    expect(harness.persistCalls()[0]).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
+    // Lượt tự lưu sau `commit` không gửi lại tỉ lệ máy chủ vừa nhận.
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
 
     /* Bước 4b — hoàn tác trả về tỷ lệ cũ (A8), qua đúng đường zundo. */
     await act(async () => {

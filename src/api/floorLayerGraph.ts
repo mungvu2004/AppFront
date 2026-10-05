@@ -1,8 +1,9 @@
-import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Building, Level, SpatialGraph } from '@/domain/spatial/types';
-import type { Project as StoreProject } from '@/types/project';
+import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { Building, SpatialGraph } from '@/domain/spatial/types';
+import type { ProjectRole, Project as StoreProject } from '@/types/project';
 
 import type { ApiClient, Project as ApiProject, SpatialApi } from './client';
+import type { SpatialGraphDocument } from './schemas/spatialGraph';
 import type { FloorLayerDocument } from './schemas/spatialLayer';
 
 /**
@@ -149,16 +150,20 @@ export interface ReadProjectSpatialInput {
   readonly signal?: AbortSignal | undefined;
 }
 
-/** Thứ cổng nạp kho dự án ghi vào kho, theo đúng hình của từng lát. */
+/** What the project gate hands `hydrateProject`/`loadProjectGraph`. */
 export interface ProjectSpatial {
-  readonly floorRevisions: Readonly<Record<string, number>>;
-  readonly graph: NormalizedSpatial;
-  readonly levels: readonly Level[];
+  readonly document: SpatialGraphDocument;
   readonly project: StoreProject;
-  readonly versionId: string | null;
+  readonly roles: readonly ProjectRole[];
 }
 
-/** Dự án N3 thành hình `projectSlice` giữ — kho không mang email thành viên. */
+/** Who is reading: the signed-in user and the roles of their session. */
+export interface SpatialReader {
+  readonly userId: string | null;
+  readonly roles: readonly ProjectRole[];
+}
+
+/** Dự án #24 thành hình `projectSlice` giữ — kho không mang email thành viên. */
 const toStoreProject = (project: ApiProject): StoreProject => ({
   created_at: project.createdAt,
   id: project.id,
@@ -172,36 +177,58 @@ const toStoreProject = (project: ApiProject): StoreProject => ({
   updated_at: project.updatedAt,
 });
 
-/**
- * Đường nạp kho của một dự án (B-V12-01): N3 cho dự án và danh sách tầng, rồi
- * N16 của từng tầng qua {@link readProjectLayerGraph}. Dự án 0 tầng ra đồ thị
- * rỗng thật — không `null`, vì `null` là "chưa nạp" và cổng sẽ nạp lại mãi.
- * Lỗi thì NÉM, như mọi hàm đọc của tệp này.
- *
- * ponytail: hai lượt gọi (N3 + N16×tầng). N15 chưa thay được: nó không trả tên
- * và thành viên, và FE chưa có hàm client lẫn mock cho nó.
- */
-export async function readProjectSpatial(
-  api: Pick<ApiClient, 'projects' | 'spatial'>,
+/** Vai của người đang đọc trong `members`; không phải thành viên thì vai của phiên. */
+export const rolesOf = (project: ApiProject, reader: SpatialReader): readonly ProjectRole[] => {
+  const member = project.members.find((candidate) => candidate.id === reader.userId);
+
+  return member === undefined ? reader.roles : [member.role];
+};
+
+/** #24 thô (cùng hình bộ đệm `queryKeys.project.detail` của `mobileViewerQueries.ts`); lỗi thì NÉM. */
+export async function readProjectDetail(
+  projects: Pick<ApiClient['projects'], 'read'>,
   { projectId, signal }: ReadProjectSpatialInput,
-): Promise<ProjectSpatial> {
-  const result = await api.projects.read(signal === undefined ? { projectId } : { projectId, signal });
+): Promise<ApiProject> {
+  const result = await projects.read(signal === undefined ? { projectId } : { projectId, signal });
 
   if (!result.ok) {
     throw result.error;
   }
 
-  const { floorRevisions, graph } = await readProjectLayerRead(api.spatial, {
-    floorIds: result.data.floors.map((floor) => floor.id),
-    projectId,
-    signal,
-  });
+  return result.data;
+}
 
-  return {
-    floorRevisions,
-    graph,
-    levels: denormalizeSpatial(graph).levels,
-    project: toStoreProject(result.data),
-    versionId: result.data.currentVersion?.id ?? null,
-  };
+/** N15 — cả đồ thị kèm `floorRevisions`; lỗi thì NÉM. */
+export async function readProjectGraph(
+  spatialApi: Pick<SpatialApi, 'readGraph'>,
+  { projectId, signal }: ReadProjectSpatialInput,
+): Promise<SpatialGraphDocument> {
+  const result = await spatialApi.readGraph(signal === undefined ? { projectId } : { projectId, signal });
+
+  if (!result.ok) {
+    throw result.error;
+  }
+
+  return result.data;
+}
+
+/** Ghép #24 + N15 thành thứ cổng ghi vào kho. */
+export const toProjectSpatial = (
+  project: ApiProject,
+  document: SpatialGraphDocument,
+  reader: SpatialReader,
+): ProjectSpatial => ({ document, project: toStoreProject(project), roles: rolesOf(project, reader) });
+
+/**
+ * Đường nạp kho của một dự án (F-04x-2): #24 cho dự án và thành viên, N15 cho cả đồ thị
+ * cùng `revision` từng tầng — thay N16 từng tầng. #24 hỏng thì không đọc N15. Lỗi thì NÉM.
+ */
+export async function readProjectSpatial(
+  api: Pick<ApiClient, 'projects' | 'spatial'>,
+  input: ReadProjectSpatialInput,
+  reader: SpatialReader,
+): Promise<ProjectSpatial> {
+  const project = await readProjectDetail(api.projects, input);
+
+  return toProjectSpatial(project, await readProjectGraph(api.spatial, input), reader);
 }
