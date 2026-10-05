@@ -377,7 +377,33 @@
       },
       "savedToast": "Đã lưu cài đặt dự án.",
       "undoDescription": "Hoàn tác thay đổi cài đặt dự án",
-      "missingProjectTitle": "Không xác định được dự án",
+      "confirm": {
+      "cancel": "Huỷ",
+      "straightenTitle": "Nắn thẳng bản vẽ tầng {{name}}?",
+      "straightenBody": "Máy chủ sẽ thay ảnh gốc bằng ảnh đã nắn và xử lý lại tầng này; việc này không hoàn tác được.",
+      "straightenConfirm": "Nắn thẳng",
+      "cornersTitle": "Cắt và nắn bản vẽ tầng {{name}} theo bốn góc?",
+      "cornersBody": "Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.",
+      "cornersConfirm": "Cắt và nắn"
+    },
+    "missingProjectTitle": "Không xác định được dự án",
+    "noDrawing": {
+      "title": "Chưa có bản vẽ để kiểm tra",
+      "notice": "Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.",
+      "action": "Tải bản vẽ lên"
+    },
+    "writeError": {
+      "title": "Chưa xử lý được bản vẽ",
+      "drawingChanged": "Bản vẽ của tầng vừa đổi, kết quả đo đã được đọc lại; hãy xem rồi thử lại.",
+      "layerReviewed": "Tầng này đã có tỉ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.",
+      "invalidCorners": "Bốn góc chưa tạo thành một khung hợp lệ; hãy chọn lại.",
+      "imageTooLarge": "Ảnh bản vẽ lớn hơn mức xử lý được; hãy tải bản vẽ nhỏ hơn.",
+      "pdfUnreadable": "Không đọc được trang PDF của bản vẽ; hãy tải lại tệp.",
+      "fileCorrupt": "Tệp bản vẽ bị hỏng; hãy tải lại tệp.",
+      "queueFull": "Hàng xử lý đang đầy; hãy thử lại sau ít phút.",
+      "uncertain": "Chưa chắc máy chủ đã nhận thao tác; kết quả đo đang được đọc lại.",
+      "fallback": "Chưa xử lý được bản vẽ; hãy thử lại."
+    },
       "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở cài đặt của dự án nào."
     }
   },

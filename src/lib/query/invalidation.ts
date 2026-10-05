@@ -203,11 +203,13 @@ export const invalidationMap: InvalidationMap = {
   straightenDrawing: ({ floorId }) => [
     queryKeys.quality.assessment(floorId),
     queryKeys.drawing.byFloor(floorId),
+    queryKeys.progress.byFloor(floorId),
   ],
 
   setDrawingCorners: ({ floorId }) => [
     queryKeys.quality.assessment(floorId),
     queryKeys.drawing.byFloor(floorId),
+    queryKeys.progress.byFloor(floorId),
   ],
 
   /** Same three keys as `editWall`: a full-layer save can change walls, openings, rooms or furniture at once. */

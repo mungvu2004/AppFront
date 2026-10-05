@@ -635,6 +635,59 @@ describe('api client', () => {
       expect(Object.keys(sentOptions ?? {})).not.toContain('idempotent');
       expect(Object.keys(sentOptions ?? {})).not.toContain('timeoutMode');
     });
+
+    it('sends timeoutMode file on the four slow drawing writes and not on the three fast calls', async () => {
+      const http = createHttpMock({
+        [`GET ${ENDPOINTS.drawings.progress('project-1', 'upload-1')}`]: sampleProgress,
+        [`POST ${ENDPOINTS.drawings.initUpload('project-1', 'floor-1')}`]: sampleProgress,
+        [`POST ${ENDPOINTS.drawings.chunk('project-1', 'upload-1')}`]: sampleProgress,
+        [`POST ${ENDPOINTS.drawings.complete('project-1', 'upload-1')}`]: sampleProgress,
+      });
+      const client = createApiClient(http);
+      const corners = [
+        { xRatio: 0.1, yRatio: 0.1 },
+        { xRatio: 0.9, yRatio: 0.1 },
+        { xRatio: 0.9, yRatio: 0.9 },
+        { xRatio: 0.1, yRatio: 0.9 },
+      ] as const;
+
+      await client.drawings.sendChunk({
+        body: { chunk: 'chunk-1', chunkIndex: 0 },
+        projectId: 'project-1',
+        uploadId: 'upload-1',
+      });
+      await client.drawings.complete({ body: { uploadId: 'upload-1' }, projectId: 'project-1' });
+      await client.quality.setCorners({
+        body: { corners: [...corners] },
+        floorId: 'floor-1',
+        idempotencyKey: 'key-corners',
+        projectId: 'project-1',
+      });
+      await client.quality.straighten({ floorId: 'floor-1', idempotencyKey: 'key-straighten', projectId: 'project-1' });
+
+      const sentOptions = (path: string): Record<string, unknown> | undefined =>
+        vi.mocked(http.post).mock.calls.find(([sentPath]) => sentPath === path)?.[1] as
+          | Record<string, unknown>
+          | undefined;
+
+      expect(sentOptions(ENDPOINTS.drawings.chunk('project-1', 'upload-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.drawings.complete('project-1', 'upload-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.quality.corners('project-1', 'floor-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.quality.straighten('project-1', 'floor-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.quality.corners('project-1', 'floor-1'))?.idempotencyKey).toBe('key-corners');
+
+      await client.drawings.initUpload({
+        body: { fileName: 'a.png', floorId: 'floor-1', mimeType: 'image/png', projectId: 'project-1', sizeBytes: 1 },
+      });
+      await client.drawings.progress({ projectId: 'project-1', uploadId: 'upload-1' });
+      await client.quality.assess({ floorId: 'floor-1', projectId: 'project-1' });
+
+      expect(Object.keys(sentOptions(ENDPOINTS.drawings.initUpload('project-1', 'floor-1')) ?? {})).not.toContain(
+        'timeoutMode',
+      );
+      expect(http.get).toHaveBeenCalledWith(ENDPOINTS.drawings.progress('project-1', 'upload-1'), undefined);
+      expect(http.get).toHaveBeenCalledWith(ENDPOINTS.quality.assess('project-1', 'floor-1'), undefined);
+    });
   });
 });
 
