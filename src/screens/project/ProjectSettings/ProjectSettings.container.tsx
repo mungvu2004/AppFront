@@ -120,6 +120,8 @@ function ProjectSettingsRouteBody({
 
   return (
     <ProjectSettingsContainer
+      // Đổi dự án = tháo rồi gắn lại, để đường xả R13 lo phần dở của dự án cũ.
+      key={projectId}
       projectId={projectId}
       roles={roles}
       {...(currentUserId !== undefined ? { currentUserId } : {})}

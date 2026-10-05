@@ -171,6 +171,16 @@ describe('update', () => {
     expect(server.settingsReplace.mock.calls[2]?.[0].baseVersion).toBe(20);
   });
 
+  it('đọc lại N5 mang revision mới không nâng baseVersion của N6 (tránh ghi đè im lặng)', async () => {
+    const { server, gateway, base } = await setup();
+
+    server.settingsRead.mockResolvedValueOnce({ ok: true, data: wireSettings({ confidenceThreshold: 0.5, revision: 4 }) });
+    await gateway.read({ projectId: PROJECT_ID });
+    await gateway.update({ projectId: PROJECT_ID, base, patch: { snapToleranceMm: 30 } });
+
+    expect(server.settingsReplace.mock.calls[0]?.[0].baseVersion).toBe(3);
+  });
+
   it('409 của N6 thành failures của phần đơn vị, giữ nguyên lỗi', async () => {
     const { server, gateway, base } = await setup();
     const error = versionConflict();

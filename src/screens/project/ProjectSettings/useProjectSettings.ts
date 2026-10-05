@@ -955,6 +955,16 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         const [firstFailure] = failures;
 
         if (firstFailure !== undefined) {
+          const flush = bridgeRef.current.flush;
+          const rejected = failures.filter((failure) => rejectionOf(failure.error) !== null);
+
+          // Phần bị từ chối (409/422) không được xả lại (R2).
+          if (flush.pending !== null) {
+            const rest = rejected.reduce((patch, failure) => stripPart(patch, failure.part), flush.pending);
+
+            flush.pending = partsOf(rest).length > 0 ? rest : null;
+          }
+
           throw pickErrorToThrow(failures, []) ?? firstFailure.error;
         }
 

@@ -239,7 +239,8 @@ export function useProjectMembers(
       setRemoving(false);
 
       // 404 `member`: đã gỡ từ trước, coi như xong.
-      const alreadyGone = !result.ok && readSettingsError(result.error).resource === 'member';
+      const gone = result.ok ? null : readSettingsError(result.error);
+      const alreadyGone = gone !== null && gone.status === 404 && gone.resource === 'member';
 
       if (!result.ok && !alreadyGone) {
         setRemoveError(removeFailureSentence(result.error));

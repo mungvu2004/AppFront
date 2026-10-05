@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RETRY_SCHEDULE_MS } from '@/lib/autosave/retrySchedule';
@@ -583,6 +583,92 @@ describe('useProjectSettings, lưu hai phần', () => {
       await tick(LONG_WAIT_MS);
 
       expect(server.settingsReplace).toHaveBeenCalledTimes(2);
+    });
+
+    it('tháo khi N6 đang gửi, N6 trả 409: không gửi lại phần vừa bị từ chối', async () => {
+      const server = await createFakeServer();
+      const { result, unmount } = await mount(server);
+      let release: () => void = () => undefined;
+
+      server.settingsReplace.mockImplementationOnce(
+        async () =>
+          new Promise((resolve) => {
+            release = () => {
+              resolve({ ok: false, error: versionConflict() });
+            };
+          }),
+      );
+
+      act(() => {
+        result.current.setSnapToleranceMm(30);
+      });
+      await tick(AUTOSAVE_DEBOUNCE_MS);
+      unmount();
+
+      await act(async () => {
+        release();
+        await clock.flushMicrotasks();
+      });
+      await tick(LONG_WAIT_MS);
+
+      expect(server.settingsReplace).toHaveBeenCalledTimes(1);
+    });
+
+    it('đổi dự án (tháo rồi gắn lại theo key) khi N6 dở: không request nào mang dự án B với nháp của A', async () => {
+      const otherId = 'prj_OTHER0000000000000000000';
+      const server = await createFakeServer();
+      const { wrapper: Wrapper } = createHookWrapper();
+      const gateway = createProjectSettingsGateway(server.client);
+      const latest: { current: ReturnType<typeof useProjectSettings> | null } = { current: null };
+      let release: () => void = () => undefined;
+
+      server.settingsReplace.mockImplementationOnce(
+        async ({ baseVersion, body }) =>
+          new Promise((resolve) => {
+            release = () => {
+              resolve({ ok: true, data: settingsFromBody(body, baseVersion + 1) });
+            };
+          }),
+      );
+
+      // Cùng khuôn với `ProjectSettingsRouteBody`: `key={projectId}`.
+      function Probe({ projectId }: { projectId: string }) {
+        latest.current = useProjectSettings({
+          gateway,
+          projectId,
+          roles: ['admin'],
+          now: clock.epochMs,
+          isOnline: () => true,
+        });
+
+        return null;
+      }
+
+      const view = render(<Probe key={PROJECT_ID} projectId={PROJECT_ID} />, { wrapper: Wrapper });
+
+      await tick(0);
+      act(() => {
+        latest.current?.setSnapToleranceMm(30);
+      });
+      await tick(AUTOSAVE_DEBOUNCE_MS);
+      act(() => {
+        latest.current?.setName('Tên của A');
+      });
+      view.rerender(<Probe key={otherId} projectId={otherId} />);
+      await act(async () => {
+        release();
+        await clock.flushMicrotasks();
+      });
+      await tick(LONG_WAIT_MS);
+
+      const written = [
+        ...server.projectsUpdate.mock.calls.map(([input]) => input.projectId),
+        ...server.settingsReplace.mock.calls.map(([input]) => input.projectId),
+      ];
+
+      expect(written.length).toBeGreaterThan(0);
+      expect(written.every((id) => id === PROJECT_ID)).toBe(true);
+      expect(server.projectsUpdate.mock.calls[0]?.[0].body).toStrictEqual({ name: 'Tên của A' });
     });
 
     it('tháo lúc offline: lượt hẹn vẫn gửi khi có mạng, đúng một lần', async () => {

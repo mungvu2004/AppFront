@@ -459,6 +459,26 @@ describe('thành viên trong useProjectSettings', () => {
     expect(invalidatedKeys(hook.invalidate)).toContainEqual(queryKeys.project.detail(PROJECT_ID));
   });
 
+  it('lỗi khác 404 mà mang resource member: không coi là đã gỡ, hộp thoại giữ nguyên', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    server.membersRemove.mockResolvedValueOnce({
+      ok: false,
+      error: httpError(422, 'VALIDATION_FAILED', { resource: 'member' }),
+    });
+    act(() => {
+      hook.result.current.requestRemoveMember(ENGINEER_USER.id);
+    });
+    await act(async () => {
+      hook.result.current.confirmRemoveMember();
+      await clock.flushMicrotasks();
+    });
+
+    expect(hook.result.current.memberRemoveDialog).not.toBeNull();
+    expect(hook.result.current.memberRemoveDialog?.error).toBeTruthy();
+  });
+
   it('vai người xem: không thêm, không gỡ được dù gọi thẳng hành động', async () => {
     const server = await createFakeServer();
     const hook = await mount(server, { roles: ['viewer'] });

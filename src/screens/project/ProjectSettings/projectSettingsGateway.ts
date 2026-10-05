@@ -421,8 +421,8 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
         return settingsResult;
       }
 
-      noteRevision(projectId, settingsResult.data.revision);
-
+      // Không `noteRevision` ở đây: revision N5 đọc lại không kèm nháp mới, nên nâng
+      // `baseVersion` bằng nó sẽ ghi đè im lặng thay đổi của người khác.
       return { ok: true, data: toSnapshot(projectResult.data, settingsResult.data) };
     },
 
