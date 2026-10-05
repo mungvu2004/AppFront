@@ -31,6 +31,7 @@ export const WRITE_OPERATIONS = [
   'deleteProject',
   'addProjectMember',
   'removeProjectMember',
+  'activateModelVersion',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -106,6 +107,8 @@ export interface WriteOperationParamsMap {
   addProjectMember: ProjectScopedParams;
   /** Thành viên vừa được gỡ (N4) — cùng phạm vi với `addProjectMember`. */
   removeProjectMember: ProjectScopedParams;
+  /** Một họ model vừa đổi bản đang dùng (N24, F-11) — khoá theo họ, vì danh sách bản là theo họ. */
+  activateModelVersion: { family: string };
 }
 
 type InvalidationMap = {
@@ -300,6 +303,15 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.project.detail(projectId),
     queryKeys.project.members(projectId),
     queryKeys.project.summaries(),
+  ],
+  /**
+   * Kích hoạt (hoặc quay về đường cổ điển) — N24. Danh sách họ mang `activeVersionId` và
+   * `revision` mới; danh sách bản của họ ấy làm mới để nút "Kích hoạt" đổi chỗ. Từng bản
+   * (`adminMl.version`) không đổi, nên không có trong danh sách này.
+   */
+  activateModelVersion: ({ family }) => [
+    queryKeys.adminMl.families(),
+    queryKeys.adminMl.versions(family),
   ],
 };
 

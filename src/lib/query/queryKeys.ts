@@ -1,6 +1,7 @@
 export type QueryKey = readonly unknown[];
 
 type QueryDomain =
+  | 'adminMl'
   | 'drawing'
   | 'floor'
   | 'library'
@@ -90,8 +91,29 @@ const userListRoot = freezeKey(['user', 'list'] as const);
 const userCurrentRoot = freezeKey(['user', 'current'] as const);
 const userMembershipsRoot = freezeKey(['user', 'memberships'] as const);
 const userActivityRoot = freezeKey(['user', 'activity'] as const);
+const adminMlFamiliesRoot = freezeKey(['adminMl', 'families'] as const);
+const adminMlVersionsRoot = freezeKey(['adminMl', 'versions'] as const);
+const adminMlVersionRoot = freezeKey(['adminMl', 'version'] as const);
 
 export const queryKeys = {
+  /**
+   * Registry model của chuỗi xử lý — F-11 (N23, N25, N27).
+   *
+   * `versions` khoá theo họ: ba họ là ba danh sách tách biệt, và kích hoạt một bản ở họ này
+   * không làm cũ danh sách họ kia. `version` khoá theo mã bản: một bản không đổi sau khi
+   * tạo trừ trạng thái đánh giá, nên lượt kích hoạt không làm cũ nó.
+   */
+  adminMl: {
+    families: createQueryKeyFactory(adminMlFamiliesRoot, () => adminMlFamiliesRoot),
+    version: createQueryKeyFactory(adminMlVersionRoot, (modelVersionId: string) => [
+      ...adminMlVersionRoot,
+      modelVersionId,
+    ] as const),
+    versions: createQueryKeyFactory(adminMlVersionsRoot, (family: string) => [
+      ...adminMlVersionsRoot,
+      family,
+    ] as const),
+  },
   drawing: {
     byFloor: createQueryKeyFactory(drawingByFloorRoot, (floorId: string) => [...drawingByFloorRoot, floorId] as const),
   },

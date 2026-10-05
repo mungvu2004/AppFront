@@ -107,6 +107,10 @@ export const CACHE_POLICY = {
  * phải một miền bị quên.
  */
 const TIER_BY_DOMAIN: Readonly<Record<string, CachePolicyTier>> = Object.freeze({
+  // Registry model (F-11): bậc `'default'` có chủ ý. Không tĩnh như `user` — một lượt
+  // huấn luyện xong hay một bản đánh giá xong là đổi trong vài phút, và màn phải thấy nó;
+  // cũng không đổi liên tục như tiến trình AI. Khai một dòng để không thành miền bị quên.
+  adminMl: 'default',
   drawing: 'spatialDraft',
   library: 'static',
   notification: 'default',

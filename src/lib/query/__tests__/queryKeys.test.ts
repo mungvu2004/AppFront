@@ -51,6 +51,17 @@ const queryKeyBranchCases = [
     root: queryKeys.notification.list.root,
   },
   { create: () => queryKeys.project.summaries(), name: 'project.summaries', root: queryKeys.project.summaries.root },
+  { create: () => queryKeys.adminMl.families(), name: 'adminMl.families', root: queryKeys.adminMl.families.root },
+  {
+    create: () => queryKeys.adminMl.versions('wallSegmentation'),
+    name: 'adminMl.versions',
+    root: queryKeys.adminMl.versions.root,
+  },
+  {
+    create: () => queryKeys.adminMl.version('mdl_01JA0000000000000000000001'),
+    name: 'adminMl.version',
+    root: queryKeys.adminMl.version.root,
+  },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -75,6 +86,9 @@ describe('queryKeys', () => {
       'user.current',
       'notification.list',
       'project.summaries',
+      'adminMl.families',
+      'adminMl.versions',
+      'adminMl.version',
     ]);
   });
 
@@ -82,6 +96,19 @@ describe('queryKeys', () => {
     expect(queryKeys.project.summaries()).toEqual(['project', 'summaries']);
     expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.list.root());
     expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.detail.root());
+  });
+
+  it('keys adminMl versions by family, so two families never share a list', () => {
+    expect(queryKeys.adminMl.families()).toEqual(['adminMl', 'families']);
+    expect(queryKeys.adminMl.versions('wallSegmentation')).toEqual(['adminMl', 'versions', 'wallSegmentation']);
+    expect(queryKeys.adminMl.versions('dimensionReading')).not.toEqual(
+      queryKeys.adminMl.versions('wallSegmentation'),
+    );
+    expect(queryKeys.adminMl.version('mdl_01JA0000000000000000000001')).toEqual([
+      'adminMl',
+      'version',
+      'mdl_01JA0000000000000000000001',
+    ]);
   });
 
   it('returns equal key values for equal parameters', () => {
