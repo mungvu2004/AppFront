@@ -277,8 +277,8 @@ export const ENDPOINTS = {
    * hộp thoại của A9 chắn trước.
    *
    * `invite` gửi tới một tài nguyên "lời mời" chứ không tới `USERS_ROOT`: một
-   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(inviteId)` cần
-   * đúng tài nguyên ấy để trỏ tới — nó nhận `inviteId`, không nhận `userId`.
+   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(userId)` trỏ tới
+   * `invitations/{user_id}/resend` — BE nhận id người được mời, tức `AdminUser.id`.
    */
   users: {
     activity: (userId: string): string => `${USERS_ROOT}/${userId}/activity`,
@@ -289,6 +289,6 @@ export const ENDPOINTS = {
     list: USERS_ROOT,
     memberships: (userId: string): string => `${USERS_ROOT}/${userId}/memberships`,
     remove: (userId: string): string => `${USERS_ROOT}/${userId}`,
-    resendInvite: (inviteId: string): string => `${USERS_ROOT}/invitations/${inviteId}/resend`,
+    resendInvite: (userId: string): string => `${USERS_ROOT}/invitations/${userId}/resend`,
   },
 } as const;

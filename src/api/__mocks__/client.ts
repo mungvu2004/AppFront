@@ -1670,12 +1670,12 @@ export const createMockApiClient = (): ApiClient => {
 
         return ok(clone(current));
       },
-      /** Gửi lại đẩy hạn về phía trước; `inviteId` của bộ mẫu chính là id người được mời. */
-      resendInvite: async ({ inviteId }) => {
-        const current = readAdminUser(inviteId);
+      /** Gửi lại đẩy hạn về phía trước; `userId` là id người được mời. */
+      resendInvite: async ({ userId }) => {
+        const current = readAdminUser(userId);
 
         return current === undefined
-          ? missingAdminUser(inviteId)
+          ? missingAdminUser(userId)
           : ok(
               writeAdminUser({
                 ...current,

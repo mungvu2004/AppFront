@@ -355,7 +355,7 @@ export interface SetUserEnabledInput extends WriteRequestOptions {
 }
 
 export interface ResendInviteInput extends WriteRequestOptions {
-  inviteId: string;
+  userId: string;
 }
 
 /**
@@ -1272,10 +1272,10 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       );
     },
     resendInvite: async (input) => {
-      const { inviteId } = input;
+      const { userId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.users.resendInvite(inviteId), {}, input),
+        await callPost(http, ENDPOINTS.users.resendInvite(userId), {}, input),
         AdminUserSchema,
         'users.resendInvite',
       );
