@@ -48,27 +48,13 @@
  * và hai lượt 180 ms (cuộn hàng vào tầm nhìn, tô sáng chéo canvas ↔ danh sách)
  * là đúng nấc `'fast'` — không con số nào viết tay.
  *
- * ## Tự lưu (D-07 / A7) — chọn HỆ 2
+ * ## Tự lưu (D-07 / A7) — bộ lưu lớp chung (F-04x-1)
  *
- * Repo có hai hệ tự lưu độc lập. Màn này dùng **`createAutosave` +
- * `useSaveIndicator`** (hệ 2), không dùng `useAutosave` (hệ 1), vì ba lý do:
- *
- * 1. `types.ts` đã đóng băng và KHÔNG có trường nào mang nhãn lưu, nên chuỗi hệ
- *    1 trả về sẽ không tới được người dùng. `useSaveIndicator` tự nói trạng thái
- *    ra `Announcer` (`useSaveIndicator.ts:88-121`) — đó là cách duy nhất còn lại
- *    để giữ vế thứ hai của A7 ("nói ra trạng thái đó cho trình đọc màn hình").
- * 2. Thanh trạng thái cần đúng chuỗi "Đã lưu lúc 14:32"; hệ 2 dựng nó từ
- *    `viMessages.common.saved_at`, và tự chuyển sang "Đã lưu N phút trước" sau
- *    một phút.
- * 3. `persistWallLayer` đi qua #35 (B-V6-03) và có thể hỏng. Chỉ hệ 2 có trạng
- *    thái `failed`/`offline` để NÓI RA điều đó; hệ 1 chỉ có một chuỗi
- *    "Lưu thất bại" sau khi `console.error`.
- *
- * Engine tự dựng thì phải tự vào sổ của Ctrl+S (`useFlushOnSave`) — trước đây
- * nó nằm ngoài sổ, nên Ctrl+S ở màn này không lưu gì (B-V6-03).
- *
- * Cả hai hệ dùng chung 800 ms của A7 (`DEFAULT_DEBOUNCE_MS`), nên không con số
- * nào phải viết lại ở đây.
+ * Màn không dựng engine lưu riêng: `useFloorLayerAutosave` giữ MỘT bộ lưu cho
+ * mỗi người–dự án (base = revision của lượt N16 đã nạp, 409 → dải "Tải lại").
+ * `useSaveIndicator(autosave)` vẫn dựng nhãn "Đã lưu lúc…" và nói ra cho
+ * trình đọc màn hình (A7). Lượt tải lại từ máy chủ (`serverReplaceSeq` đổi)
+ * xoá ngăn hoàn tác của màn — các bước cũ không còn khớp đồ thị mới.
  *
  * ## Bàn phím (I-01, A12, R-72)
  *
@@ -101,13 +87,12 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
-import { useFlushOnSave } from '@/hooks/useAutosave';
+import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -316,6 +301,8 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly statusBar: WallLayerStatusBarProps;
   /** Những gì panel trái cần mà `WallLayerViewProps` (đã đóng băng) không mang. */
   readonly leftPanel: WallLayerLeftPanelExtras;
+  /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
+  readonly saveBlock: FloorLayerSaveBlock | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -622,7 +609,7 @@ export function useWallLayerReview(
   });
 
   const wallLayerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
+    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
     queryFn: ({ signal }) => gateway.readWallLayer({ floorId, projectId, signal }),
   });
 
@@ -665,12 +652,12 @@ export function useWallLayerReview(
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded;
+    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
     }
-  }, [gateway, graph, loaded, setSpatial]);
+  }, [gateway, graph, loaded, projectId, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
@@ -687,31 +674,11 @@ export function useWallLayerReview(
     [],
   );
 
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistRef = useRef({ floorId, gateway, projectId });
-  persistRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistRef.current;
-      const result = await current.gateway.persistWallLayer({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        // Một khả năng chưa có endpoint KHÔNG được biến thành một lượt lưu đã
-        // xong: ném ra là cách duy nhất để thanh trạng thái nói ra sự thật
-        // thay vì hiện "Đã lưu lúc …" cho một lượt chưa hề rời khỏi máy.
-        throw new Error(result.missing);
-      }
-    },
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
-
-  const autosave = autosaveRef.current;
-  useFlushOnSave(autosave);
   const saveIndicator = useSaveIndicator(autosave);
 
   const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
@@ -729,6 +696,13 @@ export function useWallLayerReview(
       }),
     [autosave, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+
+  useEffect(() => {
+    dispatchBundle.history.clear();
+  }, [dispatchBundle, serverReplaceSeq]);
 
   /* ---------------------------------------------------------------------- */
   /* Vùng chọn (S-10) và đồng bộ hai chiều (S-11).                            */
@@ -1811,7 +1785,7 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar, leftPanel };
+  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */

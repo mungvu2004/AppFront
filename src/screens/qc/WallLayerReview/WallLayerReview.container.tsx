@@ -82,6 +82,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { LevelId } from '@/domain/spatial/types';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { ROUTES } from '@/routes/paths';
@@ -146,6 +147,8 @@ export interface WallLayerReviewContainerProps {
   readonly registry?: ShortcutRegistry;
   /** Ép thu gọn hai panel — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Ép dải lưu lớp (F-04x-1) — cho story "Xung đột — tải lại" / "Không lưu được". */
+  readonly forceSaveBlock?: FloorLayerSaveBlock;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -172,7 +175,7 @@ function WallLayerReviewCrashFallback({ report, retry }: ScreenErrorFallback) {
  * `PipelineFailure.container.tsx`.
  */
 function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
-  const { panel, canvas, toolRail, statusBar, leftPanel } = useWallLayerReview({
+  const { panel, canvas, toolRail, statusBar, leftPanel, saveBlock } = useWallLayerReview({
     floorId: props.floorId,
     projectId: props.projectId,
     ...(props.levelId !== undefined ? { levelId: props.levelId } : {}),
@@ -212,6 +215,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
       onNavigateFloor={onNavigateFloor}
       onNavigateLayer={onNavigateLayer}
       panel={panel}
+      saveBlock={props.forceSaveBlock ?? saveBlock}
       statusBar={statusBar}
       toolRail={toolRail}
     />

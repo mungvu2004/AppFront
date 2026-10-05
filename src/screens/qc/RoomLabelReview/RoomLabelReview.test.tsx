@@ -508,3 +508,19 @@ describe('khả năng tiếp cận, tiếng Việt và màu', () => {
     expectNoRawColor('src/screens/qc/RoomLabelReview');
   });
 });
+
+describe('dải lưu lớp (F-04x-1)', () => {
+  it('409 → dải chú ý với nút "Tải lại"', () => {
+    const onReload = vi.fn();
+    const message = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
+    const BLOCK = { confirm: null, kind: 'reload', message, onReload } as const;
+
+    renderWithProviders(
+      <RoomLabelReviewContainer {...scenarioArgsFor('partial')} forceSaveBlock={BLOCK} />,
+    );
+
+    expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+});

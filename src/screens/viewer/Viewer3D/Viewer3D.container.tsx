@@ -157,6 +157,7 @@ import { isIdOfKind } from '@/domain/spatial/ids';
 import type { EntityId } from '@/domain/spatial/types';
 import type { ProjectRole } from '@/types/project';
 
+import { Viewer3DSaveStrip } from './Viewer3D';
 import { Viewer3DPanels, type Viewer3DPanelId, type Viewer3DSiblingScreenId } from './Viewer3DPanels';
 import { Viewer3DSceneSlot } from './Viewer3DSceneSlot';
 import { useViewer3DSave } from './useViewer3DSave';
@@ -222,7 +223,7 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   const [isWallEditing, setIsWallEditing] = useState(false);
 
   /* Tự lưu sống suốt màn, không chỉ lúc panel thuộc tính đang dựng (B-V8-60). */
-  const saveLabel = useViewer3DSave();
+  const { label: saveLabel, saveBlock } = useViewer3DSave(props.projectId);
   /* Nhà mẫu chỉ còn ở chế độ mock (xem `useViewer3DSource`). */
   const { spatial: resolvedSpatial, gateway: resolvedGateway } = useViewer3DSource(
     props,
@@ -314,25 +315,28 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   }, []);
 
   const inspectorSections = (
-    <Viewer3DPanels
-      canEditWallGeometry={canEditWallGeometry}
-      floorId={resolvedFloorId}
-      isWallEditing={isWallEditingNow}
-      onCheckWallGaps={onCheckWallGaps}
-      onDismissInspector={clearSelection}
-      onModelDropped={onModelDropped}
-      onNavigateToObject={onNavigateToObject}
-      onOpenExport={onOpenExport}
-      onOpenRuleScreen={onOpenRuleScreen}
-      onOpenScreen={onOpenScreen}
-      onTogglePanel={setOpenPanelId}
-      onToggleWallEditing={onToggleWallEditing}
-      openPanelId={openPanelId}
-      projectId={props.projectId}
-      saveLabel={saveLabel}
-      selectedEntityId={selectedIds[0] ?? null}
-      selectedEntityIds={selectedIds}
-    />
+    <>
+      <Viewer3DSaveStrip saveBlock={saveBlock} />
+      <Viewer3DPanels
+        canEditWallGeometry={canEditWallGeometry}
+        floorId={resolvedFloorId}
+        isWallEditing={isWallEditingNow}
+        onCheckWallGaps={onCheckWallGaps}
+        onDismissInspector={clearSelection}
+        onModelDropped={onModelDropped}
+        onNavigateToObject={onNavigateToObject}
+        onOpenExport={onOpenExport}
+        onOpenRuleScreen={onOpenRuleScreen}
+        onOpenScreen={onOpenScreen}
+        onTogglePanel={setOpenPanelId}
+        onToggleWallEditing={onToggleWallEditing}
+        openPanelId={openPanelId}
+        projectId={props.projectId}
+        saveLabel={saveLabel}
+        selectedEntityId={selectedIds[0] ?? null}
+        selectedEntityIds={selectedIds}
+      />
+    </>
   );
 
   const renderScene = useCallback(

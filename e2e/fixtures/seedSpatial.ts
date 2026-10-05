@@ -37,7 +37,11 @@ export async function seedSpatial(page: Page, options: SeedSpatialOptions = {}):
 
     interface SeedState {
       project: { id: string } | null;
-      setSpatial: (spatial: unknown, versionId: null) => void;
+      setSpatial: (
+        spatial: unknown,
+        versionId: null,
+        source: { projectId: string; floorRevisions: Record<string, number> },
+      ) => void;
       setFloors: (floors: unknown) => void;
     }
 
@@ -73,7 +77,12 @@ export async function seedSpatial(page: Page, options: SeedSpatialOptions = {}):
 
     const graph = fixture.createSampleBuilding();
     const state = store.useStore.getState();
-    state.setSpatial(normalize.normalizeSpatial(graph), null);
+    /* Dự án của URL (hoặc `projectId` đã chờ) và revision 0 mỗi tầng: thiếu `source` thì bộ lưu lớp không lưu. */
+    const sourceProject = projectId ?? /\/(?:projects|du-an)\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+    const floorRevisions = Object.fromEntries(
+      (graph.levels as readonly { id: string }[]).map((level) => [level.id, 0]),
+    );
+    state.setSpatial(normalize.normalizeSpatial(graph), null, { floorRevisions, projectId: sourceProject });
     state.setFloors(graph.levels);
   }, options.projectId);
 }

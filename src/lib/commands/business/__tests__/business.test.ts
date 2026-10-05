@@ -1198,6 +1198,59 @@ describe('room and level commands', () => {
     ).toContain(displayCodeIn(baseGraph, RIGHT_ROOM));
   });
 
+  it('stores a decomposed (NFD) room name composed (NFC) and compares clashes after normalising', () => {
+    const decomposed = 'Phòng đọc sách'.normalize('NFD');
+    const command = expectCommand(createRenameRoomCommand({ roomId: LEFT_ROOM, name: `  ${decomposed} ` }, context));
+
+    expect(applyCommand(baseGraph, command).byId[LEFT_ROOM]).toMatchObject({ name: 'Phòng đọc sách'.normalize('NFC') });
+    expect(
+      validateRenameRoom({ roomId: LEFT_ROOM, name: 'Phòng ngủ phải'.normalize('NFD') }, context).join(' '),
+    ).toContain(displayCodeIn(baseGraph, RIGHT_ROOM));
+  });
+
+  it.each([
+    ['bidi override U+202E', 'Phòng ‮khách'],
+    ['control U+0007', 'Phòng \u0007khách'],
+  ])('refuses a room name with a %s character', (_label, name) => {
+    expect(validateRenameRoom({ roomId: LEFT_ROOM, name }, context)).toEqual([
+      'Tên phòng chứa ký tự không hiển thị được.',
+    ]);
+    expect(createRenameRoomCommand({ roomId: LEFT_ROOM, name }, context).ok).toBe(false);
+  });
+
+  it('refuses a split piece name with a hidden character and names the piece in NFC', () => {
+    const outlines = {
+      firstOutline: [
+        { x: 0, y: 0 },
+        { x: 3000, y: 0 },
+        { x: 3000, y: 4000 },
+        { x: 0, y: 4000 },
+      ],
+      secondOutline: [
+        { x: 3000, y: 0 },
+        { x: 6000, y: 0 },
+        { x: 6000, y: 4000 },
+        { x: 3000, y: 4000 },
+      ],
+    };
+
+    expect(
+      validateSplitRoom(
+        { roomId: LIVING_ROOM, newRoomId: SPLIT_ROOM_ID, newRoomName: 'Bếp‮', ...outlines },
+        context,
+      ),
+    ).toEqual(['Tên phòng chứa ký tự không hiển thị được.']);
+
+    const command = expectCommand(
+      createSplitRoomCommand(
+        { roomId: LIVING_ROOM, newRoomId: SPLIT_ROOM_ID, newRoomName: 'Bếp ăn'.normalize('NFD'), ...outlines },
+        context,
+      ),
+    );
+
+    expect(applyCommand(baseGraph, command).byId[SPLIT_ROOM_ID]).toMatchObject({ name: 'Bếp ăn'.normalize('NFC') });
+  });
+
   it('measures the merged room from the outline it was given', () => {
     const command = expectCommand(
       createMergeRoomsCommand(

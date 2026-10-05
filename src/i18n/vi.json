@@ -71,6 +71,13 @@
     "offline": "Ngoại tuyến — sẽ lưu khi có mạng",
     "savedRelative": "Đã lưu {{minutes}} phút trước"
   },
+  "floorLayerSave": {
+    "reloadConflict": "Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.",
+    "forbidden": "Bạn không còn quyền sửa tầng này.",
+    "integrity": "Tầng này có {{count}} chỗ hỏng liên kết hình học nên chưa lưu được.",
+    "unknown": "Không lưu được thay đổi của tầng này.",
+    "reloadFailed": "Không tải lại được tầng này. Thử lại sau."
+  },
   "pipeline": {
     "preprocess": "tiền xử lý",
     "wallSegmentation": "tách lớp tường",
@@ -1455,6 +1462,13 @@
     }
   },
   "wallLayerReview": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "title": "Duyệt lớp tường"
     },
@@ -1547,6 +1561,13 @@
     }
   },
   "objectLayerReview": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "title": "lớp đối tượng"
     },
@@ -2013,6 +2034,13 @@
     }
   },
   "roomLabelReview": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "breadcrumb": "Dự án > Tầng 01 > Nhãn phòng",
       "title": "duyệt tên phòng",
@@ -2130,6 +2158,13 @@
     }
   },
   "thicknessStandardization": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "breadcrumb": "Dự án > Tầng 01 > Độ dày tường",
       "title": "chuẩn hoá độ dày tường",
@@ -2235,6 +2270,13 @@
     }
   },
   "viewer3d": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "buildError": {
       "description": "Không dựng được mô hình 3D lần này. Thử lại, hoặc quay lại lớp tường để xem dữ liệu còn thiếu gì."
     },

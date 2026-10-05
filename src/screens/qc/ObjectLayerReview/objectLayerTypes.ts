@@ -29,6 +29,7 @@
 import type { Confidence, Point, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { Millimetres, MillimetresPerPixel } from '@/domain/units/types';
 import type { RelativePosition } from '@/domain/openings/types';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -614,6 +615,8 @@ export interface ObjectLayerReviewModel {
    * hoàn tác được như mọi lệnh khác, và KHÔNG đặt cờ duyệt (A5).
    */
   readonly onAddManually: () => void;
+  /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
+  readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

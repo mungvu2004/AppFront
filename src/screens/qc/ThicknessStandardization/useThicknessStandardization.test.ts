@@ -34,10 +34,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
 import { standardizeThickness } from '@/lib/geometry/standardize';
-import { flushAutosaves } from '@/hooks/useAutosave';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -122,6 +123,9 @@ const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -484,9 +488,11 @@ describe('áp chuẩn hoá', () => {
     expect(mounted.history.canRedo()).toBe(true);
   });
 
+  /* Đổi vì bộ lưu mới (F-04x-1): cổng không còn `persistThicknessStandardization`; rình `writeLayer`. */
   it('Ctrl+S với tới màn này: flushAutosaves lưu NGAY sau một lượt áp (B-V7-01)', async () => {
-    const gateway = createMockThicknessStandardizationGateway();
-    const persist = vi.spyOn(gateway, 'persistThicknessStandardization');
+    const apiClient = createMockApiClient();
+    const gateway = createMockThicknessStandardizationGateway({ apiClient });
+    const persist = vi.spyOn(apiClient.spatial, 'writeLayer');
     const mounted = await mountSettled({ gateway });
 
     acceptAndPreview(mounted, THREE_MEASUREMENTS);
@@ -506,7 +512,39 @@ describe('áp chuẩn hoá', () => {
       await flushAutosaves();
     });
 
-    expect(persist).toHaveBeenCalledTimes(1);
+    /* Lượt áp đổi tường của mọi tầng bộ mẫu; bộ lưu chung gửi MỖI tầng bẩn đúng một PUT
+       (bộ lưu cũ chỉ gửi tầng của URL và bỏ rơi sửa của tầng khác). */
+    const floors = persist.mock.calls.map(([input]) => input.floorId);
+
+    expect(floors).toContain(FLOOR_ID);
+    expect(new Set(floors).size).toBe(floors.length);
+  });
+
+  it('409 → dải "Tải lại" (F-04x-1 [8].6)', async () => {
+    const apiClient = createMockApiClient();
+    const gateway = createMockThicknessStandardizationGateway({ apiClient });
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+
+    /* Máy chủ đã đi trước bản mà màn nạp — lượt lưu đầu nhận 409. */
+    simulateRemoteLayerEdit(FLOOR_ID);
+    const mounted = await mountSettled({ gateway });
+
+    acceptAndPreview(mounted, THREE_MEASUREMENTS);
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.history.undoSteps()).toHaveLength(1);
+    });
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    expect(writeLayer.mock.calls.filter(([input]) => input.floorId === FLOOR_ID)).toHaveLength(1);
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
   });
 
   it('áp xong thì M-04 dựng lại hình tường của phần xem trước', async () => {

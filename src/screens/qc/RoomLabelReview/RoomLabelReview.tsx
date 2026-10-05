@@ -54,6 +54,8 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
 import { RoomLabelLeftPanel } from './RoomLabelLeftPanel';
@@ -243,6 +245,12 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
+
+      {props.saveBlock != null && (
+        <div className="px-2 pt-2">
+          <FloorLayerSaveBanner saveBlock={props.saveBlock} />
+        </div>
+      )}
 
       <div className={cn('flex min-h-0 flex-1 gap-2 p-2', isCompact ? 'flex-col' : 'flex-row')}>
         {isCollapsed ? null : <RoomLabelLeftColumn {...props} />}

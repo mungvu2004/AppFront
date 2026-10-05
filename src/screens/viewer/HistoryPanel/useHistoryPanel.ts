@@ -175,6 +175,19 @@ export function useHistoryPanel(options: UseHistoryPanelOptions = {}): UseHistor
   const lastCommitTimestamp = useStore((state) => state.lastCommitTimestamp);
   const [jumpCount, setJumpCount] = useState(0);
 
+  /* R14: máy chủ vừa thay một tầng dưới tay người dùng (tải lại sau 409) — các bước cũ
+     trỏ vào đồ thị không còn nữa, nên ngăn xếp phải trống. Lượt lưu của mình không tăng số này. */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+  const seenReplaceSeq = useRef(serverReplaceSeq);
+
+  useEffect(() => {
+    if (seenReplaceSeq.current !== serverReplaceSeq) {
+      seenReplaceSeq.current = serverReplaceSeq;
+      gateway.history.clear();
+      setJumpCount((count) => count + 1);
+    }
+  }, [gateway, serverReplaceSeq]);
+
   /* ---- Ba trục điều khiển của người dùng --------------------------------- */
 
   const [filters, setFilters] = useState<HistoryFilters>(DEFAULT_FILTERS);

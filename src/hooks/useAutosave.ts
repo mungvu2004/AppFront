@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { createAutosave, type Autosave } from '../lib/autosave/createAutosave';
+import type { ApiClient } from '@/api/client';
+import type { FloorLayerSaver } from '@/lib/autosave/spatialLayerSave';
+import { getSessionSnapshot } from '@/lib/auth/state';
+import { guardBeforeUnload } from '@/lib/autosave/beforeUnload';
+import { queryClient } from '@/lib/query/queryClient';
+
+import { createAutosave, type Autosave, type AutosaveEngine } from '../lib/autosave/createAutosave';
 import { formatClockTime } from '../lib/format/datetime';
 import type { RootState } from '../store';
 import { useStore } from '../store';
@@ -121,8 +127,7 @@ function useAutosaveHandle(onSave: (data: RootState['spatial']) => Promise<void>
     [],
   );
 
-  const state = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
-  const [label, setLabel] = useState<string | null>(null);
+  const label = useEngineLabel(autosave);
 
   /* Ghi tên engine này vào sổ dùng chung, để Ctrl+S của vỏ xả được nó mà không
      cần biết màn nào đang mở. */
@@ -147,6 +152,14 @@ function useAutosaveHandle(onSave: (data: RootState['spatial']) => Promise<void>
     }
   }, [spatial, autosave]);
 
+  return { flush: autosave.saveNow, label };
+}
+
+/** `null` → "Đã lưu lúc HH:mm" | "Lưu thất bại"; `dirty`/`saving`/`offline` giữ nhãn đang hiện. */
+function useEngineLabel(autosave: Autosave): string | null {
+  const state = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
+  const [label, setLabel] = useState<string | null>(null);
+
   useEffect(() => {
     if (state === 'saved') {
       const lastSavedAt = autosave.getLastSavedAt();
@@ -167,7 +180,7 @@ function useAutosaveHandle(onSave: (data: RootState['spatial']) => Promise<void>
     // down (it only ever wrote a new label from inside its own callback).
   }, [state, autosave]);
 
-  return { flush: autosave.saveNow, label };
+  return label;
 }
 
 /**
@@ -192,4 +205,337 @@ export function useAutosave(onSave: (data: RootState['spatial']) => Promise<void
  */
 export function useAutosaveFlush(onSave: (data: RootState['spatial']) => Promise<void>): UseAutosaveHandle {
   return useAutosaveHandle(onSave);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sổ saver lớp tầng (F-04x-1 bước 5): MỘT bộ lưu cho mỗi người–dự án.         */
+/* -------------------------------------------------------------------------- */
+
+type SpatialClient = Pick<ApiClient, 'spatial'>;
+
+/**
+ * Ống nặng nạp lười. File này nằm trong chunk vào (router nhập `flushAutosaves`), còn
+ * `spatialLayerSave` kéo theo zod và schema — nhập tĩnh là +19 KiB gzip cho chunk vào.
+ */
+const loadPipes = () =>
+  Promise.all([
+    import('@/lib/autosave/spatialLayerSave'),
+    import('@/store/commit'),
+    import('@/lib/query/invalidation'),
+  ]).then(([save, commitModule, invalidation]) => ({
+    applyInvalidation: invalidation.applyInvalidation,
+    changedLevelIds: save.changedLevelIds,
+    createFloorLayerSaver: save.createFloorLayerSaver,
+    replaceFloorLayer: commitModule.replaceFloorLayer,
+    spatialLayerOf: save.spatialLayerOf,
+  }));
+
+type Pipes = Awaited<ReturnType<typeof loadPipes>>;
+
+let pipes: Pipes | null = null;
+let pipesLoading: Promise<Pipes> | null = null;
+
+const getPipes = (): Promise<Pipes> =>
+  pipes
+    ? Promise.resolve(pipes)
+    : (pipesLoading ??= loadPipes().then(
+        (loaded) => (pipes = loaded),
+        (error: unknown) => {
+          pipesLoading = null;
+          throw error;
+        },
+      ));
+
+interface SaverBook {
+  readonly userId: string;
+  readonly projectId: string;
+  readonly engine: AutosaveEngine;
+  readonly reloadErrors: Map<string, string>;
+  readonly listeners: Set<() => void>;
+  readonly stops: Array<() => void>;
+  saver: FloorLayerSaver | null;
+  api: SpatialClient | null;
+  version: number;
+  disposed: boolean;
+}
+
+let book: SaverBook | null = null;
+
+const RELOAD_FAILED = 'Không tải lại được tầng này. Thử lại sau.';
+
+const bump = (target: SaverBook): void => {
+  target.version += 1;
+  target.listeners.forEach((listener) => listener());
+};
+
+const spatialApiOf = async (target: SaverBook): Promise<SpatialClient> =>
+  (target.api ??= (await import('@/api/appClient')).createAppApiClient());
+
+const markChanged = (target: SaverBook, floorIds: readonly string[]): void => {
+  if (target.saver && floorIds.length > 0) {
+    target.saver.markDirty(floorIds);
+    target.engine.notifyChange();
+  }
+};
+
+/** `opened`: đồ thị lúc mở sổ; khác đồ thị hiện tại nghĩa là có sửa trước khi ống nạp xong. */
+const attachSaver = (target: SaverBook, loaded: Pipes, opened: RootState['spatial']): void => {
+  if (target.disposed || target.saver) {
+    return;
+  }
+
+  const { projectId } = target;
+  const owns = (): boolean => useStore.getState().spatialProjectId === projectId;
+
+  target.saver = loaded.createFloorLayerSaver(projectId, {
+    onSaved(floorId, result, { redirtied }) {
+      if (target.disposed || !owns()) {
+        return;
+      }
+
+      if (redirtied) {
+        useStore.getState().updateFloorMeta(floorId, { revision: result.revision });
+      } else {
+        loaded.replaceFloorLayer(floorId, result);
+      }
+
+      loaded.applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId });
+    },
+    readLayer(floorId) {
+      const { spatial } = useStore.getState();
+      const level = spatial?.byId[floorId];
+
+      return !target.disposed && owns() && spatial && level?.id === floorId && 'order' in level
+        ? loaded.spatialLayerOf(spatial, level.id)
+        : null;
+    },
+    // Không chặn theo `disposed`: lượt xả lúc đổi dự án chạy SAU `dispose()`, và base 0 là 409 chắc.
+    readRevision: (floorId) => (owns() ? (useStore.getState().floorMeta[floorId]?.revision ?? null) : null),
+    writeLayer: async (input) => (await spatialApiOf(target)).spatial.writeLayer(input),
+  });
+  target.saver.subscribe((unsavedFloorIds) => {
+    useStore.getState().setUnsavedFloorIds(unsavedFloorIds);
+    bump(target);
+  });
+
+  const { spatial } = useStore.getState();
+
+  if (opened && spatial && opened !== spatial && owns()) {
+    markChanged(target, loaded.changedLevelIds(opened, spatial));
+  }
+};
+
+const closeBook = (target: SaverBook, flush: boolean): void => {
+  if (flush) {
+    void target.saver?.flush().catch(() => undefined);
+  }
+
+  target.disposed = true;
+  target.saver?.dispose();
+  target.stops.forEach((stop) => stop());
+  mountedAutosaves.delete(target.engine);
+  useStore.getState().setUnsavedFloorIds([]);
+};
+
+/** Saver của cặp `userId:projectId` hiện tại; đổi khoá thì đóng saver cũ (cùng người: xả trước). */
+function openBook(projectId: string): SaverBook {
+  const userId = getSessionSnapshot().user?.id ?? '';
+
+  if (book?.userId === userId && book.projectId === projectId) {
+    return book;
+  }
+
+  if (book) {
+    closeBook(book, book.userId === userId);
+  }
+
+  const created: SaverBook = {
+    api: null,
+    disposed: false,
+    engine: createAutosave<true>({
+      getChanges: () => (created.saver?.hasDirty() ? true : undefined),
+      save: () => created.saver?.flush() ?? Promise.resolve(),
+    }),
+    listeners: new Set(),
+    projectId,
+    reloadErrors: new Map(),
+    saver: null,
+    stops: [],
+    userId,
+    version: 0,
+  };
+
+  mountedAutosaves.add(created.engine);
+  created.stops.push(
+    useStore.subscribe((state, previous) => {
+      if (
+        pipes &&
+        previous.spatial &&
+        state.spatial &&
+        state.spatial !== previous.spatial &&
+        state.spatial !== state.lastServerSpatial &&
+        state.spatialProjectId === projectId
+      ) {
+        markChanged(created, pipes.changedLevelIds(previous.spatial, state.spatial));
+      }
+    }),
+    guardBeforeUnload({
+      hasUnsavedChanges: () => useStore.getState().unsavedFloorIds.length > 0,
+      sendBeacon: () => undefined,
+    }),
+  );
+  book = created;
+
+  if (pipes) {
+    attachSaver(created, pipes, null);
+  } else {
+    const opened = useStore.getState().spatial;
+
+    void getPipes().then(
+      (loaded) => attachSaver(created, loaded, opened),
+      () => undefined,
+    );
+  }
+
+  return created;
+}
+
+/** Đóng saver đang sống, không xả — chỉ cho `beforeEach` của test. */
+export function __resetFloorLayerSavers(): void {
+  if (book) {
+    closeBook(book, false);
+    book = null;
+  }
+}
+
+export interface FloorLayerSaveConfirm {
+  open: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+/** Dải lưu lớp cho view: `reload` → nút "Tải lại" (+ hộp thoại A9), `blocked` → chỉ câu. */
+export interface FloorLayerSaveBlock {
+  kind: 'reload' | 'blocked';
+  message: string;
+  onReload?: () => void;
+  confirm: FloorLayerSaveConfirm | null;
+}
+
+export interface UseFloorLayerAutosaveOptions {
+  projectId: string;
+  /** Vắng (`/3d`) → dải theo tầng bị khối đầu tiên, câu kèm tên tầng. */
+  floorId?: string;
+  apiClient?: SpatialClient;
+}
+
+export interface FloorLayerAutosaveHandle {
+  /** Engine dùng chung của saver; lỗi của tầng KHÁC không làm nó "failed" với màn này. */
+  autosave: Autosave;
+  label: string | null;
+  saveBlock: FloorLayerSaveBlock | null;
+  discardFloor: (floorId: string) => void;
+  reloadFloor: (floorId: string) => Promise<void>;
+}
+
+/**
+ * Nối một màn vào saver lớp tầng của người–dự án đang mở (F-04x-1 bước 5). Saver sống ở
+ * cấp module tới khi đổi khoá; hook tháo chỉ gỡ listener của nó.
+ */
+export function useFloorLayerAutosave({
+  apiClient,
+  floorId,
+  projectId,
+}: UseFloorLayerAutosaveOptions): FloorLayerAutosaveHandle {
+  const current = openBook(projectId);
+
+  if (apiClient) {
+    current.api = apiClient;
+  }
+
+  const subscribe = useMemo(
+    () => (listener: () => void) => {
+      current.listeners.add(listener);
+
+      return () => {
+        current.listeners.delete(listener);
+      };
+    },
+    [current],
+  );
+  const version = (): number => current.version;
+
+  useSyncExternalStore(subscribe, version, version);
+
+  const autosave = useMemo<Autosave>(() => {
+    const { engine } = current;
+    const foreignFailure = (): boolean =>
+      floorId !== undefined &&
+      engine.getState() === 'failed' &&
+      !useStore.getState().unsavedFloorIds.includes(floorId);
+
+    return { ...engine, getState: () => (foreignFailure() ? 'saved' : engine.getState()) };
+  }, [current, floorId]);
+
+  const label = useEngineLabel(autosave);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const reloadFloor = useMemo(
+    () => async (target: string) => {
+      const [loaded, api] = await Promise.all([getPipes(), spatialApiOf(current)]);
+      const read = await api.spatial.readLayer({ floorId: target, projectId: current.projectId });
+
+      if (current.disposed) {
+        return;
+      }
+
+      if (read.ok) {
+        current.reloadErrors.delete(target);
+        current.saver?.discardFloor(target);
+        loaded.replaceFloorLayer(target, { layer: read.data.layer, revision: read.data.revision }, { external: true });
+      } else {
+        current.reloadErrors.set(target, RELOAD_FAILED);
+      }
+
+      bump(current);
+    },
+    [current],
+  );
+
+  const discardFloor = useMemo(() => (target: string) => current.saver?.discardFloor(target), [current]);
+
+  const target = floorId ?? current.saver?.blockedFloorIds()[0];
+  const block = target === undefined ? null : (current.saver?.getBlock(target) ?? null);
+  let saveBlock: FloorLayerSaveBlock | null = null;
+
+  if (block && target !== undefined) {
+    const level = floorId === undefined ? useStore.getState().spatial?.byId[target] : undefined;
+    const reason = current.reloadErrors.get(target) ?? block.message;
+    const message = level && 'order' in level ? `${level.name}: ${reason}` : reason;
+
+    saveBlock =
+      block.kind === 'blocked'
+        ? { confirm: null, kind: 'blocked', message }
+        : {
+            confirm: {
+              onCancel: () => setConfirmOpen(false),
+              onConfirm: () => {
+                setConfirmOpen(false);
+                void reloadFloor(target);
+              },
+              open: confirmOpen,
+            },
+            kind: 'reload',
+            message,
+            onReload: () => {
+              if (useStore.getState().unsavedFloorIds.includes(target)) {
+                setConfirmOpen(true);
+              } else {
+                void reloadFloor(target);
+              }
+            },
+          };
+  }
+
+  return { autosave, discardFloor, label, reloadFloor, saveBlock };
 }

@@ -52,10 +52,9 @@
  *    làm việc, không phải một khả năng còn thiếu.
  * 3. **~~Không endpoint nào nhận lớp không gian~~ — lỗ hổng #5, đã vá (U4).**
  *    `SpatialApi.writeLayer` nhận đủ bốn danh sách (tường / ô mở / phòng / nội
- *    thất) của một tầng, nên {@link PropertyInspectorGateway.persistProperties}
- *    là một lượt ghi thật và chỉ báo tự lưu nói được "Đã lưu lúc …" mà không
- *    nói dối. Trước đây nó NÉM để khỏi nói dối; giờ nó chỉ ném khi máy chủ thật
- *    sự từ chối, và `createAutosave` lo phần thử lại.
+ *    thất) của một tầng. Panel KHÔNG tự lưu: mọi lượt lưu lớp đi qua saver dùng
+ *    chung của người–dự án (`useFloorLayerAutosave`, F-04x-1); màn chủ (`/3d`)
+ *    truyền nhãn của nó xuống.
  *
  * `openingsOfRoom` giờ đã được export từ `src/domain/spatial/roomOpenings.ts`
  * (lỗ hổng #3) — {@link roomOpeningCountsOf} dưới đây gọi thẳng nó thay vì nuôi
@@ -72,10 +71,8 @@ import { readEntity } from '@/domain/spatial/applyPatch';
 import type { NormalizedSpatial, SpatialEntity } from '@/domain/spatial/normalize';
 import { isEntityOfKind } from '@/domain/spatial/normalize';
 import { countOpeningsByKind, openingsOfRoom } from '@/domain/spatial/roomOpenings';
-import { createChangedFloorsSave, historyEndsOf } from '@/lib/autosave/spatialLayerSave';
 import type {
   Furniture,
-  LevelId,
   Opening,
   Room,
   SwingDirection,
@@ -564,7 +561,6 @@ export const PROPERTY_INSPECTOR_NO_SELECTION: SelectionSnapshot = NO_SELECTION;
 export type PropertyInspectorCapability =
   | 'readSpatialLayer'
   | 'writeSpatialLayer'
-  | 'persistProperties'
   | 'copyAsTemplate';
 
 /** Kết quả của một khả năng có thể chưa có đường. */
@@ -584,10 +580,6 @@ export type PropertyInspectorCapabilityResult<TValue> =
  */
 export const NO_SAVE_TARGET_REASON =
   'Chưa mở dự án nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.';
-
-/** Câu nói ra khi máy chủ từ chối lượt lưu lớp không gian. */
-export const persistFailedReason = (kind: string): string =>
-  `Máy chủ chưa nhận được lớp không gian (${kind}). Thay đổi vẫn còn trên máy này.`;
 
 /** Câu nói ra khi máy chủ từ chối lượt tạo khuôn mẫu. */
 export const templateFailedReason = (kind: string): string =>
@@ -677,17 +669,6 @@ export interface PropertyInspectorGateway {
   readonly readSpatialLayer: () => Promise<NormalizedSpatial | null>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: PropertyInspectorGraphPort;
-  /**
-   * Gửi lớp không gian của mọi tầng có thứ bị đổi lên máy chủ, mỗi tầng một PUT —
-   * lượt lưu THẬT của A7. Trả danh sách tầng đã gửi.
-   *
-   * Nhận đồ thị chứ không tự đọc kho: nơi gọi là `useAutosave`, và chính nó đã
-   * cầm ảnh chụp `state.spatial` của đúng lượt lưu này. Cổng tự đọc lại sẽ là
-   * một ảnh chụp thứ hai, có thể mới hơn thứ bộ đếm giờ vừa quyết định lưu.
-   */
-  readonly persistProperties: (
-    graph: NormalizedSpatial,
-  ) => Promise<PropertyInspectorCapabilityResult<readonly LevelId[]>>;
   /** Lưu bộ thuộc tính của đối tượng này thành một khuôn mẫu của dự án. */
   readonly copyAsTemplate: (
     entity: InspectableEntity,
@@ -717,11 +698,6 @@ export interface CreatePropertyInspectorGatewayOptions {
    * hook), còn dự án có thể mở sau lúc panel gắn.
    */
   readonly target?: () => PropertyInspectorSaveTarget | null;
-  /**
-   * Hai đầu lịch sử hoàn tác — mốc so khi cổng chưa lưu lượt nào. Vắng mặt thì đọc
-   * `useStore.temporal`: đầu cũ nhất của `pastStates` và đầu gần nhất của `futureStates`.
-   */
-  readonly historyEnds?: () => readonly NormalizedSpatial[];
 }
 
 /** Dự án đang mở, đọc thẳng store. `null` khi chưa mở dự án. */
@@ -738,38 +714,16 @@ export function createPropertyInspectorGateway(
   const graph = options.graph ?? { read: (): NormalizedSpatial | null => null };
   const apiClient = options.apiClient ?? createAppApiClient();
   const saveTarget = options.target ?? storeSaveTarget;
-  /* Mốc so và `revision` theo tầng sống trong cổng — tức trong panel. Trên `/3d` màn tự
-   * lưu bằng một bộ dựng một lần cho cả màn (`useViewer3DSave`, B-V8-60). */
-  const saveChangedFloors = createChangedFloorsSave(
-    apiClient.spatial,
-    options.historyEnds ?? (() => historyEndsOf(useStore.temporal.getState())),
-  );
 
   return {
     supports: {
       readSpatialLayer: true,
       writeSpatialLayer: true,
-      persistProperties: true,
       copyAsTemplate: true,
     },
     readSpatialLayer: () => Promise.resolve(graph.read()),
     graph,
     saveTarget,
-    persistProperties: async (current) => {
-      const target = saveTarget();
-
-      if (target === null) {
-        return { ok: false, reason: NO_SAVE_TARGET_REASON };
-      }
-
-      try {
-        return { data: await saveChangedFloors(current, target.projectId), ok: true };
-      } catch (error) {
-        const cause = (error as { cause?: { kind?: string } }).cause;
-
-        return { cause, ok: false, reason: persistFailedReason(cause?.kind ?? 'unknown') };
-      }
-    },
     copyAsTemplate: async (entity) => {
       const target = saveTarget();
       const draft = propertyTemplateDraftOf(entity);

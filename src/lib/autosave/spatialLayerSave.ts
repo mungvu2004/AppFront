@@ -1,56 +1,10 @@
 import type { SpatialApi, SpatialLayer } from '@/api/client';
+import { FloorLayerWriteSchema, type FloorLayerWriteResult } from '@/api/schemas/spatialLayer';
 import { isIdOfKind } from '@/domain/spatial/ids';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
-
-/**
- * What one autosave cycle of a floor's spatial layer needs to send: the
- * whole four-list write `WriteSpatialLayerInput` (`@/api/client`) expects,
- * per its own docblock — "the autosave flush of everything on this floor
- * right now", not a per-field patch.
- */
-export interface SpatialLayerChanges {
-  readonly floorId: string;
-  readonly projectId: string;
-  readonly layer: SpatialLayer;
-  /** `revision` mà lớp này dựa trên — #35 là `PUT` có version (B-G-07). */
-  readonly baseVersion: number;
-}
-
-/**
- * `Error` mang `HttpError` gốc ở `cause` — `isTransientWireError` đọc `cause`, nên
- * 409/422 dừng ngay còn rớt mạng thì thử lại. (`new Error(msg, { cause })` cần lib
- * ES2022 mà `tsconfig` chưa bật.)
- */
-const failure = (message: string, cause: { readonly kind: string }): Error =>
-  Object.assign(new Error(`${message} (${cause.kind})`), { cause });
-
-/**
- * Wraps U4's `SpatialApi.writeLayer` (walls/openings/rooms/furniture, added
- * in `feat(api): endpoint luu lop khong gian`) as a `createAutosave`-shaped
- * `save` callback — resolves on a successful write, throws on failure so `createAutosave`'s own retry schedule
- * (`retrySchedule.ts`: 5s/15s/45s) and offline detection take over. The
- * `HttpError` rides along as `cause`, so `isTransientWireError` still tells a
- * 409/422 (stop) from a dropped connection (retry). No retry logic lives in
- * this file; duplicating it here would be the second independent retry
- * mechanism this task exists to remove.
- */
-export function createSpatialLayerSave(
-  spatialApi: Pick<SpatialApi, 'writeLayer'>,
-): (changes: SpatialLayerChanges) => Promise<void> {
-  return async (changes) => {
-    const result = await spatialApi.writeLayer({
-      baseVersion: changes.baseVersion,
-      body: changes.layer,
-      floorId: changes.floorId,
-      projectId: changes.projectId,
-    });
-
-    if (!result.ok) {
-      throw failure('Không lưu được lớp không gian', result.error);
-    }
-  };
-}
+import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
+import { runExclusive } from '@/lib/mutations/entityQueue';
 
 /**
  * Bốn danh sách thực thể của MỘT tầng, đúng hình dạng `SpatialLayer` mà
@@ -93,7 +47,7 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
  * Các tầng của `next` có thực thể hoặc mảng `byLevel` khác tham chiếu với `previous` —
  * đích lưu là mọi tầng có thứ bị đổi, không phải tầng đang xem (B-V8-41). So tham
  * chiếu là đủ: `applyPatch` chỉ chép mảng `byLevel` và thực thể bị chạm.
- * Chỉ duyệt tầng còn trong `next`, nên guard tầng của `createFloorLayerSave` không bị kích.
+ * Chỉ duyệt tầng còn trong `next`.
  * ponytail: trục và kích thước cũng nằm trong `byLevel`; đổi chúng sinh một PUT thừa, vô hại.
  */
 export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpatial): LevelId[] {
@@ -108,112 +62,246 @@ export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpa
   });
 }
 
-/** Một lượt tự lưu của màn QC: đồ thị trong kho, và tầng mà URL của màn trỏ tới. */
-export interface FloorLayerGraphChanges {
-  readonly floorId: string;
-  readonly projectId: string;
-  readonly graph: NormalizedSpatial;
+/** Ba ngả của một lượt lưu lớp hỏng (prompt F-04x-1 khối [2]). */
+export type LayerSaveErrorClass = 'reload' | 'blocked' | 'temporary';
+
+/** Khối của một tầng: `reload` chờ `discardFloor`, `blocked` chờ một `markDirty` mới. */
+export interface LayerSaveBlock {
+  readonly kind: 'reload' | 'blocked';
+  readonly message: string;
+}
+
+/** Câu người đọc của khối — việc D chép sang khối `floorLayerSave` của `vi.json`. */
+export const LAYER_SAVE_MESSAGES = {
+  forbidden: 'Bạn không còn quyền sửa tầng này.',
+  integrity: (count: number): string => `Tầng này có ${count} chỗ hỏng liên kết hình học nên chưa lưu được.`,
+  reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
+  unknown: 'Không lưu được thay đổi của tầng này.',
+} as const;
+
+/** 409 và 422 `baseVersion` → tải lại (R6); lỗi tạm (mạng, timeout, 503) → thử lại; còn lại → khối. */
+export function classifyLayerSaveError(error: unknown): LayerSaveErrorClass {
+  const wire = readWireError(error);
+
+  if (wire?.status === 409 || (wire?.status === 422 && wire.field === 'baseVersion')) {
+    return 'reload';
+  }
+
+  return isTransientWireError(error) ? 'temporary' : 'blocked';
+}
+
+const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown): string => {
+  const wire = readWireError(error);
+  const raw: unknown = typeof error === 'object' && error !== null && 'raw' in error ? error.raw : null;
+  const count = typeof raw === 'object' && raw !== null && 'count' in raw ? raw.count : undefined;
+
+  if (kind === 'reload') {
+    return LAYER_SAVE_MESSAGES.reload;
+  }
+
+  if (wire?.status === 403) {
+    return LAYER_SAVE_MESSAGES.forbidden;
+  }
+
+  return wire?.code === 'LAYER_INTEGRITY_BROKEN' && typeof count === 'number'
+    ? LAYER_SAVE_MESSAGES.integrity(count)
+    : LAYER_SAVE_MESSAGES.unknown;
+};
+
+export interface FloorLayerSaverPorts {
+  writeLayer: SpatialApi['writeLayer'];
+  readLayer(floorId: string): SpatialLayer | null;
+  readRevision(floorId: string): number | null;
+  onSaved(floorId: string, result: FloorLayerWriteResult, info: { redirtied: boolean }): void;
+  queue?: typeof runExclusive;
+}
+
+export interface FloorLayerSaver {
+  markDirty(floorIds: readonly string[]): void;
+  hasDirty(): boolean;
+  flush(): Promise<void>;
+  discardFloor(floorId: string): void;
+  getBlock(floorId: string): LayerSaveBlock | null;
+  blockedFloorIds(): string[];
+  /** `listener` nhận bẩn ∪ đang gửi ∪ bản giữ ∪ bị khối — đúng `unsavedFloorIds` của kho. */
+  subscribe(listener: (unsavedFloorIds: readonly string[]) => void): () => void;
+  dispose(): void;
+}
+
+interface LayerWrite {
+  readonly baseVersion: number;
+  readonly body: SpatialLayer;
+}
+
+interface FloorFailure {
+  readonly error: unknown;
+  readonly kind: LayerSaveErrorClass;
 }
 
 /**
- * `save` của tự lưu cho mọi màn QC sửa lớp tầng (tường, ô mở, phòng, nội thất) —
- * B-V6-03. Trước đây mỗi cổng trả `unsupported` nên màn nói "Có thay đổi chưa lưu"
- * mãi; #35 (B-G-07) nay nhận đúng bốn danh sách ấy.
- *
- * Giữ `revision` theo tầng làm `baseVersion` của lượt sau; lượt đầu đọc N16 một lần.
- * ponytail: lượt đầu lấy revision MỚI NHẤT nên không thấy một lượt sửa của người khác
- * xảy ra giữa lúc màn nạp và lúc lưu (cùng trần với `propertyInspectorGateway.ts`);
- * muốn chặn thì cổng phải giữ revision của chính lượt đọc mà màn dựa vào.
- *
- * Kho chỉ giữ MỘT đồ thị, có khi là đồ thị của tầng khác hay bộ mẫu bơm vào. Đồ thị
- * không có tầng của URL thì KHÔNG ghi: `spatialLayerOf` sẽ ra bốn danh sách rỗng, và
- * một `PUT` rỗng là xoá sạch tầng ấy trên máy chủ.
+ * Bộ lưu lớp DUY NHẤT của một người–dự án (F-04x-1 bước 4). Không đọc N16: base là
+ * `max(revision lượt thành công gần nhất, readRevision)` — revision của chính lượt đọc
+ * đã sinh đồ thị trong kho, nên sửa của người khác sau lượt đọc ấy ra 409 thay vì bị đè.
+ * Lỗi tạm giữ nguyên `{ baseVersion, body }`; lượt sau gửi lại đúng thân ấy trước (C09b).
  */
-export function createFloorLayerSave(
-  spatialApi: Pick<SpatialApi, 'readLayer' | 'writeLayer'>,
-): (changes: FloorLayerGraphChanges) => Promise<void> {
+export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverPorts): FloorLayerSaver {
+  const queue = ports.queue ?? runExclusive;
+  const dirty = new Set<string>();
+  const held = new Map<string, LayerWrite>();
+  const inFlight = new Map<string, Promise<FloorFailure | undefined>>();
+  const blocks = new Map<string, LayerSaveBlock>();
   const revisions = new Map<string, number>();
+  const listeners = new Set<(unsavedFloorIds: readonly string[]) => void>();
+  let disposed = false;
 
-  return async ({ floorId, graph, projectId }) => {
-    const levelId = floorId as LevelId;
+  const sendable = (floorId: string): boolean => dirty.has(floorId) && blocks.get(floorId)?.kind !== 'reload';
 
-    if (!graph.byKind.level.includes(levelId)) {
-      throw new Error(`Đồ thị đang sửa không có tầng ${floorId} — không ghi đè lớp của tầng ấy.`);
+  const notify = (): void => {
+    const unsaved = [...new Set([...dirty, ...inFlight.keys(), ...held.keys(), ...blocks.keys()])];
+
+    listeners.forEach((listener) => listener(unsaved));
+  };
+
+  const send = async (floorId: string, write: LayerWrite, laterPending: boolean): Promise<FloorFailure | undefined> => {
+    // Khối [6]: thân sai hợp đồng thì không gửi — gửi đi chỉ tiêu một `baseVersion` để nhận 422.
+    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: write.baseVersion, body: { layer: write.body } });
+
+    if (!parsed.success) {
+      blocks.set(floorId, { kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
+
+      return { error: parsed.error, kind: 'blocked' };
     }
 
-    let baseVersion = revisions.get(floorId);
+    let error: unknown;
 
-    if (baseVersion === undefined) {
-      const read = await spatialApi.readLayer({ floorId, projectId });
+    try {
+      const result = await ports.writeLayer({ ...write, floorId, projectId });
 
-      if (!read.ok) {
-        throw failure('Không đọc được revision của tầng', read.error);
+      if (result.ok) {
+        revisions.set(floorId, result.data.revision);
+        blocks.delete(floorId);
+
+        if (!disposed) {
+          ports.onSaved(floorId, result.data, { redirtied: laterPending || dirty.has(floorId) });
+        }
+
+        return undefined;
       }
 
-      baseVersion = read.data.revision;
+      error = result.error;
+    } catch (thrown) {
+      error = thrown;
     }
 
-    const result = await spatialApi.writeLayer({
-      baseVersion,
-      body: spatialLayerOf(graph, levelId),
-      floorId,
-      projectId,
+    const kind = classifyLayerSaveError(error);
+
+    if (kind === 'temporary') {
+      held.set(floorId, write);
+    } else {
+      blocks.set(floorId, { kind, message: blockMessageOf(kind, error) });
+    }
+
+    return { error, kind };
+  };
+
+  const run = async (
+    floorId: string,
+    first: LayerWrite | undefined,
+    layer: SpatialLayer | null,
+  ): Promise<FloorFailure | undefined> => {
+    if (first) {
+      const failure = await send(floorId, first, layer !== null);
+
+      if (failure) {
+        // Thân mới chưa gửi: lượt sau chụp lại từ kho. Khối thì chờ `markDirty`/`discardFloor`.
+        if (failure.kind === 'temporary' && layer) {
+          dirty.add(floorId);
+        }
+
+        return failure;
+      }
+    }
+
+    if (!layer) {
+      return undefined;
+    }
+
+    const baseVersion = Math.max(revisions.get(floorId) ?? 0, ports.readRevision(floorId) ?? 0);
+
+    return send(floorId, { baseVersion, body: layer }, false);
+  };
+
+  /** Chụp ĐỒNG BỘ bản giữ và lớp của tầng; không có gì để gửi thì trả `undefined`. */
+  const flushFloor = (floorId: string): Promise<FloorFailure | undefined> | undefined => {
+    const first = held.get(floorId);
+    // `readLayer` null (kho thiếu tầng) → giữ bẩn, không PUT: một PUT rỗng xoá sạch tầng.
+    const layer = sendable(floorId) ? ports.readLayer(floorId) : null;
+
+    if (!first && !layer) {
+      return undefined;
+    }
+
+    held.delete(floorId);
+
+    if (layer) {
+      dirty.delete(floorId);
+    }
+
+    const settled = queue(`layer:${projectId}:${floorId}`, () => run(floorId, first, layer)).finally(() => {
+      if (inFlight.get(floorId) === settled) {
+        inFlight.delete(floorId);
+      }
+
+      notify();
     });
 
-    if (!result.ok) {
-      throw failure('Không lưu được lớp không gian', result.error);
-    }
+    inFlight.set(floorId, settled);
 
-    revisions.set(floorId, result.data.revision);
+    return settled;
   };
-}
 
-/** Một ô lịch sử zundo của kho — chỉ phần `spatial` được theo dõi (`store/index.ts`). */
-interface SpatialHistoryEntry {
-  readonly spatial?: NormalizedSpatial | null | undefined;
-}
+  return {
+    blockedFloorIds: () => [...blocks.keys()],
+    discardFloor(floorId) {
+      dirty.delete(floorId);
+      held.delete(floorId);
+      blocks.delete(floorId);
+      notify();
+    },
+    dispose() {
+      disposed = true;
+      listeners.clear();
+    },
+    async flush() {
+      if (disposed) {
+        return;
+      }
 
-/**
- * Hai đầu lịch sử hoàn tác: ô cũ nhất của `pastStates` và ô gần nhất của `futureStates`.
- * Lấy hợp cả hai để hoàn tác về giữa lịch sử không sót tầng. Nhận trạng thái zundo làm
- * tham số vì `src/lib` không đọc store.
- */
-export const historyEndsOf = (temporal: {
-  readonly pastStates: readonly SpatialHistoryEntry[];
-  readonly futureStates: readonly SpatialHistoryEntry[];
-}): NormalizedSpatial[] =>
-  [temporal.pastStates[0]?.spatial, temporal.futureStates[0]?.spatial].filter(
-    (spatial): spatial is NormalizedSpatial => spatial !== null && spatial !== undefined,
-  );
+      const waiting = [...inFlight.values()];
+      const sent = [...new Set([...dirty, ...held.keys()])].map(flushFloor);
 
-/**
- * Lưu mọi tầng có thứ bị đổi, mỗi tầng một PUT (B-V8-41); trả danh sách tầng đã gửi.
- * Ném lỗi của `createFloorLayerSave` nguyên vẹn (có `cause`), để tự lưu phân biệt
- * 409/422 với rớt mạng.
- *
- * Mốc so là đồ thị của lượt lưu xong gần nhất; chưa có mốc (hay kho đã nạp đồ thị khác)
- * thì so với `historyEnds()`. Dựng một lần cho cả màn (B-V8-60) để mốc sống qua lúc panel
- * tháo: hoàn tác qua ngăn lệnh ghi lại đúng tham chiếu cũ (`invert.ts`), nên so với hai
- * đầu lịch sử sẽ không thấy tầng vừa lưu bị đổi lại.
- * ponytail: lượt đầu vẫn chỉ thấy hai đầu lịch sử — sót tầng nếu lịch sử vượt `limit: 100`.
- */
-export function createChangedFloorsSave(
-  spatialApi: Pick<SpatialApi, 'readLayer' | 'writeLayer'>,
-  historyEnds: () => readonly NormalizedSpatial[],
-): (current: NormalizedSpatial, projectId: string) => Promise<readonly LevelId[]> {
-  const saveFloor = createFloorLayerSave(spatialApi);
-  let lastSaved: NormalizedSpatial | null = null;
+      notify();
+      await Promise.all(waiting);
 
-  return async (current, projectId) => {
-    const baselines = lastSaved?.building === current.building ? [lastSaved] : historyEnds();
-    const floorIds = [...new Set(baselines.flatMap((baseline) => changedLevelIds(baseline, current)))];
+      const failures = (await Promise.all(sent)).filter((failure) => failure !== undefined);
+      const failure = failures.find(({ kind }) => kind === 'temporary') ?? failures[0];
 
-    for (const floorId of floorIds) {
-      await saveFloor({ floorId, graph: current, projectId });
-    }
+      if (failure) {
+        throw failure.error;
+      }
+    },
+    getBlock: (floorId) => blocks.get(floorId) ?? null,
+    hasDirty: () => held.size > 0 || inFlight.size > 0 || [...dirty].some(sendable),
+    markDirty(floorIds) {
+      floorIds.forEach((floorId) => dirty.add(floorId));
+      notify();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
 
-    lastSaved = current;
-
-    return floorIds;
+      return () => {
+        listeners.delete(listener);
+      };
+    },
   };
 }

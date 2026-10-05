@@ -71,6 +71,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { LevelId } from '@/domain/spatial/types';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
@@ -107,6 +108,8 @@ export interface RoomLabelReviewContainerProps {
   readonly notifications?: NotificationBus;
   /** Ép thu gọn hai cột — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Ép dải lưu lớp (F-04x-1) — cho story "Xung đột — tải lại" / "Không lưu được". */
+  readonly forceSaveBlock?: FloorLayerSaveBlock;
   /** Dưới 1.024px cột trái xếp dọc; màn cha đo bề rộng và truyền vào. */
   readonly forceCompact?: boolean;
 }
@@ -151,7 +154,7 @@ function WiredRoomLabelReview(props: RoomLabelReviewContainerProps) {
     ...(props.forceCompact !== undefined ? { forceCompact: props.forceCompact } : {}),
   });
 
-  return <RoomLabelReview {...model} />;
+  return <RoomLabelReview {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<RoomLabelReviewContainer … />` — màn S-17 thật, đã nối, gắn được bằng một thẻ. */

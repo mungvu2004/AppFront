@@ -63,6 +63,8 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+
 import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessGroupTable } from './ThicknessGroupTable';
 import { ThicknessHistogram } from './ThicknessHistogram';
@@ -269,6 +271,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     onUndo,
     preview,
     reapplyWarning,
+    saveBlock,
     summary,
     thresholdLabels,
     thresholds,
@@ -288,6 +291,8 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
           <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
           <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         </header>
+
+        {saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={saveBlock} />}
 
         {errorMessage === null ? null : (
           <InlineAlert level="violation" message={errorMessage} title={ERROR_TITLE} />

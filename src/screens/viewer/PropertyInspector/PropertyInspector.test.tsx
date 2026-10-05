@@ -41,7 +41,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, PropertyTemplateDraft, SpatialLayer } from '@/api/client';
 import { displayCodesOf } from '@/domain/spatial/ids';
 import { displayCodeIn, displayLabelIn, normalizeSpatial } from '@/domain/spatial/normalize';
@@ -54,6 +54,7 @@ import {
   sampleWallId,
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { SpatialGraph } from '@/domain/spatial/types';
+import { __resetFloorLayerSavers, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
@@ -136,12 +137,36 @@ function WiredInspector(
   return <PropertyInspector {...model} />;
 }
 
+/**
+ * Panel dưới một màn chủ tự lưu — đúng cách `/3d` nối: saver lớp tầng dùng chung
+ * (F-04x-1) lưu, panel chỉ nói nhãn của nó. Panel không còn engine lưu riêng.
+ */
+function HostedInspector(
+  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds'> & {
+    readonly apiClient: ApiClient;
+    readonly gateway: PropertyInspectorGateway;
+  },
+) {
+  const { label } = useFloorLayerAutosave({ apiClient: props.apiClient, projectId: ACCEPTANCE_PROJECT_ID });
+
+  return (
+    <WiredInspector
+      gateway={props.gateway}
+      saveLabel={label}
+      selectedEntityId={props.selectedEntityId}
+      selectedEntityIds={props.selectedEntityIds}
+    />
+  );
+}
+
 /** Mã dự án của phiên nghiệm thu — đích của `saveTarget`. */
 const ACCEPTANCE_PROJECT_ID = 'P-NGHIEMTHU';
 
 /** Cổng thật, nhưng máy khách API bị theo dõi — mọi lượt ghi ra ngoài đếm được. */
 interface SpiedGateway {
   readonly gateway: PropertyInspectorGateway;
+  /** Máy khách đã bọc đếm — màn chủ đưa nó cho saver lớp tầng. */
+  readonly apiClient: ApiClient;
   /** Mỗi phần tử là một thân yêu cầu `spatial.writeLayer` đã gửi đi. */
   readonly layerWrites: SpatialLayer[];
   /** `floorId` của từng lượt `spatial.writeLayer`, cùng thứ tự với {@link layerWrites}. */
@@ -187,6 +212,7 @@ function createSpiedGateway(): SpiedGateway {
   };
 
   return {
+    apiClient,
     gateway: createPropertyInspectorGateway({
       apiClient,
       graph: { read: () => useStore.getState().spatial },
@@ -202,10 +228,17 @@ function createSpiedGateway(): SpiedGateway {
 function seedStore(graph: SpatialGraph): void {
   const store = useStore.getState();
 
+  const spatial = normalizeSpatial(graph);
+
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   useStore.temporal.getState().clear();
   store.setActiveFloor(sampleLevelId(0));
   store.setPanelOpen('right', true);
-  store.setSpatial(normalizeSpatial(graph), 'v-test');
+  store.setSpatial(spatial, 'v-test', {
+    floorRevisions: Object.fromEntries(spatial.byKind.level.map((id) => [id, 0])),
+    projectId: ACCEPTANCE_PROJECT_ID,
+  });
 }
 
 interface RenderWiredOptions {
@@ -219,17 +252,28 @@ interface RenderWiredOptions {
   readonly shellKeyboard?: boolean;
   /** Cổng tiêm — chỉ những phép nghiệm thu chạm tới máy chủ mới cần (N7/N8/N9). */
   readonly gateway?: PropertyInspectorGateway;
+  /** Có thì panel nằm dưới một màn chủ tự lưu ({@link HostedInspector}) — N9. */
+  readonly hostApiClient?: ApiClient;
 }
 
 /** Dựng panel đã nối dây và đợi lượt đọc lớp không gian xong. */
 async function renderWired(selectedIds: readonly string[], options: RenderWiredOptions = {}) {
   const panel = (
     <QueryClientProvider client={createTestQueryClient()}>
-      <WiredInspector
-        gateway={options.gateway}
-        selectedEntityId={selectedIds[0] ?? null}
-        selectedEntityIds={selectedIds}
-      />
+      {options.hostApiClient !== undefined && options.gateway !== undefined ? (
+        <HostedInspector
+          apiClient={options.hostApiClient}
+          gateway={options.gateway}
+          selectedEntityId={selectedIds[0] ?? null}
+          selectedEntityIds={selectedIds}
+        />
+      ) : (
+        <WiredInspector
+          gateway={options.gateway}
+          selectedEntityId={selectedIds[0] ?? null}
+          selectedEntityIds={selectedIds}
+        />
+      )}
     </QueryClientProvider>
   );
 
@@ -1131,7 +1175,8 @@ describe('[N8] bốn phím tắt', () => {
     const view = render(
       <UndoShortcuts>
         <QueryClientProvider client={createTestQueryClient()}>
-          <WiredInspector
+          <HostedInspector
+            apiClient={spied.apiClient}
             gateway={spied.gateway}
             selectedEntityId={WALL_ID}
             selectedEntityIds={[WALL_ID]}
@@ -1272,7 +1317,7 @@ describe('[N9] tự lưu', () => {
 
   it('gửi lớp không gian của tầng có tường bị sửa — không phải tầng đang xem — và chân panel hiện "Đã lưu lúc …"', async () => {
     const spied = createSpiedGateway();
-    const { container } = await renderWired([WALL_ID], { gateway: spied.gateway });
+    const { container } = await renderWired([WALL_ID], { gateway: spied.gateway, hostApiClient: spied.apiClient });
 
     clock = installFakeClock();
 

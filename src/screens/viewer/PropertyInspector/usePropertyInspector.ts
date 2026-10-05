@@ -44,8 +44,9 @@
  *    bước 4 của nó; hook đọc `selectViolations` rồi lọc theo id đối tượng đang
  *    xem và gắn cảnh báo VÀO ĐÚNG DÒNG gây ra nó. Hook KHÔNG tự tính lại hình học
  *    và KHÔNG tự kiểm luật.
- * 6. **Tự lưu (D-07) và chỉ báo (D-08).** `useAutosave` giữ bộ đếm 800 ms của A7 —
- *    hằng số nằm trong chính hook đó, không viết lại ở đây. Không có nút Lưu (A7).
+ * 6. **Tự lưu (D-07) và chỉ báo (D-08).** Panel không tự lưu: saver lớp tầng dùng chung
+ *    (`useFloorLayerAutosave`, F-04x-1) bắt mọi lượt ghi kho; màn chủ truyền nhãn của nó
+ *    qua `saveLabel`. Không có nút Lưu (A7).
  * 7. **Bảy trạng thái (A11/R-63).** {@link derivePropertyInspectorState} là một hàm
  *    thuần, kiểm được không cần dựng hook, và nó là nơi DUY NHẤT quyết định trạng
  *    thái — không có nhánh hiển thị rời rạc nào ở nơi khác.
@@ -105,7 +106,6 @@ import type {
   Wall,
   WallKind,
 } from '@/domain/spatial/types';
-import { useAutosave } from '@/hooks/useAutosave';
 import { useCommitFlash } from '@/hooks/useCommitFlash';
 import {
   createChangeWallHeightCommand,
@@ -1081,7 +1081,7 @@ export function usePropertyInspector(
       selectionBefore: () => ({ selectedIds: useStore.getState().selectedIds }),
       selectionAfter: () => ({ selectedIds: useStore.getState().selectedIds }),
       onSynced: () => {
-        /* Bước `sync` của `dispatch`: `useAutosave` đã theo dõi `state.spatial`
+        /* Bước `sync` của `dispatch`: saver lớp tầng đã theo dõi `state.spatial`
          * nên không có hàng đợi thứ hai nào ở đây — bản vẽ bẩn được chính lượt
          * ghi vào store thông báo. */
       },
@@ -1092,43 +1092,8 @@ export function usePropertyInspector(
   /* Tự lưu (D-07) và chỉ báo (D-08).                                        */
   /* ---------------------------------------------------------------------- */
 
-  /**
-   * Lượt lưu THẬT — nay có đích để gửi tới (lỗ hổng #5).
-   *
-   * `SpatialApi.writeLayer` nhận đủ bốn danh sách của một tầng, nên cổng gửi
-   * thẳng lớp không gian của tầng đang mở lên máy chủ và chỉ báo nói được "Đã
-   * lưu lúc…" mà không nói dối. Vẫn NÉM khi lượt gửi hỏng: `createAutosave` bắt
-   * cái ném đó làm tín hiệu để chạy lịch thử lại 5s/15s/45s của nó, và chỉ sau
-   * khi lịch ấy cạn mới đổi nhãn thành "Lưu thất bại". Bộ đếm 800 ms của A7 nằm
-   * trong chính `useAutosave`, không viết lại ở đây.
-   *
-   * Đồ thị đi vào bằng THAM SỐ, không đọc lại kho: đây là đúng ảnh chụp
-   * `state.spatial` mà bộ đếm giờ đã quyết định lưu, còn một lượt đọc lại có
-   * thể bắt được một thay đổi mới hơn và làm lượt lưu này báo xong cho một thứ
-   * chưa ai hẹn giờ.
-   */
-  const hostSaves = options.saveLabel !== undefined;
-
-  const persist = useCallback(
-    async (current: NormalizedSpatial | null): Promise<void> => {
-      /* Màn chủ tự lưu (`/3d`, B-V8-60) thì panel không gửi lượt thứ hai.
-       * ponytail: engine của panel vẫn gắn và "lưu" rỗng; tách hook nếu nó phiền. */
-      if (current === null || hostSaves) {
-        return;
-      }
-
-      const result = await gateway.persistProperties(current);
-
-      if (!result.ok) {
-        /* Mang `cause` theo: `isTransientWireError` đọc nó để không thử lại một 409 (B-V8-61). */
-        throw Object.assign(new Error(result.reason), { cause: result.cause });
-      }
-    },
-    [gateway, hostSaves],
-  );
-
-  const ownSaveLabel = useAutosave(persist);
-  const saveLabel = hostSaves ? (options.saveLabel ?? null) : ownSaveLabel;
+  /** Nhãn tự lưu của màn chủ (saver lớp tầng dùng chung, F-04x-1) — panel không lưu riêng. */
+  const saveLabel = options.saveLabel ?? null;
 
   /* ---------------------------------------------------------------------- */
   /* Ghi — build lệnh, dispatch, rồi nhớ dòng vừa ghi.                       */

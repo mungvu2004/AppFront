@@ -428,9 +428,9 @@ export function useDimensionOcrReview(
     const seed = gateway.graph.read() ?? loaded;
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: {}, projectId });
     }
-  }, [gateway, graph, loaded, setSpatial]);
+  }, [gateway, graph, loaded, projectId, setSpatial]);
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
   const hasError = dimensionLayerQuery.isError;

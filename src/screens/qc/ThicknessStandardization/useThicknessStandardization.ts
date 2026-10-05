@@ -51,15 +51,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
 import type { LevelId, Wall, WallId } from '@/domain/spatial/types';
-import { useFlushOnSave } from '@/hooks/useAutosave';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import type { Command } from '@/lib/commands/types';
 import type { HistoryStack } from '@/lib/commands/history';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { describeError } from '@/lib/errors/describeError';
 import { toAppError } from '@/lib/errors/toAppError';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -348,7 +346,7 @@ export function useThicknessStandardization(
   /* ---------------------------------------------------------------------- */
 
   const layerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
+    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
     queryFn: ({ signal }) => gateway.readThicknessLayer({ floorId, projectId, signal }),
   });
 
@@ -375,12 +373,12 @@ export function useThicknessStandardization(
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded;
+    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
     }
-  }, [gateway, graph, loaded, setSpatial]);
+  }, [gateway, graph, loaded, projectId, setSpatial]);
 
   const walls = useMemo(() => wallsOfGraph(graph), [graph]);
   /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
@@ -535,36 +533,13 @@ export function useThicknessStandardization(
     [],
   );
 
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistRef = useRef({ floorId, gateway, projectId });
-  persistRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistRef.current;
-      const result = await current.gateway.persistThicknessStandardization({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        /*
-         * Một khả năng chưa có endpoint KHÔNG được biến thành một lượt lưu đã
-         * xong: ném ra là cách duy nhất để vỏ ứng dụng nói ra sự thật thay vì
-         * hiện "Đã lưu lúc…" cho một lượt chưa hề rời khỏi máy.
-         */
-        throw new Error(result.missing);
-      }
-    },
+  /* Bộ lưu lớp chung mỗi người–dự án (F-04x-1); 409 → dải "Tải lại". */
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const autosave = autosaveRef.current;
-
-  /* Ctrl+S xả được engine này, và trình đọc màn hình nghe được trạng thái lưu
-     (A7) — trước đây engine chạy mà câm, Ctrl+S không thấy nó (B-V7-01). */
-  useFlushOnSave(autosave);
   useSaveIndicator(autosave);
 
   /* ---------------------------------------------------------------------- */
@@ -584,6 +559,17 @@ export function useThicknessStandardization(
       }),
     [autosave, options.history, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+  const replaceSeqRef = useRef(serverReplaceSeq);
+
+  useEffect(() => {
+    if (replaceSeqRef.current !== serverReplaceSeq) {
+      replaceSeqRef.current = serverReplaceSeq;
+      dispatchBundle.history.clear();
+    }
+  }, [dispatchBundle, serverReplaceSeq]);
 
   const invalidate = useCallback(() => {
     applyInvalidation(queryClient, 'editWall', { floorId, projectId });
@@ -942,6 +928,7 @@ export function useThicknessStandardization(
     onChangeNormalizedGroup,
     onApplySelectedGroup,
     flashingWallIds,
+    saveBlock,
   };
 }
 
