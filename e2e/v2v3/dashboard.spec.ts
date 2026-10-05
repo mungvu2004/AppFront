@@ -22,7 +22,10 @@ import { signInAs } from '../fixtures/session';
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-/** Ba dự án của bộ mẫu (`projectsGateway.ts` `SAMPLE_PROJECTS`). */
+/**
+ * Ba dự án của client giả N1 (`src/api/__mocks__/client.ts` `MOCK_PROJECT_SUMMARIES`). Id là ULID
+ * vì `ProjectSummarySchema` (HOP-DONG-MOI §0.1, N1) bắt `prj_` + 26 ký tự Crockford — F-07.
+ */
 const HQ = 'Tòa nhà HQ Renovation';
 const SUNRISE = 'Chung cư Sunrise Block B';
 const BAC_NINH = 'Nhà máy Bắc Ninh';
@@ -63,9 +66,9 @@ function screenStatus(page: Page, label: string) {
 
 test.describe('V3-DASH-1 — "Mở" đưa tới màn dự án', () => {
   const DESTINATIONS = [
-    { name: SUNRISE, path: ROUTES.project.pipeline('p-sunrise-block-b') },
-    { name: HQ, path: ROUTES.project.walls('p-hq-renovation', 'floor-01') },
-    { name: BAC_NINH, path: ROUTES.project.viewer('p-bac-ninh-factory') },
+    { name: SUNRISE, path: ROUTES.project.pipeline('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8') },
+    { name: HQ, path: ROUTES.project.walls('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C7', 'floor-01') },
+    { name: BAC_NINH, path: ROUTES.project.viewer('prj_01HZX3K9M2Q4R6T8V0W1Y3A5C9') },
   ] as const;
 
   for (const { name, path } of DESTINATIONS) {
@@ -126,7 +129,7 @@ test.describe('V3-DASH-2 — phím N chỉ mở hộp thoại tạo khi có quy�
   });
 });
 
-test.describe('V3-DASH-3 — xoá hỏi trước (A9), đổi tên và nhân bản hoàn tác được (A8)', () => {
+test.describe('V3-DASH-3 — xoá hỏi trước (A9), đổi tên hoàn tác được (A8), không nhân bản (R4)', () => {
   test('"Xoá" mở hộp thoại "Xoá dự án?"; "Để nguyên" giữ thẻ', async ({ page }) => {
     await openDashboard(page);
     const menu = await openCardMenu(page, SUNRISE);
@@ -205,21 +208,16 @@ test.describe('V3-DASH-3 — xoá hỏi trước (A9), đổi tên và nhân b�
     await expect(page.getByRole('button', { name: 'Hoàn tác' })).toHaveCount(0);
   });
 
-  test('nhân bản thêm thẻ "(bản sao)", "Hoàn tác" trên toast gỡ nó', async ({ page }) => {
+  /*
+   * R4 (F-07): nhân bản không có hợp đồng BE, nên mục "Nhân bản" rời DOM thay vì vẽ một nút chết
+   * (A2). Bài cũ khẳng định thẻ "(bản sao)" của lượt `setQueryData` không lưu — lưu giả mà F-07 gỡ.
+   */
+  test('menu thẻ không có "Nhân bản" (R4: chưa có hợp đồng)', async ({ page }) => {
     await openDashboard(page);
     const menu = await openCardMenu(page, SUNRISE);
-    await menu.getByRole('menuitem', { name: 'Nhân bản' }).click();
 
-    const copy = card(page, `${SUNRISE} (bản sao)`);
-    await expect(copy).toBeVisible();
-    await page
-      .getByRole('status')
-      .filter({ hasText: `Đã nhân bản "${SUNRISE}"` })
-      .getByRole('button', { name: 'Hoàn tác' })
-      .click();
-
-    await expect(copy).toHaveCount(0);
-    await expect(card(page, SUNRISE)).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Đổi tên' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Nhân bản' })).toHaveCount(0);
   });
 });
 
