@@ -66,6 +66,7 @@ export const ROUTE_PATTERNS = {
   accessDenied: '/khong-co-quyen',
   account: '/tai-khoan',
   adminModels: `${ADMIN_ROOT}/models`,
+  adminTrainingJobs: `${ADMIN_ROOT}/training/jobs`,
   adminTrainingModels: `${ADMIN_ROOT}/training/models`,
   adminUsers: `${ADMIN_ROOT}/users`,
   canvasOverlaysDemo: '/demo/canvas-overlays',
@@ -122,6 +123,7 @@ export const ROUTES = {
   accessDenied: ROUTE_PATTERNS.accessDenied,
   account: ROUTE_PATTERNS.account,
   adminModels: ROUTE_PATTERNS.adminModels,
+  adminTrainingJobs: ROUTE_PATTERNS.adminTrainingJobs,
   adminTrainingModels: ROUTE_PATTERNS.adminTrainingModels,
   adminUsers: ROUTE_PATTERNS.adminUsers,
   /** Where a visitor lands when nothing more specific was asked for. */

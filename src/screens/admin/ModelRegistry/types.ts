@@ -110,7 +110,7 @@ export interface ModelRegistryViewModel {
   /** Dải 409 "vừa được đổi ở nơi khác": phủ lên trạng thái đang có, không là trạng thái thứ tám. */
   readonly conflictNotice: string | null;
   readonly dialog: ActivateDialogModel | null;
-  /** F-12 điền; F-11 để `null`. */
+  /** Liên kết sang màn huấn luyện (F-12); `null` thì ẩn. */
   readonly relatedLink: RelatedLinkModel | null;
   readonly isCollapsed: boolean;
   readonly skeletonRowCount: number;

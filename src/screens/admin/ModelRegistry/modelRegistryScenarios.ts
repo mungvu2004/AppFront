@@ -18,6 +18,7 @@ import type { ModelFamilyId, ModelRegistryActions, ModelRegistryViewModel } from
 import {
   FAMILY_OPTIONS,
   SKELETON_ROW_COUNT,
+  TRAINING_JOBS_LINK,
   buildActiveCard,
   buildDetail,
   buildVersionRow,
@@ -68,7 +69,7 @@ function scenario(
     loadMoreError: null,
     refreshError: null,
     partialNotice: hasData && pending > 0 ? partialNotice(pending) : null,
-    relatedLink: null,
+    relatedLink: TRAINING_JOBS_LINK,
     rows: hasData
       ? versions.map((version) =>
           buildVersionRow(version, { activeId, nowMs: MODEL_REGISTRY_SCENARIO_NOW, selectedId }),

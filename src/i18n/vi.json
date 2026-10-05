@@ -3652,6 +3652,57 @@
       "writeFallback": "Chưa kích hoạt được bản này. Thử lại sau."
     }
   },
+  "trainingJobs": {
+    "breadcrumbAdmin": "Quản trị",
+    "breadcrumbHere": "huấn luyện model",
+    "title": "Huấn luyện model AI",
+    "relatedLink": "Model AI của chuỗi xử lý",
+    "tabsLabel": "Phần của trang huấn luyện",
+    "tabJobs": "Lượt huấn luyện",
+    "tabDatasets": "Bộ dữ liệu",
+    "all": "Tất cả",
+    "create": "Tạo lượt huấn luyện",
+    "submit": "Bắt đầu huấn luyện",
+    "epochs": "Số vòng",
+    "baseModel": "Model nền",
+    "loadMore": "Xem thêm",
+    "retry": "Thử lại",
+    "status": {
+      "queued": "Chờ chạy",
+      "running": "Đang chạy",
+      "succeeded": "Xong",
+      "failed": "Hỏng",
+      "cancelling": "Đang huỷ",
+      "cancelled": "Đã huỷ",
+      "ready": "Sẵn sàng",
+      "building": "Đang dựng"
+    },
+    "cancel": "Huỷ lượt",
+    "keep": "Giữ lại",
+    "cancelTitle": "Huỷ lượt huấn luyện này?",
+    "cancelBody": "Lượt dừng ở vòng hiện tại, không chạy tiếp được.",
+    "created": "Đã xếp hàng lượt huấn luyện",
+    "partial": "{{count}} lượt đang chờ hoặc chạy; số liệu tự cập nhật.",
+    "emptyJobs": "Chưa có lượt huấn luyện nào. Tạo lượt đầu tiên từ bộ dữ liệu sẵn sàng.",
+    "emptyDatasets": "Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.",
+    "noReadyVersion": "Bộ dữ liệu này chưa có phiên bản sẵn sàng.",
+    "readOnlyNote": "Trang này chỉ xem; bộ dữ liệu dựng bằng công cụ dòng lệnh.",
+    "forbidden": "Chỉ quản trị viên hệ thống xem được trang huấn luyện.",
+    "errors": {
+      "versionNotReady": "Phiên bản này chưa sẵn sàng.",
+      "versionFamilyMismatch": "Phiên bản này không cùng họ model.",
+      "versionNotFound": "Không tìm thấy phiên bản này.",
+      "baseModelMismatch": "Model nền không thuộc họ đã chọn.",
+      "epochsInvalid": "Số vòng phải từ 1 đến 300.",
+      "formInvalid": "Biểu mẫu chưa hợp lệ.",
+      "notCancellable": "Lượt này vừa kết thúc nên không huỷ được nữa.",
+      "jobNotFound": "Không tìm thấy lượt huấn luyện này.",
+      "datasetNotFound": "Không tìm thấy bộ dữ liệu này.",
+      "busy": "Máy chủ đang bận. Thử lại sau ít phút.",
+      "readFallback": "Không đọc được dữ liệu huấn luyện.",
+      "writeFallback": "Chưa gửi được yêu cầu. Thử lại sau."
+    }
+  },
   "userManagement": {
     "breadcrumb": {
       "navLabel": "đường dẫn trang",

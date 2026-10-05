@@ -28,6 +28,7 @@ import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
+import { ROUTES } from '@/routes/paths';
 
 import {
   describeReadError,
@@ -87,6 +88,9 @@ const METRIC_BY_FAMILY: Readonly<Record<ModelFamilyId, { readonly key: 'iou' | '
 };
 
 const METRIC_FRACTION_DIGITS = 3;
+
+/** Liên kết sang màn huấn luyện (F-12). */
+export const TRAINING_JOBS_LINK: RelatedLinkModel = { href: ROUTES.adminTrainingJobs, label: 'Lượt huấn luyện' };
 
 const SEED_LABEL = 'gốc';
 const SYSTEM_PIPELINE = 'system:pipeline';
@@ -367,7 +371,7 @@ interface ActivateVariables {
 export function useModelRegistry({
   gateway,
   isNarrow = false,
-  relatedLink = null,
+  relatedLink = TRAINING_JOBS_LINK,
 }: UseModelRegistryOptions): ModelRegistryResult {
   const session = useSession();
   const queryClient = useQueryClient();
