@@ -133,14 +133,15 @@ describe('invalidationMap', () => {
     ]);
   });
 
-  it('scopes straightenDrawing to the quality reading and the drawing of that floor', () => {
+  it('scopes straightenDrawing to the quality reading, the drawing and the pipeline progress of that floor', () => {
     expect(invalidationMap.straightenDrawing({ floorId, projectId })).toEqual([
       queryKeys.quality.assessment(floorId),
       queryKeys.drawing.byFloor(floorId),
+      queryKeys.progress.byFloor(floorId),
     ]);
   });
 
-  it('scopes setDrawingCorners to the same two keys as straightenDrawing', () => {
+  it('scopes setDrawingCorners to the same three keys as straightenDrawing', () => {
     expect(invalidationMap.setDrawingCorners({ floorId, projectId })).toEqual(
       invalidationMap.straightenDrawing({ floorId, projectId }),
     );

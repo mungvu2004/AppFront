@@ -45,6 +45,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
+import { InputQualityGateConfirmDialog } from './InputQualityGateConfirmDialog';
 import { InputQualityGateFooter } from './InputQualityGateFooter';
 import { InputQualityGateImagePanel } from './InputQualityGateImagePanel';
 import { InputQualityGateReportPanel } from './InputQualityGateReportPanel';
@@ -58,6 +59,11 @@ const LOAD_ERROR_TITLE = 'Không đọc được kết quả kiểm tra chất l
 const LOAD_ERROR_EMPTY_TITLE = 'Chưa có kết quả để xem';
 const LOAD_ERROR_EMPTY_DESCRIPTION =
   'Thử tải lại bản vẽ để hệ thống đo lại chất lượng đầu vào.';
+
+/** Dự án chưa có bản vẽ nào (404 `upload`): trạng thái rỗng, không phải lỗi. */
+const NO_DRAWING_TITLE = 'Chưa có bản vẽ để kiểm tra';
+const NO_DRAWING_ACTION = 'Tải bản vẽ lên';
+const WRITE_ERROR_TITLE = 'Chưa xử lý được bản vẽ';
 
 /** Bao nhiêu khung xương lúc chưa biết phép đo nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
@@ -92,37 +98,51 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
           title={LOAD_ERROR_EMPTY_TITLE}
         />
       </div>
+    ) : model.noDrawingNotice !== null ? (
+      <EmptyState
+        {...(model.footer.areActionsHidden
+          ? {}
+          : { action: { label: NO_DRAWING_ACTION, onClick: actions.onUploadAnother } })}
+        description={model.noDrawingNotice}
+        icon={<ImageOff aria-hidden="true" />}
+        title={NO_DRAWING_TITLE}
+      />
     ) : (
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="lg:w-[62%]">
-          <InputQualityGateImagePanel
-            actions={{
-              onChangeReveal: actions.onChangeReveal,
-              onDragCorner: actions.onDragCorner,
-              onHoverRegion: actions.onHoverRegion,
-            }}
-            image={model.image}
-          />
-        </div>
-        <div
-          className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isCollapsed && BOTTOM_SHEET_RESET_AT_DESKTOP)}
-        >
-          <InputQualityGateReportPanel
-            actions={{
-              onHoverFinding: actions.onHoverFinding,
-              onHoverRegion: actions.onHoverRegion,
-              onPickCorners: actions.onPickCorners,
-              onSelectFloor: actions.onSelectFloor,
-              onStraighten: actions.onStraighten,
-            }}
-            findings={model.findings}
-            floors={model.floors}
-            forecast={model.forecast}
-            metrics={model.metrics}
-            partialNotice={model.partialNotice}
-            passNotice={model.passNotice}
-            remainingFindingCount={model.remainingFindingCount}
-          />
+      <div className="flex flex-col gap-6">
+        {model.writeError !== null && (
+          <InlineAlert level="violation" message={model.writeError} title={WRITE_ERROR_TITLE} />
+        )}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="lg:w-[62%]">
+            <InputQualityGateImagePanel
+              actions={{
+                onChangeReveal: actions.onChangeReveal,
+                onDragCorner: actions.onDragCorner,
+                onHoverRegion: actions.onHoverRegion,
+              }}
+              image={model.image}
+            />
+          </div>
+          <div
+            className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isCollapsed && BOTTOM_SHEET_RESET_AT_DESKTOP)}
+          >
+            <InputQualityGateReportPanel
+              actions={{
+                onHoverFinding: actions.onHoverFinding,
+                onHoverRegion: actions.onHoverRegion,
+                onPickCorners: actions.onPickCorners,
+                onSelectFloor: actions.onSelectFloor,
+                onStraighten: actions.onStraighten,
+              }}
+              findings={model.findings}
+              floors={model.floors}
+              forecast={model.forecast}
+              metrics={model.metrics}
+              partialNotice={model.partialNotice}
+              passNotice={model.passNotice}
+              remainingFindingCount={model.remainingFindingCount}
+            />
+          </div>
         </div>
       </div>
     );
@@ -145,6 +165,11 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
             onUploadAnother: actions.onUploadAnother,
           }}
           footer={model.footer}
+        />
+
+        <InputQualityGateConfirmDialog
+          actions={{ onCancelWrite: actions.onCancelWrite, onConfirmWrite: actions.onConfirmWrite }}
+          confirm={model.confirm}
         />
       </div>
     </div>

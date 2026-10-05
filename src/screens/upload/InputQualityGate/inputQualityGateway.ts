@@ -16,10 +16,15 @@
  * sách tầng để đổi qua lại đã nằm sẵn trong chính câu trả lời — không có lượt
  * gọi thứ ba nào.
  *
- * `client.floors.list()` **không nhận mã dự án** (`ENDPOINTS.floors.list` là
- * một đường dẫn phẳng), nên nó trả mọi tầng của mọi dự án.
- * `floorUploadGateway.ts` đã gặp đúng chỗ này và giải bằng `projects.read`;
- * file này chép nguyên cách đó.
+ * F-03 đã lồng `floors.list` theo dự án, nhưng màn vẫn đọc qua `projects.read`
+ * như `floorUploadGateway.ts` để hai màn dùng chung một đường đọc.
+ *
+ * ## Khoá idempotency của hai lượt ghi
+ *
+ * Mỗi thân một khoá. Cổng giữ khoá theo `thao tác + floorId + thân`: gửi lại
+ * đúng thân đó sau lỗi mạng, timeout hay 5xx thì dùng lại khoá (máy chủ trả
+ * lại đúng phản hồi, không xếp thêm lượt pipeline); thân đổi, sau thành công
+ * hoặc sau lỗi 4xx thì sinh khoá mới (BE-00 §7 lưu phản hồi dưới 500 theo khoá).
  *
  * ## Bốn việc file này KHÔNG làm
  *
@@ -42,8 +47,11 @@ import type {
 } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
-import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
-import type { UndoTicket } from '@/lib/mutations/undoTicket';
+import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
+import { createUuid } from '@/lib/http/ids';
+
+import { describeWriteError } from './inputQualityWriteErrors';
+import type { WriteFailureSentence } from './inputQualityWriteErrors';
 
 /* -------------------------------------------------------------------------- */
 /* Kiểu.                                                                       */
@@ -81,12 +89,6 @@ export interface InputQualityFailure {
   readonly isRetryable: boolean;
 }
 
-export interface CreateQualityUndoTicketInput {
-  readonly description: string;
-  readonly undo: () => void;
-  readonly now?: () => number;
-}
-
 /**
  * Cái seam.
  *
@@ -104,18 +106,60 @@ export interface InputQualityGateway {
   readonly setCorners: (input: SetCornersInput) => Promise<ApiResult<ImageQualityAssessment>>;
   /** Một câu cho lỗi đến từ `src/api`. */
   readonly describeApiFailure: (error: unknown) => InputQualityFailure;
-  /** Vé hoàn tác 8 giây cho một lượt ghi (A8). */
-  readonly createWriteTicket: (input: CreateQualityUndoTicketInput) => UndoTicket;
+  /** Một câu cho lỗi của lượt ghi, kèm cờ có nên đọc lại kết quả đo. */
+  readonly describeWriteFailure: (error: unknown) => WriteFailureSentence;
 }
-
-/** Cửa sổ hoàn tác, tái xuất để hook và test không viết lại con số (R-71). */
-export { UNDO_WINDOW_MS };
 
 /* -------------------------------------------------------------------------- */
 /* Cửa vào.                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export function createInputQualityGateway(client: ApiClient): InputQualityGateway {
+export interface InputQualityGatewayOptions {
+  /** Nguồn khoá idempotency — test tiêm để đoán được khoá. */
+  readonly createKey?: () => string;
+}
+
+export function createInputQualityGateway(
+  client: ApiClient,
+  options: InputQualityGatewayOptions = {},
+): InputQualityGateway {
+  const createKey = options.createKey ?? createUuid;
+  // Khoá đang nắm theo `thao tác + floorId + thân`. Một thao tác chỉ có một khoá
+  // sống ở mỗi tầng: thân đổi thì khoá cũ bị thay luôn.
+  const heldKeys = new Map<string, { body: string; key: string }>();
+
+  const keyFor = (slot: string, body: unknown): string => {
+    const serialized = JSON.stringify(body);
+    const held = heldKeys.get(slot);
+
+    if (held !== undefined && held.body === serialized) {
+      return held.key;
+    }
+
+    const key = createKey();
+    heldKeys.set(slot, { body: serialized, key });
+    return key;
+  };
+
+  /** Khoá chỉ được giữ lại khi lỗi cho phép gửi lại cùng thân (mạng, timeout, 5xx). */
+  const settle = async <T>(
+    slot: string,
+    send: () => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> => {
+    const result = await send();
+
+    // Mạng, timeout và mọi 5xx: máy chủ không lưu phản hồi dưới khoá (BE-00 §7), nên giữ khoá.
+    const keepKey =
+      !result.ok &&
+      (isTransientWireError(result.error) || (readWireError(result.error)?.status ?? 0) >= 500);
+
+    if (!keepKey) {
+      heldKeys.delete(slot);
+    }
+
+    return result;
+  };
+
   return {
     readFloors: async ({ projectId, signal }) => {
       const result = await client.projects.read({
@@ -137,10 +181,21 @@ export function createInputQualityGateway(client: ApiClient): InputQualityGatewa
         ...(signal !== undefined ? { signal } : {}),
       }),
 
-    straighten: ({ floorId, projectId }) => client.quality.straighten({ floorId, projectId }),
+    straighten: ({ floorId, projectId }) => {
+      const slot = `straighten:${floorId}`;
+      const idempotencyKey = keyFor(slot, {});
 
-    setCorners: ({ body, floorId, projectId }) =>
-      client.quality.setCorners({ body, floorId, projectId }),
+      return settle(slot, () => client.quality.straighten({ floorId, idempotencyKey, projectId }));
+    },
+
+    setCorners: ({ body, floorId, projectId }) => {
+      const slot = `corners:${floorId}`;
+      const idempotencyKey = keyFor(slot, body);
+
+      return settle(slot, () =>
+        client.quality.setCorners({ body, floorId, idempotencyKey, projectId }),
+      );
+    },
 
     describeApiFailure: (error) => {
       const appError = toAppError(error);
@@ -152,12 +207,8 @@ export function createInputQualityGateway(client: ApiClient): InputQualityGatewa
       };
     },
 
-    createWriteTicket: ({ description, now, undo }) =>
-      createUndoTicket({
-        description,
-        undo,
-        ...(now !== undefined ? { now } : {}),
-      }),
+    describeWriteFailure: (error) =>
+      describeWriteError(error, describeError(toAppError(error)).description),
   };
 }
 

@@ -22,8 +22,9 @@
  *   `applyInvalidation` (`src/lib/query`). Cả hai lệnh ghi trả về chính kết quả
  *   đo đã chạy lại, nên `setQueryData` gieo thẳng câu trả lời mới rồi mới làm
  *   mất hiệu lực — không chờ thêm một lượt gọi trả về đúng thứ vừa cầm.
- * - **Hoàn tác** — `createUndoTicket` / `UNDO_WINDOW_MS` qua
- *   `gateway.createWriteTicket`, đúng cách `floorUploadGateway` làm.
+ * - **Không có hoàn tác** — nắn thẳng và gửi bốn góc là hai lượt ghi mà máy chủ
+ *   không đảo được, nên không vé, không toast (A8 giả bị cấm); thay vào đó cả
+ *   hai hỏi trước bằng hộp thoại (A9) và gửi kèm khoá idempotency của cổng.
  * - **Định dạng số** — `formatNumber` / `formatAngle` của `src/lib/format`, và
  *   `describeConfidence` cho nhãn độ tin cậy. `formatAngle` chỉ ra ký hiệu `°`,
  *   nên mọi câu nói về độ nghiêng viết theo ký hiệu đó.
@@ -40,8 +41,8 @@
  *
  * ## Bậc thang bảy trạng thái, và chỗ hai bất biến của `types.ts` gặp nhau
  *
- * Thứ tự: `loading` → `error` → `forbidden` → `collapsed` → `empty` →
- * `partial` → `ready`.
+ * Thứ tự: `loading` → `error` → `empty` (dự án chưa có bản vẽ, 404 `upload`) →
+ * `forbidden` → `collapsed` → `empty` (đạt) → `partial` → `ready`.
  *
  * - `loading`/`error` đứng đầu vì `InputQualityGate.tsx` chỉ dựng hai cột ở
  *   ngoài hai nhánh đó; đẩy bất cứ thứ gì lên trước chúng là vẽ hai cột rỗng —
@@ -57,24 +58,27 @@
  *   đủ bốn phép kiểm mà không phát hiện nào thì `empty` thắng `partial`, cùng
  *   thứ tự `useFloorUploadScreen.ts` đã chọn.
  *
- * ## Vì sao vẫn phải đọc danh sách tầng trước
+ * ## Vì sao vẫn phải đọc danh sách tầng trước, và tầng nào được xem
  *
- * Route chỉ mang mã dự án; `ENDPOINTS.quality.assess` cần một mã tầng. Tầng đầu
- * tiên của dự án là mồi cho lượt đọc đầu, và lượt đọc đó trả về mọi tầng — nên
- * danh sách để đổi qua lại nằm sẵn trong chính câu trả lời. Màn **không** tự
- * nhảy sang một tầng khác sau khi đọc xong: nhảy lặng lẽ thì thanh tầng nói một
- * đằng còn ảnh vẽ một nẻo, và người dùng không biết mình vừa bị chuyển đi đâu.
+ * Route chỉ mang mã dự án; `ENDPOINTS.quality.assess` cần một mã tầng. Tầng có
+ * `order` nhỏ nhất là mồi cho lượt đọc đầu, và lượt đọc đó trả về mọi tầng —
+ * nên danh sách để đổi qua lại nằm sẵn trong chính câu trả lời. Nếu tầng đầu
+ * chưa có bản vẽ thì máy chủ trả tầng đầu **có** bản vẽ: `floorId` của câu trả
+ * lời đầu được ghi nhớ một lần (`assessedFloorId`) làm tầng đang xem, và chính
+ * câu trả lời đó được gieo vào khoá của tầng ấy trước khi khoá đổi — không gửi
+ * lượt đọc thứ hai. Sau đó màn **không** tự nhảy sang tầng khác: nhảy lặng lẽ
+ * thì thanh tầng nói một đằng còn ảnh vẽ một nẻo.
  *
- * ## Hoàn tác một lượt nắn ảnh
+ * ## Lỗi ghi hiện ra, không nuốt
  *
- * Máy chủ **không có lệnh nghịch đảo** cho `straighten`: nó nắn và trả về kết
- * quả đo mới. Vé hoàn tác ở đây trả bộ nhớ đệm về đúng kết quả đo màn đang cầm
- * trước lượt ghi, và không gọi thêm lượt ghi nào — nói rõ ở đây để không ai đọc
- * nhầm nó thành một lượt ghi ngược. Lượt gửi bốn góc thì **có** nghịch đảo thật
- * khi khung cũ còn bốn góc, và {@link useInputQualityGate} dùng đúng nó.
+ * Lỗi được phân loại trong `callServer` (trước khi `createOptimisticMutation`
+ * bọc nó thành `AppError`, vốn mất mã dây) rồi `onError` đọc kết quả đó. Câu
+ * lỗi hiện ở dải `writeError`; lỗi mà máy chủ có thể đã nhận (mạng, timeout,
+ * bản vẽ vừa đổi) còn kéo theo một lượt đọc lại, và hai nút ghi khoá tới khi
+ * lượt đọc đó xong.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
@@ -97,6 +101,7 @@ import type { ImageQualityLevel } from '@/domain/quality';
 import { degrees, degreesToRadians } from '@/domain/units/types';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatAngle } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { describeConfidence } from '@/lib/format/semantic';
@@ -108,12 +113,10 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
-import {
-  createAppInputQualityGateway,
-  UNDO_WINDOW_MS,
-  type InputQualityGateway,
-} from './inputQualityGateway';
+import { createAppInputQualityGateway, type InputQualityGateway } from './inputQualityGateway';
+import type { WriteFailureSentence } from './inputQualityWriteErrors';
 import type {
+  InputQualityConfirmModel,
   InputQualityCorner,
   InputQualityFindingModel,
   InputQualityFloorRow,
@@ -143,14 +146,25 @@ const COPY = Object.freeze({
   forecastMissing: 'Chưa dự kiến được độ tin cậy vì bản vẽ chưa đo xong.',
   forecastPrefix: 'Dự kiến độ tin cậy trung bình',
   loadFailureFallback: 'Không đọc được kết quả kiểm tra chất lượng của bản vẽ này.',
-  noFloorNotice: 'Dự án chưa có tầng nào tải bản vẽ lên, nên chưa có gì để đo.',
+  noDrawingNotice: 'Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.',
+  writeFailureFallback: 'Chưa xử lý được bản vẽ; hãy thử lại.',
+  confirmCancel: 'Huỷ',
+  straightenConfirmTitlePrefix: 'Nắn thẳng bản vẽ tầng',
+  straightenConfirmBody:
+    'Máy chủ sẽ thay ảnh gốc bằng ảnh đã nắn và xử lý lại tầng này; việc này không hoàn tác được.',
+  straightenConfirmLabel: 'Nắn thẳng',
+  cornersConfirmTitlePrefix: 'Cắt và nắn bản vẽ tầng',
+  cornersConfirmTitleSuffix: 'theo bốn góc',
+  cornersConfirmBody:
+    'Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.',
+  cornersConfirmLabel: 'Cắt và nắn',
   notMeasured: 'chưa đo',
   noFinding: 'không có phát hiện',
   straightenAction: 'Tự động nắn',
   pickCornersAction: 'Chọn góc thủ công',
   sendCornersAction: 'Gửi bốn góc đã chọn',
-  straightenedToast: 'Đã nắn thẳng bản vẽ',
-  cornersToast: 'Đã gửi bốn góc khung bản vẽ',
+  straightenedAnnouncement: 'Đã nắn thẳng bản vẽ',
+  cornersAnnouncement: 'Đã gửi bốn góc khung bản vẽ',
   regionLabelPrefix: 'Vùng ảnh có vấn đề:',
 });
 
@@ -352,6 +366,22 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
   }
 }
 
+/** Bốn góc đang chọn thành thân lượt gửi; `null` khi chưa đủ bốn. */
+function toCornersBody(corners: readonly InputQualityCorner[] | null): DrawingCornersInput | null {
+  const [first, second, third, fourth] = corners ?? [];
+
+  if (first === undefined || second === undefined || third === undefined || fourth === undefined) {
+    return null;
+  }
+
+  const toPoint = (corner: InputQualityCorner): QualityPoint => ({
+    xRatio: corner.xRatio,
+    yRatio: corner.yRatio,
+  });
+
+  return { corners: [toPoint(first), toPoint(second), toPoint(third), toPoint(fourth)] };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Tuỳ chọn của hook.                                                          */
 /* -------------------------------------------------------------------------- */
@@ -376,9 +406,12 @@ export interface UseInputQualityGateOptions {
    * bản sản phẩm dùng (R-70).
    */
   readonly gateway?: InputQualityGateway;
-  /** Đồng hồ tiêm được (R-29) — vé hoàn tác đọc nó. */
+  /** Đồng hồ tiêm được (R-29). Không còn vé hoàn tác nào đọc nó; giữ để nơi gọi cũ không vỡ. */
   readonly now?: () => number;
-  /** Toast hoàn tác của A8. `Toast.Provider` do nơi gọi dựng, không phải hook. */
+  /**
+   * Không bao giờ được gọi: nắn thẳng và gửi bốn góc không hoàn tác được nên
+   * không có toast hoàn tác. Giữ chữ ký để container cũ không vỡ.
+   */
   readonly onToast?: (toast: InputQualityToast) => void;
 }
 
@@ -405,6 +438,32 @@ export function useInputQualityGate(
   const [hasComparison, setComparison] = useState(false);
   const [isAcknowledged, setAcknowledged] = useState(false);
   const [resolvedFindingIds, setResolvedFindingIds] = useState<readonly string[]>([]);
+  const [assessed, setAssessed] = useState<{ projectId: string; floorId: string } | null>(null);
+  const [pendingWrite, setPendingWrite] = useState<'straighten' | 'corners' | null>(null);
+  const [writeError, setWriteError] = useState<string | null>(null);
+  const [isRereading, setRereading] = useState(false);
+  const writeFailureRef = useRef<WriteFailureSentence | null>(null);
+  // Lượt ghi của dự án cũ xong muộn thì không được chạm state của dự án mới.
+  const projectIdRef = useRef(projectId);
+
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
+
+  // Đổi dự án thì mọi state theo tầng và theo lượt ghi của dự án cũ phải bỏ.
+  const [stateProjectId, setStateProjectId] = useState(projectId);
+
+  if (stateProjectId !== projectId) {
+    setStateProjectId(projectId);
+    setSelectedFloorId(null);
+    setWriteError(null);
+    setPendingWrite(null);
+    setResolvedFindingIds([]);
+    setRereading(false);
+    setPickingCorners(false);
+    setDraftCorners(null);
+    setComparison(false);
+  }
 
   const detectedNarrow = useNarrowViewport();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
@@ -420,7 +479,7 @@ export function useInputQualityGate(
       const result = await gateway.readFloors({ projectId, signal });
 
       if (!result.ok) {
-        throw new Error(gateway.describeApiFailure(result.error).sentence);
+        throw result.error;
       }
 
       return result.data;
@@ -433,7 +492,8 @@ export function useInputQualityGate(
   );
 
   const seedFloorId = projectFloors[0]?.id ?? null;
-  const activeFloorId = selectedFloorId ?? seedFloorId;
+  const assessedFloorId = assessed?.projectId === projectId ? assessed.floorId : null;
+  const activeFloorId = selectedFloorId ?? assessedFloorId ?? seedFloorId;
 
   /* ---------------------------------------------------------------------- */
   /* Kết quả đo (R-64).                                                      */
@@ -442,7 +502,7 @@ export function useInputQualityGate(
   const assessmentQuery = useQuery({
     queryKey: queryKeys.quality.assessment(activeFloorId ?? ''),
     enabled: activeFloorId !== null,
-    queryFn: async ({ signal }): Promise<ImageQualityAssessment> => {
+    queryFn: async ({ signal }): Promise<ImageQualityAssessment | null> => {
       if (activeFloorId === null) {
         throw new Error(COPY.loadFailureFallback);
       }
@@ -450,12 +510,35 @@ export function useInputQualityGate(
       const result = await gateway.assess({ floorId: activeFloorId, projectId, signal });
 
       if (!result.ok) {
-        throw new Error(gateway.describeApiFailure(result.error).sentence);
+        const wire = readWireError(result.error);
+
+        // Dự án chưa có bản vẽ nào: trạng thái rỗng, không phải lỗi.
+        if (wire?.status === 404 && wire.resource === 'upload') {
+          return null;
+        }
+
+        throw result.error;
+      }
+
+      // Máy chủ trả tầng khác tầng đã gửi: gieo câu trả lời vào khoá của tầng ấy
+      // trước khi khoá đổi, để không phải gửi lượt đọc thứ hai.
+      if (result.data.floorId !== activeFloorId) {
+        queryClient.setQueryData(queryKeys.quality.assessment(result.data.floorId), result.data);
       }
 
       return result.data;
     },
   });
+
+  const firstAssessedFloorId = assessmentQuery.data?.floorId;
+
+  if (
+    stateProjectId === projectId &&
+    assessed?.projectId !== projectId &&
+    firstAssessedFloorId !== undefined
+  ) {
+    setAssessed({ projectId, floorId: firstAssessedFloorId });
+  }
 
   const qualityFloors = useMemo<readonly FloorImageQuality[]>(
     () => assessmentQuery.data?.floors ?? [],
@@ -503,6 +586,7 @@ export function useInputQualityGate(
         const result = await gateway.straighten({ floorId, projectId });
 
         if (!result.ok) {
+          writeFailureRef.current = gateway.describeWriteFailure(result.error);
           throw result.error;
         }
 
@@ -528,6 +612,7 @@ export function useInputQualityGate(
         const result = await gateway.setCorners({ body, floorId, projectId });
 
         if (!result.ok) {
+          writeFailureRef.current = gateway.describeWriteFailure(result.error);
           throw result.error;
         }
 
@@ -542,29 +627,46 @@ export function useInputQualityGate(
     }),
   );
 
-  const { onToast } = options;
-  const nowFn = options.now;
+  const isWriting = straightenMutation.isPending || cornersMutation.isPending;
+  const isWriteLocked = isWriting || isRereading;
 
-  /** Một lượt ghi đã xong: mở thanh so sánh, nói cho trình đọc, phát vé A8. */
-  const finishWrite = useCallback(
-    (message: string, undo: () => void) => {
-      const ticket = gateway.createWriteTicket({
-        description: message,
-        undo,
-        ...(nowFn !== undefined ? { now: nowFn } : {}),
-      });
+  /** Một lượt ghi đã xong: đóng hộp thoại, mở thanh so sánh, nói cho trình đọc. Không vé. */
+  const finishWrite = useCallback((message: string, writeProjectId: string) => {
+    if (projectIdRef.current !== writeProjectId) {
+      return;
+    }
 
-      setComparison(true);
-      getAppAnnouncer().announce(message);
-      onToast?.({
-        message,
-        onUndo: () => {
-          ticket.undo();
-        },
-        undoWindowMs: UNDO_WINDOW_MS,
-      });
+    setPendingWrite(null);
+    setComparison(true);
+    getAppAnnouncer().announce(message);
+  }, []);
+
+  /** Một lượt ghi hỏng: hiện câu lỗi đã phân loại ở `callServer`, đọc lại nếu cần. */
+  const failWrite = useCallback(
+    (floorId: string, writeProjectId: string) => {
+      const failure = writeFailureRef.current ?? {
+        sentence: COPY.writeFailureFallback,
+        reread: false,
+      };
+
+      writeFailureRef.current = null;
+
+      if (projectIdRef.current !== writeProjectId) {
+        return;
+      }
+
+      setPendingWrite(null);
+      setWriteError(failure.sentence);
+      getAppAnnouncer().announce(failure.sentence);
+
+      if (failure.reread) {
+        setRereading(true);
+        void queryClient
+          .invalidateQueries({ queryKey: queryKeys.quality.assessment(floorId) })
+          .finally(() => setRereading(false));
+      }
     },
-    [gateway, nowFn, onToast],
+    [queryClient],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -681,7 +783,7 @@ export function useInputQualityGate(
         title: copy.title,
         consequence: copy.consequence,
         action:
-          copy.actionKind === null || !canEdit
+          copy.actionKind === null || !canEdit || isRereading
             ? null
             : {
                 kind: copy.actionKind,
@@ -691,7 +793,14 @@ export function useInputQualityGate(
         isResolved: resolvedFindingIds.includes(finding.id),
       };
     });
-  }, [activeFloor, canEdit, isPickingCorners, regionIdByFinding, resolvedFindingIds]);
+  }, [
+    activeFloor,
+    canEdit,
+    isPickingCorners,
+    isRereading,
+    regionIdByFinding,
+    resolvedFindingIds,
+  ]);
 
   /* ---------------------------------------------------------------------- */
   /* Danh sách tầng của báo cáo.                                             */
@@ -736,9 +845,13 @@ export function useInputQualityGate(
 
   const failedRead = floorsQuery.error ?? assessmentQuery.error;
   const failureSentence =
-    failedRead instanceof Error && failedRead.message.length > 0
-      ? failedRead.message
-      : COPY.loadFailureFallback;
+    failedRead === null
+      ? COPY.loadFailureFallback
+      : gateway.describeApiFailure(failedRead).sentence || COPY.loadFailureFallback;
+
+  // 404 `upload` (đọc trả `null`), hoặc dự án không có tầng nào để làm mồi.
+  const hasNoDrawing =
+    assessmentQuery.data === null || (floorsQuery.isSuccess && seedFloorId === null);
 
   const isReading = floorsQuery.isPending || (activeFloorId !== null && assessmentQuery.isPending);
 
@@ -749,6 +862,10 @@ export function useInputQualityGate(
 
     if (failedRead !== null) {
       return 'error';
+    }
+
+    if (hasNoDrawing) {
+      return 'empty';
     }
 
     if (!canEdit) {
@@ -772,6 +889,7 @@ export function useInputQualityGate(
     canEdit,
     failedRead,
     findings.length,
+    hasNoDrawing,
     isCollapsed,
     isReading,
     metrics.length,
@@ -796,10 +914,6 @@ export function useInputQualityGate(
   const partialNotice = useMemo<string | null>(() => {
     if (status !== 'partial') {
       return null;
-    }
-
-    if (qualityFloors.length === 0) {
-      return COPY.noFloorNotice;
     }
 
     const measuredCount = qualityFloors.length - pendingFloors.length;
@@ -855,6 +969,7 @@ export function useInputQualityGate(
   }, [measurement]);
 
   const isStraightening = straightenMutation.isPending;
+  const noDrawingNotice = status === 'empty' && hasNoDrawing ? COPY.noDrawingNotice : null;
 
   const image = useMemo<InputQualityImageModel>(
     () => ({
@@ -900,7 +1015,7 @@ export function useInputQualityGate(
     acknowledgementLabel: COPY.acknowledgement,
     primaryLabel: COPY.primary,
     secondaryLabel: COPY.secondary,
-    areActionsHidden: status === 'forbidden',
+    areActionsHidden: status === 'forbidden' || (hasNoDrawing && !canEdit),
   };
 
   /* ---------------------------------------------------------------------- */
@@ -911,17 +1026,20 @@ export function useInputQualityGate(
     (floorId: string) => {
       const target = qualityFloors.find((floor) => floor.floorId === floorId);
 
-      if (target === undefined || floorId === activeFloorId) {
+      // Đang gửi thì không đổi tầng: lỗi của tầng cũ không được hiện trên tầng mới.
+      if (target === undefined || floorId === activeFloorId || isWriting) {
         return;
       }
 
       setSelectedFloorId(floorId);
+      setWriteError(null);
+      setPendingWrite(null);
       setHighlightedRegionId(null);
       setPickingCorners(false);
       setDraftCorners(null);
       getAppAnnouncer().announce(`Đang xem bản vẽ tầng ${target.floorName}`);
     },
-    [qualityFloors, activeFloorId],
+    [qualityFloors, activeFloorId, isWriting],
   );
 
   const stepFloor = useCallback(
@@ -975,135 +1093,38 @@ export function useInputQualityGate(
       description: 'thoát chế độ chọn bốn góc khung bản vẽ',
       onTrigger: exitCornerMode,
     },
-    { enabled: isPickingCorners },
+    { enabled: isPickingCorners && pendingWrite === null },
   );
 
   /* ---------------------------------------------------------------------- */
   /* Hành động.                                                              */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * Nắn thẳng chỉ MỞ hộp thoại (A9); lượt gửi nằm ở `onConfirmWrite`. Máy chủ
+   * không đảo được lượt này nên không có vé hoàn tác.
+   */
   const onStraighten = useCallback(() => {
-    if (activeFloorId === null || !canEdit) {
+    if (activeFloorId === null || !canEdit || isWriteLocked) {
       return;
     }
 
-    const key = queryKeys.quality.assessment(activeFloorId);
-    const previous = queryClient.getQueryData<ImageQualityAssessment>(key);
-    const findingIds = findingIdsForCodes(['SKEW_DETECTED']);
-
-    straightenMutation.mutate(
-      { floorId: activeFloorId, findingIds },
-      {
-        onSuccess: () => {
-          finishWrite(COPY.straightenedToast, () => {
-            if (previous !== undefined) {
-              queryClient.setQueryData(key, previous);
-            }
-
-            // Lượt ghi đã đánh dấu các phát hiện này là xong (`markResolved`);
-            // hoàn tác mà không gỡ dấu thì bộ đếm "N phát hiện còn lại" lệch
-            // với chính hàng tầng vừa trả về (B-V4-05).
-            unmarkResolved(findingIds);
-          });
-        },
-      },
-    );
-  }, [
-    activeFloorId,
-    canEdit,
-    queryClient,
-    straightenMutation,
-    findingIdsForCodes,
-    finishWrite,
-    unmarkResolved,
-  ]);
-
-  const sendCorners = useCallback(
-    (corners: readonly InputQualityCorner[]) => {
-      const [first, second, third, fourth] = corners;
-
-      if (
-        activeFloorId === null ||
-        first === undefined ||
-        second === undefined ||
-        third === undefined ||
-        fourth === undefined
-      ) {
-        return;
-      }
-
-      const key = queryKeys.quality.assessment(activeFloorId);
-      const previous = queryClient.getQueryData<ImageQualityAssessment>(key);
-      const previousCorners = activeFloor?.frame?.corners;
-      const toPoint = (corner: InputQualityCorner): QualityPoint => ({
-        xRatio: corner.xRatio,
-        yRatio: corner.yRatio,
-      });
-
-      const findingIds = findingIdsForCodes(['FRAME_NOT_FOUND']);
-
-      cornersMutation.mutate(
-        {
-          floorId: activeFloorId,
-          body: { corners: [toPoint(first), toPoint(second), toPoint(third), toPoint(fourth)] },
-          findingIds,
-        },
-        {
-          onSuccess: () => {
-            setPickingCorners(false);
-            setDraftCorners(null);
-            finishWrite(COPY.cornersToast, () => {
-              // Lượt gửi bốn góc CÓ nghịch đảo thật khi khung cũ còn bốn góc:
-              // gửi lại chính bốn góc đó. Khi khung cũ không có góc nào thì máy
-              // chủ không có lệnh nào để quay về, nên vé chỉ trả bộ nhớ đệm về
-              // kết quả đo trước lượt ghi. Cả hai nhánh gỡ dấu "đã xong" của lượt
-              // ghi — cùng lý do với `onStraighten` (B-V4-05).
-              unmarkResolved(findingIds);
-
-              if (previousCorners !== undefined) {
-                cornersMutation.mutate({
-                  floorId: activeFloorId,
-                  body: { corners: previousCorners },
-                  findingIds: [],
-                });
-                return;
-              }
-
-              if (previous !== undefined) {
-                queryClient.setQueryData(key, previous);
-              }
-            });
-          },
-        },
-      );
-    },
-    [
-      activeFloorId,
-      activeFloor,
-      queryClient,
-      cornersMutation,
-      findingIdsForCodes,
-      finishWrite,
-      unmarkResolved,
-    ],
-  );
+    setPendingWrite('straighten');
+  }, [activeFloorId, canEdit, isWriteLocked]);
 
   /**
-   * Một nút, hai nghĩa — vào chế độ chọn góc, rồi gửi bốn góc đã chọn.
-   *
-   * `InputQualityGateActions` không có hàm "xác nhận" riêng, và thêm một hàm
-   * vào hợp đồng đó là sửa `types.ts` — thứ lượt này không được đụng. Nên nhãn
-   * của nút đổi theo chế độ (`COPY.pickCornersAction` → `COPY.sendCornersAction`)
-   * và người dùng luôn đọc được mình đang ở đâu; Esc thoát mà không gửi gì.
+   * Một nút, hai nghĩa — vào chế độ chọn góc, rồi MỞ hộp thoại gửi bốn góc đã
+   * chọn. Nhãn của nút đổi theo chế độ (`COPY.pickCornersAction` →
+   * `COPY.sendCornersAction`); Esc thoát chế độ mà không gửi gì.
    */
   const onPickCorners = useCallback(() => {
-    if (!canEdit) {
+    if (!canEdit || isWriteLocked) {
       return;
     }
 
     if (isPickingCorners) {
       if (draftCorners !== null) {
-        sendCorners(draftCorners);
+        setPendingWrite('corners');
       }
 
       return;
@@ -1126,7 +1147,73 @@ export function useInputQualityGate(
         yRatio: seed[index]?.yRatio ?? CORNER_INSET_RATIO,
       })),
     );
-  }, [canEdit, isPickingCorners, draftCorners, sendCorners, activeFloor]);
+  }, [canEdit, isWriteLocked, isPickingCorners, draftCorners, activeFloor]);
+
+  /** Xác nhận trong hộp thoại: gửi đúng một lượt ghi, kèm khoá của cổng. */
+  const onConfirmWrite = useCallback(() => {
+    if (activeFloorId === null || !canEdit || pendingWrite === null || isWriteLocked) {
+      return;
+    }
+
+    const floorId = activeFloorId;
+    const writeProjectId = projectId;
+
+    setWriteError(null);
+    writeFailureRef.current = null;
+
+    if (pendingWrite === 'straighten') {
+      straightenMutation.mutate(
+        { floorId, findingIds: findingIdsForCodes(['SKEW_DETECTED']) },
+        {
+          onSuccess: () => finishWrite(COPY.straightenedAnnouncement, writeProjectId),
+          onError: () => failWrite(floorId, writeProjectId),
+        },
+      );
+
+      return;
+    }
+
+    const body = toCornersBody(draftCorners);
+
+    if (body === null) {
+      return;
+    }
+
+    cornersMutation.mutate(
+      { floorId, body, findingIds: findingIdsForCodes(['FRAME_NOT_FOUND']) },
+      {
+        onSuccess: () => {
+          if (projectIdRef.current !== writeProjectId) {
+            return;
+          }
+
+          setPickingCorners(false);
+          setDraftCorners(null);
+          finishWrite(COPY.cornersAnnouncement, writeProjectId);
+        },
+        onError: () => failWrite(floorId, writeProjectId),
+      },
+    );
+  }, [
+    activeFloorId,
+    canEdit,
+    cornersMutation,
+    draftCorners,
+    failWrite,
+    findingIdsForCodes,
+    finishWrite,
+    isWriteLocked,
+    pendingWrite,
+    projectId,
+    straightenMutation,
+  ]);
+
+  /** Huỷ hoặc Esc: đóng hộp thoại, không gửi gì. Đang gửi thì để lượt gửi chạy xong. */
+  const onCancelWrite = useCallback(() => {
+    if (!isWriting) {
+      setPendingWrite(null);
+    }
+  }, [isWriting]);
 
   const actions: InputQualityGateActions = {
     onHoverRegion: (regionId) => setHighlightedRegionId(regionId),
@@ -1161,7 +1248,24 @@ export function useInputQualityGate(
       options.onNavigate?.(ROUTES.project.pipeline(projectId));
     },
     onUploadAnother: () => options.onNavigate?.(ROUTES.project.upload(projectId)),
+    onConfirmWrite,
+    onCancelWrite,
   };
+
+  const confirm: InputQualityConfirmModel | null =
+    pendingWrite === null
+      ? null
+      : {
+          title:
+            pendingWrite === 'straighten'
+              ? `${COPY.straightenConfirmTitlePrefix} ${activeFloor?.floorName ?? ''}?`
+              : `${COPY.cornersConfirmTitlePrefix} ${activeFloor?.floorName ?? ''} ${COPY.cornersConfirmTitleSuffix}?`,
+          body: pendingWrite === 'straighten' ? COPY.straightenConfirmBody : COPY.cornersConfirmBody,
+          confirmLabel:
+            pendingWrite === 'straighten' ? COPY.straightenConfirmLabel : COPY.cornersConfirmLabel,
+          cancelLabel: COPY.confirmCancel,
+          isBusy: isWriting,
+        };
 
   const model: InputQualityGateModel = {
     status,
@@ -1175,6 +1279,9 @@ export function useInputQualityGate(
     partialNotice,
     remainingFindingCount,
     passNotice,
+    noDrawingNotice,
+    writeError,
+    confirm,
   };
 
   return { model, actions };

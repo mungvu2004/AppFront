@@ -922,7 +922,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { body, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.drawings.complete(projectId, body.uploadId), body, input),
+        await callPost(http, ENDPOINTS.drawings.complete(projectId, body.uploadId), body, { ...input, timeoutMode: 'file' }),
         ProgressSchema,
         'drawings.complete',
       );
@@ -975,7 +975,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { body, projectId, uploadId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.drawings.chunk(projectId, uploadId), body, input),
+        await callPost(http, ENDPOINTS.drawings.chunk(projectId, uploadId), body, { ...input, timeoutMode: 'file' }),
         ProgressSchema,
         'drawings.sendChunk',
       );
@@ -1209,7 +1209,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { body, floorId, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.quality.corners(projectId, floorId), body, input),
+        await callPost(http, ENDPOINTS.quality.corners(projectId, floorId), body, { ...input, timeoutMode: 'file' }),
         ImageQualityAssessmentSchema,
         'quality.setCorners',
       );
@@ -1218,7 +1218,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { floorId, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.quality.straighten(projectId, floorId), {}, input),
+        await callPost(http, ENDPOINTS.quality.straighten(projectId, floorId), {}, { ...input, timeoutMode: 'file' }),
         ImageQualityAssessmentSchema,
         'quality.straighten',
       );

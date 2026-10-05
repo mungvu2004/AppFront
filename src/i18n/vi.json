@@ -778,10 +778,6 @@
       "noFloor": "Dự án chưa có tầng nào tải bản vẽ lên, nên chưa có gì để đo.",
       "loadFailureFallback": "Không đọc được kết quả kiểm tra chất lượng của bản vẽ này."
     },
-    "toast": {
-      "straightened": "Đã nắn thẳng bản vẽ",
-      "corners": "Đã gửi bốn góc khung bản vẽ"
-    },
     "announce": {
       "floorChanged": "Đang xem bản vẽ tầng {{floorName}}"
     },
@@ -789,6 +785,32 @@
       "previousFloor": "xem bản vẽ của tầng liền trước",
       "nextFloor": "xem bản vẽ của tầng liền sau",
       "exitCornerMode": "thoát chế độ chọn bốn góc khung bản vẽ"
+    },
+    "confirm": {
+      "cancel": "Huỷ",
+      "cornersBody": "Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.",
+      "cornersConfirm": "Cắt và nắn",
+      "cornersTitle": "Cắt và nắn bản vẽ tầng {{name}} theo bốn góc?",
+      "straightenBody": "Máy chủ sẽ thay ảnh gốc bằng ảnh đã nắn và xử lý lại tầng này; việc này không hoàn tác được.",
+      "straightenConfirm": "Nắn thẳng",
+      "straightenTitle": "Nắn thẳng bản vẽ tầng {{name}}?"
+    },
+    "noDrawing": {
+      "action": "Tải bản vẽ lên",
+      "notice": "Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.",
+      "title": "Chưa có bản vẽ để kiểm tra"
+    },
+    "writeError": {
+      "drawingChanged": "Bản vẽ của tầng vừa đổi, kết quả đo đã được đọc lại; hãy xem rồi thử lại.",
+      "fallback": "Chưa xử lý được bản vẽ; hãy thử lại.",
+      "fileCorrupt": "Tệp bản vẽ bị hỏng; hãy tải lại tệp.",
+      "imageTooLarge": "Ảnh bản vẽ lớn hơn mức xử lý được; hãy tải bản vẽ nhỏ hơn.",
+      "invalidCorners": "Bốn góc chưa tạo thành một khung hợp lệ; hãy chọn lại.",
+      "layerReviewed": "Tầng này đã có tỉ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.",
+      "pdfUnreadable": "Không đọc được trang PDF của bản vẽ; hãy tải lại tệp.",
+      "queueFull": "Hàng xử lý đang đầy; hãy thử lại sau ít phút.",
+      "title": "Chưa xử lý được bản vẽ",
+      "uncertain": "Chưa chắc máy chủ đã nhận thao tác; kết quả đo đang được đọc lại."
     }
   },
   "billing": {
