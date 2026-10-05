@@ -231,6 +231,20 @@ describe('Bảng và chi tiết', () => {
   });
 });
 
+describe('Review 1 — tab bộ dữ liệu ở màn hẹp', () => {
+  it('collapsed + họ không có bộ dữ liệu nào → câu rỗng của [8], không danh sách rỗng', () => {
+    renderView({
+      ...TRAINING_JOBS_SCENARIO_COLLAPSED,
+      activeTab: 'datasets',
+      datasets: { ...TRAINING_JOBS_SCENARIO_COLLAPSED.datasets, datasets: [], versionRows: [] },
+      emptyMessage: 'Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.',
+    });
+
+    expect(screen.getByText('Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.')).toBeInTheDocument();
+    expect(screen.queryByText('Bộ dữ liệu này chưa có phiên bản nào.')).toBeNull();
+  });
+});
+
 describe('Hộp thoại A9 và biểu mẫu', () => {
   it('huỷ: câu hỏi, "Giữ lại" đóng, Esc đóng, nút xác nhận tắt khi đang gửi', () => {
     const actions = buildActions();

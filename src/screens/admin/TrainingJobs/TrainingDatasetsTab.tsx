@@ -77,7 +77,8 @@ function Body({ actions, model }: TrainingJobsProps) {
     );
   }
 
-  if (model.state === 'empty') {
+  // Xét dữ liệu, không xét `state`: màn hẹp (`collapsed`) rỗng vẫn phải nói câu rỗng của [8].
+  if (model.datasets.datasets.length === 0) {
     return <EmptyState description={model.emptyMessage} icon={<Database aria-hidden="true" />} title={TEXT.emptyTitle} />;
   }
 

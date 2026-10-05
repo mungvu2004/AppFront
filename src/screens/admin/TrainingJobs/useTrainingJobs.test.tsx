@@ -29,6 +29,7 @@ import {
 } from './trainingJobsGateway';
 import { emptyJobStream, jobStreamReducer, METRIC_POINTS_KEPT } from './trainingMetricsModel';
 import {
+  buildCreateBody,
   JOB_LIST_POLL_MS,
   JOB_STATUS_POLL_MS,
   readAllPages,
@@ -215,7 +216,17 @@ function renderTrainingHook(client: SpiedClient) {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
-  return { ...renderHook(() => useTrainingJobs({ gateway }), { wrapper }), published, queryClient };
+  const renders: ReturnType<typeof useTrainingJobs>['model'][] = [];
+  const hook = renderHook(
+    () => {
+      const value = useTrainingJobs({ gateway });
+      renders.push(value.model);
+      return value;
+    },
+    { wrapper },
+  );
+
+  return { ...hook, published, queryClient, renders };
 }
 
 function renderScreen(client: SpiedClient) {
@@ -700,6 +711,112 @@ describe('Nhịp N34 · N32', () => {
     expect(await within(panel).findByText('Đang huỷ')).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: 'Huỷ lượt' })).toBeNull();
     expect(document.activeElement?.tagName).toBe('H2');
+  });
+});
+
+describe('Review 1 — dừng hỏi, lượt đổi', () => {
+  it('N34 404 sau khi đã có dữ liệu → không gọi thêm sau 5 s/15 s giả', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const client = makeClient();
+    client.getJob
+      .mockResolvedValueOnce(ok(running(JOB_A)))
+      .mockResolvedValue(wireError(404, 'NOT_FOUND', { resource: 'trainingJob' }));
+    const { result } = renderTrainingHook(client);
+
+    act(() => result.current.actions.onSelectJob(JOB_A));
+    await waitFor(() => {
+      expect(client.getJob).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(JOB_STATUS_POLL_MS);
+    });
+    await waitFor(() => {
+      expect(result.current.model.detail?.notice).toBe('Không tìm thấy lượt huấn luyện này.');
+    });
+    const calls = client.getJob.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(JOB_STATUS_POLL_MS + JOB_LIST_POLL_MS);
+    });
+    expect(client.getJob.mock.calls.length).toBe(calls);
+  });
+
+  it('N34 403 → forbidden, N32 và N34 không gọi thêm', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const client = makeClient();
+    client.getJob.mockResolvedValueOnce(ok(running(JOB_A))).mockResolvedValue(wireError(403, 'FORBIDDEN'));
+    const { result } = renderTrainingHook(client);
+
+    act(() => result.current.actions.onSelectJob(JOB_A));
+    await waitFor(() => {
+      expect(client.getJob).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(JOB_STATUS_POLL_MS);
+    });
+    await waitFor(() => {
+      expect(result.current.model.state).toBe('forbidden');
+    });
+    const jobCalls = client.getJob.mock.calls.length;
+    const listCalls = client.listJobs.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(JOB_LIST_POLL_MS * 3);
+    });
+    expect(client.getJob.mock.calls.length).toBe(jobCalls);
+    expect(client.listJobs.mock.calls.length).toBe(listCalls);
+    expect(result.current.model.state).toBe('forbidden');
+  });
+
+  it('đổi từ lượt đang chạy sang lượt đã xong không làm mới N32', async () => {
+    const client = makeClient({
+      getJob: async (jobId) => ok(jobId === JOB_A ? running(jobId) : succeeded(jobId)),
+      listJobs: async () => page([running(JOB_A), succeeded(JOB_B)]),
+    });
+    const { result } = renderTrainingHook(client);
+
+    act(() => result.current.actions.onSelectJob(JOB_A));
+    await waitFor(() => {
+      expect(result.current.model.detail?.statusLabel).toBe('Đang chạy');
+    });
+    const listCalls = client.listJobs.mock.calls.length;
+    act(() => result.current.actions.onSelectJob(JOB_B));
+    await waitFor(() => {
+      expect(result.current.model.detail?.statusLabel).toBe('Xong');
+    });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
+    expect(client.listJobs.mock.calls.length).toBe(listCalls);
+  });
+
+  it('không lượt vẽ nào ghép chi tiết lượt mới với nhật ký lượt cũ', async () => {
+    const client = makeClient({
+      listJobLogs: async ({ jobId }) => page(jobId === JOB_A ? logLines(10) : [], 'c1'),
+      listJobs: async () => page([running(JOB_A), running(JOB_B)]),
+    });
+    const { renders, result } = renderTrainingHook(client);
+
+    act(() => result.current.actions.onSelectJob(JOB_A));
+    await waitFor(() => {
+      expect(result.current.model.detail?.logRows).toHaveLength(10);
+    });
+    act(() => result.current.actions.onSelectJob(JOB_B));
+    await waitFor(() => {
+      expect(client.listJobLogs).toHaveBeenCalledWith(expect.objectContaining({ jobId: JOB_B }));
+    });
+
+    const showingB = renders.filter((model) => model.rows.find((row) => row.isSelected)?.id === JOB_B);
+    expect(showingB.length).toBeGreaterThan(0);
+    for (const model of showingB) expect(model.detail?.logRows ?? []).toHaveLength(0);
+  });
+
+  it('buildCreateBody: model nền không thuộc họ → null (không ép kiểu)', () => {
+    expect(buildCreateBody('wallSegmentation', 'yolov8n', VERSION_ID, 50)).toBeNull();
+    expect(buildCreateBody('openingAndFurnitureDetection', 'yolov8n', VERSION_ID, 50)).toEqual({
+      baseModel: 'yolov8n',
+      datasetVersionId: VERSION_ID,
+      epochs: 50,
+      family: 'openingAndFurnitureDetection',
+    });
   });
 });
 

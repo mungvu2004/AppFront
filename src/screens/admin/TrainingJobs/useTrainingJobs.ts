@@ -319,6 +319,19 @@ export async function readAllPages<T>(read: (cursor: string | undefined) => Prom
   }
 }
 
+/** Thân N33 đúng kiểu: `baseModel` phải thuộc họ — thu hẹp bằng kiểm tra thật, không ép kiểu. */
+export function buildCreateBody(
+  family: TrainableFamilyId,
+  baseModel: string,
+  datasetVersionId: string,
+  epochs: number,
+): CreateTrainingJob | null {
+  const allowed: readonly CreateTrainingJob['baseModel'][] = TRAINING_BASE_MODELS[family];
+  const match = allowed.find((candidate) => candidate === baseModel);
+
+  return match === undefined ? null : { baseModel: match, datasetVersionId, epochs, family };
+}
+
 const NO_FIELD_ERRORS: CreateFieldErrors = { baseModel: null, epochs: null, form: null, version: null };
 
 /* -------------------------------------------------------------------------- */
@@ -406,6 +419,7 @@ export function useTrainingJobs({
     queryFn: ({ pageParam, signal }) => gateway.listJobs({ ...jobFilter, cursor: pageParam, signal }),
     queryKey: queryKeys.adminMl.jobs(jobFilter),
     refetchInterval: (query) => {
+      if (shouldStopStream(query.state.error)) return false;
       const pages = query.state.data?.pages ?? [];
       const hasActive = pages.some((page) => page.items.some((job) => isActiveJob(job.status)));
 
@@ -424,22 +438,33 @@ export function useTrainingJobs({
     enabled: enabled && selectedJobId !== null,
     queryFn: ({ signal }) => gateway.getJob(selectedJobId ?? '', signal),
     queryKey: queryKeys.adminMl.job(selectedJobId ?? ''),
-    refetchInterval: (query) => (isActiveJob(query.state.data?.status) ? JOB_STATUS_POLL_MS : false),
+    // 401/403/404 → dừng hỏi, kể cả khi bộ đệm còn bản cũ đang `running`.
+    refetchInterval: (query) =>
+      !shouldStopStream(query.state.error) && isActiveJob(query.state.data?.status) ? JOB_STATUS_POLL_MS : false,
   });
 
   const selectedJob = jobQuery.data ?? jobs.find((job) => job.id === selectedJobId);
   const selectedStatus = selectedJob?.status;
-  const previousStatusRef = useRef<JobStatus | undefined>(undefined);
+  const previousStatusRef = useRef<{ readonly jobId: string | null; readonly status: JobStatus | undefined }>({
+    jobId: null,
+    status: undefined,
+  });
 
-  // Lượt đang xem vừa kết thúc: làm mới danh sách một lần.
+  // Lượt đang xem vừa kết thúc: làm mới danh sách một lần. Chỉ so trạng thái CỦA CÙNG lượt —
+  // đổi từ lượt đang chạy sang lượt đã xong không phải "vừa kết thúc".
   useEffect(() => {
     const previous = previousStatusRef.current;
-    previousStatusRef.current = selectedStatus;
+    previousStatusRef.current = { jobId: selectedJobId, status: selectedStatus };
 
-    if (isActiveJob(previous) && selectedStatus !== undefined && !isActiveJob(selectedStatus)) {
+    if (
+      previous.jobId === selectedJobId &&
+      isActiveJob(previous.status) &&
+      selectedStatus !== undefined &&
+      !isActiveJob(selectedStatus)
+    ) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.adminMl.jobs.root() });
     }
-  }, [selectedStatus, queryClient]);
+  }, [selectedJobId, selectedStatus, queryClient]);
 
   /* ---- N36 · N37 -------------------------------------------------------- */
 
@@ -540,6 +565,12 @@ export function useTrainingJobs({
   const loadMoreError = jobsQuery.isFetchNextPageError && !isSilentCursorRetry ? jobsQuery.error : null;
   const tabReadError = activeTab === 'jobs' ? jobsReadError : tabDatasetsQuery.error;
   const isForbiddenByServer = [jobsQuery.error, jobQuery.error, tabDatasetsQuery.error].some(isForbiddenError);
+
+  // 403 giữa chừng: chốt `forbidden` và tắt MỌI truy vấn (`enabled`), không hỏi tiếp sau màn
+  // "Không có quyền".
+  useEffect(() => {
+    if (isForbiddenByServer) setWriteForbidden(true);
+  }, [isForbiddenByServer]);
   const activeCount = jobs.filter((job) => isActiveJob(job.status)).length;
   const isTabLoading = activeTab === 'jobs' ? jobsQuery.isLoading : tabDatasetsQuery.isLoading;
   const isTabEmpty = activeTab === 'jobs' ? jobs.length === 0 && !isFiltered : tabDatasets.length === 0;
@@ -624,12 +655,8 @@ export function useTrainingJobs({
     if (!canSubmit || effectiveVersionId === null || effectiveBaseModel === null || formEpochs === undefined) return;
     if (effectiveDatasetId === null) return;
 
-    const body = {
-      baseModel: effectiveBaseModel,
-      datasetVersionId: effectiveVersionId,
-      epochs: formEpochs,
-      family: formFamily,
-    } as CreateTrainingJob;
+    const body = buildCreateBody(formFamily, effectiveBaseModel, effectiveVersionId, formEpochs);
+    if (body === null) return;
     const attempt = nextCreateAttempt(pendingCreateRef.current, body, gateway.createKey);
 
     pendingCreateRef.current = attempt;
@@ -722,6 +749,8 @@ export function useTrainingJobs({
 
   const model = useMemo((): TrainingJobsViewModel => {
     const nowMs = gateway.now();
+    // `reset` chạy trong effect: một lượt vẽ có thể còn luồng của lượt cũ — không vẽ nó.
+    const liveStream = stream.jobId === selectedJobId ? stream : emptyJobStream(selectedJobId);
     const optionsError = formDatasetsQuery.error ?? formVersionsQuery.error;
     const form: FormModel | null = !isFormOpen
       ? null
@@ -778,9 +807,9 @@ export function useTrainingJobs({
               notice: detailNotice ?? streamError ?? (jobQuery.error === null ? null : describeReadError(jobQuery.error)),
               nowMs,
               stream: {
-                logs: stream.logs,
-                metrics: stream.metrics,
-                summary: selectedJob === undefined ? null : metricsSummary(stream, SCORE_NAME[selectedJob.family]),
+                logs: liveStream.logs,
+                metrics: liveStream.metrics,
+                summary: selectedJob === undefined ? null : metricsSummary(liveStream, SCORE_NAME[selectedJob.family]),
               },
             }),
       emptyMessage:

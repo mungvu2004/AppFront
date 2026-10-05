@@ -352,6 +352,27 @@ describe('startCursorPolling', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it('onItems gọi stop(): không onDone, không hẹn nhịp sau, kể cả trang cuối hay trang đầy', async () => {
+    for (const page of [{ items: [1] }, full(1, 'c1'), { items: [1], nextCursor: 'c1' }]) {
+      const { fetchPage } = createFetch([page]);
+      const onDone = vi.fn();
+      const handle = startCursorPolling({
+        fetchPage,
+        intervalMs: () => INTERVAL_MS,
+        onDone,
+        onItems: () => handle.stop(),
+        pageSize: PAGE_SIZE,
+        visibilityTarget: visibility,
+      });
+
+      await vi.advanceTimersByTimeAsync(INTERVAL_MS * 3);
+
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+      expect(onDone).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  });
+
   it('stop() khi đang chờ nhịp: bỏ hẹn giờ', async () => {
     const { fetchPage } = createFetch([{ items: [], nextCursor: 's1' }]);
 

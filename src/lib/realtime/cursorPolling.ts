@@ -129,6 +129,9 @@ export function startCursorPolling<T>({
 
     if (page.items.length > 0) onItems(page.items);
 
+    // `onItems` có thể đã gọi `stop()`: không `onDone`, không hẹn nhịp sau.
+    if (stopped) return;
+
     if (page.nextCursor === undefined) {
       finish();
       onDone?.();
