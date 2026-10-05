@@ -262,6 +262,8 @@ const ACTIONS: ScaleCalibrationActions = {
   onCanvasSizeChange: NO_OP,
   onApply: NO_OP,
   onChangeApplyScope: NO_OP,
+  onConfirmAllFloors: NO_OP,
+  onCancelAllFloors: NO_OP,
   onToggleCollapsed: NO_OP,
   onGoToPreprocessing: NO_OP,
   onRetry: NO_OP,
@@ -404,6 +406,36 @@ export function compactScenario(): ScaleCalibrationProps {
   return { ...base, model: { ...base.model, isCompact: true } };
 }
 
+/** Tầng `scaleStatus: 'unresolved'`: dải tỉ lệ tạm trên canvas, không thêm trạng thái (F-04x-2). */
+export function provisionalScaleScenario(): ScaleCalibrationProps {
+  const base = scenarioFor('partial');
+
+  return {
+    ...base,
+    model: { ...base.model, provisionalScaleNotice: 'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.' },
+  };
+}
+
+/** Hộp thoại A9 trước "Áp cho mọi tầng"; huỷ thì màn giữ trạng thái trước. */
+export function confirmAllFloorsScenario(): ScaleCalibrationProps {
+  const base = scenarioFor('partial');
+
+  return {
+    ...base,
+    model: {
+      ...base.model,
+      panel: { ...base.model.panel, applyScope: 'allFloors' },
+      allFloorsConfirm: {
+        title: 'Áp tỉ lệ này cho 3 tầng có bản vẽ?',
+        message:
+          'Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+        confirmLabel: 'Áp cho mọi tầng',
+        cancelLabel: 'Huỷ',
+      },
+    },
+  };
+}
+
 /** Giảm chuyển động: không chạy số, không bay khung nhìn (mục B). */
 export function reducedMotionScenario(): ScaleCalibrationProps {
   const base = scenarioFor('success');
@@ -438,3 +470,7 @@ export const Xong: Story = { args: scenarioFor('success') };
 export const KhongCoQuyen: Story = { args: scenarioFor('forbidden') };
 
 export const ThuGon: Story = { args: scenarioFor('collapsed') };
+
+export const ProvisionalScale: Story = { args: provisionalScaleScenario(), name: 'Tỉ lệ tạm' };
+
+export const ConfirmAllFloors: Story = { args: confirmAllFloorsScenario(), name: 'Hỏi trước khi áp mọi tầng' };

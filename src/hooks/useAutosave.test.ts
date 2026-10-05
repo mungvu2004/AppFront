@@ -449,7 +449,7 @@ describe('useFloorLayerAutosave', () => {
     expect((useStore.getState().spatial?.byId[original.id] as Wall).thicknessMm).toBe(original.thicknessMm);
     expect(writeLayer).toHaveBeenCalledTimes(2);
     expect(writeLayer.mock.calls[1]?.[0]).toMatchObject({ baseVersion: 1, floorId: FLOOR_A });
-    expect(writeLayer.mock.calls[1]?.[0].body.walls.find((wall) => wall.id === original.id)?.thicknessMm).toBe(
+    expect(writeLayer.mock.calls[1]?.[0].body.layer?.walls.find((wall) => wall.id === original.id)?.thicknessMm).toBe(
       original.thicknessMm,
     );
   });
@@ -470,7 +470,7 @@ describe('useFloorLayerAutosave', () => {
 
     expect(writeLayer).toHaveBeenCalledTimes(1);
     expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ baseVersion: 0, floorId: FLOOR_A, projectId: PROJECT });
-    expect(writeLayer.mock.calls[0]?.[0].body).toEqual(spatialLayerOf(edited as typeof SAMPLE, FLOOR_A as LevelId));
+    expect(writeLayer.mock.calls[0]?.[0].body.layer).toEqual(spatialLayerOf(edited as typeof SAMPLE, FLOOR_A as LevelId));
     expect(await writeLayer.mock.results[0]?.value).toMatchObject({ ok: true });
     // Kho đã là dự án khác: lượt lưu của dự án cũ không chạm nó.
     expect(useStore.getState().spatialProjectId).toBe('project-2');

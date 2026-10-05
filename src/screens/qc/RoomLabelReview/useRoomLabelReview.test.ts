@@ -35,6 +35,7 @@ import { formatArea, formatLength } from '@/lib/format/measure';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
+import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
@@ -740,5 +741,45 @@ describe('chip lọc "Chưa đặt tên"', () => {
     });
 
     expect(mounted.result.current.rooms).toHaveLength(ROOM_LABEL_FIXTURE_TOTAL);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('tỉ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: dải mở màn tỉ lệ; diện tích, chu vi, tổng là PROVISIONAL_MEASURE_TEXT', async () => {
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({
+      gateway: createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []), scaleStatus: 'unresolved' }),
+      onNavigate,
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+    });
+
+    const { rooms, summary, provisionalScaleNotice } = mounted.result.current;
+    expect(rooms.length).toBeGreaterThan(0);
+    expect(rooms.every((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(true);
+    expect(rooms.every((row) => row.perimeterText === PROVISIONAL_MEASURE_TEXT)).toBe(true);
+    expect(summary.totalAreaText).toBe(PROVISIONAL_MEASURE_TEXT);
+
+    act(() => {
+      provisionalScaleNotice?.onCalibrate();
+    });
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
+    mounted.unmount();
+  });
+
+  it('tầng có tỉ lệ thật: không dải, số đo là số', async () => {
+    const mounted = await mountSettled();
+    const { rooms, summary, provisionalScaleNotice } = mounted.result.current;
+
+    expect(provisionalScaleNotice).toBeNull();
+    expect(rooms.some((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(false);
+    expect(summary.totalAreaText).not.toBe(PROVISIONAL_MEASURE_TEXT);
+    mounted.unmount();
   });
 });

@@ -76,7 +76,14 @@
     "forbidden": "Bạn không còn quyền sửa tầng này.",
     "integrity": "Tầng này có {{count}} chỗ hỏng liên kết hình học nên chưa lưu được.",
     "unknown": "Không lưu được thay đổi của tầng này.",
-    "reloadFailed": "Không tải lại được tầng này. Thử lại sau."
+    "reloadFailed": "Không tải lại được tầng này. Thử lại sau.",
+    "scaleRedirtied": "Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới."
+  },
+  "provisionalScale": {
+    "calibrate": "Hiệu chỉnh tỉ lệ",
+    "floorNotFound": "Tầng này không còn tồn tại.",
+    "measure": "Chưa có — tỉ lệ tạm",
+    "notice": "Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ."
   },
   "pipeline": {
     "preprocess": "tiền xử lý",
@@ -379,7 +386,9 @@
       "undoDescription": "Hoàn tác thay đổi cài đặt dự án",
       "missingProjectTitle": "Không xác định được dự án",
       "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở cài đặt của dự án nào."
-    }
+    },
+    "graphReloadFailed": "Không tải lại được mô hình.",
+    "graphReloadRetry": "Thử lại"
   },
   "account": {
     "title": "cài đặt tài khoản",
@@ -1179,7 +1188,18 @@
       "scopeAllFloors": "Áp cho mọi tầng",
       "scopeThisFloor": "Chỉ áp cho tầng này",
       "undoToast": "Đã áp tỷ lệ {{scale}}",
-      "undoLabel": "Hoàn tác"
+      "undoLabel": "Hoàn tác",
+      "allFloorsCancel": "Huỷ",
+      "allFloorsConfirm": "Áp cho mọi tầng",
+      "allFloorsMessage": "Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.",
+      "allFloorsReadFailed": "Không tải được danh sách tầng để áp tỉ lệ.",
+      "allFloorsReportBlocked": "Chưa gửi vì tầng đang bị khoá lưu: {{floors}}.",
+      "allFloorsReportFailed": "Không lưu được tỉ lệ cho: {{floors}}.",
+      "allFloorsReportSaved": "Đã áp tỉ lệ cho {{count}} tầng.",
+      "allFloorsReportSkipped": "Bỏ qua vì chưa có bản vẽ: {{floors}}.",
+      "allFloorsTitle": "Áp tỉ lệ này cho {{count}} tầng có bản vẽ?",
+      "applyFailed": "Chưa lưu được tỉ lệ lên máy chủ, tầng giữ tỉ lệ cũ.",
+      "undoProvisional": "Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn."
     },
     "statusBar": {
       "ariaLabel": "Thanh trạng thái hiệu chỉnh tỷ lệ",

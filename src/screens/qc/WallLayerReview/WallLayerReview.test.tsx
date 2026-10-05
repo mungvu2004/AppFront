@@ -50,6 +50,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -60,7 +61,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { WallLayerReviewContainer } from './WallLayerReview.container';
-import { scenarioArgsFor } from './WallLayerReview.stories';
+import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
   WALL_LAYER_FIXTURE_BUILDING,
   WALL_LAYER_FIXTURE_LEVEL,
@@ -698,5 +699,42 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
     await screen.findByRole('tree', { name: 'Cây lớp' });
 
     expect(container.querySelectorAll('.text-state-verified')).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Dải tỉ lệ tạm (F-04x-2 [8].7).                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('dải tỉ lệ tạm (F-04x-2)', () => {
+  const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
+
+  beforeEach(() => {
+    useStore.getState().setSpatial(null, null);
+  });
+
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
+    const onNavigate = vi.fn();
+    const args = { ...scenarioArgsFor('partial'), ...ProvisionalScale.args, onNavigate };
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...args} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' }));
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));
+  });
+
+  it('tầng có tỉ lệ thật: không dải', async () => {
+    renderState('partial');
+
+    await screen.findByRole('tree', { name: 'Cây lớp' });
+
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
   });
 });

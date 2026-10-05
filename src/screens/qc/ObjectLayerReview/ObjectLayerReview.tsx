@@ -40,6 +40,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
@@ -193,6 +194,11 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />
+        </div>
+      )}
+      {model.provisionalScaleNotice != null && (
+        <div className="px-2 pt-2">
+          <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
         </div>
       )}
       <div className="relative flex min-h-0 flex-1 gap-2 p-2">

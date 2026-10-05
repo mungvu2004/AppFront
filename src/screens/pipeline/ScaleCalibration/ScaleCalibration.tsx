@@ -49,13 +49,14 @@
  *
  * Không nhánh nào trả `null`: canvas, panel và thanh trạng thái luôn được vẽ,
  * nên màn trắng — thất bại duy nhất A11 tồn tại để chặn — không có chỗ xảy ra.
- * Không `Modal`, không `role="dialog"`: mục [CẤM TUYỆT ĐỐI] cấm hộp thoại ở màn
- * này, và cảnh báo tỷ lệ thì không chặn nên lại càng không cần một cái.
+ * Cảnh báo tỷ lệ không chặn nên không có hộp thoại. `Modal` duy nhất là hộp A9 của
+ * "Áp cho mọi tầng" (F-04x-2): tỉ lệ thành "do bạn chọn" trên nhiều tầng một lượt.
  */
 
 import { useEffect, useRef } from 'react';
 
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
+import { Modal } from '@/components/overlay/Modal';
 import { StatusBar } from '@/components/shell/StatusBar';
 import { Button } from '@/components/ui/Button';
 
@@ -186,6 +187,9 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
     >
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
         <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+          {model.provisionalScaleNotice !== undefined && (
+            <InlineAlert level="attention" message={model.provisionalScaleNotice} />
+          )}
           {noticeLevel !== null && noticeMessage !== null && (
             <section aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col gap-2">
               <InlineAlert
@@ -234,6 +238,18 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
       </div>
 
       <StatusBar {...model.statusBar} />
+
+      {model.allFloorsConfirm !== undefined && (
+        <Modal
+          isOpen
+          onClose={actions.onCancelAllFloors}
+          primaryAction={{ label: model.allFloorsConfirm.confirmLabel, onClick: actions.onConfirmAllFloors }}
+          secondaryAction={{ label: model.allFloorsConfirm.cancelLabel, onClick: actions.onCancelAllFloors }}
+          title={model.allFloorsConfirm.title}
+        >
+          {model.allFloorsConfirm.message}
+        </Modal>
+      )}
     </div>
   );
 }

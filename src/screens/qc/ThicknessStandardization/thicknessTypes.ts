@@ -128,6 +128,8 @@ import type { WallThickness } from '@/types/spatial';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+
 /* -------------------------------------------------------------------------- */
 /* Bốn nhóm chuẩn hoá — xem "X1" ở đầu file.                                   */
 /* -------------------------------------------------------------------------- */
@@ -494,6 +496,8 @@ export interface ThicknessStandardizationProps {
   readonly state: ThicknessScreenState;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
+  /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
+  readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
 
   /* -- Biểu đồ -------------------------------------------------------------- */
   readonly bins: readonly HistogramBin[];

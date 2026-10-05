@@ -59,6 +59,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -70,7 +71,7 @@ import type { ProjectRole } from '@/types/project';
 import { useStore } from '@/store';
 
 import { ThicknessStandardizationContainer } from './ThicknessStandardization.container';
-import { scenarioArgsFor } from './ThicknessStandardization.stories';
+import { ProvisionalScale, scenarioArgsFor } from './ThicknessStandardization.stories';
 import {
   FIXTURE_REVIEWED_COUNT,
   FIXTURE_SEGMENT_COUNT,
@@ -584,5 +585,29 @@ describe('dải lưu lớp (F-04x-1)', () => {
     expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(onReload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('dải tỉ lệ tạm (F-04x-2)', () => {
+  const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
+
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ" gọi onNavigate', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(
+      <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} onNavigate={onNavigate} />,
+    );
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('tầng có tỉ lệ thật: không dải', async () => {
+    renderState('partial');
+
+    await waitFor(() => {
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
   });
 });

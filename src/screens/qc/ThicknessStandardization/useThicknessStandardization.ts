@@ -47,24 +47,22 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
 import type { LevelId, Wall, WallId } from '@/domain/spatial/types';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import type { Command } from '@/lib/commands/types';
 import type { HistoryStack } from '@/lib/commands/history';
-import { describeError } from '@/lib/errors/describeError';
-import { toAppError } from '@/lib/errors/toAppError';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { durationMs } from '@/lib/motion';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
-import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -111,6 +109,7 @@ import {
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
 } from './thicknessTypes';
+import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của hook — mọi câu người dùng đọc mà cổng không sinh ra.              */
@@ -162,6 +161,8 @@ export interface UseThicknessStandardizationOptions {
   readonly history?: HistoryStack;
   /** Sổ phím tắt tiêm được; vắng mặt thì dùng sổ dùng chung của ứng dụng. */
   readonly shortcutRegistry?: ShortcutRegistry;
+  /** Lối ra của dải tỉ lệ tạm (F-04x-2) — container truyền `onNavigate` của nó. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /**
@@ -345,10 +346,14 @@ export function useThicknessStandardization(
   /* Lượt đọc máy chủ duy nhất của màn (R-64).                               */
   /* ---------------------------------------------------------------------- */
 
-  const layerQuery = useQuery({
-    queryKey: [...queryKeys.space.byFloor(floorId), 'read'],
-    queryFn: ({ signal }) => gateway.readThicknessLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const provisionalScaleNotice = useProvisionalScaleNotice(
+    floorLayer.scaleStatus,
+    projectId,
+    floorId,
+    options.onNavigate,
+  );
 
   /* ---------------------------------------------------------------------- */
   /* Đồ thị đang sửa — nơi `commit` ghi vào.                                  */
@@ -362,23 +367,21 @@ export function useThicknessStandardization(
   const setHovered = useStore((state) => state.setHovered);
 
   /*
-   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
-   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của `layerQuery`
-   * (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
    */
-  const loaded = layerQuery.data ?? null;
-
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded?.graph ?? null;
+    const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null, { floorRevisions: loaded?.floorRevisions ?? {}, projectId });
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, loaded, projectId, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const walls = useMemo(() => wallsOfGraph(graph), [graph]);
   /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
@@ -846,17 +849,9 @@ export function useThicknessStandardization(
   /* Bảy trạng thái và ba câu đi kèm.                                        */
   /* ---------------------------------------------------------------------- */
 
-  const layerError: unknown = layerQuery.error;
+  const errorMessage = floorLayer.error === null ? null : floorLayer.errorMessage;
 
-  const errorMessage = useMemo<string | null>(
-    () =>
-      layerError === null || layerError === undefined
-        ? null
-        : describeError(toAppError(layerError)).description,
-    [layerError],
-  );
-
-  const isLoading = layerQuery.isPending;
+  const isLoading = floorLayer.isPending;
 
   const state = deriveThicknessScreenState({
     isViewerRole,
@@ -929,6 +924,7 @@ export function useThicknessStandardization(
     onApplySelectedGroup,
     flashingWallIds,
     saveBlock,
+    provisionalScaleNotice,
   };
 }
 

@@ -5,6 +5,7 @@ import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type { LevelId } from '@/domain/spatial/types';
+import type { MillimetresPerPixel } from '@/domain/units/types';
 import type { ProjectSettings } from '../schemas/projectSettings';
 import type { ProjectSummary } from '../schemas/projectSummaries';
 import type { Me } from '../schemas/me';
@@ -165,13 +166,13 @@ const levelIdOfFloor = (floorId: string): LevelId =>
   `L-${floorId.toUpperCase().replace(/[^0-9A-Z]/gu, 'X').padStart(10, '0')}` as LevelId;
 
 const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer): FloorLayerDocument => {
+  const scale = writtenScales.get(floor.id);
   const sampleLevel = SAMPLE_BUILDING.levels.find((level) => level.id === floor.id);
   const onFloor = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
     sampleLevel === undefined ? [] : clone(items.filter((item) => item.levelId === sampleLevel.id));
   const walls = onFloor(SAMPLE_BUILDING.walls);
   const wallIds = new Set<string>(walls.map((wall) => wall.id));
-
-  return {
+  const base: FloorLayerDocument = {
     axes: onFloor(SAMPLE_BUILDING.axes),
     dimensions: onFloor(SAMPLE_BUILDING.dimensions),
     layer: layer ?? {
@@ -194,6 +195,15 @@ const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer)
           }
         : { ...clone(sampleLevel), name: `Tầng ${String(sampleLevel.order + 1)}` },
     revision,
+  };
+
+  return {
+    ...base,
+    level: {
+      ...base.level,
+      ...(scale === undefined ? {} : { scaleMillimetresPerPixel: scale.value }),
+    },
+    ...(scale?.provisional === true ? { scaleStatus: 'unresolved' as const } : {}),
   };
 };
 
@@ -1180,11 +1190,19 @@ const layerRevisions = new Map<string, number>();
 const writtenLayers = new Map<string, SpatialLayer>();
 /** Lượt ghi cuối của mỗi tầng — nguồn của luật C09b (gửi lại trùng thì 200). */
 const lastLayerWrites = new Map<string, { base: number; body: string; revision: number }>();
+/** Tỉ lệ của tầng theo mã tầng: `provisional` → N16 trả `scaleStatus: 'unresolved'`; PUT có tỉ lệ gỡ nó. */
+const writtenScales = new Map<string, { provisional: boolean; value: MillimetresPerPixel }>();
 
 export const __resetMockLayerState = (): void => {
   layerRevisions.clear();
   writtenLayers.clear();
   lastLayerWrites.clear();
+  writtenScales.clear();
+};
+
+/** Tầng mang tỉ lệ tạm (`scaleStatus: 'unresolved'`) — như máy chủ đoán tỉ lệ mà chưa ai chốt. */
+export const simulateProvisionalScale = (floorId: string, value: number): void => {
+  writtenScales.set(floorId, { provisional: true, value: value as MillimetresPerPixel });
 };
 
 const MOCK_REMOTE_ACTOR_ID = 'usr_01J9ZQK7X4N2M8P6R3T5V7W9Y1';
@@ -1213,6 +1231,11 @@ const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => (
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
+  const currentLayer = (floorId: string): SpatialLayer =>
+    clone(
+      writtenLayers.get(floorId) ??
+        makeLayerDocument(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId), 0).layer,
+    );
   const uploads = new Map<string, Progress>([
     [
       uploadKey(project.id, SEEDED_UPLOAD_ID),
@@ -1659,6 +1682,29 @@ export const createMockApiClient = (): ApiClient => {
       /** Tầng lạ thì trang rỗng — bộ mẫu không bịa lịch sử cho tầng không có. */
       listVersions: async ({ floorId }) =>
         ok(floors.some((floor) => floor.id === floorId) ? makeFloorVersionPage(floorId) : { items: [] }),
+      /** N15: lớp chung của mọi tầng `floors`, một dòng `revision` mỗi `Level` (không `scaleStatus`). */
+      readGraph: async () => {
+        const documents = floors.map((floor) =>
+          makeLayerDocument(floor, layerRevisions.get(floor.id) ?? 0, writtenLayers.get(floor.id)),
+        );
+        const ofLayer = <K extends keyof SpatialLayer>(key: K): SpatialLayer[K][number][] =>
+          documents.flatMap((doc) => [...doc.layer[key]]);
+
+        return ok({
+          floorRevisions: documents.map((doc) => ({ floorId: doc.level.id, revision: doc.revision })),
+          graph: {
+            axes: documents.flatMap((doc) => doc.axes),
+            building: clone(SAMPLE_BUILDING.building),
+            dimensions: documents.flatMap((doc) => doc.dimensions),
+            furniture: ofLayer('furniture'),
+            levels: documents.map((doc) => doc.level),
+            notes: [],
+            openings: ofLayer('openings'),
+            rooms: ofLayer('rooms'),
+            walls: ofLayer('walls'),
+          },
+        });
+      },
       readLayer: async ({ floorId }) => {
         const floor = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
 
@@ -1688,7 +1734,7 @@ export const createMockApiClient = (): ApiClient => {
 
         if (baseVersion < current) {
           if (last !== undefined && last.base === baseVersion && last.body === bodyKey && last.revision === current) {
-            return ok({ layer: clone(writtenLayers.get(floorId) ?? body), revision: current });
+            return ok({ layer: currentLayer(floorId), revision: current });
           }
 
           return failed(
@@ -1714,10 +1760,18 @@ export const createMockApiClient = (): ApiClient => {
         const revision = current + 1;
 
         layerRevisions.set(floorId, revision);
-        writtenLayers.set(floorId, clone(body));
         lastLayerWrites.set(floorId, { base: baseVersion, body: bodyKey, revision });
 
-        return ok({ layer: clone(body), revision });
+        if (body.layer !== undefined) {
+          writtenLayers.set(floorId, clone(body.layer));
+        }
+
+        // Thân chỉ tỉ lệ giữ lớp; có tỉ lệ → tỉ lệ nguồn `human`, gỡ `scaleStatus` (#35).
+        if (body.scaleMillimetresPerPixel !== undefined) {
+          writtenScales.set(floorId, { provisional: false, value: body.scaleMillimetresPerPixel as MillimetresPerPixel });
+        }
+
+        return ok({ layer: currentLayer(floorId), revision });
       },
     },
     /**

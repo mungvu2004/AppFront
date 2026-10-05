@@ -34,6 +34,7 @@ export const WRITE_OPERATIONS = [
   'activateModelVersion',
   'createTrainingJob',
   'cancelTrainingJob',
+  'persistFloorScale',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -115,6 +116,8 @@ export interface WriteOperationParamsMap {
   createTrainingJob: Record<string, never>;
   /** Lượt vừa được yêu cầu huỷ (N35, F-12) — chính lượt ấy và mọi bộ lọc của danh sách. */
   cancelTrainingJob: { jobId: string };
+  /** #35 có tỉ lệ vừa được nhận — bản vẽ, tầng, N15 và N16 của tầng ấy cũ đi. */
+  persistFloorScale: FloorScopedParams;
 }
 
 type InvalidationMap = {
@@ -133,6 +136,7 @@ export const invalidationMap: InvalidationMap = {
   editFloor: ({ projectId, floorId }) => [
     queryKeys.floor.detail(floorId),
     queryKeys.floor.list(projectId),
+    queryKeys.layer.byFloor(projectId, floorId),
   ],
 
   editWall: ({ projectId, floorId }) => [
@@ -323,6 +327,12 @@ export const invalidationMap: InvalidationMap = {
   ],
   createTrainingJob: () => [queryKeys.adminMl.jobs.root()],
   cancelTrainingJob: ({ jobId }) => [queryKeys.adminMl.job(jobId), queryKeys.adminMl.jobs.root()],
+  persistFloorScale: ({ projectId, floorId }) => [
+    queryKeys.drawing.byFloor(floorId),
+    queryKeys.floor.detail(floorId),
+    queryKeys.layer.graph(projectId),
+    queryKeys.layer.byFloor(projectId, floorId),
+  ],
 };
 
 /**

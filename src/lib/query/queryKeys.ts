@@ -4,6 +4,7 @@ type QueryDomain =
   | 'adminMl'
   | 'drawing'
   | 'floor'
+  | 'layer'
   | 'library'
   | 'me'
   | 'measurement'
@@ -84,6 +85,8 @@ const roomByFloorRoot = freezeKey(['room', 'byFloor'] as const);
 const templateByProjectRoot = freezeKey(['template', 'byProject'] as const);
 const violationByProjectRoot = freezeKey(['violation', 'byProject'] as const);
 const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
+const layerGraphRoot = freezeKey(['layer', 'graph'] as const);
+const layerByFloorRoot = freezeKey(['layer', 'byFloor'] as const);
 const libraryListRoot = freezeKey(['library', 'list'] as const);
 const libraryDetailRoot = freezeKey(['library', 'detail'] as const);
 const meProfileRoot = freezeKey(['me', 'profile'] as const);
@@ -146,6 +149,18 @@ export const queryKeys = {
   floor: {
     detail: createQueryKeyFactory(floorDetailRoot, (floorId: string) => [...floorDetailRoot, floorId] as const),
     list: createQueryKeyFactory(floorListRoot, (projectId: string) => [...floorListRoot, projectId] as const),
+  },
+  /**
+   * Đồ thị không gian theo máy chủ: N15 cả dự án (`graph`), N16 một tầng (`byFloor`).
+   * F-05b, F-08 vô hiệu hai khoá này khi máy chủ thay tầng từ ngoài.
+   */
+  layer: {
+    byFloor: createQueryKeyFactory(layerByFloorRoot, (projectId: string, floorId: string) => [
+      ...layerByFloorRoot,
+      projectId,
+      floorId,
+    ] as const),
+    graph: createQueryKeyFactory(layerGraphRoot, (projectId: string) => [...layerGraphRoot, projectId] as const),
   },
   library: {
     detail: createQueryKeyFactory(libraryDetailRoot, (libraryItemId: string) => [

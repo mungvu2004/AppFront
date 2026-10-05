@@ -76,4 +76,15 @@ describe('replaceLevelEntities', () => {
     expect(next.byId[stray.id]).toBe(stray);
     expect(next.byLevel[L0]).not.toContain(stray.id);
   });
+
+  it('replaces axes and dimensions of the level only', () => {
+    const next = replaceLevelEntities(normalized, L0, { axes: [], dimensions: [] });
+    const onL0 = (items: readonly { readonly levelId: string }[]): number =>
+      items.filter((item) => item.levelId === L0).length;
+
+    expect(onL0(graph.axes) + onL0(graph.dimensions)).toBeGreaterThan(0);
+    expect(next.byKind.axis).toHaveLength(normalized.byKind.axis.length - onL0(graph.axes));
+    expect(next.byKind.dimension).toHaveLength(normalized.byKind.dimension.length - onL0(graph.dimensions));
+    expect(next.byLevel[L1]).toBe(normalized.byLevel[L1]);
+  });
 });

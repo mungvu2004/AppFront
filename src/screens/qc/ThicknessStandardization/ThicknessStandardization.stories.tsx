@@ -28,7 +28,7 @@
  * | story | ép bằng |
  * |---|---|
  * | `Rong` | 48 đoạn ĐÃ ở đúng nhóm chuẩn, không còn gì để áp |
- * | `DangTai` | cổng có `readThicknessLayer` không bao giờ trả lời |
+ * | `DangTai` | cổng có `readLayer` (N16) không bao giờ trả lời |
  * | `MotPhan` | bộ mẫu lọc còn hai nhóm 110 và 220 |
  * | `Loi` | `failReadThicknessLayer` — biểu đồ vẫn giữ đúng chiều cao khung |
  * | `ThanhCong` | như `Rong` về dữ liệu, khác ở chỗ lượt áp vừa chạy xong |
@@ -120,7 +120,7 @@ export function scenarioArgsFor(state: SevenState): ThicknessStandardizationCont
     forceCollapsed: scenario.isCollapsed,
     gateway:
       state === 'loading'
-        ? { ...gateway, readThicknessLayer: () => new Promise<never>(() => undefined) }
+        ? { ...gateway, readLayer: () => new Promise<never>(() => undefined) }
         : gateway,
   };
 }
@@ -184,5 +184,17 @@ export const SaveBlocked: Story = {
   args: {
     ...scenarioArgsFor('partial'),
     forceSaveBlock: { confirm: null, kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown },
+  },
+};
+
+/** Dải "Tỉ lệ tạm" — tầng chưa hiệu chỉnh tỉ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
+export const ProvisionalScale: Story = {
+  name: 'Tỉ lệ tạm',
+  args: {
+    ...scenarioArgsFor('partial'),
+    gateway: createMockThicknessStandardizationGateway({
+      graph: graphOfScenario(scenarioFor('partial')),
+      scaleStatus: 'unresolved',
+    }),
   },
 };

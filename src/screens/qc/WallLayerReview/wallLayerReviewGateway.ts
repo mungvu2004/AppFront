@@ -46,6 +46,8 @@
 
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import type { ApiClient } from '@/api/client';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
+import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 import { createAppApiClient } from '@/api/appClient';
 import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -83,6 +85,7 @@ import {
 import { changeForUpdate, createCommand } from '@/lib/commands/createCommand';
 import type { Command } from '@/lib/commands/types';
 import type { ToolOutcome } from '@/lib/tools/toolMachine';
+import { measureTextOf } from '@/lib/viewmodel/provisionalScale';
 import {
   createIncrementalRuleRunner,
   dispatch,
@@ -212,9 +215,9 @@ export interface WallLayerGraphPort {
  * luôn ảnh gốc để đối chiếu — trái đúng điều `wallLayerReviewScenarios.ts` gọi
  * là bắt buộc ("canvas không được trắng dù danh sách trắng").
  *
- * `readWallLayer` là lượt đọc bất đồng bộ của chính lớp tường, dưới khoá
- * `queryKeys.space.byFloor` — đúng khoá mà `invalidationMap.editWall` đã dọn
- * sau mỗi lượt ghi. Cổng thật trả lại đúng đồ thị `graph.read()` cho ra (không
+ * `readWallLayer` là lượt đọc bất đồng bộ của chính lớp tường (giữ cho bài kiểm
+ * `floorLayerGraph.test.ts`; màn nay đọc N16 qua `readLayer` + `useFloorLayer`,
+ * dưới `queryKeys.layer.byFloor`). Cổng thật trả lại đúng đồ thị `graph.read()` cho ra (không
  * bịa một endpoint nào, xem `WALL_LAYER_MISSING_ENDPOINTS`); cổng giả có cờ
  * `failReadWallLayer` để bảy kịch bản ép được trạng thái 4 mà KHÔNG phải phá
  * ảnh nền.
@@ -238,6 +241,8 @@ export interface WallLayerReviewGateway {
   readonly readBackground: (input: ReadBackgroundInput) => Promise<WallLayerBackground>;
   /** Lớp tường của tầng. Lỗi ở đây là trạng thái `error` — ảnh gốc VẪN xem được. */
   readonly readWallLayer: (input: ReadBackgroundInput) => Promise<FloorLayerGraphRead | null>;
+  /** N16 thô của tầng — nguồn của `useFloorLayer` (F-04x-2). Lỗi ở đây là trạng thái `error`. */
+  readonly readLayer: (input: ReadBackgroundInput) => Promise<FloorLayerDocument>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: WallLayerGraphPort;
   /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
@@ -350,6 +355,18 @@ export function createWallLayerReviewGateway(
       return stored === null ? readFloorLayerRead(apiClient.spatial, input) : { floorRevisions: {}, graph: stored };
     },
 
+    readLayer: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+
     graph,
 
     nextWallId: options.nextWallId ?? ((): WallId => createId('wall')),
@@ -385,6 +402,8 @@ export interface WallLayerGatewaySeed {
   readonly failReadWallLayer?: boolean;
   /** `true` thì ảnh nền chưa có — canvas vẽ khung xám chờ. */
   readonly withoutImage?: boolean;
+  /** `'unresolved'` thì N16 giả mang tỉ lệ tạm — story "Tỉ lệ tạm" (F-04x-2). */
+  readonly scaleStatus?: 'unresolved';
   /** Cờ `supports.persistWallLayer` của bộ mẫu (mặc định `true`). */
   readonly canPersist?: boolean;
   /** Client cho bộ lưu lớp. Vắng thì hook dùng client chung (mock trong test/story). */
@@ -433,6 +452,14 @@ export function createMockWallLayerReviewGateway(
       const stored = seed.graph ?? useStore.getState().spatial;
 
       return Promise.resolve(stored === null ? null : { floorRevisions: {}, graph: stored });
+    },
+
+    readLayer: ({ floorId }) => {
+      if (seed.failReadWallLayer === true) {
+        return Promise.reject(new Error('Không tải được lớp tường của tầng.'));
+      }
+
+      return mockFloorLayerDocument(seed.graph ?? useStore.getState().spatial, floorId, seed.scaleStatus);
     },
 
     graph: { read: () => seed.graph ?? useStore.getState().spatial },
@@ -1255,12 +1282,14 @@ export function toWallInspector(
   wall: Wall,
   level: Level,
   wallCodes?: ReadonlyMap<string, string>,
+  scaleStatus?: 'unresolved',
 ): WallInspectorViewModel {
   return {
     id: wall.id,
     codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
-    lengthLabel: formatCentrelineLength(wall, level),
+    /* Tầng ở tỉ lệ tạm thì chiều dài chưa tin được (F-04x-2). */
+    lengthLabel: measureTextOf(formatCentrelineLength(wall, level), scaleStatus),
     /*
      * Chiều cao ở CÙNG cột milimét với chiều dài.
      *

@@ -436,7 +436,7 @@ export interface WallLayerPointerReading {
  *
  * Điểm dễ sai nhất là `error`: canvas KHÔNG bị thay bằng một thông báo lỗi. Ảnh
  * gốc đến từ một truy vấn khác (`queryKeys.drawing.byFloor`) với lớp hình học
- * (`queryKeys.space.byFloor`), nên nó đứng nguyên khi lớp kia hỏng. Câu thông
+ * (N16, `queryKeys.layer.byFloor`), nên nó đứng nguyên khi lớp kia hỏng. Câu thông
  * báo lỗi thuộc về panel, không thuộc về canvas. Chú giải độ dày thì hiện ở CẢ
  * BẢY nhánh khi lớp Tường bật — xem `WallLayerLegend.tsx`.
  *

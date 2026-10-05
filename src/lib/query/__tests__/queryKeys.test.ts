@@ -75,6 +75,12 @@ const queryKeyBranchCases = [
     root: queryKeys.adminMl.datasetVersions.root,
   },
   { create: () => queryKeys.me.profile(), name: 'me.profile', root: queryKeys.me.profile.root },
+  { create: () => queryKeys.layer.graph(projectId), name: 'layer.graph', root: queryKeys.layer.graph.root },
+  {
+    create: () => queryKeys.layer.byFloor(projectId, floorId),
+    name: 'layer.byFloor',
+    root: queryKeys.layer.byFloor.root,
+  },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -107,7 +113,14 @@ describe('queryKeys', () => {
       'adminMl.datasets',
       'adminMl.datasetVersions',
       'me.profile',
+      'layer.graph',
+      'layer.byFloor',
     ]);
+  });
+
+  it('scopes layer keys by project, and byFloor by floor as well', () => {
+    expect(queryKeys.layer.graph(projectId)).toEqual(['layer', 'graph', projectId]);
+    expect(queryKeys.layer.byFloor(projectId, floorId)).toEqual(['layer', 'byFloor', projectId, floorId]);
   });
 
   it('keeps project.summaries off the list and detail roots (one key, one shape)', () => {

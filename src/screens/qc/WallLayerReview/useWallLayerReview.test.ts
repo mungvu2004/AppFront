@@ -35,6 +35,7 @@ import type * as conflictModule from '@/lib/versioning/conflict';
 import { resolveConflict } from '@/lib/versioning/conflict';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
@@ -1428,6 +1429,42 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
     });
     expect(vi.mocked(resolveConflict)).not.toHaveBeenCalled();
 
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('tỉ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: có dải, chiều dài thanh tra là PROVISIONAL_MEASURE_TEXT', async () => {
+    const mounted = await mountSettled({
+      gateway: createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH, scaleStatus: 'unresolved' }),
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+    });
+
+    act(() => {
+      mounted.result.current.panel.onSelect(wallAt(0).id);
+    });
+
+    expect(mounted.result.current.panel.inspector?.lengthLabel).toBe(PROVISIONAL_MEASURE_TEXT);
+    mounted.unmount();
+  });
+
+  it('tầng có tỉ lệ thật: không dải, chiều dài là số đo', async () => {
+    const mounted = await mountSettled();
+
+    act(() => {
+      mounted.result.current.panel.onSelect(wallAt(0).id);
+    });
+
+    expect(mounted.result.current.provisionalScaleNotice).toBeNull();
+    expect(mounted.result.current.panel.inspector?.lengthLabel).not.toBe(PROVISIONAL_MEASURE_TEXT);
+    expect(mounted.result.current.panel.inspector?.lengthLabel).toMatch(/mm$/u);
     mounted.unmount();
   });
 });

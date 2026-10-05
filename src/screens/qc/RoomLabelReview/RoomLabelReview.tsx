@@ -55,6 +55,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
@@ -249,6 +250,12 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
       {props.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={props.saveBlock} />
+        </div>
+      )}
+
+      {props.provisionalScaleNotice != null && (
+        <div className="px-2 pt-2">
+          <ProvisionalScaleBanner notice={props.provisionalScaleNotice} />
         </div>
       )}
 

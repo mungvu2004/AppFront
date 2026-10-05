@@ -8,7 +8,8 @@ import type { SpatialPatch } from '../domain/spatial/applyPatch';
 import { isIdOfKind } from '../domain/spatial/ids';
 import { replaceLevelEntities } from '../domain/spatial/replaceLevelEntities';
 import type { SpatialEntity } from '../domain/spatial/normalize';
-import type { EntityId } from '../domain/spatial/types';
+import type { EntityId, Level } from '../domain/spatial/types';
+import { versionIdFor, type FloorMetaEntry } from './spatialSlice';
 
 /**
  * The selection as it stands right now, for a command recorder to stamp on its history step.
@@ -212,31 +213,59 @@ export function applyRollbackPatches(patches: readonly SpatialPatch[]): void {
 /* Lớp tầng từ máy chủ: ghi thật, không mở bước hoàn tác, không toast.         */
 /* -------------------------------------------------------------------------- */
 
+/** What a server read or save hands {@link replaceFloorLayer}. */
+export interface FloorLayerReplacement {
+  layer: SpatialLayer;
+  revision: number;
+  /** The floor's `Level`; when the store lacks the floor, it is added with this level. */
+  level?: Level;
+  /** From N16: the floor's scale is provisional. */
+  scaleStatus?: 'unresolved';
+}
+
+export interface ReplaceFloorLayerOptions {
+  /** Somebody else changed the floor: empty history, bump `serverReplaceSeq`. */
+  external?: boolean;
+  /** The save carried a scale the server accepted: drop `scaleStatus`. */
+  scaleSent?: boolean;
+}
+
 /**
  * Puts a layer the server returned (a save result, or a reload) into the store.
  *
- * One `set` writes `spatial`, `lastServerSpatial` and `floorMeta` together (R14), and
- * `temporal` is paused around it so the write opens no undo step. `external: true`
- * means somebody else changed the floor: history is emptied and `serverReplaceSeq`
- * bumped so screens that own a second history can clear theirs. A floor the store does
- * not hold only gets its revision recorded.
+ * One `set` writes `spatial`, `lastServerSpatial`, `floorMeta` and `versionId` together
+ * (R14), and `temporal` is paused around it so the write opens no undo step.
+ * `external: true` on a floor the store held means somebody else changed it: history is
+ * emptied and `serverReplaceSeq` bumped so screens that own a second history can clear
+ * theirs. A floor the store lacks is added when `result.level` comes along (history kept);
+ * without it only the revision is recorded. `scaleStatus` stays as it was unless
+ * `scaleSent` (dropped) or `result.scaleStatus` (set).
  */
 export function replaceFloorLayer(
   floorId: string,
-  result: { layer: SpatialLayer; revision: number },
-  options?: { external?: boolean },
+  result: FloorLayerReplacement,
+  options?: ReplaceFloorLayerOptions,
 ): void {
   const state = useStore.getState();
-  const entry = { revision: result.revision };
   const current = state.spatial;
+  const entryOf = (previous: FloorMetaEntry | undefined): FloorMetaEntry => {
+    const scaleStatus = options?.scaleSent === true ? undefined : (result.scaleStatus ?? previous?.scaleStatus);
 
-  if (current === null || !isIdOfKind('level', floorId) || current.byId[floorId] === undefined) {
-    state.updateFloorMeta(floorId, entry);
+    return scaleStatus === undefined ? { revision: result.revision } : { revision: result.revision, scaleStatus };
+  };
+  const held = current !== null && current.byId[floorId] !== undefined;
+
+  if (current === null || !isIdOfKind('level', floorId) || (!held && result.level === undefined)) {
+    state.updateFloorMeta(floorId, entryOf(state.floorMeta[floorId]));
 
     return;
   }
 
-  const spatial = replaceLevelEntities(current, floorId, result.layer);
+  const spatial = replaceLevelEntities(current, floorId, {
+    ...result.layer,
+    ...(result.level === undefined ? {} : { level: result.level }),
+  });
+  const replacedHeld = held && options?.external === true;
   const temporal = useStore.temporal.getState();
   const tracking = temporal.isTracking;
 
@@ -245,19 +274,24 @@ export function replaceFloorLayer(
   }
 
   try {
-    useStore.setState((latest) => ({
-      spatial,
-      lastServerSpatial: spatial,
-      floorMeta: { ...latest.floorMeta, [floorId]: entry },
-      ...(options?.external === true ? { serverReplaceSeq: latest.serverReplaceSeq + 1 } : {}),
-    }));
+    useStore.setState((latest) => {
+      const floorMeta = { ...latest.floorMeta, [floorId]: entryOf(latest.floorMeta[floorId]) };
+
+      return {
+        spatial,
+        lastServerSpatial: spatial,
+        floorMeta,
+        versionId: versionIdFor(floorMeta, latest.versionId),
+        ...(replacedHeld ? { serverReplaceSeq: latest.serverReplaceSeq + 1 } : {}),
+      };
+    });
   } finally {
     if (tracking) {
       useStore.temporal.getState().resume();
     }
   }
 
-  if (options?.external === true) {
+  if (replacedHeld) {
     useStore.temporal.getState().clear();
   }
 

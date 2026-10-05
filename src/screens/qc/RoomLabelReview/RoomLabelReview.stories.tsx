@@ -27,7 +27,7 @@
  * | story | ép bằng |
  * |---|---|
  * | `Rong` | đồ thị không có phòng nào, nhưng CÓ bốn tường và vòng hở 62 mm |
- * | `DangTai` | cổng có `readRoomLayer` không bao giờ trả lời |
+ * | `DangTai` | cổng có `readLayer` (N16) không bao giờ trả lời |
  * | `MotPhan` | bộ mẫu nguyên bản — 14 phòng, 3 chưa đặt tên |
  * | `Loi` | `failReadRoomLayer` — ảnh nền VẪN xem được |
  * | `ThanhCong` | bộ mẫu với cả 14 phòng đã đặt tên và `reviewed` |
@@ -121,7 +121,7 @@ export function scenarioArgsFor(state: SevenState): RoomLabelReviewContainerProp
     forceCollapsed: scenario.isCollapsed,
     gateway:
       state === 'loading'
-        ? { ...gateway, readRoomLayer: () => new Promise<never>(() => undefined) }
+        ? { ...gateway, readLayer: () => new Promise<never>(() => undefined) }
         : gateway,
   };
 }
@@ -184,5 +184,17 @@ export const SaveBlocked: Story = {
   args: {
     ...scenarioArgsFor('partial'),
     forceSaveBlock: { confirm: null, kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown },
+  },
+};
+
+/** Dải "Tỉ lệ tạm" — tầng chưa hiệu chỉnh tỉ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
+export const ProvisionalScale: Story = {
+  name: 'Tỉ lệ tạm',
+  args: {
+    ...scenarioArgsFor('partial'),
+    gateway: createMockRoomLabelReviewGateway({
+      graph: graphOfScenario(scenarioFor('partial')),
+      scaleStatus: 'unresolved',
+    }),
   },
 };

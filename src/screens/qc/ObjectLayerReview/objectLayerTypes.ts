@@ -34,6 +34,8 @@ import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+
 /* -------------------------------------------------------------------------- */
 /* Ba lớp con.                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -617,6 +619,8 @@ export interface ObjectLayerReviewModel {
   readonly onAddManually: () => void;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
+  /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
+  readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

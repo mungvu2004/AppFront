@@ -251,6 +251,8 @@ export const ENDPOINTS = {
   spatial: {
     floor: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial`,
+    /** N15 — đồ thị cả dự án cộng `floorRevisions` (B3-02). */
+    graph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/spatial`,
     /**
      * Lớp không gian của một tầng: tường, ô mở, phòng, nội thất — lỗ hổng #4,
      * U4. `spatial.floor` ở trên chỉ mang siêu dữ liệu tầng (`Floor`, không có

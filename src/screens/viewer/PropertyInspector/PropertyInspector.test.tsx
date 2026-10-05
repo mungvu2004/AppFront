@@ -203,7 +203,9 @@ function createSpiedGateway(): SpiedGateway {
     spatial: {
       ...base.spatial,
       writeLayer: async (input) => {
-        layerWrites.push(input.body);
+        if (input.body.layer !== undefined) {
+          layerWrites.push(input.body.layer);
+        }
         layerFloors.push(input.floorId);
 
         return base.spatial.writeLayer(input);

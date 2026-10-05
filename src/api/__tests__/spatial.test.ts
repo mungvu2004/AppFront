@@ -268,7 +268,7 @@ describe('spatial.writeLayer', () => {
 
     const result = await client.spatial.writeLayer({
       baseVersion: 1,
-      body: layer,
+      body: { layer },
       floorId: 'L-LEVEL01',
       projectId: 'p-1',
     });
@@ -283,7 +283,7 @@ describe('spatial.writeLayer', () => {
 
     const result = await client.spatial.writeLayer({
       baseVersion: 1,
-      body: layer,
+      body: { layer },
       floorId: 'L-LEVEL01',
       projectId: 'p-1',
     });
@@ -303,7 +303,7 @@ describe('spatial.writeLayer', () => {
 
     const result = await createApiClient(http).spatial.writeLayer({
       baseVersion: 1,
-      body: layer,
+      body: { layer },
       floorId: 'L-LEVEL01',
       projectId: 'p-1',
     });

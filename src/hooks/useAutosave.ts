@@ -272,6 +272,7 @@ interface SaverBook {
 let book: SaverBook | null = null;
 
 const RELOAD_FAILED = 'Không tải lại được tầng này. Thử lại sau.';
+const SAVE_UNAVAILABLE = 'Không lưu được thay đổi của tầng này.';
 
 const bump = (target: SaverBook): void => {
   target.version += 1;
@@ -300,18 +301,25 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
   const source = (): Pick<RootState, 'spatial' | 'floorMeta'> | null => (owns() ? useStore.getState() : target.departed);
 
   target.saver = loaded.createFloorLayerSaver(projectId, {
-    onSaved(floorId, result, { redirtied }) {
+    onSaved(floorId, result, { redirtied, scaleSent }) {
       if (target.disposed || !owns()) {
         return;
       }
 
       if (redirtied) {
-        useStore.getState().updateFloorMeta(floorId, { revision: result.revision });
+        // Sửa đang chờ giữ nguyên; `scaleStatus` chỉ mất khi chính lượt này mang tỉ lệ.
+        const scaleStatus = scaleSent ? undefined : useStore.getState().floorMeta[floorId]?.scaleStatus;
+
+        useStore.getState().updateFloorMeta(floorId, { revision: result.revision, ...(scaleStatus ? { scaleStatus } : {}) });
       } else {
-        loaded.replaceFloorLayer(floorId, result);
+        loaded.replaceFloorLayer(floorId, result, scaleSent ? { scaleSent } : undefined);
       }
 
       loaded.applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId });
+
+      if (scaleSent) {
+        loaded.applyInvalidation(queryClient, 'persistFloorScale', { floorId, projectId });
+      }
     },
     readLayer(floorId) {
       const spatial = target.disposed ? null : (source()?.spatial ?? null);
@@ -478,6 +486,13 @@ export interface FloorLayerAutosaveHandle {
   saveBlock: FloorLayerSaveBlock | null;
   discardFloor: (floorId: string) => void;
   reloadFloor: (floorId: string) => Promise<void>;
+  /**
+   * Lưu tỉ lệ một tầng qua saver chung (F-04x-2 bước 5); trả khi máy chủ đã nhận, ném lỗi gốc
+   * khi hỏng hay khi tầng đang bị khối (không gửi). `hint` = revision N15, chỉ vào thân chỉ tỉ lệ.
+   */
+  saveScale: (floorId: string, ratio: number, hint?: number) => Promise<void>;
+  /** Tầng đang bị khối — `saveScale` sẽ không gửi (câu báo "áp mọi tầng" tách riêng nhóm này). */
+  isFloorBlocked: (floorId: string) => boolean;
 }
 
 /**
@@ -537,7 +552,19 @@ export function useFloorLayerAutosave({
       if (read.ok) {
         current.reloadErrors.delete(target);
         current.saver?.discardFloor(target);
-        loaded.replaceFloorLayer(target, { layer: read.data.layer, revision: read.data.revision }, { external: true });
+        const { layer, level, revision, scaleStatus } = read.data;
+
+        // `level` đi cùng lớp: tỉ lệ máy chủ đổi thì `Level` phải khớp lớp đã quy đổi (review-1 P2-2).
+        loaded.replaceFloorLayer(
+          target,
+          { layer, level, revision, ...(scaleStatus ? { scaleStatus } : {}) },
+          { external: true },
+        );
+
+        // `replaceFloorLayer` giữ `scaleStatus` cũ khi N16 vắng khoá; N16 cùng revision vắng khoá là tầng đã có tỉ lệ thật.
+        if (!scaleStatus && useStore.getState().floorMeta[target]?.scaleStatus) {
+          useStore.getState().updateFloorMeta(target, { revision });
+        }
       } else {
         current.reloadErrors.set(target, RELOAD_FAILED);
       }
@@ -548,6 +575,34 @@ export function useFloorLayerAutosave({
   );
 
   const discardFloor = useMemo(() => (target: string) => current.saver?.discardFloor(target), [current]);
+
+  const saveScale = useMemo(
+    () => async (target: string, ratio: number, hint?: number) => {
+      if (current.saver === null) {
+        attachSaver(current, await getPipes());
+      }
+
+      if (current.saver === null) {
+        // Sổ đã đóng (đổi dự án): không có lượt gửi nào, nên không được báo là đã lưu (A5).
+        throw new Error(SAVE_UNAVAILABLE);
+      }
+
+      try {
+        await current.saver.saveScale(target, ratio, hint);
+      } catch (error) {
+        // Thân lớp + tỉ lệ hỏng tạm để tầng bẩn lại; đường này không qua engine, nên phải báo
+        // nó — không thì không có lượt thử lại và nhãn vẫn "Đã lưu lúc …" (review-1 P2-3, A7).
+        if (current.saver.hasDirty()) {
+          current.engine.notifyChange();
+        }
+
+        throw error;
+      }
+    },
+    [current],
+  );
+
+  const isFloorBlocked = useMemo(() => (target: string) => (current.saver?.getBlock(target) ?? null) !== null, [current]);
 
   const target = floorId ?? current.saver?.blockedFloorIds()[0];
   const block = target === undefined ? null : (current.saver?.getBlock(target) ?? null);
@@ -582,5 +637,5 @@ export function useFloorLayerAutosave({
           };
   }
 
-  return { autosave, discardFloor, label, reloadFloor, saveBlock };
+  return { autosave, discardFloor, isFloorBlocked, label, reloadFloor, saveBlock, saveScale };
 }

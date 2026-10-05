@@ -64,6 +64,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessGroupTable } from './ThicknessGroupTable';
@@ -272,6 +273,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     preview,
     reapplyWarning,
     saveBlock,
+    provisionalScaleNotice,
     summary,
     thresholdLabels,
     thresholds,
@@ -293,6 +295,8 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
         </header>
 
         {saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={saveBlock} />}
+
+        {provisionalScaleNotice == null ? null : <ProvisionalScaleBanner notice={provisionalScaleNotice} />}
 
         {errorMessage === null ? null : (
           <InlineAlert level="violation" message={errorMessage} title={ERROR_TITLE} />
