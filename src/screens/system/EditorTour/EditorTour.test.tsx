@@ -724,3 +724,28 @@ describe('Giảm chuyển động — vùng khoét không chạy vị trí/kích
     expect(container.innerHTML).not.toMatch(/340/);
   });
 });
+
+describe('NO-208 — neo có mặt SAU commit đầu', () => {
+  it('tour hiện ngay khi neo xuất hiện ở DOM, không cần lượt render lại nào khác', async () => {
+    const resolveAnchor = (id: TourStepId): TourRect | null =>
+      id === 'editThickness' && document.getElementById('late-anchor') !== null ? FIXED_RECT : null;
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, hasModel: true });
+    expect(screen.queryByRole('button', { name: 'bỏ qua' })).toBeNull();
+
+    const anchor = document.createElement('div');
+    anchor.id = 'late-anchor';
+    try {
+      await act(async () => {
+        document.body.appendChild(anchor);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(await screen.findByRole('button', { name: 'bỏ qua' })).toBeTruthy();
+    } finally {
+      await act(async () => {
+        anchor.remove();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+  });
+});

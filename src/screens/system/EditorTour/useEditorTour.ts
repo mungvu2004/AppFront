@@ -496,6 +496,38 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
 
   const droppedCount = allowed.length - steps.length;
 
+  // Neo dò bằng DOM lúc render, mà anh em của màn chủ (thanh công cụ, danh sách…)
+  // chỉ có mặt SAU commit đầu — nên lượt render đầu thấy "chưa có bước nào" và tour
+  // chỉ hiện ở một lượt render lại bất kỳ về sau (NO-208). Sau mỗi commit và mỗi lần
+  // DOM đổi, dò lại; chỉ render lại khi TẬP neo có mặt đổi.
+  const anchorKey = steps.map((step) => step.id).join('|');
+  const anchorKeyRef = useRef(anchorKey);
+  anchorKeyRef.current = anchorKey;
+  const [, setAnchorTick] = useState(0);
+
+  useEffect(() => {
+    if (phase !== 'running' || typeof document === 'undefined') return undefined;
+
+    const probe = (): void => {
+      const present = allowed
+        .filter((step) => {
+          const hasBinding =
+            step.shortcutId !== null &&
+            registry.listShortcuts().some((e) => e.id === step.shortcutId);
+          return hasBinding || resolveAnchor(step.id) !== null;
+        })
+        .map((step) => step.id)
+        .join('|');
+      if (present !== anchorKeyRef.current) setAnchorTick((tick) => tick + 1);
+    };
+
+    probe();
+    const observer = new MutationObserver(probe);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  });
+
   const storedIndex =
     activeStepId === null ? 0 : steps.findIndex((step) => step.id === activeStepId);
   const runningIndex = steps.length === 0 ? -1 : Math.max(0, storedIndex);
@@ -587,9 +619,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   );
 
   const activeDefinition =
-    activeStep === undefined
-      ? undefined
-      : TOUR_STEPS.find((step) => step.id === activeStep.id);
+    activeStep === undefined ? undefined : TOUR_STEPS.find((step) => step.id === activeStep.id);
   const activeBinding =
     activeDefinition?.shortcutId === undefined || activeDefinition.shortcutId === null
       ? undefined

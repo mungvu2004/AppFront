@@ -374,7 +374,7 @@ export function CollaborationLayer({
 
       <div
         className={cn(
-          'pointer-events-auto absolute flex w-[280px] flex-col items-end gap-2',
+          'pointer-events-none absolute flex w-[280px] flex-col items-end gap-2',
           presenceAnchorClassName,
         )}
         style={{ zIndex: Z_INDEX.panel }}
@@ -383,7 +383,7 @@ export function CollaborationLayer({
           type="button"
           aria-expanded={isRosterOpen}
           aria-label={ROSTER_TOGGLE_LABEL}
-          className="flex items-center gap-2 rounded-full bg-bg-surface px-1 py-1 shadow-rest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className="pointer-events-auto flex items-center gap-2 rounded-full bg-bg-surface px-1 py-1 shadow-rest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
           onClick={() => setRosterOpen((open) => !open)}
         >
           {isCollapsed ? (
@@ -402,7 +402,7 @@ export function CollaborationLayer({
         </button>
 
         {captions.length > 0 && (
-          <div role="status" className="flex flex-col items-end gap-0.5 text-right">
+          <div role="status" className="pointer-events-auto flex flex-col items-end gap-0.5 text-right">
             {captions.map((caption) => (
               <p key={caption} className="text-[11px] leading-tight text-text-secondary">
                 {caption}
@@ -413,20 +413,24 @@ export function CollaborationLayer({
 
         <AnimatePresence>
           {isRosterOpen && (
-            <PresenceRoster
-              collaborators={visibleCollaborators}
-              canGoTo={capabilities.presence}
-              onGoToCollaborator={onGoToCollaborator}
-            />
+            <div className="pointer-events-auto">
+              <PresenceRoster
+                collaborators={visibleCollaborators}
+                canGoTo={capabilities.presence}
+                onGoToCollaborator={onGoToCollaborator}
+              />
+            </div>
           )}
         </AnimatePresence>
 
         {showLockStrip && (
-          <LockStrip
-            locks={locks}
-            canRequestAccess={capabilities.requestAccess}
-            onRequestEditAccess={onRequestEditAccess}
-          />
+          <div className="pointer-events-auto">
+            <LockStrip
+              locks={locks}
+              canRequestAccess={capabilities.requestAccess}
+              onRequestEditAccess={onRequestEditAccess}
+            />
+          </div>
         )}
       </div>
     </div>

@@ -230,11 +230,12 @@ async function signInThenOpenViewer(
  * Chữa được: lớp "đang dựng mô hình" — đo trước/sau, P2 đổi từ bị lớp ấy chặn
  * sang qua được nó.
  *
- * Hai bài từng đỏ ở mục này đã được chữa ở chỗ khác (NO-208):
+ * Hai bài từng đỏ ở mục này đã được chữa ở mã sản phẩm (NO-208):
  * - **P2** không phải do con trỏ của người cộng tác giả: nút ảnh đại diện của chính
  *   bạn nằm trọn trong ô ViewCube. Chữa ở `Viewer3DOverlays.tsx` (`PRESENCE_ANCHOR`).
- * - **Q2**: tour hiện ra SAU cú bấm "tìm phòng", nên {@link findOneRoom} gọi lại
- *   {@link dismissTour} ngay sau cú bấm đó.
+ * - **Q2**: tour hiện trễ vì `useEditorTour` dò neo DOM lúc render, trước khi các
+ *   anh em của nó có mặt. Hook nay dò lại sau commit nên tour hiện NGAY khi mở màn,
+ *   và {@link dismissTour} chỉ cần một lần.
  */
 async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
@@ -244,25 +245,17 @@ async function settleViewer(page: Page): Promise<void> {
 }
 
 /**
- * Đóng lớp hướng dẫn nếu nó hiện ra, bằng đúng nút "bỏ qua" của người dùng.
+ * Đóng lớp hướng dẫn bằng đúng nút "bỏ qua" của người dùng.
  *
- * Tour chỉ có bước để vẽ khi đã có phím hoặc neo thật (`useEditorTour.ts`, "luật
- * sống sót"); trên màn 3D bước ấy xuất hiện lúc ô tìm phòng đăng ký phím, tức SAU
- * cú bấm "tìm phòng" chứ không phải lúc dựng xong. Vì thế {@link findOneRoom} gọi
- * lại hàm này sau cú bấm đó (NO-208, Q2).
+ * Mỗi bài chạy trong một ngữ cảnh mới, tức người dùng lần đầu, nên tour PHẢI hiện:
+ * chờ nó hiện (không nuốt lỗi — tour không hiện là lỗi sản phẩm cần thấy), bấm
+ * một lần, rồi chờ lớp phủ tan hẳn.
  */
 async function dismissTour(page: Page): Promise<void> {
-  const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
-  await skip
+  await page
+    .getByRole('button', { name: 'bỏ qua', exact: true })
     .first()
-    .waitFor({ state: 'visible', timeout: VIEWER_READY_TIMEOUT_MS })
-    .catch(() => undefined);
-
-  if ((await skip.count()) === 0) {
-    return;
-  }
-
-  await skip.first().click();
+    .click({ timeout: VIEWER_READY_TIMEOUT_MS });
 
   /* Chờ lớp phủ biến mất HẲN — bấm tiếp lúc nó còn đang tan là bấm vào nó. */
   await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
@@ -432,8 +425,6 @@ async function findOneRoom(page: Page): Promise<void> {
      nhưng người quản lý toà nhà không biết phím ấy tồn tại. */
   await page.getByRole('button', { name: SEARCH_TRIGGER_LABEL }).click();
 
-  await dismissTour(page);
-
   const box = page.getByRole('combobox', { name: SEARCH_INPUT_LABEL });
   await expect(box).toBeVisible();
 
@@ -572,6 +563,34 @@ test('bấm chuột trong khung nhìn chọn được một đối tượng (R1)
     await expect(inspector).toContainText('mã đối tượng');
   });
 });
+
+/**
+ * NO-208 — **khung 280 px của thanh hiện diện không nuốt chuột ở chỗ nó không vẽ gì.**
+ *
+ * Nút ảnh đại diện chỉ ~36 px nép mép phải, nhưng khung chứa nó rộng 280 px và
+ * nằm dưới ViewCube + bản đồ nhỏ — giữa mô hình. Một khung `pointer-events-auto`
+ * ở đó là vùng chết vô hình. Điểm đo: giữa khung, cách mép phải 150 px, ngay
+ * dưới dòng `top-[216px]` — không có gì được vẽ ở đó, nên thứ nhận chuột phải là
+ * khung nhìn 3D (`canvas`).
+ */
+test('thanh hiện diện không nuốt chuột của mô hình ở vùng khung rỗng (NO-208)', async ({ page }) => {
+  await openViewer(page);
+
+  const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
+  expect(box).not.toBeNull();
+
+  const x = box!.x + box!.width - PRESENCE_FRAME_PROBE_X_PX;
+  const y = box!.y + PRESENCE_FRAME_PROBE_Y_PX;
+  const hit = await page.evaluate(
+    ([px, py]) => document.elementFromPoint(px ?? 0, py ?? 0)?.tagName ?? null,
+    [x, y],
+  );
+
+  expect(hit).toBe('CANVAS');
+});
+
+const PRESENCE_FRAME_PROBE_X_PX = 150;
+const PRESENCE_FRAME_PROBE_Y_PX = 234;
 
 /**
  * Nửa còn lại của cùng một mắt xích: **vai chỉ-xem thì cú bấm ấy KHÔNG chọn gì.**

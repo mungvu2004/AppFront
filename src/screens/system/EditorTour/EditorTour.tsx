@@ -378,8 +378,9 @@ export function EditorTour(props: EditorTourProps) {
         </div>
       )}
 
+      {/* Góc dưới phải: góc trên phải có chủ (thanh trên cùng, `Góc nhìn sẵn`) — NO-208. */}
       {isSkipChipVisible && (
-        <div className="pointer-events-auto fixed right-[16px] top-[16px]">
+        <div className="pointer-events-auto fixed bottom-[16px] right-[16px]">
           <Button variant="secondary" size="sm" onClick={onReopen}>
             xem hướng dẫn
           </Button>
