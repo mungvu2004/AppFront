@@ -55,14 +55,17 @@ export function toApiUrl(baseUrl: string, path: string): string {
 
 export const ENDPOINTS = {
   /**
-   * The credential exchange, and the only two paths a signed-out visitor posts to.
+   * The credential exchange, and the only paths a signed-out visitor posts to.
    *
-   * Flat strings rather than functions because neither takes a parameter: the
-   * address and password travel in the body, never in the path.
+   * Flat strings rather than functions because none takes a parameter: the
+   * address, password and one-time token travel in the body, never in the path.
+   * There is deliberately no `register`: sign-up is closed in v1 (K7 = B).
    */
   auth: {
+    invitationAccept: `${AUTH_ROOT}/invitations/accept`,
     login: `${AUTH_ROOT}/login`,
-    register: `${AUTH_ROOT}/register`,
+    passwordReset: `${AUTH_ROOT}/password-reset`,
+    passwordResetConfirm: `${AUTH_ROOT}/password-reset/confirm`,
   },
   drawings: {
     chunk: (projectId: string, uploadId: string): string =>

@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { ROUTES } from '../fixtures/routes';
 import { signInAs } from '../fixtures/session';
 
 import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
@@ -15,8 +14,16 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
  * đóng (BI-2), và dấu thập phân trên mọi hàng hoá đơn đã vẽ (BI-3).
  *
  * Dữ liệu là bộ nhớ module (`billingGateway.ts`) và phiên là biến module của bộ mẫu:
- * mọi bài vào màn bằng `signInAs(…, ROUTES.billing)`, không `goto` lần hai.
+ * mọi bài vào màn bằng `signInAs(…, BILLING_PATH)`, không `goto` lần hai.
  */
+
+/**
+ * Route `/billing` đã gỡ ở F-09a: BE chưa có thanh toán ở v1 (kế hoạch §10) và không mục
+ * điều hướng nào trỏ tới. Mã màn giữ nguyên; bộ này chạy lại khi route trở lại.
+ */
+const BILLING_PATH = '/billing';
+
+test.skip(true, 'Route /billing đã gỡ ở v1 (F-09a)');
 
 const READ_ONLY_NOTICE = 'Chỉ quản trị viên có thể thay đổi gói.';
 
@@ -34,7 +41,7 @@ for (const row of ROLE_ROWS) {
   test(`BI-1 vai ${row.role} ${row.canChange ? 'đổi được' : 'chỉ đọc'} gói — vai lấy từ phiên thật (A11 forbidden)`, async ({
     page,
   }) => {
-    await signInAs(page, row.role, ROUTES.billing);
+    await signInAs(page, row.role, BILLING_PATH);
     await expect(page.getByRole('heading', { level: 1, name: 'Thanh toán' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
     const upgrade = page.getByRole('button', { name: 'Nâng gói', exact: true });
@@ -56,7 +63,7 @@ for (const row of ROLE_ROWS) {
 test('BI-2 nâng gói hỏi trước bằng hộp thoại có số tiền; Esc huỷ không đổi gì, xác nhận mới đổi (A9, A12)', async ({
   page,
 }) => {
-  await signInAs(page, 'admin', ROUTES.billing);
+  await signInAs(page, 'admin', BILLING_PATH);
   await expect(currentPlan(page)).toHaveText('Cơ bản', { timeout: FIRST_PAINT_TIMEOUT_MS });
 
   const dialog = page.getByRole('dialog', { name: 'Xác nhận nâng gói' });
@@ -82,7 +89,7 @@ test('BI-2 nâng gói hỏi trước bằng hộp thoại có số tiền; Esc h
 
 test('BI-3 diện tích hoá đơn dùng dấu phẩy thập phân trên mọi hàng (A15)', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(ROUTES.billing);
+  await page.goto(BILLING_PATH);
 
   const table = page.getByRole('table');
   // Hàng dữ liệu mang mã hoá đơn `HD-…`; hàng tiêu đề (`th`) cũng lộ ra như `cell` nên không lọc theo role được.

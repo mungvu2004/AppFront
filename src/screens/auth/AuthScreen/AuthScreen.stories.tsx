@@ -14,7 +14,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import viMessages from '@/i18n/vi.json';
 
 import { AuthScreenView, type AuthScreenViewProps } from './AuthScreen';
-import { LOCKOUT_SECONDS, MIN_PASSWORD_LENGTH } from './useAuthScreen';
+import { MIN_PASSWORD_LENGTH } from './useAuthScreen';
+import type { ForgotPasswordModel } from './useForgotPassword';
 
 const AUTH_MESSAGES = viMessages.auth;
 
@@ -33,27 +34,39 @@ const noop = (): void => undefined;
 const SAMPLE_EMAIL = 'thu.ha@vidu.vn';
 const SAMPLE_PASSWORD = 'khong-doan-duoc';
 
+const forgotBase: ForgotPasswordModel = {
+  email: '',
+  problem: undefined,
+  notice: null,
+  sentMessage: null,
+  isSending: false,
+  isSent: false,
+  hasFailure: false,
+  canSubmit: true,
+};
+
 const base: AuthScreenViewProps = {
   state: 'empty',
-  tab: 'signIn',
+  panel: 'signIn',
+  forgot: forgotBase,
   isCollapsed: false,
   isSubmitting: false,
-  values: { email: '', password: '', fullName: '', rememberMe: false },
+  values: { email: '', password: '', rememberMe: false },
   problems: {},
   notice: null,
   canSubmit: true,
   submitLabel: AUTH_MESSAGES.actions.signIn,
   isBlocked: false,
-  setTab: noop,
   setEmail: noop,
   setPassword: noop,
-  setFullName: noop,
   setRememberMe: noop,
   blurField: noop,
   setCollapsed: noop,
   submit: noop,
   ssoSignIn: noop,
   forgotPassword: noop,
+  closeForgotPassword: noop,
+  forgotActions: { setEmail: noop, submit: noop, reset: noop },
 };
 
 /** Nothing typed yet — the state a visitor arrives in. */
@@ -100,10 +113,7 @@ export const LockedOut: Story = {
     notice: {
       tone: 'attention',
       title: AUTH_MESSAGES.errors.tooManyAttempts.title,
-      message: AUTH_MESSAGES.errors.tooManyAttempts.description.replace(
-        '{{seconds}}',
-        String(LOCKOUT_SECONDS),
-      ),
+      message: AUTH_MESSAGES.errors.tooManyAttempts.description,
     },
   },
 };
@@ -156,7 +166,41 @@ export const Collapsed: Story = {
   args: { ...base, state: 'collapsed', isCollapsed: true },
 };
 
-/** The other tab, with its extra field. */
-export const Register: Story = {
-  args: { ...base, tab: 'register', submitLabel: AUTH_MESSAGES.actions.register },
+/** The server answered 403 `ORIGIN_MISMATCH`: a configuration fault, and the form stays. */
+export const OriginMismatch: Story = {
+  args: {
+    ...base,
+    state: 'error',
+    values: { ...base.values, email: SAMPLE_EMAIL, password: SAMPLE_PASSWORD },
+    notice: {
+      tone: 'violation',
+      title: AUTH_MESSAGES.errors.originMismatch.title,
+      message: AUTH_MESSAGES.errors.originMismatch.description,
+    },
+  },
+};
+
+/** "Quên mật khẩu" replaces the form; the address typed so far comes along. */
+export const ForgotPassword: Story = {
+  args: {
+    ...base,
+    state: 'partial',
+    panel: 'forgotPassword',
+    forgot: { ...forgotBase, email: SAMPLE_EMAIL },
+  },
+};
+
+/** N8 always answers 204, so the sentence is neutral: secondary text, no state colour. */
+export const ForgotPasswordSent: Story = {
+  args: {
+    ...base,
+    state: 'success',
+    panel: 'forgotPassword',
+    forgot: {
+      ...forgotBase,
+      email: SAMPLE_EMAIL,
+      isSent: true,
+      sentMessage: AUTH_MESSAGES.forgotPassword.sent,
+    },
+  },
 };

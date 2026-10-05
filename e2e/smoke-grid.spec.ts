@@ -75,6 +75,8 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const ROWS = {
   login: { anchor: { role: 'button', name: 'Đăng nhập' } },
+  invitationAccept: { anchor: { role: 'heading', name: 'Nhận lời mời' } },
+  passwordReset: { anchor: { role: 'heading', name: 'Đặt lại mật khẩu' } },
   onboarding: { anchor: { role: 'button', name: 'Tạo dự án' } },
   accessDenied: { anchor: { role: 'heading', name: 'Bạn chưa có quyền truy cập' } },
   notFound: { anchor: { role: 'heading', name: 'Không tìm thấy trang này' } },
@@ -98,7 +100,6 @@ const ROWS = {
   },
   projectSettings: { anchor: { role: 'heading', name: 'cài đặt dự án' } },
   account: { anchor: { role: 'heading', name: 'cài đặt tài khoản' } },
-  billing: { anchor: { role: 'heading', name: 'Thanh toán' } },
   adminUsers: { anchor: { text: 'ma trận quyền theo vai trò' } },
   adminModels: { anchor: { label: 'tìm model' } },
   projectUpload: { anchor: { role: 'navigation', name: 'Tải lên bản vẽ' } },

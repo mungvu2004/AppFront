@@ -67,7 +67,6 @@ export const ROUTE_PATTERNS = {
   account: '/tai-khoan',
   adminModels: `${ADMIN_ROOT}/models`,
   adminUsers: `${ADMIN_ROOT}/users`,
-  billing: '/billing',
   canvasOverlaysDemo: '/demo/canvas-overlays',
   dashboard: '/',
   dataEntryDemo: '/data-entry-demo',
@@ -75,6 +74,7 @@ export const ROUTE_PATTERNS = {
   designSystem: DESIGN_SYSTEM_ROOT,
   designSystemStates: `${DESIGN_SYSTEM_ROOT}/states`,
   feedbackDemo: '/feedback-demo',
+  invitationAccept: '/login/invitation',
   listReviewDemo: '/list-review-demo',
   login: '/login',
   // Đường dẫn tiếng Việt, cùng ngoại lệ đã ghi ở `accessDenied` và `account`:
@@ -83,6 +83,7 @@ export const ROUTE_PATTERNS = {
   notFound: '*',
   notifications: '/thong-bao',
   onboarding: '/onboarding',
+  passwordReset: '/login/reset-password',
   projectCadConfirm: `${PROJECTS_ROOT}/:projectId/floors/:floorId/cad-confirm`,
   projectData: `${PROJECTS_ROOT}/:projectId/data`,
   projectDimensions: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/dimensions`,
@@ -121,16 +122,17 @@ export const ROUTES = {
   account: ROUTE_PATTERNS.account,
   adminModels: ROUTE_PATTERNS.adminModels,
   adminUsers: ROUTE_PATTERNS.adminUsers,
-  billing: ROUTE_PATTERNS.billing,
   /** Where a visitor lands when nothing more specific was asked for. */
   dashboard: ROUTE_PATTERNS.dashboard,
   demoGallery: ROUTE_PATTERNS.demoGallery,
   designSystem: ROUTE_PATTERNS.designSystem,
   designSystemStates: ROUTE_PATTERNS.designSystemStates,
+  invitationAccept: ROUTE_PATTERNS.invitationAccept,
   login: ROUTE_PATTERNS.login,
   mobileViewer: (projectId: string): string => `${MOBILE_ROOT}/du-an/${projectId}`,
   notifications: ROUTE_PATTERNS.notifications,
   onboarding: ROUTE_PATTERNS.onboarding,
+  passwordReset: ROUTE_PATTERNS.passwordReset,
   project: {
     cadConfirm: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,

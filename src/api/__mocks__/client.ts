@@ -1262,10 +1262,9 @@ export const createMockApiClient = (): ApiClient => {
      * chỉ ghi ở đây để biết cấp vai nào.
      */
     auth: {
-      register: async ({ body }) => {
-        lastSignedInEmail = body.email;
-        return ok(undefined);
-      },
+      acceptInvitation: async () => ok(undefined),
+      confirmPasswordReset: async () => ok(undefined),
+      requestPasswordReset: async () => ok(undefined),
       signIn: async ({ body }) => {
         lastSignedInEmail = body.email;
         return ok(undefined);
