@@ -31,9 +31,15 @@ describe('invalidationMap', () => {
     expect(invalidationMap.deleteProject({ projectId })).toEqual(expected);
   });
 
-  it('scopes addProjectMember and removeProjectMember to that project detail only', () => {
-    expect(invalidationMap.addProjectMember({ projectId })).toEqual([queryKeys.project.detail(projectId)]);
-    expect(invalidationMap.removeProjectMember({ projectId })).toEqual([queryKeys.project.detail(projectId)]);
+  it('invalidates detail, members and summaries for addProjectMember and removeProjectMember', () => {
+    const expected = [
+      queryKeys.project.detail(projectId),
+      queryKeys.project.members(projectId),
+      queryKeys.project.summaries(),
+    ];
+
+    expect(invalidationMap.addProjectMember({ projectId })).toEqual(expected);
+    expect(invalidationMap.removeProjectMember({ projectId })).toEqual(expected);
   });
 
   it('marks the summaries query stale through applyInvalidation(renameProject)', () => {

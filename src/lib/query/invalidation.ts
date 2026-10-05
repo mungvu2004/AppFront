@@ -290,9 +290,17 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.project.detail(projectId),
   ],
 
-  addProjectMember: ({ projectId }) => [queryKeys.project.detail(projectId)],
+  addProjectMember: ({ projectId }) => [
+    queryKeys.project.detail(projectId),
+    queryKeys.project.members(projectId),
+    queryKeys.project.summaries(),
+  ],
 
-  removeProjectMember: ({ projectId }) => [queryKeys.project.detail(projectId)],
+  removeProjectMember: ({ projectId }) => [
+    queryKeys.project.detail(projectId),
+    queryKeys.project.members(projectId),
+    queryKeys.project.summaries(),
+  ],
 };
 
 /**
