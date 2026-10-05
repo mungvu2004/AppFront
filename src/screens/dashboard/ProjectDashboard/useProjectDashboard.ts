@@ -314,7 +314,7 @@ export function useProjectDashboard(
       sortedProjects.map((project) => {
         const status = derivedStatusOf(project);
         const statusVariant = status === 'done' ? 'verified' : status === 'processing' ? 'neutral' : 'attention';
-        const statusLabel = status === 'done' ? 'hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'cần QC';
+        const statusLabel = status === 'done' ? 'Hoàn thành' : status === 'processing' ? 'Đang xử lý' : 'Cần QC';
         const reviewed = formatNumber(project.wallsReviewedCount, { grouping: false });
         const total = formatNumber(project.wallsTotalCount, { grouping: false });
         const progressRatio = project.wallsTotalCount > 0 ? project.wallsReviewedCount / project.wallsTotalCount : 0;

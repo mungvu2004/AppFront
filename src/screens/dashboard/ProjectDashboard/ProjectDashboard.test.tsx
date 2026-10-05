@@ -61,7 +61,7 @@ const SAMPLE_ROW: ProjectCardModel = {
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
-  statusLabel: 'cần QC',
+  statusLabel: 'Cần QC',
   progressLabel: '30/48 tường đã duyệt',
   progressRatio: 30 / 48,
   progressPercentLabel: '63%',
@@ -194,12 +194,12 @@ describe('ProjectDashboardView, seven states', () => {
     render(
       <ProjectDashboardView
         {...PROPS_BY_STATE.success()}
-        rows={[{ ...SAMPLE_ROW, statusVariant: 'attention', statusLabel: 'cần QC', progressLabel: '30/48 tường đã duyệt' }]}
+        rows={[{ ...SAMPLE_ROW, statusVariant: 'attention', statusLabel: 'Cần QC', progressLabel: '30/48 tường đã duyệt' }]}
       />,
     );
 
     expect(screen.queryByText('hoàn thành')).not.toBeInTheDocument();
-    expect(screen.getByText('cần QC')).toBeInTheDocument();
+    expect(screen.getAllByText('Cần QC').length).toBeGreaterThan(0);
   });
 
   it('opens a project on Enter, from the keyboard alone', () => {

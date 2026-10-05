@@ -39,6 +39,7 @@
  * lower case and sentence style, as invariant A6 requires.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { can } from '@/lib/auth/permissions';
@@ -262,7 +263,7 @@ const TONE_BY_STATUS: Readonly<Record<ShareLink['status'], ShareLinkRow['tone']>
 function titleOf(link: ShareLink): string {
   const label = link.label?.trim() ?? '';
 
-  return label.length > 0 ? label : `Liên kết ${SHARE_PERMISSION_LABELS[link.permission]}`;
+  return label.length > 0 ? label : `Liên kết ${lowerFirst(SHARE_PERMISSION_LABELS[link.permission])}`;
 }
 
 /* -------------------------------------------------------------------------- */

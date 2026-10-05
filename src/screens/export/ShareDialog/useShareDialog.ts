@@ -46,6 +46,7 @@
  * không cái nào có mặt ở đây dưới dạng một `TODO` hay một cờ luôn `false`.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -557,12 +558,12 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setPermissionState(next);
 
       const ticket = createUndoTicket({
-        description: `Đổi quyền chia sẻ sang ${SHARE_PERMISSION_LABELS[next]}`,
+        description: `Đổi quyền chia sẻ sang ${lowerFirst(SHARE_PERMISSION_LABELS[next])}`,
         undo: () => setPermissionState(previous),
       });
 
       onToast?.({
-        message: `Đã đổi quyền chia sẻ sang ${SHARE_PERMISSION_LABELS[next]}`,
+        message: `Đã đổi quyền chia sẻ sang ${lowerFirst(SHARE_PERMISSION_LABELS[next])}`,
         onUndo: () => {
           ticket.undo();
         },

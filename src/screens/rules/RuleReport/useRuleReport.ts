@@ -46,6 +46,7 @@
  *   thang, không viết số thô (R-71).
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -344,7 +345,7 @@ const skippedGroupsOf = (
 
   return order.map((group) => ({
     group,
-    reason: `nhóm ${RULE_GROUP_LABELS[group]}: ${String(
+    reason: `nhóm ${lowerFirst(RULE_GROUP_LABELS[group])}: ${String(
       countByGroup.get(group) ?? 0,
     )} luật chưa chạy được vì mô hình chưa có tầng nào để soi.`,
     remedyPath: remedy.path,

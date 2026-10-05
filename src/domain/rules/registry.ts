@@ -421,7 +421,7 @@ export const MIN_ROOM_AREA_M2: Readonly<Record<RoomUsage, number>> = {
 export const ROOM_USAGE_LABELS: Readonly<Record<RoomUsage, string>> = {
   livingRoom: 'phòng khách',
   bedroom: 'phòng ngủ',
-  kitchen: 'Bếp',
+  kitchen: 'bếp',
   bathroom: 'phòng tắm',
   corridor: 'hành lang',
   stairwell: 'buồng thang',

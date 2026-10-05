@@ -219,7 +219,7 @@ export function buildRuleSettingsGroups(options: BuildGroupsOptions = {}): reado
     return {
       group,
       label: RULE_GROUP_LABELS[group],
-      description: `Các luật về ${RULE_GROUP_LABELS[group]}.`,
+      description: `Các luật về ${lowerFirst(RULE_GROUP_LABELS[group])}.`,
       enabled: rows.some((row) => row.enabled),
       rows,
     };
