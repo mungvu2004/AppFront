@@ -386,16 +386,18 @@ async function stepZoom(page: Page): Promise<void> {
   const label = zoomLabel(page);
   const read = async (): Promise<number> => percentOf((await label.innerText()).trim());
 
-  /* Yên = hai lần đọc cách nhau 400 ms bằng nhau. */
+  /* Yên = hai lần đọc liên tiếp, cách nhau ZOOM_SETTLE_MS, bằng nhau. */
   let before = await read();
   await expect
-    .poll(async () => {
-      const previous = before;
-      await page.waitForTimeout(ZOOM_SETTLE_MS);
-      before = await read();
+    .poll(
+      async () => {
+        const previous = before;
+        before = await read();
 
-      return before === previous;
-    })
+        return before === previous;
+      },
+      { intervals: [ZOOM_SETTLE_MS] },
+    )
     .toBe(true);
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);

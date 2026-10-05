@@ -147,7 +147,7 @@ export function ViewerShellContainer(props: ViewerShellContainerProps) {
     >
       <WiredViewerShell {...props} />
       <EditorTourContainer
-        chipAnchorClassName="bottom-[16px] left-1/2 -translate-x-1/2"
+        chipAnchorClassName="bottom-[16px] left-1/2 -translate-x-1/2 max-xl:bottom-auto max-xl:top-[96px]"
         hostId="viewer-shell"
       />
     </ScreenErrorBoundary>
