@@ -54,6 +54,9 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
    khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
+import { fillTemplate, RECOVERY_LOCKOUT_SECONDS } from '../recoveryShared';
+import { useLockout } from '../useLockout';
+
 import {
   useForgotPassword,
   type ForgotPasswordActions,
@@ -66,18 +69,6 @@ export type { SignInInput };
 /* -------------------------------------------------------------------------- */
 /* Wording.                                                                    */
 /* -------------------------------------------------------------------------- */
-
-/**
- * `{{name}}` filled from a table.
- *
- * `describeError` has the same three lines and does not export them. Copying
- * them is the smaller of the two wrongs: the alternative is widening the error
- * module's public surface for a screen, and `src/lib` is not a path this change
- * may edit.
- */
-function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => values[key] ?? whole);
-}
 
 /* -------------------------------------------------------------------------- */
 /* The port.                                                                   */
@@ -200,10 +191,7 @@ export interface UseAuthScreenOptions {
 /* -------------------------------------------------------------------------- */
 
 /** How long the server locks an address out for, when it does not say. */
-export const LOCKOUT_SECONDS = 60;
-
-/** One second, named so `local/no-raw-duration` sees a constant rather than a literal. */
-const COUNTDOWN_TICK_MS = 1000;
+export const LOCKOUT_SECONDS = RECOVERY_LOCKOUT_SECONDS;
 
 const TOO_MANY_REQUESTS_STATUS = 429;
 
@@ -429,7 +417,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [isCollapsed, setCollapsedState] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(0);
+  const { isLocked: isLockedOut, lock } = useLockout();
 
   /**
    * Guards the double submit.
@@ -471,26 +459,12 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
 
   /* ---- the lockout countdown --------------------------------------------- */
 
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      return undefined;
-    }
-
-    const timer = setInterval(() => {
-      setSecondsLeft((remaining) => (remaining > 0 ? remaining - 1 : 0));
-    }, COUNTDOWN_TICK_MS);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [secondsLeft]);
-
   /** The lockout is over the moment the count reaches zero; the strip goes with it. */
   useEffect(() => {
-    if (secondsLeft === 0) {
+    if (!isLockedOut) {
       setFailure((current) => (current?.kind === 'tooManyAttempts' ? null : current));
     }
-  }, [secondsLeft]);
+  }, [isLockedOut]);
 
   /* ---- editing ------------------------------------------------------------ */
 
@@ -567,10 +541,10 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   /* ---- submitting --------------------------------------------------------- */
 
   const isBlocked = failure?.kind === 'accountDisabled';
-  const isLockedOut = secondsLeft > 0;
+  const isWaitingForSession = failure?.kind === 'signedInOffline';
 
   const submit = useCallback(() => {
-    if (inFlight.current || isBlocked || isLockedOut) {
+    if (inFlight.current || isBlocked || isLockedOut || isWaitingForSession) {
       return;
     }
 
@@ -633,12 +607,16 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
 
         if (field !== undefined) {
           setProblems({
-            [field]: field === 'email' ? AUTH_MESSAGES.problems.emailInvalid : MISSING_BY_FIELD[field],
+            [field]: field === 'email'
+              ? AUTH_MESSAGES.problems.emailInvalid
+              : fillTemplate(AUTH_MESSAGES.problems.passwordTooShort, {
+                  count: String(MIN_PASSWORD_LENGTH),
+                }),
           });
         }
 
         if (classified.kind === 'tooManyAttempts') {
-          setSecondsLeft(LOCKOUT_SECONDS);
+          lock(LOCKOUT_SECONDS);
         }
       })
       .catch((thrown: unknown) => {
@@ -646,7 +624,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
         setPhase('idle');
         setFailure({ kind: 'transport', cause: thrown });
       });
-  }, [gateway, isBlocked, isLockedOut, reducedMotion]);
+  }, [gateway, isBlocked, isLockedOut, isWaitingForSession, lock, reducedMotion]);
 
   /* ---- what the view sees -------------------------------------------------- */
 
@@ -710,7 +688,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     values,
     problems,
     notice,
-    canSubmit: !isSubmitting && !isBlocked && !isLockedOut,
+    canSubmit: !isSubmitting && !isBlocked && !isLockedOut && !isWaitingForSession,
     submitLabel: AUTH_MESSAGES.actions.signIn,
     isBlocked,
   };

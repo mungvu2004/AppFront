@@ -345,6 +345,20 @@ function AuthRouteContent() {
 
   const initialNotice = useMemo(() => noticeOf(location.state), [location.state]);
 
+  // `state.notice` lives in the history entry and would come back after F5: read once, then drop
+  // it, keeping every other key (e.g. `from`).
+  useEffect(() => {
+    if (initialNotice === undefined) {
+      return;
+    }
+
+    const rest: Record<string, unknown> = { ...(location.state as Record<string, unknown>) };
+
+    delete rest.notice;
+
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: rest });
+  }, [initialNotice, location.pathname, location.search, location.state, navigate]);
+
   return (
     <AuthScreen
       gateway={gateway}

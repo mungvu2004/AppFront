@@ -429,7 +429,7 @@ describe('UsersApi', () => {
     });
   });
 
-  it('resends an invitation by invite id', async () => {
+  it('resends an invitation by user id', async () => {
     const { calls, http } = createHttpMock({
       'POST /users/invitations/invite-9/resend': pendingUserWire,
     });

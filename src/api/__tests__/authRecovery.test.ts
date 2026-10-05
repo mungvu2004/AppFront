@@ -7,9 +7,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { readWireError } from '@/lib/errors/wireError';
 import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/http';
-import { wireFailure } from '@/screens/auth/authTestKit';
 
 import { createApiClient } from '../client';
+import { ApiErrorBodySchema } from '../schemas/errors';
 import { ENDPOINTS } from '../endpoints';
 import {
   AcceptInvitationSchema,
@@ -21,6 +21,19 @@ interface PostCall {
   readonly path: string;
   readonly options: HttpRequestOptions<unknown> | undefined;
 }
+
+/** A 422 shaped the way `src/lib/http` returns it: status and `code` at the top, the body under `raw`. */
+const wireFailure = (status: number, body: { code: string }): Result<never, HttpError> => ({
+  ok: false,
+  error: {
+    kind: 'http',
+    status,
+    code: body.code,
+    requestId: 'req-test',
+    retryable: false,
+    raw: ApiErrorBodySchema.parse({ code: body.code, requestId: 'req-test' }),
+  },
+});
 
 function makeHttp(reply: Result<unknown, HttpError> = { ok: true, data: undefined }) {
   const calls: PostCall[] = [];

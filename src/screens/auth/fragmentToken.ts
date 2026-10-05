@@ -18,7 +18,10 @@
  * nơi nào bền hơn.
  */
 
-type FragmentTarget = Pick<Window, 'history' | 'location'>;
+interface FragmentTarget {
+  readonly history: Pick<History, 'state' | 'replaceState'>;
+  readonly location: Pick<Location, 'hash' | 'pathname' | 'search'>;
+}
 
 const remembered = new Map<string, string>();
 

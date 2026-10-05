@@ -204,7 +204,8 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
         if (result.ok) {
           setPhase('succeeded');
 
-          const established = await port.bootstrapSession();
+          // A throw is the same as `false`: the cookie is already accepted, so resubmitting would burn the token.
+          const established = await port.bootstrapSession().catch(() => false);
 
           inFlight.current = false;
 

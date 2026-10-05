@@ -238,6 +238,21 @@ describe('InvitationAccept — what the server answers', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('treats a throwing session open like `false`: error, link to /login, form not resubmittable', async () => {
+    const { navigate, port } = makePort();
+    const bootstrapSession = vi.fn(async (): Promise<boolean> => {
+      throw new Error('bootstrap failed');
+    });
+    const { container } = render(<InvitationAccept port={{ ...port, bootstrapSession }} />);
+
+    fillAndSubmit(container);
+
+    expect(await screen.findByText(AUTH.invitation.sessionNotOpened)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeDisabled();
+    expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toBeInTheDocument();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['INVITATION_TOKEN_INVALID', { code: 'INVITATION_TOKEN_INVALID' }],
     ['VALIDATION on the token', { code: 'VALIDATION', field: 'token' }],

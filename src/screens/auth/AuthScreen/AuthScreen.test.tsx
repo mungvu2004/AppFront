@@ -101,14 +101,14 @@ function baseProps(): AuthScreenViewProps {
 /** A gateway whose two calls are spies, refusing by default in the way asked for. */
 function stubGateway(reply: Awaited<ReturnType<AuthGateway['signIn']>> = { ok: true, data: undefined }): {
   readonly gateway: AuthGateway;
-  readonly signIn: ReturnType<typeof vi.fn>;
-  readonly requestPasswordReset: ReturnType<typeof vi.fn>;
+  readonly signIn: ReturnType<typeof vi.fn<AuthGateway['signIn']>>;
+  readonly requestPasswordReset: ReturnType<typeof vi.fn<AuthGateway['requestPasswordReset']>>;
 } {
-  const signIn = vi.fn(async () => reply);
-  const requestPasswordReset = vi.fn(async () => reply);
+  const signIn = vi.fn<AuthGateway['signIn']>(async () => reply);
+  const requestPasswordReset = vi.fn<AuthGateway['requestPasswordReset']>(async () => reply);
 
   return {
-    gateway: { signIn, requestPasswordReset } as unknown as AuthGateway,
+    gateway: { signIn, requestPasswordReset },
     signIn,
     requestPasswordReset,
   };
@@ -497,8 +497,8 @@ describe('AuthScreen — field validation', () => {
 
 describe('AuthScreen — submitting', () => {
   it('refuses a second submit while the first is still in flight', () => {
-    const signIn = vi.fn(() => new Promise<never>(() => undefined));
-    const gateway = { signIn, requestPasswordReset: vi.fn() } as unknown as AuthGateway;
+    const signIn = vi.fn<AuthGateway['signIn']>(() => new Promise(() => undefined));
+    const gateway: AuthGateway = { signIn, requestPasswordReset: vi.fn() };
     renderScreen({ gateway });
 
     type(emailField(), EMAIL);
@@ -512,8 +512,8 @@ describe('AuthScreen — submitting', () => {
   });
 
   it('keeps the button width and swaps only its label while sending', async () => {
-    const signIn = vi.fn(() => new Promise<never>(() => undefined));
-    const gateway = { signIn, requestPasswordReset: vi.fn() } as unknown as AuthGateway;
+    const signIn = vi.fn<AuthGateway['signIn']>(() => new Promise(() => undefined));
+    const gateway: AuthGateway = { signIn, requestPasswordReset: vi.fn() };
     renderScreen({ gateway });
 
     const widthBefore = submitButton().className.includes('w-full');

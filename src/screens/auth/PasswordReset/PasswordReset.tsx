@@ -64,11 +64,10 @@ export function PasswordResetView(props: PasswordResetViewProps) {
       ) : (
         <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
           <RecoveryNoticeStrip notice={notice} />
-          {isDone && (
-            <p role="status" className="text-[13px] leading-[18px] text-text-secondary">
-              {AUTH_MESSAGES.passwordReset.success}
-            </p>
-          )}
+          {/* Always mounted, filled later, so a screen reader announces the text. */}
+          <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:hidden">
+            {isDone ? AUTH_MESSAGES.passwordReset.success : null}
+          </p>
 
           <div className="flex flex-col gap-4">
             <Input

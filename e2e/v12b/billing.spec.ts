@@ -19,11 +19,11 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
 
 /**
  * Route `/billing` đã gỡ ở F-09a: BE chưa có thanh toán ở v1 (kế hoạch §10) và không mục
- * điều hướng nào trỏ tới. Mã màn giữ nguyên; bộ này chạy lại khi route trở lại.
+ * điều hướng nào trỏ tới (nợ NO-356). Mã màn giữ nguyên; bộ này chạy lại khi route trở lại.
  */
 const BILLING_PATH = '/billing';
 
-test.skip(true, 'Route /billing đã gỡ ở v1 (F-09a)');
+test.skip(true, 'NO-356: route /billing đã gỡ ở v1 (F-09a)');
 
 const READ_ONLY_NOTICE = 'Chỉ quản trị viên có thể thay đổi gói.';
 

@@ -131,7 +131,7 @@ describe('AuthScreen — failures read by wire code', () => {
 
   it.each([
     ['email', AUTH.problems.emailInvalid],
-    ['password', AUTH.problems.passwordRequired],
+    ['password', 'Mật khẩu cần ít nhất 8 ký tự.'],
   ])('puts VALIDATION on %s under that box', async (field, sentence) => {
     const { container } = setup({ signIn: wireFailure(422, { code: 'VALIDATION', field }) });
 
@@ -208,14 +208,22 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     openPanel();
     fireEvent.click(screen.getByRole('button', { name: AUTH.actions.sendResetLink }));
 
-    const sentence = await screen.findByRole('status');
+    const sentence = await screen.findByText(AUTH.forgotPassword.sent);
 
     expect(requestPasswordReset).toHaveBeenCalledWith({ email: EMAIL });
-    expect(sentence).toHaveTextContent(AUTH.forgotPassword.sent);
+    expect(sentence).toHaveAttribute('role', 'status');
     expect(sentence.className).toContain('text-text-secondary');
     expect(sentence.className).not.toMatch(/state-|verified|violation|attention/u);
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(stateOf(container)).toBe('success');
+  });
+
+  it('keeps the status region mounted and empty before anything is sent', () => {
+    setup();
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH.actions.forgotPassword }));
+
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('refuses a malformed address without calling the gateway', () => {

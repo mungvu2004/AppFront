@@ -10,7 +10,7 @@
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import viMessages from '@/i18n/vi.json';
@@ -96,6 +96,34 @@ describe('AuthRoute — location.state.notice', () => {
   });
 });
 
+describe('AuthRoute — the notice does not survive a reload', () => {
+  it('drops state.notice from the history entry after reading it, keeping other keys', async () => {
+    const seen: unknown[] = [];
+
+    function Probe() {
+      seen.push(useLocation().state);
+
+      return null;
+    }
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/login', state: { notice: 'passwordReset', from: '/tai-khoan' } }]}>
+        <Probe />
+        <Routes>
+          <Route path="/login" element={<AuthRoute />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(AUTH.notices.passwordReset)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(seen.at(-1)).toEqual({ from: '/tai-khoan' });
+    });
+    // The sentence stays on screen even though the entry no longer carries it.
+    expect(screen.getByText(AUTH.notices.passwordReset)).toBeInTheDocument();
+  });
+});
+
 describe('AuthRoute — a session that opens by itself', () => {
   it('says "đang thử lại" when the cookie was accepted but the server cannot be reached, then moves on once the session opens', async () => {
     renderRoute();
@@ -107,6 +135,8 @@ describe('AuthRoute — a session that opens by itself', () => {
 
     expect(await screen.findByText(AUTH.notices.signedInOffline)).toBeInTheDocument();
     expect(screen.queryByText('trang-dich')).toBeNull();
+    // Waiting for the session: a second press would only send a second sign-in.
+    expect(screen.getByRole('button', { name: AUTH.actions.signIn })).toBeDisabled();
 
     act(() => {
       setAuthenticatedSession(SESSION);

@@ -11,17 +11,14 @@ function makeTarget(options: { hash: string; pathname?: string; state?: unknown;
   };
   const history = {
     state: options.state ?? null,
-    replaceState: vi.fn((_state: unknown, _unused: string, url?: string | URL | null) => {
+    replaceState: vi.fn<History['replaceState']>((_state, _unused, url) => {
       // The URL handed over carries no fragment, so the hash is gone afterwards.
       expect(String(url)).not.toContain('#');
       location.hash = '';
     }),
   };
 
-  return { location, history } as unknown as Pick<Window, 'history' | 'location'> & {
-    history: { replaceState: ReturnType<typeof vi.fn>; state: unknown };
-    location: { hash: string };
-  };
+  return { location, history };
 }
 
 beforeEach(() => {
