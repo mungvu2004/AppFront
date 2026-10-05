@@ -29,6 +29,15 @@ import { TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
  *   (không dùng `dismissTour` mặc định: nó đếm một lần, không chờ, nên chập chờn ở đây).
  */
 
+/**
+ * F-06 (E6=B): liên kết chia sẻ là v2 — máy chủ v1 không mount BE-BIND #47–#49
+ * (`/share-links`), nên `SHARE_LINKS_SUPPORTED` (`src/lib/export/shareLink.ts`) tắt và màn
+ * xuất không còn nút "chia sẻ" lẫn hộp thoại. Bài đầu khẳng định đúng trạng thái tắt; các
+ * bài mở hộp thoại bỏ qua (không xoá) — v2 lật cờ thì gỡ các dòng `test.skip`.
+ */
+const SHARE_LINKS_V2_SKIP =
+  'Liên kết chia sẻ là v2 (/share-links, BE-BIND #47–#49; F-06, E6=B, NO-355): bản v1 không có nút "chia sẻ"';
+
 /** Lần tải đầu một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
@@ -110,16 +119,24 @@ async function openShareDialog(page: Page): Promise<Locator> {
   return dialog;
 }
 
-test('không bơm kho: /export đi bằng đường sản phẩm thì cổng nạp kho và nút "chia sẻ" có mặt (B-V12-01)', async ({
+test('không bơm kho: /export đi bằng đường sản phẩm thì cổng nạp kho xong, nút "chia sẻ" vắng và không request nào tới /share-links (B-V12-01, F-06)', async ({
   page,
 }) => {
+  const shareLinkRequests: string[] = [];
+  page.on('request', (request) => {
+    if (SHARE_LINKS.test(request.url())) shareLinkRequests.push(request.url());
+  });
+
   await openExport(page);
-  await expect(shareButton(page)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
+  await expect(shareButton(page)).toHaveCount(0);
+  expect(shareLinkRequests).toEqual([]);
 });
 
 test('nút "chia sẻ" mở hộp thoại với tiêu điểm đầu ở "Đóng hộp thoại", Escape đóng đúng nó và vẫn ở /export cạnh nút "chia sẻ" (V3-SHARE-1)', async ({
   page,
 }) => {
+  test.skip(true, SHARE_LINKS_V2_SKIP);
   const dialog = await openShareDialog(page);
   await expect(dialog.getByRole('button', { name: 'Đóng hộp thoại' })).toBeFocused();
 
@@ -137,6 +154,7 @@ test('nút "chia sẻ" mở hộp thoại với tiêu điểm đầu ở "Đóng
 test('trong hộp thoại "chia sẻ bản vẽ", 30 lần Tab không đưa tiêu điểm ra ngoài (V3-SHARE-1)', async ({
   page,
 }) => {
+  test.skip(true, SHARE_LINKS_V2_SKIP);
   const dialog = await openShareDialog(page);
   for (let i = 0; i < TAB_PRESSES; i += 1) {
     await page.keyboard.press('Tab');
@@ -155,6 +173,7 @@ test('trong hộp thoại "chia sẻ bản vẽ", 30 lần Tab không đưa tiê
 test('máy chủ giả trả danh sách rỗng: mở hộp thoại chia sẻ thì không hiện lỗi "thao tác chia sẻ đã bị huỷ"', async ({
   page,
 }) => {
+  test.skip(true, SHARE_LINKS_V2_SKIP);
   await page.route(SHARE_LINKS, (route) => route.fulfill({ json: [] }));
   const dialog = await openShareDialog(page);
   await expect(dialog.getByRole('region', { name: 'liên kết chia sẻ' })).toBeVisible();
@@ -169,6 +188,7 @@ test('máy chủ giả trả danh sách rỗng: mở hộp thoại chia sẻ th�
 test('máy chủ giả có một liên kết: "thu hồi" hỏi xác nhận trước; "để nguyên" và Escape không gửi gì, xác nhận "thu hồi" gửi đúng một lệnh (F2, A9)', async ({
   page,
 }) => {
+  test.skip(true, SHARE_LINKS_V2_SKIP);
   const deletes: string[] = [];
   await page.route(SHARE_LINKS, async (route: Route) => {
     const method = route.request().method();
@@ -213,6 +233,7 @@ test('máy chủ giả có một liên kết: "thu hồi" hỏi xác nhận trư
 test('máy chủ giả: "tạo liên kết" trong hộp thoại chia sẻ hiện toast "đã tạo liên kết chia sẻ"', async ({
   page,
 }) => {
+  test.skip(true, SHARE_LINKS_V2_SKIP);
   await page.route(SHARE_LINKS, (route: Route) =>
     route.request().method() === 'POST'
       ? route.fulfill({ status: 201, json: ACTIVE_LINK })

@@ -37,7 +37,8 @@ test('mở bản điện thoại của một dự án: tên dự án đến từ
   await expect(screen).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   // Tên mặc định đứng đó cho tới khi truy vấn về — chờ tên thật, không đọc một lần.
   await expect(screen.getByRole('heading', { level: 1 })).toHaveText(PROJECT_NAME);
-  await expect(screen.getByRole('button', { name: 'Chia sẻ dự án', exact: true })).toBeVisible();
+  // F-06 (E6=B): liên kết chia sẻ là v2 — bản v1 không có nút chia sẻ, nút rời DOM.
+  await expect(screen.getByRole('button', { name: 'Chia sẻ dự án', exact: true })).toHaveCount(0);
 });
 
 /*

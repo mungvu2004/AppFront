@@ -163,6 +163,8 @@ for (const host of HOSTS) {
 test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp thoại "chia sẻ bản vẽ" (B-V2-05)', async ({
   page,
 }) => {
+  // F-06 (E6=B): liên kết chia sẻ là v2 — bản v1 không có nút "chia sẻ". Gỡ khi v2 lật cờ.
+  test.skip(true, 'Liên kết chia sẻ là v2 (/share-links, BE-BIND #47–#49; F-06, E6=B, NO-355): bản v1 không có nút "chia sẻ"');
   await page.setViewportSize(VIEWPORTS[0]);
   await openExport(page);
   await skipTour(page, TOUR_TITLES.exportResult);
