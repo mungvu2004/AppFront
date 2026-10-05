@@ -364,9 +364,17 @@ async function stepRotate(page: Page): Promise<void> {
 /**
  * Việc 2 — thu phóng.
  *
- * Lăn chuột trong khung nhìn, rồi khẳng định mức thu phóng ĐÃ LỚN HƠN. Nhãn ấy
- * do `useViewerShell` định dạng sẵn (A15), nên nó là đầu ra thật của camera chứ
- * không phải một chuỗi màn hình tự bịa.
+ * Lăn chuột VÀO trong khung nhìn, rồi khẳng định mức thu phóng ĐÃ LỚN HƠN. Nhãn
+ * ấy do `useViewerShell` định dạng sẵn (A15), nên nó là đầu ra thật của camera
+ * chứ không phải một chuỗi màn hình tự bịa.
+ *
+ * Hai điều đo được ngày 2026-10-05 (NO-208), vì sao bài này đỏ 4/5 lượt khi chạy
+ * cùng bài khác:
+ * - Camera mở đầu bằng một đoạn chạy về khuôn hình chuẩn, nhãn tự leo lên mức
+ *   chuẩn không cần lăn chuột. Bài cũ đọc `before` giữa đoạn chạy ấy: xanh vì sai
+ *   lý do khi đoạn chạy còn dở, đỏ khi nó đã xong. Nay chờ nhãn yên rồi mới đo.
+ * - Sau bước "quay" (đổi sang preset "Trên xuống"), cú lăn chuột không đổi nhãn
+ *   nữa — nên bước này chạy TRƯỚC bước quay.
  */
 async function stepZoom(page: Page): Promise<void> {
   const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
@@ -375,7 +383,19 @@ async function stepZoom(page: Page): Promise<void> {
   expect(box).not.toBeNull();
 
   const label = zoomLabel(page);
-  const before = percentOf((await label.innerText()).trim());
+  const read = async (): Promise<number> => percentOf((await label.innerText()).trim());
+
+  /* Yên = hai lần đọc cách nhau 400 ms bằng nhau. */
+  let before = await read();
+  await expect
+    .poll(async () => {
+      const previous = before;
+      await page.waitForTimeout(ZOOM_SETTLE_MS);
+      before = await read();
+
+      return before === previous;
+    })
+    .toBe(true);
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
@@ -383,10 +403,11 @@ async function stepZoom(page: Page): Promise<void> {
     await page.mouse.wheel(0, -WHEEL_DELTA_PX);
   }
 
-  await expect
-    .poll(async () => percentOf((await label.innerText()).trim()))
-    .toBeGreaterThan(before);
+  await expect.poll(read).toBeGreaterThan(before);
 }
+
+/** Khoảng đọc lại nhãn thu phóng để biết camera đã yên. */
+const ZOOM_SETTLE_MS = 400;
 
 /**
  * Việc 3 — chọn một tầng từ ray tầng.
@@ -467,8 +488,10 @@ test('mở được màn 3D và màn không trắng', async ({ page }) => {
 test('ba việc chỉ bằng thứ nhìn thấy trên màn: quay, thu phóng, chọn tầng', async ({ page }) => {
   await openViewer(page);
 
-  const rotateMs = await timed('quay', () => stepRotate(page));
+  /* Thu phóng TRƯỚC khi quay: bước quay đổi sang preset "Trên xuống" và camera
+     ở preset ấy không còn nhận cú lăn chuột (xem {@link stepZoom}). */
   const zoomMs = await timed('thu phóng', () => stepZoom(page));
+  const rotateMs = await timed('quay', () => stepRotate(page));
   const storeyMs = await timed('chọn tầng', () => stepChooseStorey(page));
 
   logDuration('tổng ba việc', rotateMs + zoomMs + storeyMs);
