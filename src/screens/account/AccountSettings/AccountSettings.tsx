@@ -76,10 +76,7 @@ interface AccountBlockProps {
  */
 function AccountBlock({ id, title, description, isLoading, tone, children }: AccountBlockProps) {
   return (
-    <section
-      aria-labelledby={id}
-      className={tone === 'danger' ? DANGER_BLOCK_CLASS : BLOCK_CLASS}
-    >
+    <section aria-labelledby={id} className={tone === 'danger' ? DANGER_BLOCK_CLASS : BLOCK_CLASS}>
       <div className="flex flex-col gap-1">
         <h2 id={id} className="text-[15px] font-semibold text-text-primary">
           {title}
@@ -106,7 +103,7 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
           <div className="flex min-w-0 flex-col gap-1">
             <h1 className="text-[20px] font-semibold text-text-primary">cài đặt tài khoản</h1>
             <p className="text-[13px] text-text-secondary">
-              Hồ sơ, giao diện, thông báo, phím tắt, mật khẩu và những phiên đang mở.
+              Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.
             </p>
           </div>
           {/* A7: không có nút lưu, nên chỉ báo lưu phải nằm ở chỗ mắt tìm cái nút. */}
@@ -160,24 +157,29 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
               <PasswordSection {...vm.auth.password} />
             </AccountBlock>
 
-            <AccountBlock
-              id="account-sessions"
-              title="phiên đăng nhập"
-              description="Những máy đang đăng nhập vào tài khoản này."
-              isLoading={isLoading}
-            >
-              <SessionsSection {...vm.auth.sessions} />
-            </AccountBlock>
+            {/* Năng lực tắt thì khối RỜI KHỎI DOM, không vô hiệu hoá (khuôn `exportPanelGateway.ts`). */}
+            {vm.auth.sessions === null ? null : (
+              <AccountBlock
+                id="account-sessions"
+                title="phiên đăng nhập"
+                description="Những máy đang đăng nhập vào tài khoản này."
+                isLoading={isLoading}
+              >
+                <SessionsSection {...vm.auth.sessions} />
+              </AccountBlock>
+            )}
 
-            <AccountBlock
-              id="account-danger"
-              title="vùng nguy hiểm"
-              description="Những việc không hoàn tác được."
-              isLoading={isLoading}
-              tone="danger"
-            >
-              <DangerZone {...vm.auth.danger} />
-            </AccountBlock>
+            {vm.auth.danger === null ? null : (
+              <AccountBlock
+                id="account-danger"
+                title="vùng nguy hiểm"
+                description="Những việc không hoàn tác được."
+                isLoading={isLoading}
+                tone="danger"
+              >
+                <DangerZone {...vm.auth.danger} />
+              </AccountBlock>
+            )}
           </>
         ) : (
           // A11: lỗi đọc cấp trang thay chỗ bảy khối, vì khi ấy không khối nào

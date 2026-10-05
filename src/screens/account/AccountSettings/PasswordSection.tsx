@@ -66,7 +66,10 @@ export const MANAGED_EXTERNALLY_REASON = 'Do quản trị viên công ty quản 
  * tư, thứ mà A4 tồn tại để chặn.
  */
 const STRENGTH_LADDER: Readonly<
-  Record<PasswordStrengthLevel, { readonly steps: number; readonly word: string; readonly tone: string }>
+  Record<
+    PasswordStrengthLevel,
+    { readonly steps: number; readonly word: string; readonly tone: string }
+  >
 > = {
   weak: { steps: 1, word: 'yếu', tone: 'bg-state-violation' },
   fair: { steps: 2, word: 'khá', tone: 'bg-state-attention' },
@@ -92,6 +95,8 @@ export interface PasswordSectionProps {
   readonly canSubmit: boolean;
   readonly isSubmitting: boolean;
   readonly onSubmit: () => void;
+  /** Dải cần chú ý trên nút: 429 hoặc lỗi không phân loại được; `null` khi không có. */
+  readonly formProblem: string | null;
   /** Trạng thái 5: câu báo lượt đổi đã xong; `null` khi chưa đổi lần nào. */
   readonly successMessage: string | null;
   /** Trạng thái 6: tài khoản đăng nhập một lần. */
@@ -179,12 +184,21 @@ export function PasswordSection(props: PasswordSectionProps) {
         disabled={props.isSubmitting}
       />
 
+      {props.formProblem === null ? null : (
+        <InlineAlert level="attention" message={props.formProblem} />
+      )}
+
       {props.successMessage === null ? null : (
         <InlineAlert level="verified" message={props.successMessage} />
       )}
 
       <div className="flex justify-end">
-        <Button type="submit" variant="primary" disabled={!props.canSubmit} loading={props.isSubmitting}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!props.canSubmit}
+          loading={props.isSubmitting}
+        >
           Đổi mật khẩu
         </Button>
       </div>

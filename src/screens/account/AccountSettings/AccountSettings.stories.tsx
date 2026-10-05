@@ -15,7 +15,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { AccountSettings } from './AccountSettings';
-import type { AccountSessionRow } from './SessionsSection';
 import type { NotificationEventModel } from './NotificationsSection';
 import { DENSITY_ROW_CLASS, LANGUAGE_OPTIONS } from './useAccountPreferences';
 import { NOTIFICATION_CHANNELS, buildShortcutRows } from './useAccountTables';
@@ -34,23 +33,6 @@ type Story = StoryObj<typeof meta>;
 const noop = (): void => undefined;
 
 const EMAIL = 'thu.ha@congty.vn';
-
-const SESSIONS: readonly AccountSessionRow[] = [
-  {
-    id: 'session-current',
-    device: 'Trình duyệt trên máy tính để bàn',
-    location: 'Hà Nội, Việt Nam',
-    lastActiveLabel: 'vừa xong',
-    isCurrent: true,
-  },
-  {
-    id: 'session-laptop',
-    device: 'Trình duyệt trên máy tính xách tay',
-    location: 'Đà Nẵng, Việt Nam',
-    lastActiveLabel: '12 phút trước',
-    isCurrent: false,
-  },
-];
 
 /** Năm sự việc của ma trận, dựng từ hai kênh mà `useAccountTables` khai. */
 const EVENTS: readonly NotificationEventModel[] = [
@@ -81,8 +63,19 @@ const base: AccountSettingsViewModel = {
       avatarInitials: 'NH',
       avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
       isAvatarUploading: false,
+      isAvatarLocked: false,
       avatarStatusLabel: 'Đang tải ảnh lên…',
       onAvatarFileSelected: noop,
+      avatarProblem: null,
+      avatarReplace: {
+        isOpen: false,
+        previewUrl: '',
+        hasExistingAvatar: false,
+        isSending: false,
+        onConfirm: noop,
+        onCancel: noop,
+      },
+      problems: {},
       fullName: 'Nguyễn Thu Hà',
       onFullNameChange: noop,
       jobTitle: 'Kỹ sư kết cấu',
@@ -148,29 +141,13 @@ const base: AccountSettingsViewModel = {
       canSubmit: false,
       isSubmitting: false,
       onSubmit: noop,
+      formProblem: null,
       successMessage: null,
       isManagedExternally: false,
     },
-    sessions: {
-      rows: SESSIONS,
-      warning: null,
-      onRetry: noop,
-      onSignOut: noop,
-      signingOutId: null,
-      reducedMotion: false,
-    },
-    danger: {
-      email: EMAIL,
-      isDialogOpen: false,
-      onRequestDelete: noop,
-      onCancelDelete: noop,
-      onConfirmDelete: noop,
-      confirmValue: '',
-      onConfirmValueChange: noop,
-      canConfirm: false,
-      isDeleting: false,
-      errorMessage: null,
-    },
+    // v1: BE chưa có phiên và xoá tài khoản — hai khối rời khỏi DOM, không có story nào cho chúng.
+    sessions: null,
+    danger: null,
   },
 };
 
@@ -191,24 +168,16 @@ function withAuth(patch: Partial<AccountSettingsViewModel['auth']>) {
 
 /** 1 · rỗng — tài khoản mới: chưa ảnh đại diện, chưa chức danh, chưa số máy. */
 export const Empty: Story = {
-  args: {
-    vm: {
-      ...withProfile({ avatarUrl: null, jobTitle: '', phone: '' }),
-      auth: { ...base.auth, sessions: { ...base.auth.sessions, rows: [] } },
-    },
-  },
+  args: { vm: withProfile({ avatarUrl: null, jobTitle: '', phone: '' }) },
 };
 
-/** 2 · đang tải — của cả trang: bảy thẻ thành khung xương một nhịp, không bảy nhịp. */
+/** 2 · đang tải — của cả trang: năm thẻ thành khung xương một nhịp, không năm nhịp. */
 export const Loading: Story = {
   args: { vm: { ...base, isLoading: true, saveState: 'idle', saveLabel: null } },
 };
 
 /**
- * 3 · một phần — hai khối cùng nói dở dang, và cả hai nói tại chỗ của mình.
- *
- * Ảnh đại diện đang tải lên (T4) và lượt đọc phiên hỏng (T3). Dải cảnh báo nằm
- * **trong** khối phiên, không bao giờ trên đầu trang: sáu khối kia vẫn đúng.
+ * 3 · một phần — ảnh đại diện đang đọc và gửi, các khối khác vẫn đúng.
  */
 export const Partial: Story = {
   args: {
@@ -216,14 +185,6 @@ export const Partial: Story = {
       ...withProfile({ isAvatarUploading: true, flashedField: 'fullName' }),
       saveState: 'saving',
       saveLabel: 'Đang lưu…',
-      auth: {
-        ...base.auth,
-        sessions: {
-          ...base.auth.sessions,
-          rows: SESSIONS.slice(0, 1),
-          warning: 'Không đọc được danh sách phiên đang mở. Thử lại sau ít phút.',
-        },
-      },
     },
   },
 };
@@ -241,7 +202,7 @@ export const ErrorState: Story = {
   },
 };
 
-/** 5 · thành công — sáu khối có dữ liệu, vùng nguy hiểm đóng. */
+/** 5 · thành công — năm khối có dữ liệu. */
 export const Success: Story = {
   args: { vm: base },
 };
@@ -294,10 +255,6 @@ export const ReducedMotion: Story = {
           rowMotion: { layout: false, transition: { duration: 0 } },
         },
       },
-      auth: {
-        ...base.auth,
-        sessions: { ...base.auth.sessions, reducedMotion: true },
-      },
     },
   },
 };
@@ -321,7 +278,59 @@ export const DarkTheme: Story = {
   },
 };
 
-/** Lỗi ĐỌC cấp trang — một dải cảnh báo thay chỗ cả bảy khối (A11, của T2). */
+/** 4 · lỗi — máy chủ từ chối họ tên (422): câu lỗi hiện dưới đúng ô, chỉ báo lưu báo lỗi. */
+export const ProfileFieldError: Story = {
+  args: {
+    vm: {
+      ...withProfile({
+        fullName: '',
+        problems: { fullName: 'Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.' },
+      }),
+      saveState: 'error',
+      saveLabel: 'Lưu thất bại',
+    },
+  },
+};
+
+/** 4 · lỗi — ảnh bị từ chối ngay tại máy, câu hiện dưới ảnh và không có gì đi qua mạng. */
+export const AvatarRejected: Story = {
+  args: { vm: withProfile({ avatarProblem: 'Ảnh tối đa 512 KB. Hãy chọn ảnh nhỏ hơn.' }) },
+};
+
+/** Hộp thoại A9 trước khi thay ảnh — thay ảnh không hoàn tác được. */
+export const AvatarReplaceConfirm: Story = {
+  args: {
+    vm: withProfile({
+      avatarUrl: 'https://cdn.example.test/avatars/01J0MOCKAVATAR0001.png',
+      avatarReplace: {
+        isOpen: true,
+        previewUrl: 'https://cdn.example.test/avatars/01J0MOCKAVATAR0002.png',
+        hasExistingAvatar: true,
+        isSending: false,
+        onConfirm: noop,
+        onCancel: noop,
+      },
+    }),
+  },
+};
+
+/** 4 · lỗi — đổi mật khẩu quá nhiều lần (429): dải chú ý trên nút, nút khoá, không có số giây. */
+export const PasswordRateLimited: Story = {
+  args: {
+    vm: withAuth({
+      password: {
+        ...base.auth.password,
+        currentPassword: '••••••••',
+        newPassword: '••••••••••',
+        confirmPassword: '••••••••••',
+        canSubmit: false,
+        formProblem: 'Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.',
+      },
+    }),
+  },
+};
+
+/** Lỗi ĐỌC cấp trang — một dải cảnh báo thay chỗ cả năm khối (A11, của T2). */
 export const LoadFailed: Story = {
   args: {
     vm: {

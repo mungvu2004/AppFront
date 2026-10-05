@@ -376,7 +376,7 @@
   },
   "account": {
     "title": "cài đặt tài khoản",
-    "description": "Hồ sơ, giao diện, thông báo, phím tắt, mật khẩu và những phiên đang mở.",
+    "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
     "sections": {
       "profile": "hồ sơ",
       "appearance": "giao diện",
@@ -416,6 +416,24 @@
         "change": "Đổi ảnh",
         "alt": "Ảnh đại diện",
         "altOf": "Ảnh đại diện của {{name}}",
+        "confirm": {
+          "cancel": "Huỷ",
+          "confirmReplace": "Thay ảnh",
+          "previewAlt": "Ảnh đại diện mới",
+          "setBody": "Sau khi đặt chỉ thay được, không gỡ được.",
+          "setTitle": "Đặt ảnh đại diện?",
+          "replaceBody": "Ảnh cũ không khôi phục được.",
+          "replaceTitle": "Thay ảnh đại diện?"
+        },
+        "problems": {
+          "corrupt": "Không đọc được ảnh này, tệp có thể đã hỏng.",
+          "dimensions": "Ảnh rộng hoặc cao quá 4096 điểm ảnh.",
+          "fileTooBig": "Ảnh tối đa 512 KB. Hãy chọn ảnh nhỏ hơn.",
+          "mismatch": "Nội dung tệp không khớp loại ảnh. Chọn lại tệp PNG hoặc JPEG.",
+          "rateLimited": "Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.",
+          "tooLarge": "Ảnh quá lớn, hãy chọn ảnh nhỏ hơn.",
+          "unsupported": "Chỉ nhận ảnh PNG hoặc JPEG."
+        },
         "uploading": "Đang tải ảnh lên…"
       },
       "fields": {
@@ -425,7 +443,13 @@
         "phone": "điện thoại",
         "language": "ngôn ngữ"
       },
+      "fieldProblems": {
+        "fullName": "Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.",
+        "jobTitle": "Chức danh tối đa 120 ký tự, không chứa ký tự điều khiển.",
+        "phone": "Số điện thoại tối đa 32 ký tự."
+      },
       "jobTitlePlaceholder": "chưa đặt",
+      "localOnly": "Chỉ giữ trong phiên này",
       "email": {
         "change": "Đổi thư điện tử",
         "readOnlyShort": "Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.",
@@ -508,7 +532,10 @@
         "confirmMismatch": "Hai ô mật khẩu chưa khớp nhau.",
         "managedExternally": "Tài khoản này do quản trị viên công ty quản lý, không đổi ở đây được."
       },
-      "changed": "Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới."
+      "changed": "Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.",
+      "rateLimited": "Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "unavailable": "Không đổi được mật khẩu lúc này. Thử lại sau ít phút.",
+      "wrongAfterFailure": "Có thể mật khẩu đã đổi ở lượt trước; hãy thử mật khẩu mới."
     },
     "sessions": {
       "currentBadge": "thiết bị này",

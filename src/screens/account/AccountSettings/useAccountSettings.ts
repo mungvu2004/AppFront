@@ -45,8 +45,8 @@
  * `InlineAlert` thay chỗ bảy khối, vì khi ấy không khối nào có dữ liệu để vẽ.
  */
 
-import { useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { SaveState } from '@/components/feedback/SaveIndicator';
 import { appNotificationBus } from '@/hooks/useNotifications';
@@ -54,9 +54,11 @@ import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import type { AutosaveState } from '@/lib/autosave/createAutosave';
 import { createAutosave } from '@/lib/autosave/createAutosave';
 import { describeError, toAppError } from '@/lib/errors';
-import type { Announcer } from '@/lib/input/announcer';
+import { readWireError } from '@/lib/errors/wireError';
+import { getAppAnnouncer, type Announcer } from '@/lib/input/announcer';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
+import { queryKeys } from '@/lib/query/queryKeys';
 
 import {
   EMPTY_ACCOUNT_DRAFT,
@@ -67,19 +69,26 @@ import {
   type AccountDraftPort,
   type AccountDraftSection,
 } from './accountDraft';
-import { createAccountSettingsGateway, type AccountSettingsGateway } from './accountSettingsGateway';
+import type { AccountAuthGateway } from './accountAuthGateway';
+import {
+  createAccountSettingsGateway,
+  profileDraftOf,
+  type AccountSettingsGateway,
+} from './accountSettingsGateway';
+import type { ProfileFieldKey } from './ProfileSection';
 import { useAccountAuth, type AccountAuthModel } from './useAccountAuth';
-import { useAccountPreferences, type AccountPreferencesModel } from './useAccountPreferences';
+import {
+  useAccountPreferences,
+  type AccountPreferencesModel,
+  type AvatarPort,
+} from './useAccountPreferences';
 import { useAccountTables, type AccountTablesModel } from './useAccountTables';
 
 /**
- * Khoá bộ đệm của lượt đọc cài đặt tài khoản.
- *
- * Dựng tại chỗ chứ không lấy từ `queryKeys`: bảng đó chỉ có `user.current` và
- * `user.list`, không có mục nào cho cài đặt, và `src/lib/**` là thư mục màn này
- * không được sửa. Cùng lối đi mà `projectSettingsQueryKey` đã mở.
+ * Khoá bộ đệm của lượt đọc cài đặt tài khoản — nhánh `me.profile` của `queryKeys`.
+ * Giá trị trong bộ đệm là bản nháp đã ánh xạ (`AccountDraft`), không phải `Me` thô.
  */
-export const accountSettingsQueryKey = ['account', 'settings'] as const;
+export const accountSettingsQueryKey = queryKeys.me.profile();
 
 /**
  * 800 ms của bất biến A7, viết ra thành một cái tên.
@@ -93,6 +102,21 @@ export const accountSettingsQueryKey = ['account', 'settings'] as const;
  */
 export const ACCOUNT_AUTOSAVE_DEBOUNCE_MS = 800;
 
+/**
+ * Câu của chỉ báo lưu khi lượt vừa lưu chỉ chạm giao diện hoặc thông báo: hai khối
+ * ấy chưa có dây ở v1 (AC1), nên nói "đã lưu" là nói dối.
+ */
+export const ACCOUNT_LOCAL_ONLY_LABEL = 'Chỉ giữ trong phiên này';
+
+/** Câu lỗi của ô hồ sơ khi máy chủ trả 422 kèm `field`. */
+const PROFILE_FIELD_PROBLEMS: Readonly<Partial<Record<string, string>>> = {
+  fullName: 'Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.',
+  jobTitle: 'Chức danh tối đa 120 ký tự, không chứa ký tự điều khiển.',
+  phone: 'Số điện thoại tối đa 32 ký tự.',
+};
+
+type ProfileProblems = Readonly<Partial<Record<ProfileFieldKey, string>>>;
+
 /** Câu của toast hoàn tác sau một lượt tự lưu (A8). */
 export const ACCOUNT_SAVED_UNDO_TITLE = 'Đã lưu cài đặt tài khoản.';
 
@@ -100,6 +124,8 @@ export const ACCOUNT_SAVED_UNDO_TITLE = 'Đã lưu cài đặt tài khoản.';
 export interface UseAccountSettingsOptions {
   /** Nguồn dữ liệu. Mặc định là cổng thật của ứng dụng. */
   readonly gateway?: AccountSettingsGateway;
+  /** Nguồn dữ liệu của khối mật khẩu, phiên, vùng nguy hiểm. Mặc định là cổng thật. */
+  readonly authGateway?: AccountAuthGateway;
   /** Đồng hồ tiêm vào, cho `fakeClock`. */
   readonly now?: () => number;
   /** Có mạng hay không, tiêm vào để dựng lại nhánh ngoại tuyến. */
@@ -154,6 +180,11 @@ export function toSaveState(autosaveState: AutosaveState): SaveState {
   }
 }
 
+/** Hai bản nháp giống nhau ở khối hồ sơ — nghĩa là lượt lưu chỉ chạm giao diện hoặc thông báo. */
+function isSameProfile(left: AccountDraft, right: AccountDraft): boolean {
+  return JSON.stringify(left.profile) === JSON.stringify(right.profile);
+}
+
 /** Thứ `createAutosave` gọi tới, luôn là bản mới nhất. */
 interface AutosaveBridge {
   getChanges: () => AccountDraft | undefined;
@@ -179,6 +210,17 @@ export function useAccountSettings(
   const [saved, setSaved] = useState<AccountDraft | null>(null);
   const [syncedToken, setSyncedToken] = useState<number | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  /**
+   * Bản đọc được ở lượt đọc gần nhất — thứ `port.saved` đưa cho hook con. Không đọc
+   * thẳng từ ảnh chụp truy vấn: lượt lưu cập nhật bộ đệm (`setQueryData`) mà đổi
+   * `port.saved` thì chữ đang gõ dở trong hook con bị nạp lại và mất (B-V12b-03).
+   */
+  const [loaded, setLoaded] = useState<AccountDraft | null>(null);
+  const [profileProblems, setProfileProblems] = useState<ProfileProblems>({});
+  /** Lượt lưu gần nhất chỉ chạm giao diện/thông báo: chỉ báo lưu nói "chỉ giữ trong phiên này". */
+  const [isLocalOnlySave, setLocalOnlySave] = useState(false);
+  const localOnlyRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const settingsQuery = useQuery({
     queryKey: accountSettingsQueryKey,
@@ -194,6 +236,7 @@ export function useAccountSettings(
     setSyncedToken(reloadToken);
     setDraft(snapshot);
     setSaved(snapshot);
+    setLoaded(snapshot);
     setRestoredDraft(null);
   }
 
@@ -215,9 +258,24 @@ export function useAccountSettings(
     }),
   );
 
+  // Bọc bộ đọc màn hình: câu "đã lưu" của lượt chỉ-giữ-trong-phiên thành câu thật. Câu lỗi
+  // (`assertive`) đi qua nguyên vẹn.
+  const [announcer] = useState<Announcer>(() => {
+    const target = (): Announcer => options.announcer ?? getAppAnnouncer();
+
+    return {
+      announce: (message, urgency) =>
+        target().announce(
+          localOnlyRef.current && urgency !== 'assertive' ? ACCOUNT_LOCAL_ONLY_LABEL : message,
+          urgency,
+        ),
+      destroy: () => target().destroy(),
+    };
+  });
+
   const indicator = useSaveIndicator(autosave, {
     ...(options.now !== undefined ? { now: options.now } : {}),
-    ...(options.announcer !== undefined ? { announcer: options.announcer } : {}),
+    announcer,
   });
 
   bridgeRef.current = {
@@ -236,8 +294,40 @@ export function useAccountSettings(
       const isRestore = changes === restoringRef.current;
       restoringRef.current = null;
 
-      await gateway.save(changes);
+      let serverProfile: Awaited<ReturnType<AccountSettingsGateway['save']>>;
+
+      try {
+        serverProfile = await gateway.save(changes, previous);
+      } catch (error) {
+        const wire = readWireError(error);
+        const field = wire?.field;
+        const problem = field === undefined ? undefined : PROFILE_FIELD_PROBLEMS[field];
+
+        // 422 của một ô hồ sơ: lỗi buộc vào đúng ô, rồi ném lại để chỉ báo lưu báo lỗi.
+        // `createAutosave` không thử lại 4xx, nên lỗi ô không bị lịch tự lưu gõ lại.
+        if (wire?.status === 422 && field !== undefined && problem !== undefined) {
+          setProfileProblems((current) => ({ ...current, [field]: problem }));
+        }
+
+        throw error;
+      }
+
+      const isLocalOnly = previous !== null && isSameProfile(previous, changes);
+
+      localOnlyRef.current = isLocalOnly;
+      setLocalOnlySave(isLocalOnly);
+      setProfileProblems({});
       setSaved(changes);
+
+      // Mọi lượt lưu thành công đều cập nhật bộ đệm (kể cả lượt chỉ-giữ-trong-phiên), để vào lại
+      // màn trong lúc bộ đệm còn tươi không thấy giao diện/thông báo cũ.
+      queryClient.setQueryData<AccountDraft>(accountSettingsQueryKey, (current) => ({
+        ...changes,
+        profile:
+          serverProfile === null
+            ? (current?.profile ?? changes.profile)
+            : profileDraftOf(serverProfile),
+      }));
 
       if (isRestore || previous === null) {
         return;
@@ -270,17 +360,49 @@ export function useAccountSettings(
   // đánh thức mỗi khung hình.
   const port = useMemo<AccountDraftPort>(
     () => ({
-      saved: restoredDraft ?? snapshot ?? undefined,
+      saved: restoredDraft ?? loaded ?? undefined,
       stage: (section: AccountDraftSection, fields: AccountDraftFields): void => {
+        if (section === 'profile') {
+          // Sửa lại ô nào thì lỗi của ô đó hết hiệu lực.
+          setProfileProblems((current) => {
+            const next: Partial<Record<ProfileFieldKey, string>> = { ...current };
+
+            for (const key of Object.keys(fields)) {
+              delete next[key as ProfileFieldKey];
+            }
+
+            return next;
+          });
+        }
+
         setDraft((current) => mergeAccountDraft(current ?? EMPTY_ACCOUNT_DRAFT, section, fields));
         autosave.notifyChange();
       },
     }),
-    [autosave, restoredDraft, snapshot],
+    [autosave, loaded, restoredDraft],
   );
 
-  const auth = useAccountAuth();
-  const preferences = useAccountPreferences(port);
+  const auth = useAccountAuth({
+    ...(options.authGateway !== undefined ? { gateway: options.authGateway } : {}),
+    ...(options.now !== undefined ? { now: options.now } : {}),
+  });
+
+  // N14 xong thì bộ đệm hồ sơ cũng mang ảnh mới, cùng hình với lượt đọc.
+  const replaceAvatar = useCallback<AvatarPort>(
+    async (input) => {
+      const result = await gateway.replaceAvatar(input);
+
+      if (result.ok) {
+        queryClient.setQueryData<AccountDraft>(accountSettingsQueryKey, (current) =>
+          current === undefined ? current : { ...current, profile: profileDraftOf(result.data) },
+        );
+      }
+
+      return result;
+    },
+    [gateway, queryClient],
+  );
+  const preferences = useAccountPreferences(port, replaceAvatar, profileProblems);
   const tables = useAccountTables(port);
 
   const queryError: unknown = settingsQuery.error;
@@ -297,7 +419,8 @@ export function useAccountSettings(
       void settingsQuery.refetch();
     },
     saveState: toSaveState(indicator.state),
-    saveLabel: indicator.label,
+    saveLabel:
+      indicator.state === 'saved' && isLocalOnlySave ? ACCOUNT_LOCAL_ONLY_LABEL : indicator.label,
     auth,
     preferences,
     tables,

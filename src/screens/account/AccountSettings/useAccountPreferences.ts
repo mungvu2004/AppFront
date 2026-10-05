@@ -21,7 +21,8 @@
  *
  * | cài đặt | lưu ở đâu | vì sao |
  * |---|---|---|
- * | họ tên, chức danh, điện thoại, ngôn ngữ, ảnh đại diện | `port.stage('profile', …)` | dữ liệu tài khoản, chưa bao giờ là cờ tính năng |
+ * | họ tên, chức danh, điện thoại, ngôn ngữ | `port.stage('profile', …)` | dữ liệu tài khoản, chưa bao giờ là cờ tính năng |
+ * | ảnh đại diện | N14 qua `avatar` (hộp thoại A9) | hành động chủ động, không phải cài đặt: ảnh không vào bản nháp, chỉ là trạng thái cục bộ |
  * | chủ đề | `port.stage('appearance', …)` **và** action `setTheme` | bản ghi nhớ đi qua bản nháp; hiệu lực tức thì đi qua store, vì `<html class="dark">` phải đổi ngay chứ không đợi 800 ms |
  * | nền tối cho khung nhìn 3D | `port.stage('appearance', …)` | `scene.soft-shadows` nói về bóng đổ, không về màu nền; ghép hai thứ vào một khoá là bịa |
  * | giảm chuyển động | `port.stage('appearance', …)` + thuộc tính trên `<html>` | không có khoá O-02 nào cho nó |
@@ -67,7 +68,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { SelectOption } from '@/components/ui/Select';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
+import type { ApiResult } from '@/api/client';
+import { AVATAR_MIME_TYPES, type Me, type UploadAvatar } from '@/api/schemas/me';
 import { getSession, subscribeToSession } from '@/lib/auth';
+import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { MISSING_VALUE } from '@/lib/format/number';
 import { durationMs } from '@/lib/motion';
 import { useStore } from '@/store';
@@ -79,8 +84,12 @@ import type {
   DensityChoice,
   ThemeChoice,
 } from './AppearanceSection';
+import type { AvatarReplaceDialogProps } from './AvatarReplaceDialog';
 import type { ProfileFieldKey, ProfileSectionProps } from './ProfileSection';
 import type { AccountDraftPort } from './accountDraft';
+
+/** N14: đẩy ảnh lên máy chủ. Nơi gọi (`useAccountSettings`) cũng cập nhật cache hồ sơ. */
+export type AvatarPort = (input: UploadAvatar) => Promise<ApiResult<Me>>;
 
 export interface AccountPreferencesModel {
   readonly profile: ProfileSectionProps;
@@ -145,6 +154,100 @@ const EMAIL_REASON_LONG =
 const JOB_TITLE_PLACEHOLDER = 'chưa đặt';
 const AVATAR_UPLOADING_LABEL = 'Đang tải ảnh lên…';
 const AVATAR_FALLBACK_ALT = 'Ảnh đại diện';
+
+/** Trần của tệp ảnh (512 KB) — kiểm tại chỗ, trước khi đọc tệp. */
+export const AVATAR_MAX_FILE_BYTES = 524_288;
+
+/** Trần độ dài base64 của N14 (`UploadAvatarSchema`). */
+export const AVATAR_MAX_BASE64_LENGTH = 699_052;
+
+/** Giây khoá ô chọn ảnh sau 429, tối thiểu — Retry-After của máy chủ bị kẹp ≤ 10 s. */
+export const AVATAR_LOCK_MIN_SECONDS = 60;
+
+const MS_PER_SECOND = 1000;
+
+const AVATAR_MESSAGES = {
+  typeUnsupported: 'Chỉ nhận ảnh PNG hoặc JPEG.',
+  fileTooBig: 'Ảnh tối đa 512 KB. Hãy chọn ảnh nhỏ hơn.',
+  tooLarge: 'Ảnh quá lớn, hãy chọn ảnh nhỏ hơn.',
+  typeMismatch: 'Nội dung tệp không khớp loại ảnh. Chọn lại tệp PNG hoặc JPEG.',
+  dimensions: 'Ảnh rộng hoặc cao quá 4096 điểm ảnh.',
+  corrupt: 'Không đọc được ảnh này, tệp có thể đã hỏng.',
+  rateLimited: 'Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.',
+} as const;
+
+/** Chỉ báo của người dùng cho một ảnh bị từ chối; `lockSeconds` có khi cần khoá ô chọn ảnh. */
+export interface AvatarFailure {
+  readonly message: string;
+  readonly lockSeconds?: number;
+}
+
+/**
+ * Lỗi của N14 thành câu cho người dùng (bảng mã cục bộ). Mã lạ, mạng, 503 rơi về
+ * `describeError` — không bao giờ in mã trần.
+ */
+export function avatarFailureOf(error: unknown): AvatarFailure {
+  const wire = readWireError(error);
+
+  switch (wire?.code) {
+    case 'AVATAR_TYPE_UNSUPPORTED':
+      return { message: AVATAR_MESSAGES.typeUnsupported };
+    case 'FILE_TYPE_MISMATCH':
+      return { message: AVATAR_MESSAGES.typeMismatch };
+    case 'AVATAR_DIMENSIONS_EXCEEDED':
+      return { message: AVATAR_MESSAGES.dimensions };
+    case 'IMAGE_TOO_LARGE':
+      return { message: AVATAR_MESSAGES.tooLarge };
+    case 'FILE_CORRUPT':
+      return { message: AVATAR_MESSAGES.corrupt };
+    case 'VALIDATION':
+      if (wire.field === 'contentBase64') {
+        return { message: AVATAR_MESSAGES.corrupt };
+      }
+      break;
+    default:
+      break;
+  }
+
+  if (wire?.code === 'RATE_LIMITED' || wire?.status === 429) {
+    return {
+      message: AVATAR_MESSAGES.rateLimited,
+      lockSeconds: Math.max(wire.retryAfterSeconds ?? 0, AVATAR_LOCK_MIN_SECONDS),
+    };
+  }
+
+  return { message: describeError(toAppError(error)).description };
+}
+
+function isAvatarMimeType(type: string): type is UploadAvatar['mimeType'] {
+  return (AVATAR_MIME_TYPES as readonly string[]).includes(type);
+}
+
+/** Đọc tệp ra `data:` URL. Chỉ dùng cho xem trước và để cắt lấy base64 — không vào bản nháp. */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('avatar-unreadable'));
+      }
+    };
+    reader.onerror = () => reject(new Error('avatar-unreadable'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Ảnh đã qua kiểm tại chỗ, đang chờ người dùng xác nhận (A9). Trạng thái cục bộ, không vào bản nháp. */
+interface PendingAvatar {
+  readonly mimeType: UploadAvatar['mimeType'];
+  readonly contentBase64: string;
+  readonly previewUrl: string;
+}
+
+const NO_PROBLEMS: Readonly<Partial<Record<ProfileFieldKey, string>>> = Object.freeze({});
 
 /* -------------------------------------------------------------------------- */
 /* Đọc bản nháp.                                                               */
@@ -264,7 +367,11 @@ interface PreferenceValues {
   readonly density: DensityChoice;
 }
 
-export function useAccountPreferences(port: AccountDraftPort): AccountPreferencesModel {
+export function useAccountPreferences(
+  port: AccountDraftPort,
+  avatar: AvatarPort,
+  profileProblems: Readonly<Partial<Record<ProfileFieldKey, string>>> = NO_PROBLEMS,
+): AccountPreferencesModel {
   // Phiên đăng nhập là nguồn mặc định của họ tên và thư điện tử: bản nháp chỉ
   // giữ những gì người dùng đã tự sửa. `getSessionSnapshot` trả về một tham
   // chiếu ổn định, nên `useSyncExternalStore` không quay vòng.
@@ -279,6 +386,9 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
   const savedProfile = port.saved?.profile;
   const savedAppearance = port.saved?.appearance;
   const sessionUser = session.user;
+  // Chủ đề mặc định là của store (đã đọc từ `localStorage['app-theme-mode']`), không phải 'light':
+  // bộ nhớ trống mà mặc định 'light' thì vào màn là ghi đè chủ đề người dùng đang dùng.
+  const storeTheme = useStore((state) => state.theme);
 
   const base = useMemo<PreferenceValues>(() => {
     const avatarUrl = savedProfile?.['avatarUrl'];
@@ -289,13 +399,13 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
       phone: readText(savedProfile, 'phone', ''),
       language: readText(savedProfile, 'language', 'vi'),
       avatarUrl: typeof avatarUrl === 'string' && avatarUrl !== '' ? avatarUrl : null,
-      theme: readChoice(savedAppearance, 'theme', THEME_CHOICES, 'light'),
+      theme: readChoice(savedAppearance, 'theme', THEME_CHOICES, storeTheme),
       viewportDark: readFlag(savedAppearance, 'viewportDark', false),
       reducedMotion: readFlag(savedAppearance, 'reducedMotion', false),
       showGrid: readFlag(savedAppearance, 'showGrid', true),
       density: readChoice(savedAppearance, 'density', DENSITY_CHOICES, 'comfortable'),
     };
-  }, [savedAppearance, savedProfile, sessionUser]);
+  }, [savedAppearance, savedProfile, sessionUser, storeTheme]);
 
   // `null` nghĩa là người dùng chưa sửa gì trong lượt này, nên bản đã lưu vẫn là
   // sự thật. Sửa lần đầu thì lấy `base` làm điểm xuất phát — không dùng
@@ -317,7 +427,13 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
   const values = edits ?? base;
 
   const [flashedField, setFlashedField] = useState<string | null>(null);
+  /** Đang đọc tệp hoặc đang gửi N14 — trạng thái 3. */
   const [isAvatarUploading, setAvatarUploading] = useState(false);
+  const [avatarUrlOverride, setAvatarUrlOverride] = useState<string | null>(null);
+  const [avatarProblem, setAvatarProblem] = useState<string | null>(null);
+  const [pendingAvatar, setPendingAvatar] = useState<PendingAvatar | null>(null);
+  const [isAvatarLocked, setAvatarLocked] = useState(false);
+  const avatarLockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [emailReason, setEmailReason] = useState(EMAIL_REASON_SHORT);
 
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -326,6 +442,10 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
     () => () => {
       if (flashTimer.current !== undefined) {
         clearTimeout(flashTimer.current);
+      }
+
+      if (avatarLockTimer.current !== undefined) {
+        clearTimeout(avatarLockTimer.current);
       }
     },
     [],
@@ -376,9 +496,14 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
   const setTheme = useStore((state) => state.setTheme);
   const resolvedTheme = resolveTheme(values.theme, systemPrefersDark);
 
+  // Chưa sửa gì và bộ nhớ chưa có chủ đề nào thì store vẫn là sự thật: không ghi đè nó.
+  const hasThemeChoice = edits !== null || savedAppearance?.['theme'] !== undefined;
+
   useEffect(() => {
-    setTheme(resolvedTheme);
-  }, [resolvedTheme, setTheme]);
+    if (hasThemeChoice) {
+      setTheme(resolvedTheme);
+    }
+  }, [hasThemeChoice, resolvedTheme, setTheme]);
 
   /* ---- Giảm chuyển động ------------------------------------------------ */
 
@@ -396,36 +521,100 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
 
   /* ---- Ảnh đại diện ---------------------------------------------------- */
 
+  const lockAvatar = useCallback((seconds: number) => {
+    setAvatarLocked(true);
+
+    if (avatarLockTimer.current !== undefined) {
+      clearTimeout(avatarLockTimer.current);
+    }
+
+    avatarLockTimer.current = setTimeout(() => setAvatarLocked(false), seconds * MS_PER_SECOND);
+  }, []);
+
   /**
-   * Trạng thái 3 của khối này, và nó là một lượt đọc THẬT.
-   *
-   * `ENDPOINTS` không có nhóm nào cho ảnh đại diện và `src/api/**` là thư mục
-   * màn này không sửa, nên không có đường mạng nào để gọi. `FileReader` đọc tệp
-   * ngay tại máy, ra một `data:` URL đi vừa vào bản nháp — cùng khuôn "bộ nhớ
-   * trong" mà `accountSettingsGateway.ts` đã ghi là khoản nợ T-08. Lượt đọc ấy
-   * mất thời gian thật, nên "một phần" ở đây không phải một trạng thái diễn.
+   * Chọn tệp: kiểm tại chỗ (loại, cỡ, độ dài base64), rồi mở hộp thoại A9. Cả ba
+   * lần từ chối đều KHÔNG gọi mạng; tệp quá cỡ còn không được đọc.
    */
   const onAvatarFileSelected = useCallback(
     (file: File): void => {
+      if (isAvatarLocked) {
+        return;
+      }
+
+      setAvatarProblem(null);
+
+      if (!isAvatarMimeType(file.type)) {
+        setAvatarProblem(AVATAR_MESSAGES.typeUnsupported);
+
+        return;
+      }
+
+      if (file.size > AVATAR_MAX_FILE_BYTES) {
+        setAvatarProblem(AVATAR_MESSAGES.fileTooBig);
+
+        return;
+      }
+
+      const mimeType = file.type;
+
       setAvatarUploading(true);
 
-      const reader = new FileReader();
+      readAsDataUrl(file)
+        .then((dataUrl) => {
+          const contentBase64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
 
-      reader.onload = () => {
-        const result = reader.result;
+          if (contentBase64.length > AVATAR_MAX_BASE64_LENGTH) {
+            setAvatarProblem(AVATAR_MESSAGES.tooLarge);
 
-        setAvatarUploading(false);
+            return;
+          }
 
-        if (typeof result === 'string') {
-          commit('profile', 'avatarUrl', result, null);
-        }
-      };
-
-      reader.onerror = () => setAvatarUploading(false);
-      reader.readAsDataURL(file);
+          setPendingAvatar({ mimeType, contentBase64, previewUrl: dataUrl });
+        })
+        .catch(() => setAvatarProblem(AVATAR_MESSAGES.corrupt))
+        .finally(() => setAvatarUploading(false));
     },
-    [commit],
+    [isAvatarLocked],
   );
+
+  const cancelAvatar = useCallback(() => {
+    if (!isAvatarUploading) {
+      setPendingAvatar(null);
+    }
+  }, [isAvatarUploading]);
+
+  const confirmAvatar = useCallback(async (): Promise<void> => {
+    if (pendingAvatar === null || isAvatarUploading) {
+      return;
+    }
+
+    setAvatarUploading(true);
+
+    try {
+      const result = await avatar({
+        mimeType: pendingAvatar.mimeType,
+        contentBase64: pendingAvatar.contentBase64,
+      });
+
+      if (result.ok) {
+        // Ảnh KHÔNG đi vào bản nháp: nó là trạng thái cục bộ đè lên `values.avatarUrl`.
+        setAvatarUrlOverride(result.data.avatarUrl ?? null);
+      } else {
+        const failure = avatarFailureOf(result.error);
+
+        setAvatarProblem(failure.message);
+
+        if (failure.lockSeconds !== undefined) {
+          lockAvatar(failure.lockSeconds);
+        }
+      }
+    } catch (error) {
+      setAvatarProblem(avatarFailureOf(error).message);
+    } finally {
+      setAvatarUploading(false);
+      setPendingAvatar(null);
+    }
+  }, [avatar, isAvatarUploading, lockAvatar, pendingAvatar]);
 
   /* ---- Ghép mô hình ---------------------------------------------------- */
 
@@ -433,12 +622,23 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
   const rowClassName = DENSITY_ROW_CLASS[values.density];
 
   const profile: ProfileSectionProps = {
-    avatarUrl: values.avatarUrl,
+    avatarUrl: avatarUrlOverride ?? values.avatarUrl,
     avatarInitials: initialsOf(values.fullName, email),
     avatarAlt: values.fullName === '' ? AVATAR_FALLBACK_ALT : `Ảnh đại diện của ${values.fullName}`,
     isAvatarUploading,
+    isAvatarLocked,
     avatarStatusLabel: AVATAR_UPLOADING_LABEL,
     onAvatarFileSelected,
+    avatarProblem,
+    avatarReplace: {
+      isOpen: pendingAvatar !== null,
+      previewUrl: pendingAvatar?.previewUrl ?? '',
+      hasExistingAvatar: (avatarUrlOverride ?? values.avatarUrl) !== null,
+      isSending: isAvatarUploading,
+      onConfirm: () => void confirmAvatar(),
+      onCancel: cancelAvatar,
+    } satisfies AvatarReplaceDialogProps,
+    problems: profileProblems,
     fullName: values.fullName,
     onFullNameChange: (value) => commit('profile', 'fullName', value, 'fullName'),
     jobTitle: values.jobTitle,
@@ -463,8 +663,7 @@ export function useAccountPreferences(port: AccountDraftPort): AccountPreference
     viewportDark: values.viewportDark,
     onViewportDarkChange: (value) => commit('appearance', 'viewportDark', value, 'viewportDark'),
     reducedMotion: values.reducedMotion,
-    onReducedMotionChange: (value) =>
-      commit('appearance', 'reducedMotion', value, 'reducedMotion'),
+    onReducedMotionChange: (value) => commit('appearance', 'reducedMotion', value, 'reducedMotion'),
     showGrid: values.showGrid,
     onShowGridChange: (value) => commit('appearance', 'showGrid', value, 'showGrid'),
     density: values.density,

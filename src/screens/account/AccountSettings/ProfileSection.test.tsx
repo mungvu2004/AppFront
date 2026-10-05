@@ -32,8 +32,19 @@ function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProp
     avatarInitials: 'NH',
     avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
     isAvatarUploading: false,
+    isAvatarLocked: false,
     avatarStatusLabel: 'Đang tải ảnh lên…',
     onAvatarFileSelected: vi.fn(),
+    avatarProblem: null,
+    avatarReplace: {
+      isOpen: false,
+      previewUrl: '',
+      hasExistingAvatar: false,
+      isSending: false,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    },
+    problems: {},
     fullName: 'Nguyễn Thu Hà',
     onFullNameChange: vi.fn(),
     jobTitle: '',
@@ -184,9 +195,7 @@ describe('bốn ô sửa được báo lên hook', () => {
     const onJobTitleChange = vi.fn();
     const onPhoneChange = vi.fn();
 
-    render(
-      <ProfileSection {...props({ onFullNameChange, onJobTitleChange, onPhoneChange })} />,
-    );
+    render(<ProfileSection {...props({ onFullNameChange, onJobTitleChange, onPhoneChange })} />);
 
     fireEvent.change(screen.getByLabelText('họ tên'), { target: { value: 'Trần Minh' } });
     fireEvent.change(screen.getByLabelText('chức danh'), { target: { value: 'Kỹ sư' } });

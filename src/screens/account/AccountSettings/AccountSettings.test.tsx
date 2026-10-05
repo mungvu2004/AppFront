@@ -38,12 +38,12 @@ import { AccountSettings } from './AccountSettings';
 import { AccountSettingsContainer } from './AccountSettings.container';
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft, type AccountDraftPort } from './accountDraft';
 import type { AccountSettingsGateway } from './accountSettingsGateway';
-import type { AccountSessionRow } from './SessionsSection';
 import type { NotificationEventModel } from './NotificationsSection';
 import {
   DENSITY_ROW_CLASS,
   LANGUAGE_OPTIONS,
   type AccountPreferencesModel,
+  type useAccountPreferences,
 } from './useAccountPreferences';
 import { NOTIFICATION_CHANNELS, buildShortcutRows } from './useAccountTables';
 import {
@@ -64,15 +64,17 @@ let mockCapturedPort: AccountDraftPort | null = null;
 vi.mock('./useAccountPreferences', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('./useAccountPreferences');
   const original = actual['useAccountPreferences'] as (
-    port: AccountDraftPort,
+    ...args: Parameters<typeof useAccountPreferences>
   ) => AccountPreferencesModel;
 
   return {
     ...actual,
-    useAccountPreferences: (port: AccountDraftPort): AccountPreferencesModel => {
-      mockCapturedPort = port;
+    useAccountPreferences: (
+      ...args: Parameters<typeof useAccountPreferences>
+    ): AccountPreferencesModel => {
+      mockCapturedPort = args[0];
 
-      return original(port);
+      return original(...args);
     },
   };
 });
@@ -85,16 +87,11 @@ afterEach(() => {
   cleanup();
 });
 
-/** Bảy tiêu đề mà khung vẽ. Ruột của chúng thuộc về người khác. */
-const BLOCK_TITLES = [
-  'hồ sơ',
-  'giao diện',
-  'thông báo',
-  'phím tắt',
-  'mật khẩu',
-  'phiên đăng nhập',
-  'vùng nguy hiểm',
-] as const;
+/** Năm tiêu đề mà khung vẽ ở v1. Phiên đăng nhập và vùng nguy hiểm rời DOM (cổng không có năng lực). */
+const BLOCK_TITLES = ['hồ sơ', 'giao diện', 'thông báo', 'phím tắt', 'mật khẩu'] as const;
+
+/** Hai khối của v2: vắng khỏi DOM chứ không bị vô hiệu hoá. */
+const ABSENT_BLOCK_TITLES = ['phiên đăng nhập', 'vùng nguy hiểm'] as const;
 
 /** Cổng đọc được ngay, ghi vào một mảng để test đếm số lượt lưu. */
 function createRecordingGateway(): {
@@ -110,8 +107,9 @@ function createRecordingGateway(): {
       save: (draft) => {
         saves.push(draft);
 
-        return Promise.resolve();
+        return Promise.resolve(null);
       },
+      replaceAvatar: () => Promise.reject(new Error('không dùng ở bộ kiểm này')),
     },
   };
 }
@@ -124,7 +122,7 @@ describe('đường dẫn của màn cài đặt tài khoản', () => {
 });
 
 describe('khung của màn', () => {
-  it('vẽ đủ bảy khối, mỗi khối một tiêu đề đọc được', async () => {
+  it('vẽ đủ năm khối, mỗi khối một tiêu đề đọc được; hai khối của v2 vắng khỏi DOM', async () => {
     const { gateway } = createRecordingGateway();
 
     renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
@@ -135,6 +133,10 @@ describe('khung của màn', () => {
 
     for (const title of BLOCK_TITLES) {
       expect(screen.getByRole('heading', { level: 2, name: title })).toBeTruthy();
+    }
+
+    for (const title of ABSENT_BLOCK_TITLES) {
+      expect(screen.queryByRole('heading', { level: 2, name: title })).toBeNull();
     }
 
     // A7: chỉ báo lưu nói ra được, và nó là `role="status"`.
@@ -156,15 +158,16 @@ describe('khung của màn', () => {
 });
 
 describe('trạng thái 2 — đang tải, và nó là của cả trang', () => {
-  it('khi lượt đọc chưa về thì bảy khối là khung xương, không khối nào có ruột', () => {
+  it('khi lượt đọc chưa về thì năm khối là khung xương, không khối nào có ruột', () => {
     const pendingGateway: AccountSettingsGateway = {
       read: () => new Promise<AccountDraft>(() => undefined),
-      save: () => Promise.resolve(),
+      save: () => Promise.resolve(null),
+      replaceAvatar: () => Promise.reject(new Error('không dùng ở bộ kiểm này')),
     };
 
     renderWithProviders(<AccountSettingsContainer gateway={pendingGateway} />);
 
-    // Bảy tiêu đề vẫn có — khung xương là khung xương của thẻ, không phải một
+    // Năm tiêu đề vẫn có — khung xương là khung xương của thẻ, không phải một
     // trang trắng thay chỗ cả màn (A11).
     for (const title of BLOCK_TITLES) {
       expect(screen.getByRole('heading', { level: 2, name: title })).toBeTruthy();
@@ -176,10 +179,11 @@ describe('trạng thái 2 — đang tải, và nó là của cả trang', () => 
 });
 
 describe('lỗi đọc cấp trang', () => {
-  it('thay chỗ bảy khối bằng một dải cảnh báo có nút đọc lại', async () => {
+  it('thay chỗ các khối bằng một dải cảnh báo có nút đọc lại', async () => {
     const failingGateway: AccountSettingsGateway = {
       read: () => Promise.reject(new Error('đọc hỏng')),
-      save: () => Promise.resolve(),
+      save: () => Promise.resolve(null),
+      replaceAvatar: () => Promise.reject(new Error('không dùng ở bộ kiểm này')),
     };
 
     renderWithProviders(<AccountSettingsContainer gateway={failingGateway} />);
@@ -359,24 +363,6 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
 /** Một mẫu thư điện tử dùng chung cho khối hồ sơ và vùng nguy hiểm. */
 const SAMPLE_EMAIL = 'an@congty.vn';
 
-/** Hai phiên mẫu. `lastActiveLabel` đã là chuỗi — A15 nói định dạng xong ở viewmodel. */
-const SAMPLE_SESSIONS: readonly AccountSessionRow[] = [
-  {
-    id: 'session-current',
-    device: 'Trình duyệt trên máy tính để bàn',
-    location: 'Hà Nội, Việt Nam',
-    lastActiveLabel: 'vừa xong',
-    isCurrent: true,
-  },
-  {
-    id: 'session-laptop',
-    device: 'Trình duyệt trên máy tính xách tay',
-    location: 'Đà Nẵng, Việt Nam',
-    lastActiveLabel: '12 phút trước',
-    isCurrent: false,
-  },
-];
-
 /** Năm sự việc của ma trận thông báo, dựng từ hai kênh mà T5 khai. */
 const NOTIFICATION_EVENTS: readonly NotificationEventModel[] = [
   { id: 'aiCompleted', label: 'AI xử lý xong' },
@@ -434,8 +420,19 @@ function vmFor(
         avatarInitials: 'NH',
         avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
         isAvatarUploading: isPartial,
+        isAvatarLocked: false,
         avatarStatusLabel: 'Đang tải ảnh lên…',
         onAvatarFileSelected: vi.fn(),
+        avatarProblem: null,
+        avatarReplace: {
+          isOpen: false,
+          previewUrl: '',
+          hasExistingAvatar: !isEmpty,
+          isSending: false,
+          onConfirm: vi.fn(),
+          onCancel: vi.fn(),
+        },
+        problems: {},
         fullName: 'Nguyễn Thu Hà',
         onFullNameChange: vi.fn(),
         jobTitle: isEmpty ? '' : 'Kỹ sư kết cấu',
@@ -506,31 +503,13 @@ function vmFor(
         canSubmit: false,
         isSubmitting: false,
         onSubmit: vi.fn(),
+        formProblem: null,
         successMessage: null,
         isManagedExternally: isForbidden,
       },
-      sessions: {
-        rows: isEmpty || isError || isForbidden ? [] : SAMPLE_SESSIONS,
-        warning: isPartial
-          ? 'Không đọc được danh sách phiên đang mở. Thử lại sau ít phút.'
-          : null,
-        onRetry: vi.fn(),
-        onSignOut: vi.fn(),
-        signingOutId: null,
-        reducedMotion: motionOff,
-      },
-      danger: {
-        email: SAMPLE_EMAIL,
-        isDialogOpen: false,
-        onRequestDelete: vi.fn(),
-        onCancelDelete: vi.fn(),
-        onConfirmDelete: vi.fn(),
-        confirmValue: '',
-        onConfirmValueChange: vi.fn(),
-        canConfirm: false,
-        isDeleting: false,
-        errorMessage: null,
-      },
+      // Phiên và vùng nguy hiểm rời DOM ở v1 (cổng không có năng lực).
+      sessions: null,
+      danger: null,
     },
   };
 }
@@ -751,9 +730,7 @@ describe('giảm chuyển động — mọi hoạt cảnh của màn phải tắ
       `[T6] giảm chuyển động — ${String(moving.length)} chỗ có dịch chuyển, ` +
         `${String(moving.length - alive.length)} chỗ đã bị tắt tại chỗ, ` +
         `${String(alive.length)} chỗ còn sống: ` +
-        alive
-          .map((site) => `${site.block}/${site.tag} [${site.movement.join(' ')}]`)
-          .join(' · '),
+        alive.map((site) => `${site.block}/${site.tag} [${site.movement.join(' ')}]`).join(' · '),
     );
 
     expect(alive.length).toBeLessThanOrEqual(FROZEN_MOTION_RESIDUE);

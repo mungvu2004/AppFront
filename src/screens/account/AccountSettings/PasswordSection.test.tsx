@@ -54,6 +54,7 @@ function baseProps(overrides: Partial<PasswordSectionProps> = {}): PasswordSecti
     canSubmit: false,
     isSubmitting: false,
     onSubmit: vi.fn(),
+    formProblem: null,
     successMessage: null,
     isManagedExternally: false,
     ...overrides,
@@ -63,6 +64,7 @@ function baseProps(overrides: Partial<PasswordSectionProps> = {}): PasswordSecti
 /** Cổng giả: mỗi phép trả về thứ test cần, không có bộ nhớ nào ở giữa. */
 function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGateway {
   return {
+    capabilities: { sessions: true, deleteAccount: true },
     readIdentity: () =>
       Promise.resolve({ ok: true, data: { email: 'an@congty.vn', isManagedExternally: false } }),
     listSessions: () => Promise.resolve({ ok: true, data: [] }),
@@ -309,7 +311,8 @@ describe('useAccountAuth — phần mật khẩu', () => {
   it('trạng thái 4 — cổng nói mật khẩu hiện tại sai, câu lỗi về đúng ô đó', async () => {
     const model = renderModel({
       gateway: fakeGateway({
-        changePassword: () => Promise.resolve({ ok: false, error: 'wrong-current-password' }),
+        changePassword: () =>
+          Promise.resolve({ ok: false, error: { reason: 'wrong-current-password' } }),
       }),
     });
 
@@ -358,7 +361,7 @@ describe('useAccountAuth — phần mật khẩu', () => {
 
     await waitFor(() => {
       expect(model.read().password.successMessage).toBe(
-        'Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới.',
+        'Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.',
       );
     });
 
