@@ -629,8 +629,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   );
 
   const onRerun = useCallback((): void => {
-    // Lỗi nằm ở N21 thì đọc lại cấu hình; lượt chạy luật tự đi theo khi nó về.
-    if (configQuery.isError) {
+    // Màn đang báo lỗi N21 (lượt đọc đầu hỏng) thì đọc lại cấu hình; lượt chạy luật tự đi
+    // theo khi nó về. Lượt đọc lại chạy nền hỏng mà vẫn còn cấu hình thì chạy luật như thường.
+    if (configQuery.isLoadingError) {
       void configQuery.refetch();
       return;
     }
