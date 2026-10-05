@@ -340,14 +340,14 @@ describe('[V5-S] dải lưu lớp', () => {
     expectVietnamese(container);
   });
 
-  it('A9: hộp thoại hỏi trước khi bỏ sửa — đồng ý và huỷ đi đúng đường', () => {
+  it('A9: hộp thoại hỏi trước khi bỏ sửa — đồng ý và huỷ đi đúng đường', async () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
     const block = saveBlockFor('reload', true);
 
     render(<Viewer3DSaveStrip saveBlock={{ ...block, confirm: { onCancel, onConfirm, open: true } }} />);
 
-    expect(screen.getByText('Bỏ thay đổi chưa lưu của tầng này?')).toBeInTheDocument();
+    expect(await screen.findByText('Bỏ thay đổi chưa lưu của tầng này?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
     expect(onCancel).toHaveBeenCalled();

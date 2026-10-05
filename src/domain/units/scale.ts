@@ -19,7 +19,7 @@
 
 import { splitOutliers, median } from './outliers';
 import { millimetres, type Millimetres, type MillimetresPerPixel, type Pixels } from './types';
-import { MAX_WALL_THICKNESS_MM } from '../rules/registry';
+import { MAX_WALL_THICKNESS_MM } from '../rules/limits';
 
 export type { Pixels, MillimetresPerPixel } from './types';
 

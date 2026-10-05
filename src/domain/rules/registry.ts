@@ -36,6 +36,7 @@ import {
   type NormalizedSpatial,
 } from '../spatial/normalize';
 import type { LevelId, RoomUsage } from '../spatial/types';
+import { MAX_WALL_THICKNESS_MM } from './limits';
 import type { EntityKind } from '../spatial/ids';
 import { MILLIMETRES_PER_METRE } from '../units/types';
 import { formatArea, formatLength } from '../../lib/format/measure';
@@ -389,8 +390,9 @@ export function createRuleRegistry(rules: readonly Rule[] = []): RuleRegistry {
 /** Thinnest wall that can be built and still called a wall. */
 export const MIN_WALL_THICKNESS_MM = 60;
 
-/** Thickest wall before the line is more likely two walls traced as one. */
-export const MAX_WALL_THICKNESS_MM = 400;
+/* `MAX_WALL_THICKNESS_MM` lives in `./limits` so `domain/units/scale.ts` — reached by every
+ * screen that decodes spatial data — does not drag this whole registry into its chunk. */
+export { MAX_WALL_THICKNESS_MM };
 
 /** Shortest wall run worth keeping; below this it is a tracing artefact. */
 export const MIN_WALL_LENGTH_MM = 100;
