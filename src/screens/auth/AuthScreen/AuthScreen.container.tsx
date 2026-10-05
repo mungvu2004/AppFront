@@ -67,26 +67,31 @@
  * của A11 quan sát được mà không cần cờ thứ hai.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { createMockAuthTransport } from '@/api/__mocks__/client';
 import { createAppApiClient, resolveUseMockApi } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
-import type { RegisterInput, SignInInput } from '@/api/schemas';
+import type { SignInInput } from '@/api/schemas';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import type { ConfigureAuthOptions } from '@/lib/auth';
+import { useSession } from '@/hooks/useSession';
+import { getSession, type ConfigureAuthOptions } from '@/lib/auth';
 import type { Result } from '@/lib/http';
 import { ROUTES } from '@/routes/paths';
 import { bootstrapAfterNewCookie, configureAppSession } from '@/routes/sessionSetup';
 
 import { AuthScreen } from './AuthScreen';
-import type { AuthGateway } from './useAuthScreen';
+import {
+  SignedInOfflineError,
+  type AuthGateway,
+  type AuthInitialNotice,
+} from './useAuthScreen';
 
 /** Names this screen to the error boundary, and to anything reading its report. */
 const SCREEN_ID = 'auth';
@@ -96,6 +101,15 @@ const DEFAULT_DESTINATION = ROUTES.dashboard;
 
 /** A host no real request can reach — only there so `URL` has a base to resolve against. */
 const PARSE_BASE = 'http://app.invalid';
+
+/** A backslash or a control character: the browser rewrites or drops them, so they never name what they look like. */
+function hasForbiddenChar(candidate: string): boolean {
+  return [...candidate].some((char) => {
+    const code = char.charCodeAt(0);
+
+    return char === '\\' || code < 0x20 || code === 0x7f;
+  });
+}
 
 /**
  * A redirect target that cannot leave this origin, and is not the sign-in page.
@@ -114,7 +128,7 @@ const PARSE_BASE = 'http://app.invalid';
  * — the visitor asked to log in, not to go somewhere in particular.
  */
 export function safeDestination(candidate: unknown): string {
-  if (typeof candidate !== 'string' || !candidate.startsWith('/')) {
+  if (typeof candidate !== 'string' || !candidate.startsWith('/') || hasForbiddenChar(candidate)) {
     return DEFAULT_DESTINATION;
   }
 
@@ -160,7 +174,15 @@ async function withSession(
   const established = await bootstrapAfterNewCookie();
 
   if (!established) {
-    return { ok: false, error: new Error('Sign-in succeeded but no session was established.') };
+    // Cookie accepted, session not opened: when the server is simply unreachable the
+    // session layer retries on its own, and the screen says so instead of "failed".
+    return {
+      ok: false,
+      error:
+        getSession().serverUnreachable === true
+          ? new SignedInOfflineError()
+          : new Error('Sign-in succeeded but no session was established.'),
+    };
   }
 
   return { ok: true, data: undefined };
@@ -179,11 +201,8 @@ async function withSession(
  */
 export function createHttpAuthGateway(client: ApiClient, transport?: SessionTransport): AuthGateway {
   return {
-    register: async (input: RegisterInput, signal?: AbortSignal): Promise<Result<void, unknown>> =>
-      withSession(
-        await client.auth.register({ body: input, ...(signal !== undefined ? { signal } : {}) }),
-        transport,
-      ),
+    requestPasswordReset: async (input, signal): Promise<Result<void, unknown>> =>
+      client.auth.requestPasswordReset({ body: input, ...(signal !== undefined ? { signal } : {}) }),
     signIn: async (input: SignInInput, signal?: AbortSignal): Promise<Result<void, unknown>> =>
       withSession(
         await client.auth.signIn({ body: input, ...(signal !== undefined ? { signal } : {}) }),
@@ -253,10 +272,51 @@ function AuthCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
+/** `location.state.notice`, if it is one of the two sentences this screen knows. */
+function noticeOf(state: unknown): AuthInitialNotice | undefined {
+  const notice =
+    typeof state === 'object' && state !== null ? (state as { readonly notice?: unknown }).notice : undefined;
+
+  return notice === 'passwordReset' || notice === 'sessionEnded' ? notice : undefined;
+}
+
+/**
+ * The gateway, plus one memory: did THIS screen's own attempt end with the cookie
+ * accepted but the session not yet open because the server was unreachable?
+ *
+ * Only then does a later `authenticated` mean "the sign-in the visitor just made
+ * finished". A session that became `authenticated` at start-up (nothing sent yet)
+ * must still show the form — mock mode opens `user-mock` on boot and the e2e then
+ * fills the form in.
+ */
+function useWatchedGateway(): { gateway: AuthGateway; isAwaitingSession: boolean } {
+  const inner = useAuthGateway();
+  const [isAwaitingSession, setAwaiting] = useState(false);
+
+  const gateway = useMemo<AuthGateway>(
+    () => ({
+      ...inner,
+      signIn: async (input, signal) => {
+        const result = await inner.signIn(input, signal);
+
+        if (!result.ok && result.error instanceof SignedInOfflineError) {
+          setAwaiting(true);
+        }
+
+        return result;
+      },
+    }),
+    [inner],
+  );
+
+  return { gateway, isAwaitingSession };
+}
+
 /** The screen itself, inside the boundary rather than around it. */
 function AuthRouteContent() {
-  const gateway = useAuthGateway();
+  const { gateway, isAwaitingSession } = useWatchedGateway();
   const navigate = useNavigate();
+  const session = useSession();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
 
@@ -277,8 +337,35 @@ function AuthRouteContent() {
     navigate(destination, { replace: true });
   }, [destination, navigate]);
 
+  useEffect(() => {
+    if (isAwaitingSession && session.status === 'authenticated') {
+      onAuthenticated();
+    }
+  }, [isAwaitingSession, onAuthenticated, session.status]);
+
+  const initialNotice = useMemo(() => noticeOf(location.state), [location.state]);
+
+  // `state.notice` lives in the history entry and would come back after F5: read once, then drop
+  // it, keeping every other key (e.g. `from`).
+  useEffect(() => {
+    if (initialNotice === undefined) {
+      return;
+    }
+
+    const rest: Record<string, unknown> = { ...(location.state as Record<string, unknown>) };
+
+    delete rest.notice;
+
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: rest });
+  }, [initialNotice, location.pathname, location.search, location.state, navigate]);
+
   return (
-    <AuthScreen gateway={gateway} onAuthenticated={onAuthenticated} reducedMotion={reducedMotion} />
+    <AuthScreen
+      gateway={gateway}
+      onAuthenticated={onAuthenticated}
+      reducedMotion={reducedMotion}
+      {...(initialNotice !== undefined ? { initialNotice } : {})}
+    />
   );
 }
 

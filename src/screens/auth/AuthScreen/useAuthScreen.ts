@@ -2,7 +2,7 @@
  * Everything the sign-in screen knows, with nothing it can draw.
  *
  * The logic half of invariant D's split. It owns the two field values, which of
- * the two tabs is open, what the last attempt did, and which of invariant A11's
+ * the two panels (sign in, forgot password) is open, what the last attempt did, and which of invariant A11's
  * seven states all of that adds up to. It returns strings that are already
  * written and booleans that are already decided, so `AuthScreen.tsx` can be a
  * function from props to markup with no branch of its own worth testing.
@@ -21,7 +21,7 @@
  *   `describeError` from `src/lib/errors`, which is the module that owns the
  *   product's error wording. There is not a user-facing sentence literal below.
  * - **A rejected attempt keeps what was typed.** `email` and `password` are not
- *   cleared on failure and not cleared when the tab changes. Retyping an address
+ *   cleared on failure and not cleared when the panel changes. Retyping an address
  *   because the server said no is the failure this screen exists to avoid.
  *
  * ## Where the field rules live
@@ -39,15 +39,13 @@ import type { z } from 'zod';
 
 import {
   EmailSchema,
-  FullNameSchema,
   MIN_PASSWORD_LENGTH,
   PasswordSchema,
-  RegisterSchema,
   SignInSchema,
-  type RegisterInput,
   type SignInInput,
 } from '@/api/schemas';
 import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import type { Result } from '@/lib/http';
 import { durationMs } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
@@ -56,31 +54,28 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
    khối nên Rollup phải giữ cả cuốn từ điển trong chunk vào. Đừng "dọn" về default. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
-export { MIN_PASSWORD_LENGTH, RegisterSchema, SignInSchema };
-export type { RegisterInput, SignInInput };
+import { fillTemplate, RECOVERY_LOCKOUT_SECONDS } from '../recoveryShared';
+import { useLockout } from '../useLockout';
+
+import {
+  useForgotPassword,
+  type ForgotPasswordActions,
+  type ForgotPasswordModel,
+} from './useForgotPassword';
+
+export { MIN_PASSWORD_LENGTH, SignInSchema };
+export type { SignInInput };
 
 /* -------------------------------------------------------------------------- */
 /* Wording.                                                                    */
 /* -------------------------------------------------------------------------- */
-
-/**
- * `{{name}}` filled from a table.
- *
- * `describeError` has the same three lines and does not export them. Copying
- * them is the smaller of the two wrongs: the alternative is widening the error
- * module's public surface for a screen, and `src/lib` is not a path this change
- * may edit.
- */
-function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => values[key] ?? whole);
-}
 
 /* -------------------------------------------------------------------------- */
 /* The port.                                                                   */
 /* -------------------------------------------------------------------------- */
 
 /**
- * The two calls this screen makes, and the only way it reaches a network.
+ * The calls this screen makes, and the only way it reaches a network.
  *
  * Returning a `Result` rather than throwing keeps the failure path ordinary: a
  * rejected password is a value this hook classifies, not an exception it has to
@@ -88,18 +83,36 @@ function fillTemplate(template: string, values: Readonly<Record<string, string>>
  */
 export interface AuthGateway {
   readonly signIn: (input: SignInInput, signal?: AbortSignal) => Promise<Result<void, unknown>>;
-  readonly register: (input: RegisterInput, signal?: AbortSignal) => Promise<Result<void, unknown>>;
+  readonly requestPasswordReset: (
+    input: { readonly email: string },
+    signal?: AbortSignal,
+  ) => Promise<Result<void, unknown>>;
+}
+
+/**
+ * Đăng nhập xong, cookie đã nhận, nhưng phiên chưa mở vì máy chủ không trả lời lượt
+ * gia hạn (`serverUnreachable`). Không phải sai mật khẩu và không phải lỗi mạng của
+ * lượt gửi: tầng phiên tự thử lại. Container ném nó để hook nói đúng câu.
+ */
+export class SignedInOfflineError extends Error {
+  constructor() {
+    super('Signed in, but the server could not be reached to open the session.');
+    this.name = 'SignedInOfflineError';
+  }
 }
 
 /* -------------------------------------------------------------------------- */
 /* Shapes the view reads.                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Which tab is open. */
-export type AuthTab = 'signIn' | 'register';
+/** Which panel is open: the sign-in form, or the "forgot password" one that replaces it. */
+export type AuthPanel = 'signIn' | 'forgotPassword';
 
-/** The three fields, by the name the view labels them under. */
-export type AuthField = 'email' | 'password' | 'fullName';
+/** A sentence the host asks the strip to open with. */
+export type AuthInitialNotice = 'passwordReset' | 'sessionEnded';
+
+/** The two fields, by the name the view labels them under. */
+export type AuthField = 'email' | 'password';
 
 /** The state colours invariant A4 allows. Named here so the hook stays free of components. */
 export type AuthNoticeTone = 'verified' | 'attention' | 'violation';
@@ -121,14 +134,14 @@ export type AuthProblems = Partial<Readonly<Record<AuthField, string>>>;
 export interface AuthValues {
   readonly email: string;
   readonly password: string;
-  readonly fullName: string;
   readonly rememberMe: boolean;
 }
 
 /** What the view renders from. Every field is decided; none needs interpreting. */
 export interface AuthScreenModel {
   readonly state: SevenState;
-  readonly tab: AuthTab;
+  readonly panel: AuthPanel;
+  readonly forgot: ForgotPasswordModel;
   readonly isCollapsed: boolean;
   readonly isSubmitting: boolean;
   readonly values: AuthValues;
@@ -145,10 +158,8 @@ export interface AuthScreenModel {
 
 /** What the view can do. Every one is stable across renders. */
 export interface AuthScreenActions {
-  readonly setTab: (tab: AuthTab) => void;
   readonly setEmail: (email: string) => void;
   readonly setPassword: (password: string) => void;
-  readonly setFullName: (fullName: string) => void;
   readonly setRememberMe: (rememberMe: boolean) => void;
   /** Validates one field, on the way out of it. */
   readonly blurField: (field: AuthField) => void;
@@ -156,8 +167,11 @@ export interface AuthScreenActions {
   readonly submit: () => void;
   /** The SSO button. A no-op until a host supplies {@link UseAuthScreenOptions.onSsoSignIn}. */
   readonly ssoSignIn: () => void;
-  /** "Quên mật khẩu". A no-op until a host supplies {@link UseAuthScreenOptions.onForgotPassword}. */
+  /** "Quên mật khẩu": opens the panel, carrying the address typed so far. */
   readonly forgotPassword: () => void;
+  /** Back to the sign-in form. */
+  readonly closeForgotPassword: () => void;
+  readonly forgotActions: ForgotPasswordActions;
 }
 
 export interface UseAuthScreenOptions {
@@ -166,9 +180,8 @@ export interface UseAuthScreenOptions {
   readonly onAuthenticated: () => void;
   /** There is no SSO flow yet — the button renders and does nothing until a host wires one in. */
   readonly onSsoSignIn?: () => void;
-  /** There is no password-reset flow yet — the link renders and does nothing until a host wires one in. */
-  readonly onForgotPassword?: () => void;
-  readonly initialTab?: AuthTab;
+  /** A sentence to open the strip with — what the last screen wants this one to say. */
+  readonly initialNotice?: AuthInitialNotice;
   /** Skips the success flash, so a person who asked for less motion waits for nothing. */
   readonly reducedMotion?: boolean;
 }
@@ -178,67 +191,68 @@ export interface UseAuthScreenOptions {
 /* -------------------------------------------------------------------------- */
 
 /** How long the server locks an address out for, when it does not say. */
-export const LOCKOUT_SECONDS = 60;
+export const LOCKOUT_SECONDS = RECOVERY_LOCKOUT_SECONDS;
 
-/** One second, named so `local/no-raw-duration` sees a constant rather than a literal. */
-const COUNTDOWN_TICK_MS = 1000;
-
-const UNAUTHORIZED_STATUS = 401;
-const FORBIDDEN_STATUS = 403;
 const TOO_MANY_REQUESTS_STATUS = 429;
 
-/** What the server said, reduced to the four cases this screen answers differently. */
+/** What the server said, reduced to the cases this screen answers differently. */
 type AuthFailure =
   | { readonly kind: 'invalidCredentials' }
   | { readonly kind: 'accountDisabled' }
-  | { readonly kind: 'tooManyAttempts'; readonly seconds: number }
+  | { readonly kind: 'originMismatch' }
+  | { readonly kind: 'tooManyAttempts' }
+  | { readonly kind: 'validation' }
+  | { readonly kind: 'signedInOffline' }
   | { readonly kind: 'transport'; readonly cause: unknown };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-/** The HTTP status buried in whatever the gateway rejected with, if there is one. */
-function statusOf(error: unknown): number | null {
-  if (isRecord(error) && typeof error.status === 'number') {
-    return error.status;
+/**
+ * A failed sign-in, read by the wire `code` and not by the status alone (HOP-DONG-MOI §3).
+ *
+ * A bare 403 is NOT "account disabled": `ORIGIN_MISMATCH` is a deployment fault and
+ * says so on its own. 429 is read by status, with or without a code, and the lockout
+ * is {@link LOCKOUT_SECONDS} whatever `Retry-After` says — the server counts failures
+ * for 900 s and locks every later attempt for 60, so a short header would lie.
+ * `field` errors come back as the problem under that box, not as a strip.
+ */
+function classifyFailure(error: unknown): { failure: AuthFailure; field?: AuthField } {
+  if (error instanceof SignedInOfflineError) {
+    return { failure: { kind: 'signedInOffline' } };
   }
 
-  return null;
-}
+  const wire = readWireError(error);
 
-/** How many seconds the server asked us to wait, or the default lockout. */
-function retryAfterSecondsOf(error: unknown): number {
-  if (isRecord(error) && typeof error.retryAfterSeconds === 'number' && error.retryAfterSeconds > 0) {
-    return error.retryAfterSeconds;
+  if (wire?.status === TOO_MANY_REQUESTS_STATUS || wire?.code === 'RATE_LIMITED') {
+    return { failure: { kind: 'tooManyAttempts' } };
   }
 
-  return LOCKOUT_SECONDS;
-}
+  switch (wire?.code) {
+    case 'INVALID_CREDENTIALS':
+      return { failure: { kind: 'invalidCredentials' } };
+    case 'ACCOUNT_DISABLED':
+      return { failure: { kind: 'accountDisabled' } };
+    case 'ORIGIN_MISMATCH':
+      return { failure: { kind: 'originMismatch' } };
+    case 'VALIDATION':
+      if (wire.field === 'email' || wire.field === 'password') {
+        return { failure: { kind: 'validation' }, field: wire.field };
+      }
 
-function classifyFailure(error: unknown): AuthFailure {
-  switch (statusOf(error)) {
-    case UNAUTHORIZED_STATUS:
-      return { kind: 'invalidCredentials' };
-    case FORBIDDEN_STATUS:
-      return { kind: 'accountDisabled' };
-    case TOO_MANY_REQUESTS_STATUS:
-      return { kind: 'tooManyAttempts', seconds: retryAfterSecondsOf(error) };
+      return { failure: { kind: 'transport', cause: error } };
     default:
-      return { kind: 'transport', cause: error };
+      return { failure: { kind: 'transport', cause: error } };
   }
 }
 
 /**
  * A failure as the strip will read it.
  *
- * The three auth-specific cases come from `auth.errors.*`, because "sai mật
- * khẩu" is wording this screen owns. Everything else — no network, a timeout, a
- * gateway that fell over — goes to `describeError`, which is the module that
- * owns the rest of the product's error wording, so a dropped connection reads
- * the same here as it does anywhere else.
+ * The auth-specific cases come from `auth.errors.*`, because "sai mật khẩu"
+ * is wording this screen owns. Everything else — no network, a timeout, a
+ * gateway that fell over, a code nobody here knows — goes to `describeError`,
+ * which owns the rest of the product's error wording, so a dropped connection
+ * reads the same here as it does anywhere else and no raw code reaches a person.
  */
-function noticeFor(failure: AuthFailure, secondsLeft: number): AuthNotice {
+function noticeFor(failure: AuthFailure): AuthNotice | null {
   switch (failure.kind) {
     case 'invalidCredentials':
       return {
@@ -253,14 +267,22 @@ function noticeFor(failure: AuthFailure, secondsLeft: number): AuthNotice {
         title: AUTH_MESSAGES.errors.accountDisabled.title,
         message: AUTH_MESSAGES.errors.accountDisabled.description,
       };
+    case 'originMismatch':
+      return {
+        tone: 'violation',
+        title: AUTH_MESSAGES.errors.originMismatch.title,
+        message: AUTH_MESSAGES.errors.originMismatch.description,
+      };
     case 'tooManyAttempts':
       return {
         tone: 'attention',
         title: AUTH_MESSAGES.errors.tooManyAttempts.title,
-        message: fillTemplate(AUTH_MESSAGES.errors.tooManyAttempts.description, {
-          seconds: String(secondsLeft),
-        }),
+        message: AUTH_MESSAGES.errors.tooManyAttempts.description,
       };
+    case 'signedInOffline':
+      return { tone: 'attention', message: AUTH_MESSAGES.notices.signedInOffline };
+    case 'validation':
+      return null;
     default: {
       const described = describeError(toAppError(failure.cause));
 
@@ -269,20 +291,22 @@ function noticeFor(failure: AuthFailure, secondsLeft: number): AuthNotice {
   }
 }
 
+/** What the strip opens with when the previous screen asked for it. */
+const INITIAL_NOTICES: Readonly<Record<AuthInitialNotice, AuthNotice>> = {
+  passwordReset: { tone: 'verified', message: AUTH_MESSAGES.notices.passwordReset },
+  sessionEnded: { tone: 'attention', message: AUTH_MESSAGES.notices.sessionEnded },
+};
+
 /* -------------------------------------------------------------------------- */
 /* Validation.                                                                 */
 /* -------------------------------------------------------------------------- */
 
 /**
  * What each field says when it is simply not filled in.
- *
- * Three of the four complaints this screen can make are this one, said about a
- * different box.
  */
 const MISSING_BY_FIELD: Readonly<Record<AuthField, string>> = {
   email: AUTH_MESSAGES.problems.emailRequired,
   password: AUTH_MESSAGES.problems.passwordRequired,
-  fullName: AUTH_MESSAGES.problems.fullNameRequired,
 };
 
 /**
@@ -327,36 +351,41 @@ function firstProblem(field: AuthField, value: unknown): string | undefined {
   return issue === undefined ? undefined : sentenceFor(field, issue);
 }
 
-/** Which fields the open tab asks for. */
-function fieldsOf(tab: AuthTab): readonly AuthField[] {
-  return tab === 'register' ? ['fullName', 'email', 'password'] : ['email', 'password'];
-}
+/** The fields the sign-in form asks for. */
+const FIELDS: readonly AuthField[] = ['email', 'password'];
 
 const SCHEMA_BY_FIELD: Readonly<Record<AuthField, z.ZodType<unknown>>> = {
   email: EmailSchema,
   password: PasswordSchema,
-  fullName: FullNameSchema,
 };
 
 function valueOf(values: AuthValues, field: AuthField): string {
-  switch (field) {
-    case 'email':
-      return values.email;
-    case 'password':
-      return values.password;
-    default:
-      return values.fullName;
-  }
+  return field === 'email' ? values.email : values.password;
 }
 
 /* -------------------------------------------------------------------------- */
 /* The hook.                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/** The seven states as the "forgot password" panel reads them: sending, sent, failed, typed, empty. */
+function forgotStateOf(forgot: ForgotPasswordModel): SevenState {
+  if (forgot.isSending) {
+    return 'loading';
+  }
+  if (forgot.isSent) {
+    return 'success';
+  }
+  if (forgot.hasFailure) {
+    return 'error';
+  }
+
+  return forgot.email.length > 0 ? 'partial' : 'empty';
+}
+
 /** What the last attempt left behind. */
 type Phase = 'idle' | 'submitting' | 'succeeded';
 
-const EMPTY_VALUES: AuthValues = { email: '', password: '', fullName: '', rememberMe: false };
+const EMPTY_VALUES: AuthValues = { email: '', password: '', rememberMe: false };
 
 /**
  * The sign-in screen's state, decisions and wording.
@@ -373,18 +402,22 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     gateway,
     onAuthenticated,
     onSsoSignIn,
-    onForgotPassword,
-    initialTab = 'signIn',
+    initialNotice,
     reducedMotion = false,
   } = options;
 
-  const [tab, setTabState] = useState<AuthTab>(initialTab);
+  const [panel, setPanel] = useState<AuthPanel>('signIn');
+  /** The host's opening sentence; the first attempt replaces it. */
+  const [openingNotice, setOpeningNotice] = useState<AuthInitialNotice | undefined>(initialNotice);
+  const { model: forgot, actions: forgotActions } = useForgotPassword({
+    request: gateway.requestPasswordReset,
+  });
   const [values, setValues] = useState<AuthValues>(EMPTY_VALUES);
   const [problems, setProblems] = useState<AuthProblems>({});
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [isCollapsed, setCollapsedState] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(0);
+  const { isLocked: isLockedOut, lock } = useLockout();
 
   /**
    * Guards the double submit.
@@ -426,26 +459,12 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
 
   /* ---- the lockout countdown --------------------------------------------- */
 
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      return undefined;
-    }
-
-    const timer = setInterval(() => {
-      setSecondsLeft((remaining) => (remaining > 0 ? remaining - 1 : 0));
-    }, COUNTDOWN_TICK_MS);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [secondsLeft]);
-
   /** The lockout is over the moment the count reaches zero; the strip goes with it. */
   useEffect(() => {
-    if (secondsLeft === 0) {
+    if (!isLockedOut) {
       setFailure((current) => (current?.kind === 'tooManyAttempts' ? null : current));
     }
-  }, [secondsLeft]);
+  }, [isLockedOut]);
 
   /* ---- editing ------------------------------------------------------------ */
 
@@ -478,13 +497,6 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     [editField],
   );
 
-  const setFullName = useCallback(
-    (fullName: string) => {
-      editField('fullName', { fullName });
-    },
-    [editField],
-  );
-
   const setRememberMe = useCallback((rememberMe: boolean) => {
     setValues((current) => ({ ...current, rememberMe }));
   }, []);
@@ -508,19 +520,6 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     });
   }, []);
 
-  /**
-   * Changing tab keeps the address and drops the verdicts.
-   *
-   * Keeping what was typed is invariant-adjacent — the brief asks for it by
-   * name — and dropping the complaints is the other half: a "chưa nhập họ và
-   * tên" left over from the register tab is a lie on the sign-in tab.
-   */
-  const setTab = useCallback((next: AuthTab) => {
-    setTabState(next);
-    setProblems({});
-    setFailure((current) => (current?.kind === 'accountDisabled' ? current : null));
-  }, []);
-
   const setCollapsed = useCallback((next: boolean) => {
     setCollapsedState(next);
   }, []);
@@ -529,17 +528,23 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     onSsoSignIn?.();
   }, [onSsoSignIn]);
 
+  /** Opening the panel carries the address typed so far; closing it keeps that address. */
   const forgotPassword = useCallback(() => {
-    onForgotPassword?.();
-  }, [onForgotPassword]);
+    forgotActions.reset(valuesRef.current.email);
+    setPanel('forgotPassword');
+  }, [forgotActions]);
+
+  const closeForgotPassword = useCallback(() => {
+    setPanel('signIn');
+  }, []);
 
   /* ---- submitting --------------------------------------------------------- */
 
   const isBlocked = failure?.kind === 'accountDisabled';
-  const isLockedOut = secondsLeft > 0;
+  const isWaitingForSession = failure?.kind === 'signedInOffline';
 
   const submit = useCallback(() => {
-    if (inFlight.current || isBlocked || isLockedOut) {
+    if (inFlight.current || isBlocked || isLockedOut || isWaitingForSession) {
       return;
     }
 
@@ -548,7 +553,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     // shape the view sees.
     const found: Partial<Record<AuthField, string>> = {};
 
-    for (const field of fieldsOf(tab)) {
+    for (const field of FIELDS) {
       const problem = firstProblem(field, valueOf(current, field));
 
       if (problem !== undefined) {
@@ -564,24 +569,16 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
 
     setProblems({});
     setFailure(null);
+    setOpeningNotice(undefined);
     inFlight.current = true;
     setPhase('submitting');
 
-    const send =
-      tab === 'register'
-        ? gateway.register({
-            email: current.email,
-            password: current.password,
-            rememberMe: current.rememberMe,
-            fullName: current.fullName.trim(),
-          })
-        : gateway.signIn({
-            email: current.email,
-            password: current.password,
-            rememberMe: current.rememberMe,
-          });
-
-    void send
+    void gateway
+      .signIn({
+        email: current.email,
+        password: current.password,
+        rememberMe: current.rememberMe,
+      })
       .then((result) => {
         inFlight.current = false;
 
@@ -604,12 +601,22 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
           return;
         }
 
-        const classified = classifyFailure(result.error);
+        const { failure: classified, field } = classifyFailure(result.error);
         setPhase('idle');
         setFailure(classified);
 
+        if (field !== undefined) {
+          setProblems({
+            [field]: field === 'email'
+              ? AUTH_MESSAGES.problems.emailInvalid
+              : fillTemplate(AUTH_MESSAGES.problems.passwordTooShort, {
+                  count: String(MIN_PASSWORD_LENGTH),
+                }),
+          });
+        }
+
         if (classified.kind === 'tooManyAttempts') {
-          setSecondsLeft(classified.seconds);
+          lock(LOCKOUT_SECONDS);
         }
       })
       .catch((thrown: unknown) => {
@@ -617,7 +624,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
         setPhase('idle');
         setFailure({ kind: 'transport', cause: thrown });
       });
-  }, [gateway, isBlocked, isLockedOut, reducedMotion, tab]);
+  }, [gateway, isBlocked, isLockedOut, isWaitingForSession, lock, reducedMotion]);
 
   /* ---- what the view sees -------------------------------------------------- */
 
@@ -628,8 +635,12 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
       return { tone: 'verified', message: AUTH_MESSAGES.notices.success };
     }
 
-    return failure === null ? null : noticeFor(failure, secondsLeft);
-  }, [failure, phase, secondsLeft]);
+    if (failure !== null) {
+      return noticeFor(failure);
+    }
+
+    return openingNotice === undefined ? null : INITIAL_NOTICES[openingNotice];
+  }, [failure, openingNotice, phase]);
 
   const isSubmitting = phase === 'submitting';
 
@@ -645,6 +656,9 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   const state = useMemo<SevenState>(() => {
     if (isCollapsed) {
       return 'collapsed';
+    }
+    if (panel === 'forgotPassword') {
+      return forgotStateOf(forgot);
     }
     if (isBlocked) {
       return 'forbidden';
@@ -663,32 +677,33 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     }
 
     return 'empty';
-  }, [failure, isBlocked, isCollapsed, isSubmitting, phase, values.email, values.password]);
+  }, [failure, forgot, isBlocked, isCollapsed, isSubmitting, panel, phase, values.email, values.password]);
 
   const model: AuthScreenModel = {
     state,
-    tab,
+    panel,
+    forgot,
     isCollapsed,
     isSubmitting,
     values,
     problems,
     notice,
-    canSubmit: !isSubmitting && !isBlocked && !isLockedOut,
-    submitLabel: tab === 'register' ? AUTH_MESSAGES.actions.register : AUTH_MESSAGES.actions.signIn,
+    canSubmit: !isSubmitting && !isBlocked && !isLockedOut && !isWaitingForSession,
+    submitLabel: AUTH_MESSAGES.actions.signIn,
     isBlocked,
   };
 
   const actions: AuthScreenActions = {
-    setTab,
     setEmail,
     setPassword,
-    setFullName,
     setRememberMe,
     blurField,
     setCollapsed,
     submit,
     ssoSignIn,
     forgotPassword,
+    closeForgotPassword,
+    forgotActions,
   };
 
   return { model, actions };

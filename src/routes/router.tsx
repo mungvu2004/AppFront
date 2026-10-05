@@ -34,6 +34,8 @@ const suspended = (node: React.ReactNode) => (
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
 const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
+const RouteInvitationAccept = lazy(() => import('../screens/auth/InvitationAccept').then(m => ({ default: m.InvitationAcceptRoute })));
+const RoutePasswordReset = lazy(() => import('../screens/auth/PasswordReset').then(m => ({ default: m.PasswordResetRoute })));
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
@@ -42,7 +44,6 @@ const RouteAccessDenied = lazy(() => import('../screens/system/AccessDenied').th
 const RouteMobileViewer = lazy(() => import('../screens/system/MobileViewer').then(m => ({ default: m.MobileViewerRoute })));
 const RouteNotFound = lazy(() => import('../screens/system/NotFound').then(m => ({ default: m.NotFoundRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
-const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
 const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen').then(m => ({ default: m.FloorUploadRoute })));
 const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityGate').then(m => ({ default: m.InputQualityGateRoute })));
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
@@ -321,6 +322,8 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
       { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
       { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
+      { path: ROUTE_PATTERNS.invitationAccept, element: suspended(<RouteInvitationAccept />) },
+      { path: ROUTE_PATTERNS.passwordReset, element: suspended(<RoutePasswordReset />) },
       { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },
       { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
       { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
@@ -349,7 +352,6 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
       { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
       { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
-      { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
       { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspended(<RouteMobileViewer />) },

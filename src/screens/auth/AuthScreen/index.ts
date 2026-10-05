@@ -14,21 +14,21 @@ export type { AuthScreenProps, AuthScreenViewProps } from './AuthScreen';
 export {
   LOCKOUT_SECONDS,
   MIN_PASSWORD_LENGTH,
-  RegisterSchema,
+  SignedInOfflineError,
   SignInSchema,
   useAuthScreen,
 } from './useAuthScreen';
 export type {
   AuthField,
   AuthGateway,
+  AuthInitialNotice,
   AuthNotice,
   AuthNoticeTone,
+  AuthPanel,
   AuthProblems,
   AuthScreenActions,
   AuthScreenModel,
-  AuthTab,
   AuthValues,
-  RegisterInput,
   SignInInput,
   UseAuthScreenOptions,
 } from './useAuthScreen';

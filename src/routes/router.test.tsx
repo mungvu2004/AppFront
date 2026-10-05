@@ -30,7 +30,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
 
-import { ROUTES } from './paths';
+import { PUBLIC_ROUTE_PATTERNS, ROUTE_PATTERNS, ROUTES } from './paths';
 import { routes, UndoShortcuts } from './router';
 
 /**
@@ -162,5 +162,27 @@ describe('[router] vỏ chờ lúc chunk màn còn trên đường (B-G-04)', ()
       'true',
     );
     expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+  });
+});
+
+describe('[router] đường vào của đăng nhập, lời mời và đặt lại mật khẩu (F-09a)', () => {
+  const childPaths = (routes[0]?.children ?? []).map((child) => child.path);
+
+  it('có route nhận lời mời và đặt lại mật khẩu', () => {
+    expect(childPaths).toContain(ROUTE_PATTERNS.invitationAccept);
+    expect(childPaths).toContain(ROUTE_PATTERNS.passwordReset);
+    expect(ROUTES.invitationAccept).toBe('/login/invitation');
+    expect(ROUTES.passwordReset).toBe('/login/reset-password');
+  });
+
+  it('không còn route /billing', () => {
+    expect(childPaths).not.toContain('/billing');
+    expect('billing' in ROUTE_PATTERNS).toBe(false);
+    expect('billing' in ROUTES).toBe(false);
+  });
+
+  it('hai đường mới nằm trong bảng đường công khai, nên người chưa đăng nhập không bị đá về /login', () => {
+    expect(PUBLIC_ROUTE_PATTERNS).toContain(`${ROUTE_PATTERNS.invitationAccept}/*`);
+    expect(PUBLIC_ROUTE_PATTERNS).toContain(`${ROUTE_PATTERNS.passwordReset}/*`);
   });
 });

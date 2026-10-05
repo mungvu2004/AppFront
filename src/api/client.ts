@@ -26,7 +26,8 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
-import { UserSchema, type RegisterInput, type SignInInput, type User as ApiUser } from './schemas';
+import type { AcceptInvitation, PasswordResetConfirm, PasswordResetRequest } from './schemas/auth';
+import { UserSchema, type SignInInput, type User as ApiUser } from './schemas';
 import {
   FloorLayerDocumentSchema,
   FloorLayerWriteResultSchema,
@@ -82,7 +83,7 @@ export type {
   User,
   Version,
 } from './contracts';
-export type { RegisterInput, SignInInput } from './schemas';
+export type { SignInInput } from './schemas';
 export type { LatestFloorUpload } from './schemas/uploads';
 export type {
   MarkNotificationsReadInput,
@@ -149,8 +150,16 @@ export interface SignInApiInput extends WriteRequestOptions {
   body: SignInInput;
 }
 
-export interface RegisterApiInput extends WriteRequestOptions {
-  body: RegisterInput;
+export interface AcceptInvitationApiInput extends WriteRequestOptions {
+  body: AcceptInvitation;
+}
+
+export interface ConfirmPasswordResetApiInput extends WriteRequestOptions {
+  body: PasswordResetConfirm;
+}
+
+export interface RequestPasswordResetApiInput extends WriteRequestOptions {
+  body: PasswordResetRequest;
 }
 
 export interface FloorWriteBody extends Omit<FloorPayload, 'elevationMm' | 'heightMm' | 'name' | 'order'> {
@@ -355,7 +364,7 @@ export interface SetUserEnabledInput extends WriteRequestOptions {
 }
 
 export interface ResendInviteInput extends WriteRequestOptions {
-  inviteId: string;
+  userId: string;
 }
 
 /**
@@ -677,7 +686,9 @@ export interface NotificationsApi {
  * vì cùng một lý do.
  */
 export interface AuthApi {
-  register(input: RegisterApiInput): Promise<ApiResult<void>>;
+  acceptInvitation(input: AcceptInvitationApiInput): Promise<ApiResult<void>>;
+  confirmPasswordReset(input: ConfirmPasswordResetApiInput): Promise<ApiResult<void>>;
+  requestPasswordReset(input: RequestPasswordResetApiInput): Promise<ApiResult<void>>;
   signIn(input: SignInApiInput): Promise<ApiResult<void>>;
 }
 
@@ -858,7 +869,12 @@ const postWithoutBody = async <TBody>(
  */
 export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClient } = {}): ApiClient => ({
   auth: {
-    register: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.register, input.body, input),
+    acceptInvitation: async (input) =>
+      postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.invitationAccept, input.body, input),
+    confirmPasswordReset: async (input) =>
+      postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.passwordResetConfirm, input.body, input),
+    requestPasswordReset: async (input) =>
+      postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.passwordReset, input.body, input),
     signIn: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.login, input.body, input),
   },
   drawings: {
@@ -1272,10 +1288,10 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       );
     },
     resendInvite: async (input) => {
-      const { inviteId } = input;
+      const { userId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.users.resendInvite(inviteId), {}, input),
+        await callPost(http, ENDPOINTS.users.resendInvite(userId), {}, input),
         AdminUserSchema,
         'users.resendInvite',
       );

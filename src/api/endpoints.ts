@@ -55,14 +55,17 @@ export function toApiUrl(baseUrl: string, path: string): string {
 
 export const ENDPOINTS = {
   /**
-   * The credential exchange, and the only two paths a signed-out visitor posts to.
+   * The credential exchange, and the only paths a signed-out visitor posts to.
    *
-   * Flat strings rather than functions because neither takes a parameter: the
-   * address and password travel in the body, never in the path.
+   * Flat strings rather than functions because none takes a parameter: the
+   * address, password and one-time token travel in the body, never in the path.
+   * There is deliberately no `register`: sign-up is closed in v1 (K7 = B).
    */
   auth: {
+    invitationAccept: `${AUTH_ROOT}/invitations/accept`,
     login: `${AUTH_ROOT}/login`,
-    register: `${AUTH_ROOT}/register`,
+    passwordReset: `${AUTH_ROOT}/password-reset`,
+    passwordResetConfirm: `${AUTH_ROOT}/password-reset/confirm`,
   },
   drawings: {
     chunk: (projectId: string, uploadId: string): string =>
@@ -277,8 +280,8 @@ export const ENDPOINTS = {
    * hộp thoại của A9 chắn trước.
    *
    * `invite` gửi tới một tài nguyên "lời mời" chứ không tới `USERS_ROOT`: một
-   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(inviteId)` cần
-   * đúng tài nguyên ấy để trỏ tới — nó nhận `inviteId`, không nhận `userId`.
+   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(userId)` trỏ tới
+   * `invitations/{user_id}/resend` — BE nhận id người được mời, tức `AdminUser.id`.
    */
   users: {
     activity: (userId: string): string => `${USERS_ROOT}/${userId}/activity`,
@@ -289,6 +292,6 @@ export const ENDPOINTS = {
     list: USERS_ROOT,
     memberships: (userId: string): string => `${USERS_ROOT}/${userId}/memberships`,
     remove: (userId: string): string => `${USERS_ROOT}/${userId}`,
-    resendInvite: (inviteId: string): string => `${USERS_ROOT}/invitations/${inviteId}/resend`,
+    resendInvite: (userId: string): string => `${USERS_ROOT}/invitations/${userId}/resend`,
   },
 } as const;

@@ -36,7 +36,7 @@
  *
  * ## `resendInvite` nhận id của chính hàng đang chờ
  *
- * `ENDPOINTS.users.resendInvite(inviteId)` là đường DUY NHẤT gửi lại một lời mời, và
+ * `ENDPOINTS.users.resendInvite(userId)` (BE: `invitations/{user_id}/resend`) là đường DUY NHẤT gửi lại một lời mời, và
  * `AdminUserSchema` không có trường `inviteId`: một người `status: 'pending'` CHÍNH LÀ lời
  * mời — `invitedAt` và `inviteExpiresAt` chỉ có mặt trên đúng những hàng ấy
  * (`src/api/schemas/users.ts`). Nên `AdminUser.id` của một hàng chờ là mã lời mời, và cổng
@@ -401,8 +401,8 @@ export interface UserManagementGateway {
   enableUser(userId: string): Promise<AdminUser>;
   inviteUsers(request: InviteRequest): Promise<readonly AdminUser[]>;
   removeUser(request: RemoveRequest): Promise<AdminUser>;
-  /** `inviteId` là `AdminUser.id` của chính hàng đang chờ — xem docblock đầu file. */
-  resendInvite(inviteId: string): Promise<AdminUser>;
+  /** `userId` là `AdminUser.id` của chính hàng đang chờ — xem docblock đầu file. */
+  resendInvite(userId: string): Promise<AdminUser>;
   /** Vé hoàn tác tám giây của A8. Đồng hồ tiêm sẵn, nên bài kiểm không phải chờ thật. */
   createWriteTicket(options: CreateUndoTicketOptions): UndoTicket;
   /** Toast của A8 đi qua `notificationBus`; nút Hoàn tác là `undoTicket` của thông báo. */
@@ -488,8 +488,8 @@ export function createUserManagementGateway(
       unwrap(usersApi.invite({ body: { emails: [...emails], role } })),
     removeUser: async ({ confirmEmail, userId }: RemoveRequest): Promise<AdminUser> =>
       unwrap(usersApi.remove({ body: { confirmEmail, userId } })),
-    resendInvite: async (inviteId: string): Promise<AdminUser> =>
-      unwrap(usersApi.resendInvite({ inviteId })),
+    resendInvite: async (userId: string): Promise<AdminUser> =>
+      unwrap(usersApi.resendInvite({ userId })),
     createWriteTicket: (ticketOptions: CreateUndoTicketOptions): UndoTicket =>
       createUndoTicket({ now, ...ticketOptions }),
     notify: (input: NotificationInput): void => {
