@@ -28,7 +28,15 @@
  */
 
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  within,
+} from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +44,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { millimetres } from '@/domain/units/types';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
+import { FlatCameraMode } from '@/lib/three/camera/modes';
 import { CameraDirector } from '@/lib/three/camera/presets';
 import { toSceneLength } from '@/lib/three/build/scene';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -686,7 +695,9 @@ describe('[VS-12] sceneActions.frameStorey tới màn nội dung', () => {
       </QueryClientProvider>,
     );
 
-    console.log(`[VIEWER-SHELL][VS-12] frameStorey tới màn nội dung = ${typeof captured.actions?.frameStorey}`);
+    console.log(
+      `[VIEWER-SHELL][VS-12] frameStorey tới màn nội dung = ${typeof captured.actions?.frameStorey}`,
+    );
 
     expect(typeof captured.actions?.frameStorey).toBe('function');
 
@@ -868,11 +879,26 @@ describe('thu phóng ở góc nhìn phẳng (Trên xuống)', () => {
       },
     );
 
+    const controllerSpy = vi.spyOn(CameraDirector.prototype, 'controller', 'get');
+
     act(() => {
       hook.result.current.onCubeFaceSelect('top');
     });
 
-    return hook;
+    // Tiền đề của cả hai bài: thật sự đang ở góc nhìn phẳng, không phải orbit.
+    expect(hook.result.current.activePresetId).toBe('top');
+    act(() => {
+      hook.result.current.onViewportWheel(0);
+    });
+    expect(controllerSpy.mock.results.at(-1)?.value).toBeInstanceOf(FlatCameraMode);
+
+    return {
+      ...hook,
+      unmount: (): void => {
+        controllerSpy.mockRestore();
+        hook.unmount();
+      },
+    };
   }
 
   const percent = (label: string): number => Number(label.replace('%', '').replace(',', '.'));
