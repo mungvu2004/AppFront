@@ -673,6 +673,42 @@ describe('saveScale — F-04x-2 bước 5', () => {
     expect(sentWrite(writeLayer, 1)).toStrictEqual({ baseVersion: 3, body: { layer: wireLayer(4800) } });
   });
 
+  it('flush chờ PUT lớp + tỉ lệ đang bay hỏng tạm → flush ném lỗi tạm (review-1 P2-3)', async () => {
+    const { saver, writeLayer } = harness();
+    const pending = deferred();
+
+    writeLayer.mockReturnValueOnce(pending.promise);
+    saver.markDirty([FLOOR_A]);
+    const scaling = saver.saveScale(FLOOR_A, RATIO).catch(() => undefined);
+
+    await vi.waitFor(() => expect(writeLayer).toHaveBeenCalledTimes(1));
+    const flushing = saver.flush();
+
+    pending.resolve(failed(TIMEOUT));
+    await scaling;
+
+    await expect(flushing).rejects.toBe(TIMEOUT);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(saver.hasDirty()).toBe(true);
+  });
+
+  it('flush chờ PUT chỉ tỉ lệ đang bay hỏng tạm → flush không ném (không có gì để gửi lại)', async () => {
+    const { saver, writeLayer } = harness();
+    const pending = deferred();
+
+    writeLayer.mockReturnValueOnce(pending.promise);
+    const scaling = saver.saveScale(FLOOR_A, RATIO).catch(() => undefined);
+
+    await vi.waitFor(() => expect(writeLayer).toHaveBeenCalledTimes(1));
+    const flushing = saver.flush();
+
+    pending.resolve(failed(TIMEOUT));
+    await scaling;
+
+    await expect(flushing).resolves.toBeUndefined();
+    expect(saver.hasDirty()).toBe(false);
+  });
+
   it('lớp + tỉ lệ hỏng 409: khối reload như lượt lưu lớp', async () => {
     const { saver, writeLayer } = harness();
     const error = httpError(409, { code: 'VERSION_CONFLICT', currentVersion: 8, remoteChanges: [], requestId: 'req-1' });

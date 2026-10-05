@@ -47,7 +47,7 @@
 import { readFloorLayerRead, type FloorLayerGraphRead } from '@/api/floorLayerGraph';
 import type { ApiClient } from '@/api/client';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
-import { mockFloorLayerDocument } from './mockFloorLayerDocument';
+import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 import { createAppApiClient } from '@/api/appClient';
 import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';

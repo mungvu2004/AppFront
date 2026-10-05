@@ -110,7 +110,7 @@ import type { RuleSeverity } from '@/domain/rules/registry';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 
-import type { ProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11/R-63).                                                  */

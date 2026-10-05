@@ -552,9 +552,14 @@ export function useFloorLayerAutosave({
       if (read.ok) {
         current.reloadErrors.delete(target);
         current.saver?.discardFloor(target);
-        const { layer, revision, scaleStatus } = read.data;
+        const { layer, level, revision, scaleStatus } = read.data;
 
-        loaded.replaceFloorLayer(target, { layer, revision, ...(scaleStatus ? { scaleStatus } : {}) }, { external: true });
+        // `level` đi cùng lớp: tỉ lệ máy chủ đổi thì `Level` phải khớp lớp đã quy đổi (review-1 P2-2).
+        loaded.replaceFloorLayer(
+          target,
+          { layer, level, revision, ...(scaleStatus ? { scaleStatus } : {}) },
+          { external: true },
+        );
 
         // `replaceFloorLayer` giữ `scaleStatus` cũ khi N16 vắng khoá; N16 cùng revision vắng khoá là tầng đã có tỉ lệ thật.
         if (!scaleStatus && useStore.getState().floorMeta[target]?.scaleStatus) {
@@ -582,7 +587,17 @@ export function useFloorLayerAutosave({
         throw new Error(SAVE_UNAVAILABLE);
       }
 
-      await current.saver.saveScale(target, ratio, hint);
+      try {
+        await current.saver.saveScale(target, ratio, hint);
+      } catch (error) {
+        // Thân lớp + tỉ lệ hỏng tạm để tầng bẩn lại; đường này không qua engine, nên phải báo
+        // nó — không thì không có lượt thử lại và nhãn vẫn "Đã lưu lúc …" (review-1 P2-3, A7).
+        if (current.saver.hasDirty()) {
+          current.engine.notifyChange();
+        }
+
+        throw error;
+      }
     },
     [current],
   );

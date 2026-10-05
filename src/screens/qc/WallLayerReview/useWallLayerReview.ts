@@ -168,7 +168,7 @@ import {
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
 import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
-import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from './provisionalScaleNotice';
+import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';

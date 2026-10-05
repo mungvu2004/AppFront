@@ -84,7 +84,7 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
 
-import { mockFloorLayerDocument } from '../WallLayerReview/mockFloorLayerDocument';
+import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 
 import {
   THICKNESS_FIXTURE_BUILDING,

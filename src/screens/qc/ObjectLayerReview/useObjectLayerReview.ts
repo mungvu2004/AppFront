@@ -145,7 +145,7 @@ import {
   type ObjectSubtype,
   type ReviewObject,
 } from './objectLayerTypes';
-import { useProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
+import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Hợp đồng vào.                                                               */

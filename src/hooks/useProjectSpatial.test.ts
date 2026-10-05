@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,14 +9,23 @@ import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuildi
 import type { LevelId, Wall } from '@/domain/spatial/types';
 import { setAuthenticatedSession } from '@/lib/auth/state';
 import type { HttpError } from '@/lib/http';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
-import { hydrateProject, refreshProjectGraph } from '@/store/projectHydration';
+import type * as ProjectHydration from '@/store/projectHydration';
+import { hydrateProject, loadProjectGraph, refreshProjectGraph } from '@/store/projectHydration';
 
 import { __resetFloorLayerSavers, flushAutosaves, useFloorLayerAutosave } from './useAutosave';
 
 import { isProjectNotFound, useProjectSpatial } from './useProjectSpatial';
+
+/* Bọc chuyển tiếp để đếm số lần cổng áp N15 (review-1 P2-1); hành vi giữ nguyên bản thật. */
+vi.mock('@/store/projectHydration', async (importOriginal) => {
+  const actual = await importOriginal<typeof ProjectHydration>();
+
+  return { ...actual, loadProjectGraph: vi.fn(actual.loadProjectGraph) };
+});
 
 const http = (status: number, resource?: string): HttpError => ({
   kind: 'http',
@@ -51,6 +60,39 @@ describe('useProjectSpatial', () => {
     expect(result.current.refreshFailed).toBe(false);
     expect(read).not.toHaveBeenCalled();
     expect(readGraph).not.toHaveBeenCalled();
+  });
+
+  /* review-1 P2-1: #24 về (đổi tên, thêm thành viên) không áp lại N15 cũ — có thể gỡ nhầm tầng mới. */
+  it('#24 đổi mà N15 không đổi → không áp lại tài liệu N15 cũ', async () => {
+    __resetMockLayerState();
+    const api = createMockApiClient();
+    const queryClient = createTestQueryClient();
+    const load = vi.mocked(loadProjectGraph);
+    load.mockClear();
+
+    renderHook(() => useProjectSpatial({ api, projectId: 'project-1' }), {
+      wrapper: ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children),
+    });
+
+    await waitFor(() => expect(useStore.getState().project?.id).toBe('project-1'));
+    expect(load).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      queryClient.setQueryData(queryKeys.project.detail('project-1'), (old: object | undefined) => ({
+        ...old,
+        name: 'Tên mới',
+      }));
+    });
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+
+    expect(load).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      useStore.getState().setSpatial(null, null);
+      useStore.getState().setProject(null);
+    });
   });
 });
 

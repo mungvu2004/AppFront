@@ -485,6 +485,45 @@ function useResolvedGateway(injected?: ScaleCalibrationGateway): ScaleCalibratio
 }
 
 /* -------------------------------------------------------------------------- */
+/* Mốc của nhánh hoàn tác — cấp module (P2-4).                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mốc sống qua lượt gắn lại màn, vì lịch sử zundo cũng sống qua nó: áp, rời màn, quay
+ * lại, Ctrl+Z vẫn phải sinh một PUT. Khoá `projectId` + mã `Level`: đổi dự án thì xoá
+ * hết; một lượt thay tầng từ ngoài (`serverReplaceSeq` tăng) cũng xoá, vì lượt ấy đã
+ * xoá lịch sử nên không còn cú hoàn tác nào để gửi.
+ */
+interface RatioMarks {
+  scope: string;
+  /** Tỉ lệ máy chủ đã nhận gần nhất, theo `Level`. */
+  readonly saved: Map<string, number>;
+  /** Tầng từng ở tỉ lệ tạm, kèm tỉ lệ tạm ấy — hoàn tác về nó thì phải nói ra (bước 5). */
+  readonly provisionalBefore: Map<string, number>;
+}
+
+const ratioMarks: RatioMarks = { scope: '', saved: new Map(), provisionalBefore: new Map() };
+
+function ratioMarksFor(projectId: string): RatioMarks {
+  const scope = `${projectId}#${useStore.getState().serverReplaceSeq}`;
+
+  if (ratioMarks.scope !== scope) {
+    ratioMarks.scope = scope;
+    ratioMarks.saved.clear();
+    ratioMarks.provisionalBefore.clear();
+  }
+
+  return ratioMarks;
+}
+
+/** Chỉ cho test: quên mọi mốc. */
+export function __resetScaleRatioMarks(): void {
+  ratioMarks.scope = '';
+  ratioMarks.saved.clear();
+  ratioMarks.provisionalBefore.clear();
+}
+
+/* -------------------------------------------------------------------------- */
 /* Hook.                                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -665,28 +704,30 @@ export function useScaleCalibration(
   const saveScaleRef = useRef(saveScale);
   saveScaleRef.current = saveScale;
 
-  /** Tỉ lệ máy chủ đã nhận gần nhất, theo tầng — chỉ những tầng màn này đã áp. */
-  const savedRatiosRef = useRef(new Map<string, number>());
-  /** Tầng từng ở tỉ lệ tạm, kèm tỉ lệ tạm ấy — hoàn tác về nó thì phải nói ra (bước 5). */
-  const provisionalBeforeRef = useRef(new Map<string, number>());
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
 
   /**
    * Nhánh hoàn tác (F-04x-2 bước 5): `useAutosave` gọi lại sau mỗi sửa có lịch sử; chỉ
-   * tầng có tỉ lệ `Level` khác tỉ lệ máy chủ nhận gần nhất mới sinh PUT — sửa đồ thị khác
-   * không sinh PUT tỉ lệ. Hỏng thì ném lỗi gốc cho engine.
+   * tầng có tỉ lệ `Level` khác tỉ lệ máy chủ nhận gần nhất (mốc cấp module) mới sinh
+   * PUT — sửa đồ thị khác không sinh PUT tỉ lệ. Hỏng thì ném lỗi gốc cho engine. Gửi
+   * là hạ `success`: kết quả cũ không còn nói về tỉ lệ đang có.
    */
   const handleSave = useCallback(async (): Promise<void> => {
-    for (const [id, saved] of savedRatiosRef.current) {
+    const marks = ratioMarksFor(projectIdRef.current);
+
+    for (const [id, saved] of marks.saved) {
       const ratio = levelIn(useStore.getState().spatial, id)?.scaleMillimetresPerPixel;
 
       if (ratio === undefined || ratio === saved) {
         continue;
       }
 
+      setApplyOutcome(null);
       await saveScaleRef.current(id, ratio);
-      savedRatiosRef.current.set(id, ratio);
+      marks.saved.set(id, ratio);
 
-      if (provisionalBeforeRef.current.get(id) === ratio) {
+      if (marks.provisionalBefore.get(id) === ratio) {
         setApplyNotice(COPY.undoProvisional);
       }
     }
@@ -1015,13 +1056,14 @@ export function useScaleCalibration(
    */
   const commitSaved = useCallback((levelIds: readonly string[], ratio: MillimetresPerPixel) => {
     const spatial = useStore.getState().spatial;
+    const marks = ratioMarksFor(projectIdRef.current);
     const patches: SpatialPatch[] = [];
 
     for (const id of levelIds) {
       const level = levelIn(spatial, id);
 
       if (level !== null) {
-        savedRatiosRef.current.set(id, ratio);
+        marks.saved.set(id, ratio);
         patches.push({ op: 'update', kind: 'level', id: level.id, changes: { scaleMillimetresPerPixel: ratio } });
       }
     }
@@ -1036,7 +1078,7 @@ export function useScaleCalibration(
     const ratio = levelIn(useStore.getState().spatial, id)?.scaleMillimetresPerPixel;
 
     if (useStore.getState().floorMeta[id]?.scaleStatus === 'unresolved' && ratio !== undefined) {
-      provisionalBeforeRef.current.set(id, ratio);
+      ratioMarksFor(projectIdRef.current).provisionalBefore.set(id, ratio);
     }
   }, []);
 

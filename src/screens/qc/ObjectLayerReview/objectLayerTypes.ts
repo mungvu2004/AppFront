@@ -34,7 +34,7 @@ import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
-import type { ProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Ba lớp con.                                                                 */

@@ -128,7 +128,7 @@ import type { WallThickness } from '@/types/spatial';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
-import type { ProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Bốn nhóm chuẩn hoá — xem "X1" ở đầu file.                                   */

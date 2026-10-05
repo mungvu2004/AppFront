@@ -182,6 +182,17 @@ describe('useFloorLayer — N16 một tầng vào kho theo revision', () => {
     expect(useStore.temporal.getState().pastStates).toHaveLength(0);
   });
 
+  it('revision lớn hơn → Level mới cùng lớp (tỉ lệ máy chủ đổi, review-1 P2-2)', async () => {
+    seedStore(SAMPLE, allAt(2));
+    const document = documentOf(FLOOR, 5, { thicker: true });
+
+    expect((SAMPLE.byId[FLOOR] as Level).scaleMillimetresPerPixel).not.toBe(document.level.scaleMillimetresPerPixel);
+    renderFloorLayer(FLOOR, () => Promise.resolve(document));
+
+    await waitFor(() => expect(useStore.getState().floorMeta[FLOOR]?.revision).toBe(5));
+    expect(useStore.getState().spatial?.byId[FLOOR]).toEqual(document.level);
+  });
+
   it('vắng meta → thay tầng', async () => {
     seedStore(SAMPLE, { [OTHER]: 1 });
     const original = firstWallOf(SAMPLE, FLOOR);

@@ -1,9 +1,11 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useEffect } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MOCK_MISSING_PROJECT_ID, __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
@@ -144,6 +146,40 @@ describe('ProjectSpatialGate', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     await waitFor(() => expect(readGraph).toHaveBeenCalledTimes(2));
+  });
+
+  /* review-1 P1-1: dải hiện rồi mất không được gỡ/gắn lại màn con (mất state của màn 3D). */
+  it('dải "Không tải lại được mô hình." hiện rồi mất → màn con gắn đúng một lần', async () => {
+    let mounts = 0;
+    function Child() {
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+
+      return <p>{CHILD}</p>;
+    }
+    const queryClient = createTestQueryClient();
+    const { api, readGraph } = apiWithSpy();
+    renderWithProviders(
+      <ProjectSpatialGate api={api} projectId="project-1">
+        <Child />
+      </ProjectSpatialGate>,
+      { queryClient },
+    );
+    await waitFor(() => expect(loadedProjectId()).toBe('project-1'));
+    expect(mounts).toBe(1);
+
+    readGraph.mockResolvedValueOnce({ error: NETWORK, ok: false });
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.layer.graph('project-1') });
+    });
+    expect(await screen.findByText('Không tải lại được mô hình.')).toBeInTheDocument();
+    expect(mounts).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(screen.queryByText('Không tải lại được mô hình.')).not.toBeInTheDocument());
+    expect(screen.getByText(CHILD)).toBeInTheDocument();
+    expect(mounts).toBe(1);
   });
 
   it('N15 hỏng khi kho trống → khối toàn vùng, màn con vắng', async () => {

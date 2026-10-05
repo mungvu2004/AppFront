@@ -64,7 +64,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
-import { ProvisionalScaleBanner } from '../WallLayerReview/ProvisionalScaleBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessGroupTable } from './ThicknessGroupTable';

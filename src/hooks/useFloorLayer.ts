@@ -20,7 +20,8 @@ import { replaceFloorLayer } from '@/store/commit';
  * - kho rỗng hoặc của dự án khác → `setSpatial` với `source`;
  * - cùng dự án mà kho thiếu tầng → `replaceFloorLayer` có `level` (thêm tầng, giữ lịch sử);
  * - bằng → chỉ `updateFloorMeta` (`Level` đổi theo lượt N15 kế, R14);
- * - lớn hơn hoặc vắng meta, tầng không trong `unsavedFloorIds` → thay từ ngoài;
+ * - lớn hơn hoặc vắng meta, tầng không trong `unsavedFloorIds` → thay từ ngoài, kèm `level`
+ *   (tỉ lệ máy chủ đổi thì `Level` phải khớp lớp đã quy đổi — review-1 P2-2);
  * - lớn hơn/vắng meta mà tầng chưa lưu → không đụng gì (lượt lưu sẽ gặp 409);
  * - nhỏ hơn → bỏ.
  *
@@ -103,7 +104,11 @@ export function applyFloorLayerDocument(projectId: string, floorId: string, docu
     return;
   }
 
-  replaceFloorLayer(floorId, { layer: document.layer, revision: document.revision, ...scale }, { external: true });
+  replaceFloorLayer(
+    floorId,
+    { layer: document.layer, level: document.level, revision: document.revision, ...scale },
+    { external: true },
+  );
 }
 
 export function useFloorLayer({ projectId, floorId, read }: UseFloorLayerOptions): UseFloorLayerResult {

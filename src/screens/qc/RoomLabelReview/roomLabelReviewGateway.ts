@@ -195,7 +195,7 @@ import { measureTextOf } from '@/lib/viewmodel/provisionalScale';
 import { applyRollbackPatches, commit } from '@/store/commit';
 import { useStore } from '@/store';
 
-import { mockFloorLayerDocument } from '../WallLayerReview/mockFloorLayerDocument';
+import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 import {
   ROOM_LABEL_CROP_DISPLAY_HEIGHT_PX,
   ROOM_LABEL_CROP_DISPLAY_WIDTH_PX,

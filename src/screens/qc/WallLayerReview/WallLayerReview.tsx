@@ -53,8 +53,8 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 
 import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
-import { ProvisionalScaleBanner } from './ProvisionalScaleBanner';
-import type { ProvisionalScaleNotice } from './provisionalScaleNotice';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
 import {
   WallLayerLeftPanel,

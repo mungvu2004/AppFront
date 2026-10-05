@@ -52,31 +52,30 @@ export function ProjectSpatialGate({ api, children, projectId }: ProjectSpatialG
     return <ProjectNotFound />;
   }
 
-  if (refreshFailed) {
+  if (status === 'error' && report !== null) {
     return (
-      <>
+      <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
+        <EmptyState
+          icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+          title={report.description.title}
+          description={report.description.description}
+          {...(report.retryable ? { action: { label: report.description.primaryButtonLabel, onClick: retry } } : {})}
+        />
+      </div>
+    );
+  }
+
+  /* Một lối trả, vị trí cố định: dải hiện/mất không gỡ rồi gắn lại màn con (review-1 P1-1). */
+  return (
+    <>
+      {refreshFailed ? (
         <InlineAlert
           level="violation"
           message="Không tải lại được mô hình."
           action={{ label: 'Thử lại', onClick: retry }}
         />
-        {children}
-      </>
-    );
-  }
-
-  if (status !== 'error' || report === null) {
-    return <>{children}</>;
-  }
-
-  return (
-    <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
-      <EmptyState
-        icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
-        title={report.description.title}
-        description={report.description.description}
-        {...(report.retryable ? { action: { label: report.description.primaryButtonLabel, onClick: retry } } : {})}
-      />
-    </div>
+      ) : null}
+      {children}
+    </>
   );
 }

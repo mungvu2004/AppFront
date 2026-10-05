@@ -161,6 +161,7 @@ export interface ReadAllFloorsInput {
 
 /** Một tầng của dự án, đích của "Áp cho mọi tầng" (#12 + N15). */
 export interface ScaleFloorTarget {
+  /** Mã `Level` (N15) của tầng — khớp mã #12 trước, không khớp thì theo `order`. */
   readonly floorId: string;
   readonly name: string;
   /** `Floor.drawings.length > 0` — tầng chưa có bản vẽ bị bỏ qua. */
@@ -337,12 +338,23 @@ export function createScaleCalibrationGateway(
       }
 
       const revisions = new Map<string, number>(graph.data.floorRevisions.map((entry) => [entry.floorId, entry.revision]));
+      const levels = graph.data.graph.levels;
+      const levelIds = new Set<string>(levels.map((level) => level.id));
+      /*
+       * Ghép #12 với N15: khớp mã trước; không khớp thì theo `order`. Máy chủ thật dùng
+       * `Floor.id = level_id`, bộ mẫu thì không (`L1` ≠ `L-00000000L1`). Đích mang mã
+       * `Level`, vì `commitSaved` và `isFloorBlocked` tra kho theo mã ấy.
+       */
+      const byOrder = new Map<number, string>(
+        levels.filter((level) => !floors.data.some((floor) => floor.id === level.id)).map((level) => [level.order, level.id]),
+      );
 
       return floors.data.map((floor) => {
-        const revision = revisions.get(floor.id);
+        const levelId = levelIds.has(floor.id) ? floor.id : (byOrder.get(floor.order) ?? floor.id);
+        const revision = revisions.get(levelId);
 
         return {
-          floorId: floor.id,
+          floorId: levelId,
           name: floor.name,
           hasDrawing: floor.drawings.length > 0,
           ...(revision !== undefined ? { revision } : {}),

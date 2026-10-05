@@ -5,7 +5,9 @@ import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/clie
 import type { SpatialApi } from '@/api/client';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { LevelId, Wall, WallId } from '@/domain/spatial/types';
+import type { Level, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import { millimetresPerPixel } from '@/domain/units/scale';
+import { RETRY_SCHEDULE_MS } from '@/lib/autosave/retrySchedule';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import { setAuthenticatedSession } from '@/lib/auth/state';
 import type { HttpError } from '@/lib/http/types';
@@ -106,6 +108,42 @@ describe('useFloorLayerAutosave — saveScale (F-04x-2 bước 5)', () => {
     expect(writeLayer.mock.calls[0]?.[0].body.layer).toBeDefined();
   });
 
+  it('lớp + tỉ lệ hỏng tạm → tầng bẩn lại, engine báo dirty và gửi lại một PUT lớp (review-1 P2-3)', async () => {
+    const { hook, writeLayer } = mount();
+    const down: HttpError = { code: 'UNAVAILABLE', kind: 'http', raw: {}, requestId: 'r', retryable: true, status: 503 };
+
+    let fail: () => void = () => undefined;
+
+    writeLayer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          fail = () => resolve({ error: down, ok: false });
+        }),
+    );
+    await tick();
+    editFloor();
+    const scaling = hook.result.current.saveScale(FLOOR, 12).catch(() => undefined);
+
+    // Engine xả lượt 800 ms của nó trong lúc PUT lớp + tỉ lệ đang bay: không còn gì để gửi → `saved`.
+    await tick(800);
+    fail();
+    await act(async () => {
+      await scaling;
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().unsavedFloorIds).toContain(FLOOR);
+    // Engine không còn ở `saved` (nhãn "Đã lưu lúc …" cố định suốt `dirty` là thiết kế chung của `useEngineLabel`).
+    expect(hook.result.current.autosave.getState()).toBe('dirty');
+
+    await tick(800);
+    await tick(RETRY_SCHEDULE_MS[0]);
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(writeLayer.mock.calls[1]?.[0].body.layer).toBeDefined();
+    expect(writeLayer.mock.calls[1]?.[0].body.scaleMillimetresPerPixel).toBeUndefined();
+  });
+
   it('tầng bị khối: isFloorBlocked, saveScale ném lỗi đang giữ, không PUT', async () => {
     const { hook, writeLayer } = mount();
     const forbidden: HttpError = { code: 'FORBIDDEN', kind: 'http', raw: { code: 'FORBIDDEN' }, requestId: 'r', retryable: false, status: 403 };
@@ -162,6 +200,25 @@ describe('useFloorLayerAutosave — saveScale (F-04x-2 bước 5)', () => {
     });
 
     expect(useStore.getState().floorMeta[FLOOR]).toEqual({ revision: 6, scaleStatus: 'unresolved' });
+  });
+
+  it('reloadFloor revision lớn hơn → Level mới cùng lớp (review-1 P2-2)', async () => {
+    const { hook, readLayer } = mount();
+    const document = await createMockApiClient().spatial.readLayer({ floorId: FLOOR, projectId: PROJECT });
+
+    if (!document.ok) {
+      throw new Error('mock N16 hỏng');
+    }
+
+    const level: Level = { ...(SAMPLE.byId[FLOOR] as Level), scaleMillimetresPerPixel: millimetresPerPixel(7) };
+
+    readLayer.mockResolvedValueOnce({ data: { ...document.data, layer: LAYER, level, revision: 6 }, ok: true });
+    await tick();
+    await act(async () => {
+      await hook.result.current.reloadFloor(FLOOR);
+    });
+
+    expect(useStore.getState().spatial?.byId[FLOOR]).toEqual(level);
   });
 
   it('reloadFloor: N16 vắng scaleStatus gỡ tỉ lệ tạm của tầng', async () => {

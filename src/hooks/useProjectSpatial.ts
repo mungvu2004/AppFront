@@ -84,6 +84,8 @@ async function hydrateRuleConfigOnce(api: ProjectSpatialApi | undefined, project
 export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions): UseProjectSpatialResult {
   const recorder = useMemo(() => createScreenErrorRecorder(SCREEN_ID), []);
   const ruleConfigRequested = useRef(new Set<string>());
+  /** Tài liệu N15 đã áp: #24 về sau (đổi tên, thành viên) không áp lại N15 cũ (review-1 P2-1). */
+  const appliedDocumentRef = useRef<SpatialGraphDocument | null>(null);
 
   const hasGraph = useStore((state) => state.spatial !== null && state.spatialProjectId === projectId);
   const setSpatialLoading = useStore((state) => state.setSpatialLoading);
@@ -141,6 +143,11 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
       return undefined;
     }
 
+    const latest = useStore.getState();
+    if (document === appliedDocumentRef.current && latest.spatial !== null && latest.spatialProjectId === projectId) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     void loadReaders().then(({ toProjectSpatial }) => {
@@ -152,6 +159,7 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
       const loaded = loadProjectGraph(
         toProjectSpatial(project, document, { roles: session.roles, userId: session.user?.id ?? null }),
       );
+      appliedDocumentRef.current = document;
 
       if (loaded === 'hydrated' && !ruleConfigRequested.current.has(project.id)) {
         ruleConfigRequested.current.add(project.id);

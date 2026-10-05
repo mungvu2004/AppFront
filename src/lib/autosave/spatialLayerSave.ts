@@ -167,6 +167,8 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
   /** Lỗi đã sinh ra khối — `saveScale` ném lại nó thay vì gửi. */
   const blockErrors = new Map<string, unknown>();
   const revisions = new Map<string, number>();
+  /** Lượt `saveScale` đang bay — lỗi của chúng không về engine nào khác ngoài `flush` đang chờ. */
+  const scaleTasks = new Set<Promise<FloorFailure | undefined>>();
   const listeners = new Set<(unsavedFloorIds: readonly string[]) => void>();
   let disposed = false;
 
@@ -350,13 +352,24 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
         return;
       }
 
-      const waiting = [...inFlight.values()];
+      const waiting = [...inFlight.entries()];
       const sent = [...new Set([...dirty, ...held.keys()])].map(flushFloor);
 
       notify();
-      await Promise.all(waiting);
 
-      const failures = (await Promise.all(sent)).filter((failure) => failure !== undefined);
+      // PUT lớp + tỉ lệ của `saveScale` đang bay hỏng tạm và trả tầng về bẩn: flush không
+      // được báo "đã lưu" — engine phải thử lại theo lịch (review-1 P2-3). Lỗi của một flush
+      // khác thì flush ấy tự báo, không tính lại ở đây.
+      const waited = await Promise.all(
+        waiting.map(async ([floorId, settled]) => {
+          const fromScale = scaleTasks.has(settled);
+          const failure = await settled;
+          const redirtied = dirty.has(floorId) || held.has(floorId);
+
+          return fromScale && failure?.kind === 'temporary' && redirtied ? failure : undefined;
+        }),
+      );
+      const failures = [...waited, ...(await Promise.all(sent))].filter((failure) => failure !== undefined);
       const failure = failures.find(({ kind }) => kind === 'temporary') ?? failures[0];
 
       if (failure) {
@@ -365,7 +378,10 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     },
     getBlock: (floorId) => blocks.get(floorId) ?? null,
     async saveScale(floorId, ratio, hint) {
-      const failure = await track(floorId, () => scaleWrite(floorId, ratio, hint));
+      const settled = track(floorId, () => scaleWrite(floorId, ratio, hint));
+
+      scaleTasks.add(settled);
+      const failure = await settled.finally(() => scaleTasks.delete(settled));
 
       if (failure) {
         throw failure.error;

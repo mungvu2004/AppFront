@@ -109,7 +109,7 @@ import {
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
 } from './thicknessTypes';
-import { useProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
+import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của hook — mọi câu người dùng đọc mà cổng không sinh ra.              */

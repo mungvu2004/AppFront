@@ -57,7 +57,7 @@ import {
   type ScaleDrawingSnapshot,
   type ScaleRawDimensionString,
 } from './scaleCalibrationGateway';
-import { useScaleCalibration } from './useScaleCalibration';
+import { __resetScaleRatioMarks, useScaleCalibration } from './useScaleCalibration';
 import type {
   ImageRatioPoint,
   ScaleCalibrationState,
@@ -134,6 +134,7 @@ beforeEach(() => {
   clock = installFakeClock();
   __resetFloorLayerSavers();
   __resetMockLayerState();
+  __resetScaleRatioMarks();
   seedStore();
 });
 
@@ -1045,5 +1046,127 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
       formatCombo(parseCombo('Shift+ArrowLeft')),
     );
     expect(hints.every((hint) => hint.description.length > 0)).toBe(true);
+  });
+});
+
+describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
+  /** Tầng đang mở đã có một tỉ lệ trước lượt áp — có cái để hoàn tác về mà gửi. */
+  beforeEach(() => {
+    const graph = createSampleBuilding();
+    const levels = graph.levels.map((level) =>
+      level.id === FLOOR_ID ? { ...level, scaleMillimetresPerPixel: PROVISIONAL_RATIO } : level,
+    );
+    const spatial = normalizeSpatial({ ...graph, levels });
+
+    useStore.getState().setSpatial(spatial, 'version-1', {
+      floorRevisions: Object.fromEntries(spatial.byKind.level.map((id) => [id, 0])),
+      projectId: PROJECT_ID,
+    });
+  });
+
+  /** Gõ đoạn tham chiếu rồi áp; trả về hook đã gắn. */
+  async function mountAndApply(harness: Harness): Promise<Mounted> {
+    const mounted = mountHook(harness.gateway);
+
+    await settle(mounted);
+    await settleAsync();
+    await typeReference(mounted);
+    await applyNow(mounted);
+
+    return mounted;
+  }
+
+  async function undoAndSend(): Promise<void> {
+    await act(async () => {
+      useStore.temporal.getState().undo();
+    });
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+  }
+
+  it('P2-4: áp, gỡ màn, gắn lại, Ctrl+Z → đúng một PUT tỉ lệ cũ', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    const first = await mountAndApply(harness);
+
+    // Hẹn lưu 800 ms của lượt gắn đầu chạy xong TRƯỚC khi gỡ — không thì chính hẹn ấy
+    // (closure của lượt gắn cũ) gửi cú hoàn tác, và bài này không còn kiểm lượt gắn lại.
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    const second = mountHook(harness.gateway);
+    await settle(second);
+    await settleAsync();
+    await undoAndSend();
+
+    expect(storedRatio()).toBe(before);
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+    expect(harness.writeLayer.mock.calls[1]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
+  });
+
+  it('P2-4: mốc khoá theo dự án — dự án khác thì Ctrl+Z không gửi tỉ lệ', async () => {
+    const harness = await makeHarness();
+    const first = await mountAndApply(harness);
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    first.unmount();
+
+    const queryClient = createTestQueryClient();
+    const other = renderHook(
+      () => useScaleCalibration({ projectId: 'project-2', floorId: FLOOR_ID, gateway: harness.gateway }),
+      { wrapper: ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children) },
+    );
+    await settleAsync();
+    await undoAndSend();
+    other.unmount();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('Nit-3: hoàn tác gửi PUT thì trạng thái không còn "success"', async () => {
+    const harness = await makeHarness();
+    const mounted = await mountAndApply(harness);
+
+    expect(mounted.result.current.model.state).toBe('success');
+
+    await undoAndSend();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+    expect(mounted.result.current.model.state).not.toBe('success');
+  });
+
+  it('P2-5: readAllFloors trên bộ mẫu ghép #12 với N15 theo order khi mã lệch — đích mang mã Level và revision', async () => {
+    const client = createMockApiClient();
+    const floors = await client.floors.list({ projectId: PROJECT_ID });
+    const graph = await client.spatial.readGraph({ projectId: PROJECT_ID });
+
+    if (!floors.ok || !graph.ok) {
+      throw new Error('Bộ mẫu không đọc được #12 hoặc N15.');
+    }
+
+    const levels = graph.data.graph.levels;
+    // Tiền đề của ca này: trên bộ mẫu `Floor.id` ≠ `Level.id`.
+    expect(floors.data.some((floor) => levels.some((level) => level.id === floor.id))).toBe(false);
+
+    const targets = await createScaleCalibrationGateway(client).readAllFloors({ projectId: PROJECT_ID });
+
+    expect(targets).toHaveLength(floors.data.length);
+    targets.forEach((target, index) => {
+      const level = levels.find((entry) => entry.id === target.floorId);
+
+      expect(level?.order).toBe(floors.data[index]?.order);
+      expect(target.revision).toBe(
+        graph.data.floorRevisions.find((entry) => entry.floorId === target.floorId)?.revision,
+      );
+      expect(target.revision).toBeDefined();
+    });
   });
 });

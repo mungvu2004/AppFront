@@ -127,7 +127,7 @@ import {
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
 } from './roomLabelReviewGateway';
-import { useProvisionalScaleNotice } from '../WallLayerReview/provisionalScaleNotice';
+import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type {
   RoomLabelMergeCandidate,
   RoomLabelNormalizePreview,
