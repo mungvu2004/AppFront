@@ -63,7 +63,6 @@
  * năng lực qua đúng một đường là bộ giá trị cổng này trả về.
  */
 
-import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
 import type { RuleConfig, RuleOverride } from '@/domain/rules/config';
 import type { RuleCode } from '@/domain/rules/registry';
@@ -134,7 +133,7 @@ export interface RuleSettingsGatewaySeed {
    * cả một phiên đăng nhập.
    */
   readonly canEdit?: boolean;
-  /** Client của lượt này; vắng thì `createAppApiClient()`. */
+  /** Client của lượt này; vắng thì `createAppApiClient()`, nạp lười ở lượt gọi đầu. */
   readonly client?: ApiClient;
 }
 
@@ -194,7 +193,14 @@ const isLostResponse = (error: unknown): boolean =>
 
 /** Cổng thật của màn. */
 export function createRuleSettingsGateway(seed: RuleSettingsGatewaySeed = {}): RuleSettingsGateway {
-  const client = seed.client ?? createAppApiClient();
+  // Nạp LƯỜI: `appClient` kéo theo cả phiên đăng nhập (~24 KiB gzip). Nhập tĩnh thì
+  // chunk màn báo cáo luật vượt trần 280 KiB của cổng kích thước (đo F-10: 280,3).
+  let clientPromise: Promise<ApiClient> | null = seed.client === undefined ? null : Promise.resolve(seed.client);
+  const getClient = (): Promise<ApiClient> => {
+    clientPromise ??= import('@/api/appClient').then((module) => module.createAppApiClient());
+
+    return clientPromise;
+  };
   const revisions = new Map<string, number>();
   const held = new Map<string, HeldWrite>();
 
@@ -208,6 +214,7 @@ export function createRuleSettingsGateway(seed: RuleSettingsGatewaySeed = {}): R
   };
 
   const send = async (projectId: string, write: HeldWrite): Promise<LoadedRuleConfig> => {
+    const client = await getClient();
     const result = await client.ruleConfig.replace({
       projectId,
       baseVersion: write.baseVersion,
@@ -241,6 +248,7 @@ export function createRuleSettingsGateway(seed: RuleSettingsGatewaySeed = {}): R
     },
 
     read: async ({ projectId, signal }) => {
+      const client = await getClient();
       const result = await client.ruleConfig.read({
         projectId,
         ...(signal !== undefined ? { signal } : {}),
@@ -301,7 +309,7 @@ const SAVE_PROBLEM_TEXT: Readonly<Record<string, string>> = Object.freeze({
 });
 
 const SAVE_PROBLEM_FALLBACK = 'Chưa lưu được bộ luật của dự án này.';
-const SAVE_PROBLEM_CONNECTION = 'Mất kết nối khi lưu bộ luật; hệ thống sẽ tự thử lại.';
+const SAVE_PROBLEM_CONNECTION = 'Mất kết nối nên bộ luật chưa được lưu.';
 const GENERAL_FIELD_PREFIX = 'body.overrides.GENERAL';
 
 /** Một lỗi của N22 thành câu người đọc — không in mã. */

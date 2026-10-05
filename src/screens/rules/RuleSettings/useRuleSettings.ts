@@ -499,6 +499,15 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
   useEffect(() => {
     const savePending = async (pending: PendingFlush): Promise<void> => {
+      const persisted = lastPersistedRef.current;
+
+      // Tháo khi lượt thường đang bay mà không sửa thêm: bản chụp CHÍNH là thân lượt ấy
+      // vừa lưu xong — không gửi lần hai (revision sẽ tăng vô ích).
+      if (persisted !== null && persisted.projectId === pending.projectId && persisted.config === pending.config) {
+        flushRef.current.pending = null;
+        return;
+      }
+
       try {
         const saved = await gateway.update({
           projectId: pending.projectId,
@@ -550,13 +559,21 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
         try {
           const saved = await gateway.update({ projectId, baseVersion, config: changes });
+          // Hook đã sang dự án khác giữa chừng thì mốc và dải lỗi thuộc dự án mới, không ghi đè.
+          const stillHere = useStore.getState().ruleConfigProjectId === projectId;
 
-          lastPersistedRef.current = { projectId, config: changes };
+          if (stillHere) {
+            lastPersistedRef.current = { projectId, config: changes };
+            setSaveProblem(null);
+          }
+
           useStore.getState().setRuleConfigRevision(projectId, saved.revision);
           queryClient.setQueryData(ruleSettingsQueryKey(projectId), saved);
-          setSaveProblem(null);
         } catch (error) {
-          setSaveProblem(describeRuleConfigSaveError(error));
+          if (useStore.getState().ruleConfigProjectId === projectId) {
+            setSaveProblem(describeRuleConfigSaveError(error));
+          }
+
           // Lỗi GỐC: `createAutosave` đọc nó để chọn thử lại hay dừng (R2).
           throw error;
         }
@@ -602,7 +619,8 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   const reload = useCallback(async (): Promise<void> => {
     const result = await configQuery.refetch();
 
-    if (result.data !== undefined) {
+    // Lượt đọc lại hỏng thì react-query vẫn trả `data` cũ: không nạp nó, giữ dải lỗi.
+    if (result.isSuccess) {
       hydrate(result.data);
       setSaveProblem(null);
       // Xoá trạng thái `failed` của lượt lưu cũ: không còn gì để gửi.
@@ -809,7 +827,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     }
 
     // Chỉ đọc KHÔNG phải `forbidden`: N21 cho mọi thành viên đọc, view vẽ dải lý do.
-    if (configQuery.isError && readWireError(configQuery.error)?.status === FORBIDDEN_STATUS) {
+    if (configQuery.isLoadingError && readWireError(configQuery.error)?.status === FORBIDDEN_STATUS) {
       return 'forbidden';
     }
 
@@ -821,7 +839,8 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       return 'loading';
     }
 
-    if (configQuery.isError) {
+    // Lượt đọc lại chạy nền hỏng mà dữ liệu cũ vẫn còn: màn giữ nguyên, không thành `error`.
+    if (configQuery.isLoadingError) {
       return 'error';
     }
 
@@ -836,7 +855,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     return 'ready';
   }, [
     configQuery.error,
-    configQuery.isError,
+    configQuery.isLoadingError,
     configQuery.isPending,
     configQuery.isSuccess,
     graph,
@@ -849,12 +868,12 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   ]);
 
   const errorMessage = useMemo<string | null>(() => {
-    if (!configQuery.isError) {
+    if (!configQuery.isLoadingError) {
       return null;
     }
 
     return describeError(toAppError(configQuery.error)).description || LOAD_FAILURE_FALLBACK;
-  }, [configQuery.error, configQuery.isError]);
+  }, [configQuery.error, configQuery.isLoadingError]);
 
   const model = useMemo<RuleSettingsViewModel>(
     () => ({

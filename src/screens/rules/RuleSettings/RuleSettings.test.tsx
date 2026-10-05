@@ -24,10 +24,11 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModule from '@/api/appClient';
 import type * as ConflictModule from '@/lib/versioning/conflict';
+import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient } from '@/api/client';
 import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
@@ -78,6 +79,15 @@ vi.mock('@/api/appClient', async (importOriginal) => {
   const { createMockApiClient } = await import('@/api/__mocks__/client');
 
   return { ...actual, createAppApiClient: () => createMockApiClient() };
+});
+
+/*
+ * Cổng nạp `appClient` LƯỜI (`import()` động, F-10 — cổng kích thước). Lượt nạp đầu trong
+ * vitest phải biên dịch cả cây module của nó, lâu hơn 1 s mặc định của `waitFor`; nạp sẵn ở
+ * đây để bài kiểm chỉ đo màn, không đo trình biên dịch.
+ */
+beforeAll(async () => {
+  await import('@/api/appClient');
 });
 
 /* [8].5: 409 không bao giờ đi qua `resolveConflict` (mảng rỗng → `autoMerged`, ghi đè im lặng). */
@@ -625,7 +635,7 @@ function setupHook(setup: HookSetup = {}) {
     setup.replace ??
       (async (input) => ({ ok: true, data: wireConfig(input.baseVersion + 1, input.body.overrides as ProjectRuleConfig['overrides']) })),
   );
-  const client = { ruleConfig: { read, replace } } as Partial<ApiClient> as ApiClient;
+  const client: ApiClient = { ...createMockApiClient(), ruleConfig: { read, replace } };
   const gateway = createRuleSettingsGateway({ client });
   const queryClient = createTestQueryClient();
 
@@ -768,6 +778,30 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(useStore.getState().ruleConfig.overrides).toEqual({ 'DOOR-WIDTH': { enabled: false } });
   });
 
+  it('lượt đọc lại hỏng: không nạp bản cũ, dải xung đột vẫn còn', async () => {
+    let reads = 0;
+    const { result, read } = setupHook({
+      read: async () => {
+        reads += 1;
+
+        return reads === 1 ? { ok: true, data: wireConfig(3) } : { ok: false, error: wireError(503, 'DEPENDENCY_UNAVAILABLE') };
+      },
+      replace: async () => ({ ok: false, error: wireError(409, 'VERSION_CONFLICT', { remoteChanges: [] }) }),
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onReload());
+    act(() => result.current.onConfirmReload());
+    await advance(0);
+
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(result.current.model.saveProblem?.offerReload).toBe(true);
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-THICKNESS': { enabled: false } });
+    expect(result.current.model.status).not.toBe('error');
+  });
+
   it('huỷ hộp thoại tải lại thì không đọc lại', async () => {
     const { result, read } = setupHook();
     await advance(0);
@@ -877,6 +911,20 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(replace).toHaveBeenCalledTimes(2);
     expect(replace.mock.calls[1]?.[0]).toMatchObject({ projectId: 'P-1', baseVersion: 4 });
     expect(Object.keys(replace.mock.calls[1]?.[0].body.overrides ?? {})).toEqual(['WALL-THICKNESS', 'DOOR-WIDTH']);
+  });
+
+  it('tháo lúc lượt lưu đang bay mà không sửa thêm → không gửi lần hai', async () => {
+    const inFlight = deferred<Awaited<ReturnType<RuleConfigApi['replace']>>>();
+    const { result, replace, unmount } = setupHook({ replace: () => inFlight.promise });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    unmount();
+    inFlight.resolve({ ok: true, data: wireConfig(4) });
+    await advance(AFTER_FIRST_RETRY_MS);
+
+    expect(replace).toHaveBeenCalledTimes(1);
   });
 
   it('tháo lúc offline → lượt hẹn lại vẫn gửi bản chụp', async () => {

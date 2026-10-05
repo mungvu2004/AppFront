@@ -66,11 +66,13 @@ import { formatTimestamp } from '@/lib/format/datetime';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
+// Nhập thẳng file cổng, KHÔNG qua barrel `@/screens/rules/RuleSettings`: barrel kéo cả màn
+// cài đặt (view, container) vào chunk báo cáo — đo F-10: 287,4 KiB > trần 280 của cổng kích thước.
 import {
   createRuleSettingsGateway,
   ruleSettingsQueryKey,
   type RuleSettingsGateway,
-} from '@/screens/rules/RuleSettings';
+} from '@/screens/rules/RuleSettings/ruleSettingsGateway';
 import { useStore } from '@/store';
 import { ruleRegistryFor } from '@/store/selectors';
 
@@ -396,7 +398,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const query = useQuery({
     queryKey: [...queryKeys.violation.byProject(projectId), versionId, revision],
     // Không chờ quyền sửa: N21 cho mọi thành viên đọc, và báo cáo chỉ đọc.
-    enabled: graph !== null && configQuery.isSuccess,
+    enabled: graph !== null && configQuery.data !== undefined,
     // `runRules` chạy đồng bộ, nhưng `queryFn` phải trả `Promise` để lượt "đang
     // chạy" của trạng thái 2 là một lượt thật chứ không chỉ có trong story.
     queryFn: async (): Promise<RuleReportRun> => {
@@ -563,7 +565,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return 'forbidden';
     }
 
-    if (query.isError || configQuery.isError) {
+    if (query.isError || configQuery.isLoadingError) {
       return 'error';
     }
 
@@ -582,7 +584,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     return summary.violations > 0 ? 'ready' : 'done';
   }, [
     capabilities.canEdit,
-    configQuery.isError,
+    configQuery.isLoadingError,
     configQuery.isPending,
     graph,
     query.isError,
@@ -627,13 +629,20 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   );
 
   const onRerun = useCallback((): void => {
-    // `refetch` bỏ qua `enabled`, nên không có mô hình thì nó chỉ ném lỗi (B-V12-02).
-    if (graph === null) {
+    // Lỗi nằm ở N21 thì đọc lại cấu hình; lượt chạy luật tự đi theo khi nó về.
+    if (configQuery.isError) {
+      void configQuery.refetch();
+      return;
+    }
+
+    // `refetch` bỏ qua `enabled`: không có mô hình thì nó chỉ ném lỗi (B-V12-02), và
+    // chưa có cấu hình thì nó chạy với sổ mặc định — thứ F-10 bỏ.
+    if (graph === null || configQuery.data === undefined) {
       return;
     }
 
     void query.refetch();
-  }, [graph, query]);
+  }, [configQuery, graph, query]);
 
   /**
    * "Xác nhận đã xử lý" — đưa người dùng sang bước xuất bản.
@@ -684,7 +693,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       filters.group !== DEFAULT_FILTERS.group ||
       filters.levelId !== DEFAULT_FILTERS.levelId,
     isCompact,
-    errorMessage: configQuery.isError ? CONFIG_FAILED_MESSAGE : query.isError ? RUN_FAILED_MESSAGE : null,
+    errorMessage: configQuery.isLoadingError ? CONFIG_FAILED_MESSAGE : query.isError ? RUN_FAILED_MESSAGE : null,
     onFilterChange,
     onToggleGroup,
     onSelectRow,

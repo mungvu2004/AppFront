@@ -34,9 +34,10 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } 
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModule from '@/api/appClient';
+import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient } from '@/api/client';
 import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
@@ -92,6 +93,15 @@ vi.mock('@/api/appClient', async (importOriginal) => {
   const { createMockApiClient } = await import('@/api/__mocks__/client');
 
   return { ...actual, createAppApiClient: () => createMockApiClient() };
+});
+
+/*
+ * Cổng nạp `appClient` LƯỜI (`import()` động, F-10 — cổng kích thước). Lượt nạp đầu trong
+ * vitest phải biên dịch cả cây module của nó, lâu hơn 1 s mặc định của `waitFor`; nạp sẵn ở
+ * đây để bài kiểm chỉ đo màn, không đo trình biên dịch.
+ */
+beforeAll(async () => {
+  await import('@/api/appClient');
 });
 
 afterEach(() => {
@@ -632,16 +642,18 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
     expect(await screen.findByText('màn cài đặt bộ luật')).toBeTruthy();
   });
 
-  it('bọc trong MemoryRouter thì dựng được, không ném lỗi', async () => {
+  it('bọc trong MemoryRouter thì dựng được, không rơi vào ranh giới lỗi', async () => {
     const RuleReportContainer = await loadRuleReportContainer();
 
-    expect(() =>
-      render(
-        <MemoryRouter>
-          <RuleReportContainer projectId="P-000001" />
-        </MemoryRouter>,
-      ),
-    ).not.toThrow();
+    // Có cả QueryClient: `render` trần trước đây làm hook ném "No QueryClient", ranh giới
+    // lỗi nuốt lỗi đó, và `not.toThrow()` xanh dù màn không dựng được.
+    renderWithProviders(
+      <MemoryRouter>
+        <RuleReportContainer projectId="P-000001" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('heading', { name: 'Có trục trặc' })).toBeNull();
   });
 });
 
@@ -905,7 +917,10 @@ function setupReport(options: {
   readonly canEdit?: boolean;
 }) {
   const read = vi.fn(options.read);
-  const client = { ruleConfig: { read, replace: vi.fn() } } as Partial<ApiClient> as ApiClient;
+  const client: ApiClient = {
+    ...createMockApiClient(),
+    ruleConfig: { read, replace: vi.fn<ApiClient['ruleConfig']['replace']>() },
+  };
   const ruleConfigGateway = createRuleSettingsGateway({ client });
   const queryClient = createTestQueryClient();
   const wrapper = ({ children }: { readonly children: ReactNode }) => (
@@ -988,6 +1003,30 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
       expect(result.current.status).toBe('error');
     });
     expect(result.current.errorMessage).toBe('Không tải được cấu hình bộ luật của dự án.');
+  });
+
+  it('N21 hỏng rồi bấm "Thử lại" → đọc lại N21, màn rời `error`', async () => {
+    const error: HttpError = { kind: 'http', status: 503, code: 'DEPENDENCY_UNAVAILABLE', raw: {}, requestId: 'req-f10', retryable: true };
+    let reads = 0;
+    const { result, read } = setupReport({
+      read: async () => {
+        reads += 1;
+
+        return reads === 1 ? { ok: false, error } : configRead(1);
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('error');
+    });
+
+    act(() => result.current.onRerun());
+
+    await waitFor(() => {
+      expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(result.current.status).not.toBe('error');
   });
 
   it('N21 đang chờ → `loading`', () => {

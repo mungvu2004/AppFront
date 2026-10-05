@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient } from '@/api/client';
 import { ProjectRuleConfigSchema, type ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 import type { RuleConfig } from '@/domain/rules/config';
@@ -38,9 +39,12 @@ const lostError = (kind: 'network' | 'timeout'): HttpError => ({
 
 type RuleConfigApi = ApiClient['ruleConfig'];
 
-/** Client chỉ có nhóm `ruleConfig`; mọi nhóm khác không bao giờ được gọi ở đây. */
-const clientWith = (ruleConfig: Partial<RuleConfigApi>): ApiClient =>
-  ({ ruleConfig: { read: vi.fn(), replace: vi.fn(), ...ruleConfig } }) as Partial<ApiClient> as ApiClient;
+/** Bộ mẫu trong bộ nhớ, nhóm `ruleConfig` thay bằng bản giả của bài. */
+const clientWith = (ruleConfig: Partial<RuleConfigApi>): ApiClient => {
+  const base = createMockApiClient();
+
+  return { ...base, ruleConfig: { ...base.ruleConfig, ...ruleConfig } };
+};
 
 const configOf = (overrides: RuleConfig['overrides']): RuleConfig => ({ overrides, version: 9 });
 
@@ -215,7 +219,7 @@ describe('describeRuleConfigSaveError — một câu riêng cho mỗi mã', () =
     expect(problem.offerReload).toBe(false);
   });
 
-  it('mất kết nối → câu hẹn tự thử lại', () => {
-    expect(describeRuleConfigSaveError(lostError('network')).message).toMatch(/tự thử lại/u);
+  it('mất kết nối → câu riêng, không hứa tự thử lại (tự lưu có thể đã dừng)', () => {
+    expect(describeRuleConfigSaveError(lostError('network')).message).toBe('Mất kết nối nên bộ luật chưa được lưu.');
   });
 });
