@@ -24,7 +24,7 @@ type BadgeVariant = 'verified' | 'attention' | 'violation' | 'neutral';
 
 /** Nhãn tiếng Việt của A4 — đúng ba trạng thái, không trạng thái thứ tư. */
 const STATUS_LABELS: Readonly<Record<RoomAreaStatus, string>> = {
-  trusted: 'đã dò',
+  trusted: 'Đã dò',
   suspect: 'Cần kiểm tra',
   reviewed: 'Đã xác minh',
 };

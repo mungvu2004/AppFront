@@ -74,7 +74,7 @@ export const SNAP_KINDS = [
 /** Nhãn tiếng Việt của chip bắt điểm (A6). */
 export const SNAP_KIND_LABELS: Readonly<Record<SnapKind, string>> = {
   vertex: 'Đỉnh',
-  midpoint: 'trung điểm',
+  midpoint: 'Trung điểm',
   axisIntersection: 'Giao trục',
 };
 

@@ -68,11 +68,11 @@ const DEFER_NOTE =
  * typecheck chứ không phải hiện ra chữ tiếng Anh trên màn của người dùng.
  */
 const ENTITY_KIND_LABEL: Readonly<Record<ConflictVm['entityType'], string>> = {
-  vertex: 'Đỉnh',
+  vertex: 'đỉnh',
   wall: 'tường',
-  door: 'Cửa đi',
-  window: 'Cửa sổ',
-  furniture: 'Nội thất',
+  door: 'cửa đi',
+  window: 'cửa sổ',
+  furniture: 'nội thất',
   room: 'phòng',
   dimension: 'kích thước',
 };

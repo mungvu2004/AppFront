@@ -166,13 +166,13 @@ export interface ColoringMode {
 
 /** What the mode picker calls each mode. */
 export const COLORING_MODE_LABELS: Readonly<Record<ColoringModeId, string>> = {
-  default: 'mặc định',
+  default: 'Mặc định',
   roomUsage: 'Theo công năng phòng',
-  area: 'theo diện tích',
-  aiConfidence: 'theo độ tin cậy AI',
-  reviewState: 'theo trạng thái kiểm tra',
-  violationSeverity: 'theo mức vi phạm',
-  level: 'theo tầng',
+  area: 'Theo diện tích',
+  aiConfidence: 'Theo độ tin cậy AI',
+  reviewState: 'Theo trạng thái kiểm tra',
+  violationSeverity: 'Theo mức vi phạm',
+  level: 'Theo tầng',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -224,11 +224,11 @@ const USAGE_GROUP_TOKENS: Readonly<Record<UsageGroup, ColorTokenName>> = {
 };
 
 const USAGE_GROUP_LABELS: Readonly<Record<UsageGroup, string>> = {
-  living: 'sinh hoạt chung',
-  sleeping: 'phòng ngủ',
-  service: 'khu phụ trợ',
+  living: 'Sinh hoạt chung',
+  sleeping: 'Phòng ngủ',
+  service: 'Khu phụ trợ',
   circulation: 'Lưu thông',
-  other: 'khác',
+  other: 'Khác',
 };
 
 /**
@@ -250,8 +250,8 @@ const REVIEW_STAGE_TOKENS: Readonly<Record<ReviewStage, ColorTokenName>> = {
 };
 
 const REVIEW_STAGE_LABELS: Readonly<Record<ReviewStage, string>> = {
-  approved: 'đã duyệt',
-  drawnByPerson: 'người vẽ, chưa duyệt',
+  approved: 'Đã duyệt',
+  drawnByPerson: 'Người vẽ, chưa duyệt',
   fromModel: 'AI đề xuất, chưa duyệt',
 };
 

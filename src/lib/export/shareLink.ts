@@ -95,7 +95,7 @@ export const SHARE_PERMISSIONS: readonly SharePermission[] = ['view', 'comment']
 /** What each grant is called on screen. */
 export const SHARE_PERMISSION_LABELS: Readonly<Record<SharePermission, string>> = {
   view: 'Chỉ xem',
-  comment: 'góp ý',
+  comment: 'Góp ý',
 };
 
 /**
@@ -246,11 +246,11 @@ export type ShareLinkResult<T> = Result<T, ShareLinkFailure>;
 
 const TRANSPORT_MESSAGES: Readonly<Record<HttpErrorKind, string>> = {
   network: 'Không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi',
-  timeout: 'máy chủ trả lời quá lâu; liên kết chia sẻ chưa thay đổi',
-  aborted: 'thao tác chia sẻ đã bị huỷ',
-  auth: 'phiên đăng nhập đã hết hiệu lực; đăng nhập lại rồi thử lại',
-  http: 'máy chủ từ chối yêu cầu chia sẻ',
-  parse: 'máy chủ trả về dữ liệu không đọc được',
+  timeout: 'Máy chủ trả lời quá lâu; liên kết chia sẻ chưa thay đổi',
+  aborted: 'Thao tác chia sẻ đã bị huỷ',
+  auth: 'Phiên đăng nhập đã hết hiệu lực; đăng nhập lại rồi thử lại',
+  http: 'Máy chủ từ chối yêu cầu chia sẻ',
+  parse: 'Máy chủ trả về dữ liệu không đọc được',
 };
 
 const STATUS_FORBIDDEN = 403;
@@ -266,16 +266,16 @@ function transportMessage(error: HttpError): string {
     switch (error.status) {
       case STATUS_UNAUTHORISED:
       case STATUS_FORBIDDEN:
-        return 'tài khoản này không có quyền chia sẻ dự án';
+        return 'Tài khoản này không có quyền chia sẻ dự án';
       case STATUS_NOT_FOUND:
       case STATUS_GONE:
         return 'liên kết không còn tồn tại; có thể đã được thu hồi';
       case STATUS_CONFLICT:
         return 'liên kết đã thay đổi ở nơi khác; tải lại danh sách rồi thử lại';
       case STATUS_UNPROCESSABLE:
-        return 'máy chủ không chấp nhận hạn dùng hoặc mật khẩu này';
+        return 'Máy chủ không chấp nhận hạn dùng hoặc mật khẩu này';
       case STATUS_TOO_MANY:
-        return 'tạo liên kết quá nhanh; chờ một lát rồi thử lại';
+        return 'Tạo liên kết quá nhanh; chờ một lát rồi thử lại';
       default:
         break;
     }

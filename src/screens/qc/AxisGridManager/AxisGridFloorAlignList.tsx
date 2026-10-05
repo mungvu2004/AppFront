@@ -53,7 +53,7 @@ const ROOT_FLOOR_LABEL = 'tầng gốc';
 const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
 const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
-  ok: 'trong dung sai',
+  ok: 'Trong dung sai',
   warning: 'Cần chú ý',
   unalignable: 'Không căn được',
 };

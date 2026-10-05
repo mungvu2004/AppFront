@@ -120,7 +120,7 @@ const STATUS_LABELS: Readonly<Record<FloorUploadStatus, string>> = {
   waiting: 'Chờ xử lý',
   uploading: 'Đang tải lên',
   attached: 'Đã gắn kèm',
-  error: 'lỗi',
+  error: 'Lỗi',
 };
 
 const STATUS_LABEL_KEYS: Readonly<Record<FloorUploadStatus, string>> = {

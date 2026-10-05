@@ -49,8 +49,8 @@ export type ObjectKind = 'wall' | 'opening' | 'furniture' | 'room';
 /** Nhãn tiếng Việt của từng loại, viết thường kiểu câu (A6) — hook viết hoa khi cần đặt đầu câu/tiêu đề. */
 export const OBJECT_KIND_LABELS: Readonly<Record<ObjectKind, string>> = {
   wall: 'tường',
-  opening: 'Ô mở',
-  furniture: 'Nội thất',
+  opening: 'ô mở',
+  furniture: 'nội thất',
   room: 'phòng',
 };
 

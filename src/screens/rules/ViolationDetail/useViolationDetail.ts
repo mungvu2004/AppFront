@@ -176,13 +176,13 @@ const UNKNOWN_KIND_LABEL = 'đối tượng';
 
 /** Nhãn tiếng Việt của từng loại bộ phận, cho khối "Phát hiện". */
 const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
-  level: 'Tầng',
+  level: 'tầng',
   wall: 'tường',
-  opening: 'Ô mở',
+  opening: 'ô mở',
   furniture: 'đồ đạc',
   room: 'phòng',
   axis: 'trục',
-  dimension: 'Kích thước ghi',
+  dimension: 'kích thước ghi',
 };
 
 /* -------------------------------------------------------------------------- */

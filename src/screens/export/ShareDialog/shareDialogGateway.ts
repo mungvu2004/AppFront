@@ -132,8 +132,8 @@ export const MEMBERS_READ_ONLY_REASON =
 /** Nhãn vai tiếng Việt, viết thường kiểu câu (A6). */
 export const SHARE_ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.freeze({
   admin: 'Quản trị viên',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 });
 
 /** Số chữ cái một `Avatar` không ảnh hiện được. */

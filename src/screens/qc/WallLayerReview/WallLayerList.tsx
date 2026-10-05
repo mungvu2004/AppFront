@@ -72,7 +72,7 @@ const STATUS_DOT_LABEL: Readonly<Record<ViewStatusCode, string>> = {
   verified: 'Đã duyệt',
   attention: 'Cần chú ý',
   violation: 'Vi phạm',
-  neutral: 'bình thường',
+  neutral: 'Bình thường',
 };
 
 /** Đi lên DOM tìm tổ tiên cuộn gần nhất — đúng kỹ thuật `Table.tsx#TableVirtual`. */

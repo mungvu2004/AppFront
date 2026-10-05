@@ -193,9 +193,9 @@ export const DRAWING_UNIT_LABEL = 'Đơn vị bản vẽ';
 /** Các tùy chọn đơn vị. */
 export const DRAWING_UNITS: Readonly<Record<string, string>> = {
   mm: 'Milimét (mm)',
-  cm: 'centimét (cm)',
-  m: 'mét (m)',
-  inch: 'inch',
+  cm: 'Centimét (cm)',
+  m: 'Mét (m)',
+  inch: 'Inch',
 };
 
 /** Nhãn select "Gốc toạ độ" — chọn vị trí điểm gốc. */
