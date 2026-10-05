@@ -373,8 +373,9 @@ async function stepRotate(page: Page): Promise<void> {
  * - Camera mở đầu bằng một đoạn chạy về khuôn hình chuẩn, nhãn tự leo lên mức
  *   chuẩn không cần lăn chuột. Bài cũ đọc `before` giữa đoạn chạy ấy: xanh vì sai
  *   lý do khi đoạn chạy còn dở, đỏ khi nó đã xong. Nay chờ nhãn yên rồi mới đo.
- * - Sau bước "quay" (đổi sang preset "Trên xuống"), cú lăn chuột không đổi nhãn
- *   nữa — nên bước này chạy TRƯỚC bước quay.
+ * - Sau bước "quay" (preset "Trên xuống", camera phẳng) cú lăn chuột từng không
+ *   đổi nhãn vì `onViewportWheel` chỉ biết `dolly`; nay gọi `zoom` cho góc nhìn phẳng,
+ *   nên bước này chạy đúng thứ tự gốc: SAU bước quay.
  */
 async function stepZoom(page: Page): Promise<void> {
   const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
@@ -488,10 +489,8 @@ test('mở được màn 3D và màn không trắng', async ({ page }) => {
 test('ba việc chỉ bằng thứ nhìn thấy trên màn: quay, thu phóng, chọn tầng', async ({ page }) => {
   await openViewer(page);
 
-  /* Thu phóng TRƯỚC khi quay: bước quay đổi sang preset "Trên xuống" và camera
-     ở preset ấy không còn nhận cú lăn chuột (xem {@link stepZoom}). */
-  const zoomMs = await timed('thu phóng', () => stepZoom(page));
   const rotateMs = await timed('quay', () => stepRotate(page));
+  const zoomMs = await timed('thu phóng', () => stepZoom(page));
   const storeyMs = await timed('chọn tầng', () => stepChooseStorey(page));
 
   logDuration('tổng ba việc', rotateMs + zoomMs + storeyMs);

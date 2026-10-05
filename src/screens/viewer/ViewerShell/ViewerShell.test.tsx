@@ -822,3 +822,88 @@ describe('[VS-DG] cổng mặc định theo chế độ mock', () => {
     );
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* NO-208 — thu phóng ở góc nhìn phẳng.                                        */
+/* -------------------------------------------------------------------------- */
+
+describe('thu phóng ở góc nhìn phẳng (Trên xuống)', () => {
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    // Giảm chuyển động: `goTo` hoàn tất ngay, camera vào chế độ phẳng trong lượt gọi.
+    originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === REDUCED_MOTION_QUERY,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  function renderTopView() {
+    const queryClient = createTestQueryClient();
+    const hook = renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+
+    act(() => {
+      hook.result.current.onCubeFaceSelect('top');
+    });
+
+    return hook;
+  }
+
+  const percent = (label: string): number => Number(label.replace('%', '').replace(',', '.'));
+
+  it('nút + đổi mức thu phóng và nhãn %', () => {
+    const { result, unmount } = renderTopView();
+    const before = percent(result.current.zoomLabel);
+
+    act(() => {
+      result.current.onZoomIn();
+    });
+
+    expect(percent(result.current.zoomLabel)).toBeGreaterThan(before);
+    unmount();
+  });
+
+  it('cuộn chuột vào/ra đổi nhãn đúng chiều', () => {
+    const { result, unmount } = renderTopView();
+    const start = percent(result.current.zoomLabel);
+
+    act(() => {
+      result.current.onViewportWheel(-3);
+    });
+    const zoomedIn = percent(result.current.zoomLabel);
+
+    act(() => {
+      result.current.onViewportWheel(3);
+    });
+
+    expect(zoomedIn).toBeGreaterThan(start);
+    expect(percent(result.current.zoomLabel)).toBeLessThan(zoomedIn);
+    unmount();
+  });
+});
