@@ -10,7 +10,7 @@ import { FIRST_PAINT_TIMEOUT_MS, PROJECT_ID } from './files';
  * Nhóm V4 — `projectQuality` (`docs/notes/e2e/plan.md` V4 mục 2).
  *
  * Màn mỏng nhất nhóm (19 bài đơn vị, không bài nào cho riêng hook), nên ở đây đi
- * sâu hơn: Esc thật trong chế độ bốn góc, hoàn tác "Tự động nắn" trong cây thật,
+ * sâu hơn: Esc thật trong chế độ bốn góc, hộp thoại hỏi trước "Tự động nắn" trong cây thật,
  * cổng ô xác nhận trước "Tiếp tục xử lý", điều hướng router thật.
  *
  * Bộ mẫu: tầng mồi là Tầng hầm (chưa đo) ⇒ mặc định `partial`. Tầng 1 đo xong ở
@@ -42,28 +42,28 @@ function remaining(page: Page, count: number) {
   return page.getByRole('status').filter({ hasText: new RegExp(`^${String(count)} phát hiện còn lại$`, 'u') });
 }
 
-test('B-V4-05: "Hoàn tác" sau "Tự động nắn" trả cả phát hiện lẫn bộ đếm "còn lại" (A8)', async ({
+test('B-V4-05: "Tự động nắn" hỏi trước (A9), Esc không gửi; xác nhận nắn xong không có toast hoàn tác (F-05a, #32)', async ({
   page,
 }) => {
   await openFloorOne(page);
   await expect(remaining(page, 3)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Tự động nắn' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nắn thẳng bản vẽ tầng Tầng 1?', exact: true });
 
-  // Bộ thông báo (`data-announcer`) cũng là `role="status"` cùng chữ — toast là cái có nút.
-  const toast = page
-    .getByRole('status')
-    .filter({ hasText: 'Đã nắn thẳng bản vẽ' })
-    .filter({ has: page.getByRole('button', { name: 'Hoàn tác' }) });
-  await expect(toast).toBeVisible();
+  await page.getByRole('button', { name: 'Tự động nắn' }).click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(remaining(page, 3)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Tự động nắn' }).click();
+  await dialog.getByRole('button', { name: 'Nắn thẳng' }).click();
+
+  await expect(dialog).toHaveCount(0);
   await expect(remaining(page, 2)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Vùng ảnh có vấn đề: ảnh bị nghiêng' })).toHaveCount(0);
-
-  await toast.getByRole('button', { name: 'Hoàn tác' }).click();
-
-  await expect(page.getByRole('button', { name: 'Vùng ảnh có vấn đề: ảnh bị nghiêng' })).toBeVisible();
-  await expect(page.getByRole('row', { name: /Tầng 1.*3 phát hiện cần chú ý/ })).toBeVisible();
-  await expect(remaining(page, 3)).toBeVisible();
+  // Máy chủ không đảo được #32 ⇒ không vé, không toast "Hoàn tác" (F-05a khối [9]).
+  await expect(page.getByRole('button', { name: 'Hoàn tác' })).toHaveCount(0);
 });
 
 test('Esc thoát chế độ chọn bốn góc, ở lại đúng tầng và đúng màn; Esc thứ hai không làm gì (A12)', async ({
