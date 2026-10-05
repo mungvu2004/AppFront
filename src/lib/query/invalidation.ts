@@ -27,6 +27,10 @@ export const WRITE_OPERATIONS = [
   'markNotificationRead',
   'markAllNotificationsRead',
   'acceptInvite',
+  'renameProject',
+  'deleteProject',
+  'addProjectMember',
+  'removeProjectMember',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -94,6 +98,14 @@ export interface WriteOperationParamsMap {
    * nó là một lượt đổi TƯ CÁCH THÀNH VIÊN, và thứ cũ đi nằm ngoài hộp thư.
    */
   acceptInvite: ProjectScopedParams;
+  /** Dự án vừa đổi tên (#26) — thẻ dashboard, danh sách và chi tiết cũ đi. */
+  renameProject: ProjectScopedParams;
+  /** Dự án vừa bị xoá (#27) — cùng ba khoá với `renameProject`. */
+  deleteProject: ProjectScopedParams;
+  /** Thành viên vừa được thêm (N3) — `Project.members` nằm ở chi tiết. */
+  addProjectMember: ProjectScopedParams;
+  /** Thành viên vừa được gỡ (N4) — cùng phạm vi với `addProjectMember`. */
+  removeProjectMember: ProjectScopedParams;
 }
 
 type InvalidationMap = {
@@ -107,7 +119,7 @@ type InvalidationMap = {
  * No wildcard/no-argument entries — every key is scoped to the ids that changed.
  */
 export const invalidationMap: InvalidationMap = {
-  createProject: () => [queryKeys.project.list()],
+  createProject: () => [queryKeys.project.list(), queryKeys.project.summaries()],
 
   editFloor: ({ projectId, floorId }) => [
     queryKeys.floor.detail(floorId),
@@ -265,6 +277,22 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.project.members(projectId),
     queryKeys.user.memberships.root(),
   ],
+
+  renameProject: ({ projectId }) => [
+    queryKeys.project.summaries(),
+    queryKeys.project.list(),
+    queryKeys.project.detail(projectId),
+  ],
+
+  deleteProject: ({ projectId }) => [
+    queryKeys.project.summaries(),
+    queryKeys.project.list(),
+    queryKeys.project.detail(projectId),
+  ],
+
+  addProjectMember: ({ projectId }) => [queryKeys.project.detail(projectId)],
+
+  removeProjectMember: ({ projectId }) => [queryKeys.project.detail(projectId)],
 };
 
 /**

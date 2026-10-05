@@ -25,15 +25,19 @@
  *
  * Xem doc comment của {@link ProjectSettingsModel}.
  *
- * ## Bảy trường chưa có dây
+ * ## Hai đường ghi
  *
- * Xem `projectSettingsGateway.ts`. Với hook này chúng không khác gì ba trường
- * kia: cùng đi qua một bản vá, cùng một lượt tự lưu.
+ * Tên, mã, địa chỉ đi #26; sáu trường còn lại đi N6 kèm `revision` (xem
+ * `projectSettingsGateway.ts`). Một lượt tự lưu có thể xong một phần: phần xong vào
+ * `saved`, phần hỏng giữ nháp, và engine thử lại hay dừng theo lỗi gốc mà hook ném.
+ * 409/422/428 không bao giờ gửi lại y nguyên (R2); tháo màn khi còn nháp dở thì xả một
+ * lượt cuối bằng cờ trong `bridgeRef` (R13).
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import type { ApiError } from '@/api/client';
 import type { SaveState } from '@/components/feedback/SaveIndicator';
 import type { SelectOption } from '@/components/ui/Select';
 import { millimetresPerPixel, pixels, scaleFromRatio } from '@/domain/units/scale';
@@ -45,6 +49,7 @@ import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import type { Announcer } from '@/lib/input/announcer';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
+import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
@@ -56,9 +61,24 @@ import {
   type ProjectBuildingType,
   type ProjectLengthUnit,
   type ProjectSettingsGateway,
+  type ProjectSettingsPart,
   type ProjectSettingsPatch,
   type ProjectSettingsSnapshot,
+  type ProjectSettingsUpdateFailure,
 } from './projectSettingsGateway';
+import {
+  isTransientSettingsError,
+  partialSaveSentence,
+  problemKeyOfError,
+  rejectionOf,
+  SETTINGS_SENTENCES,
+  type SettingsProblemKey,
+} from './settingsErrors';
+import {
+  useProjectMembers,
+  type ProjectMembersActions,
+  type ProjectMembersModel,
+} from './useProjectMembers';
 
 /** Tái xuất để bốn thẻ (view thuần, R-60) không phải nhập thẳng từ tầng dữ liệu. */
 export { PROJECT_SETTINGS_LIMITS };
@@ -97,6 +117,8 @@ export interface ProjectSettingsMemberRow {
   readonly name: string;
   readonly roleLabel: string;
   readonly initials: string;
+  /** Nhãn của nút gỡ, có tên người để trình đọc màn hình phân biệt các dòng. */
+  readonly removeLabel: string;
 }
 
 export interface ProjectSettingsProblems {
@@ -145,7 +167,7 @@ export interface ProjectSettingsProblems {
  *     `pendingDanger === 'deleteProject'`, và nó bằng đúng `name` đã lưu.
  * 11. Bậc thang ở trên.
  */
-export interface ProjectSettingsModel {
+export interface ProjectSettingsModel extends ProjectMembersModel {
   readonly state: SevenState;
   readonly canEdit: boolean;
   readonly canDelete: boolean;
@@ -155,6 +177,10 @@ export interface ProjectSettingsModel {
   /** `null` khi màn tự ép `pending` vì còn lỗi nhập — viên chỉ báo dùng câu chờ của nó. */
   readonly saveLabel: string | null;
   readonly conflictMessage: string | null;
+  /** Câu nói phần nào đã lưu, phần nào chưa; `null` khi không có phần hỏng. */
+  readonly saveFailureMessage: string | null;
+  /** Hộp thoại A9 trước khi tải lại bỏ bản nháp chưa lưu. */
+  readonly isReloadDialogOpen: boolean;
   readonly activeTab: ProjectSettingsTabId;
   readonly tabs: readonly ProjectSettingsTabModel[];
   readonly name: string;
@@ -192,7 +218,7 @@ export interface ProjectSettingsModel {
   readonly isDangerRunning: boolean;
 }
 
-export interface ProjectSettingsActions {
+export interface ProjectSettingsActions extends ProjectMembersActions {
   readonly setActiveTab: (tab: ProjectSettingsTabId) => void;
   readonly setName: (value: string) => void;
   readonly setCode: (value: string) => void;
@@ -206,6 +232,8 @@ export interface ProjectSettingsActions {
   readonly saveNow: () => void;
   readonly retryLoad: () => void;
   readonly reloadSettings: () => void;
+  readonly confirmReload: () => void;
+  readonly cancelReload: () => void;
   readonly requestDeleteAllFloors: () => void;
   readonly requestDeleteProject: () => void;
   readonly setDangerConfirmationText: (value: string) => void;
@@ -238,6 +266,10 @@ export interface UseProjectSettingsOptions {
    * lượt điều hướng (B-V3-05).
    */
   readonly onProjectDeleted?: (notice: string) => void;
+  /** Mã người dùng đang đăng nhập, để nhận ra việc tự gỡ mình khỏi dự án. */
+  readonly currentUserId?: string;
+  /** Gọi sau khi chính người dùng bị gỡ khỏi dự án; nơi gọi điều hướng đi. */
+  readonly onSelfRemoved?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -309,6 +341,61 @@ function diffDraft(saved: ProjectSettingsDraft, draft: ProjectSettingsDraft): Pr
 }
 
 /* -------------------------------------------------------------------------- */
+/* Hai phần của một lượt lưu: #26 (chung) và N6 (đơn vị đo).                   */
+/* -------------------------------------------------------------------------- */
+
+type DraftKey = keyof ProjectSettingsDraft;
+
+const KEYS_BY_PART: Readonly<Record<ProjectSettingsPart, readonly DraftKey[]>> = {
+  general: ['name', 'code', 'address'],
+  units: ['buildingType', 'notes', 'lengthUnit', 'snapToleranceMm', 'confidenceThreshold', 'scaleMmPerPx'],
+};
+
+const PARTS: readonly ProjectSettingsPart[] = ['general', 'units'];
+
+/** Dấu vân tay của một phần nháp: đổi khi và chỉ khi người dùng sửa phần đó. */
+function partKey(draft: ProjectSettingsDraft, part: ProjectSettingsPart): string {
+  return JSON.stringify(KEYS_BY_PART[part].map((key) => draft[key]));
+}
+
+function partsOf(patch: ProjectSettingsPatch): readonly ProjectSettingsPart[] {
+  return PARTS.filter((part) => KEYS_BY_PART[part].some((key) => patch[key as keyof ProjectSettingsPatch] !== undefined));
+}
+
+function stripPart(patch: ProjectSettingsPatch, part: ProjectSettingsPart): ProjectSettingsPatch {
+  const next: MutablePatch = { ...patch };
+
+  for (const key of KEYS_BY_PART[part]) {
+    delete next[key as keyof MutablePatch];
+  }
+
+  return next;
+}
+
+/** Máy chủ đã từ chối (409/422/428) phần này với đúng bản nháp có dấu vân tay `key`. */
+interface Rejection {
+  readonly key: string;
+  readonly error: ApiError;
+}
+
+type Rejections = Record<ProjectSettingsPart, Rejection | null>;
+
+const noRejections = (): Rejections => ({ general: null, units: null });
+
+/** Lỗi tạm đứng trước, vì engine hẹn lại; hết lỗi tạm mới tới lời từ chối đang giữ. */
+function pickErrorToThrow(
+  failures: readonly ProjectSettingsUpdateFailure[],
+  held: readonly ApiError[],
+): ApiError | null {
+  const transient = failures.find((failure) => isTransientSettingsError(failure.error));
+
+  return transient?.error ?? held[0] ?? failures[0]?.error ?? null;
+}
+
+/** Lời máy chủ chê một ô: chỉ bảy ô của `ProjectSettingsProblems` có chỗ hiện. */
+type ServerProblems = Partial<Record<SettingsProblemKey, string>>;
+
+/* -------------------------------------------------------------------------- */
 /* Lời phàn nàn của biểu mẫu — vị ngữ thuần, khuôn `localNameProblemFor`.       */
 /* -------------------------------------------------------------------------- */
 
@@ -326,14 +413,17 @@ function nameProblemFor(name: string): string | null {
   return null;
 }
 
-function codeProblemFor(code: string): string | null {
+/** #26 không nhận chuỗi rỗng, nên một giá trị đã lưu chưa xoá trống được. */
+function codeProblemFor(code: string, savedCode: string): string | null {
+  if (code.length === 0 && savedCode.length > 0) return SETTINGS_SENTENCES.emptyBlocked;
   if (code.length > LIMITS.codeMaxLength) {
     return `Mã dự án không quá ${formatNumber(LIMITS.codeMaxLength, { grouping: false })} ký tự.`;
   }
   return null;
 }
 
-function addressProblemFor(address: string): string | null {
+function addressProblemFor(address: string, savedAddress: string): string | null {
+  if (address.length === 0 && savedAddress.length > 0) return SETTINGS_SENTENCES.emptyBlocked;
   if (address.length > LIMITS.addressMaxLength) {
     return `Địa chỉ không quá ${formatNumber(LIMITS.addressMaxLength, { grouping: false })} ký tự.`;
   }
@@ -349,7 +439,8 @@ function notesProblemFor(notes: string): string | null {
 
 function snapProblemFor(value: number | null): string | null {
   if (value === null) return 'Chưa nhập dung sai bắt điểm.';
-  if (value < LIMITS.snapToleranceMinMm || value > LIMITS.snapToleranceMaxMm) {
+  if (!Number.isInteger(value)) return SETTINGS_SENTENCES.snapNotInteger;
+  if (value <LIMITS.snapToleranceMinMm || value > LIMITS.snapToleranceMaxMm) {
     return (
       `Dung sai bắt điểm áp dụng từ ${formatLength(LIMITS.snapToleranceMinMm, { unit: 'mm' })} ` +
       `đến ${formatLength(LIMITS.snapToleranceMaxMm, { unit: 'mm' })}.`
@@ -506,10 +597,84 @@ const SAVED_TOAST_MESSAGE = 'Đã lưu cài đặt dự án.';
 const UNDO_DESCRIPTION = 'Hoàn tác thay đổi cài đặt dự án';
 const LOAD_FAILURE_FALLBACK = 'Không tải được cài đặt dự án.';
 
-/** Những gì lượt tự lưu cần đọc lúc nó chạy, luôn là bản mới nhất (khuôn "ref mới nhất"). */
+/**
+ * Bản chờ của lượt xả khi màn bị tháo (R13).
+ *
+ * Chụp đồng bộ lúc tháo, kèm `projectId`, `gateway` và `base` của chính lượt gắn
+ * màn đó — bản nháp của màn sau (hay của người dùng khác) không được lẫn vào.
+ * `pending` còn giá trị tới khi một lượt gửi của nó thành công hoặc hỏng vĩnh viễn.
+ */
+interface FlushState {
+  readonly projectId: string;
+  readonly gateway: ProjectSettingsGateway;
+  base: ProjectSettingsSnapshot | null;
+  pending: ProjectSettingsPatch | null;
+}
+
+/**
+ * Những gì lượt tự lưu cần đọc lúc nó chạy, luôn là bản mới nhất (khuôn "ref mới nhất").
+ *
+ * \`flush\` là cờ dispose của R13: khác \`null\` nghĩa là màn đã tháo, và engine chỉ
+ * còn gửi \`flush.pending\` bằng \`flush.gateway\`. Cờ nằm ở đây chứ không trong
+ * \`createAutosave\` (F-01a, không sửa).
+ */
 interface AutosaveBridge {
   readonly getChanges: () => ProjectSettingsPatch | undefined;
   readonly save: (changes: ProjectSettingsPatch) => Promise<void>;
+  readonly gateway: ProjectSettingsGateway;
+  flush: FlushState | null;
+}
+
+type MutableDraft = { -readonly [K in DraftKey]: ProjectSettingsDraft[K] };
+
+function copyDraftKey<K extends DraftKey>(to: MutableDraft, from: ProjectSettingsDraft, key: K): void {
+  to[key] = from[key];
+}
+
+/** Gửi nốt bản chờ sau khi màn đã tháo. Không đụng state React nào. */
+async function sendFlush(
+  flush: FlushState,
+  changes: ProjectSettingsPatch,
+  queryClient: QueryClient,
+): Promise<void> {
+  const attempted = partsOf(changes);
+
+  if (flush.base === null || attempted.length === 0) {
+    flush.pending = null;
+    return;
+  }
+
+  const outcome = await flush.gateway.update({
+    projectId: flush.projectId,
+    patch: changes,
+    base: flush.base,
+  });
+  const failedParts = new Set(outcome.failures.map((failure) => failure.part));
+  const succeeded = attempted.filter((part) => !failedParts.has(part));
+
+  flush.base = outcome.snapshot;
+
+  if (succeeded.includes('general')) {
+    applyInvalidation(queryClient, 'renameProject', { projectId: flush.projectId });
+  }
+
+  const [firstFailure] = outcome.failures;
+
+  if (firstFailure === undefined) {
+    flush.pending = null;
+    return;
+  }
+
+  const transient = outcome.failures.find((failure) => isTransientSettingsError(failure.error));
+
+  if (transient === undefined) {
+    // Hỏng vĩnh viễn: bỏ bản chờ, R2 xếp `failed` và không gửi lại.
+    flush.pending = null;
+    throw firstFailure.error;
+  }
+
+  flush.pending = succeeded.reduce((patch, part) => stripPart(patch, part), changes);
+  throw transient.error;
 }
 
 export function useProjectSettings(options: UseProjectSettingsOptions): ProjectSettingsViewProps {
@@ -522,11 +687,31 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const [saved, setSaved] = useState<ProjectSettingsDraft | null>(null);
   const [syncedKey, setSyncedKey] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [isReloadDialogOpen, setReloadDialogOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+  const [saveFailureMessage, setSaveFailureMessage] = useState<string | null>(null);
+  const [serverProblems, setServerProblems] = useState<ServerProblems>({});
   const [pendingDanger, setPendingDanger] = useState<ProjectSettingsDangerAction | null>(null);
   const [dangerConfirmationText, setDangerConfirmationText] = useState('');
   const [dangerFailure, setDangerFailure] = useState<string | null>(null);
   const [isDangerRunning, setDangerRunning] = useState(false);
+
+  // Bản sao đồng bộ của state mà logic lưu đọc: một lượt chạy tiếp ngay sau lượt
+  // trước (engine xếp hàng) có thể xảy ra trước khi React kịp vẽ lại.
+  const draftRef = useRef<ProjectSettingsDraft | null>(null);
+  const savedRef = useRef<ProjectSettingsDraft | null>(null);
+  const baseRef = useRef<ProjectSettingsSnapshot | null>(null);
+  const rejectionsRef = useRef<Rejections>(noRejections());
+
+  const commitDraft = (next: ProjectSettingsDraft | null): void => {
+    draftRef.current = next;
+    setDraft(next);
+  };
+
+  const commitSaved = (next: ProjectSettingsDraft | null): void => {
+    savedRef.current = next;
+    setSaved(next);
+  };
 
   const detectedNarrow = useNarrowViewport();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
@@ -559,20 +744,27 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   if (snapshot !== null && syncedKey !== baselineKey) {
     const initial = toDraft(snapshot);
     setSyncedKey(baselineKey);
-    setDraft(initial);
-    setSaved(initial);
+    commitDraft(initial);
+    commitSaved(initial);
+    baseRef.current = snapshot;
+    rejectionsRef.current = noRejections();
+    setConflictMessage(null);
+    setSaveFailureMessage(null);
+    setServerProblems({});
   }
 
   const current = draft ?? EMPTY_DRAFT;
   const hasData = draft !== null;
 
-  const problems = useMemo<ProjectSettingsProblems>(
+  // Lời phàn nàn cục bộ chặn tự lưu; lời của máy chủ chỉ hiện, không chặn: chặn thì
+  // người dùng sửa phần khác cũng không lưu được.
+  const localProblems = useMemo<ProjectSettingsProblems>(
     () =>
       hasData
         ? {
             name: nameProblemFor(current.name),
-            code: codeProblemFor(current.code),
-            address: addressProblemFor(current.address),
+            code: codeProblemFor(current.code, saved?.code ?? ''),
+            address: addressProblemFor(current.address, saved?.address ?? ''),
             notes: notesProblemFor(current.notes),
             snapToleranceMm: snapProblemFor(current.snapToleranceMm),
             confidenceThreshold: confidenceProblemFor(current.confidenceThreshold),
@@ -587,29 +779,37 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
             confidenceThreshold: null,
             scaleMmPerPx: null,
           },
-    [hasData, current],
+    [hasData, current, saved],
   );
 
-  const generalProblemCount = [problems.name, problems.code, problems.address, problems.notes].filter(
-    (problem) => problem !== null,
-  ).length;
-  const unitsProblemCount = [
+  const problems: ProjectSettingsProblems = {
+    name: localProblems.name ?? serverProblems.name ?? null,
+    code: localProblems.code ?? serverProblems.code ?? null,
+    address: localProblems.address ?? serverProblems.address ?? null,
+    notes: localProblems.notes ?? serverProblems.notes ?? null,
+    snapToleranceMm: localProblems.snapToleranceMm ?? serverProblems.snapToleranceMm ?? null,
+    confidenceThreshold: localProblems.confidenceThreshold ?? serverProblems.confidenceThreshold ?? null,
+    scaleMmPerPx: localProblems.scaleMmPerPx ?? serverProblems.scaleMmPerPx ?? null,
+  };
+
+  const countProblems = (list: readonly (string | null)[]): number =>
+    list.filter((problem) => problem !== null).length;
+
+  const generalProblemCount = countProblems([problems.name, problems.code, problems.address, problems.notes]);
+  const unitsProblemCount = countProblems([
     problems.snapToleranceMm,
     problems.confidenceThreshold,
     problems.scaleMmPerPx,
-  ].filter((problem) => problem !== null).length;
+  ]);
   const hasProblem = generalProblemCount + unitsProblemCount > 0;
+  const hasLocalProblem = countProblems(Object.values(localProblems)) > 0;
 
   /* ---------------------------------------------------------------------- */
   /* Tự lưu (D-07) và vé hoàn tác (D-05).                                    */
   /* ---------------------------------------------------------------------- */
 
-  const invalidateProjectQueries = (): void => {
-    // `WRITE_OPERATIONS` chưa có mục nào cho sửa hay xoá dự án, nên gọi thẳng
-    // với khoá dựng từ chính `queryKeys`; mượn tên `createProject` cho một lượt
-    // xoá thì bảng vô hiệu hoá sẽ nói dối về việc gì vừa xảy ra (nợ T-07).
-    void queryClient.invalidateQueries({ queryKey: queryKeys.project.list() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.project.detail(projectId) });
+  const invalidateProjectQueries = (operation: 'deleteProject' | 'renameProject'): void => {
+    applyInvalidation(queryClient, operation, { projectId });
   };
 
   // Khuôn "ref mới nhất" (`src/hooks/useShortcut.ts:180-182`): `createAutosave`
@@ -618,12 +818,24 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const bridgeRef = useRef<AutosaveBridge>({
     getChanges: () => undefined,
     save: async () => undefined,
+    gateway,
+    flush: null,
   });
 
   const [autosave] = useState(() =>
     createAutosave<ProjectSettingsPatch>({
-      getChanges: () => bridgeRef.current.getChanges(),
-      save: (changes) => bridgeRef.current.save(changes),
+      getChanges: () => {
+        const bridge = bridgeRef.current;
+
+        return bridge.flush === null ? bridge.getChanges() : (bridge.flush.pending ?? undefined);
+      },
+      save: (changes) => {
+        const bridge = bridgeRef.current;
+
+        return bridge.flush === null
+          ? bridge.save(changes)
+          : sendFlush(bridge.flush, changes, queryClient);
+      },
       ...(options.now !== undefined ? { now: options.now } : {}),
       ...(options.isOnline !== undefined ? { isOnline: options.isOnline } : {}),
     }),
@@ -634,48 +846,165 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     ...(options.announcer !== undefined ? { announcer: options.announcer } : {}),
   });
 
+  /** Phần mà máy chủ đã từ chối đúng bản nháp hiện tại; sửa phần đó thì lời từ chối hết hiệu lực. */
+  const activeRejection = (part: ProjectSettingsPart, now: ProjectSettingsDraft): Rejection | null => {
+    const rejection = rejectionsRef.current[part];
+
+    if (rejection === null) return null;
+    if (rejection.key === partKey(now, part)) return rejection;
+
+    rejectionsRef.current[part] = null;
+    return null;
+  };
+
   const getChanges = (): ProjectSettingsPatch | undefined => {
-    if (draft === null || saved === null || hasProblem) {
+    const nowDraft = draftRef.current;
+    const nowSaved = savedRef.current;
+
+    if (nowDraft === null || nowSaved === null || hasLocalProblem) {
       return undefined;
     }
 
-    return diffDraft(saved, draft) ?? undefined;
+    let patch = diffDraft(nowSaved, nowDraft);
+
+    if (patch === null) {
+      return undefined;
+    }
+
+    // R2: phần đã bị 409/422 không gửi lại tới khi nháp của phần đó đổi. Còn lại
+    // `{}` thì vẫn trả về: lượt `save` sẽ ném lại lỗi đang giữ, để trạng thái là `failed`.
+    for (const part of PARTS) {
+      if (activeRejection(part, nowDraft) !== null) {
+        patch = stripPart(patch, part);
+      }
+    }
+
+    return patch;
+  };
+
+  const adoptSavedParts = (
+    parts: readonly ProjectSettingsPart[],
+    sent: ProjectSettingsPatch,
+    server: ProjectSettingsDraft,
+  ): void => {
+    const nextSaved: MutableDraft = { ...(savedRef.current ?? server) };
+    const nextDraft: MutableDraft = { ...(draftRef.current ?? server) };
+
+    for (const key of parts.flatMap((part) => KEYS_BY_PART[part])) {
+      const sentValue = sent[key as keyof ProjectSettingsPatch];
+
+      if (sentValue === undefined) continue;
+
+      // Máy chủ làm tròn (N6): lấy số của nó cho `saved`; nháp chưa đổi từ lúc gửi
+      // thì chép theo để không sinh một diff ma và một lượt lưu thứ hai.
+      copyDraftKey(nextSaved, server, key);
+
+      if (nextDraft[key] === sentValue) {
+        copyDraftKey(nextDraft, server, key);
+      }
+    }
+
+    commitSaved(nextSaved);
+    commitDraft(nextDraft);
+  };
+
+  const recordRejections = (
+    failures: readonly ProjectSettingsUpdateFailure[],
+    sentDraft: ProjectSettingsDraft | null,
+  ): void => {
+    for (const failure of failures) {
+      const rejection = rejectionOf(failure.error);
+
+      if (rejection === null) continue;
+
+      rejectionsRef.current[failure.part] = {
+        key: sentDraft === null ? '' : partKey(sentDraft, failure.part),
+        error: failure.error,
+      };
+
+      if (rejection === 'conflict') {
+        setConflictMessage(SETTINGS_SENTENCES.conflict);
+        continue;
+      }
+
+      const problemKey = problemKeyOfError(failure.error);
+
+      if (rejection === 'validation' && problemKey !== null) {
+        setServerProblems((previous) => ({ ...previous, [problemKey]: SETTINGS_SENTENCES.fieldRejected }));
+      }
+    }
   };
 
   const save = async (changes: ProjectSettingsPatch): Promise<void> => {
-    const previous = saved;
-    const applied = draft;
-    const result = await gateway.update({ projectId, patch: changes });
+    const previous = savedRef.current;
+    const sentDraft = draftRef.current;
+    const base = baseRef.current;
+    const attempted = partsOf(changes);
+    let failures: readonly ProjectSettingsUpdateFailure[] = [];
 
-    if (!result.ok) {
-      const appError = toAppError(result.error);
+    if (attempted.length > 0 && base !== null) {
+      const outcome = await gateway.update({ projectId, patch: changes, base });
+      const failedParts = new Set(outcome.failures.map((failure) => failure.part));
+      const succeeded = attempted.filter((part) => !failedParts.has(part));
 
-      // D-09: 409 KHÔNG ném ra. Ném thì `createAutosave` thử lại theo lịch
-      // 5/15/45 giây, tức ghi đè im lặng lên bản của người khác. Nó dừng lại,
-      // nói ra, và để người dùng nạp lại.
-      if (appError.kind === 'conflict') {
-        setConflictMessage(describeError(appError).description);
+      failures = outcome.failures;
+      baseRef.current = outcome.snapshot;
+
+      // Màn đã tháo trong lúc gửi: bản chờ của R13 lo phần còn lại, không đụng UI nữa.
+      if (bridgeRef.current.flush !== null) {
+        const [firstFailure] = failures;
+
+        if (firstFailure !== undefined) {
+          throw pickErrorToThrow(failures, []) ?? firstFailure.error;
+        }
+
         return;
       }
 
-      throw new Error(describeError(appError).description);
+      if (succeeded.length > 0) {
+        adoptSavedParts(succeeded, changes, toDraft(outcome.snapshot));
+      }
+
+      if (succeeded.includes('general')) {
+        invalidateProjectQueries('renameProject');
+      }
+    }
+
+    recordRejections(failures, sentDraft);
+
+    const nowDraft = draftRef.current ?? EMPTY_DRAFT;
+    const heldParts = PARTS.filter((part) => activeRejection(part, nowDraft) !== null);
+    const failedParts = PARTS.filter(
+      (part) => heldParts.includes(part) || failures.some((failure) => failure.part === part),
+    );
+
+    if (failedParts.length > 0) {
+      const savedParts = attempted.filter((part) => !failedParts.includes(part));
+      const heldErrors = heldParts.flatMap((part) => rejectionsRef.current[part]?.error ?? []);
+
+      setSaveFailureMessage(partialSaveSentence(savedParts, failedParts));
+
+      // Không bọc `new Error(câu)`: engine đọc lỗi gốc để biết nên hẹn lại hay dừng (R2).
+      const error = pickErrorToThrow(failures, heldErrors);
+
+      if (error !== null) {
+        throw error;
+      }
+
+      return;
     }
 
     setConflictMessage(null);
+    setSaveFailureMessage(null);
+    setServerProblems({});
 
-    if (applied !== null) {
-      setSaved(applied);
-    }
-
-    invalidateProjectQueries();
-
-    if (previous !== null) {
-      // A8: đúng một vé cho mỗi lượt lưu thành công. Cửa sổ 8 giây do chính vé
+    if (attempted.length > 0 && previous !== null) {
+      // A8: đúng một vé cho mỗi lượt lưu xong cả hai phần. Cửa sổ 8 giây do chính vé
       // giữ (`UNDO_WINDOW_MS`), nên ở đây không có bộ đếm thời gian nào.
       const ticket = createUndoTicket({
         description: UNDO_DESCRIPTION,
         undo: () => {
-          setDraft(previous);
+          commitDraft(previous);
           autosave.notifyChange();
         },
         ...(options.now !== undefined ? { now: options.now } : {}),
@@ -691,12 +1020,98 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   };
 
   useEffect(() => {
-    bridgeRef.current = { getChanges, save };
+    bridgeRef.current = { ...bridgeRef.current, getChanges, save, gateway };
   });
 
+  // R13: hiệu ứng theo `projectId`. Vào thì hạ cờ; tháo (hoặc đổi dự án) mà tự lưu
+  // còn dở thì chụp ĐỒNG BỘ bản chờ, bật cờ rồi xả một lượt. Engine không biết gì về
+  // việc này — nó cứ hẹn lại theo lịch của nó và `getChanges` trả bản chờ.
+  useEffect(() => {
+    bridgeRef.current.flush = null;
+
+    return () => {
+      const state = autosave.getState();
+
+      if (state === 'saved' || state === 'failed') {
+        return;
+      }
+
+      const bridge = bridgeRef.current;
+
+      bridge.flush = {
+        projectId,
+        gateway: bridge.gateway,
+        base: baseRef.current,
+        pending: bridge.getChanges() ?? null,
+      };
+      void autosave.saveNow();
+    };
+  }, [projectId, autosave]);
+
+  // Sau một lần tải lại, bản nháp đã bằng bản đã lưu: để engine ghi nhận nó là `saved`.
+  useEffect(() => {
+    if (reloadToken > 0) {
+      void autosave.saveNow();
+    }
+  }, [reloadToken, autosave]);
+
   const editDraft = (patch: Partial<ProjectSettingsDraft>): void => {
-    setDraft((previous) => ({ ...(previous ?? EMPTY_DRAFT), ...patch }));
+    commitDraft({ ...(draftRef.current ?? EMPTY_DRAFT), ...patch });
+    setServerProblems((previous) => {
+      const edited = (Object.keys(patch) as SettingsProblemKey[]).filter((key) => previous[key] !== undefined);
+
+      if (edited.length === 0) return previous;
+
+      const next: ServerProblems = { ...previous };
+
+      for (const key of edited) {
+        delete next[key];
+      }
+
+      return next;
+    });
     autosave.notifyChange();
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /* Thành viên (N3, N4) — chỉ khi canEdit.                                  */
+  /* ---------------------------------------------------------------------- */
+
+  const memberNames = useMemo<Readonly<Record<string, string>>>(
+    () => Object.fromEntries((snapshot?.members ?? []).map((member) => [member.id, member.name])),
+    [snapshot],
+  );
+
+  const {
+    setMemberEmail,
+    addMember,
+    requestRemoveMember,
+    confirmRemoveMember,
+    cancelRemoveMember,
+    ...membersModel
+  } = useProjectMembers({
+    gateway,
+    projectId,
+    canEdit,
+    queryClient,
+    memberNames,
+    currentUserId: options.currentUserId,
+    now: options.now,
+    onToast: options.onToast,
+    onSelfRemoved: options.onSelfRemoved,
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* Tải lại (A9 khi có nháp chưa lưu).                                       */
+  /* ---------------------------------------------------------------------- */
+
+  const hasUnsavedChanges = draft !== null && saved !== null && diffDraft(saved, draft) !== null;
+
+  const performReload = async (): Promise<void> => {
+    setReloadDialogOpen(false);
+    // Đọc xong mới đổi khoá đồng bộ: đổi trước thì bản nháp nạp lại từ ảnh chụp cũ.
+    await settingsQuery.refetch();
+    setReloadToken((token) => token + 1);
   };
 
   /* ---------------------------------------------------------------------- */
@@ -727,7 +1142,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
       setPendingDanger(null);
       void queryClient.invalidateQueries({ queryKey: queryKeys.floor.list(projectId) });
-      invalidateProjectQueries();
+      invalidateProjectQueries('renameProject');
 
       const { deletedCount, failedFloorIds } = result.data;
       const deleted = formatNumber(deletedCount, { grouping: false });
@@ -751,7 +1166,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       }
 
       setPendingDanger(null);
-      invalidateProjectQueries();
+      invalidateProjectQueries('deleteProject');
       // A9 đã hỏi trước bằng hộp thoại, nên A8 không nợ một toast hoàn tác ở đây:
       // không có đường khôi phục nào để hứa.
       if (options.onProjectDeleted === undefined) {
@@ -790,7 +1205,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   /* Bảy trạng thái.                                                         */
   /* ---------------------------------------------------------------------- */
 
-  const saveState: SaveState = hasProblem ? 'pending' : toSaveState(indicator.state);
+  const saveState: SaveState = hasLocalProblem ? 'pending' : toSaveState(indicator.state);
   const floorCount = snapshot?.floorCount ?? 0;
 
   const loadFailure = settingsQuery.isError
@@ -805,9 +1220,20 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     if (settingsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
     if (floorCount === 0) return 'empty';
-    if (saveState === 'saving' || saveState === 'pending' || hasProblem) return 'partial';
+    if (saveState === 'saving' || saveState === 'pending' || hasProblem || saveFailureMessage !== null) {
+      return 'partial';
+    }
     return 'success';
-  }, [isCollapsed, canEdit, settingsQuery.isPending, loadFailure, floorCount, saveState, hasProblem]);
+  }, [
+    isCollapsed,
+    canEdit,
+    settingsQuery.isPending,
+    loadFailure,
+    floorCount,
+    saveState,
+    hasProblem,
+    saveFailureMessage,
+  ]);
 
   const members = useMemo<readonly ProjectSettingsMemberRow[]>(
     () =>
@@ -816,6 +1242,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         name: member.name,
         roleLabel: ROLE_LABELS[member.role],
         initials: initialsOf(member.name),
+        removeLabel: `Gỡ ${member.name}`,
       })),
     [snapshot],
   );
@@ -835,6 +1262,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     : alwaysTabs;
 
   const model: ProjectSettingsModel = {
+    ...membersModel,
     state,
     canEdit,
     canDelete,
@@ -842,8 +1270,10 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     errorMessage: state === 'error' ? loadFailure : null,
     saveState,
     // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47).
-    saveLabel: hasProblem ? null : indicator.label,
+    saveLabel: hasLocalProblem ? null : indicator.label,
     conflictMessage,
+    saveFailureMessage,
+    isReloadDialogOpen,
     activeTab,
     tabs,
     name: current.name,
@@ -901,11 +1331,22 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     setScaleMmPerPx: (value) => editDraft({ scaleMmPerPx: value ?? null }),
     saveNow: () => void autosave.saveNow(),
     retryLoad: () => void settingsQuery.refetch(),
+    // A9: tải lại bỏ bản nháp chưa lưu, nên có nháp thì hỏi trước.
     reloadSettings: () => {
-      setConflictMessage(null);
-      setReloadToken((token) => token + 1);
-      void settingsQuery.refetch();
+      if (hasUnsavedChanges) {
+        setReloadDialogOpen(true);
+        return;
+      }
+
+      void performReload();
     },
+    confirmReload: () => void performReload(),
+    cancelReload: () => setReloadDialogOpen(false),
+    setMemberEmail,
+    addMember,
+    requestRemoveMember,
+    confirmRemoveMember,
+    cancelRemoveMember,
     requestDeleteAllFloors: () => openDanger('deleteAllFloors'),
     requestDeleteProject: () => openDanger('deleteProject'),
     setDangerConfirmationText,

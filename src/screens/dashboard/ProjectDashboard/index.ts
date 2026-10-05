@@ -11,4 +11,4 @@ export type {
   ProjectViewMode,
   UseProjectDashboardOptions,
 } from './useProjectDashboard';
-export type { DashboardProject, DashboardProjectMember, ProjectPipelineStatus } from './projectsGateway';
+export type { DashboardProject, DashboardProjectList, DashboardProjectMember, ProjectPipelineStatus } from './projectsGateway';

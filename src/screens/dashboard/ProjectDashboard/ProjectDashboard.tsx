@@ -49,6 +49,7 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
 import { DashboardSidebar } from './DashboardSidebar';
+import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import {
   PROJECT_SORT_OPTIONS,
@@ -92,30 +93,13 @@ export interface ProjectDashboardViewProps extends ProjectDashboardModel, Projec
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
 export function ProjectDashboardView(props: ProjectDashboardViewProps) {
-  const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, shouldStagger, statusCounts } = props;
+  const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, shouldStagger, statusCounts, unreadNotice, deleteErrorMessage } = props;
   const contextMenu = useContextMenu();
   const isCollapsed = state === 'collapsed';
   const showSidebar = !isCollapsed && state !== 'loading' && state !== 'error';
 
-  const openMenuFor = (project: ProjectCardModel, x: number, y: number): void => {
-    contextMenu.openMenu(x, y, [
-      {
-        id: 'project-actions',
-        items: [
-          { id: 'open', label: 'Mở', action: () => props.openProject(project.id, 'card') },
-          { id: 'duplicate', label: 'Nhân bản', action: () => props.duplicateProject(project.id) },
-          { id: 'rename', label: 'Đổi tên', action: () => props.startRename(project.id) },
-          {
-            id: 'delete',
-            label: 'Xoá',
-            isDestructive: true,
-            isDisabled: !props.canDelete,
-            action: () => props.requestDelete(project.id),
-          },
-        ],
-      },
-    ]);
-  };
+  const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
+    contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
 
   const nameField = (project: ProjectCardModel, className: string) =>
     props.renamingId === project.id ? (
@@ -148,8 +132,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       renameDraft={props.renameDraft}
       onOpen={(id) => props.openProject(id, 'card')}
       onMenu={openMenuFor}
-      onPointerEnter={props.onCardPointerEnter}
-      onPointerLeave={props.onCardPointerLeave}
       onRenameChange={props.setRenameDraft}
       onRenameCommit={props.commitRename}
       onRenameCancel={props.cancelRename}
@@ -257,6 +239,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           )}
 
           <main className="flex min-w-0 flex-1 flex-col gap-5">
+            {unreadNotice !== null && <InlineAlert level="attention" message={unreadNotice} />}
             {state === 'loading' ? (
               <div className={GRID_COLUMNS_CLASS}>
                 {Array.from({ length: SKELETON_CARD_COUNT }, (_unused, index) => (
@@ -313,8 +296,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                             event.preventDefault();
                             openMenuFor(project, event.clientX, event.clientY);
                           }}
-                          onPointerEnter={() => props.onCardPointerEnter(project.id)}
-                          onPointerLeave={() => props.onCardPointerLeave(project.id)}
                         >
                           <Table.Cell className="font-medium">{nameField(project, 'text-[14px] font-medium text-text-primary')}</Table.Cell>
                           <Table.Cell>
@@ -337,8 +318,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       <ContextMenu isVisible={contextMenu.isVisible} position={contextMenu.position} groups={contextMenu.groups} onClose={contextMenu.closeMenu} />
 
       {/* A9: xoá là hành động duy nhất trên màn này A8 không phủ được, nên đây
-          là chỗ duy nhất được phép hỏi trước. Nhân bản và đổi tên hoàn tác được
-          bằng toast (xem `duplicateProject`/`commitRename`) nên không hỏi. */}
+          là chỗ duy nhất được phép hỏi trước. Đổi tên hoàn tác được
+          bằng toast (xem `commitRename`) nên không hỏi. */}
       <Modal.Root isOpen={pendingDeleteId !== null} onClose={props.cancelDelete} width={480} titleId="project-delete-title">
         <Modal.Header>
           <span id="project-delete-title">Xoá dự án?</span>
@@ -352,6 +333,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               Không hoàn tác được.
             </p>
+            {deleteErrorMessage !== null && <InlineAlert level="violation" message={deleteErrorMessage} />}
           </div>
         </Modal.Body>
         <Modal.Footer>

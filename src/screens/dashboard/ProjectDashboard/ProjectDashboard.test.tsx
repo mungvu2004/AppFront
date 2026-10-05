@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -75,6 +75,7 @@ function baseProps(): ProjectDashboardViewProps {
     state: 'success',
     canCreate: true,
     canDelete: true,
+    canDuplicate: false,
     errorMessage: null,
     viewMode: 'grid',
     searchQuery: '',
@@ -88,6 +89,8 @@ function baseProps(): ProjectDashboardViewProps {
     renameDraft: '',
     pendingDeleteId: null,
     pendingDeleteName: null,
+    deleteErrorMessage: null,
+    unreadNotice: null,
     setSearchQuery: noop,
     setStatusFilter: noop,
     setSortBy: noop,
@@ -98,14 +101,12 @@ function baseProps(): ProjectDashboardViewProps {
     setRenameDraft: noop,
     commitRename: noop,
     cancelRename: noop,
-    duplicateProject: noop,
     requestDelete: noop,
     cancelDelete: noop,
     confirmDelete: noop,
     createProject: noop,
     retryLoad: noop,
-    onCardPointerEnter: noop,
-    onCardPointerLeave: noop,
+    duplicateProject: noop,
   };
 }
 
@@ -264,6 +265,46 @@ describe('ProjectDashboardRoute', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Thông báo' })).toBeInTheDocument();
     expect(bell).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+describe('ProjectDashboardView — F-07', () => {
+  it('vẽ dải "chưa đọc được" trên lưới khi có dòng hỏng', () => {
+    render(<ProjectDashboardView {...baseProps()} state="partial" rows={[SAMPLE_ROW]} unreadNotice="Có 2 dự án chưa đọc được" />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Có 2 dự án chưa đọc được');
+    expect(screen.getByText(SAMPLE_ROW.name)).toBeInTheDocument();
+  });
+
+  it('giữ hộp thoại xoá và hiện câu lỗi trong hộp khi xoá hỏng', () => {
+    render(
+      <ProjectDashboardView
+        {...baseProps()}
+        rows={[SAMPLE_ROW]}
+        pendingDeleteId={SAMPLE_ROW.id}
+        pendingDeleteName={SAMPLE_ROW.name}
+        deleteErrorMessage="Không xoá được dự án. Hãy thử lại."
+      />,
+    );
+
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Không xoá được dự án');
+  });
+
+  it('không có "Nhân bản" trong menu của dự án', () => {
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+
+    expect(screen.getByRole('menuitem', { name: 'Đổi tên' })).toBeInTheDocument();
+    expect(screen.queryByText('Nhân bản')).not.toBeInTheDocument();
+  });
+
+  it('khoá "Đổi tên" của người không sửa được', () => {
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} canDelete={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+
+    expect(screen.getByRole('menuitem', { name: 'Đổi tên' })).toHaveAttribute('aria-disabled', 'true');
   });
 });
 

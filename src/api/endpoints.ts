@@ -1,4 +1,5 @@
 const PROJECTS_ROOT = '/projects';
+const PROJECT_SUMMARIES_ROOT = '/project-summaries';
 const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
 const FEATURE_FLAGS_ROOT = '/feature-flags';
@@ -106,6 +107,11 @@ export const ENDPOINTS = {
     detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
     list: LIBRARY_ROOT,
   },
+  /** N3, N4 — thành viên của một dự án. `userId` đi trong đường dẫn của N4, `email` đi trong thân của N3. */
+  members: {
+    add: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/members`,
+    remove: (projectId: string, userId: string): string => `${PROJECTS_ROOT}/${projectId}/members/${userId}`,
+  },
   /**
    * Phép đo đã ghim của một dự án, lưu KÈM dự án làm hồ sơ — LG-3.
    *
@@ -160,6 +166,15 @@ export const ENDPOINTS = {
     list: PROJECTS_ROOT,
     read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
     update: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
+  },
+  /** N5, N6 — cài đặt dự án: một đường, đọc bằng GET, thay trọn bằng PUT có `baseVersion`. */
+  projectSettings: {
+    read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
+    replace: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
+  },
+  /** N1 — thẻ dự án của dashboard; `cursor`, `limit` đi bằng query. */
+  projectSummaries: {
+    list: PROJECT_SUMMARIES_ROOT,
   },
   /**
    * Khuôn mẫu thuộc tính — bộ giá trị đặt tên, sao chép từ một tường/ô

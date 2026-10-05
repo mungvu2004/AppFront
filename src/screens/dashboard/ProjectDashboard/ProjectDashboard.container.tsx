@@ -16,17 +16,13 @@
  * exports one level below its own provider) under a single provider shared
  * with `CreateProjectModalContainer`.
  *
- * ## What "creating" refreshes, and what it does not
+ * ## What "creating" refreshes
  *
  * `CreateProjectModal.container.tsx`'s gateway calls
- * `applyInvalidation(queryClient, 'createProject', {})` on success, which
- * invalidates exactly `queryKeys.project.list()` — the key
- * `useProjectDashboard` reads. So the dashboard's list query refetches on its
- * own; nothing here has to ask it to. What that refetch actually returns is a
- * separate, pre-existing gap this file does not touch:
- * `projectsGateway.ts`'s `fetchProjectList` is a static three-project sample
- * ("a server this product does not have yet"), so a freshly created project
- * will not visually appear until that gateway talks to something real.
+ * `applyInvalidation(queryClient, 'createProject', {})`, which invalidates
+ * `queryKeys.project.summaries()` — the key `useProjectDashboard` reads (N1) —
+ * so the list refetches on its own and the new project appears. The hook builds
+ * its own N1 gateway from `createAppApiClient()`; nothing here wires data.
  */
 
 import { useState } from 'react';

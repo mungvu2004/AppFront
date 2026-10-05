@@ -44,8 +44,6 @@ export interface ProjectCardTileProps {
   readonly renameDraft: string;
   readonly onOpen: (id: string) => void;
   readonly onMenu: (project: ProjectCardModel, x: number, y: number) => void;
-  readonly onPointerEnter: (id: string) => void;
-  readonly onPointerLeave: (id: string) => void;
   readonly onRenameChange: (value: string) => void;
   readonly onRenameCommit: () => void;
   readonly onRenameCancel: () => void;
@@ -60,8 +58,6 @@ export function ProjectCardTile({
   renameDraft,
   onOpen,
   onMenu,
-  onPointerEnter,
-  onPointerLeave,
   onRenameChange,
   onRenameCommit,
   onRenameCancel,
@@ -82,8 +78,6 @@ export function ProjectCardTile({
         event.preventDefault();
         onMenu(project, event.clientX, event.clientY);
       }}
-      onPointerEnter={() => onPointerEnter(project.id)}
-      onPointerLeave={() => onPointerLeave(project.id)}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{

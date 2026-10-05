@@ -26,7 +26,7 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
-import { type RegisterInput, type SignInInput } from './schemas';
+import { UserSchema, type RegisterInput, type SignInInput, type User as ApiUser } from './schemas';
 import {
   FloorLayerDocumentSchema,
   FloorLayerWriteResultSchema,
@@ -53,6 +53,12 @@ import {
 } from './schemas/users';
 import { decode, safeParseList } from './schemas/decode';
 import { CursorEnvelopeSchema } from './schemas/common';
+import {
+  ProjectSettingsSchema,
+  type ProjectSettings,
+  type ProjectSettingsBody,
+} from './schemas/projectSettings';
+import { ProjectSummarySchema, type ProjectSummary } from './schemas/projectSummaries';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import { FloorVersionPageSchema } from './schemas/versions';
 
@@ -675,13 +681,64 @@ export interface AuthApi {
   signIn(input: SignInApiInput): Promise<ApiResult<void>>;
 }
 
+export interface ListProjectSummariesInput extends RequestOptions {
+  cursor?: string;
+  limit?: number;
+}
+
+/** N1 — một trang thẻ dự án. `droppedCount` = dòng thô trừ dòng giữ (một dòng hỏng không khoá cả lưới, A11). */
+export interface ProjectSummaryList {
+  droppedCount: number;
+  items: ProjectSummary[];
+  nextCursor?: string;
+}
+
+export interface ProjectSummariesApi {
+  list(input?: ListProjectSummariesInput): Promise<ApiResult<ProjectSummaryList>>;
+}
+
+export interface AddProjectMemberInput extends WriteRequestOptions {
+  email: string;
+  projectId: string;
+}
+
+export interface RemoveProjectMemberInput extends WriteRequestOptions {
+  projectId: string;
+  userId: string;
+}
+
+/** N3 (`add`, `idempotencyKey` đi header) và N4 (`remove`). Cả hai trả người vừa thêm/gỡ. */
+export interface MembersApi {
+  add(input: AddProjectMemberInput): Promise<ApiResult<ApiUser>>;
+  remove(input: RemoveProjectMemberInput): Promise<ApiResult<ApiUser>>;
+}
+
+export interface ReadProjectSettingsInput extends RequestOptions {
+  projectId: string;
+}
+
+export interface ReplaceProjectSettingsInput extends WriteRequestOptions {
+  baseVersion: number;
+  body: ProjectSettingsBody;
+  projectId: string;
+}
+
+/** N5 đọc, N6 thay trọn thân (`PUT {baseVersion, body}`). */
+export interface ProjectSettingsApi {
+  read(input: ReadProjectSettingsInput): Promise<ApiResult<ProjectSettings>>;
+  replace(input: ReplaceProjectSettingsInput): Promise<ApiResult<ProjectSettings>>;
+}
+
 export interface ApiClient {
   auth: AuthApi;
   drawings: DrawingsApi;
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   library: LibraryApi;
+  members: MembersApi;
   notifications: NotificationsApi;
+  projectSettings: ProjectSettingsApi;
+  projectSummaries: ProjectSummariesApi;
   projects: ProjectsApi;
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
@@ -917,6 +974,26 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         'library.read',
       ),
   },
+  members: {
+    add: async (input) => {
+      const { email, projectId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.members.add(projectId), { email }, input),
+        UserSchema,
+        'members.add',
+      );
+    },
+    remove: async (input) => {
+      const { projectId, userId } = input;
+
+      return decodeSingle(
+        await callDelete<unknown>(http, ENDPOINTS.members.remove(projectId, userId), input),
+        UserSchema,
+        'members.remove',
+      );
+    },
+  },
   notifications: {
     acceptInvite: async (input) => {
       const { notificationId } = input;
@@ -973,6 +1050,57 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         ProjectSchema,
         'projects.update',
       );
+    },
+  },
+  projectSettings: {
+    read: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.projectSettings.read(projectId), signal),
+        ProjectSettingsSchema,
+        'projectSettings.read',
+      ),
+    replace: async (input) => {
+      const { baseVersion, body, projectId } = input;
+
+      return decodeSingle(
+        await callPut(http, ENDPOINTS.projectSettings.replace(projectId), { baseVersion, body }, input),
+        ProjectSettingsSchema,
+        'projectSettings.replace',
+      );
+    },
+  },
+  projectSummaries: {
+    list: async ({ cursor, limit, signal } = {}) => {
+      const page = decodeSingle(
+        await http.get<unknown>(ENDPOINTS.projectSummaries.list, {
+          query: {
+            ...(cursor !== undefined ? { cursor } : {}),
+            ...(limit !== undefined ? { limit } : {}),
+          },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        CursorEnvelopeSchema,
+        'projectSummaries.list',
+      );
+
+      if (!page.ok) {
+        return page;
+      }
+
+      const items = safeParseList(ProjectSummarySchema, page.data.items, 'projectSummaries.list');
+
+      if (!items.ok) {
+        return items;
+      }
+
+      return {
+        data: {
+          droppedCount: page.data.items.length - items.data.length,
+          items: items.data,
+          ...(page.data.nextCursor !== undefined ? { nextCursor: page.data.nextCursor } : {}),
+        },
+        ok: true,
+      };
     },
   },
   /**

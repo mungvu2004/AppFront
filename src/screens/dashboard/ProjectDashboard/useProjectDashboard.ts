@@ -8,20 +8,18 @@
  *
  * ## What this hook actually calls, rather than reimplements
  *
- * - **D-01/D-02** — `useQuery({ queryKey: queryKeys.project.list(), queryFn })`
+ * - **D-01/D-02** — `useQuery({ queryKey: queryKeys.project.summaries(), queryFn })`
  *   against the shared `queryClient`. Its `defaultOptions.queries.staleTime`
  *   is already `CACHE_POLICY.default.staleTime` (30s, `src/lib/query/queryClient.ts`),
  *   and `project` is not one of `cachePolicy.ts`'s overridden domains, so a
  *   plain `useQuery` call inherits the 30s policy without this hook repeating
  *   the number anywhere.
- * - **D-05** — `prefetchOnHover` from `src/lib/query/prefetch.ts`, one instance
- *   per visible project, wired to each card's pointer events.
  * - **`can()`** from `src/lib/auth/permissions` decides `canCreate`, the same
  *   function `useShareLinks` already calls for the same reason.
  *
  * ## Why the data source is injected
  *
- * `fetchList` defaults to `./projectsGateway`'s sample-backed function but
+ * `fetchList` defaults to `gateway.listSummaries` (N1, read to the last cursor) but
  * is an option, not an import, for the same reason
  * `useShareLinks` takes a `ShareLinkGateway`: a test drives every one of the
  * seven states by resolving, rejecting or never settling a promise, with no
@@ -40,14 +38,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, type QueryFunction } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
+import { createAppApiClient } from '@/api/appClient';
 import { ENDPOINTS } from '@/api/endpoints';
+import { PROJECT_NAME_MAX_LENGTH, PROJECT_NAME_MIN_LENGTH } from '@/domain/project/limits';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { createUuid } from '@/lib/http/ids';
-import { prefetchOnHover, type PrefetchOnHoverHandlers } from '@/lib/query/prefetch';
+import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ProjectOpenSource, ProjectPipelineStatus as TelemetryPipelineStatus } from '@/lib/telemetry/events';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
@@ -55,7 +56,14 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
-import { fetchProjectDetail, fetchProjectList, type DashboardProject, type DashboardProjectMember } from './projectsGateway';
+import {
+  createProjectsGateway,
+  DASHBOARD_CAPABILITIES,
+  type DashboardProject,
+  type DashboardProjectList,
+  type DashboardProjectMember,
+  type DashboardProjectsGateway,
+} from './projectsGateway';
 
 /* -------------------------------------------------------------------------- */
 /* Filters, sort, view mode.                                                  */
@@ -127,6 +135,7 @@ export interface ProjectDashboardModel {
   readonly state: SevenState;
   readonly canCreate: boolean;
   readonly canDelete: boolean;
+  readonly canDuplicate: boolean;
   readonly errorMessage: string | null;
   readonly viewMode: ProjectViewMode;
   readonly searchQuery: string;
@@ -140,6 +149,10 @@ export interface ProjectDashboardModel {
   readonly renameDraft: string;
   readonly pendingDeleteId: string | null;
   readonly pendingDeleteName: string | null;
+  /** Why the delete dialog stays open after #27 failed; null otherwise. */
+  readonly deleteErrorMessage: string | null;
+  /** "Có {N} dự án chưa đọc được" when N1 dropped rows; null otherwise. */
+  readonly unreadNotice: string | null;
 }
 
 export interface ProjectDashboardActions {
@@ -153,22 +166,23 @@ export interface ProjectDashboardActions {
   readonly setRenameDraft: (value: string) => void;
   readonly commitRename: () => void;
   readonly cancelRename: () => void;
-  readonly duplicateProject: (id: string) => void;
   readonly requestDelete: (id: string) => void;
   readonly cancelDelete: () => void;
   readonly confirmDelete: () => void;
   readonly createProject: () => void;
   readonly retryLoad: () => void;
-  readonly onCardPointerEnter: (id: string) => void;
-  readonly onCardPointerLeave: (id: string) => void;
+  /** Only reachable from the menu when `canDuplicate`; no backend contract yet (R4). */
+  readonly duplicateProject: (id: string) => void;
 }
 
 export interface UseProjectDashboardOptions {
   readonly role?: ProjectRole;
-  readonly fetchList?: QueryFunction<readonly DashboardProject[]>;
+  readonly gateway?: DashboardProjectsGateway;
+  readonly fetchList?: QueryFunction<DashboardProjectList>;
   readonly forceNarrow?: boolean;
   readonly onOpenProject?: (path: string) => void;
   readonly onCreateProject?: () => void;
+  readonly onDuplicateProject?: (id: string) => void;
   readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
 }
 
@@ -181,12 +195,37 @@ function derivedStatusOf(project: DashboardProject): TelemetryPipelineStatus {
   return project.status === 'processing' ? 'processing' : 'qc';
 }
 
+const RENAME_RANGE_MESSAGE = `Tên dự án cần từ ${String(PROJECT_NAME_MIN_LENGTH)} đến ${String(PROJECT_NAME_MAX_LENGTH)} ký tự.`;
+
+/** #26 failures by wire `code` (prompt [2]); a code this screen does not know gets the fallback, never the code. */
+function renameErrorMessage(error: unknown): string {
+  switch (readWireError(error)?.code) {
+    case 'VALIDATION':
+      return RENAME_RANGE_MESSAGE;
+    case 'FORBIDDEN':
+      return 'Bạn không có quyền đổi tên dự án này.';
+    case 'NOT_FOUND':
+      return 'Dự án này không còn nữa.';
+    default:
+      return 'Không đổi được tên dự án. Hãy thử lại.';
+  }
+}
+
+/** #27 failures by wire `code`. `NOT_FOUND` is handled before this: the project is already gone. */
+function deleteErrorMessageOf(error: unknown): string {
+  return readWireError(error)?.code === 'FORBIDDEN'
+    ? 'Bạn không có quyền xoá dự án này.'
+    : 'Không xoá được dự án. Hãy thử lại.';
+}
+
 function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus): string {
   switch (status) {
     case 'processing':
       return ROUTES.project.pipeline(project.id);
     case 'qc':
-      return ROUTES.project.walls(project.id, project.defaultFloorId);
+      return project.defaultFloorId === undefined
+        ? ROUTES.project.floors(project.id)
+        : ROUTES.project.walls(project.id, project.defaultFloorId);
     case 'done':
       return ROUTES.project.viewer(project.id);
   }
@@ -206,6 +245,7 @@ export function useProjectDashboard(
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleteErrorMessage, setDeleteError] = useState<string | null>(null);
   const [pulseKey, setPulseKey] = useState(0);
   const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
   const [telemetry] = useState(() =>
@@ -215,12 +255,15 @@ export function useProjectDashboard(
   const detectedNarrow = useNarrowViewport();
   const isNarrow = options.forceNarrow ?? detectedNarrow;
 
+  const gateway = useMemo(() => options.gateway ?? createProjectsGateway(createAppApiClient()), [options.gateway]);
+
   const listQuery = useQuery({
-    queryKey: queryKeys.project.list(),
-    queryFn: options.fetchList ?? fetchProjectList,
+    queryKey: queryKeys.project.summaries(),
+    queryFn: options.fetchList ?? (({ signal }) => gateway.listSummaries(signal)),
   });
 
-  const allProjects = useMemo(() => listQuery.data ?? EMPTY_PROJECTS, [listQuery.data]);
+  const allProjects = useMemo(() => listQuery.data?.projects ?? EMPTY_PROJECTS, [listQuery.data]);
+  const droppedCount = listQuery.data?.droppedCount ?? 0;
   const projectById = useMemo(() => new Map(allProjects.map((project) => [project.id, project])), [allProjects]);
 
   // A11's "collapsed"/"forbidden" are overlays, not blank screens (ShareScreen's
@@ -248,7 +291,7 @@ export function useProjectDashboard(
         return list.sort((a, b) => b.areaM2 - a.areaM2);
       case 'updated':
       default:
-        return list.sort((a, b) => a.updatedAgoMs - b.updatedAgoMs);
+        return list.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
     }
   }, [filteredProjects, sortBy]);
 
@@ -280,7 +323,7 @@ export function useProjectDashboard(
           id: project.id,
           name: project.name,
           statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng · ${formatArea(project.areaM2)}`,
-          updatedLabel: formatTimestamp(now - project.updatedAgoMs, now),
+          updatedLabel: formatTimestamp(project.updatedAtMs, now),
           statusVariant,
           statusLabel,
           progressLabel: `${reviewed}/${total} tường đã duyệt`,
@@ -306,24 +349,6 @@ export function useProjectDashboard(
     return { all: allProjects.length, processing, qc, done };
   }, [allProjects]);
 
-  const prefetchHandlers = useMemo(() => {
-    const map = new Map<string, PrefetchOnHoverHandlers>();
-    for (const project of allProjects) {
-      map.set(
-        project.id,
-        // Khoá con 'summary', không phải khoá gốc: khoá gốc của dự án không được
-        // mang hình thẻ dashboard, vì /3d đọc khoá con 'name' cạnh nó — B-V1-12.
-        // ponytail: chưa ai đọc 'summary' — xem B-V1-70
-        prefetchOnHover(
-          queryClient,
-          [...queryKeys.project.detail(project.id), 'summary'] as const,
-          () => fetchProjectDetail(project.id),
-        ),
-      );
-    }
-    return map;
-  }, [allProjects, queryClient]);
-
   const errorMessage = listQuery.isError
     ? listQuery.error instanceof Error
       ? listQuery.error.message
@@ -332,20 +357,23 @@ export function useProjectDashboard(
 
   const state = useMemo<SevenState>(() => {
     if (isNarrow) return 'collapsed';
-    if (role === 'viewer') return 'forbidden';
     if (listQuery.isPending) return 'loading';
     if (errorMessage !== null) return 'error';
-    if (allProjects.length === 0) return 'empty';
-    if (filteredProjects.length === 0) return 'partial';
+    if (allProjects.length === 0 && droppedCount === 0) return 'empty';
+    // A viewer may read N1, so `forbidden` waits for data — it never hides the loading state.
+    if (role === 'viewer') return 'forbidden';
+    if (droppedCount > 0 || filteredProjects.length === 0) return 'partial';
     return 'success';
-  }, [isNarrow, role, listQuery.isPending, errorMessage, allProjects.length, filteredProjects.length]);
+  }, [isNarrow, role, listQuery.isPending, errorMessage, allProjects.length, droppedCount, filteredProjects.length]);
 
   const setProjects = (updater: (previous: readonly DashboardProject[]) => readonly DashboardProject[]): void => {
-    queryClient.setQueryData<readonly DashboardProject[]>(queryKeys.project.list(), (previous) => updater(previous ?? []));
+    queryClient.setQueryData<DashboardProjectList>(queryKeys.project.summaries(), (previous) =>
+      previous === undefined ? previous : { ...previous, projects: updater(previous.projects) },
+    );
   };
 
   const canCreate = can('create', 'project', { roles: [role] });
-  const canDelete = role !== 'viewer';
+  const canDelete = can('edit', 'project.settings', { roles: [role] });
 
   // Registry-arbitrated, so it never fires while a search box or the rename
   // field is focused (`isTextEntryTarget`, `shortcutRegistry.ts`).
@@ -374,40 +402,58 @@ export function useProjectDashboard(
     setRenameDraft(project.name);
   };
 
+  const setName = (id: string, name: string): void =>
+    setProjects((previous) => previous.map((entry) => (entry.id === id ? { ...entry, name } : entry)));
+
+  /** Optimistic #26: show the name now, put the old one back if the server says no. */
+  const renameTo = async (id: string, name: string, previousName: string, canUndo: boolean): Promise<void> => {
+    // An in-flight list read would land after the patch and bring the old name back.
+    await queryClient.cancelQueries({ queryKey: queryKeys.project.summaries() });
+    setName(id, name);
+    try {
+      await gateway.rename(id, name);
+    } catch (error) {
+      setName(id, previousName);
+      options.onToast?.({ message: renameErrorMessage(error) });
+      return;
+    }
+    applyInvalidation(queryClient, 'renameProject', { projectId: id });
+    options.onToast?.({
+      message: canUndo ? `Đã đổi tên thành "${name}"` : `Đã khôi phục tên "${name}"`,
+      ...(canUndo ? { onUndo: () => void renameTo(id, previousName, name, false) } : {}),
+    });
+  };
+
   const commitRename = (): void => {
     if (renamingId === null) return;
     const project = projectById.get(renamingId);
     const trimmed = renameDraft.trim();
-    if (project === undefined || trimmed === '' || trimmed === project.name) {
-      setRenamingId(null);
+    setRenamingId(null);
+    if (project === undefined || trimmed === '' || trimmed === project.name) return;
+    if (trimmed.length < PROJECT_NAME_MIN_LENGTH || trimmed.length > PROJECT_NAME_MAX_LENGTH) {
+      options.onToast?.({ message: RENAME_RANGE_MESSAGE });
       return;
     }
-    const previousName = project.name;
-    const id = renamingId;
-    setProjects((previous) => previous.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry)));
-    options.onToast?.({
-      message: `Đã đổi tên thành "${trimmed}"`,
-      onUndo: () => setProjects((previous) => previous.map((entry) => (entry.id === id ? { ...entry, name: previousName } : entry))),
-    });
-    setRenamingId(null);
+    void renameTo(project.id, trimmed, project.name, true);
   };
 
-  const duplicateProject = (id: string): void => {
-    const project = projectById.get(id);
-    if (project === undefined) return;
-    const duplicateId = `${project.id}-copy-${createUuid()}`;
-    setProjects((previous) => [{ ...project, id: duplicateId, name: `${project.name} (bản sao)` }, ...previous]);
-    options.onToast?.({
-      message: `Đã nhân bản "${project.name}"`,
-      onUndo: () => setProjects((previous) => previous.filter((entry) => entry.id !== duplicateId)),
-    });
-  };
-
-  const confirmDelete = (): void => {
+  /** #27 first; the row leaves only once the server has deleted it. A9 asked already, so no undo toast. */
+  const confirmDelete = async (): Promise<void> => {
     if (pendingDeleteId === null) return;
     const id = pendingDeleteId;
+    setDeleteError(null);
+    try {
+      await gateway.remove(id);
+    } catch (error) {
+      // 404: someone else already deleted it — the screen's wish is met.
+      if (readWireError(error)?.code !== 'NOT_FOUND') {
+        setDeleteError(deleteErrorMessageOf(error));
+        return;
+      }
+    }
     setProjects((previous) => previous.filter((entry) => entry.id !== id));
     setPendingDeleteId(null);
+    applyInvalidation(queryClient, 'deleteProject', { projectId: id });
   };
 
   const pendingDeleteProject = pendingDeleteId === null ? undefined : projectById.get(pendingDeleteId);
@@ -416,6 +462,7 @@ export function useProjectDashboard(
     state,
     canCreate,
     canDelete,
+    canDuplicate: DASHBOARD_CAPABILITIES.supportsDuplicate,
     errorMessage,
     viewMode,
     searchQuery,
@@ -429,6 +476,8 @@ export function useProjectDashboard(
     renameDraft,
     pendingDeleteId,
     pendingDeleteName: pendingDeleteProject?.name ?? null,
+    deleteErrorMessage,
+    unreadNotice: droppedCount > 0 ? `Có ${formatNumber(droppedCount, { grouping: false })} dự án chưa đọc được` : null,
   };
 
   const actions: ProjectDashboardActions = {
@@ -445,14 +494,18 @@ export function useProjectDashboard(
     setRenameDraft,
     commitRename,
     cancelRename: () => setRenamingId(null),
-    duplicateProject,
-    requestDelete: (id) => setPendingDeleteId(id),
-    cancelDelete: () => setPendingDeleteId(null),
-    confirmDelete,
+    requestDelete: (id) => {
+      setDeleteError(null);
+      setPendingDeleteId(id);
+    },
+    cancelDelete: () => {
+      setDeleteError(null);
+      setPendingDeleteId(null);
+    },
+    confirmDelete: () => void confirmDelete(),
     createProject: () => options.onCreateProject?.(),
     retryLoad: () => void listQuery.refetch(),
-    onCardPointerEnter: (id) => prefetchHandlers.get(id)?.onPointerEnter(),
-    onCardPointerLeave: (id) => prefetchHandlers.get(id)?.onPointerLeave(),
+    duplicateProject: (id) => options.onDuplicateProject?.(id),
   };
 
   return { model, actions };

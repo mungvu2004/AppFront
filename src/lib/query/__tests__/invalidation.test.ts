@@ -20,8 +20,29 @@ describe('invalidationMap', () => {
     expect(invalidationMap.editWall(params)).toEqual(invalidationMap.editWall(params));
   });
 
-  it('scopes createProject to the project list only', () => {
-    expect(invalidationMap.createProject({})).toEqual([queryKeys.project.list()]);
+  it('scopes createProject to the project list and the dashboard summaries', () => {
+    expect(invalidationMap.createProject({})).toEqual([queryKeys.project.list(), queryKeys.project.summaries()]);
+  });
+
+  it('scopes renameProject and deleteProject to summaries, list and that project detail', () => {
+    const expected = [queryKeys.project.summaries(), queryKeys.project.list(), queryKeys.project.detail(projectId)];
+
+    expect(invalidationMap.renameProject({ projectId })).toEqual(expected);
+    expect(invalidationMap.deleteProject({ projectId })).toEqual(expected);
+  });
+
+  it('scopes addProjectMember and removeProjectMember to that project detail only', () => {
+    expect(invalidationMap.addProjectMember({ projectId })).toEqual([queryKeys.project.detail(projectId)]);
+    expect(invalidationMap.removeProjectMember({ projectId })).toEqual([queryKeys.project.detail(projectId)]);
+  });
+
+  it('marks the summaries query stale through applyInvalidation(renameProject)', () => {
+    const queryClient = new QueryClient();
+
+    queryClient.setQueryData(queryKeys.project.summaries(), { items: [] });
+    applyInvalidation(queryClient, 'renameProject', { projectId });
+
+    expect(queryClient.getQueryState(queryKeys.project.summaries())?.isInvalidated).toBe(true);
   });
 
   it('scopes editWall to the space, room, and violation keys of that floor/project', () => {
