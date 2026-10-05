@@ -64,19 +64,21 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
       </Modal.Body>
 
       <Modal.Footer className="items-start justify-between">
-        <div className="flex flex-col gap-1">
-          <Checkbox
-            checked={model.isRememberChoiceChecked}
-            onChange={actions.onToggleRemember}
-            label={TEXT.rememberChoice}
-            aria-describedby={rememberNoteId}
-          />
-          <p id={rememberNoteId} className="pl-[26px] text-[13px] text-text-tertiary">
-            {TEXT.rememberChoiceSessionNote}
-          </p>
-        </div>
+        {model.canRememberChoice && (
+          <div className="flex flex-col gap-1">
+            <Checkbox
+              checked={model.isRememberChoiceChecked}
+              onChange={actions.onToggleRemember}
+              label={TEXT.rememberChoice}
+              aria-describedby={rememberNoteId}
+            />
+            <p id={rememberNoteId} className="pl-[26px] text-[13px] text-text-tertiary">
+              {TEXT.rememberChoiceSessionNote}
+            </p>
+          </div>
+        )}
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-3">
           <Button variant="ghost" onClick={actions.onDismiss}>
             {TEXT.buttons.dismiss}
           </Button>

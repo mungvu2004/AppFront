@@ -54,6 +54,7 @@ import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
 import { describeError, toAppError } from '@/lib/errors';
 import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
+import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { formatFileSize } from '@/lib/format/bytes';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
@@ -711,6 +712,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onShareOption?.();
   }, [onShareOption]);
 
+  // Liên kết chia sẻ là v2 (BE-BIND #47–#49): tắt thì nút "chia sẻ" rời DOM.
+  const shareAction = SHARE_LINKS_SUPPORTED && onShareOption !== undefined ? onShare : null;
+
   return {
     status,
     capabilities,
@@ -734,6 +738,6 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onRetry,
     onDownload,
     onFollowFix,
-    onShare,
+    onShare: shareAction,
   };
 }

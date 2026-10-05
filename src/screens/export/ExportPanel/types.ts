@@ -280,6 +280,9 @@ export interface ExportPanelProps {
   readonly onRetry: () => void;
   readonly onDownload: (fileId: string) => void;
   readonly onFollowFix: (rowId: PreflightRow['id']) => void;
-  /** Mở hộp thoại chia sẻ (`ShareDialogContainer`, S-ShareDialog). */
-  readonly onShare: () => void;
+  /**
+   * Mở hộp thoại chia sẻ (`ShareDialogContainer`, S-ShareDialog). `null` khi
+   * liên kết chia sẻ tắt (v1) hoặc nơi gọi không truyền: nút "chia sẻ" rời DOM.
+   */
+  readonly onShare: (() => void) | null;
 }

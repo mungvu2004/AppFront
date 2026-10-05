@@ -49,6 +49,7 @@ import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStat
 
 import {
   buildEmbedSection,
+  buildLinksUnsupportedModel,
   buildShareDialogProps,
   SAMPLE_ACTIVE_LINK,
   SAMPLE_DRAFT_PASSWORD,
@@ -110,9 +111,10 @@ function withQueryClient(): ({ children }: { readonly children: ReactNode }) => 
   };
 }
 
-/** Một cổng không chạm mạng: `list` rỗng, `create` trả đúng bản ghi mẫu, `revoke` xong. */
+/** Một cổng không chạm mạng, mặc định `supported: true` (máy chủ v2): `list` rỗng, `create` trả đúng bản ghi mẫu, `revoke` xong. */
 function buildFakeGateway(overrides: Partial<ShareLinkGateway> = {}): ShareLinkGateway {
   return {
+    supported: true,
     list: () => Promise.resolve({ ok: true, data: [] }),
     create: () => Promise.resolve({ ok: true, data: SAMPLE_ACTIVE_LINK }),
     revoke: () => Promise.resolve({ ok: true, data: undefined }),
@@ -546,5 +548,55 @@ describe('A12 — Esc đóng hộp thoại', () => {
     renderWithProviders(<ShareDialogView {...props} />);
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+/* ==========================================================================
+ * F-06 — máy chủ v1 không phục vụ liên kết chia sẻ (BE-BIND #47–#49 là v2).
+ * ========================================================================== */
+
+describe('F-06 — liên kết chia sẻ tắt (cổng `supported: false`)', () => {
+  it('vai kỹ sư: không lượt gọi nào tới cổng; trạng thái không forbidden, không loading treo', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const list = vi.fn(() => Promise.resolve({ ok: true as const, data: [] }));
+    const create = vi.fn(() => Promise.resolve({ ok: true as const, data: SAMPLE_ACTIVE_LINK }));
+    const revoke = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+    const { result } = renderHook(
+      () =>
+        useShareDialog({
+          gateway: buildFakeGateway({ supported: false, list, create, revoke }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['engineer'],
+          members: SAMPLE_MEMBERS,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    act(() => result.current[1].createLink());
+    act(() => result.current[1].revokeLink(SAMPLE_ACTIVE_LINK.id));
+    act(() => result.current[1].confirmRevoke());
+    await Promise.resolve();
+
+    const [model] = result.current;
+    expect(model.linksSupported).toBe(false);
+    expect(model.state).toBe('success');
+    expect(model.noPermissionReason).toBeNull();
+    expect(model.form.canSubmit).toBe(false);
+    expect(model.pendingRevokeUrl).toBeNull();
+    expect(list).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
+  it('view: không vùng liên kết, không mã nhúng; "thành viên" vẫn hiện', async () => {
+    const ShareDialogView = await loadShareDialogView();
+    renderWithProviders(
+      <ShareDialogView {...buildShareDialogProps('success', buildLinksUnsupportedModel())} />,
+    );
+
+    expect(screen.getByRole('region', { name: /thành viên/iu })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /liên kết chia sẻ/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /nhúng vào trang khác/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sao chép mã nhúng/iu })).not.toBeInTheDocument();
   });
 });

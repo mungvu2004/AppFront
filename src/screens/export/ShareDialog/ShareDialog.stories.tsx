@@ -11,7 +11,9 @@
  * do `describeShareLinkExpiry` sinh — không viết tay ở đây (R-70). `ShareDialog.test.tsx`
  * dùng đúng bộ dữ liệu này, nên hai file không kể hai câu chuyện khác nhau về cùng một màn.
  *
- * **Không export thứ gì khác ngoài `meta` và bảy story.** Một export không phải story (một
+ * Thêm một story ngoài bảy trạng thái: liên kết chia sẻ tắt (máy chủ v1).
+ *
+ * **Không export thứ gì khác ngoài `meta` và các story.** Một export không phải story (một
  * hằng số, một hàm phụ) làm Storybook trắng cả file; nếu về sau cần một hằng ở đây thì khai
  * nó qua `meta.excludeStories`.
  */
@@ -19,7 +21,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { ShareDialog } from './ShareDialog';
-import { buildShareDialogProps } from './shareDialogFixtures';
+import { buildLinksUnsupportedModel, buildShareDialogProps } from './shareDialogFixtures';
 
 const meta = {
   title: 'Screens/Export/ShareDialog',
@@ -78,4 +80,9 @@ export const Forbidden: Story = {
 /** 7 · thu gọn — dưới 1280: khung xem trước ẩn (`embed.previewHidden`), phần còn lại vẫn đủ. */
 export const Collapsed: Story = {
   args: buildShareDialogProps('collapsed'),
+};
+
+/** Liên kết chia sẻ tắt — máy chủ v1 không phục vụ #47–#49: chỉ còn "người có quyền". */
+export const LinksUnsupported: Story = {
+  args: buildShareDialogProps('success', buildLinksUnsupportedModel()),
 };

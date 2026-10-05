@@ -166,7 +166,7 @@ const SAMPLE_FALLBACK_2D_HREF = ROUTES.project.floors(SAMPLE_PROJECT_ID);
 const BASE: MobileViewerProps = {
   state: 'success',
   projectName: SAMPLE_PROJECT_NAME,
-  onShare: NO_OP,
+  onShare: null,
   canvasRef: undefined,
   isCompact: false,
   activeTool: null,
@@ -176,7 +176,7 @@ const BASE: MobileViewerProps = {
   onSelectFloor: NO_OP,
   selection: SAMPLE_SELECTION,
   onDismissSelection: NO_OP,
-  onSendDesktopLink: NO_OP,
+  onSendDesktopLink: null,
   measurements: SAMPLE_MEASUREMENTS,
   detailLabel: null,
   partialReason: null,

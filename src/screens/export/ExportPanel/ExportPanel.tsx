@@ -234,9 +234,11 @@ export function ExportPanel(props: ExportPanelProps) {
       <div className="flex flex-1 flex-col gap-4 p-6">
         <header className="flex items-center justify-between gap-4">
           <h2 className="text-base font-semibold text-text-primary">xuất bản vẽ</h2>
-          <Button variant="secondary" size="sm" iconBefore={<Share2 aria-hidden="true" size={16} />} onClick={onShare}>
-            chia sẻ
-          </Button>
+          {onShare !== null && (
+            <Button variant="secondary" size="sm" iconBefore={<Share2 aria-hidden="true" size={16} />} onClick={onShare}>
+              chia sẻ
+            </Button>
+          )}
         </header>
 
         {status === 'partial' && noticeCaption !== null && <InlineAlert level="attention" message={noticeCaption} />}

@@ -154,6 +154,11 @@ export interface CadBranchConfirmDialogViewModel {
    */
   readonly unitWarningMessage: string | null;
   readonly isRememberChoiceChecked: boolean;
+  /**
+   * `false` khi cổng không ghi nhớ được lựa chọn (`supports.rememberChoice`):
+   * ô "ghi nhớ" và câu ghi chú rời DOM, không xám.
+   */
+  readonly canRememberChoice: boolean;
   /** `true` khi tệp đang ở trạng thái `error`: chỉ còn lựa chọn AI hiện được bấm. */
   readonly isCadChoiceDisabled: boolean;
   /**

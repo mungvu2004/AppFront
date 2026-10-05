@@ -71,6 +71,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
+import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { ShareDialogContainer } from '@/screens/export/ShareDialog';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
@@ -156,13 +157,15 @@ function WiredExportPanel(props: WiredExportPanelProps) {
   return (
     <>
       <ExportPanel {...viewProps} />
-      <ShareDialogContainer
-        isOpen={isShareOpen}
-        onDismiss={() => setShareOpen(false)}
-        projectId={props.projectId}
-        roles={roles}
-        {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
-      />
+      {SHARE_LINKS_SUPPORTED && (
+        <ShareDialogContainer
+          isOpen={isShareOpen}
+          onDismiss={() => setShareOpen(false)}
+          projectId={props.projectId}
+          roles={roles}
+          {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
+        />
+      )}
     </>
   );
 }

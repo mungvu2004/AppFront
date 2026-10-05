@@ -3,17 +3,26 @@
  *
  * Tệp riêng vì nó thay `ShareDialogContainer` bằng một bản ghi prop (`vi.mock`);
  * `ExportPanel.container.test.tsx` cần hộp thoại thật.
+ *
+ * Hộp thoại chỉ được gắn khi `SHARE_LINKS_SUPPORTED` (v2, F-06); bài này lật hằng
+ * thành `true` để giữ ý của nó cho ngày v2 bật lại.
  */
 import { cleanup, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type * as ShareLinkModule from '@/lib/export/shareLink';
 import { renderWithProviders } from '@/lib/testing/render';
 import { ROUTES, ROUTE_PATTERNS } from '@/routes/paths';
 
 import { ExportPanelRoute } from './ExportPanel.container';
 
 const seenOnToast: unknown[] = [];
+
+vi.mock('@/lib/export/shareLink', async (importOriginal) => ({
+  ...(await importOriginal<typeof ShareLinkModule>()),
+  SHARE_LINKS_SUPPORTED: true,
+}));
 
 vi.mock('@/screens/export/ShareDialog', () => ({
   ShareDialogContainer: (props: { readonly onToast?: unknown }) => {

@@ -64,6 +64,7 @@ import {
 import {
   IMPORT_BUTTON_LABEL,
   PRIMARY_BUTTON_LABEL,
+  REMEMBER_CHOICE_LABEL,
   SECONDARY_BUTTON_LABEL,
 } from './cadBranchConfirmText';
 import { CAD_ALLOWED_WORDS } from './useCadBranchConfirm';
@@ -382,6 +383,37 @@ describe('CadBranchConfirm — hai giai đoạn trong một route [NGHIEM-2]', (
     await waitFor(() => {
       expect(onNavigate).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* F-06 — ô "ghi nhớ" rời DOM khi cổng không ghi nhớ được.                     */
+/* -------------------------------------------------------------------------- */
+
+describe('CadBranchConfirm — ô ghi nhớ theo năng lực của cổng (F-06)', () => {
+  function renderWithRemember(canRemember: boolean) {
+    return renderWithProviders(
+      <CadBranchConfirmContainer
+        floorId={FLOOR_ID}
+        gateway={createMockCadBranchConfirmGateway({ supports: { rememberChoice: canRemember } })}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+      />,
+    );
+  }
+
+  it('cổng tắt (bản thật v1): ô ghi nhớ vắng', async () => {
+    renderWithRemember(false);
+    await settleDialog();
+
+    expect(screen.queryByRole('checkbox', { name: REMEMBER_CHOICE_LABEL })).not.toBeInTheDocument();
+  });
+
+  it('cổng bật: ô ghi nhớ có', async () => {
+    renderWithRemember(true);
+    await settleDialog();
+
+    expect(screen.getByRole('checkbox', { name: REMEMBER_CHOICE_LABEL })).toBeInTheDocument();
   });
 });
 

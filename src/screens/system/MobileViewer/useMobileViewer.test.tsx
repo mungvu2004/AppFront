@@ -19,7 +19,7 @@
  */
 
 import { act, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ProjectsApi } from '@/api/client';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
@@ -592,23 +592,37 @@ describe('tầng và công cụ', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('chia sẻ', () => {
-  it('không có phiên chia sẻ thì nói ra, không im lặng nuốt cú bấm', async () => {
+  // F-06: không cổng, hoặc cổng nói máy chủ không phục vụ liên kết (v1, BE-BIND
+  // #47–#49 là v2) — hai nút rời DOM thay vì bấm rồi báo hỏng.
+  it('không có phiên chia sẻ thì hai nút chia sẻ rời DOM (onShare, onSendDesktopLink là null)', async () => {
     const harness = render({ shareLinks: null });
 
     await waitFor(() => {
       expect(harness.model().state).toBe('success');
     });
 
-    act(() => {
-      harness.model().onShare();
+    expect(harness.model().onShare).toBeNull();
+    expect(harness.model().onSendDesktopLink).toBeNull();
+  });
+
+  it('cổng `supported: false` thì như không có cổng, và không gọi `create` lần nào', async () => {
+    const create = vi.fn(async () => ({ ok: true as const, data: shareLinkPayload() }));
+    const harness = render({
+      shareLinks: {
+        supported: false,
+        create,
+        list: async () => ({ ok: true, data: { links: [] } }),
+        revoke: async () => ({ ok: true, data: shareLinkPayload() }),
+      },
     });
 
     await waitFor(() => {
-      expect(harness.notices).toHaveLength(1);
+      expect(harness.model().state).toBe('success');
     });
 
-    expect(harness.notices[0]?.title).toBe('Chưa tạo được liên kết chia sẻ');
-    expect(harness.notices[0]?.undoTicket).toBeUndefined();
+    expect(harness.model().onShare).toBeNull();
+    expect(harness.model().onSendDesktopLink).toBeNull();
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('tạo được liên kết thì có toast KÈM vé hoàn tác, và hoàn tác là thu hồi thật — A8', async () => {
@@ -627,6 +641,7 @@ describe('chia sẻ', () => {
         },
       },
       shareLinks: {
+        supported: true,
         create: async () => ({ ok: true, data: shareLinkPayload() }),
         list: async () => ({ ok: true, data: { links: [] } }),
         revoke: async ({ linkId }) => {
@@ -641,8 +656,10 @@ describe('chia sẻ', () => {
       expect(harness.model().state).toBe('success');
     });
 
+    const onShare = harness.model().onShare;
+    expect(onShare).not.toBeNull();
     act(() => {
-      harness.model().onShare();
+      onShare?.();
     });
 
     await waitFor(() => {
@@ -673,6 +690,7 @@ describe('chia sẻ', () => {
         copyText: async () => true,
       },
       shareLinks: {
+        supported: true,
         create: async () => ({ ok: true, data: shareLinkPayload() }),
         list: async () => ({ ok: true, data: { links: [] } }),
         revoke: async () => ({ ok: true, data: shareLinkPayload() }),
@@ -683,8 +701,10 @@ describe('chia sẻ', () => {
       expect(harness.model().state).toBe('success');
     });
 
+    const onSendDesktopLink = harness.model().onSendDesktopLink;
+    expect(onSendDesktopLink).not.toBeNull();
     act(() => {
-      harness.model().onSendDesktopLink();
+      onSendDesktopLink?.();
     });
 
     await waitFor(() => {

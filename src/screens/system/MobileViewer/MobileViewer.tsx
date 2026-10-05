@@ -222,13 +222,15 @@ export function MobileViewer({
           {projectName}
         </h1>
 
-        <IconButton
-          aria-label="Chia sẻ dự án"
-          icon={<Share2 />}
-          onClick={onShare}
-          size="lg"
-          tooltip={false}
-        />
+        {onShare !== null && (
+          <IconButton
+            aria-label="Chia sẻ dự án"
+            icon={<Share2 />}
+            onClick={onShare}
+            size="lg"
+            tooltip={false}
+          />
+        )}
       </header>
 
       <main className="relative min-h-0 flex-1">
