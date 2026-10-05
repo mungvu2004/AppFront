@@ -36,7 +36,7 @@ export function ModelRegistryActivateDialog({ actions, dialog }: ModelRegistryAc
               {CANCEL_LABEL}
             </Button>
             <Button
-              disabled={dialog.isSubmitting}
+              disabled={dialog.isSubmitting || dialog.isWaiting}
               loading={dialog.isSubmitting}
               onClick={actions.onConfirmDialog}
               variant="primary"

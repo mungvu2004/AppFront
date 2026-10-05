@@ -286,6 +286,7 @@ describe('Hộp thoại A9', () => {
       confirmLabel: 'Kích hoạt',
       errorMessage: null,
       isSubmitting: false,
+      isWaiting: false,
       title: 'Kích hoạt Huấn luyện lượt 3 cho nhận diện cửa và đồ đạc?',
       warning: null,
     },

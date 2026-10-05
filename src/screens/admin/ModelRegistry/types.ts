@@ -76,6 +76,8 @@ export interface ActivateDialogModel {
   readonly errorMessage: string | null;
   readonly confirmLabel: string;
   readonly isSubmitting: boolean;
+  /** Đang chờ N27 của bản đang dùng: nút xác nhận tắt, không quay vòng như đang gửi. */
+  readonly isWaiting: boolean;
 }
 
 export interface RelatedLinkModel {
@@ -100,6 +102,8 @@ export interface ModelRegistryViewModel {
   readonly isLoadingMore: boolean;
   /** "Xem thêm" hỏng: câu báo cạnh nút, bảng đã nạp giữ nguyên. */
   readonly loadMoreError: string | null;
+  /** Lượt làm mới trang đầu hỏng khi bảng đã có hàng: hàng cũ giữ nguyên, câu báo ở trên. */
+  readonly refreshError: string | null;
   readonly partialNotice: string | null;
   readonly emptyMessage: string;
   readonly errorMessage: string | null;

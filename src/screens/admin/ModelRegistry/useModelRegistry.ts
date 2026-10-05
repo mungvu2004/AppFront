@@ -299,21 +299,27 @@ export function buildDialog(input: {
   readonly targetLabel: string;
   readonly activeVersion: ModelVersion | undefined;
   readonly hasActive: boolean;
+  /** N27 của bản đang dùng còn chạy — chưa biết nó đã đánh giá chưa. */
+  readonly isActiveLoading: boolean;
   readonly errorMessage: string | null;
   readonly isSubmitting: boolean;
 }): ActivateDialogModel {
   const isRevert = input.target.kind === 'revert';
-  // Bản đang dùng chưa về (N27 còn chạy) thì chưa biết nó đã đánh giá chưa: không cảnh báo
-  // vội, và nút xác nhận chờ (`isSubmitting`) cho tới khi biết.
-  const isActiveUnknown = input.hasActive && input.activeVersion === undefined;
+  // N27 còn chạy: chưa cảnh báo vội, nút xác nhận chờ (`isWaiting`) tới khi biết. N27 đã
+  // hỏng: không bao giờ biết được, nên đi lối thận trọng — cảnh báo như bản chưa đánh giá,
+  // không hoàn tác, nhưng vẫn xác nhận được.
+  const isActiveWaiting = input.hasActive && input.activeVersion === undefined && input.isActiveLoading;
   const activeNotCompleted =
-    input.activeVersion !== undefined && input.activeVersion.evaluationStatus !== 'completed';
+    input.activeVersion !== undefined
+      ? input.activeVersion.evaluationStatus !== 'completed'
+      : input.hasActive && !input.isActiveLoading;
 
   return {
     body: isRevert ? MODEL_REGISTRY_TEXT.revertBody : MODEL_REGISTRY_TEXT.dialogBody,
     confirmLabel: isRevert ? MODEL_REGISTRY_TEXT.confirmRevert : MODEL_REGISTRY_TEXT.confirmActivate,
     errorMessage: input.errorMessage,
-    isSubmitting: input.isSubmitting || isActiveUnknown,
+    isSubmitting: input.isSubmitting,
+    isWaiting: isActiveWaiting,
     title: isRevert ? revertTitle(input.family) : activateTitle(input.targetLabel, input.family),
     warning: activeNotCompleted ? MODEL_REGISTRY_TEXT.dialogWarning : null,
   };
@@ -375,7 +381,7 @@ export function useModelRegistry({
   /** Tăng sau mỗi lượt kích hoạt thành công: view đưa tiêu điểm về thẻ "Đang dùng". */
   const [activeCardFocusKey, setActiveCardFocusKey] = useState(0);
   /** `CURSOR_INVALID`: đọc lại từ trang đầu đúng một lần cho mỗi họ. */
-  const cursorRetriedRef = useRef(false);
+  const [cursorRetried, setCursorRetried] = useState(false);
 
   const isSessionUnknown = session.status === 'unknown';
   const isAdmin = canManageModels(session.roles);
@@ -421,7 +427,12 @@ export function useModelRegistry({
 
   // "Xem thêm" hỏng không thay cả bảng đã nạp bằng lỗi: nó chỉ báo cạnh nút (`loadMoreError`).
   const versionsReadError = versionsQuery.data === undefined ? versionsQuery.error : null;
-  const loadMoreError = versionsQuery.isFetchNextPageError ? versionsQuery.error : null;
+  // `CURSOR_INVALID` lần đầu không phải lỗi người đọc cần thấy: màn tự đọc lại trang đầu.
+  const isSilentCursorRetry = isCursorInvalidError(versionsQuery.error) && !cursorRetried;
+  const loadMoreError = versionsQuery.isFetchNextPageError && !isSilentCursorRetry ? versionsQuery.error : null;
+  // Lượt làm mới trang đầu hỏng khi bảng đã có hàng: giữ hàng cũ nhưng nói ra, không nuốt.
+  const refreshError = versionsQuery.isRefetchError && versionsQuery.data !== undefined ? versionsQuery.error : null;
+  const isActiveLoading = activeId !== null && activeQuery.data === undefined && activeQuery.isFetching;
   const readError = familiesQuery.error ?? versionsReadError ?? null;
   const isForbiddenByServer = isForbiddenError(familiesQuery.error) || isForbiddenError(versionsQuery.error);
   const pendingCount = countPending(versions);
@@ -550,7 +561,7 @@ export function useModelRegistry({
     setSelectedVersionId(null);
     setDialogTarget(null);
     setDialogError(null);
-    cursorRetriedRef.current = false;
+    setCursorRetried(false);
   }, []);
 
   const onRequestActivate = useCallback(
@@ -586,7 +597,7 @@ export function useModelRegistry({
       ?.find((candidate) => candidate.family === family);
 
     if (latest === undefined) return;
-    if (latest.activeVersionId !== undefined && activeVersion === undefined) return;
+    if (latest.activeVersionId !== undefined && activeVersion === undefined && isActiveLoading) return;
 
     const versionId = dialogTarget.kind === 'revert' ? null : dialogTarget.versionId;
     const previousVersionId = latest.activeVersionId ?? null;
@@ -605,19 +616,19 @@ export function useModelRegistry({
         previousVersionId === null ? family === WALL_FAMILY : activeVersion?.evaluationStatus === 'completed',
       versionId,
     });
-  }, [dialogTarget, activateMutation, queryClient, family, versions, activeVersion]);
+  }, [dialogTarget, activateMutation, queryClient, family, versions, activeVersion, isActiveLoading]);
 
   const onLoadMore = useCallback((): void => {
     void versionsQuery.fetchNextPage().then(async (result) => {
-      if (!isCursorInvalidError(result.error) || cursorRetriedRef.current) return;
+      if (!isCursorInvalidError(result.error) || cursorRetried) return;
 
-      cursorRetriedRef.current = true;
+      setCursorRetried(true);
       await queryClient.resetQueries({ exact: true, queryKey: queryKeys.adminMl.versions(family) });
     });
-  }, [versionsQuery, queryClient, family]);
+  }, [versionsQuery, queryClient, family, cursorRetried]);
 
   const onRetry = useCallback((): void => {
-    cursorRetriedRef.current = false;
+    setCursorRetried(false);
     void familiesQuery.refetch();
     void versionsQuery.refetch();
   }, [familiesQuery, versionsQuery]);
@@ -658,6 +669,7 @@ export function useModelRegistry({
               errorMessage: dialogError,
               family,
               hasActive: activeId !== null,
+              isActiveLoading,
               isSubmitting: activateMutation.isPending,
               target: dialogTarget,
               targetLabel,
@@ -669,6 +681,7 @@ export function useModelRegistry({
       isCollapsed: isNarrow,
       isLoadingMore: versionsQuery.isFetchingNextPage,
       loadMoreError: loadMoreError === null ? null : describeReadError(loadMoreError),
+      refreshError: refreshError === null ? null : describeReadError(refreshError),
       partialNotice: pendingCount > 0 ? partialNotice(pendingCount) : null,
       relatedLink,
       rows,
@@ -694,6 +707,8 @@ export function useModelRegistry({
     readError,
     activeCardFocusKey,
     loadMoreError,
+    refreshError,
+    isActiveLoading,
     versionsQuery.hasNextPage,
     versionsQuery.isFetchingNextPage,
     isNarrow,

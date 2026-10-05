@@ -75,11 +75,15 @@ interface ActiveCardProps {
 function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
   const facts = [card.formatLabel, card.metricLabel, card.createdLabel].filter((fact): fact is string => fact !== null);
   const sectionRef = useRef<HTMLElement>(null);
+  /** Khoá lúc gắn: thẻ gắn lại (đổi họ, Thử lại) không được cướp tiêu điểm (A12). */
+  const seenKeyRef = useRef(focusKey);
 
-  // Sau một lượt kích hoạt, nút đã mở hộp thoại biến mất khỏi bảng; tiêu điểm về đây
-  // thay vì rơi về `body` (A12). `0` là lượt vẽ đầu — không cướp tiêu điểm.
+  // Sau một lượt kích hoạt, nút đã mở hộp thoại biến mất khỏi bảng; tiêu điểm về đây thay
+  // vì rơi về `body`. Chỉ khi khoá ĐỔI trong lúc thẻ đang gắn.
   useEffect(() => {
-    if (focusKey > 0) sectionRef.current?.focus();
+    if (focusKey === seenKeyRef.current) return;
+    seenKeyRef.current = focusKey;
+    sectionRef.current?.focus();
   }, [focusKey]);
 
   return (
@@ -132,6 +136,13 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
     <div className="flex flex-col gap-4">
       {model.activeCard !== null && (
         <ActiveCard actions={actions} card={model.activeCard} focusKey={model.activeCardFocusKey} />
+      )}
+      {model.refreshError !== null && (
+        <InlineAlert
+          action={{ label: TEXT.retry, onClick: actions.onRetry }}
+          level="violation"
+          message={model.refreshError}
+        />
       )}
       {model.partialNotice !== null && <InlineAlert level="attention" message={model.partialNotice} />}
       {model.rows.length === 0 ? (

@@ -452,6 +452,58 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
     expect(client.activateVersion).not.toHaveBeenCalled();
   });
 
+  it('N27 bản đang dùng hỏng, bản không có trong trang đã nạp: cảnh báo, vẫn xác nhận được, không hoàn tác (P2-B)', async () => {
+    const other: ModelVersion = { ...WALL_VERSION, id: 'mdl_01JA6M0RG00000000000000W02', label: 'Huấn luyện tường lượt 2' };
+    const client = makeWallActiveClient({
+      listVersions: async () => ({ data: { items: [other] }, ok: true }),
+      readVersion: async () => wireError(503),
+    });
+    const { published } = renderScreen(client);
+    await screen.findByRole('button', { name: 'Huấn luyện tường lượt 2' });
+    await waitFor(() => {
+      expect(client.readVersion).toHaveBeenCalled();
+    });
+
+    const dialog = await openActivateDialog('Huấn luyện tường lượt 2');
+    expect(within(dialog).getByText('Bản đang dùng chưa đánh giá xong nên sau khi đổi sẽ chưa kích hoạt lại được.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(confirmButton(dialog)).toBeEnabled();
+    });
+    fireEvent.click(confirmButton(dialog));
+
+    await waitFor(() => {
+      expect(client.activateVersion).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(published).toHaveLength(1);
+    });
+    expect(published[0]?.undoTicket).toBeUndefined();
+  });
+
+  it('thẻ "Đang dùng" gắn lại sau khi đổi họ không cướp tiêu điểm khỏi bộ chọn họ (P2-A)', async () => {
+    const client = makeClient();
+    const { published } = renderScreen(client);
+    await chooseFamily('Nhận diện cửa và đồ đạc');
+    fireEvent.click(confirmButton(await openActivateDialog('Huấn luyện lượt 3')));
+    await waitFor(() => {
+      expect(published).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Đang dùng' }));
+    });
+
+    const door = screen.getByRole('radio', { name: 'Nhận diện cửa và đồ đạc' });
+    act(() => {
+      door.focus();
+    });
+    fireEvent.keyDown(door, { key: 'ArrowRight' });
+    const dimension = screen.getByRole('radio', { name: 'Đọc kích thước' });
+
+    expect(await screen.findByRole('button', { name: 'Đọc số tải lên' })).toBeInTheDocument();
+    await screen.findByRole('region', { name: 'Đang dùng' });
+    expect(document.activeElement).toBe(dimension);
+  });
+
   it('409 → đóng hộp thoại, dải tải lại; resolveConflict gọi 0 lần; "Tải lại" đọc lại N23', async () => {
     const client = makeClient({ activateVersion: async () => wireError(409, 'VERSION_CONFLICT') });
     renderScreen(client);
@@ -543,16 +595,45 @@ describe('CURSOR_INVALID — đọc lại từ trang đầu đúng một lần',
       listVersions: async ({ cursor }) => (cursor === undefined ? { data: page, ok: true } : wireError(422, 'CURSOR_INVALID')),
     });
     renderScreen(client);
+    // Ghi lại mọi lần câu lỗi xuất hiện trong DOM, kể cả chỉ một nhịp (N-A).
+    let flashed = false;
+    const observer = new MutationObserver(() => {
+      if (document.body.textContent?.includes(MODEL_REGISTRY_ERROR_TEXT.readFallback) === true) flashed = true;
+    });
+    observer.observe(document.body, { characterData: true, childList: true, subtree: true });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Xem thêm' }));
     await waitFor(() => {
       expect(client.listVersions.mock.calls.filter(([input]) => input.cursor === undefined)).toHaveLength(2);
     });
+    await screen.findByRole('button', { name: 'Xem thêm' });
+    observer.disconnect();
+    expect(flashed, 'CURSOR_INVALID lần đầu không được lóe câu lỗi').toBe(false);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Xem thêm' }));
     expect(await screen.findByText(MODEL_REGISTRY_ERROR_TEXT.readFallback)).toBeInTheDocument();
     expect(client.listVersions.mock.calls.filter(([input]) => input.cursor === undefined)).toHaveLength(2);
     expect(client.listVersions).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('Làm mới trang đầu hỏng khi đã có hàng (N-B)', () => {
+  it('giữ hàng cũ và báo câu lỗi kèm "Thử lại", không nuốt', async () => {
+    let calls = 0;
+    const client = makeWallActiveClient({
+      listVersions: async () => {
+        calls += 1;
+        return calls === 1 ? { data: { items: [WALL_VERSION] }, ok: true } : wireError(503);
+      },
+    });
+    renderScreen(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Quay về đường cổ điển' }));
+    fireEvent.click(confirmButton(await screen.findByRole('dialog'), 'Quay về đường cổ điển'));
+
+    expect(await screen.findByText(MODEL_REGISTRY_ERROR_TEXT.busy)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Huấn luyện tường lượt 1' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Thử lại' }).length).toBeGreaterThan(0);
   });
 });
 

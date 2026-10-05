@@ -66,6 +66,7 @@ function scenario(
     isCollapsed: options.isCollapsed ?? false,
     isLoadingMore: false,
     loadMoreError: null,
+    refreshError: null,
     partialNotice: hasData && pending > 0 ? partialNotice(pending) : null,
     relatedLink: null,
     rows: hasData
