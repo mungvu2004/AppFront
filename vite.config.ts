@@ -63,6 +63,14 @@ export default defineConfig(({ mode }) => {
       // cách dựng, không nới ngân sách. "Màn hình đầu tiên" vẫn tính cả hai file
       // (chunk vào nhập tĩnh chunk này), nên cổng đó không được lợi gì từ việc tách.
       rollupOptions: {
+        // Client giả (`src/api/__mocks__/`) chỉ chạy dưới `import.meta.env.DEV`: mọi chỗ gọi
+        // trong gói sản phẩm đã viết chữ `DEV` tại chỗ nên ràng buộc nhập bị bỏ, nhưng module
+        // có mã chạy ở đỉnh (đóng băng bộ mẫu) nên Rollup vẫn giữ nó vì "có tác dụng phụ".
+        // Khai nó không có tác dụng phụ thì nhập không dùng tới bị bỏ hẳn. Đo 2026-10-05 (F-07):
+        // "chi phí thêm cho một màn" 281,3 → 273,5 KiB. Id của Rollup luôn dùng `/`, kể cả trên Windows.
+        treeshake: {
+          moduleSideEffects: (id) => !id.includes('/src/api/__mocks__/'),
+        },
         output: {
           manualChunks: (id) =>
             /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id) ? 'react' : undefined,
