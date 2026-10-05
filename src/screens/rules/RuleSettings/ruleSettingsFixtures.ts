@@ -283,7 +283,7 @@ export const EDITABLE_CAPABILITIES: RuleSettingsCapabilities = {
 export const READ_ONLY_CAPABILITIES: RuleSettingsCapabilities = {
   canEditRules: false,
   canApplyPreset: false,
-  readOnlyReason: 'Chỉ chủ dự án hoặc quản trị viên được đổi cài đặt bộ luật này.',
+  readOnlyReason: 'Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.',
 };
 
 /* ==========================================================================
@@ -308,6 +308,9 @@ export interface BuildModelOptions {
   readonly impactMode?: ImpactMode;
   /** Tắt sạch cả 25 luật — dùng cho test cảnh báo hậu quả (mục 2.(b).4). */
   readonly allDisabled?: boolean;
+  /** Lượt lưu gần nhất hỏng (N22) — story "xung đột — tải lại", "lỗi lưu ngưỡng chung". */
+  readonly saveProblem?: RuleSettingsViewModel['saveProblem'];
+  readonly reloadConfirmOpen?: boolean;
 }
 
 function defaultImpactModeFor(status: RuleSettingsStatus): ImpactMode {
@@ -350,6 +353,8 @@ export function buildRuleSettingsModel(options: BuildModelOptions): RuleSettings
     enabledRuleCount,
     disableAllWarning: allDisabled ? ALL_DISABLED_WARNING : null,
     errorMessage: status === 'error' ? LOAD_ERROR_MESSAGE : null,
+    saveProblem: options.saveProblem ?? null,
+    reloadConfirmOpen: options.reloadConfirmOpen ?? false,
   };
 }
 
@@ -365,6 +370,9 @@ export const NOOP_RULE_SETTINGS_ACTIONS: RuleSettingsActions = {
   onChangeGeneralThreshold: () => undefined,
   onApplyPreset: () => undefined,
   onRestoreDefaults: () => undefined,
+  onReload: () => undefined,
+  onConfirmReload: () => undefined,
+  onCancelReload: () => undefined,
 };
 
 export interface BuildPropsOverrides {

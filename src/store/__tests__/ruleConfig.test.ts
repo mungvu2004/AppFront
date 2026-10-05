@@ -22,7 +22,7 @@ import { useStore } from '../index';
  * chứng K22 là cấu hình THẬT SỰ tới tay `runRules`.
  */
 vi.mock('../../domain/rules/runner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../domain/rules/runner')>();
+  const actual = await importOriginal<typeof runner>();
 
   return { ...actual, runRules: vi.fn(actual.runRules) };
 });
