@@ -19,7 +19,7 @@
 
 import http from 'node:http';
 
-const IMPORT_PATTERN = /(?:\bfrom|\bimport)\s*\(?\s*["'](\/[^"'\s]+)["']/g;
+const IMPORT_PATTERN = /(?:\bfrom|\bimport)\s*\(?\s*["'](\/(?!\/)[^"'\s]+)["']/g;
 
 /** Mọi đường dẫn tuyệt đối mà một module đã dịch nhập tới (tĩnh và `import()`). */
 export const extractImports = (code) => {
@@ -33,19 +33,22 @@ export const extractImports = (code) => {
 
 const CONCURRENCY = 8;
 
-/** GET một URL, trả mã và thân. `node:http` như `run-playwright.mjs` — không `fetch` (luật `no-fetch-outside-http`). */
-const get = (url) =>
+/**
+ * GET một URL, trả mã và thân. `node:http` như `run-playwright.mjs` — không `fetch` (luật `no-fetch-outside-http`).
+ * Mỗi request có hạn riêng: một máy chủ treo không được kéo lượt làm ấm quá trần chung.
+ */
+const get = (url, timeoutMs) =>
   new Promise((resolve, reject) => {
-    http
-      .get(url, (response) => {
-        let body = '';
-        response.setEncoding('utf8');
-        response.on('data', (chunk) => {
-          body += chunk;
-        });
-        response.on('end', () => resolve({ body, status: response.statusCode ?? 0 }));
-      })
-      .on('error', reject);
+    const request = http.get(url, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        body += chunk;
+      });
+      response.on('end', () => resolve({ body, status: response.statusCode ?? 0 }));
+    });
+    request.setTimeout(timeoutMs, () => request.destroy(new Error('request quá hạn')));
+    request.on('error', reject);
   });
 
 /** Một lượt đi trọn đồ thị. Trả tập URL đã thấy và số phản hồi 5xx. */
@@ -61,9 +64,15 @@ const crawlOnce = async (baseUrl, entries, deadline) => {
       }
 
       const url = queue.shift();
+      const target = new URL(url, baseUrl);
+      // Chỉ đi trong máy chủ dev — một đường dẫn `//host/x` không được ra mạng ngoài.
+      if (target.origin !== new URL(baseUrl).origin) {
+        continue;
+      }
+
       let response;
       try {
-        response = await get(new URL(url, baseUrl));
+        response = await get(target, Math.max(1, deadline - Date.now()));
       } catch {
         serverErrors += 1;
         continue;
