@@ -243,8 +243,8 @@ const loadSample = (projectId = PROJECT): void => {
   useStore.getState().setSpatial(SAMPLE, 'v-1', { floorRevisions: REVISIONS, projectId });
 };
 
-/** Dày thêm 10 mm cho tường đầu tiên trên `floorId` — một bản sửa thật qua `commit`. */
-const editFloor = (floorId: string): void => {
+/** Tường đầu tiên trên `floorId` trong kho hiện tại. */
+const wallOn = (floorId: string): Wall => {
   const spatial = useStore.getState().spatial;
   const wall = Object.values(spatial?.byId ?? {}).find(
     (entity): entity is Wall => spatial?.byKind.wall.includes(entity.id as WallId) === true && 'levelId' in entity && entity.levelId === floorId,
@@ -253,6 +253,13 @@ const editFloor = (floorId: string): void => {
   if (!wall) {
     throw new Error(`no wall on ${floorId}`);
   }
+
+  return wall;
+};
+
+/** Dày thêm 10 mm cho tường đầu tiên trên `floorId` — một bản sửa thật qua `commit`. */
+const editFloor = (floorId: string): void => {
+  const wall = wallOn(floorId);
 
   commit({ changes: { thicknessMm: wall.thicknessMm + 10 }, id: wall.id, kind: 'wall', op: 'update' }, 'Đổi độ dày');
 };
@@ -409,6 +416,64 @@ describe('useFloorLayerAutosave', () => {
     expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ floorId: FLOOR_A, projectId: PROJECT });
     expect(await writeLayer.mock.results[0]?.value).toMatchObject({ ok: true });
     expect(useStore.getState().spatial).toBe(edited);
+    expect(useStore.getState().floorMeta[FLOOR_A]).toEqual({ revision: 0 });
+  });
+
+  it('review P1-1: Ctrl+Z while the PUT flies back to the loaded graph is kept and saved', async () => {
+    const client = createMockApiClient();
+    const realWrite = client.spatial.writeLayer.bind(client.spatial);
+    const writeLayer = vi.spyOn(client.spatial, 'writeLayer');
+    let release: () => void = () => undefined;
+
+    writeLayer.mockImplementationOnce(
+      (input) =>
+        new Promise((resolve) => {
+          release = () => resolve(realWrite(input));
+        }),
+    );
+    loadSample();
+    renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: PROJECT }));
+    await tick();
+    const original = wallOn(FLOOR_A);
+
+    act(() => editFloor(FLOOR_A));
+    await tick(800);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    act(() => useStore.temporal.getState().undo());
+    expect(useStore.getState().spatial).toBe(SAMPLE);
+    release();
+    await tick(800);
+    await tick(800);
+
+    expect((useStore.getState().spatial?.byId[original.id] as Wall).thicknessMm).toBe(original.thicknessMm);
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(writeLayer.mock.calls[1]?.[0]).toMatchObject({ baseVersion: 1, floorId: FLOOR_A });
+    expect(writeLayer.mock.calls[1]?.[0].body.walls.find((wall) => wall.id === original.id)?.thicknessMm).toBe(
+      original.thicknessMm,
+    );
+  });
+
+  it('review P2-1: store switches project FIRST, new-key hook mounts AFTER → the pending edit is still PUT with its base', async () => {
+    const { client, writeLayer } = spyClient();
+
+    loadSample();
+    renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: PROJECT }));
+    await tick();
+    act(() => editFloor(FLOOR_A));
+    const edited = useStore.getState().spatial;
+
+    // Cổng nạp của dự án mới ghi kho trước, rồi mới dựng màn con.
+    act(() => loadSample('project-2'));
+    renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: 'project-2' }));
+    await tick();
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ baseVersion: 0, floorId: FLOOR_A, projectId: PROJECT });
+    expect(writeLayer.mock.calls[0]?.[0].body).toEqual(spatialLayerOf(edited as typeof SAMPLE, FLOOR_A as LevelId));
+    expect(await writeLayer.mock.results[0]?.value).toMatchObject({ ok: true });
+    // Kho đã là dự án khác: lượt lưu của dự án cũ không chạm nó.
+    expect(useStore.getState().spatialProjectId).toBe('project-2');
     expect(useStore.getState().floorMeta[FLOOR_A]).toEqual({ revision: 0 });
   });
 

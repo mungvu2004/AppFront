@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ZodError } from 'zod';
 
 import type { SpatialApi, SpatialLayer } from '@/api/client';
 import { FloorLayerWriteResultSchema, FloorLayerWriteSchema } from '@/api/schemas/spatialLayer';
@@ -14,6 +13,7 @@ import {
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { isTransientWireError } from '@/lib/errors/wireError';
 import { runExclusive } from '@/lib/mutations/entityQueue';
 
 import {
@@ -420,14 +420,17 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     await expect(second).resolves.toBeUndefined();
   });
 
-  it('thân không hợp FloorLayerWriteSchema → blocked câu chung, không gửi, ném lỗi parse', async () => {
+  it('thân không hợp FloorLayerWriteSchema → blocked câu chung, không gửi, ném 422 không tạm thời', async () => {
     const { layers, saver, writeLayer } = harness();
     const [wall] = wireLayer(4800).walls;
 
     layers.set(FLOOR_A, { ...wireLayer(4800), walls: wall ? [{ ...wall, thicknessMm: -1 }] : [] });
     saver.markDirty([FLOOR_A]);
 
-    await expect(saver.flush()).rejects.toBeInstanceOf(ZodError);
+    const error: unknown = await saver.flush().catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ kind: 'http', retryable: false, status: 422 });
+    expect(isTransientWireError(error)).toBe(false);
     expect(writeLayer).toHaveBeenCalledTimes(0);
     expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
     expect(saver.hasDirty()).toBe(false);

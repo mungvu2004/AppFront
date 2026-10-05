@@ -253,8 +253,15 @@ interface SaverBook {
   readonly reloadErrors: Map<string, string>;
   readonly listeners: Set<() => void>;
   readonly stops: Array<() => void>;
+  /** Đồ thị lúc mở sổ — mốc so cho những sửa xảy ra trước khi ống nạp xong. */
+  readonly opened: RootState['spatial'];
   saver: FloorLayerSaver | null;
   api: SpatialClient | null;
+  /**
+   * Bản cuối của dự án này khi kho đã rời sang dự án khác (cổng nạp ghi kho TRƯỚC khi hook
+   * khoá mới gắn) — lượt xả lúc đóng sổ đọc lớp và revision từ đây (review F-04x-1 P2-1).
+   */
+  departed: Pick<RootState, 'spatial' | 'floorMeta'> | null;
   version: number;
   disposed: boolean;
 }
@@ -278,14 +285,16 @@ const markChanged = (target: SaverBook, floorIds: readonly string[]): void => {
   }
 };
 
-/** `opened`: đồ thị lúc mở sổ; khác đồ thị hiện tại nghĩa là có sửa trước khi ống nạp xong. */
-const attachSaver = (target: SaverBook, loaded: Pipes, opened: RootState['spatial']): void => {
+/** Gắn saver khi ống đã nạp; sửa xảy ra trước đó (so với `opened`) được đánh dấu bẩn ngay. */
+const attachSaver = (target: SaverBook, loaded: Pipes): void => {
   if (target.disposed || target.saver) {
     return;
   }
 
-  const { projectId } = target;
+  const { opened, projectId } = target;
   const owns = (): boolean => useStore.getState().spatialProjectId === projectId;
+  /** Kho của dự án này: kho sống khi còn sở hữu, không thì bản nhớ lúc rời. */
+  const source = (): Pick<RootState, 'spatial' | 'floorMeta'> | null => (owns() ? useStore.getState() : target.departed);
 
   target.saver = loaded.createFloorLayerSaver(projectId, {
     onSaved(floorId, result, { redirtied }) {
@@ -302,15 +311,13 @@ const attachSaver = (target: SaverBook, loaded: Pipes, opened: RootState['spatia
       loaded.applyInvalidation(queryClient, 'persistSpatialLayer', { floorId, projectId });
     },
     readLayer(floorId) {
-      const { spatial } = useStore.getState();
+      const spatial = target.disposed ? null : (source()?.spatial ?? null);
       const level = spatial?.byId[floorId];
 
-      return !target.disposed && owns() && spatial && level?.id === floorId && 'order' in level
-        ? loaded.spatialLayerOf(spatial, level.id)
-        : null;
+      return spatial && level?.id === floorId && 'order' in level ? loaded.spatialLayerOf(spatial, level.id) : null;
     },
     // Không chặn theo `disposed`: lượt xả lúc đổi dự án chạy SAU `dispose()`, và base 0 là 409 chắc.
-    readRevision: (floorId) => (owns() ? (useStore.getState().floorMeta[floorId]?.revision ?? null) : null),
+    readRevision: (floorId) => source()?.floorMeta[floorId]?.revision ?? null,
     writeLayer: async (input) => (await spatialApiOf(target)).spatial.writeLayer(input),
   });
   target.saver.subscribe((unsavedFloorIds) => {
@@ -349,14 +356,27 @@ function openBook(projectId: string): SaverBook {
     closeBook(book, book.userId === userId);
   }
 
+  const opened = useStore.getState().spatial;
+  /** Ống chưa gắn mà kho đã khác lúc mở sổ: có sửa chờ, dù saver chưa biết. */
+  const pendingBeforeAttach = (): boolean => created.saver === null && useStore.getState().spatial !== opened;
   const created: SaverBook = {
     api: null,
+    departed: null,
     disposed: false,
     engine: createAutosave<true>({
-      getChanges: () => (created.saver?.hasDirty() ? true : undefined),
-      save: () => created.saver?.flush() ?? Promise.resolve(),
+      getChanges: () => (created.saver?.hasDirty() || pendingBeforeAttach() ? true : undefined),
+      // Nit-1: `import()` của ống hỏng thì lượt lưu ném (engine thử lại, rồi "Lưu thất bại"),
+      // và mỗi lượt sau nạp lại ống — không im lặng bỏ sửa.
+      save: async () => {
+        if (created.saver === null) {
+          attachSaver(created, await getPipes());
+        }
+
+        await created.saver?.flush();
+      },
     }),
     listeners: new Set(),
+    opened,
     projectId,
     reloadErrors: new Map(),
     saver: null,
@@ -368,31 +388,46 @@ function openBook(projectId: string): SaverBook {
   mountedAutosaves.add(created.engine);
   created.stops.push(
     useStore.subscribe((state, previous) => {
+      if (state.spatialProjectId === projectId) {
+        created.departed = null;
+      } else if (previous.spatialProjectId === projectId) {
+        created.departed = { floorMeta: previous.floorMeta, spatial: previous.spatial };
+      }
+
+      // Chỉ lượt `set` TỰ ghi `lastServerSpatial` là dữ liệu máy chủ (R14: một `set`). So
+      // `spatial !== lastServerSpatial` thì bỏ sót Ctrl+Z về đúng bản đã nạp (review P1-1).
+      const fromServer =
+        state.lastServerSpatial !== previous.lastServerSpatial && state.spatial === state.lastServerSpatial;
+
       if (
-        pipes &&
-        previous.spatial &&
-        state.spatial &&
-        state.spatial !== previous.spatial &&
-        state.spatial !== state.lastServerSpatial &&
-        state.spatialProjectId === projectId
+        fromServer ||
+        state.spatialProjectId !== projectId ||
+        !previous.spatial ||
+        !state.spatial ||
+        state.spatial === previous.spatial
       ) {
+        return;
+      }
+
+      if (created.saver && pipes) {
         markChanged(created, pipes.changedLevelIds(previous.spatial, state.spatial));
+      } else {
+        created.engine.notifyChange();
       }
     }),
     guardBeforeUnload({
-      hasUnsavedChanges: () => useStore.getState().unsavedFloorIds.length > 0,
+      hasUnsavedChanges: () => useStore.getState().unsavedFloorIds.length > 0 || pendingBeforeAttach(),
       sendBeacon: () => undefined,
     }),
   );
   book = created;
 
   if (pipes) {
-    attachSaver(created, pipes, null);
+    attachSaver(created, pipes);
   } else {
-    const opened = useStore.getState().spatial;
-
+    // Hỏng thì để lượt lưu của engine nạp lại (Nit-1).
     void getPipes().then(
-      (loaded) => attachSaver(created, loaded, opened),
+      (loaded) => attachSaver(created, loaded),
       () => undefined,
     );
   }
@@ -469,10 +504,13 @@ export function useFloorLayerAutosave({
 
   const autosave = useMemo<Autosave>(() => {
     const { engine } = current;
-    const foreignFailure = (): boolean =>
-      floorId !== undefined &&
-      engine.getState() === 'failed' &&
-      !useStore.getState().unsavedFloorIds.includes(floorId);
+    // Lỗi "của tầng khác" chỉ khi có tầng khác đang chưa lưu; không tầng nào (ống chưa nạp
+    // được) thì lỗi là của mọi màn.
+    const foreignFailure = (): boolean => {
+      const unsaved = useStore.getState().unsavedFloorIds;
+
+      return floorId !== undefined && engine.getState() === 'failed' && unsaved.length > 0 && !unsaved.includes(floorId);
+    };
 
     return { ...engine, getState: () => (foreignFailure() ? 'saved' : engine.getState()) };
   }, [current, floorId]);

@@ -4,6 +4,7 @@ import { isIdOfKind } from '@/domain/spatial/ids';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
 import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
+import type { HttpError } from '@/lib/http/types';
 import { runExclusive } from '@/lib/mutations/entityQueue';
 
 /**
@@ -169,7 +170,11 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     if (!parsed.success) {
       blocks.set(floorId, { kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
 
-      return { error: parsed.error, kind: 'blocked' };
+      // Lỗi hình dây 422, không phải `ZodError`: lỗi không đọc được bị coi là tạm thời,
+      // và engine sẽ thử lại 5/15/45 s một thân không bao giờ hợp lệ.
+      const invalid: HttpError = { code: 'VALIDATION', kind: 'http', raw: parsed.error.issues, requestId: '', retryable: false, status: 422 };
+
+      return { error: invalid, kind: 'blocked' };
     }
 
     let error: unknown;
