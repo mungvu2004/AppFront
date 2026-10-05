@@ -20,18 +20,28 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import type { ComponentType, ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type * as AppClientModule from '@/api/appClient';
+import type * as ConflictModule from '@/lib/versioning/conflict';
+import type { ApiClient } from '@/api/client';
+import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
 import { ALL_RULES } from '@/domain/rules/defaults';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { appNotificationBus } from '@/hooks/useNotifications';
-import { renderWithProviders } from '@/lib/testing/render';
+import type { HttpError } from '@/lib/http';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
+import { resolveConflict } from '@/lib/versioning/conflict';
 import { ROUTE_PATTERNS } from '@/routes/paths';
 import { useStore } from '@/store';
+import { resetUserScopedState } from '@/store/resetUserScopedState';
+import type { ProjectRole } from '@/types/project';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -56,6 +66,26 @@ import {
 import type { RuleSettingsProps, RuleSettingsStatus } from './types';
 import * as RuleSettingsModule from './RuleSettings';
 import { RuleSettingsRoute } from './RuleSettings.container';
+import { createRuleSettingsGateway, RULE_SETTINGS_READ_ONLY_REASON } from './ruleSettingsGateway';
+import { useRuleSettings } from './useRuleSettings';
+
+/*
+ * F-10: màn giờ đọc cấu hình bộ luật qua N21, nên cổng mặc định gọi
+ * `createAppApiClient()`. Bài kiểm đi bộ mẫu trong bộ nhớ thay cho máy chủ.
+ */
+vi.mock('@/api/appClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof AppClientModule>();
+  const { createMockApiClient } = await import('@/api/__mocks__/client');
+
+  return { ...actual, createAppApiClient: () => createMockApiClient() };
+});
+
+/* [8].5: 409 không bao giờ đi qua `resolveConflict` (mảng rỗng → `autoMerged`, ghi đè im lặng). */
+vi.mock('@/lib/versioning/conflict', async (importOriginal) => {
+  const actual = await importOriginal<typeof ConflictModule>();
+
+  return { ...actual, resolveConflict: vi.fn(actual.resolveConflict) };
+});
 
 afterEach(() => {
   cleanup();
@@ -503,6 +533,8 @@ describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn
     act(() => {
       useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
       useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+      // F-10: quyền sửa đến từ vai (`ruleset.edit`, chỉ quản trị viên), không còn mặc định `true`.
+      useStore.getState().setUserRoles(['admin']);
     });
     renderWithProviders(
       <MemoryRouter initialEntries={['/projects/P-1/rules/settings']}>
@@ -534,5 +566,334 @@ describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn
     await waitFor(() => {
       expect(ruleSwitch.getAttribute('aria-checked')).toBe('true');
     });
+  });
+});
+
+/* ==========================================================================
+ * F-10 — hook nối N21/N22: quyền theo vai, nạp không toast, baseVersion,
+ * 409/422, tải lại, đổi dự án, gửi lại sau timeout, xả khi tháo (R13).
+ * ========================================================================== */
+
+type RuleConfigApi = ApiClient['ruleConfig'];
+
+interface Deferred<T> {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+}
+
+const deferred = <T,>(): Deferred<T> => {
+  let resolve: (value: T) => void = () => undefined;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+
+  return { promise, resolve };
+};
+
+const wireConfig = (revision: number, overrides: ProjectRuleConfig['overrides'] = {}): ProjectRuleConfig => ({
+  overrides,
+  revision,
+});
+
+const wireError = (status: number, code: string, raw: Record<string, unknown> = {}): HttpError => ({
+  code,
+  kind: 'http',
+  raw,
+  requestId: 'req-hook',
+  retryable: false,
+  status,
+});
+
+const timeoutError: HttpError = { kind: 'timeout', raw: null, requestId: 'req-timeout', retryable: true };
+
+/** Con số của A7 cộng một chút: đủ để lượt tự lưu đã chạy. */
+const AFTER_DEBOUNCE_MS = 900;
+/** Mốc thử lại đầu của `retrySchedule` (5 s), cộng một chút. */
+const AFTER_FIRST_RETRY_MS = 5_100;
+
+interface HookSetup {
+  readonly read?: RuleConfigApi['read'];
+  readonly replace?: RuleConfigApi['replace'];
+  readonly roles?: readonly ProjectRole[];
+  readonly projectId?: string;
+  readonly isOnline?: () => boolean;
+}
+
+function setupHook(setup: HookSetup = {}) {
+  const read = vi.fn<RuleConfigApi['read']>(setup.read ?? (async () => ({ ok: true, data: wireConfig(3) })));
+  const replace = vi.fn<RuleConfigApi['replace']>(
+    setup.replace ??
+      (async (input) => ({ ok: true, data: wireConfig(input.baseVersion + 1, input.body.overrides as ProjectRuleConfig['overrides']) })),
+  );
+  const client = { ruleConfig: { read, replace } } as Partial<ApiClient> as ApiClient;
+  const gateway = createRuleSettingsGateway({ client });
+  const queryClient = createTestQueryClient();
+
+  act(() => {
+    useStore.getState().setUserRoles(setup.roles ?? ['admin']);
+  });
+
+  const wrapper = ({ children }: { readonly children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  const view = renderHook(
+    ({ projectId }: { readonly projectId: string }) =>
+      useRuleSettings({
+        projectId,
+        gateway,
+        ...(setup.isOnline !== undefined ? { isOnline: setup.isOnline } : {}),
+      }),
+    { initialProps: { projectId: setup.projectId ?? 'P-1' }, wrapper },
+  );
+
+  return { ...view, read, replace, queryClient };
+}
+
+/** Chạy đồng hồ giả, kèm mọi microtask của react-query và `createAutosave`. */
+const advance = async (ms: number): Promise<void> => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+};
+
+describe('F-10 — useRuleSettings nối N21/N22', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    vi.mocked(resolveConflict).mockClear();
+    act(() => {
+      resetUserScopedState();
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([['engineer'], ['viewer']] as const)('%s ra `ready` kèm readOnlyReason, không `forbidden`', async (role) => {
+    const { result } = setupHook({ roles: [role] });
+    await advance(0);
+
+    expect(result.current.model.status).toBe('ready');
+    expect(result.current.capabilities.canEditRules).toBe(false);
+    expect(result.current.capabilities.readOnlyReason).toBe(RULE_SETTINGS_READ_ONLY_REASON);
+  });
+
+  it('N21 trả 403 → `forbidden`', async () => {
+    const { result } = setupHook({ read: async () => ({ ok: false, error: wireError(403, 'FORBIDDEN') }) });
+    await advance(0);
+
+    expect(result.current.model.status).toBe('forbidden');
+  });
+
+  it('lượt nạp không đặt lastCommit (không toast mời hoàn tác)', async () => {
+    const { result } = setupHook({ read: async () => ({ ok: true, data: wireConfig(3, { 'WALL-THICKNESS': { enabled: false } }) }) });
+    await advance(0);
+
+    expect(useStore.getState().ruleConfigRevision).toBe(3);
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-THICKNESS': { enabled: false } });
+    expect(useStore.getState().lastCommitLabel).toBeNull();
+    expect(useStore.getState().lastCommitUndo).toBeNull();
+    expect(result.current.model.status).toBe('ready');
+  });
+
+  it('baseVersion = revision vừa đọc, lượt sau = revision vừa lưu', async () => {
+    const { result, replace } = setupHook();
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onToggleRule('WALL-THICKNESS', true));
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace.mock.calls.map(([input]) => input.baseVersion)).toEqual([3, 4]);
+    expect(useStore.getState().ruleConfigRevision).toBe(5);
+  });
+
+  it('409: dải tải lại, tự lưu `failed`, không gửi lại sau 5 s, không resolveConflict', async () => {
+    const { result, replace } = setupHook({
+      replace: async () => ({ ok: false, error: wireError(409, 'VERSION_CONFLICT', { remoteChanges: [] }) }),
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    await advance(AFTER_FIRST_RETRY_MS);
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(result.current.model.saveProblem?.offerReload).toBe(true);
+    expect(result.current.model.saveState).toBe('error');
+    expect(result.current.model.status).not.toBe('error');
+    expect(resolveConflict).not.toHaveBeenCalled();
+  });
+
+  it('422 RULE_GENERAL_NOT_TOGGLEABLE → câu gắn thẻ ngưỡng chung', async () => {
+    const { result } = setupHook({
+      replace: async () => ({
+        ok: false,
+        error: wireError(422, 'RULE_GENERAL_NOT_TOGGLEABLE', { field: 'body.overrides.GENERAL.enabled' }),
+      }),
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(result.current.model.saveProblem).toMatchObject({ onGeneralCard: true, offerReload: false });
+    expect(result.current.model.saveProblem?.message).toMatch(/Ngưỡng chung/u);
+  });
+
+  it('tải lại khi có sửa dở → hộp thoại; xác nhận → đọc lại N21 và nạp bản mới', async () => {
+    const reads = [wireConfig(3), wireConfig(7, { 'DOOR-WIDTH': { enabled: false } })];
+    const { result, read } = setupHook({
+      read: async () => ({ ok: true, data: reads.shift() ?? wireConfig(7) }),
+      replace: async () => ({ ok: false, error: wireError(409, 'VERSION_CONFLICT', { remoteChanges: [] }) }),
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onReload());
+
+    expect(result.current.model.reloadConfirmOpen).toBe(true);
+    expect(read).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.onConfirmReload());
+    await advance(0);
+
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(result.current.model.reloadConfirmOpen).toBe(false);
+    expect(result.current.model.saveProblem).toBeNull();
+    expect(useStore.getState().ruleConfigRevision).toBe(7);
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'DOOR-WIDTH': { enabled: false } });
+  });
+
+  it('huỷ hộp thoại tải lại thì không đọc lại', async () => {
+    const { result, read } = setupHook();
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    act(() => result.current.onReload());
+    act(() => result.current.onCancelReload());
+
+    expect(result.current.model.reloadConfirmOpen).toBe(false);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('đổi projectId khi store còn cấu hình dự án cũ: không gửi gì cho dự án mới trước khi N21 mới nạp', async () => {
+    const secondRead = deferred<Awaited<ReturnType<RuleConfigApi['read']>>>();
+    const { rerender, replace, result } = setupHook({
+      read: (input) => (input.projectId === 'P-1' ? Promise.resolve({ ok: true, data: wireConfig(3) }) : secondRead.promise),
+    });
+    await advance(0);
+
+    rerender({ projectId: 'P-2' });
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(result.current.model.status).toBe('loading');
+    expect(replace).not.toHaveBeenCalled();
+
+    secondRead.resolve({ ok: true, data: wireConfig(11) });
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(useStore.getState().ruleConfigProjectId).toBe('P-2');
+    expect(useStore.getState().ruleConfigRevision).toBe(11);
+  });
+
+  it('store bị đặt lại (đổi người) khi màn còn gắn: lượt tự lưu không coi bản trắng là một sửa', async () => {
+    const { result, replace } = setupHook();
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    act(() => {
+      resetUserScopedState();
+    });
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('N22 timeout rồi sửa tiếp → lượt thử lại gửi thân cũ trước, rồi thân mới', async () => {
+    let calls = 0;
+    const { result, replace } = setupHook({
+      replace: async (input) => {
+        calls += 1;
+
+        return calls === 1
+          ? { ok: false, error: timeoutError }
+          : { ok: true, data: wireConfig(input.baseVersion + 1) };
+      },
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onToggleRule('DOOR-WIDTH', false));
+    await advance(AFTER_FIRST_RETRY_MS);
+
+    expect(replace.mock.calls.map(([input]) => [input.baseVersion, Object.keys(input.body.overrides)])).toEqual([
+      [3, ['WALL-THICKNESS']],
+      [3, ['WALL-THICKNESS']],
+      [4, ['WALL-THICKNESS', 'DOOR-WIDTH']],
+    ]);
+  });
+
+  it('tháo màn khi còn sửa dở → đúng một lượt gửi', async () => {
+    const { result, replace, unmount } = setupHook();
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    unmount();
+    await advance(AFTER_FIRST_RETRY_MS);
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace.mock.calls[0]?.[0]).toMatchObject({ projectId: 'P-1', baseVersion: 3 });
+  });
+
+  it('sửa lúc lượt trước đang gửi rồi tháo (store bị đặt lại) → lượt sau mang sửa đó, đúng dự án cũ và revision vừa nhận', async () => {
+    const firstSave = deferred<Awaited<ReturnType<RuleConfigApi['replace']>>>();
+    let calls = 0;
+    const { result, replace, unmount } = setupHook({
+      replace: async (input) => {
+        calls += 1;
+
+        return calls === 1 ? firstSave.promise : { ok: true, data: wireConfig(input.baseVersion + 1) };
+      },
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onToggleRule('DOOR-WIDTH', false));
+    unmount();
+    act(() => {
+      resetUserScopedState();
+    });
+
+    firstSave.resolve({ ok: true, data: wireConfig(4) });
+    await advance(0);
+
+    expect(replace).toHaveBeenCalledTimes(2);
+    expect(replace.mock.calls[1]?.[0]).toMatchObject({ projectId: 'P-1', baseVersion: 4 });
+    expect(Object.keys(replace.mock.calls[1]?.[0].body.overrides ?? {})).toEqual(['WALL-THICKNESS', 'DOOR-WIDTH']);
+  });
+
+  it('tháo lúc offline → lượt hẹn lại vẫn gửi bản chụp', async () => {
+    let online = false;
+    const { result, replace, unmount } = setupHook({ isOnline: () => online });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    unmount();
+    await advance(0);
+    expect(replace).not.toHaveBeenCalled();
+
+    online = true;
+    await advance(AFTER_FIRST_RETRY_MS);
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace.mock.calls[0]?.[0]).toMatchObject({ projectId: 'P-1', baseVersion: 3 });
+    expect(Object.keys(replace.mock.calls[0]?.[0].body.overrides ?? {})).toEqual(['WALL-THICKNESS']);
   });
 });

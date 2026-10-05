@@ -16,6 +16,7 @@
  * `src/domain/rules/function/index.ts`.
  */
 
+import type { HttpError } from '@/lib/http';
 import {
   ALL_RULES,
   createDefaultRuleRegistry,
@@ -48,6 +49,7 @@ import type {
   RuleSettingsThreshold,
   RuleSettingsViewModel,
 } from './types';
+import { describeRuleConfigSaveError } from './ruleSettingsGateway';
 
 /* ==========================================================================
  * 0. Số thật từ sổ đăng ký — không viết tay 25 hay 23 ở đâu khác.
@@ -392,3 +394,25 @@ export function buildRuleSettingsProps(
     ...overrides.actions,
   };
 }
+
+/* ==========================================================================
+ * 8. Lượt lưu hỏng (N22) — câu dựng bằng chính `describeRuleConfigSaveError`.
+ * ========================================================================== */
+
+/** Một `HttpError` của N22 dựng tay, đúng chỗ `readWireError` đọc `code`/`field`. */
+const saveFailure = (status: number, code: string, field?: string): HttpError => ({
+  code,
+  kind: 'http',
+  raw: field === undefined ? {} : { field },
+  requestId: 'req-rule-config-story',
+  retryable: false,
+  status,
+});
+
+/** 409 `VERSION_CONFLICT` — dải mời tải lại. */
+export const CONFLICT_SAVE_PROBLEM = describeRuleConfigSaveError(saveFailure(409, 'VERSION_CONFLICT'));
+
+/** 422 `RULE_GENERAL_NOT_TOGGLEABLE` — câu gắn vào thẻ ngưỡng chung. */
+export const GENERAL_SAVE_PROBLEM = describeRuleConfigSaveError(
+  saveFailure(422, 'RULE_GENERAL_NOT_TOGGLEABLE', 'body.overrides.GENERAL.enabled'),
+);

@@ -3049,6 +3049,7 @@
     },
     "error": {
       "title": "Không chạy được kiểm tra luật",
+      "configFailed": "Không tải được cấu hình bộ luật của dự án.",
       "description": "Có lỗi khi chạy kiểm tra luật không gian của dự án này.",
       "retry": "Thử lại"
     },
@@ -3160,7 +3161,25 @@
       "button": "khôi phục mặc định"
     },
     "disableAllWarning": "Mọi luật đều đang tắt: lượt kiểm tra sẽ không soi gì nữa và mô hình báo sạch lỗi dù chưa được kiểm lần nào.",
-    "readOnlyReason": "chỉ quản trị viên và kỹ sư của dự án đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.",
+    "readOnlyReason": "Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.",
+    "reloadDialog": {
+      "title": "Tải lại bộ luật?",
+      "body": "Tải lại sẽ bỏ thay đổi chưa lưu của bạn và hiện bản bộ luật mới nhất trên máy chủ.",
+      "cancel": "Để sau",
+      "confirm": "Bỏ thay đổi và tải lại"
+    },
+    "saveProblem": {
+      "reload": "Tải lại",
+      "versionConflict": "Bộ luật vừa được đổi ở nơi khác nên thay đổi của bạn chưa được lưu. Tải lại để xem bản mới nhất.",
+      "ruleCodeUnknown": "Máy chủ không nhận ra một luật trong bộ luật này nên thay đổi chưa được lưu.",
+      "ruleThresholdUnknown": "Máy chủ không nhận ra một ngưỡng trong bộ luật này nên thay đổi chưa được lưu.",
+      "ruleThresholdOutOfRange": "Một ngưỡng nằm ngoài khoảng máy chủ cho phép nên thay đổi chưa được lưu.",
+      "ruleGeneralNotToggleable": "Ngưỡng chung chỉ đổi được con số, không bật, tắt hay đổi mức được.",
+      "validation": "Máy chủ từ chối bộ luật vì dữ liệu không hợp lệ nên thay đổi chưa được lưu.",
+      "forbidden": "Vai của bạn không còn quyền đổi bộ luật.",
+      "connection": "Mất kết nối khi lưu bộ luật; hệ thống sẽ tự thử lại.",
+      "fallback": "Chưa lưu được bộ luật của dự án này."
+    },
     "loadFailure": "Không tải được cài đặt bộ luật của dự án này.",
     "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
     "missingParams": {

@@ -50,7 +50,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
+import { EMPTY_RULE_CONFIG, type RuleConfig } from '@/domain/rules/config';
 import { countBySeverity, groupViolationsByLevel, sortBySeverity } from '@/domain/rules/healthScore';
 import {
   RULE_GROUP_LABELS,
@@ -66,7 +66,13 @@ import { formatTimestamp } from '@/lib/format/datetime';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
+import {
+  createRuleSettingsGateway,
+  ruleSettingsQueryKey,
+  type RuleSettingsGateway,
+} from '@/screens/rules/RuleSettings';
 import { useStore } from '@/store';
+import { ruleRegistryFor } from '@/store/selectors';
 
 import { createRuleReportGateway, type RuleReportGateway } from './ruleReportGateway';
 import type {
@@ -90,6 +96,8 @@ export interface UseRuleReportOptions {
   readonly canEdit?: boolean;
   /** Trạng thái 7: vỏ ứng dụng báo đang thu gọn. */
   readonly isCompact?: boolean;
+  /** Cổng đọc cấu hình bộ luật (N21); bài kiểm tiêm cổng của nó. */
+  readonly ruleConfigGateway?: RuleSettingsGateway;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -122,6 +130,9 @@ const EMPTY_SUMMARY: RuleReportSummary = Object.freeze({
 /** Câu báo lỗi của trạng thái 4. Bộ luật chạy tại chỗ nên không có lỗi mạng để dịch. */
 const RUN_FAILED_MESSAGE = 'không chạy được bộ kiểm tra trên mô hình này.';
 
+/** Câu báo lỗi khi N21 hỏng: chưa có cấu hình thì không chạy luật với sổ mặc định. */
+const CONFIG_FAILED_MESSAGE = 'Không tải được cấu hình bộ luật của dự án.';
+
 /* -------------------------------------------------------------------------- */
 /* Một lượt chạy.                                                              */
 /* -------------------------------------------------------------------------- */
@@ -147,8 +158,9 @@ interface RuleReportRun {
  * `evaluatedRuleCodes` cho đúng danh sách luật đã chạy chứ không phải phần
  * chạy lại của một lượt tăng dần.
  */
-const runReport = (graph: NormalizedSpatial, registry: RuleRegistry): RuleReportRun => {
-  const result = runRules(graph, { registry });
+const runReport = (graph: NormalizedSpatial, registry: RuleRegistry, config: RuleConfig): RuleReportRun => {
+  // `config` đi cùng sổ để luật đọc cả ngưỡng `GENERAL` của dự án (K22).
+  const result = runRules(graph, { registry, config });
 
   return {
     violations: result.violations,
@@ -355,10 +367,23 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const gateway: RuleReportGateway = useMemo(() => createRuleReportGateway(), []);
   const capabilities = useMemo(() => gateway.readCapabilities(canEdit), [gateway, canEdit]);
 
-  // Một sổ đăng ký riêng cho lượt xem này, dựng đúng một lần: bộ mặc định đã tự
-  // tắt hai luật built-in bị nhóm chức năng thay thế, nên số luật là việc của
-  // domain chứ không phải của màn.
-  const registry = useMemo(() => createDefaultRuleRegistry(), []);
+  // Cấu hình của dự án (N21), cùng khoá với màn cài đặt: lượt lưu ở đó
+  // (`setQueryData`) làm báo cáo này chạy lại theo `revision` mới. Không ghi store.
+  const injectedConfigGateway = options.ruleConfigGateway;
+  const configGateway = useMemo(
+    () => injectedConfigGateway ?? createRuleSettingsGateway(),
+    [injectedConfigGateway],
+  );
+  const configQuery = useQuery({
+    queryKey: ruleSettingsQueryKey(projectId),
+    queryFn: ({ signal }) => configGateway.read({ projectId, signal }),
+  });
+  const ruleConfig = configQuery.data?.config ?? EMPTY_RULE_CONFIG;
+  const revision = configQuery.data?.revision ?? null;
+
+  // Sổ luật như cấu hình mô tả; bộ mặc định đã tự tắt hai luật built-in bị nhóm
+  // chức năng thay thế, nên số luật là việc của domain chứ không phải của màn.
+  const registry = useMemo(() => ruleRegistryFor(ruleConfig), [ruleConfig]);
 
   const graph = useStore((state) => state.spatial);
   const spatialLoading = useStore((state) => state.spatialLoading);
@@ -369,8 +394,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const [expandedRuleCodes, setExpandedRuleCodes] = useState<readonly RuleCode[]>(EMPTY_RULE_CODES);
 
   const query = useQuery({
-    queryKey: [...queryKeys.violation.byProject(projectId), versionId],
-    enabled: graph !== null && capabilities.canEdit,
+    queryKey: [...queryKeys.violation.byProject(projectId), versionId, revision],
+    // Không chờ quyền sửa: N21 cho mọi thành viên đọc, và báo cáo chỉ đọc.
+    enabled: graph !== null && configQuery.isSuccess,
     // `runRules` chạy đồng bộ, nhưng `queryFn` phải trả `Promise` để lượt "đang
     // chạy" của trạng thái 2 là một lượt thật chứ không chỉ có trong story.
     queryFn: async (): Promise<RuleReportRun> => {
@@ -378,7 +404,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
         throw new Error(RUN_FAILED_MESSAGE);
       }
 
-      return runReport(graph, registry);
+      return runReport(graph, registry, ruleConfig);
     },
     // Khoảng chờ giữa hai lần thử lại, lấy từ thang chuyển động (R-71).
     retryDelay: MOTION_DURATIONS_MS.standard,
@@ -537,11 +563,11 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return 'forbidden';
     }
 
-    if (query.isError) {
+    if (query.isError || configQuery.isError) {
       return 'error';
     }
 
-    if (spatialLoading || (graph !== null && run === null)) {
+    if (spatialLoading || (graph !== null && (configQuery.isPending || run === null))) {
       return 'loading';
     }
 
@@ -554,7 +580,17 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     }
 
     return summary.violations > 0 ? 'ready' : 'done';
-  }, [capabilities.canEdit, graph, query.isError, run, skipped, spatialLoading, summary]);
+  }, [
+    capabilities.canEdit,
+    configQuery.isError,
+    configQuery.isPending,
+    graph,
+    query.isError,
+    run,
+    skipped,
+    spatialLoading,
+    summary,
+  ]);
 
   const lastRunLabel = useMemo<string | null>(
     () => (run === null ? null : formatTimestamp(run.ranAtEpochMs, Date.now())),
@@ -648,7 +684,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       filters.group !== DEFAULT_FILTERS.group ||
       filters.levelId !== DEFAULT_FILTERS.levelId,
     isCompact,
-    errorMessage: query.isError ? RUN_FAILED_MESSAGE : null,
+    errorMessage: configQuery.isError ? CONFIG_FAILED_MESSAGE : query.isError ? RUN_FAILED_MESSAGE : null,
     onFilterChange,
     onToggleGroup,
     onSelectRow,
