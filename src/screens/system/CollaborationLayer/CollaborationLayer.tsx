@@ -44,13 +44,12 @@
  */
 
 import { useState } from 'react';
-import { Lock, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 import { AnimatePresence, motion } from '@/components/motion';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { useShortcut } from '@/hooks/useShortcut';
 import { MOTION_EASINGS, durationSeconds } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -72,9 +71,10 @@ import { Z_INDEX } from '@/lib/zIndex';
  */
 import { CommentThread } from './CommentThread';
 import { ConflictPanel } from './ConflictPanel';
+import { LockStrip } from './LockStrip';
 import { PresenceOverlay } from './PresenceOverlay';
 import { PRESENCE_ICON_STROKE, PRESENCE_LOCK_ICON_SIZE_PX } from './presenceHatch';
-import type { CollaborationLayerProps, CollaborationSyncState, CollaboratorVm, LockVm } from './types';
+import type { CollaborationLayerProps, CollaborationSyncState, CollaboratorVm } from './types';
 
 /* -------------------------------------------------------------------------- */
 /* Chữ tĩnh — bản dịch cố định của giao diện, viết thường kiểu câu (A6).        */
@@ -90,9 +90,6 @@ const NOTHING_SELECTED_LABEL = 'chưa chọn gì';
 const DEFAULT_PRESENCE_ANCHOR = 'right-4 top-4';
 const ALONE_CAPTION = 'chỉ mình bạn đang xem';
 const READ_ONLY_CAPTION = 'bạn đang xem, không sửa được';
-const LOCK_SECTION_LABEL = 'Đối tượng đang bị người khác giữ';
-const LOCK_HOLDER_FIELD_LABEL = 'Người đang giữ';
-const REQUEST_ACCESS_LABEL = 'Yêu cầu quyền chỉnh sửa';
 
 /** Caption của bốn trạng thái kênh không phải `'da-noi'`. */
 const SYNC_CAPTIONS: Readonly<Record<CollaborationSyncState, string | null>> = {
@@ -117,10 +114,6 @@ const EXIT_EASE: [number, number, number, number] = [EXIT_X1, EXIT_Y1, EXIT_X2, 
 
 /** Ảnh vào: phóng từ 0,9 chứ không bật ra từ 0. */
 const AVATAR_ENTER_SCALE = 0.9;
-
-/** Một câu nói ai đang giữ và từ lúc nào. Hai chuỗi đã định dạng ở viewmodel. */
-const holdingSentence = (lock: LockVm): string =>
-  `${lock.holderName} đang giữ, từ ${lock.heldSinceLabel}`;
 
 /** Dòng phụ của một người: đang ở tầng nào, và đang chọn gì. */
 const rosterDetail = (person: CollaboratorVm): string =>
@@ -224,64 +217,6 @@ function PresenceRoster({ collaborators, canGoTo, onGoToCollaborator }: Presence
         </li>
       ))}
     </motion.ul>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Dải khoá của thanh tra.                                                     */
-/* -------------------------------------------------------------------------- */
-
-interface LockStripProps {
-  readonly locks: readonly LockVm[];
-  readonly canRequestAccess: boolean;
-  readonly onRequestEditAccess: (objectId: string) => void;
-}
-
-/**
- * Đầu panel nói ai đang giữ và từ lúc nào; ô thanh tra ở dưới CHỈ ĐỌC.
- *
- * Hợp đồng không có `selectedObjectId`, nên dải này liệt kê MỌI khoá đang có chứ
- * không riêng đối tượng đang chọn — cách duy nhất dựng được từ props mà không tự
- * suy ra một vùng chọn không tồn tại. Nó cũng là đường BÀN PHÍM tới cùng thông
- * tin mà dấu khoá trên canvas chỉ nói bằng tooltip khi trỏ vào (A12). `Input` để
- * `isReadOnly` chứ không `disabled`: ô vẫn đọc và chép chữ được, chỉ không ghi.
- */
-function LockStrip({ locks, canRequestAccess, onRequestEditAccess }: LockStripProps) {
-  return (
-    <section
-      aria-label={LOCK_SECTION_LABEL}
-      className="flex w-full flex-col gap-3 rounded-md bg-bg-surface p-3 shadow-panel"
-    >
-      {locks.map((lock) => (
-        <div key={lock.objectId} className="flex flex-col gap-2">
-          <p className="flex items-start gap-1.5 text-[13px] text-text-secondary">
-            <Lock
-              aria-hidden="true"
-              className="mt-0.5 shrink-0"
-              size={PRESENCE_LOCK_ICON_SIZE_PX}
-              strokeWidth={PRESENCE_ICON_STROKE}
-            />
-            {holdingSentence(lock)}
-          </p>
-          <Input
-            label={LOCK_HOLDER_FIELD_LABEL}
-            value={lock.holderName}
-            isReadOnly
-            hint={lock.heldSinceLabel}
-          />
-          {canRequestAccess && (
-            <Button
-              className="self-start"
-              variant="ghost"
-              size="sm"
-              onClick={() => onRequestEditAccess(lock.objectId)}
-            >
-              {REQUEST_ACCESS_LABEL}
-            </Button>
-          )}
-        </div>
-      ))}
-    </section>
   );
 }
 
@@ -424,13 +359,11 @@ export function CollaborationLayer({
         </AnimatePresence>
 
         {showLockStrip && (
-          <div className="pointer-events-auto">
-            <LockStrip
-              locks={locks}
-              canRequestAccess={capabilities.requestAccess}
-              onRequestEditAccess={onRequestEditAccess}
-            />
-          </div>
+          <LockStrip
+            locks={locks}
+            canRequestAccess={capabilities.requestAccess}
+            onRequestEditAccess={onRequestEditAccess}
+          />
         )}
       </div>
     </div>
