@@ -73,7 +73,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           <RecoveryNoticeStrip notice={warning} />
           <RecoveryNoticeStrip notice={notice} />
           {/* Always mounted, filled later, so a screen reader announces the text. */}
-          <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:hidden">
+          <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
             {isDone ? AUTH_MESSAGES.invitation.success : null}
           </p>
 

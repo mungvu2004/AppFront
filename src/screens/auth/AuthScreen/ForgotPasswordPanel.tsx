@@ -55,7 +55,7 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
       <RecoveryNoticeStrip notice={notice} />
 
       {/* Always mounted, filled later: a region inserted together with its text is often not read. */}
-      <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:hidden">
+      <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
         {sentMessage}
       </p>
 
