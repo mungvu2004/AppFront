@@ -47,10 +47,8 @@ import type {
 } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
-import { isTransientWireError } from '@/lib/errors/wireError';
+import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 import { createUuid } from '@/lib/http/ids';
-import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
-import type { UndoTicket } from '@/lib/mutations/undoTicket';
 
 import { describeWriteError } from './inputQualityWriteErrors';
 import type { WriteFailureSentence } from './inputQualityWriteErrors';
@@ -91,12 +89,6 @@ export interface InputQualityFailure {
   readonly isRetryable: boolean;
 }
 
-export interface CreateQualityUndoTicketInput {
-  readonly description: string;
-  readonly undo: () => void;
-  readonly now?: () => number;
-}
-
 /**
  * Cái seam.
  *
@@ -116,12 +108,8 @@ export interface InputQualityGateway {
   readonly describeApiFailure: (error: unknown) => InputQualityFailure;
   /** Một câu cho lỗi của lượt ghi, kèm cờ có nên đọc lại kết quả đo. */
   readonly describeWriteFailure: (error: unknown) => WriteFailureSentence;
-  /** Vé hoàn tác 8 giây cho một lượt ghi (A8). */
-  readonly createWriteTicket: (input: CreateQualityUndoTicketInput) => UndoTicket;
 }
 
-/** Cửa sổ hoàn tác, tái xuất để hook và test không viết lại con số (R-71). */
-export { UNDO_WINDOW_MS };
 
 /* -------------------------------------------------------------------------- */
 /* Cửa vào.                                                                    */
@@ -161,7 +149,12 @@ export function createInputQualityGateway(
   ): Promise<ApiResult<T>> => {
     const result = await send();
 
-    if (result.ok || !isTransientWireError(result.error)) {
+    // Mạng, timeout và mọi 5xx: máy chủ không lưu phản hồi dưới khoá (BE-00 §7), nên giữ khoá.
+    const keepKey =
+      !result.ok &&
+      (isTransientWireError(result.error) || (readWireError(result.error)?.status ?? 0) >= 500);
+
+    if (!keepKey) {
       heldKeys.delete(slot);
     }
 
@@ -217,13 +210,6 @@ export function createInputQualityGateway(
 
     describeWriteFailure: (error) =>
       describeWriteError(error, describeError(toAppError(error)).description),
-
-    createWriteTicket: ({ description, now, undo }) =>
-      createUndoTicket({
-        description,
-        undo,
-        ...(now !== undefined ? { now } : {}),
-      }),
   };
 }
 

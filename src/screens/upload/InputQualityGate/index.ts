@@ -26,7 +26,6 @@ export {
 export {
   createAppInputQualityGateway,
   createInputQualityGateway,
-  UNDO_WINDOW_MS,
   type InputQualityFailure,
   type InputQualityGateway,
 } from './inputQualityGateway';

@@ -444,6 +444,21 @@ export function useInputQualityGate(
   const [isRereading, setRereading] = useState(false);
   const writeFailureRef = useRef<WriteFailureSentence | null>(null);
 
+  // Đổi dự án thì mọi state theo tầng và theo lượt ghi của dự án cũ phải bỏ.
+  const [stateProjectId, setStateProjectId] = useState(projectId);
+
+  if (stateProjectId !== projectId) {
+    setStateProjectId(projectId);
+    setSelectedFloorId(null);
+    setWriteError(null);
+    setPendingWrite(null);
+    setResolvedFindingIds([]);
+    setRereading(false);
+    setPickingCorners(false);
+    setDraftCorners(null);
+    setComparison(false);
+  }
+
   const detectedNarrow = useNarrowViewport();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
   const canEdit = can('upload', 'floor', { roles });
@@ -511,7 +526,11 @@ export function useInputQualityGate(
 
   const firstAssessedFloorId = assessmentQuery.data?.floorId;
 
-  if (assessed?.projectId !== projectId && firstAssessedFloorId !== undefined) {
+  if (
+    stateProjectId === projectId &&
+    assessed?.projectId !== projectId &&
+    firstAssessedFloorId !== undefined
+  ) {
     setAssessed({ projectId, floorId: firstAssessedFloorId });
   }
 
@@ -749,7 +768,7 @@ export function useInputQualityGate(
         title: copy.title,
         consequence: copy.consequence,
         action:
-          copy.actionKind === null || !canEdit || isWriteLocked
+          copy.actionKind === null || !canEdit || isRereading
             ? null
             : {
                 kind: copy.actionKind,
@@ -763,7 +782,7 @@ export function useInputQualityGate(
     activeFloor,
     canEdit,
     isPickingCorners,
-    isWriteLocked,
+    isRereading,
     regionIdByFinding,
     resolvedFindingIds,
   ]);
@@ -981,7 +1000,7 @@ export function useInputQualityGate(
     acknowledgementLabel: COPY.acknowledgement,
     primaryLabel: COPY.primary,
     secondaryLabel: COPY.secondary,
-    areActionsHidden: status === 'forbidden',
+    areActionsHidden: status === 'forbidden' || (hasNoDrawing && !canEdit),
   };
 
   /* ---------------------------------------------------------------------- */
@@ -992,7 +1011,8 @@ export function useInputQualityGate(
     (floorId: string) => {
       const target = qualityFloors.find((floor) => floor.floorId === floorId);
 
-      if (target === undefined || floorId === activeFloorId) {
+      // Đang gửi thì không đổi tầng: lỗi của tầng cũ không được hiện trên tầng mới.
+      if (target === undefined || floorId === activeFloorId || isWriting) {
         return;
       }
 
@@ -1004,7 +1024,7 @@ export function useInputQualityGate(
       setDraftCorners(null);
       getAppAnnouncer().announce(`Đang xem bản vẽ tầng ${target.floorName}`);
     },
-    [qualityFloors, activeFloorId],
+    [qualityFloors, activeFloorId, isWriting],
   );
 
   const stepFloor = useCallback(

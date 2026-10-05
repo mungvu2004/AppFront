@@ -18,6 +18,7 @@ import type { ApiClient, ApiResult, ImageQualityAssessment } from '@/api/client'
 import { ApiErrorBodySchema } from '@/api/schemas/errors';
 import type { HttpError } from '@/lib/http';
 import { createQueryClient } from '@/lib/query/queryClient';
+import type { ProjectRole } from '@/types/project';
 
 import { createInputQualityGateway } from './inputQualityGateway';
 import { useInputQualityGate, type InputQualityToast } from './useInputQualityGate';
@@ -146,21 +147,25 @@ function createHarness(options: HarnessOptions = {}): Harness {
   };
 }
 
-function mountHook(harness: Harness, extra: { onToast?: (toast: InputQualityToast) => void } = {}) {
+function mountHook(
+  harness: Harness,
+  extra: { onToast?: (toast: InputQualityToast) => void; roles?: readonly ProjectRole[] } = {},
+) {
   const queryClient = createQueryClient({ queries: { retry: false } });
   const gateway = createInputQualityGateway(harness.client, { createKey: harness.createKey });
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
   return renderHook(
-    () =>
+    (props: { projectId: string }) =>
       useInputQualityGate({
         forceCollapsed: false,
         gateway,
-        projectId: PROJECT_ID,
+        projectId: props.projectId,
         ...(extra.onToast !== undefined ? { onToast: extra.onToast } : {}),
+        ...(extra.roles !== undefined ? { roles: extra.roles } : {}),
       }),
-    { wrapper },
+    { initialProps: { projectId: PROJECT_ID }, wrapper },
   );
 }
 
@@ -482,7 +487,29 @@ describe('useInputQualityGate — lỗi ghi hiện ra', () => {
     expect(mounted.result.current.model.writeError).not.toMatch(/QUALITY_/u);
   });
 
-  it('lỗi ghi xoá khi bắt đầu lượt mới hoặc đổi tầng', async () => {
+  it('lỗi ghi xoá khi bắt đầu lượt ghi mới', async () => {
+    const harness = createHarness({
+      straightenResults: [failure(wireError(422, 'QUALITY_LAYER_REVIEWED'))],
+    });
+    const mounted = mountHook(harness);
+
+    await ready(mounted);
+    await unlocked(mounted);
+    await straightenOnce(mounted);
+    await waitFor(() => {
+      expect(mounted.result.current.model.writeError).not.toBeNull();
+    });
+
+    act(() => mounted.result.current.actions.onStraighten());
+    act(() => mounted.result.current.actions.onConfirmWrite());
+
+    expect(mounted.result.current.model.writeError).toBeNull();
+    await waitFor(() => {
+      expect(mounted.result.current.model.confirm).toBeNull();
+    });
+  });
+
+  it('lỗi ghi xoá khi đổi tầng', async () => {
     const harness = createHarness({
       straightenResults: [failure(wireError(422, 'QUALITY_LAYER_REVIEWED'))],
     });
@@ -534,5 +561,110 @@ describe('useInputQualityGate — lỗi ghi hiện ra', () => {
     await unlocked(mounted);
 
     expect(harness.assess.mock.calls.length).toBeGreaterThan(1);
+  });
+});
+
+describe('useInputQualityGate — vòng sửa review 1', () => {
+  it('500 rồi gửi lại cùng thân giữ khoá', async () => {
+    const harness = createHarness({
+      straightenResults: [failure(wireError(500, 'INTERNAL_ERROR'))],
+    });
+    const mounted = mountHook(harness);
+
+    await ready(mounted);
+    await unlocked(mounted);
+    await straightenOnce(mounted);
+    await waitFor(() => {
+      expect(mounted.result.current.model.writeError).not.toBeNull();
+    });
+    await straightenOnce(mounted);
+
+    const [first, retry] = harness.keys();
+
+    expect(first).toBeDefined();
+    expect(retry).toBe(first);
+  });
+
+  it('đang gửi: nút vẫn trong DOM, bấm thêm không gửi lại, đổi tầng bị chặn', async () => {
+    let release: () => void = () => undefined;
+    const harness = createHarness();
+    const mounted = mountHook(harness);
+
+    await ready(mounted);
+    await unlocked(mounted);
+
+    const original = harness.straighten.getMockImplementation();
+
+    harness.straighten.mockImplementationOnce(async (input) => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+
+      return original === undefined ? failure(timeoutError()) : original(input);
+    });
+
+    act(() => mounted.result.current.actions.onStraighten());
+    act(() => mounted.result.current.actions.onConfirmWrite());
+    await waitFor(() => {
+      expect(mounted.result.current.model.confirm?.isBusy).toBe(true);
+    });
+
+    expect(mounted.result.current.model.findings.some((finding) => finding.action !== null)).toBe(true);
+
+    act(() => mounted.result.current.actions.onConfirmWrite());
+    act(() => mounted.result.current.actions.onSelectFloor('L2'));
+
+    expect(mounted.result.current.model.floors.find((row) => row.isActive)?.label).toBe('Tầng 1');
+
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.model.confirm).toBeNull();
+    });
+
+    expect(harness.straighten).toHaveBeenCalledTimes(1);
+  });
+
+  it('đổi projectId: bỏ tầng đã chọn và lỗi ghi của dự án cũ', async () => {
+    const harness = createHarness({
+      straightenResults: [failure(wireError(422, 'QUALITY_LAYER_REVIEWED'))],
+    });
+    const mounted = mountHook(harness);
+
+    await ready(mounted);
+    await unlocked(mounted);
+    act(() => mounted.result.current.actions.onSelectFloor('L2'));
+    await waitFor(() => {
+      expect(mounted.result.current.model.floors.find((row) => row.isActive)?.label).toBe('Tầng 2');
+    });
+    await straightenOnce(mounted);
+    await waitFor(() => {
+      expect(mounted.result.current.model.writeError).not.toBeNull();
+    });
+
+    mounted.rerender({ projectId: 'project-2' });
+
+    expect(mounted.result.current.model.writeError).toBeNull();
+    await waitFor(() => {
+      expect(mounted.result.current.model.floors.find((row) => row.isActive)?.label).toBe('Tầng 1');
+    });
+  });
+
+  it('người xem + 404 upload: rỗng, không nút nào', async () => {
+    const harness = createHarness({
+      assessResults: [failure(wireError(404, 'NOT_FOUND', { resource: 'upload' }))],
+    });
+    const mounted = mountHook(harness, { roles: ['viewer'] });
+
+    await ready(mounted);
+
+    const { model } = mounted.result.current;
+
+    expect(model.status).toBe('empty');
+    expect(model.noDrawingNotice).not.toBeNull();
+    expect(model.footer.areActionsHidden).toBe(true);
+    expect(model.findings).toEqual([]);
   });
 });

@@ -778,10 +778,6 @@
       "noFloor": "Dự án chưa có tầng nào tải bản vẽ lên, nên chưa có gì để đo.",
       "loadFailureFallback": "Không đọc được kết quả kiểm tra chất lượng của bản vẽ này."
     },
-    "toast": {
-      "straightened": "Đã nắn thẳng bản vẽ",
-      "corners": "Đã gửi bốn góc khung bản vẽ"
-    },
     "announce": {
       "floorChanged": "Đang xem bản vẽ tầng {{floorName}}"
     },
