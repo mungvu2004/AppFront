@@ -215,6 +215,11 @@ export const ENDPOINTS = {
     straighten: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality/straighten`,
   },
+  /** N21 đọc, N22 thay trọn `overrides` (`PUT {baseVersion, body}`) — cấu hình bộ luật của dự án. */
+  ruleConfig: {
+    read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rule-config`,
+    replace: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rule-config`,
+  },
   spatial: {
     floor: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial`,

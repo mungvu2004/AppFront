@@ -637,3 +637,36 @@ describe('api client', () => {
     });
   });
 });
+
+describe('ruleConfig (N21, N22 — F-10)', () => {
+  const wireConfig = {
+    overrides: { GENERAL: { thresholds: { 'general.jointToleranceMm': 25 } }, 'WALL-THICKNESS': { enabled: false } },
+    revision: 4,
+  };
+
+  it('read GETs /projects/{id}/rule-config and decodes ProjectRuleConfigSchema', async () => {
+    const http = createHttpMock({ [`GET ${ENDPOINTS.ruleConfig.read('project-1')}`]: wireConfig });
+
+    const result = await createApiClient(http).ruleConfig.read({ projectId: 'project-1' });
+
+    expect(ENDPOINTS.ruleConfig.read('project-1')).toBe('/projects/project-1/rule-config');
+    expect(http.get).toHaveBeenCalledWith('/projects/project-1/rule-config', undefined);
+    expect(result).toEqual({ data: wireConfig, ok: true });
+  });
+
+  it('replace PUTs {baseVersion, body: {overrides}} on the same path', async () => {
+    const http = createHttpMock({ [`PUT ${ENDPOINTS.ruleConfig.replace('project-1')}`]: { ...wireConfig, revision: 5 } });
+
+    const result = await createApiClient(http).ruleConfig.replace({
+      baseVersion: 4,
+      body: { overrides: wireConfig.overrides },
+      projectId: 'project-1',
+    });
+
+    expect(http.put).toHaveBeenCalledWith(
+      '/projects/project-1/rule-config',
+      expect.objectContaining({ body: { baseVersion: 4, body: { overrides: wireConfig.overrides } } }),
+    );
+    expect(result).toEqual({ data: { ...wireConfig, revision: 5 }, ok: true });
+  });
+});

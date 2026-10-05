@@ -7,6 +7,7 @@ import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type { LevelId } from '@/domain/spatial/types';
 import type { ProjectSettings } from '../schemas/projectSettings';
 import type { ProjectSummary } from '../schemas/projectSummaries';
+import type { ProjectRuleConfig } from '../schemas/ruleConfig';
 import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
   AdminUser,
@@ -1216,6 +1217,8 @@ export const createMockApiClient = (): ApiClient => {
   let notifications: Notification[] = MOCK_NOTIFICATIONS.map(clone);
   let summaries: ProjectSummary[] = MOCK_PROJECT_SUMMARIES.map(clone);
   const mockSettings = new Map<string, ProjectSettings>();
+  /** N21/N22 theo dự án, sống trong một lượt `createMockApiClient()`; chưa lưu → `{ revision: 0, overrides: {} }`. */
+  const mockRuleConfigs = new Map<string, ProjectRuleConfig>();
 
   const readNotification = (notificationId: string): Notification | undefined =>
     notifications.find((candidate) => candidate.id === notificationId);
@@ -1538,6 +1541,38 @@ export const createMockApiClient = (): ApiClient => {
         });
 
         return ok(readAssessment(projectId, floorId));
+      },
+    },
+    ruleConfig: {
+      read: async ({ projectId }) => ok(clone(mockRuleConfigs.get(projectId) ?? { overrides: {}, revision: 0 })),
+      replace: async ({ baseVersion, body, projectId }) => {
+        const revision = mockRuleConfigs.get(projectId)?.revision ?? 0;
+
+        if (baseVersion !== revision) {
+          return failed(
+            mockWireError(409, 'VERSION_CONFLICT', `req-rule-config-${projectId}`, {
+              currentVersion: revision,
+              remoteChanges: [],
+            }),
+          );
+        }
+
+        // Thân gửi cho phép khoá mang `undefined`; bản lưu thì vắng là vắng (`exactOptionalPropertyTypes`).
+        const overrides = Object.fromEntries(
+          Object.entries(body.overrides).map(([code, { enabled, severity, thresholds }]) => [
+            code,
+            {
+              ...(enabled !== undefined ? { enabled } : {}),
+              ...(severity !== undefined ? { severity } : {}),
+              ...(thresholds !== undefined ? { thresholds: { ...thresholds } } : {}),
+            },
+          ]),
+        );
+        const next: ProjectRuleConfig = { overrides, revision: revision + 1 };
+
+        mockRuleConfigs.set(projectId, next);
+
+        return ok(clone(next));
       },
     },
     spatial: {
