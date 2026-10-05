@@ -443,6 +443,12 @@ export function useInputQualityGate(
   const [writeError, setWriteError] = useState<string | null>(null);
   const [isRereading, setRereading] = useState(false);
   const writeFailureRef = useRef<WriteFailureSentence | null>(null);
+  // Lượt ghi của dự án cũ xong muộn thì không được chạm state của dự án mới.
+  const projectIdRef = useRef(projectId);
+
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
 
   // Đổi dự án thì mọi state theo tầng và theo lượt ghi của dự án cũ phải bỏ.
   const [stateProjectId, setStateProjectId] = useState(projectId);
@@ -625,7 +631,11 @@ export function useInputQualityGate(
   const isWriteLocked = isWriting || isRereading;
 
   /** Một lượt ghi đã xong: đóng hộp thoại, mở thanh so sánh, nói cho trình đọc. Không vé. */
-  const finishWrite = useCallback((message: string) => {
+  const finishWrite = useCallback((message: string, writeProjectId: string) => {
+    if (projectIdRef.current !== writeProjectId) {
+      return;
+    }
+
     setPendingWrite(null);
     setComparison(true);
     getAppAnnouncer().announce(message);
@@ -633,13 +643,18 @@ export function useInputQualityGate(
 
   /** Một lượt ghi hỏng: hiện câu lỗi đã phân loại ở `callServer`, đọc lại nếu cần. */
   const failWrite = useCallback(
-    (floorId: string) => {
+    (floorId: string, writeProjectId: string) => {
       const failure = writeFailureRef.current ?? {
         sentence: COPY.writeFailureFallback,
         reread: false,
       };
 
       writeFailureRef.current = null;
+
+      if (projectIdRef.current !== writeProjectId) {
+        return;
+      }
+
       setPendingWrite(null);
       setWriteError(failure.sentence);
       getAppAnnouncer().announce(failure.sentence);
@@ -1141,6 +1156,7 @@ export function useInputQualityGate(
     }
 
     const floorId = activeFloorId;
+    const writeProjectId = projectId;
 
     setWriteError(null);
     writeFailureRef.current = null;
@@ -1149,8 +1165,8 @@ export function useInputQualityGate(
       straightenMutation.mutate(
         { floorId, findingIds: findingIdsForCodes(['SKEW_DETECTED']) },
         {
-          onSuccess: () => finishWrite(COPY.straightenedAnnouncement),
-          onError: () => failWrite(floorId),
+          onSuccess: () => finishWrite(COPY.straightenedAnnouncement, writeProjectId),
+          onError: () => failWrite(floorId, writeProjectId),
         },
       );
 
@@ -1167,11 +1183,15 @@ export function useInputQualityGate(
       { floorId, body, findingIds: findingIdsForCodes(['FRAME_NOT_FOUND']) },
       {
         onSuccess: () => {
+          if (projectIdRef.current !== writeProjectId) {
+            return;
+          }
+
           setPickingCorners(false);
           setDraftCorners(null);
-          finishWrite(COPY.cornersAnnouncement);
+          finishWrite(COPY.cornersAnnouncement, writeProjectId);
         },
-        onError: () => failWrite(floorId),
+        onError: () => failWrite(floorId, writeProjectId),
       },
     );
   }, [
@@ -1184,6 +1204,7 @@ export function useInputQualityGate(
     finishWrite,
     isWriteLocked,
     pendingWrite,
+    projectId,
     straightenMutation,
   ]);
 

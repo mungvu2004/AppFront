@@ -110,7 +110,6 @@ export interface InputQualityGateway {
   readonly describeWriteFailure: (error: unknown) => WriteFailureSentence;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* Cửa vào.                                                                    */
 /* -------------------------------------------------------------------------- */

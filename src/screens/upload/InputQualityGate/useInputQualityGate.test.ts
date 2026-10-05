@@ -652,6 +652,41 @@ describe('useInputQualityGate — vòng sửa review 1', () => {
     });
   });
 
+  it('lượt ghi của dự án cũ hỏng sau khi đổi dự án: không đặt lỗi lên dự án mới', async () => {
+    let release: () => void = () => undefined;
+    const harness = createHarness();
+    const mounted = mountHook(harness);
+
+    await ready(mounted);
+    await unlocked(mounted);
+
+    harness.straighten.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+
+      return failure(wireError(422, 'QUALITY_LAYER_REVIEWED'));
+    });
+
+    act(() => mounted.result.current.actions.onStraighten());
+    act(() => mounted.result.current.actions.onConfirmWrite());
+    await waitFor(() => {
+      expect(mounted.result.current.model.confirm?.isBusy).toBe(true);
+    });
+
+    mounted.rerender({ projectId: 'project-2' });
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(harness.straighten).toHaveBeenCalledTimes(1);
+    });
+    await ready(mounted);
+
+    expect(mounted.result.current.model.writeError).toBeNull();
+  });
+
   it('người xem + 404 upload: rỗng, không nút nào', async () => {
     const harness = createHarness({
       assessResults: [failure(wireError(404, 'NOT_FOUND', { resource: 'upload' }))],
