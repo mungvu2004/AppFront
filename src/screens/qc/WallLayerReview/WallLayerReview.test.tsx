@@ -205,7 +205,7 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
 describe('dải lưu lớp (F-04x-1)', () => {
   const RELOAD_MESSAGE = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
 
-  it('xung đột: dải chú ý + "Tải lại", ngoài canvas; A9 hỏi trước khi bỏ sửa', () => {
+  it('xung đột: dải chú ý + "Tải lại", ngoài canvas; A9 hỏi trước khi bỏ sửa', async () => {
     const onReload = vi.fn();
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
@@ -227,7 +227,7 @@ describe('dải lưu lớp (F-04x-1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(onReload).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' }, { timeout: 5000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));

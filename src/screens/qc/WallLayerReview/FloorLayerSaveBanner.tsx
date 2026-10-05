@@ -7,9 +7,12 @@
  * Đặt ngoài canvas, trong khối nội dung của màn.
  */
 
+import { lazy, Suspense } from 'react';
+
 import { InlineAlert } from '@/components/feedback/InlineAlert';
-import { Modal } from '@/components/overlay/Modal';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
+
+const FloorLayerSaveConfirm = lazy(() => import('./FloorLayerSaveConfirm'));
 
 export interface FloorLayerSaveBannerProps {
   readonly saveBlock: FloorLayerSaveBlock | null;
@@ -34,15 +37,9 @@ export function FloorLayerSaveBanner({ saveBlock }: FloorLayerSaveBannerProps) {
         {...(onReload === undefined ? {} : { action: { label: 'Tải lại', onClick: onReload } })}
       />
       {confirm !== null && (
-        <Modal
-          isOpen={confirm.open}
-          onClose={confirm.onCancel}
-          primaryAction={{ label: 'Tải lại và bỏ thay đổi', onClick: confirm.onConfirm }}
-          secondaryAction={{ label: 'Huỷ', onClick: confirm.onCancel }}
-          title="Bỏ thay đổi chưa lưu của tầng này?"
-        >
-          Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.
-        </Modal>
+        <Suspense fallback={null}>
+          <FloorLayerSaveConfirm confirm={confirm} />
+        </Suspense>
       )}
     </>
   );
