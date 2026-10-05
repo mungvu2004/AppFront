@@ -12,7 +12,8 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
  *
  * - AC-1: tự lưu bằng **đồng hồ thật** (đơn vị `AccountSettings.test.tsx:194` dùng
  *   đồng hồ giả).
- * - AC-2: `Esc` qua sổ phím thật đóng hộp thoại xoá tài khoản và **trả focus** về nút gọi.
+ * - AC-2: phiên đăng nhập và xoá tài khoản là v2 — F-09b [4.4] tắt chúng bằng cờ năng lực,
+ *   và khối [9] buộc hai khối **rời DOM** (không `disabled`, không `forbidden`).
  * - F3: sửa hồ sơ có toast hoàn tác đưa giá trị cũ trở lại (A8, B-V12b-03).
  *
  * Dữ liệu là bộ nhớ của module (`accountSettingsGateway.ts`), không có endpoint để
@@ -74,21 +75,13 @@ test('AC-1 sửa họ tên: báo "chờ đồng bộ" ngay, tự lưu sau ≥ 80
   await expect(page.getByLabel('họ tên')).toHaveValue(NAME);
 });
 
-test('AC-2 hộp thoại xoá tài khoản: Esc đóng đúng nó, URL giữ, focus về nút gọi (A9, A12)', async ({ page }) => {
-  const opener = page.getByRole('button', { name: 'Xoá tài khoản', exact: true });
-  await opener.click();
+test('AC-2 phiên đăng nhập và vùng nguy hiểm vắng khỏi DOM khi năng lực tắt (F-09b [4.4], [9])', async ({ page }) => {
+  // Mốc: khối mật khẩu (N13, có dây ở v1) đã vẽ thì cả trang đã qua lượt tải.
+  await expect(page.getByRole('region', { name: 'mật khẩu' })).toBeVisible();
 
-  const dialog = page.getByRole('dialog', { name: 'Xoá tài khoản này?' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Xoá vĩnh viễn' })).toBeDisabled();
-  // Bẫy focus bật ở khung hình kế tiếp; Esc gửi trước đó thì không có gì để trả về.
-  await expect(dialog.locator(':focus')).toHaveCount(1);
-
-  await page.keyboard.press('Escape');
-
-  await expect(dialog).toBeHidden();
-  expect(new URL(page.url()).pathname).toBe(ROUTES.account);
-  await expect(opener).toBeFocused();
+  await expect(page.getByRole('region', { name: 'phiên đăng nhập' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'vùng nguy hiểm' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xoá tài khoản', exact: true })).toHaveCount(0);
 });
 
 /*
