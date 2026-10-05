@@ -569,7 +569,7 @@ test('bấm chuột trong khung nhìn chọn được một đối tượng (R1)
  *
  * Nút ảnh đại diện chỉ ~36 px nép mép phải, nhưng khung chứa nó rộng 280 px và
  * nằm dưới ViewCube + bản đồ nhỏ — giữa mô hình. Một khung `pointer-events-auto`
- * ở đó là vùng chết vô hình. Điểm đo: giữa khung, cách mép phải 150 px, ngay
+ * ở đó là vùng chết vô hình. Điểm đo: tâm hộp của khung (lấy từ DOM), ngay
  * dưới dòng `top-[216px]` — không có gì được vẽ ở đó, nên thứ nhận chuột phải là
  * khung nhìn 3D (`canvas`).
  */
@@ -579,8 +579,14 @@ test('thanh hiện diện không nuốt chuột của mô hình ở vùng khung 
   const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
   expect(box).not.toBeNull();
 
-  const x = box!.x + box!.width - PRESENCE_FRAME_PROBE_X_PX;
-  const y = box!.y + PRESENCE_FRAME_PROBE_Y_PX;
+  /* Lấy hộp của khung từ DOM rồi mới đo: khung đổi chỗ thì điểm dò đi theo. */
+  const frame = await page.locator('div.pointer-events-none.absolute[class*="w-[280px]"]').boundingBox();
+  expect(frame).not.toBeNull();
+
+  const x = frame!.x + frame!.width / 2;
+  const y = frame!.y + frame!.height / 2;
+  expect(x).toBeGreaterThan(box!.x);
+  expect(y).toBeGreaterThan(box!.y);
   const hit = await page.evaluate(
     ([px, py]) => document.elementFromPoint(px ?? 0, py ?? 0)?.tagName ?? null,
     [x, y],
@@ -588,9 +594,6 @@ test('thanh hiện diện không nuốt chuột của mô hình ở vùng khung 
 
   expect(hit).toBe('CANVAS');
 });
-
-const PRESENCE_FRAME_PROBE_X_PX = 150;
-const PRESENCE_FRAME_PROBE_Y_PX = 234;
 
 /**
  * Nửa còn lại của cùng một mắt xích: **vai chỉ-xem thì cú bấm ấy KHÔNG chọn gì.**

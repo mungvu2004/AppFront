@@ -146,7 +146,10 @@ export function ViewerShellContainer(props: ViewerShellContainerProps) {
       screenId={VIEWER_SHELL_SCREEN_ID}
     >
       <WiredViewerShell {...props} />
-      <EditorTourContainer hostId="viewer-shell" />
+      <EditorTourContainer
+        chipAnchorClassName="bottom-[16px] left-1/2 -translate-x-1/2"
+        hostId="viewer-shell"
+      />
     </ScreenErrorBoundary>
   );
 }

@@ -189,7 +189,7 @@ function PresenceRoster({ collaborators, canGoTo, onGoToCollaborator }: Presence
   return (
     <motion.ul
       aria-label={ROSTER_LIST_LABEL}
-      className="flex w-full flex-col gap-2 rounded-md bg-bg-surface p-2 shadow-overlay"
+      className="pointer-events-auto flex w-full flex-col gap-2 rounded-md bg-bg-surface p-2 shadow-overlay"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: durationSeconds('fast'), ease: EXIT_EASE } }}
@@ -348,13 +348,11 @@ export function CollaborationLayer({
 
         <AnimatePresence>
           {isRosterOpen && (
-            <div className="pointer-events-auto">
-              <PresenceRoster
-                collaborators={visibleCollaborators}
-                canGoTo={capabilities.presence}
-                onGoToCollaborator={onGoToCollaborator}
-              />
-            </div>
+            <PresenceRoster
+              collaborators={visibleCollaborators}
+              canGoTo={capabilities.presence}
+              onGoToCollaborator={onGoToCollaborator}
+            />
           )}
         </AnimatePresence>
 
