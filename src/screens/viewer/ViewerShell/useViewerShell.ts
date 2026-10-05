@@ -77,6 +77,8 @@ import {
 import { boxOfExtent, frameViewpoint } from '@/lib/three/camera/frameObjects';
 import {
   createCameraMode,
+  FlatCameraMode,
+  OrbitCameraMode,
   type BuildingExtent,
   type CameraMode,
   type Viewpoint,
@@ -788,8 +790,13 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     (notches: number): void => {
       const controller = director.controller;
 
-      if ('dolly' in controller) {
-        (controller as { dolly: (n: number) => void }).dolly(notches * DOLLY_NOTCH);
+      // Góc nhìn phẳng (Trên xuống, mặt cắt, mặt đứng) thu phóng bằng `zoom`, không phải `dolly`:
+      // bỏ nhánh này thì lăn chuột và nút +/− chết ở mọi góc nhìn phẳng.
+      if (controller instanceof FlatCameraMode) {
+        controller.zoom(notches * DOLLY_NOTCH);
+        wake();
+      } else if (controller instanceof OrbitCameraMode) {
+        controller.dolly(notches * DOLLY_NOTCH);
         wake();
       }
     },

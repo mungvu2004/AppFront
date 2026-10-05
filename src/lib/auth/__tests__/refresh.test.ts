@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RETRY_MIN_DELAY_MS, __resetLastKnownUserForTests } from '../bootstrap';
-import { REFRESH_MAX_TRANSIENT_ATTEMPTS } from '../refresh';
+import { REFRESH_LEAD_TIME_MS, REFRESH_MAX_TRANSIENT_ATTEMPTS } from '../refresh';
 import {
   AUTH_SIGNED_IN_EVENT,
   AUTH_SIGNED_OUT_EVENT,
@@ -635,6 +635,35 @@ describe('src/lib/auth/refresh', () => {
 
     // Không hiệu chỉnh đồng hồ thì hạn còn lại đọc ra 60 giây và lịch hẹn quay vòng.
     expect(calls.mock.calls).toHaveLength(1);
+  });
+
+  /**
+   * NO-209: thân chỉ có `expiresIn` thì `expiresAt` phải dựng trên CÙNG gốc giờ
+   * với lịch hẹn — đồng hồ máy chủ. Dựng trên đồng hồ cục bộ nhanh chín phút thì
+   * quãng đời đọc ra dài thêm chín phút, và lượt gia hạn tới khi token đã chết.
+   */
+  it('reads expiresIn against the server clock too', async () => {
+    const skewedFetch: AuthFetch = async () => {
+      const serverNow = Date.now() - 540_000;
+
+      return makeJsonResponse(
+        {
+          accessToken: 'token-skew',
+          expiresIn: 600,
+          roles: ['engineer'],
+          user: { id: 'u1' },
+        },
+        { headers: { Date: new Date(serverNow).toUTCString() } },
+      );
+    };
+    const calls = vi.fn(skewedFetch);
+    configure(calls);
+
+    await bootstrapSession();
+    await vi.advanceTimersByTimeAsync(600_000 - REFRESH_LEAD_TIME_MS);
+
+    // Token sống 600 giây theo máy chủ: lượt gia hạn phải tới trước lúc nó chết.
+    expect(calls.mock.calls).toHaveLength(2);
   });
 
   /* ---------------------------------------------------------------- 2.4 -- */

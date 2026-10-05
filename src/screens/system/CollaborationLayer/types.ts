@@ -159,6 +159,15 @@ export interface CollaborationLayerProps {
   /** Panel xung đột hoãn lại được — và **không bao giờ là hộp thoại**. */
   readonly onDeferConflict: () => void;
   readonly onFrameComment: (commentId: string) => void;
+  /**
+   * Lớp Tailwind định vị THANH HIỆN DIỆN khi góc mặc định `right-4 top-4` đã có chủ.
+   *
+   * Lớp phủ này gắn được vào bất cứ màn nào nên không biết màn chủ có gì ở góc nào;
+   * màn chủ thì biết. `Viewer3D` đặt ViewCube (72 px) ở `right-2 top-2`, nút ảnh đại
+   * diện 36 px rơi trọn vào trong ô ấy ở `Z_INDEX.panel` nên ViewCube không bấm được
+   * (`e2e/viewer3d.spec.ts` P2, `subtree intercepts pointer events`).
+   */
+  readonly presenceAnchorClassName?: string;
 }
 
 /** Cổng dữ liệu. Hook gọi cổng; view không biết cổng tồn tại. */

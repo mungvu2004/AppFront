@@ -356,9 +356,15 @@ const runQuietly = async (task: () => void | Promise<void>): Promise<void> => {
   }
 };
 
+/**
+ * `now` đưa cho bộ đọc là giờ MÁY CHỦ (giờ cục bộ cộng `serverOffsetMs`) — cùng
+ * gốc với `remainingMs` của lịch hẹn. Thân chỉ có `expiresIn` thì `expiresAt`
+ * dựng trên gốc này; dựng trên giờ cục bộ thì đồng hồ lệch bao nhiêu, quãng đời
+ * token đọc sai bấy nhiêu (NO-209). Thân có `expiresAt` thì `now` không được đọc.
+ */
 const readRefreshPayload = async (response: Response): Promise<RefreshSessionPayload> => {
   const config = getAuthConfig();
-  return config.parseRefreshResponse(response, config.now());
+  return config.parseRefreshResponse(response, config.now() + serverOffsetMs);
 };
 
 export const defaultParseRefreshResponse = async (

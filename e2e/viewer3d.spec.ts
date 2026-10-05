@@ -230,34 +230,32 @@ async function signInThenOpenViewer(
  * Chữa được: lớp "đang dựng mô hình" — đo trước/sau, P2 đổi từ bị lớp ấy chặn
  * sang qua được nó.
  *
- * KHÔNG chữa được, và đừng tưởng là nó chữa:
- * - **P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ
- *   (`<span aria-label="Người dùng thử">`, đến từ `src/api/__mocks__/client.ts:320`).
- * - **Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong,
- *   trong lúc `findOneRoom` đang chạy. Không phải sai cách đóng: `handleSkip`
- *   (`src/screens/system/EditorTour/useEditorTour.ts:555`) đóng tour hẳn cả
- *   phiên, nên một cú bấm là đủ — vấn đề là THỜI ĐIỂM.
- *
- * Gốc rễ chung: mục 4.10 bật bộ mẫu cho e2e, biến mỗi lượt thành "người dùng
- * lần đầu có bạn cộng tác giả". Bộ spec này viết cho máy chủ KHÔNG mock và
- * chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt riêng, không phải
- * của F-01b. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ * Hai bài từng đỏ ở mục này đã được chữa ở mã sản phẩm (NO-208):
+ * - **P2** không phải do con trỏ của người cộng tác giả: nút ảnh đại diện của chính
+ *   bạn nằm trọn trong ô ViewCube. Chữa ở `Viewer3DOverlays.tsx` (`PRESENCE_ANCHOR`).
+ * - **Q2**: tour hiện trễ vì `useEditorTour` dò neo DOM lúc render, trước khi các
+ *   anh em của nó có mặt. Hook nay dò lại sau commit nên tour hiện NGAY khi mở màn,
+ *   và {@link dismissTour} chỉ cần một lần.
  */
 async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
   await expect(building).toHaveCount(0, { timeout: VIEWER_READY_TIMEOUT_MS });
 
-  const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
-  await skip
+  await dismissTour(page);
+}
+
+/**
+ * Đóng lớp hướng dẫn bằng đúng nút "bỏ qua" của người dùng.
+ *
+ * Mỗi bài chạy trong một ngữ cảnh mới, tức người dùng lần đầu, nên tour PHẢI hiện:
+ * chờ nó hiện (không nuốt lỗi — tour không hiện là lỗi sản phẩm cần thấy), bấm
+ * một lần, rồi chờ lớp phủ tan hẳn.
+ */
+async function dismissTour(page: Page): Promise<void> {
+  await page
+    .getByRole('button', { name: 'bỏ qua', exact: true })
     .first()
-    .waitFor({ state: 'visible', timeout: VIEWER_READY_TIMEOUT_MS })
-    .catch(() => undefined);
-
-  if ((await skip.count()) === 0) {
-    return;
-  }
-
-  await skip.first().click();
+    .click({ timeout: VIEWER_READY_TIMEOUT_MS });
 
   /* Chờ lớp phủ biến mất HẲN — bấm tiếp lúc nó còn đang tan là bấm vào nó. */
   await expect(page.locator('div.pointer-events-auto.fixed.bg-bg-overlay')).toHaveCount(0);
@@ -366,9 +364,18 @@ async function stepRotate(page: Page): Promise<void> {
 /**
  * Việc 2 — thu phóng.
  *
- * Lăn chuột trong khung nhìn, rồi khẳng định mức thu phóng ĐÃ LỚN HƠN. Nhãn ấy
- * do `useViewerShell` định dạng sẵn (A15), nên nó là đầu ra thật của camera chứ
- * không phải một chuỗi màn hình tự bịa.
+ * Lăn chuột VÀO trong khung nhìn, rồi khẳng định mức thu phóng ĐÃ LỚN HƠN. Nhãn
+ * ấy do `useViewerShell` định dạng sẵn (A15), nên nó là đầu ra thật của camera
+ * chứ không phải một chuỗi màn hình tự bịa.
+ *
+ * Hai điều đo được ngày 2026-10-05 (NO-208), vì sao bài này đỏ 4/5 lượt khi chạy
+ * cùng bài khác:
+ * - Camera mở đầu bằng một đoạn chạy về khuôn hình chuẩn, nhãn tự leo lên mức
+ *   chuẩn không cần lăn chuột. Bài cũ đọc `before` giữa đoạn chạy ấy: xanh vì sai
+ *   lý do khi đoạn chạy còn dở, đỏ khi nó đã xong. Nay chờ nhãn yên rồi mới đo.
+ * - Sau bước "quay" (preset "Trên xuống", camera phẳng) cú lăn chuột từng không
+ *   đổi nhãn vì `onViewportWheel` chỉ biết `dolly`; nay gọi `zoom` cho góc nhìn phẳng,
+ *   nên bước này chạy đúng thứ tự gốc: SAU bước quay.
  */
 async function stepZoom(page: Page): Promise<void> {
   const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
@@ -377,7 +384,21 @@ async function stepZoom(page: Page): Promise<void> {
   expect(box).not.toBeNull();
 
   const label = zoomLabel(page);
-  const before = percentOf((await label.innerText()).trim());
+  const read = async (): Promise<number> => percentOf((await label.innerText()).trim());
+
+  /* Yên = hai lần đọc liên tiếp, cách nhau ZOOM_SETTLE_MS, bằng nhau. */
+  let before = await read();
+  await expect
+    .poll(
+      async () => {
+        const previous = before;
+        before = await read();
+
+        return before === previous;
+      },
+      { intervals: [ZOOM_SETTLE_MS] },
+    )
+    .toBe(true);
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
@@ -385,10 +406,11 @@ async function stepZoom(page: Page): Promise<void> {
     await page.mouse.wheel(0, -WHEEL_DELTA_PX);
   }
 
-  await expect
-    .poll(async () => percentOf((await label.innerText()).trim()))
-    .toBeGreaterThan(before);
+  await expect.poll(read).toBeGreaterThan(before);
 }
+
+/** Khoảng đọc lại nhãn thu phóng để biết camera đã yên. */
+const ZOOM_SETTLE_MS = 400;
 
 /**
  * Việc 3 — chọn một tầng từ ray tầng.
@@ -564,6 +586,37 @@ test('bấm chuột trong khung nhìn chọn được một đối tượng (R1)
     await expect(inspector).toContainText(/(phòng|tường) [A-Z]-[A-Z0-9]+/u);
     await expect(inspector).toContainText('mã đối tượng');
   });
+});
+
+/**
+ * NO-208 — **khung 280 px của thanh hiện diện không nuốt chuột ở chỗ nó không vẽ gì.**
+ *
+ * Nút ảnh đại diện chỉ ~36 px nép mép phải, nhưng khung chứa nó rộng 280 px và
+ * nằm dưới ViewCube + bản đồ nhỏ — giữa mô hình. Một khung `pointer-events-auto`
+ * ở đó là vùng chết vô hình. Điểm đo: tâm hộp của khung (lấy từ DOM), ngay
+ * dưới dòng `top-[216px]` — không có gì được vẽ ở đó, nên thứ nhận chuột phải là
+ * khung nhìn 3D (`canvas`).
+ */
+test('thanh hiện diện không nuốt chuột của mô hình ở vùng khung rỗng (NO-208)', async ({ page }) => {
+  await openViewer(page);
+
+  const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
+  expect(box).not.toBeNull();
+
+  /* Lấy hộp của khung từ DOM rồi mới đo: khung đổi chỗ thì điểm dò đi theo. */
+  const frame = await page.locator('div.pointer-events-none.absolute[class*="w-[280px]"]').boundingBox();
+  expect(frame).not.toBeNull();
+
+  const x = frame!.x + frame!.width / 2;
+  const y = frame!.y + frame!.height / 2;
+  expect(x).toBeGreaterThan(box!.x);
+  expect(y).toBeGreaterThan(box!.y);
+  const hit = await page.evaluate(
+    ([px, py]) => document.elementFromPoint(px ?? 0, py ?? 0)?.tagName ?? null,
+    [x, y],
+  );
+
+  expect(hit).toBe('CANVAS');
 });
 
 /**

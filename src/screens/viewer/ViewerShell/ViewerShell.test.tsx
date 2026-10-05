@@ -28,7 +28,15 @@
  */
 
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  within,
+} from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +44,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { millimetres } from '@/domain/units/types';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
+import { FlatCameraMode } from '@/lib/three/camera/modes';
 import { CameraDirector } from '@/lib/three/camera/presets';
 import { toSceneLength } from '@/lib/three/build/scene';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -686,7 +695,9 @@ describe('[VS-12] sceneActions.frameStorey tới màn nội dung', () => {
       </QueryClientProvider>,
     );
 
-    console.log(`[VIEWER-SHELL][VS-12] frameStorey tới màn nội dung = ${typeof captured.actions?.frameStorey}`);
+    console.log(
+      `[VIEWER-SHELL][VS-12] frameStorey tới màn nội dung = ${typeof captured.actions?.frameStorey}`,
+    );
 
     expect(typeof captured.actions?.frameStorey).toBe('function');
 
@@ -820,5 +831,105 @@ describe('[VS-DG] cổng mặc định theo chế độ mock', () => {
     expect(defaultViewerShellGateway(true).readShellData()).toEqual(
       shellDataOf(VIEWER_FIXTURE_SPATIAL),
     );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* NO-208 — thu phóng ở góc nhìn phẳng.                                        */
+/* -------------------------------------------------------------------------- */
+
+describe('thu phóng ở góc nhìn phẳng (Trên xuống)', () => {
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    // Giảm chuyển động: `goTo` hoàn tất ngay, camera vào chế độ phẳng trong lượt gọi.
+    originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === REDUCED_MOTION_QUERY,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  function renderTopView() {
+    const queryClient = createTestQueryClient();
+    const hook = renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+
+    const controllerSpy = vi.spyOn(CameraDirector.prototype, 'controller', 'get');
+
+    act(() => {
+      hook.result.current.onCubeFaceSelect('top');
+    });
+
+    // Tiền đề của cả hai bài: thật sự đang ở góc nhìn phẳng, không phải orbit.
+    expect(hook.result.current.activePresetId).toBe('top');
+    act(() => {
+      hook.result.current.onViewportWheel(0);
+    });
+    expect(controllerSpy.mock.results.at(-1)?.value).toBeInstanceOf(FlatCameraMode);
+
+    return {
+      ...hook,
+      unmount: (): void => {
+        controllerSpy.mockRestore();
+        hook.unmount();
+      },
+    };
+  }
+
+  const percent = (label: string): number => Number(label.replace('%', '').replace(',', '.'));
+
+  it('nút + đổi mức thu phóng và nhãn %', () => {
+    const { result, unmount } = renderTopView();
+    const before = percent(result.current.zoomLabel);
+
+    act(() => {
+      result.current.onZoomIn();
+    });
+
+    expect(percent(result.current.zoomLabel)).toBeGreaterThan(before);
+    unmount();
+  });
+
+  it('cuộn chuột vào/ra đổi nhãn đúng chiều', () => {
+    const { result, unmount } = renderTopView();
+    const start = percent(result.current.zoomLabel);
+
+    act(() => {
+      result.current.onViewportWheel(-3);
+    });
+    const zoomedIn = percent(result.current.zoomLabel);
+
+    act(() => {
+      result.current.onViewportWheel(3);
+    });
+
+    expect(zoomedIn).toBeGreaterThan(start);
+    expect(percent(result.current.zoomLabel)).toBeLessThan(zoomedIn);
+    unmount();
   });
 });

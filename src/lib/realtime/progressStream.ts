@@ -38,6 +38,13 @@ export interface CreateProgressStreamOptions<TPatch extends object = Progress> {
   lastEventId?: string;
   onStateChange?: (state: ProgressStreamState) => void;
   random?: () => number;
+  /**
+   * Cookie luồng hết hạn (NO-154) thì SSE chỉ thấy lỗi lặp, không thấy 401. Mỗi chuỗi
+   * SSE chết gọi hàm này MỘT lần — chốt sống ở luồng, không ở kênh, vì kênh bị dựng lại
+   * mỗi `SSE_RETRY_INTERVAL_MS` — và chỉ mở lại khi có một lượt nối thành công. Trả
+   * `true` thì thử SSE ngay thay vì chờ. Bỏ trống: hành vi không đổi.
+   */
+  refreshAuth?: () => Promise<boolean>;
   since?: number;
   toSseEvent?: (event: ChannelEvent) => ProgressPatchEvent<TPatch>;
   visibilityTarget?: PollingVisibilityTarget;
@@ -67,6 +74,7 @@ export function createProgressStream<TPatch extends object = Progress>({
   onEvent,
   onStateChange,
   random,
+  refreshAuth,
   since,
   toSseEvent = toDefaultSseEvent as (event: ChannelEvent) => ProgressPatchEvent<TPatch>,
   url,
@@ -81,6 +89,7 @@ export function createProgressStream<TPatch extends object = Progress>({
   let retryTimer: TimerId | null = null;
   let source: ProgressStreamSource = 'sse';
   let sseFailures = 0;
+  let refreshedSinceOpen = false;
   let sseHandle: EventChannelHandle | null = null;
 
   function clearRetryTimer(): void {
@@ -181,6 +190,18 @@ export function createProgressStream<TPatch extends object = Progress>({
     scheduleSseRetry();
   }
 
+  function refreshThenRetrySse(): void {
+    if (refreshAuth === undefined || refreshedSinceOpen) return;
+
+    refreshedSinceOpen = true;
+    void refreshAuth().then(
+      (ok) => {
+        if (ok && !closed && source === 'polling') startSse();
+      },
+      () => undefined,
+    );
+  }
+
   function startSse(): void {
     if (closed) return;
 
@@ -207,6 +228,7 @@ export function createProgressStream<TPatch extends object = Progress>({
 
         if (state.status === 'da-noi') {
           sseFailures = 0;
+          refreshedSinceOpen = false;
           return;
         }
 
@@ -218,6 +240,7 @@ export function createProgressStream<TPatch extends object = Progress>({
 
         if (sseFailures >= SSE_FAILURE_LIMIT) {
           startPolling();
+          refreshThenRetrySse();
         }
       },
       ...(random !== undefined ? { random } : {}),

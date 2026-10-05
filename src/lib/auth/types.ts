@@ -68,6 +68,11 @@ export interface AuthConfig {
   clearUserData: () => void | Promise<void>;
   fetchImpl: AuthFetch;
   logoutPath: string;
+  /**
+   * Đồng hồ CỤC BỘ. `refresh.ts` cộng `serverOffsetMs` (header `Date`) rồi mới đưa cho
+   * `parseRefreshResponse` — nên tham số `now` của bộ đọc là giờ MÁY CHỦ (NO-209):
+   * `expiresIn` dựng trên đúng gốc giờ ấy, không phải đồng hồ cục bộ.
+   */
   now: () => number;
   parseRefreshResponse: (response: Response, now: number) => Promise<RefreshSessionPayload>;
   refreshPath: string;
@@ -120,6 +125,7 @@ export interface ConfigureAuthOptions {
   fetchImpl?: AuthFetch;
   logoutPath?: string;
   now?: () => number;
+  /** `now` là giờ máy chủ (giờ cục bộ đã trừ lệch theo tiêu đề `Date`), không phải `Date.now()`. */
   parseRefreshResponse?: (response: Response, now: number) => Promise<RefreshSessionPayload>;
   refreshPath?: string;
 }

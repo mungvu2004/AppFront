@@ -64,6 +64,8 @@ export interface CollaborationLayerContainerProps extends UseCollaborationLayerO
    * ghi nào chuyển giao được khoá.
    */
   readonly onRequestEditAccess?: ((objectId: string) => void) | undefined;
+  /** Lớp Tailwind định vị thanh hiện diện — xem `CollaborationLayerProps`. */
+  readonly presenceAnchorClassName?: string | undefined;
 }
 
 /**
@@ -92,7 +94,7 @@ function CollaborationCrashFallback({ report, retry }: ScreenErrorFallback) {
 
 /** Hook và view — nối lại thành một lớp phủ đã sẵn sàng. */
 function WiredCollaborationLayer(props: CollaborationLayerContainerProps) {
-  const { onGoToCollaborator, onRequestEditAccess, ...options } = props;
+  const { onGoToCollaborator, onRequestEditAccess, presenceAnchorClassName, ...options } = props;
 
   const vm = useCollaborationLayer(options);
 
@@ -115,6 +117,7 @@ function WiredCollaborationLayer(props: CollaborationLayerContainerProps) {
       {...vm}
       onGoToCollaborator={goToCollaborator}
       onRequestEditAccess={requestEditAccess}
+      {...(presenceAnchorClassName === undefined ? {} : { presenceAnchorClassName })}
     />
   );
 }

@@ -119,6 +119,8 @@ export interface EditorTourProps {
   readonly summary: readonly TourSummaryRow[];
   /** Chip "xem hướng dẫn" — ở lại suốt phiên sau khi bỏ qua. */
   readonly isSkipChipVisible: boolean;
+  /** Lớp Tailwind định vị chip "xem hướng dẫn"; màn chủ nói góc nào đã có chủ. Mặc định góc trên phải. */
+  readonly chipAnchorClassName?: string | undefined;
   /** Câu cho trình đọc màn hình khi sang bước (vùng lịch sự). */
   readonly liveMessage: string;
   onNext(): void;
@@ -137,6 +139,8 @@ export interface EditorTourProps {
 export type UseEditorTourResult = EditorTourProps;
 
 export interface UseEditorTourOptions {
+  /** Lớp Tailwind định vị chip "xem hướng dẫn" — màn chủ biết góc nào đã có chủ. */
+  readonly chipAnchorClassName?: string | undefined;
   /** Ai đang xem. `null` = chưa đăng nhập: không đọc ghi cờ nào. */
   readonly userId?: string | null;
   /**
@@ -496,6 +500,50 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
 
   const droppedCount = allowed.length - steps.length;
 
+  // Neo dò bằng DOM lúc render, mà anh em của màn chủ (thanh công cụ, danh sách…)
+  // chỉ có mặt SAU commit đầu — nên lượt render đầu thấy "chưa có bước nào" và tour
+  // chỉ hiện ở một lượt render lại bất kỳ về sau (NO-208). Sau mỗi commit và mỗi lần
+  // DOM đổi, dò lại; chỉ render lại khi TẬP neo có mặt đổi.
+  const anchorKey = steps.map((step) => step.id).join('|');
+  const anchorKeyRef = useRef(anchorKey);
+  anchorKeyRef.current = anchorKey;
+  const [, setAnchorTick] = useState(0);
+  const allowedRef = useRef(allowed);
+  allowedRef.current = allowed;
+
+  useEffect(() => {
+    if (phase !== 'running' || typeof document === 'undefined') return undefined;
+
+    const probe = (): void => {
+      frame = 0;
+      const shortcutIds = new Set(registry.listShortcuts().map((entry) => entry.id));
+      const present = allowedRef.current
+        .filter(
+          (step) =>
+            (step.shortcutId !== null && shortcutIds.has(step.shortcutId)) ||
+            resolveAnchor(step.id) !== null,
+        )
+        .map((step) => step.id)
+        .join('|');
+      if (present !== anchorKeyRef.current) setAnchorTick((tick) => tick + 1);
+    };
+
+    // Gom mọi lô mutation trong một khung hình thành một lần dò.
+    let frame = 0;
+    const schedule = (): void => {
+      if (frame === 0) frame = requestAnimationFrame(probe);
+    };
+
+    probe();
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [phase, registry, resolveAnchor]);
+
   const storedIndex =
     activeStepId === null ? 0 : steps.findIndex((step) => step.id === activeStepId);
   const runningIndex = steps.length === 0 ? -1 : Math.max(0, storedIndex);
@@ -587,9 +635,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   );
 
   const activeDefinition =
-    activeStep === undefined
-      ? undefined
-      : TOUR_STEPS.find((step) => step.id === activeStep.id);
+    activeStep === undefined ? undefined : TOUR_STEPS.find((step) => step.id === activeStep.id);
   const activeBinding =
     activeDefinition?.shortcutId === undefined || activeDefinition.shortcutId === null
       ? undefined
@@ -640,6 +686,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     isReducedMotion,
     summary,
     isSkipChipVisible: hasSkipped,
+    chipAnchorClassName: options.chipAnchorClassName,
     liveMessage,
     onNext: handleNext,
     onSkip: handleSkip,

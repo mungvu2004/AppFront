@@ -148,6 +148,81 @@ describe('createProgressStream', () => {
     stream.close();
   });
 
+  /**
+   * NO-154: sau `bump_token_version` cookie luồng cũ nhận 401, mà `EventSource`
+   * không đọc được mã trạng thái — chỉ thấy lỗi lặp. Chuỗi SSE chết thì xin
+   * refresh (cấp lại cookie luồng) MỘT lần, và nếu được thì nối lại ngay thay vì
+   * chờ `SSE_RETRY_INTERVAL_MS`. Luồng chết mãi thì vẫn chỉ một POST cho tới khi
+   * có một lượt `onopen` (R2-2 review DEBT-01: 29 POST/30 phút khi chốt nằm theo kênh).
+   */
+  it('refreshes auth once per dead SSE run and retries SSE right after a good refresh', async () => {
+    const refreshAuth = vi.fn(async () => true);
+    const failThree = async (from: number): Promise<void> => {
+      MockEventSource.instances[from]?.triggerError();
+      await vi.advanceTimersByTimeAsync(1_000);
+      MockEventSource.instances[from + 1]?.triggerError();
+      await vi.advanceTimersByTimeAsync(2_000);
+      MockEventSource.instances[from + 2]?.triggerError();
+      await vi.advanceTimersByTimeAsync(0);
+    };
+
+    const stream = createProgressStream({
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+      fetchEvents: vi.fn(async () => []),
+      onEvent: () => undefined,
+      random: () => 0,
+      refreshAuth,
+      url: 'https://api.example.com/events',
+    });
+
+    await failThree(0);
+    expect(refreshAuth).toHaveBeenCalledOnce();
+    // Refresh được: kênh SSE thứ tư dựng NGAY, không chờ 60 giây.
+    expect(MockEventSource.instances).toHaveLength(4);
+
+    // Cookie mới vẫn không cứu được (máy chủ chết thật): 30 phút, vẫn một POST.
+    for (let minute = 0; minute < 30; minute += 1) {
+      MockEventSource.instances.at(-1)?.triggerError();
+      await vi.advanceTimersByTimeAsync(SSE_RETRY_INTERVAL_MS);
+    }
+    expect(refreshAuth).toHaveBeenCalledOnce();
+
+    // Một lượt nối thành công mở lại quyền xin refresh cho chuỗi chết kế tiếp.
+    MockEventSource.instances.at(-1)?.triggerOpen();
+    await failThree(MockEventSource.instances.length - 1);
+    expect(refreshAuth).toHaveBeenCalledTimes(2);
+
+    stream.close();
+  });
+
+  it('keeps polling and waits the normal SSE retry when refresh fails', async () => {
+    const refreshAuth = vi.fn(async () => false);
+
+    const stream = createProgressStream({
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+      fetchEvents: vi.fn(async () => []),
+      onEvent: () => undefined,
+      random: () => 0,
+      refreshAuth,
+      url: 'https://api.example.com/events',
+    });
+
+    MockEventSource.instances[0]?.triggerError();
+    await vi.advanceTimersByTimeAsync(1_000);
+    MockEventSource.instances[1]?.triggerError();
+    await vi.advanceTimersByTimeAsync(2_000);
+    MockEventSource.instances[2]?.triggerError();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshAuth).toHaveBeenCalledOnce();
+    expect(MockEventSource.instances).toHaveLength(3);
+
+    await vi.advanceTimersByTimeAsync(SSE_RETRY_INTERVAL_MS);
+    expect(MockEventSource.instances).toHaveLength(4);
+
+    stream.close();
+  });
+
   it('applies duplicate eventId only once', () => {
     const events: ProgressStreamEvent[] = [];
     const fetchEvents = vi.fn(async () => []);

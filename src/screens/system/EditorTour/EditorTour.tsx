@@ -27,6 +27,7 @@ import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 're
 
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
+import { cn } from '@/lib/utils';
 import { cssDurationMs, MOTION_EASINGS } from '@/lib/motion/tokens';
 
 import type { EditorTourProps, TourPlacement, TourRect } from './useEditorTour';
@@ -113,6 +114,9 @@ function backdropPanels(
   ];
 }
 
+/** Góc mặc định của chip; màn chủ đổi được qua `chipAnchorClassName`. */
+const DEFAULT_CHIP_ANCHOR = 'right-[16px] top-[16px]';
+
 export function EditorTour(props: EditorTourProps) {
   const {
     screenState,
@@ -123,6 +127,7 @@ export function EditorTour(props: EditorTourProps) {
     isReducedMotion,
     summary,
     isSkipChipVisible,
+    chipAnchorClassName = DEFAULT_CHIP_ANCHOR,
     liveMessage,
     onNext,
     onSkip,
@@ -378,8 +383,9 @@ export function EditorTour(props: EditorTourProps) {
         </div>
       )}
 
+      {/* Vị trí do màn chủ truyền: mỗi màn có góc đã có chủ riêng (NO-208). */}
       {isSkipChipVisible && (
-        <div className="pointer-events-auto fixed right-[16px] top-[16px]">
+        <div className={cn('pointer-events-auto fixed', chipAnchorClassName)}>
           <Button variant="secondary" size="sm" onClick={onReopen}>
             xem hướng dẫn
           </Button>
