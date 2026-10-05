@@ -1089,8 +1089,8 @@ const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).pad
 
 /**
  * Ba dự án mang đúng tên, diện tích, trạng thái của bộ mẫu cũ (`SAMPLE_PROJECTS`, gỡ ở F-07) mà
- * `e2e/v2v3/dashboard.spec.ts` tìm theo tên, cùng một dự án mới tạo chưa có tầng — đủ ba `status`
- * và một dự án `floorCount: 0`. Thứ tự `updatedAt` giữ thứ tự cũ: Sunrise mới nhất.
+ * `e2e/v2v3/dashboard.spec.ts` tìm theo tên và đếm đúng ba thẻ — đủ ba `status`. Sunrise đang xử
+ * lý, chưa tách xong tầng nào: nó là dự án `floorCount: 0`. Thứ tự `updatedAt` giữ thứ tự cũ.
  */
 export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
   {
@@ -1110,8 +1110,7 @@ export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
   },
   {
     areaM2: 8420,
-    defaultFloorId: 'floor-01',
-    floorCount: 12,
+    floorCount: 0,
     id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8',
     members: [
       { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
@@ -1135,17 +1134,6 @@ export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
     updatedAt: mockSummaryUpdatedAt(2),
     wallsReviewedCount: 26,
     wallsTotalCount: 26,
-  },
-  {
-    areaM2: 0,
-    floorCount: 0,
-    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5CA',
-    members: [],
-    name: 'Căn hộ mới tạo',
-    status: 'processing',
-    updatedAt: mockSummaryUpdatedAt(1),
-    wallsReviewedCount: 0,
-    wallsTotalCount: 0,
   },
 ];
 
