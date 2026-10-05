@@ -690,3 +690,15 @@ describe('Bảng mã lỗi [2]', () => {
     expect(isCursorInvalidError(null)).toBe(false);
   });
 });
+
+describe('relatedLink — F-12', () => {
+  it('màn có liên kết "Lượt huấn luyện" sang /admin/training/jobs; `null` thì ẩn', async () => {
+    renderScreen(makeClient());
+
+    expect(await screen.findByRole('link', { name: 'Lượt huấn luyện' })).toHaveAttribute('href', '/admin/training/jobs');
+
+    cleanup();
+    renderWithProviders(<ModelRegistryContainer client={makeClient()} now={() => NOW} relatedLink={null} />);
+    expect(screen.queryByRole('link', { name: 'Lượt huấn luyện' })).toBeNull();
+  });
+});

@@ -32,6 +32,8 @@ export const WRITE_OPERATIONS = [
   'addProjectMember',
   'removeProjectMember',
   'activateModelVersion',
+  'createTrainingJob',
+  'cancelTrainingJob',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -109,6 +111,10 @@ export interface WriteOperationParamsMap {
   removeProjectMember: ProjectScopedParams;
   /** Một họ model vừa đổi bản đang dùng (N24, F-11) — khoá theo họ, vì danh sách bản là theo họ. */
   activateModelVersion: { family: string };
+  /** Lượt huấn luyện vừa xếp hàng (N33, F-12) — mọi bộ lọc của danh sách lượt. */
+  createTrainingJob: Record<string, never>;
+  /** Lượt vừa được yêu cầu huỷ (N35, F-12) — chính lượt ấy và mọi bộ lọc của danh sách. */
+  cancelTrainingJob: { jobId: string };
 }
 
 type InvalidationMap = {
@@ -313,6 +319,8 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.adminMl.families(),
     queryKeys.adminMl.versions(family),
   ],
+  createTrainingJob: () => [queryKeys.adminMl.jobs.root()],
+  cancelTrainingJob: ({ jobId }) => [queryKeys.adminMl.job(jobId), queryKeys.adminMl.jobs.root()],
 };
 
 /**

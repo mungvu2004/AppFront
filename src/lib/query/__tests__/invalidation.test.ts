@@ -49,6 +49,33 @@ describe('invalidationMap', () => {
     ]);
   });
 
+  it('scopes createTrainingJob to every filter of the job list', () => {
+    expect(invalidationMap.createTrainingJob({})).toEqual([queryKeys.adminMl.jobs.root()]);
+  });
+
+  it('scopes cancelTrainingJob to that job and every filter of the job list', () => {
+    expect(invalidationMap.cancelTrainingJob({ jobId: 'job_1' })).toEqual([
+      queryKeys.adminMl.job('job_1'),
+      queryKeys.adminMl.jobs.root(),
+    ]);
+  });
+
+  it('cancelTrainingJob marks every job filter and that job stale, not another job', () => {
+    const queryClient = new QueryClient();
+
+    queryClient.setQueryData(queryKeys.adminMl.jobs({}), { pages: [] });
+    queryClient.setQueryData(queryKeys.adminMl.jobs({ status: 'running' }), { pages: [] });
+    queryClient.setQueryData(queryKeys.adminMl.job('job_1'), {});
+    queryClient.setQueryData(queryKeys.adminMl.job('job_2'), {});
+
+    applyInvalidation(queryClient, 'cancelTrainingJob', { jobId: 'job_1' });
+
+    expect(queryClient.getQueryState(queryKeys.adminMl.jobs({}))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.jobs({ status: 'running' }))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.job('job_1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.job('job_2'))?.isInvalidated).toBeFalsy();
+  });
+
   it("leaves another family's versions and every single-version read fresh on activateModelVersion", () => {
     const queryClient = new QueryClient();
     const versionKey = queryKeys.adminMl.version('mdl_01JA0000000000000000000001');

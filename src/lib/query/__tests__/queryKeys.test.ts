@@ -62,6 +62,18 @@ const queryKeyBranchCases = [
     name: 'adminMl.version',
     root: queryKeys.adminMl.version.root,
   },
+  {
+    create: () => queryKeys.adminMl.jobs({ family: 'wallSegmentation', status: 'running' }),
+    name: 'adminMl.jobs',
+    root: queryKeys.adminMl.jobs.root,
+  },
+  { create: () => queryKeys.adminMl.job('job_01JA0000000000000000000001'), name: 'adminMl.job', root: queryKeys.adminMl.job.root },
+  { create: () => queryKeys.adminMl.datasets('wallSegmentation'), name: 'adminMl.datasets', root: queryKeys.adminMl.datasets.root },
+  {
+    create: () => queryKeys.adminMl.datasetVersions('dst_01JA0000000000000000000001'),
+    name: 'adminMl.datasetVersions',
+    root: queryKeys.adminMl.datasetVersions.root,
+  },
   { create: () => queryKeys.me.profile(), name: 'me.profile', root: queryKeys.me.profile.root },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
@@ -90,6 +102,10 @@ describe('queryKeys', () => {
       'adminMl.families',
       'adminMl.versions',
       'adminMl.version',
+      'adminMl.jobs',
+      'adminMl.job',
+      'adminMl.datasets',
+      'adminMl.datasetVersions',
       'me.profile',
     ]);
   });
@@ -111,6 +127,17 @@ describe('queryKeys', () => {
       'version',
       'mdl_01JA0000000000000000000001',
     ]);
+  });
+
+  it('keys adminMl jobs by filter (absent = null) and datasets by family', () => {
+    expect(queryKeys.adminMl.jobs({})).toEqual(['adminMl', 'jobs', null, null]);
+    expect(queryKeys.adminMl.jobs({ status: 'running' })).toEqual(['adminMl', 'jobs', null, 'running']);
+    expect(queryKeys.adminMl.jobs({ family: 'wallSegmentation' })).not.toEqual(queryKeys.adminMl.jobs({}));
+    expect(queryKeys.adminMl.jobs.root()).toEqual(['adminMl', 'jobs']);
+    expect(queryKeys.adminMl.job('job_1')).toEqual(['adminMl', 'job', 'job_1']);
+    expect(queryKeys.adminMl.job('job_1').slice(0, 2)).not.toEqual(queryKeys.adminMl.jobs.root());
+    expect(queryKeys.adminMl.datasets(undefined)).toEqual(['adminMl', 'datasets', null]);
+    expect(queryKeys.adminMl.datasetVersions('dst_1')).toEqual(['adminMl', 'datasetVersions', 'dst_1']);
   });
 
   it('returns equal key values for equal parameters', () => {

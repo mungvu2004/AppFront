@@ -93,7 +93,11 @@ const userListRoot = freezeKey(['user', 'list'] as const);
 const userCurrentRoot = freezeKey(['user', 'current'] as const);
 const userMembershipsRoot = freezeKey(['user', 'memberships'] as const);
 const userActivityRoot = freezeKey(['user', 'activity'] as const);
+const adminMlDatasetsRoot = freezeKey(['adminMl', 'datasets'] as const);
+const adminMlDatasetVersionsRoot = freezeKey(['adminMl', 'datasetVersions'] as const);
 const adminMlFamiliesRoot = freezeKey(['adminMl', 'families'] as const);
+const adminMlJobRoot = freezeKey(['adminMl', 'job'] as const);
+const adminMlJobsRoot = freezeKey(['adminMl', 'jobs'] as const);
 const adminMlVersionsRoot = freezeKey(['adminMl', 'versions'] as const);
 const adminMlVersionRoot = freezeKey(['adminMl', 'version'] as const);
 
@@ -104,9 +108,29 @@ export const queryKeys = {
    * `versions` khoá theo họ: ba họ là ba danh sách tách biệt, và kích hoạt một bản ở họ này
    * không làm cũ danh sách họ kia. `version` khoá theo mã bản: một bản không đổi sau khi
    * tạo trừ trạng thái đánh giá, nên lượt kích hoạt không làm cũ nó.
+   *
+   * F-12 (N28, N30, N32, N34): `jobs` khoá theo bộ lọc (vắng = `null`, không phải chuỗi
+   * "tất cả" có thể trùng giá trị thật); `jobs.root()` là tiền tố để làm cũ mọi bộ lọc.
    */
   adminMl: {
+    datasetVersions: createQueryKeyFactory(adminMlDatasetVersionsRoot, (datasetId: string) => [
+      ...adminMlDatasetVersionsRoot,
+      datasetId,
+    ] as const),
+    datasets: createQueryKeyFactory(adminMlDatasetsRoot, (family: string | undefined) => [
+      ...adminMlDatasetsRoot,
+      family ?? null,
+    ] as const),
     families: createQueryKeyFactory(adminMlFamiliesRoot, () => adminMlFamiliesRoot),
+    job: createQueryKeyFactory(adminMlJobRoot, (jobId: string) => [...adminMlJobRoot, jobId] as const),
+    jobs: createQueryKeyFactory(
+      adminMlJobsRoot,
+      (filter: { readonly family?: string | undefined; readonly status?: string | undefined }) => [
+        ...adminMlJobsRoot,
+        filter.family ?? null,
+        filter.status ?? null,
+      ] as const,
+    ),
     version: createQueryKeyFactory(adminMlVersionRoot, (modelVersionId: string) => [
       ...adminMlVersionRoot,
       modelVersionId,

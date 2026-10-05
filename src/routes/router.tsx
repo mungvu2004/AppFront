@@ -67,6 +67,7 @@ const RouteSpatialJsonViewer = lazy(() => import('../screens/export/SpatialJsonV
 const RouteVersionHistory = lazy(() => import('../screens/export/VersionHistory').then(m => ({ default: m.VersionHistoryRoute })));
 const RouteModelLibrary = lazy(() => import('../screens/admin/ModelLibrary').then(m => ({ default: m.ModelLibraryRoute })));
 const RouteModelRegistry = lazy(() => import('../screens/admin/ModelRegistry').then(m => ({ default: m.ModelRegistryRoute })));
+const RouteTrainingJobs = lazy(() => import('../screens/admin/TrainingJobs').then(m => ({ default: m.TrainingJobsRoute })));
 const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
 
 /**
@@ -351,6 +352,7 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
       { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
       { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
+      { path: ROUTE_PATTERNS.adminTrainingJobs, element: suspended(<RouteTrainingJobs />) },
       { path: ROUTE_PATTERNS.adminTrainingModels, element: suspended(<RouteModelRegistry />) },
       { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
       { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },

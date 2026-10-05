@@ -1,38 +1,38 @@
 /**
- * Lớp ráp của màn registry model (`/admin/training/models`): client, cổng, ngưỡng thu gọn,
- * ranh giới lỗi — khuôn `UserManagement.container.tsx`.
+ * Lớp ráp của màn huấn luyện (`/admin/training/jobs`): client, cổng, ngưỡng thu gọn, ranh
+ * giới lỗi — khuôn `ModelRegistry.container.tsx`.
  *
  * Client mặc định dựng TRONG `useMemo` chứ không ở cấp module (R13): trong vitest và
- * Storybook `resolveUseMockApi()` là `false`, nên bài kiểm và story tiêm client giả tường
- * minh qua prop `client`.
+ * Storybook `resolveUseMockApi()` là `false`, nên bài kiểm và story tiêm client tường minh.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { createAppAdminMlClient, type AdminMlClient } from '@/api/adminMlClient';
+import { createAppAdminMlJobsClient, type AdminMlJobsClient } from '@/api/adminMlJobsClient';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
+import type { ChannelClock } from '@/lib/realtime/eventChannel';
+import type { PollingVisibilityTarget } from '@/lib/realtime/cursorPolling';
 
-import { ModelRegistry } from './ModelRegistry';
-import { createModelRegistryGateway } from './modelRegistryGateway';
-import type { RelatedLinkModel } from './types';
-import { COLLAPSE_BREAKPOINT_PX, useModelRegistry } from './useModelRegistry';
+import { TrainingJobs } from './TrainingJobs';
+import { createTrainingJobsGateway } from './trainingJobsGateway';
+import { COLLAPSE_BREAKPOINT_PX, useTrainingJobs } from './useTrainingJobs';
 
-const SCREEN_ID = 'model-registry';
+const SCREEN_ID = 'training-jobs';
 const NARROW_QUERY = `(max-width: ${String(COLLAPSE_BREAKPOINT_PX - 1)}px)`;
 
-export interface ModelRegistryContainerProps {
+export interface TrainingJobsContainerProps {
   /** Client tiêm cho test và story. Không truyền thì container dựng client của ứng dụng. */
-  readonly client?: AdminMlClient;
-  /** Bus toast tiêm được; mặc định là bus của phiên mà `NotificationHost` vẽ. */
+  readonly client?: AdminMlJobsClient;
   readonly notifications?: NotificationBus;
-  /** Ép bố cục hẹp bất kể bề ngang thật. */
   readonly forceCompact?: boolean;
   readonly now?: () => number;
-  /** Liên kết sang màn huấn luyện; mặc định là `TRAINING_JOBS_LINK` của hook, `null` thì ẩn. */
-  readonly relatedLink?: RelatedLinkModel | null;
+  readonly createKey?: () => string;
+  /** Đồng hồ và đích hiển thị của luồng số đo/nhật ký — bài kiểm tiêm. */
+  readonly clock?: ChannelClock;
+  readonly visibilityTarget?: PollingVisibilityTarget;
 }
 
 function useIsNarrow(): boolean {
@@ -57,7 +57,7 @@ function useIsNarrow(): boolean {
   return isNarrow;
 }
 
-function ModelRegistryCrashFallback({ report, retry }: ScreenErrorFallback) {
+function TrainingJobsCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
@@ -70,46 +70,50 @@ function ModelRegistryCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
-function WiredModelRegistry({
+function WiredTrainingJobs({
   client: injectedClient,
+  clock,
+  createKey,
   forceCompact = false,
   notifications = appNotificationBus,
   now,
-  relatedLink,
-}: ModelRegistryContainerProps) {
+  visibilityTarget,
+}: TrainingJobsContainerProps) {
   const mediaIsNarrow = useIsNarrow();
 
   const gateway = useMemo(
     () =>
-      createModelRegistryGateway({
-        client: injectedClient ?? createAppAdminMlClient(),
+      createTrainingJobsGateway({
+        client: injectedClient ?? createAppAdminMlJobsClient(),
         notifications,
         ...(now !== undefined ? { now } : {}),
+        ...(createKey !== undefined ? { createKey } : {}),
       }),
-    [injectedClient, notifications, now],
+    [injectedClient, notifications, now, createKey],
   );
 
-  const { actions, model } = useModelRegistry({
+  const { actions, model } = useTrainingJobs({
     gateway,
     isNarrow: forceCompact || mediaIsNarrow,
-    ...(relatedLink !== undefined ? { relatedLink } : {}),
+    ...(clock !== undefined ? { clock } : {}),
+    ...(visibilityTarget !== undefined ? { visibilityTarget } : {}),
   });
 
-  return <ModelRegistry actions={actions} model={model} />;
+  return <TrainingJobs actions={actions} model={model} />;
 }
 
-export function ModelRegistryContainer(props: ModelRegistryContainerProps) {
+export function TrainingJobsContainer(props: TrainingJobsContainerProps) {
   return (
     <ScreenErrorBoundary
-      renderFallback={({ report, retry }) => <ModelRegistryCrashFallback report={report} retry={retry} />}
+      renderFallback={({ report, retry }) => <TrainingJobsCrashFallback report={report} retry={retry} />}
       screenId={SCREEN_ID}
     >
-      <WiredModelRegistry {...props} />
+      <WiredTrainingJobs {...props} />
     </ScreenErrorBoundary>
   );
 }
 
 /** Route thật, đăng ký tại `src/routes/router.tsx`. */
-export function ModelRegistryRoute() {
-  return <ModelRegistryContainer />;
+export function TrainingJobsRoute() {
+  return <TrainingJobsContainer />;
 }
