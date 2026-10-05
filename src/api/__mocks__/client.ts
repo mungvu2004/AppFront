@@ -1087,39 +1087,59 @@ const mockNotificationsHttpError = (status: number, requestId: string): HttpErro
 /** `updatedAt` của N1 là hằng: e2e ghim đồng hồ (`e2e/app.visual.spec.ts`), nên một mốc theo giờ thật làm ảnh chuẩn trôi. */
 const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).padStart(2, '0')}T08:00:00.000Z`;
 
-/** Hai dự án đã xong/đang QC cùng một dự án xử lý chưa có tầng — đủ ba `status` và một dự án `floorCount: 0`. */
+/**
+ * Ba dự án mang đúng tên, diện tích, trạng thái của bộ mẫu cũ (`SAMPLE_PROJECTS`, gỡ ở F-07) mà
+ * `e2e/v2v3/dashboard.spec.ts` tìm theo tên, cùng một dự án mới tạo chưa có tầng — đủ ba `status`
+ * và một dự án `floorCount: 0`. Thứ tự `updatedAt` giữ thứ tự cũ: Sunrise mới nhất.
+ */
 export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
   {
-    areaM2: SAMPLE_TOTAL_AREA_M2,
-    defaultFloorId: 'L-01',
+    areaM2: 1860,
+    defaultFloorId: 'floor-01',
     floorCount: 4,
     id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C7',
-    members: [{ id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Admin' }],
-    name: 'Nhà phố Bình Thạnh',
-    status: 'done',
+    members: [
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' },
+    ],
+    name: 'Tòa nhà HQ Renovation',
+    status: 'qc',
     updatedAt: mockSummaryUpdatedAt(3),
-    wallsReviewedCount: 48,
+    wallsReviewedCount: 30,
     wallsTotalCount: 48,
   },
   {
-    areaM2: 132.5,
-    defaultFloorId: 'L-01',
-    floorCount: 2,
+    areaM2: 8420,
+    defaultFloorId: 'floor-01',
+    floorCount: 12,
     id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8',
     members: [
-      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Admin' },
-      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Engineer' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C4', name: 'Trần Chi' },
     ],
-    name: 'Biệt thự Thủ Đức',
-    status: 'qc',
+    name: 'Chung cư Sunrise Block B',
+    status: 'processing',
+    updatedAt: mockSummaryUpdatedAt(4),
+    wallsReviewedCount: 0,
+    wallsTotalCount: 132,
+  },
+  {
+    areaM2: 5200,
+    defaultFloorId: 'floor-01',
+    floorCount: 2,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C9',
+    members: [{ id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' }],
+    name: 'Nhà máy Bắc Ninh',
+    status: 'done',
     updatedAt: mockSummaryUpdatedAt(2),
-    wallsReviewedCount: 12,
-    wallsTotalCount: 30,
+    wallsReviewedCount: 26,
+    wallsTotalCount: 26,
   },
   {
     areaM2: 0,
     floorCount: 0,
-    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C9',
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5CA',
     members: [],
     name: 'Căn hộ mới tạo',
     status: 'processing',
@@ -1138,14 +1158,17 @@ const MOCK_KNOWN_MEMBER_IDS: Readonly<Record<string, string>> = {
   'newcomer@example.com': 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C3',
 };
 
-/** Cài đặt mẫu: `revision` bắt đầu ở 3; `baseVersion` khác số này → 409 `VERSION_CONFLICT`. */
+/**
+ * Cài đặt mẫu: `revision` bắt đầu ở 3; `baseVersion` khác số này → 409 `VERSION_CONFLICT`. Ngưỡng tin
+ * cậy 0,75 và dung sai 50 mm là mặc định cũ (`DEFAULT_UNWIRED_SETTINGS`) mà e2e cài đặt dự án đọc.
+ */
 const MOCK_SETTINGS_INITIAL: ProjectSettings = {
   buildingType: 'residential',
-  confidenceThreshold: 0.8,
+  confidenceThreshold: 0.75,
   defaultScaleMmPerPx: 1,
   lengthUnit: 'mm',
   revision: 3,
-  snapToleranceMm: 20,
+  snapToleranceMm: 50,
 };
 
 const mockWireError = (status: number, code: string, requestId: string, raw: Record<string, unknown> = {}): HttpError => ({

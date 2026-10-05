@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { HttpClient, HttpError, HttpRequestOptions, Result } from '@/lib/http';
 
-import { createMockApiClient } from '../__mocks__/client';
+import { createMockApiClient, MOCK_PROJECT_SUMMARIES } from '../__mocks__/client';
 import { createApiClient } from '../client';
 import { ENDPOINTS } from '../endpoints';
 import { UserSchema } from '../schemas';
@@ -187,7 +187,7 @@ describe('mock client', () => {
   it('serves all three statuses, a zero-floor project, and no dropped rows', async () => {
     const list = await createMockApiClient().projectSummaries.list();
 
-    expect(list.ok && list.data.items.map((item) => item.status).sort()).toEqual(['done', 'processing', 'qc']);
+    expect(list.ok && [...new Set(list.data.items.map((item) => item.status))].sort()).toEqual(['done', 'processing', 'qc']);
     expect(list.ok && list.data.items.some((item) => item.floorCount === 0)).toBe(true);
     expect(list.ok && list.data.droppedCount).toBe(0);
   });
@@ -204,11 +204,11 @@ describe('mock client', () => {
     const after = await client.projectSummaries.list();
 
     expect(after.ok && after.data.items.some((item) => item.id === PROJECT_ID)).toBe(false);
-    expect(after.ok && after.data.items).toHaveLength(2);
+    expect(after.ok && after.data.items).toHaveLength(MOCK_PROJECT_SUMMARIES.length - 1);
     // another client starts from the pristine list
     const fresh = await createMockApiClient().projectSummaries.list();
 
-    expect(fresh.ok && fresh.data.items).toHaveLength(3);
+    expect(fresh.ok && fresh.data.items).toHaveLength(MOCK_PROJECT_SUMMARIES.length);
   });
 
   it('answers 409 VERSION_CONFLICT on a wrong baseVersion and bumps revision on a right one', async () => {
