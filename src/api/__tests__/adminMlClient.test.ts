@@ -222,10 +222,19 @@ describe('createAppAdminMlClient — nhánh mock', () => {
     fetchSpy.mockRestore();
   });
 
-  it('useMock = false: client thật, đủ bốn phương thức', () => {
-    const client = createAppAdminMlClient(false);
+  it('useMock = false: client thật — lượt đọc ra mạng tới N23 và giải mã thân của máy chủ', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () =>
+        new Response(JSON.stringify(WIRE_FAMILY_PAGE), { headers: { 'Content-Type': 'application/json' }, status: 200 }),
+      );
+    const result = await createAppAdminMlClient(false).listFamilies();
 
-    expect(Object.keys(client).sort()).toEqual(['activateVersion', 'listFamilies', 'listVersions', 'readVersion']);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/admin/ml/model-families');
+    expect(result).toEqual({ data: ModelFamilyPageSchema.parse(WIRE_FAMILY_PAGE).items, ok: true });
+    expect(result.ok && result.data).not.toEqual(MOCK_MODEL_FAMILIES);
+    fetchSpy.mockRestore();
   });
 
   it('mock áp đúng luật N24: chưa đánh giá, sai định dạng, sai họ, null ngoài họ tường, 409, kích hoạt lại giữ revision', async () => {

@@ -336,6 +336,10 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
     });
     expect(published[0]?.title).toBe('Đã kích hoạt Huấn luyện lượt 3 cho nhận diện cửa và đồ đạc');
     expect(published[0]?.undoTicket).toBeDefined();
+    // P2-2: nút "Kích hoạt" đã mở hộp thoại biến mất; tiêu điểm về thẻ "Đang dùng", không về body.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Đang dùng' }));
+    });
 
     act(() => {
       published[0]?.undoTicket?.undo();
@@ -351,6 +355,8 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
     await waitFor(() => {
       expect(published.at(-1)?.title).toBe('Đã hoàn tác lượt đổi model');
     });
+    // P2-1: câu nói đúng bản vừa được kích hoạt lại, không phải "quay về đường cổ điển".
+    expect(published.at(-1)?.description).toBe('Đã kích hoạt gốc cho nhận diện cửa và đồ đạc');
   });
 
   it('bản đang dùng chưa đánh giá → hộp thoại cảnh báo, toast không có hoàn tác', async () => {
@@ -393,10 +399,57 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
         versionId: WALL_VERSION_ID,
       });
     });
+    await waitFor(() => {
+      expect(published.at(-1)?.description).toBe('Đã kích hoạt Huấn luyện tường lượt 1 cho tách lớp tường');
+    });
 
     await chooseFamily('Nhận diện cửa và đồ đạc');
     await screen.findByRole('button', { name: 'Huấn luyện lượt 3' });
     expect(screen.queryByRole('button', { name: 'Quay về đường cổ điển' })).toBeNull();
+  });
+
+  it('họ khác họ tường đang trống: không hoàn tác, không bao giờ gửi versionId null (P1-1)', async () => {
+    const client = makeWallActiveClient({
+      activateVersion: async ({ family, versionId }) => ({
+        data: {
+          ...(versionId === null ? {} : { activeVersionId: versionId }),
+          family: family === 'dimensionReading' ? family : 'openingAndFurnitureDetection',
+          revision: 1,
+        },
+        ok: true,
+      }),
+    });
+    const { published } = renderScreen(client);
+    await chooseFamily('Nhận diện cửa và đồ đạc');
+
+    expect(await screen.findByText('Chưa kích hoạt bản nào')).toBeInTheDocument();
+    const dialog = await openActivateDialog('Huấn luyện lượt 3');
+    fireEvent.click(confirmButton(dialog));
+
+    await waitFor(() => {
+      expect(published).toHaveLength(1);
+    });
+    expect(published[0]?.undoTicket).toBeUndefined();
+    expect(published[0]?.description).toBe('Họ này trước đó chưa có bản nào nên lượt đổi này không hoàn tác được.');
+    for (const [input] of client.activateVersion.mock.calls) {
+      expect(input.versionId).not.toBeNull();
+    }
+  });
+
+  it('bản đang dùng chưa về (N27 còn chạy): không cảnh báo vội, nút xác nhận chờ (N-1)', async () => {
+    const other: ModelVersion = { ...WALL_VERSION, id: 'mdl_01JA6M0RG00000000000000W02', label: 'Huấn luyện tường lượt 2' };
+    const client = makeWallActiveClient({
+      listVersions: async () => ({ data: { items: [other] }, ok: true }),
+      readVersion: () => new Promise(() => undefined),
+    });
+    renderScreen(client);
+
+    const dialog = await openActivateDialog('Huấn luyện tường lượt 2');
+
+    expect(within(dialog).queryByText('Bản đang dùng chưa đánh giá xong nên sau khi đổi sẽ chưa kích hoạt lại được.')).toBeNull();
+    expect(confirmButton(dialog)).toBeDisabled();
+    fireEvent.click(confirmButton(dialog));
+    expect(client.activateVersion).not.toHaveBeenCalled();
   });
 
   it('409 → đóng hộp thoại, dải tải lại; resolveConflict gọi 0 lần; "Tải lại" đọc lại N23', async () => {
@@ -500,6 +553,22 @@ describe('CURSOR_INVALID — đọc lại từ trang đầu đúng một lần',
     expect(await screen.findByText(MODEL_REGISTRY_ERROR_TEXT.readFallback)).toBeInTheDocument();
     expect(client.listVersions.mock.calls.filter(([input]) => input.cursor === undefined)).toHaveLength(2);
     expect(client.listVersions).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('"Xem thêm" hỏng (N-3)', () => {
+  it('503 ở trang sau: bảng đã nạp giữ nguyên, câu báo cạnh nút', async () => {
+    const client = makeWallActiveClient({
+      listVersions: async ({ cursor }) =>
+        cursor === undefined ? { data: { items: [WALL_VERSION], nextCursor: 'con-tro-1' }, ok: true } : wireError(503),
+    });
+    renderScreen(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem thêm' }));
+
+    expect(await screen.findByText(MODEL_REGISTRY_ERROR_TEXT.busy)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Huấn luyện tường lượt 1' })).toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
   });
 });
 

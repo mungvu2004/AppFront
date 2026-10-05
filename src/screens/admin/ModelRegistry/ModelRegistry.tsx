@@ -7,6 +7,7 @@
  */
 
 import { Boxes, Lock } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -40,6 +41,8 @@ const TEXT = {
 } as const;
 
 const PANEL = 'rounded-[12px] border border-border-default bg-bg-surface p-5';
+const FOCUS_RING =
+  'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
 function Header({ model }: { readonly model: ModelRegistryViewModel }) {
   return (
@@ -63,11 +66,29 @@ function Header({ model }: { readonly model: ModelRegistryViewModel }) {
   );
 }
 
-function ActiveCard({ actions, card }: { readonly card: ActiveCardModel; readonly actions: ModelRegistryActions }) {
+interface ActiveCardProps {
+  readonly card: ActiveCardModel;
+  readonly focusKey: number;
+  readonly actions: ModelRegistryActions;
+}
+
+function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
   const facts = [card.formatLabel, card.metricLabel, card.createdLabel].filter((fact): fact is string => fact !== null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Sau một lượt kích hoạt, nút đã mở hộp thoại biến mất khỏi bảng; tiêu điểm về đây
+  // thay vì rơi về `body` (A12). `0` là lượt vẽ đầu — không cướp tiêu điểm.
+  useEffect(() => {
+    if (focusKey > 0) sectionRef.current?.focus();
+  }, [focusKey]);
 
   return (
-    <section aria-label={TEXT.activeTitle} className={cn(PANEL, 'flex items-center justify-between gap-4')}>
+    <section
+      aria-label={TEXT.activeTitle}
+      className={cn(PANEL, FOCUS_RING, 'flex items-center justify-between gap-4')}
+      ref={sectionRef}
+      tabIndex={-1}
+    >
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-[12px] text-text-secondary">{TEXT.activeTitle}</p>
         <p className="truncate text-base font-semibold text-text-primary">{card.label}</p>
@@ -109,7 +130,9 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {model.activeCard !== null && <ActiveCard actions={actions} card={model.activeCard} />}
+      {model.activeCard !== null && (
+        <ActiveCard actions={actions} card={model.activeCard} focusKey={model.activeCardFocusKey} />
+      )}
       {model.partialNotice !== null && <InlineAlert level="attention" message={model.partialNotice} />}
       {model.rows.length === 0 ? (
         <EmptyState description={model.emptyMessage} icon={<Boxes aria-hidden="true" />} title={TEXT.emptyTitle} />
@@ -118,6 +141,7 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
           <ModelRegistryVersionTable actions={actions} isCollapsed={model.isCollapsed} rows={model.rows} />
         </div>
       )}
+      {model.loadMoreError !== null && <InlineAlert level="violation" message={model.loadMoreError} />}
       {model.hasMore && (
         <Button
           className="self-start"

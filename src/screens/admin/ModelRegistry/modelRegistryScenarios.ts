@@ -17,6 +17,7 @@ import { MODEL_REGISTRY_ERROR_TEXT } from './modelRegistryErrors';
 import type { ModelFamilyId, ModelRegistryActions, ModelRegistryViewModel } from './types';
 import {
   FAMILY_OPTIONS,
+  SKELETON_ROW_COUNT,
   buildActiveCard,
   buildDetail,
   buildVersionRow,
@@ -50,6 +51,7 @@ function scenario(
   const hasData = state !== 'loading' && state !== 'error' && state !== 'forbidden';
 
   return {
+    activeCardFocusKey: 0,
     activeCard: hasData
       ? buildActiveCard(family, record, MOCK_MODEL_VERSIONS.find((version) => version.id === activeId), MODEL_REGISTRY_SCENARIO_NOW)
       : null,
@@ -63,6 +65,7 @@ function scenario(
     hasMore: false,
     isCollapsed: options.isCollapsed ?? false,
     isLoadingMore: false,
+    loadMoreError: null,
     partialNotice: hasData && pending > 0 ? partialNotice(pending) : null,
     relatedLink: null,
     rows: hasData
@@ -71,7 +74,7 @@ function scenario(
         )
       : [],
     selectedFamily: family,
-    skeletonRowCount: 8,
+    skeletonRowCount: SKELETON_ROW_COUNT,
     state,
   };
 }

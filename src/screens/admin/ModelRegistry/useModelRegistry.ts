@@ -53,7 +53,8 @@ import type {
 /** Dưới ngưỡng này bảng thành thẻ, cột phải thành `Drawer`. */
 export const COLLAPSE_BREAKPOINT_PX = 1024;
 
-const SKELETON_ROW_COUNT = 8;
+/** Tám hàng khung xương lúc đang tải; kịch bản và story dùng chung số này. */
+export const SKELETON_ROW_COUNT = 8;
 
 /** Ba họ, đúng thứ tự `PIPELINE_STAGES` (`src/lib/realtime/pipeline.ts`). */
 export const MODEL_FAMILY_ORDER: readonly ModelFamilyId[] = [
@@ -126,6 +127,7 @@ export const MODEL_REGISTRY_TEXT = {
   activatedDescription: 'Lượt xử lý mới dùng bản này ngay.',
   revertedDescription: 'Chuỗi xử lý tách tường bằng thuật toán cổ điển.',
   noUndoDescription: 'Bản trước chưa đánh giá xong nên lượt đổi này không hoàn tác được.',
+  noUndoEmptyDescription: 'Họ này trước đó chưa có bản nào nên lượt đổi này không hoàn tác được.',
   undoDescription: 'Hoàn tác lượt đổi model',
   undoneTitle: 'Đã hoàn tác lượt đổi model',
   undoFailedTitle: 'Chưa hoàn tác được lượt đổi model',
@@ -301,13 +303,17 @@ export function buildDialog(input: {
   readonly isSubmitting: boolean;
 }): ActivateDialogModel {
   const isRevert = input.target.kind === 'revert';
-  const activeNotCompleted = input.hasActive && input.activeVersion?.evaluationStatus !== 'completed';
+  // Bản đang dùng chưa về (N27 còn chạy) thì chưa biết nó đã đánh giá chưa: không cảnh báo
+  // vội, và nút xác nhận chờ (`isSubmitting`) cho tới khi biết.
+  const isActiveUnknown = input.hasActive && input.activeVersion === undefined;
+  const activeNotCompleted =
+    input.activeVersion !== undefined && input.activeVersion.evaluationStatus !== 'completed';
 
   return {
     body: isRevert ? MODEL_REGISTRY_TEXT.revertBody : MODEL_REGISTRY_TEXT.dialogBody,
     confirmLabel: isRevert ? MODEL_REGISTRY_TEXT.confirmRevert : MODEL_REGISTRY_TEXT.confirmActivate,
     errorMessage: input.errorMessage,
-    isSubmitting: input.isSubmitting,
+    isSubmitting: input.isSubmitting || isActiveUnknown,
     title: isRevert ? revertTitle(input.family) : activateTitle(input.targetLabel, input.family),
     warning: activeNotCompleted ? MODEL_REGISTRY_TEXT.dialogWarning : null,
   };
@@ -344,7 +350,10 @@ interface ActivateVariables {
   readonly versionId: string | null;
   /** Bản đang dùng trước lượt này — đích của "Hoàn tác". `null` = đường cổ điển. */
   readonly previousVersionId: string | null;
+  /** Nhãn của bản được gửi lên; `null` = đường cổ điển. */
   readonly label: string | null;
+  /** Nhãn của bản trước — câu của lượt hoàn tác nói đúng bản được kích hoạt lại. */
+  readonly previousLabel: string | null;
   readonly undoable: boolean;
   readonly isUndo: boolean;
 }
@@ -363,6 +372,8 @@ export function useModelRegistry({
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [conflictFamily, setConflictFamily] = useState<ModelFamilyId | null>(null);
   const [writeForbidden, setWriteForbidden] = useState(false);
+  /** Tăng sau mỗi lượt kích hoạt thành công: view đưa tiêu điểm về thẻ "Đang dùng". */
+  const [activeCardFocusKey, setActiveCardFocusKey] = useState(0);
   /** `CURSOR_INVALID`: đọc lại từ trang đầu đúng một lần cho mỗi họ. */
   const cursorRetriedRef = useRef(false);
 
@@ -408,7 +419,10 @@ export function useModelRegistry({
 
   /* ---- Bảy trạng thái --------------------------------------------------- */
 
-  const readError = familiesQuery.error ?? versionsQuery.error ?? null;
+  // "Xem thêm" hỏng không thay cả bảng đã nạp bằng lỗi: nó chỉ báo cạnh nút (`loadMoreError`).
+  const versionsReadError = versionsQuery.data === undefined ? versionsQuery.error : null;
+  const loadMoreError = versionsQuery.isFetchNextPageError ? versionsQuery.error : null;
+  const readError = familiesQuery.error ?? versionsReadError ?? null;
   const isForbiddenByServer = isForbiddenError(familiesQuery.error) || isForbiddenError(versionsQuery.error);
   const pendingCount = countPending(versions);
 
@@ -484,6 +498,7 @@ export function useModelRegistry({
 
       setDialogTarget(null);
       setDialogError(null);
+      setActiveCardFocusKey((key) => key + 1);
 
       const undoTicket = variables.undoable
         ? gateway.createUndoTicket({
@@ -493,7 +508,8 @@ export function useModelRegistry({
                 baseVersion: response.revision,
                 family: variables.family,
                 isUndo: true,
-                label: null,
+                label: variables.previousLabel,
+                previousLabel: variables.label,
                 previousVersionId: variables.versionId,
                 undoable: false,
                 versionId: variables.previousVersionId,
@@ -504,7 +520,9 @@ export function useModelRegistry({
 
       gateway.notify({
         description: !variables.undoable
-          ? MODEL_REGISTRY_TEXT.noUndoDescription
+          ? variables.previousVersionId === null
+            ? MODEL_REGISTRY_TEXT.noUndoEmptyDescription
+            : MODEL_REGISTRY_TEXT.noUndoDescription
           : variables.versionId === null
             ? MODEL_REGISTRY_TEXT.revertedDescription
             : MODEL_REGISTRY_TEXT.activatedDescription,
@@ -568,6 +586,7 @@ export function useModelRegistry({
       ?.find((candidate) => candidate.family === family);
 
     if (latest === undefined) return;
+    if (latest.activeVersionId !== undefined && activeVersion === undefined) return;
 
     const versionId = dialogTarget.kind === 'revert' ? null : dialogTarget.versionId;
     const previousVersionId = latest.activeVersionId ?? null;
@@ -577,9 +596,13 @@ export function useModelRegistry({
       family,
       isUndo: false,
       label: versionId === null ? null : (versions.find((version) => version.id === versionId)?.label ?? MISSING_VALUE),
+      previousLabel: previousVersionId === null ? null : (activeVersion?.label ?? MISSING_VALUE),
       previousVersionId,
-      // Đường cổ điển luôn quay lại được; một bản thì chỉ khi nó đã đánh giá xong.
-      undoable: previousVersionId === null || activeVersion?.evaluationStatus === 'completed',
+      // Hoàn tác về "không bản nào" là gửi `null` — chỉ họ tường được (đường cổ điển, khối
+      // [9]); họ khác đang trống thì lượt đổi không hoàn tác được. Một bản thì chỉ khi nó đã
+      // đánh giá xong, vì N24 từ chối bản chưa đánh giá.
+      undoable:
+        previousVersionId === null ? family === WALL_FAMILY : activeVersion?.evaluationStatus === 'completed',
       versionId,
     });
   }, [dialogTarget, activateMutation, queryClient, family, versions, activeVersion]);
@@ -617,6 +640,7 @@ export function useModelRegistry({
 
     return {
       activeCard: buildActiveCard(family, familyRecord, activeVersion, nowMs),
+      activeCardFocusKey,
       conflictNotice: conflictFamily === null ? null : conflictNotice(conflictFamily),
       detail:
         selectedVersionId === null
@@ -644,6 +668,7 @@ export function useModelRegistry({
       hasMore: versionsQuery.hasNextPage,
       isCollapsed: isNarrow,
       isLoadingMore: versionsQuery.isFetchingNextPage,
+      loadMoreError: loadMoreError === null ? null : describeReadError(loadMoreError),
       partialNotice: pendingCount > 0 ? partialNotice(pendingCount) : null,
       relatedLink,
       rows,
@@ -667,6 +692,8 @@ export function useModelRegistry({
     activeId,
     activateMutation.isPending,
     readError,
+    activeCardFocusKey,
+    loadMoreError,
     versionsQuery.hasNextPage,
     versionsQuery.isFetchingNextPage,
     isNarrow,

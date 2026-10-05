@@ -4,7 +4,7 @@
  * Thuần: không React, không mạng. Mã đọc bằng `readWireError` (F-01a). Mã lạ không bao giờ
  * được in ra — mọi nhánh không nhận ra đều rơi về câu dự phòng của lượt đọc hoặc lượt ghi.
  * 409 không có câu ở đây: nó là dải "tải lại" của màn, không phải một câu lỗi, và màn này
- * không dùng `resolveConflict` hay câu `errors.conflict` của bản vẽ.
+ * không dùng bộ gộp xung đột của bản vẽ hay câu `errors.conflict`.
  */
 
 import { readWireError } from '@/lib/errors/wireError';

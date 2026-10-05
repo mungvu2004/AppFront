@@ -88,10 +88,18 @@ export interface ModelRegistryViewModel {
   readonly families: readonly FamilyOption[];
   readonly selectedFamily: ModelFamilyId;
   readonly activeCard: ActiveCardModel | null;
+  /**
+   * Tăng sau mỗi lượt kích hoạt thành công. Nút đã mở hộp thoại biến mất khi bảng làm mới
+   * (hàng ấy thành "Đang dùng"), nên view đưa tiêu điểm về thẻ "Đang dùng" thay vì để nó
+   * rơi về `body` (A12).
+   */
+  readonly activeCardFocusKey: number;
   readonly rows: readonly VersionRowModel[];
   readonly detail: VersionDetailModel | null;
   readonly hasMore: boolean;
   readonly isLoadingMore: boolean;
+  /** "Xem thêm" hỏng: câu báo cạnh nút, bảng đã nạp giữ nguyên. */
+  readonly loadMoreError: string | null;
   readonly partialNotice: string | null;
   readonly emptyMessage: string;
   readonly errorMessage: string | null;
