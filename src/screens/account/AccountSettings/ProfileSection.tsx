@@ -42,6 +42,8 @@ import { Input } from '@/components/ui/Input';
 import { Select, type SelectOption } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 
+import { AvatarReplaceDialog, type AvatarReplaceDialogProps } from './AvatarReplaceDialog';
+
 /**
  * Ảnh đại diện 56, bo tròn.
  *
@@ -69,6 +71,12 @@ export interface ProfileSectionProps {
   /** Câu đã dựng sẵn ở hook cho lượt tải ảnh (A15: view không dựng chuỗi). */
   readonly avatarStatusLabel: string;
   readonly onAvatarFileSelected: (file: File) => void;
+  /** Trạng thái 4 của ảnh: lý do ảnh bị từ chối, dưới ảnh; `null` khi không có. */
+  readonly avatarProblem: string | null;
+  /** Hộp thoại A9 xác nhận thay ảnh. */
+  readonly avatarReplace: AvatarReplaceDialogProps;
+  /** Trạng thái 4 của ô: câu lỗi 422 của máy chủ theo từng ô hồ sơ. */
+  readonly problems: Partial<Record<ProfileFieldKey, string>>;
 
   readonly fullName: string;
   readonly onFullNameChange: (value: string) => void;
@@ -121,7 +129,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           <input
             id={avatarInputId}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg"
             disabled={props.isAvatarUploading}
             className="peer sr-only"
             onChange={(event) => {
@@ -155,12 +163,21 @@ export function ProfileSection(props: ProfileSectionProps) {
         ) : null}
       </div>
 
+      {props.avatarProblem === null ? null : (
+        <p role="alert" className="text-[13px] leading-[18px] text-state-violation-text">
+          {props.avatarProblem}
+        </p>
+      )}
+
+      <AvatarReplaceDialog {...props.avatarReplace} />
+
       <div className="flex flex-col">
         <FieldRow label="họ tên" className={rowClass} flash={flashOf('fullName')}>
           <Input
             aria-label="họ tên"
             value={props.fullName}
             onChange={(event) => props.onFullNameChange(event.target.value)}
+            error={props.problems.fullName}
             flash={flashOf('fullName')}
           />
         </FieldRow>
@@ -171,6 +188,7 @@ export function ProfileSection(props: ProfileSectionProps) {
             value={props.jobTitle}
             placeholder={props.jobTitlePlaceholder}
             onChange={(event) => props.onJobTitleChange(event.target.value)}
+            error={props.problems.jobTitle}
             flash={flashOf('jobTitle')}
           />
         </FieldRow>
@@ -201,6 +219,7 @@ export function ProfileSection(props: ProfileSectionProps) {
             inputMode="tel"
             value={props.phone}
             onChange={(event) => props.onPhoneChange(event.target.value)}
+            error={props.problems.phone}
             flash={flashOf('phone')}
           />
         </FieldRow>

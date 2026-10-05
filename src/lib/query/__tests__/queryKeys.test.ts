@@ -62,6 +62,7 @@ const queryKeyBranchCases = [
     name: 'adminMl.version',
     root: queryKeys.adminMl.version.root,
   },
+  { create: () => queryKeys.me.profile(), name: 'me.profile', root: queryKeys.me.profile.root },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -89,6 +90,7 @@ describe('queryKeys', () => {
       'adminMl.families',
       'adminMl.versions',
       'adminMl.version',
+      'me.profile',
     ]);
   });
 

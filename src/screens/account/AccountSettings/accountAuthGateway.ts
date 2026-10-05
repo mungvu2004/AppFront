@@ -1,51 +1,33 @@
 /**
  * Nguồn dữ liệu của ba khối T3: mật khẩu, phiên đăng nhập, vùng nguy hiểm.
  *
- * ## Vì sao đây là bộ nhớ trong chứ không phải một lời gọi mạng
+ * ## Một việc có dây, hai việc chưa có (F-09b)
  *
- * `src/api/endpoints.ts` có đúng sáu nhóm — `auth.{login,register}`, `drawings`,
- * `featureFlags.read`, `floors`, `projects`, `spatial`. **Không có** điểm cuối
- * đổi mật khẩu, không có điểm cuối liệt kê phiên, không có điểm cuối thu hồi
- * phiên, không có điểm cuối xoá tài khoản; `src/lib/mutations` cũng không giữ
- * mutation nào cho tài khoản. Mà `src/api/**` là thư mục màn này không được sửa.
- *
- * Bịa một đường dẫn ra rồi gọi vào đó cho "trông như thật" là cách chắc chắn
- * nhất để màn hình xanh trên máy người viết và đỏ ở mọi nơi khác. Nên bốn việc
- * đó được giữ trong bộ nhớ của chính module này, đúng khuôn mà
- * `screens/project/ProjectSettings/projectSettingsGateway.ts` đã đi trước với
- * bảy trường chưa có dây, và `accountSettingsGateway.ts` đi trước ngay trong thư
- * mục này. Người dùng bấm được, màn hình phản hồi được ngay, và mọi thứ trở về
- * mặc định khi tải lại trang. Đó là một khoản nợ đã ghi, không phải một lời hứa
- * đã giữ.
- *
- * ## Hình dạng dây khi mở, mã đề xuất T-09
- *
- * Chữ ký dưới đây cố ý mang đúng hình dạng của bốn yêu cầu thật, để lượt T-09
- * chỉ phải thay phần thân:
- *
- * | Việc | Yêu cầu | Thân | Trả về |
- * |---|---|---|---|
- * | đổi mật khẩu | `POST /account/password` | `{currentPassword, newPassword}` | 204, hoặc 422 khi mật khẩu hiện tại sai |
- * | đọc phiên | `GET /account/sessions` | — | `{sessions: [{id, device, location, lastActiveAt, isCurrent}]}` |
- * | thu hồi một phiên | `DELETE /account/sessions/{sessionId}` | — | 204 |
- * | xoá tài khoản | `DELETE /account` | `{confirmEmail}` | 204, hoặc 422 khi địa chỉ không khớp |
- *
- * Khi ấy `createAccountAuthGateway` gọi `src/api/client.ts` — mọi truy cập mạng
- * đi qua `src/lib/http`, `local/no-fetch-outside-http` không cho đường nào khác
- * — và đây là file duy nhất phải sửa: `useAccountAuth` cùng ba khối không đổi
- * một dòng nào.
+ * - **Đổi mật khẩu** gọi N13 (`POST /me/password`). Máy chủ thu hồi các phiên
+ *   KHÁC của người dùng. Lỗi được phân loại bằng {@link ChangePasswordFailure}.
+ * - **Phiên đăng nhập** và **xoá tài khoản** chưa có điểm cuối ở v1 (kế hoạch §10,
+ *   để v2). Không có bộ nhớ giả thay cho chúng: cổng thật báo
+ *   `capabilities.sessions` và `capabilities.deleteAccount` đều `false`, và màn
+ *   thì **rời khối đó khỏi DOM** (khuôn `exportPanelGateway.ts`). Ba hàm
+ *   `listSessions`, `revokeSession`, `deleteAccount` giữ chữ ký cho v2 và trả
+ *   `unavailable`.
  *
  * ## Vì sao `readIdentity` đứng riêng chứ không đi kèm `listSessions`
  *
  * Địa chỉ thư và cờ "tài khoản do công ty quản lý" nuôi hai khối khác nhau: khối
  * mật khẩu đọc cờ để vào trạng thái 6, vùng nguy hiểm đọc địa chỉ để dựng cửa
- * xác nhận của A9. Gộp chúng vào lượt đọc phiên thì một lượt đọc phiên hỏng —
- * trạng thái 3, thứ chỉ được phép làm hỏng **khối phiên** — sẽ kéo theo cả hai
- * khối kia. Hai lượt đọc tách rời là cách giữ cho dải cảnh báo nằm đúng trong
- * khối của nó.
+ * xác nhận của A9. Hai lượt đọc tách rời là cách giữ cho dải cảnh báo nằm đúng
+ * trong khối của nó.
+ *
+ * ## Nạp LƯỜI client
+ *
+ * Tuỳ chọn tên `apiClient` giữ nguyên, nhưng mặc định nạp lười `appClient` (kéo
+ * theo cả phiên đăng nhập) — nhập tĩnh thì chunk của màn vượt trần kích thước.
  */
 
+import type { ApiClient } from '@/api/client';
 import { getSession } from '@/lib/auth';
+import { readWireError } from '@/lib/errors/wireError';
 import type { Result } from '@/lib/http';
 
 /* -------------------------------------------------------------------------- */
@@ -70,6 +52,12 @@ export type AccountAuthFailure =
   | 'session-gone'
   /** Mạng, máy chủ, hoặc bất cứ thứ gì không phân loại được. */
   | 'unavailable';
+
+/** Lỗi của N13. `retryAfterSeconds` chỉ có khi `rate-limited` mà máy chủ kèm số giây. */
+export interface ChangePasswordFailure {
+  readonly reason: 'wrong-current-password' | 'rate-limited' | 'unavailable';
+  readonly retryAfterSeconds?: number;
+}
 
 /** Tài khoản đang đăng nhập, ở mức hai khối này cần biết. */
 export interface AccountIdentity {
@@ -103,105 +91,54 @@ export interface DeleteAccountInput {
   readonly confirmEmail: string;
 }
 
+/** Việc nào cổng làm được. Cờ `false` thì khối tương ứng rời khỏi DOM. */
+export interface AccountAuthCapabilities {
+  readonly sessions: boolean;
+  readonly deleteAccount: boolean;
+}
+
 export interface AccountAuthGateway {
+  readonly capabilities: AccountAuthCapabilities;
   readonly readIdentity: () => Promise<Result<AccountIdentity, AccountAuthFailure>>;
   readonly listSessions: () => Promise<Result<readonly AccountSession[], AccountAuthFailure>>;
-  readonly changePassword: (input: ChangePasswordInput) => Promise<Result<void, AccountAuthFailure>>;
+  readonly changePassword: (input: ChangePasswordInput) => Promise<Result<void, ChangePasswordFailure>>;
   readonly revokeSession: (input: RevokeSessionInput) => Promise<Result<void, AccountAuthFailure>>;
   readonly deleteAccount: (input: DeleteAccountInput) => Promise<Result<void, AccountAuthFailure>>;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Bộ nhớ tạm của khoản nợ T-09.                                              */
-/* -------------------------------------------------------------------------- */
-
-/** Một phút, một giờ, một ngày — để mốc thời gian mẫu đọc được thành câu. */
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
-
-/** Địa chỉ dự phòng khi chưa có phiên nào — chỉ gặp ở story và test. */
-const FALLBACK_EMAIL = 'ban@congty.vn';
-
-/**
- * Mật khẩu hiện tại mà bản đứng thay chấp nhận.
- *
- * Có đúng một giá trị đúng chứ không nhận mọi thứ, vì trạng thái 4 phải dựng
- * được: không có đường nào dựng ra "mật khẩu hiện tại sai" nếu mọi chuỗi đều
- * đúng. Máy chủ thật giữ băm mật khẩu; ở đây nó là một hằng, và nó biến mất cùng
- * lượt T-09.
- */
-const STAND_IN_CURRENT_PASSWORD = 'matkhau123';
-
-/**
- * Ba phiên mẫu, mốc tính lùi từ lúc đọc lần đầu để câu thời gian luôn có nghĩa.
- *
- * Chuỗi thiết bị viết bằng tiếng Việt chứ không phải `Chrome trên Windows`, và
- * đó không phải chuyện thẩm mỹ: `expectVietnamese` soát mọi chuỗi màn hình nói
- * ra, và một tên riêng tiếng Anh phải được kê tên qua `allowWords`. Bản đứng
- * thay thì không cần tên riêng nào — nó đứng thay. Khi T-09 nối dây thật, chuỗi
- * do máy chủ dựng từ user-agent sẽ mang tên riêng, và **bộ kiểm cấp màn khi ấy
- * truyền `expectVietnamese(container, { allowWords: ['Chrome', 'Safari',
- * 'Windows', 'macOS', 'Android'] })`**. Ghi ở đây để lượt đó không phải đi tìm.
- */
-function seedSessions(now: number): AccountSession[] {
-  return [
-    {
-      id: 'session-current',
-      device: 'Trình duyệt trên máy tính để bàn',
-      location: 'Hà Nội, Việt Nam',
-      lastActiveAt: now,
-      isCurrent: true,
-    },
-    {
-      id: 'session-macbook',
-      device: 'Trình duyệt trên máy tính xách tay',
-      location: 'Đà Nẵng, Việt Nam',
-      lastActiveAt: now - 12 * MINUTE_MS,
-      isCurrent: false,
-    },
-    {
-      id: 'session-phone',
-      device: 'Ứng dụng trên điện thoại',
-      location: 'Thành phố Hồ Chí Minh, Việt Nam',
-      lastActiveAt: now - 3 * DAY_MS - 2 * HOUR_MS,
-      isCurrent: false,
-    },
-  ];
-}
-
-let storedSessions: AccountSession[] | null = null;
-let storedPassword = STAND_IN_CURRENT_PASSWORD;
-
-function sessionsNow(now: () => number): AccountSession[] {
-  storedSessions ??= seedSessions(now());
-
-  return storedSessions;
 }
 
 /* -------------------------------------------------------------------------- */
 /* Cửa vào.                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** Địa chỉ dự phòng khi chưa có phiên nào — chỉ gặp ở story và test. */
+const FALLBACK_EMAIL = 'ban@congty.vn';
+
 export interface CreateAccountAuthGatewayOptions {
-  /** Đồng hồ tiêm vào, cho `fakeClock`. */
-  readonly now?: () => number;
+  /** Client tiêm vào, cho test. Vắng thì nạp lười `createAppApiClient()`. */
+  readonly apiClient?: ApiClient;
 }
 
-/**
- * Cổng thật của ứng dụng.
- *
- * Mọi hàm trả `Promise` chứ không trả giá trị đồng bộ, và đó là chủ ý: lượt đọc
- * phiên phải có một nhịp "đang tải" thật để dải cảnh báo của trạng thái 3 không
- * phải là thứ chỉ tồn tại trong story. Khi T-09 nối dây thật, chữ ký này không
- * đổi.
- */
+const UNAVAILABLE: { readonly ok: false; readonly error: 'unavailable' } = {
+  ok: false,
+  error: 'unavailable',
+};
+
+/** Cổng thật của ứng dụng. */
 export function createAccountAuthGateway(
   options: CreateAccountAuthGatewayOptions = {},
 ): AccountAuthGateway {
-  const now = options.now ?? Date.now;
+  let clientPromise: Promise<ApiClient> | null =
+    options.apiClient === undefined ? null : Promise.resolve(options.apiClient);
+  const getClient = (): Promise<ApiClient> => {
+    clientPromise ??= import('@/api/appClient').then((module) => module.createAppApiClient());
+
+    return clientPromise;
+  };
 
   return {
+    // v1: BE chưa có phiên và xoá tài khoản (kế hoạch §10). Hai khối rời khỏi DOM.
+    capabilities: { sessions: false, deleteAccount: false },
+
     readIdentity: () => {
       const user = getSession().user;
 
@@ -210,54 +147,41 @@ export function createAccountAuthGateway(
         data: {
           email: user?.email ?? FALLBACK_EMAIL,
           // Không có trường nào trên dây nói tài khoản dùng đăng nhập một lần.
-          // Bản đứng thay trả `false`; lượt T-09 đọc nó từ máy chủ.
           isManagedExternally: false,
         },
       });
     },
 
-    listSessions: () => Promise.resolve({ ok: true, data: [...sessionsNow(now)] }),
+    listSessions: () => Promise.resolve(UNAVAILABLE),
 
-    changePassword: ({ currentPassword, newPassword }) => {
-      if (currentPassword !== storedPassword) {
-        return Promise.resolve({ ok: false, error: 'wrong-current-password' });
+    changePassword: async (input) => {
+      const result = await (await getClient()).me.changePassword({ body: input });
+
+      if (result.ok) {
+        return { ok: true, data: undefined };
       }
 
-      storedPassword = newPassword;
+      const wire = readWireError(result.error);
 
-      return Promise.resolve({ ok: true, data: undefined });
-    },
-
-    revokeSession: ({ sessionId }) => {
-      const sessions = sessionsNow(now);
-      const index = sessions.findIndex((session) => session.id === sessionId);
-
-      if (index === -1) {
-        return Promise.resolve({ ok: false, error: 'session-gone' });
+      if (wire?.code === 'CURRENT_PASSWORD_INCORRECT') {
+        return { ok: false, error: { reason: 'wrong-current-password' } };
       }
 
-      sessions.splice(index, 1);
-
-      return Promise.resolve({ ok: true, data: undefined });
-    },
-
-    deleteAccount: ({ confirmEmail }) => {
-      const user = getSession().user;
-      const expected = user?.email ?? FALLBACK_EMAIL;
-
-      // Máy chủ đối chiếu lần thứ hai. Màn hình đã chặn ở nút, nhưng một cửa của
-      // A9 chỉ có một lớp kiểm thì lớp đó là giao diện, không phải luật.
-      if (confirmEmail.trim().toLowerCase() !== expected.toLowerCase()) {
-        return Promise.resolve({ ok: false, error: 'email-mismatch' });
+      if (wire?.code === 'RATE_LIMITED' || wire?.status === 429) {
+        return {
+          ok: false,
+          error: {
+            reason: 'rate-limited',
+            ...(wire.retryAfterSeconds !== undefined ? { retryAfterSeconds: wire.retryAfterSeconds } : {}),
+          },
+        };
       }
 
-      return Promise.resolve({ ok: true, data: undefined });
+      return { ok: false, error: { reason: 'unavailable' } };
     },
+
+    revokeSession: () => Promise.resolve(UNAVAILABLE),
+
+    deleteAccount: () => Promise.resolve(UNAVAILABLE),
   };
-}
-
-/** Đưa bộ nhớ tạm về rỗng. Dành cho test; sản phẩm không gọi. */
-export function resetAccountAuthStore(): void {
-  storedSessions = null;
-  storedPassword = STAND_IN_CURRENT_PASSWORD;
 }

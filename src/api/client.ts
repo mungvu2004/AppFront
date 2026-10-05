@@ -61,6 +61,7 @@ import {
 } from './schemas/projectSettings';
 import { ProjectSummarySchema, type ProjectSummary } from './schemas/projectSummaries';
 import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig } from './schemas/ruleConfig';
+import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import { FloorVersionPageSchema } from './schemas/versions';
 
@@ -757,12 +758,33 @@ export interface RuleConfigApi {
   replace(input: ReplaceProjectRuleConfigInput): Promise<ApiResult<ProjectRuleConfig>>;
 }
 
+export interface ReplaceAvatarInput extends WriteRequestOptions {
+  body: UploadAvatar;
+}
+
+export interface ChangeMePasswordInput extends WriteRequestOptions {
+  body: ChangePassword;
+}
+
+export interface UpdateProfileInput extends WriteRequestOptions {
+  body: UpdateMe;
+}
+
+/** N11 đọc, N12 sửa, N13 đổi mật khẩu (204), N14 thay ảnh đại diện (PUT, timeout `file`). */
+export interface MeApi {
+  changePassword(input: ChangeMePasswordInput): Promise<ApiResult<void>>;
+  readProfile(options?: RequestOptions): Promise<ApiResult<Me>>;
+  replaceAvatar(input: ReplaceAvatarInput): Promise<ApiResult<Me>>;
+  updateProfile(input: UpdateProfileInput): Promise<ApiResult<Me>>;
+}
+
 export interface ApiClient {
   auth: AuthApi;
   drawings: DrawingsApi;
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   library: LibraryApi;
+  me: MeApi;
   members: MembersApi;
   notifications: NotificationsApi;
   projectSettings: ProjectSettingsApi;
@@ -1007,6 +1029,19 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         LibraryItemSchema,
         'library.read',
       ),
+  },
+  me: {
+    changePassword: async (input) => postWithoutBody(http, ENDPOINTS.me.password, input.body, input),
+    readProfile: async (options) =>
+      decodeSingle(await callGet<unknown>(http, ENDPOINTS.me.profile, options?.signal), MeSchema, 'me.readProfile'),
+    replaceAvatar: async (input) =>
+      decodeSingle(
+        await callPut(http, ENDPOINTS.me.avatar, input.body, { ...input, timeoutMode: 'file' }),
+        MeSchema,
+        'me.replaceAvatar',
+      ),
+    updateProfile: async (input) =>
+      decodeSingle(await callPatch(http, ENDPOINTS.me.profile, input.body, input), MeSchema, 'me.updateProfile'),
   },
   members: {
     add: async (input) => {

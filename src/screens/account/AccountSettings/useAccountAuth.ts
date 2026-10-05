@@ -83,8 +83,12 @@ const MESSAGES = {
   newPasswordNeedsLetterAndDigit: 'Mật khẩu cần có cả chữ và số.',
   newPasswordSameAsCurrent: 'Mật khẩu mới phải khác mật khẩu hiện tại.',
   confirmMismatch: 'Hai ô mật khẩu chưa khớp nhau.',
-  passwordChanged: 'Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới.',
-  passwordManagedExternally: 'Tài khoản này do quản trị viên công ty quản lý, không đổi ở đây được.',
+  passwordChanged: 'Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.',
+  passwordRateLimited: 'Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.',
+  passwordUnavailable: 'Không đổi được mật khẩu lúc này. Thử lại sau ít phút.',
+  currentPasswordWrongAfterFailure: 'Có thể mật khẩu đã đổi ở lượt trước; hãy thử mật khẩu mới.',
+  passwordManagedExternally:
+    'Tài khoản này do quản trị viên công ty quản lý, không đổi ở đây được.',
   sessionsUnavailable: 'Không đọc được danh sách phiên đang mở. Thử lại sau ít phút.',
   sessionGone: 'Phiên này đã đóng từ trước. Danh sách vừa được đọc lại.',
   signedOutOf: (device: string) => `Đã đăng xuất khỏi ${device}`,
@@ -190,11 +194,20 @@ export function passwordStrengthOf(value: string): PasswordStrengthLevel | null 
 /* Mối nối.                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * `sessions` và `danger` là `null` khi cổng không có năng lực tương ứng: khối đó
+ * rời khỏi DOM, không bị vô hiệu hoá.
+ */
 export interface AccountAuthModel {
   readonly password: PasswordSectionProps;
-  readonly sessions: SessionsSectionProps;
-  readonly danger: DangerZoneProps;
+  readonly sessions: SessionsSectionProps | null;
+  readonly danger: DangerZoneProps | null;
 }
+
+/** Giây khoá nút đổi mật khẩu sau 429, tối thiểu — Retry-After của máy chủ bị kẹp ≤ 10 s. */
+export const PASSWORD_LOCK_MIN_SECONDS = 60;
+
+const MS_PER_SECOND = 1000;
 
 export interface UseAccountAuthOptions {
   /** Nguồn dữ liệu. Mặc định là cổng thật của ứng dụng. */
@@ -296,6 +309,7 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
 
   const sessionsQuery = useQuery({
     queryKey: accountSessionsQueryKey,
+    enabled: gateway.capabilities.sessions,
     queryFn: async () => {
       const result = await gateway.listSessions();
 
@@ -314,6 +328,21 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
   const [isSubmitting, setSubmitting] = useState(false);
   const [serverProblem, setServerProblem] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  /** Dải trên nút: 429 và lỗi không phân loại được. Lỗi của ô nằm ở `serverProblem`. */
+  const [formProblem, setFormProblem] = useState<string | null>(null);
+  const [isLocked, setLocked] = useState(false);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Lượt trước hỏng vì mạng/máy chủ: máy chủ có thể ĐÃ đổi mật khẩu. */
+  const lastWasUnavailable = useRef(false);
+
+  useEffect(
+    () => () => {
+      if (lockTimer.current !== undefined) {
+        clearTimeout(lockTimer.current);
+      }
+    },
+    [],
+  );
 
   /**
    * Chặn lượt gửi thứ hai trong cùng một nhịp.
@@ -343,11 +372,10 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
     passwords.next !== '' && passwords.next === passwords.current
       ? MESSAGES.newPasswordSameAsCurrent
       : null;
-  const confirmProblem =
-    passwords.confirm !== passwords.next ? MESSAGES.confirmMismatch : null;
+  const confirmProblem = passwords.confirm !== passwords.next ? MESSAGES.confirmMismatch : null;
 
   const submitPassword = useCallback(() => {
-    if (inFlight.current || isManagedExternally) {
+    if (inFlight.current || isManagedExternally || isLocked) {
       return;
     }
 
@@ -366,10 +394,15 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
     inFlight.current = true;
     setSubmitting(true);
     setServerProblem(null);
+    setFormProblem(null);
 
     void gateway
       .changePassword({ currentPassword: passwords.current, newPassword: passwords.next })
       .then((result) => {
+        const afterUnavailable = lastWasUnavailable.current;
+
+        lastWasUnavailable.current = false;
+
         if (result.ok) {
           setPasswords(EMPTY_PASSWORDS);
           setHasSubmitted(false);
@@ -378,13 +411,40 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
           return;
         }
 
-        setServerProblem(FAILURE_MESSAGE[result.error]);
+        const { reason, retryAfterSeconds } = result.error;
+
+        if (reason === 'wrong-current-password') {
+          setServerProblem(
+            afterUnavailable
+              ? `${MESSAGES.currentPasswordWrong} ${MESSAGES.currentPasswordWrongAfterFailure}`
+              : MESSAGES.currentPasswordWrong,
+          );
+
+          return;
+        }
+
+        if (reason === 'rate-limited') {
+          setFormProblem(MESSAGES.passwordRateLimited);
+          setLocked(true);
+          lockTimer.current = setTimeout(
+            () => {
+              setLocked(false);
+              setFormProblem(null);
+            },
+            Math.max(retryAfterSeconds ?? 0, PASSWORD_LOCK_MIN_SECONDS) * MS_PER_SECOND,
+          );
+
+          return;
+        }
+
+        lastWasUnavailable.current = true;
+        setFormProblem(MESSAGES.passwordUnavailable);
       })
       .finally(() => {
         inFlight.current = false;
         setSubmitting(false);
       });
-  }, [gateway, isManagedExternally, passwords]);
+  }, [gateway, isLocked, isManagedExternally, passwords]);
 
   /* ---- Khối phiên đăng nhập --------------------------------------------- */
 
@@ -591,35 +651,41 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
         passwords.current !== '' &&
         passwords.next !== '' &&
         passwords.confirm !== '' &&
-        !isSubmitting,
+        !isSubmitting &&
+        !isLocked,
       isSubmitting,
       onSubmit: submitPassword,
+      formProblem,
       successMessage,
       isManagedExternally,
     },
-    sessions: {
-      rows,
-      warning: sessionsWarning,
-      onRetry: retrySessions,
-      onSignOut: signOutSession,
-      signingOutId,
-      reducedMotion,
-    },
-    danger: {
-      email,
-      isDialogOpen,
-      onRequestDelete: () => setDialogOpen(true),
-      onCancelDelete: closeDialog,
-      onConfirmDelete: confirmDelete,
-      confirmValue,
-      onConfirmValueChange: setConfirmValue,
-      canConfirm: canConfirmDelete,
-      isDeleting,
-      // Đọc danh tính hỏng thì không có địa chỉ nào để đối chiếu, nên cửa của A9
-      // không mở được. Nói ra lý do; một cái nút khoá không giải thích gì là
-      // cách chắc chắn nhất để người dùng bấm mười lần rồi bỏ đi.
-      errorMessage:
-        deleteProblem ?? (identityQuery.isError ? MESSAGES.identityUnavailable : null),
-    },
+    sessions: gateway.capabilities.sessions
+      ? {
+          rows,
+          warning: sessionsWarning,
+          onRetry: retrySessions,
+          onSignOut: signOutSession,
+          signingOutId,
+          reducedMotion,
+        }
+      : null,
+    danger: gateway.capabilities.deleteAccount
+      ? {
+          email,
+          isDialogOpen,
+          onRequestDelete: () => setDialogOpen(true),
+          onCancelDelete: closeDialog,
+          onConfirmDelete: confirmDelete,
+          confirmValue,
+          onConfirmValueChange: setConfirmValue,
+          canConfirm: canConfirmDelete,
+          isDeleting,
+          // Đọc danh tính hỏng thì không có địa chỉ nào để đối chiếu, nên cửa của A9
+          // không mở được. Nói ra lý do; một cái nút khoá không giải thích gì là
+          // cách chắc chắn nhất để người dùng bấm mười lần rồi bỏ đi.
+          errorMessage:
+            deleteProblem ?? (identityQuery.isError ? MESSAGES.identityUnavailable : null),
+        }
+      : null,
   };
 }

@@ -46,6 +46,7 @@ function baseProps(overrides: Partial<DangerZoneProps> = {}): DangerZoneProps {
 
 function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGateway {
   return {
+    capabilities: { sessions: true, deleteAccount: true },
     readIdentity: () =>
       Promise.resolve({ ok: true, data: { email: EMAIL, isManagedExternally: false } }),
     listSessions: () => Promise.resolve({ ok: true, data: [] }),
@@ -56,7 +57,9 @@ function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGa
   };
 }
 
-function renderModel(options: UseAccountAuthOptions): { readonly read: () => AccountAuthModel } {
+type DangerModel = Omit<AccountAuthModel, 'danger'> & { readonly danger: DangerZoneProps };
+
+function renderModel(options: UseAccountAuthOptions): { readonly read: () => DangerModel } {
   let latest: AccountAuthModel | null = null;
 
   function Probe() {
@@ -73,7 +76,11 @@ function renderModel(options: UseAccountAuthOptions): { readonly read: () => Acc
         throw new Error('hook chưa chạy lần nào');
       }
 
-      return latest;
+      if (latest.danger === null) {
+        throw new Error('cổng không có năng lực xoá tài khoản');
+      }
+
+      return { ...latest, danger: latest.danger };
     },
   };
 }

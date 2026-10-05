@@ -7,6 +7,7 @@ const FEATURE_FLAGS_ROOT = '/feature-flags';
 const LIBRARY_ROOT = '/library';
 const MEASUREMENTS_ROOT = '/measurements';
 const AUTH_ROOT = '/auth';
+const ME_ROOT = '/me';
 const PROPERTY_TEMPLATES_ROOT = 'property-templates';
 const USERS_ROOT = '/users';
 const NOTIFICATIONS_ROOT = '/notifications';
@@ -122,6 +123,12 @@ export const ENDPOINTS = {
   library: {
     detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
     list: LIBRARY_ROOT,
+  },
+  /** N11–N14 — hồ sơ của người đang đăng nhập: đọc/sửa, đổi mật khẩu, thay ảnh đại diện. */
+  me: {
+    avatar: `${ME_ROOT}/avatar`,
+    password: `${ME_ROOT}/password`,
+    profile: ME_ROOT,
   },
   /** N3, N4 — thành viên của một dự án. `userId` đi trong đường dẫn của N4, `email` đi trong thân của N3. */
   members: {

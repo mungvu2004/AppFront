@@ -289,7 +289,7 @@ function createPort(saved: AccountDraft = EMPTY_ACCOUNT_DRAFT): {
 let captured: AccountPreferencesModel | null = null;
 
 function Probe({ port }: { readonly port: AccountDraftPort }) {
-  captured = useAccountPreferences(port);
+  captured = useAccountPreferences(port, () => Promise.reject(new Error('không dùng ở bộ kiểm này')));
 
   return null;
 }

@@ -92,6 +92,7 @@ const SESSIONS: readonly AccountSession[] = [
 
 function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGateway {
   return {
+    capabilities: { sessions: true, deleteAccount: true },
     readIdentity: () =>
       Promise.resolve({ ok: true, data: { email: 'an@congty.vn', isManagedExternally: false } }),
     listSessions: () => Promise.resolve({ ok: true, data: SESSIONS }),
@@ -106,7 +107,7 @@ function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGa
 function WiredSessions(props: UseAccountAuthOptions) {
   const model = useAccountAuth(props);
 
-  return <SessionsSection {...model.sessions} />;
+  return model.sessions === null ? null : <SessionsSection {...model.sessions} />;
 }
 
 /* -------------------------------------------------------------------------- */

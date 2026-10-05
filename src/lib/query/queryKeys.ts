@@ -5,6 +5,7 @@ type QueryDomain =
   | 'drawing'
   | 'floor'
   | 'library'
+  | 'me'
   | 'measurement'
   | 'notification'
   | 'progress'
@@ -85,6 +86,7 @@ const violationByProjectRoot = freezeKey(['violation', 'byProject'] as const);
 const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
 const libraryListRoot = freezeKey(['library', 'list'] as const);
 const libraryDetailRoot = freezeKey(['library', 'detail'] as const);
+const meProfileRoot = freezeKey(['me', 'profile'] as const);
 const measurementAllRoot = freezeKey(['measurement', 'all'] as const);
 const notificationListRoot = freezeKey(['notification', 'list'] as const);
 const userListRoot = freezeKey(['user', 'list'] as const);
@@ -139,6 +141,10 @@ export const queryKeys = {
    * sự kiện thời gian thực chứ không theo tuần như bảng người dùng — xem bậc
    * `notification` riêng trong `cachePolicy.ts`.
    */
+  /** Hồ sơ của người đang đăng nhập (N11): bản nháp hồ sơ đã ánh xạ, một khoá một hình dạng. */
+  me: {
+    profile: createQueryKeyFactory(meProfileRoot, () => meProfileRoot),
+  },
   notification: {
     list: createQueryKeyFactory(notificationListRoot, () => notificationListRoot),
   },

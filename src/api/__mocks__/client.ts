@@ -7,6 +7,7 @@ import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type { LevelId } from '@/domain/spatial/types';
 import type { ProjectSettings } from '../schemas/projectSettings';
 import type { ProjectSummary } from '../schemas/projectSummaries';
+import type { Me } from '../schemas/me';
 import type { ProjectRuleConfig } from '../schemas/ruleConfig';
 import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
@@ -1198,6 +1199,14 @@ export const createMockApiClient = (): ApiClient => {
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
   let nextInviteSequence = adminUsers.length;
+  /** Hồ sơ của người đang đăng nhập (N11–N14); dựng lười từ thư của lượt đăng nhập giả gần nhất. */
+  let mockMe: Me | null = null;
+  let avatarSequence = 0;
+  const readMockMe = (): Me => {
+    mockMe ??= { email: lastSignedInEmail ?? 'nguoi-dung@example.com', fullName: 'Người dùng thử', language: 'vi' };
+
+    return mockMe;
+  };
 
   const readAdminUser = (userId: string): AdminUser | undefined =>
     adminUsers.find((candidate) => candidate.id === userId);
@@ -1358,6 +1367,35 @@ export const createMockApiClient = (): ApiClient => {
               makeFallbackLibraryItem(libraryItemId),
           ),
         ),
+    },
+    /** N11–N14 có trạng thái trong mock: sửa xong đọc lại thấy ngay; `''` ở `jobTitle`/`phone` là xoá. */
+    me: {
+      changePassword: async () => ok(undefined),
+      readProfile: async () => ok(clone(readMockMe())),
+      replaceAvatar: async () => {
+        avatarSequence += 1;
+        mockMe = {
+          ...readMockMe(),
+          avatarUrl: `https://cdn.example.test/avatars/01J0MOCKAVATAR${String(avatarSequence).padStart(4, '0')}.png`,
+        };
+
+        return ok(clone(mockMe));
+      },
+      updateProfile: async ({ body }) => {
+        const { jobTitle, phone, ...rest } = readMockMe();
+        const nextJobTitle = body.jobTitle === undefined ? jobTitle : body.jobTitle;
+        const nextPhone = body.phone === undefined ? phone : body.phone;
+
+        mockMe = {
+          ...rest,
+          ...(body.fullName !== undefined ? { fullName: body.fullName } : {}),
+          ...(body.language !== undefined ? { language: body.language } : {}),
+          ...(nextJobTitle !== undefined && nextJobTitle !== '' ? { jobTitle: nextJobTitle } : {}),
+          ...(nextPhone !== undefined && nextPhone !== '' ? { phone: nextPhone } : {}),
+        };
+
+        return ok(clone(mockMe));
+      },
     },
     /**
      * Chấp nhận trả về chính mục vừa đổi, cùng khuôn mọi lượt GHI khác của
