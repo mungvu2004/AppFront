@@ -40,6 +40,7 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { DangerZoneTab } from './DangerZoneTab';
 import { GeneralTab } from './GeneralTab';
 import { MembersTab } from './MembersTab';
+import { ProjectSettingsReloadDialog } from './ProjectSettingsReloadDialog';
 import { UnitsTab } from './UnitsTab';
 import {
   useProjectSettings,
@@ -102,6 +103,10 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
           />
         )}
 
+        {props.saveFailureMessage !== null && (
+          <InlineAlert level="attention" title="Chưa lưu hết" message={props.saveFailureMessage} />
+        )}
+
         {state === 'error' ? (
           <InlineAlert
             level="violation"
@@ -154,6 +159,12 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
           <span className="text-[13px] text-text-secondary">trạng thái: {STATE_LABELS[state]}</span>
         </footer>
       </div>
+
+      <ProjectSettingsReloadDialog
+        isOpen={props.isReloadDialogOpen}
+        onConfirm={props.confirmReload}
+        onCancel={props.cancelReload}
+      />
 
       {/* A9: hai việc A8 không phủ được, nên đây là chỗ duy nhất được hỏi trước. */}
       <Modal.Root isOpen={props.pendingDanger !== null} onClose={props.cancelDanger} width={480}>

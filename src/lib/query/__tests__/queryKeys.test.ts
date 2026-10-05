@@ -50,6 +50,7 @@ const queryKeyBranchCases = [
     name: 'notification.list',
     root: queryKeys.notification.list.root,
   },
+  { create: () => queryKeys.project.summaries(), name: 'project.summaries', root: queryKeys.project.summaries.root },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -73,7 +74,14 @@ describe('queryKeys', () => {
       'user.list',
       'user.current',
       'notification.list',
+      'project.summaries',
     ]);
+  });
+
+  it('keeps project.summaries off the list and detail roots (one key, one shape)', () => {
+    expect(queryKeys.project.summaries()).toEqual(['project', 'summaries']);
+    expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.list.root());
+    expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.detail.root());
   });
 
   it('returns equal key values for equal parameters', () => {

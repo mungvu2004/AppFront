@@ -58,9 +58,9 @@ const projectMembersRoot = freezeKey(['project', 'members'] as const);
  *
  * Hai màn từng dùng chung `project.list`, và nó đổ. `notFoundGateway` đọc
  * `client.projects.list()` nên nó ghi hình dạng `Project` của API;
- * `projectsGateway.fetchProjectList()` KHÔNG gọi API nào, nó trả `SAMPLE_PROJECTS`
- * — hình dạng `DashboardProject` có thêm `members`. Hai người ghi, hai hình dạng,
- * một khoá: vào 404 trước rồi bấm "về danh sách dự án" thì bảng điều khiển đọc lại
+ * bảng điều khiển ghi hình dạng `DashboardProject` (có thêm `members`), dẫn xuất từ
+ * N1 và nay nằm dưới `project.summaries()`, không còn dưới `list`. Hai người ghi, hai hình dạng,
+ * một khoá: vào 404 trước rồi bấm "về danh sách dự án" thì bảng điều khiển (khi còn dùng chung khoá) đọc lại
  * bộ đệm của 404 và `ProjectCardTile` ném
  * `Cannot read properties of undefined (reading 'length')` ở `project.members`.
  *
@@ -69,6 +69,8 @@ const projectMembersRoot = freezeKey(['project', 'members'] as const);
  * **một khoá một hình dạng**.
  */
 const projectRecentRoot = freezeKey(['project', 'recent'] as const);
+/* Thẻ dự án của dashboard (N1) — khoá riêng, một hình dạng (`ProjectSummaryList`-dẫn-xuất); không đọc N1 dưới `list`/`detail`. */
+const projectSummariesRoot = freezeKey(['project', 'summaries'] as const);
 const floorListRoot = freezeKey(['floor', 'list'] as const);
 const floorDetailRoot = freezeKey(['floor', 'detail'] as const);
 const drawingByFloorRoot = freezeKey(['drawing', 'byFloor'] as const);
@@ -137,6 +139,7 @@ export const queryKeys = {
       ...projectMembersRoot,
       projectId,
     ] as const),
+    summaries: createQueryKeyFactory(projectSummariesRoot, () => projectSummariesRoot),
   },
   /**
    * Phép đo chất lượng ảnh của một tầng.

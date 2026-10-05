@@ -224,7 +224,8 @@ function useAuthGateway(): AuthGateway {
     // mở phiên, nên `useSession().roles` rỗng suốt ở dev.
     return createHttpAuthGateway(
       client,
-      resolveUseMockApi() ? createMockAuthTransport() : undefined,
+      // Chữ `DEV` tại chỗ gọi: bản dựng bỏ nhánh này và cùng nó là client giả (`vite.config.ts`).
+      import.meta.env.DEV && resolveUseMockApi() ? createMockAuthTransport() : undefined,
     );
   }, []);
 }

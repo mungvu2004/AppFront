@@ -32,13 +32,14 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { ROUTES } from '@/routes/paths';
 import {
   SEVEN_STATES,
   createSevenStateScenarios,
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 
-import type { DashboardProject } from '../../dashboard/ProjectDashboard/projectsGateway';
+import type { DashboardProject, DashboardProjectList } from '../../dashboard/ProjectDashboard/projectsGateway';
 import { WelcomeScreen } from './WelcomeScreen';
 import type { OnboardingStepCard, WelcomeScreenProps } from './WelcomeScreen';
 import { WelcomeRoute, WelcomeScreenContainer } from './WelcomeScreen.container';
@@ -123,7 +124,7 @@ function sampleProject(patch: Partial<DashboardProject> = {}): DashboardProject 
     status: 'processing',
     wallsReviewedCount: 0,
     wallsTotalCount: 0,
-    updatedAgoMs: 1_000,
+    updatedAtMs: 1_000_000,
     members: [],
     planVariant: 0,
     defaultFloorId: 'f-tret',
@@ -398,8 +399,8 @@ function vm(): WelcomeScreenViewModel {
   return observed;
 }
 
-function listOf(projects: readonly DashboardProject[]): QueryFunction<readonly DashboardProject[]> {
-  return () => Promise.resolve(projects);
+function listOf(projects: readonly DashboardProject[]): QueryFunction<DashboardProjectList> {
+  return () => Promise.resolve({ projects, droppedCount: 0 });
 }
 
 describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () => {
@@ -465,10 +466,10 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
   it('đọc dự án cập nhật gần nhất, không phải dự án đầu mảng', async () => {
     mountHook({
       fetchList: listOf([
-        sampleProject({ id: 'p-cu', updatedAgoMs: 90_000 }),
+        sampleProject({ id: 'p-cu', updatedAtMs: 10 }),
         sampleProject({
           id: 'p-moi',
-          updatedAgoMs: 1_000,
+          updatedAtMs: 1_000_000,
           wallsTotalCount: SAMPLE_WALL_COUNT,
           wallsReviewedCount: SAMPLE_WALL_COUNT,
         }),
@@ -478,6 +479,40 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
     await waitFor(() => {
       expect(vm().screenState).toBe('success');
     });
+  });
+
+  it('thẻ 3 của dự án chưa có tầng nào mở trang tầng, không ghép một đường hỏng', async () => {
+    const noFloorProject: DashboardProject = {
+      id: 'p-trong',
+      name: 'Dự án trống',
+      floorCount: 0,
+      areaM2: 0,
+      status: 'qc',
+      wallsReviewedCount: 0,
+      wallsTotalCount: SAMPLE_WALL_COUNT,
+      updatedAtMs: 1_000_000,
+      members: [],
+      planVariant: 0,
+    };
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/chao']}>
+        <Routes>
+          <Route path="/chao" element={<Probe options={{ fetchList: listOf([noFloorProject]) }} />} />
+          <Route path={ROUTES.project.floors('p-trong')} element={<p>trang tầng</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(vm().screenState).toBe('partial');
+    });
+
+    act(() => {
+      vm().cards[2]?.onActivate();
+    });
+
+    expect(await screen.findByText('trang tầng')).toBeInTheDocument();
   });
 
   it('truy vấn hỏng: câu lỗi hiện ra, và không thẻ nào bịa ra là đã xong', async () => {
@@ -566,7 +601,7 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
   /* -- B-V1-04: route đọc cờ. `/` giả chỉ là một tiêu đề để nhận ra đã tới. -- */
 
   /** `tree()` dựng phần tử MỚI mỗi lần gọi — `rerender` với cùng một phần tử thì React bỏ qua. */
-  function mountRoute(fetchList: QueryFunction<readonly DashboardProject[]>) {
+  function mountRoute(fetchList: QueryFunction<DashboardProjectList>) {
     const tree = () => (
       <MemoryRouter initialEntries={['/onboarding']}>
         <Routes>

@@ -78,6 +78,7 @@ const base: ProjectDashboardViewProps = {
   state: 'success',
   canCreate: true,
   canDelete: true,
+  canDuplicate: false,
   errorMessage: null,
   viewMode: 'grid',
   searchQuery: '',
@@ -91,6 +92,8 @@ const base: ProjectDashboardViewProps = {
   renameDraft: '',
   pendingDeleteId: null,
   pendingDeleteName: null,
+  deleteErrorMessage: null,
+  unreadNotice: null,
   setSearchQuery: noop,
   setStatusFilter: noop,
   setSortBy: noop,
@@ -101,14 +104,12 @@ const base: ProjectDashboardViewProps = {
   setRenameDraft: noop,
   commitRename: noop,
   cancelRename: noop,
-  duplicateProject: noop,
   requestDelete: noop,
   cancelDelete: noop,
   confirmDelete: noop,
   createProject: noop,
   retryLoad: noop,
-  onCardPointerEnter: noop,
-  onCardPointerLeave: noop,
+  duplicateProject: noop,
   notificationBell: <NotificationBell unreadBadge="3" isOpen={false} onToggle={noop} bellNudgeToken={0} />,
 };
 
@@ -139,6 +140,11 @@ export const Forbidden: Story = {
   args: { ...base, state: 'forbidden', canCreate: false, canDelete: false },
 };
 
+/** một phần — máy chủ trả vài dòng hỏng: lưới vẫn có, dải báo "chưa đọc được". */
+export const UnreadRows: Story = {
+  args: { ...base, state: 'partial', unreadNotice: 'Có 2 dự án chưa đọc được' },
+};
+
 /** thu gọn — dưới 1024px: hai cột, dải lọc gấp lại. */
 export const Collapsed: Story = { args: { ...base, state: 'collapsed' } };
 
@@ -150,4 +156,14 @@ export const Renaming: Story = {
 /** Hộp thoại xác nhận xoá — nơi duy nhất A9 cho phép chặn bằng hộp thoại trên màn này. */
 export const DeleteConfirm: Story = {
   args: { ...base, pendingDeleteId: hqRenovation.id, pendingDeleteName: hqRenovation.name },
+};
+
+/** Xoá thất bại — hộp thoại giữ nguyên, câu lỗi nằm trong hộp. */
+export const DeleteError: Story = {
+  args: {
+    ...base,
+    pendingDeleteId: hqRenovation.id,
+    pendingDeleteName: hqRenovation.name,
+    deleteErrorMessage: 'Không xoá được dự án. Hãy thử lại.',
+  },
 };

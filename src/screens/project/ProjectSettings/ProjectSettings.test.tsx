@@ -88,6 +88,13 @@ function baseProps(): ProjectSettingsViewProps {
     saveState: 'saved',
     saveLabel: 'Đã lưu lúc 14:32',
     conflictMessage: null,
+    saveFailureMessage: null,
+    isReloadDialogOpen: false,
+    memberEmail: '',
+    memberError: null,
+    isAddingMember: false,
+    isAddMemberLocked: false,
+    memberRemoveDialog: null,
     activeTab: 'general',
     tabs: [
       { id: 'general', label: 'chung', problemCount: 0 },
@@ -121,7 +128,7 @@ function baseProps(): ProjectSettingsViewProps {
     scaleMmPerPx: 2.5,
     scaleLabel: '2,5 milimét trên mỗi điểm ảnh',
     scalePreviewLabel: '100 điểm ảnh ứng với 250 mm ngoài thực tế.',
-    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA' }],
+    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
     memberCountLabel: '1 thành viên',
     floorCount: 4,
     deleteAllFloorsLabel:
@@ -149,6 +156,13 @@ function baseProps(): ProjectSettingsViewProps {
     saveNow: noop,
     retryLoad: noop,
     reloadSettings: noop,
+    confirmReload: noop,
+    cancelReload: noop,
+    setMemberEmail: noop,
+    addMember: noop,
+    requestRemoveMember: noop,
+    confirmRemoveMember: noop,
+    cancelRemoveMember: noop,
     requestDeleteAllFloors: noop,
     requestDeleteProject: noop,
     setDangerConfirmationText: noop,
@@ -510,6 +524,11 @@ interface ToastRecord {
   readonly onUndo?: (() => void) | undefined;
 }
 
+/** Một lượt `update` mà phần `part` hỏng vì `error` — hình dạng `{ snapshot, failures }` của hợp đồng F-07. */
+const failingUpdate =
+  (error: HttpError, part: 'general' | 'units' = 'general'): ProjectSettingsGateway['update'] =>
+  async ({ base }) => ({ snapshot: base, failures: [{ part, error }] });
+
 /** Cổng thật trên `createMockApiClient()`, có đếm lượt gọi; R-47: không bịa dữ liệu. */
 function spyGateway(overrides: Partial<ProjectSettingsGateway> = {}) {
   const real = createProjectSettingsGateway(createMockApiClient());
@@ -517,6 +536,8 @@ function spyGateway(overrides: Partial<ProjectSettingsGateway> = {}) {
   return {
     read: vi.fn(overrides.read ?? real.read),
     update: vi.fn(overrides.update ?? real.update),
+    addMember: vi.fn(overrides.addMember ?? real.addMember),
+    removeMember: vi.fn(overrides.removeMember ?? real.removeMember),
     deleteAllFloors: vi.fn(overrides.deleteAllFloors ?? real.deleteAllFloors),
     deleteProject: vi.fn(overrides.deleteProject ?? real.deleteProject),
   };
@@ -565,6 +586,7 @@ describe('ProjectSettings đã nối dây', () => {
     expect(gateway.update).toHaveBeenCalledWith({
       projectId: 'project-autosave',
       patch: { name: 'Chung cư Bình Minh' },
+      base: expect.objectContaining({ projectId: 'project-autosave', settingsRevision: 3 }),
     });
     expect(screen.queryAllByRole('button', { name: SAVE_BUTTON_NAMES })).toHaveLength(0);
   });
@@ -619,7 +641,7 @@ describe('ProjectSettings đã nối dây', () => {
   });
 
   it('một lượt lưu hỏng vì mạng thì thử lại theo lịch của tầng logic', async () => {
-    const gateway = spyGateway({ update: async () => ({ ok: false, error: NETWORK_ERROR }) });
+    const gateway = spyGateway({ update: failingUpdate(NETWORK_ERROR) });
     await mountSettings({ gateway, projectId: 'project-retry', roles: ['admin'] });
 
     fireEvent.change(nameField(), { target: { value: 'Chung cư Bình Minh' } });
@@ -631,14 +653,14 @@ describe('ProjectSettings đã nối dây', () => {
   });
 
   it('409 thì dừng lại, nói ra, không ghi đè và không bão thử lại (D-09)', async () => {
-    const gateway = spyGateway({ update: async () => ({ ok: false, error: CONFLICT_ERROR }) });
+    const gateway = spyGateway({ update: failingUpdate(CONFLICT_ERROR) });
     await mountSettings({ gateway, projectId: 'project-conflict', roles: ['admin'] });
 
     fireEvent.change(nameField(), { target: { value: 'Chung cư Bình Minh' } });
     await tick(AUTOSAVE_DEBOUNCE_MS);
 
     expect(gateway.update).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(viMessages.errors.conflict.description)).toBeInTheDocument();
+    expect(screen.getByText(viMessages.project.settings.load.conflictMessage)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: viMessages.project.settings.load.reload }),
     ).toBeInTheDocument();
@@ -743,5 +765,52 @@ describe('createProjectSettingsGateway', () => {
     expect(result.data.failedFloorIds).toEqual([failingFloorId]);
     expect(result.data.deletedCount).toBe(result.data.requestedCount - 1);
     expect(result.data.requestedCount).toBe(project.data.floors.length);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* F-07: lưu dở và tải lại khi còn nháp.                                       */
+/* -------------------------------------------------------------------------- */
+
+describe('ProjectSettingsView, lưu dở và tải lại', () => {
+  it('nói phần nào đã lưu, phần nào chưa, trong một dải riêng', () => {
+    render(
+      <ProjectSettingsView
+        {...baseProps()}
+        saveFailureMessage="Đã lưu thông tin chung, chưa lưu đơn vị đo."
+      />,
+    );
+
+    expect(screen.getByText('Đã lưu thông tin chung, chưa lưu đơn vị đo.')).toBeInTheDocument();
+  });
+
+  it('không dựng dải lưu dở khi không có phần hỏng', () => {
+    render(<ProjectSettingsView {...baseProps()} />);
+
+    expect(screen.queryByText(viMessages.project.settings.load.saveFailureTitle)).not.toBeInTheDocument();
+  });
+
+  it('hộp thoại tải lại mở theo props và gọi đúng hành động', () => {
+    const confirmReload = vi.fn();
+    const cancelReload = vi.fn();
+    render(
+      <ProjectSettingsView
+        {...baseProps()}
+        conflictMessage={viMessages.project.settings.load.conflictMessage}
+        isReloadDialogOpen
+        confirmReload={confirmReload}
+        cancelReload={cancelReload}
+      />,
+    );
+
+    const dialog = within(screen.getByRole('dialog'));
+
+    expect(dialog.getByText(viMessages.project.settings.load.reloadDialogTitle)).toBeInTheDocument();
+
+    fireEvent.click(dialog.getByRole('button', { name: viMessages.project.settings.load.reload }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(confirmReload).toHaveBeenCalledTimes(1);
+    expect(cancelReload).toHaveBeenCalledTimes(1);
   });
 });

@@ -23,9 +23,9 @@ type Story = StoryObj<typeof meta>;
 const noop = (): void => undefined;
 
 const MEMBERS = [
-  { id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA' },
-  { id: 'm-binh', name: 'Nguyễn Bình', roleLabel: 'kỹ sư', initials: 'NB' },
-  { id: 'm-chi', name: 'Trần Chi', roleLabel: 'người xem', initials: 'TC' },
+  { id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
+  { id: 'm-binh', name: 'Nguyễn Bình', roleLabel: 'kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
+  { id: 'm-chi', name: 'Trần Chi', roleLabel: 'người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi' },
 ];
 
 const NO_PROBLEMS = {
@@ -47,6 +47,13 @@ const base: ProjectSettingsViewProps = {
   saveState: 'saved',
   saveLabel: 'Đã lưu lúc 14:32',
   conflictMessage: null,
+  saveFailureMessage: null,
+  isReloadDialogOpen: false,
+  memberEmail: '',
+  memberError: null,
+  isAddingMember: false,
+  isAddMemberLocked: false,
+  memberRemoveDialog: null,
   activeTab: 'general',
   tabs: [
     { id: 'general', label: 'chung', problemCount: 0 },
@@ -107,6 +114,13 @@ const base: ProjectSettingsViewProps = {
   saveNow: noop,
   retryLoad: noop,
   reloadSettings: noop,
+  confirmReload: noop,
+  cancelReload: noop,
+  setMemberEmail: noop,
+  addMember: noop,
+  requestRemoveMember: noop,
+  confirmRemoveMember: noop,
+  cancelRemoveMember: noop,
   requestDeleteAllFloors: noop,
   requestDeleteProject: noop,
   setDangerConfirmationText: noop,
@@ -203,5 +217,79 @@ export const Conflict: Story = {
   args: {
     ...base,
     conflictMessage: 'Bản vẽ đã được người khác cập nhật. Tải lại để xem phiên bản mới nhất.',
+  },
+};
+
+/** Thẻ thành viên, người sửa được: ô email, nút thêm và nút gỡ trên từng dòng. */
+export const MembersEditable: Story = { args: { ...base, activeTab: 'members' } };
+
+/** Thêm thành viên lỗi — địa chỉ chưa có tài khoản đang hoạt động. */
+export const AddMemberError: Story = {
+  args: {
+    ...base,
+    activeTab: 'members',
+    memberEmail: 'khach@example.com',
+    memberError: 'Không thêm được: địa chỉ này chưa có tài khoản đang hoạt động.',
+  },
+};
+
+/** Thêm thành viên bị giới hạn tần suất — nút khoá, câu không có số giây. */
+export const AddMemberRateLimited: Story = {
+  args: {
+    ...base,
+    activeTab: 'members',
+    memberEmail: 'khach@example.com',
+    memberError: 'Bạn đã thêm nhiều thành viên trong giờ này; hãy thử lại sau.',
+    isAddMemberLocked: true,
+  },
+};
+
+/** Gỡ thành viên — hộp thoại A9, lỗi hiện ngay trong hộp. */
+export const RemoveMemberDialog: Story = {
+  args: {
+    ...base,
+    activeTab: 'members',
+    memberRemoveDialog: {
+      title: 'Gỡ Phạm An khỏi dự án?',
+      message: 'Bạn sẽ mất quyền xem dự án này. Muốn quay lại phải nhờ người khác thêm lại.',
+      error: 'Không gỡ được: dự án cần ít nhất một người sửa được cài đặt.',
+      confirmLabel: 'Gỡ',
+      cancelLabel: 'Để nguyên',
+      isRunning: false,
+    },
+  },
+};
+
+/** Chỉ xem — thẻ thành viên không có ô thêm và nút gỡ. */
+export const MembersReadOnly: Story = {
+  args: {
+    ...base,
+    activeTab: 'members',
+    state: 'forbidden',
+    canEdit: false,
+    canDelete: false,
+    isReadOnly: true,
+    tabs: base.tabs.filter((tab) => tab.id !== 'danger'),
+  },
+};
+
+/** Lưu dở — thông tin chung đã lưu, đơn vị đo chưa; có ô lỗi từ máy chủ. */
+export const PartialSave: Story = {
+  args: {
+    ...base,
+    state: 'partial',
+    saveState: 'error',
+    saveFailureMessage: 'Đã lưu thông tin chung, chưa lưu đơn vị đo.',
+    activeTab: 'units',
+    problems: { ...NO_PROBLEMS, snapToleranceMm: 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.' },
+  },
+};
+
+/** Tải lại khi còn thay đổi chưa lưu — hộp thoại A9. */
+export const ReloadDialog: Story = {
+  args: {
+    ...base,
+    conflictMessage: 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.',
+    isReloadDialogOpen: true,
   },
 };

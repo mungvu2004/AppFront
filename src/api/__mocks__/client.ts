@@ -5,6 +5,8 @@ import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
 import type { LevelId } from '@/domain/spatial/types';
+import type { ProjectSettings } from '../schemas/projectSettings';
+import type { ProjectSummary } from '../schemas/projectSummaries';
 import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
   AdminUser,
@@ -22,6 +24,7 @@ import type {
   Notification,
   Progress,
   Project,
+  ProjectSummaryList,
   ProjectWriteBody,
   PropertyTemplate,
   SpatialLayer,
@@ -1077,6 +1080,94 @@ const mockNotificationsHttpError = (status: number, requestId: string): HttpErro
   status,
 });
 
+/* -------------------------------------------------------------------------- */
+/* N1, N3–N6 — thẻ dự án, thành viên, cài đặt (F-07).                          */
+/* -------------------------------------------------------------------------- */
+
+/** `updatedAt` của N1 là hằng: e2e ghim đồng hồ (`e2e/app.visual.spec.ts`), nên một mốc theo giờ thật làm ảnh chuẩn trôi. */
+const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).padStart(2, '0')}T08:00:00.000Z`;
+
+/**
+ * Ba dự án mang đúng tên, diện tích, trạng thái của bộ mẫu cũ (`SAMPLE_PROJECTS`, gỡ ở F-07) mà
+ * `e2e/v2v3/dashboard.spec.ts` tìm theo tên và đếm đúng ba thẻ — đủ ba `status`. Sunrise đang xử
+ * lý, chưa tách xong tầng nào: nó là dự án `floorCount: 0`. Thứ tự `updatedAt` giữ thứ tự cũ.
+ */
+export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
+  {
+    areaM2: 1860,
+    defaultFloorId: 'floor-01',
+    floorCount: 4,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C7',
+    members: [
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' },
+    ],
+    name: 'Tòa nhà HQ Renovation',
+    status: 'qc',
+    updatedAt: mockSummaryUpdatedAt(3),
+    wallsReviewedCount: 30,
+    wallsTotalCount: 48,
+  },
+  {
+    areaM2: 8420,
+    floorCount: 0,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8',
+    members: [
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C4', name: 'Trần Chi' },
+    ],
+    name: 'Chung cư Sunrise Block B',
+    status: 'processing',
+    updatedAt: mockSummaryUpdatedAt(4),
+    wallsReviewedCount: 0,
+    wallsTotalCount: 132,
+  },
+  {
+    areaM2: 5200,
+    defaultFloorId: 'floor-01',
+    floorCount: 2,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C9',
+    members: [{ id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' }],
+    name: 'Nhà máy Bắc Ninh',
+    status: 'done',
+    updatedAt: mockSummaryUpdatedAt(2),
+    wallsReviewedCount: 26,
+    wallsTotalCount: 26,
+  },
+];
+
+/** Người thêm được bằng N3: một email lạ (ngoài danh sách này) trả 422 `MEMBER_USER_UNAVAILABLE`. */
+export const MOCK_KNOWN_MEMBER_EMAILS: readonly string[] = ['newcomer@example.com', 'engineer@example.com'];
+
+/** Id ULID cố định theo email đã biết (26 ký tự Crockford, không I L O U). */
+const MOCK_KNOWN_MEMBER_IDS: Readonly<Record<string, string>> = {
+  'engineer@example.com': 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2',
+  'newcomer@example.com': 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C3',
+};
+
+/**
+ * Cài đặt mẫu: `revision` bắt đầu ở 3; `baseVersion` khác số này → 409 `VERSION_CONFLICT`. Ngưỡng tin
+ * cậy 0,75 và dung sai 50 mm là mặc định cũ (`DEFAULT_UNWIRED_SETTINGS`) mà e2e cài đặt dự án đọc.
+ */
+const MOCK_SETTINGS_INITIAL: ProjectSettings = {
+  buildingType: 'residential',
+  confidenceThreshold: 0.75,
+  defaultScaleMmPerPx: 1,
+  lengthUnit: 'mm',
+  revision: 3,
+  snapToleranceMm: 50,
+};
+
+const mockWireError = (status: number, code: string, requestId: string, raw: Record<string, unknown> = {}): HttpError => ({
+  code,
+  kind: 'http',
+  raw,
+  requestId,
+  retryable: false,
+  status,
+});
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -1123,6 +1214,8 @@ export const createMockApiClient = (): ApiClient => {
     failed(mockUsersHttpError(404, `req-users-${userId}`));
 
   let notifications: Notification[] = MOCK_NOTIFICATIONS.map(clone);
+  let summaries: ProjectSummary[] = MOCK_PROJECT_SUMMARIES.map(clone);
+  const mockSettings = new Map<string, ProjectSettings>();
 
   const readNotification = (notificationId: string): Notification | undefined =>
     notifications.find((candidate) => candidate.id === notificationId);
@@ -1270,6 +1363,28 @@ export const createMockApiClient = (): ApiClient => {
      * `markRead`/`markAllRead` trả `void`, đúng chữ ký
      * `NotificationCenterGateway` mà nhóm này phục vụ.
      */
+    members: {
+      add: async ({ email, projectId }) => {
+        const address = email.trim().toLowerCase();
+
+        if (!MOCK_KNOWN_MEMBER_EMAILS.includes(address)) {
+          return failed(mockWireError(422, 'MEMBER_USER_UNAVAILABLE', `req-members-${projectId}`));
+        }
+
+        return ok({
+          email: address,
+          id: MOCK_KNOWN_MEMBER_IDS[address] ?? 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C3',
+          name: address.split('@')[0] ?? address,
+          role: 'viewer',
+        });
+      },
+      remove: async ({ userId }) => {
+        const known = Object.entries(MOCK_KNOWN_MEMBER_IDS).find(([, id]) => id === userId)?.[0];
+        const email = known ?? `${userId}@example.com`;
+
+        return ok({ email, id: userId, name: email.split('@')[0] ?? email, role: 'viewer' });
+      },
+    },
     notifications: {
       acceptInvite: async ({ notificationId }) => {
         const current = readNotification(notificationId);
@@ -1292,6 +1407,27 @@ export const createMockApiClient = (): ApiClient => {
         return ok(undefined);
       },
     },
+    projectSettings: {
+      read: async ({ projectId }) => ok(clone(mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL)),
+      replace: async ({ baseVersion, body, projectId }) => {
+        const current = mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL;
+
+        if (baseVersion !== current.revision) {
+          return failed(mockWireError(409, 'VERSION_CONFLICT', `req-settings-${projectId}`, { remoteChanges: [] }));
+        }
+
+        const { notes, ...rest } = body;
+        const next: ProjectSettings = { ...rest, ...(notes !== undefined ? { notes } : {}), revision: current.revision + 1 };
+
+        mockSettings.set(projectId, next);
+
+        return ok(clone(next));
+      },
+    },
+    projectSummaries: {
+      list: async (): Promise<Result<ProjectSummaryList, never>> =>
+        ok({ droppedCount: 0, items: summaries.map(clone) }),
+    },
     projects: {
       create: async ({ body }) => {
         project = applyProjectBody(
@@ -1311,6 +1447,7 @@ export const createMockApiClient = (): ApiClient => {
         return ok(clone(project));
       },
       delete: async ({ projectId }) => {
+        summaries = summaries.filter((row) => row.id !== projectId);
         const removed = clone(project);
         project = buildProject();
         floors = clone(project.floors);
@@ -1328,6 +1465,11 @@ export const createMockApiClient = (): ApiClient => {
             })
           : ok({ ...clone(project), id: projectId }),
       update: async ({ body, projectId }) => {
+        if (body.name !== undefined) {
+          const name = body.name;
+
+          summaries = summaries.map((row) => (row.id === projectId ? { ...row, name } : row));
+        }
         project = {
           ...applyProjectBody(project, body),
           id: projectId,
