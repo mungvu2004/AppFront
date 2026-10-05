@@ -253,8 +253,11 @@ interface SaverBook {
   readonly reloadErrors: Map<string, string>;
   readonly listeners: Set<() => void>;
   readonly stops: Array<() => void>;
-  /** Đồ thị lúc mở sổ — mốc so cho những sửa xảy ra trước khi ống nạp xong. */
-  readonly opened: RootState['spatial'];
+  /**
+   * Mốc so cho những sửa xảy ra trước khi ống nạp xong: đồ thị lúc mở sổ, dời theo mỗi lượt
+   * nạp máy chủ (NO-359 — không thì lượt nạp ấy bị tính là sửa, sinh một PUT thừa).
+   */
+  opened: RootState['spatial'];
   saver: FloorLayerSaver | null;
   api: SpatialClient | null;
   /**
@@ -358,7 +361,7 @@ function openBook(projectId: string): SaverBook {
 
   const opened = useStore.getState().spatial;
   /** Ống chưa gắn mà kho đã khác lúc mở sổ: có sửa chờ, dù saver chưa biết. */
-  const pendingBeforeAttach = (): boolean => created.saver === null && useStore.getState().spatial !== opened;
+  const pendingBeforeAttach = (): boolean => created.saver === null && useStore.getState().spatial !== created.opened;
   const created: SaverBook = {
     api: null,
     departed: null,
@@ -398,6 +401,10 @@ function openBook(projectId: string): SaverBook {
       // `spatial !== lastServerSpatial` thì bỏ sót Ctrl+Z về đúng bản đã nạp (review P1-1).
       const fromServer =
         state.lastServerSpatial !== previous.lastServerSpatial && state.spatial === state.lastServerSpatial;
+
+      if (fromServer && created.saver === null && state.spatialProjectId === projectId) {
+        created.opened = state.spatial;
+      }
 
       if (
         fromServer ||
