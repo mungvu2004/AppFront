@@ -1,4 +1,7 @@
-import { SAMPLE_BUILDING, SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import {
+  SAMPLE_BUILDING,
+  SAMPLE_TOTAL_AREA_M2,
+} from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { FURNITURE_KIND_BY_LIBRARY_GROUP } from '../schemas/library';
 import type { HttpError, Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
@@ -122,7 +125,13 @@ const makeFloorVersionPage = (floorId: string): FloorVersionPage => ({
   ],
 });
 
-const makeFloor = (levelId: string, name: string, elevationM: number, heightM: number, order: number): Floor => ({
+const makeFloor = (
+  levelId: string,
+  name: string,
+  elevationM: number,
+  heightM: number,
+  order: number,
+): Floor => ({
   // The standard sample total, read from the one fixture that owns it (A14).
   ...(levelId === 'L1' ? { areaM2: SAMPLE_TOTAL_AREA_M2 } : {}),
   drawings: levelId === 'L1' ? [makeDrawing('L1-drawing-1')] : [],
@@ -162,9 +171,16 @@ const makeFallbackFloor = (floorId: string): Floor => ({
  * thành `X`, đệm `0` đủ mười ký tự.
  */
 const levelIdOfFloor = (floorId: string): LevelId =>
-  `L-${floorId.toUpperCase().replace(/[^0-9A-Z]/gu, 'X').padStart(10, '0')}` as LevelId;
+  `L-${floorId
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/gu, 'X')
+    .padStart(10, '0')}` as LevelId;
 
-const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer): FloorLayerDocument => {
+const makeLayerDocument = (
+  floor: Floor,
+  revision: number,
+  layer?: SpatialLayer,
+): FloorLayerDocument => {
   const sampleLevel = SAMPLE_BUILDING.levels.find((level) => level.id === floor.id);
   const onFloor = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
     sampleLevel === undefined ? [] : clone(items.filter((item) => item.levelId === sampleLevel.id));
@@ -448,7 +464,8 @@ export const createMockAuthTransport =
   () =>
   async (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
     void init;
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
     if (!url.includes('/auth/refresh')) {
       return new Response(null, { status: 204 });
@@ -481,7 +498,8 @@ const jsonResponse = (body: unknown, status: number): Response =>
 export const createMockHttpTransport =
   (next: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response>) =>
   async (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const match = MEASUREMENTS_PATH.exec(new URL(url, 'http://mock.invalid').pathname);
 
     if (match === null) {
@@ -1087,7 +1105,8 @@ const mockNotificationsHttpError = (status: number, requestId: string): HttpErro
 /* -------------------------------------------------------------------------- */
 
 /** `updatedAt` của N1 là hằng: e2e ghim đồng hồ (`e2e/app.visual.spec.ts`), nên một mốc theo giờ thật làm ảnh chuẩn trôi. */
-const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).padStart(2, '0')}T08:00:00.000Z`;
+const mockSummaryUpdatedAt = (day: number): string =>
+  `2026-09-${String(day).padStart(2, '0')}T08:00:00.000Z`;
 
 /**
  * Ba dự án mang đúng tên, diện tích, trạng thái của bộ mẫu cũ (`SAMPLE_PROJECTS`, gỡ ở F-07) mà
@@ -1140,7 +1159,10 @@ export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
 ];
 
 /** Người thêm được bằng N3: một email lạ (ngoài danh sách này) trả 422 `MEMBER_USER_UNAVAILABLE`. */
-export const MOCK_KNOWN_MEMBER_EMAILS: readonly string[] = ['newcomer@example.com', 'engineer@example.com'];
+export const MOCK_KNOWN_MEMBER_EMAILS: readonly string[] = [
+  'newcomer@example.com',
+  'engineer@example.com',
+];
 
 /** Id ULID cố định theo email đã biết (26 ký tự Crockford, không I L O U). */
 const MOCK_KNOWN_MEMBER_IDS: Readonly<Record<string, string>> = {
@@ -1161,7 +1183,12 @@ const MOCK_SETTINGS_INITIAL: ProjectSettings = {
   snapToleranceMm: 50,
 };
 
-const mockWireError = (status: number, code: string, requestId: string, raw: Record<string, unknown> = {}): HttpError => ({
+const mockWireError = (
+  status: number,
+  code: string,
+  requestId: string,
+  raw: Record<string, unknown> = {},
+): HttpError => ({
   code,
   kind: 'http',
   raw,
@@ -1191,7 +1218,9 @@ export const createMockApiClient = (): ApiClient => {
   ]);
   /** Lượt tải mới nhất của từng tầng — nguồn của N7. Tầng có bản vẽ sẵn mang lượt mồi. */
   const latestUploadByFloor = new Map<string, string>(
-    floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
+    floors
+      .filter((floor) => floor.drawings.length > 0)
+      .map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
   );
   const layerRevisions = new Map<string, number>();
   const writtenLayers = new Map<string, SpatialLayer>();
@@ -1203,7 +1232,12 @@ export const createMockApiClient = (): ApiClient => {
   let mockMe: Me | null = null;
   let avatarSequence = 0;
   const readMockMe = (): Me => {
-    mockMe ??= { email: lastSignedInEmail ?? 'nguoi-dung@example.com', fullName: 'Người dùng thử', language: 'vi' };
+    const email = lastSignedInEmail ?? 'nguoi-dung@example.com';
+
+    // Đổi người đăng nhập giả thì hồ sơ dựng lại, không mang hồ sơ của người trước.
+    if (mockMe?.email !== email) {
+      mockMe = { email, fullName: 'Người dùng thử', language: 'vi' };
+    }
 
     return mockMe;
   };
@@ -1284,12 +1318,19 @@ export const createMockApiClient = (): ApiClient => {
     },
     drawings: {
       complete: async ({ body, projectId }) => {
-        const completed = makeProgress({ id: body.uploadId, progressPercent: 100, status: 'completed' });
+        const completed = makeProgress({
+          id: body.uploadId,
+          progressPercent: 100,
+          status: 'completed',
+        });
         uploads.set(uploadKey(projectId, body.uploadId), completed);
         return ok(completed);
       },
       initUpload: async ({ body }) => {
-        const progress = makeProgress({ id: `${body.projectId}-${body.floorId}`, step: 'Initialize upload' });
+        const progress = makeProgress({
+          id: `${body.projectId}-${body.floorId}`,
+          step: 'Initialize upload',
+        });
         uploads.set(uploadKey(body.projectId, body.floorId), progress);
         latestUploadByFloor.set(body.floorId, progress.id);
         return ok(progress);
@@ -1301,11 +1342,16 @@ export const createMockApiClient = (): ApiClient => {
             .flatMap((floor) => {
               const uploadId = latestUploadByFloor.get(floor.id);
 
-              return uploadId === undefined ? [] : [{ floorId: floor.id, floorName: floor.name, uploadId }];
+              return uploadId === undefined
+                ? []
+                : [{ floorId: floor.id, floorName: floor.name, uploadId }];
             }),
         ),
       progress: async ({ projectId, uploadId }) =>
-        ok(uploads.get(uploadKey(projectId, uploadId)) ?? makeProgress({ id: uploadId, progressPercent: 0 })),
+        ok(
+          uploads.get(uploadKey(projectId, uploadId)) ??
+            makeProgress({ id: uploadId, progressPercent: 0 }),
+        ),
       sendChunk: async ({ body, projectId, uploadId }) => {
         const key = uploadKey(projectId, uploadId);
         const current = uploads.get(key) ?? makeProgress({ id: uploadId, progressPercent: 0 });
@@ -1448,16 +1494,25 @@ export const createMockApiClient = (): ApiClient => {
       },
     },
     projectSettings: {
-      read: async ({ projectId }) => ok(clone(mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL)),
+      read: async ({ projectId }) =>
+        ok(clone(mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL)),
       replace: async ({ baseVersion, body, projectId }) => {
         const current = mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL;
 
         if (baseVersion !== current.revision) {
-          return failed(mockWireError(409, 'VERSION_CONFLICT', `req-settings-${projectId}`, { remoteChanges: [] }));
+          return failed(
+            mockWireError(409, 'VERSION_CONFLICT', `req-settings-${projectId}`, {
+              remoteChanges: [],
+            }),
+          );
         }
 
         const { notes, ...rest } = body;
-        const next: ProjectSettings = { ...rest, ...(notes !== undefined ? { notes } : {}), revision: current.revision + 1 };
+        const next: ProjectSettings = {
+          ...rest,
+          ...(notes !== undefined ? { notes } : {}),
+          revision: current.revision + 1,
+        };
 
         mockSettings.set(projectId, next);
 
@@ -1582,7 +1637,8 @@ export const createMockApiClient = (): ApiClient => {
       },
     },
     ruleConfig: {
-      read: async ({ projectId }) => ok(clone(mockRuleConfigs.get(projectId) ?? { overrides: {}, revision: 0 })),
+      read: async ({ projectId }) =>
+        ok(clone(mockRuleConfigs.get(projectId) ?? { overrides: {}, revision: 0 })),
       replace: async ({ baseVersion, body, projectId }) => {
         const revision = mockRuleConfigs.get(projectId)?.revision ?? 0;
 
@@ -1621,15 +1677,23 @@ export const createMockApiClient = (): ApiClient => {
         project = { ...project, floors: clone(floors) };
         return ok(next);
       },
-      readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
-      readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
+      readFloor: async ({ floorId }) =>
+        ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
+      readVersion: async ({ projectId, versionId }) =>
+        ok({ ...makeVersion(), projectId, id: versionId }),
       /** Tầng lạ thì trang rỗng — bộ mẫu không bịa lịch sử cho tầng không có. */
       listVersions: async ({ floorId }) =>
-        ok(floors.some((floor) => floor.id === floorId) ? makeFloorVersionPage(floorId) : { items: [] }),
+        ok(
+          floors.some((floor) => floor.id === floorId)
+            ? makeFloorVersionPage(floorId)
+            : { items: [] },
+        ),
       readLayer: async ({ floorId }) => {
         const floor = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
 
-        return ok(makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId)));
+        return ok(
+          makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId)),
+        );
       },
       /**
        * Lưu lớp và tăng `revision`, như #35. Không trả 409 khi `baseVersion` cũ:
@@ -1762,4 +1826,3 @@ export const createMockApiClient = (): ApiClient => {
 
 export const mockApiClient = createMockApiClient();
 export const createApiClientMock = createMockApiClient;
-

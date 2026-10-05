@@ -7,6 +7,10 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { QueryClient } from '@tanstack/react-query';
+
+import type { ApiClient } from '@/api/client';
+import { createMockApiClient } from '@/api/__mocks__/client';
 import type { Me } from '@/api/schemas/me';
 import type { HttpError } from '@/lib/http';
 import type { Announcer } from '@/lib/input/announcer';
@@ -19,7 +23,10 @@ import { renderWithProviders } from '@/lib/testing/render';
 import { AccountSettingsContainer } from './AccountSettings.container';
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft } from './accountDraft';
 import type { AccountAuthGateway, ChangePasswordFailure } from './accountAuthGateway';
-import type { AccountSettingsGateway } from './accountSettingsGateway';
+import {
+  createAccountSettingsGateway,
+  type AccountSettingsGateway,
+} from './accountSettingsGateway';
 import { AvatarReplaceDialog } from './AvatarReplaceDialog';
 import { PasswordSection } from './PasswordSection';
 import { useAccountAuth, type AccountAuthModel } from './useAccountAuth';
@@ -430,6 +437,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     );
     await screen.findByText('Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.');
 
+    expect(fileInput(container)).toBeDisabled();
     pick(container, pngFile());
     await act(async () => {
       await Promise.resolve();
@@ -771,5 +779,47 @@ describe('v2 — khi cổng bật năng lực', () => {
     await waitFor(() => {
       expect(auth.listSessions).toHaveBeenCalled();
     });
+  });
+});
+
+describe('vào lại màn khi bộ đệm còn tươi', () => {
+  it('cổng mới không gọi read(), chỉ đổi giao diện: không gửi N12, bộ đệm mang giá trị mới', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const me: Me = { email: 'an@congty.vn', fullName: 'Phạm An', language: 'vi', phone: '0912' };
+    const readProfile = vi.fn(() => Promise.resolve({ ok: true as const, data: me }));
+    const updateProfile = vi.fn(() => Promise.resolve({ ok: true as const, data: me }));
+    const apiClient: ApiClient = {
+      ...createMockApiClient(),
+      me: { ...createMockApiClient().me, readProfile, updateProfile },
+    };
+    const open = () =>
+      renderWithProviders(
+        <AccountSettingsContainer
+          gateway={createAccountSettingsGateway({ apiClient })}
+          authGateway={authGateway()}
+          notifications={createNotificationBus()}
+        />,
+        { queryClient: client },
+      );
+
+    open();
+    await screen.findByDisplayValue('Phạm An');
+    cleanup();
+
+    // Lần thứ hai: bộ đệm tươi, nên `read()` của cổng mới KHÔNG chạy.
+    open();
+    await screen.findByDisplayValue('Phạm An');
+    expect(readProfile).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('switch', { name: 'hiện lưới 100 mm' }));
+    await waitFor(() => {
+      expect(
+        client.getQueryData<AccountDraft>(queryKeys.me.profile())?.appearance['showGrid'],
+      ).toBe(false);
+    }, SAVE_WAIT);
+
+    expect(updateProfile).not.toHaveBeenCalled();
   });
 });

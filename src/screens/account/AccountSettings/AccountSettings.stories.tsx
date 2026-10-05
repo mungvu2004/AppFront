@@ -63,6 +63,7 @@ const base: AccountSettingsViewModel = {
       avatarInitials: 'NH',
       avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
       isAvatarUploading: false,
+      isAvatarLocked: false,
       avatarStatusLabel: 'Đang tải ảnh lên…',
       onAvatarFileSelected: noop,
       avatarProblem: null,

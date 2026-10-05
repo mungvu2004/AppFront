@@ -32,6 +32,7 @@ function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProp
     avatarInitials: 'NH',
     avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
     isAvatarUploading: false,
+    isAvatarLocked: false,
     avatarStatusLabel: 'Đang tải ảnh lên…',
     onAvatarFileSelected: vi.fn(),
     avatarProblem: null,
@@ -194,9 +195,7 @@ describe('bốn ô sửa được báo lên hook', () => {
     const onJobTitleChange = vi.fn();
     const onPhoneChange = vi.fn();
 
-    render(
-      <ProfileSection {...props({ onFullNameChange, onJobTitleChange, onPhoneChange })} />,
-    );
+    render(<ProfileSection {...props({ onFullNameChange, onJobTitleChange, onPhoneChange })} />);
 
     fireEvent.change(screen.getByLabelText('họ tên'), { target: { value: 'Trần Minh' } });
     fireEvent.change(screen.getByLabelText('chức danh'), { target: { value: 'Kỹ sư' } });

@@ -68,6 +68,8 @@ export interface ProfileSectionProps {
   readonly avatarAlt: string;
   /** Trạng thái 3: đang đọc tệp ảnh. */
   readonly isAvatarUploading: boolean;
+  /** Ô chọn ảnh khoá tạm (sau 429): `disabled`, câu giải thích nằm ở `avatarProblem`. */
+  readonly isAvatarLocked: boolean;
   /** Câu đã dựng sẵn ở hook cho lượt tải ảnh (A15: view không dựng chuỗi). */
   readonly avatarStatusLabel: string;
   readonly onAvatarFileSelected: (file: File) => void;
@@ -130,7 +132,7 @@ export function ProfileSection(props: ProfileSectionProps) {
             id={avatarInputId}
             type="file"
             accept="image/png,image/jpeg"
-            disabled={props.isAvatarUploading}
+            disabled={props.isAvatarUploading || props.isAvatarLocked}
             className="peer sr-only"
             onChange={(event) => {
               const file = event.target.files?.[0];

@@ -41,6 +41,8 @@ function createHttpMock(responses: Record<string, unknown> = {}): {
       return ok(responses[`${method} ${path}`] as never);
     };
 
+  // HttpClient có nhiều thành viên không liên quan tới bài này; dựng đủ kiểu thì dài gấp ba mà không
+  // kiểm thêm gì. Cùng tiền lệ với các file test API khác (users, library, …).
   const http = {
     delete: vi.fn(record('DELETE')),
     events: { emit: () => undefined, on: () => () => undefined },
@@ -77,7 +79,10 @@ describe('client.me — đúng method và đường', () => {
 
     const result = await createApiClient(http).me.readProfile();
 
-    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toMatchObject({
+      code: 'CONTRACT_VALIDATION',
+      kind: 'validation',
+    });
   });
 
   it('updateProfile là PATCH /me, giữ nguyên "" trong thân (lệnh xoá)', async () => {

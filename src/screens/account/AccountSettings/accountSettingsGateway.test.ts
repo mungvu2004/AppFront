@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ApiClient } from '@/api/client';
 import { createMockApiClient } from '@/api/__mocks__/client';
-import type { Me, UpdateMe } from '@/api/schemas/me';
+import { ACCOUNT_LANGUAGES, type Me, type UpdateMe } from '@/api/schemas/me';
 import type { HttpError } from '@/lib/http';
 
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft } from './accountDraft';
@@ -125,6 +125,7 @@ describe('save (N12)', () => {
         avatarUrl: 'https://cdn.example.test/x.png',
         email: 'x@y.vn',
       }),
+      read,
     );
 
     expect(updateProfile).toHaveBeenCalledTimes(1);
@@ -137,7 +138,10 @@ describe('save (N12)', () => {
     const gateway = createAccountSettingsGateway({ apiClient: client });
     const read = await gateway.read();
 
-    await gateway.save(draftWith({ ...read.profile, jobTitle: '', phone: '', language: 'en' }));
+    await gateway.save(
+      draftWith({ ...read.profile, jobTitle: '', phone: '', language: 'en' }),
+      read,
+    );
 
     expect(updateProfile.mock.calls[0]?.[0].body).toStrictEqual({
       jobTitle: '',
@@ -151,7 +155,10 @@ describe('save (N12)', () => {
     const gateway = createAccountSettingsGateway({ apiClient: client });
     const read = await gateway.read();
 
-    const result = await gateway.save(draftWith(read.profile, { appearance: { theme: 'dark' } }));
+    const result = await gateway.save(
+      draftWith(read.profile, { appearance: { theme: 'dark' } }),
+      read,
+    );
 
     expect(result).toBeNull();
     expect(updateProfile).not.toHaveBeenCalled();
@@ -163,8 +170,8 @@ describe('save (N12)', () => {
     const read = await gateway.read();
     const edited = draftWith({ ...read.profile, fullName: 'Lê Minh' });
 
-    await gateway.save(edited);
-    await gateway.save(edited);
+    await gateway.save(edited, read);
+    await gateway.save(edited, edited);
 
     expect(updateProfile).toHaveBeenCalledTimes(1);
   });
@@ -196,9 +203,54 @@ describe('save (N12)', () => {
     const read = await gateway.read();
     const edited = draftWith({ ...read.profile, fullName: 'Lê Minh' });
 
-    await expect(gateway.save(edited)).rejects.toBe(error);
-    await expect(gateway.save(edited)).resolves.not.toBeNull();
+    await expect(gateway.save(edited, read)).rejects.toBe(error);
+    await expect(gateway.save(edited, read)).resolves.not.toBeNull();
     expect(base.updateProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cổng không giữ trạng thái hồ sơ', () => {
+  it('cổng mới, không gọi read(): chỉ đổi giao diện thì không gửi N12', async () => {
+    const { client, updateProfile } = fakeClient();
+    const gateway = createAccountSettingsGateway({ apiClient: client });
+    const saved = draftWith({
+      fullName: 'Phạm An',
+      jobTitle: 'Kỹ sư',
+      phone: '0912',
+      language: 'vi',
+    });
+
+    const result = await gateway.save({ ...saved, appearance: { showGrid: false } }, saved);
+
+    expect(result).toBeNull();
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('không có bản đã lưu thì mọi khoá có giá trị là khoá đổi', async () => {
+    const { client, updateProfile } = fakeClient();
+
+    await createAccountSettingsGateway({ apiClient: client }).save(
+      draftWith({ fullName: 'A', jobTitle: '', phone: '', language: 'vi' }),
+      null,
+    );
+
+    expect(updateProfile.mock.calls[0]?.[0].body).toStrictEqual({
+      fullName: 'A',
+      jobTitle: '',
+      language: 'vi',
+      phone: '',
+    });
+  });
+});
+
+describe('ngôn ngữ viết thẳng khớp schema', () => {
+  it('Me["language"] đúng là vi | en (đổi schema thì dòng satisfies này đỏ ở typecheck)', () => {
+    const languages = ['vi', 'en'] satisfies readonly Me['language'][];
+    const everyLanguageListed: Me['language'] extends (typeof languages)[number] ? true : never =
+      true;
+
+    expect(everyLanguageListed).toBe(true);
+    expect(ACCOUNT_LANGUAGES).toEqual(languages);
   });
 });
 
@@ -210,6 +262,7 @@ describe('hai khối giao diện và thông báo (bộ nhớ module)', () => {
 
     await gateway.save(
       draftWith(read.profile, { appearance: { theme: 'dark' }, notifications: { email: true } }),
+      read,
     );
 
     const same = await gateway.read();
@@ -232,6 +285,25 @@ describe('hai khối giao diện và thông báo (bộ nhớ module)', () => {
     await gateway.read();
 
     expect(readProfile).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('nạp lười client hỏng', () => {
+  it('replaceAvatar trả ApiResult lỗi thay vì ném', async () => {
+    const client: ApiClient = {
+      ...createMockApiClient(),
+      me: {
+        ...createMockApiClient().me,
+        replaceAvatar: () => Promise.reject(new Error('mất chunk')),
+      },
+    };
+
+    const result = await createAccountSettingsGateway({ apiClient: client }).replaceAvatar({
+      contentBase64: 'AA==',
+      mimeType: 'image/png',
+    });
+
+    expect(result.ok).toBe(false);
   });
 });
 

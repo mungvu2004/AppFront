@@ -101,7 +101,9 @@ export interface AccountAuthGateway {
   readonly capabilities: AccountAuthCapabilities;
   readonly readIdentity: () => Promise<Result<AccountIdentity, AccountAuthFailure>>;
   readonly listSessions: () => Promise<Result<readonly AccountSession[], AccountAuthFailure>>;
-  readonly changePassword: (input: ChangePasswordInput) => Promise<Result<void, ChangePasswordFailure>>;
+  readonly changePassword: (
+    input: ChangePasswordInput,
+  ) => Promise<Result<void, ChangePasswordFailure>>;
   readonly revokeSession: (input: RevokeSessionInput) => Promise<Result<void, AccountAuthFailure>>;
   readonly deleteAccount: (input: DeleteAccountInput) => Promise<Result<void, AccountAuthFailure>>;
 }
@@ -155,7 +157,14 @@ export function createAccountAuthGateway(
     listSessions: () => Promise.resolve(UNAVAILABLE),
 
     changePassword: async (input) => {
-      const result = await (await getClient()).me.changePassword({ body: input });
+      let result: Awaited<ReturnType<ApiClient['me']['changePassword']>>;
+
+      try {
+        result = await (await getClient()).me.changePassword({ body: input });
+      } catch {
+        // Nạp lười client hỏng (mất chunk sau khi triển khai bản mới): vẫn là một kết quả, không ném trôi.
+        return { ok: false, error: { reason: 'unavailable' } };
+      }
 
       if (result.ok) {
         return { ok: true, data: undefined };
@@ -172,7 +181,9 @@ export function createAccountAuthGateway(
           ok: false,
           error: {
             reason: 'rate-limited',
-            ...(wire.retryAfterSeconds !== undefined ? { retryAfterSeconds: wire.retryAfterSeconds } : {}),
+            ...(wire.retryAfterSeconds !== undefined
+              ? { retryAfterSeconds: wire.retryAfterSeconds }
+              : {}),
           },
         };
       }

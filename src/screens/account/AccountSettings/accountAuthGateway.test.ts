@@ -100,6 +100,23 @@ describe('changePassword (N13)', () => {
   });
 });
 
+describe('nạp lười client hỏng', () => {
+  it('changePassword ném thì thành unavailable, không ném trôi', async () => {
+    const client: ApiClient = {
+      ...createMockApiClient(),
+      me: {
+        ...createMockApiClient().me,
+        changePassword: () => Promise.reject(new Error('mất chunk')),
+      },
+    };
+
+    expect(await createAccountAuthGateway({ apiClient: client }).changePassword(INPUT)).toEqual({
+      ok: false,
+      error: { reason: 'unavailable' },
+    });
+  });
+});
+
 describe('năng lực v2', () => {
   it('capabilities: phiên và xoá tài khoản đều false', () => {
     expect(createAccountAuthGateway({ apiClient: createMockApiClient() }).capabilities).toEqual({

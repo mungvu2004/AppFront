@@ -420,6 +420,7 @@ function vmFor(
         avatarInitials: 'NH',
         avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
         isAvatarUploading: isPartial,
+        isAvatarLocked: false,
         avatarStatusLabel: 'Đang tải ảnh lên…',
         onAvatarFileSelected: vi.fn(),
         avatarProblem: null,
@@ -729,9 +730,7 @@ describe('giảm chuyển động — mọi hoạt cảnh của màn phải tắ
       `[T6] giảm chuyển động — ${String(moving.length)} chỗ có dịch chuyển, ` +
         `${String(moving.length - alive.length)} chỗ đã bị tắt tại chỗ, ` +
         `${String(alive.length)} chỗ còn sống: ` +
-        alive
-          .map((site) => `${site.block}/${site.tag} [${site.movement.join(' ')}]`)
-          .join(' · '),
+        alive.map((site) => `${site.block}/${site.tag} [${site.movement.join(' ')}]`).join(' · '),
     );
 
     expect(alive.length).toBeLessThanOrEqual(FROZEN_MOTION_RESIDUE);

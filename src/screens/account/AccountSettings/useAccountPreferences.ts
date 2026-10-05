@@ -626,6 +626,7 @@ export function useAccountPreferences(
     avatarInitials: initialsOf(values.fullName, email),
     avatarAlt: values.fullName === '' ? AVATAR_FALLBACK_ALT : `Ảnh đại diện của ${values.fullName}`,
     isAvatarUploading,
+    isAvatarLocked,
     avatarStatusLabel: AVATAR_UPLOADING_LABEL,
     onAvatarFileSelected,
     avatarProblem,

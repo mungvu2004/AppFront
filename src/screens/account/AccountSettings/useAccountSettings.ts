@@ -297,7 +297,7 @@ export function useAccountSettings(
       let serverProfile: Awaited<ReturnType<AccountSettingsGateway['save']>>;
 
       try {
-        serverProfile = await gateway.save(changes);
+        serverProfile = await gateway.save(changes, previous);
       } catch (error) {
         const wire = readWireError(error);
         const field = wire?.field;
@@ -319,12 +319,15 @@ export function useAccountSettings(
       setProfileProblems({});
       setSaved(changes);
 
-      if (serverProfile !== null) {
-        queryClient.setQueryData<AccountDraft>(accountSettingsQueryKey, {
-          ...changes,
-          profile: profileDraftOf(serverProfile),
-        });
-      }
+      // Mọi lượt lưu thành công đều cập nhật bộ đệm (kể cả lượt chỉ-giữ-trong-phiên), để vào lại
+      // màn trong lúc bộ đệm còn tươi không thấy giao diện/thông báo cũ.
+      queryClient.setQueryData<AccountDraft>(accountSettingsQueryKey, (current) => ({
+        ...changes,
+        profile:
+          serverProfile === null
+            ? (current?.profile ?? changes.profile)
+            : profileDraftOf(serverProfile),
+      }));
 
       if (isRestore || previous === null) {
         return;

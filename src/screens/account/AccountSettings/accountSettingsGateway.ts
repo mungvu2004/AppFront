@@ -5,8 +5,9 @@
  *
  * - `read` gọi `GET /me` và ánh xạ ra khối `profile` của bản nháp. Hỏng thì
  *   **ném nguyên** lỗi của client: trang vẽ dải lỗi đọc.
- * - `save` so bốn khoá hồ sơ (`fullName`, `jobTitle`, `phone`, `language`) với bản
- *   đã lưu gần nhất và chỉ gửi khoá đổi qua `PATCH /me`. Không khoá nào đổi thì
+ * - `save(draft, previous)` so bốn khoá hồ sơ (`fullName`, `jobTitle`, `phone`, `language`)
+ *   với bản đã lưu `previous` mà HOOK đang giữ (cổng không giữ trạng thái: cổng dựng lại mỗi
+ *   lần mount, còn query có thể trả từ bộ đệm mà không gọi `read`) và chỉ gửi khoá đổi qua `PATCH /me`. Không khoá nào đổi thì
  *   KHÔNG gọi mạng. Không bao giờ gửi `avatarUrl` hay `email`. Hỏng thì ném nguyên
  *   lỗi — `createAutosave` xếp loại (lỗi tạm thử lại, 4xx dừng ngay).
  * - `replaceAvatar` gọi `PUT /me/avatar`. Ảnh không đi qua bản nháp.
@@ -28,6 +29,7 @@
 import type { ApiClient, ApiResult } from '@/api/client';
 import type { Me, UpdateMe, UploadAvatar } from '@/api/schemas/me';
 import { getSession } from '@/lib/auth';
+import { toAppError } from '@/lib/errors';
 
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft, type AccountDraftFields } from './accountDraft';
 
@@ -38,7 +40,7 @@ export interface AccountSettingsGateway {
    * Ghi bản nháp. Ném lỗi khi ghi hỏng. Trả hồ sơ máy chủ vừa trả về khi đã gọi
    * N12, `null` khi lượt này không có khoá hồ sơ nào đổi.
    */
-  readonly save: (draft: AccountDraft) => Promise<Me | null>;
+  readonly save: (draft: AccountDraft, previous: AccountDraft | null) => Promise<Me | null>;
   /** N14. Trả `ApiResult` chứ không ném: hook xếp loại theo mã lỗi dây. */
   readonly replaceAvatar: (input: UploadAvatar) => Promise<ApiResult<Me>>;
 }
@@ -52,7 +54,6 @@ export interface CreateAccountSettingsGatewayOptions {
 const PROFILE_BODY_KEYS = ['fullName', 'jobTitle', 'language', 'phone'] as const;
 
 type ProfileBodyKey = (typeof PROFILE_BODY_KEYS)[number];
-type ProfileBaseline = Readonly<Record<ProfileBodyKey, string>>;
 
 /** Hồ sơ máy chủ thành khối `profile` của bản nháp. Vắng `jobTitle`/`phone` thành `''`. */
 export function profileDraftOf(me: Me): AccountDraftFields {
@@ -71,6 +72,11 @@ function textOf(fields: AccountDraftFields | undefined, key: ProfileBodyKey): st
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * Viết thẳng `'vi' | 'en'` thay vì nhập `ACCOUNT_LANGUAGES`: giá trị của `schemas/me` mà nhập vào đây
+ * thì kéo schema vào chunk của màn. Lệch khi schema thêm ngôn ngữ do `accountSettingsGateway.test.ts`
+ * bắt (`satisfies` trên danh sách ngôn ngữ).
+ */
 function isLanguage(value: string): value is Me['language'] {
   return value === 'vi' || value === 'en';
 }
@@ -106,8 +112,6 @@ export function createAccountSettingsGateway(
 
     return clientPromise;
   };
-  /** Bốn khoá hồ sơ ở lần đọc/ghi thành công gần nhất — thứ `save` so để biết khoá nào đổi. */
-  let baseline: ProfileBaseline | null = null;
 
   return {
     read: async () => {
@@ -119,13 +123,6 @@ export function createAccountSettingsGateway(
 
       const profile = profileDraftOf(result.data);
 
-      baseline = {
-        fullName: result.data.fullName,
-        jobTitle: result.data.jobTitle ?? '',
-        language: result.data.language,
-        phone: result.data.phone ?? '',
-      };
-
       if (localOnly.userId !== currentUserId()) {
         localOnly = EMPTY_LOCAL_ONLY;
       }
@@ -133,18 +130,15 @@ export function createAccountSettingsGateway(
       return { appearance: localOnly.appearance, notifications: localOnly.notifications, profile };
     },
 
-    save: async (draft) => {
+    save: async (draft, previous) => {
       const body: UpdateMe = {};
-      const changed: Partial<Record<ProfileBodyKey, string>> = {};
 
       for (const key of PROFILE_BODY_KEYS) {
         const value = textOf(draft.profile, key);
 
-        if (value === undefined || value === baseline?.[key]) {
+        if (value === undefined || value === textOf(previous?.profile, key)) {
           continue;
         }
-
-        changed[key] = value;
 
         if (key === 'language') {
           if (isLanguage(value)) {
@@ -171,17 +165,17 @@ export function createAccountSettingsGateway(
         throw result.error;
       }
 
-      baseline = {
-        fullName: changed.fullName ?? baseline?.fullName ?? result.data.fullName,
-        jobTitle: changed.jobTitle ?? baseline?.jobTitle ?? '',
-        language: changed.language ?? baseline?.language ?? result.data.language,
-        phone: changed.phone ?? baseline?.phone ?? '',
-      };
-
       return result.data;
     },
 
-    replaceAvatar: async (input) => (await getClient()).me.replaceAvatar({ body: input }),
+    replaceAvatar: async (input) => {
+      try {
+        return await (await getClient()).me.replaceAvatar({ body: input });
+      } catch (error) {
+        // Nạp lười client hỏng: vẫn là một kết quả, không ném trôi.
+        return { ok: false, error: toAppError(error) };
+      }
+    },
   };
 }
 

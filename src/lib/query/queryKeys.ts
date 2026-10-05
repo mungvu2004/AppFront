@@ -130,6 +130,10 @@ export const queryKeys = {
     ] as const),
     list: createQueryKeyFactory(libraryListRoot, () => libraryListRoot),
   },
+  /** Hồ sơ của người đang đăng nhập (N11): bản nháp hồ sơ đã ánh xạ, một khoá một hình dạng. */
+  me: {
+    profile: createQueryKeyFactory(meProfileRoot, () => meProfileRoot),
+  },
   /**
    * Thông báo của người đang đăng nhập — T-09.
    *
@@ -141,10 +145,6 @@ export const queryKeys = {
    * sự kiện thời gian thực chứ không theo tuần như bảng người dùng — xem bậc
    * `notification` riêng trong `cachePolicy.ts`.
    */
-  /** Hồ sơ của người đang đăng nhập (N11): bản nháp hồ sơ đã ánh xạ, một khoá một hình dạng. */
-  me: {
-    profile: createQueryKeyFactory(meProfileRoot, () => meProfileRoot),
-  },
   notification: {
     list: createQueryKeyFactory(notificationListRoot, () => notificationListRoot),
   },
