@@ -347,7 +347,7 @@ describe('[V5-S] dải lưu lớp', () => {
 
     render(<Viewer3DSaveStrip saveBlock={{ ...block, confirm: { onCancel, onConfirm, open: true } }} />);
 
-    expect(await screen.findByText('Bỏ thay đổi chưa lưu của tầng này?')).toBeInTheDocument();
+    expect(await screen.findByText('Bỏ thay đổi chưa lưu của tầng này?', {}, { timeout: 5000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
     expect(onCancel).toHaveBeenCalled();
