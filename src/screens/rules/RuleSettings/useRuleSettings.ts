@@ -55,7 +55,7 @@
  * dòng bị tắt.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -89,17 +89,29 @@ import {
   type RuleSeverity,
 } from '@/domain/rules/registry';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
+import { useSession } from '@/hooks/useSession';
 import { createAutosave } from '@/lib/autosave/createAutosave';
 import { toSaveIndicatorState } from '@/lib/autosave/toSaveIndicatorState';
+import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
+import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 import { formatNumber } from '@/lib/format/number';
 import type { Announcer } from '@/lib/input/announcer';
 import { createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
-import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
 import { selectRuleConfig, selectRuleImpactCounts } from '@/store/selectors';
+import type { ProjectRole } from '@/types/project';
 
-import { createRuleSettingsGateway, type RuleSettingsGateway } from './ruleSettingsGateway';
+import {
+  createRuleSettingsGateway,
+  describeRuleConfigSaveError,
+  ruleSettingsQueryKey,
+  type LoadedRuleConfig,
+  type RuleConfigSaveProblem,
+  type RuleSettingsGateway,
+} from './ruleSettingsGateway';
+
+export { ruleSettingsQueryKey };
 import type {
   BuildingKind,
   RuleSettingsGroup,
@@ -127,7 +139,7 @@ export interface UseRuleSettingsOptions {
   readonly projectId: string;
   /** Không truyền thì hook dựng cổng thật; bài kiểm tiêm cổng của nó vào. */
   readonly gateway?: RuleSettingsGateway;
-  /** Trạng thái 6: container truyền xuống quyền của người dùng. */
+  /** Ghi đè quyền sửa; vắng thì `can('edit', 'ruleset', { roles })` theo vai của người dùng. */
   readonly canEdit?: boolean;
   /** Trạng thái 7: vỏ ứng dụng báo đang thu gọn. */
   readonly isCompact?: boolean;
@@ -140,16 +152,6 @@ export interface UseRuleSettingsOptions {
   readonly isOnline?: () => boolean;
   readonly announcer?: Announcer;
 }
-
-/**
- * Khoá của lượt đọc cấu hình.
- *
- * Nối thêm một nhánh vào khoá chi tiết dự án có sẵn thay vì thêm nhánh mới vào
- * `queryKeys` (`src/lib/query` nằm ngoài whitelist của lượt này). Nhờ nằm dưới
- * `project.detail(id)`, một lần vô hiệu hoá khoá cha kéo theo cả khoá này.
- */
-export const ruleSettingsQueryKey = (projectId: string) =>
-  [...queryKeys.project.detail(projectId), 'ruleConfig'] as const;
 
 /* -------------------------------------------------------------------------- */
 /* Nhãn và câu — thứ duy nhất màn này tự viết.                                 */
@@ -239,8 +241,8 @@ const DISABLE_ALL_WARNING =
 
 const LOAD_FAILURE_FALLBACK = 'Không tải được cài đặt bộ luật của dự án này.';
 
-/** Nhãn của lượt nạp lại bản đã lưu — không phải một thay đổi của người dùng. */
-const HYDRATE_LABEL = 'Nạp cài đặt bộ luật';
+/** N21 trả 403: người này không còn là thành viên đọc được dự án. */
+const FORBIDDEN_STATUS = 403;
 
 /* -------------------------------------------------------------------------- */
 /* Dựng viewmodel từ dữ liệu thật.                                             */
@@ -335,6 +337,30 @@ interface AutosaveBridge {
   readonly save: (config: RuleConfig) => Promise<void>;
 }
 
+/** Bản đã lưu (hoặc vừa nạp) của đúng một dự án — mốc để biết có sửa dở không. */
+interface PersistedConfig {
+  readonly projectId: string;
+  readonly config: RuleConfig;
+}
+
+/**
+ * Bản chụp khi màn tháo (hoặc đổi dự án) lúc còn sửa chưa lưu — R13.
+ *
+ * Lượt xả đi bằng `projectId` và `revision` đã chụp, KHÔNG đọc store: lượt xoá
+ * khi đổi dự án có thể đã đặt lại store, và một lượt đang bay sẽ nâng `revision`.
+ */
+interface PendingFlush {
+  readonly projectId: string;
+  readonly revision: number;
+  readonly config: RuleConfig;
+}
+
+/** Cờ "đã tháo" của cầu tự lưu, kèm bản chụp đang chờ gửi. */
+interface FlushState {
+  disposed: boolean;
+  pending: PendingFlush | null;
+}
+
 /**
  * Trả về ĐÚNG bộ props của view, không thừa trường nào.
  *
@@ -342,7 +368,14 @@ interface AutosaveBridge {
  * `const props = useRuleSettings({ projectId }); return <RuleSettings {...props} />;`
  */
 export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsProps {
-  const { projectId, canEdit = true, isCompact = false } = options;
+  const { projectId, isCompact = false } = options;
+
+  // Vai theo dự án đang mở là nguồn đúng nhất; phiên là nguồn dự phòng khi
+  // chưa ai đặt `userRoles` — khuôn `VersionHistory.container.tsx`.
+  const session = useSession();
+  const storeRoles = useStore((state) => state.userRoles);
+  const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
+  const canEdit = options.canEdit ?? can('edit', 'ruleset', { roles });
 
   const injectedGateway = options.gateway;
   const gateway = useMemo<RuleSettingsGateway>(
@@ -350,6 +383,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     [injectedGateway],
   );
   const capabilities = useMemo(() => gateway.readCapabilities(canEdit), [gateway, canEdit]);
+  const queryClient = useQueryClient();
 
   // Một sổ đăng ký riêng cho lượt xem này, dựng đúng một lần. Bộ mặc định đã tự
   // tắt hai luật built-in bị nhóm chức năng thay thế, nên số luật là việc của
@@ -358,36 +392,86 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   const specByKey = useMemo(specsByKey, []);
 
   const config = useStore(selectRuleConfig);
+  const ruleConfigProjectId = useStore((state) => state.ruleConfigProjectId);
   const impactCounts = useStore(selectRuleImpactCounts);
   const graph = useStore((state) => state.spatial);
   const spatialLoading = useStore((state) => state.spatialLoading);
 
   const [thresholdErrors, setThresholdErrors] = useState<Readonly<Record<string, string>>>({});
+  const [saveProblem, setSaveProblem] = useState<RuleConfigSaveProblem | null>(null);
+  const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
 
   /* ---------------------------------------------------------------------- */
-  /* Đọc cấu hình đã lưu, và nạp vào store đúng một lần cho mỗi dự án.       */
+  /* Đọc cấu hình đã lưu (N21), và nạp vào store.                            */
   /* ---------------------------------------------------------------------- */
 
   const configQuery = useQuery({
     queryKey: ruleSettingsQueryKey(projectId),
-    queryFn: (): Promise<RuleConfig> => gateway.read({ projectId }),
+    queryFn: ({ signal }): Promise<LoadedRuleConfig> => gateway.read({ projectId, signal }),
   });
 
-  const lastPersistedRef = useRef<RuleConfig | null>(null);
-  const hydratedProjectRef = useRef<string | null>(null);
+  const lastPersistedRef = useRef<PersistedConfig | null>(null);
   const loaded = configQuery.data ?? null;
 
+  /** Có sửa của dự án này chưa lưu không. */
+  const hasUnsavedEdits = useCallback((): boolean => {
+    const persisted = lastPersistedRef.current;
+    const state = useStore.getState();
+
+    return (
+      persisted !== null &&
+      persisted.projectId === projectId &&
+      state.ruleConfigProjectId === projectId &&
+      state.ruleConfig !== persisted.config
+    );
+  }, [projectId]);
+
+  /**
+   * Nạp một bản N21 vào store. KHÔNG đi qua `commitRuleConfig`: một lượt nạp
+   * không phải thay đổi của người dùng — không nhãn lịch sử, không toast mời
+   * "hoàn tác", không đánh thức bộ tự lưu.
+   */
+  const hydrate = useCallback(
+    (next: LoadedRuleConfig): void => {
+      useStore.getState().hydrateRuleConfig({
+        projectId,
+        revision: next.revision,
+        overrides: next.config.overrides,
+      });
+      // Slice dựng object mới, nên mốc là bản trong store chứ không phải `next.config`.
+      lastPersistedRef.current = { projectId, config: useStore.getState().ruleConfig };
+    },
+    [projectId],
+  );
+
   useEffect(() => {
-    if (loaded === null || hydratedProjectRef.current === projectId) {
+    if (loaded === null) {
       return;
     }
 
-    hydratedProjectRef.current = projectId;
-    lastPersistedRef.current = loaded;
-    // Nạp lại bản đã lưu KHÔNG phải một thay đổi của người dùng: không vé hoàn
-    // tác, không toast, và không đánh thức bộ tự lưu.
-    useStore.getState().commitRuleConfig(loaded, HYDRATE_LABEL);
-  }, [loaded, projectId]);
+    const state = useStore.getState();
+    const persisted = lastPersistedRef.current;
+
+    if (state.ruleConfigProjectId !== projectId) {
+      hydrate(loaded);
+      return;
+    }
+
+    // Layout (F-04a) đã nạp store cho dự án này: chỉ đặt mốc, không nạp đè.
+    if (persisted === null || persisted.projectId !== projectId) {
+      if (loaded.revision > state.ruleConfigRevision) {
+        hydrate(loaded);
+      } else {
+        lastPersistedRef.current = { projectId, config: state.ruleConfig };
+      }
+
+      return;
+    }
+
+    if (loaded.revision > state.ruleConfigRevision && !hasUnsavedEdits()) {
+      hydrate(loaded);
+    }
+  }, [hasUnsavedEdits, hydrate, loaded, projectId]);
 
   /* ---------------------------------------------------------------------- */
   /* Tự lưu (A7) — 800 ms mặc định của createAutosave, không viết lại số.    */
@@ -397,6 +481,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     getChanges: () => undefined,
     save: async () => undefined,
   });
+  const flushRef = useRef<FlushState>({ disposed: false, pending: null });
 
   const [autosave] = useState(() =>
     createAutosave<RuleConfig>({
@@ -413,16 +498,153 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   });
 
   useEffect(() => {
+    const savePending = async (pending: PendingFlush): Promise<void> => {
+      const persisted = lastPersistedRef.current;
+
+      // Tháo khi lượt thường đang bay mà không sửa thêm: bản chụp CHÍNH là thân lượt ấy
+      // vừa lưu xong — không gửi lần hai (revision sẽ tăng vô ích).
+      if (persisted !== null && persisted.projectId === pending.projectId && persisted.config === pending.config) {
+        flushRef.current.pending = null;
+        return;
+      }
+
+      try {
+        const saved = await gateway.update({
+          projectId: pending.projectId,
+          baseVersion: Math.max(gateway.lastRevision(pending.projectId) ?? 0, pending.revision),
+          config: pending.config,
+        });
+
+        if (flushRef.current.pending === pending) {
+          flushRef.current.pending = null;
+        }
+
+        useStore.getState().setRuleConfigRevision(pending.projectId, saved.revision);
+        queryClient.setQueryData(ruleSettingsQueryKey(pending.projectId), saved);
+      } catch (error) {
+        // Hỏng vĩnh viễn thì `createAutosave` dừng ở `failed` và không gửi lại (R2):
+        // bỏ bản chụp để lượt sau của màn không mang theo nó.
+        if (!isTransientWireError(error) && flushRef.current.pending === pending) {
+          flushRef.current.pending = null;
+        }
+
+        throw error;
+      }
+    };
+
     bridgeRef.current = {
-      // `RuleConfig` bất biến: mỗi lượt sửa sinh ra một object mới, nên so sánh
-      // tham chiếu là đủ và không phải duyệt sâu 25 luật mỗi 800 ms.
-      getChanges: () => (config === lastPersistedRef.current ? undefined : config),
+      getChanges: () => {
+        const flush = flushRef.current;
+
+        if (flush.pending !== null) {
+          return flush.pending.config;
+        }
+
+        if (flush.disposed || !hasUnsavedEdits()) {
+          return undefined;
+        }
+
+        return useStore.getState().ruleConfig;
+      },
       save: async (changes) => {
-        await gateway.update({ projectId, config: changes });
-        lastPersistedRef.current = changes;
+        const pending = flushRef.current.pending;
+
+        if (pending !== null) {
+          await savePending(pending);
+          return;
+        }
+
+        // Đọc TRƯỚC `await` đầu tiên: lượt nạp hay lượt lưu khác có thể nâng nó giữa chừng.
+        const baseVersion = useStore.getState().ruleConfigRevision;
+
+        try {
+          const saved = await gateway.update({ projectId, baseVersion, config: changes });
+          // Hook đã sang dự án khác giữa chừng thì mốc và dải lỗi thuộc dự án mới, không ghi đè.
+          const stillHere = useStore.getState().ruleConfigProjectId === projectId;
+
+          if (stillHere) {
+            lastPersistedRef.current = { projectId, config: changes };
+            setSaveProblem(null);
+          }
+
+          useStore.getState().setRuleConfigRevision(projectId, saved.revision);
+          queryClient.setQueryData(ruleSettingsQueryKey(projectId), saved);
+        } catch (error) {
+          if (useStore.getState().ruleConfigProjectId === projectId) {
+            setSaveProblem(describeRuleConfigSaveError(error));
+          }
+
+          // Lỗi GỐC: `createAutosave` đọc nó để chọn thử lại hay dừng (R2).
+          throw error;
+        }
       },
     };
   });
+
+  // R13: rời dự án (tháo màn hay đổi `projectId`) khi còn sửa chưa lưu → chụp
+  // ĐỒNG BỘ rồi xả ngay một lượt; engine đang gửi thì lượt chạy lại đọc bản chụp.
+  useEffect(() => {
+    const flush = flushRef.current;
+    flush.disposed = false;
+
+    return () => {
+      const state = autosave.getState();
+
+      if (state !== 'saved' && state !== 'failed') {
+        const changes = bridgeRef.current.getChanges();
+
+        if (changes !== undefined && flush.pending === null) {
+          const store = useStore.getState();
+
+          flush.pending = {
+            projectId,
+            revision: store.ruleConfigProjectId === projectId ? store.ruleConfigRevision : 0,
+            config: changes,
+          };
+        }
+
+        flush.disposed = true;
+        void autosave.saveNow();
+        return;
+      }
+
+      flush.disposed = true;
+    };
+  }, [autosave, projectId]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Tải lại bản của máy chủ (409) — hỏi trước khi bỏ sửa dở (A9).           */
+  /* ---------------------------------------------------------------------- */
+
+  const reload = useCallback(async (): Promise<void> => {
+    const result = await configQuery.refetch();
+
+    // Lượt đọc lại hỏng thì react-query vẫn trả `data` cũ: không nạp nó, giữ dải lỗi.
+    if (result.isSuccess) {
+      hydrate(result.data);
+      setSaveProblem(null);
+      // Xoá trạng thái `failed` của lượt lưu cũ: không còn gì để gửi.
+      void autosave.saveNow();
+    }
+  }, [autosave, configQuery, hydrate]);
+
+  const onReload = useCallback((): void => {
+    if (hasUnsavedEdits()) {
+      setReloadConfirmOpen(true);
+      return;
+    }
+
+    void reload();
+  }, [hasUnsavedEdits, reload]);
+
+  const onConfirmReload = useCallback((): void => {
+    setReloadConfirmOpen(false);
+    void reload();
+  }, [reload]);
+
+  const onCancelReload = useCallback((): void => {
+    setReloadConfirmOpen(false);
+  }, []);
 
   /* ---------------------------------------------------------------------- */
   /* Một thay đổi: ghi vào store, đánh thức tự lưu, phát vé hoàn tác.        */
@@ -604,15 +826,21 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       return 'collapsed';
     }
 
-    if (!capabilities.canEditRules) {
+    // Chỉ đọc KHÔNG phải `forbidden`: N21 cho mọi thành viên đọc, view vẽ dải lý do.
+    if (configQuery.isLoadingError && readWireError(configQuery.error)?.status === FORBIDDEN_STATUS) {
       return 'forbidden';
     }
 
-    if (configQuery.isPending || spatialLoading) {
+    if (
+      configQuery.isPending ||
+      spatialLoading ||
+      (configQuery.isSuccess && ruleConfigProjectId !== projectId)
+    ) {
       return 'loading';
     }
 
-    if (configQuery.isError) {
+    // Lượt đọc lại chạy nền hỏng mà dữ liệu cũ vẫn còn: màn giữ nguyên, không thành `error`.
+    if (configQuery.isLoadingError) {
       return 'error';
     }
 
@@ -626,23 +854,26 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
     return 'ready';
   }, [
-    capabilities.canEditRules,
-    configQuery.isError,
+    configQuery.error,
+    configQuery.isLoadingError,
     configQuery.isPending,
+    configQuery.isSuccess,
     graph,
     hasThresholdProblem,
     isCompact,
+    projectId,
+    ruleConfigProjectId,
     saveState,
     spatialLoading,
   ]);
 
   const errorMessage = useMemo<string | null>(() => {
-    if (!configQuery.isError) {
+    if (!configQuery.isLoadingError) {
       return null;
     }
 
     return describeError(toAppError(configQuery.error)).description || LOAD_FAILURE_FALLBACK;
-  }, [configQuery.error, configQuery.isError]);
+  }, [configQuery.error, configQuery.isLoadingError]);
 
   const model = useMemo<RuleSettingsViewModel>(
     () => ({
@@ -657,6 +888,8 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       enabledRuleCount,
       disableAllWarning: enabledRuleCount === 0 ? DISABLE_ALL_WARNING : null,
       errorMessage,
+      saveProblem,
+      reloadConfirmOpen,
     }),
     [
       config,
@@ -666,6 +899,8 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       groups,
       indicator.label,
       presets,
+      reloadConfirmOpen,
+      saveProblem,
       saveState,
       status,
       totalRuleCount,
@@ -835,5 +1070,8 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     onChangeGeneralThreshold,
     onApplyPreset,
     onRestoreDefaults,
+    onReload,
+    onConfirmReload,
+    onCancelReload,
   };
 }

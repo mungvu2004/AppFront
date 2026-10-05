@@ -60,6 +60,7 @@ import {
   type ProjectSettingsBody,
 } from './schemas/projectSettings';
 import { ProjectSummarySchema, type ProjectSummary } from './schemas/projectSummaries';
+import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig } from './schemas/ruleConfig';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import { FloorVersionPageSchema } from './schemas/versions';
 
@@ -740,6 +741,22 @@ export interface ProjectSettingsApi {
   replace(input: ReplaceProjectSettingsInput): Promise<ApiResult<ProjectSettings>>;
 }
 
+export interface ReadProjectRuleConfigInput extends RequestOptions {
+  projectId: string;
+}
+
+export interface ReplaceProjectRuleConfigInput extends WriteRequestOptions {
+  baseVersion: number;
+  body: UpdateRuleConfig['body'];
+  projectId: string;
+}
+
+/** N21 đọc, N22 thay trọn `overrides` (`PUT {baseVersion, body}`); 409 mang `remoteChanges: []`. */
+export interface RuleConfigApi {
+  read(input: ReadProjectRuleConfigInput): Promise<ApiResult<ProjectRuleConfig>>;
+  replace(input: ReplaceProjectRuleConfigInput): Promise<ApiResult<ProjectRuleConfig>>;
+}
+
 export interface ApiClient {
   auth: AuthApi;
   drawings: DrawingsApi;
@@ -753,6 +770,7 @@ export interface ApiClient {
   projects: ProjectsApi;
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
+  ruleConfig: RuleConfigApi;
   spatial: SpatialApi;
   users: UsersApi;
 }
@@ -1168,6 +1186,23 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callPost(http, ENDPOINTS.quality.straighten(projectId, floorId), {}, input),
         ImageQualityAssessmentSchema,
         'quality.straighten',
+      );
+    },
+  },
+  ruleConfig: {
+    read: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.ruleConfig.read(projectId), signal),
+        ProjectRuleConfigSchema,
+        'ruleConfig.read',
+      ),
+    replace: async (input) => {
+      const { baseVersion, body, projectId } = input;
+
+      return decodeSingle(
+        await callPut(http, ENDPOINTS.ruleConfig.replace(projectId), { baseVersion, body }, input),
+        ProjectRuleConfigSchema,
+        'ruleConfig.replace',
       );
     },
   },

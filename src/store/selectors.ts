@@ -113,7 +113,12 @@ const withOverride = (rule: Rule, override: RuleOverride | undefined): Rule => {
     ...rule,
     severity: severity ?? rule.severity,
     check: (context) => {
-      const withThresholds: ThresholdContext = { ...context, thresholds: applied };
+      // `runRules` nhận `config` thì ngữ cảnh đã mang ngưỡng giải xong (chung + riêng,
+      // `resolveThresholds`); ghi đè bằng mỗi ngưỡng riêng là đánh rơi ngưỡng chung.
+      const withThresholds: ThresholdContext = {
+        ...context,
+        thresholds: { ...applied, ...context.thresholds },
+      };
 
       return rule.check(withThresholds);
     },
@@ -154,6 +159,25 @@ const buildRegistry = (config: RuleConfig): RuleRegistry | null => {
 };
 
 const registryOf = memoizeLatest(buildRegistry);
+
+/** Sổ chung cho cấu hình không đè gì — dựng một lần, không mỗi lượt gọi. */
+let defaultRegistry: RuleRegistry | null = null;
+
+/**
+ * Sổ luật để chạy một cấu hình, không bao giờ `null`: màn cần một sổ để đọc
+ * tên/nhóm luật cả khi dự án chưa đè gì (F-10, RuleReport).
+ */
+export const ruleRegistryFor = (config: RuleConfig): RuleRegistry => {
+  const registry = registryOf(config);
+
+  if (registry !== null) {
+    return registry;
+  }
+
+  defaultRegistry ??= createDefaultRuleRegistry();
+
+  return defaultRegistry;
+};
 
 /** Entities whose reference differs between two graphs, deletions included. */
 const changedEntitiesBetween = (
@@ -211,7 +235,9 @@ const ensureViolations = (spatial: NormalizedSpatial, config: RuleConfig): Viola
   const registry = registryOf(config);
   // `exactOptionalPropertyTypes` không cho đặt `registry: undefined`: một cấu
   // hình không đè gì phải BỎ TRỐNG trường ấy để `runRules` dùng sổ chung.
-  const options: RunRulesOptions = registry === null ? {} : { registry };
+  // `config` đi cùng để `runRules` giải cả ngưỡng `GENERAL` (K22) — sổ đã đè chỉ
+  // mang ngưỡng riêng của từng luật.
+  const options: RunRulesOptions = registry === null ? { config } : { registry, config };
   // Đổi cấu hình làm MỌI kết quả cũ hết hạn, kể cả của luật không bị đụng tới:
   // chạy tăng dần dựa trên "đối tượng nào đổi", mà ở đây không đối tượng nào
   // đổi. Tái dùng `runState` lúc này chính là trả về đúng con số cũ.

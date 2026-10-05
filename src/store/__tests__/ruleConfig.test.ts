@@ -9,14 +9,27 @@
  * đòi chúng khác nhau.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { RuleConfig } from '../../domain/rules/config';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import * as runner from '../../domain/rules/runner';
+import { GENERAL_THRESHOLD_CODE, type RuleConfig } from '../../domain/rules/config';
 import { normalizeSpatial } from '../../domain/spatial/normalize';
 import { createSampleBuilding } from '../../domain/spatial/__fixtures__/sampleBuilding';
 import { useStore } from '../index';
+
+/*
+ * `runRules` thật, chỉ bọc để đọc tham số: bộ mẫu A14 không đổi số vi phạm theo
+ * khoá `GENERAL` nào (đo ở F-10 — xem bài "ngưỡng chung" bên dưới), nên bằng
+ * chứng K22 là cấu hình THẬT SỰ tới tay `runRules`.
+ */
+vi.mock('../../domain/rules/runner', async (importOriginal) => {
+  const actual = await importOriginal<typeof runner>();
+
+  return { ...actual, runRules: vi.fn(actual.runRules) };
+});
 import { INITIAL_RULE_CONFIG } from '../ruleConfigSlice';
 import {
   resetSelectorCaches,
+  ruleRegistryFor,
   selectRuleConfig,
   selectRuleImpactCounts,
   selectTotalViolationCount,
@@ -238,5 +251,92 @@ describe('store/ruleConfig — cấu hình bộ luật là dữ liệu', () => {
         Object.values(selectRuleImpactCounts(useStore.getState())).every((count) => count === 0),
       ).toBe(true);
     });
+  });
+});
+
+describe('F-10: ngưỡng chung (GENERAL) có tác dụng — K22', () => {
+  beforeEach(() => {
+    resetSelectorCaches();
+    loadSampleBuilding();
+  });
+
+  /*
+   * Lệch khỏi prompt [8].4: cả hai khoá `GENERAL` (`general.jointToleranceMm`,
+   * `general.parallelAngleDeg`) đều không đổi số vi phạm của bộ mẫu ở biên 0 và
+   * biên trên (đo: 182 cả bốn lượt) — 96 đầu tường hở của bộ mẫu cách nhau hơn
+   * 500 mm. Nên bài này khẳng định `ensureViolations` đưa `config` xuống
+   * `runRules`; nó đỏ trên mã trước sửa (`{ registry }` không có `config`).
+   */
+  it('lượt chạy luật nhận cấu hình, kèm ngưỡng chung, chứ không chỉ sổ luật', () => {
+    const config = configWith({
+      [GENERAL_THRESHOLD_CODE]: { thresholds: { 'general.jointToleranceMm': 500 } },
+    });
+    vi.mocked(runner.runRules).mockClear();
+
+    useStore.getState().commitRuleConfig(config, 'Đổi ngưỡng khoảng hở tối đa');
+    selectTotalViolationCount(useStore.getState());
+
+    const options = vi.mocked(runner.runRules).mock.calls.at(-1)?.[1];
+    expect(options?.config?.overrides[GENERAL_THRESHOLD_CODE]).toEqual({
+      thresholds: { 'general.jointToleranceMm': 500 },
+    });
+  });
+
+  it('luật có override riêng vẫn đọc ngưỡng mà lượt chạy giải sẵn (chung + riêng)', () => {
+    const graph = normalizeSpatial(createSampleBuilding());
+    const rule = ruleRegistryFor(configWith({ 'WALL-THICKNESS': { severity: 'suggestion' } })).get('WALL-THICKNESS');
+
+    // Trần 10 m: mọi tường của bộ mẫu đều "mỏng hơn tối thiểu". Bọc cũ ghi đè ngưỡng của
+    // ngữ cảnh bằng `{}` (ngưỡng riêng rỗng) nên luật rơi về hằng số và im lặng.
+    const findings = rule?.check({ graph, levelId: null, thresholds: { 'wall.minThicknessMm': 10_000 } }) ?? [];
+
+    expect(findings.length).toBeGreaterThan(0);
+  });
+});
+
+describe('F-10: hydrateRuleConfig và setRuleConfigRevision', () => {
+  beforeEach(() => {
+    useStore.setState({
+      lastCommitLabel: null,
+      lastCommitUndo: null,
+      ruleConfig: INITIAL_RULE_CONFIG,
+      ruleConfigProjectId: null,
+      ruleConfigRevision: 0,
+    });
+  });
+
+  it('nạp không đặt nhãn lịch sử, không dựng undo, và version tăng', () => {
+    const versionBefore = useStore.getState().ruleConfig.version;
+
+    useStore.getState().hydrateRuleConfig({
+      projectId: 'P-1',
+      revision: 7,
+      overrides: { 'WALL-THICKNESS': { enabled: false } },
+    });
+
+    const state = useStore.getState();
+    expect(state.lastCommitLabel).toBeNull();
+    expect(state.lastCommitUndo).toBeNull();
+    expect(state.ruleConfig.version).toBe(versionBefore + 1);
+    expect(state.ruleConfig.overrides).toEqual({ 'WALL-THICKNESS': { enabled: false } });
+    expect(state.ruleConfigProjectId).toBe('P-1');
+    expect(state.ruleConfigRevision).toBe(7);
+  });
+
+  it('setRuleConfigRevision bỏ qua dự án khác', () => {
+    useStore.getState().hydrateRuleConfig({ projectId: 'P-1', revision: 2, overrides: {} });
+
+    useStore.getState().setRuleConfigRevision('P-2', 9);
+    expect(useStore.getState().ruleConfigRevision).toBe(2);
+
+    useStore.getState().setRuleConfigRevision('P-1', 3);
+    expect(useStore.getState().ruleConfigRevision).toBe(3);
+  });
+
+  it('commitRuleConfig vẫn đặt lastCommit', () => {
+    useStore.getState().commitRuleConfig(configWith({ 'WALL-THICKNESS': { enabled: false } }), 'Tắt luật');
+
+    expect(useStore.getState().lastCommitLabel).toBe('Tắt luật');
+    expect(useStore.getState().lastCommitUndo).not.toBeNull();
   });
 });

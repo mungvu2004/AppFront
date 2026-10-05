@@ -25,12 +25,14 @@ export type { RuleSettingsToast, UseRuleSettingsOptions } from './useRuleSetting
 
 export {
   createRuleSettingsGateway,
-  resetRuleSettingsStore,
+  describeRuleConfigSaveError,
   RULE_SETTINGS_NOT_BUILT,
   RULE_SETTINGS_READ_ONLY_REASON,
 } from './ruleSettingsGateway';
 export type {
+  LoadedRuleConfig,
   ReadRuleConfigInput,
+  RuleConfigSaveProblem,
   RuleSettingsGateway,
   RuleSettingsGatewaySeed,
   UpdateRuleConfigInput,

@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils';
 
 import { RuleSettingsGeneralThresholdsCard, RuleSettingsGroupCard } from './RuleSettingsGroups';
 import { RuleSettingsPresetsRow } from './RuleSettingsPresets';
+import { RuleSettingsReloadDialog } from './RuleSettingsReloadDialog';
 import { type RuleCode, FOCUS_RING } from './RuleSettingsRow';
 import type { RuleSettingsGroup, RuleSettingsProps } from './types';
 
@@ -178,6 +179,14 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
         <InlineAlert level="attention" message={capabilities.readOnlyReason} />
       )}
 
+      {model.saveProblem !== null && !model.saveProblem.onGeneralCard && (
+        <InlineAlert
+          level="attention"
+          message={model.saveProblem.message}
+          {...(model.saveProblem.offerReload ? { action: { label: 'Tải lại', onClick: props.onReload } } : {})}
+        />
+      )}
+
       {model.disableAllWarning !== null && (
         <InlineAlert level="violation" message={model.disableAllWarning} />
       )}
@@ -215,6 +224,10 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
               onChangeThreshold={props.onChangeThreshold}
             />
           ))}
+
+          {model.saveProblem?.onGeneralCard === true && (
+            <InlineAlert level="attention" message={model.saveProblem.message} />
+          )}
 
           <RuleSettingsGeneralThresholdsCard
             sectionId={sectionIdOf(GENERAL_SECTION_ID)}
@@ -295,6 +308,12 @@ export function RuleSettings(props: RuleSettingsProps) {
           />
         )}
       </div>
+
+      <RuleSettingsReloadDialog
+        isOpen={model.reloadConfirmOpen}
+        onConfirm={props.onConfirmReload}
+        onCancel={props.onCancelReload}
+      />
 
       {showRestoreDefaults && (
         <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">

@@ -16,7 +16,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
 import {
+  CONFLICT_SAVE_PROBLEM,
   EDITABLE_CAPABILITIES,
+  GENERAL_SAVE_PROBLEM,
   NOOP_RULE_SETTINGS_ACTIONS,
   READ_ONLY_CAPABILITIES,
   buildRuleSettingsModel,
@@ -87,4 +89,33 @@ export const Forbidden: Story = {
 /** 7 · thu gọn — vỏ ứng dụng báo màn đang hẹp. */
 export const Collapsed: Story = {
   args: { ...BASE_PROPS, model: buildRuleSettingsModel({ status: 'collapsed' }) },
+};
+
+/* -------------------------------------------------------------------------- */
+/* F-10 — quyền theo vai và lượt lưu hỏng (N22).                               */
+/* -------------------------------------------------------------------------- */
+
+/** chỉ đọc — kỹ sư: N21 cho mọi thành viên đọc, nên màn là `ready` kèm dải lý do, không `forbidden`. */
+export const ReadOnlyEngineer: Story = {
+  args: {
+    ...BASE_PROPS,
+    model: buildRuleSettingsModel({ status: 'ready' }),
+    capabilities: READ_ONLY_CAPABILITIES,
+  },
+};
+
+/** xung đột — tải lại: N22 trả 409, dải mời tải lại bản mới nhất. */
+export const ConflictReload: Story = {
+  args: {
+    ...BASE_PROPS,
+    model: buildRuleSettingsModel({ status: 'ready', saveProblem: CONFLICT_SAVE_PROBLEM }),
+  },
+};
+
+/** lỗi lưu ngưỡng chung: 422 ở `body.overrides.GENERAL…`, câu gắn ngay trên thẻ ngưỡng chung. */
+export const GeneralThresholdSaveError: Story = {
+  args: {
+    ...BASE_PROPS,
+    model: buildRuleSettingsModel({ status: 'ready', saveProblem: GENERAL_SAVE_PROBLEM }),
+  },
 };
