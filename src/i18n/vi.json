@@ -3533,6 +3533,56 @@
       "filterMine": "của tôi"
     }
   },
+  "modelRegistry": {
+    "breadcrumbAdmin": "Quản trị",
+    "breadcrumbHere": "model AI",
+    "title": "Model AI của chuỗi xử lý",
+    "familyPicker": "Họ model",
+    "activeTitle": "Đang dùng",
+    "classic": "Đường cổ điển",
+    "noActive": "Chưa kích hoạt bản nào",
+    "revert": "Quay về đường cổ điển",
+    "activate": "Kích hoạt",
+    "cancel": "Huỷ",
+    "reload": "Tải lại",
+    "retry": "Thử lại",
+    "loadMore": "Xem thêm",
+    "evaluation": {
+      "pending": "Chờ đánh giá",
+      "running": "Đang đánh giá",
+      "completed": "Đã đánh giá",
+      "failed": "Đánh giá không thành công"
+    },
+    "source": {
+      "trained": "Huấn luyện tại chỗ",
+      "seed": "Bản gốc",
+      "uploaded": "Tải lên"
+    },
+    "creator": {
+      "system": "Hệ thống AI",
+      "admin": "Quản trị viên"
+    },
+    "blockedNotEvaluated": "Chỉ kích hoạt được bản đã đánh giá.",
+    "dialogBody": "Lượt xử lý mới dùng bản này ngay; lượt đang chạy giữ model đã ghim.",
+    "revertTitle": "Quay về đường cổ điển cho tách lớp tường?",
+    "revertBody": "Chuỗi xử lý sẽ tách tường bằng thuật toán cổ điển, không dùng model nào.",
+    "dialogWarning": "Bản đang dùng chưa đánh giá xong nên sau khi đổi sẽ chưa kích hoạt lại được.",
+    "conflict": "{{family}} vừa được đổi ở nơi khác. Tải lại để thấy bản đang dùng.",
+    "partial": "{{count}} phiên bản đang chờ hoặc đang đánh giá; chỉ kích hoạt được bản đã đánh giá.",
+    "empty": "Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong.",
+    "emptyClassic": "Đang dùng đường cổ điển.",
+    "forbidden": "Chỉ quản trị viên hệ thống xem được model AI.",
+    "seedNote": "Số đo trên tập kiểm tổng hợp cố định, không so thẳng với bản huấn luyện.",
+    "errors": {
+      "notEvaluated": "Bản này chưa đánh giá xong nên chưa kích hoạt được. Bản gốc chỉ được đánh giá khi dịch vụ học máy đã chạy.",
+      "familyMismatch": "Bản này không thuộc họ model đang chọn.",
+      "versionNotFound": "Không tìm thấy phiên bản này.",
+      "familyNotFound": "Không tìm thấy họ model này.",
+      "busy": "Máy chủ đang bận. Thử lại sau ít phút.",
+      "readFallback": "Không đọc được danh sách model.",
+      "writeFallback": "Chưa kích hoạt được bản này. Thử lại sau."
+    }
+  },
   "userManagement": {
     "breadcrumb": {
       "navLabel": "đường dẫn trang",

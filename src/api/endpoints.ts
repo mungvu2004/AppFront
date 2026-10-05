@@ -1,3 +1,4 @@
+const ADMIN_ML_ROOT = '/admin/ml';
 const PROJECTS_ROOT = '/projects';
 const PROJECT_SUMMARIES_ROOT = '/project-summaries';
 const FLOORS_ROOT = '/floors';
@@ -54,6 +55,18 @@ export function toApiUrl(baseUrl: string, path: string): string {
 }
 
 export const ENDPOINTS = {
+  /**
+   * N23–N27 — registry model của chuỗi xử lý (F-11). Mọi đường `require_admin`.
+   *
+   * `familyActive(family)`: họ đi trên đường chứ không trong thân, vì luật "chỉ họ
+   * tường được gửi `null`" là luật theo họ (`schemas/adminMl.ts`).
+   */
+  adminMl: {
+    families: `${ADMIN_ML_ROOT}/model-families`,
+    familyActive: (family: string): string => `${ADMIN_ML_ROOT}/model-families/${family}/active`,
+    version: (modelVersionId: string): string => `${ADMIN_ML_ROOT}/model-versions/${modelVersionId}`,
+    versions: `${ADMIN_ML_ROOT}/model-versions`,
+  },
   /**
    * The credential exchange, and the only paths a signed-out visitor posts to.
    *

@@ -42,6 +42,29 @@ describe('invalidationMap', () => {
     expect(invalidationMap.removeProjectMember({ projectId })).toEqual(expected);
   });
 
+  it("scopes activateModelVersion to the family list and that family's versions only", () => {
+    expect(invalidationMap.activateModelVersion({ family: 'wallSegmentation' })).toEqual([
+      queryKeys.adminMl.families(),
+      queryKeys.adminMl.versions('wallSegmentation'),
+    ]);
+  });
+
+  it("leaves another family's versions and every single-version read fresh on activateModelVersion", () => {
+    const queryClient = new QueryClient();
+    const versionKey = queryKeys.adminMl.version('mdl_01JA0000000000000000000001');
+
+    queryClient.setQueryData(queryKeys.adminMl.families(), { items: [] });
+    queryClient.setQueryData(queryKeys.adminMl.versions('wallSegmentation'), { pages: [] });
+    queryClient.setQueryData(queryKeys.adminMl.versions('dimensionReading'), { pages: [] });
+    queryClient.setQueryData(versionKey, {});
+    applyInvalidation(queryClient, 'activateModelVersion', { family: 'wallSegmentation' });
+
+    expect(queryClient.getQueryState(queryKeys.adminMl.families())?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.versions('wallSegmentation'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.versions('dimensionReading'))?.isInvalidated).toBeFalsy();
+    expect(queryClient.getQueryState(versionKey)?.isInvalidated).toBeFalsy();
+  });
+
   it('marks the summaries query stale through applyInvalidation(renameProject)', () => {
     const queryClient = new QueryClient();
 

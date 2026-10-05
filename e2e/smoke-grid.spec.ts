@@ -102,6 +102,7 @@ const ROWS = {
   account: { anchor: { role: 'heading', name: 'cài đặt tài khoản' } },
   adminUsers: { anchor: { text: 'ma trận quyền theo vai trò' } },
   adminModels: { anchor: { label: 'tìm model' } },
+  adminTrainingModels: { anchor: { role: 'heading', name: 'Model AI của chuỗi xử lý' } },
   projectUpload: { anchor: { role: 'navigation', name: 'Tải lên bản vẽ' } },
   projectQuality: { anchor: { role: 'region', name: 'Báo cáo chất lượng' } },
   projectPipeline: {
