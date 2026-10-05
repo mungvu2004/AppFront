@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useShortcut } from '@/hooks/useShortcut';
 import { MOTION_EASINGS, durationSeconds } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 import { Z_INDEX } from '@/lib/zIndex';
 
 /*
@@ -85,6 +86,8 @@ const GO_TO_LABEL = 'Đi đến vị trí của họ';
 const SELF_SUFFIX = 'bạn';
 const SELECTING_PREFIX = 'đang chọn';
 const NOTHING_SELECTED_LABEL = 'chưa chọn gì';
+/** Góc mặc định của thanh hiện diện; màn chủ đổi được qua `presenceAnchorClassName`. */
+const DEFAULT_PRESENCE_ANCHOR = 'right-4 top-4';
 const ALONE_CAPTION = 'chỉ mình bạn đang xem';
 const READ_ONLY_CAPTION = 'bạn đang xem, không sửa được';
 const LOCK_SECTION_LABEL = 'Đối tượng đang bị người khác giữ';
@@ -300,6 +303,7 @@ export function CollaborationLayer({
   onResolveConflict,
   onDeferConflict,
   onFrameComment,
+  presenceAnchorClassName = DEFAULT_PRESENCE_ANCHOR,
 }: CollaborationLayerProps) {
   const [isRosterOpen, setRosterOpen] = useState(false);
 
@@ -369,7 +373,10 @@ export function CollaborationLayer({
       )}
 
       <div
-        className="pointer-events-auto absolute right-4 top-4 flex w-[280px] flex-col items-end gap-2"
+        className={cn(
+          'pointer-events-auto absolute flex w-[280px] flex-col items-end gap-2',
+          presenceAnchorClassName,
+        )}
         style={{ zIndex: Z_INDEX.panel }}
       >
         <button

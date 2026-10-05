@@ -68,6 +68,13 @@ const WallGeometryEditorContainer = lazy(async () => ({
   default: (await import('@/screens/viewer/WallGeometryEditor')).WallGeometryEditorContainer,
 }));
 
+/**
+ * Thanh hiện diện xuống DƯỚI cụm ViewCube + bản đồ nhỏ: góc trên phải có chủ
+ * (`VIEWER_LAYOUT.cubePx`). 216 px = 8 (top-2) + 72 (ViewCube) + 8 (gap-2) + 128
+ * (bản đồ nhỏ 120 + viền). Con số nằm ở đây vì lớp phủ cộng tác không biết màn chủ.
+ */
+const PRESENCE_ANCHOR = 'right-4 top-[216px]';
+
 export interface Viewer3DOverlaysProps {
   /** Chế độ sửa hình học tường đang bật. `false` ⇒ lớp phủ ấy không được dựng. */
   readonly isWallEditing: boolean;
@@ -87,7 +94,7 @@ export function Viewer3DOverlays(props: Viewer3DOverlaysProps) {
       {/* Không có phần dự phòng nhìn thấy được: lớp phủ vắng mặt trong lúc chunk
           đang tải là đúng, một khung xương lơ lửng trên khung nhìn 3D thì không. */}
       <Suspense fallback={null}>
-        <CollaborationLayerContainer />
+        <CollaborationLayerContainer presenceAnchorClassName={PRESENCE_ANCHOR} />
       </Suspense>
 
       {props.isWallEditing && (

@@ -230,23 +230,28 @@ async function signInThenOpenViewer(
  * Chữa được: lớp "đang dựng mô hình" — đo trước/sau, P2 đổi từ bị lớp ấy chặn
  * sang qua được nó.
  *
- * KHÔNG chữa được, và đừng tưởng là nó chữa:
- * - **P2** giờ bị chặn bởi con trỏ của NGƯỜI CỘNG TÁC GIẢ
- *   (`<span aria-label="Người dùng thử">`, đến từ `src/api/__mocks__/client.ts:320`).
- * - **Q2** vẫn bị lớp phủ của tour, vì tour hiện ra SAU khi hàm này chờ xong,
- *   trong lúc `findOneRoom` đang chạy. Không phải sai cách đóng: `handleSkip`
- *   (`src/screens/system/EditorTour/useEditorTour.ts:555`) đóng tour hẳn cả
- *   phiên, nên một cú bấm là đủ — vấn đề là THỜI ĐIỂM.
- *
- * Gốc rễ chung: mục 4.10 bật bộ mẫu cho e2e, biến mỗi lượt thành "người dùng
- * lần đầu có bạn cộng tác giả". Bộ spec này viết cho máy chủ KHÔNG mock và
- * chưa được thẩm định lại dưới chế độ ấy — nợ của một prompt riêng, không phải
- * của F-01b. Vá từng lớp một là đuổi theo một danh sách chưa biết dài bao nhiêu.
+ * Hai bài từng đỏ ở mục này đã được chữa ở chỗ khác (NO-208):
+ * - **P2** không phải do con trỏ của người cộng tác giả: nút ảnh đại diện của chính
+ *   bạn nằm trọn trong ô ViewCube. Chữa ở `Viewer3DOverlays.tsx` (`PRESENCE_ANCHOR`).
+ * - **Q2**: tour hiện ra SAU cú bấm "tìm phòng", nên {@link findOneRoom} gọi lại
+ *   {@link dismissTour} ngay sau cú bấm đó.
  */
 async function settleViewer(page: Page): Promise<void> {
   const building = page.getByRole('status').filter({ hasText: 'Đang dựng mô hình' });
   await expect(building).toHaveCount(0, { timeout: VIEWER_READY_TIMEOUT_MS });
 
+  await dismissTour(page);
+}
+
+/**
+ * Đóng lớp hướng dẫn nếu nó hiện ra, bằng đúng nút "bỏ qua" của người dùng.
+ *
+ * Tour chỉ có bước để vẽ khi đã có phím hoặc neo thật (`useEditorTour.ts`, "luật
+ * sống sót"); trên màn 3D bước ấy xuất hiện lúc ô tìm phòng đăng ký phím, tức SAU
+ * cú bấm "tìm phòng" chứ không phải lúc dựng xong. Vì thế {@link findOneRoom} gọi
+ * lại hàm này sau cú bấm đó (NO-208, Q2).
+ */
+async function dismissTour(page: Page): Promise<void> {
   const skip = page.getByRole('button', { name: 'bỏ qua', exact: true });
   await skip
     .first()
@@ -426,6 +431,8 @@ async function findOneRoom(page: Page): Promise<void> {
   /* Không một `page.keyboard.press` nào trong hàm này: phím `/` mở được ô tìm,
      nhưng người quản lý toà nhà không biết phím ấy tồn tại. */
   await page.getByRole('button', { name: SEARCH_TRIGGER_LABEL }).click();
+
+  await dismissTour(page);
 
   const box = page.getByRole('combobox', { name: SEARCH_INPUT_LABEL });
   await expect(box).toBeVisible();
