@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
 import type { SpatialGraphDocument } from '@/api/schemas/spatialGraph';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { LevelId, Wall } from '@/domain/spatial/types';
 import { setAuthenticatedSession } from '@/lib/auth/state';
 import type { HttpError } from '@/lib/http';
@@ -60,6 +61,57 @@ describe('useProjectSpatial', () => {
     expect(result.current.refreshFailed).toBe(false);
     expect(read).not.toHaveBeenCalled();
     expect(readGraph).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Kho có đồ thị mà không nguồn (`setSpatial(spatial, null)` — nạp ngoài đường sản phẩm) và
+   * `project` đúng dự án: [4] "`loading` chỉ khi kho chưa có đồ thị của `projectId`" → cổng
+   * không bật `spatialLoading`, vẫn đọc nền rồi nạp đè khi về (kho chưa mang `spatialProjectId`).
+   */
+  it('kho có đồ thị không nguồn của đúng dự án → `ready` ngay, không `spatialLoading`, nạp đè khi N15 về', async () => {
+    __resetMockLayerState();
+    const api = createMockApiClient();
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'project-1', members: [], name: 'P', updated_at: '' });
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+    });
+
+    const { result } = renderHook(() => useProjectSpatial({ api, projectId: 'project-1' }), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: createTestQueryClient() }, children),
+    });
+
+    expect(result.current.status).toBe('ready');
+    expect(useStore.getState().spatialLoading).toBe(false);
+
+    await waitFor(() => expect(useStore.getState().spatialProjectId).toBe('project-1'));
+
+    act(() => {
+      useStore.getState().setSpatial(null, null);
+      useStore.getState().setProject(null);
+    });
+  });
+
+  it('kho có đồ thị không nguồn mà `project` là dự án khác → `loading`', () => {
+    const api = createMockApiClient();
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'project-2', members: [], name: 'P2', updated_at: '' });
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+    });
+
+    const { result, unmount } = renderHook(() => useProjectSpatial({ api, projectId: 'project-1' }), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: createTestQueryClient() }, children),
+    });
+
+    expect(result.current.status).toBe('loading');
+    expect(useStore.getState().spatialLoading).toBe(true);
+
+    unmount();
+    act(() => {
+      useStore.getState().setSpatial(null, null);
+      useStore.getState().setProject(null);
+    });
   });
 
   /* review-1 P2-1: #24 về (đổi tên, thêm thành viên) không áp lại N15 cũ — có thể gỡ nhầm tầng mới. */

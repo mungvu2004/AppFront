@@ -87,7 +87,16 @@ export function useProjectSpatial({ api, projectId }: UseProjectSpatialOptions):
   /** Tài liệu N15 đã áp: #24 về sau (đổi tên, thành viên) không áp lại N15 cũ (review-1 P2-1). */
   const appliedDocumentRef = useRef<SpatialGraphDocument | null>(null);
 
-  const hasGraph = useStore((state) => state.spatial !== null && state.spatialProjectId === projectId);
+  /*
+   * Đồ thị của dự án này: mang `spatialProjectId` của nó, hoặc không nguồn (`setSpatial(…, null)`,
+   * nạp ngoài đường sản phẩm) mà `project` là nó. Vế sau chỉ thôi `loading` ([4]); `loadProjectGraph`
+   * vẫn nạp đè khi N15 về vì kho chưa mang `spatialProjectId`.
+   */
+  const hasGraph = useStore(
+    (state) =>
+      state.spatial !== null &&
+      (state.spatialProjectId === projectId || (state.spatialProjectId === null && state.project?.id === projectId)),
+  );
   const setSpatialLoading = useStore((state) => state.setSpatialLoading);
   const enabled = projectId !== undefined;
 
