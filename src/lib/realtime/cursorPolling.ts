@@ -49,7 +49,7 @@ type TimerId = ReturnType<ChannelClock['setTimeout']>;
 
 const defaultClock: ChannelClock = {
   clearTimeout: (id) => clearTimeout(id),
-  now: () => Date.now(),
+  now: Date.now,
   setTimeout: (fn, ms) => setTimeout(fn, ms),
 };
 
@@ -91,7 +91,7 @@ export function startCursorPolling<T>({
   function schedule(): void {
     clearTimer();
 
-    if (stopped || isHidden()) return;
+    if (isHidden()) return;
 
     timer = clock.setTimeout(() => {
       timer = null;
