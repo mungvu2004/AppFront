@@ -63,8 +63,16 @@ export const ENDPOINTS = {
    * tường được gửi `null`" là luật theo họ (`schemas/adminMl.ts`).
    */
   adminMl: {
+    /** N28–N37 (F-12): bộ dữ liệu và lượt huấn luyện. */
+    datasetVersions: (datasetId: string): string => `${ADMIN_ML_ROOT}/datasets/${datasetId}/versions`,
+    datasets: `${ADMIN_ML_ROOT}/datasets`,
     families: `${ADMIN_ML_ROOT}/model-families`,
     familyActive: (family: string): string => `${ADMIN_ML_ROOT}/model-families/${family}/active`,
+    job: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}`,
+    jobCancel: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}/cancel`,
+    jobLogs: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}/logs`,
+    jobMetrics: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}/metrics`,
+    jobs: `${ADMIN_ML_ROOT}/training-jobs`,
     version: (modelVersionId: string): string => `${ADMIN_ML_ROOT}/model-versions/${modelVersionId}`,
     versions: `${ADMIN_ML_ROOT}/model-versions`,
   },
