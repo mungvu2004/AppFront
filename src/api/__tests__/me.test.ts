@@ -4,7 +4,7 @@ import type { HttpClient, HttpError, Result } from '@/lib/http';
 
 import { createApiClient } from '../client';
 import { ENDPOINTS } from '../endpoints';
-import { createMockApiClient } from '../__mocks__/client';
+import { createMockApiClient, resetMockAuthSession } from '../__mocks__/client';
 import { ApiErrorBodySchema } from '../schemas/errors';
 import { MeSchema } from '../schemas/me';
 
@@ -174,6 +174,20 @@ describe('mock client.me — có trạng thái, trả MeSchema hợp lệ', () =
         })
       ).ok,
     ).toBe(true);
+  });
+
+  it('đổi người đăng nhập giả thì hồ sơ dựng lại, không mang hồ sơ của người trước', async () => {
+    const client = createMockApiClient();
+
+    await client.auth.signIn({ body: { email: 'an@example.com', password: 'mat-khau-1', rememberMe: false } });
+    await client.me.updateProfile({ body: { fullName: 'Người trước' } });
+    await client.auth.signIn({ body: { email: 'binh@example.com', password: 'mat-khau-2', rememberMe: false } });
+    const next = await client.me.readProfile();
+
+    resetMockAuthSession();
+
+    expect(next.ok && next.data.email).toBe('binh@example.com');
+    expect(next.ok && next.data.fullName).toBe('Người dùng thử');
   });
 });
 
