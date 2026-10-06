@@ -1230,4 +1230,33 @@ describe('useProcessingScreen', () => {
     expect(openSources()).toHaveLength(0);
     mounted.unmount();
   });
+
+  /* ---------------------------------------------------------------------- */
+  /* DEBT-03 — tầng đang xem (NO-363, NO-364).                               */
+  /* ---------------------------------------------------------------------- */
+
+  it('NO-363: tầng đang xem bỏ qua tầng có upload đã mất (404), nhường cho tầng còn chạy', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const gone = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    expect(mounted.result.current.floors[0]?.isActive).toBe(true);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(gone.uploadId, 1));
+      await clock.flushMicrotasks();
+    });
+
+    harness.queue(gone.uploadId, NOT_FOUND);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    await act(() => clock.advance(1));
+    await settle(clock);
+
+    expect(mounted.result.current.floors.map((floor) => floor.isActive)).toEqual([false, true]);
+    mounted.unmount();
+  });
 });
