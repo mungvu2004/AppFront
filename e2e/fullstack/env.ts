@@ -22,6 +22,10 @@ export const NAVIGATION_TIMEOUT_MS = 30_000;
 export const API_TIMEOUT_MS = 30_000;
 /** Cùng số với `PASCAL_RENDER_TIMEOUT_MS` của `e2e/pascal-viewer.spec.ts`. */
 export const PASCAL_RENDER_TIMEOUT_MS = 60_000;
+/** Trần một lượt đọc thân response `/api/` (thân bị kẹt thì coi như không đọc được). */
+export const BODY_READ_TIMEOUT_MS = 10_000;
+/** Trần lưu trace khi hỏng: `tracing.stop` có thể treo khi trang đang dở điều hướng. */
+export const TRACE_SAVE_TIMEOUT_MS = 30_000;
 /** Trần nạp bộ giải Draco trong worker. */
 export const DRACO_TIMEOUT_MS = 30_000;
 /** Trần mỗi lượt hỏi của `globalSetup`. */

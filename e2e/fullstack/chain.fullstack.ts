@@ -19,7 +19,16 @@ import { ROUTES } from '@/routes/paths';
 
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../fixtures/session';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../fixtures/tour';
-import { describeEntry, expectNoApiErrors, waitForApi, waitForApiWhere, watchApi, watchSse } from './apiWatch';
+import {
+  describeEntry,
+  expectNoApiErrors,
+  navigateThenWaitForApi,
+  waitForApi,
+  waitForApiWhere,
+  watchApi,
+  watchSse,
+  withTimeout,
+} from './apiWatch';
 import type { ApiEntry } from './apiWatch';
 import { loadDracoDecoder, watchCsp } from './csp';
 import {
@@ -27,6 +36,7 @@ import {
   CHAIN_TIMEOUT_MS,
   PASCAL_RENDER_TIMEOUT_MS,
   PIPELINE_TIMEOUT_MS,
+  TRACE_SAVE_TIMEOUT_MS,
   readFullstackEnv,
 } from './env';
 
@@ -124,12 +134,22 @@ async function expectApiSince(log: readonly ApiEntry[], mark: number, what: stri
 async function saveTraceOnFailure(page: Page, testInfo: TestInfo): Promise<void> {
   const path = testInfo.outputPath('trace.zip');
 
-  try {
-    await page.context().tracing.stop({ path });
-    await testInfo.attach('trace', { path, contentType: 'application/zip' });
-  } catch (traceError) {
-    console.error(`[fullstack] không lưu được trace: ${String(traceError)}`);
-  }
+  // Có trần: `tracing.stop` từng treo tới hết trần test khi trang dở điều hướng (chuỗi thật lượt 9).
+  const saved = withTimeout(
+    page
+      .context()
+      .tracing.stop({ path })
+      .then(async () => {
+        await testInfo.attach('trace', { path, contentType: 'application/zip' });
+        return 'ok';
+      })
+      .catch((traceError: unknown) => String(traceError)),
+    TRACE_SAVE_TIMEOUT_MS,
+    `quá ${String(TRACE_SAVE_TIMEOUT_MS)} ms`,
+  );
+  const outcome = await saved;
+
+  if (outcome !== 'ok') console.error(`[fullstack] không lưu được trace: ${outcome}`);
 }
 
 test('chuỗi FE + BE trên compose: từ đăng nhập tới registry', async ({ page, context }, testInfo) => {
@@ -179,10 +199,12 @@ test('chuỗi FE + BE trên compose: từ đăng nhập tới registry', async (
   try {
     await runChain(page, env.drawingPng, api, sse, loginIndex, cspViolations, pageErrors);
   } catch (error) {
+    // Hỏng sớm thì bước 11 không chạy: in lỗi trang ngay, vì nó có thể chính là nguyên nhân.
+    for (const pageError of pageErrors) console.error(`[fullstack] lỗi trang: ${pageError}`);
     await saveTraceOnFailure(page, testInfo);
     throw error;
   }
-  await context.tracing.stop();
+  await withTimeout(context.tracing.stop(), TRACE_SAVE_TIMEOUT_MS, undefined);
 });
 
 async function runChain(
@@ -208,10 +230,13 @@ async function runChain(
 
   await test.step('2. CSP và Draco (phiên phục hồi sau tải lại)', async () => {
     const mark = api.length;
-    const refresh = waitForApi(page, 'POST', /^\/api\/auth\/refresh$/u, [200]);
-
-    await page.reload();
-    await refresh;
+    await navigateThenWaitForApi(
+      page,
+      () => page.reload({ waitUntil: 'commit' }),
+      'POST',
+      /^\/api\/auth\/refresh$/u,
+      [200],
+    );
     await expectScreenAlive(page, page.getByRole('main'));
     expect(await loadDracoDecoder(page)).toBe('ok');
     await expectApiSince(api, mark, 'bước 2');
@@ -271,9 +296,9 @@ async function runChain(
   await test.step('6. pipeline qua SSE', async () => {
     const mark = api.length;
     // Lượt mồi #8 của màn: trạng thái cuối thì màn KHÔNG mở S1 (`useProcessingScreen.ts:933`).
+    await page.goto(ROUTES.project.pipeline(projectId), { waitUntil: 'commit' });
     const priming = waitForApi(page, 'GET', /\/drawings\/uploads\/[^/]+\/progress$/u, [200]).catch(() => null);
 
-    await page.goto(ROUTES.project.pipeline(projectId));
     await expectScreenAlive(page, page.getByRole('navigation', { name: 'Xử lý' }));
     const done = page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u);
     const failure = page.getByRole('button', { name: 'Sao chép mã lỗi' });
@@ -321,10 +346,14 @@ async function runChain(
   });
 
   await test.step('7. sửa tường, tự lưu', async () => {
-    const read = waitForApi(page, 'GET', layerPath(), [200]);
-
-    await page.goto(ROUTES.project.walls(projectId, floorId));
-    const walls = wallsOf((await read).json, 'N16');
+    const read = await navigateThenWaitForApi(
+      page,
+      () => page.goto(ROUTES.project.walls(projectId, floorId), { waitUntil: 'commit' }),
+      'GET',
+      layerPath(),
+      [200],
+    );
+    const walls = wallsOf(read.json, 'N16');
 
     expect(walls.length).toBeGreaterThan(0);
     await dismissTour(page);
@@ -374,10 +403,14 @@ async function runChain(
     wallAfter = changed;
     changedWallKeys = changedKeys(wallBefore, wallAfter);
 
-    const reread = waitForApi(page, 'GET', layerPath(), [200]);
-
-    await page.reload();
-    const reloaded = wallById(wallsOf((await reread).json, 'N16 sau tải lại'), changedWallId, 'N16');
+    const reread = await navigateThenWaitForApi(
+      page,
+      () => page.reload({ waitUntil: 'commit' }),
+      'GET',
+      layerPath(),
+      [200],
+    );
+    const reloaded = wallById(wallsOf(reread.json, 'N16 sau tải lại'), changedWallId, 'N16');
 
     expect(pick(reloaded, changedWallKeys)).toBe(pick(wallAfter, changedWallKeys));
     autosaveCount = countEntries(api, 'PUT', layerPath());
@@ -386,10 +419,13 @@ async function runChain(
   });
 
   await test.step('8. 3D', async () => {
-    const scene = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/spatial$`, 'u'), [200]);
-
-    await page.goto(ROUTES.project.viewer(projectId));
-    await scene;
+    await navigateThenWaitForApi(
+      page,
+      () => page.goto(ROUTES.project.viewer(projectId), { waitUntil: 'commit' }),
+      'GET',
+      new RegExp(`^/api/projects/${projectId}/spatial$`, 'u'),
+      [200],
+    );
     await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
     const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
 
@@ -399,13 +435,19 @@ async function runChain(
   });
 
   await test.step('8b. Pascal', async () => {
-    const flags = waitForApi(page, 'GET', /^\/api\/feature-flags$/u, [200]);
     const mount = page.waitForResponse((response) => PASCAL_MOUNT_PATTERN.test(response.url()), {
       timeout: PASCAL_RENDER_TIMEOUT_MS,
     });
 
-    await page.goto(ROUTES.project.viewerPascal(projectId));
-    expect(asRecord((await flags).json, 'GET /api/feature-flags')[PASCAL_FLAG_KEY]).toBe(true);
+    const flags = await navigateThenWaitForApi(
+      page,
+      () => page.goto(ROUTES.project.viewerPascal(projectId), { waitUntil: 'commit' }),
+      'GET',
+      /^\/api\/feature-flags$/u,
+      [200],
+    );
+
+    expect(asRecord(flags.json, 'GET /api/feature-flags')[PASCAL_FLAG_KEY]).toBe(true);
     await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
     // Khối [7]: nhận `success` hoặc `partial` (dữ liệu thật có tầng rỗng, đối tượng bị bỏ qua).
     // `empty`, `error`, `forbidden` mang caption khác nên không khớp và hết trần là hỏng.
@@ -470,20 +512,29 @@ async function runChain(
     await restore;
     restoreIndex = api.map((entry) => entry.method === 'POST' && entry.path.endsWith('/restore')).lastIndexOf(true);
 
-    const reread = waitForApi(page, 'GET', layerPath(), [200]);
-
-    await page.goto(ROUTES.project.walls(projectId, floorId));
-    const restored = wallById(wallsOf((await reread).json, 'N16 sau phục hồi'), changedWallId, 'N16');
+    // Đăng ký SAU khi trang mới commit: N16 của trang cũ, bị huỷ giữa lượt điều hướng, không khớp.
+    const reread = await navigateThenWaitForApi(
+      page,
+      () => page.goto(ROUTES.project.walls(projectId, floorId), { waitUntil: 'commit' }),
+      'GET',
+      layerPath(),
+      [200],
+    );
+    const restored = wallById(wallsOf(reread.json, 'N16 sau phục hồi'), changedWallId, 'N16');
 
     expect(pick(restored, changedWallKeys)).toBe(pick(wallBefore, changedWallKeys));
     await dismissTour(page);
   });
 
   await test.step('10. registry', async () => {
-    const familiesRead = waitForApi(page, 'GET', /^\/api\/admin\/ml\/model-families$/u, [200]);
-
-    await page.goto(ROUTES.adminTrainingModels);
-    const families = ModelFamilyPageSchema.parse((await familiesRead).json);
+    const familiesRead = await navigateThenWaitForApi(
+      page,
+      () => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' }),
+      'GET',
+      /^\/api\/admin\/ml\/model-families$/u,
+      [200],
+    );
+    const families = ModelFamilyPageSchema.parse(familiesRead.json);
     const family = families.items.find((item) => item.family === OPENING_FAMILY);
 
     if (family === undefined) throw new Error(`N23 không có họ ${OPENING_FAMILY}`);
