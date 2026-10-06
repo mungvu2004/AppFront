@@ -934,11 +934,20 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     let failing = true;
     let active = 0;
     let peak = 0;
+    const rowOf = (id: string) => setup.result.current[0].rows.find((row) => row.id === id);
+    // Hai bản có nội dung thêm vào đầu danh sách: bốn N18 cùng nạp, nên trần 2 mới thấy được.
+    const extras = ['AAA', 'BBB'].map((suffix, index) => ({
+      ...wireSummaries()[0],
+      floorRevision: 50 + index,
+      id: `ver_01J9ZV8Q3M7X5B2N4K6P8R0${suffix}`,
+      label: undefined,
+      sequence: 10 + index,
+    }));
 
     setup.server.override('GET snapshot', async ({ path }) => {
       active += 1;
       peak = Math.max(peak, active);
-      // Sống qua vài nhịp đồng hồ để ba lượt N18 chồng lên nhau thật — không giới hạn thì `peak` là 3.
+      // Sống qua vài nhịp đồng hồ để các lượt N18 chồng lên nhau thật — không giới hạn thì `peak` là 4.
       await new Promise((resolve) => setTimeout(resolve, 5));
       active -= 1;
 
@@ -946,20 +955,23 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
         ? { error: wireError(503, 'UNAVAILABLE'), ok: false }
         : { data: { dimensions: [], layer: wireLayer(WIRE_CURRENT_WALLS), versionId: path.split('/')[4] }, ok: true };
     });
+    setup.server.override('GET list', () => ({ data: { items: [...extras, ...wireSummaries()] }, ok: true }));
     await act(async () => {
-      await setup.queryClient.resetQueries({ queryKey: ['version', 'snapshot'] });
+      await setup.queryClient.resetQueries();
     });
     await waitFor(() => {
-      expect(setup.result.current[0].rows[1]?.snapshotError).toBe(SNAPSHOT_FAILED_NOTICE);
+      expect(setup.result.current[0].rows).toHaveLength(5);
+      expect(rowOf(WIRE_VERSION_IDS.v2)?.snapshotError).toBe(SNAPSHOT_FAILED_NOTICE);
+      expect(active).toBe(0);
     });
-    // Ba bản cùng nạp lại: trần chạm đúng 2, không hơn.
+    // Bốn bản cùng nạp: trần chạm đúng 2, không hơn.
     expect(peak).toBe(2);
 
-    const failed = setup.result.current[0].rows[1];
+    const failed = rowOf(WIRE_VERSION_IDS.v2);
 
     // Lỗi tạm thời không phải "hết nội dung".
     expect(failed?.isMetadataOnly).toBe(false);
-    expect(setup.result.current[0].rows[0]?.snapshotError).toBeUndefined();
+    expect(rowOf(WIRE_VERSION_IDS.v3)?.snapshotError).toBeUndefined();
 
     const [model, actions] = setup.result.current;
     const view = renderWithProviders(<VersionHistory model={model} actions={actions} />);
@@ -977,7 +989,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(document.activeElement?.closest('li')).not.toBeNull();
     expect(document.activeElement?.tagName).not.toBe('BUTTON');
     await waitFor(() => {
-      expect(setup.result.current[0].rows[1]?.snapshotError).toBeUndefined();
+      expect(rowOf(WIRE_VERSION_IDS.v2)?.snapshotError).toBeUndefined();
     });
     expect(setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`))).toHaveLength(before + 1);
     expect(peak).toBeLessThanOrEqual(2);
