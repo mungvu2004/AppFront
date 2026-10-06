@@ -52,6 +52,9 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
   const [draft, setDraft] = useState(name);
   const [savedName, setSavedName] = useState(name);
   const [error, setError] = useState<string | null>(null);
+  /* Tên vừa cam kết mà tên đang lưu chưa kịp theo (lượt lưu còn bay): Enter rồi
+     blur ngay không được cam kết lần hai (review DEBT-03 P3-5e). */
+  const [committed, setCommitted] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   /* Tên đổi từ ngoài ô (hoàn tác giữ phòng đang chọn, B-V7-09) thì ô theo tên ấy —
@@ -60,6 +63,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
     setSavedName(name);
     setDraft(name);
     setError(null);
+    setCommitted(null);
   }
 
   const commit = () => {
@@ -71,10 +75,11 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
       return;
     }
 
-    if (draft === name) {
+    if (draft === name || draft === committed) {
       return;
     }
 
+    setCommitted(draft);
     onCommit(draft);
   };
 

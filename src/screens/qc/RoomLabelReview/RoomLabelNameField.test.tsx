@@ -48,6 +48,9 @@ describe('RoomLabelNameField', () => {
 
     fireEvent.change(field, { target: { value: 'Bếp ăn' } });
     fireEvent.keyDown(field, { key: 'Enter' });
+    // Lượt lưu chưa về nên tên đang lưu vẫn là "Bếp": blur lúc này không được cam
+    // kết lần hai (review DEBT-03 P3-5e — trước đây bài không blur).
+    fireEvent.blur(field);
 
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith('Bếp ăn');
