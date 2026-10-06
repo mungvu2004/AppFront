@@ -38,7 +38,7 @@ export const REFRESH_TIMEOUT_MS = 15_000;
  * Đứng im không phải bỏ cuộc: còn HAI đường khởi động lại, và cả hai đều do
  * người dùng hoặc trình duyệt chủ động — `visibilitychange` (quay lại thẻ thì
  * `scheduleRefreshFromSession` chạy lại) và nút "thử lại" của `SessionGate`
- * (`retryAppSession()` → `bootstrapSession()`). Cả hai đặt `transientAttempt`
+ * (`retryAppSession()` → `bootstrapSession()` khi đã cấu hình). Cả hai đặt `transientAttempt`
  * về 0, nên chúng cho một THANG MỚI đầy đủ chứ không phải đúng một lượt lẻ —
  * một người quay lại thẻ sau bữa trưa xứng đáng được thử lại tử tế.
  */
