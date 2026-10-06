@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import type { Progress } from '@/api/schemas';
+import { refreshSingleFlight } from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import {
@@ -28,7 +29,7 @@ import {
   type BackgroundWatchRegistry,
 } from '@/lib/realtime/backgroundWatch';
 import { POLL_INTERVAL_MS } from '@/lib/realtime/pollingChannel';
-import { SSE_FAILURE_LIMIT } from '@/lib/realtime/progressStream';
+import { SSE_FAILURE_LIMIT, SSE_RETRY_INTERVAL_MS } from '@/lib/realtime/progressStream';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -46,6 +47,12 @@ import {
   type ProcessingScreenHookResult,
 } from './useProcessingScreen';
 import type { ProcessingScreenProps } from './types';
+
+// NO-154 qua cổng: đếm lượt xin refresh mà không gửi lượt refresh thật nào.
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  refreshSingleFlight: vi.fn(() => Promise.resolve(false)),
+}));
 
 const PROJECT_ID = 'project-1';
 const STAGES = getPipelineStages();
@@ -1229,5 +1236,46 @@ describe('useProcessingScreen', () => {
     expect(backgroundWatches.list()).toHaveLength(0);
     expect(openSources()).toHaveLength(0);
     mounted.unmount();
+  });
+});
+
+describe('processingGateway — NO-154 qua cổng tiến độ', () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+    MockEventSource.instances = [];
+    vi.mocked(refreshSingleFlight).mockClear();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
+  it('SSE chết SSE_FAILURE_LIMIT lần: cổng xin refresh phiên đúng MỘT lần cho cả chuỗi chết', async () => {
+    const gateway = createProcessingGateway(createMockApiClient(), {
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+    });
+    const stop = gateway.subscribeProgress(
+      { projectId: PROJECT_ID, uploadId: 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB1', floorId: 'L1' },
+      { onSnapshot: () => undefined, onFailure: () => undefined },
+    );
+
+    for (let failure = 0; failure < SSE_FAILURE_LIMIT; failure += 1) {
+      latestSource().triggerError();
+      await clock.advance(POLL_INTERVAL_MS);
+    }
+
+    expect(refreshSingleFlight).toHaveBeenCalledTimes(1);
+    expect(refreshSingleFlight).toHaveBeenCalledWith({ source: 'local' });
+
+    // Kênh thử SSE lại theo hẹn và lại chết: vẫn cùng một chuỗi, không xin thêm.
+    for (let retry = 0; retry < 2; retry += 1) {
+      await clock.advance(SSE_RETRY_INTERVAL_MS);
+      latestSource().triggerError();
+    }
+
+    expect(refreshSingleFlight).toHaveBeenCalledTimes(1);
+    stop();
   });
 });
