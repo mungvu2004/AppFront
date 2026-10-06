@@ -62,9 +62,9 @@ export const ErrorState: Story = {
 };
 
 /**
- * 5 · thành công — bốn phiên bản, một bản đã dọn theo chính sách lưu giữ (`isMetadataOnly`),
- * cặp so sánh v13→v14 với đủ ba tông màu (thêm/xoá/đổi), v13 mang huy hiệu "Hiện tại", tab
- * "trực quan" nói rõ đây là mô hình HIỆN TẠI.
+ * 5 · thành công — năm phiên bản, một bản đã dọn theo chính sách lưu giữ (`isMetadataOnly`),
+ * cặp so sánh v13→v14 với đủ ba tông màu (thêm/xoá/đổi), v15 (mới nhất) mang huy hiệu
+ * "Hiện tại", tab "trực quan" nói rõ đây là mô hình HIỆN TẠI.
  */
 export const Success: Story = {
   args: buildVersionHistoryProps('success'),

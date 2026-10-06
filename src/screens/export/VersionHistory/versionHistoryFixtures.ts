@@ -15,11 +15,10 @@
  *
  * ## Cổng giả
  *
- * {@link createFakeVersionHistoryGateway} không chạm mạng: `listVersions`/`diff` đọc từ một
- * lịch sử giữ trong bộ nhớ, `restore` gọi đúng `restoreVersion` + `appendVersionToHistory`
- * thật của `@/lib/versioning/restore` (số phiên bản luôn tăng thêm 1 — không mô phỏng lại
- * logic đó bằng tay), và phiếu hoàn tác đi qua `createUndoTicket` thật của
- * `@/lib/mutations/undoTicket` (cửa sổ `UNDO_WINDOW_MS`, không viết lại 8000).
+ * {@link createFakeVersionHistoryGateway} không chạm mạng: nó là cổng THẬT
+ * (`createVersionHistoryGateway`) nối vào máy chủ giả {@link createVersionsServerFake} — N17
+ * (`listVersionPage`), N18 (`readSnapshot`), N16 (`readFloorLayer`), N19 (`restore`/`revertRestore`)
+ * đọc/ghi một lịch sử giữ trong bộ nhớ, không có logic phiên bản viết tay ở cổng.
  */
 
 import { formatCalendarDate, formatClockTime, formatTimestamp } from '@/lib/format/datetime';
