@@ -77,6 +77,8 @@ import {
 import { boxOfExtent, frameViewpoint } from '@/lib/three/camera/frameObjects';
 import {
   createCameraMode,
+  FlatCameraMode,
+  OrbitCameraMode,
   type BuildingExtent,
   type CameraMode,
   type Viewpoint,
@@ -801,11 +803,11 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     (notches: number): void => {
       const controller = director.controller;
 
-      if ('dolly' in controller) {
-        (controller as { dolly: (n: number) => void }).dolly(notches * DOLLY_NOTCH);
+      if (controller instanceof FlatCameraMode) {
+        controller.zoom(notches * DOLLY_NOTCH);
         wake();
-      } else if ('zoom' in controller) {
-        (controller as { zoom: (n: number) => void }).zoom(notches * DOLLY_NOTCH);
+      } else if (controller instanceof OrbitCameraMode) {
+        controller.dolly(notches * DOLLY_NOTCH);
         wake();
       }
     },

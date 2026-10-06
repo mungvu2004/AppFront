@@ -63,7 +63,10 @@ const COMBO_BY_ID: Partial<Record<TourStepId, string>> = {
   undo: 'Mod+Z',
 };
 
-const STEP_TEXT: Record<TourStepId, { readonly title: string; readonly body: string; readonly comboDescription: string }> = {
+const STEP_TEXT: Record<
+  TourStepId,
+  { readonly title: string; readonly body: string; readonly comboDescription: string }
+> = {
   switchTool: {
     title: 'Đổi công cụ đang dùng',
     body: 'Bấm một biểu tượng khác trên dải công cụ bên trái để đổi công cụ đang chọn.',
@@ -284,12 +287,15 @@ describe('R-63 — bảy trạng thái, đo trên cả màn', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('R-72 — mọi trạng thái có vẽ gì đó: tiếp cận được, tiếng Việt có dấu', () => {
-  it.each(createSevenStateScenarios())('trạng thái "$label" tiếp cận được và không sót tiếng Anh/mất dấu', (scenario) => {
-    const { container } = render(<EditorTour {...propsFor(scenario)} />);
+  it.each(createSevenStateScenarios())(
+    'trạng thái "$label" tiếp cận được và không sót tiếng Anh/mất dấu',
+    (scenario) => {
+      const { container } = render(<EditorTour {...propsFor(scenario)} />);
 
-    expectAccessible(container);
-    expectVietnamese(container);
-  });
+      expectAccessible(container);
+      expectVietnamese(container);
+    },
+  );
 
   it('không một mã màu thô nào trong cả thư mục màn', () => {
     expect(() => {
@@ -314,11 +320,19 @@ describe('BÀI NGHIỆM THU 1 — đổi phím tắt trong registry thì thẻ �
       onTrigger: noop,
     });
 
-    const first = mountTour({ registry, resolveAnchor: () => null, forcedState: 'partial', hasModel: true });
+    const first = mountTour({
+      registry,
+      resolveAnchor: () => null,
+      forcedState: 'partial',
+      hasModel: true,
+    });
 
-    const comboAfterFirstBind = tourProps().steps.find((step) => step.id === 'reviewWall')?.combo ?? null;
+    const comboAfterFirstBind =
+      tourProps().steps.find((step) => step.id === 'reviewWall')?.combo ?? null;
 
-    console.log(`[2C] BÀI NGHIỆM THU 1 — lượt 1: đăng ký combo "A" cho wallLayerReview.next → thẻ đọc "${String(comboAfterFirstBind)}"`);
+    console.log(
+      `[2C] BÀI NGHIỆM THU 1 — lượt 1: đăng ký combo "A" cho wallLayerReview.next → thẻ đọc "${String(comboAfterFirstBind)}"`,
+    );
 
     expect(comboAfterFirstBind).toBe('A');
     expect(screen.getByText('A')).toBeInTheDocument();
@@ -337,9 +351,12 @@ describe('BÀI NGHIỆM THU 1 — đổi phím tắt trong registry thì thẻ �
 
     mountTour({ registry, resolveAnchor: () => null, forcedState: 'partial', hasModel: true });
 
-    const comboAfterSecondBind = tourProps().steps.find((step) => step.id === 'reviewWall')?.combo ?? null;
+    const comboAfterSecondBind =
+      tourProps().steps.find((step) => step.id === 'reviewWall')?.combo ?? null;
 
-    console.log(`[2C] BÀI NGHIỆM THU 1 — lượt 2: đăng ký LẠI cùng id với combo "Y" → thẻ đọc "${String(comboAfterSecondBind)}"`);
+    console.log(
+      `[2C] BÀI NGHIỆM THU 1 — lượt 2: đăng ký LẠI cùng id với combo "Y" → thẻ đọc "${String(comboAfterSecondBind)}"`,
+    );
 
     expect(comboAfterSecondBind).toBe('Y');
     expect(screen.getByText('Y')).toBeInTheDocument();
@@ -413,7 +430,8 @@ describe('BÀI NGHIỆM THU 2 — bấm phím thật của bước đang mở th
       onTrigger: noop,
     });
 
-    const resolveAnchor = (id: TourStepId): TourRect | null => (id === 'editThickness' ? FIXED_RECT : null);
+    const resolveAnchor = (id: TourStepId): TourRect | null =>
+      id === 'editThickness' ? FIXED_RECT : null;
 
     mountTour({ registry, resolveAnchor, forcedState: 'partial', hasModel: true });
 
@@ -445,15 +463,40 @@ describe('BÀI NGHIỆM THU 3 — mất neo thì bộ đếm rút, giao diện k
   it('bước không có phím và không dò được neo bị bỏ lặng lẽ — bộ đếm còn "x / 5"', () => {
     const registry = createShortcutRegistry();
 
-    registry.register({ id: 'wallLayerReview.tool.drawWall', combo: 'W', scope: 'canvas', description: STEP_TEXT.switchTool.comboDescription, onTrigger: noop });
-    registry.register({ id: 'wallLayerReview.next', combo: 'J', scope: 'canvas', description: STEP_TEXT.reviewWall.comboDescription, onTrigger: noop });
-    registry.register({ id: 'wallLayerReview.thickness.1', combo: '1', scope: 'canvas', description: STEP_TEXT.editThickness.comboDescription, onTrigger: noop });
-    registry.register({ id: 'wallLayerReview.undo', combo: 'Mod+Z', scope: 'canvas', description: STEP_TEXT.undo.comboDescription, onTrigger: noop });
+    registry.register({
+      id: 'wallLayerReview.tool.drawWall',
+      combo: 'W',
+      scope: 'canvas',
+      description: STEP_TEXT.switchTool.comboDescription,
+      onTrigger: noop,
+    });
+    registry.register({
+      id: 'wallLayerReview.next',
+      combo: 'J',
+      scope: 'canvas',
+      description: STEP_TEXT.reviewWall.comboDescription,
+      onTrigger: noop,
+    });
+    registry.register({
+      id: 'wallLayerReview.thickness.1',
+      combo: '1',
+      scope: 'canvas',
+      description: STEP_TEXT.editThickness.comboDescription,
+      onTrigger: noop,
+    });
+    registry.register({
+      id: 'wallLayerReview.undo',
+      combo: 'Mod+Z',
+      scope: 'canvas',
+      description: STEP_TEXT.undo.comboDescription,
+      onTrigger: noop,
+    });
 
     // `view3d` không có phím thật (notes-1A mục e) — tiêm resolveAnchor trả
     // `null` cho đúng nó để mô phỏng "không dò được phần tử thật", trong khi
     // `exportResult` (cũng không phím) vẫn sống nhờ neo, đúng luật sống sót.
-    const resolveAnchor = (id: TourStepId): TourRect | null => (id === 'exportResult' ? FIXED_RECT : null);
+    const resolveAnchor = (id: TourStepId): TourRect | null =>
+      id === 'exportResult' ? FIXED_RECT : null;
 
     // Gọi thẳng, không bọc try/catch: nếu bước mất neo làm giao diện vỡ, chính
     // lệnh dựng này ném và bài kiểm đỏ ngay tại đây — đúng thứ "không vỡ" đo được.
@@ -466,7 +509,9 @@ describe('BÀI NGHIỆM THU 3 — mất neo thì bộ đếm rút, giao diện k
 
     const counterText = mounted.container.textContent ?? '';
 
-    console.log(`[2C] BÀI NGHIỆM THU 3 — mất neo bước "view3d" → còn ${String(props.steps.length)}/5 bước; giao diện: "${counterText}"`);
+    console.log(
+      `[2C] BÀI NGHIỆM THU 3 — mất neo bước "view3d" → còn ${String(props.steps.length)}/5 bước; giao diện: "${counterText}"`,
+    );
 
     expect(counterText).toMatch(/5\b/);
     expect(counterText).not.toMatch(/6\b/);
@@ -650,7 +695,13 @@ describe('Vai người xem — forbidden chỉ còn ba bước xem', () => {
     const resolveAnchor = (id: TourStepId): TourRect | null =>
       id === 'view3d' || id === 'exportResult' ? FIXED_RECT : null;
 
-    mountTour({ registry, resolveAnchor, role: 'viewer', forcedState: 'forbidden', hasModel: true });
+    mountTour({
+      registry,
+      resolveAnchor,
+      role: 'viewer',
+      forcedState: 'forbidden',
+      hasModel: true,
+    });
 
     const ids = tourProps()
       .steps.map((step) => step.id)
@@ -697,8 +748,12 @@ describe('Cờ đã xem tách theo host — học xong ở màn này không tắ
     console.log(`[đp] khoá đã ghi: ${keys.join(', ')}`);
 
     expect(keys).toEqual(['appfront:system-editor-tour-seen:u-1:wall-layer-review']);
-    expect(window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:viewer-shell')).toBeNull();
-    expect(window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:export-panel')).toBeNull();
+    expect(
+      window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:viewer-shell'),
+    ).toBeNull();
+    expect(
+      window.localStorage.getItem('appfront:system-editor-tour-seen:u-1:export-panel'),
+    ).toBeNull();
   });
 
   it('bỏ qua ở màn QC rồi mở vỏ 3D: hướng dẫn của vỏ 3D VẪN chạy', () => {
@@ -756,5 +811,69 @@ describe('Giảm chuyển động — vùng khoét không chạy vị trí/kích
     // (MOTION_DURATIONS_MS.slow) khi KHÔNG giảm chuyển động — con số đó không
     // được xuất hiện khi isReducedMotion=true (giảm chuyển động: khoét đứng yên).
     expect(container.innerHTML).not.toMatch(/340/);
+  });
+});
+
+describe('NO-208 — neo có mặt SAU commit đầu', () => {
+  it('tour hiện ngay khi neo xuất hiện ở DOM, không cần lượt render lại nào khác', async () => {
+    const resolveAnchor = (id: TourStepId): TourRect | null =>
+      id === 'editThickness' && document.getElementById('late-anchor') !== null ? FIXED_RECT : null;
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, hasModel: true });
+    expect(screen.queryByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeNull();
+
+    const anchor = document.createElement('div');
+    anchor.id = 'late-anchor';
+    try {
+      await act(async () => {
+        document.body.appendChild(anchor);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(await screen.findByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeTruthy();
+    } finally {
+      await act(async () => {
+        anchor.remove();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+  });
+});
+
+describe('NO-208 — vị trí chip do màn chủ truyền', () => {
+  const chipWrapper = (): HTMLElement | null =>
+    screen.getByRole('button', { name: 'Xem hướng dẫn' }).parentElement;
+
+  it('mặc định ở giữa cạnh dưới (B-V2-05)', () => {
+    render(
+      <EditorTour
+        {...baseProps({
+          screenState: 'empty',
+          steps: [],
+          activeIndex: -1,
+          cutout: null,
+          isSkipChipVisible: true,
+        })}
+      />,
+    );
+
+    expect(chipWrapper()?.className).toContain('bottom-[16px] left-1/2 -translate-x-1/2');
+  });
+
+  it('theo chipAnchorClassName của màn chủ, và bỏ góc mặc định', () => {
+    render(
+      <EditorTour
+        {...baseProps({
+          screenState: 'empty',
+          steps: [],
+          activeIndex: -1,
+          cutout: null,
+          isSkipChipVisible: true,
+          chipAnchorClassName: 'right-[16px] top-[16px]',
+        })}
+      />,
+    );
+
+    expect(chipWrapper()?.className).toContain('right-[16px] top-[16px]');
+    expect(chipWrapper()?.className).not.toContain('bottom-[16px]');
   });
 });

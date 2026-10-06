@@ -64,11 +64,7 @@ export interface CollaborationLayerContainerProps extends UseCollaborationLayerO
    * ghi nào chuyển giao được khoá.
    */
   readonly onRequestEditAccess?: ((objectId: string) => void) | undefined;
-  /**
-   * Lớp Tailwind định vị thanh hiện diện — xem `CollaborationLayerProps`.
-   *
-   * Bỏ trống ⇒ `right-4 top-4`. Màn chủ truyền vào khi góc ấy đã có chủ.
-   */
+  /** Lớp Tailwind định vị thanh hiện diện — xem `CollaborationLayerProps`. */
   readonly presenceAnchorClassName?: string | undefined;
 }
 

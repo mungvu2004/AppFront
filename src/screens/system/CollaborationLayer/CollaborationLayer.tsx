@@ -347,10 +347,7 @@ export function CollaborationLayer({
         </button>
 
         {captions.length > 0 && (
-          <div
-            role="status"
-            className="pointer-events-auto flex flex-col items-end gap-0.5 text-right"
-          >
+          <div role="status" className="pointer-events-auto flex flex-col items-end gap-0.5 text-right">
             {captions.map((caption) => (
               <p key={caption} className="text-[11px] leading-tight text-text-secondary">
                 {caption}

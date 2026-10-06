@@ -411,9 +411,18 @@ async function stepRotate(page: Page): Promise<void> {
 /**
  * Việc 2 — thu phóng.
  *
- * Lăn chuột trong khung nhìn, rồi khẳng định mức thu phóng ĐÃ LỚN HƠN. Nhãn ấy
- * do `useViewerShell` định dạng sẵn (A15), nên nó là đầu ra thật của camera chứ
- * không phải một chuỗi màn hình tự bịa.
+ * Lăn chuột VÀO trong khung nhìn, rồi khẳng định mức thu phóng ĐÃ LỚN HƠN. Nhãn
+ * ấy do `useViewerShell` định dạng sẵn (A15), nên nó là đầu ra thật của camera
+ * chứ không phải một chuỗi màn hình tự bịa.
+ *
+ * Hai điều đo được ngày 2026-10-05 (NO-208), vì sao bài này đỏ 4/5 lượt khi chạy
+ * cùng bài khác:
+ * - Camera mở đầu bằng một đoạn chạy về khuôn hình chuẩn, nhãn tự leo lên mức
+ *   chuẩn không cần lăn chuột. Bài cũ đọc `before` giữa đoạn chạy ấy: xanh vì sai
+ *   lý do khi đoạn chạy còn dở, đỏ khi nó đã xong. Nay chờ nhãn yên rồi mới đo.
+ * - Sau bước "quay" (preset "Trên xuống", camera phẳng) cú lăn chuột từng không
+ *   đổi nhãn vì `onViewportWheel` chỉ biết `dolly`; nay gọi `zoom` cho góc nhìn phẳng,
+ *   nên bước này chạy đúng thứ tự gốc: SAU bước quay.
  */
 async function stepZoom(page: Page): Promise<void> {
   const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
@@ -422,7 +431,21 @@ async function stepZoom(page: Page): Promise<void> {
   expect(box).not.toBeNull();
 
   const label = zoomLabel(page);
-  const before = percentOf((await label.innerText()).trim());
+  const read = async (): Promise<number> => percentOf((await label.innerText()).trim());
+
+  /* Yên = hai lần đọc liên tiếp, cách nhau ZOOM_SETTLE_MS, bằng nhau. */
+  let before = await read();
+  await expect
+    .poll(
+      async () => {
+        const previous = before;
+        before = await read();
+
+        return before === previous;
+      },
+      { intervals: [ZOOM_SETTLE_MS] },
+    )
+    .toBe(true);
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
@@ -430,10 +453,11 @@ async function stepZoom(page: Page): Promise<void> {
     await page.mouse.wheel(0, -WHEEL_DELTA_PX);
   }
 
-  await expect
-    .poll(async () => percentOf((await label.innerText()).trim()))
-    .toBeGreaterThan(before);
+  await expect.poll(read).toBeGreaterThan(before);
 }
+
+/** Khoảng đọc lại nhãn thu phóng để biết camera đã yên. */
+const ZOOM_SETTLE_MS = 400;
 
 /**
  * Việc 3 — chọn một tầng từ ray tầng.
@@ -722,6 +746,37 @@ test('bấm chuột trong khung nhìn chọn được một đối tượng (R1)
     await expect(inspector).toContainText(/(phòng|tường) [A-Z]-[A-Z0-9]+/u);
     await expect(inspector).toContainText('Mã đối tượng');
   });
+});
+
+/**
+ * NO-208 — **khung 280 px của thanh hiện diện không nuốt chuột ở chỗ nó không vẽ gì.**
+ *
+ * Nút ảnh đại diện chỉ ~36 px nép mép phải, nhưng khung chứa nó rộng 280 px và
+ * nằm dưới ViewCube + bản đồ nhỏ — giữa mô hình. Một khung `pointer-events-auto`
+ * ở đó là vùng chết vô hình. Điểm đo: tâm hộp của khung (lấy từ DOM), ngay
+ * dưới dòng `top-[216px]` — không có gì được vẽ ở đó, nên thứ nhận chuột phải là
+ * khung nhìn 3D (`canvas`).
+ */
+test('thanh hiện diện không nuốt chuột của mô hình ở vùng khung rỗng (NO-208)', async ({ page }) => {
+  await openViewer(page);
+
+  const box = await page.getByRole('main', { name: 'Khung nhìn mô hình' }).boundingBox();
+  expect(box).not.toBeNull();
+
+  /* Lấy hộp của khung từ DOM rồi mới đo: khung đổi chỗ thì điểm dò đi theo. */
+  const frame = await page.locator('div.pointer-events-none.absolute[class*="w-[280px]"]').boundingBox();
+  expect(frame).not.toBeNull();
+
+  const x = frame!.x + frame!.width / 2;
+  const y = frame!.y + frame!.height / 2;
+  expect(x).toBeGreaterThan(box!.x);
+  expect(y).toBeGreaterThan(box!.y);
+  const hit = await page.evaluate(
+    ([px, py]) => document.elementFromPoint(px ?? 0, py ?? 0)?.tagName ?? null,
+    [x, y],
+  );
+
+  expect(hit).toBe('CANVAS');
 });
 
 /**

@@ -27,6 +27,7 @@ import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 're
 
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
+import { cn } from '@/lib/utils';
 import { cssDurationMs, MOTION_EASINGS } from '@/lib/motion/tokens';
 
 import type { EditorTourProps, TourPlacement, TourRect } from './useEditorTour';
@@ -113,6 +114,13 @@ function backdropPanels(
   ];
 }
 
+/**
+ * Góc mặc định của chip; màn chủ đổi được qua `chipAnchorClassName` (NO-208).
+ * Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không đè
+ * điều khiển nào. Bài: e2e/v2v3/tour-chip.spec.ts.
+ */
+const DEFAULT_CHIP_ANCHOR = 'bottom-[16px] left-1/2 -translate-x-1/2';
+
 export function EditorTour(props: EditorTourProps) {
   const {
     screenState,
@@ -123,6 +131,7 @@ export function EditorTour(props: EditorTourProps) {
     isReducedMotion,
     summary,
     isSkipChipVisible,
+    chipAnchorClassName = DEFAULT_CHIP_ANCHOR,
     liveMessage,
     onNext,
     onSkip,
@@ -378,11 +387,9 @@ export function EditorTour(props: EditorTourProps) {
         </div>
       )}
 
-      {/* Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không
-          đè điều khiển nào — góc phải trên che "Chia sẻ"/"Góc nhìn sẵn", góc dưới-phải là
-          chỗ của toast, góc dưới-trái là cột danh sách tường. Bài: e2e/v2v3/tour-chip.spec.ts. */}
+      {/* Vị trí do màn chủ truyền (NO-208); mặc định giữa cạnh dưới (B-V2-05) — xem `DEFAULT_CHIP_ANCHOR`. */}
       {isSkipChipVisible && (
-        <div className="pointer-events-auto fixed bottom-[16px] left-1/2 -translate-x-1/2">
+        <div className={cn('pointer-events-auto fixed', chipAnchorClassName)}>
           <Button variant="secondary" size="sm" onClick={onReopen}>
             Xem hướng dẫn
           </Button>

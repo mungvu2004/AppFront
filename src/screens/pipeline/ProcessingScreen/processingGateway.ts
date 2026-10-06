@@ -74,6 +74,7 @@ import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
+import { refreshSingleFlight } from '@/lib/auth';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
@@ -822,6 +823,7 @@ export function createProcessingGateway(
       stream = createProgressStream({
         url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.uploadProgress(input.projectId, uploadId)),
         clock,
+        refreshAuth: () => refreshSingleFlight({ source: 'local' }),
         fetchEvents: async ({ signal }) => {
           const event = await reader.read(signal);
           return event === null ? [] : [event];

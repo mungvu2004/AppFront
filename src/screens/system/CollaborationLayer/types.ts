@@ -160,19 +160,12 @@ export interface CollaborationLayerProps {
   readonly onDeferConflict: () => void;
   readonly onFrameComment: (commentId: string) => void;
   /**
-   * Lớp Tailwind định vị THANH HIỆN DIỆN, khi góc mặc định đã có chủ.
+   * Lớp Tailwind định vị THANH HIỆN DIỆN khi góc mặc định `right-4 top-4` đã có chủ.
    *
-   * Mặc định `right-4 top-4`. Lớp phủ này gắn được vào bất cứ màn nào bằng
-   * một dòng, nên nó KHÔNG được biết màn chủ có gì ở góc nào — nhưng màn chủ
-   * thì biết, và đây là chỗ nó nói ra.
-   *
-   * Vì sao khe này tồn tại, đo ngày 2026-09-29 trên `master`: `Viewer3D` đặt
-   * ViewCube ở `right-2 top-2` cạnh 72 px, và `VIEWER_LAYOUT.cubePx` ghi hẳn
-   * "ViewCube góc trên phải" — góc ấy có chủ. Nút ảnh đại diện 36 × 36 ở
-   * `right-4 top-4` rơi **trọn vào bên trong** ô 72 × 72 ấy, và nó ở
-   * `Z_INDEX.panel` (20) còn ViewCube thì z tự động. Kết quả: bốn mặt ViewCube
-   * không bấm được bằng chuột, `e2e/viewer3d.spec.ts:479` đỏ với
-   * `subtree intercepts pointer events`.
+   * Lớp phủ này gắn được vào bất cứ màn nào nên không biết màn chủ có gì ở góc nào;
+   * màn chủ thì biết. `Viewer3D` đặt ViewCube (72 px) ở `right-2 top-2`, nút ảnh đại
+   * diện 36 px rơi trọn vào trong ô ấy ở `Z_INDEX.panel` nên ViewCube không bấm được
+   * (`e2e/viewer3d.spec.ts` P2, `subtree intercepts pointer events`).
    */
   readonly presenceAnchorClassName?: string;
 }
