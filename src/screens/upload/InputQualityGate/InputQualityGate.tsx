@@ -38,6 +38,7 @@
  * CSS breakpoint.
  */
 
+import { useEffect, useRef } from 'react';
 import { ImageOff } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -77,6 +78,45 @@ const BOTTOM_SHEET_RESET_AT_DESKTOP =
 /** Màn Cổng chất lượng đầu vào như một hàm của props — test và story dựng thẳng cái này. */
 export function InputQualityGateView({ actions, model }: InputQualityGateViewProps) {
   const isCollapsed = model.status === 'collapsed';
+  const rootRef = useRef<HTMLDivElement>(null);
+  const writeErrorRef = useRef<HTMLDivElement>(null);
+  const retryFocus = model.retryFocus ?? null;
+
+  // Lỗi ghi: hộp thoại đóng lúc nút gốc đã bị thay (đánh dấu xong, rồi đọc lại),
+  // nên tiêu điểm tự rơi vào phần tử đầu tiên của trang. Trả về đúng nút vừa
+  // bấm; nút không còn thì về dải báo lỗi.
+  // Người dùng đã tự bấm/gõ từ lúc có lỗi thì không kéo tiêu điểm của họ đi.
+  const hasUserActedRef = useRef(false);
+
+  useEffect(() => {
+    hasUserActedRef.current = false;
+
+    if (model.writeError === null) {
+      return undefined;
+    }
+
+    const markActed = (): void => {
+      hasUserActedRef.current = true;
+    };
+
+    document.addEventListener('pointerdown', markActed, true);
+    document.addEventListener('keydown', markActed, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', markActed, true);
+      document.removeEventListener('keydown', markActed, true);
+    };
+  }, [model.writeError]);
+
+  useEffect(() => {
+    if (retryFocus === null || hasUserActedRef.current) {
+      return;
+    }
+
+    const button = rootRef.current?.querySelector<HTMLElement>(`[data-quality-action="${retryFocus}"]`);
+
+    (button ?? writeErrorRef.current)?.focus();
+  }, [retryFocus, model.writeError]);
 
   const body =
     model.status === 'loading' ? (
@@ -110,7 +150,9 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
     ) : (
       <div className="flex flex-col gap-6">
         {model.writeError !== null && (
-          <InlineAlert level="violation" message={model.writeError} title={WRITE_ERROR_TITLE} />
+          <div className="outline-none" ref={writeErrorRef} tabIndex={-1}>
+            <InlineAlert level="violation" message={model.writeError} title={WRITE_ERROR_TITLE} />
+          </div>
         )}
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="lg:w-[62%]">
@@ -148,7 +190,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
     );
 
   return (
-    <div className="min-h-screen bg-bg-app">
+    <div className="min-h-screen bg-bg-app" ref={rootRef}>
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <nav aria-label={BREADCRUMB_QUALITY} className="text-[13px] text-text-secondary">
           <span>{BREADCRUMB_PROJECTS}</span>

@@ -146,6 +146,9 @@ const COPY = Object.freeze({
   forecastMissing: 'Chưa dự kiến được độ tin cậy vì bản vẽ chưa đo xong.',
   forecastPrefix: 'Dự kiến độ tin cậy trung bình',
   loadFailureFallback: 'Không đọc được kết quả kiểm tra chất lượng của bản vẽ này.',
+  continueWaitingReading: 'Đang đọc kết quả kiểm tra; chờ xong rồi tiếp tục.',
+  continueReadFailed: 'Chưa đọc được kết quả kiểm tra; hãy tải bản vẽ khác hoặc thử lại sau.',
+  continueNoDrawing: 'Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước.',
   noDrawingNotice: 'Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.',
   writeFailureFallback: 'Chưa xử lý được bản vẽ; hãy thử lại.',
   confirmCancel: 'Huỷ',
@@ -441,6 +444,8 @@ export function useInputQualityGate(
   const [assessed, setAssessed] = useState<{ projectId: string; floorId: string } | null>(null);
   const [pendingWrite, setPendingWrite] = useState<'straighten' | 'corners' | null>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
+  // Lượt ghi vừa hỏng là loại nào — để trả tiêu điểm về đúng nút đã bấm (A12).
+  const [failedWrite, setFailedWrite] = useState<'straighten' | 'corners' | null>(null);
   const [isRereading, setRereading] = useState(false);
   const writeFailureRef = useRef<WriteFailureSentence | null>(null);
   // Lượt ghi của dự án cũ xong muộn thì không được chạm state của dự án mới.
@@ -643,7 +648,7 @@ export function useInputQualityGate(
 
   /** Một lượt ghi hỏng: hiện câu lỗi đã phân loại ở `callServer`, đọc lại nếu cần. */
   const failWrite = useCallback(
-    (floorId: string, writeProjectId: string) => {
+    (floorId: string, writeProjectId: string, kind: 'straighten' | 'corners') => {
       const failure = writeFailureRef.current ?? {
         sentence: COPY.writeFailureFallback,
         reread: false,
@@ -657,6 +662,7 @@ export function useInputQualityGate(
 
       setPendingWrite(null);
       setWriteError(failure.sentence);
+      setFailedWrite(kind);
       getAppAnnouncer().announce(failure.sentence);
 
       if (failure.reread) {
@@ -1008,8 +1014,18 @@ export function useInputQualityGate(
 
   const requiresAcknowledgement = visibleMetrics.some((metric) => metric.level === 'poor');
 
+  const continueDisabledReason =
+    status === 'loading'
+      ? COPY.continueWaitingReading
+      : status === 'error'
+        ? COPY.continueReadFailed
+        : hasNoDrawing
+          ? COPY.continueNoDrawing
+          : null;
+
   const footer: InputQualityFooterModel = {
     canContinue: !(requiresAcknowledgement && !isAcknowledged),
+    continueDisabledReason,
     requiresAcknowledgement,
     isAcknowledged,
     acknowledgementLabel: COPY.acknowledgement,
@@ -1166,7 +1182,7 @@ export function useInputQualityGate(
         { floorId, findingIds: findingIdsForCodes(['SKEW_DETECTED']) },
         {
           onSuccess: () => finishWrite(COPY.straightenedAnnouncement, writeProjectId),
-          onError: () => failWrite(floorId, writeProjectId),
+          onError: () => failWrite(floorId, writeProjectId, 'straighten'),
         },
       );
 
@@ -1191,7 +1207,7 @@ export function useInputQualityGate(
           setDraftCorners(null);
           finishWrite(COPY.cornersAnnouncement, writeProjectId);
         },
-        onError: () => failWrite(floorId, writeProjectId),
+        onError: () => failWrite(floorId, writeProjectId, 'corners'),
       },
     );
   }, [
@@ -1241,7 +1257,7 @@ export function useInputQualityGate(
     // bấm dừng ở đây: lời "Đánh dấu ô xác nhận bên trên rồi thử lại." đã hiện cạnh
     // nút — đi tiếp là làm trái chính câu đó. Cùng khuôn `submit` của màn tải lên.
     onContinue: () => {
-      if (!footer.canContinue) {
+      if (!footer.canContinue || continueDisabledReason !== null) {
         return;
       }
 
@@ -1281,6 +1297,8 @@ export function useInputQualityGate(
     passNotice,
     noDrawingNotice,
     writeError,
+    // Chỉ khi lượt đọc lại đã xong: lúc đó nút hành động mới có mặt để nhận tiêu điểm.
+    retryFocus: writeError !== null && !isRereading ? failedWrite : null,
     confirm,
   };
 
