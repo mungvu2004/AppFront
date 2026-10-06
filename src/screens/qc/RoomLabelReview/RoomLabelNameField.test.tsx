@@ -38,4 +38,51 @@ describe('RoomLabelNameField', () => {
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('Tên phòng không được để trống.')).toBeInTheDocument();
   });
+
+  it('Enter cam kết tên mới một lần; blur sau đó không gọi lại', () => {
+    const onCommit = vi.fn();
+
+    render(<RoomLabelNameField isReadOnly={false} name="Bếp" onCommit={onCommit} suggestions={[]} />);
+
+    const field = screen.getByRole('textbox', { name: 'Tên phòng' });
+
+    fireEvent.change(field, { target: { value: 'Bếp ăn' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith('Bếp ăn');
+  });
+
+  it('Esc trả ô về tên đang lưu và xoá lỗi', () => {
+    const onCommit = vi.fn();
+
+    render(<RoomLabelNameField isReadOnly={false} name="Bếp" onCommit={onCommit} suggestions={[]} />);
+
+    const field = screen.getByRole('textbox', { name: 'Tên phòng' });
+
+    fireEvent.change(field, { target: { value: '' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    fireEvent.change(field, { target: { value: 'x' } });
+    fireEvent.keyDown(field, { key: 'Escape' });
+
+    expect(field).toHaveValue('Bếp');
+    expect(field).not.toHaveAttribute('aria-invalid', 'true');
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('bấm gợi ý chỉ điền vào ô; vai chỉ xem không có ô nhập gợi ý', () => {
+    const onCommit = vi.fn();
+    const { rerender } = render(
+      <RoomLabelNameField isReadOnly={false} name="" onCommit={onCommit} suggestions={['Phòng ngủ']} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Phòng ngủ' }));
+
+    expect(screen.getByRole('textbox', { name: 'Tên phòng' })).toHaveValue('Phòng ngủ');
+    expect(onCommit).not.toHaveBeenCalled();
+
+    rerender(<RoomLabelNameField isReadOnly name="Bếp" onCommit={onCommit} suggestions={['Phòng ngủ']} />);
+
+    expect(screen.queryByRole('button', { name: 'Phòng ngủ' })).toBeNull();
+  });
 });
