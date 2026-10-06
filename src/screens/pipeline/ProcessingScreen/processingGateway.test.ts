@@ -243,6 +243,42 @@ describe('processingGateway', () => {
       expect(calls()).toBe(2);
     });
 
+    it('drops a late pending probe answer once SSE has shown the run running (P3-8)', async () => {
+      const base = createMockApiClient();
+      let answerProbe: (result: ApiResult<Progress>) => void = () => undefined;
+      const client: ApiClient = {
+        ...base,
+        drawings: {
+          ...base.drawings,
+          progress: () =>
+            new Promise<ApiResult<Progress>>((resolve) => {
+              answerProbe = resolve;
+            }),
+        },
+      };
+      const log = recorder();
+      gatewayFor(client).subscribeProgress(INPUT, log.handlers);
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progress({ step: 'preprocess', progressPercent: 10 }));
+
+      // The probe leaves during the silence; SSE moves on while it is in flight.
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+      latestSource().triggerMessage(progress({ step: 'wallSegmentation', progressPercent: 40 }));
+      answerProbe({ ok: true, data: progress({ status: 'pending', step: 'preprocess', progressPercent: 0 }) });
+      await clock.flushMicrotasks();
+
+      expect(log.snapshots.map((snapshot) => snapshot.progress.status)).toEqual(['running', 'running']);
+    });
+
+    it('still takes a pending probe answer when nothing newer was seen meanwhile (new run, NO-364)', async () => {
+      const { queue, log } = openRunning();
+      queue({ ok: true, data: progress({ status: 'pending', step: 'preprocess', progressPercent: 0 }) });
+
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+
+      expect(log.snapshots.at(-1)?.progress.status).toBe('pending');
+    });
+
     it('does not arm the silence timer for a pending event', async () => {
       const { client, calls } = scriptedClient();
       gatewayFor(client).subscribeProgress(INPUT, recorder().handlers);
