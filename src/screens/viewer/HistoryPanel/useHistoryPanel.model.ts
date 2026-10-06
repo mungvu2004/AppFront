@@ -86,8 +86,8 @@ import {
 /**
  * Một ngày dương lịch, tính bằng mili giây — chỉ dùng để hỏi "hôm qua là ngày nào".
  *
- * Khai tại màn theo đúng tiền lệ `MS_PER_DAY` của `hooks/useShareLinks.ts:93` và
- * `DAY_MS` của `BillingScreen/billingGateway.ts:273`: `src/lib/format/datetime`
+ * Khai tại màn theo đúng tiền lệ `MS_PER_DAY` của `hooks/useShareLinks.ts:94`:
+ * `src/lib/format/datetime`
  * giữ hằng số ngày của nó ở dạng riêng tư và không xuất ra. Con số này KHÔNG
  * phải một thời lượng chuyển động, nên nó không thuộc `MOTION_DURATIONS_MS` và
  * không đi qua thang năm giá trị của mục B.
