@@ -29,6 +29,7 @@ import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { ScreenMain } from '@/components/shell/ScreenMain';
 import { getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
 
@@ -60,16 +61,28 @@ export interface SessionGateProps {
   userId: string | null;
 }
 
-/** Dải báo chiếm cả bề ngang, dùng cho cả ba tình huống hỏng của cổng. */
+/**
+ * Dải báo chiếm cả bề ngang, dùng cho cả ba tình huống hỏng của cổng.
+ *
+ * `main` do NƠI GỌI quyết định (FIX-381): ở hai nhánh `unknown` dải thay cả cây
+ * route nên tự bọc `ScreenMain`; ở nhánh mất kết nối giữa chừng nó đứng TRÊN màn
+ * con vốn có `main` của mình, bọc ở đó là hai `main`.
+ */
 function GateStrip({
   action,
+  landmarkLabel,
   message,
 }: {
   action: { label: string; onClick: () => void };
+  /** Có thì dải là một `region` có tên — cho dải đứng ngoài mọi `main` (axe `region`). */
+  landmarkLabel?: string;
   message: string;
 }) {
   return (
-    <div className="w-full p-4">
+    <div
+      className="w-full p-4"
+      {...(landmarkLabel !== undefined ? { role: 'region', 'aria-label': landmarkLabel } : {})}
+    >
       <InlineAlert level="attention" message={message} action={action} />
     </div>
   );
@@ -124,23 +137,31 @@ export function SessionGate({
   if (status === 'unknown') {
     if (setupFailed) {
       return (
-        <GateStrip
-          message="Chưa mở được ứng dụng, hãy tải lại trang"
-          action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
-        />
+        <ScreenMain>
+          <GateStrip
+            message="Chưa mở được ứng dụng, hãy tải lại trang"
+            action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
+          />
+        </ScreenMain>
       );
     }
 
     if (serverUnreachable === true) {
       return (
-        <GateStrip
-          message="Không kết nối được máy chủ"
-          action={{ label: 'Thử lại', onClick: onRetry }}
-        />
+        <ScreenMain>
+          <GateStrip
+            message="Không kết nối được máy chủ"
+            action={{ label: 'Thử lại', onClick: onRetry }}
+          />
+        </ScreenMain>
       );
     }
 
-    return <PendingShell label="Đang mở phiên" />;
+    return (
+      <ScreenMain>
+        <PendingShell label="Đang mở phiên" />
+      </ScreenMain>
+    );
   }
 
   if (status === 'anonymous') {
@@ -168,6 +189,7 @@ export function SessionGate({
     <>
       {serverUnreachable === true ? (
         <GateStrip
+          landmarkLabel="Trạng thái kết nối"
           message="Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
           action={{ label: 'Thử lại', onClick: onRetry }}
         />

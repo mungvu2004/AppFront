@@ -42,7 +42,7 @@ const SCREEN_ID = 'dashboard';
 /** Cùng khuôn với `AuthScreen.container.tsx`'s `AuthCrashFallback` — R-62. */
 function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
         title={report.description.title}
@@ -51,7 +51,7 @@ function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 

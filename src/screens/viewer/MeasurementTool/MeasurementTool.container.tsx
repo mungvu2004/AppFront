@@ -93,7 +93,7 @@ export interface MeasurementToolContainerProps {
 /** Cùng khuôn `ExplodedViewCrashFallback` — R-62, chữ lấy từ `report.description`. */
 function MeasurementToolCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
@@ -102,7 +102,7 @@ function MeasurementToolCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -181,7 +181,7 @@ export function MeasurementToolRoute() {
   }
 
   return (
-    <ProjectSpatialGate projectId={id}>
+    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
       <MeasurementToolContainer projectId={id} spatial={spatial} />
     </ProjectSpatialGate>
   );

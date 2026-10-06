@@ -259,7 +259,7 @@ function useAuthGateway(): AuthGateway {
  */
 function AuthCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
         title={report.description.title}
@@ -268,7 +268,7 @@ function AuthCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
