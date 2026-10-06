@@ -124,13 +124,13 @@ test('đường nạp thật: tầng chưa có lớp thì màn nói thật "Chư
   await expect(roomList(page)).toHaveCount(0);
 });
 
-test('bơm bộ mẫu: 14 phòng, tổng 248,60 m², ba phòng chưa đặt tên, số thập phân dùng dấu phẩy (V7-ROOMS-02, A15)', async ({
+test('bơm bộ mẫu: 14 phòng, tổng 248,60 m², không phòng nào chưa đặt tên, số thập phân dùng dấu phẩy (V7-ROOMS-02, A15)', async ({
   page,
 }) => {
   await openSeeded(page);
 
   await expect(page.getByText('248,60 m²')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Chưa đặt tên 3' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Chưa đặt tên 0' })).toBeVisible();
   await expect(roomOptions(page).filter({ hasText: '#R-005' })).toHaveAccessibleName(
     '#R-005 · PHÒNG NGỦ 1 · 18,40 m² · AI đề xuất, chưa duyệt',
   );
