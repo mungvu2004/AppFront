@@ -106,13 +106,43 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
  * Thêm `setTimeout`/`setInterval` nhận chuỗi, và `newFunc(` của embind.
  *
  * Ngoài phạm vi, cố ý: `(function(){}).constructor(s)` và các đường đi qua
- * `.constructor` — không có token nào để bắt mà không bắn vào mọi lớp.
+ * `.constructor` — không có token nào để bắt mà không bắn vào mọi lớp; và bí
+ * danh BIẾN của đối tượng toàn cục (`var g=globalThis;g.Function(…)`) — vô tận.
  */
 const EVAL_PATTERN =
   /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(/g;
 
-/** Ba tên của đối tượng toàn cục: `self.Function` là `Function`, `obj.Function` thì không. */
-const GLOBAL_OBJECT = /\b(?:globalThis|window|self|global)\s*\.\s*$/;
+/** Tên của đối tượng toàn cục: `self.Function` là `Function`, `obj.Function` thì không. Nhận cả `?.`. */
+const GLOBAL_OBJECT = /\b(?:globalThis|window|self|global|top|parent|frames|opener)\s*\??\.\s*$/;
+
+/**
+ * Trần của một chú thích được miễn, tính bằng ký tự. Không có trần thì một `//`
+ * hay `/*` nằm trong CHUỖI phía trước trên một dòng minify dài (three: một dòng
+ * 369 144 ký tự, `// validated` trong GLSL ở ký tự 7 686) miễn luôn ~361 KB mã
+ * phía sau (review FIX-380 lượt 2, N-1). Chú thích dòng thật thì ngắn; khối
+ * JSDoc thì phải đóng trong trần, và token phải nằm GIỮA `/*` và `*\/`.
+ * Còn lại, cố ý: một cặp `/*`…`*\/` giả nằm trong chuỗi và cách nhau dưới
+ * 8 000 ký tự vẫn che được token giữa chúng — quét không phân tích cú pháp.
+ */
+const LINE_COMMENT_MAX = 120;
+const BLOCK_COMMENT_MAX = 8_000;
+/*
+ * Giữa `//` và token không được có dấu nháy hay `;`: có tức là `//` nằm trong
+ * một chuỗi/regex đã ĐÓNG và token là mã thật (`"a //b";var F=Function`). Giá
+ * phải trả: chú thích có nháy trước token (`// the "Function" type`) bị chặn —
+ * đỏ nhầm thì người ta thấy, xanh nhầm thì không.
+ */
+const LINE_COMMENT = new RegExp(`(?:^|\\s)//[^\\n"'\`;]{0,${LINE_COMMENT_MAX}}$`);
+
+/** Token nằm giữa `/*` gần nhất phía trước và `*\/` gần nhất phía sau, trong trần. */
+function insideBlockComment(text, index) {
+  const open = text.lastIndexOf('/*', index);
+  if (open === -1 || text.lastIndexOf('*/', index) > open) return false;
+
+  const close = text.indexOf('*/', index);
+
+  return close !== -1 && close - open <= BLOCK_COMMENT_MAX;
+}
 
 /**
  * Token `Function`/`eval` ở chỗ không thể dựng mã: kiểm kiểu `instanceof`,
@@ -132,7 +162,8 @@ function isHarmlessEvalToken(text, index, token) {
     /\binstanceof\s+$/.test(before) ||
     /^\s*\.\s*prototype\b/.test(after) ||
     (/\.\s*$/.test(before) && !GLOBAL_OBJECT.test(before)) ||
-    /^\s*(?:\*|\/\*|\/\/)|(?:^|\s)\/\//.test(line) ||
+    LINE_COMMENT.test(line) ||
+    insideBlockComment(text, index) ||
     /^[ \t]+[A-Za-z'"]/.test(after)
   );
 }

@@ -370,6 +370,15 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
     ['Function.apply', 'Function.apply(null,[s])'],
     ['setTimeout nhận chuỗi', 'setTimeout("x()",1)'],
     ['Reflect.construct', 'Reflect.construct(Function,[s])'],
+    // Review lượt 2 (N-1, N-2, nit 1).
+    ['`//` trong chuỗi phía trước', 'var u="a //b";var F=Function;new F("x")'],
+    ['`//` trong regex phía trước', 'var r=/ \\/\\//;var F=Function;new F("x")'],
+    ['dòng minify dài sau một `//` trong chuỗi', `"a //b";${';'.repeat(200)}var F=Function`],
+    ['globalThis?.Function', 'globalThis?.Function("x")()'],
+    ['globalThis?.eval', 'globalThis?.eval("x")'],
+    ['top.eval', 'top.eval(s)'],
+    ['parent.Function', 'parent.Function(s)'],
+    ['dòng bắt đầu bằng * ngoài chú thích', 'x = 2\n  * Function("y")'],
   ])('bắt %s', (_label, text) => {
     expect(blockedOf(text)).toBeGreaterThan(0);
   });
