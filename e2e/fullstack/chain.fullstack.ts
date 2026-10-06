@@ -19,11 +19,10 @@ import { ROUTES } from '@/routes/paths';
 
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../fixtures/session';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../fixtures/tour';
-import { describeEntry, expectNoApiErrors, waitForApi, watchApi, watchSse } from './apiWatch';
+import { describeEntry, expectNoApiErrors, waitForApi, waitForApiWhere, watchApi, watchSse } from './apiWatch';
 import type { ApiEntry } from './apiWatch';
 import { loadDracoDecoder, watchCsp } from './csp';
 import {
-  API_TIMEOUT_MS,
   AUTOSAVE_TIMEOUT_MS,
   CHAIN_TIMEOUT_MS,
   PASCAL_RENDER_TIMEOUT_MS,
@@ -232,7 +231,7 @@ async function runChain(
     const created = waitForApi(page, 'POST', /^\/api\/projects$/u, [200, 201]);
 
     await dialog.getByRole('button', { name: 'Tạo dự án', exact: true }).click();
-    projectId = idOf(await (await created).json(), '#25');
+    projectId = idOf((await created).json, '#25');
   });
 
   await test.step('4. thêm tầng', async () => {
@@ -241,7 +240,7 @@ async function runChain(
     const created = waitForApi(page, 'POST', new RegExp(`^/api/projects/${projectId}/floors$`, 'u'), [200, 201]);
 
     await page.getByRole('button', { name: 'Thêm tầng', exact: true }).click();
-    const body = asRecord(await (await created).json(), '#10');
+    const body = asRecord((await created).json, '#10');
 
     floorId = idOf(body, '#10');
     if (typeof body.name !== 'string') throw new Error('#10: thân không có "name"');
@@ -290,7 +289,7 @@ async function runChain(
 
     if (!sse.requestUrls.some((url) => url.includes(stream))) {
       const primed = await priming;
-      const primedStatus = primed === null ? null : asRecord(await primed.json(), '#8').status;
+      const primedStatus = primed === null ? null : asRecord(primed.json, '#8').status;
 
       throw new Error(
         primedStatus === 'completed'
@@ -325,7 +324,7 @@ async function runChain(
     const read = waitForApi(page, 'GET', layerPath(), [200]);
 
     await page.goto(ROUTES.project.walls(projectId, floorId));
-    const walls = wallsOf(await (await read).json(), 'N16');
+    const walls = wallsOf((await read).json, 'N16');
 
     expect(walls.length).toBeGreaterThan(0);
     await dismissTour(page);
@@ -334,10 +333,11 @@ async function runChain(
     await expectScreenAlive(page, list);
 
     await list.getByRole('option').first().click();
-    const write = page.waitForResponse(
+    const write = waitForApiWhere(
+      page,
       (response) =>
         response.request().method() === 'PUT' && layerPath().test(new URL(response.url()).pathname),
-      { timeout: AUTOSAVE_TIMEOUT_MS },
+      AUTOSAVE_TIMEOUT_MS,
     );
     const thickness = page.getByRole('radiogroup', { name: 'Độ dày tường' });
 
@@ -349,10 +349,10 @@ async function runChain(
     // A7 — không có nút lưu.
     await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
 
-    const response = await write;
+    const { response, json: written } = await write;
 
     expect(response.status()).toBe(200);
-    FloorLayerWriteResultSchema.parse(await response.json());
+    FloorLayerWriteResultSchema.parse(written);
 
     const sent: unknown = response.request().postDataJSON();
     // Thân #35 là `{ baseVersion, body: { layer } }` (`VersionedWriteSchema`).
@@ -377,7 +377,7 @@ async function runChain(
     const reread = waitForApi(page, 'GET', layerPath(), [200]);
 
     await page.reload();
-    const reloaded = wallById(wallsOf(await (await reread).json(), 'N16 sau tải lại'), changedWallId, 'N16');
+    const reloaded = wallById(wallsOf((await reread).json, 'N16 sau tải lại'), changedWallId, 'N16');
 
     expect(pick(reloaded, changedWallKeys)).toBe(pick(wallAfter, changedWallKeys));
     autosaveCount = countEntries(api, 'PUT', layerPath());
@@ -405,7 +405,7 @@ async function runChain(
     });
 
     await page.goto(ROUTES.project.viewerPascal(projectId));
-    expect(asRecord(await (await flags).json(), 'GET /api/feature-flags')[PASCAL_FLAG_KEY]).toBe(true);
+    expect(asRecord((await flags).json, 'GET /api/feature-flags')[PASCAL_FLAG_KEY]).toBe(true);
     await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
     // Khối [7]: nhận `success` hoặc `partial` (dữ liệu thật có tầng rỗng, đối tượng bị bỏ qua).
     // `empty`, `error`, `forbidden` mang caption khác nên không khớp và hết trần là hỏng.
@@ -473,7 +473,7 @@ async function runChain(
     const reread = waitForApi(page, 'GET', layerPath(), [200]);
 
     await page.goto(ROUTES.project.walls(projectId, floorId));
-    const restored = wallById(wallsOf(await (await reread).json(), 'N16 sau phục hồi'), changedWallId, 'N16');
+    const restored = wallById(wallsOf((await reread).json, 'N16 sau phục hồi'), changedWallId, 'N16');
 
     expect(pick(restored, changedWallKeys)).toBe(pick(wallBefore, changedWallKeys));
     await dismissTour(page);
@@ -483,7 +483,7 @@ async function runChain(
     const familiesRead = waitForApi(page, 'GET', /^\/api\/admin\/ml\/model-families$/u, [200]);
 
     await page.goto(ROUTES.adminTrainingModels);
-    const families = ModelFamilyPageSchema.parse(await (await familiesRead).json());
+    const families = ModelFamilyPageSchema.parse((await familiesRead).json);
     const family = families.items.find((item) => item.family === OPENING_FAMILY);
 
     if (family === undefined) throw new Error(`N23 không có họ ${OPENING_FAMILY}`);
@@ -492,22 +492,22 @@ async function runChain(
     await expectScreenAlive(page, familyPicker);
 
     // Đăng ký TRƯỚC cú bấm: N25 của họ, và N27 của bản đang dùng mà màn tự đọc khi đổi họ.
-    const versionsRead = page.waitForResponse(
+    const versionsRead = waitForApiWhere(
+      page,
       (response) =>
         response.request().method() === 'GET' &&
         new URL(response.url()).pathname === '/api/admin/ml/model-versions' &&
         response.url().includes(OPENING_FAMILY) &&
         response.status() === 200,
-      { timeout: API_TIMEOUT_MS },
     );
     const detailRead = waitForApi(page, 'GET', /^\/api\/admin\/ml\/model-versions\/[^/]+$/u, [200]);
 
     await familyPicker.getByRole('radio', { name: OPENING_FAMILY_LABEL }).click();
-    const versions = ModelVersionPageSchema.parse(await (await versionsRead).json());
+    const versions = ModelVersionPageSchema.parse((await versionsRead).json);
 
     expect(versions.items.length).toBeGreaterThan(0);
     expect(versions.items.every((item) => item.family === OPENING_FAMILY)).toBe(true);
-    ModelVersionSchema.parse(await (await detailRead).json());
+    ModelVersionSchema.parse((await detailRead).json);
 
     /* 10b — N24 bằng nút trên màn: kích hoạt bản thứ hai, rồi kích hoạt lại bản cũ. */
     const original = versions.items.find((item) => item.id === family.activeVersionId);
