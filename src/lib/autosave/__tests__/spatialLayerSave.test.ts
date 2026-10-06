@@ -324,6 +324,45 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     expect(saver.getBlock(FLOOR_A)).toBeNull();
   });
 
+  it('phòng chưa đặt tên → không PUT, câu khối nói rõ lý do thay vì câu chung', async () => {
+    const { layers, saver, writeLayer } = harness();
+    const named = FloorLayerWriteResultSchema.parse({
+      layer: {
+        furniture: [],
+        openings: [],
+        rooms: [
+          {
+            areaM2: 12,
+            confidence: 0.6,
+            id: 'R-ROOM00000',
+            levelId: FLOOR_A,
+            name: 'phòng ngủ',
+            outline: [
+              { x: 0, y: 0 },
+              { x: 4000, y: 0 },
+              { x: 4000, y: 3000 },
+            ],
+            reviewed: false,
+            source: 'ai',
+            usage: 'bedroom',
+            wallIds: [],
+          },
+        ],
+        walls: [],
+      },
+      revision: 0,
+    }).layer;
+
+    layers.set(FLOOR_A, { ...named, rooms: named.rooms.map((room) => ({ ...room, name: '' })) });
+    saver.markDirty([FLOOR_A]);
+    await expect(saver.flush()).rejects.toBeDefined();
+
+    expect(writeLayer).not.toHaveBeenCalled();
+    expect(saver.getBlock(FLOOR_A)?.message).toBe(
+      'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
+    );
+  });
+
   it.each([
     [httpError(403, { code: 'FORBIDDEN', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.forbidden],
     [httpError(413, { code: 'PAYLOAD_TOO_LARGE', requestId: 'req-1' }), LAYER_SAVE_MESSAGES.unknown],
