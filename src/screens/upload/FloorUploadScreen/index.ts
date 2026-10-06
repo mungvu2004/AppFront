@@ -25,7 +25,6 @@ export {
   type CreateFloorUploadGatewayOptions,
   type CreateFloorUploadInput,
   type CreateRemovalTicketInput,
-  type EnqueueOfflineUploadInput,
   type FloorUploadFailure,
   type FloorUploadGateway,
   type ReadProjectFloorsInput,

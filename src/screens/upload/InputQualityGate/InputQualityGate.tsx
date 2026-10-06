@@ -150,7 +150,11 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
     ) : (
       <div className="flex flex-col gap-6">
         {model.writeError !== null && (
-          <div className="outline-none" ref={writeErrorRef} tabIndex={-1}>
+          <div
+            className="rounded-[8px] outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+            ref={writeErrorRef}
+            tabIndex={-1}
+          >
             <InlineAlert level="violation" message={model.writeError} title={WRITE_ERROR_TITLE} />
           </div>
         )}

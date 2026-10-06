@@ -16,8 +16,9 @@
  *
  * ## `pageIndex`
  *
- * Trang PDF được chọn (từ 0) đi qua `CreateFloorUploadInput` xuống thân #5, và
- * qua `EnqueueOfflineUploadInput` vào lệnh hàng đợi. Vắng thì khoá không xuất hiện.
+ * Trang PDF được chọn (từ 0) đi qua `CreateFloorUploadInput` xuống thân #5.
+ * Vắng thì khoá không xuất hiện. Mất mạng thì màn tự giữ tệp chờ mạng về, không
+ * ghi lệnh vào hàng đợi ngoại tuyến (NO-392) — hàng đợi không mang được `File`.
  *
  * ## Bốn việc file này KHÔNG làm
  *
@@ -42,7 +43,6 @@ import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import { createNetworkMonitor } from '@/lib/offline/networkMonitor';
 import type { NetworkMonitor } from '@/lib/offline/networkMonitor';
-import { addPendingCommand, deletePendingCommand } from '@/lib/offline/queueStore';
 import {
   createUploadTask,
   guessFloorFromFileName,
@@ -80,21 +80,6 @@ export interface CreateFloorUploadInput {
   readonly id?: string;
 }
 
-/**
- * Một lượt tải bị hoãn vì mất mạng.
- *
- * `command` là dữ liệu thuần — hàng đợi ngoại tuyến giữ nó qua IndexedDB, nên
- * nó không được mang `File`, `AbortSignal` hay bất cứ thứ gì không tuần tự hoá
- * được. Tệp thật nằm lại trong bộ nhớ của màn; hàng đợi chỉ ghi **ý định**.
- */
-export interface EnqueueOfflineUploadInput {
-  readonly projectId: string;
-  readonly floorId: string;
-  readonly fileName: string;
-  readonly sizeBytes: number;
-  readonly pageIndex?: number;
-}
-
 /** Một thất bại, đã thành câu người đọc được. */
 export interface FloorUploadFailure {
   /** Câu tiếng Việt, lấy nguyên từ `describeError` — không viết lại. */
@@ -126,10 +111,6 @@ export interface FloorUploadGateway {
   readonly guessFloor: (name: string) => FloorGuess;
   /** Một lượt tải: `initUpload` → các khúc → `complete`, kèm huỷ và trạng thái. */
   readonly createUpload: (input: CreateFloorUploadInput) => UploadTask;
-  /** Ghi ý định tải vào hàng đợi ngoại tuyến. Mã lệnh, hoặc `null` khi hàng đợi từ chối. */
-  readonly enqueueOffline: (input: EnqueueOfflineUploadInput) => Promise<number | null>;
-  /** Gỡ một lệnh đã ghi — màn đã tự tải tệp ấy, hoặc tệp không còn đi tầng ấy (NO-392). */
-  readonly dropOffline: (commandId: number) => Promise<void>;
   /**
    * Theo dõi mạng. Bắt đầu ngay, trả hàm dọn dẹp.
    *
@@ -206,26 +187,6 @@ export function createFloorUploadGateway(
         ...(pageIndex !== undefined ? { pageIndex } : {}),
         ...(id !== undefined ? { id } : {}),
       }),
-
-    enqueueOffline: async ({ fileName, floorId, pageIndex, projectId, sizeBytes }) => {
-      const result = await addPendingCommand({
-        projectId,
-        command: {
-          kind: 'uploadDrawing',
-          fileName,
-          floorId,
-          projectId,
-          sizeBytes,
-          ...(pageIndex !== undefined ? { pageIndex } : {}),
-        },
-      });
-
-      return result.ok ? result.data.id : null;
-    },
-
-    dropOffline: async (commandId) => {
-      await deletePendingCommand(commandId);
-    },
 
     watchNetwork: (listener) => {
       const monitor = options.networkMonitor ?? createNetworkMonitor();
