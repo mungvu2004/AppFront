@@ -184,6 +184,8 @@ describe('invalidationMap', () => {
       queryKeys.room.byFloor(floorId),
       queryKeys.violation.byProject(projectId),
       queryKeys.version.byFloor(floorId),
+      queryKeys.layer.byFloor(projectId, floorId),
+      queryKeys.layer.graph(projectId),
     ]);
   });
 

@@ -17,6 +17,7 @@
  *    hay riêng `CompareModel`. Chọn `CompareModel` vì tên gọi khớp phạm vi của component.
  */
 import { AlertTriangle, History, Lock } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -26,28 +27,48 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 
 import { VersionCompare } from './VersionCompare';
+import { VersionLabelDialog } from './VersionLabelDialog';
 import { VersionList } from './VersionList';
 import type { VersionHistoryProps } from './types';
 
 export function VersionHistory({ model, actions }: VersionHistoryProps) {
   const reviewedVersionId = model.compare.rightVersionId;
+  const reviewedRow = model.rows.find((row) => row.id === reviewedVersionId) ?? null;
+  const [isLabelOpen, setIsLabelOpen] = useState(false);
+
+  // Ô "Tầng" đứng trên mọi nhánh trả sớm (trừ `forbidden`): đổi tầng được cả khi tầng này rỗng/lỗi.
+  const withFloorSelect = (content: ReactNode) => (
+    <div className="flex h-full flex-col gap-3">
+      {model.floorSelect !== null && (
+        <div className="max-w-xs px-4 pt-4">
+          <Select
+            label={model.floorSelect.label}
+            options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
+            value={model.floorSelect.selectedId}
+            onChange={actions.selectFloor}
+          />
+        </div>
+      )}
+      {content}
+    </div>
+  );
 
   if (model.state === 'loading') {
-    return (
+    return withFloorSelect(
       <div className="flex h-full gap-4 p-4">
         <Skeleton preset="table-row" className="w-[360px]" />
         <Skeleton preset="property-panel" className="flex-1" />
-      </div>
+      </div>,
     );
   }
 
   if (model.state === 'empty') {
-    return (
+    return withFloorSelect(
       <EmptyState
         icon={<History aria-hidden="true" />}
-        title="Chưa có phiên bản nào"
-        description="Chưa có phiên bản nào được lưu cho bản vẽ này."
-      />
+        title={model.emptyTitle}
+        description="Phiên bản được lưu khi AI ghi kết quả và khi phục hồi một bản cũ."
+      />,
     );
   }
 
@@ -62,17 +83,17 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   if (model.state === 'error') {
-    return (
+    return withFloorSelect(
       <InlineAlert
         level="violation"
         title="Không tải được lịch sử phiên bản"
         message={model.errorMessage ?? 'Đã có lỗi xảy ra.'}
-      />
+      />,
     );
   }
 
-  return (
-    <div className="flex h-full flex-col gap-3 p-4">
+  return withFloorSelect(
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
       {model.savedAtLabel !== null && <p className="text-[13px] text-text-secondary">{model.savedAtLabel}</p>}
 
       {model.conflict !== null && (
@@ -93,8 +114,13 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
             onChange={actions.selectRightVersion}
           />
         ) : (
-          <div className="w-[360px] shrink-0 border-r border-border-default">
+          <div className="flex w-[360px] shrink-0 flex-col border-r border-border-default">
             <VersionList groups={model.groups} onToggleCompareSelection={actions.toggleCompareSelection} />
+            {model.canLoadMoreVersions && (
+              <Button variant="ghost" onClick={actions.loadMoreVersions}>
+                Xem thêm phiên bản
+              </Button>
+            )}
           </div>
         )}
 
@@ -125,7 +151,12 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
               Xuất phiên bản này
             </Button>
           )}
-          {model.canRestore && (
+          {model.canTagVersion && reviewedRow !== null && (
+            <Button variant="ghost" onClick={() => setIsLabelOpen(true)}>
+              Gắn nhãn phiên bản này
+            </Button>
+          )}
+          {model.canRestore && reviewedRow?.isCurrent !== true && (
             <Button
               variant="secondary"
               disabled={reviewedVersionId === null}
@@ -158,6 +189,19 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           </Button>
         </Modal.Footer>
       </Modal.Root>
-    </div>
+
+      {reviewedRow !== null && (
+        <VersionLabelDialog
+          isOpen={isLabelOpen}
+          versionLabel={reviewedRow.label}
+          initialValue={reviewedRow.tagLabel ?? ''}
+          onClose={() => setIsLabelOpen(false)}
+          onSubmit={(label) => {
+            setIsLabelOpen(false);
+            actions.tagVersion(reviewedRow.id, label);
+          }}
+        />
+      )}
+    </div>,
   );
 }

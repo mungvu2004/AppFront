@@ -78,3 +78,49 @@ export const Forbidden: Story = {
 export const Collapsed: Story = {
   args: buildVersionHistoryProps('collapsed'),
 };
+
+/* -------------------------------------------------------------------------- */
+/* F-08 — theo tầng.                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Vai người xem: so sánh được, không nút phục hồi, không nút gắn nhãn. */
+export const ViewerReadOnly: Story = {
+  args: buildVersionHistoryProps('success', { canRestore: false, canTagVersion: false, restoreHiddenReason: 'Vai của bạn chỉ xem được lịch sử.' }),
+};
+
+/** Dải "Tải lại": tầng vừa đổi ở nơi khác, lượt phục hồi chưa được ghi. */
+export const ReloadBanner: Story = {
+  args: buildVersionHistoryProps('success', {
+    conflict: {
+      actorName: 'Trần Minh',
+      message: 'Tầng vừa đổi ở nơi khác: Trần Minh đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi. Tải lại để xem bản mới nhất.',
+      detail: null,
+      dismissLabel: 'Tải lại',
+    },
+  }),
+};
+
+/** Có nhãn và nút "Gắn nhãn phiên bản này". */
+export const Labelled: Story = {
+  args: buildVersionHistoryProps('success', { canTagVersion: true }),
+};
+
+/** Còn trang sau của N17 — nút "Xem thêm phiên bản". */
+export const MorePages: Story = {
+  args: buildVersionHistoryProps('success', { canLoadMoreVersions: true }),
+};
+
+/** Nhiều tầng — ô "Tầng" đang ở tầng 2. */
+export const ManyFloors: Story = {
+  args: buildVersionHistoryProps('success', {
+    floorSelect: {
+      label: 'Tầng',
+      options: [
+        { id: 'L-LEVEL000001', label: 'Tầng 1' },
+        { id: 'L-LEVEL000002', label: 'Tầng 2' },
+        { id: 'L-LEVEL000003', label: 'Tầng mái' },
+      ],
+      selectedId: 'L-LEVEL000002',
+    },
+  }),
+};
