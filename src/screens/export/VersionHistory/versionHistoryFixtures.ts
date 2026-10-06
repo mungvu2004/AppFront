@@ -222,12 +222,15 @@ const V13: VersionEntry = {
   snapshot: SAMPLE_OLD_SNAPSHOT,
 };
 const V14: VersionEntry = { ...metadata('v14', 14, 12), snapshot: SAMPLE_NEW_SNAPSHOT };
+/** Bản mới nhất — hiện tại. `v14` (bản đang xem) vì thế không hiện tại và vẫn phục hồi được. */
+const V15: VersionEntry = { ...metadata('v15', 15, 6), snapshot: SAMPLE_NEW_SNAPSHOT };
 
 /**
- * Lịch sử bốn phiên bản. `v11` là `metadataOnly` — đã bị dọn theo chính sách lưu giữ, còn
+ * Lịch sử năm phiên bản. `v11` là `metadataOnly` — đã bị dọn theo chính sách lưu giữ, còn
  * siêu dữ liệu, mất ảnh chụp (`VersionRowModel.isMetadataOnly`, trạng thái 3 của cột trái).
  */
 export const SAMPLE_HISTORY: readonly VersionHistoryEntry[] = [
+  { kind: 'full', version: V15 },
   { kind: 'full', version: V14 },
   { kind: 'full', version: V13 },
   { kind: 'full', version: V12 },
@@ -235,6 +238,7 @@ export const SAMPLE_HISTORY: readonly VersionHistoryEntry[] = [
 ];
 
 const AUTHOR_NAMES: Readonly<Record<string, string>> = {
+  v15: 'Phạm An',
   v14: 'Trần Chi',
   v13: 'Nguyễn Bình',
   v12: 'Nguyễn Bình',
@@ -264,9 +268,8 @@ function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionR
     relativeTimeLabel: formatTimestamp(new Date(version.createdAt), FAKE_CLOCK_START),
     absoluteTimeLabel: `${formatCalendarDate(new Date(version.createdAt))} ${formatClockTime(new Date(version.createdAt))}`,
     counts: isOldest ? EMPTY_DIFF_COUNTS : SAMPLE_DIFF_COUNTS,
-    // `v13` (bản không được xem) là hiện tại, để huy hiệu "Hiện tại" còn có story; `v14` — bản
-    // đang xem — không hiện tại, nên nút phục hồi vẫn hiện cho nó.
-    isCurrent: version.id === 'v13',
+    // Bản hiện tại luôn là bản mới nhất của lịch sử mẫu (`v15`).
+    isCurrent: version.id === 'v15',
     tagLabel: version.id === 'v13' ? 'Duyệt với chủ đầu tư' : null,
     isMetadataOnly: entry.kind === 'metadataOnly',
     retentionNotice: entry.kind === 'metadataOnly' ? 'Đã lưu quá 90 ngày, chỉ còn thông tin cơ bản.' : null,
@@ -407,7 +410,7 @@ function modelForState(state: SevenState): VersionHistoryModel {
       // Trạng thái 1: chỉ có một phiên bản — một câu dạy việc, không phải lỗi.
       const onlyRow = buildVersionRow(
         { kind: 'full', version: V14 },
-        { isSelectedForCompare: false, tagLabel: null },
+        { isCurrent: true, isSelectedForCompare: false, tagLabel: null },
       );
 
       return {
@@ -454,8 +457,8 @@ function modelForState(state: SevenState): VersionHistoryModel {
       // Trạng thái 3 lồng bên trong CompareModel: đang tính lại cặp mới vừa chọn.
       return {
         ...base,
-        rows: SAMPLE_ROWS.slice(0, 2),
-        groups: [{ id: 'group-today', heading: formatCalendarDate(FAKE_CLOCK_START), rows: SAMPLE_ROWS.slice(0, 2) }],
+        rows: SAMPLE_ROWS.slice(0, 3),
+        groups: [{ id: 'group-today', heading: formatCalendarDate(FAKE_CLOCK_START), rows: SAMPLE_ROWS.slice(0, 3) }],
         compare: buildCompareModel({ isRecomputing: true }),
       };
     case 'error':

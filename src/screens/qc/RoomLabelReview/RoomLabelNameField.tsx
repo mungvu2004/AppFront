@@ -15,6 +15,7 @@
  *
  * ## "Không bao giờ ép" nghĩa là gì ở đây, cụ thể
  *
+ * - Ngoại lệ duy nhất: tên rỗng/chỉ khoảng trắng bị chặn ở ô (báo lỗi, giữ tên cũ).
  * - Chữ gõ vào KHÔNG bị chặn, KHÔNG bị tự sửa, KHÔNG bị so với danh sách gợi
  *   ý; ô nhập không bao giờ nhận một `error` nào vì tên nằm ngoài vựng chuẩn.
  * - Bấm/chọn một gợi ý chỉ ĐIỀN vào ô rồi trả tiêu điểm về ô — người dùng sửa
@@ -33,6 +34,7 @@ import { cn } from '@/lib/utils';
 const NAME_LABEL = 'Tên phòng';
 const NAME_PLACEHOLDER = 'Gõ tên phòng';
 const NAME_HINT = 'Gợi ý bên dưới chỉ để chọn nhanh — tên tự gõ luôn được giữ nguyên.';
+const NAME_EMPTY_ERROR = 'Tên phòng không được để trống.';
 const SUGGESTIONS_ARIA_LABEL = 'Gợi ý tên phòng';
 
 export interface RoomLabelNameFieldProps {
@@ -49,6 +51,7 @@ export interface RoomLabelNameFieldProps {
 export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: RoomLabelNameFieldProps) {
   const [draft, setDraft] = useState(name);
   const [savedName, setSavedName] = useState(name);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   /* Tên đổi từ ngoài ô (hoàn tác giữ phòng đang chọn, B-V7-09) thì ô theo tên ấy —
@@ -56,9 +59,18 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
   if (name !== savedName) {
     setSavedName(name);
     setDraft(name);
+    setError(null);
   }
 
   const commit = () => {
+    // Tên rỗng bị chặn tại ô (BE từ chối `min(1)`): giữ tên đang lưu, báo lỗi, không cam kết.
+    if (draft.trim() === '' && draft !== name) {
+      setError(NAME_EMPTY_ERROR);
+      setDraft(name);
+
+      return;
+    }
+
     if (draft === name) {
       return;
     }
@@ -76,7 +88,11 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
         hint={NAME_HINT}
         label={NAME_LABEL}
         onBlur={commit}
-        onChange={(event) => setDraft(event.target.value)}
+        error={error ?? undefined}
+        onChange={(event) => {
+          setError(null);
+          setDraft(event.target.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
@@ -86,6 +102,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
           }
 
           if (event.key === 'Escape') {
+            setError(null);
             setDraft(name);
           }
         }}

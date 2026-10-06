@@ -65,7 +65,7 @@ import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig 
 import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import {
-  FloorVersionPageSchema,
+  type FloorVersionPageSchema,
   FloorVersionSnapshotSchema,
   FloorVersionSummarySchema,
   type FloorVersionSnapshot,
@@ -303,11 +303,6 @@ export interface WriteSpatialLayerInput extends WriteRequestOptions {
 export interface ReadSpatialVersionInput extends RequestOptions {
   projectId: string;
   versionId: string;
-}
-
-export interface ListFloorVersionsInput extends RequestOptions {
-  floorId: string;
-  projectId: string;
 }
 
 /** N17 — một trang lịch sử phiên bản của một tầng, `sequence` giảm dần. */
@@ -557,8 +552,6 @@ export interface SpatialApi {
   patchFloor(input: PatchSpatialFloorInput): Promise<ApiResult<Floor>>;
   readFloor(input: ReadSpatialFloorInput): Promise<ApiResult<Floor>>;
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
-  /** N17 — lịch sử phiên bản của một tầng (trang đầu). */
-  listVersions(input: ListFloorVersionsInput): Promise<ApiResult<FloorVersionPage>>;
   /** N15 — the whole project graph plus one `revision` per floor. */
   readGraph(input: ReadSpatialGraphInput): Promise<ApiResult<SpatialGraphDocument>>;
   /** N16 — the floor's layer document: `revision`, `level`, four lists, axes, dimensions. */
@@ -897,6 +890,9 @@ const toRequestOptions = (options: WriteRequestOptions = {}): TransportWriteOpti
   ...(options.timeoutMode !== undefined ? { timeoutMode: options.timeoutMode } : {}),
 });
 
+/** N7 — trần `limit` của hợp đồng (openapi: mặc định 50, tối đa 200): ít chuyến nhất cho cùng một danh sách. */
+const LATEST_UPLOADS_PAGE_LIMIT = 200;
+
 const callGet = async <T>(http: HttpClient, path: string, signal?: AbortSignal): Promise<Result<T, HttpError>> =>
   http.get<T>(path, signal !== undefined ? { signal } : undefined);
 
@@ -1002,7 +998,10 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       // cảnh báo chứ không làm rỗng cả màn (`CursorEnvelopeSchema`).
       do {
         const page = decodeSingle(
-          await callGet<unknown>(http, ENDPOINTS.drawings.latestUploads(projectId, cursor), signal),
+          await http.get<unknown>(ENDPOINTS.drawings.latestUploads(projectId, cursor), {
+            query: { limit: LATEST_UPLOADS_PAGE_LIMIT },
+            ...(signal !== undefined ? { signal } : {}),
+          }),
           CursorEnvelopeSchema,
           'drawings.latestUploads',
         );
@@ -1320,15 +1319,6 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callGet<unknown>(http, ENDPOINTS.spatial.version(projectId, versionId), signal),
         VersionSchema,
         'spatial.readVersion',
-      ),
-    listVersions: async ({ floorId, projectId, signal }) =>
-      decodeSingle(
-        await http.get<unknown>(ENDPOINTS.spatial.versions(projectId), {
-          query: { floorId },
-          ...(signal !== undefined ? { signal } : {}),
-        }),
-        FloorVersionPageSchema,
-        'spatial.listVersions',
       ),
     readGraph: async ({ projectId, signal }) =>
       decodeSingle(

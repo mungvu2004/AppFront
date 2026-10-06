@@ -1103,7 +1103,7 @@ const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).pad
 /**
  * Ba dự án mang đúng tên, diện tích, trạng thái của bộ mẫu cũ (`SAMPLE_PROJECTS`, gỡ ở F-07) mà
  * `e2e/v2v3/dashboard.spec.ts` tìm theo tên và đếm đúng ba thẻ — đủ ba `status`. Sunrise đang xử
- * lý, chưa tách xong tầng nào: nó là dự án `floorCount: 0`. Thứ tự `updatedAt` giữ thứ tự cũ.
+ * lý, chưa tách xong tầng nào: nó là dự án `floorCount: 0`, nên chưa có tường nào (`wallsTotalCount: 0`). Thứ tự `updatedAt` giữ thứ tự cũ.
  */
 export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
   {
@@ -1134,7 +1134,7 @@ export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
     status: 'processing',
     updatedAt: mockSummaryUpdatedAt(4),
     wallsReviewedCount: 0,
-    wallsTotalCount: 132,
+    wallsTotalCount: 0,
   },
   {
     areaM2: 5200,
@@ -1837,9 +1837,6 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
-      /** Tầng lạ thì trang rỗng — bộ mẫu không bịa lịch sử cho tầng không có. */
-      listVersions: async ({ floorId }) =>
-        ok(floors.some((floor) => floor.id === floorId) ? makeFloorVersionPage(floorId) : { items: [] }),
       /** N15: lớp chung của mọi tầng `floors`, một dòng `revision` mỗi `Level` (không `scaleStatus`). */
       readGraph: async () => {
         const documents = floors.map((floor) =>

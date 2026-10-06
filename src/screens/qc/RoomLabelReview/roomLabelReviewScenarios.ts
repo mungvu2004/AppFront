@@ -37,6 +37,7 @@ import {
   ROOM_LABEL_FIXTURE_EMPTY,
   ROOM_LABEL_FIXTURE_LEVEL,
   ROOM_LABEL_FIXTURE_ROOMS,
+  ROOM_LABEL_FIXTURE_ROOMS_UNNAMED,
 } from './roomLabelFixture';
 import { ROOM_LABEL_SAMPLE_IMAGE } from './roomLabelReviewGateway';
 import type { RoomLabelScreenState } from './roomLabelTypes';
@@ -223,7 +224,7 @@ export const ROOM_LABEL_SCENARIO_PARTIAL: RoomLabelReviewScenario = {
   state: 'partial',
   label: labelOf('partial'),
   level: ROOM_LABEL_FIXTURE_LEVEL,
-  rooms: ROOM_LABEL_FIXTURE_ROOMS,
+  rooms: ROOM_LABEL_FIXTURE_ROOMS_UNNAMED,
   walls: ROOM_LABEL_SCENARIO_GAP_WALLS,
   backgroundImageUrl: ROOM_LABEL_SAMPLE_IMAGE,
   isViewerRole: false,

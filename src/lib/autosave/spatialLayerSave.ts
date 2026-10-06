@@ -81,6 +81,7 @@ export const LAYER_SAVE_MESSAGES = {
   forbidden: 'Bạn không còn quyền sửa tầng này.',
   integrity: (count: number): string => `Tầng này có ${count} chỗ hỏng liên kết hình học nên chưa lưu được.`,
   reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
+  unnamedRoom: 'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
   scaleRedirtied: 'Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
@@ -96,6 +97,15 @@ export function classifyLayerSaveError(error: unknown): LayerSaveErrorClass {
   return isTransientWireError(error) ? 'temporary' : 'blocked';
 }
 
+/** `raw` của lỗi 422 tại chỗ (`issues` của zod): có lỗi ở `rooms.<n>.name` — phòng chưa đặt tên. */
+const hasUnnamedRoomIssue = (raw: unknown): boolean =>
+  Array.isArray(raw) &&
+  raw.some((issue: unknown) => {
+    const path: unknown = typeof issue === 'object' && issue !== null && 'path' in issue ? issue.path : null;
+
+    return Array.isArray(path) && path.includes('rooms') && path[path.length - 1] === 'name';
+  });
+
 const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown): string => {
   const wire = readWireError(error);
   const raw: unknown = typeof error === 'object' && error !== null && 'raw' in error ? error.raw : null;
@@ -107,6 +117,10 @@ const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown): string =>
 
   if (wire?.status === 403) {
     return LAYER_SAVE_MESSAGES.forbidden;
+  }
+
+  if (hasUnnamedRoomIssue(raw)) {
+    return LAYER_SAVE_MESSAGES.unnamedRoom;
   }
 
   return wire?.code === 'LAYER_INTEGRITY_BROKEN' && typeof count === 'number'

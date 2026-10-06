@@ -45,6 +45,7 @@ import {
   ROOM_LABEL_FIXTURE_BUILDING,
   ROOM_LABEL_FIXTURE_LEVEL,
   ROOM_LABEL_FIXTURE_ROOMS,
+  ROOM_LABEL_FIXTURE_ROOMS_UNNAMED,
   ROOM_LABEL_FIXTURE_ROOM_R005,
   ROOM_LABEL_FIXTURE_TOTAL,
   ROOM_LABEL_FIXTURE_TOTAL_AREA_M2,
@@ -168,7 +169,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         gateway:
           options.gateway ??
           createMockRoomLabelReviewGateway({
-            graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []),
+            graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS_UNNAMED, []),
           }),
         ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.onNavigate === undefined ? {} : { onNavigate: options.onNavigate }),
@@ -275,7 +276,7 @@ describe('phép ghép thuần của màn Duyệt tên phòng', () => {
   });
 
   it('bộ lọc "Chưa đặt tên" giữ đúng số phòng trống tên', () => {
-    const rows = ROOM_LABEL_FIXTURE_ROOMS.map((room) => ({
+    const rows = ROOM_LABEL_FIXTURE_ROOMS_UNNAMED.map((room) => ({
       hasName: room.name.trim() !== '',
     })) as unknown as readonly UseRoomLabelReviewResult['rooms'][number][];
 
