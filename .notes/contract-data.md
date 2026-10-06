@@ -381,8 +381,6 @@ export const createNetworkMonitor = (options: CreateNetworkMonitorOptions = {}):
 ```
 `online = browserOnline && pingOnline` — both the browser's own `navigator.onLine` **and** a real HEAD ping to `options.pingUrl` (default `'/'`) must agree; `navigator.onLine` alone is known-unreliable (false positive on captive portals), hence the ping. Ping deliberately bypasses `src/lib/http`'s client (no retries — a retry would misreport true connectivity), polls every `intervalMs` (default 20_000 ms) once `start()` is called, and also listens for the browser's native `online`/`offline` events for the `browserOnline` half. `options.ping: (signal: AbortSignal) => Promise<boolean>` is fully swappable for tests.
 
-Ngữ nghĩa sau FIX-427 (NO-390): trước lượt ping đầu, `online` = `browserOnline` (`pingOnline` khởi tạo `true` — chưa ping thì chưa có bằng chứng mất mạng); trạng thái `online` thật chỉ đến qua `subscribe` sau một lượt kiểm (`checkNow()`, gọi khi `start()` và mỗi `intervalMs`).
-
 ### `db.ts`
 
 `OFFLINE_DB_NAME = 'digitwin-offline'`, `OFFLINE_DB_VERSION = 1`, `PENDING_COMMANDS_STORE = 'pendingCommands'`, `DEAD_LETTER_STORE = 'deadLetter'`. `migrate(db, oldVersion)` — creates both object stores + a `projectId` and `createdAt` index on `pendingCommands`, on the `onupgradeneeded` handler. `openOfflineDb(options?): Promise<Result<IDBDatabase, OfflineDbError>>` — the low-level IndexedDB open wrapped in the same `Result` shape.
