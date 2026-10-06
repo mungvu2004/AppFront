@@ -379,6 +379,16 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
     ['top.eval', 'top.eval(s)'],
     ['parent.Function', 'parent.Function(s)'],
     ['dòng bắt đầu bằng * ngoài chú thích', 'x = 2\n  * Function("y")'],
+    // Review lượt 3 (R3-1 … R3-4).
+    ['cặp /* */ giả trong header Accept', 'h={Accept:"*/*"};var F=Function;new F("x");k="*/*"'],
+    ['cặp /* */ giả trong glob', 'g="src/**/*.js";var F=Function;q="a/**/b"'],
+    ['bí danh biến của globalThis', 'var g=globalThis;g.Function("x")'],
+    ['thuộc tính eval của đối tượng bất kỳ', 'obj.eval(y)'],
+    ['Function.prototype.constructor', 'Function.prototype.constructor("x")()'],
+    ['.constructor gọi với chuỗi', '(function(){}).constructor("x")()'],
+    ['.constructor.constructor', 'a.constructor.constructor(s)()'],
+    ['hàm tạo AsyncFunction', 'Object.getPrototypeOf(async function(){}).constructor'],
+    ['`//` trong lớp ký tự của regex', 'x=/[ //]/g,F=Function'],
   ])('bắt %s', (_label, text) => {
     expect(blockedOf(text)).toBeGreaterThan(0);
   });
@@ -386,7 +396,10 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
   it.each([
     ['instanceof', 'if(f instanceof Function)return 1'],
     ['typeof', 'typeof f=="function"'],
-    ['tên chứa chữ', 'isFunction(x);obj.eval(y);Function.prototype.call'],
+    ['tên chứa chữ', 'isFunction(x);Function.prototype.call'],
+    ['JSDoc một dòng', '/** @type {Function} */ var x'],
+    ['gán hàm tạo vào prototype', 'X.prototype.constructor=X'],
+    ['React tạo lại sự kiện', 'new(n=e.nativeEvent).constructor(n.type,n)'],
     ['JSDoc', ['  /**', '   * @param {Function} callback - x', '   */'].join('\n')],
     ['chú thích dòng', 'a=1; // Function-axis tag'],
     ['câu báo lỗi', 'throw new Error("THREE.FunctionNode: Function is not a GLSL code.")'],

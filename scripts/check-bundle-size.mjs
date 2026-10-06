@@ -105,39 +105,47 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
  * những ngữ cảnh chắc chắn không dựng mã — xem {@link isHarmlessEvalToken}.
  * Thêm `setTimeout`/`setInterval` nhận chuỗi, và `newFunc(` của embind.
  *
- * Ngoài phạm vi, cố ý: `(function(){}).constructor(s)` và các đường đi qua
- * `.constructor` — không có token nào để bắt mà không bắn vào mọi lớp; và bí
- * danh BIẾN của đối tượng toàn cục (`var g=globalThis;g.Function(…)`) — vô tận.
+ * Đường qua `.constructor` bắt tĩnh được ba dạng: gọi hàm tạo với chuỗi literal
+ * (`(function(){}).constructor("…")`), `.constructor.constructor`, và
+ * `getPrototypeOf(async function…)` (lấy hàm tạo AsyncFunction); cộng
+ * `Function.prototype.constructor` qua token `Function`.
+ *
+ * Ngoài phạm vi, cố ý: `(biểu-thức).constructor(biến)` với đối số không phải
+ * chuỗi literal — muốn bắt phải biết kiểu của biểu thức, quét tĩnh không làm
+ * được (React có `new(n=e.nativeEvent).constructor(n.type,n)`). Lưới cho dạng
+ * ấy là bài e2e "dưới CSP" (`e2e/pascal-viewer.spec.ts`) và chuỗi F-14 trên
+ * nginx thật — chỉ cho những đường mã thật sự chạy trong các lượt ấy.
  */
 const EVAL_PATTERN =
-  /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(/g;
-
-/** Tên của đối tượng toàn cục: `self.Function` là `Function`, `obj.Function` thì không. Nhận cả `?.`. */
-const GLOBAL_OBJECT = /\b(?:globalThis|window|self|global|top|parent|frames|opener)\s*\??\.\s*$/;
+  /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(|\.constructor\s*\(\s*["'`]|\.constructor\s*\.\s*constructor\b|getPrototypeOf\(\s*(?:async\s+)?function\b/g;
 
 /**
  * Trần của một chú thích được miễn, tính bằng ký tự. Không có trần thì một `//`
- * hay `/*` nằm trong CHUỖI phía trước trên một dòng minify dài (three: một dòng
- * 369 144 ký tự, `// validated` trong GLSL ở ký tự 7 686) miễn luôn ~361 KB mã
- * phía sau (review FIX-380 lượt 2, N-1). Chú thích dòng thật thì ngắn; khối
- * JSDoc thì phải đóng trong trần, và token phải nằm GIỮA `/*` và `*\/`.
- * Còn lại, cố ý: một cặp `/*`…`*\/` giả nằm trong chuỗi và cách nhau dưới
- * 8 000 ký tự vẫn che được token giữa chúng — quét không phân tích cú pháp.
+ * nằm trong CHUỖI phía trước trên một dòng minify dài (three: một dòng 369 144
+ * ký tự, `// validated` trong GLSL ở ký tự 7 686) miễn luôn ~361 KB mã phía sau
+ * (review FIX-380 lượt 2, N-1). Chú thích dòng thật thì ngắn; khối JSDoc thì
+ * phải đóng trong trần, bao lấy token, VÀ `/*` phải đứng đầu dòng của nó — cặp
+ * `/*`…`*\/` giả trong chuỗi (`Accept:"*\/*"`, glob `"src/**\/*.js"`) luôn có nháy
+ * hoặc mã đứng trước nên không bao giờ được miễn (lượt 3, R3-1).
  */
 const LINE_COMMENT_MAX = 120;
 const BLOCK_COMMENT_MAX = 8_000;
 /*
- * Giữa `//` và token không được có dấu nháy hay `;`: có tức là `//` nằm trong
- * một chuỗi/regex đã ĐÓNG và token là mã thật (`"a //b";var F=Function`). Giá
- * phải trả: chú thích có nháy trước token (`// the "Function" type`) bị chặn —
- * đỏ nhầm thì người ta thấy, xanh nhầm thì không.
+ * Giữa `//` và token không được có dấu nháy, `;` hay `/`: có tức là `//` nằm
+ * trong một chuỗi/regex đã ĐÓNG và token là mã thật (`"a //b";var F=Function`,
+ * `x=/[ //]/g,F=Function`). Giá phải trả: chú thích có nháy hay URL trước token
+ * (`// the "Function" type`, `// see https://… Function`) bị chặn — đỏ nhầm
+ * thì người ta thấy, xanh nhầm thì không.
  */
-const LINE_COMMENT = new RegExp(`(?:^|\\s)//[^\\n"'\`;]{0,${LINE_COMMENT_MAX}}$`);
+const LINE_COMMENT = new RegExp(`(?:^|\\s)//[^\\n"'\`;/]{0,${LINE_COMMENT_MAX}}$`);
 
-/** Token nằm giữa `/*` gần nhất phía trước và `*\/` gần nhất phía sau, trong trần. */
+/** Token nằm trong một khối `/*`…`*\/` đứng đầu dòng, đóng trong trần. */
 function insideBlockComment(text, index) {
   const open = text.lastIndexOf('/*', index);
   if (open === -1 || text.lastIndexOf('*/', index) > open) return false;
+
+  const openLineStart = text.lastIndexOf('\n', open) + 1;
+  if (!/^\s*$/.test(text.slice(openLineStart, open))) return false;
 
   const close = text.indexOf('*/', index);
 
@@ -146,22 +154,25 @@ function insideBlockComment(text, index) {
 
 /**
  * Token `Function`/`eval` ở chỗ không thể dựng mã: kiểm kiểu `instanceof`,
- * `Function.prototype`, thuộc tính của một đối tượng KHÔNG phải toàn cục, dòng
- * chú thích (gói vách ngăn không minify, mang hàng trăm JSDoc `{Function}`), và
- * chữ trong câu báo lỗi (`"Function is not a GLSL code"`, `` `Function '${x}' called` ``).
+ * `Function.prototype` (trừ `.prototype.constructor`), chú thích (gói vách ngăn
+ * không minify, mang hàng trăm JSDoc `{Function}`), và chữ trong câu báo lỗi
+ * (`"Function is not a GLSL code"`, `` `Function '${x}' called` ``).
+ *
+ * KHÔNG miễn thuộc tính `X.Function`/`X.eval` của bất kỳ đối tượng nào: `X` có
+ * thể là bí danh của `globalThis` (`var g=globalThis;g.Function(…)`), và đo trên
+ * `dist/` thật thì không có lượt truy cập nào như thế để phải miễn (lượt 3, R3-2).
  */
 function isHarmlessEvalToken(text, index, token) {
   if (!/^(?:Function|eval)$/.test(token)) return false;
 
   const before = text.slice(Math.max(0, index - 40), index);
-  const after = text.slice(index + token.length, index + token.length + 20);
+  const after = text.slice(index + token.length, index + token.length + 40);
   const lineStart = text.lastIndexOf('\n', index - 1) + 1;
   const line = text.slice(lineStart, index);
 
   return (
     /\binstanceof\s+$/.test(before) ||
-    /^\s*\.\s*prototype\b/.test(after) ||
-    (/\.\s*$/.test(before) && !GLOBAL_OBJECT.test(before)) ||
+    /^\s*\.\s*prototype\b(?!\s*\.\s*constructor)/.test(after) ||
     LINE_COMMENT.test(line) ||
     insideBlockComment(text, index) ||
     /^[ \t]+[A-Za-z'"]/.test(after)
