@@ -36,7 +36,13 @@ export async function watchCsp(context: BrowserContext): Promise<CspViolation[]>
   return violations;
 }
 
-/** Như worker của `DRACOLoader` trong `three`: nạp wrapper rồi khởi động module wasm. */
+/**
+ * Như worker của `DRACOLoader` trong `three`: nạp wrapper rồi khởi động module wasm.
+ *
+ * Wrapper xin `draco_decoder_gltf.wasm`, nhưng bản dựng chỉ chép `draco_decoder.wasm`
+ * (`scripts/copy-draco.mjs`; `DRACOLoader` tự nạp wasm và tự đặt tên). Không trỏ lại thì nginx
+ * trả `index.html` và wasm hỏng ở "expected magic word … found 3c 68 74 6d" (chuỗi thật M4).
+ */
 const DRACO_WORKER_SOURCE = [
   "self.addEventListener('securitypolicyviolation', function (event) {",
   "  postMessage('vi phạm CSP: ' + event.violatedDirective + ' ' + event.blockedURI);",
@@ -46,7 +52,7 @@ const DRACO_WORKER_SOURCE = [
   '  try {',
   "    importScripts(origin + '/draco/draco_wasm_wrapper.js');",
   '    var started = DracoDecoderModule({',
-  "      locateFile: function (file) { return origin + '/draco/' + file; },",
+  "      locateFile: function (file) { return origin + '/draco/' + (/\\.wasm$/.test(file) ? 'draco_decoder.wasm' : file); },",
   "      onModuleLoaded: function () { postMessage('ok'); }",
   '    });',
   "    if (started && typeof started.then === 'function') {",

@@ -6,7 +6,7 @@
  * Điều kiện trước và cách chạy: `e2e/fullstack/README.md`.
  */
 import { expect, test } from '@playwright/test';
-import type { Page, TestInfo } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 
 import {
   ModelFamilyPageSchema,
@@ -23,6 +23,7 @@ import { describeEntry, expectNoApiErrors, waitForApi, watchApi, watchSse } from
 import type { ApiEntry } from './apiWatch';
 import { loadDracoDecoder, watchCsp } from './csp';
 import {
+  API_TIMEOUT_MS,
   AUTOSAVE_TIMEOUT_MS,
   CHAIN_TIMEOUT_MS,
   PASCAL_RENDER_TIMEOUT_MS,
@@ -39,6 +40,8 @@ const PASCAL_SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
 const PASCAL_MOUNT_PATTERN = /\/assets\/pascal\/pascal-mount\.js\?v=[0-9a-f]{8}$/u;
 const OPENING_FAMILY = 'openingAndFurnitureDetection';
 const OPENING_FAMILY_LABEL = /nhận diện cửa và đồ đạc/iu;
+/** Tên checkbox của một hàng phiên bản (`VersionList.tsx`): "Chọn phiên bản <nhãn> để so sánh". */
+const VERSION_CHECKBOX_PATTERN = /^Chọn phiên bản (.+) để so sánh$/u;
 const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
 
 type Json = Record<string, unknown>;
@@ -59,10 +62,14 @@ const idOf = (body: unknown, what: string): string => {
 
 const pathOf = (page: Page): string => new URL(page.url()).pathname;
 
-/** A11 — giữa chuỗi không màn trắng, không `forbidden`. */
-async function expectScreenAlive(page: Page): Promise<void> {
+/**
+ * A11 — giữa chuỗi không màn trắng, không `forbidden`. `region` là vùng chính RIÊNG của từng
+ * màn, đọc từ view thật: không phải màn nào cũng dựng trong `AppShell` nên không có `<main>`
+ * chung (FloorManager chẳng hạn).
+ */
+async function expectScreenAlive(page: Page, region: Locator): Promise<void> {
   await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
-  await expect(page.getByRole('main').first()).toBeVisible();
+  await expect(region.first()).toBeVisible();
 }
 
 /** Khoá ổn định của một giá trị JSON, không phụ thuộc thứ tự khoá. */
@@ -108,11 +115,16 @@ async function expectApiSince(log: readonly ApiEntry[], mark: number, what: stri
     .toBeGreaterThan(0);
 }
 
+/** Lưu trace khi hỏng. Context đã đóng (hết trần test) thì bỏ qua: không che lỗi gốc. */
 async function saveTraceOnFailure(page: Page, testInfo: TestInfo): Promise<void> {
   const path = testInfo.outputPath('trace.zip');
 
-  await page.context().tracing.stop({ path });
-  await testInfo.attach('trace', { path, contentType: 'application/zip' });
+  try {
+    await page.context().tracing.stop({ path });
+    await testInfo.attach('trace', { path, contentType: 'application/zip' });
+  } catch (traceError) {
+    console.error(`[fullstack] không lưu được trace: ${String(traceError)}`);
+  }
 }
 
 test('chuỗi FE + BE trên compose: từ đăng nhập tới registry', async ({ page, context }, testInfo) => {
@@ -187,7 +199,7 @@ async function runChain(
 
     await page.reload();
     await refresh;
-    await expectScreenAlive(page);
+    await expectScreenAlive(page, page.getByRole('main'));
     expect(await loadDracoDecoder(page)).toBe('ok');
     await expectApiSince(api, mark, 'bước 2');
   });
@@ -211,7 +223,7 @@ async function runChain(
 
   await test.step('4. thêm tầng', async () => {
     await page.goto(ROUTES.project.floors(projectId));
-    await expectScreenAlive(page);
+    await expectScreenAlive(page, page.getByRole('button', { name: 'Thêm tầng', exact: true }));
     const created = waitForApi(page, 'POST', new RegExp(`^/api/projects/${projectId}/floors$`, 'u'), [200, 201]);
 
     await page.getByRole('button', { name: 'Thêm tầng', exact: true }).click();
@@ -224,16 +236,14 @@ async function runChain(
 
   await test.step('5. tải bản vẽ', async () => {
     await page.goto(ROUTES.project.upload(projectId));
-    await expectScreenAlive(page);
+    await expectScreenAlive(page, page.getByTestId('floor-upload-dropzone'));
     const init = waitForApi(
       page,
       'POST',
       new RegExp(`^/api/projects/${projectId}/floors/${floorId}/drawings/uploads$`, 'u'),
       [200, 201],
     );
-    const chunk = page.waitForResponse(
-      (response) => /\/drawings\/uploads\/[^/]+\/chunks$/u.test(new URL(response.url()).pathname) && response.ok(),
-    );
+    const chunk = waitForApi(page, null, /\/drawings\/uploads\/[^/]+\/chunks$/u, [200, 201, 204]);
     const complete = waitForApi(page, 'POST', /\/drawings\/uploads\/[^/]+\/complete$/u, [200]);
 
     await page.getByTestId('floor-upload-file-input').setInputFiles(drawingPng);
@@ -247,23 +257,34 @@ async function runChain(
 
   await test.step('6. pipeline qua SSE', async () => {
     const mark = api.length;
+    // Lượt mồi #8 của màn: trạng thái cuối thì màn KHÔNG mở S1 (`useProcessingScreen.ts:933`).
+    const priming = waitForApi(page, 'GET', /\/drawings\/uploads\/[^/]+\/progress$/u, [200]).catch(() => null);
 
     await page.goto(ROUTES.project.pipeline(projectId));
-    await expectScreenAlive(page);
-    const done = page.getByText(/^Đã xong (\d+)\/\1 tầng/u);
+    await expectScreenAlive(page, page.getByRole('navigation', { name: 'Xử lý' }));
+    const done = page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u);
     const failure = page.getByRole('button', { name: 'Sao chép mã lỗi' });
 
     await expect(done.or(failure).first()).toBeVisible({ timeout: PIPELINE_TIMEOUT_MS });
     if (await failure.isVisible()) {
-      const text = (await page.getByRole('main').first().innerText()).match(ERROR_CODE_PATTERN);
+      const text = (await page.locator('body').innerText()).match(ERROR_CODE_PATTERN);
 
       throw new Error(`màn lỗi pipeline hiện ra: ${text?.[0] ?? '(không đọc được mã)'}`);
     }
 
     const stream = `/api/streams/projects/${projectId}/uploads/`;
 
-    expect(sse.requestUrls.some((url) => url.includes(stream)), `không có request tới ${stream}`).toBe(true);
-    // BE luôn gửi snapshot khi nối luồng, nên cả lượt "xong trước khi mở luồng" cũng có sự kiện.
+    if (!sse.requestUrls.some((url) => url.includes(stream))) {
+      const primed = await priming;
+      const primedStatus = primed === null ? null : asRecord(await primed.json(), '#8').status;
+
+      throw new Error(
+        primedStatus === 'completed'
+          ? 'pipeline xong trước khi màn mở luồng; FE không mở S1 (useProcessingScreen.ts:933)'
+          : `không có request tới ${stream} (#8 mồi: ${String(primedStatus)})`,
+      );
+    }
+    // Luồng đã mở: BE gửi snapshot khi nối (`apps/api/streams/registry.py:84-96`), nên phải có sự kiện.
     await expect
       .poll(
         () =>
@@ -294,9 +315,9 @@ async function runChain(
 
     expect(walls.length).toBeGreaterThan(0);
     await dismissTour(page);
-    await expectScreenAlive(page);
-
     const list = page.getByRole('listbox', { name: 'Danh sách đoạn tường' });
+
+    await expectScreenAlive(page, list);
 
     await list.getByRole('option').first().click();
     const write = page.waitForResponse(
@@ -322,11 +343,16 @@ async function runChain(
     const sent: unknown = response.request().postDataJSON();
     // Thân #35 là `{ baseVersion, body: { layer } }` (`VersionedWriteSchema`).
     const sentWalls = wallsOf(asRecord(sent, '#35').body, '#35');
-    const changed = sentWalls.find((wall) => {
+    // Một thay đổi thấy được → đúng MỘT tường khác N16. Hơn một nghĩa là FE gửi lại biểu diễn
+    // khác N16, và khi đó không biết tường nào là tường đã sửa: hỏng rõ thay vì đoán.
+    const changedWalls = sentWalls.filter((wall) => {
       const id = wall.id;
 
       return typeof id === 'string' && changedKeys(wallById(walls, id, 'N16'), wall).length > 0;
     });
+
+    expect(changedWalls.map((wall) => wall.id), '#35 phải đổi đúng một tường so với N16').toHaveLength(1);
+    const changed = changedWalls[0];
 
     if (changed === undefined || typeof changed.id !== 'string') throw new Error('#35 không đổi tường nào');
     changedWallId = changed.id;
@@ -341,6 +367,8 @@ async function runChain(
 
     expect(pick(reloaded, changedWallKeys)).toBe(pick(wallAfter, changedWallKeys));
     autosaveCount = countEntries(api, 'PUT', layerPath());
+    // Bước 7 chỉ làm một thay đổi → đúng một lượt tự lưu.
+    expect(autosaveCount).toBe(1);
   });
 
   await test.step('8. 3D', async () => {
@@ -388,9 +416,9 @@ async function runChain(
     const mark = api.length;
 
     await page.goto(ROUTES.project.versions(projectId));
-    await expectScreenAlive(page);
     const floorSelect = page.getByRole('combobox', { name: 'Tầng' });
 
+    await expectScreenAlive(page, floorSelect);
     await floorSelect.click();
     await page.getByRole('option', { name: floorName, exact: true }).click();
     await expect
@@ -400,11 +428,19 @@ async function runChain(
     const list = page.getByRole('navigation', { name: 'Danh sách phiên bản' });
     const target = list.getByRole('listitem').filter({ hasNotText: 'Hiện tại' }).first();
 
-    await target.getByRole('checkbox').check();
+    const targetBox = target.getByRole('checkbox');
+    const targetLabel = VERSION_CHECKBOX_PATTERN.exec((await targetBox.getAttribute('aria-label')) ?? '')?.[1];
+
+    if (targetLabel === undefined) throw new Error('không đọc được nhãn hàng phiên bản đích');
+    // Hàng mới nhất có thể đã tích sẵn trong cặp so sánh mặc định; `check()` khi ấy không làm gì.
+    await targetBox.check();
     await page.getByRole('button', { name: 'Phục hồi phiên bản này' }).click();
     const restore = waitForApi(page, 'POST', /\/api\/projects\/[^/]+\/versions\/[^/]+\/restore$/u, [200, 201]);
+    const confirm = page.getByRole('dialog');
 
-    await page.getByRole('dialog').getByRole('button', { name: 'Phục hồi', exact: true }).click();
+    // Bản sắp phục hồi đúng là hàng đích, không phải bản khác của cặp so sánh.
+    await expect(confirm).toContainText(targetLabel);
+    await confirm.getByRole('button', { name: 'Phục hồi', exact: true }).click();
     await restore;
     restoreIndex = api.map((entry) => entry.method === 'POST' && entry.path.endsWith('/restore')).lastIndexOf(true);
 
@@ -425,36 +461,27 @@ async function runChain(
     const family = families.items.find((item) => item.family === OPENING_FAMILY);
 
     if (family === undefined) throw new Error(`N23 không có họ ${OPENING_FAMILY}`);
-    await expectScreenAlive(page);
+    const familyPicker = page.getByRole('radiogroup', { name: 'Họ model' });
 
+    await expectScreenAlive(page, familyPicker);
+
+    // Đăng ký TRƯỚC cú bấm: N25 của họ, và N27 của bản đang dùng mà màn tự đọc khi đổi họ.
     const versionsRead = page.waitForResponse(
       (response) =>
         response.request().method() === 'GET' &&
         new URL(response.url()).pathname === '/api/admin/ml/model-versions' &&
         response.url().includes(OPENING_FAMILY) &&
         response.status() === 200,
+      { timeout: API_TIMEOUT_MS },
     );
+    const detailRead = waitForApi(page, 'GET', /^\/api\/admin\/ml\/model-versions\/[^/]+$/u, [200]);
 
-    await page.getByRole('radio', { name: OPENING_FAMILY_LABEL }).click();
+    await familyPicker.getByRole('radio', { name: OPENING_FAMILY_LABEL }).click();
     const versions = ModelVersionPageSchema.parse(await (await versionsRead).json());
 
     expect(versions.items.length).toBeGreaterThan(0);
-
-    const detailPath = /^\/api\/admin\/ml\/model-versions\/[^/]+$/u;
-    const detailSeen = (): ApiEntry | undefined =>
-      api.find((entry) => entry.method === 'GET' && detailPath.test(entry.path) && entry.status === 200);
-
-    if (detailSeen() === undefined) {
-      const first = versions.items[0];
-
-      if (first === undefined) throw new Error('N25 rỗng');
-      const detail = waitForApi(page, 'GET', detailPath, [200]);
-
-      await page.getByRole('button', { name: first.label, exact: true }).click();
-      ModelVersionSchema.parse(await (await detail).json());
-    } else {
-      await expect.poll(() => detailSeen() !== undefined).toBe(true);
-    }
+    expect(versions.items.every((item) => item.family === OPENING_FAMILY)).toBe(true);
+    ModelVersionSchema.parse(await (await detailRead).json());
 
     /* 10b — N24 bằng nút trên màn: kích hoạt bản thứ hai, rồi kích hoạt lại bản cũ. */
     const original = versions.items.find((item) => item.id === family.activeVersionId);
@@ -463,21 +490,46 @@ async function runChain(
         item.id !== family.activeVersionId && item.evaluationStatus === 'completed' && item.weightsFormat === 'onnx',
     );
 
-    if (original === undefined || candidate === undefined) {
+    // Soát TRƯỚC khi đổi gì: bản cũ phải kích hoạt lại được, không thì môi trường bị bỏ lại ở bản mới.
+    if (original === undefined || original.evaluationStatus !== 'completed' || original.weightsFormat !== 'onnx') {
       throw new Error(
-        `họ ${OPENING_FAMILY} cần một bản đang dùng và một bản thứ hai onnx đã đánh giá: ` +
-          'xem điều kiện 7 của e2e/fullstack/README.md',
+        `bản đang dùng của họ ${OPENING_FAMILY} chưa onnx + completed nên không kích hoạt lại được: ` +
+          'xem điều kiện 6 của e2e/fullstack/README.md',
+      );
+    }
+    if (candidate === undefined) {
+      throw new Error(
+        `họ ${OPENING_FAMILY} cần một bản thứ hai onnx đã đánh giá: xem điều kiện 7 của e2e/fullstack/README.md`,
       );
     }
 
-    for (const version of [candidate, original]) {
-      const activate = waitForApi(page, 'PUT', new RegExp(`^/api/admin/ml/model-families/${OPENING_FAMILY}/active$`, 'u'), [200]);
-      const row = page.getByRole('row').filter({ has: page.getByRole('button', { name: version.label, exact: true }) });
+    let switched = false;
+    const activateVia = async (label: string, onActivated: () => void): Promise<void> => {
+      const activate = waitForApi(
+        page,
+        'PUT',
+        new RegExp(`^/api/admin/ml/model-families/${OPENING_FAMILY}/active$`, 'u'),
+        [200],
+      );
+      const row = page.getByRole('row').filter({ has: page.getByRole('button', { name: label, exact: true }) });
 
       await row.getByRole('button', { name: 'Kích hoạt', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Kích hoạt', exact: true }).click();
       await activate;
+      onActivated();
       await expect(page.getByRole('dialog')).toHaveCount(0);
+    };
+
+    try {
+      await activateVia(candidate.label, () => {
+        switched = true;
+      });
+    } finally {
+      // Khôi phục môi trường qua đúng nút trên màn, kể cả khi lượt trên hỏng sau N24.
+      // N24 chưa đi thì bản cũ vẫn đang dùng: không có nút "Kích hoạt" nào để bấm.
+      if (switched) {
+        await activateVia(original.label, () => undefined);
+      }
     }
   });
 

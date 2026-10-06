@@ -1,6 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { CHAIN_TIMEOUT_MS, EXPECT_TIMEOUT_MS, readBaseUrl } from './e2e/fullstack/env';
+import {
+  ACTION_TIMEOUT_MS,
+  CHAIN_TIMEOUT_MS,
+  EXPECT_TIMEOUT_MS,
+  NAVIGATION_TIMEOUT_MS,
+  readBaseUrl,
+} from './e2e/fullstack/env';
 
 /* F-14 — chuỗi FE + BE trên compose của AppBack. Chỉ ghép: mọi logic ở `e2e/fullstack/*.ts`
    (file này nằm ngoài `tsconfig.json`). Không `webServer`, không `bypassCSP`: CSP của nginx
@@ -19,6 +25,8 @@ export default defineConfig({
   reporter: [['line'], ['html', { outputFolder: 'playwright-report/fullstack', open: 'never' }]],
   use: {
     baseURL: readBaseUrl(),
+    actionTimeout: ACTION_TIMEOUT_MS,
+    navigationTimeout: NAVIGATION_TIMEOUT_MS,
     trace: 'off',
   },
   projects: [

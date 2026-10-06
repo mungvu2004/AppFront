@@ -53,17 +53,20 @@ export function watchApi(page: Page): ApiEntry[] {
   return log;
 }
 
-/** Chờ response kế tiếp khớp `method` + `pathPattern` (trên `pathname`) và một trong `statuses`. */
+/**
+ * Chờ response kế tiếp khớp `method` + `pathPattern` (trên `pathname`) và một trong `statuses`.
+ * `method` là `null` thì nhận mọi method. Luôn có trần {@link API_TIMEOUT_MS} hay `timeout`.
+ */
 export function waitForApi(
   page: Page,
-  method: string,
+  method: string | null,
   pathPattern: RegExp,
   statuses: readonly number[],
   timeout: number = API_TIMEOUT_MS,
 ): Promise<Response> {
   return page.waitForResponse(
     (response) =>
-      response.request().method() === method &&
+      (method === null || response.request().method() === method) &&
       pathPattern.test(new URL(response.url()).pathname) &&
       statuses.includes(response.status()),
     { timeout },

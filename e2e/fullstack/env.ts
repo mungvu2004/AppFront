@@ -15,6 +15,9 @@ export const CHAIN_TIMEOUT_MS = 900_000;
 export const EXPECT_TIMEOUT_MS = 15_000;
 export const PIPELINE_TIMEOUT_MS = 300_000;
 export const AUTOSAVE_TIMEOUT_MS = 15_000;
+/** `use.actionTimeout` / `use.navigationTimeout`: mặc định của Playwright là 0 (chỉ trần test chặn). */
+export const ACTION_TIMEOUT_MS = 30_000;
+export const NAVIGATION_TIMEOUT_MS = 30_000;
 /** Trần chờ một response `/api/` thường (không phải pipeline, không phải tự lưu). */
 export const API_TIMEOUT_MS = 30_000;
 /** Cùng số với `PASCAL_RENDER_TIMEOUT_MS` của `e2e/pascal-viewer.spec.ts`. */
