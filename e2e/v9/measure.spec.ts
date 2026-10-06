@@ -34,10 +34,10 @@ async function expectActiveTool(page: Page, name: string): Promise<void> {
  *
  * Canvas đã vẽ chưa có nghĩa hình học đã dựng: tầng dựng trong worker, và tia
  * bắn trước lúc ấy không trúng gì nên cú chấm rơi mất (NO-382). Lúc còn dựng,
- * khung nhìn phủ skeleton; chờ nó đi rồi mới bấm.
+ * khung nhìn mang `aria-busy="true"` (NO-386); chờ nó về `false` rồi mới bấm.
  */
 async function clickSceneCentre(page: Page, dx = 0): Promise<void> {
-  await expect(page.getByLabel('Khung nhìn mô hình').locator('.animate-pulse')).toHaveCount(0, {
+  await expect(page.getByLabel('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false', {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   const box = await page.locator('canvas').first().boundingBox();
