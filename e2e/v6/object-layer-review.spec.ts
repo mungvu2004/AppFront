@@ -127,7 +127,7 @@ test('mã tầng của URL không có trong kho thì màn báo rỗng, không hi
 
   await switchFloorInPage(page, A14_FIRST_FLOOR);
 
-  await expect(page.getByRole('button', { name: 'thêm thủ công' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Thêm thủ công' })).toBeVisible();
   await expect(page.getByText(`0/${String(A14_OBJECTS_ON_FLOOR)} đối tượng đã duyệt`)).toHaveCount(0);
 });
 
