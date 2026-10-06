@@ -693,6 +693,10 @@ function createProgressReader(
 ) {
   let sequence = 0;
   let lastContentKey = '';
+  // Mốc quan sát: tăng mỗi khi thấy một nhịp mới (SSE hay lượt đọc). Pending không mang
+  // mã lượt chạy (BE `_pending`), nên "cùng lượt" chỉ phân được bằng mốc này (P3-8).
+  let observed = 0;
+  let lastStatus: Progress['status'] | undefined;
 
   const toPatchEvent = (progress: Progress): ProgressPatchEvent<Progress> => {
     sequence += 1;
@@ -703,8 +707,11 @@ function createProgressReader(
     toPatchEvent,
     markSeen: (progress: Progress): void => {
       lastContentKey = contentKeyOf(progress);
+      observed += 1;
+      lastStatus = progress.status;
     },
     read: async (signal?: AbortSignal): Promise<ProgressPatchEvent<Progress> | null> => {
+      const observedAtIssue = observed;
       const result = await client.drawings.progress({
         projectId,
         uploadId,
@@ -724,6 +731,17 @@ function createProgressReader(
         return null;
       }
 
+      // `pending` của một lượt đọc đã đi TRƯỚC nhịp mới nhất là nhịp cũ đến muộn, không
+      // phải lượt mới (lượt mới đến qua SSE, hoặc qua lượt đọc đi sau): bỏ, kẻo thanh về 0.
+      const isLatePending =
+        result.data.status === PENDING_STATUS &&
+        observed !== observedAtIssue &&
+        lastStatus !== PENDING_STATUS;
+
+      if (isLatePending) {
+        return null;
+      }
+
       const contentKey = contentKeyOf(result.data);
 
       if (contentKey === lastContentKey) {
@@ -731,6 +749,8 @@ function createProgressReader(
       }
 
       lastContentKey = contentKey;
+      observed += 1;
+      lastStatus = result.data.status;
       return toPatchEvent(result.data);
     },
   };
