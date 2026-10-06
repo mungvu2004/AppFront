@@ -662,7 +662,8 @@
     "notices": {
       "cadNotSupported": "Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.",
       "pickPageToStart": "Hãy chọn trang bản vẽ để bắt đầu tải",
-      "awaitNetwork": "Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp"
+      "awaitNetwork": "Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp",
+      "displacedToTray": "{{fileName}} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác"
     }
   },
   "inputQualityGate": {
