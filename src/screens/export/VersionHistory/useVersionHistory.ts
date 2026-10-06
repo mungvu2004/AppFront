@@ -95,9 +95,12 @@ interface Banner {
 }
 
 /** Ổn định ở cấp module để `combine` của `useQueries` giữ được kết quả khi không gì đổi. */
-const combineSnapshots = (results: readonly { data?: VersionSnapshotRead | undefined; isFetching: boolean }[]) => ({
+const combineSnapshots = (
+  results: readonly { data?: VersionSnapshotRead | undefined; isError: boolean; isFetching: boolean }[],
+) => ({
   reads: results.map((result) => result.data),
   fetching: results.map((result) => result.isFetching),
+  failed: results.map((result) => result.isError),
 });
 type FlushOutcome = 'clean' | 'discarded' | 'cancelled';
 
@@ -188,14 +191,19 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   });
   const snapshotsInFlight = snapshots.fetching.some(Boolean);
   const snapshotData = snapshots.reads;
+  const snapshotFailed = snapshots.failed;
 
-  const { history, purgedIds } = useMemo(() => {
+  const { failedIds, history, purgedIds } = useMemo(() => {
     const purged = new Set<string>();
+    const failed = new Set<string>();
     const entries = summaries.map((item, index): VersionHistoryEntry => {
       const read = snapshotData[index];
 
       if (!item.hasSnapshot || read?.kind === 'purged') {
         purged.add(item.id);
+      } else if (snapshotFailed[index] === true && read === undefined && wanted.has(item.id)) {
+        // Chỉ hàng còn bật truy vấn: hàng tắt thì `refetchQueries` bỏ qua, nút thử lại sẽ chết.
+        failed.add(item.id);
       }
 
       return read?.kind === 'snapshot'
@@ -203,8 +211,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         : { kind: 'metadataOnly', version: toVersionMetadata(item) };
     });
 
-    return { history: entries, purgedIds: purged };
-  }, [summaries, snapshotData]);
+    return { failedIds: failed, history: entries, purgedIds: purged };
+  }, [summaries, snapshotData, snapshotFailed, wanted]);
 
   /* ---- Cặp so, diff ----------------------------------------------------- */
 
@@ -244,8 +252,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   const builds = useMemo(
     () =>
-      buildVersionRows({ history, now, leftVersionId, rightVersionId, summaries: summaryMap, purgedIds, currentRevision }),
-    [history, now, leftVersionId, rightVersionId, summaryMap, purgedIds, currentRevision],
+      buildVersionRows({ history, now, leftVersionId, rightVersionId, summaries: summaryMap, purgedIds, failedIds, currentRevision }),
+    [history, now, leftVersionId, rightVersionId, summaryMap, purgedIds, failedIds, currentRevision],
   );
   const rows = useMemo(() => builds.map((build) => build.row), [builds]);
   const groups = useMemo(() => groupRowsByDay(builds, now), [builds, now]);
@@ -536,6 +544,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         }
       },
       selectFloor: (nextFloorId) => onSelectFloor?.(nextFloorId),
+      // Qua `queryFn` của chính truy vấn, nên vẫn trong giới hạn SNAPSHOT_CONCURRENCY.
+      retrySnapshot: (versionId) =>
+        void queryClient.refetchQueries({ queryKey: snapshotQueryKey(floorId, versionId), exact: true }),
     }),
     [
       banner,
@@ -543,6 +554,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       canTagVersion,
       discardQuestion,
       fetchNextPage,
+      floorId,
       flushFirst,
       hasNextPage,
       isFetchingNextPage,
@@ -550,6 +562,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       onSelectFloor,
       openDialog,
       pair,
+      queryClient,
       reloadFloor,
       rows,
       runRestore,

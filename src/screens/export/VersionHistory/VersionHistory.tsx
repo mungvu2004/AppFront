@@ -115,7 +115,11 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           />
         ) : (
           <div className="flex w-[360px] shrink-0 flex-col border-r border-border-default">
-            <VersionList groups={model.groups} onToggleCompareSelection={actions.toggleCompareSelection} />
+            <VersionList
+              groups={model.groups}
+              onToggleCompareSelection={actions.toggleCompareSelection}
+              onRetrySnapshot={actions.retrySnapshot}
+            />
             {model.canLoadMoreVersions && (
               <Button variant="ghost" onClick={actions.loadMoreVersions}>
                 Xem thêm phiên bản

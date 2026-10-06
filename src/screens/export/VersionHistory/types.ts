@@ -154,6 +154,8 @@ export interface VersionRowModel {
   readonly isMetadataOnly: boolean;
   /** Nêu rõ thời hạn lưu. `null` khi phiên bản còn đủ nội dung. */
   readonly retentionNotice: string | null;
+  /** N18 hỏng tạm thời (không phải "hết nội dung"): câu lỗi, kèm nút thử lại. Vắng khi không lỗi. */
+  readonly snapshotError?: string;
   readonly isSelectedForCompare: boolean;
   /** Ô tích tắt khi đã chọn đủ hai bản, hoặc khi bản này không so được. */
   readonly isPickable: boolean;
@@ -348,6 +350,8 @@ export interface VersionHistoryActions {
   readonly dismissConflict: () => void;
   readonly loadMoreVersions: () => void;
   readonly selectFloor: (floorId: string) => void;
+  /** Nạp lại N18 của một bản vừa hỏng tạm thời (NO-368). */
+  readonly retrySnapshot?: (versionId: string) => void;
 }
 
 /** View thuần: test được CHỈ từ props, không chạm store, không chạm mạng (mục D, R-60). */

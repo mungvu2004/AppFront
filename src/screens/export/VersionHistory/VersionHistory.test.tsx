@@ -77,7 +77,7 @@ import { VersionHistoryRoute } from './VersionHistory.container';
 import { NO_COMPARE_PAIR_REASON, NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
 import { CONFLICT_TITLE, createVersionHistoryGateway, VERSION_LIST_FAILED_REASON } from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
-import { UNDO_RETRY_TOAST } from './versionHistoryModel';
+import { SNAPSHOT_FAILED_NOTICE, SNAPSHOT_RETRY_LABEL, UNDO_RETRY_TOAST } from './versionHistoryModel';
 
 afterEach(() => {
   cleanup();
@@ -861,6 +861,58 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(server.calls.filter((call) => call.path.endsWith('/restore'))).toHaveLength(1);
     expect(server.calls.filter((call) => call.path.endsWith('/snapshot')).at(-1)?.path).toContain(restoredId);
     expect(peak).toBeLessThanOrEqual(2);
+  });
+
+  it('NO-368: N18 hỏng tạm thời → hàng nêu câu lỗi, nút "Thử lại" nạp lại đúng bản đó (vẫn ≤ 2), tiêu điểm về hàng, aria-live báo', async () => {
+    const setup = await renderVersionHistoryHook();
+    let failing = true;
+    let active = 0;
+    let peak = 0;
+
+    setup.server.override('GET snapshot', async ({ path }) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await Promise.resolve();
+      active -= 1;
+
+      return failing && path.includes(WIRE_VERSION_IDS.v2)
+        ? { error: wireError(503, 'UNAVAILABLE'), ok: false }
+        : { data: { dimensions: [], layer: wireLayer(WIRE_CURRENT_WALLS), versionId: path.split('/')[4] }, ok: true };
+    });
+    await act(async () => {
+      await setup.queryClient.resetQueries({ queryKey: ['version', 'snapshot'] });
+    });
+    await waitFor(() => {
+      expect(setup.result.current[0].rows[1]?.snapshotError).toBe(SNAPSHOT_FAILED_NOTICE);
+    });
+
+    const failed = setup.result.current[0].rows[1];
+
+    // Lỗi tạm thời không phải "hết nội dung".
+    expect(failed?.isMetadataOnly).toBe(false);
+    expect(setup.result.current[0].rows[0]?.snapshotError).toBeUndefined();
+
+    const [model, actions] = setup.result.current;
+    const view = renderWithProviders(<VersionHistory model={model} actions={actions} />);
+
+    expect(screen.getByRole('status', { name: 'Trạng thái nạp nội dung phiên bản' }).textContent).toContain(SNAPSHOT_FAILED_NOTICE);
+
+    const retry = screen.getByRole('button', { name: `${SNAPSHOT_RETRY_LABEL} tải nội dung ${failed?.label ?? ''}` });
+    const before = setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`)).length;
+
+    failing = false;
+    retry.focus();
+    act(() => {
+      retry.click();
+    });
+    expect(document.activeElement?.closest('li')).not.toBeNull();
+    expect(document.activeElement?.tagName).not.toBe('BUTTON');
+    await waitFor(() => {
+      expect(setup.result.current[0].rows[1]?.snapshotError).toBeUndefined();
+    });
+    expect(setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`))).toHaveLength(before + 1);
+    expect(peak).toBeLessThanOrEqual(2);
+    view.unmount();
   });
 
   it('tầng mặc định rỗng → empty, ô "Tầng" vẫn hiện', async () => {

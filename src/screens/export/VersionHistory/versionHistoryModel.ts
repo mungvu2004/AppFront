@@ -167,6 +167,8 @@ export interface BuildRowsContext {
   readonly purgedIds: ReadonlySet<string>;
   /** `floorMeta[floorId].revision`; `null` khi chưa có — khi ấy không hàng nào là hiện tại. */
   readonly currentRevision: number | null;
+  /** Bản có N18 hỏng tạm thời (không tính bản hết nội dung). */
+  readonly failedIds?: ReadonlySet<string>;
 }
 
 /**
@@ -176,7 +178,7 @@ export interface BuildRowsContext {
  * thứ 0 là bản hiện tại và `index + 1` là bản cũ hơn liền kề.
  */
 export function buildVersionRows(context: BuildRowsContext): readonly VersionRowBuild[] {
-  const { currentRevision, history, now, leftVersionId, purgedIds, rightVersionId, summaries } = context;
+  const { currentRevision, failedIds, history, now, leftVersionId, purgedIds, rightVersionId, summaries } = context;
   const pickedCount = (leftVersionId === null ? 0 : 1) + (rightVersionId === null ? 0 : 1);
 
   return history.map((entry, index): VersionRowBuild => {
@@ -214,6 +216,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         tagLabel: summary?.label ?? null,
         isMetadataOnly,
         retentionNotice: isMetadataOnly ? RETENTION_NOTICE : null,
+        ...(failedIds?.has(metadata.id) === true ? { snapshotError: SNAPSHOT_FAILED_NOTICE } : {}),
         isSelectedForCompare,
         // Hàng chưa nạp N18 chưa so được; chọn nó ở ô so sánh sẽ nạp nó.
         isPickable: isLoaded && (isSelectedForCompare || pickedCount < 2),
@@ -380,6 +383,11 @@ const WRITE_ERROR_FALLBACK: Readonly<Record<VersionWriteOperation, string>> = {
   undo: 'Máy chủ chưa nhận lượt hoàn tác. Thử lại sau ít phút.',
   label: 'Máy chủ chưa nhận nhãn này. Thử lại sau ít phút.',
 };
+
+/** N18 hỏng tạm thời của một hàng (NO-368) — khác "hết nội dung": bấm thử lại được. */
+export const SNAPSHOT_FAILED_NOTICE = 'Chưa tải được nội dung bản này';
+/** Nhãn nút thử lại N18 của một hàng. */
+export const SNAPSHOT_RETRY_LABEL = 'Thử lại';
 
 /** Toast mời bấm lại sau khi N19 ngược hỏng tạm thời (NO-365) — phiếu hoàn tác vẫn còn hạn. */
 export const UNDO_RETRY_TOAST = 'Chưa hoàn tác được lượt phục hồi; bấm "Hoàn tác" để thử lại';
