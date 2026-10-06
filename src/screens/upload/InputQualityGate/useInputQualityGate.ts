@@ -146,6 +146,9 @@ const COPY = Object.freeze({
   forecastMissing: 'Chưa dự kiến được độ tin cậy vì bản vẽ chưa đo xong.',
   forecastPrefix: 'Dự kiến độ tin cậy trung bình',
   loadFailureFallback: 'Không đọc được kết quả kiểm tra chất lượng của bản vẽ này.',
+  continueWaitingReading: 'Đang đọc kết quả kiểm tra; chờ xong rồi tiếp tục.',
+  continueReadFailed: 'Chưa đọc được kết quả kiểm tra; hãy tải bản vẽ khác hoặc thử lại sau.',
+  continueNoDrawing: 'Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước.',
   noDrawingNotice: 'Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.',
   writeFailureFallback: 'Chưa xử lý được bản vẽ; hãy thử lại.',
   confirmCancel: 'Huỷ',
@@ -1011,9 +1014,18 @@ export function useInputQualityGate(
 
   const requiresAcknowledgement = visibleMetrics.some((metric) => metric.level === 'poor');
 
+  const continueDisabledReason =
+    status === 'loading'
+      ? COPY.continueWaitingReading
+      : status === 'error'
+        ? COPY.continueReadFailed
+        : hasNoDrawing
+          ? COPY.continueNoDrawing
+          : null;
+
   const footer: InputQualityFooterModel = {
     canContinue: !(requiresAcknowledgement && !isAcknowledged),
-    isContinueDisabled: hasNoDrawing,
+    continueDisabledReason,
     requiresAcknowledgement,
     isAcknowledged,
     acknowledgementLabel: COPY.acknowledgement,
@@ -1245,7 +1257,7 @@ export function useInputQualityGate(
     // bấm dừng ở đây: lời "Đánh dấu ô xác nhận bên trên rồi thử lại." đã hiện cạnh
     // nút — đi tiếp là làm trái chính câu đó. Cùng khuôn `submit` của màn tải lên.
     onContinue: () => {
-      if (!footer.canContinue || hasNoDrawing) {
+      if (!footer.canContinue || continueDisabledReason !== null) {
         return;
       }
 

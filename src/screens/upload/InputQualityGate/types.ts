@@ -228,10 +228,11 @@ export interface InputQualityImageModel {
 export interface InputQualityFooterModel {
   readonly canContinue: boolean;
   /**
-   * Dự án chưa có bản vẽ: không còn gì để xử lý tiếp, nên nút chính vô hiệu
-   * (khác `canContinue`, vốn không khoá nút). Chân trang nêu lý do cạnh nút.
+   * Chưa có gì để xử lý tiếp (đang đọc, lỗi đọc, hoặc chưa có bản vẽ): câu lý
+   * do, và nút chính vô hiệu. `null`/vắng = nút dùng được (khác `canContinue`,
+   * vốn không khoá nút). Chân trang nêu câu này cạnh nút.
    */
-  readonly isContinueDisabled?: boolean;
+  readonly continueDisabledReason?: string | null;
   readonly requiresAcknowledgement: boolean;
   readonly isAcknowledged: boolean;
   readonly acknowledgementLabel: string;

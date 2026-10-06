@@ -670,12 +670,15 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
     expect(screen.getByText(/^2 phát hiện còn lại/u)).toBeInTheDocument();
   });
 
-  it('NO-360: lỗi ghi có đọc lại thì tiêu điểm về nút vừa bấm, không nhảy lên đầu trang', async () => {
+  /**
+   * Lỗi ghi 409 chậm rồi đọc lại chậm — như mạng thật — cho loại ghi `kind`.
+   * Trả về nút đã bấm và hàm đẩy đồng hồ qua từng pha, để test chen vào giữa.
+   */
+  async function mountFailingWrite(kind: 'straighten' | 'corners') {
     const client = createMockApiClient();
     const realAssess = client.quality.assess;
     let isWriteDone = false;
     const assess = vi.spyOn(client.quality, 'assess').mockImplementation(async (input) => {
-      // Lượt đọc lại sau lỗi ghi cũng chậm, như mạng thật: nút hành động ẩn suốt lúc đó.
       if (isWriteDone) {
         await new Promise((resolve) => {
           setTimeout(resolve, SLOW_SERVER_MS);
@@ -684,53 +687,95 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
 
       return realAssess(input);
     });
-
-    vi.spyOn(client.quality, 'straighten').mockImplementation(async () => {
-      // Máy chủ trả lời chậm: đủ lâu để hoạt ảnh rời đi của phát hiện chạy hết.
+    const failed = async () => {
       await new Promise((resolve) => {
         setTimeout(resolve, SLOW_SERVER_MS);
       });
-
       isWriteDone = true;
 
       return {
-      error: {
-        code: 'QUALITY_DRAWING_CHANGED',
-        kind: 'http',
-        raw: { code: 'QUALITY_DRAWING_CHANGED', requestId: 'req-focus-1' },
-        requestId: 'req-focus-1',
-        retryable: false,
-        status: 409,
-      },
-      ok: false,
+        error: {
+          code: 'QUALITY_DRAWING_CHANGED',
+          kind: 'http' as const,
+          raw: { code: 'QUALITY_DRAWING_CHANGED', requestId: 'req-focus-1' },
+          requestId: 'req-focus-1',
+          retryable: false,
+          status: 409,
+        },
+        ok: false as const,
       };
-    });
+    };
+
+    vi.spyOn(client.quality, 'straighten').mockImplementation(failed);
+    vi.spyOn(client.quality, 'setCorners').mockImplementation(failed);
 
     await mountScreen(clock, { client });
     await selectMeasuredFloor(clock);
 
     const reads = assess.mock.calls.length;
-    const trigger = screen.getByRole('button', { name: /tự động nắn/iu });
+    const name = kind === 'straighten' ? /tự động nắn/iu : /chọn góc thủ công/iu;
+    const trigger = screen.getByRole('button', { name });
 
     trigger.focus();
     fireEvent.click(trigger);
     await settle(clock);
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nắn thẳng' }));
-    await act(async () => {
-      await clock.advance(SLOW_SERVER_MS);
-      await clock.flushMicrotasks();
-    });
-    await act(async () => {
-      await clock.advance(SLOW_SERVER_MS);
-      await clock.flushMicrotasks();
-    });
+
+    if (kind === 'corners') {
+      fireEvent.click(screen.getByRole('button', { name: /gửi bốn góc đã chọn/iu }));
+      await settle(clock);
+    }
+
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: kind === 'straighten' ? 'Nắn thẳng' : 'Cắt và nắn',
+      }),
+    );
+
+    const advance = () =>
+      act(async () => {
+        await clock.advance(SLOW_SERVER_MS);
+        await clock.flushMicrotasks();
+      });
+
+    // Chọn góc xong, cùng nút đổi nhãn thành "Gửi bốn góc đã chọn".
+    const finalName = kind === 'straighten' ? name : /gửi bốn góc đã chọn/iu;
+
+    return { advance, assess, finalName, reads, trigger };
+  }
+
+  it.each(['straighten', 'corners'] as const)(
+    'NO-360: lỗi ghi (%s) có đọc lại thì tiêu điểm về nút vừa bấm, không nhảy lên đầu trang',
+    async (kind) => {
+      const { advance, assess, finalName, reads, trigger } = await mountFailingWrite(kind);
+
+      await advance();
+      await advance();
+      await settle(clock);
+      await settle(clock);
+
+      expect(screen.getAllByText(/kết quả đo đã được đọc lại/iu).length).toBeGreaterThan(0);
+      expect(assess.mock.calls.length).toBeGreaterThan(reads);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(trigger.isConnected).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: finalName }));
+    },
+  );
+
+  it('NO-360: người dùng đã tự chuyển tiêu điểm trong lúc đọc lại thì không bị kéo về', async () => {
+    const { advance } = await mountFailingWrite('straighten');
+
+    await advance();
+
+    const other = screen.getByRole('button', { name: 'Tải bản vẽ khác' });
+
+    fireEvent.pointerDown(other);
+    other.focus();
+    await advance();
     await settle(clock);
     await settle(clock);
 
-    expect(screen.getAllByText(/kết quả đo đã được đọc lại/iu).length).toBeGreaterThan(0);
-    expect(assess.mock.calls.length).toBeGreaterThan(reads);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: /tự động nắn/iu }));
+    expect(screen.queryByRole('button', { name: /tự động nắn/iu })).not.toBeNull();
+    expect(document.activeElement).toBe(other);
   });
 });
 
@@ -767,6 +812,46 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     expect(button).toBeDisabled();
     expect(button).toHaveAccessibleDescription(/chưa có bản vẽ nào để xử lý/iu);
+
+    fireEvent.click(button);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('đang đọc kết quả: nút vô hiệu kèm lý do', async () => {
+    const client = createMockApiClient();
+
+    vi.spyOn(client.quality, 'assess').mockImplementation(() => new Promise(() => undefined));
+
+    await mountScreen(clock, { client });
+
+    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/đang đọc kết quả/iu);
+  });
+
+  it('đọc kết quả hỏng: nút vô hiệu kèm lý do, bấm không điều hướng', async () => {
+    const client = createMockApiClient();
+    const onNavigate = vi.fn();
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'INTERNAL_ERROR',
+        kind: 'http',
+        raw: { code: 'INTERNAL_ERROR', requestId: 'req-read-1' },
+        requestId: 'req-read-1',
+        retryable: false,
+        status: 500,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client, onNavigate });
+
+    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/chưa đọc được kết quả/iu);
 
     fireEvent.click(button);
     expect(onNavigate).not.toHaveBeenCalled();

@@ -85,8 +85,31 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
   // Lỗi ghi: hộp thoại đóng lúc nút gốc đã bị thay (đánh dấu xong, rồi đọc lại),
   // nên tiêu điểm tự rơi vào phần tử đầu tiên của trang. Trả về đúng nút vừa
   // bấm; nút không còn thì về dải báo lỗi.
+  // Người dùng đã tự bấm/gõ từ lúc có lỗi thì không kéo tiêu điểm của họ đi.
+  const hasUserActedRef = useRef(false);
+
   useEffect(() => {
-    if (retryFocus === null) {
+    hasUserActedRef.current = false;
+
+    if (model.writeError === null) {
+      return undefined;
+    }
+
+    const markActed = (): void => {
+      hasUserActedRef.current = true;
+    };
+
+    document.addEventListener('pointerdown', markActed, true);
+    document.addEventListener('keydown', markActed, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', markActed, true);
+      document.removeEventListener('keydown', markActed, true);
+    };
+  }, [model.writeError]);
+
+  useEffect(() => {
+    if (retryFocus === null || hasUserActedRef.current) {
       return;
     }
 
