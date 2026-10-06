@@ -375,7 +375,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
   });
 
   it('ống có tầng bẩn → PUT của tầng đó đi trước N19; sau phục hồi: N16, replaceFloorLayer external, Ctrl+Z trống, serverReplaceSeq tăng, restoreVersion bị vô hiệu', async () => {
-    const replaceSpy = vi.spyOn(CommitModule, 'replaceFloorLayer');
+    const replaceSpy = vi.spyOn(CommitModule, 'applyFloorLayerRead');
     const setup = await renderVersionHistoryHook();
     const invalidate = vi.spyOn(setup.queryClient, 'invalidateQueries');
 
@@ -398,7 +398,9 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(restoreCalls(setup.server)[0]?.body).toEqual({ baseVersion: 6, body: { floorId: WIRE_FLOOR_ID } });
     expect(order.slice(postIndex)).toContain('GET layer');
 
-    const external = replaceSpy.mock.calls.filter(([, , options]) => options?.external === true);
+    // Nạp lại đi qua `applyFloorLayerRead` (chung với autosave, R2-4) — nó gọi `replaceFloorLayer`
+    // với `external: true`; dấu hiệu external là Ctrl+Z trống và `serverReplaceSeq` tăng bên dưới.
+    const external = replaceSpy.mock.calls;
 
     expect(external).toHaveLength(1);
     expect(external[0]?.[0]).toBe(WIRE_FLOOR_ID);
@@ -463,7 +465,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
   });
 
   it('N19 trả floorRevision = baseVersion (bản "trước" vừa sinh, id mới) → không phiếu hoàn tác, không N19 thứ hai, không nạp lại', async () => {
-    const replaceSpy = vi.spyOn(CommitModule, 'replaceFloorLayer');
+    const replaceSpy = vi.spyOn(CommitModule, 'applyFloorLayerRead');
     const setup = await renderVersionHistoryHook();
 
     setup.server.override('POST restore', () => ({

@@ -15,7 +15,7 @@
  * 1. **Xả trước:** `flushAutosaves()`; tầng còn trong `unsavedFloorIds` → hộp thoại A9; đồng ý
  *    thì `discardFloor`, huỷ thì dừng.
  * 2. `baseVersion` = `floorMeta[floorId].revision` (vắng thì N16) — không bao giờ `sequence`.
- * 3. **Chuỗi nạp lại:** N16 → `replaceFloorLayer(..., { external: true })` (lớp và `revision`
+ * 3. **Chuỗi nạp lại:** N16 → `applyFloorLayerRead` → `replaceFloorLayer(..., { external: true })` (lớp và `revision`
  *    cùng một `set`, xoá zundo, tăng `serverReplaceSeq`) → `applyInvalidation('restoreVersion')`.
  *    N16 hỏng thì `revision` trong kho không đổi (lượt tự lưu sau nhận 409, không ghi đè) và dải
  *    "Tải lại" hiện. Kích thước N16 vào kho cùng lớp — lượt N15 sau thấy cùng `revision` nên không thay.
@@ -35,7 +35,7 @@ import { applyInvalidation } from '@/lib/query/invalidation';
 import { diffVersions } from '@/lib/versioning/diff';
 import type { VersionHistoryEntry } from '@/lib/versioning/restore';
 import { useStore } from '@/store';
-import { replaceFloorLayer } from '@/store/commit';
+import { applyFloorLayerRead } from '@/store/commit';
 
 import type {
   CompareModel,
@@ -337,23 +337,12 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     return 'discarded';
   }, [discardFloor, discardQuestion, floorId, openDialog]);
 
-  /** Chuỗi nạp lại tầng: N16 → `replaceFloorLayer` (external) → vô hiệu `restoreVersion`. */
+  /** Chuỗi nạp lại tầng: N16 → `applyFloorLayerRead` (`replaceFloorLayer` external) → vô hiệu `restoreVersion`. */
   const reloadFloor = useCallback(async (): Promise<void> => {
     try {
-      const { dimensions, layer, level, revision, scaleStatus } = await gateway.readFloorLayer();
-
       // N19 đổi cả kích thước; N15 sau đó thấy cùng `revision` nên không thay tầng (NO-369/NO-374).
-      // `level`/`scaleStatus` đi cùng lớp, đúng như `reloadFloor` của autosave (`useAutosave.ts`).
-      replaceFloorLayer(
-        floorId,
-        { dimensions, layer, level, revision, ...(scaleStatus === undefined ? {} : { scaleStatus }) },
-        { external: true },
-      );
-
-      // `replaceFloorLayer` giữ `scaleStatus` cũ khi N16 vắng khoá; vắng nghĩa là tầng đã có tỉ lệ thật.
-      if (scaleStatus === undefined && useStore.getState().floorMeta[floorId]?.scaleStatus !== undefined) {
-        useStore.getState().updateFloorMeta(floorId, { revision });
-      }
+      // Cùng hàm áp N16 với `reloadFloor` của autosave; lỗi ở đây thì ném ra dải "Tải lại".
+      applyFloorLayerRead(floorId, await gateway.readFloorLayer());
     } catch {
       setBanner({ kind: 'reload', notice: RELOAD_FAILED_NOTICE });
     }
