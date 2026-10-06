@@ -89,7 +89,7 @@ describe('useServerFeatureFlags', () => {
     await waitFor(() => expect(getFeatureFlagsSnapshot().serverStatus).toBe('ready'));
 
     answerU1({ [SHADOWS]: true });
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(getFeatureFlag(SHADOWS)).toBe(false);
   });

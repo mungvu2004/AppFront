@@ -39,7 +39,7 @@ export function useServerFeatureFlags(read: FeatureFlagReader = readFromAppClien
 
     // Not `loadServerFeatureFlags`: it writes whenever its read settles, and a
     // late answer for the previous user must not land on the next one's store.
-    Promise.resolve()
+    void Promise.resolve()
       .then(() => readRef.current())
       .then(
         (payload) => {
