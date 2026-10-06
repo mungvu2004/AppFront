@@ -16,7 +16,11 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
-import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
+import {
+  auth as AUTH_MESSAGES,
+  connectionStates as CONNECTION_MESSAGES,
+  errors as ERROR_MESSAGES,
+} from '@/i18n/vi.json';
 
 import { consumeFragmentToken } from '../fragmentToken';
 import {
@@ -81,6 +85,10 @@ export interface InvitationAcceptModel {
   readonly isSessionPending: boolean;
   /** Chưa mở được phiên vì mất kết nối: dải báo kèm nút thử lại; biểu mẫu vẫn mở. */
   readonly isSessionUnavailable: boolean;
+  /** Lượt thử lại mở phiên đang bay (bấm thêm bị bỏ qua). */
+  readonly isRetryingSession: boolean;
+  /** Câu cho vùng `role="status"`: đang thử lại, hoặc thử lại vẫn hỏng. */
+  readonly retryNotice: string | null;
 }
 
 export interface InvitationAcceptActions {
@@ -98,6 +106,7 @@ const FIELDS: readonly string[] = ['fullName', 'password'];
 
 type Failure = RecoveryFailure | { readonly kind: 'sessionNotOpened' };
 type Phase = 'idle' | 'submitting' | 'succeeded';
+type RetryPhase = 'idle' | 'pending' | 'failed';
 
 function fullNameProblem(value: string): string | undefined {
   const parsed = AcceptInvitationSchema.shape.fullName.safeParse(value);
@@ -132,6 +141,8 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
   const [phase, setPhase] = useState<Phase>('idle');
   const { isLocked, lock } = useLockout();
   const inFlight = useRef(false);
+  const [retryPhase, setRetryPhase] = useState<RetryPhase>('idle');
+  const retryInFlight = useRef(false);
 
   const valuesRef = useRef(values);
   valuesRef.current = values;
@@ -262,9 +273,23 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     onExpand?.();
   }, [onExpand]);
 
-  // Lỗi lượt thử lại đã nằm trong trạng thái phiên (`serverUnreachable`), dải báo vẫn đứng đó.
+  // Một lượt một lúc. Hỏng (hoặc `false` mà phiên vẫn chưa rõ) thì báo lại qua vùng trạng thái;
+  // phiên rõ ra thì dải tự biến mất và câu này không còn hiện.
   const retrySession = useCallback(() => {
-    void port.retrySession().catch(() => false);
+    if (retryInFlight.current) {
+      return;
+    }
+
+    retryInFlight.current = true;
+    setRetryPhase('pending');
+
+    void port
+      .retrySession()
+      .catch(() => false)
+      .then((opened) => {
+        retryInFlight.current = false;
+        setRetryPhase(opened ? 'idle' : 'failed');
+      });
   }, [port]);
 
   const isSubmitting = phase === 'submitting';
@@ -296,6 +321,8 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
       ? { tone: 'violation', message: AUTH_MESSAGES.invitation.sessionNotOpened }
       : noticeForRecovery(shownFailure);
 
+  const sessionUnavailable = port.isSessionUnavailable && !isSubmitting && !isDone && !needsSignIn;
+
   const model: InvitationAcceptModel = {
     state,
     values,
@@ -310,11 +337,27 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     isDone,
     needsSignIn,
     isSessionPending: port.isSessionPending,
-    isSessionUnavailable: port.isSessionUnavailable && !isSubmitting && !isDone && !needsSignIn,
+    isSessionUnavailable: sessionUnavailable,
+    isRetryingSession: retryPhase === 'pending',
+    retryNotice: !sessionUnavailable
+      ? null
+      : retryPhase === 'pending'
+        ? CONNECTION_MESSAGES.checking
+        : retryPhase === 'failed'
+          ? ERROR_MESSAGES.network.description
+          : null,
   };
 
   return {
     model,
-    actions: { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand, retrySession },
+    actions: {
+      setFullName,
+      setPassword,
+      setConfirmPassword,
+      submit,
+      goToSignIn,
+      expand,
+      retrySession,
+    },
   };
 }

@@ -7,7 +7,7 @@
  * chỉ còn một đường — tới đăng nhập.
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -33,16 +33,23 @@ export type InvitationAcceptViewProps = InvitationAcceptModel & InvitationAccept
 
 export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   const { state, values, problems, notice, warning, canSubmit, isSubmitting, isDone } = props;
-  const { needsSignIn, isSessionPending, isSessionUnavailable } = props;
+  const { needsSignIn, isSessionPending, isSessionUnavailable, retryNotice } = props;
   const { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand, retrySession } =
     props;
   const fullNameRef = useRef<HTMLInputElement>(null);
 
-  // Nút thử lại biến mất khi phiên mở được; tiêu điểm về ô đầu tiên (luôn bật ở đây) chứ không rơi về `body`.
-  const handleRetry = useCallback(() => {
-    retrySession();
-    fullNameRef.current?.focus();
-  }, [retrySession]);
+  // Thử lại thành công thì dải (và nút đang giữ tiêu điểm) biến mất: đưa tiêu điểm về ô đầu
+  // tiên thay vì để nó rơi về `body`. Chỉ khi nó thật sự rơi — không giật tiêu điểm của ai.
+  const wasUnavailable = useRef(isSessionUnavailable);
+  useEffect(() => {
+    const lostFocus = document.activeElement === null || document.activeElement === document.body;
+
+    if (wasUnavailable.current && !isSessionUnavailable && lostFocus) {
+      fullNameRef.current?.focus();
+    }
+
+    wasUnavailable.current = isSessionUnavailable;
+  }, [isSessionUnavailable]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -78,14 +85,14 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
         />
       ) : (
         <>
-          {/* Ngoài `<form>`: nút của dải không mang `type`, đặt trong form là nút gửi. */}
+          {/* Ngoài `<form>`: dải nói về phiên, không phải về biểu mẫu — bấm "Thử lại" không dính gì tới lượt gửi. */}
           {isSessionUnavailable && (
             <InlineAlert
               className="mb-6"
               level="attention"
               title={ERROR_MESSAGES.network.title}
               message={ERROR_MESSAGES.network.description}
-              action={{ label: COMMON_MESSAGES.retry, onClick: handleRetry }}
+              action={{ label: COMMON_MESSAGES.retry, onClick: retrySession }}
             />
           )}
           <form
@@ -101,7 +108,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
               role="status"
               className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
             >
-              {isDone ? AUTH_MESSAGES.invitation.success : null}
+              {isDone ? AUTH_MESSAGES.invitation.success : retryNotice}
             </p>
 
             <div className="flex flex-col gap-4">

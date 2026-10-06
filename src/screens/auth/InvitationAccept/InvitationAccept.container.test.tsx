@@ -68,11 +68,14 @@ describe('InvitationAcceptRoute — lượt mở phiên hỏng ở bước cấu
     expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
 
     transportBroken = false;
+    const retry = screen.getByRole('button', { name: viMessages.common.retry });
+    retry.focus();
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: viMessages.common.retry }));
+      fireEvent.click(retry);
     });
 
-    expect(screen.getByLabelText(AUTH.fields.fullName)).toHaveFocus();
+    // Tiêu điểm chỉ chuyển khi thử lại thành công; trong lúc chờ nó ở yên trên nút.
+    expect(retry).toHaveFocus();
     await waitFor(() => {
       expect(getSession().status).not.toBe('unknown');
     });

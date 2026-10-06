@@ -39,6 +39,8 @@ const base: InvitationAcceptViewProps = {
   needsSignIn: false,
   isSessionPending: false,
   isSessionUnavailable: false,
+  isRetryingSession: false,
+  retryNotice: null,
   setFullName: noop,
   setPassword: noop,
   setConfirmPassword: noop,

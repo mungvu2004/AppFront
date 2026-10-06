@@ -95,6 +95,8 @@ function baseProps(): InvitationAcceptViewProps {
     needsSignIn: false,
     isSessionPending: false,
     isSessionUnavailable: false,
+    isRetryingSession: false,
+    retryNotice: null,
     setFullName: noop,
     setPassword: noop,
     setConfirmPassword: noop,
@@ -388,29 +390,72 @@ describe('InvitationAccept — the session around it', () => {
     expect(screen.getByText(AUTH.invitation.signedInWarning)).toBeInTheDocument();
   });
 
-  it('says why and offers a retry when the session could not be opened, focus staying on the form (NO-357)', async () => {
-    const { accept, port, retrySession } = makePort({ isSessionUnavailable: true });
+  it('says why and offers a retry when the session could not be opened (NO-357)', () => {
+    const { port } = makePort({ isSessionUnavailable: true });
 
+    render(<InvitationAccept port={port} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
+    expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
+  });
+
+  it('retry: one attempt at a time, says it is checking, says again when it fails, focus stays put (P3-10)', async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const { accept, port, retrySession } = makePort({ isSessionUnavailable: true });
+    retrySession.mockImplementation(
+      () =>
+        new Promise<boolean>((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
     render(<InvitationAccept port={port} />);
     type(AUTH.fields.fullName, FULL_NAME);
     type(AUTH.fields.password, PASSWORD);
     type(AUTH.fields.confirmPassword, PASSWORD);
 
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent(viMessages.errors.network.description);
-    expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
-
-    fireEvent.click(screen.getByRole('button', { name: viMessages.common.retry }));
+    const retry = screen.getByRole('button', { name: viMessages.common.retry });
+    retry.focus();
+    fireEvent.click(retry);
+    fireEvent.click(retry);
 
     expect(retrySession).toHaveBeenCalledTimes(1);
     // The strip's button is not a submit button: the token is not spent by a retry.
     expect(accept).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(AUTH.fields.fullName)).toHaveFocus();
-    // A retry that fails again leaves the strip where it was, not a crash.
-    await waitFor(() => {
-      expect(retrySession).toHaveReturned();
+    expect(screen.getByRole('status')).toHaveTextContent(viMessages.connectionStates.checking);
+    expect(retry).toHaveFocus();
+
+    await act(async () => {
+      fail(new Error('vẫn mất kết nối'));
+      await Promise.resolve();
     });
+
+    expect(screen.getByRole('status')).toHaveTextContent(viMessages.errors.network.description);
     expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(retry).toHaveFocus();
+
+    fireEvent.click(retry);
+    expect(retrySession).toHaveBeenCalledTimes(2);
+  });
+
+  it('retry that opens the session: the strip goes and focus lands on the first field, not body (P3-10)', async () => {
+    const { port, retrySession } = makePort({ isSessionUnavailable: true });
+    retrySession.mockResolvedValue(true);
+    const { rerender } = render(<InvitationAccept port={port} />);
+
+    const retry = screen.getByRole('button', { name: viMessages.common.retry });
+    retry.focus();
+    fireEvent.click(retry);
+    expect(retry).toHaveFocus();
+
+    // The container re-reads the session: it is no longer unavailable.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    rerender(<InvitationAccept port={{ ...port, isSessionUnavailable: false }} />);
+
+    expect(screen.queryByRole('button', { name: viMessages.common.retry })).toBeNull();
+    expect(screen.getByLabelText(AUTH.fields.fullName)).toHaveFocus();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('drops the retry strip once the invitation is accepted and the session needs a sign-in', async () => {
