@@ -2,7 +2,7 @@
  * Cổng dữ liệu và tầng lệnh của màn S-12 "Duyệt lớp tường" — mọi lời gọi ra
  * khỏi màn đi qua đây.
  *
- * Cùng khuôn `pipelineFailureGateway.ts` và `billingGateway.ts`: một danh sách
+ * Cùng khuôn `pipelineFailureGateway.ts`: một danh sách
  * khả năng, một bản kê nợ endpoint, một `interface` cho hình dạng, một factory
  * dựng cổng thật và một factory dựng cổng có dữ liệu cho test và story (R-73).
  *
@@ -387,7 +387,7 @@ export const WALL_LAYER_SAMPLE_IMAGE = 'sample-floor-plan.png';
  *
  * Hai con số này là DỮ LIỆU của bộ mẫu (khổ tờ bản vẽ), không phải ngưỡng hay
  * thời lượng, nên chúng thuộc về bảng dữ liệu này chứ không phải một hằng rải
- * trong thân hàm — cùng khuôn `BILLING_MOCK_DATA` của `billingGateway.ts`.
+ * trong thân hàm.
  */
 export const WALL_LAYER_SAMPLE_DRAWING_WIDTH_MM = 13000;
 export const WALL_LAYER_SAMPLE_DRAWING_HEIGHT_MM = 9300;
