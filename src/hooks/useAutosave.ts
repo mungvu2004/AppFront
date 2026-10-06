@@ -552,12 +552,12 @@ export function useFloorLayerAutosave({
       if (read.ok) {
         current.reloadErrors.delete(target);
         current.saver?.discardFloor(target);
-        const { layer, level, revision, scaleStatus } = read.data;
+        const { dimensions, layer, level, revision, scaleStatus } = read.data;
 
         // `level` đi cùng lớp: tỉ lệ máy chủ đổi thì `Level` phải khớp lớp đã quy đổi (review-1 P2-2).
         loaded.replaceFloorLayer(
           target,
-          { layer, level, revision, ...(scaleStatus ? { scaleStatus } : {}) },
+          { dimensions, layer, level, revision, ...(scaleStatus ? { scaleStatus } : {}) },
           { external: true },
         );
 

@@ -81,7 +81,13 @@ export function applyFloorLayerDocument(projectId: string, floorId: string, docu
   }
 
   if (state.spatial.byId[floorId] === undefined) {
-    replaceFloorLayer(floorId, { layer: document.layer, level: document.level, revision: document.revision, ...scale });
+    replaceFloorLayer(floorId, {
+      dimensions: document.dimensions,
+      layer: document.layer,
+      level: document.level,
+      revision: document.revision,
+      ...scale,
+    });
 
     return;
   }
@@ -106,7 +112,7 @@ export function applyFloorLayerDocument(projectId: string, floorId: string, docu
 
   replaceFloorLayer(
     floorId,
-    { layer: document.layer, level: document.level, revision: document.revision, ...scale },
+    { dimensions: document.dimensions, layer: document.layer, level: document.level, revision: document.revision, ...scale },
     { external: true },
   );
 }
