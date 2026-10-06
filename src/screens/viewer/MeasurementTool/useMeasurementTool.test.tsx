@@ -632,6 +632,10 @@ describe('viewerStateOf — bảy trạng thái của vỏ, chỉ nạp thật m
     ['empty', 'partial', 'partial'],
     ['error', 'loading', 'error'],
     ['collapsed', 'loading', 'collapsed'],
+    ['ready', 'error', 'error'],
+    ['measuring', 'error', 'error'],
+    ['ready', 'empty', 'empty'],
+    ['partial', 'empty', 'empty'],
   ] as const)('màn %s trên vỏ %s → %s', (measurement, shell, expected) => {
     expect(viewerStateOf(measurement, shell)).toBe(expected);
   });
