@@ -309,18 +309,51 @@ export function rawValueOf(measurement: Measurement): PinnedMeasurement['rawValu
 /**
  * Bảy trạng thái riêng của màn đo, đặt lên bảy trạng thái của vỏ.
  *
- * Hai bảng không trùng tên nhau ở hai chỗ, và cả hai đều có lý: "đang đo" là
- * lượt chờ của màn này nên nó ngồi vào ô `loading` của vỏ, còn "xong" là
- * `success`. Vỏ vẽ chrome theo bảng của nó; view của màn đọc bảng của màn.
+ * "Đang đo" (giữa hai lần chấm) KHÔNG phải lượt chờ: cảnh đã dựng xong và
+ * người dùng đang bấm lên nó, nên nó là `success` của vỏ. Ô `loading` của vỏ
+ * vẽ skeleton `absolute inset-0` phủ khung nhìn — đặt "đang đo" vào đó từng
+ * nuốt các nút nổi của màn (ghim, chế độ, Esc) giữa hai lần chấm (NO-382). Chỉ
+ * cảnh đang nạp thật mới được vào ô ấy, qua `viewerStateOf`.
  */
 export const VIEWER_STATE_BY_MEASUREMENT: Readonly<
   Record<MeasurementScreenState, ViewerScreenState>
 > = {
   empty: 'empty',
-  measuring: 'loading',
+  measuring: 'success',
   partial: 'partial',
   error: 'error',
   ready: 'success',
   forbidden: 'forbidden',
   collapsed: 'collapsed',
 };
+
+/** Ba trạng thái màn đo tự nói được, không nhường cho trạng thái của vỏ. */
+const SCREEN_OWNED_STATES: ReadonlySet<MeasurementScreenState> = new Set([
+  'error',
+  'forbidden',
+  'collapsed',
+]);
+
+/**
+ * Trạng thái vỏ cho một lượt vẽ: hàm DUY NHẤT nối trạng thái màn đo vào vỏ.
+ *
+ * Hình học còn đang dựng (`building`) thì ra `loading` với mọi vai — kể cả
+ * người xem — trừ lỗi và thu gọn: tia bắn lúc ấy không trúng gì. Lỗi, cấm, thu
+ * gọn là của màn và thắng phần còn lại. Còn lại, mọi trạng thái khác `success`
+ * của vỏ (nạp, một phần, lỗi, rỗng — NO-387) thắng bảng của màn — skeleton chỉ
+ * hiện khi cảnh thật chưa có, không bao giờ vì người dùng đang chấm điểm.
+ */
+export function viewerStateOf(
+  measurement: MeasurementScreenState,
+  shell: ViewerScreenState,
+  building = false,
+): ViewerScreenState {
+  if (building && measurement !== 'error' && measurement !== 'collapsed') {
+    return 'loading';
+  }
+  if (!SCREEN_OWNED_STATES.has(measurement) && shell !== 'success') {
+    return shell;
+  }
+
+  return VIEWER_STATE_BY_MEASUREMENT[measurement];
+}

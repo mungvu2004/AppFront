@@ -29,8 +29,17 @@ async function expectActiveTool(page: Page, name: string): Promise<void> {
   await expect(rail(page).getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
 }
 
-/** Bấm giữa canvas — nhà mẫu nằm giữa khung nhìn ở góc phối cảnh mặc định. */
+/**
+ * Bấm giữa canvas — nhà mẫu nằm giữa khung nhìn ở góc phối cảnh mặc định.
+ *
+ * Canvas đã vẽ chưa có nghĩa hình học đã dựng: tầng dựng trong worker, và tia
+ * bắn trước lúc ấy không trúng gì nên cú chấm rơi mất (NO-382). Lúc còn dựng,
+ * khung nhìn mang `aria-busy="true"` (NO-386); chờ nó về `false` rồi mới bấm.
+ */
 async function clickSceneCentre(page: Page, dx = 0): Promise<void> {
+  await expect(page.getByLabel('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false', {
+    timeout: FIRST_PAINT_TIMEOUT_MS,
+  });
   const box = await page.locator('canvas').first().boundingBox();
   if (box === null) throw new Error('canvas không có hộp bao — cảnh chưa gắn');
   await page.mouse.click(box.x + box.width / 2 + dx, box.y + box.height / 2);

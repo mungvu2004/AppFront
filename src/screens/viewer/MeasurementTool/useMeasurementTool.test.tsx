@@ -13,7 +13,7 @@
  *    thứ hai, nên `findOverlaps()` không còn kể tên nó nữa.
  */
 
-import { createEvent, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, screen, waitFor } from '@testing-library/react';
 import { Group, Object3D, PerspectiveCamera, Vector3 } from 'three';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -38,6 +38,7 @@ import type {
   MeasurementSceneMountOptions,
   MountMeasurementScene,
 } from './measurementToolScene';
+import { viewerStateOf } from './measurementToolViewModel';
 import { useMeasurementTool, type UseMeasurementToolOptions } from './useMeasurementTool';
 
 import type { ReactElement } from 'react';
@@ -545,5 +546,197 @@ describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
     expect(posts[0]?.id).toBe('MS-0001');
     expect(posts[1]?.id).not.toBe('MS-0001');
     expect(titlesOf(notifications)).not.toContain('Chưa hoàn tác được việc xoá phép đo');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [5] Đang đo không phải đang nạp: khung nhìn không chặn chuột (NO-382).      */
+/* -------------------------------------------------------------------------- */
+
+/** Skeleton của khung nhìn — lớp `absolute inset-0` duy nhất nằm trên canvas. */
+function viewportSkeleton(): Element | null {
+  return screen.getByLabelText('Khung nhìn mô hình').querySelector('.animate-pulse');
+}
+
+describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có lớp chặn chuột (NO-382)', () => {
+  it('chấm một điểm: khung nhìn không skeleton, nút ghim còn bấm được', async () => {
+    renderHook({ mountScene: sceneSpy().mount, pick: pickAtPointer });
+
+    await waitFor(() => {
+      expect(viewportSkeleton()).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /\(M\)/u }));
+    const viewport = screen.getByLabelText('Khung nhìn mô hình');
+    const down = createEvent.pointerDown(viewport);
+    Object.defineProperty(down, 'clientX', { value: 1000 });
+    Object.defineProperty(down, 'clientY', { value: 0 });
+    fireEvent(viewport, down);
+    fireEvent.pointerUp(viewport);
+
+    expect(screen.getByRole('button', { name: /ghim/iu })).toBeEnabled();
+    expect(viewportSkeleton()).toBeNull();
+    expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false');
+  });
+
+  it('cảnh đang nạp thật (dự án chưa về) thì khung nhìn VẪN vẽ skeleton', () => {
+    renderHook({
+      mountScene: sceneSpy().mount,
+      shellGateway: {
+        ...createViewerShellFixtureGateway(),
+        readProjectName: () => new Promise<string | null>(() => undefined),
+      },
+    });
+
+    expect(viewportSkeleton()).not.toBeNull();
+    expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('hình học còn đang dựng thì khung nhìn nói "đang dựng"; dựng xong thì skeleton đi', async () => {
+    const spy = sceneSpy();
+    renderHook({ mountScene: spy.mount, pick: pickAtPointer });
+    const status = (phase: 'building' | 'ready'): void => {
+      act(() => {
+        spy.calls[0]?.onStatusChange?.({
+          phase,
+          settledCount: phase === 'ready' ? 1 : 0,
+          totalCount: 1,
+          failedCount: 0,
+          readyLevelIds: [],
+        });
+      });
+    };
+
+    await waitFor(() => {
+      expect(spy.calls).toHaveLength(1);
+    });
+    status('building');
+    expect(viewportSkeleton()).not.toBeNull();
+    // Thanh trạng thái nói đúng điều khung nhìn đang làm (NO-388).
+    expect(screen.getAllByText('Đang dựng mô hình…').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Mô hình đã dựng xong.')).toHaveLength(0);
+
+    status('ready');
+    await waitFor(() => {
+      expect(viewportSkeleton()).toBeNull();
+    });
+  });
+});
+
+describe('viewerStateOf — bảy trạng thái của vỏ, chỉ nạp thật mới ra skeleton (NO-382)', () => {
+  it.each([
+    ['empty', 'success', 'empty'],
+    ['measuring', 'success', 'success'],
+    ['partial', 'success', 'partial'],
+    ['error', 'success', 'error'],
+    ['ready', 'success', 'success'],
+    ['forbidden', 'forbidden', 'forbidden'],
+    ['collapsed', 'success', 'collapsed'],
+    ['measuring', 'loading', 'loading'],
+    ['ready', 'loading', 'loading'],
+    ['empty', 'partial', 'partial'],
+    ['error', 'loading', 'error'],
+    ['collapsed', 'loading', 'collapsed'],
+    ['ready', 'error', 'error'],
+    ['measuring', 'error', 'error'],
+    ['ready', 'empty', 'empty'],
+    ['partial', 'empty', 'empty'],
+  ] as const)('màn %s trên vỏ %s → %s', (measurement, shell, expected) => {
+    expect(viewerStateOf(measurement, shell)).toBe(expected);
+  });
+
+  it.each([
+    ['forbidden', 'forbidden', 'loading'],
+    ['ready', 'success', 'loading'],
+    ['measuring', 'success', 'loading'],
+    ['error', 'success', 'error'],
+    ['collapsed', 'success', 'collapsed'],
+  ] as const)('đang dựng hình: màn %s trên vỏ %s → %s', (measurement, shell, expected) => {
+    expect(viewerStateOf(measurement, shell, true)).toBe(expected);
+  });
+});
+
+describe('useMeasurementTool — ghim đang bay thì bấm đúp không lưu hai lần (NO-384)', () => {
+  it('hai cú bấm khi lượt đầu chưa về: đúng MỘT lượt lưu; lượt ấy hỏng thì ghim lại được', async () => {
+    const notifications = createNotificationBus();
+    const saved: PinnedMeasurement[] = [];
+    let rejectFirst: (error: unknown) => void = () => undefined;
+    const base = createMeasurementToolFixtureGateway();
+
+    renderHook({
+      notifications,
+      mountScene: sceneSpy().mount,
+      pick: pickAtPointer,
+      gateway: {
+        ...base,
+        saveMeasurement: (projectId, row) => {
+          saved.push(row);
+
+          return saved.length === 1
+            ? new Promise<never>((_resolve, reject) => {
+                rejectFirst = reject;
+              })
+            : base.saveMeasurement(projectId, row);
+        },
+      },
+    });
+    measureTwoPoints();
+    const pin = screen.getByRole('button', { name: /ghim/iu });
+    fireEvent.click(pin);
+    fireEvent.click(pin);
+    fireEvent.keyDown(pin, { key: 'Enter' });
+
+    expect(saved).toHaveLength(1);
+
+    rejectFirst(toAppError(wireError(500, 'INTERNAL_ERROR')));
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
+    await waitFor(() => {
+      expect(saved).toHaveLength(2);
+    });
+  });
+});
+
+describe('useMeasurementTool — cảnh chưa sẵn sàng thì không bỏ cú chấm im lặng (NO-385)', () => {
+  it('module cảnh còn đang nạp: khung nhìn nói "đang dựng" ngay lượt vẽ đầu', async () => {
+    renderHook({ pick: pickAtPointer });
+
+    expect(viewportSkeleton()).not.toBeNull();
+    // jsdom không có WebGL: lượt lắp ra `unavailable` — không lỗi, không kẹt skeleton.
+    await waitFor(() => {
+      expect(viewportSkeleton()).toBeNull();
+    });
+  });
+
+  it('mọi tầng dựng hỏng: ra trạng thái lỗi có câu báo, "Thử lại" lắp lại cảnh', async () => {
+    const spy = sceneSpy();
+    renderHook({ mountScene: spy.mount, pick: pickAtPointer });
+
+    await waitFor(() => {
+      expect(spy.calls).toHaveLength(1);
+    });
+    act(() => {
+      spy.calls[0]?.onStatusChange?.({
+        phase: 'failed',
+        settledCount: 1,
+        totalCount: 1,
+        failedCount: 1,
+        readyLevelIds: [],
+      });
+    });
+
+    expect(viewportSkeleton()).toBeNull();
+    const message = await screen.findAllByText('Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.');
+    expect(message.length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /thử lại/iu })[0] as HTMLElement);
+
+    await waitFor(() => {
+      expect(spy.calls).toHaveLength(2);
+    });
+    expect(screen.queryAllByText('Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.')).toHaveLength(0);
   });
 });

@@ -111,6 +111,19 @@ class MicrotaskWorker implements BuildWorkerLike {
   }
 }
 
+/** Worker sập: mọi job trả lỗi, không một mảnh hình học nào. */
+class FailingWorker implements BuildWorkerLike {
+  onmessage: ((event: MessageEvent<BuildResponseMessage>) => void) | null = null;
+
+  readonly terminate = vi.fn();
+
+  postMessage(message: BuildRequestMessage): void {
+    queueMicrotask(() => {
+      this.onmessage?.(new MessageEvent('message', { data: { ticket: message.ticket, error: 'sập' } }));
+    });
+  }
+}
+
 /** Renderer giả — đếm được, và không cần một GL context nào. */
 function fakeRenderer(): MeasurementRendererLike & {
   readonly disposals: () => number;
@@ -239,6 +252,33 @@ function meshesOf(root: Object3D): Mesh[] {
 /* -------------------------------------------------------------------------- */
 /* Bài kiểm.                                                                   */
 /* -------------------------------------------------------------------------- */
+
+describe('mountMeasurementScene — worker sập thì pha là failed, không ready trên cảnh rỗng (NO-385)', () => {
+  it('mọi job hỏng: phase failed, không tầng nào sẵn sàng', async () => {
+    const host = harness();
+    const mounted = mountMeasurementScene(host.canvas, {
+      levels: host.levels,
+      frame: frameOf(host.levels),
+      ledger: host.ledger,
+      createRenderer: () => host.renderer,
+      createWorker: () => new FailingWorker(),
+      schedule: host.clock.schedule,
+      cancel: host.clock.cancel,
+      readToken: () => '',
+    });
+
+    if (!mounted.ok) {
+      throw new Error('cảnh phải lắp được với renderer giả');
+    }
+
+    await vi.waitFor(() => {
+      expect(mounted.handle.status().phase).toBe('failed');
+    });
+    expect(mounted.handle.status().readyLevelIds).toEqual([]);
+
+    mounted.handle.dispose();
+  });
+});
 
 describe('mountMeasurementScene', () => {
   let host: Harness;

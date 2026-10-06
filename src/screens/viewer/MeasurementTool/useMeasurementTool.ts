@@ -104,7 +104,7 @@ import {
   createViewerShellGateway,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell/viewerShellGateway';
-import { useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
+import { BUILDING_MESSAGE, useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
 import type { ViewerPointPx, ViewerShellProps } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { MeasurementList } from './MeasurementList';
@@ -146,7 +146,7 @@ import {
   rawValueOf,
   REQUIRED_POINTS,
   toMeasurePoint,
-  VIEWER_STATE_BY_MEASUREMENT,
+  viewerStateOf,
   type MeasurementScene,
   type MeasurePick,
   type ScreenProjector,
@@ -189,6 +189,9 @@ const NO_SURFACE_MESSAGE =
 /** Trạng thái 4: lượt tải danh sách hỏng. */
 const LOAD_ERROR_MESSAGE =
   'Chưa tải được danh sách phép đo của dự án. Kiểm tra kết nối rồi thử lại.';
+
+/** Câu khi mọi tầng dựng hỏng — cảnh không có gì để chấm (NO-385). */
+const SCENE_FAILED_MESSAGE = 'Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.';
 
 /** Trạng thái 6: có quyền xem, không có quyền ghim. */
 const PIN_BLOCKED_CAPTION =
@@ -284,7 +287,14 @@ export interface UseMeasurementToolOptions {
 }
 
 /** Câu của trạng thái 4, hoặc `null` khi không có gì hỏng. */
-function errorMessageOf(surfaceFailed: boolean, loadFailed: boolean): string | null {
+function errorMessageOf(
+  surfaceFailed: boolean,
+  loadFailed: boolean,
+  sceneFailed: boolean,
+): string | null {
+  if (sceneFailed) {
+    return SCENE_FAILED_MESSAGE;
+  }
   if (surfaceFailed) {
     return NO_SURFACE_MESSAGE;
   }
@@ -546,7 +556,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     ...(options.mountScene !== undefined ? { mountScene: options.mountScene } : {}),
   });
 
-  const scene = options.scene !== undefined ? options.scene : mountedScene;
+  const scene = options.scene !== undefined ? options.scene : mountedScene.scene;
 
   const pick = useMemo((): PickAt | null => {
     if (options.pick !== undefined) {
@@ -758,11 +768,16 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
      nguyên đó, cùng một câu lỗi, và người dùng ghim lại được. */
+  /* Một lượt ghim đang bay thì bấm đúp hay Enter lặp không gửi lượt thứ hai
+     (NO-384); lượt ấy xong — được hay hỏng — thì chốt mở lại. */
+  const pinInFlightRef = useRef(false);
+
   const onPin = useCallback((): void => {
-    if (!canPin || draftRow === null) {
+    if (!canPin || draftRow === null || pinInFlightRef.current) {
       return;
     }
 
+    pinInFlightRef.current = true;
     gateway
       .saveMeasurement(projectId, draftRow)
       .then(clearDraft)
@@ -772,6 +787,9 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
           title: MEASUREMENT_ERROR_TEXT[measurementErrorCodeOf(error).code ?? ''] ?? PIN_FAILED_TEXT,
           description: '',
         });
+      })
+      .finally(() => {
+        pinInFlightRef.current = false;
       });
   }, [canPin, draftRow, gateway, projectId, clearDraft, notifications]);
 
@@ -841,10 +859,12 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     };
   }, [unitJustChanged]);
 
+  const retryScene = mountedScene.failed ? mountedScene.retry : null;
   const onRetry = useCallback((): void => {
     setSurfaceFailed(false);
+    retryScene?.();
     void rowsQuery.refetch();
-  }, [rowsQuery]);
+  }, [rowsQuery, retryScene]);
 
   /* ---- Phím tắt (A12, R-54, R-72) ---------------------------------------- */
 
@@ -890,7 +910,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     if (options.forceState !== undefined) {
       return options.forceState;
     }
-    if (surfaceFailed || rowsQuery.isError) {
+    if (surfaceFailed || rowsQuery.isError || mountedScene.failed) {
       return 'error';
     }
     if (collapsed) {
@@ -912,6 +932,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     options.forceState,
     surfaceFailed,
     rowsQuery.isError,
+    mountedScene.failed,
     collapsed,
     shell.state,
     picks.length,
@@ -919,7 +940,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     rows.length,
   ]);
 
-  const errorMessage = errorMessageOf(surfaceFailed, rowsQuery.isError);
+  const errorMessage = errorMessageOf(surfaceFailed, rowsQuery.isError, mountedScene.failed);
 
   /* ---- Props của view, chốt lại mỗi lượt vẽ ------------------------------ */
 
@@ -981,9 +1002,15 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* ---- `ViewerShellProps` đầy đủ ----------------------------------------- */
 
+  const viewerState = viewerStateOf(state, shell.state, mountedScene.building);
+
   return {
     ...shell,
-    state: VIEWER_STATE_BY_MEASUREMENT[state],
+    state: viewerState,
+    // Vỏ chỉ biết lượt nạp của nó; cảnh của màn đo dựng riêng, nên câu "đã dựng
+    // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388).
+    status:
+      viewerState === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,
