@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Page, Route } from '@playwright/test';
+import type { Page, Route, Worker } from '@playwright/test';
 
 import { enableFlags } from './fixtures/flags';
 import { ROUTE_PATTERNS } from './fixtures/routes';
@@ -52,11 +52,13 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  *   (`usePascalViewer.test.tsx`, `PascalViewer.test.tsx`).
  * - **Không khẳng định con số nào** trong bảng `tầng · tường · ô mở · phòng`
  *   (`questions.md` Q4 = B: bộ mẫu của màn khác bộ A14, gộp là việc riêng).
- * - **Không kiểm CSP.** Máy chủ dev không gửi header CSP và chính sách thật
- *   nằm ở BE (`AppBack/deploy/nginx/snippets/security_headers.conf:6`), không
- *   trong repo này (Q5 = B). Vi phạm `script-src eval` duy nhất (zod 4 dò
- *   `new Function`) đã gỡ ở mã: `defaultLoadMount` bật `jitless` trước khi thêm
- *   thẻ script (B-V10-05); bài đơn vị giữ nó ở `usePascalViewer.test.tsx`.
+ * - **CSP chỉ kiểm ở bài "dưới CSP"**, bằng header gắn qua `page.route` — máy
+ *   chủ dev không gửi CSP, chính sách thật nằm ở BE
+ *   (`AppBack/deploy/nginx/snippets/security_headers.conf:6`). Bài ấy chạy trên
+ *   máy chủ dev nên phải thêm `'unsafe-inline'` cho preamble của Vite (không
+ *   nới eval); nó KHÔNG thay lượt F-14 trên nginx thật. Hai nguồn eval đã gỡ:
+ *   zod 4 dò `new Function` (tắt bằng `jitless`, B-V10-05) và embind của bộ giải
+ *   Basis (dựng lại không eval ở `vendor/basis/`, FIX-380).
  *
  * ## Vách ngăn
  *
@@ -460,6 +462,121 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
      nó không làm gì đổ: cảnh vẫn dựng, chỉ mất vân bề mặt. Xem
      {@link trackBadAssetResponses}. */
   expect(badResponses).toEqual([]);
+});
+
+/**
+ * CSP của nginx thật — chép nguyên `script-src`/`worker-src`/`connect-src` từ
+ * `AppBack/deploy/nginx/snippets/security_headers.conf:6` (bỏ `$csp_s3_origin`,
+ * màn mock không chạm S3).
+ *
+ * Thêm ĐÚNG MỘT thứ: `'unsafe-inline'` trong `script-src`, vì máy chủ dev của
+ * Vite chèn một thẻ script inline (preamble React Refresh) mà bản dựng không có.
+ * Nó KHÔNG cho phép eval — `'unsafe-eval'` mới cho — nên lỗi FIX-380 (embind của
+ * `basis_transcoder.js` gọi `newFunc(Function, …)` trong worker blob) vẫn đỏ ở
+ * đây y như trên nginx: worker blob thừa hưởng CSP của tài liệu tạo ra nó.
+ */
+const NGINX_CSP =
+  "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; " +
+  "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; " +
+  "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+
+/** Hạn cho mỗi lượt hỏi một worker — `worker.evaluate` treo được nếu worker kẹt. */
+const WORKER_PROBE_TIMEOUT_MS = 2_000;
+
+/**
+ * Bằng chứng DƯƠNG rằng bộ giải Basis chạy được: trong worker của `KTX2Loader`,
+ * `BasisModule` là biến cấp cao (`KTX2Loader.js` — `BasisWorker`), và `KTX2File`
+ * chỉ có mặt khi embind đăng ký xong lớp. Dưới CSP với bản giải cũ, embind ném
+ * EvalError giữa chừng nên `KTX2File` không bao giờ xuất hiện. "0 lỗi" một mình
+ * không đủ: worker chưa khởi động cũng cho 0 lỗi.
+ */
+const BASIS_READY_PROBE =
+  "typeof BasisModule !== 'undefined' && BasisModule !== null && typeof BasisModule.KTX2File === 'function'";
+
+test('dưới CSP của nginx: 0 vi phạm, dựng xong, và bộ giải Basis thật sự khởi động (FIX-380)', async ({
+  page,
+}) => {
+  test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+
+  await page.route('**/*', async (route) => {
+    if (route.request().resourceType() !== 'document') {
+      await route.fallback();
+
+      return;
+    }
+
+    // `page.request` chứ không `route.fetch()`: luật `local/no-fetch-outside-http` bắt tên `fetch`.
+    const response = await page.request.get(route.request().url());
+    await route.fulfill({
+      response,
+      headers: { ...response.headers(), 'content-security-policy': NGINX_CSP },
+    });
+  });
+
+  /* Ba nguồn vi phạm: lỗi chưa bắt (cả từ worker), dòng console "Refused to …"
+     của trình duyệt, và sự kiện `securitypolicyviolation` của tài liệu. */
+  const violations: string[] = [];
+  page.on('pageerror', (error) => violations.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.text().includes('Refused to')) violations.push(`console: ${message.text()}`);
+  });
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (event) => {
+      console.error(`Refused to (securitypolicyviolation) ${event.violatedDirective} ${event.blockedURI}`);
+    });
+  });
+
+  const workers: Worker[] = [];
+  page.on('worker', (worker) => workers.push(worker));
+
+  const ktx2 = { requested: 0, answered: 0 };
+  page.on('request', (request) => {
+    if (request.url().endsWith('.ktx2')) ktx2.requested += 1;
+  });
+  page.on('requestfinished', (request) => {
+    if (request.url().endsWith('.ktx2')) ktx2.answered += 1;
+  });
+
+  await enableFlags(page, [PASCAL_FLAG_KEY]);
+  await openPascalViewer(page);
+
+  await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+    timeout: PASCAL_RENDER_TIMEOUT_MS,
+  });
+
+  /* Chờ ĐỦ lượt `.ktx2`: lỗi chỉ nổ khi texture đầu tiên vào worker, sau `success`. */
+  await expect
+    .poll(() => ktx2.requested > 0 && ktx2.answered === ktx2.requested, {
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+      message: 'chưa có hoặc chưa về hết lượt .ktx2',
+    })
+    .toBe(true);
+
+  const probeWorkers = async (): Promise<boolean> => {
+    const answers = await Promise.all(
+      workers.map((worker) =>
+        Promise.race([
+          worker.evaluate(BASIS_READY_PROBE).then(Boolean),
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), WORKER_PROBE_TIMEOUT_MS)),
+        ]).catch(() => false),
+      ),
+    );
+
+    return answers.some(Boolean);
+  };
+
+  /* In trước lượt dò: nếu bài đỏ ở lượt dò, log vẫn nói vì đâu. */
+  console.log(`[đo] vi phạm CSP tới lúc này: ${JSON.stringify(violations)}`);
+
+  await expect
+    .poll(probeWorkers, {
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+      message: 'không worker nào có BasisModule.KTX2File — bộ giải Basis không khởi động',
+    })
+    .toBe(true);
+
+  console.log(`[đo] dưới CSP: ${String(ktx2.answered)} lượt .ktx2, ${String(workers.length)} worker`);
+  expect(violations).toEqual([]);
 });
 
 test('Esc đóng bảng phím tắt trước, rồi mới thu khung xem; E mở lại (A12, việc 5)', async ({

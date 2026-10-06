@@ -94,6 +94,153 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
 }
 
 /**
+ * Quét bản dựng tìm chỗ dựng mã từ chuỗi — CSP thật không có `'unsafe-eval'`
+ * (`AppBack/deploy/nginx/snippets/security_headers.conf:6`), nên mỗi chỗ là một
+ * EvalError lúc chạy mà máy dev không gửi CSP thì không bao giờ thấy (FIX-380).
+ *
+ * Mẫu cố ý KHÔNG chỉ là `new Function`: hai nguồn thật đều trượt chuỗi ấy —
+ * embind gọi `newFunc(Function,args)`, zod 4 viết `const F = Function; new F(…)`.
+ * Bí danh thì vô tận (`(0,eval)(…)`, `self.Function(…)`, `return Function`,
+ * `{c:Function}`…), nên bắt MỌI token `Function`/`eval` đứng riêng, rồi chỉ loại
+ * những ngữ cảnh chắc chắn không dựng mã — xem {@link isHarmlessEvalToken}.
+ * Thêm `setTimeout`/`setInterval` nhận chuỗi, và `newFunc(` của embind.
+ *
+ * Đường qua `.constructor` bắt tĩnh được ba dạng: gọi hàm tạo với chuỗi literal
+ * (`(function(){}).constructor("…")`), `.constructor.constructor`, và
+ * `getPrototypeOf(async function…)` (lấy hàm tạo AsyncFunction); cộng
+ * `Function.prototype.constructor` qua token `Function`.
+ *
+ * Ngoài phạm vi, cố ý: `(biểu-thức).constructor(biến)` với đối số không phải
+ * chuỗi literal — muốn bắt phải biết kiểu của biểu thức, quét tĩnh không làm
+ * được (React có `new(n=e.nativeEvent).constructor(n.type,n)`). Lưới cho dạng
+ * ấy là bài e2e "dưới CSP" (`e2e/pascal-viewer.spec.ts`) và chuỗi F-14 trên
+ * nginx thật — chỉ cho những đường mã thật sự chạy trong các lượt ấy.
+ * Cùng lưới ấy: một dòng của template literal nhiều dòng bắt đầu bằng `/*` mà
+ * không đóng trước dấu `` ` ``, rồi một `*\/` thật trong 8 000 ký tự sau đó
+ * (`` var s=`\n/* glsl\n`;var F=Function;/* c *\/ ``) — chú thích giả ấy che
+ * token ở giữa. Không đóng được nếu không tách token. Đo 2026-10-06: trong
+ * 6 894 khối `/*…*\/` đứng đầu dòng của `dist/`, 0 khối bao một dòng mã.
+ */
+const EVAL_PATTERN =
+  /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(|\.constructor\s*\(\s*["'`]|\.constructor\s*\.\s*constructor\b|getPrototypeOf\(\s*(?:async\s+)?function\b/g;
+
+/**
+ * Trần của một chú thích được miễn, tính bằng ký tự. Không có trần thì một `//`
+ * nằm trong CHUỖI phía trước trên một dòng minify dài (three: một dòng 369 144
+ * ký tự, `// validated` trong GLSL ở ký tự 7 686) miễn luôn ~361 KB mã phía sau
+ * (review FIX-380 lượt 2, N-1). Chú thích dòng thật thì ngắn; khối JSDoc thì
+ * phải đóng trong trần, bao lấy token, VÀ `/*` phải đứng đầu dòng của nó — cặp
+ * `/*`…`*\/` giả trong chuỗi (`Accept:"*\/*"`, glob `"src/**\/*.js"`) luôn có nháy
+ * hoặc mã đứng trước nên không bao giờ được miễn (lượt 3, R3-1).
+ */
+const LINE_COMMENT_MAX = 120;
+const BLOCK_COMMENT_MAX = 8_000;
+/*
+ * Giữa `//` và token không được có dấu nháy, `;` hay `/`: có tức là `//` nằm
+ * trong một chuỗi/regex đã ĐÓNG và token là mã thật (`"a //b";var F=Function`,
+ * `x=/[ //]/g,F=Function`). Giá phải trả: chú thích có nháy hay URL trước token
+ * (`// the "Function" type`, `// see https://… Function`) bị chặn — đỏ nhầm
+ * thì người ta thấy, xanh nhầm thì không.
+ */
+const LINE_COMMENT = new RegExp(`(?:^|\\s)//[^\\n"'\`;/]{0,${LINE_COMMENT_MAX}}$`);
+
+/** Token nằm trong một khối `/*`…`*\/` đứng đầu dòng, đóng trong trần. */
+function insideBlockComment(text, index) {
+  const open = text.lastIndexOf('/*', index);
+  if (open === -1 || text.lastIndexOf('*/', index) > open) return false;
+
+  const openLineStart = text.lastIndexOf('\n', open) + 1;
+  if (!/^\s*$/.test(text.slice(openLineStart, open))) return false;
+
+  const close = text.indexOf('*/', index);
+
+  return close !== -1 && close - open <= BLOCK_COMMENT_MAX;
+}
+
+/**
+ * Token `Function`/`eval` ở chỗ không thể dựng mã: kiểm kiểu `instanceof`,
+ * `Function.prototype` (trừ `.prototype.constructor`), chú thích (gói vách ngăn
+ * không minify, mang hàng trăm JSDoc `{Function}`), và chữ trong câu báo lỗi
+ * (`"Function is not a GLSL code"`, `` `Function '${x}' called` ``).
+ *
+ * KHÔNG miễn thuộc tính `X.Function`/`X.eval` của bất kỳ đối tượng nào: `X` có
+ * thể là bí danh của `globalThis` (`var g=globalThis;g.Function(…)`), và đo trên
+ * `dist/` thật thì không có lượt truy cập nào như thế để phải miễn (lượt 3, R3-2).
+ */
+function isHarmlessEvalToken(text, index, token) {
+  if (!/^(?:Function|eval)$/.test(token)) return false;
+
+  const before = text.slice(Math.max(0, index - 40), index);
+  const after = text.slice(index + token.length, index + token.length + 40);
+  const lineStart = text.lastIndexOf('\n', index - 1) + 1;
+  const line = text.slice(lineStart, index);
+
+  return (
+    /\binstanceof\s+$/.test(before) ||
+    /^\s*\.\s*prototype\b(?!\s*(?:\.\s*constructor|\[))/.test(after) ||
+    LINE_COMMENT.test(line) ||
+    insideBlockComment(text, index) ||
+    /^[ \t]+[A-Za-z'"]/.test(after)
+  );
+}
+
+/**
+ * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
+ * cả hai không bao giờ chạy vì `usePascalViewer.ts:157-161` bật `jitless`
+ * trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
+ */
+const EVAL_ALLOWED = [
+  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const F = Function;\s*new F\(""\);/ },
+  { reason: 'zod 4 `Doc.compile` — tắt bởi jitless', pattern: /compile\(\) \{\s*const F = Function;/ },
+];
+
+/** Thư mục chứa mã sẽ chạy trên trình duyệt; `findEvalSites` đọc `.js`/`.mjs` dưới chúng. */
+const EVAL_SCAN_DIRS = [join('dist', 'assets'), join('dist', 'basis'), join('dist', 'draco')];
+
+/** Mọi chỗ dựng mã từ chuỗi. `files`: `{ name, text }[]`. Trả `{ blocked, allowed }`. */
+function findEvalSites(files, allowedList = EVAL_ALLOWED) {
+  const blocked = [];
+  const allowed = [];
+
+  for (const { name, text } of files) {
+    const spans = allowedList.flatMap(({ reason, pattern }) =>
+      [...text.matchAll(new RegExp(pattern.source, 'g'))].map((m) => ({
+        reason,
+        start: m.index,
+        end: m.index + m[0].length,
+      })),
+    );
+
+    for (const match of text.matchAll(EVAL_PATTERN)) {
+      if (isHarmlessEvalToken(text, match.index, match[0])) continue;
+
+      const site = { file: name, at: match.index, snippet: text.slice(match.index, match.index + 60) };
+      const span = spans.find((s) => match.index >= s.start && match.index < s.end);
+
+      if (span === undefined) blocked.push(site);
+      else allowed.push({ ...site, reason: span.reason });
+    }
+  }
+
+  return { blocked, allowed };
+}
+
+/** `.js`/`.mjs` dưới các thư mục quét, đệ quy. Thiếu thư mục ⇒ bỏ qua. */
+function readScriptsUnder(dirs) {
+  const out = [];
+  const visit = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) visit(path);
+      else if (/\.m?js$/.test(entry)) out.push({ name: path, text: readFileSync(path, 'utf8') });
+    }
+  };
+  dirs.forEach(visit);
+  return out;
+}
+
+/**
  * Ngân sách CỔNG, tính bằng KiB sau gzip. Vượt là hỏng, mã thoát 1.
  *
  * Ngân sách rộng gấp đôi số đo thật thì không phải cổng, chỉ là số trang trí:
@@ -624,6 +771,22 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
 
   console.log(`màn demo chỉ bản dev trong bản dựng: 0/${DEV_ONLY_MARKERS.length} — đạt\n`);
 
+  const scripts = readScriptsUnder(EVAL_SCAN_DIRS);
+  const evalSites = findEvalSites(scripts);
+
+  console.log(`dựng mã từ chuỗi (CSP không có 'unsafe-eval') — ${scripts.length} tệp mã:`);
+  for (const site of evalSites.allowed) console.log(`  miễn  ${site.file} — ${site.reason}`);
+  for (const site of evalSites.blocked) console.log(`  CHẶN  ${site.file}@${site.at} — ${JSON.stringify(site.snippet)}`);
+
+  if (evalSites.blocked.length > 0) {
+    throw new Error(
+      `${evalSites.blocked.length} chỗ dựng mã từ chuỗi trong bản dựng — CSP thật ném EvalError ở đó. ` +
+        'Dựng lại thư viện không eval (xem `vendor/basis/NGUON.md`), không nới CSP.',
+    );
+  }
+
+  console.log(`  đạt — 0 chỗ chặn, ${evalSites.allowed.length} chỗ miễn\n`);
+
   if (over.length > 0) {
     const names = over.map((gate) => gate.label).join(', ');
 
@@ -644,7 +807,15 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
  * của lượt gộp này được sinh bằng CHÍNH những hàm đã cắm vào cổng — chứ không
  * bằng một script riêng rồi hy vọng hai bên khớp nhau.
  */
-export { closure, presentWhenLoaded, baselineFor, closureGzip, findDevOnlyLeaks, DEV_ONLY_MARKERS };
+export {
+  closure,
+  presentWhenLoaded,
+  baselineFor,
+  closureGzip,
+  findDevOnlyLeaks,
+  findEvalSites,
+  DEV_ONLY_MARKERS,
+};
 
 /*
  * Chỉ chạy cổng khi file này được gọi thẳng. Khi bộ test `import` nó, đoạn dưới

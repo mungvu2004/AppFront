@@ -24,6 +24,7 @@ import {
   closure,
   closureGzip,
   findDevOnlyLeaks,
+  findEvalSites,
   presentWhenLoaded,
 } from '../check-bundle-size.mjs';
 
@@ -340,5 +341,89 @@ describe('màn demo chỉ bản dev', () => {
       { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo', file: 'leak.js' },
     ]);
     expect(findDevOnlyLeaks(files.slice(0, 1))).toEqual([]);
+  });
+});
+
+/*
+ * Quét dựng-mã-từ-chuỗi (FIX-380). Mỗi ca là một bí danh từng trượt mẫu
+ * `new Function` — thật, chép từ bản dựng chứ không bịa.
+ */
+describe('findEvalSites — CSP không có unsafe-eval', () => {
+  const blockedOf = (text) => findEvalSites([{ name: 'x.js', text }]).blocked.length;
+
+  it.each([
+    ['embind', 'var invokerFn=newFunc(Function,args)(...closureArgs)'],
+    ['bí danh rút gọn', 'var F=Function,g=new F("return 1")'],
+    ['new Function', 'new Function("a","return a")'],
+    ['gọi thẳng', 'x=Function("return this")()'],
+    ['eval', 'eval("1+1")'],
+    // Bí danh review lượt 1 (V-1) thử — mỗi dòng từng qua cổng xanh.
+    ['eval gián tiếp', '(0,eval)(s)'],
+    ['eval gián tiếp có cách', '(0, eval)(s)'],
+    ['globalThis.Function', 'globalThis.Function("a")()'],
+    ['window.Function', 'window.Function(s)'],
+    ['self.eval', 'self.eval(s)'],
+    ['return Function', 'return Function'],
+    ['giá trị trong đối tượng', '{c:Function}'],
+    ['nhánh ba ngôi', 'x?Function:y'],
+    ['trong mảng', '[Function][0](s)'],
+    ['Function.apply', 'Function.apply(null,[s])'],
+    ['setTimeout nhận chuỗi', 'setTimeout("x()",1)'],
+    ['Reflect.construct', 'Reflect.construct(Function,[s])'],
+    // Review lượt 2 (N-1, N-2, nit 1).
+    ['`//` trong chuỗi phía trước', 'var u="a //b";var F=Function;new F("x")'],
+    ['`//` trong regex phía trước', 'var r=/ \\/\\//;var F=Function;new F("x")'],
+    ['dòng minify dài sau một `//` trong chuỗi', `"a //b";${';'.repeat(200)}var F=Function`],
+    ['globalThis?.Function', 'globalThis?.Function("x")()'],
+    ['globalThis?.eval', 'globalThis?.eval("x")'],
+    ['top.eval', 'top.eval(s)'],
+    ['parent.Function', 'parent.Function(s)'],
+    ['dòng bắt đầu bằng * ngoài chú thích', 'x = 2\n  * Function("y")'],
+    // Review lượt 3 (R3-1 … R3-4).
+    ['cặp /* */ giả trong header Accept', 'h={Accept:"*/*"};var F=Function;new F("x");k="*/*"'],
+    ['cặp /* */ giả trong glob', 'g="src/**/*.js";var F=Function;q="a/**/b"'],
+    ['bí danh biến của globalThis', 'var g=globalThis;g.Function("x")'],
+    ['thuộc tính eval của đối tượng bất kỳ', 'obj.eval(y)'],
+    ['Function.prototype.constructor', 'Function.prototype.constructor("x")()'],
+    ['Function.prototype["constructor"]', 'Function.prototype["constructor"]("x")()'],
+    ['.constructor gọi với chuỗi', '(function(){}).constructor("x")()'],
+    ['.constructor.constructor', 'a.constructor.constructor(s)()'],
+    ['hàm tạo AsyncFunction', 'Object.getPrototypeOf(async function(){}).constructor'],
+    ['`//` trong lớp ký tự của regex', 'x=/[ //]/g,F=Function'],
+  ])('bắt %s', (_label, text) => {
+    expect(blockedOf(text)).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['instanceof', 'if(f instanceof Function)return 1'],
+    ['typeof', 'typeof f=="function"'],
+    ['tên chứa chữ', 'isFunction(x);Function.prototype.call'],
+    ['JSDoc một dòng', '/** @type {Function} */ var x'],
+    ['gán hàm tạo vào prototype', 'X.prototype.constructor=X'],
+    ['React tạo lại sự kiện', 'new(n=e.nativeEvent).constructor(n.type,n)'],
+    ['JSDoc', ['  /**', '   * @param {Function} callback - x', '   */'].join('\n')],
+    ['chú thích dòng', 'a=1; // Function-axis tag'],
+    ['câu báo lỗi', 'throw new Error("THREE.FunctionNode: Function is not a GLSL code.")'],
+    ['câu báo lỗi embind', "throwBindingError(`Function '${humanName}' called`)"],
+  ])('bỏ qua %s', (_label, text) => {
+    expect(blockedOf(text)).toBe(0);
+  });
+
+  it('miễn đúng hai chỗ zod theo nội dung, chỗ thứ ba trong cùng tệp vẫn chặn', () => {
+    const text = [
+      'try {',
+      '    const F = Function;',
+      '    new F("");',
+      '    return true;',
+      '  }',
+      '  compile() {',
+      '    const F = Function;',
+      '    return 1 }',
+      'const G = Function;',
+    ].join('\n');
+    const { blocked, allowed } = findEvalSites([{ name: 'pascalMount.js', text }]);
+
+    expect(allowed).toHaveLength(2);
+    expect(blocked).toHaveLength(1);
   });
 });
