@@ -65,7 +65,7 @@ import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig 
 import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
 import {
-  FloorVersionPageSchema,
+  type FloorVersionPageSchema,
   FloorVersionSnapshotSchema,
   FloorVersionSummarySchema,
   type FloorVersionSnapshot,
