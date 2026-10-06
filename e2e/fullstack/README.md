@@ -99,7 +99,7 @@ BASE=$E2E_FULLSTACK_BASE_URL
    export E2E_DRAWING_PNG="$PWD/drawing.png"
    ```
 
-6. **Registry seed.** Migration `r20260928_b6_01_ml_registry.py` (dịch vụ `migrate`) seed "Bản gốc" của từng họ ở trạng thái `pending` và kích hoạt sẵn bản ấy. Với `ML_BACKEND=fake`, `ml_eval` đưa bản về `completed`. Bước 10 soát trước khi đổi gì: nếu "Bản gốc" của họ "Nhận diện cửa và đồ đạc" chưa `onnx` + `completed`, chuỗi hỏng ngay mà không kích hoạt bản nào.
+6. **Registry seed.** Migration `r20260928_b6_01_ml_registry.py` (dịch vụ `migrate`) seed "Bản gốc" của từng họ ở trạng thái `pending` và kích hoạt sẵn bản ấy. Với `ML_BACKEND=fake`, `ml_eval` đưa bản về `completed`, nhưng việc này **chậm**: lượt đo ngày 2026-10-06 cần khoảng 4,5 phút, và một lượt khác vẫn còn `pending` sau 5 phút. Vì thế vòng chờ ở điều kiện 7 chờ **mọi** bản của họ, kể cả "Bản gốc", với trần 10 phút. Bước 10 soát trước khi đổi gì: nếu "Bản gốc" của họ "Nhận diện cửa và đồ đạc" chưa `onnx` + `completed`, chuỗi hỏng ngay mà không kích hoạt bản nào.
 
 7. **Bản model thứ hai cho họ "Nhận diện cửa và đồ đạc"**, để bước 10b có bản mà bấm "Kích hoạt". Màn F-12 không tự sinh được bản kích hoạt được: huấn luyện cần bộ dữ liệu dựng bằng công cụ dòng lệnh, và trainer luôn là trainer thật. Bản thứ hai được nạp bằng N26.
 
@@ -107,8 +107,11 @@ BASE=$E2E_FULLSTACK_BASE_URL
 
    ```sh
    jar=$(mktemp)
-   curl -s -c "$jar" -o /dev/null -w '%{http_code}\n' -H "Origin: $BASE" -H 'Content-Type: application/json' \
-     -d "{\"email\":\"$E2E_ADMIN_EMAIL\",\"password\":\"$E2E_ADMIN_PASSWORD\",\"rememberMe\":false}" $BASE/api/auth/login
+   # Thân đi qua stdin (`--data @-`): `printf` là lệnh có sẵn của bash, nên mật khẩu không vào argv
+   # của tiến trình nào (cùng lý do `create-admin` dùng `--password-stdin`).
+   printf '{"email":"%s","password":"%s","rememberMe":false}' "$E2E_ADMIN_EMAIL" "$E2E_ADMIN_PASSWORD" \
+     | curl -s -c "$jar" -o /dev/null -w '%{http_code}\n' -H "Origin: $BASE" -H 'Content-Type: application/json' \
+       --data @- $BASE/api/auth/login
    TOK=$(curl -s -b "$jar" -H "Origin: $BASE" -X POST $BASE/api/auth/refresh \
      | python -c "import json,sys; d=json.load(sys.stdin); print(d.get('accessToken') or d.get('access_token') or '')")
 
@@ -128,8 +131,8 @@ BASE=$E2E_FULLSTACK_BASE_URL
      -F "metadata=@meta.json;type=application/json" -F "weights=@second.onnx;type=application/octet-stream" \
      $BASE/api/admin/ml/model-versions
 
-   # Chờ eval completed, tối đa 5 phút:
-   for i in $(seq 1 30); do
+   # Chờ MỌI bản của họ, kể cả "Bản gốc", tới completed; tối đa 10 phút:
+   for i in $(seq 1 60); do
      S=$(curl -s -H "Authorization: Bearer $TOK" "$BASE/api/admin/ml/model-versions?family=openingAndFurnitureDetection" \
        | python -c "import json,sys; print(' '.join(f\"{v['label']}:{v['evaluationStatus']}\" for v in json.load(sys.stdin)['items']))")
      echo "$S"; case "$S" in *pending*|*running*|"") sleep 10;; *) break;; esac

@@ -36,7 +36,13 @@ const REFRESH_COOKIE = 'appback_refresh';
 const FLOOR_HEIGHT_M = '3';
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 /** Chữ `status` lúc cảnh Pascal dựng xong — như `e2e/pascal-viewer.spec.ts`. */
-const PASCAL_SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
+const PASCAL_PARTIAL_CAPTION = 'Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được.';
+/** Caption `success` hoặc `partial` (`pascalViewerTypes.ts`), trọn chuỗi. */
+const PASCAL_RENDERED_PATTERN =
+  /^(Đã dựng xong toàn bộ bản vẽ\.|Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được\.)$/u;
+/** Tiêu đề khối liệt kê mục bỏ qua của màn Pascal ở `partial`. */
+const PASCAL_SKIPPED_TITLE = 'Chưa chuyển sang được';
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 const PASCAL_MOUNT_PATTERN = /\/assets\/pascal\/pascal-mount\.js\?v=[0-9a-f]{8}$/u;
 const OPENING_FAMILY = 'openingAndFurnitureDetection';
 const OPENING_FAMILY_LABEL = /nhận diện cửa và đồ đạc/iu;
@@ -135,6 +141,13 @@ test('chuỗi FE + BE trên compose: từ đăng nhập tới registry', async (
   const cspViolations = await watchCsp(context);
   const sse = await watchSse(page);
   const api = watchApi(page);
+  // Lỗi JS của trang. Vi phạm CSP trong worker (vd `unsafe-eval` của bộ giải KTX2) không bắn
+  // `securitypolicyviolation` lên document, nên `watchCsp` không thấy; `pageerror` thì thấy.
+  const pageErrors: string[] = [];
+
+  page.on('pageerror', (error) => {
+    pageErrors.push(`${error.name}: ${error.message}`);
+  });
 
   /* 1 — đăng nhập bằng biểu mẫu thật. */
   let loginIndex = -1;
@@ -165,7 +178,7 @@ test('chuỗi FE + BE trên compose: từ đăng nhập tới registry', async (
   await context.tracing.start({ screenshots: true, snapshots: true });
 
   try {
-    await runChain(page, env.drawingPng, api, sse, loginIndex, cspViolations);
+    await runChain(page, env.drawingPng, api, sse, loginIndex, cspViolations, pageErrors);
   } catch (error) {
     await saveTraceOnFailure(page, testInfo);
     throw error;
@@ -180,6 +193,7 @@ async function runChain(
   sse: Awaited<ReturnType<typeof watchSse>>,
   loginIndex: number,
   cspViolations: Awaited<ReturnType<typeof watchCsp>>,
+  pageErrors: readonly string[],
 ): Promise<void> {
   let projectId = '';
   let floorId = '';
@@ -393,10 +407,20 @@ async function runChain(
     await page.goto(ROUTES.project.viewerPascal(projectId));
     expect(asRecord(await (await flags).json(), 'GET /api/feature-flags')[PASCAL_FLAG_KEY]).toBe(true);
     await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
-    await expect(page.getByRole('status').filter({ hasText: PASCAL_SUCCESS_CAPTION })).toHaveText(
-      PASCAL_SUCCESS_CAPTION,
-      { timeout: PASCAL_RENDER_TIMEOUT_MS },
-    );
+    // Khối [7]: nhận `success` hoặc `partial` (dữ liệu thật có tầng rỗng, đối tượng bị bỏ qua).
+    // `empty`, `error`, `forbidden` mang caption khác nên không khớp và hết trần là hỏng.
+    const rendered = page.getByRole('status').filter({ hasText: PASCAL_RENDERED_PATTERN });
+
+    await expect(rendered).toHaveText(PASCAL_RENDERED_PATTERN, { timeout: PASCAL_RENDER_TIMEOUT_MS });
+    if ((await rendered.innerText()).trim() === PASCAL_PARTIAL_CAPTION) {
+      const skippedBox = page
+        .locator('div')
+        .filter({ has: page.getByText(PASCAL_SKIPPED_TITLE, { exact: true }) })
+        .last();
+      const skipped = (await skippedBox.getByRole('listitem').allInnerTexts()).map((line) => line.trim());
+
+      console.log(`[fullstack] pascal partial: ${skipped.length > 0 ? skipped.join('; ') : '(màn không liệt kê mục nào)'}`);
+    }
 
     const script = await mount;
 
@@ -438,8 +462,10 @@ async function runChain(
     const restore = waitForApi(page, 'POST', /\/api\/projects\/[^/]+\/versions\/[^/]+\/restore$/u, [200, 201]);
     const confirm = page.getByRole('dialog');
 
-    // Bản sắp phục hồi đúng là hàng đích, không phải bản khác của cặp so sánh.
-    await expect(confirm).toContainText(targetLabel);
+    // Bản sắp phục hồi đúng là hàng đích: so trên tiêu đề có biên, "v1" không khớp "v12".
+    await expect(confirm).toContainText(
+      new RegExp(`Phục hồi phiên bản ${escapeRegExp(targetLabel)} của ${escapeRegExp(floorName)}\\?`, 'u'),
+    );
     await confirm.getByRole('button', { name: 'Phục hồi', exact: true }).click();
     await restore;
     restoreIndex = api.map((entry) => entry.method === 'POST' && entry.path.endsWith('/restore')).lastIndexOf(true);
@@ -520,24 +546,41 @@ async function runChain(
       await expect(page.getByRole('dialog')).toHaveCount(0);
     };
 
+    let firstError: unknown = null;
+
     try {
       await activateVia(candidate.label, () => {
         switched = true;
       });
-    } finally {
-      // Khôi phục môi trường qua đúng nút trên màn, kể cả khi lượt trên hỏng sau N24.
-      // N24 chưa đi thì bản cũ vẫn đang dùng: không có nút "Kích hoạt" nào để bấm.
-      if (switched) {
+    } catch (error) {
+      firstError = error;
+    }
+    // Khôi phục môi trường qua đúng nút trên màn, kể cả khi lượt trên hỏng sau N24.
+    // N24 chưa đi thì bản cũ vẫn đang dùng: không có nút "Kích hoạt" nào để bấm.
+    if (switched) {
+      try {
+        // Hộp thoại còn mở thì nền của nó chặn cú bấm: Esc đóng lớp trên cùng (A12).
+        if ((await page.getByRole('dialog').count()) > 0) await page.keyboard.press('Escape');
         await activateVia(original.label, () => undefined);
+      } catch (restoreError) {
+        if (firstError !== null) console.error(`[fullstack] lỗi gốc của 10b: ${String(firstError)}`);
+        throw new Error(
+          `khôi phục bản cũ của ${OPENING_FAMILY} hỏng, môi trường còn ở bản mới: ${String(restoreError)}` +
+            (firstError === null ? '' : ` — lỗi gốc: ${String(firstError)}`),
+        );
       }
     }
+    if (firstError !== null) throw firstError;
   });
 
   await test.step('11. kết', () => {
-    if (cspViolations.length > 0) {
-      console.error(`[fullstack] vi phạm CSP: ${JSON.stringify(cspViolations)}`);
+    // In ĐỦ cả hai danh sách rồi mới khẳng định.
+    for (const violation of cspViolations) {
+      console.error(`[fullstack] vi phạm CSP: ${violation.violatedDirective} ${violation.blockedURI}`);
     }
+    for (const pageError of pageErrors) console.error(`[fullstack] lỗi trang: ${pageError}`);
     expect(cspViolations).toEqual([]);
+    expect(pageErrors).toEqual([]);
 
     expect(countEntries(api, 'PUT', layerPath())).toBe(autosaveCount);
     const lateWrites = api.slice(restoreIndex + 1).filter((entry) => entry.method === 'PUT' && layerPath().test(entry.path));
