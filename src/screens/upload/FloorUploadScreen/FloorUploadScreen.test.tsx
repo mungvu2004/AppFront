@@ -698,8 +698,8 @@ describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đ�
  * `requestAnimationFrame`, mà `useCountUp` chạy trên đúng hai thứ đó. Để nguyên
  * thì mọi khung hình mang cùng một dấu thời gian đông cứng, con số không nhích
  * bước nào, và bài kiểm "bộ đếm chạy số" sẽ xanh mà không khẳng định gì — đúng
- * thứ E.10 tồn tại để chặn. Cùng cách làm với `BillingScreen.test.tsx`, vẫn neo
- * vào `FAKE_CLOCK_START` để hai file định dạng cùng một mốc ra cùng một chuỗi.
+ * thứ E.10 tồn tại để chặn. Đồng hồ giả vẫn neo vào `FAKE_CLOCK_START` để mọi
+ * file định dạng cùng một mốc ra cùng một chuỗi.
  */
 function installCountUpClock(): void {
   vi.useFakeTimers({
