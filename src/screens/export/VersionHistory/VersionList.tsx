@@ -12,13 +12,20 @@ import { Badge } from '@/components/ui/Badge';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { AnimatePresence, motion } from '@/components/motion';
 import { durationSeconds } from '@/lib/motion';
+import type { MouseEvent } from 'react';
 
 import { DIFF_TONE_TOKENS, type DiffTone, type VersionGroupModel, type VersionRowModel } from './types';
+import { SNAPSHOT_RETRY_LABEL } from './versionHistoryModel';
 
 export interface VersionListProps {
   readonly groups: readonly VersionGroupModel[];
   readonly onToggleCompareSelection: (versionId: string) => void;
+  /** Nạp lại N18 của một hàng hỏng tạm thời; vắng thì không có nút. */
+  readonly onRetrySnapshot?: ((versionId: string) => void) | undefined;
 }
+
+/** Tên vùng `aria-live` của danh sách — một vùng cho cả danh sách, luôn gắn sẵn. */
+const SNAPSHOT_STATUS_LABEL = 'Trạng thái nạp nội dung phiên bản';
 
 const DIFF_DOT_TONES: readonly DiffTone[] = ['added', 'removed', 'changed'];
 
@@ -48,12 +55,21 @@ function VersionDiffDots({ row }: { row: VersionRowModel }) {
 function VersionListRow({
   row,
   onToggleCompareSelection,
+  onRetrySnapshot,
 }: {
   readonly row: VersionRowModel;
   readonly onToggleCompareSelection: (versionId: string) => void;
+  readonly onRetrySnapshot?: ((versionId: string) => void) | undefined;
 }) {
+  const retry = (event: MouseEvent<HTMLButtonElement>): void => {
+    // Nút rời DOM khi nạp xong: đưa tiêu điểm về hàng trước, không rơi về `body`.
+    event.currentTarget.closest('li')?.focus();
+    onRetrySnapshot?.(row.id);
+  };
+
   return (
     <motion.li
+      tabIndex={-1}
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -78,7 +94,21 @@ function VersionListRow({
           {row.isCurrent && <Badge variant="neutral">Hiện tại</Badge>}
           {row.tagLabel !== null && <Badge variant="neutral">{row.tagLabel}</Badge>}
         </div>
-        <p className="truncate text-[13px] text-text-secondary">{row.description}</p>
+        {row.snapshotError !== undefined && onRetrySnapshot !== undefined ? (
+          <p className="flex items-center gap-2 truncate text-[13px] text-text-secondary">
+            {row.snapshotError}
+            <button
+              type="button"
+              className="shrink-0 text-[13px] font-medium text-text-primary underline"
+              aria-label={`${SNAPSHOT_RETRY_LABEL} tải nội dung ${row.label}`}
+              onClick={retry}
+            >
+              {SNAPSHOT_RETRY_LABEL}
+            </button>
+          </p>
+        ) : (
+          <p className="truncate text-[13px] text-text-secondary">{row.description}</p>
+        )}
         {row.isMetadataOnly && row.retentionNotice !== null && (
           <p className="text-[12px] text-text-tertiary">{row.retentionNotice}</p>
         )}
@@ -97,9 +127,17 @@ function VersionListRow({
   );
 }
 
-export function VersionList({ groups, onToggleCompareSelection }: VersionListProps) {
+export function VersionList({ groups, onToggleCompareSelection, onRetrySnapshot }: VersionListProps) {
+  const failures = groups
+    .flatMap((group) => group.rows)
+    .flatMap((row) => (row.snapshotError === undefined ? [] : [`${row.label}: ${row.snapshotError}`]))
+    .join('; ');
+
   return (
     <nav aria-label="Danh sách phiên bản" className="flex h-full flex-col overflow-y-auto">
+      <p role="status" aria-live="polite" aria-label={SNAPSHOT_STATUS_LABEL} className="sr-only">
+        {failures}
+      </p>
       {groups.map((group) => (
         <div key={group.id}>
           <h3 className="sticky top-0 bg-bg-surface px-3 py-1.5 text-[12px] font-medium text-text-tertiary">
@@ -108,7 +146,12 @@ export function VersionList({ groups, onToggleCompareSelection }: VersionListPro
           <ul>
             <AnimatePresence initial={false}>
               {group.rows.map((row) => (
-                <VersionListRow key={row.id} row={row} onToggleCompareSelection={onToggleCompareSelection} />
+                <VersionListRow
+                  key={row.id}
+                  row={row}
+                  onToggleCompareSelection={onToggleCompareSelection}
+                  onRetrySnapshot={onRetrySnapshot}
+                />
               ))}
             </AnimatePresence>
           </ul>

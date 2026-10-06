@@ -16,7 +16,7 @@ import { useStore } from '@/store';
 import { commit } from '@/store/commit';
 
 import { __resetFloorLayerSavers, flushAutosaves, useFloorLayerAutosave } from './useAutosave';
-import { FLOOR_NOT_FOUND_MESSAGE, useFloorLayer, type ReadFloorLayerInput } from './useFloorLayer';
+import { applyFloorLayerDocument, FLOOR_NOT_FOUND_MESSAGE, useFloorLayer, type ReadFloorLayerInput } from './useFloorLayer';
 
 const PROJECT = 'project-1';
 const BUILDING: SpatialGraph = { ...createSampleBuilding(), notes: [] };
@@ -89,6 +89,40 @@ const renderFloorLayer = (floorId: LevelId, read: (input: ReadFloorLayerInput) =
 
   return renderHook(() => useFloorLayer({ floorId, projectId: PROJECT, read }), { wrapper });
 };
+
+/** Mã kích thước của một tầng trong kho. */
+const dimensionIdsOn = (levelId: LevelId): string[] => {
+  const spatial = useStore.getState().spatial;
+
+  return (spatial?.byLevel[levelId] ?? []).filter((id) => spatial?.byKind.dimension.includes(id));
+};
+
+describe('NO-374 — kích thước N16 vào kho cùng lớp', () => {
+  afterEach(() => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setUnsavedFloorIds([]);
+  });
+
+  it('kho thiếu tầng → tầng thêm vào mang kích thước của N16', () => {
+    const own = BUILDING.dimensions.filter((dimension) => dimension.levelId === LAST);
+
+    expect(own.length).toBeGreaterThan(0);
+    seedStore(withoutLevel(LAST), { [FLOOR]: 1, [OTHER]: 1 });
+    applyFloorLayerDocument(PROJECT, LAST, { ...documentOf(LAST, 1), dimensions: own });
+
+    expect(dimensionIdsOn(LAST).sort()).toEqual(own.map((dimension) => dimension.id).sort());
+  });
+
+  it('revision lớn hơn (thay ngoài) → kích thước của tầng là của N16, không còn bản cũ', () => {
+    seedStore(SAMPLE, allAt(1));
+    expect(dimensionIdsOn(FLOOR).length).toBeGreaterThan(0);
+
+    applyFloorLayerDocument(PROJECT, FLOOR, documentOf(FLOOR, 2));
+
+    expect(dimensionIdsOn(FLOOR)).toEqual([]);
+    expect(useStore.getState().floorMeta[FLOOR]?.revision).toBe(2);
+  });
+});
 
 describe('useFloorLayer — N16 một tầng vào kho theo revision', () => {
   beforeEach(() => {

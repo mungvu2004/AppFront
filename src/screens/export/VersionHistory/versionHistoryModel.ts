@@ -167,6 +167,8 @@ export interface BuildRowsContext {
   readonly purgedIds: ReadonlySet<string>;
   /** `floorMeta[floorId].revision`; `null` khi chưa có — khi ấy không hàng nào là hiện tại. */
   readonly currentRevision: number | null;
+  /** Bản có N18 hỏng tạm thời (không tính bản hết nội dung). */
+  readonly failedIds?: ReadonlySet<string>;
 }
 
 /**
@@ -176,7 +178,7 @@ export interface BuildRowsContext {
  * thứ 0 là bản hiện tại và `index + 1` là bản cũ hơn liền kề.
  */
 export function buildVersionRows(context: BuildRowsContext): readonly VersionRowBuild[] {
-  const { currentRevision, history, now, leftVersionId, purgedIds, rightVersionId, summaries } = context;
+  const { currentRevision, failedIds, history, now, leftVersionId, purgedIds, rightVersionId, summaries } = context;
   const pickedCount = (leftVersionId === null ? 0 : 1) + (rightVersionId === null ? 0 : 1);
 
   return history.map((entry, index): VersionRowBuild => {
@@ -214,6 +216,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         tagLabel: summary?.label ?? null,
         isMetadataOnly,
         retentionNotice: isMetadataOnly ? RETENTION_NOTICE : null,
+        ...(failedIds?.has(metadata.id) === true ? { snapshotError: SNAPSHOT_FAILED_NOTICE } : {}),
         isSelectedForCompare,
         // Hàng chưa nạp N18 chưa so được; chọn nó ở ô so sánh sẽ nạp nó.
         isPickable: isLoaded && (isSelectedForCompare || pickedCount < 2),
@@ -381,6 +384,14 @@ const WRITE_ERROR_FALLBACK: Readonly<Record<VersionWriteOperation, string>> = {
   label: 'Máy chủ chưa nhận nhãn này. Thử lại sau ít phút.',
 };
 
+/** N18 hỏng tạm thời của một hàng (NO-368) — khác "hết nội dung": bấm thử lại được. */
+export const SNAPSHOT_FAILED_NOTICE = 'Chưa tải được nội dung bản này';
+/** Nhãn nút thử lại N18 của một hàng. */
+export const SNAPSHOT_RETRY_LABEL = 'Thử lại';
+
+/** Toast mời bấm lại sau khi N19 ngược hỏng tạm thời (NO-365) — phiếu hoàn tác vẫn còn hạn. */
+export const UNDO_RETRY_TOAST = 'Chưa hoàn tác được lượt phục hồi; bấm "Hoàn tác" để thử lại';
+
 /** Mất phản hồi: lượt ghi có thể đã tới máy chủ — bấm lại cùng `baseVersion` nhận 200 là xong. */
 const UNKNOWN_OUTCOME = 'Chưa rõ đã phục hồi chưa, bấm lại.';
 
@@ -504,8 +515,15 @@ export function buildRestoreConfirm(
 /* 7 — Giới hạn lượt N18 đồng thời                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Bọc một hàm async để tối đa `max` lượt chạy cùng lúc; lượt dư xếp hàng theo thứ tự gọi. */
-export function createConcurrencyLimit(max: number): <T>(run: () => Promise<T>) => Promise<T> {
+/**
+ * Bọc một hàm async để tối đa `max` lượt chạy cùng lúc; lượt dư xếp hàng theo thứ tự gọi.
+ *
+ * `signal` bị huỷ (NO-376): lượt đang xếp hàng rời hàng và ném; lượt đang chạy nhả chỗ ngay —
+ * `run` nhận cùng `signal` để tự bỏ lượt mạng của nó.
+ */
+export function createConcurrencyLimit(
+  max: number,
+): <T>(run: (signal?: AbortSignal) => Promise<T>, signal?: AbortSignal) => Promise<T> {
   let active = 0;
   const queue: (() => void)[] = [];
   // Lượt xong trao thẳng chỗ của nó cho lượt đang chờ — không nhả rồi giành lại.
@@ -519,17 +537,45 @@ export function createConcurrencyLimit(max: number): <T>(run: () => Promise<T>) 
     }
   };
 
-  return async <T>(run: () => Promise<T>): Promise<T> => {
+  const waitTurn = (signal: AbortSignal | undefined): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      const onAbort = (): void => {
+        queue.splice(queue.indexOf(turn), 1);
+        reject(signal?.reason);
+      };
+      const turn = (): void => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      };
+
+      queue.push(turn);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+
+  return async <T>(run: (signal?: AbortSignal) => Promise<T>, signal?: AbortSignal): Promise<T> => {
+    signal?.throwIfAborted();
+
     if (active >= max) {
-      await new Promise<void>((resolve) => queue.push(resolve));
+      await waitTurn(signal);
     } else {
       active += 1;
     }
 
+    let held = true;
+    const free = (): void => {
+      if (held) {
+        held = false;
+        release();
+      }
+    };
+
+    signal?.addEventListener('abort', free, { once: true });
+
     try {
-      return await run();
+      return await run(signal);
     } finally {
-      release();
+      signal?.removeEventListener('abort', free);
+      free();
     }
   };
 }

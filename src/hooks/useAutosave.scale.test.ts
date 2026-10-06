@@ -221,6 +221,30 @@ describe('useFloorLayerAutosave — saveScale (F-04x-2 bước 5)', () => {
     expect(useStore.getState().spatial?.byId[FLOOR]).toEqual(level);
   });
 
+  it('NO-374: reloadFloor thay kích thước của tầng bằng kích thước N16', async () => {
+    const { hook, readLayer } = mount();
+    const document = await createMockApiClient().spatial.readLayer({ floorId: FLOOR, projectId: PROJECT });
+
+    if (!document.ok) {
+      throw new Error('mock N16 hỏng');
+    }
+
+    const onFloor = (): string[] => {
+      const spatial = useStore.getState().spatial;
+
+      return (spatial?.byLevel[FLOOR] ?? []).filter((id) => spatial?.byKind.dimension.includes(id));
+    };
+
+    expect(onFloor().length).toBeGreaterThan(0);
+    readLayer.mockResolvedValueOnce({ data: { ...document.data, dimensions: [], revision: 6 }, ok: true });
+    await tick();
+    await act(async () => {
+      await hook.result.current.reloadFloor(FLOOR);
+    });
+
+    expect(onFloor()).toEqual([]);
+  });
+
   it('reloadFloor: N16 vắng scaleStatus gỡ tỉ lệ tạm của tầng', async () => {
     const { hook, readLayer } = mount();
     const document = await createMockApiClient().spatial.readLayer({ floorId: FLOOR, projectId: PROJECT });

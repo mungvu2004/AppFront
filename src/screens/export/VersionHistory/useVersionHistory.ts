@@ -18,7 +18,7 @@
  * 3. **Chuỗi nạp lại:** N16 → `replaceFloorLayer(..., { external: true })` (lớp và `revision`
  *    cùng một `set`, xoá zundo, tăng `serverReplaceSeq`) → `applyInvalidation('restoreVersion')`.
  *    N16 hỏng thì `revision` trong kho không đổi (lượt tự lưu sau nhận 409, không ghi đè) và dải
- *    "Tải lại" hiện. **Nợ:** kích thước của tầng vừa phục hồi hiện cũ tới khi tải lại trang.
+ *    "Tải lại" hiện. Kích thước N16 vào kho cùng lớp — lượt N15 sau thấy cùng `revision` nên không thay.
  * 4. Không nhánh ghi đè: xung đột thành dải "Tải lại" (`model.conflict`).
  */
 
@@ -73,6 +73,7 @@ import {
   RESTORE_CAPTION,
   RESTORE_FORBIDDEN_REASON,
   type RestoreDialog,
+  UNDO_RETRY_TOAST,
   writeErrorNotice,
 } from './versionHistoryModel';
 import { buildSceneFrame, buildVisualModel, convertScene } from './versionHistoryScene';
@@ -92,9 +93,12 @@ interface Banner {
 }
 
 /** Ổn định ở cấp module để `combine` của `useQueries` giữ được kết quả khi không gì đổi. */
-const combineSnapshots = (results: readonly { data?: VersionSnapshotRead | undefined; isFetching: boolean }[]) => ({
+const combineSnapshots = (
+  results: readonly { data?: VersionSnapshotRead | undefined; isError: boolean; isFetching: boolean }[],
+) => ({
   reads: results.map((result) => result.data),
   fetching: results.map((result) => result.isFetching),
+  failed: results.map((result) => result.isError),
 });
 type FlushOutcome = 'clean' | 'discarded' | 'cancelled';
 
@@ -177,7 +181,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const snapshots = useQueries({
     queries: summaries.map((item) => ({
       queryKey: snapshotQueryKey(floorId, item.id),
-      queryFn: (): Promise<VersionSnapshotRead> => limit(() => gateway.readSnapshot(item.id)),
+      queryFn: ({ signal }: { readonly signal: AbortSignal }): Promise<VersionSnapshotRead> =>
+        limit((held) => gateway.readSnapshot(item.id, held), signal),
       enabled: item.hasSnapshot && wanted.has(item.id),
       staleTime: Infinity,
     })),
@@ -185,14 +190,19 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   });
   const snapshotsInFlight = snapshots.fetching.some(Boolean);
   const snapshotData = snapshots.reads;
+  const snapshotFailed = snapshots.failed;
 
-  const { history, purgedIds } = useMemo(() => {
+  const { failedIds, history, purgedIds } = useMemo(() => {
     const purged = new Set<string>();
+    const failed = new Set<string>();
     const entries = summaries.map((item, index): VersionHistoryEntry => {
       const read = snapshotData[index];
 
       if (!item.hasSnapshot || read?.kind === 'purged') {
         purged.add(item.id);
+      } else if (snapshotFailed[index] === true && read === undefined && wanted.has(item.id)) {
+        // Chỉ hàng còn bật truy vấn: hàng tắt thì `refetchQueries` bỏ qua, nút thử lại sẽ chết.
+        failed.add(item.id);
       }
 
       return read?.kind === 'snapshot'
@@ -200,8 +210,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         : { kind: 'metadataOnly', version: toVersionMetadata(item) };
     });
 
-    return { history: entries, purgedIds: purged };
-  }, [summaries, snapshotData]);
+    return { failedIds: failed, history: entries, purgedIds: purged };
+  }, [summaries, snapshotData, snapshotFailed, wanted]);
 
   /* ---- Cặp so, diff ----------------------------------------------------- */
 
@@ -241,8 +251,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   const builds = useMemo(
     () =>
-      buildVersionRows({ history, now, leftVersionId, rightVersionId, summaries: summaryMap, purgedIds, currentRevision }),
-    [history, now, leftVersionId, rightVersionId, summaryMap, purgedIds, currentRevision],
+      buildVersionRows({ history, now, leftVersionId, rightVersionId, summaries: summaryMap, purgedIds, failedIds, currentRevision }),
+    [history, now, leftVersionId, rightVersionId, summaryMap, purgedIds, failedIds, currentRevision],
   );
   const rows = useMemo(() => builds.map((build) => build.row), [builds]);
   const groups = useMemo(() => groupRowsByDay(builds, now), [builds, now]);
@@ -329,9 +339,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   /** Chuỗi nạp lại tầng: N16 → `replaceFloorLayer` (external) → vô hiệu `restoreVersion`. */
   const reloadFloor = useCallback(async (): Promise<void> => {
     try {
-      const { layer, revision } = await gateway.readFloorLayer();
+      const { dimensions, layer, revision } = await gateway.readFloorLayer();
 
-      replaceFloorLayer(floorId, { layer, revision }, { external: true });
+      // N19 đổi cả kích thước; N15 sau đó thấy cùng `revision` nên không thay tầng (NO-369/NO-374).
+      replaceFloorLayer(floorId, { dimensions, layer, revision }, { external: true });
     } catch {
       setBanner({ kind: 'reload', notice: RELOAD_FAILED_NOTICE });
     }
@@ -339,36 +350,53 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     applyInvalidation(queryClient, 'restoreVersion', { floorId, projectId });
   }, [floorId, gateway, projectId, queryClient]);
 
+  /** Phiếu đang chạy hoàn tác: bấm đúp không xả, không hỏi A9, không gửi lần hai (NO-365). */
+  const [undoing] = useState(() => new WeakSet<UndoTicket>());
+
   const runUndo = useCallback(
-    async (ticket: UndoTicket): Promise<void> => {
-      if (ticket.getStatus() !== 'active') {
-        return;
-      }
-
-      const flushed = await flushFirst();
-
-      if (flushed === 'cancelled') {
-        return;
-      }
-
-      try {
-        const outcome = await gateway.revertRestore(ticket);
-
-        if (outcome.kind === 'conflict') {
-          setBanner({ kind: 'reload', notice: outcome.conflict ?? toConflictNotice(null) });
-          if (flushed === 'discarded') await reloadFloor();
-
+    (first: UndoTicket): Promise<void> => {
+      const attempt = async (ticket: UndoTicket): Promise<void> => {
+        if (ticket.getStatus() !== 'active' || undoing.has(ticket)) {
           return;
         }
 
-        await reloadFloor();
-        onToast?.({ message: 'Đã hoàn tác lượt phục hồi' });
-      } catch (error) {
-        setBanner({ kind: 'error', notice: writeErrorNotice('undo', error) });
-        if (flushed === 'discarded') await reloadFloor();
-      }
+        undoing.add(ticket);
+
+        try {
+          const flushed = await flushFirst();
+
+          if (flushed === 'cancelled') {
+            return;
+          }
+
+          try {
+            const outcome = await gateway.revertRestore(ticket);
+
+            if (outcome.kind === 'conflict') {
+              setBanner({ kind: 'reload', notice: outcome.conflict ?? toConflictNotice(null) });
+              if (flushed === 'discarded') await reloadFloor();
+
+              return;
+            }
+
+            await reloadFloor();
+            onToast?.({ message: 'Đã hoàn tác lượt phục hồi' });
+          } catch (error) {
+            setBanner({ kind: 'error', notice: writeErrorNotice('undo', error) });
+            if (flushed === 'discarded') await reloadFloor();
+            // Lỗi ném thì phiếu còn dùng (gateway): toast cũ đã đóng, nên mời bấm lại khi còn hạn.
+            if (ticket.getStatus() === 'active') {
+              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket) });
+            }
+          }
+        } finally {
+          undoing.delete(ticket);
+        }
+      };
+
+      return attempt(first);
     },
-    [flushFirst, gateway, onToast, reloadFloor],
+    [flushFirst, gateway, onToast, reloadFloor, undoing],
   );
 
   const runRestore = useCallback(
@@ -513,6 +541,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         }
       },
       selectFloor: (nextFloorId) => onSelectFloor?.(nextFloorId),
+      // Qua `queryFn` của chính truy vấn, nên vẫn trong giới hạn SNAPSHOT_CONCURRENCY.
+      retrySnapshot: (versionId) =>
+        void queryClient.refetchQueries({ queryKey: snapshotQueryKey(floorId, versionId), exact: true }),
     }),
     [
       banner,
@@ -520,6 +551,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       canTagVersion,
       discardQuestion,
       fetchNextPage,
+      floorId,
       flushFirst,
       hasNextPage,
       isFetchingNextPage,
@@ -527,6 +559,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       onSelectFloor,
       openDialog,
       pair,
+      queryClient,
       reloadFloor,
       rows,
       runRestore,

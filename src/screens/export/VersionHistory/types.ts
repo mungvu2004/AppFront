@@ -63,6 +63,7 @@
 
 import type { ApiClient, SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
+import type { Dimension } from '@/domain/spatial/types';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
@@ -153,6 +154,8 @@ export interface VersionRowModel {
   readonly isMetadataOnly: boolean;
   /** Nêu rõ thời hạn lưu. `null` khi phiên bản còn đủ nội dung. */
   readonly retentionNotice: string | null;
+  /** N18 hỏng tạm thời (không phải "hết nội dung"): câu lỗi, kèm nút thử lại. Vắng khi không lỗi. */
+  readonly snapshotError?: string;
   readonly isSelectedForCompare: boolean;
   /** Ô tích tắt khi đã chọn đủ hai bản, hoặc khi bản này không so được. */
   readonly isPickable: boolean;
@@ -347,6 +350,8 @@ export interface VersionHistoryActions {
   readonly dismissConflict: () => void;
   readonly loadMoreVersions: () => void;
   readonly selectFloor: (floorId: string) => void;
+  /** Nạp lại N18 của một bản vừa hỏng tạm thời (NO-368). */
+  readonly retrySnapshot?: (versionId: string) => void;
 }
 
 /** View thuần: test được CHỈ từ props, không chạm store, không chạm mạng (mục D, R-60). */
@@ -406,23 +411,22 @@ export type VersionSnapshotRead =
   | { readonly kind: 'snapshot'; readonly snapshot: VersionSnapshot }
   | { readonly kind: 'purged' };
 
-/** N16 rút gọn: lớp và `revision` đi cùng nhau. */
+/** N16 rút gọn: lớp, kích thước và `revision` đi cùng nhau. */
 export interface FloorLayerRead {
   readonly layer: SpatialLayer;
+  /** Kích thước của tầng — nằm ngoài `layer` trên dây, nên phải mang theo riêng (NO-369). */
+  readonly dimensions: readonly Dimension[];
   readonly revision: number;
 }
 
 export interface VersionHistoryGateway {
   readonly capabilities: VersionHistoryCapabilities;
-  readonly listVersions: (floorId: string) => Promise<readonly VersionHistoryEntry[]>;
-  readonly diff: (leftVersionId: string, rightVersionId: string) => Promise<VersionDiff>;
   readonly restore: (versionId: string, baseVersion: number) => Promise<RestoreOutcome>;
-  readonly undoRestore: (ticket: UndoTicket) => Promise<readonly VersionHistoryEntry[]>;
   readonly tagVersion?: (versionId: string, label: string) => Promise<VersionMetadata>;
   /** N17 một trang (`limit` = `VERSION_PAGE_LIMIT`). */
   readonly listVersionPage: (options: { readonly cursor?: string }) => Promise<VersionPage>;
   /** N18 một bản. */
-  readonly readSnapshot: (versionId: string) => Promise<VersionSnapshotRead>;
+  readonly readSnapshot: (versionId: string, signal?: AbortSignal) => Promise<VersionSnapshotRead>;
   /** N16 của tầng của cổng. */
   readonly readFloorLayer: () => Promise<FloorLayerRead>;
   /** Hoàn tác một lượt phục hồi bằng N19 ngược; kết quả như `restore` (không phiếu mới). */

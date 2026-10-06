@@ -73,11 +73,9 @@ describe('N17 — listVersionPage', () => {
     expect(page.items).toHaveLength(3);
   });
 
-  it('lỗi khác ném AppError giữ code; listVersions giữ chữ ký cũ', async () => {
+  it('lỗi khác ném AppError giữ code', async () => {
     const server = createVersionsServerFake();
     const gateway = gatewayOn(server);
-
-    expect((await gateway.listVersions(WIRE_FLOOR_ID)).every((entry) => entry.kind === 'metadataOnly')).toBe(true);
 
     server.override('GET list', () => ({ error: wireError(404, 'NOT_FOUND', { resource: 'floor' }), ok: false }));
     await expect(gateway.listVersionPage({})).rejects.toMatchObject({ code: 'NOT_FOUND', params: { resource: 'floor' } });
@@ -100,16 +98,6 @@ describe('N18 — readSnapshot', () => {
     await expect(gatewayOn(server).readSnapshot(WIRE_VERSION_IDS.v2)).resolves.toEqual({ kind: 'purged' });
   });
 
-  it('diff đọc hai bản và so; bản hết nội dung thì ném', async () => {
-    const server = createVersionsServerFake();
-    const gateway = gatewayOn(server);
-    const diff = await gateway.diff(WIRE_VERSION_IDS.v2, WIRE_VERSION_IDS.v3);
-
-    expect(diff.changed.some((entry) => entry.field === 'thickness_mm')).toBe(true);
-
-    server.override('GET snapshot', () => ({ error: wireError(422, 'VERSION_SNAPSHOT_PURGED'), ok: false }));
-    await expect(gateway.diff(WIRE_VERSION_IDS.v2, WIRE_VERSION_IDS.v3)).rejects.toThrow();
-  });
 });
 
 describe('N19 — restore', () => {
@@ -236,7 +224,7 @@ describe('hoàn tác và nhãn', () => {
     expect(ticket.getStatus()).toBe('used');
   });
 
-  it('không tìm thấy đích → không gửi N19, trả conflict; undoRestore cũ ném', async () => {
+  it('không tìm thấy đích → không gửi N19, trả conflict, phiếu hết dùng', async () => {
     const server = createVersionsServerFake(5);
     const gateway = gatewayOn(server);
     const restored = await gateway.restore(WIRE_VERSION_IDS.v2, 5);
@@ -247,8 +235,26 @@ describe('hoàn tác và nhãn', () => {
 
     if (ticket === undefined) throw new Error('thiếu phiếu');
 
-    await expect(gateway.undoRestore(ticket)).rejects.toThrow();
+    expect(await gateway.revertRestore(ticket)).toMatchObject({ kind: 'conflict' });
     expect(callsTo(server, 'POST', '/restore')).toHaveLength(1);
+    expect(ticket.getStatus()).toBe('used');
+  });
+
+  it('NO-365: N19 ngược ném (503) → phiếu còn active, lượt sau gửi được; 409 → phiếu hết dùng', async () => {
+    const server = createVersionsServerFake(5);
+    const gateway = gatewayOn(server);
+    const ticket = (await gateway.restore(WIRE_VERSION_IDS.v2, 5)).undoTicket;
+
+    if (ticket === undefined) throw new Error('thiếu phiếu');
+
+    server.override('POST restore', () => ({ error: wireError(503, 'UNAVAILABLE'), ok: false }));
+    await expect(gateway.revertRestore(ticket)).rejects.toBeDefined();
+    expect(ticket.getStatus()).toBe('active');
+
+    server.override('POST restore', () => ({ error: wireError(409, 'VERSION_CONFLICT', { currentVersion: 9, remoteChanges: [] }), ok: false }));
+    expect(await gateway.revertRestore(ticket)).toMatchObject({ kind: 'conflict' });
+    expect(callsTo(server, 'POST', '/restore')).toHaveLength(3);
+    expect(ticket.getStatus()).toBe('used');
   });
 
   it('phiếu hết hạn → không gửi N19, câu "Đã hết thời gian hoàn tác", không đổ cho người khác', async () => {
@@ -286,18 +292,6 @@ describe('hoàn tác và nhãn', () => {
     expect(callsTo(server, 'POST', '/restore')).toHaveLength(2);
   });
 
-  it('undoRestore cũ: chạy hoàn tác rồi trả trang đầu', async () => {
-    const server = createVersionsServerFake(5);
-    const gateway = gatewayOn(server);
-    const ticket = (await gateway.restore(WIRE_VERSION_IDS.v2, 5)).undoTicket;
-
-    if (ticket === undefined) throw new Error('thiếu phiếu');
-
-    const entries = await gateway.undoRestore(ticket);
-
-    expect(entries[0]?.version.sequence).toBe(5);
-  });
-
   it('N20 gửi nhãn; "" là gỡ nhãn', async () => {
     const server = createVersionsServerFake();
     const gateway = gatewayOn(server);
@@ -307,10 +301,11 @@ describe('hoàn tác và nhãn', () => {
     expect(callsTo(server, 'PATCH', '/label')[0]?.body).toEqual({ label: '' });
   });
 
-  it('readFloorLayer trả lớp và revision của N16', async () => {
+  it('readFloorLayer trả lớp, kích thước và revision của N16', async () => {
     const read = await gatewayOn(createVersionsServerFake(9)).readFloorLayer();
 
     expect(read.revision).toBe(9);
+    expect(read.dimensions).toEqual([]);
     expect(read.layer.walls).toHaveLength(2);
   });
 });

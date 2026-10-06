@@ -28,7 +28,6 @@ import { toAppError } from '@/lib/errors/toAppError';
 import { readWireError } from '@/lib/errors/wireError';
 import { createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { diffVersions, type VersionDiff } from '@/lib/versioning/diff';
 import { MAX_FULL_VERSIONS, type VersionHistoryEntry, type VersionMetadata } from '@/lib/versioning/restore';
 
 import type {
@@ -53,10 +52,6 @@ export const VERSION_PAGE_LIMIT = 50;
 
 /** Câu của hàng chỉ còn siêu dữ liệu — nói ra chính sách lưu giữ, không nói "tải hỏng". */
 export const RETENTION_NOTICE = `Chỉ ${MAX_FULL_VERSIONS} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được`;
-
-/** Câu ném ra khi so sánh chạm vào một phiên bản không còn ảnh chụp. */
-export const SNAPSHOT_MISSING_REASON =
-  'Phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được';
 
 /** Câu nói ra khi N17 không trả được lịch sử. */
 export const VERSION_LIST_FAILED_REASON = 'Máy chủ chưa trả được lịch sử phiên bản của tầng này';
@@ -186,6 +181,8 @@ interface RestoreReceipt {
 export function createVersionHistoryGateway(options: CreateVersionHistoryGatewayOptions): VersionHistoryGateway {
   const { apiClient, floorId, projectId } = options;
   const receipts = new WeakMap<UndoTicket, RestoreReceipt>();
+  /** Phiếu đang có N19 ngược bay — bấm đúp không gửi lượt thứ hai. */
+  const reverting = new WeakSet<UndoTicket>();
 
   const capabilities: VersionHistoryCapabilities = {
     canShowCurrentModel3d: true,
@@ -213,8 +210,8 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
     return unwrap(result);
   };
 
-  const readSnapshot = async (versionId: string): Promise<VersionSnapshotRead> => {
-    const result = await apiClient.versions.snapshot({ floorId, projectId, versionId });
+  const readSnapshot = async (versionId: string, signal?: AbortSignal): Promise<VersionSnapshotRead> => {
+    const result = await apiClient.versions.snapshot({ floorId, projectId, versionId, ...(signal === undefined ? {} : { signal }) });
 
     if (!result.ok) {
       const code = readWireError(result.error)?.code;
@@ -270,7 +267,9 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
   /**
    * Hoàn tác = N19 ngược: đích là bản có `sequence` lớn nhất nhỏ hơn bản "sau", `baseVersion`
    * là `floorRevision` mà N19 vừa trả. Không thấy đích → không gửi, `conflict`; phiếu hết hạn →
-   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}; phiếu đã dùng → {@link UNDO_USED_NOTICE}.
+   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}; phiếu đã dùng hoặc đang có lượt bay →
+   * {@link UNDO_USED_NOTICE}. Phiếu chỉ thành `used` khi N19 ngược có câu trả lời; lỗi ném (mạng, 5xx)
+   * thì phiếu còn dùng lại được.
    */
   const revertRestore = async (ticket: UndoTicket): Promise<RestoreOutcome> => {
     const receipt = receipts.get(ticket);
@@ -279,64 +278,51 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
       return { kind: 'conflict', conflict: toConflictNotice(null) };
     }
 
-    if (ticket.getStatus() === 'used') {
+    if (ticket.getStatus() === 'used' || reverting.has(ticket)) {
       return { kind: 'conflict', conflict: UNDO_USED_NOTICE };
     }
 
-    if (!ticket.undo().ok) {
+    if (ticket.getStatus() === 'expired') {
       return { kind: 'conflict', conflict: UNDO_EXPIRED_NOTICE };
     }
 
-    const page = await listVersionPage({});
-    const target = page.items
-      .filter((item) => item.sequence < receipt.afterSequence)
-      .reduce<FloorVersionSummary | null>((best, item) => (best === null || item.sequence > best.sequence ? item : best), null);
+    reverting.add(ticket);
 
-    if (target === null) {
-      return { kind: 'conflict', conflict: toConflictNotice(null) };
+    try {
+      const page = await listVersionPage({});
+      const target = page.items
+        .filter((item) => item.sequence < receipt.afterSequence)
+        .reduce<FloorVersionSummary | null>((best, item) => (best === null || item.sequence > best.sequence ? item : best), null);
+
+      if (target === null) {
+        ticket.undo();
+
+        return { kind: 'conflict', conflict: toConflictNotice(null) };
+      }
+
+      const outcome = await send(target.id, receipt.floorRevision);
+
+      delete outcome.sequence;
+      // Có câu trả lời (xong, hoặc xung đột — gửi lại cùng `baseVersion` chắc chắn 409 nữa) → dùng phiếu.
+      // Hết hạn giữa chừng thì `undo()` từ chối và phiếu thành `expired`: cũng không dùng lại được.
+      ticket.undo();
+
+      return outcome;
+    } finally {
+      reverting.delete(ticket);
     }
-
-    const outcome = await send(target.id, receipt.floorRevision);
-
-    delete outcome.sequence;
-
-    return outcome;
-  };
-
-  const listVersions = async (): Promise<readonly VersionHistoryEntry[]> =>
-    (await listVersionPage({})).items.map((summary) => ({ kind: 'metadataOnly' as const, version: toVersionMetadata(summary) }));
-
-  const diff = async (leftVersionId: string, rightVersionId: string): Promise<VersionDiff> => {
-    const [left, right] = await Promise.all([readSnapshot(leftVersionId), readSnapshot(rightVersionId)]);
-
-    if (left.kind !== 'snapshot' || right.kind !== 'snapshot') {
-      throw new Error(SNAPSHOT_MISSING_REASON);
-    }
-
-    return diffVersions(left.snapshot, right.snapshot);
   };
 
   return {
     capabilities,
-    listVersions,
-    diff,
     restore,
     revertRestore,
-    undoRestore: async (ticket) => {
-      const outcome = await revertRestore(ticket);
-
-      if (outcome.kind === 'conflict') {
-        throw new Error(outcome.conflict?.message ?? SNAPSHOT_MISSING_REASON);
-      }
-
-      return listVersions();
-    },
     listVersionPage,
     readSnapshot,
     readFloorLayer: async () => {
-      const { layer, revision } = unwrap(await apiClient.spatial.readLayer({ floorId, projectId }));
+      const { dimensions, layer, revision } = unwrap(await apiClient.spatial.readLayer({ floorId, projectId }));
 
-      return { layer, revision };
+      return { dimensions, layer, revision };
     },
     tagVersion: async (versionId, label) =>
       toVersionMetadata(unwrap(await apiClient.versions.label({ label, projectId, versionId }))),

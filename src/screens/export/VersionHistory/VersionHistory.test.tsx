@@ -61,6 +61,7 @@ import {
   createVersionsServerFake,
   WIRE_CURRENT_WALLS,
   WIRE_FLOOR_ID,
+  WIRE_LEVEL,
   WIRE_PROJECT_ID,
   WIRE_VERSION_IDS,
   wireError,
@@ -69,13 +70,14 @@ import {
   type VersionsServerFake,
 } from './versionHistoryFixtures';
 import * as UseVersionHistoryModule from './useVersionHistory';
-import { useVersionHistory } from './useVersionHistory';
+import { snapshotQueryKey, useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
 import { VersionHistoryRoute } from './VersionHistory.container';
 import { NO_COMPARE_PAIR_REASON, NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
 import { CONFLICT_TITLE, createVersionHistoryGateway, VERSION_LIST_FAILED_REASON } from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
+import { SNAPSHOT_FAILED_NOTICE, SNAPSHOT_RETRY_LABEL, UNDO_RETRY_TOAST } from './versionHistoryModel';
 
 afterEach(() => {
   cleanup();
@@ -394,7 +396,9 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
 
     expect(external).toHaveLength(1);
     expect(external[0]?.[0]).toBe(WIRE_FLOOR_ID);
-    expect(Object.keys(external[0]?.[1] ?? {}).sort()).toEqual(['layer', 'revision']);
+    expect(Object.keys(external[0]?.[1] ?? {}).sort()).toEqual(['dimensions', 'layer', 'revision']);
+    // Kích thước đi bằng trường riêng, không nhét trong `layer` (NO-374).
+    expect(Object.keys(external[0]?.[1].layer ?? {})).not.toContain('dimensions');
     expect(external[0]?.[1].revision).toBe(7);
     expect(useStore.getState().floorMeta[WIRE_FLOOR_ID]?.revision).toBe(7);
     expect(firstWallThickness()).toBe(200);
@@ -618,6 +622,81 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(restoreCalls(setup.server)).toHaveLength(3);
   });
 
+  it('NO-365: bấm đúp "Hoàn tác" chỉ một N19 ngược bay; N19 ngược hỏng → phiếu còn dùng, thử lại gửi được; xong thì phiếu hết dùng', async () => {
+    const setup = await renderVersionHistoryHook();
+
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toHaveProperty('onUndo');
+    });
+
+    const toast = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
+
+    setup.server.override('POST restore', () => ({ error: wireError(503, 'UNAVAILABLE'), ok: false }));
+    act(() => {
+      toast.onUndo();
+    });
+    await waitFor(() => {
+      expect(setup.result.current[0].conflict).not.toBeNull();
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(2);
+    // Toast cũ đã đóng: một toast mới mời bấm lại, gắn cùng phiếu.
+    await waitFor(() => {
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+    });
+
+    const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
+
+    setup.server.override('POST restore', () => {
+      setup.server.revision += 1;
+
+      return { data: { ...wireSummaries()[0], floorRevision: setup.server.revision, id: WIRE_VERSION_IDS.v5, sequence: 5 }, ok: true };
+    });
+    act(() => {
+      retry.onUndo();
+      retry.onUndo();
+      toast.onUndo();
+    });
+    await waitFor(() => {
+      expect(setup.onToast).toHaveBeenCalledWith({ message: 'Đã hoàn tác lượt phục hồi' });
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(3);
+
+    act(() => {
+      toast.onUndo();
+    });
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(3);
+  });
+
+  it('NO-369: sau N19, kích thước của tầng trong kho là kích thước N16 trả, không phải bản cũ', async () => {
+    const setup = await renderVersionHistoryHook();
+    const dimension = {
+      confidence: 1,
+      id: 'M-DIMN000001',
+      kind: 'linear',
+      levelId: WIRE_FLOOR_ID,
+      line: { end: { x: 4800, y: -500 }, start: { x: 0, y: -500 } },
+      referenceIds: ['W-WALL000001'],
+      reviewed: true,
+      source: 'human',
+      valueMm: 4800,
+    };
+
+    setup.server.override('GET layer', () => ({
+      data: { axes: [], dimensions: [dimension], layer: wireLayer(WIRE_CURRENT_WALLS), level: WIRE_LEVEL, revision: setup.server.revision },
+      ok: true,
+    }));
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.onToast).toHaveBeenCalled();
+    });
+
+    expect(useStore.getState().spatial?.byId['M-DIMN000001']).toMatchObject({ valueMm: 4800 });
+  });
+
   it('đổi tầng → N17 gửi đúng floorId, activeFloorId của kho không đổi, cặp so bỏ', async () => {
     const setup = await renderVersionHistoryHook();
     const activeBefore = useStore.getState().activeFloorId;
@@ -784,6 +863,98 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(server.calls.filter((call) => call.path.endsWith('/restore'))).toHaveLength(1);
     expect(server.calls.filter((call) => call.path.endsWith('/snapshot')).at(-1)?.path).toContain(restoredId);
     expect(peak).toBeLessThanOrEqual(2);
+  });
+
+  it('NO-368: N18 hỏng tạm thời → hàng nêu câu lỗi, nút "Thử lại" nạp lại đúng bản đó (vẫn ≤ 2), tiêu điểm về hàng, aria-live báo', async () => {
+    const setup = await renderVersionHistoryHook();
+    let failing = true;
+    let active = 0;
+    let peak = 0;
+
+    setup.server.override('GET snapshot', async ({ path }) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await Promise.resolve();
+      active -= 1;
+
+      return failing && path.includes(WIRE_VERSION_IDS.v2)
+        ? { error: wireError(503, 'UNAVAILABLE'), ok: false }
+        : { data: { dimensions: [], layer: wireLayer(WIRE_CURRENT_WALLS), versionId: path.split('/')[4] }, ok: true };
+    });
+    await act(async () => {
+      await setup.queryClient.resetQueries({ queryKey: ['version', 'snapshot'] });
+    });
+    await waitFor(() => {
+      expect(setup.result.current[0].rows[1]?.snapshotError).toBe(SNAPSHOT_FAILED_NOTICE);
+    });
+
+    const failed = setup.result.current[0].rows[1];
+
+    // Lỗi tạm thời không phải "hết nội dung".
+    expect(failed?.isMetadataOnly).toBe(false);
+    expect(setup.result.current[0].rows[0]?.snapshotError).toBeUndefined();
+
+    const [model, actions] = setup.result.current;
+    const view = renderWithProviders(<VersionHistory model={model} actions={actions} />);
+
+    expect(screen.getByRole('status', { name: 'Trạng thái nạp nội dung phiên bản' }).textContent).toContain(SNAPSHOT_FAILED_NOTICE);
+
+    const retry = screen.getByRole('button', { name: `${SNAPSHOT_RETRY_LABEL} tải nội dung ${failed?.label ?? ''}` });
+    const before = setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`)).length;
+
+    failing = false;
+    retry.focus();
+    act(() => {
+      retry.click();
+    });
+    expect(document.activeElement?.closest('li')).not.toBeNull();
+    expect(document.activeElement?.tagName).not.toBe('BUTTON');
+    await waitFor(() => {
+      expect(setup.result.current[0].rows[1]?.snapshotError).toBeUndefined();
+    });
+    expect(setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`))).toHaveLength(before + 1);
+    expect(peak).toBeLessThanOrEqual(2);
+    view.unmount();
+  });
+
+  it('NO-376: huỷ một N18 đang bay → nhả chỗ trong trần ≤ 2, lượt đang xếp hàng chạy tiếp', async () => {
+    const server = createVersionsServerFake();
+    const many = Array.from({ length: 4 }, (_, index) => ({
+      ...wireSummaries()[1],
+      floorRevision: 100 + index,
+      id: `ver_01J9ZV8Q3M7X5B2N4K6P8R0${'ABCD'.charAt(index).repeat(3)}`,
+      label: undefined,
+      sequence: 20 - index,
+    }));
+
+    server.override('GET list', () => ({ data: { items: many }, ok: true }));
+    // Máy chủ không bao giờ trả: chỉ huỷ mới nhả được chỗ.
+    server.override('GET snapshot', () => new Promise(() => undefined));
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const queryClient = createTestQueryClient();
+    const snapshotCalls = () => server.calls.filter((call) => call.path.endsWith('/snapshot'));
+
+    await hydrateFrom(server);
+    renderHook(() => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }), {
+      wrapper: ({ children }: { readonly children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(snapshotCalls()).toHaveLength(2);
+    });
+
+    const first = snapshotCalls()[0]?.path.split('/')[4] ?? '';
+
+    await act(async () => {
+      await queryClient.cancelQueries({ queryKey: snapshotQueryKey(WIRE_FLOOR_ID, first) });
+    });
+    await waitFor(() => {
+      expect(snapshotCalls()).toHaveLength(3);
+    });
   });
 
   it('tầng mặc định rỗng → empty, ô "Tầng" vẫn hiện', async () => {

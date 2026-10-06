@@ -8,7 +8,7 @@ import type { SpatialPatch } from '../domain/spatial/applyPatch';
 import { isIdOfKind } from '../domain/spatial/ids';
 import { replaceLevelEntities } from '../domain/spatial/replaceLevelEntities';
 import type { SpatialEntity } from '../domain/spatial/normalize';
-import type { EntityId, Level } from '../domain/spatial/types';
+import type { Dimension, EntityId, Level } from '../domain/spatial/types';
 import { versionIdFor, type FloorMetaEntry } from './spatialSlice';
 
 /**
@@ -217,6 +217,12 @@ export function applyRollbackPatches(patches: readonly SpatialPatch[]): void {
 export interface FloorLayerReplacement {
   layer: SpatialLayer;
   revision: number;
+  /**
+   * The floor's dimensions from N16 (they sit beside `layer` on the wire). Absent → the
+   * store keeps the floor's dimensions (a save result carries none). NO-374: without it a
+   * reload left them stale, and the N15 refresh after it skips an equal `revision`.
+   */
+  dimensions?: readonly Dimension[];
   /** The floor's `Level`; when the store lacks the floor, it is added with this level. */
   level?: Level;
   /** From N16: the floor's scale is provisional. */
@@ -263,6 +269,7 @@ export function replaceFloorLayer(
 
   const spatial = replaceLevelEntities(current, floorId, {
     ...result.layer,
+    ...(result.dimensions === undefined ? {} : { dimensions: result.dimensions }),
     ...(result.level === undefined ? {} : { level: result.level }),
   });
   const replacedHeld = held && options?.external === true;
