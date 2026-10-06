@@ -833,6 +833,18 @@ export function markServerFeatureFlagsUnavailable(): void {
   markUnavailable('reader-failed');
 }
 
+/** Forget what the server said (sign-out): every flag on its default, no failure to report. */
+export function resetServerFeatureFlags(): void {
+  ensureInitialised();
+  state.serverValues = {};
+  state.serverStatus = 'pending';
+  state.unknownKeys = [];
+  state.unknownKeyCount = 0;
+  state.invalidKeys = [];
+  state.lastFailureCode = 'none';
+  notify();
+}
+
 /** Whatever fetches the flags. May return a promise, a value, or throw. */
 export type FeatureFlagReader = () => Promise<unknown> | unknown;
 
