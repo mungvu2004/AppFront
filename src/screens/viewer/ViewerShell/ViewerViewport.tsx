@@ -85,6 +85,9 @@ export function ViewerViewport({
 }: ViewerViewportProps) {
   return (
     <main
+      /* Tín hiệu dương "cảnh chưa sẵn sàng" cho trình đọc màn hình và e2e
+         (NO-386) — đi cùng skeleton bên dưới, cùng một điều kiện. */
+      aria-busy={state === 'loading'}
       aria-label="Khung nhìn mô hình"
       className={cn(
         'relative min-w-[480px] flex-1 overflow-hidden bg-canvas-3d',

@@ -576,6 +576,7 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
 
     expect(screen.getByRole('button', { name: /ghim/iu })).toBeEnabled();
     expect(viewportSkeleton()).toBeNull();
+    expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false');
   });
 
   it('cảnh đang nạp thật (dự án chưa về) thì khung nhìn VẪN vẽ skeleton', () => {
@@ -588,6 +589,7 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
     });
 
     expect(viewportSkeleton()).not.toBeNull();
+    expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('hình học còn đang dựng thì khung nhìn nói "đang dựng"; dựng xong thì skeleton đi', async () => {
