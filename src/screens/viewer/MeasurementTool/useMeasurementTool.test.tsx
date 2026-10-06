@@ -13,7 +13,7 @@
  *    thứ hai, nên `findOverlaps()` không còn kể tên nó nữa.
  */
 
-import { createEvent, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, screen, waitFor } from '@testing-library/react';
 import { Group, Object3D, PerspectiveCamera, Vector3 } from 'three';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -588,6 +588,33 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
     });
 
     expect(viewportSkeleton()).not.toBeNull();
+  });
+
+  it('hình học còn đang dựng thì khung nhìn nói "đang dựng"; dựng xong thì skeleton đi', async () => {
+    const spy = sceneSpy();
+    renderHook({ mountScene: spy.mount, pick: pickAtPointer });
+    const status = (phase: 'building' | 'ready'): void => {
+      act(() => {
+        spy.calls[0]?.onStatusChange?.({
+          phase,
+          settledCount: phase === 'ready' ? 1 : 0,
+          totalCount: 1,
+          failedCount: 0,
+          readyLevelIds: [],
+        });
+      });
+    };
+
+    await waitFor(() => {
+      expect(spy.calls).toHaveLength(1);
+    });
+    status('building');
+    expect(viewportSkeleton()).not.toBeNull();
+
+    status('ready');
+    await waitFor(() => {
+      expect(viewportSkeleton()).toBeNull();
+    });
   });
 });
 

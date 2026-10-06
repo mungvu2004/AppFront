@@ -546,7 +546,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     ...(options.mountScene !== undefined ? { mountScene: options.mountScene } : {}),
   });
 
-  const scene = options.scene !== undefined ? options.scene : mountedScene;
+  const scene = options.scene !== undefined ? options.scene : mountedScene.scene;
 
   const pick = useMemo((): PickAt | null => {
     if (options.pick !== undefined) {
@@ -983,7 +983,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   return {
     ...shell,
-    state: viewerStateOf(state, shell.state),
+    state: viewerStateOf(state, mountedScene.building ? 'loading' : shell.state),
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,

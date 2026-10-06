@@ -56,6 +56,17 @@ export interface UseMeasurementToolSceneOptions {
   readonly mountScene?: MountMeasurementScene;
 }
 
+/** Cảnh đã lắp và cờ "hình học còn đang dựng". */
+export interface MountedMeasurementScene {
+  /** Ba trường `createScenePick` đòi, hoặc `null` khi chưa lắp được. */
+  readonly scene: MeasurementScene | null;
+  /**
+   * Hình học còn đang dựng (pha `building`): tia bắn lúc này không trúng gì, nên
+   * vỏ phải nói "đang dựng" thay vì để cú chấm rơi vào khoảng trống (NO-382).
+   */
+  readonly building: boolean;
+}
+
 /**
  * Cảnh đã lắp, hoặc `null` khi chưa lắp được.
  *
@@ -63,15 +74,16 @@ export interface UseMeasurementToolSceneOptions {
  * có tầng nào dựng được, đồ thị hỏng, hoặc máy không có WebGL.
  *
  * @param options Canvas, đồ thị, điểm nhìn, và chỗ tiêm module cảnh.
- * @returns Ba trường `createScenePick` đòi, hoặc `null`.
+ * @returns Cảnh (hoặc `null`) và cờ đang dựng hình.
  */
 export function useMeasurementToolScene(
   options: UseMeasurementToolSceneOptions,
-): MeasurementScene | null {
+): MountedMeasurementScene {
   const { canvas, spatial, frame } = options;
   const injectedMount = options.mountScene;
 
   const [scene, setScene] = useState<MeasurementScene | null>(null);
+  const [building, setBuilding] = useState(false);
   const handleRef = useRef<MeasurementSceneHandle | null>(null);
 
   /**
@@ -117,7 +129,15 @@ export function useMeasurementToolScene(
         return;
       }
 
-      const mount = mountScene(canvas, { levels, frame: latestFrame.current });
+      const mount = mountScene(canvas, {
+        levels,
+        frame: latestFrame.current,
+        onStatusChange: (status) => {
+          if (!cancelled) {
+            setBuilding(status.phase === 'building');
+          }
+        },
+      });
 
       if (!mount.ok || cancelled) {
         return;
@@ -153,6 +173,7 @@ export function useMeasurementToolScene(
       mounted?.dispose();
       handleRef.current = null;
       setScene(null);
+      setBuilding(false);
     };
   }, [canvas, levels, injectedMount]);
 
@@ -160,5 +181,5 @@ export function useMeasurementToolScene(
     handleRef.current?.update(frame);
   }, [frame]);
 
-  return scene;
+  return useMemo(() => ({ scene, building }), [scene, building]);
 }
