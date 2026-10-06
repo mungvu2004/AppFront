@@ -381,6 +381,9 @@ const WRITE_ERROR_FALLBACK: Readonly<Record<VersionWriteOperation, string>> = {
   label: 'Máy chủ chưa nhận nhãn này. Thử lại sau ít phút.',
 };
 
+/** Toast mời bấm lại sau khi N19 ngược hỏng tạm thời (NO-365) — phiếu hoàn tác vẫn còn hạn. */
+export const UNDO_RETRY_TOAST = 'Chưa hoàn tác được lượt phục hồi; bấm "Hoàn tác" để thử lại';
+
 /** Mất phản hồi: lượt ghi có thể đã tới máy chủ — bấm lại cùng `baseVersion` nhận 200 là xong. */
 const UNKNOWN_OUTCOME = 'Chưa rõ đã phục hồi chưa, bấm lại.';
 

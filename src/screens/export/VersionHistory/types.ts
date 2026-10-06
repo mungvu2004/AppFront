@@ -63,6 +63,7 @@
 
 import type { ApiClient, SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
+import type { Dimension } from '@/domain/spatial/types';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
@@ -406,18 +407,18 @@ export type VersionSnapshotRead =
   | { readonly kind: 'snapshot'; readonly snapshot: VersionSnapshot }
   | { readonly kind: 'purged' };
 
-/** N16 rút gọn: lớp và `revision` đi cùng nhau. */
+/** N16 rút gọn: lớp, kích thước và `revision` đi cùng nhau. */
 export interface FloorLayerRead {
   readonly layer: SpatialLayer;
+  /** Kích thước của tầng — nằm ngoài `layer` trên dây, nên phải mang theo riêng (NO-369). */
+  readonly dimensions: readonly Dimension[];
   readonly revision: number;
 }
 
 export interface VersionHistoryGateway {
   readonly capabilities: VersionHistoryCapabilities;
-  readonly listVersions: (floorId: string) => Promise<readonly VersionHistoryEntry[]>;
   readonly diff: (leftVersionId: string, rightVersionId: string) => Promise<VersionDiff>;
   readonly restore: (versionId: string, baseVersion: number) => Promise<RestoreOutcome>;
-  readonly undoRestore: (ticket: UndoTicket) => Promise<readonly VersionHistoryEntry[]>;
   readonly tagVersion?: (versionId: string, label: string) => Promise<VersionMetadata>;
   /** N17 một trang (`limit` = `VERSION_PAGE_LIMIT`). */
   readonly listVersionPage: (options: { readonly cursor?: string }) => Promise<VersionPage>;

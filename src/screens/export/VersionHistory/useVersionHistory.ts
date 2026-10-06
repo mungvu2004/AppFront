@@ -18,14 +18,16 @@
  * 3. **Chuỗi nạp lại:** N16 → `replaceFloorLayer(..., { external: true })` (lớp và `revision`
  *    cùng một `set`, xoá zundo, tăng `serverReplaceSeq`) → `applyInvalidation('restoreVersion')`.
  *    N16 hỏng thì `revision` trong kho không đổi (lượt tự lưu sau nhận 409, không ghi đè) và dải
- *    "Tải lại" hiện. **Nợ:** kích thước của tầng vừa phục hồi hiện cũ tới khi tải lại trang.
+ *    "Tải lại" hiện. Kích thước N16 vào kho cùng lớp — lượt N15 sau thấy cùng `revision` nên không thay.
  * 4. Không nhánh ghi đè: xung đột thành dải "Tải lại" (`model.conflict`).
  */
 
 import { useInfiniteQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
+import type { Dimension } from '@/domain/spatial/types';
 import { flushAutosaves, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatDuration } from '@/lib/format/datetime';
@@ -73,6 +75,7 @@ import {
   RESTORE_CAPTION,
   RESTORE_FORBIDDEN_REASON,
   type RestoreDialog,
+  UNDO_RETRY_TOAST,
   writeErrorNotice,
 } from './versionHistoryModel';
 import { buildSceneFrame, buildVisualModel, convertScene } from './versionHistoryScene';
@@ -329,9 +332,12 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   /** Chuỗi nạp lại tầng: N16 → `replaceFloorLayer` (external) → vô hiệu `restoreVersion`. */
   const reloadFloor = useCallback(async (): Promise<void> => {
     try {
-      const { layer, revision } = await gateway.readFloorLayer();
+      const { dimensions, layer, revision } = await gateway.readFloorLayer();
+      // N19 đổi cả kích thước; N15 sau đó thấy cùng `revision` nên không thay tầng (NO-369) —
+      // kích thước phải vào cùng lượt thay này (`replaceFloorLayer` trải `layer` thành các phần của tầng).
+      const parts: SpatialLayer & { readonly dimensions: readonly Dimension[] } = { ...layer, dimensions };
 
-      replaceFloorLayer(floorId, { layer, revision }, { external: true });
+      replaceFloorLayer(floorId, { layer: parts, revision }, { external: true });
     } catch {
       setBanner({ kind: 'reload', notice: RELOAD_FAILED_NOTICE });
     }
@@ -339,36 +345,53 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     applyInvalidation(queryClient, 'restoreVersion', { floorId, projectId });
   }, [floorId, gateway, projectId, queryClient]);
 
+  /** Phiếu đang chạy hoàn tác: bấm đúp không xả, không hỏi A9, không gửi lần hai (NO-365). */
+  const [undoing] = useState(() => new WeakSet<UndoTicket>());
+
   const runUndo = useCallback(
-    async (ticket: UndoTicket): Promise<void> => {
-      if (ticket.getStatus() !== 'active') {
-        return;
-      }
-
-      const flushed = await flushFirst();
-
-      if (flushed === 'cancelled') {
-        return;
-      }
-
-      try {
-        const outcome = await gateway.revertRestore(ticket);
-
-        if (outcome.kind === 'conflict') {
-          setBanner({ kind: 'reload', notice: outcome.conflict ?? toConflictNotice(null) });
-          if (flushed === 'discarded') await reloadFloor();
-
+    (first: UndoTicket): Promise<void> => {
+      const attempt = async (ticket: UndoTicket): Promise<void> => {
+        if (ticket.getStatus() !== 'active' || undoing.has(ticket)) {
           return;
         }
 
-        await reloadFloor();
-        onToast?.({ message: 'Đã hoàn tác lượt phục hồi' });
-      } catch (error) {
-        setBanner({ kind: 'error', notice: writeErrorNotice('undo', error) });
-        if (flushed === 'discarded') await reloadFloor();
-      }
+        undoing.add(ticket);
+
+        try {
+          const flushed = await flushFirst();
+
+          if (flushed === 'cancelled') {
+            return;
+          }
+
+          try {
+            const outcome = await gateway.revertRestore(ticket);
+
+            if (outcome.kind === 'conflict') {
+              setBanner({ kind: 'reload', notice: outcome.conflict ?? toConflictNotice(null) });
+              if (flushed === 'discarded') await reloadFloor();
+
+              return;
+            }
+
+            await reloadFloor();
+            onToast?.({ message: 'Đã hoàn tác lượt phục hồi' });
+          } catch (error) {
+            setBanner({ kind: 'error', notice: writeErrorNotice('undo', error) });
+            if (flushed === 'discarded') await reloadFloor();
+            // Lỗi ném thì phiếu còn dùng (gateway): toast cũ đã đóng, nên mời bấm lại khi còn hạn.
+            if (ticket.getStatus() === 'active') {
+              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket) });
+            }
+          }
+        } finally {
+          undoing.delete(ticket);
+        }
+      };
+
+      return attempt(first);
     },
-    [flushFirst, gateway, onToast, reloadFloor],
+    [flushFirst, gateway, onToast, reloadFloor, undoing],
   );
 
   const runRestore = useCallback(

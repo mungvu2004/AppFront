@@ -186,6 +186,8 @@ interface RestoreReceipt {
 export function createVersionHistoryGateway(options: CreateVersionHistoryGatewayOptions): VersionHistoryGateway {
   const { apiClient, floorId, projectId } = options;
   const receipts = new WeakMap<UndoTicket, RestoreReceipt>();
+  /** Phiếu đang có N19 ngược bay — bấm đúp không gửi lượt thứ hai. */
+  const reverting = new WeakSet<UndoTicket>();
 
   const capabilities: VersionHistoryCapabilities = {
     canShowCurrentModel3d: true,
@@ -270,7 +272,9 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
   /**
    * Hoàn tác = N19 ngược: đích là bản có `sequence` lớn nhất nhỏ hơn bản "sau", `baseVersion`
    * là `floorRevision` mà N19 vừa trả. Không thấy đích → không gửi, `conflict`; phiếu hết hạn →
-   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}; phiếu đã dùng → {@link UNDO_USED_NOTICE}.
+   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}; phiếu đã dùng hoặc đang có lượt bay →
+   * {@link UNDO_USED_NOTICE}. Phiếu chỉ thành `used` khi N19 ngược có câu trả lời; lỗi ném (mạng, 5xx)
+   * thì phiếu còn dùng lại được.
    */
   const revertRestore = async (ticket: UndoTicket): Promise<RestoreOutcome> => {
     const receipt = receipts.get(ticket);
@@ -279,32 +283,40 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
       return { kind: 'conflict', conflict: toConflictNotice(null) };
     }
 
-    if (ticket.getStatus() === 'used') {
+    if (ticket.getStatus() === 'used' || reverting.has(ticket)) {
       return { kind: 'conflict', conflict: UNDO_USED_NOTICE };
     }
 
-    if (!ticket.undo().ok) {
+    if (ticket.getStatus() === 'expired') {
       return { kind: 'conflict', conflict: UNDO_EXPIRED_NOTICE };
     }
 
-    const page = await listVersionPage({});
-    const target = page.items
-      .filter((item) => item.sequence < receipt.afterSequence)
-      .reduce<FloorVersionSummary | null>((best, item) => (best === null || item.sequence > best.sequence ? item : best), null);
+    reverting.add(ticket);
 
-    if (target === null) {
-      return { kind: 'conflict', conflict: toConflictNotice(null) };
+    try {
+      const page = await listVersionPage({});
+      const target = page.items
+        .filter((item) => item.sequence < receipt.afterSequence)
+        .reduce<FloorVersionSummary | null>((best, item) => (best === null || item.sequence > best.sequence ? item : best), null);
+
+      if (target === null) {
+        ticket.undo();
+
+        return { kind: 'conflict', conflict: toConflictNotice(null) };
+      }
+
+      const outcome = await send(target.id, receipt.floorRevision);
+
+      delete outcome.sequence;
+      // Có câu trả lời (xong, hoặc xung đột — gửi lại cùng `baseVersion` chắc chắn 409 nữa) → dùng phiếu.
+      // Hết hạn giữa chừng thì `undo()` từ chối và phiếu thành `expired`: cũng không dùng lại được.
+      ticket.undo();
+
+      return outcome;
+    } finally {
+      reverting.delete(ticket);
     }
-
-    const outcome = await send(target.id, receipt.floorRevision);
-
-    delete outcome.sequence;
-
-    return outcome;
   };
-
-  const listVersions = async (): Promise<readonly VersionHistoryEntry[]> =>
-    (await listVersionPage({})).items.map((summary) => ({ kind: 'metadataOnly' as const, version: toVersionMetadata(summary) }));
 
   const diff = async (leftVersionId: string, rightVersionId: string): Promise<VersionDiff> => {
     const [left, right] = await Promise.all([readSnapshot(leftVersionId), readSnapshot(rightVersionId)]);
@@ -318,25 +330,15 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
 
   return {
     capabilities,
-    listVersions,
     diff,
     restore,
     revertRestore,
-    undoRestore: async (ticket) => {
-      const outcome = await revertRestore(ticket);
-
-      if (outcome.kind === 'conflict') {
-        throw new Error(outcome.conflict?.message ?? SNAPSHOT_MISSING_REASON);
-      }
-
-      return listVersions();
-    },
     listVersionPage,
     readSnapshot,
     readFloorLayer: async () => {
-      const { layer, revision } = unwrap(await apiClient.spatial.readLayer({ floorId, projectId }));
+      const { dimensions, layer, revision } = unwrap(await apiClient.spatial.readLayer({ floorId, projectId }));
 
-      return { layer, revision };
+      return { dimensions, layer, revision };
     },
     tagVersion: async (versionId, label) =>
       toVersionMetadata(unwrap(await apiClient.versions.label({ label, projectId, versionId }))),

@@ -61,6 +61,7 @@ import {
   createVersionsServerFake,
   WIRE_CURRENT_WALLS,
   WIRE_FLOOR_ID,
+  WIRE_LEVEL,
   WIRE_PROJECT_ID,
   WIRE_VERSION_IDS,
   wireError,
@@ -76,6 +77,7 @@ import { VersionHistoryRoute } from './VersionHistory.container';
 import { NO_COMPARE_PAIR_REASON, NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
 import { CONFLICT_TITLE, createVersionHistoryGateway, VERSION_LIST_FAILED_REASON } from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
+import { UNDO_RETRY_TOAST } from './versionHistoryModel';
 
 afterEach(() => {
   cleanup();
@@ -616,6 +618,81 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       await Promise.resolve();
     });
     expect(restoreCalls(setup.server)).toHaveLength(3);
+  });
+
+  it('NO-365: bấm đúp "Hoàn tác" chỉ một N19 ngược bay; N19 ngược hỏng → phiếu còn dùng, thử lại gửi được; xong thì phiếu hết dùng', async () => {
+    const setup = await renderVersionHistoryHook();
+
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toHaveProperty('onUndo');
+    });
+
+    const toast = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
+
+    setup.server.override('POST restore', () => ({ error: wireError(503, 'UNAVAILABLE'), ok: false }));
+    act(() => {
+      toast.onUndo();
+    });
+    await waitFor(() => {
+      expect(setup.result.current[0].conflict).not.toBeNull();
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(2);
+    // Toast cũ đã đóng: một toast mới mời bấm lại, gắn cùng phiếu.
+    await waitFor(() => {
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+    });
+
+    const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
+
+    setup.server.override('POST restore', () => {
+      setup.server.revision += 1;
+
+      return { data: { ...wireSummaries()[0], floorRevision: setup.server.revision, id: WIRE_VERSION_IDS.v5, sequence: 5 }, ok: true };
+    });
+    act(() => {
+      retry.onUndo();
+      retry.onUndo();
+      toast.onUndo();
+    });
+    await waitFor(() => {
+      expect(setup.onToast).toHaveBeenCalledWith({ message: 'Đã hoàn tác lượt phục hồi' });
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(3);
+
+    act(() => {
+      toast.onUndo();
+    });
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(3);
+  });
+
+  it('NO-369: sau N19, kích thước của tầng trong kho là kích thước N16 trả, không phải bản cũ', async () => {
+    const setup = await renderVersionHistoryHook();
+    const dimension = {
+      confidence: 1,
+      id: 'M-DIMN000001',
+      kind: 'linear',
+      levelId: WIRE_FLOOR_ID,
+      line: { end: { x: 4800, y: -500 }, start: { x: 0, y: -500 } },
+      referenceIds: ['W-WALL000001'],
+      reviewed: true,
+      source: 'human',
+      valueMm: 4800,
+    };
+
+    setup.server.override('GET layer', () => ({
+      data: { axes: [], dimensions: [dimension], layer: wireLayer(WIRE_CURRENT_WALLS), level: WIRE_LEVEL, revision: setup.server.revision },
+      ok: true,
+    }));
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.onToast).toHaveBeenCalled();
+    });
+
+    expect(useStore.getState().spatial?.byId['M-DIMN000001']).toMatchObject({ valueMm: 4800 });
   });
 
   it('đổi tầng → N17 gửi đúng floorId, activeFloorId của kho không đổi, cặp so bỏ', async () => {
