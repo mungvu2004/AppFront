@@ -226,6 +226,7 @@ const loadPipes = () =>
     applyInvalidation: invalidation.applyInvalidation,
     changedLevelIds: save.changedLevelIds,
     createFloorLayerSaver: save.createFloorLayerSaver,
+    applyFloorLayerRead: commitModule.applyFloorLayerRead,
     replaceFloorLayer: commitModule.replaceFloorLayer,
     spatialLayerOf: save.spatialLayerOf,
   }));
@@ -552,19 +553,8 @@ export function useFloorLayerAutosave({
       if (read.ok) {
         current.reloadErrors.delete(target);
         current.saver?.discardFloor(target);
-        const { dimensions, layer, level, revision, scaleStatus } = read.data;
-
-        // `level` đi cùng lớp: tỉ lệ máy chủ đổi thì `Level` phải khớp lớp đã quy đổi (review-1 P2-2).
-        loaded.replaceFloorLayer(
-          target,
-          { dimensions, layer, level, revision, ...(scaleStatus ? { scaleStatus } : {}) },
-          { external: true },
-        );
-
-        // `replaceFloorLayer` giữ `scaleStatus` cũ khi N16 vắng khoá; N16 cùng revision vắng khoá là tầng đã có tỉ lệ thật.
-        if (!scaleStatus && useStore.getState().floorMeta[target]?.scaleStatus) {
-          useStore.getState().updateFloorMeta(target, { revision });
-        }
+        // Lớp, `dimensions`, `level` (khớp lớp đã quy đổi, review-1 P2-2) và `scaleStatus` — chung với VersionHistory.
+        loaded.applyFloorLayerRead(target, read.data);
       } else {
         current.reloadErrors.set(target, RELOAD_FAILED);
       }

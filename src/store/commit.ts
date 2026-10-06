@@ -305,6 +305,34 @@ export function replaceFloorLayer(
   resetCommitRun();
 }
 
+/**
+ * Applies a fresh N16 read of one floor as an outside replacement — the reload path that
+ * autosave (`reloadFloor` after a 409) and VersionHistory (after N19) share (review R2-4).
+ *
+ * `dimensions`, `level` and `scaleStatus` travel with the layer. N16 without `scaleStatus`
+ * means the floor's scale is real, so a provisional status the store still holds is
+ * dropped (`replaceFloorLayer` alone would keep it). Error handling stays with the caller.
+ */
+export function applyFloorLayerRead(floorId: string, read: FloorLayerReplacement): void {
+  const { dimensions, layer, level, revision, scaleStatus } = read;
+
+  replaceFloorLayer(
+    floorId,
+    {
+      layer,
+      revision,
+      ...(dimensions === undefined ? {} : { dimensions }),
+      ...(level === undefined ? {} : { level }),
+      ...(scaleStatus === undefined ? {} : { scaleStatus }),
+    },
+    { external: true },
+  );
+
+  if (scaleStatus === undefined && useStore.getState().floorMeta[floorId]?.scaleStatus !== undefined) {
+    useStore.getState().updateFloorMeta(floorId, { revision });
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Xem trước: lượt ghi TẠM, cùng cửa ra vào với lượt ghi thật.                 */
 /* -------------------------------------------------------------------------- */
