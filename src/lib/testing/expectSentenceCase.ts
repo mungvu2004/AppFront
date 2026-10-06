@@ -191,7 +191,7 @@ function describeIssue(issue: SentenceCaseIssue): string {
  * Assert rule A6 on a rendered subtree.
  *
  * @example
- * expectSentenceCase(renderWithProviders(<BillingScreen />));
+ * expectSentenceCase(renderWithProviders(<WelcomeScreen />));
  */
 export function expectSentenceCase(subject: TestSubject): void {
   const issues = findSentenceCaseIssues(subject);
