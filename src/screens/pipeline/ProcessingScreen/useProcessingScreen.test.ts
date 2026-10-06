@@ -16,12 +16,12 @@
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import type { Progress } from '@/api/schemas';
-import { refreshSingleFlight } from '@/lib/auth';
+import * as auth from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import {
@@ -47,12 +47,6 @@ import {
   type ProcessingScreenHookResult,
 } from './useProcessingScreen';
 import type { ProcessingScreenProps } from './types';
-
-// NO-154 qua cổng: đếm lượt xin refresh mà không gửi lượt refresh thật nào.
-vi.mock('@/lib/auth', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  refreshSingleFlight: vi.fn(() => Promise.resolve(false)),
-}));
 
 const PROJECT_ID = 'project-1';
 const STAGES = getPipelineStages();
@@ -1323,14 +1317,17 @@ describe('useProcessingScreen', () => {
 
 describe('processingGateway — NO-154 qua cổng tiến độ', () => {
   let clock: FakeClock;
+  let refreshSingleFlight: MockInstance<typeof auth.refreshSingleFlight>;
 
   beforeEach(() => {
     clock = installFakeClock();
     MockEventSource.instances = [];
-    vi.mocked(refreshSingleFlight).mockClear();
+    // Đếm lượt xin refresh mà không gửi lượt refresh thật nào — chỉ trong khối này.
+    refreshSingleFlight = vi.spyOn(auth, 'refreshSingleFlight').mockResolvedValue(false);
   });
 
   afterEach(() => {
+    refreshSingleFlight.mockRestore();
     clock.restore();
   });
 
