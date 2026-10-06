@@ -323,6 +323,12 @@ describe('api client', () => {
     expect(calls.map(([, options]) => options?.query)).toEqual([{ limit: 200 }, { limit: 200 }]);
   });
 
+  it('mock project summaries: a project with walls has at least one floor', async () => {
+    const list = await createMockApiClient().projectSummaries.list();
+
+    expect(list.ok && list.data.items.filter((item) => item.floorCount === 0 && item.wallsTotalCount > 0)).toEqual([]);
+  });
+
   it('mock N7 lists the floor that already has a drawing, with a completed upload', async () => {
     const client = createMockApiClient();
     const latest = await client.drawings.latestUploads({ projectId: 'project-1' });
