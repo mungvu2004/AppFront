@@ -809,7 +809,7 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
 
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAccessibleDescription(/chưa có bản vẽ nào để xử lý/iu);
 
     fireEvent.click(button);
@@ -825,8 +825,12 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
 
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAccessibleDescription(/đang đọc kết quả/iu);
+
+    // Bàn phím tới được nút bị chặn, nên trình đọc màn hình đọc được lý do.
+    button.focus();
+    expect(button).toHaveFocus();
   });
 
   it('đọc kết quả hỏng: nút vô hiệu kèm lý do, bấm không điều hướng', async () => {
@@ -849,7 +853,7 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
 
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAccessibleDescription(/chưa đọc được kết quả/iu);
 
     fireEvent.click(button);
@@ -897,5 +901,7 @@ describe('InputQualityGateView — ba trạng thái mới của F-05a', () => {
 
     expect(screen.getByText(/vừa đổi, kết quả đo đã được đọc lại/iu)).toBeInTheDocument();
     expectVietnamese(container, { allowWords: ALLOWED_WORDS });
+    // Chỗ đỡ tiêu điểm của dải lỗi phải có vòng tiêu điểm nhìn thấy (WCAG 2.4.7).
+    expectAccessible(container, { ignoreSelector: TABLE_ROW_DEBT_SELECTOR });
   });
 });

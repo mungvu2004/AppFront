@@ -12,8 +12,10 @@
  * nhánh: nhánh xác nhận (nêu đúng việc còn thiếu) và nhánh còn lại (phát hiện
  * còn treo, đúng ghi chú tại chính `InputQualityFooterModel`).
  *
- * Ngoại lệ duy nhất: `footer.continueDisabledReason` (đang đọc, lỗi đọc, chưa có bản vẽ) vô hiệu
- * nút hẳn — không có gì để đi tiếp — và câu lý do vẫn nằm cạnh nút, nối bằng
+ * Ngoại lệ duy nhất: `footer.continueDisabledReason` (đang đọc, lỗi đọc, chưa có bản vẽ) chặn
+ * hẳn lượt bấm — không có gì để đi tiếp. Chặn bằng `aria-disabled` cộng bỏ
+ * `onClick`, KHÔNG bằng `disabled`: nút `disabled` rơi khỏi thứ tự Tab, nên
+ * người dùng bàn phím không bao giờ nghe được câu lý do nối bằng
  * `aria-describedby`.
  *
  * ## `areActionsHidden` ẩn hẳn, không mờ đi
@@ -65,8 +67,8 @@ export function InputQualityGateFooter({ actions, footer }: InputQualityFooterPr
             </Button>
             <Button
               {...(showBlockedNote ? { 'aria-describedby': CONTINUE_BLOCKED_NOTE_ID } : {})}
-              disabled={isDisabled}
-              onClick={actions.onContinue}
+              {...(isDisabled ? { 'aria-disabled': true } : {})}
+              onClick={isDisabled ? undefined : actions.onContinue}
               variant="primary"
             >
               {footer.primaryLabel}
