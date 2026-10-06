@@ -119,7 +119,10 @@ export interface EditorTourProps {
   readonly summary: readonly TourSummaryRow[];
   /** Chip "xem hướng dẫn" — ở lại suốt phiên sau khi bỏ qua. */
   readonly isSkipChipVisible: boolean;
-  /** Lớp Tailwind định vị chip "xem hướng dẫn"; màn chủ nói góc nào đã có chủ. Mặc định góc trên phải. */
+  /**
+   * Lớp Tailwind định vị chip "xem hướng dẫn"; màn chủ nói góc nào đã có chủ.
+   * Mặc định giữa cạnh dưới (B-V2-05) — xem `DEFAULT_CHIP_ANCHOR` ở `EditorTour.tsx`.
+   */
   readonly chipAnchorClassName?: string | undefined;
   /** Câu cho trình đọc màn hình khi sang bước (vùng lịch sự). */
   readonly liveMessage: string;
@@ -547,50 +550,6 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     .filter((step): step is TourStepView => step !== null);
 
   const droppedCount = allowed.length - steps.length;
-
-  // Neo dò bằng DOM lúc render, mà anh em của màn chủ (thanh công cụ, danh sách…)
-  // chỉ có mặt SAU commit đầu — nên lượt render đầu thấy "chưa có bước nào" và tour
-  // chỉ hiện ở một lượt render lại bất kỳ về sau (NO-208). Sau mỗi commit và mỗi lần
-  // DOM đổi, dò lại; chỉ render lại khi TẬP neo có mặt đổi.
-  const anchorKey = steps.map((step) => step.id).join('|');
-  const anchorKeyRef = useRef(anchorKey);
-  anchorKeyRef.current = anchorKey;
-  const [, setAnchorTick] = useState(0);
-  const allowedRef = useRef(allowed);
-  allowedRef.current = allowed;
-
-  useEffect(() => {
-    if (phase !== 'running' || typeof document === 'undefined') return undefined;
-
-    const probe = (): void => {
-      frame = 0;
-      const shortcutIds = new Set(registry.listShortcuts().map((entry) => entry.id));
-      const present = allowedRef.current
-        .filter(
-          (step) =>
-            (step.shortcutId !== null && shortcutIds.has(step.shortcutId)) ||
-            resolveAnchor(step.id) !== null,
-        )
-        .map((step) => step.id)
-        .join('|');
-      if (present !== anchorKeyRef.current) setAnchorTick((tick) => tick + 1);
-    };
-
-    // Gom mọi lô mutation trong một khung hình thành một lần dò.
-    let frame = 0;
-    const schedule = (): void => {
-      if (frame === 0) frame = requestAnimationFrame(probe);
-    };
-
-    probe();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-    };
-  }, [phase, registry, resolveAnchor]);
 
   const storedIndex =
     activeStepId === null ? 0 : steps.findIndex((step) => step.id === activeStepId);
