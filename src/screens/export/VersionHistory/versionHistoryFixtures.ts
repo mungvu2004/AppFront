@@ -99,8 +99,21 @@ function buildNewSnapshot(): VersionSnapshot {
   return snapshot;
 }
 
+/**
+ * Snapshot của v15, so với v14: W-021 đã xoá, W-014 dày lên 240 mm, W-030 mới thêm — một
+ * thêm, một bớt, một đổi, nên số đếm của hàng v15 (`SAMPLE_DIFF_COUNTS`) là diff thật.
+ */
+function buildLatestSnapshot(): VersionSnapshot {
+  const snapshot = emptySnapshot();
+
+  snapshot.wall = { 'W-014': wall(240), 'W-030': wall(120) };
+
+  return snapshot;
+}
+
 export const SAMPLE_OLD_SNAPSHOT: VersionSnapshot = buildOldSnapshot();
 export const SAMPLE_NEW_SNAPSHOT: VersionSnapshot = buildNewSnapshot();
+const SAMPLE_LATEST_SNAPSHOT: VersionSnapshot = buildLatestSnapshot();
 
 /** `VersionDiff` THẬT, sinh bởi `diffVersions` — không viết tay (R-70). */
 export const SAMPLE_DIFF: VersionDiff = diffVersions(SAMPLE_OLD_SNAPSHOT, SAMPLE_NEW_SNAPSHOT);
@@ -222,7 +235,7 @@ const V13: VersionEntry = {
 };
 const V14: VersionEntry = { ...metadata('v14', 14, 12), snapshot: SAMPLE_NEW_SNAPSHOT };
 /** Bản mới nhất — hiện tại. `v14` (bản đang xem) vì thế không hiện tại và vẫn phục hồi được. */
-const V15: VersionEntry = { ...metadata('v15', 15, 6), snapshot: SAMPLE_NEW_SNAPSHOT };
+const V15: VersionEntry = { ...metadata('v15', 15, 6), snapshot: SAMPLE_LATEST_SNAPSHOT };
 
 /**
  * Lịch sử năm phiên bản. `v11` là `metadataOnly` — đã bị dọn theo chính sách lưu giữ, còn
