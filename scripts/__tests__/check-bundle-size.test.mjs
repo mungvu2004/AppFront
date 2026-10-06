@@ -24,6 +24,7 @@ import {
   closure,
   closureGzip,
   findDevOnlyLeaks,
+  findEvalSites,
   presentWhenLoaded,
 } from '../check-bundle-size.mjs';
 
@@ -340,5 +341,49 @@ describe('màn demo chỉ bản dev', () => {
       { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo', file: 'leak.js' },
     ]);
     expect(findDevOnlyLeaks(files.slice(0, 1))).toEqual([]);
+  });
+});
+
+/*
+ * Quét dựng-mã-từ-chuỗi (FIX-380). Mỗi ca là một bí danh từng trượt mẫu
+ * `new Function` — thật, chép từ bản dựng chứ không bịa.
+ */
+describe('findEvalSites — CSP không có unsafe-eval', () => {
+  const blockedOf = (text) => findEvalSites([{ name: 'x.js', text }]).blocked.length;
+
+  it.each([
+    ['embind', 'var invokerFn=newFunc(Function,args)(...closureArgs)'],
+    ['bí danh rút gọn', 'var F=Function,g=new F("return 1")'],
+    ['new Function', 'new Function("a","return a")'],
+    ['gọi thẳng', 'x=Function("return this")()'],
+    ['eval', 'eval("1+1")'],
+  ])('bắt %s', (_label, text) => {
+    expect(blockedOf(text)).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['instanceof', 'if(f instanceof Function)return 1'],
+    ['typeof', 'typeof f=="function"'],
+    ['tên chứa chữ', 'isFunction(x);obj.eval(y);Function.prototype.call'],
+  ])('bỏ qua %s', (_label, text) => {
+    expect(blockedOf(text)).toBe(0);
+  });
+
+  it('miễn đúng hai chỗ zod theo nội dung, chỗ thứ ba trong cùng tệp vẫn chặn', () => {
+    const text = [
+      'try {',
+      '    const F = Function;',
+      '    new F("");',
+      '    return true;',
+      '  }',
+      '  compile() {',
+      '    const F = Function;',
+      '    return 1 }',
+      'const G = Function;',
+    ].join('\n');
+    const { blocked, allowed } = findEvalSites([{ name: 'pascalMount.js', text }]);
+
+    expect(allowed).toHaveLength(2);
+    expect(blocked).toHaveLength(1);
   });
 });

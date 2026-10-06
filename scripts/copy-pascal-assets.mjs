@@ -15,8 +15,10 @@
  *      `''` là falsy nên nó rơi thẳng về mặc định. Phải đặt một đường dẫn thật.
  *
  *   2. `https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/basis/` — bộ giải Basis
- *      mà `viewer/src/lib/ktx2-loader.ts` khai cứng. `three` vốn đã đóng gói sẵn hai
- *      tệp ấy, nên chép từ `node_modules/three` và đổi đường khai thành `/basis/`.
+ *      mà `viewer/src/lib/ktx2-loader.ts` khai cứng; đường khai đã đổi thành `/basis/`.
+ *      Nguồn KHÔNG phải bản `three` đóng gói: bản ấy dựng mã bằng `Function` (embind)
+ *      và ném EvalError dưới CSP thật (FIX-380). Chép bản dựng lại không eval ở
+ *      `vendor/basis/` — cùng tag, cách dựng ở `vendor/basis/NGUON.md`.
  *
  * Cả hai đều là vi phạm `connect-src` của CSP, và cả hai đều để lộ hoạt động người
  * dùng cho bên thứ ba. Chúng **không** nằm trong danh sách 4 vi phạm đã đóng trước
@@ -37,15 +39,19 @@ import {
 } from 'node:fs';
 import { join, dirname } from 'node:path';
 
+// Fork Pascal nạp Draco từ `/draco/` (`nodes/src/item/renderer.tsx`), không từ
+// gstatic — CSP chặn mọi máy ngoài. Chạy luôn lượt chép Draco để đường ấy có thật.
+import './copy-draco.mjs';
+
 /** Vật liệu của Pascal: nguồn nằm trong repo, ở thư mục mã đã chép về. */
 const MATERIAL_SOURCE = join('vendor', 'pascal', 'assets', 'material');
 const MATERIAL_TARGET = join('public', 'pascal', 'material');
 
-/** Bộ giải Basis: `three` đóng gói sẵn, khỏi tải từ jsDelivr. */
-const BASIS_SOURCE = join('node_modules', 'three', 'examples', 'jsm', 'libs', 'basis');
+/** Bộ giải Basis dựng lại với `-sDYNAMIC_EXECUTION=0` — xem `vendor/basis/NGUON.md`. */
+const BASIS_SOURCE = join('vendor', 'basis');
 const BASIS_TARGET = join('public', 'basis');
 
-/** Chỉ cần bộ giải; `README.md` đi kèm không phục vụ lượt chạy nào. */
+/** Chỉ cần bộ giải; `NGUON.md` và bài so khớp đi kèm không phục vụ lượt chạy nào. */
 const BASIS_WANTED = /^basis_transcoder\.(js|wasm)$/;
 
 /**

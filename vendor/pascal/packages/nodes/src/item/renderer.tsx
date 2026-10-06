@@ -228,7 +228,8 @@ const configureItemModelLoader = (loader: ItemGLTFLoader, renderer: unknown) => 
   configureKtx2Support(loader, renderer)
   if (!itemDracoLoader) {
     itemDracoLoader = new DRACOLoader(loader.manager)
-    itemDracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.5/')
+    // AppFront: tự host (`scripts/copy-draco.mjs` → `public/draco/`); gstatic bị CSP chặn (FIX-380).
+    itemDracoLoader.setDecoderPath('/draco/')
   }
   loader.setDRACOLoader(itemDracoLoader)
   loader.setMeshoptDecoder(MeshoptDecoder)

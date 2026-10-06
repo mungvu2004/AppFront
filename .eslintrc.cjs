@@ -53,5 +53,13 @@ module.exports = {
     'import/no-useless-path-segments': 'error',
     'import/no-absolute-path': 'error',
     'import/export': 'error',
+
+    // CSP thật (`AppBack/deploy/nginx/snippets/security_headers.conf:6`) không có
+    // `'unsafe-eval'`: mọi lượt dựng mã từ chuỗi đều ném EvalError lúc chạy, mà
+    // máy dev không gửi CSP nên chỉ bản triển khai mới thấy (FIX-380). Chặn ở mã
+    // nguồn; bản dựng có lượt quét riêng trong `scripts/check-bundle-size.mjs`.
+    'no-eval': 'error',
+    'no-new-func': 'error',
+    'no-implied-eval': 'error',
   },
 };

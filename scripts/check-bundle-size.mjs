@@ -94,6 +94,72 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
 }
 
 /**
+ * Quét bản dựng tìm chỗ dựng mã từ chuỗi — CSP thật không có `'unsafe-eval'`
+ * (`AppBack/deploy/nginx/snippets/security_headers.conf:6`), nên mỗi chỗ là một
+ * EvalError lúc chạy mà máy dev không gửi CSP thì không bao giờ thấy (FIX-380).
+ *
+ * Mẫu cố ý KHÔNG chỉ là `new Function`: hai nguồn thật đều trượt chuỗi ấy —
+ * embind gọi `newFunc(Function,args)`, zod 4 viết `const F = Function; new F(…)`.
+ * Nên bắt cả lượt dùng `Function` làm GIÁ TRỊ (gán, truyền đối số).
+ */
+const EVAL_PATTERN =
+  /\bnew\s+Function\b|(?<![.\w$])Function\s*\(|[=,(:]\s*Function\s*[,;)]|(?<![.\w$])eval\s*\(|\bnewFunc\s*\(/g;
+
+/**
+ * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
+ * cả hai không bao giờ chạy vì `usePascalViewer.ts:157-161` bật `jitless`
+ * trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
+ */
+const EVAL_ALLOWED = [
+  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const F = Function;\s*new F\(""\);/ },
+  { reason: 'zod 4 `Doc.compile` — tắt bởi jitless', pattern: /compile\(\) \{\s*const F = Function;/ },
+];
+
+/** Thư mục chứa mã sẽ chạy trên trình duyệt; `findEvalSites` đọc `.js`/`.mjs` dưới chúng. */
+const EVAL_SCAN_DIRS = [join('dist', 'assets'), join('dist', 'basis'), join('dist', 'draco')];
+
+/** Mọi chỗ dựng mã từ chuỗi. `files`: `{ name, text }[]`. Trả `{ blocked, allowed }`. */
+function findEvalSites(files, allowedList = EVAL_ALLOWED) {
+  const blocked = [];
+  const allowed = [];
+
+  for (const { name, text } of files) {
+    const spans = allowedList.flatMap(({ reason, pattern }) =>
+      [...text.matchAll(new RegExp(pattern.source, 'g'))].map((m) => ({
+        reason,
+        start: m.index,
+        end: m.index + m[0].length,
+      })),
+    );
+
+    for (const match of text.matchAll(EVAL_PATTERN)) {
+      const site = { file: name, at: match.index, snippet: text.slice(match.index, match.index + 60) };
+      const span = spans.find((s) => match.index >= s.start && match.index < s.end);
+
+      if (span === undefined) blocked.push(site);
+      else allowed.push({ ...site, reason: span.reason });
+    }
+  }
+
+  return { blocked, allowed };
+}
+
+/** `.js`/`.mjs` dưới các thư mục quét, đệ quy. Thiếu thư mục ⇒ bỏ qua. */
+function readScriptsUnder(dirs) {
+  const out = [];
+  const visit = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) visit(path);
+      else if (/\.m?js$/.test(entry)) out.push({ name: path, text: readFileSync(path, 'utf8') });
+    }
+  };
+  dirs.forEach(visit);
+  return out;
+}
+
+/**
  * Ngân sách CỔNG, tính bằng KiB sau gzip. Vượt là hỏng, mã thoát 1.
  *
  * Ngân sách rộng gấp đôi số đo thật thì không phải cổng, chỉ là số trang trí:
@@ -624,6 +690,22 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
 
   console.log(`màn demo chỉ bản dev trong bản dựng: 0/${DEV_ONLY_MARKERS.length} — đạt\n`);
 
+  const scripts = readScriptsUnder(EVAL_SCAN_DIRS);
+  const evalSites = findEvalSites(scripts);
+
+  console.log(`dựng mã từ chuỗi (CSP không có 'unsafe-eval') — ${scripts.length} tệp mã:`);
+  for (const site of evalSites.allowed) console.log(`  miễn  ${site.file} — ${site.reason}`);
+  for (const site of evalSites.blocked) console.log(`  CHẶN  ${site.file}@${site.at} — ${JSON.stringify(site.snippet)}`);
+
+  if (evalSites.blocked.length > 0) {
+    throw new Error(
+      `${evalSites.blocked.length} chỗ dựng mã từ chuỗi trong bản dựng — CSP thật ném EvalError ở đó. ` +
+        'Dựng lại thư viện không eval (xem `vendor/basis/NGUON.md`), không nới CSP.',
+    );
+  }
+
+  console.log(`  đạt — 0 chỗ chặn, ${evalSites.allowed.length} chỗ miễn\n`);
+
   if (over.length > 0) {
     const names = over.map((gate) => gate.label).join(', ');
 
@@ -644,7 +726,15 @@ vách ngăn Pascal — đo THÔ, cả thư mục:
  * của lượt gộp này được sinh bằng CHÍNH những hàm đã cắm vào cổng — chứ không
  * bằng một script riêng rồi hy vọng hai bên khớp nhau.
  */
-export { closure, presentWhenLoaded, baselineFor, closureGzip, findDevOnlyLeaks, DEV_ONLY_MARKERS };
+export {
+  closure,
+  presentWhenLoaded,
+  baselineFor,
+  closureGzip,
+  findDevOnlyLeaks,
+  findEvalSites,
+  DEV_ONLY_MARKERS,
+};
 
 /*
  * Chỉ chạy cổng khi file này được gọi thẳng. Khi bộ test `import` nó, đoạn dưới
