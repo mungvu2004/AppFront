@@ -28,6 +28,7 @@ import type {
 import { staggerDelayMs } from '@/lib/motion/stagger';
 import { durationMs } from '@/lib/motion/tokens';
 import { listPendingCommands } from '@/lib/offline/queueStore';
+import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createTestQueryClient } from '@/lib/testing/render';
 import type { HttpError } from '@/lib/http';
 import type { UploadTask, UploadTaskState } from '@/lib/upload';
@@ -203,6 +204,13 @@ function createHarness(
       onNavigate: (path) => navigations.push(path),
     },
   };
+}
+
+/** Số lệnh của dự án trong hàng đợi ngoại tuyến — đúng nguồn ConnectionStates đếm "chờ đồng bộ". */
+async function queuedCount(): Promise<number> {
+  const listed = await listPendingCommands(PROJECT_ID);
+
+  return listed.ok ? listed.data.length : -1;
 }
 
 function renderScreen(options: UseFloorUploadScreenOptions) {
@@ -508,9 +516,9 @@ describe('useFloorUploadScreen — một lượt tải', () => {
     expect([...harness.uploads.values()][0]?.cancelled()).toBe(true);
   });
 
-  it('mất mạng thì xếp vào hàng đợi ngoại tuyến thay vì gọi mạng', async () => {
-    const enqueue = vi.fn(async () => 1);
-    const harness = createHarness({ enqueueOffline: enqueue }, false);
+  it('mất mạng thì không gọi mạng và không ghi hàng đợi ngoại tuyến: tệp chờ mạng trong màn (NO-392)', async () => {
+    const baseline = await queuedCount();
+    const harness = createHarness({}, false);
     const { result } = renderScreen(harness.options);
 
     await waitFor(() => {
@@ -525,15 +533,15 @@ describe('useFloorUploadScreen — một lượt tải', () => {
     });
 
     await waitFor(() => {
-      expect(enqueue).toHaveBeenCalledTimes(1);
+      expect(result.current.floors[3]?.status).toBe('waiting');
     });
 
     expect(harness.uploads.size).toBe(0);
-    expect(result.current.floors[3]?.status).toBe('waiting');
+    expect(await queuedCount()).toBe(baseline);
   });
 
   it('tệp chọn lúc ngoại tuyến tự tải khi mạng về, trong phiên đang mở (NO-389)', async () => {
-    const harness = createHarness({ enqueueOffline: vi.fn(async () => 1) }, false);
+    const harness = createHarness({}, false);
     const { result } = renderScreen(harness.options);
 
     await waitFor(() => {
@@ -574,7 +582,6 @@ describe('useFloorUploadScreen — một lượt tải', () => {
     const created = vi.fn();
     const fake = createHarness();
     const harness = createHarness({
-      enqueueOffline: vi.fn(async () => 1),
       createUpload: (input) => {
         created(input.file.name);
         return fake.gateway.createUpload(input);
@@ -647,13 +654,118 @@ describe('useFloorUploadScreen — một lượt tải', () => {
 });
 
 describe('useFloorUploadScreen — hàng đợi ngoại tuyến và hàng chờ mạng (NO-392, NO-393)', () => {
-  async function queuedCount(): Promise<number> {
-    const listed = await listPendingCommands(PROJECT_ID);
+  it('hoàn tác xoá không đưa tệp về tầng đã nhận tệp khác: tệp về khay và chỉ tệp đang ở tầng được tải (NO-393)', async () => {
+    const harness = createHarness({}, false);
+    const { result } = renderScreen(harness.options);
 
-    return listed.ok ? listed.data.length : -1;
-  }
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
 
-  it('một tệp chỉ một lệnh trong hàng đợi, và tải xong thì lệnh được gỡ (NO-392)', async () => {
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png'), makeFile('ban-ve-khac.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[3]?.file?.name).toBe('mat-bang-tang-3.png');
+    });
+
+    const first = result.current.floors[3]?.file?.id ?? '';
+    const other = result.current.tray.items[0]?.id ?? '';
+
+    act(() => {
+      result.current.onRemoveFile(first);
+    });
+    act(() => {
+      result.current.onReassign(other, 'L3');
+    });
+    await waitFor(() => {
+      expect(result.current.floors[3]?.file?.name).toBe('ban-ve-khac.png');
+    });
+
+    const announce = vi.spyOn(getAppAnnouncer(), 'announce');
+
+    act(() => {
+      harness.toasts[0]?.onUndo?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items.map((item) => item.name)).toEqual(['mat-bang-tang-3.png']);
+    });
+    expect(result.current.floors[3]?.file?.name).toBe('ban-ve-khac.png');
+    expect(announce).toHaveBeenCalledWith(expect.stringContaining('mat-bang-tang-3.png đã về khay'));
+
+    act(() => {
+      harness.setOnline(true);
+    });
+
+    await waitFor(() => {
+      expect(harness.uploads.size).toBe(1);
+    });
+    expect([...harness.uploads.values()][0]?.task.id).toBe(other);
+  });
+
+  it('tệp bị thay ở một tầng về khay có câu báo cho trình đọc màn hình (NO-393)', async () => {
+    const harness = createHarness();
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png'), makeFile('mat-bang-tang-2.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file?.name).toBe('mat-bang-tang-2.png');
+    });
+
+    const announce = vi.spyOn(getAppAnnouncer(), 'announce');
+
+    act(() => {
+      result.current.onReassign(result.current.floors[2]?.file?.id ?? '', 'L3');
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items.map((item) => item.name)).toEqual(['mat-bang-tang-3.png']);
+    });
+    expect(announce).toHaveBeenCalledWith(
+      'mat-bang-tang-3.png đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác',
+    );
+  });
+
+  it('câu "chờ mạng" đọc một lần cho cả lượt mất mạng, không một lần mỗi tệp', async () => {
+    const harness = createHarness({}, false);
+    const announce = vi.spyOn(getAppAnnouncer(), 'announce');
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([
+        makeFile('mat-bang-tang-3.png'),
+        makeFile('mat-bang-tang-2.png'),
+        makeFile('mat-bang-tang-ham.png'),
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors.filter((row) => row.file?.name.startsWith('mat-bang') ?? false)).toHaveLength(3);
+    });
+
+    const awaitCalls = (): number =>
+      announce.mock.calls.filter(([sentence]) => String(sentence).includes('khi có mạng trở lại')).length;
+
+    expect(awaitCalls()).toBe(1);
+  });
+
+  it('chọn, thử lại, xoá, gán lại lúc ngoại tuyến rồi tải hỏng: hàng đợi không còn lệnh nào (NO-392)', async () => {
     const baseline = await queuedCount();
     const harness = createHarness({}, false);
     const { result } = renderScreen(harness.options);
@@ -663,21 +775,23 @@ describe('useFloorUploadScreen — hàng đợi ngoại tuyến và hàng chờ 
     });
 
     act(() => {
-      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png'), makeFile('mat-bang-tang-2.png')]);
     });
 
-    await waitFor(async () => {
-      expect(await queuedCount()).toBe(baseline + 1);
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file?.name).toBe('mat-bang-tang-2.png');
+      expect(result.current.floors[3]?.file?.name).toBe('mat-bang-tang-3.png');
     });
 
-    const fileId = result.current.floors[3]?.file?.id ?? '';
+    const third = result.current.floors[3]?.file?.id ?? '';
+    const second = result.current.floors[2]?.file?.id ?? '';
 
     act(() => {
-      result.current.onRetryUpload(fileId);
+      result.current.onRetryUpload(third);
+      result.current.onReassign(second, null);
     });
-
-    await waitFor(async () => {
-      expect(await queuedCount()).toBe(baseline + 1);
+    act(() => {
+      result.current.onRemoveFile(second);
     });
 
     act(() => {
@@ -685,21 +799,39 @@ describe('useFloorUploadScreen — hàng đợi ngoại tuyến và hàng chờ 
     });
 
     await waitFor(() => {
-      expect(harness.uploads.size).toBe(1);
+      expect([...harness.uploads.keys()]).toEqual([third]);
     });
 
     act(() => {
-      [...harness.uploads.values()][0]?.finish({ percent: 100, status: 'done' });
+      [...harness.uploads.values()][0]?.finish({
+        status: 'failed',
+        failure: {
+          stage: 'chunk',
+          chunkIndex: 0,
+          attempts: 3,
+          terminal: true,
+          error: {
+            kind: 'upload',
+            code: 'UPLOAD',
+            messageKey: 'errors.upload.description',
+            params: {},
+            requestId: 'r-392',
+            retryable: false,
+            severity: 'lỗi',
+            recovery: 'thử lại',
+          },
+        },
+      });
     });
 
-    await waitFor(async () => {
-      expect(await queuedCount()).toBe(baseline);
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('error');
     });
-    expect(result.current.floors[3]?.status).toBe('attached');
+    expect(await queuedCount()).toBe(baseline);
   });
 
   it('gán tệp thứ hai vào tầng đang có tệp chờ mạng: tệp cũ về khay, chỉ tệp mới được tải (NO-393)', async () => {
-    const harness = createHarness({ enqueueOffline: vi.fn(async () => 1) }, false);
+    const harness = createHarness({}, false);
     const { result } = renderScreen(harness.options);
 
     await waitFor(() => {
@@ -1123,12 +1255,8 @@ describe('useFloorUploadScreen — trang PDF', () => {
     expect('pageIndex' in bodyOf(createUpload.mock.calls[1])).toBe(false);
   });
 
-  it('hàng ngoại tuyến mang theo pageIndex khi đã chọn trang', async () => {
-    const enqueue = vi.fn<FloorUploadGateway['enqueueOffline']>(async () => 1);
-    const { result } = await setup(
-      { validateFile: pdfValidation(3), enqueueOffline: enqueue },
-      false,
-    );
+  it('chọn trang lúc ngoại tuyến: mạng về thì lượt tải mang đúng pageIndex', async () => {
+    const { createUpload, result, setOnline } = await setup({ validateFile: pdfValidation(3) }, false);
 
     act(() => {
       result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
@@ -1137,17 +1265,17 @@ describe('useFloorUploadScreen — trang PDF', () => {
       expect(result.current.floors[2]?.file).not.toBeNull();
     });
 
-    // Chưa chọn trang: ngoại tuyến cũng chờ.
-    expect(enqueue).not.toHaveBeenCalled();
-
     act(() => {
       result.current.onPickPdfPage(result.current.floors[2]?.file?.id ?? '', '2');
     });
+    act(() => {
+      setOnline(true);
+    });
 
     await waitFor(() => {
-      expect(enqueue).toHaveBeenCalledTimes(1);
+      expect(createUpload).toHaveBeenCalledTimes(1);
     });
-    expect(enqueue.mock.calls[0]?.[0].pageIndex).toBe(1);
+    expect(bodyOf(createUpload.mock.calls[0]).pageIndex).toBe(1);
   });
 
   it('#5 trả 422 CAD_NOT_SUPPORTED thì thẻ nói câu về CAD, không in mã', async () => {

@@ -611,8 +611,8 @@ describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đ�
 
   it('bộ giám sát thật chưa ping xong thì màn không coi là mất mạng: tệp tải lên, bộ đếm lên 2 / 4', async () => {
     // Bộ giám sát THẬT, chỉ thay lượt ping bằng một lượt chưa trả lời — đúng
-    // khoảnh khắc máy chủ dev còn bận và `HEAD /` chưa về. `pingOnline` của bộ
-    // giám sát lúc ấy vẫn là giá trị khởi tạo `false`.
+    // khoảnh khắc máy chủ dev còn bận và `HEAD /` chưa về. Trước NO-390 bộ giám
+    // sát báo "mất mạng" ở khoảng này; nay nó tin trình duyệt tới lượt ping đầu.
     const gateway = createFloorUploadGateway(createMockApiClient(), {
       networkMonitor: createNetworkMonitor({ ping: () => new Promise<boolean>(() => undefined) }),
     });
