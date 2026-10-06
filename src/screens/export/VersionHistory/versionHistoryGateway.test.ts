@@ -13,7 +13,15 @@ import {
   wireSummaries,
   type VersionsServerFake,
 } from './versionHistoryFixtures';
-import { createVersionHistoryGateway, VERSION_PAGE_LIMIT } from './versionHistoryGateway';
+import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
+import { FAKE_CLOCK_START } from '@/lib/testing/fakeClock';
+
+import {
+  CONFLICT_TITLE,
+  createVersionHistoryGateway,
+  UNDO_EXPIRED_NOTICE,
+  VERSION_PAGE_LIMIT,
+} from './versionHistoryGateway';
 
 function gatewayOn(server: VersionsServerFake) {
   return createVersionHistoryGateway({
@@ -166,13 +174,17 @@ describe('N19 — restore', () => {
     const conflict = await gatewayOn(server).restore(WIRE_VERSION_IDS.v2, 5);
 
     expect(conflict.kind).toBe('conflict');
-    expect(conflict.conflict?.actorName).toBe('Trần Minh');
+    // Tiêu đề cố định (prompt 4.3); tên người nằm trong câu thân.
+    expect(conflict.conflict?.actorName).toBe(CONFLICT_TITLE);
+    expect(CONFLICT_TITLE).toBe('Tầng vừa đổi ở nơi khác');
+    expect(conflict.conflict?.message).toContain('Trần Minh');
 
     server.override('POST restore', () => ({ error: wireError(422, 'VALIDATION', { field: 'baseVersion' }), ok: false }));
     const ahead = await gatewayOn(server).restore(WIRE_VERSION_IDS.v2, 9);
 
     expect(ahead.kind).toBe('conflict');
-    expect(ahead.conflict?.actorName).toBe('Người khác');
+    expect(ahead.conflict?.actorName).toBe(CONFLICT_TITLE);
+    expect(ahead.conflict?.message.startsWith('Người khác đã sửa tầng này')).toBe(true);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -235,6 +247,27 @@ describe('hoàn tác và nhãn', () => {
     if (ticket === undefined) throw new Error('thiếu phiếu');
 
     await expect(gateway.undoRestore(ticket)).rejects.toThrow();
+    expect(callsTo(server, 'POST', '/restore')).toHaveLength(1);
+  });
+
+  it('phiếu hết hạn → không gửi N19, câu "Đã hết thời gian hoàn tác", không đổ cho người khác', async () => {
+    let offset = 0;
+    const server = createVersionsServerFake(5);
+    const gateway = createVersionHistoryGateway({
+      apiClient: createApiClient(server.http),
+      floorId: WIRE_FLOOR_ID,
+      now: () => new Date(FAKE_CLOCK_START.getTime() + offset),
+      projectId: WIRE_PROJECT_ID,
+    });
+    const ticket = (await gateway.restore(WIRE_VERSION_IDS.v2, 5)).undoTicket;
+
+    if (ticket === undefined) throw new Error('thiếu phiếu');
+
+    offset = UNDO_WINDOW_MS + 1;
+    const outcome = await gateway.revertRestore(ticket);
+
+    expect(outcome).toEqual({ kind: 'conflict', conflict: UNDO_EXPIRED_NOTICE });
+    expect(UNDO_EXPIRED_NOTICE.actorName).toBe('Đã hết thời gian hoàn tác');
     expect(callsTo(server, 'POST', '/restore')).toHaveLength(1);
   });
 

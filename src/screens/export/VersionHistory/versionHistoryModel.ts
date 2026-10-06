@@ -533,3 +533,37 @@ export function createConcurrencyLimit(max: number): <T>(run: () => Promise<T>) 
     }
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* 8 — Câu hỏi A9 đang chờ                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Câu hỏi "bỏ thay đổi chưa lưu?" đang chờ một lời đáp. */
+export interface PendingAnswer {
+  /** Hỏi; câu cũ còn chờ (nếu có) nhận `false` trước để không treo. */
+  readonly ask: () => Promise<boolean>;
+  /** Trả lời câu đang chờ; không có câu nào thì bỏ qua. */
+  readonly answer: (proceed: boolean) => void;
+}
+
+/** Một chỗ giữ câu hỏi A9: lượt ghi chờ trên `ask()`, hộp thoại hoặc lượt đổi tầng gọi `answer`. */
+export function createPendingAnswer(): PendingAnswer {
+  let resolve: ((proceed: boolean) => void) | null = null;
+  const answer = (proceed: boolean): void => {
+    const current = resolve;
+
+    resolve = null;
+    current?.(proceed);
+  };
+
+  return {
+    ask: () => {
+      answer(false);
+
+      return new Promise<boolean>((next) => {
+        resolve = next;
+      });
+    },
+    answer,
+  };
+}

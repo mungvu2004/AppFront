@@ -104,17 +104,26 @@ export function readFullVersion(history: readonly VersionHistoryEntry[], version
   return entry !== undefined && entry.kind === 'full' ? entry.version : null;
 }
 
-/** Thân dải xung đột: nêu `changedByName` đầu tiên, vắng thì "Người khác". Không nhánh ghi đè. */
-export function toConflictNotice(changedByName: string | null): ConflictNoticeModel {
-  const actorName = changedByName ?? 'Người khác';
+/** Tiêu đề dải xung đột (prompt 4.3). `actorName` là tiêu đề, như `writeErrorNotice`. */
+export const CONFLICT_TITLE = 'Tầng vừa đổi ở nơi khác';
 
+/** Dải xung đột: tiêu đề cố định, câu thân nêu `changedByName` đầu tiên (vắng thì "Người khác"). Không nhánh ghi đè. */
+export function toConflictNotice(changedByName: string | null): ConflictNoticeModel {
   return {
-    actorName,
-    message: `Tầng vừa đổi ở nơi khác: ${actorName} đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi. Tải lại để xem bản mới nhất.`,
+    actorName: CONFLICT_TITLE,
+    message: `${changedByName ?? 'Người khác'} đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi. Tải lại để xem bản mới nhất.`,
     detail: null,
     dismissLabel: 'Tải lại',
   };
 }
+
+/** Phiếu hoàn tác hết hạn (thường vì hộp thoại A9 chờ quá lâu) — không phải người khác sửa. */
+export const UNDO_EXPIRED_NOTICE: ConflictNoticeModel = {
+  actorName: 'Đã hết thời gian hoàn tác',
+  message: 'Lượt phục hồi này không còn hoàn tác được. Tải lại để xem bản mới nhất của tầng.',
+  detail: null,
+  dismissLabel: 'Tải lại',
+};
 
 /**
  * N19 hỏng thành `conflict` khi đúng là xung đột (409, 422 `field:"baseVersion"`); không thì
@@ -252,14 +261,18 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
 
   /**
    * Hoàn tác = N19 ngược: đích là bản có `sequence` lớn nhất nhỏ hơn bản "sau", `baseVersion`
-   * là `floorRevision` mà N19 vừa trả. Không thấy đích (hoặc phiếu hết hạn) → không gửi,
-   * `conflict`.
+   * là `floorRevision` mà N19 vừa trả. Không thấy đích → không gửi, `conflict`; phiếu hết hạn →
+   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}.
    */
   const revertRestore = async (ticket: UndoTicket): Promise<RestoreOutcome> => {
     const receipt = receipts.get(ticket);
 
-    if (receipt === undefined || !ticket.undo().ok) {
+    if (receipt === undefined) {
       return { kind: 'conflict', conflict: toConflictNotice(null) };
+    }
+
+    if (!ticket.undo().ok) {
+      return { kind: 'conflict', conflict: UNDO_EXPIRED_NOTICE };
     }
 
     const page = await listVersionPage({});

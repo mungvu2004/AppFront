@@ -33,7 +33,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApiClient } from '@/api/client';
-import { __resetFloorLayerSavers } from '@/hooks/useAutosave';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -73,7 +73,9 @@ import { useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
 import { VersionHistoryRoute } from './VersionHistory.container';
-import { createVersionHistoryGateway } from './versionHistoryGateway';
+import { NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
+import { CONFLICT_TITLE, createVersionHistoryGateway, VERSION_LIST_FAILED_REASON } from './versionHistoryGateway';
+import * as ModelModule from './versionHistoryModel';
 
 afterEach(() => {
   cleanup();
@@ -467,6 +469,53 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(replaceSpy).not.toHaveBeenCalled();
   });
 
+  it('bỏ thay đổi (A9) rồi N19 trùng hiện trạng → kho về bản N16; lượt sửa sau không PUT phần đã bỏ', async () => {
+    const setup = await renderVersionHistoryHook();
+    let failPut = true;
+
+    setup.server.override('PUT layer', ({ body }) => {
+      if (failPut) return { error: wireError(503, 'UNAVAILABLE'), ok: false };
+      setup.server.revision += 1;
+
+      return { data: { layer: (body as { body: { layer: unknown } }).body.layer, revision: setup.server.revision }, ok: true };
+    });
+    setup.server.override('POST restore', () => ({
+      data: { ...wireSummaries()[0], floorRevision: 5, id: WIRE_VERSION_IDS.v4, sequence: 4 },
+      ok: true,
+    }));
+    thickenFirstWall();
+
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.result.current[0].restoreConfirm.isOpen).toBe(true);
+    });
+    act(() => {
+      setup.result.current[1].confirmRestore();
+    });
+    await waitFor(() => {
+      expect(setup.onToast).toHaveBeenCalledWith({ message: 'Phiên bản này trùng với hiện trạng' });
+    });
+    // Bản máy chủ (220), không phải bản sửa vừa bỏ (260).
+    await waitFor(() => {
+      expect(firstWallThickness()).toBe(220);
+    });
+
+    failPut = false;
+    act(() => {
+      commit({ changes: { thicknessMm: 160 }, id: 'W-WALL000002', kind: 'wall', op: 'update' }, 'Đổi độ dày');
+    });
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    const puts = setup.server.calls.filter((call) => call.method === 'PUT');
+    const walls = (puts.at(-1)?.body as { body: { layer: { walls: { id: string; thicknessMm: number }[] } } } | undefined)?.body
+      .layer.walls;
+
+    expect(walls?.find((wall) => wall.id === 'W-WALL000002')?.thicknessMm).toBe(160);
+    expect(walls?.find((wall) => wall.id === 'W-WALL000001')?.thicknessMm).toBe(220);
+  });
+
   it('N16 hỏng → revision trong kho không đổi, dải "Tải lại" hiện', async () => {
     const setup = await renderVersionHistoryHook();
 
@@ -502,8 +551,9 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     }));
     await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
     await waitFor(() => {
-      expect(setup.result.current[0].conflict?.actorName).toBe('Trần Minh');
+      expect(setup.result.current[0].conflict?.actorName).toBe(CONFLICT_TITLE);
     });
+    expect(setup.result.current[0].conflict?.message).toContain('Trần Minh');
     expect(restoreCalls(setup.server)).toHaveLength(1);
 
     const [model, actions] = setup.result.current;
@@ -581,6 +631,51 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(setup.result.current[0].floorSelect?.selectedId).toBe('L-LEVEL000002');
   });
 
+  it('đổi tầng khi hộp A9 đang chờ → câu đang chờ nhận "huỷ", hộp đóng, lượt phục hồi của tầng cũ không gửi N19', async () => {
+    const createReal = ModelModule.createPendingAnswer;
+    const asks: Promise<boolean>[] = [];
+
+    vi.spyOn(ModelModule, 'createPendingAnswer').mockImplementation(() => {
+      const real = createReal();
+
+      return {
+        ...real,
+        ask: () => {
+          const question = real.ask();
+
+          asks.push(question);
+
+          return question;
+        },
+      };
+    });
+
+    const setup = await renderVersionHistoryHook();
+
+    setup.server.override('PUT layer', () => ({ error: wireError(503, 'UNAVAILABLE'), ok: false }));
+    thickenFirstWall();
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.result.current[0].restoreConfirm.isOpen).toBe(true);
+    });
+    expect(asks).toHaveLength(1);
+
+    setup.rerender({ floorId: 'L-LEVEL000002' });
+
+    const stillPending = new Promise<'pending'>((resolve) => {
+      setTimeout(() => resolve('pending'), 50);
+    });
+
+    await expect(Promise.race([asks[0], stillPending])).resolves.toBe(false);
+    expect(setup.result.current[0].restoreConfirm.isOpen).toBe(false);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(0);
+    // Không đồng ý bỏ nên tầng cũ vẫn còn bản sửa.
+    expect(useStore.getState().unsavedFloorIds).toContain(WIRE_FLOOR_ID);
+  });
+
   it('viewer: không forbidden, không nút phục hồi/gắn nhãn; requestRestore bỏ qua', async () => {
     const setup = await renderVersionHistoryHook({ canRestore: false });
     const [model, actions] = setup.result.current;
@@ -607,7 +702,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(setup.result.current[0].restoreConfirm.isOpen).toBe(false);
   });
 
-  it('N18 đồng thời ≤ 2, kể cả sau phục hồi; hàng chưa nạp không chọn được; PURGED → hàng hết nội dung, màn không error', async () => {
+  it('N18 đồng thời ≤ 2, kể cả sau một lượt phục hồi thật; hàng chưa nạp không chọn được; PURGED → hàng hết nội dung, màn không error', async () => {
     const server = createVersionsServerFake();
     let active = 0;
     let peak = 0;
@@ -619,7 +714,18 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       sequence: 20 - index,
     }));
 
-    server.override('GET list', () => ({ data: { items: many }, ok: true }));
+    let items: Record<string, unknown>[] = many;
+    const restoredId = 'ver_01J9ZV8Q3M7X5B2N4K6P8R0ZZZ';
+
+    server.override('GET list', () => ({ data: { items }, ok: true }));
+    server.override('POST restore', () => {
+      const created = { ...wireSummaries()[1], floorRevision: 6, id: restoredId, label: undefined, sequence: 21 };
+
+      server.revision = 6;
+      items = [created, ...items];
+
+      return { data: created, ok: true };
+    });
     server.override('GET snapshot', async ({ path }) => {
       active += 1;
       peak = Math.max(peak, active);
@@ -663,6 +769,21 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       expect(server.calls.filter((call) => call.path.endsWith('/snapshot'))).toHaveLength(11);
     });
     expect(peak).toBeLessThanOrEqual(2);
+
+    // Sau một lượt phục hồi thật: chỉ bản mới được nạp N18 (bản cũ bất biến, nằm sẵn trong bộ đệm), vẫn ≤ 2.
+    peak = 0;
+    act(() => {
+      result.current[1].requestRestore(many[2]?.id ?? '');
+      result.current[1].confirmRestore();
+    });
+    await waitFor(() => {
+      expect(result.current[0].rows[0]?.id).toBe(restoredId);
+      expect(server.calls.filter((call) => call.path.endsWith('/snapshot'))).toHaveLength(12);
+      expect(active).toBe(0);
+    });
+    expect(server.calls.filter((call) => call.path.endsWith('/restore'))).toHaveLength(1);
+    expect(server.calls.filter((call) => call.path.endsWith('/snapshot')).at(-1)?.path).toContain(restoredId);
+    expect(peak).toBeLessThanOrEqual(2);
   });
 
   it('tầng mặc định rỗng → empty, ô "Tầng" vẫn hiện', async () => {
@@ -690,10 +811,18 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(screen.getByRole('combobox')).toBeTruthy();
   });
 
-  it('N17 403 → forbidden; lỗi khác → error với câu cố định', async () => {
+  it('N18 chưa về → câu "đang nạp", không "Không có khác biệt"', async () => {
     const server = createVersionsServerFake();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
 
-    server.override('GET list', () => ({ error: wireError(403, 'FORBIDDEN'), ok: false }));
+    server.override('GET snapshot', async ({ path }) => {
+      await gate;
+
+      return { data: { dimensions: [], layer: wireLayer(WIRE_CURRENT_WALLS), versionId: path.split('/')[4] }, ok: true };
+    });
     await hydrateFrom(server);
 
     const api = createApiClient(server.http);
@@ -704,8 +833,71 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     );
 
     await waitFor(() => {
-      expect(result.current[0].state).toBe('forbidden');
+      expect(result.current[0].rows).toHaveLength(3);
     });
+    expect(result.current[0].state).toBe('partial');
+    expect(result.current[0].compare.teachingSentence).toBe(SNAPSHOT_LOADING_SENTENCE);
+
+    const [model, actions] = result.current;
+
+    renderWithProviders(<VersionHistory model={model} actions={actions} />);
+    expect(document.body.textContent).not.toContain('Không có khác biệt');
+    expect(document.body.textContent).toContain(SNAPSHOT_LOADING_SENTENCE);
+
+    await act(async () => {
+      release();
+      await gate;
+    });
+    await waitFor(() => {
+      expect(result.current[0].compare.teachingSentence).toBeNull();
+    });
+  });
+
+  it('nhiều bản mà chưa đủ hai bản còn nội dung → câu riêng, không "giống nhau"', async () => {
+    const server = createVersionsServerFake();
+
+    server.override('GET list', () => ({
+      data: { items: [wireSummaries()[0], { ...wireSummaries()[1], hasSnapshot: false }] },
+      ok: true,
+    }));
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].rows).toHaveLength(2);
+      expect(result.current[0].state).toBe('partial');
+      expect(result.current[0].compare.teachingSentence).not.toBe(SNAPSHOT_LOADING_SENTENCE);
+    });
+    expect(result.current[0].compare.teachingSentence).toBe(NOT_ENOUGH_CONTENT_SENTENCE);
+  });
+
+  it.each([
+    ['403 FORBIDDEN', wireError(403, 'FORBIDDEN'), 'forbidden', null],
+    ['404 resource:"project"', wireError(404, 'NOT_FOUND', { resource: 'project' }), 'forbidden', null],
+    ['500', wireError(500, 'INTERNAL'), 'error', VERSION_LIST_FAILED_REASON],
+  ] as const)('N17 %s → %s', async (_name, error, state, message) => {
+    const server = createVersionsServerFake();
+
+    server.override('GET list', () => ({ error, ok: false }));
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].state).toBe(state);
+    });
+    expect(result.current[0].errorMessage).toBe(message);
   });
 
   it('toast hoàn tác của nhãn gửi N20 với nhãn cũ', async () => {

@@ -264,9 +264,9 @@ function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionR
     relativeTimeLabel: formatTimestamp(new Date(version.createdAt), FAKE_CLOCK_START),
     absoluteTimeLabel: `${formatCalendarDate(new Date(version.createdAt))} ${formatClockTime(new Date(version.createdAt))}`,
     counts: isOldest ? EMPTY_DIFF_COUNTS : SAMPLE_DIFF_COUNTS,
-    // Không hàng nào "hiện tại": tự lưu đã đưa tầng đi tiếp sau bản mới nhất — trường hợp phổ
-    // biến nhất (HOP-DONG-MOI §5), và là trường hợp nút phục hồi hiện cho bản đang xem.
-    isCurrent: false,
+    // `v13` (bản không được xem) là hiện tại, để huy hiệu "Hiện tại" còn có story; `v14` — bản
+    // đang xem — không hiện tại, nên nút phục hồi vẫn hiện cho nó.
+    isCurrent: version.id === 'v13',
     tagLabel: version.id === 'v13' ? 'Duyệt với chủ đầu tư' : null,
     isMetadataOnly: entry.kind === 'metadataOnly',
     retentionNotice: entry.kind === 'metadataOnly' ? 'Đã lưu quá 90 ngày, chỉ còn thông tin cơ bản.' : null,

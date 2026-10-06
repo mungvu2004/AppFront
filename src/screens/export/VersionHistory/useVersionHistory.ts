@@ -50,7 +50,7 @@ import type {
   VersionSnapshotRead,
   VisualDiffModel,
 } from './types';
-import { COMPARE_TABS, defaultPairOf, orderPair, TEACHING_SENTENCE, togglePick, type VersionPair } from './versionHistoryCompare';
+import { COMPARE_TABS, compareSentenceOf, defaultPairOf, orderPair, togglePick, type VersionPair } from './versionHistoryCompare';
 import {
   readFullVersion,
   toConflictNotice,
@@ -65,6 +65,7 @@ import {
   buildVersionRows,
   countsOf,
   createConcurrencyLimit,
+  createPendingAnswer,
   EMPTY_DIFF_COUNTS,
   groupRowsByDay,
   isForbiddenRead,
@@ -126,19 +127,21 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const [isRecomputing, setIsRecomputing] = useState(false);
   /** `confirmRestore()` gọi ngay sau `requestRestore()` trong cùng nhịp vẫn thấy mục tiêu. */
   const dialogRef = useRef<RestoreDialog | null>(null);
-  const discardAnswer = useRef<((proceed: boolean) => void) | null>(null);
+  const [discardQuestion] = useState(createPendingAnswer);
 
   const openDialog = useCallback((next: RestoreDialog | null): void => {
     dialogRef.current = next;
     setDialog(next);
   }, []);
 
-  // Đổi tầng: bỏ cặp so, dải, hộp thoại của tầng cũ.
+  // Đổi tầng: bỏ cặp so, dải, hộp thoại của tầng cũ. Câu A9 đang chờ nhận "huỷ" để lượt ghi
+  // của tầng cũ kết thúc thay vì treo trên `await`.
   useEffect(() => {
     setPickedPair(null);
     setBanner(null);
+    discardQuestion.answer(false);
     openDialog(null);
-  }, [floorId, openDialog]);
+  }, [discardQuestion, floorId, openDialog]);
 
   /* ---- N17 ---------------------------------------------------------------- */
 
@@ -283,9 +286,14 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       jsonLines: diff === null ? [] : buildJsonLines(diff),
       visual,
       isRecomputing,
-      teachingSentence: history.length <= 1 ? TEACHING_SENTENCE : null,
+      teachingSentence: compareSentenceOf({
+        hasDiff: diff !== null,
+        isLoading: pairFetching || snapshotsInFlight,
+        versionCount: history.length,
+        fullCount: history.filter((entry) => entry.kind === 'full').length,
+      }),
     }),
-    [versionOptions, leftVersionId, rightVersionId, activeTab, diff, visual, isRecomputing, history.length],
+    [versionOptions, leftVersionId, rightVersionId, activeTab, diff, visual, isRecomputing, history, pairFetching, snapshotsInFlight],
   );
 
   /* ---- Ghi --------------------------------------------------------------- */
@@ -305,19 +313,18 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       return 'clean';
     }
 
-    const proceed = await new Promise<boolean>((resolve) => {
-      discardAnswer.current = resolve;
-      openDialog({ kind: 'discard' });
-    });
+    const question = discardQuestion.ask();
 
-    if (!proceed) {
+    openDialog({ kind: 'discard' });
+
+    if (!(await question)) {
       return 'cancelled';
     }
 
     discardFloor(floorId);
 
     return 'discarded';
-  }, [discardFloor, floorId, openDialog]);
+  }, [discardFloor, discardQuestion, floorId, openDialog]);
 
   /** Chuỗi nạp lại tầng: N16 → `replaceFloorLayer` (external) → vô hiệu `restoreVersion`. */
   const reloadFloor = useCallback(async (): Promise<void> => {
@@ -386,6 +393,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         if (outcome.unchanged === true) {
           void queryClient.invalidateQueries({ queryKey: versionsQueryKey(floorId) });
           onToast?.({ message: 'Phiên bản này trùng với hiện trạng' });
+          // Bản sửa vừa bỏ vẫn nằm trong kho (`discardFloor` chỉ xoá cờ bẩn) — trả kho về bản máy chủ.
+          if (flushed === 'discarded') await reloadFloor();
 
           return;
         }
@@ -469,7 +478,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         openDialog(null);
 
         if (current?.kind === 'discard') {
-          discardAnswer.current?.(true);
+          discardQuestion.answer(true);
         } else if (current?.kind === 'restore') {
           void runRestore(current.versionId);
         }
@@ -480,7 +489,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         openDialog(null);
 
         if (current?.kind === 'discard') {
-          discardAnswer.current?.(false);
+          discardQuestion.answer(false);
         }
       },
       exportVersion: (versionId) => onExportVersion?.(versionId),
@@ -509,6 +518,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       banner,
       canRestore,
       canTagVersion,
+      discardQuestion,
       fetchNextPage,
       flushFirst,
       hasNextPage,

@@ -33,6 +33,30 @@ export const COMPARE_TABS: readonly VersionHistoryOption[] = Object.freeze([
 export const TEACHING_SENTENCE =
   'Mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây';
 
+/** Trạng thái `partial` của [7]: N18 còn bay nên chưa có cặp nào để so. */
+export const SNAPSHOT_LOADING_SENTENCE = 'Đang nạp nội dung phiên bản…';
+
+/** Có nhiều bản nhưng chưa đủ hai bản còn nội dung — không phải "giống nhau". */
+export const NOT_ENOUGH_CONTENT_SENTENCE =
+  'Chưa có đủ hai phiên bản còn nội dung để so sánh — các bản còn lại chỉ còn siêu dữ liệu';
+
+/**
+ * Câu thay cho vùng so sánh, hoặc `null` khi so được. Thứ tự: đang nạp → chỉ một bản → chưa đủ
+ * hai bản đầy đủ. Không có câu này thì `diff === null` đọc thành "Không có khác biệt".
+ */
+export function compareSentenceOf(input: {
+  readonly hasDiff: boolean;
+  readonly isLoading: boolean;
+  readonly versionCount: number;
+  readonly fullCount: number;
+}): string | null {
+  if (!input.hasDiff && input.isLoading) return SNAPSHOT_LOADING_SENTENCE;
+  if (input.versionCount <= 1) return TEACHING_SENTENCE;
+  if (input.fullCount < 2) return NOT_ENOUGH_CONTENT_SENTENCE;
+
+  return null;
+}
+
 /** Lượt so lọt qua được khi chưa đủ hai bản thì phải nói ra, không im lặng trả rỗng. */
 export const NO_COMPARE_PAIR_REASON = 'Chưa chọn đủ hai phiên bản để so sánh';
 

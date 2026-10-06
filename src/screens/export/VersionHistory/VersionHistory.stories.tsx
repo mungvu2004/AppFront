@@ -23,6 +23,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { buildVersionHistoryProps } from './versionHistoryFixtures';
+import { toConflictNotice } from './versionHistoryGateway';
 import { VersionHistory } from './VersionHistory';
 
 const meta = {
@@ -62,8 +63,8 @@ export const ErrorState: Story = {
 
 /**
  * 5 · thành công — bốn phiên bản, một bản đã dọn theo chính sách lưu giữ (`isMetadataOnly`),
- * cặp so sánh v13→v14 với đủ ba tông màu (thêm/xoá/đổi), tab "trực quan" nói rõ đây là mô
- * hình HIỆN TẠI.
+ * cặp so sánh v13→v14 với đủ ba tông màu (thêm/xoá/đổi), v13 mang huy hiệu "Hiện tại", tab
+ * "trực quan" nói rõ đây là mô hình HIỆN TẠI.
  */
 export const Success: Story = {
   args: buildVersionHistoryProps('success'),
@@ -91,12 +92,7 @@ export const ViewerReadOnly: Story = {
 /** Dải "Tải lại": tầng vừa đổi ở nơi khác, lượt phục hồi chưa được ghi. */
 export const ReloadBanner: Story = {
   args: buildVersionHistoryProps('success', {
-    conflict: {
-      actorName: 'Trần Minh',
-      message: 'Tầng vừa đổi ở nơi khác: Trần Minh đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi. Tải lại để xem bản mới nhất.',
-      detail: null,
-      dismissLabel: 'Tải lại',
-    },
+    conflict: toConflictNotice('Trần Minh'),
   }),
 };
 
