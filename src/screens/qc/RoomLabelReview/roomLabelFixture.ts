@@ -41,8 +41,8 @@
  *   trạng thái cục bộ, phủ bằng {@link ROOM_LABEL_FIXTURE_ROOMS_UNNAMED}.
  * - Chín phòng còn lại đặt tên đúng kiểu câu, chữ thường (A6).
  *
- * `source`/`confidence`: năm phòng chưa có tên chuẩn (ba tên rỗng, hai tên
- * OCR viết hoa) mang `source: 'ai'` và `confidence < 1`; A5 — KHÔNG phòng nào
+ * `source`/`confidence`: năm phòng chưa có tên chuẩn (ba tên AI đề xuất chưa
+ * duyệt, hai tên OCR viết hoa) mang `source: 'ai'` và `confidence < 1`; A5 — KHÔNG phòng nào
  * trong số đó `reviewed: true`. Chín phòng còn lại đã được người duyệt xác
  * nhận: `source: 'human'`, `reviewed: true`, `confidence: 1`.
  *
