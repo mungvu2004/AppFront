@@ -43,7 +43,8 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback:
 }
 
 /**
- * Phân loại một thân đã lấy được, phân biệt ba ca: rỗng (204, chunk…) là đọc được với `null`;
+ * Phân loại một thân đã lấy được, phân biệt ba ca: rỗng mà không khai JSON (chunk…) là đọc được
+ * với `null` — 204 và các response không thân khác không tới đây, `hasNoBody` xử lý trước;
  * khai JSON mà rỗng hay JSON hỏng là KHÔNG đọc được (response bị huỷ giữa lúc điều hướng, chuỗi
  * thật lượt 9 bước 9); không khai JSON thì thân không phải JSON là đọc được với `null`.
  */
@@ -212,6 +213,8 @@ export function waitForApiWhere(
   return new Promise<ApiResult>((resolve, reject) => {
     let settled = false;
     const skipped: string[] = [];
+    /** Response khớp mà thân còn đang đọc dở — chỉ để câu hết trần chẩn đoán đủ. */
+    const reading = new Set<string>();
     const finish = (settle: () => void): void => {
       if (settled) return;
       settled = true;
@@ -224,20 +227,23 @@ export function waitForApiWhere(
         reject(
           new Error(
             `quá ${String(timeout)} ms chưa có ${what} mà đọc được thân` +
-              (skipped.length > 0 ? `; đã bỏ qua: ${skipped.join(' | ')}` : ''),
+              (skipped.length > 0 ? `; đã bỏ qua: ${skipped.join(' | ')}` : '') +
+              (reading.size > 0 ? `; thân còn đang đọc dở: ${[...reading].join(' | ')}` : ''),
           ),
         ),
       );
     }, timeout);
     const onResponse = (response: Response): void => {
       if (settled || !matches(response)) return;
+      const label = `${response.request().method()} ${new URL(response.url()).pathname} ${String(response.status())}`;
+
+      reading.add(label);
       void bodyOf(response).then((body) => {
+        reading.delete(label);
         if (body.read) {
           finish(() => resolve({ response, json: body.json }));
         } else {
-          const { pathname } = new URL(response.url());
-
-          skipped.push(`${response.request().method()} ${pathname} ${String(response.status())}: ${body.reason}`);
+          skipped.push(`${label}: ${body.reason}`);
         }
       });
     };
