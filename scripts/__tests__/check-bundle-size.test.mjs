@@ -385,6 +385,7 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
     ['bí danh biến của globalThis', 'var g=globalThis;g.Function("x")'],
     ['thuộc tính eval của đối tượng bất kỳ', 'obj.eval(y)'],
     ['Function.prototype.constructor', 'Function.prototype.constructor("x")()'],
+    ['Function.prototype["constructor"]', 'Function.prototype["constructor"]("x")()'],
     ['.constructor gọi với chuỗi', '(function(){}).constructor("x")()'],
     ['.constructor.constructor', 'a.constructor.constructor(s)()'],
     ['hàm tạo AsyncFunction', 'Object.getPrototypeOf(async function(){}).constructor'],

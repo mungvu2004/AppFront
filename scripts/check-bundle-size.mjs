@@ -115,6 +115,11 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
  * được (React có `new(n=e.nativeEvent).constructor(n.type,n)`). Lưới cho dạng
  * ấy là bài e2e "dưới CSP" (`e2e/pascal-viewer.spec.ts`) và chuỗi F-14 trên
  * nginx thật — chỉ cho những đường mã thật sự chạy trong các lượt ấy.
+ * Cùng lưới ấy: một dòng của template literal nhiều dòng bắt đầu bằng `/*` mà
+ * không đóng trước dấu `` ` ``, rồi một `*\/` thật trong 8 000 ký tự sau đó
+ * (`` var s=`\n/* glsl\n`;var F=Function;/* c *\/ ``) — chú thích giả ấy che
+ * token ở giữa. Không đóng được nếu không tách token. Đo 2026-10-06: trong
+ * 6 894 khối `/*…*\/` đứng đầu dòng của `dist/`, 0 khối bao một dòng mã.
  */
 const EVAL_PATTERN =
   /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(|\.constructor\s*\(\s*["'`]|\.constructor\s*\.\s*constructor\b|getPrototypeOf\(\s*(?:async\s+)?function\b/g;
@@ -172,7 +177,7 @@ function isHarmlessEvalToken(text, index, token) {
 
   return (
     /\binstanceof\s+$/.test(before) ||
-    /^\s*\.\s*prototype\b(?!\s*\.\s*constructor)/.test(after) ||
+    /^\s*\.\s*prototype\b(?!\s*(?:\.\s*constructor|\[))/.test(after) ||
     LINE_COMMENT.test(line) ||
     insideBlockComment(text, index) ||
     /^[ \t]+[A-Za-z'"]/.test(after)
