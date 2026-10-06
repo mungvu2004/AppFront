@@ -79,6 +79,10 @@ export interface PipelineFailureScreenContainerProps extends PipelineFailureCont
   readonly gateway?: PipelineFailureGateway;
   /** Ép dải thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** `Progress.error` của lượt hỏng — S-11 tra câu theo bảng mã pipeline. */
+  readonly failureCode?: string;
+  /** Tên tầng theo N7. */
+  readonly failureFloorName?: string;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `App.tsx:29-42` — R-62. */
@@ -115,6 +119,8 @@ function WiredPipelineFailure(props: PipelineFailureScreenContainerProps) {
     ...(props.onDismiss !== undefined ? { onDismiss: props.onDismiss } : {}),
     ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
+    ...(props.failureCode !== undefined ? { failureCode: props.failureCode } : {}),
+    ...(props.failureFloorName !== undefined ? { failureFloorName: props.failureFloorName } : {}),
   });
 
   return <PipelineFailure {...screenProps} />;

@@ -49,11 +49,11 @@
  *
  * ## Một tầng lỗi không dừng các tầng khác
  *
- * Mỗi tầng là MỘT đăng ký độc lập (`gateway.subscribeProgress` cho đúng
- * `uploadId` của tầng đó) ghi vào MỘT khoá đệm riêng. Không có chỗ nào gộp
- * chúng thành một lời hứa chung, nên một tầng hỏng chỉ làm hỏng bản ghi của
- * chính nó; `state` của cả màn thành `partial`, `partialNoticeLine` nói rõ xử lý
- * vẫn tiếp tục, và các tầng còn lại chạy tiếp.
+ * Mỗi tầng là MỘT đăng ký độc lập ghi vào MỘT khoá đệm riêng: tầng đang xem
+ * nghe SSE (`gateway.subscribeProgress`), tầng khác hỏi #8 (`gateway.pollProgress`)
+ * — BE trần 6 luồng/người, nên mỗi màn đúng một `EventSource`. Tầng đã ở trạng
+ * thái cuối không đăng ký gì. Một tầng hỏng chỉ làm hỏng bản ghi của chính nó;
+ * `state` của cả màn thành `partial`, và S-11 chỉ gắn khi MỌI tầng đã cuối.
  *
  * ## Chạy nền — cái nút "Để chạy nền và thông báo cho tôi" thật sự làm gì
  *
@@ -87,7 +87,6 @@ import type { Progress } from '@/api/schemas';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
-import { APP_ERROR_KIND_CONFIG } from '@/lib/errors';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
@@ -110,6 +109,7 @@ import type { ProgressStreamSource } from '@/lib/realtime/progressStream';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
+import { describePipelineError } from '../pipelineErrorText';
 import { createAppProcessingGateway, toStageBreakdown } from './processingGateway';
 import type {
   ProcessingExtractionSummary,
@@ -117,6 +117,7 @@ import type {
   ProcessingGateway,
   ProcessingRawLogLine,
   ProcessingRawStepProgress,
+  SubscribeProgressHandlers,
 } from './processingGateway';
 import type {
   ProcessingErrorAlertViewModel,
@@ -140,7 +141,6 @@ const COPY = {
   statusRunning: 'Đang xử lý',
   statusDone: 'đã xong',
   statusFailed: 'lỗi',
-  stepErrorFallback: 'Bước này gặp lỗi nên không hoàn tất được.',
   previewAltPrefix: 'Bản vẽ đang được xử lý — ',
   previewAltEmpty: 'Chưa có bản vẽ nào để xem trước.',
   noFloorRunning: 'Chưa có tầng nào đang được xử lý.',
@@ -197,9 +197,6 @@ const noLowConfidenceSentence = (threshold: string): string =>
 /** Nhãn tiếng Việt của sáu bước, đọc một lần từ `src/i18n/vi.json` khoá `pipeline`. */
 const STAGE_LABEL_BY_ID = new Map(getPipelineStages().map((stage) => [stage.id, stage.label]));
 
-/** Mã máy đọc của lỗi xử lý — lấy từ bảng của L-03, không gõ tay (A6 cho phép chữ hoa ở mã lỗi). */
-const PROCESSING_ERROR_CODE = APP_ERROR_KIND_CONFIG.processing.code;
-
 /** `< 1024px` — cùng mốc `InputQualityGate`, `FloorUploadScreen` và `ProjectSettings`. */
 const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
 
@@ -232,6 +229,22 @@ function outcomeOf(status: Progress['status'] | undefined): BackgroundWatchOutco
 
   return undefined;
 }
+
+const isFinalStatus = (status: Progress['status'] | undefined): boolean =>
+  status === 'completed' || status === 'failed';
+
+/** Lượt bị thay (`PIPELINE_SUPERSEDED`, `FLOOR_DELETED`): đọc lại N7, không tính là hỏng. */
+const isReloadProgress = (progress: Partial<Progress> | undefined): boolean =>
+  progress?.status === 'failed' && describePipelineError(progress.error).action === 'reload';
+
+/** Chạy `run` đúng một lần cho mỗi khoá. */
+const once = (seen: Set<string>, key: string, run: () => void): void => {
+  if (seen.has(key)) return;
+  seen.add(key);
+  run();
+};
+
+type SubscriptionMode = 'sse' | 'poll' | 'none';
 
 /** Câu báo một lượt chạy nền đã kết thúc. Mức độ nằm trong CÂU, không trong màu (A5). */
 function settledNotice(watchId: string, label: string, outcome: BackgroundWatchOutcome): NotificationInput {
@@ -406,6 +419,10 @@ function applySnapshot(
 
 /** Trạng thái chung của một tầng, suy từ sáu bước của nó. */
 function floorStatusOf(record: FloorProgressRecord): ProcessingStageStatus {
+  if (isReloadProgress(record.progress)) {
+    return 'queued';
+  }
+
   if (record.failure !== undefined || record.stages.some((stage) => stage.status === 'failed')) {
     return 'failed';
   }
@@ -494,6 +511,10 @@ function useResolvedGateway(injected: ProcessingGateway | undefined): Processing
 export interface ProcessingScreenFailedStep {
   readonly floorId: string;
   readonly stepId: string;
+  /** `Progress.error` của lượt hỏng — mã máy chủ, S-11 tra câu theo bảng. */
+  readonly failureCode?: string;
+  /** Tên tầng theo N7. */
+  readonly failureFloorName: string;
   /** "Thử lại xong" ở màn S-11 — nạp lại tiến độ, cùng hành động với nút Thử lại. */
   readonly onResolved: () => void;
 }
@@ -503,7 +524,7 @@ export interface ProcessingScreenFailedStep {
  * của `types.ts` — xem ghi chú "Gắn `PipelineFailure`" ở đầu file.
  */
 export interface ProcessingScreenHookResult extends ProcessingScreenProps {
-  /** Có mặt khi một tầng có bước `'failed'`. `undefined` thì không tầng nào hỏng bước. */
+  /** Có mặt khi một tầng có bước `'failed'` VÀ mọi tầng đã cuối; không thì màn giữ `partial`. */
   readonly failedPipelineStep?: ProcessingScreenFailedStep;
 }
 
@@ -516,10 +537,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const gateway = useResolvedGateway(options.gateway);
   const { publish } = useNotifications(options.notifications);
 
-  // Hàm huỷ đăng ký của TỪNG dòng sự kiện đang mở, khoá theo `uploadId`. Đây là
-  // thứ duy nhất `onRunInBackground` cần mà không lấy được từ chỗ nào khác: nó
-  // sinh ra trong `useEffect` dưới, và phải trao được sang sổ theo dõi nền.
-  const stopsRef = useRef<ReadonlyMap<string, () => void>>(new Map());
+  // Đăng ký đang mở, khoá theo `uploadId`. `onRunInBackground` rút mục ra khỏi
+  // đây khi giao cho sổ nền; tháo màn dừng mọi mục còn lại.
+  const subscriptionsRef = useRef(new Map<string, { mode: SubscriptionMode; stop: () => void }>());
+  const mountedRef = useRef(false);
+  const reloadedRef = useRef(new Set<string>());
+  const layerInvalidatedRef = useRef(new Set<string>());
+  const seenUploadRef = useRef(new Map<string, string>());
 
   // Nơi mở màn truyền danh sách thì dùng nó (test, story); không truyền — đường
   // của route — thì đọc N7. Trước đây vắng là rỗng, nên màn luôn `empty` dù dự án
@@ -566,12 +590,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     queries: floorUploads.map((upload) => ({
       queryKey: queryKeys.progress.byFloor(upload.floorId),
       queryFn: async (): Promise<FloorProgressRecord> => {
-        // Nền là bản ghi ĐANG có trong đệm, không phải bản rỗng: lượt đọc mồi
-        // của một lần quay lại màn không được xoá tiến độ đã tích được.
         const cached = queryClient.getQueryData<FloorProgressRecord>(
           queryKeys.progress.byFloor(upload.floorId),
         );
-        const base = cached ?? emptyRecord(upload);
 
         const [progress, queuePosition, stepDetails, geometry, extraction] = await Promise.all([
           gateway.readProgressOnce({ projectId, uploadId: upload.uploadId }),
@@ -584,6 +605,15 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         if (!progress.ok) {
           throw progress.error;
         }
+
+        // Nền là bản ghi ĐANG có trong đệm — quay lại màn không xoá tiến độ đã
+        // tích — trừ khi nó thuộc lượt khác: `uploadId` khác, hoặc bản đệm đã
+        // cuối mà #8 báo lượt mới (#31/#32 chạy lại trên cùng upload).
+        const isSameRun =
+          cached !== undefined &&
+          cached.uploadId === upload.uploadId &&
+          !(isFinalStatus(cached.progress?.status) && !isFinalStatus(progress.data.status));
+        const base = isSameRun ? cached : emptyRecord(upload);
 
         const withProgress = applySnapshot(
           base,
@@ -603,90 +633,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       },
     })),
   });
-
-  /* ---------------------------------------------------------------------- */
-  /* Dòng sự kiện — MỘT đăng ký độc lập cho mỗi tầng.                         */
-  /* ---------------------------------------------------------------------- */
-
-  useEffect(() => {
-    const uploads = uploadsRef.current;
-
-    const write = (
-      upload: ProcessingFloorUpload,
-      change: (record: FloorProgressRecord) => FloorProgressRecord,
-    ): void => {
-      queryClient.setQueryData<FloorProgressRecord>(
-        queryKeys.progress.byFloor(upload.floorId),
-        (existing) => change(existing ?? emptyRecord(upload)),
-      );
-    };
-
-    const stops = uploads.map((upload) =>
-      gateway.subscribeProgress(
-        { floorId: upload.floorId, projectId, uploadId: upload.uploadId },
-        {
-          onSnapshot: (snapshot) => {
-            write(upload, (record) =>
-              applySnapshot(
-                record,
-                snapshot.progress,
-                snapshot.observedAtMs,
-                snapshot.source,
-                snapshot.eventId,
-              ),
-            );
-
-            // Nhịp cuối. `settle` tự trả `false` cho một lượt KHÔNG chạy nền,
-            // nên đây không phải một nhánh điều kiện thứ hai của màn: lượt bình
-            // thường đi qua đây và không có gì xảy ra.
-            const outcome = outcomeOf(snapshot.progress.status);
-
-            if (outcome !== undefined) {
-              gateway.backgroundWatches.settle(
-                watchIdOf(projectId, upload.uploadId),
-                outcome,
-              );
-            }
-          },
-          onConnectionChange: (state) => {
-            write(upload, (record) => ({
-              ...record,
-              connectionStatus: state.status,
-              source: state.source,
-            }));
-          },
-          onFailure: (failure) => {
-            write(upload, (record) => ({ ...record, failure }));
-          },
-        },
-      ),
-    );
-
-    stopsRef.current = new Map(
-      uploads.flatMap((upload, index) => {
-        const stop = stops[index];
-        return stop === undefined ? [] : [[upload.uploadId, stop] as const];
-      }),
-    );
-
-    return () => {
-      stops.forEach((stop, index) => {
-        const upload = uploads[index];
-
-        // Lượt đã đăng ký chạy nền: sổ đang GIỮ chính hàm `stop` này và sẽ gọi
-        // nó lúc lượt kết thúc. Rời màn không đóng dòng sự kiện — đó là toàn bộ
-        // nội dung của lời hứa "chạy nền".
-        if (
-          upload !== undefined &&
-          gateway.backgroundWatches.has(watchIdOf(projectId, upload.uploadId))
-        ) {
-          return;
-        }
-
-        stop();
-      });
-    };
-  }, [floorsKey, gateway, projectId, queryClient]);
 
   /* ---------------------------------------------------------------------- */
   /* O-01, nửa đầu: ai.started một lần cho mỗi lượt xử lý.                    */
@@ -720,9 +666,12 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
 
   // Không bọc `useMemo`: `floorQueries` là một mảng mới mỗi lượt render nên một
   // bộ nhớ đệm khoá theo nó không bao giờ trúng, và phép `map` này rẻ.
-  const records = floorUploads.map(
-    (upload, index) => floorQueries[index]?.data ?? emptyRecord(upload),
-  );
+  const records = floorUploads.map((upload, index) => {
+    const data = floorQueries[index]?.data;
+    return data?.uploadId === upload.uploadId ? data : emptyRecord(upload);
+  });
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
 
   // `enabled: false` vẫn là `isPending` trong TanStack v5 — chỉ tính khi đang đọc thật.
   const isListLoading = readsLatestUploads && latestUploadsQuery.isPending;
@@ -840,14 +789,22 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const onRunInBackground = useCallback(() => {
     const uploads = uploadsRef.current;
 
-    const watches = uploads.flatMap((upload): readonly BackgroundWatchEntry[] => {
-      const release = stopsRef.current.get(upload.uploadId);
+    const watches = uploads.flatMap((upload, index): readonly BackgroundWatchEntry[] => {
+      const id = watchIdOf(projectId, upload.uploadId);
+      const subscription = subscriptionsRef.current.get(upload.uploadId);
 
-      if (release === undefined) {
+      // Đã trong sổ (bấm lần hai), tầng còn `pending`, hoặc không có đăng ký nào.
+      if (
+        gateway.backgroundWatches.has(id) ||
+        recordsRef.current[index]?.progress?.status === 'pending' ||
+        subscription === undefined
+      ) {
         return [];
       }
 
-      const id = watchIdOf(projectId, upload.uploadId);
+      // Giao hẳn cho sổ: tháo màn không còn dừng nó.
+      subscriptionsRef.current.delete(upload.uploadId);
+      const release = subscription.stop;
 
       return [
         {
@@ -924,6 +881,166 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const focusIndex = activeIndex >= 0 ? activeIndex : 0;
   const focusRecord = records[focusIndex];
 
+  /* ---------------------------------------------------------------------- */
+  /* Đăng ký — tầng đang xem nghe SSE, tầng khác hỏi #8, tầng cuối thì không. */
+  /* ---------------------------------------------------------------------- */
+
+  const desiredModes = floorUploads.map((upload, index): SubscriptionMode => {
+    const query = floorQueries[index];
+    const record = records[index];
+
+    if (query?.isError === true) return 'poll';
+    // Chưa có #8 mồi: chưa biết tầng đã cuối hay chưa.
+    if (query?.data === undefined || record === undefined) return 'none';
+    if (isFinalStatus(record.progress?.status) || record.failure?.isTerminal === true) return 'none';
+    return index === focusIndex ? 'sse' : 'poll';
+  });
+  const modesKey = floorUploads
+    .map((upload, index) => `${upload.uploadId}:${desiredModes[index] ?? 'none'}`)
+    .join('|');
+  const desiredModesRef = useRef(desiredModes);
+  desiredModesRef.current = desiredModes;
+
+  const handlersFor = useCallback(
+    (upload: ProcessingFloorUpload): SubscribeProgressHandlers => {
+      const write = (change: (record: FloorProgressRecord) => FloorProgressRecord): void => {
+        queryClient.setQueryData<FloorProgressRecord>(
+          queryKeys.progress.byFloor(upload.floorId),
+          (existing) =>
+            change(existing?.uploadId === upload.uploadId ? existing : emptyRecord(upload)),
+        );
+      };
+      const watchId = watchIdOf(projectId, upload.uploadId);
+
+      return {
+        onSnapshot: (snapshot) => {
+          write((record) =>
+            applySnapshot(record, snapshot.progress, snapshot.observedAtMs, snapshot.source, snapshot.eventId),
+          );
+
+          // Lượt bị thay: nhả khỏi sổ nền, không báo "gặp lỗi".
+          if (isReloadProgress(snapshot.progress)) {
+            gateway.backgroundWatches.release(watchId);
+            return;
+          }
+
+          // Màn đã tháo (lượt trong sổ nền): chỉ lớp của tầng này cần đọc lại (R14).
+          if (snapshot.progress.status === 'completed' && !mountedRef.current) {
+            once(layerInvalidatedRef.current, upload.uploadId, () => {
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.layer.byFloor(projectId, upload.floorId),
+              });
+            });
+          }
+
+          // `settle` tự trả `false` cho một lượt KHÔNG chạy nền.
+          const outcome = outcomeOf(snapshot.progress.status);
+
+          if (outcome !== undefined) {
+            gateway.backgroundWatches.settle(watchId, outcome);
+          }
+        },
+        onConnectionChange: (state) => {
+          write((record) => ({ ...record, connectionStatus: state.status, source: state.source }));
+        },
+        onFailure: (failure) => {
+          write((record) => ({ ...record, failure }));
+        },
+      };
+    },
+    [gateway, projectId, queryClient],
+  );
+
+  // Tháo màn (hoặc đổi cổng/dự án): dừng mọi đăng ký còn trong `Map`. Mục đã
+  // giao sổ nền không còn ở đây — sổ giữ chúng tới `settle`/`release`.
+  useEffect(() => {
+    const subscriptions = subscriptionsRef.current;
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      subscriptions.forEach((subscription) => subscription.stop());
+      subscriptions.clear();
+    };
+  }, [gateway, projectId]);
+
+  // Đối chiếu: chỉ đổi upload có chế độ khác. Upload đang trong sổ nền thì
+  // không dừng, không mở, không đổi chế độ.
+  useEffect(() => {
+    const subscriptions = subscriptionsRef.current;
+    const wanted = new Map(
+      uploadsRef.current.map((upload, index) => [
+        upload.uploadId,
+        { upload, mode: desiredModesRef.current[index] ?? 'none', record: recordsRef.current[index] },
+      ]),
+    );
+
+    subscriptions.forEach((subscription, uploadId) => {
+      if (wanted.get(uploadId)?.mode !== subscription.mode) {
+        subscription.stop();
+        subscriptions.delete(uploadId);
+      }
+    });
+
+    wanted.forEach(({ upload, mode, record }) => {
+      if (
+        mode === 'none' ||
+        subscriptions.has(upload.uploadId) ||
+        gateway.backgroundWatches.has(watchIdOf(projectId, upload.uploadId))
+      ) {
+        return;
+      }
+
+      const input = { floorId: upload.floorId, projectId, uploadId: upload.uploadId };
+      const status = record?.progress?.status;
+      const stop =
+        mode === 'sse'
+          ? gateway.subscribeProgress(input, handlersFor(upload))
+          : gateway.pollProgress({ ...input, ...(status !== undefined ? { status } : {}) }, handlersFor(upload));
+
+      subscriptions.set(upload.uploadId, { mode, stop });
+    });
+  }, [gateway, handlersFor, modesKey, projectId]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Vô hiệu: N7 khi lượt bị thay / upload mất; lớp khi tầng xong / bản vẽ mới. */
+  /* ---------------------------------------------------------------------- */
+
+  const invalidationKey = records
+    .map((record) => `${record.uploadId}:${record.progress?.status ?? ''}:${record.progress?.error ?? ''}:${record.failure?.isTerminal === true ? 'gone' : ''}`)
+    .join('|');
+
+  useEffect(() => {
+    const invalidateLayers = (upload: ProcessingFloorUpload): void => {
+      once(layerInvalidatedRef.current, upload.uploadId, () => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.layer.byFloor(projectId, upload.floorId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.layer.graph(projectId) });
+      });
+    };
+
+    uploadsRef.current.forEach((upload, index) => {
+      const record = recordsRef.current[index];
+      const previousUploadId = seenUploadRef.current.get(upload.floorId);
+      seenUploadRef.current.set(upload.floorId, upload.uploadId);
+
+      if (previousUploadId !== undefined && previousUploadId !== upload.uploadId) {
+        invalidateLayers(upload);
+      }
+
+      if (record === undefined || record.uploadId !== upload.uploadId) return;
+
+      if (isReloadProgress(record.progress) || record.failure?.isTerminal === true) {
+        once(reloadedRef.current, upload.uploadId, () => {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.progress.latestUploads(projectId) });
+        });
+      }
+
+      if (record.progress?.status === 'completed') {
+        invalidateLayers(upload);
+      }
+    });
+  }, [floorsKey, invalidationKey, projectId, queryClient]);
+
   const steps = useMemo<readonly ProcessingStepViewModel[]>(() => {
     if (focusRecord === undefined) {
       return [];
@@ -933,6 +1050,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       (focusRecord.stepDetails ?? []).map((detail) => [detail.stepId, detail]),
     );
     const remainingLabel = durationLabelOf(focusRecord.remainingSeconds);
+    const stepError = describePipelineError(focusRecord.progress?.error);
 
     return focusRecord.stages.map((stage) => {
       const detail = detailById.get(stage.id);
@@ -947,7 +1065,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         isDetailOpen: openStepIds.includes(`${stage.id}.${child.stepId}`),
         onToggleDetail: () => onToggleDetail(`${stage.id}.${child.stepId}`),
         ...(child.errorCode !== undefined
-          ? { errorCode: child.errorCode, errorMessage: COPY.stepErrorFallback }
+          ? {
+              errorCode: child.errorCode,
+              errorMessage: describePipelineError(child.errorCode).sentence,
+            }
           : {}),
       }));
 
@@ -965,8 +1086,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           : {}),
         ...(stage.status === 'failed'
           ? {
-              errorCode: detail?.errorCode ?? PROCESSING_ERROR_CODE,
-              errorMessage: focusRecord.progress?.error ?? COPY.stepErrorFallback,
+              errorCode: detail?.errorCode ?? stepError.code,
+              errorMessage: stepError.sentence,
             }
           : {}),
         ...(children !== undefined ? { children } : {}),
@@ -1104,17 +1225,26 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   // `failedIndexes` ở trên), và một vòng `find` lồng `find` trên tối đa vài chục
   // phần tử là rẻ. Bản ghi ĐẦU TIÊN có một bước `'failed'` — không phải bản ghi
   // có `record.failure` (đó là lỗi đọc, đi ra qua `errorAlert` như cũ).
-  const failedStage = records
-    .map((record) => ({
-      floorId: record.floorId,
-      stage: record.stages.find((s) => s.status === 'failed'),
-    }))
-    .find((entry): entry is { floorId: string; stage: PipelineStageState } => entry.stage !== undefined);
+  // Lượt bị thay (`reload`) không phải bước hỏng. S-11 chỉ gắn khi MỌI tầng đã
+  // cuối; còn tầng chạy thì giữ `partial` và bước hỏng hiện ở `steps[]`.
+  const isEveryFloorFinal = floorStatuses.every((status) => status === 'done' || status === 'failed');
+  const failedIndex = records.findIndex(
+    (record) => !isReloadProgress(record.progress) && record.stages.some((s) => s.status === 'failed'),
+  );
+  const failedRecord = records[failedIndex];
+  const failedStage = failedRecord?.stages.find((s) => s.status === 'failed');
+  const failureCode = failedRecord?.progress?.error;
 
   const failedPipelineStep: ProcessingScreenFailedStep | undefined =
-    failedStage === undefined
+    !isEveryFloorFinal || failedRecord === undefined || failedStage === undefined
       ? undefined
-      : { floorId: failedStage.floorId, stepId: failedStage.stage.id, onResolved: onRetry };
+      : {
+          floorId: failedRecord.floorId,
+          stepId: failedStage.id,
+          ...(failureCode !== undefined ? { failureCode } : {}),
+          failureFloorName: floorUploads[failedIndex]?.floorName ?? failedRecord.floorId,
+          onResolved: onRetry,
+        };
 
   return {
     state,

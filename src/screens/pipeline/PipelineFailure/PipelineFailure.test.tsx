@@ -599,6 +599,41 @@ describe('PipelineFailure — không hộp thoại, không nền đỏ [NGHIEM-5
 /* [NGHIEM-7] R-73 — màn cha mở được bằng một thẻ, ba lối ra chạy thật.         */
 /* -------------------------------------------------------------------------- */
 
+describe('PipelineFailureContainer — mã máy chủ (F-05b)', () => {
+  const renderWithCode = (failureCode: string): void => {
+    renderWithProviders(
+      <PipelineFailureContainer
+        failureCode={failureCode}
+        failureFloorName="Tầng 3"
+        floorId={FLOOR_ID}
+        gateway={createMockPipelineFailureGateway({ supports: { stepFailureDetail: false } })}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+        stepId={FAILED_STEP_ID}
+      />,
+    );
+  };
+
+  it('contactAdmin: dải S-11 không có nút chính', async () => {
+    renderWithCode('INTERNAL');
+    const alert = await screen.findByText(summarySentence(FAILED_STEP_LABEL, 'Tầng 3'));
+    const band = alert.closest('[role="alert"]');
+
+    expect(band).not.toBeNull();
+    expect(band?.querySelector('button')).toBeNull();
+    expect(screen.getByText('INTERNAL')).toBeInTheDocument();
+  });
+
+  it('reupload: nút chính là tải lên', async () => {
+    renderWithCode('FILE_CORRUPT');
+    const alert = await screen.findByText(summarySentence(FAILED_STEP_LABEL, 'Tầng 3'));
+    const band = alert.closest('[role="alert"]');
+
+    expect(band?.querySelectorAll('button')).toHaveLength(1);
+    expect(band?.querySelector('button')?.textContent).toContain(PIPELINE_FAILURE_TEXT.uploadClearerLabel);
+  });
+});
+
 describe('PipelineFailureContainer — R-73 [NGHIEM-7]', () => {
   it('một thẻ là đủ: không provider riêng, không route, và màn không trắng', async () => {
     const container = await mountScreen(createMockPipelineFailureGateway());

@@ -25,6 +25,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import { describePipelineError } from '../pipelineErrorText';
+
 import { PipelineFailure } from './PipelineFailure';
 import type {
   PipelineFailureBand,
@@ -32,6 +34,7 @@ import type {
   PipelineFailureFloorStatus,
   PipelineFailureFloorViewModel,
   PipelineFailureKeptWork,
+  PipelineFailureNextStep,
   PipelineFailureNextSteps,
   PipelineFailureProps,
   PipelineFailureReasonViewModel,
@@ -378,3 +381,36 @@ export const ThanhCong: Story = { args: scenarioFor('success') };
 export const KhongCoQuyen: Story = { args: scenarioFor('forbidden') };
 /** Thu gọn — còn đúng câu tóm tắt và nút mở lại. */
 export const ThuGon: Story = { args: scenarioFor('collapsed') };
+
+/**
+ * Lượt hỏng mang mã máy chủ (`Progress.error`) mà chưa có chi tiết bước: câu theo
+ * bảng mã pipeline, mã thật để sao chép; `contactAdmin` và mã lạ không có bước chính.
+ */
+function withServerCode(code: string): PipelineFailureProps {
+  const props = scenarioFor('partial');
+  const { action, sentence } = describePipelineError(code);
+
+  if (props.band.kind !== 'alert' || props.band.nextSteps === null) {
+    return props;
+  }
+
+  const mark = (step: PipelineFailureNextStep): PipelineFailureNextStep => ({
+    ...step,
+    isPrimary: step.id === 'upload-clearer' && (action === 'reupload' || action === 'retry'),
+  });
+  const [first, second, ...rest] = props.band.nextSteps;
+
+  return {
+    ...props,
+    band: {
+      ...props.band,
+      reason: { ...props.band.reason, causeSentence: sentence, codeLabel: code },
+      nextSteps: [mark(first), mark(second), ...rest.map(mark)],
+    },
+  };
+}
+
+/** Mã từ máy chủ — `FILE_CORRUPT`: tải lên là bước chính. */
+export const MaTuMayChu: Story = { args: withServerCode('FILE_CORRUPT') };
+/** Mã lạ — câu dự phòng, mã giữ nguyên, không bước chính. */
+export const MaLa: Story = { args: withServerCode('OCR_FAILED') };

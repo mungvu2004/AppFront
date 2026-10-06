@@ -1246,6 +1246,7 @@ export const createMockApiClient = (): ApiClient => {
   const latestUploadByFloor = new Map<string, string>(
     floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
   );
+  let uploadSequence = 0;
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
@@ -1345,8 +1346,11 @@ export const createMockApiClient = (): ApiClient => {
         return ok(completed);
       },
       initUpload: async ({ body }) => {
-        const progress = makeProgress({ id: `${body.projectId}-${body.floorId}`, step: 'Initialize upload' });
-        uploads.set(uploadKey(body.projectId, body.floorId), progress);
+        // `upl_<ULID>` như máy chủ thật, để N7 của mock vẫn qua `LatestFloorUploadSchema`.
+        uploadSequence += 1;
+        const uploadId = `upl_01J8Z3K4Q5R6S7T8V9W${String(uploadSequence).padStart(7, '0')}`;
+        const progress = makeProgress({ id: uploadId, step: 'Initialize upload' });
+        uploads.set(uploadKey(body.projectId, uploadId), progress);
         latestUploadByFloor.set(body.floorId, progress.id);
         return ok(progress);
       },
