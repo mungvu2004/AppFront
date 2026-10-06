@@ -1,7 +1,7 @@
 import { cn } from '../../lib/utils';
 
 export const buttonBaseStyles =
-  'group relative inline-flex items-center justify-center rounded-lg font-medium outline-none transition-all duration-120 active:scale-[0.985] motion-reduce:transition-colors motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring';
+  'group relative inline-flex items-center justify-center rounded-lg font-medium outline-none transition-all duration-120 active:scale-[0.985] motion-reduce:transition-colors motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring aria-disabled:opacity-40 aria-disabled:cursor-not-allowed';
 
 export const buttonVariants = {
   primary: 'bg-accent text-bg-surface border-transparent hover:bg-accent-hover active:bg-accent-active',
