@@ -31,6 +31,23 @@ const suspended = (node: React.ReactNode) => (
   <React.Suspense fallback={<PendingShell label="Đang tải màn hình" />}>{node}</React.Suspense>
 );
 
+/**
+ * Như {@link suspended}, cho route NGOÀI nhóm `ScreenMain` (FIX-381): không có
+ * `main` bọc ngoài, nên lúc chờ chunk vỏ chờ phải tự mang `main`. Route trong
+ * nhóm dùng `suspended` — bọc ở đó là hai `main`.
+ */
+const suspendedOutsideMain = (node: React.ReactNode) => (
+  <React.Suspense
+    fallback={
+      <ScreenMain>
+        <PendingShell label="Đang tải màn hình" />
+      </ScreenMain>
+    }
+  >
+    {node}
+  </React.Suspense>
+);
+
 // Lazy load screen routes
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
 const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
@@ -128,7 +145,7 @@ const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes(
 function buildStateGalleryDevOnlyRoutes(): RouteObject[] {
   const RouteStateGallery = lazy(() => import('../screens/system/StateGallery/index').then(m => ({ default: m.StateGalleryRoute })));
 
-  return [{ path: ROUTE_PATTERNS.designSystemStates, element: suspended(<RouteStateGallery />) }];
+  return [{ path: ROUTE_PATTERNS.designSystemStates, element: suspendedOutsideMain(<RouteStateGallery />) }];
 }
 
 const STATE_GALLERY_DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV
@@ -322,15 +339,15 @@ export const routes: RouteObject[] = [
     ),
     children: [
       ...DEV_ONLY_ROUTES,
-      { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
-      { path: ROUTE_PATTERNS.invitationAccept, element: suspended(<RouteInvitationAccept />) },
-      { path: ROUTE_PATTERNS.passwordReset, element: suspended(<RoutePasswordReset />) },
-      { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },
-      { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
-      { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
-      { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
+      { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<RouteAuth />) },
+      { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
+      { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
+      { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
+      { path: ROUTE_PATTERNS.projectViewer, element: suspendedOutsideMain(<RouteViewer3D />) },
+      { path: ROUTE_PATTERNS.projectExploded, element: suspendedOutsideMain(<RouteExplodedView />) },
+      { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
-      { path: ROUTE_PATTERNS.mobileViewer, element: suspended(<RouteMobileViewer />) },
+      { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },
       ...STATE_GALLERY_DEV_ONLY_ROUTES,
       /* Nhóm màn không tự có `<main>`: một landmark chung ở đây thay vì ba mươi chỗ
          (FIX-381). Màn đã có `<main>` riêng đứng NGOÀI nhóm để không lồng `<main>`. */

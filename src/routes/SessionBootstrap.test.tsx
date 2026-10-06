@@ -227,6 +227,7 @@ describe('SessionGate — năm nhánh', () => {
 
     expectTabbable(button);
 
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
     expectAccessible(container);
   });
@@ -239,8 +240,24 @@ describe('SessionGate — năm nhánh', () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
     expectAccessible(container);
+  });
+
+  it('mất kết nối giữa chừng: dải đứng trên màn con, vẫn đúng một main (của màn con)', () => {
+    const { container } = renderGate({
+      children: (
+        <main>
+          <ProbeScreen />
+        </main>
+      ),
+      serverUnreachable: true,
+      status: 'authenticated',
+    });
+
+    expect(screen.getByTestId('man-con')).toBeInTheDocument();
+    expect(container.querySelectorAll('main')).toHaveLength(1);
   });
 
   it('chờ bằng khung chờ có aria-busy, và KHÔNG mount màn con', () => {
@@ -252,6 +269,7 @@ describe('SessionGate — năm nhánh', () => {
     );
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
   });
 
