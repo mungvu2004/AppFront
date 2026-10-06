@@ -63,7 +63,7 @@
 
 import type { ApiClient, SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
-import type { Dimension } from '@/domain/spatial/types';
+import type { Dimension, Level } from '@/domain/spatial/types';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
@@ -416,6 +416,9 @@ export interface FloorLayerRead {
   readonly layer: SpatialLayer;
   /** Kích thước của tầng — nằm ngoài `layer` trên dây, nên phải mang theo riêng (NO-369). */
   readonly dimensions: readonly Dimension[];
+  /** `Level` của tầng (tỉ lệ đi cùng lớp đã quy đổi) và cờ tỉ lệ tạm — như `reloadFloor` của autosave. */
+  readonly level: Level;
+  readonly scaleStatus?: 'unresolved';
   readonly revision: number;
 }
 
