@@ -1278,6 +1278,31 @@ describe('useFloorUploadScreen — trang PDF', () => {
     expect(bodyOf(createUpload.mock.calls[0]).pageIndex).toBe(1);
   });
 
+  it('PDF nhiều trang chưa chọn trang: mạng về cũng chưa tải; chọn trang rồi mới tải (R2-6)', async () => {
+    const { createUpload, result, setOnline } = await setup({ validateFile: pdfValidation(3) }, false);
+
+    act(() => {
+      result.current.onFilesDropped([pdfFile('mat-bang-tang-2.pdf')]);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[2]?.file).not.toBeNull();
+    });
+
+    await act(async () => {
+      setOnline(true);
+      await Promise.resolve();
+    });
+    expect(createUpload).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.onPickPdfPage(result.current.floors[2]?.file?.id ?? '', '2');
+    });
+    await waitFor(() => {
+      expect(createUpload).toHaveBeenCalledTimes(1);
+    });
+    expect(bodyOf(createUpload.mock.calls[0]).pageIndex).toBe(1);
+  });
+
   it('#5 trả 422 CAD_NOT_SUPPORTED thì thẻ nói câu về CAD, không in mã', async () => {
     const body = ApiErrorBodySchema.parse({ code: 'CAD_NOT_SUPPORTED', requestId: 'req-cad' });
     const error: HttpError = {
