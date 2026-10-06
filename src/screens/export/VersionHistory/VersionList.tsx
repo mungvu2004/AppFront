@@ -130,8 +130,7 @@ function VersionListRow({
 export function VersionList({ groups, onToggleCompareSelection, onRetrySnapshot }: VersionListProps) {
   const failures = groups
     .flatMap((group) => group.rows)
-    .filter((row) => row.snapshotError !== undefined)
-    .map((row) => `${row.label}: ${row.snapshotError ?? ''}`)
+    .flatMap((row) => (row.snapshotError === undefined ? [] : [`${row.label}: ${row.snapshotError}`]))
     .join('; ');
 
   return (
