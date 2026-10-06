@@ -983,7 +983,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   return {
     ...shell,
-    state: viewerStateOf(state, mountedScene.building ? 'loading' : shell.state),
+    state: viewerStateOf(state, shell.state, mountedScene.building),
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,

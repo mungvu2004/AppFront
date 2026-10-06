@@ -337,14 +337,20 @@ const SCREEN_OWNED_STATES: ReadonlySet<MeasurementScreenState> = new Set([
 /**
  * Trạng thái vỏ cho một lượt vẽ: hàm DUY NHẤT nối trạng thái màn đo vào vỏ.
  *
- * Lỗi, cấm, thu gọn là của màn và thắng. Còn lại, cảnh đang nạp thật
- * (`loading`) hay mới dựng một phần (`partial`) của vỏ thắng — skeleton chỉ hiện
- * khi cảnh thật chưa có, không bao giờ vì người dùng đang chấm điểm.
+ * Hình học còn đang dựng (`building`) thì ra `loading` với mọi vai — kể cả
+ * người xem — trừ lỗi và thu gọn: tia bắn lúc ấy không trúng gì. Lỗi, cấm, thu
+ * gọn là của màn và thắng phần còn lại. Còn lại, cảnh đang nạp thật (`loading`)
+ * hay mới dựng một phần (`partial`) của vỏ thắng — skeleton chỉ hiện khi cảnh
+ * thật chưa có, không bao giờ vì người dùng đang chấm điểm.
  */
 export function viewerStateOf(
   measurement: MeasurementScreenState,
   shell: ViewerScreenState,
+  building = false,
 ): ViewerScreenState {
+  if (building && measurement !== 'error' && measurement !== 'collapsed') {
+    return 'loading';
+  }
   if (!SCREEN_OWNED_STATES.has(measurement) && (shell === 'loading' || shell === 'partial')) {
     return shell;
   }

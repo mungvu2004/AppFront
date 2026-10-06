@@ -635,4 +635,14 @@ describe('viewerStateOf — bảy trạng thái của vỏ, chỉ nạp thật m
   ] as const)('màn %s trên vỏ %s → %s', (measurement, shell, expected) => {
     expect(viewerStateOf(measurement, shell)).toBe(expected);
   });
+
+  it.each([
+    ['forbidden', 'forbidden', 'loading'],
+    ['ready', 'success', 'loading'],
+    ['measuring', 'success', 'loading'],
+    ['error', 'success', 'error'],
+    ['collapsed', 'success', 'collapsed'],
+  ] as const)('đang dựng hình: màn %s trên vỏ %s → %s', (measurement, shell, expected) => {
+    expect(viewerStateOf(measurement, shell, true)).toBe(expected);
+  });
 });
