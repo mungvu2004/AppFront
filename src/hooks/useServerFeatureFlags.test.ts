@@ -58,6 +58,7 @@ describe('useServerFeatureFlags', () => {
 
     session.current = signedIn('u2');
     rerender();
+    expect(getFeatureFlag(SHADOWS)).toBe(false);
 
     await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(getFeatureFlagsSnapshot().serverStatus).toBe('ready'));
@@ -72,5 +73,39 @@ describe('useServerFeatureFlags', () => {
 
     await waitFor(() => expect(getFeatureFlagsSnapshot().serverStatus).toBe('unavailable'));
     expect(getFeatureFlag(SHADOWS)).toBe(false);
+  });
+
+  it('ignores a late answer for the previous user', async () => {
+    session.current = signedIn('u1');
+    let answerU1: (payload: unknown) => void = () => undefined;
+    const read = vi
+      .fn()
+      .mockReturnValueOnce(new Promise((resolve) => (answerU1 = resolve)))
+      .mockResolvedValueOnce({ [SHADOWS]: false });
+
+    const { rerender } = renderHook(() => useServerFeatureFlags(read));
+    session.current = signedIn('u2');
+    rerender();
+    await waitFor(() => expect(getFeatureFlagsSnapshot().serverStatus).toBe('ready'));
+
+    answerU1({ [SHADOWS]: true });
+    await Promise.resolve();
+
+    expect(getFeatureFlag(SHADOWS)).toBe(false);
+  });
+
+  it('goes back to defaults on sign-out', async () => {
+    session.current = signedIn('u1');
+    const read = vi.fn().mockResolvedValue({ [SHADOWS]: true });
+
+    const { rerender } = renderHook(() => useServerFeatureFlags(read));
+    await waitFor(() => expect(getFeatureFlag(SHADOWS)).toBe(true));
+
+    session.current = { status: 'anonymous', user: null };
+    rerender();
+
+    expect(getFeatureFlag(SHADOWS)).toBe(false);
+    expect(getFeatureFlagsSnapshot().serverStatus).toBe('pending');
+    expect(read).toHaveBeenCalledTimes(1);
   });
 });
