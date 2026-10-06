@@ -30,7 +30,7 @@ import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
-import { getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
+import { getOptionalAuthConfig, getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
 
 import { DEV_PUBLIC_ROUTE_PATTERNS, PUBLIC_ROUTE_PATTERNS, ROUTES } from './paths';
@@ -279,7 +279,9 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
       onRetry={onRetry}
       sessionEnded={sessionEnded.current}
       serverUnreachable={session.serverUnreachable}
-      setupFailed={setupFailed}
+      // "Chưa mở được ứng dụng" chỉ đúng khi tầng phiên vẫn chưa cấu hình: màn khác thử lại
+      // cấu hình được rồi thì cổng rơi về nhánh `serverUnreachable` → "Thử lại" (NO-372).
+      setupFailed={setupFailed && getOptionalAuthConfig() === null}
       status={session.status}
       userId={session.user?.id ?? null}
     >

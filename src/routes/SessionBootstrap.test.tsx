@@ -11,9 +11,16 @@
  * A11 là chuyện của màn con, và màn con chỉ mount sau khi cổng mở.
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  type NavigateFunction,
+} from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModuleNamespace from '@/api/appClient';
@@ -33,6 +40,7 @@ import {
   bootstrapAfterNewCookie,
   configureAppSession,
   ensureAuthConfigured,
+  retryAppSession,
   startAppSession,
 } from './sessionSetup';
 
@@ -510,6 +518,49 @@ describe('SessionBootstrap', () => {
     });
     expect(screen.getByTestId('man-dang-nhap')).toBeInTheDocument();
     expect(screenMounts).toBe(0);
+  });
+
+  it('lượt dựng hỏng rồi màn khác thử lại cấu hình được mà máy chủ còn lỗi tạm: route riêng tư cho "Thử lại", không bắt tải lại trang (NO-372)', async () => {
+    appClientBroken = true;
+    let navigateTo: NavigateFunction = () => undefined;
+
+    function NavigateProbe() {
+      navigateTo = useNavigate();
+
+      return null;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/login/invitation']}>
+        <SessionBootstrap>
+          <NavigateProbe />
+          <Routes>
+            <Route path="/login/invitation" element={<LoginProbe />} />
+            <Route path="*" element={<ProbeScreen />} />
+          </Routes>
+        </SessionBootstrap>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getSession().serverUnreachable).toBe(true);
+    });
+
+    // Màn lời mời bấm "Thử lại": lần này cấu hình được, máy chủ trả 503.
+    appClientBroken = false;
+    await configureAppSession({ fetchImpl: async () => new Response(null, { status: 503 }) });
+    await act(async () => {
+      await retryAppSession();
+    });
+    expect(getSession()).toMatchObject({ status: 'unknown', serverUnreachable: true });
+
+    act(() => {
+      void navigateTo('/projects/p1/3d');
+    });
+
+    expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải lại trang' })).toBeNull();
+    expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
   });
 });
 
