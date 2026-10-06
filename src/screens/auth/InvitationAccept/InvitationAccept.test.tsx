@@ -31,21 +31,27 @@ interface PortOptions {
   readonly established?: boolean;
   readonly isSignedIn?: boolean;
   readonly isSessionPending?: boolean;
+  readonly isSessionUnavailable?: boolean;
 }
 
 function makePort(options: PortOptions = {}) {
   const accept = vi.fn<InvitationAcceptPort['accept']>(async () => options.reply ?? okVoid());
   const bootstrapSession = vi.fn(async () => options.established ?? true);
   const navigate = vi.fn<InvitationAcceptPort['navigate']>();
+  const retrySession = vi.fn<InvitationAcceptPort['retrySession']>(async () => {
+    throw new Error('vẫn mất kết nối');
+  });
   const port: InvitationAcceptPort = {
     accept,
     bootstrapSession,
     navigate,
     isSignedIn: options.isSignedIn ?? false,
     isSessionPending: options.isSessionPending ?? false,
+    isSessionUnavailable: options.isSessionUnavailable ?? false,
+    retrySession,
   };
 
-  return { accept, bootstrapSession, navigate, port };
+  return { accept, bootstrapSession, navigate, port, retrySession };
 }
 
 function type(label: string, value: string): void {
@@ -88,12 +94,14 @@ function baseProps(): InvitationAcceptViewProps {
     isDone: false,
     needsSignIn: false,
     isSessionPending: false,
+    isSessionUnavailable: false,
     setFullName: noop,
     setPassword: noop,
     setConfirmPassword: noop,
     submit: noop,
     goToSignIn: noop,
     expand: noop,
+    retrySession: noop,
   };
 }
 
@@ -378,6 +386,41 @@ describe('InvitationAccept — the session around it', () => {
     render(<InvitationAccept port={port} />);
 
     expect(screen.getByText(AUTH.invitation.signedInWarning)).toBeInTheDocument();
+  });
+
+  it('says why and offers a retry when the session could not be opened, focus staying on the form (NO-357)', async () => {
+    const { accept, port, retrySession } = makePort({ isSessionUnavailable: true });
+
+    render(<InvitationAccept port={port} />);
+    type(AUTH.fields.fullName, FULL_NAME);
+    type(AUTH.fields.password, PASSWORD);
+    type(AUTH.fields.confirmPassword, PASSWORD);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(viMessages.errors.network.description);
+    expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: viMessages.common.retry }));
+
+    expect(retrySession).toHaveBeenCalledTimes(1);
+    // The strip's button is not a submit button: the token is not spent by a retry.
+    expect(accept).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(AUTH.fields.fullName)).toHaveFocus();
+    // A retry that fails again leaves the strip where it was, not a crash.
+    await waitFor(() => {
+      expect(retrySession).toHaveReturned();
+    });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('drops the retry strip once the invitation is accepted and the session needs a sign-in', async () => {
+    const { port } = makePort({ isSessionUnavailable: true, established: false });
+    const { container } = render(<InvitationAccept port={port} />);
+
+    fillAndSubmit(container);
+
+    expect(await screen.findByText(AUTH.invitation.sessionNotOpened)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: viMessages.common.retry })).toBeNull();
   });
 
   it('keeps the warning away while the session is still unknown', () => {

@@ -6,6 +6,8 @@
  * Hai cờ phiên đọc từ `useSession`: `isSessionPending` = `unknown` mà máy chủ chưa
  * được báo là không tới được (route công khai không có dải của `SessionGate`, nên nếu
  * máy chủ đứt thì nút phải mở khoá để lượt gửi hỏng mạng rơi vào `error`).
+ * `isSessionUnavailable` là nửa kia: máy chủ đứt (hay lượt cấu hình phiên hỏng —
+ * `startAppSession` bật cùng cờ, NO-357) thì màn tự nói và cho thử lại.
  */
 
 import { useMemo } from 'react';
@@ -13,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { createAppApiClient } from '@/api/appClient';
 import { useSession } from '@/hooks/useSession';
-import { bootstrapAfterNewCookie } from '@/routes/sessionSetup';
+import { bootstrapAfterNewCookie, retryAppSession } from '@/routes/sessionSetup';
 
 import { RecoveryRoute } from '../RecoveryRoute';
 import { InvitationAccept } from './InvitationAccept';
@@ -27,6 +29,7 @@ function InvitationAcceptRouteContent() {
 
   const isSignedIn = session.status === 'authenticated';
   const isSessionPending = session.status === 'unknown' && session.serverUnreachable !== true;
+  const isSessionUnavailable = session.status === 'unknown' && session.serverUnreachable === true;
 
   const port = useMemo<InvitationAcceptPort>(() => {
     const client = createAppApiClient();
@@ -40,8 +43,10 @@ function InvitationAcceptRouteContent() {
       },
       isSignedIn,
       isSessionPending,
+      isSessionUnavailable,
+      retrySession: retryAppSession,
     };
-  }, [isSessionPending, isSignedIn, navigate]);
+  }, [isSessionPending, isSessionUnavailable, isSignedIn, navigate]);
 
   return <InvitationAccept port={port} />;
 }

@@ -7,14 +7,19 @@
  * chỉ còn một đường — tới đăng nhập.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
+import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
-import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
+import {
+  auth as AUTH_MESSAGES,
+  common as COMMON_MESSAGES,
+  errors as ERROR_MESSAGES,
+} from '@/i18n/vi.json';
 
 import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import {
@@ -28,8 +33,16 @@ export type InvitationAcceptViewProps = InvitationAcceptModel & InvitationAccept
 
 export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   const { state, values, problems, notice, warning, canSubmit, isSubmitting, isDone } = props;
-  const { needsSignIn, isSessionPending } = props;
-  const { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand } = props;
+  const { needsSignIn, isSessionPending, isSessionUnavailable } = props;
+  const { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand, retrySession } =
+    props;
+  const fullNameRef = useRef<HTMLInputElement>(null);
+
+  // Nút thử lại biến mất khi phiên mở được; tiêu điểm về ô đầu tiên (luôn bật ở đây) chứ không rơi về `body`.
+  const handleRetry = useCallback(() => {
+    retrySession();
+    fullNameRef.current?.focus();
+  }, [retrySession]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -64,72 +77,92 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           onLinkClick={goToSignIn}
         />
       ) : (
-        <form
-          className="flex flex-col gap-6"
-          noValidate
-          aria-busy={isSessionPending}
-          onSubmit={handleSubmit}
-        >
-          <RecoveryNoticeStrip notice={warning} />
-          <RecoveryNoticeStrip notice={notice} />
-          {/* Always mounted, filled later, so a screen reader announces the text. */}
-          <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
-            {isDone ? AUTH_MESSAGES.invitation.success : null}
-          </p>
-
-          <div className="flex flex-col gap-4">
-            <Input
-              label={AUTH_MESSAGES.fields.fullName}
-              autoComplete="name"
-              autoFocus
-              value={values.fullName}
-              disabled={fieldsDisabled}
-              {...(problems.fullName !== undefined ? { error: problems.fullName } : {})}
-              onChange={(event) => {
-                setFullName(event.target.value);
-              }}
+        <>
+          {/* Ngoài `<form>`: nút của dải không mang `type`, đặt trong form là nút gửi. */}
+          {isSessionUnavailable && (
+            <InlineAlert
+              className="mb-6"
+              level="attention"
+              title={ERROR_MESSAGES.network.title}
+              message={ERROR_MESSAGES.network.description}
+              action={{ label: COMMON_MESSAGES.retry, onClick: handleRetry }}
             />
-            <Input
-              type="password"
-              label={AUTH_MESSAGES.fields.password}
-              autoComplete="new-password"
-              value={values.password}
-              disabled={fieldsDisabled}
-              {...(problems.password !== undefined ? { error: problems.password } : {})}
-              onChange={(event) => {
-                setPassword(event.target.value);
-              }}
-            />
-            <Input
-              type="password"
-              label={AUTH_MESSAGES.fields.confirmPassword}
-              autoComplete="new-password"
-              value={values.confirmPassword}
-              disabled={fieldsDisabled}
-              {...(problems.confirmPassword !== undefined ? { error: problems.confirmPassword } : {})}
-              onChange={(event) => {
-                setConfirmPassword(event.target.value);
-              }}
-            />
-          </div>
-
-          <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
-            {isSubmitting ? AUTH_MESSAGES.actions.submitting : AUTH_MESSAGES.actions.acceptInvitation}
-          </Button>
-
-          {needsSignIn && (
-            <a
-              href={ROUTES.login}
-              onClick={(event) => {
-                event.preventDefault();
-                goToSignIn();
-              }}
-              className="self-center text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
-            >
-              {AUTH_MESSAGES.actions.goToSignIn}
-            </a>
           )}
-        </form>
+          <form
+            className="flex flex-col gap-6"
+            noValidate
+            aria-busy={isSessionPending}
+            onSubmit={handleSubmit}
+          >
+            <RecoveryNoticeStrip notice={warning} />
+            <RecoveryNoticeStrip notice={notice} />
+            {/* Always mounted, filled later, so a screen reader announces the text. */}
+            <p
+              role="status"
+              className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
+            >
+              {isDone ? AUTH_MESSAGES.invitation.success : null}
+            </p>
+
+            <div className="flex flex-col gap-4">
+              <Input
+                label={AUTH_MESSAGES.fields.fullName}
+                ref={fullNameRef}
+                autoComplete="name"
+                autoFocus
+                value={values.fullName}
+                disabled={fieldsDisabled}
+                {...(problems.fullName !== undefined ? { error: problems.fullName } : {})}
+                onChange={(event) => {
+                  setFullName(event.target.value);
+                }}
+              />
+              <Input
+                type="password"
+                label={AUTH_MESSAGES.fields.password}
+                autoComplete="new-password"
+                value={values.password}
+                disabled={fieldsDisabled}
+                {...(problems.password !== undefined ? { error: problems.password } : {})}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                }}
+              />
+              <Input
+                type="password"
+                label={AUTH_MESSAGES.fields.confirmPassword}
+                autoComplete="new-password"
+                value={values.confirmPassword}
+                disabled={fieldsDisabled}
+                {...(problems.confirmPassword !== undefined
+                  ? { error: problems.confirmPassword }
+                  : {})}
+                onChange={(event) => {
+                  setConfirmPassword(event.target.value);
+                }}
+              />
+            </div>
+
+            <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
+              {isSubmitting
+                ? AUTH_MESSAGES.actions.submitting
+                : AUTH_MESSAGES.actions.acceptInvitation}
+            </Button>
+
+            {needsSignIn && (
+              <a
+                href={ROUTES.login}
+                onClick={(event) => {
+                  event.preventDefault();
+                  goToSignIn();
+                }}
+                className="self-center text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
+              >
+                {AUTH_MESSAGES.actions.goToSignIn}
+              </a>
+            )}
+          </form>
+        </>
       )}
     </RecoveryShell>
   );

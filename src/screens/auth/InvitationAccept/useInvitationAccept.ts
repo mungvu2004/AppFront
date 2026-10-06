@@ -42,6 +42,10 @@ export interface InvitationAcceptPort {
   readonly isSignedIn: boolean;
   /** Phiên `unknown` mà máy chủ chưa được báo là không tới được: chưa biết có ai đăng nhập hay không. */
   readonly isSessionPending: boolean;
+  /** Phiên `unknown` và máy chủ không tới được (cả khi lượt mở phiên hỏng ngay ở bước cấu hình — NO-357). */
+  readonly isSessionUnavailable: boolean;
+  /** Mở lại phiên (`retryAppSession`). */
+  readonly retrySession: () => Promise<boolean>;
 }
 
 export interface UseInvitationAcceptOptions {
@@ -75,6 +79,8 @@ export interface InvitationAcceptModel {
   readonly needsSignIn: boolean;
   /** Dành cho `aria-busy` của biểu mẫu. */
   readonly isSessionPending: boolean;
+  /** Chưa mở được phiên vì mất kết nối: dải báo kèm nút thử lại; biểu mẫu vẫn mở. */
+  readonly isSessionUnavailable: boolean;
 }
 
 export interface InvitationAcceptActions {
@@ -84,6 +90,7 @@ export interface InvitationAcceptActions {
   readonly submit: () => void;
   readonly goToSignIn: () => void;
   readonly expand: () => void;
+  readonly retrySession: () => void;
 }
 
 const EMPTY_VALUES: InvitationAcceptValues = { fullName: '', password: '', confirmPassword: '' };
@@ -255,6 +262,11 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     onExpand?.();
   }, [onExpand]);
 
+  // Lỗi lượt thử lại đã nằm trong trạng thái phiên (`serverUnreachable`), dải báo vẫn đứng đó.
+  const retrySession = useCallback(() => {
+    void port.retrySession().catch(() => false);
+  }, [port]);
+
   const isSubmitting = phase === 'submitting';
   const isDone = phase === 'succeeded';
   const typed = values.fullName.length > 0 || values.password.length > 0 || values.confirmPassword.length > 0;
@@ -298,10 +310,11 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     isDone,
     needsSignIn,
     isSessionPending: port.isSessionPending,
+    isSessionUnavailable: port.isSessionUnavailable && !isSubmitting && !isDone && !needsSignIn,
   };
 
   return {
     model,
-    actions: { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand },
+    actions: { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand, retrySession },
   };
 }

@@ -117,6 +117,10 @@ export const setAnonymousSession = ({ refreshFailed }: { refreshFailed: boolean 
  *
  * Đi qua `updateSessionState` để người nghe được báo: một thẻ đang mở cần
  * biết ngay rằng số liệu trên màn có thể đã cũ, mà không bị đá ra ngoài.
+ *
+ * Hai chỗ bật: lượt gia hạn gặp lỗi tạm (`refresh.ts`), và lượt mở phiên hỏng
+ * ngay ở bước cấu hình khi phiên còn `unknown` (`startAppSession`, NO-357) — khi
+ * ấy không có lịch tự thử lại, chỉ nút "thử lại" của màn.
  */
 export const setServerUnreachable = (serverUnreachable: boolean): void => {
   updateSessionState({ ...sessionState, serverUnreachable });
