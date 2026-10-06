@@ -22,6 +22,14 @@ export interface ProjectSpatialGateProps {
   readonly projectId: string | undefined;
   readonly children: ReactNode;
   readonly api?: ProjectSpatialApi;
+  /**
+   * Bọc hai nhánh thay màn (404, lỗi) trong `<main>` — FIX-381. Chỉ bốn route
+   * ngoài nhóm `ScreenMain` của bảng route truyền `true` (3D, tách tầng, đo, di
+   * động): `<main>` của chúng nằm DƯỚI cổng, nên khi cổng thay màn con thì trang
+   * mất landmark. Các route trong nhóm đã có `<main>` bọc ngoài; truyền `true`
+   * ở đó là lồng hai `<main>`.
+   */
+  readonly wrapFallbackInMain?: boolean;
 }
 
 /**
@@ -45,23 +53,33 @@ function ProjectNotFound() {
   );
 }
 
-export function ProjectSpatialGate({ api, children, projectId }: ProjectSpatialGateProps) {
+export function ProjectSpatialGate({
+  api,
+  children,
+  projectId,
+  wrapFallbackInMain = false,
+}: ProjectSpatialGateProps) {
   const { refreshFailed, report, retry, status } = useProjectSpatial({ api, projectId });
 
+  const inLandmark = (node: ReactNode): ReactNode =>
+    wrapFallbackInMain ? <main className="contents">{node}</main> : node;
+
   if (status === 'notFound') {
-    return <ProjectNotFound />;
+    return inLandmark(<ProjectNotFound />);
   }
 
   if (status === 'error' && report !== null) {
-    return (
+    return inLandmark(
       <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
         <EmptyState
           icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
           title={report.description.title}
           description={report.description.description}
-          {...(report.retryable ? { action: { label: report.description.primaryButtonLabel, onClick: retry } } : {})}
+          {...(report.retryable
+            ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
+            : {})}
         />
-      </div>
+      </div>,
     );
   }
 

@@ -3,7 +3,11 @@ import { useEffect } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MOCK_MISSING_PROJECT_ID, __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
+import {
+  MOCK_MISSING_PROJECT_ID,
+  __resetMockLayerState,
+  createMockApiClient,
+} from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -177,7 +181,9 @@ describe('ProjectSpatialGate', () => {
     expect(mounts).toBe(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    await waitFor(() => expect(screen.queryByText('Không tải lại được mô hình.')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText('Không tải lại được mô hình.')).not.toBeInTheDocument(),
+    );
     expect(screen.getByText(CHILD)).toBeInTheDocument();
     expect(mounts).toBe(1);
   });
@@ -251,7 +257,9 @@ describe('ProjectSpatialGate', () => {
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(useStore.getState().spatialLoading).toBe(false);
 
-    const focusable = alert.querySelectorAll('button, a[href], input, select, textarea, [tabindex]');
+    const focusable = alert.querySelectorAll(
+      'button, a[href], input, select, textarea, [tabindex]',
+    );
     expect(focusable).toHaveLength(1);
     expect(focusable[0]).toBe(screen.getByRole('button', { name: /thử lại/iu }));
     expectVietnamese(rendered);
@@ -291,7 +299,9 @@ describe('ProjectSpatialGate', () => {
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(alert.textContent).not.toMatch(/quyền/iu);
 
-    const focusable = alert.querySelectorAll('button, a[href], input, select, textarea, [tabindex]');
+    const focusable = alert.querySelectorAll(
+      'button, a[href], input, select, textarea, [tabindex]',
+    );
     const button = screen.getByRole('button', { name: 'Về danh sách dự án' });
     expect(focusable).toHaveLength(1);
     expect(focusable[0]).toBe(button);
@@ -305,7 +315,13 @@ describe('ProjectSpatialGate', () => {
   it('404 của một tầng (`resource: floor`) không mượn câu "Không tìm thấy dự án này"', async () => {
     const { api, read } = apiWithSpy();
     read.mockResolvedValue({
-      error: { kind: 'http', raw: { resource: 'floor' }, requestId: 'req-floor', retryable: false, status: 404 },
+      error: {
+        kind: 'http',
+        raw: { resource: 'floor' },
+        requestId: 'req-floor',
+        retryable: false,
+        status: 404,
+      },
       ok: false,
     });
 
@@ -314,5 +330,36 @@ describe('ProjectSpatialGate', () => {
     await screen.findByRole('alert');
     expect(screen.queryByText('Không tìm thấy dự án này')).not.toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+  });
+
+  /* FIX-381 — nhánh thay màn chỉ có `<main>` khi route ngoài nhóm bảo cổng bọc. */
+  describe.each([
+    { wrap: true, mains: 1 },
+    { wrap: false, mains: 0 },
+  ])('wrapFallbackInMain=$wrap', ({ wrap, mains }) => {
+    const renderWrapped = (api: ReturnType<typeof createMockApiClient>, projectId: string) =>
+      renderWithProviders(
+        <MemoryRouter>
+          <ProjectSpatialGate api={api} projectId={projectId} wrapFallbackInMain={wrap}>
+            <p>{CHILD}</p>
+          </ProjectSpatialGate>
+        </MemoryRouter>,
+      );
+
+    it(`404 của dự án: ${mains} main`, async () => {
+      renderWrapped(createMockApiClient(), MOCK_MISSING_PROJECT_ID);
+
+      await screen.findByRole('alert');
+      expect(screen.queryAllByRole('main')).toHaveLength(mains);
+    });
+
+    it(`lỗi tải khi kho chưa có đồ thị: ${mains} main`, async () => {
+      const { api, readGraph } = apiWithSpy();
+      readGraph.mockResolvedValue({ error: NETWORK, ok: false });
+      renderWrapped(api, 'project-1');
+
+      await screen.findByRole('alert');
+      expect(screen.queryAllByRole('main')).toHaveLength(mains);
+    });
   });
 });

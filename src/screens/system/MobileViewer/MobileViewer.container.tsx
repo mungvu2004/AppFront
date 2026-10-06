@@ -76,7 +76,7 @@ export interface MobileViewerContainerProps extends ConnectedMobileViewerProps {
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
 function MobileViewerCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
@@ -85,7 +85,7 @@ function MobileViewerCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -97,11 +97,13 @@ function MobileViewerCrashFallback({ report, retry }: ScreenErrorFallback) {
  */
 function MobileViewerChunkFallback() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-canvas-3d" role="status">
-      <span className="rounded-md bg-bg-surface px-3 py-1.5 text-[13px] text-text-secondary shadow-sm">
-        Đang tải mô hình
-      </span>
-    </div>
+    <main className="contents">
+      <div className="flex h-full w-full items-center justify-center bg-canvas-3d" role="status">
+        <span className="rounded-md bg-bg-surface px-3 py-1.5 text-[13px] text-text-secondary shadow-sm">
+          Đang tải mô hình
+        </span>
+      </div>
+    </main>
   );
 }
 
@@ -142,7 +144,7 @@ export function MobileViewerRoute() {
   // Nạp kho dự án (B-V1-03): không có cổng này `store.spatial` luôn rỗng và màn
   // nói "chưa có mô hình để xem" cho mọi dự án.
   return (
-    <ProjectSpatialGate projectId={projectId}>
+    <ProjectSpatialGate projectId={projectId} wrapFallbackInMain>
       <MobileViewerContainer projectId={projectId} roles={session.roles} />
     </ProjectSpatialGate>
   );

@@ -113,7 +113,7 @@ export interface ExplodedViewContainerProps {
 /** Cùng khuôn `Viewer3DCrashFallback` — R-62, chữ lấy từ `report.description`. */
 function ExplodedViewCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
@@ -122,7 +122,7 @@ function ExplodedViewCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -202,7 +202,7 @@ export function ExplodedViewRoute() {
   }
 
   return (
-    <ProjectSpatialGate projectId={id}>
+    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
       <ExplodedViewContainer projectId={id} spatial={spatial} />
     </ProjectSpatialGate>
   );
