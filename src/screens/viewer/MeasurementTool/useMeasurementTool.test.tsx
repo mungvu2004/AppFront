@@ -646,3 +646,47 @@ describe('viewerStateOf — bảy trạng thái của vỏ, chỉ nạp thật m
     expect(viewerStateOf(measurement, shell, true)).toBe(expected);
   });
 });
+
+describe('useMeasurementTool — ghim đang bay thì bấm đúp không lưu hai lần (NO-384)', () => {
+  it('hai cú bấm khi lượt đầu chưa về: đúng MỘT lượt lưu; lượt ấy hỏng thì ghim lại được', async () => {
+    const notifications = createNotificationBus();
+    const saved: PinnedMeasurement[] = [];
+    let rejectFirst: (error: unknown) => void = () => undefined;
+    const base = createMeasurementToolFixtureGateway();
+
+    renderHook({
+      notifications,
+      mountScene: sceneSpy().mount,
+      pick: pickAtPointer,
+      gateway: {
+        ...base,
+        saveMeasurement: (projectId, row) => {
+          saved.push(row);
+
+          return saved.length === 1
+            ? new Promise<never>((_resolve, reject) => {
+                rejectFirst = reject;
+              })
+            : base.saveMeasurement(projectId, row);
+        },
+      },
+    });
+    measureTwoPoints();
+    const pin = screen.getByRole('button', { name: /ghim/iu });
+    fireEvent.click(pin);
+    fireEvent.click(pin);
+    fireEvent.keyDown(pin, { key: 'Enter' });
+
+    expect(saved).toHaveLength(1);
+
+    rejectFirst(toAppError(wireError(500, 'INTERNAL_ERROR')));
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
+    await waitFor(() => {
+      expect(saved).toHaveLength(2);
+    });
+  });
+});

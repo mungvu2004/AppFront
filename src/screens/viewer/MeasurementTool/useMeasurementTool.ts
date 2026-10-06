@@ -758,11 +758,16 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
      nguyên đó, cùng một câu lỗi, và người dùng ghim lại được. */
+  /* Một lượt ghim đang bay thì bấm đúp hay Enter lặp không gửi lượt thứ hai
+     (NO-384); lượt ấy xong — được hay hỏng — thì chốt mở lại. */
+  const pinInFlightRef = useRef(false);
+
   const onPin = useCallback((): void => {
-    if (!canPin || draftRow === null) {
+    if (!canPin || draftRow === null || pinInFlightRef.current) {
       return;
     }
 
+    pinInFlightRef.current = true;
     gateway
       .saveMeasurement(projectId, draftRow)
       .then(clearDraft)
@@ -772,6 +777,9 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
           title: MEASUREMENT_ERROR_TEXT[measurementErrorCodeOf(error).code ?? ''] ?? PIN_FAILED_TEXT,
           description: '',
         });
+      })
+      .finally(() => {
+        pinInFlightRef.current = false;
       });
   }, [canPin, draftRow, gateway, projectId, clearDraft, notifications]);
 
