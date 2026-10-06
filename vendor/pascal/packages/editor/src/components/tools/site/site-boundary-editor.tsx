@@ -65,7 +65,8 @@ function SiteFlagModel({
   opacity?: number
   scale?: number
 }) {
-  const { scene } = useGLTF(SITE_FLAG_MODEL_URL, true)
+  // AppFront: Draco tự host, không gstatic (FIX-380).
+  const { scene } = useGLTF(SITE_FLAG_MODEL_URL, '/draco/')
   const modelRef = useRef<Object3D>(null)
   const flagScene = useMemo(() => {
     const cloned = scene.clone(true)

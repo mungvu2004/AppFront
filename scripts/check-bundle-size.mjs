@@ -100,10 +100,42 @@ function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
  *
  * Mẫu cố ý KHÔNG chỉ là `new Function`: hai nguồn thật đều trượt chuỗi ấy —
  * embind gọi `newFunc(Function,args)`, zod 4 viết `const F = Function; new F(…)`.
- * Nên bắt cả lượt dùng `Function` làm GIÁ TRỊ (gán, truyền đối số).
+ * Bí danh thì vô tận (`(0,eval)(…)`, `self.Function(…)`, `return Function`,
+ * `{c:Function}`…), nên bắt MỌI token `Function`/`eval` đứng riêng, rồi chỉ loại
+ * những ngữ cảnh chắc chắn không dựng mã — xem {@link isHarmlessEvalToken}.
+ * Thêm `setTimeout`/`setInterval` nhận chuỗi, và `newFunc(` của embind.
+ *
+ * Ngoài phạm vi, cố ý: `(function(){}).constructor(s)` và các đường đi qua
+ * `.constructor` — không có token nào để bắt mà không bắn vào mọi lớp.
  */
 const EVAL_PATTERN =
-  /\bnew\s+Function\b|(?<![.\w$])Function\s*\(|[=,(:]\s*Function\s*[,;)]|(?<![.\w$])eval\s*\(|\bnewFunc\s*\(/g;
+  /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(/g;
+
+/** Ba tên của đối tượng toàn cục: `self.Function` là `Function`, `obj.Function` thì không. */
+const GLOBAL_OBJECT = /\b(?:globalThis|window|self|global)\s*\.\s*$/;
+
+/**
+ * Token `Function`/`eval` ở chỗ không thể dựng mã: kiểm kiểu `instanceof`,
+ * `Function.prototype`, thuộc tính của một đối tượng KHÔNG phải toàn cục, dòng
+ * chú thích (gói vách ngăn không minify, mang hàng trăm JSDoc `{Function}`), và
+ * chữ trong câu báo lỗi (`"Function is not a GLSL code"`, `` `Function '${x}' called` ``).
+ */
+function isHarmlessEvalToken(text, index, token) {
+  if (!/^(?:Function|eval)$/.test(token)) return false;
+
+  const before = text.slice(Math.max(0, index - 40), index);
+  const after = text.slice(index + token.length, index + token.length + 20);
+  const lineStart = text.lastIndexOf('\n', index - 1) + 1;
+  const line = text.slice(lineStart, index);
+
+  return (
+    /\binstanceof\s+$/.test(before) ||
+    /^\s*\.\s*prototype\b/.test(after) ||
+    (/\.\s*$/.test(before) && !GLOBAL_OBJECT.test(before)) ||
+    /^\s*(?:\*|\/\*|\/\/)|(?:^|\s)\/\//.test(line) ||
+    /^[ \t]+[A-Za-z'"]/.test(after)
+  );
+}
 
 /**
  * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
@@ -133,6 +165,8 @@ function findEvalSites(files, allowedList = EVAL_ALLOWED) {
     );
 
     for (const match of text.matchAll(EVAL_PATTERN)) {
+      if (isHarmlessEvalToken(text, match.index, match[0])) continue;
+
       const site = { file: name, at: match.index, snippet: text.slice(match.index, match.index + 60) };
       const span = spans.find((s) => match.index >= s.start && match.index < s.end);
 

@@ -58,6 +58,14 @@ module.exports = {
     // `'unsafe-eval'`: mọi lượt dựng mã từ chuỗi đều ném EvalError lúc chạy, mà
     // máy dev không gửi CSP nên chỉ bản triển khai mới thấy (FIX-380). Chặn ở mã
     // nguồn; bản dựng có lượt quét riêng trong `scripts/check-bundle-size.mjs`.
+    //
+    // `vendor/` KHÔNG qua ba luật này (nó nằm trong `ignorePatterns` ở trên), dù
+    // fork Pascal chạy trên trình duyệt. Gỡ khỏi `ignorePatterns` thì nó nhận cả
+    // các preset, và `--report-unused-disable-directives` bắn vào chú thích tắt
+    // luật Biome của fork. Lưới cho fork vì thế là lượt quét `dist/` của `pnpm
+    // size` — nó cũng bắt bí danh (`const F = Function`) mà `no-new-func` trượt.
+    // Đo 2026-10-06 bằng `eslint --no-eslintrc --no-inline-config` chỉ ba luật này
+    // trên `vendor/pascal/packages/{core,viewer,nodes,editor}/src`: 2 351 tệp, 0 vi phạm.
     'no-eval': 'error',
     'no-new-func': 'error',
     'no-implied-eval': 'error',

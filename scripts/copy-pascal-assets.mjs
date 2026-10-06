@@ -39,8 +39,14 @@ import {
 } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-// Fork Pascal nạp Draco từ `/draco/` (`nodes/src/item/renderer.tsx`), không từ
-// gstatic — CSP chặn mọi máy ngoài. Chạy luôn lượt chép Draco để đường ấy có thật.
+// Fork Pascal nạp Draco từ `/draco/` thay vì gstatic (CSP chặn mọi máy ngoài) ở
+// ba chỗ đã sửa: `nodes/src/item/renderer.tsx`, `viewer/src/hooks/use-gltf-ktx2.tsx`,
+// `editor/.../site-boundary-editor.tsx`. Mặc định của chính drei (`useGLTF(p, true)`)
+// vẫn là gstatic — chỗ gọi mới phải truyền `'/draco/'`.
+//
+// Nhập để lấy TÁC DỤNG PHỤ: `copy-draco.mjs` chép bộ giải vào `public/draco/`
+// để đường ấy có thật. Import được nâng lên đầu, nên lượt chép Draco chạy TRƯỚC
+// thân tệp này; hai lượt độc lập, thứ tự không quan trọng.
 import './copy-draco.mjs';
 
 /** Vật liệu của Pascal: nguồn nằm trong repo, ở thư mục mã đã chép về. */

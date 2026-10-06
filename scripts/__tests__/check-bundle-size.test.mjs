@@ -357,6 +357,19 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
     ['new Function', 'new Function("a","return a")'],
     ['gọi thẳng', 'x=Function("return this")()'],
     ['eval', 'eval("1+1")'],
+    // Bí danh review lượt 1 (V-1) thử — mỗi dòng từng qua cổng xanh.
+    ['eval gián tiếp', '(0,eval)(s)'],
+    ['eval gián tiếp có cách', '(0, eval)(s)'],
+    ['globalThis.Function', 'globalThis.Function("a")()'],
+    ['window.Function', 'window.Function(s)'],
+    ['self.eval', 'self.eval(s)'],
+    ['return Function', 'return Function'],
+    ['giá trị trong đối tượng', '{c:Function}'],
+    ['nhánh ba ngôi', 'x?Function:y'],
+    ['trong mảng', '[Function][0](s)'],
+    ['Function.apply', 'Function.apply(null,[s])'],
+    ['setTimeout nhận chuỗi', 'setTimeout("x()",1)'],
+    ['Reflect.construct', 'Reflect.construct(Function,[s])'],
   ])('bắt %s', (_label, text) => {
     expect(blockedOf(text)).toBeGreaterThan(0);
   });
@@ -365,6 +378,10 @@ describe('findEvalSites — CSP không có unsafe-eval', () => {
     ['instanceof', 'if(f instanceof Function)return 1'],
     ['typeof', 'typeof f=="function"'],
     ['tên chứa chữ', 'isFunction(x);obj.eval(y);Function.prototype.call'],
+    ['JSDoc', ['  /**', '   * @param {Function} callback - x', '   */'].join('\n')],
+    ['chú thích dòng', 'a=1; // Function-axis tag'],
+    ['câu báo lỗi', 'throw new Error("THREE.FunctionNode: Function is not a GLSL code.")'],
+    ['câu báo lỗi embind', "throwBindingError(`Function '${humanName}' called`)"],
   ])('bỏ qua %s', (_label, text) => {
     expect(blockedOf(text)).toBe(0);
   });
