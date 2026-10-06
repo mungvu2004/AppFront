@@ -34,6 +34,7 @@ import type {
   UserActivity,
   UserMembership,
   Version,
+  VersionsApi,
 } from '../client';
 
 const ok = <T>(data: T): Result<T, never> => ({ ok: true, data });
@@ -1228,6 +1229,159 @@ const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => (
   ...(body.order !== undefined ? { order: body.order } : {}),
 });
 
+const MOCK_ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/** `ver_` + ULID hợp lệ (Crockford, 26 ký tự) cho phiên bản mock sinh ra lúc phục hồi. */
+const mockVersionId = (sequence: number): string => {
+  let suffix = '';
+
+  for (let rest = sequence, index = 0; index < 4; index += 1, rest = Math.floor(rest / 32)) {
+    suffix = `${MOCK_ULID_ALPHABET[rest % 32] ?? '0'}${suffix}`;
+  }
+
+  return `ver_01J9ZV8Q3M7X5B2N4K6P9R${suffix}`;
+};
+
+type MockFloorVersion = FloorVersionPage['items'][number];
+
+/**
+ * N17–N20 mock: lịch sử mồi của `makeFloorVersionPage`, cộng các bản phục hồi sinh ra trong
+ * phiên. Bản phục hồi đẩy `revision` của tầng lên trên mọi `floorRevision` mồi, nên đúng một
+ * hàng là "hiện tại" sau khi nạp lại. Base theo luật #35: lớn hơn → 422, nhỏ hơn → 409.
+ */
+const createMockVersionsApi = (readFloors: () => readonly Floor[]): VersionsApi => {
+  const histories = new Map<string, MockFloorVersion[]>();
+  const historyOf = (floorId: string): MockFloorVersion[] => {
+    const known = histories.get(floorId) ?? [...makeFloorVersionPage(floorId).items];
+
+    histories.set(floorId, known);
+
+    return known;
+  };
+  const findVersion = (versionId: string): { items: MockFloorVersion[]; index: number } | null => {
+    for (const items of histories.values()) {
+      const index = items.findIndex((item) => item.id === versionId);
+
+      if (index >= 0) {
+        return { items, index };
+      }
+    }
+
+    return null;
+  };
+
+  return {
+    label: async ({ label, versionId }) => {
+      const found = findVersion(versionId);
+      const current = found?.items[found.index];
+
+      if (found === null || current === undefined) {
+        return failed(mockWireError(404, 'NOT_FOUND', 'req-version-label', { code: 'NOT_FOUND', resource: 'version' }));
+      }
+
+      const next: MockFloorVersion = { ...current, label: label.trim() };
+
+      if (next.label === '') {
+        delete next.label;
+      }
+
+      found.items[found.index] = next;
+
+      return ok(clone(next));
+    },
+    // Mọi mã tầng đều có lịch sử mồi: N15 mock đặt mã `Level` khác mã `Floor` của #12 (lệch có từ F-04x-2).
+    list: async ({ cursor, floorId, limit }) => {
+      const all = historyOf(floorId);
+      const start = cursor === undefined ? 0 : Number(cursor);
+      const end = start + (limit ?? all.length);
+
+      return ok({
+        items: clone(all.slice(start, end)),
+        ...(end < all.length ? { nextCursor: String(end) } : {}),
+      });
+    },
+    restore: async ({ baseVersion, floorId, versionId }) => {
+      const current = layerRevisions.get(floorId) ?? 0;
+      const requestId = `req-version-restore-${floorId}`;
+
+      if (baseVersion > current) {
+        return failed(
+          mockWireError(422, 'VALIDATION', requestId, { code: 'VALIDATION', field: 'baseVersion', requestId }),
+        );
+      }
+
+      if (baseVersion < current) {
+        return failed(
+          mockWireError(409, 'VERSION_CONFLICT', requestId, {
+            code: 'VERSION_CONFLICT',
+            currentVersion: current,
+            remoteChanges: [
+              {
+                changedAt: '2026-09-17T05:09:00.123Z',
+                changedBy: MOCK_REMOTE_ACTOR_ID,
+                changedByName: 'Trần Minh',
+                entityId: 'W-WALL0014',
+                entityType: 'wall',
+                field: 'thickness_mm',
+                value: 220,
+              },
+            ],
+            requestId,
+          }),
+        );
+      }
+
+      const items = historyOf(floorId);
+      const source = items.find((item) => item.id === versionId);
+
+      if (source === undefined) {
+        return failed(
+          mockWireError(422, 'VERSION_FLOOR_MISMATCH', requestId, { code: 'VERSION_FLOOR_MISMATCH', field: 'body.floorId' }),
+        );
+      }
+
+      const sequence = Math.max(...items.map((item) => item.sequence)) + 1;
+      const revision = Math.max(current, ...items.map((item) => item.floorRevision)) + 1;
+      const restored: MockFloorVersion = {
+        createdAt: '2026-09-17T05:10:00.000Z',
+        creatorId: 'usr_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+        creatorName: 'Kỹ sư mẫu',
+        floorRevision: revision,
+        hasSnapshot: true,
+        id: mockVersionId(sequence),
+        note: `Phục hồi nội dung của phiên bản v${String(source.sequence)}`,
+        sequence,
+      };
+
+      items.unshift(restored);
+      layerRevisions.set(floorId, revision);
+
+      return ok(clone(restored));
+    },
+    snapshot: async ({ floorId, versionId }) => {
+      const items = historyOf(floorId);
+      const version = items.find((item) => item.id === versionId);
+
+      if (version === undefined) {
+        return failed(
+          mockWireError(422, 'VERSION_FLOOR_MISMATCH', 'req-version-snapshot', {
+            code: 'VERSION_FLOOR_MISMATCH',
+            field: 'floorId',
+          }),
+        );
+      }
+
+      const floor = readFloors().find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
+      const document = makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId));
+      // Bản càng cũ càng thiếu tường cuối — đủ để so sánh hiện ra thay đổi trong bản mock.
+      const age = (items[0]?.sequence ?? version.sequence) - version.sequence;
+      const walls = document.layer.walls.slice(0, Math.max(0, document.layer.walls.length - age));
+
+      return ok({ dimensions: document.dimensions, layer: { ...document.layer, walls }, versionId });
+    },
+  };
+};
+
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
@@ -1891,6 +2045,7 @@ export const createMockApiClient = (): ApiClient => {
             );
       },
     },
+    versions: createMockVersionsApi(() => floors),
   };
 };
 

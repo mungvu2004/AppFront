@@ -35,7 +35,6 @@
  * provider nào bên trên.
  */
 
-import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -44,6 +43,7 @@ import { createAppApiClient } from '@/api/appClient';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import {
   ScreenErrorBoundary,
@@ -51,13 +51,12 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
-import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { VersionHistory } from './VersionHistory';
-import { createApiVersionLoader, createVersionHistoryGateway } from './versionHistoryGateway';
-import type { VersionHistoryContainerProps, VersionHistoryGateway } from './types';
+import { createVersionHistoryGateway } from './versionHistoryGateway';
+import type { VersionHistoryContainerProps, VersionHistoryGateway, VersionHistoryOption } from './types';
 import { useVersionHistory } from './useVersionHistory';
 
 /** Đặt tên màn cho ranh giới lỗi, và cho bất cứ ai đọc báo cáo của nó. */
@@ -66,17 +65,13 @@ const SCREEN_ID = 'version-history';
 /** Trạng thái 7 của hợp đồng: dưới 1024 thì danh sách thành `Select`, so sánh xếp dọc. */
 const NARROW_QUERY = '(max-width: 1023px)';
 
-/** Không đọc được ai đang đăng nhập thì phiên bản mới không mang tên ai — chuỗi rỗng, không id giả. */
-const NO_CREATOR_ID = '';
-
 const MISSING_PARAMS_TITLE = 'Không xác định được bản vẽ';
 const MISSING_PARAMS_MESSAGE =
   'Đường dẫn thiếu mã dự án, nên không biết phải hiện lịch sử phiên bản của dự án nào.';
 
-const FLOORS_FAILED_MESSAGE =
-  'Chưa đọc được danh sách tầng của dự án, nên chưa biết phải hiện lịch sử phiên bản của tầng nào. Tải lại trang sau ít phút.';
+const PROJECT_LOADING_LABEL = 'Dự án chưa nạp xong';
 
-const NO_FLOOR_TITLE = 'Dự án chưa có tầng nào';
+const NO_FLOOR_TITLE = 'Dự án chưa có tầng';
 const NO_FLOOR_MESSAGE =
   'Lịch sử phiên bản đi theo từng tầng. Thêm tầng và xử lý bản vẽ của nó, rồi quay lại đây.';
 
@@ -135,29 +130,22 @@ function VersionHistoryCrashFallback({ report, retry }: ScreenErrorFallback) {
 
 /** Màn thật, bên trong ranh giới lỗi. */
 function WiredVersionHistory(props: VersionHistoryContainerProps) {
-  const { floorId, gateway: injectedGateway, onExportVersion, onToast, projectId } = props;
+  const { apiClient: injectedClient, floorId, floorOptions, gateway: injectedGateway, onExportVersion, onSelectFloor, onToast, projectId } =
+    props;
 
   const session = useSession();
   const storeRoles = useStore((state) => state.userRoles);
   const isNarrow = useIsNarrow();
 
-  // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng cho tới khi
-  // một dự án được mở — khuôn `useExportPanel.ts:277`.
+  // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng.
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
   const canRestore = can('edit', 'layer', { roles });
-  const creatorId = session.user?.id ?? NO_CREATOR_ID;
   const canExportVersion = onExportVersion !== undefined;
+  const apiClient = useMemo(() => injectedClient ?? createAppApiClient(), [injectedClient]);
 
   const gateway: VersionHistoryGateway = useMemo(
-    () =>
-      injectedGateway ??
-      createVersionHistoryGateway({
-        canExportVersion,
-        creatorId,
-        floorId,
-        loadVersions: createApiVersionLoader(createAppApiClient(), projectId),
-      }),
-    [injectedGateway, canExportVersion, creatorId, floorId, projectId],
+    () => injectedGateway ?? createVersionHistoryGateway({ apiClient, canExportVersion, floorId, projectId }),
+    [injectedGateway, apiClient, canExportVersion, floorId, projectId],
   );
 
   const [model, actions] = useVersionHistory({
@@ -166,6 +154,9 @@ function WiredVersionHistory(props: VersionHistoryContainerProps) {
     floorId,
     canRestore,
     isNarrow,
+    apiClient,
+    ...(floorOptions !== undefined ? { floorOptions } : {}),
+    ...(onSelectFloor !== undefined ? { onSelectFloor } : {}),
     ...(onToast !== undefined ? { onToast } : {}),
     ...(onExportVersion !== undefined ? { onExportVersion } : {}),
   });
@@ -176,13 +167,13 @@ function WiredVersionHistory(props: VersionHistoryContainerProps) {
 /**
  * `<VersionHistoryContainer projectId floorId />` — màn lịch sử phiên bản đã nối.
  *
- * `key` trên ranh giới là cặp dự án + tầng: đổi bản vẽ thì ranh giới gắn lại, nên một lỗi của
- * bản vẽ trước không đứng lại trên bản vẽ sau (khuôn `src/App.tsx:96`).
+ * `key` trên ranh giới chỉ theo dự án: đổi tầng giữ nguyên cây (tiêu điểm ô "Tầng", A12), còn
+ * hook tự bỏ cặp so sánh của tầng cũ.
  */
 export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
   return (
     <ScreenErrorBoundary
-      key={`${props.projectId}:${props.floorId}`}
+      key={props.projectId}
       screenId={SCREEN_ID}
       renderFallback={({ report, retry }) => (
         <VersionHistoryCrashFallback report={report} retry={retry} />
@@ -194,44 +185,49 @@ export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
 }
 
 /**
- * Tầng đầu tiên (theo `order`) của dự án — dùng khi đường dẫn không nói tầng nào.
- *
- * Khoá con riêng dưới `floor.list`: khoá cha mang hình dạng của màn quản lý tầng, và một
- * khoá hai người ghi hai hình dạng là đúng lỗi B-G-01. Nằm dưới khoá cha nên một lượt vô
- * hiệu hoá danh sách tầng vẫn kéo theo nó.
+ * Tầng đang chọn trên màn: state cục bộ, mặc định `?floorId=`, rồi `activeFloorId`, rồi tầng
+ * `order` nhỏ nhất. KHÔNG `setActiveFloor` — đổi tầng đang mở bỏ bản nháp của kho.
  */
-function useFirstFloorId(projectId: string, enabled: boolean) {
-  return useQuery({
-    queryKey: [...queryKeys.floor.list(projectId), 'firstFloorId'],
-    enabled,
-    queryFn: async ({ signal }): Promise<string | null> => {
-      const result = await createAppApiClient().floors.list({ projectId, signal });
+function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
+  const [searchParams] = useSearchParams();
+  const project = useStore((state) => state.project);
+  const floors = useStore((state) => state.floors);
+  const activeFloorId = useStore((state) => state.activeFloorId);
+  const [picked, setPicked] = useState<string | null>(null);
 
-      if (!result.ok) {
-        throw new Error(FLOORS_FAILED_MESSAGE);
-      }
+  const floorOptions = useMemo(
+    (): readonly VersionHistoryOption[] =>
+      [...floors].sort((a, b) => a.order - b.order).map((floor) => ({ id: floor.id, label: floor.name })),
+    [floors],
+  );
+  const known = (id: string | null): id is string => id !== null && floorOptions.some((option) => option.id === id);
+  const floorId = [picked, searchParams.get('floorId'), activeFloorId, floorOptions[0]?.id ?? null].find(known) ?? null;
 
-      const [first] = [...result.data].sort((a, b) => a.order - b.order);
+  if (project?.id !== projectId) {
+    return (
+      <div className="p-6" role="status" aria-label={PROJECT_LOADING_LABEL}>
+        <Skeleton preset="property-panel" />
+      </div>
+    );
+  }
 
-      return first?.id ?? null;
-    },
-  });
+  if (floorId === null) {
+    return (
+      <div className="p-6">
+        <EmptyState icon={<History aria-hidden="true" />} title={NO_FLOOR_TITLE} description={NO_FLOOR_MESSAGE} />
+      </div>
+    );
+  }
+
+  return (
+    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} onSelectFloor={setPicked} />
+  );
 }
 
-/**
- * Route thật của màn lịch sử phiên bản, đăng ký tại `src/routes/router.tsx`.
- *
- * Mã dự án đọc từ URL. Tầng: `?floorId=` nếu đường dẫn mang nó, không thì tầng đang mở
- * trong kho, không nữa thì tầng đầu tiên của dự án — trước đây chỉ có nguồn thứ hai, mà
- * không màn nào đặt nó, nên màn không bao giờ mở được (B-V12-10).
- */
+/** Route thật của màn lịch sử phiên bản, đăng ký tại `src/routes/router.tsx`; cổng nạp kho dự án. */
 export function VersionHistoryRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
-  const [searchParams] = useSearchParams();
-  const activeFloorId = useStore((state) => state.activeFloorId);
   const projectId = id ?? '';
-  const requestedFloorId = searchParams.get('floorId') ?? activeFloorId;
-  const firstFloor = useFirstFloorId(projectId, projectId.length > 0 && requestedFloorId === null);
 
   if (projectId.length === 0) {
     return (
@@ -241,37 +237,9 @@ export function VersionHistoryRoute() {
     );
   }
 
-  if (requestedFloorId !== null) {
-    return <VersionHistoryContainer projectId={projectId} floorId={requestedFloorId} />;
-  }
-
-  if (firstFloor.isPending) {
-    return (
-      <div className="p-6">
-        <Skeleton preset="property-panel" />
-      </div>
-    );
-  }
-
-  if (firstFloor.isError) {
-    return (
-      <div className="p-6">
-        <InlineAlert level="violation" title={MISSING_PARAMS_TITLE} message={FLOORS_FAILED_MESSAGE} />
-      </div>
-    );
-  }
-
-  if (firstFloor.data === null) {
-    return (
-      <div className="p-6">
-        <EmptyState
-          icon={<History aria-hidden="true" />}
-          title={NO_FLOOR_TITLE}
-          description={NO_FLOOR_MESSAGE}
-        />
-      </div>
-    );
-  }
-
-  return <VersionHistoryContainer projectId={projectId} floorId={firstFloor.data} />;
+  return (
+    <ProjectSpatialGate projectId={projectId}>
+      <ProjectVersionHistory projectId={projectId} />
+    </ProjectSpatialGate>
+  );
 }

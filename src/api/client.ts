@@ -64,7 +64,13 @@ import { ProjectSummarySchema, type ProjectSummary } from './schemas/projectSumm
 import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig } from './schemas/ruleConfig';
 import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
 import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
-import { FloorVersionPageSchema } from './schemas/versions';
+import {
+  FloorVersionPageSchema,
+  FloorVersionSnapshotSchema,
+  FloorVersionSummarySchema,
+  type FloorVersionSnapshot,
+  type FloorVersionSummary,
+} from './schemas/versions';
 import { SpatialGraphDocumentSchema, type SpatialGraphDocument } from './schemas/spatialGraph';
 
 export type {
@@ -804,6 +810,49 @@ export interface ApiClient {
   ruleConfig: RuleConfigApi;
   spatial: SpatialApi;
   users: UsersApi;
+  versions: VersionsApi;
+}
+
+export interface ListFloorVersionPageInput extends RequestOptions {
+  cursor?: string;
+  floorId: string;
+  limit?: number;
+  projectId: string;
+}
+
+export interface ReadFloorVersionSnapshotInput extends RequestOptions {
+  floorId: string;
+  projectId: string;
+  versionId: string;
+}
+
+export interface RestoreFloorVersionInput extends WriteRequestOptions {
+  /** `revision` hiện tại của TẦNG — không phải `sequence` của phiên bản (HOP-DONG-MOI §5). */
+  baseVersion: number;
+  floorId: string;
+  projectId: string;
+  versionId: string;
+}
+
+export interface LabelFloorVersionInput extends WriteRequestOptions {
+  /** `''` là gỡ nhãn. */
+  label: string;
+  projectId: string;
+  versionId: string;
+}
+
+/** N17 sau giải mã: mục hỏng bị bỏ kèm cảnh báo (`safeParseList`), không làm rỗng cả trang. */
+export interface FloorVersionList {
+  items: FloorVersionSummary[];
+  nextCursor?: string;
+}
+
+/** N17 trang, N18 nội dung, N19 phục hồi (201 hay 200 như nhau), N20 nhãn. */
+export interface VersionsApi {
+  label(input: LabelFloorVersionInput): Promise<ApiResult<FloorVersionSummary>>;
+  list(input: ListFloorVersionPageInput): Promise<ApiResult<FloorVersionList>>;
+  restore(input: RestoreFloorVersionInput): Promise<ApiResult<FloorVersionSummary>>;
+  snapshot(input: ReadFloorVersionSnapshotInput): Promise<ApiResult<FloorVersionSnapshot>>;
 }
 
 const asApiResult = <T>(result: Result<T, HttpError>): ApiResult<T> => result as ApiResult<T>;
@@ -1381,6 +1430,60 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         'users.resendInvite',
       );
     },
+  },
+  versions: {
+    label: async (input) => {
+      const { label, projectId, versionId } = input;
+
+      return decodeSingle(
+        await callPatch(http, ENDPOINTS.versions.label(projectId, versionId), { label }, input),
+        FloorVersionSummarySchema,
+        'versions.label',
+      );
+    },
+    list: async ({ cursor, floorId, limit, projectId, signal }) => {
+      const page = decodeSingle(
+        await http.get<unknown>(ENDPOINTS.versions.list(projectId), {
+          query: { floorId, ...(cursor !== undefined ? { cursor } : {}), ...(limit !== undefined ? { limit } : {}) },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        CursorEnvelopeSchema,
+        'versions.list',
+      );
+
+      if (!page.ok) {
+        return page;
+      }
+
+      const items = safeParseList(FloorVersionSummarySchema, page.data.items, 'versions.list');
+
+      if (!items.ok) {
+        return items;
+      }
+
+      return {
+        ok: true,
+        data: { items: items.data, ...(page.data.nextCursor !== undefined ? { nextCursor: page.data.nextCursor } : {}) },
+      };
+    },
+    restore: async (input) => {
+      const { baseVersion, floorId, projectId, versionId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.versions.restore(projectId, versionId), { baseVersion, body: { floorId } }, input),
+        FloorVersionSummarySchema,
+        'versions.restore',
+      );
+    },
+    snapshot: async ({ floorId, projectId, signal, versionId }) =>
+      decodeSingle(
+        await http.get<unknown>(ENDPOINTS.versions.snapshot(projectId, versionId), {
+          query: { floorId },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        FloorVersionSnapshotSchema,
+        'versions.snapshot',
+      ),
   },
 });
 

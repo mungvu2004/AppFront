@@ -23,14 +23,13 @@
  */
 
 import { formatCalendarDate, formatClockTime, formatTimestamp } from '@/lib/format/datetime';
+import { createApiClient } from '@/api/client';
 import { formatChange } from '@/lib/format/semantic';
-import { createUndoTicket } from '@/lib/mutations/undoTicket';
-import type { UndoTicket } from '@/lib/mutations/undoTicket';
+import type { HttpClient, HttpError, Result } from '@/lib/http';
 import { FAKE_CLOCK_START } from '@/lib/testing/fakeClock';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { diffVersions } from '@/lib/versioning/diff';
 import type { EntityRecord, VersionDiff, VersionSnapshot } from '@/lib/versioning/diff';
-import { appendVersionToHistory, restoreVersion } from '@/lib/versioning/restore';
 import type { VersionEntry, VersionHistoryEntry, VersionMetadata } from '@/lib/versioning/restore';
 
 import type {
@@ -42,7 +41,6 @@ import type {
   DiffTone,
   JsonDiffLineModel,
   RestoreConfirmModel,
-  RestoreOutcome,
   VersionGroupModel,
   VersionHistoryActions,
   VersionHistoryCapabilities,
@@ -53,6 +51,7 @@ import type {
   VersionRowModel,
   VisualDiffModel,
 } from './types';
+import { createVersionHistoryGateway } from './versionHistoryGateway';
 import { NO_MODEL_REASON } from './versionHistoryScene';
 
 /* ==========================================================================
@@ -265,7 +264,9 @@ function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionR
     relativeTimeLabel: formatTimestamp(new Date(version.createdAt), FAKE_CLOCK_START),
     absoluteTimeLabel: `${formatCalendarDate(new Date(version.createdAt))} ${formatClockTime(new Date(version.createdAt))}`,
     counts: isOldest ? EMPTY_DIFF_COUNTS : SAMPLE_DIFF_COUNTS,
-    isCurrent: version.id === 'v14',
+    // `v13` (bản không được xem) là hiện tại, để huy hiệu "Hiện tại" còn có story; `v14` — bản
+    // đang xem — không hiện tại, nên nút phục hồi vẫn hiện cho nó.
+    isCurrent: version.id === 'v13',
     tagLabel: version.id === 'v13' ? 'Duyệt với chủ đầu tư' : null,
     isMetadataOnly: entry.kind === 'metadataOnly',
     retentionNotice: entry.kind === 'metadataOnly' ? 'Đã lưu quá 90 ngày, chỉ còn thông tin cơ bản.' : null,
@@ -359,7 +360,15 @@ export const NOOP_VERSION_HISTORY_ACTIONS: VersionHistoryActions = {
   exportVersion: () => undefined,
   tagVersion: () => undefined,
   dismissConflict: () => undefined,
+  loadMoreVersions: () => undefined,
+  selectFloor: () => undefined,
 };
+
+/** Hai tầng mẫu cho ô "Tầng". */
+export const SAMPLE_FLOOR_OPTIONS: readonly VersionHistoryOption[] = [
+  { id: 'L-LEVEL000001', label: 'Tầng 1' },
+  { id: 'L-LEVEL000002', label: 'Tầng 2' },
+];
 
 /* ==========================================================================
  * 7. Bảy trạng thái (A11).
@@ -388,6 +397,9 @@ function modelForState(state: SevenState): VersionHistoryModel {
     canTagVersion: false,
     // Nơi gọi có cấp `onExportVersion` ⇒ nút "xuất phiên bản này" ở lại trong DOM (R-73).
     canExportVersion: true,
+    canLoadMoreVersions: false,
+    floorSelect: { label: 'Tầng', options: SAMPLE_FLOOR_OPTIONS, selectedId: 'L-LEVEL000001' },
+    emptyTitle: 'Tầng 1 chưa có phiên bản nào',
   };
 
   switch (state) {
@@ -490,24 +502,234 @@ export function buildVersionHistoryProps(
 }
 
 /* ==========================================================================
- * 8. Cổng giả — không chạm mạng, dùng bởi bài kiểm hook.
+ * 8. Máy chủ giả N15–N20 — thân phản hồi là DỮ LIỆU DÂY (literal), giải mã bằng
+ *    `createApiClient` thật; cổng là `createVersionHistoryGateway` thật.
  * ========================================================================== */
 
-function findFullEntry(history: readonly VersionHistoryEntry[], versionId: string): VersionEntry {
-  const entry = history.find((item) => item.version.id === versionId);
+export const WIRE_PROJECT_ID = 'project-1';
+export const WIRE_FLOOR_ID = 'L-LEVEL000001';
 
-  if (entry === undefined || entry.kind !== 'full') {
-    throw new Error(`fixture: không có snapshot đầy đủ cho phiên bản ${versionId}`);
-  }
+export const WIRE_VERSION_IDS = {
+  v1: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+  v2: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T2B',
+  v3: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T3C',
+  v4: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T4D',
+  v5: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T5E',
+} as const;
 
-  return entry.version;
+const WIRE_USER_ID = 'usr_01J9ZV8Q3M7X5B2N4K6P8R0T1A';
+
+export function wireWall(id: string, thicknessMm: number, startX: number): Record<string, unknown> {
+  return {
+    centreline: { end: { x: startX + 4000, y: 0 }, start: { x: startX, y: 0 } },
+    confidence: 1,
+    heightMm: 2800,
+    id,
+    kind: 'partition',
+    levelId: WIRE_FLOOR_ID,
+    openingIds: [],
+    reviewed: true,
+    source: 'human',
+    thicknessMm,
+  };
+}
+
+export const wireLayer = (walls: readonly Record<string, unknown>[]) => ({ furniture: [], openings: [], rooms: [], walls });
+
+export const WIRE_LEVEL = {
+  confidence: 1,
+  elevationMm: 0,
+  heightMm: 3000,
+  id: WIRE_FLOOR_ID,
+  name: 'Tầng 1',
+  order: 0,
+  reviewed: true,
+  source: 'human',
+};
+
+/** Lớp đang có trên máy chủ (bản v3) và lớp của bản v2. */
+export const WIRE_CURRENT_WALLS = [wireWall('W-WALL000001', 220, 0), wireWall('W-WALL000002', 150, 5000)];
+export const WIRE_V2_WALLS = [wireWall('W-WALL000001', 200, 0)];
+
+/** Ba bản N17, `sequence` giảm dần. v3 là đầu ra AI và trùng `revision` 5 của tầng. */
+export function wireSummaries(): Record<string, unknown>[] {
+  return [
+    {
+      createdAt: '2026-09-08T08:50:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'hệ thống AI',
+      floorRevision: 5,
+      hasSnapshot: true,
+      id: WIRE_VERSION_IDS.v3,
+      note: 'trạng thái sau khi ghi kết quả AI',
+      sequence: 3,
+    },
+    {
+      createdAt: '2026-09-08T07:00:00.000Z',
+      creatorId: WIRE_USER_ID,
+      creatorName: 'Nguyễn Bình',
+      floorRevision: 3,
+      hasSnapshot: true,
+      id: WIRE_VERSION_IDS.v2,
+      label: 'Duyệt với chủ đầu tư',
+      sequence: 2,
+    },
+    {
+      createdAt: '2026-09-07T07:00:00.000Z',
+      creatorId: WIRE_USER_ID,
+      creatorName: 'Phạm An',
+      floorRevision: 1,
+      hasSnapshot: false,
+      id: WIRE_VERSION_IDS.v1,
+      sequence: 1,
+    },
+  ];
+}
+
+export function wireGraphDocument(revision: number): Record<string, unknown> {
+  return {
+    floorRevisions: [{ floorId: WIRE_FLOOR_ID, revision }],
+    graph: {
+      axes: [],
+      building: { confidence: 1, datumElevationMm: 0, name: 'Nhà mẫu', reviewed: true, source: 'human' },
+      dimensions: [],
+      furniture: [],
+      levels: [WIRE_LEVEL],
+      notes: [],
+      openings: [],
+      rooms: [],
+      walls: WIRE_CURRENT_WALLS,
+    },
+  };
+}
+
+export function wireError(status: number, code: string, extra: Record<string, unknown> = {}): HttpError {
+  return { code, kind: 'http', raw: { code, requestId: 'req-version', ...extra }, requestId: 'req-version', retryable: false, status };
+}
+
+type Reply = Result<unknown, HttpError>;
+type Handler = (request: { readonly path: string; readonly query: Readonly<Record<string, unknown>>; readonly body: unknown }) => Reply | Promise<Reply>;
+
+/** Một lượt gọi đã ghi lại: phương thức, đường, query, thân. */
+export interface RecordedCall {
+  readonly method: string;
+  readonly path: string;
+  readonly query: Readonly<Record<string, unknown>>;
+  readonly body: unknown;
+}
+
+export interface VersionsServerFake {
+  readonly http: HttpClient;
+  readonly calls: RecordedCall[];
+  /** `revision` của tầng trên máy chủ giả. */
+  revision: number;
+  /** Ghi đè một tuyến: `'POST restore'`, `'GET snapshot'`, `'GET list'`, `'PATCH label'`, `'GET layer'`, `'PUT layer'`. */
+  readonly override: (route: string, handler: Handler) => void;
+}
+
+const routeOf = (method: string, path: string): string => {
+  if (path.endsWith('/restore')) return `${method} restore`;
+  if (path.endsWith('/snapshot')) return `${method} snapshot`;
+  if (path.endsWith('/label')) return `${method} label`;
+  if (path.endsWith('/spatial/layer')) return `${method} layer`;
+  if (path.endsWith('/spatial')) return `${method} graph`;
+  return `${method} list`;
+};
+
+const answer = (data: unknown): Reply => ({ data, ok: true });
+
+/**
+ * Máy chủ giả: N17 trả `wireSummaries()`, N18 lớp theo bản, N19 sinh bản mới với
+ * `floorRevision` = base + 1 (base cũ → 409), N16/#35 theo `revision` đang giữ.
+ */
+export function createVersionsServerFake(initialRevision = 5): VersionsServerFake {
+  const overrides = new Map<string, Handler>();
+  const calls: RecordedCall[] = [];
+  let summaries = wireSummaries();
+  let layerWalls: readonly Record<string, unknown>[] = WIRE_CURRENT_WALLS;
+
+  const call = async <T,>(method: string, path: string, options?: { query?: Record<string, unknown>; body?: unknown }) => {
+    const request = { body: options?.body, path, query: options?.query ?? {} };
+    const route = routeOf(method, path);
+
+    calls.push({ method, ...request });
+
+    return (await (overrides.get(route) ?? defaults[route] ?? (() => answer(null)))(request)) as Result<T, HttpError>;
+  };
+  const fake: VersionsServerFake = {
+    calls,
+    http: {
+      delete: (path, options) => call('DELETE', path, options),
+      events: { emit: () => undefined, on: () => () => undefined },
+      get: (path, options) => call('GET', path, options),
+      getRecentRequests: () => [],
+      patch: (path, options) => call('PATCH', path, options),
+      post: (path, options) => call('POST', path, options),
+      put: (path, options) => call('PUT', path, options),
+    },
+    override: (route, handler) => {
+      overrides.set(route, handler);
+    },
+    revision: initialRevision,
+  };
+
+  const defaults: Record<string, Handler> = {
+    'GET list': () => answer({ items: summaries }),
+    'GET snapshot': ({ path }) =>
+      answer({ dimensions: [], layer: wireLayer(path.includes(WIRE_VERSION_IDS.v2) ? WIRE_V2_WALLS : WIRE_CURRENT_WALLS), versionId: path.split('/')[4] }),
+    'POST restore': ({ body, path }) => {
+      const base = (body as { baseVersion: number }).baseVersion;
+
+      if (base !== fake.revision) {
+        return { error: wireError(409, 'VERSION_CONFLICT', { currentVersion: fake.revision, remoteChanges: [] }), ok: false };
+      }
+
+      const sequence = summaries.length + 1;
+      const id = sequence === 4 ? WIRE_VERSION_IDS.v4 : WIRE_VERSION_IDS.v5;
+
+      fake.revision += 1;
+      layerWalls = path.includes(WIRE_VERSION_IDS.v2) ? WIRE_V2_WALLS : WIRE_CURRENT_WALLS;
+      const created = {
+        createdAt: '2026-09-08T09:00:00.000Z',
+        creatorId: WIRE_USER_ID,
+        creatorName: 'Kỹ sư mẫu',
+        floorRevision: fake.revision,
+        hasSnapshot: true,
+        id,
+        sequence,
+      };
+
+      summaries = [created, ...summaries];
+
+      return answer(created);
+    },
+    'PATCH label': ({ body, path }) => {
+      const label = (body as { label: string }).label;
+      const found = summaries.find((item) => path.includes(String(item.id))) ?? summaries[0];
+
+      return answer({ ...found, ...(label.length > 0 ? { label } : { label: undefined }) });
+    },
+    'GET layer': () => answer({ axes: [], dimensions: [], layer: wireLayer(layerWalls), level: WIRE_LEVEL, revision: fake.revision }),
+    'PUT layer': ({ body }) => {
+      const write = body as { baseVersion: number; body: { layer: unknown } };
+
+      if (write.baseVersion !== fake.revision) {
+        return { error: wireError(409, 'VERSION_CONFLICT', { currentVersion: fake.revision, remoteChanges: [] }), ok: false };
+      }
+
+      fake.revision += 1;
+
+      return answer({ layer: write.body.layer, revision: fake.revision });
+    },
+    'GET graph': () => answer(wireGraphDocument(fake.revision)),
+  };
+
+  return fake;
 }
 
 export interface FakeVersionHistoryGatewayOptions {
   readonly now?: () => Date;
-  readonly capabilities?: Partial<VersionHistoryCapabilities>;
-  /** Ghi đè toàn bộ kết quả `restore` — dùng để dựng kịch bản 409. */
-  readonly onRestore?: (versionId: string) => RestoreOutcome | Promise<RestoreOutcome>;
+  readonly server?: VersionsServerFake;
 }
 
 export const SAMPLE_CAPABILITIES: VersionHistoryCapabilities = {
@@ -519,78 +741,15 @@ export const SAMPLE_CAPABILITIES: VersionHistoryCapabilities = {
   canExportVersion: true,
 };
 
-/**
- * Một `VersionHistoryGateway` không chạm mạng, đúng khuôn `shareDialogGateway.ts`.
- *
- * `restore` gọi đúng `restoreVersion`/`appendVersionToHistory` thật — số phiên bản sau khi
- * phục hồi LUÔN tăng thêm 1, vì đó là hành vi thật của hai hàm đó, không phải một con số
- * gán tay ở đây. Phiếu hoàn tác đi qua `createUndoTicket` thật, nên `UNDO_WINDOW_MS` chi
- * phối nó đúng như trong sản phẩm.
- */
-export function createFakeVersionHistoryGateway(
-  options: FakeVersionHistoryGatewayOptions = {},
-): VersionHistoryGateway {
-  const now = options.now ?? (() => FAKE_CLOCK_START);
-  let history: readonly VersionHistoryEntry[] = SAMPLE_HISTORY;
-  let nextSequence = 15;
+/** Cổng THẬT trên máy chủ giả — không mạng, không cổng viết tay. */
+export function createFakeVersionHistoryGateway(options: FakeVersionHistoryGatewayOptions = {}): VersionHistoryGateway {
+  const server = options.server ?? createVersionsServerFake();
 
-  return {
-    capabilities: { ...SAMPLE_CAPABILITIES, ...options.capabilities },
-    listVersions: () => Promise.resolve(history),
-    diff: (leftVersionId, rightVersionId) =>
-      Promise.resolve(
-        diffVersions(
-          findFullEntry(history, leftVersionId).snapshot,
-          findFullEntry(history, rightVersionId).snapshot,
-        ),
-      ),
-    restore: async (versionId): Promise<RestoreOutcome> => {
-      if (options.onRestore) {
-        return options.onRestore(versionId);
-      }
-
-      const sourceVersion = findFullEntry(history, versionId);
-      const newVersion: VersionMetadata = {
-        id: `v${String(nextSequence)}`,
-        sequence: nextSequence,
-        createdAt: now().toISOString(),
-        creatorId: 'user-1',
-      };
-
-      nextSequence += 1;
-
-      const { restoredVersion } = restoreVersion({
-        floorId: SAMPLE_FLOOR_ID,
-        newVersion,
-        sourceVersion,
-      });
-
-      history = appendVersionToHistory(history, restoredVersion);
-
-      const undoTicket: UndoTicket = createUndoTicket({
-        description: `Hoàn tác phục hồi ${newVersion.id}`,
-        now: () => now().getTime(),
-        undo: () => undefined,
-      });
-
-      return { kind: 'restored', restoredVersion, history, undoTicket };
-    },
-    undoRestore: () => {
-      history = history.slice(1);
-
-      return Promise.resolve(history);
-    },
-    tagVersion: (versionId, label) => {
-      const entry = findFullEntry(history, versionId);
-      const updated: VersionMetadata = {
-        id: entry.id,
-        sequence: entry.sequence,
-        createdAt: entry.createdAt,
-        creatorId: entry.creatorId,
-        note: label,
-      };
-
-      return Promise.resolve(updated);
-    },
-  };
+  return createVersionHistoryGateway({
+    apiClient: createApiClient(server.http),
+    projectId: WIRE_PROJECT_ID,
+    floorId: WIRE_FLOOR_ID,
+    canExportVersion: true,
+    ...(options.now !== undefined ? { now: options.now } : {}),
+  });
 }

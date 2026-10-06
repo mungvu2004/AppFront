@@ -23,6 +23,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { buildVersionHistoryProps } from './versionHistoryFixtures';
+import { toConflictNotice } from './versionHistoryGateway';
 import { VersionHistory } from './VersionHistory';
 
 const meta = {
@@ -62,8 +63,8 @@ export const ErrorState: Story = {
 
 /**
  * 5 · thành công — bốn phiên bản, một bản đã dọn theo chính sách lưu giữ (`isMetadataOnly`),
- * cặp so sánh v13→v14 với đủ ba tông màu (thêm/xoá/đổi), tab "trực quan" nói rõ đây là mô
- * hình HIỆN TẠI.
+ * cặp so sánh v13→v14 với đủ ba tông màu (thêm/xoá/đổi), v13 mang huy hiệu "Hiện tại", tab
+ * "trực quan" nói rõ đây là mô hình HIỆN TẠI.
  */
 export const Success: Story = {
   args: buildVersionHistoryProps('success'),
@@ -77,4 +78,45 @@ export const Forbidden: Story = {
 /** 7 · thu gọn — dưới 1024: danh sách phiên bản thành `Select`, vùng so sánh xếp dọc. */
 export const Collapsed: Story = {
   args: buildVersionHistoryProps('collapsed'),
+};
+
+/* -------------------------------------------------------------------------- */
+/* F-08 — theo tầng.                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Vai người xem: so sánh được, không nút phục hồi, không nút gắn nhãn. */
+export const ViewerReadOnly: Story = {
+  args: buildVersionHistoryProps('success', { canRestore: false, canTagVersion: false, restoreHiddenReason: 'Vai của bạn chỉ xem được lịch sử.' }),
+};
+
+/** Dải "Tải lại": tầng vừa đổi ở nơi khác, lượt phục hồi chưa được ghi. */
+export const ReloadBanner: Story = {
+  args: buildVersionHistoryProps('success', {
+    conflict: toConflictNotice('Trần Minh'),
+  }),
+};
+
+/** Có nhãn và nút "Gắn nhãn phiên bản này". */
+export const Labelled: Story = {
+  args: buildVersionHistoryProps('success', { canTagVersion: true }),
+};
+
+/** Còn trang sau của N17 — nút "Xem thêm phiên bản". */
+export const MorePages: Story = {
+  args: buildVersionHistoryProps('success', { canLoadMoreVersions: true }),
+};
+
+/** Nhiều tầng — ô "Tầng" đang ở tầng 2. */
+export const ManyFloors: Story = {
+  args: buildVersionHistoryProps('success', {
+    floorSelect: {
+      label: 'Tầng',
+      options: [
+        { id: 'L-LEVEL000001', label: 'Tầng 1' },
+        { id: 'L-LEVEL000002', label: 'Tầng 2' },
+        { id: 'L-LEVEL000003', label: 'Tầng mái' },
+      ],
+      selectedId: 'L-LEVEL000002',
+    },
+  }),
 };

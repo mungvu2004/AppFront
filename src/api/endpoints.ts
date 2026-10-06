@@ -329,4 +329,14 @@ export const ENDPOINTS = {
     remove: (userId: string): string => `${USERS_ROOT}/${userId}`,
     resendInvite: (userId: string): string => `${USERS_ROOT}/invitations/${userId}/resend`,
   },
+  /** N17–N20 — phiên bản theo tầng (B3-04). Tầng đi bằng `query` (`floorId`), không ghép vào chuỗi. */
+  versions: {
+    label: (projectId: string, versionId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/versions/${versionId}/label`,
+    list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/versions`,
+    restore: (projectId: string, versionId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/versions/${versionId}/restore`,
+    snapshot: (projectId: string, versionId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/versions/${versionId}/snapshot`,
+  },
 } as const;
