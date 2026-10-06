@@ -130,22 +130,6 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    id: 'billing/BillingScreen',
-    name: 'BillingScreen',
-    area: 'billing',
-    group: 'B',
-    label: 'Thanh toán và gói dịch vụ',
-    storyExportNames: {
-      empty: 'Empty',
-      loading: 'Loading',
-      partial: 'Partial',
-      error: 'ErrorState',
-      success: 'Ready',
-      forbidden: 'Forbidden',
-      collapsed: 'Collapsed',
-    },
-  },
-  {
     id: 'dashboard/ProjectDashboard',
     name: 'ProjectDashboard',
     area: 'dashboard',
