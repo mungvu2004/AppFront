@@ -34,9 +34,26 @@ import { ROUTES } from '../fixtures/routes';
 /** Lần tải đầu một route bắt Vite dịch nguội — tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
+/**
+ * Hạn của lượt hâm nóng (`beforeAll` bên dưới), không phải của bài nào. NO-371: máy chủ
+ * Vite mới dựng dịch nguội route `/thong-bao` một lần; sáu worker cùng bấm vào đó ở bài
+ * ĐẦU của mỗi worker thì cả sáu quá hạn 15 s của `openDirect` (đo `--repeat-each=20`: 6/120
+ * hỏng, đúng sáu bài đầu). Hâm nóng một lần mỗi worker trả giá ấy ngoài hạn của bài —
+ * cùng cách `share-dialog.spec.ts` và `tour-chip.spec.ts`.
+ */
+const COLD_START_TIMEOUT_MS = 60_000;
+
 /** Bộ mẫu (`src/api/__mocks__/client.ts`): 5 thông báo, 3 chưa đọc. */
 const ITEM_COUNT = 5;
 const UNREAD_COUNT = 3;
+
+test.beforeAll(async ({ browser }) => {
+  test.setTimeout(COLD_START_TIMEOUT_MS);
+  const page = await browser.newPage();
+  await page.goto(ROUTES.notifications);
+  await expect(page.getByRole('heading', { name: 'Thông báo' })).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+  await page.close();
+});
 
 function panel(page: Page) {
   return page.getByRole('dialog', { name: 'Thông báo' });
