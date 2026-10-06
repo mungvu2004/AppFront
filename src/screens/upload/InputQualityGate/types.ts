@@ -227,6 +227,11 @@ export interface InputQualityImageModel {
  */
 export interface InputQualityFooterModel {
   readonly canContinue: boolean;
+  /**
+   * Dự án chưa có bản vẽ: không còn gì để xử lý tiếp, nên nút chính vô hiệu
+   * (khác `canContinue`, vốn không khoá nút). Chân trang nêu lý do cạnh nút.
+   */
+  readonly isContinueDisabled?: boolean;
   readonly requiresAcknowledgement: boolean;
   readonly isAcknowledged: boolean;
   readonly acknowledgementLabel: string;
@@ -288,6 +293,11 @@ export interface InputQualityGateModel {
   readonly passNotice: string | null;
   readonly noDrawingNotice: string | null;
   readonly writeError: string | null;
+  /**
+   * Sau lỗi ghi (và lượt đọc lại nếu có): loại nút hành động nhận lại tiêu điểm
+   * (A12). Hộp thoại đóng lúc nút gốc còn bị thay thế nên tiêu điểm không tự về.
+   */
+  readonly retryFocus?: 'straighten' | 'corners' | null;
   readonly confirm: InputQualityConfirmModel | null;
 }
 

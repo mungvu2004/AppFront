@@ -72,6 +72,9 @@ const PROJECT_ID = 'project-1';
  */
 const SETTLE_STEP_MS = 10;
 
+/** Độ trễ giả của máy chủ khi ghi — dài hơn mọi hoạt ảnh rời đi. */
+const SLOW_SERVER_MS = 1000;
+
 /**
  * `px` là đơn vị, không phải chữ tiếng Anh sót lại.
  *
@@ -665,6 +668,115 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
     expect(within(panel).queryByText('Ảnh bị nghiêng')).toBeNull();
     expect(within(panel).getByText('Độ phân giải thấp')).toBeInTheDocument();
     expect(screen.getByText(/^2 phát hiện còn lại/u)).toBeInTheDocument();
+  });
+
+  it('NO-360: lỗi ghi có đọc lại thì tiêu điểm về nút vừa bấm, không nhảy lên đầu trang', async () => {
+    const client = createMockApiClient();
+    const realAssess = client.quality.assess;
+    let isWriteDone = false;
+    const assess = vi.spyOn(client.quality, 'assess').mockImplementation(async (input) => {
+      // Lượt đọc lại sau lỗi ghi cũng chậm, như mạng thật: nút hành động ẩn suốt lúc đó.
+      if (isWriteDone) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, SLOW_SERVER_MS);
+        });
+      }
+
+      return realAssess(input);
+    });
+
+    vi.spyOn(client.quality, 'straighten').mockImplementation(async () => {
+      // Máy chủ trả lời chậm: đủ lâu để hoạt ảnh rời đi của phát hiện chạy hết.
+      await new Promise((resolve) => {
+        setTimeout(resolve, SLOW_SERVER_MS);
+      });
+
+      isWriteDone = true;
+
+      return {
+      error: {
+        code: 'QUALITY_DRAWING_CHANGED',
+        kind: 'http',
+        raw: { code: 'QUALITY_DRAWING_CHANGED', requestId: 'req-focus-1' },
+        requestId: 'req-focus-1',
+        retryable: false,
+        status: 409,
+      },
+      ok: false,
+      };
+    });
+
+    await mountScreen(clock, { client });
+    await selectMeasuredFloor(clock);
+
+    const reads = assess.mock.calls.length;
+    const trigger = screen.getByRole('button', { name: /tự động nắn/iu });
+
+    trigger.focus();
+    fireEvent.click(trigger);
+    await settle(clock);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nắn thẳng' }));
+    await act(async () => {
+      await clock.advance(SLOW_SERVER_MS);
+      await clock.flushMicrotasks();
+    });
+    await act(async () => {
+      await clock.advance(SLOW_SERVER_MS);
+      await clock.flushMicrotasks();
+    });
+    await settle(clock);
+    await settle(clock);
+
+    expect(screen.getAllByText(/kết quả đo đã được đọc lại/iu).length).toBeGreaterThan(0);
+    expect(assess.mock.calls.length).toBeGreaterThan(reads);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /tự động nắn/iu }));
+  });
+});
+
+describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi tiếp được', () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
+  it('nút "Tiếp tục xử lý" vô hiệu kèm lý do đọc được, bấm không điều hướng', async () => {
+    const client = createMockApiClient();
+    const onNavigate = vi.fn();
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'NOT_FOUND',
+        kind: 'http',
+        raw: { code: 'NOT_FOUND', requestId: 'req-nodraw-1', resource: 'upload' },
+        requestId: 'req-nodraw-1',
+        retryable: false,
+        status: 404,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client, onNavigate });
+
+    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/chưa có bản vẽ nào để xử lý/iu);
+
+    fireEvent.click(button);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('có bản vẽ thì nút bấm được', async () => {
+    await mountScreen(clock, {});
+    await selectMeasuredFloor(clock);
+
+    expect(screen.getByRole('button', { name: 'Tiếp tục xử lý' })).toBeEnabled();
   });
 });
 

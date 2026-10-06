@@ -194,6 +194,7 @@ function FindingListItem({
 
           {action !== null && (
             <Button
+              data-quality-action={action.kind}
               onClick={() => (action.kind === 'straighten' ? onStraighten() : onPickCorners())}
               size="sm"
               variant="secondary"

@@ -12,6 +12,10 @@
  * nhánh: nhánh xác nhận (nêu đúng việc còn thiếu) và nhánh còn lại (phát hiện
  * còn treo, đúng ghi chú tại chính `InputQualityFooterModel`).
  *
+ * Ngoại lệ duy nhất: `footer.isContinueDisabled` (dự án chưa có bản vẽ) vô hiệu
+ * nút hẳn — không có gì để đi tiếp — và câu lý do vẫn nằm cạnh nút, nối bằng
+ * `aria-describedby`.
+ *
  * ## `areActionsHidden` ẩn hẳn, không mờ đi
  *
  * Trạng thái thứ sáu (`'forbidden'`) không có quyền hành động: hai nút biến
@@ -25,12 +29,15 @@ import type { InputQualityFooterProps } from './types';
 
 const CONTINUE_BLOCKED_ACKNOWLEDGEMENT = 'Đánh dấu ô xác nhận bên trên rồi thử lại.';
 const CONTINUE_BLOCKED_GENERIC = 'Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo.';
+const CONTINUE_DISABLED_NO_DRAWING = 'Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước.';
 const CONTINUE_BLOCKED_NOTE_ID = 'input-quality-gate-continue-note';
 
 export function InputQualityGateFooter({ actions, footer }: InputQualityFooterProps) {
-  const showBlockedNote = !footer.canContinue;
-  const blockedText =
-    footer.requiresAcknowledgement && !footer.isAcknowledged
+  const isDisabled = footer.isContinueDisabled === true;
+  const showBlockedNote = isDisabled || !footer.canContinue;
+  const blockedText = isDisabled
+    ? CONTINUE_DISABLED_NO_DRAWING
+    : footer.requiresAcknowledgement && !footer.isAcknowledged
       ? CONTINUE_BLOCKED_ACKNOWLEDGEMENT
       : CONTINUE_BLOCKED_GENERIC;
 
@@ -58,6 +65,7 @@ export function InputQualityGateFooter({ actions, footer }: InputQualityFooterPr
             </Button>
             <Button
               {...(showBlockedNote ? { 'aria-describedby': CONTINUE_BLOCKED_NOTE_ID } : {})}
+              disabled={isDisabled}
               onClick={actions.onContinue}
               variant="primary"
             >
