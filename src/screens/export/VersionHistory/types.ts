@@ -426,7 +426,7 @@ export interface VersionHistoryGateway {
   /** N17 một trang (`limit` = `VERSION_PAGE_LIMIT`). */
   readonly listVersionPage: (options: { readonly cursor?: string }) => Promise<VersionPage>;
   /** N18 một bản. */
-  readonly readSnapshot: (versionId: string) => Promise<VersionSnapshotRead>;
+  readonly readSnapshot: (versionId: string, signal?: AbortSignal) => Promise<VersionSnapshotRead>;
   /** N16 của tầng của cổng. */
   readonly readFloorLayer: () => Promise<FloorLayerRead>;
   /** Hoàn tác một lượt phục hồi bằng N19 ngược; kết quả như `restore` (không phiếu mới). */

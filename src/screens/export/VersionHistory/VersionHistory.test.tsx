@@ -70,7 +70,7 @@ import {
   type VersionsServerFake,
 } from './versionHistoryFixtures';
 import * as UseVersionHistoryModule from './useVersionHistory';
-import { useVersionHistory } from './useVersionHistory';
+import { snapshotQueryKey, useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
 import { VersionHistoryRoute } from './VersionHistory.container';
@@ -913,6 +913,46 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`))).toHaveLength(before + 1);
     expect(peak).toBeLessThanOrEqual(2);
     view.unmount();
+  });
+
+  it('NO-376: huỷ một N18 đang bay → nhả chỗ trong trần ≤ 2, lượt đang xếp hàng chạy tiếp', async () => {
+    const server = createVersionsServerFake();
+    const many = Array.from({ length: 4 }, (_, index) => ({
+      ...wireSummaries()[1],
+      floorRevision: 100 + index,
+      id: `ver_01J9ZV8Q3M7X5B2N4K6P8R0${'ABCD'.charAt(index).repeat(3)}`,
+      label: undefined,
+      sequence: 20 - index,
+    }));
+
+    server.override('GET list', () => ({ data: { items: many }, ok: true }));
+    // Máy chủ không bao giờ trả: chỉ huỷ mới nhả được chỗ.
+    server.override('GET snapshot', () => new Promise(() => undefined));
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const queryClient = createTestQueryClient();
+    const snapshotCalls = () => server.calls.filter((call) => call.path.endsWith('/snapshot'));
+
+    await hydrateFrom(server);
+    renderHook(() => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }), {
+      wrapper: ({ children }: { readonly children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(snapshotCalls()).toHaveLength(2);
+    });
+
+    const first = snapshotCalls()[0]?.path.split('/')[4] ?? '';
+
+    await act(async () => {
+      await queryClient.cancelQueries({ queryKey: snapshotQueryKey(WIRE_FLOOR_ID, first) });
+    });
+    await waitFor(() => {
+      expect(snapshotCalls()).toHaveLength(3);
+    });
   });
 
   it('tầng mặc định rỗng → empty, ô "Tầng" vẫn hiện', async () => {

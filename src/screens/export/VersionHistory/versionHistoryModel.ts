@@ -515,8 +515,15 @@ export function buildRestoreConfirm(
 /* 7 — Giới hạn lượt N18 đồng thời                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Bọc một hàm async để tối đa `max` lượt chạy cùng lúc; lượt dư xếp hàng theo thứ tự gọi. */
-export function createConcurrencyLimit(max: number): <T>(run: () => Promise<T>) => Promise<T> {
+/**
+ * Bọc một hàm async để tối đa `max` lượt chạy cùng lúc; lượt dư xếp hàng theo thứ tự gọi.
+ *
+ * `signal` bị huỷ (NO-376): lượt đang xếp hàng rời hàng và ném; lượt đang chạy nhả chỗ ngay —
+ * `run` nhận cùng `signal` để tự bỏ lượt mạng của nó.
+ */
+export function createConcurrencyLimit(
+  max: number,
+): <T>(run: (signal?: AbortSignal) => Promise<T>, signal?: AbortSignal) => Promise<T> {
   let active = 0;
   const queue: (() => void)[] = [];
   // Lượt xong trao thẳng chỗ của nó cho lượt đang chờ — không nhả rồi giành lại.
@@ -530,17 +537,45 @@ export function createConcurrencyLimit(max: number): <T>(run: () => Promise<T>) 
     }
   };
 
-  return async <T>(run: () => Promise<T>): Promise<T> => {
+  const waitTurn = (signal: AbortSignal | undefined): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      const onAbort = (): void => {
+        queue.splice(queue.indexOf(turn), 1);
+        reject(signal?.reason);
+      };
+      const turn = (): void => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      };
+
+      queue.push(turn);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+
+  return async <T>(run: (signal?: AbortSignal) => Promise<T>, signal?: AbortSignal): Promise<T> => {
+    signal?.throwIfAborted();
+
     if (active >= max) {
-      await new Promise<void>((resolve) => queue.push(resolve));
+      await waitTurn(signal);
     } else {
       active += 1;
     }
 
+    let held = true;
+    const free = (): void => {
+      if (held) {
+        held = false;
+        release();
+      }
+    };
+
+    signal?.addEventListener('abort', free, { once: true });
+
     try {
-      return await run();
+      return await run(signal);
     } finally {
-      release();
+      signal?.removeEventListener('abort', free);
+      free();
     }
   };
 }

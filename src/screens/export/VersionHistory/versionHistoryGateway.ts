@@ -210,8 +210,8 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
     return unwrap(result);
   };
 
-  const readSnapshot = async (versionId: string): Promise<VersionSnapshotRead> => {
-    const result = await apiClient.versions.snapshot({ floorId, projectId, versionId });
+  const readSnapshot = async (versionId: string, signal?: AbortSignal): Promise<VersionSnapshotRead> => {
+    const result = await apiClient.versions.snapshot({ floorId, projectId, versionId, ...(signal === undefined ? {} : { signal }) });
 
     if (!result.ok) {
       const code = readWireError(result.error)?.code;

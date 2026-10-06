@@ -183,7 +183,8 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const snapshots = useQueries({
     queries: summaries.map((item) => ({
       queryKey: snapshotQueryKey(floorId, item.id),
-      queryFn: (): Promise<VersionSnapshotRead> => limit(() => gateway.readSnapshot(item.id)),
+      queryFn: ({ signal }: { readonly signal: AbortSignal }): Promise<VersionSnapshotRead> =>
+        limit((held) => gateway.readSnapshot(item.id, held), signal),
       enabled: item.hasSnapshot && wanted.has(item.id),
       staleTime: Infinity,
     })),
