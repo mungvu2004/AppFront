@@ -79,7 +79,10 @@ export const createNetworkMonitor = (options: CreateNetworkMonitorOptions = {}):
 
   let intervalId: ReturnType<typeof setInterval> | number | null = null;
   let browserOnline = resolveBrowserOnline(navigatorObject);
-  let pingOnline = false;
+  // Chưa ping lần nào thì chưa có bằng chứng mất mạng: tin trình duyệt cho tới
+  // lượt kiểm đầu. Khởi tạo `false` từng làm mọi nơi đọc `getStatus()` lúc gắn
+  // thấy "mất mạng" trên một máy đang nối mạng (NO-381, NO-390).
+  let pingOnline = true;
   let checkedAt = now();
 
   const getStatus = (): NetworkMonitorStatus => ({

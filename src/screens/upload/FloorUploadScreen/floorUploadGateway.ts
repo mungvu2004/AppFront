@@ -228,12 +228,7 @@ export function createFloorUploadGateway(
       });
 
       monitor.start();
-      // Chỉ `browserOnline`, không `online`: trước lượt ping đầu tiên `online`
-      // là `browserOnline && false`, nên đọc nó lúc gắn sẽ báo "mất mạng" cho
-      // một máy đang nối mạng, và tệp chọn trong khoảng ấy rơi vào hàng đợi
-      // ngoại tuyến, nằm "Chờ xử lý" mãi (NO-381). `online` thật đi tới qua
-      // `subscribe`, sau một lượt kiểm thật — cùng luật `useCollaborationLayer`.
-      listener(monitor.getStatus().browserOnline);
+      listener(monitor.getStatus().online);
 
       return () => {
         unsubscribe();
