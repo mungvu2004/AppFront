@@ -22,4 +22,20 @@ describe('RoomLabelNameField', () => {
 
     expect(screen.getByRole('textbox', { name: 'Tên phòng' })).toHaveValue('phòng kh');
   });
+
+  it('chặn tên rỗng ở ô: báo lỗi, giữ tên cũ, không gọi onCommit', () => {
+    const onCommit = vi.fn();
+
+    render(<RoomLabelNameField isReadOnly={false} name="Bếp" onCommit={onCommit} suggestions={[]} />);
+
+    const field = screen.getByRole('textbox', { name: 'Tên phòng' });
+
+    fireEvent.change(field, { target: { value: '   ' } });
+    fireEvent.blur(field);
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(field).toHaveValue('Bếp');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Tên phòng không được để trống.')).toBeInTheDocument();
+  });
 });
