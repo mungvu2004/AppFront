@@ -53,7 +53,9 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
   const [savedName, setSavedName] = useState(name);
   const [error, setError] = useState<string | null>(null);
   /* Tên vừa cam kết mà tên đang lưu chưa kịp theo (lượt lưu còn bay): Enter rồi
-     blur ngay không được cam kết lần hai (review DEBT-03 P3-5e). */
+     blur ngay không được cam kết lần hai (review DEBT-03 P3-5e). Chốt chỉ chặn
+     blur; Enter là yêu cầu tường minh nên luôn cam kết — lệnh bị từ chối (tên
+     đang lưu không đổi) thì Enter lại vẫn tới `onCommit`, câu từ chối hiện lại (R2-5). */
   const [committed, setCommitted] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -66,7 +68,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
     setCommitted(null);
   }
 
-  const commit = () => {
+  const commit = (isExplicit: boolean) => {
     // Tên rỗng bị chặn tại ô (BE từ chối `min(1)`): giữ tên đang lưu, báo lỗi, không cam kết.
     if (draft.trim() === '' && draft !== name) {
       setError(NAME_EMPTY_ERROR);
@@ -75,7 +77,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
       return;
     }
 
-    if (draft === name || draft === committed) {
+    if (draft === name || (!isExplicit && draft === committed)) {
       return;
     }
 
@@ -92,7 +94,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
       <Input
         hint={NAME_HINT}
         label={NAME_LABEL}
-        onBlur={commit}
+        onBlur={() => commit(false)}
         error={error ?? undefined}
         onChange={(event) => {
           setError(null);
@@ -101,7 +103,7 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
-            commit();
+            commit(true);
 
             return;
           }

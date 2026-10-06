@@ -56,6 +56,22 @@ describe('RoomLabelNameField', () => {
     expect(onCommit).toHaveBeenCalledWith('Bếp ăn');
   });
 
+  it('lệnh đổi tên bị từ chối (tên đang lưu không đổi): Enter lại cùng chữ vẫn cam kết lại (R2-5)', () => {
+    const onCommit = vi.fn();
+
+    render(<RoomLabelNameField isReadOnly={false} name="Bếp" onCommit={onCommit} suggestions={[]} />);
+
+    const field = screen.getByRole('textbox', { name: 'Tên phòng' });
+
+    fireEvent.change(field, { target: { value: 'Bếp ăn' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    // Từ chối: cha không đổi `name`. Enter lại là một yêu cầu tường minh — phải tới
+    // được `onCommit` để câu từ chối hiện lại, không bị chốt nuốt im lặng.
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    expect(onCommit).toHaveBeenCalledTimes(2);
+  });
+
   it('Esc trả ô về tên đang lưu và xoá lỗi', () => {
     const onCommit = vi.fn();
 
