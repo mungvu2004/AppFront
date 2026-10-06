@@ -810,6 +810,8 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
 
     expect(button).toHaveAttribute('aria-disabled', 'true');
+    // Bị chặn thì phải TRÔNG bị chặn: `Button` tô `aria-disabled` như `disabled` (R2-1).
+    expect(button).toHaveClass('aria-disabled:opacity-40', 'aria-disabled:cursor-not-allowed');
     expect(button).toHaveAccessibleDescription(/chưa có bản vẽ nào để xử lý/iu);
 
     fireEvent.click(button);
