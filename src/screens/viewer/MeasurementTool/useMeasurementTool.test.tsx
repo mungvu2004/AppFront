@@ -612,6 +612,9 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
     });
     status('building');
     expect(viewportSkeleton()).not.toBeNull();
+    // Thanh trạng thái nói đúng điều khung nhìn đang làm (NO-388).
+    expect(screen.getAllByText('Đang dựng mô hình…').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Mô hình đã dựng xong.')).toHaveLength(0);
 
     status('ready');
     await waitFor(() => {

@@ -196,8 +196,11 @@ const VIEWER_LEGEND: readonly ViewerLegendItem[] = Object.freeze([
 /** Câu dạy của panel phải khi chưa chọn gì — đúng chữ đặc tả yêu cầu. */
 export const INSPECTOR_HINT = 'Chọn một đối tượng trên mô hình để xem thuộc tính.';
 
-/** Chữ trên thanh trạng thái lúc mô hình đang dựng. */
-const BUILDING_MESSAGE = 'Đang dựng mô hình…';
+/**
+ * Chữ trên thanh trạng thái lúc mô hình đang dựng. Xuất ra cho màn nội dung tự
+ * dựng cảnh (màn đo) nói đúng câu này khi nó đang dựng mà vỏ đã xong (NO-388).
+ */
+export const BUILDING_MESSAGE = 'Đang dựng mô hình…';
 
 /** Chữ trên thanh trạng thái khi mô hình đã dựng xong. */
 const READY_MESSAGE = 'Mô hình đã dựng xong.';

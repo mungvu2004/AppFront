@@ -104,7 +104,7 @@ import {
   createViewerShellGateway,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell/viewerShellGateway';
-import { useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
+import { BUILDING_MESSAGE, useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
 import type { ViewerPointPx, ViewerShellProps } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { MeasurementList } from './MeasurementList';
@@ -1002,9 +1002,15 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* ---- `ViewerShellProps` đầy đủ ----------------------------------------- */
 
+  const viewerState = viewerStateOf(state, shell.state, mountedScene.building);
+
   return {
     ...shell,
-    state: viewerStateOf(state, shell.state, mountedScene.building),
+    state: viewerState,
+    // Vỏ chỉ biết lượt nạp của nó; cảnh của màn đo dựng riêng, nên câu "đã dựng
+    // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388).
+    status:
+      viewerState === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,
