@@ -731,6 +731,8 @@ describe('useMeasurementTool — cảnh chưa sẵn sàng thì không bỏ cú c
     expect(viewportSkeleton()).toBeNull();
     const message = await screen.findAllByText('Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.');
     expect(message.length).toBeGreaterThan(0);
+    // Thanh trạng thái (aria-live) không được nói "đã dựng xong" về một cảnh dựng hỏng.
+    expect(screen.queryAllByText('Mô hình đã dựng xong.')).toHaveLength(0);
 
     fireEvent.click(screen.getAllByRole('button', { name: /thử lại/iu })[0] as HTMLElement);
 

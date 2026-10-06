@@ -105,7 +105,11 @@ import {
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { BUILDING_MESSAGE, useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
-import type { ViewerPointPx, ViewerShellProps } from '@/screens/viewer/ViewerShell/viewerShellTypes';
+import type {
+  ViewerPointPx,
+  ViewerScreenState,
+  ViewerShellProps,
+} from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { MeasurementList } from './MeasurementList';
 import { MeasurementTool } from './MeasurementTool';
@@ -284,6 +288,22 @@ export interface UseMeasurementToolOptions {
   readonly notifications?: NotificationBus;
   /** Tầng đang soát, để lọc mồi bắt điểm. Vắng mặt thì lấy mồi của cả mô hình. */
   readonly levelId?: string | null;
+}
+
+/**
+ * Thanh trạng thái của vỏ, với câu đọc to (aria-live) theo cảnh CỦA MÀN: đang
+ * dựng thì "đang dựng", dựng hỏng thì câu lỗi; còn lại giữ câu của vỏ.
+ */
+function liveStatusOf(
+  status: ViewerShellProps['status'],
+  viewerState: ViewerScreenState,
+  sceneFailed: boolean,
+): ViewerShellProps['status'] {
+  if (sceneFailed) {
+    return { ...status, liveMessage: SCENE_FAILED_MESSAGE };
+  }
+
+  return viewerState === 'loading' ? { ...status, liveMessage: BUILDING_MESSAGE } : status;
 }
 
 /** Câu của trạng thái 4, hoặc `null` khi không có gì hỏng. */
@@ -1008,9 +1028,9 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     ...shell,
     state: viewerState,
     // Vỏ chỉ biết lượt nạp của nó; cảnh của màn đo dựng riêng, nên câu "đã dựng
-    // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388).
-    status:
-      viewerState === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
+    // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388) hay đã dựng
+    // hỏng (review DEBT-03 P3-3) — lúc hỏng, nói đúng câu lỗi của màn.
+    status: liveStatusOf(shell.status, viewerState, mountedScene.failed),
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,
