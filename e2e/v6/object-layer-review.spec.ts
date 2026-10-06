@@ -104,8 +104,12 @@ test('[bơm] duyệt một đối tượng thì hệ thống tự lưu và trìn
   await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);
 });
 
-/** Tầng 1 của bộ mẫu A14 (10 đối tượng) — tầng đang có trong kho khi ca dưới đổi URL sang nó. */
+/**
+ * Tầng 1 của bộ mẫu A14 (10 đối tượng). Có thật trong bộ mẫu nên khi URL đổi sang nó, kho
+ * (F-04x-2: kho cùng dự án thiếu tầng thì được thêm tầng) nạp đối tượng của chính tầng ấy.
+ */
 const A14_FIRST_FLOOR = 'L-LEVEL000000';
+const A14_OBJECTS_ON_FIRST_FLOOR = 10;
 
 /** Đổi URL sang tầng khác ngay trong trang (không tải lại), để kho vẫn giữ đồ thị đã nạp. */
 async function switchFloorInPage(page: Page, floorId: string): Promise<void> {
@@ -117,7 +121,7 @@ async function switchFloorInPage(page: Page, floorId: string): Promise<void> {
   }, target);
 }
 
-test('mã tầng của URL không có trong kho thì màn báo rỗng, không hiện và cho sửa đồ của tầng khác (B-V6-40)', async ({
+test('đổi URL sang tầng khác ngay trong trang thì màn chỉ hiện đối tượng của tầng ấy, không lẫn đồ tầng trước (B-V6-40)', async ({
   page,
 }) => {
   await page.goto(ROUTES.project.objects(QC_PROJECT, A14_FLOOR));
@@ -127,14 +131,14 @@ test('mã tầng của URL không có trong kho thì màn báo rỗng, không hi
 
   await switchFloorInPage(page, A14_FIRST_FLOOR);
 
-  await expect(page.getByRole('button', { name: 'Thêm thủ công' })).toBeVisible();
+  await expect(page.getByText(`0/${String(A14_OBJECTS_ON_FIRST_FLOOR)} đối tượng đã duyệt`).first()).toBeVisible();
   await expect(page.getByText(`0/${String(A14_OBJECTS_ON_FLOOR)} đối tượng đã duyệt`)).toHaveCount(0);
+  await expect(page.getByRole('option')).toHaveCount(A14_OBJECTS_ON_FIRST_FLOOR);
 });
 
-test.fixme('mở tầng khác của cùng dự án ngay trong trang thì màn đọc được đối tượng của tầng ấy (B-V6-71)', async ({
+test('mở tầng khác của cùng dự án ngay trong trang thì màn đọc được đối tượng của tầng ấy (B-V6-71)', async ({
   page,
 }) => {
-  /* Chờ B-V6-71 (kho chỉ giữ một đồ thị). Mở lại khi B-V6-71 được sửa. */
   await page.goto(ROUTES.project.objects(QC_PROJECT, A14_FLOOR));
   await expect(page.getByText(`0/${String(A14_OBJECTS_ON_FLOOR)} đối tượng đã duyệt`).first()).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
