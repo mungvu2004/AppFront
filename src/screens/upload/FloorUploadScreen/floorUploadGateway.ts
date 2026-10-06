@@ -42,7 +42,7 @@ import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import { createNetworkMonitor } from '@/lib/offline/networkMonitor';
 import type { NetworkMonitor } from '@/lib/offline/networkMonitor';
-import { addPendingCommand } from '@/lib/offline/queueStore';
+import { addPendingCommand, deletePendingCommand } from '@/lib/offline/queueStore';
 import {
   createUploadTask,
   guessFloorFromFileName,
@@ -126,8 +126,10 @@ export interface FloorUploadGateway {
   readonly guessFloor: (name: string) => FloorGuess;
   /** Một lượt tải: `initUpload` → các khúc → `complete`, kèm huỷ và trạng thái. */
   readonly createUpload: (input: CreateFloorUploadInput) => UploadTask;
-  /** Ghi ý định tải vào hàng đợi ngoại tuyến. `false` khi hàng đợi từ chối. */
-  readonly enqueueOffline: (input: EnqueueOfflineUploadInput) => Promise<boolean>;
+  /** Ghi ý định tải vào hàng đợi ngoại tuyến. Mã lệnh, hoặc `null` khi hàng đợi từ chối. */
+  readonly enqueueOffline: (input: EnqueueOfflineUploadInput) => Promise<number | null>;
+  /** Gỡ một lệnh đã ghi — màn đã tự tải tệp ấy, hoặc tệp không còn đi tầng ấy (NO-392). */
+  readonly dropOffline: (commandId: number) => Promise<void>;
   /**
    * Theo dõi mạng. Bắt đầu ngay, trả hàm dọn dẹp.
    *
@@ -218,7 +220,11 @@ export function createFloorUploadGateway(
         },
       });
 
-      return result.ok;
+      return result.ok ? result.data.id : null;
+    },
+
+    dropOffline: async (commandId) => {
+      await deletePendingCommand(commandId);
     },
 
     watchNetwork: (listener) => {

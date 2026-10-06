@@ -341,6 +341,9 @@ export function useFloorUploadScreen(
   const [isSubmitting, setSubmitting] = useState(false);
 
   const tasksRef = useRef(new Map<string, UploadTask>());
+  // Lệnh hàng đợi ngoại tuyến của từng tệp, giữ dưới dạng lời hứa để gỡ được cả
+  // khi lượt ghi chưa xong (NO-392).
+  const queuedRef = useRef(new Map<string, Promise<number | null>>());
   const onlineRef = useRef(true);
 
   const detectedNarrow = useNarrowViewport();
@@ -476,6 +479,22 @@ export function useFloorUploadScreen(
   /* Một lượt tải.                                                           */
   /* ---------------------------------------------------------------------- */
 
+  /** Gỡ lệnh ngoại tuyến của một tệp, nếu có: một tệp, nhiều nhất một lệnh. */
+  const dropQueued = (fileId: string): void => {
+    const queued = queuedRef.current.get(fileId);
+
+    if (queued === undefined) {
+      return;
+    }
+
+    queuedRef.current.delete(fileId);
+    void queued.then((commandId) => {
+      if (commandId !== null) {
+        void gateway.dropOffline(commandId);
+      }
+    });
+  };
+
   const patchAttachment = (id: string, patch: Partial<Attachment>): void => {
     setAttachments((previous) =>
       previous.map((attachment) => (attachment.id === id ? { ...attachment, ...patch } : attachment)),
@@ -504,6 +523,7 @@ export function useFloorUploadScreen(
     });
 
     if (taskState.status === 'done') {
+      dropQueued(id);
       invalidateFloor(floorId);
     }
   };
@@ -519,13 +539,17 @@ export function useFloorUploadScreen(
     if (!onlineRef.current) {
       // Mất mạng: ghi ý định vào hàng đợi ngoại tuyến và để tệp ở "chờ xử lý".
       // Hàng đợi giữ dữ liệu thuần, không giữ được chính `File`.
-      void gateway.enqueueOffline({
-        projectId,
-        floorId,
-        fileName: attachment.file.name,
-        sizeBytes: attachment.file.size,
-        ...(pageIndex !== undefined ? { pageIndex } : {}),
-      });
+      dropQueued(attachment.id);
+      queuedRef.current.set(
+        attachment.id,
+        gateway.enqueueOffline({
+          projectId,
+          floorId,
+          fileName: attachment.file.name,
+          sizeBytes: attachment.file.size,
+          ...(pageIndex !== undefined ? { pageIndex } : {}),
+        }),
+      );
       patchAttachment(attachment.id, {
         status: 'waiting',
         percent: 0,
@@ -685,6 +709,29 @@ export function useFloorUploadScreen(
     }
 
     cancelTask(fileId);
+    dropQueued(fileId);
+
+    // Một tầng, một tệp (NO-393) — cùng luật ghép tự động (`claimed`): tệp gán
+    // sau thay tệp đang ở tầng ấy, tệp cũ về khay, thôi tải và thôi chờ mạng.
+    // Không vậy thì thẻ hiện tệp đầu mà máy chủ giữ tệp tải xong sau cùng.
+    const displaced =
+      floorId === null
+        ? undefined
+        : attachments.find((other) => other.id !== fileId && other.floorId === floorId);
+
+    if (displaced !== undefined) {
+      cancelTask(displaced.id);
+      dropQueued(displaced.id);
+      patchAttachment(displaced.id, {
+        floorId: null,
+        isAutoMatched: false,
+        status: 'waiting',
+        percent: 0,
+        problem: null,
+        awaitingNetwork: false,
+      });
+    }
+
     patchAttachment(fileId, {
       floorId,
       // Người dùng vừa tự chọn, nên lời nhắc "ghép tự động, kiểm tra lại" hết vai.
@@ -723,6 +770,7 @@ export function useFloorUploadScreen(
     }
 
     cancelTask(fileId);
+    dropQueued(fileId);
     setAttachments((previous) => previous.filter((attachment) => attachment.id !== fileId));
 
     // A8 + D-05: xoá xảy ra NGAY, không hộp thoại xác nhận; đường về là một vé
