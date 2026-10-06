@@ -70,13 +70,19 @@ export interface SessionGateProps {
  */
 function GateStrip({
   action,
+  landmarkLabel,
   message,
 }: {
   action: { label: string; onClick: () => void };
+  /** Có thì dải là một `region` có tên — cho dải đứng ngoài mọi `main` (axe `region`). */
+  landmarkLabel?: string;
   message: string;
 }) {
   return (
-    <div className="w-full p-4">
+    <div
+      className="w-full p-4"
+      {...(landmarkLabel !== undefined ? { role: 'region', 'aria-label': landmarkLabel } : {})}
+    >
       <InlineAlert level="attention" message={message} action={action} />
     </div>
   );
@@ -183,6 +189,7 @@ export function SessionGate({
     <>
       {serverUnreachable === true ? (
         <GateStrip
+          landmarkLabel="Trạng thái kết nối"
           message="Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
           action={{ label: 'Thử lại', onClick: onRetry }}
         />

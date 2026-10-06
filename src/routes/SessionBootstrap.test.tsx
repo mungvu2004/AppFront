@@ -258,6 +258,8 @@ describe('SessionGate — năm nhánh', () => {
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
     expect(container.querySelectorAll('main')).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toBeInTheDocument();
+    expectAccessible(container);
   });
 
   it('chờ bằng khung chờ có aria-busy, và KHÔNG mount màn con', () => {

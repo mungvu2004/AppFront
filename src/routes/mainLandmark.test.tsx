@@ -109,12 +109,17 @@ afterEach(() => {
   crash.target = null;
 });
 
-/* Đứng TRƯỚC các bài khác có chủ ý: `lazy()` ở cấp module chỉ chờ chunk đúng một lần, bài nào
-   chạy trước thì lần chờ thật rơi vào bài đó. */
+/* `lazy()` ở cấp module chỉ treo đúng một lần. Để bài không phụ thuộc thứ tự chạy (kể cả
+   `--sequence.shuffle`), mỗi ca xoá bộ nhớ module rồi nhập lại `./router`: bảng route mới có
+   `lazy()` mới, chưa từng được ai giải. React là gói ngoài nên vẫn là một bản. */
 describe('[router] vỏ chờ chunk của route ngoài nhóm', () => {
   const outside = productRoutes.filter(({ parent }) => parent === undefined);
 
-  it.each(outside)('$path: lúc chờ chunk vẫn đúng một main', ({ path: pattern, leaf }) => {
+  it.each(outside)('$path: lúc chờ chunk vẫn đúng một main', async ({ path: pattern }) => {
+    vi.resetModules();
+    const fresh = await import('./router');
+    const leaf = (fresh.routes[0]?.children ?? []).find((route) => route.path === pattern);
+    if (leaf === undefined) throw new Error(`thiếu route ${pattern}`);
     const router = createMemoryRouter([{ element: <Outlet />, children: [leaf] }], {
       initialEntries: [concretePath(pattern)],
     });
