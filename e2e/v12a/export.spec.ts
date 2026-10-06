@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { ROUTES, pathOf } from '../fixtures/routes';
 import { seedSpatial } from '../fixtures/seedSpatial';
 import { signInAs } from '../fixtures/session';
-import { TOUR_CHIP_NAME, dismissTour } from '../fixtures/tour';
+import { dismissTour } from '../fixtures/tour';
 
 /**
  * V12a — `projectExport` (`docs/notes/e2e/plan.md` V12 mục 4).
@@ -27,9 +27,6 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 /** Dựng `.glb` của bốn tầng chạy trong worker — đo được ~1–2 s; biên cho máy bận. */
 const GLB_EXPORT_TIMEOUT_MS = 20_000;
-
-/** Bấm `chia sẻ` khi bị che: đủ để Playwright thử vài lượt rồi đỏ, không ngồi hết 30 s. */
-const COVERED_CLICK_TIMEOUT_MS = 3_000;
 
 /** Màn đã có dữ liệu — từ B-V12-01 cổng nạp kho trước khi màn vẽ. */
 const SCREEN_HEADING = 'Xuất bản vẽ';
@@ -102,25 +99,3 @@ test('có bơm kho: link "sửa" của khối kiểm tra trước khi xuất đ�
   await expect(page.getByRole('button', { name: 'Chạy kiểm tra lại' })).toBeVisible();
   expect(reloads).toBe(0);
 });
-
-test.fixme(
-  'có bơm kho: sau khi tour bị bỏ qua, chip "Xem hướng dẫn" không che nút "chia sẻ" (B-V12-09)',
-  // Lý do: chip `fixed right-[16px] top-[16px]` (`EditorTour.tsx`) đè lên nút `chia sẻ`
-  // của đầu màn xuất ở mọi bề rộng ≥ 1280 px. Mở — chuyển W02 (đang sửa `EditorTour`;
-  // dời chip là việc của bề mặt dùng chung). Mở lại khi chip không còn đè nút nào.
-  // F-06: bản v1 không còn nút "chia sẻ" (liên kết chia sẻ là v2, NO-355) — mở lại bài
-  // này cùng lúc gỡ các `test.skip` NO-355 khi v2 lật `SHARE_LINKS_SUPPORTED`.
-  async ({ page }) => {
-    await seedAndSettle(page);
-
-    // Hôm nay tour chỉ hiện sau `resize` — đẩy nó ra rồi bỏ qua, để chip hiện.
-    await dismissTour(page, { nudge: true });
-    await expect(page.getByRole('button', { name: TOUR_CHIP_NAME, exact: true })).toBeVisible();
-
-    const share = page.getByRole('button', { name: 'chia sẻ' });
-
-    // `click()` thường của Playwright từ chối bấm khi một phần tử khác hứng cú bấm.
-    await share.click({ timeout: COVERED_CLICK_TIMEOUT_MS });
-    await expect(page.getByRole('dialog', { name: 'Chia sẻ bản vẽ' })).toBeVisible();
-  },
-);

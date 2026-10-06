@@ -50,9 +50,6 @@ const COLD_START_TIMEOUT_MS = 60_000;
 /** Tour tự hiện sau khi màn chủ đã vẽ; trần rộng cho máy đang chạy hai lượt e2e — như `editor-tour.spec.ts`. */
 const TOUR_SELF_APPEAR_TIMEOUT_MS = 6_000;
 
-/** Hạn cho một cú bấm chuột: nút đã hiện, chỉ còn chờ nó nhận được con trỏ. Lỗi cũ treo 30 s. */
-const ACTIONABLE_TIMEOUT_MS = 5_000;
-
 const PROJECT_ID = 'project-1';
 const WALLS = ROUTES.project.walls(PROJECT_ID, 'L1');
 const VIEWER = ROUTES.project.viewer(PROJECT_ID);
@@ -159,17 +156,3 @@ for (const host of HOSTS) {
     });
   }
 }
-
-test('màn xuất, bỏ qua tour: bấm chuột vào "chia sẻ" mở hộp thoại "Chia sẻ bản vẽ" (B-V2-05)', async ({
-  page,
-}) => {
-  // F-06 (E6=B): liên kết chia sẻ là v2 — bản v1 không có nút "chia sẻ". Gỡ khi v2 lật cờ.
-  test.skip(true, 'Liên kết chia sẻ là v2 (/share-links, BE-BIND #47–#49; F-06, E6=B, NO-355): bản v1 không có nút "chia sẻ"');
-  await page.setViewportSize(VIEWPORTS[0]);
-  await openExport(page);
-  await skipTour(page, TOUR_TITLES.exportResult);
-
-  await page.getByRole('button', { name: 'chia sẻ', exact: true }).click({ timeout: ACTIONABLE_TIMEOUT_MS });
-
-  await expect(page.getByRole('dialog', { name: 'Chia sẻ bản vẽ' })).toBeVisible();
-});
