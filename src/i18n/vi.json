@@ -3463,7 +3463,11 @@
       "compareCheckboxAriaLabel": "Chọn phiên bản {{label}} để so sánh",
       "todayHeading": "Hôm nay",
       "noNote": "Không có ghi chú cho phiên bản này",
-      "retentionNotice": "Chỉ {{count}} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được"
+      "retentionNotice": "Chỉ {{count}} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được",
+      "snapshotFailed": "Chưa tải được nội dung bản này",
+      "snapshotRetry": "Thử lại",
+      "snapshotRetryAria": "Thử lại tải nội dung {{label}}",
+      "snapshotStatus": "Trạng thái nạp nội dung phiên bản"
     },
     "compare": {
       "ariaLabel": "Vùng so sánh hai phiên bản",
@@ -3528,7 +3532,8 @@
       "confirmLabel": "Phục hồi",
       "cancelLabel": "Để nguyên",
       "toast": "Đã phục hồi nội dung của phiên bản {{label}}; hoàn tác được trong {{duration}}",
-      "savedAt": "Đã lưu lúc {{time}}"
+      "savedAt": "Đã lưu lúc {{time}}",
+      "undoRetryToast": "Chưa hoàn tác được lượt phục hồi; bấm \"Hoàn tác\" để thử lại"
     },
     "fixture": {
       "teachingSentence": "Chỉ có một phiên bản, chưa có gì để so sánh.",
