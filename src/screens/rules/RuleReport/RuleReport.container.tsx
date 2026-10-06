@@ -12,7 +12,7 @@
  *
  * Ranh giới lỗi là bản ở `@/components/feedback` — bản `src/App.tsx` đang gắn
  * (R-62). Phần dự phòng dựng bằng `EmptyState` từ `report.description`, cùng
- * khuôn `BillingScreen.container.tsx`, `ExplodedView.container.tsx`.
+ * khuôn `ExplodedView.container.tsx`.
  *
  * ## R-73 — nối `ViolationDetailContainer` (S-34) vào đây
  *
