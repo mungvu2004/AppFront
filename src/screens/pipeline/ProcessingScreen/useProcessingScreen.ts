@@ -446,10 +446,14 @@ function runStatusOf(record: FloorProgressRecord): ProcessingStageStatus {
 const floorStatusOf = (record: FloorProgressRecord): ProcessingStageStatus =>
   record.failure !== undefined && !isReloadProgress(record.progress) ? 'failed' : runStatusOf(record);
 
-/** Lượt đã cuối theo `progress.status` và sáu bước — cổng S-11 và chọn tầng đang xem. */
+/**
+ * Lượt đã cuối theo `progress.status` và sáu bước — cổng S-11 và chọn tầng đang
+ * xem. Upload đã mất (#8 trả 404/403) cũng là cuối: không còn gì để chờ.
+ */
 function isRunFinal(record: FloorProgressRecord): boolean {
   const status = runStatusOf(record);
   return (
+    record.failure?.isTerminal === true ||
     status === 'done' ||
     status === 'failed' ||
     (!isReloadProgress(record.progress) && isFinalStatus(record.progress?.status))
@@ -562,8 +566,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const reloadedRef = useRef(new Set<string>());
   const layerInvalidatedRef = useRef(new Set<string>());
   const seenUploadRef = useRef(new Map<string, string>());
-  // Upload đã giao sổ nền khi đang nghe SSE: luồng đó vẫn mở sau khi rời `Map`.
-  const backgroundSseRef = useRef(new Set<string>());
 
   // Nơi mở màn truyền danh sách thì dùng nó (test, story); không truyền — đường
   // của route — thì đọc N7. Trước đây vắng là rỗng, nên màn luôn `empty` dù dự án
@@ -710,8 +712,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     .map((status, index) => (status === 'failed' ? index : -1))
     .filter((index) => index >= 0);
   const doneCount = floorStatuses.filter((status) => status === 'done').length;
-  // Lỗi đọc tạm không đẩy tầng đang xem sang tầng khác (không mở luồng thứ hai).
-  const activeIndex = records.findIndex((record) => runStatusOf(record) === 'running');
+  // Lỗi đọc tạm không đẩy tầng đang xem sang tầng khác (không mở luồng thứ hai);
+  // upload đã mất (404/403) thì nhường chỗ.
+  const activeIndex = records.findIndex(
+    (record) => record.failure?.isTerminal !== true && runStatusOf(record) === 'running',
+  );
 
   const state = useMemo<ProcessingScreenState>(() => {
     if (isLoading) return 'loading';
@@ -825,7 +830,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
 
       // Giao hẳn cho sổ: tháo màn không còn dừng nó.
       subscriptionsRef.current.delete(upload.uploadId);
-      if (subscription.mode === 'sse') backgroundSseRef.current.add(upload.uploadId);
       const release = subscription.stop;
 
       return [
@@ -907,12 +911,17 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   /* Đăng ký — tầng đang xem nghe SSE, tầng khác hỏi #8, tầng cuối thì không. */
   /* ---------------------------------------------------------------------- */
 
-  // Chừng nào luồng SSE trong sổ nền còn sống, không tầng nào khác được SSE (trần một luồng).
-  const isBackgroundStreamOpen = [...backgroundSseRef.current].some(
-    (uploadId) =>
-      gateway.backgroundWatches.has(watchIdOf(projectId, uploadId)) &&
-      !isFinalStatus(records.find((record) => record.uploadId === uploadId)?.progress?.status),
-  );
+  // Trần một luồng: chừng nào sổ nền (cấp module, sống qua lần gắn lại màn) còn
+  // giữ một upload chưa cuối của danh sách này, không tầng nào được SSE — sổ có
+  // thể đang giữ chính luồng SSE. ponytail: không phân biệt mục sổ nghe SSE hay
+  // hỏi #8, nên đôi khi tầng đang xem tụt xuống hỏi 5 s thay vì SSE.
+  const isBackgroundStreamOpen = floorUploads.some((upload, index) => {
+    const record = records[index];
+    return (
+      gateway.backgroundWatches.has(watchIdOf(projectId, upload.uploadId)) &&
+      (record === undefined || !isRunFinal(record))
+    );
+  });
 
   const desiredModes = floorUploads.map((upload, index): SubscriptionMode => {
     const query = floorQueries[index];
@@ -974,6 +983,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         },
         onFailure: (failure) => {
           write((record) => ({ ...record, failure }));
+          // Upload đã mất: luồng đã đóng, nhả khỏi sổ nền (không báo, như nhóm `reload`).
+          if (failure.isTerminal === true) gateway.backgroundWatches.release(watchId);
         },
       };
     },
