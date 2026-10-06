@@ -25,7 +25,11 @@ import type { ProjectsApi } from '@/api/client';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NotificationInput } from '@/lib/mutations/notificationBus';
-import type { NetworkMonitor, NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
+import {
+  createNetworkMonitor,
+  type NetworkMonitor,
+  type NetworkMonitorStatus,
+} from '@/lib/offline/networkMonitor';
 import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 import type { DetailLevel } from '@/lib/three/build/lod';
@@ -277,6 +281,28 @@ describe('Bảy trạng thái', () => {
       expect(harness.model().state).toBe('partial');
     });
     expect(harness.model().partialReason).toBe('weak-network');
+  });
+
+  it('bộ giám sát thật chưa ping xong thì không báo mạng yếu lúc mở màn (NO-390)', async () => {
+    const harness = render({
+      gateway: {
+        projectsApi: projectsApiOf(),
+        // Lượt ping chưa trả lời: trước đây `pingOnline` khởi tạo `false` làm
+        // màn báo "mạng yếu" cho tới lượt kiểm đầu.
+        createMonitor: () =>
+          createNetworkMonitor({
+            navigatorObject: { onLine: true },
+            ping: () => new Promise<boolean>(() => undefined),
+          }),
+        openMail: () => undefined,
+        copyText: async () => true,
+      },
+    });
+
+    await waitFor(() => {
+      expect(harness.model().state).toBe('success');
+    });
+    expect(harness.model().partialReason).toBeNull();
   });
 
   it('error: máy không có WebGL — và lối thoát trỏ sang bản 2D', async () => {
