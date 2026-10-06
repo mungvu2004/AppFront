@@ -28,7 +28,6 @@ import { toAppError } from '@/lib/errors/toAppError';
 import { readWireError } from '@/lib/errors/wireError';
 import { createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { queryKeys } from '@/lib/query/queryKeys';
-import { diffVersions, type VersionDiff } from '@/lib/versioning/diff';
 import { MAX_FULL_VERSIONS, type VersionHistoryEntry, type VersionMetadata } from '@/lib/versioning/restore';
 
 import type {
@@ -53,10 +52,6 @@ export const VERSION_PAGE_LIMIT = 50;
 
 /** Câu của hàng chỉ còn siêu dữ liệu — nói ra chính sách lưu giữ, không nói "tải hỏng". */
 export const RETENTION_NOTICE = `Chỉ ${MAX_FULL_VERSIONS} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được`;
-
-/** Câu ném ra khi so sánh chạm vào một phiên bản không còn ảnh chụp. */
-export const SNAPSHOT_MISSING_REASON =
-  'Phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được';
 
 /** Câu nói ra khi N17 không trả được lịch sử. */
 export const VERSION_LIST_FAILED_REASON = 'Máy chủ chưa trả được lịch sử phiên bản của tầng này';
@@ -318,19 +313,8 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
     }
   };
 
-  const diff = async (leftVersionId: string, rightVersionId: string): Promise<VersionDiff> => {
-    const [left, right] = await Promise.all([readSnapshot(leftVersionId), readSnapshot(rightVersionId)]);
-
-    if (left.kind !== 'snapshot' || right.kind !== 'snapshot') {
-      throw new Error(SNAPSHOT_MISSING_REASON);
-    }
-
-    return diffVersions(left.snapshot, right.snapshot);
-  };
-
   return {
     capabilities,
-    diff,
     restore,
     revertRestore,
     listVersionPage,

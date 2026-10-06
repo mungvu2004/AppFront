@@ -421,7 +421,6 @@ export interface FloorLayerRead {
 
 export interface VersionHistoryGateway {
   readonly capabilities: VersionHistoryCapabilities;
-  readonly diff: (leftVersionId: string, rightVersionId: string) => Promise<VersionDiff>;
   readonly restore: (versionId: string, baseVersion: number) => Promise<RestoreOutcome>;
   readonly tagVersion?: (versionId: string, label: string) => Promise<VersionMetadata>;
   /** N17 một trang (`limit` = `VERSION_PAGE_LIMIT`). */

@@ -4,8 +4,8 @@
  * Tách khỏi `useVersionHistory.ts` vì R-22. Mọi thứ ở đây là hàm thuần trên một cặp mã
  * phiên bản: chọn cặp mặc định, giữ đúng chiều cũ-mới, bật/tắt một bản trong cặp.
  *
- * Chiều của cặp là điều quan trọng nhất trong file này. `gateway.diff(left, right)` gọi
- * thẳng `diffVersions(previous, next)`, nên **bên trái phải là bản CŨ**; đảo hai bên
+ * Chiều của cặp là điều quan trọng nhất trong file này. Hook so cặp bằng
+ * `diffVersions(left, right)` = `diffVersions(previous, next)`, nên **bên trái phải là bản CŨ**; đảo hai bên
  * thì "thêm" đọc thành "xoá" và cả màn nói ngược.
  */
 
@@ -79,8 +79,8 @@ export const NO_PAIR: VersionPair = Object.freeze({ left: null, right: null });
 /**
  * Cặp mặc định: hai bản ĐẦY ĐỦ mới nhất, bản cũ hơn ở bên trái.
  *
- * Bỏ qua mục chỉ còn siêu dữ liệu: `gateway.diff` ném `SNAPSHOT_MISSING_REASON` khi
- * chạm vào chúng, nên mở màn ra bằng một cặp không so được là mở ra bằng một lỗi.
+ * Bỏ qua mục chỉ còn siêu dữ liệu: chúng không có ảnh chụp để `diffVersions` so, nên mở
+ * màn ra bằng một cặp không so được là mở ra bằng một vùng so sánh trống.
  */
 export function defaultPairOf(history: readonly VersionHistoryEntry[]): VersionPair {
   const full = history.filter((entry) => entry.kind === 'full');

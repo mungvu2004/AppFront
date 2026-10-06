@@ -98,16 +98,6 @@ describe('N18 — readSnapshot', () => {
     await expect(gatewayOn(server).readSnapshot(WIRE_VERSION_IDS.v2)).resolves.toEqual({ kind: 'purged' });
   });
 
-  it('diff đọc hai bản và so; bản hết nội dung thì ném', async () => {
-    const server = createVersionsServerFake();
-    const gateway = gatewayOn(server);
-    const diff = await gateway.diff(WIRE_VERSION_IDS.v2, WIRE_VERSION_IDS.v3);
-
-    expect(diff.changed.some((entry) => entry.field === 'thickness_mm')).toBe(true);
-
-    server.override('GET snapshot', () => ({ error: wireError(422, 'VERSION_SNAPSHOT_PURGED'), ok: false }));
-    await expect(gateway.diff(WIRE_VERSION_IDS.v2, WIRE_VERSION_IDS.v3)).rejects.toThrow();
-  });
 });
 
 describe('N19 — restore', () => {
