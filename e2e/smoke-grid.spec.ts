@@ -106,13 +106,9 @@ const ROWS = {
   adminTrainingModels: { anchor: { role: 'heading', name: 'Model AI của chuỗi xử lý' } },
   projectUpload: { anchor: { role: 'navigation', name: 'Tải lên bản vẽ' } },
   projectQuality: { anchor: { role: 'region', name: 'Báo cáo chất lượng' } },
-  projectPipeline: {
-    anchor: { role: 'navigation', name: 'Xử lý' },
-    expectedConsole: {
-      match: /\/api\/streams\/projects\/project-1\/uploads\/[^/]+\/progress/u,
-      why: 'bộ mẫu dev không có luồng SSE tiến độ, màn lùi về đọc định kỳ — 404 (B-V4-10)',
-    },
-  },
+  // F-05b: màn chỉ mở SSE cho tầng đang xem chưa xong sau lượt #8 mồi; bộ mẫu dev không có
+  // lượt nào đang chạy nên không còn lượt mở luồng 404 (B-V4-10) để chờ.
+  projectPipeline: { anchor: { role: 'navigation', name: 'Xử lý' } },
   projectPipelineGraph: { anchor: { role: 'heading', name: 'Sơ đồ xử lý' } },
   projectScale: { anchor: { role: 'heading', name: 'Hiệu chỉnh tỷ lệ' } },
   projectCadConfirm: { anchor: { role: 'heading', name: 'Phát hiện tệp CAD' } },
