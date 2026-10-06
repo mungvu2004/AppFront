@@ -798,8 +798,11 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     }
 
     pinInFlightRef.current = true;
-    gateway
-      .saveMeasurement(projectId, draftRow)
+    // Bọc trong executor: một cổng tiêm vào ném ĐỒNG BỘ cũng thành lượt hỏng có
+    // câu báo và mở lại chốt, thay vì kẹt chốt mãi (review DEBT-03 Nit).
+    new Promise<unknown>((resolve) => {
+      resolve(gateway.saveMeasurement(projectId, draftRow));
+    })
       .then(clearDraft)
       .catch((error: unknown) => {
         notifications.publish({

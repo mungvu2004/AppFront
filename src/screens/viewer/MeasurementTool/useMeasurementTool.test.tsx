@@ -742,3 +742,37 @@ describe('useMeasurementTool — cảnh chưa sẵn sàng thì không bỏ cú c
     expect(screen.queryAllByText('Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.')).toHaveLength(0);
   });
 });
+
+describe('useMeasurementTool — cổng ném đồng bộ không kẹt chốt ghim (review DEBT-03 Nit)', () => {
+  it('lượt đầu ném ngay: có câu báo, và bấm lại thì lưu được', async () => {
+    const notifications = createNotificationBus();
+    const base = createMeasurementToolFixtureGateway();
+    let calls = 0;
+
+    renderHook({
+      notifications,
+      mountScene: sceneSpy().mount,
+      pick: pickAtPointer,
+      gateway: {
+        ...base,
+        saveMeasurement: (projectId, row) => {
+          calls += 1;
+          if (calls === 1) {
+            throw toAppError(wireError(500, 'INTERNAL_ERROR'));
+          }
+
+          return base.saveMeasurement(projectId, row);
+        },
+      },
+    });
+    measureTwoPoints();
+    fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
+
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
+    expect(calls).toBe(2);
+  });
+});
