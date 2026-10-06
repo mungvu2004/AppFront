@@ -62,7 +62,9 @@ export function InlineAlert({
 
       {action && (
         <div className="shrink-0 ml-2">
+          {/* `type="button"`: dải hay nằm trong `<form>`, nút mặc định ở đó là nút gửi (NO-373). */}
           <Button
+            type="button"
             size="sm"
             variant={action.variant || 'secondary'}
             onClick={action.onClick}
