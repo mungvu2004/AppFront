@@ -47,7 +47,7 @@ import { useConnectionStates } from './useConnectionStates';
 /**
  * jsdom không có `matchMedia`, mà `Drawer` hỏi nó qua `useMediaQuery` và
  * `useReducedMotion`. `matches: false` là bản để bàn, chuyển động bật — cùng bản
- * `BillingScreen.test.tsx` và `WelcomeScreen.test.tsx` dựng.
+ * `WelcomeScreen.test.tsx` dựng.
  */
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {

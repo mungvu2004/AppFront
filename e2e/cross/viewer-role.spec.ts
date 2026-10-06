@@ -16,7 +16,7 @@ import { FIRST_PAINT_TIMEOUT_MS } from '../v12b/firstPaint';
  * không từ kế hoạch. Không bấm gì: bài chỉ đọc, nên tour hướng dẫn (nếu hiện) không
  * chắn được nó.
  *
- * Màn của nhóm V12b (`billing`, `adminUsers`, `adminModels`) KHÔNG ở đây: chúng có
+ * Màn của nhóm V12b (`adminUsers`, `adminModels`) KHÔNG ở đây: chúng có
  * bài vai riêng sâu hơn trong `e2e/v12b/`. `projectScale` cũng không: ở tầng `L1` vai
  * viewer thấy trạng thái lỗi "Nắn ảnh thất bại…" (lỗi đứng trước `forbidden`), nên câu
  * vai không hiện — đo 2026-10-03.
