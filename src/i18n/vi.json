@@ -75,6 +75,7 @@
     "reloadConflict": "Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.",
     "forbidden": "Bạn không còn quyền sửa tầng này.",
     "integrity": "Tầng này có {{count}} chỗ hỏng liên kết hình học nên chưa lưu được.",
+    "unnamedRoom": "Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.",
     "unknown": "Không lưu được thay đổi của tầng này.",
     "reloadFailed": "Không tải lại được tầng này. Thử lại sau.",
     "scaleRedirtied": "Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới."
@@ -720,7 +721,10 @@
       "primary": "Tiếp tục xử lý",
       "secondary": "Tải bản vẽ khác",
       "continueBlockedAcknowledgement": "Đánh dấu ô xác nhận bên trên rồi thử lại.",
-      "continueBlockedGeneric": "Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo."
+      "continueBlockedGeneric": "Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo.",
+      "continueWaitingReading": "Đang đọc kết quả kiểm tra; chờ xong rồi tiếp tục.",
+      "continueReadFailed": "Chưa đọc được kết quả kiểm tra; hãy tải bản vẽ khác hoặc thử lại sau.",
+      "continueNoDrawing": "Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước."
     },
     "image": {
       "altText": "Bản vẽ tầng {{floorName}}, đang xem để kiểm tra chất lượng đầu vào"
@@ -2046,7 +2050,8 @@
       "label": "Tên phòng",
       "placeholder": "Gõ tên phòng",
       "hint": "Gợi ý bên dưới chỉ để chọn nhanh — tên tự gõ luôn được giữ nguyên.",
-      "suggestionsAria": "Gợi ý tên phòng"
+      "suggestionsAria": "Gợi ý tên phòng",
+      "emptyError": "Tên phòng không được để trống."
     },
     "inspector": {
       "title": "Phòng",
@@ -2986,7 +2991,8 @@
       "deleteGone": "Phép đo này đã bị xoá ở nơi khác",
       "pinFailed": "Chưa ghim được phép đo, hãy thử lại",
       "deleteFailed": "Chưa xoá được phép đo, hãy thử lại",
-      "undoFailed": "Chưa hoàn tác được việc xoá phép đo"
+      "undoFailed": "Chưa hoàn tác được việc xoá phép đo",
+      "sceneFailed": "Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại."
     },
     "mode": {
       "pointToPoint": "Điểm đến điểm",
