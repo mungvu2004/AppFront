@@ -690,3 +690,44 @@ describe('useMeasurementTool — ghim đang bay thì bấm đúp không lưu hai
     });
   });
 });
+
+describe('useMeasurementTool — cảnh chưa sẵn sàng thì không bỏ cú chấm im lặng (NO-385)', () => {
+  it('module cảnh còn đang nạp: khung nhìn nói "đang dựng" ngay lượt vẽ đầu', async () => {
+    renderHook({ pick: pickAtPointer });
+
+    expect(viewportSkeleton()).not.toBeNull();
+    // jsdom không có WebGL: lượt lắp ra `unavailable` — không lỗi, không kẹt skeleton.
+    await waitFor(() => {
+      expect(viewportSkeleton()).toBeNull();
+    });
+  });
+
+  it('mọi tầng dựng hỏng: ra trạng thái lỗi có câu báo, "Thử lại" lắp lại cảnh', async () => {
+    const spy = sceneSpy();
+    renderHook({ mountScene: spy.mount, pick: pickAtPointer });
+
+    await waitFor(() => {
+      expect(spy.calls).toHaveLength(1);
+    });
+    act(() => {
+      spy.calls[0]?.onStatusChange?.({
+        phase: 'failed',
+        settledCount: 1,
+        totalCount: 1,
+        failedCount: 1,
+        readyLevelIds: [],
+      });
+    });
+
+    expect(viewportSkeleton()).toBeNull();
+    const message = await screen.findAllByText('Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.');
+    expect(message.length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /thử lại/iu })[0] as HTMLElement);
+
+    await waitFor(() => {
+      expect(spy.calls).toHaveLength(2);
+    });
+    expect(screen.queryAllByText('Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.')).toHaveLength(0);
+  });
+});

@@ -190,6 +190,9 @@ const NO_SURFACE_MESSAGE =
 const LOAD_ERROR_MESSAGE =
   'Chưa tải được danh sách phép đo của dự án. Kiểm tra kết nối rồi thử lại.';
 
+/** Câu khi mọi tầng dựng hỏng — cảnh không có gì để chấm (NO-385). */
+const SCENE_FAILED_MESSAGE = 'Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.';
+
 /** Trạng thái 6: có quyền xem, không có quyền ghim. */
 const PIN_BLOCKED_CAPTION =
   'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
@@ -284,7 +287,14 @@ export interface UseMeasurementToolOptions {
 }
 
 /** Câu của trạng thái 4, hoặc `null` khi không có gì hỏng. */
-function errorMessageOf(surfaceFailed: boolean, loadFailed: boolean): string | null {
+function errorMessageOf(
+  surfaceFailed: boolean,
+  loadFailed: boolean,
+  sceneFailed: boolean,
+): string | null {
+  if (sceneFailed) {
+    return SCENE_FAILED_MESSAGE;
+  }
   if (surfaceFailed) {
     return NO_SURFACE_MESSAGE;
   }
@@ -849,10 +859,12 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     };
   }, [unitJustChanged]);
 
+  const retryScene = mountedScene.failed ? mountedScene.retry : null;
   const onRetry = useCallback((): void => {
     setSurfaceFailed(false);
+    retryScene?.();
     void rowsQuery.refetch();
-  }, [rowsQuery]);
+  }, [rowsQuery, retryScene]);
 
   /* ---- Phím tắt (A12, R-54, R-72) ---------------------------------------- */
 
@@ -898,7 +910,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     if (options.forceState !== undefined) {
       return options.forceState;
     }
-    if (surfaceFailed || rowsQuery.isError) {
+    if (surfaceFailed || rowsQuery.isError || mountedScene.failed) {
       return 'error';
     }
     if (collapsed) {
@@ -920,6 +932,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     options.forceState,
     surfaceFailed,
     rowsQuery.isError,
+    mountedScene.failed,
     collapsed,
     shell.state,
     picks.length,
@@ -927,7 +940,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     rows.length,
   ]);
 
-  const errorMessage = errorMessageOf(surfaceFailed, rowsQuery.isError);
+  const errorMessage = errorMessageOf(surfaceFailed, rowsQuery.isError, mountedScene.failed);
 
   /* ---- Props của view, chốt lại mỗi lượt vẽ ------------------------------ */
 
