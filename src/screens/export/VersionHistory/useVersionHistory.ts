@@ -55,6 +55,7 @@ import {
   readFullVersion,
   toConflictNotice,
   toVersionMetadata,
+  UNDO_EXPIRED_NOTICE,
   VERSION_LIST_FAILED_REASON,
   versionsQueryKey,
 } from './versionHistoryGateway';
@@ -339,10 +340,20 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   /** Chuỗi nạp lại tầng: N16 → `replaceFloorLayer` (external) → vô hiệu `restoreVersion`. */
   const reloadFloor = useCallback(async (): Promise<void> => {
     try {
-      const { dimensions, layer, revision } = await gateway.readFloorLayer();
+      const { dimensions, layer, level, revision, scaleStatus } = await gateway.readFloorLayer();
 
       // N19 đổi cả kích thước; N15 sau đó thấy cùng `revision` nên không thay tầng (NO-369/NO-374).
-      replaceFloorLayer(floorId, { dimensions, layer, revision }, { external: true });
+      // `level`/`scaleStatus` đi cùng lớp, đúng như `reloadFloor` của autosave (`useAutosave.ts`).
+      replaceFloorLayer(
+        floorId,
+        { dimensions, layer, level, revision, ...(scaleStatus === undefined ? {} : { scaleStatus }) },
+        { external: true },
+      );
+
+      // `replaceFloorLayer` giữ `scaleStatus` cũ khi N16 vắng khoá; vắng nghĩa là tầng đã có tỉ lệ thật.
+      if (scaleStatus === undefined && useStore.getState().floorMeta[floorId]?.scaleStatus !== undefined) {
+        useStore.getState().updateFloorMeta(floorId, { revision });
+      }
     } catch {
       setBanner({ kind: 'reload', notice: RELOAD_FAILED_NOTICE });
     }
@@ -356,6 +367,13 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const runUndo = useCallback(
     (first: UndoTicket): Promise<void> => {
       const attempt = async (ticket: UndoTicket): Promise<void> => {
+        if (ticket.getStatus() === 'expired') {
+          // Toast (kể cả toast "thử lại") có thể sống quá hạn của phiếu: báo hết hạn, không im lặng.
+          setBanner({ kind: 'error', notice: UNDO_EXPIRED_NOTICE });
+
+          return;
+        }
+
         if (ticket.getStatus() !== 'active' || undoing.has(ticket)) {
           return;
         }

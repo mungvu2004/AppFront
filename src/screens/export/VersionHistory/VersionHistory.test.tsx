@@ -75,7 +75,13 @@ import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
 import { VersionHistoryRoute } from './VersionHistory.container';
 import { NO_COMPARE_PAIR_REASON, NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
-import { CONFLICT_TITLE, createVersionHistoryGateway, VERSION_LIST_FAILED_REASON } from './versionHistoryGateway';
+import {
+  CONFLICT_TITLE,
+  createVersionHistoryGateway,
+  UNDO_EXPIRED_NOTICE,
+  UNDO_USED_NOTICE,
+  VERSION_LIST_FAILED_REASON,
+} from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
 import { SNAPSHOT_FAILED_NOTICE, SNAPSHOT_RETRY_LABEL, UNDO_RETRY_TOAST } from './versionHistoryModel';
 
@@ -396,7 +402,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
 
     expect(external).toHaveLength(1);
     expect(external[0]?.[0]).toBe(WIRE_FLOOR_ID);
-    expect(Object.keys(external[0]?.[1] ?? {}).sort()).toEqual(['dimensions', 'layer', 'revision']);
+    expect(Object.keys(external[0]?.[1] ?? {}).sort()).toEqual(['dimensions', 'layer', 'level', 'revision']);
     // Kích thước đi bằng trường riêng, không nhét trong `layer` (NO-374).
     expect(Object.keys(external[0]?.[1].layer ?? {})).not.toContain('dimensions');
     expect(external[0]?.[1].revision).toBe(7);
@@ -661,6 +667,8 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       expect(setup.onToast).toHaveBeenCalledWith({ message: 'Đã hoàn tác lượt phục hồi' });
     });
     expect(restoreCalls(setup.server)).toHaveLength(3);
+    // Chốt của hook chặn lượt bấm thứ hai trước khi tới gateway: không có dải "đã được hoàn tác".
+    expect(setup.result.current[0].conflict?.message).not.toBe(UNDO_USED_NOTICE.message);
 
     act(() => {
       toast.onUndo();
@@ -695,6 +703,62 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     });
 
     expect(useStore.getState().spatial?.byId['M-DIMN000001']).toMatchObject({ valueMm: 4800 });
+  });
+
+  it('P3-7: toast "thử lại" bấm sau hạn của phiếu → dải "Đã hết thời gian hoàn tác", không N19', async () => {
+    let offset = 0;
+    const now = (): Date => new Date(FAKE_CLOCK_START.getTime() + offset);
+    const setup = await renderVersionHistoryHook({ now });
+
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toHaveProperty('onUndo');
+    });
+
+    const toast = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
+
+    setup.server.override('POST restore', () => ({ error: wireError(503, 'UNAVAILABLE'), ok: false }));
+    act(() => {
+      toast.onUndo();
+    });
+    await waitFor(() => {
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+    });
+
+    const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
+
+    offset = UNDO_WINDOW_MS + 1;
+    act(() => {
+      retry.onUndo();
+    });
+    await waitFor(() => {
+      expect(setup.result.current[0].conflict?.message).toBe(UNDO_EXPIRED_NOTICE.message);
+    });
+    expect(restoreCalls(setup.server)).toHaveLength(2);
+  });
+
+  it('P3-9: nạp lại N16 sau N19 mang cả Level và scaleStatus của tầng', async () => {
+    const setup = await renderVersionHistoryHook();
+    const level = { ...WIRE_LEVEL, scaleMillimetresPerPixel: 7 };
+
+    setup.server.override('GET layer', () => ({
+      data: {
+        axes: [],
+        dimensions: [],
+        layer: wireLayer(WIRE_CURRENT_WALLS),
+        level,
+        revision: setup.server.revision,
+        scaleStatus: 'unresolved',
+      },
+      ok: true,
+    }));
+    await requestAndConfirm(setup, WIRE_VERSION_IDS.v2);
+    await waitFor(() => {
+      expect(setup.onToast).toHaveBeenCalled();
+    });
+
+    expect(useStore.getState().spatial?.byId[WIRE_FLOOR_ID]).toMatchObject({ scaleMillimetresPerPixel: 7 });
+    expect(useStore.getState().floorMeta[WIRE_FLOOR_ID]?.scaleStatus).toBe('unresolved');
   });
 
   it('đổi tầng → N17 gửi đúng floorId, activeFloorId của kho không đổi, cặp so bỏ', async () => {
@@ -870,29 +934,44 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     let failing = true;
     let active = 0;
     let peak = 0;
+    const rowOf = (id: string) => setup.result.current[0].rows.find((row) => row.id === id);
+    // Hai bản có nội dung thêm vào đầu danh sách: bốn N18 cùng nạp, nên trần 2 mới thấy được.
+    const extras = ['AAA', 'BBB'].map((suffix, index) => ({
+      ...wireSummaries()[0],
+      floorRevision: 50 + index,
+      id: `ver_01J9ZV8Q3M7X5B2N4K6P8R0${suffix}`,
+      label: undefined,
+      sequence: 10 + index,
+    }));
 
     setup.server.override('GET snapshot', async ({ path }) => {
       active += 1;
       peak = Math.max(peak, active);
-      await Promise.resolve();
+      // Sống qua vài nhịp đồng hồ để các lượt N18 chồng lên nhau thật — không giới hạn thì `peak` là 4.
+      await new Promise((resolve) => setTimeout(resolve, 5));
       active -= 1;
 
       return failing && path.includes(WIRE_VERSION_IDS.v2)
         ? { error: wireError(503, 'UNAVAILABLE'), ok: false }
         : { data: { dimensions: [], layer: wireLayer(WIRE_CURRENT_WALLS), versionId: path.split('/')[4] }, ok: true };
     });
+    setup.server.override('GET list', () => ({ data: { items: [...extras, ...wireSummaries()] }, ok: true }));
     await act(async () => {
-      await setup.queryClient.resetQueries({ queryKey: ['version', 'snapshot'] });
+      await setup.queryClient.resetQueries();
     });
     await waitFor(() => {
-      expect(setup.result.current[0].rows[1]?.snapshotError).toBe(SNAPSHOT_FAILED_NOTICE);
+      expect(setup.result.current[0].rows).toHaveLength(5);
+      expect(rowOf(WIRE_VERSION_IDS.v2)?.snapshotError).toBe(SNAPSHOT_FAILED_NOTICE);
+      expect(active).toBe(0);
     });
+    // Bốn bản cùng nạp: trần chạm đúng 2, không hơn.
+    expect(peak).toBe(2);
 
-    const failed = setup.result.current[0].rows[1];
+    const failed = rowOf(WIRE_VERSION_IDS.v2);
 
     // Lỗi tạm thời không phải "hết nội dung".
     expect(failed?.isMetadataOnly).toBe(false);
-    expect(setup.result.current[0].rows[0]?.snapshotError).toBeUndefined();
+    expect(rowOf(WIRE_VERSION_IDS.v3)?.snapshotError).toBeUndefined();
 
     const [model, actions] = setup.result.current;
     const view = renderWithProviders(<VersionHistory model={model} actions={actions} />);
@@ -910,7 +989,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(document.activeElement?.closest('li')).not.toBeNull();
     expect(document.activeElement?.tagName).not.toBe('BUTTON');
     await waitFor(() => {
-      expect(setup.result.current[0].rows[1]?.snapshotError).toBeUndefined();
+      expect(rowOf(WIRE_VERSION_IDS.v2)?.snapshotError).toBeUndefined();
     });
     expect(setup.server.calls.filter((call) => call.path.includes(`${WIRE_VERSION_IDS.v2}/snapshot`))).toHaveLength(before + 1);
     expect(peak).toBeLessThanOrEqual(2);
