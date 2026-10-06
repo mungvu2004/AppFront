@@ -101,8 +101,7 @@ const ALLOWED_WORDS = [...UNIT_WORDS, ...SHARED_COMPONENT_DEBT_WORDS];
  * `Table.Row` (`src/components/ui/Table.tsx:84`) đặt `outline-none` kèm
  * `tabIndex={-1}` và chỉ vẽ viền tiêu điểm khi prop `focused` bật — viền vẽ
  * theo TRẠNG THÁI chứ không theo `:focus-visible`, nên bàn phím không có viền
- * nào. `BillingScreen.test.tsx:317-328` đã ghi đúng nợ này và bỏ qua
- * `'tbody > tr'`.
+ * nào. Đó là nợ có sẵn của `Table.Row`, nên bài bỏ qua `'tbody > tr'`.
  *
  * Màn này cần thêm `'thead > tr'`: bảng bốn tầng có hàng tiêu đề, và
  * `Table.Header` cũng dựng bằng `Table.Row` nên hàng ấy dính cùng một
