@@ -81,6 +81,11 @@ const queryKeyBranchCases = [
     name: 'layer.byFloor',
     root: queryKeys.layer.byFloor.root,
   },
+  {
+    create: () => queryKeys.progress.latestUploads(projectId),
+    name: 'progress.latestUploads',
+    root: queryKeys.progress.latestUploads.root,
+  },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -115,6 +120,7 @@ describe('queryKeys', () => {
       'me.profile',
       'layer.graph',
       'layer.byFloor',
+      'progress.latestUploads',
     ]);
   });
 

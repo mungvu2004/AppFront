@@ -27,12 +27,12 @@
  * ## Gắn S-11 `PipelineFailure` khi một bước AI hỏng
  *
  * `useProcessingScreen` trả thêm `failedPipelineStep` ngoài
- * {@link ProcessingScreenProps} — xem ghi chú "Gắn `PipelineFailure`" ở đầu
- * `useProcessingScreen.ts`. Có mặt trường đó thì `WiredProcessingScreen` GẮN
- * THAY `<PipelineFailureContainer>` cho `<ProcessingScreen>`, đúng khuôn container
- * của chính S-11 (`PipelineFailure.container.tsx:6-14`): ba mã định vị
- * (`projectId`, `floorId`, `stepId`), `onNavigate` chuyển tiếp nguyên vẹn, và
- * `onResolved` tái dùng `onRetry` của màn này (nạp lại tiến độ). S-11 tự vẽ lại
+ * {@link ProcessingScreenProps}, và chỉ khi MỌI tầng đã ở trạng thái cuối — còn
+ * tầng chạy thì màn giữ `partial`, bước hỏng hiện câu và mã ở `steps[]`. Có mặt
+ * trường đó thì `WiredProcessingScreen` GẮN THAY `<PipelineFailureContainer>` cho
+ * `<ProcessingScreen>`: ba mã định vị (`projectId`, `floorId`, `stepId`), mã máy
+ * chủ (`failureCode`) và tên tầng N7 (`failureFloorName`), `onNavigate` chuyển
+ * tiếp nguyên vẹn, và `onResolved` tái dùng `onRetry` của màn này. S-11 tự vẽ lại
  * đủ đường dẫn, dải tầng và cột trái của khung S-10 (xem đầu `PipelineFailure.tsx`)
  * nên đây là một phép THAY, không phải một mảnh ghép lồng vào cây của
  * `ProcessingScreen.tsx` — `<ProcessingScreen>` không được gắn tiếp bên trong.
@@ -124,6 +124,10 @@ function WiredProcessingScreen(props: ProcessingScreenContainerProps) {
     return (
       <PipelineFailureContainer
         floorId={failedPipelineStep.floorId}
+        failureFloorName={failedPipelineStep.failureFloorName}
+        {...(failedPipelineStep.failureCode !== undefined
+          ? { failureCode: failedPipelineStep.failureCode }
+          : {})}
         onResolved={failedPipelineStep.onResolved}
         projectId={props.projectId}
         stepId={failedPipelineStep.stepId}

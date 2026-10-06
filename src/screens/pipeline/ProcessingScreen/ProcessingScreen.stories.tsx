@@ -42,6 +42,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import { describePipelineError } from '../pipelineErrorText';
+
 import { ProcessingScreen } from './ProcessingScreen';
 import type {
   ProcessingFloorChipViewModel,
@@ -118,6 +120,9 @@ function stepsAt(
 }
 
 /** Bước lỗi mang cả mã máy đọc lẫn câu hậu quả — mã không bao giờ đứng một mình. */
+/** Mã thật của bảng mã pipeline, câu lấy từ chính bảng đó. */
+const STEP_FAILURE = describePipelineError('PIPELINE_STEP_TIMEOUT');
+
 function withStepFailure(
   steps: readonly ProcessingStepViewModel[],
   failedIndex: number,
@@ -126,8 +131,8 @@ function withStepFailure(
     index === failedIndex
       ? {
           ...step,
-          errorCode: 'PIPELINE_STAGE_FAILED',
-          errorMessage: 'Bước này gặp lỗi nên không hoàn tất được.',
+          errorCode: STEP_FAILURE.code,
+          errorMessage: STEP_FAILURE.sentence,
         }
       : step,
   );

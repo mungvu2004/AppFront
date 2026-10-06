@@ -76,8 +76,9 @@ import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { createUuid } from '@/lib/http/ids';
-import type { ChannelEvent } from '@/lib/realtime/eventChannel';
+import type { ChannelClock, ChannelEvent } from '@/lib/realtime/eventChannel';
 import type { ProgressPatchEvent } from '@/lib/realtime/mergeEvents';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
 import type { PipelineStageId, PipelineStageState } from '@/lib/realtime/pipeline';
@@ -86,11 +87,19 @@ import {
   type BackgroundWatchEntry,
   type BackgroundWatchRegistry,
 } from '@/lib/realtime/backgroundWatch';
-import type { PollingVisibilityTarget } from '@/lib/realtime/pollingChannel';
+import { createPollingChannel } from '@/lib/realtime/pollingChannel';
+import type { PollingChannelHandle, PollingVisibilityTarget } from '@/lib/realtime/pollingChannel';
 import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetrySender } from '@/lib/telemetry/sender';
+
+/** SSE `running` im lâu thế này thì hỏi #8 một lần (`: ping` không tới `onmessage`). */
+export const SSE_SILENCE_PROBE_MS = 120_000;
+/** Nhịp hỏi #8 của tầng không đang xem. */
+export const OTHER_FLOOR_POLL_INTERVAL_MS = 5_000;
+/** Nhịp hỏi #8 của tầng còn `pending` (chưa vào hàng chạy). */
+export const PENDING_POLL_INTERVAL_MS = 30_000;
 
 /* -------------------------------------------------------------------------- */
 /* Khả năng chưa tồn tại — kết quả CÓ KIỂU, không phải giá trị bịa.             */
@@ -250,6 +259,8 @@ export interface ProcessingFailure {
   readonly technicalCode: string;
   readonly kind: AppError['kind'];
   readonly isRetryable: boolean;
+  /** #8 trả 404/403: đăng ký của tầng đã đóng, không hỏi tiếp. Hook đọc lại N7. */
+  readonly isTerminal?: true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -266,7 +277,14 @@ export interface SubscribeProgressInput {
   readonly projectId: string;
   readonly uploadId: string;
   readonly floorId: string;
+  /**
+   * Trạng thái đã biết từ #8 mồi. Hỏi: chọn nhịp đầu (`pending` → 30 s). SSE:
+   * `running` thì hẹn im lặng ngay khi luồng mở, không chờ nhịp đầu tiên.
+   */
+  readonly status?: Progress['status'];
 }
+
+export type PollProgressInput = SubscribeProgressInput;
 
 export interface SubscribeProgressHandlers {
   readonly onSnapshot: (snapshot: ProcessingProgressSnapshot) => void;
@@ -372,6 +390,11 @@ export interface ProcessingGateway {
     input: SubscribeProgressInput,
     handlers: SubscribeProgressHandlers,
   ) => () => void;
+  /**
+   * Hỏi #8 định kỳ cho tầng không đang xem — không mở `EventSource` (trần 6
+   * luồng/người). Tự đóng ở trạng thái cuối. Trả hàm huỷ.
+   */
+  readonly pollProgress: (input: PollProgressInput, handlers: SubscribeProgressHandlers) => () => void;
 
   /** NOT FOUND — `cancelProcessing`. */
   readonly requestCancel: (input: RequestCancelInput) => Promise<ProcessingCapabilityResult<void>>;
@@ -596,7 +619,24 @@ export interface CreateProcessingGatewayOptions {
   readonly now?: () => number;
   /** Sổ theo dõi nền tiêm được — mặc định là sổ của cả ứng dụng. */
   readonly backgroundWatches?: BackgroundWatchRegistry;
+  /** Đồng hồ hẹn giờ của luồng, kênh hỏi và hẹn im lặng. */
+  readonly clock?: ChannelClock;
 }
+
+const defaultClock: ChannelClock = {
+  clearTimeout: (id) => clearTimeout(id),
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+};
+
+const isFinalStatus = (status: Progress['status'] | undefined): boolean =>
+  status === COMPLETED_STATUS || status === FAILED_STATUS;
+
+/** #8 trả 404 (upload không còn) hoặc 403 (mất quyền): hỏi tiếp vô ích. */
+const isGoneError = (error: unknown): boolean => {
+  const status = readWireError(error)?.status;
+  return status === 404 || status === 403;
+};
 
 /** Một chuỗi đại diện cho nội dung một lượt đọc, để bỏ qua lượt không đổi gì. */
 function contentKeyOf(progress: Progress): string {
@@ -621,6 +661,62 @@ function toFailure(error: unknown): ProcessingFailure {
     technicalCode: appError.code,
     kind: appError.kind,
     isRetryable: appError.retryable,
+    ...(isGoneError(error) ? { isTerminal: true as const } : {}),
+  };
+}
+
+/**
+ * Đọc #8 một lần cho một đăng ký: lỗi thì báo `onFailure` (404/403 thì gọi
+ * `onGone` để nơi gọi đóng), nội dung trùng lượt trước thì trả `null`.
+ */
+function createProgressReader(
+  client: ApiClient,
+  { projectId, uploadId }: SubscribeProgressInput,
+  handlers: SubscribeProgressHandlers,
+  onGone: () => void,
+) {
+  let sequence = 0;
+  let lastContentKey = '';
+
+  const toPatchEvent = (progress: Progress): ProgressPatchEvent<Progress> => {
+    sequence += 1;
+    return { eventId: `${uploadId}:${sequence}`, patch: progress, sequence };
+  };
+
+  return {
+    toPatchEvent,
+    markSeen: (progress: Progress): void => {
+      lastContentKey = contentKeyOf(progress);
+    },
+    read: async (signal?: AbortSignal): Promise<ProgressPatchEvent<Progress> | null> => {
+      const result = await client.drawings.progress({
+        projectId,
+        uploadId,
+        ...(signal !== undefined ? { signal } : {}),
+      });
+
+      if (!result.ok) {
+        // Lượt đọc kế tiếp phải được phát dù trùng nội dung: nó xoá lỗi tạm này.
+        lastContentKey = '';
+        const failure = toFailure(result.error);
+        handlers.onFailure?.(failure);
+
+        if (failure.isTerminal === true) {
+          onGone();
+        }
+
+        return null;
+      }
+
+      const contentKey = contentKeyOf(result.data);
+
+      if (contentKey === lastContentKey) {
+        return null;
+      }
+
+      lastContentKey = contentKey;
+      return toPatchEvent(result.data);
+    },
   };
 }
 
@@ -629,6 +725,7 @@ export function createProcessingGateway(
   options: CreateProcessingGatewayOptions = {},
 ): ProcessingGateway {
   const now = options.now ?? ((): number => Date.now());
+  const clock = options.clock ?? defaultClock;
   const backgroundWatches = options.backgroundWatches ?? backgroundWatchRegistry;
 
   return {
@@ -650,8 +747,15 @@ export function createProcessingGateway(
       stageBreakdown: true,
     },
 
-    readLatestUploads: ({ projectId, signal }) =>
-      client.drawings.latestUploads({ projectId, ...(signal !== undefined ? { signal } : {}) }),
+    // Client đã đọc hết `nextCursor` (R7). Danh sách đổi giữa chừng (422
+    // `CURSOR_INVALID`) thì đọc lại từ trang đầu đúng một lần rồi mới báo lỗi.
+    readLatestUploads: async ({ projectId, signal }) => {
+      const read = () =>
+        client.drawings.latestUploads({ projectId, ...(signal !== undefined ? { signal } : {}) });
+      const first = await read();
+
+      return first.ok || readWireError(first.error)?.code !== 'CURSOR_INVALID' ? first : read();
+    },
 
     readProgressOnce: ({ projectId, signal, uploadId }) =>
       client.drawings.progress({
@@ -660,55 +764,85 @@ export function createProcessingGateway(
         ...(signal !== undefined ? { signal } : {}),
       }),
 
-    subscribeProgress: ({ floorId, projectId, uploadId }, handlers) => {
-      // Số thứ tự do CHÍNH cổng phát, tăng nghiêm ngặt, dùng chung cho cả hai
-      // kênh. `mergeEvents` bỏ mọi sự kiện có `sequence <= lastAppliedSequence`;
-      // nếu lấy `progressPercent` làm số thứ tự (mặc định của `toSseEvent`) thì
-      // nhịp cuối — phần trăm đã 100, trạng thái mới đổi sang "xong" — bị lọc
-      // mất, và màn không bao giờ đến `success`.
-      let sequence = 0;
-      let lastContentKey = '';
+    subscribeProgress: (input, handlers) => {
+      const { floorId, uploadId } = input;
+      let closed = false;
+      let isSse = true;
+      let lastStatus = input.status;
+      let silenceTimer: ReturnType<ChannelClock['setTimeout']> | null = null;
+      let stream: { close(): void } | null = null;
 
-      const toPatchEvent = (progress: Progress): ProgressPatchEvent<Progress> => {
-        sequence += 1;
-        return { eventId: `${uploadId}:${sequence}`, patch: progress, sequence };
+      const clearSilence = (): void => {
+        if (silenceTimer !== null) {
+          clock.clearTimeout(silenceTimer);
+          silenceTimer = null;
+        }
       };
 
-      const stream = createProgressStream({
-        url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.uploadProgress(projectId, uploadId)),
+      // Huỷ cả hẹn im lặng; lượt #8 đang bay về sau `closed` thì bị bỏ.
+      const close = (): void => {
+        if (closed) return;
+        closed = true;
+        clearSilence();
+        stream?.close();
+      };
+
+      const reader = createProgressReader(client, input, handlers, close);
+
+      // Nhịp cuối: phát rồi đóng — máy chủ không tự đóng luồng khi lượt kết thúc.
+      const emit = (progress: Partial<Progress>, eventId: string, source: ProgressStreamSource): void => {
+        lastStatus = progress.status ?? lastStatus;
+        handlers.onSnapshot({ eventId, floorId, uploadId, observedAtMs: now(), progress, source });
+
+        if (isFinalStatus(progress.status)) {
+          close();
+        }
+      };
+
+      // SSE im khi lượt còn `running`: hỏi #8 tối đa một lần mỗi quãng im.
+      const armSilence = (): void => {
+        clearSilence();
+
+        if (closed || !isSse || lastStatus !== 'running') return;
+
+        silenceTimer = clock.setTimeout(() => {
+          silenceTimer = null;
+          void reader.read().then((event) => {
+            if (closed) return;
+
+            if (event !== null) {
+              emit(event.patch, event.eventId, 'sse');
+            }
+
+            armSilence();
+          });
+        }, SSE_SILENCE_PROBE_MS);
+      };
+
+      stream = createProgressStream({
+        url: toApiUrl(resolveApiBaseUrl(), ENDPOINTS.streams.uploadProgress(input.projectId, uploadId)),
+        clock,
         fetchEvents: async ({ signal }) => {
-          const result = await client.drawings.progress({ projectId, uploadId, signal });
-
-          if (!result.ok) {
-            handlers.onFailure?.(toFailure(result.error));
-            return [];
-          }
-
-          const contentKey = contentKeyOf(result.data);
-
-          if (contentKey === lastContentKey) {
-            return [];
-          }
-
-          lastContentKey = contentKey;
-          return [toPatchEvent(result.data)];
+          const event = await reader.read(signal);
+          return event === null ? [] : [event];
         },
         onEvent: (event) => {
-          handlers.onSnapshot({
-            eventId: event.eventId,
-            floorId,
-            uploadId,
-            observedAtMs: now(),
-            progress: event.data,
-            source: event.source,
-          });
+          if (closed) return;
+          emit(event.data, event.eventId, event.source);
+
+          if (event.source === 'sse') {
+            armSilence();
+          }
         },
-        ...(handlers.onConnectionChange !== undefined
-          ? { onStateChange: handlers.onConnectionChange }
-          : {}),
+        onStateChange: (state) => {
+          if (closed) return;
+          isSse = state.source === 'sse';
+          armSilence();
+          handlers.onConnectionChange?.(state);
+        },
         toSseEvent: (event: ChannelEvent) => {
-          lastContentKey = contentKeyOf(event.data);
-          return toPatchEvent(event.data);
+          reader.markSeen(event.data);
+          return reader.toPatchEvent(event.data);
         },
         ...(options.EventSourceImpl !== undefined
           ? { EventSourceImpl: options.EventSourceImpl }
@@ -718,7 +852,71 @@ export function createProcessingGateway(
           : {}),
       });
 
-      return () => stream.close();
+      return close;
+    },
+
+    pollProgress: (input, handlers) => {
+      const { floorId, uploadId } = input;
+      let closed = false;
+      let channel: PollingChannelHandle | null = null;
+      let isPending = input.status === 'pending';
+      let generation = 0;
+
+      const close = (): void => {
+        if (closed) return;
+        closed = true;
+        channel?.close();
+      };
+
+      const reader = createProgressReader(client, input, handlers, close);
+
+      const open = (): void => {
+        generation += 1;
+        const own = generation;
+        channel = createPollingChannel<Progress>({
+          clock,
+          intervalMs: isPending ? PENDING_POLL_INTERVAL_MS : OTHER_FLOOR_POLL_INTERVAL_MS,
+          fetchEvents: async ({ signal }) => {
+            const event = await reader.read(signal);
+            return event === null || closed ? [] : [event];
+          },
+          onEvent: (event) => {
+            if (closed || own !== generation) return;
+            const { status } = event.patch;
+            handlers.onSnapshot({
+              eventId: event.eventId,
+              floorId,
+              uploadId,
+              observedAtMs: now(),
+              progress: event.patch,
+              source: 'polling',
+            });
+
+            if (isFinalStatus(status)) {
+              close();
+              return;
+            }
+
+            // Nhịp đổi `pending` ↔ khác: đóng kênh cũ, mở kênh mới với nhịp mới.
+            if ((status === 'pending') !== isPending) {
+              isPending = status === 'pending';
+              const previous = channel;
+              open();
+              previous?.close();
+            }
+          },
+          onStateChange: (state) => {
+            if (closed || own !== generation) return;
+            handlers.onConnectionChange?.({ ...state, source: 'polling' });
+          },
+          ...(options.visibilityTarget !== undefined
+            ? { visibilityTarget: options.visibilityTarget }
+            : {}),
+        });
+      };
+
+      open();
+      return close;
     },
 
     requestCancel: () => Promise.resolve(unsupported('cancelProcessing')),
