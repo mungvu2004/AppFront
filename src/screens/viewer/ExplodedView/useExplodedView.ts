@@ -86,6 +86,7 @@ import {
   useViewerShell,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell';
+import { BUILDING_MESSAGE } from '@/screens/viewer/ViewerShell/useViewerShell';
 import {
   MAX_SEPARATION,
   MIN_SEPARATION,
@@ -908,5 +909,11 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
 
   /* ---- `ViewerShellProps`, trạng thái của MÀN thắng trạng thái của vỏ ---- */
 
-  return { ...shell, state };
+  // Vỏ chỉ biết lượt nạp của nó; cảnh tách tầng dựng riêng, nên câu "đã dựng
+  // xong" của vỏ phải nhường khi màn còn dựng — cùng cách màn đo (NO-391).
+  return {
+    ...shell,
+    state,
+    status: state === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
+  };
 }
