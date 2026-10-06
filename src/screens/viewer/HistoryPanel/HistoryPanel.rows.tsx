@@ -51,11 +51,11 @@ import {
 } from './historyPanelTypes';
 
 const JUMP_LABEL = 'Quay lại trạng thái này';
-const EXPAND_BATCH_LABEL = 'mở nhóm thay đổi';
-const COLLAPSE_BATCH_LABEL = 'thu gọn nhóm thay đổi';
-const ENTITY_LINK_PREFIX = 'chọn và khuôn hình vào';
-const UNDONE_HINT = 'đã hoàn tác';
-const CURRENT_HINT = 'vị trí hiện tại';
+const EXPAND_BATCH_LABEL = 'Mở nhóm thay đổi';
+const COLLAPSE_BATCH_LABEL = 'Thu gọn nhóm thay đổi';
+const ENTITY_LINK_PREFIX = 'Chọn và khuôn hình vào';
+const UNDONE_HINT = 'Đã hoàn tác';
+const CURRENT_HINT = 'Vị trí hiện tại';
 const DIFF_ARROW = '→';
 
 /** Mili giây sang giây cho `framer-motion` — cùng phép chia `ProjectCardTile.tsx:91`. */
@@ -70,9 +70,9 @@ const AVATAR_CLASS = 'h-5 w-5';
 
 /** Chữ cho trình đọc màn hình, vì biểu tượng loại việc chỉ là hình. */
 const CATEGORY_HINT: Readonly<Record<HistoryCategory, string>> = {
-  edit: 'chỉnh sửa',
-  review: 'duyệt',
-  ai: 'máy dò tự động',
+  edit: 'Chỉnh sửa',
+  review: 'Duyệt',
+  ai: 'Máy dò tự động',
 };
 
 /** Ba loại, ba hình. Bảng đóng: loại thứ tư sẽ hỏng ở bước typecheck. */

@@ -416,7 +416,7 @@ describe('generateLegend', () => {
     ]);
 
     const usage = generateLegend(createColoringMode('roomUsage', { subjects: rooms }), rooms);
-    expect(usage.items.map((item) => item.label)).toContain('lưu thông');
+    expect(usage.items.map((item) => item.label)).toContain('Lưu thông');
     // A category has no numeric range to show.
     expect(usage.items.every((item) => item.range === '')).toBe(true);
   });

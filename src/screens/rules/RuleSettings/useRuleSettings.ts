@@ -55,6 +55,7 @@
  * dòng bị tắt.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -207,8 +208,8 @@ const toDomainValue = (spec: RuleThresholdSpec, shown: number): number =>
 
 /** Phạm vi một luật soi, thành câu. `RuleScope` không có bảng nhãn nào trong repo. */
 const SCOPE_PHRASE: Readonly<Record<RuleScope, string>> = Object.freeze({
-  level: 'soi trên từng tầng',
-  building: 'soi trên cả công trình',
+  level: 'Soi trên từng tầng',
+  building: 'Soi trên cả công trình',
 });
 
 /**
@@ -935,7 +936,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
   const onToggleGroup = useCallback(
     (group: RuleGroup, enabled: boolean): void => {
-      const label = `${enabled ? 'Bật' : 'Tắt'} nhóm ${RULE_GROUP_LABELS[group]}`;
+      const label = `${enabled ? 'Bật' : 'Tắt'} nhóm ${lowerFirst(RULE_GROUP_LABELS[group])}`;
 
       applyConfig(setGroupEnabled(config, group, enabled), label, `${label}.`);
     },

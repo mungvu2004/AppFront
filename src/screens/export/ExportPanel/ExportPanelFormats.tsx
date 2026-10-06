@@ -32,11 +32,11 @@ export const FOCUS_RING =
  * câu ở chân trang mà không ai phải chép lại nó.
  */
 export const PDF_BLOCKED_CAPTION =
-  'chưa tải về được: dự án chưa có bộ dựng tệp PDF, mới đếm được số trang.';
+  'Chưa tải về được: dự án chưa có bộ dựng tệp PDF, mới đếm được số trang.';
 
 /** Vì sao thẻ ảnh chưa tải về được. */
 export const IMAGE_BLOCKED_CAPTION =
-  'chưa tải về được: ảnh cần một khung nhìn ba chiều đang mở, màn này chưa gắn với khung nhìn nào.';
+  'Chưa tải về được: ảnh cần một khung nhìn ba chiều đang mở, màn này chưa gắn với khung nhìn nào.';
 
 /**
  * Câu giải thích của một định dạng chưa sinh được tệp, hoặc `null` khi nó sinh
@@ -141,7 +141,7 @@ export function ExportPanelFormats({
   onSelectFormat,
 }: ExportPanelFormatsProps) {
   return (
-    <div role="radiogroup" aria-label="định dạng xuất" className="flex flex-col gap-3">
+    <div role="radiogroup" aria-label="Định dạng xuất" className="flex flex-col gap-3">
       {formats.map((format) => (
         <FormatCard
           key={format.id}

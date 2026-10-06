@@ -166,9 +166,9 @@ const PIN_COMBO = 'Enter';
 const DELETE_COMBO = 'Delete';
 
 /** Câu tiếng Việt cho bảng phím tắt, viết thường kiểu câu (A6). */
-const ESCAPE_DESCRIPTION = 'bỏ phần đường đo dở dang, vẫn ở chế độ đo';
-const PIN_DESCRIPTION = 'ghim phép đo đang đọc';
-const DELETE_DESCRIPTION = 'xoá phép đo đang chọn';
+const ESCAPE_DESCRIPTION = 'Bỏ phần đường đo dở dang, vẫn ở chế độ đo';
+const PIN_DESCRIPTION = 'Ghim phép đo đang đọc';
+const DELETE_DESCRIPTION = 'Xoá phép đo đang chọn';
 
 /**
  * Công cụ đo, và công cụ mỗi bên trả về khi tắt.
@@ -192,7 +192,7 @@ const LOAD_ERROR_MESSAGE =
 
 /** Trạng thái 6: có quyền xem, không có quyền ghim. */
 const PIN_BLOCKED_CAPTION =
-  'bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
+  'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
 
 /** Câu của toast hoàn tác — cửa sổ tám giây do chính vé mang (`UNDO_WINDOW_MS`). */
 const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
@@ -200,15 +200,15 @@ const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
 /** Câu lỗi theo mã máy chủ — người dùng KHÔNG bao giờ thấy mã trần. */
 const MEASUREMENT_ERROR_TEXT: Readonly<Record<string, string>> = {
   MEASUREMENT_LIMIT_REACHED:
-    'dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại',
-  MEASUREMENT_ID_TAKEN: 'mã phép đo vừa bị một phiên khác dùng; hãy ghim lại',
-  FORBIDDEN: 'bạn không có quyền ghim phép đo trong dự án này',
+    'Dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại',
+  MEASUREMENT_ID_TAKEN: 'Mã phép đo vừa bị một phiên khác dùng; hãy ghim lại',
+  FORBIDDEN: 'Bạn không có quyền ghim phép đo trong dự án này',
 };
-const PIN_FAILED_TEXT = 'chưa ghim được phép đo, hãy thử lại';
-const DELETE_FAILED_TEXT = 'chưa xoá được phép đo, hãy thử lại';
-const DELETE_GONE_TEXT = 'phép đo này đã bị xoá ở nơi khác';
-const DELETE_FORBIDDEN_TEXT = 'bạn không có quyền xoá phép đo trong dự án này';
-const UNDO_FAILED_TEXT = 'chưa hoàn tác được việc xoá phép đo';
+const PIN_FAILED_TEXT = 'Chưa ghim được phép đo, hãy thử lại';
+const DELETE_FAILED_TEXT = 'Chưa xoá được phép đo, hãy thử lại';
+const DELETE_GONE_TEXT = 'Phép đo này đã bị xoá ở nơi khác';
+const DELETE_FORBIDDEN_TEXT = 'Bạn không có quyền xoá phép đo trong dự án này';
+const UNDO_FAILED_TEXT = 'Chưa hoàn tác được việc xoá phép đo';
 
 const PIN_ERROR_NOTIFICATION_TYPE = 'measurementTool.pinFailed';
 const DELETE_ERROR_NOTIFICATION_TYPE = 'measurementTool.deleteFailed';

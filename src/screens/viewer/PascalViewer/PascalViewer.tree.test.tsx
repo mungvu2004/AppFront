@@ -115,7 +115,7 @@ describe('cây thật: container → view → hook', () => {
     bench.ready();
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).not.toHaveTextContent('đang nạp');
+      expect(screen.getByRole('status')).not.toHaveTextContent('Đang nạp');
     });
 
     // Bộ mẫu chuẩn A14: 48 tường.
@@ -180,11 +180,11 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
 
     renderRoute();
 
-    expect(screen.getByRole('status')).toHaveTextContent('đang nạp');
+    expect(screen.getByRole('status')).toHaveTextContent('Đang nạp');
     expect(screen.queryByText('48')).not.toBeInTheDocument();
   });
 
-  it('nối BE thật, kho đã nạp mà dự án chưa có hình thì màn ở "rỗng" — không "đang nạp" mãi', () => {
+  it('nối BE thật, kho đã nạp mà dự án chưa có hình thì màn ở "Rỗng" — không "đang nạp" mãi', () => {
     vi.stubEnv('VITE_USE_MOCK_API', 'false');
     act(() => {
       useStore.getState().setProject(PROJECT);
@@ -194,7 +194,7 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
     try {
       renderRoute();
 
-      expect(screen.getByRole('status')).toHaveTextContent('bản vẽ chưa có đối tượng nào để dựng.');
+      expect(screen.getByRole('status')).toHaveTextContent('Bản vẽ chưa có đối tượng nào để dựng.');
     } finally {
       vi.unstubAllEnvs();
     }

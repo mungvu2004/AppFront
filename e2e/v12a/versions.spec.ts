@@ -16,7 +16,7 @@ import { ROUTES } from '../fixtures/routes';
 /** Lần tải đầu của một route bắt Vite dịch nguội; cùng hằng `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
-test('mở "lịch sử phiên bản" từ đường dẫn của dự án thì thấy danh sách phiên bản của tầng đầu tiên (B-V12-10)', async ({
+test('mở "Lịch sử phiên bản" từ đường dẫn của dự án thì thấy danh sách phiên bản của tầng đầu tiên (B-V12-10)', async ({
   page,
 }) => {
   await page.goto(ROUTES.project.versions('project-1'));
@@ -25,5 +25,5 @@ test('mở "lịch sử phiên bản" từ đường dẫn của dự án thì t
   await expect(list).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
   await expect(list).toContainText('v3');
   await expect(page.getByText('Không xác định được bản vẽ')).toHaveCount(0);
-  await expect(page.getByText('không tải được lịch sử phiên bản')).toHaveCount(0);
+  await expect(page.getByText('Không tải được lịch sử phiên bản')).toHaveCount(0);
 });

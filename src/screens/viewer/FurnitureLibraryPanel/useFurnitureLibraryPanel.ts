@@ -248,7 +248,7 @@ export function useFurnitureLibraryPanel(
       id: 'furnitureLibraryPanel.cancel',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'huỷ lượt kéo model và đóng hộp xem trước',
+      description: 'Huỷ lượt kéo model và đóng hộp xem trước',
       onTrigger: () => {
         cancelDrag();
         draggedItemIdRef.current = null;

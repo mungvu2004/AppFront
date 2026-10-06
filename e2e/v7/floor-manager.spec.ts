@@ -25,9 +25,9 @@ import { QCB_PROJECT, seedQcb } from './seedQcb';
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
 const DEBT_CONTENT =
-  'nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.';
+  'Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.';
 const DEBT_HIDE =
-  'ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
+  'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
 
 /** Hàng tầng: `<tr>` mang tên truy cập "<tên>, cao độ …" (`FloorTableRow.tsx`). */
 function floorRows(page: Page) {
@@ -40,7 +40,7 @@ function toast(page: Page) {
 
 async function open(page: Page): Promise<void> {
   await page.goto(ROUTES.project.floors(QCB_PROJECT));
-  await expect(page.getByRole('heading', { name: 'quản lý tầng' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Quản lý tầng' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -59,7 +59,7 @@ test('đường nạp thật: mở thẳng thì màn không treo khung xương �
   /* Nút "Thêm tầng" chỉ vắng khi bảng còn khung xương (`isLoading`) — trước B-V6-01 là mãi. */
   await expect(page.getByRole('button', { name: 'Thêm tầng' })).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'những thay đổi chỉ sống trong phiên làm việc này' }),
+    page.getByRole('heading', { name: 'Những thay đổi chỉ sống trong phiên làm việc này' }),
   ).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: DEBT_HIDE })).toBeVisible();
@@ -106,7 +106,7 @@ test('bơm bộ mẫu: thêm tầng có toast hoàn tác, bấm hoàn tác thì 
   await page.getByRole('button', { name: 'Thêm tầng' }).click();
 
   await expect(floorRows(page)).toHaveCount(5);
-  await expect(toast(page)).toContainText('đã thêm tầng.');
+  await expect(toast(page)).toContainText('Đã thêm tầng.');
 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 

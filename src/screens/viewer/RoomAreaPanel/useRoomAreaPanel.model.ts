@@ -93,9 +93,9 @@ export const WHOLE_BUILDING_LABEL = 'toàn nhà';
 
 /** Ba tông của thanh xếp chồng, kèm nhãn tiếng Việt viết thường (A6). */
 const TONE_LABELS: Readonly<Record<RoomAreaTone, string>> = {
-  'wall-strong': 'phòng ở',
-  'wall-mid': 'khu phụ trợ',
-  neutral: 'lưu thông và khác',
+  'wall-strong': 'Phòng ở',
+  'wall-mid': 'Khu phụ trợ',
+  neutral: 'Lưu thông và khác',
 };
 
 /** Thứ tự dải trên thanh, đậm trước — cùng thứ tự legend của `lib/coloring`. */

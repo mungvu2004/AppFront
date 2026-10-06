@@ -1078,7 +1078,7 @@ export const checkStairAlignment: GeometryCheck = (context) => {
 /** `dependsOn` lists exactly the entity kinds each check reads — no more. */
 export const wallOverlapRule: Rule = {
   code: 'WALL-OVERLAP',
-  name: 'không có hai tường chồng lên nhau',
+  name: 'Không có hai tường chồng lên nhau',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -1088,7 +1088,7 @@ export const wallOverlapRule: Rule = {
 
 export const danglingWallEndRule: Rule = {
   code: 'WALL-DANGLING-END',
-  name: 'đầu tường nào cũng nối vào tường khác',
+  name: 'Đầu tường nào cũng nối vào tường khác',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -1098,7 +1098,7 @@ export const danglingWallEndRule: Rule = {
 
 export const roomClosureRule: Rule = {
   code: 'ROOM-NOT-CLOSED',
-  name: 'đường bao phòng kín bằng tường',
+  name: 'Đường bao phòng kín bằng tường',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -1108,7 +1108,7 @@ export const roomClosureRule: Rule = {
 
 export const doorSwingRule: Rule = {
   code: 'DOOR-SWING-BLOCKED',
-  name: 'cửa đi có chỗ để mở cánh',
+  name: 'Cửa đi có chỗ để mở cánh',
   group: 'circulation',
   severity: 'critical',
   scope: 'level',
@@ -1118,7 +1118,7 @@ export const doorSwingRule: Rule = {
 
 export const openingOverlapRule: Rule = {
   code: 'OPENING-OVERLAP',
-  name: 'không có hai lỗ mở chồng nhau trên một tường',
+  name: 'Không có hai lỗ mở chồng nhau trên một tường',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -1128,7 +1128,7 @@ export const openingOverlapRule: Rule = {
 
 export const loadBearingSupportRule: Rule = {
   code: 'WALL-UNSUPPORTED',
-  name: 'tường chịu lực có điểm tựa ở tầng dưới',
+  name: 'Tường chịu lực có điểm tựa ở tầng dưới',
   group: 'geometry',
   severity: 'critical',
   scope: 'building',
@@ -1138,7 +1138,7 @@ export const loadBearingSupportRule: Rule = {
 
 export const stairAlignmentRule: Rule = {
   code: 'STAIR-ALIGNMENT',
-  name: 'cầu thang thẳng trục giữa các tầng',
+  name: 'Cầu thang thẳng trục giữa các tầng',
   group: 'geometry',
   severity: 'critical',
   scope: 'building',

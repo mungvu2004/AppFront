@@ -45,7 +45,7 @@ function saveIndicator(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto(ROUTES.account);
-  await expect(page.getByRole('heading', { level: 1, name: 'cài đặt tài khoản' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
+  await expect(page.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' })).toBeVisible({ timeout: FIRST_PAINT_TIMEOUT_MS });
 });
 
 test('AC-1 sửa họ tên: báo "chờ đồng bộ" ngay, tự lưu sau ≥ 800 ms đồng hồ thật (A7)', async ({ page }) => {
@@ -64,7 +64,7 @@ test('AC-1 sửa họ tên: báo "chờ đồng bộ" ngay, tự lưu sau ≥ 80
     });
   });
 
-  await page.getByLabel('họ tên').fill(NAME);
+  await page.getByLabel('Họ tên').fill(NAME);
   await expect(indicator).toHaveText(/^Đã lưu lúc \d{2}:\d{2}$/u);
 
   const log = await page.evaluate(() => (window as unknown as { __saveLog: Array<[number, string]> }).__saveLog);
@@ -72,7 +72,7 @@ test('AC-1 sửa họ tên: báo "chờ đồng bộ" ngay, tự lưu sau ≥ 80
   const saved = log.find(([, text]) => text.startsWith('Đã lưu lúc'));
   expect(pending, `nhật ký chỉ báo: ${JSON.stringify(log)}`).toBeDefined();
   expect(saved![0] - pending![0]).toBeGreaterThanOrEqual(AUTOSAVE_DELAY_MS - FRAME_SLACK_MS);
-  await expect(page.getByLabel('họ tên')).toHaveValue(NAME);
+  await expect(page.getByLabel('Họ tên')).toHaveValue(NAME);
 });
 
 test('AC-2 phiên đăng nhập và vùng nguy hiểm vắng khỏi DOM khi năng lực tắt (F-09b [4.4], [9])', async ({ page }) => {
@@ -80,7 +80,7 @@ test('AC-2 phiên đăng nhập và vùng nguy hiểm vắng khỏi DOM khi năn
   await expect(page.getByRole('region', { name: 'mật khẩu' })).toBeVisible();
 
   await expect(page.getByRole('region', { name: 'phiên đăng nhập' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'vùng nguy hiểm' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Vùng nguy hiểm' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Xoá tài khoản', exact: true })).toHaveCount(0);
 });
 
@@ -90,7 +90,7 @@ test('AC-2 phiên đăng nhập và vùng nguy hiểm vắng khỏi DOM khi năn
  * lưu. Đã kiểm đỏ trước sửa.
  */
 test('F3 sửa họ tên có toast "Hoàn tác" đưa họ tên cũ trở lại (A8)', async ({ page }) => {
-  const nameField = page.getByLabel('họ tên');
+  const nameField = page.getByLabel('Họ tên');
   const before = await nameField.inputValue();
   await nameField.fill(NAME);
   await expect(saveIndicator(page)).toHaveText(/^Đã lưu lúc/u);

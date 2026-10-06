@@ -154,7 +154,7 @@ export const THICKNESS_GROUP_LABELS: Readonly<Record<ThicknessGroup, string>> = 
   110: '110 mm',
   220: '220 mm',
   330: '330 mm',
-  CONCRETE_COLUMN: 'cột bê tông cốt thép',
+  CONCRETE_COLUMN: 'Cột bê tông cốt thép',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -286,10 +286,10 @@ export interface ThicknessSummary {
 
 /** Nhãn tiếng Việt cho từng con số của {@link ThicknessSummary}, viết thường kiểu câu. */
 export const THICKNESS_SUMMARY_LABELS: Readonly<Record<keyof ThicknessSummary, string>> = {
-  segmentCount: 'tổng số đoạn tường',
-  normalizedCount: 'đã ở đúng nhóm chuẩn',
-  exceedingToleranceCount: 'lệch quá dung sai',
-  concreteColumnCount: 'cột bê tông cốt thép',
+  segmentCount: 'Tổng số đoạn tường',
+  normalizedCount: 'Đã ở đúng nhóm chuẩn',
+  exceedingToleranceCount: 'Lệch quá dung sai',
+  concreteColumnCount: 'Cột bê tông cốt thép',
 };
 
 /* -------------------------------------------------------------------------- */

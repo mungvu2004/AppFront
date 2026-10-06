@@ -55,7 +55,7 @@ export function DangerZoneTab(props: DangerZoneTabProps) {
       {hasFloors ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-default p-4">
           <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-[14px] font-medium text-text-primary">xoá mọi tầng</span>
+            <span className="text-[14px] font-medium text-text-primary">Xoá mọi tầng</span>
             <p className="text-[13px] text-text-secondary">{props.deleteAllFloorsLabel}</p>
           </div>
           <Button
@@ -77,7 +77,7 @@ export function DangerZoneTab(props: DangerZoneTabProps) {
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-default p-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[14px] font-medium text-text-primary">xoá dự án</span>
+          <span className="text-[14px] font-medium text-text-primary">Xoá dự án</span>
           <p className="text-[13px] text-text-secondary">{props.deleteProjectLabel}</p>
         </div>
         <Button

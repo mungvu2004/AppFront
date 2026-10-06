@@ -66,10 +66,10 @@ const FORMAT_EXTENSION: Readonly<Record<ExportFormatId, string>> = {
 
 /** Mỗi định dạng nói rõ dành cho ai, bằng tiếng thường — không thêm định dạng thứ năm. */
 const FORMAT_AUDIENCE_SENTENCE: Readonly<Record<ExportFormatId, string>> = {
-  glb: 'dành cho ai cần mở mô hình 3D trong phần mềm dựng hình khác.',
-  image: 'dành cho ai cần một ảnh chụp nhanh để trình bày.',
-  pdf: 'dành cho ai cần in hoặc gửi hồ sơ kiểm tra bản vẽ.',
-  'spatial-json': 'dành cho ai cần dữ liệu thô để tích hợp vào hệ thống khác.',
+  glb: 'Dành cho ai cần mở mô hình 3D trong phần mềm dựng hình khác.',
+  image: 'Dành cho ai cần một ảnh chụp nhanh để trình bày.',
+  pdf: 'Dành cho ai cần in hoặc gửi hồ sơ kiểm tra bản vẽ.',
+  'spatial-json': 'Dành cho ai cần dữ liệu thô để tích hợp vào hệ thống khác.',
 };
 
 /** Số trang PDF THẬT, đếm từ `buildPdfDocument` trên bộ mẫu chuẩn — không viết tay (R-70). */
@@ -211,8 +211,8 @@ export function buildCleanPreflight(): readonly PreflightRow[] {
  * ========================================================================== */
 
 /** Dịch từ hai pha thật của `ExportPhase` (`glb.worker.ts`): "build" / "encode". */
-export const BUILD_STEP_LABEL = 'đang dựng hình';
-export const ENCODE_STEP_LABEL = 'đang mã hoá';
+export const BUILD_STEP_LABEL = 'Đang dựng hình';
+export const ENCODE_STEP_LABEL = 'Đang mã hoá';
 
 export function buildSampleProgress(overrides: Partial<ExportProgressView> = {}): ExportProgressView {
   const completed = 8;

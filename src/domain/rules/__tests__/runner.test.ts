@@ -219,10 +219,10 @@ function workerOf(registry: RuleRegistry): FakeWorker {
 /* -------------------------------------------------------------------------- */
 
 describe('the rule book', () => {
-  it('gives every rule an upper-case code, a lower-case Vietnamese name and a severity', () => {
+  it('gives every rule an upper-case code, a capitalised Vietnamese name and a severity', () => {
     for (const rule of BUILT_IN_RULES) {
       expect(rule.code).toBe(rule.code.toUpperCase());
-      expect(rule.name).toBe(rule.name.toLowerCase());
+      expect(rule.name).toBe(rule.name.charAt(0).toLocaleUpperCase('vi') + rule.name.slice(1));
       expect(RULE_SEVERITIES).toContain(rule.severity);
       expect(rule.dependsOn.length).toBeGreaterThan(0);
     }

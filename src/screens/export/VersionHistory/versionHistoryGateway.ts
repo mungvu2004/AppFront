@@ -116,19 +116,19 @@ export const versionsQueryKey = (floorId: string) => queryKeys.version.byFloor(f
  * `restore.ts:19-20`) chứ không nói "không tải được" — người đọc phải phân biệt được một
  * lượt tải hỏng với một phiên bản đã tới hạn lưu giữ.
  */
-export const RETENTION_NOTICE = `chỉ ${MAX_FULL_VERSIONS} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được`;
+export const RETENTION_NOTICE = `Chỉ ${MAX_FULL_VERSIONS} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được`;
 
 /** Câu ném ra khi phục hồi hoặc so sánh gọi vào một phiên bản không còn ảnh chụp. */
 export const SNAPSHOT_MISSING_REASON =
-  'phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được';
+  'Phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được';
 
 /** Câu nói ra khi chưa nơi nào bơm danh sách phiên bản vào màn. */
 export const NO_VERSION_SOURCE_REASON =
-  'chưa có nguồn dữ liệu phiên bản nào được nối vào màn này';
+  'Chưa có nguồn dữ liệu phiên bản nào được nối vào màn này';
 
 /** Câu nói ra khi N17 không trả được lịch sử. */
 export const VERSION_LIST_FAILED_REASON =
-  'máy chủ chưa trả được lịch sử phiên bản của tầng này';
+  'Máy chủ chưa trả được lịch sử phiên bản của tầng này';
 
 /**
  * Bộ nạp thật cho {@link CreateVersionHistoryGatewayOptions.loadVersions}: N17
@@ -344,7 +344,7 @@ export function buildRestoredVersionMetadata(input: {
     createdAt: input.now().toISOString(),
     creatorId: input.creatorId,
     id: createUuid(),
-    note: `phục hồi nội dung của phiên bản v${input.source.sequence}`,
+    note: `Phục hồi nội dung của phiên bản v${input.source.sequence}`,
     sequence: highest + 1,
   };
 }
@@ -448,7 +448,7 @@ export function createVersionHistoryGateway(
     history = appendVersionToHistory(history, restoredVersion);
 
     const undoTicket: UndoTicket = createUndoTicket({
-      description: `phục hồi nội dung của phiên bản v${source.sequence}`,
+      description: `Phục hồi nội dung của phiên bản v${source.sequence}`,
       undo: () => {
         history = previous;
       },

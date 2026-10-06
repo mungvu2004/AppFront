@@ -45,13 +45,13 @@ import type {
 } from './types';
 
 const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1080px] flex-col gap-4 p-6';
-const BREADCRUMB_NAV_LABEL = 'đường dẫn trang';
+const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const PERMISSION_REFERENCE_BUTTON_LABEL = 'Xem ma trận quyền';
 const PERMISSION_REFERENCE_MODAL_TITLE = 'Ma trận quyền theo vai trò';
-const PERMISSION_MATRIX_CAPTION = 'ma trận quyền theo vai trò';
-const EMPTY_TITLE = 'chưa có người dùng nào khác';
+const PERMISSION_MATRIX_CAPTION = 'Ma trận quyền theo vai trò';
+const EMPTY_TITLE = 'Chưa có người dùng nào khác';
 const INVITE_BUTTON_LABEL = 'Mời người dùng';
-const ERROR_TITLE = 'không tải được danh sách người dùng';
+const ERROR_TITLE = 'Không tải được danh sách người dùng';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const RETRY_BUTTON_LABEL = 'Thử lại';
 const MODAL_WIDTH = 720;
@@ -133,7 +133,7 @@ export function UserManagement({ model, actions }: UserManagementProps) {
   useShortcut(
     {
       combo: 'Escape',
-      description: 'đóng khối mời hoặc tấm chi tiết người dùng',
+      description: 'Đóng khối mời hoặc tấm chi tiết người dùng',
       id: 'sidePanel.userManagement.close',
       onTrigger: () => {
         if (model.invite.isOpen) actions.onCloseInvite();

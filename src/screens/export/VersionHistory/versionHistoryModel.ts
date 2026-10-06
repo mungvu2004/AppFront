@@ -62,13 +62,13 @@ import { initialsOf, RETENTION_NOTICE } from './versionHistoryGateway';
  * đều khai bảng của riêng chúng.
  */
 const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
-  dimension: 'kích thước',
-  door: 'cửa đi',
-  furniture: 'nội thất',
-  room: 'phòng',
-  vertex: 'điểm',
-  wall: 'tường',
-  window: 'cửa sổ',
+  dimension: 'Kích thước',
+  door: 'Cửa đi',
+  furniture: 'Nội thất',
+  room: 'Phòng',
+  vertex: 'Điểm',
+  wall: 'Tường',
+  window: 'Cửa sổ',
 };
 
 /** Thứ tự đọc ba mảng diff: thêm trước, xoá sau, thay đổi cuối — đúng `describeChanges`. */
@@ -78,7 +78,7 @@ const TONE_ORDER: readonly DiffTone[] = ['added', 'removed', 'changed'];
 const MINUS_SIGN = '−';
 
 /** Ngày hôm nay không đọc thành "08/09/2026" — người ta gọi nó là hôm nay. */
-const TODAY_HEADING = 'hôm nay';
+const TODAY_HEADING = 'Hôm nay';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Ba số đếm                                                              */
@@ -92,7 +92,7 @@ export const EMPTY_DIFF_COUNTS: DiffCountsModel = Object.freeze({
   addedLabel: `+${formatNumber(0)}`,
   removedLabel: `${MINUS_SIGN}${formatNumber(0)}`,
   changedLabel: `~${formatNumber(0)}`,
-  ariaLabel: 'không có thay đổi nào',
+  ariaLabel: 'Không có thay đổi nào',
 });
 
 /**
@@ -117,7 +117,7 @@ export function countsOf(diff: VersionDiff): DiffCountsModel {
     addedLabel: `+${formatNumber(added)}`,
     removedLabel: `${MINUS_SIGN}${formatNumber(removed)}`,
     changedLabel: `~${formatNumber(changed)}`,
-    ariaLabel: `thêm ${formatNumber(added)}, xoá ${formatNumber(removed)}, thay đổi ${formatNumber(changed)}`,
+    ariaLabel: `Thêm ${formatNumber(added)}, xoá ${formatNumber(removed)}, thay đổi ${formatNumber(changed)}`,
   };
 }
 
@@ -188,7 +188,7 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
       row: {
         id: metadata.id,
         label: `v${formatNumber(metadata.sequence, { grouping: false })}`,
-        description: metadata.note ?? 'không có ghi chú cho phiên bản này',
+        description: metadata.note ?? 'Không có ghi chú cho phiên bản này',
         // Tên máy chủ gửi kèm (N17) nếu có; không thì lùi về chuỗi thô như trước.
         authorName: metadata.creatorName ?? metadata.creatorId,
         authorInitials: initialsOf(metadata.creatorName ?? metadata.creatorId),
@@ -258,10 +258,10 @@ function entriesOf(diff: VersionDiff, tone: DiffTone): readonly DiffEntry[] {
 /** Tiêu đề ngữ cảnh của một khối JSON — dòng không tô nền. */
 function toneHeading(tone: DiffTone): string {
   if (tone === 'added') {
-    return 'đã thêm';
+    return 'Đã thêm';
   }
 
-  return tone === 'removed' ? 'đã xoá' : 'đã thay đổi';
+  return tone === 'removed' ? 'Đã xoá' : 'Đã thay đổi';
 }
 
 /**
@@ -355,7 +355,7 @@ export function changedEntityIdsOf(diff: VersionDiff): readonly string[] {
 /* -------------------------------------------------------------------------- */
 
 /** Lượt đọc hỏng mà không mang câu nào vẫn phải nói ra một câu (A11: cấm màn trắng). */
-export const LIST_ERROR_FALLBACK = 'không tải được danh sách phiên bản của tầng này';
+export const LIST_ERROR_FALLBACK = 'Không tải được danh sách phiên bản của tầng này';
 
 /**
  * Lỗi đầu tiên có thật trong danh sách, thành một câu người đọc hiểu.
@@ -380,7 +380,7 @@ export function readErrorMessage(errors: readonly (Error | null)[]): string | nu
 
 /** Trạng thái 6: so sánh được, nhưng nút phục hồi rời khỏi DOM (R-69). */
 export const RESTORE_FORBIDDEN_REASON =
-  'vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện';
+  'Vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện';
 
 /**
  * Câu giải thích phục hồi là KHÔNG PHÁ HUỶ.
@@ -389,7 +389,7 @@ export const RESTORE_FORBIDDEN_REASON =
  * đúng cấm tuyệt đối của đặc tả, và đúng A9 (việc A8 không hoàn tác được thì phải hỏi).
  */
 export const RESTORE_CAPTION =
-  'phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
+  'Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
 
 /** Hộp thoại xác nhận phục hồi; `targetVersionId` là `null` khi hộp thoại đang đóng. */
 export function buildRestoreConfirm(
@@ -403,7 +403,7 @@ export function buildRestoreConfirm(
 
   return {
     isOpen: targetVersionId !== null,
-    title: label === null ? 'phục hồi phiên bản này?' : `phục hồi phiên bản ${label}?`,
+    title: label === null ? 'Phục hồi phiên bản này?' : `Phục hồi phiên bản ${label}?`,
     reassurance: RESTORE_CAPTION,
     confirmLabel: 'phục hồi',
     cancelLabel: 'để nguyên',

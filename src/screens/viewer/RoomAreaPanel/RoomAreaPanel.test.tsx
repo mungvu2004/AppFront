@@ -3,7 +3,7 @@
  *
  * Bốn bộ khẳng định dùng chung của repo cộng ba phép nghiệm thu định lượng mà
  * chỉ màn ĐÃ NỐI DÂY mới trả lời được. Mỗi phép **in ra con số thật** khi chạy
- * — E.10 cấm báo "đạt" cho một bước chưa chạy, nên chỗ nào không đo được thì
+ * — E.10 cấm báo "Đạt" cho một bước chưa chạy, nên chỗ nào không đo được thì
  * bài kiểm nói thẳng là chưa đo được, kèm lý do.
  *
  * | mã | đo cái gì | ngưỡng |
@@ -43,7 +43,7 @@
  * không phải thêm `Room` và `Level` vào danh sách bỏ qua, thứ sẽ mở đúng cái
  * cửa mà R-72 đóng. Không con số nào đổi theo.
  *
- * ## Vì sao đặt "giảm chuyển động"
+ * ## Vì sao đặt "Giảm chuyển động"
  *
  * Ô tổng chạy số qua `useCountUp`. Giảm chuyển động là một CÚP, không phải một
  * lượt chạy ngắn hơn — nên con số ở đúng đích ngay khung hình đầu, và phép đo
@@ -97,7 +97,7 @@ const A14_ROOM_COUNT = 14;
 const A14_TOTAL_TEXT = '248,60';
 
 /* -------------------------------------------------------------------------- */
-/* Kho, đồng hồ, và "giảm chuyển động".                                        */
+/* Kho, đồng hồ, và "Giảm chuyển động".                                        */
 /* -------------------------------------------------------------------------- */
 
 /** Đưa một đồ thị vào kho, ngăn xếp hoàn tác về 0 ngay sau đó. */
@@ -478,7 +478,7 @@ describe('[N3] bấm một dòng', () => {
     );
 
     const label =
-      `xem cách tính và khuôn hình vào phòng ${String(firstRow?.name)}, ` +
+      `Xem cách tính và khuôn hình vào phòng ${String(firstRow?.name)}, ` +
       `${String(firstRow?.areaText)} ${props.totals.unitLabel}`;
 
     fireEvent.click(getByLabelText(label));
@@ -505,7 +505,7 @@ describe('[N3] bấm một dòng', () => {
       />,
     );
 
-    const row = getByLabelText(`tên phòng ${String(firstRow?.name)}`).closest('li');
+    const row = getByLabelText(`Tên phòng ${String(firstRow?.name)}`).closest('li');
 
     expect(row).not.toBeNull();
 

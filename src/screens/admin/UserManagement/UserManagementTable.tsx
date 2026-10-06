@@ -31,11 +31,11 @@ const HEADER_ROLE = 'Vai';
 const HEADER_PROJECTS = 'Số dự án';
 const HEADER_LAST_ACTIVE = 'Lần hoạt động cuối';
 const HEADER_STATUS = 'Trạng thái';
-const HEADER_ACTIONS = 'hành động';
+const HEADER_ACTIONS = 'Hành động';
 const EMPTY_MESSAGE = 'Không tìm thấy người dùng phù hợp.';
-const INVITE_EXPIRED_LABEL = 'lời mời đã hết hạn';
+const INVITE_EXPIRED_LABEL = 'Lời mời đã hết hạn';
 const RESEND_INVITE_LABEL = 'gửi lại';
-const DISABLE_LABEL = 'vô hiệu hoá';
+const DISABLE_LABEL = 'Vô hiệu hoá';
 const ENABLE_LABEL = 'bật lại';
 const REMOVE_LABEL = 'xoá';
 const COLUMN_COUNT = 7;
@@ -67,7 +67,7 @@ function initialsOf(name: string): string {
   return letters.slice(0, INITIALS_LENGTH).toUpperCase();
 }
 
-const roleSelectLabel = (name: string): string => `vai của ${name}`;
+const roleSelectLabel = (name: string): string => `Vai của ${name}`;
 
 /**
  * `exactOptionalPropertyTypes` phân biệt "không truyền prop" với "truyền `undefined`".

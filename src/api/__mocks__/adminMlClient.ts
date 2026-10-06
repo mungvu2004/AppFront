@@ -79,7 +79,7 @@ export const MOCK_MODEL_VERSIONS: readonly ModelVersion[] = [
     evaluationStatus: 'completed',
     family: 'openingAndFurnitureDetection',
     id: MOCK_MODEL_VERSION_IDS.doorSeed,
-    label: 'gốc',
+    label: 'Gốc',
     metrics: { map50: 0.612 },
     weightsFormat: 'onnx',
   },
@@ -111,7 +111,7 @@ export const MOCK_MODEL_VERSIONS: readonly ModelVersion[] = [
     evaluationStatus: 'pending',
     family: 'dimensionReading',
     id: MOCK_MODEL_VERSION_IDS.dimensionSeed,
-    label: 'gốc',
+    label: 'Gốc',
     weightsFormat: 'onnx',
   },
 ];

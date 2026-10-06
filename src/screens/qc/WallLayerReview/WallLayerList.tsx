@@ -59,7 +59,7 @@ const LIST_ARIA_LABEL = 'Danh sách đoạn tường';
 const EMPTY_LIST_TITLE = 'Chưa có đoạn tường nào';
 const NO_MATCH_MESSAGE =
   'Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.';
-const ATTENTION_BADGE_LABEL = 'cần chú ý';
+const ATTENTION_BADGE_LABEL = 'Cần chú ý';
 
 const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
   verified: 'bg-state-verified',
@@ -69,10 +69,10 @@ const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
 };
 
 const STATUS_DOT_LABEL: Readonly<Record<ViewStatusCode, string>> = {
-  verified: 'đã duyệt',
-  attention: 'cần chú ý',
-  violation: 'vi phạm',
-  neutral: 'bình thường',
+  verified: 'Đã duyệt',
+  attention: 'Cần chú ý',
+  violation: 'Vi phạm',
+  neutral: 'Bình thường',
 };
 
 /** Đi lên DOM tìm tổ tiên cuộn gần nhất — đúng kỹ thuật `Table.tsx#TableVirtual`. */

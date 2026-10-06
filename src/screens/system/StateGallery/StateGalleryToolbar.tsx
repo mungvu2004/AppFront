@@ -29,32 +29,32 @@ import type {
   ReviewToolbarState,
 } from './stateGalleryTypes';
 
-const TOOLBAR_REGION_LABEL = 'công cụ duyệt';
-const TOGGLE_DARK_THEME = 'chủ đề tối';
+const TOOLBAR_REGION_LABEL = 'Công cụ duyệt';
+const TOGGLE_DARK_THEME = 'Chủ đề tối';
 const TOGGLE_DARK_THEME_HINT = 'Đổi giữa chủ đề sáng và chủ đề tối cho cả ứng dụng.';
-const TOGGLE_REDUCED_MOTION = 'giảm chuyển động';
+const TOGGLE_REDUCED_MOTION = 'Giảm chuyển động';
 const TOGGLE_REDUCED_MOTION_HINT = 'Tắt hoạt ảnh khi duyệt khung xem trước.';
-const TOGGLE_SPACING_GRID = 'lưới đo khoảng cách';
+const TOGGLE_SPACING_GRID = 'Lưới đo khoảng cách';
 const TOGGLE_SPACING_GRID_HINT = 'Phủ lưới lên khung xem trước để đo khoảng cách.';
-const RUN_QUICK_CHECK = 'chạy kiểm nhanh';
-const CHECK_TABLE_CAPTION = 'kết quả bốn phép kiểm theo từng màn';
+const RUN_QUICK_CHECK = 'Chạy kiểm nhanh';
+const CHECK_TABLE_CAPTION = 'Kết quả bốn phép kiểm theo từng màn';
 const CHECK_COLUMN_SCREEN = 'màn';
-const CHECK_EMPTY = 'chưa chạy phép kiểm nào';
-const CLOSE_CHECK_PANEL = 'đóng bảng kết quả';
-const CLOSE_CHECK_PANEL_HINT = 'để đóng bảng kết quả';
+const CHECK_EMPTY = 'Chưa chạy phép kiểm nào';
+const CLOSE_CHECK_PANEL = 'Đóng bảng kết quả';
+const CLOSE_CHECK_PANEL_HINT = 'Để đóng bảng kết quả';
 
 /** Nhãn cột, đúng thứ tự `QUICK_CHECK_IDS` — bốn phép kiểm của O-03. */
 const CHECK_LABELS: Readonly<Record<QuickCheckId, string>> = {
-  sevenStates: 'bảy trạng thái',
-  noRawColor: 'mã màu thô',
-  vietnamese: 'chuỗi tiếng Việt',
-  accessible: 'khả năng tiếp cận',
+  sevenStates: 'Bảy trạng thái',
+  noRawColor: 'Mã màu thô',
+  vietnamese: 'Chuỗi tiếng Việt',
+  accessible: 'Khả năng tiếp cận',
 };
 
 const STATUS_LABELS: Readonly<Record<QuickCheckStatus, string>> = {
   pending: 'chờ chạy',
   running: 'đang chạy',
-  pass: 'đạt',
+  pass: 'Đạt',
   fail: 'hỏng',
 };
 
@@ -161,7 +161,7 @@ export function StateGalleryToolbar({
       id: 'stateGallery.closeCheckPanel',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'đóng bảng kết quả kiểm nhanh',
+      description: 'Đóng bảng kết quả kiểm nhanh',
       onTrigger: closePanel,
     },
     { enabled: isPanelOpen },

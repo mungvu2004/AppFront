@@ -144,7 +144,7 @@ describe('Toast.Provider and Toast.Item', () => {
     const onUndo = vi.fn();
     const Single = () => {
       const { addToast } = useToast();
-      return <Button onClick={() => addToast({ message: 'đã vô hiệu hoá tài khoản', onUndo })}>Add</Button>;
+      return <Button onClick={() => addToast({ message: 'Đã vô hiệu hoá tài khoản', onUndo })}>Add</Button>;
     };
 
     render(
@@ -160,6 +160,6 @@ describe('Toast.Provider and Toast.Item', () => {
     });
 
     expect(onUndo).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('đã vô hiệu hoá tài khoản')).not.toBeInTheDocument();
+    expect(screen.queryByText('Đã vô hiệu hoá tài khoản')).not.toBeInTheDocument();
   });
 });

@@ -37,7 +37,7 @@ const A14_ROOMS = ['Room 1', 'Room 5', 'Room 9', 'Room 13'] as const;
  */
 const roomOption = (page: Page, name: string, code = '#R-\\S+') =>
   roomList(page).getByRole('option', { name: new RegExp(`^${code} · ${name} · `, 'iu') });
-const FIRST_ROOM = { code: '#R-001', name: 'phòng khách chung' } as const;
+const FIRST_ROOM = { code: '#R-001', name: 'Phòng khách chung' } as const;
 const NEW_NAME = 'Phòng thử e2e';
 
 function roomList(page: Page) {
@@ -59,7 +59,7 @@ function nameField(page: Page) {
 
 async function open(page: Page, floorId: string = QCB_FLOOR.rooms): Promise<void> {
   await page.goto(ROUTES.project.rooms(QCB_PROJECT, floorId));
-  await expect(page.getByRole('heading', { name: 'duyệt tên phòng' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Duyệt tên phòng' })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }
@@ -112,12 +112,12 @@ test('đường nạp thật: mỗi phòng một mã hiển thị riêng, theo t
   }
 });
 
-test('đường nạp thật: tầng chưa có lớp thì màn nói thật "chưa dò ra phòng nào" (V7-ROOMS-01, B-V7-10)', async ({
+test('đường nạp thật: tầng chưa có lớp thì màn nói thật "Chưa dò ra phòng nào" (V7-ROOMS-01, B-V7-10)', async ({
   page,
 }) => {
   await open(page, 'L1');
 
-  await expect(page.getByRole('heading', { name: 'chưa dò ra phòng nào' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Kiểm tra lại vòng hở' })).toBeVisible();
   /* Câu hướng dẫn gọi đúng tên nút người dùng thấy (B-V7-10). */
   await expect(page.getByText('rồi bấm "Kiểm tra lại vòng hở" để dò lại')).toBeVisible();
@@ -223,7 +223,7 @@ test('đường nạp thật: đổi tên phòng thì hệ thống tự lưu và
 /* A9 — gộp phòng hỏi trước bằng hộp thoại.                                    */
 /* -------------------------------------------------------------------------- */
 
-const SECOND_ROOM = { code: '#R-002', name: 'phòng ngủ 3' } as const;
+const SECOND_ROOM = { code: '#R-002', name: 'Phòng ngủ 3' } as const;
 
 /**
  * `ROOM_LABEL_TEXT.wallsNotReadable` (`roomLabelReviewGateway.ts`) — chép, không nhập:
@@ -318,11 +318,11 @@ test('đường nạp thật: Ctrl+Z ngay sau lượt nạp không trả màn v�
   await openReal(page);
 
   /* Ngoài ô nhập, để phím đi tới `global.undo` của vỏ (`router.tsx`). */
-  await page.getByRole('heading', { name: 'duyệt tên phòng' }).click();
+  await page.getByRole('heading', { name: 'Duyệt tên phòng' }).click();
   await page.keyboard.press('Control+z');
 
   await expect(roomOptions(page)).toHaveCount(A14_ROOMS.length);
-  await expect(page.getByRole('heading', { name: 'chưa dò ra phòng nào' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toHaveCount(0);
 });
 
 /* -------------------------------------------------------------------------- */

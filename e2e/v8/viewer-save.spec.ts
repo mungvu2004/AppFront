@@ -39,7 +39,7 @@ test('đổi tên phòng ở bảng diện tích lúc không chọn gì vẫn đ
 
   const areaPanel = page.getByRole('region', { name: 'Bảng diện tích phòng' });
   await expect(page.getByRole('region', { name: 'Thuộc tính đối tượng', exact: true })).toHaveCount(0);
-  await areaPanel.getByRole('textbox', { name: /^tên phòng / }).first().fill(RENAMED);
+  await areaPanel.getByRole('textbox', { name: /^Tên phòng / }).first().fill(RENAMED);
   await expect(areaPanel.getByRole('textbox', { name: `tên phòng ${RENAMED}` })).toBeVisible();
 
   await selectRoomBySearch(page, 'phong doi ten', RENAMED);

@@ -56,7 +56,7 @@ const SAMPLE_VIOLATIONS: readonly Violation[] = [
     levelId: sampleLevelId(2),
     entityId: sampleRoomId(2),
     message: `phòng ${sampleRoomId(2)} chưa có tên sử dụng`,
-    suggestion: 'đặt tên phòng theo công năng',
+    suggestion: 'Đặt tên phòng theo công năng',
   }),
   violationOf({}),
   violationOf({
@@ -281,10 +281,10 @@ describe('buildViolationsPage', () => {
       'ROOM-NAME',
     ]);
     expect(page.rows.map((row) => row.cells[1])).toEqual([
-      'nghiêm trọng',
-      'nghiêm trọng',
-      'cảnh báo',
-      'gợi ý',
+      'Nghiêm trọng',
+      'Nghiêm trọng',
+      'Cảnh báo',
+      'Gợi ý',
     ]);
     expect(page.rows.map((row) => row.cells[3])).toEqual([
       'Level 0',

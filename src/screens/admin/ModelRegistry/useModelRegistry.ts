@@ -21,6 +21,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
+import { lowerFirst } from '@/lib/format/sentence';
 import type { ModelFamily, ModelVersion } from '@/api/schemas/adminMl';
 import { useSession } from '@/hooks/useSession';
 import { formatTimestamp } from '@/lib/format/datetime';
@@ -92,7 +93,7 @@ const METRIC_FRACTION_DIGITS = 3;
 /** Liên kết sang màn huấn luyện (F-12). */
 export const TRAINING_JOBS_LINK: RelatedLinkModel = { href: ROUTES.adminTrainingJobs, label: 'Lượt huấn luyện' };
 
-const SEED_LABEL = 'gốc';
+const SEED_LABEL = 'Gốc';
 const SYSTEM_PIPELINE = 'system:pipeline';
 
 export const MODEL_REGISTRY_TEXT = {
@@ -153,8 +154,11 @@ export const FAMILY_OPTIONS: readonly FamilyOption[] = MODEL_FAMILY_ORDER.map((v
 /* Câu và nhãn — định dạng xảy ra ở đây, không ở view (A15).                   */
 /* -------------------------------------------------------------------------- */
 
+/** The seed label ("Gốc") stands alone as a name; inside a sentence it reads lower case. */
+const inSentence = (label: string): string => (label === SEED_LABEL ? lowerFirst(label) : label);
+
 export function activateTitle(label: string, family: ModelFamilyId): string {
-  return `Kích hoạt ${label} cho ${FAMILY_NAMES[family]}?`;
+  return `Kích hoạt ${inSentence(label)} cho ${FAMILY_NAMES[family]}?`;
 }
 
 export function revertTitle(family: ModelFamilyId): string {
@@ -164,7 +168,7 @@ export function revertTitle(family: ModelFamilyId): string {
 export function activatedTitle(label: string | null, family: ModelFamilyId): string {
   return label === null
     ? `Đã quay về đường cổ điển cho ${FAMILY_NAMES[family]}`
-    : `Đã kích hoạt ${label} cho ${FAMILY_NAMES[family]}`;
+    : `Đã kích hoạt ${inSentence(label)} cho ${FAMILY_NAMES[family]}`;
 }
 
 export function conflictNotice(family: ModelFamilyId): string {

@@ -39,6 +39,7 @@
  * lower case and sentence style, as invariant A6 requires.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { can } from '@/lib/auth/permissions';
@@ -81,13 +82,13 @@ export const SHARE_EXPIRY_CHOICES = ['1d', '7d', '30d', '90d', 'never'] as const
 /** One of the offered expiries. */
 export type ShareExpiryChoice = (typeof SHARE_EXPIRY_CHOICES)[number];
 
-/** What each is called on the sheet — lower case, sentence style (A6). */
+/** What each is called on the sheet — sentence style, capitalised (A6). */
 export const SHARE_EXPIRY_LABELS: Readonly<Record<ShareExpiryChoice, string>> = {
-  '1d': 'một ngày',
-  '7d': 'bảy ngày',
-  '30d': 'ba mươi ngày',
-  '90d': 'chín mươi ngày',
-  never: 'không đặt hạn',
+  '1d': 'Một ngày',
+  '7d': 'Bảy ngày',
+  '30d': 'Ba mươi ngày',
+  '90d': 'Chín mươi ngày',
+  never: 'Không đặt hạn',
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -262,7 +263,7 @@ const TONE_BY_STATUS: Readonly<Record<ShareLink['status'], ShareLinkRow['tone']>
 function titleOf(link: ShareLink): string {
   const label = link.label?.trim() ?? '';
 
-  return label.length > 0 ? label : `Liên kết ${SHARE_PERMISSION_LABELS[link.permission]}`;
+  return label.length > 0 ? label : `Liên kết ${lowerFirst(SHARE_PERMISSION_LABELS[link.permission])}`;
 }
 
 /* -------------------------------------------------------------------------- */

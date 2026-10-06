@@ -64,10 +64,10 @@ const APPLY_LABEL = 'Áp dụng';
 
 /** Nhãn tiếng Việt của `ViewStatusCode` — tái dùng mã, chỉ thêm chữ hiển thị (A4/A6). */
 const STATUS_LABELS: Readonly<Record<ViewStatusCode, string>> = {
-  verified: 'đã duyệt',
-  attention: 'cần chú ý',
-  violation: 'vi phạm',
-  neutral: 'trung tính',
+  verified: 'Đã duyệt',
+  attention: 'Cần chú ý',
+  violation: 'Vi phạm',
+  neutral: 'Trung tính',
 };
 
 /** Hướng sắp cố định theo cột — `deviation` để trường hợp tệ nhất nổi lên đầu. */

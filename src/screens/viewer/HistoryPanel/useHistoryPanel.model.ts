@@ -98,8 +98,8 @@ import {
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Nhãn ngày cho hôm nay và hôm qua; xa hơn thì đọc ngày tháng đầy đủ. */
-const TODAY_LABEL = 'hôm nay';
-const YESTERDAY_LABEL = 'hôm qua';
+const TODAY_LABEL = 'Hôm nay';
+const YESTERDAY_LABEL = 'Hôm qua';
 
 /** Mở đầu nhãn phiên, ghép với giờ bắt đầu phiên: `phiên lúc 14:05`. */
 const SESSION_LABEL_PREFIX = 'phiên lúc ';
@@ -127,13 +127,13 @@ const CHILD_ID_SEPARATOR = '::';
  * quan lại ghi `vách W-000014AAAA` thì người đọc tưởng đó là hai vật.
  */
 const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
-  level: 'tầng',
-  wall: 'tường',
-  opening: 'lỗ mở',
-  furniture: 'đồ đạc',
-  room: 'phòng',
-  axis: 'trục',
-  dimension: 'kích thước',
+  level: 'Tầng',
+  wall: 'Tường',
+  opening: 'Lỗ mở',
+  furniture: 'Đồ đạc',
+  room: 'Phòng',
+  axis: 'Trục',
+  dimension: 'Kích thước',
 };
 
 /* -------------------------------------------------------------------------- */

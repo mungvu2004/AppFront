@@ -10,7 +10,7 @@ import { TOUR_CHIP_NAME, dismissTour } from '../fixtures/tour';
  * V12a — `projectExport` (`docs/notes/e2e/plan.md` V12 mục 4).
  *
  * Vào thẳng (không bơm) đã có ở `smoke-grid.spec.ts` (dòng `projectExport`, mốc heading
- * "xuất bản vẽ" — cổng nạp kho B-V12-01), không lặp. `ShareDialog` (EX-4) thuộc nhóm
+ * "Xuất bản vẽ" — cổng nạp kho B-V12-01), không lặp. `ShareDialog` (EX-4) thuộc nhóm
  * V3/W02. Ca cần bộ mẫu A14 BƠM sau khi cổng nạp xong (`seedSpatial({ projectId })`), và
  * tên bài nói ra điều đó; `seedSpatial` bơm cả `floors` — đủ cho màn này.
  *
@@ -32,16 +32,16 @@ const GLB_EXPORT_TIMEOUT_MS = 20_000;
 const COVERED_CLICK_TIMEOUT_MS = 3_000;
 
 /** Màn đã có dữ liệu — từ B-V12-01 cổng nạp kho trước khi màn vẽ. */
-const SCREEN_HEADING = 'xuất bản vẽ';
+const SCREEN_HEADING = 'Xuất bản vẽ';
 
-/** `goto` → cổng nạp kho xong (heading "xuất bản vẽ") → bơm → nút `xuất` hiện → bỏ qua tour nếu nó đã hiện. */
+/** `goto` → cổng nạp kho xong (heading "Xuất bản vẽ") → bơm → nút `xuất` hiện → bỏ qua tour nếu nó đã hiện. */
 async function seedAndSettle(page: Page): Promise<void> {
   await page.goto(EXPORT_URL);
   await expect(page.getByRole('heading', { name: SCREEN_HEADING })).toBeVisible({
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
   await seedSpatial(page, { projectId: PROJECT_ID });
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
   await dismissTour(page);
 }
 
@@ -50,17 +50,17 @@ test('vai người xem mở màn xuất thì thấy "không có quyền", không
 }) => {
   await signInAs(page, 'viewer', EXPORT_URL);
 
-  await expect(page.getByText('không có quyền xuất bản vẽ')).toBeVisible();
+  await expect(page.getByText('Không có quyền xuất bản vẽ')).toBeVisible();
   await expect(
     page.getByText(
-      'chỉ quản trị viên và kỹ sư của dự án xuất được mô hình; bạn đang xem ở quyền chỉ đọc.',
+      'Chỉ quản trị viên và kỹ sư của dự án xuất được mô hình; bạn đang xem ở quyền chỉ đọc.',
     ),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'xuất', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'chia sẻ' })).toHaveCount(0);
 });
 
-test('có bơm kho: bấm "xuất" .glb thì tệp tải về máy và hiện một dòng trong "tệp đã xuất" với dung lượng dấu phẩy (A15, B-V12-05)', async ({
+test('có bơm kho: bấm "xuất" .glb thì tệp tải về máy và hiện một dòng trong "Tệp đã xuất" với dung lượng dấu phẩy (A15, B-V12-05)', async ({
   page,
 }) => {
   await seedAndSettle(page);
@@ -68,13 +68,13 @@ test('có bơm kho: bấm "xuất" .glb thì tệp tải về máy và hiện m�
   await expect(page.getByRole('radio', { name: /^\.glb/u })).toHaveAttribute('aria-checked', 'true');
 
   const download = page.waitForEvent('download', { timeout: GLB_EXPORT_TIMEOUT_MS });
-  const exportButton = page.getByRole('button', { name: 'xuất', exact: true });
+  const exportButton = page.getByRole('button', { name: 'Xuất', exact: true });
   await exportButton.focus();
   await page.keyboard.press('Enter');
 
   expect((await download).suggestedFilename()).toMatch(/\.glb$/u);
 
-  const files = page.getByRole('region', { name: 'tệp đã xuất' });
+  const files = page.getByRole('region', { name: 'Tệp đã xuất' });
   await expect(files).toContainText(/\.glb/u);
   await expect(files).toContainText(/\d,\d (KB|MB)/u);
 });
@@ -84,7 +84,7 @@ test('có bơm kho: link "sửa" của khối kiểm tra trước khi xuất đ�
 }) => {
   await seedAndSettle(page);
 
-  const preflight = page.getByRole('region', { name: 'kiểm tra trước khi xuất' });
+  const preflight = page.getByRole('region', { name: 'Kiểm tra trước khi xuất' });
   const fixViolations = preflight
     .getByRole('listitem')
     .filter({ hasText: /vi phạm chưa xử lý/u })
@@ -121,6 +121,6 @@ test.fixme(
 
     // `click()` thường của Playwright từ chối bấm khi một phần tử khác hứng cú bấm.
     await share.click({ timeout: COVERED_CLICK_TIMEOUT_MS });
-    await expect(page.getByRole('dialog', { name: 'chia sẻ bản vẽ' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Chia sẻ bản vẽ' })).toBeVisible();
   },
 );

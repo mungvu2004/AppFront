@@ -46,14 +46,14 @@ import { Table } from '@/components/ui/Table';
 
 import type { OverlayComparisonPanelProps } from './types';
 
-const PANEL_LABEL = 'kết quả đối chiếu bản vẽ và mô hình';
-const DEVIATION_LIST_LABEL = 'danh sách vùng lệch';
-const HEADER_REFERENCE = 'vị trí tham chiếu';
+const PANEL_LABEL = 'Kết quả đối chiếu bản vẽ và mô hình';
+const DEVIATION_LIST_LABEL = 'Danh sách vùng lệch';
+const HEADER_REFERENCE = 'Vị trí tham chiếu';
 const HEADER_DEVIATION = 'độ lệch';
 const HEADER_OBJECT = 'đối tượng';
-const MEASURING_NOTICE = 'chưa đo được vùng lệch nào.';
-const NO_DEVIATIONS_NOTICE = 'không có vùng lệch nào được ghi nhận.';
-const CONFIRM_BADGE_LABEL = 'đã duyệt';
+const MEASURING_NOTICE = 'Chưa đo được vùng lệch nào.';
+const NO_DEVIATIONS_NOTICE = 'Không có vùng lệch nào được ghi nhận.';
+const CONFIRM_BADGE_LABEL = 'Đã duyệt';
 
 /** Bốn lớp chung của mọi panel 344 trong repo — `HistoryPanel.chrome.tsx:91-92`. */
 const PANEL_CLASS =

@@ -1062,7 +1062,7 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
  */
 export const roomHasDoorRule: Rule = {
   code: 'ROOM-NO-DOOR',
-  name: 'phòng nào cũng có lối vào',
+  name: 'Phòng nào cũng có lối vào',
   group: 'circulation',
   severity: 'critical',
   scope: 'level',
@@ -1072,7 +1072,7 @@ export const roomHasDoorRule: Rule = {
 
 export const corridorWidthRule: Rule = {
   code: 'CORRIDOR-WIDTH',
-  name: 'lối đi đủ rộng để thoát nạn',
+  name: 'Lối đi đủ rộng để thoát nạn',
   group: 'circulation',
   severity: 'critical',
   scope: 'level',
@@ -1082,7 +1082,7 @@ export const corridorWidthRule: Rule = {
 
 export const habitableWindowRule: Rule = {
   code: 'ROOM-NO-WINDOW',
-  name: 'phòng ở có cửa sổ',
+  name: 'Phòng ở có cửa sổ',
   group: 'circulation',
   severity: 'warning',
   scope: 'level',
@@ -1092,7 +1092,7 @@ export const habitableWindowRule: Rule = {
 
 export const escapeDistanceRule: Rule = {
   code: 'ESCAPE-DISTANCE',
-  name: 'đường thoát nạn trong ngưỡng cho phép',
+  name: 'Đường thoát nạn trong ngưỡng cho phép',
   group: 'circulation',
   severity: 'critical',
   scope: 'level',
@@ -1102,7 +1102,7 @@ export const escapeDistanceRule: Rule = {
 
 export const doorBlocksPathRule: Rule = {
   code: 'DOOR-BLOCKS-PATH',
-  name: 'cửa mở không chặn lối đi',
+  name: 'Cửa mở không chặn lối đi',
   group: 'circulation',
   severity: 'warning',
   scope: 'level',
@@ -1112,7 +1112,7 @@ export const doorBlocksPathRule: Rule = {
 
 export const roomAreaRule: Rule = {
   code: 'ROOM-AREA-BELOW-MINIMUM',
-  name: 'phòng đủ diện tích cho công năng',
+  name: 'Phòng đủ diện tích cho công năng',
   group: 'area',
   severity: 'warning',
   scope: 'level',
@@ -1122,7 +1122,7 @@ export const roomAreaRule: Rule = {
 
 export const furnitureClashRule: Rule = {
   code: 'FURNITURE-CLASH',
-  name: 'đồ đạc không chồng lên tường hay lên nhau',
+  name: 'Đồ đạc không chồng lên tường hay lên nhau',
   group: 'geometry',
   severity: 'suggestion',
   scope: 'level',

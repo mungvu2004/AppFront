@@ -61,7 +61,7 @@ const SAMPLE_ROW: ProjectCardModel = {
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
-  statusLabel: 'cần QC',
+  statusLabel: 'Cần QC',
   progressLabel: '30/48 tường đã duyệt',
   progressRatio: 30 / 48,
   progressPercentLabel: '63%',
@@ -152,7 +152,7 @@ describe('ProjectDashboardView, seven states', () => {
   it.each(['grid', 'table'] as const)('names the in-place rename field after its project — %s view', (viewMode) => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode={viewMode} renamingId={SAMPLE_ROW.id} />);
 
-    expect(screen.getByRole('textbox', { name: `đổi tên ${SAMPLE_ROW.name}` })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` })).toBeInTheDocument();
   });
 
   it('shows skeletons rather than an empty grid while loading', () => {
@@ -194,12 +194,12 @@ describe('ProjectDashboardView, seven states', () => {
     render(
       <ProjectDashboardView
         {...PROPS_BY_STATE.success()}
-        rows={[{ ...SAMPLE_ROW, statusVariant: 'attention', statusLabel: 'cần QC', progressLabel: '30/48 tường đã duyệt' }]}
+        rows={[{ ...SAMPLE_ROW, statusVariant: 'attention', statusLabel: 'Cần QC', progressLabel: '30/48 tường đã duyệt' }]}
       />,
     );
 
     expect(screen.queryByText('hoàn thành')).not.toBeInTheDocument();
-    expect(screen.getByText('cần QC')).toBeInTheDocument();
+    expect(screen.getAllByText('Cần QC').length).toBeGreaterThan(0);
   });
 
   it('opens a project on Enter, from the keyboard alone', () => {
@@ -219,7 +219,7 @@ describe('ProjectDashboardView, seven states', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('ProjectDashboardRoute', () => {
-  it('opens "tạo dự án mới" from its own button — the callback R-73 was written about', async () => {
+  it('opens "Tạo dự án mới" from its own button — the callback R-73 was written about', async () => {
     renderWithProviders(
       <MemoryRouter initialEntries={['/']}>
         <ProjectDashboardRoute />
@@ -232,7 +232,7 @@ describe('ProjectDashboardRoute', () => {
     fireEvent.click(screen.getByRole('button', { name: /Dự án mới/ }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('tạo dự án mới')).toBeInTheDocument();
+    expect(screen.getByText('Tạo dự án mới')).toBeInTheDocument();
   });
 
   it('shares one toast stack between the dashboard and the dialog it opens', async () => {

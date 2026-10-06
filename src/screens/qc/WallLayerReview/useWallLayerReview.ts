@@ -1286,7 +1286,7 @@ export function useWallLayerReview(
       id: 'wallLayerReview.closeTopLayer',
       combo: 'Escape',
       scope: 'canvas',
-      description: 'bỏ nét đang vẽ, hoặc bỏ chọn tường',
+      description: 'Bỏ nét đang vẽ, hoặc bỏ chọn tường',
       onTrigger: () => {
         const current = toolStateRef.current;
 

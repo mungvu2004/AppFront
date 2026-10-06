@@ -44,12 +44,12 @@ import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS } from './objectLayerTypes';
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
-const LIST_LABEL = 'danh sách đối tượng';
+const LIST_LABEL = 'Danh sách đối tượng';
 const ORPHAN_BADGE = 'Chưa gắn vào tường nào';
 const ATTACH_ACTION = 'Gắn vào tường gần nhất';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
-const FREE_STANDING = 'đứng tự do';
-const EMPTY_GROUP = 'chưa có đối tượng nào trong nhóm này';
+const FREE_STANDING = 'Đứng tự do';
+const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
 const TOTAL_PREFIX = 'tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
 const EXPAND_PREFIX = 'Mở nhóm ';
@@ -64,9 +64,9 @@ const STATUS_DOT_TOKEN = {
 } as const;
 
 const STATUS_LABEL = {
-  verified: 'đã duyệt',
-  attention: 'cần chú ý',
-  violation: 'vi phạm',
+  verified: 'Đã duyệt',
+  attention: 'Cần chú ý',
+  violation: 'Vi phạm',
   neutral: 'bình thường',
 } as const;
 

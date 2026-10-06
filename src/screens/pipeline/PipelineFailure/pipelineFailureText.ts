@@ -77,7 +77,7 @@ export const PIPELINE_FAILURE_TEXT = {
   /* -- Khối "Kết quả đã có" ------------------------------------------------ */
   keptWorkCaption: 'Những kết quả này đã được giữ lại. Chạy lại sẽ không xoá chúng.',
   keptWorkLine: 'Bản vẽ gốc và các thiết lập của bạn vẫn được giữ.',
-  keptStepDone: 'xong',
+  keptStepDone: 'Xong',
 
   /* -- Trạng thái rỗng ----------------------------------------------------- */
   idleMessage: 'Chưa có bước nào hỏng ở lượt xử lý này.',
@@ -114,7 +114,7 @@ export const PIPELINE_FAILURE_FLOOR_STATUS_LABELS: Readonly<
   Record<PipelineFailureFloorStatus, string>
 > = {
   queued: 'đang chờ',
-  running: 'đang xử lý',
+  running: 'Đang xử lý',
   done: 'đã xong',
   failed: 'hỏng',
 };

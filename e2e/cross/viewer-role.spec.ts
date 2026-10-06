@@ -38,8 +38,8 @@ const ROWS = [
     expected: 'Vai hiện tại chỉ được xem danh sách tệp, không tải lên và không sửa.',
   },
   { screen: 'projectCadConfirm', path: ROUTES.project.cadConfirm(PROJECT_ID, FLOOR_ID), expected: 'Không có quyền xử lý CAD' },
-  { screen: 'projectRooms', path: ROUTES.project.rooms(PROJECT_ID, FLOOR_ID), expected: 'không có quyền sửa lớp phòng' },
-  { screen: 'projectExport', path: ROUTES.project.export(PROJECT_ID), expected: 'không có quyền xuất bản vẽ' },
+  { screen: 'projectRooms', path: ROUTES.project.rooms(PROJECT_ID, FLOOR_ID), expected: 'Không có quyền sửa lớp phòng' },
+  { screen: 'projectExport', path: ROUTES.project.export(PROJECT_ID), expected: 'Không có quyền xuất bản vẽ' },
   {
     screen: 'projectExploded',
     path: ROUTES.project.exploded(PROJECT_ID),

@@ -162,7 +162,7 @@ export function storeyShortLabel(name: string): string {
  * cũng chỉ đọc — nên vai Người xem có đủ sáu (B-V9-04).
  */
 const VIEWER_TOOLS: readonly ViewerToolViewModel[] = Object.freeze([
-  { id: 'orbit', label: 'quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
+  { id: 'orbit', label: 'Quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
   { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan },
   { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure },
   { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section },
@@ -185,10 +185,10 @@ const VIEWER_PRESETS: readonly ViewerPresetViewModel[] = Object.freeze([
  * ô cửa: đúng những gì một khung nhìn 3D của sản phẩm này phân biệt bằng màu.
  */
 const VIEWER_LEGEND: readonly ViewerLegendItem[] = Object.freeze([
-  { id: 'wall-110', label: 'tường 110', colorToken: '--wall-110' },
-  { id: 'wall-220', label: 'tường 220', colorToken: '--wall-220' },
-  { id: 'wall-330', label: 'tường 330', colorToken: '--wall-330' },
-  { id: 'opening', label: 'ô mở', colorToken: '--accent' },
+  { id: 'wall-110', label: 'Tường 110', colorToken: '--wall-110' },
+  { id: 'wall-220', label: 'Tường 220', colorToken: '--wall-220' },
+  { id: 'wall-330', label: 'Tường 330', colorToken: '--wall-330' },
+  { id: 'opening', label: 'Ô mở', colorToken: '--accent' },
 ]);
 
 /** Câu dạy của panel phải khi chưa chọn gì — đúng chữ đặc tả yêu cầu. */
@@ -940,12 +940,12 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       return null;
     }
 
-    const rows: ViewerPropertyRow[] = [{ id: 'id', label: 'mã đối tượng', value: entityId }];
+    const rows: ViewerPropertyRow[] = [{ id: 'id', label: 'Mã đối tượng', value: entityId }];
 
     if ('areaM2' in entity) {
       rows.push({
         id: 'area',
-        label: 'diện tích',
+        label: 'Diện tích',
         value: formatArea((entity as { areaM2: number }).areaM2),
       });
     }

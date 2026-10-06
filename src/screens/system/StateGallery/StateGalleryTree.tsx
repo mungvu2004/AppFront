@@ -20,14 +20,14 @@ import { Input } from '@/components/ui/Input';
 
 import type { GalleryScreenEntry, ScreenCoverage, ScreenGroup } from './stateGalleryTypes';
 
-const TREE_NAV_LABEL = 'cây màn theo nhóm';
-const SEARCH_LABEL = 'tìm màn';
-const SEARCH_PLACEHOLDER = 'nhập tên màn cần tìm';
-const TREE_NO_MATCH = 'không có màn nào khớp với từ đang tìm';
+const TREE_NAV_LABEL = 'Cây màn theo nhóm';
+const SEARCH_LABEL = 'Tìm màn';
+const SEARCH_PLACEHOLDER = 'Nhập tên màn cần tìm';
+const TREE_NO_MATCH = 'Không có màn nào khớp với từ đang tìm';
 const GROUP_PREFIX = 'nhóm';
 const RATIO_PREFIX = 'đã có';
 const MISSING_PREFIX = 'còn thiếu';
-const COMPLETE_HINT = 'đủ bảy trạng thái';
+const COMPLETE_HINT = 'Đủ bảy trạng thái';
 const MISSING_SEPARATOR = ', ';
 
 interface StateGalleryTreeProps {

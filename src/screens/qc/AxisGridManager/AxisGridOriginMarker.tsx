@@ -40,7 +40,7 @@ const ORIGIN_TOKEN = 'var(--accent)';
 const ORIGIN_LABEL_TOKEN = 'var(--text-primary)';
 
 /** `canvas.originLabel` của bảng đối chiếu S15-T4-copy.md. */
-const ORIGIN_ARIA_LABEL = 'gốc toạ độ 0,0';
+const ORIGIN_ARIA_LABEL = 'Gốc toạ độ 0,0';
 
 export interface AxisGridOriginMarkerProps {
   readonly origin: AxisCanvasOriginViewModel;

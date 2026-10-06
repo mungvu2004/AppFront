@@ -75,7 +75,7 @@ function VersionListRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="font-medium tabular-nums text-text-primary">{row.label}</span>
-          {row.isCurrent && <Badge variant="verified">hiện tại</Badge>}
+          {row.isCurrent && <Badge variant="verified">Hiện tại</Badge>}
           {row.tagLabel !== null && <Badge variant="neutral">{row.tagLabel}</Badge>}
         </div>
         <p className="truncate text-[13px] text-text-secondary">{row.description}</p>

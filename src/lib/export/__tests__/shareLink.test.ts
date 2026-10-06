@@ -694,11 +694,11 @@ describe('createShareLink', () => {
 
   it('turns a transport fault into a sentence somebody can act on', async () => {
     const cases: readonly [HttpError, string][] = [
-      [httpError('network'), 'không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi'],
-      [httpError('http', 403), 'tài khoản này không có quyền chia sẻ dự án'],
-      [httpError('http', 429), 'tạo liên kết quá nhanh; chờ một lát rồi thử lại'],
-      [httpError('http', 422), 'máy chủ không chấp nhận hạn dùng hoặc mật khẩu này'],
-      [httpError('http', 500), 'máy chủ từ chối yêu cầu chia sẻ'],
+      [httpError('network'), 'Không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi'],
+      [httpError('http', 403), 'Tài khoản này không có quyền chia sẻ dự án'],
+      [httpError('http', 429), 'Tạo liên kết quá nhanh; chờ một lát rồi thử lại'],
+      [httpError('http', 422), 'Máy chủ không chấp nhận hạn dùng hoặc mật khẩu này'],
+      [httpError('http', 500), 'Máy chủ từ chối yêu cầu chia sẻ'],
     ];
 
     for (const [error, message] of cases) {

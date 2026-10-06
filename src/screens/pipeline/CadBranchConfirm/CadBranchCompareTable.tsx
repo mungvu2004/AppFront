@@ -23,7 +23,7 @@ export function CadBranchCompareTable({ rows }: CadBranchCompareTableProps) {
     <Table.Root>
       <Table.Header>
         <tr>
-          <Table.Head aria-label="tiêu chí so sánh" />
+          <Table.Head aria-label="Tiêu chí so sánh" />
           <Table.Head>{TEXT.buttons.primary}</Table.Head>
           <Table.Head>{TEXT.buttons.secondary}</Table.Head>
         </tr>

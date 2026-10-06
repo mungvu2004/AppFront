@@ -80,9 +80,9 @@ import type { OverlayComparisonCanvasProps } from './types';
 /* Chuỗi tiếng Việt tĩnh — khớp nguyên văn vi.canvas.fragment.json (A6).       */
 /* -------------------------------------------------------------------------- */
 
-const CANVAS_ARIA_LABEL = 'khung đối chiếu bản vẽ và mô hình';
-const SOURCE_FRAME_ARIA_LABEL = 'khung bản vẽ nguồn';
-const RESULT_FRAME_ARIA_LABEL = 'khung mô hình sinh ra';
+const CANVAS_ARIA_LABEL = 'Khung đối chiếu bản vẽ và mô hình';
+const SOURCE_FRAME_ARIA_LABEL = 'Khung bản vẽ nguồn';
+const RESULT_FRAME_ARIA_LABEL = 'Khung mô hình sinh ra';
 
 /* -------------------------------------------------------------------------- */
 /* Hằng số hình học.                                                           */

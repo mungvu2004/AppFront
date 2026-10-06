@@ -268,7 +268,7 @@ describe('toViolationViewModel', () => {
       secondaryLine: 'Tăng bề dày lên tối thiểu 60 mm, hoặc xoá nếu đây là nét thừa.',
       attributes: [
         { label: 'Mã luật', value: 'WALL-THICKNESS' },
-        { label: 'Mức độ', value: 'cảnh báo' },
+        { label: 'Mức độ', value: 'Cảnh báo' },
         { label: 'Đối tượng', value: 'W-000014' },
         { label: 'Tầng', value: 'L-01' },
       ],

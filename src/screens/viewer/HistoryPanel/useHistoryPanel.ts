@@ -99,7 +99,7 @@ import {
 export const HISTORY_PANEL_SHORTCUT_ID = 'historyPanel.toggle';
 
 /** Câu mô tả phím tắt trên màn trợ giúp. Viết thường, kiểu câu (A6). */
-export const HISTORY_PANEL_SHORTCUT_DESCRIPTION = 'mở hoặc đóng bảng lịch sử';
+export const HISTORY_PANEL_SHORTCUT_DESCRIPTION = 'Mở hoặc đóng bảng lịch sử';
 
 /** Bộ lọc lúc mở panel: mọi loại việc, mọi người. */
 const DEFAULT_FILTERS: HistoryFilters = { category: 'all', actorId: null };

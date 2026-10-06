@@ -178,7 +178,7 @@ describe('ma trận thông báo', () => {
     const rowHeaders = screen.getAllByRole('rowheader');
 
     expect(columnHeaders.map((cell) => cell.textContent)).toEqual([
-      'sự việc',
+      'Sự việc',
       'Trong ứng dụng',
       'Thư điện tử',
     ]);

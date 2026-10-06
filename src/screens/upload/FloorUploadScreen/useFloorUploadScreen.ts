@@ -117,10 +117,10 @@ const COPY = Object.freeze({
 });
 
 const STATUS_LABELS: Readonly<Record<FloorUploadStatus, string>> = {
-  waiting: 'chờ xử lý',
-  uploading: 'đang tải lên',
-  attached: 'đã gắn kèm',
-  error: 'lỗi',
+  waiting: 'Chờ xử lý',
+  uploading: 'Đang tải lên',
+  attached: 'Đã gắn kèm',
+  error: 'Lỗi',
 };
 
 const STATUS_LABEL_KEYS: Readonly<Record<FloorUploadStatus, string>> = {
@@ -219,7 +219,7 @@ interface Attachment {
   readonly problem: FloorUploadInlineError | null;
 }
 
-const PICK_PAGE_SENTENCE = 'hãy chọn trang bản vẽ để bắt đầu tải';
+const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
 
 /** Trang PDF người dùng chọn (đếm từ 1) thành `pageIndex` (đếm từ 0); vắng thì `undefined`. */
 function pageIndexOf(attachment: Attachment): number | undefined {

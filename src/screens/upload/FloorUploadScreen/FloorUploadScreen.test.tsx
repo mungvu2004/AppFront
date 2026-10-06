@@ -585,11 +585,11 @@ describe('FloorUploadScreen — tốc độ cập nhật tiến trình (tiêu ch
     });
 
     // Bộ tiết chế bỏ bớt các nhịp giữa chừng, không được bỏ nhịp cuối: đúng
-    // thẻ tầng vừa nhận tệp phải kết thúc ở "đã gắn kèm".
+    // thẻ tầng vừa nhận tệp phải kết thúc ở "Đã gắn kèm".
     const uploadedCard = document.querySelector('[data-floor-id="L2"]');
 
     expect(uploadedCard, 'thẻ của Tầng 2 phải còn trên trang').not.toBeNull();
-    expect(uploadedCard?.textContent).toContain('đã gắn kèm');
+    expect(uploadedCard?.textContent).toContain('Đã gắn kèm');
   });
 });
 

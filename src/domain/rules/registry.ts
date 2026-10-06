@@ -63,9 +63,9 @@ export const RULE_SEVERITIES: readonly RuleSeverity[] = ['critical', 'warning', 
 
 /** What the interface calls each severity. */
 export const RULE_SEVERITY_LABELS: Readonly<Record<RuleSeverity, string>> = {
-  critical: 'nghiêm trọng',
-  warning: 'cảnh báo',
-  suggestion: 'gợi ý',
+  critical: 'Nghiêm trọng',
+  warning: 'Cảnh báo',
+  suggestion: 'Gợi ý',
 };
 
 /** The heading a rule is filed under in the rule list. */
@@ -82,11 +82,11 @@ export const RULE_GROUPS: readonly RuleGroup[] = [
 
 /** What the interface calls each group. */
 export const RULE_GROUP_LABELS: Readonly<Record<RuleGroup, string>> = {
-  geometry: 'hình học',
-  circulation: 'lưu thông',
-  area: 'diện tích',
-  annotation: 'ghi chú',
-  levels: 'cao độ tầng',
+  geometry: 'Hình học',
+  circulation: 'Lưu thông',
+  area: 'Diện tích',
+  annotation: 'Ghi chú',
+  levels: 'Cao độ tầng',
 };
 
 /**
@@ -444,7 +444,7 @@ function segmentLengthMm(start: { x: number; y: number }, end: { x: number; y: n
 
 const wallThicknessRule: Rule = {
   code: 'WALL-THICKNESS',
-  name: 'bề dày tường nằm trong khoảng dựng được',
+  name: 'Bề dày tường nằm trong khoảng dựng được',
   group: 'geometry',
   severity: 'warning',
   scope: 'level',
@@ -478,7 +478,7 @@ const wallThicknessRule: Rule = {
 
 const wallLengthRule: Rule = {
   code: 'WALL-LENGTH',
-  name: 'tường đủ dài để dựng',
+  name: 'Tường đủ dài để dựng',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -508,7 +508,7 @@ const wallLengthRule: Rule = {
 
 const openingInWallRule: Rule = {
   code: 'OPENING-IN-WALL',
-  name: 'lỗ mở nằm trọn trong tường chứa nó',
+  name: 'Lỗ mở nằm trọn trong tường chứa nó',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -547,7 +547,7 @@ const openingInWallRule: Rule = {
 
 const doorWidthRule: Rule = {
   code: 'DOOR-WIDTH',
-  name: 'cửa đi đủ rộng để lọt người',
+  name: 'Cửa đi đủ rộng để lọt người',
   group: 'circulation',
   severity: 'warning',
   scope: 'level',
@@ -575,7 +575,7 @@ const doorWidthRule: Rule = {
 
 const roomMinAreaRule: Rule = {
   code: 'ROOM-MIN-AREA',
-  name: 'phòng đủ diện tích cho công năng của nó',
+  name: 'Phòng đủ diện tích cho công năng của nó',
   group: 'area',
   severity: 'warning',
   scope: 'level',
@@ -603,7 +603,7 @@ const roomMinAreaRule: Rule = {
 
 const roomHasDoorRule: Rule = {
   code: 'ROOM-HAS-DOOR',
-  name: 'phòng có lối vào',
+  name: 'Phòng có lối vào',
   group: 'circulation',
   severity: 'warning',
   scope: 'level',
@@ -642,7 +642,7 @@ const roomHasDoorRule: Rule = {
 
 const roomNamedRule: Rule = {
   code: 'ROOM-UNNAMED',
-  name: 'phòng đã được đặt tên',
+  name: 'Phòng đã được đặt tên',
   group: 'annotation',
   severity: 'suggestion',
   scope: 'level',
@@ -665,7 +665,7 @@ const roomNamedRule: Rule = {
 
 const levelElevationRule: Rule = {
   code: 'LEVEL-ELEVATION',
-  name: 'cao độ các tầng tăng dần từ dưới lên',
+  name: 'Cao độ các tầng tăng dần từ dưới lên',
   group: 'levels',
   severity: 'critical',
   scope: 'building',

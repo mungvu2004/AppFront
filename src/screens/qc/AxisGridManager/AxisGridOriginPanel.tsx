@@ -41,10 +41,10 @@ const PANEL_TITLE = 'Gốc toạ độ';
 const SELECT_LABEL = 'Chọn giao trục neo';
 const SELECT_DESCRIPTION =
   'Gốc toạ độ sẽ tính từ giao điểm trục này, khi di chuyển tầng để căn lên tầng gốc.';
-const OFFSET_X_PX_LABEL = 'lệch X (pixel)';
-const OFFSET_Y_PX_LABEL = 'lệch Y (pixel)';
-const OFFSET_X_MM_LABEL = 'lệch X (mm)';
-const OFFSET_Y_MM_LABEL = 'lệch Y (mm)';
+const OFFSET_X_PX_LABEL = 'Lệch X (pixel)';
+const OFFSET_Y_PX_LABEL = 'Lệch Y (pixel)';
+const OFFSET_X_MM_LABEL = 'Lệch X (mm)';
+const OFFSET_Y_MM_LABEL = 'Lệch Y (mm)';
 const PX_SUFFIX = ' px';
 const MM_SUFFIX = ' mm';
 /** Khớp `MILLIMETRE_FRACTION_DIGITS` (nội bộ, không xuất khẩu) của `src/lib/format/measure.ts`. */

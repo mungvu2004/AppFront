@@ -26,6 +26,7 @@
  * thiết.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import {
   Armchair,
   Bath,
@@ -129,7 +130,7 @@ export function ObjectLayerToolRail({
                   />
                 )}
                 <IconButton
-                  aria-label={`chọn nhóm ${OBJECT_LAYER_LABELS[tool.id]} (phím ${tool.kbd})`}
+                  aria-label={`Chọn nhóm ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])} (phím ${tool.kbd})`}
                   icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
                   isActive={isActive}
                   onClick={() => onSelectLayer(tool.id)}
@@ -159,7 +160,7 @@ export function ObjectLayerToolRail({
                       />
                     )}
                     <IconButton
-                      aria-label={`đổi thành ${OBJECT_SUBTYPE_LABELS[subtype]} (phím ${slot})`}
+                      aria-label={`Đổi thành ${lowerFirst(OBJECT_SUBTYPE_LABELS[subtype])} (phím ${slot})`}
                       icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
                       isActive={isActive}
                       onClick={() => onSelectSubtypeSlot(slot)}

@@ -34,6 +34,7 @@
  * quyết định mới.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -53,10 +54,10 @@ import {
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
 const REVIEWED_SUFFIX = ' đối tượng đã duyệt';
-const LAYER_TREE_LABEL = 'cây lớp';
+const LAYER_TREE_LABEL = 'Cây lớp';
 const TOTAL_PREFIX = 'tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
-const FILTER_ROW_LABEL = 'lọc theo loại';
+const FILTER_ROW_LABEL = 'Lọc theo loại';
 const SHOW_LAYER_PREFIX = 'Hiện lớp ';
 const HIDE_LAYER_PREFIX = 'Ẩn lớp ';
 
@@ -113,7 +114,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
         <span className="ml-auto shrink-0 font-mono tabular-nums text-text-muted">({count})</span>
       </button>
       <button
-        aria-label={`${isVisible ? HIDE_LAYER_PREFIX : SHOW_LAYER_PREFIX}${label}`}
+        aria-label={`${isVisible ? HIDE_LAYER_PREFIX : SHOW_LAYER_PREFIX}${lowerFirst(label)}`}
         aria-pressed={isVisible}
         className={cn(
           'shrink-0 rounded-[8px] p-1.5 text-text-secondary',
@@ -232,7 +233,7 @@ export function ObjectLayerLeftPanel({
 
       {/*
         Hàng chip lọc theo tám loại con. Chip đang bật mang `aria-pressed`, nên
-        trạng thái của nó không chỉ nằm ở màu — một bộ lọc mà chỉ màu nói ra là
+        Trạng thái của nó không chỉ nằm ở màu — một bộ lọc mà chỉ màu nói ra là
         một bộ lọc người dùng trình đọc màn hình không biết mình đang bật.
       */}
       <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-1.5" role="group">

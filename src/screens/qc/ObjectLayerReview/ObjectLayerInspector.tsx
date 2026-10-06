@@ -160,7 +160,7 @@ const SWING_OPTIONS: readonly SwingOption[] = [
   { icon: ArrowLeft, label: 'mở trái', value: 'left' },
   { icon: ArrowRight, label: 'mở phải', value: 'right' },
   { icon: Columns2, label: 'hai cánh', value: 'double' },
-  { icon: ArrowLeftRight, label: 'trượt', value: 'sliding' },
+  { icon: ArrowLeftRight, label: 'Trượt', value: 'sliding' },
 ];
 
 const TYPE_OPTIONS = OBJECT_SUBTYPES.map((subtype) => ({
@@ -169,17 +169,17 @@ const TYPE_OPTIONS = OBJECT_SUBTYPES.map((subtype) => ({
 }));
 
 const PANEL_TITLE = 'Đối tượng';
-const TYPE_SELECT_LABEL = 'loại đối tượng';
+const TYPE_SELECT_LABEL = 'Loại đối tượng';
 const WIDTH_LABEL = 'chiều rộng';
-const HEIGHT_LABEL = 'chiều cao';
-const SILL_HEIGHT_LABEL = 'cao độ bệ cửa';
-const HOST_WALL_LABEL = 'tường chứa nó';
-const POSITION_LABEL = 'vị trí trên tường';
+const HEIGHT_LABEL = 'Chiều cao';
+const SILL_HEIGHT_LABEL = 'Cao độ bệ cửa';
+const HOST_WALL_LABEL = 'Tường chứa nó';
+const POSITION_LABEL = 'Vị trí trên tường';
 const SWING_LABEL = 'hướng mở';
-const CONFIDENCE_LABEL = 'độ tin cậy';
+const CONFIDENCE_LABEL = 'Độ tin cậy';
 const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm (B-V6-13). */
-const FREE_STANDING_LABEL = 'đứng tự do';
+const FREE_STANDING_LABEL = 'Đứng tự do';
 const ATTACH_NEAREST_LABEL = 'Gắn vào tường gần nhất';
 const APPROVE_LABEL = 'Duyệt đối tượng này';
 const EMPTY_MESSAGE = 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.';

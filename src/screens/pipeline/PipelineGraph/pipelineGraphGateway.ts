@@ -91,13 +91,13 @@ export const PIPELINE_GRAPH_MISSING_ENDPOINTS: Readonly<
   Record<PipelineGraphMissingCapability, string>
 > = {
   branchReport:
-    'nhánh xử lý theo tầng (CAD hay AI) — chưa có; DrawingSchema không mang trường nào phân biệt tệp CAD với ảnh quét',
+    'Nhánh xử lý theo tầng (CAD hay AI) — chưa có; DrawingSchema không mang trường nào phân biệt tệp CAD với ảnh quét',
   branchComparison:
-    'số liệu so sánh hai nhánh (độ chính xác, thời gian, mức QC, rủi ro) — chưa có endpoint nào trả về',
+    'Số liệu so sánh hai nhánh (độ chính xác, thời gian, mức QC, rủi ro) — chưa có endpoint nào trả về',
   nodeDetail:
-    'tham số, số đầu ra, ảnh trung gian và nhật ký của từng bước — Progress chỉ mang một luồng tiến độ tổng',
-  switchBranch: 'lệnh đổi nhánh xử lý của một tầng — chưa có endpoint',
-  rerunFromNode: 'lệnh chạy lại pipeline từ một bước — chưa có endpoint',
+    'Tham số, số đầu ra, ảnh trung gian và nhật ký của từng bước — Progress chỉ mang một luồng tiến độ tổng',
+  switchBranch: 'Lệnh đổi nhánh xử lý của một tầng — chưa có endpoint',
+  rerunFromNode: 'Lệnh chạy lại pipeline từ một bước — chưa có endpoint',
 };
 
 export interface PipelineGraphUnsupported {
@@ -376,21 +376,21 @@ export const PIPELINE_GRAPH_SAMPLE_BRANCH_REPORT: PipelineRawBranchReport = {
       floorId: 'floor-1',
       floorName: 'Tầng 1',
       branch: 'cad',
-      reason: 'hồ sơ có tệp CAD còn nguyên lớp, nên đường hình học lấy thẳng từ tệp',
+      reason: 'Hồ sơ có tệp CAD còn nguyên lớp, nên đường hình học lấy thẳng từ tệp',
       hasFailed: false,
     },
     {
       floorId: 'floor-2',
       floorName: 'Tầng 2',
       branch: 'cad',
-      reason: 'cùng tệp CAD với tầng 1, không phải dò lại bằng ảnh',
+      reason: 'Cùng tệp CAD với tầng 1, không phải dò lại bằng ảnh',
       hasFailed: false,
     },
     {
       floorId: 'floor-3',
       floorName: 'Tầng 3',
       branch: 'ai',
-      reason: 'tầng này chỉ có bản quét, nên đi qua sáu bước nhận dạng',
+      reason: 'Tầng này chỉ có bản quét, nên đi qua sáu bước nhận dạng',
       hasFailed: false,
     },
   ],
@@ -400,48 +400,48 @@ export const PIPELINE_GRAPH_SAMPLE_COMPARISON: readonly PipelineRawComparisonRow
   {
     id: 'accuracy',
     label: 'Độ chính xác',
-    cadText: 'đường hình học lấy đúng từ tệp, sai số bằng sai số của người vẽ',
-    aiText: 'đường hình học do mô hình dò, còn lệch ở chỗ nét mờ và chỗ chồng lớp',
+    cadText: 'Đường hình học lấy đúng từ tệp, sai số bằng sai số của người vẽ',
+    aiText: 'Đường hình học do mô hình dò, còn lệch ở chỗ nét mờ và chỗ chồng lớp',
   },
   {
     id: 'duration',
     label: 'Thời gian xử lý',
-    cadText: 'nhanh, vì không phải nhận dạng gì',
-    aiText: 'lâu hơn, do phải chạy đủ sáu bước nhận dạng',
+    cadText: 'Nhanh, vì không phải nhận dạng gì',
+    aiText: 'Lâu hơn, do phải chạy đủ sáu bước nhận dạng',
   },
   {
     id: 'review',
     label: 'Có cần soát nhiều không',
-    cadText: 'soát nhẹ, chủ yếu là đối chiếu tên phòng',
-    aiText: 'soát kỹ, nhất là tường mỏng và ô mở nằm sát nhau',
+    cadText: 'Soát nhẹ, chủ yếu là đối chiếu tên phòng',
+    aiText: 'Soát kỹ, nhất là tường mỏng và ô mở nằm sát nhau',
   },
   {
     id: 'risk',
     label: 'Rủi ro',
-    cadText: 'tệp thiếu lớp thì thiếu hẳn một phần mặt bằng',
-    aiText: 'bản quét mờ hoặc nghiêng thì kết quả lệch mà không báo lỗi',
+    cadText: 'Tệp thiếu lớp thì thiếu hẳn một phần mặt bằng',
+    aiText: 'Bản quét mờ hoặc nghiêng thì kết quả lệch mà không báo lỗi',
   },
 ];
 
 export const PIPELINE_GRAPH_SAMPLE_NODE_DETAILS: Readonly<Partial<Record<PipelineNodeId, PipelineRawNodeDetail>>> = {
   sourceImage: {
     nodeId: 'sourceImage',
-    inputLines: ['ban-ve-tang-3.png · 4.096 × 4.096 điểm ảnh'],
+    inputLines: ['Ban-ve-tang-3.png · 4.096 × 4.096 điểm ảnh'],
     parameters: [{ id: 'dpi', label: 'Mật độ quét', value: '300 dpi' }],
     outputCount: 1,
     outputUnit: 'ảnh',
-    logLines: ['nhận ảnh gốc, chưa đổi kích thước'],
+    logLines: ['Nhận ảnh gốc, chưa đổi kích thước'],
   },
   preprocess: {
     nodeId: 'preprocess',
-    inputLines: ['ảnh gốc 4.096 × 4.096'],
+    inputLines: ['Ảnh gốc 4.096 × 4.096'],
     parameters: [
       { id: 'blur', label: 'Bán kính làm mờ', value: '3' },
       { id: 'canny', label: 'Ngưỡng Canny', value: '80 / 160' },
       { id: 'warp', label: 'Khung nắn', value: '3000 × 3000' },
     ],
     outputCount: 1,
-    outputUnit: 'ảnh đã nắn',
+    outputUnit: 'Ảnh đã nắn',
     durationMs: 4200,
     thumbnailUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     logLines: [
@@ -454,7 +454,7 @@ export const PIPELINE_GRAPH_SAMPLE_NODE_DETAILS: Readonly<Partial<Record<Pipelin
   },
   wallSegmentation: {
     nodeId: 'wallSegmentation',
-    inputLines: ['ảnh đã nắn 3000 × 3000'],
+    inputLines: ['Ảnh đã nắn 3000 × 3000'],
     parameters: [{ id: 'threshold', label: 'Ngưỡng nhận', value: '0,55' }],
     outputCount: 48,
     outputUnit: 'đoạn tường',
@@ -463,7 +463,7 @@ export const PIPELINE_GRAPH_SAMPLE_NODE_DETAILS: Readonly<Partial<Record<Pipelin
   },
   objectDetection: {
     nodeId: 'objectDetection',
-    inputLines: ['ảnh đã nắn 3000 × 3000'],
+    inputLines: ['Ảnh đã nắn 3000 × 3000'],
     parameters: [{ id: 'iou', label: 'Ngưỡng trùng khung', value: '0,45' }],
     outputCount: 26,
     outputUnit: 'đối tượng',
@@ -472,25 +472,25 @@ export const PIPELINE_GRAPH_SAMPLE_NODE_DETAILS: Readonly<Partial<Record<Pipelin
   },
   dimensionReading: {
     nodeId: 'dimensionReading',
-    inputLines: ['ảnh đã nắn 3000 × 3000'],
-    parameters: [{ id: 'lang', label: 'Bộ ký tự', value: 'số và dấu chấm' }],
+    inputLines: ['Ảnh đã nắn 3000 × 3000'],
+    parameters: [{ id: 'lang', label: 'Bộ ký tự', value: 'Số và dấu chấm' }],
     outputCount: 34,
-    outputUnit: 'chuỗi kích thước',
+    outputUnit: 'Chuỗi kích thước',
     durationMs: 7600,
     logLines: ['doc duoc 34 chuoi kich thuoc'],
   },
   thicknessExtraction: {
     nodeId: 'thicknessExtraction',
-    inputLines: ['mặt nạ tường của bước tách lớp'],
+    inputLines: ['Mặt nạ tường của bước tách lớp'],
     parameters: [{ id: 'metric', label: 'Phép đo khoảng cách', value: 'L2' }],
     outputCount: 48,
-    outputUnit: 'giá trị độ dày',
+    outputUnit: 'Giá trị độ dày',
     durationMs: 1800,
     logLines: ['do day trung vi: 218 px'],
   },
   simplify: {
     nodeId: 'simplify',
-    inputLines: ['mặt nạ tường đã có độ dày'],
+    inputLines: ['Mặt nạ tường đã có độ dày'],
     parameters: [{ id: 'epsilon', label: 'Sai số cho phép', value: '2 px' }],
     outputCount: 48,
     outputUnit: 'trục tường',
@@ -502,7 +502,7 @@ export const PIPELINE_GRAPH_SAMPLE_NODE_DETAILS: Readonly<Partial<Record<Pipelin
     inputLines: ['48 trục tường kèm độ dày đo được'],
     parameters: [{ id: 'steps', label: 'Bậc chuẩn', value: '110 / 220 / 330' }],
     outputCount: 48,
-    outputUnit: 'tường đã quy chuẩn',
+    outputUnit: 'Tường đã quy chuẩn',
     durationMs: 900,
     logLines: ['110mm: 12, 220mm: 31, 330mm: 3, cot be tong: 2'],
   },
@@ -511,7 +511,7 @@ export const PIPELINE_GRAPH_SAMPLE_NODE_DETAILS: Readonly<Partial<Record<Pipelin
     inputLines: ['48 tường, 26 đối tượng, 34 chuỗi kích thước'],
     parameters: [{ id: 'version', label: 'Bản dữ liệu', value: '2' }],
     outputCount: 1,
-    outputUnit: 'tệp dữ liệu không gian',
+    outputUnit: 'Tệp dữ liệu không gian',
     durationMs: 1200,
     logLines: ['dung Spatial JSON: 1 tep, 3 tang'],
   },

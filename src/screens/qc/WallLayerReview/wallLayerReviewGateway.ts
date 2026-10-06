@@ -852,7 +852,7 @@ export const toMillimetrePoint = (point: Point, scale: Scale): Point => ({
 /* -------------------------------------------------------------------------- */
 
 /** Chưa có lượt đọc nào — dấu thiếu, KHÔNG phải "0; 0" (một số đo không ai đo). */
-export const CURSOR_IDLE_LABEL = 'chưa rê chuột lên bản vẽ';
+export const CURSOR_IDLE_LABEL = 'Chưa rê chuột lên bản vẽ';
 
 /**
  * Một lượt đọc con trỏ → chuỗi toạ độ đã định dạng của thanh trạng thái.

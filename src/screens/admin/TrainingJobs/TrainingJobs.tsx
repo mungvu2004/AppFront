@@ -26,7 +26,7 @@ import type { TrainingJobsProps, TrainingJobsViewModel, TrainingTabId } from './
 const TEXT = {
   breadcrumbNav: 'Đường dẫn trang',
   breadcrumbAdmin: 'Quản trị',
-  breadcrumbHere: 'huấn luyện model',
+  breadcrumbHere: 'Huấn luyện model',
   title: 'Huấn luyện model AI',
   tabsLabel: 'Phần của trang huấn luyện',
   tabJobs: 'Lượt huấn luyện',

@@ -98,9 +98,9 @@ import type {
  */
 export const COLLABORATION_TEXT = Object.freeze({
   /** Nhãn tầng khi chưa có tầng nào được mở. */
-  noFloor: 'chưa chọn tầng',
+  noFloor: 'Chưa chọn tầng',
   /** Đứng trước tên tầng của dữ liệu. */
-  floorPrefix: 'tầng',
+  floorPrefix: 'Tầng',
   /** Đứng trước mã đối tượng, hoặc trước con số đã định dạng. */
   selectionPrefix: 'đang chọn',
   /** Đứng sau con số khi đang chọn nhiều hơn một. */

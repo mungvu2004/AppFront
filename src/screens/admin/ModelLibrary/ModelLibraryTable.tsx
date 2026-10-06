@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 
 import type { ModelLibraryActions, ModelLibraryModel, ModelLibraryRowModel, ModelLibrarySortKey } from './types';
 
-const HEADER_PREVIEW = 'ảnh xem trước';
+const HEADER_PREVIEW = 'Ảnh xem trước';
 const HEADER_NAME = 'Tên';
 const HEADER_GROUP = 'Danh mục';
 const HEADER_BOUNDS = 'Kích thước bao';
@@ -116,21 +116,21 @@ function ModelLibraryCardList({ actions, rows }: RowLayoutProps) {
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
             <div className="flex justify-between gap-2">
-              <dt className="text-text-secondary">danh mục</dt>
+              <dt className="text-text-secondary">Danh mục</dt>
               <dd>{row.groupLabel}</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="text-text-secondary">kích thước bao</dt>
+              <dt className="text-text-secondary">Kích thước bao</dt>
               <dd className="font-mono tabular-nums">{row.boundsLabel}</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="text-text-secondary">số tam giác</dt>
+              <dt className="text-text-secondary">Số tam giác</dt>
               <dd>
                 <TriangleCountValue row={row} />
               </dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="text-text-secondary">dung lượng</dt>
+              <dt className="text-text-secondary">Dung lượng</dt>
               <dd className="font-mono tabular-nums">{row.fileSizeLabel}</dd>
             </div>
           </dl>

@@ -31,22 +31,22 @@ import { StateGalleryToolbar } from './StateGalleryToolbar';
 import { StateGalleryTree } from './StateGalleryTree';
 import type { GalleryCoverage, GalleryScreenEntry, StateGalleryProps } from './stateGalleryTypes';
 
-const PAGE_TITLE = 'duyệt bảy trạng thái';
-const COVERAGE_LABEL = 'số trạng thái đã có';
-const SCREEN_COUNT_LABEL = 'số màn';
-const COLLAPSE_TREE = 'thu gọn cây màn';
-const EXPAND_TREE = 'mở rộng cây màn';
-const COLLAPSED_NOTICE = 'cây màn đang thu gọn';
-const LOADING_LABEL = 'đang tải bảng trạng thái';
-const EMPTY_TITLE = 'chưa chọn màn nào';
+const PAGE_TITLE = 'Duyệt bảy trạng thái';
+const COVERAGE_LABEL = 'Số trạng thái đã có';
+const SCREEN_COUNT_LABEL = 'Số màn';
+const COLLAPSE_TREE = 'Thu gọn cây màn';
+const EXPAND_TREE = 'Mở rộng cây màn';
+const COLLAPSED_NOTICE = 'Cây màn đang thu gọn';
+const LOADING_LABEL = 'Đang tải bảng trạng thái';
+const EMPTY_TITLE = 'Chưa chọn màn nào';
 const EMPTY_DESCRIPTION = 'Chọn một màn ở cây bên trái để xem bảy trạng thái của màn đó.';
-const ERROR_TITLE = 'không đọc được bảng trạng thái';
+const ERROR_TITLE = 'Không đọc được bảng trạng thái';
 const ERROR_FALLBACK = 'Đã có lỗi xảy ra khi đọc bảng trạng thái.';
 const RETRY = 'thử lại';
-const FORBIDDEN_TITLE = 'trang này chỉ mở trong mạng nội bộ';
+const FORBIDDEN_TITLE = 'Trang này chỉ mở trong mạng nội bộ';
 const FORBIDDEN_DESCRIPTION =
   'Bạn đang ở ngoài mạng nội bộ nên không mở được trang duyệt trạng thái.';
-const PARTIAL_TITLE = 'còn màn thiếu trạng thái';
+const PARTIAL_TITLE = 'Còn màn thiếu trạng thái';
 const PARTIAL_MESSAGE =
   'Một số màn chưa đủ bảy trạng thái; cây bên trái ghi rõ từng màn còn thiếu trạng thái nào.';
 const SUCCESS_MESSAGE = 'Không màn nào còn thiếu trạng thái.';

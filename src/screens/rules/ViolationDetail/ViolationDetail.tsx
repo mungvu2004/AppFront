@@ -150,21 +150,21 @@ function ViolationDetailHead({ props }: HeadProps) {
 
         <div className="flex shrink-0 items-center gap-1">
           <IconButton
-            aria-label="vi phạm trước"
+            aria-label="Vi phạm trước"
             disabled={!props.hasPrevious}
             icon={<ChevronLeft aria-hidden="true" />}
             onClick={props.onPrevious}
             size="sm"
           />
           <IconButton
-            aria-label="vi phạm kế tiếp"
+            aria-label="Vi phạm kế tiếp"
             disabled={!props.hasNext}
             icon={<ChevronRight aria-hidden="true" />}
             onClick={props.onNext}
             size="sm"
           />
           <IconButton
-            aria-label="đóng tấm trượt chi tiết vi phạm"
+            aria-label="Đóng tấm trượt chi tiết vi phạm"
             icon={<X aria-hidden="true" />}
             onClick={props.onClose}
             size="sm"
@@ -210,7 +210,7 @@ function ViolationDetailNotices({ hasActions, props }: NoticesProps) {
       {props.state === 'partial' && !hasActions ? (
         <p className="text-sm text-text-secondary">
           Chưa có cách sửa tự động nào cho vi phạm này. Phần căn cứ ở trên đủ để sửa tay trên
-          bản vẽ.
+          Bản vẽ.
         </p>
       ) : null}
 
@@ -315,7 +315,7 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
   // `routes/router.tsx`.
   useShortcut({
     combo: 'J',
-    description: 'sang vi phạm kế tiếp',
+    description: 'Sang vi phạm kế tiếp',
     id: 'sidePanel.violationDetail.next',
     onTrigger: props.onNext,
     scope: 'sidePanel',
@@ -323,7 +323,7 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
 
   useShortcut({
     combo: 'K',
-    description: 'về vi phạm liền trước',
+    description: 'Về vi phạm liền trước',
     id: 'sidePanel.violationDetail.previous',
     onTrigger: props.onPrevious,
     scope: 'sidePanel',
@@ -331,7 +331,7 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
 
   useShortcut({
     combo: 'Escape',
-    description: 'đóng tấm trượt chi tiết vi phạm',
+    description: 'Đóng tấm trượt chi tiết vi phạm',
     id: 'sidePanel.violationDetail.close',
     onTrigger: props.onClose,
     scope: 'sidePanel',
@@ -340,7 +340,7 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
   return (
     <motion.aside
       animate={{ opacity: 1, x: 0, y: 0 }}
-      aria-label="chi tiết vi phạm"
+      aria-label="Chi tiết vi phạm"
       className={cn(PANEL_BASE, isCollapsed ? PANEL_BOTTOM : PANEL_SIDE)}
       initial={isCollapsed ? { opacity: 0, y: '100%' } : { opacity: 0, x: '100%' }}
       transition={{ duration: durationSeconds('standard'), ease: EASE.default }}

@@ -334,7 +334,7 @@ describe('useMeasurementTool — ghim hỏng thì hiện câu tiếng Việt và
 
     const [notification] = notifications.list();
 
-    expect(notification?.title).toBe('chưa ghim được phép đo, hãy thử lại');
+    expect(notification?.title).toBe('Chưa ghim được phép đo, hãy thử lại');
     expect(`${notification?.title} ${notification?.description}`).not.toContain('SOMETHING_ODD');
   });
 
@@ -463,7 +463,7 @@ describe('useMeasurementTool — xoá hỏng qua cổng thật', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Xoá Phép đo 1/iu }));
 
     await waitFor(() => {
-      expect(titlesOf(notifications)).toContain('phép đo này đã bị xoá ở nơi khác');
+      expect(titlesOf(notifications)).toContain('Phép đo này đã bị xoá ở nơi khác');
     });
     await waitFor(() => {
       expect(lists()).toBeGreaterThan(1);
@@ -483,7 +483,7 @@ describe('useMeasurementTool — xoá hỏng qua cổng thật', () => {
 
     const listsBefore = lists();
 
-    expect(titlesOf(notifications)).toEqual(['bạn không có quyền xoá phép đo trong dự án này']);
+    expect(titlesOf(notifications)).toEqual(['Bạn không có quyền xoá phép đo trong dự án này']);
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(lists()).toBe(listsBefore);
   });
@@ -526,7 +526,7 @@ describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
 
     await waitFor(() => {
       expect(
-        titlesOf(notifications).filter((title) => title === 'chưa hoàn tác được việc xoá phép đo'),
+        titlesOf(notifications).filter((title) => title === 'Chưa hoàn tác được việc xoá phép đo'),
       ).toHaveLength(1);
     });
   });
@@ -544,6 +544,6 @@ describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
 
     expect(posts[0]?.id).toBe('MS-0001');
     expect(posts[1]?.id).not.toBe('MS-0001');
-    expect(titlesOf(notifications)).not.toContain('chưa hoàn tác được việc xoá phép đo');
+    expect(titlesOf(notifications)).not.toContain('Chưa hoàn tác được việc xoá phép đo');
   });
 });

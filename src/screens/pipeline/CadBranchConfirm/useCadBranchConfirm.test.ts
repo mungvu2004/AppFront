@@ -1007,7 +1007,7 @@ describe('useCadBranchConfirm — hình học xem trước', () => {
     expect(legend.map((entry) => entry.label)).toStrictEqual([
       `${formatNumber(110)} mm`,
       `${formatNumber(330)} mm`,
-      'cột bê tông',
+      'Cột bê tông',
     ]);
     // Không mã màu thô ở bất kỳ mức nào — kể cả mức thứ tư.
     for (const entry of legend) {

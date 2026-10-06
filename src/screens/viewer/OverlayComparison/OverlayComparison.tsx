@@ -75,7 +75,7 @@ const SCREEN_ARIA_LABEL = 'Màn đối chiếu bản vẽ';
 const CANVAS_REGION_ARIA_LABEL = 'Khung đối chiếu bản vẽ gốc và mô hình';
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn đối chiếu bản vẽ';
 
-const ERROR_LINK_LABEL = 'sang màn hiệu chỉnh tỷ lệ';
+const ERROR_LINK_LABEL = 'Sang màn hiệu chỉnh tỷ lệ';
 
 /** Nút chữ của liên kết lỗi: cùng khuôn `DimensionOcrReview.tsx` (A1, A2). */
 const ERROR_LINK_CLASS_NAME =

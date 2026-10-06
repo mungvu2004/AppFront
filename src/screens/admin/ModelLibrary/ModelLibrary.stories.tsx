@@ -108,11 +108,11 @@ export const GROUP_LABEL_VI: Readonly<Record<LibraryGroup, string>> = {
   table: 'bàn',
   chair: 'ghế',
   bed: 'giường',
-  sofa: 'ghế sofa',
-  storage: 'tủ lưu trữ',
+  sofa: 'Ghế sofa',
+  storage: 'Tủ lưu trữ',
   sanitary: 'thiết bị vệ sinh',
-  kitchen: 'bếp',
-  technical: 'kỹ thuật',
+  kitchen: 'Bếp',
+  technical: 'Kỹ thuật',
 };
 
 const FILTER_LABEL_VI: Readonly<Record<LibraryFilterId, string>> = {
@@ -251,8 +251,8 @@ function buildPreview(overrides: Partial<ModelPreviewModel> = {}): ModelPreviewM
 
 function buildFields(row: ModelLibraryRowModel): readonly ModelLibraryFieldModel[] {
   return [
-    { label: 'kích thước bao', value: row.boundsLabel, isNumeric: true },
-    { label: 'số tam giác', value: row.triangleCountLabel, isNumeric: true },
+    { label: 'Kích thước bao', value: row.boundsLabel, isNumeric: true },
+    { label: 'Số tam giác', value: row.triangleCountLabel, isNumeric: true },
     { label: 'dung lượng', value: row.fileSizeLabel, isNumeric: true },
     { label: 'nhóm', value: row.groupLabel, isNumeric: false },
   ];

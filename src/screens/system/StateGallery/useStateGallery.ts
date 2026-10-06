@@ -70,16 +70,16 @@ const PREVIEW_FRAME_SELECTOR = '[data-state-gallery-preview]';
 const A11Y_IGNORE_SELECTOR = '[role=dialog]';
 
 const MANIFEST_ERROR_MESSAGE =
-  'không đọc được danh sách bốn mươi bảy màn; thử tải lại.';
+  'Không đọc được danh sách bốn mươi bảy màn; thử tải lại.';
 
 const NO_RAW_COLOR_PENDING_DETAIL =
-  'phép kiểm màu thô đọc thẳng tệp mã nguồn qua node:fs; trình duyệt không chạy được node:fs nên phép kiểm này chạy ở pnpm verify, không chạy được ở đây.';
+  'Phép kiểm màu thô đọc thẳng tệp mã nguồn qua node:fs; trình duyệt không chạy được node:fs nên phép kiểm này chạy ở pnpm verify, không chạy được ở đây.';
 
 const PREVIEW_NOT_SELECTED_DETAIL =
-  'chỉ màn đang chọn mới có khung xem trước đã dựng trong trang; chọn màn này rồi chạy lại kiểm nhanh để có kết quả thật.';
+  'Chỉ màn đang chọn mới có khung xem trước đã dựng trong trang; chọn màn này rồi chạy lại kiểm nhanh để có kết quả thật.';
 
 const PREVIEW_FRAME_MISSING_DETAIL =
-  'chưa tìm thấy khung xem trước đã dựng trong trang; khung xem trước có thể chưa gắn xong.';
+  'Chưa tìm thấy khung xem trước đã dựng trong trang; khung xem trước có thể chưa gắn xong.';
 
 const EMPTY_GROUPS: readonly ScreenGroup[] = Object.freeze([]);
 const EMPTY_SCREENS: readonly GalleryScreenEntry[] = Object.freeze([]);

@@ -7,6 +7,7 @@
  * `MOTION_DURATIONS_MS.standard`), vì "luật đã tắt vẫn phải nhìn thấy được".
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { Select } from '@/components/ui/Select';
 import { NumericField } from '@/components/ui/NumericField';
 import { Toggle } from '@/components/ui/Toggle';
@@ -23,9 +24,9 @@ type RuleSeverity = RuleSettingsRowModel['severity'];
  * kêu (`allowConstantExport` chỉ tha hằng nguyên thuỷ), và chỉ file này cần bảng.
  */
 const SEVERITY_LABELS: Readonly<Record<RuleSeverity, string>> = {
-  critical: 'nghiêm trọng',
-  warning: 'cảnh báo',
-  suggestion: 'gợi ý',
+  critical: 'Nghiêm trọng',
+  warning: 'Cảnh báo',
+  suggestion: 'Gợi ý',
 };
 
 const SEVERITY_OPTIONS: readonly { label: string; value: RuleSeverity }[] = [
@@ -66,7 +67,7 @@ function SeverityPicker({ ruleSentence, value, canEdit, onChange }: SeverityPick
       options={SEVERITY_OPTIONS.map((option) => ({ ...option }))}
       className="w-[128px] shrink-0"
     >
-      <Select.Label className="sr-only">{`mức độ của luật: ${ruleSentence}`}</Select.Label>
+      <Select.Label className="sr-only">{`Mức độ của luật: ${ruleSentence}`}</Select.Label>
       <Select.Trigger options={SEVERITY_OPTIONS.map((option) => ({ ...option }))} />
       <Select.Content>
         {SEVERITY_OPTIONS.map((option) => (
@@ -137,7 +138,7 @@ export function RuleSettingsRuleRow({
       )}
     >
       <Toggle
-        aria-label={`bật hoặc tắt luật: ${row.sentence}`}
+        aria-label={`Bật hoặc tắt luật: ${lowerFirst(row.sentence)}`}
         checked={row.enabled}
         isReadOnly={!canEdit}
         onChange={(checked) => {

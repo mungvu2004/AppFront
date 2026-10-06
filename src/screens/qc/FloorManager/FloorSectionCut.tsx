@@ -40,8 +40,8 @@ export interface FloorSectionCutProps
 
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
 const SECTION_TITLE = 'Lát cắt';
-const COLLAPSE_LABEL = 'thu gọn lát cắt';
-const TOTAL_HEIGHT_LABEL = 'tổng chiều cao công trình';
+const COLLAPSE_LABEL = 'Thu gọn lát cắt';
+const TOTAL_HEIGHT_LABEL = 'Tổng chiều cao công trình';
 const ELEVATION_SCALE_LABEL = 'Thang cao độ';
 
 /** Ảnh thu nhỏ mặt bằng trang trí — vài đoạn tường sơ lược, không tương tác. */

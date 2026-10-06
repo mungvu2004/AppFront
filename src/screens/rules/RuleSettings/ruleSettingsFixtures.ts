@@ -16,6 +16,7 @@
  * `src/domain/rules/function/index.ts`.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import type { HttpError } from '@/lib/http';
 import {
   ALL_RULES,
@@ -88,7 +89,7 @@ function thresholdsFor(code: RuleCode): readonly RuleSettingsThreshold[] {
     return [
       {
         key: 'minThicknessMm',
-        label: 'bề dày tường tối thiểu',
+        label: 'Bề dày tường tối thiểu',
         unit: 'mm',
         value: MIN_WALL_THICKNESS_MM,
         min: 10,
@@ -103,7 +104,7 @@ function thresholdsFor(code: RuleCode): readonly RuleSettingsThreshold[] {
     return [
       {
         key: 'minDoorWidthMm',
-        label: 'bề rộng cửa tối thiểu',
+        label: 'Bề rộng cửa tối thiểu',
         unit: 'mm',
         value: MIN_DOOR_WIDTH_MM,
         min: 600,
@@ -121,7 +122,7 @@ function thresholdsFor(code: RuleCode): readonly RuleSettingsThreshold[] {
 export const GENERAL_THRESHOLDS: readonly RuleSettingsThreshold[] = [
   {
     key: 'jointToleranceMm',
-    label: 'dung sai nối đầu tường',
+    label: 'Dung sai nối đầu tường',
     unit: 'mm',
     value: JOINT_TOLERANCE_MM,
     min: 10,
@@ -131,7 +132,7 @@ export const GENERAL_THRESHOLDS: readonly RuleSettingsThreshold[] = [
   },
   {
     key: 'parallelAngleDeg',
-    label: 'dung sai góc song song',
+    label: 'Dung sai góc song song',
     unit: '°',
     value: PARALLEL_ANGLE_DEG,
     min: 1,
@@ -148,7 +149,7 @@ export const GENERAL_THRESHOLDS: readonly RuleSettingsThreshold[] = [
  */
 export const WALL_THICKNESS_THRESHOLD_OUT_OF_RANGE: RuleSettingsThreshold = {
   key: 'minThicknessMm',
-  label: 'bề dày tường tối thiểu',
+  label: 'Bề dày tường tối thiểu',
   unit: 'mm',
   value: 500,
   min: 10,
@@ -190,7 +191,7 @@ function toRow(rule: Rule, options: RowOptions): RuleSettingsRow {
   return {
     code: rule.code,
     sentence: rule.name,
-    description: `${RULE_GROUP_LABELS[rule.group]} · mức ${RULE_SEVERITY_LABELS[rule.severity]}.`,
+    description: `${RULE_GROUP_LABELS[rule.group]} · mức ${lowerFirst(RULE_SEVERITY_LABELS[rule.severity])}.`,
     enabled: options.allDisabled ? false : DEFAULT_REGISTRY.isEnabled(rule.code),
     severity: rule.severity,
     thresholds: thresholdsFor(rule.code),
@@ -218,7 +219,7 @@ export function buildRuleSettingsGroups(options: BuildGroupsOptions = {}): reado
     return {
       group,
       label: RULE_GROUP_LABELS[group],
-      description: `Các luật về ${RULE_GROUP_LABELS[group]}.`,
+      description: `Các luật về ${lowerFirst(RULE_GROUP_LABELS[group])}.`,
       enabled: rows.some((row) => row.enabled),
       rows,
     };
@@ -262,7 +263,7 @@ function presetOf(kind: BuildingKind): RuleSettingsPresetOption {
   const preset = PRESET_OPTIONS.find((candidate) => candidate.kind === kind);
 
   if (preset === undefined) {
-    throw new Error(`không tìm thấy bộ luật sẵn cho loại công trình "${kind}"`);
+    throw new Error(`Không tìm thấy bộ luật sẵn cho loại công trình "${kind}"`);
   }
 
   return preset;

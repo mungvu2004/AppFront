@@ -29,7 +29,7 @@ import { usePascalViewer, type UsePascalViewerOptions, type UsePascalViewerResul
  *
  * Không thay nó bằng đồ giả: mọi bài khác của tệp vẫn cần cảnh thật. Lớp bọc chỉ
  * để trả lời hai câu mà trạng thái màn không nói ra — cờ tắt thì nó có chạy
- * không (B-V10-03), và "thử lại" có chạy lại nó không (B-V10-04).
+ * không (B-V10-03), và "Thử lại" có chạy lại nó không (B-V10-04).
  */
 const adapter = vi.hoisted(() => ({ calls: 0, failNext: 0 }));
 
@@ -229,7 +229,7 @@ describe('máy trạng thái', () => {
     expect(adapter.calls).toBe(0);
   });
 
-  it('bộ đổi dữ liệu hỏng rồi "thử lại" thì CHẠY LẠI nó, không kẹt "loading" (B-V10-04)', async () => {
+  it('bộ đổi dữ liệu hỏng rồi "Thử lại" thì CHẠY LẠI nó, không kẹt "loading" (B-V10-04)', async () => {
     adapter.failNext = 1;
     const bench = harness();
     const probe = mountHook({ graph: GRAPH, loadMount: bench.loadMount });
@@ -245,7 +245,7 @@ describe('máy trạng thái', () => {
     expect(['success', 'partial']).toContain(probe.state);
   });
 
-  it('gói hỏng rồi "thử lại" thì xin gói ở URL KHÁC — trình duyệt giữ lỗi theo URL (B-V10-01)', async () => {
+  it('gói hỏng rồi "Thử lại" thì xin gói ở URL KHÁC — trình duyệt giữ lỗi theo URL (B-V10-01)', async () => {
     const mountScript = (): HTMLScriptElement | null =>
       document.head.querySelector<HTMLScriptElement>('script[src*="pascal-mount"]');
     // Không có mã băm (Storybook, Vitest): URL trần, tất định.
@@ -429,7 +429,7 @@ describe('node bị store dọn đi thì màn NÓI RA', () => {
       expect(probe.state).toBe('partial');
     }, { timeout: ASYNC_TIMEOUT_MS });
 
-    const entry = probe.viewModel.skipped.find((item) => item.kind === 'phần mô hình');
+    const entry = probe.viewModel.skipped.find((item) => item.kind === 'Phần mô hình');
 
     expect(entry).toBeDefined();
     expect(entry?.countLabel).toBe('2');
@@ -448,7 +448,7 @@ describe('node bị store dọn đi thì màn NÓI RA', () => {
     // Bộ mẫu chuẩn luôn có trục và kích thước nên màn vẫn `partial`; điều được
     // kiểm ở đây là lượt nạp SẠCH không thêm dòng thứ n + 1.
     expect(probe.viewModel.skipped).toHaveLength(before);
-    expect(probe.viewModel.skipped.some((item) => item.kind === 'phần mô hình')).toBe(false);
+    expect(probe.viewModel.skipped.some((item) => item.kind === 'Phần mô hình')).toBe(false);
   });
 
   it('thử lại thì dòng của lượt trước MẤT — nó nói về một lượt nạp đã chết', async () => {
@@ -459,7 +459,7 @@ describe('node bị store dọn đi thì màn NÓI RA', () => {
     act(() => bench.dropNodes(['slab_R-ROOM0000001']));
 
     await vi.waitFor(() => {
-      expect(probe.viewModel.skipped.some((item) => item.kind === 'phần mô hình')).toBe(true);
+      expect(probe.viewModel.skipped.some((item) => item.kind === 'Phần mô hình')).toBe(true);
     }, { timeout: ASYNC_TIMEOUT_MS });
 
     act(() => {
@@ -467,7 +467,7 @@ describe('node bị store dọn đi thì màn NÓI RA', () => {
     });
 
     await vi.waitFor(() => {
-      expect(probe.viewModel.skipped.some((item) => item.kind === 'phần mô hình')).toBe(false);
+      expect(probe.viewModel.skipped.some((item) => item.kind === 'Phần mô hình')).toBe(false);
     }, { timeout: ASYNC_TIMEOUT_MS });
   });
 });

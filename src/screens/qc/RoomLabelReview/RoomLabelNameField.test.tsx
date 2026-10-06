@@ -8,17 +8,17 @@ describe('RoomLabelNameField', () => {
     const props = { suggestions: [], onCommit: vi.fn(), isReadOnly: false } as const;
     const { rerender } = render(<RoomLabelNameField {...props} name="Phòng thử e2e" />);
 
-    rerender(<RoomLabelNameField {...props} name="phòng khách chung" />);
+    rerender(<RoomLabelNameField {...props} name="Phòng khách chung" />);
 
-    expect(screen.getByRole('textbox', { name: 'Tên phòng' })).toHaveValue('phòng khách chung');
+    expect(screen.getByRole('textbox', { name: 'Tên phòng' })).toHaveValue('Phòng khách chung');
   });
 
   it('chữ đang gõ dở vẫn giữ khi tên đang lưu không đổi', () => {
     const props = { suggestions: [], onCommit: vi.fn(), isReadOnly: false } as const;
-    const { rerender } = render(<RoomLabelNameField {...props} name="phòng khách chung" />);
+    const { rerender } = render(<RoomLabelNameField {...props} name="Phòng khách chung" />);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Tên phòng' }), { target: { value: 'phòng kh' } });
-    rerender(<RoomLabelNameField {...props} name="phòng khách chung" />);
+    rerender(<RoomLabelNameField {...props} name="Phòng khách chung" />);
 
     expect(screen.getByRole('textbox', { name: 'Tên phòng' })).toHaveValue('phòng kh');
   });

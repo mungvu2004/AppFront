@@ -210,7 +210,7 @@ function fakeMatchMedia(matches: boolean): () => void {
 /* Bảy trạng thái — A11.                                                       */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('success: đồ thị đủ tầng, mạng tốt, cảnh đã lắp', async () => {
     const harness = render();
 

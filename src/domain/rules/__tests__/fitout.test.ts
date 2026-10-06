@@ -536,7 +536,7 @@ describe('registerFitoutRules', () => {
     for (const rule of FITOUT_RULES) {
       expect(rule.dependsOn.length).toBeGreaterThan(0);
       expect(rule.code).toBe(rule.code.toUpperCase());
-      expect(rule.name).toBe(rule.name.toLowerCase());
+      expect(rule.name).toBe(rule.name.charAt(0).toLocaleUpperCase('vi') + rule.name.slice(1));
     }
   });
 });

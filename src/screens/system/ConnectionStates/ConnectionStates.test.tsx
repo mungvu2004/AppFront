@@ -223,7 +223,7 @@ describe('ba tầng hiển thị', () => {
 /* 3. Bảy trạng thái.                                                          */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   /**
    * `expectSevenStates` từ chối một màn trắng, nhưng trạng thái "rỗng" của lớp
    * này ĐÚNG là không vẽ gì. Nên trạng thái ấy được dựng bằng cảnh có thật gần

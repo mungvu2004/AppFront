@@ -58,8 +58,8 @@ import type {
 } from './types';
 
 const PANEL_WIDTH = 'w-[400px] max-w-full';
-const EMPTY_LABEL = 'chọn một người để xem chi tiết';
-const PERMISSION_CAPTION = 'ma trận quyền theo vai trò';
+const EMPTY_LABEL = 'Chọn một người để xem chi tiết';
+const PERMISSION_CAPTION = 'Ma trận quyền theo vai trò';
 
 /* -------------------------------------------------------------------------- */
 /* Trạng thái chưa chọn ai.                                                    */
@@ -102,7 +102,7 @@ function DetailProfile({ user, onClose }: ProfileProps) {
       </div>
 
       <IconButton
-        aria-label="đóng chi tiết người dùng"
+        aria-label="Đóng chi tiết người dùng"
         icon={<X aria-hidden="true" />}
         onClick={onClose}
         size="sm"
@@ -131,11 +131,11 @@ function DetailMemberships({
   const selectOptions = roleOptions.map((option) => ({ label: option.label, value: option.role }));
 
   return (
-    <section aria-label="dự án tham gia" className="flex flex-col gap-3">
-      <h3 className="text-[13px] font-medium text-text-secondary">dự án tham gia</h3>
+    <section aria-label="Dự án tham gia" className="flex flex-col gap-3">
+      <h3 className="text-[13px] font-medium text-text-secondary">Dự án tham gia</h3>
 
       {memberships.length === 0 ? (
-        <p className="text-[13px] text-text-muted">người này chưa tham gia dự án nào</p>
+        <p className="text-[13px] text-text-muted">Người này chưa tham gia dự án nào</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {memberships.map((membership) => (
@@ -199,11 +199,11 @@ interface ActivitiesProps {
 
 function DetailActivities({ activities }: ActivitiesProps) {
   return (
-    <section aria-label="hoạt động gần đây" className="flex flex-col gap-3">
-      <h3 className="text-[13px] font-medium text-text-secondary">hoạt động gần đây</h3>
+    <section aria-label="Hoạt động gần đây" className="flex flex-col gap-3">
+      <h3 className="text-[13px] font-medium text-text-secondary">Hoạt động gần đây</h3>
 
       {activities.length === 0 ? (
-        <p className="text-[13px] text-text-muted">chưa có hoạt động nào</p>
+        <p className="text-[13px] text-text-muted">Chưa có hoạt động nào</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {activities.map((activity) => (
@@ -234,12 +234,12 @@ interface RemoveSectionProps {
 function DetailRemoveSection({ onOpenRemove }: RemoveSectionProps) {
   return (
     <section
-      aria-label="xoá người dùng"
+      aria-label="Xoá người dùng"
       className="flex flex-col items-start gap-2 rounded-[8px] border border-border-default p-3"
     >
       <p className="text-[13px] text-text-secondary">Xoá hẳn người dùng này khỏi hệ thống.</p>
       <Button onClick={onOpenRemove} size="sm" variant="danger">
-        gỡ người dùng khỏi hệ thống
+        Gỡ người dùng khỏi hệ thống
       </Button>
     </section>
   );
@@ -267,7 +267,7 @@ export function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProp
               </p>
               <Input
                 autoComplete="off"
-                label="địa chỉ thư"
+                label="Địa chỉ thư"
                 onChange={(event) => {
                   actions.onRemoveEmailChange(event.target.value);
                 }}
@@ -278,14 +278,14 @@ export function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProp
           </Modal.Body>
           <Modal.Footer>
             <Button onClick={actions.onCloseRemove} variant="ghost">
-              để sau
+              Để sau
             </Button>
             <Button
               disabled={!removeConfirm.canConfirm}
               onClick={actions.onConfirmRemove}
               variant="danger"
             >
-              xác nhận xoá vĩnh viễn
+              Xác nhận xoá vĩnh viễn
             </Button>
           </Modal.Footer>
         </>
@@ -373,7 +373,7 @@ export function UserManagementDetail({
 
   return (
     <aside
-      aria-label="chi tiết người dùng"
+      aria-label="Chi tiết người dùng"
       className={cn(
         'flex h-full flex-col gap-4 overflow-y-auto border-l border-border-default bg-bg-surface p-4',
         PANEL_WIDTH,

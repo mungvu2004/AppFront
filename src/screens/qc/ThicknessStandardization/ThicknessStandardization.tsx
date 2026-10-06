@@ -102,16 +102,16 @@ export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
 /* -------------------------------------------------------------------------- */
 
 const SCREEN_BREADCRUMB = 'Dự án > Độ dày tường';
-const SCREEN_TITLE = 'chuẩn hoá độ dày tường';
+const SCREEN_TITLE = 'Chuẩn hoá độ dày tường';
 const SCREEN_DESCRIPTION =
   'Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const TABLES_SECTION_LABEL = 'Bảng nhóm và bảng chi tiết từng đoạn';
-const ERROR_TITLE = 'không đọc được lớp số đo độ dày';
-const FORBIDDEN_TITLE = 'không có quyền sửa độ dày tường';
-const EMPTY_TITLE = 'chưa có đoạn tường nào để chuẩn hoá';
+const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
+const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
+const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const COLLAPSE_PREVIEW_LABEL = 'Thu gọn khung xem trước';
-const EXPAND_PREVIEW_LABEL = 'khung xem trước đang thu gọn';
+const EXPAND_PREVIEW_LABEL = 'Khung xem trước đang thu gọn';
 
 /** Trần bề rộng nội dung của đặc tả — một chỗ viết duy nhất (R-71). */
 const CONTENT_MAX_WIDTH_CLASS = 'max-w-[1280px]';

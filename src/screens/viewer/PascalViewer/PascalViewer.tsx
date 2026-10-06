@@ -22,7 +22,7 @@ import type { PascalViewerProps } from './pascalViewerTypes';
 function Frame({ caption, children }: { caption: string; children: React.ReactNode }) {
   return (
     <section
-      aria-label="mô hình 3d"
+      aria-label="Mô hình 3d"
       className="flex h-full min-h-[24rem] flex-col gap-3 bg-bg-app p-4"
     >
       <p className="text-sm text-text-muted" role="status">
@@ -51,8 +51,8 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<Lock aria-hidden="true" />}
-          title="chưa bật cho tài khoản này"
-          description="màn xem 3D mới đang chạy thử theo nhóm. người trực có thể bật nó cho bạn."
+          title="Chưa bật cho tài khoản này"
+          description="Màn xem 3D mới đang chạy thử theo nhóm. người trực có thể bật nó cho bạn."
         />
       </Frame>
     );
@@ -63,8 +63,8 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<Box aria-hidden="true" />}
-          title="chưa có gì để dựng"
-          description="bản vẽ này chưa có tường, phòng hay ô mở nào. dò lại bản vẽ rồi quay lại đây."
+          title="Chưa có gì để dựng"
+          description="Bản vẽ này chưa có tường, phòng hay ô mở nào. dò lại bản vẽ rồi quay lại đây."
         />
       </Frame>
     );
@@ -87,7 +87,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<MonitorOff aria-hidden="true" />}
-          title="máy này chưa dựng được mô hình 3d"
+          title="Máy này chưa dựng được mô hình 3d"
           description={
             'trình duyệt không bật được tăng tốc phần cứng, nên không có gì vẽ ' +
             'ra hình được. bật tăng tốc phần cứng trong cài đặt trình duyệt rồi ' +
@@ -103,11 +103,11 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<AlertTriangle aria-hidden="true" />}
-          title="không nạp được khung dựng hình"
+          title="Không nạp được khung dựng hình"
           description={
             errorCode === null
-              ? 'thử lại một lần; nếu vẫn vậy thì báo người trực.'
-              : `thử lại một lần; nếu vẫn vậy thì báo người trực kèm mã ${errorCode}.`
+              ? 'Thử lại một lần; nếu vẫn vậy thì báo người trực.'
+              : `Thử lại một lần; nếu vẫn vậy thì báo người trực kèm mã ${errorCode}.`
           }
           action={{ label: 'thử lại', onClick: onRetry }}
         />
@@ -120,9 +120,9 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<EyeOff aria-hidden="true" />}
-          title="khung xem đang thu gọn"
-          description="mô hình 3D không chạy khi thu gọn, để đỡ tốn máy."
-          action={{ label: 'mở khung xem', onClick: onExpand }}
+          title="Khung xem đang thu gọn"
+          description="Mô hình 3D không chạy khi thu gọn, để đỡ tốn máy."
+          action={{ label: 'Mở khung xem', onClick: onExpand }}
         />
       </Frame>
     );
@@ -152,7 +152,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
           <div
             ref={canvasRef}
             data-testid="pascal-canvas"
-            aria-label="khung dựng mô hình 3d"
+            aria-label="Khung dựng mô hình 3d"
             className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
           />
           {isBooting && (
@@ -165,19 +165,19 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
         {summary !== null && (
           <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-text-muted">
             <div className="flex gap-1.5">
-              <dt>tầng</dt>
+              <dt>Tầng</dt>
               <dd className="font-medium text-text-primary">{summary.levelLabel}</dd>
             </div>
             <div className="flex gap-1.5">
-              <dt>tường</dt>
+              <dt>Tường</dt>
               <dd className="font-medium text-text-primary">{summary.wallLabel}</dd>
             </div>
             <div className="flex gap-1.5">
-              <dt>ô mở</dt>
+              <dt>Ô mở</dt>
               <dd className="font-medium text-text-primary">{summary.openingLabel}</dd>
             </div>
             <div className="flex gap-1.5">
-              <dt>phòng</dt>
+              <dt>Phòng</dt>
               <dd className="font-medium text-text-primary">{summary.roomLabel}</dd>
             </div>
           </dl>
@@ -185,7 +185,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
 
         {skipped.length > 0 && (
           <div className="rounded-md border border-border-default bg-bg-sunken p-3">
-            <p className="text-sm font-medium text-text-primary">chưa chuyển sang được</p>
+            <p className="text-sm font-medium text-text-primary">Chưa chuyển sang được</p>
             <ul className="mt-2 flex flex-col gap-1">
               {skipped.map((item) => (
                 <li key={item.kind} className="text-sm text-text-muted">

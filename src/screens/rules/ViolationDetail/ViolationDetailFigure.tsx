@@ -68,23 +68,23 @@ interface RuleDiagram {
  */
 const RULE_DIAGRAMS: Readonly<Record<RuleGroup, RuleDiagram>> = {
   geometry: {
-    label: 'sơ đồ hai đoạn tường và khe hở giữa chúng',
+    label: 'Sơ đồ hai đoạn tường và khe hở giữa chúng',
     paths: ['M4 8 H44', 'M4 24 H30', 'M30 24 H44', 'M30 20 V28'],
   },
   circulation: {
-    label: 'sơ đồ lối đi và bề rộng thông thuỷ của nó',
+    label: 'Sơ đồ lối đi và bề rộng thông thuỷ của nó',
     paths: ['M8 4 V28', 'M40 4 V28', 'M8 16 H40', 'M12 12 L8 16 L12 20', 'M36 12 L40 16 L36 20'],
   },
   area: {
-    label: 'sơ đồ một mặt sàn và phần diện tích được đo',
+    label: 'Sơ đồ một mặt sàn và phần diện tích được đo',
     paths: ['M6 6 H42 V26 H6 Z', 'M6 12 H42', 'M6 18 H42'],
   },
   annotation: {
-    label: 'sơ đồ một nhãn gắn vào bộ phận nó mô tả',
+    label: 'Sơ đồ một nhãn gắn vào bộ phận nó mô tả',
     paths: ['M6 10 H26 V20 H6 Z', 'M26 15 H40', 'M40 11 V19'],
   },
   levels: {
-    label: 'sơ đồ hai tầng chồng lên nhau và chênh cao giữa chúng',
+    label: 'Sơ đồ hai tầng chồng lên nhau và chênh cao giữa chúng',
     paths: ['M6 10 H36', 'M6 24 H36', 'M40 10 V24', 'M37 13 L40 10 L43 13', 'M37 21 L40 24 L43 21'],
   },
 };
@@ -138,7 +138,7 @@ interface FigurePlanProps {
 function ViolationFigurePlan({ figure2d }: FigurePlanProps) {
   return (
     <svg
-      aria-label="mặt bằng quanh đối tượng gây lỗi"
+      aria-label="Mặt bằng quanh đối tượng gây lỗi"
       className={`w-full ${FIGURE_HEIGHT}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
@@ -198,11 +198,11 @@ export function ViolationFigure(props: ViolationFigureProps) {
   ];
 
   return (
-    <section aria-label="khối hình của vi phạm" className="flex flex-col gap-2">
+    <section aria-label="Khối hình của vi phạm" className="flex flex-col gap-2">
       {canSwitch ? (
         <div className="flex justify-end">
           <SegmentedControl
-            aria-label="chế độ khối hình"
+            aria-label="Chế độ khối hình"
             onChange={props.onFigureModeChange}
             options={options}
             value={mode}

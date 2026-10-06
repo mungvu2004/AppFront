@@ -100,11 +100,11 @@ import type {
  */
 export const MODEL_LIBRARY_TEXT = {
   readOnlyReason:
-    'vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện',
-  autoSpinNote: 'khung xem trước không tự quay; kéo chuột trong khung để xoay model',
-  loadFailed: 'không đọc được danh mục model',
-  fieldBounds: 'kích thước bao',
-  fieldTriangles: 'số tam giác',
+    'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện',
+  autoSpinNote: 'Khung xem trước không tự quay; kéo chuột trong khung để xoay model',
+  loadFailed: 'Không đọc được danh mục model',
+  fieldBounds: 'Kích thước bao',
+  fieldTriangles: 'Số tam giác',
   fieldFileSize: 'dung lượng',
   fieldGroup: 'nhóm',
 } as const;

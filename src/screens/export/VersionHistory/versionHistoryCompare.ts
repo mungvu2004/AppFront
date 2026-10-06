@@ -24,17 +24,17 @@ import type { VersionHistoryOption } from './types';
  * với mã trục và tên phím.
  */
 export const COMPARE_TABS: readonly VersionHistoryOption[] = Object.freeze([
-  { id: 'changes', label: 'thay đổi' },
+  { id: 'changes', label: 'Thay đổi' },
   { id: 'json', label: 'JSON' },
-  { id: 'visual', label: 'trực quan' },
+  { id: 'visual', label: 'Trực quan' },
 ]);
 
 /** Trạng thái 1: chỉ có một phiên bản. Một câu dạy việc, không phải một lỗi. */
 export const TEACHING_SENTENCE =
-  'mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây';
+  'Mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây';
 
 /** Lượt so lọt qua được khi chưa đủ hai bản thì phải nói ra, không im lặng trả rỗng. */
-export const NO_COMPARE_PAIR_REASON = 'chưa chọn đủ hai phiên bản để so sánh';
+export const NO_COMPARE_PAIR_REASON = 'Chưa chọn đủ hai phiên bản để so sánh';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Cặp                                                                    */

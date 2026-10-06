@@ -136,7 +136,7 @@ export function ExplodedViewFloorCards({
               <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-0.5 pointer-events-none">
                 <span className="truncate text-[13px] font-medium text-text-primary">{floor.name}</span>
                 {/*
-                  Dấu "cần chú ý" nằm CÙNG DÒNG với cao độ và diện tích, không
+                  Dấu "Cần chú ý" nằm CÙNG DÒNG với cao độ và diện tích, không
                   chiếm một dòng riêng. Một dòng riêng đẩy thẻ từ 64 lên 92 px,
                   mà khoảng cách giữa hai tâm thẻ chỉ 58–78 px, nên bốn thẻ chồng
                   lên nhau 34 px — đo được trong trình duyệt thật.
@@ -147,7 +147,7 @@ export function ExplodedViewFloorCards({
                   </span>
                   {floor.attentionCaption !== null && (
                     <Badge className="shrink-0" variant="attention">
-                      cần chú ý
+                      Cần chú ý
                     </Badge>
                   )}
                 </div>

@@ -230,7 +230,7 @@ describe('MobileViewer — `partial` nói đúng lý do (B-V1-11)', () => {
 
     expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
     expect(queryByText(WEAK_NETWORK_NOTE)).toBeNull();
-    expect(getAllByText('chưa có phòng')).toHaveLength(2);
+    expect(getAllByText('Chưa có phòng')).toHaveLength(2);
     expect(queryByText(/^chưa tải$/iu)).toBeNull();
   });
 
@@ -260,7 +260,7 @@ describe('MobileViewer — thu gọn ở 320 (MOBILE_VIEWER_COMPACT_WIDTH_PX)', 
     expect(MOBILE_VIEWER_TOOLS_COMPACT).not.toContain('view');
   });
 
-  it('isCompact=true: chức năng "chế độ xem" vẫn tới được — nó chuyển thành một hàng trong tấm "tầng" đang mở, không biến mất', () => {
+  it('isCompact=true: chức năng "Chế độ xem" vẫn tới được — nó chuyển thành một hàng trong tấm "tầng" đang mở, không biến mất', () => {
     const props = mobileViewerScenarioFor('collapsed');
 
     expect(props.isCompact).toBe(true);

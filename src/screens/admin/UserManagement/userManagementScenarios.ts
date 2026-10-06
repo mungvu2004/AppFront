@@ -33,6 +33,7 @@
  * nút xám vô cớ.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { formatCalendarDate, formatClockTime, formatTimestamp } from '@/lib/format/datetime';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
 import { AUTH_ROLES, permissionMatrix } from '@/lib/auth/permissions';
@@ -102,9 +103,9 @@ const ROLE_LABEL: Readonly<Record<ProjectRole, string>> = {
 };
 
 const STATUS_LABEL: Readonly<Record<UserAccountStatus, string>> = {
-  active: 'đang hoạt động',
-  pending: 'chờ chấp nhận',
-  disabled: 'đã vô hiệu hoá',
+  active: 'Đang hoạt động',
+  pending: 'Chờ chấp nhận',
+  disabled: 'Đã vô hiệu hoá',
 };
 
 const ROLE_OPTIONS: readonly RoleOption[] = AUTH_ROLES.map((role) => ({ role, label: ROLE_LABEL[role] }));
@@ -139,13 +140,13 @@ const RULESET_EDIT_POLICY: Readonly<Record<ProjectRole, boolean>> = {
 };
 
 const PERMISSION_ROW_SEEDS: readonly PermissionRowSeed[] = [
-  { key: 'floor.upload', label: 'tải bản vẽ', values: permissionMatrix['floor.upload'] },
-  { key: 'layer.edit', label: 'sửa hình học', values: permissionMatrix['layer.edit'] },
+  { key: 'floor.upload', label: 'Tải bản vẽ', values: permissionMatrix['floor.upload'] },
+  { key: 'layer.edit', label: 'Sửa hình học', values: permissionMatrix['layer.edit'] },
   { key: 'qc.approve', label: 'duyệt QC', values: QC_APPROVE_POLICY },
-  { key: 'ruleset.edit', label: 'đổi bộ luật', values: RULESET_EDIT_POLICY },
-  { key: 'model.export', label: 'xuất', values: permissionMatrix['model.export'] },
-  { key: 'share.create', label: 'chia sẻ', values: permissionMatrix['share.create'] },
-  { key: 'user.manage', label: 'quản lý người dùng', values: permissionMatrix['user.manage'] },
+  { key: 'ruleset.edit', label: 'Đổi bộ luật', values: RULESET_EDIT_POLICY },
+  { key: 'model.export', label: 'Xuất', values: permissionMatrix['model.export'] },
+  { key: 'share.create', label: 'Chia sẻ', values: permissionMatrix['share.create'] },
+  { key: 'user.manage', label: 'Quản lý người dùng', values: permissionMatrix['user.manage'] },
 ];
 
 function buildPermissionMatrix(): PermissionMatrixModel {
@@ -160,7 +161,7 @@ function buildPermissionMatrix(): PermissionMatrixModel {
         return {
           role,
           allowed,
-          srLabel: `${ROLE_LABEL[role]}: ${allowed ? 'được phép' : 'không được phép'} ${seed.label}`,
+          srLabel: `${ROLE_LABEL[role]}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(seed.label)}`,
         };
       }),
     })),
@@ -189,11 +190,11 @@ const REMOVE_WARNING_LABEL = 'Xoá hẳn sẽ gỡ toàn bộ phần ghi công c
 const SKELETON_ROW_COUNT = 8;
 
 const BREADCRUMB_ITEMS: readonly BreadcrumbItemModel[] = [
-  { label: 'quản trị', href: ROUTES.dashboard },
-  { label: 'người dùng', href: null },
+  { label: 'Quản trị', href: ROUTES.dashboard },
+  { label: 'Người dùng', href: null },
 ];
 
-const BACK_LINK: BreadcrumbItemModel = { label: 'quay lại trang chủ', href: ROUTES.dashboard };
+const BACK_LINK: BreadcrumbItemModel = { label: 'Quay lại trang chủ', href: ROUTES.dashboard };
 
 /* ==========================================================================
  * 4. Một hàng người dùng — nguyên liệu tối thiểu vào, `UserRowModel` đầy đủ ra.
@@ -354,14 +355,14 @@ const SUCCESS_ROWS: readonly UserRowModel[] = [
 const OTHER_ADMIN_MEMBERSHIPS: readonly UserMembershipRowModel[] = [
   {
     projectId: 'project-hanoi-tower',
-    projectName: 'tháp hà nội',
+    projectName: 'Tháp hà nội',
     role: 'admin',
     roleLabel: ROLE_LABEL.admin,
     roleChangeBlockedReason: null,
   },
   {
     projectId: 'project-da-nang-mall',
-    projectName: 'trung tâm thương mại đà nẵng',
+    projectName: 'Trung tâm thương mại đà nẵng',
     role: 'engineer',
     roleLabel: ROLE_LABEL.engineer,
     roleChangeBlockedReason: null,
@@ -371,26 +372,26 @@ const OTHER_ADMIN_MEMBERSHIPS: readonly UserMembershipRowModel[] = [
 const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
   {
     id: 'activity-1',
-    kindLabel: 'tải bản vẽ lên dự án',
+    kindLabel: 'Tải bản vẽ lên dự án',
     ...activityMoment(TWELVE_MINUTES_AGO),
     objectCode: 'P-014',
-    objectLabel: 'tháp hà nội',
+    objectLabel: 'Tháp hà nội',
     objectHref: ROUTES.project.floors('project-hanoi-tower'),
   },
   {
     id: 'activity-2',
-    kindLabel: 'duyệt qc cho tầng ba',
+    kindLabel: 'Duyệt qc cho tầng ba',
     ...activityMoment(SAME_DAY_EARLIER),
     objectCode: 'P-014',
-    objectLabel: 'tháp hà nội',
+    objectLabel: 'Tháp hà nội',
     objectHref: ROUTES.project.quality('project-hanoi-tower'),
   },
   {
     id: 'activity-3',
-    kindLabel: 'mời người dùng mới',
+    kindLabel: 'Mời người dùng mới',
     ...activityMoment(THREE_DAYS_AGO),
     objectCode: 'P-021',
-    objectLabel: 'trung tâm thương mại đà nẵng',
+    objectLabel: 'Trung tâm thương mại đà nẵng',
     objectHref: null,
   },
 ];

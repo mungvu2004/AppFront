@@ -141,20 +141,20 @@ const STANDARD_DEPTH_MM = 3400;
  * phòng nào trong số đó `reviewed: true` (A5).
  */
 export const ROOM_LABEL_FIXTURE_ROOMS: readonly Room[] = [
-  room('R-001', 'livingRoom', 'phòng khách chung', rectangle(0, 5000, STANDARD_DEPTH_MM), 'W-001', 1, true),
-  room('R-002', 'bedroom', 'phòng ngủ 3', rectangle(5000, 10000, STANDARD_DEPTH_MM), 'W-002', 1, true),
+  room('R-001', 'livingRoom', 'Phòng khách chung', rectangle(0, 5000, STANDARD_DEPTH_MM), 'W-001', 1, true),
+  room('R-002', 'bedroom', 'Phòng ngủ 3', rectangle(5000, 10000, STANDARD_DEPTH_MM), 'W-002', 1, true),
   room('R-003', 'bedroom', '', rectangle(10000, 15000, STANDARD_DEPTH_MM), 'W-003', 0.62, false),
   room('R-004', 'bedroom', '', rectangle(15000, 20000, STANDARD_DEPTH_MM), 'W-004', 0.58, false),
   room('R-005', 'bedroom', 'PHÒNG NGỦ 1', rectangle(20000, 24600, 4000), 'W-005', 0.81, false),
-  room('R-006', 'bathroom', 'phòng tắm chung', rectangle(24600, 29600, STANDARD_DEPTH_MM), 'W-006', 1, true),
-  room('R-007', 'kitchen', 'bếp', rectangle(29600, 34600, STANDARD_DEPTH_MM), 'W-007', 1, true),
-  room('R-008', 'corridor', 'hành lang tầng hai', rectangle(34600, 39600, STANDARD_DEPTH_MM), 'W-008', 1, true),
+  room('R-006', 'bathroom', 'Phòng tắm chung', rectangle(24600, 29600, STANDARD_DEPTH_MM), 'W-006', 1, true),
+  room('R-007', 'kitchen', 'Bếp', rectangle(29600, 34600, STANDARD_DEPTH_MM), 'W-007', 1, true),
+  room('R-008', 'corridor', 'Hành lang tầng hai', rectangle(34600, 39600, STANDARD_DEPTH_MM), 'W-008', 1, true),
   room('R-009', 'stairwell', '', rectangle(39600, 44600, STANDARD_DEPTH_MM), 'W-009', 0.66, false),
-  room('R-010', 'utility', 'phòng kỹ thuật điện', rectangle(44600, 49600, STANDARD_DEPTH_MM), 'W-010', 1, true),
-  room('R-011', 'other', 'phòng đa năng', rectangle(49600, 54600, STANDARD_DEPTH_MM), 'W-011', 1, true),
+  room('R-010', 'utility', 'Phòng kỹ thuật điện', rectangle(44600, 49600, STANDARD_DEPTH_MM), 'W-010', 1, true),
+  room('R-011', 'other', 'Phòng đa năng', rectangle(49600, 54600, STANDARD_DEPTH_MM), 'W-011', 1, true),
   room('R-012', 'bedroom', 'PHÒNG NGỦ 2', rectangle(54600, 59600, STANDARD_DEPTH_MM), 'W-012', 0.79, false),
-  room('R-013', 'bathroom', 'phòng tắm riêng', rectangle(59600, 64600, STANDARD_DEPTH_MM), 'W-013', 1, true),
-  room('R-014', 'livingRoom', 'phòng sinh hoạt chung', rectangle(64600, 69840, 5000), 'W-014', 1, true),
+  room('R-013', 'bathroom', 'Phòng tắm riêng', rectangle(59600, 64600, STANDARD_DEPTH_MM), 'W-013', 1, true),
+  room('R-014', 'livingRoom', 'Phòng sinh hoạt chung', rectangle(64600, 69840, 5000), 'W-014', 1, true),
 ];
 
 /** Tổng số phòng của bộ mẫu — test khẳng định bằng hằng, không bằng số viết tay (R-71). */

@@ -396,7 +396,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
 
     renderWithProviders(<MeasurementTool {...props} />);
 
-    const button = screen.getByRole('button', { name: 'bỏ phần đo dở (phím Esc)' });
+    const button = screen.getByRole('button', { name: 'Bỏ phần đo dở (phím Esc)' });
 
     fireEvent.click(button);
 

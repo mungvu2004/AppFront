@@ -81,11 +81,11 @@ export const TOOL_COMBOS = Object.freeze({
 export type KeyedViewerToolId = keyof typeof TOOL_COMBOS;
 
 const TOOL_DESCRIPTIONS: Readonly<Record<KeyedViewerToolId, string>> = Object.freeze({
-  orbit: 'bật công cụ quay quanh mô hình',
-  pan: 'bật công cụ kéo màn',
-  measure: 'bật công cụ đo',
-  section: 'bật công cụ mặt cắt',
-  select: 'bật công cụ chọn',
+  orbit: 'Bật công cụ quay quanh mô hình',
+  pan: 'Bật công cụ kéo màn',
+  measure: 'Bật công cụ đo',
+  section: 'Bật công cụ mặt cắt',
+  select: 'Bật công cụ chọn',
 });
 
 /** Mở ô tìm đối tượng. */
@@ -134,7 +134,7 @@ export function buildViewerShortcuts(
     id: `viewer.storey.${combo}`,
     combo,
     scope: 'canvas',
-    description: `xem tầng thứ ${combo} tính từ dưới lên`,
+    description: `Xem tầng thứ ${combo} tính từ dưới lên`,
     onTrigger: (): void => {
       handlers.selectStorey(index);
     },
@@ -158,7 +158,7 @@ export function buildViewerShortcuts(
       id: 'viewer.camera.fitAll',
       combo: FIT_ALL_COMBO,
       scope: 'canvas',
-      description: 'đưa toàn bộ mô hình vào khung hình',
+      description: 'Đưa toàn bộ mô hình vào khung hình',
       onTrigger: (): void => {
         handlers.fitAll();
       },
@@ -167,7 +167,7 @@ export function buildViewerShortcuts(
       id: 'viewer.camera.orthographic',
       combo: ORTHOGRAPHIC_COMBO,
       scope: 'canvas',
-      description: 'bật tắt phép chiếu trực giao',
+      description: 'Bật tắt phép chiếu trực giao',
       onTrigger: (): void => {
         handlers.toggleOrthographic();
       },
@@ -176,7 +176,7 @@ export function buildViewerShortcuts(
       id: 'viewer.selection.hide',
       combo: HIDE_COMBO,
       scope: 'canvas',
-      description: 'ẩn đối tượng đang chọn',
+      description: 'Ẩn đối tượng đang chọn',
       onTrigger: (): void => {
         handlers.hideSelection();
       },
@@ -185,7 +185,7 @@ export function buildViewerShortcuts(
       id: 'viewer.selection.isolate',
       combo: ISOLATE_COMBO,
       scope: 'canvas',
-      description: 'chỉ hiện đối tượng đang chọn',
+      description: 'Chỉ hiện đối tượng đang chọn',
       onTrigger: (): void => {
         handlers.isolateSelection();
       },
@@ -194,7 +194,7 @@ export function buildViewerShortcuts(
       id: 'viewer.camera.frameSelection',
       combo: FRAME_COMBO,
       scope: 'canvas',
-      description: 'khuôn đối tượng đang chọn vào khung hình',
+      description: 'Khuôn đối tượng đang chọn vào khung hình',
       onTrigger: (): void => {
         handlers.frameSelection();
       },
@@ -203,7 +203,7 @@ export function buildViewerShortcuts(
       id: 'viewer.storey.separation',
       combo: SEPARATION_COMBO,
       scope: 'canvas',
-      description: 'bật tắt tách tầng',
+      description: 'Bật tắt tách tầng',
       onTrigger: (): void => {
         handlers.toggleSeparation();
       },
@@ -213,7 +213,7 @@ export function buildViewerShortcuts(
       id: 'viewer.search.open',
       combo: SEARCH_COMBO,
       scope: 'canvas',
-      description: 'mở ô tìm đối tượng',
+      description: 'Mở ô tìm đối tượng',
       onTrigger: (): void => {
         handlers.openSearch();
       },
@@ -236,7 +236,7 @@ export function buildDeselectShortcut(
     combo: DESELECT_COMBO,
     scope: 'canvas',
     preventDefault: false,
-    description: 'bỏ chọn đối tượng trên mô hình',
+    description: 'Bỏ chọn đối tượng trên mô hình',
     onTrigger: (): void => {
       handlers.clearSelection();
     },

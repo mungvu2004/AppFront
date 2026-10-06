@@ -653,7 +653,7 @@ describe('vai Người xem', () => {
 /* Bảy trạng thái qua hook thật.                                               */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   /*
    * Bài kiểm này ĐỔI CÁCH ÉP trạng thái lỗi, và đó là điểm của nó.
    *

@@ -107,7 +107,7 @@ test.describe('V3-DASH-2 — phím N chỉ mở hộp thoại tạo khi có quy�
   test('kỹ sư bấm N mở hộp thoại "tạo dự án mới"', async ({ page }) => {
     await openDashboard(page);
     await page.keyboard.press('n');
-    await expect(page.getByRole('dialog', { name: 'tạo dự án mới' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Tạo dự án mới' })).toBeVisible();
   });
 
   test('người xem: không có nút "Dự án mới", có dòng vai người xem, bấm N không mở gì', async ({

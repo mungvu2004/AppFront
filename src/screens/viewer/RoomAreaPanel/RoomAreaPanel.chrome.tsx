@@ -42,16 +42,16 @@ import type {
 
 export const REGION_LABEL = 'Bảng diện tích phòng';
 const LEVEL_SELECT_LABEL = 'Chọn tầng';
-const TABLE_MODE_LABEL = 'mở chế độ bảng toàn trang';
+const TABLE_MODE_LABEL = 'Mở chế độ bảng toàn trang';
 const GROUPING_LABEL = 'Cách nhóm danh sách';
 const GROUPING_BY_LEVEL = 'theo tầng';
-const GROUPING_BY_USAGE = 'theo công năng';
+const GROUPING_BY_USAGE = 'Theo công năng';
 const SORT_LABEL = 'Sắp xếp';
-const SORT_BY_AREA = 'theo diện tích';
+const SORT_BY_AREA = 'Theo diện tích';
 const SORT_BY_NAME = 'theo tên';
 const SORT_BY_USAGE = 'theo loại';
 const BANDS_LABEL = 'Phân bố diện tích theo loại phòng';
-const COPY_AS_TEXT_LABEL = 'sao chép bảng';
+const COPY_AS_TEXT_LABEL = 'Sao chép bảng';
 const OPEN_EXPORT_LABEL = 'xuất bảng';
 const LOADING_LABEL = 'Đang tính diện tích…';
 export const EMPTY_TITLE = 'Chưa khép được vòng phòng nào';

@@ -145,7 +145,7 @@ describe('AdminUserSchema', () => {
     expect('inviteExpiresAt' in parsed).toBe(false);
   });
 
-  it('keeps a null lastActiveAt, because "chưa hoạt động lần nào" is an answer', () => {
+  it('keeps a null lastActiveAt, because "Chưa hoạt động lần nào" is an answer', () => {
     const parsed = AdminUserSchema.parse(pendingUserWire);
 
     expect(parsed.lastActiveAt).toBeNull();

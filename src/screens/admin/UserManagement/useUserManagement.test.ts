@@ -54,10 +54,10 @@ describe('ACTIVITY_KIND_LABELS — FIX-098/NO-099', () => {
     expect(ACTIVITY_KIND_LABELS[kind]).toBeDefined();
   });
 
-  it('mọi nhãn là tiếng Việt có dấu, viết thường kiểu câu (A6)', () => {
+  it('mọi nhãn là tiếng Việt có dấu, viết hoa chữ đầu kiểu câu (A6)', () => {
     Object.values(ACTIVITY_KIND_LABELS).forEach((label) => {
       expect(hasDiacritics(label)).toBe(true);
-      expect(label).toBe(label.toLowerCase());
+      expect(label).toBe(label.charAt(0).toLocaleUpperCase('vi') + label.slice(1));
     });
   });
 

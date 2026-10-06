@@ -72,19 +72,19 @@ import type { RoomAreaSort, RoomAreaTableProps } from './roomAreaTypes';
 /** Chín cột, nguyên văn đặc tả. */
 const COLUMN_COUNT = 9;
 
-const EXPORT_ARIA_LABEL = 'xuất bảng diện tích phòng';
+const EXPORT_ARIA_LABEL = 'Xuất bảng diện tích phòng';
 
-const EMPTY_TITLE = 'chưa dò ra phòng nào';
-const EMPTY_DESCRIPTION = 'kiểm tra khe hở tường rồi dò lại để bảng có dữ liệu.';
-const EMPTY_ACTION_LABEL = 'kiểm tra khe hở tường';
+const EMPTY_TITLE = 'Chưa dò ra phòng nào';
+const EMPTY_DESCRIPTION = 'Kiểm tra khe hở tường rồi dò lại để bảng có dữ liệu.';
+const EMPTY_ACTION_LABEL = 'Kiểm tra khe hở tường';
 
-const FORBIDDEN_NOTICE = 'bảng chỉ xem — không có quyền sửa tên phòng.';
-const COLLAPSED_NOTICE = 'danh sách phòng đang thu gọn, chỉ còn tổng diện tích.';
+const FORBIDDEN_NOTICE = 'Bảng chỉ xem — không có quyền sửa tên phòng.';
+const COLLAPSED_NOTICE = 'Danh sách phòng đang thu gọn, chỉ còn tổng diện tích.';
 
-const HEADER_LEVEL = 'tầng';
-const HEADER_NAME = 'tên phòng';
+const HEADER_LEVEL = 'Tầng';
+const HEADER_NAME = 'Tên phòng';
 const HEADER_USAGE = 'loại';
-const HEADER_AREA = 'diện tích';
+const HEADER_AREA = 'Diện tích';
 const HEADER_AREA_UNIT = 'm²';
 /*
  * "chu vi" là một cụm tiếng Việt KHÔNG DẤU trọn vẹn, và `expectVietnamese` từ
@@ -92,13 +92,13 @@ const HEADER_AREA_UNIT = 'm²';
  * mà vì một nhãn toàn ASCII là chỗ tiếng Anh lọt vào mà không ai thấy. Thêm
  * "phòng" trả lại dấu cho cụm và nói đúng thứ cột đang đo.
  */
-const HEADER_PERIMETER = 'chu vi phòng';
+const HEADER_PERIMETER = 'Chu vi phòng';
 const HEADER_PERIMETER_UNIT = 'm';
-const HEADER_CLEAR_HEIGHT = 'chiều cao thông thuỷ';
+const HEADER_CLEAR_HEIGHT = 'Chiều cao thông thuỷ';
 const HEADER_CLEAR_HEIGHT_UNIT = 'm';
 const HEADER_DOOR_COUNT = 'số cửa';
-const HEADER_WINDOW_COUNT = 'số cửa sổ';
-const HEADER_STATUS = 'trạng thái';
+const HEADER_WINDOW_COUNT = 'Số cửa sổ';
+const HEADER_STATUS = 'Trạng thái';
 
 const UNIT_LABEL_CLASS_NAME = 'font-normal text-text-muted';
 
@@ -131,7 +131,7 @@ export function RoomAreaTable(props: RoomAreaTableProps) {
   const sortDirectionOf = (column: RoomAreaSort): 'asc' | null => (sort === column ? 'asc' : null);
 
   return (
-    <div aria-label="bảng diện tích phòng" className="flex h-full w-full flex-col gap-2 p-2" role="region">
+    <div aria-label="Bảng diện tích phòng" className="flex h-full w-full flex-col gap-2 p-2" role="region">
       <div className="flex shrink-0 items-center justify-between gap-2">
         <p className={cn('text-[13px] text-state-attention-text', state !== 'forbidden' && 'invisible')}>
           {FORBIDDEN_NOTICE}

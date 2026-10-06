@@ -16,12 +16,12 @@ import { FIRST_PAINT_TIMEOUT_MS, FIXTURE_STATUS, MEASURE_PATH, expectSceneDrawn,
 
 const MEASURE_TOOL = 'đo (M)';
 const ORBIT_TOOL = 'quay quanh mô hình (R)';
-const TOGGLE_TOOL = 'bật tắt công cụ đo (phím M)';
-const DROP_DRAFT = 'bỏ phần đo dở (phím Esc)';
-const PIN = 'ghim phép đo (phím Enter)';
+const TOGGLE_TOOL = 'Bật tắt công cụ đo (phím M)';
+const DROP_DRAFT = 'Bỏ phần đo dở (phím Esc)';
+const PIN = 'Ghim phép đo (phím Enter)';
 const LOAD_ERROR = 'Chưa tải được danh sách phép đo của dự án. Kiểm tra kết nối rồi thử lại.';
-const EMPTY_LIST = 'chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.';
-const PIN_BLOCKED = 'bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
+const EMPTY_LIST = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
+const PIN_BLOCKED = 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
 
 const rail = (page: Page) => page.getByRole('toolbar', { name: 'Công cụ khung nhìn' });
 

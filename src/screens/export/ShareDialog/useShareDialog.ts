@@ -46,6 +46,7 @@
  * không cái nào có mặt ở đây dưới dạng một `TODO` hay một cờ luôn `false`.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -144,7 +145,7 @@ const EMPTY_LINKS: readonly ShareLink[] = Object.freeze([]);
 
 /** Câu nhắc khi đổi khoá nhúng làm liên kết đã tạo không còn khớp. */
 const STALE_LINK_NOTICE =
-  'các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi';
+  'Các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi';
 
 /* -------------------------------------------------------------------------- */
 /* Bề ngang màn — trạng thái thứ bảy                                          */
@@ -231,7 +232,7 @@ function toProblemMap(
 function messageOf(error: unknown): string {
   return error instanceof Error && error.message.length > 0
     ? error.message
-    : 'không thực hiện được thao tác chia sẻ; hãy thử lại';
+    : 'Không thực hiện được thao tác chia sẻ; hãy thử lại';
 }
 
 /**
@@ -424,7 +425,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setStaleLinkNotice(null);
       setSavedAtMs(readNow().getTime());
       invalidateLinks();
-      onToast?.({ message: 'đã tạo liên kết chia sẻ' });
+      onToast?.({ message: 'Đã tạo liên kết chia sẻ' });
     },
     onError: (error) => setActionError(messageOf(error)),
   });
@@ -442,7 +443,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setActionError(null);
       setSavedAtMs(readNow().getTime());
       invalidateLinks();
-      onToast?.({ message: 'đã thu hồi liên kết' });
+      onToast?.({ message: 'Đã thu hồi liên kết' });
     },
     onError: (error) => setActionError(messageOf(error)),
   });
@@ -557,12 +558,12 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setPermissionState(next);
 
       const ticket = createUndoTicket({
-        description: `đổi quyền chia sẻ sang ${SHARE_PERMISSION_LABELS[next]}`,
+        description: `Đổi quyền chia sẻ sang ${lowerFirst(SHARE_PERMISSION_LABELS[next])}`,
         undo: () => setPermissionState(previous),
       });
 
       onToast?.({
-        message: `đã đổi quyền chia sẻ sang ${SHARE_PERMISSION_LABELS[next]}`,
+        message: `Đã đổi quyền chia sẻ sang ${lowerFirst(SHARE_PERMISSION_LABELS[next])}`,
         onUndo: () => {
           ticket.undo();
         },
@@ -623,10 +624,10 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       copyLink: (id: string) => {
         const row = rows.find((candidate) => candidate.id === id);
         if (row !== undefined) {
-          copy(id, row.url, 'đã chép liên kết');
+          copy(id, row.url, 'Đã chép liên kết');
         }
       },
-      copyEmbedCode: () => copy(EMBED_COPY_TARGET_ID, embedCode, 'đã chép mã nhúng'),
+      copyEmbedCode: () => copy(EMBED_COPY_TARGET_ID, embedCode, 'Đã chép mã nhúng'),
       setEmbedLevel: (levelId: LevelId | null) => changeEmbed('levelId', { levelId }),
       setEmbedColoring: (coloring: ColoringModeId | null) => changeEmbed('coloring', { coloring }),
       setEmbedToolbar: (toolbar: boolean) => changeEmbed('toolbar', { toolbar }),

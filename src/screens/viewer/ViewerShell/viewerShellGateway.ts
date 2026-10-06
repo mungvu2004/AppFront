@@ -56,7 +56,7 @@ import { GROUND, toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
  * endpoint tự chế (R-69). Mỗi dòng là một tên hàm còn thiếu cộng lý do.
  */
 export const VIEWER_MISSING_CAPABILITIES: readonly string[] = Object.freeze([
-  'readBuildingRoomTotals — FloorSchema không mang phòng, và spatial.readFloor trả về đúng FloorSchema đó; số phòng của cả toà nhà vì thế chỉ đếm được trên những tầng kho đã nạp.',
+  'ReadBuildingRoomTotals — FloorSchema không mang phòng, và spatial.readFloor trả về đúng FloorSchema đó; số phòng của cả toà nhà vì thế chỉ đếm được trên những tầng kho đã nạp.',
 ]);
 
 /* -------------------------------------------------------------------------- */

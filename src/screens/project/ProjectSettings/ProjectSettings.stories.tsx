@@ -74,7 +74,7 @@ const base: ProjectSettingsViewProps = {
   problems: NO_PROBLEMS,
   lengthUnit: 'mm',
   lengthUnitOptions: [
-    { value: 'mm', label: 'milimét (mm)' },
+    { value: 'mm', label: 'Milimét (mm)' },
     { value: 'm', label: 'mét (m)' },
   ],
   areaUnitLabel: 'mét vuông — ví dụ 248,60 m²',

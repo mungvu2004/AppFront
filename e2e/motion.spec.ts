@@ -61,14 +61,14 @@ test('drops every duration to the instant slot when the machine is struggling', 
 test('hands the screen over to the other scene', async ({ page }) => {
   await openMotionScreen(page);
 
-  await expect(page.getByText('mặt bằng 2D')).toBeVisible();
+  await expect(page.getByText('Mặt bằng 2D')).toBeVisible();
 
   await page.getByRole('button', { name: 'Đổi cảnh' }).click();
 
-  await expect(page.getByText('mô hình 3D')).toBeVisible();
+  await expect(page.getByText('Mô hình 3D')).toBeVisible();
   // The handover finishes and leaves exactly one scene on screen.
   await expect(page.getByText('đứng yên')).toBeVisible();
-  await expect(page.getByText('mặt bằng 2D')).toHaveCount(0);
+  await expect(page.getByText('Mặt bằng 2D')).toHaveCount(0);
 });
 
 test('steps the list delays and stops the ramp before the ceiling', async ({ page }) => {

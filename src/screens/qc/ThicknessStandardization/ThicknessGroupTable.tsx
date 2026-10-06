@@ -26,6 +26,7 @@
  * điều khiển), không phải một cách né luật.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Table } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
@@ -39,7 +40,7 @@ const HEADER_ACCEPTED = 'Đồng ý';
 const EMPTY_MESSAGE = 'Chưa có nhóm nào để chuẩn hoá.';
 
 function acceptCheckboxLabel(measuredMm: number, wallCount: number, suggestedGroup: ThicknessGroup): string {
-  return `Đồng ý chuẩn hoá ${wallCount} tường ${measuredMm} mm về ${THICKNESS_GROUP_LABELS[suggestedGroup]}`;
+  return `Đồng ý chuẩn hoá ${wallCount} tường ${measuredMm} mm về ${lowerFirst(THICKNESS_GROUP_LABELS[suggestedGroup])}`;
 }
 
 export function ThicknessGroupTable({ rows, hoveredGroup, onHoverGroup, onToggleAccepted }: ThicknessGroupTableProps) {

@@ -797,7 +797,7 @@ describe('useFloorUploadScreen — quyền và chuyển động', () => {
 /* pageIndex và PDF nhiều trang chờ chọn trang.                                */
 /* -------------------------------------------------------------------------- */
 
-const PICK_PAGE_SENTENCE = 'hãy chọn trang bản vẽ để bắt đầu tải';
+const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
 
 const pdfValidation =
   (pageCount: number): FloorUploadGateway['validateFile'] =>
@@ -985,7 +985,7 @@ describe('useFloorUploadScreen — trang PDF', () => {
 
     const sentence = result.current.floors[2]?.error?.sentence ?? '';
 
-    expect(sentence).toBe('bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.');
+    expect(sentence).toBe('Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.');
     expect(sentence).not.toContain('CAD_NOT_SUPPORTED');
     expect(result.current.floors[2]?.canRetryUpload).toBe(false);
   });

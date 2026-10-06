@@ -16,7 +16,7 @@ import { FIRST_PAINT_TIMEOUT_MS } from './firstPaint';
 
 const MODEL_COUNT = 16;
 const READ_ONLY_REASON =
-  'vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện';
+  'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện';
 
 /** Một ô tổng kết: chữ chú thích và con số của nó (`ModelLibrarySummary.tsx`). */
 function figure(page: Page, caption: string) {
@@ -29,31 +29,31 @@ test.describe('engineer (vai mặc định, goto thẳng)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ROUTES.adminModels);
-    await expect(figure(page, 'tổng số model')).toHaveText(new RegExp(`tổng số model\\s*${MODEL_COUNT}$`, 'u'), { timeout: FIRST_PAINT_TIMEOUT_MS });
+    await expect(figure(page, 'Tổng số model')).toHaveText(new RegExp(`Tổng số model\\s*${MODEL_COUNT}$`, 'u'), { timeout: FIRST_PAINT_TIMEOUT_MS });
   });
 
   test('B-V12b-04 đường dẫn trang viết thường như mọi màn quản trị khác (A6)', async ({ page }) => {
     // `exact`: Playwright so tên không phân biệt hoa/thường khi không có nó, nên
     // `Đường dẫn trang` cũ lọt qua mà không ai thấy (F14).
-    const breadcrumb = page.getByRole('navigation', { name: 'đường dẫn trang', exact: true });
-    await expect(breadcrumb).toHaveText(/^quản trị\s*›\s*thư viện model$/u);
+    const breadcrumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
+    await expect(breadcrumb).toHaveText(/^Quản trị\s*›\s*Thư viện model$/u);
   });
 
   test('MD-1 lọc không ra gì thì nói ra bằng lời, xoá ô thì về đủ 16 (A11 empty)', async ({ page }) => {
     await search(page).fill('zzzz');
 
     await expect(page.getByText('Không tìm thấy model phù hợp.')).toBeVisible();
-    await expect(figure(page, 'tổng số model')).toHaveText(/tổng số model\s*0$/u);
-    await expect(figure(page, 'tổng dung lượng')).toHaveText(/tổng dung lượng\s*0 B$/u);
+    await expect(figure(page, 'Tổng số model')).toHaveText(/Tổng số model\s*0$/u);
+    await expect(figure(page, 'Tổng dung lượng')).toHaveText(/Tổng dung lượng\s*0 B$/u);
     await expect(figure(page, 'model nặng')).toHaveText(/model nặng\s*0$/u);
 
     await search(page).fill('');
-    await expect(figure(page, 'tổng số model')).toHaveText(new RegExp(`tổng số model\\s*${MODEL_COUNT}$`, 'u'));
+    await expect(figure(page, 'Tổng số model')).toHaveText(new RegExp(`Tổng số model\\s*${MODEL_COUNT}$`, 'u'));
   });
 
   test('MD-2 Esc đóng đúng tấm chi tiết model, ở lại /admin/models (A12)', async ({ page }) => {
     await page.getByRole('button', { name: 'bàn ăn sáu chỗ' }).click();
-    const detail = page.getByRole('complementary', { name: 'chi tiết model' });
+    const detail = page.getByRole('complementary', { name: 'Chi tiết model' });
     await expect(detail).toBeVisible();
 
     await page.keyboard.press('Escape');

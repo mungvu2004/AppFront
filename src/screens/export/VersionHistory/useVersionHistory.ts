@@ -208,7 +208,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
         label === undefined ? '' : ` v${formatNumber(label, { grouping: false })}`;
 
       onToast?.({
-        message: `đã phục hồi nội dung của phiên bản${restored}; hoàn tác được trong ${formatDuration(UNDO_WINDOW_MS)}`,
+        message: `Đã phục hồi nội dung của phiên bản${restored}; hoàn tác được trong ${formatDuration(UNDO_WINDOW_MS)}`,
         ...(ticket === undefined
           ? {}
           : {
@@ -356,7 +356,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const savedAtLabel =
     history[0] === undefined
       ? null
-      : `đã lưu lúc ${formatClockTime(new Date(history[0].version.createdAt))}`;
+      : `Đã lưu lúc ${formatClockTime(new Date(history[0].version.createdAt))}`;
 
   const state = useMemo((): SevenState => {
     if (!canRestore) {

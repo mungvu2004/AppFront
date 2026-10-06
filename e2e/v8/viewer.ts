@@ -69,7 +69,7 @@ export function shellInspector(page: Page) {
 /** Chọn một phòng qua ô tìm — đường không dính canvas (`viewer3d.spec.ts`, `findOneRoom`). */
 export async function selectRoomBySearch(page: Page, query: string, name: string): Promise<void> {
   await page.getByRole('button', { name: 'tìm phòng' }).click();
-  const box = page.getByRole('combobox', { name: 'tìm phòng theo tên hoặc mã' });
+  const box = page.getByRole('combobox', { name: 'Tìm phòng theo tên hoặc mã' });
   await expect(box).toBeVisible();
   await dismissTourIfPresent(page);
   await box.fill(query);

@@ -61,7 +61,7 @@ const REPLY_SUFFIX_LABEL = 'trả lời';
 const OBJECT_LABEL = 'Đối tượng';
 const EMPTY_LIST_MESSAGE = 'Chưa có bình luận nào trên bản vẽ này.';
 const READ_ONLY_NOTICE = 'Bạn chỉ xem được bình luận, không viết được ở dự án này.';
-const ESC_DESCRIPTION = 'đóng bóng bình luận, rồi tới danh sách bình luận';
+const ESC_DESCRIPTION = 'Đóng bóng bình luận, rồi tới danh sách bình luận';
 
 /* --- Số đo và khe chuyển động của danh sách (bóng lấy khe riêng từ Popover). --- */
 

@@ -165,9 +165,9 @@ test('lịch sử mở ra ca rỗng thật: lời giải thích, bốn chip lo�
 
   /* A6 · B-V8-07: "AI" là viết tắt, giữ hoa */
   const chips = history.getByRole('group', { name: 'Lọc theo loại việc' }).getByRole('button');
-  await expect(chips).toHaveText(['tất cả', 'chỉnh sửa', 'duyệt', 'AI']);
+  await expect(chips).toHaveText(['Tất cả', 'Chỉnh sửa', 'Duyệt', 'AI']);
   await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
-  await expect(history.getByRole('combobox')).toContainText('mọi người');
+  await expect(history.getByRole('combobox')).toContainText('Mọi người');
 });
 
 /* -------------------------------------------------------------------------- */

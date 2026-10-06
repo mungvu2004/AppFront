@@ -291,7 +291,7 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
     renderScreen(makeClient());
     await chooseFamily('Nhận diện cửa và đồ đạc');
 
-    const seedRow = (await screen.findAllByRole('button', { name: 'gốc' }))[0]?.closest('tr');
+    const seedRow = (await screen.findAllByRole('button', { name: 'Gốc' }))[0]?.closest('tr');
     const runningRow = screen.getByRole('button', { name: 'Huấn luyện lượt 4' }).closest('tr');
 
     expect(within(seedRow as HTMLElement).queryByRole('button', { name: 'Kích hoạt' })).toBeNull();

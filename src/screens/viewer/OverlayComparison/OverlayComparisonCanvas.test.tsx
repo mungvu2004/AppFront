@@ -341,7 +341,7 @@ describe('đường chia đôi', () => {
     const { divider } = renderSwipe();
 
     expect(divider).toHaveAttribute('tabindex', '0');
-    expect(divider).toHaveAccessibleName('đường chia đôi, dùng phím mũi tên trái và phải để dịch');
+    expect(divider).toHaveAccessibleName('Đường chia đôi, dùng phím mũi tên trái và phải để dịch');
     expect(divider).toHaveAttribute('aria-valuenow', '0.5');
   });
 

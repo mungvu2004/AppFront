@@ -112,7 +112,7 @@ describe('[G] bốn bộ khẳng định dùng chung', () => {
     /* A6 · B-V8-07: expectVietnamese không phân biệt "AI" với "ai", nên khẳng định đúng chữ trên phần đã vẽ. */
     const { getByRole, unmount } = render(<HistoryPanel {...propsOf('success')} />);
     const chips = getByRole('group', { name: 'Lọc theo loại việc' }).querySelectorAll('button');
-    expect(Array.from(chips, (c) => c.textContent)).toStrictEqual(['tất cả', 'chỉnh sửa', 'duyệt', 'AI']);
+    expect(Array.from(chips, (c) => c.textContent)).toStrictEqual(['Tất cả', 'Chỉnh sửa', 'Duyệt', 'AI']);
     unmount();
   });
 
@@ -350,7 +350,7 @@ describe('[N6] cấm rò rỉ mã máy', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* [N7] Trạng thái "một phần" — cả hai HistoryPartialReason.                   */
+/* [N7] Trạng thái "Một phần" — cả hai HistoryPartialReason.                   */
 /* -------------------------------------------------------------------------- */
 
 describe('[N7] một phần — cả hai lý do đều dựng được', () => {

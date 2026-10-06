@@ -25,7 +25,7 @@ import type { ActiveCardModel, ModelFamilyId, ModelRegistryActions, ModelRegistr
 const TEXT = {
   breadcrumbNav: 'Đường dẫn trang',
   breadcrumbAdmin: 'Quản trị',
-  breadcrumbHere: 'model AI',
+  breadcrumbHere: 'Model AI',
   title: 'Model AI của chuỗi xử lý',
   familyPicker: 'Họ model',
   activeTitle: 'Đang dùng',

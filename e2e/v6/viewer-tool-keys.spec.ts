@@ -44,7 +44,7 @@ test('mỗi phím đơn mà ray công cụ 3D ghi trong nhãn đều chọn đú
   /* Chốt chống "xanh rỗng": nếu nhãn đổi khuôn mà regex không bắt được gì, bài phải đỏ. */
   expect(advertised.map(({ key }) => key)).toEqual(expect.arrayContaining(['R', 'H', 'C', 'V', 'M']));
 
-  /* Ngược thứ tự ray: công cụ đầu ("quay quanh", R) đang bật sẵn, nên nó phải được bấm SAU cùng mới chứng minh được gì. */
+  /* Ngược thứ tự ray: công cụ đầu ("Quay quanh", R) đang bật sẵn, nên nó phải được bấm SAU cùng mới chứng minh được gì. */
   for (const { key, label } of [...advertised].reverse()) {
     await page.keyboard.press(key.toLowerCase());
     await expect(rail.getByRole('button', { name: label, exact: true }), `phím ${key}`).toHaveAttribute(

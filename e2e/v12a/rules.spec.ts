@@ -48,7 +48,7 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
   await expect(rerun).toBeVisible();
 
   // Bốn ô `<dt>/<dd>` (`RuleReportSummary.tsx`): nhãn đúng thứ tự, số là số nguyên trần.
-  await expect(page.getByRole('term')).toHaveText(['tổng số kiểm tra', 'đạt', 'cảnh báo', 'vi phạm']);
+  await expect(page.getByRole('term')).toHaveText(['Tổng số kiểm tra', 'Đạt', 'Cảnh báo', 'Vi phạm']);
   await expect(page.getByRole('definition')).toHaveText([/^\d+$/u, /^\d+$/u, /^\d+$/u, /^\d+$/u]);
 
   const confirm = page.getByRole('button', { name: 'Xác nhận đã xử lý' });
@@ -56,7 +56,7 @@ test('có bơm kho: bảng luật hiện bốn con số nguyên, chạy lại kh
 
   await rerun.click();
   await expect(page.getByRole('heading', { name: EMPTY_TITLE })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^lỗ mở nằm trọn/u })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Lỗ mở nằm trọn/u })).toBeVisible();
 });
 
 test('có bơm kho: tấm chi tiết vi phạm mở từ một dòng, J sang vi phạm kế mà không đóng, Esc đóng đúng tấm và ở lại màn (A12, A15)', async ({
@@ -68,12 +68,12 @@ test('có bơm kho: tấm chi tiết vi phạm mở từ một dòng, J sang vi 
   });
   await seedSpatial(page, { projectId: PROJECT_ID });
 
-  await page.getByRole('button', { name: /^lỗ mở nằm trọn/u }).click();
+  await page.getByRole('button', { name: /^Lỗ mở nằm trọn/u }).click();
   const rows = page.getByRole('button', { name: /^Lỗ mở #D-\d{3}/u });
   const firstMessage = (await rows.first().innerText()).trim();
   await rows.first().click();
 
-  const panel = page.getByRole('complementary', { name: 'chi tiết vi phạm' });
+  const panel = page.getByRole('complementary', { name: 'Chi tiết vi phạm' });
   await expect(panel).toBeVisible();
   await expect(panel).toContainText(firstMessage);
 
@@ -111,7 +111,7 @@ test('có bơm kho: chip của hàng và tấm chi tiết gọi lỗ mở bằng
   });
   await seedSpatial(page, { projectId: PROJECT_ID });
 
-  await page.getByRole('button', { name: /^lỗ mở nằm trọn/u }).click();
+  await page.getByRole('button', { name: /^Lỗ mở nằm trọn/u }).click();
   // Neo vào MỘT hàng rồi đọc chip của chính nó — mã `#D-001` lặp lại ở mỗi tầng (strict mode).
   const row = page
     .getByRole('row')
@@ -121,7 +121,7 @@ test('có bơm kho: chip của hàng và tấm chi tiết gọi lỗ mở bằng
   await expect(row.locator('code')).toHaveText(/^#D-\d{3}$/u);
 
   await message.click();
-  const panel = page.getByRole('complementary', { name: 'chi tiết vi phạm' });
+  const panel = page.getByRole('complementary', { name: 'Chi tiết vi phạm' });
   await expect(panel).toBeVisible();
   await expect(panel.getByText(/^#D-\d{3}$/u).first()).toBeVisible();
   await expect(panel.getByText(/^D-DOOR/u)).toHaveCount(0);

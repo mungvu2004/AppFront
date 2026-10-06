@@ -111,7 +111,7 @@ export function ProjectCardTile({
           {renamingId === project.id ? (
             <input
               autoFocus
-              aria-label={`đổi tên ${project.name}`}
+              aria-label={`Đổi tên ${project.name}`}
               value={renameDraft}
               onChange={(event) => onRenameChange(event.target.value)}
               onBlur={onRenameCommit}

@@ -77,7 +77,7 @@ test('điện thoại: ba nút chọn chiều cao tấm trượt nằm trong câ
   await expect(levels.getByRole('button', { name: 'Mức 2', pressed: true })).toBeVisible();
 });
 
-test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, và trạng thái nói "không còn thông báo chưa đọc" khi danh sách vẫn còn (B-V2-02)', async ({
+test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, và trạng thái nói "Không còn thông báo chưa đọc" khi danh sách vẫn còn (B-V2-02)', async ({
   page,
 }) => {
   await openDirect(page);
@@ -86,7 +86,7 @@ test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, 
   await expect(drawer).toBeVisible();
   await expect(drawer.getByText(String(UNREAD_COUNT), { exact: true })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'thông báo chưa đọc' })).toHaveText(
-    `có ${UNREAD_COUNT} thông báo chưa đọc`,
+    `Có ${UNREAD_COUNT} thông báo chưa đọc`,
   );
 
   const markAll = drawer.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' });
@@ -97,7 +97,7 @@ test('"Đánh dấu tất cả đã đọc" xoá số chưa đọc, khoá nút, 
   // Danh sách KHÔNG rỗng — nên câu "không có thông báo nào" sẽ là nói dối.
   await expect(drawer.getByRole('listitem')).toHaveCount(ITEM_COUNT);
   await expect(page.getByRole('status').filter({ hasText: 'thông báo' })).toHaveText(
-    'không còn thông báo chưa đọc',
+    'Không còn thông báo chưa đọc',
   );
 });
 
@@ -158,13 +158,13 @@ test('"Đánh dấu tất cả đã đọc" hiện toast kèm nút "Hoàn tác",
   const undo = page.getByRole('button', { name: 'Hoàn tác' });
   const unreadStatus = page.getByRole('status').filter({ hasText: 'thông báo chưa đọc' });
 
-  await expect(unreadStatus).toHaveText(`có ${UNREAD_COUNT} thông báo chưa đọc`);
+  await expect(unreadStatus).toHaveText(`Có ${UNREAD_COUNT} thông báo chưa đọc`);
 
   await markAll.click();
-  await expect(unreadStatus).toHaveText('không còn thông báo chưa đọc');
+  await expect(unreadStatus).toHaveText('Không còn thông báo chưa đọc');
   await undo.click();
 
-  await expect(unreadStatus).toHaveText(`có ${UNREAD_COUNT} thông báo chưa đọc`);
+  await expect(unreadStatus).toHaveText(`Có ${UNREAD_COUNT} thông báo chưa đọc`);
   await expect(undo).toHaveCount(0);
 
   // Bấm lại ngay, trong cửa sổ gộp 5 giây của kênh chung: toast mới phải hiện thật.
