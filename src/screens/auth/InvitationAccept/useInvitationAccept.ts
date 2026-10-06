@@ -85,8 +85,6 @@ export interface InvitationAcceptModel {
   readonly isSessionPending: boolean;
   /** Chưa mở được phiên vì mất kết nối: dải báo kèm nút thử lại; biểu mẫu vẫn mở. */
   readonly isSessionUnavailable: boolean;
-  /** Lượt thử lại mở phiên đang bay (bấm thêm bị bỏ qua). */
-  readonly isRetryingSession: boolean;
   /** Câu cho vùng `role="status"`: đang thử lại, hoặc thử lại vẫn hỏng. */
   readonly retryNotice: string | null;
 }
@@ -338,7 +336,6 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     needsSignIn,
     isSessionPending: port.isSessionPending,
     isSessionUnavailable: sessionUnavailable,
-    isRetryingSession: retryPhase === 'pending',
     retryNotice: !sessionUnavailable
       ? null
       : retryPhase === 'pending'
