@@ -309,6 +309,20 @@ describe('api client', () => {
     );
   });
 
+  it('sends limit=200 (the N7 maximum) on every page of latestUploads', async () => {
+    const http = createHttpMock({
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1')}`]: { items: [], nextCursor: 'trang-2' },
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1', 'trang-2')}`]: { items: [] },
+    });
+
+    await createApiClient(http).drawings.latestUploads({ projectId: 'project-1' });
+
+    const calls = vi.mocked(http.get).mock.calls;
+
+    expect(calls).toHaveLength(2);
+    expect(calls.map(([, options]) => options?.query)).toEqual([{ limit: 200 }, { limit: 200 }]);
+  });
+
   it('mock N7 lists the floor that already has a drawing, with a completed upload', async () => {
     const client = createMockApiClient();
     const latest = await client.drawings.latestUploads({ projectId: 'project-1' });

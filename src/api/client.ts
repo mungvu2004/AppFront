@@ -897,6 +897,9 @@ const toRequestOptions = (options: WriteRequestOptions = {}): TransportWriteOpti
   ...(options.timeoutMode !== undefined ? { timeoutMode: options.timeoutMode } : {}),
 });
 
+/** N7 — trần `limit` của hợp đồng (openapi: mặc định 50, tối đa 200): ít chuyến nhất cho cùng một danh sách. */
+const LATEST_UPLOADS_PAGE_LIMIT = 200;
+
 const callGet = async <T>(http: HttpClient, path: string, signal?: AbortSignal): Promise<Result<T, HttpError>> =>
   http.get<T>(path, signal !== undefined ? { signal } : undefined);
 
@@ -1002,7 +1005,10 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       // cảnh báo chứ không làm rỗng cả màn (`CursorEnvelopeSchema`).
       do {
         const page = decodeSingle(
-          await callGet<unknown>(http, ENDPOINTS.drawings.latestUploads(projectId, cursor), signal),
+          await http.get<unknown>(ENDPOINTS.drawings.latestUploads(projectId, cursor), {
+            query: { limit: LATEST_UPLOADS_PAGE_LIMIT },
+            ...(signal !== undefined ? { signal } : {}),
+          }),
           CursorEnvelopeSchema,
           'drawings.latestUploads',
         );
