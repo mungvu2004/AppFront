@@ -276,7 +276,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   /* ---------------------------------------------------------------------- */
 
   // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự
-  // phòng cho tới khi một dự án được mở (khuôn `useBillingScreen.ts`).
+  // phòng cho tới khi một dự án được mở.
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
   const canExport = options.canExport ?? gateway.readPermission(roles);
 

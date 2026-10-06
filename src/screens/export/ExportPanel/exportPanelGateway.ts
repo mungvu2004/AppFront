@@ -699,7 +699,7 @@ export interface StartSpatialJsonExportInput {
   readonly includeConfidence: boolean;
 }
 
-/** Ép cảnh cho bài kiểm: tường minh, không biến ẩn (khuôn `billingGateway.ts`). */
+/** Ép cảnh cho bài kiểm: tường minh, không biến ẩn. */
 export interface ExportPanelGatewaySeed {
   /** Thay hẳn lượt xuất `.glb` — bài kiểm không dựng worker thật. */
   readonly exportGlb?: typeof glbModule.exportGlb;
