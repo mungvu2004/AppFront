@@ -32,10 +32,11 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import type { DrawingsApi } from '@/api/client';
 import { formatFileSize } from '@/lib/format/bytes';
 import { durationMs, REDUCED_MOTION_QUERY } from '@/lib/motion';
-import type {
-  NetworkMonitor,
-  NetworkMonitorStatus,
-  NetworkStatusListener,
+import {
+  createNetworkMonitor,
+  type NetworkMonitor,
+  type NetworkMonitorStatus,
+  type NetworkStatusListener,
 } from '@/lib/offline/networkMonitor';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -590,6 +591,58 @@ describe('FloorUploadScreen — tốc độ cập nhật tiến trình (tiêu ch
 
     expect(uploadedCard, 'thẻ của Tầng 2 phải còn trên trang').not.toBeNull();
     expect(uploadedCard?.textContent).toContain('Đã gắn kèm');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Lượt kiểm mạng đầu tiên chưa xong (NO-381).                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đầu tiên vẫn được tải (NO-381)', () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
+  it('bộ giám sát thật chưa ping xong thì màn không coi là mất mạng: tệp tải lên, bộ đếm lên 2 / 4', async () => {
+    // Bộ giám sát THẬT, chỉ thay lượt ping bằng một lượt chưa trả lời — đúng
+    // khoảnh khắc máy chủ dev còn bận và `HEAD /` chưa về. `pingOnline` của bộ
+    // giám sát lúc ấy vẫn là giá trị khởi tạo `false`.
+    const gateway = createFloorUploadGateway(createMockApiClient(), {
+      networkMonitor: createNetworkMonitor({ ping: () => new Promise<boolean>(() => undefined) }),
+    });
+
+    renderWithProviders(<FloorUploadScreenContainer gateway={gateway} projectId={PROJECT_ID} />);
+
+    await act(async () => {
+      await clock.advance(SETTLE_STEP_MS);
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    expect(counterStatusText()).toBe('1 / 4 tầng đã có bản vẽ');
+
+    const file = new File(['x'], 'mat-bang-tang-2.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId(FILE_INPUT_TEST_ID), { target: { files: [file] } });
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    // Một giây mô phỏng, mỗi nhịp một `act`: đủ cho bộ tiết chế 250 ms nhả mốc
+    // cuối. Không `runAllTimers` — nhịp ping 20 s của bộ giám sát lặp mãi.
+    for (let elapsed = 0; elapsed < MEASURE_WINDOW_MS; elapsed += SETTLE_STEP_MS * 10) {
+      await act(async () => {
+        await clock.advance(SETTLE_STEP_MS * 10);
+      });
+    }
+
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
+    expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
   });
 });
 
