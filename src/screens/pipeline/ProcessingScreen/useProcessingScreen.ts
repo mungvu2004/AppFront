@@ -325,8 +325,6 @@ interface FloorProgressRecord {
   readonly logLines: readonly ProcessingRawLogLine[];
   readonly source: ProgressStreamSource;
   readonly connectionStatus: ChannelStatus;
-  /** `Progress.step` mà `toStageBreakdown` không tra được. Không đoán bừa. */
-  readonly unmappedStep?: string;
   /** Lỗi đọc của RIÊNG tầng này. Nhịp đọc được kế tiếp xoá nó, trừ 404/403 (`isTerminal`). */
   readonly failure?: ProcessingFailure;
   readonly queuePosition?: number;
@@ -417,7 +415,6 @@ function applySnapshot(
     progress,
     source,
     logLines: [...record.logLines, logLine],
-    ...(breakdown.supported ? {} : { unmappedStep: progress.step ?? '' }),
   };
 }
 

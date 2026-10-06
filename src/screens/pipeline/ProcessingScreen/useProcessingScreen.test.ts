@@ -1152,7 +1152,7 @@ describe('useProcessingScreen', () => {
     const harness = makeScriptedClient();
     const uploads = await readFloorUploads(harness.client, 2);
     const [waiting, streamed] = [uploads[0]!, uploads[1]!];
-    // `pending` chưa vào bước nào: `step` không khớp bước nào, nên B không giữ tầng đang xem.
+    // `pending` chưa vào bước nào, nên B không giữ tầng đang xem.
     harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 0, { status: 'pending', step: 'queued' }));
     const queryClient = createTestQueryClient();
     const visibility = new MockVisibilityTarget();
@@ -1228,6 +1228,88 @@ describe('useProcessingScreen', () => {
     });
     expect(backgroundWatches.list()).toHaveLength(0);
     expect(openSources()).toHaveLength(0);
+    mounted.unmount();
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* DEBT-03 — tầng đang xem (NO-363, NO-364).                               */
+  /* ---------------------------------------------------------------------- */
+
+  it('NO-363: tầng đang xem bỏ qua tầng có upload đã mất (404), nhường cho tầng còn chạy', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const gone = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    expect(mounted.result.current.floors[0]?.isActive).toBe(true);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(gone.uploadId, 1));
+      await clock.flushMicrotasks();
+    });
+
+    harness.queue(gone.uploadId, NOT_FOUND);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    await act(() => clock.advance(1));
+    await settle(clock);
+
+    expect(mounted.result.current.floors.map((floor) => floor.isActive)).toEqual([false, true]);
+    mounted.unmount();
+  });
+
+  it('NO-364: tầng pending có step thật không hiện tiến độ giả và không chiếm tầng đang xem', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const waiting = uploads[0]!;
+    // Máy chủ đã ghi sẵn `step` của một bước thật trong khi lượt còn xếp hàng.
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 2, { status: 'pending' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(mounted.result.current.floors.map((floor) => floor.isActive)).toEqual([false, true]);
+    expect(mounted.result.current.floors[0]?.status).toBe('queued');
+    expect(latestSource().url).toContain(uploads[1]!.uploadId);
+    mounted.unmount();
+  });
+
+  it('NO-364: một tầng duy nhất đang pending có step thật thì sáu bước vẫn 0%', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const waiting = uploads[0]!;
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 2, { status: 'pending' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(doneStepCount(mounted.result.current)).toBe(0);
+    expect(percentSnapshot(mounted.result.current).every((percent) => percent === 0)).toBe(true);
+    expect(mounted.result.current.steps.some((step) => step.status === 'running')).toBe(false);
+    mounted.unmount();
+  });
+
+  it('NO-364: lượt mới (pending) trên upload đang xem đưa tiến độ về 0, không giữ bước của lượt cũ', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(upload.uploadId, 3));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    expect(doneStepCount(mounted.result.current)).toBe(3);
+
+    await act(async () => {
+      latestSource().triggerMessage(progressAt(upload.uploadId, 0, { status: 'pending' }));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(doneStepCount(mounted.result.current)).toBe(0);
+    expect(percentSnapshot(mounted.result.current).every((percent) => percent === 0)).toBe(true);
     mounted.unmount();
   });
 });

@@ -26,6 +26,7 @@ import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
+import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { renderWithProviders } from '@/lib/testing/render';
 import {
@@ -384,5 +385,29 @@ describe('PipelineGraph — nghiệm thu', () => {
     for (const forbidden of ['d3', 'reactflow', 'cytoscape', 'vis-network', 'dagre', 'elkjs']) {
       expect(names).not.toContain(forbidden);
     }
+  });
+});
+
+describe('PipelineGraph — giả định C3 dùng chung với màn Xử lý (NO-364)', () => {
+  it('lượt còn pending có step thật thì không bước nào hiện xong hay đang chạy', async () => {
+    const base = createMockApiClient();
+    const client = {
+      ...base,
+      drawings: {
+        ...base.drawings,
+        progress: () =>
+          Promise.resolve({
+            ok: true as const,
+            data: { id: 'upload-1', progressPercent: 0, status: 'pending' as const, step: getPipelineStages()[2]!.id },
+          }),
+      },
+    };
+    const gateway = createPipelineGraphGateway(createProcessingGateway(client));
+
+    const run = await gateway.readRunOnce({ projectId: 'project-1', uploadId: 'upload-1' });
+
+    expect(run.supported && run.value.length).toBe(getPipelineStages().length);
+    expect(run.supported ? run.value.map((stage) => stage.status) : []).not.toContain('running');
+    expect(run.supported ? run.value.map((stage) => stage.status) : []).not.toContain('done');
   });
 });

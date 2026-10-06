@@ -11,6 +11,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { Progress } from '@/api/schemas';
 import type { HttpClient, HttpError, Result } from '@/lib/http';
+import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 
 import {
@@ -18,6 +19,7 @@ import {
   OTHER_FLOOR_POLL_INTERVAL_MS,
   PENDING_POLL_INTERVAL_MS,
   SSE_SILENCE_PROBE_MS,
+  toStageBreakdown,
   type ProcessingFailure,
   type ProcessingProgressSnapshot,
 } from './processingGateway';
@@ -395,5 +397,29 @@ describe('processingGateway', () => {
       await clock.advance(60_000);
       expect(calls()).toBe(1);
     });
+  });
+});
+
+describe('toStageBreakdown — lượt pending (NO-364)', () => {
+  const stages = getPipelineStages();
+
+  it('lượt mới (start_run) trên upload cũ: bỏ bước đã xong của lượt trước, sáu bước về hàng đợi', () => {
+    const previous = [
+      { id: stages[0]!.id, status: 'done' as const, startedAtMs: 1_000, finishedAtMs: 2_000 },
+      { id: stages[1]!.id, status: 'running' as const, startedAtMs: 2_000 },
+    ];
+
+    const result = toStageBreakdown({ status: 'pending', step: stages[0]!.id }, previous, 3_000);
+
+    expect(result).toEqual({
+      supported: true,
+      value: stages.map((stage) => ({ id: stage.id, status: 'queued' })),
+    });
+  });
+
+  it('step không tra được vẫn là sáu bước chờ, không rơi vào unsupported', () => {
+    const result = toStageBreakdown({ status: 'pending', step: 'queued' }, [], 0);
+
+    expect(result.supported && result.value.every((stage) => stage.status === 'queued')).toBe(true);
   });
 });
