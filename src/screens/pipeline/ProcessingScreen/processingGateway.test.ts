@@ -301,6 +301,17 @@ describe('processingGateway', () => {
       expect(calls()).toBe(2);
     });
 
+    it('arms the silence timer on open when the seeded #8 status is running', async () => {
+      const { client, calls } = scriptedClient();
+      gatewayFor(client).subscribeProgress({ ...INPUT, status: 'running' }, recorder().handlers);
+      latestSource().triggerOpen();
+
+      await clock.advance(SSE_SILENCE_PROBE_MS - 1_000);
+      expect(calls()).toBe(0);
+      await clock.advance(1_000);
+      expect(calls()).toBe(1);
+    });
+
     it('closes the stream when the probe answers 404', async () => {
       const { calls, queue, log } = openRunning();
       queue(wireError(404, 'NOT_FOUND'));
@@ -360,6 +371,20 @@ describe('processingGateway', () => {
       expect(calls()).toBe(3);
       await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS);
       expect(calls()).toBe(4);
+    });
+
+    it('emits an unchanged read after a failed one, so the transient failure clears', async () => {
+      const { client, queue } = scriptedClient();
+      const log = recorder();
+      queue({ ok: true, data: progress() });
+      queue({ ok: false, error: { kind: 'network', requestId: 'r', retryable: true, raw: null } });
+      queue({ ok: true, data: progress() });
+      gatewayFor(client).pollProgress(INPUT, log.handlers);
+
+      await clock.flushMicrotasks();
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 2);
+      expect(log.failures).toHaveLength(1);
+      expect(log.snapshots).toHaveLength(2);
     });
 
     it('stop() ends polling', async () => {

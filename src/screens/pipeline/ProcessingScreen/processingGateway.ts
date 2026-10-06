@@ -277,12 +277,14 @@ export interface SubscribeProgressInput {
   readonly projectId: string;
   readonly uploadId: string;
   readonly floorId: string;
-}
-
-export interface PollProgressInput extends SubscribeProgressInput {
-  /** Trạng thái đã biết, để chọn nhịp hỏi đầu tiên (`pending` → 30 s). */
+  /**
+   * Trạng thái đã biết từ #8 mồi. Hỏi: chọn nhịp đầu (`pending` → 30 s). SSE:
+   * `running` thì hẹn im lặng ngay khi luồng mở, không chờ nhịp đầu tiên.
+   */
   readonly status?: Progress['status'];
 }
+
+export type PollProgressInput = SubscribeProgressInput;
 
 export interface SubscribeProgressHandlers {
   readonly onSnapshot: (snapshot: ProcessingProgressSnapshot) => void;
@@ -694,6 +696,8 @@ function createProgressReader(
       });
 
       if (!result.ok) {
+        // Lượt đọc kế tiếp phải được phát dù trùng nội dung: nó xoá lỗi tạm này.
+        lastContentKey = '';
         const failure = toFailure(result.error);
         handlers.onFailure?.(failure);
 
@@ -764,7 +768,7 @@ export function createProcessingGateway(
       const { floorId, uploadId } = input;
       let closed = false;
       let isSse = true;
-      let lastStatus: Progress['status'] | undefined;
+      let lastStatus = input.status;
       let silenceTimer: ReturnType<ChannelClock['setTimeout']> | null = null;
       let stream: { close(): void } | null = null;
 

@@ -327,7 +327,7 @@ interface FloorProgressRecord {
   readonly connectionStatus: ChannelStatus;
   /** `Progress.step` mà `toStageBreakdown` không tra được. Không đoán bừa. */
   readonly unmappedStep?: string;
-  /** Lỗi mạng / lỗi hợp đồng của RIÊNG tầng này. */
+  /** Lỗi đọc của RIÊNG tầng này. Nhịp đọc được kế tiếp xoá nó, trừ 404/403 (`isTerminal`). */
   readonly failure?: ProcessingFailure;
   readonly queuePosition?: number;
   readonly stepDetails?: readonly ProcessingRawStepProgress[];
@@ -405,8 +405,12 @@ function applySnapshot(
     text: logTextOf(progress),
   };
 
+  // Một nhịp đọc được xoá lỗi đọc tạm (503, mất mạng); chỉ 404/403 là vĩnh viễn.
+  const { failure, ...rest } = record;
+
   return {
-    ...record,
+    ...rest,
+    ...(failure?.isTerminal === true ? { failure } : {}),
     stages,
     totalPercent,
     remainingSeconds: estimateRemainingSeconds({ stages, highestProgressReached: totalPercent }),
@@ -417,13 +421,13 @@ function applySnapshot(
   };
 }
 
-/** Trạng thái chung của một tầng, suy từ sáu bước của nó. */
-function floorStatusOf(record: FloorProgressRecord): ProcessingStageStatus {
+/** Trạng thái của lượt theo máy chủ — sáu bước, KHÔNG xét lỗi đọc (có thể chỉ tạm). */
+function runStatusOf(record: FloorProgressRecord): ProcessingStageStatus {
   if (isReloadProgress(record.progress)) {
     return 'queued';
   }
 
-  if (record.failure !== undefined || record.stages.some((stage) => stage.status === 'failed')) {
+  if (record.stages.some((stage) => stage.status === 'failed')) {
     return 'failed';
   }
 
@@ -436,6 +440,20 @@ function floorStatusOf(record: FloorProgressRecord): ProcessingStageStatus {
   }
 
   return 'queued';
+}
+
+/** Trạng thái chip: lượt theo máy chủ, cộng lỗi đọc đang còn của riêng tầng này. */
+const floorStatusOf = (record: FloorProgressRecord): ProcessingStageStatus =>
+  record.failure !== undefined && !isReloadProgress(record.progress) ? 'failed' : runStatusOf(record);
+
+/** Lượt đã cuối theo `progress.status` và sáu bước — cổng S-11 và chọn tầng đang xem. */
+function isRunFinal(record: FloorProgressRecord): boolean {
+  const status = runStatusOf(record);
+  return (
+    status === 'done' ||
+    status === 'failed' ||
+    (!isReloadProgress(record.progress) && isFinalStatus(record.progress?.status))
+  );
 }
 
 const STATUS_LABELS: Readonly<Record<ProcessingStageStatus, string>> = {
@@ -544,6 +562,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const reloadedRef = useRef(new Set<string>());
   const layerInvalidatedRef = useRef(new Set<string>());
   const seenUploadRef = useRef(new Map<string, string>());
+  // Upload đã giao sổ nền khi đang nghe SSE: luồng đó vẫn mở sau khi rời `Map`.
+  const backgroundSseRef = useRef(new Set<string>());
 
   // Nơi mở màn truyền danh sách thì dùng nó (test, story); không truyền — đường
   // của route — thì đọc N7. Trước đây vắng là rỗng, nên màn luôn `empty` dù dự án
@@ -690,7 +710,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     .map((status, index) => (status === 'failed' ? index : -1))
     .filter((index) => index >= 0);
   const doneCount = floorStatuses.filter((status) => status === 'done').length;
-  const activeIndex = floorStatuses.findIndex((status) => status === 'running');
+  // Lỗi đọc tạm không đẩy tầng đang xem sang tầng khác (không mở luồng thứ hai).
+  const activeIndex = records.findIndex((record) => runStatusOf(record) === 'running');
 
   const state = useMemo<ProcessingScreenState>(() => {
     if (isLoading) return 'loading';
@@ -804,6 +825,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
 
       // Giao hẳn cho sổ: tháo màn không còn dừng nó.
       subscriptionsRef.current.delete(upload.uploadId);
+      if (subscription.mode === 'sse') backgroundSseRef.current.add(upload.uploadId);
       const release = subscription.stop;
 
       return [
@@ -885,6 +907,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   /* Đăng ký — tầng đang xem nghe SSE, tầng khác hỏi #8, tầng cuối thì không. */
   /* ---------------------------------------------------------------------- */
 
+  // Chừng nào luồng SSE trong sổ nền còn sống, không tầng nào khác được SSE (trần một luồng).
+  const isBackgroundStreamOpen = [...backgroundSseRef.current].some(
+    (uploadId) =>
+      gateway.backgroundWatches.has(watchIdOf(projectId, uploadId)) &&
+      !isFinalStatus(records.find((record) => record.uploadId === uploadId)?.progress?.status),
+  );
+
   const desiredModes = floorUploads.map((upload, index): SubscriptionMode => {
     const query = floorQueries[index];
     const record = records[index];
@@ -893,7 +922,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     // Chưa có #8 mồi: chưa biết tầng đã cuối hay chưa.
     if (query?.data === undefined || record === undefined) return 'none';
     if (isFinalStatus(record.progress?.status) || record.failure?.isTerminal === true) return 'none';
-    return index === focusIndex ? 'sse' : 'poll';
+    return index === focusIndex && !isBackgroundStreamOpen ? 'sse' : 'poll';
   });
   const modesKey = floorUploads
     .map((upload, index) => `${upload.uploadId}:${desiredModes[index] ?? 'none'}`)
@@ -991,12 +1020,17 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         return;
       }
 
-      const input = { floorId: upload.floorId, projectId, uploadId: upload.uploadId };
       const status = record?.progress?.status;
+      const input = {
+        floorId: upload.floorId,
+        projectId,
+        uploadId: upload.uploadId,
+        ...(status !== undefined ? { status } : {}),
+      };
       const stop =
         mode === 'sse'
           ? gateway.subscribeProgress(input, handlersFor(upload))
-          : gateway.pollProgress({ ...input, ...(status !== undefined ? { status } : {}) }, handlersFor(upload));
+          : gateway.pollProgress(input, handlersFor(upload));
 
       subscriptions.set(upload.uploadId, { mode, stop });
     });
@@ -1227,7 +1261,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   // có `record.failure` (đó là lỗi đọc, đi ra qua `errorAlert` như cũ).
   // Lượt bị thay (`reload`) không phải bước hỏng. S-11 chỉ gắn khi MỌI tầng đã
   // cuối; còn tầng chạy thì giữ `partial` và bước hỏng hiện ở `steps[]`.
-  const isEveryFloorFinal = floorStatuses.every((status) => status === 'done' || status === 'failed');
+  const isEveryFloorFinal = records.every(isRunFinal);
   const failedIndex = records.findIndex(
     (record) => !isReloadProgress(record.progress) && record.stages.some((s) => s.status === 'failed'),
   );

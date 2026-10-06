@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import type { Progress } from '@/api/schemas';
+import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import {
   createBackgroundWatchRegistry,
@@ -33,7 +34,11 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 
-import { createProcessingGateway, OTHER_FLOOR_POLL_INTERVAL_MS } from './processingGateway';
+import {
+  createProcessingGateway,
+  OTHER_FLOOR_POLL_INTERVAL_MS,
+  SSE_SILENCE_PROBE_MS,
+} from './processingGateway';
 import {
   useProcessingScreen,
   type ProcessingFloorUpload,
@@ -176,7 +181,8 @@ interface Harness {
   readonly progressCalls: () => number;
   /** Số lượt #8 của riêng một upload (gồm cả lượt mồi). */
   readonly callsFor: (uploadId: string) => number;
-  readonly queue: (uploadId: string, progress: Progress) => void;
+  /** Một `HttpError` trong hàng đợi là đúng một lượt #8 hỏng; lượt sau đọc tiếp hàng đợi. */
+  readonly queue: (uploadId: string, progress: Progress | HttpError) => void;
   /** N7: câu trả lời kế tiếp; `pending` thì treo mãi. */
   readonly setLatest: (answer: ApiResult<LatestFloorUpload[]> | 'pending') => void;
   readonly latestCalls: () => number;
@@ -188,7 +194,7 @@ interface Harness {
  */
 function makeScriptedClient(): Harness {
   const base = createMockApiClient();
-  const queues = new Map<string, Progress[]>();
+  const queues = new Map<string, (Progress | HttpError)[]>();
   const latest = new Map<string, Progress>();
   const callsByUpload = new Map<string, number>();
   let calls = 0;
@@ -207,6 +213,10 @@ function makeScriptedClient(): Harness {
         calls += 1;
         callsByUpload.set(uploadId, (callsByUpload.get(uploadId) ?? 0) + 1);
         const queued = queues.get(uploadId)?.shift();
+
+        if (queued !== undefined && 'kind' in queued) {
+          return { ok: false, error: queued };
+        }
 
         if (queued !== undefined) {
           latest.set(uploadId, queued);
@@ -1043,5 +1053,83 @@ describe('useProcessingScreen', () => {
 
     const keys = spy.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey));
     expect(keys).toEqual([JSON.stringify(queryKeys.layer.byFloor(PROJECT_ID, 'L1'))]);
+  });
+  /* ---------------------------------------------------------------------- */
+  /* Vòng sửa 1 — lỗi #8 tạm không làm tầng hỏng vĩnh viễn; một luồng.         */
+  /* ---------------------------------------------------------------------- */
+
+  const UNAVAILABLE: HttpError = {
+    code: 'SERVICE_UNAVAILABLE',
+    kind: 'http',
+    raw: { code: 'SERVICE_UNAVAILABLE' },
+    requestId: 'r-503',
+    retryable: true,
+    status: 503,
+  };
+  const OFFLINE: HttpError = { kind: 'network', requestId: 'r-net', retryable: true, raw: null };
+
+  it('#8 của tầng hỏi trả 503 một lần rồi running: không S-11, chip không lỗi', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 3);
+    const [broken, streamed, polled] = [uploads[0]!, uploads[1]!, uploads[2]!];
+    harness.queue(broken.uploadId, progressAt(broken.uploadId, 1, { status: 'failed', error: 'FILE_CORRUPT' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    expect(latestSource().url).toContain(streamed.uploadId);
+
+    harness.queue(polled.uploadId, UNAVAILABLE);
+    harness.queue(polled.uploadId, progressAt(polled.uploadId, 2, { progressPercent: 50 }));
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 2);
+    });
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(streamed.uploadId));
+      await clock.advance(0);
+    });
+    await settle(clock);
+
+    const props = mounted.result.current;
+    expect(props.floors.map((floor) => floor.status)).toEqual(['failed', 'done', 'running']);
+    expect(props.failedPipelineStep).toBeUndefined();
+    expect(props.partialNoticeLine).not.toContain(polled.floorName);
+    mounted.unmount();
+  });
+
+  it('tầng đang xem đã giao sổ nền, lượt dò 120 s lỗi mạng: vẫn đúng 1 EventSource', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [focused, waiting] = [uploads[0]!, uploads[1]!];
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 0, { status: 'pending' }));
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications: createNotificationBus(),
+    });
+    await settle(clock);
+    expect(latestSource().url).toContain(focused.uploadId);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(focused.uploadId, 1));
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    expect(backgroundWatches.has(`${PROJECT_ID}:${focused.uploadId}`)).toBe(true);
+    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(false);
+
+    harness.queue(focused.uploadId, OFFLINE);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    // Lỗi dò ghi vào đệm; lượt render kế tiếp (nhịp của tầng khác) mới đọc nó.
+    mounted.rerender();
+    await settle(clock);
+
+    expect(openSources()).toHaveLength(1);
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(mounted.result.current.floors[0]?.isActive).toBe(true);
+    backgroundWatches.releaseAll();
+    mounted.unmount();
   });
 });

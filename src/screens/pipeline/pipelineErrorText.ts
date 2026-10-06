@@ -12,6 +12,40 @@ import { APP_ERROR_KIND_CONFIG } from '@/lib/errors/kinds';
 /** Việc nên làm tiếp với một lượt hỏng. */
 export type PipelineErrorAction = 'reupload' | 'retry' | 'contactAdmin' | 'reload';
 
+/** Đúng 28 mã của bảng BE-cho-FE §3.1, theo thứ tự bốn nhóm hành động. */
+export const PIPELINE_ERROR_CODES = [
+  'PIPELINE_SUPERSEDED',
+  'FLOOR_DELETED',
+  'PIPELINE_STALLED',
+  'PIPELINE_STEP_TIMEOUT',
+  'PIPELINE_ARTIFACT_MISSING',
+  'GPU_LOCK_LOST',
+  'RETRY_EXHAUSTED',
+  'TASK_TIMEOUT',
+  'WORKER_LOST',
+  'FILE_CORRUPT',
+  'IMAGE_TOO_LARGE',
+  'PDF_UNREADABLE',
+  'FILE_TYPE_MISMATCH',
+  'VALIDATION',
+  'CAD_NOT_SUPPORTED',
+  'PIPELINE_ARTIFACT_INVALID',
+  'PIPELINE_BUILD_INVALID',
+  'MODEL_PIN_MISMATCH',
+  'PIPELINE_RESULT_INVALID',
+  'LAYER_INTEGRITY_BROKEN',
+  'LAYER_LEVEL_MISMATCH',
+  'REVIEW_BY_AI_FORBIDDEN',
+  'MODEL_CHECKSUM_MISMATCH',
+  'MODEL_FORMAT_UNSUPPORTED',
+  'MODEL_NOT_FOUND',
+  'MODEL_VERSION_FAMILY_MISMATCH',
+  'ML_DEVICE_UNAVAILABLE',
+  'INTERNAL',
+] as const;
+
+type PipelineErrorCode = (typeof PIPELINE_ERROR_CODES)[number];
+
 const TABLE = {
   // reload — lượt này đã bị thay; đọc lại N7, không màn lỗi.
   PIPELINE_SUPERSEDED: ['reload', 'Lượt xử lý này đã được thay bằng một lượt mới hơn.'],
@@ -45,12 +79,7 @@ const TABLE = {
   MODEL_VERSION_FAMILY_MISMATCH: ['contactAdmin', 'Phiên bản mô hình không thuộc đúng dòng mô hình.'],
   ML_DEVICE_UNAVAILABLE: ['contactAdmin', 'Hệ thống không có thiết bị xử lý mô hình sẵn sàng.'],
   INTERNAL: ['contactAdmin', 'Hệ thống gặp lỗi nội bộ khi xử lý.'],
-} as const satisfies Readonly<Record<string, readonly [PipelineErrorAction, string]>>;
-
-type PipelineErrorCode = keyof typeof TABLE;
-
-/** Đúng 28 mã của bảng BE-cho-FE §3.1. */
-export const PIPELINE_ERROR_CODES = Object.keys(TABLE) as readonly PipelineErrorCode[];
+} as const satisfies Readonly<Record<PipelineErrorCode, readonly [PipelineErrorAction, string]>>;
 
 const FALLBACK_SENTENCE = 'Bước xử lý gặp lỗi mà hệ thống chưa phân loại được.';
 
