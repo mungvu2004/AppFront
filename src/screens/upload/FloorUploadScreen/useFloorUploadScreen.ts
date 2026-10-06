@@ -217,9 +217,18 @@ interface Attachment {
   readonly status: FloorUploadStatus;
   readonly percent: number;
   readonly problem: FloorUploadInlineError | null;
+  /**
+   * Đã gán tầng nhưng chọn lúc ngoại tuyến: chờ mạng về để tự tải (NO-389).
+   * `File` chỉ sống trong bộ nhớ của màn — tải lại trang là mất, nên câu báo
+   * nói rõ điều đó.
+   */
+  readonly awaitingNetwork: boolean;
 }
 
 const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
+const AWAIT_NETWORK_KEY = 'floorUpload.notices.awaitNetwork';
+const AWAIT_NETWORK_SENTENCE =
+  'Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp';
 
 /** Trang PDF người dùng chọn (đếm từ 1) thành `pageIndex` (đếm từ 0); vắng thì `undefined`. */
 function pageIndexOf(attachment: Attachment): number | undefined {
@@ -517,7 +526,13 @@ export function useFloorUploadScreen(
         sizeBytes: attachment.file.size,
         ...(pageIndex !== undefined ? { pageIndex } : {}),
       });
-      patchAttachment(attachment.id, { status: 'waiting', percent: 0, problem: null });
+      patchAttachment(attachment.id, {
+        status: 'waiting',
+        percent: 0,
+        problem: null,
+        awaitingNetwork: true,
+      });
+      getAppAnnouncer().announce(AWAIT_NETWORK_SENTENCE);
       return;
     }
 
@@ -533,12 +548,35 @@ export function useFloorUploadScreen(
     });
 
     tasksRef.current.set(attachment.id, task);
-    patchAttachment(attachment.id, { status: 'uploading', percent: 0, problem: null });
+    patchAttachment(attachment.id, {
+      status: 'uploading',
+      percent: 0,
+      problem: null,
+      awaitingNetwork: false,
+    });
 
     void task.start().then((finalState) => {
       applyTaskState(attachment.id, floorId, finalState);
     });
   };
+
+  // Mạng về: tải các tệp đã chọn (hoặc bấm "Thử lại") lúc ngoại tuyến — màn
+  // còn giữ `File`, hàng đợi ngoại tuyến thì không (NO-389). Ref giữ bản
+  // `startUpload` của lượt vẽ mới nhất; effect chỉ chạy khi `isOnline` đổi.
+  const resumeAwaitingRef = useRef<() => void>(() => undefined);
+  resumeAwaitingRef.current = () => {
+    for (const attachment of attachments) {
+      if (attachment.awaitingNetwork && attachment.floorId !== null) {
+        startUpload(attachment, attachment.floorId);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isOnline) {
+      resumeAwaitingRef.current();
+    }
+  }, [isOnline]);
 
   /* ---------------------------------------------------------------------- */
   /* Nhận tệp.                                                               */
@@ -578,6 +616,7 @@ export function useFloorUploadScreen(
         status: 'waiting',
         percent: 0,
         problem: null,
+        awaitingNetwork: false,
       },
     ]);
 
@@ -653,6 +692,7 @@ export function useFloorUploadScreen(
       status: 'waiting',
       percent: 0,
       problem: null,
+      awaitingNetwork: false,
     });
 
     if (floorId !== null) {
@@ -700,7 +740,9 @@ export function useFloorUploadScreen(
             : [...previous, removed],
         );
 
-        if (removed.status === 'uploading' && removed.floorId !== null) {
+        // Tệp đang chờ mạng cũng phải chạy lại: mạng có thể đã về trong lúc
+        // nó bị xoá, và effect tải lại chỉ chạy khi mạng ĐỔI (NO-389).
+        if ((removed.status === 'uploading' || removed.awaitingNetwork) && removed.floorId !== null) {
           startUpload(removed, removed.floorId);
         }
       },
@@ -961,6 +1003,7 @@ export function useFloorUploadScreen(
   };
 
   const doneCount = rows.filter((row) => row.status === 'attached').length;
+  const isAwaitingNetwork = attachments.some((attachment) => attachment.awaitingNetwork);
 
   const footer: FloorUploadFooterModel = {
     doneCount,
@@ -1019,8 +1062,9 @@ export function useFloorUploadScreen(
     isOffline: !isOnline,
     isDragActive: canEdit && dragDepth > 0,
     errorMessage: state === 'error' ? loadFailure : null,
-    offlineNotice: isOnline ? null : COPY.offline,
-    offlineNoticeKey: COPY.offlineKey,
+    // Có tệp đang chờ mạng thì nói rõ nó sẽ tự tải, và giới hạn của lời hứa ấy (NO-389).
+    offlineNotice: isOnline ? null : isAwaitingNetwork ? AWAIT_NETWORK_SENTENCE : COPY.offline,
+    offlineNoticeKey: isAwaitingNetwork ? AWAIT_NETWORK_KEY : COPY.offlineKey,
     readOnlyNotice: canEdit ? null : COPY.readOnly,
     readOnlyNoticeKey: COPY.readOnlyKey,
     emptyMessage: COPY.empty,
@@ -1091,5 +1135,6 @@ function emptyAttachment(id: string, file: File): Attachment {
     status: 'waiting',
     percent: 0,
     problem: null,
+    awaitingNetwork: false,
   };
 }

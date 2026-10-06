@@ -530,6 +530,119 @@ describe('useFloorUploadScreen — một lượt tải', () => {
     expect(harness.uploads.size).toBe(0);
     expect(result.current.floors[3]?.status).toBe('waiting');
   });
+
+  it('tệp chọn lúc ngoại tuyến tự tải khi mạng về, trong phiên đang mở (NO-389)', async () => {
+    const harness = createHarness({ enqueueOffline: vi.fn(async () => true) }, false);
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('waiting');
+    });
+    expect(harness.uploads.size).toBe(0);
+    await waitFor(() => {
+      expect(result.current.offlineNotice).toContain('tự tải lên khi có mạng trở lại');
+    });
+    expect(result.current.offlineNotice).toContain('cần chọn lại tệp');
+
+    act(() => {
+      harness.setOnline(true);
+    });
+
+    await waitFor(() => {
+      expect(harness.uploads.size).toBe(1);
+    });
+
+    act(() => {
+      [...harness.uploads.values()][0]?.finish({ percent: 100, status: 'done' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('attached');
+    });
+  });
+
+  it('"Thử lại" lúc ngoại tuyến không bỏ rơi tệp: mạng về thì tự tải lại (NO-389)', async () => {
+    const created = vi.fn();
+    const fake = createHarness();
+    const harness = createHarness({
+      enqueueOffline: vi.fn(async () => true),
+      createUpload: (input) => {
+        created(input.file.name);
+        return fake.gateway.createUpload(input);
+      },
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+    });
+
+    await waitFor(() => {
+      expect(fake.uploads.size).toBe(1);
+    });
+
+    act(() => {
+      [...fake.uploads.values()][0]?.finish({
+        status: 'failed',
+        failure: {
+          stage: 'chunk',
+          chunkIndex: 0,
+          attempts: 3,
+          terminal: false,
+          error: {
+            kind: 'network',
+            code: 'NETWORK',
+            messageKey: 'errors.network.description',
+            params: {},
+            requestId: 'r-1',
+            retryable: true,
+            severity: 'lỗi',
+            recovery: 'thử lại',
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.canRetryUpload).toBe(true);
+    });
+
+    act(() => {
+      harness.setOnline(false);
+    });
+
+    const fileId = result.current.floors[3]?.file?.id ?? '';
+
+    act(() => {
+      result.current.onRetryUpload(fileId);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('waiting');
+    });
+    expect(created).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      harness.setOnline(true);
+    });
+
+    await waitFor(() => {
+      expect(created).toHaveBeenCalledTimes(2);
+    });
+    expect(result.current.floors[3]?.status).toBe('uploading');
+  });
 });
 
 /* -------------------------------------------------------------------------- */

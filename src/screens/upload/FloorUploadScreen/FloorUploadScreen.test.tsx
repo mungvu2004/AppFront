@@ -644,6 +644,47 @@ describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đ�
     expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
     expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
   });
+
+  it('tệp chọn lúc ngoại tuyến thật tự tải khi mạng về, bộ đếm lên 2 / 4 (NO-389)', async () => {
+    let reachable = false;
+    const monitor = createNetworkMonitor({
+      navigatorObject: { onLine: true },
+      ping: async () => reachable,
+    });
+    const gateway = createFloorUploadGateway(createMockApiClient(), { networkMonitor: monitor });
+
+    renderWithProviders(<FloorUploadScreenContainer gateway={gateway} projectId={PROJECT_ID} />);
+
+    await act(async () => {
+      await clock.advance(SETTLE_STEP_MS);
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    const file = new File(['x'], 'mat-bang-tang-2.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId(FILE_INPUT_TEST_ID), { target: { files: [file] } });
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Chờ xử lý');
+    expect(counterStatusText()).toBe('1 / 4 tầng đã có bản vẽ');
+
+    reachable = true;
+
+    await act(async () => {
+      await monitor.checkNow();
+    });
+
+    for (let elapsed = 0; elapsed < MEASURE_WINDOW_MS; elapsed += SETTLE_STEP_MS * 10) {
+      await act(async () => {
+        await clock.advance(SETTLE_STEP_MS * 10);
+      });
+    }
+
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
+    expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -703,7 +744,9 @@ function counterNumberText(): string {
 
 /** Chuỗi vùng sống: luôn phải là giá trị CUỐI, không phải khung giữa chừng. */
 function counterStatusText(): string {
-  return screen.getByRole('status').textContent ?? '';
+  // Lọc theo chữ: bộ thông báo toàn cục (`data-announcer`) cũng là `role="status"`
+  // và sống qua các bài, nên một câu báo của bài trước không được làm lệch bài này.
+  return screen.getByText(/tầng đã có bản vẽ$/u, { selector: '[role="status"]' }).textContent ?? '';
 }
 
 /** Bắt `matchMedia` trả lời "có, tôi muốn giảm chuyển động". */
