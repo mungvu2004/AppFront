@@ -20,6 +20,7 @@ import {
   CONFLICT_TITLE,
   createVersionHistoryGateway,
   UNDO_EXPIRED_NOTICE,
+  UNDO_USED_NOTICE,
   VERSION_PAGE_LIMIT,
 } from './versionHistoryGateway';
 
@@ -269,6 +270,20 @@ describe('hoàn tác và nhãn', () => {
     expect(outcome).toEqual({ kind: 'conflict', conflict: UNDO_EXPIRED_NOTICE });
     expect(UNDO_EXPIRED_NOTICE.actorName).toBe('Đã hết thời gian hoàn tác');
     expect(callsTo(server, 'POST', '/restore')).toHaveLength(1);
+  });
+
+  it('bấm "Hoàn tác" hai lần → lượt hai không gửi N19, câu "đã được hoàn tác", không "hết thời gian"', async () => {
+    const server = createVersionsServerFake(5);
+    const gateway = gatewayOn(server);
+    const ticket = (await gateway.restore(WIRE_VERSION_IDS.v2, 5)).undoTicket;
+
+    if (ticket === undefined) throw new Error('thiếu phiếu');
+
+    const [first, second] = await Promise.all([gateway.revertRestore(ticket), gateway.revertRestore(ticket)]);
+
+    expect(first).toMatchObject({ kind: 'restored' });
+    expect(second).toEqual({ kind: 'conflict', conflict: UNDO_USED_NOTICE });
+    expect(callsTo(server, 'POST', '/restore')).toHaveLength(2);
   });
 
   it('undoRestore cũ: chạy hoàn tác rồi trả trang đầu', async () => {

@@ -40,9 +40,13 @@ export const SNAPSHOT_LOADING_SENTENCE = 'Đang nạp nội dung phiên bản…
 export const NOT_ENOUGH_CONTENT_SENTENCE =
   'Chưa có đủ hai phiên bản còn nội dung để so sánh — các bản còn lại chỉ còn siêu dữ liệu';
 
+/** Lượt so lọt qua được khi chưa đủ hai bản thì phải nói ra, không im lặng trả rỗng. */
+export const NO_COMPARE_PAIR_REASON = 'Chưa chọn đủ hai phiên bản để so sánh';
+
 /**
  * Câu thay cho vùng so sánh, hoặc `null` khi so được. Thứ tự: đang nạp → chỉ một bản → chưa đủ
- * hai bản đầy đủ. Không có câu này thì `diff === null` đọc thành "Không có khác biệt".
+ * hai bản đầy đủ → cặp thiếu một bên (bỏ tick). `null` CHỈ khi có diff: `diff === null` không bao
+ * giờ được đọc thành "Không có khác biệt".
  */
 export function compareSentenceOf(input: {
   readonly hasDiff: boolean;
@@ -53,12 +57,10 @@ export function compareSentenceOf(input: {
   if (!input.hasDiff && input.isLoading) return SNAPSHOT_LOADING_SENTENCE;
   if (input.versionCount <= 1) return TEACHING_SENTENCE;
   if (input.fullCount < 2) return NOT_ENOUGH_CONTENT_SENTENCE;
+  if (!input.hasDiff) return NO_COMPARE_PAIR_REASON;
 
   return null;
 }
-
-/** Lượt so lọt qua được khi chưa đủ hai bản thì phải nói ra, không im lặng trả rỗng. */
-export const NO_COMPARE_PAIR_REASON = 'Chưa chọn đủ hai phiên bản để so sánh';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Cặp                                                                    */

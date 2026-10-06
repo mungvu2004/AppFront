@@ -125,6 +125,14 @@ export const UNDO_EXPIRED_NOTICE: ConflictNoticeModel = {
   dismissLabel: 'Tải lại',
 };
 
+/** Phiếu đã dùng (bấm "Hoàn tác" hai lần) — lượt đầu đã hoàn tác, không phải hết giờ. */
+export const UNDO_USED_NOTICE: ConflictNoticeModel = {
+  actorName: 'Lượt phục hồi đã được hoàn tác',
+  message: 'Bạn đã hoàn tác lượt phục hồi này rồi. Tải lại để xem bản mới nhất của tầng.',
+  detail: null,
+  dismissLabel: 'Tải lại',
+};
+
 /**
  * N19 hỏng thành `conflict` khi đúng là xung đột (409, 422 `field:"baseVersion"`); không thì
  * `null` và nơi gọi ném lỗi gốc.
@@ -262,13 +270,17 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
   /**
    * Hoàn tác = N19 ngược: đích là bản có `sequence` lớn nhất nhỏ hơn bản "sau", `baseVersion`
    * là `floorRevision` mà N19 vừa trả. Không thấy đích → không gửi, `conflict`; phiếu hết hạn →
-   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}.
+   * `conflict` với câu riêng {@link UNDO_EXPIRED_NOTICE}; phiếu đã dùng → {@link UNDO_USED_NOTICE}.
    */
   const revertRestore = async (ticket: UndoTicket): Promise<RestoreOutcome> => {
     const receipt = receipts.get(ticket);
 
     if (receipt === undefined) {
       return { kind: 'conflict', conflict: toConflictNotice(null) };
+    }
+
+    if (ticket.getStatus() === 'used') {
+      return { kind: 'conflict', conflict: UNDO_USED_NOTICE };
     }
 
     if (!ticket.undo().ok) {

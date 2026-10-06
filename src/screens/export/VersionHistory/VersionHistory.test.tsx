@@ -73,7 +73,7 @@ import { useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
 import { VersionHistoryRoute } from './VersionHistory.container';
-import { NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
+import { NO_COMPARE_PAIR_REASON, NOT_ENOUGH_CONTENT_SENTENCE, SNAPSHOT_LOADING_SENTENCE } from './versionHistoryCompare';
 import { CONFLICT_TITLE, createVersionHistoryGateway, VERSION_LIST_FAILED_REASON } from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
 
@@ -875,6 +875,38 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       expect(result.current[0].compare.teachingSentence).not.toBe(SNAPSHOT_LOADING_SENTENCE);
     });
     expect(result.current[0].compare.teachingSentence).toBe(NOT_ENOUGH_CONTENT_SENTENCE);
+  });
+
+  it('bỏ tick một bản → câu "chưa chọn đủ", không "giống nhau"', async () => {
+    const server = createVersionsServerFake();
+
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].compare.teachingSentence).toBeNull();
+    });
+
+    const left = result.current[0].compare.leftVersionId;
+
+    if (left === null) throw new Error('thiếu bản trái');
+    act(() => {
+      result.current[1].toggleCompareSelection(left);
+    });
+
+    expect(result.current[0].compare.leftVersionId).toBeNull();
+    expect(result.current[0].compare.teachingSentence).toBe(NO_COMPARE_PAIR_REASON);
+
+    const [model, actions] = result.current;
+
+    renderWithProviders(<VersionHistory model={model} actions={actions} />);
+    expect(document.body.textContent).not.toContain('Không có khác biệt');
   });
 
   it.each([
