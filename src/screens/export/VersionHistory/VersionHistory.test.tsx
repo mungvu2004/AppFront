@@ -396,7 +396,9 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
 
     expect(external).toHaveLength(1);
     expect(external[0]?.[0]).toBe(WIRE_FLOOR_ID);
-    expect(Object.keys(external[0]?.[1] ?? {}).sort()).toEqual(['layer', 'revision']);
+    expect(Object.keys(external[0]?.[1] ?? {}).sort()).toEqual(['dimensions', 'layer', 'revision']);
+    // Kích thước đi bằng trường riêng, không nhét trong `layer` (NO-374).
+    expect(Object.keys(external[0]?.[1].layer ?? {})).not.toContain('dimensions');
     expect(external[0]?.[1].revision).toBe(7);
     expect(useStore.getState().floorMeta[WIRE_FLOOR_ID]?.revision).toBe(7);
     expect(firstWallThickness()).toBe(200);

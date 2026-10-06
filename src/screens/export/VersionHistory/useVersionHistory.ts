@@ -25,9 +25,7 @@
 import { useInfiniteQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
-import type { Dimension } from '@/domain/spatial/types';
 import { flushAutosaves, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatDuration } from '@/lib/format/datetime';
@@ -342,11 +340,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const reloadFloor = useCallback(async (): Promise<void> => {
     try {
       const { dimensions, layer, revision } = await gateway.readFloorLayer();
-      // N19 đổi cả kích thước; N15 sau đó thấy cùng `revision` nên không thay tầng (NO-369) —
-      // kích thước phải vào cùng lượt thay này (`replaceFloorLayer` trải `layer` thành các phần của tầng).
-      const parts: SpatialLayer & { readonly dimensions: readonly Dimension[] } = { ...layer, dimensions };
 
-      replaceFloorLayer(floorId, { layer: parts, revision }, { external: true });
+      // N19 đổi cả kích thước; N15 sau đó thấy cùng `revision` nên không thay tầng (NO-369/NO-374).
+      replaceFloorLayer(floorId, { dimensions, layer, revision }, { external: true });
     } catch {
       setBanner({ kind: 'reload', notice: RELOAD_FAILED_NOTICE });
     }
