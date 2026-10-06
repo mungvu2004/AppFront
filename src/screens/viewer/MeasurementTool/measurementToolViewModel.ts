@@ -309,18 +309,45 @@ export function rawValueOf(measurement: Measurement): PinnedMeasurement['rawValu
 /**
  * Bảy trạng thái riêng của màn đo, đặt lên bảy trạng thái của vỏ.
  *
- * Hai bảng không trùng tên nhau ở hai chỗ, và cả hai đều có lý: "đang đo" là
- * lượt chờ của màn này nên nó ngồi vào ô `loading` của vỏ, còn "xong" là
- * `success`. Vỏ vẽ chrome theo bảng của nó; view của màn đọc bảng của màn.
+ * "Đang đo" (giữa hai lần chấm) KHÔNG phải lượt chờ: cảnh đã dựng xong và
+ * người dùng đang bấm lên nó, nên nó là `success` của vỏ. Ô `loading` của vỏ
+ * vẽ skeleton `absolute inset-0` phủ khung nhìn — đặt "đang đo" vào đó từng
+ * nuốt các nút nổi của màn (ghim, chế độ, Esc) giữa hai lần chấm (NO-382). Chỉ
+ * cảnh đang nạp thật mới được vào ô ấy, qua `viewerStateOf`.
  */
 export const VIEWER_STATE_BY_MEASUREMENT: Readonly<
   Record<MeasurementScreenState, ViewerScreenState>
 > = {
   empty: 'empty',
-  measuring: 'loading',
+  measuring: 'success',
   partial: 'partial',
   error: 'error',
   ready: 'success',
   forbidden: 'forbidden',
   collapsed: 'collapsed',
 };
+
+/** Ba trạng thái màn đo tự nói được, không nhường cho trạng thái của vỏ. */
+const SCREEN_OWNED_STATES: ReadonlySet<MeasurementScreenState> = new Set([
+  'error',
+  'forbidden',
+  'collapsed',
+]);
+
+/**
+ * Trạng thái vỏ cho một lượt vẽ: hàm DUY NHẤT nối trạng thái màn đo vào vỏ.
+ *
+ * Lỗi, cấm, thu gọn là của màn và thắng. Còn lại, cảnh đang nạp thật
+ * (`loading`) hay mới dựng một phần (`partial`) của vỏ thắng — skeleton chỉ hiện
+ * khi cảnh thật chưa có, không bao giờ vì người dùng đang chấm điểm.
+ */
+export function viewerStateOf(
+  measurement: MeasurementScreenState,
+  shell: ViewerScreenState,
+): ViewerScreenState {
+  if (!SCREEN_OWNED_STATES.has(measurement) && (shell === 'loading' || shell === 'partial')) {
+    return shell;
+  }
+
+  return VIEWER_STATE_BY_MEASUREMENT[measurement];
+}

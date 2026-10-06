@@ -146,7 +146,7 @@ import {
   rawValueOf,
   REQUIRED_POINTS,
   toMeasurePoint,
-  VIEWER_STATE_BY_MEASUREMENT,
+  viewerStateOf,
   type MeasurementScene,
   type MeasurePick,
   type ScreenProjector,
@@ -983,7 +983,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   return {
     ...shell,
-    state: VIEWER_STATE_BY_MEASUREMENT[state],
+    state: viewerStateOf(state, shell.state),
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,

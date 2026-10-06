@@ -38,6 +38,7 @@ import type {
   MeasurementSceneMountOptions,
   MountMeasurementScene,
 } from './measurementToolScene';
+import { viewerStateOf } from './measurementToolViewModel';
 import { useMeasurementTool, type UseMeasurementToolOptions } from './useMeasurementTool';
 
 import type { ReactElement } from 'react';
@@ -545,5 +546,66 @@ describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
     expect(posts[0]?.id).toBe('MS-0001');
     expect(posts[1]?.id).not.toBe('MS-0001');
     expect(titlesOf(notifications)).not.toContain('Chưa hoàn tác được việc xoá phép đo');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [5] Đang đo không phải đang nạp: khung nhìn không chặn chuột (NO-382).      */
+/* -------------------------------------------------------------------------- */
+
+/** Skeleton của khung nhìn — lớp `absolute inset-0` duy nhất nằm trên canvas. */
+function viewportSkeleton(): Element | null {
+  return screen.getByLabelText('Khung nhìn mô hình').querySelector('.animate-pulse');
+}
+
+describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có lớp chặn chuột (NO-382)', () => {
+  it('chấm một điểm: khung nhìn không skeleton, nút ghim còn bấm được', async () => {
+    renderHook({ mountScene: sceneSpy().mount, pick: pickAtPointer });
+
+    await waitFor(() => {
+      expect(viewportSkeleton()).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /\(M\)/u }));
+    const viewport = screen.getByLabelText('Khung nhìn mô hình');
+    const down = createEvent.pointerDown(viewport);
+    Object.defineProperty(down, 'clientX', { value: 1000 });
+    Object.defineProperty(down, 'clientY', { value: 0 });
+    fireEvent(viewport, down);
+    fireEvent.pointerUp(viewport);
+
+    expect(screen.getByRole('button', { name: /ghim/iu })).toBeEnabled();
+    expect(viewportSkeleton()).toBeNull();
+  });
+
+  it('cảnh đang nạp thật (dự án chưa về) thì khung nhìn VẪN vẽ skeleton', () => {
+    renderHook({
+      mountScene: sceneSpy().mount,
+      shellGateway: {
+        ...createViewerShellFixtureGateway(),
+        readProjectName: () => new Promise<string | null>(() => undefined),
+      },
+    });
+
+    expect(viewportSkeleton()).not.toBeNull();
+  });
+});
+
+describe('viewerStateOf — bảy trạng thái của vỏ, chỉ nạp thật mới ra skeleton (NO-382)', () => {
+  it.each([
+    ['empty', 'success', 'empty'],
+    ['measuring', 'success', 'success'],
+    ['partial', 'success', 'partial'],
+    ['error', 'success', 'error'],
+    ['ready', 'success', 'success'],
+    ['forbidden', 'forbidden', 'forbidden'],
+    ['collapsed', 'success', 'collapsed'],
+    ['measuring', 'loading', 'loading'],
+    ['ready', 'loading', 'loading'],
+    ['empty', 'partial', 'partial'],
+    ['error', 'loading', 'error'],
+    ['collapsed', 'loading', 'collapsed'],
+  ] as const)('màn %s trên vỏ %s → %s', (measurement, shell, expected) => {
+    expect(viewerStateOf(measurement, shell)).toBe(expected);
   });
 });
