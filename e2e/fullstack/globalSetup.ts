@@ -5,9 +5,11 @@
  */
 import { request } from '@playwright/test';
 
+import { selfCheckBodyRules } from './apiWatch';
 import { SETUP_REQUEST_TIMEOUT_MS, readBaseUrl, readFullstackEnv } from './env';
 
 export default async function globalSetup(): Promise<void> {
+  selfCheckBodyRules();
   readFullstackEnv();
 
   const base = readBaseUrl();

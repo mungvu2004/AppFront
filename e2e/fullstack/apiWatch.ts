@@ -68,7 +68,53 @@ const bodyByResponse = new WeakMap<Response, Promise<BodyRead>>();
 const isEventStream = (response: Response): boolean =>
   (response.headers()['content-type'] ?? '').includes('text/event-stream');
 
+/** Status mà HTTP cấm mang thân (RFC 9110 §6.4.1, §15.3.5, §15.3.6, §15.4.5). */
+const BODILESS_STATUSES: readonly number[] = [204, 205, 304];
+
+/**
+ * Response không có thân theo HTTP: 1xx, 204, 205, 304, `HEAD`, hoặc `content-length: 0`.
+ * Với chúng, `text()` của Chromium ném "No data found for resource" (chuỗi thật lượt 11, #1
+ * login 204), nên chúng là "đọc thành công với thân rỗng", không đi vào nhánh bỏ qua.
+ */
+export function hasNoBody(status: number, method: string, headers: Readonly<Record<string, string>>): boolean {
+  return (
+    (status >= 100 && status < 200) ||
+    BODILESS_STATUSES.includes(status) ||
+    method.toUpperCase() === 'HEAD' ||
+    headers['content-length']?.trim() === '0'
+  );
+}
+
+/**
+ * Tự kiểm rẻ, không cần BE, cho {@link hasNoBody} và {@link classifyBody}: `globalSetup` gọi nó
+ * trước mọi thứ khác, nên cả lượt chạy thiếu biến ([8].3) cũng chạy nó. Vitest không nhặt được
+ * `e2e/**` (`vitest.config.ts` loại thư mục ấy), nên bài kiểm nằm ở đây.
+ */
+export function selfCheckBodyRules(): void {
+  const none: Record<string, string> = {};
+  const cases: readonly (readonly [string, boolean])[] = [
+    ['POST 204 login không thân', hasNoBody(204, 'POST', none)],
+    ['205 không thân', hasNoBody(205, 'GET', none)],
+    ['304 không thân', hasNoBody(304, 'GET', none)],
+    ['HEAD không thân', hasNoBody(200, 'HEAD', none)],
+    ['content-length 0 không thân', hasNoBody(200, 'POST', { 'content-length': '0' })],
+    ['200 JSON có thân', !hasNoBody(200, 'GET', { 'content-type': 'application/json' })],
+    ['201 có thân', !hasNoBody(201, 'POST', { 'content-length': '42' })],
+    ['JSON đọc được', stableRead(classifyBody('{"a":1}', 'application/json'))],
+    ['khai JSON mà rỗng là không đọc được', !classifyBody('', 'application/json').read],
+    ['không khai JSON mà rỗng là đọc được', classifyBody('', 'text/plain').read],
+  ];
+  const failed = cases.filter(([, ok]) => !ok).map(([name]) => name);
+
+  if (failed.length > 0) throw new Error(`tự kiểm luật thân response hỏng: ${failed.join(', ')}`);
+}
+
+const stableRead = (body: BodyRead): boolean => body.read && JSON.stringify(body.json) === '{"a":1}';
+
 const readBody = (response: Response): Promise<BodyRead> => {
+  if (hasNoBody(response.status(), response.request().method(), response.headers())) {
+    return Promise.resolve({ read: true, json: null });
+  }
   // Luồng SSE không bao giờ kết thúc trước khi trang đóng: `text()` trên nó chờ mãi.
   if (isEventStream(response)) return Promise.resolve({ read: false, reason: 'luồng SSE, không đọc thân' });
   const contentType = response.headers()['content-type'] ?? '';
