@@ -464,6 +464,8 @@ export interface ProcessingGateway {
 const COMPLETED_STATUS: Progress['status'] = 'completed';
 /** Trạng thái `Progress.status` nói lượt đọc này báo hỏng. */
 const FAILED_STATUS: Progress['status'] = 'failed';
+/** Trạng thái `Progress.status` nói lượt còn xếp hàng — chưa bước nào chạy. */
+const PENDING_STATUS: Progress['status'] = 'pending';
 
 const normalise = (text: string): string => text.trim().toLowerCase();
 
@@ -536,10 +538,14 @@ function carryTimestamps(
  *   sáu bước thành `done`. Thiếu chốt này thì `calculateTotalProgress` kẹp vĩnh
  *   viễn ở 99 (nó chỉ trả số đầy đủ khi mọi bước xong) và màn không bao giờ đến
  *   `success`.
+ * - Lượt còn xếp hàng (`status === 'pending'`): sáu bước `queued` mới, bất kể
+ *   `step` (lúc này chỉ là bước SẮP chạy) và bất kể bước đã quan sát — máy chủ
+ *   chỉ đưa một upload về `pending` khi mở LƯỢT MỚI (`start_run`), nên giữ bước
+ *   `done` của lượt cũ là tiến độ giả.
  * - `step` không tra được: trả `supported: false` — không đoán bước nào đang
  *   chạy, và nơi gọi giữ nguyên mức tiến độ cao nhất đã đạt.
- * - Bước đã quan sát thấy `done` không bị hạ xuống lại ({@link keepObservedDone}) —
- *   mặt "từng bước" của lời hứa tiến độ không nhảy lùi.
+ * - Trong cùng một lượt, bước đã quan sát thấy `done` không bị hạ xuống lại
+ *   ({@link keepObservedDone}) — mặt "từng bước" của lời hứa tiến độ không nhảy lùi.
  *
  * `internalPercent` cố ý KHÔNG đặt: `Progress` không mang phần trăm của riêng
  * một bước, và bịa ra một con số là đúng thứ [CẤM TUYỆT ĐỐI] gọi là tiến độ giả.
@@ -560,6 +566,15 @@ export function toStageBreakdown(
       value: stages.map((stage) =>
         carryTimestamps({ id: stage.id, status: 'done' }, previousById.get(stage.id), observedAtMs),
       ),
+    };
+  }
+
+  // Lượt còn xếp hàng: máy chủ đã ghi sẵn `step` của bước sắp chạy, nhưng chưa
+  // bước nào chạy — C3 ở đây sẽ là tiến độ giả và chiếm tầng đang xem.
+  if (progress.status === PENDING_STATUS) {
+    return {
+      supported: true,
+      value: stages.map((stage) => ({ id: stage.id, status: 'queued' })),
     };
   }
 
