@@ -305,11 +305,6 @@ export interface ReadSpatialVersionInput extends RequestOptions {
   versionId: string;
 }
 
-export interface ListFloorVersionsInput extends RequestOptions {
-  floorId: string;
-  projectId: string;
-}
-
 /** N17 — một trang lịch sử phiên bản của một tầng, `sequence` giảm dần. */
 export type FloorVersionPage = z.infer<typeof FloorVersionPageSchema>;
 
@@ -557,8 +552,6 @@ export interface SpatialApi {
   patchFloor(input: PatchSpatialFloorInput): Promise<ApiResult<Floor>>;
   readFloor(input: ReadSpatialFloorInput): Promise<ApiResult<Floor>>;
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
-  /** N17 — lịch sử phiên bản của một tầng (trang đầu). */
-  listVersions(input: ListFloorVersionsInput): Promise<ApiResult<FloorVersionPage>>;
   /** N15 — the whole project graph plus one `revision` per floor. */
   readGraph(input: ReadSpatialGraphInput): Promise<ApiResult<SpatialGraphDocument>>;
   /** N16 — the floor's layer document: `revision`, `level`, four lists, axes, dimensions. */
@@ -1326,15 +1319,6 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callGet<unknown>(http, ENDPOINTS.spatial.version(projectId, versionId), signal),
         VersionSchema,
         'spatial.readVersion',
-      ),
-    listVersions: async ({ floorId, projectId, signal }) =>
-      decodeSingle(
-        await http.get<unknown>(ENDPOINTS.spatial.versions(projectId), {
-          query: { floorId },
-          ...(signal !== undefined ? { signal } : {}),
-        }),
-        FloorVersionPageSchema,
-        'spatial.listVersions',
       ),
     readGraph: async ({ projectId, signal }) =>
       decodeSingle(

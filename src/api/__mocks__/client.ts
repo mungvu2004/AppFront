@@ -1134,7 +1134,7 @@ export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
     status: 'processing',
     updatedAt: mockSummaryUpdatedAt(4),
     wallsReviewedCount: 0,
-    wallsTotalCount: 132,
+    wallsTotalCount: 0,
   },
   {
     areaM2: 5200,
@@ -1837,9 +1837,6 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
-      /** Tầng lạ thì trang rỗng — bộ mẫu không bịa lịch sử cho tầng không có. */
-      listVersions: async ({ floorId }) =>
-        ok(floors.some((floor) => floor.id === floorId) ? makeFloorVersionPage(floorId) : { items: [] }),
       /** N15: lớp chung của mọi tầng `floors`, một dòng `revision` mỗi `Level` (không `scaleStatus`). */
       readGraph: async () => {
         const documents = floors.map((floor) =>
