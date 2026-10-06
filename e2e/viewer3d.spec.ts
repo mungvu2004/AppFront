@@ -421,8 +421,9 @@ async function stepRotate(page: Page): Promise<void> {
  *   chuẩn không cần lăn chuột. Bài cũ đọc `before` giữa đoạn chạy ấy: xanh vì sai
  *   lý do khi đoạn chạy còn dở, đỏ khi nó đã xong. Nay chờ nhãn yên rồi mới đo.
  * - Sau bước "quay" (preset "Trên xuống", camera phẳng) cú lăn chuột từng không
- *   đổi nhãn vì `onViewportWheel` chỉ biết `dolly`; nay gọi `zoom` cho góc nhìn phẳng,
- *   nên bước này chạy đúng thứ tự gốc: SAU bước quay.
+ *   đổi nhãn vì `onViewportWheel` chỉ biết `dolly`; nay gọi `zoom` cho góc nhìn phẳng.
+ *   Bài "ba việc" vẫn chạy bước này TRƯỚC bước quay (xem chú thích trong bài); thu
+ *   phóng ở góc phẳng có bài riêng "thu phóng được ở góc …" ở dưới.
  */
 async function stepZoom(page: Page): Promise<void> {
   const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
