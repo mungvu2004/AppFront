@@ -1,5 +1,6 @@
 import type { HttpError, Result } from '@/lib/http';
 import { createIdempotencyKey } from '@/lib/http';
+import { isUploadDrawingCommand } from './markerCommands';
 import type { NetworkMonitor, NetworkMonitorStatus } from './networkMonitor';
 import { createQueueStore, type PendingCommand, type QueueStore } from './queueStore';
 
@@ -225,6 +226,13 @@ export const createReplayer = (options: CreateReplayerOptions): Replayer => {
     const commands = [...listResult.data].sort((first, second) => first.createdAt - second.createdAt || first.id - second.id);
 
     for (const pendingCommand of commands) {
+      // Dấu đếm của màn tải bản vẽ: không mang `File`, màn tự tải và tự gỡ. Gửi
+      // thì vào dead-letter hay chặn hàng; gỡ thì "chờ đồng bộ" đếm thiếu trong
+      // lúc màn còn giữ tệp — nên để nguyên và đi tiếp (NO-402).
+      if (isUploadDrawingCommand(pendingCommand.command)) {
+        continue;
+      }
+
       const sendResult = await options.sendCommand(pendingCommand.command, {
         idempotencyKey: idempotencyKeyFactory(pendingCommand),
         pendingCommand,
