@@ -384,9 +384,10 @@ export function useFloorUploadScreen(
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
   /* ---------------------------------------------------------------------- */
 
-  // Mở màn: lệnh `uploadDrawing` còn trong hàng đợi là của phiên trước — tệp đã
-  // mất cùng lượt tải lại trang (đúng câu "tải lại trang thì cần chọn lại tệp"),
-  // nên không ai tải nó nữa. Gỡ để "chờ đồng bộ" không đếm mãi (NO-392).
+  // Mở màn: gỡ lệnh `uploadDrawing` mồ côi — của phiên (tab) đã đóng hay không
+  // mang mã phiên; tệp đã mất cùng lượt tải lại trang (đúng câu "tải lại trang
+  // thì cần chọn lại tệp"), nên không ai tải nó nữa. Lệnh của tab khác còn sống
+  // được giữ (NO-392, NO-400 — xem `clearOrphanUploads`).
   useEffect(() => {
     orphansClearedRef.current = gateway.clearOrphanUploads(projectId).catch(() => undefined);
   }, [gateway, projectId]);

@@ -1675,7 +1675,7 @@
     },
     "panel": {
       "title": "Kích thước đọc được",
-      "unitLabel": "Mm"
+      "unitLabel": "mm"
     },
     "filter": {
       "ariaLabel": "Lọc theo trạng thái duyệt",
@@ -2157,7 +2157,7 @@
     "histogram": {
       "label": "Biểu đồ phân bố độ dày tường theo mi-li-mét",
       "loading": "Đang tải biểu đồ phân bố độ dày",
-      "axisUnit": "Mm",
+      "axisUnit": "mm",
       "thresholdLow": "Ngưỡng giữa 110 mm và 220 mm",
       "thresholdMid": "Ngưỡng giữa 220 mm và 330 mm",
       "thresholdHigh": "Ngưỡng giữa 330 mm và cột bê tông cốt thép"
@@ -2695,7 +2695,7 @@
     "totals": {
       "caption": "Tổng diện tích sàn {{scope}} — {{count}} phòng",
       "wholeBuilding": "Toàn nhà",
-      "unit": "M²"
+      "unit": "m²"
     },
     "level": {
       "unknown": "Tầng chưa xác định"
@@ -2734,11 +2734,11 @@
         "name": "Tên phòng",
         "usage": "Loại",
         "area": "Diện tích",
-        "areaUnit": "M²",
+        "areaUnit": "m²",
         "perimeter": "Chu vi phòng",
-        "perimeterUnit": "M",
+        "perimeterUnit": "m",
         "clearHeight": "Chiều cao thông thuỷ",
-        "clearHeightUnit": "M",
+        "clearHeightUnit": "m",
         "doorCount": "Số cửa",
         "windowCount": "Số cửa sổ",
         "status": "Trạng thái"
@@ -3010,9 +3010,9 @@
       "noneOnError": "Không tìm thấy bề mặt để bắt"
     },
     "unit": {
-      "mm": "Mm",
-      "cm": "Cm",
-      "m": "M"
+      "mm": "mm",
+      "cm": "cm",
+      "m": "m"
     },
     "sample": {
       "name": "Phép đo {{n}}",

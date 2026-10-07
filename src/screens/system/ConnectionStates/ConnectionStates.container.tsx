@@ -9,12 +9,14 @@
  * thiếu vế thứ hai là để lại một khoảng lặp chạy mãi sau khi người dùng rời
  * trang (R-28).
  *
- * ## Vì sao hàng đợi được đọc lại mỗi khi trạng thái mạng đổi
+ * ## Khi nào hàng đợi được đọc lại
  *
- * `listPendingCommands` là một lượt đọc IndexedDB, không phải một luồng. Mốc
- * đáng đọc lại là lúc mạng đổi trạng thái: đó đúng là lúc hàng đợi vừa dài ra
- * (mất mạng) hoặc vừa ngắn lại (phát lại xong). Đọc theo nhịp đồng hồ thì hoặc
- * quá thưa để kịp, hoặc quá dày cho một lớp chỉ để nói một câu.
+ * `listPendingCommands` là một lượt đọc IndexedDB, không phải một luồng. Lớp
+ * đọc lại mỗi khi chính hàng đợi báo đổi (`watchPending` — ghi thêm, gỡ bớt,
+ * sang dead-letter, ở tab này hay tab khác) và khi mạng đổi trạng thái. Chỉ
+ * theo mạng thì số "chờ đồng bộ" cũ suốt lúc mạng đứng yên (NO-401); đọc theo
+ * nhịp đồng hồ thì hoặc quá thưa để kịp, hoặc quá dày cho một lớp chỉ để nói
+ * một câu.
  *
  * ## Lớp này không có route
  *
@@ -87,6 +89,10 @@ function WiredConnectionStates(props: ContainerProps) {
   const [pending, setPending] = useState<readonly PendingCommand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Tăng mỗi lần hàng đợi báo đổi — chỉ để kích lượt đọc dưới đây.
+  const [queueRevision, setQueueRevision] = useState(0);
+
+  useEffect(() => gateway.watchPending(() => setQueueRevision((revision) => revision + 1)), [gateway]);
 
   useEffect(() => {
     monitor.start();
@@ -125,8 +131,8 @@ function WiredConnectionStates(props: ContainerProps) {
     return (): void => {
       cancelled = true;
     };
-    // Đọc lại đúng lúc mạng đổi trạng thái — xem khối chú thích đầu file.
-  }, [gateway, projectId, status.online]);
+    // Đọc lại khi hàng đợi hay mạng đổi — xem khối chú thích đầu file.
+  }, [gateway, projectId, status.online, queueRevision]);
 
   const handleReplayNow = useCallback(() => {
     onReplayNow?.();

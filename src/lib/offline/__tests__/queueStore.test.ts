@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OFFLINE_DB_NAME } from '../db';
-import { createQueueStore, type QueueStore } from '../queueStore';
+import { createQueueStore, subscribeQueueChanges, type QueueStore } from '../queueStore';
 
 const deleteDatabase = (): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -96,5 +96,86 @@ describe('queueStore', () => {
     }
 
     vi.unstubAllGlobals();
+  });
+
+  it('notifies subscribers after each successful write, never after a failed one, and stops on unsubscribe (NO-401)', async () => {
+    vi.stubGlobal('indexedDB', undefined);
+    const memoryStore = createQueueStore();
+    const listener = vi.fn();
+    const unsubscribe = subscribeQueueChanges(listener);
+    const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+    const added = await memoryStore.addPendingCommand({ command: { index: 1 }, projectId: 'project-1' });
+    const second = await memoryStore.addPendingCommand({ command: { index: 2 }, projectId: 'project-1' });
+    await flush();
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    if (added.ok && second.ok) {
+      await memoryStore.deletePendingCommand(added.data.id);
+      await memoryStore.moveToDeadLetter(second.data.id, 'rejected');
+    }
+    await flush();
+    expect(listener).toHaveBeenCalledTimes(4);
+
+    await memoryStore.moveToDeadLetter(999, 'missing');
+    await flush();
+    expect(listener).toHaveBeenCalledTimes(4);
+
+    unsubscribe();
+    unsubscribe();
+    await memoryStore.addPendingCommand({ command: { index: 3 }, projectId: 'project-1' });
+    await flush();
+    expect(listener).toHaveBeenCalledTimes(4);
+  });
+
+  it('hears writes from another tab through BroadcastChannel (NO-401)', async () => {
+    const listener = vi.fn();
+    const stayingListener = vi.fn();
+    const unsubscribe = subscribeQueueChanges(listener);
+    const unsubscribeStaying = subscribeQueueChanges(stayingListener);
+    const otherTab = new BroadcastChannel('offline-queue-changed');
+    const heard = new Promise<void>((resolve) => {
+      stayingListener.mockImplementation(() => resolve());
+    });
+
+    otherTab.postMessage(null);
+    await heard;
+    otherTab.close();
+    unsubscribe();
+    unsubscribeStaying();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('works without BroadcastChannel: same-tab listeners still hear writes (NO-401)', async () => {
+    vi.stubGlobal('indexedDB', undefined);
+    vi.stubGlobal('BroadcastChannel', undefined);
+    const memoryStore = createQueueStore();
+    const listener = vi.fn();
+    const unsubscribe = subscribeQueueChanges(listener);
+
+    await memoryStore.addPendingCommand({ command: { index: 1 }, projectId: 'project-1' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    unsubscribe();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes and dead-letters commands in IndexedDB, and lists what is left', async () => {
+    store = createQueueStore({ now: () => 1_720_000_000_000 });
+    const first = await store.addPendingCommand({ command: { index: 1 }, projectId: 'project-1' });
+    const second = await store.addPendingCommand({ command: { index: 2 }, projectId: 'project-1' });
+
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) {
+      return;
+    }
+
+    const moved = await store.moveToDeadLetter(first.data.id, 'rejected');
+    expect(moved.ok && moved.data.originalId).toBe(first.data.id);
+    expect((await store.moveToDeadLetter(first.data.id, 'again')).ok).toBe(false);
+    expect((await store.deletePendingCommand(second.data.id)).ok).toBe(true);
+    const listed = await store.listPendingCommands('project-1');
+    expect(listed.ok && listed.data).toEqual([]);
   });
 });

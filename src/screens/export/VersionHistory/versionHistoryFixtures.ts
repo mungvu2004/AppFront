@@ -265,6 +265,24 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
+/** Ảnh chụp của một mục lịch sử; mục `metadataOnly` của bộ mẫu vẫn mang ảnh chụp rỗng (`V11`). */
+function snapshotOf(entry: VersionHistoryEntry | undefined): VersionSnapshot | undefined {
+  const version = entry?.version;
+
+  return version !== undefined && 'snapshot' in version ? version.snapshot : undefined;
+}
+
+/** Đếm của một hàng = diff thật của ảnh chụp nó so với bản ngay trước (`SAMPLE_HISTORY` xếp mới đến cũ); bản cũ nhất không có gì để so. */
+function countsAgainstPrevious(entry: VersionHistoryEntry): DiffCountsModel {
+  const index = SAMPLE_HISTORY.indexOf(entry);
+  const row = snapshotOf(SAMPLE_HISTORY[index]);
+  const previous = snapshotOf(SAMPLE_HISTORY[index + 1]);
+
+  if (row === undefined || previous === undefined) return EMPTY_DIFF_COUNTS;
+
+  return buildDiffCounts(diffVersions(previous, row));
+}
+
 function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionRowModel> = {}): VersionRowModel {
   const version = entry.version;
   const authorName = AUTHOR_NAMES[version.id] ?? 'Phạm An';
@@ -279,7 +297,7 @@ function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionR
     avatarUrl: null,
     relativeTimeLabel: formatTimestamp(new Date(version.createdAt), FAKE_CLOCK_START),
     absoluteTimeLabel: `${formatCalendarDate(new Date(version.createdAt))} ${formatClockTime(new Date(version.createdAt))}`,
-    counts: isOldest ? EMPTY_DIFF_COUNTS : SAMPLE_DIFF_COUNTS,
+    counts: countsAgainstPrevious(entry),
     // Bản hiện tại luôn là bản mới nhất của lịch sử mẫu (`v15`).
     isCurrent: version.id === 'v15',
     tagLabel: version.id === 'v13' ? 'Duyệt với chủ đầu tư' : null,
