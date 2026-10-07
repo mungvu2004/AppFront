@@ -72,6 +72,59 @@ export interface QueueStoreOptions extends OpenOfflineDbOptions {
 
 const encoder = new TextEncoder();
 
+/* Báo "hàng đợi vừa đổi" (NO-401). Hàng đợi IndexedDB không phát sự kiện, nên
+ * mọi lượt ghi thành công tự báo: người nghe trong tab gọi thẳng, tab khác qua
+ * BroadcastChannel. Một kênh dùng chung mở khi có người nghe đầu tiên — kênh
+ * không nhận thư của chính nó, nên người nghe trong tab không bị báo hai lần. */
+const QUEUE_CHANGED_CHANNEL = 'offline-queue-changed';
+const queueListeners = new Set<() => void>();
+let queueChannel: BroadcastChannel | null = null;
+
+const openQueueChannel = (): BroadcastChannel | null =>
+  typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(QUEUE_CHANGED_CHANNEL);
+
+/** Mỗi người nghe một microtask riêng: một người nghe ném lỗi không chặn người sau. */
+const callQueueListeners = (): void => {
+  queueListeners.forEach((listener) => queueMicrotask(listener));
+};
+
+const broadcastQueueChanged = (): void => {
+  callQueueListeners();
+
+  if (queueChannel) {
+    queueChannel.postMessage(null);
+    return;
+  }
+
+  const channel = openQueueChannel();
+  channel?.postMessage(null);
+  channel?.close();
+};
+
+/** Báo sau lượt ghi, ngoài `try` của nó: người nghe hỏng không biến lượt ghi đã xong thành lỗi. */
+const notifyQueueChanged = (): void => {
+  queueMicrotask(broadcastQueueChanged);
+};
+
+/** Nghe mọi lượt hàng đợi đổi (thêm, gỡ, sang dead-letter), ở tab này và tab khác. Trả hàm huỷ. */
+export const subscribeQueueChanges = (listener: () => void): (() => void) => {
+  if (queueListeners.size === 0) {
+    queueChannel = openQueueChannel();
+    queueChannel?.addEventListener('message', callQueueListeners);
+  }
+
+  queueListeners.add(listener);
+
+  return () => {
+    if (!queueListeners.delete(listener) || queueListeners.size > 0) {
+      return;
+    }
+
+    queueChannel?.close();
+    queueChannel = null;
+  };
+};
+
 const ok = <T>(data: T): Result<T, never> => ({ data, ok: true });
 
 const err = <E>(error: E): Result<never, E> => ({ error, ok: false });
@@ -347,14 +400,31 @@ const createMemoryQueueStore = (options: QueueStoreOptions): QueueStore => {
   };
 };
 
+/** Gọi `write`; xong mà `ok` thì báo hàng đợi đổi. */
+const notifyingWrite =
+  <TArgs extends unknown[], TData>(write: (...args: TArgs) => Promise<Result<TData, QueueStoreError>>) =>
+  async (...args: TArgs): Promise<Result<TData, QueueStoreError>> => {
+    const result = await write(...args);
+
+    if (result.ok) {
+      notifyQueueChanged();
+    }
+
+    return result;
+  };
+
 export const createQueueStore = (options: QueueStoreOptions = {}): QueueStore => {
   const factory = options.factory ?? globalThis.indexedDB;
+  const store = factory ? createIndexedDbQueueStore(options) : createMemoryQueueStore(options);
 
-  if (!factory) {
-    return createMemoryQueueStore(options);
-  }
-
-  return createIndexedDbQueueStore(options);
+  // Một chỗ cho mọi lượt ghi của cả hai bản store — store mặc định lẫn store
+  // riêng của `replayer` đều dựng qua đây (NO-401).
+  return {
+    ...store,
+    addPendingCommand: notifyingWrite(store.addPendingCommand),
+    deletePendingCommand: notifyingWrite(store.deletePendingCommand),
+    moveToDeadLetter: notifyingWrite(store.moveToDeadLetter),
+  };
 };
 
 const defaultQueueStore = createQueueStore();
