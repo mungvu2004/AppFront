@@ -36,7 +36,11 @@ import { createUploadTask } from '@/lib/upload/uploadTask';
 import type { UploadCandidate } from '@/lib/upload/validate';
 import { ROUTES } from '@/routes/paths';
 
-import { createFloorUploadGateway, type FloorUploadGateway } from './floorUploadGateway';
+import {
+  createFloorUploadGateway,
+  type CreateFloorUploadGatewayOptions,
+  type FloorUploadGateway,
+} from './floorUploadGateway';
 import {
   useFloorUploadScreen,
   type FloorUploadToast,
@@ -181,10 +185,12 @@ interface Harness {
 function createHarness(
   overrides: Partial<FloorUploadGateway> = {},
   online = true,
+  gatewayOptions: Omit<CreateFloorUploadGatewayOptions, 'networkMonitor'> = {},
 ): Harness & { readonly options: UseFloorUploadScreenOptions } {
   const network = createFakeNetworkMonitor(online);
   const { createUpload, uploads } = createFakeUploads();
   const real = createFloorUploadGateway(createMockApiClient(), {
+    ...gatewayOptions,
     networkMonitor: network.monitor,
   });
   const gateway: FloorUploadGateway = { ...real, createUpload, ...overrides };
@@ -885,6 +891,96 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
     await expectQueuedFiles([]);
     expect((await queuedCommands()).map((command) => command.kind)).toContain('renameRoom');
     expect((await queuedUploads('project-khac')).map((command) => command.fileName)).toEqual(['du-an-khac.png']);
+  });
+});
+
+/**
+ * Web Locks giả, dùng chung giữa các "tab" như `navigator.locks` thật dùng chung
+ * cả origin: giữ khoá là ghi tên vào `held`, khoá không bao giờ nhả.
+ */
+function createFakeLocks() {
+  const held = new Set<string>();
+
+  return {
+    request: async (name: string, _options: unknown, callback: () => Promise<unknown>) => {
+      held.add(name);
+      return callback();
+    },
+    query: async () => ({ held: [...held].map((name) => ({ name })) }),
+  };
+}
+
+describe('useFloorUploadScreen — hai tab cùng dự án: mở màn chỉ gỡ lệnh của phiên đã chết (NO-400)', () => {
+  // Lệnh của "tab khác" sống qua lượt mở màn của bài sau (đúng điều nhóm này
+  // kiểm), nên dọn cả trước lẫn sau mỗi bài.
+  async function clearQueue(): Promise<void> {
+    cleanup();
+
+    const listed = await listPendingCommands(PROJECT_ID);
+
+    for (const pending of listed.ok ? listed.data : []) {
+      await deletePendingCommand(pending.id);
+    }
+  }
+
+  beforeEach(clearQueue);
+  afterEach(clearQueue);
+
+  /**
+   * Tab B mở màn, rồi thả một tệp lúc mất mạng. Lệnh của tab B chỉ được ghi sau
+   * lượt dọn mồ côi lúc mở màn (`orphansClearedRef`), nên khi nó có mặt trong
+   * hàng đợi thì lượt dọn đã xong — không cần đoán giờ.
+   */
+  async function openSecondTab(gatewayOptions: Omit<CreateFloorUploadGatewayOptions, 'networkMonitor'>) {
+    const tab = renderScreen(createHarness({}, false, gatewayOptions).options);
+
+    await waitFor(() => {
+      expect(tab.result.current.floors).toHaveLength(4);
+    });
+    await act(async () => {
+      tab.result.current.onFilesDropped([makeFile('mat-bang-tang-2.png')]);
+    });
+
+    return tab;
+  }
+
+  it('tab mở sau không gỡ lệnh của tab đang sống chờ mạng', async () => {
+    const locks = createFakeLocks();
+    const first = renderScreen(createHarness({}, false, { locks, sessionId: 'tab-a' }).options);
+
+    await waitFor(() => {
+      expect(first.result.current.floors).toHaveLength(4);
+    });
+    act(() => {
+      first.result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+    });
+    await expectQueuedFiles(['mat-bang-tang-3.png']);
+
+    await openSecondTab({ locks, sessionId: 'tab-b' });
+
+    await expectQueuedFiles(['mat-bang-tang-3.png', 'mat-bang-tang-2.png']);
+  });
+
+  it('lệnh của phiên đã đóng (không còn giữ khoá) là mồ côi và bị gỡ', async () => {
+    await addPendingCommand({
+      projectId: PROJECT_ID,
+      command: { kind: 'uploadDrawing', fileName: 'tab-da-dong.png', floorId: 'L3', projectId: PROJECT_ID, sizeBytes: 4, sessionId: 'tab-da-dong' },
+    });
+
+    await openSecondTab({ locks: createFakeLocks(), sessionId: 'tab-b' });
+
+    await expectQueuedFiles(['mat-bang-tang-2.png']);
+  });
+
+  it('trình duyệt không có Web Locks: không gỡ lệnh của phiên khác (có thể còn sống)', async () => {
+    await addPendingCommand({
+      projectId: PROJECT_ID,
+      command: { kind: 'uploadDrawing', fileName: 'tab-khac.png', floorId: 'L3', projectId: PROJECT_ID, sizeBytes: 4, sessionId: 'tab-a' },
+    });
+
+    await openSecondTab({ locks: null, sessionId: 'tab-b' });
+
+    await expectQueuedFiles(['tab-khac.png', 'mat-bang-tang-2.png']);
   });
 });
 

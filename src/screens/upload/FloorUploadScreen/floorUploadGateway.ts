@@ -23,8 +23,10 @@
  *
  * Lệnh chỉ là **dấu đếm** cho ConnectionStates ("chờ đồng bộ"): nó không mang
  * được `File`, nên màn — nơi giữ tệp — tự tải khi mạng về và tự gỡ lệnh. Tệp
- * không sống qua lượt tải lại trang, nên lệnh còn lại lúc mở màn là lệnh mồ côi
- * và bị gỡ (`clearOrphanUploads`).
+ * không sống qua lượt tải lại trang, nên lệnh của một phiên đã đóng là lệnh mồ
+ * côi và bị gỡ lúc mở màn (`clearOrphanUploads`). Lệnh mang mã phiên (tab) đã
+ * ghi nó; lệnh của tab khác còn sống — biết qua Web Locks — được giữ (NO-400,
+ * xem `src/lib/offline/markerCommands.ts`).
  *
  * ## Bốn việc file này KHÔNG làm
  *
@@ -49,6 +51,15 @@ import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import { createNetworkMonitor } from '@/lib/offline/networkMonitor';
 import type { NetworkMonitor } from '@/lib/offline/networkMonitor';
+import {
+  defaultTabLocks,
+  holdTabSession,
+  isUploadDrawingCommand,
+  readLiveTabSessions,
+  TAB_SESSION_ID,
+  UPLOAD_DRAWING_COMMAND_KIND,
+  type TabLocks,
+} from '@/lib/offline/markerCommands';
 import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/lib/offline/queueStore';
 import {
   createUploadTask,
@@ -138,8 +149,8 @@ export interface FloorUploadGateway {
   /** Gỡ một lệnh đã ghi — màn đã tự tải tệp ấy, hoặc tệp không còn đi tầng ấy (NO-392). */
   readonly dropOffline: (commandId: number) => Promise<void>;
   /**
-   * Gỡ mọi lệnh `uploadDrawing` của dự án còn nằm trong hàng đợi — lệnh của một
-   * phiên trước, mà tệp đã mất cùng lượt tải lại trang. Lệnh loại khác giữ nguyên.
+   * Gỡ lệnh `uploadDrawing` của dự án mà phiên ghi nó đã đóng — tệp đã mất cùng
+   * lượt tải lại trang. Lệnh của tab khác còn sống và lệnh loại khác giữ nguyên.
    */
   readonly clearOrphanUploads: (projectId: string) => Promise<void>;
   /**
@@ -162,15 +173,10 @@ export interface FloorUploadGateway {
 export interface CreateFloorUploadGatewayOptions {
   /** Bộ theo dõi mạng tiêm được — test cắm bản giả để khỏi ping thật. */
   readonly networkMonitor?: NetworkMonitor;
-}
-
-/** Lệnh `uploadDrawing` do chính cổng này ghi (`command: unknown` trong hàng đợi). */
-function isUploadDrawingCommand(command: unknown): boolean {
-  return (
-    typeof command === 'object' &&
-    command !== null &&
-    (command as { readonly kind?: unknown }).kind === 'uploadDrawing'
-  );
+  /** Web Locks — mặc định `navigator.locks`; `null` là trình duyệt không có. */
+  readonly locks?: TabLocks | null;
+  /** Mã phiên của tab — mặc định `TAB_SESSION_ID`; test giả hai tab bằng hai mã. */
+  readonly sessionId?: string;
 }
 
 /** Cửa sổ hoàn tác, tái xuất để hook và test không viết lại con số (R-71). */
@@ -202,6 +208,9 @@ export function createFloorUploadGateway(
   client: ApiClient,
   options: CreateFloorUploadGatewayOptions = {},
 ): FloorUploadGateway {
+  const locks = options.locks === undefined ? defaultTabLocks() : options.locks;
+  const sessionId = options.sessionId ?? TAB_SESSION_ID;
+
   return {
     readFloors: async ({ projectId }) => {
       const result = await client.projects.read({ projectId });
@@ -229,10 +238,14 @@ export function createFloorUploadGateway(
       }),
 
     enqueueOffline: async ({ fileName, floorId, pageIndex, projectId, sizeBytes }) => {
+      // Khoá phiên được cấp trước khi lệnh hiện ra, để tab khác mở màn không
+      // thấy lệnh mà chưa thấy khoá (NO-400).
+      await holdTabSession(sessionId, locks);
+
       const result = await addPendingCommand({
         projectId,
         command: {
-          kind: 'uploadDrawing',
+          kind: UPLOAD_DRAWING_COMMAND_KIND,
           // Dòng ConnectionStates đọc `label` (`toPendingRow`); thiếu nó thì hiện
           // "Thay đổi chưa đặt tên".
           label: `Tải bản vẽ ${fileName} khi có mạng`,
@@ -240,6 +253,7 @@ export function createFloorUploadGateway(
           floorId,
           projectId,
           sizeBytes,
+          sessionId,
           ...(pageIndex !== undefined ? { pageIndex } : {}),
         },
       });
@@ -258,8 +272,14 @@ export function createFloorUploadGateway(
         return;
       }
 
+      // Đọc khoá SAU khi đọc lệnh: lệnh nào đã có trong danh sách thì tab của nó
+      // đã được cấp khoá trước đó (`enqueueOffline`), nên không bị coi là chết oan.
+      const isAlive = await readLiveTabSessions(sessionId, locks);
+
       for (const pending of listed.data) {
-        if (isUploadDrawingCommand(pending.command)) {
+        const command = pending.command as { readonly sessionId?: unknown };
+
+        if (isUploadDrawingCommand(command) && !isAlive(command.sessionId)) {
           await deletePendingCommand(pending.id);
         }
       }
