@@ -5,11 +5,18 @@
  * hay gỡ bớt một lệnh — không đợi tới lần mạng đổi trạng thái kế tiếp.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { NetworkMonitor, NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
-import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/lib/offline/queueStore';
+import {
+  addPendingCommand,
+  deletePendingCommand,
+  listPendingCommands,
+  type PendingCommand,
+  type QueueStoreError,
+} from '@/lib/offline/queueStore';
+import type { Result } from '@/lib/http';
 
 import { ConnectionStatesContainer } from './ConnectionStates.container';
 import { createConnectionStatesGateway } from './connectionStatesGateway';
@@ -88,5 +95,55 @@ describe('ConnectionStatesContainer — số "chờ đồng bộ" theo hàng đ�
     }
 
     expect(await screen.findByText(/1 thay đổi/)).toBeInTheDocument();
+  });
+
+  it('lượt đọc cũ về muộn hơn lượt đọc mới thì bị bỏ: dải nói theo lượt mới', async () => {
+    type Read = Result<PendingCommand[], QueueStoreError>;
+    const pendingOf = (count: number): Read => ({
+      ok: true,
+      data: Array.from({ length: count }, (_, index) => ({
+        command: { kind: 'renameRoom', label: `Lệnh ${index + 1}` },
+        createdAt: index,
+        id: index + 1,
+        isVolatile: true,
+        projectId: PROJECT_ID,
+        sizeBytes: 8,
+      })),
+    });
+    const reads: ((result: Read) => void)[] = [];
+    let queueChanged: () => void = () => undefined;
+
+    render(
+      <ConnectionStatesContainer
+        projectId={PROJECT_ID}
+        gateway={createConnectionStatesGateway({
+          createMonitor: () => offlineMonitor,
+          listPending: () =>
+            new Promise<Read>((resolve) => {
+              reads.push(resolve);
+            }),
+          watchPending: (listener) => {
+            queueChanged = listener;
+            return () => undefined;
+          },
+        })}
+      />,
+    );
+
+    act(() => {
+      queueChanged();
+    });
+    expect(reads).toHaveLength(2);
+
+    await act(async () => {
+      reads[1]?.(pendingOf(2));
+    });
+    expect(await screen.findByText(/2 thay đổi/)).toBeInTheDocument();
+
+    await act(async () => {
+      reads[0]?.(pendingOf(1));
+    });
+    expect(screen.getByText(/2 thay đổi/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 thay đổi/)).toBeNull();
   });
 });

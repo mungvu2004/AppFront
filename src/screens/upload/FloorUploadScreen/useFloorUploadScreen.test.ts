@@ -982,6 +982,58 @@ describe('useFloorUploadScreen — hai tab cùng dự án: mở màn chỉ gỡ 
 
     await expectQueuedFiles(['tab-khac.png', 'mat-bang-tang-2.png']);
   });
+
+  /*
+   * Hai bất biến thứ tự của NO-400, ghim ở cổng (review DEBT-04 #2). Khoá giả
+   * ở hai bài trên cấp ngay lúc xin, nên chúng không phân biệt được thứ tự.
+   */
+  const uploadInput = { projectId: PROJECT_ID, floorId: 'L3', fileName: 'tab-a.png', sizeBytes: 4 };
+
+  it('ghi lệnh chỉ sau khi khoá phiên đã được cấp', async () => {
+    let grant: () => void = () => undefined;
+    const locks = {
+      request: (_name: string, _options: unknown, callback: () => Promise<unknown>) =>
+        new Promise<unknown>((resolve) => {
+          grant = () => resolve(callback());
+        }),
+      query: async () => ({ held: [] }),
+    };
+    const gateway = createFloorUploadGateway(createMockApiClient(), { locks, sessionId: 'tab-cho-khoa' });
+
+    const enqueued = gateway.enqueueOffline(uploadInput);
+
+    // Khoá chưa cấp: chưa lệnh nào được hiện ra cho tab khác thấy.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(await queuedUploads()).toEqual([]);
+
+    grant();
+    expect(await enqueued).not.toBeNull();
+    expect((await queuedUploads()).map((command) => command.fileName)).toEqual(['tab-a.png']);
+  });
+
+  it('đọc khoá SAU khi đọc lệnh: lệnh ghi xen giữa hai lượt đọc không bị coi là mồ côi', async () => {
+    const held = new Set<string>();
+    const locks = {
+      request: async (name: string, _options: unknown, callback: () => Promise<unknown>) => {
+        held.add(name);
+        return callback();
+      },
+      query: async () => {
+        const snapshot = { held: [...held].map((name) => ({ name })) };
+
+        // Tab A xin khoá rồi ghi lệnh ngay sau lúc chụp danh sách khoá.
+        await tabA.enqueueOffline(uploadInput);
+
+        return snapshot;
+      },
+    };
+    const tabA = createFloorUploadGateway(createMockApiClient(), { locks, sessionId: 'tab-a' });
+    const tabB = createFloorUploadGateway(createMockApiClient(), { locks, sessionId: 'tab-b' });
+
+    await tabB.clearOrphanUploads(PROJECT_ID);
+
+    expect((await queuedUploads()).map((command) => command.fileName)).toEqual(['tab-a.png']);
+  });
 });
 
 describe('useFloorUploadScreen — hàng đợi ngoại tuyến và hàng chờ mạng (NO-392, NO-393)', () => {
