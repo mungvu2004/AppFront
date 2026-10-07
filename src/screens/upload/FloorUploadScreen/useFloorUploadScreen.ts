@@ -341,6 +341,12 @@ export function useFloorUploadScreen(
   const [isSubmitting, setSubmitting] = useState(false);
 
   const tasksRef = useRef(new Map<string, UploadTask>());
+  // Lệnh hàng đợi ngoại tuyến của từng tệp đang chờ mạng — nhiều nhất một lệnh
+  // mỗi tệp. Giữ lời hứa để gỡ được cả khi lượt ghi chưa xong.
+  const queuedRef = useRef(new Map<string, Promise<number | null>>());
+  // Lượt gỡ lệnh mồ côi lúc mở màn; lượt ghi mới đợi nó để không bị gỡ nhầm.
+  const orphansClearedRef = useRef<Promise<void>>(Promise.resolve());
+  const unmountedRef = useRef(false);
   const onlineRef = useRef(true);
   // Câu "chờ mạng" đọc một lần cho cả lượt mất mạng, không một lần mỗi tệp.
   const awaitAnnouncedRef = useRef(false);
@@ -377,6 +383,35 @@ export function useFloorUploadScreen(
   /* ---------------------------------------------------------------------- */
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
   /* ---------------------------------------------------------------------- */
+
+  // Mở màn: lệnh `uploadDrawing` còn trong hàng đợi là của phiên trước — tệp đã
+  // mất cùng lượt tải lại trang (đúng câu "tải lại trang thì cần chọn lại tệp"),
+  // nên không ai tải nó nữa. Gỡ để "chờ đồng bộ" không đếm mãi (NO-392).
+  useEffect(() => {
+    orphansClearedRef.current = gateway.clearOrphanUploads(projectId).catch(() => undefined);
+  }, [gateway, projectId]);
+
+  // Rời màn: `File` của các tệp chờ mạng mất theo, nên lệnh của chúng cũng gỡ;
+  // lượt kiểm tệp về muộn sau khi rời màn không được ghi lệnh mới.
+  useEffect(() => {
+    const queued = queuedRef.current;
+
+    unmountedRef.current = false;
+
+    return () => {
+      unmountedRef.current = true;
+
+      for (const pending of queued.values()) {
+        void pending.then((commandId) => {
+          if (commandId !== null) {
+            void gateway.dropOffline(commandId);
+          }
+        });
+      }
+
+      queued.clear();
+    };
+  }, [gateway]);
 
   useEffect(() => {
     return gateway.watchNetwork((online) => {
@@ -481,6 +516,22 @@ export function useFloorUploadScreen(
   /* Một lượt tải.                                                           */
   /* ---------------------------------------------------------------------- */
 
+  /** Gỡ lệnh hàng đợi của một tệp, nếu có. */
+  const dropQueued = (fileId: string): void => {
+    const queued = queuedRef.current.get(fileId);
+
+    if (queued === undefined) {
+      return;
+    }
+
+    queuedRef.current.delete(fileId);
+    void queued.then((commandId) => {
+      if (commandId !== null) {
+        void gateway.dropOffline(commandId);
+      }
+    });
+  };
+
   const patchAttachment = (id: string, patch: Partial<Attachment>): void => {
     setAttachments((previous) =>
       previous.map((attachment) => (attachment.id === id ? { ...attachment, ...patch } : attachment)),
@@ -523,9 +574,29 @@ export function useFloorUploadScreen(
 
     if (!onlineRef.current) {
       // Mất mạng: tệp ở "chờ xử lý" và chờ mạng về NGAY TRONG MÀN, nơi duy nhất
-      // giữ được `File` (NO-389). Không ghi lệnh vào hàng đợi ngoại tuyến: nó
-      // không mang được tệp, không ai phát lại nó, và nó sống qua cả lượt tải
-      // lại trang — tức chỉ là một dòng "chờ đồng bộ" không bao giờ hết (NO-392).
+      // giữ được `File` (NO-389). Hàng đợi ngoại tuyến nhận đúng MỘT lệnh cho
+      // tệp này — để ConnectionStates đếm nó là "chờ đồng bộ" — và lệnh ấy được
+      // gỡ ở mọi lối ra (xem `dropQueued`, NO-392).
+      dropQueued(attachment.id);
+
+      if (!unmountedRef.current) {
+        queuedRef.current.set(
+          attachment.id,
+          orphansClearedRef.current
+            .then(() =>
+              gateway.enqueueOffline({
+                projectId,
+                floorId,
+                fileName: attachment.file.name,
+                sizeBytes: attachment.file.size,
+                ...(pageIndex !== undefined ? { pageIndex } : {}),
+              }),
+            )
+            // Hàng đợi đầy hay IndexedDB hỏng: tệp vẫn chờ mạng trong màn, chỉ
+            // thiếu dấu đếm "chờ đồng bộ" — không ném ra ngoài.
+            .catch(() => null),
+        );
+      }
       patchAttachment(attachment.id, {
         status: 'waiting',
         percent: 0,
@@ -550,6 +621,9 @@ export function useFloorUploadScreen(
       },
     });
 
+    // Tệp rời trạng thái chờ mạng: lệnh "chờ đồng bộ" của nó hết vai, dù lượt tải
+    // này rồi xong hay hỏng.
+    dropQueued(attachment.id);
     tasksRef.current.set(attachment.id, task);
     patchAttachment(attachment.id, {
       status: 'uploading',
@@ -676,9 +750,12 @@ export function useFloorUploadScreen(
   const findAttachment = (fileId: string): Attachment | null =>
     attachments.find((attachment) => attachment.id === fileId) ?? null;
 
+  // Mọi lối ra của một tệp khỏi tầng/lượt hiện tại (huỷ, xoá, gán lại, đổi
+  // trang, bị đẩy về khay) đi qua đây, nên lệnh hàng đợi của nó cũng gỡ ở đây.
   const cancelTask = (fileId: string): void => {
     tasksRef.current.get(fileId)?.cancel();
     tasksRef.current.delete(fileId);
+    dropQueued(fileId);
   };
 
   const reassign = (fileId: string, floorId: string | null): void => {

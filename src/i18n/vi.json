@@ -659,6 +659,7 @@
       "uploadProgress": "Đã tải {{percent}}% của {{total}}",
       "uploadComplete": "Tải xong {{fileName}}"
     },
+    "pendingUploadLabel": "Tải bản vẽ {{fileName}} khi có mạng",
     "notices": {
       "cadNotSupported": "Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.",
       "pickPageToStart": "Hãy chọn trang bản vẽ để bắt đầu tải",
