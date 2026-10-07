@@ -265,16 +265,22 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
-/** Đếm của một hàng = diff thật của ảnh chụp nó so với bản ngay trước; bản cũ nhất không có gì để so. */
+/** Ảnh chụp của một mục lịch sử; mục `metadataOnly` của bộ mẫu vẫn mang ảnh chụp rỗng (`V11`). */
+function snapshotOf(entry: VersionHistoryEntry | undefined): VersionSnapshot | undefined {
+  const version = entry?.version;
+
+  return version !== undefined && 'snapshot' in version ? version.snapshot : undefined;
+}
+
+/** Đếm của một hàng = diff thật của ảnh chụp nó so với bản ngay trước (`SAMPLE_HISTORY` xếp mới đến cũ); bản cũ nhất không có gì để so. */
 function countsAgainstPrevious(entry: VersionHistoryEntry): DiffCountsModel {
-  const versions = [V15, V14, V13, V12, V11];
-  const index = versions.findIndex((candidate) => candidate.id === entry.version.id);
-  const row = versions[index];
-  const previous = versions[index + 1];
+  const index = SAMPLE_HISTORY.indexOf(entry);
+  const row = snapshotOf(SAMPLE_HISTORY[index]);
+  const previous = snapshotOf(SAMPLE_HISTORY[index + 1]);
 
   if (row === undefined || previous === undefined) return EMPTY_DIFF_COUNTS;
 
-  return buildDiffCounts(diffVersions(previous.snapshot, row.snapshot));
+  return buildDiffCounts(diffVersions(previous, row));
 }
 
 function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionRowModel> = {}): VersionRowModel {
