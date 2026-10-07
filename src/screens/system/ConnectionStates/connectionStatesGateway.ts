@@ -22,16 +22,19 @@ import {
   MAX_PENDING_COMMANDS,
   type PendingCommand,
   type QueueStoreError,
+  subscribeQueueChanges,
 } from '@/lib/offline/queueStore';
 import { createNetworkMonitor, type NetworkMonitor } from '@/lib/offline/networkMonitor';
 import type { Result } from '@/lib/http';
 
-/** Hai cửa mà lớp này tự mở được. */
+/** Ba cửa mà lớp này tự mở được. */
 export interface ConnectionStatesGateway {
   /** T-10: dựng bộ theo dõi mạng. Gọi một lần cho mỗi lần gắn lớp. */
   readonly createMonitor: () => NetworkMonitor;
   /** T-09: đọc hàng đợi của một dự án. Chỉ đọc — lớp này không bao giờ ghi. */
   readonly listPending: (projectId: string) => Promise<Result<PendingCommand[], QueueStoreError>>;
+  /** T-09: nghe hàng đợi đổi (ở tab này hay tab khác), để đọc lại. Trả hàm huỷ. */
+  readonly watchPending: (listener: () => void) => () => void;
 }
 
 export function createConnectionStatesGateway(
@@ -40,6 +43,7 @@ export function createConnectionStatesGateway(
   return {
     createMonitor: overrides.createMonitor ?? ((): NetworkMonitor => createNetworkMonitor()),
     listPending: overrides.listPending ?? listPendingCommands,
+    watchPending: overrides.watchPending ?? subscribeQueueChanges,
   };
 }
 
