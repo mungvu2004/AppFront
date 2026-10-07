@@ -2,12 +2,9 @@
  * Bộ dựng `NotFoundVm` cho bảy trạng thái — viết chỉ từ hợp đồng đông lạnh
  * `notFoundModel.ts`, chạy được ngay, không phụ thuộc view lẫn hook.
  *
- * File này KHÔNG nhập `./NotFound` hay `./useNotFound` — cả hai chưa tồn tại
- * lúc file này được viết (T7, bốn lượt song song viết `NotFound.tsx`,
- * `useNotFound.ts`, bộ ba file này, và route/i18n cùng lúc). Đây là chỗ chứng
- * minh hợp đồng đúng trước khi view có mặt: mỗi kịch bản dưới đây trả về một
- * `NotFoundVm` đầy đủ, sẵn sàng truyền thẳng vào `<NotFound {...vm} />` một
- * khi view xong — không cần sửa gì ở đây khi lớp ghép chạy.
+ * Chữ đọc từ bảng chữ của `./useNotFound` (B-V1-44) — bản chép tay viết lúc hook
+ * chưa có đã lệch hook. Mỗi kịch bản trả về một `NotFoundVm` đầy đủ, sẵn sàng
+ * truyền thẳng vào `<NotFound {...vm} />`.
  *
  * ## Cơ chế `state.from` (bài nghiệm thu 1 của `NotFound.test.tsx`)
  *
@@ -35,6 +32,8 @@
 import { type SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 
+import { DESCRIPTION_BY_REASON, NOT_FOUND_TEXT, TITLE_BY_REASON } from './useNotFound';
+
 import {
   NOT_FOUND_ERROR_CODE,
   RECENT_PROJECT_LIMIT,
@@ -59,31 +58,31 @@ export const SAMPLE_RECENT_PROJECTS: readonly RecentProjectVm[] = [
     id: 'p-nha-pho-nguyen-trai',
     name: 'Nhà phố Nguyễn Trãi',
     to: ROUTES.project.floors('p-nha-pho-nguyen-trai'),
-    recencyLabel: 'cập nhật 2 giờ trước',
+    recencyLabel: 'Cập nhật 2 giờ trước',
   },
   {
     id: 'p-chung-cu-hoang-anh',
     name: 'Chung cư Hoàng Anh',
     to: ROUTES.project.floors('p-chung-cu-hoang-anh'),
-    recencyLabel: 'cập nhật hôm qua',
+    recencyLabel: 'Cập nhật hôm qua',
   },
   {
     id: 'p-biet-thu-thao-dien',
     name: 'Biệt thự Thảo Điền',
     to: ROUTES.project.floors('p-biet-thu-thao-dien'),
-    recencyLabel: 'cập nhật 3 ngày trước',
+    recencyLabel: 'Cập nhật 3 ngày trước',
   },
   {
     id: 'p-van-phong-ben-thanh',
     name: 'Văn phòng Bến Thành',
     to: ROUTES.project.floors('p-van-phong-ben-thanh'),
-    recencyLabel: 'cập nhật tuần trước',
+    recencyLabel: 'Cập nhật tuần trước',
   },
   {
     id: 'p-nha-xuong-binh-tan',
     name: 'Nhà xưởng Bình Tân',
     to: ROUTES.project.floors('p-nha-xuong-binh-tan'),
-    recencyLabel: 'cập nhật tháng trước',
+    recencyLabel: 'Cập nhật tháng trước',
   },
 ];
 
@@ -102,20 +101,10 @@ export interface CreateNotFoundVmOptions {
 /** Hai lý do bộ dựng này thật sự tạo ra — xem docblock đầu file vì sao không có `'offline'`. */
 type StaticReason = Extract<NotFoundReason, 'missing' | 'forbidden'>;
 
-const TITLE_BY_REASON: Readonly<Record<StaticReason, string>> = {
-  missing: 'Không tìm thấy trang này',
-  forbidden: 'Cần đăng nhập để xem trang này',
-};
-
-const DESCRIPTION_BY_REASON: Readonly<Record<StaticReason, string>> = {
-  missing: 'Đường dẫn này không tồn tại hoặc đã được chuyển đi nơi khác.',
-  forbidden:
-    'Bạn chưa đăng nhập, hoặc phiên làm việc đã hết hạn. Đăng nhập để quay lại đúng chỗ bạn đang đến.',
-};
-
-/** Tiêu đề khối gợi ý — không đổi theo trạng thái; model nói ẩn cả khối khi rỗng, không đổi chữ. */
-const RECENT_HEADING = 'Dự án gần đây';
-
+/*
+ * Chữ lấy từ bảng của hook, không chép lại (B-V1-44, mục D): bản chép tay cũ lệch hook
+ * ở cả tiêu đề, mô tả lẫn nhãn nút ("Về trang chủ" so với "Về danh sách dự án").
+ */
 function reasonFor(state: SevenState): StaticReason {
   return state === 'forbidden' ? 'forbidden' : 'missing';
 }
@@ -123,7 +112,7 @@ function reasonFor(state: SevenState): StaticReason {
 function primaryActionFor(reason: StaticReason, path: string, navigate: NavigateFn): NotFoundAction {
   if (reason === 'forbidden') {
     return {
-      label: 'Đăng nhập',
+      label: NOT_FOUND_TEXT.signInLabel,
       onActivate: () => {
         navigate(ROUTES.login, { state: { from: path } });
       },
@@ -131,7 +120,7 @@ function primaryActionFor(reason: StaticReason, path: string, navigate: Navigate
   }
 
   return {
-    label: 'Về trang chủ',
+    label: NOT_FOUND_TEXT.dashboardLabel,
     onActivate: () => {
       navigate(ROUTES.dashboard);
     },
@@ -179,11 +168,11 @@ export function createNotFoundVm(state: SevenState, options: CreateNotFoundVmOpt
     reason,
     title: TITLE_BY_REASON[reason],
     description: DESCRIPTION_BY_REASON[reason],
-    errorCaption: `Mã lỗi: ${NOT_FOUND_ERROR_CODE} · ${path}`,
+    errorCaption: `${NOT_FOUND_TEXT.errorCodePrefix}${NOT_FOUND_ERROR_CODE}${NOT_FOUND_TEXT.captionSeparator}${path}`,
     primaryAction: primaryActionFor(reason, path, navigate),
-    secondaryAction: { label: 'Quay lại', onActivate: options.onBack ?? noop },
+    secondaryAction: { label: NOT_FOUND_TEXT.backLabel, onActivate: options.onBack ?? noop },
     recentProjects: recentProjectsFor(state),
-    recentHeading: RECENT_HEADING,
+    recentHeading: NOT_FOUND_TEXT.recentHeading,
     isCompact: state === 'collapsed',
     prefersReducedMotion: false,
   };

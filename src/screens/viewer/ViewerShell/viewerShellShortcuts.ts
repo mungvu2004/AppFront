@@ -4,7 +4,7 @@
  * File `.ts` THUẦN: không JSX, không React. Cùng khuôn `buildGlobalShortcuts`
  * của `src/lib/input/shortcutRegistry.ts` — một hàm nhận bộ xử lý và trả về
  * mảng {@link ShortcutDefinition}, để `useViewerShell.ts` đăng ký cả bảng
- * trong MỘT effect thay vì gọi `useShortcut` mười ba lần.
+ * trong MỘT effect thay vì gọi `useShortcut` mười sáu lần.
  *
  * A12: bàn phím là đường đi hạng nhất. Mọi phím ở đây đi qua
  * `appShortcutRegistry`; không nơi nào trong thư mục màn gọi
@@ -64,6 +64,30 @@ export const SEPARATION_COMBO = 'E';
 /** Bật công cụ đo. */
 export const MEASURE_COMBO = 'M';
 
+/**
+ * Phím của năm công cụ ray trái có phím đơn — MỘT nguồn: ray công cụ in
+ * `keyLabel` từ đây và `buildViewerShortcuts` đăng ký từ đây, nên nhãn không
+ * thể quảng cáo một phím không tồn tại. `isolate` không nằm ở đây: `Alt+H` là
+ * {@link ISOLATE_COMBO}, một việc khác (cô lập đối tượng đang chọn).
+ */
+export const TOOL_COMBOS = Object.freeze({
+  orbit: 'R',
+  pan: 'H',
+  measure: MEASURE_COMBO,
+  section: 'C',
+  select: 'V',
+} as const);
+
+export type KeyedViewerToolId = keyof typeof TOOL_COMBOS;
+
+const TOOL_DESCRIPTIONS: Readonly<Record<KeyedViewerToolId, string>> = Object.freeze({
+  orbit: 'Bật công cụ quay quanh mô hình',
+  pan: 'Bật công cụ kéo màn',
+  measure: 'Bật công cụ đo',
+  section: 'Bật công cụ mặt cắt',
+  select: 'Bật công cụ chọn',
+});
+
 /** Mở ô tìm đối tượng. */
 export const SEARCH_COMBO = '/';
 
@@ -84,7 +108,8 @@ export interface ViewerShortcutHandlers {
   isolateSelection(): void;
   frameSelection(): void;
   toggleSeparation(): void;
-  activateMeasure(): void;
+  /** Bật công cụ `id` của ray trái; công cụ không có trên ray thì bỏ qua. */
+  activateTool(id: KeyedViewerToolId): void;
   openSearch(): void;
   clearSelection(): void;
 }
@@ -94,7 +119,8 @@ export interface ViewerShortcutHandlers {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Mười ba binding của vỏ 3D.
+ * Mười sáu binding của vỏ 3D: bốn tầng, bảy việc đơn, năm công cụ sinh từ
+ * {@link TOOL_COMBOS}.
  *
  * Mã `id` mang tiền tố `viewer.` và nói RÕ chỗ đăng ký, vì đó là cái tên mà
  * cảnh báo trùng phím của `reportOverlaps()` in ra.
@@ -108,11 +134,23 @@ export function buildViewerShortcuts(
     id: `viewer.storey.${combo}`,
     combo,
     scope: 'canvas',
-    description: `xem tầng thứ ${combo} tính từ dưới lên`,
+    description: `Xem tầng thứ ${combo} tính từ dưới lên`,
     onTrigger: (): void => {
       handlers.selectStorey(index);
     },
   }));
+
+  const toolBindings = (Object.keys(TOOL_COMBOS) as KeyedViewerToolId[]).map(
+    (toolId): ShortcutDefinition => ({
+      id: `viewer.tool.${toolId}`,
+      combo: TOOL_COMBOS[toolId],
+      scope: 'canvas',
+      description: TOOL_DESCRIPTIONS[toolId],
+      onTrigger: (): void => {
+        handlers.activateTool(toolId);
+      },
+    }),
+  );
 
   return [
     ...storeyBindings,
@@ -120,7 +158,7 @@ export function buildViewerShortcuts(
       id: 'viewer.camera.fitAll',
       combo: FIT_ALL_COMBO,
       scope: 'canvas',
-      description: 'đưa toàn bộ mô hình vào khung hình',
+      description: 'Đưa toàn bộ mô hình vào khung hình',
       onTrigger: (): void => {
         handlers.fitAll();
       },
@@ -129,7 +167,7 @@ export function buildViewerShortcuts(
       id: 'viewer.camera.orthographic',
       combo: ORTHOGRAPHIC_COMBO,
       scope: 'canvas',
-      description: 'bật tắt phép chiếu trực giao',
+      description: 'Bật tắt phép chiếu trực giao',
       onTrigger: (): void => {
         handlers.toggleOrthographic();
       },
@@ -138,7 +176,7 @@ export function buildViewerShortcuts(
       id: 'viewer.selection.hide',
       combo: HIDE_COMBO,
       scope: 'canvas',
-      description: 'ẩn đối tượng đang chọn',
+      description: 'Ẩn đối tượng đang chọn',
       onTrigger: (): void => {
         handlers.hideSelection();
       },
@@ -147,7 +185,7 @@ export function buildViewerShortcuts(
       id: 'viewer.selection.isolate',
       combo: ISOLATE_COMBO,
       scope: 'canvas',
-      description: 'chỉ hiện đối tượng đang chọn',
+      description: 'Chỉ hiện đối tượng đang chọn',
       onTrigger: (): void => {
         handlers.isolateSelection();
       },
@@ -156,7 +194,7 @@ export function buildViewerShortcuts(
       id: 'viewer.camera.frameSelection',
       combo: FRAME_COMBO,
       scope: 'canvas',
-      description: 'khuôn đối tượng đang chọn vào khung hình',
+      description: 'Khuôn đối tượng đang chọn vào khung hình',
       onTrigger: (): void => {
         handlers.frameSelection();
       },
@@ -165,25 +203,17 @@ export function buildViewerShortcuts(
       id: 'viewer.storey.separation',
       combo: SEPARATION_COMBO,
       scope: 'canvas',
-      description: 'bật tắt tách tầng',
+      description: 'Bật tắt tách tầng',
       onTrigger: (): void => {
         handlers.toggleSeparation();
       },
     },
-    {
-      id: 'viewer.tool.measure',
-      combo: MEASURE_COMBO,
-      scope: 'canvas',
-      description: 'bật công cụ đo',
-      onTrigger: (): void => {
-        handlers.activateMeasure();
-      },
-    },
+    ...toolBindings,
     {
       id: 'viewer.search.open',
       combo: SEARCH_COMBO,
       scope: 'canvas',
-      description: 'mở ô tìm đối tượng',
+      description: 'Mở ô tìm đối tượng',
       onTrigger: (): void => {
         handlers.openSearch();
       },
@@ -206,7 +236,7 @@ export function buildDeselectShortcut(
     combo: DESELECT_COMBO,
     scope: 'canvas',
     preventDefault: false,
-    description: 'bỏ chọn đối tượng trên mô hình',
+    description: 'Bỏ chọn đối tượng trên mô hình',
     onTrigger: (): void => {
       handlers.clearSelection();
     },

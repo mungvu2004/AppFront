@@ -108,6 +108,7 @@ function WiredPropertyInspector(props: PropertyInspectorContainerProps) {
     onOpenRuleScreen: props.onOpenRuleScreen,
     selectedEntityId: props.selectedEntityId,
     selectedEntityIds: props.selectedEntityIds,
+    ...(props.saveLabel !== undefined ? { saveLabel: props.saveLabel } : {}),
   });
 
   return <PropertyInspector {...model} />;

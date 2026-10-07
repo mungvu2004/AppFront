@@ -186,6 +186,14 @@ gzip từng file trong `assets/` và phân bổ theo `renderedLength`. Đóng k�
 
 ## 9. Hậu ký — cổng đã đổi theo §7 (2026-09-05)
 
+> **Cập nhật 2026-09-29.** Có thêm **ba** cổng nữa cho **vách ngăn Pascal**
+> (`assets/pascal` + `pascal` + `basis`), đo **KiB thô của cả thư mục** chứ không gzip: bốn cổng
+> dưới đây đo "thứ đi qua dây ở khung hình đầu tiên", ba cổng mới đo "khối lượng phải mang đi
+> deploy", và ảnh `.ktx2` đã nén sẵn nên gzip ở đó không nói lên điều gì. Bốn cổng dưới đây bỏ qua
+> vách ngăn **theo cấu tạo** — chúng đọc `dist/assets` không đệ quy và lọc theo đuôi `.js`/`.css`,
+> mà `assets/pascal` là một thư mục. Ba con số trần do người thi công đặt từ số đo và **chưa được
+> duyệt**: xem `docs/pascal/00-quyet-dinh.md` bản 5.
+
 Người duyệt đã ký bảng đề xuất ở §7. `scripts/check-bundle-size.mjs` nay đo **bốn** đại
 lượng thay vì ba; `vite.config.ts` bật `build.manifest: true` vì ba trong bốn phép đo cần
 **đồ thị nhập** (`imports` / `dynamicImports` trong `dist/.vite/manifest.json`), chứ không

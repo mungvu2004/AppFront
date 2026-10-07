@@ -43,6 +43,7 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import { InputQualityGateView } from './InputQualityGate';
 import type {
   InputQualityFindingModel,
+  InputQualityConfirmModel,
   InputQualityFloorRow,
   InputQualityGateActions,
   InputQualityGateStatus,
@@ -381,6 +382,8 @@ const NO_ACTIONS: InputQualityGateActions = {
   onToggleAcknowledgement: () => undefined,
   onContinue: () => undefined,
   onUploadAnother: () => undefined,
+  onConfirmWrite: () => undefined,
+  onCancelWrite: () => undefined,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -397,6 +400,9 @@ interface ModelOptions {
   readonly passNotice?: string | null;
   readonly isAcknowledged?: boolean;
   readonly areActionsHidden?: boolean;
+  readonly noDrawingNotice?: string | null;
+  readonly writeError?: string | null;
+  readonly confirm?: InputQualityConfirmModel | null;
 }
 
 function modelOf(
@@ -436,6 +442,9 @@ function modelOf(
       partialNotice: options.partialNotice ?? null,
       remainingFindingCount: findings.filter((finding) => !finding.isResolved).length,
       passNotice: options.passNotice ?? null,
+      noDrawingNotice: options.noDrawingNotice ?? null,
+      writeError: options.writeError ?? null,
+      confirm: options.confirm ?? null,
     },
     actions: NO_ACTIONS,
   };
@@ -517,6 +526,53 @@ export function acknowledgedScenario(): InputQualityGateViewProps {
   return modelOf('ready', { findings: findingsOf(true), isAcknowledged: true });
 }
 
+/** Dự án chưa có bản vẽ (404 `upload`) — trạng thái rỗng, không phải lỗi. `canEdit` false thì không nút. */
+export function noDrawingScenario(canEdit = true): InputQualityGateViewProps {
+  return modelOf('empty', {
+    metrics: [],
+    findings: [],
+    floors: [],
+    areActionsHidden: !canEdit,
+    noDrawingNotice: 'Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.',
+  });
+}
+
+/** Hộp thoại hỏi trước (A9) — `'straighten'` hoặc `'corners'`. */
+export function confirmScenario(kind: 'straighten' | 'corners'): InputQualityGateViewProps {
+  const base = scenarioFor('success');
+  const confirm: InputQualityConfirmModel =
+    kind === 'straighten'
+      ? {
+          title: `Nắn thẳng bản vẽ tầng ${ACTIVE.name}?`,
+          body: 'Máy chủ sẽ thay ảnh gốc bằng ảnh đã nắn và xử lý lại tầng này; việc này không hoàn tác được.',
+          confirmLabel: 'Nắn thẳng',
+          cancelLabel: 'Huỷ',
+          isBusy: false,
+        }
+      : {
+          title: `Cắt và nắn bản vẽ tầng ${ACTIVE.name} theo bốn góc?`,
+          body: 'Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.',
+          confirmLabel: 'Cắt và nắn',
+          cancelLabel: 'Huỷ',
+          isBusy: false,
+        };
+
+  return { ...base, model: { ...base.model, confirm } };
+}
+
+/** Một lượt ghi hỏng — dải lỗi phía trên hai cột, không mã lỗi. */
+export function writeErrorScenario(): InputQualityGateViewProps {
+  const base = scenarioFor('success');
+
+  return {
+    ...base,
+    model: {
+      ...base.model,
+      writeError: 'Bản vẽ của tầng vừa đổi, kết quả đo đã được đọc lại; hãy xem rồi thử lại.',
+    },
+  };
+}
+
 /** Một vùng ảnh đang được tô sáng — phía hình của liên kết hai chiều. */
 export function highlightedScenario(regionId: string): InputQualityGateViewProps {
   const base = scenarioFor('success');
@@ -565,6 +621,18 @@ export const ThuGon: Story = { args: scenarioFor('collapsed') };
 
 /** Ngoài bảy trạng thái: đã tích ô xác nhận, lời chặn biến mất. */
 export const DaXacNhan: Story = { args: acknowledgedScenario() };
+
+/** Ngoài bảy trạng thái: dự án chưa có bản vẽ nào. */
+export const ChuaCoBanVe: Story = { args: noDrawingScenario() };
+
+/** Ngoài bảy trạng thái: hỏi trước khi nắn thẳng (A9). */
+export const HoiTruocKhiNan: Story = { args: confirmScenario('straighten') };
+
+/** Ngoài bảy trạng thái: hỏi trước khi cắt và nắn theo bốn góc (A9). */
+export const HoiTruocKhiNanBonGoc: Story = { args: confirmScenario('corners') };
+
+/** Ngoài bảy trạng thái: lượt ghi hỏng, dải lỗi hiện phía trên. */
+export const LoiGhi: Story = { args: writeErrorScenario() };
 
 /** Ngoài bảy trạng thái: rê chuột qua phát hiện nghiêng, vùng ảnh của nó sáng lên. */
 export const VungAnhDangSang: Story = { args: highlightedScenario(regionIdOf('finding-skew')) };

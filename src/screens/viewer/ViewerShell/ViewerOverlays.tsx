@@ -44,7 +44,7 @@ export function ViewerCube({ presets, activePresetId, onCubeFaceSelect }: Viewer
     <div
       aria-label="Khối định hướng"
       className={cn(
-        'grid grid-cols-2 gap-px overflow-hidden rounded-[10px]',
+        'pointer-events-auto grid grid-cols-2 gap-px overflow-hidden rounded-[10px]',
         'border border-border-default bg-bg-surface shadow-float',
       )}
       role="group"
@@ -197,6 +197,11 @@ export interface ViewerCornerControlsProps extends ViewerCubeProps {
  * `className` (đơn vị xung đột của `tailwind-merge`, nên các lớp sau thắng)
  * để `MiniMap` quay lại làm một phần tử THƯỜNG trong `flex-col`, xếp đúng vị
  * trí thứ hai — không đổi gì bên trong `MiniMap.tsx`.
+ *
+ * Cụm rộng bằng bản đồ nhỏ (128 px) nên bên trái ViewCube 72 px còn một khoảng
+ * trống 56 px. Khung bọc `pointer-events-none` (`ViewerShell.tsx`), chỉ ViewCube và
+ * bản đồ nhỏ nhận chuột: khoảng trống ấy từng nuốt cú bấm vào nút "Xong" của chế
+ * độ sửa hình học nằm bên dưới (B-V8-11) — cùng bài học với thanh hiện diện.
  */
 export function ViewerTopRightControls({
   presets,
@@ -210,7 +215,7 @@ export function ViewerTopRightControls({
         onCubeFaceSelect={onCubeFaceSelect}
         presets={presets}
       />
-      <MiniMap className="static top-auto right-auto z-auto" />
+      <MiniMap className="pointer-events-auto static top-auto right-auto z-auto" />
     </div>
   );
 }

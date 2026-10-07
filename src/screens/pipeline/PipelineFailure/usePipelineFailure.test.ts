@@ -139,6 +139,7 @@ describe('pipelineFailureGateway', () => {
       retryStep: false,
       stepFailureDetail: false,
       technicalLog: false,
+      // Bật thì phải có hoãn A8 trước — B-V4-09.
       skipFloor: false,
       copyLog: true,
       reportFailure: true,
@@ -456,6 +457,54 @@ describe('usePipelineFailure — khối lỗi', () => {
     expect(band.reason.codeLabel.length).toBeGreaterThan(0);
     // Vẫn còn ít nhất hai đường đi tiếp.
     expect(band.nextSteps?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('usePipelineFailure — mã máy chủ (F-05b)', () => {
+  const alertBand = (mounted: Mounted) => {
+    const band = mounted.result.current.band;
+    if (band.kind !== 'alert') throw new Error('Dải phải là alert.');
+    return band;
+  };
+  const noDetail = () => createMockPipelineFailureGateway({ supports: { stepFailureDetail: false } });
+  const primaryIds = (mounted: Mounted) =>
+    (alertBand(mounted).nextSteps ?? []).filter((step) => step.isPrimary).map((step) => step.id);
+
+  it('không có failureCode: giữ hành vi cũ', async () => {
+    const mounted = await mountSettled(noDetail());
+    expect(alertBand(mounted).reason.causeSentence).toBe(PIPELINE_FAILURE_TEXT.detailUnsupportedCause);
+    expect(primaryIds(mounted)).toEqual(['retry-lower-threshold']);
+  });
+
+  it('có failureCode: câu theo bảng, mã thật, tên tầng N7', async () => {
+    const mounted = await mountSettled(noDetail(), {
+      failureCode: 'PIPELINE_STEP_TIMEOUT',
+      failureFloorName: 'Tầng 3',
+    });
+    const { reason } = alertBand(mounted);
+    expect(reason.summarySentence).toBe(`Bước ${labelOf(FAILED_STEP_ID)} ở Tầng 3 không hoàn tất được.`);
+    expect(reason.causeSentence).toBe('Bước xử lý chạy quá thời gian cho phép.');
+    expect(reason.codeLabel).toBe('PIPELINE_STEP_TIMEOUT');
+    expect(reason.codeLabel).not.toContain('UNKNOWN');
+  });
+
+  it('reupload: bước tải lên là chính', async () => {
+    const mounted = await mountSettled(noDetail(), { failureCode: 'FILE_CORRUPT' });
+    expect(primaryIds(mounted)).toEqual(['upload-clearer']);
+  });
+
+  it('retry: bước tải lên là chính, nhãn chạy lượt mới', async () => {
+    const mounted = await mountSettled(noDetail(), { failureCode: 'WORKER_LOST' });
+    expect(primaryIds(mounted)).toEqual(['upload-clearer']);
+    expect(alertBand(mounted).nextSteps?.find((step) => step.id === 'upload-clearer')?.label).toBe(
+      'Tải lại bản vẽ để chạy lượt mới',
+    );
+  });
+
+  it.each(['INTERNAL', 'FOO_BAR'])('contactAdmin / mã lạ (%s): không bước nào chính', async (code) => {
+    const mounted = await mountSettled(noDetail(), { failureCode: code });
+    expect(primaryIds(mounted)).toEqual([]);
+    expect(alertBand(mounted).reason.codeLabel).toBe(code);
   });
 });
 

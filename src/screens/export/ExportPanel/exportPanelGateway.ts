@@ -258,7 +258,7 @@ export function readExportCapabilities(
  * và câu này nói ra ai thì được.
  */
 export const EXPORT_FORBIDDEN_CAPTION =
-  'chỉ quản trị viên và kỹ sư của dự án xuất được mô hình; bạn đang xem ở quyền chỉ đọc.';
+  'Chỉ quản trị viên và kỹ sư của dự án xuất được mô hình; bạn đang xem ở quyền chỉ đọc.';
 
 /** Người dùng có quyền `model.export` trên dự án đang mở không. */
 export function readExportPermission(roles: readonly ProjectRole[]): boolean {
@@ -309,9 +309,9 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       id: 'approval',
       label:
         levels.length === 0
-          ? 'chưa chọn tầng nào để xuất.'
+          ? 'Chưa chọn tầng nào để xuất.'
           : unapprovedLevels.length === 0
-            ? `cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
+            ? `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
             : `còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
                 .map((level) => level.name)
                 .join(', ')}.`,
@@ -322,8 +322,8 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       id: 'violations',
       label:
         violationCount === 0
-          ? 'không còn vi phạm nào.'
-          : `còn ${formatNumber(violationCount)} vi phạm chưa xử lý.`,
+          ? 'Không còn vi phạm nào.'
+          : `Còn ${formatNumber(violationCount)} vi phạm chưa xử lý.`,
       tone: violationCount === 0 ? 'ok' : 'attention',
       fixHref: violationCount === 0 ? null : ROUTES.project.rules(projectId),
     },
@@ -331,8 +331,8 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       id: 'unreviewed',
       label:
         unreviewed.count === 0
-          ? 'mọi đối tượng trên các tầng đã chọn đều đã duyệt.'
-          : `còn ${formatNumber(unreviewed.count)} đối tượng chưa duyệt.`,
+          ? 'Mọi đối tượng trên các tầng đã chọn đều đã duyệt.'
+          : `Còn ${formatNumber(unreviewed.count)} đối tượng chưa duyệt.`,
       tone: unreviewed.count === 0 ? 'ok' : 'attention',
       fixHref:
         unreviewed.levelId === null
@@ -699,7 +699,7 @@ export interface StartSpatialJsonExportInput {
   readonly includeConfidence: boolean;
 }
 
-/** Ép cảnh cho bài kiểm: tường minh, không biến ẩn (khuôn `billingGateway.ts`). */
+/** Ép cảnh cho bài kiểm: tường minh, không biến ẩn. */
 export interface ExportPanelGatewaySeed {
   /** Thay hẳn lượt xuất `.glb` — bài kiểm không dựng worker thật. */
   readonly exportGlb?: typeof glbModule.exportGlb;

@@ -18,8 +18,8 @@ async function openAndSkipTour(
 ): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto(path);
-  await page.getByRole('button', { name: 'bỏ qua', exact: true }).first().click({ timeout: 20_000 });
-  await expect(page.getByRole('button', { name: 'xem hướng dẫn' })).toBeVisible();
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn', exact: true }).first().click({ timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Xem hướng dẫn' })).toBeVisible();
 }
 
 /** Tâm của phần tử có thật là thứ nhận chuột — không lớp nào đè lên. */
@@ -56,13 +56,13 @@ for (const panel of VIEWER_PANELS) {
     await openAndSkipTour(page, '/projects/P-01/3d', 800, 375);
     await page.getByRole('button', { name: panel }).click();
 
-    const chip = await page.getByRole('button', { name: 'xem hướng dẫn' }).boundingBox();
+    const chip = await page.getByRole('button', { name: 'Xem hướng dẫn' }).boundingBox();
     expect(chip).not.toBeNull();
 
     /* Mọi điều khiển nhìn thấy được (trừ chính chip) không giao với hộp của chip. */
     const covered = await page.evaluate((c) => {
       return [...document.querySelectorAll('button, a, input, [role="combobox"], [role="radio"]')]
-        .filter((e) => !e.textContent?.includes('xem hướng dẫn'))
+        .filter((e) => !e.textContent?.includes('Xem hướng dẫn'))
         .filter((e) => {
           const r = e.getBoundingClientRect();
           const style = getComputedStyle(e);

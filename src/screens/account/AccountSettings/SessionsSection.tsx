@@ -105,7 +105,7 @@ export function SessionsSection(props: SessionsSectionProps) {
 
                   {row.isCurrent ? (
                     <span className="rounded-full bg-bg-sunken px-2 py-1 text-[12px] text-text-secondary">
-                      thiết bị này
+                      Thiết bị này
                     </span>
                   ) : (
                     <Button

@@ -228,7 +228,7 @@ describe('bộ mẫu chuẩn, đo từ chính fixture', () => {
 /* 3. Bảy trạng thái, khả năng tiếp cận, tiếng Việt.                           */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('không trạng thái nào dựng ra màn trắng', () => {
     expectSevenStates((scenario) => {
       const { container, unmount } = renderWithProviders(
@@ -236,7 +236,7 @@ describe('bảy trạng thái', () => {
       );
 
       return { container, unmount };
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
   });
 
   it('trạng thái thu gọn ẩn hẳn nửa phải', () => {
@@ -534,5 +534,30 @@ describe('cây cấu trúc', () => {
     fireEvent.keyDown(leaf as HTMLElement, { key: 'ArrowRight' });
 
     expect(onToggle).not.toHaveBeenCalled();
+  });
+});
+
+describe('B-V12-07 / B-V12-08 — dải hợp lệ và số dòng ẩn', () => {
+  it('B-V12-07: "empty" không hiện dải "Hợp lệ … 0 lỗi" — chưa có gì để kiểm', () => {
+    renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('empty')} />);
+
+    expect(screen.queryByText(/Hợp lệ theo hợp đồng Spatial JSON/u)).toBeNull();
+  });
+
+  it('B-V12-07: có dữ liệu thì dải hợp lệ vẫn hiện', () => {
+    renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('success')} />);
+
+    expect(screen.getByText(/Hợp lệ theo hợp đồng Spatial JSON|lỗi nghiêm trọng/u)).toBeTruthy();
+  });
+
+  it('B-V12-08: số dòng còn ẩn của chữ thô có dấu nhóm nghìn như mọi số khác trên màn', () => {
+    const props = buildSpatialJsonViewerProps('success');
+    const rawText = Array.from({ length: 3_100 }, (_, index) => `"k${String(index)}": 1`).join('\n');
+
+    renderWithProviders(
+      <SpatialJsonViewer actions={props.actions} model={{ ...props.model, rawText, activeTabId: 'json' }} />,
+    );
+
+    expect(screen.getByText(/Còn 2\.500 dòng nữa\./u)).toBeTruthy();
   });
 });

@@ -75,6 +75,20 @@ const WallGeometryEditorContainer = lazy(async () => ({
  */
 const PRESENCE_ANCHOR = 'right-4 top-[216px]';
 
+/**
+ * Dải "Đang sửa … Xong" của chế độ sửa hình học lùi đầu phải khỏi ViewCube.
+ *
+ * Dải ấy trải hết bề ngang, cao 36 px, đặt "Xong" ở mép phải — tức nằm gọn dưới ô
+ * ViewCube `right-2 top-2` 72 px (z cao hơn). Đo 2026-10-03: `click()` vào "Xong"
+ * hết hạn với `subtree intercepts pointer events` từ nút "Trục đo" của ViewCube
+ * (B-V8-11). Lần thứ BA góc này bị lấn — xem `PRESENCE_ANCHOR` ngay trên. Nửa kia
+ * của cùng lỗi — khoảng trống bên trái ViewCube nuốt chuột — chữa ở
+ * `ViewerShell/ViewerOverlays.tsx` (`ViewerTopRightControls`).
+ *
+ * 88 px = 8 (right-2) + 72 (ViewCube) + 8 (khe).
+ */
+const WALL_EDIT_BAND_END_INSET = 'pr-[88px]';
+
 export interface Viewer3DOverlaysProps {
   /** Chế độ sửa hình học tường đang bật. `false` ⇒ lớp phủ ấy không được dựng. */
   readonly isWallEditing: boolean;
@@ -100,6 +114,7 @@ export function Viewer3DOverlays(props: Viewer3DOverlaysProps) {
       {props.isWallEditing && (
         <Suspense fallback={null}>
           <WallGeometryEditorContainer
+            bandEndInsetClassName={WALL_EDIT_BAND_END_INSET}
             isCollapsed={false}
             isSectionOrthographic={props.isSectionOrthographic}
             onExitEditMode={props.onExitWallEditMode}

@@ -200,6 +200,11 @@ export interface ShareDialogModel {
   readonly savedAtLabel: string | null;
   /** Kết quả của `can('create', 'share', { roles })`. false dẫn tới trạng thái `forbidden`. */
   readonly canCreateLink: boolean;
+  /**
+   * `false` khi máy chủ không phục vụ liên kết chia sẻ (v1, `SHARE_LINKS_SUPPORTED`):
+   * phần liên kết và mã nhúng rời DOM, chỉ còn "người có quyền". Không phải `forbidden`.
+   */
+  readonly linksSupported: boolean;
   /** Một câu nói vì sao không đổi được, hiện ngay tại mục bị khoá. */
   readonly noPermissionReason: string | null;
   readonly members: readonly MemberRowModel[];
@@ -213,6 +218,11 @@ export interface ShareDialogModel {
   readonly errorMessage: string | null;
   /** Đổi khoá thì liên kết cũ hết hiệu lực. Một dòng nhắc, không phải hộp thoại. */
   readonly staleLinkNotice: string | null;
+  /**
+   * Liên kết đang chờ người dùng xác nhận thu hồi; `null` là không hỏi gì. Thu hồi
+   * không có đường khôi phục (A8 không hoàn tác được), nên A9 đòi hỏi trước.
+   */
+  readonly pendingRevokeUrl: string | null;
 }
 
 export interface ShareDialogActions {
@@ -222,7 +232,10 @@ export interface ShareDialogActions {
   readonly setPassword: (password: string) => void;
   readonly setIncludeViewpoint: (include: boolean) => void;
   readonly createLink: () => void;
+  /** HỎI trước khi thu hồi (A9) — chưa gửi gì. `confirmRevoke` mới gửi. */
   readonly revokeLink: (id: string) => void;
+  readonly confirmRevoke: () => void;
+  readonly cancelRevoke: () => void;
   readonly copyLink: (id: string) => void;
   readonly copyEmbedCode: () => void;
   readonly setEmbedLevel: (levelId: LevelId | null) => void;
@@ -273,6 +286,11 @@ export interface UseShareDialogOptions {
   readonly copyToClipboard?: (text: string) => Promise<void> | void;
   readonly onToast?: (toast: ShareDialogToast) => void;
   readonly onDismiss?: () => void;
+  /**
+   * Hộp thoại đang mở hay không — mặc định `true`. Đóng thì lượt đọc danh sách liên
+   * kết không chạy, cùng luật lượt đọc thành viên của container (B-V3-09).
+   */
+  readonly isOpen?: boolean;
 }
 
 export type ShareDialogResult = readonly [ShareDialogModel, ShareDialogActions];

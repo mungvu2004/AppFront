@@ -53,7 +53,7 @@ export const RULE_REPORT_MISSING_CAPABILITIES: Readonly<
   canPreview3d: false,
 });
 
-/** Ép cảnh cho bài kiểm, đúng khuôn `billingGateway.ts`: tường minh, không biến ẩn. */
+/** Ép cảnh cho bài kiểm: tường minh, không biến ẩn. */
 export interface RuleReportGatewaySeed {
   /**
    * Ghi đè quyền sửa của người dùng. Không truyền thì cổng dùng đúng giá trị

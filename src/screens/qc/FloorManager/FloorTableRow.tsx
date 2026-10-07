@@ -50,9 +50,9 @@ type FloorRowHandlers = Pick<
   | 'onUploadDrawing'
 >;
 
-const NEEDS_DRAWING_LABEL = 'chưa có bản vẽ';
-const UPLOAD_LINK_LABEL = 'tải lên';
-const COPY_FURNITURE_LABEL = 'sao chép nội thất sang tầng mới';
+const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
+const UPLOAD_LINK_LABEL = 'Tải lên';
+const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
 const CONFIRM_DUPLICATE_LABEL = 'nhân bản';
 
 function reorderedIds(rows: readonly FloorRowVm[], index: number, direction: -1 | 1): readonly string[] | null {

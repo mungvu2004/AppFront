@@ -5,31 +5,24 @@
  * làm gì, và **năng lực nào `false` thì phần giao diện tương ứng rời khỏi DOM**
  * — không nút bị vô hiệu hoá, không ô trống, không ghi chú "sắp có".
  *
- * ## CHƯA QUA MẠNG: `RuleConfig` sống trong bộ nhớ của module này
+ * ## Cấu hình sống trên máy chủ: N21 đọc, N22 thay trọn (F-10)
  *
- * Repo hôm nay **không có endpoint nào nhận một `RuleConfig`**. `ProjectSchema`
- * (`src/api/schemas/index.ts`) khai `.strict()`, nên thêm một khoá lạ vào lượt
- * gửi làm hỏng luôn bước giải mã của lần đọc lại — bịa một đường dây ở đây thì
- * hỏng to hơn là không có.
+ * `read` gọi `GET /projects/{id}/rule-config`, `update` gọi `PUT` cùng đường với
+ * `{ baseVersion, body: { overrides } }`. `baseVersion` là `revision` của MÁY CHỦ
+ * — `RuleConfig.version` là bộ đếm phía client (khoá cache Đ4) và không bao giờ
+ * lên dây.
  *
- * Nên cấu hình được giữ trong một `Map` của riêng module này, **khoá theo mã dự
- * án**, đúng khuôn bảy trường chưa có dây của
- * `screens/project/ProjectSettings/projectSettingsGateway.ts:141-195`. Hệ quả,
- * nói thẳng chứ không giấu sau chữ "đã lưu":
- *
- * - trong một phiên, người dùng sửa được và màn đọc lại được ngay, nên câu
- *   "Đã lưu lúc 14:32" của A7 **nói thật về thứ nó làm được**;
- * - **tải lại trang là mất**: cấu hình trở về mặc định, vì nó chưa đi đâu cả.
- *
- * Mở đường dây là một lượt riêng ở tầng dữ liệu, mã đề xuất **T-05** (T-04 đã
- * là của màn cài đặt dự án, đừng gộp vào): thêm chỗ chứa `RuleConfig` ở tầng
- * API rồi bỏ `Map` trong file này đi. Khi ấy đây là file duy nhất phải sửa —
- * `useRuleSettings.ts` và view không đổi một dòng nào.
+ * - Hỏng thì **ném nguyên** `HttpError`: `createAutosave` đọc nó để biết thử lại
+ *   hay dừng (R2), và {@link describeRuleConfigSaveError} rẽ theo `code`.
+ * - Hỏng vì mạng/timeout thì máy chủ có thể ĐÃ ghi. Cổng giữ đúng thân vừa gửi
+ *   và gửi lại nó trước ở lượt `update` kế tiếp (C09b trả 200 cho lượt lặp), rồi
+ *   mới gửi thân mới trên `revision` vừa nhận. Bản giữ sống trong cổng của lượt
+ *   gắn màn, không ở cấp module: đổi người dùng là mất theo.
  *
  * ## Hai năng lực THẬT, đến từ quyền của người dùng
  *
  * `canEditRules` và `canApplyPreset` là `true` khi người dùng có quyền
- * `project.settings.edit` (`lib/auth/permissions.ts`), vì **tầng logic có
+ * `ruleset.edit` (`lib/auth/permissions.ts`, chỉ quản trị viên), vì **tầng logic có
  * thật**: `@/domain/rules/config` sinh ra một `RuleConfig` bất biến mới cho mỗi
  * lượt sửa, và `@/domain/rules/presets` đo trước hậu quả của một bộ luật sẵn
  * bằng `diffPreset`. Không có mảnh nào phải bịa ở tầng màn hình.
@@ -70,7 +63,11 @@
  * năng lực qua đúng một đường là bộ giá trị cổng này trả về.
  */
 
-import { EMPTY_RULE_CONFIG, type RuleConfig } from '@/domain/rules/config';
+import type { ApiClient } from '@/api/client';
+import type { RuleConfig, RuleOverride } from '@/domain/rules/config';
+import type { RuleCode } from '@/domain/rules/registry';
+import { readWireError } from '@/lib/errors/wireError';
+import { queryKeys } from '@/lib/query/queryKeys';
 
 import type { RuleSettingsCapabilities } from './types';
 
@@ -93,20 +90,38 @@ export const RULE_SETTINGS_NOT_BUILT = Object.freeze({
 /**
  * Câu nói rõ **ai** đổi được bộ luật, hiện khi màn ở chế độ chỉ đọc.
  *
- * Lấy đúng bảng phân quyền `project.settings.edit`
- * (`lib/auth/permissions.ts`): quản trị viên và kỹ sư được sửa, người xem thì
- * không. Nói ra vai được phép chứ không chỉ nói "bạn không có quyền" — người
+ * Lấy đúng bảng phân quyền `ruleset.edit` (`lib/auth/permissions.ts`): chỉ quản
+ * trị viên. Nói ra vai được phép chứ không chỉ nói "bạn không có quyền" — người
  * đọc cần biết phải hỏi ai.
  */
 export const RULE_SETTINGS_READ_ONLY_REASON =
-  'chỉ quản trị viên và kỹ sư của dự án đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.';
+  'Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.';
+
+/**
+ * Khoá của lượt đọc N21 — dùng chung cho màn cài đặt và màn báo cáo luật, nên
+ * `setQueryData` sau một lượt lưu làm báo cáo chạy lại theo `revision` mới.
+ *
+ * Nằm dưới `project.detail(id)`: một lần vô hiệu hoá khoá cha kéo theo cả khoá
+ * này (`src/lib/query` nằm ngoài phạm vi của lượt này).
+ */
+export const ruleSettingsQueryKey = (projectId: string) =>
+  [...queryKeys.project.detail(projectId), 'ruleConfig'] as const;
+
+/** Một lượt đọc/ghi thành công: `revision` của máy chủ cộng cấu hình miền. */
+export interface LoadedRuleConfig {
+  readonly revision: number;
+  readonly config: RuleConfig;
+}
 
 export interface ReadRuleConfigInput {
   readonly projectId: string;
+  readonly signal?: AbortSignal;
 }
 
 export interface UpdateRuleConfigInput {
   readonly projectId: string;
+  /** `revision` máy chủ vừa đọc/lưu. */
+  readonly baseVersion: number;
   readonly config: RuleConfig;
 }
 
@@ -114,52 +129,113 @@ export interface UpdateRuleConfigInput {
 export interface RuleSettingsGatewaySeed {
   /**
    * Ghi đè quyền sửa của người dùng. Không truyền thì cổng dùng đúng giá trị
-   * container đưa xuống — đây chỉ để bài kiểm dựng trạng thái 6 mà không phải
-   * dựng cả một phiên đăng nhập.
+   * hook đưa xuống — đây chỉ để bài kiểm dựng chế độ chỉ đọc mà không phải dựng
+   * cả một phiên đăng nhập.
    */
   readonly canEdit?: boolean;
-  /**
-   * Thay hẳn lượt đọc. Bài kiểm dựng trạng thái 4 (lỗi đọc) bằng một hàm trả
-   * `Promise` bị từ chối — bộ nhớ trong file này không hỏng bao giờ, nên nếu
-   * không có lối tiêm này thì trạng thái 4 sẽ không có cách nào chạm tới.
-   */
-  readonly read?: (input: ReadRuleConfigInput) => Promise<RuleConfig>;
-  /** Thay hẳn lượt ghi, cùng lý do với {@link RuleSettingsGatewaySeed.read}. */
-  readonly update?: (input: UpdateRuleConfigInput) => Promise<void>;
+  /** Client của lượt này; vắng thì `createAppApiClient()`, nạp lười ở lượt gọi đầu. */
+  readonly client?: ApiClient;
 }
 
 export interface RuleSettingsGateway {
   /**
    * Bộ năng lực của một lượt xem cài đặt.
    *
-   * `canEdit` đến từ quyền của người dùng, do container đưa xuống. Cả hai năng
-   * lực của màn đều suy ra từ đúng một chữ đó, vì cả hai đều ghi vào cùng một
-   * `RuleConfig`.
+   * Cả hai năng lực của màn đều suy ra từ đúng một chữ `canEdit`, vì cả hai đều
+   * ghi vào cùng một `RuleConfig`.
    */
   readonly readCapabilities: (canEdit: boolean) => RuleSettingsCapabilities;
-  /** Cấu hình đã lưu của dự án; `EMPTY_RULE_CONFIG` khi dự án chưa đổi gì. */
-  readonly read: (input: ReadRuleConfigInput) => Promise<RuleConfig>;
-  /** Một lượt tự lưu. Ném lỗi khi ghi hỏng — `createAutosave` thử lại theo lịch 5/15/45 giây. */
-  readonly update: (input: UpdateRuleConfigInput) => Promise<void>;
+  /** N21. Chưa lưu lần nào → `revision: 0`, không override nào. */
+  readonly read: (input: ReadRuleConfigInput) => Promise<LoadedRuleConfig>;
+  /** N22. Ném nguyên `HttpError` khi hỏng. */
+  readonly update: (input: UpdateRuleConfigInput) => Promise<LoadedRuleConfig>;
+  /** `revision` của lượt đọc/ghi thành công gần nhất cho dự án này. */
+  readonly lastRevision: (projectId: string) => number | undefined;
+}
+
+type WireOverrides = Record<RuleCode, RuleOverride>;
+
+interface HeldWrite {
+  readonly baseVersion: number;
+  readonly body: { readonly overrides: WireOverrides };
 }
 
 /**
- * Cấu hình theo dự án, sống trong bộ nhớ của tiến trình này.
- *
- * Xem chú thích đầu file: đây là chỗ chứa tạm cho tới lượt **T-05**, không phải
- * một tầng dữ liệu. `Map` ở phạm vi module chứ không trong `createRuleSettingsGateway`,
- * để hai cổng dựng ở hai chỗ khác nhau trong cùng một phiên vẫn nhìn thấy cùng
- * một cấu hình — hai màn thấy hai bộ luật khác nhau đúng là thứ Đ3 tồn tại để chặn.
+ * `overrides` lên dây: bỏ mục không đổi gì và `thresholds: {}` — hai refine của
+ * `RuleOverrideSchema` từ chối cả hai.
  */
-const configByProject = new Map<string, RuleConfig>();
+const toWireOverrides = (config: RuleConfig): WireOverrides => {
+  const overrides: WireOverrides = {};
 
-/** Bỏ hết cấu hình đang giữ. Bài kiểm gọi giữa hai lượt render để không rò trạng thái. */
-export function resetRuleSettingsStore(): void {
-  configByProject.clear();
-}
+  for (const [code, override] of Object.entries(config.overrides)) {
+    const hasThresholds =
+      override.thresholds !== undefined && Object.keys(override.thresholds).length > 0;
+    const next: RuleOverride = {
+      ...(override.enabled !== undefined ? { enabled: override.enabled } : {}),
+      ...(override.severity !== undefined ? { severity: override.severity } : {}),
+      ...(hasThresholds && override.thresholds !== undefined ? { thresholds: override.thresholds } : {}),
+    };
 
-/** Cổng thật của màn. Chữ ký này không đổi khi hai mục ở trên được nối dây. */
+    if (Object.keys(next).length > 0) {
+      overrides[code] = next;
+    }
+  }
+
+  return overrides;
+};
+
+/** Lỗi mà máy chủ có thể đã ghi xong trước khi câu trả lời mất: mạng đứt, quá hạn. */
+const isLostResponse = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'kind' in error &&
+  (error.kind === 'network' || error.kind === 'timeout');
+
+/** Cổng thật của màn. */
 export function createRuleSettingsGateway(seed: RuleSettingsGatewaySeed = {}): RuleSettingsGateway {
+  // Nạp LƯỜI: `appClient` kéo theo cả phiên đăng nhập (~24 KiB gzip). Nhập tĩnh thì
+  // chunk màn báo cáo luật vượt trần 280 KiB của cổng kích thước (đo F-10: 280,3).
+  let clientPromise: Promise<ApiClient> | null = seed.client === undefined ? null : Promise.resolve(seed.client);
+  const getClient = (): Promise<ApiClient> => {
+    clientPromise ??= import('@/api/appClient').then((module) => module.createAppApiClient());
+
+    return clientPromise;
+  };
+  const revisions = new Map<string, number>();
+  const held = new Map<string, HeldWrite>();
+
+  const toLoaded = (
+    projectId: string,
+    wire: { readonly revision: number; readonly overrides: WireOverrides },
+  ): LoadedRuleConfig => {
+    revisions.set(projectId, wire.revision);
+
+    return { revision: wire.revision, config: { overrides: wire.overrides, version: 0 } };
+  };
+
+  const send = async (projectId: string, write: HeldWrite): Promise<LoadedRuleConfig> => {
+    const client = await getClient();
+    const result = await client.ruleConfig.replace({
+      projectId,
+      baseVersion: write.baseVersion,
+      body: write.body,
+    });
+
+    if (!result.ok) {
+      if (isLostResponse(result.error)) {
+        held.set(projectId, write);
+      } else {
+        held.delete(projectId);
+      }
+
+      throw result.error;
+    }
+
+    held.delete(projectId);
+
+    return toLoaded(projectId, result.data);
+  };
+
   return {
     readCapabilities: (canEdit) => {
       const allowed = seed.canEdit ?? canEdit;
@@ -171,16 +247,81 @@ export function createRuleSettingsGateway(seed: RuleSettingsGatewaySeed = {}): R
       };
     },
 
-    read:
-      seed.read ??
-      (({ projectId }) => Promise.resolve(configByProject.get(projectId) ?? EMPTY_RULE_CONFIG)),
+    read: async ({ projectId, signal }) => {
+      const client = await getClient();
+      const result = await client.ruleConfig.read({
+        projectId,
+        ...(signal !== undefined ? { signal } : {}),
+      });
 
-    update:
-      seed.update ??
-      (({ projectId, config }) => {
-        configByProject.set(projectId, config);
+      if (!result.ok) {
+        throw result.error;
+      }
 
-        return Promise.resolve();
-      }),
+      return toLoaded(projectId, result.data);
+    },
+
+    update: async ({ projectId, baseVersion, config }) => {
+      const body = { overrides: toWireOverrides(config) };
+      const previous = held.get(projectId);
+
+      if (previous === undefined) {
+        return send(projectId, { baseVersion, body });
+      }
+
+      // Lượt trước mất câu trả lời: gửi lại ĐÚNG thân ấy trước, rồi mới gửi thân mới.
+      const resent = await send(projectId, previous);
+
+      if (JSON.stringify(previous.body) === JSON.stringify(body)) {
+        return resent;
+      }
+
+      return send(projectId, { baseVersion: resent.revision, body });
+    },
+
+    lastRevision: (projectId) => revisions.get(projectId),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Câu của một lượt lưu hỏng — rẽ theo `code`, không theo status trần.          */
+/* -------------------------------------------------------------------------- */
+
+export interface RuleConfigSaveProblem {
+  readonly message: string;
+  /** Câu gắn vào thẻ "Ngưỡng chung" (lỗi ở `body.overrides.GENERAL…`). */
+  readonly onGeneralCard: boolean;
+  /** Mời tải lại bản của máy chủ (409). */
+  readonly offerReload: boolean;
+}
+
+const SAVE_PROBLEM_TEXT: Readonly<Record<string, string>> = Object.freeze({
+  VERSION_CONFLICT:
+    'Bộ luật vừa được đổi ở nơi khác nên thay đổi của bạn chưa được lưu. Tải lại để xem bản mới nhất.',
+  RULE_CODE_UNKNOWN: 'Máy chủ không nhận ra một luật trong bộ luật này nên thay đổi chưa được lưu.',
+  RULE_THRESHOLD_UNKNOWN:
+    'Máy chủ không nhận ra một ngưỡng trong bộ luật này nên thay đổi chưa được lưu.',
+  RULE_THRESHOLD_OUT_OF_RANGE:
+    'Một ngưỡng nằm ngoài khoảng máy chủ cho phép nên thay đổi chưa được lưu.',
+  RULE_GENERAL_NOT_TOGGLEABLE: 'Ngưỡng chung chỉ đổi được con số, không bật, tắt hay đổi mức được.',
+  VALIDATION: 'Máy chủ từ chối bộ luật vì dữ liệu không hợp lệ nên thay đổi chưa được lưu.',
+  FORBIDDEN: 'Vai của bạn không còn quyền đổi bộ luật.',
+});
+
+const SAVE_PROBLEM_FALLBACK = 'Chưa lưu được bộ luật của dự án này.';
+const SAVE_PROBLEM_CONNECTION = 'Mất kết nối nên bộ luật chưa được lưu.';
+const GENERAL_FIELD_PREFIX = 'body.overrides.GENERAL';
+
+/** Một lỗi của N22 thành câu người đọc — không in mã. */
+export function describeRuleConfigSaveError(error: unknown): RuleConfigSaveProblem {
+  const wire = readWireError(error);
+  const code = wire?.code;
+  const known = code !== undefined ? SAVE_PROBLEM_TEXT[code] : undefined;
+  const message = known ?? (isLostResponse(error) ? SAVE_PROBLEM_CONNECTION : SAVE_PROBLEM_FALLBACK);
+
+  return {
+    message,
+    onGeneralCard: wire?.field?.startsWith(GENERAL_FIELD_PREFIX) === true,
+    offerReload: code === 'VERSION_CONFLICT',
   };
 }

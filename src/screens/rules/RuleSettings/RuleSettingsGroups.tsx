@@ -13,6 +13,7 @@
  * điểm dừng nào vào thứ tự Tab.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { NumericField } from '@/components/ui/NumericField';
 import { Toggle } from '@/components/ui/Toggle';
 
@@ -63,7 +64,7 @@ export function RuleSettingsGroupCard({
           <p className="text-sm text-text-secondary">{group.description}</p>
         </div>
         <Toggle
-          aria-label={`bật hoặc tắt cả nhóm: ${group.label}`}
+          aria-label={`Bật hoặc tắt cả nhóm: ${lowerFirst(group.label)}`}
           checked={group.enabled}
           isReadOnly={!canEdit}
           onChange={(checked) => {
@@ -118,7 +119,7 @@ export function RuleSettingsGeneralThresholdsCard({
     >
       <div className="flex flex-col gap-1">
         <h3 className="text-base font-semibold text-text-primary" id={`${sectionId}-title`}>
-          ngưỡng chung
+          Ngưỡng chung
         </h3>
         <p className="text-sm text-text-secondary">
           Dung sai hình học dùng chung cho nhiều luật trong bộ này.

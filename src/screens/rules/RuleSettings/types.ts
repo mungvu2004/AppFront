@@ -144,6 +144,18 @@ export interface RuleSettingsViewModel {
    */
   readonly disableAllWarning: string | null;
   readonly errorMessage: string | null;
+  /**
+   * Lượt lưu gần nhất hỏng (N22): câu đã dựng sẵn, có mời tải lại không (409),
+   * và câu có thuộc thẻ "Ngưỡng chung" không. Không đổi `status`: lỗi lưu không
+   * làm hỏng màn.
+   */
+  readonly saveProblem: {
+    readonly message: string;
+    readonly offerReload: boolean;
+    readonly onGeneralCard: boolean;
+  } | null;
+  /** Hộp thoại A9 "tải lại sẽ bỏ thay đổi chưa lưu" đang mở. */
+  readonly reloadConfirmOpen: boolean;
 }
 
 /** Mọi hành động view có thể phát ra. */
@@ -155,6 +167,10 @@ export interface RuleSettingsActions {
   readonly onChangeGeneralThreshold: (key: string, value: number) => void;
   readonly onApplyPreset: (kind: BuildingKind) => void;
   readonly onRestoreDefaults: () => void;
+  /** "Tải lại" trên dải lỗi lưu: có sửa dở thì mở hộp thoại trước. */
+  readonly onReload: () => void;
+  readonly onConfirmReload: () => void;
+  readonly onCancelReload: () => void;
 }
 
 /** Props của view thuần. Test dựng được chỉ từ đây, không cần store hay mạng. */

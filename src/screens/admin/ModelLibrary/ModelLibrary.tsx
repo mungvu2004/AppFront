@@ -36,13 +36,13 @@ import type { ModelLibraryProps } from './types';
 const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const BREADCRUMB_PARENT = 'Quản trị';
 const BREADCRUMB_CURRENT = 'Thư viện model';
-const EMPTY_TITLE = 'chưa có model nào';
+const EMPTY_TITLE = 'Chưa có model nào';
 const EMPTY_DESCRIPTION = 'Thư viện chưa có model nào.';
-const ERROR_TITLE = 'không tải được thư viện model';
+const ERROR_TITLE = 'Không tải được thư viện model';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const LOADING_ROW_COUNT = 10;
 const COLUMN_COUNT = 6;
-const PREVIEW_HEADER = 'ảnh xem trước';
+const PREVIEW_HEADER = 'Ảnh xem trước';
 
 function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
   return (

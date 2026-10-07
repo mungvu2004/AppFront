@@ -9,10 +9,9 @@
  *
  * ## KHÔNG dùng bộ mẫu chuẩn A14 (`createSampleBuilding`/`fixtures.ts`)
  *
- * Ghi chú khảo sát `a14-fixture-is-not-a-valid-floor-plan` (và câu cảnh báo
- * trong đặc tả T8) đã đo: hình học của bộ mẫu chuẩn đo ra 238,00 m² chứ không
- * phải 248,60 m² đã khai, và một số tên phòng của nó là tiếng Anh — rớt thẳng
- * `expectVietnamese`. `measurementToolScenarios.ts` dùng được bộ đó vì nó chỉ
+ * Một số tên phòng của bộ mẫu chuẩn là tiếng Anh — rớt thẳng `expectVietnamese`
+ * (ghi chú khảo sát `a14-fixture-is-not-a-valid-floor-plan` còn đo hình học ra
+ * 238,00 m² thay vì 248,60 m²; chỗ lệch ấy đã sửa ở B-V8-10). `measurementToolScenarios.ts` dùng được bộ đó vì nó chỉ
  * đọc TOẠ ĐỘ tường (không hiển thị tên phòng); màn này thì hiển thị nhãn tầng
  * và tiêu đề đối tượng ra màn hình, nên rủi ro cao hơn. An toàn hơn là tự dựng
  * bốn tầng bằng tay (giống cách `explodedViewScenarios.ts` tự dựng bốn tầng
@@ -26,7 +25,7 @@
  * "tầng 2" · "tầng mái".
  */
 
-import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
+import { MEASUREMENT_LABELS, measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import { millimetres } from '@/domain/units/types';
 import { formatLength } from '@/lib/format/measure';
 import { ROUTES } from '@/routes/paths';
@@ -63,10 +62,10 @@ interface SampleFloorDef {
   readonly label: string;
 }
 
-const FLOOR_GROUND: SampleFloorDef = { id: 'T-00', label: 'tầng trệt' };
-const FLOOR_1: SampleFloorDef = { id: 'T-01', label: 'tầng 1' };
-const FLOOR_2: SampleFloorDef = { id: 'T-02', label: 'tầng 2' };
-const FLOOR_ROOF: SampleFloorDef = { id: 'T-03', label: 'tầng mái' };
+const FLOOR_GROUND: SampleFloorDef = { id: 'T-00', label: 'Tầng trệt' };
+const FLOOR_1: SampleFloorDef = { id: 'T-01', label: 'Tầng 1' };
+const FLOOR_2: SampleFloorDef = { id: 'T-02', label: 'Tầng 2' };
+const FLOOR_ROOF: SampleFloorDef = { id: 'T-03', label: 'Tầng mái' };
 
 const SAMPLE_FLOOR_DEFS: readonly SampleFloorDef[] = Object.freeze([
   FLOOR_GROUND,
@@ -75,21 +74,16 @@ const SAMPLE_FLOOR_DEFS: readonly SampleFloorDef[] = Object.freeze([
   FLOOR_ROOF,
 ]);
 
-function buildFloor(def: SampleFloorDef, isLoaded: boolean): MobileViewerFloor {
-  return { id: def.id, label: def.label, isLoaded };
+function buildFloor(def: SampleFloorDef, hasRooms: boolean): MobileViewerFloor {
+  return { id: def.id, label: def.label, hasRooms };
 }
 
-/** Bốn tầng, tất cả đã dựng xong. */
+/** Bốn tầng, tầng nào cũng đã có phòng. */
 const ALL_FLOORS_LOADED: readonly MobileViewerFloor[] = Object.freeze(
   SAMPLE_FLOOR_DEFS.map((def) => buildFloor(def, true)),
 );
 
-/** Bốn tầng, chưa tầng nào dựng xong — mức gọn đang tải. */
-const ALL_FLOORS_LOADING: readonly MobileViewerFloor[] = Object.freeze(
-  SAMPLE_FLOOR_DEFS.map((def) => buildFloor(def, false)),
-);
-
-/** Đúng hai tầng dưới đã dựng xong, hai tầng trên còn đang tải — "mạng yếu, chỉ tải được 2 tầng". */
+/** Đúng hai tầng dưới đã có phòng, hai tầng trên chưa có phòng nào được dựng từ bản vẽ. */
 const TWO_FLOORS_LOADED: readonly MobileViewerFloor[] = Object.freeze([
   buildFloor(FLOOR_GROUND, true),
   buildFloor(FLOOR_1, true),
@@ -108,14 +102,14 @@ const WALL_LENGTH = measureDistance(WALL_START, WALL_END);
 const WALL_THICKNESS_MM = millimetres(220);
 
 const SELECTION_ROWS: readonly MobileViewerInfoRow[] = Object.freeze([
-  { id: 'r-length', label: 'chiều dài', value: formatLength(WALL_LENGTH.lengthMm, { unit: 'm' }) },
-  { id: 'r-thickness', label: 'độ dày', value: formatLength(WALL_THICKNESS_MM, { unit: 'mm' }) },
+  { id: 'r-length', label: 'Chiều dài', value: formatLength(WALL_LENGTH.lengthMm, { unit: 'm' }) },
+  { id: 'r-thickness', label: 'Bề dày', value: formatLength(WALL_THICKNESS_MM, { unit: 'mm' }) },
 ]);
 
 /** Một tường đang được chọn — sửa được chỉ trên máy tính (điểm chính của màn này). */
 const SAMPLE_SELECTION: MobileViewerSelection = Object.freeze({
   entityId: 'W-014',
-  kindLabel: 'tường',
+  kindLabel: 'Tường',
   title: 'Tường trục A-B',
   rows: SELECTION_ROWS,
   needsDesktopToEdit: true,
@@ -135,13 +129,13 @@ const MEASURE_B = measureDistance(MEASURE_B_START, MEASURE_B_END);
 
 const MEASUREMENT_A: MobileViewerMeasurement = {
   id: 'MS-M01',
-  kindLabel: 'khoảng cách',
+  kindLabel: MEASUREMENT_LABELS.distance,
   valueLabel: formatLength(MEASURE_A.lengthMm, { unit: 'm' }),
 };
 
 const MEASUREMENT_B: MobileViewerMeasurement = {
   id: 'MS-M02',
-  kindLabel: 'khoảng cách',
+  kindLabel: MEASUREMENT_LABELS.distance,
   valueLabel: formatLength(MEASURE_B.lengthMm, { unit: 'm' }),
 };
 
@@ -172,7 +166,7 @@ const SAMPLE_FALLBACK_2D_HREF = ROUTES.project.floors(SAMPLE_PROJECT_ID);
 const BASE: MobileViewerProps = {
   state: 'success',
   projectName: SAMPLE_PROJECT_NAME,
-  onShare: NO_OP,
+  onShare: null,
   canvasRef: undefined,
   isCompact: false,
   activeTool: null,
@@ -182,9 +176,10 @@ const BASE: MobileViewerProps = {
   onSelectFloor: NO_OP,
   selection: SAMPLE_SELECTION,
   onDismissSelection: NO_OP,
-  onSendDesktopLink: NO_OP,
+  onSendDesktopLink: null,
   measurements: SAMPLE_MEASUREMENTS,
   detailLabel: null,
+  partialReason: null,
   fallback2dHref: SAMPLE_FALLBACK_2D_HREF,
 };
 
@@ -204,22 +199,22 @@ const PROPS_BY_STATE: Readonly<Record<MobileViewerState, MobileViewerProps>> = O
   loading: {
     ...BASE,
     state: 'loading',
-    floors: ALL_FLOORS_LOADING,
     activeFloorId: null,
     selection: null,
     measurements: Object.freeze([]),
-    detailLabel: 'đang tải mức gọn',
+    detailLabel: 'Đang tải mức gọn',
   },
 
-  // Mạng yếu: chỉ tải được 2 tầng.
+  // Mới có một phần: hai tầng trên chưa có phòng nào.
   partial: {
     ...BASE,
     state: 'partial',
+    partialReason: 'missing-rooms',
     floors: TWO_FLOORS_LOADED,
     activeFloorId: FLOOR_GROUND.id,
     selection: null,
     measurements: Object.freeze([MEASUREMENT_A]),
-    detailLabel: 'đang tải mức gọn',
+    detailLabel: 'Đang tải mức gọn',
   },
 
   // Máy yếu: mời xem bản 2D thay vì cố dựng.

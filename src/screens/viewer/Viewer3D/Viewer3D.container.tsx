@@ -31,25 +31,11 @@
  *
  * ## MỘT nguồn dữ liệu, không phải hai
  *
- * Trước đây vỏ và màn nội dung nhìn hai đồ thị khác nhau: `useViewerShell` mặc
- * định dùng cổng BỘ MẪU (`useViewerShell.ts:345-346`) nên thanh trạng thái hiện
- * "4 tầng · 14 phòng · 248,60 m²", còn `useViewer3D` mặc định đọc KHO — thứ ở
- * môi trường dev vẫn là `null`, vì bảy màn QC nạp kho đều đọc vòng tròn lại
- * chính nó. Kết quả: vỏ có 14 phòng, cảnh không có phòng nào, và không có phòng
- * nào để tìm.
- *
- * Container chốt đồ thị MỘT LẦN ở đây rồi tiêm cùng giá trị ấy vào cả hai qua
- * hai chỗ tiêm đã có sẵn (`ViewerShellContainerProps.gateway` và `.spatial`):
- *
- * - kho có đồ thị thật → đó là nguồn, và cổng là cổng THẬT;
- * - kho rỗng VÀ ở chế độ mock (`resolveUseMockApi()`) → dùng ĐÚNG bộ mẫu
- *   (`VIEWER_FIXTURE_SPATIAL`); nối BE thật thì kho rỗng vẫn là kho rỗng.
- *
- * **Đây là đường TẠM.** Nó ở đây vì chưa endpoint nào trả về `NormalizedSpatial`
- * — `data-gateway-contract.md` mục A ghi rõ khoảng trống ấy, và `FloorSchema`
- * không mang phòng. Ngày có endpoint thật, nhánh bộ mẫu này bị xoá và
- * `createViewerShellGateway` là nhánh duy nhất còn lại. Không ai được lấp chỗ
- * đó bằng một lượt gọi mạng tự chế (R-69).
+ * Container chốt đồ thị MỘT LẦN (`useViewer3DSource`) rồi tiêm cùng giá trị vào
+ * vỏ (`gateway`) và màn (`spatial`), để thanh trạng thái và cảnh không lệch nhau.
+ * Kho được cổng `ProjectSpatialGate` nạp theo dự án (B-V12-01, B-V8-04); kho chưa
+ * có tường VÀ đang ở mock thì vỏ và cảnh dùng bộ mẫu vỏ (`shouldUseViewerFixture`),
+ * còn panel đọc kho — nối BE thật thì kho rỗng vẫn là kho rỗng.
  *
  * ## Vai người dùng vẫn chưa chảy tới màn — hệ quả, đã đo
  *
@@ -145,6 +131,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -170,8 +157,10 @@ import { isIdOfKind } from '@/domain/spatial/ids';
 import type { EntityId } from '@/domain/spatial/types';
 import type { ProjectRole } from '@/types/project';
 
-import { Viewer3DPanels, type Viewer3DPanelId } from './Viewer3DPanels';
+import { Viewer3DSaveStrip } from './Viewer3D';
+import { Viewer3DPanels, type Viewer3DPanelId, type Viewer3DSiblingScreenId } from './Viewer3DPanels';
 import { Viewer3DSceneSlot } from './Viewer3DSceneSlot';
+import { useViewer3DSave } from './useViewer3DSave';
 import { useViewer3DSource } from './useViewer3DSource';
 import type { MountViewerScene, Viewer3DTelemetry } from './viewer3dTypes';
 
@@ -205,7 +194,7 @@ export interface Viewer3DContainerProps {
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
 function Viewer3DCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
@@ -214,7 +203,7 @@ function Viewer3DCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -233,6 +222,8 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   const [openPanelId, setOpenPanelId] = useState<Viewer3DPanelId | null>(null);
   const [isWallEditing, setIsWallEditing] = useState(false);
 
+  /* Tự lưu sống suốt màn, không chỉ lúc panel thuộc tính đang dựng (B-V8-60). */
+  const { label: saveLabel, saveBlock } = useViewer3DSave(props.projectId);
   /* Nhà mẫu chỉ còn ở chế độ mock (xem `useViewer3DSource`). */
   const { spatial: resolvedSpatial, gateway: resolvedGateway } = useViewer3DSource(
     props,
@@ -267,6 +258,17 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
     navigate(ROUTES.project.export(props.projectId));
   }, [navigate, props.projectId]);
 
+  const onOpenScreen = useCallback(
+    (screenId: Viewer3DSiblingScreenId): void => {
+      if (screenId !== 'overlay') {
+        navigate(ROUTES.project[screenId](props.projectId));
+      } else if (resolvedFloorId !== null) {
+        navigate(ROUTES.project.overlay(props.projectId, resolvedFloorId));
+      }
+    },
+    [navigate, props.projectId, resolvedFloorId],
+  );
+
   const onCheckWallGaps = useCallback((): void => {
     /* Soát khe hở tường là việc của lớp tường MỘT tầng. Chưa biết tầng thì đi
        tới danh sách tầng — cùng phép rơi về `qcHref` của `useViewer3D.ts:733`. */
@@ -300,7 +302,8 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
      nhất đọc được lúc chạy (`domain/spatial/normalize.ts:60-64`). Vùng chọn
      đổi sang thứ khác thì chế độ tự đóng — không có nhánh nào để lại một lớp
      phủ sửa tường lơ lửng trên một cái ghế. */
-  const canEditWallGeometry = selectedIds.some((entityId) => isIdOfKind('wall', entityId));
+  const editedWallId = selectedIds.find((entityId) => isIdOfKind('wall', entityId)) ?? null;
+  const canEditWallGeometry = editedWallId !== null;
   const isWallEditingNow = isWallEditing && canEditWallGeometry;
 
   const onToggleWallEditing = useCallback((): void => {
@@ -312,23 +315,28 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
   }, []);
 
   const inspectorSections = (
-    <Viewer3DPanels
-      canEditWallGeometry={canEditWallGeometry}
-      floorId={resolvedFloorId}
-      isWallEditing={isWallEditingNow}
-      onCheckWallGaps={onCheckWallGaps}
-      onDismissInspector={clearSelection}
-      onModelDropped={onModelDropped}
-      onNavigateToObject={onNavigateToObject}
-      onOpenExport={onOpenExport}
-      onOpenRuleScreen={onOpenRuleScreen}
-      onTogglePanel={setOpenPanelId}
-      onToggleWallEditing={onToggleWallEditing}
-      openPanelId={openPanelId}
-      projectId={props.projectId}
-      selectedEntityId={selectedIds[0] ?? null}
-      selectedEntityIds={selectedIds}
-    />
+    <>
+      <Viewer3DSaveStrip saveBlock={saveBlock} />
+      <Viewer3DPanels
+        canEditWallGeometry={canEditWallGeometry}
+        floorId={resolvedFloorId}
+        isWallEditing={isWallEditingNow}
+        onCheckWallGaps={onCheckWallGaps}
+        onDismissInspector={clearSelection}
+        onModelDropped={onModelDropped}
+        onNavigateToObject={onNavigateToObject}
+        onOpenExport={onOpenExport}
+        onOpenRuleScreen={onOpenRuleScreen}
+        onOpenScreen={onOpenScreen}
+        onTogglePanel={setOpenPanelId}
+        onToggleWallEditing={onToggleWallEditing}
+        openPanelId={openPanelId}
+        projectId={props.projectId}
+        saveLabel={saveLabel}
+        selectedEntityId={selectedIds[0] ?? null}
+        selectedEntityIds={selectedIds}
+      />
+    </>
   );
 
   const renderScene = useCallback(
@@ -347,10 +355,12 @@ export function Viewer3DContainer(props: Viewer3DContainerProps) {
         resolvedGateway={resolvedGateway}
         resolvedSpatial={resolvedSpatial}
         sceneActions={actions}
+        wallId={editedWallId}
       />
     ),
     [
       props,
+      editedWallId,
       isSearchOpen,
       isWallEditingNow,
       onCloseSearch,
@@ -410,5 +420,9 @@ export function Viewer3DRoute() {
     );
   }
 
-  return <Viewer3DContainer projectId={id} roles={session.roles} />;
+  return (
+    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
+      <Viewer3DContainer projectId={id} roles={session.roles} />
+    </ProjectSpatialGate>
+  );
 }

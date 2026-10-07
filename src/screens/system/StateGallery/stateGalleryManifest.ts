@@ -25,14 +25,14 @@ import type {
 /* ── Tám nhóm của cây bên trái (A-H) ──────────────────────────────────────── */
 
 export const SCREEN_GROUPS: readonly ScreenGroup[] = [
-  { id: 'A', label: 'xác thực và tài khoản' },
-  { id: 'B', label: 'quản trị và thanh toán' },
-  { id: 'C', label: 'bảng điều khiển và dự án' },
-  { id: 'D', label: 'tải lên và giới thiệu' },
-  { id: 'E', label: 'xử lý bản vẽ CAD' },
-  { id: 'F', label: 'soát chất lượng' },
-  { id: 'G', label: 'quy tắc và xuất' },
-  { id: 'H', label: 'xem mô hình và hệ thống' },
+  { id: 'A', label: 'Xác thực và tài khoản' },
+  { id: 'B', label: 'Quản trị và thanh toán' },
+  { id: 'C', label: 'Bảng điều khiển và dự án' },
+  { id: 'D', label: 'Tải lên và giới thiệu' },
+  { id: 'E', label: 'Xử lý bản vẽ CAD' },
+  { id: 'F', label: 'Soát chất lượng' },
+  { id: 'G', label: 'Quy tắc và xuất' },
+  { id: 'H', label: 'Xem mô hình và hệ thống' },
 ] as const;
 
 /* ── Một định nghĩa màn thô, trước khi dựng thành `GalleryScreenEntry` ───── */
@@ -70,7 +70,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'AccountSettings',
     area: 'account',
     group: 'A',
-    label: 'cài đặt tài khoản',
+    label: 'Cài đặt tài khoản',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -86,7 +86,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ModelLibrary',
     area: 'admin',
     group: 'B',
-    label: 'thư viện model',
+    label: 'Thư viện model',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -102,7 +102,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'UserManagement',
     area: 'admin',
     group: 'B',
-    label: 'quản lý người dùng',
+    label: 'Quản lý người dùng',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -130,27 +130,11 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    id: 'billing/BillingScreen',
-    name: 'BillingScreen',
-    area: 'billing',
-    group: 'B',
-    label: 'thanh toán và gói dịch vụ',
-    storyExportNames: {
-      empty: 'Empty',
-      loading: 'Loading',
-      partial: 'Partial',
-      error: 'ErrorState',
-      success: 'Ready',
-      forbidden: 'Forbidden',
-      collapsed: 'Collapsed',
-    },
-  },
-  {
     id: 'dashboard/ProjectDashboard',
     name: 'ProjectDashboard',
     area: 'dashboard',
     group: 'C',
-    label: 'bảng điều khiển dự án',
+    label: 'Bảng điều khiển dự án',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -166,7 +150,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ExportPanel',
     area: 'export',
     group: 'G',
-    label: 'xuất mô hình',
+    label: 'Xuất mô hình',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -182,7 +166,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ShareDialog',
     area: 'export',
     group: 'G',
-    label: 'chia sẻ liên kết',
+    label: 'Chia sẻ liên kết',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -207,7 +191,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'SpatialJsonViewer',
     area: 'export',
     group: 'G',
-    label: 'xem Spatial JSON',
+    label: 'Xem Spatial JSON',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -223,7 +207,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'VersionHistory',
     area: 'export',
     group: 'G',
-    label: 'lịch sử phiên bản',
+    label: 'Lịch sử phiên bản',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -255,7 +239,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'CadBranchConfirm',
     area: 'pipeline',
     group: 'E',
-    label: 'phát hiện tệp CAD',
+    label: 'Phát hiện tệp CAD',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -271,7 +255,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'PipelineFailure',
     area: 'pipeline',
     group: 'E',
-    label: 'xử lý thất bại',
+    label: 'Xử lý thất bại',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -287,7 +271,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'PipelineGraph',
     area: 'pipeline',
     group: 'E',
-    label: 'biểu đồ tiến trình xử lý',
+    label: 'Biểu đồ tiến trình xử lý',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -303,7 +287,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ProcessingScreen',
     area: 'pipeline',
     group: 'E',
-    label: 'đang xử lý bản vẽ',
+    label: 'Đang xử lý bản vẽ',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -319,7 +303,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ScaleCalibration',
     area: 'pipeline',
     group: 'E',
-    label: 'hiệu chỉnh tỷ lệ',
+    label: 'Hiệu chỉnh tỷ lệ',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -335,7 +319,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'CreateProjectModal',
     area: 'project',
     group: 'C',
-    label: 'tạo dự án mới',
+    label: 'Tạo dự án mới',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -351,7 +335,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ProjectSettings',
     area: 'project',
     group: 'C',
-    label: 'cài đặt dự án',
+    label: 'Cài đặt dự án',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -367,7 +351,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'AxisGridManager',
     area: 'qc',
     group: 'F',
-    label: 'quản lý trục và lưới',
+    label: 'Quản lý trục và lưới',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -383,7 +367,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'DimensionOcrReview',
     area: 'qc',
     group: 'F',
-    label: 'soát kích thước OCR',
+    label: 'Soát kích thước OCR',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -399,7 +383,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'FloorManager',
     area: 'qc',
     group: 'F',
-    label: 'quản lý tầng',
+    label: 'Quản lý tầng',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -415,7 +399,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ObjectLayerReview',
     area: 'qc',
     group: 'F',
-    label: 'soát lớp đối tượng',
+    label: 'Soát lớp đối tượng',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -431,7 +415,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'RoomLabelReview',
     area: 'qc',
     group: 'F',
-    label: 'soát nhãn phòng',
+    label: 'Soát nhãn phòng',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -447,7 +431,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ThicknessStandardization',
     area: 'qc',
     group: 'F',
-    label: 'chuẩn hoá độ dày tường',
+    label: 'Chuẩn hoá độ dày tường',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -463,7 +447,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'WallLayerReview',
     area: 'qc',
     group: 'F',
-    label: 'soát lớp tường',
+    label: 'Soát lớp tường',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -479,7 +463,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'RuleReport',
     area: 'rules',
     group: 'G',
-    label: 'báo cáo quy tắc',
+    label: 'Báo cáo quy tắc',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -495,7 +479,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'RuleSettings',
     area: 'rules',
     group: 'G',
-    label: 'cài đặt quy tắc',
+    label: 'Cài đặt quy tắc',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -511,7 +495,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ViolationDetail',
     area: 'rules',
     group: 'G',
-    label: 'chi tiết vi phạm',
+    label: 'Chi tiết vi phạm',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -527,7 +511,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'AccessDenied',
     area: 'system',
     group: 'H',
-    label: 'từ chối truy cập',
+    label: 'Từ chối truy cập',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -543,7 +527,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'CollaborationLayer',
     area: 'system',
     group: 'H',
-    label: 'lớp cộng tác',
+    label: 'Lớp cộng tác',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -560,7 +544,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ConnectionStates',
     area: 'system',
     group: 'H',
-    label: 'trạng thái kết nối',
+    label: 'Trạng thái kết nối',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -576,7 +560,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'EditorTour',
     area: 'system',
     group: 'H',
-    label: 'hướng dẫn dùng trình soạn thảo',
+    label: 'Hướng dẫn dùng trình soạn thảo',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -592,7 +576,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'MobileViewer',
     area: 'system',
     group: 'H',
-    label: 'xem trên điện thoại',
+    label: 'Xem trên điện thoại',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -608,7 +592,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'NotFound',
     area: 'system',
     group: 'H',
-    label: 'không tìm thấy trang',
+    label: 'Không tìm thấy trang',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -624,7 +608,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'NotificationCenter',
     area: 'system',
     group: 'H',
-    label: 'trung tâm thông báo',
+    label: 'Trung tâm thông báo',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -640,7 +624,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'FloorUploadScreen',
     area: 'upload',
     group: 'D',
-    label: 'tải bản vẽ lên',
+    label: 'Tải bản vẽ lên',
     storyExportNames: {
       empty: 'Empty',
       loading: 'Loading',
@@ -656,7 +640,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'InputQualityGate',
     area: 'upload',
     group: 'D',
-    label: 'kiểm tra chất lượng đầu vào',
+    label: 'Kiểm tra chất lượng đầu vào',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -688,7 +672,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'FurnitureLibraryPanel',
     area: 'viewer',
     group: 'H',
-    label: 'thư viện nội thất',
+    label: 'Thư viện nội thất',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -704,7 +688,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'HistoryPanel',
     area: 'viewer',
     group: 'H',
-    label: 'lịch sử thao tác',
+    label: 'Lịch sử thao tác',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -736,7 +720,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'OverlayComparison',
     area: 'viewer',
     group: 'H',
-    label: 'đối chiếu bản vẽ',
+    label: 'Đối chiếu bản vẽ',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -752,7 +736,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'PropertyInspector',
     area: 'viewer',
     group: 'H',
-    label: 'xem thuộc tính đối tượng',
+    label: 'Xem thuộc tính đối tượng',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -768,7 +752,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'RoomAreaPanel',
     area: 'viewer',
     group: 'H',
-    label: 'diện tích phòng',
+    label: 'Diện tích phòng',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -784,7 +768,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'Viewer3D',
     area: 'viewer',
     group: 'H',
-    label: 'xem mô hình 3D',
+    label: 'Xem mô hình 3D',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -800,7 +784,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'ViewerShell',
     area: 'viewer',
     group: 'H',
-    label: 'khung xem mô hình',
+    label: 'Khung xem mô hình',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -816,7 +800,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'WallGeometryEditor',
     area: 'viewer',
     group: 'H',
-    label: 'chỉnh hình học tường',
+    label: 'Chỉnh hình học tường',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',
@@ -833,7 +817,7 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     name: 'StateGallery',
     area: 'system',
     group: 'H',
-    label: 'duyệt bảy trạng thái',
+    label: 'Duyệt bảy trạng thái',
     storyExportNames: {
       empty: 'Rong',
       loading: 'DangTai',

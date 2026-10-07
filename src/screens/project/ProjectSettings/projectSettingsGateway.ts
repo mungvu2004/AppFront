@@ -1,38 +1,31 @@
 /**
  * Nguồn dữ liệu của màn cài đặt dự án.
  *
- * ## Ba trường có dây thật, bảy trường chưa có
+ * ## Hai đường ghi, độc lập
  *
- * `ProjectSchema` (`src/api/schemas/index.ts`) chỉ mô tả ba trường mà màn này
- * sửa được rồi gửi lên máy chủ: **`name`, `code`, `address`**. Chúng đi qua
- * `client.projects.update`, được máy chủ ghi nhận, và đọc lại được ở lần tải
- * sau.
+ * - **#24/#26** — `name`, `code`, `address` đi qua `client.projects`.
+ * - **N5/N6** — sáu trường còn lại (`buildingType`, `notes`, `lengthUnit`,
+ *   `snapToleranceMm`, `confidenceThreshold`, `defaultScaleMmPerPx` mà FE gọi là
+ *   `scaleMmPerPx`) đi qua `client.projectSettings`, kèm `revision` làm
+ *   `baseVersion`. `areaUnit` chỉ có ở FE, luôn `'m2'`.
  *
- * Bảy trường còn lại — **`buildingType`, `notes`, `lengthUnit`, `areaUnit`,
- * `snapToleranceMm`, `confidenceThreshold`, `scaleMmPerPx`** — chưa có chỗ nào
- * trên dây để đặt. Không bịa thêm khoá gửi kèm: `ProjectSchema` khai `.strict()`
- * nên một khoá lạ làm hỏng bước giải mã của chính lần đọc lại. Vì vậy bảy
- * trường đó được giữ trong bộ nhớ của riêng module này, khoá theo mã dự án, và
- * được trả lại nguyên vẹn trong ảnh chụp cài đặt. Người dùng sửa được và màn
- * hình đọc lại được ngay, nhưng chúng chưa qua mạng nên sẽ trở về mặc định khi
- * tải lại trang.
- *
- * Mở đường dây cho bảy trường đó là một lượt riêng ở tầng dữ liệu, mã đề xuất
- * **T-04**: thêm trường vào `ProjectSchema` cùng `ProjectPayload`, rồi bỏ bộ
- * nhớ trong file này đi. Khi ấy đây là file duy nhất phải sửa — `useProjectSettings`
- * và cả bốn thẻ không đổi một dòng nào.
+ * `update` gửi tuần tự, mỗi phần có kết quả riêng: phần hỏng không làm mất phần
+ * đã lưu, và nơi gọi nhận `{ snapshot, failures }` để nói rõ "đã lưu thông tin
+ * chung, chưa lưu đơn vị đo".
  *
  * ## Vì sao `update` bỏ chuỗi rỗng
  *
- * `address` và `code` khai là `z.string().min(1).optional()`. Gửi chuỗi rỗng
- * lên thì lần đọc lại giải mã hỏng, và người dùng thấy một màn lỗi cho một ô
- * họ vừa xoá trống. Xoá trống một ô ở đây nghĩa là "không gửi trường này".
+ * `address` và `code` khai là `z.string().min(1).optional()`; #26 không nhận
+ * rỗng. Xoá trống một ô ở đây nghĩa là "không gửi trường này" — màn chặn trước
+ * việc xoá trống một giá trị đã lưu.
  */
 
 import { createAppApiClient } from '@/api/appClient';
-import type { ApiClient, ApiResult, Project } from '@/api/client';
+import type { ApiClient, ApiError, ApiResult, Project } from '@/api/client';
+import type { ProjectSettings, ProjectSettingsBody } from '@/api/schemas/projectSettings';
 import { PROJECT_LIMITS } from '@/domain/project/limits';
 import { SNAP_THRESHOLDS } from '@/domain/units/snap';
+import { createUuid } from '@/lib/http/ids';
 
 /* -------------------------------------------------------------------------- */
 /* Kiểu dữ liệu.                                                              */
@@ -55,7 +48,7 @@ export interface ProjectSettingsMember {
   readonly role: ProjectMemberRole;
 }
 
-/** Bảy trường chưa có dây, gom lại một chỗ để lượt T-04 xoá đúng một khối. */
+/** Các trường của N5/N6 (cộng `areaUnit` chỉ có ở FE), gom lại một chỗ. */
 export interface ProjectUnwiredSettings {
   readonly buildingType: ProjectBuildingType;
   readonly notes: string;
@@ -66,7 +59,7 @@ export interface ProjectUnwiredSettings {
   readonly scaleMmPerPx: number;
 }
 
-/** Toàn bộ cài đặt của một dự án, đã gộp ba trường có dây với bảy trường chưa có. */
+/** Toàn bộ cài đặt của một dự án, đã gộp #24 với N5. */
 export interface ProjectSettingsSnapshot extends ProjectUnwiredSettings {
   readonly projectId: string;
   readonly name: string;
@@ -75,6 +68,8 @@ export interface ProjectSettingsSnapshot extends ProjectUnwiredSettings {
   readonly members: readonly ProjectSettingsMember[];
   readonly floorIds: readonly string[];
   readonly floorCount: number;
+  /** `revision` của N5/N6 — số làm `baseVersion` cho lượt ghi đơn vị đo kế tiếp. */
+  readonly settingsRevision: number;
 }
 
 /** Những gì một lượt tự lưu gửi đi: chỉ các trường thật sự đổi. */
@@ -109,6 +104,36 @@ export interface ReadProjectSettingsInput {
 export interface UpdateProjectSettingsInput {
   readonly projectId: string;
   readonly patch: ProjectSettingsPatch;
+  /** Ảnh chụp đã lưu mới nhất (từ N5 hoặc lượt lưu trước). */
+  readonly base: ProjectSettingsSnapshot;
+}
+
+export type ProjectSettingsPart = 'general' | 'units';
+
+export interface ProjectSettingsUpdateFailure {
+  readonly part: ProjectSettingsPart;
+  readonly error: ApiError;
+}
+
+/** `snapshot` đã gộp phần thành công; `failures` rỗng nghĩa là cả hai phần xong. */
+export interface ProjectSettingsUpdateResult {
+  readonly snapshot: ProjectSettingsSnapshot;
+  readonly failures: readonly ProjectSettingsUpdateFailure[];
+}
+
+export interface AddProjectMemberInput {
+  readonly projectId: string;
+  readonly email: string;
+}
+
+export interface AddProjectMemberOutcome {
+  readonly alreadyMember: boolean;
+  readonly member: ProjectSettingsMember;
+}
+
+export interface RemoveProjectMemberInput {
+  readonly projectId: string;
+  readonly userId: string;
 }
 
 export interface DeleteAllFloorsInput {
@@ -121,7 +146,9 @@ export interface DeleteProjectInput {
 
 export interface ProjectSettingsGateway {
   readonly read: (input: ReadProjectSettingsInput) => Promise<ApiResult<ProjectSettingsSnapshot>>;
-  readonly update: (input: UpdateProjectSettingsInput) => Promise<ApiResult<ProjectSettingsSnapshot>>;
+  readonly update: (input: UpdateProjectSettingsInput) => Promise<ProjectSettingsUpdateResult>;
+  readonly addMember: (input: AddProjectMemberInput) => Promise<ApiResult<AddProjectMemberOutcome>>;
+  readonly removeMember: (input: RemoveProjectMemberInput) => Promise<ApiResult<ProjectSettingsMember>>;
   readonly deleteAllFloors: (input: DeleteAllFloorsInput) => Promise<ApiResult<DeleteAllFloorsResult>>;
   readonly deleteProject: (input: DeleteProjectInput) => Promise<ApiResult<void>>;
 }
@@ -131,7 +158,7 @@ export interface ProjectSettingsGateway {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Mặc định của bảy trường chưa có dây.
+ * Mặc định của các trường N5/N6, dùng cho bản nháp rỗng lúc đang tải.
  *
  * `snapToleranceMm` lấy thẳng bước lưới của `SNAP_THRESHOLDS` thay vì chép lại
  * con số: bắt điểm mặc định đúng bằng một ô lưới là quy tắc của `src/domain`,
@@ -175,58 +202,64 @@ export const PROJECT_SETTINGS_LIMITS = Object.freeze({
 });
 
 /* -------------------------------------------------------------------------- */
-/* Bộ nhớ trong cho bảy trường chưa có dây — xem đầu file, mã T-04.            */
-/* -------------------------------------------------------------------------- */
-
-const unwiredByProject = new Map<string, ProjectUnwiredSettings>();
-
-function readUnwired(projectId: string): ProjectUnwiredSettings {
-  return unwiredByProject.get(projectId) ?? DEFAULT_UNWIRED_SETTINGS;
-}
-
-function writeUnwired(projectId: string, patch: ProjectSettingsPatch): ProjectUnwiredSettings {
-  const current = readUnwired(projectId);
-  const next: ProjectUnwiredSettings = {
-    buildingType: patch.buildingType ?? current.buildingType,
-    notes: patch.notes ?? current.notes,
-    lengthUnit: patch.lengthUnit ?? current.lengthUnit,
-    areaUnit: current.areaUnit,
-    snapToleranceMm: patch.snapToleranceMm ?? current.snapToleranceMm,
-    confidenceThreshold: patch.confidenceThreshold ?? current.confidenceThreshold,
-    scaleMmPerPx: patch.scaleMmPerPx ?? current.scaleMmPerPx,
-  };
-
-  unwiredByProject.set(projectId, next);
-
-  return next;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Chuyển đổi.                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function toSnapshot(project: Project, unwired: ProjectUnwiredSettings): ProjectSettingsSnapshot {
+function toMember(member: Project['members'][number]): ProjectSettingsMember {
+  return { id: member.id, name: member.name, email: member.email, role: member.role };
+}
+
+function toSnapshot(project: Project, settings: ProjectSettings): ProjectSettingsSnapshot {
   const floorIds = project.floors.map((floor) => floor.id);
 
   return {
-    ...unwired,
+    buildingType: settings.buildingType,
+    notes: settings.notes ?? '',
+    lengthUnit: settings.lengthUnit,
+    areaUnit: DEFAULT_UNWIRED_SETTINGS.areaUnit,
+    snapToleranceMm: settings.snapToleranceMm,
+    confidenceThreshold: settings.confidenceThreshold,
+    scaleMmPerPx: settings.defaultScaleMmPerPx,
+    settingsRevision: settings.revision,
     projectId: project.id,
     name: project.name,
     code: project.code ?? '',
     address: project.address ?? '',
-    members: project.members.map((member) => ({
-      id: member.id,
-      name: member.name,
-      email: member.email,
-      role: member.role,
-    })),
+    members: project.members.map(toMember),
     floorIds,
     floorCount: floorIds.length,
   };
 }
 
+function withProject(snapshot: ProjectSettingsSnapshot, project: Project): ProjectSettingsSnapshot {
+  const floorIds = project.floors.map((floor) => floor.id);
+
+  return {
+    ...snapshot,
+    name: project.name,
+    code: project.code ?? '',
+    address: project.address ?? '',
+    members: project.members.map(toMember),
+    floorIds,
+    floorCount: floorIds.length,
+  };
+}
+
+function withSettings(snapshot: ProjectSettingsSnapshot, settings: ProjectSettings): ProjectSettingsSnapshot {
+  return {
+    ...snapshot,
+    buildingType: settings.buildingType,
+    notes: settings.notes ?? '',
+    lengthUnit: settings.lengthUnit,
+    snapToleranceMm: settings.snapToleranceMm,
+    confidenceThreshold: settings.confidenceThreshold,
+    scaleMmPerPx: settings.defaultScaleMmPerPx,
+    settingsRevision: settings.revision,
+  };
+}
+
 /**
- * Ba trường có dây, đã bỏ chuỗi rỗng — xem đầu file.
+ * Ba trường của #26, đã bỏ chuỗi rỗng — xem đầu file.
  *
  * Một trường vắng mặt trong bản vá thì cũng vắng mặt trong thân yêu cầu, nên
  * lượt lưu chỉ chạm đúng những gì người dùng vừa sửa.
@@ -243,6 +276,58 @@ function toWireBody(patch: ProjectSettingsPatch): {
   };
 }
 
+/** Thân trọn của N6: ảnh chụp đã lưu cộng bản vá; không `areaUnit`, `notes` rỗng thì vắng. */
+function toUnitsBody(base: ProjectSettingsSnapshot, patch: ProjectSettingsPatch): ProjectSettingsBody {
+  const notes = patch.notes ?? base.notes;
+
+  return {
+    buildingType: patch.buildingType ?? base.buildingType,
+    confidenceThreshold: patch.confidenceThreshold ?? base.confidenceThreshold,
+    defaultScaleMmPerPx: patch.scaleMmPerPx ?? base.scaleMmPerPx,
+    lengthUnit: patch.lengthUnit ?? base.lengthUnit,
+    ...(notes !== '' ? { notes } : {}),
+    snapToleranceMm: patch.snapToleranceMm ?? base.snapToleranceMm,
+  };
+}
+
+const UNITS_PATCH_KEYS = [
+  'buildingType',
+  'notes',
+  'lengthUnit',
+  'snapToleranceMm',
+  'confidenceThreshold',
+  'scaleMmPerPx',
+] as const;
+
+function hasUnitsChange(patch: ProjectSettingsPatch): boolean {
+  return UNITS_PATCH_KEYS.some((key) => patch[key] !== undefined);
+}
+
+/** Lượt trước có thể đã vào mà ta không biết: gửi lại đúng thân cũ là cách duy nhất biết. */
+function isLostInTransit(error: ApiError): boolean {
+  return error.kind === 'network' || error.kind === 'timeout';
+}
+
+/** 5xx, mạng, timeout: giữ khoá idempotency để gửi lại cùng một thân. */
+function keepsIdempotencyKey(error: ApiError): boolean {
+  return isLostInTransit(error) || ('status' in error && error.status !== undefined && error.status >= 500);
+}
+
+interface HeldUnitsWrite {
+  readonly baseVersion: number;
+  readonly body: ProjectSettingsBody;
+}
+
+interface PendingMemberKey {
+  readonly projectId: string;
+  readonly email: string;
+  readonly key: string;
+}
+
+type UnitsWriteOutcome =
+  | { readonly ok: true; readonly settings: ProjectSettings }
+  | { readonly ok: false; readonly error: ApiError };
+
 /* -------------------------------------------------------------------------- */
 /* Cửa vào.                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -253,27 +338,172 @@ function toWireBody(patch: ProjectSettingsPatch): {
  * Nhận client qua tham số để test cắm `createMockApiClient()` vào đúng phép ánh
  * xạ mà bản sản phẩm dùng, thay vì dựng một ý niệm thứ hai về hình dạng câu trả
  * lời (R-70).
+ *
+ * Ba thứ nhớ theo từng dự án sống trong closure này, tức theo lượt gắn màn:
+ * `revision` lớn nhất đã nhận, thân N6 bị mất giữa đường, và khoá idempotency
+ * của lượt thêm thành viên. Đổi người dùng (R13) thì cả closure bị bỏ theo.
  */
 export function createProjectSettingsGateway(client: ApiClient): ProjectSettingsGateway {
+  const latestRevision: Record<string, number | undefined> = {};
+  const heldUnitsWrites: Record<string, HeldUnitsWrite | undefined> = {};
+  let pendingMemberKey: PendingMemberKey | null = null;
+
+  const noteRevision = (projectId: string, revision: number): void => {
+    latestRevision[projectId] = Math.max(latestRevision[projectId] ?? 0, revision);
+  };
+
+  /**
+   * Một lượt N6. Có thân giữ lại từ lượt mất mạng thì gửi nó trước, đúng
+   * `baseVersion` cũ (máy chủ trả lại 200 nếu nó đã vào), rồi mới gửi thân mới
+   * với `revision` vừa nhận. Trùng thân thì một lượt.
+   */
+  const writeUnits = async (
+    projectId: string,
+    base: ProjectSettingsSnapshot,
+    patch: ProjectSettingsPatch,
+  ): Promise<UnitsWriteOutcome> => {
+    const body = toUnitsBody(base, patch);
+    let baseVersion = Math.max(base.settingsRevision, latestRevision[projectId] ?? 0);
+    const held = heldUnitsWrites[projectId];
+
+    if (held !== undefined) {
+      const replay = await client.projectSettings.replace({
+        projectId,
+        baseVersion: held.baseVersion,
+        body: held.body,
+      });
+
+      if (!replay.ok) {
+        if (!isLostInTransit(replay.error)) {
+          heldUnitsWrites[projectId] = undefined;
+        }
+
+        return { ok: false, error: replay.error };
+      }
+
+      heldUnitsWrites[projectId] = undefined;
+      noteRevision(projectId, replay.data.revision);
+
+      if (JSON.stringify(held.body) === JSON.stringify(body)) {
+        return { ok: true, settings: replay.data };
+      }
+
+      baseVersion = Math.max(baseVersion, replay.data.revision);
+    }
+
+    const result = await client.projectSettings.replace({ projectId, baseVersion, body });
+
+    if (!result.ok) {
+      if (isLostInTransit(result.error)) {
+        heldUnitsWrites[projectId] = { baseVersion, body };
+      }
+
+      return { ok: false, error: result.error };
+    }
+
+    noteRevision(projectId, result.data.revision);
+
+    return { ok: true, settings: result.data };
+  };
+
   return {
     read: async ({ projectId }) => {
-      const result = await client.projects.read({ projectId });
+      const [projectResult, settingsResult] = await Promise.all([
+        client.projects.read({ projectId }),
+        client.projectSettings.read({ projectId }),
+      ]);
 
-      if (!result.ok) {
-        return result;
+      if (!projectResult.ok) {
+        return projectResult;
       }
 
-      return { ok: true, data: toSnapshot(result.data, readUnwired(projectId)) };
+      if (!settingsResult.ok) {
+        return settingsResult;
+      }
+
+      // Không `noteRevision` ở đây: revision N5 đọc lại không kèm nháp mới, nên nâng
+      // `baseVersion` bằng nó sẽ ghi đè im lặng thay đổi của người khác.
+      return { ok: true, data: toSnapshot(projectResult.data, settingsResult.data) };
     },
 
-    update: async ({ patch, projectId }) => {
-      const result = await client.projects.update({ projectId, body: toWireBody(patch) });
+    update: async ({ patch, projectId, base }) => {
+      let snapshot = base;
+      const failures: ProjectSettingsUpdateFailure[] = [];
+      const generalBody = toWireBody(patch);
+
+      if (Object.keys(generalBody).length > 0) {
+        const result = await client.projects.update({ projectId, body: generalBody });
+
+        if (result.ok) {
+          snapshot = withProject(snapshot, result.data);
+        } else {
+          failures.push({ part: 'general', error: result.error });
+        }
+      }
+
+      if (hasUnitsChange(patch)) {
+        const outcome = await writeUnits(projectId, base, patch);
+
+        if (outcome.ok) {
+          snapshot = withSettings(snapshot, outcome.settings);
+        } else {
+          failures.push({ part: 'units', error: outcome.error });
+        }
+      }
+
+      return { snapshot, failures };
+    },
+
+    addMember: async ({ projectId, email }) => {
+      const normalized = email.trim().toLowerCase();
+      const current = await client.projects.read({ projectId });
+
+      if (!current.ok) {
+        return current;
+      }
+
+      const existing = current.data.members.find((member) => member.email.toLowerCase() === normalized);
+
+      if (existing !== undefined) {
+        return { ok: true, data: { alreadyMember: true, member: toMember(existing) } };
+      }
+
+      // R3: một khoá cho một thân. Chỉ giữ khi gửi lại đúng email này, cùng dự án,
+      // sau một lỗi mà lượt trước có thể đã vào; mọi trường hợp khác sinh khoá mới.
+      const reusable =
+        pendingMemberKey !== null &&
+        pendingMemberKey.projectId === projectId &&
+        pendingMemberKey.email === normalized;
+      const key = reusable && pendingMemberKey !== null ? pendingMemberKey.key : createUuid();
+
+      pendingMemberKey = { projectId, email: normalized, key };
+
+      const result = await client.members.add({ projectId, email: normalized, idempotencyKey: key });
+
+      if (!result.ok) {
+        if (!keepsIdempotencyKey(result.error)) {
+          pendingMemberKey = null;
+        }
+
+        return result;
+      }
+
+      pendingMemberKey = null;
+
+      // N3 trả 200 khi đã là thành viên mà kết quả transport không mang `status`.
+      const alreadyMember = current.data.members.some((member) => member.id === result.data.id);
+
+      return { ok: true, data: { alreadyMember, member: toMember(result.data) } };
+    },
+
+    removeMember: async ({ projectId, userId }) => {
+      const result = await client.members.remove({ projectId, userId });
 
       if (!result.ok) {
         return result;
       }
 
-      return { ok: true, data: toSnapshot(result.data, writeUnwired(projectId, patch)) };
+      return { ok: true, data: toMember(result.data) };
     },
 
     deleteAllFloors: async ({ projectId }) => {
@@ -322,8 +552,6 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
       if (!result.ok) {
         return result;
       }
-
-      unwiredByProject.delete(projectId);
 
       return { ok: true, data: undefined };
     },

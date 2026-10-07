@@ -83,7 +83,7 @@ const PANEL_TITLE = 'Phòng';
 const USAGE_LABEL = 'Công năng';
 const EMPTY_MESSAGE = 'Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
 const APPROVE_LABEL = 'Duyệt phòng này';
-const APPROVED_BADGE = 'đã duyệt';
+const APPROVED_BADGE = 'Đã duyệt';
 const MERGE_LABEL = 'Gộp phòng';
 const SPLIT_LABEL = 'Tách phòng';
 const SPLIT_MISSING_POINT =
@@ -158,7 +158,16 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                 >
                   {APPROVE_LABEL}
                 </Button>
-                <Button fullWidth onClick={() => setMergeOpen(true)} variant="secondary">
+                <Button
+                  fullWidth
+                  onClick={() => {
+                    /* Mỗi lần hỏi là một câu hỏi mới (A9): lựa chọn của lần trước —
+                       có khi của một phòng khác — không được chọn sẵn (B-V7-03). */
+                    setMergeCandidateId(null);
+                    setMergeOpen(true);
+                  }}
+                  variant="secondary"
+                >
                   {MERGE_LABEL}
                 </Button>
                 {extras.splitPointMm === null ? (

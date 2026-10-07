@@ -681,7 +681,7 @@ export function useCreateProjectModal(
     isCompact,
     canCreate,
     step,
-    stepLabel: `bước ${String(step)} / 3`,
+    stepLabel: `Bước ${String(step)} / 3`,
     isSubmitting,
     isConfirmingDiscard,
     isSelectOpen,

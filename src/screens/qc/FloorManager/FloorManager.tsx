@@ -60,12 +60,12 @@ import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
 
 const SCREEN_BREADCRUMB = 'Dự án > Quản lý tầng';
-const SCREEN_TITLE = 'quản lý tầng';
+const SCREEN_TITLE = 'Quản lý tầng';
 const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
-const EXPAND_SECTION_LABEL = 'hiện lát cắt';
-const FORBIDDEN_NOTICE_TITLE = 'không có quyền sửa tầng';
-const UNSUPPORTED_NOTICES_HEADING = 'những thay đổi chỉ sống trong phiên làm việc này';
+const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
+const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
+const UNSUPPORTED_NOTICES_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
   'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',

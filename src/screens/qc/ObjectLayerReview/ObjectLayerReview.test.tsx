@@ -58,12 +58,12 @@ const SCREEN_DIRECTORY = 'src/screens/qc/ObjectLayerReview';
 const TOTAL_OBJECTS = OBJECT_LAYER_FIXTURE_COUNTS.total;
 
 /* Nhãn tra cứu — chép từ chính các view con, một chỗ viết duy nhất. */
-const LAYER_TREE_LABEL = 'cây lớp';
-const LIST_LABEL = 'danh sách đối tượng';
-const LEGEND_LABEL = 'chú giải màu lớp';
+const LAYER_TREE_LABEL = 'Cây lớp';
+const LIST_LABEL = 'Danh sách đối tượng';
+const LEGEND_LABEL = 'Chú giải màu lớp';
 const STATUS_BAR_LABEL = 'Thanh trạng thái';
 const TOOL_RAIL_LABEL = 'Công cụ lớp đối tượng';
-const EMPTY_ACTION = 'thêm thủ công';
+const EMPTY_ACTION = 'Thêm thủ công';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
@@ -175,6 +175,8 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 
     /* 1. Cây lớp — ba lớp con, mỗi lớp một số đếm trong ngoặc. */
     const tree = screen.getByRole('tree', { name: LAYER_TREE_LABEL });
+    /* A6 · B-V6-04: nút con mắt ghép tiền tố viết thường với tên lớp viết thường. */
+    expect(screen.getByRole('button', { name: 'Ẩn lớp cửa đi' })).toBeInTheDocument();
     const layerCounts = within(tree)
       .getAllByRole('treeitem')
       .map((item) => firstNumberIn(item.textContent ?? ''));
@@ -219,6 +221,26 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 /* [NGHIEM-3] Hai trạng thái dễ thành màn trắng nhất.                          */
 /* -------------------------------------------------------------------------- */
 
+describe('B-V6-10 — chọn nhóm bằng chuột ngay từ đầu', () => {
+  it('ba nút "chọn nhóm" bấm được khi chưa nhóm nào được chọn, và bấm thì chọn đúng nhóm', async () => {
+    renderState('success');
+
+    const rail = screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL });
+    const door = within(rail).getByRole('button', { name: 'Chọn nhóm cửa đi (phím D)' });
+
+    for (const name of ['Chọn nhóm cửa đi (phím D)', 'Chọn nhóm cửa sổ (phím W)', 'Chọn nhóm nội thất (phím F)']) {
+      expect(within(rail).getByRole('button', { name })).toBeEnabled();
+    }
+
+    fireEvent.click(door);
+
+    /* Nhóm đã chọn thì ray mở các ô loại con của nó — "đổi thành … (phím 1)". */
+    await waitFor(() => {
+      expect(within(rail).getByRole('button', { name: /^Đổi thành .* \(phím 1\)$/u })).toBeInTheDocument();
+    });
+  });
+});
+
 describe('[NGHIEM-3] thu gọn và không có quyền', () => {
   it('trạng thái thu gọn: hai panel ẩn, canvas và thanh trạng thái vẫn còn', () => {
     renderState('collapsed');
@@ -248,11 +270,11 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Trạng thái rỗng — nút "thêm thủ công" phải LÀM một việc thật.               */
+/* Trạng thái rỗng — nút "Thêm thủ công" phải LÀM một việc thật.               */
 /* -------------------------------------------------------------------------- */
 
 describe('trạng thái rỗng', () => {
-  it('nút "thêm thủ công" thêm thật một đối tượng, qua lệnh của S-07', async () => {
+  it('nút "Thêm thủ công" thêm thật một đối tượng, qua lệnh của S-07', async () => {
     renderState('empty');
 
     const button = await screen.findByRole('button', { name: EMPTY_ACTION });
@@ -299,5 +321,23 @@ describe('ba bộ soát dùng chung', () => {
   it('expectNoRawColor — không một mã màu thô nào trong cả thư mục màn', () => {
     /* Nhận thẳng một thư mục và tự đi hết `.ts`/`.tsx` bên trong. */
     expectNoRawColor(SCREEN_DIRECTORY);
+  });
+});
+
+describe('dải lưu lớp (F-04x-1)', () => {
+  it('409 → dải chú ý với nút "Tải lại"', () => {
+    const onReload = vi.fn();
+    const message = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
+    const BLOCK = { confirm: null, kind: 'reload', message, onReload } as const;
+
+    renderWithProviders(
+      <MemoryRouter>
+      <ObjectLayerReviewContainer {...scenarioArgsFor('partial')} forceSaveBlock={BLOCK} />
+    </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
   });
 });

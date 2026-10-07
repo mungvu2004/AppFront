@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { NumericField } from './NumericField';
 import { expectAccessible } from '../../lib/testing/expectAccessible';
+import { expectSentenceCase } from '../../lib/testing/expectSentenceCase';
 import { renderWithProviders } from '../../lib/testing/render';
 
 describe('NumericField', () => {
@@ -37,7 +38,14 @@ describe('NumericField', () => {
 
   it('passes expectAccessible on a bare field', () => {
     expectAccessible(
-      renderWithProviders(<NumericField value={220} unit="mm" aria-label="chiều dài" />),
+      renderWithProviders(<NumericField value={220} unit="mm" aria-label="Chiều dài" />),
     );
+  });
+
+  it('capitalises the first letter of its stepper labels (A6)', () => {
+    const { container } = render(<NumericField value={220} unit="mm" aria-label="Chiều dài" onChange={() => undefined} />);
+
+    expect(screen.getByRole('button', { name: 'Tăng giá trị', hidden: true })).toBeInTheDocument();
+    expectSentenceCase(container);
   });
 });

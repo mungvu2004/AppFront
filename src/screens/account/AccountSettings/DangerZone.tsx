@@ -60,7 +60,7 @@ export function DangerZone(props: DangerZoneProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-default p-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-[14px] font-medium text-text-primary">xoá tài khoản</span>
+          <span className="text-[14px] font-medium text-text-primary">Xoá tài khoản</span>
           <p className="text-[13px] text-text-secondary">
             Xoá vĩnh viễn tài khoản này cùng mọi dự án chỉ mình bạn giữ. Việc này không hoàn tác
             được.
@@ -87,7 +87,7 @@ export function DangerZone(props: DangerZoneProps) {
               để xác nhận.
             </p>
             <Input
-              label="địa chỉ thư"
+              label="Địa chỉ thư"
               type="email"
               autoComplete="off"
               value={props.confirmValue}

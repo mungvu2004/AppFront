@@ -147,7 +147,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
       <>
         {/* Dự án có tầng nhưng chưa tầng nào có bản vẽ: câu mời đi TRƯỚC danh
             sách chứ không thay chỗ nó — bốn thẻ tầng rỗng chính là thứ nói cho
-            người dùng biết họ đang phải điền vào đâu. */}
+            Người dùng biết họ đang phải điền vào đâu. */}
         {state === 'empty' && (
           <p className="text-[14px] text-text-secondary">{props.emptyMessage}</p>
         )}

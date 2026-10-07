@@ -220,6 +220,37 @@ describe('MobileViewer — vùng bấm >= 44px, ở mức suy ra được từ j
 /* Thu gọn ở 320.                                                              */
 /* -------------------------------------------------------------------------- */
 
+describe('MobileViewer — `partial` nói đúng lý do (B-V1-11)', () => {
+  const MISSING_ROOMS_NOTE = 'Mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.';
+  const WEAK_NETWORK_NOTE = 'Mạng đang yếu. Mô hình đã tải xong vẫn xem được.';
+
+  it('thiếu phòng: câu thiếu phòng, không câu mạng; hàng tầng mang "chưa có phòng"', () => {
+    const props = { ...mobileViewerScenarioFor('partial'), activeTool: 'floors' as const };
+    const { getByText, queryByText, getAllByText } = renderMobileViewer(props);
+
+    expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
+    expect(queryByText(WEAK_NETWORK_NOTE)).toBeNull();
+    expect(getAllByText('Chưa có phòng')).toHaveLength(2);
+    expect(queryByText(/^chưa tải$/iu)).toBeNull();
+  });
+
+  it('mạng yếu: câu mạng, không câu thiếu phòng', () => {
+    const props = { ...mobileViewerScenarioFor('partial'), partialReason: 'weak-network' as const };
+    const { getByText, queryByText } = renderMobileViewer(props);
+
+    expect(getByText(WEAK_NETWORK_NOTE)).toBeInTheDocument();
+    expect(queryByText(MISSING_ROOMS_NOTE)).toBeNull();
+  });
+
+  it('`partial` không bao giờ đọc "Mô hình đã dựng xong.", kể cả khi thiếu lý do và không có nhãn mức chi tiết', () => {
+    const props = { ...mobileViewerScenarioFor('partial'), partialReason: null, detailLabel: null };
+    const { queryAllByText, getByText } = renderMobileViewer(props);
+
+    expect(queryAllByText(/^mô hình đã dựng xong\.$/iu)).toHaveLength(0);
+    expect(getByText(MISSING_ROOMS_NOTE)).toBeInTheDocument();
+  });
+});
+
 describe('MobileViewer — thu gọn ở 320 (MOBILE_VIEWER_COMPACT_WIDTH_PX)', () => {
   it('MOBILE_VIEWER_TOOLS_COMPACT gộp còn ba — "view" là cái bị gộp vào, không phải cái bị bỏ (dữ liệu hợp đồng, không phụ thuộc view)', () => {
     expect(MOBILE_VIEWER_TOOLS).toHaveLength(4);
@@ -229,15 +260,15 @@ describe('MobileViewer — thu gọn ở 320 (MOBILE_VIEWER_COMPACT_WIDTH_PX)', 
     expect(MOBILE_VIEWER_TOOLS_COMPACT).not.toContain('view');
   });
 
-  it('isCompact=true: chức năng "chế độ xem" vẫn tới được — nó chuyển thành một hàng trong tấm "tầng" đang mở, không biến mất', () => {
+  it('isCompact=true: chức năng "Chế độ xem" vẫn tới được — nó chuyển thành một hàng trong tấm "tầng" đang mở, không biến mất', () => {
     const props = mobileViewerScenarioFor('collapsed');
 
     expect(props.isCompact).toBe(true);
     expect(props.activeTool).toBe('floors');
 
-    const { getByText } = renderMobileViewer(props);
+    const { getByRole } = renderMobileViewer(props);
 
-    expect(getByText(/chế độ xem/iu)).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Chế độ xem' })).toBeInTheDocument();
   });
 });
 
@@ -269,5 +300,29 @@ describe('MobileViewer — Esc đóng lớp trên cùng (A12)', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
     expect(onSelectTool).toHaveBeenCalledWith(null);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* F-06 — liên kết chia sẻ tắt (v1): nút rời DOM, câu mời sửa trên máy tính giữ. */
+/* -------------------------------------------------------------------------- */
+
+describe('MobileViewer — liên kết chia sẻ tắt thì hai nút chia sẻ rời DOM (F-06)', () => {
+  it('onShare và onSendDesktopLink là null: không nút "Chia sẻ dự án", không nút gửi; câu nhắc vẫn còn', () => {
+    const props = { ...mobileViewerScenarioFor('success'), onShare: null, onSendDesktopLink: null };
+    const { getByText, queryByRole } = renderMobileViewer(props);
+
+    expect(props.selection?.needsDesktopToEdit).toBe(true);
+    expect(queryByRole('button', { name: 'Chia sẻ dự án' })).toBeNull();
+    expect(queryByRole('button', { name: 'Gửi liên kết sang máy tính' })).toBeNull();
+    expect(getByText('Sửa trên máy tính để chính xác hơn')).toBeInTheDocument();
+  });
+
+  it('có hai hành động thì hai nút có mặt', () => {
+    const props = { ...mobileViewerScenarioFor('success'), onShare: vi.fn(), onSendDesktopLink: vi.fn() };
+    const { getByRole } = renderMobileViewer(props);
+
+    expect(getByRole('button', { name: 'Chia sẻ dự án' })).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Gửi liên kết sang máy tính' })).toBeInTheDocument();
   });
 });

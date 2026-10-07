@@ -18,12 +18,16 @@
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
-import type { ApiClient } from '@/api/client';
+import { __resetMockLayerState, createMockApiClient, simulateProvisionalScale } from '@/api/__mocks__/client';
+import type { ApiClient, SpatialApi } from '@/api/client';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import type { LevelId } from '@/domain/spatial/types';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
+import type { HttpError } from '@/lib/http/types';
 import {
   createScale,
   millimetresPerPixel,
@@ -43,6 +47,7 @@ import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { useStore } from '@/store';
+import { commit } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -52,7 +57,7 @@ import {
   type ScaleDrawingSnapshot,
   type ScaleRawDimensionString,
 } from './scaleCalibrationGateway';
-import { useScaleCalibration } from './useScaleCalibration';
+import { __resetScaleRatioMarks, useScaleCalibration } from './useScaleCalibration';
 import type {
   ImageRatioPoint,
   ScaleCalibrationState,
@@ -83,6 +88,22 @@ const REFERENCE_SCALE: Scale = createScale({
 const IMPLAUSIBLE_RATIO: MillimetresPerPixel = millimetresPerPixel(250);
 const REFERENCE_WALL_WIDTH: Pixels = pixels(12);
 
+/** Tỉ lệ tạm của pipeline cho tầng `unresolved`: đoạn 400 px dài 4.000 mm. */
+const PROVISIONAL_REAL_LENGTH = millimetres(4000);
+const PROVISIONAL_RATIO: MillimetresPerPixel = createScale({
+  pixelLength: REFERENCE_PIXEL_LENGTH,
+  realLength: PROVISIONAL_REAL_LENGTH,
+}).millimetresPerPixel;
+
+const FORBIDDEN: HttpError = {
+  code: 'FORBIDDEN',
+  kind: 'http',
+  raw: { code: 'FORBIDDEN' },
+  requestId: 'r',
+  retryable: false,
+  status: 403,
+};
+
 /** Ảnh mẫu để đo trên: tầng của bộ mẫu mock đã đo xong và tìm được khung bản vẽ. */
 const MEASURED_MOCK_FLOOR_ID = 'L2';
 /** Tầng mock mà máy KHÔNG tìm được khung bản vẽ — nguồn của trạng thái `error`. */
@@ -111,11 +132,15 @@ beforeEach(() => {
   });
 
   clock = installFakeClock();
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
+  __resetScaleRatioMarks();
   seedStore();
 });
 
 afterEach(() => {
   cleanup();
+  __resetFloorLayerSavers();
   clock.restore();
   vi.restoreAllMocks();
 });
@@ -123,7 +148,13 @@ afterEach(() => {
 /** Đồ thị của bộ mẫu chuẩn A14 trong store, và một ngăn xếp hoàn tác sạch. */
 function seedStore(): void {
   const scenario = createCleanBuildingScenario();
-  useStore.getState().setSpatial(normalizeSpatial(scenario.graph), 'version-1');
+  const graph = normalizeSpatial(scenario.graph);
+
+  // Cùng dự án với màn: `useFloorLayer` thấy kho đã có tầng, không nạp đè.
+  useStore.getState().setSpatial(graph, 'version-1', {
+    floorRevisions: Object.fromEntries(graph.byKind.level.map((id) => [id, 0])),
+    projectId: PROJECT_ID,
+  });
   useStore.temporal.getState().clear();
 }
 
@@ -216,12 +247,34 @@ interface HarnessOptions {
   readonly sourceFloorId?: string;
   readonly rows?: readonly ScaleRawDimensionString[];
   readonly referenceWallWidthPx?: Pixels;
-  readonly persistSupported?: boolean;
 }
 
 interface Harness {
   readonly gateway: ScaleCalibrationGateway;
-  readonly persistCalls: () => readonly MillimetresPerPixel[];
+  /** PUT #35 của bộ lưu lớp chung — mặc định nhận, trả lớp hiện tại của kho. */
+  readonly writeLayer: MockInstance<SpatialApi['writeLayer']>;
+}
+
+type WriteResult = Awaited<ReturnType<SpatialApi['writeLayer']>>;
+
+/** Phản hồi #35 thành công: lớp của tầng như kho đang giữ, `revision` cho sẵn. */
+function savedLayer(floorId: string, revision: number): WriteResult {
+  const spatial = useStore.getState().spatial;
+  const layer =
+    spatial === null
+      ? { furniture: [], openings: [], rooms: [], walls: [] }
+      : spatialLayerOf(spatial, floorId as LevelId);
+
+  return { data: { layer, revision }, ok: true };
+}
+
+function deferredWrite(): { promise: Promise<WriteResult>; resolve: (value: WriteResult) => void } {
+  let resolve: (value: WriteResult) => void = () => undefined;
+  const promise = new Promise<WriteResult>((settleWith) => {
+    resolve = settleWith;
+  });
+
+  return { promise, resolve };
 }
 
 /**
@@ -234,13 +287,14 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
   const client = createMockApiClient();
   const base = createScaleCalibrationGateway(client, { now: () => clock.epochMs() });
   const drawing = await readMockDrawing(client, options.sourceFloorId ?? MEASURED_MOCK_FLOOR_ID);
-  const persisted: MillimetresPerPixel[] = [];
+  const writeLayer = vi
+    .spyOn(client.spatial, 'writeLayer')
+    .mockImplementation(async (input) => savedLayer(input.floorId, input.baseVersion + 1));
 
   const gateway = withScaleCapabilities(base, {
     supports: {
       dimensionStrings: options.rows !== undefined,
       referenceWallWidth: options.referenceWallWidthPx !== undefined,
-      persistScale: options.persistSupported === true,
     },
     readFloorDrawing: async () => ({ ok: true, data: drawing }),
     readDimensionStrings: async () =>
@@ -251,15 +305,9 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
       options.referenceWallWidthPx === undefined
         ? base.readReferenceWallWidth({ floorId: FLOOR_ID, projectId: PROJECT_ID })
         : { supported: true, value: options.referenceWallWidthPx },
-    persistScale: async (input) => {
-      persisted.push(input.millimetresPerPixel);
-      return options.persistSupported === true
-        ? { supported: true, value: undefined }
-        : base.persistScale(input);
-    },
   });
 
-  return { gateway, persistCalls: () => persisted };
+  return { gateway, writeLayer };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -339,6 +387,31 @@ async function dragReferenceLine(mounted: Mounted): Promise<void> {
   });
 }
 
+/** Kéo đoạn 400 px và gõ chiều dài thật — đủ để có tỉ lệ đề nghị. */
+async function typeReference(mounted: Mounted, length = REFERENCE_REAL_LENGTH): Promise<void> {
+  await dragReferenceLine(mounted);
+  await act(async () => {
+    mounted.result.current.actions.onChangeRealLength(typedNumber(length));
+  });
+}
+
+/** Đẩy đồng hồ giả và chờ `import()` lười của bộ lưu cho tới khi lượt gửi về. */
+async function settleAsync(): Promise<void> {
+  for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+    await act(async () => {
+      await vi.dynamicImportSettled();
+      await clock.advance(1);
+    });
+  }
+}
+
+async function applyNow(mounted: Mounted): Promise<void> {
+  await act(async () => {
+    mounted.result.current.actions.onApply();
+  });
+  await settleAsync();
+}
+
 /**
  * Bề rộng ảnh, đọc ngược từ chính hook.
  *
@@ -407,89 +480,292 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
   });
 });
 
-describe('useScaleCalibration — áp dụng, tự lưu, hoàn tác', () => {
-  it('áp tỷ lệ ghi vào store, tự lưu chạy, và hoàn tác trả về tỷ lệ cũ', async () => {
-    const harness = await makeHarness({ persistSupported: true });
+describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 bước 5)', () => {
+  it('áp → PUT chỉ tỉ lệ trước; kho đổi tỉ lệ CHỈ sau khi máy chủ nhận; success màu verified', async () => {
+    const harness = await makeHarness();
+    const pending = deferredWrite();
+
+    harness.writeLayer.mockReturnValueOnce(pending.promise);
     const mounted = mountHook(harness.gateway);
     await settle(mounted);
-    await dragReferenceLine(mounted);
-
-    await act(async () => {
-      mounted.result.current.actions.onChangeRealLength('4800');
-    });
-
-    expect(storedRatio()).toBeUndefined();
+    await typeReference(mounted);
 
     await act(async () => {
       mounted.result.current.actions.onApply();
     });
+    await settleAsync();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body).toEqual({
+      scaleMillimetresPerPixel: REFERENCE_SCALE.millimetresPerPixel,
+    });
+    expect(storedRatio()).toBeUndefined();
+    expect(mounted.result.current.model.panel.isApplying).toBe(true);
+    expect(mounted.result.current.model.state).not.toBe('success');
+
+    pending.resolve(savedLayer(FLOOR_ID, 1));
+    await settleAsync();
 
     expect(storedRatio()).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
+    expect(mounted.result.current.model.state).toBe('success');
+    expect(mounted.result.current.model.panel.statusCode).toBe('verified');
+    expect(mounted.result.current.model.panel.isApplying).toBe(false);
+    expect(mounted.result.current.appliedScale?.pixelsToMillimetres(REFERENCE_PIXEL_LENGTH)).toBeCloseTo(
+      REFERENCE_REAL_LENGTH,
+      6,
+    );
+  });
 
-    // A7: không có nút lưu. Đủ im lặng thì lượt lưu tự chạy. Khoảng chờ ở đây
-    // là nhịp thử lại đầu tiên của `createAutosave` — một hằng có thật, và theo
-    // cấu trúc thì dài hơn khoảng giãn 800 ms của A7, nên không con số nào phải
-    // viết tay ở đây (R-71).
+  it('PUT 422 → kho giữ tỉ lệ cũ, không success, nói lý do', async () => {
+    const harness = await makeHarness();
+
+    harness.writeLayer.mockResolvedValueOnce({
+      error: { code: 'VALIDATION', kind: 'http', raw: { code: 'VALIDATION' }, requestId: 'r', retryable: false, status: 422 },
+      ok: false,
+    });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(storedRatio()).toBeUndefined();
+    expect(mounted.result.current.model.state).toBe('partial');
+    expect(mounted.result.current.model.panel.statusCode).not.toBe('verified');
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toContain('Chưa lưu được tỉ lệ lên máy chủ');
+  });
+
+  it('sửa đồ thị khác sau khi áp không sinh PUT tỉ lệ', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+    await applyNow(mounted);
+
+    const wall = Object.values(useStore.getState().spatial?.byId ?? {}).find(
+      (entity) => 'thicknessMm' in entity && 'levelId' in entity && entity.levelId === FLOOR_ID,
+    );
+
+    await act(async () => {
+      if (wall !== undefined && 'thicknessMm' in wall) {
+        commit({ op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 10 } }, 'Đổi độ dày');
+      }
+    });
     await act(async () => {
       await clock.advance(RETRY_SCHEDULE_MS[0]);
     });
+    await settleAsync();
 
-    expect(harness.persistCalls()).toHaveLength(1);
-    expect(harness.persistCalls()[0]).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
-    expect(mounted.result.current.model.statusBar.saveText).not.toBe('');
+    const scaleCalls = harness.writeLayer.mock.calls.filter(([input]) => input.body.scaleMillimetresPerPixel !== undefined);
 
-    // A8: hoàn tác được, và hoàn tác chạy qua zundo vì `spatial` nằm trong
-    // `partialize` — đúng đường mà `commit()` nuôi.
+    expect(scaleCalls).toHaveLength(1);
+  });
+
+  it('kho rỗng thì nạp tầng qua N16, và áp vào đúng mã Level N16 trả, không phải mã route (B-V5-01)', async () => {
+    useStore.getState().setSpatial(null, null);
+    const harness = await makeHarness();
+    const otherLevel = sampleLevelId(1);
+    // Route mang `FLOOR_ID`; N16 trả một tầng có mã `Level` khác — như BE thật.
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: () => harness.gateway.readLayer({ floorId: otherLevel, projectId: PROJECT_ID }),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+    await typeReference(mounted);
+    await applyNow(mounted);
+
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBeUndefined();
+    expect(harness.writeLayer.mock.calls[0]?.[0].floorId).toBe(otherLevel);
+    const level = useStore.getState().spatial?.byId[otherLevel];
+    expect(level !== undefined && 'scaleMillimetresPerPixel' in level).toBe(true);
+    expect(mounted.result.current.appliedScale).not.toBeNull();
+  });
+
+  it('kho rỗng và N16 hỏng thì bấm áp nói lý do tại chỗ, không im lặng, không PUT (B-V5-01)', async () => {
+    useStore.getState().setSpatial(null, null);
+    const harness = await makeHarness();
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: () => Promise.reject(new Error('N16 hỏng')),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBeUndefined();
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).not.toHaveBeenCalled();
+    expect(mounted.result.current.model.state).not.toBe('success');
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBe(
+      'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
+    );
+  });
+});
+
+describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved)', () => {
+  /** N16 của tầng mang tỉ lệ tạm; kho rỗng nên `useFloorLayer` nạp đúng tài liệu ấy. */
+  async function mountProvisional(): Promise<{ harness: Harness; mounted: Mounted }> {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO);
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+
+    await settle(mounted);
+    await settleAsync();
+
+    return { harness, mounted };
+  }
+
+  it('storedRatio null: nhãn "chưa có", dải tỉ lệ tạm; áp đúng tỉ lệ tạm → một PUT, dải mất', async () => {
+    const { harness, mounted } = await mountProvisional();
+
+    expect(useStore.getState().floorMeta[FLOOR_ID]?.scaleStatus).toBe('unresolved');
+    expect(mounted.result.current.model.panel.currentScaleLabel).toBe('chưa có');
+    expect(mounted.result.current.model.provisionalScaleNotice).toBe(
+      'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.',
+    );
+
+    await typeReference(mounted, PROVISIONAL_REAL_LENGTH);
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(PROVISIONAL_RATIO, 6);
+    expect(useStore.getState().floorMeta[FLOOR_ID]?.scaleStatus).toBeUndefined();
+    expect(mounted.result.current.model.provisionalScaleNotice).toBeUndefined();
+    expect(mounted.result.current.model.state).toBe('success');
+  });
+
+  it('hoàn tác trên tầng từng tỉ lệ tạm → một PUT tỉ lệ cũ, kèm câu của bước 5', async () => {
+    const { harness, mounted } = await mountProvisional();
+
+    await typeReference(mounted);
+    await applyNow(mounted);
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+
     await act(async () => {
       useStore.temporal.getState().undo();
     });
-
-    expect(storedRatio()).toBeUndefined();
-  });
-
-  it('cổng thật không hứa lưu: không gọi persistScale, nói thẳng là chưa lên máy chủ, nút không quay mãi', async () => {
-    const harness = await makeHarness();
-    const mounted = mountHook(harness.gateway);
-    await settle(mounted);
-    await dragReferenceLine(mounted);
-
-    await act(async () => {
-      mounted.result.current.actions.onChangeRealLength('4800');
-    });
-    await act(async () => {
-      mounted.result.current.actions.onApply();
-    });
     await act(async () => {
       await clock.advance(RETRY_SCHEDULE_MS[0]);
     });
+    await settleAsync();
 
-    expect(harness.gateway.supports.persistScale).toBe(false);
-    expect(harness.persistCalls()).toHaveLength(0);
-    expect(mounted.result.current.model.statusBar.saveText).toBe(
-      'tỉ lệ chỉ áp trong phiên này, chưa lưu lên máy chủ',
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+    expect(harness.writeLayer.mock.calls[1]?.[0].body).toEqual({ scaleMillimetresPerPixel: PROVISIONAL_RATIO });
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toBe(
+      'Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn.',
     );
-    expect(mounted.result.current.model.panel.isApplying).toBe(false);
+  });
+});
+
+describe('useScaleCalibration — áp mọi tầng (A9)', () => {
+  const FLOORS = [
+    { floorId: sampleLevelId(0), name: 'Tầng 1', hasDrawing: true, revision: 4 },
+    { floorId: sampleLevelId(1), name: 'Tầng 2', hasDrawing: true, revision: 5 },
+    { floorId: sampleLevelId(2), name: 'Tầng 3', hasDrawing: true, revision: 6 },
+    { floorId: sampleLevelId(3), name: 'Mái', hasDrawing: false, revision: 7 },
+  ] as const;
+
+  async function mountAllFloors(): Promise<{ harness: Harness; mounted: Mounted }> {
+    const harness = await makeHarness();
+    const gateway = withScaleCapabilities(harness.gateway, { readAllFloors: async () => FLOORS });
+    const mounted = mountHook(gateway);
+
+    await settle(mounted);
+    await settleAsync();
+    await typeReference(mounted);
+    await act(async () => {
+      mounted.result.current.actions.onChangeApplyScope('allFloors');
+    });
+    await applyNow(mounted);
+
+    return { harness, mounted };
+  }
+
+  it('bấm áp mở hộp thoại A9 với số tầng có bản vẽ; huỷ → không PUT, giữ trạng thái trước', async () => {
+    const { harness, mounted } = await mountAllFloors();
+    const before = mounted.result.current.model.state;
+
+    expect(mounted.result.current.model.allFloorsConfirm).toEqual({
+      title: 'Áp tỉ lệ này cho 3 tầng có bản vẽ?',
+      message:
+        'Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+      confirmLabel: 'Áp cho mọi tầng',
+      cancelLabel: 'Huỷ',
+    });
+
+    await act(async () => {
+      mounted.result.current.actions.onCancelAllFloors();
+    });
+    await settleAsync();
+
+    expect(mounted.result.current.model.allFloorsConfirm).toBeUndefined();
+    expect(mounted.result.current.model.state).toBe(before);
+    expect(harness.writeLayer).not.toHaveBeenCalled();
   });
 
-  it('trả về `appliedScale` dùng được ngay sau khi áp', async () => {
-    const harness = await makeHarness();
-    const mounted = mountHook(harness.gateway);
-    await settle(mounted);
-    await dragReferenceLine(mounted);
+  it('đồng ý → nối tiếp, hint = revision N15, bỏ tầng không bản vẽ, nêu tầng bị khối và tầng hỏng', async () => {
+    const { harness, mounted } = await mountAllFloors();
+    const blockedFloor = FLOORS[2].floorId;
+    let inFlight = 0;
+    let maxInFlight = 0;
 
-    await act(async () => {
-      mounted.result.current.actions.onChangeRealLength('4800');
+    // Tầng 3 bị khối trước: một lượt lưu lớp của nó vừa 403.
+    harness.writeLayer.mockImplementation(async (input) => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+
+      if (input.floorId === blockedFloor) {
+        return { error: FORBIDDEN, ok: false };
+      }
+
+      if (input.floorId === FLOORS[1].floorId) {
+        return { error: { ...FORBIDDEN, code: 'VALIDATION', status: 422 }, ok: false };
+      }
+
+      return savedLayer(input.floorId, input.baseVersion + 1);
     });
     await act(async () => {
-      mounted.result.current.actions.onApply();
+      const wall = Object.values(useStore.getState().spatial?.byId ?? {}).find(
+        (entity) => 'thicknessMm' in entity && 'levelId' in entity && entity.levelId === blockedFloor,
+      );
+
+      if (wall !== undefined && 'thicknessMm' in wall) {
+        commit({ op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 10 } }, 'Đổi độ dày');
+      }
     });
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+    await settleAsync();
+    harness.writeLayer.mockClear();
 
-    const applied = mounted.result.current.appliedScale;
+    await act(async () => {
+      mounted.result.current.actions.onConfirmAllFloors();
+    });
+    await settleAsync();
 
-    expect(applied).not.toBeNull();
-    expect(applied?.pixelsToMillimetres(REFERENCE_PIXEL_LENGTH)).toBeCloseTo(
-      REFERENCE_REAL_LENGTH,
-      6,
+    expect(harness.writeLayer.mock.calls.map(([input]) => [input.floorId, input.baseVersion, input.body])).toEqual([
+      [FLOORS[0].floorId, 4, { scaleMillimetresPerPixel: REFERENCE_SCALE.millimetresPerPixel }],
+      [FLOORS[1].floorId, 5, { scaleMillimetresPerPixel: REFERENCE_SCALE.millimetresPerPixel }],
+    ]);
+    expect(maxInFlight).toBe(1);
+
+    const notice = mounted.result.current.model.panel.applyBlockedNotice ?? '';
+
+    expect(notice).toContain('Đã áp tỉ lệ cho 1 tầng.');
+    expect(notice).toContain('Không lưu được tỉ lệ cho: Tầng 2.');
+    expect(notice).toContain('Chưa gửi vì tầng đang bị khoá lưu: Tầng 3.');
+    expect(notice).toContain('Bỏ qua vì chưa có bản vẽ: Mái.');
+    expect(mounted.result.current.model.state).not.toBe('success');
+    expect(storedRatio()).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
+    const failedLevel = useStore.getState().spatial?.byId[FLOORS[1].floorId];
+    expect(failedLevel !== undefined && 'order' in failedLevel ? failedLevel.scaleMillimetresPerPixel : null).not.toBe(
+      REFERENCE_SCALE.millimetresPerPixel,
     );
   });
 });
@@ -617,9 +893,7 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     await act(async () => {
       loading.result.current.actions.onChangeRealLength('4800');
     });
-    await act(async () => {
-      loading.result.current.actions.onApply();
-    });
+    await applyNow(loading);
     reached.add(loading.result.current.model.state);
     loading.unmount();
 
@@ -649,6 +923,29 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     collapsed.unmount();
 
     expect([...reached].sort()).toEqual([...SEVEN_STATES].sort());
+  });
+
+  it('lượt đọc hỏng có tiêu đề riêng, không mượn tiêu đề "nắn ảnh thất bại" (B-V5-04)', async () => {
+    const harness = await makeHarness();
+    const failing = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: () => Promise.reject(new Error('mất kết nối')),
+    });
+    await settle(failing);
+
+    expect(failing.result.current.model.state).toBe('error');
+    expect(failing.result.current.model.errorTitle).toBeDefined();
+    expect(failing.result.current.model.canvas.warpingNotice).toBeNull();
+    failing.unmount();
+
+    const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const warped = mountHook(warpedHarness.gateway);
+    await settle(warped);
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.errorTitle).toBeUndefined();
+    expect(warped.result.current.model.canvas.warpingNotice).not.toBeNull();
+    warped.unmount();
   });
 
   it('trạng thái `partial` cũng đến từ chuỗi kích thước tin cậy thấp', async () => {
@@ -749,5 +1046,127 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
       formatCombo(parseCombo('Shift+ArrowLeft')),
     );
     expect(hints.every((hint) => hint.description.length > 0)).toBe(true);
+  });
+});
+
+describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
+  /** Tầng đang mở đã có một tỉ lệ trước lượt áp — có cái để hoàn tác về mà gửi. */
+  beforeEach(() => {
+    const graph = createSampleBuilding();
+    const levels = graph.levels.map((level) =>
+      level.id === FLOOR_ID ? { ...level, scaleMillimetresPerPixel: PROVISIONAL_RATIO } : level,
+    );
+    const spatial = normalizeSpatial({ ...graph, levels });
+
+    useStore.getState().setSpatial(spatial, 'version-1', {
+      floorRevisions: Object.fromEntries(spatial.byKind.level.map((id) => [id, 0])),
+      projectId: PROJECT_ID,
+    });
+  });
+
+  /** Gõ đoạn tham chiếu rồi áp; trả về hook đã gắn. */
+  async function mountAndApply(harness: Harness): Promise<Mounted> {
+    const mounted = mountHook(harness.gateway);
+
+    await settle(mounted);
+    await settleAsync();
+    await typeReference(mounted);
+    await applyNow(mounted);
+
+    return mounted;
+  }
+
+  async function undoAndSend(): Promise<void> {
+    await act(async () => {
+      useStore.temporal.getState().undo();
+    });
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+  }
+
+  it('P2-4: áp, gỡ màn, gắn lại, Ctrl+Z → đúng một PUT tỉ lệ cũ', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    const first = await mountAndApply(harness);
+
+    // Hẹn lưu 800 ms của lượt gắn đầu chạy xong TRƯỚC khi gỡ — không thì chính hẹn ấy
+    // (closure của lượt gắn cũ) gửi cú hoàn tác, và bài này không còn kiểm lượt gắn lại.
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    const second = mountHook(harness.gateway);
+    await settle(second);
+    await settleAsync();
+    await undoAndSend();
+
+    expect(storedRatio()).toBe(before);
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+    expect(harness.writeLayer.mock.calls[1]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
+  });
+
+  it('P2-4: mốc khoá theo dự án — dự án khác thì Ctrl+Z không gửi tỉ lệ', async () => {
+    const harness = await makeHarness();
+    const first = await mountAndApply(harness);
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    first.unmount();
+
+    const queryClient = createTestQueryClient();
+    const other = renderHook(
+      () => useScaleCalibration({ projectId: 'project-2', floorId: FLOOR_ID, gateway: harness.gateway }),
+      { wrapper: ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children) },
+    );
+    await settleAsync();
+    await undoAndSend();
+    other.unmount();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('Nit-3: hoàn tác gửi PUT thì trạng thái không còn "success"', async () => {
+    const harness = await makeHarness();
+    const mounted = await mountAndApply(harness);
+
+    expect(mounted.result.current.model.state).toBe('success');
+
+    await undoAndSend();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+    expect(mounted.result.current.model.state).not.toBe('success');
+  });
+
+  it('P2-5: readAllFloors trên bộ mẫu ghép #12 với N15 theo order khi mã lệch — đích mang mã Level và revision', async () => {
+    const client = createMockApiClient();
+    const floors = await client.floors.list({ projectId: PROJECT_ID });
+    const graph = await client.spatial.readGraph({ projectId: PROJECT_ID });
+
+    if (!floors.ok || !graph.ok) {
+      throw new Error('Bộ mẫu không đọc được #12 hoặc N15.');
+    }
+
+    const levels = graph.data.graph.levels;
+    // Tiền đề của ca này: trên bộ mẫu `Floor.id` ≠ `Level.id`.
+    expect(floors.data.some((floor) => levels.some((level) => level.id === floor.id))).toBe(false);
+
+    const targets = await createScaleCalibrationGateway(client).readAllFloors({ projectId: PROJECT_ID });
+
+    expect(targets).toHaveLength(floors.data.length);
+    targets.forEach((target, index) => {
+      const level = levels.find((entry) => entry.id === target.floorId);
+
+      expect(level?.order).toBe(floors.data[index]?.order);
+      expect(target.revision).toBe(
+        graph.data.floorRevisions.find((entry) => entry.floorId === target.floorId)?.revision,
+      );
+      expect(target.revision).toBeDefined();
+    });
   });
 });

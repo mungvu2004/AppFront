@@ -248,11 +248,11 @@ const FORBIDDEN_MEASUREMENTS: readonly PinnedMeasurement[] = Object.freeze([PINN
 /* Chip bắt điểm — loại đang bắt luôn được gọi tên (điều cấm thứ ba).          */
 /* -------------------------------------------------------------------------- */
 
-const SNAP_NONE: SnapIndicator = { kind: null, label: 'chưa bắt được điểm nào' };
-const SNAP_ERROR: SnapIndicator = { kind: null, label: 'không tìm thấy bề mặt để bắt' };
-const SNAP_VERTEX: SnapIndicator = { kind: 'vertex', label: 'đỉnh' };
+const SNAP_NONE: SnapIndicator = { kind: null, label: 'Chưa bắt được điểm nào' };
+const SNAP_ERROR: SnapIndicator = { kind: null, label: 'Không tìm thấy bề mặt để bắt' };
+const SNAP_VERTEX: SnapIndicator = { kind: 'vertex', label: 'Đỉnh' };
 const SNAP_MIDPOINT: SnapIndicator = { kind: 'midpoint', label: 'trung điểm' };
-const SNAP_AXIS: SnapIndicator = { kind: 'axisIntersection', label: 'giao trục' };
+const SNAP_AXIS: SnapIndicator = { kind: 'axisIntersection', label: 'Giao trục' };
 
 /* -------------------------------------------------------------------------- */
 /* Phần đang đo dở (trạng thái Đang đo) — một điểm đã đặt, chưa có gì để đọc,  */

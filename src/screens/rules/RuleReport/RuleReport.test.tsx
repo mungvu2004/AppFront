@@ -30,19 +30,27 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { ComponentType } from 'react';
-import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import type { ComponentType, ReactNode } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import type * as AppClientModule from '@/api/appClient';
+import { createMockApiClient } from '@/api/__mocks__/client';
+import type { ApiClient } from '@/api/client';
+import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
 import { ALL_RULES, createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
 import { RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import type { HttpError } from '@/lib/http';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -52,13 +60,14 @@ import {
   EMPTY_PROJECT_SCENARIO,
   VIOLATED_BUILDING_SCENARIO,
 } from '@/lib/testing/fixtures';
-import { renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import {
   SEVEN_STATES,
   createSevenStateScenarios,
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
+import { createRuleSettingsGateway, ruleSettingsQueryKey } from '@/screens/rules/RuleSettings';
 import { useStore } from '@/store';
 
 import type {
@@ -73,6 +82,27 @@ import type {
 } from './types';
 import * as RuleReportModule from './RuleReport';
 import * as RuleReportContainerModule from './RuleReport.container';
+import { useRuleReport } from './useRuleReport';
+
+/*
+ * F-10: màn giờ đọc cấu hình bộ luật qua N21, nên cổng mặc định gọi
+ * `createAppApiClient()`. Bài kiểm đi bộ mẫu trong bộ nhớ thay cho máy chủ.
+ */
+vi.mock('@/api/appClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof AppClientModule>();
+  const { createMockApiClient } = await import('@/api/__mocks__/client');
+
+  return { ...actual, createAppApiClient: () => createMockApiClient() };
+});
+
+/*
+ * Cổng nạp `appClient` LƯỜI (`import()` động, F-10 — cổng kích thước). Lượt nạp đầu trong
+ * vitest phải biên dịch cả cây module của nó, lâu hơn 1 s mặc định của `waitFor`; nạp sẵn ở
+ * đây để bài kiểm chỉ đo màn, không đo trình biên dịch.
+ */
+beforeAll(async () => {
+  await import('@/api/appClient');
+});
 
 afterEach(() => {
   cleanup();
@@ -289,6 +319,7 @@ function toRow(violation: Violation, normalized: NormalizedSpatial): RuleReportR
     message: violation.message,
     suggestion: violation.suggestion,
     entityId: violation.entityId,
+    entityCode: displayCodeIn(normalized, violation.entityId),
     levelId: violation.levelId,
     levelLabel: levelLabelOf(violation.levelId, normalized),
     resolved: false,
@@ -481,7 +512,7 @@ describe('A11 — bảy trạng thái của RuleReport', () => {
     expect(covered).toHaveLength(SEVEN_STATES.length);
   });
 
-  it('trạng thái "đang tải" và "thành công" không vẽ ra cùng một cây', async () => {
+  it('trạng thái "Đang tải" và "Thành công" không vẽ ra cùng một cây', async () => {
     const RuleReportView = await loadRuleReportView();
 
     const loading = renderRuleReport(RuleReportView, propsFor(scenarioOf('loading')));
@@ -505,7 +536,7 @@ describe('R-72 — expectAccessible và expectVietnamese trên cây render thậ
     const props = propsFor(scenarioOf('success'));
     const { container } = renderRuleReport(RuleReportView, props);
 
-    // Mã đối tượng (W-WALL0000000…) là mã kỹ thuật viết hoa, được
+    // Mã đối tượng (#W-001…) là mã kỹ thuật viết hoa, được
     // `expectVietnamese` chấp nhận (xem ui.md mục A về Table) — đó không phải
     // một từ tiếng Anh.
     //
@@ -569,16 +600,60 @@ describe('mục 0-BIS.9 — hook dùng useNavigate(), bắt buộc bọc MemoryR
     expect(screen.getByRole('heading', { name: 'Có trục trặc' })).toBeTruthy();
   });
 
-  it('bọc trong MemoryRouter thì dựng được, không ném lỗi', async () => {
+  it('B-V12-02: kho chưa có mô hình thì màn nói thẳng điều đó và không mời bấm một lượt chạy chắc chắn hỏng', async () => {
     const RuleReportContainer = await loadRuleReportContainer();
 
-    expect(() =>
-      render(
-        <MemoryRouter>
-          <RuleReportContainer projectId="P-000001" />
-        </MemoryRouter>,
-      ),
-    ).not.toThrow();
+    renderWithProviders(
+      <MemoryRouter>
+        <RuleReportContainer projectId="P-000001" />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Chưa có mô hình để kiểm tra luật' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Chạy kiểm tra/u })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Không chạy được lượt kiểm tra' })).toBeNull();
+  });
+
+  it('B-V12-11 / B-V12-06: liên kết "cài đặt bộ luật" đi qua router, không nạp lại trang', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.project.rules('P-000001')]}>
+        <Routes>
+          <Route
+            path={ROUTES.project.rules('P-000001')}
+            element={<RuleReportContainer projectId="P-000001" />}
+          />
+          <Route
+            path={ROUTES.project.ruleSettings('P-000001')}
+            element={<p>màn cài đặt bộ luật</p>}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const link = await screen.findByRole('link', { name: 'Cài đặt bộ luật' });
+    expect(link.getAttribute('href')).toBe(ROUTES.project.ruleSettings('P-000001'));
+
+    // `fireEvent` trả `false` khi lượt bấm đã bị `preventDefault()` — router đi thay trình duyệt.
+    expect(fireEvent.click(link)).toBe(false);
+    expect(await screen.findByText('màn cài đặt bộ luật')).toBeTruthy();
+  });
+
+  it('bọc trong MemoryRouter thì dựng được, không rơi vào ranh giới lỗi', async () => {
+    const RuleReportContainer = await loadRuleReportContainer();
+
+    // Có cả QueryClient: `render` trần trước đây làm hook ném "No QueryClient", ranh giới
+    // lỗi nuốt lỗi đó, và `not.toThrow()` xanh dù màn không dựng được.
+    renderWithProviders(
+      <MemoryRouter>
+        <RuleReportContainer projectId="P-000001" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('heading', { name: 'Có trục trặc' })).toBeNull();
   });
 });
 
@@ -595,7 +670,7 @@ describe('năng lực bị gỡ thì bị gỡ khỏi DOM, không render nút v�
     expect(screen.queryByRole('button', { name: /sửa tự động/i })).toBeNull();
   });
 
-  it('canDismiss=false: không nút "bỏ qua" nào trong DOM', async () => {
+  it('canDismiss=false: không nút "Bỏ qua" nào trong DOM', async () => {
     const RuleReportView = await loadRuleReportView();
     const props = propsFor(scenarioOf('success'));
     renderRuleReport(RuleReportView, props);
@@ -685,7 +760,9 @@ describe('câu mô tả lấy nguyên văn từ violation.message, không bị v
 
     renderRuleReport(RuleReportView, props);
 
-    expect(screen.getByText(sampleMessage)).toBeTruthy();
+    /* Bộ mẫu A14 lặp cùng mặt bằng ở bốn tầng, và câu luật gọi thực thể bằng mã theo tầng
+       (#D-001…, B-V7-05) — nên cùng một câu có thể đứng ở nhiều hàng. */
+    expect(screen.getAllByText(sampleMessage).length).toBeGreaterThan(0);
   });
 });
 
@@ -713,12 +790,12 @@ describe('mục đã xử lý phải còn nhìn thấy trong nhóm gộp (CẤM 
 
     renderRuleReport(RuleReportView, withResolved);
 
-    expect(screen.getByText(resolvedRow.message)).toBeTruthy();
+    expect(screen.getAllByText(resolvedRow.message).length).toBeGreaterThan(0);
   });
 });
 
 /* ==========================================================================
- * I. R-73 — "chọn" một vi phạm mở `ViolationDetailContainer` dạng tấm trượt.
+ * I. R-73 — "Chọn" một vi phạm mở `ViolationDetailContainer` dạng tấm trượt.
  *
  *    Đây là container THẬT (không phải view thuần), nên `useRuleReport` chạy
  *    `useQuery` thật và cần `QueryClientProvider` — `renderWithProviders`
@@ -760,13 +837,13 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     });
 
     // Chưa chọn gì: tấm trượt không có trong cây.
-    expect(screen.queryByRole('complementary', { name: 'chi tiết vi phạm' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết vi phạm' })).toBeNull();
 
     // Đợi lượt chạy xong rồi mở nhóm luật đầu tiên (mọi nhóm bắt đầu đóng —
     // `expandedRuleCodes` của `useRuleReport` rỗng lúc mở màn thật, khác
     // `propsFor` ở mục B vốn tự mở sẵn cho các phép kiểm view thuần). Neo vào
     // `h3 button` — `RuleReportSection` là nút DUY NHẤT bọc trong `<h3>`; bộ lọc
-    // "nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
+    // "Nhóm luật" ở `RuleReportFilterBar` cũng mang `aria-expanded` (nó là một
     // ô chọn) nên một selector không neo `h3` bắt nhầm đúng cái đó trước.
     const groupToggle = await waitFor(() => {
       const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
@@ -792,11 +869,20 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
 
     const clickedMessage = messageButton.textContent ?? '';
 
+    // B-V7-31 — chip mã đối tượng là mã người đọc, cùng mã câu luật gọi, không phải
+    // mã máy `D-DOOR0000000`.
+    const chips = [...container.querySelectorAll('tbody code')].map((chip) => chip.textContent);
+
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip).toMatch(/^#[A-Z]-\d{3}$/u);
+    }
+
     expect(clickedMessage.length).toBeGreaterThan(0);
 
     fireEvent.click(messageButton);
 
-    const panel = await waitFor(() => screen.getByRole('complementary', { name: 'chi tiết vi phạm' }));
+    const panel = await waitFor(() => screen.getByRole('complementary', { name: 'Chi tiết vi phạm' }));
 
     // Đúng vi phạm vừa bấm — không phải hàng đầu tiên của một danh sách khác.
     // Chứng minh `initialIndex` trỏ đúng chỗ trong `violations`, không lệch
@@ -807,7 +893,145 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
     fireEvent.keyDown(window, { key: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.queryByRole('complementary', { name: 'chi tiết vi phạm' })).toBeNull();
+      expect(screen.queryByRole('complementary', { name: 'Chi tiết vi phạm' })).toBeNull();
     });
+  });
+});
+
+/* ==========================================================================
+ * F-10 — báo cáo chạy luật với cấu hình của dự án (N21), không với sổ mặc định.
+ * ========================================================================== */
+
+type RuleConfigReadResult = Awaited<ReturnType<ApiClient['ruleConfig']['read']>>;
+
+/** Luật nổ nhiều nhất trên bộ mẫu A14 (96 vi phạm) — tắt nó thì kết quả đổi thấy rõ. */
+const NOISY_RULE_CODE = 'WALL-DANGLING-END';
+
+const configRead = (revision: number, overrides: ProjectRuleConfig['overrides'] = {}): RuleConfigReadResult => ({
+  ok: true,
+  data: { overrides, revision },
+});
+
+function setupReport(options: {
+  readonly read: ApiClient['ruleConfig']['read'];
+  readonly canEdit?: boolean;
+}) {
+  const read = vi.fn(options.read);
+  const client: ApiClient = {
+    ...createMockApiClient(),
+    ruleConfig: { read, replace: vi.fn<ApiClient['ruleConfig']['replace']>() },
+  };
+  const ruleConfigGateway = createRuleSettingsGateway({ client });
+  const queryClient = createTestQueryClient();
+  const wrapper = ({ children }: { readonly children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  act(() => {
+    useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), 'f10-report');
+  });
+
+  const view = renderHook(
+    () =>
+      useRuleReport({
+        projectId: 'P-F10',
+        ruleConfigGateway,
+        ...(options.canEdit !== undefined ? { canEdit: options.canEdit } : {}),
+      }),
+    { wrapper },
+  );
+
+  return { ...view, read, queryClient };
+}
+
+const openCountOf = (
+  groups: readonly { readonly ruleCode: RuleCode; readonly openCount: number }[],
+  code: RuleCode,
+): number => groups.find((group) => group.ruleCode === code)?.openCount ?? 0;
+
+const ruleCodesOf = (groups: readonly { readonly ruleCode: RuleCode }[]): RuleCode[] =>
+  groups.map((group) => group.ruleCode);
+
+describe('F-10 — useRuleReport đọc cấu hình N21', () => {
+  it('N21 tắt một luật → luật đó vắng khỏi kết quả', async () => {
+    const { result } = setupReport({ read: async () => configRead(1, { [NOISY_RULE_CODE]: { enabled: false } }) });
+
+    await waitFor(() => {
+      expect(result.current.status).not.toBe('loading');
+    });
+
+    expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
+  });
+
+  it('đổi revision (lượt lưu ở màn cài đặt) → báo cáo chạy lại với cấu hình mới', async () => {
+    const { result, queryClient } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      queryClient.setQueryData(ruleSettingsQueryKey('P-F10'), {
+        revision: 2,
+        config: { overrides: { [NOISY_RULE_CODE]: { enabled: false } }, version: 0 },
+      });
+    });
+
+    // Hàng biến mất giữa hai lượt chạy hiện lại dạng "đã xử lý", nên đếm hàng còn MỞ.
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBe(0);
+    });
+  });
+
+  it('canEdit: false không tắt truy vấn', async () => {
+    const { result, read } = setupReport({ read: async () => configRead(1), canEdit: false });
+
+    await waitFor(() => {
+      expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('N21 hỏng → `error`, kèm câu riêng về cấu hình', async () => {
+    const error: HttpError = { kind: 'http', status: 500, code: 'INTERNAL', raw: {}, requestId: 'req-f10', retryable: false };
+    const { result } = setupReport({ read: async () => ({ ok: false, error }) });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('error');
+    });
+    expect(result.current.errorMessage).toBe('Không tải được cấu hình bộ luật của dự án.');
+  });
+
+  it('N21 hỏng rồi bấm "Thử lại" → đọc lại N21, màn rời `error`', async () => {
+    const error: HttpError = { kind: 'http', status: 503, code: 'DEPENDENCY_UNAVAILABLE', raw: {}, requestId: 'req-f10', retryable: true };
+    let reads = 0;
+    const { result, read } = setupReport({
+      read: async () => {
+        reads += 1;
+
+        return reads === 1 ? { ok: false, error } : configRead(1);
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('error');
+    });
+
+    act(() => result.current.onRerun());
+
+    await waitFor(() => {
+      expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(result.current.status).not.toBe('error');
+  });
+
+  it('N21 đang chờ → `loading`', () => {
+    const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined) });
+
+    expect(result.current.status).toBe('loading');
   });
 });

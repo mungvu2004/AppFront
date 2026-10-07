@@ -49,6 +49,7 @@
 
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { lowerFirst } from '@/lib/format/sentence';
 
 import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
@@ -59,6 +60,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -70,7 +72,7 @@ import type { ProjectRole } from '@/types/project';
 import { useStore } from '@/store';
 
 import { ThicknessStandardizationContainer } from './ThicknessStandardization.container';
-import { scenarioArgsFor } from './ThicknessStandardization.stories';
+import { ProvisionalScale, scenarioArgsFor } from './ThicknessStandardization.stories';
 import {
   FIXTURE_REVIEWED_COUNT,
   FIXTURE_SEGMENT_COUNT,
@@ -87,7 +89,7 @@ import { DEFAULT_TOLERANCE_MM, THICKNESS_GROUP_LABELS } from './thicknessTypes';
 /* Nhãn đọc trên màn — cùng chữ mà view và các mảnh con dựng.                   */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_ARIA_LABEL = 'chuẩn hoá độ dày tường';
+const SCREEN_ARIA_LABEL = 'Chuẩn hoá độ dày tường';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const SUMMARY_GROUP_LABEL = 'Tóm tắt chuẩn hoá độ dày tường';
 const OPEN_PREVIEW_LABEL = 'Xem trước';
@@ -95,8 +97,8 @@ const APPLY_LABEL = 'Áp dụng';
 const UNDO_LABEL = 'Hoàn tác';
 const REAPPLY_FILTER_LABEL = 'Áp dụng lại bộ lọc';
 const REAPPLY_WARNING_TITLE = 'Áp dụng lại bộ lọc sẽ đổi tường đã duyệt';
-const LOW_THRESHOLD_LABEL = `ngưỡng giữa ${THICKNESS_GROUP_LABELS[110]} và ${THICKNESS_GROUP_LABELS[220]}`;
-const HIGH_THRESHOLD_LABEL = `ngưỡng giữa ${THICKNESS_GROUP_LABELS[330]} và ${THICKNESS_GROUP_LABELS.CONCRETE_COLUMN}`;
+const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[110])} và ${lowerFirst(THICKNESS_GROUP_LABELS[220])}`;
+const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[330])} và ${lowerFirst(THICKNESS_GROUP_LABELS.CONCRETE_COLUMN)}`;
 
 const PROJECT_ID = 'project-1';
 const FLOOR_ID = THICKNESS_FIXTURE_LEVELS[0]?.id ?? '';
@@ -121,7 +123,7 @@ const THREE_MEASUREMENTS = [100, 195, 315] as const;
 /**
  * Hai từ tiếng Việt KHÔNG có dấu trong tiếng Việt chuẩn.
  *
- * "dung sai" (tolerance) viết đúng chính tả là hai âm tiết không mang dấu nào,
+ * "Dung sai" (tolerance) viết đúng chính tả là hai âm tiết không mang dấu nào,
  * nên phép soát cụm của `expectVietnamese` — "hai từ hình dạng tiếng Việt mà
  * cả chuỗi không một dấu nào" — báo nhầm nhãn ô nhập của thanh áp dụng.
  * `allowWords` là đúng cửa mà chính bộ khẳng định mở cho ca này (tiền lệ:
@@ -537,6 +539,15 @@ describe('[NGHIEM-4] áp dụng lại bộ lọc không bao giờ ghi đè im l�
 /* Bốn bộ khẳng định dùng chung.                                               */
 /* -------------------------------------------------------------------------- */
 
+describe('đường dẫn đầu màn (B-V6-43)', () => {
+  it('màn phủ mọi tầng nên không nêu tầng nào: "Dự án > Độ dày tường"', () => {
+    renderState('success');
+
+    expect(screen.getByText('Dự án > Độ dày tường')).toBeInTheDocument();
+    expect(screen.queryByText(/Tầng 01 >/u)).not.toBeInTheDocument();
+  });
+});
+
 describe('khả năng tiếp cận, tiếng Việt và màu', () => {
   it('expectAccessible xanh ở trạng thái chính', async () => {
     const { container } = await renderMain();
@@ -560,4 +571,44 @@ describe('khả năng tiếp cận, tiếng Việt và màu', () => {
   it('[NGHIEM-5] expectNoRawColor xanh trên toàn thư mục màn', () => {
     expectNoRawColor('src/screens/qc/ThicknessStandardization');
   }, HEAVY_TEST_TIMEOUT_MS);
+});
+
+describe('dải lưu lớp (F-04x-1)', () => {
+  it('409 → dải chú ý với nút "Tải lại"', () => {
+    const onReload = vi.fn();
+    const message = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
+    const BLOCK = { confirm: null, kind: 'reload', message, onReload } as const;
+
+    renderWithProviders(
+      <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} forceSaveBlock={BLOCK} />,
+    );
+
+    expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('dải tỉ lệ tạm (F-04x-2)', () => {
+  const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
+
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ" gọi onNavigate', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(
+      <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} onNavigate={onNavigate} />,
+    );
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('tầng có tỉ lệ thật: không dải', async () => {
+    renderState('partial');
+
+    await waitFor(() => {
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+  });
 });

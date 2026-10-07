@@ -63,13 +63,13 @@ export interface FloorTableProps
   readonly state: FloorManagerScreenState;
 }
 
-const EMPTY_TITLE = 'chưa có tầng nào';
-const ERROR_TITLE = 'không đọc được danh sách tầng';
+const EMPTY_TITLE = 'Chưa có tầng nào';
+const ERROR_TITLE = 'Không đọc được danh sách tầng';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const DUPLICATE_SELECTED_LABEL = 'Nhân bản tầng';
 const RETRY_LABEL = 'Thử lại';
-const CAPTION_TEXT = 'cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
-const AUTO_ELEVATION_LABEL = 'tự động tính cao độ';
+const CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
+const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
 
 const EDITABLE_HEADERS: readonly { readonly key: string; readonly label: string }[] = [
   { key: 'handle', label: 'Đổi thứ tự' },
@@ -165,12 +165,12 @@ export function FloorTable({
           },
           {
             id: 'toggle-hidden',
-            label: row.isHiddenIn3d ? 'hiện trong mô hình 3D' : 'ẩn khỏi mô hình 3D',
+            label: row.isHiddenIn3d ? 'Hiện trong mô hình 3D' : 'Ẩn khỏi mô hình 3D',
             action: () => onToggleHiddenIn3d(row.id),
           },
           {
             id: 'remove',
-            label: 'xoá tầng',
+            label: 'Xoá tầng',
             isDestructive: true,
             action: () => onRemoveFloor(row.id),
           },

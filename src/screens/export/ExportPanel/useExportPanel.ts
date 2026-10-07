@@ -54,6 +54,7 @@ import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
 import { describeError, toAppError } from '@/lib/errors';
 import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
+import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { formatFileSize } from '@/lib/format/bytes';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
@@ -140,16 +141,16 @@ const EXTENSION_LABEL: Readonly<Record<ExportFormatId, string>> = Object.freeze(
  * đang chọn gửi cho ai, không đang chọn một phần mở rộng.
  */
 const AUDIENCE_SENTENCE: Readonly<Record<ExportFormatId, string>> = Object.freeze({
-  glb: 'mô hình ba chiều cho người dựng hình và người xem bằng phần mềm 3D.',
-  pdf: 'hồ sơ in cho người duyệt hồ sơ và người mang bản vẽ ra công trường.',
-  image: 'ảnh mặt bằng cho người làm bản trình bày và người gửi kèm thư.',
-  'spatial-json': 'dữ liệu thô cho người viết công cụ và người nối sang hệ khác.',
+  glb: 'Mô hình ba chiều cho người dựng hình và người xem bằng phần mềm 3D.',
+  pdf: 'Hồ sơ in cho người duyệt hồ sơ và người mang bản vẽ ra công trường.',
+  image: 'Ảnh mặt bằng cho người làm bản trình bày và người gửi kèm thư.',
+  'spatial-json': 'Dữ liệu thô cho người viết công cụ và người nối sang hệ khác.',
 });
 
 /** Tên bước, dịch từ pha thật của worker. Hai pha, đúng hai. */
 const PHASE_STEP_LABEL: Readonly<Record<'build' | 'encode', string>> = Object.freeze({
-  build: 'đang dựng hình',
-  encode: 'đang mã hoá',
+  build: 'Đang dựng hình',
+  encode: 'Đang mã hoá',
 });
 
 /**
@@ -166,21 +167,21 @@ const PHASE_COUNT_UNIT: Readonly<Record<'build' | 'encode', string>> = Object.fr
 
 /** Nơi tệp xuất hiện sau khi xuất xong, nói luôn cả giới hạn của danh sách. */
 const DESTINATION_CAPTION =
-  'tệp tải về thư mục tải xuống của trình duyệt; danh sách dưới đây chỉ giữ trong phiên làm việc này.';
+  'Tệp tải về thư mục tải xuống của trình duyệt; danh sách dưới đây chỉ giữ trong phiên làm việc này.';
 
 /** Vì sao hồ sơ PDF mới đếm được trang mà chưa tải về được. */
 const PDF_NOTICE_CAPTION =
-  'hồ sơ PDF mới đếm được số trang: dự án chưa có bộ dựng tệp PDF nên chưa tải về được.';
+  'Hồ sơ PDF mới đếm được số trang: dự án chưa có bộ dựng tệp PDF nên chưa tải về được.';
 
 /** Vì sao chưa chụp được ảnh. */
 const IMAGE_NOTICE_CAPTION =
-  'ảnh cần một khung nhìn 3D đang mở; màn này chưa được gắn với khung nhìn nào nên chưa chụp được.';
+  'Ảnh cần một khung nhìn 3D đang mở; màn này chưa được gắn với khung nhìn nào nên chưa chụp được.';
 
 /** Gợi ý duy nhất có thật khi một lượt xuất hỏng: hạ mức chi tiết rồi thử lại. */
-const ERROR_HINT = 'thử hạ mức chi tiết xuống mức gọn hơn rồi xuất lại.';
+const ERROR_HINT = 'Thử hạ mức chi tiết xuống mức gọn hơn rồi xuất lại.';
 
 /** Câu thay cho một lỗi không có mô tả riêng. */
-const ERROR_FALLBACK = 'không xuất được tệp lần này.';
+const ERROR_FALLBACK = 'Không xuất được tệp lần này.';
 
 const EMPTY_SNAPSHOT: ExportRunSnapshot = Object.freeze({
   runningFormatId: null,
@@ -275,7 +276,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   /* ---------------------------------------------------------------------- */
 
   // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự
-  // phòng cho tới khi một dự án được mở (khuôn `useBillingScreen.ts`).
+  // phòng cho tới khi một dự án được mở.
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
   const canExport = options.canExport ?? gateway.readPermission(roles);
 
@@ -433,6 +434,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     },
 
     onSuccess: (file, formatId) => {
+      // Lời màn đã hứa (`DESTINATION_CAPTION`): xuất xong là tệp về thư mục tải xuống.
+      // Nút ở hàng là "tải lại" — lượt tải đầu là việc của đây (B-V12-05).
+      gateway.deliver(file);
       gateway.track({
         formatId,
         outcome: 'success',
@@ -708,6 +712,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onShareOption?.();
   }, [onShareOption]);
 
+  // Liên kết chia sẻ là v2 (BE-BIND #47–#49): tắt thì nút "chia sẻ" rời DOM.
+  const shareAction = SHARE_LINKS_SUPPORTED && onShareOption !== undefined ? onShare : null;
+
   return {
     status,
     capabilities,
@@ -731,6 +738,6 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onRetry,
     onDownload,
     onFollowFix,
-    onShare,
+    onShare: shareAction,
   };
 }

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetAuthForTests, bootstrapSession, configureAuth, getSession, onAuthSignedOut } from '@/lib/auth';
 import type { ConfigureAuthOptions } from '@/lib/auth';
 import { API_BASE_PATH, ENDPOINTS } from '../endpoints';
+import { MeasurementRecordSchema } from '../schemas/measurements';
 import { createAppApiClient, createAppHttpClient, resolveApiBaseUrl, resolveUseMockApi } from '../appClient';
 
 afterEach(() => {
@@ -297,5 +298,46 @@ describe('createAppHttpClient', () => {
         expect(afterBuildOnly.error.kind).toBe('aborted');
       }
     });
+  });
+});
+
+describe('createAppHttpClient ở chế độ mock — phép đo do bộ mẫu trả lời (B-G-05)', () => {
+  beforeEach(() => {
+    __resetAuthForTests();
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/api');
+  });
+
+  afterEach(() => {
+    __resetAuthForTests();
+    vi.unstubAllGlobals();
+  });
+
+  it('ghim, đọc lại, xoá một phép đo mà không lượt nào ra mạng', async () => {
+    const platformFetch = vi.fn<FetchImpl>(async () => jsonResponse({}, { status: 404 }));
+    vi.stubGlobal('fetch', platformFetch);
+    const http = createAppHttpClient();
+    const projectId = 'project-b-g-05';
+    const record = { id: 'MS-0001', mode: 'pointToPoint', name: 'đo 1', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }], rawValueMm: 1000 };
+
+    expect((await http.get<unknown[]>(ENDPOINTS.measurements.list(projectId))).ok).toBe(true);
+    expect((await http.post(ENDPOINTS.measurements.create(projectId), { body: record })).ok).toBe(true);
+
+    const listed = await http.get<unknown[]>(ENDPOINTS.measurements.list(projectId));
+    expect(listed.ok && MeasurementRecordSchema.array().parse(listed.data)).toEqual([record]);
+
+    expect((await http.delete(ENDPOINTS.measurements.remove(projectId, record.id))).ok).toBe(true);
+    const afterDelete = await http.get<unknown[]>(ENDPOINTS.measurements.list(projectId));
+    expect(afterDelete.ok && afterDelete.data).toEqual([]);
+
+    expect(platformFetch).not.toHaveBeenCalled();
+  });
+
+  it('đường khác vẫn đi ra mạng như cũ', async () => {
+    const platformFetch = vi.fn<FetchImpl>(async () => jsonResponse([]));
+    vi.stubGlobal('fetch', platformFetch);
+
+    expect((await createAppHttpClient().get(ENDPOINTS.projects.list)).ok).toBe(true);
+    expect(platformFetch).toHaveBeenCalledTimes(1);
   });
 });

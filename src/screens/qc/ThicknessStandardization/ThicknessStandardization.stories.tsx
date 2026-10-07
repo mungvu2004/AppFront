@@ -28,7 +28,7 @@
  * | story | ép bằng |
  * |---|---|
  * | `Rong` | 48 đoạn ĐÃ ở đúng nhóm chuẩn, không còn gì để áp |
- * | `DangTai` | cổng có `readThicknessLayer` không bao giờ trả lời |
+ * | `DangTai` | cổng có `readLayer` (N16) không bao giờ trả lời |
  * | `MotPhan` | bộ mẫu lọc còn hai nhóm 110 và 220 |
  * | `Loi` | `failReadThicknessLayer` — biểu đồ vẫn giữ đúng chiều cao khung |
  * | `ThanhCong` | như `Rong` về dữ liệu, khác ở chỗ lượt áp vừa chạy xong |
@@ -52,6 +52,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MemoryRouter } from 'react-router-dom';
 
+import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { ProjectRole } from '@/types/project';
@@ -119,7 +120,7 @@ export function scenarioArgsFor(state: SevenState): ThicknessStandardizationCont
     forceCollapsed: scenario.isCollapsed,
     gateway:
       state === 'loading'
-        ? { ...gateway, readThicknessLayer: () => new Promise<never>(() => undefined) }
+        ? { ...gateway, readLayer: () => new Promise<never>(() => undefined) }
         : gateway,
   };
 }
@@ -167,3 +168,33 @@ export const KhongCoQuyen: Story = { args: scenarioArgsFor('forbidden') };
 
 /** 7. Thu gọn — canvas xem trước ẩn, hai bảng chiếm cả bề ngang, còn nút bung lại. */
 export const ThuGon: Story = { args: scenarioArgsFor('collapsed') };
+
+/** Dải "Tải lại" — tầng vừa được sửa ở nơi khác (409, F-04x-1); bấm nút thì hook mới mở A9. */
+export const ConflictReload: Story = {
+  name: 'Xung đột — tải lại',
+  args: {
+    ...scenarioArgsFor('partial'),
+    forceSaveBlock: { confirm: null, kind: 'reload', message: LAYER_SAVE_MESSAGES.reload, onReload: () => undefined },
+  },
+};
+
+/** Dải "Không lưu được" — lỗi không tự hết (413, 422, 403…), lưu lại sau lượt sửa mới. */
+export const SaveBlocked: Story = {
+  name: 'Không lưu được',
+  args: {
+    ...scenarioArgsFor('partial'),
+    forceSaveBlock: { confirm: null, kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown },
+  },
+};
+
+/** Dải "Tỉ lệ tạm" — tầng chưa hiệu chỉnh tỉ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
+export const ProvisionalScale: Story = {
+  name: 'Tỉ lệ tạm',
+  args: {
+    ...scenarioArgsFor('partial'),
+    gateway: createMockThicknessStandardizationGateway({
+      graph: graphOfScenario(scenarioFor('partial')),
+      scaleStatus: 'unresolved',
+    }),
+  },
+};

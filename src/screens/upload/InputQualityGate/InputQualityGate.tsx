@@ -38,6 +38,7 @@
  * CSS breakpoint.
  */
 
+import { useEffect, useRef } from 'react';
 import { ImageOff } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -45,6 +46,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
+import { InputQualityGateConfirmDialog } from './InputQualityGateConfirmDialog';
 import { InputQualityGateFooter } from './InputQualityGateFooter';
 import { InputQualityGateImagePanel } from './InputQualityGateImagePanel';
 import { InputQualityGateReportPanel } from './InputQualityGateReportPanel';
@@ -59,6 +61,11 @@ const LOAD_ERROR_EMPTY_TITLE = 'Chưa có kết quả để xem';
 const LOAD_ERROR_EMPTY_DESCRIPTION =
   'Thử tải lại bản vẽ để hệ thống đo lại chất lượng đầu vào.';
 
+/** Dự án chưa có bản vẽ nào (404 `upload`): trạng thái rỗng, không phải lỗi. */
+const NO_DRAWING_TITLE = 'Chưa có bản vẽ để kiểm tra';
+const NO_DRAWING_ACTION = 'Tải bản vẽ lên';
+const WRITE_ERROR_TITLE = 'Chưa xử lý được bản vẽ';
+
 /** Bao nhiêu khung xương lúc chưa biết phép đo nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
 
@@ -71,6 +78,45 @@ const BOTTOM_SHEET_RESET_AT_DESKTOP =
 /** Màn Cổng chất lượng đầu vào như một hàm của props — test và story dựng thẳng cái này. */
 export function InputQualityGateView({ actions, model }: InputQualityGateViewProps) {
   const isCollapsed = model.status === 'collapsed';
+  const rootRef = useRef<HTMLDivElement>(null);
+  const writeErrorRef = useRef<HTMLDivElement>(null);
+  const retryFocus = model.retryFocus ?? null;
+
+  // Lỗi ghi: hộp thoại đóng lúc nút gốc đã bị thay (đánh dấu xong, rồi đọc lại),
+  // nên tiêu điểm tự rơi vào phần tử đầu tiên của trang. Trả về đúng nút vừa
+  // bấm; nút không còn thì về dải báo lỗi.
+  // Người dùng đã tự bấm/gõ từ lúc có lỗi thì không kéo tiêu điểm của họ đi.
+  const hasUserActedRef = useRef(false);
+
+  useEffect(() => {
+    hasUserActedRef.current = false;
+
+    if (model.writeError === null) {
+      return undefined;
+    }
+
+    const markActed = (): void => {
+      hasUserActedRef.current = true;
+    };
+
+    document.addEventListener('pointerdown', markActed, true);
+    document.addEventListener('keydown', markActed, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', markActed, true);
+      document.removeEventListener('keydown', markActed, true);
+    };
+  }, [model.writeError]);
+
+  useEffect(() => {
+    if (retryFocus === null || hasUserActedRef.current) {
+      return;
+    }
+
+    const button = rootRef.current?.querySelector<HTMLElement>(`[data-quality-action="${retryFocus}"]`);
+
+    (button ?? writeErrorRef.current)?.focus();
+  }, [retryFocus, model.writeError]);
 
   const body =
     model.status === 'loading' ? (
@@ -92,43 +138,63 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
           title={LOAD_ERROR_EMPTY_TITLE}
         />
       </div>
+    ) : model.noDrawingNotice !== null ? (
+      <EmptyState
+        {...(model.footer.areActionsHidden
+          ? {}
+          : { action: { label: NO_DRAWING_ACTION, onClick: actions.onUploadAnother } })}
+        description={model.noDrawingNotice}
+        icon={<ImageOff aria-hidden="true" />}
+        title={NO_DRAWING_TITLE}
+      />
     ) : (
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="lg:w-[62%]">
-          <InputQualityGateImagePanel
-            actions={{
-              onChangeReveal: actions.onChangeReveal,
-              onDragCorner: actions.onDragCorner,
-              onHoverRegion: actions.onHoverRegion,
-            }}
-            image={model.image}
-          />
-        </div>
-        <div
-          className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isCollapsed && BOTTOM_SHEET_RESET_AT_DESKTOP)}
-        >
-          <InputQualityGateReportPanel
-            actions={{
-              onHoverFinding: actions.onHoverFinding,
-              onHoverRegion: actions.onHoverRegion,
-              onPickCorners: actions.onPickCorners,
-              onSelectFloor: actions.onSelectFloor,
-              onStraighten: actions.onStraighten,
-            }}
-            findings={model.findings}
-            floors={model.floors}
-            forecast={model.forecast}
-            metrics={model.metrics}
-            partialNotice={model.partialNotice}
-            passNotice={model.passNotice}
-            remainingFindingCount={model.remainingFindingCount}
-          />
+      <div className="flex flex-col gap-6">
+        {model.writeError !== null && (
+          <div
+            className="rounded-[8px] outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+            ref={writeErrorRef}
+            tabIndex={-1}
+          >
+            <InlineAlert level="violation" message={model.writeError} title={WRITE_ERROR_TITLE} />
+          </div>
+        )}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="lg:w-[62%]">
+            <InputQualityGateImagePanel
+              actions={{
+                onChangeReveal: actions.onChangeReveal,
+                onDragCorner: actions.onDragCorner,
+                onHoverRegion: actions.onHoverRegion,
+              }}
+              image={model.image}
+            />
+          </div>
+          <div
+            className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isCollapsed && BOTTOM_SHEET_RESET_AT_DESKTOP)}
+          >
+            <InputQualityGateReportPanel
+              actions={{
+                onHoverFinding: actions.onHoverFinding,
+                onHoverRegion: actions.onHoverRegion,
+                onPickCorners: actions.onPickCorners,
+                onSelectFloor: actions.onSelectFloor,
+                onStraighten: actions.onStraighten,
+              }}
+              findings={model.findings}
+              floors={model.floors}
+              forecast={model.forecast}
+              metrics={model.metrics}
+              partialNotice={model.partialNotice}
+              passNotice={model.passNotice}
+              remainingFindingCount={model.remainingFindingCount}
+            />
+          </div>
         </div>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-bg-app">
+    <div className="min-h-screen bg-bg-app" ref={rootRef}>
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <nav aria-label={BREADCRUMB_QUALITY} className="text-[13px] text-text-secondary">
           <span>{BREADCRUMB_PROJECTS}</span>
@@ -145,6 +211,11 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
             onUploadAnother: actions.onUploadAnother,
           }}
           footer={model.footer}
+        />
+
+        <InputQualityGateConfirmDialog
+          actions={{ onCancelWrite: actions.onCancelWrite, onConfirmWrite: actions.onConfirmWrite }}
+          confirm={model.confirm}
         />
       </div>
     </div>

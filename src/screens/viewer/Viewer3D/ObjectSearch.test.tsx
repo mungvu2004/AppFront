@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 const ROOMS: readonly ViewerRoomOption[] = [
-  { id: 'R-001', name: 'Phòng ngủ 1', storeyName: 'Tầng 1', areaLabel: '18,40 m²' },
+  { id: 'R-001', codeLabel: 'R-001', name: 'Phòng ngủ 1', storeyName: 'Tầng 1', areaLabel: '18,40 m²' },
 ];
 
 describe('[ObjectSearch] Ctrl+F', () => {
@@ -54,7 +54,7 @@ describe('[ObjectSearch] Ctrl+F', () => {
 
     render(
       <div>
-        <input aria-label="tên dự án" />
+        <input aria-label="Tên dự án" />
         <ObjectSearch
           isOpen={false}
           onClose={() => {}}
@@ -67,7 +67,7 @@ describe('[ObjectSearch] Ctrl+F', () => {
       </div>,
     );
 
-    fireEvent.keyDown(screen.getByLabelText('tên dự án'), { key: 'f', ctrlKey: true });
+    fireEvent.keyDown(screen.getByLabelText('Tên dự án'), { key: 'f', ctrlKey: true });
 
     expect(onOpen).not.toHaveBeenCalled();
   });

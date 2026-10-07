@@ -50,6 +50,42 @@ const queryKeyBranchCases = [
     name: 'notification.list',
     root: queryKeys.notification.list.root,
   },
+  { create: () => queryKeys.project.summaries(), name: 'project.summaries', root: queryKeys.project.summaries.root },
+  { create: () => queryKeys.adminMl.families(), name: 'adminMl.families', root: queryKeys.adminMl.families.root },
+  {
+    create: () => queryKeys.adminMl.versions('wallSegmentation'),
+    name: 'adminMl.versions',
+    root: queryKeys.adminMl.versions.root,
+  },
+  {
+    create: () => queryKeys.adminMl.version('mdl_01JA0000000000000000000001'),
+    name: 'adminMl.version',
+    root: queryKeys.adminMl.version.root,
+  },
+  {
+    create: () => queryKeys.adminMl.jobs({ family: 'wallSegmentation', status: 'running' }),
+    name: 'adminMl.jobs',
+    root: queryKeys.adminMl.jobs.root,
+  },
+  { create: () => queryKeys.adminMl.job('job_01JA0000000000000000000001'), name: 'adminMl.job', root: queryKeys.adminMl.job.root },
+  { create: () => queryKeys.adminMl.datasets('wallSegmentation'), name: 'adminMl.datasets', root: queryKeys.adminMl.datasets.root },
+  {
+    create: () => queryKeys.adminMl.datasetVersions('dst_01JA0000000000000000000001'),
+    name: 'adminMl.datasetVersions',
+    root: queryKeys.adminMl.datasetVersions.root,
+  },
+  { create: () => queryKeys.me.profile(), name: 'me.profile', root: queryKeys.me.profile.root },
+  { create: () => queryKeys.layer.graph(projectId), name: 'layer.graph', root: queryKeys.layer.graph.root },
+  {
+    create: () => queryKeys.layer.byFloor(projectId, floorId),
+    name: 'layer.byFloor',
+    root: queryKeys.layer.byFloor.root,
+  },
+  {
+    create: () => queryKeys.progress.latestUploads(projectId),
+    name: 'progress.latestUploads',
+    root: queryKeys.progress.latestUploads.root,
+  },
 ] as const satisfies readonly QueryKeyBranchCase<QueryKey>[];
 
 describe('queryKeys', () => {
@@ -73,7 +109,54 @@ describe('queryKeys', () => {
       'user.list',
       'user.current',
       'notification.list',
+      'project.summaries',
+      'adminMl.families',
+      'adminMl.versions',
+      'adminMl.version',
+      'adminMl.jobs',
+      'adminMl.job',
+      'adminMl.datasets',
+      'adminMl.datasetVersions',
+      'me.profile',
+      'layer.graph',
+      'layer.byFloor',
+      'progress.latestUploads',
     ]);
+  });
+
+  it('scopes layer keys by project, and byFloor by floor as well', () => {
+    expect(queryKeys.layer.graph(projectId)).toEqual(['layer', 'graph', projectId]);
+    expect(queryKeys.layer.byFloor(projectId, floorId)).toEqual(['layer', 'byFloor', projectId, floorId]);
+  });
+
+  it('keeps project.summaries off the list and detail roots (one key, one shape)', () => {
+    expect(queryKeys.project.summaries()).toEqual(['project', 'summaries']);
+    expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.list.root());
+    expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.detail.root());
+  });
+
+  it('keys adminMl versions by family, so two families never share a list', () => {
+    expect(queryKeys.adminMl.families()).toEqual(['adminMl', 'families']);
+    expect(queryKeys.adminMl.versions('wallSegmentation')).toEqual(['adminMl', 'versions', 'wallSegmentation']);
+    expect(queryKeys.adminMl.versions('dimensionReading')).not.toEqual(
+      queryKeys.adminMl.versions('wallSegmentation'),
+    );
+    expect(queryKeys.adminMl.version('mdl_01JA0000000000000000000001')).toEqual([
+      'adminMl',
+      'version',
+      'mdl_01JA0000000000000000000001',
+    ]);
+  });
+
+  it('keys adminMl jobs by filter (absent = null) and datasets by family', () => {
+    expect(queryKeys.adminMl.jobs({})).toEqual(['adminMl', 'jobs', null, null]);
+    expect(queryKeys.adminMl.jobs({ status: 'running' })).toEqual(['adminMl', 'jobs', null, 'running']);
+    expect(queryKeys.adminMl.jobs({ family: 'wallSegmentation' })).not.toEqual(queryKeys.adminMl.jobs({}));
+    expect(queryKeys.adminMl.jobs.root()).toEqual(['adminMl', 'jobs']);
+    expect(queryKeys.adminMl.job('job_1')).toEqual(['adminMl', 'job', 'job_1']);
+    expect(queryKeys.adminMl.job('job_1').slice(0, 2)).not.toEqual(queryKeys.adminMl.jobs.root());
+    expect(queryKeys.adminMl.datasets(undefined)).toEqual(['adminMl', 'datasets', null]);
+    expect(queryKeys.adminMl.datasetVersions('dst_1')).toEqual(['adminMl', 'datasetVersions', 'dst_1']);
   });
 
   it('returns equal key values for equal parameters', () => {

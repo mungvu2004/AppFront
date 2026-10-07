@@ -139,7 +139,7 @@ export function attachedRow(index: number): FloorUploadRowModel {
     file,
     status: 'attached',
     statusVariant: 'verified',
-    statusLabel: 'đã gắn kèm',
+    statusLabel: 'Đã gắn kèm',
     statusLabelKey: 'floorUpload.status.attached',
     percent: 100,
     percentLabel: percentLabelOf(100),

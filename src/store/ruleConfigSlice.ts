@@ -31,7 +31,9 @@
  */
 
 import type { StateCreator } from 'zustand';
-import type { RuleConfig } from '../domain/rules/config';
+import type { RuleConfig, RuleOverride } from '../domain/rules/config';
+import type { RuleCode } from '../domain/rules/registry';
+import { toggleUndoDescription } from '../lib/commands/invert';
 import type { HistorySlice } from './historySlice';
 
 /**
@@ -68,6 +70,22 @@ export interface RuleConfigSlice {
    *   `'tắt luật CORRIDOR-WIDTH'`.
    */
   commitRuleConfig: (next: RuleConfig, label: string) => RuleConfigCommit;
+  /** Dự án mà `ruleConfig` đang thuộc về; `null` khi chưa nạp lần nào (N21). */
+  ruleConfigProjectId: string | null;
+  /** `revision` của máy chủ ứng với `ruleConfig` — `baseVersion` của lượt N22 kế tiếp. */
+  ruleConfigRevision: number;
+  /**
+   * Nạp bản đã lưu (N21) — KHÔNG phải một thay đổi của người dùng: không nhãn
+   * lịch sử, không `undo`, nên host toast không mời "hoàn tác" một lượt nạp.
+   * `version` vẫn tiến lên để cache vi phạm (Đ4) biết cấu hình đã đổi.
+   */
+  hydrateRuleConfig: (input: {
+    projectId: string;
+    revision: number;
+    overrides: Readonly<Record<RuleCode, RuleOverride>>;
+  }) => void;
+  /** Ghi `revision` vừa lưu (N22). Bỏ qua khi `projectId` không còn là dự án đang nạp. */
+  setRuleConfigRevision: (projectId: string, revision: number) => void;
 }
 
 /** Cấu hình y hệt, chỉ khác số version. */
@@ -83,6 +101,22 @@ export const createRuleConfigSlice: StateCreator<
   RuleConfigSlice
 > = (set, get) => ({
   ruleConfig: INITIAL_RULE_CONFIG,
+  ruleConfigProjectId: null,
+  ruleConfigRevision: 0,
+  hydrateRuleConfig: ({ projectId, revision, overrides }) => {
+    set({
+      ruleConfig: { overrides, version: get().ruleConfig.version + 1 },
+      ruleConfigProjectId: projectId,
+      ruleConfigRevision: revision,
+    });
+  },
+  setRuleConfigRevision: (projectId, revision) => {
+    if (get().ruleConfigProjectId !== projectId) {
+      return;
+    }
+
+    set({ ruleConfigRevision: revision });
+  },
   commitRuleConfig: (next, label) => {
     const previous = get().ruleConfig;
     const timestamp = Date.now();
@@ -94,7 +128,8 @@ export const createRuleConfigSlice: StateCreator<
     // lượt lùi, nên toast của lượt lùi cũng lùi được (A8), thay vì rơi về
     // `temporal.undo()` của zundo — thứ chỉ biết dữ liệu không gian.
     const undo = (): void => {
-      get().commitRuleConfig(previous, `hoàn tác: ${label}`);
+      // Cùng tiền tố với lệnh không gian, và lùi lượt lùi thì bỏ tiền tố chứ không nhân đôi (B-V12-41).
+      get().commitRuleConfig(previous, toggleUndoDescription(label));
     };
 
     set({ ruleConfig: atVersion(next, previous.version + 1) });

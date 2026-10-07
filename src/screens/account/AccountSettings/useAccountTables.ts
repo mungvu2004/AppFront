@@ -195,7 +195,7 @@ const NO_OP_SHORTCUT_HANDLERS: GlobalShortcutHandlers = Object.freeze({
 });
 
 /** Câu thay chỗ khi một mục quên `description`. Không mục nào của I-01 quên. */
-const MISSING_DESCRIPTION = 'chưa có mô tả';
+const MISSING_DESCRIPTION = 'Chưa có mô tả';
 
 /**
  * Đường cong của một lượt xếp lại. Bốn điểm điều khiển lấy từ token, không viết tay.

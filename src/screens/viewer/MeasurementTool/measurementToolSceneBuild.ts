@@ -63,6 +63,9 @@ export function startSceneBuild(options: SceneBuildOptions): SceneBuild {
 
   const levelGroups = new Map<string, Group>();
   const remainingByLevel = new Map<string, number>();
+  /* Tầng có ít nhất một job dựng được. Tầng hỏng hết KHÔNG được tính là sẵn
+     sàng — nếu không, worker sập thì pha vẫn ra `ready` trên cảnh rỗng (NO-385). */
+  const builtLevelIds = new Set<string>();
   const readyLevelIds: string[] = [];
 
   let settledCount = 0;
@@ -118,6 +121,7 @@ export function startSceneBuild(options: SceneBuildOptions): SceneBuild {
         settledCount += 1;
 
         if (outcome.status === 'done') {
+          builtLevelIds.add(levelId);
           const group = levelGroups.get(levelId);
 
           for (const part of outcome.parts) {
@@ -130,7 +134,7 @@ export function startSceneBuild(options: SceneBuildOptions): SceneBuild {
         const remaining = (remainingByLevel.get(levelId) ?? 0) - 1;
         remainingByLevel.set(levelId, remaining);
 
-        if (remaining === 0 && outcome.status !== 'cancelled') {
+        if (remaining === 0 && builtLevelIds.has(levelId)) {
           finishLevel(levelId);
         }
 

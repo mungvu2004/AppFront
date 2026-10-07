@@ -8,7 +8,7 @@
  * | mã | đo cái gì | ngưỡng |
  * |---|---|---|
  * | `[VS-1]` | bảy trạng thái của A11, không trạng thái nào ra màn trắng | 7/7 |
- * | `[VS-2]` | vai Người xem GỠ công cụ sửa khỏi ray, không làm mờ | 6 → 5 nút |
+ * | `[VS-2]` | vai Người xem có đủ ray như kỹ sư — không công cụ nào sửa mô hình (B-V9-04) | 6 = 6 nút |
  * | `[VS-3]` | `separation = 0` trả lại ĐÚNG cao độ thật của cả bốn tầng | 0 mm sai lệch |
  * | `[VS-4]` | mặt phẳng cắt: nóc bị cắt, nền không | 2/2 |
  * | `[VS-5]` | bộ mẫu cộng lại đúng con số A14 | 248,60 m², 14 phòng, 4 tầng |
@@ -28,24 +28,18 @@
  */
 
 import type { ReactNode } from 'react';
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  renderHook,
-  screen,
-  within,
-} from '@testing-library/react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { millimetres } from '@/domain/units/types';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { REDUCED_MOTION_QUERY } from '@/lib/motion';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { FlatCameraMode } from '@/lib/three/camera/modes';
 import { CameraDirector } from '@/lib/three/camera/presets';
+import { displayLabelIn } from '@/domain/spatial/normalize';
 import { toSceneLength } from '@/lib/three/build/scene';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -67,10 +61,25 @@ import {
   FIXTURE_TOTAL_AREA_M2,
   VIEWER_FIXTURE_LEVELS,
   VIEWER_FIXTURE_ROOMS,
+  VIEWER_FIXTURE_WALLS,
 } from './viewerShellFixture';
-import { shellDataOf, VIEWER_FIXTURE_SPATIAL } from './viewerShellGateway';
+import { wallCodesOnLevel } from '../WallGeometryEditor/wallGeometryEditorGateway';
+import {
+  createViewerShellFixtureGateway,
+  shellDataOf,
+  VIEWER_FIXTURE_SPATIAL,
+  type ViewerShellGateway,
+} from './viewerShellGateway';
 import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
-import { ALL_VIEWER_TOOLS, defaultViewerShellGateway, useViewerShell } from './useViewerShell';
+import {
+  ALL_VIEWER_TOOLS,
+  defaultViewerShellGateway,
+  storeyShortLabel,
+  projectNameQueryKey,
+  useViewerShell,
+} from './useViewerShell';
+import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { buildViewerShortcuts } from './viewerShellShortcuts';
 import {
   VIEWER_LAYOUT,
   type ViewerSceneActions,
@@ -144,10 +153,7 @@ describe('[VS-1] bảy trạng thái', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('[VS-2] vai Người xem', () => {
-  it('gỡ công cụ sửa khỏi ray thay vì làm mờ nó', () => {
-    const editingTools = ALL_VIEWER_TOOLS.filter((tool) => tool.requiresEdit);
-    expect(editingTools.length).toBeGreaterThan(0);
-
+  it('có đủ sáu công cụ như kỹ sư, kể cả "đo" — đo chỉ đọc mô hình (B-V9-04)', () => {
     const { unmount } = renderState('success');
     const fullRail = within(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' }));
     const fullCount = fullRail.getAllByRole('button').length;
@@ -161,17 +167,16 @@ describe('[VS-2] vai Người xem', () => {
       `[VIEWER-SHELL][VS-2] ray công cụ: kỹ sư ${fullCount} nút → Người xem ${viewerButtons.length} nút`,
     );
 
-    expect(viewerButtons.length).toBe(fullCount - editingTools.length);
+    expect(viewerButtons.length).toBe(fullCount);
+    expect(viewerButtons.length).toBe(ALL_VIEWER_TOOLS.length);
 
-    /* GỠ, không phải làm mờ: không nút nào còn lại bị vô hiệu hoá, và tên công
-       cụ sửa không còn xuất hiện ở bất kỳ đâu trên ray. */
     for (const button of viewerButtons) {
       expect(button).not.toBeDisabled();
     }
 
-    for (const tool of editingTools) {
-      expect(viewerRail.queryByLabelText(new RegExp(tool.label, 'i'))).toBeNull();
-    }
+    expect(viewerRail.getByRole('button', { name: /^đo/u })).toBeInTheDocument();
+    /* B-V9-05: tên vai là danh từ chung, viết thường giữa câu. */
+    expect(screen.getByText('Bạn đang xem ở vai người xem nên không sửa được mô hình.')).toBeInTheDocument();
   });
 });
 
@@ -264,6 +269,24 @@ describe('[VS-5] bộ mẫu', () => {
     expect(statusBar).toHaveTextContent('14 phòng');
     expect(statusBar).toHaveTextContent('248,60');
     expect(statusBar).toHaveTextContent('58 fps');
+  });
+
+  it('nút ray tầng hiện chữ rút từ tên tầng, không hiện mã máy của tầng (Q8)', () => {
+    renderState('success');
+
+    const options = within(screen.getByRole('listbox')).getAllByRole('option');
+    const texts = options.map((option) => option.textContent);
+
+    console.log(`[VIEWER-SHELL][VS-5] chữ trên ray tầng = ${texts.join(' | ')}`);
+
+    expect(texts).toEqual(['Trệt', '02', '03', 'Mái']);
+    for (const level of VIEWER_FIXTURE_LEVELS) {
+      expect(texts.join(' ')).not.toContain(level.id);
+    }
+    /* Tên không mở đầu bằng "Tầng " thì giữ nguyên; chỉ "Tầng" thì không về rỗng. */
+    expect(storeyShortLabel('Lửng')).toBe('Lửng');
+    expect(storeyShortLabel('Tầng')).toBe('Tầng');
+    expect(storeyShortLabel('Tầng hầm 1')).toBe('Hầm 1');
   });
 });
 
@@ -486,6 +509,20 @@ describe('[VS-9] bản đồ nhỏ không đè lên ViewCube (P2)', () => {
 
     unmount();
   });
+
+  it('khoảng trống của cụm góc trên phải không nhận chuột, chỉ ViewCube và bản đồ nhỏ nhận (B-V8-11)', () => {
+    const { unmount } = renderState('success');
+
+    const cube = screen.getByRole('group', { name: 'Khối định hướng' });
+    const miniMap = screen.getByRole('region', { name: 'Bản đồ thu nhỏ' });
+    const cluster = cube.parentElement?.parentElement;
+
+    expect(cluster?.className).toMatch(/(?:^|\s)pointer-events-none(?:\s|$)/);
+    expect(cube.className).toMatch(/(?:^|\s)pointer-events-auto(?:\s|$)/);
+    expect(miniMap.className).toMatch(/(?:^|\s)pointer-events-auto(?:\s|$)/);
+
+    unmount();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -516,13 +553,15 @@ describe('[VS-10] mã bộ mẫu hợp lệ', () => {
 /* [VS-11] frameStorey — khuôn khung nhìn vào một tầng (D1).                   */
 /* -------------------------------------------------------------------------- */
 
-describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
+/**
+ * Giảm chuyển động: `director.goTo` hoàn tất NGAY trong lượt gọi, nên
+ * `director.viewpoint()` (qua `frame`) phản ánh đích đến tức thì, không
+ * phải đợi vòng `requestAnimationFrame` của `wake()`.
+ */
+function stubReducedMotionPerTest(): void {
   let originalMatchMedia: typeof window.matchMedia;
 
   beforeEach(() => {
-    // Giảm chuyển động: `director.goTo` hoàn tất NGAY trong lượt gọi, nên
-    // `director.viewpoint()` (qua `frame`) phản ánh đích đến tức thì, không
-    // phải đợi vòng `requestAnimationFrame` của `wake()`.
     originalMatchMedia = window.matchMedia;
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -547,25 +586,68 @@ describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
       value: originalMatchMedia,
     });
   });
+}
 
-  /**
-   * Dựng thẳng `useViewerShell` — không qua container — vì `ViewerSceneFrame`
-   * (đúng ranh giới D) cố ý không mang `target` của camera, nên phép kiểm
-   * "nhìn đúng cao độ tầng nào" phải rình đối số của `CameraDirector.goTo`,
-   * chứ không đọc được từ props của view.
-   */
-  function renderShellHook() {
+/**
+ * Dựng thẳng `useViewerShell` — không qua container — vì `ViewerSceneFrame`
+ * (đúng ranh giới D) cố ý không mang `target` của camera, nên phép kiểm
+ * "nhìn đúng cao độ tầng nào" phải rình đối số của `CameraDirector.goTo`,
+ * chứ không đọc được từ props của view.
+ */
+function renderShellHook(
+  options: { readonly queryClient?: QueryClient; readonly gateway?: ViewerShellGateway } = {},
+) {
+  const queryClient = options.queryClient ?? createTestQueryClient();
+
+  return renderHook(
+    () => useViewerShell({
+        projectId: 'P-001',
+        spatial: VIEWER_FIXTURE_SPATIAL,
+        ...(options.gateway === undefined ? {} : { gateway: options.gateway }),
+      }),
+    {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+}
+
+describe('[B-V1-12] tên dự án nằm ở khoá con, không ở khoá gốc của dự án', () => {
+  it('khoá gốc đã mang một đối tượng (lượt nạp trước của nơi khác): đường dẫn vẫn hiện tên', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.project.detail('P-001'), { id: 'P-001', name: 'Nhà máy Bắc Ninh' });
+
+    const { result, unmount } = renderShellHook({
+      queryClient,
+      gateway: createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL, 'Nhà mẫu'),
+    });
+
+    await waitFor(() => {
+      expect(result.current.breadcrumbs[0]?.label).toBe('Nhà mẫu');
+    });
+    unmount();
+  });
+
+  it('không đặt sẵn gì: chuỗi tên vào khoá con, khoá gốc để trống', async () => {
     const queryClient = createTestQueryClient();
 
-    return renderHook(
-      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
-      {
-        wrapper: ({ children }: { children: ReactNode }) => (
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        ),
-      },
-    );
-  }
+    const { result, unmount } = renderShellHook({
+      queryClient,
+      gateway: createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL, 'Nhà mẫu'),
+    });
+
+    await waitFor(() => {
+      expect(result.current.breadcrumbs[0]?.label).toBe('Nhà mẫu');
+    });
+    expect(queryClient.getQueryData(queryKeys.project.detail('P-001'))).toBeUndefined();
+    expect(queryClient.getQueryData(projectNameQueryKey('P-001'))).toBe('Nhà mẫu');
+    unmount();
+  });
+});
+
+describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
+  stubReducedMotionPerTest();
 
   it('mã tầng có thật: điểm nhìn ĐỔI, và nhìn đúng vào cao độ của tầng ấy', () => {
     const goToSpy = vi.spyOn(CameraDirector.prototype, 'goTo');
@@ -671,6 +753,48 @@ describe('[VS-11] frameStorey — khuôn khung nhìn vào một tầng', () => {
     goToSpy.mockRestore();
     unmount();
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [VS-15] thu phóng ở mọi góc nhìn (B-V8-01).                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('[VS-15] thu phóng ở mọi góc nhìn (B-V8-01)', () => {
+  stubReducedMotionPerTest();
+
+  /* Ba góc phẳng dùng `FlatCameraMode`, chỉ có `zoom` chứ không có `dolly`. */
+  it.each(['perspective', 'axonometric', 'top', 'section'] as const)(
+    'góc "%s": cuộn chuột lại gần và nút Phóng to đều làm nhãn thu phóng tăng',
+    (preset) => {
+      const { result, unmount } = renderShellHook();
+
+      act(() => {
+        result.current.onPresetChange(preset);
+      });
+      const before = result.current.frame.distanceM;
+      const labelBefore = result.current.zoomLabel;
+
+      act(() => {
+        result.current.onViewportWheel(-1);
+      });
+      const afterWheel = result.current.frame.distanceM;
+
+      act(() => {
+        result.current.onZoomIn();
+      });
+      const afterButton = result.current.frame.distanceM;
+
+      console.log(
+        `[VIEWER-SHELL][VS-15] ${preset}: ${String(before)} → cuộn ${String(afterWheel)} → nút ${String(afterButton)} m; nhãn ${labelBefore} → ${result.current.zoomLabel}`,
+      );
+
+      expect(afterWheel).toBeLessThan(before);
+      expect(afterButton).toBeLessThan(afterWheel);
+      expect(result.current.zoomLabel).not.toBe(labelBefore);
+
+      unmount();
+    },
+  );
 });
 
 /* -------------------------------------------------------------------------- */
@@ -831,6 +955,140 @@ describe('[VS-DG] cổng mặc định theo chế độ mock', () => {
     expect(defaultViewerShellGateway(true).readShellData()).toEqual(
       shellDataOf(VIEWER_FIXTURE_SPATIAL),
     );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phím của ray công cụ — nhãn in trên ray phải có binding thật (A12).         */
+/* -------------------------------------------------------------------------- */
+
+describe('phím của ray công cụ', () => {
+  const noop = (): void => undefined;
+  const handlers = {
+    selectStorey: noop,
+    fitAll: noop,
+    toggleOrthographic: noop,
+    hideSelection: noop,
+    isolateSelection: noop,
+    frameSelection: noop,
+    toggleSeparation: noop,
+    activateTool: noop,
+    openSearch: noop,
+    clearSelection: noop,
+  };
+
+  it('mọi công cụ có phím đơn đều có đúng một binding mang phím ấy', () => {
+    const bindings = buildViewerShortcuts(handlers);
+    const single = ALL_VIEWER_TOOLS.filter((tool) => !tool.keyLabel.includes('+'));
+
+    expect(single.length).toBeGreaterThanOrEqual(5);
+
+    for (const tool of single) {
+      expect(
+        bindings.filter((binding) => binding.combo === tool.keyLabel),
+        `công cụ ${tool.id} quảng cáo phím ${tool.keyLabel} mà không có binding`,
+      ).toHaveLength(1);
+    }
+  });
+
+  function renderWithRegistry(forceState?: ViewerScreenState) {
+    const registry = createShortcutRegistry();
+    const queryClient = createTestQueryClient();
+    const view = renderHook(
+      () =>
+        useViewerShell({
+          projectId: 'P-001',
+          spatial: VIEWER_FIXTURE_SPATIAL,
+          registry,
+          ...(forceState === undefined ? {} : { forceState }),
+        }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    const press = (key: string): void => {
+      act(() => {
+        registry.handleKeyDown({ key }, null);
+      });
+    };
+
+    return { ...view, press };
+  }
+
+  it('bấm c bật mặt cắt, bấm v bật chọn, bấm r về quay quanh', () => {
+    const { result, press, unmount } = renderWithRegistry();
+
+    press('c');
+    expect(result.current.activeToolId).toBe('section');
+    press('v');
+    expect(result.current.activeToolId).toBe('select');
+    press('r');
+    expect(result.current.activeToolId).toBe('orbit');
+    press('h');
+    expect(result.current.activeToolId).toBe('pan');
+    press('m');
+    expect(result.current.activeToolId).toBe('measure');
+
+    unmount();
+  });
+
+  it('vai người xem: bấm m bật công cụ đo, như mọi vai (A12 · B-V9-04)', () => {
+    const { result, press, unmount } = renderWithRegistry('forbidden');
+
+    press('m');
+    expect(result.current.activeToolId).toBe('measure');
+    press('c');
+    expect(result.current.activeToolId).toBe('section');
+
+    unmount();
+  });
+});
+
+describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
+  stubReducedMotionPerTest();
+
+  it('tiêu đề thanh tra và nhãn di chuột dùng đúng mã dải "Đang sửa"; hàng "mã đối tượng" giữ mã máy', () => {
+    const wall = VIEWER_FIXTURE_WALLS[0];
+
+    if (wall === undefined) {
+      throw new Error('bộ mẫu cần ít nhất một bức tường');
+    }
+
+    const bandCode = wallCodesOnLevel(VIEWER_FIXTURE_SPATIAL, wall.levelId).get(wall.id);
+    const { result, unmount } = renderShellHook();
+
+    act(() => {
+      result.current.sceneActions.selectEntity(wall.id, false);
+      result.current.sceneActions.hoverEntity(wall.id);
+    });
+
+    const selection = result.current.selection;
+
+    expect(bandCode).toBe('W-101');
+    expect(selection?.title).toBe(`tường ${String(bandCode)}`);
+    expect(selection?.title).not.toContain('FIXTURE');
+    expect(selection?.rows[0]?.value).toBe(wall.id);
+    expect(result.current.hoverLabel).toBe(bandCode);
+
+    act(() => {
+      result.current.sceneActions.selectEntity(null, false);
+      result.current.sceneActions.hoverEntity(null);
+    });
+    unmount();
+  });
+
+  it('mọi nhãn bộ mẫu là mã ba chữ số sạch, không đuôi FIXTURE, và 34 mã khác nhau (B-V8-45)', () => {
+    const ids = [...VIEWER_FIXTURE_LEVELS, ...VIEWER_FIXTURE_WALLS, ...VIEWER_FIXTURE_ROOMS].map((entity) => entity.id);
+
+    expect(new Set(ids).size).toBe(34);
+    for (const id of ids) {
+      const label = displayLabelIn(VIEWER_FIXTURE_SPATIAL, id);
+
+      expect(label).toMatch(/^[LRW]-\d{3}$/u);
+      expect(label).not.toContain('FIXTURE');
+    }
   });
 });
 

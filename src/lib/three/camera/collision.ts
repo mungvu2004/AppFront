@@ -59,7 +59,7 @@ import { Vector3 } from 'three';
 import { compareNearly, isNearlyZero } from '@/domain/units/compare';
 import { metres, metresToMillimetres, millimetres, type Millimetres } from '@/domain/units/types';
 import { isAttached, type AttachedOpening, type Opening } from '@/domain/openings/types';
-import { openingSpan } from '@/domain/openings/validate';
+import { openingSpan } from '@/domain/openings/span';
 import { centrelineLength, type Wall } from '@/domain/walls/types';
 import type { LevelId, OpeningId, WallId } from '@/domain/spatial/types';
 import { toSceneLength } from '../build/scene';

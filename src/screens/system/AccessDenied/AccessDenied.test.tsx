@@ -30,7 +30,8 @@
  */
 
 import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -41,6 +42,7 @@ import { renderWithProviders } from '@/lib/testing/render';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
 import { AccessDenied } from './AccessDenied';
+import { useAccessDenied } from './useAccessDenied';
 import { ACCESS_DENIED_CAPABILITIES_TODAY, REQUEST_COOLDOWN_MS, type AccessDeniedVm } from './accessDeniedModel';
 import {
   ACCESS_DENIED_CAPABILITIES_FULL,
@@ -247,5 +249,67 @@ describe('BÀI NGHIỆM THU 5 — currentEmail null vẫn đọc thành câu, kh
 
     expect(text).not.toContain('undefined');
     expect(text).not.toMatch(/\bnull\b/);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* (h) B-V1-45 — email của phiên hiện đúng MỘT lần, qua hook thật.            */
+/* -------------------------------------------------------------------------- */
+
+const SESSION_EMAIL = 'ky.su@vidu.vn';
+
+vi.mock('@/hooks/useSession', () => ({
+  useSession: () => ({
+    status: 'authenticated',
+    user: { id: 'u-1', name: 'Kỹ sư', email: 'ky.su@vidu.vn' },
+    roles: [],
+  }),
+}));
+
+function HookedAccessDenied() {
+  return <AccessDenied {...useAccessDenied()} />;
+}
+
+describe('B-V1-45 — email không hiện hai lần', () => {
+  it('nhãn danh tính chỉ là tiền tố; view vẽ email đúng một lần', () => {
+    const { container } = renderWithProviders(
+      <MemoryRouter>
+        <HookedAccessDenied />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Bạn đang đăng nhập bằng')).toBeInTheDocument();
+    expect((container.textContent ?? '').split(SESSION_EMAIL)).toHaveLength(2);
+  });
+});
+
+describe('bộ mẫu theo đúng chữ của hook (B-V1-44, mục D)', () => {
+  it('mọi chuỗi kịch bản "không có quyền" trùng chữ hook dựng với cùng phiên và cùng cổng', () => {
+    let seen: AccessDeniedVm | null = null;
+
+    function Probe() {
+      seen = useAccessDenied();
+
+      return null;
+    }
+
+    renderWithProviders(
+      <MemoryRouter>
+        <Probe />
+      </MemoryRouter>,
+    );
+
+    const fromHook = seen as AccessDeniedVm | null;
+    if (fromHook === null) throw new Error('hook chưa chạy');
+    const fromScenario = createAccessDeniedVm('forbidden', {
+      capabilities: fromHook.capabilities,
+      currentEmail: SESSION_EMAIL,
+    });
+
+    for (const field of ['title', 'restrictionSentence', 'reasonSentence', 'whoCanGrantSentence', 'identityLabel', 'errorCodeCaption'] as const) {
+      expect(fromScenario[field], field).toBe(fromHook[field]);
+    }
+    expect(fromScenario.switchAccount.label).toBe(fromHook.switchAccount.label);
+    expect(fromScenario.backToProjects.label).toBe(fromHook.backToProjects.label);
   });
 });

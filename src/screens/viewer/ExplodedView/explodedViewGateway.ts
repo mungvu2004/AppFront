@@ -87,8 +87,8 @@ import type {
  * chế (R-69). Mỗi dòng là một tên hàm còn thiếu cộng lý do.
  */
 export const EXPLODED_MISSING_CAPABILITIES: readonly string[] = Object.freeze([
-  'readVerticalContinuity — không có trường nào trong src/domain nối một phần tử (lõi thang, hộp kỹ thuật) xuyên tầng; Room/Wall/Furniture đều mang levelId riêng. Thứ duy nhất so được giữa hai tầng là TRỤC, nên chỉ báo thẳng hàng của màn chạy trên trục và caption nói rõ nó đang nói về trục nào.',
-  'readDetectedAxisLabels — không có cầu nối Axis (đã gắn nhãn người) ↔ DetectedAxis (thô, để so khớp hình học); màn phải đọc hai họ trục từ hai chỗ, xem docblock đầu file.',
+  'ReadVerticalContinuity — không có trường nào trong src/domain nối một phần tử (lõi thang, hộp kỹ thuật) xuyên tầng; Room/Wall/Furniture đều mang levelId riêng. Thứ duy nhất so được giữa hai tầng là TRỤC, nên chỉ báo thẳng hàng của màn chạy trên trục và caption nói rõ nó đang nói về trục nào.',
+  'ReadDetectedAxisLabels — không có cầu nối Axis (đã gắn nhãn người) ↔ DetectedAxis (thô, để so khớp hình học); màn phải đọc hai họ trục từ hai chỗ, xem docblock đầu file.',
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -462,7 +462,7 @@ export function createExplodedViewGateway(
 /* Cổng có dữ liệu — story và bài kiểm.                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Cổng giả — cùng bộ mẫu của vỏ, không bảng dữ liệu thứ hai (A14). */
+/** Cổng giả — cùng bộ mẫu của vỏ, không bảng dữ liệu thứ hai (R-70). */
 export function createExplodedViewFixtureGateway(
   spatial: NormalizedSpatial | null = VIEWER_FIXTURE_SPATIAL,
 ): ExplodedViewGateway {

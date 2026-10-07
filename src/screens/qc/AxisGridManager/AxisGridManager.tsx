@@ -89,16 +89,16 @@ export interface AxisGridManagerViewProps
 /* -------------------------------------------------------------------------- */
 
 const SCREEN_BREADCRUMB = 'Dự án > Trục và gốc toạ độ';
-const SCREEN_TITLE = 'quản lý trục và gốc toạ độ';
+const SCREEN_TITLE = 'Quản lý trục và gốc toạ độ';
 const SCREEN_DESCRIPTION =
   'Kiểm tra các trục nằm trùng khớp giữa các tầng và điều chỉnh khoảng cách nếu cần.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
-const EMPTY_TITLE = 'chưa có trục nào';
+const EMPTY_TITLE = 'Chưa có trục nào';
 const EMPTY_ACTION_LABEL = 'Suy ra từ tường bao';
-const ERROR_TITLE = 'không tính được trục';
+const ERROR_TITLE = 'Không tính được trục';
 const ERROR_ACTION_LABEL = 'Thử lại';
-const FORBIDDEN_TITLE = 'không có quyền sửa trục';
-const EXPAND_PANEL_LABEL = 'bảng trục đang thu gọn';
+const FORBIDDEN_TITLE = 'Không có quyền sửa trục';
+const EXPAND_PANEL_LABEL = 'Bảng trục đang thu gọn';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — hai nhóm trục, ba hàng mỗi nhóm. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];

@@ -106,7 +106,7 @@ export interface WallGeometryPointPx {
 /** Dải cao `editBandHeightPx` trên cùng canvas. */
 export interface WallGeometryEditBand {
   /**
-   * Đã ghép sẵn: "Đang sửa: #W-014". Mã tường viết hoa là ngoại lệ chữ hoa của
+   * Đã ghép sẵn: "Đang sửa: W-014". Mã tường viết hoa là ngoại lệ chữ hoa của
    * A6; phần còn lại viết thường kiểu câu.
    */
   readonly label: string;
@@ -469,6 +469,8 @@ export interface WallGeometryEditorContent {
  */
 export interface WallGeometryEditorProps {
   readonly state: WallGeometryEditorState;
+  /** Xem `WallGeometryEditorContainerProps.bandEndInsetClassName`. */
+  readonly bandEndInsetClassName?: string | undefined;
   /**
    * Callback ref nhận lớp phủ sau khi view gắn, để CONTAINER đưa nó vào hook.
    *
@@ -590,8 +592,9 @@ export const WALL_GEOMETRY_EDITOR_TEXT = Object.freeze({
     splitOffWall: 'Điểm tách nằm ngoài bức tường nên chưa tách được.',
     heightBelowOpening:
       'Chiều cao mới thấp hơn đỉnh một ô mở trên tường này nên chưa đặt được.',
-    noSaveTarget:
-      'Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.',
+    wallMissing:
+      'Bức tường đang chọn không có trong dữ liệu của dự án này nên chưa sửa được hình học.',
+    readFailed: 'Chưa đọc được hình học của bức tường này.',
     serverRejected: (kind: string): string =>
       `Máy chủ chưa nhận được hình học mới (${kind}). Thay đổi vẫn còn trên máy này.`,
   },
@@ -675,6 +678,12 @@ export interface WallGeometryEditorContainerProps {
   readonly onGeometryChanged?: ((wallId: string) => void) | undefined;
   readonly isSectionOrthographic?: boolean | undefined;
   readonly isCollapsed?: boolean | undefined;
+  /**
+   * Lớp Tailwind lùi đầu phải của dải "Đang sửa … Xong" khỏi thứ màn chủ đặt ở
+   * góc trên phải khung nhìn. Lớp phủ gắn được vào nhiều màn nên không tự biết góc
+   * ấy có gì — màn chủ nói (cùng khuôn `presenceAnchorClassName` của lớp cộng tác).
+   */
+  readonly bandEndInsetClassName?: string | undefined;
 
   /** Chỗ tiêm của story và bài kiểm — R-73 đòi bản giả cắm được vào. */
   readonly forceState?: WallGeometryEditorStateKind | undefined;

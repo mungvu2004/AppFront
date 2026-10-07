@@ -40,6 +40,7 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { DangerZoneTab } from './DangerZoneTab';
 import { GeneralTab } from './GeneralTab';
 import { MembersTab } from './MembersTab';
+import { ProjectSettingsReloadDialog } from './ProjectSettingsReloadDialog';
 import { UnitsTab } from './UnitsTab';
 import {
   useProjectSettings,
@@ -62,11 +63,11 @@ const STATE_LABELS: Readonly<Record<SevenState, string>> = {
   partial: 'một phần',
   error: 'lỗi',
   success: 'thành công',
-  forbidden: 'không có quyền',
+  forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
 
-const TAB_GROUP_LABEL = 'nhóm cài đặt';
+const TAB_GROUP_LABEL = 'Nhóm cài đặt';
 
 /** Màn cài đặt như một hàm của props — test và story dựng thẳng cái này. */
 export function ProjectSettingsView(props: ProjectSettingsViewProps) {
@@ -79,7 +80,7 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
       <div className="mx-auto flex max-w-[720px] flex-col gap-6 p-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-[20px] font-semibold text-text-primary">cài đặt dự án</h1>
+            <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt dự án</h1>
             <p className="text-[13px] text-text-secondary">
               Thông tin chung, đơn vị đo, thành viên và hai việc không hoàn tác được.
             </p>
@@ -100,6 +101,10 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
             message={props.conflictMessage}
             action={{ label: 'Tải lại', onClick: props.reloadSettings, variant: 'secondary' }}
           />
+        )}
+
+        {props.saveFailureMessage !== null && (
+          <InlineAlert level="attention" title="Chưa lưu hết" message={props.saveFailureMessage} />
         )}
 
         {state === 'error' ? (
@@ -151,9 +156,15 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-4">
           <SaveIndicator saveState={props.saveState} label={props.saveLabel} />
-          <span className="text-[13px] text-text-secondary">trạng thái: {STATE_LABELS[state]}</span>
+          <span className="text-[13px] text-text-secondary">Trạng thái: {STATE_LABELS[state]}</span>
         </footer>
       </div>
+
+      <ProjectSettingsReloadDialog
+        isOpen={props.isReloadDialogOpen}
+        onConfirm={props.confirmReload}
+        onCancel={props.cancelReload}
+      />
 
       {/* A9: hai việc A8 không phủ được, nên đây là chỗ duy nhất được hỏi trước. */}
       <Modal.Root isOpen={props.pendingDanger !== null} onClose={props.cancelDanger} width={480}>
@@ -163,7 +174,7 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
             <p className="text-[14px] text-text-primary">{props.dangerDialogMessage}</p>
             {props.dangerConfirmationExpected !== null && (
               <Input
-                label="gõ lại tên dự án để xác nhận"
+                label="Gõ lại tên dự án để xác nhận"
                 value={props.dangerConfirmationText}
                 onChange={(event) => props.setDangerConfirmationText(event.target.value)}
                 hint={props.dangerConfirmationExpected}

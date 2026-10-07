@@ -594,7 +594,7 @@ describe('the information band', () => {
     expect(written).toContain('thời điểm');
     expect(written).toContain(PROJECT_NAME);
     expect(written).toContain('Tầng 1');
-    expect(written).toContain('theo diện tích');
+    expect(written).toContain('Theo diện tích');
     expect(written).toContain('17/08/2026 14:32');
   });
 

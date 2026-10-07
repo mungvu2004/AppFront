@@ -29,7 +29,7 @@ export const SAMPLE_SYNC_AT = new Date(2026, 8, 14, 14, 32).getTime();
 export const SAMPLE_PENDING: readonly PendingCommandLike[] = Array.from(
   { length: 12 },
   (_unused, index) => ({
-    command: { label: `sửa tường #W-${String(index + 1).padStart(3, '0')}` },
+    command: { label: `Sửa tường #W-${String(index + 1).padStart(3, '0')}` },
     createdAt: SAMPLE_SYNC_AT - (12 - index) * 60_000,
     id: index + 1,
     sizeBytes: 1_200 + index * 40,

@@ -46,6 +46,7 @@
  * không cái nào có mặt ở đây dưới dạng một `TODO` hay một cờ luôn `false`.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -144,7 +145,7 @@ const EMPTY_LINKS: readonly ShareLink[] = Object.freeze([]);
 
 /** Câu nhắc khi đổi khoá nhúng làm liên kết đã tạo không còn khớp. */
 const STALE_LINK_NOTICE =
-  'các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi';
+  'Các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi';
 
 /* -------------------------------------------------------------------------- */
 /* Bề ngang màn — trạng thái thứ bảy                                          */
@@ -231,7 +232,7 @@ function toProblemMap(
 function messageOf(error: unknown): string {
   return error instanceof Error && error.message.length > 0
     ? error.message
-    : 'không thực hiện được thao tác chia sẻ; hãy thử lại';
+    : 'Không thực hiện được thao tác chia sẻ; hãy thử lại';
 }
 
 /**
@@ -278,6 +279,11 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
 
   const canCreateLink = useMemo(() => readShareLinkPermission(roles), [roles]);
 
+  // Máy chủ v1 không phục vụ liên kết chia sẻ (BE-BIND #47–#49 là v2): phần liên
+  // kết và mã nhúng rời DOM, không lượt gọi nào tới cổng. Đây là năng lực tắt,
+  // không phải thiếu quyền — không dùng `forbidden`.
+  const linksSupported = gateway.supported;
+
   /* ---------------------------------------------------------------------- */
   /* Lựa chọn của người dùng — thứ duy nhất `useState` giữ                   */
   /* ---------------------------------------------------------------------- */
@@ -300,6 +306,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
   const [savedAtMs, setSavedAtMs] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [staleLinkNotice, setStaleLinkNotice] = useState<string | null>(null);
+  const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
 
   const [recentlyChangedKey, flashEmbedKey] = useFlash<EmbedEditableKey>(
     MOTION_DURATIONS_MS.standard,
@@ -320,7 +327,9 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
 
       return result.data.links;
     },
-    enabled: canCreateLink,
+    // Hộp thoại đóng thì không gọi mạng: `ExportPanel` gắn sẵn hộp thoại, nên không có
+    // điều kiện này mỗi lượt tải `/export` đọc danh sách liên kết (B-V3-09).
+    enabled: canCreateLink && linksSupported && (options.isOpen ?? true),
   });
 
   const links = listQuery.data ?? EMPTY_LINKS;
@@ -416,7 +425,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setStaleLinkNotice(null);
       setSavedAtMs(readNow().getTime());
       invalidateLinks();
-      onToast?.({ message: 'đã tạo liên kết chia sẻ' });
+      onToast?.({ message: 'Đã tạo liên kết chia sẻ' });
     },
     onError: (error) => setActionError(messageOf(error)),
   });
@@ -434,7 +443,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setActionError(null);
       setSavedAtMs(readNow().getTime());
       invalidateLinks();
-      onToast?.({ message: 'đã thu hồi liên kết' });
+      onToast?.({ message: 'Đã thu hồi liên kết' });
     },
     onError: (error) => setActionError(messageOf(error)),
   });
@@ -502,6 +511,11 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
    * đứng trước ba trạng thái đọc từ dữ liệu vì nó đúng bất kể dữ liệu ra sao.
    */
   const state = useMemo<SevenState>(() => {
+    // Năng lực tắt đi trước cả quyền: truy vấn tắt vẫn `isPending`, nên để nó
+    // rơi xuống sẽ treo ở `loading`; còn `forbidden` là chuyện thiếu quyền.
+    if (!linksSupported) {
+      return isCollapsed ? 'collapsed' : 'success';
+    }
     if (!canCreateLink) {
       return 'forbidden';
     }
@@ -519,7 +533,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
     }
 
     return activeLinks.length === 0 ? 'partial' : 'success';
-  }, [canCreateLink, isBusy, errorMessage, isCollapsed, links.length, activeLinks.length]);
+  }, [linksSupported, canCreateLink, isBusy, errorMessage, isCollapsed, links.length, activeLinks.length]);
 
   /* ---------------------------------------------------------------------- */
   /* Việc làm được                                                           */
@@ -544,12 +558,12 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setPermissionState(next);
 
       const ticket = createUndoTicket({
-        description: `đổi quyền chia sẻ sang ${SHARE_PERMISSION_LABELS[next]}`,
+        description: `Đổi quyền chia sẻ sang ${lowerFirst(SHARE_PERMISSION_LABELS[next])}`,
         undo: () => setPermissionState(previous),
       });
 
       onToast?.({
-        message: `đã đổi quyền chia sẻ sang ${SHARE_PERMISSION_LABELS[next]}`,
+        message: `Đã đổi quyền chia sẻ sang ${lowerFirst(SHARE_PERMISSION_LABELS[next])}`,
         onUndo: () => {
           ticket.undo();
         },
@@ -595,15 +609,25 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
         setIncludeViewpoint(include);
         flashEmbedKey('viewpointCode');
       },
-      createLink: () => createMutation.mutate(),
-      revokeLink: (id: string) => revokeMutation.mutate(id),
+      createLink: () => {
+        if (linksSupported) createMutation.mutate();
+      },
+      // A9: thu hồi không có đường khôi phục, nên bấm "thu hồi" chỉ HỎI (B-V3-06).
+      revokeLink: (id: string) => {
+        if (linksSupported) setPendingRevokeId(id);
+      },
+      confirmRevoke: () => {
+        if (pendingRevokeId !== null) revokeMutation.mutate(pendingRevokeId);
+        setPendingRevokeId(null);
+      },
+      cancelRevoke: () => setPendingRevokeId(null),
       copyLink: (id: string) => {
         const row = rows.find((candidate) => candidate.id === id);
         if (row !== undefined) {
-          copy(id, row.url, 'đã chép liên kết');
+          copy(id, row.url, 'Đã chép liên kết');
         }
       },
-      copyEmbedCode: () => copy(EMBED_COPY_TARGET_ID, embedCode, 'đã chép mã nhúng'),
+      copyEmbedCode: () => copy(EMBED_COPY_TARGET_ID, embedCode, 'Đã chép mã nhúng'),
       setEmbedLevel: (levelId: LevelId | null) => changeEmbed('levelId', { levelId }),
       setEmbedColoring: (coloring: ColoringModeId | null) => changeEmbed('coloring', { coloring }),
       setEmbedToolbar: (toolbar: boolean) => changeEmbed('toolbar', { toolbar }),
@@ -618,7 +642,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       setEmbedHeight: setHeightPx,
       dismiss: () => onDismiss?.(),
     }),
-    [setPermission, flashEmbedKey, createMutation, revokeMutation, rows, copy, embedCode, changeEmbed, onDismiss],
+    [linksSupported, setPermission, flashEmbedKey, createMutation, revokeMutation, pendingRevokeId, rows, copy, embedCode, changeEmbed, onDismiss],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -630,7 +654,8 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       state,
       savedAtLabel: savedAtMs === null ? null : `Đã lưu lúc ${formatClockTime(savedAtMs)}`,
       canCreateLink,
-      noPermissionReason: canCreateLink ? null : SHARE_FORBIDDEN_REASON,
+      linksSupported,
+      noPermissionReason: !linksSupported || canCreateLink ? null : SHARE_FORBIDDEN_REASON,
       members,
       membersReadOnlyReason: MEMBERS_READ_ONLY_REASON,
       form: {
@@ -642,7 +667,8 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
         password,
         includeViewpoint,
         problems,
-        canSubmit: canCreateLink && Object.keys(problems).length === 0 && !isBusy,
+        canSubmit:
+          linksSupported && canCreateLink && Object.keys(problems).length === 0 && !isBusy,
       },
       rows,
       embed: {
@@ -661,11 +687,13 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       copiedTargetId,
       errorMessage,
       staleLinkNotice,
+      pendingRevokeUrl: rows.find((row) => row.id === pendingRevokeId)?.url ?? null,
     }),
     [
       state,
       savedAtMs,
       canCreateLink,
+      linksSupported,
       members,
       permission,
       expiryChoice,
@@ -686,6 +714,7 @@ export function useShareDialog(options: UseShareDialogOptions): ShareDialogResul
       copiedTargetId,
       errorMessage,
       staleLinkNotice,
+      pendingRevokeId,
     ],
   );
 

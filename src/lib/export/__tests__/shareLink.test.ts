@@ -30,6 +30,7 @@ import {
   MAX_SHARE_WINDOW_DAYS,
   MIN_SHARE_PASSWORD_LENGTH,
   SHARE_LINK_ENDPOINTS,
+  SHARE_LINKS_SUPPORTED,
   createHttpShareLinkGateway,
   createShareLink,
   describeShareLinkExpiry,
@@ -155,6 +156,7 @@ function harness(replies: GatewayReplies = {}): GatewayHarness {
     listInputs,
     revokeInputs,
     gateway: {
+      supported: true,
       create: async (input) => {
         createInputs.push(input);
 
@@ -692,11 +694,11 @@ describe('createShareLink', () => {
 
   it('turns a transport fault into a sentence somebody can act on', async () => {
     const cases: readonly [HttpError, string][] = [
-      [httpError('network'), 'không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi'],
-      [httpError('http', 403), 'tài khoản này không có quyền chia sẻ dự án'],
-      [httpError('http', 429), 'tạo liên kết quá nhanh; chờ một lát rồi thử lại'],
-      [httpError('http', 422), 'máy chủ không chấp nhận hạn dùng hoặc mật khẩu này'],
-      [httpError('http', 500), 'máy chủ từ chối yêu cầu chia sẻ'],
+      [httpError('network'), 'Không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi'],
+      [httpError('http', 403), 'Tài khoản này không có quyền chia sẻ dự án'],
+      [httpError('http', 429), 'Tạo liên kết quá nhanh; chờ một lát rồi thử lại'],
+      [httpError('http', 422), 'Máy chủ không chấp nhận hạn dùng hoặc mật khẩu này'],
+      [httpError('http', 500), 'Máy chủ từ chối yêu cầu chia sẻ'],
     ];
 
     for (const [error, message] of cases) {
@@ -1025,6 +1027,11 @@ function recordingHttpClient(calls: HttpCall[]): HttpClient {
 }
 
 describe('createHttpShareLinkGateway', () => {
+  it('says the v1 server does not serve share links (BE-BIND #47–#49 are v2)', () => {
+    expect(SHARE_LINKS_SUPPORTED).toBe(false);
+    expect(createHttpShareLinkGateway(recordingHttpClient([])).supported).toBe(false);
+  });
+
   it('posts a new link to the project’s collection, password in the body', async () => {
     const calls: HttpCall[] = [];
     const gateway = createHttpShareLinkGateway(recordingHttpClient(calls));

@@ -98,9 +98,9 @@ import type {
  */
 export const COLLABORATION_TEXT = Object.freeze({
   /** Nhãn tầng khi chưa có tầng nào được mở. */
-  noFloor: 'chưa chọn tầng',
+  noFloor: 'Chưa chọn tầng',
   /** Đứng trước tên tầng của dữ liệu. */
-  floorPrefix: 'tầng',
+  floorPrefix: 'Tầng',
   /** Đứng trước mã đối tượng, hoặc trước con số đã định dạng. */
   selectionPrefix: 'đang chọn',
   /** Đứng sau con số khi đang chọn nhiều hơn một. */
@@ -332,11 +332,11 @@ function buildSelectionLabel(selectedIds: readonly string[]): string | null {
  * Kết quả kiểm mạng gần nhất, hoặc `null` khi chưa lượt nào xong.
  *
  * `null` là một câu trả lời có nghĩa, không phải giá trị khởi tạo cho có:
- * `NetworkMonitorStatus.online` là `browserOnline && pingOnline`, mà
- * `pingOnline` khởi tạo bằng `false`, nên đọc `getStatus()` ngay lúc gắn sẽ báo
- * "mất kết nối" cho một máy đang nối mạng bình thường. Nên hook chỉ tin những
- * trạng thái do `subscribe` đẩy tới — tức những trạng thái đi sau một lượt kiểm
- * thật, hoặc sau một sự kiện `online`/`offline` của trình duyệt.
+ * trước lượt ping đầu, `getStatus().online` chỉ là `browserOnline` (bộ giám
+ * sát tin trình duyệt cho tới khi kiểm xong), tức một phỏng đoán chứ chưa phải
+ * kết quả kiểm. Lớp phủ này chỉ nói về mất kết nối khi đã biết chắc, nên hook
+ * chỉ tin những trạng thái do `subscribe` đẩy tới — tức những trạng thái đi sau
+ * một lượt kiểm thật, hoặc sau một sự kiện `online`/`offline` của trình duyệt.
  */
 function useNetworkStatus(injected: NetworkMonitor | undefined): NetworkMonitorStatus | null {
   const [status, setStatus] = useState<NetworkMonitorStatus | null>(null);

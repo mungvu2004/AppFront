@@ -65,19 +65,34 @@
   },
   "autosave": {
     "idle": "Chưa có thay đổi",
-    "dirty": "Có thay đổi chưa lưu",
+    "dirty": "Có thay đổi chờ đồng bộ",
     "saving": "Đang lưu…",
-    "failed": "Lưu thất bại sau nhiều lần thử. Chỉnh sửa hoặc lưu lại thủ công.",
+    "failed": "Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.",
     "offline": "Ngoại tuyến — sẽ lưu khi có mạng",
     "savedRelative": "Đã lưu {{minutes}} phút trước"
   },
+  "floorLayerSave": {
+    "reloadConflict": "Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.",
+    "forbidden": "Bạn không còn quyền sửa tầng này.",
+    "integrity": "Tầng này có {{count}} chỗ hỏng liên kết hình học nên chưa lưu được.",
+    "unnamedRoom": "Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.",
+    "unknown": "Không lưu được thay đổi của tầng này.",
+    "reloadFailed": "Không tải lại được tầng này. Thử lại sau.",
+    "scaleRedirtied": "Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới."
+  },
+  "provisionalScale": {
+    "calibrate": "Hiệu chỉnh tỉ lệ",
+    "floorNotFound": "Tầng này không còn tồn tại.",
+    "measure": "Chưa có — tỉ lệ tạm",
+    "notice": "Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ."
+  },
   "pipeline": {
-    "preprocess": "tiền xử lý",
-    "wallSegmentation": "tách lớp tường",
-    "openingAndFurnitureDetection": "nhận diện cửa và đồ đạc",
-    "dimensionReading": "đọc kích thước",
-    "spatialDataBuild": "dựng dữ liệu không gian",
-    "qualityCheck": "kiểm tra chất lượng"
+    "preprocess": "Tiền xử lý",
+    "wallSegmentation": "Tách lớp tường",
+    "openingAndFurnitureDetection": "Nhận diện cửa và đồ đạc",
+    "dimensionReading": "Đọc kích thước",
+    "spatialDataBuild": "Dựng dữ liệu không gian",
+    "qualityCheck": "Kiểm tra chất lượng"
   },
   "auth": {
     "hero": {
@@ -88,18 +103,23 @@
       "subtitle": "Số hóa bản vẽ 2D thành mô hình 3D tương tác."
     },
     "tabs": {
-      "signIn": "Đăng nhập",
-      "register": "Đăng ký"
+      "signIn": "Đăng nhập"
     },
     "fields": {
+      "confirmPassword": "Nhập lại mật khẩu",
       "email": "Thư điện tử",
       "password": "Mật khẩu",
       "fullName": "Họ và tên",
+      "newPassword": "Mật khẩu mới",
       "rememberMe": "Ghi nhớ máy này"
     },
     "actions": {
+      "acceptInvitation": "Nhận lời mời",
+      "backToSignIn": "Quay lại đăng nhập",
+      "goToSignIn": "Về trang đăng nhập",
+      "sendResetLink": "Gửi thư đặt lại mật khẩu",
+      "setNewPassword": "Đổi mật khẩu",
       "signIn": "Đăng nhập",
-      "register": "Tạo tài khoản",
       "submitting": "Đang gửi…",
       "expand": "Mở lại biểu mẫu",
       "or": "Hoặc",
@@ -110,11 +130,14 @@
       "hidePassword": "Ẩn mật khẩu"
     },
     "problems": {
+      "confirmMismatch": "Hai mật khẩu chưa giống nhau.",
+      "confirmRequired": "Chưa nhập lại mật khẩu.",
       "emailRequired": "Chưa nhập thư điện tử.",
       "emailInvalid": "Thư điện tử chưa đúng dạng. Kiểm tra lại phần trước và sau dấu a còng.",
       "passwordRequired": "Chưa nhập mật khẩu.",
       "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
-      "fullNameRequired": "Chưa nhập họ và tên."
+      "fullNameRequired": "Chưa nhập họ và tên.",
+      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự."
     },
     "errors": {
       "invalidCredentials": {
@@ -123,17 +146,45 @@
       },
       "tooManyAttempts": {
         "title": "Đã thử quá nhiều lần",
-        "description": "Đợi {{seconds}} giây rồi đăng nhập lại."
+        "description": "Hãy đợi vài phút rồi đăng nhập lại."
       },
+      "originMismatch": {
+        "title": "Máy chủ từ chối yêu cầu",
+        "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
+      },
+      "tooManyRecovery": "Đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
       "accountDisabled": {
         "title": "Tài khoản đã bị vô hiệu",
         "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."
       }
     },
+    "forgotPassword": {
+      "title": "Quên mật khẩu",
+      "subtitle": "Nhập thư điện tử của tài khoản. Thư đặt lại mật khẩu sẽ được gửi tới đó.",
+      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút."
+    },
+    "invitation": {
+      "title": "Nhận lời mời",
+      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu dùng AppFront.",
+      "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
+      "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
+      "sessionNotOpened": "Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.",
+      "success": "Đã nhận lời mời. Đang mở tài khoản của bạn."
+    },
+    "passwordReset": {
+      "title": "Đặt lại mật khẩu",
+      "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
+      "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
+      "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."
+    },
     "notices": {
       "partial": "Đã có thư điện tử, còn thiếu mật khẩu.",
+      "passwordReset": "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.",
+      "sessionEnded": "Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.",
+      "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ, đang thử lại.",
       "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
       "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",
+      "collapsedRecovery": "Biểu mẫu đang thu gọn. Mở lại để nhập mật khẩu.",
       "gatewayUnavailable": "Chưa kết nối được máy chủ xác thực, nên chưa đăng nhập được. Tải lại trang rồi thử lại."
     }
   },
@@ -142,19 +193,19 @@
       "title": "Tạo dự án mới",
       "stepLabel": "Bước {{step}} trên {{total}}",
       "steps": {
-        "info": "thông tin công trình",
-        "floors": "tầng",
-        "review": "xem lại"
+        "info": "Thông tin công trình",
+        "floors": "Tầng",
+        "review": "Xem lại"
       },
       "fields": {
         "name": "Tên dự án",
-        "namePlaceholder": "ví dụ: Chung cư Bình Minh",
+        "namePlaceholder": "Ví dụ: Chung cư Bình Minh",
         "address": "Địa chỉ",
         "code": "Mã dự án",
-        "codeHint": "tự tạo từ tên, sửa được",
+        "codeHint": "Tự tạo từ tên, sửa được",
         "buildingType": "Loại công trình",
         "notes": "Ghi chú",
-        "notesPlaceholder": "không bắt buộc"
+        "notesPlaceholder": "Không bắt buộc"
       },
       "buildingTypes": {
         "residential": "Nhà ở",
@@ -227,11 +278,11 @@
       "general": {
         "name": "Tên dự án",
         "code": "Mã dự án",
-        "codeHint": "mã ngắn để tra cứu nhanh; bỏ trống cũng được",
+        "codeHint": "Mã ngắn để tra cứu nhanh; bỏ trống cũng được",
         "address": "Địa chỉ",
         "buildingType": "Loại công trình",
         "notes": "Ghi chú",
-        "notesPlaceholder": "không bắt buộc",
+        "notesPlaceholder": "Không bắt buộc",
         "notesCount": "{{count}} / {{max}} ký tự"
       },
       "buildingTypes": {
@@ -246,7 +297,7 @@
         "millimetre": "Milimét (mm)",
         "metre": "Mét (m)",
         "areaUnit": "Đơn vị diện tích",
-        "areaUnitValue": "mét vuông — ví dụ {{example}}",
+        "areaUnitValue": "Mét vuông — ví dụ {{example}}",
         "snapTolerance": "Dung sai bắt điểm",
         "confidenceThreshold": "Ngưỡng tin cậy",
         "scale": "Tỉ lệ bản vẽ",
@@ -256,7 +307,23 @@
       },
       "members": {
         "count": "{{count}} thành viên",
-        "readOnlyNote": "chỉ để xem trong bản này.",
+        "addAction": "Thêm thành viên",
+        "added": "Đã thêm {{name}}; hoàn tác sẽ gỡ người này, thông báo mời đã gửi không thu hồi được.",
+        "alreadyMember": "Người này đã là thành viên.",
+        "badEmail": "Địa chỉ email chưa đúng.",
+        "emailLabel": "Email người cần thêm",
+        "emailRequired": "Chưa nhập địa chỉ email.",
+        "lastEditor": "Không gỡ được: dự án cần ít nhất một người sửa được cài đặt.",
+        "rateLimited": "Bạn đã thêm nhiều thành viên trong giờ này; hãy thử lại sau.",
+        "removeAction": "Gỡ",
+        "removeLabel": "Gỡ {{name}}",
+        "removeMessage": "Người này sẽ không còn truy cập được dự án. Muốn quay lại phải thêm lại.",
+        "removeSelfMessage": "Bạn sẽ mất quyền xem dự án này. Muốn quay lại phải nhờ người khác thêm lại.",
+        "removeTitle": "Gỡ {{name}} khỏi dự án?",
+        "removed": "Đã gỡ {{name}} khỏi dự án.",
+        "unavailable": "Không thêm được: địa chỉ này chưa có tài khoản đang hoạt động.",
+        "undoAdd": "Hoàn tác việc thêm thành viên",
+        "undoAddFailed": "Không gỡ lại được người vừa thêm.",
         "emptyTitle": "Chưa có thành viên nào",
         "emptyDescription": "Dự án này chưa có ai ngoài chủ sở hữu. Tên của họ sẽ hiện ở đây khi có thêm người.",
         "roles": {
@@ -292,6 +359,8 @@
         "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
         "notesTooLong": "Ghi chú không quá {{max}} ký tự.",
         "snapRequired": "Chưa nhập dung sai bắt điểm.",
+        "emptyBlocked": "Bản này chưa xoá trống được.",
+        "snapNotInteger": "Dung sai bắt điểm phải là số nguyên.",
         "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
         "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",
         "scaleRequired": "Chưa nhập tỉ lệ bản vẽ.",
@@ -302,25 +371,37 @@
         "errorFallback": "Không tải được cài đặt dự án.",
         "retry": "Thử lại",
         "conflictTitle": "Cài đặt đã đổi ở nơi khác",
+        "conflictMessage": "Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.",
+        "fieldRejected": "Máy chủ không nhận giá trị này. Kiểm tra lại ô này.",
+        "partGeneral": "Thông tin chung",
+        "partUnits": "Đơn vị đo",
+        "reloadDialogMessage": "Những thay đổi chưa lưu trên màn này sẽ mất, và bản mới nhất từ máy chủ sẽ thay vào chỗ đó.",
+        "reloadDialogTitle": "Tải lại sẽ bỏ thay đổi chưa lưu",
+        "reloadKeep": "Giữ thay đổi",
+        "saveFailureTitle": "Chưa lưu hết",
+        "saveNone": "Chưa lưu được {{failed}}.",
+        "savePartial": "Đã lưu {{saved}}, chưa lưu {{failed}}.",
         "reload": "Tải lại"
       },
       "savedToast": "Đã lưu cài đặt dự án.",
       "undoDescription": "Hoàn tác thay đổi cài đặt dự án",
       "missingProjectTitle": "Không xác định được dự án",
       "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở cài đặt của dự án nào."
-    }
+    },
+    "graphReloadFailed": "Không tải lại được mô hình.",
+    "graphReloadRetry": "Thử lại"
   },
   "account": {
-    "title": "cài đặt tài khoản",
-    "description": "Hồ sơ, giao diện, thông báo, phím tắt, mật khẩu và những phiên đang mở.",
+    "title": "Cài đặt tài khoản",
+    "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
     "sections": {
-      "profile": "hồ sơ",
-      "appearance": "giao diện",
-      "notifications": "thông báo",
-      "shortcuts": "phím tắt",
-      "password": "mật khẩu",
-      "sessions": "phiên đăng nhập",
-      "danger": "vùng nguy hiểm"
+      "profile": "Hồ sơ",
+      "appearance": "Giao diện",
+      "notifications": "Thông báo",
+      "shortcuts": "Phím tắt",
+      "password": "Mật khẩu",
+      "sessions": "Phiên đăng nhập",
+      "danger": "Vùng nguy hiểm"
     },
     "descriptions": {
       "profile": "Tên, ảnh đại diện và thông tin liên hệ.",
@@ -352,16 +433,40 @@
         "change": "Đổi ảnh",
         "alt": "Ảnh đại diện",
         "altOf": "Ảnh đại diện của {{name}}",
+        "confirm": {
+          "cancel": "Huỷ",
+          "confirmReplace": "Thay ảnh",
+          "previewAlt": "Ảnh đại diện mới",
+          "setBody": "Sau khi đặt chỉ thay được, không gỡ được.",
+          "setTitle": "Đặt ảnh đại diện?",
+          "replaceBody": "Ảnh cũ không khôi phục được.",
+          "replaceTitle": "Thay ảnh đại diện?"
+        },
+        "problems": {
+          "corrupt": "Không đọc được ảnh này, tệp có thể đã hỏng.",
+          "dimensions": "Ảnh rộng hoặc cao quá 4096 điểm ảnh.",
+          "fileTooBig": "Ảnh tối đa 512 KB. Hãy chọn ảnh nhỏ hơn.",
+          "mismatch": "Nội dung tệp không khớp loại ảnh. Chọn lại tệp PNG hoặc JPEG.",
+          "rateLimited": "Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.",
+          "tooLarge": "Ảnh quá lớn, hãy chọn ảnh nhỏ hơn.",
+          "unsupported": "Chỉ nhận ảnh PNG hoặc JPEG."
+        },
         "uploading": "Đang tải ảnh lên…"
       },
       "fields": {
-        "fullName": "họ tên",
-        "jobTitle": "chức danh",
-        "email": "thư điện tử",
-        "phone": "điện thoại",
-        "language": "ngôn ngữ"
+        "fullName": "Họ tên",
+        "jobTitle": "Chức danh",
+        "email": "Thư điện tử",
+        "phone": "Điện thoại",
+        "language": "Ngôn ngữ"
       },
-      "jobTitlePlaceholder": "chưa đặt",
+      "fieldProblems": {
+        "fullName": "Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.",
+        "jobTitle": "Chức danh tối đa 120 ký tự, không chứa ký tự điều khiển.",
+        "phone": "Số điện thoại tối đa 32 ký tự."
+      },
+      "jobTitlePlaceholder": "Chưa đặt",
+      "localOnly": "Chỉ giữ trong phiên này",
       "email": {
         "change": "Đổi thư điện tử",
         "readOnlyShort": "Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.",
@@ -374,20 +479,20 @@
     },
     "appearance": {
       "fields": {
-        "theme": "chủ đề",
-        "viewportDark": "dùng nền tối cho khung nhìn 3D",
-        "reducedMotion": "giảm chuyển động",
-        "showGrid": "hiện lưới 100 mm",
-        "density": "mật độ hiển thị"
+        "theme": "Chủ đề",
+        "viewportDark": "Dùng nền tối cho khung nhìn 3D",
+        "reducedMotion": "Giảm chuyển động",
+        "showGrid": "Hiện lưới 100 mm",
+        "density": "Mật độ hiển thị"
       },
       "themes": {
-        "light": "sáng",
-        "dark": "tối",
-        "system": "theo hệ thống"
+        "light": "Sáng",
+        "dark": "Tối",
+        "system": "Theo hệ thống"
       },
       "densities": {
-        "comfortable": "thoải mái",
-        "compact": "gọn"
+        "comfortable": "Thoải mái",
+        "compact": "Gọn"
       },
       "hints": {
         "viewportDark": "Chỉ đổi màu vùng mô hình, giao diện vẫn sáng.",
@@ -397,7 +502,7 @@
     },
     "notifications": {
       "caption": "Hàng là sự việc, cột là kênh nhận thông báo.",
-      "eventColumn": "sự việc",
+      "eventColumn": "Sự việc",
       "channels": {
         "inApp": "Trong ứng dụng",
         "email": "Thư điện tử"
@@ -412,25 +517,25 @@
     },
     "shortcuts": {
       "caption": "Tổ hợp phím và việc mà nó làm.",
-      "filterLabel": "tìm phím tắt",
+      "filterLabel": "Tìm phím tắt",
       "filterPlaceholder": "Gõ để lọc ngay",
-      "comboColumn": "tổ hợp phím",
-      "actionColumn": "việc",
+      "comboColumn": "Tổ hợp phím",
+      "actionColumn": "Việc",
       "countAll": "{{total}} phím tắt đang có hiệu lực.",
       "countFiltered": "Đang hiện {{shown}} trong {{total}} phím tắt.",
       "empty": "Không có phím tắt nào khớp với ô tìm.",
-      "missingDescription": "chưa có mô tả"
+      "missingDescription": "Chưa có mô tả"
     },
     "password": {
-      "currentLabel": "mật khẩu hiện tại",
-      "newLabel": "mật khẩu mới",
-      "confirmLabel": "nhắc lại mật khẩu mới",
+      "currentLabel": "Mật khẩu hiện tại",
+      "newLabel": "Mật khẩu mới",
+      "confirmLabel": "Nhắc lại mật khẩu mới",
       "submit": "Đổi mật khẩu",
       "strengthPrefix": "Độ mạnh",
       "strength": {
-        "weak": "yếu",
-        "fair": "khá",
-        "strong": "mạnh"
+        "weak": "Yếu",
+        "fair": "Khá",
+        "strong": "Mạnh"
       },
       "managedTitle": "Đăng nhập một lần của công ty",
       "managedReason": "Do quản trị viên công ty quản lý.",
@@ -444,10 +549,13 @@
         "confirmMismatch": "Hai ô mật khẩu chưa khớp nhau.",
         "managedExternally": "Tài khoản này do quản trị viên công ty quản lý, không đổi ở đây được."
       },
-      "changed": "Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới."
+      "changed": "Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.",
+      "rateLimited": "Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "unavailable": "Không đổi được mật khẩu lúc này. Thử lại sau ít phút.",
+      "wrongAfterFailure": "Có thể mật khẩu đã đổi ở lượt trước; hãy thử mật khẩu mới."
     },
     "sessions": {
-      "currentBadge": "thiết bị này",
+      "currentBadge": "Thiết bị này",
       "signOut": "Đăng xuất",
       "signOutOne": "Đăng xuất khỏi {{device}}",
       "signedOutOf": "Đã đăng xuất khỏi {{device}}",
@@ -455,13 +563,13 @@
       "retry": "Thử lại"
     },
     "danger": {
-      "deleteTitle": "xoá tài khoản",
+      "deleteTitle": "Xoá tài khoản",
       "deleteDescription": "Xoá vĩnh viễn tài khoản này cùng mọi dự án chỉ mình bạn giữ. Việc này không hoàn tác được.",
       "deleteButton": "Xoá tài khoản",
       "dialogTitle": "Xoá tài khoản này?",
       "dialogBody": "Mọi dự án, bản vẽ và mô hình chỉ mình bạn giữ sẽ mất theo, và không có đường lấy lại.",
       "confirmPrompt": "Gõ lại {{email}} để xác nhận.",
-      "confirmLabel": "địa chỉ thư",
+      "confirmLabel": "Địa chỉ thư",
       "cancel": "Để sau",
       "confirm": "Xoá vĩnh viễn",
       "problems": {
@@ -495,12 +603,12 @@
     "tutorial": "Xem hướng dẫn 2 phút",
     "tutorialDisabled": "Hướng dẫn hai phút chưa sẵn sàng.",
     "skip": "Bỏ qua",
-    "skipNotice": "Có thể xem lại hướng dẫn trong menu trợ giúp.",
+    "skipNotice": "Màn chào sẽ không hiện lại trên trình duyệt này.",
     "finish": "Vào danh sách dự án",
     "errorTitle": "Không đọc được tiến độ",
     "errorDescription": "Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.",
     "retry": "Thử lại",
-    "forbiddenNote": "Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
+    "forbiddenNote": "Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
   },
   "floorUpload": {
     "breadcrumb": {
@@ -513,18 +621,18 @@
       "formats": "Định dạng hỗ trợ: {{formats}}. Kích thước tối đa: {{maxSize}}."
     },
     "floorCard": {
-      "elevation": "cao độ",
-      "height": "chiều cao thông thuỷ",
+      "elevation": "Cao độ",
+      "height": "Chiều cao thông thuỷ",
       "fileInfo": "{{fileName}} · {{fileSize}} · {{pageCount}} trang",
       "reassignLabel": "Gán cho tầng khác",
       "pagePickerLabel": "Chọn trang",
       "menuButton": "Tùy chọn của tầng {{floorName}}"
     },
     "status": {
-      "waiting": "chờ xử lý",
-      "uploading": "đang tải lên",
-      "attached": "đã gắn kèm",
-      "error": "lỗi"
+      "waiting": "Chờ xử lý",
+      "uploading": "Đang tải lên",
+      "attached": "Đã gắn kèm",
+      "error": "Lỗi"
     },
     "cadPill": "Nhánh CAD · độ chính xác cao",
     "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
@@ -551,9 +659,12 @@
       "uploadProgress": "Đã tải {{percent}}% của {{total}}",
       "uploadComplete": "Tải xong {{fileName}}"
     },
+    "pendingUploadLabel": "Tải bản vẽ {{fileName}} khi có mạng",
     "notices": {
-      "cadNotSupported": "bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.",
-      "pickPageToStart": "hãy chọn trang bản vẽ để bắt đầu tải"
+      "cadNotSupported": "Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.",
+      "pickPageToStart": "Hãy chọn trang bản vẽ để bắt đầu tải",
+      "awaitNetwork": "Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp",
+      "displacedToTray": "{{fileName}} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác"
     }
   },
   "inputQualityGate": {
@@ -591,18 +702,18 @@
     "reportPanel": {
       "sectionLabel": "Báo cáo chất lượng",
       "qualityLevel": {
-        "good": "tốt",
+        "good": "Tốt",
         "attention": "cần chú ý",
-        "poor": "kém"
+        "poor": "Kém"
       },
       "findingsHeading": "Phát hiện",
       "floorsHeading": "Các tầng đã đo",
       "column": {
         "floor": "tầng",
-        "summary": "kết quả đo",
-        "level": "mức"
+        "summary": "Kết quả đo",
+        "level": "Mức"
       },
-      "notMeasured": "chưa đo",
+      "notMeasured": "Chưa đo",
       "remainingSuffix": " phát hiện còn lại",
       "resolvedSuffix": "đã xử lý"
     },
@@ -612,7 +723,10 @@
       "primary": "Tiếp tục xử lý",
       "secondary": "Tải bản vẽ khác",
       "continueBlockedAcknowledgement": "Đánh dấu ô xác nhận bên trên rồi thử lại.",
-      "continueBlockedGeneric": "Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo."
+      "continueBlockedGeneric": "Vẫn còn phát hiện cần xử lý trước khi qua bước tiếp theo.",
+      "continueWaitingReading": "Đang đọc kết quả kiểm tra; chờ xong rồi tiếp tục.",
+      "continueReadFailed": "Chưa đọc được kết quả kiểm tra; hãy tải bản vẽ khác hoặc thử lại sau.",
+      "continueNoDrawing": "Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước."
     },
     "image": {
       "altText": "Bản vẽ tầng {{floorName}}, đang xem để kiểm tra chất lượng đầu vào"
@@ -621,9 +735,9 @@
       "labelPrefix": "Vùng ảnh có vấn đề:"
     },
     "metric": {
-      "resolution": "độ phân giải",
+      "resolution": "Độ phân giải",
       "skew": "độ nghiêng",
-      "contrast": "độ tương phản",
+      "contrast": "Độ tương phản",
       "noise": "nhiễu"
     },
     "recommendation": {
@@ -664,8 +778,8 @@
       "sendCorners": "Gửi bốn góc đã chọn"
     },
     "floorRow": {
-      "notMeasured": "chưa đo",
-      "noFinding": "không có phát hiện",
+      "notMeasured": "Chưa đo",
+      "noFinding": "Không có phát hiện",
       "findingCount": "{{count}} phát hiện cần chú ý"
     },
     "forecast": {
@@ -680,10 +794,6 @@
       "noFloor": "Dự án chưa có tầng nào tải bản vẽ lên, nên chưa có gì để đo.",
       "loadFailureFallback": "Không đọc được kết quả kiểm tra chất lượng của bản vẽ này."
     },
-    "toast": {
-      "straightened": "Đã nắn thẳng bản vẽ",
-      "corners": "Đã gửi bốn góc khung bản vẽ"
-    },
     "announce": {
       "floorChanged": "Đang xem bản vẽ tầng {{floorName}}"
     },
@@ -691,102 +801,32 @@
       "previousFloor": "xem bản vẽ của tầng liền trước",
       "nextFloor": "xem bản vẽ của tầng liền sau",
       "exitCornerMode": "thoát chế độ chọn bốn góc khung bản vẽ"
-    }
-  },
-  "billing": {
-    "plans": {
-      "starter": {
-        "name": "Cơ bản",
-        "feature1": "500 m² số hoá mỗi tháng",
-        "feature2": "3 dự án đang hoạt động",
-        "feature3": "Xuất mô hình 3D độ phân giải chuẩn",
-        "feature4": "Lưu bản vẽ 30 ngày",
-        "feature5": "Hỗ trợ qua email trong giờ hành chính",
-        "feature6": "1 thành viên chỉnh sửa"
-      },
-      "growth": {
-        "name": "Chuyên nghiệp",
-        "feature1": "5.000 m² số hoá mỗi tháng",
-        "feature2": "Không giới hạn dự án đang hoạt động",
-        "feature3": "Xuất mô hình 3D độ phân giải cao",
-        "feature4": "Lưu bản vẽ không giới hạn",
-        "feature5": "Hỗ trợ ưu tiên 24/7",
-        "feature6": "5 thành viên chỉnh sửa"
-      },
-      "enterprise": {
-        "name": "Doanh nghiệp",
-        "feature1": "20.000 m² số hoá mỗi tháng",
-        "feature2": "Không giới hạn dự án và thành viên",
-        "feature3": "Xuất mô hình 3D kèm decal vật liệu",
-        "feature4": "Sao lưu bản vẽ riêng theo yêu cầu",
-        "feature5": "Quản lý tài khoản chuyên trách",
-        "feature6": "Tích hợp API riêng theo yêu cầu"
-      },
-      "currentAction": "Gói hiện tại",
-      "upgradeAction": "Nâng gói",
-      "changePlanHint": "Bảng so sánh gói ở ngay bên dưới, chọn một gói để nâng.",
-      "title": "So sánh gói",
-      "recommendedBadge": "Đề xuất",
-      "periodAriaLabel": "Kỳ thanh toán"
-    },
-    "quota": {
-      "usage": "{{used}} / {{limit}} đã số hoá trong chu kỳ này",
-      "renew": "Gia hạn ngày {{date}}",
-      "alert": "Sắp hết hạn mức. Còn {{remaining}}.",
-      "recalculating": "Đang tính lại hạn mức.",
-      "eyebrow": "Gói hiện tại",
-      "changePlan": "Đổi gói"
-    },
-    "period": {
-      "monthly": "Theo tháng",
-      "yearly": "Theo năm",
-      "monthlyUnit": "mỗi tháng",
-      "yearlyUnit": "mỗi năm"
-    },
-    "estimate": {
-      "lead": "Số hoá thủ công ngoài thị trường tốn khoảng ",
-      "middle": " mỗi m². AppFront tính ",
-      "tail": " mỗi m² cho phần diện tích đã số hoá.",
-      "areaRow": "Diện tích tháng này",
-      "unitRow": "Đơn giá",
-      "subtotalRow": "Tạm tính",
-      "title": "Ước tính"
-    },
-    "invoices": {
-      "unavailable": "Không lấy được lịch sử hoá đơn.",
-      "period": "{{from}} – {{to}}",
-      "download": "Tải hoá đơn {{code}} dạng PDF",
-      "statusPaid": "Đã thanh toán",
-      "statusPending": "Chờ thanh toán",
-      "statusOverdue": "Quá hạn",
-      "pageLabel": "Trang {{index}} / {{count}}",
-      "title": "Hoá đơn",
-      "columnCode": "Mã",
-      "columnPeriod": "Kỳ",
-      "columnArea": "Diện tích",
-      "columnAmount": "Số tiền",
-      "columnStatus": "Trạng thái",
-      "columnDownloadSr": "Tải PDF",
-      "previousPage": "Trang trước",
-      "nextPage": "Trang sau",
-      "emptyTitle": "Chưa có hoá đơn nào",
-      "emptyDescription": "Hoá đơn sẽ xuất hiện ở đây sau khi bạn bắt đầu số hoá bản vẽ."
     },
     "confirm": {
-      "title": "Xác nhận nâng gói",
-      "planRow": "Gói mới",
-      "remainingRow": "Phần còn lại của chu kỳ",
-      "dueRow": "Thanh toán ngay",
       "cancel": "Huỷ",
-      "dayUnit": "{{days}} ngày"
+      "cornersBody": "Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.",
+      "cornersConfirm": "Cắt và nắn",
+      "cornersTitle": "Cắt và nắn bản vẽ tầng {{name}} theo bốn góc?",
+      "straightenBody": "Máy chủ sẽ thay ảnh gốc bằng ảnh đã nắn và xử lý lại tầng này; việc này không hoàn tác được.",
+      "straightenConfirm": "Nắn thẳng",
+      "straightenTitle": "Nắn thẳng bản vẽ tầng {{name}}?"
     },
-    "readOnlyNotice": "Chỉ quản trị viên có thể thay đổi gói.",
-    "retry": "Thử lại",
-    "screenTitle": "Thanh toán",
-    "invoiceCard": {
-      "periodLabel": "Kỳ",
-      "areaLabel": "Diện tích",
-      "amountLabel": "Số tiền"
+    "noDrawing": {
+      "action": "Tải bản vẽ lên",
+      "notice": "Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.",
+      "title": "Chưa có bản vẽ để kiểm tra"
+    },
+    "writeError": {
+      "drawingChanged": "Bản vẽ của tầng vừa đổi, kết quả đo đã được đọc lại; hãy xem rồi thử lại.",
+      "fallback": "Chưa xử lý được bản vẽ; hãy thử lại.",
+      "fileCorrupt": "Tệp bản vẽ bị hỏng; hãy tải lại tệp.",
+      "imageTooLarge": "Ảnh bản vẽ lớn hơn mức xử lý được; hãy tải bản vẽ nhỏ hơn.",
+      "invalidCorners": "Bốn góc chưa tạo thành một khung hợp lệ; hãy chọn lại.",
+      "layerReviewed": "Tầng này đã có tỉ lệ hoặc hình học do người chỉnh, nên không nắn hay cắt lại bản vẽ được nữa.",
+      "pdfUnreadable": "Không đọc được trang PDF của bản vẽ; hãy tải lại tệp.",
+      "queueFull": "Hàng xử lý đang đầy; hãy thử lại sau ít phút.",
+      "title": "Chưa xử lý được bản vẽ",
+      "uncertain": "Chưa chắc máy chủ đã nhận thao tác; kết quả đo đang được đọc lại."
     }
   },
   "processingScreen": {
@@ -856,20 +896,20 @@
       "message": "Đường dẫn thiếu mã dự án, nên không biết phải mở màn xử lý của dự án nào."
     },
     "stageStatus": {
-      "queued": "đang chờ",
-      "running": "đang xử lý",
-      "done": "đã xong",
-      "failed": "lỗi"
+      "queued": "Đang chờ",
+      "running": "Đang xử lý",
+      "done": "Đã xong",
+      "failed": "Lỗi"
     },
     "units": {
-      "floor": "tầng",
-      "wall": "tường",
-      "object": "đối tượng",
-      "dimensionChain": "chuỗi kích thước",
-      "room": "phòng"
+      "floor": "Tầng",
+      "wall": "Tường",
+      "object": "Đối tượng",
+      "dimensionChain": "Chuỗi kích thước",
+      "room": "Phòng"
     },
     "step": {
-      "remaining": "còn khoảng {{duration}}",
+      "remaining": "Còn khoảng {{duration}}",
       "errorFallback": "Bước này gặp lỗi nên không hoàn tất được."
     },
     "overall": {
@@ -984,7 +1024,7 @@
       "title": "Tỷ lệ hiện tại",
       "unknownValue": "chưa có",
       "derivedLine": "1 pixel = {{millimetres}} · bản vẽ ở tỷ lệ khoảng {{ratio}}",
-      "derivedLineUnknown": "chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ"
+      "derivedLineUnknown": "Chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ"
     },
     "method": {
       "title": "Cách xác định",
@@ -1039,9 +1079,9 @@
     "crossChecks": {
       "title": "Kiểm chứng",
       "ariaLabel": "Ba đại lượng dẫn xuất để kiểm chứng tỷ lệ",
-      "wallThickness": "độ dày tường điển hình",
-      "doorWidth": "bề rộng cửa đi điển hình",
-      "largestRoomArea": "diện tích phòng lớn nhất",
+      "wallThickness": "Độ dày tường điển hình",
+      "doorWidth": "Bề rộng cửa đi điển hình",
+      "largestRoomArea": "Diện tích phòng lớn nhất",
       "expectedRange": "khoảng hợp lý {{min}} – {{max}}",
       "expectedRangeFrom": "khoảng hợp lý từ {{min}} trở lên",
       "outOfRange": "ngoài khoảng hợp lý"
@@ -1059,7 +1099,18 @@
       "scopeAllFloors": "Áp cho mọi tầng",
       "scopeThisFloor": "Chỉ áp cho tầng này",
       "undoToast": "Đã áp tỷ lệ {{scale}}",
-      "undoLabel": "Hoàn tác"
+      "undoLabel": "Hoàn tác",
+      "allFloorsCancel": "Huỷ",
+      "allFloorsConfirm": "Áp cho mọi tầng",
+      "allFloorsMessage": "Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.",
+      "allFloorsReadFailed": "Không tải được danh sách tầng để áp tỉ lệ.",
+      "allFloorsReportBlocked": "Chưa gửi vì tầng đang bị khoá lưu: {{floors}}.",
+      "allFloorsReportFailed": "Không lưu được tỉ lệ cho: {{floors}}.",
+      "allFloorsReportSaved": "Đã áp tỉ lệ cho {{count}} tầng.",
+      "allFloorsReportSkipped": "Bỏ qua vì chưa có bản vẽ: {{floors}}.",
+      "allFloorsTitle": "Áp tỉ lệ này cho {{count}} tầng có bản vẽ?",
+      "applyFailed": "Chưa lưu được tỉ lệ lên máy chủ, tầng giữ tỉ lệ cũ.",
+      "undoProvisional": "Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn."
     },
     "statusBar": {
       "ariaLabel": "Thanh trạng thái hiệu chỉnh tỷ lệ",
@@ -1142,7 +1193,7 @@
     "branch": {
       "cad": "Nhánh tệp CAD",
       "ai": "Nhánh ảnh quét",
-      "activeBadge": "đang dùng",
+      "activeBadge": "Đang dùng",
       "reasonCad": "Hồ sơ có tệp CAD còn nguyên lớp, nên đường hình học lấy thẳng từ tệp thay vì dò lại bằng ảnh.",
       "reasonAi": "Hồ sơ chỉ có bản quét, nên mỗi tầng đi qua sáu bước nhận dạng rồi mới hợp lại.",
       "reasonUnknown": "Mỗi tầng đang đi một nhánh khác nhau, nên chưa có một câu trả lời chung cho cả hồ sơ.",
@@ -1154,13 +1205,13 @@
     },
     "overview": {
       "inputLabel": "Tệp đầu vào",
-      "inputCaption": "bản vẽ kiến trúc của hồ sơ",
-      "cadCaption": "đường hình học đọc thẳng từ tệp",
-      "aiCaption": "sáu bước nhận dạng chạy trên ảnh",
+      "inputCaption": "Bản vẽ kiến trúc của hồ sơ",
+      "cadCaption": "Đường hình học đọc thẳng từ tệp",
+      "aiCaption": "Sáu bước nhận dạng chạy trên ảnh",
       "mergeLabel": "Dữ liệu không gian đa tầng",
-      "mergeCaption": "hai nhánh hợp lại ở một tệp duy nhất",
+      "mergeCaption": "Hai nhánh hợp lại ở một tệp duy nhất",
       "modelLabel": "Dựng mô hình 3D",
-      "modelCaption": "mặt bằng và khối nhà dựng từ tệp đó",
+      "modelCaption": "Mặt bằng và khối nhà dựng từ tệp đó",
       "comparisonCaption": "So sánh hai nhánh",
       "comparisonAspectHeader": "Mặt so sánh",
       "evidenceCaption": "Dẫn chứng theo tầng",
@@ -1172,10 +1223,10 @@
       "aspectRisk": "Rủi ro"
     },
     "status": {
-      "queued": "chờ chạy",
-      "running": "đang chạy",
-      "done": "đã xong",
-      "failed": "hỏng"
+      "queued": "Chờ chạy",
+      "running": "Đang chạy",
+      "done": "Đã xong",
+      "failed": "Hỏng"
     },
     "nodes": {
       "sourceImage": "Ảnh gốc",
@@ -1189,15 +1240,15 @@
       "spatialJson": "Dựng dữ liệu không gian"
     },
     "preprocessSteps": {
-      "grayscale": "chuyển xám",
-      "blur": "làm mờ Gauss",
-      "edges": "dò cạnh Canny",
-      "contour": "tìm đường biên",
-      "warp": "nắn phối cảnh 3000×3000"
+      "grayscale": "Chuyển xám",
+      "blur": "Làm mờ Gauss",
+      "edges": "Dò cạnh Canny",
+      "contour": "Tìm đường biên",
+      "warp": "Nắn phối cảnh 3000×3000"
     },
     "normaliseSteps": {
-      "steps": "quy về 110 / 220 / 330 mm",
-      "column": "hoặc nhận là cột bê tông"
+      "steps": "Quy về 110 / 220 / 330 mm",
+      "column": "Hoặc nhận là cột bê tông"
     },
     "detail": {
       "disclosureLabel": "Chi tiết kỹ thuật",
@@ -1210,8 +1261,8 @@
       "thumbnailHeader": "Ảnh của bước",
       "logLabel": "Nhật ký",
       "thumbnailAltPrefix": "Ảnh trung gian của bước ",
-      "defaultOutputUnit": "đối tượng",
-      "unknownValue": "chưa có số liệu",
+      "defaultOutputUnit": "Đối tượng",
+      "unknownValue": "Chưa có số liệu",
       "zoomIn": "Phóng to sơ đồ",
       "zoomOut": "Thu nhỏ sơ đồ",
       "zoomReset": "Về tỷ lệ gốc"
@@ -1274,7 +1325,7 @@
         "dismiss": "Huỷ"
       },
       "rememberChoice": "Ghi nhớ lựa chọn cho dự án này",
-      "rememberChoiceSessionNote": "lựa chọn chỉ được giữ trong phiên làm việc này, tải lại trang sẽ hỏi lại"
+      "rememberChoiceSessionNote": "Lựa chọn chỉ được giữ trong phiên làm việc này, tải lại trang sẽ hỏi lại"
     },
     "phase2": {
       "panelTitle": "Ánh xạ lớp từ tệp CAD",
@@ -1297,10 +1348,10 @@
         "label": "Tuỳ chọn nhập",
         "drawingUnit": "Đơn vị bản vẽ",
         "units": {
-          "mm": "milimét (mm)",
-          "cm": "centimét (cm)",
-          "m": "mét (m)",
-          "inch": "inch"
+          "mm": "Milimét (mm)",
+          "cm": "Centimét (cm)",
+          "m": "Mét (m)",
+          "inch": "Inch"
         },
         "coordinateOrigin": "Gốc toạ độ",
         "originOptions": {
@@ -1330,10 +1381,10 @@
       "forbiddenDescription": "Tài khoản hiện tại không được phép sử dụng tính năng xử lý tệp CAD. Liên hệ quản trị dự án để nâng cấp quyền truy cập.",
       "collapsedTitle": "Ánh xạ lớp từ tệp CAD",
       "collapsedDescription": "Bảng đã được đóng. Mở lại để điều chỉnh ánh xạ lớp hoặc tiếp tục nhập hình học.",
-      "detectedUnitHint": "gợi ý đọc được từ tệp",
-      "previewCanvasAriaLabel": "xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán",
-      "layerRoleSelectAriaLabel": "vai trò của lớp {layerName}",
-      "layerSourceColorAriaLabel": "màu gốc của lớp {layerName}"
+      "detectedUnitHint": "Gợi ý đọc được từ tệp",
+      "previewCanvasAriaLabel": "Xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán",
+      "layerRoleSelectAriaLabel": "Vai trò của lớp {layerName}",
+      "layerSourceColorAriaLabel": "Màu gốc của lớp {layerName}"
     },
     "errors": {
       "unsupportedVersion": "Tệp được lưu bằng AutoCAD phiên bản {version}, mà hệ thống chỉ hỗ trợ đến 2023. Vui lòng mở tệp lại trong AutoCAD 2023 hoặc phiên bản cũ hơn, lưu lại, rồi tải lên.",
@@ -1364,6 +1415,13 @@
     }
   },
   "wallLayerReview": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "title": "Duyệt lớp tường"
     },
@@ -1374,17 +1432,17 @@
     "row": {
       "approve": "Duyệt đoạn này",
       "skip": "Bỏ qua",
-      "attention": "cần chú ý"
+      "attention": "Cần chú ý"
     },
     "inspector": {
       "advancedTitle": "Thông số nâng cao",
-      "length": "chiều dài",
-      "height": "chiều cao",
-      "confidence": "độ tin cậy",
-      "material": "vật liệu",
-      "elevationOffset": "lệch Z",
-      "startPoint": "toạ độ đầu",
-      "endPoint": "toạ độ cuối"
+      "length": "Chiều dài",
+      "height": "Chiều cao",
+      "confidence": "Độ tin cậy",
+      "material": "Vật liệu",
+      "elevationOffset": "Lệch Z",
+      "startPoint": "Toạ độ đầu",
+      "endPoint": "Toạ độ cuối"
     },
     "filters": {
       "onlyUnreviewed": "Chỉ hiện chưa duyệt",
@@ -1399,18 +1457,18 @@
       "delete": "Xoá"
     },
     "tools": {
-      "select": "chọn",
-      "drawWall": "vẽ tường",
-      "splitWall": "tách đoạn",
-      "mergeWall": "nối đoạn",
-      "measure": "đo",
+      "select": "Chọn",
+      "drawWall": "Vẽ tường",
+      "splitWall": "Tách đoạn",
+      "mergeWall": "Nối đoạn",
+      "measure": "Đo",
       "mergeHint": "Chọn hai đoạn tường để gộp",
       "collapsePanels": "Thu gọn hai panel",
       "expandPanels": "Mở lại hai panel"
     },
     "state": {
       "emptyDescription": "Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.",
-      "successContinue": "Sang lớp Cửa và nội thất",
+      "successContinue": "Sang lớp cửa và nội thất",
       "forbiddenNotice": "Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.",
       "filterNoMatch": "Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.",
       "emptyListTitle": "Chưa có đoạn tường nào"
@@ -1421,8 +1479,8 @@
       "dimensions": "Kích thước",
       "axes": "Trục",
       "rooms": "Phòng",
-      "showWalls": "Hiện lớp Tường",
-      "hideWalls": "Ẩn lớp Tường"
+      "showWalls": "Hiện lớp tường",
+      "hideWalls": "Ẩn lớp tường"
     },
     "aria": {
       "screen": "Duyệt lớp tường",
@@ -1434,7 +1492,7 @@
       "floorNav": "Tầng của bản vẽ"
     },
     "statusBar": {
-      "cursorIdle": "chưa rê chuột lên bản vẽ"
+      "cursorIdle": "Chưa rê chuột lên bản vẽ"
     },
     "canvas": {
       "waitingFrame": "Chưa có ảnh bản vẽ của tầng này",
@@ -1456,59 +1514,66 @@
     }
   },
   "objectLayerReview": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
-      "title": "lớp đối tượng"
+      "title": "Lớp đối tượng"
     },
     "aria": {
-      "screen": "lớp đối tượng",
-      "canvas": "mặt bằng lớp đối tượng",
-      "legend": "chú giải màu lớp",
-      "layerTree": "cây lớp",
-      "subtypeFilters": "lọc theo loại",
-      "objectList": "danh sách đối tượng",
+      "screen": "Lớp đối tượng",
+      "canvas": "Mặt bằng lớp đối tượng",
+      "legend": "Chú giải màu lớp",
+      "layerTree": "Cây lớp",
+      "subtypeFilters": "Lọc theo loại",
+      "objectList": "Danh sách đối tượng",
       "toolRail": "Công cụ lớp đối tượng",
       "statusBar": "Thanh trạng thái"
     },
     "counter": {
       "reviewProgress": "{{reviewed}}/{{total}} đối tượng đã duyệt",
       "reviewedSuffix": " đối tượng đã duyệt",
-      "totalPrefix": "tổng ",
+      "totalPrefix": "Tổng ",
       "totalSuffix": " đối tượng",
       "objectCountSuffix": " đối tượng",
-      "layerTreeTotal": "tổng {{total}} đối tượng"
+      "layerTreeTotal": "Tổng {{total}} đối tượng"
     },
     "layer": {
-      "door": "cửa đi",
-      "window": "cửa sổ",
-      "furniture": "nội thất"
+      "door": "Cửa đi",
+      "window": "Cửa sổ",
+      "furniture": "Nội thất"
     },
     "layerTree": {
       "showPrefix": "Hiện lớp ",
       "hidePrefix": "Ẩn lớp "
     },
     "subtype": {
-      "singleDoor": "cửa đơn",
-      "doubleDoor": "cửa đôi",
-      "window": "cửa sổ",
-      "bed": "giường",
-      "sofa": "sofa",
-      "diningTable": "bàn ăn",
-      "toilet": "bồn cầu",
-      "basin": "chậu rửa"
+      "singleDoor": "Cửa đơn",
+      "doubleDoor": "Cửa đôi",
+      "window": "Cửa sổ",
+      "bed": "Giường",
+      "sofa": "Sofa",
+      "diningTable": "Bàn ăn",
+      "toilet": "Bồn cầu",
+      "basin": "Chậu rửa"
     },
     "group": {
       "expandPrefix": "Mở nhóm ",
       "collapsePrefix": "Gấp nhóm ",
-      "empty": "chưa có đối tượng nào trong nhóm này"
+      "empty": "Chưa có đối tượng nào trong nhóm này"
     },
     "list": {
       "sizeExample": "900 × 2.200 mm"
     },
     "status": {
-      "verified": "đã duyệt",
-      "attention": "cần chú ý",
-      "violation": "vi phạm",
-      "neutral": "bình thường"
+      "verified": "Đã duyệt",
+      "attention": "Cần chú ý",
+      "violation": "Vi phạm",
+      "neutral": "Bình thường"
     },
     "inspector": {
       "title": "Đối tượng",
@@ -1516,20 +1581,20 @@
       "approve": "Duyệt đối tượng này"
     },
     "field": {
-      "width": "chiều rộng",
-      "height": "chiều cao",
-      "hostWall": "tường chứa nó",
-      "position": "vị trí trên tường",
-      "swing": "hướng mở",
-      "confidence": "độ tin cậy",
-      "sillHeight": "cao độ bệ cửa"
+      "width": "Chiều rộng",
+      "height": "Chiều cao",
+      "hostWall": "Tường chứa nó",
+      "position": "Vị trí trên tường",
+      "swing": "Hướng mở",
+      "confidence": "Độ tin cậy",
+      "sillHeight": "Cao độ bệ cửa"
     },
     "swing": {
-      "left": "mở trái",
-      "right": "mở phải",
-      "double": "hai cánh",
-      "sliding": "cửa lùa",
-      "fixed": "cố định"
+      "left": "Mở trái",
+      "right": "Mở phải",
+      "double": "Hai cánh",
+      "sliding": "Cửa lùa",
+      "fixed": "Cố định"
     },
     "orphan": {
       "badge": "Chưa gắn vào tường nào",
@@ -1543,20 +1608,20 @@
       "remove": "Xoá"
     },
     "filter": {
-      "lowConfidenceOnly": "chỉ hiện mục dưới ngưỡng"
+      "lowConfidenceOnly": "Chỉ hiện mục dưới ngưỡng"
     },
     "state": {
-      "emptyTitle": "chưa nhận ra đối tượng nào",
-      "emptyExplanation": "nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.",
-      "emptyAction": "thêm thủ công",
+      "emptyTitle": "Chưa nhận ra đối tượng nào",
+      "emptyExplanation": "Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.",
+      "emptyAction": "Thêm thủ công",
       "partialNotice": "{{count}} mục dưới ngưỡng tin cậy, đã lọc sẵn",
-      "furnitureAttention": "nhận diện nội thất lỗi, cửa vẫn xong",
+      "furnitureAttention": "Nhận diện nội thất lỗi, cửa vẫn xong",
       "success": "{{total}}/{{total}} đối tượng đã duyệt",
-      "forbidden": "bạn không có quyền xem lớp đối tượng của dự án này",
+      "forbidden": "Bạn không có quyền xem lớp đối tượng của dự án này",
       "error": "Không tải được lớp đối tượng của tầng."
     },
     "canvas": {
-      "nothingToDraw": "chưa có đối tượng nào để vẽ trên mặt bằng.",
+      "nothingToDraw": "Chưa có đối tượng nào để vẽ trên mặt bằng.",
       "readOnlyNotice": "Mặt bằng vẫn xem và phóng to được, nhưng không chọn hay sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.",
       "backgroundAlt": "Bản vẽ gốc của {{floorName}}, dùng làm nền để đối chiếu lớp đối tượng."
     },
@@ -1570,8 +1635,8 @@
     },
     "toolRail": {
       "ariaLabel": "Công cụ lớp đối tượng",
-      "selectLayer": "chọn nhóm {{layer}} (phím {{key}})",
-      "selectSubtype": "đổi thành {{subtype}} (phím {{key}})"
+      "selectLayer": "Chọn nhóm {{layer}} (phím {{key}})",
+      "selectSubtype": "Đổi thành {{subtype}} (phím {{key}})"
     },
     "statusBar": {
       "ariaLabel": "Thanh trạng thái",
@@ -1603,20 +1668,20 @@
   },
   "dimensionOcrReview": {
     "screen": {
-      "title": "đọc kích thước OCR",
+      "title": "Đọc kích thước OCR",
       "canvasAriaLabel": "Bản vẽ lớp kích thước OCR",
       "dimensionListAriaLabel": "Danh sách kích thước đọc được",
       "comparisonBarAriaLabel": "Thanh so sánh với hình học"
     },
     "panel": {
       "title": "Kích thước đọc được",
-      "unitLabel": "mm"
+      "unitLabel": "Mm"
     },
     "filter": {
       "ariaLabel": "Lọc theo trạng thái duyệt",
-      "allLabel": "tất cả",
-      "lowConfidenceLabel": "độ tin cậy thấp",
-      "unreviewedLabel": "chưa duyệt"
+      "allLabel": "Tất cả",
+      "lowConfidenceLabel": "Độ tin cậy thấp",
+      "unreviewedLabel": "Chưa duyệt"
     },
     "row": {
       "approveLabel": "Duyệt kích thước này",
@@ -1636,53 +1701,53 @@
       "keys": {
         "enter": {
           "label": "Enter",
-          "description": "lưu và nhảy dòng sau"
+          "description": "Lưu và nhảy dòng sau"
         },
         "tab": {
           "label": "Tab",
-          "description": "sang cột sau"
+          "description": "Sang cột sau"
         },
         "esc": {
           "label": "Esc",
-          "description": "bỏ sửa"
+          "description": "Bỏ sửa"
         },
         "r": {
           "label": "R",
-          "description": "bật chế độ duyệt bàn phím"
+          "description": "Bật chế độ duyệt bàn phím"
         }
       }
     },
     "states": {
       "empty": {
-        "title": "chưa đọc được chuỗi kích thước nào",
+        "title": "Chưa đọc được chuỗi kích thước nào",
         "description": "Chuỗi kích thước trên bản vẽ có nét mảnh hoặc không rõ, nên OCR không tách được số. Hiệu chỉnh tỷ lệ bằng tay để đo độ dài từ bản vẽ.",
         "actionLabel": "Hiệu chỉnh tỷ lệ"
       },
       "loading": {
-        "title": "đang đọc kích thước",
+        "title": "Đang đọc kích thước",
         "description": "Hệ thống đang nhận diện chuỗi kích thước trên bản vẽ. Đợi một lát…"
       },
       "partial": {
-        "title": "một phần kích thước đã duyệt",
+        "title": "Một phần kích thước đã duyệt",
         "descriptionComplete": "{{count}} chuỗi dưới ngưỡng tin cậy. Bấm \"Chỉ hiện mục cần xem\" để xem những chuỗi đó.",
         "descriptionPartialOcr": "Vừa đọc xong một phần bản vẽ. {{count}} chuỗi dưới ngưỡng tin cậy, bộ lọc đã chỉnh sẵn.",
         "filterHintLabel": "Chỉ hiện mục cần xem"
       },
       "error": {
-        "title": "không đọc được kích thước",
+        "title": "Không đọc được kích thước",
         "description": "Hệ thống gặp lỗi khi xử lý bản vẽ. Thử lại để chạy lại bước này.",
         "actionLabel": "Thử lại"
       },
       "done": {
-        "title": "tất cả kích thước đã duyệt",
+        "title": "Tất cả kích thước đã duyệt",
         "description": "Mọi chuỗi kích thước trên bản vẽ đã kiểm tra xong."
       },
       "forbidden": {
-        "title": "không có quyền duyệt kích thước",
+        "title": "Không có quyền duyệt kích thước",
         "description": "Vai trò hiện tại chỉ được xem, không được chỉnh sửa lớp kích thước OCR. Liên hệ quản trị dự án nếu cần."
       },
       "collapsed": {
-        "title": "bảng duyệt đang thu gọn",
+        "title": "Bảng duyệt đang thu gọn",
         "description": "Bung bảng để xem danh sách kích thước và chỉnh sửa giá trị."
       }
     }
@@ -1690,7 +1755,7 @@
   "axisGridManager": {
     "screen": {
       "breadcrumb": "Dự án > Trục và gốc toạ độ",
-      "title": "quản lý trục và gốc toạ độ",
+      "title": "Quản lý trục và gốc toạ độ",
       "description": "Kiểm tra các trục nằm trùng khớp giữa các tầng và điều chỉnh khoảng cách nếu cần."
     },
     "axisPanel": {
@@ -1714,32 +1779,32 @@
       "selectLabel": "Chọn giao trục neo",
       "selectDescription": "Gốc toạ độ sẽ tính từ giao điểm trục này, khi di chuyển tầng để căn lên tầng gốc.",
       "selectPlaceholder": "A-1",
-      "offsetXPixels": "lệch X (pixel)",
-      "offsetYPixels": "lệch Y (pixel)",
-      "offsetXMm": "lệch X (mm)",
-      "offsetYMm": "lệch Y (mm)"
+      "offsetXPixels": "Lệch X (pixel)",
+      "offsetYPixels": "Lệch Y (pixel)",
+      "offsetXMm": "Lệch X (mm)",
+      "offsetYMm": "Lệch Y (mm)"
     },
     "alignmentPanel": {
       "title": "Căn chỉnh giữa các tầng",
       "autoAlignButton": "Căn chỉnh tự động",
       "status": {
-        "withinTolerance": "trong dung sai",
-        "needsAttention": "cần chú ý",
-        "cannotAlign": "không căn được"
+        "withinTolerance": "Trong dung sai",
+        "needsAttention": "Cần chú ý",
+        "cannotAlign": "Không căn được"
       },
-      "rootFloorLabel": "tầng gốc",
+      "rootFloorLabel": "Tầng gốc",
       "rowAriaLabel": "{{floorName}}, lệch {{offset}} mm, {{status}}"
     },
     "warning": {
-      "title": "cảnh báo lệch quá ngưỡng",
+      "title": "Cảnh báo lệch quá ngưỡng",
       "message": "Tầng {{floorName}} lệch {{offset}} mm so với tầng gốc, vượt quá ngưỡng {{threshold}} mm cho phép."
     },
     "warningAction": {
       "label": "Xem trên bản vẽ"
     },
     "constraint": {
-      "message": "không thể đặt {{axis1}} và {{axis2}} cách nhau dưới {{minimum}} mm — khoảng cách tối thiểu này giữ cho hai trục còn phân biệt được trên bản vẽ. khoảng cách hiện tại: {{distance}} mm.",
-      "ariaLive": "không thể đặt {{axis1}} và {{axis2}} cách dưới {{minimum}} mm"
+      "message": "Không thể đặt {{axis1}} và {{axis2}} cách nhau dưới {{minimum}} mm — khoảng cách tối thiểu này giữ cho hai trục còn phân biệt được trên bản vẽ. Khoảng cách hiện tại: {{distance}} mm.",
+      "ariaLive": "Không thể đặt {{axis1}} và {{axis2}} cách dưới {{minimum}} mm"
     },
     "undoToast": {
       "message": "Đã căn chỉnh {{count}} tầng thành công.",
@@ -1748,50 +1813,50 @@
     },
     "states": {
       "empty": {
-        "title": "chưa có trục nào",
+        "title": "Chưa có trục nào",
         "description": "Bạn có thể vẽ trục thủ công từ bản vẽ, hoặc cho hệ thống suy ra trục từ hình học tường bao.",
         "actionDrawManual": "Vẽ trục thủ công",
         "actionInfer": "Suy ra từ tường bao"
       },
       "loading": {
-        "title": "đang tính trục",
+        "title": "Đang tính trục",
         "description": "Hệ thống đang suy ra trục từ hình học tường bao. Đợi một lát…"
       },
       "partial": {
-        "titleVerticalOnly": "chỉ có trục dọc",
-        "titleMissingFloors": "một số tầng chưa có trục",
+        "titleVerticalOnly": "Chỉ có trục dọc",
+        "titleMissingFloors": "Một số tầng chưa có trục",
         "descriptionMissingFloors": "{{floors}} chưa có trục. Bạn có thể vẽ thủ công hoặc suy ra từ tường bao."
       },
       "error": {
-        "title": "không tính được trục",
+        "title": "Không tính được trục",
         "description": "Hệ thống gặp lỗi khi xử lý hình học tường. Thử lại để chạy lại bước này.",
         "actionLabel": "Thử lại"
       },
       "done": {
-        "title": "mọi tầng trong dung sai",
+        "title": "Mọi tầng trong dung sai",
         "description": "Mọi trục của các tầng đã được căn chỉnh và nằm trong dung sai cho phép.",
-        "badgeLabel": "đã duyệt"
+        "badgeLabel": "Đã duyệt"
       },
       "forbidden": {
-        "title": "không có quyền sửa trục",
+        "title": "Không có quyền sửa trục",
         "description": "Vai trò hiện tại chỉ được xem, không được chỉnh sửa các trục. Liên hệ quản trị dự án nếu cần."
       },
       "collapsed": {
-        "title": "bảng trục đang thu gọn",
+        "title": "Bảng trục đang thu gọn",
         "description": "Bung bảng để xem danh sách trục và căn chỉnh các tầng."
       }
     },
     "canvas": {
       "ariaLabel": "Khung xem bản vẽ quản lý trục và gốc toạ độ",
-      "originLabel": "gốc toạ độ 0,0",
-      "axisAriaLabel": "trục {{code}}, {{description}}",
-      "shadowFloorAriaLabel": "bóng ma tầng {{floorName}}"
+      "originLabel": "Gốc toạ độ 0,0",
+      "axisAriaLabel": "Trục {{code}}, {{description}}",
+      "shadowFloorAriaLabel": "Bóng ma tầng {{floorName}}"
     }
   },
   "floorManager": {
     "screen": {
       "breadcrumb": "Dự án > Quản lý tầng",
-      "title": "quản lý tầng",
+      "title": "Quản lý tầng",
       "description": "Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần."
     },
     "table": {
@@ -1816,52 +1881,52 @@
     },
     "drawings": {
       "count": "{{count}} bản vẽ",
-      "missing": "chưa có bản vẽ",
-      "uploadLink": "tải lên"
+      "missing": "Chưa có bản vẽ",
+      "uploadLink": "Tải lên"
     },
     "footer": {
       "floorCount": "{{count}} tầng",
-      "totalHeightLabel": "tổng chiều cao",
-      "totalAreaLabel": "tổng diện tích",
-      "totalWallsLabel": "tổng số tường",
-      "totalRoomsLabel": "tổng số phòng",
-      "totalHeightInline": "tổng cao"
+      "totalHeightLabel": "Tổng chiều cao",
+      "totalAreaLabel": "Tổng diện tích",
+      "totalWallsLabel": "Tổng số tường",
+      "totalRoomsLabel": "Tổng số phòng",
+      "totalHeightInline": "Tổng cao"
     },
     "sectionCut": {
       "title": "Lát cắt",
       "ariaLabel": "Lát cắt các tầng theo đúng tỷ lệ chiều cao",
       "elevationScaleLabel": "Thang cao độ",
       "bandAriaLabel": "{{floorName}}, cao {{height}}",
-      "collapse": "thu gọn lát cắt",
-      "expand": "hiện lát cắt",
-      "totalHeightLabel": "tổng chiều cao công trình",
+      "collapse": "Thu gọn lát cắt",
+      "expand": "Hiện lát cắt",
+      "totalHeightLabel": "Tổng chiều cao công trình",
       "bandSelectedSuffix": ", đang chọn"
     },
     "actions": {
       "addFloor": "Thêm tầng",
       "duplicateFloor": "Nhân bản tầng {{floorName}}",
-      "duplicateCopyFurniture": "sao chép nội thất sang tầng mới",
-      "hideIn3d": "ẩn khỏi mô hình 3D",
-      "showIn3d": "hiện trong mô hình 3D",
-      "removeFloor": "xoá tầng",
-      "autoElevation": "tự động tính cao độ",
+      "duplicateCopyFurniture": "Sao chép nội thất sang tầng mới",
+      "hideIn3d": "Ẩn khỏi mô hình 3D",
+      "showIn3d": "Hiện trong mô hình 3D",
+      "removeFloor": "Xoá tầng",
+      "autoElevation": "Tự động tính cao độ",
       "autoElevationDescription": "Cao độ từng tầng được dồn lại từ mốc chuẩn mỗi khi ngăn xếp đổi thứ tự.",
       "duplicateFloorToolbar": "Nhân bản tầng",
-      "duplicateConfirm": "nhân bản",
-      "rename": "đổi tên",
+      "duplicateConfirm": "Nhân bản",
+      "rename": "Đổi tên",
       "moreActions": "Thao tác khác cho tầng {{floorName}}",
       "retry": "Thử lại"
     },
     "constraint": {
-      "duplicateElevation": "không đặt được: tầng {{firstFloor}} và tầng {{secondFloor}} sẽ cùng ở cao độ {{elevation}}."
+      "duplicateElevation": "Không đặt được: tầng {{firstFloor}} và tầng {{secondFloor}} sẽ cùng ở cao độ {{elevation}}."
     },
     "states": {
-      "emptyTitle": "chưa có tầng nào",
-      "emptyDescription": "thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.",
-      "errorTitle": "không đọc được danh sách tầng",
-      "forbiddenTitle": "không có quyền sửa tầng",
-      "forbiddenDescription": "vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.",
-      "needsDrawing": "chưa có bản vẽ"
+      "emptyTitle": "Chưa có tầng nào",
+      "emptyDescription": "Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.",
+      "errorTitle": "Không đọc được danh sách tầng",
+      "forbiddenTitle": "Không có quyền sửa tầng",
+      "forbiddenDescription": "Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.",
+      "needsDrawing": "Chưa có bản vẽ"
     },
     "undo": {
       "floorRemoved": "Đã xoá tầng {{floorName}}",
@@ -1869,10 +1934,10 @@
       "floorsReordered": "Đã đổi thứ tự tầng"
     },
     "hook": {
-      "persistFailedTitle": "chưa lưu được thay đổi tầng",
+      "persistFailedTitle": "Chưa lưu được thay đổi tầng",
       "shortcutUndo": "Hoàn tác thay đổi tầng gần nhất",
-      "uploadDrawingHint": "tải bản vẽ lên ở màn hình bản vẽ của tầng này; danh sách tầng chỉ cho biết tầng nào còn thiếu.",
-      "duplicateSuffix": "bản sao",
+      "uploadDrawingHint": "Tải bản vẽ lên ở màn hình bản vẽ của tầng này; danh sách tầng chỉ cho biết tầng nào còn thiếu.",
+      "duplicateSuffix": "Bản sao",
       "newFloorPrefix": "Tầng",
       "elevationRefusalLead": "Không đặt được cao độ {{elevation}} cho tầng \"{{floorName}}\".",
       "duplicateElevationSentence": "Tầng \"{{twinFloor}}\" đã ở cao độ {{elevation}}; đặt tầng \"{{floorName}}\" ở đúng cao độ đó thì hai tầng trùng nhau."
@@ -1888,61 +1953,68 @@
       "reorderToast": "Đã đổi thứ tự tầng."
     },
     "capability": {
-      "sessionOnlyHeading": "những thay đổi chỉ sống trong phiên làm việc này",
-      "persistFloorContents": "nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
-      "hideFloorFrom3d": "ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+      "sessionOnlyHeading": "Những thay đổi chỉ sống trong phiên làm việc này",
+      "persistFloorContents": "Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
+      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
     },
     "caption": {
-      "elevationRule": "cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
+      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
     },
     "route": {
       "missingProjectTitle": "Thiếu mã dự án",
       "missingProjectMessage": "Đường dẫn không mang mã dự án, nên chưa mở được danh sách tầng. Quay lại bảng dự án rồi chọn lại dự án cần xem."
     },
     "notices": {
-      "addRefusedTitle": "chưa thêm được tầng",
-      "addToast": "đã thêm tầng.",
-      "elevationToast": "đã đổi cao độ tầng.",
-      "floorGone": "tầng này không còn trên máy chủ.",
-      "floorNotFoundInDrawing": "không tìm thấy tầng này trong bản vẽ.",
-      "heightToast": "đã đổi chiều cao tầng.",
-      "idAmbiguous": "mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.",
-      "idTaken": "mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.",
-      "limitReached": "dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.",
-      "listChangedElsewhere": "danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.",
-      "nameEmpty": "tên tầng không được để trống.",
-      "nameForbiddenCharacter": "tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.",
-      "nameTooLong": "tên tầng dài quá 120 ký tự, hãy rút gọn lại.",
-      "nameUnchanged": "tên tầng không đổi nên không có gì để lưu.",
-      "renameRefusedTitle": "chưa đổi được tên tầng",
-      "renameToast": "đã đổi tên tầng.",
-      "undoExpired": "đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.",
-      "undoNotLatest": "thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.",
-      "undoRefusedTitle": "chưa hoàn tác được thay đổi tầng"
+      "addRefusedTitle": "Chưa thêm được tầng",
+      "addToast": "Đã thêm tầng.",
+      "elevationToast": "Đã đổi cao độ tầng.",
+      "floorGone": "Tầng này không còn trên máy chủ.",
+      "floorNotFoundInDrawing": "Không tìm thấy tầng này trong bản vẽ.",
+      "heightToast": "Đã đổi chiều cao tầng.",
+      "idAmbiguous": "Mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.",
+      "idTaken": "Mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.",
+      "limitReached": "Dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.",
+      "listChangedElsewhere": "Danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.",
+      "nameEmpty": "Tên tầng không được để trống.",
+      "nameForbiddenCharacter": "Tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.",
+      "nameTooLong": "Tên tầng dài quá 120 ký tự, hãy rút gọn lại.",
+      "nameUnchanged": "Tên tầng không đổi nên không có gì để lưu.",
+      "renameRefusedTitle": "Chưa đổi được tên tầng",
+      "renameToast": "Đã đổi tên tầng.",
+      "undoExpired": "Đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.",
+      "undoNotLatest": "Thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.",
+      "undoRefusedTitle": "Chưa hoàn tác được thay đổi tầng"
     }
   },
   "roomLabelReview": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "breadcrumb": "Dự án > Tầng 01 > Nhãn phòng",
-      "title": "duyệt tên phòng",
+      "title": "Duyệt tên phòng",
       "description": "Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.",
       "canvasSectionLabel": "Khung xem bản vẽ duyệt tên phòng",
-      "expandPanel": "bảng phòng đang thu gọn"
+      "expandPanel": "Bảng phòng đang thu gọn"
     },
     "states": {
       "empty": {
-        "title": "chưa dò ra phòng nào",
+        "title": "Chưa dò ra phòng nào",
         "action": "Kiểm tra lại vòng hở",
-        "notice": "Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm \"Kiểm tra vòng hở\" để dò lại.",
+        "notice": "Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm \"Kiểm tra lại vòng hở\" để dò lại.",
         "filteredNotice": "Không còn phòng nào chưa đặt tên. Tắt bộ lọc \"Chưa đặt tên\" để xem lại toàn bộ phòng của tầng."
       },
       "error": {
-        "title": "không đọc được lớp phòng",
+        "title": "Không đọc được lớp phòng",
         "action": "Thử lại"
       },
       "forbidden": {
-        "title": "không có quyền sửa lớp phòng",
-        "notice": "Bạn đang xem với vai Người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng."
+        "title": "Không có quyền sửa lớp phòng",
+        "notice": "Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng."
       }
     },
     "missingParams": {
@@ -1958,46 +2030,47 @@
     },
     "leftPanel": {
       "summaryPrefix": "Tổng diện tích sàn",
-      "summaryRoomSuffix": "phòng",
+      "summaryRoomSuffix": "Phòng",
       "unnamedFilter": "Chưa đặt tên",
       "gapsTitle": "Vòng tường hở",
       "gapsEmpty": "Chưa thấy vòng tường hở nào ở tầng này.",
-      "gapWalls": "tường liên quan",
+      "gapWalls": "Tường liên quan",
       "checkGaps": "Kiểm tra lại vòng hở",
       "navigateWalls": "Xem tại lớp tường",
       "normalize": "Chuẩn hoá tên"
     },
     "list": {
       "aria": "Danh sách phòng",
-      "unnamedPlaceholder": "chưa đặt tên",
+      "unnamedPlaceholder": "Chưa đặt tên",
       "emptyTitle": "Chưa có phòng nào",
       "emptyDescription": "Không có phòng nào khớp bộ lọc đang bật. Tắt bộ lọc \"Chưa đặt tên\" để thấy lại cả danh sách.",
-      "statusUnnamed": "cần chú ý",
+      "statusUnnamed": "Cần chú ý",
       "statusSuggested": "AI đề xuất, chưa duyệt",
-      "statusConfirmed": "đã duyệt"
+      "statusConfirmed": "Đã duyệt"
     },
     "nameField": {
       "label": "Tên phòng",
       "placeholder": "Gõ tên phòng",
       "hint": "Gợi ý bên dưới chỉ để chọn nhanh — tên tự gõ luôn được giữ nguyên.",
-      "suggestionsAria": "Gợi ý tên phòng"
+      "suggestionsAria": "Gợi ý tên phòng",
+      "emptyError": "Tên phòng không được để trống."
     },
     "inspector": {
       "title": "Phòng",
       "usageLabel": "Công năng",
       "empty": "Chọn một phòng trên bản vẽ hoặc trong danh sách để xem chi tiết.",
       "approve": "Duyệt phòng này",
-      "approvedBadge": "đã duyệt",
+      "approvedBadge": "Đã duyệt",
       "merge": "Gộp phòng",
       "split": "Tách phòng",
       "splitMissingPoint": "Bấm lên ranh phòng trên bản vẽ để chọn điểm cắt, rồi quay lại đây để tách phòng."
     },
     "fields": {
-      "area": "diện tích",
-      "perimeter": "chu vi phòng",
-      "clearHeight": "chiều cao thông thuỷ",
+      "area": "Diện tích",
+      "perimeter": "Chu vi phòng",
+      "clearHeight": "Chiều cao thông thuỷ",
       "clearHeightMissing": "Chưa có số đo chiều cao thông thuỷ cho phòng này.",
-      "confidence": "độ tin cậy",
+      "confidence": "Độ tin cậy",
       "cropTitle": "Ảnh cắt gốc",
       "cropMissingOcr": "Tên do máy đọc nhưng chưa có ảnh bản vẽ để cắt vùng ghi tên.",
       "cropMissingHuman": "Tên do người duyệt đặt nên không có ảnh cắt gốc để đối chiếu.",
@@ -2023,7 +2096,7 @@
       "noChange": "Không có tên nào cần chuẩn hoá — mọi tên phòng đã đúng kiểu câu.",
       "close": "Đóng",
       "apply": "Áp dụng",
-      "emptyNamePlaceholder": "chưa đặt tên"
+      "emptyNamePlaceholder": "Chưa đặt tên"
     },
     "gateway": {
       "mergeNeedsWallRemoved": "Chưa gộp được: giữa hai phòng vẫn còn một đoạn tường ngăn. Sang lớp tường xoá đoạn tường đó rồi quay lại đây gộp.",
@@ -2039,29 +2112,36 @@
     }
   },
   "thicknessStandardization": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "screen": {
       "breadcrumb": "Dự án > Tầng 01 > Độ dày tường",
-      "title": "chuẩn hoá độ dày tường",
+      "title": "Chuẩn hoá độ dày tường",
       "description": "Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.",
       "histogramSectionLabel": "Phân bố độ dày đo được",
       "tablesSectionLabel": "Bảng nhóm và bảng chi tiết từng đoạn",
       "collapsePreview": "Thu gọn khung xem trước",
-      "expandPreview": "khung xem trước đang thu gọn"
+      "expandPreview": "Khung xem trước đang thu gọn"
     },
     "states": {
       "empty": {
-        "title": "chưa có đoạn tường nào để chuẩn hoá",
+        "title": "Chưa có đoạn tường nào để chuẩn hoá",
         "notice": "Mọi đoạn tường đã ở đúng nhóm chuẩn, không còn gì để áp. Kéo một ngưỡng trên biểu đồ hoặc nới ô dung sai nếu bạn muốn gom thêm đoạn vào một nhóm khác.",
         "noMeasurementNotice": "Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày."
       },
       "error": {
-        "title": "không đọc được lớp số đo độ dày",
+        "title": "Không đọc được lớp số đo độ dày",
         "readLayer": "Không tải được lớp số đo độ dày tường của tầng.",
         "readMeasurements": "Không tải được số đo độ dày tường."
       },
       "forbidden": {
-        "title": "không có quyền sửa độ dày tường",
-        "notice": "Bạn đang xem với vai Người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường."
+        "title": "Không có quyền sửa độ dày tường",
+        "notice": "Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường."
       }
     },
     "missingParams": {
@@ -2072,27 +2152,27 @@
       "thin": "110 mm",
       "medium": "220 mm",
       "thick": "330 mm",
-      "concreteColumn": "cột bê tông cốt thép"
+      "concreteColumn": "Cột bê tông cốt thép"
     },
     "histogram": {
-      "label": "biểu đồ phân bố độ dày tường theo mi-li-mét",
-      "loading": "đang tải biểu đồ phân bố độ dày",
-      "axisUnit": "mm",
-      "thresholdLow": "ngưỡng giữa 110 mm và 220 mm",
-      "thresholdMid": "ngưỡng giữa 220 mm và 330 mm",
-      "thresholdHigh": "ngưỡng giữa 330 mm và cột bê tông cốt thép"
+      "label": "Biểu đồ phân bố độ dày tường theo mi-li-mét",
+      "loading": "Đang tải biểu đồ phân bố độ dày",
+      "axisUnit": "Mm",
+      "thresholdLow": "Ngưỡng giữa 110 mm và 220 mm",
+      "thresholdMid": "Ngưỡng giữa 220 mm và 330 mm",
+      "thresholdHigh": "Ngưỡng giữa 330 mm và cột bê tông cốt thép"
     },
     "previewCanvas": {
-      "label": "mặt bằng xem trước theo nhóm độ dày",
-      "legendLabel": "chú giải độ dày tường",
-      "empty": "chưa có hình tường để xem trước"
+      "label": "Mặt bằng xem trước theo nhóm độ dày",
+      "legendLabel": "Chú giải độ dày tường",
+      "empty": "Chưa có hình tường để xem trước"
     },
     "summary": {
       "groupLabel": "Tóm tắt chuẩn hoá độ dày tường",
-      "segmentCount": "tổng số đoạn tường",
-      "normalizedCount": "đã ở đúng nhóm chuẩn",
-      "exceedingToleranceCount": "lệch quá dung sai",
-      "concreteColumnCount": "cột bê tông cốt thép"
+      "segmentCount": "Tổng số đoạn tường",
+      "normalizedCount": "Đã ở đúng nhóm chuẩn",
+      "exceedingToleranceCount": "Lệch quá dung sai",
+      "concreteColumnCount": "Cột bê tông cốt thép"
     },
     "groupTable": {
       "measured": "Độ dày đo được",
@@ -2111,14 +2191,14 @@
       "floor": "Tầng",
       "status": "Trạng thái",
       "empty": "Chưa có đoạn tường nào để chuẩn hoá.",
-      "entityName": "tường",
+      "entityName": "Tường",
       "normalizedControl": "Độ dày chuẩn hoá của đoạn {{code}}",
       "chooseGroupLabel": "Chọn nhóm áp cho các đoạn đã chọn",
       "chooseGroupPrompt": "Chọn nhóm áp cho {{count}} tường đã chọn:",
-      "statusVerified": "đã duyệt",
-      "statusAttention": "cần chú ý",
-      "statusViolation": "vi phạm",
-      "statusNeutral": "trung tính"
+      "statusVerified": "Đã duyệt",
+      "statusAttention": "Cần chú ý",
+      "statusViolation": "Vi phạm",
+      "statusNeutral": "Trung tính"
     },
     "applyBar": {
       "tolerance": "Dung sai",
@@ -2144,6 +2224,13 @@
     }
   },
   "viewer3d": {
+    "saveBlock": {
+      "reload": "Tải lại",
+      "confirmTitle": "Bỏ thay đổi chưa lưu của tầng này?",
+      "confirmBody": "Bản mới nhất trên máy chủ sẽ thay mọi sửa đổi chưa lưu của tầng này. Thao tác này không hoàn tác được.",
+      "confirm": "Tải lại và bỏ thay đổi",
+      "cancel": "Huỷ"
+    },
     "buildError": {
       "description": "Không dựng được mô hình 3D lần này. Thử lại, hoặc quay lại lớp tường để xem dữ liệu còn thiếu gì."
     },
@@ -2160,22 +2247,23 @@
       "retryButton": "Thử lại"
     },
     "forbidden": {
-      "description": "Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D."
+      "description": "Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D."
     },
     "loading": {
       "progress": "Đang dựng mô hình {{count}} tầng"
     },
     "partial": {
       "readyLabel": "Tầng đã dựng xong",
-      "wireframeCaption": "{{name}} — chưa dựng xong"
+      "wireframeCaption": "{{name}} — chưa dựng xong",
+      "noPartsCaption": "{{name}} — chưa có tường hay phòng nào"
     },
     "search": {
-      "openButton": "tìm phòng",
-      "inputLabel": "tìm phòng theo tên hoặc mã",
-      "inputPlaceholder": "tên hoặc mã phòng",
-      "listLabel": "kết quả tìm phòng",
-      "noMatch": "không có phòng nào khớp",
-      "truncated": "còn phòng nữa — gõ thêm để thu hẹp"
+      "openButton": "Tìm phòng",
+      "inputLabel": "Tìm phòng theo tên hoặc mã",
+      "inputPlaceholder": "Tên hoặc mã phòng",
+      "listLabel": "Kết quả tìm phòng",
+      "noMatch": "Không có phòng nào khớp",
+      "truncated": "Còn phòng nữa — gõ thêm để thu hẹp"
     },
     "success": {
       "description": "Mô hình 3D đã dựng xong."
@@ -2202,12 +2290,12 @@
     },
     "tool": {
       "label": "Công cụ khung nhìn",
-      "orbit": "quay quanh",
-      "pan": "kéo màn",
-      "measure": "đo",
-      "section": "mặt cắt",
-      "select": "chọn",
-      "isolate": "cô lập"
+      "orbit": "Quay quanh",
+      "pan": "Kéo màn",
+      "measure": "Đo",
+      "section": "Mặt cắt",
+      "select": "Chọn",
+      "isolate": "Cô lập"
     },
     "storey": {
       "label": "Tầng",
@@ -2224,20 +2312,20 @@
       "heading": "Thuộc tính",
       "emptyTitle": "Chưa chọn đối tượng",
       "hint": "Chọn một đối tượng trên mô hình để xem thuộc tính.",
-      "entityId": "mã đối tượng",
-      "area": "diện tích",
-      "thickness": "độ dày",
-      "name": "tên",
-      "kindRoom": "phòng",
-      "kindWall": "tường",
-      "kindOther": "đối tượng"
+      "entityId": "Mã đối tượng",
+      "area": "Diện tích",
+      "thickness": "Độ dày",
+      "name": "Tên",
+      "kindRoom": "Phòng",
+      "kindWall": "Tường",
+      "kindOther": "Đối tượng"
     },
     "legend": {
       "label": "Chú giải",
-      "wall110": "tường 110",
-      "wall220": "tường 220",
-      "wall330": "tường 330",
-      "opening": "ô mở"
+      "wall110": "Tường 110",
+      "wall220": "Tường 220",
+      "wall330": "Tường 330",
+      "opening": "Ô mở"
     },
     "elevationScale": {
       "label": "Cao độ tầng"
@@ -2253,7 +2341,7 @@
     },
     "forbidden": {
       "title": "Chỉ xem",
-      "message": "Bạn đang xem ở vai Người xem nên không sửa được mô hình."
+      "message": "Bạn đang xem ở vai người xem nên không sửa được mô hình."
     },
     "error": {
       "title": "Không đọc được dữ liệu",
@@ -2264,16 +2352,16 @@
       "message": "Đường dẫn không mang mã dự án, nên chưa mở được khung nhìn 3D. Quay lại danh sách dự án rồi chọn lại dự án cần xem."
     },
     "shortcut": {
-      "storey": "xem tầng thứ {{index}} tính từ dưới lên",
-      "fitAll": "đưa toàn bộ mô hình vào khung hình",
-      "orthographic": "bật tắt phép chiếu trực giao",
-      "hide": "ẩn đối tượng đang chọn",
-      "isolate": "chỉ hiện đối tượng đang chọn",
-      "frame": "khuôn đối tượng đang chọn vào khung hình",
-      "separation": "bật tắt tách tầng",
-      "measure": "bật công cụ đo",
-      "search": "mở ô tìm đối tượng",
-      "deselect": "bỏ chọn đối tượng trên mô hình"
+      "storey": "Xem tầng thứ {{index}} tính từ dưới lên",
+      "fitAll": "Đưa toàn bộ mô hình vào khung hình",
+      "orthographic": "Bật tắt phép chiếu trực giao",
+      "hide": "Ẩn đối tượng đang chọn",
+      "isolate": "Chỉ hiện đối tượng đang chọn",
+      "frame": "Khuôn đối tượng đang chọn vào khung hình",
+      "separation": "Bật tắt tách tầng",
+      "measure": "Bật công cụ đo",
+      "search": "Mở ô tìm đối tượng",
+      "deselect": "Bỏ chọn đối tượng trên mô hình"
     }
   },
   "propertyInspector": {
@@ -2286,10 +2374,10 @@
       "advanced": "Thông số nâng cao"
     },
     "objectKind": {
-      "wall": "tường",
-      "opening": "ô mở",
-      "furniture": "nội thất",
-      "room": "phòng"
+      "wall": "Tường",
+      "opening": "Ô mở",
+      "furniture": "Nội thất",
+      "room": "Phòng"
     },
     "fields": {
       "wall": {
@@ -2342,6 +2430,8 @@
     },
     "empty": {
       "message": "Chưa chọn đối tượng nào để xem thuộc tính.",
+      "missing": "Đối tượng đang chọn không có trong dữ liệu của dự án này nên chưa xem được thuộc tính.",
+      "unsupported": "Trục, tầng và kích thước chưa có bảng thuộc tính. Bảng này dành cho tường, ô mở, phòng và nội thất.",
       "tabHint": "Nhấn Tab để duyệt vòng qua các đối tượng trên mô hình."
     },
     "loading": {
@@ -2405,7 +2495,7 @@
       "noticeLabel": "Ghi chú của phần mềm"
     },
     "units": {
-      "degree": "độ"
+      "degree": "Độ"
     },
     "template": {
       "unsupported": "Phần mềm chưa lưu được khuôn mẫu thuộc tính. Bản vẽ của bạn không có lỗi nào ở đây."
@@ -2468,7 +2558,7 @@
         "readFailed": "Không đọc được lớp không gian của tầng này."
       },
       "shortcuts": {
-        "cancel": "huỷ lượt kéo model và đóng hộp xem trước"
+        "cancel": "Huỷ lượt kéo model và đóng hộp xem trước"
       }
     }
   },
@@ -2566,7 +2656,8 @@
       "joinNeedsTwoEnds": "Nối tường cần đúng hai đầu mút đang chọn.",
       "splitOffWall": "Điểm tách nằm ngoài bức tường nên chưa tách được.",
       "heightBelowOpening": "Chiều cao mới thấp hơn đỉnh một ô mở trên tường này nên chưa đặt được.",
-      "noSaveTarget": "Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.",
+      "wallMissing": "Bức tường đang chọn không có trong dữ liệu của dự án này nên chưa sửa được hình học.",
+      "readFailed": "Chưa đọc được hình học của bức tường này.",
       "serverRejected": "Máy chủ chưa nhận được hình học mới ({{kind}}). Thay đổi vẫn còn trên máy này."
     },
     "undo": {
@@ -2583,34 +2674,34 @@
     "regionLabel": "Bảng diện tích phòng",
     "levelSelectLabel": "Chọn tầng",
     "levelWithoutAreaSuffix": " (chưa có diện tích)",
-    "tableModeLabel": "mở chế độ bảng toàn trang",
+    "tableModeLabel": "Mở chế độ bảng toàn trang",
     "groupingLabel": "Cách nhóm danh sách",
     "grouping": {
-      "byLevel": "theo tầng",
-      "byUsage": "theo công năng"
+      "byLevel": "Theo tầng",
+      "byUsage": "Theo công năng"
     },
     "sortLabel": "Sắp xếp",
     "sort": {
-      "byArea": "theo diện tích",
-      "byName": "theo tên",
-      "byUsage": "theo loại"
+      "byArea": "Theo diện tích",
+      "byName": "Theo tên",
+      "byUsage": "Theo loại"
     },
     "bandsLabel": "Phân bố diện tích theo loại phòng",
     "bands": {
-      "wallStrong": "phòng ở",
-      "wallMid": "khu phụ trợ",
-      "neutral": "lưu thông và khác"
+      "wallStrong": "Phòng ở",
+      "wallMid": "Khu phụ trợ",
+      "neutral": "Lưu thông và khác"
     },
     "totals": {
       "caption": "Tổng diện tích sàn {{scope}} — {{count}} phòng",
-      "wholeBuilding": "toàn nhà",
-      "unit": "m²"
+      "wholeBuilding": "Toàn nhà",
+      "unit": "M²"
     },
     "level": {
       "unknown": "Tầng chưa xác định"
     },
-    "copyAsText": "sao chép bảng",
-    "openExport": "xuất bảng",
+    "copyAsText": "Sao chép bảng",
+    "openExport": "Xuất bảng",
     "loadingLabel": "Đang tính diện tích…",
     "emptyTitle": "Chưa khép được vòng phòng nào",
     "emptyDescription": "Diện tích chỉ đo được khi các đoạn tường khép kín thành một vòng. Bản vẽ này còn khe hở giữa các đoạn tường nên chưa có phòng nào tính ra được số.",
@@ -2623,67 +2714,67 @@
     "partialMissingLevelsPrefix": "Các tầng sau chưa có diện tích: ",
     "partialUnnamedNote": " Một số phòng chưa đặt tên; gõ thẳng vào ô tên trong dòng để đặt, bảng tự lưu.",
     "collapsedCaption": "Năm phòng lớn nhất",
-    "rowNameFieldLabel": "tên phòng",
-    "rowAreaButtonLabel": "xem cách tính và khuôn hình vào phòng",
-    "rowUnnamedHint": "phòng chưa đặt tên",
-    "groupCountSuffix": "phòng",
+    "rowNameFieldLabel": "Tên phòng",
+    "rowAreaButtonLabel": "Xem cách tính và khuôn hình vào phòng",
+    "rowUnnamedHint": "Phòng chưa đặt tên",
+    "groupCountSuffix": "Phòng",
     "status": {
-      "trusted": "máy dò được, chưa duyệt",
-      "suspect": "cần xem lại",
-      "reviewed": "đã xác minh"
+      "trusted": "Máy dò được, chưa duyệt",
+      "suspect": "Cần xem lại",
+      "reviewed": "Đã xác minh"
     },
     "errors": {
       "writeFailed": "Không lưu được tên phòng vừa sửa. Thử lại giúp tôi."
     },
     "table": {
-      "regionLabel": "bảng diện tích phòng",
-      "export": "xuất bảng diện tích phòng",
+      "regionLabel": "Bảng diện tích phòng",
+      "export": "Xuất bảng diện tích phòng",
       "header": {
-        "level": "tầng",
-        "name": "tên phòng",
-        "usage": "loại",
-        "area": "diện tích",
-        "areaUnit": "m²",
-        "perimeter": "chu vi phòng",
-        "perimeterUnit": "m",
-        "clearHeight": "chiều cao thông thuỷ",
-        "clearHeightUnit": "m",
-        "doorCount": "số cửa",
-        "windowCount": "số cửa sổ",
-        "status": "trạng thái"
+        "level": "Tầng",
+        "name": "Tên phòng",
+        "usage": "Loại",
+        "area": "Diện tích",
+        "areaUnit": "M²",
+        "perimeter": "Chu vi phòng",
+        "perimeterUnit": "M",
+        "clearHeight": "Chiều cao thông thuỷ",
+        "clearHeightUnit": "M",
+        "doorCount": "Số cửa",
+        "windowCount": "Số cửa sổ",
+        "status": "Trạng thái"
       },
       "status": {
-        "trusted": "đã dò",
-        "suspect": "cần kiểm tra",
-        "reviewed": "đã xác minh"
+        "trusted": "Đã dò",
+        "suspect": "Cần kiểm tra",
+        "reviewed": "Đã xác minh"
       },
-      "renameAriaLabelPrefix": "tên phòng",
-      "emptyTitle": "chưa dò ra phòng nào",
-      "emptyDescription": "kiểm tra khe hở tường rồi dò lại để bảng có dữ liệu.",
-      "emptyAction": "kiểm tra khe hở tường",
-      "forbiddenNotice": "bảng chỉ xem — không có quyền sửa tên phòng.",
-      "collapsedNotice": "danh sách phòng đang thu gọn, chỉ còn tổng diện tích."
+      "renameAriaLabelPrefix": "Tên phòng",
+      "emptyTitle": "Chưa dò ra phòng nào",
+      "emptyDescription": "Kiểm tra khe hở tường rồi dò lại để bảng có dữ liệu.",
+      "emptyAction": "Kiểm tra khe hở tường",
+      "forbiddenNotice": "Bảng chỉ xem — không có quyền sửa tên phòng.",
+      "collapsedNotice": "Danh sách phòng đang thu gọn, chỉ còn tổng diện tích."
     }
   },
   "historyPanel": {
     "regionLabel": "Lịch sử chỉnh sửa",
     "sheetRegionLabel": "Tấm trượt lịch sử chỉnh sửa",
     "timelineLabel": "Dòng thời gian các bước đã làm",
-    "shortcutDescription": "mở hoặc đóng bảng lịch sử",
+    "shortcutDescription": "Mở hoặc đóng bảng lịch sử",
     "categoryChipsLabel": "Lọc theo loại việc",
     "category": {
-      "all": "tất cả",
-      "edit": "chỉnh sửa",
-      "review": "duyệt",
+      "all": "Tất cả",
+      "edit": "Chỉnh sửa",
+      "review": "Duyệt",
       "ai": "AI"
     },
     "categoryHint": {
-      "edit": "chỉnh sửa",
-      "review": "duyệt",
-      "ai": "máy dò tự động"
+      "edit": "Chỉnh sửa",
+      "review": "Duyệt",
+      "ai": "Máy dò tự động"
     },
     "actorSelectLabel": "Lọc theo người thực hiện",
-    "actorAllLabel": "mọi người",
+    "actorAllLabel": "Mọi người",
     "actorSelf": "Bạn",
     "actorOther": "Người dùng khác",
     "loadingLabel": "Đang tải lịch sử…",
@@ -2698,27 +2789,27 @@
     "stepLimitDescription": "Lịch sử giữ một trăm bước gần nhất. Bước cũ nhất sẽ rời khỏi danh sách khi bạn làm thêm một thao tác nữa, và không quay lại được nó nữa.",
     "loadMore": "Tải thêm",
     "archivedCaption": "Những bước cũ hơn đã được lưu trữ.",
-    "collapsedCaption": "bước đã làm",
-    "expand": "mở bảng lịch sử",
+    "collapsedCaption": "Bước đã làm",
+    "expand": "Mở bảng lịch sử",
     "jump": "Quay lại trạng thái này",
-    "expandBatch": "mở nhóm thay đổi",
-    "collapseBatch": "thu gọn nhóm thay đổi",
-    "entityLinkPrefix": "chọn và khuôn hình vào",
-    "undoneHint": "đã hoàn tác",
-    "currentHint": "vị trí hiện tại",
-    "dayToday": "hôm nay",
-    "dayYesterday": "hôm qua",
-    "sessionPrefix": "phiên lúc ",
+    "expandBatch": "Mở nhóm thay đổi",
+    "collapseBatch": "Thu gọn nhóm thay đổi",
+    "entityLinkPrefix": "Chọn và khuôn hình vào",
+    "undoneHint": "Đã hoàn tác",
+    "currentHint": "Vị trí hiện tại",
+    "dayToday": "Hôm nay",
+    "dayYesterday": "Hôm qua",
+    "sessionPrefix": "Phiên lúc ",
     "noArchivedHistory": "Chưa có kho lịch sử cũ nào để tải thêm. Bản vẽ của bạn không có lỗi nào ở đây.",
     "jumpInterrupted": "Không lùi hết được tới bước đã chọn. Lịch sử vừa đổi, mời bạn chọn lại.",
     "entityKind": {
-      "level": "tầng",
-      "wall": "tường",
-      "opening": "lỗ mở",
-      "furniture": "đồ đạc",
-      "room": "phòng",
-      "axis": "trục",
-      "dimension": "kích thước"
+      "level": "Tầng",
+      "wall": "Tường",
+      "opening": "Lỗ mở",
+      "furniture": "Đồ đạc",
+      "room": "Phòng",
+      "axis": "Trục",
+      "dimension": "Kích thước"
     },
     "diffField": {
       "elevationMm": "Cao độ",
@@ -2744,13 +2835,13 @@
   },
   "shell": {
     "shortcut": {
-      "openShortcutHelp": "mở bảng phím tắt",
-      "closeTopLayer": "đóng lớp trên cùng"
+      "openShortcutHelp": "Mở bảng phím tắt",
+      "closeTopLayer": "Đóng lớp trên cùng"
     },
     "shortcutHelp": {
       "title": "Phím tắt",
       "closeAriaLabel": "Đóng bảng phím tắt",
-      "closeHint": "Nhấn ? hoặc Esc để đóng",
+      "closeHint": "Nhấn ? Hoặc Esc để đóng",
       "scope": {
         "global": "Toàn cục",
         "canvas": "Khung nhìn 3D",
@@ -2762,66 +2853,66 @@
     "screenLabel": "Màn đối chiếu bản vẽ",
     "canvasRegionLabel": "Khung đối chiếu bản vẽ gốc và mô hình",
     "noticeRegionLabel": "Trạng thái của màn đối chiếu bản vẽ",
-    "scaleFixLinkLabel": "sang màn hiệu chỉnh tỷ lệ",
+    "scaleFixLinkLabel": "Sang màn hiệu chỉnh tỷ lệ",
     "confirm": {
-      "button": "xác nhận mô hình khớp bản vẽ",
-      "withinTolerance": "mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
-      "withDeviations": "bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai."
+      "button": "Xác nhận mô hình khớp bản vẽ",
+      "withinTolerance": "Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
+      "withDeviations": "Bạn đã xác nhận tầng này khớp bản vẽ, dù vẫn còn vùng vượt dung sai."
     },
     "layer": {
-      "scan": "ảnh quét gốc",
-      "geometry": "hình học sinh ra",
-      "deviation": "vùng lệch"
+      "scan": "Ảnh quét gốc",
+      "geometry": "Hình học sinh ra",
+      "deviation": "Vùng lệch"
     },
     "metric": {
-      "mean": "sai số trung bình",
-      "max": "sai số lớn nhất",
-      "overTolerance": "số vùng vượt ngưỡng"
+      "mean": "Sai số trung bình",
+      "max": "Sai số lớn nhất",
+      "overTolerance": "Số vùng vượt ngưỡng"
     },
     "mode": {
-      "sideBySideDisabled": "khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt."
+      "sideBySideDisabled": "Khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt."
     },
     "notice": {
-      "empty": "tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.",
-      "errorFrame": "không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.",
-      "errorRead": "không đọc được ảnh bản vẽ gốc của tầng này.",
-      "errorScale": "không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
-      "forbidden": "bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
-      "loading": "đang tải ảnh bản vẽ gốc.",
-      "noFloor": "dự án này chưa có tầng nào để đối chiếu.",
-      "partialDeviation": "còn {{count}} vùng vượt dung sai.",
-      "partialGeometry": "còn {{count}} tầng chưa dựng hình học.",
-      "partialScan": "chỉ {{withScan}} trong {{total}} tầng có ảnh gốc để đối chiếu."
+      "empty": "Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.",
+      "errorFrame": "Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.",
+      "errorRead": "Không đọc được ảnh bản vẽ gốc của tầng này.",
+      "errorScale": "Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
+      "forbidden": "Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
+      "loading": "Đang tải ảnh bản vẽ gốc.",
+      "noFloor": "Dự án này chưa có tầng nào để đối chiếu.",
+      "partialDeviation": "Còn {{count}} vùng vượt dung sai.",
+      "partialGeometry": "Còn {{count}} tầng chưa dựng hình học.",
+      "partialScan": "Chỉ {{withScan}} trong {{total}} tầng có ảnh gốc để đối chiếu."
     },
     "tolerance": {
-      "label": "dung sai"
+      "label": "Dung sai"
     },
     "canvas": {
-      "frame": "khung đối chiếu bản vẽ và mô hình",
-      "source_frame": "khung bản vẽ nguồn",
-      "result_frame": "khung mô hình sinh ra",
-      "divider": "đường chia đôi, dùng phím mũi tên trái và phải để dịch",
-      "mark_label_prefix": "vùng lệch ",
+      "frame": "Khung đối chiếu bản vẽ và mô hình",
+      "source_frame": "Khung bản vẽ nguồn",
+      "result_frame": "Khung mô hình sinh ra",
+      "divider": "Đường chia đôi, dùng phím mũi tên trái và phải để dịch",
+      "mark_label_prefix": "Vùng lệch ",
       "mark_label_over_suffix": ", vượt dung sai"
     },
     "toolbar": {
-      "label": "thanh công cụ đối chiếu bản vẽ",
-      "floorSelectLabel": "chọn tầng",
-      "floorNoScanSuffix": "không có ảnh bản vẽ gốc",
-      "compareModeAriaLabel": "kiểu đối chiếu",
-      "scanOpacityAriaLabel": "độ mờ ảnh nguồn",
-      "alignmentLockLabel": "khoá căn",
-      "readOnlyNotice": "bạn không có quyền sửa, các điều khiển đang tắt."
+      "label": "Thanh công cụ đối chiếu bản vẽ",
+      "floorSelectLabel": "Chọn tầng",
+      "floorNoScanSuffix": "Không có ảnh bản vẽ gốc",
+      "compareModeAriaLabel": "Kiểu đối chiếu",
+      "scanOpacityAriaLabel": "Độ mờ ảnh nguồn",
+      "alignmentLockLabel": "Khoá căn",
+      "readOnlyNotice": "Bạn không có quyền sửa, các điều khiển đang tắt."
     },
     "panel": {
-      "label": "kết quả đối chiếu bản vẽ và mô hình",
-      "deviationListLabel": "danh sách vùng lệch",
-      "headerReference": "vị trí tham chiếu",
-      "headerDeviation": "độ lệch",
-      "headerObject": "đối tượng",
-      "measuringNotice": "chưa đo được vùng lệch nào.",
-      "noDeviationsNotice": "không có vùng lệch nào được ghi nhận.",
-      "confirmBadgeLabel": "đã duyệt"
+      "label": "Kết quả đối chiếu bản vẽ và mô hình",
+      "deviationListLabel": "Danh sách vùng lệch",
+      "headerReference": "Vị trí tham chiếu",
+      "headerDeviation": "Độ lệch",
+      "headerObject": "Đối tượng",
+      "measuringNotice": "Chưa đo được vùng lệch nào.",
+      "noDeviationsNotice": "Không có vùng lệch nào được ghi nhận.",
+      "confirmBadgeLabel": "Đã duyệt"
     }
   },
   "explodedView": {
@@ -2843,13 +2934,13 @@
     "capture": {
       "error": "Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.",
       "unavailable": "Khung nhìn chưa có gì để chụp.",
-      "renderSceneTooEarly": "renderScene được gọi trước khi hook dựng xong phép dựng props."
+      "renderSceneTooEarly": "RenderScene được gọi trước khi hook dựng xong phép dựng props."
     },
     "shortcut": {
-      "cycle": "tách các tầng ra rồi hợp lại"
+      "cycle": "Tách các tầng ra rồi hợp lại"
     },
     "live": {
-      "separation": "đã tách"
+      "separation": "Đã tách"
     },
     "sample": {
       "floor": {
@@ -2859,68 +2950,69 @@
         "tang04": "Tầng 04"
       },
       "liveMessage": {
-        "empty": "chỉ có một tầng, chưa tách được.",
-        "loading": "đang tải các tầng.",
-        "partial": "đã tách vừa; hai tầng trên vẫn đang dựng hình.",
-        "error": "không tải được các tầng.",
-        "success": "đã tách hết bốn tầng.",
-        "forbidden": "bạn không có quyền xem tầng này.",
-        "collapsed": "đã thu gọn thanh điều khiển."
+        "empty": "Chỉ có một tầng, chưa tách được.",
+        "loading": "Đang tải các tầng.",
+        "partial": "Đã tách vừa; hai tầng trên vẫn đang dựng hình.",
+        "error": "Không tải được các tầng.",
+        "success": "Đã tách hết bốn tầng.",
+        "forbidden": "Bạn không có quyền xem tầng này.",
+        "collapsed": "Đã thu gọn thanh điều khiển."
       },
       "floorReview": {
-        "tang02": "tầng 02 chưa được người duyệt xác nhận."
+        "tang02": "Tầng 02 chưa được người duyệt xác nhận."
       }
     }
   },
   "measurementTool": {
     "title": "Phép đo",
-    "unitLabel": "đơn vị",
+    "unitLabel": "Đơn vị",
     "regionLabel": "Lớp phủ công cụ đo",
     "modeSegmentedLabel": "Chọn chế độ đo",
-    "empty": "chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.",
-    "partialHint": "chuỗi đo chưa đóng. chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.",
+    "empty": "Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.",
+    "partialHint": "Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.",
     "row": {
       "hide": "Ẩn {{name}}",
       "show": "Hiện {{name}}",
       "delete": "Xoá {{name}}",
-      "stale": "cần chú ý"
+      "stale": "Cần chú ý"
     },
     "collapse": {
       "collapseButton": "Thu gọn mục Phép đo",
       "expandButton": "Mở mục Phép đo, {{countLabel}}",
-      "reopenHint": "mở lại danh sách phép đo"
+      "reopenHint": "Mở lại danh sách phép đo"
     },
     "key": {
-      "pin": "ghim phép đo (phím Enter)",
-      "escape": "thoát chế độ đo (phím Esc)",
-      "toggleTool": "bật tắt công cụ đo (phím M)"
+      "pin": "Ghim phép đo (phím Enter)",
+      "escape": "Bỏ phần đo dở (phím Esc)",
+      "toggleTool": "Bật tắt công cụ đo (phím M)"
     },
     "error": {
-      "limitReached": "dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại",
-      "idTaken": "mã phép đo vừa bị một phiên khác dùng; hãy ghim lại",
-      "forbidden": "bạn không có quyền ghim phép đo trong dự án này",
-      "deleteGone": "phép đo này đã bị xoá ở nơi khác",
-      "pinFailed": "chưa ghim được phép đo, hãy thử lại",
-      "deleteFailed": "chưa xoá được phép đo, hãy thử lại",
-      "undoFailed": "chưa hoàn tác được việc xoá phép đo"
+      "limitReached": "Dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại",
+      "idTaken": "Mã phép đo vừa bị một phiên khác dùng; hãy ghim lại",
+      "forbidden": "Bạn không có quyền ghim phép đo trong dự án này",
+      "deleteGone": "Phép đo này đã bị xoá ở nơi khác",
+      "pinFailed": "Chưa ghim được phép đo, hãy thử lại",
+      "deleteFailed": "Chưa xoá được phép đo, hãy thử lại",
+      "undoFailed": "Chưa hoàn tác được việc xoá phép đo",
+      "sceneFailed": "Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại."
     },
     "mode": {
-      "pointToPoint": "điểm đến điểm",
-      "perpendicular": "vuông góc với bề mặt",
-      "height": "chiều cao",
-      "floorArea": "diện tích mặt sàn"
+      "pointToPoint": "Điểm đến điểm",
+      "perpendicular": "Vuông góc với bề mặt",
+      "height": "Chiều cao",
+      "floorArea": "Diện tích mặt sàn"
     },
     "snap": {
-      "vertex": "đỉnh",
-      "midpoint": "trung điểm",
-      "axisIntersection": "giao trục",
-      "none": "chưa bắt được điểm nào",
-      "noneOnError": "không tìm thấy bề mặt để bắt"
+      "vertex": "Đỉnh",
+      "midpoint": "Trung điểm",
+      "axisIntersection": "Giao trục",
+      "none": "Chưa bắt được điểm nào",
+      "noneOnError": "Không tìm thấy bề mặt để bắt"
     },
     "unit": {
-      "mm": "mm",
-      "cm": "cm",
-      "m": "m"
+      "mm": "Mm",
+      "cm": "Cm",
+      "m": "M"
     },
     "sample": {
       "name": "Phép đo {{n}}",
@@ -2937,10 +3029,10 @@
       "current": "Kiểm tra luật không gian"
     },
     "summary": {
-      "evaluated": "tổng số kiểm tra",
-      "passed": "đạt",
-      "warnings": "cảnh báo",
-      "violations": "vi phạm"
+      "evaluated": "Tổng số kiểm tra",
+      "passed": "Đạt",
+      "warnings": "Cảnh báo",
+      "violations": "Vi phạm"
     },
     "filters": {
       "segmentedAriaLabel": "Lọc theo mức độ",
@@ -2956,9 +3048,9 @@
       "levelAllOption": "Tất cả tầng"
     },
     "severity": {
-      "critical": "nghiêm trọng",
-      "warning": "cảnh báo",
-      "suggestion": "gợi ý"
+      "critical": "Nghiêm trọng",
+      "warning": "Cảnh báo",
+      "suggestion": "Gợi ý"
     },
     "actions": {
       "view": "Xem",
@@ -2972,15 +3064,16 @@
     },
     "loading": {
       "title": "Đang chạy kiểm tra…",
-      "progressUnit": "quy tắc đã chạy"
+      "progressUnit": "Quy tắc đã chạy"
     },
     "partial": {
       "title": "Chỉ chạy được một phần",
       "description": "Một số nhóm luật chưa chạy được vì thiếu dữ liệu. Bổ sung dữ liệu còn thiếu rồi chạy kiểm tra lại.",
-      "remedyGroupLabel": "nhóm luật"
+      "remedyGroupLabel": "Nhóm luật"
     },
     "error": {
       "title": "Không chạy được kiểm tra luật",
+      "configFailed": "Không tải được cấu hình bộ luật của dự án.",
       "description": "Có lỗi khi chạy kiểm tra luật không gian của dự án này.",
       "retry": "Thử lại"
     },
@@ -2991,24 +3084,24 @@
     "done": {
       "noViolations": "Không phát hiện vi phạm nào.",
       "evaluatedCountPrefix": "Đã chạy",
-      "evaluatedCountSuffix": "quy tắc."
+      "evaluatedCountSuffix": "Quy tắc."
     },
     "table": {
-      "entityColumn": "mã đối tượng",
-      "levelColumn": "tầng",
-      "messageColumn": "mô tả",
-      "suggestionColumn": "gợi ý xử lý"
+      "entityColumn": "Mã đối tượng",
+      "levelColumn": "Tầng",
+      "messageColumn": "Mô tả",
+      "suggestionColumn": "Gợi ý xử lý"
     }
   },
   "violationDetail": {
-    "regionLabel": "chi tiết vi phạm",
-    "closeButton": "đóng tấm trượt chi tiết vi phạm",
-    "previousButton": "vi phạm trước",
-    "nextButton": "vi phạm kế tiếp",
+    "regionLabel": "Chi tiết vi phạm",
+    "closeButton": "Đóng tấm trượt chi tiết vi phạm",
+    "previousButton": "Vi phạm trước",
+    "nextButton": "Vi phạm kế tiếp",
     "shortcuts": {
-      "next": "sang vi phạm kế tiếp",
-      "previous": "về vi phạm liền trước",
-      "close": "đóng tấm trượt chi tiết vi phạm"
+      "next": "Sang vi phạm kế tiếp",
+      "previous": "Về vi phạm liền trước",
+      "close": "Đóng tấm trượt chi tiết vi phạm"
     },
     "advancing": {
       "message": "Sắp chuyển sang vi phạm kế tiếp.",
@@ -3017,21 +3110,21 @@
     "rule": {
       "heading": "Luật",
       "diagram": {
-        "geometry": "sơ đồ hai đoạn tường và khe hở giữa chúng",
-        "circulation": "sơ đồ lối đi và bề rộng thông thuỷ của nó",
-        "area": "sơ đồ một mặt sàn và phần diện tích được đo",
-        "annotation": "sơ đồ một nhãn gắn vào bộ phận nó mô tả",
-        "level": "sơ đồ hai tầng chồng lên nhau và chênh cao giữa chúng"
+        "geometry": "Sơ đồ hai đoạn tường và khe hở giữa chúng",
+        "circulation": "Sơ đồ lối đi và bề rộng thông thuỷ của nó",
+        "area": "Sơ đồ một mặt sàn và phần diện tích được đo",
+        "annotation": "Sơ đồ một nhãn gắn vào bộ phận nó mô tả",
+        "level": "Sơ đồ hai tầng chồng lên nhau và chênh cao giữa chúng"
       }
     },
     "objects": {
       "heading": "Phát hiện",
-      "confidencePrefix": "độ tin cậy"
+      "confidencePrefix": "Độ tin cậy"
     },
     "figure": {
-      "regionLabel": "khối hình của vi phạm",
-      "modeSegmentedLabel": "chế độ khối hình",
-      "planLabel": "mặt bằng quanh đối tượng gây lỗi"
+      "regionLabel": "Khối hình của vi phạm",
+      "modeSegmentedLabel": "Chế độ khối hình",
+      "planLabel": "Mặt bằng quanh đối tượng gây lỗi"
     },
     "causes": {
       "heading": "Nguyên nhân có thể"
@@ -3048,39 +3141,39 @@
     }
   },
   "ruleSettings": {
-    "screenTitle": "cài đặt bộ luật không gian",
+    "screenTitle": "Cài đặt bộ luật không gian",
     "enabledOfTotal": "{{enabled}}/{{total}} luật đang bật",
     "nav": {
-      "ariaLabel": "mục cài đặt bộ luật",
-      "selectLabel": "mục cài đặt",
-      "generalThresholds": "ngưỡng chung"
+      "ariaLabel": "Mục cài đặt bộ luật",
+      "selectLabel": "Mục cài đặt",
+      "generalThresholds": "Ngưỡng chung"
     },
     "severity": {
-      "critical": "nghiêm trọng",
-      "warning": "cảnh báo",
-      "suggestion": "gợi ý",
-      "pickerAriaLabel": "mức độ của luật: {{sentence}}"
+      "critical": "Nghiêm trọng",
+      "warning": "Cảnh báo",
+      "suggestion": "Gợi ý",
+      "pickerAriaLabel": "Mức độ của luật: {{sentence}}"
     },
     "row": {
-      "toggleAriaLabel": "bật hoặc tắt luật: {{sentence}}",
+      "toggleAriaLabel": "Bật hoặc tắt luật: {{sentence}}",
       "supersededBy": "Đã được thay thế bởi {{rule}}",
-      "scopeLevel": "soi trên từng tầng",
-      "scopeBuilding": "soi trên cả công trình",
+      "scopeLevel": "Soi trên từng tầng",
+      "scopeBuilding": "Soi trên cả công trình",
       "adjustable": "{{scope}} · chỉnh được: {{thresholds}}",
       "noThreshold": "{{scope}} · không có ngưỡng chỉnh được"
     },
     "group": {
-      "toggleAriaLabel": "bật hoặc tắt cả nhóm: {{group}}",
+      "toggleAriaLabel": "Bật hoặc tắt cả nhóm: {{group}}",
       "counts": "{{total}} luật, {{enabled}} đang bật."
     },
     "generalThresholdsCard": {
-      "title": "ngưỡng chung",
+      "title": "Ngưỡng chung",
       "description": "Dung sai hình học dùng chung cho nhiều luật trong bộ này.",
       "empty": "Chưa có ngưỡng chung nào để chỉnh.",
       "outOfRange": "{{threshold}} nhận giá trị từ {{min}} đến {{max}} {{unit}}."
     },
     "presets": {
-      "sectionLabel": "bộ luật sẵn",
+      "sectionLabel": "Bộ luật sẵn",
       "changedRuleCount": "{{count}} luật sẽ đổi"
     },
     "impact": {
@@ -3089,10 +3182,28 @@
     },
     "restoreDefaults": {
       "caption": "Cấu hình đã khác mặc định.",
-      "button": "khôi phục mặc định"
+      "button": "Khôi phục mặc định"
     },
     "disableAllWarning": "Mọi luật đều đang tắt: lượt kiểm tra sẽ không soi gì nữa và mô hình báo sạch lỗi dù chưa được kiểm lần nào.",
-    "readOnlyReason": "chỉ quản trị viên và kỹ sư của dự án đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.",
+    "readOnlyReason": "Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.",
+    "reloadDialog": {
+      "body": "Tải lại sẽ bỏ thay đổi chưa lưu của bạn và hiện bản bộ luật mới nhất trên máy chủ.",
+      "cancel": "Để sau",
+      "confirm": "Bỏ thay đổi và tải lại",
+      "title": "Tải lại bộ luật?"
+    },
+    "saveProblem": {
+      "connection": "Mất kết nối nên bộ luật chưa được lưu.",
+      "fallback": "Chưa lưu được bộ luật của dự án này.",
+      "forbidden": "Vai của bạn không còn quyền đổi bộ luật.",
+      "reload": "Tải lại",
+      "ruleCodeUnknown": "Máy chủ không nhận ra một luật trong bộ luật này nên thay đổi chưa được lưu.",
+      "ruleGeneralNotToggleable": "Ngưỡng chung chỉ đổi được con số, không bật, tắt hay đổi mức được.",
+      "ruleThresholdOutOfRange": "Một ngưỡng nằm ngoài khoảng máy chủ cho phép nên thay đổi chưa được lưu.",
+      "ruleThresholdUnknown": "Máy chủ không nhận ra một ngưỡng trong bộ luật này nên thay đổi chưa được lưu.",
+      "validation": "Máy chủ từ chối bộ luật vì dữ liệu không hợp lệ nên thay đổi chưa được lưu.",
+      "versionConflict": "Bộ luật vừa được đổi ở nơi khác nên thay đổi của bạn chưa được lưu. Tải lại để xem bản mới nhất."
+    },
     "loadFailure": "Không tải được cài đặt bộ luật của dự án này.",
     "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
     "missingParams": {
@@ -3113,15 +3224,15 @@
       "hydrate": "Nạp cài đặt bộ luật"
     },
     "empty": {
-      "title": "chưa có bộ luật để cài đặt",
+      "title": "Chưa có bộ luật để cài đặt",
       "description": "Chưa có luật không gian nào được nạp cho dự án này."
     },
     "error": {
-      "title": "không tải được cài đặt bộ luật",
+      "title": "Không tải được cài đặt bộ luật",
       "description": "Đã có lỗi khi tải cấu hình bộ luật. Thử lại sau ít phút."
     },
     "forbidden": {
-      "title": "không có quyền xem cài đặt bộ luật",
+      "title": "Không có quyền xem cài đặt bộ luật",
       "description": "Chỉ người có quyền quản trị dự án mới xem được mục này."
     }
   },
@@ -3141,13 +3252,13 @@
       }
     },
     "states": {
-      "empty": "rỗng",
-      "loading": "đang tải",
-      "partial": "một phần",
-      "error": "lỗi",
-      "success": "thành công",
-      "forbidden": "không có quyền",
-      "collapsed": "thu gọn"
+      "empty": "Rỗng",
+      "loading": "Đang tải",
+      "partial": "Một phần",
+      "error": "Lỗi",
+      "success": "Thành công",
+      "forbidden": "Không có quyền",
+      "collapsed": "Thu gọn"
     },
     "preflight": {
       "approval": "Còn tầng chưa được duyệt. Vẫn xuất được, nhưng nên kiểm tra lại trước.",
@@ -3155,8 +3266,8 @@
       "unreviewed": "Còn đối tượng chưa được rà soát."
     },
     "progress": {
-      "rendering": "đang dựng hình",
-      "encoding": "đang mã hoá"
+      "rendering": "Đang dựng hình",
+      "encoding": "Đang mã hoá"
     },
     "floors": {
       "unapproved": "Tầng chưa được duyệt — vẫn chọn được để xuất."
@@ -3169,74 +3280,74 @@
     }
   },
   "shareDialog": {
-    "title": "chia sẻ bản vẽ",
-    "done": "xong",
+    "title": "Chia sẻ bản vẽ",
+    "done": "Xong",
     "savedAt": "Đã lưu lúc {{time}}",
     "people": {
-      "sectionLabel": "thành viên",
-      "emptyTitle": "chưa có thành viên nào",
-      "ownerBadge": "chủ sở hữu",
-      "ownerNote": "chủ sở hữu dự án — không đổi được",
-      "readOnlyReason": "bản này chỉ hiển thị những người đã có quyền; việc mời thêm và đổi vai làm ở phần cài đặt dự án"
+      "sectionLabel": "Thành viên",
+      "emptyTitle": "Chưa có thành viên nào",
+      "ownerBadge": "Chủ sở hữu",
+      "ownerNote": "Chủ sở hữu dự án — không đổi được",
+      "readOnlyReason": "Bản này chỉ hiển thị những người đã có quyền; việc mời thêm và đổi vai làm ở phần cài đặt dự án"
     },
     "roles": {
-      "admin": "quản trị viên",
-      "engineer": "kỹ sư",
-      "viewer": "người xem"
+      "admin": "Quản trị viên",
+      "engineer": "Kỹ sư",
+      "viewer": "Người xem"
     },
     "link": {
-      "sectionLabel": "liên kết chia sẻ",
-      "permissionLabel": "quyền truy cập",
-      "expiryLabel": "hạn dùng",
-      "passwordToggleLabel": "yêu cầu mật khẩu",
-      "passwordToggleDescription": "người xem phải nhập đúng mật khẩu trước khi mở liên kết.",
-      "passwordFieldLabel": "mật khẩu",
-      "passwordProtectedBadge": "có mật khẩu",
-      "viewpointToggleLabel": "kèm góc nhìn hiện tại",
-      "viewpointToggleDescription": "liên kết mở đúng vị trí đang xem, thay vì góc nhìn mặc định của tầng.",
-      "createButton": "tạo liên kết",
-      "revokeButton": "thu hồi",
-      "copyIdle": "sao chép liên kết",
-      "copyDone": "đã sao chép liên kết",
-      "forbiddenReason": "chỉ quản trị viên và kỹ sư của dự án tạo được liên kết chia sẻ; hãy nhờ một người trong hai vai đó tạo giúp",
-      "staleNotice": "các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi"
+      "sectionLabel": "Liên kết chia sẻ",
+      "permissionLabel": "Quyền truy cập",
+      "expiryLabel": "Hạn dùng",
+      "passwordToggleLabel": "Yêu cầu mật khẩu",
+      "passwordToggleDescription": "Người xem phải nhập đúng mật khẩu trước khi mở liên kết.",
+      "passwordFieldLabel": "Mật khẩu",
+      "passwordProtectedBadge": "Có mật khẩu",
+      "viewpointToggleLabel": "Kèm góc nhìn hiện tại",
+      "viewpointToggleDescription": "Liên kết mở đúng vị trí đang xem, thay vì góc nhìn mặc định của tầng.",
+      "createButton": "Tạo liên kết",
+      "revokeButton": "Thu hồi",
+      "copyIdle": "Sao chép liên kết",
+      "copyDone": "Đã sao chép liên kết",
+      "forbiddenReason": "Chỉ quản trị viên và kỹ sư của dự án tạo được liên kết chia sẻ; hãy nhờ một người trong hai vai đó tạo giúp",
+      "staleNotice": "Các liên kết đã tạo vẫn mở theo tuỳ chọn nhúng cũ; tạo một liên kết mới để dùng tuỳ chọn vừa đổi"
     },
     "embed": {
-      "sectionLabel": "nhúng vào trang khác",
-      "copyIdle": "sao chép mã nhúng",
-      "copyDone": "đã sao chép mã nhúng",
-      "sizeLabel": "kích thước",
-      "sizeAriaLabel": "kích thước khung nhúng",
-      "widthLabel": "chiều rộng (px)",
-      "heightLabel": "chiều cao (px)",
-      "toolbarLabel": "thanh công cụ",
-      "toolbarDescription": "hiện thanh điều khiển của trình xem trong khung nhúng.",
-      "levelLabel": "tầng",
-      "coloringLabel": "chế độ tô màu",
-      "previewIdle": "xem trước tĩnh",
-      "previewLevel": "tầng",
-      "previewColoring": "chế độ màu",
-      "previewToolbar": "thanh công cụ",
-      "previewViewpoint": "góc nhìn",
-      "previewLevelUnset": "chưa chọn",
-      "yes": "có",
-      "no": "không",
-      "sizeCompact": "gọn",
-      "sizeStandard": "vừa",
-      "sizeWide": "rộng"
+      "sectionLabel": "Nhúng vào trang khác",
+      "copyIdle": "Sao chép mã nhúng",
+      "copyDone": "Đã sao chép mã nhúng",
+      "sizeLabel": "Kích thước",
+      "sizeAriaLabel": "Kích thước khung nhúng",
+      "widthLabel": "Chiều rộng (px)",
+      "heightLabel": "Chiều cao (px)",
+      "toolbarLabel": "Thanh công cụ",
+      "toolbarDescription": "Hiện thanh điều khiển của trình xem trong khung nhúng.",
+      "levelLabel": "Tầng",
+      "coloringLabel": "Chế độ tô màu",
+      "previewIdle": "Xem trước tĩnh",
+      "previewLevel": "Tầng",
+      "previewColoring": "Chế độ màu",
+      "previewToolbar": "Thanh công cụ",
+      "previewViewpoint": "Góc nhìn",
+      "previewLevelUnset": "Chưa chọn",
+      "yes": "Có",
+      "no": "Không",
+      "sizeCompact": "Gọn",
+      "sizeStandard": "Vừa",
+      "sizeWide": "Rộng"
     },
     "toast": {
-      "created": "đã tạo liên kết chia sẻ",
-      "revoked": "đã thu hồi liên kết",
-      "linkCopied": "đã chép liên kết",
-      "embedCopied": "đã chép mã nhúng",
-      "permissionChanged": "đã đổi quyền chia sẻ sang {{permission}}",
-      "permissionUndoDescription": "đổi quyền chia sẻ sang {{permission}}"
+      "created": "Đã tạo liên kết chia sẻ",
+      "revoked": "Đã thu hồi liên kết",
+      "linkCopied": "Đã chép liên kết",
+      "embedCopied": "Đã chép mã nhúng",
+      "permissionChanged": "Đã đổi quyền chia sẻ sang {{permission}}",
+      "permissionUndoDescription": "Đổi quyền chia sẻ sang {{permission}}"
     },
     "error": {
-      "generic": "không thực hiện được thao tác chia sẻ; hãy thử lại",
-      "clipboardBlocked": "trình duyệt không cho trang này ghi vào bộ nhớ tạm",
-      "copyFailed": "không chép được vào bộ nhớ tạm; hãy chọn và chép thủ công"
+      "generic": "Không thực hiện được thao tác chia sẻ; hãy thử lại",
+      "clipboardBlocked": "Trình duyệt không cho trang này ghi vào bộ nhớ tạm",
+      "copyFailed": "Không chép được vào bộ nhớ tạm; hãy chọn và chép thủ công"
     },
     "fixture": {
       "createFailed": "Không tạo được liên kết chia sẻ. Kiểm tra kết nối rồi thử lại.",
@@ -3248,24 +3359,28 @@
   },
   "versionHistory": {
     "state": {
-      "emptyTitle": "chưa có phiên bản nào",
+      "emptyTitle": "Chưa có phiên bản nào",
       "emptyDescription": "Chưa có phiên bản nào được lưu cho bản vẽ này.",
-      "forbiddenTitle": "không đủ quyền xem",
+      "forbiddenTitle": "Không đủ quyền xem",
       "forbiddenDescription": "Bạn không có quyền xem lịch sử phiên bản của bản vẽ này.",
-      "errorTitle": "không tải được lịch sử phiên bản",
+      "errorTitle": "Không tải được lịch sử phiên bản",
       "errorFallback": "Đã có lỗi xảy ra.",
-      "listErrorFallback": "không tải được danh sách phiên bản của tầng này",
+      "listErrorFallback": "Không tải được danh sách phiên bản của tầng này",
       "missingParamsTitle": "Không xác định được bản vẽ",
       "missingParamsMessage": "Đường dẫn thiếu mã dự án hoặc chưa có tầng nào đang mở, nên không biết phải hiện lịch sử phiên bản của bản vẽ nào."
     },
     "list": {
       "ariaLabel": "Danh sách phiên bản",
-      "selectLabel": "phiên bản",
-      "currentBadge": "hiện tại",
+      "selectLabel": "Phiên bản",
+      "currentBadge": "Hiện tại",
       "compareCheckboxAriaLabel": "Chọn phiên bản {{label}} để so sánh",
-      "todayHeading": "hôm nay",
-      "noNote": "không có ghi chú cho phiên bản này",
-      "retentionNotice": "chỉ {{count}} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được"
+      "todayHeading": "Hôm nay",
+      "noNote": "Không có ghi chú cho phiên bản này",
+      "retentionNotice": "Chỉ {{count}} phiên bản gần nhất còn giữ đủ nội dung; bản này chỉ còn siêu dữ liệu nên không so sánh và không phục hồi được",
+      "snapshotFailed": "Chưa tải được nội dung bản này",
+      "snapshotRetry": "Thử lại",
+      "snapshotRetryAria": "Thử lại tải nội dung {{label}}",
+      "snapshotStatus": "Trạng thái nạp nội dung phiên bản"
     },
     "compare": {
       "ariaLabel": "Vùng so sánh hai phiên bản",
@@ -3273,35 +3388,35 @@
       "rightSelectLabel": "Phiên bản đối chiếu",
       "selectPlaceholder": "Chọn phiên bản",
       "tabsLabel": "Cách xem khác biệt",
-      "teaching": "mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây",
-      "noPairReason": "chưa chọn đủ hai phiên bản để so sánh",
-      "snapshotMissingReason": "phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được",
-      "noVersionSourceReason": "chưa có nguồn dữ liệu phiên bản nào được nối vào màn này"
+      "teaching": "Mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây",
+      "noPairReason": "Chưa chọn đủ hai phiên bản để so sánh",
+      "snapshotMissingReason": "Phiên bản này không còn ảnh chụp nội dung, nên không so sánh và không phục hồi được",
+      "noVersionSourceReason": "Chưa có nguồn dữ liệu phiên bản nào được nối vào màn này"
     },
     "tab": {
-      "changes": "thay đổi",
+      "changes": "Thay đổi",
       "json": "JSON",
-      "visual": "trực quan"
+      "visual": "Trực quan"
     },
     "counts": {
-      "none": "không có thay đổi nào",
-      "ariaLabel": "thêm {{added}}, xoá {{removed}}, thay đổi {{changed}}"
+      "none": "Không có thay đổi nào",
+      "ariaLabel": "Thêm {{added}}, xoá {{removed}}, thay đổi {{changed}}"
     },
     "diff": {
       "groupsAriaLabel": "Danh sách thay đổi theo loại đối tượng",
       "emptyTitle": "Không có khác biệt",
       "emptyDescription": "Hai phiên bản đang chọn giống nhau ở mọi đối tượng.",
       "countLabel": "{{count}} thay đổi",
-      "added": "đã thêm",
-      "removed": "đã xoá",
-      "changed": "đã thay đổi",
-      "entityDimension": "kích thước",
-      "entityDoor": "cửa đi",
-      "entityFurniture": "nội thất",
-      "entityRoom": "phòng",
-      "entityVertex": "điểm",
-      "entityWall": "tường",
-      "entityWindow": "cửa sổ"
+      "added": "Đã thêm",
+      "removed": "Đã xoá",
+      "changed": "Đã thay đổi",
+      "entityDimension": "Kích thước",
+      "entityDoor": "Cửa đi",
+      "entityFurniture": "Nội thất",
+      "entityRoom": "Phòng",
+      "entityVertex": "Điểm",
+      "entityWall": "Tường",
+      "entityWindow": "Cửa sổ"
     },
     "json": {
       "ariaLabel": "So sánh bản ghi JSON theo từng dòng",
@@ -3314,23 +3429,24 @@
       "webglTitle": "Máy này không dựng được 3D",
       "webglDescription": "Trình duyệt không bật WebGL nên khối 3D không hiện. Hai tab còn lại vẫn mô tả đủ khác biệt.",
       "buildingLabel": "Đang dựng mô hình",
-      "noScene": "màn này chưa nối được vào bộ dựng cảnh 3D",
-      "noModel": "chưa có mô hình không gian nào được nạp, nên chưa dựng được cảnh",
-      "brokenModel": "mô hình hiện tại chưa dựng được thành cảnh, nên tab này để trống",
-      "caption": "đây là mô hình hiện tại chứ không phải một bản cũ; {{count}} đối tượng đã đổi đang được tô sáng",
-      "captionNamed": "đây là mô hình hiện tại chứ không phải phiên bản {{label}}; {{count}} đối tượng đã đổi đang được tô sáng"
+      "noScene": "Màn này chưa nối được vào bộ dựng cảnh 3D",
+      "noModel": "Chưa có mô hình không gian nào được nạp, nên chưa dựng được cảnh",
+      "brokenModel": "Mô hình hiện tại chưa dựng được thành cảnh, nên tab này để trống",
+      "caption": "Đây là mô hình hiện tại chứ không phải một bản cũ; {{count}} đối tượng đã đổi đang được tô sáng",
+      "captionNamed": "Đây là mô hình hiện tại chứ không phải phiên bản {{label}}; {{count}} đối tượng đã đổi đang được tô sáng"
     },
     "restore": {
-      "buttonLabel": "phục hồi phiên bản này",
-      "exportButtonLabel": "xuất phiên bản này",
-      "caption": "phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách",
-      "forbiddenReason": "vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện",
-      "confirmTitle": "phục hồi phiên bản này?",
-      "confirmTitleNamed": "phục hồi phiên bản {{label}}?",
-      "confirmLabel": "phục hồi",
-      "cancelLabel": "để nguyên",
-      "toast": "đã phục hồi nội dung của phiên bản {{label}}; hoàn tác được trong {{duration}}",
-      "savedAt": "đã lưu lúc {{time}}"
+      "buttonLabel": "Phục hồi phiên bản này",
+      "exportButtonLabel": "Xuất phiên bản này",
+      "caption": "Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách",
+      "forbiddenReason": "Vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện",
+      "confirmTitle": "Phục hồi phiên bản này?",
+      "confirmTitleNamed": "Phục hồi phiên bản {{label}}?",
+      "confirmLabel": "Phục hồi",
+      "cancelLabel": "Để nguyên",
+      "toast": "Đã phục hồi nội dung của phiên bản {{label}}; hoàn tác được trong {{duration}}",
+      "savedAt": "Đã lưu lúc {{time}}",
+      "undoRetryToast": "Chưa hoàn tác được lượt phục hồi; bấm \"Hoàn tác\" để thử lại"
     },
     "fixture": {
       "teachingSentence": "Chỉ có một phiên bản, chưa có gì để so sánh.",
@@ -3349,16 +3465,47 @@
       "rowDescriptionEdit": "Chỉnh sửa tường và bố cục",
       "rowRetentionNotice": "Đã lưu quá 90 ngày, chỉ còn thông tin cơ bản.",
       "rowTagReview": "Duyệt với chủ đầu tư"
+    },
+    "floorVersions": {
+      "floorSelectLabel": "Tầng",
+      "emptyTitle": "{{floor}} chưa có phiên bản nào",
+      "emptyDescription": "Phiên bản được lưu khi AI ghi kết quả và khi phục hồi một bản cũ.",
+      "projectLoading": "Dự án chưa nạp xong",
+      "noFloorTitle": "Dự án chưa có tầng",
+      "loadMore": "Xem thêm phiên bản",
+      "tagButton": "Gắn nhãn phiên bản này",
+      "tagDialogTitle": "Gắn nhãn phiên bản {{label}}",
+      "tagField": "Nhãn",
+      "tagHint": "Để trống rồi bấm Gắn nhãn là gỡ nhãn.",
+      "tagSubmit": "Gắn nhãn",
+      "tagCancel": "Huỷ",
+      "tagged": "Đã gắn nhãn",
+      "untagged": "Đã gỡ nhãn",
+      "restoreTitle": "Phục hồi phiên bản {{label}} của {{floor}}?",
+      "undoHistoryCleared": "Lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.",
+      "discardTitle": "{{floor}} còn thay đổi chưa lưu được; tiếp tục sẽ bỏ chúng",
+      "discardConfirm": "Bỏ thay đổi và tiếp tục",
+      "restored": "Đã phục hồi phiên bản {{label}} của {{floor}}; hoàn tác được trong {{duration}}",
+      "unchanged": "Phiên bản này trùng với hiện trạng",
+      "undone": "Đã hoàn tác lượt phục hồi",
+      "conflictMessage": "Tầng vừa đổi ở nơi khác: {{name}} đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi. Tải lại để xem bản mới nhất.",
+      "someoneElse": "Người khác",
+      "reload": "Tải lại",
+      "understood": "Đã hiểu",
+      "reloadFailedTitle": "Chưa tải lại được tầng",
+      "restoreValidation": "Không phục hồi được bản này.",
+      "unknownOutcome": "Chưa rõ đã phục hồi chưa, bấm lại.",
+      "labelValidation": "Nhãn dài tối đa 60 ký tự."
     }
   },
   "modelLibrary": {
     "state": {
-      "emptyTitle": "chưa có model nào",
+      "emptyTitle": "Chưa có model nào",
       "emptyDescription": "Thư viện chưa có model nào.",
-      "errorTitle": "không tải được thư viện model",
+      "errorTitle": "Không tải được thư viện model",
       "errorFallback": "Đã có lỗi xảy ra.",
-      "loadFailed": "không đọc được danh mục model",
-      "readOnlyReason": "vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện",
+      "loadFailed": "Không đọc được danh mục model",
+      "readOnlyReason": "Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện",
       "filteredEmptyMessage": "Không tìm thấy model phù hợp."
     },
     "breadcrumb": {
@@ -3367,61 +3514,61 @@
       "current": "Thư viện model"
     },
     "toolbar": {
-      "searchLabel": "tìm model",
+      "searchLabel": "Tìm model",
       "searchPlaceholder": "Tìm theo tên model...",
-      "categoryLabel": "danh mục",
-      "viewModeLabel": "chế độ xem",
+      "categoryLabel": "Danh mục",
+      "viewModeLabel": "Chế độ xem",
       "viewModeTable": "Bảng",
       "viewModeGrid": "Lưới"
     },
     "summary": {
-      "totalCountCaption": "tổng số model",
-      "totalSizeCaption": "tổng dung lượng",
-      "heavyCountCaption": "model nặng"
+      "totalCountCaption": "Tổng số model",
+      "totalSizeCaption": "Tổng dung lượng",
+      "heavyCountCaption": "Model nặng"
     },
     "table": {
-      "previewHeader": "ảnh xem trước",
+      "previewHeader": "Ảnh xem trước",
       "headerName": "Tên",
       "headerGroup": "Danh mục",
       "headerBounds": "Kích thước bao",
       "headerTriangles": "Số tam giác",
       "headerFileSize": "Dung lượng",
       "heavyBadgeLabel": "Nặng",
-      "gridListLabel": "lưới model",
+      "gridListLabel": "Lưới model",
       "retryPreviewLabel": "Thử tải lại ảnh xem trước của {{name}}",
-      "cardCaptionGroup": "danh mục",
-      "cardCaptionBounds": "kích thước bao",
-      "cardCaptionTriangles": "số tam giác",
-      "cardCaptionFileSize": "dung lượng"
+      "cardCaptionGroup": "Danh mục",
+      "cardCaptionBounds": "Kích thước bao",
+      "cardCaptionTriangles": "Số tam giác",
+      "cardCaptionFileSize": "Dung lượng"
     },
     "field": {
-      "bounds": "kích thước bao",
-      "triangles": "số tam giác",
-      "fileSize": "dung lượng",
-      "group": "nhóm"
+      "bounds": "Kích thước bao",
+      "triangles": "Số tam giác",
+      "fileSize": "Dung lượng",
+      "group": "Nhóm"
     },
     "detail": {
-      "regionLabel": "chi tiết model",
-      "closeButton": "đóng panel chi tiết model",
+      "regionLabel": "Chi tiết model",
+      "closeButton": "Đóng panel chi tiết model",
       "key": {
-        "escape": "đóng panel chi tiết model"
+        "escape": "Đóng panel chi tiết model"
       },
       "preview": {
-        "regionLabel": "xem trước mô hình",
+        "regionLabel": "Xem trước mô hình",
         "retry": "Thử lại",
-        "autoSpinNote": "khung xem trước không tự quay; kéo chuột trong khung để xoay model"
+        "autoSpinNote": "Khung xem trước không tự quay; kéo chuột trong khung để xoay model"
       },
       "triangles": {
-        "regionLabel": "số tam giác",
+        "regionLabel": "Số tam giác",
         "declared": "Máy chủ khai",
         "measured": "Đo lại từ tệp",
         "mismatchNote": "Hai số lệch nhau là chuyện thường: số đo lại đọc thẳng từ hình học trong tệp."
       },
       "fields": {
-        "regionLabel": "siêu dữ liệu model"
+        "regionLabel": "Siêu dữ liệu model"
       },
       "heavy": {
-        "regionLabel": "cảnh báo model nặng",
+        "regionLabel": "Cảnh báo model nặng",
         "badge": "Nặng"
       }
     },
@@ -3430,74 +3577,175 @@
       "errorMessage": "Không tải được thư viện model. Kiểm tra kết nối rồi thử lại.",
       "autoSpinNote": "Chưa hỗ trợ tự quay; bạn vẫn quay được bằng tay.",
       "heavyBadge": "Nặng",
-      "fieldBounds": "kích thước bao",
-      "fieldTriangles": "số tam giác",
-      "fieldFileSize": "dung lượng",
-      "fieldGroup": "nhóm",
-      "groupTable": "bàn",
-      "groupChair": "ghế",
-      "groupBed": "giường",
-      "groupSofa": "ghế sofa",
-      "groupStorage": "tủ lưu trữ",
-      "groupSanitary": "thiết bị vệ sinh",
-      "groupKitchen": "bếp",
-      "groupTechnical": "kỹ thuật",
-      "filterAll": "tất cả",
-      "filterMine": "của tôi"
+      "fieldBounds": "Kích thước bao",
+      "fieldTriangles": "Số tam giác",
+      "fieldFileSize": "Dung lượng",
+      "fieldGroup": "Nhóm",
+      "groupTable": "Bàn",
+      "groupChair": "Ghế",
+      "groupBed": "Giường",
+      "groupSofa": "Ghế sofa",
+      "groupStorage": "Tủ lưu trữ",
+      "groupSanitary": "Thiết bị vệ sinh",
+      "groupKitchen": "Bếp",
+      "groupTechnical": "Kỹ thuật",
+      "filterAll": "Tất cả",
+      "filterMine": "Của tôi"
+    }
+  },
+  "modelRegistry": {
+    "breadcrumbAdmin": "Quản trị",
+    "breadcrumbHere": "Model AI",
+    "title": "Model AI của chuỗi xử lý",
+    "familyPicker": "Họ model",
+    "activeTitle": "Đang dùng",
+    "classic": "Đường cổ điển",
+    "noActive": "Chưa kích hoạt bản nào",
+    "revert": "Quay về đường cổ điển",
+    "activate": "Kích hoạt",
+    "cancel": "Huỷ",
+    "reload": "Tải lại",
+    "retry": "Thử lại",
+    "loadMore": "Xem thêm",
+    "evaluation": {
+      "pending": "Chờ đánh giá",
+      "running": "Đang đánh giá",
+      "completed": "Đã đánh giá",
+      "failed": "Đánh giá không thành công"
+    },
+    "source": {
+      "trained": "Huấn luyện tại chỗ",
+      "seed": "Bản gốc",
+      "uploaded": "Tải lên"
+    },
+    "creator": {
+      "system": "Hệ thống AI",
+      "admin": "Quản trị viên"
+    },
+    "blockedNotEvaluated": "Chỉ kích hoạt được bản đã đánh giá.",
+    "dialogBody": "Lượt xử lý mới dùng bản này ngay; lượt đang chạy giữ model đã ghim.",
+    "revertTitle": "Quay về đường cổ điển cho tách lớp tường?",
+    "revertBody": "Chuỗi xử lý sẽ tách tường bằng thuật toán cổ điển, không dùng model nào.",
+    "dialogWarning": "Bản đang dùng chưa đánh giá xong nên sau khi đổi sẽ chưa kích hoạt lại được.",
+    "conflict": "{{family}} vừa được đổi ở nơi khác. Tải lại để thấy bản đang dùng.",
+    "partial": "{{count}} phiên bản đang chờ hoặc đang đánh giá; chỉ kích hoạt được bản đã đánh giá.",
+    "empty": "Họ này chưa có phiên bản nào. Tải trọng số bằng công cụ dòng lệnh, hoặc chờ một lượt huấn luyện xong.",
+    "emptyClassic": "Đang dùng đường cổ điển.",
+    "forbidden": "Chỉ quản trị viên hệ thống xem được model AI.",
+    "seedNote": "Số đo trên tập kiểm tổng hợp cố định, không so thẳng với bản huấn luyện.",
+    "errors": {
+      "notEvaluated": "Bản này chưa đánh giá xong nên chưa kích hoạt được. Bản gốc chỉ được đánh giá khi dịch vụ học máy đã chạy.",
+      "familyMismatch": "Bản này không thuộc họ model đang chọn.",
+      "versionNotFound": "Không tìm thấy phiên bản này.",
+      "familyNotFound": "Không tìm thấy họ model này.",
+      "busy": "Máy chủ đang bận. Thử lại sau ít phút.",
+      "readFallback": "Không đọc được danh sách model.",
+      "writeFallback": "Chưa kích hoạt được bản này. Thử lại sau."
+    }
+  },
+  "trainingJobs": {
+    "breadcrumbAdmin": "Quản trị",
+    "breadcrumbHere": "Huấn luyện model",
+    "title": "Huấn luyện model AI",
+    "relatedLink": "Model AI của chuỗi xử lý",
+    "tabsLabel": "Phần của trang huấn luyện",
+    "tabJobs": "Lượt huấn luyện",
+    "tabDatasets": "Bộ dữ liệu",
+    "all": "Tất cả",
+    "create": "Tạo lượt huấn luyện",
+    "submit": "Bắt đầu huấn luyện",
+    "epochs": "Số vòng",
+    "baseModel": "Model nền",
+    "loadMore": "Xem thêm",
+    "retry": "Thử lại",
+    "status": {
+      "queued": "Chờ chạy",
+      "running": "Đang chạy",
+      "succeeded": "Xong",
+      "failed": "Hỏng",
+      "cancelling": "Đang huỷ",
+      "cancelled": "Đã huỷ",
+      "ready": "Sẵn sàng",
+      "building": "Đang dựng"
+    },
+    "cancel": "Huỷ lượt",
+    "keep": "Giữ lại",
+    "cancelTitle": "Huỷ lượt huấn luyện này?",
+    "cancelBody": "Lượt dừng ở vòng hiện tại, không chạy tiếp được.",
+    "created": "Đã xếp hàng lượt huấn luyện",
+    "partial": "{{count}} lượt đang chờ hoặc chạy; số liệu tự cập nhật.",
+    "emptyJobs": "Chưa có lượt huấn luyện nào. Tạo lượt đầu tiên từ bộ dữ liệu sẵn sàng.",
+    "emptyDatasets": "Chưa có bộ dữ liệu nào. Dựng bằng công cụ dòng lệnh.",
+    "noReadyVersion": "Bộ dữ liệu này chưa có phiên bản sẵn sàng.",
+    "readOnlyNote": "Trang này chỉ xem; bộ dữ liệu dựng bằng công cụ dòng lệnh.",
+    "forbidden": "Chỉ quản trị viên hệ thống xem được trang huấn luyện.",
+    "errors": {
+      "versionNotReady": "Phiên bản này chưa sẵn sàng.",
+      "versionFamilyMismatch": "Phiên bản này không cùng họ model.",
+      "versionNotFound": "Không tìm thấy phiên bản này.",
+      "baseModelMismatch": "Model nền không thuộc họ đã chọn.",
+      "epochsInvalid": "Số vòng phải từ 1 đến 300.",
+      "formInvalid": "Biểu mẫu chưa hợp lệ.",
+      "notCancellable": "Lượt này vừa kết thúc nên không huỷ được nữa.",
+      "jobNotFound": "Không tìm thấy lượt huấn luyện này.",
+      "datasetNotFound": "Không tìm thấy bộ dữ liệu này.",
+      "busy": "Máy chủ đang bận. Thử lại sau ít phút.",
+      "readFallback": "Không đọc được dữ liệu huấn luyện.",
+      "writeFallback": "Chưa gửi được yêu cầu. Thử lại sau."
     }
   },
   "userManagement": {
     "breadcrumb": {
-      "navLabel": "đường dẫn trang",
-      "admin": "quản trị",
-      "users": "người dùng",
-      "backLabel": "về bảng điều khiển"
+      "navLabel": "Đường dẫn trang",
+      "admin": "Quản trị",
+      "users": "Người dùng",
+      "backLabel": "Về bảng điều khiển"
     },
     "role": {
-      "admin": "quản trị",
-      "engineer": "kỹ sư",
-      "viewer": "người xem"
+      "admin": "Quản trị",
+      "engineer": "Kỹ sư",
+      "viewer": "Người xem"
     },
     "status": {
-      "active": "đang hoạt động",
-      "pending": "chờ chấp nhận",
-      "disabled": "đã vô hiệu hoá"
+      "active": "Đang hoạt động",
+      "pending": "Chờ chấp nhận",
+      "disabled": "Đã vô hiệu hoá"
     },
     "permissionMatrix": {
-      "captionLabel": "ma trận quyền theo vai trò",
+      "captionLabel": "Ma trận quyền theo vai trò",
       "referenceButtonLabel": "Xem ma trận quyền",
       "referenceModalTitle": "Ma trận quyền theo vai trò",
-      "allowed": "được phép",
-      "notAllowed": "không được phép",
-      "floorUpload": "tải bản vẽ",
-      "layerEdit": "sửa hình học",
-      "qcApprove": "duyệt QC",
-      "rulesetEdit": "đổi bộ luật",
-      "modelExport": "xuất",
-      "shareCreate": "chia sẻ",
-      "userManage": "quản lý người dùng"
+      "allowed": "Được phép",
+      "notAllowed": "Không được phép",
+      "floorUpload": "Tải bản vẽ",
+      "layerEdit": "Sửa hình học",
+      "qcApprove": "Duyệt QC",
+      "rulesetEdit": "Đổi bộ luật",
+      "modelExport": "Xuất",
+      "shareCreate": "Chia sẻ",
+      "userManage": "Quản lý người dùng"
     },
     "toolbar": {
-      "searchLabel": "tìm người dùng",
+      "searchLabel": "Tìm người dùng",
       "searchPlaceholder": "Tìm theo tên hoặc email...",
-      "roleFilterLabel": "vai",
-      "statusFilterLabel": "trạng thái",
-      "allOptionLabel": "tất cả",
-      "summaryUserLabel": "người dùng",
-      "summaryAdminLabel": "quản trị",
-      "summaryPendingLabel": "lời mời đang chờ",
+      "roleFilterLabel": "Vai",
+      "statusFilterLabel": "Trạng thái",
+      "allOptionLabel": "Tất cả",
+      "summaryUserLabel": "Người dùng",
+      "summaryAdminLabel": "Quản trị",
+      "summaryPendingLabel": "Lời mời đang chờ",
       "inviteButtonLabel": "Mời người dùng"
     },
     "invite": {
-      "roleLabel": "vai cho lời mời",
-      "emailsLabel": "email người được mời",
+      "roleLabel": "Vai cho lời mời",
+      "emailsLabel": "Email người được mời",
       "emailsPlaceholder": "Nhập email, cách nhau bằng dấu phẩy hoặc xuống dòng...",
       "submitLabel": "Gửi lời mời",
       "cancelLabel": "Huỷ",
-      "hint": "ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
-      "invalidEmailsPrefix": "không hợp lệ:",
-      "invalidEmailsErrorPrefix": "chưa đọc được các địa chỉ sau:",
-      "validEmailCountSuffix": "địa chỉ hợp lệ"
+      "hint": "Ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
+      "invalidEmailsPrefix": "Không hợp lệ:",
+      "invalidEmailsErrorPrefix": "Chưa đọc được các địa chỉ sau:",
+      "validEmailCountSuffix": "Địa chỉ hợp lệ"
     },
     "table": {
       "headerUser": "Họ tên",
@@ -3506,204 +3754,204 @@
       "headerProjects": "Số dự án",
       "headerLastActive": "Lần hoạt động cuối",
       "headerStatus": "Trạng thái",
-      "headerActions": "hành động",
+      "headerActions": "Hành động",
       "emptyMessage": "Không tìm thấy người dùng phù hợp.",
-      "inviteExpiredLabel": "lời mời đã hết hạn",
-      "resendInviteLabel": "gửi lại",
-      "disableUserLabel": "vô hiệu hoá",
-      "enableUserLabel": "bật lại",
-      "removeUserLabel": "xoá"
+      "inviteExpiredLabel": "Lời mời đã hết hạn",
+      "resendInviteLabel": "Gửi lại",
+      "disableUserLabel": "Vô hiệu hoá",
+      "enableUserLabel": "Bật lại",
+      "removeUserLabel": "Xoá"
     },
     "detail": {
-      "regionLabel": "chi tiết người dùng",
-      "emptyLabel": "chọn một người để xem chi tiết",
-      "closeButton": "đóng chi tiết người dùng",
-      "membershipsHeading": "dự án tham gia",
-      "membershipsEmpty": "người này chưa tham gia dự án nào",
-      "activitiesHeading": "hoạt động gần đây",
-      "activitiesEmpty": "chưa có hoạt động nào",
-      "removeSectionLabel": "xoá người dùng",
+      "regionLabel": "Chi tiết người dùng",
+      "emptyLabel": "Chọn một người để xem chi tiết",
+      "closeButton": "Đóng chi tiết người dùng",
+      "membershipsHeading": "Dự án tham gia",
+      "membershipsEmpty": "Người này chưa tham gia dự án nào",
+      "activitiesHeading": "Hoạt động gần đây",
+      "activitiesEmpty": "Chưa có hoạt động nào",
+      "removeSectionLabel": "Xoá người dùng",
       "removeDescription": "Xoá hẳn người dùng này khỏi hệ thống.",
-      "removeButton": "gỡ người dùng khỏi hệ thống",
-      "removeDialogTitle": "xoá hẳn {{name}}?",
+      "removeButton": "Gỡ người dùng khỏi hệ thống",
+      "removeDialogTitle": "Xoá hẳn {{name}}?",
       "removeConfirmPrefix": "Gõ lại {{email}} để xác nhận.",
-      "removeInputLabel": "địa chỉ thư",
-      "removeCancel": "để sau",
-      "removeConfirmButton": "xác nhận xoá vĩnh viễn"
+      "removeInputLabel": "Địa chỉ thư",
+      "removeCancel": "Để sau",
+      "removeConfirmButton": "Xác nhận xoá vĩnh viễn"
     },
     "state": {
-      "emptyTitle": "chưa có người dùng nào khác",
-      "emptyTeaching": "mới chỉ có mình bạn ở đây; mời đồng đội bằng nút mời người dùng, ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
-      "errorTitle": "không tải được danh sách người dùng",
+      "emptyTitle": "Chưa có người dùng nào khác",
+      "emptyTeaching": "Mới chỉ có mình bạn ở đây; mời đồng đội bằng nút mời người dùng, ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
+      "errorTitle": "Không tải được danh sách người dùng",
       "errorFallback": "Đã có lỗi xảy ra.",
       "retryButtonLabel": "Thử lại",
-      "loadFailed": "không đọc được danh sách người dùng",
-      "forbidden": "vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì",
-      "neverActive": "chưa hoạt động lần nào"
+      "loadFailed": "Không đọc được danh sách người dùng",
+      "forbidden": "Vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì",
+      "neverActive": "Chưa hoạt động lần nào"
     },
     "blocked": {
-      "selfRole": "bạn không thể tự đổi vai của mình",
-      "selfDisable": "bạn không thể tự vô hiệu hoá tài khoản của mình",
-      "lastAdmin": "đây là quản trị cuối cùng, hệ thống cần ít nhất một người giữ vai này",
-      "membershipRole": "vai trong từng dự án theo vai của hệ thống; hệ thống chưa có đường đổi riêng cho một dự án",
-      "invite": "vai của bạn chưa mời được người dùng",
-      "removeWarning": "xoá hẳn gỡ luôn phần ghi công của người này trong lịch sử và không hoàn tác được; gõ đúng địa chỉ thư của họ để xác nhận"
+      "selfRole": "Bạn không thể tự đổi vai của mình",
+      "selfDisable": "Bạn không thể tự vô hiệu hoá tài khoản của mình",
+      "lastAdmin": "Đây là quản trị cuối cùng, hệ thống cần ít nhất một người giữ vai này",
+      "membershipRole": "Vai trong từng dự án theo vai của hệ thống; hệ thống chưa có đường đổi riêng cho một dự án",
+      "invite": "Vai của bạn chưa mời được người dùng",
+      "removeWarning": "Xoá hẳn gỡ luôn phần ghi công của người này trong lịch sử và không hoàn tác được; gõ đúng địa chỉ thư của họ để xác nhận"
     },
     "toast": {
-      "roleChangedTitle": "đã đổi vai",
-      "roleChangedNoLoss": "vai mới giữ nguyên mọi việc họ đang làm được",
-      "roleChangedLostPrefix": "vai mới không còn:",
-      "roleChangeFailedTitle": "không đổi được vai",
-      "disabledTitle": "đã vô hiệu hoá tài khoản",
-      "enabledTitle": "đã bật lại tài khoản",
-      "setEnabledFailedTitle": "không đổi được trạng thái tài khoản",
-      "invitedTitle": "đã gửi lời mời",
-      "inviteFailedTitle": "không gửi được lời mời",
-      "removedTitle": "đã xoá tài khoản",
-      "removeFailedTitle": "không xoá được tài khoản",
-      "resentTitle": "đã gửi lại lời mời",
-      "resendFailedTitle": "không gửi lại được lời mời"
+      "roleChangedTitle": "Đã đổi vai",
+      "roleChangedNoLoss": "Vai mới giữ nguyên mọi việc họ đang làm được",
+      "roleChangedLostPrefix": "Vai mới không còn:",
+      "roleChangeFailedTitle": "Không đổi được vai",
+      "disabledTitle": "Đã vô hiệu hoá tài khoản",
+      "enabledTitle": "Đã bật lại tài khoản",
+      "setEnabledFailedTitle": "Không đổi được trạng thái tài khoản",
+      "invitedTitle": "Đã gửi lời mời",
+      "inviteFailedTitle": "Không gửi được lời mời",
+      "removedTitle": "Đã xoá tài khoản",
+      "removeFailedTitle": "Không xoá được tài khoản",
+      "resentTitle": "Đã gửi lại lời mời",
+      "resendFailedTitle": "Không gửi lại được lời mời"
     },
     "activity": {
-      "floorUpload": "tải bản vẽ",
-      "floorUploadComplete": "hoàn tất tải bản vẽ",
-      "floorCreate": "tạo tầng",
-      "floorDelete": "xoá tầng",
-      "floorEdit": "sửa tầng",
-      "floorReorder": "sắp lại thứ tự tầng",
-      "projectCreate": "tạo dự án",
-      "projectUpdate": "sửa dự án",
-      "projectDelete": "xoá dự án",
-      "projectSettingsUpdate": "sửa cài đặt dự án",
-      "memberAdd": "thêm thành viên",
-      "memberRemove": "gỡ thành viên",
-      "versionRestore": "khôi phục phiên bản",
-      "versionLabel": "đặt nhãn phiên bản",
-      "rulesConfigUpdate": "sửa cấu hình luật",
-      "userRoleChange": "đổi vai người dùng",
-      "userDisable": "vô hiệu hoá người dùng",
-      "userEnable": "bật lại người dùng",
-      "userDelete": "xoá người dùng",
-      "userInvite": "mời người dùng",
-      "userInviteResend": "gửi lại lời mời",
-      "modelActivate": "kích hoạt mô hình",
-      "modelUpload": "tải lên mô hình",
-      "datasetCreate": "tạo bộ dữ liệu",
-      "datasetBuild": "dựng bộ dữ liệu",
-      "trainingCreate": "tạo lượt huấn luyện",
-      "trainingCancel": "huỷ lượt huấn luyện",
-      "fallback": "thao tác khác"
+      "floorUpload": "Tải bản vẽ",
+      "floorUploadComplete": "Hoàn tất tải bản vẽ",
+      "floorCreate": "Tạo tầng",
+      "floorDelete": "Xoá tầng",
+      "floorEdit": "Sửa tầng",
+      "floorReorder": "Sắp lại thứ tự tầng",
+      "projectCreate": "Tạo dự án",
+      "projectUpdate": "Sửa dự án",
+      "projectDelete": "Xoá dự án",
+      "projectSettingsUpdate": "Sửa cài đặt dự án",
+      "memberAdd": "Thêm thành viên",
+      "memberRemove": "Gỡ thành viên",
+      "versionRestore": "Khôi phục phiên bản",
+      "versionLabel": "Đặt nhãn phiên bản",
+      "rulesConfigUpdate": "Sửa cấu hình luật",
+      "userRoleChange": "Đổi vai người dùng",
+      "userDisable": "Vô hiệu hoá người dùng",
+      "userEnable": "Bật lại người dùng",
+      "userDelete": "Xoá người dùng",
+      "userInvite": "Mời người dùng",
+      "userInviteResend": "Gửi lại lời mời",
+      "modelActivate": "Kích hoạt mô hình",
+      "modelUpload": "Tải lên mô hình",
+      "datasetCreate": "Tạo bộ dữ liệu",
+      "datasetBuild": "Dựng bộ dữ liệu",
+      "trainingCreate": "Tạo lượt huấn luyện",
+      "trainingCancel": "Huỷ lượt huấn luyện",
+      "fallback": "Thao tác khác"
     }
   },
   "editorTour": {
     "steps": {
       "switchTool": {
-        "title": "chọn công cụ ở ray bên trái",
-        "body": "mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng."
+        "title": "Chọn công cụ ở ray bên trái",
+        "body": "Mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng."
       },
       "reviewWall": {
-        "title": "đi dọc từng đoạn tường",
-        "body": "một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt."
+        "title": "Đi dọc từng đoạn tường",
+        "body": "Một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt."
       },
       "editThickness": {
-        "title": "đặt lại độ dày cho đoạn đang chọn",
-        "body": "ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số."
+        "title": "Đặt lại độ dày cho đoạn đang chọn",
+        "body": "Ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số."
       },
       "undo": {
-        "title": "lùi lại khi lỡ tay",
-        "body": "ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím."
+        "title": "Lùi lại khi lỡ tay",
+        "body": "Ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím."
       },
       "view3d": {
-        "title": "đổi sang khung nhìn khối",
-        "body": "nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào."
+        "title": "Đổi sang khung nhìn khối",
+        "body": "Nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào."
       },
       "exportResult": {
-        "title": "lấy tệp mang đi",
-        "body": "nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào."
+        "title": "Lấy tệp mang đi",
+        "body": "Nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào."
       }
     },
-    "skip": "bỏ qua",
-    "next": "tiếp theo",
-    "finish": "bắt đầu làm việc",
-    "reopenChip": "xem hướng dẫn",
-    "skipShortcut": "bỏ qua lớp hướng dẫn đang mở",
+    "skip": "Bỏ qua",
+    "next": "Tiếp theo",
+    "finish": "Bắt đầu làm việc",
+    "reopenChip": "Xem hướng dẫn",
+    "skipShortcut": "Bỏ qua lớp hướng dẫn đang mở",
     "sampleProjectPrompt": {
-      "title": "chưa có gì trên khung vẽ",
-      "body": "lớp chỉ dẫn cần một mặt bằng đang mở thì mới trỏ vào đâu được. mở bộ mẫu rồi quay lại đây.",
-      "action": "mở bộ mẫu"
+      "title": "Chưa có gì trên khung vẽ",
+      "body": "Lớp chỉ dẫn cần một mặt bằng đang mở thì mới trỏ vào đâu được. Mở bộ mẫu rồi quay lại đây.",
+      "action": "Mở bộ mẫu"
     },
     "summary": {
-      "title": "bấy nhiêu phím là đủ dùng"
+      "title": "Bấy nhiêu phím là đủ dùng"
     },
     "liveMessage": {
-      "stepChange": "bước {{index}} trên {{total}}: {{title}}"
+      "stepChange": "Bước {{index}} trên {{total}}: {{title}}"
     },
-    "progressGroup": "tiến độ hướng dẫn",
-    "progressDot": "tới bước {{index}}: {{title}}"
+    "progressGroup": "Tiến độ hướng dẫn",
+    "progressDot": "Tới bước {{index}}: {{title}}"
   },
   "collaborationLayer": {
     "syncState": {
-      "dangNoi": "đang nối",
-      "daNoi": "đã nối",
-      "dongBoCham": "đồng bộ chậm",
-      "lamViecRieng": "đang làm việc riêng, chưa đồng bộ",
-      "matKetNoi": "mất kết nối, vẫn sửa được tại chỗ"
+      "dangNoi": "Đang nối",
+      "daNoi": "Đã nối",
+      "dongBoCham": "Đồng bộ chậm",
+      "lamViecRieng": "Đang làm việc riêng, chưa đồng bộ",
+      "matKetNoi": "Mất kết nối, vẫn sửa được tại chỗ"
     },
     "presence": {
-      "onlySelf": "chỉ mình bạn đang xem",
-      "goToCollaborator": "đến chỗ {{name}} đang xem",
-      "cursorLabel": "con trỏ của {{name}}",
-      "group": "những người đang xem"
+      "onlySelf": "Chỉ mình bạn đang xem",
+      "goToCollaborator": "Đến chỗ {{name}} đang xem",
+      "cursorLabel": "Con trỏ của {{name}}",
+      "group": "Những người đang xem"
     },
     "comments": {
-      "pin": "ghim bình luận",
-      "pinResolved": "ghim bình luận đã xong",
-      "pinOpen": "ghim bình luận, {{count}} trả lời",
-      "writeDisabled": "chỉ xem được bình luận, không viết được"
+      "pin": "Ghim bình luận",
+      "pinResolved": "Ghim bình luận đã xong",
+      "pinOpen": "Ghim bình luận, {{count}} trả lời",
+      "writeDisabled": "Chỉ xem được bình luận, không viết được"
     },
     "locks": {
       "heldBy": "{{name}} đang giữ",
-      "requestAccess": "xin quyền chỉnh sửa"
+      "requestAccess": "Xin quyền chỉnh sửa"
     },
     "conflict": {
-      "title": "có xung đột cần bạn quyết định",
-      "fieldLabel": "trường đang xung đột",
-      "mine": "phần của bạn",
-      "theirs": "phần của họ",
-      "useMine": "dùng phần của tôi",
-      "useTheirs": "dùng phần của họ",
-      "mergeManually": "tự gộp",
-      "defer": "hoãn lại",
-      "deferHint": "có thể quay lại xử lý sau"
+      "title": "Có xung đột cần bạn quyết định",
+      "fieldLabel": "Trường đang xung đột",
+      "mine": "Phần của bạn",
+      "theirs": "Phần của họ",
+      "useMine": "Dùng phần của tôi",
+      "useTheirs": "Dùng phần của họ",
+      "mergeManually": "Tự gộp",
+      "defer": "Hoãn lại",
+      "deferHint": "Có thể quay lại xử lý sau"
     },
     "collapsed": {
-      "hint": "đã thu gọn, ghim bình luận vẫn còn"
+      "hint": "Đã thu gọn, ghim bình luận vẫn còn"
     }
   },
   "accessDenied": {
-    "title": "bạn chưa có quyền truy cập",
-    "restriction": "nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
-    "restrictionWithProject": "dự án “{{projectName}}” đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
+    "title": "Bạn chưa có quyền truy cập",
+    "restriction": "Nội dung ở đường dẫn này đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
+    "restrictionWithProject": "Dự án “{{projectName}}” đang giới hạn người xem, nên nó chưa mở ra cho tài khoản của bạn.",
     "reason": {
-      "revoked": "quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.",
-      "expired": "đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.",
-      "password": "đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.",
-      "unknown": "hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này."
+      "revoked": "Quyền xem của tài khoản này đã được thu hồi, nên đường dẫn cũ không còn mở ra nữa.",
+      "expired": "Đường dẫn bạn đang mở đã hết hạn, nên nó không còn dẫn vào được nữa.",
+      "password": "Đường dẫn này cần một mật khẩu, và mật khẩu đi kèm chưa mở được nó.",
+      "unknown": "Hệ thống chưa nói rõ vì sao, nên chưa thể nêu chính xác điều gì đang chặn lượt truy cập này."
     },
-    "whoCanGrant": "người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.",
-    "identityLabel": "bạn đang đăng nhập bằng {{email}}",
-    "identityUnknown": "phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.",
-    "switchAccount": "đăng nhập bằng tài khoản khác",
+    "whoCanGrant": "Người quản trị dự án là người cấp được quyền này; hãy nhắn cho họ để được thêm vào danh sách xem.",
+    "identityLabel": "Bạn đang đăng nhập bằng {{email}}",
+    "identityUnknown": "Phiên đăng nhập hiện tại chưa cho biết địa chỉ thư của bạn.",
+    "switchAccount": "Đăng nhập bằng tài khoản khác",
     "requestAccess": "Yêu cầu quyền truy cập",
     "requestPlaceholder": "Lý do bạn cần truy cập (không bắt buộc)",
-    "requestSentBadge": "đã gửi yêu cầu",
-    "requestSent": "đã gửi {{sentAt}}",
-    "requestThrottled": "bạn vừa gửi một yêu cầu, nên lượt gửi tiếp theo mở lại sau {{duration}}.",
+    "requestSentBadge": "Đã gửi yêu cầu",
+    "requestSent": "Đã gửi {{sentAt}}",
+    "requestThrottled": "Bạn vừa gửi một yêu cầu, nên lượt gửi tiếp theo mở lại sau {{duration}}.",
     "linkPassword": "Mật khẩu liên kết",
     "submitLinkPassword": "Gửi mật khẩu",
-    "backToProjects": "về danh sách dự án",
-    "enterProject": "mở dự án",
-    "errorCodePrefix": "mã lỗi: "
+    "backToProjects": "Về danh sách dự án",
+    "enterProject": "Mở dự án",
+    "errorCodePrefix": "Mã lỗi: "
   },
   "notFound": {
     "title": "Không tìm thấy trang này.",
@@ -3717,87 +3965,88 @@
     "errorCodePrefix": "Mã lỗi"
   },
   "mobileViewer": {
-    "regionLabel": "xem mô hình 3D trên điện thoại",
-    "shareProject": "chia sẻ dự án",
-    "toolbarLabel": "công cụ xem mô hình",
-    "toolFloors": "tầng",
-    "toolView": "chế độ xem",
-    "toolMeasure": "đo",
-    "toolInfo": "thông tin",
-    "floorNotLoaded": "chưa tải",
-    "floorsEmpty": "chưa có tầng nào để hiện.",
-    "measurementsEmpty": "chưa có phép đo nào. chạm hai điểm trên mô hình để đo.",
-    "emptyTitle": "chưa có mô hình để xem",
-    "emptyDescription": "dự án này chưa có bản dựng 3D nào để mở trên điện thoại.",
-    "forbiddenTitle": "bạn chưa có quyền xem mô hình này",
-    "forbiddenDescription": "hỏi chủ dự án để được cấp quyền xem mô hình.",
-    "weakDeviceTitle": "máy này chưa dựng nổi mô hình 3D",
-    "weakDeviceDescription": "bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.",
-    "weakDeviceAction": "xem bản 2D",
-    "loadingFallback": "đang tải mô hình",
-    "partialNote": "mạng yếu nên mới tải được một phần các tầng. các tầng còn lại sẽ hiện khi mạng khá hơn.",
-    "readyAnnouncement": "mô hình đã dựng xong.",
-    "escapeShortcut": "đóng lớp đang mở trên màn xem mô hình",
-    "sheetLabel": "thông tin đối tượng đang chọn",
-    "sheetTitleFallback": "thông tin",
-    "sheetExpand": "mở rộng tấm thông tin",
-    "sheetCollapse": "thu gọn tấm thông tin",
-    "sheetClose": "đóng tấm thông tin",
-    "sheetNoSelection": "chưa chọn đối tượng nào. chạm vào mô hình để xem thông tin của nó.",
-    "desktopOnlyNote": "sửa trên máy tính để chính xác hơn",
-    "desktopLinkAction": "gửi liên kết sang máy tính",
+    "regionLabel": "Xem mô hình 3D trên điện thoại",
+    "shareProject": "Chia sẻ dự án",
+    "toolbarLabel": "Công cụ xem mô hình",
+    "toolFloors": "Tầng",
+    "toolView": "Chế độ xem",
+    "toolMeasure": "Đo",
+    "toolInfo": "Thông tin",
+    "floorWithoutRooms": "Chưa có phòng",
+    "floorsEmpty": "Chưa có tầng nào để hiện.",
+    "measurementsEmpty": "Chưa có phép đo nào. Chạm hai điểm trên mô hình để đo.",
+    "emptyTitle": "Chưa có mô hình để xem",
+    "emptyDescription": "Dự án này chưa có bản dựng 3D nào để mở trên điện thoại.",
+    "forbiddenTitle": "Bạn chưa có quyền xem mô hình này",
+    "forbiddenDescription": "Hỏi chủ dự án để được cấp quyền xem mô hình.",
+    "weakDeviceTitle": "Máy này chưa dựng nổi mô hình 3D",
+    "weakDeviceDescription": "Bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.",
+    "weakDeviceAction": "Xem bản 2D",
+    "loadingFallback": "Đang tải mô hình",
+    "partialMissingRoomsNote": "Mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.",
+    "partialWeakNetworkNote": "Mạng đang yếu. Mô hình đã tải xong vẫn xem được.",
+    "readyAnnouncement": "Mô hình đã dựng xong.",
+    "escapeShortcut": "Đóng lớp đang mở trên màn xem mô hình",
+    "sheetLabel": "Thông tin đối tượng đang chọn",
+    "sheetTitleFallback": "Thông tin",
+    "sheetExpand": "Mở rộng tấm thông tin",
+    "sheetCollapse": "Thu gọn tấm thông tin",
+    "sheetClose": "Đóng tấm thông tin",
+    "sheetNoSelection": "Chưa chọn đối tượng nào. Chạm vào mô hình để xem thông tin của nó.",
+    "desktopOnlyNote": "Sửa trên máy tính để chính xác hơn",
+    "desktopLinkAction": "Gửi liên kết sang máy tính",
     "detail": {
       "rising": {
-        "block": "đang tải mức gọn",
-        "reduced": "đang tải mức vừa"
+        "block": "Đang tải mức gọn",
+        "reduced": "Đang tải mức vừa"
       },
       "degraded": {
-        "block": "đã hạ xuống mức gọn để hình chạy mượt",
-        "reduced": "đã hạ xuống mức vừa để hình chạy mượt"
+        "block": "Đã hạ xuống mức gọn để hình chạy mượt",
+        "reduced": "Đã hạ xuống mức vừa để hình chạy mượt"
       }
     },
     "project": {
-      "unnamed": "dự án chưa có tên"
+      "unnamed": "Dự án chưa có tên"
     },
     "floor": {
-      "unnamedPrefix": "tầng "
+      "unnamedPrefix": "Tầng "
     },
     "floors": {
-      "ground": "tầng trệt",
-      "level1": "tầng 1",
-      "level2": "tầng 2",
-      "roof": "tầng mái"
+      "ground": "Tầng trệt",
+      "level1": "Tầng 1",
+      "level2": "Tầng 2",
+      "roof": "Tầng mái"
     },
     "kind": {
-      "wall": "tường",
-      "opening": "ô mở",
-      "room": "phòng",
-      "furniture": "đồ nội thất",
-      "axis": "trục",
-      "dimension": "kích thước"
+      "wall": "Tường",
+      "opening": "Ô mở",
+      "room": "Phòng",
+      "furniture": "Đồ nội thất",
+      "axis": "Trục",
+      "dimension": "Kích thước"
     },
     "infoSheet": {
-      "rowLength": "chiều dài",
-      "rowThickness": "độ dày",
-      "editOnDesktopOnly": "mục này chỉ sửa được trên máy tính",
-      "sendDesktopLink": "gửi liên kết"
+      "rowLength": "Chiều dài",
+      "rowThickness": "Độ dày",
+      "editOnDesktopOnly": "Mục này chỉ sửa được trên máy tính",
+      "sendDesktopLink": "Gửi liên kết"
     },
     "measure": {
-      "kindDistance": "khoảng cách"
+      "kindDistance": "Khoảng cách"
     },
     "share": {
-      "copiedTitle": "đã tạo liên kết chia sẻ",
-      "copiedDescription": "liên kết chỉ xem đã được chép vào bộ nhớ tạm.",
-      "copyBlockedDescription": "máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.",
-      "mailedTitle": "đã tạo liên kết cho máy tính",
-      "mailedDescription": "ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.",
-      "failedTitle": "chưa tạo được liên kết chia sẻ",
-      "failedDescription": "chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.",
-      "undo": "thu hồi liên kết vừa tạo"
+      "copiedTitle": "Đã tạo liên kết chia sẻ",
+      "copiedDescription": "Liên kết chỉ xem đã được chép vào bộ nhớ tạm.",
+      "copyBlockedDescription": "Máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.",
+      "mailedTitle": "Đã tạo liên kết cho máy tính",
+      "mailedDescription": "Ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.",
+      "failedTitle": "Chưa tạo được liên kết chia sẻ",
+      "failedDescription": "Chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.",
+      "undo": "Thu hồi liên kết vừa tạo"
     },
     "mail": {
-      "subjectPrefix": "liên kết xem mô hình dự án ",
-      "bodyLead": "mục này chỉ sửa được trên máy tính, nên đây là liên kết mở đúng dự án đó bằng trình duyệt máy tính:"
+      "subjectPrefix": "Liên kết xem mô hình dự án ",
+      "bodyLead": "Mục này chỉ sửa được trên máy tính, nên đây là liên kết mở đúng dự án đó bằng trình duyệt máy tính:"
     },
     "sample": {
       "projectName": "Trạm bơm Nhơn Trạch",
@@ -3805,67 +4054,67 @@
     }
   },
   "stateGallery": {
-    "pageTitle": "duyệt bảy trạng thái",
-    "coverageLabel": "số trạng thái đã có",
-    "screenCountLabel": "số màn",
-    "collapseTree": "thu gọn cây màn",
-    "expandTree": "mở rộng cây màn",
-    "collapsedNotice": "cây màn đang thu gọn",
-    "loadingLabel": "đang tải bảng trạng thái",
-    "emptyTitle": "chưa chọn màn nào",
+    "pageTitle": "Duyệt bảy trạng thái",
+    "coverageLabel": "Số trạng thái đã có",
+    "screenCountLabel": "Số màn",
+    "collapseTree": "Thu gọn cây màn",
+    "expandTree": "Mở rộng cây màn",
+    "collapsedNotice": "Cây màn đang thu gọn",
+    "loadingLabel": "Đang tải bảng trạng thái",
+    "emptyTitle": "Chưa chọn màn nào",
     "emptyDescription": "Chọn một màn ở cây bên trái để xem bảy trạng thái của màn đó.",
-    "errorTitle": "không đọc được bảng trạng thái",
+    "errorTitle": "Không đọc được bảng trạng thái",
     "errorFallback": "Đã có lỗi xảy ra khi đọc bảng trạng thái.",
-    "retry": "thử lại",
-    "forbiddenTitle": "trang này chỉ mở trong mạng nội bộ",
+    "retry": "Thử lại",
+    "forbiddenTitle": "Trang này chỉ mở trong mạng nội bộ",
     "forbiddenDescription": "Bạn đang ở ngoài mạng nội bộ nên không mở được trang duyệt trạng thái.",
-    "partialTitle": "còn màn thiếu trạng thái",
+    "partialTitle": "Còn màn thiếu trạng thái",
     "partialMessage": "Một số màn chưa đủ bảy trạng thái; cây bên trái ghi rõ từng màn còn thiếu trạng thái nào.",
     "successMessage": "Không màn nào còn thiếu trạng thái.",
-    "treeNavLabel": "cây màn theo nhóm",
-    "searchLabel": "tìm màn",
-    "searchPlaceholder": "nhập tên màn cần tìm",
-    "treeNoMatch": "không có màn nào khớp với từ đang tìm",
-    "groupPrefix": "nhóm",
-    "ratioPrefix": "đã có",
-    "missingPrefix": "còn thiếu",
-    "completeHint": "đủ bảy trạng thái",
-    "framesRegionLabel": "khung xem trước bảy trạng thái",
-    "frameMissing": "chưa có mẫu cho trạng thái này",
-    "framePresent": "đã có mẫu",
-    "storyNameLabel": "tên mẫu",
-    "spacingGridLabel": "lưới đo khoảng cách",
-    "toolbarRegionLabel": "công cụ duyệt",
-    "toggleDarkTheme": "chủ đề tối",
+    "treeNavLabel": "Cây màn theo nhóm",
+    "searchLabel": "Tìm màn",
+    "searchPlaceholder": "Nhập tên màn cần tìm",
+    "treeNoMatch": "Không có màn nào khớp với từ đang tìm",
+    "groupPrefix": "Nhóm",
+    "ratioPrefix": "Đã có",
+    "missingPrefix": "Còn thiếu",
+    "completeHint": "Đủ bảy trạng thái",
+    "framesRegionLabel": "Khung xem trước bảy trạng thái",
+    "frameMissing": "Chưa có mẫu cho trạng thái này",
+    "framePresent": "Đã có mẫu",
+    "storyNameLabel": "Tên mẫu",
+    "spacingGridLabel": "Lưới đo khoảng cách",
+    "toolbarRegionLabel": "Công cụ duyệt",
+    "toggleDarkTheme": "Chủ đề tối",
     "toggleDarkThemeHint": "Đổi giữa chủ đề sáng và chủ đề tối cho cả ứng dụng.",
-    "toggleReducedMotion": "giảm chuyển động",
+    "toggleReducedMotion": "Giảm chuyển động",
     "toggleReducedMotionHint": "Tắt hoạt ảnh khi duyệt khung xem trước.",
-    "toggleSpacingGrid": "lưới đo khoảng cách",
+    "toggleSpacingGrid": "Lưới đo khoảng cách",
     "toggleSpacingGridHint": "Phủ lưới lên khung xem trước để đo khoảng cách.",
-    "runQuickCheck": "chạy kiểm nhanh",
-    "checkTableCaption": "kết quả bốn phép kiểm theo từng màn",
-    "checkColumnScreen": "màn",
-    "checkSevenStates": "bảy trạng thái",
-    "checkNoRawColor": "mã màu thô",
-    "checkVietnamese": "chuỗi tiếng Việt",
-    "checkAccessible": "khả năng tiếp cận",
-    "statusPending": "chờ chạy",
-    "statusRunning": "đang chạy",
-    "statusPass": "đạt",
-    "statusFail": "hỏng",
-    "checkEmpty": "chưa chạy phép kiểm nào",
-    "closeCheckPanel": "đóng bảng kết quả",
-    "closeCheckPanelHint": "để đóng bảng kết quả",
-    "closeCheckPanelShortcut": "đóng bảng kết quả kiểm nhanh",
+    "runQuickCheck": "Chạy kiểm nhanh",
+    "checkTableCaption": "Kết quả bốn phép kiểm theo từng màn",
+    "checkColumnScreen": "Màn",
+    "checkSevenStates": "Bảy trạng thái",
+    "checkNoRawColor": "Mã màu thô",
+    "checkVietnamese": "Chuỗi tiếng Việt",
+    "checkAccessible": "Khả năng tiếp cận",
+    "statusPending": "Chờ chạy",
+    "statusRunning": "Đang chạy",
+    "statusPass": "Đạt",
+    "statusFail": "Hỏng",
+    "checkEmpty": "Chưa chạy phép kiểm nào",
+    "closeCheckPanel": "Đóng bảng kết quả",
+    "closeCheckPanelHint": "Để đóng bảng kết quả",
+    "closeCheckPanelShortcut": "Đóng bảng kết quả kiểm nhanh",
     "devGate": {
-      "title": "không có quyền truy cập",
-      "message": "trang này chỉ dùng nội bộ trong bản dựng phát triển, không có ở bản dựng thật."
+      "title": "Không có quyền truy cập",
+      "message": "Trang này chỉ dùng nội bộ trong bản dựng phát triển, không có ở bản dựng thật."
     },
-    "manifestError": "không đọc được danh sách bốn mươi bảy màn; thử tải lại.",
-    "checkMissingStates": "còn thiếu trạng thái: {{labels}}.",
-    "checkNoRawColorPending": "phép kiểm màu thô đọc thẳng tệp mã nguồn qua node:fs; trình duyệt không chạy được node:fs nên phép kiểm này chạy ở pnpm verify, không chạy được ở đây.",
-    "checkPreviewNotSelected": "chỉ màn đang chọn mới có khung xem trước đã dựng trong trang; chọn màn này rồi chạy lại kiểm nhanh để có kết quả thật.",
-    "checkPreviewMissing": "chưa tìm thấy khung xem trước đã dựng trong trang; khung xem trước có thể chưa gắn xong."
+    "manifestError": "Không đọc được danh sách bốn mươi bảy màn; thử tải lại.",
+    "checkMissingStates": "Còn thiếu trạng thái: {{labels}}.",
+    "checkNoRawColorPending": "Phép kiểm màu thô đọc thẳng tệp mã nguồn qua node:fs; trình duyệt không chạy được node:fs nên phép kiểm này chạy ở pnpm verify, không chạy được ở đây.",
+    "checkPreviewNotSelected": "Chỉ màn đang chọn mới có khung xem trước đã dựng trong trang; chọn màn này rồi chạy lại kiểm nhanh để có kết quả thật.",
+    "checkPreviewMissing": "Chưa tìm thấy khung xem trước đã dựng trong trang; khung xem trước có thể chưa gắn xong."
   },
   "spatialJsonViewer": {
     "searchLabel": "Tìm theo khoá hoặc giá trị",
@@ -3918,7 +4167,7 @@
     "detailTitle": "Việc đang chờ đồng bộ",
     "detailEmpty": "Không còn thay đổi nào chờ đồng bộ.",
     "replayNow": "Thử đồng bộ lại ngay",
-    "unnamedCommand": "thay đổi chưa đặt tên",
+    "unnamedCommand": "Thay đổi chưa đặt tên",
     "checking": "Đang kiểm tra kết nối.",
     "queueReadFailed": "Không đọc được hàng đợi ngoại tuyến trên máy này. Trình duyệt có thể đang chặn bộ nhớ cục bộ; mọi thay đổi mới sẽ chỉ nằm trong bộ nhớ tạm cho tới khi nối lại mạng.",
     "forbidden": "Bạn không có quyền xem hàng đợi ngoại tuyến của dự án này. Hãy hỏi quản trị viên dự án.",

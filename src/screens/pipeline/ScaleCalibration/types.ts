@@ -468,6 +468,11 @@ export interface ScalePanelViewModel {
    * Cảnh báo không bao giờ hạ cờ này xuống.
    */
   readonly canApply: boolean;
+  /**
+   * Lượt áp hay hoàn tác gần nhất cần nói gì: không áp được và vì sao (B-V5-01), PUT
+   * hỏng, báo cáo "áp mọi tầng", hay tỉ lệ cũ được đặt lại. Vắng khi không có gì để nói.
+   */
+  readonly applyBlockedNotice?: string;
   readonly isApplying: boolean;
   /**
    * `true` đúng khi và chỉ khi màn ở `'forbidden'`: nút "áp dụng tỷ lệ" và ô
@@ -542,6 +547,11 @@ export interface ScaleCalibrationViewModel {
   readonly errorMessage: string | null;
   /** Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. */
   readonly errorCode: string | null;
+  /**
+   * Tiêu đề của `'error'` khi lỗi là lượt ĐỌC hỏng, không phải ảnh méo. Vắng thì
+   * view dùng tiêu đề "nắn ảnh thất bại" — chỉ đúng cho ảnh méo (B-V5-04).
+   */
+  readonly errorTitle?: string;
   /** Câu của trạng thái `'empty'`. `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
   /** Câu của trạng thái `'partial'`. `null` ở trạng thái khác. */
@@ -550,6 +560,19 @@ export interface ScaleCalibrationViewModel {
   readonly forbiddenNotice: string | null;
   /** Câu của trạng thái `'success'`. `null` ở trạng thái khác. */
   readonly successNotice: string | null;
+  /** Dải "tỉ lệ tạm" khi tầng `scaleStatus: 'unresolved'` (F-04x-2). Vắng khi tỉ lệ đã chốt. */
+  readonly provisionalScaleNotice?: string;
+  /** Hộp thoại A9 trước "Áp cho mọi tầng". Vắng khi không mở. */
+  readonly allFloorsConfirm?: ScaleAllFloorsConfirm;
+}
+
+/** Câu của hộp thoại hỏi trước khi áp tỉ lệ cho mọi tầng có bản vẽ (A9). */
+export interface ScaleAllFloorsConfirm {
+  /** Ví dụ `"Áp tỉ lệ này cho 3 tầng có bản vẽ?"`. */
+  readonly title: string;
+  readonly message: string;
+  readonly confirmLabel: string;
+  readonly cancelLabel: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -623,6 +646,10 @@ export interface ScaleCalibrationActions {
   /** Áp tỷ lệ. Sinh toast có Hoàn tác (A8) và cho nhãn kích thước chạy số 260 ms. */
   readonly onApply: () => void;
   readonly onChangeApplyScope: (scope: ScaleApplyScope) => void;
+  /** Đồng ý ở hộp thoại A9: gửi tỉ lệ cho từng tầng có bản vẽ, nối tiếp. */
+  readonly onConfirmAllFloors: () => void;
+  /** Huỷ hộp thoại A9: không gửi gì, màn giữ trạng thái trước. */
+  readonly onCancelAllFloors: () => void;
 
   /* -- Vỏ màn -------------------------------------------------------------- */
   readonly onToggleCollapsed: () => void;

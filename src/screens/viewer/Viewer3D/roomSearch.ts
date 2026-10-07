@@ -31,8 +31,10 @@ export const MAX_ROOM_RESULTS = 8;
 
 /** Một phòng, rút gọn về đúng những gì ô tìm vẽ ra. */
 export interface ViewerRoomOption {
-  /** Mã phòng, ví dụ `R-001` — cũng là mã đối tượng của S-10. */
+  /** Mã máy của phòng — cũng là mã đối tượng của S-10. Không in ra, không tìm theo. */
   readonly id: string;
+  /** Nhãn người đọc, ví dụ `R-011` — đúng chuỗi tiêu đề thanh tra in ra. */
+  readonly codeLabel: string;
   /** Tên phòng người đọc, ví dụ "Phòng ngủ 1". */
   readonly name: string;
   /** Tên tầng chứa phòng, để hai phòng trùng tên vẫn phân biệt được. */
@@ -50,9 +52,14 @@ export interface RoomSearchResult {
 /** Khoảng trắng giữa các từ người dùng gõ. */
 const SPACES = /\s+/u;
 
-/** Tên, mã và tầng gộp lại — mọi thứ một từ khoá được phép khớp vào. */
+/**
+ * Tên, nhãn mã và tầng gộp lại — mọi thứ một từ khoá được phép khớp vào.
+ *
+ * KHÔNG gồm mã máy `id`: thân mã BE dài 25 ký tự base36, nên một từ khoá một chữ
+ * số khớp bừa khoảng nửa số phòng (B-V8-45).
+ */
 function haystackOf(option: ViewerRoomOption): string {
-  return foldForSearch(`${option.name} ${option.id} ${option.storeyName}`);
+  return foldForSearch(`${option.name} ${option.codeLabel} ${option.storeyName}`);
 }
 
 /**

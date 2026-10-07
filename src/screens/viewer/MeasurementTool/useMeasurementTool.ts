@@ -104,8 +104,12 @@ import {
   createViewerShellGateway,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell/viewerShellGateway';
-import { useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
-import type { ViewerPointPx, ViewerShellProps } from '@/screens/viewer/ViewerShell/viewerShellTypes';
+import { BUILDING_MESSAGE, useViewerShell } from '@/screens/viewer/ViewerShell/useViewerShell';
+import type {
+  ViewerPointPx,
+  ViewerScreenState,
+  ViewerShellProps,
+} from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { MeasurementList } from './MeasurementList';
 import { MeasurementTool } from './MeasurementTool';
@@ -146,7 +150,7 @@ import {
   rawValueOf,
   REQUIRED_POINTS,
   toMeasurePoint,
-  VIEWER_STATE_BY_MEASUREMENT,
+  viewerStateOf,
   type MeasurementScene,
   type MeasurePick,
   type ScreenProjector,
@@ -166,9 +170,9 @@ const PIN_COMBO = 'Enter';
 const DELETE_COMBO = 'Delete';
 
 /** Câu tiếng Việt cho bảng phím tắt, viết thường kiểu câu (A6). */
-const ESCAPE_DESCRIPTION = 'thoát chế độ đo, bỏ phần đường dở dang';
-const PIN_DESCRIPTION = 'ghim phép đo đang đọc';
-const DELETE_DESCRIPTION = 'xoá phép đo đang chọn';
+const ESCAPE_DESCRIPTION = 'Bỏ phần đường đo dở dang, vẫn ở chế độ đo';
+const PIN_DESCRIPTION = 'Ghim phép đo đang đọc';
+const DELETE_DESCRIPTION = 'Xoá phép đo đang chọn';
 
 /**
  * Công cụ đo, và công cụ mỗi bên trả về khi tắt.
@@ -190,9 +194,12 @@ const NO_SURFACE_MESSAGE =
 const LOAD_ERROR_MESSAGE =
   'Chưa tải được danh sách phép đo của dự án. Kiểm tra kết nối rồi thử lại.';
 
+/** Câu khi mọi tầng dựng hỏng — cảnh không có gì để chấm (NO-385). */
+const SCENE_FAILED_MESSAGE = 'Chưa dựng được mô hình để đo. Bấm thử lại để dựng lại.';
+
 /** Trạng thái 6: có quyền xem, không có quyền ghim. */
 const PIN_BLOCKED_CAPTION =
-  'bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
+  'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
 
 /** Câu của toast hoàn tác — cửa sổ tám giây do chính vé mang (`UNDO_WINDOW_MS`). */
 const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
@@ -200,14 +207,15 @@ const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
 /** Câu lỗi theo mã máy chủ — người dùng KHÔNG bao giờ thấy mã trần. */
 const MEASUREMENT_ERROR_TEXT: Readonly<Record<string, string>> = {
   MEASUREMENT_LIMIT_REACHED:
-    'dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại',
-  MEASUREMENT_ID_TAKEN: 'mã phép đo vừa bị một phiên khác dùng; hãy ghim lại',
-  FORBIDDEN: 'bạn không có quyền ghim phép đo trong dự án này',
+    'Dự án đã chạm giới hạn số phép đo; hãy xoá bớt phép đo cũ rồi ghim lại',
+  MEASUREMENT_ID_TAKEN: 'Mã phép đo vừa bị một phiên khác dùng; hãy ghim lại',
+  FORBIDDEN: 'Bạn không có quyền ghim phép đo trong dự án này',
 };
-const PIN_FAILED_TEXT = 'chưa ghim được phép đo, hãy thử lại';
-const DELETE_FAILED_TEXT = 'chưa xoá được phép đo, hãy thử lại';
-const DELETE_GONE_TEXT = 'phép đo này đã bị xoá ở nơi khác';
-const UNDO_FAILED_TEXT = 'chưa hoàn tác được việc xoá phép đo';
+const PIN_FAILED_TEXT = 'Chưa ghim được phép đo, hãy thử lại';
+const DELETE_FAILED_TEXT = 'Chưa xoá được phép đo, hãy thử lại';
+const DELETE_GONE_TEXT = 'Phép đo này đã bị xoá ở nơi khác';
+const DELETE_FORBIDDEN_TEXT = 'Bạn không có quyền xoá phép đo trong dự án này';
+const UNDO_FAILED_TEXT = 'Chưa hoàn tác được việc xoá phép đo';
 
 const PIN_ERROR_NOTIFICATION_TYPE = 'measurementTool.pinFailed';
 const DELETE_ERROR_NOTIFICATION_TYPE = 'measurementTool.deleteFailed';
@@ -282,8 +290,31 @@ export interface UseMeasurementToolOptions {
   readonly levelId?: string | null;
 }
 
+/**
+ * Thanh trạng thái của vỏ, với câu đọc to (aria-live) theo cảnh CỦA MÀN: đang
+ * dựng thì "đang dựng", dựng hỏng thì câu lỗi; còn lại giữ câu của vỏ.
+ */
+function liveStatusOf(
+  status: ViewerShellProps['status'],
+  viewerState: ViewerScreenState,
+  sceneFailed: boolean,
+): ViewerShellProps['status'] {
+  if (sceneFailed) {
+    return { ...status, liveMessage: SCENE_FAILED_MESSAGE };
+  }
+
+  return viewerState === 'loading' ? { ...status, liveMessage: BUILDING_MESSAGE } : status;
+}
+
 /** Câu của trạng thái 4, hoặc `null` khi không có gì hỏng. */
-function errorMessageOf(surfaceFailed: boolean, loadFailed: boolean): string | null {
+function errorMessageOf(
+  surfaceFailed: boolean,
+  loadFailed: boolean,
+  sceneFailed: boolean,
+): string | null {
+  if (sceneFailed) {
+    return SCENE_FAILED_MESSAGE;
+  }
   if (surfaceFailed) {
     return NO_SURFACE_MESSAGE;
   }
@@ -545,7 +576,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     ...(options.mountScene !== undefined ? { mountScene: options.mountScene } : {}),
   });
 
-  const scene = options.scene !== undefined ? options.scene : mountedScene;
+  const scene = options.scene !== undefined ? options.scene : mountedScene.scene;
 
   const pick = useMemo((): PickAt | null => {
     if (options.pick !== undefined) {
@@ -752,17 +783,26 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     clearDraft();
   }, [shell, isMeasuring, clearDraft]);
 
+  /** Cờ của MỌI thao tác ghi (ghim, xoá — B-V9-41), không riêng ghim. */
   const canPin = shell.state !== 'forbidden';
 
   /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
      nguyên đó, cùng một câu lỗi, và người dùng ghim lại được. */
+  /* Một lượt ghim đang bay thì bấm đúp hay Enter lặp không gửi lượt thứ hai
+     (NO-384); lượt ấy xong — được hay hỏng — thì chốt mở lại. */
+  const pinInFlightRef = useRef(false);
+
   const onPin = useCallback((): void => {
-    if (!canPin || draftRow === null) {
+    if (!canPin || draftRow === null || pinInFlightRef.current) {
       return;
     }
 
-    gateway
-      .saveMeasurement(projectId, draftRow)
+    pinInFlightRef.current = true;
+    // Bọc trong executor: một cổng tiêm vào ném ĐỒNG BỘ cũng thành lượt hỏng có
+    // câu báo và mở lại chốt, thay vì kẹt chốt mãi (review DEBT-03 Nit).
+    new Promise<unknown>((resolve) => {
+      resolve(gateway.saveMeasurement(projectId, draftRow));
+    })
       .then(clearDraft)
       .catch((error: unknown) => {
         notifications.publish({
@@ -770,11 +810,18 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
           title: MEASUREMENT_ERROR_TEXT[measurementErrorCodeOf(error).code ?? ''] ?? PIN_FAILED_TEXT,
           description: '',
         });
+      })
+      .finally(() => {
+        pinInFlightRef.current = false;
       });
   }, [canPin, draftRow, gateway, projectId, clearDraft, notifications]);
 
   const onDelete = useCallback(
     (id: PinnedMeasurementId): void => {
+      if (!canPin) {
+        return;
+      }
+
       setHighlightedId((current) => (current === id ? null : current));
       gateway.deleteMeasurement(projectId, id).catch((error: unknown) => {
         const { code, resource } = measurementErrorCodeOf(error);
@@ -782,7 +829,11 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
         notifications.publish({
           type: DELETE_ERROR_NOTIFICATION_TYPE,
-          title: gone ? DELETE_GONE_TEXT : DELETE_FAILED_TEXT,
+          title: gone
+            ? DELETE_GONE_TEXT
+            : code === 'FORBIDDEN'
+              ? DELETE_FORBIDDEN_TEXT
+              : DELETE_FAILED_TEXT,
           description: '',
         });
 
@@ -791,7 +842,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         }
       });
     },
-    [gateway, projectId, notifications, queryClient],
+    [canPin, gateway, projectId, notifications, queryClient],
   );
 
   const onToggleVisibility = useCallback((id: PinnedMeasurementId): void => {
@@ -831,10 +882,12 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     };
   }, [unitJustChanged]);
 
+  const retryScene = mountedScene.failed ? mountedScene.retry : null;
   const onRetry = useCallback((): void => {
     setSurfaceFailed(false);
+    retryScene?.();
     void rowsQuery.refetch();
-  }, [rowsQuery]);
+  }, [rowsQuery, retryScene]);
 
   /* ---- Phím tắt (A12, R-54, R-72) ---------------------------------------- */
 
@@ -856,7 +909,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   useShortcut(
     { id: PIN_ID, combo: PIN_COMBO, scope: 'canvas', description: PIN_DESCRIPTION, onTrigger: onPin },
-    registryOption,
+    { ...registryOption, enabled: canPin },
   );
 
   useShortcut(
@@ -871,7 +924,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         }
       },
     },
-    registryOption,
+    { ...registryOption, enabled: canPin },
   );
 
   /* ---- Bảy trạng thái (A11, R-63) ---------------------------------------- */
@@ -880,7 +933,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     if (options.forceState !== undefined) {
       return options.forceState;
     }
-    if (surfaceFailed || rowsQuery.isError) {
+    if (surfaceFailed || rowsQuery.isError || mountedScene.failed) {
       return 'error';
     }
     if (collapsed) {
@@ -902,6 +955,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     options.forceState,
     surfaceFailed,
     rowsQuery.isError,
+    mountedScene.failed,
     collapsed,
     shell.state,
     picks.length,
@@ -909,7 +963,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
     rows.length,
   ]);
 
-  const errorMessage = errorMessageOf(surfaceFailed, rowsQuery.isError);
+  const errorMessage = errorMessageOf(surfaceFailed, rowsQuery.isError, mountedScene.failed);
 
   /* ---- Props của view, chốt lại mỗi lượt vẽ ------------------------------ */
 
@@ -971,9 +1025,15 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* ---- `ViewerShellProps` đầy đủ ----------------------------------------- */
 
+  const viewerState = viewerStateOf(state, shell.state, mountedScene.building);
+
   return {
     ...shell,
-    state: VIEWER_STATE_BY_MEASUREMENT[state],
+    state: viewerState,
+    // Vỏ chỉ biết lượt nạp của nó; cảnh của màn đo dựng riêng, nên câu "đã dựng
+    // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388) hay đã dựng
+    // hỏng (review DEBT-03 P3-3) — lúc hỏng, nói đúng câu lỗi của màn.
+    status: liveStatusOf(shell.status, viewerState, mountedScene.failed),
     onViewportPointerMove,
     onViewportPointerDown,
     onViewportPointerUp,

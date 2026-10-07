@@ -11,9 +11,16 @@
  * A11 là chuyện của màn con, và màn con chỉ mount sau khi cổng mở.
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  type NavigateFunction,
+} from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModuleNamespace from '@/api/appClient';
@@ -33,6 +40,7 @@ import {
   bootstrapAfterNewCookie,
   configureAppSession,
   ensureAuthConfigured,
+  retryAppSession,
   startAppSession,
 } from './sessionSetup';
 
@@ -221,12 +229,13 @@ describe('SessionGate — năm nhánh', () => {
   it('báo chưa mở được ứng dụng khi lượt dựng hỏng, với nút tới được bằng Tab', async () => {
     const { container } = renderGate({ setupFailed: true, status: 'unknown' });
 
-    const button = screen.getByRole('button', { name: 'tải lại trang' });
-    expect(screen.getByText('chưa mở được ứng dụng, hãy tải lại trang')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Tải lại trang' });
+    expect(screen.getByText('Chưa mở được ứng dụng, hãy tải lại trang')).toBeInTheDocument();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);
 
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
     expectAccessible(container);
   });
@@ -235,23 +244,42 @@ describe('SessionGate — năm nhánh', () => {
     const onRetry = vi.fn();
     const { container } = renderGate({ onRetry, serverUnreachable: true, status: 'unknown' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
+    expectAccessible(container);
+  });
+
+  it('mất kết nối giữa chừng: dải đứng trên màn con, vẫn đúng một main (của màn con)', () => {
+    const { container } = renderGate({
+      children: (
+        <main>
+          <ProbeScreen />
+        </main>
+      ),
+      serverUnreachable: true,
+      status: 'authenticated',
+    });
+
+    expect(screen.getByTestId('man-con')).toBeInTheDocument();
+    expect(container.querySelectorAll('main')).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toBeInTheDocument();
     expectAccessible(container);
   });
 
   it('chờ bằng khung chờ có aria-busy, và KHÔNG mount màn con', () => {
     const { container } = renderGate({ status: 'unknown' });
 
-    expect(screen.getByRole('status', { name: 'đang mở phiên' })).toHaveAttribute(
+    expect(screen.getByRole('status', { name: 'Đang mở phiên' })).toHaveAttribute(
       'aria-busy',
       'true',
     );
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
+    expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
   });
 
@@ -279,12 +307,12 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
     expect(
-      screen.getByText('mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi'),
+      screen.getByText('Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi'),
     ).toBeInTheDocument();
     expectVietnamese(container);
     expectAccessible(container);
 
-    fireEvent.click(screen.getByRole('button', { name: 'thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
     update({ onRetry, serverUnreachable: false });
@@ -429,7 +457,7 @@ describe('SessionBootstrap', () => {
 
     const { container } = renderAt('/projects/p1/3d');
 
-    const button = await screen.findByRole('button', { name: 'tải lại trang' });
+    const button = await screen.findByRole('button', { name: 'Tải lại trang' });
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);
@@ -490,6 +518,49 @@ describe('SessionBootstrap', () => {
     });
     expect(screen.getByTestId('man-dang-nhap')).toBeInTheDocument();
     expect(screenMounts).toBe(0);
+  });
+
+  it('lượt dựng hỏng rồi màn khác thử lại cấu hình được mà máy chủ còn lỗi tạm: route riêng tư cho "Thử lại", không bắt tải lại trang (NO-372)', async () => {
+    appClientBroken = true;
+    let navigateTo: NavigateFunction = () => undefined;
+
+    function NavigateProbe() {
+      navigateTo = useNavigate();
+
+      return null;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/login/invitation']}>
+        <SessionBootstrap>
+          <NavigateProbe />
+          <Routes>
+            <Route path="/login/invitation" element={<LoginProbe />} />
+            <Route path="*" element={<ProbeScreen />} />
+          </Routes>
+        </SessionBootstrap>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getSession().serverUnreachable).toBe(true);
+    });
+
+    // Màn lời mời bấm "Thử lại": lần này cấu hình được, máy chủ trả 503.
+    appClientBroken = false;
+    await configureAppSession({ fetchImpl: async () => new Response(null, { status: 503 }) });
+    await act(async () => {
+      await retryAppSession();
+    });
+    expect(getSession()).toMatchObject({ status: 'unknown', serverUnreachable: true });
+
+    act(() => {
+      void navigateTo('/projects/p1/3d');
+    });
+
+    expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải lại trang' })).toBeNull();
+    expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
   });
 });
 

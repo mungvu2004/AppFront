@@ -29,7 +29,10 @@
  * kể cả một màn `lazy()` hoàn hảo.
  *
  * Nên bây giờ nó đo **bốn** đại lượng, và mức nghiêm khắc thì giữ nguyên — chỉ
- * đổi *thứ được đo*, không đổi *mức được phép*:
+ * đổi *thứ được đo*, không đổi *mức được phép*. (Từ 2026-09-29 có thêm **ba**
+ * đại lượng nữa cho vách ngăn Pascal — xem `PASCAL_BUDGETS_KIB` bên dưới. Bốn
+ * cái đầu đo gzip của bản dựng chính; ba cái sau đo thô của một lượt dựng riêng,
+ * và hai nhóm ấy không so được với nhau.)
  *
  *   - `entry` 175 KiB — đúng con số cũ, đặt lên đại lượng mà nó luôn muốn chặn;
  *   - `largestJsChunk` 170 KiB — không đổi một KiB nào;
@@ -45,7 +48,7 @@
  * định riêng, có người duyệt, kèm lý do trong PR.
  */
 import { gzipSync } from 'node:zlib';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 /** Thư mục vite ghi bản dựng ra. */
@@ -55,13 +58,187 @@ const ASSETS_DIR = join('dist', 'assets');
  * Đồ thị nhập của bản dựng, do `build.manifest` trong `vite.config.ts` ghi ra.
  *
  * Danh sách file trong `assets/` chỉ cho biết *có bao nhiêu KiB*, không cho biết
- * *ai kéo ai*. Hai trong bốn ngưỡng dưới đây cần đồ thị: phải đi từ chunk
+ * *ai kéo ai*. Hai trong bốn ngưỡng gzip dưới đây cần đồ thị: phải đi từ chunk
  * `isEntry` theo `imports` (nhập tĩnh, tải ngay) và tách riêng `dynamicImports`
  * (nhập động, tải muộn). Manifest là chỗ duy nhất vite ghi sẵn đồ thị đó ra đĩa.
  */
 const MANIFEST_PATH = join('dist', '.vite', 'manifest.json');
 
 const KIB = 1024;
+
+/**
+ * Bảy màn demo chỉ bản dev (`buildDevOnlyRoutes`, `src/routes/router.tsx`) —
+ * mỗi màn một chuỗi chỉ nó có. Bản dựng production mang chuỗi nào là hỏng.
+ *
+ * Chuỗi chứ không khoá manifest: một `import` tĩnh lỡ tay gộp màn demo vào chunk
+ * của màn khác thì manifest không còn khoá riêng cho nó, còn chuỗi vẫn ở đó.
+ * `scripts/__tests__/check-bundle-size.test.mjs` kiểm mỗi chuỗi còn trong đúng
+ * tệp nguồn — đổi chữ màn demo mà quên bảng này thì bộ test đỏ, không phải cổng
+ * này lặng lẽ xanh mãi.
+ */
+const DEV_ONLY_MARKERS = [
+  { source: 'src/App.tsx', marker: 'Motion & Transitions' },
+  { source: 'src/screens/DesignSystem.tsx', marker: 'Quiet Blueprint v1.1' },
+  { source: 'src/screens/DataEntryDemo.tsx', marker: 'Data Entry Components' },
+  { source: 'src/screens/ListReviewDemo.tsx', marker: 'Duyệt dữ liệu thành công!' },
+  { source: 'src/screens/ShellDemo.tsx', marker: 'Cmd+K to search' },
+  { source: 'src/screens/CanvasOverlaysDemo.tsx', marker: 'Canvas Overlays Demo' },
+  { source: 'src/screens/FeedbackDemo.tsx', marker: 'Test Undo Toast' },
+];
+
+/** Cặp (chuỗi đánh dấu, tệp dựng) nào có mặt. `files`: `{ name, text }[]`. */
+function findDevOnlyLeaks(files, markers = DEV_ONLY_MARKERS) {
+  return markers.flatMap(({ source, marker }) =>
+    files.filter((file) => file.text.includes(marker)).map((file) => ({ source, marker, file: file.name })),
+  );
+}
+
+/**
+ * Quét bản dựng tìm chỗ dựng mã từ chuỗi — CSP thật không có `'unsafe-eval'`
+ * (`AppBack/deploy/nginx/snippets/security_headers.conf:6`), nên mỗi chỗ là một
+ * EvalError lúc chạy mà máy dev không gửi CSP thì không bao giờ thấy (FIX-380).
+ *
+ * Mẫu cố ý KHÔNG chỉ là `new Function`: hai nguồn thật đều trượt chuỗi ấy —
+ * embind gọi `newFunc(Function,args)`, zod 4 viết `const F = Function; new F(…)`.
+ * Bí danh thì vô tận (`(0,eval)(…)`, `self.Function(…)`, `return Function`,
+ * `{c:Function}`…), nên bắt MỌI token `Function`/`eval` đứng riêng, rồi chỉ loại
+ * những ngữ cảnh chắc chắn không dựng mã — xem {@link isHarmlessEvalToken}.
+ * Thêm `setTimeout`/`setInterval` nhận chuỗi, và `newFunc(` của embind.
+ *
+ * Đường qua `.constructor` bắt tĩnh được ba dạng: gọi hàm tạo với chuỗi literal
+ * (`(function(){}).constructor("…")`), `.constructor.constructor`, và
+ * `getPrototypeOf(async function…)` (lấy hàm tạo AsyncFunction); cộng
+ * `Function.prototype.constructor` qua token `Function`.
+ *
+ * Ngoài phạm vi, cố ý: `(biểu-thức).constructor(biến)` với đối số không phải
+ * chuỗi literal — muốn bắt phải biết kiểu của biểu thức, quét tĩnh không làm
+ * được (React có `new(n=e.nativeEvent).constructor(n.type,n)`). Lưới cho dạng
+ * ấy là bài e2e "dưới CSP" (`e2e/pascal-viewer.spec.ts`) và chuỗi F-14 trên
+ * nginx thật — chỉ cho những đường mã thật sự chạy trong các lượt ấy.
+ * Cùng lưới ấy: một dòng của template literal nhiều dòng bắt đầu bằng `/*` mà
+ * không đóng trước dấu `` ` ``, rồi một `*\/` thật trong 8 000 ký tự sau đó
+ * (`` var s=`\n/* glsl\n`;var F=Function;/* c *\/ ``) — chú thích giả ấy che
+ * token ở giữa. Không đóng được nếu không tách token. Đo 2026-10-06: trong
+ * 6 894 khối `/*…*\/` đứng đầu dòng của `dist/`, 0 khối bao một dòng mã.
+ */
+const EVAL_PATTERN =
+  /(?<![\w$])(?:Function|eval)(?![\w$])|\b(?:setTimeout|setInterval)\s*\(\s*["'`]|\bnewFunc\s*\(|\.constructor\s*\(\s*["'`]|\.constructor\s*\.\s*constructor\b|getPrototypeOf\(\s*(?:async\s+)?function\b/g;
+
+/**
+ * Trần của một chú thích được miễn, tính bằng ký tự. Không có trần thì một `//`
+ * nằm trong CHUỖI phía trước trên một dòng minify dài (three: một dòng 369 144
+ * ký tự, `// validated` trong GLSL ở ký tự 7 686) miễn luôn ~361 KB mã phía sau
+ * (review FIX-380 lượt 2, N-1). Chú thích dòng thật thì ngắn; khối JSDoc thì
+ * phải đóng trong trần, bao lấy token, VÀ `/*` phải đứng đầu dòng của nó — cặp
+ * `/*`…`*\/` giả trong chuỗi (`Accept:"*\/*"`, glob `"src/**\/*.js"`) luôn có nháy
+ * hoặc mã đứng trước nên không bao giờ được miễn (lượt 3, R3-1).
+ */
+const LINE_COMMENT_MAX = 120;
+const BLOCK_COMMENT_MAX = 8_000;
+/*
+ * Giữa `//` và token không được có dấu nháy, `;` hay `/`: có tức là `//` nằm
+ * trong một chuỗi/regex đã ĐÓNG và token là mã thật (`"a //b";var F=Function`,
+ * `x=/[ //]/g,F=Function`). Giá phải trả: chú thích có nháy hay URL trước token
+ * (`// the "Function" type`, `// see https://… Function`) bị chặn — đỏ nhầm
+ * thì người ta thấy, xanh nhầm thì không.
+ */
+const LINE_COMMENT = new RegExp(`(?:^|\\s)//[^\\n"'\`;/]{0,${LINE_COMMENT_MAX}}$`);
+
+/** Token nằm trong một khối `/*`…`*\/` đứng đầu dòng, đóng trong trần. */
+function insideBlockComment(text, index) {
+  const open = text.lastIndexOf('/*', index);
+  if (open === -1 || text.lastIndexOf('*/', index) > open) return false;
+
+  const openLineStart = text.lastIndexOf('\n', open) + 1;
+  if (!/^\s*$/.test(text.slice(openLineStart, open))) return false;
+
+  const close = text.indexOf('*/', index);
+
+  return close !== -1 && close - open <= BLOCK_COMMENT_MAX;
+}
+
+/**
+ * Token `Function`/`eval` ở chỗ không thể dựng mã: kiểm kiểu `instanceof`,
+ * `Function.prototype` (trừ `.prototype.constructor`), chú thích (gói vách ngăn
+ * không minify, mang hàng trăm JSDoc `{Function}`), và chữ trong câu báo lỗi
+ * (`"Function is not a GLSL code"`, `` `Function '${x}' called` ``).
+ *
+ * KHÔNG miễn thuộc tính `X.Function`/`X.eval` của bất kỳ đối tượng nào: `X` có
+ * thể là bí danh của `globalThis` (`var g=globalThis;g.Function(…)`), và đo trên
+ * `dist/` thật thì không có lượt truy cập nào như thế để phải miễn (lượt 3, R3-2).
+ */
+function isHarmlessEvalToken(text, index, token) {
+  if (!/^(?:Function|eval)$/.test(token)) return false;
+
+  const before = text.slice(Math.max(0, index - 40), index);
+  const after = text.slice(index + token.length, index + token.length + 40);
+  const lineStart = text.lastIndexOf('\n', index - 1) + 1;
+  const line = text.slice(lineStart, index);
+
+  return (
+    /\binstanceof\s+$/.test(before) ||
+    /^\s*\.\s*prototype\b(?!\s*(?:\.\s*constructor|\[))/.test(after) ||
+    LINE_COMMENT.test(line) ||
+    insideBlockComment(text, index) ||
+    /^[ \t]+[A-Za-z'"]/.test(after)
+  );
+}
+
+/**
+ * Hai chỗ zod 4 trong gói vách ngăn, miễn THEO NỘI DUNG chứ không theo tệp:
+ * cả hai không bao giờ chạy vì `usePascalViewer.ts:157-161` bật `jitless`
+ * trước khi nạp gói. Chỗ thứ ba — kể cả trong cùng tệp — vẫn đỏ.
+ */
+const EVAL_ALLOWED = [
+  { reason: 'zod 4 `allowsEval` — tắt bởi jitless', pattern: /const F = Function;\s*new F\(""\);/ },
+  { reason: 'zod 4 `Doc.compile` — tắt bởi jitless', pattern: /compile\(\) \{\s*const F = Function;/ },
+];
+
+/** Thư mục chứa mã sẽ chạy trên trình duyệt; `findEvalSites` đọc `.js`/`.mjs` dưới chúng. */
+const EVAL_SCAN_DIRS = [join('dist', 'assets'), join('dist', 'basis'), join('dist', 'draco')];
+
+/** Mọi chỗ dựng mã từ chuỗi. `files`: `{ name, text }[]`. Trả `{ blocked, allowed }`. */
+function findEvalSites(files, allowedList = EVAL_ALLOWED) {
+  const blocked = [];
+  const allowed = [];
+
+  for (const { name, text } of files) {
+    const spans = allowedList.flatMap(({ reason, pattern }) =>
+      [...text.matchAll(new RegExp(pattern.source, 'g'))].map((m) => ({
+        reason,
+        start: m.index,
+        end: m.index + m[0].length,
+      })),
+    );
+
+    for (const match of text.matchAll(EVAL_PATTERN)) {
+      if (isHarmlessEvalToken(text, match.index, match[0])) continue;
+
+      const site = { file: name, at: match.index, snippet: text.slice(match.index, match.index + 60) };
+      const span = spans.find((s) => match.index >= s.start && match.index < s.end);
+
+      if (span === undefined) blocked.push(site);
+      else allowed.push({ ...site, reason: span.reason });
+    }
+  }
+
+  return { blocked, allowed };
+}
+
+/** `.js`/`.mjs` dưới các thư mục quét, đệ quy. Thiếu thư mục ⇒ bỏ qua. */
+function readScriptsUnder(dirs) {
+  const out = [];
+  const visit = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) visit(path);
+      else if (/\.m?js$/.test(entry)) out.push({ name: path, text: readFileSync(path, 'utf8') });
+    }
+  };
+  dirs.forEach(visit);
+  return out;
+}
 
 /**
  * Ngân sách CỔNG, tính bằng KiB sau gzip. Vượt là hỏng, mã thoát 1.
@@ -112,6 +289,52 @@ const BUDGETS_KIB = {
 };
 
 /**
+ * Cổng thứ năm — **vách ngăn Pascal**, đo bằng KiB THÔ của cả thư mục.
+ *
+ * ## Vì sao bốn cổng trên không đo được nó
+ *
+ * Vách ngăn là một lượt dựng RIÊNG (`vite.pascal.config.ts`) ra
+ * `public/assets/pascal/`, cộng hai thư mục tài sản do `pnpm pascal:assets`
+ * chép. Bốn cổng trên đọc `dist/assets` **không đệ quy** và lọc theo đuôi
+ * `.js`/`.css`, mà `assets/pascal` là một thư mục — thư mục thì không có đuôi.
+ * Nên chúng bỏ qua vách ngăn **theo cấu tạo**, và nếu không có cổng này thì
+ * 26 MiB lớn dần mà không cổng nào thấy.
+ *
+ * ## Vì sao đo THÔ chứ không gzip
+ *
+ * Bốn cổng trên đo gzip vì chúng đo "thứ đi qua dây ở khung hình đầu tiên".
+ * Cổng này đo một thứ khác: **khối lượng phải mang đi deploy và phải giữ trên
+ * đĩa**. Ảnh `.ktx2` đã nén sẵn, gzip lần nữa không đổi gì, nên gzip ở đây là
+ * một con số không nói lên điều gì.
+ *
+ * ## Ba con số, và chúng đến từ đâu
+ *
+ * Số đo 2026-09-29, ngay sau khi chép đúng `.ktx2` (bỏ `.webp`/`.jpg` nguồn):
+ *
+ * | phần | tệp | thô |
+ * |---|---|---|
+ * | mã vách ngăn `assets/pascal` | 251 | 19 379,3 KiB |
+ * | tài sản `pascal` + `basis` | 64 | 7 097,6 KiB |
+ * | **tổng-thư-mục** | **315** | **26 476,9 KiB** |
+ *
+ * Trần dưới đây để dư ~13 %, đúng dải 6–40 % mà bốn cổng trên đang dùng. Ba con
+ * số này do người thi công đặt từ số đo, **không phải** một quyết định đã được
+ * duyệt: `docs/pascal/00-quyet-dinh.md` ghi T4.2 (2) là câu **chưa hỏi**. Đổi
+ * chúng là việc của người duyệt, và nới để cho qua thì vẫn là nới.
+ */
+const PASCAL_BUDGETS_KIB = {
+  code: 22_000,
+  assets: 8_000,
+  total: 30_000,
+};
+
+/** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */
+const PASCAL_DIRS = {
+  code: [join('dist', 'assets', 'pascal')],
+  assets: [join('dist', 'pascal'), join('dist', 'basis')],
+};
+
+/**
  * Mốc CẢNH BÁO. In ra, KHÔNG làm hỏng cổng — mã thoát của bước này không bao giờ
  * đỏ vì con số này.
  *
@@ -123,6 +346,37 @@ const BUDGETS_KIB = {
 const WARN_KIB = {
   js: 800,
 };
+
+const ZERO_MEASURE = { bytes: 0, files: 0 };
+
+const sumMeasures = (left, right) => ({
+  bytes: left.bytes + right.bytes,
+  files: left.files + right.files,
+});
+
+/** Tổng byte và số tệp dưới một thư mục, đệ quy. Thiếu thư mục ⇒ số không. */
+function measureDir(dir) {
+  if (!existsSync(dir)) return { bytes: 0, files: 0 };
+
+  let bytes = 0;
+  let files = 0;
+
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    const stat = statSync(path);
+
+    if (stat.isDirectory()) {
+      const inner = measureDir(path);
+      bytes += inner.bytes;
+      files += inner.files;
+    } else {
+      bytes += stat.size;
+      files += 1;
+    }
+  }
+
+  return { bytes, files };
+}
 
 /** KiB, một chữ số thập phân, dấu phẩy theo A15. */
 const formatKib = (bytes) => (bytes / KIB).toFixed(1).replace('.', ',');
@@ -414,6 +668,42 @@ function main() {
   ];
 
   /*
+   * Vách ngăn Pascal. Vắng mặt ⇒ 0 byte và cổng xanh, KHÔNG phải lỗi: một bản
+   * dựng chưa chạy `pnpm pascal` là chuyện thường ở máy làm việc, và bắt nó đỏ
+   * ở đây là bắt cổng kích thước gánh việc của bước dựng.
+   */
+  const pascalCode = PASCAL_DIRS.code.map(measureDir).reduce(sumMeasures, ZERO_MEASURE);
+  const pascalAssets = PASCAL_DIRS.assets.map(measureDir).reduce(sumMeasures, ZERO_MEASURE);
+  const pascalTotal = sumMeasures(pascalCode, pascalAssets);
+
+  if (pascalTotal.files > 0) {
+    console.log(
+      `
+vách ngăn Pascal — đo THÔ, cả thư mục:
+` +
+        `  mã       ${String(pascalCode.files).padStart(4)} tệp  ${formatKib(pascalCode.bytes)} KiB
+` +
+        `  tài sản  ${String(pascalAssets.files).padStart(4)} tệp  ${formatKib(pascalAssets.bytes)} KiB
+` +
+        `  tổng     ${String(pascalTotal.files).padStart(4)} tệp  ${formatKib(pascalTotal.bytes)} KiB`,
+    );
+
+    gates.push(
+      { label: 'vách ngăn Pascal — mã', actual: pascalCode.bytes, budgetKib: PASCAL_BUDGETS_KIB.code },
+      {
+        label: 'vách ngăn Pascal — tài sản',
+        actual: pascalAssets.bytes,
+        budgetKib: PASCAL_BUDGETS_KIB.assets,
+      },
+      {
+        label: 'vách ngăn Pascal — tổng thư mục',
+        actual: pascalTotal.bytes,
+        budgetKib: PASCAL_BUDGETS_KIB.total,
+      },
+    );
+  }
+
+  /*
    * Chuỗi phép tính của hàng "chi phí thêm", in ra chứ không giấu.
    *
    * Không có dòng này thì con số cuối là một hộp đen: người đọc không kiểm được
@@ -466,6 +756,37 @@ function main() {
 
   console.log('');
 
+  const leaks = findDevOnlyLeaks(
+    readdirSync(ASSETS_DIR)
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => ({ name, text: readFileSync(join(ASSETS_DIR, name), 'utf8') })),
+  );
+
+  if (leaks.length > 0) {
+    throw new Error(
+      'Màn demo chỉ bản dev lọt vào bản dựng production:\n' +
+        leaks.map((leak) => `  ${leak.source} — "${leak.marker}" trong ${leak.file}`).join('\n'),
+    );
+  }
+
+  console.log(`màn demo chỉ bản dev trong bản dựng: 0/${DEV_ONLY_MARKERS.length} — đạt\n`);
+
+  const scripts = readScriptsUnder(EVAL_SCAN_DIRS);
+  const evalSites = findEvalSites(scripts);
+
+  console.log(`dựng mã từ chuỗi (CSP không có 'unsafe-eval') — ${scripts.length} tệp mã:`);
+  for (const site of evalSites.allowed) console.log(`  miễn  ${site.file} — ${site.reason}`);
+  for (const site of evalSites.blocked) console.log(`  CHẶN  ${site.file}@${site.at} — ${JSON.stringify(site.snippet)}`);
+
+  if (evalSites.blocked.length > 0) {
+    throw new Error(
+      `${evalSites.blocked.length} chỗ dựng mã từ chuỗi trong bản dựng — CSP thật ném EvalError ở đó. ` +
+        'Dựng lại thư viện không eval (xem `vendor/basis/NGUON.md`), không nới CSP.',
+    );
+  }
+
+  console.log(`  đạt — 0 chỗ chặn, ${evalSites.allowed.length} chỗ miễn\n`);
+
   if (over.length > 0) {
     const names = over.map((gate) => gate.label).join(', ');
 
@@ -479,14 +800,22 @@ function main() {
 }
 
 /*
- * Ba hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
+ * Các hàm thuần xuất ra cho `scripts/__tests__/check-bundle-size.test.mjs`.
  *
  * Chúng không đọc đĩa và không in gì: đưa manifest vào, nhận tập khoá ra. Nhờ
  * vậy bộ test khoá được PHÉP TÍNH mà không cần một bản dựng, và bảng đối chiếu
  * của lượt gộp này được sinh bằng CHÍNH những hàm đã cắm vào cổng — chứ không
  * bằng một script riêng rồi hy vọng hai bên khớp nhau.
  */
-export { closure, presentWhenLoaded, baselineFor, closureGzip };
+export {
+  closure,
+  presentWhenLoaded,
+  baselineFor,
+  closureGzip,
+  findDevOnlyLeaks,
+  findEvalSites,
+  DEV_ONLY_MARKERS,
+};
 
 /*
  * Chỉ chạy cổng khi file này được gọi thẳng. Khi bộ test `import` nó, đoạn dưới

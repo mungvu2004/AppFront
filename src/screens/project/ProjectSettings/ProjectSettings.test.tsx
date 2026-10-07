@@ -88,12 +88,19 @@ function baseProps(): ProjectSettingsViewProps {
     saveState: 'saved',
     saveLabel: 'Đã lưu lúc 14:32',
     conflictMessage: null,
+    saveFailureMessage: null,
+    isReloadDialogOpen: false,
+    memberEmail: '',
+    memberError: null,
+    isAddingMember: false,
+    isAddMemberLocked: false,
+    memberRemoveDialog: null,
     activeTab: 'general',
     tabs: [
-      { id: 'general', label: 'chung', problemCount: 0 },
-      { id: 'units', label: 'đơn vị đo', problemCount: 0 },
-      { id: 'members', label: 'thành viên', problemCount: 0 },
-      { id: 'danger', label: 'vùng nguy hiểm', problemCount: 0 },
+      { id: 'general', label: 'Chung', problemCount: 0 },
+      { id: 'units', label: 'Đơn vị đo', problemCount: 0 },
+      { id: 'members', label: 'Thành viên', problemCount: 0 },
+      { id: 'danger', label: 'Vùng nguy hiểm', problemCount: 0 },
     ],
     name: 'Chung cư Bình Minh',
     code: 'DA-BINHMINH',
@@ -108,8 +115,8 @@ function baseProps(): ProjectSettingsViewProps {
     problems: NO_PROBLEMS,
     lengthUnit: 'mm',
     lengthUnitOptions: [
-      { value: 'mm', label: 'milimét (mm)' },
-      { value: 'm', label: 'mét (m)' },
+      { value: 'mm', label: 'Milimét (mm)' },
+      { value: 'm', label: 'Mét (m)' },
     ],
     areaUnitLabel: 'mét vuông — ví dụ 248,60 m²',
     snapToleranceMm: 50,
@@ -121,7 +128,7 @@ function baseProps(): ProjectSettingsViewProps {
     scaleMmPerPx: 2.5,
     scaleLabel: '2,5 milimét trên mỗi điểm ảnh',
     scalePreviewLabel: '100 điểm ảnh ứng với 250 mm ngoài thực tế.',
-    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA' }],
+    members: [{ id: 'm-an', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' }],
     memberCountLabel: '1 thành viên',
     floorCount: 4,
     deleteAllFloorsLabel:
@@ -149,6 +156,13 @@ function baseProps(): ProjectSettingsViewProps {
     saveNow: noop,
     retryLoad: noop,
     reloadSettings: noop,
+    confirmReload: noop,
+    cancelReload: noop,
+    setMemberEmail: noop,
+    addMember: noop,
+    requestRemoveMember: noop,
+    confirmRemoveMember: noop,
+    cancelRemoveMember: noop,
     requestDeleteAllFloors: noop,
     requestDeleteProject: noop,
     setDangerConfirmationText: noop,
@@ -262,21 +276,21 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.loading()} />);
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByText('trạng thái: đang tải')).toBeInTheDocument();
+    expect(screen.getByText('Trạng thái: đang tải')).toBeInTheDocument();
   });
 
   it('giữ nguyên dữ liệu nhưng bỏ quyền sửa với vai người xem', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.forbidden()} />);
 
     expect(screen.getByText('Chung cư Bình Minh')).toBeInTheDocument();
-    expect(screen.queryByLabelText('tên dự án')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Tên dự án')).not.toBeInTheDocument();
   });
 
   it('đổi dải thẻ thành một ô chọn khi thu gọn', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.collapsed()} />);
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'nhóm cài đặt' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Nhóm cài đặt' })).toBeInTheDocument();
   });
 
   it('mời thử lại khi không đọc được cài đặt', () => {
@@ -315,7 +329,7 @@ describe('ProjectSettingsView, vùng nguy hiểm', () => {
     const dialog = within(screen.getByRole('dialog'));
 
     expect(dialog.getByRole('button', { name: 'Xoá dự án' })).toBeDisabled();
-    expect(screen.getByLabelText('gõ lại tên dự án để xác nhận')).toBeInTheDocument();
+    expect(screen.getByLabelText('Gõ lại tên dự án để xác nhận')).toBeInTheDocument();
     expect(confirmDanger).not.toHaveBeenCalled();
   });
 
@@ -359,7 +373,7 @@ describe('ProjectSettings', () => {
 
     renderWithProviders(<ProjectSettings gateway={gateway} projectId="project-1" roles={['admin']} />);
 
-    expect(await screen.findByLabelText('tên dự án')).toHaveValue('Chung cư Hoàng Anh');
+    expect(await screen.findByLabelText('Tên dự án')).toHaveValue('Chung cư Hoàng Anh');
     expect(screen.getByLabelText('địa chỉ')).toHaveValue('12 Nguyễn Huệ, Quận 1');
   });
 });
@@ -404,7 +418,7 @@ describe('ProjectSettingsView, bàn phím và lời hứa tự lưu', () => {
     const props = PROPS_BY_STATE.collapsed();
     render(<ProjectSettingsView {...props} />);
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'nhóm cài đặt' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Nhóm cài đặt' }));
 
     const listbox = within(await screen.findByRole('listbox'));
 
@@ -510,6 +524,11 @@ interface ToastRecord {
   readonly onUndo?: (() => void) | undefined;
 }
 
+/** Một lượt `update` mà phần `part` hỏng vì `error` — hình dạng `{ snapshot, failures }` của hợp đồng F-07. */
+const failingUpdate =
+  (error: HttpError, part: 'general' | 'units' = 'general'): ProjectSettingsGateway['update'] =>
+  async ({ base }) => ({ snapshot: base, failures: [{ part, error }] });
+
 /** Cổng thật trên `createMockApiClient()`, có đếm lượt gọi; R-47: không bịa dữ liệu. */
 function spyGateway(overrides: Partial<ProjectSettingsGateway> = {}) {
   const real = createProjectSettingsGateway(createMockApiClient());
@@ -517,6 +536,8 @@ function spyGateway(overrides: Partial<ProjectSettingsGateway> = {}) {
   return {
     read: vi.fn(overrides.read ?? real.read),
     update: vi.fn(overrides.update ?? real.update),
+    addMember: vi.fn(overrides.addMember ?? real.addMember),
+    removeMember: vi.fn(overrides.removeMember ?? real.removeMember),
     deleteAllFloors: vi.fn(overrides.deleteAllFloors ?? real.deleteAllFloors),
     deleteProject: vi.fn(overrides.deleteProject ?? real.deleteProject),
   };
@@ -549,7 +570,7 @@ describe('ProjectSettings đã nối dây', () => {
   }
 
   const nameField = (): HTMLInputElement =>
-    screen.getByRole('textbox', { name: 'tên dự án' }) as HTMLInputElement;
+    screen.getByRole('textbox', { name: 'Tên dự án' }) as HTMLInputElement;
 
   it('gửi thay đổi đi 800 ms sau thao tác cuối, không cần ai bấm gì (D-07, A7)', async () => {
     const gateway = spyGateway();
@@ -565,8 +586,32 @@ describe('ProjectSettings đã nối dây', () => {
     expect(gateway.update).toHaveBeenCalledWith({
       projectId: 'project-autosave',
       patch: { name: 'Chung cư Bình Minh' },
+      base: expect.objectContaining({ projectId: 'project-autosave', settingsRevision: 3 }),
     });
     expect(screen.queryAllByRole('button', { name: SAVE_BUTTON_NAMES })).toHaveLength(0);
+  });
+
+  it('đã lưu rồi gõ tên sai: chỉ báo nói câu chờ, không giữ "Đã lưu lúc …" cũ (B-V1-47, A7)', async () => {
+    const gateway = spyGateway();
+    await mountSettings({ gateway, projectId: 'project-problem', roles: ['admin'] });
+
+    fireEvent.change(nameField(), { target: { value: 'Chung cư Bình Minh' } });
+    await tick(AUTOSAVE_DEBOUNCE_MS);
+    await tick(0);
+    expect(screen.getAllByRole('status').some((node) => /Đã lưu lúc/u.test(node.textContent ?? ''))).toBe(true);
+
+    fireEvent.change(nameField(), { target: { value: 'Ch' } });
+    // Qua hẳn cửa sổ tự lưu: lượt lưu không có gì để gửi (tên sai) không được biến thành "đã lưu".
+    await tick(AUTOSAVE_DEBOUNCE_MS);
+    await tick(0);
+
+    // Chỉ viên chỉ báo (có biểu tượng); vùng đọc sr-only còn giữ câu "Đã lưu lúc …" vừa đọc là đúng.
+    const texts = screen
+      .getAllByRole('status')
+      .filter((node) => node.querySelector('svg') !== null)
+      .map((node) => node.textContent ?? '');
+    expect(texts.some((text) => text.includes('Có thay đổi chờ đồng bộ')), JSON.stringify(texts)).toBe(true);
+    expect(texts.some((text) => /Đã lưu lúc/u.test(text)), JSON.stringify(texts)).toBe(false);
   });
 
   it('mỗi lượt lưu xong kèm một vé hoàn tác, và hoàn tác trả ô về giá trị cũ (A8, D-05)', async () => {
@@ -596,7 +641,7 @@ describe('ProjectSettings đã nối dây', () => {
   });
 
   it('một lượt lưu hỏng vì mạng thì thử lại theo lịch của tầng logic', async () => {
-    const gateway = spyGateway({ update: async () => ({ ok: false, error: NETWORK_ERROR }) });
+    const gateway = spyGateway({ update: failingUpdate(NETWORK_ERROR) });
     await mountSettings({ gateway, projectId: 'project-retry', roles: ['admin'] });
 
     fireEvent.change(nameField(), { target: { value: 'Chung cư Bình Minh' } });
@@ -608,14 +653,14 @@ describe('ProjectSettings đã nối dây', () => {
   });
 
   it('409 thì dừng lại, nói ra, không ghi đè và không bão thử lại (D-09)', async () => {
-    const gateway = spyGateway({ update: async () => ({ ok: false, error: CONFLICT_ERROR }) });
+    const gateway = spyGateway({ update: failingUpdate(CONFLICT_ERROR) });
     await mountSettings({ gateway, projectId: 'project-conflict', roles: ['admin'] });
 
     fireEvent.change(nameField(), { target: { value: 'Chung cư Bình Minh' } });
     await tick(AUTOSAVE_DEBOUNCE_MS);
 
     expect(gateway.update).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(viMessages.errors.conflict.description)).toBeInTheDocument();
+    expect(screen.getByText(viMessages.project.settings.load.conflictMessage)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: viMessages.project.settings.load.reload }),
     ).toBeInTheDocument();
@@ -634,7 +679,7 @@ describe('ProjectSettings đã nối dây', () => {
 
     expect(screen.getByText(viMessages.project.settings.readOnlyNotice)).toBeInTheDocument();
     expect(screen.queryAllByRole('textbox')).toHaveLength(0);
-    expect(screen.queryByRole('tab', { name: 'vùng nguy hiểm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Vùng nguy hiểm' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Xoá dự án' })).not.toBeInTheDocument();
   });
 
@@ -650,13 +695,13 @@ describe('ProjectSettings đã nối dây', () => {
 
     const expectedName = nameField().value;
 
-    fireEvent.click(screen.getByRole('tab', { name: 'vùng nguy hiểm' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
     await tick(MOTION_SETTLE_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá dự án' }));
     await tick(MOTION_SETTLE_MS);
 
     const dialog = within(screen.getByRole('dialog'));
-    const confirmation = dialog.getByRole('textbox', { name: 'gõ lại tên dự án để xác nhận' });
+    const confirmation = dialog.getByRole('textbox', { name: 'Gõ lại tên dự án để xác nhận' });
 
     expect(dialog.getByRole('button', { name: 'Xoá dự án' })).toBeDisabled();
 
@@ -672,7 +717,9 @@ describe('ProjectSettings đã nối dây', () => {
     await tick(MOTION_SETTLE_MS);
 
     expect(gateway.deleteProject).toHaveBeenCalledWith({ projectId: 'project-delete' });
+    // B-V3-05: câu báo đi cùng lời gọi rời màn, không vào toast của màn sắp gỡ.
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
+    expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
   });
 });
 
@@ -718,5 +765,52 @@ describe('createProjectSettingsGateway', () => {
     expect(result.data.failedFloorIds).toEqual([failingFloorId]);
     expect(result.data.deletedCount).toBe(result.data.requestedCount - 1);
     expect(result.data.requestedCount).toBe(project.data.floors.length);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* F-07: lưu dở và tải lại khi còn nháp.                                       */
+/* -------------------------------------------------------------------------- */
+
+describe('ProjectSettingsView, lưu dở và tải lại', () => {
+  it('nói phần nào đã lưu, phần nào chưa, trong một dải riêng', () => {
+    render(
+      <ProjectSettingsView
+        {...baseProps()}
+        saveFailureMessage="Đã lưu thông tin chung, chưa lưu đơn vị đo."
+      />,
+    );
+
+    expect(screen.getByText('Đã lưu thông tin chung, chưa lưu đơn vị đo.')).toBeInTheDocument();
+  });
+
+  it('không dựng dải lưu dở khi không có phần hỏng', () => {
+    render(<ProjectSettingsView {...baseProps()} />);
+
+    expect(screen.queryByText(viMessages.project.settings.load.saveFailureTitle)).not.toBeInTheDocument();
+  });
+
+  it('hộp thoại tải lại mở theo props và gọi đúng hành động', () => {
+    const confirmReload = vi.fn();
+    const cancelReload = vi.fn();
+    render(
+      <ProjectSettingsView
+        {...baseProps()}
+        conflictMessage={viMessages.project.settings.load.conflictMessage}
+        isReloadDialogOpen
+        confirmReload={confirmReload}
+        cancelReload={cancelReload}
+      />,
+    );
+
+    const dialog = within(screen.getByRole('dialog'));
+
+    expect(dialog.getByText(viMessages.project.settings.load.reloadDialogTitle)).toBeInTheDocument();
+
+    fireEvent.click(dialog.getByRole('button', { name: viMessages.project.settings.load.reload }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(confirmReload).toHaveBeenCalledTimes(1);
+    expect(cancelReload).toHaveBeenCalledTimes(1);
   });
 });

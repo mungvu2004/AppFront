@@ -26,11 +26,13 @@
  * thiết.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import {
   Armchair,
   Bath,
   Bed,
   Blinds,
+  Box,
   Columns2,
   DoorOpen,
   Droplet,
@@ -71,7 +73,7 @@ const LAYER_TOOLS: readonly LayerToolDef[] = [
 /**
  * `toilet`/`basin` không có icon riêng trong `lucide-react` (đã kiểm), và
  * dù sao cũng KHÔNG BAO GIỜ render qua ray này — cả hai đứng ở vị trí 4 và 5
- * của nhóm "nội thất", ngoài {@link MAX_SUBTYPE_SLOTS}. Vẫn khai đủ tám
+ * của nhóm "nội thất", ngoài {@link MAX_SUBTYPE_SLOTS}. Vẫn khai đủ mọi
  * khoá để bảng tra là `Record` đầy đủ kiểu, tránh lỗi âm thầm nếu
  * `MAX_SUBTYPE_SLOTS` từng tăng lên — `Bath`/`Droplet` là xấp xỉ gần nhất,
  * không phải hai ký hiệu tự vẽ trùng với `ObjectLayerInspector.tsx`.
@@ -85,6 +87,7 @@ const SUBTYPE_ICONS: Readonly<Record<ObjectSubtype, LucideIcon>> = {
   sofa: Sofa,
   toilet: Bath,
   window: Blinds,
+  otherFurniture: Box,
 };
 
 const RAIL_ARIA_LABEL = 'Công cụ lớp đối tượng';
@@ -127,8 +130,7 @@ export function ObjectLayerToolRail({
                   />
                 )}
                 <IconButton
-                  aria-label={`chọn nhóm ${OBJECT_LAYER_LABELS[tool.id]} (phím ${tool.kbd})`}
-                  disabled={activeLayer === null}
+                  aria-label={`Chọn nhóm ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])} (phím ${tool.kbd})`}
                   icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
                   isActive={isActive}
                   onClick={() => onSelectLayer(tool.id)}
@@ -158,7 +160,7 @@ export function ObjectLayerToolRail({
                       />
                     )}
                     <IconButton
-                      aria-label={`đổi thành ${OBJECT_SUBTYPE_LABELS[subtype]} (phím ${slot})`}
+                      aria-label={`Đổi thành ${lowerFirst(OBJECT_SUBTYPE_LABELS[subtype])} (phím ${slot})`}
                       icon={<Icon aria-hidden="true" className="h-[18px] w-[18px]" />}
                       isActive={isActive}
                       onClick={() => onSelectSubtypeSlot(slot)}

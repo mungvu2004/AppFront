@@ -27,6 +27,14 @@ export const WRITE_OPERATIONS = [
   'markNotificationRead',
   'markAllNotificationsRead',
   'acceptInvite',
+  'renameProject',
+  'deleteProject',
+  'addProjectMember',
+  'removeProjectMember',
+  'activateModelVersion',
+  'createTrainingJob',
+  'cancelTrainingJob',
+  'persistFloorScale',
 ] as const;
 
 export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
@@ -94,6 +102,22 @@ export interface WriteOperationParamsMap {
    * nó là một lượt đổi TƯ CÁCH THÀNH VIÊN, và thứ cũ đi nằm ngoài hộp thư.
    */
   acceptInvite: ProjectScopedParams;
+  /** Dự án vừa đổi tên (#26) — thẻ dashboard, danh sách và chi tiết cũ đi. */
+  renameProject: ProjectScopedParams;
+  /** Dự án vừa bị xoá (#27) — cùng ba khoá với `renameProject`. */
+  deleteProject: ProjectScopedParams;
+  /** Thành viên vừa được thêm (N3) — `Project.members` nằm ở chi tiết. */
+  addProjectMember: ProjectScopedParams;
+  /** Thành viên vừa được gỡ (N4) — cùng phạm vi với `addProjectMember`. */
+  removeProjectMember: ProjectScopedParams;
+  /** Một họ model vừa đổi bản đang dùng (N24, F-11) — khoá theo họ, vì danh sách bản là theo họ. */
+  activateModelVersion: { family: string };
+  /** Lượt huấn luyện vừa xếp hàng (N33, F-12) — mọi bộ lọc của danh sách lượt. */
+  createTrainingJob: Record<string, never>;
+  /** Lượt vừa được yêu cầu huỷ (N35, F-12) — chính lượt ấy và mọi bộ lọc của danh sách. */
+  cancelTrainingJob: { jobId: string };
+  /** #35 có tỉ lệ vừa được nhận — bản vẽ, tầng, N15 và N16 của tầng ấy cũ đi. */
+  persistFloorScale: FloorScopedParams;
 }
 
 type InvalidationMap = {
@@ -107,11 +131,12 @@ type InvalidationMap = {
  * No wildcard/no-argument entries — every key is scoped to the ids that changed.
  */
 export const invalidationMap: InvalidationMap = {
-  createProject: () => [queryKeys.project.list()],
+  createProject: () => [queryKeys.project.list(), queryKeys.project.summaries()],
 
   editFloor: ({ projectId, floorId }) => [
     queryKeys.floor.detail(floorId),
     queryKeys.floor.list(projectId),
+    queryKeys.layer.byFloor(projectId, floorId),
   ],
 
   editWall: ({ projectId, floorId }) => [
@@ -165,6 +190,8 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.room.byFloor(floorId),
     queryKeys.violation.byProject(projectId),
     queryKeys.version.byFloor(floorId),
+    queryKeys.layer.byFloor(projectId, floorId),
+    queryKeys.layer.graph(projectId),
   ],
 
   /**
@@ -182,11 +209,13 @@ export const invalidationMap: InvalidationMap = {
   straightenDrawing: ({ floorId }) => [
     queryKeys.quality.assessment(floorId),
     queryKeys.drawing.byFloor(floorId),
+    queryKeys.progress.byFloor(floorId),
   ],
 
   setDrawingCorners: ({ floorId }) => [
     queryKeys.quality.assessment(floorId),
     queryKeys.drawing.byFloor(floorId),
+    queryKeys.progress.byFloor(floorId),
   ],
 
   /** Same three keys as `editWall`: a full-layer save can change walls, openings, rooms or furniture at once. */
@@ -264,6 +293,47 @@ export const invalidationMap: InvalidationMap = {
     queryKeys.notification.list(),
     queryKeys.project.members(projectId),
     queryKeys.user.memberships.root(),
+  ],
+
+  renameProject: ({ projectId }) => [
+    queryKeys.project.summaries(),
+    queryKeys.project.list(),
+    queryKeys.project.detail(projectId),
+  ],
+
+  deleteProject: ({ projectId }) => [
+    queryKeys.project.summaries(),
+    queryKeys.project.list(),
+    queryKeys.project.detail(projectId),
+  ],
+
+  addProjectMember: ({ projectId }) => [
+    queryKeys.project.detail(projectId),
+    queryKeys.project.members(projectId),
+    queryKeys.project.summaries(),
+  ],
+
+  removeProjectMember: ({ projectId }) => [
+    queryKeys.project.detail(projectId),
+    queryKeys.project.members(projectId),
+    queryKeys.project.summaries(),
+  ],
+  /**
+   * Kích hoạt (hoặc quay về đường cổ điển) — N24. Danh sách họ mang `activeVersionId` và
+   * `revision` mới; danh sách bản của họ ấy làm mới để nút "Kích hoạt" đổi chỗ. Từng bản
+   * (`adminMl.version`) không đổi, nên không có trong danh sách này.
+   */
+  activateModelVersion: ({ family }) => [
+    queryKeys.adminMl.families(),
+    queryKeys.adminMl.versions(family),
+  ],
+  createTrainingJob: () => [queryKeys.adminMl.jobs.root()],
+  cancelTrainingJob: ({ jobId }) => [queryKeys.adminMl.job(jobId), queryKeys.adminMl.jobs.root()],
+  persistFloorScale: ({ projectId, floorId }) => [
+    queryKeys.drawing.byFloor(floorId),
+    queryKeys.floor.detail(floorId),
+    queryKeys.layer.graph(projectId),
+    queryKeys.layer.byFloor(projectId, floorId),
   ],
 };
 

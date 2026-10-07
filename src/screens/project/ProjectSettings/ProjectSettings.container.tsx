@@ -25,6 +25,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSession } from '@/hooks/useSession';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
@@ -41,7 +42,11 @@ export interface ProjectSettingsContainerProps {
   readonly roles?: readonly ProjectRole[];
   /** Toast của A8. Tiêm vào bởi nơi đã dựng `Toast.Provider`. */
   readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
-  readonly onProjectDeleted?: () => void;
+  readonly onProjectDeleted?: (notice: string) => void;
+  /** Mã người dùng đang đăng nhập; có nó thì nhận ra được việc tự gỡ mình khỏi dự án. */
+  readonly currentUserId?: string;
+  /** Gọi khi chính người dùng vừa bị gỡ khỏi dự án (sau đó #24 trả 404, nên phải rời màn). */
+  readonly onSelfRemoved?: () => void;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
 }
@@ -78,6 +83,8 @@ function WiredProjectSettings(props: ProjectSettingsContainerProps) {
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
     ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
     ...(props.onProjectDeleted !== undefined ? { onProjectDeleted: props.onProjectDeleted } : {}),
+    ...(props.currentUserId !== undefined ? { currentUserId: props.currentUserId } : {}),
+    ...(props.onSelfRemoved !== undefined ? { onSelfRemoved: props.onSelfRemoved } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
@@ -99,16 +106,35 @@ export function ProjectSettingsContainer(props: ProjectSettingsContainerProps) {
 }
 
 /** Bên trong `Toast.Provider`, nên `useToast` ở đây chắc chắn tìm được provider. */
-function ProjectSettingsRouteBody({ projectId, roles }: { projectId: string; roles: readonly ProjectRole[] }) {
+function ProjectSettingsRouteBody({
+  projectId,
+  roles,
+  currentUserId,
+}: {
+  projectId: string;
+  roles: readonly ProjectRole[];
+  currentUserId: string | undefined;
+}) {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
   return (
     <ProjectSettingsContainer
+      // Đổi dự án = tháo rồi gắn lại, để đường xả R13 lo phần dở của dự án cũ.
+      key={projectId}
       projectId={projectId}
       roles={roles}
+      {...(currentUserId !== undefined ? { currentUserId } : {})}
       onToast={addToast}
-      onProjectDeleted={() => navigate(ROUTES.dashboard)}
+      onSelfRemoved={() => {
+        navigate(ROUTES.dashboard);
+      }}
+      onProjectDeleted={(notice) => {
+        // Bus của phiên, không `addToast`: provider của màn này rời cùng lượt điều
+        // hướng, còn `NotificationHost` đứng cạnh `RouterProvider` thì ở lại.
+        appNotificationBus.publish({ title: notice, description: '', type: 'project.deleted' });
+        navigate(ROUTES.dashboard);
+      }}
     />
   );
 }
@@ -132,7 +158,7 @@ export function ProjectSettingsRoute() {
 
   return (
     <Toast.Provider>
-      <ProjectSettingsRouteBody projectId={id} roles={session.roles} />
+      <ProjectSettingsRouteBody projectId={id} roles={session.roles} currentUserId={session.user?.id} />
     </Toast.Provider>
   );
 }

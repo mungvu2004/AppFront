@@ -25,11 +25,17 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
+import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import type * as conflictModule from '@/lib/versioning/conflict';
+import { resolveConflict } from '@/lib/versioning/conflict';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
@@ -52,6 +58,7 @@ import {
   buildChangeThicknessCommand,
   commandContextOf,
   createMockWallLayerReviewGateway,
+  createWallLayerReviewGateway,
   createWallUndoTicket,
   CURSOR_IDLE_LABEL,
   deleteToastDescription,
@@ -60,6 +67,7 @@ import {
   scaleOfLevel,
   toPixelPoint,
   toWallInspector,
+  wallDisplayCode,
   UNDO_WINDOW_MS,
   WALL_APPROVE_COMMAND_TYPE,
   WALL_LAYER_THICKNESS_CHOICES,
@@ -73,6 +81,13 @@ import {
 } from './wallLayerReviewFixture';
 import { WALL_LAYER_REVIEW_SCENARIOS } from './wallLayerReviewScenarios';
 import type { WallThicknessChoice } from './types';
+
+/* `resolveConflict` phải 0 lần (R6): bọc bản thật để đếm, không đổi hành vi. */
+vi.mock('@/lib/versioning/conflict', async (importOriginal) => {
+  const actual = await importOriginal<typeof conflictModule>();
+
+  return { ...actual, resolveConflict: vi.fn(actual.resolveConflict) };
+});
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — đọc ra, không viết tay lại.                                        */
@@ -121,6 +136,9 @@ const FLOOR_ID = FIXTURE_LEVEL.id;
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp sống cấp module, revision mock cũng vậy — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -435,6 +453,40 @@ describe('nghiệm thu bàn phím', () => {
 
     mounted.unmount();
   });
+
+  it('Escape bỏ chọn tường (B-V6-11 — trước bản sửa Escape không làm gì ở màn này)', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, 'J');
+    expect(mounted.result.current.panel.selectedWallId).toBe(wallAt(0).id);
+
+    await pressKey(mounted.registry, 'Escape');
+
+    expect(mounted.result.current.panel.selectedWallId).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('Escape giữa lúc vẽ bỏ nét đang dở, không thêm tường', async () => {
+    const mounted = await mountSettled();
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, 'Escape');
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20000 }));
+      await Promise.resolve();
+    });
+
+    /* Điểm thứ hai giờ là điểm ĐẦU của một nét mới, nên chưa có tường nào được chốt. */
+    expect(wallCount()).toBe(before);
+
+    mounted.unmount();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -601,7 +653,7 @@ describe('vai Người xem', () => {
 /* Bảy trạng thái qua hook thật.                                               */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   /*
    * Bài kiểm này ĐỔI CÁCH ÉP trạng thái lỗi, và đó là điểm của nó.
    *
@@ -1181,6 +1233,9 @@ describe('toast hoàn tác sau khi xoá', () => {
 
     /* Câu trên toast là câu của chính vé, không phải một bản chép thứ hai. */
     expect(notification?.title).toBe(deleteToastDescription(target.id));
+    /* B-V6-02: toast gọi tường bằng nhãn của danh sách, không lộ mã máy. */
+    expect(notification?.title).toBe(`Đã xoá tường #${wallDisplayCode(target.id)}.`);
+    expect(notification?.title).not.toContain(target.id);
     expect(notification?.undoTicket).toBeDefined();
 
     /* Bấm "Hoàn tác" của `NotificationHost` chính là gọi vé này. */
@@ -1249,6 +1304,167 @@ describe('ngưỡng "cần chú ý"', () => {
       mounted.result.current.panel.rows.every((row) => row.isLowConfidence),
     ).toBe(true);
 
+    mounted.unmount();
+  });
+});
+
+describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
+  /*
+   * Đổi so với bản B-V6-03: cổng không còn `persistWallLayer` để rình, nên bài
+   * kiểm rình `writeLayer` của client mà cổng giao cho `useFloorLayerAutosave`.
+   */
+  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const gateway = createMockWallLayerReviewGateway({ apiClient, graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+    const wall = wallAt(0);
+    const choice = WALL_LAYER_THICKNESS_CHOICES.find((value) => value !== wall.thicknessMm) as WallThicknessChoice;
+
+    await act(async () => {
+      mounted.result.current.panel.onChangeThickness(wall.id, choice);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(
+        wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id).find((item) => item.id === wall.id)
+          ?.thicknessMm,
+      ).toBe(choice);
+    });
+
+    expect(writeLayer).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    mounted.unmount();
+  });
+
+  /* [8].6 — cổng thật, client giả: base từ lượt N16 đã nạp, 409 → dải, A9, tải lại. */
+  it('sửa → 800 ms → một PUT base N16; 409 → dải; còn bẩn → A9; tải lại → hoàn tác rỗng, lượt sau base mới', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const floorId = sampleLevelId(1);
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
+
+    /* Máy chủ đã ở revision 1 trước khi màn mở — base đúng là 1, không phải 0. */
+    simulateRemoteLayerEdit(floorId);
+
+    const mounted = await mountSettled({ floorId, gateway: createWallLayerReviewGateway({ apiClient }) });
+    const readsAtLoad = readLayer.mock.calls.length;
+
+    expect(readsAtLoad).toBe(1);
+
+    const editFirstWall = async (): Promise<void> => {
+      const wall = wallsOfLevel(useStore.getState().spatial, floorId)[0] as Wall;
+      const choice = WALL_LAYER_THICKNESS_CHOICES.find((value) => value !== wall.thicknessMm) as WallThicknessChoice;
+
+      await act(async () => {
+        mounted.result.current.panel.onChangeThickness(wall.id, choice);
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(wallsOfLevel(useStore.getState().spatial, floorId)[0]?.thicknessMm).toBe(choice);
+      });
+    };
+    const settle800 = async (): Promise<void> => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+    };
+
+    await editFirstWall();
+    await settle800();
+    await waitFor(() => {
+      expect(writeLayer).toHaveBeenCalledTimes(1);
+    });
+    expect(writeLayer.mock.calls[0]?.[0]).toMatchObject({ baseVersion: 1, floorId });
+    /* Không đọc N16 lần nào để lấy base trước PUT. */
+    expect(readLayer).toHaveBeenCalledTimes(readsAtLoad);
+
+    /* Người khác sửa → revision 3; lượt sau của mình gửi base 2 → 409 → dải "Tải lại". */
+    simulateRemoteLayerEdit(floorId);
+    await editFirstWall();
+    await settle800();
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
+    expect(writeLayer.mock.calls[1]?.[0]).toMatchObject({ baseVersion: 2 });
+
+    /* Tầng còn sửa chưa lưu → "Tải lại" mở hộp thoại A9 thay vì bỏ ngay. */
+    act(() => {
+      mounted.result.current.saveBlock?.onReload?.();
+    });
+    expect(mounted.result.current.saveBlock?.confirm?.open).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.saveBlock?.confirm?.onConfirm();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock).toBeNull();
+    });
+    expect(useStore.getState().floorMeta[floorId]?.revision).toBe(3);
+
+    /* Ngăn hoàn tác của màn rỗng: Ctrl+Z không đổi gì trên bản vừa tải. */
+    const reloaded = useStore.getState().spatial;
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+    expect(useStore.getState().spatial).toBe(reloaded);
+
+    /* Lượt sau dùng revision mới. */
+    await editFirstWall();
+    await settle800();
+    await waitFor(() => {
+      expect(writeLayer).toHaveBeenCalledTimes(3);
+    });
+    expect(writeLayer.mock.calls[2]?.[0]).toMatchObject({ baseVersion: 3 });
+    await waitFor(() => {
+      expect(useStore.getState().floorMeta[floorId]?.revision).toBe(4);
+    });
+    expect(vi.mocked(resolveConflict)).not.toHaveBeenCalled();
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('tỉ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: có dải, chiều dài thanh tra là PROVISIONAL_MEASURE_TEXT', async () => {
+    const mounted = await mountSettled({
+      gateway: createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH, scaleStatus: 'unresolved' }),
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+    });
+
+    act(() => {
+      mounted.result.current.panel.onSelect(wallAt(0).id);
+    });
+
+    expect(mounted.result.current.panel.inspector?.lengthLabel).toBe(PROVISIONAL_MEASURE_TEXT);
+    mounted.unmount();
+  });
+
+  it('tầng có tỉ lệ thật: không dải, chiều dài là số đo', async () => {
+    const mounted = await mountSettled();
+
+    act(() => {
+      mounted.result.current.panel.onSelect(wallAt(0).id);
+    });
+
+    expect(mounted.result.current.provisionalScaleNotice).toBeNull();
+    expect(mounted.result.current.panel.inspector?.lengthLabel).not.toBe(PROVISIONAL_MEASURE_TEXT);
+    expect(mounted.result.current.panel.inspector?.lengthLabel).toMatch(/mm$/u);
     mounted.unmount();
   });
 });

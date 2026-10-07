@@ -19,7 +19,12 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:local/project',
   ],
-  ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs'],
+  // `vendor/pascal` là mã Pascal đã chép vào làm mã của AppFront (xem
+  // `vendor/pascal/NGUON.md`). Nó viết theo luật Biome của Pascal, không theo
+  // bảy luật nội bộ ở `eslint-rules/`, nên để `eslint .` quét nó là biến cổng
+  // lint thành hàng nghìn lỗi không ai định sửa. Ba cổng còn lại — độ dài,
+  // typecheck, import vòng — vốn đã chỉ nhìn `src/**` nên không cần dòng nào.
+  ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs', 'vendor'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', 'local', 'import'],
   settings: {
@@ -48,5 +53,21 @@ module.exports = {
     'import/no-useless-path-segments': 'error',
     'import/no-absolute-path': 'error',
     'import/export': 'error',
+
+    // CSP thật (`AppBack/deploy/nginx/snippets/security_headers.conf:6`) không có
+    // `'unsafe-eval'`: mọi lượt dựng mã từ chuỗi đều ném EvalError lúc chạy, mà
+    // máy dev không gửi CSP nên chỉ bản triển khai mới thấy (FIX-380). Chặn ở mã
+    // nguồn; bản dựng có lượt quét riêng trong `scripts/check-bundle-size.mjs`.
+    //
+    // `vendor/` KHÔNG qua ba luật này (nó nằm trong `ignorePatterns` ở trên), dù
+    // fork Pascal chạy trên trình duyệt. Gỡ khỏi `ignorePatterns` thì nó nhận cả
+    // các preset, và `--report-unused-disable-directives` bắn vào chú thích tắt
+    // luật Biome của fork. Lưới cho fork vì thế là lượt quét `dist/` của `pnpm
+    // size` — nó cũng bắt bí danh (`const F = Function`) mà `no-new-func` trượt.
+    // Đo 2026-10-06 bằng `eslint --no-eslintrc --no-inline-config` chỉ ba luật này
+    // trên `vendor/pascal/packages/{core,viewer,nodes,editor}/src`: 2 351 tệp, 0 vi phạm.
+    'no-eval': 'error',
+    'no-new-func': 'error',
+    'no-implied-eval': 'error',
   },
 };

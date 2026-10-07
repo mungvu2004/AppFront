@@ -103,12 +103,11 @@ export interface ModifierShortcut {
   /**
    * The key as it is printed on a key cap.
    *
-   * Upper case letters and capitalised key names are the exception invariant A6
-   * allows alongside axis codes: a key cap is the name of a physical thing, and
-   * writing it in sentence case would stop it looking like the key.
+   * Printed as on the key cap — upper case letters, capitalised key names. A
+   * key cap is the name of a physical thing, not a label (A6).
    */
   readonly keyLabel: string;
-  /** Vietnamese name, lower case sentence style. */
+  /** Vietnamese name. Lower case here predates A6's capital first letter (R2 đợt 9). */
   readonly label: string;
   /** One Vietnamese sentence saying what holding it does. */
   readonly description: string;

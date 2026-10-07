@@ -156,6 +156,7 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
     return (
       <div className="p-3">
         <InlineAlert
+          action={{ label: DIMENSION_OCR_TEXT.states.error.actionLabel, onClick: model.onRetry }}
           level="violation"
           message={model.errorMessage}
           title={DIMENSION_OCR_TEXT.states.error.title}

@@ -331,8 +331,10 @@ export interface PropertyInspectorHeader {
   readonly objectKind: ObjectKind;
   /** Tiêu đề h3, ví dụ "Tường" hoặc "3 tường" khi chọn nhiều — đã định dạng, số nhiều tính sẵn. */
   readonly objectKindLabel: string;
-  /** Mã đối tượng, font mono cỡ lớn, ví dụ "W-014". */
+  /** Mã người đọc, font mono cỡ lớn, ví dụ "W-014" — cùng mã dải "Đang sửa" (B-V8-05). */
   readonly objectCode: string;
+  /** Mã máy — khoá của khối nội dung; mã người đọc có thể trùng giữa hai tầng. */
+  readonly entityId: string;
   readonly statusBadge: PropertyStatusBadge;
   /** Số đối tượng đang chọn — 1 ở trạng thái `success`/`error`/`forbidden`, ≥ 1 ở `partial`. */
   readonly selectionCount: number;
@@ -513,6 +515,11 @@ export interface UsePropertyInspectorOptions {
   readonly onOpenRuleScreen: (entityId: string) => void;
   /** Callback ra ngoài — hook gọi khi panel cần đóng (nút đóng, Esc, A12). */
   readonly onDismiss: () => void;
+  /**
+   * Nhãn tự lưu của màn chủ, khi màn ấy tự lưu (`/3d`, B-V8-60). Vắng mặt thì panel tự
+   * lưu bằng cổng của nó.
+   */
+  readonly saveLabel?: string | null;
 }
 
 /**
@@ -528,4 +535,6 @@ export interface PropertyInspectorContainerProps {
   readonly onDismiss: () => void;
   readonly onNavigateToObject: (entityId: string) => void;
   readonly onOpenRuleScreen: (entityId: string) => void;
+  /** Nhãn tự lưu của màn chủ — xem `UsePropertyInspectorOptions.saveLabel`. */
+  readonly saveLabel?: string | null;
 }

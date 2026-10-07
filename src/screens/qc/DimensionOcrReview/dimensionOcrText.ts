@@ -43,8 +43,12 @@ export const comparisonLine = (
 export const outlierHint = (description: string): string =>
   `Giá trị này hàm ý phòng dài bất thường: ${description}. Kiểm tra lại sao cho phù hợp với bản vẽ.`;
 
-/** Nhãn nút duyệt — "Duyệt kích thước này". */
-export const approveActionLabel = 'Duyệt kích thước này';
+/**
+ * Nhãn nút duyệt — "Duyệt kích thước". Tên truy cập của nút là nhãn này cộng mã
+ * ("Duyệt kích thước #M-002"), nên chữ nhìn thấy phải là phần đầu của tên ấy
+ * (WCAG 2.5.3, B-V6-46): người dùng điều khiển bằng giọng nói đọc đúng chữ họ thấy.
+ */
+export const approveActionLabel = 'Duyệt kích thước';
 
 /** Nhãn nút bỏ qua — "Bỏ qua". */
 export const skipActionLabel = 'Bỏ qua';
@@ -66,13 +70,13 @@ export const keyboardModeCaption =
 export const keyEnterLabel = 'Enter';
 
 /** Mô tả hành động Enter: lưu và nhảy dòng sau. */
-export const keyEnterDescription = 'lưu và nhảy dòng sau';
+export const keyEnterDescription = 'Lưu và nhảy dòng sau';
 
 /** Nhãn phím Tab. */
 export const keyTabLabel = 'Tab';
 
 /** Mô tả hành động Tab: sang cột sau. */
-export const keyTabDescription = 'sang cột sau';
+export const keyTabDescription = 'Sang cột sau';
 
 /** Nhãn phím Esc. */
 export const keyEscLabel = 'Esc';
@@ -84,19 +88,19 @@ export const keyEscDescription = 'bỏ sửa';
 export const keyRLabel = 'R';
 
 /** Mô tả hành động R: bật chế độ duyệt bàn phím. */
-export const keyRDescription = 'bật chế độ duyệt bàn phím';
+export const keyRDescription = 'Bật chế độ duyệt bàn phím';
 
 /** Nhãn của đơn vị cố định: "mm". */
 export const unitLabel = 'mm';
 
 /** Nhãn bộ lọc: "tất cả". */
-export const filterAllLabel = 'tất cả';
+export const filterAllLabel = 'Tất cả';
 
 /** Nhãn bộ lọc: "độ tin cậy thấp". */
-export const filterLowConfidenceLabel = 'độ tin cậy thấp';
+export const filterLowConfidenceLabel = 'Độ tin cậy thấp';
 
 /** Nhãn bộ lọc: "chưa duyệt". */
-export const filterUnreviewedLabel = 'chưa duyệt';
+export const filterUnreviewedLabel = 'Chưa duyệt';
 
 /**
  * Câu lọc cho trạng thái một phần, khi OCR mới xong một phần bản vẽ.
@@ -133,7 +137,7 @@ export const approveButtonAriaLabel = (dimensionCode: string): string =>
  * Kèm nhãn nút dẫn sang đó.
  */
 export const DIMENSION_OCR_EMPTY_STATE = {
-  title: 'chưa đọc được chuỗi kích thước nào',
+  title: 'Chưa đọc được chuỗi kích thước nào',
   description:
     'Chuỗi kích thước trên bản vẽ có nét mảnh hoặc không rõ, nên OCR không tách được số. Hiệu chỉnh tỷ lệ bằng tay để đo độ dài từ bản vẽ.',
   actionLabel: 'Hiệu chỉnh tỷ lệ',
@@ -143,7 +147,7 @@ export const DIMENSION_OCR_EMPTY_STATE = {
  * Trạng thái 2: Đang tải.
  */
 export const DIMENSION_OCR_LOADING_STATE = {
-  title: 'đang đọc kích thước',
+  title: 'Đang đọc kích thước',
   description: 'Hệ thống đang nhận diện chuỗi kích thước trên bản vẽ. Đợi một lát…',
 } as const;
 
@@ -154,7 +158,7 @@ export const DIMENSION_OCR_LOADING_STATE = {
  * Biến thể câu cho trường hợp OCR mới xong một phần bản vẽ.
  */
 export const DIMENSION_OCR_PARTIAL_STATE = {
-  title: 'một phần kích thước đã duyệt',
+  title: 'Một phần kích thước đã duyệt',
   descriptionComplete: (count: string): string =>
     `${count} chuỗi dưới ngưỡng tin cậy. Bấm "Chỉ hiện mục cần xem" để xem những chuỗi đó.`,
   descriptionPartialOcr: (count: string): string =>
@@ -167,7 +171,7 @@ export const DIMENSION_OCR_PARTIAL_STATE = {
  * Kèm nhãn nút thử lại.
  */
 export const DIMENSION_OCR_ERROR_STATE = {
-  title: 'không đọc được kích thước',
+  title: 'Không đọc được kích thước',
   description: 'Hệ thống gặp lỗi khi xử lý bản vẽ. Thử lại để chạy lại bước này.',
   actionLabel: 'Thử lại',
 } as const;
@@ -176,7 +180,7 @@ export const DIMENSION_OCR_ERROR_STATE = {
  * Trạng thái 5: Xong — 34/34 kích thước.
  */
 export const DIMENSION_OCR_DONE_STATE = {
-  title: 'tất cả kích thước đã duyệt',
+  title: 'Tất cả kích thước đã duyệt',
   description: 'Mọi chuỗi kích thước trên bản vẽ đã kiểm tra xong.',
 } as const;
 
@@ -184,7 +188,7 @@ export const DIMENSION_OCR_DONE_STATE = {
  * Trạng thái 6: Không có quyền.
  */
 export const DIMENSION_OCR_FORBIDDEN_STATE = {
-  title: 'không có quyền duyệt kích thước',
+  title: 'Không có quyền duyệt kích thước',
   description:
     'Vai trò hiện tại chỉ được xem, không được chỉnh sửa lớp kích thước OCR. Liên hệ quản trị dự án nếu cần.',
 } as const;
@@ -193,7 +197,7 @@ export const DIMENSION_OCR_FORBIDDEN_STATE = {
  * Trạng thái 7: Thu gọn.
  */
 export const DIMENSION_OCR_COLLAPSED_STATE = {
-  title: 'bảng duyệt đang thu gọn',
+  title: 'Bảng duyệt đang thu gọn',
   description: 'Bung bảng để xem danh sách kích thước và chỉnh sửa giá trị.',
 } as const;
 
@@ -202,7 +206,7 @@ export const DIMENSION_OCR_COLLAPSED_STATE = {
  */
 export const DIMENSION_OCR_TEXT = {
   screen: {
-    title: 'đọc kích thước OCR',
+    title: 'Đọc kích thước OCR',
     canvasAriaLabel,
     dimensionListAriaLabel,
     comparisonBarAriaLabel,

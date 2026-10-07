@@ -36,12 +36,14 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
 import { createMockApiClient } from '@/api/__mocks__/client';
+import type { Progress } from '@/api/schemas';
 import viMessages from '@/i18n/vi.json';
+import { toAppError } from '@/lib/errors';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import {
   createBackgroundWatchRegistry,
@@ -117,9 +119,14 @@ const ONE_UPLOAD = [{ floorId: 'L1', floorName: 'Tầng 1', uploadId: 'upload-1'
 
 /** jsdom không có `EventSource`; cổng nhận bản tiêm, nên test không phải vá `globalThis`. */
 class MockEventSource {
+  static opened = 0;
   onerror: ((event: Event) => void) | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onopen: ((event: Event) => void) | null = null;
+
+  constructor() {
+    MockEventSource.opened += 1;
+  }
 
   close(): void {
     /* Không có gì để đóng: test này không đẩy nhịp tiến độ nào qua kênh. */
@@ -172,7 +179,7 @@ function gatewayWithCancel(onCancel: () => void): ProcessingGateway {
  * `record.failure` (lỗi ĐỌC, vẫn đi ra qua `errorAlert` như cũ). Đây chính là "một
  * bước AI hỏng" mà S-11 `PipelineFailure` được dựng ra để nói.
  */
-function gatewayWithFailedStep(stepId: string): ProcessingGateway {
+function gatewayWithFailedStep(stepId: string, error?: string): ProcessingGateway {
   const real = createProcessingGateway(createMockApiClient(), {
     EventSourceImpl: MockEventSource as unknown as typeof EventSource,
   });
@@ -187,6 +194,7 @@ function gatewayWithFailedStep(stepId: string): ProcessingGateway {
           progressPercent: 40,
           status: 'failed',
           step: stepId,
+          ...(error !== undefined ? { error } : {}),
         },
       }),
   };
@@ -446,6 +454,40 @@ describe('ProcessingScreenContainer — R-73', () => {
     expect(container.textContent?.trim()).not.toBe('');
     expect(screen.getByText('Xử lý')).toBeInTheDocument();
   });
+
+  it('không ai truyền floorUploads thì màn tự đọc N7 và theo dõi lượt có sẵn (B-V4-01)', async () => {
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={gatewayWithCancel(() => undefined)}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByText('Đã xong 1/1 tầng')).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
+  });
+
+  it('N7 hỏng thì màn ở trạng thái lỗi có lối thử lại, không giả vờ rỗng (B-V4-01)', async () => {
+    const real = gatewayWithCancel(() => undefined);
+
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={{
+          ...real,
+          readLatestUploads: () =>
+            Promise.resolve({ ok: false, error: toAppError(new Error('mất kết nối')) }),
+        }}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: /thử lại/iu })).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -478,6 +520,114 @@ describe('ProcessingScreenContainer — gắn S-11 PipelineFailure khi một bư
 
     // Không màn trắng (A11): còn nội dung thật để đọc.
     expect(container.textContent?.trim()).not.toBe('');
+  });
+
+  it('bước hỏng PIPELINE_STEP_TIMEOUT: S-11 hiện câu của bảng và mã đó, không UNKNOWN', async () => {
+    renderWithProviders(
+      <ProcessingScreenContainer
+        floorUploads={ONE_UPLOAD}
+        gateway={gatewayWithFailedStep('wallSegmentation', 'PIPELINE_STEP_TIMEOUT')}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByText('Bước xử lý chạy quá thời gian cho phép.')).toBeInTheDocument();
+    expect(screen.getAllByText('PIPELINE_STEP_TIMEOUT').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Máy chủ chưa có phần trả chi tiết/)).toBeNull();
+    expect(screen.queryByText(/UNKNOWN/)).toBeNull();
+  });
+
+  it('mã lạ: S-11 hiện câu dự phòng kèm mã', async () => {
+    renderWithProviders(
+      <ProcessingScreenContainer
+        floorUploads={ONE_UPLOAD}
+        gateway={gatewayWithFailedStep('wallSegmentation', 'FOO_BAR')}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByText('Bước xử lý gặp lỗi mà hệ thống chưa phân loại được.')).toBeInTheDocument();
+    expect(screen.getAllByText('FOO_BAR').length).toBeGreaterThan(0);
+  });
+
+  it('3 tầng, 1 hỏng FILE_CORRUPT, 2 đang chạy: không S-11; hai tầng kia xong thì S-11', async () => {
+    class LiveEventSource {
+      static last: LiveEventSource | null = null;
+      readonly url: string;
+      onerror: ((event: Event) => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onopen: ((event: Event) => void) | null = null;
+      constructor(url: string) {
+        this.url = url;
+        LiveEventSource.last = this;
+      }
+      close(): void {}
+    }
+
+    const uploads = [
+      { floorId: 'L1', floorName: 'Tầng 1', uploadId: 'upload-a' },
+      { floorId: 'L2', floorName: 'Tầng 2', uploadId: 'upload-b' },
+      { floorId: 'L3', floorName: 'Tầng 3', uploadId: 'upload-c' },
+    ] as const;
+    const running = (id: string) => ({ id, progressPercent: 30, status: 'running' as const, step: PIPELINE_STAGES[1]!.id });
+    const completed = (id: string) => ({
+      id,
+      progressPercent: 100,
+      status: 'completed' as const,
+      step: PIPELINE_STAGES[PIPELINE_STAGES.length - 1]!.id,
+      endedAt: '2026-08-17T07:40:00.000Z',
+    });
+    const statuses = new Map<string, Progress>([
+      ['upload-a', { id: 'upload-a', progressPercent: 20, status: 'failed', step: PIPELINE_STAGES[1]!.id, error: 'FILE_CORRUPT' }],
+      ['upload-b', running('upload-b')],
+      ['upload-c', running('upload-c')],
+    ]);
+    const base = createMockApiClient();
+    const gateway = createProcessingGateway(
+      {
+        ...base,
+        drawings: {
+          ...base.drawings,
+          progress: async ({ uploadId }) => ({ ok: true, data: statuses.get(uploadId)! }),
+        },
+      },
+      { EventSourceImpl: LiveEventSource as unknown as typeof EventSource },
+    );
+
+    const { container } = renderWithProviders(
+      <ProcessingScreenContainer
+        floorUploads={uploads}
+        gateway={gateway}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    expect(await screen.findByText(/Tầng 1 gặp lỗi\. Các tầng còn lại vẫn đang được xử lý\./)).toBeInTheDocument();
+    expect(container.querySelector('#pipeline-failure-body')).toBeNull();
+
+    const finish = async (uploadId: string): Promise<void> => {
+      statuses.set(uploadId, completed(uploadId));
+      await waitFor(() => expect(LiveEventSource.last?.url).toContain(uploadId));
+      act(() => {
+        LiveEventSource.last?.onmessage?.(
+          new MessageEvent('message', { data: JSON.stringify(completed(uploadId)) }),
+        );
+      });
+    };
+
+    await finish('upload-b');
+    await finish('upload-c');
+
+    await waitFor(() => {
+      expect(container.querySelector('#pipeline-failure-body')).not.toBeNull();
+    });
+    expect(await screen.findByText('Tệp bản vẽ bị hỏng nên không mở được.')).toBeInTheDocument();
   });
 
   it('không bước nào hỏng thì ProcessingScreen vẽ như cũ, không có PipelineFailureContainer', () => {
@@ -551,6 +701,11 @@ describe('ProcessingScreen — nút chạy nền', () => {
     );
 
     expect(screen.queryByText(/Sẽ báo cho bạn khi xử lý xong/)).not.toBeInTheDocument();
+
+    // Luồng chỉ mở sau #8 mồi (F-05b: tầng đã cuối thì không đăng ký); chưa có
+    // luồng thì chưa có gì để giao cho sổ nền.
+    const openedBefore = MockEventSource.opened;
+    await waitFor(() => expect(MockEventSource.opened).toBeGreaterThan(openedBefore));
 
     fireEvent.click(screen.getByRole('button', { name: RUN_IN_BACKGROUND_LABEL }));
 

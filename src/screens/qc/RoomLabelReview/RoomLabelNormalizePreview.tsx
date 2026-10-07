@@ -41,7 +41,7 @@ const NO_CHANGE_MESSAGE = 'Không có tên nào cần chuẩn hoá — mọi tê
 const CANCEL_LABEL = 'Huỷ';
 const CLOSE_LABEL = 'Đóng';
 const APPLY_LABEL = 'Áp dụng';
-const EMPTY_NAME_PLACEHOLDER = 'chưa đặt tên';
+const EMPTY_NAME_PLACEHOLDER = 'Chưa đặt tên';
 
 const changedSummary = (changedCount: number) => `${changedCount} tên sẽ đổi khi bấm áp dụng.`;
 

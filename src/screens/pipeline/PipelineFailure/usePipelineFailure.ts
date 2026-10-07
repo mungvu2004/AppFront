@@ -85,6 +85,8 @@ import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
+import { describePipelineError } from '../pipelineErrorText';
+
 import {
   createAppPipelineFailureGateway,
   type PipelineFailureDetail,
@@ -214,7 +216,14 @@ export interface UsePipelineFailureOptions extends PipelineFailureContainerProps
   readonly gateway?: PipelineFailureGateway;
   /** Ép dải thu gọn — cho story và test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** `Progress.error` của lượt hỏng (mã máy chủ) — dùng khi chưa đọc được chi tiết. */
+  readonly failureCode?: string;
+  /** Tên tầng theo N7 — thay mã tầng ở nhãn tầng. */
+  readonly failureFloorName?: string;
 }
+
+/** Nhãn bước tải lên khi lượt hỏng do lỗi tạm: v1 chạy lượt mới bằng cách tải lại. */
+const RERUN_BY_UPLOAD_LABEL = 'Tải lại bản vẽ để chạy lượt mới';
 
 /* -------------------------------------------------------------------------- */
 /* Phép ghép thuần — kiểm được mà không cần dựng hook.                          */
@@ -320,7 +329,8 @@ function useResolvedGateway(injected: PipelineFailureGateway | undefined): Pipel
 
 /** `(options) => PipelineFailureProps` cho `PipelineFailure.tsx`. */
 export function usePipelineFailure(options: UsePipelineFailureOptions): PipelineFailureProps {
-  const { floorId, projectId, stepId } = options;
+  const { failureCode, failureFloorName, floorId, projectId, stepId } = options;
+  const serverError = failureCode === undefined ? null : describePipelineError(failureCode);
   const roles = toProjectRoles(options.roles);
   const gateway = useResolvedGateway(options.gateway);
   const queryClient = useQueryClient();
@@ -555,10 +565,12 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     return missing === null ? null : gateway.describeApiFailure(new Error(missing));
   }, [apiFailure, detail, gateway, missing]);
 
-  const errorCode = failureIdentity?.code ?? '';
-  const errorCodeLabel = codeLabel(errorCode, failureIdentity?.requestId ?? '');
+  // Chưa đọc được chi tiết nhưng máy chủ đã nói mã: mã thật, không `UNKNOWN`.
+  const usesServerCode = detail === null && apiFailure === null && serverError !== null;
+  const errorCode = usesServerCode ? serverError.code : (failureIdentity?.code ?? '');
+  const errorCodeLabel = codeLabel(errorCode, usesServerCode ? '' : (failureIdentity?.requestId ?? ''));
 
-  const floorLabel = detail?.floorName ?? floorId;
+  const floorLabel = detail?.floorName ?? failureFloorName ?? floorId;
   const failedStepLabel = stepLabelOf(failedStepId);
 
   /* ---------------------------------------------------------------------- */
@@ -770,15 +782,17 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
       warningSentence: PIPELINE_FAILURE_TEXT.retryLowerThresholdWarning,
       // Ở `error` (cả bốn tầng hỏng) hành động chính đổi sang tải lại ảnh — đó là
       // toàn bộ cách hợp đồng diễn đạt việc đó, không cần một trường thứ hai.
-      isPrimary: state !== 'error',
+      isPrimary: serverError === null && state !== 'error',
       onSelect: onRetryLowerThreshold,
     };
 
+    // Có mã máy chủ: `reupload`/`retry` → tải lên là chính; `contactAdmin`, mã lạ → không bước chính.
+    const action = serverError?.action;
     const uploadClearer: PipelineFailureNextStep = {
       id: 'upload-clearer',
-      label: PIPELINE_FAILURE_TEXT.uploadClearerLabel,
+      label: action === 'retry' ? RERUN_BY_UPLOAD_LABEL : PIPELINE_FAILURE_TEXT.uploadClearerLabel,
       warningSentence: null,
-      isPrimary: state === 'error',
+      isPrimary: serverError === null ? state === 'error' : action === 'reupload' || action === 'retry',
       onSelect: onUploadClearer,
     };
 
@@ -794,7 +808,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     };
 
     return [retryLower, uploadClearer, skipFloor];
-  }, [isSkipSupported, onRetryLowerThreshold, onSkipFloor, onUploadClearer, state]);
+  }, [isSkipSupported, onRetryLowerThreshold, onSkipFloor, onUploadClearer, serverError, state]);
 
   /* ---------------------------------------------------------------------- */
   /* Bộ đếm lần thử — hook chọn chế độ, view chỉ đọc `kind` (R-71).           */
@@ -857,6 +871,15 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
       };
     }
 
+    if (detail === null && serverError !== null) {
+      return {
+        summarySentence: summarySentence(failedStepLabel, floorLabel),
+        causeSentence: serverError.sentence,
+        codeLabel: errorCodeLabel,
+        copyCode,
+      };
+    }
+
     if (detail === null) {
       // `stepFailureDetail` chưa có endpoint — nói ra, thay vì bịa một nguyên nhân.
       return {
@@ -881,6 +904,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     failedStepLabel,
     floorLabel,
     onCopyCode,
+    serverError,
   ]);
 
   /* ---------------------------------------------------------------------- */

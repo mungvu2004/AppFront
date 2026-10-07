@@ -107,7 +107,10 @@ import type { Confidence, Point, RoomId, RoomUsage, WallId } from '@/domain/spat
 import type { MillimetresPerPixel } from '@/domain/units/types';
 import type { PointMm } from '@/domain/units/compare';
 import type { RuleSeverity } from '@/domain/rules/registry';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ColorTokenName } from '@/lib/coloring/scales';
+
+import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11/R-63).                                                  */
@@ -567,6 +570,10 @@ export interface RoomLabelReviewProps {
   /** Hoàn tác thao tác gần nhất (A8) — thường đi cùng toast, không tham số. */
   readonly onUndo: () => void;
   readonly onToggleCollapsed: () => void;
+  /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
+  readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
+  /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
+  readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

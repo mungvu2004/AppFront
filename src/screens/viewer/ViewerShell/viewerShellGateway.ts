@@ -11,16 +11,16 @@
  *
  * - **Tên dự án** là trạng thái máy chủ. {@link ViewerShellGateway.readProjectName}
  *   chỉ là hàm đọc; `useViewerShell.ts` bọc nó trong `useQuery` với khoá
- *   `queryKeys.project.detail(projectId)` của `@/lib/query`, nên `isLoading` và
+ *   con `projectNameQueryKey(projectId)` (dưới `queryKeys.project.detail`), nên `isLoading` và
  *   `error` là của react-query chứ không phải hai `useState` viết tay (R-64).
  * - **Tầng, phòng, diện tích** đọc từ ĐỒ THỊ KHÔNG GIAN trong kho
  *   (`state.spatial`). Đây là tiền lệ mà `wallLayerReviewGateway.ts` đã chốt
  *   ("mặc định là chính store"), và nó đúng ở đây vì không endpoint nào trả về
  *   ba con số ấy: `FloorSchema` không mang phòng.
  *
- *   {@link shellDataOf} cộng `Room.areaM2` — con số `src/domain` đã tính từ
- *   `outline` khi chuẩn hoá — chứ không tự tính lại diện tích đa giác. Tính lại
- *   ở đây là dựng bản thứ hai của một phép đo đã có test đạt ngưỡng 90% (R-61).
+ *   {@link shellDataOf} đo tổng bằng `totalArea()` của `src/domain` trên `outline`
+ *   của các phòng — không cộng `Room.areaM2` khai tay, và không tự viết lại công
+ *   thức dây giày: đó là bản thứ hai của một phép đo đã có test đạt ngưỡng 90% (R-61).
  *
  * ## Một việc chưa có đường: đếm phòng của CẢ TOÀ NHÀ
  *
@@ -40,7 +40,7 @@ import type { PointMm } from '@/domain/units/compare';
 import { totalArea } from '@/domain/rooms/area';
 import { squareMetres, type SquareMetres } from '@/domain/units/types';
 import type { ApiClient } from '@/api/client';
-import { createAppApiClient } from '@/api/appClient';
+import { createAppApiClient, resolveUseMockApi } from '@/api/appClient';
 import type { ProjectRole } from '@/types/project';
 
 import { GROUND, toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
@@ -56,7 +56,7 @@ import { GROUND, toPointMm, VIEWER_FIXTURE_GRAPH } from './viewerShellFixture';
  * endpoint tự chế (R-69). Mỗi dòng là một tên hàm còn thiếu cộng lý do.
  */
 export const VIEWER_MISSING_CAPABILITIES: readonly string[] = Object.freeze([
-  'readBuildingRoomTotals — FloorSchema không mang phòng, và spatial.readFloor trả về đúng FloorSchema đó; số phòng của cả toà nhà vì thế chỉ đếm được trên những tầng kho đã nạp.',
+  'ReadBuildingRoomTotals — FloorSchema không mang phòng, và spatial.readFloor trả về đúng FloorSchema đó; số phòng của cả toà nhà vì thế chỉ đếm được trên những tầng kho đã nạp.',
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -289,6 +289,64 @@ export function createViewerShellGateway(
 
 /** Đồ thị của bộ mẫu, chuẩn hoá đúng một lần. */
 export const VIEWER_FIXTURE_SPATIAL: NormalizedSpatial = normalizeSpatial(VIEWER_FIXTURE_GRAPH);
+
+/**
+ * Khi nào một màn 3D được dựng nhà mẫu thay cho kho rỗng.
+ *
+ * Nhà mẫu chỉ sống ở chế độ mock: nối BE thật thì kho rỗng là kho rỗng, và
+ * một căn nhà không ai vẽ hiện ra trên màn là lời nói dối tệ hơn màn rỗng.
+ *
+ * **Vị ngữ này ở đây, không ở `Viewer3D/useViewer3DSource.ts`, vì lý do đo
+ * được.** Hai màn 3D dùng chung nó (`Viewer3D` và `PascalViewer`), và khi nó
+ * còn nằm trong `useViewer3DSource.ts` thì Rollup tách đúng module ấy ra một
+ * chunk dùng chung 507 byte — chunk mà trước đó được gộp thẳng vào chunk của
+ * màn 3D cũ. Trừ 76 byte gộp lại được, cổng "chi phí thêm cho một màn" nhích
+ * từ 279,6 lên 280,03 KiB trên ngân sách 280 và đỏ vì 39 byte. Đặt vị ngữ
+ * cạnh `VIEWER_FIXTURE_SPATIAL` — module mà **cả hai màn vốn đã nhập** — thì
+ * không có chunk thứ ba nào được đẻ ra.
+ */
+export function shouldUseViewerFixture(input: {
+  readonly hasInjectedSpatial: boolean;
+  readonly storeSpatial: NormalizedSpatial | null;
+  readonly useMock: boolean;
+}): boolean {
+  /*
+   * ponytail: đồ thị 0 tường cũng tính là rỗng — cổng nạp kho (B-V12-01) nạp bốn tầng
+   * CHƯA có hình của mock, và đó là vĩnh viễn ở mock vì mock không trả nhà. Nhà mẫu chỉ
+   * vào vỏ và cảnh, không vào kho: panel đọc kho vẫn thấy kho thật. Nâng cấp: bỏ vế
+   * `wall.length === 0` khi mock N16 trả hình cho dự án mẫu.
+   */
+  return (
+    input.useMock &&
+    !input.hasInjectedSpatial &&
+    (input.storeSpatial === null || input.storeSpatial.byKind.wall.length === 0)
+  );
+}
+
+/**
+ * Đồ thị một route 3D dựng từ kho: kho, hoặc nhà mẫu khi {@link shouldUseViewerFixture}.
+ *
+ * Route tách tầng và route đo từng đọc kho trần, nên ở chế độ mock chúng dựng
+ * khung nhìn rỗng (canvas 300×150) trong khi `/3d` ngay bên cạnh có nhà bốn tầng.
+ */
+export function resolveViewerSpatial(
+  storeSpatial: NormalizedSpatial | null,
+  useMock: boolean = resolveUseMockApi(),
+): NormalizedSpatial | null {
+  return shouldUseViewerFixture({ hasInjectedSpatial: false, storeSpatial, useMock })
+    ? VIEWER_FIXTURE_SPATIAL
+    : storeSpatial;
+}
+
+/**
+ * Bộ chọn kho của ba route 3D anh em (tách tầng, đo, Pascal): đang nạp thì `null`,
+ * để kho của dự án TRƯỚC không hiện dưới tên dự án mới (B-V12-01). Chốt nằm ngoài
+ * luật nhà mẫu, nên ở mock nhà mẫu không chớp ra rồi biến mất trong lúc nạp.
+ */
+export const selectViewerSpatial = (state: {
+  readonly spatial: NormalizedSpatial | null;
+  readonly spatialLoading: boolean;
+}): NormalizedSpatial | null => (state.spatialLoading ? null : resolveViewerSpatial(state.spatial));
 
 /** Đồ thị "một phần": đủ bốn tầng, nhưng mới có phòng của tầng dưới cùng. */
 export const VIEWER_PARTIAL_SPATIAL: NormalizedSpatial = normalizeSpatial({

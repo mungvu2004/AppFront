@@ -66,8 +66,9 @@ export const ROUTE_PATTERNS = {
   accessDenied: '/khong-co-quyen',
   account: '/tai-khoan',
   adminModels: `${ADMIN_ROOT}/models`,
+  adminTrainingJobs: `${ADMIN_ROOT}/training/jobs`,
+  adminTrainingModels: `${ADMIN_ROOT}/training/models`,
   adminUsers: `${ADMIN_ROOT}/users`,
-  billing: '/billing',
   canvasOverlaysDemo: '/demo/canvas-overlays',
   dashboard: '/',
   dataEntryDemo: '/data-entry-demo',
@@ -75,6 +76,7 @@ export const ROUTE_PATTERNS = {
   designSystem: DESIGN_SYSTEM_ROOT,
   designSystemStates: `${DESIGN_SYSTEM_ROOT}/states`,
   feedbackDemo: '/feedback-demo',
+  invitationAccept: '/login/invitation',
   listReviewDemo: '/list-review-demo',
   login: '/login',
   // Đường dẫn tiếng Việt, cùng ngoại lệ đã ghi ở `accessDenied` và `account`:
@@ -83,6 +85,7 @@ export const ROUTE_PATTERNS = {
   notFound: '*',
   notifications: '/thong-bao',
   onboarding: '/onboarding',
+  passwordReset: '/login/reset-password',
   projectCadConfirm: `${PROJECTS_ROOT}/:projectId/floors/:floorId/cad-confirm`,
   projectData: `${PROJECTS_ROOT}/:projectId/data`,
   projectDimensions: `${PROJECTS_ROOT}/:projectId/floors/:floorId${LAYERS_ROOT}/dimensions`,
@@ -105,6 +108,7 @@ export const ROUTE_PATTERNS = {
   projectUpload: `${PROJECTS_ROOT}/:projectId/upload`,
   projectVersions: `${PROJECTS_ROOT}/:projectId/versions`,
   projectViewer: `${PROJECTS_ROOT}/:projectId/3d`,
+  projectViewerPascal: `${PROJECTS_ROOT}/:projectId/3d/pascal`,
   projectWalls: `${PROJECTS_ROOT}/:projectId/floors/:floorId/layers/walls`,
   shellDemo: '/shell-demo',
 } as const;
@@ -119,17 +123,20 @@ export const ROUTES = {
   accessDenied: ROUTE_PATTERNS.accessDenied,
   account: ROUTE_PATTERNS.account,
   adminModels: ROUTE_PATTERNS.adminModels,
+  adminTrainingJobs: ROUTE_PATTERNS.adminTrainingJobs,
+  adminTrainingModels: ROUTE_PATTERNS.adminTrainingModels,
   adminUsers: ROUTE_PATTERNS.adminUsers,
-  billing: ROUTE_PATTERNS.billing,
   /** Where a visitor lands when nothing more specific was asked for. */
   dashboard: ROUTE_PATTERNS.dashboard,
   demoGallery: ROUTE_PATTERNS.demoGallery,
   designSystem: ROUTE_PATTERNS.designSystem,
   designSystemStates: ROUTE_PATTERNS.designSystemStates,
+  invitationAccept: ROUTE_PATTERNS.invitationAccept,
   login: ROUTE_PATTERNS.login,
   mobileViewer: (projectId: string): string => `${MOBILE_ROOT}/du-an/${projectId}`,
   notifications: ROUTE_PATTERNS.notifications,
   onboarding: ROUTE_PATTERNS.onboarding,
+  passwordReset: ROUTE_PATTERNS.passwordReset,
   project: {
     cadConfirm: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/cad-confirm`,
@@ -163,6 +170,7 @@ export const ROUTES = {
     upload: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/upload`,
     versions: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/versions`,
     viewer: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d`,
+    viewerPascal: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/3d/pascal`,
     walls: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${LAYERS_ROOT}/walls`,
   },
@@ -180,15 +188,17 @@ export const ROUTES = {
  * ## Vì sao hai đường sau mang `/*` còn `/login` thì không
  *
  * `matchesPublicRoute` so bằng `matchPath({ end: true })`. Đường lời mời và
- * đường đặt lại mật khẩu mang tham số (`/login/invitation/:token`), và một mẫu
- * trần **không** khớp chúng — người bấm link mời sẽ bị đá về `/login?next=…`
- * thay vì thấy màn nhận lời mời. Đuôi `/*` khớp cả dạng có tham số lẫn dạng
+ * đường đặt lại mật khẩu có thể mang đoạn đuôi (`/login/invitation/<…>`; link
+ * mời thật chỉ mang `#token=` — `HOP-DONG-MOI.md:266`, và hash không vào
+ * `matchPath`), và một mẫu trần **không** khớp dạng có đuôi — người bấm link
+ * mời sẽ bị đá về `/login?next=…` thay vì thấy màn nhận lời mời. Đuôi `/*` khớp cả dạng có tham số lẫn dạng
  * trần, nên lời hứa ở trên đứng vững. `/login` thì cố ý để trần: nó là một màn
  * cụ thể, không phải một nhánh.
  *
  * **F-09a không phải làm gì thêm ở đây** — chỉ cần đặt route thật dưới đúng hai
  * tiền tố này. Đặt route công khai ở tiền tố KHÁC thì phải thêm một dòng vào
  * bảng, và thêm một ca vào `SessionBootstrap.test.tsx`.
+ * Màn nhận lời mời: sau N10 thành công → `ROUTES.onboarding` (B-V1-42).
  */
 export const PUBLIC_ROUTE_PATTERNS = [
   '/login',

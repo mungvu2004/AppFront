@@ -109,24 +109,24 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
 
   return (
     <section
-      aria-label="tệp đã xuất"
+      aria-label="Tệp đã xuất"
       className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-surface p-4"
     >
       <div className="flex flex-col gap-0.5">
-        <h3 className="text-sm font-medium text-text-secondary">tệp đã xuất</h3>
+        <h3 className="text-sm font-medium text-text-secondary">Tệp đã xuất</h3>
         {!canPersistHistory && (
-          <p className="text-xs text-text-muted">chỉ trong phiên làm việc này, sẽ mất khi tải lại trang.</p>
+          <p className="text-xs text-text-muted">Chỉ trong phiên làm việc này, sẽ mất khi tải lại trang.</p>
         )}
       </div>
 
       <Table.Root>
         <Table.Header>
           <Table.Row>
-            <Table.Head>tệp</Table.Head>
-            <Table.Head>thời điểm</Table.Head>
-            <Table.Head>dung lượng</Table.Head>
+            <Table.Head>Tệp</Table.Head>
+            <Table.Head>Thời điểm</Table.Head>
+            <Table.Head>Dung lượng</Table.Head>
             <Table.Head>
-              <span className="sr-only">tải lại</span>
+              <span className="sr-only">Tải lại</span>
             </Table.Head>
           </Table.Row>
         </Table.Header>
@@ -148,7 +148,7 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                     onDownload(file.id);
                   }}
                 >
-                  tải lại
+                  Tải lại
                 </Button>
               </Table.Cell>
             </Table.Row>
@@ -196,7 +196,7 @@ export function ExportPanel(props: ExportPanelProps) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-app p-8 text-center">
         <Lock aria-hidden="true" size={32} strokeWidth={1.5} className="text-text-muted" />
-        <h2 className="text-base font-semibold text-text-primary">không có quyền xuất bản vẽ</h2>
+        <h2 className="text-base font-semibold text-text-primary">Không có quyền xuất bản vẽ</h2>
         <p className="max-w-sm text-sm text-text-secondary">
           {permissionCaption ?? 'Chỉ một số vai trò trong dự án được xuất bản vẽ.'}
         </p>
@@ -210,7 +210,7 @@ export function ExportPanel(props: ExportPanelProps) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-app p-8 text-center">
         <FolderOpen aria-hidden="true" size={32} strokeWidth={1.5} className="text-text-muted" />
-        <h2 className="text-base font-semibold text-text-primary">chưa có gì được duyệt để xuất</h2>
+        <h2 className="text-base font-semibold text-text-primary">Chưa có gì được duyệt để xuất</h2>
         <p className="max-w-sm text-sm text-text-secondary">
           {approvalRow?.label ?? 'Duyệt ít nhất một tầng trước khi xuất bản vẽ.'}
         </p>
@@ -222,7 +222,7 @@ export function ExportPanel(props: ExportPanelProps) {
             }}
             className={cn('text-sm font-medium text-accent no-underline hover:underline', FOCUS_RING)}
           >
-            đi duyệt tầng
+            Đi duyệt tầng
           </a>
         )}
       </div>
@@ -233,10 +233,12 @@ export function ExportPanel(props: ExportPanelProps) {
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
       <div className="flex flex-1 flex-col gap-4 p-6">
         <header className="flex items-center justify-between gap-4">
-          <h2 className="text-base font-semibold text-text-primary">xuất bản vẽ</h2>
-          <Button variant="secondary" size="sm" iconBefore={<Share2 aria-hidden="true" size={16} />} onClick={onShare}>
-            chia sẻ
-          </Button>
+          <h2 className="text-base font-semibold text-text-primary">Xuất bản vẽ</h2>
+          {onShare !== null && (
+            <Button variant="secondary" size="sm" iconBefore={<Share2 aria-hidden="true" size={16} />} onClick={onShare}>
+              Chia sẻ
+            </Button>
+          )}
         </header>
 
         {status === 'partial' && noticeCaption !== null && <InlineAlert level="attention" message={noticeCaption} />}

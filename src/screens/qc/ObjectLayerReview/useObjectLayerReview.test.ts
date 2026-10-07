@@ -22,8 +22,23 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { OpeningId } from '@/domain/spatial/types';
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
+import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { isIdOfKind } from '@/domain/spatial/ids';
+import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import type {
+  Furniture,
+  FurnitureId,
+  FurnitureKind,
+  Level,
+  OpeningId,
+  SwingDirection,
+} from '@/domain/spatial/types';
+import { boxAround } from '@/lib/input/dragDrop';
 import { toAttachedOpening } from '@/lib/commands/business/shared';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { FLOOR_NOT_FOUND_MESSAGE } from '@/hooks/useFloorLayer';
+import { ROUTES } from '@/routes/paths';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -48,9 +63,13 @@ import {
   commandContextOf,
   countsOf,
   createMockObjectLayerReviewGateway,
+  createObjectLayerReviewGateway,
   dataLayerTokens,
   entityIdOf,
   formatObjectSize,
+  manualDoorProposalOf,
+  OBJECT_LAYER_TEXT,
+  type ObjectLayerReviewGateway,
   graphOpeningsOf,
   objectsOf,
   objectStatusCode,
@@ -60,8 +79,11 @@ import {
   OBJECT_LAYER_SAMPLE_GRAPH,
   OBJECT_LAYER_SAMPLE_LEVEL,
   OBJECT_LAYER_SEED,
+  reviewCounterOf,
   reviewProgressLabel,
+  scaleOfLevel,
   solidWallsOf,
+  toPixelPoint,
 } from './objectLayerReviewGateway';
 import {
   OBJECT_LAYER_REVIEW_SCENARIOS,
@@ -74,7 +96,12 @@ import {
   OBJECT_LAYER_FIXTURE_OBJECTS,
   OBJECT_LAYER_FIXTURE_REVIEWED,
 } from './objectLayerFixture';
-import { OBJECT_LAYER_IDS, type ObjectLayerReviewModel } from './objectLayerTypes';
+import {
+  OBJECT_LAYER_IDS,
+  type ObjectLayerReviewModel,
+  type ObjectSubtype,
+  type ReviewObject,
+} from './objectLayerTypes';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — đọc ra, không viết tay lại.                                        */
@@ -100,6 +127,9 @@ const ORPHAN_OBJECT_ID = 'D-009';
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -156,6 +186,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         registry,
         ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.forceCollapsed === undefined ? {} : { forceCollapsed: options.forceCollapsed }),
+        ...(options.onNavigate === undefined ? {} : { onNavigate: options.onNavigate }),
       }),
     { wrapper },
   );
@@ -220,7 +251,7 @@ describe('phép ghép thuần của màn Lớp đối tượng', () => {
     expect(derived).toEqual([...SEVEN_STATES]);
   });
 
-  it('nhánh nội thất lỗi giữ màn ở "một phần" chứ không đẩy sang "lỗi"', () => {
+  it('nhánh nội thất lỗi giữ màn ở "Một phần" chứ không đẩy sang "Lỗi"', () => {
     const scenario = OBJECT_LAYER_SCENARIO_FURNITURE_BRANCH;
 
     expect(
@@ -246,10 +277,10 @@ describe('phép ghép thuần của màn Lớp đối tượng', () => {
     ).toBe('success');
   });
 
-  it('ba ô 1/2/3 của mỗi nhóm cắt đúng từ tám loại con', () => {
+  it('ba ô 1/2/3 của mỗi nhóm cắt đúng từ chín loại con', () => {
     expect(subtypeSlotsOf('door')).toEqual(['singleDoor', 'doubleDoor']);
     expect(subtypeSlotsOf('window')).toEqual(['window']);
-    expect(subtypeSlotsOf('furniture')).toEqual(['bed', 'sofa', 'diningTable', 'toilet', 'basin']);
+    expect(subtypeSlotsOf('furniture')).toEqual(['bed', 'sofa', 'diningTable', 'toilet', 'basin', 'otherFurniture']);
   });
 
   it('bộ lọc lớp con và chip lọc cắt đúng danh sách', () => {
@@ -322,7 +353,7 @@ describe('[NGHIEM-3] tổng số đối tượng', () => {
 
     expect(reviewCounter.reviewed).toBe(OBJECT_LAYER_FIXTURE_REVIEWED);
     expect(model.reviewProgressLabel).toBe('9/21 đối tượng đã duyệt');
-    expect(model.layerTotalLabel).toBe('tổng 21 đối tượng');
+    expect(model.layerTotalLabel).toBe('Tổng 21 đối tượng');
 
     mounted.unmount();
   });
@@ -559,6 +590,7 @@ describe('ba lệnh dựng bằng nguyên thuỷ công khai', () => {
     const command = buildApproveObjectCommand(
       opening as NonNullable<typeof opening>,
       'test-actor',
+      'D-004',
     );
     const change = command.changes[0];
 
@@ -779,7 +811,7 @@ describe('vai trò và vỏ màn', () => {
 
     expect(mounted.result.current.state).toBe('forbidden');
     expect(mounted.result.current.viewerRoleNotice).toBe(
-      'bạn không có quyền xem lớp đối tượng của dự án này',
+      'Bạn không có quyền xem lớp đối tượng của dự án này',
     );
 
     await run(() => mounted.result.current.onApprove('D-004'));
@@ -813,7 +845,7 @@ describe('vai trò và vỏ màn', () => {
 
     await waitFor(() => {
       expect(mounted.result.current.furnitureAttentionNotice).toBe(
-        'nhận diện nội thất lỗi, cửa vẫn xong',
+        'Nhận diện nội thất lỗi, cửa vẫn xong',
       );
     });
 
@@ -897,5 +929,409 @@ describe('mã hiển thị và mã máy', () => {
     }
 
     expect(entityIdOf('S-003', 'window')).toBe('D-000003WNDW' as OpeningId);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tự lưu (A7) — B-V6-03.                                                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Đổi vì bộ lưu mới (F-04x-1): cổng không còn `persistObjectLayer`; lượt lưu đi qua
+ * `useFloorLayerAutosave` với client cổng lộ ra, nên bài kiểm rình `writeLayer`.
+ */
+describe('tự lưu lớp đối tượng (B-V6-03, F-04x-1)', () => {
+  const savingGateway = () => {
+    const apiClient = createMockApiClient();
+
+    return { gateway: createMockObjectLayerReviewGateway({ apiClient }), writeLayer: vi.spyOn(apiClient.spatial, 'writeLayer') };
+  };
+
+  it('một thao tác duyệt không gửi ngay — lưu 800 ms sau thao tác cuối, một lượt cho hai thao tác liền tay (A7, B-V6-03)', async () => {
+    const { gateway, writeLayer } = savingGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onApprove('D-004'));
+    await run(() => mounted.result.current.onDelete('D-002'));
+
+    await waitFor(() => {
+      expect(entityInStore('D-002', 'door')).toBeUndefined();
+    });
+    expect(writeLayer).not.toHaveBeenCalled();
+
+    /* Qua cửa sổ 800 ms của A7: đúng MỘT lượt lưu cho cả hai thao tác. */
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    mounted.unmount();
+  });
+
+  it('Ctrl+S với tới màn đối tượng — flushAutosaves lưu ngay', async () => {
+    const { gateway, writeLayer } = savingGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onApprove('D-004'));
+    expect(writeLayer).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    mounted.unmount();
+  });
+
+  it('lượt lưu hỏng không gỡ thao tác của người duyệt', async () => {
+    const { gateway, writeLayer } = savingGateway();
+
+    writeLayer.mockRejectedValue(new Error('x'));
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onDelete('D-002'));
+    await waitFor(() => {
+      expect(entityInStore('D-002', 'door')).toBeUndefined();
+    });
+
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+      await Promise.resolve();
+    });
+
+    expect(writeLayer).toHaveBeenCalled();
+    /* Cũ: lượt hỏng gọi applyUndo và cửa D-002 hiện lại. */
+    expect(entityInStore('D-002', 'door')).toBeUndefined();
+
+    mounted.unmount();
+  });
+
+  it('409 → dải "Tải lại" (F-04x-1 [8].6)', async () => {
+    const { gateway, writeLayer } = savingGateway();
+
+    /* Máy chủ đã đi trước bản mà màn nạp — lượt lưu đầu nhận 409. */
+    simulateRemoteLayerEdit(FLOOR_ID);
+    const mounted = await mountSettled({ gateway });
+
+    await run(() => mounted.result.current.onApprove('D-004'));
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
+    expect(mounted.result.current.saveBlock?.onReload).toBeTypeOf('function');
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Danh sách dựng từ đồ thị — B-V6-13.                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Một món nội thất KHÔNG có dòng mẫu, đặt xa mọi tường của bộ mẫu (lưới 12.500 × 8.800 mm). */
+const FREE_FURNITURE_ID = 'F-000099FREE' as FurnitureId;
+const FREE_FURNITURE_CENTRE = { x: 14500, y: 4000 };
+const FREE_FURNITURE_SIZE_MM = 800;
+
+function freeFurniture(kind: FurnitureKind, confidence = 0.95): Furniture {
+  return {
+    id: FREE_FURNITURE_ID,
+    levelId: OBJECT_LAYER_SAMPLE_LEVEL.id,
+    kind,
+    centre: FREE_FURNITURE_CENTRE,
+    boundingBox: boxAround(FREE_FURNITURE_CENTRE, FREE_FURNITURE_SIZE_MM, FREE_FURNITURE_SIZE_MM),
+    rotationDeg: 0,
+    confidence,
+    source: 'ai',
+    reviewed: false,
+  };
+}
+
+/** Đồ thị bộ mẫu cộng thêm một món nội thất. */
+function sampleGraphWith(item: Furniture): NormalizedSpatial {
+  const raw = denormalizeSpatial(OBJECT_LAYER_SAMPLE_GRAPH);
+
+  return normalizeSpatial({ ...raw, furniture: [...raw.furniture, item] });
+}
+
+/** Đồ thị bộ mẫu với lỗ mở `D-001` đổi kind/swing. */
+function sampleGraphWithOpening(kind: 'door' | 'window', swing: SwingDirection): NormalizedSpatial {
+  const raw = denormalizeSpatial(OBJECT_LAYER_SAMPLE_GRAPH);
+  const target = entityIdOf('D-001', 'door');
+
+  return normalizeSpatial({
+    ...raw,
+    openings: raw.openings.map((opening) => (opening.id === target ? { ...opening, kind, swing } : opening)),
+  });
+}
+
+describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
+  it.each<[FurnitureKind, ObjectSubtype]>([
+    ['bed', 'bed'],
+    ['table', 'otherFurniture'],
+    ['chair', 'otherFurniture'],
+    ['sanitaryFixture', 'otherFurniture'],
+    ['wardrobe', 'otherFurniture'],
+    ['kitchenCabinet', 'otherFurniture'],
+    ['stair', 'otherFurniture'],
+    ['other', 'otherFurniture'],
+  ])('nội thất kind %s không có dòng mẫu hiện ra với loại con %s — không bị ẩn', (kind, subtype) => {
+    const objects = objectsOf(sampleGraphWith(freeFurniture(kind)), OBJECT_LAYER_SAMPLE_LEVEL);
+    const found = objects.find((object) => object.entityId === FREE_FURNITURE_ID);
+
+    expect(objects).toHaveLength(OBJECT_LAYER_FIXTURE_OBJECTS.length + 1);
+    expect(found?.layer).toBe('furniture');
+    expect(found?.subtype).toBe(subtype);
+    expect(found?.hostWallId).toBeNull();
+  });
+
+  const SWINGS: readonly SwingDirection[] = ['left', 'right', 'double', 'sliding', 'fixed'];
+
+  it.each(
+    (['door', 'window'] as const).flatMap((kind) => SWINGS.map((swing) => [kind, swing] as const)),
+  )('ô mở kind %s, swing %s đọc ra đúng loại con từ đồ thị', (kind, swing) => {
+    const object = objectsOf(sampleGraphWithOpening(kind, swing), OBJECT_LAYER_SAMPLE_LEVEL).find(
+      (candidate) => candidate.entityId === entityIdOf('D-001', 'door'),
+    );
+    const expected: ObjectSubtype = kind === 'window' ? 'window' : swing === 'double' ? 'doubleDoor' : 'singleDoor';
+
+    expect(object?.subtype).toBe(expected);
+    expect(object?.id).toBe('D-001');
+  });
+
+  it('tầng L-LEVEL000001 của bộ mẫu A14, không dòng mẫu: 9 đối tượng, 0 đã duyệt, không D-009, mã không trùng', () => {
+    const graph = normalizeSpatial(createSampleBuilding());
+    const level = graph.byId[sampleLevelId(1)] as Level;
+    const objects = objectsOf(graph, level, []);
+    const ids = objects.map((object) => object.id);
+
+    console.log(`A14 tầng 1: ${ids.join(', ')}`);
+    expect(objects).toHaveLength(9);
+    expect(countsOf(objects)).toEqual({ doorCount: 2, windowCount: 2, furnitureCount: 5, total: 9 });
+    expect(reviewCounterOf(objects)).toEqual({ reviewed: 0, total: 9 });
+    expect(ids).not.toContain('D-009');
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id.startsWith('S-'))).toHaveLength(2);
+
+    for (const object of objects) {
+      expect(graph.byId[object.entityId]).toBeDefined();
+    }
+  });
+
+  it('mô tả lệnh duyệt in mã hiển thị ("D-001"), không in mã máy ("DOOR")', () => {
+    const graph = normalizeSpatial(createSampleBuilding());
+    const level = graph.byId[sampleLevelId(1)] as Level;
+    const door = objectsOf(graph, level, []).find((object) => object.layer === 'door');
+    const entity = graphOpeningsOf(graph).find((opening) => opening.id === door?.entityId);
+
+    expect(door?.id).toBe('D-001');
+
+    const command = buildApproveObjectCommand(
+      entity as NonNullable<typeof entity>,
+      'test-actor',
+      (door as ReviewObject).id,
+    );
+
+    expect(command.description).toContain('D-001');
+    expect(command.description).not.toContain('DOOR');
+  });
+
+  it('bàn đứng tự do cách tường 2.000 mm: không bị tô chú ý, vẽ đúng ở tâm, duyệt và xoá được', async () => {
+    const gateway = createMockObjectLayerReviewGateway({ graph: sampleGraphWith(freeFurniture('table')) });
+    const mounted = await mountSettled({ gateway });
+    const table = (): ReviewObject | undefined =>
+      mounted.result.current.objects.find((object) => object.entityId === FREE_FURNITURE_ID);
+    const id = (table() as ReviewObject).id;
+
+    expect(id).toMatch(/^F-\d{3}$/u);
+    expect(mounted.result.current.counts.total).toBe(OBJECT_LAYER_FIXTURE_OBJECTS.length + 1);
+
+    await run(() => mounted.result.current.onToggleLowConfidenceOnly());
+    const row = mounted.result.current.rows.find((candidate) => candidate.id === id);
+
+    expect(row?.statusCode).not.toBe('attention');
+    expect(row?.isOrphan).toBe(false);
+    expect(row?.hostWallLabel).toBeNull();
+
+    const placement = mounted.result.current.placements.find((candidate) => candidate.id === id);
+
+    expect(placement?.centrePx).toEqual(
+      toPixelPoint(FREE_FURNITURE_CENTRE, scaleOfLevel(OBJECT_LAYER_SAMPLE_LEVEL)),
+    );
+    expect(placement?.isOrphan).toBe(false);
+
+    await run(() => mounted.result.current.onSelect(id));
+    expect(mounted.result.current.selectedObjectId).toBe(id);
+    expect(mounted.result.current.inspector?.isOrphan).toBe(false);
+
+    await run(() => mounted.result.current.onApprove(id));
+    await waitFor(() => {
+      expect(table()?.reviewed).toBe(true);
+    });
+
+    await run(() => mounted.result.current.onDelete(id));
+    await waitFor(() => {
+      expect(table()).toBeUndefined();
+    });
+    expect(useStore.getState().spatial?.byId[FREE_FURNITURE_ID]).toBeUndefined();
+
+    mounted.unmount();
+  });
+
+  it('gắn D-009 vào tường trên cổng giả: tổng không đổi, D-009 đọc từ đồ thị đúng một lần', async () => {
+    /* Đồ thị mà `W-008` còn trống — xem bài "dựng được lệnh khi tường gợi ý còn trống". */
+    const freeSeed = OBJECT_LAYER_SEED.filter((entry) => entry.displayId !== 'D-008');
+    const gateway = createMockObjectLayerReviewGateway({
+      graph: buildObjectLayerGraph(freeSeed),
+      seed: freeSeed,
+    });
+    const mounted = await mountSettled({ gateway });
+    const before = mounted.result.current.counts.total;
+
+    await run(() => mounted.result.current.onAttachToNearestWall(ORPHAN_OBJECT_ID));
+    await waitFor(() => {
+      expect(entityInStore(ORPHAN_OBJECT_ID, 'door')).toBeDefined();
+    });
+
+    const copies = mounted.result.current.objects.filter((object) => object.id === ORPHAN_OBJECT_ID);
+
+    console.log(`tổng trước/sau khi gắn D-009: ${before}/${mounted.result.current.counts.total}`);
+    expect(mounted.result.current.counts.total).toBe(before);
+    expect(copies).toHaveLength(1);
+    expect(copies[0]?.hostWallId).not.toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('cổng thật không mang bảng mẫu — dòng mồ côi D-009 không lọt vào tầng nào', () => {
+    expect(createObjectLayerReviewGateway({ apiClient: {} as never }).seed).toEqual([]);
+  });
+});
+
+describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () => {
+  /** Bộ A14 bỏ hết ô mở và nội thất — mọi tầng đều rỗng, nhưng còn tường. */
+  const emptyGraph = (): NormalizedSpatial => {
+    const raw = denormalizeSpatial(normalizeSpatial(createSampleBuilding()));
+
+    return normalizeSpatial({
+      ...raw,
+      openings: [],
+      furniture: [],
+      walls: raw.walls.map((wall) => ({ ...wall, openingIds: [] })),
+    });
+  };
+
+  const emptyGateway = (): ObjectLayerReviewGateway => {
+    const graph = emptyGraph();
+
+    return { ...createMockObjectLayerReviewGateway({ graph }), seed: [] };
+  };
+
+  it('hai tầng rỗng liên tiếp: cả hai cửa được thêm, không bị từ chối vì trùng mã', async () => {
+    const gateway = emptyGateway();
+    const notifications = createNotificationBus();
+    const publish = vi.spyOn(notifications, 'publish');
+    const openingCount = (): number =>
+      Object.keys(useStore.getState().spatial?.byId ?? {}).filter((id) => isIdOfKind('opening', id)).length;
+
+    const first = await mountSettled({ gateway, floorId: sampleLevelId(1), notifications });
+
+    await run(() => first.result.current.onAddManually());
+    await waitFor(() => {
+      expect(openingCount()).toBe(1);
+    });
+    first.unmount();
+
+    const second = await mountSettled({ gateway, floorId: sampleLevelId(2), notifications });
+
+    await run(() => second.result.current.onAddManually());
+    await waitFor(() => {
+      expect(openingCount()).toBe(2);
+    });
+
+    const refused = publish.mock.calls.filter(([n]) => n.title === OBJECT_LAYER_TEXT.addRefused);
+    const ids = second.result.current.objects.map((object) => object.id);
+
+    console.log(`tầng 2 sau khi thêm: ${ids.join(', ')}`);
+    expect(refused).toEqual([]);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toMatch(/^D-[0-9A-Z]{3}$/u);
+    expect(ids[0]).not.toContain('DOOR');
+
+    second.unmount();
+  });
+
+  it('đề nghị mang mã mới chưa có trong đồ thị, đúng dạng mã cửa, và lệnh được nhận', () => {
+    const graph = emptyGraph();
+    const level = graph.byId[sampleLevelId(2)] as Level;
+    const input = manualDoorProposalOf(graph, level);
+
+    expect(input).not.toBeNull();
+
+    const id = (input as NonNullable<typeof input>).id;
+
+    expect(graph.byId[id]).toBeUndefined();
+    expect(isIdOfKind('opening', id)).toBe(true);
+    expect(buildAddOpeningCommand(input as NonNullable<typeof input>, commandContextOf(graph, 'test-actor')).ok).toBe(true);
+  });
+});
+
+describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
+  const openingCount = (): number =>
+    Object.keys(useStore.getState().spatial?.byId ?? {}).filter((id) => isIdOfKind('opening', id)).length;
+
+  /*
+   * F-04x-2: tầng nay đọc qua N16 (`useFloorLayer`). Tầng máy chủ không có trả 404
+   * `resource:"floor"` (cổng giả làm đúng thế), nên màn vào `error` với câu cố định
+   * thay vì `empty` — trước đây đồ thị kho là nguồn, và tầng vắng chỉ là "không dòng".
+   */
+  it('màn vào `error` với câu "Tầng này không còn tồn tại.", không dòng nào, và "Thêm thủ công" báo không có tường', async () => {
+    const notifications = createNotificationBus();
+    const publish = vi.spyOn(notifications, 'publish');
+    const mounted = await mountSettled({ floorId: 'L-LEVEL000099', notifications });
+    const before = openingCount();
+
+    expect(mounted.result.current.state).toBe('error');
+    expect(mounted.result.current.errorMessage).toBe(FLOOR_NOT_FOUND_MESSAGE);
+    expect(mounted.result.current.objects).toEqual([]);
+
+    await run(() => mounted.result.current.onAddManually());
+
+    expect(publish.mock.calls.map(([n]) => n.title)).toContain(OBJECT_LAYER_TEXT.addNoWall);
+    expect(openingCount()).toBe(before);
+
+    mounted.unmount();
+  });
+});
+
+describe('tỉ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ của tầng', async () => {
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({
+      gateway: createMockObjectLayerReviewGateway({ scaleStatus: 'unresolved' }),
+      onNavigate,
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+    });
+    act(() => {
+      mounted.result.current.provisionalScaleNotice?.onCalibrate();
+    });
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
+    mounted.unmount();
+  });
+
+  it('tầng có tỉ lệ thật: không dải', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.provisionalScaleNotice).toBeNull();
+    mounted.unmount();
   });
 });

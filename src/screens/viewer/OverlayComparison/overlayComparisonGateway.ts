@@ -81,10 +81,12 @@
  */
 
 import type { ApiClient, ApiResult } from '@/api/client';
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import type { FloorImageQuality } from '@/api/schemas/quality';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { pixels, type Pixels } from '@/domain/units/scale';
 import { toAppError } from '@/lib/errors';
 
@@ -109,13 +111,13 @@ export const FRAME_NOT_FOUND_CODE = 'FRAME_NOT_FOUND';
  */
 export const OVERLAY_MISSING_SOURCES: Readonly<Record<OverlayMissingCapability, string>> = {
   imageToModelTransform:
-    'cần một endpoint trả về gốc ảnh quét trong không gian mô hình (originMm); tỷ lệ đã có ở Level.scaleMillimetresPerPixel và góc xoay đã có ở measurement.skewDeg của quality.assess, nên createOverlayTransform chỉ còn thiếu đúng gốc',
+    'Cần một endpoint trả về gốc ảnh quét trong không gian mô hình (originMm); tỷ lệ đã có ở Level.scaleMillimetresPerPixel và góc xoay đã có ở measurement.skewDeg của quality.assess, nên createOverlayTransform chỉ còn thiếu đúng gốc',
   deviationRegions:
-    'cần một endpoint trả về trục dò từ ảnh quét theo khung pixel của ảnh (drawingAxes); phép so đã sẵn ở compareDrawingToModel của @/domain/overlay, chỉ thiếu đầu vào',
+    'Cần một endpoint trả về trục dò từ ảnh quét theo khung pixel của ảnh (drawingAxes); phép so đã sẵn ở compareDrawingToModel của @/domain/overlay, chỉ thiếu đầu vào',
   matchMetrics:
-    'phụ thuộc deviationRegions: không có vùng lệch thì không có gì để tổng hợp; summariseDeviations và countOverTolerance đã sẵn ở @/domain/overlay',
+    'Phụ thuộc deviationRegions: không có vùng lệch thì không có gì để tổng hợp; summariseDeviations và countOverTolerance đã sẵn ở @/domain/overlay',
   confirmFloorMatch:
-    'cần một endpoint nhận lượt xác nhận của người duyệt, dạng POST .../projects/:projectId/floors/:floorId/overlay-confirmation; hôm nay lượt ghi chỉ sống trong phiên trình duyệt',
+    'Cần một endpoint nhận lượt xác nhận của người duyệt, dạng POST .../projects/:projectId/floors/:floorId/overlay-confirmation; hôm nay lượt ghi chỉ sống trong phiên trình duyệt',
 };
 
 /** Một việc làm được, kèm kết quả. */
@@ -233,6 +235,11 @@ export interface OverlayComparisonGateway {
   readonly readFloorScans: (
     input: ReadFloorScanInput,
   ) => Promise<ApiResult<readonly OverlayScanSnapshot[]>>;
+  /**
+   * Đồ thị một tầng qua N16 — tầng và hình học của lớp `geometry` khi kho rỗng
+   * (B-V9-06). Cùng đường nạp các màn QC dùng; lỗi thì ném.
+   */
+  readonly readFloorLayer: (input: ReadFloorScanInput) => Promise<NormalizedSpatial>;
   /**
    * Chỗ ảnh quét nằm trong khung đối chiếu sau khi đặt vào không gian mô hình.
    *
@@ -363,6 +370,8 @@ export function createOverlayComparisonGateway(
 
       return { ok: true, data: result.data.floors.map(toScanSnapshot) };
     },
+
+    readFloorLayer: (input) => readFloorLayerGraph(client.spatial, input),
 
     readScanPlacement: async () => unsupported('imageToModelTransform'),
     readDeviationRegions: async () => unsupported('deviationRegions'),

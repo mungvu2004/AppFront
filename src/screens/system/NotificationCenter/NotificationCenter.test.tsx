@@ -53,6 +53,8 @@ import type { SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 import { createMockApiClient, MOCK_NOTIFICATIONS } from '@/api/__mocks__/client';
 import { resolveApiBaseUrl } from '@/api/appClient';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
+import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { ROUTES } from '@/routes/paths';
 
 import { NotificationCenter } from './NotificationCenter';
@@ -65,7 +67,7 @@ import type {
   NotificationItemVm,
   NotificationKind,
 } from './notificationModel';
-import { useNotificationCenter } from './useNotificationCenter';
+import { NOTIFICATION_CENTER_TEXT, useNotificationCenter } from './useNotificationCenter';
 import type { NotificationCenterProps, UseNotificationCenterOptions } from './useNotificationCenter';
 
 const noop = (): void => undefined;
@@ -354,7 +356,11 @@ function NotificationProbe({ options }: { readonly options: UseNotificationCente
 function mountNotificationCenter(options: UseNotificationCenterOptions) {
   observedProps = null;
 
-  return renderWithProviders(<NotificationProbe options={options} />);
+  // Kênh riêng mỗi lượt dựng: toast hoàn tác của bài này không rò sang kênh chung
+  // của ứng dụng, nơi bài sau sẽ thấy nó.
+  return renderWithProviders(
+    <NotificationProbe options={{ notifications: createNotificationBus(), ...options }} />,
+  );
 }
 
 function notificationProps(): NotificationCenterProps {
@@ -506,6 +512,181 @@ describe('BÀI NGHIỆM THU — mở tấm trượt rồi đóng thì số chưa
     expect(after).toBe(before);
     expect(fake.markRead).not.toHaveBeenCalled();
     expect(fake.markAllRead).not.toHaveBeenCalled();
+  });
+});
+
+describe('B-V2-03 — tấm trượt có tên truy cập', () => {
+  it('role="dialog" mang tên "Thông báo", không phải một hộp thoại không tên', () => {
+    renderWithProviders(<NotificationCenter {...baseProps()} />);
+
+    expect(screen.getByRole('dialog', { name: 'Thông báo' })).toBeInTheDocument();
+  });
+});
+
+describe('B-V2-02 — đánh dấu hết đã đọc thì vùng status nói "hết chưa đọc", không nói "không có thông báo"', () => {
+  it('danh sách còn nguyên ⇒ câu là liveAllRead; hộp thư rỗng thật ⇒ câu là liveEmpty', async () => {
+    const fake = createFakeGateway([
+      buildItem({ id: 'u-1', isRead: false }),
+      buildItem({ id: 'u-2', isRead: true }),
+    ]);
+
+    mountNotificationCenter({ gateway: fake.gateway });
+
+    await waitFor(() => {
+      expect(notificationProps().unreadCount).toBe(1);
+    });
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+
+    await waitFor(() => {
+      expect(notificationProps().liveMessage).toBe(NOTIFICATION_CENTER_TEXT.liveAllRead);
+    });
+    expect(allItems(notificationProps().groups)).toHaveLength(2);
+
+    cleanup();
+    mountNotificationCenter({ gateway: createFakeGateway([]).gateway });
+
+    await waitFor(() => {
+      expect(notificationProps().liveMessage).toBe(NOTIFICATION_CENTER_TEXT.liveEmpty);
+    });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* B-V2-06 — đánh dấu đã đọc giữ lệnh 8 giây sau toast "Hoàn tác" (A8).         */
+/* -------------------------------------------------------------------------- */
+
+describe('B-V2-06 — "đánh dấu tất cả đã đọc" có toast hoàn tác, gửi máy chủ khi hết cửa sổ', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Dựng màn với `count` mục chưa đọc, chờ lượt đọc xong bằng đồng hồ thật, rồi
+   * mới chuyển sang đồng hồ giả để đẩy qua cửa sổ hoàn tác.
+   */
+  async function mountWithUnread(count: number) {
+    const fake = createFakeGateway(
+      Array.from({ length: count }, (_, index) => buildItem({ id: `u-${String(index)}`, isRead: false })),
+    );
+    const bus: NotificationBus = createNotificationBus();
+    const view = mountNotificationCenter({ gateway: fake.gateway, notifications: bus });
+
+    await waitFor(() => {
+      expect(notificationProps().unreadCount).toBe(count);
+    });
+    vi.useFakeTimers();
+
+    return { fake, bus, view };
+  }
+
+  const pressUndo = (bus: NotificationBus): void => {
+    act(() => {
+      bus.list().at(-1)?.undoTicket?.undo();
+    });
+  };
+
+  const passUndoWindow = (): void => {
+    act(() => {
+      vi.advanceTimersByTime(UNDO_WINDOW_MS);
+    });
+  };
+
+  it('bấm xong thì hết chưa đọc ngay, có đúng một vé hoàn tác, và CHƯA gửi gì', async () => {
+    const { fake, bus } = await mountWithUnread(3);
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+
+    expect(notificationProps().unreadCount).toBe(0);
+    expect(bus.list()).toHaveLength(1);
+    expect(bus.list()[0]?.title).toBe(NOTIFICATION_CENTER_TEXT.markedAllRead);
+    expect(bus.list()[0]?.undoTicket).toBeDefined();
+    expect(fake.markRead).not.toHaveBeenCalled();
+    expect(fake.markAllRead).not.toHaveBeenCalled();
+  });
+
+  it('bấm Hoàn tác thì số chưa đọc quay về, và hết cửa sổ vẫn không gửi gì', async () => {
+    const { fake, bus } = await mountWithUnread(3);
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+    expect(notificationProps().unreadCount).toBe(0);
+    pressUndo(bus);
+
+    expect(notificationProps().unreadCount).toBe(3);
+
+    passUndoWindow();
+
+    expect(fake.markRead).not.toHaveBeenCalled();
+  });
+
+  it('hết cửa sổ thì markRead được gọi đúng một lần với đúng các id', async () => {
+    const { fake } = await mountWithUnread(3);
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+    passUndoWindow();
+    vi.useRealTimers();
+
+    // `onMutate` của lượt ghi lạc quan chờ `cancelQueries` trước khi gọi máy chủ.
+    await waitFor(() => {
+      expect(fake.markRead).toHaveBeenCalledTimes(1);
+    });
+    expect(fake.markRead).toHaveBeenCalledWith(['u-0', 'u-1', 'u-2']);
+  });
+
+  it('250 id thì gửi hai lô 200 + 50 — máy chủ trả 422 ngoài 1–200', async () => {
+    const { fake } = await mountWithUnread(250);
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+    passUndoWindow();
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(fake.markRead).toHaveBeenCalledTimes(2);
+    });
+    expect(fake.markRead.mock.calls.map(([ids]) => (ids as readonly string[]).length)).toEqual([200, 50]);
+  });
+
+  it('máy chủ hỏng sau cửa sổ thì màn vào partial và các mục hiện lại chưa đọc', async () => {
+    const { fake } = await mountWithUnread(2);
+    fake.markRead.mockImplementationOnce(() => Promise.reject(new Error('mất mạng')));
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+    expect(notificationProps().unreadCount).toBe(0);
+    passUndoWindow();
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(notificationProps().screenState).toBe('partial');
+    });
+    expect(notificationProps().unreadCount).toBe(2);
+  });
+
+  it('rời màn giữa chừng thì lệnh vẫn được gửi khi hết cửa sổ, không gửi sớm', async () => {
+    const { fake, view } = await mountWithUnread(2);
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+    view.unmount();
+
+    expect(fake.markRead).not.toHaveBeenCalled();
+
+    passUndoWindow();
+
+    expect(fake.markRead).toHaveBeenCalledTimes(1);
+    expect(fake.markRead).toHaveBeenCalledWith(['u-0', 'u-1']);
   });
 });
 

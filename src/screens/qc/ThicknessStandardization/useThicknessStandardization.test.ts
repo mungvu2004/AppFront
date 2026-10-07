@@ -34,9 +34,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
 import { standardizeThickness } from '@/lib/geometry/standardize';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -121,6 +123,9 @@ const wallsOfMeasurement = (measuredMm: number): readonly Wall[] =>
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -483,6 +488,65 @@ describe('áp chuẩn hoá', () => {
     expect(mounted.history.canRedo()).toBe(true);
   });
 
+  /* Đổi vì bộ lưu mới (F-04x-1): cổng không còn `persistThicknessStandardization`; rình `writeLayer`. */
+  it('Ctrl+S với tới màn này: flushAutosaves lưu NGAY sau một lượt áp (B-V7-01)', async () => {
+    const apiClient = createMockApiClient();
+    const gateway = createMockThicknessStandardizationGateway({ apiClient });
+    const persist = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const mounted = await mountSettled({ gateway });
+
+    acceptAndPreview(mounted, THREE_MEASUREMENTS);
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.history.undoSteps()).toHaveLength(1);
+    });
+
+    /* Còn trong cửa sổ 800 ms: chưa lượt lưu nào. */
+    expect(persist).not.toHaveBeenCalled();
+
+    /* Đúng thứ `SAVE_SHORTCUT` của `router.tsx` gọi. */
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    /* Lượt áp đổi tường của mọi tầng bộ mẫu; bộ lưu chung gửi MỖI tầng bẩn đúng một PUT
+       (bộ lưu cũ chỉ gửi tầng của URL và bỏ rơi sửa của tầng khác). */
+    const floors = persist.mock.calls.map(([input]) => input.floorId);
+
+    expect(floors).toContain(FLOOR_ID);
+    expect(new Set(floors).size).toBe(floors.length);
+  });
+
+  it('409 → dải "Tải lại" (F-04x-1 [8].6)', async () => {
+    const apiClient = createMockApiClient();
+    const gateway = createMockThicknessStandardizationGateway({ apiClient });
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+
+    /* Máy chủ đã đi trước bản mà màn nạp — lượt lưu đầu nhận 409. */
+    simulateRemoteLayerEdit(FLOOR_ID);
+    const mounted = await mountSettled({ gateway });
+
+    acceptAndPreview(mounted, THREE_MEASUREMENTS);
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.history.undoSteps()).toHaveLength(1);
+    });
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    expect(writeLayer.mock.calls.filter(([input]) => input.floorId === FLOOR_ID)).toHaveLength(1);
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
+  });
+
   it('áp xong thì M-04 dựng lại hình tường của phần xem trước', async () => {
     const mounted = await mountSettled();
     const target = wallsOfMeasurement(195)[0] as Wall;
@@ -667,7 +731,7 @@ describe('áp dụng lại bộ lọc', () => {
 /* 6. Bảy trạng thái (A11/R-63).                                               */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('bảy kịch bản phủ đúng bảy nhánh của SEVEN_STATES', () => {
     expect(THICKNESS_STANDARDIZATION_SCENARIOS.map((scenario) => scenario.state)).toEqual([
       ...SEVEN_STATES,
@@ -686,11 +750,11 @@ describe('bảy trạng thái', () => {
   });
 
   it.each([
-    ['rỗng', THICKNESS_SCENARIO_EMPTY],
-    ['một phần', THICKNESS_SCENARIO_PARTIAL],
-    ['lỗi', THICKNESS_SCENARIO_ERROR],
-    ['không có quyền', THICKNESS_SCENARIO_FORBIDDEN],
-    ['thu gọn', THICKNESS_SCENARIO_COLLAPSED],
+    ['Rỗng', THICKNESS_SCENARIO_EMPTY],
+    ['Một phần', THICKNESS_SCENARIO_PARTIAL],
+    ['Lỗi', THICKNESS_SCENARIO_ERROR],
+    ['Không có quyền', THICKNESS_SCENARIO_FORBIDDEN],
+    ['Thu gọn', THICKNESS_SCENARIO_COLLAPSED],
   ])('kịch bản %s cho đúng trạng thái của nó', async (_label, scenario) => {
     const mounted = await mountScenario(scenario);
 
@@ -737,7 +801,9 @@ describe('bảy trạng thái', () => {
     const target = wallsOfMeasurement(195)[0] as Wall;
 
     expect(mounted.result.current.isViewerRole).toBe(true);
-    expect(mounted.result.current.viewerRoleNotice).not.toBeNull();
+    expect(mounted.result.current.viewerRoleNotice).toBe(
+      'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
+    );
 
     acceptAndPreview(mounted, [195]);
 

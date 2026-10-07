@@ -31,6 +31,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import type { ApiClient } from '@/api/client';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -47,11 +48,14 @@ import { InputQualityGateView } from './InputQualityGate';
 import { InputQualityGateContainer } from './InputQualityGate.container';
 import {
   acknowledgedScenario,
+  confirmScenario,
   highlightedScenario,
+  noDrawingScenario,
   regionIdOf,
   SAMPLE_FINDINGS,
   SAMPLE_FLOORS,
   scenarioFor,
+  writeErrorScenario,
 } from './InputQualityGate.stories';
 import { createInputQualityGateway } from './inputQualityGateway';
 import type { InputQualityToast } from './useInputQualityGate';
@@ -68,6 +72,9 @@ const PROJECT_ID = 'project-1';
  */
 const SETTLE_STEP_MS = 10;
 
+/** Độ trễ giả của máy chủ khi ghi — dài hơn mọi hoạt ảnh rời đi. */
+const SLOW_SERVER_MS = 1000;
+
 /**
  * `px` là đơn vị, không phải chữ tiếng Anh sót lại.
  *
@@ -79,21 +86,11 @@ const UNIT_WORDS = ['px'];
 /**
  * **Nợ A-6b — nợ CỦA REPO, không phải của màn Cổng chất lượng đầu vào.**
  *
- * `ZoomCluster` (`src/components/canvas/ZoomCluster.tsx:48` và `:71`) viết
- * `aria-label="Điều khiển zoom"` và `aria-label="Zoom hiện tại 100%…"` — hai
- * chữ tiếng Anh THẬT trong một component DÙNG CHUNG. Ba dòng dưới đây là chỗ
- * ghi nợ, **không** phải chỗ chấp nhận nó. `src/components/**` là thư mục màn
- * này không được sửa (R-68), và `InputQualityGateImagePanel` chỉ tình cờ là màn
- * đầu tiên chạy `expectVietnamese` trên một cây có `<ZoomCluster>` nên nợ lộ ra
- * ở đây. Cùng khuôn ghi nợ với `BillingScreen.test.tsx:317-328`.
- *
- * `to` là chuyện khác: `"Phóng to"` là tiếng Việt đúng, `expectVietnamese` chấm
- * nhầm nó thành từ tiếng Anh còn sót — một dương tính giả, không phải một lỗi.
- *
- * Cách trả nợ: đổi `ZoomCluster.tsx:48` thành `"Điều khiển thu phóng"` và
- * `:71` thành `"Mức thu phóng hiện tại…"`, rồi xoá đúng ba từ dưới đây.
+ * `to`: `"Phóng to"` là tiếng Việt đúng, `expectVietnamese` chấm nhầm nó thành
+ * từ tiếng Anh còn sót — một dương tính giả, không phải một lỗi. Nợ "zoom" của
+ * `ZoomCluster` đã trả (B-V1-48): "Cụm thu phóng", "Mức thu phóng …".
  */
-const SHARED_COMPONENT_DEBT_WORDS = ['zoom', 'to'];
+const SHARED_COMPONENT_DEBT_WORDS = ['to'];
 
 /** Mọi từ được cho qua khi soát tiếng Việt — đơn vị thật, cộng nợ đã nêu tên. */
 const ALLOWED_WORDS = [...UNIT_WORDS, ...SHARED_COMPONENT_DEBT_WORDS];
@@ -104,8 +101,7 @@ const ALLOWED_WORDS = [...UNIT_WORDS, ...SHARED_COMPONENT_DEBT_WORDS];
  * `Table.Row` (`src/components/ui/Table.tsx:84`) đặt `outline-none` kèm
  * `tabIndex={-1}` và chỉ vẽ viền tiêu điểm khi prop `focused` bật — viền vẽ
  * theo TRẠNG THÁI chứ không theo `:focus-visible`, nên bàn phím không có viền
- * nào. `BillingScreen.test.tsx:317-328` đã ghi đúng nợ này và bỏ qua
- * `'tbody > tr'`.
+ * nào. Đó là nợ có sẵn của `Table.Row`, nên bài bỏ qua `'tbody > tr'`.
  *
  * Màn này cần thêm `'thead > tr'`: bảng bốn tầng có hàng tiêu đề, và
  * `Table.Header` cũng dựng bằng `Table.Row` nên hàng ấy dính cùng một
@@ -145,7 +141,9 @@ function scenarioIndex(): readonly SevenStateScenario[] {
 }
 
 interface MountOptions {
+  readonly client?: ApiClient;
   readonly onToast?: (toast: InputQualityToast) => void;
+  readonly onNavigate?: (path: string) => void;
 }
 
 /**
@@ -156,12 +154,13 @@ interface MountOptions {
  * viết riêng cho test, nên một lỗi trong tầng ánh xạ vẫn bị bắt ở đây.
  */
 async function mountScreen(clock: FakeClock, options: MountOptions = {}) {
-  const gateway = createInputQualityGateway(createMockApiClient());
+  const gateway = createInputQualityGateway(options.client ?? createMockApiClient());
   const rendered = renderWithProviders(
     <InputQualityGateContainer
       gateway={gateway}
       projectId={PROJECT_ID}
       {...(options.onToast !== undefined ? { onToast: options.onToast } : {})}
+      {...(options.onNavigate !== undefined ? { onNavigate: options.onNavigate } : {})}
     />,
   );
 
@@ -408,7 +407,8 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
   });
 
   it('chặn cho tới khi tích ô, và tích ô xong thì qua — chứng minh qua giao diện', async () => {
-    await mountScreen(clock);
+    const onNavigate = vi.fn();
+    await mountScreen(clock, { onNavigate });
     await selectMeasuredFloor(clock);
 
     // Tầng 1 có độ phân giải cạnh ngắn 900 px — mức Kém theo `@/domain/quality`,
@@ -428,6 +428,10 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
 
     const blockedBefore = screen.queryAllByText(/đánh dấu ô xác nhận bên trên rồi thử lại/iu).length;
 
+    // B-V4-02: bấm được nhưng không đi — lời chặn nói "rồi thử lại".
+    fireEvent.click(primary);
+    expect(onNavigate).not.toHaveBeenCalled();
+
     fireEvent.click(checkbox);
     await settle(clock);
 
@@ -441,6 +445,9 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
 
     expect(blockedBefore).toBe(1);
     expect(blockedAfter).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /tiếp tục xử lý/iu }));
+    expect(onNavigate).toHaveBeenCalledWith('/projects/project-1/pipeline');
     expect(screen.getByRole('button', { name: /tiếp tục xử lý/iu })).not.toHaveAttribute(
       'aria-describedby',
     );
@@ -593,10 +600,10 @@ describe('InputQualityGate — ArrowLeft/ArrowRight đổi tầng đang xem (A12
 });
 
 /* -------------------------------------------------------------------------- */
-/* (2.5) Toast hoàn tác của A8 — dây từ container xuống hook.                   */
+/* (2.5) Hỏi trước khi nắn thẳng (A9) — máy chủ không đảo được, nên không toast. */
 /* -------------------------------------------------------------------------- */
 
-describe('InputQualityGate — toast hoàn tác sau khi nắn thẳng (A8, R-73)', () => {
+describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast hoàn tác (A9)', () => {
   let clock: FakeClock;
 
   beforeEach(() => {
@@ -607,37 +614,296 @@ describe('InputQualityGate — toast hoàn tác sau khi nắn thẳng (A8, R-73)
     clock.restore();
   });
 
-  it('nắn thẳng xong thì một toast hoàn tác xuất hiện, kèm lối hoàn tác thật', async () => {
+  it('bấm nắn thẳng mở hộp thoại có tên, Esc đóng và không gửi gì', async () => {
+    const client = createMockApiClient();
+    const straighten = vi.spyOn(client.quality, 'straighten');
+
+    await mountScreen(clock, { client });
+    await selectMeasuredFloor(clock);
+
+    fireEvent.click(screen.getByRole('button', { name: /tự động nắn/iu }));
+    await settle(clock);
+
+    const dialog = screen.getByRole('dialog', { name: /nắn thẳng bản vẽ tầng tầng 1\?/iu });
+
+    expect(within(dialog).getByText(/việc này không hoàn tác được/iu)).toBeInTheDocument();
+    // `Modal.tsx` đặt `outline-none` lên vỏ `tabIndex={-1}` — nợ dùng chung đã nêu ở ShareDialog.test.tsx.
+    expectAccessible(document.body, { ignoreSelector: `${TABLE_ROW_DEBT_SELECTOR}, [role="dialog"]` });
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await settle(clock);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(straighten).not.toHaveBeenCalled();
+  });
+
+  it('xác nhận gửi đúng một lượt và không có toast hoàn tác', async () => {
+    const client = createMockApiClient();
+    const straighten = vi.spyOn(client.quality, 'straighten');
     const toasts: InputQualityToast[] = [];
 
     await mountScreen(clock, {
+      client,
       onToast: (toast) => {
         toasts.push(toast);
       },
     });
     await selectMeasuredFloor(clock);
 
-    expect(toasts).toHaveLength(0);
-
     fireEvent.click(screen.getByRole('button', { name: /tự động nắn/iu }));
     await settle(clock);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Nắn thẳng' }));
+    await settle(clock);
     await settle(clock);
 
-    expect(toasts).toHaveLength(1);
+    expect(straighten).toHaveBeenCalledTimes(1);
+    expect(toasts).toHaveLength(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
 
-    const toast = toasts[0];
-
-    expect(toast?.message).toBe('Đã nắn thẳng bản vẽ');
-    expect(typeof toast?.onUndo).toBe('function');
-    expect(toast?.undoWindowMs).toBeGreaterThan(0);
-
-    // Lượt ghi thật sự đổi dữ liệu: máy chủ đo lại, độ nghiêng về mức tốt và
-    // phát hiện nghiêng biến khỏi danh sách. Hai phát hiện còn lại ở nguyên đó —
-    // nắn thẳng không được phép dọn hộ những thứ nó không sửa.
+    // Lượt ghi thật sự đổi dữ liệu: máy chủ đo lại, phát hiện nghiêng biến khỏi
+    // danh sách, hai phát hiện còn lại ở nguyên đó.
     const panel = screen.getByRole('region', { name: /báo cáo chất lượng/iu });
 
     expect(within(panel).queryByText('Ảnh bị nghiêng')).toBeNull();
     expect(within(panel).getByText('Độ phân giải thấp')).toBeInTheDocument();
-    expect(within(panel).getByText('Không tìm thấy khung bản vẽ')).toBeInTheDocument();
+    expect(screen.getByText(/^2 phát hiện còn lại/u)).toBeInTheDocument();
+  });
+
+  /**
+   * Lỗi ghi 409 chậm rồi đọc lại chậm — như mạng thật — cho loại ghi `kind`.
+   * Trả về nút đã bấm và hàm đẩy đồng hồ qua từng pha, để test chen vào giữa.
+   */
+  async function mountFailingWrite(kind: 'straighten' | 'corners') {
+    const client = createMockApiClient();
+    const realAssess = client.quality.assess;
+    let isWriteDone = false;
+    const assess = vi.spyOn(client.quality, 'assess').mockImplementation(async (input) => {
+      if (isWriteDone) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, SLOW_SERVER_MS);
+        });
+      }
+
+      return realAssess(input);
+    });
+    const failed = async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, SLOW_SERVER_MS);
+      });
+      isWriteDone = true;
+
+      return {
+        error: {
+          code: 'QUALITY_DRAWING_CHANGED',
+          kind: 'http' as const,
+          raw: { code: 'QUALITY_DRAWING_CHANGED', requestId: 'req-focus-1' },
+          requestId: 'req-focus-1',
+          retryable: false,
+          status: 409,
+        },
+        ok: false as const,
+      };
+    };
+
+    vi.spyOn(client.quality, 'straighten').mockImplementation(failed);
+    vi.spyOn(client.quality, 'setCorners').mockImplementation(failed);
+
+    await mountScreen(clock, { client });
+    await selectMeasuredFloor(clock);
+
+    const reads = assess.mock.calls.length;
+    const name = kind === 'straighten' ? /tự động nắn/iu : /chọn góc thủ công/iu;
+    const trigger = screen.getByRole('button', { name });
+
+    trigger.focus();
+    fireEvent.click(trigger);
+    await settle(clock);
+
+    if (kind === 'corners') {
+      fireEvent.click(screen.getByRole('button', { name: /gửi bốn góc đã chọn/iu }));
+      await settle(clock);
+    }
+
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: kind === 'straighten' ? 'Nắn thẳng' : 'Cắt và nắn',
+      }),
+    );
+
+    const advance = () =>
+      act(async () => {
+        await clock.advance(SLOW_SERVER_MS);
+        await clock.flushMicrotasks();
+      });
+
+    // Chọn góc xong, cùng nút đổi nhãn thành "Gửi bốn góc đã chọn".
+    const finalName = kind === 'straighten' ? name : /gửi bốn góc đã chọn/iu;
+
+    return { advance, assess, finalName, reads, trigger };
+  }
+
+  it.each(['straighten', 'corners'] as const)(
+    'NO-360: lỗi ghi (%s) có đọc lại thì tiêu điểm về nút vừa bấm, không nhảy lên đầu trang',
+    async (kind) => {
+      const { advance, assess, finalName, reads, trigger } = await mountFailingWrite(kind);
+
+      await advance();
+      await advance();
+      await settle(clock);
+      await settle(clock);
+
+      expect(screen.getAllByText(/kết quả đo đã được đọc lại/iu).length).toBeGreaterThan(0);
+      expect(assess.mock.calls.length).toBeGreaterThan(reads);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(trigger.isConnected).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: finalName }));
+    },
+  );
+
+  it('NO-360: người dùng đã tự chuyển tiêu điểm trong lúc đọc lại thì không bị kéo về', async () => {
+    const { advance } = await mountFailingWrite('straighten');
+
+    await advance();
+
+    const other = screen.getByRole('button', { name: 'Tải bản vẽ khác' });
+
+    fireEvent.pointerDown(other);
+    other.focus();
+    await advance();
+    await settle(clock);
+    await settle(clock);
+
+    expect(screen.queryByRole('button', { name: /tự động nắn/iu })).not.toBeNull();
+    expect(document.activeElement).toBe(other);
+  });
+});
+
+describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi tiếp được', () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
+  it('nút "Tiếp tục xử lý" vô hiệu kèm lý do đọc được, bấm không điều hướng', async () => {
+    const client = createMockApiClient();
+    const onNavigate = vi.fn();
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'NOT_FOUND',
+        kind: 'http',
+        raw: { code: 'NOT_FOUND', requestId: 'req-nodraw-1', resource: 'upload' },
+        requestId: 'req-nodraw-1',
+        retryable: false,
+        status: 404,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client, onNavigate });
+
+    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
+
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    // Bị chặn thì phải TRÔNG bị chặn: `Button` tô `aria-disabled` như `disabled` (R2-1).
+    expect(button).toHaveClass('aria-disabled:opacity-40', 'aria-disabled:cursor-not-allowed');
+    expect(button).toHaveAccessibleDescription(/chưa có bản vẽ nào để xử lý/iu);
+
+    fireEvent.click(button);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('đang đọc kết quả: nút vô hiệu kèm lý do', async () => {
+    const client = createMockApiClient();
+
+    vi.spyOn(client.quality, 'assess').mockImplementation(() => new Promise(() => undefined));
+
+    await mountScreen(clock, { client });
+
+    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
+
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription(/đang đọc kết quả/iu);
+
+    // Bàn phím tới được nút bị chặn, nên trình đọc màn hình đọc được lý do.
+    button.focus();
+    expect(button).toHaveFocus();
+  });
+
+  it('đọc kết quả hỏng: nút vô hiệu kèm lý do, bấm không điều hướng', async () => {
+    const client = createMockApiClient();
+    const onNavigate = vi.fn();
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'INTERNAL_ERROR',
+        kind: 'http',
+        raw: { code: 'INTERNAL_ERROR', requestId: 'req-read-1' },
+        requestId: 'req-read-1',
+        retryable: false,
+        status: 500,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client, onNavigate });
+
+    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
+
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription(/chưa đọc được kết quả/iu);
+
+    fireEvent.click(button);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('có bản vẽ thì nút bấm được', async () => {
+    await mountScreen(clock, {});
+    await selectMeasuredFloor(clock);
+
+    expect(screen.getByRole('button', { name: 'Tiếp tục xử lý' })).toBeEnabled();
+  });
+});
+
+describe('InputQualityGateView — ba trạng thái mới của F-05a', () => {
+  it('chưa có bản vẽ: thẻ rỗng có nút tải lên cho người sửa, không nút cho người xem', () => {
+    const editor = renderWithProviders(<InputQualityGateView {...noDrawingScenario()} />);
+
+    expect(screen.getByText('Chưa có bản vẽ để kiểm tra')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tải bản vẽ lên' })).toBeInTheDocument();
+    expectVietnamese(editor.container, { allowWords: ALLOWED_WORDS });
+    editor.unmount();
+
+    renderWithProviders(<InputQualityGateView {...noDrawingScenario(false)} />);
+
+    expect(screen.getByText('Chưa có bản vẽ để kiểm tra')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải bản vẽ lên' })).toBeNull();
+  });
+
+  it('hộp thoại hỏi trước hiện tên và hai nút, ở cả hai biến thể', () => {
+    for (const kind of ['straighten', 'corners'] as const) {
+      const props = confirmScenario(kind);
+      const { unmount } = renderWithProviders(<InputQualityGateView {...props} />);
+      const dialog = screen.getByRole('dialog');
+
+      expect(dialog).toHaveAccessibleName(props.model.confirm?.title ?? '');
+      expect(within(dialog).getByRole('button', { name: 'Huỷ' })).toBeInTheDocument();
+      expectVietnamese(dialog, { allowWords: ALLOWED_WORDS });
+      unmount();
+    }
+  });
+
+  it('lỗi ghi hiện thành dải phía trên hai cột, bằng tiếng Việt', () => {
+    const { container } = renderWithProviders(<InputQualityGateView {...writeErrorScenario()} />);
+
+    expect(screen.getByText(/vừa đổi, kết quả đo đã được đọc lại/iu)).toBeInTheDocument();
+    expectVietnamese(container, { allowWords: ALLOWED_WORDS });
+    // Chỗ đỡ tiêu điểm của dải lỗi phải có vòng tiêu điểm nhìn thấy (WCAG 2.4.7).
+    expectAccessible(container, { ignoreSelector: TABLE_ROW_DEBT_SELECTOR });
   });
 });

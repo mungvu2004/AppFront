@@ -117,7 +117,8 @@ export interface FurnitureModelCard {
   readonly isUsedInProject: boolean;
   /** Model nặng hơn ngưỡng hiệu năng cho phép — xem mục 4 (R-04 KHÔNG tìm thấy). */
   readonly isHeavy: boolean;
-  /** Không có quyền / trạng thái `forbidden`: thẻ vẫn xem được nhưng không kéo được. */
+  /** Chưa kéo được: vai Người xem (`forbidden`), và hiện mọi vai vì chưa có đích
+   * thả (B-V8-04). Thẻ vẫn xem được nhưng không kéo được. */
   readonly isLocked: boolean;
   /** `undefined` khi `isLocked` — kéo-thả không phải một callback theo nghĩa click,
    * nhưng view cần biết CÓ ĐƯỢC bắt đầu kéo hay không trước khi gắn trình xử lý kéo
@@ -224,9 +225,13 @@ export interface FurnitureLibraryPanelForbiddenState extends FurnitureLibraryPan
   readonly kind: 'forbidden';
 }
 
-/** 7. Thu gọn — tấm trượt đáy cuộn ngang, dưới `collapsedBreakpointPx`. */
+/** 7. Thu gọn — tấm trượt đáy cuộn ngang, dưới `collapsedBreakpointPx`.
+ *
+ * Hai trục bề rộng và quyền là độc lập (cùng khuôn `useProjectSettings.ts:126-129`):
+ * khung nhìn hẹp chọn hình dạng, `isReadOnly` vẫn mang câu "vai chỉ xem" (B-V8-46). */
 export interface FurnitureLibraryPanelCollapsedState extends FurnitureLibraryPanelContent {
   readonly kind: 'collapsed';
+  readonly isReadOnly: boolean;
 }
 
 export type FurnitureLibraryPanelState =
@@ -258,8 +263,14 @@ export type UseFurnitureLibraryPanelResult = FurnitureLibraryPanelProps;
 export interface UseFurnitureLibraryPanelOptions {
   /** Tầng đang mở — để lọc "Đã phát hiện" theo đúng tầng (YOLO chạy theo tầng). */
   readonly floorId: string;
-  /** Container tự tính qua `can('manage', 'library', { roles })` — xem mục 2. */
+  /** Container tự tính qua `can('manage', 'library', { roles })` — xem mục 2. CHỈ
+   * quyết nút "Tải lên mô hình". */
   readonly canUploadModel: boolean;
+  /** Container tự tính qua `can('edit', 'layer', { roles })`: vai này được đặt/thay
+   * đồ đạc vào bản vẽ. `false` ⇒ `forbidden` ("vai chỉ xem"), hoặc `collapsed` với
+   * `isReadOnly: true` khi khung nhìn hẹp (B-V8-46); và không có "Thay thế tất cả"
+   * (B-V8-03). */
+  readonly canPlaceModel: boolean;
   readonly onModelDropped: (modelId: string, targetEntityId: string | null) => void;
   readonly onUploadModel: () => void;
 }

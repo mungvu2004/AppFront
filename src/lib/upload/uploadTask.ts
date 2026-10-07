@@ -143,7 +143,8 @@ export interface UploadFile {
 /** What {@link createUploadTask} needs to drive one file. */
 export interface CreateUploadTaskOptions {
   /** The injected client. Never a singleton — that is what makes this testable. */
-  readonly api: DrawingsApi;
+  /** Chỉ bốn lời gọi của một lượt tải — không cần (và không được đòi) phần đọc danh sách. */
+  readonly api: Pick<DrawingsApi, 'complete' | 'initUpload' | 'progress' | 'sendChunk'>;
   readonly file: UploadFile;
   readonly floorId: string;
   /** Zero-based PDF page to trace (0…19). Absent for images and one-page PDFs. */

@@ -73,6 +73,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { PROVISIONAL_MEASURE_TEXT, provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -83,7 +84,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
-import { scenarioArgsFor } from './RoomLabelReview.stories';
+import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
 import {
   ROOM_LABEL_FIXTURE_ROOMS,
   ROOM_LABEL_FIXTURE_ROOM_R005,
@@ -95,7 +96,7 @@ import { roomCodeLabel } from './roomLabelReviewGateway';
 /** Nền của khung canvas — thứ đa giác phòng ở `DIMMED_OPACITY` chồng lên. */
 const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
 
-const SCREEN_ARIA_LABEL = 'duyệt tên phòng';
+const SCREEN_ARIA_LABEL = 'Duyệt tên phòng';
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
 const NORMALIZE_BUTTON_LABEL = 'Chuẩn hoá tên';
 const NORMALIZE_DIALOG_TITLE = 'Xem trước chuẩn hoá tên';
@@ -434,8 +435,46 @@ describe('[NGHIEM-5] thao tác hàng loạt luôn xem trước trước khi áp'
 });
 
 /* -------------------------------------------------------------------------- */
+/* A9 — hộp thoại gộp: mỗi lần hỏi là một câu hỏi mới (B-V7-03).                */
+/* -------------------------------------------------------------------------- */
+
+describe('hộp thoại gộp phòng', () => {
+  it('không chọn sẵn ứng viên của lần hỏi trước — kể cả khi đã đổi sang phòng khác', async () => {
+    await renderSettled('partial');
+
+    const [first, second] = ROOM_LABEL_FIXTURE_ROOMS;
+    const optionOf = (room: Room | undefined) =>
+      screen.getByRole('option', { name: new RegExp(`^${roomCodeLabel(room?.id ?? '')} · `, 'u') });
+
+    /* Lần hỏi đầu ở phòng thứ nhất: chọn phòng thứ hai làm ứng viên, rồi Huỷ. */
+    fireEvent.click(optionOf(first));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp phòng' }));
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Phòng sẽ gộp vào' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: `${roomCodeLabel(second?.id ?? '')} · ${second?.name ?? ''}` }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+
+    /* Lần hỏi sau ở CHÍNH phòng thứ hai: ứng viên cũ là chính nó. */
+    fireEvent.click(optionOf(second));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp phòng' }));
+
+    expect(await screen.findByRole('button', { name: 'Gộp hai phòng' })).toBeDisabled();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Ba bộ khẳng định dùng chung.                                                */
 /* -------------------------------------------------------------------------- */
+
+describe('đường dẫn đầu màn (B-V6-43)', () => {
+  it('không gõ cứng một tầng: "Dự án > Nhãn phòng"', () => {
+    renderState('success');
+
+    expect(screen.getByText('Dự án > Nhãn phòng')).toBeInTheDocument();
+    expect(screen.queryByText(/Tầng 01 >/u)).not.toBeInTheDocument();
+  });
+});
 
 describe('khả năng tiếp cận, tiếng Việt và màu', () => {
   it('expectAccessible xanh ở trạng thái chính', async () => {
@@ -468,5 +507,45 @@ describe('khả năng tiếp cận, tiếng Việt và màu', () => {
 
   it('expectNoRawColor xanh trên toàn thư mục màn', () => {
     expectNoRawColor('src/screens/qc/RoomLabelReview');
+  });
+});
+
+describe('dải lưu lớp (F-04x-1)', () => {
+  it('409 → dải chú ý với nút "Tải lại"', () => {
+    const onReload = vi.fn();
+    const message = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
+    const BLOCK = { confirm: null, kind: 'reload', message, onReload } as const;
+
+    renderWithProviders(
+      <RoomLabelReviewContainer {...scenarioArgsFor('partial')} forceSaveBlock={BLOCK} />,
+    );
+
+    expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Dải tỉ lệ tạm (F-04x-2 [8].7).                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('dải tỉ lệ tạm (F-04x-2)', () => {
+  const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
+
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} />);
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).toBeInTheDocument();
+    expect(screen.getAllByText(PROVISIONAL_MEASURE_TEXT).length).toBeGreaterThan(0);
+  });
+
+  it('tầng có tỉ lệ thật: không dải, không chữ tỉ lệ tạm', async () => {
+    await renderSettled('partial');
+
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
   });
 });

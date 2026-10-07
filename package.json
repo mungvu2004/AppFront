@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "pnpm pascal && vite",
+    "build": "pnpm pascal && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
@@ -19,10 +19,20 @@
     "verify": "node scripts/verify.mjs",
     "e2e": "node scripts/run-playwright.mjs --reporter=line",
     "e2e:visual": "node scripts/run-playwright.mjs --update-snapshots --reporter=line",
+    "e2e:fullstack": "playwright test -c playwright.fullstack.config.ts",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "pascal:assets": "node scripts/copy-pascal-assets.mjs",
+    "build:pascal": "vite build --config vite.pascal.config.ts",
+    "pascal": "pnpm pascal:assets && pnpm build:pascal"
   },
   "dependencies": {
+    "@pascal-app/core": "workspace:*",
+    "@pascal-app/editor": "workspace:*",
+    "@pascal-app/nodes": "workspace:*",
+    "@pascal-app/viewer": "workspace:*",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@tanstack/react-query": "5.53.1",
     "@tanstack/react-virtual": "3.11.0",
     "clsx": "^2.1.1",
@@ -33,7 +43,7 @@
     "react-dom": "19.2.7",
     "react-router-dom": "6.25.1",
     "tailwind-merge": "^3.6.0",
-    "three": "0.166.1",
+    "three": "0.186.0",
     "zod": "3.23.8",
     "zundo": "2.1.0",
     "zustand": "4.5.4"
@@ -55,7 +65,7 @@
     "@types/node": "20.14.11",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
-    "@types/three": "0.166.0",
+    "@types/three": "0.186.0",
     "@typescript-eslint/eslint-plugin": "7.16.1",
     "@typescript-eslint/parser": "7.16.1",
     "@vitejs/plugin-react": "4.3.1",
@@ -81,5 +91,11 @@
     "typescript": "5.5.3",
     "vite": "5.3.4",
     "vitest": "2.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.18",
+      "@types/react-dom": "19.2.7"
+    }
   }
 }

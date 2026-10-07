@@ -35,7 +35,7 @@ import type { FloorUploadActions, FloorUploadRowModel } from './types';
 
 /** Nhãn trường, đúng như `floorUpload.floorCard.*` và `common.*` trong `vi.json`. */
 const LABEL_ELEVATION = 'cao độ';
-const LABEL_HEIGHT = 'chiều cao thông thuỷ';
+const LABEL_HEIGHT = 'Chiều cao thông thuỷ';
 const LABEL_REASSIGN = 'Gán cho tầng khác';
 const LABEL_PAGE_PICKER = 'Chọn trang';
 const LABEL_CAD_PILL = 'Nhánh CAD · độ chính xác cao';
@@ -77,8 +77,11 @@ function CadPill() {
 function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUploadActions }) {
   const [isOpen, setOpen] = useState(false);
   const fileId = row.file === null ? null : row.file.id;
+  const canRemove = row.canRemoveFile && row.removeLabel !== null;
 
-  if (fileId === null) {
+  // Không mục nào để chọn (bản vẽ có sẵn trên máy chủ) thì không có nút: một nút
+  // mở ra bảng rỗng là lời hứa không giữ (B-V4-07).
+  if (fileId === null || !(row.canCancelUpload || row.canRetryUpload || canRemove)) {
     return null;
   }
 
@@ -95,6 +98,8 @@ function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUp
       }}
     >
       <IconButton
+        // Trình đọc màn hình nghe được bảng đang mở hay đóng (B-V4-07).
+        aria-expanded={isOpen}
         aria-label={`${LABEL_MENU_PREFIX} ${row.name}`}
         icon={<MoreHorizontal />}
         isActive={isOpen}
@@ -130,7 +135,7 @@ function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUp
               {LABEL_RETRY}
             </button>
           )}
-          {row.canRemoveFile && row.removeLabel !== null && (
+          {canRemove && (
             <button
               className={clsx(MENU_ITEM_CLASSES, 'text-state-violation-text')}
               onClick={() => {

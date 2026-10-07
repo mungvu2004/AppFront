@@ -130,7 +130,7 @@ describe('bảng phím tắt', () => {
 
     const headers = screen.getAllByRole('columnheader');
 
-    expect(headers.map((cell) => cell.textContent)).toEqual(['tổ hợp phím', 'việc']);
+    expect(headers.map((cell) => cell.textContent)).toEqual(['Tổ hợp phím', 'Việc']);
 
     const table = container.querySelector('table');
 
@@ -158,7 +158,7 @@ describe('bảng phím tắt', () => {
 
     render(<ShortcutsSection {...viewProps({ onQueryChange })} />);
 
-    fireEvent.change(screen.getByLabelText('tìm phím tắt'), { target: { value: 'hoàn' } });
+    fireEvent.change(screen.getByLabelText('Tìm phím tắt'), { target: { value: 'hoàn' } });
 
     expect(onQueryChange).toHaveBeenCalledWith('hoàn');
   });
@@ -206,7 +206,7 @@ describe('ô tìm lọc ngay khi gõ', () => {
     expect(rows.length).toBeLessThan(REGISTRY_COUNT);
 
     for (const row of rows) {
-      expect(row.description).toContain('hoàn tác');
+      expect(row.description.toLocaleLowerCase('vi')).toContain('hoàn tác');
     }
   });
 
@@ -282,7 +282,7 @@ describe('ô tìm lọc ngay khi gõ', () => {
 /* Giảm chuyển động.                                                           */
 /* -------------------------------------------------------------------------- */
 
-/** `matchMedia` giả, trả lời đúng câu "giảm chuyển động". */
+/** `matchMedia` giả, trả lời đúng câu "Giảm chuyển động". */
 function stubReducedMotion(isReduced: boolean): void {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,

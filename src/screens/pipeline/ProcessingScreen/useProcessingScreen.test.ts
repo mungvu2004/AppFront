@@ -16,24 +16,36 @@
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
-import type { ApiClient } from '@/api/client';
+import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import type { Progress } from '@/api/schemas';
+import * as auth from '@/lib/auth';
+import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import {
   createBackgroundWatchRegistry,
   type BackgroundWatchRegistry,
 } from '@/lib/realtime/backgroundWatch';
 import { POLL_INTERVAL_MS } from '@/lib/realtime/pollingChannel';
-import { SSE_FAILURE_LIMIT } from '@/lib/realtime/progressStream';
+import { SSE_FAILURE_LIMIT, SSE_RETRY_INTERVAL_MS } from '@/lib/realtime/progressStream';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 
-import { createProcessingGateway } from './processingGateway';
-import { useProcessingScreen, type ProcessingFloorUpload } from './useProcessingScreen';
+import {
+  createProcessingGateway,
+  OTHER_FLOOR_POLL_INTERVAL_MS,
+  PENDING_POLL_INTERVAL_MS,
+  SSE_SILENCE_PROBE_MS,
+} from './processingGateway';
+import {
+  useProcessingScreen,
+  type ProcessingFloorUpload,
+  type ProcessingScreenHookResult,
+} from './useProcessingScreen';
 import type { ProcessingScreenProps } from './types';
 
 const PROJECT_ID = 'project-1';
@@ -169,7 +181,13 @@ function finishedProgress(uploadId: string): Progress {
 interface Harness {
   readonly client: ApiClient;
   readonly progressCalls: () => number;
-  readonly queue: (uploadId: string, progress: Progress) => void;
+  /** Số lượt #8 của riêng một upload (gồm cả lượt mồi). */
+  readonly callsFor: (uploadId: string) => number;
+  /** Một `HttpError` trong hàng đợi là đúng một lượt #8 hỏng; lượt sau đọc tiếp hàng đợi. */
+  readonly queue: (uploadId: string, progress: Progress | HttpError) => void;
+  /** N7: câu trả lời kế tiếp; `pending` thì treo mãi. */
+  readonly setLatest: (answer: ApiResult<LatestFloorUpload[]> | 'pending') => void;
+  readonly latestCalls: () => number;
 }
 
 /**
@@ -178,17 +196,29 @@ interface Harness {
  */
 function makeScriptedClient(): Harness {
   const base = createMockApiClient();
-  const queues = new Map<string, Progress[]>();
+  const queues = new Map<string, (Progress | HttpError)[]>();
   const latest = new Map<string, Progress>();
+  const callsByUpload = new Map<string, number>();
   let calls = 0;
+  let latestAnswer: ApiResult<LatestFloorUpload[]> | 'pending' = { ok: true, data: [] };
+  let latestCalls = 0;
 
   const client: ApiClient = {
     ...base,
     drawings: {
       ...base.drawings,
+      latestUploads: () => {
+        latestCalls += 1;
+        return latestAnswer === 'pending' ? new Promise(() => undefined) : Promise.resolve(latestAnswer);
+      },
       progress: async ({ uploadId }) => {
         calls += 1;
+        callsByUpload.set(uploadId, (callsByUpload.get(uploadId) ?? 0) + 1);
         const queued = queues.get(uploadId)?.shift();
+
+        if (queued !== undefined && 'kind' in queued) {
+          return { ok: false, error: queued };
+        }
 
         if (queued !== undefined) {
           latest.set(uploadId, queued);
@@ -203,6 +233,11 @@ function makeScriptedClient(): Harness {
   return {
     client,
     progressCalls: () => calls,
+    callsFor: (uploadId) => callsByUpload.get(uploadId) ?? 0,
+    setLatest: (answer) => {
+      latestAnswer = answer;
+    },
+    latestCalls: () => latestCalls,
     queue: (uploadId, progress) => {
       const existing = queues.get(uploadId) ?? [];
       existing.push(progress);
@@ -238,7 +273,7 @@ async function readFloorUploads(
 }
 
 interface Mounted {
-  readonly result: { current: ProcessingScreenProps };
+  readonly result: { current: ProcessingScreenHookResult };
   readonly unmount: () => void;
   readonly rerender: () => void;
 }
@@ -255,7 +290,7 @@ interface BackgroundOptions {
 
 function mountHook(
   client: ApiClient,
-  uploads: readonly ProcessingFloorUpload[],
+  uploads: readonly ProcessingFloorUpload[] | undefined,
   queryClient: ReturnType<typeof createTestQueryClient>,
   visibilityTarget: MockVisibilityTarget,
   background: BackgroundOptions = {},
@@ -275,7 +310,7 @@ function mountHook(
     () =>
       useProcessingScreen({
         projectId: PROJECT_ID,
-        floorUploads: uploads,
+        ...(uploads !== undefined ? { floorUploads: uploads } : {}),
         gateway,
         ...(background.notifications !== undefined
           ? { notifications: background.notifications }
@@ -285,7 +320,7 @@ function mountHook(
   );
 
   return {
-    result: rendered.result as { current: ProcessingScreenProps },
+    result: rendered.result,
     unmount: rendered.unmount,
     rerender: () => rendered.rerender(),
   };
@@ -471,28 +506,26 @@ describe('useProcessingScreen', () => {
     await settle(clock);
     expect(mounted.result.current.floors).toHaveLength(uploads.length);
 
-    const sources = MockEventSource.instances.slice(0, uploads.length);
-
-    await act(async () => {
-      sources.forEach((source) => {
-        source.triggerOpen();
-      });
-    });
-
-    // Tầng đầu hỏng ngay ở bước 2; tầng thứ hai vẫn đi tiếp tới bước 4.
-    await act(async () => {
-      sources[0]!.triggerMessage(
-        progressAt(failing.uploadId, 1, { status: 'failed', error: 'Bản vẽ không đọc được.' }),
-      );
-      await clock.advance(POLL_INTERVAL_MS);
-    });
+    // Đổi do hợp đồng (trần 6 luồng): chỉ tầng đang xem có `EventSource`;
+    // tầng thứ hai nhận nhịp qua #8, hỏi mỗi 5 s.
+    expect(MockEventSource.instances).toHaveLength(1);
 
     for (let stageIndex = 0; stageIndex < 4; stageIndex += 1) {
+      harness.queue(healthy.uploadId, progressAt(healthy.uploadId, stageIndex));
       await act(async () => {
-        sources[1]!.triggerMessage(progressAt(healthy.uploadId, stageIndex));
-        await clock.advance(POLL_INTERVAL_MS);
+        await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS);
       });
     }
+
+    // Tầng đầu (đang xem) hỏng ở bước 2.
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(
+        progressAt(failing.uploadId, 1, { status: 'failed', error: 'FILE_CORRUPT' }),
+      );
+      await clock.advance(0);
+    });
+    await settle(clock);
 
     const props = mounted.result.current;
     const failedChip = props.floors.find((floor) => floor.id === failing.floorId);
@@ -503,6 +536,11 @@ describe('useProcessingScreen', () => {
     expect(props.state).toBe('partial');
     expect(props.partialNoticeLine).toContain('vẫn đang được xử lý');
     expect(props.partialNoticeLine).toContain(failing.floorName);
+    // Tầng đang xem đổi sang tầng còn chạy: `EventSource` mới là của tầng đó.
+    expect(latestSource().url).toContain(healthy.uploadId);
+    expect(MockEventSource.instances.filter((source) => !source.closed)).toHaveLength(1);
+    // Còn tầng chạy thì không gắn S-11.
+    expect(props.failedPipelineStep).toBeUndefined();
 
     mounted.unmount();
   });
@@ -677,7 +715,7 @@ describe('useProcessingScreen', () => {
 
     await act(async () => {
       source.triggerMessage(
-        progressAt(upload.uploadId, 1, { status: 'failed', error: 'Không đọc được bản vẽ.' }),
+        progressAt(upload.uploadId, 1, { status: 'failed', error: 'PDF_UNREADABLE' }),
       );
       await clock.advance(POLL_INTERVAL_MS);
     });
@@ -724,6 +762,7 @@ describe('useProcessingScreen', () => {
 
     expect(props.state).toBe('empty');
     // Các việc chưa có endpoint, phản ánh trung thực ra props — không giá trị bịa.
+    // `cancelProcessing` bật thì phải có hoãn A8 trước — B-V4-09.
     expect(props.canCancel).toBe(false);
     expect(props.queueLine).toBeUndefined();
     expect(props.summary).toBeUndefined();
@@ -731,5 +770,591 @@ describe('useProcessingScreen', () => {
     expect(props.steps).toHaveLength(0);
 
     mounted.unmount();
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* F-05b — N7, một luồng mỗi màn, bản đệm theo lượt, vô hiệu.               */
+  /* ---------------------------------------------------------------------- */
+
+  const U1 = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB1';
+  const U2 = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB2';
+  const FLOOR = { floorId: 'L1', floorName: 'Tầng 1' } as const;
+  const openSources = (): readonly MockEventSource[] =>
+    MockEventSource.instances.filter((source) => !source.closed);
+
+  it('không truyền floorUploads: N7 chờ → loading, lỗi → error, rỗng → empty', async () => {
+    const visibility = new MockVisibilityTarget();
+    const waiting = makeScriptedClient();
+    waiting.setLatest('pending');
+    const pending = mountHook(waiting.client, undefined, createTestQueryClient(), visibility);
+    await settle(clock);
+    expect(pending.result.current.state).toBe('loading');
+    pending.unmount();
+
+    const failing = makeScriptedClient();
+    failing.setLatest({
+      ok: false,
+      error: { kind: 'network', requestId: 'r', retryable: true, raw: null },
+    });
+    const failed = mountHook(failing.client, undefined, createTestQueryClient(), visibility);
+    await settle(clock);
+    expect(failed.result.current.state).toBe('error');
+    expect(failed.result.current.errorAlert).toBeDefined();
+    failed.unmount();
+
+    const empty = makeScriptedClient();
+    const none = mountHook(empty.client, undefined, createTestQueryClient(), visibility);
+    await settle(clock);
+    expect(empty.latestCalls()).toBe(1);
+    expect(none.result.current.state).toBe('empty');
+    none.unmount();
+  });
+
+  it('ba tầng chưa xong: đúng 1 EventSource, hai tầng kia hỏi #8', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 3);
+    harness.setLatest({ ok: true, data: [...uploads] });
+    const mounted = mountHook(harness.client, undefined, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS);
+    });
+
+    console.log(`F-05b [11].4 — EventSource trong ca ba tầng: ${MockEventSource.instances.length}`);
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(latestSource().url).toContain(uploads[0]!.uploadId);
+    // Lượt mồi + lượt hỏi ngay + một nhịp 5 s.
+    expect(harness.callsFor(uploads[0]!.uploadId)).toBe(1);
+    expect(harness.callsFor(uploads[1]!.uploadId)).toBe(3);
+    expect(harness.callsFor(uploads[2]!.uploadId)).toBe(3);
+
+    mounted.unmount();
+    expect(openSources()).toHaveLength(0);
+  });
+
+  it('tầng đã xong theo #8 mồi: không đăng ký gì', async () => {
+    const harness = makeScriptedClient();
+    harness.queue(U1, finishedProgress(U1));
+    const mounted = mountHook(harness.client, [{ ...FLOOR, uploadId: U1 }], createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 6);
+    });
+
+    expect(MockEventSource.instances).toHaveLength(0);
+    expect(harness.callsFor(U1)).toBe(1);
+    expect(mounted.result.current.state).toBe('success');
+    mounted.unmount();
+  });
+
+  it('PIPELINE_SUPERSEDED: đọc lại N7 đúng một lần, không failedPipelineStep', async () => {
+    const harness = makeScriptedClient();
+    harness.setLatest({ ok: true, data: [{ ...FLOOR, uploadId: U1 }] });
+    harness.queue(U1, progressAt(U1, 2, { status: 'failed', error: 'PIPELINE_SUPERSEDED' }));
+    const mounted = mountHook(harness.client, undefined, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await settle(clock);
+
+    expect(harness.latestCalls()).toBe(2);
+    expect(mounted.result.current.failedPipelineStep).toBeUndefined();
+    expect(mounted.result.current.floors[0]?.status).not.toBe('failed');
+    mounted.unmount();
+  });
+
+  it('bản đệm completed của U1, N7 trả U2 pending: 0 %, không xong, có đăng ký', async () => {
+    const harness = makeScriptedClient();
+    const queryClient = createTestQueryClient();
+    const visibility = new MockVisibilityTarget();
+    harness.queue(U1, finishedProgress(U1));
+    const first = mountHook(harness.client, [{ ...FLOOR, uploadId: U1 }], queryClient, visibility);
+    await settle(clock);
+    expect(first.result.current.state).toBe('success');
+    first.unmount();
+
+    harness.queue(U2, progressAt(U2, 0, { status: 'pending' }));
+    const second = mountHook(harness.client, [{ ...FLOOR, uploadId: U2 }], queryClient, visibility);
+    await settle(clock);
+
+    expect(second.result.current.state).not.toBe('success');
+    expect(second.result.current.steps.every((step) => step.percent === 0)).toBe(true);
+    expect(second.result.current.steps.some((step) => step.status === 'done')).toBe(false);
+    expect(openSources()).toHaveLength(1);
+    second.unmount();
+  });
+
+  it('cùng U1, #8 mồi pending sau bản đệm completed: không xong', async () => {
+    const harness = makeScriptedClient();
+    const queryClient = createTestQueryClient();
+    const visibility = new MockVisibilityTarget();
+    const uploads = [{ ...FLOOR, uploadId: U1 }];
+    harness.queue(U1, finishedProgress(U1));
+    const first = mountHook(harness.client, uploads, queryClient, visibility);
+    await settle(clock);
+    first.unmount();
+
+    harness.queue(U1, progressAt(U1, 0, { status: 'pending' }));
+    const second = mountHook(harness.client, uploads, queryClient, visibility);
+    await settle(clock);
+
+    expect(second.result.current.state).not.toBe('success');
+    expect(second.result.current.steps.some((step) => step.status === 'done')).toBe(false);
+    expect(openSources()).toHaveLength(1);
+    second.unmount();
+  });
+
+  it('bấm chạy nền hai lần: luồng đang dùng không bị đóng', async () => {
+    const harness = makeScriptedClient();
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(harness.client, [{ ...FLOOR, uploadId: U1 }], createTestQueryClient(), new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications: createNotificationBus(),
+    });
+    await settle(clock);
+    const source = latestSource();
+
+    await act(async () => {
+      mounted.result.current.onRunInBackground();
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+
+    expect(source.closed).toBe(false);
+    expect(MockEventSource.instances).toHaveLength(1);
+    backgroundWatches.releaseAll();
+    mounted.unmount();
+  });
+
+  it('tháo rồi gắn lại: đúng 1 EventSource mở', async () => {
+    const harness = makeScriptedClient();
+    const queryClient = createTestQueryClient();
+    const visibility = new MockVisibilityTarget();
+    const uploads = [{ ...FLOOR, uploadId: U1 }];
+    const first = mountHook(harness.client, uploads, queryClient, visibility);
+    await settle(clock);
+    first.unmount();
+    expect(openSources()).toHaveLength(0);
+
+    const second = mountHook(harness.client, uploads, queryClient, visibility);
+    await settle(clock);
+    expect(openSources()).toHaveLength(1);
+    second.unmount();
+  });
+
+  it('PIPELINE_SUPERSEDED trong sổ nền: nhả, không thông báo kết thúc', async () => {
+    const harness = makeScriptedClient();
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const notifications = createNotificationBus();
+    const mounted = mountHook(harness.client, [{ ...FLOOR, uploadId: U1 }], createTestQueryClient(), new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications,
+    });
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    const before = notifications.list().length;
+    const source = latestSource();
+    mounted.unmount();
+
+    await act(async () => {
+      source.triggerMessage(progressAt(U1, 2, { status: 'failed', error: 'PIPELINE_SUPERSEDED' }));
+      await clock.advance(0);
+    });
+
+    expect(notifications.list()).toHaveLength(before);
+    expect(backgroundWatches.has(`${PROJECT_ID}:${U1}`)).toBe(false);
+    expect(source.closed).toBe(true);
+  });
+
+  it('chạy nền rồi ở lại: tầng đang xem xong, tầng kế (trong sổ, đang hỏi) vẫn nhận nhịp và settle một lần', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [focus, next] = [uploads[0]!, uploads[1]!];
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const notifications = createNotificationBus();
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications,
+    });
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    expect(backgroundWatches.list()).toHaveLength(2);
+
+    await act(async () => {
+      latestSource().triggerMessage(finishedProgress(focus.uploadId));
+      await clock.advance(0);
+    });
+    await settle(clock);
+    // Tầng kế trong sổ: không mở luồng mới cho nó.
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    harness.queue(next.uploadId, progressAt(next.uploadId, 3));
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS);
+    });
+    expect(mounted.result.current.floors[1]?.status).toBe('running');
+
+    harness.queue(next.uploadId, finishedProgress(next.uploadId));
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 3);
+    });
+
+    const doneTitle = `${next.floorName} đã xử lý xong`;
+    expect(notifications.list().filter((item) => item.title === doneTitle)).toHaveLength(1);
+    expect(backgroundWatches.list()).toHaveLength(0);
+    mounted.unmount();
+  });
+
+  it('tầng completed lúc mở màn: vô hiệu layer.byFloor và layer.graph đúng một lần', async () => {
+    const harness = makeScriptedClient();
+    const queryClient = createTestQueryClient();
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+    harness.queue(U1, finishedProgress(U1));
+    const mounted = mountHook(harness.client, [{ ...FLOOR, uploadId: U1 }], queryClient, new MockVisibilityTarget());
+    await settle(clock);
+    mounted.rerender();
+    await settle(clock);
+
+    const keys = spy.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey));
+    expect(keys.filter((key) => key === JSON.stringify(queryKeys.layer.byFloor(PROJECT_ID, 'L1')))).toHaveLength(1);
+    expect(keys.filter((key) => key === JSON.stringify(queryKeys.layer.graph(PROJECT_ID)))).toHaveLength(1);
+    mounted.unmount();
+  });
+
+  it('nhịp completed sau khi tháo (trong sổ): chỉ vô hiệu layer.byFloor', async () => {
+    const harness = makeScriptedClient();
+    const queryClient = createTestQueryClient();
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(harness.client, [{ ...FLOOR, uploadId: U1 }], queryClient, new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications: createNotificationBus(),
+    });
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    const source = latestSource();
+    mounted.unmount();
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      source.triggerMessage(finishedProgress(U1));
+      await clock.advance(0);
+    });
+
+    const keys = spy.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey));
+    expect(keys).toEqual([JSON.stringify(queryKeys.layer.byFloor(PROJECT_ID, 'L1'))]);
+  });
+  /* ---------------------------------------------------------------------- */
+  /* Vòng sửa 1 — lỗi #8 tạm không làm tầng hỏng vĩnh viễn; một luồng.         */
+  /* ---------------------------------------------------------------------- */
+
+  const UNAVAILABLE: HttpError = {
+    code: 'SERVICE_UNAVAILABLE',
+    kind: 'http',
+    raw: { code: 'SERVICE_UNAVAILABLE' },
+    requestId: 'r-503',
+    retryable: true,
+    status: 503,
+  };
+  const OFFLINE: HttpError = { kind: 'network', requestId: 'r-net', retryable: true, raw: null };
+
+  it('#8 của tầng hỏi trả 503 một lần rồi running: không S-11, chip không lỗi', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 3);
+    const [broken, streamed, polled] = [uploads[0]!, uploads[1]!, uploads[2]!];
+    harness.queue(broken.uploadId, progressAt(broken.uploadId, 1, { status: 'failed', error: 'FILE_CORRUPT' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    expect(latestSource().url).toContain(streamed.uploadId);
+
+    harness.queue(polled.uploadId, UNAVAILABLE);
+    harness.queue(polled.uploadId, progressAt(polled.uploadId, 2, { progressPercent: 50 }));
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 2);
+    });
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(streamed.uploadId));
+      await clock.advance(0);
+    });
+    await settle(clock);
+
+    const props = mounted.result.current;
+    expect(props.floors.map((floor) => floor.status)).toEqual(['failed', 'done', 'running']);
+    expect(props.failedPipelineStep).toBeUndefined();
+    expect(props.partialNoticeLine).not.toContain(polled.floorName);
+    mounted.unmount();
+  });
+
+  it('tầng đang xem đã giao sổ nền, lượt dò 120 s lỗi mạng: vẫn đúng 1 EventSource', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [focused, waiting] = [uploads[0]!, uploads[1]!];
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 0, { status: 'pending' }));
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications: createNotificationBus(),
+    });
+    await settle(clock);
+    expect(latestSource().url).toContain(focused.uploadId);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(focused.uploadId, 1));
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    expect(backgroundWatches.has(`${PROJECT_ID}:${focused.uploadId}`)).toBe(true);
+    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(false);
+
+    harness.queue(focused.uploadId, OFFLINE);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    // TanStack báo observer bằng `setTimeout(0)`; hẹn 0 ms đặt giữa lúc đồng hồ
+    // giả đang chạy (lượt dò bắn từ hẹn im lặng) bị đẩy thành 1 ms.
+    await act(() => clock.advance(1));
+    await settle(clock);
+
+    expect(openSources()).toHaveLength(1);
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(mounted.result.current.floors[0]?.isActive).toBe(true);
+    backgroundWatches.releaseAll();
+    mounted.unmount();
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* Vòng sửa 2 — chốt một luồng đọc từ sổ nền; upload 404 là cuối.           */
+  /* ---------------------------------------------------------------------- */
+
+  const NOT_FOUND: HttpError = {
+    code: 'NOT_FOUND',
+    kind: 'http',
+    raw: { code: 'NOT_FOUND' },
+    requestId: 'r-404',
+    retryable: false,
+    status: 404,
+  };
+
+  it('[B pending, A SSE] chạy nền, B chạy, tháo rồi gắn lại: vẫn đúng 1 EventSource', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [waiting, streamed] = [uploads[0]!, uploads[1]!];
+    // `pending` chưa vào bước nào, nên B không giữ tầng đang xem.
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 0, { status: 'pending', step: 'queued' }));
+    const queryClient = createTestQueryClient();
+    const visibility = new MockVisibilityTarget();
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const background = { backgroundWatches, notifications: createNotificationBus() };
+    const first = mountHook(harness.client, uploads, queryClient, visibility, background);
+    await settle(clock);
+    expect(latestSource().url).toContain(streamed.uploadId);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      first.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    expect(backgroundWatches.has(`${PROJECT_ID}:${streamed.uploadId}`)).toBe(true);
+    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(false);
+
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 1));
+    await act(async () => {
+      await clock.advance(PENDING_POLL_INTERVAL_MS);
+    });
+    await act(() => clock.advance(1));
+    await settle(clock);
+    expect(first.result.current.floors[0]?.isActive).toBe(true);
+    expect(openSources()).toHaveLength(1);
+
+    first.unmount();
+    const second = mountHook(harness.client, uploads, queryClient, visibility, background);
+    await settle(clock);
+    expect(second.result.current.floors[0]?.isActive).toBe(true);
+    expect(openSources()).toHaveLength(1);
+    backgroundWatches.releaseAll();
+    second.unmount();
+  });
+
+  it('A và B trong sổ nền, A 404, B failed: S-11 gắn, sổ nhả A', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [gone, polled] = [uploads[0]!, uploads[1]!];
+    const backgroundWatches = createBackgroundWatchRegistry();
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      backgroundWatches,
+      notifications: createNotificationBus(),
+    });
+    await settle(clock);
+    expect(latestSource().url).toContain(gone.uploadId);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(gone.uploadId, 1));
+      mounted.result.current.onRunInBackground();
+      await clock.flushMicrotasks();
+    });
+    expect(backgroundWatches.list()).toHaveLength(2);
+
+    harness.queue(gone.uploadId, NOT_FOUND);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    await act(() => clock.advance(1));
+    expect(backgroundWatches.has(`${PROJECT_ID}:${gone.uploadId}`)).toBe(false);
+
+    harness.queue(polled.uploadId, progressAt(polled.uploadId, 1, { status: 'failed', error: 'FILE_CORRUPT' }));
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS);
+    });
+    await act(() => clock.advance(1));
+    await settle(clock);
+
+    expect(mounted.result.current.failedPipelineStep).toMatchObject({
+      floorId: polled.floorId,
+      failureCode: 'FILE_CORRUPT',
+    });
+    expect(backgroundWatches.list()).toHaveLength(0);
+    expect(openSources()).toHaveLength(0);
+    mounted.unmount();
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* DEBT-03 — tầng đang xem (NO-363, NO-364).                               */
+  /* ---------------------------------------------------------------------- */
+
+  it('NO-363: tầng đang xem bỏ qua tầng có upload đã mất (404), nhường cho tầng còn chạy', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const gone = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    expect(mounted.result.current.floors[0]?.isActive).toBe(true);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(gone.uploadId, 1));
+      await clock.flushMicrotasks();
+    });
+
+    harness.queue(gone.uploadId, NOT_FOUND);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    await act(() => clock.advance(1));
+    await settle(clock);
+
+    expect(mounted.result.current.floors.map((floor) => floor.isActive)).toEqual([false, true]);
+    mounted.unmount();
+  });
+
+  it('NO-364: tầng pending có step thật không hiện tiến độ giả và không chiếm tầng đang xem', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const waiting = uploads[0]!;
+    // Máy chủ đã ghi sẵn `step` của một bước thật trong khi lượt còn xếp hàng.
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 2, { status: 'pending' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(mounted.result.current.floors.map((floor) => floor.isActive)).toEqual([false, true]);
+    expect(mounted.result.current.floors[0]?.status).toBe('queued');
+    expect(latestSource().url).toContain(uploads[1]!.uploadId);
+    mounted.unmount();
+  });
+
+  it('NO-364: một tầng duy nhất đang pending có step thật thì sáu bước vẫn 0%', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const waiting = uploads[0]!;
+    harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 2, { status: 'pending' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(doneStepCount(mounted.result.current)).toBe(0);
+    expect(percentSnapshot(mounted.result.current).every((percent) => percent === 0)).toBe(true);
+    expect(mounted.result.current.steps.some((step) => step.status === 'running')).toBe(false);
+    mounted.unmount();
+  });
+
+  it('NO-364: lượt mới (pending) trên upload đang xem đưa tiến độ về 0, không giữ bước của lượt cũ', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(upload.uploadId, 3));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    expect(doneStepCount(mounted.result.current)).toBe(3);
+
+    await act(async () => {
+      latestSource().triggerMessage(progressAt(upload.uploadId, 0, { status: 'pending' }));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(doneStepCount(mounted.result.current)).toBe(0);
+    expect(percentSnapshot(mounted.result.current).every((percent) => percent === 0)).toBe(true);
+    mounted.unmount();
+  });
+});
+
+describe('processingGateway — NO-154 qua cổng tiến độ', () => {
+  let clock: FakeClock;
+  let refreshSingleFlight: MockInstance<typeof auth.refreshSingleFlight>;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+    MockEventSource.instances = [];
+    // Đếm lượt xin refresh mà không gửi lượt refresh thật nào — chỉ trong khối này.
+    refreshSingleFlight = vi.spyOn(auth, 'refreshSingleFlight').mockResolvedValue(false);
+  });
+
+  afterEach(() => {
+    refreshSingleFlight.mockRestore();
+    clock.restore();
+  });
+
+  it('SSE chết SSE_FAILURE_LIMIT lần: cổng xin refresh phiên đúng MỘT lần cho cả chuỗi chết', async () => {
+    const gateway = createProcessingGateway(createMockApiClient(), {
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+    });
+    const stop = gateway.subscribeProgress(
+      { projectId: PROJECT_ID, uploadId: 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB1', floorId: 'L1' },
+      { onSnapshot: () => undefined, onFailure: () => undefined },
+    );
+
+    for (let failure = 0; failure < SSE_FAILURE_LIMIT; failure += 1) {
+      latestSource().triggerError();
+      await clock.advance(POLL_INTERVAL_MS);
+    }
+
+    expect(refreshSingleFlight).toHaveBeenCalledTimes(1);
+    expect(refreshSingleFlight).toHaveBeenCalledWith({ source: 'local' });
+
+    // Kênh thử SSE lại theo hẹn và lại chết: vẫn cùng một chuỗi, không xin thêm.
+    for (let retry = 0; retry < 2; retry += 1) {
+      await clock.advance(SSE_RETRY_INTERVAL_MS);
+      latestSource().triggerError();
+    }
+
+    expect(refreshSingleFlight).toHaveBeenCalledTimes(1);
+    stop();
   });
 });

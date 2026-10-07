@@ -35,7 +35,7 @@ export function StepFloors(props: StepFloorsProps) {
         checked={props.hasBasement}
         onChange={props.setHasBasement}
         disabled={isSubmitting}
-        label="có tầng hầm"
+        label="Có tầng hầm"
         description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
       />
 
@@ -58,18 +58,18 @@ export function StepFloors(props: StepFloorsProps) {
       {floorRows.length === 0 ? (
         <EmptyState
           icon={<Building2 aria-hidden="true" />}
-          title="chưa có tầng nào"
+          title="Chưa có tầng nào"
           description="Thêm ít nhất một tầng để sang bước xem lại."
-          action={{ label: 'thêm tầng', onClick: props.addFloor }}
+          action={{ label: 'Thêm tầng', onClick: props.addFloor }}
         />
       ) : (
         <>
           <Table.Root>
             <Table.Header>
               <tr>
-                <Table.Head>tầng</Table.Head>
-                <Table.Head>chiều cao thông thuỷ</Table.Head>
-                <Table.Head>cao độ</Table.Head>
+                <Table.Head>Tầng</Table.Head>
+                <Table.Head>Chiều cao thông thuỷ</Table.Head>
+                <Table.Head>Cao độ</Table.Head>
                 <Table.Head aria-label="xoá tầng" />
               </tr>
             </Table.Header>
@@ -88,7 +88,7 @@ export function StepFloors(props: StepFloorsProps) {
                       value={row.name}
                       onChange={(event) => props.setFloorName(row.id, event.target.value)}
                       disabled={isSubmitting}
-                      aria-label={`tên tầng ${row.name}`}
+                      aria-label={`Tên tầng ${row.name}`}
                     />
                   </Table.Cell>
                   <Table.Cell>
@@ -99,7 +99,7 @@ export function StepFloors(props: StepFloorsProps) {
                       max={PROJECT_LIMITS.storeyHeightMaxM}
                       unit="m"
                       disabled={isSubmitting}
-                      aria-label={`chiều cao thông thuỷ tầng ${row.name}`}
+                      aria-label={`Chiều cao thông thuỷ tầng ${row.name}`}
                       {...(row.problem !== null ? { error: row.problem } : {})}
                     />
                   </Table.Cell>
@@ -124,11 +124,11 @@ export function StepFloors(props: StepFloorsProps) {
               onClick={props.addFloor}
               disabled={isSubmitting || !props.canAddFloor}
             >
-              thêm tầng
+              Thêm tầng
             </Button>
             <div className="flex items-end gap-2">
               <NumericField
-                label="chiều cao áp cho mọi tầng"
+                label="Chiều cao áp cho mọi tầng"
                 value={props.applyHeightM ?? undefined}
                 onChange={props.setApplyHeightM}
                 min={PROJECT_LIMITS.storeyHeightMinM}
@@ -142,7 +142,7 @@ export function StepFloors(props: StepFloorsProps) {
                 onClick={props.applyHeightToAllFloors}
                 disabled={isSubmitting || !props.canApplyHeight}
               >
-                áp cho mọi tầng
+                Áp cho mọi tầng
               </Button>
             </div>
           </div>

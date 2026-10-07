@@ -32,7 +32,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -49,6 +49,7 @@ import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStat
 
 import {
   buildEmbedSection,
+  buildLinksUnsupportedModel,
   buildShareDialogProps,
   SAMPLE_ACTIVE_LINK,
   SAMPLE_DRAFT_PASSWORD,
@@ -110,15 +111,39 @@ function withQueryClient(): ({ children }: { readonly children: ReactNode }) => 
   };
 }
 
-/** Một cổng không chạm mạng: `list` rỗng, `create` trả đúng bản ghi mẫu, `revoke` xong. */
+/** Một cổng không chạm mạng, mặc định `supported: true` (máy chủ v2): `list` rỗng, `create` trả đúng bản ghi mẫu, `revoke` xong. */
 function buildFakeGateway(overrides: Partial<ShareLinkGateway> = {}): ShareLinkGateway {
   return {
+    supported: true,
     list: () => Promise.resolve({ ok: true, data: [] }),
     create: () => Promise.resolve({ ok: true, data: SAMPLE_ACTIVE_LINK }),
     revoke: () => Promise.resolve({ ok: true, data: undefined }),
     ...overrides,
   };
 }
+
+/**
+ * Hạn thời gian của **riêng tệp này**, và vì sao nó phải có.
+ *
+ * Bốn bài trong tệp render cả bảy trạng thái của hộp thoại, mỗi bài một lượt
+ * nhập động phần view. Đo trên máy này khi chạy RIÊNG cả tệp: `tests 4 059 ms`
+ * cho 17 bài — sát hạn **5 000 ms** mặc định của vitest. Chạy cùng cả bộ có
+ * `--coverage`, nơi mọi tệp đều bị đo, nó vượt hạn, và **bài vượt đổi theo từng
+ * lượt** (đo được hai bài khác nhau ở hai lượt liền nhau). Đó là dấu của một
+ * tệp ngồi sẵn ở mép hạn, không phải của một bài hỏng.
+ *
+ * Thứ làm nó đổ trong đợt này: thêm bốn tệp kiểm của `src/lib/pascal`. Bốn tệp
+ * ấy chỉ tốn 0,19 s — chúng không thêm tải, chúng đổi cách vitest xếp tệp vào
+ * worker. Phép thử đối chứng: cùng `--coverage`, bỏ bốn tệp ra thì 7 196/7 196
+ * xanh, để vào thì tệp này đỏ ở 3/3 lượt.
+ *
+ * Hạn này **không** nới một cổng chất lượng nào — mọi khẳng định giữ nguyên
+ * từng dòng. Nó chỉ thôi lấy tốc độ máy làm điều kiện đạt, và chỉ trong tệp này
+ * chứ không phải cả repo: `vitest.config.ts` là cổng chung, và bản nâng
+ * `testTimeout` cho toàn repo đã có ở nhánh `mungvu2004/debt-share` — chốt nó
+ * là việc của người duyệt.
+ */
+vi.setConfig({ testTimeout: 20_000 });
 
 /* ==========================================================================
  * A. Bảy trạng thái (A11 / R-63).
@@ -389,6 +414,69 @@ describe('A8 — mọi thay đổi hoàn tác được, kèm toast hoàn tác', 
   });
 });
 
+describe('B-V3-09 — hộp thoại đóng thì không đọc danh sách liên kết', () => {
+  it('isOpen=false: list không được gọi; mở ra thì đọc', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const list = vi.fn(() => Promise.resolve({ ok: true as const, data: [] }));
+    const { rerender } = renderHook(
+      ({ isOpen }: { isOpen: boolean }) =>
+        useShareDialog({
+          gateway: buildFakeGateway({ list }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          isOpen,
+        }),
+      { wrapper: withQueryClient(), initialProps: { isOpen: false } },
+    );
+
+    await Promise.resolve();
+    expect(list).not.toHaveBeenCalled();
+
+    rerender({ isOpen: true });
+    await waitFor(() => {
+      expect(list).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('A9 — thu hồi không hoàn tác được nên hỏi trước (B-V3-06)', () => {
+  it('"thu hồi" chỉ mở câu hỏi; "để nguyên" không gửi gì; xác nhận mới gửi lệnh thu hồi', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const revoke = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+    const { result } = renderHook(
+      () =>
+        useShareDialog({
+          gateway: buildFakeGateway({
+            list: () => Promise.resolve({ ok: true, data: [SAMPLE_ACTIVE_LINK] }),
+            revoke,
+          }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['admin'],
+          members: SAMPLE_MEMBERS,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].rows).toHaveLength(1);
+    });
+    const linkId = result.current[0].rows[0]?.id ?? '';
+
+    act(() => result.current[1].revokeLink(linkId));
+    expect(result.current[0].pendingRevokeUrl).toBe(result.current[0].rows[0]?.url);
+    act(() => result.current[1].cancelRevoke());
+    expect(result.current[0].pendingRevokeUrl).toBeNull();
+    expect(revoke).not.toHaveBeenCalled();
+
+    act(() => result.current[1].revokeLink(linkId));
+    act(() => result.current[1].confirmRevoke());
+    await waitFor(() => {
+      expect(revoke).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current[0].pendingRevokeUrl).toBeNull();
+  });
+});
+
 /* ==========================================================================
  * G. Không nút Lưu, không nút Huỷ (A7 và lệnh cấm của đặc tả).
  * ========================================================================== */
@@ -460,5 +548,61 @@ describe('A12 — Esc đóng hộp thoại', () => {
     renderWithProviders(<ShareDialogView {...props} />);
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+/* ==========================================================================
+ * F-06 — máy chủ v1 không phục vụ liên kết chia sẻ (BE-BIND #47–#49 là v2).
+ * ========================================================================== */
+
+describe('F-06 — liên kết chia sẻ tắt (cổng `supported: false`)', () => {
+  it('vai kỹ sư: không lượt gọi nào tới cổng; trạng thái không forbidden, không loading treo', async () => {
+    const useShareDialog = await loadUseShareDialog();
+    const list = vi.fn(() => Promise.resolve({ ok: true as const, data: [] }));
+    const create = vi.fn(() => Promise.resolve({ ok: true as const, data: SAMPLE_ACTIVE_LINK }));
+    const revoke = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+    const { result } = renderHook(
+      () =>
+        useShareDialog({
+          gateway: buildFakeGateway({ supported: false, list, create, revoke }),
+          projectId: SAMPLE_PROJECT_ID,
+          roles: ['engineer'],
+          members: SAMPLE_MEMBERS,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    act(() => result.current[1].createLink());
+    act(() => result.current[1].revokeLink(SAMPLE_ACTIVE_LINK.id));
+    act(() => result.current[1].confirmRevoke());
+    // `mutate` qua vài nhịp `await` rồi mới gọi `mutationFn`: chờ hết hàng vi tác vụ và
+    // một vòng macrotask, để bỏ chặn của `createLink` thì `create` kịp chạy và bài đỏ.
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    });
+
+    const [model] = result.current;
+    expect(model.linksSupported).toBe(false);
+    expect(model.state).toBe('success');
+    expect(model.noPermissionReason).toBeNull();
+    expect(model.form.canSubmit).toBe(false);
+    expect(model.pendingRevokeUrl).toBeNull();
+    expect(list).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
+  it('view: không vùng liên kết, không mã nhúng; "thành viên" vẫn hiện', async () => {
+    const ShareDialogView = await loadShareDialogView();
+    renderWithProviders(
+      <ShareDialogView {...buildShareDialogProps('success', buildLinksUnsupportedModel())} />,
+    );
+
+    expect(screen.getByRole('region', { name: /thành viên/iu })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /liên kết chia sẻ/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /nhúng vào trang khác/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sao chép mã nhúng/iu })).not.toBeInTheDocument();
   });
 });

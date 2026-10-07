@@ -95,7 +95,11 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
   );
 
   if (layoutId) {
-    const MotionTableRow = motion.tr as React.ElementType;
+    // KHÔNG ép về `React.ElementType`. Phép ép ấy gom MỌI loại phần tử thành
+    // một hợp, nên prop của thẻ co về `never` — và từ khi `@react-three/fiber`
+    // có mặt trong repo, hợp ấy còn gồm cả trăm phần tử three, nên nó vỡ thật
+    // chứ không còn vô hại. `motion.tr` vốn đã có kiểu đúng.
+    const MotionTableRow = motion.tr;
 
     return (
       <MotionTableRow
@@ -106,7 +110,11 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
         aria-selected={selected}
         className={rowClassName}
         tabIndex={-1}
-        {...props}
+        // `exactOptionalPropertyTypes` của AppFront coi `foo?: T` và
+        // `foo?: T | undefined` là hai kiểu khác nhau; `props` mang dạng thứ
+        // hai còn framer-motion khai dạng thứ nhất. Ép đúng vào kiểu của
+        // CHÍNH thẻ này, không ép rộng ra cả họ phần tử.
+        {...(props as unknown as React.ComponentProps<typeof MotionTableRow>)}
       >
         {children}
       </MotionTableRow>

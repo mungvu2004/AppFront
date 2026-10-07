@@ -14,11 +14,10 @@
  * ## R-73 — không một prop tuỳ chọn nào là "lối ra chết"
  *
  * Màn tường anh em đòi `onNavigate` bắt buộc vì panel trái của nó có năm lối ra
- * (cây lớp, nút "sang lớp Cửa và nội thất"). Đặc tả màn NÀY không có lối ra
- * nào: liên kết tường chủ chỉ chọn tường và bay khung nhìn tới trong chính
- * canvas của màn (R-07). Nên container không nhận một callback điều hướng nào —
- * thêm một `onNavigate?` mà không nơi gọi nào truyền chính là cái nút chết mà
- * R-73 và A2 tồn tại để chặn. Ba trường cuối là chỗ tiêm của test và story,
+ * (cây lớp, nút "sang lớp Cửa và nội thất"). Liên kết tường chủ của màn NÀY chỉ
+ * chọn tường và bay khung nhìn tới trong chính canvas của màn (R-07); lối ra duy
+ * nhất là nút "Hiệu chỉnh tỉ lệ" của dải tỉ lệ tạm (F-04x-2), nên `onNavigate`
+ * tuỳ chọn và route nối `useNavigate`. Ba trường cuối là chỗ tiêm của test và story,
  * cắm CÙNG bộ mẫu chứ không bịa bảng dữ liệu thứ hai (R-70).
  *
  * ## Ranh giới lỗi: bản ở `@/components/feedback`
@@ -40,8 +39,8 @@
  * lẽ đã ghi ở màn tường anh em.
  */
 
-import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -49,6 +48,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -75,12 +75,16 @@ export interface ObjectLayerReviewContainerProps {
   readonly projectId: string;
   readonly floorId: string;
   readonly roles?: readonly ProjectRole[];
+  /** Lối ra của dải tỉ lệ tạm — xem đầu file. */
+  readonly onNavigate?: (path: string) => void;
   /** Cổng dữ liệu tiêm được. Vắng mặt thì hook dựng bản thật, đúng một lần. */
   readonly gateway?: ObjectLayerReviewGateway;
   /** Sổ phím tiêm được — bài kiểm dựng sổ riêng để không đụng sổ dùng chung. */
   readonly registry?: ShortcutRegistry;
   /** Ép thu gọn hai panel — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Ép dải lưu lớp (F-04x-1) — cho story "Xung đột — tải lại" / "Không lưu được". */
+  readonly forceSaveBlock?: FloorLayerSaveBlock;
   /** Bus thông báo riêng — hai lượt kiểm không thấy toast của nhau. */
   readonly notifications?: NotificationBus;
 }
@@ -113,13 +117,14 @@ function WiredObjectLayerReview(props: ObjectLayerReviewContainerProps) {
     floorId: props.floorId,
     projectId: props.projectId,
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
+    ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
     ...(props.gateway !== undefined ? { gateway: props.gateway } : {}),
     ...(props.registry !== undefined ? { registry: props.registry } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.notifications !== undefined ? { notifications: props.notifications } : {}),
   });
 
-  return <ObjectLayerReview {...model} />;
+  return <ObjectLayerReview {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<ObjectLayerReviewContainer … />` — màn S-13 thật, đã nối, gắn được bằng một thẻ. */
@@ -142,6 +147,13 @@ export function ObjectLayerReviewRoute() {
   const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const session = useSession();
   const roles = useMemo(() => session.roles, [session.roles]);
+  const navigate = useNavigate();
+  const onNavigate = useCallback(
+    (path: string) => {
+      navigate(path);
+    },
+    [navigate],
+  );
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (
@@ -155,5 +167,7 @@ export function ObjectLayerReviewRoute() {
     );
   }
 
-  return <ObjectLayerReviewContainer floorId={floorId} projectId={id} roles={roles} />;
+  return (
+    <ObjectLayerReviewContainer floorId={floorId} onNavigate={onNavigate} projectId={id} roles={roles} />
+  );
 }

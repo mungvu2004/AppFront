@@ -60,8 +60,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ENDPOINTS } from '@/api/endpoints';
-import { isEntityOfKind, resolveLevelId, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
+import {
+  displayLabelIn,
+  isEntityOfKind,
+  resolveLevelId,
+  type NormalizedSpatial,
+} from '@/domain/spatial/normalize';
+import { hasBuildableParts, toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { isValidId } from '@/domain/spatial/ids';
 import type { EntityId, LevelId, Room } from '@/domain/spatial/types';
 import { can } from '@/lib/auth/permissions';
@@ -71,7 +76,6 @@ import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatArea } from '@/lib/format/measure';
 import { formatPercent } from '@/lib/format/number';
 import { createUuid } from '@/lib/http/ids';
-import { queryKeys } from '@/lib/query/queryKeys';
 import {
   clearSelection,
   selectSingle,
@@ -88,6 +92,7 @@ import { useStore } from '@/store';
 import { selectDraftEntityIds, selectDraftPreviewGraph } from '@/store/graphSelectors';
 import {
   createViewerShellGateway,
+  projectNameQueryKey,
   shellDataOf,
   type ViewerShellData,
 } from '@/screens/viewer/ViewerShell';
@@ -113,6 +118,12 @@ import type {
 
 /** Câu dưới một tầng chưa dựng xong. Khoá `viewer3d.partial.wireframeCaption`. */
 const WIREFRAME_CAPTION_SUFFIX = ' — chưa dựng xong';
+
+/**
+ * Câu dưới một tầng không có tường hay phòng nào — không phải "chưa dựng xong":
+ * không có gì để dựng (B-V1-11). Khoá `viewer3d.partial.noPartsCaption`.
+ */
+const NO_PARTS_CAPTION_SUFFIX = ' — chưa có tường hay phòng nào';
 
 /** Tên dự phòng khi đồ thị chưa mang tên tầng nào. */
 const UNNAMED_STOREY = 'Tầng';
@@ -311,16 +322,17 @@ function selectionContextOf(
 /**
  * Mọi phòng của đồ thị, rút gọn về đúng những gì ô tìm vẽ ra.
  *
- * Đọc theo HÌNH DẠNG (`'name' in entity`), **không** qua `isEntityOfKind` — và
- * đó không phải một lối tắt. `isEntityOfKind` hỏi `isValidId`, thứ đòi phần
- * thân của mã dài ít nhất mười ký tự (`domain/spatial/ids.ts:40-43`); bộ mẫu
- * của vỏ đánh mã `R-001`, thân dài ba. Nên với bộ mẫu ấy `isEntityOfKind('room', …)`
- * trả `false` cho **cả mười bốn phòng**, và một danh sách phòng rỗng là thứ
- * người dùng nhìn thấy.
+ * Đọc theo HÌNH DẠNG (`'name' in entity`), cùng cách `shellDataOf` và `storeysOf`
+ * của vỏ đọc: một thực thể thiếu tên hay diện tích bị bỏ qua thay vì làm hỏng
+ * cả danh sách.
  *
- * `shellDataOf` và `storeysOf` của vỏ đã đọc theo hình dạng đúng vì lý do này;
- * file này theo chúng thay vì dựng một danh sách rỗng rồi gọi đó là "không có
- * phòng nào".
+ * `codeLabel` là nhãn người đọc (`R-011`) của `displayLabelIn` — đúng chuỗi tiêu
+ * đề thanh tra in ra, nên ô tìm và thanh tra gọi một phòng bằng cùng một tên
+ * (B-V8-45).
+ *
+ * ponytail: `displayLabelIn` dựng lại bảng anh em mỗi phòng, O(R²) trên số
+ * phòng; gom phòng theo tầng trên `spatial.byKind.room` rồi gọi `displayCodesOf`
+ * một lần mỗi tầng nếu một toà nhà hàng nghìn phòng hiện lên trong profile.
  */
 function roomOptionsOf(
   spatial: NormalizedSpatial | null,
@@ -344,6 +356,7 @@ function roomOptionsOf(
 
     options.push({
       id: room.id,
+      codeLabel: displayLabelIn(spatial, room.id),
       name: room.name,
       storeyName: storeyNameById.get(room.levelId) ?? UNNAMED_STOREY,
       // A15: định dạng xảy ra ở viewmodel, không ở view — cùng `formatArea` mà
@@ -373,6 +386,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   /* ---- Kho: đọc một lần ------------------------------------------------- */
 
   const storeSpatial = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const draftGraph = useStore(selectDraftPreviewGraph);
   const draftEntityIds = useStore(selectDraftEntityIds);
   const selectedIds = useStore((state) => state.selectedIds);
@@ -389,7 +403,7 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   );
 
   const projectQuery = useQuery({
-    queryKey: queryKeys.project.detail(projectId),
+    queryKey: projectNameQueryKey(projectId),
     queryFn: (): Promise<string | null> => gateway.readProjectName(projectId),
   });
 
@@ -551,7 +565,9 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   const mountScene = options.mountScene ?? mountViewerScene;
 
   useEffect(() => {
-    if (canvas === null || levels.length === 0) {
+    // Không tầng nào có gì để dựng thì không lắp cảnh: màn là `empty`, và máy
+    // không có WebGL không vì thế mà rơi vào `error` (B-V1-11).
+    if (canvas === null || !levels.some(hasBuildableParts)) {
       return;
     }
 
@@ -637,10 +653,13 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
   const wireframeCaptionOf = useCallback(
     (storeyId: string): string => {
       const storey = data.storeys.find((candidate) => candidate.id === storeyId);
+      const input = levels.find((candidate) => String(candidate.level.id) === storeyId);
+      const suffix =
+        input !== undefined && hasBuildableParts(input) ? WIREFRAME_CAPTION_SUFFIX : NO_PARTS_CAPTION_SUFFIX;
 
-      return `${storey?.name ?? UNNAMED_STOREY}${WIREFRAME_CAPTION_SUFFIX}`;
+      return `${storey?.name ?? UNNAMED_STOREY}${suffix}`;
     },
-    [data.storeys],
+    [data.storeys, levels],
   );
 
   const buildFailed = conversion.failed || sceneStatus.phase === 'failed';
@@ -657,10 +676,10 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     if (!canEdit && roles !== undefined) {
       return 'forbidden';
     }
-    if (projectQuery.isLoading || sceneStatus.phase === 'building') {
+    if (projectQuery.isLoading || spatialLoading || sceneStatus.phase === 'building') {
       return 'loading';
     }
-    if (data.storeys.length === 0) {
+    if (!levels.some(hasBuildableParts)) {
       return 'empty';
     }
     if (data.isPartial || readyStoreyIds.length < data.storeys.length) {
@@ -673,10 +692,12 @@ export function useViewer3D(options: UseViewer3DOptions): Viewer3DModel {
     buildFailed,
     projectQuery.isError,
     projectQuery.isLoading,
+    spatialLoading,
     canEdit,
     roles,
     sceneStatus.phase,
     data,
+    levels,
     readyStoreyIds.length,
   ]);
 

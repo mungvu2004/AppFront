@@ -120,12 +120,12 @@ const ERROR_MESSAGE = `không đọc được tệp CAD này: bản vẽ lưu �
 const ERROR_CODE = 'VALIDATION';
 
 const EMPTY_NOTICE =
-  'tệp CAD không có lớp nào được đặt tên. hệ thống sẽ ánh xạ theo loại hình học thay cho tên lớp.';
+  'Tệp CAD không có lớp nào được đặt tên. Hệ thống sẽ ánh xạ theo loại hình học thay cho tên lớp.';
 
 const FORBIDDEN_NOTICE =
-  'bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.';
+  'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.';
 
-const SUCCESS_NOTICE = 'đã nhập xong hình học từ tệp CAD.';
+const SUCCESS_NOTICE = 'Đã nhập xong hình học từ tệp CAD.';
 
 /** Câu của trạng thái `partial`: tầng thiếu CAD, rồi từng loại thực thể một. */
 const PARTIAL_NOTICE = `${CAD_SAMPLE_FLOOR_AVAILABILITY.filter((floor) => !floor.hasCadFile)
@@ -154,6 +154,7 @@ function dialogFor(state: SevenState): CadBranchConfirmDialogViewModel {
     },
     unitWarningMessage: isReading ? null : PHASE_1_TEXT.unitDeclarationWarning.message,
     isRememberChoiceChecked: false,
+    canRememberChoice: true,
     isCadChoiceDisabled: isBlocked,
     cadChoiceDisabledReason: isBlocked
       ? state === 'forbidden'

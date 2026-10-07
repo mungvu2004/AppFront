@@ -61,11 +61,14 @@
  *    được). Hai `Select` phiên bản ở đầu vùng so sánh đều phải có.
  */
 
+import type { ApiClient, SpatialLayer } from '@/api/client';
+import type { FloorVersionSummary } from '@/api/schemas/versions';
+import type { Dimension, Level } from '@/domain/spatial/types';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
-import type { EntityKind, VersionDiff } from '@/lib/versioning/diff';
+import type { EntityKind, VersionDiff, VersionSnapshot } from '@/lib/versioning/diff';
 import type { VersionEntry, VersionHistoryEntry, VersionMetadata } from '@/lib/versioning/restore';
 
 /* ── Từ vựng dùng chung ──────────────────────────────────────────────────────────────────── */
@@ -151,6 +154,8 @@ export interface VersionRowModel {
   readonly isMetadataOnly: boolean;
   /** Nêu rõ thời hạn lưu. `null` khi phiên bản còn đủ nội dung. */
   readonly retentionNotice: string | null;
+  /** N18 hỏng tạm thời (không phải "hết nội dung"): câu lỗi, kèm nút thử lại. Vắng khi không lỗi. */
+  readonly snapshotError?: string;
   readonly isSelectedForCompare: boolean;
   /** Ô tích tắt khi đã chọn đủ hai bản, hoặc khi bản này không so được. */
   readonly isPickable: boolean;
@@ -316,6 +321,19 @@ export interface VersionHistoryModel {
   readonly errorMessage: string | null;
   /** "Đã lưu lúc 14:32" (A7: không có nút lưu). */
   readonly savedAtLabel: string | null;
+  /** N17 còn trang sau — nút "Xem thêm phiên bản". */
+  readonly canLoadMoreVersions: boolean;
+  /** Ô "Tầng" ở đầu màn; `null` khi nơi gọi không cấp danh sách tầng. */
+  readonly floorSelect: FloorSelectModel | null;
+  /** Trạng thái `empty`: "Tầng {tên} chưa có phiên bản nào". */
+  readonly emptyTitle: string;
+}
+
+/** Ô chọn tầng: lịch sử phiên bản đi theo từng tầng. */
+export interface FloorSelectModel {
+  readonly label: string;
+  readonly options: readonly VersionHistoryOption[];
+  readonly selectedId: string;
 }
 
 export interface VersionHistoryActions {
@@ -330,6 +348,10 @@ export interface VersionHistoryActions {
   readonly exportVersion: (versionId: string) => void;
   readonly tagVersion: (versionId: string, label: string) => void;
   readonly dismissConflict: () => void;
+  readonly loadMoreVersions: () => void;
+  readonly selectFloor: (floorId: string) => void;
+  /** Nạp lại N18 của một bản vừa hỏng tạm thời (NO-368). */
+  readonly retrySnapshot?: (versionId: string) => void;
 }
 
 /** View thuần: test được CHỈ từ props, không chạm store, không chạm mạng (mục D, R-60). */
@@ -370,15 +392,48 @@ export interface RestoreOutcome {
   readonly history?: readonly VersionHistoryEntry[];
   readonly undoTicket?: UndoTicket;
   readonly conflict?: ConflictNoticeModel;
+  /** `revision` của tầng sau N19. */
+  readonly floorRevision?: number;
+  /** Id bản "sau" mà N19 trả về. */
+  readonly restoredVersionId?: string;
+  /** N19 trả `floorRevision` bằng `baseVersion` đã gửi: phiên bản trùng hiện trạng, không gì đổi. */
+  readonly unchanged?: boolean;
+}
+
+/** Một trang N17. */
+export interface VersionPage {
+  readonly items: readonly FloorVersionSummary[];
+  readonly nextCursor?: string;
+}
+
+/** N18: nội dung, hoặc "không còn nội dung" (`VERSION_SNAPSHOT_PURGED`/`VERSION_FLOOR_MISMATCH`). */
+export type VersionSnapshotRead =
+  | { readonly kind: 'snapshot'; readonly snapshot: VersionSnapshot }
+  | { readonly kind: 'purged' };
+
+/** N16 rút gọn: lớp, kích thước và `revision` đi cùng nhau. */
+export interface FloorLayerRead {
+  readonly layer: SpatialLayer;
+  /** Kích thước của tầng — nằm ngoài `layer` trên dây, nên phải mang theo riêng (NO-369). */
+  readonly dimensions: readonly Dimension[];
+  /** `Level` của tầng (tỉ lệ đi cùng lớp đã quy đổi) và cờ tỉ lệ tạm — như `reloadFloor` của autosave. */
+  readonly level: Level;
+  readonly scaleStatus?: 'unresolved';
+  readonly revision: number;
 }
 
 export interface VersionHistoryGateway {
   readonly capabilities: VersionHistoryCapabilities;
-  readonly listVersions: (floorId: string) => Promise<readonly VersionHistoryEntry[]>;
-  readonly diff: (leftVersionId: string, rightVersionId: string) => Promise<VersionDiff>;
-  readonly restore: (versionId: string) => Promise<RestoreOutcome>;
-  readonly undoRestore: (ticket: UndoTicket) => Promise<readonly VersionHistoryEntry[]>;
+  readonly restore: (versionId: string, baseVersion: number) => Promise<RestoreOutcome>;
   readonly tagVersion?: (versionId: string, label: string) => Promise<VersionMetadata>;
+  /** N17 một trang (`limit` = `VERSION_PAGE_LIMIT`). */
+  readonly listVersionPage: (options: { readonly cursor?: string }) => Promise<VersionPage>;
+  /** N18 một bản. */
+  readonly readSnapshot: (versionId: string, signal?: AbortSignal) => Promise<VersionSnapshotRead>;
+  /** N16 của tầng của cổng. */
+  readonly readFloorLayer: () => Promise<FloorLayerRead>;
+  /** Hoàn tác một lượt phục hồi bằng N19 ngược; kết quả như `restore` (không phiếu mới). */
+  readonly revertRestore: (ticket: UndoTicket) => Promise<RestoreOutcome>;
 }
 
 export interface UseVersionHistoryOptions {
@@ -390,6 +445,11 @@ export interface UseVersionHistoryOptions {
   readonly now?: () => Date;
   readonly onToast?: (toast: VersionHistoryToast) => void;
   readonly onExportVersion?: (versionId: string) => void;
+  /** Tầng chọn được ở ô "Tầng"; nhãn là tên tầng. */
+  readonly floorOptions?: readonly VersionHistoryOption[];
+  readonly onSelectFloor?: (floorId: string) => void;
+  /** Client cho bộ tự lưu lớp tầng (F-04x-1); vắng thì bộ lưu tự dựng. */
+  readonly apiClient?: Pick<ApiClient, 'spatial'>;
 }
 
 export type VersionHistoryResult = readonly [VersionHistoryModel, VersionHistoryActions];
@@ -402,6 +462,10 @@ export interface VersionHistoryContainerProps {
   readonly gateway?: VersionHistoryGateway;
   readonly onToast?: (toast: VersionHistoryToast) => void;
   readonly onExportVersion?: (versionId: string) => void;
+  readonly floorOptions?: readonly VersionHistoryOption[];
+  readonly onSelectFloor?: (floorId: string) => void;
+  /** Thay `createAppApiClient()` — cho cổng và bộ tự lưu. */
+  readonly apiClient?: Pick<ApiClient, 'spatial' | 'versions'>;
 }
 
 export type { EntityKind, SevenState, UndoTicket, VersionDiff, VersionEntry, VersionHistoryEntry };

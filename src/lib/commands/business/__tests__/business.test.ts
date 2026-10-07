@@ -26,7 +26,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyPatch } from '@/domain/spatial/applyPatch';
 import { checkIntegrity } from '@/domain/spatial/integrity';
-import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Dimension,
   Furniture,
@@ -905,8 +905,8 @@ describe('wall commands', () => {
     const reasons = validateChangeWallHeight({ wallId: SOUTH_WALL, heightMm: 2000 }, context);
 
     expect(reasons).toHaveLength(2);
-    expect(reasons.join(' ')).toContain(FRONT_DOOR);
-    expect(reasons.join(' ')).toContain(FRONT_WINDOW);
+    expect(reasons.join(' ')).toContain(displayCodeIn(baseGraph, FRONT_DOOR));
+    expect(reasons.join(' ')).toContain(displayCodeIn(baseGraph, FRONT_WINDOW));
     expect(reasons.join(' ')).toContain('còn thiếu 200 mm');
     expect(reasons.join(' ')).toContain('còn thiếu 300 mm');
   });
@@ -918,8 +918,8 @@ describe('wall commands', () => {
     );
 
     expect(reasons).toHaveLength(1);
-    expect(reasons.join(' ')).toContain(FRONT_WINDOW);
-    expect(reasons.join(' ')).not.toContain(FRONT_DOOR);
+    expect(reasons.join(' ')).toContain(displayCodeIn(baseGraph, FRONT_WINDOW));
+    expect(reasons.join(' ')).not.toContain(displayCodeIn(baseGraph, FRONT_DOOR));
     expect(reasons.join(' ')).toContain('còn thiếu 50 mm');
     expect(baseGraph.byId[FRONT_WINDOW]).toMatchObject({ heightMm: 1400, sillHeightMm: 900 });
   });
@@ -1182,10 +1182,73 @@ describe('opening and furniture commands', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('room and level commands', () => {
+  it('names the room by the code its list shows, not by its machine id (B-V7-05)', () => {
+    const command = expectCommand(
+      createRenameRoomCommand({ roomId: LEFT_ROOM, name: 'Phòng đọc sách' }, context),
+    );
+
+    expect(command.description).toContain(`Đổi tên phòng ${displayCodeIn(baseGraph, LEFT_ROOM)} từ`);
+    expect(command.description).not.toContain(LEFT_ROOM);
+  });
+
+
   it('refuses a name another room on the same level already carries', () => {
     expect(
       validateRenameRoom({ roomId: LEFT_ROOM, name: 'Phòng ngủ phải' }, context).join(' '),
-    ).toContain(RIGHT_ROOM);
+    ).toContain(displayCodeIn(baseGraph, RIGHT_ROOM));
+  });
+
+  it('stores a decomposed (NFD) room name composed (NFC) and compares clashes after normalising', () => {
+    const decomposed = 'Phòng đọc sách'.normalize('NFD');
+    const command = expectCommand(createRenameRoomCommand({ roomId: LEFT_ROOM, name: `  ${decomposed} ` }, context));
+
+    expect(applyCommand(baseGraph, command).byId[LEFT_ROOM]).toMatchObject({ name: 'Phòng đọc sách'.normalize('NFC') });
+    expect(
+      validateRenameRoom({ roomId: LEFT_ROOM, name: 'Phòng ngủ phải'.normalize('NFD') }, context).join(' '),
+    ).toContain(displayCodeIn(baseGraph, RIGHT_ROOM));
+  });
+
+  it.each([
+    ['bidi override U+202E', 'Phòng ‮khách'],
+    ['control U+0007', 'Phòng \u0007khách'],
+  ])('refuses a room name with a %s character', (_label, name) => {
+    expect(validateRenameRoom({ roomId: LEFT_ROOM, name }, context)).toEqual([
+      'Tên phòng chứa ký tự không hiển thị được.',
+    ]);
+    expect(createRenameRoomCommand({ roomId: LEFT_ROOM, name }, context).ok).toBe(false);
+  });
+
+  it('refuses a split piece name with a hidden character and names the piece in NFC', () => {
+    const outlines = {
+      firstOutline: [
+        { x: 0, y: 0 },
+        { x: 3000, y: 0 },
+        { x: 3000, y: 4000 },
+        { x: 0, y: 4000 },
+      ],
+      secondOutline: [
+        { x: 3000, y: 0 },
+        { x: 6000, y: 0 },
+        { x: 6000, y: 4000 },
+        { x: 3000, y: 4000 },
+      ],
+    };
+
+    expect(
+      validateSplitRoom(
+        { roomId: LIVING_ROOM, newRoomId: SPLIT_ROOM_ID, newRoomName: 'Bếp‮', ...outlines },
+        context,
+      ),
+    ).toEqual(['Tên phòng chứa ký tự không hiển thị được.']);
+
+    const command = expectCommand(
+      createSplitRoomCommand(
+        { roomId: LIVING_ROOM, newRoomId: SPLIT_ROOM_ID, newRoomName: 'Bếp ăn'.normalize('NFD'), ...outlines },
+        context,
+      ),
+    );
+
+    expect(applyCommand(baseGraph, command).byId[SPLIT_ROOM_ID]).toMatchObject({ name: 'Bếp ăn'.normalize('NFC') });
   });
 
   it('measures the merged room from the outline it was given', () => {

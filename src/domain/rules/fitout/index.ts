@@ -36,6 +36,7 @@
  */
 
 import { outlineContains } from '../../rooms/area';
+import { displayCodeIn } from '../../spatial/normalize';
 import type { BoundingBox, FurnitureKind, Point, Room, RoomUsage } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
 import { millimetres } from '../../units/types';
@@ -138,13 +139,13 @@ function lengthText(valueMm: number): string {
 }
 
 /** "phòng ngủ P-3 (Ngủ 1)", for the middle of a sentence. */
-function roomText(room: Room): string {
-  return `${ROOM_USAGE_LABELS[room.usage]} ${room.id} (${room.name})`;
+function roomText(room: Room, context: RuleContext): string {
+  return `${ROOM_USAGE_LABELS[room.usage]} ${displayCodeIn(context.graph, room.id)} (${room.name})`;
 }
 
 /** "Giường F-7", for the start of a sentence. */
-function furnitureText(kind: FurnitureKind, id: string): string {
-  return `${FURNITURE_KIND_LABELS[kind]} ${id}`;
+function furnitureText(kind: FurnitureKind, id: string, context: RuleContext): string {
+  return `${FURNITURE_KIND_LABELS[kind]} ${displayCodeIn(context.graph, id)}`;
 }
 
 /**
@@ -249,10 +250,10 @@ export const checkRoomFurnitureMismatch: FitoutCheck = (context) => {
       finding(
         item.id,
         [item.id, room.id],
-        `${furnitureText(item.kind, item.id)} nằm trong ${roomText(room)}, ` +
+        `${furnitureText(item.kind, item.id, context)} nằm trong ${roomText(room, context)}, ` +
           `không phù hợp với công năng phòng.`,
-        `Đổi công năng ${room.id} cho khớp với đồ đạc, hoặc sửa loại của ${item.id}, ` +
-          `hoặc chuyển ${item.id} sang phòng khác.`,
+        `Đổi công năng ${displayCodeIn(context.graph, room.id)} cho khớp với đồ đạc, hoặc sửa loại của ${displayCodeIn(context.graph, item.id)}, ` +
+          `hoặc chuyển ${displayCodeIn(context.graph, item.id)} sang phòng khác.`,
       ),
     );
   }
@@ -317,9 +318,9 @@ export const checkFixtureOffWall: FitoutCheck = (context) => {
       finding(
         item.id,
         [item.id, nearestWallId],
-        `${furnitureText(item.kind, item.id)} cách mặt tường gần nhất ${nearestWallId} ` +
+        `${furnitureText(item.kind, item.id, context)} cách mặt tường gần nhất ${displayCodeIn(context.graph, nearestWallId)} ` +
           `${lengthText(nearestGapMm)}, vượt ngưỡng ${lengthText(wallHuggingToleranceMm)}.`,
-        `Dời ${item.id} áp sát tường ${nearestWallId}, hoặc kiểm tra lại vị trí đã bóc ` +
+        `Dời ${displayCodeIn(context.graph, item.id)} áp sát tường ${displayCodeIn(context.graph, nearestWallId)}, hoặc kiểm tra lại vị trí đã bóc ` +
           `từ ký hiệu trên bản vẽ.`,
       ),
     );
@@ -363,9 +364,9 @@ export const checkWindowOnInnerWall: FitoutCheck = (context) => {
       finding(
         opening.id,
         [opening.id, wall.id],
-        `Cửa sổ ${opening.id} nằm trên tường ${wall.id}, không phải tường bao ngoài.`,
-        `Đổi tường ${wall.id} thành tường bao ngoài nếu đã phân loại nhầm, ` +
-          `hoặc đổi ${opening.id} thành cửa đi, hoặc xoá cửa sổ này.`,
+        `Cửa sổ ${displayCodeIn(context.graph, opening.id)} nằm trên tường ${displayCodeIn(context.graph, wall.id)}, không phải tường bao ngoài.`,
+        `Đổi tường ${displayCodeIn(context.graph, wall.id)} thành tường bao ngoài nếu đã phân loại nhầm, ` +
+          `hoặc đổi ${displayCodeIn(context.graph, opening.id)} thành cửa đi, hoặc xoá cửa sổ này.`,
       ),
     );
   }
@@ -387,7 +388,7 @@ export const checkWindowOnInnerWall: FitoutCheck = (context) => {
  */
 export const roomFurnitureMismatchRule: Rule = {
   code: 'ROOM-FURNITURE-MISMATCH',
-  name: 'đồ đạc hợp với công năng phòng',
+  name: 'Đồ đạc hợp với công năng phòng',
   group: 'area',
   severity: 'warning',
   scope: 'level',
@@ -397,7 +398,7 @@ export const roomFurnitureMismatchRule: Rule = {
 
 export const fixtureOffWallRule: Rule = {
   code: 'FIXTURE-OFF-WALL',
-  name: 'thiết bị vệ sinh và tủ bếp áp sát tường',
+  name: 'Thiết bị vệ sinh và tủ bếp áp sát tường',
   group: 'geometry',
   severity: 'warning',
   scope: 'level',
@@ -407,7 +408,7 @@ export const fixtureOffWallRule: Rule = {
 
 export const windowOnInnerWallRule: Rule = {
   code: 'WINDOW-ON-INNER-WALL',
-  name: 'cửa sổ nằm trên tường bao ngoài',
+  name: 'Cửa sổ nằm trên tường bao ngoài',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',

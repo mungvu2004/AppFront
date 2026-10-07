@@ -1,7 +1,10 @@
 /**
- * Màn "bạn chưa có quyền truy cập" — route `/khong-co-quyen`: nếu một yêu cầu
- * trả về 403, điều phối viên chuyển người dùng tới đây, và màn giải thích tại sao
- * cùng những cách có thể để lấy quyền.
+ * Màn "bạn chưa có quyền truy cập" — route `/khong-co-quyen`, giải thích tại sao
+ * bị chặn cùng những cách có thể để lấy quyền.
+ *
+ * Đây là đích DÀNH SẴN: hôm nay chưa nơi nào dẫn tới route này (B-V1-05, ngoài
+ * FE). Khi có lối 403 thật (mở liên kết chia sẻ v2), màn chủ dựng
+ * `AccessDeniedContainer` TẠI CHỖ với prop `error` — không `navigate`, không đổi URL.
  *
  * - {@link AccessDeniedRoute} là bản toàn màn của route `/khong-co-quyen`.
  *   `src/routes/router.tsx` nhập ĐÚNG tên này — đổi tên là hỏng route.

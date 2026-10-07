@@ -50,6 +50,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { counterLabelOf } from '@/domain/spatial/ids';
 import { useShortcut } from '@/hooks/useShortcut';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys, type QueryKey } from '@/lib/query/queryKeys';
@@ -80,7 +81,7 @@ import {
   reviewWallGeometry,
   vertexDisplayCode,
   vertexIdOf,
-  wallDisplayCode,
+  wallCodesOnLevel,
   WALL_GEOMETRY_SNAP_KIND_IDS,
   WALL_GEOMETRY_SNAP_LABELS,
   type WallGeometryEditorGateway,
@@ -303,8 +304,8 @@ function modifierNoticeOf(modifiers: ModifierState): string | null {
 function readErrorExplanation(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : '';
 
-  /* Không có câu nào của tầng dưới thì nói đúng thứ đang thiếu: chỗ để đọc và để lưu. */
-  return message === '' ? TEXT.refusal.noSaveTarget : message;
+  /* Không có câu nào của tầng dưới thì nói đúng việc vừa hỏng: lượt đọc. */
+  return message === '' ? TEXT.refusal.readFailed : message;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -331,7 +332,6 @@ export function useWallGeometryEditor(
   const zoom = useStore((state) => state.zoom);
   const viewCentre = useStore((state) => state.viewCenter);
   const projectId = useStore((state) => state.project?.id ?? null);
-  const floorId = useStore((state) => state.activeFloorId);
 
   /** Hình đang HIỆN: bản nháp của phiên kéo nếu có, còn lại là hình đã lưu. */
   const graph = draftGraph ?? spatial;
@@ -340,6 +340,8 @@ export function useWallGeometryEditor(
     () => (wallId === null ? null : readWallTarget(graph, wallId)),
     [graph, wallId],
   );
+  /** Tầng của chính bức tường đang sửa — không phải tầng đang xem (B-V8-41). */
+  const floorId = target?.level.id ?? null;
 
   /**
    * M-04 → M-05 → M-09, chạy lại sau MỖI lệnh.
@@ -604,7 +606,7 @@ export function useWallGeometryEditor(
 
   useShortcut({
     combo: 'Escape',
-    description: 'thoát lớp trên cùng của chế độ sửa hình học',
+    description: 'Thoát lớp trên cùng của chế độ sửa hình học',
     id: 'wallGeometryEditor.escape',
     onTrigger: onEscape,
     scope: 'canvas',
@@ -614,7 +616,18 @@ export function useWallGeometryEditor(
   /* Sáu công cụ — ba chế độ và ba thao tác chạy ngay.                        */
   /* ---------------------------------------------------------------------- */
 
-  const wallCode = wallId === null ? '' : wallDisplayCode(wallId);
+  const wallCodes = useMemo(
+    () =>
+      graph === null || target === null
+        ? new Map<string, string>()
+        : wallCodesOnLevel(graph, target.level.id),
+    [graph, target],
+  );
+  // Kho chưa giữ tường này (trên `/3d` kho chưa nạp — B-V8-04) thì rơi về quy tắc số đếm,
+  // đúng đường `displayLabelIn` đi với một mã đồ thị không giữ — không rơi về mã máy, để
+  // dải và thanh tra vỏ gọi bức tường bằng cùng một mã (B-V8-05).
+  const wallCode =
+    wallId === null ? '' : (wallCodes.get(wallId) ?? counterLabelOf(wallId));
 
   const onRemoveVertex = useCallback((): void => {
     if (wallId === null || selectedVertexId === null || !isEditable) {
@@ -1033,14 +1046,14 @@ export function useWallGeometryEditor(
       review.findings.map((finding) => ({
         ariaLabel:
           finding.severity === 'violation'
-            ? TEXT.handles.offendingEdge(wallDisplayCode(finding.wallId))
+            ? TEXT.handles.offendingEdge(wallCodes.get(finding.wallId) ?? finding.wallId)
             : finding.message,
         edgeId: edgeIdOf(finding.wallId),
         fromPx: projection.toPx(finding.fromMm),
         toPx: projection.toPx(finding.toMm),
         tone: finding.severity,
       })),
-    [projection, review.findings],
+    [projection, review.findings, wallCodes],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1141,7 +1154,14 @@ export function useWallGeometryEditor(
           x: TEXT.vertexTable.columnX,
           y: TEXT.vertexTable.columnY,
         },
-        emptyMessage: vertexRows.length === 0 ? TEXT.vertexTable.empty : null,
+        /* Tường không có trong kho (nhà mẫu của mock) thì nói đúng điều đó, không nói
+         * "chưa có đỉnh" trên một bức tường đang nhìn thấy (B-V8-63). */
+        emptyMessage:
+          vertexRows.length === 0
+            ? target === null
+              ? TEXT.refusal.wallMissing
+              : TEXT.vertexTable.empty
+            : null,
         rows: vertexRows,
       },
     }),
@@ -1158,6 +1178,7 @@ export function useWallGeometryEditor(
       onExitEditMode,
       returningHandleId,
       snapKinds,
+      target,
       toolButtons,
       totalLengthMm,
       vertexRows,

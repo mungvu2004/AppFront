@@ -170,8 +170,8 @@ function RowMessage({ row, onSelectRow }: RowContentProps) {
 }
 
 /** The object code, in a tag `expectVietnamese` reads as code rather than as prose. */
-function EntityCode({ entityId }: { readonly entityId: string }) {
-  return <code className="font-mono text-xs text-text-secondary">{entityId}</code>;
+function EntityCode({ code }: { readonly code: string }) {
+  return <code className="font-mono text-xs text-text-secondary">{code}</code>;
 }
 
 /** The floor a finding sits on, or a dash where the rule looked at the whole building. */
@@ -222,7 +222,7 @@ export function RuleReportRows({
             >
               <div className="flex items-center justify-between gap-2">
                 <Badge variant={SEVERITY_BADGE[row.severity]}>{SEVERITY_LABELS[row.severity]}</Badge>
-                <EntityCode entityId={row.entityId} />
+                <EntityCode code={row.entityCode} />
               </div>
               <RowMessage row={row} onSelectRow={onSelectRow} />
               <div className="flex items-center justify-between gap-2">
@@ -240,12 +240,12 @@ export function RuleReportRows({
     <Table.Root>
       <Table.Header>
         <tr>
-          <Table.Head>mức độ</Table.Head>
-          <Table.Head>mô tả</Table.Head>
-          <Table.Head>tầng</Table.Head>
-          <Table.Head>mã đối tượng</Table.Head>
+          <Table.Head>Mức độ</Table.Head>
+          <Table.Head>Mô tả</Table.Head>
+          <Table.Head>Tầng</Table.Head>
+          <Table.Head>Mã đối tượng</Table.Head>
           <Table.Head>
-            <span className="sr-only">hành động</span>
+            <span className="sr-only">Hành động</span>
           </Table.Head>
         </tr>
       </Table.Header>
@@ -270,7 +270,7 @@ export function RuleReportRows({
                 <LevelText levelLabel={row.levelLabel} />
               </Table.Cell>
               <Table.Cell>
-                <EntityCode entityId={row.entityId} />
+                <EntityCode code={row.entityCode} />
               </Table.Cell>
               <Table.Cell>
                 <RowActions row={row} onViewRow={onViewRow} />

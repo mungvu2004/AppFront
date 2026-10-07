@@ -26,7 +26,15 @@ import {
   type Version,
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
-import { SpatialLayerSchema, type RegisterInput, type SignInInput } from './schemas';
+import type { AcceptInvitation, PasswordResetConfirm, PasswordResetRequest } from './schemas/auth';
+import { UserSchema, type SignInInput, type User as ApiUser } from './schemas';
+import {
+  FloorLayerDocumentSchema,
+  FloorLayerWriteResultSchema,
+  type FloorLayerDocument,
+  type FloorLayerWriteBody,
+  type FloorLayerWriteResult,
+} from './schemas/spatialLayer';
 import {
   NotificationSchema,
   type MarkNotificationsReadInput,
@@ -46,6 +54,24 @@ import {
   type UserMembership,
 } from './schemas/users';
 import { decode, safeParseList } from './schemas/decode';
+import { CursorEnvelopeSchema } from './schemas/common';
+import {
+  ProjectSettingsSchema,
+  type ProjectSettings,
+  type ProjectSettingsBody,
+} from './schemas/projectSettings';
+import { ProjectSummarySchema, type ProjectSummary } from './schemas/projectSummaries';
+import { ProjectRuleConfigSchema, type ProjectRuleConfig, type UpdateRuleConfig } from './schemas/ruleConfig';
+import { MeSchema, type ChangePassword, type Me, type UpdateMe, type UploadAvatar } from './schemas/me';
+import { LatestFloorUploadSchema, type LatestFloorUpload } from './schemas/uploads';
+import {
+  type FloorVersionPageSchema,
+  FloorVersionSnapshotSchema,
+  FloorVersionSummarySchema,
+  type FloorVersionSnapshot,
+  type FloorVersionSummary,
+} from './schemas/versions';
+import { SpatialGraphDocumentSchema, type SpatialGraphDocument } from './schemas/spatialGraph';
 
 export type {
   Drawing,
@@ -67,7 +93,8 @@ export type {
   User,
   Version,
 } from './contracts';
-export type { RegisterInput, SignInInput } from './schemas';
+export type { SignInInput } from './schemas';
+export type { LatestFloorUpload } from './schemas/uploads';
 export type {
   MarkNotificationsReadInput,
   Notification,
@@ -133,8 +160,16 @@ export interface SignInApiInput extends WriteRequestOptions {
   body: SignInInput;
 }
 
-export interface RegisterApiInput extends WriteRequestOptions {
-  body: RegisterInput;
+export interface AcceptInvitationApiInput extends WriteRequestOptions {
+  body: AcceptInvitation;
+}
+
+export interface ConfirmPasswordResetApiInput extends WriteRequestOptions {
+  body: PasswordResetConfirm;
+}
+
+export interface RequestPasswordResetApiInput extends WriteRequestOptions {
+  body: PasswordResetRequest;
 }
 
 export interface FloorWriteBody extends Omit<FloorPayload, 'elevationMm' | 'heightMm' | 'name' | 'order'> {
@@ -199,6 +234,10 @@ export interface ReadDrawingProgressInput extends RequestOptions {
   uploadId: string;
 }
 
+export interface ListLatestUploadsInput extends RequestOptions {
+  projectId: string;
+}
+
 export interface ReadSpatialFloorInput extends RequestOptions {
   floorId: string;
   projectId: string;
@@ -240,8 +279,23 @@ export interface SpatialLayer {
   walls: readonly Wall[];
 }
 
+export interface ReadSpatialGraphInput extends RequestOptions {
+  projectId: string;
+}
+
+export interface ReadSpatialLayerInput extends RequestOptions {
+  floorId: string;
+  projectId: string;
+}
+
 export interface WriteSpatialLayerInput extends WriteRequestOptions {
-  body: SpatialLayer;
+  /**
+   * `revision` của lượt đọc mà lớp này dựa trên (`readLayer`). BE #35 là một
+   * `PUT` có version: thiếu nó là 428, cũ là 409 — không có lượt ghi "mù".
+   */
+  baseVersion: number;
+  /** `{ layer?, scaleMillimetresPerPixel? }` — gửi nguyên; có cả hai thì `layer` hiểu ở tỉ lệ cũ (#35). */
+  body: FloorLayerWriteBody;
   floorId: string;
   projectId: string;
 }
@@ -250,6 +304,9 @@ export interface ReadSpatialVersionInput extends RequestOptions {
   projectId: string;
   versionId: string;
 }
+
+/** N17 — một trang lịch sử phiên bản của một tầng, `sequence` giảm dần. */
+export type FloorVersionPage = z.infer<typeof FloorVersionPageSchema>;
 
 export interface ReadImageQualityInput extends RequestOptions {
   floorId: string;
@@ -317,7 +374,7 @@ export interface SetUserEnabledInput extends WriteRequestOptions {
 }
 
 export interface ResendInviteInput extends WriteRequestOptions {
-  inviteId: string;
+  userId: string;
 }
 
 /**
@@ -459,6 +516,12 @@ export interface FloorsApi {
 export interface DrawingsApi {
   complete(input: CompleteDrawingUploadInput): Promise<ApiResult<Progress>>;
   initUpload(input: InitDrawingUploadInput): Promise<ApiResult<Progress>>;
+  /**
+   * N7 — lượt tải mới nhất của từng tầng, theo `Floor.order`, đã đọc HẾT các
+   * trang. Đây là nguồn của danh sách màn xử lý theo dõi (B-V4-01): nó biết cả
+   * tầng có bản vẽ từ trước, và mọi lối vào `/pipeline` đều đọc được nó.
+   */
+  latestUploads(input: ListLatestUploadsInput): Promise<ApiResult<LatestFloorUpload[]>>;
   progress(input: ReadDrawingProgressInput): Promise<ApiResult<Progress>>;
   sendChunk(input: SendDrawingChunkInput): Promise<ApiResult<Progress>>;
 }
@@ -489,8 +552,15 @@ export interface SpatialApi {
   patchFloor(input: PatchSpatialFloorInput): Promise<ApiResult<Floor>>;
   readFloor(input: ReadSpatialFloorInput): Promise<ApiResult<Floor>>;
   readVersion(input: ReadSpatialVersionInput): Promise<ApiResult<Version>>;
-  /** Saves the floor's whole spatial layer and hands the persisted copy back — U4 gap #4. */
-  writeLayer(input: WriteSpatialLayerInput): Promise<ApiResult<SpatialLayer>>;
+  /** N15 — the whole project graph plus one `revision` per floor. */
+  readGraph(input: ReadSpatialGraphInput): Promise<ApiResult<SpatialGraphDocument>>;
+  /** N16 — the floor's layer document: `revision`, `level`, four lists, axes, dimensions. */
+  readLayer(input: ReadSpatialLayerInput): Promise<ApiResult<FloorLayerDocument>>;
+  /**
+   * #35 — saves the floor's whole spatial layer against `baseVersion` and hands
+   * the persisted copy back with its new `revision` (`PUT`, B-G-07).
+   */
+  writeLayer(input: WriteSpatialLayerInput): Promise<ApiResult<FloorLayerWriteResult>>;
 }
 
 /**
@@ -626,8 +696,94 @@ export interface NotificationsApi {
  * vì cùng một lý do.
  */
 export interface AuthApi {
-  register(input: RegisterApiInput): Promise<ApiResult<void>>;
+  acceptInvitation(input: AcceptInvitationApiInput): Promise<ApiResult<void>>;
+  confirmPasswordReset(input: ConfirmPasswordResetApiInput): Promise<ApiResult<void>>;
+  requestPasswordReset(input: RequestPasswordResetApiInput): Promise<ApiResult<void>>;
   signIn(input: SignInApiInput): Promise<ApiResult<void>>;
+}
+
+export interface ListProjectSummariesInput extends RequestOptions {
+  cursor?: string;
+  limit?: number;
+}
+
+/** N1 — một trang thẻ dự án. `droppedCount` = dòng thô trừ dòng giữ (một dòng hỏng không khoá cả lưới, A11). */
+export interface ProjectSummaryList {
+  droppedCount: number;
+  items: ProjectSummary[];
+  nextCursor?: string;
+}
+
+export interface ProjectSummariesApi {
+  list(input?: ListProjectSummariesInput): Promise<ApiResult<ProjectSummaryList>>;
+}
+
+export interface AddProjectMemberInput extends WriteRequestOptions {
+  email: string;
+  projectId: string;
+}
+
+export interface RemoveProjectMemberInput extends WriteRequestOptions {
+  projectId: string;
+  userId: string;
+}
+
+/** N3 (`add`, `idempotencyKey` đi header) và N4 (`remove`). Cả hai trả người vừa thêm/gỡ. */
+export interface MembersApi {
+  add(input: AddProjectMemberInput): Promise<ApiResult<ApiUser>>;
+  remove(input: RemoveProjectMemberInput): Promise<ApiResult<ApiUser>>;
+}
+
+export interface ReadProjectSettingsInput extends RequestOptions {
+  projectId: string;
+}
+
+export interface ReplaceProjectSettingsInput extends WriteRequestOptions {
+  baseVersion: number;
+  body: ProjectSettingsBody;
+  projectId: string;
+}
+
+/** N5 đọc, N6 thay trọn thân (`PUT {baseVersion, body}`). */
+export interface ProjectSettingsApi {
+  read(input: ReadProjectSettingsInput): Promise<ApiResult<ProjectSettings>>;
+  replace(input: ReplaceProjectSettingsInput): Promise<ApiResult<ProjectSettings>>;
+}
+
+export interface ReadProjectRuleConfigInput extends RequestOptions {
+  projectId: string;
+}
+
+export interface ReplaceProjectRuleConfigInput extends WriteRequestOptions {
+  baseVersion: number;
+  body: UpdateRuleConfig['body'];
+  projectId: string;
+}
+
+/** N21 đọc, N22 thay trọn `overrides` (`PUT {baseVersion, body}`); 409 mang `remoteChanges: []`. */
+export interface RuleConfigApi {
+  read(input: ReadProjectRuleConfigInput): Promise<ApiResult<ProjectRuleConfig>>;
+  replace(input: ReplaceProjectRuleConfigInput): Promise<ApiResult<ProjectRuleConfig>>;
+}
+
+export interface ReplaceAvatarInput extends WriteRequestOptions {
+  body: UploadAvatar;
+}
+
+export interface ChangeMePasswordInput extends WriteRequestOptions {
+  body: ChangePassword;
+}
+
+export interface UpdateProfileInput extends WriteRequestOptions {
+  body: UpdateMe;
+}
+
+/** N11 đọc, N12 sửa, N13 đổi mật khẩu (204), N14 thay ảnh đại diện (PUT, timeout `file`). */
+export interface MeApi {
+  changePassword(input: ChangeMePasswordInput): Promise<ApiResult<void>>;
+  readProfile(options?: RequestOptions): Promise<ApiResult<Me>>;
+  replaceAvatar(input: ReplaceAvatarInput): Promise<ApiResult<Me>>;
+  updateProfile(input: UpdateProfileInput): Promise<ApiResult<Me>>;
 }
 
 export interface ApiClient {
@@ -636,12 +792,60 @@ export interface ApiClient {
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   library: LibraryApi;
+  me: MeApi;
+  members: MembersApi;
   notifications: NotificationsApi;
+  projectSettings: ProjectSettingsApi;
+  projectSummaries: ProjectSummariesApi;
   projects: ProjectsApi;
   propertyTemplates: PropertyTemplatesApi;
   quality: QualityApi;
+  ruleConfig: RuleConfigApi;
   spatial: SpatialApi;
   users: UsersApi;
+  versions: VersionsApi;
+}
+
+export interface ListFloorVersionPageInput extends RequestOptions {
+  cursor?: string;
+  floorId: string;
+  limit?: number;
+  projectId: string;
+}
+
+export interface ReadFloorVersionSnapshotInput extends RequestOptions {
+  floorId: string;
+  projectId: string;
+  versionId: string;
+}
+
+export interface RestoreFloorVersionInput extends WriteRequestOptions {
+  /** `revision` hiện tại của TẦNG — không phải `sequence` của phiên bản (HOP-DONG-MOI §5). */
+  baseVersion: number;
+  floorId: string;
+  projectId: string;
+  versionId: string;
+}
+
+export interface LabelFloorVersionInput extends WriteRequestOptions {
+  /** `''` là gỡ nhãn. */
+  label: string;
+  projectId: string;
+  versionId: string;
+}
+
+/** N17 sau giải mã: mục hỏng bị bỏ kèm cảnh báo (`safeParseList`), không làm rỗng cả trang. */
+export interface FloorVersionList {
+  items: FloorVersionSummary[];
+  nextCursor?: string;
+}
+
+/** N17 trang, N18 nội dung, N19 phục hồi (201 hay 200 như nhau), N20 nhãn. */
+export interface VersionsApi {
+  label(input: LabelFloorVersionInput): Promise<ApiResult<FloorVersionSummary>>;
+  list(input: ListFloorVersionPageInput): Promise<ApiResult<FloorVersionList>>;
+  restore(input: RestoreFloorVersionInput): Promise<ApiResult<FloorVersionSummary>>;
+  snapshot(input: ReadFloorVersionSnapshotInput): Promise<ApiResult<FloorVersionSnapshot>>;
 }
 
 const asApiResult = <T>(result: Result<T, HttpError>): ApiResult<T> => result as ApiResult<T>;
@@ -686,6 +890,9 @@ const toRequestOptions = (options: WriteRequestOptions = {}): TransportWriteOpti
   ...(options.timeoutMode !== undefined ? { timeoutMode: options.timeoutMode } : {}),
 });
 
+/** N7 — trần `limit` của hợp đồng (openapi: mặc định 50, tối đa 200): ít chuyến nhất cho cùng một danh sách. */
+const LATEST_UPLOADS_PAGE_LIMIT = 200;
+
 const callGet = async <T>(http: HttpClient, path: string, signal?: AbortSignal): Promise<Result<T, HttpError>> =>
   http.get<T>(path, signal !== undefined ? { signal } : undefined);
 
@@ -714,6 +921,13 @@ const callPost = async <T, TBody>(
   body: TBody,
   options: WriteRequestOptions,
 ): Promise<Result<T, HttpError>> => http.post<T, TBody>(path, { body, ...toRequestOptions(options) });
+
+const callPut = async <T, TBody>(
+  http: HttpClient,
+  path: string,
+  body: TBody,
+  options: WriteRequestOptions,
+): Promise<Result<T, HttpError>> => http.put<T, TBody>(path, { body, ...toRequestOptions(options) });
 
 const callPatch = async <T, TBody>(
   http: HttpClient,
@@ -749,7 +963,12 @@ const postWithoutBody = async <TBody>(
  */
 export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClient } = {}): ApiClient => ({
   auth: {
-    register: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.register, input.body, input),
+    acceptInvitation: async (input) =>
+      postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.invitationAccept, input.body, input),
+    confirmPasswordReset: async (input) =>
+      postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.passwordResetConfirm, input.body, input),
+    requestPasswordReset: async (input) =>
+      postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.passwordReset, input.body, input),
     signIn: async (input) => postWithoutBody(options.authHttp ?? http, ENDPOINTS.auth.login, input.body, input),
   },
   drawings: {
@@ -757,7 +976,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { body, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.drawings.complete(projectId, body.uploadId), body, input),
+        await callPost(http, ENDPOINTS.drawings.complete(projectId, body.uploadId), body, { ...input, timeoutMode: 'file' }),
         ProgressSchema,
         'drawings.complete',
       );
@@ -771,6 +990,38 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         'drawings.initUpload',
       );
     },
+    latestUploads: async ({ projectId, signal }) => {
+      const uploads: LatestFloorUpload[] = [];
+      let cursor: string | undefined;
+
+      // Phong bì kiểm chặt, từng mục qua `safeParseList`: một mục hỏng bị bỏ kèm
+      // cảnh báo chứ không làm rỗng cả màn (`CursorEnvelopeSchema`).
+      do {
+        const page = decodeSingle(
+          await http.get<unknown>(ENDPOINTS.drawings.latestUploads(projectId, cursor), {
+            query: { limit: LATEST_UPLOADS_PAGE_LIMIT },
+            ...(signal !== undefined ? { signal } : {}),
+          }),
+          CursorEnvelopeSchema,
+          'drawings.latestUploads',
+        );
+
+        if (!page.ok) {
+          return page;
+        }
+
+        const items = safeParseList(LatestFloorUploadSchema, page.data.items, 'drawings.latestUploads');
+
+        if (!items.ok) {
+          return items;
+        }
+
+        uploads.push(...items.data);
+        cursor = page.data.nextCursor;
+      } while (cursor !== undefined);
+
+      return { ok: true, data: uploads };
+    },
     progress: async ({ projectId, signal, uploadId }) =>
       decodeSingle(
         await callGet<unknown>(http, ENDPOINTS.drawings.progress(projectId, uploadId), signal),
@@ -781,7 +1032,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { body, projectId, uploadId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.drawings.chunk(projectId, uploadId), body, input),
+        await callPost(http, ENDPOINTS.drawings.chunk(projectId, uploadId), body, { ...input, timeoutMode: 'file' }),
         ProgressSchema,
         'drawings.sendChunk',
       );
@@ -835,6 +1086,39 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         LibraryItemSchema,
         'library.read',
       ),
+  },
+  me: {
+    changePassword: async (input) => postWithoutBody(http, ENDPOINTS.me.password, input.body, input),
+    readProfile: async (options) =>
+      decodeSingle(await callGet<unknown>(http, ENDPOINTS.me.profile, options?.signal), MeSchema, 'me.readProfile'),
+    replaceAvatar: async (input) =>
+      decodeSingle(
+        await callPut(http, ENDPOINTS.me.avatar, input.body, { ...input, timeoutMode: 'file' }),
+        MeSchema,
+        'me.replaceAvatar',
+      ),
+    updateProfile: async (input) =>
+      decodeSingle(await callPatch(http, ENDPOINTS.me.profile, input.body, input), MeSchema, 'me.updateProfile'),
+  },
+  members: {
+    add: async (input) => {
+      const { email, projectId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.members.add(projectId), { email }, input),
+        UserSchema,
+        'members.add',
+      );
+    },
+    remove: async (input) => {
+      const { projectId, userId } = input;
+
+      return decodeSingle(
+        await callDelete<unknown>(http, ENDPOINTS.members.remove(projectId, userId), input),
+        UserSchema,
+        'members.remove',
+      );
+    },
   },
   notifications: {
     acceptInvite: async (input) => {
@@ -894,6 +1178,57 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       );
     },
   },
+  projectSettings: {
+    read: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.projectSettings.read(projectId), signal),
+        ProjectSettingsSchema,
+        'projectSettings.read',
+      ),
+    replace: async (input) => {
+      const { baseVersion, body, projectId } = input;
+
+      return decodeSingle(
+        await callPut(http, ENDPOINTS.projectSettings.replace(projectId), { baseVersion, body }, input),
+        ProjectSettingsSchema,
+        'projectSettings.replace',
+      );
+    },
+  },
+  projectSummaries: {
+    list: async ({ cursor, limit, signal } = {}) => {
+      const page = decodeSingle(
+        await http.get<unknown>(ENDPOINTS.projectSummaries.list, {
+          query: {
+            ...(cursor !== undefined ? { cursor } : {}),
+            ...(limit !== undefined ? { limit } : {}),
+          },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        CursorEnvelopeSchema,
+        'projectSummaries.list',
+      );
+
+      if (!page.ok) {
+        return page;
+      }
+
+      const items = safeParseList(ProjectSummarySchema, page.data.items, 'projectSummaries.list');
+
+      if (!items.ok) {
+        return items;
+      }
+
+      return {
+        data: {
+          droppedCount: page.data.items.length - items.data.length,
+          items: items.data,
+          ...(page.data.nextCursor !== undefined ? { nextCursor: page.data.nextCursor } : {}),
+        },
+        ok: true,
+      };
+    },
+  },
   /**
    * No schema decode here, same reasoning as `featureFlags.read` above: a
    * template's `fields` shape depends on `objectKind` (see
@@ -931,7 +1266,7 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { body, floorId, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.quality.corners(projectId, floorId), body, input),
+        await callPost(http, ENDPOINTS.quality.corners(projectId, floorId), body, { ...input, timeoutMode: 'file' }),
         ImageQualityAssessmentSchema,
         'quality.setCorners',
       );
@@ -940,9 +1275,26 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       const { floorId, projectId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.quality.straighten(projectId, floorId), {}, input),
+        await callPost(http, ENDPOINTS.quality.straighten(projectId, floorId), {}, { ...input, timeoutMode: 'file' }),
         ImageQualityAssessmentSchema,
         'quality.straighten',
+      );
+    },
+  },
+  ruleConfig: {
+    read: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.ruleConfig.read(projectId), signal),
+        ProjectRuleConfigSchema,
+        'ruleConfig.read',
+      ),
+    replace: async (input) => {
+      const { baseVersion, body, projectId } = input;
+
+      return decodeSingle(
+        await callPut(http, ENDPOINTS.ruleConfig.replace(projectId), { baseVersion, body }, input),
+        ProjectRuleConfigSchema,
+        'ruleConfig.replace',
       );
     },
   },
@@ -968,17 +1320,29 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         VersionSchema,
         'spatial.readVersion',
       ),
+    readGraph: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.spatial.graph(projectId), signal),
+        SpatialGraphDocumentSchema,
+        'spatial.readGraph',
+      ),
+    readLayer: async ({ floorId, projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.spatial.layer(projectId, floorId), signal),
+        FloorLayerDocumentSchema,
+        'spatial.readLayer',
+      ),
     /**
-     * Giải mã qua `SpatialLayerSchema` — nhóm cuối cùng rời khỏi diện "đi thẳng
-     * không schema". Xem `./schemas/spatial.ts` để biết nó kiểm gì và cố ý
-     * không kiểm gì.
+     * `PUT {baseVersion, body}` — `body` là `{ layer?, scaleMillimetresPerPixel? }`, gửi nguyên. Đúng route #35 của BE
+     * (`spatial_write/router.py`). Bản trước gửi `PATCH` trần lớp, mà BE không
+     * có `PATCH` nào ở đường này: mọi lượt lưu trên máy chủ thật là 405 (B-G-07).
      */
     writeLayer: async (input) => {
-      const { body, floorId, projectId } = input;
+      const { baseVersion, body, floorId, projectId } = input;
 
       return decodeSingle(
-        await callPatch<SpatialLayer, unknown>(http, ENDPOINTS.spatial.layer(projectId, floorId), body, input),
-        SpatialLayerSchema,
+        await callPut(http, ENDPOINTS.spatial.layer(projectId, floorId), { baseVersion, body }, input),
+        FloorLayerWriteResultSchema,
         'spatial.writeLayer',
       );
     },
@@ -1048,14 +1412,68 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
       );
     },
     resendInvite: async (input) => {
-      const { inviteId } = input;
+      const { userId } = input;
 
       return decodeSingle(
-        await callPost(http, ENDPOINTS.users.resendInvite(inviteId), {}, input),
+        await callPost(http, ENDPOINTS.users.resendInvite(userId), {}, input),
         AdminUserSchema,
         'users.resendInvite',
       );
     },
+  },
+  versions: {
+    label: async (input) => {
+      const { label, projectId, versionId } = input;
+
+      return decodeSingle(
+        await callPatch(http, ENDPOINTS.versions.label(projectId, versionId), { label }, input),
+        FloorVersionSummarySchema,
+        'versions.label',
+      );
+    },
+    list: async ({ cursor, floorId, limit, projectId, signal }) => {
+      const page = decodeSingle(
+        await http.get<unknown>(ENDPOINTS.versions.list(projectId), {
+          query: { floorId, ...(cursor !== undefined ? { cursor } : {}), ...(limit !== undefined ? { limit } : {}) },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        CursorEnvelopeSchema,
+        'versions.list',
+      );
+
+      if (!page.ok) {
+        return page;
+      }
+
+      const items = safeParseList(FloorVersionSummarySchema, page.data.items, 'versions.list');
+
+      if (!items.ok) {
+        return items;
+      }
+
+      return {
+        ok: true,
+        data: { items: items.data, ...(page.data.nextCursor !== undefined ? { nextCursor: page.data.nextCursor } : {}) },
+      };
+    },
+    restore: async (input) => {
+      const { baseVersion, floorId, projectId, versionId } = input;
+
+      return decodeSingle(
+        await callPost(http, ENDPOINTS.versions.restore(projectId, versionId), { baseVersion, body: { floorId } }, input),
+        FloorVersionSummarySchema,
+        'versions.restore',
+      );
+    },
+    snapshot: async ({ floorId, projectId, signal, versionId }) =>
+      decodeSingle(
+        await http.get<unknown>(ENDPOINTS.versions.snapshot(projectId, versionId), {
+          query: { floorId },
+          ...(signal !== undefined ? { signal } : {}),
+        }),
+        FloorVersionSnapshotSchema,
+        'versions.snapshot',
+      ),
   },
 });
 

@@ -16,17 +16,13 @@
  * exports one level below its own provider) under a single provider shared
  * with `CreateProjectModalContainer`.
  *
- * ## What "creating" refreshes, and what it does not
+ * ## What "creating" refreshes
  *
  * `CreateProjectModal.container.tsx`'s gateway calls
- * `applyInvalidation(queryClient, 'createProject', {})` on success, which
- * invalidates exactly `queryKeys.project.list()` — the key
- * `useProjectDashboard` reads. So the dashboard's list query refetches on its
- * own; nothing here has to ask it to. What that refetch actually returns is a
- * separate, pre-existing gap this file does not touch:
- * `projectsGateway.ts`'s `fetchProjectList` is a static three-project sample
- * ("a server this product does not have yet"), so a freshly created project
- * will not visually appear until that gateway talks to something real.
+ * `applyInvalidation(queryClient, 'createProject', {})`, which invalidates
+ * `queryKeys.project.summaries()` — the key `useProjectDashboard` reads (N1) —
+ * so the list refetches on its own and the new project appears. The hook builds
+ * its own N1 gateway from `createAppApiClient()`; nothing here wires data.
  */
 
 import { useState } from 'react';
@@ -36,6 +32,7 @@ import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feed
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
+import { NotificationBellContainer } from '@/screens/system/NotificationCenter';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
 
@@ -45,7 +42,7 @@ const SCREEN_ID = 'dashboard';
 /** Cùng khuôn với `AuthScreen.container.tsx`'s `AuthCrashFallback` — R-62. */
 function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
         title={report.description.title}
@@ -54,7 +51,7 @@ function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -69,6 +66,7 @@ function DashboardWithCreateModal() {
       <ProjectDashboardConnected
         {...(role !== undefined ? { role } : {})}
         onCreateProject={() => setCreateOpen(true)}
+        notificationBell={<NotificationBellContainer />}
       />
       <CreateProjectModalContainer
         isOpen={isCreateOpen}

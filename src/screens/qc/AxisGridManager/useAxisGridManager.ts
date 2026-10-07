@@ -425,9 +425,9 @@ export function useAxisGridManager(
   /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
   useEffect(() => {
     if (storeGraph === null && loaded !== null) {
-      setSpatial(loaded, null);
+      setSpatial(loaded, null, { floorRevisions: {}, projectId });
     }
-  }, [loaded, setSpatial, storeGraph]);
+  }, [loaded, projectId, setSpatial, storeGraph]);
 
   /*
    * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn

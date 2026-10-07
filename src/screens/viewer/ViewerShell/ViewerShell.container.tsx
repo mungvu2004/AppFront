@@ -34,7 +34,7 @@
  * và `ThicknessStandardization.container.tsx` đã chốt.
  */
 
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -46,13 +46,22 @@ import {
 import { useSession } from '@/hooks/useSession';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
-import { EditorTourContainer } from '@/screens/system/EditorTour';
 import type { ProjectRole } from '@/types/project';
 
 import { ViewerShell } from './ViewerShell';
 import type { ViewerShellGateway } from './viewerShellGateway';
 import type { ViewerSceneFrame, ViewerScreenState } from './viewerShellTypes';
 import { useViewerShell } from './useViewerShell';
+
+/**
+ * Lớp hướng dẫn nạp ĐỘNG, cùng khuôn `CollaborationLayerContainer` ở `Viewer3DOverlays.tsx`:
+ * nó là lớp phủ, không phải thứ người dùng chờ ở khung hình đầu tiên, và rời khỏi bao
+ * đóng tĩnh của màn 3D thì cổng "chi phí thêm cho một màn" của `pnpm size` còn chỗ — đo
+ * 2026-10-03: các bản sửa của lượt e2e đẩy màn này lên 282,5 / 280 KiB.
+ */
+const EditorTourContainer = lazy(async () => ({
+  default: (await import('@/screens/system/EditorTour')).EditorTourContainer,
+}));
 
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
 export const VIEWER_SHELL_SCREEN_ID = 'viewer-shell';
@@ -92,7 +101,7 @@ export interface ViewerShellContainerProps {
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
 function ViewerShellCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
@@ -101,7 +110,7 @@ function ViewerShellCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -146,10 +155,12 @@ export function ViewerShellContainer(props: ViewerShellContainerProps) {
       screenId={VIEWER_SHELL_SCREEN_ID}
     >
       <WiredViewerShell {...props} />
-      <EditorTourContainer
-        chipAnchorClassName="bottom-[16px] left-1/2 -translate-x-1/2 max-xl:bottom-auto max-xl:top-[96px]"
-        hostId="viewer-shell"
-      />
+      <Suspense fallback={null}>
+        <EditorTourContainer
+          chipAnchorClassName="bottom-[16px] left-1/2 -translate-x-1/2 max-xl:bottom-auto max-xl:top-[96px]"
+          hostId="viewer-shell"
+        />
+      </Suspense>
     </ScreenErrorBoundary>
   );
 }

@@ -19,20 +19,23 @@
  * xanh trọn vẹn; không điều kiện nào bị nới để lấy màu xanh đó (R-70).
  */
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
+import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
 import { SEVEN_STATES, createSevenStateScenarios } from '@/lib/testing/sevenStateScenarios';
 import type { SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 
+import { STRINGS } from '@/screens/onboarding/WelcomeScreen/useWelcomeScreen';
+
 import { EditorTour } from './EditorTour';
-import { useEditorTour, TOUR_STEP_IDS } from './useEditorTour';
+import { useEditorTour, TOUR_STEP_IDS, TOUR_STEPS } from './useEditorTour';
 import type {
   EditorTourProps,
   TourRect,
@@ -65,34 +68,34 @@ const STEP_TEXT: Record<
   { readonly title: string; readonly body: string; readonly comboDescription: string }
 > = {
   switchTool: {
-    title: 'đổi công cụ đang dùng',
+    title: 'Đổi công cụ đang dùng',
     body: 'Bấm một biểu tượng khác trên dải công cụ bên trái để đổi công cụ đang chọn.',
-    comboDescription: 'đổi công cụ đang dùng',
+    comboDescription: 'Đổi công cụ đang dùng',
   },
   reviewWall: {
-    title: 'chọn đoạn tường tiếp theo',
+    title: 'Chọn đoạn tường tiếp theo',
     body: 'Xuống danh sách để xem chi tiết đoạn tường kế tiếp.',
-    comboDescription: 'chọn đoạn tường tiếp theo',
+    comboDescription: 'Chọn đoạn tường tiếp theo',
   },
   editThickness: {
-    title: 'gán độ dày cho đoạn đang chọn',
+    title: 'Gán độ dày cho đoạn đang chọn',
     body: 'Chọn một mức độ dày có sẵn cho đoạn tường vừa chọn ở panel bên phải.',
-    comboDescription: 'gán độ dày cho đoạn đang chọn',
+    comboDescription: 'Gán độ dày cho đoạn đang chọn',
   },
   undo: {
-    title: 'hoàn tác thao tác gần nhất',
+    title: 'Hoàn tác thao tác gần nhất',
     body: 'Trả lại trạng thái ngay trước thao tác vừa thực hiện.',
-    comboDescription: 'hoàn tác thao tác gần nhất',
+    comboDescription: 'Hoàn tác thao tác gần nhất',
   },
   view3d: {
-    title: 'mở khung nhìn không gian',
+    title: 'Mở khung nhìn không gian',
     body: 'Chuyển sang chế độ dựng hình để nhìn toàn bộ khối nhà vừa lên.',
-    comboDescription: 'mở khung nhìn không gian',
+    comboDescription: 'Mở khung nhìn không gian',
   },
   exportResult: {
-    title: 'lấy tệp mô hình về máy',
+    title: 'Lấy tệp mô hình về máy',
     body: 'Bấm nút này khi định dạng đã chọn đã sẵn sàng để tải xuống.',
-    comboDescription: 'lấy tệp mô hình về máy',
+    comboDescription: 'Lấy tệp mô hình về máy',
   },
 };
 
@@ -135,7 +138,7 @@ function baseProps(overrides: Partial<EditorTourProps> = {}): EditorTourProps {
     isReducedMotion: false,
     summary: [],
     isSkipChipVisible: false,
-    liveMessage: `đang ở bước 2 trên ${String(SIX_STEPS.length)}: ${STEP_TEXT.reviewWall.title}`,
+    liveMessage: `Đang ở bước 2 trên ${String(SIX_STEPS.length)}: ${STEP_TEXT.reviewWall.title}`,
     onNext: noop,
     onSkip: noop,
     onJump: noop,
@@ -258,13 +261,24 @@ describe('R-63 — bảy trạng thái, đo trên cả màn', () => {
       covered.push(scenario.label);
 
       return render(<EditorTour {...propsFor(scenario)} />);
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
 
     console.log(
       `[2C] expectSevenStates = ${String(covered.length)}/${String(SEVEN_STATES.length)} — ${covered.join(', ')}`,
     );
 
     expect(covered).toHaveLength(SEVEN_STATES.length);
+  });
+
+  it('tiêu đề và thân bài của sáu bước thật viết hoa chữ đầu (A6) — kể cả bước chỉ trạng thái hiếm mới hiện', () => {
+    expectSentenceCaseStrings(TOUR_STEPS.flatMap((step) => [step.title, step.body]));
+  });
+
+  it('nút bỏ tour đọc "Bỏ qua hướng dẫn", không phải "Bỏ qua" trần — trùng nút "Bỏ qua" của màn tường', () => {
+    render(<EditorTour {...baseProps()} />);
+
+    expect(screen.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bỏ qua' })).not.toBeInTheDocument();
   });
 });
 
@@ -347,6 +361,54 @@ describe('BÀI NGHIỆM THU 1 — đổi phím tắt trong registry thì thẻ �
     expect(comboAfterSecondBind).toBe('Y');
     expect(screen.getByText('Y')).toBeInTheDocument();
     expect(screen.queryByText('A')).not.toBeInTheDocument();
+  });
+});
+
+describe('B-V2-01 — màn chủ đăng ký phím SAU lượt render đầu thì tour vẫn hiện, không chờ resize', () => {
+  it('sổ phím rỗng lúc dựng ⇒ chưa hiện; màn chủ đăng ký phím ⇒ hiện ngay, không cần sự kiện cửa sổ nào', () => {
+    const registry = createShortcutRegistry();
+
+    mountTour({ registry, resolveAnchor: () => null, hasModel: true, hostId: 'wall-layer-review' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    act(() => {
+      registry.register({
+        id: 'wallLayerReview.next',
+        combo: 'N',
+        scope: 'canvas',
+        description: STEP_TEXT.reviewWall.comboDescription,
+        onTrigger: noop,
+      });
+    });
+
+    expect(tourProps().screenState).not.toBe('empty');
+    expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    expect(screen.getByRole('region', { name: tourProps().steps[0]?.title ?? '' })).toBeInTheDocument();
+  });
+});
+
+describe('B-V2-01 — neo của màn chủ xuất hiện muộn thì tour vẫn hiện, không chờ resize', () => {
+  it('chưa có neo ⇒ chưa hiện; neo vào trang ⇒ hiện, không cần sự kiện cửa sổ nào', async () => {
+    const rect = { top: 10, left: 10, width: 40, height: 20 };
+    const resolveAnchor = (id: string) =>
+      id === 'reviewWall' && document.getElementById('tour-late-anchor') !== null ? rect : null;
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, hasModel: true, hostId: 'viewer-shell' });
+
+    expect(tourProps().screenState).toBe('empty');
+
+    const late = document.createElement('div');
+    late.id = 'tour-late-anchor';
+    await act(async () => {
+      document.body.append(late);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(tourProps().steps.map((step) => step.id)).toEqual(['reviewWall']);
+    });
+    late.remove();
   });
 });
 
@@ -461,39 +523,11 @@ describe('BÀI NGHIỆM THU 3 — mất neo thì bộ đếm rút, giao diện k
 /* -------------------------------------------------------------------------- */
 
 /**
- * 26 câu nguyên văn của S-06 (`WelcomeScreen`), chép từ
- * `notes-1D-s06-anchors.md` mục (a). Hai mục #5/#6 là mảnh câu ghép (tiền tố/
- * hậu tố lời chào) — giữ nguyên theo đúng bảng khảo sát, đã cắt khoảng trắng
- * thừa để so khớp công bằng với văn bản đã `trim()` lấy từ DOM.
+ * Mọi chuỗi S-06 (`WelcomeScreen`) đọc thẳng từ bảng chữ thật của hook — bản chép tay
+ * cũ lệch chữ mỗi lần màn chào đổi chữ và bài vẫn xanh. Mảnh ghép lời chào đã `trim()`
+ * để so khớp công bằng với văn bản lấy từ DOM.
  */
-const S06_SENTENCES: readonly string[] = [
-  'Không đọc được tiến độ',
-  'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
-  'Thử lại',
-  'Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
-  'Chào',
-  ', bắt đầu trong ba bước',
-  'Chào bạn, bắt đầu trong ba bước',
-  'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
-  'Tạo dự án',
-  'Khai báo tên công trình và danh sách tầng.',
-  'Tạo dự án',
-  'Tải bản vẽ theo từng tầng',
-  'Kéo ảnh quét hoặc tệp CAD vào từng tầng.',
-  'Tải bản vẽ',
-  'Cần tạo dự án trước.',
-  'Duyệt kết quả và dựng 3D',
-  'Kiểm tra tường, cửa, phòng rồi xem mô hình.',
-  'Duyệt kết quả',
-  'Cần tải bản vẽ trước.',
-  'Xem dự án mẫu',
-  'Xem hướng dẫn 2 phút',
-  'Hướng dẫn hai phút chưa sẵn sàng.',
-  'Bỏ qua',
-  'Có thể xem lại hướng dẫn trong menu trợ giúp.',
-  'Vào danh sách dự án',
-  'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
-];
+const S06_SENTENCES: readonly string[] = Object.values(STRINGS).map((text) => text.trim());
 
 /** Mọi text node không rỗng trong `container`, đã `trim()`, không lặp. */
 function collectVisibleText(container: HTMLElement): readonly string[] {
@@ -589,7 +623,7 @@ describe('Bỏ qua — Esc và bấm ra nền không hỏi lại, chip quay lạ
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('sau khi bỏ qua, chip "xem hướng dẫn" còn đó — đường quay lại nhìn thấy được', () => {
+  it('sau khi bỏ qua, chip "Xem hướng dẫn" còn đó — đường quay lại nhìn thấy được', () => {
     const onReopen = vi.fn();
 
     render(
@@ -786,7 +820,7 @@ describe('NO-208 — neo có mặt SAU commit đầu', () => {
       id === 'editThickness' && document.getElementById('late-anchor') !== null ? FIXED_RECT : null;
 
     mountTour({ registry: createShortcutRegistry(), resolveAnchor, hasModel: true });
-    expect(screen.queryByRole('button', { name: 'bỏ qua' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeNull();
 
     const anchor = document.createElement('div');
     anchor.id = 'late-anchor';
@@ -795,7 +829,7 @@ describe('NO-208 — neo có mặt SAU commit đầu', () => {
         document.body.appendChild(anchor);
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
-      expect(await screen.findByRole('button', { name: 'bỏ qua' })).toBeTruthy();
+      expect(await screen.findByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeTruthy();
     } finally {
       await act(async () => {
         anchor.remove();
@@ -807,9 +841,9 @@ describe('NO-208 — neo có mặt SAU commit đầu', () => {
 
 describe('NO-208 — vị trí chip do màn chủ truyền', () => {
   const chipWrapper = (): HTMLElement | null =>
-    screen.getByRole('button', { name: 'xem hướng dẫn' }).parentElement;
+    screen.getByRole('button', { name: 'Xem hướng dẫn' }).parentElement;
 
-  it('mặc định ở góc trên phải', () => {
+  it('mặc định ở giữa cạnh dưới (B-V2-05)', () => {
     render(
       <EditorTour
         {...baseProps({
@@ -822,7 +856,7 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('right-[16px] top-[16px]');
+    expect(chipWrapper()?.className).toContain('bottom-[16px] left-1/2 -translate-x-1/2');
   });
 
   it('theo chipAnchorClassName của màn chủ, và bỏ góc mặc định', () => {
@@ -834,12 +868,12 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
           activeIndex: -1,
           cutout: null,
           isSkipChipVisible: true,
-          chipAnchorClassName: 'bottom-[16px] left-1/2',
+          chipAnchorClassName: 'right-[16px] top-[16px]',
         })}
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('bottom-[16px] left-1/2');
-    expect(chipWrapper()?.className).not.toContain('top-[16px]');
+    expect(chipWrapper()?.className).toContain('right-[16px] top-[16px]');
+    expect(chipWrapper()?.className).not.toContain('bottom-[16px]');
   });
 });

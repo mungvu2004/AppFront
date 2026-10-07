@@ -39,12 +39,12 @@ export interface WallLayerInspectorProps {
 const PANEL_TITLE = 'Đoạn tường';
 const ADVANCED_TITLE = 'Thông số nâng cao';
 const LENGTH_LABEL = 'chiều dài';
-const HEIGHT_LABEL = 'chiều cao';
-const CONFIDENCE_LABEL = 'độ tin cậy';
+const HEIGHT_LABEL = 'Chiều cao';
+const CONFIDENCE_LABEL = 'Độ tin cậy';
 const MATERIAL_LABEL = 'vật liệu';
 const ELEVATION_OFFSET_LABEL = 'lệch Z';
-const START_POINT_LABEL = 'toạ độ đầu';
-const END_POINT_LABEL = 'toạ độ cuối';
+const START_POINT_LABEL = 'Toạ độ đầu';
+const END_POINT_LABEL = 'Toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
 const APPROVE_LABEL = 'Duyệt đoạn này';
 const SKIP_LABEL = 'Bỏ qua';

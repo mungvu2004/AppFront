@@ -33,9 +33,11 @@ import {
   type EntityKind,
   type VersionDiff,
 } from '@/lib/versioning/diff';
+import type { FloorVersionSummary } from '@/api/schemas/versions';
 import type { VersionEntry, VersionHistoryEntry } from '@/lib/versioning/restore';
 
 import type {
+  ConflictNoticeModel,
   DiffCountsModel,
   DiffGroupModel,
   DiffRowModel,
@@ -62,13 +64,13 @@ import { initialsOf, RETENTION_NOTICE } from './versionHistoryGateway';
  * đều khai bảng của riêng chúng.
  */
 const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
-  dimension: 'kích thước',
-  door: 'cửa đi',
-  furniture: 'nội thất',
-  room: 'phòng',
-  vertex: 'điểm',
-  wall: 'tường',
-  window: 'cửa sổ',
+  dimension: 'Kích thước',
+  door: 'Cửa đi',
+  furniture: 'Nội thất',
+  room: 'Phòng',
+  vertex: 'Điểm',
+  wall: 'Tường',
+  window: 'Cửa sổ',
 };
 
 /** Thứ tự đọc ba mảng diff: thêm trước, xoá sau, thay đổi cuối — đúng `describeChanges`. */
@@ -78,7 +80,7 @@ const TONE_ORDER: readonly DiffTone[] = ['added', 'removed', 'changed'];
 const MINUS_SIGN = '−';
 
 /** Ngày hôm nay không đọc thành "08/09/2026" — người ta gọi nó là hôm nay. */
-const TODAY_HEADING = 'hôm nay';
+const TODAY_HEADING = 'Hôm nay';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Ba số đếm                                                              */
@@ -92,7 +94,7 @@ export const EMPTY_DIFF_COUNTS: DiffCountsModel = Object.freeze({
   addedLabel: `+${formatNumber(0)}`,
   removedLabel: `${MINUS_SIGN}${formatNumber(0)}`,
   changedLabel: `~${formatNumber(0)}`,
-  ariaLabel: 'không có thay đổi nào',
+  ariaLabel: 'Không có thay đổi nào',
 });
 
 /**
@@ -117,7 +119,7 @@ export function countsOf(diff: VersionDiff): DiffCountsModel {
     addedLabel: `+${formatNumber(added)}`,
     removedLabel: `${MINUS_SIGN}${formatNumber(removed)}`,
     changedLabel: `~${formatNumber(changed)}`,
-    ariaLabel: `thêm ${formatNumber(added)}, xoá ${formatNumber(removed)}, thay đổi ${formatNumber(changed)}`,
+    ariaLabel: `Thêm ${formatNumber(added)}, xoá ${formatNumber(removed)}, thay đổi ${formatNumber(changed)}`,
   };
 }
 
@@ -159,6 +161,14 @@ export interface BuildRowsContext {
   readonly now: Date;
   readonly leftVersionId: string | null;
   readonly rightVersionId: string | null;
+  /** Bản tóm tắt N17 theo id — `creatorName`, `label`, `floorRevision`. */
+  readonly summaries: ReadonlyMap<string, FloorVersionSummary>;
+  /** Bản hết nội dung: `hasSnapshot: false`, hoặc N18 trả "không còn nội dung". */
+  readonly purgedIds: ReadonlySet<string>;
+  /** `floorMeta[floorId].revision`; `null` khi chưa có — khi ấy không hàng nào là hiện tại. */
+  readonly currentRevision: number | null;
+  /** Bản có N18 hỏng tạm thời (không tính bản hết nội dung). */
+  readonly failedIds?: ReadonlySet<string>;
 }
 
 /**
@@ -168,12 +178,15 @@ export interface BuildRowsContext {
  * thứ 0 là bản hiện tại và `index + 1` là bản cũ hơn liền kề.
  */
 export function buildVersionRows(context: BuildRowsContext): readonly VersionRowBuild[] {
-  const { history, now, leftVersionId, rightVersionId } = context;
+  const { currentRevision, failedIds, history, now, leftVersionId, purgedIds, rightVersionId, summaries } = context;
   const pickedCount = (leftVersionId === null ? 0 : 1) + (rightVersionId === null ? 0 : 1);
 
   return history.map((entry, index): VersionRowBuild => {
     const metadata = entry.version;
-    const isMetadataOnly = entry.kind !== 'full';
+    const summary = summaries.get(metadata.id);
+    const isMetadataOnly = purgedIds.has(metadata.id);
+    const isLoaded = entry.kind === 'full';
+    const authorName = summary?.creatorName ?? metadata.creatorName ?? metadata.creatorId;
     const isSelectedForCompare = metadata.id === leftVersionId || metadata.id === rightVersionId;
     const previous = entry.kind === 'full' ? previousFullVersion(history, index) : null;
     const counts =
@@ -188,22 +201,25 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
       row: {
         id: metadata.id,
         label: `v${formatNumber(metadata.sequence, { grouping: false })}`,
-        description: metadata.note ?? 'không có ghi chú cho phiên bản này',
-        authorName: metadata.creatorId,
-        authorInitials: initialsOf(metadata.creatorId),
+        description: metadata.note ?? 'Không có ghi chú cho phiên bản này',
+        // `creatorName` do máy chủ ghép (N17); `system:pipeline` đã thành "hệ thống AI".
+        authorName,
+        authorInitials: initialsOf(authorName),
         // Không có nguồn ảnh đại diện nào ở tầng logic, nên ô đại diện dựng bằng chữ
         // cái đầu — một đường dẫn bịa ra còn tệ hơn một ô chữ thành thật (R-69).
         avatarUrl: null,
         relativeTimeLabel: formatTimestamp(createdAt, now),
         absoluteTimeLabel: `${formatCalendarDate(createdAt)} ${formatClockTime(createdAt)}`,
         counts,
-        isCurrent: index === 0,
-        // Không có endpoint gắn nhãn, nên không có nhãn nào để đọc ra (R-69).
-        tagLabel: null,
+        // HOP-DONG-MOI §5: hiện tại ⇔ `floorRevision` bằng `revision` của tầng, không phải "hàng đầu".
+        isCurrent: currentRevision !== null && summary?.floorRevision === currentRevision,
+        tagLabel: summary?.label ?? null,
         isMetadataOnly,
         retentionNotice: isMetadataOnly ? RETENTION_NOTICE : null,
+        ...(failedIds?.has(metadata.id) === true ? { snapshotError: SNAPSHOT_FAILED_NOTICE } : {}),
         isSelectedForCompare,
-        isPickable: !isMetadataOnly && (isSelectedForCompare || pickedCount < 2),
+        // Hàng chưa nạp N18 chưa so được; chọn nó ở ô so sánh sẽ nạp nó.
+        isPickable: isLoaded && (isSelectedForCompare || pickedCount < 2),
       },
     };
   });
@@ -257,10 +273,10 @@ function entriesOf(diff: VersionDiff, tone: DiffTone): readonly DiffEntry[] {
 /** Tiêu đề ngữ cảnh của một khối JSON — dòng không tô nền. */
 function toneHeading(tone: DiffTone): string {
   if (tone === 'added') {
-    return 'đã thêm';
+    return 'Đã thêm';
   }
 
-  return tone === 'removed' ? 'đã xoá' : 'đã thay đổi';
+  return tone === 'removed' ? 'Đã xoá' : 'Đã thay đổi';
 }
 
 /**
@@ -353,24 +369,90 @@ export function changedEntityIdsOf(diff: VersionDiff): readonly string[] {
 /* 5 — Lỗi                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Lượt đọc hỏng mà không mang câu nào vẫn phải nói ra một câu (A11: cấm màn trắng). */
-export const LIST_ERROR_FALLBACK = 'không tải được danh sách phiên bản của tầng này';
+/** Thao tác ghi của màn, cho bảng câu lỗi. */
+export type VersionWriteOperation = 'restore' | 'undo' | 'label';
 
-/**
- * Lỗi đầu tiên có thật trong danh sách, thành một câu người đọc hiểu.
- *
- * Không đi qua `describeError`: cổng đã ném ra những câu NÊU ĐÍCH DANH chính sách lưu
- * giữ hoặc đường dữ liệu còn thiếu (`RETENTION_NOTICE`, `NO_VERSION_SOURCE_REASON`), và
- * đổi chúng thành một câu lỗi chung là mất đúng phần người đọc cần.
- */
-export function readErrorMessage(errors: readonly (Error | null)[]): string | null {
-  for (const error of errors) {
-    if (error !== null) {
-      return error.message.length === 0 ? LIST_ERROR_FALLBACK : error.message;
-    }
-  }
+const WRITE_ERROR_TITLES: Readonly<Record<VersionWriteOperation, string>> = {
+  restore: 'Chưa phục hồi được',
+  undo: 'Chưa hoàn tác được',
+  label: 'Chưa gắn được nhãn',
+};
 
-  return null;
+const WRITE_ERROR_FALLBACK: Readonly<Record<VersionWriteOperation, string>> = {
+  restore: 'Máy chủ chưa nhận lượt phục hồi. Thử lại sau ít phút.',
+  undo: 'Máy chủ chưa nhận lượt hoàn tác. Thử lại sau ít phút.',
+  label: 'Máy chủ chưa nhận nhãn này. Thử lại sau ít phút.',
+};
+
+/** N18 hỏng tạm thời của một hàng (NO-368) — khác "hết nội dung": bấm thử lại được. */
+export const SNAPSHOT_FAILED_NOTICE = 'Chưa tải được nội dung bản này';
+/** Nhãn nút thử lại N18 của một hàng. */
+export const SNAPSHOT_RETRY_LABEL = 'Thử lại';
+
+/** Toast mời bấm lại sau khi N19 ngược hỏng tạm thời (NO-365) — phiếu hoàn tác vẫn còn hạn. */
+export const UNDO_RETRY_TOAST = 'Chưa hoàn tác được lượt phục hồi; bấm "Hoàn tác" để thử lại';
+
+/** Mất phản hồi: lượt ghi có thể đã tới máy chủ — bấm lại cùng `baseVersion` nhận 200 là xong. */
+const UNKNOWN_OUTCOME = 'Chưa rõ đã phục hồi chưa, bấm lại.';
+
+/** (thao tác, `code`) → câu. Mã lạ thì câu dự phòng; mã không bao giờ in ra (R1). */
+const WRITE_ERROR_SENTENCES: Readonly<Record<VersionWriteOperation, Readonly<Record<string, string>>>> = {
+  restore: {
+    FORBIDDEN: 'Vai của bạn trên dự án này không được sửa lớp của tầng.',
+    LAYER_INTEGRITY_BROKEN: 'Nội dung bản này không còn khớp toàn vẹn của tầng, nên không phục hồi được.',
+    NETWORK: UNKNOWN_OUTCOME,
+    REVIEW_BY_AI_FORBIDDEN: 'Bản này sẽ ghi dấu "đã duyệt" cho kết quả của AI, nên không phục hồi được.',
+    TIMEOUT: UNKNOWN_OUTCOME,
+    VALIDATION: 'Không phục hồi được bản này.',
+    VERSION_FLOOR_MISMATCH: 'Bản này không thuộc tầng đang chọn.',
+    VERSION_SNAPSHOT_PURGED: 'Bản này không còn nội dung để phục hồi.',
+  },
+  undo: {
+    FORBIDDEN: 'Vai của bạn trên dự án này không được sửa lớp của tầng.',
+    NETWORK: 'Chưa rõ đã hoàn tác chưa; tải lại trang để xem hiện trạng.',
+    TIMEOUT: 'Chưa rõ đã hoàn tác chưa; tải lại trang để xem hiện trạng.',
+    VERSION_SNAPSHOT_PURGED: 'Bản trước lượt phục hồi không còn nội dung, nên không hoàn tác được.',
+  },
+  label: {
+    FORBIDDEN: 'Vai của bạn trên dự án này không được gắn nhãn phiên bản.',
+    VALIDATION: 'Nhãn dài tối đa 60 ký tự.',
+  },
+};
+
+const codeOf = (error: unknown): string | undefined =>
+  typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : undefined;
+
+/** Lỗi ghi (đã qua `toAppError`, R1: đọc `code` thẳng) thành dải "Đã hiểu". */
+export function writeErrorNotice(operation: VersionWriteOperation, error: unknown): ConflictNoticeModel {
+  const code = codeOf(error);
+
+  return {
+    actorName: WRITE_ERROR_TITLES[operation],
+    message: (code === undefined ? undefined : WRITE_ERROR_SENTENCES[operation][code]) ?? WRITE_ERROR_FALLBACK[operation],
+    detail: null,
+    dismissLabel: 'Đã hiểu',
+  };
+}
+
+/** N16 hỏng sau một lượt ghi: kho giữ `revision` cũ, nên lượt tự lưu sau sẽ 409 thay vì ghi đè. */
+export const RELOAD_FAILED_NOTICE: ConflictNoticeModel = {
+  actorName: 'Chưa tải lại được tầng',
+  message: 'Máy chủ đã nhận thay đổi nhưng chưa trả lại lớp mới của tầng. Tải lại để xem bản mới nhất.',
+  detail: null,
+  dismissLabel: 'Tải lại',
+};
+
+/** N17 403, hoặc 404 `resource:"project"` — chỉ hai lỗi này là `forbidden`, không vai viewer. */
+export function isForbiddenRead(error: unknown): boolean {
+  const code = codeOf(error);
+  const params =
+    typeof error === 'object' && error !== null && 'params' in error && typeof error.params === 'object'
+      ? (error.params as Readonly<Record<string, unknown>> | null)
+      : null;
+
+  return code === 'FORBIDDEN' || (code === 'NOT_FOUND' && params?.resource === 'project');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -379,7 +461,7 @@ export function readErrorMessage(errors: readonly (Error | null)[]): string | nu
 
 /** Trạng thái 6: so sánh được, nhưng nút phục hồi rời khỏi DOM (R-69). */
 export const RESTORE_FORBIDDEN_REASON =
-  'vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện';
+  'Vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện';
 
 /**
  * Câu giải thích phục hồi là KHÔNG PHÁ HUỶ.
@@ -388,24 +470,146 @@ export const RESTORE_FORBIDDEN_REASON =
  * đúng cấm tuyệt đối của đặc tả, và đúng A9 (việc A8 không hoàn tác được thì phải hỏi).
  */
 export const RESTORE_CAPTION =
-  'phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
+  'Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
 
-/** Hộp thoại xác nhận phục hồi; `targetVersionId` là `null` khi hộp thoại đang đóng. */
+/** Câu trấn an thêm của hộp thoại: phục hồi thay lớp từ ngoài, nên Ctrl+Z mất lịch sử. */
+export const UNDO_HISTORY_CLEARED = 'Lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.';
+
+/** Hộp thoại đang mở: hỏi phục hồi, hay hỏi bỏ thay đổi chưa lưu (A9). */
+export type RestoreDialog =
+  | { readonly kind: 'restore'; readonly versionId: string }
+  | { readonly kind: 'discard' };
+
+/** Hộp thoại xác nhận (khung `restoreConfirm`); `dialog` `null` là đang đóng. */
 export function buildRestoreConfirm(
   builds: readonly VersionRowBuild[],
-  targetVersionId: string | null,
+  dialog: RestoreDialog | null,
+  floorName: string,
 ): RestoreConfirmModel {
+  if (dialog?.kind === 'discard') {
+    return {
+      isOpen: true,
+      title: `${floorName.charAt(0).toLocaleUpperCase('vi-VN')}${floorName.slice(1)} còn thay đổi chưa lưu được; tiếp tục sẽ bỏ chúng`,
+      reassurance: 'Thay đổi chưa lưu của tầng này sẽ mất. Chọn "Huỷ" để giữ chúng và không phục hồi.',
+      confirmLabel: 'Bỏ thay đổi và tiếp tục',
+      cancelLabel: 'Huỷ',
+      targetVersionLabel: null,
+    };
+  }
+
   const label =
-    targetVersionId === null
-      ? null
-      : (builds.find((build) => build.row.id === targetVersionId)?.row.label ?? null);
+    dialog === null ? null : (builds.find((build) => build.row.id === dialog.versionId)?.row.label ?? null);
 
   return {
-    isOpen: targetVersionId !== null,
-    title: label === null ? 'phục hồi phiên bản này?' : `phục hồi phiên bản ${label}?`,
-    reassurance: RESTORE_CAPTION,
-    confirmLabel: 'phục hồi',
-    cancelLabel: 'để nguyên',
+    isOpen: dialog !== null,
+    title:
+      label === null ? `Phục hồi phiên bản này của ${floorName}?` : `Phục hồi phiên bản ${label} của ${floorName}?`,
+    reassurance: `${RESTORE_CAPTION}. ${UNDO_HISTORY_CLEARED}`,
+    confirmLabel: 'Phục hồi',
+    cancelLabel: 'Để nguyên',
     targetVersionLabel: label,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7 — Giới hạn lượt N18 đồng thời                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bọc một hàm async để tối đa `max` lượt chạy cùng lúc; lượt dư xếp hàng theo thứ tự gọi.
+ *
+ * `signal` bị huỷ (NO-376): lượt đang xếp hàng rời hàng và ném; lượt đang chạy nhả chỗ ngay —
+ * `run` nhận cùng `signal` để tự bỏ lượt mạng của nó.
+ */
+export function createConcurrencyLimit(
+  max: number,
+): <T>(run: (signal?: AbortSignal) => Promise<T>, signal?: AbortSignal) => Promise<T> {
+  let active = 0;
+  const queue: (() => void)[] = [];
+  // Lượt xong trao thẳng chỗ của nó cho lượt đang chờ — không nhả rồi giành lại.
+  const release = (): void => {
+    const next = queue.shift();
+
+    if (next === undefined) {
+      active -= 1;
+    } else {
+      next();
+    }
+  };
+
+  const waitTurn = (signal: AbortSignal | undefined): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      const onAbort = (): void => {
+        queue.splice(queue.indexOf(turn), 1);
+        reject(signal?.reason);
+      };
+      const turn = (): void => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      };
+
+      queue.push(turn);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+
+  return async <T>(run: (signal?: AbortSignal) => Promise<T>, signal?: AbortSignal): Promise<T> => {
+    signal?.throwIfAborted();
+
+    if (active >= max) {
+      await waitTurn(signal);
+    } else {
+      active += 1;
+    }
+
+    let held = true;
+    const free = (): void => {
+      if (held) {
+        held = false;
+        release();
+      }
+    };
+
+    signal?.addEventListener('abort', free, { once: true });
+
+    try {
+      return await run(signal);
+    } finally {
+      signal?.removeEventListener('abort', free);
+      free();
+    }
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* 8 — Câu hỏi A9 đang chờ                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Câu hỏi "bỏ thay đổi chưa lưu?" đang chờ một lời đáp. */
+export interface PendingAnswer {
+  /** Hỏi; câu cũ còn chờ (nếu có) nhận `false` trước để không treo. */
+  readonly ask: () => Promise<boolean>;
+  /** Trả lời câu đang chờ; không có câu nào thì bỏ qua. */
+  readonly answer: (proceed: boolean) => void;
+}
+
+/** Một chỗ giữ câu hỏi A9: lượt ghi chờ trên `ask()`, hộp thoại hoặc lượt đổi tầng gọi `answer`. */
+export function createPendingAnswer(): PendingAnswer {
+  let resolve: ((proceed: boolean) => void) | null = null;
+  const answer = (proceed: boolean): void => {
+    const current = resolve;
+
+    resolve = null;
+    current?.(proceed);
+  };
+
+  return {
+    ask: () => {
+      answer(false);
+
+      return new Promise<boolean>((next) => {
+        resolve = next;
+      });
+    },
+    answer,
   };
 }

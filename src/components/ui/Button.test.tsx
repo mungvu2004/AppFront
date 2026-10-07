@@ -38,6 +38,13 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it('looks disabled when blocked with aria-disabled (still focusable)', () => {
+    render(<Button aria-disabled>Bị chặn</Button>);
+    const button = screen.getByRole('button', { name: 'Bị chặn' });
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveClass('aria-disabled:opacity-40', 'aria-disabled:cursor-not-allowed');
+  });
+
   it('does not call onClick when disabled', () => {
     const onClick = vi.fn();
     render(<Button disabled onClick={onClick}>Vô hiệu</Button>);

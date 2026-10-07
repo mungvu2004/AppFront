@@ -33,7 +33,7 @@ import type { RoomLabelListProps, RoomLabelStatus, RoomLabelViewModel } from './
 const ROW_HEIGHT_CLASS = 'h-10';
 
 const LIST_ARIA_LABEL = 'Danh sách phòng';
-const UNNAMED_PLACEHOLDER = 'chưa đặt tên';
+const UNNAMED_PLACEHOLDER = 'Chưa đặt tên';
 const EMPTY_TITLE = 'Chưa có phòng nào';
 const EMPTY_DESCRIPTION =
   'Không có phòng nào khớp bộ lọc đang bật. Tắt bộ lọc "Chưa đặt tên" để thấy lại cả danh sách.';
@@ -49,9 +49,9 @@ const STATUS_DOT_CLASS: Readonly<Record<RoomLabelStatus, string>> = {
 };
 
 const STATUS_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
-  unnamed: 'cần chú ý',
+  unnamed: 'Cần chú ý',
   suggested: 'AI đề xuất, chưa duyệt',
-  confirmed: 'đã duyệt',
+  confirmed: 'Đã duyệt',
 };
 
 interface RoomLabelListRowProps {

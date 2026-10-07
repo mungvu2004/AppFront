@@ -39,6 +39,9 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
@@ -59,11 +62,11 @@ export type ObjectLayerReviewViewProps = ObjectLayerReviewModel;
 
 /* Chuỗi tiếng Việt tĩnh — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 
-const SCREEN_ARIA_LABEL = 'lớp đối tượng';
-const CANVAS_REGION_LABEL = 'mặt bằng lớp đối tượng';
-const EMPTY_TITLE = 'chưa nhận ra đối tượng nào';
-const EMPTY_ACTION = 'thêm thủ công';
-const LOW_CONFIDENCE_FILTER = 'chỉ hiện mục dưới ngưỡng';
+const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
+const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
+const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
+const EMPTY_ACTION = 'Thêm thủ công';
+const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
 
 /** Số dòng khung xương của panel trái lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
 const SKELETON_ROWS = [0, 1, 2, 3];
@@ -188,6 +191,16 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       className="flex h-full min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
+      {model.saveBlock != null && (
+        <div className="px-2 pt-2">
+          <FloorLayerSaveBanner saveBlock={model.saveBlock} />
+        </div>
+      )}
+      {model.provisionalScaleNotice != null && (
+        <div className="px-2 pt-2">
+          <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
+        </div>
+      )}
       <div className="relative flex min-h-0 flex-1 gap-2 p-2">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">

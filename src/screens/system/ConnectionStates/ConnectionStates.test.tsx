@@ -47,7 +47,7 @@ import { useConnectionStates } from './useConnectionStates';
 /**
  * jsdom không có `matchMedia`, mà `Drawer` hỏi nó qua `useMediaQuery` và
  * `useReducedMotion`. `matches: false` là bản để bàn, chuyển động bật — cùng bản
- * `BillingScreen.test.tsx` và `WelcomeScreen.test.tsx` dựng.
+ * `WelcomeScreen.test.tsx` dựng.
  */
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {
@@ -223,7 +223,7 @@ describe('ba tầng hiển thị', () => {
 /* 3. Bảy trạng thái.                                                          */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   /**
    * `expectSevenStates` từ chối một màn trắng, nhưng trạng thái "rỗng" của lớp
    * này ĐÚNG là không vẽ gì. Nên trạng thái ấy được dựng bằng cảnh có thật gần
@@ -247,7 +247,7 @@ describe('bảy trạng thái', () => {
       );
 
       return { container, unmount };
-    }, createSevenStateScenarios());
+    }, createSevenStateScenarios(), { sentenceCase: true });
   });
 
   it('trạng thái rỗng cố ý không vẽ gì', () => {
@@ -309,7 +309,7 @@ describe('câu chữ', () => {
   it('lệnh không mang nhãn thì nói thẳng là chưa đặt tên, không bịa', () => {
     const row = toPendingRow({ command: { foo: 1 }, createdAt: Date.now(), id: 7, sizeBytes: 900 });
 
-    expect(row.label).toBe('thay đổi chưa đặt tên');
+    expect(row.label).toBe('Thay đổi chưa đặt tên');
   });
 
   it('số lệnh chờ định dạng ở model, không ở view (A15)', () => {

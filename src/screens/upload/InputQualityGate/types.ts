@@ -227,6 +227,12 @@ export interface InputQualityImageModel {
  */
 export interface InputQualityFooterModel {
   readonly canContinue: boolean;
+  /**
+   * Chưa có gì để xử lý tiếp (đang đọc, lỗi đọc, hoặc chưa có bản vẽ): câu lý
+   * do, và nút chính vô hiệu. `null`/vắng = nút dùng được (khác `canContinue`,
+   * vốn không khoá nút). Chân trang nêu câu này cạnh nút.
+   */
+  readonly continueDisabledReason?: string | null;
   readonly requiresAcknowledgement: boolean;
   readonly isAcknowledged: boolean;
   readonly acknowledgementLabel: string;
@@ -266,6 +272,12 @@ export type InputQualityGateStatus =
  * 5. `remainingFindingCount` đếm phần tử `findings` có `isResolved === false`.
  * 6. `passNotice !== null` chỉ khi `status === 'empty'`; `partialNotice !==
  *    null` chỉ khi `status === 'partial'`.
+ * 7. `noDrawingNotice !== null` ⟺ dự án chưa có bản vẽ nào (máy chủ trả 404
+ *    `upload`): `status === 'empty'`, và `passNotice` là `null`.
+ * 8. `writeError !== null` chỉ sau một lượt ghi hỏng và xoá khi lượt ghi mới
+ *    bắt đầu hoặc đổi tầng; view in nó thành một dải, không in mã lỗi.
+ * 9. `confirm !== null` ⟺ hộp thoại hỏi trước (A9) đang mở. Nắn thẳng và gửi
+ *    bốn góc đều đi qua nó vì máy chủ không có lệnh ngược: không vé hoàn tác.
  */
 export interface InputQualityGateModel {
   readonly status: InputQualityGateStatus;
@@ -280,6 +292,24 @@ export interface InputQualityGateModel {
   readonly partialNotice: string | null;
   readonly remainingFindingCount: number;
   readonly passNotice: string | null;
+  readonly noDrawingNotice: string | null;
+  readonly writeError: string | null;
+  /**
+   * Sau lỗi ghi (và lượt đọc lại nếu có): loại nút hành động nhận lại tiêu điểm
+   * (A12). Hộp thoại đóng lúc nút gốc còn bị thay thế nên tiêu điểm không tự về.
+   */
+  readonly retryFocus?: 'straighten' | 'corners' | null;
+  readonly confirm: InputQualityConfirmModel | null;
+}
+
+/** Hộp thoại hỏi trước khi nắn thẳng hoặc cắt lại theo bốn góc (A9). */
+export interface InputQualityConfirmModel {
+  readonly title: string;
+  readonly body: string;
+  readonly confirmLabel: string;
+  readonly cancelLabel: string;
+  /** Lượt ghi đang bay: hai nút khoá để không gửi hai lần. */
+  readonly isBusy: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -305,6 +335,10 @@ export interface InputQualityGateActions {
   readonly onToggleAcknowledgement: (next: boolean) => void;
   readonly onContinue: () => void;
   readonly onUploadAnother: () => void;
+  /** Xác nhận trong hộp thoại A9 — gửi lượt ghi đang chờ. */
+  readonly onConfirmWrite: () => void;
+  /** Huỷ hoặc Esc trong hộp thoại A9 — không gửi gì. */
+  readonly onCancelWrite: () => void;
 }
 
 /** Mọi prop view nhận — mô hình cộng hành động (mục D). */

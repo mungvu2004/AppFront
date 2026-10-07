@@ -317,7 +317,6 @@ export interface UserManagementDetailProps {
   readonly detail: UserDetailModel | null;
   readonly roleOptions: readonly RoleOption[];
   readonly permissionMatrix: PermissionMatrixModel;
-  readonly removeConfirm: RemoveConfirmModel;
   readonly isCollapsed: boolean;
   readonly actions: UserManagementActions;
 }

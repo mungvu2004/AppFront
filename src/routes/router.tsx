@@ -5,6 +5,7 @@
 import React, { lazy, useCallback, useState } from 'react';
 import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom';
 
+import { ScreenMain } from '@/components/shell/ScreenMain';
 import { flushAutosaves } from '@/hooks/useAutosave';
 import { useShortcut } from '@/hooks/useShortcut';
 import {
@@ -15,16 +16,44 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
-import { SessionBootstrap } from './SessionBootstrap';
+import { PendingShell, SessionBootstrap } from './SessionBootstrap';
 
-/** Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu. */
+/**
+ * Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu.
+ *
+ * Từng là `<div>Loading...</div>`: chữ tiếng Anh trên màn sản phẩm (A6) và một ô
+ * trống ở góc thay cho trạng thái chờ (A11) — B-G-04. Nay là đúng vỏ chờ của
+ * `SessionGate`, nên lượt tải chunk nối liền lượt mở phiên mà không nháy.
+ * `PendingShell` đã nằm trong chunk vào (qua `SessionBootstrap`), nhập lại nó
+ * không thêm byte nào vào đường tải đầu.
+ */
 const suspended = (node: React.ReactNode) => (
-  <React.Suspense fallback={<div>Loading...</div>}>{node}</React.Suspense>
+  <React.Suspense fallback={<PendingShell label="Đang tải màn hình" />}>{node}</React.Suspense>
+);
+
+/**
+ * Như {@link suspended}, cho route NGOÀI nhóm `ScreenMain` (FIX-381): không có
+ * `main` bọc ngoài, nên lúc chờ chunk vỏ chờ phải tự mang `main`. Route trong
+ * nhóm dùng `suspended` — bọc ở đó là hai `main`.
+ */
+const suspendedOutsideMain = (node: React.ReactNode) => (
+  <React.Suspense
+    fallback={
+      <ScreenMain>
+        <PendingShell label="Đang tải màn hình" />
+      </ScreenMain>
+    }
+  >
+    {node}
+  </React.Suspense>
 );
 
 // Lazy load screen routes
 const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
+const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
+const RouteInvitationAccept = lazy(() => import('../screens/auth/InvitationAccept').then(m => ({ default: m.InvitationAcceptRoute })));
+const RoutePasswordReset = lazy(() => import('../screens/auth/PasswordReset').then(m => ({ default: m.PasswordResetRoute })));
 const RouteDashboard = lazy(() => import('../screens/dashboard/ProjectDashboard').then(m => ({ default: m.ProjectDashboardRoute })));
 const RouteProjectSettings = lazy(() => import('../screens/project/ProjectSettings').then(m => ({ default: m.ProjectSettingsRoute })));
 const RouteAccountSettings = lazy(() => import('../screens/account/AccountSettings').then(m => ({ default: m.AccountSettingsRoute })));
@@ -33,7 +62,6 @@ const RouteAccessDenied = lazy(() => import('../screens/system/AccessDenied').th
 const RouteMobileViewer = lazy(() => import('../screens/system/MobileViewer').then(m => ({ default: m.MobileViewerRoute })));
 const RouteNotFound = lazy(() => import('../screens/system/NotFound').then(m => ({ default: m.NotFoundRoute })));
 const RouteOnboarding = lazy(() => import('../screens/onboarding/WelcomeScreen').then(m => ({ default: m.WelcomeRoute })));
-const RouteBilling = lazy(() => import('../screens/billing/BillingScreen').then(m => ({ default: m.BillingRoute })));
 const RouteFloorUpload = lazy(() => import('../screens/upload/FloorUploadScreen').then(m => ({ default: m.FloorUploadRoute })));
 const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityGate').then(m => ({ default: m.InputQualityGateRoute })));
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
@@ -56,6 +84,8 @@ const RouteThicknessStandardization = lazy(() => import('../screens/qc/Thickness
 const RouteSpatialJsonViewer = lazy(() => import('../screens/export/SpatialJsonViewer').then(m => ({ default: m.SpatialJsonViewerRoute })));
 const RouteVersionHistory = lazy(() => import('../screens/export/VersionHistory').then(m => ({ default: m.VersionHistoryRoute })));
 const RouteModelLibrary = lazy(() => import('../screens/admin/ModelLibrary').then(m => ({ default: m.ModelLibraryRoute })));
+const RouteModelRegistry = lazy(() => import('../screens/admin/ModelRegistry').then(m => ({ default: m.ModelRegistryRoute })));
+const RouteTrainingJobs = lazy(() => import('../screens/admin/TrainingJobs').then(m => ({ default: m.TrainingJobsRoute })));
 const RouteUserManagement = lazy(() => import('../screens/admin/UserManagement').then(m => ({ default: m.UserManagementRoute })));
 
 /**
@@ -115,7 +145,7 @@ const DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV ? buildDevOnlyRoutes(
 function buildStateGalleryDevOnlyRoutes(): RouteObject[] {
   const RouteStateGallery = lazy(() => import('../screens/system/StateGallery/index').then(m => ({ default: m.StateGalleryRoute })));
 
-  return [{ path: ROUTE_PATTERNS.designSystemStates, element: suspended(<RouteStateGallery />) }];
+  return [{ path: ROUTE_PATTERNS.designSystemStates, element: suspendedOutsideMain(<RouteStateGallery />) }];
 }
 
 const STATE_GALLERY_DEV_ONLY_ROUTES: RouteObject[] = import.meta.env.DEV
@@ -297,7 +327,8 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
   );
 }
 
-export const router = createBrowserRouter([
+/** Bảng route — xuất riêng để bài kiểm dựng nó trên `createMemoryRouter`. */
+export const routes: RouteObject[] = [
   {
     element: (
       <SessionBootstrap>
@@ -308,42 +339,59 @@ export const router = createBrowserRouter([
     ),
     children: [
       ...DEV_ONLY_ROUTES,
-      { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
-      { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
-      { path: ROUTE_PATTERNS.login, element: suspended(<RouteAuth />) },
-      { path: ROUTE_PATTERNS.dashboard, element: suspended(<RouteDashboard />) },
-      { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
-      { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
-      { path: ROUTE_PATTERNS.projectQuality, element: suspended(<RouteInputQualityGate />) },
-      { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
-      { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
-      { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
-      { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<RouteOverlayComparison />) },
-      { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
-      { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
-      { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
-      { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<RouteDimensionOcrReview />) },
-      { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
-      { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
-      { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
-      { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
-      { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RouteViewer3D />) },
-      { path: ROUTE_PATTERNS.projectExploded, element: suspended(<RouteExplodedView />) },
-      { path: ROUTE_PATTERNS.projectMeasure, element: suspended(<RouteMeasurementTool />) },
-      { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
-      { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
-      { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
-      { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
-      { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
-      { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
-      { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
-      { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
-      { path: ROUTE_PATTERNS.billing, element: suspended(<RouteBilling />) },
-      { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
+      { path: ROUTE_PATTERNS.login, element: suspendedOutsideMain(<RouteAuth />) },
+      { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
+      { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
+      { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
+      { path: ROUTE_PATTERNS.projectViewer, element: suspendedOutsideMain(<RouteViewer3D />) },
+      { path: ROUTE_PATTERNS.projectExploded, element: suspendedOutsideMain(<RouteExplodedView />) },
+      { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
-      { path: ROUTE_PATTERNS.mobileViewer, element: suspended(<RouteMobileViewer />) },
+      { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },
       ...STATE_GALLERY_DEV_ONLY_ROUTES,
-      { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
+      /* Nhóm màn không tự có `<main>`: một landmark chung ở đây thay vì ba mươi chỗ
+         (FIX-381). Màn đã có `<main>` riêng đứng NGOÀI nhóm để không lồng `<main>`. */
+      {
+        element: (
+          <ScreenMain>
+            <Outlet />
+          </ScreenMain>
+        ),
+        children: [
+          { path: ROUTE_PATTERNS.accessDenied, element: suspended(<RouteAccessDenied />) },
+          { path: ROUTE_PATTERNS.onboarding, element: suspended(<RouteOnboarding />) },
+          { path: ROUTE_PATTERNS.projectSettings, element: suspended(<RouteProjectSettings />) },
+          { path: ROUTE_PATTERNS.projectUpload, element: suspended(<RouteFloorUpload />) },
+          { path: ROUTE_PATTERNS.projectQuality, element: suspended(<RouteInputQualityGate />) },
+          { path: ROUTE_PATTERNS.projectPipeline, element: suspended(<RouteProcessing />) },
+          { path: ROUTE_PATTERNS.projectPipelineGraph, element: suspended(<RoutePipelineGraph />) },
+          { path: ROUTE_PATTERNS.projectScale, element: suspended(<RouteScaleCalibration />) },
+          { path: ROUTE_PATTERNS.projectOverlay, element: suspended(<RouteOverlayComparison />) },
+          { path: ROUTE_PATTERNS.projectCadConfirm, element: suspended(<RouteCadBranchConfirm />) },
+          { path: ROUTE_PATTERNS.projectWalls, element: suspended(<RouteWallLayerReview />) },
+          { path: ROUTE_PATTERNS.projectObjects, element: suspended(<RouteObjectLayerReview />) },
+          { path: ROUTE_PATTERNS.projectDimensions, element: suspended(<RouteDimensionOcrReview />) },
+          { path: ROUTE_PATTERNS.projectGrids, element: suspended(<RouteAxisGridManager />) },
+          { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
+          { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
+          { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
+          { path: ROUTE_PATTERNS.projectViewerPascal, element: suspended(<RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
+          { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
+          { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },
+          { path: ROUTE_PATTERNS.projectData, element: suspended(<RouteSpatialJsonViewer />) },
+          { path: ROUTE_PATTERNS.projectVersions, element: suspended(<RouteVersionHistory />) },
+          { path: ROUTE_PATTERNS.adminModels, element: suspended(<RouteModelLibrary />) },
+          { path: ROUTE_PATTERNS.adminTrainingJobs, element: suspended(<RouteTrainingJobs />) },
+          { path: ROUTE_PATTERNS.adminTrainingModels, element: suspended(<RouteModelRegistry />) },
+          { path: ROUTE_PATTERNS.adminUsers, element: suspended(<RouteUserManagement />) },
+          { path: ROUTE_PATTERNS.account, element: suspended(<RouteAccountSettings />) },
+          { path: ROUTE_PATTERNS.notifications, element: suspended(<RouteNotificationCenter />) },
+          { path: ROUTE_PATTERNS.notFound, element: suspended(<RouteNotFound />) },
+        ],
+      },
     ],
   },
-]);
+];
+
+export const router = createBrowserRouter(routes);

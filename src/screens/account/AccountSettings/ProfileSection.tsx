@@ -42,6 +42,8 @@ import { Input } from '@/components/ui/Input';
 import { Select, type SelectOption } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 
+import { AvatarReplaceDialog, type AvatarReplaceDialogProps } from './AvatarReplaceDialog';
+
 /**
  * Ảnh đại diện 56, bo tròn.
  *
@@ -66,9 +68,17 @@ export interface ProfileSectionProps {
   readonly avatarAlt: string;
   /** Trạng thái 3: đang đọc tệp ảnh. */
   readonly isAvatarUploading: boolean;
+  /** Ô chọn ảnh khoá tạm (sau 429): `disabled`, câu giải thích nằm ở `avatarProblem`. */
+  readonly isAvatarLocked: boolean;
   /** Câu đã dựng sẵn ở hook cho lượt tải ảnh (A15: view không dựng chuỗi). */
   readonly avatarStatusLabel: string;
   readonly onAvatarFileSelected: (file: File) => void;
+  /** Trạng thái 4 của ảnh: lý do ảnh bị từ chối, dưới ảnh; `null` khi không có. */
+  readonly avatarProblem: string | null;
+  /** Hộp thoại A9 xác nhận thay ảnh. */
+  readonly avatarReplace: AvatarReplaceDialogProps;
+  /** Trạng thái 4 của ô: câu lỗi 422 của máy chủ theo từng ô hồ sơ. */
+  readonly problems: Partial<Record<ProfileFieldKey, string>>;
 
   readonly fullName: string;
   readonly onFullNameChange: (value: string) => void;
@@ -121,8 +131,8 @@ export function ProfileSection(props: ProfileSectionProps) {
           <input
             id={avatarInputId}
             type="file"
-            accept="image/*"
-            disabled={props.isAvatarUploading}
+            accept="image/png,image/jpeg"
+            disabled={props.isAvatarUploading || props.isAvatarLocked}
             className="peer sr-only"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -155,30 +165,40 @@ export function ProfileSection(props: ProfileSectionProps) {
         ) : null}
       </div>
 
+      {props.avatarProblem === null ? null : (
+        <p role="alert" className="text-[13px] leading-[18px] text-state-violation-text">
+          {props.avatarProblem}
+        </p>
+      )}
+
+      <AvatarReplaceDialog {...props.avatarReplace} />
+
       <div className="flex flex-col">
-        <FieldRow label="họ tên" className={rowClass} flash={flashOf('fullName')}>
+        <FieldRow label="Họ tên" className={rowClass} flash={flashOf('fullName')}>
           <Input
-            aria-label="họ tên"
+            aria-label="Họ tên"
             value={props.fullName}
             onChange={(event) => props.onFullNameChange(event.target.value)}
+            error={props.problems.fullName}
             flash={flashOf('fullName')}
           />
         </FieldRow>
 
-        <FieldRow label="chức danh" className={rowClass} flash={flashOf('jobTitle')}>
+        <FieldRow label="Chức danh" className={rowClass} flash={flashOf('jobTitle')}>
           <Input
-            aria-label="chức danh"
+            aria-label="Chức danh"
             value={props.jobTitle}
             placeholder={props.jobTitlePlaceholder}
             onChange={(event) => props.onJobTitleChange(event.target.value)}
+            error={props.problems.jobTitle}
             flash={flashOf('jobTitle')}
           />
         </FieldRow>
 
-        <FieldRow label="thư điện tử" className={rowClass}>
+        <FieldRow label="Thư điện tử" className={rowClass}>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <Input aria-label="thư điện tử" value={props.email} isReadOnly readOnly />
+              <Input aria-label="Thư điện tử" value={props.email} isReadOnly readOnly />
               <Button
                 variant="ghost"
                 size="sm"
@@ -194,13 +214,14 @@ export function ProfileSection(props: ProfileSectionProps) {
           </div>
         </FieldRow>
 
-        <FieldRow label="điện thoại" className={rowClass} flash={flashOf('phone')}>
+        <FieldRow label="Điện thoại" className={rowClass} flash={flashOf('phone')}>
           <Input
-            aria-label="điện thoại"
+            aria-label="Điện thoại"
             type="tel"
             inputMode="tel"
             value={props.phone}
             onChange={(event) => props.onPhoneChange(event.target.value)}
+            error={props.problems.phone}
             flash={flashOf('phone')}
           />
         </FieldRow>
@@ -212,17 +233,17 @@ export function ProfileSection(props: ProfileSectionProps) {
           phải một vai lấy tên từ nội dung — nên chữ "Tiếng Việt" bên trong nó
           không đặt tên cho nó, và `expectAccessible` báo thiếu nhãn. Dạng gọn
           chỉ dựng `Select.Label` khi có prop `label`, và prop ấy vẽ một nhãn
-          NHÌN THẤY ĐƯỢC — thành hai lần "ngôn ngữ" trên cùng một hàng, vì cột
+          NHÌN THẤY ĐƯỢC — thành hai lần "Ngôn ngữ" trên cùng một hàng, vì cột
           trái của `FieldRow` đã viết nó rồi. Dạng ghép cho phép giữ đúng một
           nhãn nhìn thấy và một `<label htmlFor>` cho trình đọc màn hình.
         */}
-        <FieldRow label="ngôn ngữ" className={rowClass} flash={flashOf('language')} isLast>
+        <FieldRow label="Ngôn ngữ" className={rowClass} flash={flashOf('language')} isLast>
           <Select.Root
             value={props.language}
             onChange={props.onLanguageChange}
             options={[...props.languageOptions]}
           >
-            <Select.Label className="sr-only">ngôn ngữ</Select.Label>
+            <Select.Label className="sr-only">Ngôn ngữ</Select.Label>
             <Select.Trigger options={[...props.languageOptions]} />
             <Select.Content>
               {props.languageOptions.map((option, index) => (

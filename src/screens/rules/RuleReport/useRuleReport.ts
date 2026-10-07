@@ -46,11 +46,12 @@
  *   thang, không viết số thô (R-71).
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
+import { EMPTY_RULE_CONFIG, type RuleConfig } from '@/domain/rules/config';
 import { countBySeverity, groupViolationsByLevel, sortBySeverity } from '@/domain/rules/healthScore';
 import {
   RULE_GROUP_LABELS,
@@ -60,13 +61,21 @@ import {
   type Violation,
 } from '@/domain/rules/registry';
 import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
-import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
+// Nhập thẳng file cổng, KHÔNG qua barrel `@/screens/rules/RuleSettings`: barrel kéo cả màn
+// cài đặt (view, container) vào chunk báo cáo — đo F-10: 287,4 KiB > trần 280 của cổng kích thước.
+import {
+  createRuleSettingsGateway,
+  ruleSettingsQueryKey,
+  type RuleSettingsGateway,
+} from '@/screens/rules/RuleSettings/ruleSettingsGateway';
 import { useStore } from '@/store';
+import { ruleRegistryFor } from '@/store/selectors';
 
 import { createRuleReportGateway, type RuleReportGateway } from './ruleReportGateway';
 import type {
@@ -90,6 +99,8 @@ export interface UseRuleReportOptions {
   readonly canEdit?: boolean;
   /** Trạng thái 7: vỏ ứng dụng báo đang thu gọn. */
   readonly isCompact?: boolean;
+  /** Cổng đọc cấu hình bộ luật (N21); bài kiểm tiêm cổng của nó. */
+  readonly ruleConfigGateway?: RuleSettingsGateway;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -104,6 +115,7 @@ const DEFAULT_FILTERS: RuleReportFilters = Object.freeze({
 });
 
 const EMPTY_VIOLATIONS: readonly Violation[] = Object.freeze([]);
+const EMPTY_CODES: ReadonlyMap<string, string> = new Map();
 const EMPTY_ROWS: readonly RuleReportRow[] = Object.freeze([]);
 const EMPTY_GROUPS: readonly RuleReportGroup[] = Object.freeze([]);
 const EMPTY_PASSED: readonly PassedRule[] = Object.freeze([]);
@@ -119,7 +131,10 @@ const EMPTY_SUMMARY: RuleReportSummary = Object.freeze({
 });
 
 /** Câu báo lỗi của trạng thái 4. Bộ luật chạy tại chỗ nên không có lỗi mạng để dịch. */
-const RUN_FAILED_MESSAGE = 'không chạy được bộ kiểm tra trên mô hình này.';
+const RUN_FAILED_MESSAGE = 'Không chạy được bộ kiểm tra trên mô hình này.';
+
+/** Câu báo lỗi khi N21 hỏng: chưa có cấu hình thì không chạy luật với sổ mặc định. */
+const CONFIG_FAILED_MESSAGE = 'Không tải được cấu hình bộ luật của dự án.';
 
 /* -------------------------------------------------------------------------- */
 /* Một lượt chạy.                                                              */
@@ -132,6 +147,11 @@ interface RuleReportRun {
   /** Mã những luật THẬT SỰ đã chạy lượt này, mỗi mã một lần. */
   readonly ranRuleCodes: readonly RuleCode[];
   readonly ranAtEpochMs: number;
+  /**
+   * Mã người đọc của mọi đối tượng có vi phạm, tính trên CÙNG ảnh chụp đồ thị mà
+   * câu luật đã dùng — chip và câu không bao giờ gọi một đối tượng hai cách (B-V7-31).
+   */
+  readonly codeByEntityId: ReadonlyMap<string, string>;
 }
 
 /**
@@ -141,13 +161,17 @@ interface RuleReportRun {
  * `evaluatedRuleCodes` cho đúng danh sách luật đã chạy chứ không phải phần
  * chạy lại của một lượt tăng dần.
  */
-const runReport = (graph: NormalizedSpatial, registry: RuleRegistry): RuleReportRun => {
-  const result = runRules(graph, { registry });
+const runReport = (graph: NormalizedSpatial, registry: RuleRegistry, config: RuleConfig): RuleReportRun => {
+  // `config` đi cùng sổ để luật đọc cả ngưỡng `GENERAL` của dự án (K22).
+  const result = runRules(graph, { registry, config });
 
   return {
     violations: result.violations,
     ranRuleCodes: evaluatedRuleCodes(result),
     ranAtEpochMs: Date.now(),
+    codeByEntityId: new Map(
+      result.violations.map((violation) => [violation.entityId, displayCodeIn(graph, violation.entityId)]),
+    ),
   };
 };
 
@@ -191,6 +215,7 @@ interface BuiltRows {
 const buildRows = (
   violations: readonly Violation[],
   levelNames: ReadonlyMap<LevelId, string>,
+  codes: ReadonlyMap<string, string>,
 ): BuiltRows => {
   const seen = new Map<string, number>();
   const rows: RuleReportRow[] = [];
@@ -208,6 +233,7 @@ const buildRows = (
       message: violation.message,
       suggestion: violation.suggestion,
       entityId: violation.entityId,
+      entityCode: codes.get(violation.entityId) ?? violation.entityId,
       levelId: violation.levelId,
       levelLabel: violation.levelId === null ? null : levelNames.get(violation.levelId) ?? null,
       resolved: false,
@@ -314,12 +340,12 @@ const skippedGroupsOf = (
   const firstLevelId = levelIds[0];
   const remedy =
     firstLevelId === undefined
-      ? { path: ROUTES.project.floors(projectId), label: 'thêm tầng cho mô hình' }
-      : { path: ROUTES.project.rooms(projectId, firstLevelId), label: 'mở màn nhãn phòng' };
+      ? { path: ROUTES.project.floors(projectId), label: 'Thêm tầng cho mô hình' }
+      : { path: ROUTES.project.rooms(projectId, firstLevelId), label: 'Mở màn nhãn phòng' };
 
   return order.map((group) => ({
     group,
-    reason: `nhóm ${RULE_GROUP_LABELS[group]}: ${String(
+    reason: `nhóm ${lowerFirst(RULE_GROUP_LABELS[group])}: ${String(
       countByGroup.get(group) ?? 0,
     )} luật chưa chạy được vì mô hình chưa có tầng nào để soi.`,
     remedyPath: remedy.path,
@@ -344,10 +370,23 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const gateway: RuleReportGateway = useMemo(() => createRuleReportGateway(), []);
   const capabilities = useMemo(() => gateway.readCapabilities(canEdit), [gateway, canEdit]);
 
-  // Một sổ đăng ký riêng cho lượt xem này, dựng đúng một lần: bộ mặc định đã tự
-  // tắt hai luật built-in bị nhóm chức năng thay thế, nên số luật là việc của
-  // domain chứ không phải của màn.
-  const registry = useMemo(() => createDefaultRuleRegistry(), []);
+  // Cấu hình của dự án (N21), cùng khoá với màn cài đặt: lượt lưu ở đó
+  // (`setQueryData`) làm báo cáo này chạy lại theo `revision` mới. Không ghi store.
+  const injectedConfigGateway = options.ruleConfigGateway;
+  const configGateway = useMemo(
+    () => injectedConfigGateway ?? createRuleSettingsGateway(),
+    [injectedConfigGateway],
+  );
+  const configQuery = useQuery({
+    queryKey: ruleSettingsQueryKey(projectId),
+    queryFn: ({ signal }) => configGateway.read({ projectId, signal }),
+  });
+  const ruleConfig = configQuery.data?.config ?? EMPTY_RULE_CONFIG;
+  const revision = configQuery.data?.revision ?? null;
+
+  // Sổ luật như cấu hình mô tả; bộ mặc định đã tự tắt hai luật built-in bị nhóm
+  // chức năng thay thế, nên số luật là việc của domain chứ không phải của màn.
+  const registry = useMemo(() => ruleRegistryFor(ruleConfig), [ruleConfig]);
 
   const graph = useStore((state) => state.spatial);
   const spatialLoading = useStore((state) => state.spatialLoading);
@@ -358,8 +397,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const [expandedRuleCodes, setExpandedRuleCodes] = useState<readonly RuleCode[]>(EMPTY_RULE_CODES);
 
   const query = useQuery({
-    queryKey: [...queryKeys.violation.byProject(projectId), versionId],
-    enabled: graph !== null && capabilities.canEdit,
+    queryKey: [...queryKeys.violation.byProject(projectId), versionId, revision],
+    // Không chờ quyền sửa: N21 cho mọi thành viên đọc, và báo cáo chỉ đọc.
+    enabled: graph !== null && configQuery.data !== undefined,
     // `runRules` chạy đồng bộ, nhưng `queryFn` phải trả `Promise` để lượt "đang
     // chạy" của trạng thái 2 là một lượt thật chứ không chỉ có trong story.
     queryFn: async (): Promise<RuleReportRun> => {
@@ -367,7 +407,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
         throw new Error(RUN_FAILED_MESSAGE);
       }
 
-      return runReport(graph, registry);
+      return runReport(graph, registry, ruleConfig);
     },
     // Khoảng chờ giữa hai lần thử lại, lấy từ thang chuyển động (R-71).
     retryDelay: MOTION_DURATIONS_MS.standard,
@@ -376,7 +416,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   const run = query.data ?? null;
   const levelNames = useMemo(() => levelNamesOf(graph), [graph]);
   const built = useMemo(
-    () => buildRows(run?.violations ?? EMPTY_VIOLATIONS, levelNames),
+    () => buildRows(run?.violations ?? EMPTY_VIOLATIONS, levelNames, run?.codeByEntityId ?? EMPTY_CODES),
     [levelNames, run],
   );
 
@@ -526,11 +566,11 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return 'forbidden';
     }
 
-    if (query.isError) {
+    if (query.isError || configQuery.isLoadingError) {
       return 'error';
     }
 
-    if (spatialLoading || (graph !== null && run === null)) {
+    if (spatialLoading || (graph !== null && (configQuery.isPending || run === null))) {
       return 'loading';
     }
 
@@ -543,7 +583,17 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     }
 
     return summary.violations > 0 ? 'ready' : 'done';
-  }, [capabilities.canEdit, graph, query.isError, run, skipped, spatialLoading, summary]);
+  }, [
+    capabilities.canEdit,
+    configQuery.isLoadingError,
+    configQuery.isPending,
+    graph,
+    query.isError,
+    run,
+    skipped,
+    spatialLoading,
+    summary,
+  ]);
 
   const lastRunLabel = useMemo<string | null>(
     () => (run === null ? null : formatTimestamp(run.ranAtEpochMs, Date.now())),
@@ -580,8 +630,21 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   );
 
   const onRerun = useCallback((): void => {
+    // Màn đang báo lỗi N21 (lượt đọc đầu hỏng) thì đọc lại cấu hình; lượt chạy luật tự đi
+    // theo khi nó về. Lượt đọc lại chạy nền hỏng mà vẫn còn cấu hình thì chạy luật như thường.
+    if (configQuery.isLoadingError) {
+      void configQuery.refetch();
+      return;
+    }
+
+    // `refetch` bỏ qua `enabled`: không có mô hình thì nó chỉ ném lỗi (B-V12-02), và
+    // chưa có cấu hình thì nó chạy với sổ mặc định — thứ F-10 bỏ.
+    if (graph === null || configQuery.data === undefined) {
+      return;
+    }
+
     void query.refetch();
-  }, [query]);
+  }, [configQuery, graph, query]);
 
   /**
    * "Xác nhận đã xử lý" — đưa người dùng sang bước xuất bản.
@@ -632,7 +695,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       filters.group !== DEFAULT_FILTERS.group ||
       filters.levelId !== DEFAULT_FILTERS.levelId,
     isCompact,
-    errorMessage: query.isError ? RUN_FAILED_MESSAGE : null,
+    errorMessage: configQuery.isLoadingError ? CONFIG_FAILED_MESSAGE : query.isError ? RUN_FAILED_MESSAGE : null,
     onFilterChange,
     onToggleGroup,
     onSelectRow,
@@ -640,5 +703,6 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     onRerun,
     onConfirmResolved,
     previewRef,
+    settingsPath: ROUTES.project.ruleSettings(projectId),
   };
 }

@@ -254,7 +254,7 @@ export function FurnitureLibraryPanel({ state }: FurnitureLibraryPanelProps): Re
 
       {state.kind === 'forbidden' && <PanelContent content={state} forbidden />}
 
-      {state.kind === 'collapsed' && <PanelContent content={state} isCollapsed />}
+      {state.kind === 'collapsed' && <PanelContent content={state} isCollapsed forbidden={state.isReadOnly} />}
     </section>
   );
 }

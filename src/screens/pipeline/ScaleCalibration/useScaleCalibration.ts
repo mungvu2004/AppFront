@@ -99,7 +99,8 @@ import {
   rectangleArea,
   type Millimetres,
 } from '@/domain/units/types';
-import { useAutosave } from '@/hooks/useAutosave';
+import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -112,15 +113,20 @@ import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { formatCombo, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
+import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import { ROUTES } from '@/routes/paths';
 import { commit } from '@/store/commit';
 import { useStore } from '@/store';
+import type { SpatialPatch } from '@/domain/spatial/applyPatch';
+import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { Level } from '@/domain/spatial/types';
 import type { ProjectRole } from '@/types/project';
 
 import {
   createAppScaleCalibrationGateway,
   type ScaleCalibrationGateway,
   type ScaleDrawingSnapshot,
+  type ScaleFloorTarget,
   type ScaleRawDimensionString,
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
@@ -192,7 +198,49 @@ const COPY = {
     'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.',
   successNotice: 'Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.',
   applyCommitLabel: 'Áp dụng tỷ lệ',
+  applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
+  applyFailed: 'Chưa lưu được tỉ lệ lên máy chủ, tầng giữ tỉ lệ cũ.',
+  allFloorsReadFailed: 'Không tải được danh sách tầng để áp tỉ lệ.',
+  allFloorsMessage:
+    'Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+  allFloorsConfirm: 'Áp cho mọi tầng',
+  allFloorsCancel: 'Huỷ',
+  undoProvisional: 'Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn.',
 } as const;
+
+/** Ví dụ `"Áp tỉ lệ này cho 3 tầng có bản vẽ?"`. */
+const allFloorsTitle = (count: string): string => `Áp tỉ lệ này cho ${count} tầng có bản vẽ?`;
+
+/** Báo cáo một lượt "áp mọi tầng": mỗi nhóm một câu, nhóm rỗng thì không nói. */
+function allFloorsReport(report: AllFloorsReport): string {
+  const names = (floors: readonly string[]): string => floors.join(', ');
+
+  return [
+    report.saved.length > 0 ? `Đã áp tỉ lệ cho ${formatNumber(report.saved.length)} tầng.` : null,
+    report.failed.length > 0 ? `Không lưu được tỉ lệ cho: ${names(report.failed)}.` : null,
+    report.blocked.length > 0 ? `Chưa gửi vì tầng đang bị khoá lưu: ${names(report.blocked)}.` : null,
+    report.skipped.length > 0 ? `Bỏ qua vì chưa có bản vẽ: ${names(report.skipped)}.` : null,
+  ]
+    .filter((sentence) => sentence !== null)
+    .join(' ');
+}
+
+interface AllFloorsReport {
+  readonly saved: readonly string[];
+  readonly failed: readonly string[];
+  readonly blocked: readonly string[];
+  readonly skipped: readonly string[];
+}
+
+/** `Level` của `levelId` trong đồ thị, hoặc `null`. */
+function levelIn(spatial: NormalizedSpatial | null, levelId: string): Level | null {
+  const entity = spatial?.byId[levelId];
+
+  return entity !== undefined && isEntityOfKind('level', entity) ? entity : null;
+}
+
+/** Câu người đọc của một lượt PUT hỏng. */
+const failureText = (error: unknown): string => `${COPY.applyFailed} ${describeError(toAppError(error)).description}`;
 
 /** Ví dụ `"1 pixel = 12 mm · bản vẽ ở tỷ lệ khoảng 1:100"`. */
 const derivedLine = (millimetresLabel: string, ratioLabel: string): string =>
@@ -437,6 +485,45 @@ function useResolvedGateway(injected?: ScaleCalibrationGateway): ScaleCalibratio
 }
 
 /* -------------------------------------------------------------------------- */
+/* Mốc của nhánh hoàn tác — cấp module (P2-4).                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mốc sống qua lượt gắn lại màn, vì lịch sử zundo cũng sống qua nó: áp, rời màn, quay
+ * lại, Ctrl+Z vẫn phải sinh một PUT. Khoá `projectId` + mã `Level`: đổi dự án thì xoá
+ * hết; một lượt thay tầng từ ngoài (`serverReplaceSeq` tăng) cũng xoá, vì lượt ấy đã
+ * xoá lịch sử nên không còn cú hoàn tác nào để gửi.
+ */
+interface RatioMarks {
+  scope: string;
+  /** Tỉ lệ máy chủ đã nhận gần nhất, theo `Level`. */
+  readonly saved: Map<string, number>;
+  /** Tầng từng ở tỉ lệ tạm, kèm tỉ lệ tạm ấy — hoàn tác về nó thì phải nói ra (bước 5). */
+  readonly provisionalBefore: Map<string, number>;
+}
+
+const ratioMarks: RatioMarks = { scope: '', saved: new Map(), provisionalBefore: new Map() };
+
+function ratioMarksFor(projectId: string): RatioMarks {
+  const scope = `${projectId}#${useStore.getState().serverReplaceSeq}`;
+
+  if (ratioMarks.scope !== scope) {
+    ratioMarks.scope = scope;
+    ratioMarks.saved.clear();
+    ratioMarks.provisionalBefore.clear();
+  }
+
+  return ratioMarks;
+}
+
+/** Chỉ cho test: quên mọi mốc. */
+export function __resetScaleRatioMarks(): void {
+  ratioMarks.scope = '';
+  ratioMarks.saved.clear();
+  ratioMarks.provisionalBefore.clear();
+}
+
+/* -------------------------------------------------------------------------- */
 /* Hook.                                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -485,6 +572,24 @@ export function useScaleCalibration(
 
   const record = query.data ?? null;
   const drawing = record?.drawing ?? null;
+
+  /*
+   * Đồ thị của tầng qua N16, cùng khoá và cùng khuôn nạp với các màn QC
+   * (`useWallLayerReview.ts`): kho rỗng thì nạp vào kho, kho có đồ thị thì kho
+   * thắng. `:floorId` của route là mã tầng API, đồ thị khoá theo mã `Level`. Trên
+   * BE hai mã trùng; bộ mẫu API thì không (`L2` không phải `LevelId` hợp lệ), nên
+   * `levelId` lấy từ chính tầng N16 trả (B-V5-01). Lượt đọc hỏng không chặn
+   * khung vẽ; "Áp dụng tỷ lệ" khi ấy nói lý do tại chỗ.
+   */
+  const floorLayer = useFloorLayer({ projectId, floorId, read: gateway.readLayer });
+  const levelId: string = floorLayer.data?.level.id ?? floorId;
+  /** `'unresolved'`: tỉ lệ trong `Level` là tỉ lệ tạm của pipeline, chưa ai chốt. */
+  const isProvisional = floorLayer.scaleStatus === 'unresolved';
+  const { isFloorBlocked, saveScale } = useFloorLayerAutosave({
+    projectId,
+    floorId: levelId,
+    ...(gateway.apiClient !== undefined ? { apiClient: gateway.apiClient } : {}),
+  });
   const frame = useMemo(() => imageFrameOf(drawing), [drawing]);
 
   /* ---------------------------------------------------------------------- */
@@ -504,7 +609,16 @@ export function useScaleCalibration(
     height: 0,
   });
   const [cursorPoint, setCursorPoint] = useState<ImageRatioPoint | null>(null);
-  const [hasApplied, setHasApplied] = useState(false);
+  /** Kết quả lượt áp gần nhất: `success` chỉ khi MỌI `saveScale` của lượt ấy thành công (A5). */
+  const [applyOutcome, setApplyOutcome] = useState<'success' | 'failed' | null>(null);
+  const [isApplying, setApplying] = useState(false);
+  /** Câu của lượt áp/hoàn tác gần nhất — `applyBlockedNotice` của panel. */
+  const [applyNotice, setApplyNotice] = useState<string | null>(null);
+  /** Hộp thoại A9 đang mở cho "áp mọi tầng": tỉ lệ và danh sách đích đã đọc. */
+  const [allFloors, setAllFloors] = useState<{
+    readonly ratio: MillimetresPerPixel;
+    readonly targets: readonly ScaleFloorTarget[];
+  } | null>(null);
 
   const { viewport, pan, zoomTo, flyToBounds } = useCanvasViewport();
 
@@ -512,15 +626,10 @@ export function useScaleCalibration(
   /* Tỷ lệ đã áp — nguồn sự thật là store, không phải một bản sao ở đây.      */
   /* ---------------------------------------------------------------------- */
 
-  const storedRatio = useStore((state) => {
-    const entity = state.spatial?.byId[floorId];
-
-    if (entity === undefined || !isEntityOfKind('level', entity)) {
-      return null;
-    }
-
-    return entity.scaleMillimetresPerPixel ?? null;
-  });
+  const levelRatio = useStore((state) => levelIn(state.spatial, levelId)?.scaleMillimetresPerPixel ?? null);
+  /** Tầng tỉ lệ tạm coi như chưa hiệu chỉnh (`spatialLayer.ts`); tỉ lệ tạm chỉ còn nuôi `workingRatio`. */
+  const storedRatio = isProvisional ? null : levelRatio;
+  const provisionalRatio = isProvisional ? levelRatio : null;
 
   const appliedScale = useMemo<Scale | null>(
     () => (storedRatio === null ? null : scaleFromRatio(storedRatio)),
@@ -586,44 +695,41 @@ export function useScaleCalibration(
   const proposedRatio = proposedScale?.millimetresPerPixel ?? null;
 
   /** Tỷ lệ dùng để bắt điểm và để suy ra ba dòng kiểm chứng, theo thứ tự tin cậy. */
-  const workingRatio: MillimetresPerPixel | null = proposedRatio ?? storedRatio ?? aiSuggestion;
+  const workingRatio: MillimetresPerPixel | null = proposedRatio ?? storedRatio ?? provisionalRatio ?? aiSuggestion;
 
   /* ---------------------------------------------------------------------- */
   /* Tự lưu (D-07 / A7) — 800 ms là mặc định của chính `useAutosave`.         */
   /* ---------------------------------------------------------------------- */
 
-  const persistRef = useRef({ floorId, gateway, projectId, appliesToEveryFloor: false });
-  persistRef.current = {
-    floorId,
-    gateway,
-    projectId,
-    appliesToEveryFloor: applyScope === 'allFloors',
-  };
+  const saveScaleRef = useRef(saveScale);
+  saveScaleRef.current = saveScale;
 
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
+
+  /**
+   * Nhánh hoàn tác (F-04x-2 bước 5): `useAutosave` gọi lại sau mỗi sửa có lịch sử; chỉ
+   * tầng có tỉ lệ `Level` khác tỉ lệ máy chủ nhận gần nhất (mốc cấp module) mới sinh
+   * PUT — sửa đồ thị khác không sinh PUT tỉ lệ. Hỏng thì ném lỗi gốc cho engine. Gửi
+   * là hạ `success`: kết quả cũ không còn nói về tỉ lệ đang có.
+   */
   const handleSave = useCallback(async (): Promise<void> => {
-    const current = persistRef.current;
-    const entity = useStore.getState().spatial?.byId[current.floorId];
+    const marks = ratioMarksFor(projectIdRef.current);
 
-    if (entity === undefined || !isEntityOfKind('level', entity)) {
-      return;
-    }
+    for (const [id, saved] of marks.saved) {
+      const ratio = levelIn(useStore.getState().spatial, id)?.scaleMillimetresPerPixel;
 
-    const ratio = entity.scaleMillimetresPerPixel;
+      if (ratio === undefined || ratio === saved) {
+        continue;
+      }
 
-    if (ratio === undefined || !current.gateway.supports.persistScale) {
-      return;
-    }
+      setApplyOutcome(null);
+      await saveScaleRef.current(id, ratio);
+      marks.saved.set(id, ratio);
 
-    const result = await current.gateway.persistScale({
-      floorId: current.floorId,
-      projectId: current.projectId,
-      millimetresPerPixel: ratio,
-      appliesToEveryFloor: current.appliesToEveryFloor,
-    });
-
-    if (!result.supported) {
-      // Chưa có endpoint thì không được hiện "đã lưu lúc …" cho lượt chưa rời máy.
-      throw new Error('chưa lưu được tỉ lệ, máy chủ chưa hỗ trợ');
+      if (marks.provisionalBefore.get(id) === ratio) {
+        setApplyNotice(COPY.undoProvisional);
+      }
     }
   }, []);
 
@@ -936,17 +1042,50 @@ export function useScaleCalibration(
   }, []);
 
   /**
-   * Áp tỷ lệ.
-   *
-   * Một dòng `commit`, đúng như điều phối viên đã chốt: `Level` đã có trường
-   * `scaleMillimetresPerPixel`, `applyPatch` đã nhận `update` cho `kind: 'level'`,
-   * và zundo theo dõi đúng slice `spatial` — nên hoàn tác chạy thật và toast
-   * Hoàn tác của A8 tự hiện qua `lastCommitLabel`. Không hộp thoại, không lệnh
-   * tự chế, không ngăn xếp hoàn tác thứ hai.
+   * Áp tỷ lệ (F-04x-2 bước 5): `saveScale` của bộ lưu lớp chung TRƯỚC, rồi một
+   * `commit` vào `Level` khi máy chủ đã nhận — hoàn tác chạy qua zundo và toast A8
+   * như cũ. "Áp cho mọi tầng" hỏi trước bằng hộp thoại A9.
    */
   const proposedRatioRef = useRef(proposedRatio);
   proposedRatioRef.current = proposedRatio;
 
+  /**
+   * Đã gửi xong: ghi tỉ lệ vào kho bằng MỘT `commit` (một bước hoàn tác, toast A8) cho
+   * những tầng máy chủ đã nhận. Mốc của nhánh hoàn tác đặt TRƯỚC `commit`, để lượt
+   * `handleSave` mà chính `commit` này hẹn không gửi lại tỉ lệ vừa lưu.
+   */
+  const commitSaved = useCallback((levelIds: readonly string[], ratio: MillimetresPerPixel) => {
+    const spatial = useStore.getState().spatial;
+    const marks = ratioMarksFor(projectIdRef.current);
+    const patches: SpatialPatch[] = [];
+
+    for (const id of levelIds) {
+      const level = levelIn(spatial, id);
+
+      if (level !== null) {
+        marks.saved.set(id, ratio);
+        patches.push({ op: 'update', kind: 'level', id: level.id, changes: { scaleMillimetresPerPixel: ratio } });
+      }
+    }
+
+    if (patches.length > 0) {
+      commit(patches, COPY.applyCommitLabel);
+    }
+  }, []);
+
+  /** Ghi nhớ tỉ lệ tạm của tầng trước khi gửi — hoàn tác về nó thì nói câu của bước 5. */
+  const rememberProvisional = useCallback((id: string) => {
+    const ratio = levelIn(useStore.getState().spatial, id)?.scaleMillimetresPerPixel;
+
+    if (useStore.getState().floorMeta[id]?.scaleStatus === 'unresolved' && ratio !== undefined) {
+      ratioMarksFor(projectIdRef.current).provisionalBefore.set(id, ratio);
+    }
+  }, []);
+
+  const applyScopeRef = useRef(applyScope);
+  applyScopeRef.current = applyScope;
+
+  /** "Áp": PUT trước, `commit` sau — kho chỉ đổi tỉ lệ khi máy chủ đã nhận (A5). */
   const onApply = useCallback(() => {
     const ratio = proposedRatioRef.current;
 
@@ -954,27 +1093,97 @@ export function useScaleCalibration(
       return;
     }
 
-    // Mã tầng đến từ đường dẫn nên nó chỉ là `string`; `LevelId` là mã đã qua
-    // kiểm. Lấy nó ra khỏi chính đồ thị bằng `isEntityOfKind` thay vì ép kiểu:
-    // không có tầng đó trong dữ liệu đang mở thì cũng không có gì để vá.
-    const entity = useStore.getState().spatial?.byId[floorId];
-
-    if (entity === undefined || !isEntityOfKind('level', entity)) {
+    // `levelId` là mã `Level` N16 trả cho mã tầng của route. Không có tầng đó trong
+    // kho thì không có gì để vá — nói lý do tại chỗ thay vì im lặng (B-V5-01).
+    if (levelIn(useStore.getState().spatial, levelId) === null) {
+      setApplyNotice(COPY.applyNoSpatial);
       return;
     }
 
-    commit(
-      {
-        op: 'update',
-        kind: 'level',
-        id: entity.id,
-        changes: { scaleMillimetresPerPixel: ratio },
-      },
-      COPY.applyCommitLabel,
-    );
+    setApplyNotice(null);
+    setApplying(true);
 
-    setHasApplied(true);
-  }, [floorId]);
+    if (applyScopeRef.current === 'allFloors') {
+      void gateway.readAllFloors({ projectId }).then(
+        (targets) => {
+          setAllFloors({ ratio, targets });
+          setApplying(false);
+        },
+        () => {
+          setApplyNotice(COPY.allFloorsReadFailed);
+          setApplying(false);
+        },
+      );
+      return;
+    }
+
+    rememberProvisional(levelId);
+    void saveScale(levelId, ratio).then(
+      () => {
+        commitSaved([levelId], ratio);
+        setApplyOutcome('success');
+        setApplying(false);
+      },
+      (error: unknown) => {
+        setApplyOutcome('failed');
+        setApplyNotice(failureText(error));
+        setApplying(false);
+      },
+    );
+  }, [commitSaved, gateway, levelId, projectId, rememberProvisional, saveScale]);
+
+  const onCancelAllFloors = useCallback(() => {
+    setAllFloors(null);
+  }, []);
+
+  /** Đồng ý A9: gửi NỐI TIẾP từng tầng có bản vẽ, `hint` = `revision` N15 của tầng. */
+  const onConfirmAllFloors = useCallback(() => {
+    if (allFloors === null) {
+      return;
+    }
+
+    const { ratio, targets } = allFloors;
+
+    setAllFloors(null);
+    setApplying(true);
+
+    void (async () => {
+      const saved: ScaleFloorTarget[] = [];
+      const failed: string[] = [];
+      const blocked: string[] = [];
+
+      for (const target of targets.filter((entry) => entry.hasDrawing)) {
+        if (isFloorBlocked(target.floorId)) {
+          blocked.push(target.name);
+          continue;
+        }
+
+        rememberProvisional(target.floorId);
+
+        try {
+          await saveScale(target.floorId, ratio, target.revision);
+          saved.push(target);
+        } catch {
+          failed.push(target.name);
+        }
+      }
+
+      commitSaved(
+        saved.map((target) => target.floorId),
+        ratio,
+      );
+      setApplyOutcome(saved.length > 0 && failed.length === 0 && blocked.length === 0 ? 'success' : 'failed');
+      setApplyNotice(
+        allFloorsReport({
+          saved: saved.map((target) => target.name),
+          failed,
+          blocked,
+          skipped: targets.filter((entry) => !entry.hasDrawing).map((entry) => entry.name),
+        }) || null,
+      );
+      setApplying(false);
+    })();
+  }, [allFloors, commitSaved, isFloorBlocked, rememberProvisional, saveScale]);
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (I-01) — không một `addEventListener` nào ở đây (R-72).        */
@@ -1266,11 +1475,11 @@ export function useScaleCalibration(
       return 'collapsed';
     }
 
-    if (hasApplied) {
+    if (applyOutcome === 'success') {
       return 'success';
     }
 
-    if (hasStartedWork || lowConfidenceCount > 0) {
+    if (hasStartedWork || lowConfidenceCount > 0 || applyOutcome === 'failed') {
       return 'partial';
     }
 
@@ -1281,8 +1490,8 @@ export function useScaleCalibration(
     return 'partial';
   }, [
     canEdit,
+    applyOutcome,
     drawing?.isWarped,
-    hasApplied,
     hasStartedWork,
     isPanelCollapsed,
     lowConfidenceCount,
@@ -1425,6 +1634,7 @@ export function useScaleCalibration(
   const nearestOcrValue = rawRows[0]?.realLength ?? null;
 
   const isEmptyState = state === 'empty';
+  const provisionalNotice = provisionalScaleNoticeOf(floorLayer.scaleStatus);
   const effectiveMethod: ScaleCalibrationMethod = rows.length === 0 ? 'referenceLine' : method;
 
   const cursorPixels = useMemo<PixelPoint>(() => {
@@ -1456,7 +1666,9 @@ export function useScaleCalibration(
             : pixelLabel(draftForView.pixelLength),
         isInteractive: state !== 'forbidden',
         isImageLoading: state === 'loading',
-        warpingNotice: state === 'error' ? COPY.warpingNotice : null,
+        // Chỉ ảnh MÉO mới nói "nắn ảnh thất bại"; lượt đọc hỏng không có ảnh nào
+        // để mà méo (B-V5-04).
+        warpingNotice: state === 'error' && !query.isError ? COPY.warpingNotice : null,
       },
       panel: {
         currentScaleLabel,
@@ -1504,7 +1716,8 @@ export function useScaleCalibration(
         applyScope,
         applyScopeOptions,
         canApply,
-        isApplying: gateway.supports.persistScale && saveLabel === null && hasApplied,
+        ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
+        isApplying,
         areActionsHidden: state === 'forbidden',
         recalculationCaption: COPY.recalculationCaption,
         statusCode: state === 'success' ? 'verified' : 'neutral',
@@ -1515,23 +1728,38 @@ export function useScaleCalibration(
         y: cursorPixels.y,
         scaleRatio: scaleRatioLabel,
         scaleDensity: scaleDensityLabel,
-        saveText: gateway.supports.persistScale
-          ? (saveLabel ?? '')
-          : 'tỉ lệ chỉ áp trong phiên này, chưa lưu lên máy chủ',
+        saveText: saveLabel ?? '',
       },
       isCompact,
       isPanelCollapsed: state === 'collapsed',
       prefersReducedMotion,
       errorMessage: errorDescription?.description ?? null,
       errorCode,
+      ...(state === 'error' && query.isError && errorDescription !== null
+        ? { errorTitle: errorDescription.title }
+        : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
+      ...(provisionalNotice !== null ? { provisionalScaleNotice: provisionalNotice.message } : {}),
+      ...(allFloors !== null
+        ? {
+            allFloorsConfirm: {
+              title: allFloorsTitle(formatNumber(allFloors.targets.filter((entry) => entry.hasDrawing).length)),
+              message: COPY.allFloorsMessage,
+              confirmLabel: COPY.allFloorsConfirm,
+              cancelLabel: COPY.allFloorsCancel,
+            },
+          }
+        : {}),
     };
   }, [
-    gateway.supports.persistScale,
     activeStep,
+    allFloors,
+    applyNotice,
+    isApplying,
+    provisionalNotice,
     aiInference,
     applyScope,
     applyScopeOptions,
@@ -1545,7 +1773,6 @@ export function useScaleCalibration(
     effectiveMethod,
     errorCode,
     errorDescription,
-    hasApplied,
     highlightedRowId,
     isCompact,
     isEmptyState,
@@ -1554,6 +1781,7 @@ export function useScaleCalibration(
     nearestOcrValue,
     prefersReducedMotion,
     proposedRatio,
+    query.isError,
     realLengthText,
     rows,
     saveLabel,
@@ -1585,12 +1813,16 @@ export function useScaleCalibration(
       onCanvasSizeChange,
       onApply,
       onChangeApplyScope,
+      onConfirmAllFloors,
+      onCancelAllFloors,
       onToggleCollapsed,
       onGoToPreprocessing,
       onRetry,
     }),
     [
       onApply,
+      onCancelAllFloors,
+      onConfirmAllFloors,
       onCancelDrag,
       onCanvasSizeChange,
       onChangeApplyScope,

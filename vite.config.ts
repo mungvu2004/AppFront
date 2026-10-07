@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -15,6 +17,14 @@ import path from 'path';
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  // B-V10-41: `pascal-mount.js` mang tên cố định (`vite.pascal.config.ts`) mà `/assets/`
+  // được gửi `immutable` một năm — đuôi `?v=` theo nội dung bắt trình duyệt nạp bản mới
+  // sau mỗi lần triển khai. `pnpm build`/`pnpm dev` dựng gói đó TRƯỚC khi nạp file này.
+  // Thiếu tệp (Storybook cũng nạp file này, `E2E_SKIP_PASCAL`) thì `''` — không ném.
+  const pascalMountFile = path.resolve(__dirname, 'public/assets/pascal/pascal-mount.js');
+  const pascalMountVersion = existsSync(pascalMountFile)
+    ? createHash('sha256').update(readFileSync(pascalMountFile)).digest('hex').slice(0, 8)
+    : '';
 
   return {
     plugins: [react()],
@@ -53,6 +63,14 @@ export default defineConfig(({ mode }) => {
       // cách dựng, không nới ngân sách. "Màn hình đầu tiên" vẫn tính cả hai file
       // (chunk vào nhập tĩnh chunk này), nên cổng đó không được lợi gì từ việc tách.
       rollupOptions: {
+        // Client giả (`src/api/__mocks__/`) chỉ chạy dưới `import.meta.env.DEV`: mọi chỗ gọi
+        // trong gói sản phẩm đã viết chữ `DEV` tại chỗ nên ràng buộc nhập bị bỏ, nhưng module
+        // có mã chạy ở đỉnh (đóng băng bộ mẫu) nên Rollup vẫn giữ nó vì "có tác dụng phụ".
+        // Khai nó không có tác dụng phụ thì nhập không dùng tới bị bỏ hẳn. Đo 2026-10-05 (F-07):
+        // "chi phí thêm cho một màn" 281,3 → 273,5 KiB. Id của Rollup luôn dùng `/`, kể cả trên Windows.
+        treeshake: {
+          moduleSideEffects: (id) => !id.includes('/src/api/__mocks__/'),
+        },
         output: {
           manualChunks: (id) =>
             /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id) ? 'react' : undefined,
@@ -62,7 +80,32 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        // Mã Pascal ở `vendor/pascal` viết cho Next.js. Bề mặt Next của nó
+        // ĐÓNG LẠI Ở ĐÚNG HAI module — đã đếm: `next/image` 26 tệp,
+        // `next/link` 1 tệp, không có `next/router`/`next/head`/`next/navigation`.
+        // Hai dòng dưới là toàn bộ cái cần để nó chạy trên Vite; đừng cài `next`.
+        'next/image': path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx'),
+        'next/link': path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx'),
       },
+    },
+    define: {
+      // Mã Pascal đọc `process.env.NEXT_PUBLIC_*` Ở TẦNG MODULE, không trong
+      // hàm — ví dụ `viewer/src/lib/asset-url.ts` đặt `ASSETS_CDN_URL` ngay lúc
+      // nhập. Vite không polyfill `process`, nên thiếu những dòng này là
+      // `ReferenceError: process is not defined` NGAY LÚC NHẬP MODULE, trước
+      // khi có dòng mã nào chạy.
+      //
+      // Để rỗng là cố ý: mặc định của Pascal trỏ ra `https://editor.pascal.app`,
+      // một CDN ngoài. Tài sản đã tự host ở `vendor/pascal/assets/`, và luật
+      // `local/no-fetch-outside-http` không cho AppFront gọi thẳng ra ngoài.
+      'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '"/pascal"',
+      'process.env.NEXT_PUBLIC_SUPABASE_URL': '""',
+      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': '""',
+      'process.env.NEXT_PUBLIC_APP_URL': '""',
+      'process.env.NEXT_PUBLIC_VERCEL_ENV': '""',
+      'process.env.NEXT_PUBLIC_VERCEL_URL': '""',
+      'process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL': '""',
+      'import.meta.env.VITE_PASCAL_MOUNT_VERSION': JSON.stringify(pascalMountVersion),
     },
   };
 });

@@ -4,6 +4,13 @@ import type { HttpError, Result } from '@/lib/http';
 import type { FeatureFlagKey } from '@/lib/telemetry/flags';
 import type { ProjectRole } from '@/types/project';
 import { MOCK_SPATIAL_PROJECT } from '../../mocks/spatial';
+import type { LevelId } from '@/domain/spatial/types';
+import type { MillimetresPerPixel } from '@/domain/units/types';
+import type { ProjectSettings } from '../schemas/projectSettings';
+import type { ProjectSummary } from '../schemas/projectSummaries';
+import type { Me } from '../schemas/me';
+import type { ProjectRuleConfig } from '../schemas/ruleConfig';
+import type { FloorLayerDocument } from '../schemas/spatialLayer';
 import type {
   AdminUser,
   AdminUserList,
@@ -11,6 +18,7 @@ import type {
   Drawing,
   FloorImageQuality,
   Floor,
+  FloorVersionPage,
   FloorWriteBody,
   ImageQualityAssessment,
   ImageQualityFinding,
@@ -19,11 +27,14 @@ import type {
   Notification,
   Progress,
   Project,
+  ProjectSummaryList,
   ProjectWriteBody,
   PropertyTemplate,
+  SpatialLayer,
   UserActivity,
   UserMembership,
   Version,
+  VersionsApi,
 } from '../client';
 
 const ok = <T>(data: T): Result<T, never> => ({ ok: true, data });
@@ -62,6 +73,7 @@ const MOCK_SERVER_FEATURE_FLAGS: Readonly<Record<FeatureFlagKey, boolean>> = {
   'rules.parallel-run': false,
   'export.pdf-vector': false,
   'qc.live-collaboration': false,
+  'scene.pascal-viewer': false,
 };
 
 const makeVersion = (): Version => ({
@@ -71,6 +83,45 @@ const makeVersion = (): Version => ({
   note: 'Mock snapshot',
   projectId: 'project-1',
   sequence: 1,
+});
+
+/**
+ * N17 — ba phiên bản cho mỗi tầng có thật trong bộ mẫu, mới trước cũ sau (`sequence` giảm
+ * dần, đúng thứ tự BE trả). Chỉ có siêu dữ liệu: nội dung bản chụp là N18, chưa nối.
+ */
+const makeFloorVersionPage = (floorId: string): FloorVersionPage => ({
+  items: [
+    {
+      createdAt: '2026-08-05T09:30:00.000Z',
+      creatorId: 'usr_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+      creatorName: 'Kỹ sư mẫu',
+      floorRevision: 3,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T3C',
+      note: `sửa tay lớp tường của ${floorId}`,
+      sequence: 3,
+    },
+    {
+      createdAt: '2026-08-04T14:10:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'Dây chuyền xử lý',
+      floorRevision: 2,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T2B',
+      note: 'trạng thái trước khi ghi kết quả AI',
+      sequence: 2,
+    },
+    {
+      createdAt: '2026-08-03T08:00:00.000Z',
+      creatorId: 'system:pipeline',
+      creatorName: 'Dây chuyền xử lý',
+      floorRevision: 1,
+      hasSnapshot: true,
+      id: 'ver_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+      note: 'bản dựng đầu tiên',
+      sequence: 1,
+    },
+  ],
 });
 
 const makeFloor = (levelId: string, name: string, elevationM: number, heightM: number, order: number): Floor => ({
@@ -92,6 +143,70 @@ const makeFallbackFloor = (floorId: string): Floor => ({
   name: floorId,
   order: 0,
 });
+
+/**
+ * Lớp của một tầng theo N16 (B-V6-01): tầng nào là một tầng của bộ mẫu chuẩn A14
+ * thì nhận đúng phần của tầng ấy; tầng khác nhận lớp RỖNG — như BE trả
+ * `empty_document` cho tầng chưa có tài liệu (`spatial_read/router.py`).
+ *
+ * Tên tầng viết lại bằng tiếng Việt: bộ mẫu đặt `Level n`, và tên ấy hiện lên nav
+ * tầng của màn tường (A6). Trục đi kèm dù N16 v1 của BE luôn trả `axes: []` — xem
+ * B-V6 trong `docs/notes/e2e/fragments/W04.md`.
+ */
+/**
+ * Mã `Level` N16 giả trả cho một tầng ngoài bộ mẫu A14.
+ *
+ * BE đặt `level.id = floor.id` (`spatial_read/assemble.py`), và mã tầng của BE là
+ * một `LevelId` hợp lệ vì FE tạo nó bằng `createId`. Mã tầng của bộ mẫu API
+ * (`L1`, `L2`…) thì KHÔNG hợp lệ, nên ép thẳng nó thành `LevelId` làm
+ * `isEntityOfKind`/`applyPatch` từ chối tầng ấy và "Áp dụng tỷ lệ" không vá được
+ * gì (B-V5-01). Đây là ánh xạ của riêng bộ mẫu: thân mã là mã tầng viết hoa, `-`
+ * thành `X`, đệm `0` đủ mười ký tự.
+ */
+const levelIdOfFloor = (floorId: string): LevelId =>
+  `L-${floorId.toUpperCase().replace(/[^0-9A-Z]/gu, 'X').padStart(10, '0')}` as LevelId;
+
+const makeLayerDocument = (floor: Floor, revision: number, layer?: SpatialLayer): FloorLayerDocument => {
+  const scale = writtenScales.get(floor.id);
+  const sampleLevel = SAMPLE_BUILDING.levels.find((level) => level.id === floor.id);
+  const onFloor = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
+    sampleLevel === undefined ? [] : clone(items.filter((item) => item.levelId === sampleLevel.id));
+  const walls = onFloor(SAMPLE_BUILDING.walls);
+  const wallIds = new Set<string>(walls.map((wall) => wall.id));
+  const base: FloorLayerDocument = {
+    axes: onFloor(SAMPLE_BUILDING.axes),
+    dimensions: onFloor(SAMPLE_BUILDING.dimensions),
+    layer: layer ?? {
+      furniture: onFloor(SAMPLE_BUILDING.furniture),
+      openings: clone(SAMPLE_BUILDING.openings.filter((opening) => wallIds.has(opening.wallId))),
+      rooms: onFloor(SAMPLE_BUILDING.rooms),
+      walls,
+    },
+    level:
+      sampleLevel === undefined
+        ? {
+            confidence: 1,
+            elevationMm: floor.elevationMm,
+            heightMm: floor.heightMm,
+            id: levelIdOfFloor(floor.id),
+            name: floor.name,
+            order: floor.order,
+            reviewed: true,
+            source: 'human',
+          }
+        : { ...clone(sampleLevel), name: `Tầng ${String(sampleLevel.order + 1)}` },
+    revision,
+  };
+
+  return {
+    ...base,
+    level: {
+      ...base.level,
+      ...(scale === undefined ? {} : { scaleMillimetresPerPixel: scale.value }),
+    },
+    ...(scale?.provisional === true ? { scaleStatus: 'unresolved' as const } : {}),
+  };
+};
 
 const buildProject = (): Project => {
   const floors = MOCK_SPATIAL_PROJECT.levels.map((level, index) =>
@@ -240,6 +355,13 @@ const makeFallbackQualityFloor = (floorId: string): FloorImageQuality => ({
 
 const uploadKey = (projectId: string, uploadId: string): string => `${projectId}::${uploadId}`;
 
+/**
+ * `uploadId` của bản vẽ có sẵn trên Tầng 1 (`L1-drawing-1`) — đúng dạng
+ * `upl_<ULID>` mà `LatestFloorUploadSchema` đòi, và đã xử lý xong, để N7 của bộ
+ * mẫu có một mục hợp lệ ngay từ đầu (B-V4-01).
+ */
+const SEEDED_UPLOAD_ID = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZABC';
+
 const applyProjectBody = (project: Project, body: Partial<ProjectWriteBody>): Project => ({
   ...project,
   ...(body.address !== undefined ? { address: body.address } : {}),
@@ -347,6 +469,59 @@ export const createMockAuthTransport =
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });
+  };
+
+/** `/projects/:projectId/measurements` và `/…/measurements/:measurementId` — `ENDPOINTS.measurements`. */
+const MEASUREMENTS_PATH = /\/projects\/([^/]+)\/measurements(?:\/([^/]+))?\/?$/u;
+
+/** Phép đo đã ghim, theo dự án, ở cấp module — cùng lý do `lastSignedInEmail`. */
+const pinnedMeasurements = new Map<string, readonly { readonly id: string }[]>();
+
+const jsonResponse = (body: unknown, status: number): Response =>
+  new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' }, status });
+
+/**
+ * Transport HTTP của bộ mẫu cho những nhóm KHÔNG đi qua `ApiClient` — B-G-05.
+ *
+ * Màn đo đọc và ghi phép đo bằng `HttpClient` trần (`lib/mutations/measurement.ts`
+ * giải thích vì sao), nên `createMockApiClient()` không bao giờ được hỏi và lượt
+ * `GET` rơi ra máy chủ dev — 404, màn đo luôn ở `error`. Hàm này trả lời đúng ba
+ * lượt của `ENDPOINTS.measurements` từ bộ nhớ; mọi đường khác đi tiếp `next`, nên
+ * hành vi của những nơi gọi khác không đổi. Không mô phỏng 409 trùng mã.
+ */
+export const createMockHttpTransport =
+  (next: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response>) =>
+  async (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const match = MEASUREMENTS_PATH.exec(new URL(url, 'http://mock.invalid').pathname);
+
+    if (match === null) {
+      return next(input, init);
+    }
+
+    const [, projectId = '', measurementId] = match;
+    const rows = pinnedMeasurements.get(projectId) ?? [];
+    const method = (init?.method ?? 'GET').toUpperCase();
+
+    if (method === 'GET' && measurementId === undefined) {
+      return jsonResponse(rows, 200);
+    }
+
+    if (method === 'POST' && measurementId === undefined) {
+      const record = JSON.parse(String(init?.body)) as { readonly id: string };
+      pinnedMeasurements.set(projectId, [...rows.filter((row) => row.id !== record.id), record]);
+      return jsonResponse(record, 201);
+    }
+
+    if (method === 'DELETE' && measurementId !== undefined) {
+      pinnedMeasurements.set(
+        projectId,
+        rows.filter((row) => row.id !== decodeURIComponent(measurementId)),
+      );
+      return new Response(null, { status: 204 });
+    }
+
+    return jsonResponse({ code: 'METHOD_NOT_ALLOWED' }, 405);
   };
 
 /** Vai mà bộ mẫu cấp cho một địa chỉ — xuất ra để bài kiểm khỏi chép lại bảng. */
@@ -672,6 +847,9 @@ const mockUsersHttpError = (status: number, requestId: string): HttpError => ({
 
 const failed = <T>(error: HttpError): Result<T, HttpError> => ({ error, ok: false });
 
+/** Id dự án không có (hoặc người dùng không phải thành viên): `projects.read` trả 404 `resource: 'project'` — B-V1-43. */
+export const MOCK_MISSING_PROJECT_ID = 'project-missing';
+
 const AVATAR_ROOT = 'https://example.com/avatars';
 
 export const MOCK_ADMIN_USERS: readonly AdminUser[] = [
@@ -915,6 +1093,132 @@ const mockNotificationsHttpError = (status: number, requestId: string): HttpErro
   status,
 });
 
+/* -------------------------------------------------------------------------- */
+/* N1, N3–N6 — thẻ dự án, thành viên, cài đặt (F-07).                          */
+/* -------------------------------------------------------------------------- */
+
+/** `updatedAt` của N1 là hằng: e2e ghim đồng hồ (`e2e/app.visual.spec.ts`), nên một mốc theo giờ thật làm ảnh chuẩn trôi. */
+const mockSummaryUpdatedAt = (day: number): string => `2026-09-${String(day).padStart(2, '0')}T08:00:00.000Z`;
+
+/**
+ * Ba dự án mang đúng tên, diện tích, trạng thái của bộ mẫu cũ (`SAMPLE_PROJECTS`, gỡ ở F-07) mà
+ * `e2e/v2v3/dashboard.spec.ts` tìm theo tên và đếm đúng ba thẻ — đủ ba `status`. Sunrise đang xử
+ * lý, chưa tách xong tầng nào: nó là dự án `floorCount: 0`, nên chưa có tường nào (`wallsTotalCount: 0`). Thứ tự `updatedAt` giữ thứ tự cũ.
+ */
+export const MOCK_PROJECT_SUMMARIES: readonly ProjectSummary[] = [
+  {
+    areaM2: 1860,
+    defaultFloorId: 'floor-01',
+    floorCount: 4,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C7',
+    members: [
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' },
+    ],
+    name: 'Tòa nhà HQ Renovation',
+    status: 'qc',
+    updatedAt: mockSummaryUpdatedAt(3),
+    wallsReviewedCount: 30,
+    wallsTotalCount: 48,
+  },
+  {
+    areaM2: 8420,
+    floorCount: 0,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C8',
+    members: [
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C1', name: 'Phạm An' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' },
+      { id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C4', name: 'Trần Chi' },
+    ],
+    name: 'Chung cư Sunrise Block B',
+    status: 'processing',
+    updatedAt: mockSummaryUpdatedAt(4),
+    wallsReviewedCount: 0,
+    wallsTotalCount: 0,
+  },
+  {
+    areaM2: 5200,
+    defaultFloorId: 'floor-01',
+    floorCount: 2,
+    id: 'prj_01HZX3K9M2Q4R6T8V0W1Y3A5C9',
+    members: [{ id: 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2', name: 'Nguyễn Bình' }],
+    name: 'Nhà máy Bắc Ninh',
+    status: 'done',
+    updatedAt: mockSummaryUpdatedAt(2),
+    wallsReviewedCount: 26,
+    wallsTotalCount: 26,
+  },
+];
+
+/** Người thêm được bằng N3: một email lạ (ngoài danh sách này) trả 422 `MEMBER_USER_UNAVAILABLE`. */
+export const MOCK_KNOWN_MEMBER_EMAILS: readonly string[] = ['newcomer@example.com', 'engineer@example.com'];
+
+/** Id ULID cố định theo email đã biết (26 ký tự Crockford, không I L O U). */
+const MOCK_KNOWN_MEMBER_IDS: Readonly<Record<string, string>> = {
+  'engineer@example.com': 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C2',
+  'newcomer@example.com': 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C3',
+};
+
+/**
+ * Cài đặt mẫu: `revision` bắt đầu ở 3; `baseVersion` khác số này → 409 `VERSION_CONFLICT`. Ngưỡng tin
+ * cậy 0,75 và dung sai 50 mm là mặc định cũ (`DEFAULT_UNWIRED_SETTINGS`) mà e2e cài đặt dự án đọc.
+ */
+const MOCK_SETTINGS_INITIAL: ProjectSettings = {
+  buildingType: 'residential',
+  confidenceThreshold: 0.75,
+  defaultScaleMmPerPx: 1,
+  lengthUnit: 'mm',
+  revision: 3,
+  snapToleranceMm: 50,
+};
+
+const mockWireError = (status: number, code: string, requestId: string, raw: Record<string, unknown> = {}): HttpError => ({
+  code,
+  kind: 'http',
+  raw,
+  requestId,
+  retryable: false,
+  status,
+});
+
+/**
+ * Lớp tầng của bộ mẫu, cấp module: mọi `createMockApiClient()` thấy chung một
+ * revision, như hai thẻ trình duyệt thấy chung một máy chủ (`createAppApiClient()`
+ * dựng mock mới mỗi lần gọi). Trạng thái này sống cùng trang; test gọi
+ * `__resetMockLayerState()` ở `beforeEach`.
+ */
+const layerRevisions = new Map<string, number>();
+const writtenLayers = new Map<string, SpatialLayer>();
+/** Lượt ghi cuối của mỗi tầng — nguồn của luật C09b (gửi lại trùng thì 200). */
+const lastLayerWrites = new Map<string, { base: number; body: string; revision: number }>();
+/** Tỉ lệ của tầng theo mã tầng: `provisional` → N16 trả `scaleStatus: 'unresolved'`; PUT có tỉ lệ gỡ nó. */
+const writtenScales = new Map<string, { provisional: boolean; value: MillimetresPerPixel }>();
+
+export const __resetMockLayerState = (): void => {
+  layerRevisions.clear();
+  writtenLayers.clear();
+  lastLayerWrites.clear();
+  writtenScales.clear();
+};
+
+/** Tầng mang tỉ lệ tạm (`scaleStatus: 'unresolved'`) — như máy chủ đoán tỉ lệ mà chưa ai chốt. */
+export const simulateProvisionalScale = (floorId: string, value: number): void => {
+  writtenScales.set(floorId, { provisional: true, value: value as MillimetresPerPixel });
+};
+
+const MOCK_REMOTE_ACTOR_ID = 'usr_01J9ZQK7X4N2M8P6R3T5V7W9Y1';
+
+/**
+ * Người khác vừa sửa tầng: tăng `revision` và xoá một tường khỏi lớp đã ghi (lớp mồi
+ * của bộ mẫu nếu chưa ai ghi). Spec e2e gọi qua `import('/src/api/__mocks__/client.ts')`.
+ */
+export const simulateRemoteLayerEdit = (floorId: string): void => {
+  const layer = writtenLayers.get(floorId) ?? makeLayerDocument(makeFallbackFloor(floorId), 0).layer;
+
+  writtenLayers.set(floorId, { ...clone(layer), walls: layer.walls.slice(1).map(clone) });
+  layerRevisions.set(floorId, (layerRevisions.get(floorId) ?? 0) + 1);
+};
+
 const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => ({
   ...floor,
   ...(body.areaM2 !== undefined ? { areaM2: body.areaM2 } : {}),
@@ -925,14 +1229,195 @@ const applyFloorBody = (floor: Floor, body: Partial<FloorWriteBody>): Floor => (
   ...(body.order !== undefined ? { order: body.order } : {}),
 });
 
+const MOCK_ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/** `ver_` + ULID hợp lệ (Crockford, 26 ký tự) cho phiên bản mock sinh ra lúc phục hồi. */
+const mockVersionId = (sequence: number): string => {
+  let suffix = '';
+
+  for (let rest = sequence, index = 0; index < 4; index += 1, rest = Math.floor(rest / 32)) {
+    suffix = `${MOCK_ULID_ALPHABET[rest % 32] ?? '0'}${suffix}`;
+  }
+
+  return `ver_01J9ZV8Q3M7X5B2N4K6P9R${suffix}`;
+};
+
+type MockFloorVersion = FloorVersionPage['items'][number];
+
+/**
+ * N17–N20 mock: lịch sử mồi của `makeFloorVersionPage`, cộng các bản phục hồi sinh ra trong
+ * phiên. Bản phục hồi đẩy `revision` của tầng lên trên mọi `floorRevision` mồi, nên đúng một
+ * hàng là "hiện tại" sau khi nạp lại. Base theo luật #35: lớn hơn → 422, nhỏ hơn → 409.
+ */
+const createMockVersionsApi = (readFloors: () => readonly Floor[]): VersionsApi => {
+  const histories = new Map<string, MockFloorVersion[]>();
+  const historyOf = (floorId: string): MockFloorVersion[] => {
+    const known = histories.get(floorId) ?? [...makeFloorVersionPage(floorId).items];
+
+    histories.set(floorId, known);
+
+    return known;
+  };
+  const findVersion = (versionId: string): { items: MockFloorVersion[]; index: number } | null => {
+    for (const items of histories.values()) {
+      const index = items.findIndex((item) => item.id === versionId);
+
+      if (index >= 0) {
+        return { items, index };
+      }
+    }
+
+    return null;
+  };
+
+  return {
+    label: async ({ label, versionId }) => {
+      const found = findVersion(versionId);
+      const current = found?.items[found.index];
+
+      if (found === null || current === undefined) {
+        return failed(mockWireError(404, 'NOT_FOUND', 'req-version-label', { code: 'NOT_FOUND', resource: 'version' }));
+      }
+
+      const next: MockFloorVersion = { ...current, label: label.trim() };
+
+      if (next.label === '') {
+        delete next.label;
+      }
+
+      found.items[found.index] = next;
+
+      return ok(clone(next));
+    },
+    // Mọi mã tầng đều có lịch sử mồi: N15 mock đặt mã `Level` khác mã `Floor` của #12 (lệch có từ F-04x-2).
+    list: async ({ cursor, floorId, limit }) => {
+      const all = historyOf(floorId);
+      const start = cursor === undefined ? 0 : Number(cursor);
+      const end = start + (limit ?? all.length);
+
+      return ok({
+        items: clone(all.slice(start, end)),
+        ...(end < all.length ? { nextCursor: String(end) } : {}),
+      });
+    },
+    restore: async ({ baseVersion, floorId, versionId }) => {
+      const current = layerRevisions.get(floorId) ?? 0;
+      const requestId = `req-version-restore-${floorId}`;
+
+      if (baseVersion > current) {
+        return failed(
+          mockWireError(422, 'VALIDATION', requestId, { code: 'VALIDATION', field: 'baseVersion', requestId }),
+        );
+      }
+
+      if (baseVersion < current) {
+        return failed(
+          mockWireError(409, 'VERSION_CONFLICT', requestId, {
+            code: 'VERSION_CONFLICT',
+            currentVersion: current,
+            remoteChanges: [
+              {
+                changedAt: '2026-09-17T05:09:00.123Z',
+                changedBy: MOCK_REMOTE_ACTOR_ID,
+                changedByName: 'Trần Minh',
+                entityId: 'W-WALL0014',
+                entityType: 'wall',
+                field: 'thickness_mm',
+                value: 220,
+              },
+            ],
+            requestId,
+          }),
+        );
+      }
+
+      const items = historyOf(floorId);
+      const source = items.find((item) => item.id === versionId);
+
+      if (source === undefined) {
+        return failed(
+          mockWireError(422, 'VERSION_FLOOR_MISMATCH', requestId, { code: 'VERSION_FLOOR_MISMATCH', field: 'body.floorId' }),
+        );
+      }
+
+      const sequence = Math.max(...items.map((item) => item.sequence)) + 1;
+      const revision = Math.max(current, ...items.map((item) => item.floorRevision)) + 1;
+      const restored: MockFloorVersion = {
+        createdAt: '2026-09-17T05:10:00.000Z',
+        creatorId: 'usr_01J9ZV8Q3M7X5B2N4K6P8R0T1A',
+        creatorName: 'Kỹ sư mẫu',
+        floorRevision: revision,
+        hasSnapshot: true,
+        id: mockVersionId(sequence),
+        note: `Phục hồi nội dung của phiên bản v${String(source.sequence)}`,
+        sequence,
+      };
+
+      items.unshift(restored);
+      layerRevisions.set(floorId, revision);
+
+      return ok(clone(restored));
+    },
+    snapshot: async ({ floorId, versionId }) => {
+      const items = historyOf(floorId);
+      const version = items.find((item) => item.id === versionId);
+
+      if (version === undefined) {
+        return failed(
+          mockWireError(422, 'VERSION_FLOOR_MISMATCH', 'req-version-snapshot', {
+            code: 'VERSION_FLOOR_MISMATCH',
+            field: 'floorId',
+          }),
+        );
+      }
+
+      const floor = readFloors().find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
+      const document = makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId));
+      // Bản càng cũ càng thiếu tường cuối — đủ để so sánh hiện ra thay đổi trong bản mock.
+      const age = (items[0]?.sequence ?? version.sequence) - version.sequence;
+      const walls = document.layer.walls.slice(0, Math.max(0, document.layer.walls.length - age));
+
+      return ok({ dimensions: document.dimensions, layer: { ...document.layer, walls }, versionId });
+    },
+  };
+};
+
 export const createMockApiClient = (): ApiClient => {
   let project = buildProject();
   let floors = clone(project.floors);
-  const uploads = new Map<string, Progress>();
+  const currentLayer = (floorId: string): SpatialLayer =>
+    clone(
+      writtenLayers.get(floorId) ??
+        makeLayerDocument(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId), 0).layer,
+    );
+  const uploads = new Map<string, Progress>([
+    [
+      uploadKey(project.id, SEEDED_UPLOAD_ID),
+      makeProgress({ id: SEEDED_UPLOAD_ID, progressPercent: 100, status: 'completed' }),
+    ],
+  ]);
+  /** Lượt tải mới nhất của từng tầng — nguồn của N7. Tầng có bản vẽ sẵn mang lượt mồi. */
+  const latestUploadByFloor = new Map<string, string>(
+    floors.filter((floor) => floor.drawings.length > 0).map((floor) => [floor.id, SEEDED_UPLOAD_ID]),
+  );
+  let uploadSequence = 0;
   let qualityFloors = makeMeasuredFloors();
   const propertyTemplates: PropertyTemplate[] = [];
   let adminUsers: AdminUser[] = MOCK_ADMIN_USERS.map(clone);
   let nextInviteSequence = adminUsers.length;
+  /** Hồ sơ của người đang đăng nhập (N11–N14); dựng lười từ thư của lượt đăng nhập giả gần nhất. */
+  let mockMe: Me | null = null;
+  let avatarSequence = 0;
+  const readMockMe = (): Me => {
+    const email = lastSignedInEmail ?? 'nguoi-dung@example.com';
+
+    // Đổi người đăng nhập giả thì hồ sơ dựng lại, không mang hồ sơ của người trước.
+    if (mockMe?.email !== email) {
+      mockMe = { email, fullName: 'Người dùng thử', language: 'vi' };
+    }
+
+    return mockMe;
+  };
 
   const readAdminUser = (userId: string): AdminUser | undefined =>
     adminUsers.find((candidate) => candidate.id === userId);
@@ -950,6 +1435,10 @@ export const createMockApiClient = (): ApiClient => {
     failed(mockUsersHttpError(404, `req-users-${userId}`));
 
   let notifications: Notification[] = MOCK_NOTIFICATIONS.map(clone);
+  let summaries: ProjectSummary[] = MOCK_PROJECT_SUMMARIES.map(clone);
+  const mockSettings = new Map<string, ProjectSettings>();
+  /** N21/N22 theo dự án, sống trong một lượt `createMockApiClient()`; chưa lưu → `{ revision: 0, overrides: {} }`. */
+  const mockRuleConfigs = new Map<string, ProjectRuleConfig>();
 
   const readNotification = (notificationId: string): Notification | undefined =>
     notifications.find((candidate) => candidate.id === notificationId);
@@ -996,10 +1485,9 @@ export const createMockApiClient = (): ApiClient => {
      * chỉ ghi ở đây để biết cấp vai nào.
      */
     auth: {
-      register: async ({ body }) => {
-        lastSignedInEmail = body.email;
-        return ok(undefined);
-      },
+      acceptInvitation: async () => ok(undefined),
+      confirmPasswordReset: async () => ok(undefined),
+      requestPasswordReset: async () => ok(undefined),
       signIn: async ({ body }) => {
         lastSignedInEmail = body.email;
         return ok(undefined);
@@ -1012,10 +1500,24 @@ export const createMockApiClient = (): ApiClient => {
         return ok(completed);
       },
       initUpload: async ({ body }) => {
-        const progress = makeProgress({ id: `${body.projectId}-${body.floorId}`, step: 'Initialize upload' });
-        uploads.set(uploadKey(body.projectId, body.floorId), progress);
+        // `upl_<ULID>` như máy chủ thật, để N7 của mock vẫn qua `LatestFloorUploadSchema`.
+        uploadSequence += 1;
+        const uploadId = `upl_01J8Z3K4Q5R6S7T8V9W${String(uploadSequence).padStart(7, '0')}`;
+        const progress = makeProgress({ id: uploadId, step: 'Initialize upload' });
+        uploads.set(uploadKey(body.projectId, uploadId), progress);
+        latestUploadByFloor.set(body.floorId, progress.id);
         return ok(progress);
       },
+      latestUploads: async () =>
+        ok(
+          [...floors]
+            .sort((left, right) => left.order - right.order)
+            .flatMap((floor) => {
+              const uploadId = latestUploadByFloor.get(floor.id);
+
+              return uploadId === undefined ? [] : [{ floorId: floor.id, floorName: floor.name, uploadId }];
+            }),
+        ),
       progress: async ({ projectId, uploadId }) =>
         ok(uploads.get(uploadKey(projectId, uploadId)) ?? makeProgress({ id: uploadId, progressPercent: 0 })),
       sendChunk: async ({ body, projectId, uploadId }) => {
@@ -1080,12 +1582,63 @@ export const createMockApiClient = (): ApiClient => {
           ),
         ),
     },
+    /** N11–N14 có trạng thái trong mock: sửa xong đọc lại thấy ngay; `''` ở `jobTitle`/`phone` là xoá. */
+    me: {
+      changePassword: async () => ok(undefined),
+      readProfile: async () => ok(clone(readMockMe())),
+      replaceAvatar: async () => {
+        avatarSequence += 1;
+        mockMe = {
+          ...readMockMe(),
+          avatarUrl: `https://cdn.example.test/avatars/01J0MOCKAVATAR${String(avatarSequence).padStart(4, '0')}.png`,
+        };
+
+        return ok(clone(mockMe));
+      },
+      updateProfile: async ({ body }) => {
+        const { jobTitle, phone, ...rest } = readMockMe();
+        const nextJobTitle = body.jobTitle === undefined ? jobTitle : body.jobTitle;
+        const nextPhone = body.phone === undefined ? phone : body.phone;
+
+        mockMe = {
+          ...rest,
+          ...(body.fullName !== undefined ? { fullName: body.fullName } : {}),
+          ...(body.language !== undefined ? { language: body.language } : {}),
+          ...(nextJobTitle !== undefined && nextJobTitle !== '' ? { jobTitle: nextJobTitle } : {}),
+          ...(nextPhone !== undefined && nextPhone !== '' ? { phone: nextPhone } : {}),
+        };
+
+        return ok(clone(mockMe));
+      },
+    },
     /**
      * Chấp nhận trả về chính mục vừa đổi, cùng khuôn mọi lượt GHI khác của
      * `users` bên dưới — `changeRole`/`disable`/`enable` đều làm vậy.
      * `markRead`/`markAllRead` trả `void`, đúng chữ ký
      * `NotificationCenterGateway` mà nhóm này phục vụ.
      */
+    members: {
+      add: async ({ email, projectId }) => {
+        const address = email.trim().toLowerCase();
+
+        if (!MOCK_KNOWN_MEMBER_EMAILS.includes(address)) {
+          return failed(mockWireError(422, 'MEMBER_USER_UNAVAILABLE', `req-members-${projectId}`));
+        }
+
+        return ok({
+          email: address,
+          id: MOCK_KNOWN_MEMBER_IDS[address] ?? 'usr_01HZX3K9M2Q4R6T8V0W1Y3A5C3',
+          name: address.split('@')[0] ?? address,
+          role: 'viewer',
+        });
+      },
+      remove: async ({ userId }) => {
+        const known = Object.entries(MOCK_KNOWN_MEMBER_IDS).find(([, id]) => id === userId)?.[0];
+        const email = known ?? `${userId}@example.com`;
+
+        return ok({ email, id: userId, name: email.split('@')[0] ?? email, role: 'viewer' });
+      },
+    },
     notifications: {
       acceptInvite: async ({ notificationId }) => {
         const current = readNotification(notificationId);
@@ -1108,6 +1661,27 @@ export const createMockApiClient = (): ApiClient => {
         return ok(undefined);
       },
     },
+    projectSettings: {
+      read: async ({ projectId }) => ok(clone(mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL)),
+      replace: async ({ baseVersion, body, projectId }) => {
+        const current = mockSettings.get(projectId) ?? MOCK_SETTINGS_INITIAL;
+
+        if (baseVersion !== current.revision) {
+          return failed(mockWireError(409, 'VERSION_CONFLICT', `req-settings-${projectId}`, { remoteChanges: [] }));
+        }
+
+        const { notes, ...rest } = body;
+        const next: ProjectSettings = { ...rest, ...(notes !== undefined ? { notes } : {}), revision: current.revision + 1 };
+
+        mockSettings.set(projectId, next);
+
+        return ok(clone(next));
+      },
+    },
+    projectSummaries: {
+      list: async (): Promise<Result<ProjectSummaryList, never>> =>
+        ok({ droppedCount: 0, items: summaries.map(clone) }),
+    },
     projects: {
       create: async ({ body }) => {
         project = applyProjectBody(
@@ -1127,14 +1701,29 @@ export const createMockApiClient = (): ApiClient => {
         return ok(clone(project));
       },
       delete: async ({ projectId }) => {
+        summaries = summaries.filter((row) => row.id !== projectId);
         const removed = clone(project);
         project = buildProject();
         floors = clone(project.floors);
         return ok({ ...removed, id: projectId });
       },
       list: async () => ok([clone(project)]),
-      read: async ({ projectId }) => ok({ ...clone(project), id: projectId }),
+      read: async ({ projectId }) =>
+        projectId === MOCK_MISSING_PROJECT_ID
+          ? failed({
+              kind: 'http',
+              raw: { resource: 'project' },
+              requestId: 'req-project-missing',
+              retryable: false,
+              status: 404,
+            })
+          : ok({ ...clone(project), id: projectId }),
       update: async ({ body, projectId }) => {
+        if (body.name !== undefined) {
+          const name = body.name;
+
+          summaries = summaries.map((row) => (row.id === projectId ? { ...row, name } : row));
+        }
         project = {
           ...applyProjectBody(project, body),
           id: projectId,
@@ -1206,6 +1795,38 @@ export const createMockApiClient = (): ApiClient => {
         return ok(readAssessment(projectId, floorId));
       },
     },
+    ruleConfig: {
+      read: async ({ projectId }) => ok(clone(mockRuleConfigs.get(projectId) ?? { overrides: {}, revision: 0 })),
+      replace: async ({ baseVersion, body, projectId }) => {
+        const revision = mockRuleConfigs.get(projectId)?.revision ?? 0;
+
+        if (baseVersion !== revision) {
+          return failed(
+            mockWireError(409, 'VERSION_CONFLICT', `req-rule-config-${projectId}`, {
+              currentVersion: revision,
+              remoteChanges: [],
+            }),
+          );
+        }
+
+        // Thân gửi cho phép khoá mang `undefined`; bản lưu thì vắng là vắng (`exactOptionalPropertyTypes`).
+        const overrides = Object.fromEntries(
+          Object.entries(body.overrides).map(([code, { enabled, severity, thresholds }]) => [
+            code,
+            {
+              ...(enabled !== undefined ? { enabled } : {}),
+              ...(severity !== undefined ? { severity } : {}),
+              ...(thresholds !== undefined ? { thresholds: { ...thresholds } } : {}),
+            },
+          ]),
+        );
+        const next: ProjectRuleConfig = { overrides, revision: revision + 1 };
+
+        mockRuleConfigs.set(projectId, next);
+
+        return ok(clone(next));
+      },
+    },
     spatial: {
       patchFloor: async ({ body, floorId }) => {
         const current = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
@@ -1216,8 +1837,97 @@ export const createMockApiClient = (): ApiClient => {
       },
       readFloor: async ({ floorId }) => ok(clone(floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId))),
       readVersion: async ({ projectId, versionId }) => ok({ ...makeVersion(), projectId, id: versionId }),
-      /** Echoes the layer back, like every other write in this file that has no separate read endpoint to reconcile with (see `auth.signIn`, `drawings.complete`). */
-      writeLayer: async ({ body }) => ok(clone(body)),
+      /** N15: lớp chung của mọi tầng `floors`, một dòng `revision` mỗi `Level` (không `scaleStatus`). */
+      readGraph: async () => {
+        const documents = floors.map((floor) =>
+          makeLayerDocument(floor, layerRevisions.get(floor.id) ?? 0, writtenLayers.get(floor.id)),
+        );
+        const ofLayer = <K extends keyof SpatialLayer>(key: K): SpatialLayer[K][number][] =>
+          documents.flatMap((doc) => [...doc.layer[key]]);
+
+        return ok({
+          floorRevisions: documents.map((doc) => ({ floorId: doc.level.id, revision: doc.revision })),
+          graph: {
+            axes: documents.flatMap((doc) => doc.axes),
+            building: clone(SAMPLE_BUILDING.building),
+            dimensions: documents.flatMap((doc) => doc.dimensions),
+            furniture: ofLayer('furniture'),
+            levels: documents.map((doc) => doc.level),
+            notes: [],
+            openings: ofLayer('openings'),
+            rooms: ofLayer('rooms'),
+            walls: ofLayer('walls'),
+          },
+        });
+      },
+      readLayer: async ({ floorId }) => {
+        const floor = floors.find((item) => item.id === floorId) ?? makeFallbackFloor(floorId);
+
+        return ok(makeLayerDocument(floor, layerRevisions.get(floorId) ?? 0, writtenLayers.get(floorId)));
+      },
+      /**
+       * Lưu lớp theo luật base của #35 (`writer.py`): base > revision → 422 `baseVersion`;
+       * base cũ → 409 `VERSION_CONFLICT`, trừ lượt gửi lại ĐÚNG base và thân của lượt
+       * ghi cuối (C09b) → 200 kết quả hiện tại; còn lại tăng `revision`.
+       */
+      writeLayer: async ({ baseVersion, body, floorId }) => {
+        const current = layerRevisions.get(floorId) ?? 0;
+        const requestId = `req-layer-${floorId}`;
+        const bodyKey = JSON.stringify(body);
+        const last = lastLayerWrites.get(floorId);
+
+        if (baseVersion > current) {
+          return failed(
+            mockWireError(422, 'VALIDATION', requestId, {
+              code: 'VALIDATION',
+              field: 'baseVersion',
+              message: 'baseVersion vượt quá revision hiện tại',
+              requestId,
+            }),
+          );
+        }
+
+        if (baseVersion < current) {
+          if (last !== undefined && last.base === baseVersion && last.body === bodyKey && last.revision === current) {
+            return ok({ layer: currentLayer(floorId), revision: current });
+          }
+
+          return failed(
+            mockWireError(409, 'VERSION_CONFLICT', requestId, {
+              code: 'VERSION_CONFLICT',
+              currentVersion: current,
+              remoteChanges: [
+                {
+                  changedAt: '2026-09-17T05:09:00.123Z',
+                  changedBy: MOCK_REMOTE_ACTOR_ID,
+                  changedByName: 'Trần Minh',
+                  entityId: 'W-WALL0014',
+                  entityType: 'wall',
+                  field: 'thickness_mm',
+                  value: 220,
+                },
+              ],
+              requestId,
+            }),
+          );
+        }
+
+        const revision = current + 1;
+
+        layerRevisions.set(floorId, revision);
+        lastLayerWrites.set(floorId, { base: baseVersion, body: bodyKey, revision });
+
+        if (body.layer !== undefined) {
+          writtenLayers.set(floorId, clone(body.layer));
+        }
+
+        // Thân chỉ tỉ lệ giữ lớp; có tỉ lệ → tỉ lệ nguồn `human`, gỡ `scaleStatus` (#35).
+        if (body.scaleMillimetresPerPixel !== undefined) {
+          writtenScales.set(floorId, { provisional: false, value: body.scaleMillimetresPerPixel as MillimetresPerPixel });
+        }
+
+        return ok({ layer: currentLayer(floorId), revision });
+      },
     },
     /**
      * Quản trị người dùng — T-04/T-05.
@@ -1317,12 +2027,12 @@ export const createMockApiClient = (): ApiClient => {
 
         return ok(clone(current));
       },
-      /** Gửi lại đẩy hạn về phía trước; `inviteId` của bộ mẫu chính là id người được mời. */
-      resendInvite: async ({ inviteId }) => {
-        const current = readAdminUser(inviteId);
+      /** Gửi lại đẩy hạn về phía trước; `userId` là id người được mời. */
+      resendInvite: async ({ userId }) => {
+        const current = readAdminUser(userId);
 
         return current === undefined
-          ? missingAdminUser(inviteId)
+          ? missingAdminUser(userId)
           : ok(
               writeAdminUser({
                 ...current,
@@ -1332,6 +2042,7 @@ export const createMockApiClient = (): ApiClient => {
             );
       },
     },
+    versions: createMockVersionsApi(() => floors),
   };
 };
 

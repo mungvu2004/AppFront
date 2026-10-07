@@ -114,8 +114,12 @@ function backdropPanels(
   ];
 }
 
-/** Góc mặc định của chip; màn chủ đổi được qua `chipAnchorClassName`. */
-const DEFAULT_CHIP_ANCHOR = 'right-[16px] top-[16px]';
+/**
+ * Góc mặc định của chip; màn chủ đổi được qua `chipAnchorClassName` (NO-208).
+ * Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không đè
+ * điều khiển nào. Bài: e2e/v2v3/tour-chip.spec.ts.
+ */
+const DEFAULT_CHIP_ANCHOR = 'bottom-[16px] left-1/2 -translate-x-1/2';
 
 export function EditorTour(props: EditorTourProps) {
   const {
@@ -288,25 +292,25 @@ export function EditorTour(props: EditorTourProps) {
             {isInvite ? (
               <>
                 <h3 id={titleId} className="text-[15px] font-medium text-text-primary">
-                  chưa có gì trên khung vẽ
+                  Chưa có gì trên khung vẽ
                 </h3>
                 <p className="mt-[8px] text-[13px] leading-relaxed text-text-secondary">
-                  lớp chỉ dẫn cần một mặt bằng đang mở thì mới trỏ vào đâu được. mở bộ mẫu
+                  Lớp chỉ dẫn cần một mặt bằng đang mở thì mới trỏ vào đâu được. Mở bộ mẫu
                   rồi quay lại đây.
                 </p>
                 <div className="mt-[20px] flex items-center justify-between">
                   <Button variant="ghost" size="sm" onClick={onSkip}>
-                    bỏ qua
+                    Bỏ qua hướng dẫn
                   </Button>
                   <Button variant="primary" size="sm" onClick={onOpenSampleProject}>
-                    mở bộ mẫu
+                    Mở bộ mẫu
                   </Button>
                 </div>
               </>
             ) : isSummary ? (
               <>
                 <h3 id={titleId} className="text-[15px] font-medium text-text-primary">
-                  bấy nhiêu phím là đủ dùng
+                  Bấy nhiêu phím là đủ dùng
                 </h3>
                 <ul className="mt-[12px] flex flex-col gap-[8px]">
                   {summary.map((row) => (
@@ -318,7 +322,7 @@ export function EditorTour(props: EditorTourProps) {
                 </ul>
                 <div className="mt-[20px] flex justify-end">
                   <Button variant="primary" size="sm" onClick={onFinish}>
-                    bắt đầu làm việc
+                    Bắt đầu làm việc
                   </Button>
                 </div>
               </>
@@ -342,10 +346,10 @@ export function EditorTour(props: EditorTourProps) {
                   )}
                   <div className="mt-[20px] flex items-center justify-between">
                     <Button variant="ghost" size="sm" onClick={onSkip}>
-                      bỏ qua
+                      Bỏ qua hướng dẫn
                     </Button>
                     <Button variant="primary" size="sm" onClick={onNext}>
-                      tiếp theo
+                      Tiếp theo
                     </Button>
                   </div>
                 </>
@@ -356,7 +360,7 @@ export function EditorTour(props: EditorTourProps) {
           {showsDots && (
             <div
               role="group"
-              aria-label="tiến độ hướng dẫn"
+              aria-label="Tiến độ hướng dẫn"
               className="pointer-events-auto mt-[8px] flex justify-center"
             >
               {steps.map((dot, index) => (
@@ -366,7 +370,7 @@ export function EditorTour(props: EditorTourProps) {
                   onClick={() => {
                     onJump(index);
                   }}
-                  aria-label={`tới bước ${index + 1}: ${dot.title}`}
+                  aria-label={`Tới bước ${index + 1}: ${dot.title}`}
                   aria-current={index === activeIndex ? 'step' : undefined}
                   className="flex h-[18px] w-[18px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
                 >
@@ -383,11 +387,11 @@ export function EditorTour(props: EditorTourProps) {
         </div>
       )}
 
-      {/* Vị trí do màn chủ truyền: mỗi màn có góc đã có chủ riêng (NO-208). */}
+      {/* Vị trí do màn chủ truyền (NO-208); mặc định giữa cạnh dưới (B-V2-05) — xem `DEFAULT_CHIP_ANCHOR`. */}
       {isSkipChipVisible && (
         <div className={cn('pointer-events-auto fixed', chipAnchorClassName)}>
           <Button variant="secondary" size="sm" onClick={onReopen}>
-            xem hướng dẫn
+            Xem hướng dẫn
           </Button>
         </div>
       )}

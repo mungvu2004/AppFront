@@ -60,7 +60,7 @@ describe('useSaveIndicator', () => {
     autosave.emit('dirty');
     const { result } = renderHook(() => useSaveIndicator(autosave));
 
-    expect(result.current.label).toBe('Có thay đổi chưa lưu');
+    expect(result.current.label).toBe('Có thay đổi chờ đồng bộ');
     expect(result.current.state).toBe('dirty');
   });
 
@@ -77,7 +77,19 @@ describe('useSaveIndicator', () => {
     autosave.emit('failed');
     const { result } = renderHook(() => useSaveIndicator(autosave));
 
-    expect(result.current.label).toBe('Lưu thất bại sau nhiều lần thử. Chỉnh sửa hoặc lưu lại thủ công.');
+    expect(result.current.label).toBe('Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.');
+  });
+
+  /* Q10d / B-V7-02: A7 nói không có nút lưu, nên câu báo lỗi không được bảo người
+     dùng "lưu lại thủ công" — nó phải nói việc làm được: sửa tiếp thì engine thử
+     lại (`notifyChange` kéo `failed` về `dirty`, `createAutosave.ts`). */
+  it('never tells the user to save by hand when saving failed (A7)', () => {
+    const autosave = createFakeAutosave();
+    autosave.emit('failed');
+    const { result } = renderHook(() => useSaveIndicator(autosave));
+
+    expect(result.current.label).not.toMatch(/thủ công/u);
+    expect(result.current.detail).not.toMatch(/thủ công/u);
   });
 
   it('shows the offline label', () => {
@@ -146,7 +158,7 @@ describe('useSaveIndicator', () => {
     });
 
     expect(announcer.announce).toHaveBeenCalledWith(
-      'Lưu thất bại sau nhiều lần thử. Chỉnh sửa hoặc lưu lại thủ công.',
+      'Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.',
       'assertive',
     );
   });
@@ -170,7 +182,7 @@ describe('useSaveIndicator', () => {
     autosave.emit('dirty');
     const { result } = renderHook(() => useSaveIndicator(autosave));
 
-    expect(result.current.label).toBe('Có thay đổi chưa lưu');
+    expect(result.current.label).toBe('Có thay đổi chờ đồng bộ');
     expect(autosave.notifyChange).not.toHaveBeenCalled();
     expect(autosave.saveNow).not.toHaveBeenCalled();
   });

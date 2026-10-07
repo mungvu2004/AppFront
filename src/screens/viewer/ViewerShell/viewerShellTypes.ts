@@ -133,7 +133,7 @@ export interface ViewerStoreyViewModel {
   readonly id: string;
   /** Tên người đọc, ví dụ "Tầng 01". */
   readonly name: string;
-  /** Mã ngắn cho thang cao độ dọc mép trái. Chữ hoa là ngoại lệ A6. */
+  /** Chữ ngắn trên nút ray tầng, rút từ `name` — KHÔNG phải mã máy (`storeyShortLabel`). */
   readonly code: string;
   /** Cao độ ĐÃ ĐỊNH DẠNG, ví dụ "+3,20 m" (A15). */
   readonly elevationLabel: string;

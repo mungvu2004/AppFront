@@ -38,7 +38,7 @@
  * (nới cho cả bảy là tắt phép kiểm chứ không phải vượt qua nó, R-70).
  */
 
-import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,6 +50,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
 import {
   SEVEN_STATES,
   SEVEN_STATE_LABELS,
@@ -60,7 +61,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { WallLayerReviewContainer } from './WallLayerReview.container';
-import { scenarioArgsFor } from './WallLayerReview.stories';
+import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
   WALL_LAYER_FIXTURE_BUILDING,
   WALL_LAYER_FIXTURE_LEVEL,
@@ -194,6 +195,56 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     expect(screen.queryByRole('button', { name: /vẽ tường/u })).not.toBeInTheDocument();
     /* Vẫn xem được: khung canvas và thanh trạng thái không biến mất. */
     expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Dải lưu lớp (F-04x-1 bước 7).                                               */
+/* -------------------------------------------------------------------------- */
+
+describe('dải lưu lớp (F-04x-1)', () => {
+  const RELOAD_MESSAGE = 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.';
+
+  it('xung đột: dải chú ý + "Tải lại", ngoài canvas; A9 hỏi trước khi bỏ sửa', async () => {
+    const onReload = vi.fn();
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer
+          {...scenarioArgsFor('partial')}
+          forceSaveBlock={{ confirm: { onCancel, onConfirm, open: true }, kind: 'reload', message: RELOAD_MESSAGE, onReload }}
+        />
+      </MemoryRouter>,
+    );
+
+    const banner = screen.getAllByRole('alert').find((node) => node.textContent?.includes(RELOAD_MESSAGE));
+
+    expect(banner).toBeDefined();
+    expect(banner?.closest('section')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+
+    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' }, { timeout: 5000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('không lưu được: dải vi phạm với câu của ống, không có nút "Tải lại"', () => {
+    const message = 'Bạn không còn quyền sửa tầng này.';
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} forceSaveBlock={{ confirm: null, kind: 'blocked', message }} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('alert').some((node) => node.textContent?.includes(message))).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Tải lại' })).not.toBeInTheDocument();
   });
 });
 
@@ -341,7 +392,7 @@ describe('[NGHIEM-7] R-73', () => {
       </MemoryRouter>,
     );
 
-    const goOn = await screen.findByRole('button', { name: 'Sang lớp Cửa và nội thất' });
+    const goOn = await screen.findByRole('button', { name: 'Sang lớp cửa và nội thất' });
 
     goOn.click();
 
@@ -377,20 +428,8 @@ describe('ba bộ soát dùng chung', () => {
     expectAccessible(container);
   });
 
-  /*
-   * "zoom" — chữ DUY NHẤT được nới, và nó không đến từ màn này.
-   *
-   * `ZoomCluster` (`src/components/canvas/ZoomCluster.tsx`) tự đặt
-   * `aria-label="Điều khiển zoom"` và "Zoom hiện tại 100%…". Đó là chuỗi của
-   * một component dùng chung, và `src/components/**` nằm ngoài danh sách file
-   * được sửa (R-68) — chỗ đúng để sửa là component, không phải màn này.
-   *
-   * Nới ĐÚNG một chữ, chứ không nới cả phép kiểm: sáu chuỗi tiếng Anh khác mà
-   * lượt gộp này tìm thấy ("Ẩn layer" của `TreeItem`, "canvas" trong câu rỗng
-   * của thanh tra) đã được SỬA THẬT, không nới. Tiền lệ: `ScaleCalibration.test.tsx`
-   * cũng nới đúng chữ này, vì cùng một component.
-   */
-  const ALLOWED_WORDS = ['zoom'];
+  /* Không chữ nào được nới — nợ "zoom" của `ZoomCluster` đã trả (B-V1-48). */
+  const ALLOWED_WORDS: readonly string[] = [];
 
   it.each(SEVEN_STATES)('R-72 expectVietnamese — trạng thái %s', (state) => {
     const { container } = renderState(state);
@@ -420,6 +459,12 @@ describe('nhãn mã tường', () => {
     expect(fourteenth?.thicknessMm).toBe(220);
     expect(fourteenth?.confidence).toBe(0.71);
     expect(fourteenth?.levelId).toBe(WALL_LAYER_FIXTURE_LEVEL.id);
+  });
+
+  it('mã BE đứng riêng trả nguyên văn, không cắt thành nhãn rác (B-V7-42, B-V7-81)', () => {
+    const backendId = `W-01J${'A'.repeat(22)}`;
+
+    expect(wallDisplayCode(backendId)).toBe(backendId);
   });
 });
 
@@ -528,7 +573,9 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
 
     expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
 
-    const hide = screen.getByRole('button', { name: 'Ẩn lớp Tường' });
+    /* A6 · B-V6-04: tên lớp trong cây và trong nút con mắt cùng viết thường. */
+    expect(screen.getByRole('treeitem', { name: 'Tường' })).toBeInTheDocument();
+    const hide = screen.getByRole('button', { name: 'Ẩn lớp tường' });
 
     /* Hai lỗi của `TreeItem` dùng chung mà hàng riêng của màn này không mắc. */
     expect(hide.getAttribute('tabindex')).toBeNull();
@@ -542,7 +589,7 @@ describe('lớp Tường bật tắt được từ cây lớp (BC-19)', () => {
       expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
     });
 
-    const show = screen.getByRole('button', { name: 'Hiện lớp Tường' });
+    const show = screen.getByRole('button', { name: 'Hiện lớp tường' });
 
     await act(async () => {
       show.click();
@@ -636,7 +683,7 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
   it('thanh tiến độ và con số chuyển sang token "đã xác minh"', async () => {
     const { container } = renderState('success');
 
-    await screen.findByRole('button', { name: 'Sang lớp Cửa và nội thất' });
+    await screen.findByRole('button', { name: 'Sang lớp cửa và nội thất' });
 
     /*
      * A5 vẫn nguyên: xanh "đã xác minh" ở đây tới từ `reviewed === total` —
@@ -652,5 +699,42 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
     await screen.findByRole('tree', { name: 'Cây lớp' });
 
     expect(container.querySelectorAll('.text-state-verified')).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Dải tỉ lệ tạm (F-04x-2 [8].7).                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('dải tỉ lệ tạm (F-04x-2)', () => {
+  const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
+
+  beforeEach(() => {
+    useStore.getState().setSpatial(null, null);
+  });
+
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
+    const onNavigate = vi.fn();
+    const args = { ...scenarioArgsFor('partial'), ...ProvisionalScale.args, onNavigate };
+
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...args} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(NOTICE)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' }));
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));
+  });
+
+  it('tầng có tỉ lệ thật: không dải', async () => {
+    renderState('partial');
+
+    await screen.findByRole('tree', { name: 'Cây lớp' });
+
+    expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
   });
 });

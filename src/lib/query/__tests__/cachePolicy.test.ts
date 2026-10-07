@@ -17,6 +17,7 @@ describe('CACHE_POLICY', () => {
     expect(CACHE_POLICY.branches.static).toBe(300_000);
     expect(CACHE_POLICY.branches.aiProgress).toBe(0);
     expect(CACHE_POLICY.branches.spatialDraft).toBe(10_000);
+    expect(CACHE_POLICY.projectSpatialLoad.staleTime).toBe(0);
   });
 
   it('retries read queries once and mutations zero times', () => {
@@ -56,6 +57,13 @@ describe('resolveCachePolicy', () => {
       tier: 'default',
     },
     { key: queryKeys.notification.list(), name: 'notification.list', staleTime: 30_000, tier: 'default' },
+    { key: queryKeys.adminMl.families(), name: 'adminMl.families', staleTime: 30_000, tier: 'default' },
+    {
+      key: queryKeys.adminMl.versions('wallSegmentation'),
+      name: 'adminMl.versions',
+      staleTime: 30_000,
+      tier: 'default',
+    },
   ];
 
   it.each(cases)('assigns $name to tier $tier', ({ key, staleTime, tier }) => {
@@ -88,7 +96,7 @@ describe('listCachePolicyDefaults', () => {
     const defaults = listCachePolicyDefaults();
     const domains = defaults.map((entry) => entry.queryKey[0]).sort();
 
-    expect(domains).toEqual(['drawing', 'library', 'notification', 'progress', 'room', 'space', 'user']);
+    expect(domains).toEqual(['adminMl', 'drawing', 'library', 'notification', 'progress', 'room', 'space', 'user']);
     expect(defaults.every((entry) => entry.queryKey.length === 1)).toBe(true);
   });
 

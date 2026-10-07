@@ -82,6 +82,22 @@ describe('resetUserScopedState', () => {
     expect(useStore.getState().selectedIds).toEqual([]);
   });
 
+  it('đặt lại các khoá lớp tầng về giá trị ban đầu', () => {
+    useStore.getState().updateFloorMeta('L-1', { revision: 5 });
+    useStore.getState().setUnsavedFloorIds(['L-1']);
+    useStore.setState({ spatialProjectId: 'p1', serverReplaceSeq: 3, lastServerSpatial: { walls: [] } as never });
+
+    resetUserScopedState();
+
+    const state = useStore.getState();
+
+    expect(state.floorMeta).toEqual({});
+    expect(state.unsavedFloorIds).toEqual([]);
+    expect(state.spatialProjectId).toBeNull();
+    expect(state.serverReplaceSeq).toBe(0);
+    expect(state.lastServerSpatial).toBeNull();
+  });
+
   it('giữ nguyên cách người ta bày cái máy của mình', () => {
     useStore.getState().setZoom(2.5);
     useStore.getState().setTheme('dark');

@@ -71,11 +71,13 @@
  *   `editDimension` làm mất hiệu lực, nên hai bên không thể lệch nhau.
  */
 
+import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 
 import type { ApiClient } from '@/api/client';
 import { createAppApiClient } from '@/api/appClient';
 import { measureDistance } from '@/domain/measure/measure';
+import { counterLabelOf, isIdOfKind } from '@/domain/spatial/ids';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Building,
@@ -222,9 +224,6 @@ export function unsupported(capability: DimensionOcrMissingCapability): Dimensio
 /** Số chữ số phần đếm trong thân mã — `COUNTER_LENGTH` của `src/domain/spatial/ids.ts:41`. */
 const ID_COUNTER_LENGTH = 6;
 
-/** Bề rộng nhãn người đọc: "M-014", không phải "M-14". */
-const DISPLAY_CODE_DIGITS = 3;
-
 /** Bốn ký tự đuôi của bộ mẫu — cùng hằng mà `dimensionOcrFixture.ts` sinh mã. */
 const DIMENSION_ID_SUFFIX = 'DIMS';
 
@@ -236,13 +235,28 @@ const DIMENSION_ID_SUFFIX = 'DIMS';
  * đúng "#M-014".
  */
 export function dimensionDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+  return counterLabelOf(id);
 }
 
-/** Mã máy của một chuỗi kích thước: `M-014` → `M-000014DIMS`. */
+/**
+ * Nhãn (không có `#`) của một mã: ưu tiên bảng mã của tầng (`displayCodesOf`, gộp
+ * mã kích thước và mã tường — hai tiền tố khác nhau nên không đè nhau), rơi về
+ * cách đọc sáu chữ số đếm.
+ */
+export const displayCodeFrom = (id: string, codes?: ReadonlyMap<string, string>): string =>
+  codes?.get(id) ?? dimensionDisplayCode(id);
+
+/**
+ * Mã máy của một chuỗi kích thước.
+ *
+ * Mã đã hợp lệ (hàng của danh sách mang mã thực thể) thì giữ nguyên; chỉ mã hiển thị
+ * kiểu bộ mẫu `M-014` mới đổi thành `M-000014DIMS`.
+ */
 export function dimensionEntityIdOf(displayId: string): DimensionId {
+  if (isIdOfKind('dimension', displayId)) {
+    return displayId;
+  }
+
   return `M-${displayId.slice(2).padStart(ID_COUNTER_LENGTH, '0')}${DIMENSION_ID_SUFFIX}` as DimensionId;
 }
 
@@ -250,7 +264,8 @@ export function dimensionEntityIdOf(displayId: string): DimensionId {
 export const dimensionCodeLabel = (displayId: string): string => `#${displayId}`;
 
 /** Nhãn mono của tường chủ — "#W-014". */
-export const wallCodeLabel = (wallId: string): string => `#${dimensionDisplayCode(wallId)}`;
+export const wallCodeLabel = (wallId: string, codes?: ReadonlyMap<string, string>): string =>
+  `#${displayCodeFrom(wallId, codes)}`;
 
 /* -------------------------------------------------------------------------- */
 /* Bộ mẫu — 34 chuỗi kích thước của `dimensionOcrFixture.ts` thành một đồ thị.  */
@@ -306,14 +321,31 @@ export const DIMENSION_OCR_SAMPLE_GRAPH: NormalizedSpatial = buildDimensionOcrGr
 
 const NO_DIMENSIONS: readonly Dimension[] = [];
 
-/** Tầng đang duyệt, hoặc tầng đầu tiên khi nơi gọi chưa chỉ định. */
-export function levelOfGraph(graph: NormalizedSpatial | null): Level | null {
-  return graph === null ? null : (entitiesOfKind(graph, 'level')[0] ?? null);
+/**
+ * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu —
+ * cùng lý do với `levelOfGraph` của lớp đối tượng (kho cả dự án, B-V12-01).
+ *
+ * B-V6-70 (mở, chưa sửa): màn kích thước vẫn rơi về tầng đầu khi URL chỉ tầng
+ * không có trong đồ thị, và `dimensionsOf` không lọc theo tầng. Lớp đối tượng đã
+ * bỏ đường rơi này (B-V6-40).
+ */
+export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
+  if (graph === null) {
+    return null;
+  }
+
+  const levels = entitiesOfKind(graph, 'level');
+
+  return levels.find((level) => level.id === levelId) ?? levels[0] ?? null;
 }
 
 /** Mọi chuỗi kích thước của đồ thị, đúng thứ tự gốc của bộ mẫu. */
 export const dimensionsOf = (graph: NormalizedSpatial | null): readonly Dimension[] =>
   graph === null ? NO_DIMENSIONS : entitiesOfKind(graph, 'dimension');
+
+/** Mọi tường của đồ thị — nguồn của bảng mã hiển thị. */
+export const wallsOfGraph = (graph: NormalizedSpatial | null): readonly GraphWall[] =>
+  graph === null ? [] : entitiesOfKind(graph, 'wall');
 
 /**
  * Tường chủ suy từ `referenceIds`.
@@ -626,6 +658,7 @@ export function cropOf(
   dimension: Dimension,
   scale: Scale,
   imageUrl: string,
+  codes?: ReadonlyMap<string, string>,
 ): DimensionCropViewModel {
   const centre = midpointPx(
     toPixelPoint(dimension.line.start, scale),
@@ -637,7 +670,7 @@ export function cropOf(
     sourcePx: toPixelRect(labelBoxPx(centre)),
     displayWidthPx: DIMENSION_CROP_DISPLAY_WIDTH_PX,
     displayHeightPx: DIMENSION_CROP_DISPLAY_HEIGHT_PX,
-    alt: dimensionImageAlt(dimensionCodeLabel(dimensionDisplayCode(dimension.id))),
+    alt: dimensionImageAlt(dimensionCodeLabel(displayCodeFrom(dimension.id, codes))),
   };
 }
 
@@ -652,12 +685,13 @@ export function toDimensionRow(
   scale: Scale,
   imageUrl: string,
   draftValueMm?: number,
+  codes?: ReadonlyMap<string, string>,
 ): DimensionRowViewModel {
-  const displayId = dimensionDisplayCode(dimension.id);
+  const displayId = displayCodeFrom(dimension.id, codes);
   const valueMm = draftValueMm ?? readValueOf(dimension);
 
   return {
-    id: displayId,
+    id: dimension.id,
     codeLabel: dimensionCodeLabel(displayId),
     valueMm,
     valueLabel: formatDimensionLength(valueMm),
@@ -665,9 +699,9 @@ export function toDimensionRow(
     isReviewed: dimension.reviewed,
     isLowConfidence: isLowConfidenceDimension(dimension.confidence),
     statusCode: dimensionStatusCode(dimension),
-    hostWallLabel: hostWall === null ? null : wallReferenceLabel(wallCodeLabel(hostWall.id)),
+    hostWallLabel: hostWall === null ? null : wallReferenceLabel(wallCodeLabel(hostWall.id, codes)),
     hostWallId: hostWall === null ? null : hostWall.id,
-    crop: cropOf(dimension, scale, imageUrl),
+    crop: cropOf(dimension, scale, imageUrl, codes),
   };
 }
 
@@ -689,7 +723,7 @@ export function toDimensionChain(
   ]);
 
   return {
-    id: dimensionDisplayCode(dimension.id),
+    id: dimension.id,
     startPx,
     endPx,
     labelPositionPx,
@@ -772,11 +806,12 @@ export function buildOverrideDimensionCommand(
   before: Dimension,
   valueMm: number,
   actorId: string,
+  codes?: ReadonlyMap<string, string>,
 ): Command {
   return createCommand({
     type: DIMENSION_OVERRIDE_COMMAND_TYPE,
     actorId,
-    description: overrideDescription(dimensionDisplayCode(before.id)),
+    description: overrideDescription(displayCodeFrom(before.id, codes)),
     changes: [changeForUpdate('dimension', before, { ...before, overrideValueMm: valueMm })],
   });
 }
@@ -788,11 +823,15 @@ export function buildOverrideDimensionCommand(
  * nào cho phép nơi gọi truyền `source`, nên đầu ra OCR/AI không có đường nào
  * bật được cờ xanh.
  */
-export function buildApproveDimensionCommand(before: Dimension, actorId: string): Command {
+export function buildApproveDimensionCommand(
+  before: Dimension,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command {
   return createCommand({
     type: DIMENSION_APPROVE_COMMAND_TYPE,
     actorId,
-    description: approveDescription(dimensionDisplayCode(before.id)),
+    description: approveDescription(displayCodeFrom(before.id, codes)),
     changes: [changeForUpdate('dimension', before, { ...before, reviewed: true, source: 'human' })],
   });
 }
@@ -1061,7 +1100,7 @@ export function createDimensionOcrReviewGateway(
       };
     },
 
-    readDimensionLayer: () => Promise.resolve(graph.read()),
+    readDimensionLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
     readOcrProgress: () => Promise.resolve({ isComplete: true }),
 
     graph,

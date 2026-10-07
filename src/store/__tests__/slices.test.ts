@@ -11,6 +11,7 @@ import {
 import { deriveActionName } from '../devtools';
 import { createProjectSlice, type ProjectSlice } from '../projectSlice';
 import { createSpatialSlice, type SpatialSlice } from '../spatialSlice';
+import { graphVersionOf } from '../../lib/versioning/graphVersion';
 import { useStore } from '../index';
 import { readEntity } from '../../domain/spatial/applyPatch';
 import { normalizeSpatial } from '../../domain/spatial/normalize';
@@ -140,6 +141,70 @@ describe('spatialSlice', () => {
     expect(state.spatial).toBe(spatial);
     expect(state.versionId).toBe('v1');
     expect(state.spatialLoading).toBe(false);
+  });
+
+  it('writes spatial, spatialProjectId, floorMeta and lastServerSpatial in one set', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+    const spatial = normalizeSpatial(createSampleBuilding());
+    let writes = 0;
+
+    store.subscribe(() => {
+      writes += 1;
+    });
+    store.getState().setSpatial(spatial, 'v1', { projectId: 'p1', floorRevisions: { L1: 4 } });
+
+    const state = store.getState();
+
+    expect(writes).toBe(1);
+    expect(state.spatialProjectId).toBe('p1');
+    expect(state.floorMeta).toEqual({ L1: { revision: 4 } });
+    expect(state.lastServerSpatial).toBe(spatial);
+
+    store.getState().setSpatial(spatial, 'v1');
+
+    expect(store.getState().spatialProjectId).toBeNull();
+    expect(store.getState().floorMeta).toEqual({});
+    expect(store.getState().versionId).toBe('v1');
+  });
+
+  it('derives versionId from floorMeta and carries scaleStatus through setSpatial', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+    const spatial = normalizeSpatial(createSampleBuilding());
+
+    store.getState().setSpatial(spatial, 'ver_1', {
+      floorRevisions: { L1: 4, L2: 1 },
+      floorScaleStatus: { L2: 'unresolved' },
+      projectId: 'p1',
+    });
+
+    expect(store.getState().floorMeta).toEqual({ L1: { revision: 4 }, L2: { revision: 1, scaleStatus: 'unresolved' } });
+    expect(store.getState().versionId).toBe(graphVersionOf({ L1: { revision: 4 }, L2: { revision: 1 } }));
+  });
+
+  it('rewrites versionId in the same set as updateFloorMeta', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+    let writes = 0;
+
+    store.getState().setVersionId('ver_1');
+    store.subscribe(() => {
+      writes += 1;
+    });
+    store.getState().updateFloorMeta('L1', { revision: 2, scaleStatus: 'unresolved' });
+
+    expect(writes).toBe(1);
+    expect(store.getState().versionId).toBe(graphVersionOf({ L1: { revision: 2 } }));
+  });
+
+  it('replaces a whole floorMeta entry and stores the unsaved floor ids', () => {
+    const store = create<SpatialSlice>()(createSpatialSlice);
+
+    store.getState().updateFloorMeta('L1', { revision: 1 });
+    store.getState().updateFloorMeta('L2', { revision: 2 });
+    store.getState().updateFloorMeta('L1', { revision: 3 });
+    store.getState().setUnsavedFloorIds(['L2']);
+
+    expect(store.getState().floorMeta).toEqual({ L1: { revision: 3 }, L2: { revision: 2 } });
+    expect(store.getState().unsavedFloorIds).toEqual(['L2']);
   });
 
   it('ignores patches until data is loaded', () => {
@@ -310,6 +375,21 @@ describe('store composition', () => {
   });
 });
 
+/* B-V7-04: một lượt nạp thay cả đồ thị, không phải một lần người dùng sửa — Ctrl+Z
+   (`useStore.temporal.undo`, `router.tsx`) không được trả màn về kho rỗng. */
+describe('loading spatial data is not an undo step', () => {
+  it('leaves no undo step behind, so undo cannot empty the screen', () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), 'v1');
+
+    expect(useStore.temporal.getState().pastStates).toHaveLength(0);
+
+    useStore.temporal.getState().undo();
+
+    expect(useStore.getState().spatial).not.toBeNull();
+  });
+});
+
 describe('slice state shape', () => {
   const dataFields = (state: object): string[] =>
     Object.entries(state)
@@ -323,7 +403,16 @@ describe('slice state shape', () => {
     const draftFields = dataFields(create<DraftSlice>()(createDraftSlice).getState());
 
     expect(projectFields).toEqual(['activeFloorId', 'floors', 'project', 'userRoles']);
-    expect(spatialFields).toEqual(['spatial', 'spatialLoading', 'versionId']);
+    expect(spatialFields).toEqual([
+      'floorMeta',
+      'lastServerSpatial',
+      'serverReplaceSeq',
+      'spatial',
+      'spatialLoading',
+      'spatialProjectId',
+      'unsavedFloorIds',
+      'versionId',
+    ]);
     expect(draftFields).toEqual(['draftOperations']);
 
     const derivedFieldPattern = /(area|violation|derived|computed|percent)/i;

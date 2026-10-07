@@ -281,6 +281,66 @@ describe('api client', () => {
     expect(vi.mocked(http.patch).mock.calls[0]?.[0]).toBe('/floors/reorder');
   });
 
+  it('reads every page of N7 latestUploads, following nextCursor', async () => {
+    const first = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB1';
+    const second = 'upl_01J8Z3K4Q5R6S7T8V9W0XYZAB2';
+    const http = createHttpMock({
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1')}`]: {
+        items: [
+          { floorId: 'L1', floorName: 'Tầng 1', uploadId: first },
+        ],
+        nextCursor: 'trang-2',
+      },
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1', 'trang-2')}`]: {
+        items: [{ floorId: 'L2', floorName: 'Tầng 2', uploadId: second }],
+      },
+    });
+    const result = await createApiClient(http).drawings.latestUploads({ projectId: 'project-1' });
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        { floorId: 'L1', floorName: 'Tầng 1', uploadId: first },
+        { floorId: 'L2', floorName: 'Tầng 2', uploadId: second },
+      ],
+    });
+    expect(ENDPOINTS.drawings.latestUploads('project-1', 'a b')).toBe(
+      '/projects/project-1/drawings/uploads/latest?cursor=a%20b',
+    );
+  });
+
+  it('sends limit=200 (the N7 maximum) on every page of latestUploads', async () => {
+    const http = createHttpMock({
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1')}`]: { items: [], nextCursor: 'trang-2' },
+      [`GET ${ENDPOINTS.drawings.latestUploads('project-1', 'trang-2')}`]: { items: [] },
+    });
+
+    await createApiClient(http).drawings.latestUploads({ projectId: 'project-1' });
+
+    const calls = vi.mocked(http.get).mock.calls;
+
+    expect(calls).toHaveLength(2);
+    expect(calls.map(([, options]) => options?.query)).toEqual([{ limit: 200 }, { limit: 200 }]);
+  });
+
+  it('mock project summaries: a project with walls has at least one floor', async () => {
+    const list = await createMockApiClient().projectSummaries.list();
+
+    expect(list.ok && list.data.items.filter((item) => item.floorCount === 0 && item.wallsTotalCount > 0)).toEqual([]);
+  });
+
+  it('mock N7 lists the floor that already has a drawing, with a completed upload', async () => {
+    const client = createMockApiClient();
+    const latest = await client.drawings.latestUploads({ projectId: 'project-1' });
+
+    expect(latest.ok && latest.data.map((upload) => upload.floorId)).toEqual(['L1']);
+
+    const uploadId = latest.ok ? (latest.data[0]?.uploadId ?? '') : '';
+    const progress = await client.drawings.progress({ projectId: 'project-1', uploadId });
+
+    expect(progress.ok && progress.data.status).toBe('completed');
+  });
+
   it('sends pageIndex on initUpload only when given', async () => {
     const wireProgress = { id: 'u-1', progressPercent: 0, status: 'pending', step: 'upload' };
     const http = createHttpMock({
@@ -380,36 +440,95 @@ describe('api client', () => {
       );
     });
 
-    it('writeLayer PATCHes the layer path with an idempotency key and hands the response straight back', async () => {
+    it('writeLayer PUTs {baseVersion, body: {layer}} — the only verb BE #35 has on this path (B-G-07)', async () => {
+      const saved = { layer: sampleSpatialLayer, revision: 8 };
       const http = createHttpMock({
-        [`PATCH ${ENDPOINTS.spatial.layer('project-1', 'floor-1')}`]: sampleSpatialLayer,
+        [`PUT ${ENDPOINTS.spatial.layer('project-1', 'floor-1')}`]: saved,
       });
       const client = createApiClient(http);
 
       const result = await client.spatial.writeLayer({
-        body: sampleSpatialLayer,
+        baseVersion: 7,
+        body: { layer: sampleSpatialLayer },
         floorId: 'floor-1',
         idempotencyKey: 'key-spatial-layer',
         projectId: 'project-1',
       });
 
-      expect(http.patch).toHaveBeenCalledWith(
+      expect(http.patch).not.toHaveBeenCalled();
+      expect(http.put).toHaveBeenCalledWith(
         ENDPOINTS.spatial.layer('project-1', 'floor-1'),
-        expect.objectContaining({ body: sampleSpatialLayer, idempotencyKey: 'key-spatial-layer' }),
+        expect.objectContaining({
+          body: { baseVersion: 7, body: { layer: sampleSpatialLayer } },
+          idempotencyKey: 'key-spatial-layer',
+        }),
       );
-      expect(result).toEqual({ data: sampleSpatialLayer, ok: true });
+      expect(result).toEqual({ data: saved, ok: true });
     });
 
-    it('mock client echoes whatever layer it is given back, unchanged', async () => {
+    it('readLayer GETs N16 on the same path and decodes the floor document', async () => {
+      const document = {
+        axes: [],
+        dimensions: [],
+        layer: sampleSpatialLayer,
+        level: {
+          confidence: 1,
+          elevationMm: 0,
+          heightMm: 3000,
+          id: 'L-LEVEL000001',
+          name: 'Tầng 2',
+          order: 1,
+          reviewed: true,
+          source: 'human',
+        },
+        revision: 3,
+      };
+      const http = createHttpMock({ [`GET ${ENDPOINTS.spatial.layer('project-1', 'L-LEVEL000001')}`]: document });
+
+      const result = await createApiClient(http).spatial.readLayer({ floorId: 'L-LEVEL000001', projectId: 'project-1' });
+
+      expect(result).toEqual({ data: document, ok: true });
+    });
+
+    it('readGraph GETs N15 and decodes the graph document', async () => {
+      const wire = await createMockApiClient().spatial.readGraph({ projectId: 'project-1' });
+      const document = wire.ok ? wire.data : null;
+      const http = createHttpMock({ [`GET ${ENDPOINTS.spatial.graph('project-1')}`]: document });
+
+      const result = await createApiClient(http).spatial.readGraph({ projectId: 'project-1' });
+
+      expect(ENDPOINTS.spatial.graph('project-1')).toBe('/projects/project-1/spatial');
+      expect(vi.mocked(http.get).mock.calls[0]?.[0]).toBe(ENDPOINTS.spatial.graph('project-1'));
+      expect(result).toEqual({ data: document, ok: true });
+    });
+
+    it('readGraph turns an unknown key into a contract error', async () => {
+      const wire = await createMockApiClient().spatial.readGraph({ projectId: 'project-1' });
+      const http = createHttpMock({
+        [`GET ${ENDPOINTS.spatial.graph('project-1')}`]: { ...(wire.ok ? wire.data : {}), scaleStatus: 'unresolved' },
+      });
+
+      const result = await createApiClient(http).spatial.readGraph({ projectId: 'project-1' });
+
+      expect(!result.ok && result.error.code).toBe('CONTRACT_VALIDATION');
+    });
+
+    it('mock client bumps the revision on every write and serves the written layer back on read', async () => {
       const client = createMockApiClient();
+      const before = await client.spatial.readLayer({ floorId: 'floor-1', projectId: 'project-1' });
 
       const result = await client.spatial.writeLayer({
-        body: sampleSpatialLayer,
+        baseVersion: before.ok ? before.data.revision : -1,
+        body: { layer: sampleSpatialLayer },
         floorId: 'floor-1',
         projectId: 'project-1',
       });
+      const after = await client.spatial.readLayer({ floorId: 'floor-1', projectId: 'project-1' });
 
-      expect(result).toEqual({ data: sampleSpatialLayer, ok: true });
+      expect(before.ok && before.data.revision).toBe(0);
+      expect(result).toEqual({ data: { layer: sampleSpatialLayer, revision: 1 }, ok: true });
+      expect(after.ok && after.data.layer).toEqual(sampleSpatialLayer);
+      expect(after.ok && after.data.revision).toBe(1);
     });
   });
 
@@ -559,5 +678,91 @@ describe('api client', () => {
       expect(Object.keys(sentOptions ?? {})).not.toContain('idempotent');
       expect(Object.keys(sentOptions ?? {})).not.toContain('timeoutMode');
     });
+
+    it('sends timeoutMode file on the four slow drawing writes and not on the three fast calls', async () => {
+      const http = createHttpMock({
+        [`GET ${ENDPOINTS.drawings.progress('project-1', 'upload-1')}`]: sampleProgress,
+        [`POST ${ENDPOINTS.drawings.initUpload('project-1', 'floor-1')}`]: sampleProgress,
+        [`POST ${ENDPOINTS.drawings.chunk('project-1', 'upload-1')}`]: sampleProgress,
+        [`POST ${ENDPOINTS.drawings.complete('project-1', 'upload-1')}`]: sampleProgress,
+      });
+      const client = createApiClient(http);
+      const corners = [
+        { xRatio: 0.1, yRatio: 0.1 },
+        { xRatio: 0.9, yRatio: 0.1 },
+        { xRatio: 0.9, yRatio: 0.9 },
+        { xRatio: 0.1, yRatio: 0.9 },
+      ] as const;
+
+      await client.drawings.sendChunk({
+        body: { chunk: 'chunk-1', chunkIndex: 0 },
+        projectId: 'project-1',
+        uploadId: 'upload-1',
+      });
+      await client.drawings.complete({ body: { uploadId: 'upload-1' }, projectId: 'project-1' });
+      await client.quality.setCorners({
+        body: { corners: [...corners] },
+        floorId: 'floor-1',
+        idempotencyKey: 'key-corners',
+        projectId: 'project-1',
+      });
+      await client.quality.straighten({ floorId: 'floor-1', idempotencyKey: 'key-straighten', projectId: 'project-1' });
+
+      const sentOptions = (path: string): Record<string, unknown> | undefined =>
+        vi.mocked(http.post).mock.calls.find(([sentPath]) => sentPath === path)?.[1] as
+          | Record<string, unknown>
+          | undefined;
+
+      expect(sentOptions(ENDPOINTS.drawings.chunk('project-1', 'upload-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.drawings.complete('project-1', 'upload-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.quality.corners('project-1', 'floor-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.quality.straighten('project-1', 'floor-1'))?.timeoutMode).toBe('file');
+      expect(sentOptions(ENDPOINTS.quality.corners('project-1', 'floor-1'))?.idempotencyKey).toBe('key-corners');
+
+      await client.drawings.initUpload({
+        body: { fileName: 'a.png', floorId: 'floor-1', mimeType: 'image/png', projectId: 'project-1', sizeBytes: 1 },
+      });
+      await client.drawings.progress({ projectId: 'project-1', uploadId: 'upload-1' });
+      await client.quality.assess({ floorId: 'floor-1', projectId: 'project-1' });
+
+      expect(Object.keys(sentOptions(ENDPOINTS.drawings.initUpload('project-1', 'floor-1')) ?? {})).not.toContain(
+        'timeoutMode',
+      );
+      expect(http.get).toHaveBeenCalledWith(ENDPOINTS.drawings.progress('project-1', 'upload-1'), undefined);
+      expect(http.get).toHaveBeenCalledWith(ENDPOINTS.quality.assess('project-1', 'floor-1'), undefined);
+    });
+  });
+});
+
+describe('ruleConfig (N21, N22 — F-10)', () => {
+  const wireConfig = {
+    overrides: { GENERAL: { thresholds: { 'general.jointToleranceMm': 25 } }, 'WALL-THICKNESS': { enabled: false } },
+    revision: 4,
+  };
+
+  it('read GETs /projects/{id}/rule-config and decodes ProjectRuleConfigSchema', async () => {
+    const http = createHttpMock({ [`GET ${ENDPOINTS.ruleConfig.read('project-1')}`]: wireConfig });
+
+    const result = await createApiClient(http).ruleConfig.read({ projectId: 'project-1' });
+
+    expect(ENDPOINTS.ruleConfig.read('project-1')).toBe('/projects/project-1/rule-config');
+    expect(http.get).toHaveBeenCalledWith('/projects/project-1/rule-config', undefined);
+    expect(result).toEqual({ data: wireConfig, ok: true });
+  });
+
+  it('replace PUTs {baseVersion, body: {overrides}} on the same path', async () => {
+    const http = createHttpMock({ [`PUT ${ENDPOINTS.ruleConfig.replace('project-1')}`]: { ...wireConfig, revision: 5 } });
+
+    const result = await createApiClient(http).ruleConfig.replace({
+      baseVersion: 4,
+      body: { overrides: wireConfig.overrides },
+      projectId: 'project-1',
+    });
+
+    expect(http.put).toHaveBeenCalledWith(
+      '/projects/project-1/rule-config',
+      expect.objectContaining({ body: { baseVersion: 4, body: { overrides: wireConfig.overrides } } }),
+    );
+    expect(result).toEqual({ data: { ...wireConfig, revision: 5 }, ok: true });
   });
 });

@@ -51,11 +51,11 @@ import {
 } from './historyPanelTypes';
 
 const JUMP_LABEL = 'Quay lại trạng thái này';
-const EXPAND_BATCH_LABEL = 'mở nhóm thay đổi';
-const COLLAPSE_BATCH_LABEL = 'thu gọn nhóm thay đổi';
-const ENTITY_LINK_PREFIX = 'chọn và khuôn hình vào';
-const UNDONE_HINT = 'đã hoàn tác';
-const CURRENT_HINT = 'vị trí hiện tại';
+const EXPAND_BATCH_LABEL = 'Mở nhóm thay đổi';
+const COLLAPSE_BATCH_LABEL = 'Thu gọn nhóm thay đổi';
+const ENTITY_LINK_PREFIX = 'Chọn và khuôn hình vào';
+const UNDONE_HINT = 'Đã hoàn tác';
+const CURRENT_HINT = 'Vị trí hiện tại';
 const DIFF_ARROW = '→';
 
 /** Mili giây sang giây cho `framer-motion` — cùng phép chia `ProjectCardTile.tsx:91`. */
@@ -70,9 +70,9 @@ const AVATAR_CLASS = 'h-5 w-5';
 
 /** Chữ cho trình đọc màn hình, vì biểu tượng loại việc chỉ là hình. */
 const CATEGORY_HINT: Readonly<Record<HistoryCategory, string>> = {
-  edit: 'chỉnh sửa',
-  review: 'duyệt',
-  ai: 'máy dò tự động',
+  edit: 'Chỉnh sửa',
+  review: 'Duyệt',
+  ai: 'Máy dò tự động',
 };
 
 /** Ba loại, ba hình. Bảng đóng: loại thứ tư sẽ hỏng ở bước typecheck. */
@@ -83,7 +83,14 @@ const CATEGORY_ICON: Readonly<Record<HistoryCategory, typeof Pencil>> = {
 };
 
 /**
- * Ảnh đại diện: CHỈ `alt`, không `initials`. Đã chạy thử, không suy luận.
+ * Ảnh đại diện: vòng tròn trống, tên người thực hiện nằm ở một `span.sr-only`.
+ *
+ * KHÔNG `alt`: `Avatar` không có `src` vẽ một `span` không vai, và `aria-label` trên
+ * phần tử không vai bị cây truy cập bỏ — trình đọc màn hình không nghe ai làm bước
+ * này (B-V8-47). Phép che tên ở dưới giữ nguyên: nhãn của người khác không bao giờ
+ * đi ra ngoài `HISTORY_ANONYMOUS_ACTOR_LABEL`.
+ *
+ * Không `initials` — đã chạy thử, không suy luận.
  *
  * Hợp đồng đoán rằng chữ tắt VIẾT HOA đi qua được `expectVietnamese` vì A6 miễn
  * trừ chữ hoa cho mã. Một lần chạy thật bác bỏ điều đó: `expectVietnamese` bỏ
@@ -92,14 +99,19 @@ const CATEGORY_ICON: Readonly<Record<HistoryCategory, typeof Pencil>> = {
  * một lần cho mỗi mục. `Avatar` VẼ chữ tắt ra màn hình chứ không chỉ đọc nó, nên
  * không có cách viết nào của chữ tắt sống sót được phép kiểm.
  *
- * Nên chữ tắt không được truyền vào: vòng tròn để trống và `alt` — một câu tiếng
- * Việt — là thứ duy nhất mang danh tính người thực hiện. `HistoryActor.initials`
- * vẫn là một trường của hợp đồng, view chỉ không dùng nó.
+ * Nên chữ tắt không được truyền vào: vòng tròn để trống và câu `sr-only` là thứ
+ * duy nhất mang danh tính người thực hiện. `HistoryActor.initials` vẫn là một
+ * trường của hợp đồng, view chỉ không dùng nó.
  */
 function HistoryItemAvatar({ actor }: { readonly actor: HistoryActor }) {
   const label = actor.isAnonymised ? HISTORY_ANONYMOUS_ACTOR_LABEL : actor.label;
 
-  return <Avatar alt={label} className={AVATAR_CLASS} />;
+  return (
+    <>
+      <Avatar className={AVATAR_CLASS} />
+      <span className="sr-only">{label}</span>
+    </>
+  );
 }
 
 /** "Giá trị cũ → giá trị mới". Ba chuỗi tới sẵn; mũi tên chỉ là trang trí. */

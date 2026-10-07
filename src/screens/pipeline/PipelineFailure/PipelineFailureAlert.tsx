@@ -122,7 +122,7 @@ export interface PipelineFailureAlertProps {
 export function PipelineFailureAlert({ band }: PipelineFailureAlertProps) {
   const { nextSteps, reason, retryAction, retryNotice } = band;
 
-  const primaryStep = nextSteps === null ? null : (nextSteps.find((step) => step.isPrimary) ?? nextSteps[0]);
+  const primaryStep = nextSteps === null ? null : (nextSteps.find((step) => step.isPrimary) ?? null);
   const otherSteps = nextSteps === null ? [] : nextSteps.filter((step) => step !== primaryStep);
   const warningSteps = nextSteps === null ? [] : nextSteps.filter((step) => step.warningSentence !== null);
 

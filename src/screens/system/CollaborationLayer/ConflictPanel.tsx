@@ -174,7 +174,7 @@ export function ConflictPanel({
       id: 'sidePanel.collaborationConflict.defer',
       combo: 'Escape',
       scope: 'sidePanel',
-      description: 'hoãn lại, đóng tấm xung đột mà không chọn bản nào',
+      description: 'Hoãn lại, đóng tấm xung đột mà không chọn bản nào',
       onTrigger: onDeferConflict,
     },
     { enabled: conflict !== null },

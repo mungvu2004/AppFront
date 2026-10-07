@@ -23,7 +23,7 @@
  * | `partial` | Câu nhắc chuỗi đo chưa đóng; hàng hết neo mang chấm cần chú ý |
  * | `error` | `errorMessage` + nút gọi `onRetry` |
  * | `ready` | Lớp phủ vẽ các phép đo đã ghim |
- * | `forbidden` | **Vẫn đo được**; chỉ chặn ghim, và nói ra `pinBlockedCaption` |
+ * | `forbidden` | **Vẫn đo được**; chỉ chặn ghim và xoá, và nói ra `pinBlockedCaption` |
  * | `collapsed` | Danh sách thành chip đếm trong cụm trôi |
  *
  * Không trạng thái nào tháo viên thuốc chế độ hay chip bắt điểm đi. Chip đặc
@@ -33,7 +33,7 @@
  * ## `forbidden` không phải là một màn chặn
  *
  * Đây là chỗ dễ đọc sai nhất của bảng trên. Người xem không ghim được, nhưng
- * vẫn kéo được thước ra đọc số — nên `canPin` chỉ tắt đường ghim và thêm một
+ * vẫn kéo được thước ra đọc số — nên `canPin` chỉ chặn ghim và xoá, thêm một
  * câu giải thích, chứ không tắt viên thuốc, không tắt lớp phủ, và không thay
  * khung nhìn bằng một tấm bảng "không có quyền".
  *
@@ -79,10 +79,10 @@ const MODE_OPTIONS: SegmentedControlOption<MeasureMode>[] = MEASURE_MODES.map((m
 }));
 
 /** Lời mời của trạng thái rỗng — nguyên văn bảng bảy trạng thái của hợp đồng. */
-const EMPTY_INVITATION = 'chưa có phép đo nào. nhấn M rồi chọn hai điểm trên mô hình.';
+const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
 
 /** Câu nhắc của trạng thái một phần: chuỗi đo còn dở. */
-const PARTIAL_HINT = 'chuỗi đo chưa đóng. chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
+const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
 
 /** Nền chung của mọi mảnh chữ trôi trên canvas: đủ mờ để đọc được trên mọi nền. */
 const FLOATING_SURFACE = 'rounded-full bg-bg-surface/90 shadow-float';
@@ -173,7 +173,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               disabled={!props.canPin}
               hint="Enter"
               icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
-              label="ghim phép đo (phím Enter)"
+              label="Ghim phép đo (phím Enter)"
               onClick={props.onPin}
             />
           )}
@@ -181,14 +181,14 @@ export function MeasurementTool(props: MeasurementToolProps) {
           <KeyAction
             hint="Esc"
             icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="thoát chế độ đo (phím Esc)"
+            label="Bỏ phần đo dở (phím Esc)"
             onClick={props.onEscape}
           />
 
           <KeyAction
             hint="M"
             icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="bật tắt công cụ đo (phím M)"
+            label="Bật tắt công cụ đo (phím M)"
             onClick={props.onToggleTool}
           />
         </div>

@@ -177,8 +177,8 @@ export function createNotificationTarget(input: NotificationTargetInput): Notifi
  */
 const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlineAction>> =
   Object.freeze({
-    aiCompleted: { label: 'xem kết quả', kind: 'navigate' },
-    commentMention: { label: 'xem bình luận', kind: 'navigate' },
+    aiCompleted: { label: 'Xem kết quả', kind: 'navigate' },
+    commentMention: { label: 'Xem bình luận', kind: 'navigate' },
     projectInvite: { label: 'chấp nhận', kind: 'accept' },
     violationFound: { label: 'xem lỗi', kind: 'navigate' },
   } as const);

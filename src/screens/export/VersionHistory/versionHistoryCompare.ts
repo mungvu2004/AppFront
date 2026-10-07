@@ -4,8 +4,8 @@
  * Tách khỏi `useVersionHistory.ts` vì R-22. Mọi thứ ở đây là hàm thuần trên một cặp mã
  * phiên bản: chọn cặp mặc định, giữ đúng chiều cũ-mới, bật/tắt một bản trong cặp.
  *
- * Chiều của cặp là điều quan trọng nhất trong file này. `gateway.diff(left, right)` gọi
- * thẳng `diffVersions(previous, next)`, nên **bên trái phải là bản CŨ**; đảo hai bên
+ * Chiều của cặp là điều quan trọng nhất trong file này. Hook so cặp bằng
+ * `diffVersions(left, right)` = `diffVersions(previous, next)`, nên **bên trái phải là bản CŨ**; đảo hai bên
  * thì "thêm" đọc thành "xoá" và cả màn nói ngược.
  */
 
@@ -24,17 +24,43 @@ import type { VersionHistoryOption } from './types';
  * với mã trục và tên phím.
  */
 export const COMPARE_TABS: readonly VersionHistoryOption[] = Object.freeze([
-  { id: 'changes', label: 'thay đổi' },
+  { id: 'changes', label: 'Thay đổi' },
   { id: 'json', label: 'JSON' },
-  { id: 'visual', label: 'trực quan' },
+  { id: 'visual', label: 'Trực quan' },
 ]);
 
 /** Trạng thái 1: chỉ có một phiên bản. Một câu dạy việc, không phải một lỗi. */
 export const TEACHING_SENTENCE =
-  'mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây';
+  'Mới có một phiên bản nên chưa có gì để so sánh — mỗi lần bạn sửa bản vẽ, hệ thống tự lưu thêm một phiên bản vào đây';
+
+/** Trạng thái `partial` của [7]: N18 còn bay nên chưa có cặp nào để so. */
+export const SNAPSHOT_LOADING_SENTENCE = 'Đang nạp nội dung phiên bản…';
+
+/** Có nhiều bản nhưng chưa đủ hai bản còn nội dung — không phải "giống nhau". */
+export const NOT_ENOUGH_CONTENT_SENTENCE =
+  'Chưa có đủ hai phiên bản còn nội dung để so sánh — các bản còn lại chỉ còn siêu dữ liệu';
 
 /** Lượt so lọt qua được khi chưa đủ hai bản thì phải nói ra, không im lặng trả rỗng. */
-export const NO_COMPARE_PAIR_REASON = 'chưa chọn đủ hai phiên bản để so sánh';
+export const NO_COMPARE_PAIR_REASON = 'Chưa chọn đủ hai phiên bản để so sánh';
+
+/**
+ * Câu thay cho vùng so sánh, hoặc `null` khi so được. Thứ tự: đang nạp → chỉ một bản → chưa đủ
+ * hai bản đầy đủ → cặp thiếu một bên (bỏ tick). `null` CHỈ khi có diff: `diff === null` không bao
+ * giờ được đọc thành "Không có khác biệt".
+ */
+export function compareSentenceOf(input: {
+  readonly hasDiff: boolean;
+  readonly isLoading: boolean;
+  readonly versionCount: number;
+  readonly fullCount: number;
+}): string | null {
+  if (!input.hasDiff && input.isLoading) return SNAPSHOT_LOADING_SENTENCE;
+  if (input.versionCount <= 1) return TEACHING_SENTENCE;
+  if (input.fullCount < 2) return NOT_ENOUGH_CONTENT_SENTENCE;
+  if (!input.hasDiff) return NO_COMPARE_PAIR_REASON;
+
+  return null;
+}
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Cặp                                                                    */
@@ -53,8 +79,8 @@ export const NO_PAIR: VersionPair = Object.freeze({ left: null, right: null });
 /**
  * Cặp mặc định: hai bản ĐẦY ĐỦ mới nhất, bản cũ hơn ở bên trái.
  *
- * Bỏ qua mục chỉ còn siêu dữ liệu: `gateway.diff` ném `SNAPSHOT_MISSING_REASON` khi
- * chạm vào chúng, nên mở màn ra bằng một cặp không so được là mở ra bằng một lỗi.
+ * Bỏ qua mục chỉ còn siêu dữ liệu: chúng không có ảnh chụp để `diffVersions` so, nên mở
+ * màn ra bằng một cặp không so được là mở ra bằng một vùng so sánh trống.
  */
 export function defaultPairOf(history: readonly VersionHistoryEntry[]): VersionPair {
   const full = history.filter((entry) => entry.kind === 'full');

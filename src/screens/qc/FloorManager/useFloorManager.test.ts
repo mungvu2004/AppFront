@@ -22,8 +22,9 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { totalArea } from '@/domain/rooms/area';
 import type { Level, LevelId } from '@/domain/spatial/types';
-import { metres, metresToMillimetres } from '@/domain/units/types';
+import { metres, metresToMillimetres, millimetres } from '@/domain/units/types';
 import { createApiClient, type ApiResult } from '@/api/client';
 import { FloorSchema, type Floor } from '@/api/contracts';
 import { ApiErrorBodySchema } from '@/api/schemas/errors';
@@ -50,6 +51,7 @@ import {
   FLOOR_MANAGER_SAMPLE_SECOND_ID,
   FLOOR_MANAGER_UNSUPPORTED_NOTICES,
   levelsOf,
+  roomsOfLevel,
   type FloorManagerGateway,
 } from './floorManagerGateway';
 import type { UseFloorManagerResult } from './floorManagerTypes';
@@ -395,7 +397,7 @@ describe('chặn trùng cao độ', () => {
 /* 3. Xoá tầng rồi hoàn tác.                                                   */
 /* -------------------------------------------------------------------------- */
 
-describe('xoá tầng', () => {
+describe('Xoá tầng', () => {
   it('xoá ngay, KHÔNG hộp thoại, và phát vé hoàn tác 8 giây (A8)', async () => {
     const notifications = createNotificationBus();
     const mounted = await mountSettled({ notifications });
@@ -588,7 +590,7 @@ describe('bảng tầng', () => {
 
     expect(mounted.result.current.state).toBe('partial');
     expect(roof.needsDrawing).toBe(true);
-    expect(roof.drawingCountText).toBe('chưa có bản vẽ');
+    expect(roof.drawingCountText).toBe('Chưa có bản vẽ');
     expect(roof.wallCountText).toBe('—');
     expect(roof.roomCountText).toBe('—');
     expect(roof.areaText).toBe('—');
@@ -607,6 +609,20 @@ describe('bảng tầng', () => {
     expect(ground.wallCountText).toBe(String(sample?.wallCount));
     expect(ground.roomCountText).toBe(String(sample?.roomCount));
     expect(ground.areaText).toBe('248,60 m²');
+  });
+
+  it('đường bao thật của mọi tầng có phòng cộng ra đúng 248,6 m² (B-V7-41)', () => {
+    // 248.6 viết thẳng: notes/floor-manager/blueprint.md:638-640 (33 × 7,32 + 7,04).
+    const graph = createFloorManagerSampleGraph();
+    const levelsWithRooms = FLOOR_MANAGER_SAMPLE_LEVELS.filter((level) => level.roomCount > 0);
+
+    expect(levelsWithRooms.length).toBeGreaterThan(0);
+    for (const level of levelsWithRooms) {
+      const outlines = roomsOfLevel(graph, level.id).map((room) =>
+        room.outline.map((corner) => ({ x: millimetres(corner.x), y: millimetres(corner.y) })),
+      );
+      expect(totalArea(outlines), level.name).toBe(248.6);
+    }
   });
 
   it('vai Người xem ẩn mọi thao tác sửa và nói ra vì sao', async () => {
@@ -669,7 +685,7 @@ describe('bảng tầng', () => {
 
     expect(mounted.result.current.state).toBe('empty');
     expect(mounted.result.current.emptyNotice).toBe(
-      'thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
+      'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
     );
     expect(mounted.result.current.bands).toHaveLength(0);
   });
@@ -831,7 +847,7 @@ describe('cổng thật', () => {
   });
 });
 
-describe('thêm tầng', () => {
+describe('Thêm tầng', () => {
   it('gửi đúng id của tầng vừa dựng cho dự án này', async () => {
     const { gateway, add } = spiedGateway({ nextLevelId: () => NEW_ID });
     const mounted = await mountSettled({ gateway });
@@ -925,7 +941,7 @@ describe('hoàn tác gọi máy chủ', () => {
   it.each([
     [569 * 1000, true],
     [571 * 1000, false],
-  ])('hoàn tác "xoá" sau %i ms: gửi POST khôi phục = %s', async (elapsedMs, restores) => {
+  ])('hoàn tác "Xoá" sau %i ms: gửi POST khôi phục = %s', async (elapsedMs, restores) => {
     let clock = 1_000_000;
     const { gateway, add } = spiedGateway({ now: () => clock });
     const mounted = await mountSettled({ gateway });
@@ -1266,7 +1282,7 @@ describe('tên tầng', () => {
     await commitField(mounted, ROOF_ID, 'name', 'Mái‮mới');
     await sleep();
 
-    const sentence = 'tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.';
+    const sentence = 'Tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.';
 
     expect(patch).not.toHaveBeenCalled();
     expect(stackReadings(storeGraph())).toEqual(before);

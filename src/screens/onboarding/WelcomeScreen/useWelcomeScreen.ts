@@ -7,10 +7,10 @@
  *
  * ## Cái này gọi lại thứ đã có, không dựng lại thứ nào
  *
- * - **Danh sách dự án** — `useQuery({ queryKey: queryKeys.project.list(), queryFn })`,
- *   đúng hình dạng `useProjectDashboard.ts:220-223` đang chạy. `staleTime` 30 s
+ * - **Danh sách dự án** — `useQuery({ queryKey: queryKeys.project.summaries(), queryFn })`,
+ *   cùng khoá và cùng hình dạng với `useProjectDashboard.ts` đang chạy. `staleTime` 30 s
  *   thừa kế từ `queryClient.ts`; hook này không viết lại con số đó ở đâu cả (R-64).
- * - **Hàm nạp mặc định** — `fetchProjectList` của `ProjectDashboard/projectsGateway`,
+ * - **Hàm nạp mặc định** — `listSummaries` của `createProjectsGateway` (N1),
  *   tái dùng qua import chứ không chép lại (contract-data.md Q9, lựa chọn A).
  * - **Thời lượng hoà tan** — `durationMs('standard')` từ `@/lib/motion/tokens`.
  *   Không con số mili giây nào viết tay trong file này (R-71, `local/no-raw-duration`).
@@ -44,13 +44,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, type QueryFunction } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
+import { createAppApiClient } from '@/api/appClient';
 import { useSession } from '@/hooks/useSession';
 import { durationMs } from '@/lib/motion/tokens';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 
-import { fetchProjectList, type DashboardProject } from '../../dashboard/ProjectDashboard/projectsGateway';
+import {
+  createProjectsGateway,
+  type DashboardProject,
+  type DashboardProjectList,
+} from '../../dashboard/ProjectDashboard/projectsGateway';
 
 /* -------------------------------------------------------------------------- */
 /* View model — khối này chép nguyên văn từ hợp đồng đông cứng, mục 2.         */
@@ -89,7 +94,7 @@ export interface WelcomeScreenViewModel {
   readonly screenState: SevenState;
   /** true khi phải xếp dọc — story/test bật tay, lúc chạy thật CSS tự lo dưới 1024. */
   readonly isCollapsed: boolean;
-  /** 'Chào Minh, bắt đầu trong ba bước' — đã ghép tên, view không ghép gì. */
+  /** 'chào Minh, bắt đầu trong ba bước' — đã ghép tên, view không ghép gì. */
   readonly greeting: string;
   /** Đoạn hai câu nói sản phẩm làm gì. */
   readonly intro: string;
@@ -106,7 +111,7 @@ export interface WelcomeScreenViewModel {
   readonly onFinish: () => void;
   /** true trong lúc nội dung hoà tan trước khi chuyển trang. */
   readonly isDissolving: boolean;
-  /** Câu hiện sau khi bấm 'Bỏ qua'. */
+  /** Mô tả (aria-describedby) của "bỏ qua", luôn hiện: nói trước hệ quả của cú bấm. Cờ theo tài khoản, trên trình duyệt này (welcomeSeenKey). */
   readonly skipNotice: string;
 }
 
@@ -114,7 +119,7 @@ export interface WelcomeScreenViewModel {
 /* Chuỗi tiếng Việt — nguồn duy nhất, hợp đồng đông cứng mục 3.                */
 /* -------------------------------------------------------------------------- */
 
-const STRINGS = Object.freeze({
+export const STRINGS = Object.freeze({
   greetingPrefix: 'Chào ',
   greetingSuffix: ', bắt đầu trong ba bước',
   greetingFallback: 'Chào bạn, bắt đầu trong ba bước',
@@ -135,7 +140,7 @@ const STRINGS = Object.freeze({
   tutorial: 'Xem hướng dẫn 2 phút',
   tutorialDisabled: 'Hướng dẫn hai phút chưa sẵn sàng.',
   skip: 'Bỏ qua',
-  skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
+  skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
   finish: 'Vào danh sách dự án',
   errorDescription: 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.',
 });
@@ -168,8 +173,8 @@ function welcomeSeenKey(userId: string): string {
 /**
  * Người này đã xem màn chào chưa.
  *
- * Xuất ra vì chốt chặn định tuyến ở Layer 3 cần đọc nó trước khi dựng màn — cùng
- * một khoá, một chỗ. Cửa sổ ẩn danh ném ngay ở `localStorage.getItem`, nên mọi
+ * Xuất ra vì `WelcomeRoute` (`WelcomeScreen.container.tsx`) đọc nó trước khi
+ * dựng màn — cùng một khoá, một chỗ. Cửa sổ ẩn danh ném ngay ở `localStorage.getItem`, nên mọi
  * lần đọc đều nằm trong try/catch và "không đọc được" quy về "chưa xem".
  */
 export function readWelcomeSeen(userId: string | null): boolean {
@@ -198,7 +203,7 @@ function markWelcomeSeen(userId: string | null): void {
 
 export interface UseWelcomeScreenOptions {
   /** Cùng khuôn `UseProjectDashboardOptions.fetchList` — test tiêm để dựng bảy trạng thái. */
-  readonly fetchList?: QueryFunction<readonly DashboardProject[]>;
+  readonly fetchList?: QueryFunction<DashboardProjectList>;
   /** Mở hộp thoại tạo dự án. Không truyền thì về `ROUTES.dashboard`, nơi hộp thoại đó sống. */
   readonly onCreateProject?: () => void;
   /** Story/test bật tay trạng thái xếp dọc; lúc chạy thật CSS lo phần dưới 1024. */
@@ -211,13 +216,13 @@ const EMPTY_PROJECTS: readonly DashboardProject[] = [];
 /**
  * Dự án được nhắc tới trên màn này: dự án cập nhật gần đây nhất.
  *
- * `updatedAgoMs` là "cách đây bao lâu", nên nhỏ nhất là mới nhất — cùng luật sắp
- * xếp `'updated'` của `useProjectDashboard.ts:253`.
+ * `updatedAtMs` là mốc epoch, nên lớn nhất là mới nhất — cùng luật sắp xếp
+ * `'updated'` của `useProjectDashboard.ts`.
  */
 function mostRecentProject(projects: readonly DashboardProject[]): DashboardProject | null {
   let recent: DashboardProject | null = null;
   for (const project of projects) {
-    if (recent === null || project.updatedAgoMs < recent.updatedAgoMs) recent = project;
+    if (recent === null || project.updatedAtMs > recent.updatedAtMs) recent = project;
   }
   return recent;
 }
@@ -226,12 +231,14 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
   const navigate = useNavigate();
   const session = useSession();
 
+  const [gateway] = useState(() => createProjectsGateway(createAppApiClient()));
+
   const listQuery = useQuery({
-    queryKey: queryKeys.project.list(),
-    queryFn: options.fetchList ?? fetchProjectList,
+    queryKey: queryKeys.project.summaries(),
+    queryFn: options.fetchList ?? (({ signal }) => gateway.listSummaries(signal)),
   });
 
-  const projects = useMemo(() => listQuery.data ?? EMPTY_PROJECTS, [listQuery.data]);
+  const projects = useMemo(() => listQuery.data?.projects ?? EMPTY_PROJECTS, [listQuery.data]);
   const latest = useMemo(() => mostRecentProject(projects), [projects]);
 
   /* -- Hoà tan rồi mới chuyển trang. --------------------------------------- */
@@ -322,7 +329,13 @@ export function useWelcomeScreen(options: UseWelcomeScreenOptions = {}): Welcome
 
   const goReview = useCallback((): void => {
     if (latest === null) return;
-    leave(() => navigate(ROUTES.project.walls(latest.id, latest.defaultFloorId)));
+    leave(() =>
+      navigate(
+        latest.defaultFloorId === undefined
+          ? ROUTES.project.floors(latest.id)
+          : ROUTES.project.walls(latest.id, latest.defaultFloorId),
+      ),
+    );
   }, [latest, leave, navigate]);
 
   const goDashboard = useCallback((): void => {

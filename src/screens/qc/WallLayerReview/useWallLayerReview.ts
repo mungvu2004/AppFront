@@ -48,24 +48,13 @@
  * và hai lượt 180 ms (cuộn hàng vào tầm nhìn, tô sáng chéo canvas ↔ danh sách)
  * là đúng nấc `'fast'` — không con số nào viết tay.
  *
- * ## Tự lưu (D-07 / A7) — chọn HỆ 2
+ * ## Tự lưu (D-07 / A7) — bộ lưu lớp chung (F-04x-1)
  *
- * Repo có hai hệ tự lưu độc lập. Màn này dùng **`createAutosave` +
- * `useSaveIndicator`** (hệ 2), không dùng `useAutosave` (hệ 1), vì ba lý do:
- *
- * 1. `types.ts` đã đóng băng và KHÔNG có trường nào mang nhãn lưu, nên chuỗi hệ
- *    1 trả về sẽ không tới được người dùng. `useSaveIndicator` tự nói trạng thái
- *    ra `Announcer` (`useSaveIndicator.ts:88-121`) — đó là cách duy nhất còn lại
- *    để giữ vế thứ hai của A7 ("nói ra trạng thái đó cho trình đọc màn hình").
- * 2. Thanh trạng thái cần đúng chuỗi "Đã lưu lúc 14:32"; hệ 2 dựng nó từ
- *    `viMessages.common.saved_at`, và tự chuyển sang "Đã lưu N phút trước" sau
- *    một phút.
- * 3. `persistWallLayer` hôm nay chưa có endpoint. Chỉ hệ 2 có trạng thái
- *    `failed`/`offline` để NÓI RA sự thật đó; hệ 1 chỉ có một chuỗi
- *    "Lưu thất bại" sau khi `console.error`.
- *
- * Cả hai hệ dùng chung 800 ms của A7 (`DEFAULT_DEBOUNCE_MS`), nên không con số
- * nào phải viết lại ở đây.
+ * Màn không dựng engine lưu riêng: `useFloorLayerAutosave` giữ MỘT bộ lưu cho
+ * mỗi người–dự án (base = revision của lượt N16 đã nạp, 409 → dải "Tải lại").
+ * `useSaveIndicator(autosave)` vẫn dựng nhãn "Đã lưu lúc…" và nói ra cho
+ * trình đọc màn hình (A7). Lượt tải lại từ máy chủ (`serverReplaceSeq` đổi)
+ * xoá ngăn hoàn tác của màn — các bước cũ không còn khớp đồ thị mới.
  *
  * ## Bàn phím (I-01, A12, R-72)
  *
@@ -93,19 +82,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createId, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
+import { createId, displayCodesOf, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
+import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
-import { describeError, toAppError } from '@/lib/errors';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
@@ -126,6 +115,7 @@ import type {
 } from '@/lib/tools/toolMachine';
 import { TOOLS } from '@/lib/tools/tools';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -178,6 +168,7 @@ import {
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
 import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
+import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
@@ -220,9 +211,6 @@ export const WALL_LAYER_TEXT = {
   centrelinesLabel: 'Hiện tim tường',
   /** Nhãn khối điều hướng tầng của panel trái (BC-05). */
   floorNavLabel: 'Tầng của bản vẽ',
-  /** Nhãn nút con mắt của hàng cây lớp "Tường" (BC-19). */
-  showWallLayerLabel: 'Hiện lớp Tường',
-  hideWallLayerLabel: 'Ẩn lớp Tường',
   /** Nhãn nút thu gọn / mở lại hai panel (BT-16). */
   collapsePanelsLabel: 'Thu gọn hai panel',
   expandPanelsLabel: 'Mở lại hai panel',
@@ -294,6 +282,8 @@ export interface UseWallLayerReviewOptions {
    * không thấy thông báo của nhau — cùng khuôn `useProcessingScreen`.
    */
   readonly notifications?: NotificationBus;
+  /** Lối ra của dải tỉ lệ tạm — container truyền `onNavigate` của nó. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /*
@@ -314,6 +304,10 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly statusBar: WallLayerStatusBarProps;
   /** Những gì panel trái cần mà `WallLayerViewProps` (đã đóng băng) không mang. */
   readonly leftPanel: WallLayerLeftPanelExtras;
+  /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
+  readonly saveBlock: FloorLayerSaveBlock | null;
+  /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
+  readonly provisionalScaleNotice: ProvisionalScaleNotice | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -619,10 +613,14 @@ export function useWallLayerReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const wallLayerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
-    queryFn: ({ signal }) => gateway.readWallLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const provisionalScaleNotice = useProvisionalScaleNotice(
+    floorLayer.scaleStatus,
+    projectId,
+    floorId,
+    options.onNavigate,
+  );
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -651,7 +649,11 @@ export function useWallLayerReview(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
+   */
   useEffect(() => {
     if (graph !== null) {
       return;
@@ -660,13 +662,15 @@ export function useWallLayerReview(
     const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
   const walls = useMemo(() => wallsOfLevel(graph, levelId), [graph, levelId]);
+  /* Nhãn tường tính trên mọi tường của tầng, nên không trùng dù mã BE hay mã A14. */
+  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
 
   /* ---------------------------------------------------------------------- */
   /* Cổng ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.     */
@@ -677,48 +681,35 @@ export function useWallLayerReview(
     [],
   );
 
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistRef = useRef({ floorId, gateway, projectId });
-  persistRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistRef.current;
-      const result = await current.gateway.persistWallLayer({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        // Một khả năng chưa có endpoint KHÔNG được biến thành một lượt lưu đã
-        // xong: ném ra là cách duy nhất để thanh trạng thái nói ra sự thật
-        // thay vì hiện "Đã lưu lúc …" cho một lượt chưa hề rời khỏi máy.
-        throw new Error(result.missing);
-      }
-    },
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
-
-  const autosave = autosaveRef.current;
   const saveIndicator = useSaveIndicator(autosave);
 
   const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
   selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
 
   const dispatchBundle = useMemo(
     () =>
       createWallLayerDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
       }),
     [autosave, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+
+  useEffect(() => {
+    dispatchBundle.history.clear();
+  }, [dispatchBundle, serverReplaceSeq]);
 
   /* ---------------------------------------------------------------------- */
   /* Vùng chọn (S-10) và đồng bộ hai chiều (S-11).                            */
@@ -741,7 +732,6 @@ export function useWallLayerReview(
 
   const pushSelection = useCallback(
     (next: readonly EntityId[]) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection([...next]);
       /* S-11: một lượt đẩy cho cả canvas và danh sách, gộp trong một khung hình. */
       channel.push([...next]);
@@ -873,13 +863,13 @@ export function useWallLayerReview(
       /* Tự chuyển mục: tìm tường chưa duyệt kế tiếp TRƯỚC khi tường này đổi cờ. */
       const nextId = nextUnreviewedWallId(walls, wallId);
 
-      void run(() => buildApproveWallCommand(wall, gateway.actorId)).then(() => {
+      void run(() => buildApproveWallCommand(wall, gateway.actorId, wallCodes)).then(() => {
         if (nextId !== null && nextId !== wallId) {
           onSelect(nextId);
         }
       });
     },
-    [gateway, onSelect, run, wallById, walls],
+    [gateway, onSelect, run, wallById, wallCodes, walls],
   );
 
   const onSkip = useCallback(
@@ -991,6 +981,7 @@ export function useWallLayerReview(
       }).then(() => {
         const ticket = createWallUndoTicket({
           wallId,
+          wallCodes,
           now: gateway.now,
           undo: () => {
             applyUndo();
@@ -1021,7 +1012,7 @@ export function useWallLayerReview(
         });
       });
     },
-    [applyUndo, gateway, notifications, run],
+    [applyUndo, gateway, notifications, run, wallCodes],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1172,8 +1163,8 @@ export function useWallLayerReview(
   /* ---------------------------------------------------------------------- */
 
   /* Trạng thái 4 nghe LỚP TƯỜNG, không nghe ảnh nền — xem khối hai lượt đọc trên. */
-  const hasError = wallLayerQuery.isError;
-  const isLoading = backgroundQuery.isPending || wallLayerQuery.isPending || graph === null;
+  const hasError = floorLayer.error !== null;
+  const isLoading = backgroundQuery.isPending || floorLayer.isPending || graph === null;
 
   const counter = useMemo<WallReviewCounter>(
     () => ({
@@ -1186,13 +1177,13 @@ export function useWallLayerReview(
   const visibleWalls = useMemo(() => applyWallFilters(walls, filters), [filters, walls]);
 
   const rows = useMemo<readonly WallRowViewModel[]>(
-    () => (hasError ? NO_ROWS : visibleWalls.map(toWallRow)),
-    [hasError, visibleWalls],
+    () => (hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes))),
+    [hasError, visibleWalls, wallCodes],
   );
 
   const shapes = useMemo<readonly WallLayerCanvasShape[]>(
-    () => (level === null ? [] : toCanvasShapes(walls, level, wallStatusCode)),
-    [level, walls],
+    () => (level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes)),
+    [level, walls, wallCodes],
   );
 
   const inspector = useMemo(() => {
@@ -1202,8 +1193,8 @@ export function useWallLayerReview(
 
     const wall = wallById(selectedWallId);
 
-    return wall === null ? null : toWallInspector(wall, level);
-  }, [level, selectedWallId, wallById]);
+    return wall === null ? null : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus);
+  }, [floorLayer.scaleStatus, level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
   const reviewedCount = useCountUp(counter.reviewed, { format: { fractionDigits: 0 } });
@@ -1211,13 +1202,7 @@ export function useWallLayerReview(
 
   const state = deriveScreenState({ isViewerRole, isCollapsed, hasError, isLoading, counter });
 
-  const errorMessage = useMemo(() => {
-    if (!hasError) {
-      return null;
-    }
-
-    return describeError(toAppError(wallLayerQuery.error)).description;
-  }, [hasError, wallLayerQuery.error]);
+  const errorMessage = hasError ? floorLayer.errorMessage : null;
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (I-01) — không một `addEventListener` nào ở đây (R-72).         */
@@ -1287,6 +1272,34 @@ export function useWallLayerReview(
       onTrigger: onUndo,
     },
     { ...shortcutOptions, enabled: canEdit },
+  );
+
+  /*
+   * `Escape` (A12, B-V6-11): bỏ cử chỉ đang vẽ dở trước, rồi mới bỏ chọn — cùng
+   * thứ tự `objectLayerReview.closeTopLayer`. Chỉ bật khi có thứ để bỏ: một binding
+   * thường trực ở phạm vi `canvas` sẽ nuốt `global.closeTopLayer`.
+   */
+  const gestureInFlight = toolState.values.length > 0 || toolState.pending !== null;
+
+  useShortcut(
+    {
+      id: 'wallLayerReview.closeTopLayer',
+      combo: 'Escape',
+      scope: 'canvas',
+      description: 'Bỏ nét đang vẽ, hoặc bỏ chọn tường',
+      onTrigger: () => {
+        const current = toolStateRef.current;
+
+        if (current.values.length > 0 || current.pending !== null) {
+          runToolEvent({ type: 'cancel' });
+
+          return;
+        }
+
+        onSelect(null);
+      },
+    },
+    { ...shortcutOptions, enabled: gestureInFlight || selectedWallId !== null },
   );
 
   const thicknessRef = useRef(onChangeThickness);
@@ -1773,7 +1786,7 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar, leftPanel };
+  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */

@@ -13,11 +13,14 @@
  * `renderWithProviders` cấp đúng hai thứ ấy.
  */
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
+import { useStore } from '@/store';
 
 import {
   Viewer3DPanels,
@@ -26,7 +29,11 @@ import {
   VIEWER_3D_FURNITURE_PANEL_LABEL,
   VIEWER_3D_HISTORY_PANEL_LABEL,
   VIEWER_3D_INSPECTOR_LABEL,
+  VIEWER_3D_EXPLODED_LINK_LABEL,
+  VIEWER_3D_MEASURE_LINK_LABEL,
+  VIEWER_3D_OVERLAY_LINK_LABEL,
   VIEWER_3D_ROOMS_PANEL_LABEL,
+  VIEWER_3D_SIBLINGS_LABEL,
   type Viewer3DPanelId,
   type Viewer3DPanelsProps,
 } from './Viewer3DPanels';
@@ -139,7 +146,9 @@ function StatefulPanels(
       onNavigateToObject={noop}
       onOpenExport={noop}
       onOpenRuleScreen={noop}
+      onOpenScreen={noop}
       projectId={PROJECT_ID}
+      saveLabel={null}
       selectedEntityId={null}
       selectedEntityIds={[]}
       {...overrides}
@@ -167,7 +176,7 @@ describe('[VP-1] panel thanh tra thuộc tính', () => {
     renderPanels();
 
     expect(screen.queryByRole('region', { name: VIEWER_3D_INSPECTOR_LABEL })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Thanh tra đối tượng' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Thuộc tính đối tượng' })).toBeNull();
   });
 
   it('chọn một bức tường thì panel thật sự hiện ra trong DOM', async () => {
@@ -176,7 +185,7 @@ describe('[VP-1] panel thanh tra thuộc tính', () => {
     expect(screen.getByRole('region', { name: VIEWER_3D_INSPECTOR_LABEL })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Thanh tra đối tượng' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Thuộc tính đối tượng' })).toBeInTheDocument();
     }, LAZY_WAIT);
   });
 });
@@ -194,6 +203,32 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
     await waitFor(() => {
       expect(screen.getByRole('region', { name: /diện tích phòng/i })).toBeInTheDocument();
     }, LAZY_WAIT);
+  });
+
+  it('cổng nạp kho đang nạp thì bảng diện tích ở "đang tải"; nạp xong thì rời trạng thái ấy (B-V8-04)', async () => {
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+      useStore.getState().setSpatialLoading(true);
+    });
+
+    try {
+      renderWithProviders(<StatefulPanels />, { keepStore: true });
+      fireEvent.click(screen.getByRole('button', { name: VIEWER_3D_ROOMS_PANEL_LABEL }));
+
+      const busy = await screen.findByLabelText('Đang tính diện tích…', {}, LAZY_WAIT);
+      expect(busy).toHaveAttribute('aria-busy', 'true');
+
+      act(() => {
+        useStore.getState().setSpatialLoading(false);
+      });
+      await waitFor(() => {
+        expect(screen.queryByLabelText('Đang tính diện tích…')).toBeNull();
+      });
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
   });
 
   it('bấm "Thư viện đồ đạc" thì thư viện nội thất hiện ra', async () => {
@@ -311,5 +346,26 @@ describe('[VP-4] cửa vào chế độ sửa hình học tường', () => {
     const exit = screen.getByRole('button', { name: VIEWER_3D_EXIT_WALL_EDIT_LABEL });
     expect(exit).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: VIEWER_3D_ENTER_WALL_EDIT_LABEL })).toBeNull();
+  });
+});
+
+describe('[VP-9] lối vào ba màn 3D anh em (B-V9-01)', () => {
+  it('mỗi nút gọi onOpenScreen với đúng màn của nó', () => {
+    const onOpenScreen = vi.fn();
+    renderPanels({ onOpenScreen });
+
+    const siblings = within(screen.getByRole('navigation', { name: VIEWER_3D_SIBLINGS_LABEL }));
+    fireEvent.click(siblings.getByRole('button', { name: VIEWER_3D_EXPLODED_LINK_LABEL }));
+    fireEvent.click(siblings.getByRole('button', { name: VIEWER_3D_MEASURE_LINK_LABEL }));
+    fireEvent.click(siblings.getByRole('button', { name: VIEWER_3D_OVERLAY_LINK_LABEL }));
+
+    expect(onOpenScreen.mock.calls).toEqual([['exploded'], ['measure'], ['overlay']]);
+  });
+
+  it('chưa có tầng thì không dựng nút đối chiếu — không có tầng nào ở đầu bên kia', () => {
+    renderPanels({ floorId: null });
+
+    expect(screen.queryByRole('button', { name: VIEWER_3D_OVERLAY_LINK_LABEL })).toBeNull();
+    expect(screen.getByRole('button', { name: VIEWER_3D_EXPLODED_LINK_LABEL })).toBeTruthy();
   });
 });

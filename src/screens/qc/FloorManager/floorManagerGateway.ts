@@ -78,7 +78,7 @@ import {
 } from '@/domain/axes/alignFloors';
 import { copyFloor, type CopyFloorResult, type FloorContents } from '@/domain/axes/copyFloor';
 import { applyPatch } from '@/domain/spatial/applyPatch';
-import { SAMPLE_TOTAL_AREA_M2 } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { computeArea } from '@/domain/rooms/area';
 import { createId } from '@/domain/spatial/ids';
 import {
   idsOnLevel,
@@ -107,6 +107,7 @@ import { millimetres, roundMeasurement, type Millimetres } from '@/domain/units/
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient, ApiResult, FloorWriteBody } from '@/api/client';
 import type { Floor } from '@/api/contracts';
+import { readProjectLayerRead } from '@/api/floorLayerGraph';
 
 import {
   accept,
@@ -207,9 +208,9 @@ export const FLOOR_MANAGER_UNSUPPORTED_NOTICES: Readonly<
   Record<FloorManagerMissingCapability, string>
 > = {
   persistFloorContents:
-    'nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.',
+    'Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.',
   hideFloorFrom3d:
-    'ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.',
+    'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.',
 };
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */
@@ -591,10 +592,10 @@ export const duplicateFloorToastDescription = (name: string): string =>
 export const REORDER_FLOORS_TOAST_DESCRIPTION = 'Đã đổi thứ tự tầng.';
 
 /** Câu trên toast hoàn tác của thêm tầng và ba lượt sửa một trường (A6: viết thường). */
-export const ADD_FLOOR_TOAST_DESCRIPTION = 'đã thêm tầng.';
-export const RENAME_FLOOR_TOAST_DESCRIPTION = 'đã đổi tên tầng.';
-export const CHANGE_ELEVATION_TOAST_DESCRIPTION = 'đã đổi cao độ tầng.';
-export const CHANGE_HEIGHT_TOAST_DESCRIPTION = 'đã đổi chiều cao tầng.';
+export const ADD_FLOOR_TOAST_DESCRIPTION = 'Đã thêm tầng.';
+export const RENAME_FLOOR_TOAST_DESCRIPTION = 'Đã đổi tên tầng.';
+export const CHANGE_ELEVATION_TOAST_DESCRIPTION = 'Đã đổi cao độ tầng.';
+export const CHANGE_HEIGHT_TOAST_DESCRIPTION = 'Đã đổi chiều cao tầng.';
 
 export interface CreateLevelEntityInput {
   readonly id: LevelId;
@@ -703,7 +704,7 @@ export function createDuplicateFloorCommand(
 
   if (source === null) {
     return refuse(FLOOR_COMMAND_TYPES.duplicate, [
-      'không tìm thấy tầng này trong bản vẽ.',
+      'Không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -780,7 +781,7 @@ export function createRemoveFloorCommand(
 
   if (level === null) {
     return refuse(FLOOR_COMMAND_TYPES.remove, [
-      'không tìm thấy tầng này trong bản vẽ.',
+      'Không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -825,10 +826,10 @@ export function createRemoveFloorCommand(
 
 /** Câu từ chối của tên tầng, mỗi `reason` một câu — đúng chữ khối `notices` của `vi.json`. */
 const RENAME_REFUSAL_BY_REASON: Readonly<Record<HumanTextFailureReason, string>> = {
-  empty: 'tên tầng không được để trống.',
-  tooLong: 'tên tầng dài quá 120 ký tự, hãy rút gọn lại.',
+  empty: 'Tên tầng không được để trống.',
+  tooLong: 'Tên tầng dài quá 120 ký tự, hãy rút gọn lại.',
   forbiddenCharacter:
-    'tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.',
+    'Tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.',
 };
 
 /** Tên đã chuẩn hoá để so trùng; tên cũ hỏng (không chuẩn hoá được) thì so nguyên chuỗi. */
@@ -861,7 +862,7 @@ export function createRenameFloorCommand(
 
   if (level === null) {
     return refuse(FLOOR_COMMAND_TYPES.rename, [
-      'không tìm thấy tầng này trong bản vẽ.',
+      'Không tìm thấy tầng này trong bản vẽ.',
     ]);
   }
 
@@ -875,7 +876,7 @@ export function createRenameFloorCommand(
 
   if (name === comparableFloorName(level.name)) {
     return refuse(FLOOR_COMMAND_TYPES.rename, [
-      'tên tầng không đổi nên không có gì để lưu.',
+      'Tên tầng không đổi nên không có gì để lưu.',
     ]);
   }
 
@@ -917,7 +918,7 @@ export function createChangeFloorHeightCommands(
   const level = readOf(context.graph, 'level', input.levelId);
 
   if (level === null) {
-    return { ok: false, reasons: ['không tìm thấy tầng này trong bản vẽ.'] };
+    return { ok: false, reasons: ['Không tìm thấy tầng này trong bản vẽ.'] };
   }
 
   if (level.heightMm === input.heightMm) {
@@ -1134,6 +1135,8 @@ export interface ReadFloorListInput {
  * cho cả hai, nên màn có đúng một cờ đang-tải và đúng một cờ hỏng (R-64).
  */
 export interface FloorManagerSnapshot {
+  /** `revision` N16 mỗi tầng đã đọc; `{}` khi đồ thị tới từ kho hay bộ mẫu. */
+  readonly floorRevisions: Readonly<Record<string, number>>;
   readonly floors: readonly Floor[];
   readonly graph: NormalizedSpatial | null;
 }
@@ -1269,7 +1272,18 @@ export function createFloorManagerGateway(
         throw result.error;
       }
 
-      return { floors: result.data, graph: graph.read() };
+      /* Kho có thì giữ (không đè sửa chưa lưu); kho rỗng thì đọc N16 của từng tầng (B-V6-01). */
+      const stored = graph.read();
+      const read =
+        stored === null
+          ? await readProjectLayerRead(api.spatial, {
+              floorIds: result.data.map((floor) => floor.id),
+              projectId: input.projectId,
+              signal: input.signal,
+            })
+          : { floorRevisions: {}, graph: stored };
+
+      return { floorRevisions: read.floorRevisions, floors: result.data, graph: read.graph };
     },
 
     graph,
@@ -1319,19 +1333,17 @@ export interface FloorManagerSampleLevel {
   readonly drawingCount: number;
   /** Số tường của bộ mẫu — dựng ra bấy nhiêu tường thật để phép đếm có gì để đếm. */
   readonly wallCount: number;
-  /** Số phòng của bộ mẫu. A14 cố định 34 phòng cho bộ mẫu chuẩn. */
+  /** Số phòng của bộ mẫu — bộ riêng của màn, không phải A14. */
   readonly roomCount: number;
   /**
    * Số món nội thất của bộ mẫu.
    *
-   * Bốn con số cộng lại đúng `SAMPLE_FURNITURE_COUNT` (21) của công trình mẫu
-   * chuẩn (`src/domain/spatial/__fixtures__/sampleBuilding.ts:35`), nên bộ mẫu
-   * của màn không dựng thêm một tổng thứ hai.
+   * Bốn con số cộng lại là 21 — chỉ trùng số, không lấy từ A14.
    */
   readonly furnitureCount: number;
 }
 
-/** Số phòng của một tầng có bản vẽ — A14: *34 phòng và sảnh 248,60 m²*. */
+/** Số phòng của một tầng có bản vẽ — bộ riêng của màn, không phải A14. */
 export const FLOOR_MANAGER_SAMPLE_ROOM_COUNT = 34;
 
 export const FLOOR_MANAGER_SAMPLE_LEVELS: readonly FloorManagerSampleLevel[] = [
@@ -1407,7 +1419,13 @@ const pad = (value: number): string =>
 /** Bề dày và chiều dài tường mẫu — hình học tối thiểu để một tường hợp lệ tồn tại. */
 const SAMPLE_WALL_LENGTH_MM = 4000;
 const SAMPLE_WALL_THICKNESS_MM = 220;
-const SAMPLE_ROOM_DEPTH_MM = 4250;
+/**
+ * Chiều sâu phòng mẫu (bề rộng giữ 4000 mm): 33 phòng × 4,00 × 1,83 = 7,32 m² và
+ * phòng cuối 4,00 × 1,76 = 7,04 m², nên mỗi tầng có phòng cộng đúng
+ * 33 × 7,32 + 7,04 = 248,60 m². Nguồn: `notes/floor-manager/blueprint.md:638-640`.
+ */
+const SAMPLE_ROOM_DEPTH_MM = 1830;
+const SAMPLE_LAST_ROOM_DEPTH_MM = 1760;
 
 const sampleWallId = (levelIndex: number, index: number): WallId =>
   `W-${pad(levelIndex)}${pad(index)}W` as WallId;
@@ -1420,14 +1438,6 @@ const sampleFurnitureId = (levelIndex: number, index: number): FurnitureId =>
 
 /** Cạnh của một món nội thất mẫu, milimét. */
 const SAMPLE_FURNITURE_SIZE_MM = 800;
-
-/**
- * Diện tích một phòng của bộ mẫu.
- *
- * `SAMPLE_TOTAL_AREA_M2` (248,6 — A14) chia đều cho số phòng, nên tổng của cả
- * tầng đọc ra đúng `"248,60 m²"` mà không con số nào viết tay ở đây.
- */
-const sampleRoomAreaM2 = SAMPLE_TOTAL_AREA_M2 / FLOOR_MANAGER_SAMPLE_ROOM_COUNT;
 
 const DETECTED = { confidence: 0.82, reviewed: false, source: 'ai' } as const;
 
@@ -1484,6 +1494,16 @@ export function createFloorManagerSampleGraph(
       }
 
       for (let index = 0; index < entry.roomCount; index += 1) {
+        const depth =
+          index === entry.roomCount - 1 ? SAMPLE_LAST_ROOM_DEPTH_MM : SAMPLE_ROOM_DEPTH_MM;
+        const left = millimetres(index * SAMPLE_WALL_LENGTH_MM);
+        const right = millimetres((index + 1) * SAMPLE_WALL_LENGTH_MM);
+        const outline = [
+          { x: left, y: millimetres(0) },
+          { x: right, y: millimetres(0) },
+          { x: right, y: millimetres(depth) },
+          { x: left, y: millimetres(depth) },
+        ];
         rooms.push({
           confidence: 1,
           source: 'human',
@@ -1492,13 +1512,8 @@ export function createFloorManagerSampleGraph(
           levelId: entry.id,
           name: `Phòng ${formatNumber(index + 1, { grouping: false, fractionDigits: 0 })}`,
           usage: 'bedroom',
-          areaM2: sampleRoomAreaM2,
-          outline: [
-            { x: index * SAMPLE_WALL_LENGTH_MM, y: 0 },
-            { x: (index + 1) * SAMPLE_WALL_LENGTH_MM, y: 0 },
-            { x: (index + 1) * SAMPLE_WALL_LENGTH_MM, y: SAMPLE_ROOM_DEPTH_MM },
-            { x: index * SAMPLE_WALL_LENGTH_MM, y: SAMPLE_ROOM_DEPTH_MM },
-          ],
+          areaM2: computeArea(outline),
+          outline,
           wallIds: [sampleWallId(levelIndex, index)],
         });
       }
@@ -1629,7 +1644,7 @@ export function createMockFloorManagerGateway(
         return Promise.reject(new Error('Không tải được danh sách tầng của dự án.'));
       }
 
-      return Promise.resolve({ floors, graph });
+      return Promise.resolve({ floorRevisions: {}, floors, graph });
     },
 
     graph: { read: () => useStore.getState().spatial ?? graph },

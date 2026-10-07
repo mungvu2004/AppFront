@@ -41,6 +41,7 @@ import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -52,9 +53,9 @@ import type { ConnectedMobileViewerProps } from './MobileViewer.connected';
 /** Mã màn, cho ranh giới lỗi và cho nhật ký — một chỗ viết duy nhất (R-71). */
 export const MOBILE_VIEWER_SCREEN_ID = 'mobile-viewer';
 
-const MISSING_PARAMS_TITLE = 'thiếu mã dự án';
+const MISSING_PARAMS_TITLE = 'Thiếu mã dự án';
 const MISSING_PARAMS_MESSAGE =
-  'đường dẫn không mang mã dự án, nên chưa mở được mô hình. quay lại danh sách dự án rồi chọn lại dự án cần xem.';
+  'Đường dẫn không mang mã dự án, nên chưa mở được mô hình. Quay lại danh sách dự án rồi chọn lại dự án cần xem.';
 
 /**
  * Nhánh đã nối, tải muộn.
@@ -75,7 +76,7 @@ export interface MobileViewerContainerProps extends ConnectedMobileViewerProps {
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
 function MobileViewerCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
@@ -84,7 +85,7 @@ function MobileViewerCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -96,11 +97,13 @@ function MobileViewerCrashFallback({ report, retry }: ScreenErrorFallback) {
  */
 function MobileViewerChunkFallback() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-canvas-3d" role="status">
-      <span className="rounded-md bg-bg-surface px-3 py-1.5 text-[13px] text-text-secondary shadow-sm">
-        đang tải mô hình
-      </span>
-    </div>
+    <main className="contents">
+      <div className="flex h-full w-full items-center justify-center bg-canvas-3d" role="status">
+        <span className="rounded-md bg-bg-surface px-3 py-1.5 text-[13px] text-text-secondary shadow-sm">
+          Đang tải mô hình
+        </span>
+      </div>
+    </main>
   );
 }
 
@@ -138,5 +141,11 @@ export function MobileViewerRoute() {
     );
   }
 
-  return <MobileViewerContainer projectId={projectId} roles={session.roles} />;
+  // Nạp kho dự án (B-V1-03): không có cổng này `store.spatial` luôn rỗng và màn
+  // nói "chưa có mô hình để xem" cho mọi dự án.
+  return (
+    <ProjectSpatialGate projectId={projectId} wrapFallbackInMain>
+      <MobileViewerContainer projectId={projectId} roles={session.roles} />
+    </ProjectSpatialGate>
+  );
 }

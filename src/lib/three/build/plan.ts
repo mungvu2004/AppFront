@@ -25,7 +25,7 @@
 
 import { compareNearly } from '@/domain/units/compare';
 import { millimetres, type Millimetres } from '@/domain/units/types';
-import { openingSpan } from '@/domain/openings/validate';
+import { openingSpan } from '@/domain/openings/span';
 import {
   describeOpeningKind,
   isAttached,

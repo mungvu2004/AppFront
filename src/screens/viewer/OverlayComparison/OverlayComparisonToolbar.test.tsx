@@ -64,7 +64,7 @@ function toolbarPropsOf(
 
 /** Nút của một kiểu đối chiếu trong `SegmentedControl` — nó dựng `radiogroup`. */
 function compareModeButton(label: string): HTMLElement {
-  return within(screen.getByRole('radiogroup', { name: 'kiểu đối chiếu' })).getByRole('radio', {
+  return within(screen.getByRole('radiogroup', { name: 'Kiểu đối chiếu' })).getByRole('radio', {
     name: label,
   });
 }
@@ -79,11 +79,11 @@ function compareModeButton(label: string): HTMLElement {
  * thuộc tính nó không hứa — sửa `src/components/ui` là việc R-68 cấm ở đây.
  */
 function scanOpacitySlider(): HTMLElement {
-  return screen.getByRole('slider', { name: 'độ mờ ảnh nguồn' });
+  return screen.getByRole('slider', { name: 'Độ mờ ảnh nguồn' });
 }
 
 describe('OverlayComparisonToolbar', () => {
-  it('tắt kiểu "cạnh nhau" kèm caption ĐỌC ĐƯỢC khi nó nằm trong disabledCompareModes', () => {
+  it('tắt kiểu "Cạnh nhau" kèm caption ĐỌC ĐƯỢC khi nó nằm trong disabledCompareModes', () => {
     /* Kịch bản `collapsed` là chỗ duy nhất của bộ mẫu có `disabledCompareModes`,
        và lý do nó mang chính là câu đặc tả đòi: "Dưới 1280: kiểu 'Cạnh nhau' bị
        tắt kèm caption giải thích vì sao." */
@@ -104,7 +104,7 @@ describe('OverlayComparisonToolbar', () => {
        thứ mà đặc tả phân biệt. Câu in ra nêu tên kiểu bị tắt để người nghe biết
        lý do nói về kiểu nào. */
     if (reason === undefined) {
-      throw new Error('kịch bản collapsed phải mang lý do tắt kiểu "cạnh nhau"');
+      throw new Error('kịch bản collapsed phải mang lý do tắt kiểu "Cạnh nhau"');
     }
 
     const caption = screen.getByText(`${COMPARE_MODE_LABELS.sideBySide} — ${reason}`);
@@ -129,7 +129,7 @@ describe('OverlayComparisonToolbar', () => {
       <OverlayComparisonToolbar {...toolbarPropsOf('collapsed')} />,
     );
 
-    const stacked = screen.getByRole('toolbar', { name: 'thanh công cụ đối chiếu bản vẽ' });
+    const stacked = screen.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ' });
     expect(stacked.className).toContain('flex-col');
     expect(stacked.className).not.toContain('h-10');
 
@@ -137,7 +137,7 @@ describe('OverlayComparisonToolbar', () => {
 
     renderWithProviders(<OverlayComparisonToolbar {...toolbarPropsOf('success')} />);
 
-    const inline = screen.getByRole('toolbar', { name: 'thanh công cụ đối chiếu bản vẽ' });
+    const inline = screen.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ' });
     expect(inline.className).toContain('h-10');
     expect(inline.className).not.toContain('flex-col');
   });
@@ -149,9 +149,9 @@ describe('OverlayComparisonToolbar', () => {
 
     /* Bốn cụm điều khiển của thanh, kiểm từng cái một: một cụm quên `disabled`
        là một đường người chỉ-được-xem vẫn đổi được căn chỉnh. */
-    expect(screen.getByLabelText('chọn tầng')).toBeDisabled();
+    expect(screen.getByLabelText('Chọn tầng')).toBeDisabled();
     expect(scanOpacitySlider()).toHaveAttribute('tabindex', '-1');
-    expect(screen.getByLabelText('khoá căn')).toBeDisabled();
+    expect(screen.getByLabelText('Khoá căn')).toBeDisabled();
     for (const label of Object.values(COMPARE_MODE_LABELS)) {
       expect(compareModeButton(label)).toBeDisabled();
     }
@@ -159,7 +159,7 @@ describe('OverlayComparisonToolbar', () => {
     /* "Nói ra được vì sao": lý do là văn bản trong cây, không phải một ô xám
        không giải thích gì. */
     expect(
-      screen.getByText('bạn không có quyền sửa, các điều khiển đang tắt.'),
+      screen.getByText('Bạn không có quyền sửa, các điều khiển đang tắt.'),
     ).toBeInTheDocument();
 
     expectVietnamese(container);

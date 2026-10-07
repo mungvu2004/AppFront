@@ -137,11 +137,11 @@ describe('RULE_THRESHOLD_SPECS', () => {
     }
   });
 
-  it('writes every label in Vietnamese, lower case, sentence style (A6)', () => {
+  it('writes every label in Vietnamese, capitalised, sentence style (A6)', () => {
     for (const spec of RULE_THRESHOLD_SPECS) {
       const first = spec.label.slice(0, 1);
 
-      expect(`${spec.key}: ${first}`).toBe(`${spec.key}: ${first.toLocaleLowerCase('vi')}`);
+      expect(`${spec.key}: ${first}`).toBe(`${spec.key}: ${first.toLocaleUpperCase('vi')}`);
       expect(spec.label.endsWith('.')).toBe(false);
       // An all-ASCII "Vietnamese" label is a label that lost its diacritics.
       expect(`${spec.key}: ${String(/[^\p{ASCII}]/u.test(spec.label))}`).toBe(
@@ -265,7 +265,7 @@ describe('validateThreshold', () => {
 
     expect(result).toEqual({
       ok: false,
-      message: 'bề dày tường tối thiểu nhận giá trị từ 30 đến 200 mm.',
+      message: 'Bề dày tường tối thiểu nhận giá trị từ 30 đến 200 mm.',
     });
   });
 
@@ -305,7 +305,7 @@ describe('validateThreshold', () => {
 
     expect(result).toEqual({
       ok: false,
-      message: 'phần tường chịu lực phải có điểm tựa ở tầng dưới nhận giá trị từ 0,5 đến 1.',
+      message: 'Phần tường chịu lực phải có điểm tựa ở tầng dưới nhận giá trị từ 0,5 đến 1.',
     });
   });
 

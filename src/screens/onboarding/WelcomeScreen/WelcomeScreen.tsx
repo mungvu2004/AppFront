@@ -7,6 +7,10 @@
  * một cột rộng 960, một tiêu đề, một đoạn hai câu, ba thẻ ngang cùng cỡ, rồi
  * ba liên kết chìm cho người muốn đi đường khác.
  *
+ * Hôm nay chỉ tới được bằng cách gõ URL; F-09a sẽ dẫn người vừa nhận lời mời
+ * (N10) tới đây qua `ROUTES.onboarding` — B-V1-42. Admin tạo bằng CLI không đi
+ * qua đây.
+ *
  * **Mục D / R-60 — view thuần.** Mọi thứ vẽ ra đến từ `WelcomeScreenProps`:
  * không store, không mạng, không `Date`, không một phép định dạng số nào.
  * `WelcomeScreenProps` KHÔNG còn là một khối khai lại: nó là chính
@@ -63,7 +67,7 @@ export type { OnboardingLink, OnboardingStepCard, OnboardingStepId, OnboardingSt
 const ERROR_TITLE = 'Không đọc được tiến độ';
 const ERROR_FALLBACK = 'Chưa lấy được danh sách dự án nên chưa biết bạn đang ở bước nào.';
 const RETRY_LABEL = 'Thử lại';
-const FORBIDDEN_NOTE = 'Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.';
+const FORBIDDEN_NOTE = 'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.';
 
 /** Cỡ thẻ và cỡ khung xương lúc đang tải là MỘT con số, nên nó là một hằng. */
 const CARD_SIZE_CLASS = 'w-[300px] h-[220px]';

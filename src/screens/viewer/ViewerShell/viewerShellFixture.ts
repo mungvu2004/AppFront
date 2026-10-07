@@ -8,13 +8,12 @@
  * viewmodel đã tính sẵn. Story, bài kiểm và cổng giả cắm chung bộ này, nên
  * không có bảng số thứ hai để trôi khỏi bảng số thứ nhất (R-70).
  *
- * ## Vì sao 248,60 m², và quan hệ với A14
+ * ## Quan hệ với bộ mẫu chuẩn A14 — bộ RIÊNG của màn, có chủ ý
  *
- * A14 chốt bộ mẫu chuẩn của repo là "34 phòng và sảnh 248,60 m²" — con số diện
- * tích ấy là thứ mọi bài kiểm diện tích trong repo đối chiếu. Đặc tả vỏ 3D lại
- * in "4 tầng · 14 phòng · 248,60 m²": cùng **diện tích**, khác số phòng, vì vỏ
- * đếm phòng của một toà bốn tầng chứ không phải của một mặt bằng. Bộ mẫu này
- * giữ nguyên con số A14 bảo vệ (248,60 m²) và chia nó cho 14 phòng trên 4 tầng.
+ * Đây KHÔNG phải bộ mẫu chuẩn A14 (`createSampleBuilding()`), và A14 không cấm một
+ * màn có bộ mẫu riêng (khuôn B-V7-14, B-V10-06). Hai bộ trùng ba số — 4 tầng ·
+ * 14 phòng · 248,60 m² — và khác năm loại: tường 16/48, ô mở 0/16, đồ đạc 0/21,
+ * trục 0/4, kích thước 0/34. Đừng chép số của bộ này làm số A14.
  *
  * Diện tích ghi trong `Room.areaM2` là số đã chốt của bộ mẫu; `outline` của mỗi
  * phòng là hình chữ nhật dựng ra ĐÚNG diện tích đó, nên `selectRoomsWithArea`
@@ -51,31 +50,29 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Đuôi cố định gắn sau mã số đọc được, để thân mã đạt tối thiểu mười ký tự mà
- * `domain/spatial/ids.ts:43` (`MIN_BODY_LENGTH`) đòi.
+ * Đuôi cố định gắn sau sáu chữ số đếm, để thân mã đạt tối thiểu mười ký tự mà
+ * `domain/spatial/ids.ts` (`MIN_BODY_LENGTH`) đòi.
  *
  * `createId` của `ids.ts` KHÔNG dùng được ở đây: nó vừa mang một mẩu ngẫu
- * nhiên bốn ký tự, vừa cộng dồn vào một bộ đếm cấp module — hai thứ bộ mẫu
- * này không được phép có, vì ảnh chuẩn và bài kiểm đối chiếu mã phải lặp lại
- * y hệt giữa các lượt chạy. Nên mã ở đây là chuỗi gõ tay, nhưng vẫn giữ đúng
- * hình dạng `createId` sinh ra: tiền tố lấy từ `ID_PREFIX_BY_KIND` (không tự
- * bịa chữ cái), thân chỉ gồm `[0-9A-Z]`, dài hơn ngưỡng tối thiểu.
- *
- * Tám ký tự, tất cả nằm trong bảng chữ base36 mà `ids.ts` dùng, nên thân mã
- * ngắn nhất của bộ mẫu (mã tầng, hai chữ số) vẫn chạm đúng mười ký tự tối
- * thiểu: `"01" + "FIXTURE0"` = mười ký tự.
+ * nhiên, vừa cộng dồn vào một bộ đếm cấp module — hai thứ bộ mẫu này không
+ * được phép có, vì ảnh chuẩn và bài kiểm đối chiếu mã phải lặp lại y hệt giữa
+ * các lượt chạy. Nên mã ở đây là chuỗi gõ tay, nhưng giữ đúng hình dạng
+ * `createId` sinh ra: tiền tố lấy từ `ID_PREFIX_BY_KIND`, rồi SÁU chữ số đếm,
+ * rồi phần đuôi chỉ gồm `[0-9A-Z]` — thân 14 ký tự.
  */
 const FIXTURE_ID_SUFFIX = 'FIXTURE0';
 
 /**
  * Một mã hợp lệ cho một loại thực thể, từ mã số đọc được của bộ mẫu.
  *
- * `code` giữ nguyên các mã số đã có từ trước (`"01"`, `"001"`, `"0101"`…) làm
- * TIỀN TỐ của thân mã, nên mọi nơi soát bằng khớp chuỗi con (ô tìm phòng của
- * `Viewer3D/roomSearch.ts`) vẫn khớp đúng thứ đã khớp trước khi sửa.
+ * `code` (`"01"`, `"011"`, `"0403"`…) được đệm đủ sáu chữ số đếm, cùng khuôn
+ * các bộ mẫu QC (`roomLabelFixture.ts`), nên `displayCodesOf` đọc ra nhãn sạch:
+ * `W-000403FIXTURE0` → `W-403`, `R-000011FIXTURE0` → `R-011`, `L-000001FIXTURE0`
+ * → `L-001`. Ghép thẳng `code` với đuôi (mã cũ `W-0403FIXTURE0`) cho nhãn rác
+ * `W-403FI` (B-V8-45).
  */
 function fixtureId<K extends keyof typeof ID_PREFIX_BY_KIND>(kind: K, code: string): string {
-  return `${ID_PREFIX_BY_KIND[kind]}-${code}${FIXTURE_ID_SUFFIX}`;
+  return `${ID_PREFIX_BY_KIND[kind]}-${code.padStart(6, '0')}${FIXTURE_ID_SUFFIX}`;
 }
 
 /** Mã phòng hợp lệ, từ số phòng đọc được (`"001"`…`"014"`). */
@@ -94,7 +91,7 @@ export const FIXTURE_STOREY_COUNT = 4;
 /** Số phòng của bộ mẫu. */
 export const FIXTURE_ROOM_COUNT = 14;
 
-/** Tổng diện tích, mét vuông — con số A14 bảo vệ. */
+/** Tổng diện tích, mét vuông — trùng `SAMPLE_TOTAL_AREA_M2` của A14, nhưng là số của bộ này. */
 export const FIXTURE_TOTAL_AREA_M2 = 248.6;
 
 /** Chiều cao mỗi tầng, milimét. Bốn tầng đều nhau. */
@@ -249,7 +246,7 @@ const ROOF: LevelId = roofLevel.id;
  * Bề rộng và bề sâu của từng phòng, chọn sao cho tổng đúng 248,60 m².
  *
  * Bốn tầng cộng lại: 80,00 + 70,00 + 60,00 + 38,60 = 248,60 m².
- * `viewerShellFixture.test` cộng lại và khẳng định con số ấy chứ không tin
+ * `ViewerShell.test.tsx` cộng lại và khẳng định con số ấy chứ không tin
  * dòng chú thích này.
  */
 export const VIEWER_FIXTURE_ROOMS: readonly Room[] = Object.freeze([

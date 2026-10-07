@@ -18,6 +18,9 @@
  *
  * Units follow the project: millimetres for anything on a plan, metres for
  * elevations, square metres for areas, and a comma for the decimal separator.
+ *
+ * Every `…Id` field below takes the code a person reads (`displayCodeIn`, `#W-014`),
+ * not the machine id: the caller holds the graph, these sentences do not.
  */
 
 import { formatLength } from '../../../lib/format/measure';

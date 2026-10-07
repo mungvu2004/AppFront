@@ -148,7 +148,7 @@ const YESTERDAY_ITEMS: readonly NotificationItemVm[] = [
     projectName: PROJECT_NAME,
     floorId: FLOOR_ID,
     targetTo: ROUTES.project.rooms(PROJECT_ID, FLOOR_ID),
-    targetLabel: 'xem bình luận',
+    targetLabel: 'Xem bình luận',
     excerpt: 'Kiểm tra lại tường ngăn phòng ngủ chính giúp mình, hình như đang lệch trục.',
   }),
 ];

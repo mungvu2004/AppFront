@@ -16,7 +16,7 @@
  * Vì thế mọi bài dưới đây HỎNG RIÊNG LẺ với "Failed to resolve" cho tới khi lớp gộp ghép view
  * thật vào — đó là DỰ KIẾN (R-70: không sửa test cho khớp code chưa tồn tại), không phải thất
  * bại. **Bộ này chưa chạy trọn vẹn ở lớp L2 — nó sẽ chạy thật ở lớp gộp** (E.10: không báo
- * "đạt" cho một bước chưa chạy).
+ * "Đạt" cho một bước chưa chạy).
  *
  * ## Dữ liệu KHÔNG nhập từ `ModelLibrary.stories.tsx` — đo thật, không phải chép nhầm
  *
@@ -70,6 +70,26 @@ import type {
  * ========================================================================== */
 
 /** `library-table-1` — `src/api/__mocks__/client.ts:418-427`, chép nguyên văn (R-70). */
+/**
+ * Hạn thời gian cho riêng tệp này.
+ *
+ * Bài "Bảy trạng thái" nạp view qua `import()` lúc chạy (xem khối chú thích đầu
+ * tệp), nên nó phải chờ một lượt phân giải module — và dưới bộ toàn bài, lượt ấy
+ * vượt hạn mặc định 5 000 ms. Đo 2026-09-28: đỏ ở lượt `verify` đầu phiên và ở
+ * hai lượt sau, **đạt mọi lượt khi chạy riêng tệp**. Lỗi luôn là
+ * *"Test timed out in 5000ms"*, không phải một khẳng định sai.
+ *
+ * Đây là tệp **thứ ba** cùng lớp khuyết tật, sau
+ * `screens/export/ShareDialog/ShareDialog.test.tsx:144` và
+ * `routes/router.test.tsx`. Lời chữa chung — nâng `testTimeout` cho cả repo —
+ * đã có sẵn ở nhánh `mungvu2004/debt-share`; chốt nó là việc của người duyệt,
+ * nên ở đây vẫn vá theo từng tệp và không đụng `vitest.config.ts`.
+ *
+ * Nâng hạn **không** nới cổng chất lượng nào: mọi khẳng định giữ nguyên từng
+ * dòng, chỉ chỗ đợi rộng ra.
+ */
+vi.setConfig({ testTimeout: 20_000 });
+
 const SAMPLE_TABLE_1: LibraryItem = {
   depthMm: 900,
   fileSizeBytes: 412_000,
@@ -104,20 +124,20 @@ const SAMPLE_TABLE_2: LibraryItem = {
 const ALL_ITEMS: readonly LibraryItem[] = [SAMPLE_TABLE_1, SAMPLE_TABLE_2];
 
 const GROUP_LABEL_VI: Readonly<Record<LibraryGroup, string>> = {
-  table: 'bàn',
-  chair: 'ghế',
-  bed: 'giường',
-  sofa: 'ghế sofa',
-  storage: 'tủ lưu trữ',
-  sanitary: 'thiết bị vệ sinh',
-  kitchen: 'bếp',
-  technical: 'kỹ thuật',
+  table: 'Bàn',
+  chair: 'Ghế',
+  bed: 'Giường',
+  sofa: 'Ghế sofa',
+  storage: 'Tủ lưu trữ',
+  sanitary: 'Thiết bị vệ sinh',
+  kitchen: 'Bếp',
+  technical: 'Kỹ thuật',
 };
 
 const FILTER_LABEL_VI: Readonly<Record<LibraryFilterId, string>> = {
-  all: 'tất cả',
+  all: 'Tất cả',
   ...GROUP_LABEL_VI,
-  mine: 'của tôi',
+  mine: 'Của tôi',
 };
 
 const READ_ONLY_REASON = 'Bạn chỉ có quyền xem thư viện model, không thể quản lý.';
@@ -221,10 +241,10 @@ function buildPreview(overrides: Partial<ModelPreviewModel> = {}): ModelPreviewM
 
 function buildFields(row: ModelLibraryRowModel): readonly ModelLibraryFieldModel[] {
   return [
-    { label: 'kích thước bao', value: row.boundsLabel, isNumeric: true },
-    { label: 'số tam giác', value: row.triangleCountLabel, isNumeric: true },
-    { label: 'dung lượng', value: row.fileSizeLabel, isNumeric: true },
-    { label: 'nhóm', value: row.groupLabel, isNumeric: false },
+    { label: 'Kích thước bao', value: row.boundsLabel, isNumeric: true },
+    { label: 'Số tam giác', value: row.triangleCountLabel, isNumeric: true },
+    { label: 'Dung lượng', value: row.fileSizeLabel, isNumeric: true },
+    { label: 'Nhóm', value: row.groupLabel, isNumeric: false },
   ];
 }
 
@@ -391,11 +411,11 @@ describe('A11 — bảy trạng thái của ModelLibrary', () => {
 });
 
 /* ==========================================================================
- * 2. Tiếp cận được (R-72) — ít nhất "thành công" và "thu gọn", theo brief mục 2.
+ * 2. Tiếp cận được (R-72) — ít nhất "Thành công" và "Thu gọn", theo brief mục 2.
  * ========================================================================== */
 
 describe('R-72 — expectAccessible trên cây render thật', () => {
-  it('trạng thái "thành công" tiếp cận được', async () => {
+  it('trạng thái "Thành công" tiếp cận được', async () => {
     const ModelLibraryView = await loadModelLibraryView();
 
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
@@ -403,7 +423,7 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
     expectAccessible(document.body, { ignoreSelector: '[role="dialog"]' });
   });
 
-  it('trạng thái "thu gọn" tiếp cận được', async () => {
+  it('trạng thái "Thu gọn" tiếp cận được', async () => {
     const ModelLibraryView = await loadModelLibraryView();
 
     renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('collapsed')} />);
@@ -417,8 +437,18 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
  *    thay vì Việt hoá gượng ép — xem `ModelLibrary.stories.tsx` mục 1.
  * ========================================================================== */
 
+describe('A6 — đường dẫn trang viết hoa chữ đầu như màn quản trị người dùng (lỗi B-V12b-04)', () => {
+  it('nav tên đúng "Đường dẫn trang", chữ "Quản trị › Thư viện model"', async () => {
+    const ModelLibraryView = await loadModelLibraryView();
+    renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    expect(nav.textContent).toBe('Quản trị › Thư viện model');
+  });
+});
+
 describe('R-67 — expectVietnamese trên cây render thật', () => {
-  it('trạng thái "thành công": toàn chữ tiếng Việt có dấu, trừ từ mượn "sofa"', async () => {
+  it('trạng thái "Thành công": toàn chữ tiếng Việt có dấu, trừ từ mượn "sofa"', async () => {
     const ModelLibraryView = await loadModelLibraryView();
     const { container } = renderWithProviders(<ModelLibraryView {...buildModelLibraryProps('success')} />);
 
@@ -592,7 +622,7 @@ describe('Esc gọi actions.closeDetail khi panel chi tiết đang mở', () => 
 });
 
 describe('trạng thái 6: capabilities.canManage === false thì hiện readOnlyReason', () => {
-  it('trạng thái "không có quyền": readOnlyReason có mặt trong DOM', async () => {
+  it('trạng thái "Không có quyền": readOnlyReason có mặt trong DOM', async () => {
     const ModelLibraryView = await loadModelLibraryView();
     const props = buildModelLibraryProps('forbidden');
 
@@ -604,7 +634,7 @@ describe('trạng thái 6: capabilities.canManage === false thì hiện readOnly
     expect(screen.getByText(props.model.readOnlyReason as string)).toBeTruthy();
   });
 
-  it('trạng thái "thành công": canManage true, readOnlyReason null', () => {
+  it('trạng thái "Thành công": canManage true, readOnlyReason null', () => {
     const props = buildModelLibraryProps('success');
 
     expect(props.model.capabilities.canManage).toBe(true);

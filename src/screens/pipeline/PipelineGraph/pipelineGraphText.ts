@@ -42,10 +42,10 @@ export const PIPELINE_NODE_TEXT: Readonly<Record<PipelineNodeId, PipelineNodeTex
     name: 'Tiền xử lý',
     subRows: [
       'chuyển xám',
-      'làm mờ Gauss',
-      'dò cạnh Canny',
-      'tìm đường biên',
-      'nắn phối cảnh 3000×3000',
+      'Làm mờ Gauss',
+      'Dò cạnh Canny',
+      'Tìm đường biên',
+      'Nắn phối cảnh 3000×3000',
     ],
   },
   wallSegmentation: {
@@ -76,7 +76,7 @@ export const PIPELINE_NODE_TEXT: Readonly<Record<PipelineNodeId, PipelineNodeTex
   },
   thicknessNormalise: {
     name: 'Chuẩn hoá độ dày',
-    subRows: ['quy về 110 / 220 / 330 mm', 'hoặc nhận là cột bê tông'],
+    subRows: ['Quy về 110 / 220 / 330 mm', 'Hoặc nhận là cột bê tông'],
   },
   spatialJson: {
     name: 'Dựng dữ liệu không gian',
@@ -95,7 +95,7 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
   {
     id: 'input',
     label: 'Tệp đầu vào',
-    caption: 'bản vẽ kiến trúc của hồ sơ',
+    caption: 'Bản vẽ kiến trúc của hồ sơ',
     column: 0,
     row: 1,
     edgeTargets: ['cad', 'ai'],
@@ -103,7 +103,7 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
   {
     id: 'cad',
     label: 'Nhánh tệp CAD',
-    caption: 'đường hình học đọc thẳng từ tệp',
+    caption: 'Đường hình học đọc thẳng từ tệp',
     column: 1,
     row: 0,
     edgeTargets: ['merge'],
@@ -112,7 +112,7 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
   {
     id: 'ai',
     label: 'Nhánh ảnh quét',
-    caption: 'sáu bước nhận dạng chạy trên ảnh',
+    caption: 'Sáu bước nhận dạng chạy trên ảnh',
     column: 1,
     row: 2,
     edgeTargets: ['merge'],
@@ -121,7 +121,7 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
   {
     id: 'merge',
     label: 'Dữ liệu không gian đa tầng',
-    caption: 'hai nhánh hợp lại ở một tệp duy nhất',
+    caption: 'Hai nhánh hợp lại ở một tệp duy nhất',
     column: 2,
     row: 1,
     edgeTargets: ['model'],
@@ -129,7 +129,7 @@ export const PIPELINE_OVERVIEW_BLOCKS: readonly PipelineOverviewBlockViewModel[]
   {
     id: 'model',
     label: 'Dựng mô hình 3D',
-    caption: 'mặt bằng và khối nhà dựng từ tệp đó',
+    caption: 'Mặt bằng và khối nhà dựng từ tệp đó',
     column: 3,
     row: 1,
     edgeTargets: [],
@@ -155,6 +155,8 @@ export const PIPELINE_GRAPH_TEXT = {
   } as Readonly<Record<PipelineBranchId, string>>,
   reasonUnknown:
     'Mỗi tầng đang đi một nhánh khác nhau, nên chưa có một câu trả lời chung cho cả hồ sơ.',
+  /** Chưa đọc được báo cáo nhánh nào — không được nói "mỗi tầng một nhánh" (B-V5-03). */
+  reasonNoReport: 'Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào.',
 
   statusLabels: {
     queued: 'chờ chạy',
@@ -188,7 +190,7 @@ export const PIPELINE_GRAPH_TEXT = {
   panelLogLabel: 'Nhật ký',
   thumbnailAltPrefix: 'Ảnh trung gian của bước ',
   defaultOutputUnit: 'đối tượng',
-  unknownValue: 'chưa có số liệu',
+  unknownValue: 'Chưa có số liệu',
 
   rerunLabel: 'Chạy lại từ bước này',
   rerunWarningTitle: 'Chạy lại sẽ động vào việc đã duyệt',

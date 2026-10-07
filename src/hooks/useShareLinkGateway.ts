@@ -17,7 +17,11 @@
  *
  * ## Why it can return `null`
  *
- * `createAuthHttpClient` throws when `configureAuth()` has not run — which is
+ * Two reasons. First, share links are a v2 feature (`SHARE_LINKS_SUPPORTED`,
+ * BE-BIND #47–#49): while the switch is off the hook returns `null` before it
+ * builds a client, so no screen holding the result can reach the 404 routes.
+ *
+ * Second, `createAuthHttpClient` throws when `configureAuth()` has not run — which is
  * the truth in this build, where the auth layer is configured by the host
  * application rather than at import time. Throwing out of a hook would take the
  * route down with a white screen, which is the one failure invariant A11 exists
@@ -30,7 +34,7 @@ import { useMemo } from 'react';
 import { resolveApiBaseUrl } from '@/api/appClient';
 import { createAuthHttpClient, type AuthHttpClient, type AuthHttpError } from '@/lib/auth';
 import type { ShareLinkGateway } from '@/lib/export/shareLink';
-import { SHARE_LINK_ENDPOINTS } from '@/lib/export/shareLink';
+import { SHARE_LINK_ENDPOINTS, SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import type { HttpError, Result } from '@/lib/http';
 
 /**
@@ -51,6 +55,7 @@ function normalise<T>(result: Result<T, AuthHttpError>): Result<T, HttpError> {
 /** The three calls, over an authenticated client. */
 export function createAuthShareLinkGateway(client: AuthHttpClient): ShareLinkGateway {
   return {
+    supported: SHARE_LINKS_SUPPORTED,
     create: async ({ body, projectId, signal }) =>
       normalise(
         await client.post<unknown, typeof body>(SHARE_LINK_ENDPOINTS.collection(projectId), {
@@ -86,6 +91,9 @@ export function createAuthShareLinkGateway(client: AuthHttpClient): ShareLinkGat
  */
 export function useShareLinkGateway(): ShareLinkGateway | null {
   return useMemo(() => {
+    if (!SHARE_LINKS_SUPPORTED) {
+      return null;
+    }
     try {
       return createAuthShareLinkGateway(createAuthHttpClient({ baseUrl: resolveApiBaseUrl() }));
     } catch {

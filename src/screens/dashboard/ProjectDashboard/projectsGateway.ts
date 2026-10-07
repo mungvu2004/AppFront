@@ -1,16 +1,20 @@
 /**
- * The dashboard's data source.
+ * The dashboard's data source: N1 (`GET /api/project-summaries`) read to the
+ * last cursor, plus #26 (rename) and #27 (delete).
  *
- * `client.projects.list`/`client.projects.read` (`src/api/client.ts`) call a
- * server this product does not have yet, and the `Project` type they decode
- * to (`src/types/project.ts`) has no floor count, area, pipeline status or
- * wall-review progress — the fields this screen's cards need. So these two
- * functions stand in for a gateway: same async shape a real one would have
- * (`Promise<readonly DashboardProject[]>`, `Promise<DashboardProject |
- * undefined>`), same names `useProjectDashboard` calls by injection, so
- * swapping in the real endpoints later changes this file's inside and nothing
- * that calls it.
+ * The gateway takes the `ApiClient` (`src/api/client.ts`) so a test hands it a
+ * hand-built client and the container hands it the real one. Failures are
+ * thrown as the original `HttpError` (or `AppError`) — the hook reads them by
+ * `code` with `readWireError`; this file never turns one into a sentence.
+ *
+ * A row the server sent that does not decode is dropped by the client and
+ * counted in `droppedCount` (A11: one bad row never locks every project); this
+ * file adds those counts across pages.
  */
+
+import type { ApiClient } from '@/api/client';
+import type { ProjectSummary } from '@/api/schemas/projectSummaries';
+import { readWireError } from '@/lib/errors/wireError';
 
 export type ProjectPipelineStatus = 'processing' | 'qc' | 'done';
 
@@ -28,82 +32,109 @@ export interface DashboardProject {
   /** How many walls a person has reviewed, out of `wallsTotalCount`. */
   readonly wallsReviewedCount: number;
   readonly wallsTotalCount: number;
-  readonly updatedAgoMs: number;
+  /** Epoch milliseconds of the last change. */
+  readonly updatedAtMs: number;
   readonly members: readonly DashboardProjectMember[];
   /** Which of the four procedural plan outlines the preview draws. */
   readonly planVariant: 0 | 1 | 2 | 3;
-  /** The floor the "cần QC" route (`/floors/:floorId/layers/walls`) opens. */
-  readonly defaultFloorId: string;
+  /** The floor the "cần QC" route opens; absent for a project with no floor yet. */
+  readonly defaultFloorId?: string;
 }
 
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-
-const AN = { id: 'm-an', initials: 'PA' };
-const BINH = { id: 'm-binh', initials: 'NB' };
-const CHI = { id: 'm-chi', initials: 'TC' };
-
-/**
- * Exactly the three sample projects the brief names, one per pipeline status
- * so the three filter buckets (and the review-progress bar's two shapes —
- * still climbing, partway reviewed) all have something to show.
- *
- * `status: 'done'` only ever appears here alongside `wallsReviewedCount ===
- * wallsTotalCount`: `useProjectDashboard` derives the "hoàn thành" badge from
- * that equality rather than trusting this field alone, so a future project
- * cannot ship the "đã duyệt" green before a person actually reviewed every
- * wall (the brief's own constraint).
- */
-const SAMPLE_PROJECTS: readonly DashboardProject[] = [
-  {
-    id: 'p-hq-renovation',
-    name: 'Tòa nhà HQ Renovation',
-    floorCount: 4,
-    areaM2: 1860,
-    status: 'qc',
-    wallsReviewedCount: 30,
-    wallsTotalCount: 48,
-    updatedAgoMs: 2 * HOUR_MS,
-    members: [AN, BINH],
-    planVariant: 0,
-    defaultFloorId: 'floor-01',
-  },
-  {
-    id: 'p-sunrise-block-b',
-    name: 'Chung cư Sunrise Block B',
-    floorCount: 12,
-    areaM2: 8420,
-    status: 'processing',
-    wallsReviewedCount: 0,
-    wallsTotalCount: 132,
-    updatedAgoMs: 25 * MINUTE_MS,
-    members: [AN, BINH, CHI],
-    planVariant: 1,
-    defaultFloorId: 'floor-01',
-  },
-  {
-    id: 'p-bac-ninh-factory',
-    name: 'Nhà máy Bắc Ninh',
-    floorCount: 2,
-    areaM2: 5200,
-    status: 'done',
-    wallsReviewedCount: 26,
-    wallsTotalCount: 26,
-    updatedAgoMs: 26 * HOUR_MS,
-    members: [BINH],
-    planVariant: 2,
-    defaultFloorId: 'floor-01',
-  },
-];
-
-/** The whole list — `queryKeys.project.list()`'s fetcher. */
-export function fetchProjectList(): Promise<readonly DashboardProject[]> {
-  return Promise.resolve(SAMPLE_PROJECTS);
+/** What the dashboard's query holds: every readable project, and how many rows were unreadable. */
+export interface DashboardProjectList {
+  readonly projects: readonly DashboardProject[];
+  readonly droppedCount: number;
 }
 
-/** One project — `queryKeys.project.detail(id)`'s fetcher, for the hover prefetch. */
-export function fetchProjectDetail(projectId: string): Promise<DashboardProject | undefined> {
-  return Promise.resolve(SAMPLE_PROJECTS.find((project) => project.id === projectId));
+export interface DashboardProjectsGateway {
+  listSummaries(signal?: AbortSignal): Promise<DashboardProjectList>;
+  rename(projectId: string, name: string): Promise<void>;
+  remove(projectId: string): Promise<void>;
+}
+
+/** R4: duplicating has no backend contract, so the menu entry is not drawn. */
+export const DASHBOARD_CAPABILITIES = { supportsDuplicate: false } as const;
+
+const PAGE_LIMIT = 500;
+const PLAN_VARIANT_COUNT = 4;
+
+/** "Tòa nhà HQ" -> "TH"; one word -> its first two letters. */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter((word) => word !== '');
+  const first = words[0];
+  const last = words[words.length - 1];
+  if (first === undefined || last === undefined) return '';
+  const letters = words.length === 1 ? Array.from(first).slice(0, 2) : [Array.from(first)[0], Array.from(last)[0]];
+  return letters.join('').toLocaleUpperCase('vi');
+}
+
+/** Deterministic: the same id always draws the same outline. */
+export function planVariantOf(id: string): 0 | 1 | 2 | 3 {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const variant = hash % PLAN_VARIANT_COUNT;
+  return variant === 0 ? 0 : variant === 1 ? 1 : variant === 2 ? 2 : 3;
+}
+
+function toDashboardProject(summary: ProjectSummary): DashboardProject {
+  return {
+    id: summary.id,
+    name: summary.name,
+    floorCount: summary.floorCount,
+    areaM2: summary.areaM2,
+    status: summary.status,
+    wallsReviewedCount: summary.wallsReviewedCount,
+    wallsTotalCount: summary.wallsTotalCount,
+    updatedAtMs: Date.parse(summary.updatedAt),
+    members: summary.members.map((member) => ({ id: member.id, initials: initialsOf(member.name) })),
+    planVariant: planVariantOf(summary.id),
+    ...(summary.defaultFloorId !== undefined ? { defaultFloorId: summary.defaultFloorId } : {}),
+  };
+}
+
+export function createProjectsGateway(client: Pick<ApiClient, 'projects' | 'projectSummaries'>): DashboardProjectsGateway {
+  const readAllPages = async (signal: AbortSignal | undefined): Promise<DashboardProjectList> => {
+    const summaries: ProjectSummary[] = [];
+    let droppedCount = 0;
+    let cursor: string | undefined;
+    do {
+      const result = await client.projectSummaries.list({
+        limit: PAGE_LIMIT,
+        ...(cursor !== undefined ? { cursor } : {}),
+        ...(signal !== undefined ? { signal } : {}),
+      });
+      if (!result.ok) throw result.error;
+      summaries.push(...result.data.items);
+      droppedCount += result.data.droppedCount;
+      cursor = result.data.nextCursor;
+    } while (cursor !== undefined);
+
+    const projects = summaries
+      .map(toDashboardProject)
+      .sort((a, b) => b.updatedAtMs - a.updatedAtMs || a.id.localeCompare(b.id));
+    return { projects, droppedCount };
+  };
+
+  return {
+    listSummaries: async (signal) => {
+      try {
+        return await readAllPages(signal);
+      } catch (error) {
+        // The list moved under us mid-read: start over from page one, once.
+        if (readWireError(error)?.code !== 'CURSOR_INVALID') throw error;
+        return readAllPages(signal);
+      }
+    },
+    rename: async (projectId, name) => {
+      const result = await client.projects.update({ projectId, body: { name } });
+      if (!result.ok) throw result.error;
+    },
+    remove: async (projectId) => {
+      const result = await client.projects.delete({ projectId });
+      if (!result.ok) throw result.error;
+    },
+  };
 }
 
 /**

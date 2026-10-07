@@ -77,10 +77,10 @@ export interface RuleReportSummaryStripProps {
 export function RuleReportSummaryStrip({ summary }: RuleReportSummaryStripProps) {
   return (
     <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-      <SummaryStat value={summary.evaluated} label="tổng số kiểm tra" />
-      <SummaryStat value={summary.passed} label="đạt" />
-      <SummaryStat value={summary.warnings} label="cảnh báo" />
-      <SummaryStat value={summary.violations} label="vi phạm" />
+      <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" />
+      <SummaryStat value={summary.passed} label="Đạt" />
+      <SummaryStat value={summary.warnings} label="Cảnh báo" />
+      <SummaryStat value={summary.violations} label="Vi phạm" />
     </dl>
   );
 }
@@ -153,7 +153,7 @@ export function RuleReportFilterBar({
   return (
     <div className="flex flex-wrap items-end gap-4">
       <SegmentedControl
-        aria-label="lọc theo mức độ"
+        aria-label="Lọc theo mức độ"
         options={LEVEL_FILTER_OPTIONS.map((option) => ({ ...option }))}
         value={filters.level}
         onChange={(value: RuleReportLevelFilter) => {
@@ -162,11 +162,11 @@ export function RuleReportFilterBar({
       />
 
       <Select
-        label="nhóm luật"
+        label="Nhóm luật"
         className="w-[200px]"
         value={filters.group}
         options={[
-          { label: 'tất cả nhóm luật', value: ANY_OPTION },
+          { label: 'Tất cả nhóm luật', value: ANY_OPTION },
           ...GROUP_ORDER.map((group) => ({ label: GROUP_LABELS[group], value: group })),
         ]}
         onChange={(value) => {
@@ -175,11 +175,11 @@ export function RuleReportFilterBar({
       />
 
       <Select
-        label="tầng"
+        label="Tầng"
         className="w-[200px]"
         value={filters.levelId}
         options={[
-          { label: 'tất cả các tầng', value: ANY_OPTION },
+          { label: 'Tất cả các tầng', value: ANY_OPTION },
           ...levelOptions.map((option) => ({ label: option.label, value: option.value })),
         ]}
         onChange={(value) => {

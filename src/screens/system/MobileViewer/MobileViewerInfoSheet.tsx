@@ -116,7 +116,7 @@ export interface MobileViewerInfoSheetProps {
   readonly isOpen: boolean;
   readonly selection: MobileViewerSelection | null;
   readonly onDismiss: () => void;
-  readonly onSendDesktopLink: () => void;
+  readonly onSendDesktopLink: (() => void) | null;
 }
 
 export function MobileViewerInfoSheet({
@@ -199,7 +199,7 @@ export function MobileViewerInfoSheet({
 
   return (
     <section
-      aria-label="thông tin đối tượng đang chọn"
+      aria-label="Thông tin đối tượng đang chọn"
       className={cn(
         'absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden rounded-t-[20px]',
         'border-t border-border-default bg-bg-surface shadow-modal',
@@ -221,11 +221,11 @@ export function MobileViewerInfoSheet({
 
         <div className="flex items-center gap-2 px-4 pb-2">
           <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-text-primary">
-            {selection === null ? 'thông tin' : selection.title}
+            {selection === null ? 'Thông tin' : selection.title}
           </h2>
 
           <IconButton
-            aria-label={isFull ? 'thu gọn tấm thông tin' : 'mở rộng tấm thông tin'}
+            aria-label={isFull ? 'Thu gọn tấm thông tin' : 'Mở rộng tấm thông tin'}
             icon={isFull ? <ChevronDown /> : <ChevronUp />}
             onClick={() => {
               setSnap(isFull ? SNAP_MID : SNAP_FULL);
@@ -235,7 +235,7 @@ export function MobileViewerInfoSheet({
           />
 
           <IconButton
-            aria-label="đóng tấm thông tin"
+            aria-label="Đóng tấm thông tin"
             icon={<X />}
             onClick={onDismiss}
             size="lg"
@@ -247,7 +247,7 @@ export function MobileViewerInfoSheet({
       <div className="flex-1 overflow-y-auto px-4 pb-6">
         {selection === null ? (
           <p className="text-[14px] leading-relaxed text-text-secondary">
-            chưa chọn đối tượng nào. chạm vào mô hình để xem thông tin của nó.
+            Chưa chọn đối tượng nào. Chạm vào mô hình để xem thông tin của nó.
           </p>
         ) : (
           <>
@@ -267,15 +267,17 @@ export function MobileViewerInfoSheet({
             {selection.needsDesktopToEdit && (
               <div className="mt-4 flex flex-col items-start gap-2 rounded-lg border border-border-default bg-bg-sunken p-3">
                 <p className="text-[13px] leading-relaxed text-text-secondary">
-                  sửa trên máy tính để chính xác hơn
+                  Sửa trên máy tính để chính xác hơn
                 </p>
-                <Button
-                  onClick={onSendDesktopLink}
-                  style={{ minHeight: MOBILE_VIEWER_MIN_HIT_TARGET_PX }}
-                  variant="secondary"
-                >
-                  gửi liên kết sang máy tính
-                </Button>
+                {onSendDesktopLink !== null && (
+                  <Button
+                    onClick={onSendDesktopLink}
+                    style={{ minHeight: MOBILE_VIEWER_MIN_HIT_TARGET_PX }}
+                    variant="secondary"
+                  >
+                    Gửi liên kết sang máy tính
+                  </Button>
+                )}
               </div>
             )}
           </>

@@ -56,7 +56,7 @@
 
 import { compareNearly } from '@/domain/units/compare';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
-import { openingSpan } from '@/domain/openings/validate';
+import { openingSpan } from '@/domain/openings/span';
 import type { AttachedOpening, Opening } from '@/domain/openings/types';
 import { signedAreaMm2 } from '@/domain/rooms/area';
 import { assertUsableWall, centrelineLength, type Wall } from '@/domain/walls/types';

@@ -108,6 +108,12 @@ describe('[G] bốn bộ khẳng định dùng chung', () => {
     }
 
     console.log(`${REPORT}[G3] expectVietnamese = ${String(checked)}/${String(SEVEN_STATES.length)}`);
+
+    /* A6 · B-V8-07: expectVietnamese không phân biệt "AI" với "ai", nên khẳng định đúng chữ trên phần đã vẽ. */
+    const { getByRole, unmount } = render(<HistoryPanel {...propsOf('success')} />);
+    const chips = getByRole('group', { name: 'Lọc theo loại việc' }).querySelectorAll('button');
+    expect(Array.from(chips, (c) => c.textContent)).toStrictEqual(['Tất cả', 'Chỉnh sửa', 'Duyệt', 'AI']);
+    unmount();
   });
 
   it('[G4] expectNoRawColor — cả thư mục màn, màu chỉ đến từ token (A1)', () => {
@@ -144,6 +150,41 @@ describe('[N1] luật cốt lõi — mục đã hoàn tác vẫn còn nhìn th�
 
     for (const item of rest) {
       expect(item.className).not.toEqual(expect.stringContaining(HISTORY_UNDONE_ITEM_CLASS));
+    }
+  });
+});
+
+describe('[N1b] mỗi mục nói ra người thực hiện cho trình đọc màn hình (B-V8-47)', () => {
+  it('tên người thực hiện là chữ trong mục (sr-only), không phải aria-label trên một span không vai', () => {
+    const props = propsOf('success');
+    const { getAllByTestId } = render(<HistoryPanel {...props} />);
+    const items = getAllByTestId(HISTORY_PANEL_TEST_IDS.item);
+
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      const srOnly = Array.from(item.querySelectorAll('.sr-only')).map((node) => node.textContent ?? '');
+      expect(srOnly.some((text) => text.length > 0 && !text.startsWith(' '))).toBe(true);
+      expect(item.querySelector('span[aria-label]:not([role])')).toBeNull();
+    }
+  });
+});
+
+describe('[N1c] bộ mẫu chỉ mang nhãn người thực hiện mà model sinh ra (B-V8-48)', () => {
+  /** Mọi `HistoryActor` nằm đâu đó trong props — mục, mục con, danh sách lọc người. */
+  function actorsIn(value: unknown): { readonly label: string }[] {
+    if (Array.isArray(value)) return value.flatMap(actorsIn);
+    if (value === null || typeof value !== 'object') return [];
+    const own = 'isAnonymised' in value && 'label' in value ? [value as { readonly label: string }] : [];
+
+    return [...own, ...Object.values(value).flatMap(actorsIn)];
+  }
+
+  it('mọi người trong bảy kịch bản đọc "Bạn" hoặc "Người dùng khác [N]" — không tên thật', () => {
+    const actors = SCENARIOS.flatMap((scenario) => actorsIn(scenario.props));
+
+    expect(actors.length).toBeGreaterThan(0);
+    for (const actor of actors) {
+      expect(actor.label).toMatch(/^(Bạn|Người dùng khác( \d+)?)$/u);
     }
   });
 });
@@ -309,7 +350,7 @@ describe('[N6] cấm rò rỉ mã máy', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* [N7] Trạng thái "một phần" — cả hai HistoryPartialReason.                   */
+/* [N7] Trạng thái "Một phần" — cả hai HistoryPartialReason.                   */
 /* -------------------------------------------------------------------------- */
 
 describe('[N7] một phần — cả hai lý do đều dựng được', () => {

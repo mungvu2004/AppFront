@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
+import { NotificationBell } from '@/screens/system/NotificationCenter';
+
 import { ProjectDashboardView, type ProjectDashboardViewProps } from './ProjectDashboard';
 import type { ProjectCardModel } from './useProjectDashboard';
 
@@ -29,7 +31,7 @@ const hqRenovation: ProjectCardModel = {
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
-  statusLabel: 'cần QC',
+  statusLabel: 'Cần QC',
   progressLabel: '30/48 tường đã duyệt',
   progressRatio: 30 / 48,
   progressPercentLabel: '63%',
@@ -64,7 +66,7 @@ const bacNinhFactory: ProjectCardModel = {
   statsLabel: '2 tầng · 5.200,00 m²',
   updatedLabel: '26/08/2026 07:00',
   statusVariant: 'verified',
-  statusLabel: 'hoàn thành',
+  statusLabel: 'Hoàn thành',
   progressLabel: '26/26 tường đã duyệt',
   progressRatio: 1,
   progressPercentLabel: '100%',
@@ -76,6 +78,7 @@ const base: ProjectDashboardViewProps = {
   state: 'success',
   canCreate: true,
   canDelete: true,
+  canDuplicate: false,
   errorMessage: null,
   viewMode: 'grid',
   searchQuery: '',
@@ -89,6 +92,8 @@ const base: ProjectDashboardViewProps = {
   renameDraft: '',
   pendingDeleteId: null,
   pendingDeleteName: null,
+  deleteErrorMessage: null,
+  unreadNotice: null,
   setSearchQuery: noop,
   setStatusFilter: noop,
   setSortBy: noop,
@@ -99,14 +104,13 @@ const base: ProjectDashboardViewProps = {
   setRenameDraft: noop,
   commitRename: noop,
   cancelRename: noop,
-  duplicateProject: noop,
   requestDelete: noop,
   cancelDelete: noop,
   confirmDelete: noop,
   createProject: noop,
   retryLoad: noop,
-  onCardPointerEnter: noop,
-  onCardPointerLeave: noop,
+  duplicateProject: noop,
+  notificationBell: <NotificationBell unreadBadge="3" isOpen={false} onToggle={noop} bellNudgeToken={0} />,
 };
 
 /** thành công — ba dự án mẫu, một mỗi trạng thái pipeline. */
@@ -136,6 +140,11 @@ export const Forbidden: Story = {
   args: { ...base, state: 'forbidden', canCreate: false, canDelete: false },
 };
 
+/** một phần — máy chủ trả vài dòng hỏng: lưới vẫn có, dải báo "chưa đọc được". */
+export const UnreadRows: Story = {
+  args: { ...base, state: 'partial', unreadNotice: 'Có 2 dự án chưa đọc được' },
+};
+
 /** thu gọn — dưới 1024px: hai cột, dải lọc gấp lại. */
 export const Collapsed: Story = { args: { ...base, state: 'collapsed' } };
 
@@ -147,4 +156,14 @@ export const Renaming: Story = {
 /** Hộp thoại xác nhận xoá — nơi duy nhất A9 cho phép chặn bằng hộp thoại trên màn này. */
 export const DeleteConfirm: Story = {
   args: { ...base, pendingDeleteId: hqRenovation.id, pendingDeleteName: hqRenovation.name },
+};
+
+/** Xoá thất bại — hộp thoại giữ nguyên, câu lỗi nằm trong hộp. */
+export const DeleteError: Story = {
+  args: {
+    ...base,
+    pendingDeleteId: hqRenovation.id,
+    pendingDeleteName: hqRenovation.name,
+    deleteErrorMessage: 'Không xoá được dự án. Hãy thử lại.',
+  },
 };

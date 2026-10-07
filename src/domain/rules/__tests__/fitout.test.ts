@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeSpatial } from '../../spatial/normalize';
+import { displayCodeIn, normalizeSpatial } from '../../spatial/normalize';
 import type {
   Furniture,
   FurnitureId,
@@ -235,17 +235,16 @@ describe('checkRoomFurnitureMismatch', () => {
   });
 
   it('offers changing either half, because either half may be the wrong one', () => {
-    const findings = runCheck(
-      checkRoomFurnitureMismatch,
-      planOf({
-        walls: SHELL,
-        rooms: [BATHROOM],
-        furniture: [furniture('BD9', { x: 4500, y: 2000 }, { kind: 'bed' })],
-      }),
-    );
+    const plan = planOf({
+      walls: SHELL,
+      rooms: [BATHROOM],
+      furniture: [furniture('BD9', { x: 4500, y: 2000 }, { kind: 'bed' })],
+    });
+    const findings = runCheck(checkRoomFurnitureMismatch, plan);
+    const graph = normalizeSpatial(plan);
 
-    expect(findings[0]?.suggestion).toContain(roomId('BA1'));
-    expect(findings[0]?.suggestion).toContain(furnitureId('BD9'));
+    expect(findings[0]?.suggestion).toContain(displayCodeIn(graph, roomId('BA1')));
+    expect(findings[0]?.suggestion).toContain(displayCodeIn(graph, furnitureId('BD9')));
   });
 
   it('believes the stored room before it believes the geometry', () => {
@@ -537,7 +536,7 @@ describe('registerFitoutRules', () => {
     for (const rule of FITOUT_RULES) {
       expect(rule.dependsOn.length).toBeGreaterThan(0);
       expect(rule.code).toBe(rule.code.toUpperCase());
-      expect(rule.name).toBe(rule.name.toLowerCase());
+      expect(rule.name).toBe(rule.name.charAt(0).toLocaleUpperCase('vi') + rule.name.slice(1));
     }
   });
 });

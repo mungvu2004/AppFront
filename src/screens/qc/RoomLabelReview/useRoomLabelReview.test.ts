@@ -27,12 +27,15 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Room, RoomId, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
+import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
@@ -42,6 +45,7 @@ import {
   ROOM_LABEL_FIXTURE_BUILDING,
   ROOM_LABEL_FIXTURE_LEVEL,
   ROOM_LABEL_FIXTURE_ROOMS,
+  ROOM_LABEL_FIXTURE_ROOMS_UNNAMED,
   ROOM_LABEL_FIXTURE_ROOM_R005,
   ROOM_LABEL_FIXTURE_TOTAL,
   ROOM_LABEL_FIXTURE_TOTAL_AREA_M2,
@@ -50,6 +54,7 @@ import {
 import {
   createMockRoomLabelReviewGateway,
   roomCodeLabel,
+  ROOM_LABEL_TEXT,
   ROOM_NAME_TARGETS,
   ROOM_NORMALIZE_COMMAND_TYPE,
 } from './roomLabelReviewGateway';
@@ -108,6 +113,9 @@ const ROOM_R005: Room = ROOM_LABEL_FIXTURE_ROOM_R005 as Room;
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* Bộ lưu lớp và revision mock sống cấp module — mỗi bài kiểm bắt đầu sạch. */
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* jsdom không có `matchMedia`; `matches: false` là "không giảm chuyển động". */
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -161,7 +169,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         gateway:
           options.gateway ??
           createMockRoomLabelReviewGateway({
-            graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []),
+            graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS_UNNAMED, []),
           }),
         ...(options.notifications === undefined ? {} : { notifications: options.notifications }),
         ...(options.onNavigate === undefined ? {} : { onNavigate: options.onNavigate }),
@@ -268,7 +276,7 @@ describe('phép ghép thuần của màn Duyệt tên phòng', () => {
   });
 
   it('bộ lọc "Chưa đặt tên" giữ đúng số phòng trống tên', () => {
-    const rows = ROOM_LABEL_FIXTURE_ROOMS.map((room) => ({
+    const rows = ROOM_LABEL_FIXTURE_ROOMS_UNNAMED.map((room) => ({
       hasName: room.name.trim() !== '',
     })) as unknown as readonly UseRoomLabelReviewResult['rooms'][number][];
 
@@ -320,6 +328,139 @@ describe('diện tích — M-07 tính, màn chỉ đọc', () => {
     /* ĐỒNG NHẤT THAM CHIẾU: chỉ đúng khi `measureRoom` không chạy lại. */
     expect(after.labelAnchorMm).toBe(anchorBefore);
     expect(after.areaText).toBe(areaBefore);
+  });
+});
+
+describe('hoàn tác trả lại vùng chọn LÚC LỆNH CHẠY (B-V7-09, A8)', () => {
+  it('chọn phòng khác rồi chọn #R-005, đổi tên, hoàn tác bằng vé: #R-005 vẫn đang chọn', async () => {
+    const notifications: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const other = ROOM_LABEL_FIXTURE_ROOMS.find((room) => room.id !== ROOM_R005.id);
+
+    act(() => {
+      mounted.result.current.onSelect(other?.id as RoomId);
+    });
+    act(() => {
+      mounted.result.current.onSelect(ROOM_R005.id);
+    });
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+    });
+
+    await act(async () => {
+      notifications.list()[0]?.undoTicket?.undo();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe(ROOM_R005.name);
+    });
+    /* Trước bản sửa: vùng chọn trước lần bấm gần nhất — phòng kia, thanh tra #R-005 đóng. */
+    expect(useStore.getState().selectedIds).toEqual([ROOM_R005.id]);
+  });
+});
+
+describe('lệnh bị từ chối phải nói ra vì sao (B-V7-08)', () => {
+  it('gộp khi chưa đọc được tường: toast nói lý do, không phòng nào mất', async () => {
+    const notifications: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const [target, absorbed] = ROOM_LABEL_FIXTURE_ROOMS;
+
+    await act(async () => {
+      mounted.result.current.onMerge(target?.id as RoomId, absorbed?.id as RoomId);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+
+    const [refusal] = notifications.list();
+
+    /* Bộ mẫu không kèm tường, nên lý do là câu "chưa đọc được đồ thị tường" của cổng. */
+    expect(refusal?.title).toBe(ROOM_LABEL_TEXT.wallsNotReadable);
+    expect(refusal?.undoTicket).toBeUndefined();
+    expect(mounted.result.current.rooms).toHaveLength(ROOM_LABEL_FIXTURE_TOTAL);
+  });
+});
+
+/*
+ * Đổi vì bộ lưu mới (F-04x-1): cổng không còn `persistRoomLabels`; lượt lưu đi qua
+ * `useFloorLayerAutosave` với client cổng lộ ra, nên bài kiểm rình `writeLayer`.
+ */
+describe('tự lưu — Ctrl+S với tới màn này (B-V7-01, F-04x-1)', () => {
+  /* #35 từ chối phòng tên rỗng (`FloorLayerWriteSchema`) — bộ mẫu có phòng chưa tên, nên đặt tên tạm cho chúng. */
+  const namedRooms = ROOM_LABEL_FIXTURE_ROOMS.map((room, index) =>
+    room.name.trim() === '' ? { ...room, name: `Phòng ${String(index + 1)}` } : room,
+  );
+  const savingGateway = () => {
+    const apiClient = createMockApiClient();
+    const gateway = createMockRoomLabelReviewGateway({ apiClient, graph: graphOf(namedRooms, []) });
+
+    return { gateway, writeLayer: vi.spyOn(apiClient.spatial, 'writeLayer') };
+  };
+
+  const renameR005 = async (mounted: Awaited<ReturnType<typeof mountSettled>>): Promise<void> => {
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+    });
+  };
+
+  it('flushAutosaves lưu NGAY, không đợi cửa sổ 800 ms của A7', async () => {
+    const { gateway, writeLayer } = savingGateway();
+    const mounted = await mountSettled({ gateway });
+
+    await renameR005(mounted);
+
+    /* Còn trong cửa sổ 800 ms: chưa lượt lưu nào. */
+    expect(writeLayer).not.toHaveBeenCalled();
+
+    /* Đúng thứ `SAVE_SHORTCUT` của `router.tsx` gọi. */
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('tháo màn khi chưa sửa gì — Ctrl+S ở màn sau không gửi gì', async () => {
+    const { gateway, writeLayer } = savingGateway();
+    const mounted = await mountSettled({ gateway });
+
+    mounted.unmount();
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).not.toHaveBeenCalled();
+  });
+
+  it('409 → dải "Tải lại" (F-04x-1 [8].6)', async () => {
+    const { gateway, writeLayer } = savingGateway();
+
+    /* Máy chủ đã đi trước bản mà màn nạp — lượt lưu đầu nhận 409. */
+    simulateRemoteLayerEdit(FLOOR_ID);
+    const mounted = await mountSettled({ gateway });
+
+    await renameR005(mounted);
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
   });
 });
 
@@ -486,7 +627,8 @@ describe('vòng tường hở', () => {
 
     expect(mounted.result.current.state).toBe('empty');
     expect(notice).toContain('lớp tường');
-    expect(notice).toContain('Kiểm tra vòng hở');
+    /* Gọi ĐÚNG tên nút đang có trên màn (`RoomLabelReview.tsx`, B-V7-10). */
+    expect(notice).toContain('bấm "Kiểm tra lại vòng hở"');
   });
 
   it('"sang lớp tường" đi đúng đường dẫn ROUTES ghép ra', async () => {
@@ -505,7 +647,7 @@ describe('vòng tường hở', () => {
 /* Bảy trạng thái (A11/R-63).                                                  */
 /* -------------------------------------------------------------------------- */
 
-describe('bảy trạng thái', () => {
+describe('Bảy trạng thái', () => {
   it('bảy kịch bản phủ đúng bảy nhánh của SEVEN_STATES', () => {
     expect(ROOM_LABEL_REVIEW_SCENARIOS.map((scenario) => scenario.state)).toEqual([
       ...SEVEN_STATES,
@@ -537,7 +679,9 @@ describe('bảy trạng thái', () => {
     const mounted = await mountScenario(ROOM_LABEL_SCENARIO_FORBIDDEN);
 
     expect(mounted.result.current.isViewerRole).toBe(true);
-    expect(mounted.result.current.viewerRoleNotice).not.toBeNull();
+    expect(mounted.result.current.viewerRoleNotice).toBe(
+      'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
+    );
 
     await act(async () => {
       mounted.result.current.onRename(ROOM_R005.id, 'tên của người xem');
@@ -598,5 +742,45 @@ describe('chip lọc "Chưa đặt tên"', () => {
     });
 
     expect(mounted.result.current.rooms).toHaveLength(ROOM_LABEL_FIXTURE_TOTAL);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('tỉ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: dải mở màn tỉ lệ; diện tích, chu vi, tổng là PROVISIONAL_MEASURE_TEXT', async () => {
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({
+      gateway: createMockRoomLabelReviewGateway({ graph: graphOf(ROOM_LABEL_FIXTURE_ROOMS, []), scaleStatus: 'unresolved' }),
+      onNavigate,
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.provisionalScaleNotice).not.toBeNull();
+    });
+
+    const { rooms, summary, provisionalScaleNotice } = mounted.result.current;
+    expect(rooms.length).toBeGreaterThan(0);
+    expect(rooms.every((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(true);
+    expect(rooms.every((row) => row.perimeterText === PROVISIONAL_MEASURE_TEXT)).toBe(true);
+    expect(summary.totalAreaText).toBe(PROVISIONAL_MEASURE_TEXT);
+
+    act(() => {
+      provisionalScaleNotice?.onCalibrate();
+    });
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(PROJECT_ID, FLOOR_ID));
+    mounted.unmount();
+  });
+
+  it('tầng có tỉ lệ thật: không dải, số đo là số', async () => {
+    const mounted = await mountSettled();
+    const { rooms, summary, provisionalScaleNotice } = mounted.result.current;
+
+    expect(provisionalScaleNotice).toBeNull();
+    expect(rooms.some((row) => row.areaText === PROVISIONAL_MEASURE_TEXT)).toBe(false);
+    expect(summary.totalAreaText).not.toBe(PROVISIONAL_MEASURE_TEXT);
+    mounted.unmount();
   });
 });

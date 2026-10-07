@@ -381,7 +381,7 @@ export function buildShareLinkForm(overrides: Partial<ShareLinkFormModel> = {}):
 export const SEVEN_DAY_EXPIRY_LABEL = SHARE_EXPIRY_LABELS[SEVEN_DAY_CHOICE];
 
 /* ==========================================================================
- * 6. Mười sáu hành động — không làm gì; test tự ghi đè bằng `vi.fn()`.
+ * 6. Mười tám hành động — không làm gì; test tự ghi đè bằng `vi.fn()`.
  * ========================================================================== */
 
 export const NOOP_SHARE_DIALOG_ACTIONS: ShareDialogActions = {
@@ -392,6 +392,8 @@ export const NOOP_SHARE_DIALOG_ACTIONS: ShareDialogActions = {
   setIncludeViewpoint: () => undefined,
   createLink: () => undefined,
   revokeLink: () => undefined,
+  confirmRevoke: () => undefined,
+  cancelRevoke: () => undefined,
   copyLink: () => undefined,
   copyEmbedCode: () => undefined,
   setEmbedLevel: () => undefined,
@@ -419,6 +421,7 @@ function modelForState(state: SevenState): ShareDialogModel {
     state,
     savedAtLabel: SAMPLE_SAVED_AT_LABEL,
     canCreateLink: true,
+    linksSupported: true,
     noPermissionReason: null,
     members: SAMPLE_MEMBERS,
     membersReadOnlyReason: MEMBERS_READ_ONLY_REASON,
@@ -428,6 +431,7 @@ function modelForState(state: SevenState): ShareDialogModel {
     copiedTargetId: null,
     errorMessage: null,
     staleLinkNotice: null,
+    pendingRevokeUrl: null,
   };
 
   switch (state) {
@@ -478,6 +482,19 @@ function modelForState(state: SevenState): ShareDialogModel {
     default:
       return base;
   }
+}
+
+/**
+ * Máy chủ không phục vụ liên kết chia sẻ (v1, BE-BIND #47–#49 là v2): trạng thái
+ * `success`, chỉ còn "người có quyền" — phần liên kết và mã nhúng rời DOM.
+ */
+export function buildLinksUnsupportedModel(): ShareDialogModel {
+  return {
+    ...modelForState('success'),
+    linksSupported: false,
+    rows: [],
+    form: buildShareLinkForm({ canSubmit: false }),
+  };
 }
 
 /**

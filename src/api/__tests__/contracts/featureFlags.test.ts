@@ -18,17 +18,18 @@ import { FeatureFlagsSchema } from '../../schemas/featureFlags';
 const allFlags = {
   'export.pdf-vector': false,
   'qc.live-collaboration': false,
+  'scene.pascal-viewer': false,
   'rules.parallel-run': true,
   'scene.instanced-walls': true,
   'scene.soft-shadows': false,
 } as const;
 
 describe('FeatureFlagsSchema', () => {
-  it('nhận bảng đầy đủ năm cờ', () => {
+  it('nhận bảng đầy đủ sáu cờ', () => {
     expect(FeatureFlagsSchema.parse(allFlags)).toStrictEqual({ ...allFlags });
   });
 
-  it('nhận bảng rỗng và bỏ hẳn cả năm khoá — vắng là "theo mặc định của client"', () => {
+  it('nhận bảng rỗng và bỏ hẳn mọi khoá — vắng là "theo mặc định của client"', () => {
     expect(FeatureFlagsSchema.parse({})).toStrictEqual({});
   });
 
@@ -36,8 +37,8 @@ describe('FeatureFlagsSchema', () => {
     expect(FeatureFlagsSchema.parse({ [key]: true })).toStrictEqual({ [key]: true });
   });
 
-  it('khai đúng năm khoá mà lib/telemetry/flags.ts:74 liệt kê', () => {
-    expect(FEATURE_FLAG_KEYS).toHaveLength(5);
+  it('khai đúng sáu khoá mà lib/telemetry/flags.ts liệt kê', () => {
+    expect(FEATURE_FLAG_KEYS).toHaveLength(6);
     expect(FeatureFlagsSchema.parse(allFlags)).toStrictEqual(
       Object.fromEntries(FEATURE_FLAG_KEYS.map((key) => [key, allFlags[key]])),
     );

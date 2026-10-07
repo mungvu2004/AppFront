@@ -33,6 +33,8 @@ chủ sở hữu duy nhất của phần `propertyInspector` trong nó.
 | `wallType.loadBearing` / `.partition` / `.envelope` | Chịu lực / Ngăn / Bao che | Lựa chọn của control `select` ở dòng `wallType` |
 | `value.mixed` | **Giá trị khác nhau** | Hiện thay giá trị khi `PropertyValue.kind === 'mixed'` (chọn nhiều, các mục lệch giá trị) |
 | `empty.message` | Chưa chọn đối tượng nào để xem thuộc tính. | Câu đầy của trạng thái `empty` |
+| `empty.missing` | Đối tượng đang chọn không có trong dữ liệu của dự án này nên chưa xem được thuộc tính. | Câu của `empty` khi vùng chọn có id không có trong đồ thị của dự án (B-V8-42) |
+| `empty.unsupported` | Trục, tầng và kích thước chưa có bảng thuộc tính. Bảng này dành cho tường, ô mở, phòng và nội thất. | Câu của `empty` khi mọi id được chọn đều có thật nhưng không loại nào có bảng (B-V8-42) |
 | `empty.tabHint` | Nhấn Tab để duyệt vòng qua các đối tượng trên mô hình. | Gợi ý phím dưới câu chính của `empty` |
 | `loading.label` | Đang tải thuộc tính… | Nhãn ẩn/`aria-live` đi cùng dòng khung xương của `loading` |
 | `partial.unavailable` | Không áp dụng cho đối tượng này. | Caption thay dòng trống khi `PropertyValue.kind === 'unavailable'` |

@@ -797,8 +797,9 @@ export const WALL_GEOMETRY_EDITOR_TEXT = Object.freeze({
     splitOffWall: 'Điểm tách nằm ngoài bức tường nên chưa tách được.',
     heightBelowOpening:
       'Chiều cao mới thấp hơn đỉnh một ô mở trên tường này nên chưa đặt được.',
-    noSaveTarget:
-      'Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây.',
+    wallMissing:
+      'Bức tường đang chọn không có trong dữ liệu của dự án này nên chưa sửa được hình học.',
+    readFailed: 'Chưa đọc được hình học của bức tường này.',
     serverRejected: (kind: string): string =>
       `Máy chủ chưa nhận được hình học mới (${kind}). Thay đổi vẫn còn trên máy này.`,
   },
@@ -1628,7 +1629,8 @@ thường kiểu câu (A6); chữ hoa chỉ cho mã tường / mã đỉnh / mã
 | `refusal.joinNeedsTwoEnds` | Nối tường cần đúng hai đầu mút đang chọn. |
 | `refusal.splitOffWall` | Điểm tách nằm ngoài bức tường nên chưa tách được. |
 | `refusal.heightBelowOpening` | Chiều cao mới thấp hơn đỉnh một ô mở trên tường này nên chưa đặt được. |
-| `refusal.noSaveTarget` | Chưa mở dự án và tầng nào nên chưa có nơi để lưu. Bản vẽ của bạn không có lỗi nào ở đây. |
+| `refusal.wallMissing` | Bức tường đang chọn không có trong dữ liệu của dự án này nên chưa sửa được hình học. |
+| `refusal.readFailed` | Chưa đọc được hình học của bức tường này. |
 | `refusal.serverRejected` | Máy chủ chưa nhận được hình học mới ({{kind}}). Thay đổi vẫn còn trên máy này. |
 | `undo.vertexMoved` | Đã dời đỉnh {{vertexCode}} |
 | `undo.vertexAdded` | Đã thêm một đỉnh |

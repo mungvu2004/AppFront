@@ -64,6 +64,7 @@ import {
 import {
   IMPORT_BUTTON_LABEL,
   PRIMARY_BUTTON_LABEL,
+  REMEMBER_CHOICE_LABEL,
   SECONDARY_BUTTON_LABEL,
 } from './cadBranchConfirmText';
 import { CAD_ALLOWED_WORDS } from './useCadBranchConfirm';
@@ -84,7 +85,7 @@ const PANEL_TITLE = 'Ánh xạ lớp từ tệp CAD';
 
 /** Nhãn trình đọc màn hình của canvas — hằng chuỗi của `cadBranchConfirmText.ts`. */
 const PREVIEW_CANVAS_LABEL =
-  'xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán';
+  'Xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán';
 
 /** Từ nước ngoài và mã máy đọc mà `expectVietnamese` phải bỏ qua trên màn này. */
 const ALLOWED_WORDS: readonly string[] = [
@@ -102,8 +103,8 @@ const ALLOWED_WORDS: readonly string[] = [
 /** Lớp bộ mẫu được đổi vai trò trong kịch bản xem trước sống: lớp tường bao. */
 const WALL_LAYER = CAD_SAMPLE_LAYERS[0];
 
-/** Nhãn vai trò "tường" — hằng chuỗi của `useCadBranchConfirm.ts`. */
-const WALL_ROLE_LABEL = 'tường';
+/** Nhãn vai trò "Tường" — hằng chuỗi của `useCadBranchConfirm.ts`. */
+const WALL_ROLE_LABEL = 'Tường';
 
 /** Token nét của lớp chưa được gán vai trò — hằng của `CadLayerPreviewCanvas.tsx`. */
 const IDLE_STROKE_TOKEN = 'var(--wall-idle)';
@@ -277,7 +278,7 @@ describe('CadBranchConfirm — dòng tóm tắt chân màn (A15)', () => {
     const summary = scenario.model.summary;
 
     if (summary === null) {
-      throw new Error('kịch bản "một phần" phải có dòng tóm tắt');
+      throw new Error('kịch bản "Một phần" phải có dòng tóm tắt');
     }
 
     renderWithProviders(<CadBranchConfirm {...scenario} />);
@@ -386,6 +387,37 @@ describe('CadBranchConfirm — hai giai đoạn trong một route [NGHIEM-2]', (
 });
 
 /* -------------------------------------------------------------------------- */
+/* F-06 — ô "ghi nhớ" rời DOM khi cổng không ghi nhớ được.                     */
+/* -------------------------------------------------------------------------- */
+
+describe('CadBranchConfirm — ô ghi nhớ theo năng lực của cổng (F-06)', () => {
+  function renderWithRemember(canRemember: boolean) {
+    return renderWithProviders(
+      <CadBranchConfirmContainer
+        floorId={FLOOR_ID}
+        gateway={createMockCadBranchConfirmGateway({ supports: { rememberChoice: canRemember } })}
+        onNavigate={() => undefined}
+        projectId={PROJECT_ID}
+      />,
+    );
+  }
+
+  it('cổng tắt (bản thật v1): ô ghi nhớ vắng', async () => {
+    renderWithRemember(false);
+    await settleDialog();
+
+    expect(screen.queryByRole('checkbox', { name: REMEMBER_CHOICE_LABEL })).not.toBeInTheDocument();
+  });
+
+  it('cổng bật: ô ghi nhớ có', async () => {
+    renderWithRemember(true);
+    await settleDialog();
+
+    expect(screen.getByRole('checkbox', { name: REMEMBER_CHOICE_LABEL })).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* [NGHIEM-3] Xem trước sống: đổi vai trò → canvas đổi màu NGAY.               */
 /* -------------------------------------------------------------------------- */
 
@@ -399,15 +431,15 @@ describe('CadBranchConfirm — xem trước cập nhật trực tiếp [NGHIEM-3
 
     await chooseCadBranch();
 
-    // Trước khi gán: mọi lớp còn ở vai trò "bỏ qua", nên mọi nét là nét chờ.
+    // Trước khi gán: mọi lớp còn ở vai trò "Bỏ qua", nên mọi nét là nét chờ.
     const before = canvasStrokes(container);
 
     expect(before.length).toBeGreaterThan(0);
     expect(new Set(before)).toEqual(new Set([IDLE_STROKE_TOKEN]));
 
-    // Đúng đường người dùng đi: mở Select vai trò của hàng, chọn "tường".
+    // Đúng đường người dùng đi: mở Select vai trò của hàng, chọn "Tường".
     fireEvent.click(
-      screen.getByRole('combobox', { name: `vai trò của lớp ${WALL_LAYER.name}` }),
+      screen.getByRole('combobox', { name: `Vai trò của lớp ${WALL_LAYER.name}` }),
     );
     fireEvent.click(await screen.findByRole('option', { name: WALL_ROLE_LABEL }));
 
@@ -432,7 +464,7 @@ describe('CadBranchConfirm — xem trước cập nhật trực tiếp [NGHIEM-3
     );
 
     fireEvent.click(
-      screen.getByRole('combobox', { name: `vai trò của lớp ${WALL_LAYER.name}` }),
+      screen.getByRole('combobox', { name: `Vai trò của lớp ${WALL_LAYER.name}` }),
     );
     fireEvent.click(await screen.findByRole('option', { name: WALL_ROLE_LABEL }));
 

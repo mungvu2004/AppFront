@@ -13,9 +13,11 @@
 
 import { readFileSync } from 'node:fs';
 
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { NotificationHost } from '@/components/feedback/NotificationHost';
+import { createNotificationBus } from '@/lib/mutations/notificationBus';
 import { CONTRAST_MINIMUM_BODY, checkContrast, parsePalette } from '@/lib/coloring/legend';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatNumber } from '@/lib/format/number';
@@ -36,12 +38,12 @@ import { AccountSettings } from './AccountSettings';
 import { AccountSettingsContainer } from './AccountSettings.container';
 import { EMPTY_ACCOUNT_DRAFT, type AccountDraft, type AccountDraftPort } from './accountDraft';
 import type { AccountSettingsGateway } from './accountSettingsGateway';
-import type { AccountSessionRow } from './SessionsSection';
 import type { NotificationEventModel } from './NotificationsSection';
 import {
   DENSITY_ROW_CLASS,
   LANGUAGE_OPTIONS,
   type AccountPreferencesModel,
+  type useAccountPreferences,
 } from './useAccountPreferences';
 import { NOTIFICATION_CHANNELS, buildShortcutRows } from './useAccountTables';
 import {
@@ -62,15 +64,17 @@ let mockCapturedPort: AccountDraftPort | null = null;
 vi.mock('./useAccountPreferences', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('./useAccountPreferences');
   const original = actual['useAccountPreferences'] as (
-    port: AccountDraftPort,
+    ...args: Parameters<typeof useAccountPreferences>
   ) => AccountPreferencesModel;
 
   return {
     ...actual,
-    useAccountPreferences: (port: AccountDraftPort): AccountPreferencesModel => {
-      mockCapturedPort = port;
+    useAccountPreferences: (
+      ...args: Parameters<typeof useAccountPreferences>
+    ): AccountPreferencesModel => {
+      mockCapturedPort = args[0];
 
-      return original(port);
+      return original(...args);
     },
   };
 });
@@ -83,16 +87,11 @@ afterEach(() => {
   cleanup();
 });
 
-/** Bảy tiêu đề mà khung vẽ. Ruột của chúng thuộc về người khác. */
-const BLOCK_TITLES = [
-  'hồ sơ',
-  'giao diện',
-  'thông báo',
-  'phím tắt',
-  'mật khẩu',
-  'phiên đăng nhập',
-  'vùng nguy hiểm',
-] as const;
+/** Năm tiêu đề mà khung vẽ ở v1. Phiên đăng nhập và vùng nguy hiểm rời DOM (cổng không có năng lực). */
+const BLOCK_TITLES = ['Hồ sơ', 'Giao diện', 'Thông báo', 'Phím tắt', 'Mật khẩu'] as const;
+
+/** Hai khối của v2: vắng khỏi DOM chứ không bị vô hiệu hoá. */
+const ABSENT_BLOCK_TITLES = ['Phiên đăng nhập', 'Vùng nguy hiểm'] as const;
 
 /** Cổng đọc được ngay, ghi vào một mảng để test đếm số lượt lưu. */
 function createRecordingGateway(): {
@@ -108,8 +107,9 @@ function createRecordingGateway(): {
       save: (draft) => {
         saves.push(draft);
 
-        return Promise.resolve();
+        return Promise.resolve(null);
       },
+      replaceAvatar: () => Promise.reject(new Error('không dùng ở bộ kiểm này')),
     },
   };
 }
@@ -122,17 +122,21 @@ describe('đường dẫn của màn cài đặt tài khoản', () => {
 });
 
 describe('khung của màn', () => {
-  it('vẽ đủ bảy khối, mỗi khối một tiêu đề đọc được', async () => {
+  it('vẽ đủ năm khối, mỗi khối một tiêu đề đọc được; hai khối của v2 vắng khỏi DOM', async () => {
     const { gateway } = createRecordingGateway();
 
     renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'cài đặt tài khoản' })).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' })).toBeTruthy();
     });
 
     for (const title of BLOCK_TITLES) {
       expect(screen.getByRole('heading', { level: 2, name: title })).toBeTruthy();
+    }
+
+    for (const title of ABSENT_BLOCK_TITLES) {
+      expect(screen.queryByRole('heading', { level: 2, name: title })).toBeNull();
     }
 
     // A7: chỉ báo lưu nói ra được, và nó là `role="status"`.
@@ -145,7 +149,7 @@ describe('khung của màn', () => {
     const { container } = renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 2, name: 'hồ sơ' })).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 2, name: 'Hồ sơ' })).toBeTruthy();
     });
 
     expectVietnamese(container);
@@ -154,15 +158,16 @@ describe('khung của màn', () => {
 });
 
 describe('trạng thái 2 — đang tải, và nó là của cả trang', () => {
-  it('khi lượt đọc chưa về thì bảy khối là khung xương, không khối nào có ruột', () => {
+  it('khi lượt đọc chưa về thì năm khối là khung xương, không khối nào có ruột', () => {
     const pendingGateway: AccountSettingsGateway = {
       read: () => new Promise<AccountDraft>(() => undefined),
-      save: () => Promise.resolve(),
+      save: () => Promise.resolve(null),
+      replaceAvatar: () => Promise.reject(new Error('không dùng ở bộ kiểm này')),
     };
 
     renderWithProviders(<AccountSettingsContainer gateway={pendingGateway} />);
 
-    // Bảy tiêu đề vẫn có — khung xương là khung xương của thẻ, không phải một
+    // Năm tiêu đề vẫn có — khung xương là khung xương của thẻ, không phải một
     // trang trắng thay chỗ cả màn (A11).
     for (const title of BLOCK_TITLES) {
       expect(screen.getByRole('heading', { level: 2, name: title })).toBeTruthy();
@@ -174,10 +179,11 @@ describe('trạng thái 2 — đang tải, và nó là của cả trang', () => 
 });
 
 describe('lỗi đọc cấp trang', () => {
-  it('thay chỗ bảy khối bằng một dải cảnh báo có nút đọc lại', async () => {
+  it('thay chỗ các khối bằng một dải cảnh báo có nút đọc lại', async () => {
     const failingGateway: AccountSettingsGateway = {
       read: () => Promise.reject(new Error('đọc hỏng')),
-      save: () => Promise.resolve(),
+      save: () => Promise.resolve(null),
+      replaceAvatar: () => Promise.reject(new Error('không dùng ở bộ kiểm này')),
     };
 
     renderWithProviders(<AccountSettingsContainer gateway={failingGateway} />);
@@ -186,7 +192,7 @@ describe('lỗi đọc cấp trang', () => {
       expect(screen.getByText('Không tải được cài đặt tài khoản')).toBeTruthy();
     });
 
-    expect(screen.queryByRole('heading', { level: 2, name: 'hồ sơ' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Hồ sơ' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy();
   });
 });
@@ -209,7 +215,9 @@ describe('mối nối tự lưu (D-07)', () => {
   it('một lượt port.stage đi trọn đường tới cổng lưu sau khi hết 800 ms', async () => {
     const { gateway, saves } = createRecordingGateway();
 
-    renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
+    renderWithProviders(
+      <AccountSettingsContainer gateway={gateway} notifications={createNotificationBus()} />,
+    );
 
     await waitFor(() => {
       expect(mockCapturedPort).not.toBeNull();
@@ -254,6 +262,92 @@ describe('mối nối tự lưu (D-07)', () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* B-V12b-03 — mỗi lượt tự lưu kèm toast hoàn tác (A8).                          */
+/* -------------------------------------------------------------------------- */
+
+describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác ghi lại giá trị cũ', () => {
+  /** Lượt tự lưu 800 ms cộng lượt render — đồng hồ thật, không đồng hồ giả. */
+  const SAVE_WAIT = { timeout: 3000 };
+
+  async function mountWithName(fullName: string) {
+    const { gateway, saves } = createRecordingGateway();
+    const read = (): Promise<AccountDraft> =>
+      Promise.resolve({ ...EMPTY_ACCOUNT_DRAFT, profile: { fullName } });
+    const bus = createNotificationBus();
+
+    renderWithProviders(
+      <>
+        <AccountSettingsContainer gateway={{ ...gateway, read }} notifications={bus} />
+        <NotificationHost bus={bus} />
+      </>,
+    );
+
+    const field = await screen.findByLabelText('Họ tên');
+    await waitFor(() => {
+      expect(field).toHaveValue(fullName);
+    });
+
+    return { bus, field, saves };
+  }
+
+  const undoButtons = () => screen.queryAllByRole('button', { name: 'Hoàn tác' });
+
+  it('sửa họ tên, qua 800 ms thì hiện đúng một nút "Hoàn tác", và ô vẫn giữ chữ vừa gõ', async () => {
+    const { field, saves } = await mountWithName('An');
+
+    fireEvent.change(field, { target: { value: 'Bình' } });
+
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+    expect(saves).toHaveLength(1);
+    expect(saves[0]?.profile['fullName']).toBe('Bình');
+    // Lưu xong không được xoá chữ đang có trong ô.
+    expect(field).toHaveValue('Bình');
+  });
+
+  it('bấm Hoàn tác thì ô về tên cũ, máy chủ được ghi lại tên cũ, và lượt ấy không sinh toast mới', async () => {
+    const { bus, field, saves } = await mountWithName('An');
+
+    fireEvent.change(field, { target: { value: 'Bình' } });
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
+    });
+    await waitFor(() => {
+      expect(saves).toHaveLength(2);
+    }, SAVE_WAIT);
+    expect(saves[1]?.profile['fullName']).toBe('An');
+    expect(bus.list()).toHaveLength(1);
+    expect(undoButtons()).toHaveLength(0);
+  });
+
+  it('hoàn tác xong sửa lại trong 5 giây thì nút "Hoàn tác" hiện lại', async () => {
+    const { field } = await mountWithName('An');
+
+    fireEvent.change(field, { target: { value: 'Bình' } });
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+    await waitFor(() => {
+      expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
+    });
+
+    fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'Châu' } });
+
+    await waitFor(() => {
+      expect(undoButtons()).toHaveLength(1);
+    }, SAVE_WAIT);
+  });
+});
+
 /* ========================================================================== */
 /* Nghiệm thu cả màn — T6.                                                     */
 /*                                                                            */
@@ -268,24 +362,6 @@ describe('mối nối tự lưu (D-07)', () => {
 
 /** Một mẫu thư điện tử dùng chung cho khối hồ sơ và vùng nguy hiểm. */
 const SAMPLE_EMAIL = 'an@congty.vn';
-
-/** Hai phiên mẫu. `lastActiveLabel` đã là chuỗi — A15 nói định dạng xong ở viewmodel. */
-const SAMPLE_SESSIONS: readonly AccountSessionRow[] = [
-  {
-    id: 'session-current',
-    device: 'Trình duyệt trên máy tính để bàn',
-    location: 'Hà Nội, Việt Nam',
-    lastActiveLabel: 'vừa xong',
-    isCurrent: true,
-  },
-  {
-    id: 'session-laptop',
-    device: 'Trình duyệt trên máy tính xách tay',
-    location: 'Đà Nẵng, Việt Nam',
-    lastActiveLabel: '12 phút trước',
-    isCurrent: false,
-  },
-];
 
 /** Năm sự việc của ma trận thông báo, dựng từ hai kênh mà T5 khai. */
 const NOTIFICATION_EVENTS: readonly NotificationEventModel[] = [
@@ -344,13 +420,24 @@ function vmFor(
         avatarInitials: 'NH',
         avatarAlt: 'Ảnh đại diện của Nguyễn Thu Hà',
         isAvatarUploading: isPartial,
+        isAvatarLocked: false,
         avatarStatusLabel: 'Đang tải ảnh lên…',
         onAvatarFileSelected: vi.fn(),
+        avatarProblem: null,
+        avatarReplace: {
+          isOpen: false,
+          previewUrl: '',
+          hasExistingAvatar: !isEmpty,
+          isSending: false,
+          onConfirm: vi.fn(),
+          onCancel: vi.fn(),
+        },
+        problems: {},
         fullName: 'Nguyễn Thu Hà',
         onFullNameChange: vi.fn(),
         jobTitle: isEmpty ? '' : 'Kỹ sư kết cấu',
         onJobTitleChange: vi.fn(),
-        jobTitlePlaceholder: 'chưa đặt',
+        jobTitlePlaceholder: 'Chưa đặt',
         email: SAMPLE_EMAIL,
         emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
         onChangeEmail: vi.fn(),
@@ -416,31 +503,13 @@ function vmFor(
         canSubmit: false,
         isSubmitting: false,
         onSubmit: vi.fn(),
+        formProblem: null,
         successMessage: null,
         isManagedExternally: isForbidden,
       },
-      sessions: {
-        rows: isEmpty || isError || isForbidden ? [] : SAMPLE_SESSIONS,
-        warning: isPartial
-          ? 'Không đọc được danh sách phiên đang mở. Thử lại sau ít phút.'
-          : null,
-        onRetry: vi.fn(),
-        onSignOut: vi.fn(),
-        signingOutId: null,
-        reducedMotion: motionOff,
-      },
-      danger: {
-        email: SAMPLE_EMAIL,
-        isDialogOpen: false,
-        onRequestDelete: vi.fn(),
-        onCancelDelete: vi.fn(),
-        onConfirmDelete: vi.fn(),
-        confirmValue: '',
-        onConfirmValueChange: vi.fn(),
-        canConfirm: false,
-        isDeleting: false,
-        errorMessage: null,
-      },
+      // Phiên và vùng nguy hiểm rời DOM ở v1 (cổng không có năng lực).
+      sessions: null,
+      danger: null,
     },
   };
 }
@@ -545,7 +614,7 @@ const MOTION_SILENCERS = new Set(['transition-none', 'animate-none', 'duration-0
  * Lớp có chuyển động nhưng KHÔNG dịch chuyển gì.
  *
  * - `transition-colors` chỉ nội suy màu; không có gì di chuyển, nên nó không
- *   phải thứ mà "giảm chuyển động" nói tới.
+ *   phải thứ mà "Giảm chuyển động" nói tới.
  * - `animate-focus-ring` là vòng lấy nét. Tắt nó thì bàn phím mất dấu chỉ chỗ,
  *   mà A12 gọi bàn phím là đường đi hạng nhất.
  */
@@ -661,9 +730,7 @@ describe('giảm chuyển động — mọi hoạt cảnh của màn phải tắ
       `[T6] giảm chuyển động — ${String(moving.length)} chỗ có dịch chuyển, ` +
         `${String(moving.length - alive.length)} chỗ đã bị tắt tại chỗ, ` +
         `${String(alive.length)} chỗ còn sống: ` +
-        alive
-          .map((site) => `${site.block}/${site.tag} [${site.movement.join(' ')}]`)
-          .join(' · '),
+        alive.map((site) => `${site.block}/${site.tag} [${site.movement.join(' ')}]`).join(' · '),
     );
 
     expect(alive.length).toBeLessThanOrEqual(FROZEN_MOTION_RESIDUE);
@@ -849,7 +916,7 @@ describe('đổi chủ đề năm lần liên tiếp — không nháy màu thô'
         .filter((style) => RAW_COLOR.test(style));
 
       observed.push(
-        `#${String(round + 1)} ${isDark ? 'tối' : 'sáng'}` +
+        `#${String(round + 1)} ${isDark ? 'Tối' : 'Sáng'}` +
           `${drifted ? ' CÂY ĐỔI' : ''}${raw.length > 0 ? ` MÀU THÔ×${String(raw.length)}` : ''}`,
       );
 

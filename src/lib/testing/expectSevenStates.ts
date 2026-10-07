@@ -27,6 +27,7 @@
  * or in a stack trace.
  */
 
+import { expectSentenceCase } from './expectSentenceCase';
 import { SEVEN_STATES, SEVEN_STATE_LABELS, type SevenState, type SevenStateScenario } from './sevenStateScenarios';
 
 /**
@@ -44,6 +45,15 @@ export interface ScreenRenderResult {
 
 /** Builds the screen for one scenario. Supplied by the caller; never called twice for a state. */
 export type ScreenRenderer = (scenario: SevenStateScenario) => ScreenRenderResult;
+
+export interface SevenStatesOptions {
+  /**
+   * Also run {@link expectSentenceCase} (A6) on every state, before it is taken
+   * down. Off by default until every screen is clean — R2 turns it on screen by
+   * screen.
+   */
+  readonly sentenceCase?: boolean;
+}
 
 /** Prefix on every failure, so a report says which rule was broken. */
 const FAILURE_PREFIX = 'expectSevenStates';
@@ -109,6 +119,7 @@ function isBlank(container: HTMLElement): boolean {
  *
  * @param renderScreen Builds the screen for one scenario and returns its container.
  * @param scenarios The seven scenarios, usually from `createSevenStateScenarios()`.
+ * @param options `sentenceCase: true` also checks rule A6 on every state.
  *
  * @throws Error naming the state, in Vietnamese, on the first failure — a
  * missing state, a render that threw, or a screen that came out empty.
@@ -122,6 +133,7 @@ function isBlank(container: HTMLElement): boolean {
 export function expectSevenStates(
   renderScreen: ScreenRenderer,
   scenarios: readonly SevenStateScenario[],
+  options: SevenStatesOptions = {},
 ): void {
   const byState = indexByState(scenarios);
 
@@ -150,6 +162,14 @@ export function expectSevenStates(
           `${FAILURE_PREFIX}: trạng thái "${scenario.label}" dựng ra màn hình trắng. ` +
             'Mỗi trạng thái phải hiển thị được một thứ gì đó cho người dùng.',
         );
+      }
+
+      if (options.sentenceCase === true) {
+        try {
+          expectSentenceCase(result.container);
+        } catch (thrown) {
+          throw new Error(`${FAILURE_PREFIX}: trạng thái "${scenario.label}" — ${describeThrown(thrown)}`);
+        }
       }
     } finally {
       // Always taken down, including on failure, so the next test starts clean.

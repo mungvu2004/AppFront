@@ -23,10 +23,10 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
 
   return (
     <section
-      aria-label="kiểm tra trước khi xuất"
+      aria-label="Kiểm tra trước khi xuất"
       className="flex flex-col gap-2 rounded-lg border border-border-default bg-bg-surface p-4"
     >
-      <h3 className="text-sm font-medium text-text-secondary">kiểm tra trước khi xuất</h3>
+      <h3 className="text-sm font-medium text-text-secondary">Kiểm tra trước khi xuất</h3>
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.id} className="flex items-start justify-between gap-3 text-sm">
@@ -43,7 +43,14 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
             {row.fixHref !== null && (
               <a
                 href={row.fixHref}
-                onClick={() => {
+                onClick={(event) => {
+                  // Bấm trái thường đi qua router: để thẻ `<a>` tự đi thì cả trang nạp
+                  // lại và kho mất sạch (B-V12-06). Phím bổ trợ / chuột giữa = tab khác.
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                  }
+
+                  event.preventDefault();
                   onFollowFix(row.id);
                 }}
                 className={cn(
@@ -51,7 +58,7 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
                   FOCUS_RING,
                 )}
               >
-                sửa
+                Sửa
               </a>
             )}
           </li>

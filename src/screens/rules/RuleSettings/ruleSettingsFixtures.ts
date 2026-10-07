@@ -16,6 +16,8 @@
  * `src/domain/rules/function/index.ts`.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
+import type { HttpError } from '@/lib/http';
 import {
   ALL_RULES,
   createDefaultRuleRegistry,
@@ -48,6 +50,7 @@ import type {
   RuleSettingsThreshold,
   RuleSettingsViewModel,
 } from './types';
+import { describeRuleConfigSaveError } from './ruleSettingsGateway';
 
 /* ==========================================================================
  * 0. Số thật từ sổ đăng ký — không viết tay 25 hay 23 ở đâu khác.
@@ -86,7 +89,7 @@ function thresholdsFor(code: RuleCode): readonly RuleSettingsThreshold[] {
     return [
       {
         key: 'minThicknessMm',
-        label: 'bề dày tường tối thiểu',
+        label: 'Bề dày tường tối thiểu',
         unit: 'mm',
         value: MIN_WALL_THICKNESS_MM,
         min: 10,
@@ -101,7 +104,7 @@ function thresholdsFor(code: RuleCode): readonly RuleSettingsThreshold[] {
     return [
       {
         key: 'minDoorWidthMm',
-        label: 'bề rộng cửa tối thiểu',
+        label: 'Bề rộng cửa tối thiểu',
         unit: 'mm',
         value: MIN_DOOR_WIDTH_MM,
         min: 600,
@@ -119,7 +122,7 @@ function thresholdsFor(code: RuleCode): readonly RuleSettingsThreshold[] {
 export const GENERAL_THRESHOLDS: readonly RuleSettingsThreshold[] = [
   {
     key: 'jointToleranceMm',
-    label: 'dung sai nối đầu tường',
+    label: 'Dung sai nối đầu tường',
     unit: 'mm',
     value: JOINT_TOLERANCE_MM,
     min: 10,
@@ -129,7 +132,7 @@ export const GENERAL_THRESHOLDS: readonly RuleSettingsThreshold[] = [
   },
   {
     key: 'parallelAngleDeg',
-    label: 'dung sai góc song song',
+    label: 'Dung sai góc song song',
     unit: '°',
     value: PARALLEL_ANGLE_DEG,
     min: 1,
@@ -146,7 +149,7 @@ export const GENERAL_THRESHOLDS: readonly RuleSettingsThreshold[] = [
  */
 export const WALL_THICKNESS_THRESHOLD_OUT_OF_RANGE: RuleSettingsThreshold = {
   key: 'minThicknessMm',
-  label: 'bề dày tường tối thiểu',
+  label: 'Bề dày tường tối thiểu',
   unit: 'mm',
   value: 500,
   min: 10,
@@ -188,7 +191,7 @@ function toRow(rule: Rule, options: RowOptions): RuleSettingsRow {
   return {
     code: rule.code,
     sentence: rule.name,
-    description: `${RULE_GROUP_LABELS[rule.group]} · mức ${RULE_SEVERITY_LABELS[rule.severity]}.`,
+    description: `${RULE_GROUP_LABELS[rule.group]} · mức ${lowerFirst(RULE_SEVERITY_LABELS[rule.severity])}.`,
     enabled: options.allDisabled ? false : DEFAULT_REGISTRY.isEnabled(rule.code),
     severity: rule.severity,
     thresholds: thresholdsFor(rule.code),
@@ -216,7 +219,7 @@ export function buildRuleSettingsGroups(options: BuildGroupsOptions = {}): reado
     return {
       group,
       label: RULE_GROUP_LABELS[group],
-      description: `Các luật về ${RULE_GROUP_LABELS[group]}.`,
+      description: `Các luật về ${lowerFirst(RULE_GROUP_LABELS[group])}.`,
       enabled: rows.some((row) => row.enabled),
       rows,
     };
@@ -260,7 +263,7 @@ function presetOf(kind: BuildingKind): RuleSettingsPresetOption {
   const preset = PRESET_OPTIONS.find((candidate) => candidate.kind === kind);
 
   if (preset === undefined) {
-    throw new Error(`không tìm thấy bộ luật sẵn cho loại công trình "${kind}"`);
+    throw new Error(`Không tìm thấy bộ luật sẵn cho loại công trình "${kind}"`);
   }
 
   return preset;
@@ -283,7 +286,7 @@ export const EDITABLE_CAPABILITIES: RuleSettingsCapabilities = {
 export const READ_ONLY_CAPABILITIES: RuleSettingsCapabilities = {
   canEditRules: false,
   canApplyPreset: false,
-  readOnlyReason: 'Chỉ chủ dự án hoặc quản trị viên được đổi cài đặt bộ luật này.',
+  readOnlyReason: 'Chỉ quản trị viên đổi được bộ luật; bạn đang xem ở quyền chỉ đọc.',
 };
 
 /* ==========================================================================
@@ -308,6 +311,9 @@ export interface BuildModelOptions {
   readonly impactMode?: ImpactMode;
   /** Tắt sạch cả 25 luật — dùng cho test cảnh báo hậu quả (mục 2.(b).4). */
   readonly allDisabled?: boolean;
+  /** Lượt lưu gần nhất hỏng (N22) — story "xung đột — tải lại", "lỗi lưu ngưỡng chung". */
+  readonly saveProblem?: RuleSettingsViewModel['saveProblem'];
+  readonly reloadConfirmOpen?: boolean;
 }
 
 function defaultImpactModeFor(status: RuleSettingsStatus): ImpactMode {
@@ -350,6 +356,8 @@ export function buildRuleSettingsModel(options: BuildModelOptions): RuleSettings
     enabledRuleCount,
     disableAllWarning: allDisabled ? ALL_DISABLED_WARNING : null,
     errorMessage: status === 'error' ? LOAD_ERROR_MESSAGE : null,
+    saveProblem: options.saveProblem ?? null,
+    reloadConfirmOpen: options.reloadConfirmOpen ?? false,
   };
 }
 
@@ -365,6 +373,9 @@ export const NOOP_RULE_SETTINGS_ACTIONS: RuleSettingsActions = {
   onChangeGeneralThreshold: () => undefined,
   onApplyPreset: () => undefined,
   onRestoreDefaults: () => undefined,
+  onReload: () => undefined,
+  onConfirmReload: () => undefined,
+  onCancelReload: () => undefined,
 };
 
 export interface BuildPropsOverrides {
@@ -384,3 +395,25 @@ export function buildRuleSettingsProps(
     ...overrides.actions,
   };
 }
+
+/* ==========================================================================
+ * 8. Lượt lưu hỏng (N22) — câu dựng bằng chính `describeRuleConfigSaveError`.
+ * ========================================================================== */
+
+/** Một `HttpError` của N22 dựng tay, đúng chỗ `readWireError` đọc `code`/`field`. */
+const saveFailure = (status: number, code: string, field?: string): HttpError => ({
+  code,
+  kind: 'http',
+  raw: field === undefined ? {} : { field },
+  requestId: 'req-rule-config-story',
+  retryable: false,
+  status,
+});
+
+/** 409 `VERSION_CONFLICT` — dải mời tải lại. */
+export const CONFLICT_SAVE_PROBLEM = describeRuleConfigSaveError(saveFailure(409, 'VERSION_CONFLICT'));
+
+/** 422 `RULE_GENERAL_NOT_TOGGLEABLE` — câu gắn vào thẻ ngưỡng chung. */
+export const GENERAL_SAVE_PROBLEM = describeRuleConfigSaveError(
+  saveFailure(422, 'RULE_GENERAL_NOT_TOGGLEABLE', 'body.overrides.GENERAL.enabled'),
+);

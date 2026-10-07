@@ -2,9 +2,26 @@ import { useStore } from './index';
 import type { RootState } from './index';
 import { draftEntityId, type EditEntityDraft } from './draftSlice';
 import { MERGE_WINDOW_MS } from '../lib/commands/mergeCommands';
+import type { SelectionSnapshot } from '../lib/commands/history';
+import type { SpatialLayer } from '../api/client';
 import type { SpatialPatch } from '../domain/spatial/applyPatch';
+import { isIdOfKind } from '../domain/spatial/ids';
+import { replaceLevelEntities } from '../domain/spatial/replaceLevelEntities';
 import type { SpatialEntity } from '../domain/spatial/normalize';
-import type { EntityId } from '../domain/spatial/types';
+import type { Dimension, EntityId, Level } from '../domain/spatial/types';
+import { versionIdFor, type FloorMetaEntry } from './spatialSlice';
+
+/**
+ * The selection as it stands right now, for a command recorder to stamp on its history step.
+ *
+ * Read live at the moment `dispatch` pushes the step, so undo hands back the selection the
+ * person had WHEN the command ran (A8, S-06) — not the one before their last click, which is
+ * what a ref updated on every selection change gave (B-V7-09: undoing a rename deselected
+ * the room and closed its inspector).
+ */
+export const currentSelection = (): SelectionSnapshot => ({
+  selectedIds: useStore.getState().selectedIds,
+});
 
 export interface CommitResult {
   undo: () => void;
@@ -190,6 +207,130 @@ export function applyRollbackPatches(patches: readonly SpatialPatch[]): void {
   // commit must not fold into it.
   resetCommitRun();
   discardPreview();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lớp tầng từ máy chủ: ghi thật, không mở bước hoàn tác, không toast.         */
+/* -------------------------------------------------------------------------- */
+
+/** What a server read or save hands {@link replaceFloorLayer}. */
+export interface FloorLayerReplacement {
+  layer: SpatialLayer;
+  revision: number;
+  /**
+   * The floor's dimensions from N16 (they sit beside `layer` on the wire). Absent → the
+   * store keeps the floor's dimensions (a save result carries none). NO-374: without it a
+   * reload left them stale, and the N15 refresh after it skips an equal `revision`.
+   */
+  dimensions?: readonly Dimension[];
+  /** The floor's `Level`; when the store lacks the floor, it is added with this level. */
+  level?: Level;
+  /** From N16: the floor's scale is provisional. */
+  scaleStatus?: 'unresolved';
+}
+
+export interface ReplaceFloorLayerOptions {
+  /** Somebody else changed the floor: empty history, bump `serverReplaceSeq`. */
+  external?: boolean;
+  /** The save carried a scale the server accepted: drop `scaleStatus`. */
+  scaleSent?: boolean;
+}
+
+/**
+ * Puts a layer the server returned (a save result, or a reload) into the store.
+ *
+ * One `set` writes `spatial`, `lastServerSpatial`, `floorMeta` and `versionId` together
+ * (R14), and `temporal` is paused around it so the write opens no undo step.
+ * `external: true` on a floor the store held means somebody else changed it: history is
+ * emptied and `serverReplaceSeq` bumped so screens that own a second history can clear
+ * theirs. A floor the store lacks is added when `result.level` comes along (history kept);
+ * without it only the revision is recorded. `scaleStatus` stays as it was unless
+ * `scaleSent` (dropped) or `result.scaleStatus` (set).
+ */
+export function replaceFloorLayer(
+  floorId: string,
+  result: FloorLayerReplacement,
+  options?: ReplaceFloorLayerOptions,
+): void {
+  const state = useStore.getState();
+  const current = state.spatial;
+  const entryOf = (previous: FloorMetaEntry | undefined): FloorMetaEntry => {
+    const scaleStatus = options?.scaleSent === true ? undefined : (result.scaleStatus ?? previous?.scaleStatus);
+
+    return scaleStatus === undefined ? { revision: result.revision } : { revision: result.revision, scaleStatus };
+  };
+  const held = current !== null && current.byId[floorId] !== undefined;
+
+  if (current === null || !isIdOfKind('level', floorId) || (!held && result.level === undefined)) {
+    state.updateFloorMeta(floorId, entryOf(state.floorMeta[floorId]));
+
+    return;
+  }
+
+  const spatial = replaceLevelEntities(current, floorId, {
+    ...result.layer,
+    ...(result.dimensions === undefined ? {} : { dimensions: result.dimensions }),
+    ...(result.level === undefined ? {} : { level: result.level }),
+  });
+  const replacedHeld = held && options?.external === true;
+  const temporal = useStore.temporal.getState();
+  const tracking = temporal.isTracking;
+
+  if (tracking) {
+    temporal.pause();
+  }
+
+  try {
+    useStore.setState((latest) => {
+      const floorMeta = { ...latest.floorMeta, [floorId]: entryOf(latest.floorMeta[floorId]) };
+
+      return {
+        spatial,
+        lastServerSpatial: spatial,
+        floorMeta,
+        versionId: versionIdFor(floorMeta, latest.versionId),
+        ...(replacedHeld ? { serverReplaceSeq: latest.serverReplaceSeq + 1 } : {}),
+      };
+    });
+  } finally {
+    if (tracking) {
+      useStore.temporal.getState().resume();
+    }
+  }
+
+  if (replacedHeld) {
+    useStore.temporal.getState().clear();
+  }
+
+  resetCommitRun();
+}
+
+/**
+ * Applies a fresh N16 read of one floor as an outside replacement — the reload path that
+ * autosave (`reloadFloor` after a 409) and VersionHistory (after N19) share (review R2-4).
+ *
+ * `dimensions`, `level` and `scaleStatus` travel with the layer. N16 without `scaleStatus`
+ * means the floor's scale is real, so a provisional status the store still holds is
+ * dropped (`replaceFloorLayer` alone would keep it). Error handling stays with the caller.
+ */
+export function applyFloorLayerRead(floorId: string, read: FloorLayerReplacement): void {
+  const { dimensions, layer, level, revision, scaleStatus } = read;
+
+  replaceFloorLayer(
+    floorId,
+    {
+      layer,
+      revision,
+      ...(dimensions === undefined ? {} : { dimensions }),
+      ...(level === undefined ? {} : { level }),
+      ...(scaleStatus === undefined ? {} : { scaleStatus }),
+    },
+    { external: true },
+  );
+
+  if (scaleStatus === undefined && useStore.getState().floorMeta[floorId]?.scaleStatus !== undefined) {
+    useStore.getState().updateFloorMeta(floorId, { revision });
+  }
 }
 
 /* -------------------------------------------------------------------------- */

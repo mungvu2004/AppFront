@@ -41,6 +41,7 @@ import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellT
 
 import { levelsOf } from './measurementToolLevels';
 import type { MeasurementSceneHandle, MountMeasurementScene } from './measurementToolScene';
+import type { MeasurementScenePhase } from './measurementToolSceneTypes';
 import type { MeasurementScene } from './measurementToolViewModel';
 
 /** Không tầng nào dựng được — một tham chiếu, để lượt lắp không chạy lại vô cớ. */
@@ -56,6 +57,33 @@ export interface UseMeasurementToolSceneOptions {
   readonly mountScene?: MountMeasurementScene;
 }
 
+/** Cảnh đã lắp và cờ "hình học còn đang dựng". */
+export interface MountedMeasurementScene {
+  /** Ba trường `createScenePick` đòi, hoặc `null` khi chưa lắp được. */
+  readonly scene: MeasurementScene | null;
+  /**
+   * Cảnh chưa sẵn sàng — module còn đang nạp, hoặc hình học còn đang dựng: tia
+   * bắn lúc này không trúng gì, nên vỏ phải nói "đang dựng" thay vì để cú chấm
+   * rơi vào khoảng trống (NO-382, NO-385).
+   */
+  readonly building: boolean;
+  /** Mọi tầng dựng hỏng (pha `failed` của worker) — lối ra của `building`. */
+  readonly failed: boolean;
+  /** Gỡ cảnh rồi lắp và dựng lại từ đầu. */
+  readonly retry: () => void;
+}
+
+/**
+ * Pha của lượt lắp. `unavailable` (không WebGL, không nạp được module) KHÔNG
+ * phải lỗi: màn vẫn dùng được, chỉ không chấm được điểm (A11).
+ */
+type MountPhase = 'pending' | 'building' | 'ready' | 'failed' | 'unavailable';
+
+/** Pha dựng của cảnh sang pha lắp: `idle` (không job nào) là đã xong. */
+function mountPhaseOf(phase: MeasurementScenePhase): MountPhase {
+  return phase === 'idle' ? 'ready' : phase;
+}
+
 /**
  * Cảnh đã lắp, hoặc `null` khi chưa lắp được.
  *
@@ -63,15 +91,17 @@ export interface UseMeasurementToolSceneOptions {
  * có tầng nào dựng được, đồ thị hỏng, hoặc máy không có WebGL.
  *
  * @param options Canvas, đồ thị, điểm nhìn, và chỗ tiêm module cảnh.
- * @returns Ba trường `createScenePick` đòi, hoặc `null`.
+ * @returns Cảnh (hoặc `null`) và cờ đang dựng hình.
  */
 export function useMeasurementToolScene(
   options: UseMeasurementToolSceneOptions,
-): MeasurementScene | null {
+): MountedMeasurementScene {
   const { canvas, spatial, frame } = options;
   const injectedMount = options.mountScene;
 
   const [scene, setScene] = useState<MeasurementScene | null>(null);
+  const [phase, setPhase] = useState<MountPhase>('pending');
+  const [attempt, setAttempt] = useState(0);
   const handleRef = useRef<MeasurementSceneHandle | null>(null);
 
   /**
@@ -117,11 +147,26 @@ export function useMeasurementToolScene(
         return;
       }
 
-      const mount = mountScene(canvas, { levels, frame: latestFrame.current });
+      const mount = mountScene(canvas, {
+        levels,
+        frame: latestFrame.current,
+        onStatusChange: (status) => {
+          if (!cancelled) {
+            setPhase(mountPhaseOf(status.phase));
+          }
+        },
+      });
 
-      if (!mount.ok || cancelled) {
+      if (cancelled) {
         return;
       }
+      if (!mount.ok) {
+        setPhase('unavailable');
+
+        return;
+      }
+
+      setPhase(mountPhaseOf(mount.handle.status().phase));
 
       mounted = mount.handle;
       handleRef.current = mount.handle;
@@ -144,6 +189,9 @@ export function useMeasurementToolScene(
         () => {
           // Không nạp được module cảnh cũng chỉ là "không chấm được điểm", đúng
           // như không có WebGL. Màn không trắng, không mã lỗi (A11).
+          if (!cancelled) {
+            setPhase('unavailable');
+          }
         },
       );
     }
@@ -153,12 +201,25 @@ export function useMeasurementToolScene(
       mounted?.dispose();
       handleRef.current = null;
       setScene(null);
+      setPhase('pending');
     };
-  }, [canvas, levels, injectedMount]);
+  }, [canvas, levels, injectedMount, attempt]);
 
   useEffect(() => {
     handleRef.current?.update(frame);
   }, [frame]);
 
-  return scene;
+  const hasLevels = levels.length > 0;
+
+  return useMemo(
+    () => ({
+      scene,
+      building: hasLevels && (phase === 'pending' || phase === 'building'),
+      failed: hasLevels && phase === 'failed',
+      retry: (): void => {
+        setAttempt((current) => current + 1);
+      },
+    }),
+    [scene, phase, hasLevels],
+  );
 }

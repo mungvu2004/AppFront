@@ -23,7 +23,7 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { QueryFunction } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionSnapshot } from '@/lib/auth/types';
@@ -32,16 +32,17 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
+import { ROUTES } from '@/routes/paths';
 import {
   SEVEN_STATES,
   createSevenStateScenarios,
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 
-import type { DashboardProject } from '../../dashboard/ProjectDashboard/projectsGateway';
+import type { DashboardProject, DashboardProjectList } from '../../dashboard/ProjectDashboard/projectsGateway';
 import { WelcomeScreen } from './WelcomeScreen';
 import type { OnboardingStepCard, WelcomeScreenProps } from './WelcomeScreen';
-import { WelcomeScreenContainer } from './WelcomeScreen.container';
+import { WelcomeRoute, WelcomeScreenContainer } from './WelcomeScreen.container';
 import {
   readWelcomeSeen,
   useWelcomeScreen,
@@ -123,7 +124,7 @@ function sampleProject(patch: Partial<DashboardProject> = {}): DashboardProject 
     status: 'processing',
     wallsReviewedCount: 0,
     wallsTotalCount: 0,
-    updatedAgoMs: 1_000,
+    updatedAtMs: 1_000_000,
     members: [],
     planVariant: 0,
     defaultFloorId: 'f-tret',
@@ -255,7 +256,7 @@ function propsFor(scenario: SevenStateScenario): WelcomeScreenProps {
     finishLabel: isDone ? 'Vào danh sách dự án' : null,
     onFinish: noop,
     isDissolving: false,
-    skipNotice: 'Có thể xem lại hướng dẫn trong menu trợ giúp.',
+    skipNotice: 'Màn chào sẽ không hiện lại trên trình duyệt này.',
   };
 }
 
@@ -322,7 +323,7 @@ describe('A11 — bảy trạng thái, đo trên cả màn', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(
       screen.getByText(
-        'Vai Người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
+        'Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.',
       ),
     ).toBeInTheDocument();
   });
@@ -398,8 +399,8 @@ function vm(): WelcomeScreenViewModel {
   return observed;
 }
 
-function listOf(projects: readonly DashboardProject[]): QueryFunction<readonly DashboardProject[]> {
-  return () => Promise.resolve(projects);
+function listOf(projects: readonly DashboardProject[]): QueryFunction<DashboardProjectList> {
+  return () => Promise.resolve({ projects, droppedCount: 0 });
 }
 
 describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () => {
@@ -457,15 +458,18 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
 
     expect(vm().cards.map((card) => card.state)).toEqual(['done', 'done', 'done']);
     expect(vm().finishLabel).toBe('Vào danh sách dự án');
+    // A6 gõ tay, không đọc lại `STRINGS`: so hằng với chính nó thì không bao giờ đỏ.
+    expect(vm().greeting).toBe('Chào Minh, bắt đầu trong ba bước');
+    expect(vm().cards.map((card) => card.actionLabel)).toEqual(['Tạo dự án', 'Tải bản vẽ', 'Duyệt kết quả']);
   });
 
   it('đọc dự án cập nhật gần nhất, không phải dự án đầu mảng', async () => {
     mountHook({
       fetchList: listOf([
-        sampleProject({ id: 'p-cu', updatedAgoMs: 90_000 }),
+        sampleProject({ id: 'p-cu', updatedAtMs: 10 }),
         sampleProject({
           id: 'p-moi',
-          updatedAgoMs: 1_000,
+          updatedAtMs: 1_000_000,
           wallsTotalCount: SAMPLE_WALL_COUNT,
           wallsReviewedCount: SAMPLE_WALL_COUNT,
         }),
@@ -475,6 +479,40 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
     await waitFor(() => {
       expect(vm().screenState).toBe('success');
     });
+  });
+
+  it('thẻ 3 của dự án chưa có tầng nào mở trang tầng, không ghép một đường hỏng', async () => {
+    const noFloorProject: DashboardProject = {
+      id: 'p-trong',
+      name: 'Dự án trống',
+      floorCount: 0,
+      areaM2: 0,
+      status: 'qc',
+      wallsReviewedCount: 0,
+      wallsTotalCount: SAMPLE_WALL_COUNT,
+      updatedAtMs: 1_000_000,
+      members: [],
+      planVariant: 0,
+    };
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/chao']}>
+        <Routes>
+          <Route path="/chao" element={<Probe options={{ fetchList: listOf([noFloorProject]) }} />} />
+          <Route path={ROUTES.project.floors('p-trong')} element={<p>trang tầng</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(vm().screenState).toBe('partial');
+    });
+
+    act(() => {
+      vm().cards[2]?.onActivate();
+    });
+
+    expect(await screen.findByText('trang tầng')).toBeInTheDocument();
   });
 
   it('truy vấn hỏng: câu lỗi hiện ra, và không thẻ nào bịa ra là đã xong', async () => {
@@ -558,6 +596,64 @@ describe('cờ "đã xem màn chào" đọc và ghi vào localStorage', () => {
     });
 
     expect(readWelcomeSeen(USER_ID)).toBe(false);
+  });
+
+  /* -- B-V1-04: route đọc cờ. `/` giả chỉ là một tiêu đề để nhận ra đã tới. -- */
+
+  /** `tree()` dựng phần tử MỚI mỗi lần gọi — `rerender` với cùng một phần tử thì React bỏ qua. */
+  function mountRoute(fetchList: QueryFunction<DashboardProjectList>) {
+    const tree = () => (
+      <MemoryRouter initialEntries={['/onboarding']}>
+        <Routes>
+          <Route path="/onboarding" element={<WelcomeRoute fetchList={fetchList} />} />
+          <Route path="/" element={<h1>Dự án của tôi</h1>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const view = renderWithProviders(tree());
+    return { view, tree };
+  }
+
+  it('đã xem màn chào rồi thì mở lại /onboarding là về danh sách dự án (B-V1-04)', async () => {
+    window.localStorage.setItem('appfront:onboarding-welcome-seen:u-minh', 'true');
+
+    mountRoute(listOf([]));
+
+    expect(await screen.findByRole('heading', { name: 'Dự án của tôi' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bỏ qua' })).not.toBeInTheDocument();
+  });
+
+  it('chưa xem thì /onboarding vẫn là màn chào', async () => {
+    mountRoute(listOf([]));
+
+    expect(await screen.findByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
+    // B-V1-41: câu mô tả nói đúng hệ quả, không hứa một "menu trợ giúp" không có.
+    expect(screen.getByRole('button', { name: 'Bỏ qua' })).toHaveAccessibleDescription(
+      'Màn chào sẽ không hiện lại trên trình duyệt này.',
+    );
+    expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
+  });
+
+  it('cờ ghi giữa chừng không đá người dùng khỏi màn — route chỉ đọc cờ một lần', async () => {
+    const { view, tree } = mountRoute(
+      listOf([
+        sampleProject({
+          wallsTotalCount: SAMPLE_WALL_COUNT,
+          wallsReviewedCount: SAMPLE_WALL_COUNT,
+        }),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(readWelcomeSeen(USER_ID)).toBe(true);
+    });
+
+    // `useSession` là mock tĩnh, nên không gì tự dựng lại route — phải ép một
+    // lần dựng lại thì bài này mới bắt được bản đọc cờ ở mỗi lần dựng.
+    view.rerender(tree());
+
+    expect(screen.getByRole('button', { name: 'Vào danh sách dự án' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Dự án của tôi' })).not.toBeInTheDocument();
   });
 });
 

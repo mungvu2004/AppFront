@@ -23,7 +23,9 @@ import { Loader2 } from 'lucide-react';
 
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { Button } from '@/components/ui/Button';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { cn } from '@/lib/utils';
+import { FloorLayerSaveBanner } from '@/screens/qc/WallLayerReview/FloorLayerSaveBanner';
 import type { ViewerSceneActions, ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { ObjectSearch } from './ObjectSearch';
@@ -258,7 +260,7 @@ export function Viewer3D(props: Viewer3DProps) {
       {state === 'forbidden' && !isErrorLike && (
         <div className="pointer-events-none relative flex h-full w-full items-center justify-center">
           <span className="sr-only">
-            Bạn đang xem ở vai Người xem nên không sửa được hình học trên mô hình 3D.
+            Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.
           </span>
         </div>
       )}
@@ -276,6 +278,19 @@ export function Viewer3D(props: Viewer3DProps) {
         rooms={search.rooms}
         selectedRoomId={search.selectedRoomId}
       />
+    </div>
+  );
+}
+
+/**
+ * Dải lưu lớp của `/3d` (F-04x-1 bước 7): `reload` → nút "Tải lại" và hộp thoại A9,
+ * `blocked` → chỉ câu. Nằm ở panel phải, KHÔNG trong khung nhìn: `Viewer3D` ở trên
+ * chính là vùng canvas. Dùng lại dải của bốn màn QC — một chỗ giữ câu A9.
+ */
+export function Viewer3DSaveStrip({ saveBlock }: { readonly saveBlock: FloorLayerSaveBlock | null }) {
+  return saveBlock === null ? null : (
+    <div className="m-3">
+      <FloorLayerSaveBanner saveBlock={saveBlock} />
     </div>
   );
 }

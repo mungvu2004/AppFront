@@ -25,10 +25,10 @@ export interface ShareDialogPeopleProps {
 export function ShareDialogPeople({ members, membersReadOnlyReason }: ShareDialogPeopleProps) {
   if (members.length === 0) {
     return (
-      <section aria-label="thành viên">
+      <section aria-label="Thành viên">
         <EmptyState
           icon={<Users aria-hidden="true" />}
-          title="chưa có thành viên nào"
+          title="Chưa có thành viên nào"
           description={membersReadOnlyReason}
         />
       </section>
@@ -36,8 +36,8 @@ export function ShareDialogPeople({ members, membersReadOnlyReason }: ShareDialo
   }
 
   return (
-    <section aria-label="thành viên" className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-text-secondary">thành viên</h3>
+    <section aria-label="Thành viên" className="flex flex-col gap-2">
+      <h3 className="text-sm font-medium text-text-secondary">Thành viên</h3>
 
       <ul className="flex flex-col divide-y divide-border-default rounded-lg border border-border-default">
         {members.map((member) => (
@@ -51,11 +51,11 @@ export function ShareDialogPeople({ members, membersReadOnlyReason }: ShareDialo
               <span className="truncate text-[14px] text-text-primary">{member.name}</span>
               <span className="truncate text-xs text-text-secondary">{member.email}</span>
               {member.isOwner && (
-                <span className="text-xs text-text-muted">chủ sở hữu dự án — không đổi được</span>
+                <span className="text-xs text-text-muted">Chủ sở hữu dự án — không đổi được</span>
               )}
             </div>
             <span className="ml-auto flex shrink-0 items-center gap-2">
-              {member.isOwner && <Badge variant="neutral">chủ sở hữu</Badge>}
+              {member.isOwner && <Badge variant="neutral">Chủ sở hữu</Badge>}
               <Badge variant="neutral">{member.roleLabel}</Badge>
             </span>
           </li>

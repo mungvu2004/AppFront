@@ -35,12 +35,14 @@
  *   `"PHÒNG NGỦ 1"`, `"PHÒNG NGỦ 2"` — giữ NGUYÊN dấu tiếng Việt (chỉ sai kiểu
  *   chữ hoa/thường, không sai chính tả), để không phạm luật "mọi thứ người
  *   dùng đọc là tiếng Việt có dấu" (CLAUDE.md) trong lúc mô phỏng lỗi OCR.
- * - Đúng BA phòng (#R-003, #R-004, #R-009) để trống tên (chuỗi rỗng) — phục vụ
- *   trạng thái `partial`/`empty` của danh sách "Chưa đặt tên".
+ * - Ba phòng (#R-003, #R-004, #R-009) mang tên AI đề xuất, chưa duyệt. BE đòi `Room.name`
+ *   không rỗng (`packages/domain/spatial/model.py` `_human_text`), nên bộ mẫu mặc định
+ *   không bao giờ có tên rỗng. Trạng thái "Chưa đặt tên" (phòng người dùng vừa vẽ) là
+ *   trạng thái cục bộ, phủ bằng {@link ROOM_LABEL_FIXTURE_ROOMS_UNNAMED}.
  * - Chín phòng còn lại đặt tên đúng kiểu câu, chữ thường (A6).
  *
- * `source`/`confidence`: năm phòng chưa có tên chuẩn (ba tên rỗng, hai tên
- * OCR viết hoa) mang `source: 'ai'` và `confidence < 1`; A5 — KHÔNG phòng nào
+ * `source`/`confidence`: năm phòng chưa có tên chuẩn (ba tên AI đề xuất chưa
+ * duyệt, hai tên OCR viết hoa) mang `source: 'ai'` và `confidence < 1`; A5 — KHÔNG phòng nào
  * trong số đó `reviewed: true`. Chín phòng còn lại đã được người duyệt xác
  * nhận: `source: 'human'`, `reviewed: true`, `confidence: 1`.
  *
@@ -141,21 +143,32 @@ const STANDARD_DEPTH_MM = 3400;
  * phòng nào trong số đó `reviewed: true` (A5).
  */
 export const ROOM_LABEL_FIXTURE_ROOMS: readonly Room[] = [
-  room('R-001', 'livingRoom', 'phòng khách chung', rectangle(0, 5000, STANDARD_DEPTH_MM), 'W-001', 1, true),
-  room('R-002', 'bedroom', 'phòng ngủ 3', rectangle(5000, 10000, STANDARD_DEPTH_MM), 'W-002', 1, true),
-  room('R-003', 'bedroom', '', rectangle(10000, 15000, STANDARD_DEPTH_MM), 'W-003', 0.62, false),
-  room('R-004', 'bedroom', '', rectangle(15000, 20000, STANDARD_DEPTH_MM), 'W-004', 0.58, false),
+  room('R-001', 'livingRoom', 'Phòng khách chung', rectangle(0, 5000, STANDARD_DEPTH_MM), 'W-001', 1, true),
+  room('R-002', 'bedroom', 'Phòng ngủ 3', rectangle(5000, 10000, STANDARD_DEPTH_MM), 'W-002', 1, true),
+  room('R-003', 'bedroom', 'phòng ngủ phụ', rectangle(10000, 15000, STANDARD_DEPTH_MM), 'W-003', 0.62, false),
+  room('R-004', 'bedroom', 'phòng làm việc', rectangle(15000, 20000, STANDARD_DEPTH_MM), 'W-004', 0.58, false),
   room('R-005', 'bedroom', 'PHÒNG NGỦ 1', rectangle(20000, 24600, 4000), 'W-005', 0.81, false),
-  room('R-006', 'bathroom', 'phòng tắm chung', rectangle(24600, 29600, STANDARD_DEPTH_MM), 'W-006', 1, true),
-  room('R-007', 'kitchen', 'bếp', rectangle(29600, 34600, STANDARD_DEPTH_MM), 'W-007', 1, true),
-  room('R-008', 'corridor', 'hành lang tầng hai', rectangle(34600, 39600, STANDARD_DEPTH_MM), 'W-008', 1, true),
-  room('R-009', 'stairwell', '', rectangle(39600, 44600, STANDARD_DEPTH_MM), 'W-009', 0.66, false),
-  room('R-010', 'utility', 'phòng kỹ thuật điện', rectangle(44600, 49600, STANDARD_DEPTH_MM), 'W-010', 1, true),
-  room('R-011', 'other', 'phòng đa năng', rectangle(49600, 54600, STANDARD_DEPTH_MM), 'W-011', 1, true),
+  room('R-006', 'bathroom', 'Phòng tắm chung', rectangle(24600, 29600, STANDARD_DEPTH_MM), 'W-006', 1, true),
+  room('R-007', 'kitchen', 'Bếp', rectangle(29600, 34600, STANDARD_DEPTH_MM), 'W-007', 1, true),
+  room('R-008', 'corridor', 'Hành lang tầng hai', rectangle(34600, 39600, STANDARD_DEPTH_MM), 'W-008', 1, true),
+  room('R-009', 'stairwell', 'cầu thang bộ', rectangle(39600, 44600, STANDARD_DEPTH_MM), 'W-009', 0.66, false),
+  room('R-010', 'utility', 'Phòng kỹ thuật điện', rectangle(44600, 49600, STANDARD_DEPTH_MM), 'W-010', 1, true),
+  room('R-011', 'other', 'Phòng đa năng', rectangle(49600, 54600, STANDARD_DEPTH_MM), 'W-011', 1, true),
   room('R-012', 'bedroom', 'PHÒNG NGỦ 2', rectangle(54600, 59600, STANDARD_DEPTH_MM), 'W-012', 0.79, false),
-  room('R-013', 'bathroom', 'phòng tắm riêng', rectangle(59600, 64600, STANDARD_DEPTH_MM), 'W-013', 1, true),
-  room('R-014', 'livingRoom', 'phòng sinh hoạt chung', rectangle(64600, 69840, 5000), 'W-014', 1, true),
+  room('R-013', 'bathroom', 'Phòng tắm riêng', rectangle(59600, 64600, STANDARD_DEPTH_MM), 'W-013', 1, true),
+  room('R-014', 'livingRoom', 'Phòng sinh hoạt chung', rectangle(64600, 69840, 5000), 'W-014', 1, true),
 ];
+
+/** Ba phòng được bỏ tên trong {@link ROOM_LABEL_FIXTURE_ROOMS_UNNAMED}. */
+const UNNAMED_ROOM_IDS: ReadonlySet<string> = new Set(['R-003', 'R-004', 'R-009'].map(roomIdOf));
+
+/**
+ * Bộ mẫu CỤC BỘ: như bộ mặc định nhưng ba phòng còn trống tên — trạng thái một phòng vừa vẽ,
+ * chưa tới BE. KHÔNG qua schema lưu (`min(1)`); chỉ cho `partial`, chip "Chưa đặt tên" và test.
+ */
+export const ROOM_LABEL_FIXTURE_ROOMS_UNNAMED: readonly Room[] = ROOM_LABEL_FIXTURE_ROOMS.map((entry) =>
+  UNNAMED_ROOM_IDS.has(entry.id) ? { ...entry, name: '' } : entry,
+);
 
 /** Tổng số phòng của bộ mẫu — test khẳng định bằng hằng, không bằng số viết tay (R-71). */
 export const ROOM_LABEL_FIXTURE_TOTAL = ROOM_LABEL_FIXTURE_ROOMS.length;
@@ -169,7 +182,7 @@ export const ROOM_LABEL_FIXTURE_TOTAL_AREA_M2 = totalArea(
 );
 
 /** Số phòng chưa đặt tên — tính từ mảng, không gõ tay. */
-export const ROOM_LABEL_FIXTURE_UNNAMED_COUNT = ROOM_LABEL_FIXTURE_ROOMS.filter(
+export const ROOM_LABEL_FIXTURE_UNNAMED_COUNT = ROOM_LABEL_FIXTURE_ROOMS_UNNAMED.filter(
   (entry) => entry.name === '',
 ).length;
 

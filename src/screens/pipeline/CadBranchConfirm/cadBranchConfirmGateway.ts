@@ -145,7 +145,7 @@ export const CAD_FILE_EXTENSION: AcceptedUploadExtension = '.dwg';
 
 /** Câu giao diện phải nói ra cạnh ô "ghi nhớ lựa chọn" — xem ghi chú đầu file. */
 export const CAD_REMEMBER_SESSION_NOTICE =
-  'lựa chọn này chỉ được nhớ trong phiên làm việc, tải lại trang là mất';
+  'Lựa chọn này chỉ được nhớ trong phiên làm việc, tải lại trang là mất';
 
 /* -------------------------------------------------------------------------- */
 /* Hình dạng dữ liệu thô.                                                       */

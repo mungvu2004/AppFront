@@ -36,13 +36,14 @@
  *
  * ## `resendInvite` nhận id của chính hàng đang chờ
  *
- * `ENDPOINTS.users.resendInvite(inviteId)` là đường DUY NHẤT gửi lại một lời mời, và
+ * `ENDPOINTS.users.resendInvite(userId)` (BE: `invitations/{user_id}/resend`) là đường DUY NHẤT gửi lại một lời mời, và
  * `AdminUserSchema` không có trường `inviteId`: một người `status: 'pending'` CHÍNH LÀ lời
  * mời — `invitedAt` và `inviteExpiresAt` chỉ có mặt trên đúng những hàng ấy
  * (`src/api/schemas/users.ts`). Nên `AdminUser.id` của một hàng chờ là mã lời mời, và cổng
  * này ghi điều đó ra thay vì để nơi gọi đoán.
  */
 
+import { lowerFirst } from '@/lib/format/sentence';
 import type {
   AdminUser,
   AdminUserList,
@@ -131,9 +132,9 @@ export const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.freeze(
 
 /** Nhãn tiếng Việt của ba trạng thái tài khoản. */
 export const STATUS_LABELS: Readonly<Record<UserAccountStatus, string>> = Object.freeze({
-  active: 'đang hoạt động',
-  pending: 'chờ chấp nhận',
-  disabled: 'đã vô hiệu hoá',
+  active: 'Đang hoạt động',
+  pending: 'Chờ chấp nhận',
+  disabled: 'Đã vô hiệu hoá',
 });
 
 /** Ba tuỳ chọn vai của ô lọc và của ô đổi vai, dựng từ `AUTH_ROLES`. */
@@ -167,13 +168,13 @@ interface PermissionRowSpec {
  * `library.manage`) KHÔNG hiện ở đây vì đặc tả chỉ nêu bảy việc.
  */
 export const PERMISSION_MATRIX_ROWS = [
-  { key: 'floor.upload', label: 'tải bản vẽ' },
-  { key: 'layer.edit', label: 'sửa hình học' },
+  { key: 'floor.upload', label: 'Tải bản vẽ' },
+  { key: 'layer.edit', label: 'Sửa hình học' },
   { key: 'qc.approve', label: 'duyệt QC' },
-  { key: 'ruleset.edit', label: 'đổi bộ luật' },
-  { key: 'model.export', label: 'xuất' },
-  { key: 'share.create', label: 'chia sẻ' },
-  { key: 'user.manage', label: 'quản lý người dùng' },
+  { key: 'ruleset.edit', label: 'Đổi bộ luật' },
+  { key: 'model.export', label: 'Xuất' },
+  { key: 'share.create', label: 'Chia sẻ' },
+  { key: 'user.manage', label: 'Quản lý người dùng' },
 ] as const satisfies readonly PermissionRowSpec[];
 
 /**
@@ -188,7 +189,7 @@ export function permissionCellSrLabel(
   rowLabel: string,
   allowed: boolean,
 ): string {
-  return `${ROLE_LABELS[role]}: ${allowed ? 'được phép' : 'không được phép'} ${rowLabel}`;
+  return `${ROLE_LABELS[role]}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(rowLabel)}`;
 }
 
 /**
@@ -346,7 +347,7 @@ export function parseInviteEmails(rawEmails: string): ParsedInviteEmails {
  * nên chỗ duy nhất một hành động bị chặn được biểu diễn là một câu tiếng Việt tại chỗ.
  */
 export const MEMBERSHIP_ROLE_BLOCKED_REASON =
-  'vai trong từng dự án theo vai của hệ thống; hệ thống chưa có đường đổi riêng cho một dự án';
+  'Vai trong từng dự án theo vai của hệ thống; hệ thống chưa có đường đổi riêng cho một dự án';
 
 /* -------------------------------------------------------------------------- */
 /* 8 — Đo đạc (O-01)                                                           */
@@ -401,8 +402,8 @@ export interface UserManagementGateway {
   enableUser(userId: string): Promise<AdminUser>;
   inviteUsers(request: InviteRequest): Promise<readonly AdminUser[]>;
   removeUser(request: RemoveRequest): Promise<AdminUser>;
-  /** `inviteId` là `AdminUser.id` của chính hàng đang chờ — xem docblock đầu file. */
-  resendInvite(inviteId: string): Promise<AdminUser>;
+  /** `userId` là `AdminUser.id` của chính hàng đang chờ — xem docblock đầu file. */
+  resendInvite(userId: string): Promise<AdminUser>;
   /** Vé hoàn tác tám giây của A8. Đồng hồ tiêm sẵn, nên bài kiểm không phải chờ thật. */
   createWriteTicket(options: CreateUndoTicketOptions): UndoTicket;
   /** Toast của A8 đi qua `notificationBus`; nút Hoàn tác là `undoTicket` của thông báo. */
@@ -488,8 +489,8 @@ export function createUserManagementGateway(
       unwrap(usersApi.invite({ body: { emails: [...emails], role } })),
     removeUser: async ({ confirmEmail, userId }: RemoveRequest): Promise<AdminUser> =>
       unwrap(usersApi.remove({ body: { confirmEmail, userId } })),
-    resendInvite: async (inviteId: string): Promise<AdminUser> =>
-      unwrap(usersApi.resendInvite({ inviteId })),
+    resendInvite: async (userId: string): Promise<AdminUser> =>
+      unwrap(usersApi.resendInvite({ userId })),
     createWriteTicket: (ticketOptions: CreateUndoTicketOptions): UndoTicket =>
       createUndoTicket({ now, ...ticketOptions }),
     notify: (input: NotificationInput): void => {

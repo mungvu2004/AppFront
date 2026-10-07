@@ -25,6 +25,7 @@ import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry
 import type { Rule, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
 import {
+  displayCodeIn,
   idsOnLevel,
   isEntityOfKind,
   normalizeSpatial,
@@ -169,6 +170,7 @@ const SUCCESS_CAUSES: readonly ViolationCause[] = [
 const SUCCESS_OBJECTS: readonly ViolationObject[] = [
   {
     entityId: SUCCESS_ENTITY.id,
+    code: displayCodeIn(NORMALIZED_CLEAN, SUCCESS_ENTITY.id),
     kindLabel: 'đồ đạc',
     confidenceLabel: SUCCESS_CONFIDENCE_LABEL,
     isSubject: true,
@@ -219,6 +221,7 @@ const PARTIAL_CAUSES: readonly ViolationCause[] = [
 const PARTIAL_OBJECTS: readonly ViolationObject[] = [
   {
     entityId: PARTIAL_ENTITY.id,
+    code: displayCodeIn(NORMALIZED_VIOLATED, PARTIAL_ENTITY.id),
     kindLabel: 'tường',
     confidenceLabel: PARTIAL_CONFIDENCE_LABEL,
     isSubject: true,
@@ -246,7 +249,7 @@ const EMPTY_PROPS: ViolationDetailViewProps = {
   title: '',
   severity: null,
   severityLabel: '',
-  subjectEntityId: '',
+  subjectCode: '',
   ruleSentence: '',
   measureLabel: null,
   thresholdLabel: null,
@@ -316,7 +319,7 @@ function loadedProps(args: LoadedArgs): ViolationDetailViewProps {
     title: args.violation.message,
     severity: args.rule.severity,
     severityLabel: RULE_SEVERITY_LABELS[args.rule.severity],
-    subjectEntityId: args.violation.entityId,
+    subjectCode: args.objects.find((object) => object.isSubject)?.code ?? '',
     ruleSentence: args.rule.name,
     objects: args.objects,
     // Hook đặt `figureUnavailable = figure2d === null` — story theo đúng luật đó.
@@ -363,6 +366,11 @@ export const ErrorState: Story = {
 /** 5 · xong — đồ đạc chồng tường, xoá được, hai nguyên nhân khả dĩ. */
 export const Success: Story = {
   args: loadedProps(SUCCESS_ARGS),
+};
+
+/** 5 · xong, kèm nhãn tự lưu của saver lớp tầng (F-04x-1) — chỉ nhãn, không dải. */
+export const SuccessSaved: Story = {
+  args: { ...loadedProps(SUCCESS_ARGS), saveLabel: 'Đã lưu lúc 09:41' },
 };
 
 /** 6 · không có quyền — người xem không có quyền sửa; căn cứ vẫn xem được. */

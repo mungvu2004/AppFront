@@ -119,7 +119,10 @@ export interface EditorTourProps {
   readonly summary: readonly TourSummaryRow[];
   /** Chip "xem hướng dẫn" — ở lại suốt phiên sau khi bỏ qua. */
   readonly isSkipChipVisible: boolean;
-  /** Lớp Tailwind định vị chip "xem hướng dẫn"; màn chủ nói góc nào đã có chủ. Mặc định góc trên phải. */
+  /**
+   * Lớp Tailwind định vị chip "xem hướng dẫn"; màn chủ nói góc nào đã có chủ.
+   * Mặc định giữa cạnh dưới (B-V2-05) — xem `DEFAULT_CHIP_ANCHOR` ở `EditorTour.tsx`.
+   */
   readonly chipAnchorClassName?: string | undefined;
   /** Câu cho trình đọc màn hình khi sang bước (vùng lịch sự). */
   readonly liveMessage: string;
@@ -197,45 +200,45 @@ interface TourStepDefinition {
  * `components/shell/ShortcutHelp.tsx:43` là dữ liệu chết của vỏ demo, `onSelect`
  * rỗng và danh sách viết tay, không đi qua registry nào.
  */
-const TOUR_STEPS: readonly TourStepDefinition[] = [
+export const TOUR_STEPS: readonly TourStepDefinition[] = [
   {
     id: 'switchTool',
     anchorSelector: '[role="toolbar"][aria-label="Công cụ lớp tường"]',
     shortcutId: 'wallLayerReview.tool.drawWall',
-    title: 'chọn công cụ ở ray bên trái',
-    body: 'mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng.',
+    title: 'Chọn công cụ ở ray bên trái',
+    body: 'Mỗi công cụ ứng một phím; bấm phím là ray đổi ngay, tay bạn không phải rời khỏi mặt bằng.',
     placement: 'right',
   },
   {
     id: 'reviewWall',
     anchorSelector: '[role="listbox"][aria-label="Danh sách đoạn tường"]',
     shortcutId: 'wallLayerReview.next',
-    title: 'đi dọc từng đoạn tường',
-    body: 'một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt.',
+    title: 'Đi dọc từng đoạn tường',
+    body: 'Một phím đưa bạn xuống đoạn kế tiếp, và hàng đang đứng luôn được kéo vào tầm mắt.',
     placement: 'right',
   },
   {
     id: 'editThickness',
     anchorSelector: '[aria-label="Độ dày tường"]',
     shortcutId: 'wallLayerReview.thickness.1',
-    title: 'đặt lại độ dày cho đoạn đang chọn',
-    body: 'ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số.',
+    title: 'Đặt lại độ dày cho đoạn đang chọn',
+    body: 'Ô độ dày chỉ hiện ra sau khi bạn chọn một đoạn; những nấc hay dùng nằm sẵn trên phím số.',
     placement: 'left',
   },
   {
     id: 'undo',
     anchorSelector: null,
     shortcutId: 'wallLayerReview.undo',
-    title: 'lùi lại khi lỡ tay',
-    body: 'ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím.',
+    title: 'Lùi lại khi lỡ tay',
+    body: 'Ở đây không có nút lưu, nên cứ thử thoải mái: mọi thao tác đều lùi lại được bằng một phím.',
     placement: 'bottom',
   },
   {
     id: 'view3d',
     anchorSelector: '[role="radiogroup"][aria-label="Chế độ xem"]',
     shortcutId: null,
-    title: 'đổi sang khung nhìn khối',
-    body: 'nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào.',
+    title: 'Đổi sang khung nhìn khối',
+    body: 'Nhóm nút trên thanh trên lật qua lại giữa mặt bằng phẳng và khối dựng; chỗ này chưa gắn phím nào.',
     placement: 'bottom',
   },
   {
@@ -249,8 +252,8 @@ const TOUR_STEPS: readonly TourStepDefinition[] = [
      */
     anchorSelector: '[data-tour-anchor="exportResult"]',
     shortcutId: null,
-    title: 'lấy tệp mang đi',
-    body: 'nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào.',
+    title: 'Lấy tệp mang đi',
+    body: 'Nút ở chân bảng chỉ sáng lên khi đã có thứ để lấy, và cũng chưa gắn phím nào.',
     placement: 'top',
   },
 ];
@@ -439,6 +442,36 @@ function readViewportKey(): string {
   return `${window.innerWidth}:${window.innerHeight}:${window.scrollX}:${window.scrollY}`;
 }
 
+/**
+ * Neo của bước là phần tử của MÀN CHỦ, và nó có thể xuất hiện muộn — vỏ 3D dựng
+ * "Chế độ xem" sau khi mô hình về, màn xuất dựng nút xuất khi có thứ để xuất. Không
+ * nghe DOM thì một bước chỉ-có-neo không bao giờ sống lại cho tới một `resize`
+ * tình cờ (B-V2-01, phần của `/3d` và màn xuất).
+ */
+function subscribeDom(onStoreChange: () => void): () => void {
+  if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') {
+    return (): void => {};
+  }
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['aria-label', 'data-tour-anchor'],
+  });
+  return (): void => {
+    observer.disconnect();
+  };
+}
+
+/** Ảnh chụp sổ phím cho `useSyncExternalStore` — đổi khi một phím vào hoặc ra. */
+function readRegistryKey(registry: ShortcutRegistry): string {
+  return registry
+    .listShortcuts()
+    .map((entry) => `${entry.id}:${entry.scope}:${entry.combo}`)
+    .join('|');
+}
+
 const SERVER_VIEWPORT_KEY = (): string => '';
 const SERVER_COLLAPSED = (): boolean => false;
 
@@ -468,6 +501,24 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
 
   // Buộc đo lại neo khi cửa sổ đổi cỡ hoặc màn chủ cuộn.
   useSyncExternalStore(subscribeViewport, readViewportKey, SERVER_VIEWPORT_KEY);
+
+  // Và khi sổ phím đổi. Màn chủ đăng ký phím trong effect, tức SAU lượt render
+  // đầu của lớp phủ; không nghe thì lượt ấy thấy 0 bước sống, về `empty`, và
+  // tour chỉ hiện khi một `resize` tình cờ tới — giữa lúc người dùng đang làm
+  // việc khác (B-V2-01). Ảnh chụp là một chuỗi nên so bằng giá trị: không lặp.
+  useSyncExternalStore(
+    registry.subscribe,
+    () => readRegistryKey(registry),
+    SERVER_VIEWPORT_KEY,
+  );
+
+  // …và khi một neo vào hoặc rời trang. Ảnh chụp chỉ ghi CÓ/KHÔNG từng neo, nên
+  // DOM đổi chỗ khác không vẽ lại lớp phủ.
+  useSyncExternalStore(
+    subscribeDom,
+    () => TOUR_STEPS.map((step) => (resolveAnchor(step.id) === null ? '0' : '1')).join(''),
+    SERVER_VIEWPORT_KEY,
+  );
 
   // Đọc lại mỗi lượt render, KHÔNG giữ bản chép nào: người dùng đổi phím thì thẻ
   // đổi theo trong cùng một lượt render. Đây là khuôn `GlobalShortcutHelp.tsx:77`.
@@ -499,50 +550,6 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     .filter((step): step is TourStepView => step !== null);
 
   const droppedCount = allowed.length - steps.length;
-
-  // Neo dò bằng DOM lúc render, mà anh em của màn chủ (thanh công cụ, danh sách…)
-  // chỉ có mặt SAU commit đầu — nên lượt render đầu thấy "chưa có bước nào" và tour
-  // chỉ hiện ở một lượt render lại bất kỳ về sau (NO-208). Sau mỗi commit và mỗi lần
-  // DOM đổi, dò lại; chỉ render lại khi TẬP neo có mặt đổi.
-  const anchorKey = steps.map((step) => step.id).join('|');
-  const anchorKeyRef = useRef(anchorKey);
-  anchorKeyRef.current = anchorKey;
-  const [, setAnchorTick] = useState(0);
-  const allowedRef = useRef(allowed);
-  allowedRef.current = allowed;
-
-  useEffect(() => {
-    if (phase !== 'running' || typeof document === 'undefined') return undefined;
-
-    const probe = (): void => {
-      frame = 0;
-      const shortcutIds = new Set(registry.listShortcuts().map((entry) => entry.id));
-      const present = allowedRef.current
-        .filter(
-          (step) =>
-            (step.shortcutId !== null && shortcutIds.has(step.shortcutId)) ||
-            resolveAnchor(step.id) !== null,
-        )
-        .map((step) => step.id)
-        .join('|');
-      if (present !== anchorKeyRef.current) setAnchorTick((tick) => tick + 1);
-    };
-
-    // Gom mọi lô mutation trong một khung hình thành một lần dò.
-    let frame = 0;
-    const schedule = (): void => {
-      if (frame === 0) frame = requestAnimationFrame(probe);
-    };
-
-    probe();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-    };
-  }, [phase, registry, resolveAnchor]);
 
   const storedIndex =
     activeStepId === null ? 0 : steps.findIndex((step) => step.id === activeStepId);
@@ -577,7 +584,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   const liveMessage =
     activeStep === undefined
       ? ''
-      : `bước ${activeIndex + 1} trên ${steps.length}: ${activeStep.title}`;
+      : `Bước ${activeIndex + 1} trên ${steps.length}: ${activeStep.title}`;
 
   const goToStep = (index: number): void => {
     const next = steps[index];
@@ -626,7 +633,7 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
       combo: 'Escape',
       scope: 'canvas',
       preventDefault: false,
-      description: 'bỏ qua lớp hướng dẫn đang mở',
+      description: 'Bỏ qua lớp hướng dẫn đang mở',
       onTrigger: (): void => {
         skipRef.current();
       },

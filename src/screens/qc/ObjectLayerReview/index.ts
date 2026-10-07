@@ -54,7 +54,6 @@ export {
   OBJECT_LAYER_SAMPLE_LEVEL,
   OBJECT_LAYER_SEED,
   OBJECT_LAYER_TEXT,
-  type ManualObjectProposal,
   type ObjectLayerGatewaySeed,
   type ObjectLayerReviewGateway,
   type ObjectSeedEntry,

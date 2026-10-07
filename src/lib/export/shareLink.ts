@@ -94,8 +94,8 @@ export const SHARE_PERMISSIONS: readonly SharePermission[] = ['view', 'comment']
 
 /** What each grant is called on screen. */
 export const SHARE_PERMISSION_LABELS: Readonly<Record<SharePermission, string>> = {
-  view: 'chỉ xem',
-  comment: 'góp ý',
+  view: 'Chỉ xem',
+  comment: 'Góp ý',
 };
 
 /**
@@ -245,12 +245,12 @@ export type ShareLinkFailure =
 export type ShareLinkResult<T> = Result<T, ShareLinkFailure>;
 
 const TRANSPORT_MESSAGES: Readonly<Record<HttpErrorKind, string>> = {
-  network: 'không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi',
-  timeout: 'máy chủ trả lời quá lâu; liên kết chia sẻ chưa thay đổi',
-  aborted: 'thao tác chia sẻ đã bị huỷ',
-  auth: 'phiên đăng nhập đã hết hiệu lực; đăng nhập lại rồi thử lại',
-  http: 'máy chủ từ chối yêu cầu chia sẻ',
-  parse: 'máy chủ trả về dữ liệu không đọc được',
+  network: 'Không kết nối được máy chủ; liên kết chia sẻ chưa thay đổi',
+  timeout: 'Máy chủ trả lời quá lâu; liên kết chia sẻ chưa thay đổi',
+  aborted: 'Thao tác chia sẻ đã bị huỷ',
+  auth: 'Phiên đăng nhập đã hết hiệu lực; đăng nhập lại rồi thử lại',
+  http: 'Máy chủ từ chối yêu cầu chia sẻ',
+  parse: 'Máy chủ trả về dữ liệu không đọc được',
 };
 
 const STATUS_FORBIDDEN = 403;
@@ -266,16 +266,16 @@ function transportMessage(error: HttpError): string {
     switch (error.status) {
       case STATUS_UNAUTHORISED:
       case STATUS_FORBIDDEN:
-        return 'tài khoản này không có quyền chia sẻ dự án';
+        return 'Tài khoản này không có quyền chia sẻ dự án';
       case STATUS_NOT_FOUND:
       case STATUS_GONE:
         return 'liên kết không còn tồn tại; có thể đã được thu hồi';
       case STATUS_CONFLICT:
         return 'liên kết đã thay đổi ở nơi khác; tải lại danh sách rồi thử lại';
       case STATUS_UNPROCESSABLE:
-        return 'máy chủ không chấp nhận hạn dùng hoặc mật khẩu này';
+        return 'Máy chủ không chấp nhận hạn dùng hoặc mật khẩu này';
       case STATUS_TOO_MANY:
-        return 'tạo liên kết quá nhanh; chờ một lát rồi thử lại';
+        return 'Tạo liên kết quá nhanh; chờ một lát rồi thử lại';
       default:
         break;
     }
@@ -333,10 +333,25 @@ export interface ShareLinkRevokeInput {
  * tests, not in the adapter with the fetch.
  */
 export interface ShareLinkGateway {
+  /**
+   * Whether the server behind this port serves share links at all. `false`
+   * means the screens leave the link parts out of the DOM and send nothing.
+   */
+  readonly supported: boolean;
   create(input: ShareLinkCreateInput): Promise<Result<unknown, HttpError>>;
   list(input: ShareLinkListInput): Promise<Result<unknown, HttpError>>;
   revoke(input: ShareLinkRevokeInput): Promise<Result<unknown, HttpError>>;
 }
+
+/**
+ * Whether this build talks to a server that serves share links.
+ *
+ * The three routes — `GET`/`POST /projects/{id}/share-links` and
+ * `DELETE /projects/{id}/share-links/{linkId}` (BE-BIND #47–#49) — belong to v2;
+ * the v1 server does not mount them and answers 404. This is the one switch:
+ * every screen that offers a link reads it, so v2 flips this and nothing else.
+ */
+export const SHARE_LINKS_SUPPORTED: boolean = false;
 
 /** Where share links live. Ids are escaped: a project id is not a path. */
 export const SHARE_LINK_ENDPOINTS = {
@@ -355,6 +370,7 @@ export const SHARE_LINK_ENDPOINTS = {
  */
 export function createHttpShareLinkGateway(http: HttpClient): ShareLinkGateway {
   return {
+    supported: SHARE_LINKS_SUPPORTED,
     create: async ({ body, projectId, signal }) =>
       http.post<unknown, ShareLinkCreateBody>(SHARE_LINK_ENDPOINTS.collection(projectId), {
         body,
@@ -477,17 +493,17 @@ export function validateShareLinkRequest(
       // own author could not open.
       problems.push({
         field: 'password',
-        message: 'mật khẩu không được bắt đầu hoặc kết thúc bằng khoảng trắng',
+        message: 'Mật khẩu không được bắt đầu hoặc kết thúc bằng khoảng trắng',
       });
     } else if (password.length < MIN_SHARE_PASSWORD_LENGTH) {
       problems.push({
         field: 'password',
-        message: `mật khẩu cần ít nhất ${wholeNumber(MIN_SHARE_PASSWORD_LENGTH)} ký tự`,
+        message: `Mật khẩu cần ít nhất ${wholeNumber(MIN_SHARE_PASSWORD_LENGTH)} ký tự`,
       });
     } else if (password.length > MAX_SHARE_PASSWORD_LENGTH) {
       problems.push({
         field: 'password',
-        message: `mật khẩu không được quá ${wholeNumber(MAX_SHARE_PASSWORD_LENGTH)} ký tự`,
+        message: `Mật khẩu không được quá ${wholeNumber(MAX_SHARE_PASSWORD_LENGTH)} ký tự`,
       });
     }
   }

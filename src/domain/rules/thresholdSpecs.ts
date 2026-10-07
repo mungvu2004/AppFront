@@ -81,7 +81,7 @@ function roomAreaSpecs(): readonly RuleThresholdSpec[] {
     // the same eight numbers but is superseded and off by default, so hanging
     // the fields off it would put them on a row nobody can reach.
     ruleCode: 'ROOM-AREA-BELOW-MINIMUM',
-    label: `diện tích tối thiểu của ${ROOM_USAGE_LABELS[usage]}`,
+    label: `Diện tích tối thiểu của ${ROOM_USAGE_LABELS[usage]}`,
     unit: 'm2' as const,
     min: 0,
     max: 60,
@@ -97,7 +97,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'general.parallelAngleDeg',
     ruleCode: GENERAL_THRESHOLD_CODE,
-    label: 'góc lệch tối đa còn coi là hai đường song song',
+    label: 'Góc lệch tối đa còn coi là hai đường song song',
     unit: 'do',
     // 0° means "only lines that are exactly parallel count", which a CAD-clean
     // export can honestly ask for. Past 30° two runs point in visibly different
@@ -113,7 +113,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'general.jointToleranceMm',
     ruleCode: GENERAL_THRESHOLD_CODE,
-    label: 'khoảng hở tối đa còn coi là hai tường đã nối vào nhau',
+    label: 'Khoảng hở tối đa còn coi là hai tường đã nối vào nhau',
     unit: 'mm',
     // 0 demands ends that coincide exactly. 500 mm is half a metre, wider than
     // any drafting slop, and past it walls that genuinely stop short of one
@@ -129,7 +129,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'wall.minThicknessMm',
     ruleCode: 'WALL-THICKNESS',
-    label: 'bề dày tường tối thiểu',
+    label: 'Bề dày tường tối thiểu',
     unit: 'mm',
     // 30 mm is a single plasterboard leaf, the thinnest thing anybody draws and
     // still calls a wall. 200 mm is already loadbearing masonry, so a minimum
@@ -143,7 +143,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'wall.maxThicknessMm',
     ruleCode: 'WALL-THICKNESS',
-    label: 'bề dày tường tối đa',
+    label: 'Bề dày tường tối đa',
     unit: 'mm',
     // 200 mm at the low end, so this ceiling can never be dragged under the
     // floor its sibling sets for an ordinary project. 1000 mm is a metre-thick
@@ -160,7 +160,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'wall.minLengthMm',
     ruleCode: 'WALL-LENGTH',
-    label: 'chiều dài tường tối thiểu',
+    label: 'Chiều dài tường tối thiểu',
     unit: 'mm',
     // 10 mm is the noise floor of a traced drawing. Above a metre the rule
     // starts condemning real work: a 900 mm jamb return beside a door is a wall.
@@ -175,7 +175,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'door.minWidthMm',
     ruleCode: 'DOOR-WIDTH',
-    label: 'bề rộng cửa đi tối thiểu',
+    label: 'Bề rộng cửa đi tối thiểu',
     unit: 'mm',
     // 600 mm is the narrowest cupboard leaf anybody draws as a door. 1200 mm is
     // a double-leaf entrance, and a minimum above that flags every internal
@@ -194,7 +194,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'wallOverlap.minOverlapMm',
     ruleCode: 'WALL-OVERLAP',
-    label: 'đoạn chồng nhau tối thiểu để tính là hai tường chồng lên nhau',
+    label: 'Đoạn chồng nhau tối thiểu để tính là hai tường chồng lên nhau',
     unit: 'mm',
     // Below 1 mm every pair of touching walls is an overlap and the report is
     // useless. At 500 mm a genuinely duplicated half-metre run stops being
@@ -210,7 +210,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'roomClosure.lateralToleranceMm',
     ruleCode: 'ROOM-NOT-CLOSED',
-    label: 'độ lệch ngang tối đa để tường còn khép được cạnh phòng',
+    label: 'Độ lệch ngang tối đa để tường còn khép được cạnh phòng',
     unit: 'mm',
     // Measured sideways from the wall face to the room edge, so it is the same
     // drafting-slop band as the joint tolerance: 0 for a CAD-clean model, half
@@ -224,7 +224,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'roomClosure.maxUncoveredEdgeMm',
     ruleCode: 'ROOM-NOT-CLOSED',
-    label: 'đoạn đường bao dài nhất được phép không có tường',
+    label: 'Đoạn đường bao dài nhất được phép không có tường',
     unit: 'mm',
     // 0 demands an outline walled end to end. 2000 mm is a wide opening; allow
     // more and an open-plan edge with no wall at all stops being reported.
@@ -239,7 +239,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'wallSupport.minSupportShare',
     ruleCode: 'WALL-UNSUPPORTED',
-    label: 'phần tường chịu lực phải có điểm tựa ở tầng dưới',
+    label: 'Phần tường chịu lực phải có điểm tựa ở tầng dưới',
     unit: 'tile',
     // A share of the wall's length, stored as the share the rule measures: the
     // viewmodel is what turns 0,8 into "80 %" for the field.
@@ -262,7 +262,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'stair.alignmentToleranceMm',
     ruleCode: 'STAIR-ALIGNMENT',
-    label: 'độ lệch tối đa giữa hai vế thang chồng tầng',
+    label: 'Độ lệch tối đa giữa hai vế thang chồng tầng',
     unit: 'mm',
     // 0 demands stair cores that line up exactly, which a modelled building can
     // meet. A metre out and the shaft above no longer lands on the one below,
@@ -278,7 +278,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'corridor.minClearWidthMm',
     ruleCode: 'CORRIDOR-WIDTH',
-    label: 'bề rộng thông thuỷ tối thiểu của hành lang',
+    label: 'Bề rộng thông thuỷ tối thiểu của hành lang',
     unit: 'mm',
     // 600 mm is one person turned sideways: below that nothing is an escape
     // route. 3 m is a lobby, and a minimum that high flags every corridor in a
@@ -292,7 +292,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'stairwell.minClearWidthMm',
     ruleCode: 'CORRIDOR-WIDTH',
-    label: 'bề rộng thông thuỷ tối thiểu của buồng thang',
+    label: 'Bề rộng thông thuỷ tối thiểu của buồng thang',
     unit: 'mm',
     // Same band as the corridor: it is the same measurement on the same escape
     // route, and a project that widens one and forgets the other has built a
@@ -308,7 +308,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'escape.openingOnOutlineToleranceMm',
     ruleCode: 'ESCAPE-DISTANCE',
-    label: 'độ lệch tối đa để lỗ mở còn được tính là của phòng',
+    label: 'Độ lệch tối đa để lỗ mở còn được tính là của phòng',
     unit: 'mm',
     // Which room a door belongs to, for the door graph the escape search walks.
     // A long party wall is named by every room along it, so a door on it has to
@@ -325,7 +325,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'escape.maxDistanceMm',
     ruleCode: 'ESCAPE-DISTANCE',
-    label: 'quãng đường thoát nạn tối đa',
+    label: 'Quãng đường thoát nạn tối đa',
     unit: 'mm',
     // 5 m is stricter than any standard writes and is the floor at which the
     // number still means something. 100 m is past the longest travel distance a
@@ -342,7 +342,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'door.minClearPassageMm',
     ruleCode: 'DOOR-BLOCKS-PATH',
-    label: 'khoảng trống tối thiểu còn lại khi cánh cửa mở hết',
+    label: 'Khoảng trống tối thiểu còn lại khi cánh cửa mở hết',
     unit: 'mm',
     // 500 mm is the narrowest gap a person gets through sideways. Past 1,5 m the
     // rule fires on every ordinary hallway door, which is noise, not a finding.
@@ -357,7 +357,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'furniture.minClashMm',
     ruleCode: 'FURNITURE-CLASH',
-    label: 'độ chồng lấn tối thiểu để tính là đồ đạc va nhau',
+    label: 'Độ chồng lấn tối thiểu để tính là đồ đạc va nhau',
     unit: 'mm',
     // 1 mm is the noise floor of traced furniture outlines; below it every chair
     // against a wall is a clash. At 200 mm a chair pushed a hand's width into
@@ -373,7 +373,7 @@ export const RULE_THRESHOLD_SPECS: readonly RuleThresholdSpec[] = Object.freeze(
   {
     key: 'fixture.wallHuggingToleranceMm',
     ruleCode: 'FIXTURE-OFF-WALL',
-    label: 'khoảng cách tối đa để thiết bị còn coi là áp sát tường',
+    label: 'Khoảng cách tối đa để thiết bị còn coi là áp sát tường',
     unit: 'mm',
     // 0 demands the fixture touch the wall face exactly, which a model can meet
     // and a tracing cannot. Half a metre out, a basin is standing in the room

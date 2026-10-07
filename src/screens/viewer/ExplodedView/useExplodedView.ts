@@ -86,6 +86,7 @@ import {
   useViewerShell,
   type ViewerShellGateway,
 } from '@/screens/viewer/ViewerShell';
+import { BUILDING_MESSAGE } from '@/screens/viewer/ViewerShell/useViewerShell';
 import {
   MAX_SEPARATION,
   MIN_SEPARATION,
@@ -133,13 +134,13 @@ export const EXPLODE_CYCLE_COMBO = 'Space';
 const EXPLODE_CYCLE_ID = 'explodedView.separation.cycle';
 
 /** Câu tiếng Việt cho bảng phím tắt. Khoá `explodedView.logic.cycleShortcut`. */
-const EXPLODE_CYCLE_DESCRIPTION = 'tách các tầng ra rồi hợp lại';
+const EXPLODE_CYCLE_DESCRIPTION = 'Tách các tầng ra rồi hợp lại';
 
 /** Ít hơn số này thì không có gì để tách — một tầng không tách khỏi chính nó. */
 const MIN_EXPLODABLE_STOREYS = 2;
 
 /** Khoá `explodedView.logic.liveSeparation`. */
-const LIVE_SEPARATION_PREFIX = 'đã tách ';
+const LIVE_SEPARATION_PREFIX = 'Đã tách ';
 
 /** Khoá `explodedView.logic.captureError`. */
 const CAPTURE_ERROR_MESSAGE =
@@ -536,7 +537,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
 
   /*
    * Không có `useQuery` thứ hai ở đây, và đó là cố ý. `useViewerShell` đã đọc tên
-   * dự án qua `useQuery` với khoá `queryKeys.project.detail(projectId)` và ĐÚNG
+   * dự án qua `useQuery` với khoá `projectNameQueryKey(projectId)` và ĐÚNG
    * cổng mà hook này truyền vào, nên `isLoading`/`isError` của lượt đọc ấy tới màn
    * qua `shell.state`. Một lượt `useQuery` nữa cùng khoá chỉ là một cái tên thứ
    * hai cho cùng một câu trả lời. Lượt GHI duy nhất của màn — chụp ảnh — đi qua
@@ -908,5 +909,11 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
 
   /* ---- `ViewerShellProps`, trạng thái của MÀN thắng trạng thái của vỏ ---- */
 
-  return { ...shell, state };
+  // Vỏ chỉ biết lượt nạp của nó; cảnh tách tầng dựng riêng, nên câu "đã dựng
+  // xong" của vỏ phải nhường khi màn còn dựng — cùng cách màn đo (NO-391).
+  return {
+    ...shell,
+    state,
+    status: state === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
+  };
 }

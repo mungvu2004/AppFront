@@ -55,16 +55,16 @@ import { cn } from '@/lib/utils';
 import { matchRoomOptions, type ViewerRoomOption } from './roomSearch';
 
 /** Nhãn nút mở — bài kiểm và bài e2e tìm ô tìm bằng đúng chữ này. */
-export const OPEN_SEARCH_LABEL = 'tìm phòng';
+export const OPEN_SEARCH_LABEL = 'Tìm phòng';
 
 /** Nhãn ô chữ, cũng là câu trình đọc màn hình đọc ra khi tiêu điểm vào. */
-export const SEARCH_INPUT_LABEL = 'tìm phòng theo tên hoặc mã';
+export const SEARCH_INPUT_LABEL = 'Tìm phòng theo tên hoặc mã';
 
 /** Nhãn của danh sách kết quả. */
-export const SEARCH_LIST_LABEL = 'kết quả tìm phòng';
+export const SEARCH_LIST_LABEL = 'Kết quả tìm phòng';
 
 /** Câu khi không phòng nào khớp — không phải một danh sách trắng (A11). */
-export const NO_MATCH_MESSAGE = 'không có phòng nào khớp';
+export const NO_MATCH_MESSAGE = 'Không có phòng nào khớp';
 
 export interface ObjectSearchProps {
   /** Mọi phòng của mô hình đang xem; rỗng thì ô tìm không được vẽ. */
@@ -115,7 +115,7 @@ export function ObjectSearch({
       id: 'viewer.search.openCtrlF',
       combo: 'Ctrl+F',
       scope: 'canvas',
-      description: 'mở ô tìm đối tượng',
+      description: 'Mở ô tìm đối tượng',
       onTrigger: onOpen,
     },
     registry !== undefined ? { registry } : {},
@@ -216,7 +216,7 @@ export function ObjectSearch({
                 setActiveIndex(0);
               }}
               onKeyDown={onKeyDown}
-              placeholder="tên hoặc mã phòng"
+              placeholder="Tên hoặc mã phòng"
               ref={inputRef}
               role="combobox"
               type="text"
@@ -249,7 +249,7 @@ export function ObjectSearch({
                 >
                   <span className="truncate">{room.name}</span>
                   <span className="shrink-0 text-[11px] text-text-secondary">
-                    {room.id} · {room.storeyName} · {room.areaLabel}
+                    {room.codeLabel} · {room.storeyName} · {room.areaLabel}
                   </span>
                 </li>
               ))}
@@ -263,7 +263,7 @@ export function ObjectSearch({
 
             {hasMore && (
               <p className="px-2 py-1 text-[11px] leading-none text-text-secondary">
-                còn phòng nữa — gõ thêm để thu hẹp
+                Còn phòng nữa — gõ thêm để thu hẹp
               </p>
             )}
           </div>

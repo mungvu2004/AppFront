@@ -13,8 +13,8 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
-import { Viewer3D } from './Viewer3D';
-import { scenarioPropsFor } from './Viewer3D.stories';
+import { Viewer3D, Viewer3DSaveStrip } from './Viewer3D';
+import { saveBlockFor, scenarioPropsFor } from './Viewer3D.stories';
 import {
   NO_MATCH_MESSAGE,
   OPEN_SEARCH_LABEL,
@@ -116,6 +116,10 @@ describe('[V5-2] nội dung theo trạng thái', () => {
     render(<Viewer3D {...scenarioPropsFor('forbidden')} />);
 
     expect(screen.queryByRole('button', { name: 'Sửa hình học đã chọn' })).toBeNull();
+    /* B-V9-05: tên vai là danh từ chung, viết thường giữa câu. */
+    expect(
+      screen.getByText('Bạn đang xem ở vai người xem nên không sửa được hình học trên mô hình 3D.'),
+    ).toBeInTheDocument();
   });
 
   /* Ca này trước đây khẳng định "công cụ sửa CÓ mặt và không bị disabled". Nút ấy
@@ -312,4 +316,49 @@ describe('[V5-R1] cú bấm phải tới được canvas', () => {
       }
     },
   );
+});
+
+/* -------------------------------------------------------------------------- */
+/* [V5-S] Dải lưu lớp (F-04x-1 bước 7) — chỉ từ props.                          */
+/* -------------------------------------------------------------------------- */
+
+describe('[V5-S] dải lưu lớp', () => {
+  it('không khối → không vẽ gì', () => {
+    const { container } = render(<Viewer3DSaveStrip saveBlock={null} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('reload → cảnh báo "attention" có nút "Tải lại"', () => {
+    const onReload = vi.fn();
+    const { container } = render(<Viewer3DSaveStrip saveBlock={{ ...saveBlockFor('reload'), onReload }} />);
+
+    expect(screen.getByText(/vừa được sửa ở nơi khác/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expectVietnamese(container);
+  });
+
+  it('A9: hộp thoại hỏi trước khi bỏ sửa — đồng ý và huỷ đi đúng đường', async () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const block = saveBlockFor('reload', true);
+
+    render(<Viewer3DSaveStrip saveBlock={{ ...block, confirm: { onCancel, onConfirm, open: true } }} />);
+
+    expect(await screen.findByText('Bỏ thay đổi chưa lưu của tầng này?', {}, { timeout: 5000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
+    expect(onCancel).toHaveBeenCalled();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocked → cảnh báo "violation", không nút', async () => {
+    const { container } = render(<Viewer3DSaveStrip saveBlock={saveBlockFor('blocked')} />);
+
+    expect(screen.getByText(/không còn quyền sửa tầng này/)).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+    await expectAccessible(container);
+  });
 });

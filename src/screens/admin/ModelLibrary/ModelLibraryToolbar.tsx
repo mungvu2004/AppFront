@@ -17,7 +17,7 @@ import type { LibraryFilterId, ModelLibraryActions, ModelLibraryModel, ModelLibr
 const SEARCH_LABEL = 'tìm model';
 const SEARCH_PLACEHOLDER = 'Tìm theo tên model...';
 const CATEGORY_LABEL = 'danh mục';
-const VIEW_MODE_LABEL = 'chế độ xem';
+const VIEW_MODE_LABEL = 'Chế độ xem';
 
 const VIEW_MODE_OPTIONS: readonly SegmentedControlOption<ModelLibraryViewMode>[] = [
   { label: 'Bảng', value: 'table' },

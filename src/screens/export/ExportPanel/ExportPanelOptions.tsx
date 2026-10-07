@@ -42,7 +42,7 @@ import type {
 const DETAIL_OPTIONS: { label: string; value: ExportDetailChoice }[] = [
   { label: 'cao', value: 'high' },
   { label: 'vừa', value: 'medium' },
-  { label: 'gọn', value: 'low' },
+  { label: 'Gọn', value: 'low' },
 ];
 
 function withGlb(options: ExportOptionsView, patch: Partial<GlbOptionsView>): ExportOptionsView {
@@ -66,8 +66,8 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
   const sortedFloors = [...floors].sort((left, right) => left.order - right.order);
 
   return (
-    <section aria-label="phạm vi" className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-text-secondary">phạm vi</h3>
+    <section aria-label="Phạm vi" className="flex flex-col gap-2">
+      <h3 className="text-sm font-medium text-text-secondary">Phạm vi</h3>
       <div className="flex flex-col gap-2">
         {sortedFloors.map((floor) => (
           <div key={floor.id} className="flex flex-col gap-1 rounded border border-border-default p-2">
@@ -80,12 +80,12 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
                 }}
               />
               <Badge variant={floor.isApproved ? 'verified' : 'attention'}>
-                {floor.isApproved ? 'đã duyệt' : 'chưa duyệt'}
+                {floor.isApproved ? 'Đã duyệt' : 'Chưa duyệt'}
               </Badge>
             </div>
             {!floor.isApproved && (
               <p className="pl-6 text-xs text-state-attention-text">
-                tầng chưa duyệt vẫn xuất được, nhưng cần chú ý trước khi gửi đi.
+                Tầng chưa duyệt vẫn xuất được, nhưng cần chú ý trước khi gửi đi.
               </p>
             )}
           </div>
@@ -107,9 +107,9 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
     return (
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">mức độ chi tiết</span>
+          <span className="text-xs text-text-secondary">Mức độ chi tiết</span>
           <SegmentedControl
-            aria-label="mức độ chi tiết mô hình"
+            aria-label="Mức độ chi tiết mô hình"
             options={DETAIL_OPTIONS}
             value={options.glb.detail}
             onChange={(value) => {
@@ -118,7 +118,7 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
           />
         </div>
         <Checkbox
-          label="gồm đồ nội thất"
+          label="Gồm đồ nội thất"
           checked={options.glb.includeFurniture}
           onChange={(checked) => {
             onChangeOptions(withGlb(options, { includeFurniture: checked }));
@@ -126,7 +126,7 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
         />
         {capabilities.canIncludeAxisGrid && (
           <Checkbox
-            label="gồm lưới trục"
+            label="Gồm lưới trục"
             checked={options.glb.includeAxisGrid}
             onChange={(checked) => {
               onChangeOptions(withGlb(options, { includeAxisGrid: checked }));
@@ -141,28 +141,28 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
     return (
       <div className="flex flex-col gap-2">
         <Checkbox
-          label="gồm mặt bằng các tầng"
+          label="Gồm mặt bằng các tầng"
           checked={options.pdf.includeFloorPlans}
           onChange={(checked) => {
             onChangeOptions(withPdf(options, { includeFloorPlans: checked }));
           }}
         />
         <Checkbox
-          label="gồm bảng danh sách phòng"
+          label="Gồm bảng danh sách phòng"
           checked={options.pdf.includeRoomTable}
           onChange={(checked) => {
             onChangeOptions(withPdf(options, { includeRoomTable: checked }));
           }}
         />
         <Checkbox
-          label="gồm danh sách vi phạm"
+          label="Gồm danh sách vi phạm"
           checked={options.pdf.includeViolations}
           onChange={(checked) => {
             onChangeOptions(withPdf(options, { includeViolations: checked }));
           }}
         />
         <Checkbox
-          label="gồm ảnh dựng 3D"
+          label="Gồm ảnh dựng 3D"
           checked={options.pdf.includeRender3d}
           onChange={(checked) => {
             onChangeOptions(withPdf(options, { includeRender3d: checked }));
@@ -176,7 +176,7 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
     return (
       <div className="flex flex-col gap-1 text-sm text-text-secondary">
         <p>
-          góc nhìn hiện tại: <span className="font-mono text-text-primary">{options.image.viewId}</span>
+          Góc nhìn hiện tại: <span className="font-mono text-text-primary">{options.image.viewId}</span>
         </p>
         <p>
           chiều rộng xuất: <span className="font-mono text-text-primary">{options.image.widthLabel}</span>
@@ -187,7 +187,7 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
 
   return (
     <Checkbox
-      label="gồm độ tin cậy từng đối tượng"
+      label="Gồm độ tin cậy từng đối tượng"
       checked={options.spatialJson.includeConfidence}
       onChange={(checked) => {
         onChangeOptions(withSpatialJson(options, { includeConfidence: checked }));
@@ -229,7 +229,7 @@ export function ExportPanelOptions({
             FOCUS_RING,
           )}
         >
-          <span className="text-sm font-medium text-text-secondary">tuỳ chọn</span>
+          <span className="text-sm font-medium text-text-secondary">Tuỳ chọn</span>
           {options.isExpanded ? (
             <ChevronUp aria-hidden="true" size={16} className="text-text-muted" />
           ) : (

@@ -360,12 +360,14 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
     handle.dispose();
   });
 
-  it('fps dưới ngưỡng đủ lâu thì HẠ mức chi tiết thật và đổi luôn bộ lọc bóng', () => {
+  it('fps dưới ngưỡng đủ lâu thì HẠ mức chi tiết thật và chọn bộ lọc bóng của mức hard', () => {
     const test = harness({ initialDetail: 'full' });
     const handle = mounted(test);
 
     expect(handle.currentDetail()).toBe('full');
-    const softShadow = test.renderer.shadowMap.type;
+    // Giá trị canh: `'soft'` và `'hard'` nay cùng ra `PCFShadowMap` — `PCFSoftShadowMap` còn
+    // nhưng renderer thay nó — nên chỉ khi xoá giá trị lúc gắn mới biết hạ mức có thật sự ghi.
+    test.renderer.shadowMap.type = -1;
 
     // Mỗi vòng là một cửa sổ đo dài hơn 500 ms với đúng một khung hình — khoảng
     // 1,7 fps, sâu dưới `SCENE_BUDGET.minFrameRate.mobile`.
@@ -378,7 +380,6 @@ describe('mountMobileViewerScene — ngân sách R-04', () => {
     expect(handle.currentDetail()).toBe('reduced');
     expect(test.details).toEqual(['reduced']);
     expect(test.renderer.shadowMap.type).toBe(shadowMapTypeFor('hard'));
-    expect(test.renderer.shadowMap.type).not.toBe(softShadow);
 
     handle.dispose();
   });

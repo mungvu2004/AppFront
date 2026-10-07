@@ -35,7 +35,7 @@ import { BoxGeometry, ExtrudeGeometry, Group, Mesh, Shape } from 'three';
 import { compareNearly, isNearlyZero, type PointMm } from '@/domain/units/compare';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import { signedAreaMm2 } from '@/domain/rooms/area';
-import { openingSpan } from '@/domain/openings/validate';
+import { openingSpan } from '@/domain/openings/span';
 import { isAttached, type AttachedOpening, type Opening } from '@/domain/openings/types';
 import type { Wall } from '@/domain/walls/types';
 import type { LevelId, OpeningId, RoomId } from '@/domain/spatial/types';

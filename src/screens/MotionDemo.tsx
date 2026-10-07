@@ -24,12 +24,12 @@ import { useMotionDemo, type DemoLayer, type MotionDemoScene } from '../hooks/us
  */
 
 const SCENE_LABELS: Readonly<Record<MotionDemoScene, string>> = {
-  plan: 'mặt bằng 2D',
-  model: 'mô hình 3D',
+  plan: 'Mặt bằng 2D',
+  model: 'Mô hình 3D',
 };
 
 const KIND_LABELS: Readonly<Record<string, string>> = {
-  view: 'đổi khung nhìn',
+  view: 'Đổi khung nhìn',
   screen: 'đổi màn',
   floor: 'đổi tầng',
 };

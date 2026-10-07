@@ -68,7 +68,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
+import { hasBuildableParts, toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { can } from '@/lib/auth/permissions';
 import {
   createShareLink,
@@ -106,6 +106,7 @@ import { projectDetailQueryOptions } from './mobileViewerQueries';
 import {
   MOBILE_VIEWER_COMPACT_WIDTH_PX,
   MOBILE_VIEWER_MODEL_TOKEN,
+  type MobilePartialReason,
   type MobileViewerMeasurement,
   type MobileViewerModel,
   type MobileViewerSceneHandle,
@@ -122,32 +123,32 @@ import {
 
 /** Nhãn mức chi tiết trong lúc còn đang nâng dần lên. `full` là "hết chuyện để nói". */
 const RISING_DETAIL_LABELS: Readonly<Record<DetailLevel, string | null>> = Object.freeze({
-  block: 'đang tải mức gọn',
-  reduced: 'đang tải mức vừa',
+  block: 'Đang tải mức gọn',
+  reduced: 'Đang tải mức vừa',
   full: null,
 });
 
 /** Nhãn mức chi tiết sau khi R-04 vừa HẠ xuống vì máy không theo kịp. */
 const DEGRADED_DETAIL_LABELS: Readonly<Record<DetailLevel, string | null>> = Object.freeze({
-  block: 'đã hạ xuống mức gọn để hình chạy mượt',
-  reduced: 'đã hạ xuống mức vừa để hình chạy mượt',
+  block: 'Đã hạ xuống mức gọn để hình chạy mượt',
+  reduced: 'Đã hạ xuống mức vừa để hình chạy mượt',
   full: null,
 });
 
 /** Tên hiện trên thanh trên khi đồ thị và máy chủ đều chưa cho biết tên nào. */
-const UNNAMED_PROJECT = 'dự án chưa có tên';
+const UNNAMED_PROJECT = 'Dự án chưa có tên';
 
 /** Loại của mọi toast màn này phát ra — `NotificationBus` gộp theo trường này. */
 const SHARE_NOTIFICATION_TYPE = 'shareLink';
 
-const SHARE_COPIED_TITLE = 'đã tạo liên kết chia sẻ';
-const SHARE_COPIED_BODY = 'liên kết chỉ xem đã được chép vào bộ nhớ tạm.';
-const SHARE_COPY_BLOCKED_BODY = 'máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.';
-const SHARE_MAILED_TITLE = 'đã tạo liên kết cho máy tính';
-const SHARE_MAILED_BODY = 'ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.';
-const SHARE_FAILED_TITLE = 'chưa tạo được liên kết chia sẻ';
-const SHARE_FAILED_BODY = 'chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.';
-const SHARE_UNDO_LABEL = 'thu hồi liên kết vừa tạo';
+const SHARE_COPIED_TITLE = 'Đã tạo liên kết chia sẻ';
+const SHARE_COPIED_BODY = 'Liên kết chỉ xem đã được chép vào bộ nhớ tạm.';
+const SHARE_COPY_BLOCKED_BODY = 'Máy không cho chép tự động, hãy mở liên kết rồi chép thủ công.';
+const SHARE_MAILED_TITLE = 'Đã tạo liên kết cho máy tính';
+const SHARE_MAILED_BODY = 'Ứng dụng thư đã mở sẵn một thư kèm liên kết và câu giải thích.';
+const SHARE_FAILED_TITLE = 'Chưa tạo được liên kết chia sẻ';
+const SHARE_FAILED_BODY = 'Chưa gọi được máy chủ chia sẻ, hãy thử lại khi mạng khá hơn.';
+const SHARE_UNDO_LABEL = 'Thu hồi liên kết vừa tạo';
 
 /* -------------------------------------------------------------------------- */
 /* Tham số và những kiểu riêng của hook.                                       */
@@ -245,9 +246,15 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
 
   const sessionShareLinks = useShareLinkGateway();
   const shareLinks = options.shareLinks !== undefined ? options.shareLinks : sessionShareLinks;
+  // Không cổng, hoặc cổng nói máy chủ không phục vụ liên kết (v1, BE-BIND #47–#49):
+  // hai nút chia sẻ rời DOM và không lượt gọi nào đi ra.
+  const canShareLinks = shareLinks !== null && shareLinks.supported;
 
   const storeSpatial = useStore((state) => state.spatial);
-  const spatial = options.spatial !== undefined ? options.spatial : storeSpatial;
+  const storeLoading = useStore((state) => state.spatialLoading);
+  // Đang nạp dự án mới thì kho còn giữ mô hình của dự án trước: không vẽ nó dưới tên dự án này.
+  const spatialLoading = storeLoading && options.spatial === undefined;
+  const spatial = options.spatial ?? (spatialLoading ? null : storeSpatial);
 
   const nowRef = useRef<() => number>(Date.now);
   nowRef.current = options.now ?? Date.now;
@@ -305,6 +312,11 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   }, [spatial, data.storeys]);
 
   const levels = conversion.levels;
+
+  // Tầng có tên mà không có tường lẫn phòng (mock `project-1`) chưa phải mô hình:
+  // dựng cảnh lên nó chỉ cho một khung trống mà không cổng nào bắt được. Cùng vị
+  // ngữ mà /3d dùng cho `empty` (B-V1-11).
+  const hasGeometry = useMemo(() => levels.some(hasBuildableParts), [levels]);
 
   /**
    * Một token cho cả mô hình — màn chỉ đọc này không có bộ chọn chế độ tô.
@@ -523,7 +535,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   }, [canvas]);
 
   useEffect(() => {
-    if (canvas === null || floorIds.length === 0) {
+    if (canvas === null || floorIds.length === 0 || !hasGeometry) {
       return undefined;
     }
 
@@ -557,7 +569,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
       handleRef.current = null;
       setIsSceneMounted(false);
     };
-  }, [canvas, floorIds, levels, tokenOfPartKind, mountScene]);
+  }, [canvas, floorIds, hasGeometry, levels, tokenOfPartKind, mountScene]);
 
   useEffect(() => {
     handleRef.current?.setActiveFloor(activeFloorId);
@@ -567,7 +579,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
 
   const shareMutation = useMutation<ShareOutcome, Error, ShareIntent>({
     mutationFn: async (intent: ShareIntent): Promise<ShareOutcome> => {
-      if (shareLinks === null) {
+      if (!canShareLinks) {
         return { intent, link: null };
       }
 
@@ -656,6 +668,19 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
    * nói bề ngang màn hình chứ không nói được rằng dữ liệu chưa về. Nên
    * `collapsed` thay chỗ của `success`, không thay chỗ của sáu nhánh kia.
    */
+  /**
+   * Lý do của `partial` (B-V1-11). Thiếu phòng thắng mạng yếu: nó là sự thật về
+   * mô hình, còn mạng có thể khá lên ngay. `data.isPartial` là cùng phép thử
+   * "tầng có phòng" mà huy hiệu của dải tầng dùng (`floorHasRooms`).
+   */
+  const partialReason = useMemo((): MobilePartialReason | null => {
+    if (data.isPartial) {
+      return 'missing-rooms';
+    }
+
+    return isNetworkWeak ? 'weak-network' : null;
+  }, [data.isPartial, isNetworkWeak]);
+
   const state = useMemo((): MobileViewerState => {
     if (isForbidden) {
       return 'forbidden';
@@ -663,13 +688,17 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     if (sceneFailure !== null || conversion.failed || projectQuery.isError) {
       return 'error';
     }
-    if (projectQuery.isLoading || (canvas !== null && floorIds.length > 0 && !isSceneMounted)) {
+    if (
+      projectQuery.isLoading ||
+      spatialLoading ||
+      (canvas !== null && hasGeometry && !isSceneMounted)
+    ) {
       return 'loading';
     }
-    if (data.storeys.length === 0) {
+    if (!hasGeometry) {
       return 'empty';
     }
-    if (data.isPartial || isNetworkWeak || floors.some((floor) => !floor.isLoaded)) {
+    if (partialReason !== null) {
       return 'partial';
     }
     if (isCompact) {
@@ -683,13 +712,11 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     conversion.failed,
     projectQuery.isError,
     projectQuery.isLoading,
+    spatialLoading,
     canvas,
-    floorIds.length,
+    hasGeometry,
     isSceneMounted,
-    data.storeys.length,
-    data.isPartial,
-    isNetworkWeak,
-    floors,
+    partialReason,
     isCompact,
   ]);
 
@@ -703,7 +730,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   return {
     state,
     projectName,
-    onShare,
+    onShare: canShareLinks ? onShare : null,
     isCompact,
     activeTool,
     onSelectTool,
@@ -712,9 +739,10 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     onSelectFloor,
     selection,
     onDismissSelection,
-    onSendDesktopLink,
+    onSendDesktopLink: canShareLinks ? onSendDesktopLink : null,
     measurements,
     detailLabel,
+    partialReason: state === 'partial' ? partialReason : null,
     // Bản 2D của cùng dự án là danh sách tầng — lối thoát luôn hợp lệ, kể cả
     // khi đồ thị chưa có tầng nào để đặt tên vào đường dẫn.
     fallback2dHref: ROUTES.project.floors(projectId),

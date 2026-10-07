@@ -16,7 +16,7 @@
  * "xoá đối tượng". `PARTIAL_ARGS` dùng vi phạm `WALL-THICKNESS` thật trên
  * `VIOLATED_BUILDING_SCENARIO` — tường mỏng không có hành động tự động nào sửa
  * được (không phải xoá, không phải đổi tên phòng), nên đúng nghĩa trạng thái 3
- * "một phần" của màn này (types.ts: "không có cách sửa tự động nào bật được").
+ * "Một phần" của màn này (types.ts: "không có cách sửa tự động nào bật được").
  * Độ tin cậy (`confidenceLabel`) lấy THẬT từ `ReviewMetadata.confidence` của
  * chính thực thể đó, định dạng qua `formatNumber` (dấu phẩy, A15) — không bịa số.
  *
@@ -38,6 +38,7 @@ import { RULE_GROUP_LABELS, RULE_SEVERITY_LABELS } from '@/domain/rules/registry
 import type { Rule, Violation } from '@/domain/rules/registry';
 import { evaluatedRuleCodes, runRules } from '@/domain/rules/runner';
 import {
+  displayCodeIn,
   idsOnLevel,
   isEntityOfKind,
   normalizeSpatial,
@@ -61,7 +62,7 @@ import {
 
 import { useStore } from '@/store';
 
-import { ViolationDetail } from './ViolationDetail';
+import { ViolationDetail, type ViolationDetailSaveProps } from './ViolationDetail';
 import { useViolationDetail } from './useViolationDetail';
 import type {
   ViolationAction,
@@ -79,7 +80,7 @@ afterEach(() => {
  * 0. Hạ tầng.
  * ========================================================================== */
 
-function renderView(props: ViolationDetailViewProps) {
+function renderView(props: ViolationDetailViewProps & ViolationDetailSaveProps) {
   return renderWithProviders(<ViolationDetail {...props} />);
 }
 
@@ -135,7 +136,7 @@ function figureOf(
     // Đúng như hook: một tầng có tường không dùng được (dày 40 mm, ngoài khoảng
     // 60–600) là tầng KHÔNG vẽ được, không phải một sự cố. `figureUnavailable`
     // bật lên và phần chữ đứng một mình — `VIOLATED_BUILDING_SCENARIO` rơi vào
-    // đúng trường hợp này, và đó là lý do trạng thái "một phần" không có hình.
+    // đúng trường hợp này, và đó là lý do trạng thái "Một phần" không có hình.
     return null;
   }
 
@@ -196,7 +197,8 @@ const SUCCESS_CAUSES: readonly ViolationCause[] = [
 const SUCCESS_OBJECTS: readonly ViolationObject[] = [
   {
     entityId: SUCCESS_ENTITY.id,
-    kindLabel: 'đồ đạc',
+    code: displayCodeIn(NORMALIZED_CLEAN, SUCCESS_ENTITY.id),
+    kindLabel: 'Đồ đạc',
     confidenceLabel: SUCCESS_CONFIDENCE_LABEL,
     isSubject: true,
   },
@@ -246,13 +248,14 @@ const PARTIAL_CAUSES: readonly ViolationCause[] = [
 const PARTIAL_OBJECTS: readonly ViolationObject[] = [
   {
     entityId: PARTIAL_ENTITY.id,
-    kindLabel: 'tường',
+    code: displayCodeIn(NORMALIZED_VIOLATED, PARTIAL_ENTITY.id),
+    kindLabel: 'Tường',
     confidenceLabel: PARTIAL_CONFIDENCE_LABEL,
     isSubject: true,
   },
 ];
 
-/** Hàng "bỏ qua" — KHÔNG bao giờ có trong `SUCCESS_ACTIONS` thật (G3, canDismiss=false); dùng để thử độ vững của cổng năng lực. */
+/** Hàng "Bỏ qua" — KHÔNG bao giờ có trong `SUCCESS_ACTIONS` thật (G3, canDismiss=false); dùng để thử độ vững của cổng năng lực. */
 const DISMISS_ACTION: ViolationAction = {
   kind: 'dismiss',
   label: 'bỏ qua vi phạm này',
@@ -288,7 +291,7 @@ function emptyProps(): ViolationDetailViewProps {
     title: '',
     severity: null,
     severityLabel: '',
-    subjectEntityId: '',
+    subjectCode: '',
     ruleSentence: '',
     measureLabel: null,
     thresholdLabel: null,
@@ -359,7 +362,7 @@ function loadedProps(args: LoadedArgs): ViolationDetailViewProps {
     title: args.violation.message,
     severity: args.rule.severity,
     severityLabel: RULE_SEVERITY_LABELS[args.rule.severity],
-    subjectEntityId: args.violation.entityId,
+    subjectCode: args.objects.find((object) => object.isSubject)?.code ?? '',
     ruleSentence: args.rule.name,
     measureLabel: null,
     thresholdLabel: null,
@@ -535,7 +538,7 @@ describe('năng lực false thì phần giao diện bị gỡ khỏi DOM', () =>
     expect(screen.queryByText(probeThresholdLabel)).toBeNull();
   });
 
-  it('canDismiss=false: hàng "bỏ qua" không hiện dù `actions` có mang nó', () => {
+  it('canDismiss=false: hàng "Bỏ qua" không hiện dù `actions` có mang nó', () => {
     const base = propsFor(scenarioOf('success'));
     const props: ViolationDetailViewProps = {
       ...base,
@@ -556,7 +559,7 @@ describe('năng lực false thì phần giao diện bị gỡ khỏi DOM', () =>
  * G. Trạng thái 6 (forbidden) — nút sửa vắng mặt, căn cứ vẫn xem được.
  * ========================================================================== */
 
-describe('trạng thái 6 "không có quyền": nút sửa vắng mặt, căn cứ vẫn xem được', () => {
+describe('trạng thái 6 "Không có quyền": nút sửa vắng mặt, căn cứ vẫn xem được', () => {
   it('canEdit=false thì không nút hành động nào, nhưng ruleSentence vẫn hiện', () => {
     const props = propsFor(scenarioOf('forbidden'));
 
@@ -577,7 +580,7 @@ describe('trạng thái 6 "không có quyền": nút sửa vắng mặt, căn c�
  * H. Trạng thái 7 (collapsed) — canvas nhỏ vắng mặt.
  * ========================================================================== */
 
-describe('trạng thái 7 "thu gọn": canvas nhỏ vắng mặt', () => {
+describe('trạng thái 7 "Thu gọn": canvas nhỏ vắng mặt', () => {
   it('state=collapsed thì không canvas nào trong DOM dù canPreview3d=true', () => {
     const props = propsFor(scenarioOf('collapsed'));
 
@@ -658,6 +661,19 @@ describe('A12 — J/K duyệt qua lại không đóng tấm, Esc đóng tấm', 
 /* ==========================================================================
  * K. Trỏ vào một hàng lựa chọn → xem trước hậu quả (onActionHover).
  * ========================================================================== */
+
+describe('nhãn tự lưu (F-04x-1 6.4) — chỉ nhãn, không dải', () => {
+  it('có nhãn thì hiện đúng chữ ở đầu tấm; vắng thì không hiện gì', () => {
+    const { unmount } = renderView({ ...propsFor(scenarioOf('success')), saveLabel: 'Lưu thất bại' });
+
+    expect(screen.getByText('Lưu thất bại')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải lại' })).toBeNull();
+    unmount();
+
+    renderView(propsFor(scenarioOf('success')));
+    expect(screen.queryByText(/Đã lưu|Lưu thất bại/)).toBeNull();
+  });
+});
 
 describe('trỏ vào một hàng lựa chọn → xem trước hậu quả', () => {
   it('trỏ vào báo onActionHover(kind), rời khỏi báo lại null', () => {
@@ -744,6 +760,25 @@ function WiredForFixLoop(props: {
   return <ViolationDetail {...viewProps} />;
 }
 
+describe('B-V7-31 — khối "phát hiện" gọi đối tượng bằng mã người đọc', () => {
+  it('hook in đúng mã câu luật dùng, không in mã máy', async () => {
+    const { entityId } = SUCCESS_VIOLATION;
+
+    renderWithProviders(
+      <WiredForFixLoop floorId={SUCCESS_VIOLATION.levelId ?? 'level-1'} violations={[SUCCESS_VIOLATION]} />,
+    );
+
+    await act(async () => {
+      useStore.getState().setSpatial(NORMALIZED_CLEAN, 'version-1');
+      await Promise.resolve();
+    });
+
+    // Đầu tấm (mã đối tượng gây lỗi) và khối "phát hiện" cùng in một mã.
+    expect(screen.getAllByText(displayCodeIn(NORMALIZED_CLEAN, entityId))).toHaveLength(2);
+    expect(screen.queryByText(entityId)).toBeNull();
+  });
+});
+
 describe('[NGHIỆM THU] sửa một vi phạm → luật chuyển sang đạt → Ctrl+Z trả về vi phạm', () => {
   it('ba lần kiểm: vi phạm → đạt → vi phạm trở lại, qua đúng ngăn xếp mà Ctrl+Z đọc', async () => {
     const { ruleCode, entityId } = SUCCESS_VIOLATION;
@@ -773,7 +808,7 @@ describe('[NGHIỆM THU] sửa một vi phạm → luật chuyển sang đạt �
 
     /* ---- Bước 3 — bấm ĐÚNG nút đề xuất của tấm trượt. ---- */
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'xoá đối tượng này' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Xoá đối tượng này' }));
     });
 
     await waitFor(() => {
@@ -783,7 +818,7 @@ describe('[NGHIỆM THU] sửa một vi phạm → luật chuyển sang đạt �
     // Tấm trượt tự nói ra rằng luật vừa chạy lại và không còn báo lỗi — cùng một
     // sự thật mà hai lần đếm dưới đây đo, chỉ khác là người dùng đọc được nó.
     await waitFor(() => {
-      expect(screen.getByText(/đã sửa xong/u)).toBeInTheDocument();
+      expect(screen.getByText(/Đã sửa xong/u)).toBeInTheDocument();
     });
 
     /* ---- Bước 4 + LẦN KIỂM 2 — chạy lại ĐÚNG luật đó, rồi khẳng định nó ĐẠT. ---- */

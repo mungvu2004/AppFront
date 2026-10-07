@@ -1,9 +1,12 @@
 export type QueryKey = readonly unknown[];
 
 type QueryDomain =
+  | 'adminMl'
   | 'drawing'
   | 'floor'
+  | 'layer'
   | 'library'
+  | 'me'
   | 'measurement'
   | 'notification'
   | 'progress'
@@ -52,26 +55,94 @@ const createQueryKeyFactory = <
 const projectListRoot = freezeKey(['project', 'list'] as const);
 const projectDetailRoot = freezeKey(['project', 'detail'] as const);
 const projectMembersRoot = freezeKey(['project', 'members'] as const);
+/*
+ * Danh sách dự án gần đây của màn "không tìm thấy trang" — khoá RIÊNG, không
+ * dùng lại `project.list`.
+ *
+ * Hai màn từng dùng chung `project.list`, và nó đổ. `notFoundGateway` đọc
+ * `client.projects.list()` nên nó ghi hình dạng `Project` của API;
+ * bảng điều khiển ghi hình dạng `DashboardProject` (có thêm `members`), dẫn xuất từ
+ * N1 và nay nằm dưới `project.summaries()`, không còn dưới `list`. Hai người ghi, hai hình dạng,
+ * một khoá: vào 404 trước rồi bấm "về danh sách dự án" thì bảng điều khiển (khi còn dùng chung khoá) đọc lại
+ * bộ đệm của 404 và `ProjectCardTile` ném
+ * `Cannot read properties of undefined (reading 'length')` ở `project.members`.
+ *
+ * React Query không thấy được chỗ này (khoá chỉ là một mảng chuỗi) và TypeScript
+ * cũng không (mỗi cổng tự khai kiểu trả về của mình). Nên lời chặn duy nhất là
+ * **một khoá một hình dạng**.
+ */
+const projectRecentRoot = freezeKey(['project', 'recent'] as const);
+/* Thẻ dự án của dashboard (N1) — khoá riêng, một hình dạng (`ProjectSummaryList`-dẫn-xuất); không đọc N1 dưới `list`/`detail`. */
+const projectSummariesRoot = freezeKey(['project', 'summaries'] as const);
 const floorListRoot = freezeKey(['floor', 'list'] as const);
 const floorDetailRoot = freezeKey(['floor', 'detail'] as const);
 const drawingByFloorRoot = freezeKey(['drawing', 'byFloor'] as const);
 const progressByFloorRoot = freezeKey(['progress', 'byFloor'] as const);
+const progressLatestUploadsRoot = freezeKey(['progress', 'latestUploads'] as const);
 const spaceByFloorRoot = freezeKey(['space', 'byFloor'] as const);
 const qualityAssessmentRoot = freezeKey(['quality', 'assessment'] as const);
 const roomByFloorRoot = freezeKey(['room', 'byFloor'] as const);
 const templateByProjectRoot = freezeKey(['template', 'byProject'] as const);
 const violationByProjectRoot = freezeKey(['violation', 'byProject'] as const);
 const versionByFloorRoot = freezeKey(['version', 'byFloor'] as const);
+const layerGraphRoot = freezeKey(['layer', 'graph'] as const);
+const layerByFloorRoot = freezeKey(['layer', 'byFloor'] as const);
 const libraryListRoot = freezeKey(['library', 'list'] as const);
 const libraryDetailRoot = freezeKey(['library', 'detail'] as const);
+const meProfileRoot = freezeKey(['me', 'profile'] as const);
 const measurementAllRoot = freezeKey(['measurement', 'all'] as const);
 const notificationListRoot = freezeKey(['notification', 'list'] as const);
 const userListRoot = freezeKey(['user', 'list'] as const);
 const userCurrentRoot = freezeKey(['user', 'current'] as const);
 const userMembershipsRoot = freezeKey(['user', 'memberships'] as const);
 const userActivityRoot = freezeKey(['user', 'activity'] as const);
+const adminMlDatasetsRoot = freezeKey(['adminMl', 'datasets'] as const);
+const adminMlDatasetVersionsRoot = freezeKey(['adminMl', 'datasetVersions'] as const);
+const adminMlFamiliesRoot = freezeKey(['adminMl', 'families'] as const);
+const adminMlJobRoot = freezeKey(['adminMl', 'job'] as const);
+const adminMlJobsRoot = freezeKey(['adminMl', 'jobs'] as const);
+const adminMlVersionsRoot = freezeKey(['adminMl', 'versions'] as const);
+const adminMlVersionRoot = freezeKey(['adminMl', 'version'] as const);
 
 export const queryKeys = {
+  /**
+   * Registry model của chuỗi xử lý — F-11 (N23, N25, N27).
+   *
+   * `versions` khoá theo họ: ba họ là ba danh sách tách biệt, và kích hoạt một bản ở họ này
+   * không làm cũ danh sách họ kia. `version` khoá theo mã bản: một bản không đổi sau khi
+   * tạo trừ trạng thái đánh giá, nên lượt kích hoạt không làm cũ nó.
+   *
+   * F-12 (N28, N30, N32, N34): `jobs` khoá theo bộ lọc (vắng = `null`, không phải chuỗi
+   * "tất cả" có thể trùng giá trị thật); `jobs.root()` là tiền tố để làm cũ mọi bộ lọc.
+   */
+  adminMl: {
+    datasetVersions: createQueryKeyFactory(adminMlDatasetVersionsRoot, (datasetId: string) => [
+      ...adminMlDatasetVersionsRoot,
+      datasetId,
+    ] as const),
+    datasets: createQueryKeyFactory(adminMlDatasetsRoot, (family: string | undefined) => [
+      ...adminMlDatasetsRoot,
+      family ?? null,
+    ] as const),
+    families: createQueryKeyFactory(adminMlFamiliesRoot, () => adminMlFamiliesRoot),
+    job: createQueryKeyFactory(adminMlJobRoot, (jobId: string) => [...adminMlJobRoot, jobId] as const),
+    jobs: createQueryKeyFactory(
+      adminMlJobsRoot,
+      (filter: { readonly family?: string | undefined; readonly status?: string | undefined }) => [
+        ...adminMlJobsRoot,
+        filter.family ?? null,
+        filter.status ?? null,
+      ] as const,
+    ),
+    version: createQueryKeyFactory(adminMlVersionRoot, (modelVersionId: string) => [
+      ...adminMlVersionRoot,
+      modelVersionId,
+    ] as const),
+    versions: createQueryKeyFactory(adminMlVersionsRoot, (family: string) => [
+      ...adminMlVersionsRoot,
+      family,
+    ] as const),
+  },
   drawing: {
     byFloor: createQueryKeyFactory(drawingByFloorRoot, (floorId: string) => [...drawingByFloorRoot, floorId] as const),
   },
@@ -79,12 +150,28 @@ export const queryKeys = {
     detail: createQueryKeyFactory(floorDetailRoot, (floorId: string) => [...floorDetailRoot, floorId] as const),
     list: createQueryKeyFactory(floorListRoot, (projectId: string) => [...floorListRoot, projectId] as const),
   },
+  /**
+   * Đồ thị không gian theo máy chủ: N15 cả dự án (`graph`), N16 một tầng (`byFloor`).
+   * F-05b, F-08 vô hiệu hai khoá này khi máy chủ thay tầng từ ngoài.
+   */
+  layer: {
+    byFloor: createQueryKeyFactory(layerByFloorRoot, (projectId: string, floorId: string) => [
+      ...layerByFloorRoot,
+      projectId,
+      floorId,
+    ] as const),
+    graph: createQueryKeyFactory(layerGraphRoot, (projectId: string) => [...layerGraphRoot, projectId] as const),
+  },
   library: {
     detail: createQueryKeyFactory(libraryDetailRoot, (libraryItemId: string) => [
       ...libraryDetailRoot,
       libraryItemId,
     ] as const),
     list: createQueryKeyFactory(libraryListRoot, () => libraryListRoot),
+  },
+  /** Hồ sơ của người đang đăng nhập (N11): bản nháp hồ sơ đã ánh xạ, một khoá một hình dạng. */
+  me: {
+    profile: createQueryKeyFactory(meProfileRoot, () => meProfileRoot),
   },
   /**
    * Thông báo của người đang đăng nhập — T-09.
@@ -105,14 +192,21 @@ export const queryKeys = {
       ...progressByFloorRoot,
       floorId,
     ] as const),
+    /** N7 — lượt tải mới nhất của từng tầng trong dự án: màn xử lý theo dõi danh sách này. */
+    latestUploads: createQueryKeyFactory(progressLatestUploadsRoot, (projectId: string) => [
+      ...progressLatestUploadsRoot,
+      projectId,
+    ] as const),
   },
   project: {
     detail: createQueryKeyFactory(projectDetailRoot, (projectId: string) => [...projectDetailRoot, projectId] as const),
     list: createQueryKeyFactory(projectListRoot, () => projectListRoot),
+    recent: createQueryKeyFactory(projectRecentRoot, () => projectRecentRoot),
     members: createQueryKeyFactory(projectMembersRoot, (projectId: string) => [
       ...projectMembersRoot,
       projectId,
     ] as const),
+    summaries: createQueryKeyFactory(projectSummariesRoot, () => projectSummariesRoot),
   },
   /**
    * Phép đo chất lượng ảnh của một tầng.

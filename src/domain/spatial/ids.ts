@@ -146,5 +146,60 @@ export const readKindFromId = (id: string): EntityKind | null => {
   return kindByPrefix.get(parts.prefix) ?? null;
 };
 
+const DISPLAY_CODE_DIGITS = 3;
+
+const counterCodeOf = (id: string): string => {
+  const counter = id.slice(2, 2 + COUNTER_LENGTH).replace(/^0+/u, '');
+
+  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+};
+
+// A counter-led body starts with a `0` and is no longer than counter + random part
+// (16). Both halves matter: a BE id also starts with `0` (its timestamp, until ~2558)
+// but its body is 25 long, so only the length rules it out.
+const isCounterLed = (id: string): boolean =>
+  id.slice(2, 3) === '0' && id.length - 2 <= COUNTER_LENGTH + RANDOM_LENGTH;
+
+/**
+ * Nhãn người đọc của MỘT mã đứng riêng (không có danh sách anh em để đánh số): mã
+ * có số đếm đứng đầu ra `W-014`, mọi mã khác (mã BE, `A-AXIS0000000`, `W-MISSING1AA`)
+ * giữ nguyên văn — cắt sáu ký tự đầu của chúng chỉ ra nhãn rác (B-V7-42).
+ */
+export const counterLabelOf = (id: string): string => (isCounterLed(id) ? counterCodeOf(id) : id);
+
+/**
+ * Nhãn người đọc (không có dấu `#`) cho một danh sách mã CÙNG LOẠI trên cùng một tầng.
+ *
+ * Quy tắc:
+ * 1. Nếu MỌI mã có số đếm đứng đầu (thân bắt đầu bằng `0`, dài không quá 16 ký tự)
+ *    thì đọc sáu ký tự đầu của thân làm số đếm, bỏ số 0 đầu, đệm đủ 3 chữ số
+ *    (`W-000014WALL` -> `W-014`). Nếu mọi nhãn đó KHÔNG trùng nhau thì dùng chúng,
+ *    nên mã do `createId` sinh và bộ mẫu QC giữ nguyên nhãn, và nhãn không dịch
+ *    chỗ khi một thực thể bị xoá.
+ * 2. Ngược lại (mã BE `<chữ>-<25 ký tự base36>` có mốc thời gian đứng đầu, mã
+ *    bộ mẫu A14 `M-DIMN0000010` có chỉ số đứng sau, hay số đếm trùng nhau) thì
+ *    đánh số cả danh sách theo THỨ TỰ của mã xếp tăng dần (`X-001`, `X-002`...).
+ *    Với cả ba dạng mã, thứ tự
+ *    tăng dần chính là thứ tự tạo, nên thực thể mới nối đuôi mà không đánh lại số cũ.
+ *
+ * ponytail: ở nhánh thứ tự, xoá một thực thể làm nhãn các thực thể sau nó dịch đi
+ * một. Đường nâng cấp: đánh số trên hợp của ảnh chụp máy chủ đã tải và các mã hiện có.
+ */
+export const displayCodesOf = (ids: readonly string[]): ReadonlyMap<string, string> => {
+  const counterCodes = ids.map(counterCodeOf);
+
+  if (ids.every(isCounterLed) && new Set(counterCodes).size === new Set(ids).size) {
+    return new Map(ids.map((id, index) => [id, counterCodes[index] as string] as const));
+  }
+
+  const sorted = [...new Set(ids)].sort();
+
+  return new Map(
+    sorted.map(
+      (id, index) => [id, `${id.slice(0, 1)}-${String(index + 1).padStart(DISPLAY_CODE_DIGITS, '0')}`] as const,
+    ),
+  );
+};
+
 /** Checks whether a string is a valid id of any entity kind. */
 export const isValidId = (id: string): boolean => readKindFromId(id) !== null;

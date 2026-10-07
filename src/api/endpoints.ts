@@ -1,10 +1,13 @@
+const ADMIN_ML_ROOT = '/admin/ml';
 const PROJECTS_ROOT = '/projects';
+const PROJECT_SUMMARIES_ROOT = '/project-summaries';
 const FLOORS_ROOT = '/floors';
 const DRAWINGS_ROOT = '/drawings';
 const FEATURE_FLAGS_ROOT = '/feature-flags';
 const LIBRARY_ROOT = '/library';
 const MEASUREMENTS_ROOT = '/measurements';
 const AUTH_ROOT = '/auth';
+const ME_ROOT = '/me';
 const PROPERTY_TEMPLATES_ROOT = 'property-templates';
 const USERS_ROOT = '/users';
 const NOTIFICATIONS_ROOT = '/notifications';
@@ -54,14 +57,37 @@ export function toApiUrl(baseUrl: string, path: string): string {
 
 export const ENDPOINTS = {
   /**
-   * The credential exchange, and the only two paths a signed-out visitor posts to.
+   * N23–N27 — registry model của chuỗi xử lý (F-11). Mọi đường `require_admin`.
    *
-   * Flat strings rather than functions because neither takes a parameter: the
-   * address and password travel in the body, never in the path.
+   * `familyActive(family)`: họ đi trên đường chứ không trong thân, vì luật "chỉ họ
+   * tường được gửi `null`" là luật theo họ (`schemas/adminMl.ts`).
+   */
+  adminMl: {
+    /** N28–N37 (F-12): bộ dữ liệu và lượt huấn luyện. */
+    datasetVersions: (datasetId: string): string => `${ADMIN_ML_ROOT}/datasets/${datasetId}/versions`,
+    datasets: `${ADMIN_ML_ROOT}/datasets`,
+    families: `${ADMIN_ML_ROOT}/model-families`,
+    familyActive: (family: string): string => `${ADMIN_ML_ROOT}/model-families/${family}/active`,
+    job: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}`,
+    jobCancel: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}/cancel`,
+    jobLogs: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}/logs`,
+    jobMetrics: (jobId: string): string => `${ADMIN_ML_ROOT}/training-jobs/${jobId}/metrics`,
+    jobs: `${ADMIN_ML_ROOT}/training-jobs`,
+    version: (modelVersionId: string): string => `${ADMIN_ML_ROOT}/model-versions/${modelVersionId}`,
+    versions: `${ADMIN_ML_ROOT}/model-versions`,
+  },
+  /**
+   * The credential exchange, and the only paths a signed-out visitor posts to.
+   *
+   * Flat strings rather than functions because none takes a parameter: the
+   * address, password and one-time token travel in the body, never in the path.
+   * There is deliberately no `register`: sign-up is closed in v1 (K7 = B).
    */
   auth: {
+    invitationAccept: `${AUTH_ROOT}/invitations/accept`,
     login: `${AUTH_ROOT}/login`,
-    register: `${AUTH_ROOT}/register`,
+    passwordReset: `${AUTH_ROOT}/password-reset`,
+    passwordResetConfirm: `${AUTH_ROOT}/password-reset/confirm`,
   },
   drawings: {
     chunk: (projectId: string, uploadId: string): string =>
@@ -70,6 +96,10 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/complete`,
     initUpload: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}${DRAWINGS_ROOT}/uploads`,
+    /** N7 — lượt tải mới nhất của từng tầng; `cursor` là `nextCursor` của trang trước. */
+    latestUploads: (projectId: string, cursor?: string): string =>
+      `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/latest` +
+      (cursor === undefined ? '' : `?cursor=${encodeURIComponent(cursor)}`),
     progress: (projectId: string, uploadId: string): string =>
       `${PROJECTS_ROOT}/${projectId}${DRAWINGS_ROOT}/uploads/${uploadId}/progress`,
   },
@@ -101,6 +131,17 @@ export const ENDPOINTS = {
   library: {
     detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
     list: LIBRARY_ROOT,
+  },
+  /** N11–N14 — hồ sơ của người đang đăng nhập: đọc/sửa, đổi mật khẩu, thay ảnh đại diện. */
+  me: {
+    avatar: `${ME_ROOT}/avatar`,
+    password: `${ME_ROOT}/password`,
+    profile: ME_ROOT,
+  },
+  /** N3, N4 — thành viên của một dự án. `userId` đi trong đường dẫn của N4, `email` đi trong thân của N3. */
+  members: {
+    add: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/members`,
+    remove: (projectId: string, userId: string): string => `${PROJECTS_ROOT}/${projectId}/members/${userId}`,
   },
   /**
    * Phép đo đã ghim của một dự án, lưu KÈM dự án làm hồ sơ — LG-3.
@@ -157,6 +198,15 @@ export const ENDPOINTS = {
     read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
     update: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}`,
   },
+  /** N5, N6 — cài đặt dự án: một đường, đọc bằng GET, thay trọn bằng PUT có `baseVersion`. */
+  projectSettings: {
+    read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
+    replace: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/settings`,
+  },
+  /** N1 — thẻ dự án của dashboard; `cursor`, `limit` đi bằng query. */
+  projectSummaries: {
+    list: PROJECT_SUMMARIES_ROOT,
+  },
   /**
    * Khuôn mẫu thuộc tính — bộ giá trị đặt tên, sao chép từ một tường/ô
    * mở/phòng/nội thất để áp lại cho đối tượng khác cùng loại (nút "khuôn" ở
@@ -193,9 +243,16 @@ export const ENDPOINTS = {
     straighten: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality/straighten`,
   },
+  /** N21 đọc, N22 thay trọn `overrides` (`PUT {baseVersion, body}`) — cấu hình bộ luật của dự án. */
+  ruleConfig: {
+    read: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rule-config`,
+    replace: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/rule-config`,
+  },
   spatial: {
     floor: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/spatial`,
+    /** N15 — đồ thị cả dự án cộng `floorRevisions` (B3-02). */
+    graph: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/spatial`,
     /**
      * Lớp không gian của một tầng: tường, ô mở, phòng, nội thất — lỗ hổng #4,
      * U4. `spatial.floor` ở trên chỉ mang siêu dữ liệu tầng (`Floor`, không có
@@ -256,8 +313,8 @@ export const ENDPOINTS = {
    * hộp thoại của A9 chắn trước.
    *
    * `invite` gửi tới một tài nguyên "lời mời" chứ không tới `USERS_ROOT`: một
-   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(inviteId)` cần
-   * đúng tài nguyên ấy để trỏ tới — nó nhận `inviteId`, không nhận `userId`.
+   * lời mời chưa nhận CHƯA phải một người dùng, và `resendInvite(userId)` trỏ tới
+   * `invitations/{user_id}/resend` — BE nhận id người được mời, tức `AdminUser.id`.
    */
   users: {
     activity: (userId: string): string => `${USERS_ROOT}/${userId}/activity`,
@@ -268,6 +325,16 @@ export const ENDPOINTS = {
     list: USERS_ROOT,
     memberships: (userId: string): string => `${USERS_ROOT}/${userId}/memberships`,
     remove: (userId: string): string => `${USERS_ROOT}/${userId}`,
-    resendInvite: (inviteId: string): string => `${USERS_ROOT}/invitations/${inviteId}/resend`,
+    resendInvite: (userId: string): string => `${USERS_ROOT}/invitations/${userId}/resend`,
+  },
+  /** N17–N20 — phiên bản theo tầng (B3-04). Tầng đi bằng `query` (`floorId`), không ghép vào chuỗi. */
+  versions: {
+    label: (projectId: string, versionId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/versions/${versionId}/label`,
+    list: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/versions`,
+    restore: (projectId: string, versionId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/versions/${versionId}/restore`,
+    snapshot: (projectId: string, versionId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/versions/${versionId}/snapshot`,
   },
 } as const;

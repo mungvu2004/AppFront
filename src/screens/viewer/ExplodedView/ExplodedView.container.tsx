@@ -59,6 +59,7 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
@@ -68,6 +69,8 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { useSession } from '@/hooks/useSession';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { ViewerShell, type ViewerShellGateway } from '@/screens/viewer/ViewerShell';
+import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import type { MountExplodedScene } from './explodedViewScene';
@@ -110,7 +113,7 @@ export interface ExplodedViewContainerProps {
 /** Cùng khuôn `Viewer3DCrashFallback` — R-62, chữ lấy từ `report.description`. */
 function ExplodedViewCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
+    <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
@@ -119,7 +122,7 @@ function ExplodedViewCrashFallback({ report, retry }: ScreenErrorFallback) {
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
           : {})}
       />
-    </div>
+    </main>
   );
 }
 
@@ -183,6 +186,8 @@ export function ExplodedViewContainer(props: ExplodedViewContainerProps) {
  */
 export function ExplodedViewRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
+  // Cùng luật nhà mẫu với `/3d` và Pascal; gọi trước câu trả sớm (luật hook).
+  const spatial = useStore(selectViewerSpatial);
 
   if (id === undefined || id.length === 0) {
     return (
@@ -196,5 +201,9 @@ export function ExplodedViewRoute() {
     );
   }
 
-  return <ExplodedViewContainer projectId={id} />;
+  return (
+    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
+      <ExplodedViewContainer projectId={id} spatial={spatial} />
+    </ProjectSpatialGate>
+  );
 }

@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils';
 
 import { RuleSettingsGeneralThresholdsCard, RuleSettingsGroupCard } from './RuleSettingsGroups';
 import { RuleSettingsPresetsRow } from './RuleSettingsPresets';
+import { RuleSettingsReloadDialog } from './RuleSettingsReloadDialog';
 import { type RuleCode, FOCUS_RING } from './RuleSettingsRow';
 import type { RuleSettingsGroup, RuleSettingsProps } from './types';
 
@@ -83,7 +84,7 @@ interface NavItem {
 function navItemsOf(groups: readonly RuleSettingsGroup[]): readonly NavItem[] {
   return [
     ...groups.map((group) => ({ id: group.group, label: group.label })),
-    { id: GENERAL_SECTION_ID, label: 'ngưỡng chung' },
+    { id: GENERAL_SECTION_ID, label: 'Ngưỡng chung' },
   ];
 }
 
@@ -120,7 +121,7 @@ function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSetting
   if (isCollapsed) {
     return (
       <Select
-        label="mục cài đặt"
+        label="Mục cài đặt"
         value={activeId}
         options={items.map((item) => ({ value: item.id, label: item.label }))}
         onChange={(id) => {
@@ -132,7 +133,7 @@ function RuleSettingsNav({ items, activeId, isCollapsed, onSelect }: RuleSetting
   }
 
   return (
-    <nav aria-label="mục cài đặt bộ luật" className="flex w-[220px] shrink-0 flex-col gap-1">
+    <nav aria-label="Mục cài đặt bộ luật" className="flex w-[220px] shrink-0 flex-col gap-1">
       {items.map((item) => {
         const isActive = item.id === activeId;
         return (
@@ -178,6 +179,14 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
         <InlineAlert level="attention" message={capabilities.readOnlyReason} />
       )}
 
+      {model.saveProblem !== null && !model.saveProblem.onGeneralCard && (
+        <InlineAlert
+          level="attention"
+          message={model.saveProblem.message}
+          {...(model.saveProblem.offerReload ? { action: { label: 'Tải lại', onClick: props.onReload } } : {})}
+        />
+      )}
+
       {model.disableAllWarning !== null && (
         <InlineAlert level="violation" message={model.disableAllWarning} />
       )}
@@ -216,6 +225,10 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
             />
           ))}
 
+          {model.saveProblem?.onGeneralCard === true && (
+            <InlineAlert level="attention" message={model.saveProblem.message} />
+          )}
+
           <RuleSettingsGeneralThresholdsCard
             sectionId={sectionIdOf(GENERAL_SECTION_ID)}
             thresholds={model.generalThresholds}
@@ -248,7 +261,7 @@ export function RuleSettings(props: RuleSettingsProps) {
       <div className="mx-auto flex w-full max-w-[960px] flex-1 flex-col gap-6 p-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h2 className="text-base font-semibold text-text-primary">cài đặt bộ luật không gian</h2>
+            <h2 className="text-base font-semibold text-text-primary">Cài đặt bộ luật không gian</h2>
             <p className="text-sm text-text-secondary">
               {enabledText}/{totalText} luật đang bật
             </p>
@@ -261,7 +274,7 @@ export function RuleSettings(props: RuleSettingsProps) {
         {model.status === 'error' && (
           <EmptyState
             icon={<AlertCircle aria-hidden="true" />}
-            title="không tải được cài đặt bộ luật"
+            title="Không tải được cài đặt bộ luật"
             description={
               model.errorMessage ?? 'Đã có lỗi khi tải cấu hình bộ luật. Thử lại sau ít phút.'
             }
@@ -271,15 +284,15 @@ export function RuleSettings(props: RuleSettingsProps) {
         {model.status === 'empty' && (
           <EmptyState
             icon={<ClipboardList aria-hidden="true" />}
-            title="chưa có bộ luật để cài đặt"
-            description="Chưa có luật không gian nào được nạp cho dự án này."
+            title="Chưa có mô hình để áp bộ luật"
+            description="Bản vẽ này chưa được xử lý xong, nên chưa có mô hình không gian nào để áp bộ luật lên. Chạy pipeline cho tầng rồi quay lại đây."
           />
         )}
 
         {model.status === 'forbidden' && (
           <EmptyState
             icon={<Lock aria-hidden="true" />}
-            title="không có quyền xem cài đặt bộ luật"
+            title="Không có quyền xem cài đặt bộ luật"
             description={
               capabilities.readOnlyReason ?? 'Chỉ người có quyền quản trị dự án mới xem được mục này.'
             }
@@ -296,11 +309,17 @@ export function RuleSettings(props: RuleSettingsProps) {
         )}
       </div>
 
+      <RuleSettingsReloadDialog
+        isOpen={model.reloadConfirmOpen}
+        onConfirm={props.onConfirmReload}
+        onCancel={props.onCancelReload}
+      />
+
       {showRestoreDefaults && (
         <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
           <p className="text-sm text-text-secondary">Cấu hình đã khác mặc định.</p>
           <Button variant="secondary" onClick={props.onRestoreDefaults}>
-            khôi phục mặc định
+            Khôi phục mặc định
           </Button>
         </footer>
       )}

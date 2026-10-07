@@ -65,24 +65,24 @@ function EmbedPreview({ embed }: EmbedPreviewProps) {
     <div className="flex w-[240px] shrink-0 flex-col gap-2">
       <div className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-lg border border-border-default bg-bg-sunken p-3 text-center">
         <ImageOff aria-hidden="true" size={20} className="text-text-muted" />
-        <p className="text-xs text-text-muted">xem trước tĩnh</p>
+        <p className="text-xs text-text-muted">Xem trước tĩnh</p>
       </div>
       <dl className="flex flex-col gap-1 text-xs">
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-text-secondary">tầng</dt>
+          <dt className="text-text-secondary">Tầng</dt>
           <dd className="text-text-primary">{levelLabel}</dd>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-text-secondary">chế độ màu</dt>
+          <dt className="text-text-secondary">Chế độ màu</dt>
           <dd className="text-text-primary">{coloringLabel}</dd>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-text-secondary">thanh công cụ</dt>
-          <dd className="text-text-primary">{embed.view.toolbar ? 'có' : 'không'}</dd>
+          <dt className="text-text-secondary">Thanh công cụ</dt>
+          <dd className="text-text-primary">{embed.view.toolbar ? 'Có' : 'Không'}</dd>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-text-secondary">góc nhìn</dt>
-          <dd className="text-text-primary">{embed.view.viewpoint !== null ? 'có' : 'không'}</dd>
+          <dt className="text-text-secondary">Góc nhìn</dt>
+          <dd className="text-text-primary">{embed.view.viewpoint !== null ? 'Có' : 'Không'}</dd>
         </div>
       </dl>
     </div>
@@ -109,8 +109,8 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
   };
 
   return (
-    <section aria-label="nhúng vào trang khác" className="flex flex-col gap-3">
-      <h3 className="text-sm font-medium text-text-secondary">nhúng vào trang khác</h3>
+    <section aria-label="Nhúng vào trang khác" className="flex flex-col gap-3">
+      <h3 className="text-sm font-medium text-text-secondary">Nhúng vào trang khác</h3>
 
       <div className={cn('flex gap-4', embed.previewHidden ? 'flex-col' : 'flex-col md:flex-row')}>
         <div className="flex flex-1 flex-col gap-3">
@@ -119,7 +119,7 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
               <code>{embed.code}</code>
             </pre>
             <IconButton
-              aria-label={isCodeCopied ? 'đã sao chép mã nhúng' : 'sao chép mã nhúng'}
+              aria-label={isCodeCopied ? 'Đã sao chép mã nhúng' : 'Sao chép mã nhúng'}
               icon={
                 isCodeCopied ? (
                   <Check size={16} aria-hidden="true" />
@@ -132,9 +132,9 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-text-secondary">kích thước</span>
+            <span className="text-xs text-text-secondary">Kích thước</span>
             <SegmentedControl
-              aria-label="kích thước khung nhúng"
+              aria-label="Kích thước khung nhúng"
               options={sizePresetOptions}
               value={embed.activeSizePresetId ?? undefined}
               onChange={actions.setEmbedSizePreset}
@@ -144,7 +144,7 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
           <div className="grid grid-cols-2 gap-3">
             <Input
               type="number"
-              label="chiều rộng (px)"
+              label="Chiều rộng (px)"
               value={embed.widthPx}
               onChange={(event) => {
                 actions.setEmbedWidth(Number(event.target.value));
@@ -152,7 +152,7 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
             />
             <Input
               type="number"
-              label="chiều cao (px)"
+              label="Chiều cao (px)"
               value={embed.heightPx}
               onChange={(event) => {
                 actions.setEmbedHeight(Number(event.target.value));
@@ -162,8 +162,8 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
 
           <div className={changedWrapperClass('toolbar', embed.recentlyChangedKey)}>
             <Toggle
-              label="thanh công cụ"
-              description="hiện thanh điều khiển của trình xem trong khung nhúng."
+              label="Thanh công cụ"
+              description="Hiện thanh điều khiển của trình xem trong khung nhúng."
               checked={embed.params.toolbar}
               onChange={actions.setEmbedToolbar}
             />
@@ -172,7 +172,7 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
           {embed.levelOptions.length > 0 && (
             <div className={changedWrapperClass('levelId', embed.recentlyChangedKey)}>
               <Select
-                label="tầng"
+                label="Tầng"
                 options={levelSelectOptions}
                 {...(embed.params.levelId !== null ? { value: embed.params.levelId } : {})}
                 onChange={handleLevelChange}
@@ -182,7 +182,7 @@ export function ShareDialogEmbed({ embed, isCodeCopied, actions }: ShareDialogEm
 
           <div className={changedWrapperClass('coloring', embed.recentlyChangedKey)}>
             <Select
-              label="chế độ tô màu"
+              label="Chế độ tô màu"
               options={coloringSelectOptions}
               {...(embed.params.coloring !== null ? { value: embed.params.coloring } : {})}
               onChange={handleColoringChange}

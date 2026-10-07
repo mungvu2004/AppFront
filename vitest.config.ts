@@ -18,8 +18,30 @@ import path from 'path';
 const DOMAIN_THRESHOLD = 90;
 const LIBRARY_THRESHOLD = 80;
 
+/**
+ * Bảy biến `process.env.NEXT_PUBLIC_*` mà mã Pascal đọc ở TẦNG MODULE.
+ * Giữ khớp với `vite.config.ts` — lý do đầy đủ nằm ở đó.
+ */
+const PASCAL_ENV_DEFINES = {
+  ...Object.fromEntries(
+    [
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'NEXT_PUBLIC_APP_URL',
+      'NEXT_PUBLIC_VERCEL_ENV',
+      'NEXT_PUBLIC_VERCEL_URL',
+      'NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL',
+    ].map((key) => [`process.env.${key}`, '""']),
+  ),
+  // Đặt riêng, KHÔNG để rỗng: dòng khai của Pascal là
+  // `process.env.X || 'https://editor.pascal.app'`, mà `''` là falsy nên chuỗi
+  // rỗng rơi thẳng về CDN ngoài. Phải trỏ về chính mình.
+  'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '"/pascal"',
+};
+
 export default defineConfig({
   plugins: [react()],
+  define: PASCAL_ENV_DEFINES,
   test: {
     environment: 'jsdom',
 
@@ -67,11 +89,19 @@ export default defineConfig({
       ['src/lib/offline/**', 'node'],
       ['src/lib/realtime/**', 'node'],
       ['src/lib/motion/**', 'node'],
+      // Bộ đổi dữ liệu Pascal: thuần, không chạm DOM. Đã chạy
+      // `npx vitest run src/lib/pascal --environment node` trước khi thêm dòng
+      // này — 36/36 xanh, 0,9 s so với 36 s dưới jsdom.
+      ['src/lib/pascal/**', 'node'],
     ],
 
     globals: true,
     setupFiles: './vitest.setup.ts',
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+    // `vendor/**` giữ mã Pascal đã chép vào (`vendor/pascal/NGUON.md`). Bài
+    // kiểm của họ chạy bằng `bun test`, không bằng vitest, và chúng cần bộ
+    // công cụ riêng — để vitest tự nhặt chúng là chuốc lấy một rừng đỏ không
+    // liên quan tới AppFront.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/vendor/**'],
     coverage: {
       provider: 'v8',
       // `text` để đọc ngay trên terminal, `json-summary` để script đọc máy được,
@@ -127,6 +157,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Giữ khớp với `vite.config.ts`: vitest KHÔNG hợp nhất cấu hình của
+      // vite, nó thay thế hoàn toàn (xem khối chú thích đầu `vite.config.ts`).
+      // Thiếu hai dòng này thì mọi bài kiểm chạm tới `vendor/pascal` sẽ hỏng ở
+      // `next/image` dù bản dựng sản phẩm vẫn chạy.
+      'next/image': path.resolve(__dirname, './vendor/pascal/shims/next-image.tsx'),
+      'next/link': path.resolve(__dirname, './vendor/pascal/shims/next-link.tsx'),
     },
   },
 });

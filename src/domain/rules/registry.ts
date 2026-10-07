@@ -29,12 +29,14 @@
  */
 
 import {
+  displayCodeIn,
   idsOnLevel,
   isEntityOfKind,
   type EntityByKind,
   type NormalizedSpatial,
 } from '../spatial/normalize';
 import type { LevelId, RoomUsage } from '../spatial/types';
+import { MAX_WALL_THICKNESS_MM } from './limits';
 import type { EntityKind } from '../spatial/ids';
 import { MILLIMETRES_PER_METRE } from '../units/types';
 import { formatArea, formatLength } from '../../lib/format/measure';
@@ -61,9 +63,9 @@ export const RULE_SEVERITIES: readonly RuleSeverity[] = ['critical', 'warning', 
 
 /** What the interface calls each severity. */
 export const RULE_SEVERITY_LABELS: Readonly<Record<RuleSeverity, string>> = {
-  critical: 'nghiêm trọng',
-  warning: 'cảnh báo',
-  suggestion: 'gợi ý',
+  critical: 'Nghiêm trọng',
+  warning: 'Cảnh báo',
+  suggestion: 'Gợi ý',
 };
 
 /** The heading a rule is filed under in the rule list. */
@@ -80,11 +82,11 @@ export const RULE_GROUPS: readonly RuleGroup[] = [
 
 /** What the interface calls each group. */
 export const RULE_GROUP_LABELS: Readonly<Record<RuleGroup, string>> = {
-  geometry: 'hình học',
-  circulation: 'lưu thông',
-  area: 'diện tích',
-  annotation: 'ghi chú',
-  levels: 'cao độ tầng',
+  geometry: 'Hình học',
+  circulation: 'Lưu thông',
+  area: 'Diện tích',
+  annotation: 'Ghi chú',
+  levels: 'Cao độ tầng',
 };
 
 /**
@@ -388,8 +390,9 @@ export function createRuleRegistry(rules: readonly Rule[] = []): RuleRegistry {
 /** Thinnest wall that can be built and still called a wall. */
 export const MIN_WALL_THICKNESS_MM = 60;
 
-/** Thickest wall before the line is more likely two walls traced as one. */
-export const MAX_WALL_THICKNESS_MM = 400;
+/* `MAX_WALL_THICKNESS_MM` lives in `./limits` so `domain/units/scale.ts` — reached by every
+ * screen that decodes spatial data — does not drag this whole registry into its chunk. */
+export { MAX_WALL_THICKNESS_MM };
 
 /** Shortest wall run worth keeping; below this it is a tracing artefact. */
 export const MIN_WALL_LENGTH_MM = 100;
@@ -441,7 +444,7 @@ function segmentLengthMm(start: { x: number; y: number }, end: { x: number; y: n
 
 const wallThicknessRule: Rule = {
   code: 'WALL-THICKNESS',
-  name: 'bề dày tường nằm trong khoảng dựng được',
+  name: 'Bề dày tường nằm trong khoảng dựng được',
   group: 'geometry',
   severity: 'warning',
   scope: 'level',
@@ -462,7 +465,7 @@ const wallThicknessRule: Rule = {
         {
           entityId: wall.id,
           message:
-            `Tường ${wall.id} dày ${formatLength(wall.thicknessMm, { unit: 'mm' })}, ngoài khoảng ` +
+            `Tường ${displayCodeIn(context.graph, wall.id)} dày ${formatLength(wall.thicknessMm, { unit: 'mm' })}, ngoài khoảng ` +
             `${formatLength(minMm, { unit: 'mm' })} đến ${formatLength(maxMm, { unit: 'mm' })}.`,
           suggestion: tooThin
             ? `Tăng bề dày lên tối thiểu ${formatLength(minMm, { unit: 'mm' })}, hoặc xoá nếu đây là nét thừa.`
@@ -475,7 +478,7 @@ const wallThicknessRule: Rule = {
 
 const wallLengthRule: Rule = {
   code: 'WALL-LENGTH',
-  name: 'tường đủ dài để dựng',
+  name: 'Tường đủ dài để dựng',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -494,7 +497,7 @@ const wallLengthRule: Rule = {
         {
           entityId: wall.id,
           message:
-            `Tường ${wall.id} chỉ dài ${formatLength(lengthMm, { unit: 'mm' })}, ngắn hơn mức dựng được ` +
+            `Tường ${displayCodeIn(context.graph, wall.id)} chỉ dài ${formatLength(lengthMm, { unit: 'mm' })}, ngắn hơn mức dựng được ` +
             `${formatLength(minLengthMm, { unit: 'mm' })}.`,
           suggestion: 'Kéo dài tường tới nút giao gần nhất, hoặc xoá đoạn thừa này.',
         },
@@ -505,7 +508,7 @@ const wallLengthRule: Rule = {
 
 const openingInWallRule: Rule = {
   code: 'OPENING-IN-WALL',
-  name: 'lỗ mở nằm trọn trong tường chứa nó',
+  name: 'Lỗ mở nằm trọn trong tường chứa nó',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',
@@ -531,8 +534,8 @@ const openingInWallRule: Rule = {
         {
           entityId: opening.id,
           message:
-            `Lỗ mở ${opening.id} trải từ ${formatLength(opening.offsetMm, { unit: 'mm' })} đến ${formatLength(endMm, { unit: 'mm' })} ` +
-            `trên tường ${wall.id} chỉ dài ${formatLength(wallLengthMm, { unit: 'mm' })}.`,
+            `Lỗ mở ${displayCodeIn(context.graph, opening.id)} trải từ ${formatLength(opening.offsetMm, { unit: 'mm' })} đến ${formatLength(endMm, { unit: 'mm' })} ` +
+            `trên tường ${displayCodeIn(context.graph, wall.id)} chỉ dài ${formatLength(wallLengthMm, { unit: 'mm' })}.`,
           suggestion:
             roomToMoveMm > 0
               ? `Dời lỗ mở về khoảng 0 đến ${formatLength(roomToMoveMm, { unit: 'mm' })}, hoặc thu hẹp bề rộng.`
@@ -544,7 +547,7 @@ const openingInWallRule: Rule = {
 
 const doorWidthRule: Rule = {
   code: 'DOOR-WIDTH',
-  name: 'cửa đi đủ rộng để lọt người',
+  name: 'Cửa đi đủ rộng để lọt người',
   group: 'circulation',
   severity: 'warning',
   scope: 'level',
@@ -561,7 +564,7 @@ const doorWidthRule: Rule = {
         {
           entityId: opening.id,
           message:
-            `Cửa đi ${opening.id} rộng ${formatLength(opening.widthMm, { unit: 'mm' })}, hẹp hơn mức lọt người ` +
+            `Cửa đi ${displayCodeIn(context.graph, opening.id)} rộng ${formatLength(opening.widthMm, { unit: 'mm' })}, hẹp hơn mức lọt người ` +
             `${formatLength(minWidthMm, { unit: 'mm' })}.`,
           suggestion: `Mở rộng cửa lên tối thiểu ${formatLength(minWidthMm, { unit: 'mm' })}.`,
         },
@@ -572,7 +575,7 @@ const doorWidthRule: Rule = {
 
 const roomMinAreaRule: Rule = {
   code: 'ROOM-MIN-AREA',
-  name: 'phòng đủ diện tích cho công năng của nó',
+  name: 'Phòng đủ diện tích cho công năng của nó',
   group: 'area',
   severity: 'warning',
   scope: 'level',
@@ -590,7 +593,7 @@ const roomMinAreaRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${room.id} rộng ${formatArea(room.areaM2)}, dưới mức tối thiểu ` +
+            `Phòng ${displayCodeIn(context.graph, room.id)} rộng ${formatArea(room.areaM2)}, dưới mức tối thiểu ` +
             `${formatArea(minimumM2)} của ${ROOM_USAGE_LABELS[room.usage]}.`,
           suggestion: `Mở rộng phòng lên ${formatArea(minimumM2)}, hoặc đổi công năng cho phù hợp.`,
         },
@@ -600,7 +603,7 @@ const roomMinAreaRule: Rule = {
 
 const roomHasDoorRule: Rule = {
   code: 'ROOM-HAS-DOOR',
-  name: 'phòng có lối vào',
+  name: 'Phòng có lối vào',
   group: 'circulation',
   severity: 'warning',
   scope: 'level',
@@ -629,7 +632,7 @@ const roomHasDoorRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${room.id} không có cửa đi nào trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} ` +
+            `Phòng ${displayCodeIn(context.graph, room.id)} không có cửa đi nào trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} ` +
             'tường bao của nó.',
           suggestion: 'Thêm một cửa đi vào một tường bao, hoặc gộp phòng này với phòng bên cạnh.',
         },
@@ -639,7 +642,7 @@ const roomHasDoorRule: Rule = {
 
 const roomNamedRule: Rule = {
   code: 'ROOM-UNNAMED',
-  name: 'phòng đã được đặt tên',
+  name: 'Phòng đã được đặt tên',
   group: 'annotation',
   severity: 'suggestion',
   scope: 'level',
@@ -653,7 +656,7 @@ const roomNamedRule: Rule = {
       return [
         {
           entityId: room.id,
-          message: `Phòng ${room.id} chưa được đặt tên.`,
+          message: `Phòng ${displayCodeIn(context.graph, room.id)} chưa được đặt tên.`,
           suggestion: 'Đặt tên phòng theo công năng để bảng thống kê đọc được.',
         },
       ];
@@ -662,7 +665,7 @@ const roomNamedRule: Rule = {
 
 const levelElevationRule: Rule = {
   code: 'LEVEL-ELEVATION',
-  name: 'cao độ các tầng tăng dần từ dưới lên',
+  name: 'Cao độ các tầng tăng dần từ dưới lên',
   group: 'levels',
   severity: 'critical',
   scope: 'building',
@@ -682,9 +685,9 @@ const levelElevationRule: Rule = {
       findings.push({
         entityId: upper.id,
         message:
-          `Tầng ${upper.id} ở cao độ ${metreText(upper.elevationMm)}, không cao hơn tầng ` +
-          `${lower.id} ở ${metreText(lower.elevationMm)}.`,
-        suggestion: `Nâng cao độ tầng ${upper.id} lên trên ${metreText(lower.elevationMm)}, hoặc đổi thứ tự tầng.`,
+          `Tầng ${displayCodeIn(context.graph, upper.id)} ở cao độ ${metreText(upper.elevationMm)}, không cao hơn tầng ` +
+          `${displayCodeIn(context.graph, lower.id)} ở ${metreText(lower.elevationMm)}.`,
+        suggestion: `Nâng cao độ tầng ${displayCodeIn(context.graph, upper.id)} lên trên ${metreText(lower.elevationMm)}, hoặc đổi thứ tự tầng.`,
       });
     }
 

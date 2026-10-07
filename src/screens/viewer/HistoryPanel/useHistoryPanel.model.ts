@@ -86,8 +86,8 @@ import {
 /**
  * Một ngày dương lịch, tính bằng mili giây — chỉ dùng để hỏi "hôm qua là ngày nào".
  *
- * Khai tại màn theo đúng tiền lệ `MS_PER_DAY` của `hooks/useShareLinks.ts:93` và
- * `DAY_MS` của `BillingScreen/billingGateway.ts:273`: `src/lib/format/datetime`
+ * Khai tại màn theo đúng tiền lệ `MS_PER_DAY` của `hooks/useShareLinks.ts:94`:
+ * `src/lib/format/datetime`
  * giữ hằng số ngày của nó ở dạng riêng tư và không xuất ra. Con số này KHÔNG
  * phải một thời lượng chuyển động, nên nó không thuộc `MOTION_DURATIONS_MS` và
  * không đi qua thang năm giá trị của mục B.
@@ -98,8 +98,8 @@ import {
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Nhãn ngày cho hôm nay và hôm qua; xa hơn thì đọc ngày tháng đầy đủ. */
-const TODAY_LABEL = 'hôm nay';
-const YESTERDAY_LABEL = 'hôm qua';
+const TODAY_LABEL = 'Hôm nay';
+const YESTERDAY_LABEL = 'Hôm qua';
 
 /** Mở đầu nhãn phiên, ghép với giờ bắt đầu phiên: `phiên lúc 14:05`. */
 const SESSION_LABEL_PREFIX = 'phiên lúc ';
@@ -127,13 +127,13 @@ const CHILD_ID_SEPARATOR = '::';
  * quan lại ghi `vách W-000014AAAA` thì người đọc tưởng đó là hai vật.
  */
 const ENTITY_KIND_LABELS: Readonly<Record<EntityKind, string>> = {
-  level: 'tầng',
-  wall: 'tường',
-  opening: 'lỗ mở',
-  furniture: 'đồ đạc',
-  room: 'phòng',
-  axis: 'trục',
-  dimension: 'kích thước',
+  level: 'Tầng',
+  wall: 'Tường',
+  opening: 'Lỗ mở',
+  furniture: 'Đồ đạc',
+  room: 'Phòng',
+  axis: 'Trục',
+  dimension: 'Kích thước',
 };
 
 /* -------------------------------------------------------------------------- */

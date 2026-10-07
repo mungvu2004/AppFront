@@ -54,6 +54,7 @@ function baseProps(overrides: Partial<PasswordSectionProps> = {}): PasswordSecti
     canSubmit: false,
     isSubmitting: false,
     onSubmit: vi.fn(),
+    formProblem: null,
     successMessage: null,
     isManagedExternally: false,
     ...overrides,
@@ -63,6 +64,7 @@ function baseProps(overrides: Partial<PasswordSectionProps> = {}): PasswordSecti
 /** Cổng giả: mỗi phép trả về thứ test cần, không có bộ nhớ nào ở giữa. */
 function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGateway {
   return {
+    capabilities: { sessions: true, deleteAccount: true },
     readIdentity: () =>
       Promise.resolve({ ok: true, data: { email: 'an@congty.vn', isManagedExternally: false } }),
     listSessions: () => Promise.resolve({ ok: true, data: [] }),
@@ -110,9 +112,9 @@ describe('khối mật khẩu — view dựng chỉ từ props', () => {
   it('vẽ ba ô và đúng một cái nút', () => {
     renderWithProviders(<PasswordSection {...baseProps()} />);
 
-    expect(screen.getByLabelText('mật khẩu hiện tại')).toBeTruthy();
-    expect(screen.getByLabelText('mật khẩu mới')).toBeTruthy();
-    expect(screen.getByLabelText('nhắc lại mật khẩu mới')).toBeTruthy();
+    expect(screen.getByLabelText('Mật khẩu hiện tại')).toBeTruthy();
+    expect(screen.getByLabelText('Mật khẩu mới')).toBeTruthy();
+    expect(screen.getByLabelText('Nhắc lại mật khẩu mới')).toBeTruthy();
     expect(screen.getAllByRole('button')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Đổi mật khẩu' })).toBeTruthy();
   });
@@ -122,7 +124,7 @@ describe('khối mật khẩu — view dựng chỉ từ props', () => {
 
     renderWithProviders(<PasswordSection {...baseProps({ onNewPasswordChange })} />);
 
-    fireEvent.change(screen.getByLabelText('mật khẩu mới'), { target: { value: 'matkhau1' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu mới'), { target: { value: 'matkhau1' } });
 
     expect(onNewPasswordChange).toHaveBeenCalledWith('matkhau1');
   });
@@ -181,7 +183,7 @@ describe('khối mật khẩu — view dựng chỉ từ props', () => {
       />,
     );
 
-    const field = screen.getByLabelText('mật khẩu hiện tại');
+    const field = screen.getByLabelText('Mật khẩu hiện tại');
     const problem = screen.getByRole('alert');
 
     expect(problem.textContent).toBe('Mật khẩu hiện tại không đúng.');
@@ -190,7 +192,7 @@ describe('khối mật khẩu — view dựng chỉ từ props', () => {
     expect(field.getAttribute('aria-invalid')).toBe('true');
     expect(field.getAttribute('aria-describedby')).toBe(problem.getAttribute('id'));
     // Và ô kia thì không việc gì.
-    expect(screen.getByLabelText('mật khẩu mới').getAttribute('aria-invalid')).toBeNull();
+    expect(screen.getByLabelText('Mật khẩu mới').getAttribute('aria-invalid')).toBeNull();
   });
 
   it('trạng thái 6 — tài khoản của công ty: khối chỉ đọc, không ô nào, không nút nào', () => {
@@ -309,7 +311,8 @@ describe('useAccountAuth — phần mật khẩu', () => {
   it('trạng thái 4 — cổng nói mật khẩu hiện tại sai, câu lỗi về đúng ô đó', async () => {
     const model = renderModel({
       gateway: fakeGateway({
-        changePassword: () => Promise.resolve({ ok: false, error: 'wrong-current-password' }),
+        changePassword: () =>
+          Promise.resolve({ ok: false, error: { reason: 'wrong-current-password' } }),
       }),
     });
 
@@ -358,7 +361,7 @@ describe('useAccountAuth — phần mật khẩu', () => {
 
     await waitFor(() => {
       expect(model.read().password.successMessage).toBe(
-        'Đã đổi mật khẩu. Lần đăng nhập sau dùng mật khẩu mới.',
+        'Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.',
       );
     });
 

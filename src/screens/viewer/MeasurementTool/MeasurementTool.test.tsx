@@ -386,7 +386,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
     expect(onToggleTool).toHaveBeenCalledTimes(1);
   });
 
-  it('nút "thoát chế độ" gọi onEscape khi đang đo dở (phím Esc)', () => {
+  it('nút "bỏ phần đo dở" gọi onEscape khi đang đo dở (phím Esc)', () => {
     const onEscape = vi.fn();
     const props = buildProps({
       state: 'measuring',
@@ -396,7 +396,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
 
     renderWithProviders(<MeasurementTool {...props} />);
 
-    const button = screen.getByRole('button', { name: /thoát/iu });
+    const button = screen.getByRole('button', { name: 'Bỏ phần đo dở (phím Esc)' });
 
     fireEvent.click(button);
 
@@ -593,6 +593,18 @@ describe('MeasurementTool — trạng thái không có quyền vẫn đo đượ
     fireEvent.click(pinButton);
 
     expect(onPin).not.toHaveBeenCalled();
+  });
+
+  // Danh sách đi vào panel phải qua `inspectorSections` của hook, không qua
+  // view — nên dựng thẳng `MeasurementList` bằng props của kịch bản (B-V9-41).
+  it('danh sách phép đo ở forbidden: không nút "Xoá" nào, vẫn đủ nút "Ẩn/Hiện"', () => {
+    const props = measurementToolScenarioFor('forbidden');
+
+    renderWithProviders(<MeasurementList {...props} />);
+
+    expect(props.measurements.length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('button', { name: /^Xoá /u })).toHaveLength(0);
+    expect(screen.getAllByRole('button', { name: /^(Ẩn|Hiện) /u })).toHaveLength(props.measurements.length);
   });
 });
 

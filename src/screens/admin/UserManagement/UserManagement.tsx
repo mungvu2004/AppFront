@@ -31,8 +31,9 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
+import { useShortcut } from '@/hooks/useShortcut';
 
-import { UserManagementDetail } from './UserManagementDetail';
+import { RemoveConfirmDialog, UserManagementDetail } from './UserManagementDetail';
 import { UserManagementPermissionMatrix } from './UserManagementPermissionMatrix';
 import { UserManagementTable } from './UserManagementTable';
 import { UserManagementToolbar } from './UserManagementToolbar';
@@ -44,13 +45,13 @@ import type {
 } from './types';
 
 const SCREEN_CONTAINER_CLASS = 'mx-auto flex w-full max-w-[1080px] flex-col gap-4 p-6';
-const BREADCRUMB_NAV_LABEL = 'đường dẫn trang';
+const BREADCRUMB_NAV_LABEL = 'Đường dẫn trang';
 const PERMISSION_REFERENCE_BUTTON_LABEL = 'Xem ma trận quyền';
 const PERMISSION_REFERENCE_MODAL_TITLE = 'Ma trận quyền theo vai trò';
-const PERMISSION_MATRIX_CAPTION = 'ma trận quyền theo vai trò';
-const EMPTY_TITLE = 'chưa có người dùng nào khác';
+const PERMISSION_MATRIX_CAPTION = 'Ma trận quyền theo vai trò';
+const EMPTY_TITLE = 'Chưa có người dùng nào khác';
 const INVITE_BUTTON_LABEL = 'Mời người dùng';
-const ERROR_TITLE = 'không tải được danh sách người dùng';
+const ERROR_TITLE = 'Không tải được danh sách người dùng';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
 const RETRY_BUTTON_LABEL = 'Thử lại';
 const MODAL_WIDTH = 720;
@@ -123,6 +124,26 @@ function renderContent(model: UserManagementViewModel, actions: UserManagementAc
 }
 
 export function UserManagement({ model, actions }: UserManagementProps) {
+  // A12 — Esc đóng lớp trên cùng. Khối mời và tấm chi tiết ở bố cục rộng đều là lớp
+  // CẠNH bảng (phạm vi `sidePanel`, như `ModelLibraryDetail.tsx`); hộp thoại xoá hẳn nằm
+  // ở phạm vi `dialog` nên vẫn được Esc trước. Một đăng ký cho cả hai lớp: hai đăng ký
+  // cùng tổ hợp cùng phạm vi thì sổ phím cảnh báo trùng. Bố cục hẹp không cần — `Drawer`
+  // tự đóng bằng Esc.
+  const isDetailPanelOpen = model.detail !== null && !model.isCollapsed;
+  useShortcut(
+    {
+      combo: 'Escape',
+      description: 'Đóng khối mời hoặc tấm chi tiết người dùng',
+      id: 'sidePanel.userManagement.close',
+      onTrigger: () => {
+        if (model.invite.isOpen) actions.onCloseInvite();
+        else actions.onSelectUser(null);
+      },
+      scope: 'sidePanel',
+    },
+    { enabled: model.state !== 'forbidden' && (model.invite.isOpen || isDetailPanelOpen) },
+  );
+
   if (model.state === 'forbidden') {
     return (
       <div className={SCREEN_CONTAINER_CLASS}>
@@ -158,11 +179,13 @@ export function UserManagement({ model, actions }: UserManagementProps) {
             detail={model.detail}
             isCollapsed={model.isCollapsed}
             permissionMatrix={model.permissionMatrix}
-            removeConfirm={model.removeConfirm}
             roleOptions={model.toolbar.roleOptions}
           />
         )}
       </div>
+
+      {/* Ngoài nhánh `detail !== null`: nút "xoá" trên hàng mở hộp này khi chưa ai được chọn. */}
+      <RemoveConfirmDialog actions={actions} removeConfirm={model.removeConfirm} />
 
       <Modal
         isOpen={model.isPermissionReferenceOpen}

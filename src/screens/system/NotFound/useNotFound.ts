@@ -78,33 +78,33 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Mọi chuỗi màn nói ra. Viết thường, kiểu câu (A6), câu ngắn và lịch sự.
+ * Mọi chuỗi màn nói ra. Kiểu câu, viết hoa chữ đầu (A6), câu ngắn và lịch sự.
  *
  * Không có giọng hài hước, và không có chữ số "404" nào ngoài
  * {@link NOT_FOUND_ERROR_CODE} trong caption — mã lỗi có mặt nhưng nhỏ, đúng
  * cấm tuyệt đối của đặc tả.
  */
 export const NOT_FOUND_TEXT = {
-  recentHeading: 'dự án gần đây',
-  backLabel: 'quay lại',
-  signInLabel: 'đăng nhập',
-  dashboardLabel: 'về danh sách dự án',
-  errorCodePrefix: 'mã lỗi: ',
+  recentHeading: 'Dự án gần đây',
+  backLabel: 'Quay lại',
+  signInLabel: 'Đăng nhập',
+  dashboardLabel: 'Về danh sách dự án',
+  errorCodePrefix: 'Mã lỗi: ',
   captionSeparator: ' · ',
 } as const;
 
 /** Tiêu đề h2, một câu cho mỗi nguyên nhân. */
-const TITLE_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
-  missing: 'không tìm thấy trang này',
-  forbidden: 'cần đăng nhập để xem trang này',
-  offline: 'chưa kết nối được máy chủ',
+export const TITLE_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
+  missing: 'Không tìm thấy trang này',
+  forbidden: 'Cần đăng nhập để xem trang này',
+  offline: 'Chưa kết nối được máy chủ',
 };
 
 /** Một câu giải thích cho mỗi nguyên nhân. Nói đúng thứ đang biết, không hơn. */
-const DESCRIPTION_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
-  missing: 'trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.',
-  forbidden: 'đăng nhập xong bạn sẽ được đưa lại đúng trang vừa mở.',
-  offline: 'đường truyền đang gián đoạn, nên chưa xác nhận được trang này còn hay không.',
+export const DESCRIPTION_BY_REASON: Readonly<Record<NotFoundReason, string>> = {
+  missing: 'Trang bạn tìm đã bị xoá hoặc đã chuyển đi nơi khác.',
+  forbidden: 'Đăng nhập xong bạn sẽ được đưa lại đúng trang vừa mở.',
+  offline: 'Đường truyền đang gián đoạn, nên chưa xác nhận được trang này còn hay không.',
 };
 
 /**
@@ -284,9 +284,22 @@ export function useNotFound(options: UseNotFoundOptions = {}): NotFoundVm {
     navigate(ROUTES.login, { state: { from: `${location.pathname}${location.search}` } });
   }, [navigate, location.pathname, location.search]);
 
+  /*
+   * Không lùi mù (B-V1-01). Mở thẳng một đường chết — liên kết cũ, gõ nhầm, tab
+   * mới — thì tab không có mục lịch sử nào của ứng dụng phía trước, và
+   * `navigate(-1)` đưa người dùng ra khỏi ứng dụng (`about:blank` hoặc trang họ
+   * đứng trước đó). `location.key` là `'default'` ở đúng mục lịch sử đầu tiên của
+   * router — cùng cách `NotificationCenterRoute` đã chữa B-G-02 (`a73007b`). Không
+   * có chỗ lùi thì về danh sách dự án, `replace` để đường chết không nằm lại.
+   */
   const goBack = useCallback((): void => {
+    if (location.key === 'default') {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
+
     navigate(-1);
-  }, [navigate]);
+  }, [navigate, location.key]);
 
   const primaryAction = useMemo<NotFoundAction>(
     () =>

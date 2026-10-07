@@ -326,10 +326,10 @@ export interface ObjectLayerListViewProps extends ObjectLayerListProps {
 
 /** Chuỗi tiếng Việt tĩnh của canvas — chép từ `.orca-notes/S13-SPEC-GOC.md` phần IV (A6). */
 export const OBJECT_CANVAS_TEXT = {
-  canvasLabel: 'mặt bằng lớp đối tượng',
+  canvasLabel: 'Mặt bằng lớp đối tượng',
   objectCountSuffix: ' đối tượng',
-  legendLabel: 'chú giải màu lớp',
-  nothingToDraw: 'chưa có đối tượng nào để vẽ trên mặt bằng.',
+  legendLabel: 'Chú giải màu lớp',
+  nothingToDraw: 'Chưa có đối tượng nào để vẽ trên mặt bằng.',
   readOnlyNotice:
     'Mặt bằng vẫn xem và phóng to được, nhưng không chọn hay sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   orphanTitle: 'Chưa gắn vào tường nào',
@@ -661,6 +661,17 @@ function basinSymbol(halfWidth: number, halfDepth: number): ObjectSymbol {
   };
 }
 
+/** Nội thất khác — miền không nói nó là gì, nên chỉ vẽ đúng khung hộp bao (B-V6-13). */
+function otherFurnitureSymbol(halfWidth: number, halfDepth: number): ObjectSymbol {
+  const outline = rect(-halfWidth, -halfDepth, halfWidth * 2, halfDepth * 2);
+
+  return {
+    footprint: outline,
+    strokes: [{ id: 'outline', d: outline, dashArray: null }],
+    hasSwingArc: false,
+  };
+}
+
 /**
  * Ký hiệu kiến trúc của một đối tượng, trong hệ toạ độ cục bộ của nó.
  *
@@ -700,6 +711,8 @@ export function buildObjectSymbol(request: ObjectSymbolRequest): ObjectSymbol {
       return toiletSymbol(halfWidth, halfDepth);
     case 'basin':
       return basinSymbol(halfWidth, halfDepth);
+    case 'otherFurniture':
+      return otherFurnitureSymbol(halfWidth, halfDepth);
     default:
       return windowSymbol(halfWidth, halfDepth, false);
   }

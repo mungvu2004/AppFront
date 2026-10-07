@@ -111,7 +111,7 @@ import {
  */
 export const MEASUREMENT_MISSING_CAPABILITIES: readonly string[] = Object.freeze([
   'readMeasurementAnchors — MeasurementRecord chỉ lưu điểm (MeasurePoint), không lưu mã thực thể nào, nên không có gì để đối chiếu với đồ thị khi tường hay phòng bị xoá. Vì thế `stale` của một hàng luôn là false và `staleReason` luôn null: trạng thái "Một phần" của màn tới từ chuỗi đo CHƯA ĐÓNG, không từ hình học mất neo. Muốn có nửa còn lại thì phải thêm entityId vào bản ghi ở tầng LG-3 trước.',
-  'readSurfaceSnapTargets — snapToTargets làm việc trên PointMm 2D (x, y); domain không có mồi bắt điểm nào cho CẠNH hay BỀ MẶT trong không gian ba chiều. Ba loại giao được là đỉnh tường, trung điểm tường và giao trục, đúng như quyết định Q1 của hợp đồng.',
+  'ReadSurfaceSnapTargets — snapToTargets làm việc trên PointMm 2D (x, y); domain không có mồi bắt điểm nào cho CẠNH hay BỀ MẶT trong không gian ba chiều. Ba loại giao được là đỉnh tường, trung điểm tường và giao trục, đúng như quyết định Q1 của hợp đồng.',
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -122,7 +122,7 @@ export const MEASUREMENT_MISSING_CAPABILITIES: readonly string[] = Object.freeze
 const NO_TARGETS: readonly SnapTarget[] = Object.freeze([]);
 
 /** Câu của chip khi con trỏ ở trên bề mặt trống — chip KHÔNG bao giờ được rỗng. */
-export const NO_SNAP_LABEL = 'chưa bắt vào đâu';
+export const NO_SNAP_LABEL = 'Chưa bắt vào đâu';
 
 /**
  * `AnchorKind` của domain sang `SnapKind` của màn.

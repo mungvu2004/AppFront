@@ -277,6 +277,14 @@ export interface ShortcutRegistry {
    * that cares about grouping or priority sorts this itself.
    */
   listShortcuts(): readonly RegisteredShortcut[];
+  /**
+   * Calls `listener` after every `register` and every unregister — the signal
+   * a reader of {@link listShortcuts} needs, because bindings arrive in effects
+   * that run AFTER the reader's render. Without it `EditorTour` read an empty
+   * list on first paint and stayed hidden until some unrelated resize
+   * (B-V2-01). Returns the unsubscribe.
+   */
+  subscribe(listener: () => void): () => void;
 }
 
 export interface ShortcutRegistryOptions {
@@ -384,7 +392,14 @@ export function createShortcutRegistry(
    */
   const entries: RegistryEntry[] = [];
   const claims = new Map<ShortcutScope, number>();
+  const listeners = new Set<() => void>();
   let attached = false;
+
+  const notify = (): void => {
+    for (const listener of [...listeners]) {
+      listener();
+    }
+  };
 
   const scopeIsActive = (scope: ShortcutScope): boolean =>
     (claims.get(scope) ?? 0) > 0 ||
@@ -420,12 +435,14 @@ export function createShortcutRegistry(
     const entry: RegistryEntry = { definition, parsed, canonical };
 
     entries.push(entry);
+    notify();
 
     return (): void => {
       const index = entries.indexOf(entry);
 
       if (index >= 0) {
         entries.splice(index, 1);
+        notify();
       }
     };
   };
@@ -585,6 +602,14 @@ export function createShortcutRegistry(
         : {}),
     }));
 
+  const subscribe = (listener: () => void): (() => void) => {
+    listeners.add(listener);
+
+    return (): void => {
+      listeners.delete(listener);
+    };
+  };
+
   return {
     register,
     claimScope,
@@ -593,6 +618,7 @@ export function createShortcutRegistry(
     findOverlaps,
     reportOverlaps,
     listShortcuts,
+    subscribe,
   };
 }
 
@@ -631,7 +657,7 @@ export const buildGlobalShortcuts = (
     id: 'global.undo',
     combo: 'Ctrl+Z',
     scope: 'global',
-    description: 'hoàn tác thao tác gần nhất',
+    description: 'Hoàn tác thao tác gần nhất',
     allowRepeat: true,
     onTrigger: (): void => {
       handlers.undo();
@@ -641,7 +667,7 @@ export const buildGlobalShortcuts = (
     id: 'global.redo',
     combo: 'Ctrl+Shift+Z',
     scope: 'global',
-    description: 'làm lại thao tác vừa hoàn tác',
+    description: 'Làm lại thao tác vừa hoàn tác',
     allowRepeat: true,
     onTrigger: (): void => {
       handlers.redo();
@@ -651,7 +677,7 @@ export const buildGlobalShortcuts = (
     id: 'global.save',
     combo: 'Ctrl+S',
     scope: 'global',
-    description: 'lưu ngay thay vì chờ tự lưu',
+    description: 'Lưu ngay thay vì chờ tự lưu',
     onTrigger: (): void => {
       handlers.save();
     },
@@ -660,7 +686,7 @@ export const buildGlobalShortcuts = (
     id: 'global.search',
     combo: 'Ctrl+F',
     scope: 'global',
-    description: 'mở tìm kiếm trong dự án',
+    description: 'Mở tìm kiếm trong dự án',
     onTrigger: (): void => {
       handlers.openSearch();
     },
@@ -669,7 +695,7 @@ export const buildGlobalShortcuts = (
     id: 'global.shortcutHelp',
     combo: '?',
     scope: 'global',
-    description: 'mở bảng phím tắt',
+    description: 'Mở bảng phím tắt',
     onTrigger: (): void => {
       handlers.openShortcutHelp();
     },
@@ -679,7 +705,7 @@ export const buildGlobalShortcuts = (
     combo: 'Escape',
     scope: 'global',
     preventDefault: false,
-    description: 'đóng lớp trên cùng',
+    description: 'Đóng lớp trên cùng',
     onTrigger: (): void => {
       handlers.closeTopLayer();
     },

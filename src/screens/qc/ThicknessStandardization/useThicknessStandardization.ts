@@ -47,24 +47,24 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
-import type { EntityId, LevelId, Wall, WallId } from '@/domain/spatial/types';
+import { displayCodesOf } from '@/domain/spatial/ids';
+import type { LevelId, Wall, WallId } from '@/domain/spatial/types';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import type { Command } from '@/lib/commands/types';
 import type { HistoryStack } from '@/lib/commands/history';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
-import { describeError } from '@/lib/errors/describeError';
-import { toAppError } from '@/lib/errors/toAppError';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { durationMs } from '@/lib/motion';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
-import { queryKeys } from '@/lib/query/queryKeys';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -109,6 +109,7 @@ import {
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
 } from './thicknessTypes';
+import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi của hook — mọi câu người dùng đọc mà cổng không sinh ra.              */
@@ -126,7 +127,7 @@ export const THICKNESS_SCREEN_TEXT = {
   emptyNoMeasurementNotice:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.',
   viewerRoleNotice:
-    'Bạn đang xem với vai Người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
+    'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
   escapeShortcut: 'Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc.',
 } as const;
 
@@ -160,6 +161,8 @@ export interface UseThicknessStandardizationOptions {
   readonly history?: HistoryStack;
   /** Sổ phím tắt tiêm được; vắng mặt thì dùng sổ dùng chung của ứng dụng. */
   readonly shortcutRegistry?: ShortcutRegistry;
+  /** Lối ra của dải tỉ lệ tạm (F-04x-2) — container truyền `onNavigate` của nó. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /**
@@ -343,10 +346,14 @@ export function useThicknessStandardization(
   /* Lượt đọc máy chủ duy nhất của màn (R-64).                               */
   /* ---------------------------------------------------------------------- */
 
-  const layerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
-    queryFn: ({ signal }) => gateway.readThicknessLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const provisionalScaleNotice = useProvisionalScaleNotice(
+    floorLayer.scaleStatus,
+    projectId,
+    floorId,
+    options.onNavigate,
+  );
 
   /* ---------------------------------------------------------------------- */
   /* Đồ thị đang sửa — nơi `commit` ghi vào.                                  */
@@ -359,7 +366,11 @@ export function useThicknessStandardization(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị vào kho một lần, nếu kho còn trống. */
+  /*
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
+   */
   useEffect(() => {
     if (graph !== null) {
       return;
@@ -368,11 +379,13 @@ export function useThicknessStandardization(
     const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const walls = useMemo(() => wallsOfGraph(graph), [graph]);
+  /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
+  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
   const levels = useMemo(() => levelsOfGraph(graph), [graph]);
   const levelIndex = useMemo<ReadonlyMap<LevelId, typeof levels[number]>>(
     () => levelIndexOf(levels),
@@ -390,8 +403,9 @@ export function useThicknessStandardization(
         toleranceMm,
         levels: levelIndex,
         groupOverrides,
+        codes: wallCodes,
       }),
-    [groupOverrides, levelIndex, thresholds, toleranceMm, walls],
+    [groupOverrides, levelIndex, thresholds, toleranceMm, wallCodes, walls],
   );
 
   const segmentRows = useMemo(() => sortSegmentRows(allRows, sortKey), [allRows, sortKey]);
@@ -439,13 +453,8 @@ export function useThicknessStandardization(
     [selectedIds, wallIdIndex],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
-
   const replaceSelection = useCallback(
     (ids: readonly WallId[]) => {
-      selectionBeforeRef.current = useStore.getState().selectedIds;
       setSelection([...ids]);
     },
     [setSelection],
@@ -527,32 +536,14 @@ export function useThicknessStandardization(
     [],
   );
 
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistRef = useRef({ floorId, gateway, projectId });
-  persistRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistRef.current;
-      const result = await current.gateway.persistThicknessStandardization({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        /*
-         * Một khả năng chưa có endpoint KHÔNG được biến thành một lượt lưu đã
-         * xong: ném ra là cách duy nhất để vỏ ứng dụng nói ra sự thật thay vì
-         * hiện "Đã lưu lúc…" cho một lượt chưa hề rời khỏi máy.
-         */
-        throw new Error(result.missing);
-      }
-    },
+  /* Bộ lưu lớp chung mỗi người–dự án (F-04x-1); 409 → dải "Tải lại". */
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const autosave = autosaveRef.current;
+  useSaveIndicator(autosave);
 
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — MỘT transaction, MỘT bước hoàn tác 100 bước của S-06.        */
@@ -562,8 +553,8 @@ export function useThicknessStandardization(
     () =>
       createThicknessDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
@@ -571,6 +562,17 @@ export function useThicknessStandardization(
       }),
     [autosave, options.history, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+  const replaceSeqRef = useRef(serverReplaceSeq);
+
+  useEffect(() => {
+    if (replaceSeqRef.current !== serverReplaceSeq) {
+      replaceSeqRef.current = serverReplaceSeq;
+      dispatchBundle.history.clear();
+    }
+  }, [dispatchBundle, serverReplaceSeq]);
 
   const invalidate = useCallback(() => {
     applyInvalidation(queryClient, 'editWall', { floorId, projectId });
@@ -847,17 +849,9 @@ export function useThicknessStandardization(
   /* Bảy trạng thái và ba câu đi kèm.                                        */
   /* ---------------------------------------------------------------------- */
 
-  const layerError: unknown = layerQuery.error;
+  const errorMessage = floorLayer.error === null ? null : floorLayer.errorMessage;
 
-  const errorMessage = useMemo<string | null>(
-    () =>
-      layerError === null || layerError === undefined
-        ? null
-        : describeError(toAppError(layerError)).description,
-    [layerError],
-  );
-
-  const isLoading = layerQuery.isPending;
+  const isLoading = floorLayer.isPending;
 
   const state = deriveThicknessScreenState({
     isViewerRole,
@@ -929,6 +923,8 @@ export function useThicknessStandardization(
     onChangeNormalizedGroup,
     onApplySelectedGroup,
     flashingWallIds,
+    saveBlock,
+    provisionalScaleNotice,
   };
 }
 

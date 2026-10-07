@@ -12,12 +12,12 @@
  * />
  * ```
  *
- * ## Vì sao container này KHÔNG có `onNavigate`
+ * ## `onNavigate` — lối ra duy nhất là dải tỉ lệ tạm
  *
- * Khác `RoomLabelReview` (nút "Xem tại lớp tường" của nó là một lối ra thật),
- * mọi hành động của màn này ở lại trên màn: kéo ngưỡng, tích nhóm, xem trước,
- * áp, hoàn tác. Thêm một prop điều hướng mà không nút nào gọi là đúng thứ prop
- * chết mà R-73 cấm. Cùng lựa chọn `AxisGridManager.container.tsx` đã chốt.
+ * Mọi hành động sửa của màn ở lại trên màn: kéo ngưỡng, tích nhóm, xem trước,
+ * áp, hoàn tác. Lối ra duy nhất là nút "Hiệu chỉnh tỉ lệ" của dải tỉ lệ tạm
+ * (F-04x-2), nên `onNavigate` tuỳ chọn: route nối `useNavigate`, story/test
+ * vắng thì nút không đi đâu.
  *
  * ## Ranh giới lỗi: bản ở `@/components/feedback`
  *
@@ -49,17 +49,20 @@
  * endpoint để lấp chỗ đó.
  */
 
+import { useCallback } from 'react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
 import type { HistoryStack } from '@/lib/commands/history';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { ProjectRole } from '@/types/project';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { ThicknessStandardization } from './ThicknessStandardization';
 import type { ThicknessStandardizationGateway } from './thicknessStandardizationGateway';
@@ -83,12 +86,16 @@ export interface ThicknessStandardizationContainerProps {
   readonly projectId: string;
   readonly floorId: string;
   readonly roles?: readonly ProjectRole[];
+  /** Lối ra của dải tỉ lệ tạm — xem đầu file. */
+  readonly onNavigate?: (path: string) => void;
   /** Cổng dữ liệu tiêm được. Vắng mặt thì hook dựng bản thật, đúng một lần. */
   readonly gateway?: ThicknessStandardizationGateway;
   /** Bus thông báo tiêm được — bài kiểm đọc toast hoàn tác trên bus của riêng nó. */
   readonly notifications?: NotificationBus;
   /** Ép thu gọn canvas xem trước — cho story và bài kiểm muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Ép dải lưu lớp (F-04x-1) — cho story "Xung đột — tải lại" / "Không lưu được". */
+  readonly forceSaveBlock?: FloorLayerSaveBlock;
   /**
    * Ngăn xếp hoàn tác tiêm được.
    *
@@ -134,13 +141,14 @@ function WiredThicknessStandardization(props: ThicknessStandardizationContainerP
     floorId: props.floorId,
     projectId: props.projectId,
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
+    ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
     ...(props.gateway !== undefined ? { gateway: props.gateway } : {}),
     ...(props.notifications !== undefined ? { notifications: props.notifications } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.history !== undefined ? { history: props.history } : {}),
   });
 
-  return <ThicknessStandardization {...model} />;
+  return <ThicknessStandardization {...model} saveBlock={props.forceSaveBlock ?? model.saveBlock} />;
 }
 
 /** `<ThicknessStandardizationContainer … />` — màn S-18 thật, gắn được bằng một thẻ. */
@@ -164,6 +172,10 @@ export function ThicknessStandardizationContainer(
 export function ThicknessStandardizationRoute() {
   const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const session = useSession();
+  const navigate = useNavigate();
+  const onNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (
@@ -178,6 +190,11 @@ export function ThicknessStandardizationRoute() {
   }
 
   return (
-    <ThicknessStandardizationContainer floorId={floorId} projectId={id} roles={session.roles} />
+    <ThicknessStandardizationContainer
+      floorId={floorId}
+      onNavigate={onNavigate}
+      projectId={id}
+      roles={session.roles}
+    />
   );
 }

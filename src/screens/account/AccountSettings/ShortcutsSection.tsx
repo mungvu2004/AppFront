@@ -113,7 +113,7 @@ export function ShortcutsSection({
   return (
     <div className="flex flex-col gap-3">
       <Input
-        label="tìm phím tắt"
+        label="Tìm phím tắt"
         type="search"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
@@ -135,10 +135,10 @@ export function ShortcutsSection({
               scope="col"
               className="w-[168px] pb-2 text-[13px] font-semibold text-text-secondary"
             >
-              tổ hợp phím
+              Tổ hợp phím
             </th>
             <th scope="col" className="pb-2 text-[13px] font-semibold text-text-secondary">
-              việc
+              Việc
             </th>
           </tr>
         </thead>

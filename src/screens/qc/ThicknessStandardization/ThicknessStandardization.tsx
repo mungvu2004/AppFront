@@ -63,6 +63,9 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+
 import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessGroupTable } from './ThicknessGroupTable';
 import { ThicknessHistogram } from './ThicknessHistogram';
@@ -98,17 +101,17 @@ export type ThicknessStandardizationViewProps = ThicknessStandardizationProps &
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_BREADCRUMB = 'Dự án > Tầng 01 > Độ dày tường';
-const SCREEN_TITLE = 'chuẩn hoá độ dày tường';
+const SCREEN_BREADCRUMB = 'Dự án > Độ dày tường';
+const SCREEN_TITLE = 'Chuẩn hoá độ dày tường';
 const SCREEN_DESCRIPTION =
   'Đối chiếu số đo độ dày của từng đoạn tường với bốn nhóm chuẩn, xem trước rồi áp một lượt duy nhất.';
 const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const TABLES_SECTION_LABEL = 'Bảng nhóm và bảng chi tiết từng đoạn';
-const ERROR_TITLE = 'không đọc được lớp số đo độ dày';
-const FORBIDDEN_TITLE = 'không có quyền sửa độ dày tường';
-const EMPTY_TITLE = 'chưa có đoạn tường nào để chuẩn hoá';
+const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
+const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
+const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const COLLAPSE_PREVIEW_LABEL = 'Thu gọn khung xem trước';
-const EXPAND_PREVIEW_LABEL = 'khung xem trước đang thu gọn';
+const EXPAND_PREVIEW_LABEL = 'Khung xem trước đang thu gọn';
 
 /** Trần bề rộng nội dung của đặc tả — một chỗ viết duy nhất (R-71). */
 const CONTENT_MAX_WIDTH_CLASS = 'max-w-[1280px]';
@@ -269,6 +272,8 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     onUndo,
     preview,
     reapplyWarning,
+    saveBlock,
+    provisionalScaleNotice,
     summary,
     thresholdLabels,
     thresholds,
@@ -288,6 +293,10 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
           <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
           <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         </header>
+
+        {saveBlock == null ? null : <FloorLayerSaveBanner saveBlock={saveBlock} />}
+
+        {provisionalScaleNotice == null ? null : <ProvisionalScaleBanner notice={provisionalScaleNotice} />}
 
         {errorMessage === null ? null : (
           <InlineAlert level="violation" message={errorMessage} title={ERROR_TITLE} />

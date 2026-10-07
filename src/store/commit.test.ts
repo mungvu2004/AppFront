@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { applyRollbackPatches, commit } from './commit';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { applyRollbackPatches, commit, replaceFloorLayer } from './commit';
 import { useStore } from './index';
 import { readEntity } from '../domain/spatial/applyPatch';
 import { normalizeSpatial } from '../domain/spatial/normalize';
 import type { Wall } from '../domain/spatial/types';
-import { createSampleBuilding } from '../domain/spatial/__fixtures__/sampleBuilding';
+import { createSampleBuilding, sampleLevelId } from '../domain/spatial/__fixtures__/sampleBuilding';
+import { graphVersionOf } from '../lib/versioning/graphVersion';
 
 const firstSampleWall = (): Wall => {
   const wall = createSampleBuilding().walls.at(0);
@@ -38,6 +39,8 @@ describe('store/commit.ts', () => {
     useStore.setState({
       spatial: normalizeSpatial(createSampleBuilding()),
       versionId: 'v1',
+      floorMeta: {},
+      serverReplaceSeq: 0,
     });
   });
 
@@ -101,5 +104,135 @@ describe('store/commit.ts', () => {
     useStore.temporal.getState().undo();
 
     expect(storedWallThickness(wall.id)).toBe(wall.thicknessMm);
+  });
+
+  describe('replaceFloorLayer', () => {
+    const floorId = sampleLevelId(0);
+    const layerWithoutFirstWall = () => {
+      const graph = createSampleBuilding();
+      const walls = graph.walls.filter((wall) => wall.levelId === floorId);
+      const wallIds = new Set<string>(walls.map((wall) => wall.id));
+
+      return {
+        furniture: graph.furniture.filter((item) => item.levelId === floorId),
+        openings: graph.openings.filter((opening) => wallIds.has(opening.wallId)),
+        rooms: graph.rooms.filter((room) => room.levelId === floorId),
+        walls: walls.slice(1),
+      };
+    };
+
+    it('writes the store once and opens no undo step', () => {
+      const pastBefore = useStore.temporal.getState().pastStates.length;
+      const listener = vi.fn();
+      const stop = useStore.subscribe(listener);
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 7 });
+      stop();
+
+      const state = useStore.getState();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(useStore.temporal.getState().pastStates).toHaveLength(pastBefore);
+      expect(state.floorMeta[floorId]).toEqual({ revision: 7 });
+      expect(state.lastServerSpatial).toBe(state.spatial);
+      expect(state.serverReplaceSeq).toBe(0);
+      expect(state.spatial?.byKind.wall).toHaveLength(createSampleBuilding().walls.length - 1);
+    });
+
+    it('only records the revision when the store lacks the floor', () => {
+      const before = useStore.getState().spatial;
+
+      replaceFloorLayer('L-UNKNOWN000', { layer: layerWithoutFirstWall(), revision: 2 });
+
+      expect(useStore.getState().spatial).toBe(before);
+      expect(useStore.getState().floorMeta['L-UNKNOWN000']).toEqual({ revision: 2 });
+
+      useStore.setState({ spatial: null });
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 3 });
+
+      expect(useStore.getState().spatial).toBeNull();
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 3 });
+    });
+
+    it('external clears the history and bumps serverReplaceSeq', () => {
+      const wall = firstSampleWall();
+
+      commit({ op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 50 } }, 'Sửa');
+      expect(useStore.temporal.getState().pastStates.length).toBeGreaterThan(0);
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 9 }, { external: true });
+
+      expect(useStore.temporal.getState().pastStates).toHaveLength(0);
+      expect(useStore.getState().serverReplaceSeq).toBe(1);
+    });
+
+    it('writes versionId from floorMeta in the same set', () => {
+      useStore.setState({ floorMeta: { [sampleLevelId(1)]: { revision: 2 } } });
+      const listener = vi.fn();
+      const stop = useStore.subscribe(listener);
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 7 });
+      stop();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(useStore.getState().versionId).toBe(
+        graphVersionOf({ [floorId]: { revision: 7 }, [sampleLevelId(1)]: { revision: 2 } }),
+      );
+    });
+
+    it('keeps scaleStatus on a layer save, takes it from N16, and drops it once a scale was sent', () => {
+      useStore.setState({ floorMeta: { [floorId]: { revision: 1, scaleStatus: 'unresolved' } } });
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 2 });
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 2, scaleStatus: 'unresolved' });
+
+      replaceFloorLayer(floorId, { layer: layerWithoutFirstWall(), revision: 3 }, { scaleSent: true });
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 3 });
+
+      replaceFloorLayer(
+        floorId,
+        { layer: layerWithoutFirstWall(), revision: 4, scaleStatus: 'unresolved' },
+        { external: true },
+      );
+      expect(useStore.getState().floorMeta[floorId]).toEqual({ revision: 4, scaleStatus: 'unresolved' });
+
+      replaceFloorLayer('L-UNKNOWN000', { layer: layerWithoutFirstWall(), revision: 1, scaleStatus: 'unresolved' });
+      expect(useStore.getState().floorMeta['L-UNKNOWN000']).toEqual({ revision: 1, scaleStatus: 'unresolved' });
+    });
+
+    it('adds a missing floor with its level in one set, keeping history and other floors', () => {
+      const wall = firstSampleWall();
+
+      commit({ op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 50 } }, 'Sửa');
+
+      const pastBefore = useStore.temporal.getState().pastStates.length;
+      const before = useStore.getState().spatial;
+      const newFloorId = sampleLevelId(9);
+      const sampleLevel = createSampleBuilding().levels[0];
+
+      if (sampleLevel === undefined) {
+        throw new Error('sample building has no levels');
+      }
+
+      const level = { ...sampleLevel, id: newFloorId };
+      const listener = vi.fn();
+      const stop = useStore.subscribe(listener);
+
+      replaceFloorLayer(
+        newFloorId,
+        { layer: { furniture: [], openings: [], rooms: [], walls: [] }, level, revision: 5 },
+        { external: true },
+      );
+      stop();
+
+      const state = useStore.getState();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(state.spatial?.byId[newFloorId]).toBe(level);
+      expect(state.spatial?.byLevel[floorId]).toBe(before?.byLevel[floorId]);
+      expect(state.floorMeta[newFloorId]).toEqual({ revision: 5 });
+      expect(state.serverReplaceSeq).toBe(0);
+      expect(useStore.temporal.getState().pastStates).toHaveLength(pastBefore);
+    });
   });
 });

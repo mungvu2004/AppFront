@@ -629,8 +629,8 @@ lấp kín khung, không dư một khe nào.
 
 ### Bản vẽ, tường, phòng, diện tích, tiến độ QC
 
-Diện tích của bộ mẫu chuẩn repo là **248,60 m²** (A14: *34 phòng và sảnh 248,60 m²*, xem
-`src/lib/coloring/__tests__/coloring.test.ts:31`). Ba tầng có bản vẽ dùng đúng bộ đó; **tầng mái
+Diện tích mỗi tầng có bản vẽ của bộ mẫu RIÊNG của màn là **248,60 m²** (34 phòng, đường bao thật
+cộng ra đúng số ấy: 33 × 7,32 + 7,04; không phải bộ A14). Ba tầng có bản vẽ dùng đúng bộ đó; **tầng mái
 chưa có bản vẽ** và là chỗ trạng thái Một phần sống.
 
 | # | `drawingCount` | `drawingCountText` | `wallCountText` | `roomCountText` | `areaM2` | `areaText` | `qcProgressRatio` | `qcProgressText` |
@@ -647,7 +647,7 @@ chưa có bản vẽ** và là chỗ trạng thái Một phần sống.
 > **Số tường 58 / 72 / 72 và số phòng 34 là DỮ LIỆU MẪU, không phải số tính ra.** Chúng viết
 > thẳng ở đây một lần để T5 và T6 không mỗi người bịa một bảng khác nhau (R-70). CẤM TUYỆT ĐỐI
 > *"không tự đếm đối tượng"* nhắm vào MÀN THẬT: ở đó bốn con số này đọc từ cổng, không do màn
-> đếm. Số phòng lấy đúng 34 của A14.
+> đếm. Số phòng 34 là của bộ riêng của màn, không phải A14.
 
 ### Chân bảng của bộ mẫu
 

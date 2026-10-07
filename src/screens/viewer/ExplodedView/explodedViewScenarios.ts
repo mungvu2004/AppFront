@@ -211,7 +211,7 @@ function findAlignmentIssue(floors: readonly FloorPlan[]): FloorIssue {
 
   if (issue === undefined) {
     throw new Error(
-      'explodedViewScenarios: bộ mẫu lệch trục 180 mm không còn sinh cảnh báo — kiểm tra lại alignFloors.',
+      'ExplodedViewScenarios: bộ mẫu lệch trục 180 mm không còn sinh cảnh báo — kiểm tra lại alignFloors.',
     );
   }
 
@@ -264,17 +264,17 @@ export interface ExplodedViewScenario {
 }
 
 const LIVE_MESSAGES: Readonly<Record<ExplodedViewState, string>> = Object.freeze({
-  empty: 'chỉ có một tầng, chưa tách được.',
-  loading: 'đang tải các tầng.',
-  partial: 'đã tách vừa; hai tầng trên vẫn đang dựng hình.',
-  error: 'không tải được các tầng.',
-  success: 'đã tách hết bốn tầng.',
-  forbidden: 'bạn không có quyền xem tầng này.',
-  collapsed: 'đã thu gọn thanh điều khiển.',
+  empty: 'Chỉ có một tầng, chưa tách được.',
+  loading: 'Đang tải các tầng.',
+  partial: 'Đã tách vừa; hai tầng trên vẫn đang dựng hình.',
+  error: 'Không tải được các tầng.',
+  success: 'Đã tách hết bốn tầng.',
+  forbidden: 'Bạn không có quyền xem tầng này.',
+  collapsed: 'Đã thu gọn thanh điều khiển.',
 });
 
 /** Câu chú ý trên thẻ của tầng chưa được duyệt, trong kịch bản `partial`. */
-const PARTIAL_REVIEW_CAPTION = 'tầng 02 chưa được người duyệt xác nhận.';
+const PARTIAL_REVIEW_CAPTION = 'Tầng 02 chưa được người duyệt xác nhận.';
 
 const BASE: ExplodedViewProps = {
   state: 'success',

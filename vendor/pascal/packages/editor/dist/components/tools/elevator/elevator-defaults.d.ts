@@ -1,0 +1,9 @@
+export declare const DEFAULT_ELEVATOR_WIDTH = 1.84;
+export declare const DEFAULT_ELEVATOR_DEPTH = 1.84;
+export declare const DEFAULT_ELEVATOR_CAB_HEIGHT = 2.35;
+export declare const DEFAULT_ELEVATOR_DOOR_WIDTH = 0.95;
+export declare const DEFAULT_ELEVATOR_DOOR_HEIGHT = 2.1;
+export declare const DEFAULT_ELEVATOR_SPEED = 2.2;
+export declare const DEFAULT_ELEVATOR_DOOR_DURATION_MS = 900;
+export declare const DEFAULT_ELEVATOR_DWELL_MS = 1400;
+//# sourceMappingURL=elevator-defaults.d.ts.map

@@ -61,3 +61,10 @@ export type {
   ViewerSceneMount,
   ViewerSceneMountOptions,
 } from './viewer3dTypes';
+/*
+ * `shouldUseViewerFixture` KHÔNG tái xuất ở đây, và đó là chuyện của cổng kích
+ * thước gói chứ không phải chuyện gu. Barrel này là chunk của màn 3D cũ, và
+ * chunk ấy đang ở 280,03 KiB trên ngân sách 280 — thêm một dòng tái xuất là
+ * thừa 28 byte và cổng đỏ. `PascalViewer.container.tsx` vì thế nhập thẳng
+ * `./useViewer3DSource`, đúng một đường, không đi vòng qua barrel.
+ */

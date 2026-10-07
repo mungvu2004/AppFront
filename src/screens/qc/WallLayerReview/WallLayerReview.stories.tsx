@@ -40,6 +40,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MemoryRouter } from 'react-router-dom';
 
+import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Wall } from '@/domain/spatial/types';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
@@ -192,7 +193,7 @@ export const MotPhan: Story = { args: scenarioArgsFor('partial') };
 /** 4. Lỗi — không tải được bản vẽ gốc; canvas VẪN không trắng. */
 export const Loi: Story = { args: scenarioArgsFor('error') };
 
-/** 5. Xong — 48/48 đã duyệt, panel trái mời sang lớp Cửa và nội thất. */
+/** 5. Xong — 48/48 đã duyệt, panel trái mời sang lớp cửa và nội thất. */
 export const ThanhCong: Story = { args: scenarioArgsFor('success') };
 
 /** 6. Không có quyền — vai Người xem: ray ẩn công cụ sửa, thanh tra bỏ viền. */
@@ -200,3 +201,30 @@ export const KhongCoQuyen: Story = { args: scenarioArgsFor('forbidden') };
 
 /** 7. Thu gọn — hai panel ẩn, ray công cụ nổi trên canvas, chú giải VẪN hiện. */
 export const ThuGon: Story = { args: scenarioArgsFor('collapsed') };
+
+/** Dải "Tải lại" — tầng vừa được sửa ở nơi khác (409, F-04x-1); bấm nút thì hook mới mở A9. */
+export const ConflictReload: Story = {
+  name: 'Xung đột — tải lại',
+  args: {
+    ...scenarioArgsFor('partial'),
+    forceSaveBlock: { confirm: null, kind: 'reload', message: LAYER_SAVE_MESSAGES.reload, onReload: () => undefined },
+  },
+};
+
+/** Dải "Không lưu được" — lỗi không tự hết (413, 422, 403…), lưu lại sau lượt sửa mới. */
+export const SaveBlocked: Story = {
+  name: 'Không lưu được',
+  args: {
+    ...scenarioArgsFor('partial'),
+    forceSaveBlock: { confirm: null, kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown },
+  },
+};
+
+/** Dải "Tỉ lệ tạm" — tầng chưa hiệu chỉnh tỉ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
+export const ProvisionalScale: Story = {
+  name: 'Tỉ lệ tạm',
+  args: {
+    ...scenarioArgsFor('partial'),
+    gateway: createMockWallLayerReviewGateway({ graph: FULL_GRAPH, scaleStatus: 'unresolved' }),
+  },
+};

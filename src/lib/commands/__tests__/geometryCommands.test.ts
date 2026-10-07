@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { applyPatch } from '@/domain/spatial/applyPatch';
-import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, Level, Opening, SpatialGraph, Wall } from '@/domain/spatial/types';
 import {
   createResizeFurnitureCommand,
@@ -315,7 +315,7 @@ describe('the two geometry commands on a drawing that is damaged', () => {
         { wallId: 'W-MISSING1AA', heightMm: 2800 },
         contextOn(baseGraph),
       ).join(' '),
-    ).toContain('Không tìm thấy tường W-MISSING1AA');
+    ).toContain('Không tìm thấy tường #W-MISSING1AA');
   });
 
   it('names the storey a wall points at when that storey is gone', () => {
@@ -323,7 +323,7 @@ describe('the two geometry commands on a drawing that is damaged', () => {
 
     expect(
       validateChangeWallHeight({ wallId: WALL, heightMm: 2800 }, contextOn(orphaned)).join(' '),
-    ).toContain(`tầng ${LEVEL} không tồn tại`);
+    ).toContain(`tầng ${displayCodeIn(orphaned, LEVEL)} không tồn tại`);
   });
 
   it('refuses to judge the openings on a wall whose own measurements are unreadable', () => {
@@ -359,7 +359,7 @@ describe('the two geometry commands on a drawing that is damaged', () => {
         { furnitureId: 'F-MISSING1AA', widthMm: 900 },
         contextOn(baseGraph),
       ).join(' '),
-    ).toContain('Không tìm thấy đồ đạc F-MISSING1AA');
+    ).toContain('Không tìm thấy đồ đạc #F-MISSING1AA');
   });
 
   it('refuses to scale a box that has no size to scale from', () => {

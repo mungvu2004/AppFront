@@ -44,11 +44,11 @@ import {
   resolveAccessDeniedReason,
   type AccessDeniedAction,
   type AccessDeniedCapabilities,
-  type AccessDeniedReason,
   type AccessDeniedVm,
   type AccessRequestVm,
   type ProjectOwnerVm,
 } from './accessDeniedModel';
+import { ACCESS_DENIED_TEXT, REASON_SENTENCE, restrictionSentenceOf } from './useAccessDenied';
 
 const noop = (): void => undefined;
 
@@ -66,7 +66,7 @@ export const SAMPLE_PROJECT_OWNER: ProjectOwnerVm = {
 
 /** Một yêu cầu đã gửi thành công — dùng khi `capabilities.canRequestAccess` bật. */
 export const SAMPLE_ACCESS_REQUEST: AccessRequestVm = {
-  sentAtLabel: 'đã gửi lúc 14:32',
+  sentAtLabel: 'Đã gửi lúc 14:32',
 };
 
 /**
@@ -113,40 +113,10 @@ export const PASSWORD_ACCESS_ERROR: AppError = forbiddenError('SHARE_LINK_PASSWO
 /** Mã không chứa từ nào trong ba từ khoá trên — rơi về `reason: 'unknown'`. */
 export const UNRECOGNIZED_ACCESS_ERROR: AppError = forbiddenError('FORBIDDEN', 'req-ad-unknown');
 
-const REASON_SENTENCE: Readonly<Record<AccessDeniedReason, string>> = {
-  revoked: 'Liên kết chia sẻ tới mục này đã bị thu hồi.',
-  expired: 'Liên kết chia sẻ tới mục này đã hết hạn.',
-  password: 'Liên kết này cần đúng mật khẩu mới mở được.',
-  unknown: 'Hệ thống không xác định được vì sao bạn chưa xem được mục này.',
-};
-
-function titleFor(state: SevenState): string {
-  return state === 'success' ? 'Bạn đã được cấp quyền xem mục này' : 'Bạn chưa có quyền xem mục này';
-}
-
-/** `projectName` chỉ được ghép vào câu khi `canNameProject` bật — bài nghiệm thu 4 khẳng định điều ngược lại. */
-function restrictionSentenceFor(capabilities: AccessDeniedCapabilities, projectName: string): string {
-  if (capabilities.canNameProject) {
-    return `Bạn chưa có quyền xem dự án “${projectName}”.`;
-  }
-
-  return 'Bạn chưa có quyền xem mục này.';
-}
-
-function whoCanGrantSentenceFor(capabilities: AccessDeniedCapabilities, owner: ProjectOwnerVm | null): string {
-  if (capabilities.canShowOwner && owner !== null) {
-    return `Chỉ ${owner.name}, chủ dự án, mới cấp được quyền xem cho bạn.`;
-  }
-
-  return 'Chỉ chủ dự án mới cấp được quyền xem cho bạn.';
-}
-
-/** Luôn trả một câu — `currentEmail === null` không được để lộ chữ "undefined"/"null" (bài nghiệm thu 5). */
-function identityLabelFor(email: string | null): string {
-  return email === null
-    ? 'Không xác định được bạn đang đăng nhập bằng tài khoản nào.'
-    : `Bạn đang đăng nhập bằng ${email}.`;
-}
+/*
+ * Chữ và câu lấy từ hook, không chép lại (B-V1-44, mục D): bản chép tay cũ lệch hook ở
+ * tiêu đề, bốn câu lý do, câu ai cấp quyền, nhãn danh tính và ba nút.
+ */
 
 function actionFor(label: string, onActivate: (() => void) | undefined): AccessDeniedAction {
   return { label, onActivate: onActivate ?? noop };
@@ -197,14 +167,14 @@ export function createAccessDeniedVm(
   return {
     state,
     capabilities,
-    title: titleFor(state),
-    restrictionSentence: restrictionSentenceFor(capabilities, projectName),
+    title: ACCESS_DENIED_TEXT.title,
+    restrictionSentence: restrictionSentenceOf(projectName, capabilities.canNameProject),
     reason,
     reasonSentence: REASON_SENTENCE[reason],
-    whoCanGrantSentence: whoCanGrantSentenceFor(capabilities, owner),
+    whoCanGrantSentence: ACCESS_DENIED_TEXT.whoCanGrant,
     currentEmail,
-    identityLabel: identityLabelFor(currentEmail),
-    switchAccount: actionFor('Đổi tài khoản', options.onSwitchAccount),
+    identityLabel: currentEmail === null ? ACCESS_DENIED_TEXT.identityUnknown : ACCESS_DENIED_TEXT.identityPrefix,
+    switchAccount: actionFor(ACCESS_DENIED_TEXT.switchAccountLabel, options.onSwitchAccount),
     owner,
     request,
     throttleSentence: options.throttleSentence ?? null,
@@ -214,9 +184,9 @@ export function createAccessDeniedVm(
     submitLinkPassword: capabilities.canSubmitLinkPassword
       ? actionFor(SUBMIT_LINK_PASSWORD_LABEL, options.onSubmitLinkPassword)
       : null,
-    backToProjects: actionFor('Về danh sách dự án', options.onBackToProjects),
-    enterProject: state === 'success' ? actionFor('Vào dự án', options.onEnterProject) : null,
-    errorCodeCaption: `Mã lỗi: ${options.error?.code ?? 'FORBIDDEN'}`,
+    backToProjects: actionFor(ACCESS_DENIED_TEXT.backToProjectsLabel, options.onBackToProjects),
+    enterProject: state === 'success' ? actionFor(ACCESS_DENIED_TEXT.enterProjectLabel, options.onEnterProject) : null,
+    errorCodeCaption: `${ACCESS_DENIED_TEXT.errorCodePrefix}${options.error?.code ?? 'FORBIDDEN'}`,
     isCompact: state === 'collapsed',
   };
 }

@@ -117,10 +117,10 @@ const COPY = Object.freeze({
 });
 
 const STATUS_LABELS: Readonly<Record<FloorUploadStatus, string>> = {
-  waiting: 'chờ xử lý',
-  uploading: 'đang tải lên',
-  attached: 'đã gắn kèm',
-  error: 'lỗi',
+  waiting: 'Chờ xử lý',
+  uploading: 'Đang tải lên',
+  attached: 'Đã gắn kèm',
+  error: 'Lỗi',
 };
 
 const STATUS_LABEL_KEYS: Readonly<Record<FloorUploadStatus, string>> = {
@@ -217,9 +217,18 @@ interface Attachment {
   readonly status: FloorUploadStatus;
   readonly percent: number;
   readonly problem: FloorUploadInlineError | null;
+  /**
+   * Đã gán tầng nhưng chọn lúc ngoại tuyến: chờ mạng về để tự tải (NO-389).
+   * `File` chỉ sống trong bộ nhớ của màn — tải lại trang là mất, nên câu báo
+   * nói rõ điều đó.
+   */
+  readonly awaitingNetwork: boolean;
 }
 
-const PICK_PAGE_SENTENCE = 'hãy chọn trang bản vẽ để bắt đầu tải';
+const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
+const AWAIT_NETWORK_KEY = 'floorUpload.notices.awaitNetwork';
+const AWAIT_NETWORK_SENTENCE =
+  'Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp';
 
 /** Trang PDF người dùng chọn (đếm từ 1) thành `pageIndex` (đếm từ 0); vắng thì `undefined`. */
 function pageIndexOf(attachment: Attachment): number | undefined {
@@ -332,7 +341,18 @@ export function useFloorUploadScreen(
   const [isSubmitting, setSubmitting] = useState(false);
 
   const tasksRef = useRef(new Map<string, UploadTask>());
+  // Lệnh hàng đợi ngoại tuyến của từng tệp đang chờ mạng — nhiều nhất một lệnh
+  // mỗi tệp. Giữ lời hứa để gỡ được cả khi lượt ghi chưa xong.
+  const queuedRef = useRef(new Map<string, Promise<number | null>>());
+  // Lượt gỡ lệnh mồ côi lúc mở màn; lượt ghi mới đợi nó để không bị gỡ nhầm.
+  const orphansClearedRef = useRef<Promise<void>>(Promise.resolve());
+  const unmountedRef = useRef(false);
   const onlineRef = useRef(true);
+  // Câu "chờ mạng" đọc một lần cho cả lượt mất mạng, không một lần mỗi tệp.
+  const awaitAnnouncedRef = useRef(false);
+  // Danh sách tệp của lượt vẽ mới nhất, cho những lời gọi đến muộn (vé hoàn tác).
+  const attachmentsRef = useRef<readonly Attachment[]>([]);
+  attachmentsRef.current = attachments;
 
   const detectedNarrow = useNarrowViewport();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
@@ -363,6 +383,35 @@ export function useFloorUploadScreen(
   /* ---------------------------------------------------------------------- */
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
   /* ---------------------------------------------------------------------- */
+
+  // Mở màn: lệnh `uploadDrawing` còn trong hàng đợi là của phiên trước — tệp đã
+  // mất cùng lượt tải lại trang (đúng câu "tải lại trang thì cần chọn lại tệp"),
+  // nên không ai tải nó nữa. Gỡ để "chờ đồng bộ" không đếm mãi (NO-392).
+  useEffect(() => {
+    orphansClearedRef.current = gateway.clearOrphanUploads(projectId).catch(() => undefined);
+  }, [gateway, projectId]);
+
+  // Rời màn: `File` của các tệp chờ mạng mất theo, nên lệnh của chúng cũng gỡ;
+  // lượt kiểm tệp về muộn sau khi rời màn không được ghi lệnh mới.
+  useEffect(() => {
+    const queued = queuedRef.current;
+
+    unmountedRef.current = false;
+
+    return () => {
+      unmountedRef.current = true;
+
+      for (const pending of queued.values()) {
+        void pending.then((commandId) => {
+          if (commandId !== null) {
+            void gateway.dropOffline(commandId);
+          }
+        });
+      }
+
+      queued.clear();
+    };
+  }, [gateway]);
 
   useEffect(() => {
     return gateway.watchNetwork((online) => {
@@ -467,6 +516,22 @@ export function useFloorUploadScreen(
   /* Một lượt tải.                                                           */
   /* ---------------------------------------------------------------------- */
 
+  /** Gỡ lệnh hàng đợi của một tệp, nếu có. */
+  const dropQueued = (fileId: string): void => {
+    const queued = queuedRef.current.get(fileId);
+
+    if (queued === undefined) {
+      return;
+    }
+
+    queuedRef.current.delete(fileId);
+    void queued.then((commandId) => {
+      if (commandId !== null) {
+        void gateway.dropOffline(commandId);
+      }
+    });
+  };
+
   const patchAttachment = (id: string, patch: Partial<Attachment>): void => {
     setAttachments((previous) =>
       previous.map((attachment) => (attachment.id === id ? { ...attachment, ...patch } : attachment)),
@@ -508,16 +573,40 @@ export function useFloorUploadScreen(
     const pageIndex = pageIndexOf(attachment);
 
     if (!onlineRef.current) {
-      // Mất mạng: ghi ý định vào hàng đợi ngoại tuyến và để tệp ở "chờ xử lý".
-      // Hàng đợi giữ dữ liệu thuần, không giữ được chính `File`.
-      void gateway.enqueueOffline({
-        projectId,
-        floorId,
-        fileName: attachment.file.name,
-        sizeBytes: attachment.file.size,
-        ...(pageIndex !== undefined ? { pageIndex } : {}),
+      // Mất mạng: tệp ở "chờ xử lý" và chờ mạng về NGAY TRONG MÀN, nơi duy nhất
+      // giữ được `File` (NO-389). Hàng đợi ngoại tuyến nhận đúng MỘT lệnh cho
+      // tệp này — để ConnectionStates đếm nó là "chờ đồng bộ" — và lệnh ấy được
+      // gỡ ở mọi lối ra (xem `dropQueued`, NO-392).
+      dropQueued(attachment.id);
+
+      if (!unmountedRef.current) {
+        queuedRef.current.set(
+          attachment.id,
+          orphansClearedRef.current
+            .then(() =>
+              gateway.enqueueOffline({
+                projectId,
+                floorId,
+                fileName: attachment.file.name,
+                sizeBytes: attachment.file.size,
+                ...(pageIndex !== undefined ? { pageIndex } : {}),
+              }),
+            )
+            // Hàng đợi đầy hay IndexedDB hỏng: tệp vẫn chờ mạng trong màn, chỉ
+            // thiếu dấu đếm "chờ đồng bộ" — không ném ra ngoài.
+            .catch(() => null),
+        );
+      }
+      patchAttachment(attachment.id, {
+        status: 'waiting',
+        percent: 0,
+        problem: null,
+        awaitingNetwork: true,
       });
-      patchAttachment(attachment.id, { status: 'waiting', percent: 0, problem: null });
+      if (!awaitAnnouncedRef.current) {
+        awaitAnnouncedRef.current = true;
+        getAppAnnouncer().announce(AWAIT_NETWORK_SENTENCE);
+      }
       return;
     }
 
@@ -532,13 +621,40 @@ export function useFloorUploadScreen(
       },
     });
 
+    // Tệp rời trạng thái chờ mạng: lệnh "chờ đồng bộ" của nó hết vai, dù lượt tải
+    // này rồi xong hay hỏng.
+    dropQueued(attachment.id);
     tasksRef.current.set(attachment.id, task);
-    patchAttachment(attachment.id, { status: 'uploading', percent: 0, problem: null });
+    patchAttachment(attachment.id, {
+      status: 'uploading',
+      percent: 0,
+      problem: null,
+      awaitingNetwork: false,
+    });
 
     void task.start().then((finalState) => {
       applyTaskState(attachment.id, floorId, finalState);
     });
   };
+
+  // Mạng về: tải các tệp đã chọn (hoặc bấm "Thử lại") lúc ngoại tuyến — màn
+  // còn giữ `File`, hàng đợi ngoại tuyến thì không (NO-389). Ref giữ bản
+  // `startUpload` của lượt vẽ mới nhất; effect chỉ chạy khi `isOnline` đổi.
+  const resumeAwaitingRef = useRef<() => void>(() => undefined);
+  resumeAwaitingRef.current = () => {
+    for (const attachment of attachments) {
+      if (attachment.awaitingNetwork && attachment.floorId !== null) {
+        startUpload(attachment, attachment.floorId);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isOnline) {
+      awaitAnnouncedRef.current = false;
+      resumeAwaitingRef.current();
+    }
+  }, [isOnline]);
 
   /* ---------------------------------------------------------------------- */
   /* Nhận tệp.                                                               */
@@ -578,6 +694,7 @@ export function useFloorUploadScreen(
         status: 'waiting',
         percent: 0,
         problem: null,
+        awaitingNetwork: false,
       },
     ]);
 
@@ -633,9 +750,12 @@ export function useFloorUploadScreen(
   const findAttachment = (fileId: string): Attachment | null =>
     attachments.find((attachment) => attachment.id === fileId) ?? null;
 
+  // Mọi lối ra của một tệp khỏi tầng/lượt hiện tại (huỷ, xoá, gán lại, đổi
+  // trang, bị đẩy về khay) đi qua đây, nên lệnh hàng đợi của nó cũng gỡ ở đây.
   const cancelTask = (fileId: string): void => {
     tasksRef.current.get(fileId)?.cancel();
     tasksRef.current.delete(fileId);
+    dropQueued(fileId);
   };
 
   const reassign = (fileId: string, floorId: string | null): void => {
@@ -646,6 +766,21 @@ export function useFloorUploadScreen(
     }
 
     cancelTask(fileId);
+
+    // Một tầng, một tệp (NO-393) — cùng luật ghép tự động (`claimed`): tệp gán
+    // sau thay tệp đang ở tầng ấy, tệp cũ về khay, thôi tải và thôi chờ mạng.
+    // Không vậy thì thẻ hiện tệp đầu mà máy chủ giữ tệp tải xong sau cùng.
+    const displaced =
+      floorId === null
+        ? undefined
+        : attachments.find((other) => other.id !== fileId && other.floorId === floorId);
+
+    if (displaced !== undefined) {
+      cancelTask(displaced.id);
+      patchAttachment(displaced.id, toTray());
+      getAppAnnouncer().announce(displacedSentence(displaced.file.name));
+    }
+
     patchAttachment(fileId, {
       floorId,
       // Người dùng vừa tự chọn, nên lời nhắc "ghép tự động, kiểm tra lại" hết vai.
@@ -653,6 +788,7 @@ export function useFloorUploadScreen(
       status: 'waiting',
       percent: 0,
       problem: null,
+      awaitingNetwork: false,
     });
 
     if (floorId !== null) {
@@ -690,11 +826,36 @@ export function useFloorUploadScreen(
     const ticket = gateway.createRemovalTicket({
       description: `Hoàn tác xoá bản vẽ ${removed.file.name}`,
       undo: () => {
+        // Trả lại ĐÚNG thứ đã xoá: tệp đã gắn kèm vẫn là đã gắn kèm (máy chủ đã
+        // nhận nó, xoá không gọi máy chủ). Hạ nó về "chờ xử lý" là để thẻ treo ở
+        // đó mãi, vì không ai tải lại (B-V4-03). Chỉ lượt tải bị chính lần xoá
+        // cắt ngang mới phải chạy lại.
+        //
+        // Một tầng, một tệp (NO-393): tầng cũ đã nhận tệp khác trong lúc chờ
+        // hoàn tác thì tệp trả về khay, không chen thêm vào tầng ấy.
+        const occupied =
+          removed.floorId !== null &&
+          attachmentsRef.current.some(
+            (attachment) => attachment.id !== removed.id && attachment.floorId === removed.floorId,
+          );
+        const restored: Attachment = occupied ? { ...removed, ...toTray() } : removed;
+
         setAttachments((previous) =>
           previous.some((attachment) => attachment.id === removed.id)
             ? previous
-            : [...previous, { ...removed, status: 'waiting', percent: 0, problem: null }],
+            : [...previous, restored],
         );
+
+        if (occupied) {
+          getAppAnnouncer().announce(displacedSentence(removed.file.name));
+          return;
+        }
+
+        // Tệp đang chờ mạng cũng phải chạy lại: mạng có thể đã về trong lúc
+        // nó bị xoá, và effect tải lại chỉ chạy khi mạng ĐỔI (NO-389).
+        if ((removed.status === 'uploading' || removed.awaitingNetwork) && removed.floorId !== null) {
+          startUpload(removed, removed.floorId);
+        }
       },
       ...(options.now !== undefined ? { now: options.now } : {}),
     });
@@ -720,14 +881,21 @@ export function useFloorUploadScreen(
     // thành `Tầng Tầng 2 chưa có bản vẽ.`. Nhãn xuất hiện đúng một lần.
     for (const floor of floors) {
       const attachment = attachmentByFloor.get(floor.id) ?? null;
-      const hasFile = attachment !== null || floor.drawings.length > 0;
+      // Cùng luật với bộ đếm "N / M tầng đã có bản vẽ": một tệp ĐANG CHỜ (PDF chưa
+      // chọn trang, hàng đợi ngoại tuyến) hay ĐÃ HỎNG chưa phải bản vẽ của tầng.
+      // Đếm nó là để bộ đếm nói "3 / 4" mà nút vẫn đi tiếp (B-V4-04). Tệp đang
+      // tải có lý do riêng (`uploading`) ngay dưới.
+      const isUnfinished =
+        attachment !== null && (attachment.status === 'waiting' || attachment.status === 'error');
 
-      if (!hasFile) {
+      if (attachment === null ? floor.drawings.length === 0 : isUnfinished) {
         reasons.push({
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingFile',
-          sentence: `${floor.name} chưa có bản vẽ.`,
+          sentence: isUnfinished
+            ? `${floor.name} chưa tải xong bản vẽ.`
+            : `${floor.name} chưa có bản vẽ.`,
         });
       }
 
@@ -946,6 +1114,7 @@ export function useFloorUploadScreen(
   };
 
   const doneCount = rows.filter((row) => row.status === 'attached').length;
+  const isAwaitingNetwork = attachments.some((attachment) => attachment.awaitingNetwork);
 
   const footer: FloorUploadFooterModel = {
     doneCount,
@@ -1004,8 +1173,9 @@ export function useFloorUploadScreen(
     isOffline: !isOnline,
     isDragActive: canEdit && dragDepth > 0,
     errorMessage: state === 'error' ? loadFailure : null,
-    offlineNotice: isOnline ? null : COPY.offline,
-    offlineNoticeKey: COPY.offlineKey,
+    // Có tệp đang chờ mạng thì nói rõ nó sẽ tự tải, và giới hạn của lời hứa ấy (NO-389).
+    offlineNotice: isOnline ? null : isAwaitingNetwork ? AWAIT_NETWORK_SENTENCE : COPY.offline,
+    offlineNoticeKey: isAwaitingNetwork ? AWAIT_NETWORK_KEY : COPY.offlineKey,
     readOnlyNotice: canEdit ? null : COPY.readOnly,
     readOnlyNoticeKey: COPY.readOnlyKey,
     emptyMessage: COPY.empty,
@@ -1063,6 +1233,23 @@ export function useFloorUploadScreen(
   return { ...model, ...actions };
 }
 
+/** Một tệp rời tầng về khay: thôi tải, thôi chờ mạng, chờ người gán lại. */
+function toTray(): Partial<Attachment> {
+  return {
+    floorId: null,
+    isAutoMatched: false,
+    status: 'waiting',
+    percent: 0,
+    problem: null,
+    awaitingNetwork: false,
+  };
+}
+
+/** Câu báo khi một tệp bị đẩy về khay vì tầng của nó nhận tệp khác (NO-393). */
+function displacedSentence(fileName: string): string {
+  return `${fileName} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác`;
+}
+
 /** Khung một tệp vừa nhận, trước khi lượt kiểm tra trả lời. */
 function emptyAttachment(id: string, file: File): Attachment {
   return {
@@ -1076,5 +1263,6 @@ function emptyAttachment(id: string, file: File): Attachment {
     status: 'waiting',
     percent: 0,
     problem: null,
+    awaitingNetwork: false,
   };
 }

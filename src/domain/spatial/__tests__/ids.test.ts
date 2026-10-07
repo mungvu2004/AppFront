@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createId, type EntityKind, ID_PREFIX_BY_KIND, isIdOfKind, isValidId, readKindFromId } from '../ids';
+import {
+  counterLabelOf,
+  createId,
+  displayCodesOf,
+  type EntityKind,
+  ID_PREFIX_BY_KIND,
+  isIdOfKind,
+  isValidId,
+  readKindFromId,
+} from '../ids';
 
 const ALL_KINDS = Object.keys(ID_PREFIX_BY_KIND) as EntityKind[];
 
@@ -186,5 +195,73 @@ describe('id body', () => {
     }
 
     expect(ids.size).toBe(10_300);
+  });
+});
+
+describe('displayCodesOf', () => {
+  it('keeps counter-derived codes for createId-style and fixture ids', () => {
+    const codes = displayCodesOf(['W-000014WALL', 'W-000001WALL', 'W-00000ZABCDEFGHIJ']);
+
+    expect(codes.get('W-000014WALL')).toBe('W-014');
+    expect(codes.get('W-000001WALL')).toBe('W-001');
+    expect(codes.get('W-00000ZABCDEFGHIJ')).toBe('W-00Z');
+  });
+
+  it('does not shift codes when an entity is removed (counter branch)', () => {
+    const after = displayCodesOf(['W-000001WALL', 'W-000003WALL']);
+
+    expect(after.get('W-000003WALL')).toBe('W-003');
+  });
+
+  it('numbers BE ULID-style ids by ordinal when the first 6 chars collide', () => {
+    const timestamp = '01JABCDEF';
+    const ids = ['C', 'A', 'B', 'D'].map((tail) => `W-${timestamp}${tail.repeat(16)}`);
+    const codes = displayCodesOf(ids);
+
+    expect(new Set(codes.values()).size).toBe(4);
+    expect(codes.get(ids[1] as string)).toBe('W-001');
+    expect(codes.get(ids[2] as string)).toBe('W-002');
+    expect(codes.get(ids[0] as string)).toBe('W-003');
+    expect(codes.get(ids[3] as string)).toBe('W-004');
+  });
+
+  it('gives A14 sample ids distinct codes', () => {
+    const ids = ['M-DIMN0000010', 'M-DIMN0000020', 'M-DIMN0000050'];
+    const codes = displayCodesOf(ids);
+
+    expect(new Set(codes.values()).size).toBe(3);
+    expect(codes.get('M-DIMN0000010')).toBe('M-001');
+    expect(codes.get('M-DIMN0000050')).toBe('M-003');
+  });
+
+  it('falls back to ordinals for mixed shapes and ignores repeated ids', () => {
+    const codes = displayCodesOf(['W-000014WALL', 'W-000014ZZZZ', 'W-000014WALL']);
+
+    expect(codes.size).toBe(2);
+    expect(codes.get('W-000014WALL')).toBe('W-001');
+    expect(codes.get('W-000014ZZZZ')).toBe('W-002');
+  });
+
+  it('returns an empty map for an empty list', () => {
+    expect(displayCodesOf([]).size).toBe(0);
+  });
+
+  it('numbers a lone BE id or a lone A14 axis by ordinal, never by its first six chars (B-V7-42)', () => {
+    expect(displayCodesOf([`W-03${'A'.repeat(23)}`]).get(`W-03${'A'.repeat(23)}`)).toBe('W-001');
+    expect(displayCodesOf(['A-AXIS0000000']).get('A-AXIS0000000')).toBe('A-001');
+  });
+});
+
+describe('counterLabelOf', () => {
+  it('reads the counter of a counter-led id, up to the 16-char body edge', () => {
+    expect(counterLabelOf('W-000014WALL')).toBe('W-014');
+    expect(counterLabelOf('W-00000ZABCDEFGHIJ')).toBe('W-00Z');
+    expect(counterLabelOf('W-0403FIXTURE0')).toBe('W-403FI');
+  });
+
+  it('gives any other id back verbatim rather than a cut-up code (B-V7-42)', () => {
+    for (const id of ['W-MISSING1AA', `W-03${'A'.repeat(23)}`, 'M-DIMN0000010', `W-0${'A'.repeat(16)}`]) {
+      expect(counterLabelOf(id)).toBe(id);
+    }
   });
 });

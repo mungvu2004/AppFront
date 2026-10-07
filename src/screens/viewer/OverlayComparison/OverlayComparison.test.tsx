@@ -148,7 +148,7 @@ describe('OverlayComparison — khả năng tiếp cận, tiếng Việt (R-72)'
     expectAccessible(container);
   });
 
-  /* `toleranceLabel` của bộ mẫu đóng băng là "dung sai" — tiếng Việt đúng chính
+  /* `toleranceLabel` của bộ mẫu đóng băng là "Dung sai" — tiếng Việt đúng chính
      tả nhưng không âm tiết nào mang dấu, đúng "điểm mù đã biết" mà
      `expectVietnamese.ts:63-66` ghi rõ cho một cụm hai từ không dấu.
      `allowWords` là lối thoát tài liệu hoá sẵn cho đúng trường hợp này, và

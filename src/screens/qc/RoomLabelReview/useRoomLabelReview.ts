@@ -9,7 +9,7 @@
  * ## Bảy thứ file này chịu trách nhiệm
  *
  * 1. **Hai lượt đọc máy chủ TÁCH BẠCH (R-64)** — ảnh nền dưới
- *    `queryKeys.drawing.byFloor`, lớp phòng dưới `queryKeys.room.byFloor`.
+ *    `queryKeys.drawing.byFloor`, lớp phòng là N16 dưới `queryKeys.layer.byFloor` (`useFloorLayer`).
  *    `isLoading`/`error` do `@tanstack/react-query` giữ; file này KHÔNG có một
  *    `useState` nào cho hai thứ đó (CLAUDE.md gọi `useShareLinks.ts` là ngoại
  *    lệ đi trước, "không phải khuôn mẫu để chép").
@@ -25,9 +25,9 @@
  * 5. **Mọi lượt ghi kèm vé hoàn tác tám giây (A8)** — một lệnh, một mục trong
  *    ngăn xếp 100 bước của S-06, một toast mang `UNDO_WINDOW_MS` do chính vé
  *    giữ (R-71: con số không viết lại ở đây).
- * 6. **Tự lưu (A7)** — `createAutosave` gọi `gateway.persistRoomLabels`; khả
- *    năng đó chưa có endpoint nên lượt lưu NÉM, và thanh trạng thái của vỏ ứng
- *    dụng nói ra sự thật thay vì hiện "Đã lưu lúc…" cho một lượt chưa rời máy.
+ * 6. **Tự lưu (A7)** — bộ lưu lớp chung `useFloorLayerAutosave` (#35, một bộ
+ *    mỗi người–dự án, F-04x-1); 409 → dải "Tải lại", lỗi khác → dải "Không lưu
+ *    được"; `useSaveIndicator` nói trạng thái ra cho trình đọc màn hình.
  * 7. **Nhắc công năng M-14 không bao giờ CHẶN** — `notices` chỉ đi kèm từng
  *    dòng phòng; không một hàm `on…` nào dưới đây hỏi `notices` trước khi chạy.
  *
@@ -43,7 +43,7 @@
  * - **Một lượt ghi phòng làm mất hiệu lực đúng ba khoá `editWall` liệt kê.**
  *   `WRITE_OPERATIONS` (`src/lib/query/invalidation.ts`) không có mục nào tên
  *   `editRoom`, và thêm một mục là sửa `src/lib` — ngoài phạm vi của màn. Ba
- *   khoá `editWall` làm mất hiệu lực (`space.byFloor`, `room.byFloor`,
+ *   khoá `editWall` làm mất hiệu lực (khoá không gian và khoá phòng của tầng,
  *   `violation.byProject`) đúng bằng ba thứ một lượt đổi tên/gộp/tách phòng
  *   làm cũ đi, nên đây là lượt gọi ĐÚNG dưới một cái tên hẹp hơn thực tế.
  * - **Điều hướng đi qua `onNavigate` tiêm được, không phải `useNavigate`.**
@@ -67,9 +67,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { computeCentroid, explainRoom, outlineContains } from '@/domain/rooms/area';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { displayCodesOf } from '@/domain/spatial/ids';
 import type {
-  EntityId,
   Level,
   LevelId,
   Point,
@@ -79,18 +78,20 @@ import type {
   Wall,
 } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { can } from '@/lib/auth/permissions';
-import { toPoint, toPointMm, type CommandContext } from '@/lib/commands/business/shared';
+import { toPoint, toPointMm, type CommandContext, type CommandResult } from '@/lib/commands/business/shared';
 import type { Command } from '@/lib/commands/types';
-import { describeError } from '@/lib/errors/describeError';
-import { toAppError } from '@/lib/errors/toAppError';
+import { ok } from '@/lib/http/types';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
+import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
 
 import {
@@ -126,6 +127,7 @@ import {
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
 } from './roomLabelReviewGateway';
+import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type {
   RoomLabelMergeCandidate,
   RoomLabelNormalizePreview,
@@ -149,11 +151,11 @@ import type {
  */
 export const ROOM_LABEL_SCREEN_TEXT = {
   emptyNotice:
-    'Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm "Kiểm tra vòng hở" để dò lại.',
+    'Chưa dò ra phòng nào ở tầng này: vòng tường bao quanh các phòng chưa khép kín. Sang lớp tường khép các đoạn còn hở, rồi bấm "Kiểm tra lại vòng hở" để dò lại.',
   emptyFilteredNotice:
     'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
   viewerRoleNotice:
-    'Bạn đang xem với vai Người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
+    'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -292,6 +294,7 @@ export function deriveRoomLabelScreenState(input: {
 export function mergeCandidatesOf(
   rooms: readonly Room[],
   selectedRoomId: RoomId | null,
+  codes?: ReadonlyMap<string, string>,
 ): readonly RoomLabelMergeCandidate[] {
   if (selectedRoomId === null) {
     return NO_CANDIDATES;
@@ -299,7 +302,7 @@ export function mergeCandidatesOf(
 
   return rooms
     .filter((room) => room.id !== selectedRoomId)
-    .map((room) => ({ id: room.id, codeLabel: roomCodeLabel(room.id), name: room.name }));
+    .map((room) => ({ id: room.id, codeLabel: roomCodeLabel(room.id, codes), name: room.name }));
 }
 
 /**
@@ -423,10 +426,10 @@ export function useRoomLabelReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const roomLayerQuery = useQuery({
-    queryKey: queryKeys.room.byFloor(floorId),
-    queryFn: ({ signal }) => gateway.readRoomLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng — `useFloorLayer` quyết định nó vào kho thế nào (F-04x-2). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const { scaleStatus } = floorLayer;
+  const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate);
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -453,7 +456,11 @@ export function useRoomLabelReview(
   const setSelection = useStore((state) => state.setSelection);
   const setHovered = useStore((state) => state.setHovered);
 
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /*
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
+   */
   useEffect(() => {
     if (graph !== null) {
       return;
@@ -462,13 +469,15 @@ export function useRoomLabelReview(
     const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null);
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
   const rooms = useMemo(() => roomsOfLevel(graph, levelId), [graph, levelId]);
+  /* Nhãn phòng tính trên mọi phòng của tầng, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
+  const roomCodes = useMemo(() => displayCodesOf(rooms.map((room) => room.id)), [rooms]);
   const walls = useMemo(() => wallsOfLevel(graph, levelId), [graph, levelId]);
   const scale = useMemo(() => scaleOfLevel(level), [level]);
 
@@ -494,7 +503,7 @@ export function useRoomLabelReview(
     const next = new Map<RoomId, RoomLabelMeasures>();
 
     for (const room of rooms) {
-      const key = outlineKeyOf(room);
+      const key = `${outlineKeyOf(room)}|${scaleStatus ?? ''}`;
       const cached = cache.get(room.id);
 
       if (cached !== undefined && cached.key === key) {
@@ -502,14 +511,14 @@ export function useRoomLabelReview(
         continue;
       }
 
-      const value = measureRoom(room, scale);
+      const value = measureRoom(room, scale, scaleStatus);
 
       cache.set(room.id, { key, value });
       next.set(room.id, value);
     }
 
     return next;
-  }, [rooms, scale]);
+  }, [rooms, scale, scaleStatus]);
 
   /* ---------------------------------------------------------------------- */
   /* Nhắc công năng M-14 — NHẮC, không bao giờ CHẶN.                          */
@@ -536,16 +545,17 @@ export function useRoomLabelReview(
     () =>
       rooms.map((room) =>
         toRoomLabelRow(room, {
-          measures: measures.get(room.id) ?? measureRoom(room, scale),
+          measures: measures.get(room.id) ?? measureRoom(room, scale, scaleStatus),
           notices: noticesOfRoom(violations, room.id, ruleRouteHref),
           backgroundImageUrl,
           scale,
+          codes: roomCodes,
         }),
       ),
-    [backgroundImageUrl, measures, rooms, ruleRouteHref, scale, violations],
+    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleStatus, violations],
   );
 
-  const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms), [rooms]);
+  const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms, scaleStatus), [rooms, scaleStatus]);
 
   const visibleRows = useMemo(
     () => applyUnnamedFilter(allRows, showOnlyUnnamed),
@@ -567,13 +577,8 @@ export function useRoomLabelReview(
     [rooms, selectedRoomId],
   );
 
-  const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
-  selectionSnapshotRef.current = selectedIds;
-  const selectionBeforeRef = useRef<readonly EntityId[]>(selectedIds);
-
   const onSelect = useCallback(
     (roomId: RoomId | null) => {
-      selectionBeforeRef.current = selectionSnapshotRef.current;
       setSelection(roomId === null ? [] : [roomId]);
     },
     [setSelection],
@@ -595,32 +600,13 @@ export function useRoomLabelReview(
     [],
   );
 
-  const autosaveRef = useRef<Autosave | null>(null);
-  const persistRef = useRef({ floorId, gateway, projectId });
-  persistRef.current = { floorId, gateway, projectId };
-
-  autosaveRef.current ??= createAutosave<NormalizedSpatial>({
-    getChanges: () => useStore.getState().spatial ?? undefined,
-    save: async (changes) => {
-      const current = persistRef.current;
-      const result = await current.gateway.persistRoomLabels({
-        floorId: current.floorId,
-        projectId: current.projectId,
-        graph: changes,
-      });
-
-      if (!result.supported) {
-        /*
-         * Một khả năng chưa có endpoint KHÔNG được biến thành một lượt lưu đã
-         * xong: ném ra là cách duy nhất để vỏ ứng dụng nói ra sự thật thay vì
-         * hiện "Đã lưu lúc…" cho một lượt chưa hề rời khỏi máy.
-         */
-        throw new Error(result.missing);
-      }
-    },
+  const { autosave, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    floorId,
+    ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const autosave = autosaveRef.current;
+  useSaveIndicator(autosave);
 
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.    */
@@ -630,14 +616,21 @@ export function useRoomLabelReview(
     () =>
       createRoomLabelDispatchDeps({
         graph: storePort,
-        selectionBefore: () => ({ selectedIds: selectionBeforeRef.current }),
-        selectionAfter: () => ({ selectedIds: selectionSnapshotRef.current }),
+        selectionBefore: currentSelection,
+        selectionAfter: currentSelection,
         onSynced: () => {
           autosave.notifyChange();
         },
       }),
     [autosave, storePort],
   );
+
+  /* Máy chủ vừa thay tầng (tải lại sau xung đột) — các bước hoàn tác cũ không còn khớp (R14). */
+  const serverReplaceSeq = useStore((state) => state.serverReplaceSeq);
+
+  useEffect(() => {
+    dispatchBundle.history.clear();
+  }, [dispatchBundle, serverReplaceSeq]);
 
   const invalidate = useCallback(() => {
     applyInvalidation(queryClient, 'editWall', { floorId, projectId });
@@ -678,22 +671,42 @@ export function useRoomLabelReview(
    * phải truyền ở đây (R-71).
    */
   const run = useCallback(
-    async (build: (context: CommandContext) => Command | null): Promise<Command | null> => {
+    async (build: (context: CommandContext) => CommandResult | null): Promise<Command | null> => {
       const current = useStore.getState().spatial;
 
       if (!canEdit || current === null) {
         return null;
       }
 
-      const command = build(commandContextOf(current, gateway.actorId));
+      const built = build(commandContextOf(current, gateway.actorId));
 
-      if (command === null) {
+      if (built === null) {
         return null;
       }
 
+      /* Một lệnh bị từ chối phải NÓI RA vì sao (B-V7-08) — cổng đã soạn sẵn câu
+         "Chưa gộp được: …"; nuốt nó thì người duyệt bấm xác nhận mà không thấy gì. */
+      if (!built.ok) {
+        const [title = '', ...rest] = built.error.reasons;
+        notifications.publish({
+          type: `${built.error.type}.refused`,
+          title,
+          description: rest.join(' '),
+        });
+
+        return null;
+      }
+
+      const command = built.data;
       const result = await runRoomCommand(command, dispatchBundle);
 
       if (!result.ok) {
+        notifications.publish({
+          type: `${command.type}.refused`,
+          title: result.error.message,
+          description: result.error.reasons.join(' '),
+        });
+
         return null;
       }
 
@@ -730,22 +743,14 @@ export function useRoomLabelReview(
 
   const onRename = useCallback(
     (roomId: RoomId, name: string) => {
-      void run((context) => {
-        const result = buildRenameRoomCommand({ roomId, name }, context);
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) => buildRenameRoomCommand({ roomId, name }, context));
     },
     [run],
   );
 
   const onChangeUsage = useCallback(
     (roomId: RoomId, usage: RoomUsage) => {
-      void run((context) => {
-        const result = buildChangeUsageCommand({ roomId, usage }, context);
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) => buildChangeUsageCommand({ roomId, usage }, context));
     },
     [run],
   );
@@ -758,16 +763,9 @@ export function useRoomLabelReview(
 
   const onMerge = useCallback(
     (roomId: RoomId, otherRoomId: RoomId) => {
-      void run((context) => {
-        const result = buildMergeRoomCommand(
-          { targetRoomId: roomId, absorbedRoomId: otherRoomId },
-          context,
-          walls,
-          level,
-        );
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) =>
+        buildMergeRoomCommand({ targetRoomId: roomId, absorbedRoomId: otherRoomId }, context, walls, level),
+      );
     },
     [level, run, walls],
   );
@@ -776,16 +774,7 @@ export function useRoomLabelReview(
     (roomId: RoomId, at: Point) => {
       const newRoomId = gateway.nextRoomId();
 
-      void run((context) => {
-        const result = buildSplitRoomCommandFromWalls(
-          { roomId, newRoomId, at },
-          context,
-          walls,
-          level,
-        );
-
-        return result.ok ? result.data : null;
-      });
+      void run((context) => buildSplitRoomCommandFromWalls({ roomId, newRoomId, at }, context, walls, level));
     },
     [gateway, level, run, walls],
   );
@@ -798,9 +787,9 @@ export function useRoomLabelReview(
         return;
       }
 
-      void run(() => buildApproveRoomCommand(room, gateway.actorId));
+      void run(() => ok(buildApproveRoomCommand(room, gateway.actorId, roomCodes)));
     },
-    [gateway, roomById, run],
+    [gateway, roomById, roomCodes, run],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -809,8 +798,8 @@ export function useRoomLabelReview(
 
   const onOpenNormalizePreview = useCallback(() => {
     /* Dựng BẢNG, không phát lệnh: không một tên nào đổi ở bước này. */
-    setNormalizePreview(buildNormalizePreview(rooms));
-  }, [rooms]);
+    setNormalizePreview(buildNormalizePreview(rooms, roomCodes));
+  }, [roomCodes, rooms]);
 
   const onCancelNormalize = useCallback(() => {
     setNormalizePreview(null);
@@ -825,7 +814,11 @@ export function useRoomLabelReview(
 
     setNormalizePreview(null);
     /* MỘT lệnh mang nhiều thay đổi → MỘT mục hoàn tác, MỘT toast tám giây. */
-    void run(() => buildNormalizeNamesCommand(rooms, preview, gateway.actorId));
+    void run(() => {
+      const command = buildNormalizeNamesCommand(rooms, preview, gateway.actorId);
+
+      return command === null ? null : ok(command);
+    });
   }, [gateway, normalizePreview, rooms, run]);
 
   /* ---------------------------------------------------------------------- */
@@ -840,7 +833,7 @@ export function useRoomLabelReview(
     setOwnCollapsed((previous) => !previous);
   }, []);
 
-  const refetchRoomLayer = roomLayerQuery.refetch;
+  const refetchRoomLayer = floorLayer.refetch;
 
   /**
    * "Kiểm tra vòng hở" — đọc LẠI lớp phòng, rồi để M-06 chạy lại trên đồ thị mới.
@@ -851,7 +844,7 @@ export function useRoomLabelReview(
    */
   const onCheckWallGaps = useCallback(() => {
     invalidate();
-    void refetchRoomLayer();
+    refetchRoomLayer();
   }, [invalidate, refetchRoomLayer]);
 
   const navigate = options.onNavigate;
@@ -864,21 +857,13 @@ export function useRoomLabelReview(
   /* Bảy trạng thái và ba câu đi kèm.                                        */
   /* ---------------------------------------------------------------------- */
 
-  const roomLayerError: unknown = roomLayerQuery.error;
-
-  const errorMessage = useMemo<string | null>(
-    () =>
-      roomLayerError === null || roomLayerError === undefined
-        ? null
-        : describeError(toAppError(roomLayerError)).description,
-    [roomLayerError],
-  );
+  const errorMessage = floorLayer.error === null ? null : floorLayer.errorMessage;
 
   const state = deriveRoomLabelScreenState({
     isViewerRole,
     isCollapsed,
     hasError: errorMessage !== null,
-    isLoading: roomLayerQuery.isPending,
+    isLoading: floorLayer.isPending,
     visibleRooms: visibleRows,
     unnamedCount: summary.unnamedCount,
   });
@@ -900,8 +885,8 @@ export function useRoomLabelReview(
   /* ---------------------------------------------------------------------- */
 
   const mergeCandidates = useMemo(
-    () => mergeCandidatesOf(rooms, selectedRoomId),
-    [rooms, selectedRoomId],
+    () => mergeCandidatesOf(rooms, selectedRoomId, roomCodes),
+    [roomCodes, rooms, selectedRoomId],
   );
 
   const splitPointMm = useMemo(
@@ -954,6 +939,8 @@ export function useRoomLabelReview(
     onNavigateToWalls,
     onUndo,
     onToggleCollapsed,
+    saveBlock,
+    provisionalScaleNotice,
   };
 }
 

@@ -81,13 +81,13 @@ const SAMPLE_REFERENCES: readonly Readonly<{ reference: string; object: string }
     { reference: 'phòng khách', object: 'R-01' },
     { reference: 'trục A-1', object: 'W-03' },
     { reference: 'trục D-4', object: 'W-22' },
-    { reference: 'phòng ngủ 1', object: 'R-02' },
+    { reference: 'Phòng ngủ 1', object: 'R-02' },
     { reference: 'trục B-3', object: 'W-15' },
     { reference: 'cửa chính', object: 'D-01' },
     { reference: 'trục C-1', object: 'W-08' },
     { reference: 'phòng tắm', object: 'R-05' },
     { reference: 'trục D-2', object: 'W-27' },
-    { reference: 'phòng ngủ 2', object: 'R-03' },
+    { reference: 'Phòng ngủ 2', object: 'R-03' },
   ]);
 
 /**
@@ -108,8 +108,8 @@ export function countOverTolerance(
 /* -------------------------------------------------------------------------- */
 
 const METRIC_LABELS = Object.freeze({
-  mean: 'sai số trung bình',
-  max: 'sai số lớn nhất',
+  mean: 'Sai số trung bình',
+  max: 'Sai số lớn nhất',
   overTolerance: 'số vùng vượt ngưỡng',
 });
 
@@ -205,8 +205,8 @@ export function buildLayers(
   ): OverlayLayerViewModel => ({ id, isVisible, opacity, label });
 
   return Object.freeze({
-    scan: layer('scan', 'ảnh quét gốc', scanOpacityPercent / 100, true),
-    geometry: layer('geometry', 'hình học sinh ra', 0.6, true),
+    scan: layer('scan', 'Ảnh quét gốc', scanOpacityPercent / 100, true),
+    geometry: layer('geometry', 'Hình học sinh ra', 0.6, true),
     deviation: layer('deviation', 'vùng lệch', 1, hasDeviations),
   });
 }
@@ -306,10 +306,10 @@ const BASE: OverlayComparisonViewModel = {
   measurement: null,
   metrics: buildMetrics(SAMPLE_DEVIATIONS_MM, DEFAULT_TOLERANCE_MM),
   toleranceMm: DEFAULT_TOLERANCE_MM,
-  toleranceLabel: 'dung sai',
+  toleranceLabel: 'Dung sai',
   rows: buildRows(SAMPLE_DEVIATIONS_MM, DEFAULT_TOLERANCE_MM),
   confirmation: {
-    buttonLabel: 'xác nhận mô hình khớp bản vẽ',
+    buttonLabel: 'Xác nhận mô hình khớp bản vẽ',
     isConfirmed: false,
     canConfirm: true,
     confirmedNotice: null,
@@ -330,7 +330,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
   empty: {
     ...BASE,
     state: 'empty',
-    stateNotice: 'tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
+    stateNotice: 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.',
     activeFloorId: levelId('04'),
     scanUrl: null,
     layers: buildLayers(25, false),
@@ -343,7 +343,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
   loading: {
     ...BASE,
     state: 'loading',
-    stateNotice: 'đang tải ảnh bản vẽ gốc.',
+    stateNotice: 'Đang tải ảnh bản vẽ gốc.',
     scanUrl: null,
     layers: buildLayers(25, false),
     marks: [],
@@ -355,13 +355,13 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
   partial: {
     ...BASE,
     state: 'partial',
-    stateNotice: 'chỉ 2 trong 4 tầng có ảnh gốc; tầng mái cũng chưa dựng hình học.',
+    stateNotice: 'Chỉ 2 trong 4 tầng có ảnh gốc; tầng mái cũng chưa dựng hình học.',
   },
 
   error: {
     ...BASE,
     state: 'error',
-    stateNotice: 'không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
+    stateNotice: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
     scaleFixHref: ROUTES.project.scale(SAMPLE_PROJECT_ID, levelId('02')),
     layers: buildLayers(25, false),
     marks: [],
@@ -378,11 +378,11 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
     rows: buildRows(SAMPLE_DEVIATIONS_MM, RELAXED_TOLERANCE_MM),
     metrics: buildMetrics(SAMPLE_DEVIATIONS_MM, RELAXED_TOLERANCE_MM),
     confirmation: {
-      buttonLabel: 'xác nhận mô hình khớp bản vẽ',
+      buttonLabel: 'Xác nhận mô hình khớp bản vẽ',
       isConfirmed: true,
       canConfirm: false,
       confirmedNotice: {
-        text: 'mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
+        text: 'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
         statusCode: 'verified',
       },
     },
@@ -391,7 +391,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
   forbidden: {
     ...BASE,
     state: 'forbidden',
-    stateNotice: 'bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.',
+    stateNotice: 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.',
     isAlignmentLocked: true,
     role: 'viewer',
     confirmation: { ...BASE.confirmation, canConfirm: false },
@@ -401,7 +401,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
     ...BASE,
     state: 'collapsed',
     disabledCompareModes: {
-      sideBySide: 'khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.',
+      sideBySide: 'Khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.',
     },
   },
 });

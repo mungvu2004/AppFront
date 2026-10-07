@@ -54,6 +54,9 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
 import { RoomLabelLeftPanel } from './RoomLabelLeftPanel';
@@ -73,17 +76,17 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps;
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
-const SCREEN_BREADCRUMB = 'Dự án > Tầng 01 > Nhãn phòng';
-const SCREEN_TITLE = 'duyệt tên phòng';
+const SCREEN_BREADCRUMB = 'Dự án > Nhãn phòng';
+const SCREEN_TITLE = 'Duyệt tên phòng';
 const SCREEN_DESCRIPTION =
   'Đối chiếu tên và công năng từng phòng với bản vẽ gốc, rồi xác nhận từng phòng một.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt tên phòng';
-const EMPTY_TITLE = 'chưa dò ra phòng nào';
+const EMPTY_TITLE = 'Chưa dò ra phòng nào';
 const EMPTY_ACTION_LABEL = 'Kiểm tra lại vòng hở';
-const ERROR_TITLE = 'không đọc được lớp phòng';
+const ERROR_TITLE = 'Không đọc được lớp phòng';
 const ERROR_ACTION_LABEL = 'Thử lại';
-const FORBIDDEN_TITLE = 'không có quyền sửa lớp phòng';
-const EXPAND_PANEL_LABEL = 'bảng phòng đang thu gọn';
+const FORBIDDEN_TITLE = 'Không có quyền sửa lớp phòng';
+const EXPAND_PANEL_LABEL = 'Bảng phòng đang thu gọn';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — đúng khuôn `AxisGridManager`. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -243,6 +246,18 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
+
+      {props.saveBlock != null && (
+        <div className="px-2 pt-2">
+          <FloorLayerSaveBanner saveBlock={props.saveBlock} />
+        </div>
+      )}
+
+      {props.provisionalScaleNotice != null && (
+        <div className="px-2 pt-2">
+          <ProvisionalScaleBanner notice={props.provisionalScaleNotice} />
+        </div>
+      )}
 
       <div className={cn('flex min-h-0 flex-1 gap-2 p-2', isCompact ? 'flex-col' : 'flex-row')}>
         {isCollapsed ? null : <RoomLabelLeftColumn {...props} />}

@@ -3,7 +3,7 @@
  *
  * Ba điều bộ kiểm này giữ, và chúng là ba điều dễ trôi nhất của khối:
  *
- * 1. **Dải cảnh báo nằm TRONG khối.** Trạng thái 3 nói "một phần": sáu khối kia
+ * 1. **Dải cảnh báo nằm TRONG khối.** Trạng thái 3 nói "Một phần": sáu khối kia
  *    vẫn dùng được. Phép khẳng định vì thế soát *chỗ đứng* của dải cảnh báo, chứ
  *    không chỉ soát rằng nó có mặt.
  * 2. **Hoàn tác là hoàn tác thật.** Lượt thu hồi hoãn sau vé tám giây, nên bấm
@@ -92,6 +92,7 @@ const SESSIONS: readonly AccountSession[] = [
 
 function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGateway {
   return {
+    capabilities: { sessions: true, deleteAccount: true },
     readIdentity: () =>
       Promise.resolve({ ok: true, data: { email: 'an@congty.vn', isManagedExternally: false } }),
     listSessions: () => Promise.resolve({ ok: true, data: SESSIONS }),
@@ -106,7 +107,7 @@ function fakeGateway(overrides: Partial<AccountAuthGateway> = {}): AccountAuthGa
 function WiredSessions(props: UseAccountAuthOptions) {
   const model = useAccountAuth(props);
 
-  return <SessionsSection {...model.sessions} />;
+  return model.sessions === null ? null : <SessionsSection {...model.sessions} />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -126,7 +127,7 @@ describe('khối phiên đăng nhập — view dựng chỉ từ props', () => {
   it('phiên của chính máy này mang nhãn và KHÔNG có nút đăng xuất', () => {
     renderWithProviders(<SessionsSection {...baseProps()} />);
 
-    expect(screen.getByText('thiết bị này')).toBeTruthy();
+    expect(screen.getByText('Thiết bị này')).toBeTruthy();
     // Hai hàng, một nút: hàng hiện tại không tự đăng xuất được.
     expect(screen.getAllByRole('button', { name: /Đăng xuất/ })).toHaveLength(1);
   });
@@ -171,7 +172,7 @@ describe('khối phiên đăng nhập — view dựng chỉ từ props', () => {
     }
 
     // Dải cảnh báo là con của khối, không phải của trang. Đó là toàn bộ nghĩa
-    // của "một phần" trong trạng thái 3.
+    // của "Một phần" trong trạng thái 3.
     const alert = within(block as HTMLElement).getByRole('alert');
     expect(alert.textContent).toContain('Không đọc được danh sách phiên');
 

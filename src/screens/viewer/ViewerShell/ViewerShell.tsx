@@ -175,7 +175,7 @@ export function ViewerShell(props: ViewerShellProps) {
           </div>
 
           {/* ViewCube 72 góc trên phải, bản đồ nhỏ ngay dưới. */}
-          <div className="absolute right-2 top-2">
+          <div className="pointer-events-none absolute right-2 top-2">
             <ViewerTopRightControls
               activePresetId={activePresetId}
               onCubeFaceSelect={onCubeFaceSelect}

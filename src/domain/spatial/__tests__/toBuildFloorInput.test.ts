@@ -11,7 +11,7 @@ import {
   type Opening as DomainOpening,
 } from '../../openings/types';
 import { normalizeSpatial, type NormalizedSpatial } from '../normalize';
-import { toBuildFloorInput } from '../toBuildFloorInput';
+import { hasBuildableParts, toBuildFloorInput } from '../toBuildFloorInput';
 import type {
   EntityId,
   LevelId,
@@ -409,6 +409,22 @@ describe('rooms', () => {
 /* -------------------------------------------------------------------------- */
 /* No such storey.                                                             */
 /* -------------------------------------------------------------------------- */
+
+describe('hasBuildableParts (B-V1-11)', () => {
+  const base = groundStorey();
+
+  it('is false for a storey with neither walls nor rooms', () => {
+    expect(hasBuildableParts({ ...base, walls: [], rooms: [], openings: [] })).toBe(false);
+  });
+
+  it('is true with walls only', () => {
+    expect(hasBuildableParts({ ...base, rooms: [] })).toBe(true);
+  });
+
+  it('is true with rooms only', () => {
+    expect(hasBuildableParts({ ...base, walls: [], openings: [] })).toBe(true);
+  });
+});
 
 describe('a level that is not there', () => {
   it('returns null rather than an empty storey', () => {

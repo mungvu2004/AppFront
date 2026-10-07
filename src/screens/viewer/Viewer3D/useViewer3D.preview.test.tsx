@@ -16,16 +16,23 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { Wall } from '@/domain/spatial/types';
+import type { SpatialGraph, Wall } from '@/domain/spatial/types';
 import { renderWithProviders } from '@/lib/testing/render';
 import { discardPreview, previewEdit } from '@/store/commit';
 import { useStore } from '@/store';
+import { queryKeys } from '@/lib/query/queryKeys';
+import {
+  createViewerShellFixtureGateway,
+  projectNameQueryKey,
+  VIEWER_FIXTURE_SPATIAL,
+} from '@/screens/viewer/ViewerShell';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { useViewer3D } from './useViewer3D';
 import type {
   MountViewerScene,
   UseViewer3DOptions,
+  Viewer3DModel,
   ViewerScenePreview,
   ViewerSceneStatus,
 } from './viewer3dTypes';
@@ -262,5 +269,132 @@ describe('[U7] useViewer3D — người tiêu thụ bản nháp', () => {
     });
 
     unmount();
+  });
+});
+
+describe('useViewer3D — cổng nạp kho đang nạp (B-V8-04)', () => {
+  /** Cổng có dữ liệu: tên dự án trả ngay, để `loading` chỉ còn do cờ của kho. */
+  const GATEWAY = createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL);
+
+  /** Ghi lại trạng thái mà hook trả về ở lượt vẽ cuối. */
+  function StateProbe({ onState }: { readonly onState: (state: string) => void }): null {
+    onState(useViewer3D({ projectId: 'P-000000001', canvas: null, frame: FRAME, gateway: GATEWAY }).state);
+
+    return null;
+  }
+
+  it('`spatialLoading` bật thì màn ở `loading`, tắt thì rời `loading`', async () => {
+    const states: string[] = [];
+
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), 'v-test');
+      useStore.getState().setSpatialLoading(true);
+    });
+
+    try {
+      renderWithProviders(<StateProbe onState={(state) => states.push(state)} />, { keepStore: true });
+      expect(states.at(-1)).toBe('loading');
+
+      act(() => {
+        useStore.getState().setSpatialLoading(false);
+      });
+      await waitFor(() => {
+        expect(states.at(-1)).not.toBe('loading');
+      });
+    } finally {
+      act(() => {
+        useStore.getState().setSpatial(null, null);
+      });
+    }
+  });
+});
+
+describe('useViewer3D — tên dự án ở khoá con (B-V1-12)', () => {
+  it('chuỗi tên vào khoá `name`, khoá gốc của dự án không bị ghi', async () => {
+    const gateway = createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL, 'Nhà mẫu');
+
+    const { queryClient, unmount } = renderWithProviders(
+      <Probe options={{ projectId: 'P-000000001', canvas: null, frame: FRAME, gateway }} />,
+    );
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(projectNameQueryKey('P-000000001'))).toBe('Nhà mẫu');
+    });
+    expect(queryClient.getQueryData(queryKeys.project.detail('P-000000001'))).toBeUndefined();
+
+    unmount();
+  });
+});
+
+describe('useViewer3D — tầng không có tường hay phòng (B-V1-11)', () => {
+  /** Bộ mẫu A14 chỉ giữ tường/phòng/ô mở của các tầng trong `keep`. */
+  function graphKeeping(keep: readonly string[]): SpatialGraph {
+    const graph = createSampleBuilding();
+    const walls = graph.walls.filter((wall) => keep.includes(wall.levelId));
+    const wallIds = new Set<string>(walls.map((wall) => wall.id));
+
+    return {
+      ...graph,
+      walls,
+      rooms: graph.rooms.filter((room) => keep.includes(room.levelId)),
+      openings: graph.openings.filter((opening) => wallIds.has(opening.wallId)),
+    };
+  }
+
+  function renderResult(graph: SpatialGraph, spy: SceneSpy): { readonly latest: () => Viewer3DModel } {
+    let latest: Viewer3DModel | undefined;
+
+    function ResultProbe(): null {
+      latest = useViewer3D({
+        projectId: 'P-000000001',
+        canvas: document.createElement('canvas'),
+        frame: FRAME,
+        mountScene: spy.mount,
+        spatial: normalizeSpatial(graph),
+        gateway: createViewerShellFixtureGateway(VIEWER_FIXTURE_SPATIAL),
+      });
+
+      return null;
+    }
+
+    renderWithProviders(<ResultProbe />);
+
+    return {
+      latest: () => {
+        if (latest === undefined) {
+          throw new Error('hook chưa chạy');
+        }
+
+        return latest;
+      },
+    };
+  }
+
+  it('bốn tầng đều rỗng: màn `empty`, và cảnh không được lắp', async () => {
+    const spy = sceneSpy();
+    const { latest } = renderResult(graphKeeping([]), spy);
+
+    await waitFor(() => {
+      expect(latest().state).toBe('empty');
+    });
+    expect(spy.mounts()).toBe(0);
+  });
+
+  it('chú thích tầng rỗng nói "chưa có tường hay phòng nào"; tầng có hình vẫn "chưa dựng xong"', async () => {
+    const graph = createSampleBuilding();
+    const [built, bare] = graph.levels;
+
+    if (built === undefined || bare === undefined) {
+      throw new Error('bộ mẫu cần ít nhất hai tầng');
+    }
+
+    const spy = sceneSpy();
+    const { latest } = renderResult(graphKeeping([built.id]), spy);
+
+    await waitFor(() => {
+      expect(spy.mounts()).toBe(1);
+    });
+    expect(latest().wireframeCaptionOf(bare.id)).toBe(`${bare.name} — chưa có tường hay phòng nào`);
+    expect(latest().wireframeCaptionOf(built.id)).toBe(`${built.name} — chưa dựng xong`);
   });
 });

@@ -53,13 +53,13 @@ import type { LevelId } from '@/domain/spatial/types';
 import { COMPARE_MODE_IDS, COMPARE_MODE_LABELS } from './types';
 import type { CompareModeId, OverlayComparisonToolbarProps } from './types';
 
-const TOOLBAR_LABEL = 'thanh công cụ đối chiếu bản vẽ';
-const FLOOR_SELECT_LABEL = 'chọn tầng';
-const FLOOR_NO_SCAN_SUFFIX = 'không có ảnh bản vẽ gốc';
-const COMPARE_MODE_ARIA_LABEL = 'kiểu đối chiếu';
-const SCAN_OPACITY_ARIA_LABEL = 'độ mờ ảnh nguồn';
-const ALIGNMENT_LOCK_LABEL = 'khoá căn';
-const READ_ONLY_NOTICE = 'bạn không có quyền sửa, các điều khiển đang tắt.';
+const TOOLBAR_LABEL = 'Thanh công cụ đối chiếu bản vẽ';
+const FLOOR_SELECT_LABEL = 'Chọn tầng';
+const FLOOR_NO_SCAN_SUFFIX = 'Không có ảnh bản vẽ gốc';
+const COMPARE_MODE_ARIA_LABEL = 'Kiểu đối chiếu';
+const SCAN_OPACITY_ARIA_LABEL = 'Độ mờ ảnh nguồn';
+const ALIGNMENT_LOCK_LABEL = 'Khoá căn';
+const READ_ONLY_NOTICE = 'Bạn không có quyền sửa, các điều khiển đang tắt.';
 
 /** Viên thuốc chứa bốn cụm — dùng chung cho cả hai cách xếp (một hàng/hai hàng). */
 const CLUSTER_ROW_CLASS = 'flex items-center gap-3';

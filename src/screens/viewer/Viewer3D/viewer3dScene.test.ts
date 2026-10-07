@@ -361,6 +361,9 @@ describe('mountViewerScene', () => {
     // được dựng. Đó là tính chất của bộ mẫu, không phải của nấc chi tiết.
     expect([...visibleKinds(drawn)].sort()).toEqual(['ceiling', 'floorSlab', 'wall']);
     expect(host.renderer.shadowMap.type).toBe(shadowMapTypeFor('soft'));
+    // Giá trị canh: `'soft'` và `'hard'` nay cùng ra `PCFShadowMap` — `PCFSoftShadowMap` còn
+    // nhưng renderer thay nó — nên chỉ khi xoá giá trị lúc gắn mới biết hạ nấc có thật sự ghi.
+    host.renderer.shadowMap.type = -1;
 
     // Một cửa sổ đo dài hơn `DEGRADE_WINDOW_MS` với đúng hai khung hình: khung
     // hình đo được xuống dưới ngưỡng, và nó ở dưới đủ lâu để R-04 hạ nấc.
@@ -455,6 +458,42 @@ describe('mountViewerScene', () => {
 
     // Sau khi dọn thì không còn cảnh nào để khuôn vào.
     expect(mounted.handle.frameEntities([String(roomId)])).toBe(false);
+  });
+
+  it('dọn xong thì CÙNG canvas ấy dựng lại được — đổi dữ liệu, bấm thử lại (B-V8-12)', () => {
+    /* Đúng luật WebGL: một canvas chỉ có MỘT ngữ cảnh suốt đời; ép mất nó rồi thì
+       `new WebGLRenderer({ canvas })` nhận lại chính ngữ cảnh đã chết và ném lỗi
+       (`reading 'precision'`) — màn báo "Trình duyệt này chưa xem được mô hình 3D". */
+    const lost = new WeakSet<HTMLCanvasElement>();
+    const createRenderer = (canvas: HTMLCanvasElement): ViewerRendererLike => {
+      if (lost.has(canvas)) {
+        throw new TypeError("Cannot read properties of null (reading 'precision')");
+      }
+      return Object.assign(fakeRenderer(), {
+        forceContextLoss: () => {
+          lost.add(canvas);
+        },
+      });
+    };
+    const options: Parameters<typeof mountViewerScene>[1] = {
+      levels: host.levels,
+      frame: frameOf(host.levels),
+      tokenOfPartKind: () => '--wall-idle',
+      canSelect: true,
+      createRenderer,
+      createWorker: () => new MicrotaskWorker(),
+      schedule: NEVER_SCHEDULE,
+      cancel: () => undefined,
+      readToken: () => '',
+    };
+
+    const first = mountViewerScene(host.canvas, options);
+    expect(first.ok).toBe(true);
+    if (first.ok) first.handle.dispose();
+
+    const second = mountViewerScene(host.canvas, options);
+    expect(second.ok).toBe(true);
+    if (second.ok) second.handle.dispose();
   });
 
   it('không có WebGL thì trả một kết quả, không ném lỗi', () => {

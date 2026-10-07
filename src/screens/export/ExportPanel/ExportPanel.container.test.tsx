@@ -14,20 +14,60 @@
  * `ShareLinkGateway` HTTP thật, không đọc cờ này) còn đang treo hay lỗi —
  * đúng điều `ShareDialog.tsx:10-15` ghi: sáu trong bảy trạng thái đều vẽ đủ
  * khung, container không khi nào trống.
+ *
+ * F-06: máy chủ v1 không phục vụ liên kết chia sẻ (BE-BIND #47–#49 là v2), nên bản
+ * thật KHÔNG có nút "chia sẻ" và không gắn hộp thoại. Ba bài cũ giữ ý cho ngày v2
+ * bật lại bằng cách lật `SHARE_LINKS_SUPPORTED` qua `shareLinkFlag`.
  */
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
+import { createElement, type ComponentProps, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import { renderWithProviders } from '@/lib/testing/render';
+import type * as ShareLinkModule from '@/lib/export/shareLink';
+import type * as ShareDialogModule from '@/screens/export/ShareDialog';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
 import { ExportPanelContainer } from './ExportPanel.container';
+import { createExportPanelGateway } from './exportPanelGateway';
+import { useExportPanel } from './useExportPanel';
 
 const PROJECT_ID = 'P-000000001';
+
+/** Giá trị `SHARE_LINKS_SUPPORTED` mà mã đọc trong tệp này; `null` = giữ bản thật. */
+const shareLinkFlag = vi.hoisted(() => ({ value: null as boolean | null }));
+
+/**
+ * Số lần `ShareDialogContainer` THẬT được render. Bọc chứ không thay: ba bài cũ cần
+ * hộp thoại thật; bài F-06 cần biết container có gắn hộp thoại hay không.
+ */
+const shareDialogRenders = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock('@/screens/export/ShareDialog', async (importOriginal) => {
+  const actual = await importOriginal<typeof ShareDialogModule>();
+  return {
+    ...actual,
+    ShareDialogContainer: (props: ComponentProps<typeof actual.ShareDialogContainer>) => {
+      shareDialogRenders.count += 1;
+      return createElement(actual.ShareDialogContainer, props);
+    },
+  };
+});
+
+vi.mock('@/lib/export/shareLink', async (importOriginal) => {
+  const actual = await importOriginal<typeof ShareLinkModule>();
+  return {
+    ...actual,
+    get SHARE_LINKS_SUPPORTED(): boolean {
+      return shareLinkFlag.value ?? actual.SHARE_LINKS_SUPPORTED;
+    },
+  };
+});
 
 /** Tầng + vai để `status` là `success` (có header, có nút "chia sẻ") — không `empty`/`forbidden`. */
 function seedStore(): void {
@@ -57,9 +97,32 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+  shareLinkFlag.value = null;
+  shareDialogRenders.count = 0;
+});
+
+describe('F-06 — bản thật v1: không nút "chia sẻ", không request tới share-links', () => {
+  it('không nút "chia sẻ", không hộp thoại, không URL nào chứa /share-links', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    renderExportPanel();
+
+    expect(await screen.findByRole('button', { name: /xuất/iu })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /chia sẻ/iu })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(shareDialogRenders.count).toBe(0);
+    const urls = fetchSpy.mock.calls.map(([input]) =>
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    );
+    expect(urls.filter((url) => url.includes('/share-links'))).toEqual([]);
+  });
 });
 
 describe('ExportPanelContainer — nút "chia sẻ" mở ShareDialogContainer (R-73)', () => {
+  beforeEach(() => {
+    shareLinkFlag.value = true;
+  });
+
   it('không có hộp thoại chia sẻ nào khi màn vừa mở', async () => {
     renderExportPanel();
 
@@ -75,7 +138,7 @@ describe('ExportPanelContainer — nút "chia sẻ" mở ShareDialogContainer (R
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
     // Tựa đề thật của `ShareDialog.tsx:37` — không phải một khung rỗng đứng thay chỗ.
-    expect(screen.getByText('chia sẻ bản vẽ')).toBeInTheDocument();
+    expect(screen.getByText('Chia sẻ bản vẽ')).toBeInTheDocument();
   });
 
   it('đóng hộp thoại trả `ExportPanel` về không còn hộp thoại nào (A12: có đường đóng)', async () => {
@@ -89,5 +152,30 @@ describe('ExportPanelContainer — nút "chia sẻ" mở ShareDialogContainer (R
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+  });
+});
+
+describe('B-V12-05 — xuất xong thì tệp tải về máy, đúng lời màn đã hứa', () => {
+  it('một lượt xuất thành công gọi `deliver` đúng một lần với chính tệp vừa xuất', async () => {
+    const deliver = vi.fn();
+    const gateway = createExportPanelGateway({ deliver });
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useExportPanel({ projectId: PROJECT_ID, gateway }), { wrapper });
+
+    act(() => {
+      result.current.onSelectFormat('spatial-json');
+    });
+    act(() => {
+      result.current.onExport();
+    });
+
+    await waitFor(() => {
+      expect(deliver).toHaveBeenCalledTimes(1);
+    });
+    expect(deliver.mock.calls[0]?.[0]).toMatchObject({ fileName: expect.stringMatching(/\.json$/u) });
   });
 });

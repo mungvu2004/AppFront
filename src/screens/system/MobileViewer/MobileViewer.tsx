@@ -46,7 +46,7 @@ import {
   MOBILE_VIEWER_MIN_HIT_TARGET_PX,
   MOBILE_VIEWER_TOP_BAR_PX,
 } from './mobileViewerTypes';
-import type { MobileViewerProps, MobileViewerState } from './mobileViewerTypes';
+import type { MobilePartialReason, MobileViewerProps, MobileViewerState } from './mobileViewerTypes';
 
 /** Lớp phủ kín khung nhìn, nền đặc — chỗ ba trạng thái không có gì để xem. */
 function CoveringLayer({ children }: { readonly children: ReactNode }) {
@@ -72,17 +72,17 @@ function WeakDeviceLayer({ fallback2dHref }: { readonly fallback2dHref: string }
     <CoveringLayer>
       <div className="flex flex-col items-center gap-4 px-6 text-center">
         <h2 className="text-[16px] font-semibold text-text-primary">
-          máy này chưa dựng nổi mô hình 3D
+          Máy này chưa dựng nổi mô hình 3D
         </h2>
         <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">
-          bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.
+          Bản 2D nhẹ hơn nhiều và vẫn có đủ kích thước bạn cần khi đứng ở công trường.
         </p>
         <a
           className={getButtonStyles({ variant: 'primary' })}
           href={fallback2dHref}
           style={{ minHeight: MOBILE_VIEWER_MIN_HIT_TARGET_PX }}
         >
-          xem bản 2D
+          Xem bản 2D
         </a>
       </div>
     </CoveringLayer>
@@ -92,11 +92,12 @@ function WeakDeviceLayer({ fallback2dHref }: { readonly fallback2dHref: string }
 interface StateLayerProps {
   readonly state: MobileViewerState;
   readonly detailLabel: string | null;
+  readonly partialReason: MobilePartialReason | null;
   readonly fallback2dHref: string;
 }
 
 /** Bảy nhánh, mỗi nhánh vẽ một thứ. Không nhánh nào trả về `null`. */
-function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
+function StateLayer({ state, detailLabel, partialReason, fallback2dHref }: StateLayerProps) {
   if (state === 'error') {
     return <WeakDeviceLayer fallback2dHref={fallback2dHref} />;
   }
@@ -105,9 +106,9 @@ function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
     return (
       <CoveringLayer>
         <EmptyState
-          description="dự án này chưa có bản dựng 3D nào để mở trên điện thoại."
+          description="Dự án này chưa có bản dựng 3D nào để mở trên điện thoại."
           icon={<Box />}
-          title="chưa có mô hình để xem"
+          title="Chưa có mô hình để xem"
         />
       </CoveringLayer>
     );
@@ -117,9 +118,9 @@ function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
     return (
       <CoveringLayer>
         <EmptyState
-          description="hỏi chủ dự án để được cấp quyền xem mô hình."
+          description="Hỏi chủ dự án để được cấp quyền xem mô hình."
           icon={<Lock />}
-          title="bạn chưa có quyền xem mô hình này"
+          title="Bạn chưa có quyền xem mô hình này"
         />
       </CoveringLayer>
     );
@@ -129,13 +130,17 @@ function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
     // Mức gọn dựng trước rồi mới nâng dần, nên câu này là thứ nói cho người
     // dùng biết họ đang nhìn mức nào — không có nó thì mô hình thô trông như
     // mô hình hỏng.
-    return <FloatingNote>{detailLabel ?? 'đang tải mô hình'}</FloatingNote>;
+    return <FloatingNote>{detailLabel ?? 'Đang tải mô hình'}</FloatingNote>;
   }
 
+  // `partial` luôn có một câu nói lý do — không bao giờ rơi xuống câu "đã dựng
+  // xong" bên dưới (B-V1-11). Thiếu lý do thì câu thiếu phòng, câu chắc đúng hơn.
   if (state === 'partial') {
     return (
       <FloatingNote>
-        mạng yếu nên mới tải được một phần các tầng. các tầng còn lại sẽ hiện khi mạng khá hơn.
+        {partialReason === 'weak-network'
+          ? 'Mạng đang yếu. Mô hình đã tải xong vẫn xem được.'
+          : 'Mô hình mới có một phần: một số tầng chưa có phòng nào được dựng từ bản vẽ.'}
       </FloatingNote>
     );
   }
@@ -144,7 +149,7 @@ function StateLayer({ state, detailLabel, fallback2dHref }: StateLayerProps) {
     return <FloatingNote>{detailLabel}</FloatingNote>;
   }
 
-  return <span className="sr-only">mô hình đã dựng xong.</span>;
+  return <span className="sr-only">Mô hình đã dựng xong.</span>;
 }
 
 export function MobileViewer({
@@ -163,6 +168,7 @@ export function MobileViewer({
   onSendDesktopLink,
   measurements,
   detailLabel,
+  partialReason,
   fallback2dHref,
 }: MobileViewerProps) {
   // `collapsed` là "màn rất nhỏ", tức cùng một điều kiện mà `isCompact` mang.
@@ -183,7 +189,7 @@ export function MobileViewer({
       id: 'mobileViewer.closeTopLayer',
       combo: 'Escape',
       scope: 'dialog',
-      description: 'đóng lớp đang mở trên màn xem mô hình',
+      description: 'Đóng lớp đang mở trên màn xem mô hình',
       preventDefault: false,
       onTrigger: () => {
         if (isSheetOpen) {
@@ -199,7 +205,7 @@ export function MobileViewer({
 
   return (
     <div
-      aria-label="xem mô hình 3D trên điện thoại"
+      aria-label="Xem mô hình 3D trên điện thoại"
       className="relative flex h-full w-full flex-col overflow-hidden bg-canvas-3d"
       role="region"
     >
@@ -216,17 +222,24 @@ export function MobileViewer({
           {projectName}
         </h1>
 
-        <IconButton
-          aria-label="chia sẻ dự án"
-          icon={<Share2 />}
-          onClick={onShare}
-          size="lg"
-          tooltip={false}
-        />
+        {onShare !== null && (
+          <IconButton
+            aria-label="Chia sẻ dự án"
+            icon={<Share2 />}
+            onClick={onShare}
+            size="lg"
+            tooltip={false}
+          />
+        )}
       </header>
 
       <main className="relative min-h-0 flex-1">
-        <StateLayer detailLabel={detailLabel} fallback2dHref={fallback2dHref} state={state} />
+        <StateLayer
+          detailLabel={detailLabel}
+          fallback2dHref={fallback2dHref}
+          partialReason={partialReason}
+          state={state}
+        />
       </main>
 
       <MobileViewerBottomBar

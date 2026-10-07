@@ -66,7 +66,7 @@ function baseProps(): CreateProjectModalViewProps {
     isCompact: false,
     canCreate: true,
     step: 3,
-    stepLabel: 'bước 3 / 3',
+    stepLabel: 'Bước 3 / 3',
     isSubmitting: false,
     isConfirmingDiscard: false,
     isSelectOpen: false,
@@ -209,14 +209,14 @@ describe('CreateProjectModalView, seven states', () => {
   it('locks the form and spins the primary button while creating', () => {
     render(<CreateProjectModalView {...PROPS_BY_STATE.loading()} />);
 
-    expect(screen.getByRole('button', { name: 'tạo dự án' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tạo dự án' })).toBeDisabled();
   });
 
   it('drops the wizard for a role that cannot create projects', () => {
     render(<CreateProjectModalView {...PROPS_BY_STATE.forbidden()} />);
 
-    expect(screen.getByText('không có quyền tạo dự án')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'tiếp tục' })).not.toBeInTheDocument();
+    expect(screen.getByText('Không có quyền tạo dự án')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục' })).not.toBeInTheDocument();
   });
 });
 
@@ -243,7 +243,7 @@ describe('CreateProjectModalView', () => {
     expect(
       screen.getByText(/Tầng Tầng 1 bắt đầu ở cao độ 3,000 m.*chồng lấn 900 mm/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'tiếp tục' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'xem tầng' }));
 
@@ -254,11 +254,11 @@ describe('CreateProjectModalView', () => {
     const confirmDiscard = vi.fn();
     render(<CreateProjectModalView {...baseProps()} isConfirmingDiscard step={1} stepLabel="bước 1 / 3" />);
 
-    expect(screen.getByText('đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
+    expect(screen.getByText('Đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
     // Exactly one role="dialog" — the warning renders inline, not as a second dialog.
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'đóng, bỏ thay đổi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng, bỏ thay đổi' }));
 
     expect(confirmDiscard).not.toHaveBeenCalled();
   });
@@ -282,8 +282,8 @@ function buildGateway(invalidate: () => void = noop) {
 }
 
 function goToStep2(name = 'Chung cư Bốn Tầng'): void {
-  fireEvent.change(screen.getByLabelText('tên dự án'), { target: { value: name } });
-  fireEvent.click(screen.getByRole('button', { name: 'tiếp tục' }));
+  fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: name } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
 }
 
 function setHeight(label: string, text: string): void {
@@ -293,16 +293,29 @@ function setHeight(label: string, text: string): void {
 }
 
 describe('CreateProjectModal, wired to its hook', () => {
+  it('opens on a fresh form every time — closing does not keep what was typed (B-V3-02)', () => {
+    const { gateway } = buildGateway();
+    const { rerender } = render(
+      <CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Dự án gõ dở' } });
+    rerender(<CreateProjectModal isOpen={false} gateway={gateway} forceCompact={false} onDismiss={noop} />);
+    rerender(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    expect(screen.getByLabelText('Tên dự án')).toHaveValue('');
+  });
+
   it('starts the stack at four floors, so a wizard need not be clicked open row by row', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
     goToStep2();
 
-    expect(screen.getByLabelText('tên tầng Tầng trệt')).toBeInTheDocument();
-    expect(screen.getByLabelText('tên tầng Tầng 1')).toBeInTheDocument();
-    expect(screen.getByLabelText('tên tầng Tầng 2')).toBeInTheDocument();
-    expect(screen.getByLabelText('tên tầng Tầng 3')).toBeInTheDocument();
-    expect(screen.queryByLabelText('tên tầng Tầng hầm')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tên tầng Tầng trệt')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tên tầng Tầng 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tên tầng Tầng 2')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tên tầng Tầng 3')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Tên tầng Tầng hầm')).not.toBeInTheDocument();
   });
 
   it('stacks a basement and three floors from the ground floor’s 0,0 — 4 tầng có hầm', async () => {
@@ -312,13 +325,13 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     // Default is four floors above ground; this acceptance case is exactly one
     // basement plus three, so the extra default floor is removed first.
-    fireEvent.click(screen.getByRole('switch', { name: 'có tầng hầm' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
     fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 3' }));
 
-    setHeight('chiều cao thông thuỷ tầng Tầng hầm', '3');
-    setHeight('chiều cao thông thuỷ tầng Tầng trệt', '3,9');
-    setHeight('chiều cao thông thuỷ tầng Tầng 1', '3,6');
-    setHeight('chiều cao thông thuỷ tầng Tầng 2', '3');
+    setHeight('Chiều cao thông thuỷ tầng Tầng hầm', '3');
+    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '3,9');
+    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3,6');
+    setHeight('Chiều cao thông thuỷ tầng Tầng 2', '3');
 
     const table = {
       'Tầng hầm': await screen.findByText('-3,0 m'),
@@ -340,7 +353,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     }
     // No collision warning once the stack is fully specified and non-overlapping.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'tiếp tục' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
   });
 
   it('applies one height to every floor with "áp cho mọi tầng"', () => {
@@ -348,11 +361,11 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     goToStep2();
 
-    setHeight('chiều cao áp cho mọi tầng', '3,5');
-    fireEvent.click(screen.getByRole('button', { name: 'áp cho mọi tầng' }));
+    setHeight('Chiều cao áp cho mọi tầng', '3,5');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
 
     for (const name of ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3']) {
-      expect(screen.getByLabelText(`chiều cao thông thuỷ tầng ${name}`)).toHaveValue('3,5');
+      expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveValue('3,5');
     }
   });
 
@@ -381,14 +394,14 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 3' }));
     fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 2' }));
     fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 1' }));
-    setHeight('chiều cao thông thuỷ tầng Tầng trệt', '3,9');
+    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '3,9');
 
-    fireEvent.click(screen.getByRole('button', { name: 'tiếp tục' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
     // "bước 3 / 3" appears twice — the visible caption and the sr-only
     // announcement — so the visible one is picked out by tag.
-    expect(await screen.findByText('bước 3 / 3', { selector: 'p' })).toBeInTheDocument();
+    expect(await screen.findByText('Bước 3 / 3', { selector: 'p' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'tạo dự án' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
 
     await waitFor(() => {
       expect(onDismiss).toHaveBeenCalledTimes(1);
@@ -418,13 +431,13 @@ describe('CreateProjectModal, wired to its hook', () => {
     const onDismiss = vi.fn();
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);
 
-    fireEvent.change(screen.getByLabelText('tên dự án'), { target: { value: 'Bản nháp' } });
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Bản nháp' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'huỷ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     expect(onDismiss).not.toHaveBeenCalled();
-    expect(screen.getByText('đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
+    expect(screen.getByText('Đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'huỷ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

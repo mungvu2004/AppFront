@@ -42,6 +42,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { getPipelineStages } from '@/lib/realtime/pipeline';
 import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import { describePipelineError } from '../pipelineErrorText';
+
 import { ProcessingScreen } from './ProcessingScreen';
 import type {
   ProcessingFloorChipViewModel,
@@ -118,6 +120,9 @@ function stepsAt(
 }
 
 /** Bước lỗi mang cả mã máy đọc lẫn câu hậu quả — mã không bao giờ đứng một mình. */
+/** Mã thật của bảng mã pipeline, câu lấy từ chính bảng đó. */
+const STEP_FAILURE = describePipelineError('PIPELINE_STEP_TIMEOUT');
+
 function withStepFailure(
   steps: readonly ProcessingStepViewModel[],
   failedIndex: number,
@@ -126,8 +131,8 @@ function withStepFailure(
     index === failedIndex
       ? {
           ...step,
-          errorCode: 'PIPELINE_STAGE_FAILED',
-          errorMessage: 'Bước này gặp lỗi nên không hoàn tất được.',
+          errorCode: STEP_FAILURE.code,
+          errorMessage: STEP_FAILURE.sentence,
         }
       : step,
   );
@@ -215,7 +220,7 @@ function previewOf(
 }
 
 /**
- * Báo cáo tổng kết — bộ mẫu chuẩn của A14: **34 phòng và sảnh, 248,60 m²**.
+ * Báo cáo tổng kết — bộ số riêng của story: **34 phòng và sảnh, 248,60 m²**.
  *
  * Dấu thập phân là dấu phẩy (A15), và mọi con số ở đây đã là chuỗi: view không
  * làm tròn, không ghép câu.
@@ -393,7 +398,7 @@ export const DangTai: Story = { args: scenarioFor('loading') };
 export const MotPhan: Story = { args: scenarioFor('partial') };
 /** Lỗi — cảnh báo kèm mã kỹ thuật; mã không đứng một mình, luôn có câu giải thích. */
 export const Loi: Story = { args: scenarioFor('error') };
-/** Xong — sáu bước xong và khối tổng kết theo bộ mẫu A14. */
+/** Xong — sáu bước xong và khối tổng kết theo bộ số riêng của story. */
 export const Xong: Story = { args: scenarioFor('success') };
 /** Không có quyền — hai cột vẫn đọc được, nút huỷ biến mất hẳn (không khoá mờ). */
 export const KhongCoQuyen: Story = { args: scenarioFor('forbidden') };

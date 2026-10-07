@@ -145,7 +145,7 @@ describe('AdminUserSchema', () => {
     expect('inviteExpiresAt' in parsed).toBe(false);
   });
 
-  it('keeps a null lastActiveAt, because "chưa hoạt động lần nào" is an answer', () => {
+  it('keeps a null lastActiveAt, because "Chưa hoạt động lần nào" is an answer', () => {
     const parsed = AdminUserSchema.parse(pendingUserWire);
 
     expect(parsed.lastActiveAt).toBeNull();
@@ -429,12 +429,12 @@ describe('UsersApi', () => {
     });
   });
 
-  it('resends an invitation by invite id', async () => {
+  it('resends an invitation by user id', async () => {
     const { calls, http } = createHttpMock({
       'POST /users/invitations/invite-9/resend': pendingUserWire,
     });
 
-    const result = await createApiClient(http).users.resendInvite({ inviteId: 'invite-9' });
+    const result = await createApiClient(http).users.resendInvite({ userId: 'invite-9' });
 
     expect(result.ok && result.data.status).toBe('pending');
     expect(calls[0]?.path).toBe('/users/invitations/invite-9/resend');
@@ -452,7 +452,7 @@ describe('UsersApi', () => {
       await client.users.list(),
       await client.users.memberships({ userId: 'user-2' }),
       await client.users.remove({ body: { confirmEmail: 'a@example.com', userId: 'user-2' } }),
-      await client.users.resendInvite({ inviteId: 'invite-9' }),
+      await client.users.resendInvite({ userId: 'invite-9' }),
     ];
 
     expect(results).toHaveLength(9);
@@ -599,7 +599,7 @@ describe('bộ mẫu users — bảy lượt ghi', () => {
   it('gửi lại lời mời đẩy hạn về phía trước', async () => {
     const client = createMockApiClient();
 
-    const resent = await client.users.resendInvite({ inviteId: 'user-7' });
+    const resent = await client.users.resendInvite({ userId: 'user-7' });
 
     expect(resent.ok && resent.data.inviteExpiresAt).toBe(MOCK_USERS_INVITE_EXPIRY);
     expect(resent.ok && resent.data.invitedAt).toBe(MOCK_USERS_REFERENCE_TIME);

@@ -29,7 +29,8 @@ import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
-import { getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
+import { ScreenMain } from '@/components/shell/ScreenMain';
+import { getOptionalAuthConfig, getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
 
 import { DEV_PUBLIC_ROUTE_PATTERNS, PUBLIC_ROUTE_PATTERNS, ROUTES } from './paths';
@@ -60,16 +61,28 @@ export interface SessionGateProps {
   userId: string | null;
 }
 
-/** Dải báo chiếm cả bề ngang, dùng cho cả ba tình huống hỏng của cổng. */
+/**
+ * Dải báo chiếm cả bề ngang, dùng cho cả ba tình huống hỏng của cổng.
+ *
+ * `main` do NƠI GỌI quyết định (FIX-381): ở hai nhánh `unknown` dải thay cả cây
+ * route nên tự bọc `ScreenMain`; ở nhánh mất kết nối giữa chừng nó đứng TRÊN màn
+ * con vốn có `main` của mình, bọc ở đó là hai `main`.
+ */
 function GateStrip({
   action,
+  landmarkLabel,
   message,
 }: {
   action: { label: string; onClick: () => void };
+  /** Có thì dải là một `region` có tên — cho dải đứng ngoài mọi `main` (axe `region`). */
+  landmarkLabel?: string;
   message: string;
 }) {
   return (
-    <div className="w-full p-4">
+    <div
+      className="w-full p-4"
+      {...(landmarkLabel !== undefined ? { role: 'region', 'aria-label': landmarkLabel } : {})}
+    >
       <InlineAlert level="attention" message={message} action={action} />
     </div>
   );
@@ -86,6 +99,26 @@ function GateStrip({
  * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
  * biểu mẫu sau khi đã đăng nhập thành công.
  */
+/**
+ * Vỏ chờ toàn màn: khung xương cùng nền ứng dụng, và một câu nói ra thành lời
+ * cho trình đọc màn hình (A11 — chờ không phải màn trắng).
+ *
+ * Dùng chung với vỏ chờ chunk route của `router.tsx` (B-G-04), để từ "đang mở
+ * phiên" sang "đang tải màn hình" màn không nháy: cùng khối, chỉ đổi câu.
+ */
+export function PendingShell({ label }: { label: string }) {
+  return (
+    <div
+      aria-busy="true"
+      aria-label={label}
+      className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6"
+      role="status"
+    >
+      <Skeleton preset="canvas" className="w-full max-w-3xl" />
+    </div>
+  );
+}
+
 export function SessionGate({
   children,
   isPublic,
@@ -104,31 +137,30 @@ export function SessionGate({
   if (status === 'unknown') {
     if (setupFailed) {
       return (
-        <GateStrip
-          message="chưa mở được ứng dụng, hãy tải lại trang"
-          action={{ label: 'tải lại trang', onClick: () => globalThis.location.reload() }}
-        />
+        <ScreenMain>
+          <GateStrip
+            message="Chưa mở được ứng dụng, hãy tải lại trang"
+            action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
+          />
+        </ScreenMain>
       );
     }
 
     if (serverUnreachable === true) {
       return (
-        <GateStrip
-          message="không kết nối được máy chủ"
-          action={{ label: 'thử lại', onClick: onRetry }}
-        />
+        <ScreenMain>
+          <GateStrip
+            message="Không kết nối được máy chủ"
+            action={{ label: 'Thử lại', onClick: onRetry }}
+          />
+        </ScreenMain>
       );
     }
 
     return (
-      <div
-        aria-busy="true"
-        aria-label="đang mở phiên"
-        className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6"
-        role="status"
-      >
-        <Skeleton preset="canvas" className="w-full max-w-3xl" />
-      </div>
+      <ScreenMain>
+        <PendingShell label="Đang mở phiên" />
+      </ScreenMain>
     );
   }
 
@@ -157,8 +189,9 @@ export function SessionGate({
     <>
       {serverUnreachable === true ? (
         <GateStrip
-          message="mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
-          action={{ label: 'thử lại', onClick: onRetry }}
+          landmarkLabel="Trạng thái kết nối"
+          message="Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
+          action={{ label: 'Thử lại', onClick: onRetry }}
         />
       ) : null}
       <Fragment key={userId ?? ''}>{children}</Fragment>
@@ -246,7 +279,9 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
       onRetry={onRetry}
       sessionEnded={sessionEnded.current}
       serverUnreachable={session.serverUnreachable}
-      setupFailed={setupFailed}
+      // "Chưa mở được ứng dụng" chỉ đúng khi tầng phiên vẫn chưa cấu hình: màn khác thử lại
+      // cấu hình được rồi thì cổng rơi về nhánh `serverUnreachable` → "Thử lại" (NO-372).
+      setupFailed={setupFailed && getOptionalAuthConfig() === null}
       status={session.status}
       userId={session.user?.id ?? null}
     >

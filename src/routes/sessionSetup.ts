@@ -22,6 +22,7 @@ import {
   type ConfigureAuthOptions,
 } from '@/lib/auth';
 import { isAuthConfigured } from '@/lib/auth/session';
+import { setServerUnreachable } from '@/lib/auth/state';
 import type { AuthFetch } from '@/lib/auth/types';
 import { queryClient } from '@/lib/query/queryClient';
 import { backgroundWatchRegistry } from '@/lib/realtime/backgroundWatch';
@@ -90,6 +91,10 @@ export async function configureAppSession(
  * đã nhớ đi, để lần sau còn thử lại được, và để lời từ chối nổi lên cho
  * `SessionBootstrap` bắt — nuốt nó ở đây là để người dùng ngồi trước một khung
  * chờ không bao giờ hết.
+ *
+ * Phiên còn `unknown` lúc hỏng thì bật `serverUnreachable` (NO-357): đó là trạng
+ * thái kết thúc có câu báo mà mọi màn đã biết đọc. Thiếu nó, màn công khai không
+ * qua dải của cổng (nhận lời mời) cứ tưởng phiên còn đang mở và khoá nút mãi.
  */
 export function startAppSession(): Promise<boolean> {
   starting ??= (async () => {
@@ -102,15 +107,23 @@ export function startAppSession(): Promise<boolean> {
     return bootstrapSession();
   })().catch((error: unknown) => {
     starting = null;
+    if (getSession().status === 'unknown') {
+      setServerUnreachable(true);
+    }
     throw error;
   });
 
   return starting;
 }
 
-/** Thử lại lượt gia hạn sau khi nó hỏng vì máy chủ không trả lời. */
+/**
+ * Thử lại sau khi máy chủ không trả lời — hoặc sau khi chính lượt cấu hình hỏng.
+ *
+ * Chưa cấu hình thì `bootstrapSession()` chỉ ném "chưa cấu hình", nên lượt thử
+ * lại phải đi lại từ đầu qua `startAppSession()` (lượt hỏng đã được quên).
+ */
 export function retryAppSession(): Promise<boolean> {
-  return bootstrapSession();
+  return isAuthConfigured() ? bootstrapSession() : startAppSession();
 }
 
 /**

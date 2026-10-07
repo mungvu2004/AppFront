@@ -113,7 +113,7 @@ export function readShareLinkPermission(roles: readonly ProjectRole[]): boolean 
  * tự đoán phải hỏi ai.
  */
 export const SHARE_FORBIDDEN_REASON =
-  'chỉ quản trị viên và kỹ sư của dự án tạo được liên kết chia sẻ; hãy nhờ một người trong hai vai đó tạo giúp';
+  'Chỉ quản trị viên và kỹ sư của dự án tạo được liên kết chia sẻ; hãy nhờ một người trong hai vai đó tạo giúp';
 
 /* -------------------------------------------------------------------------- */
 /* 4 — Thành viên (CHỈ ĐỌC)                                                   */
@@ -127,13 +127,13 @@ export const SHARE_FORBIDDEN_REASON =
  * `ProjectSettings/MembersTab.tsx`.
  */
 export const MEMBERS_READ_ONLY_REASON =
-  'bản này chỉ hiển thị những người đã có quyền; việc mời thêm và đổi vai làm ở phần cài đặt dự án';
+  'Bản này chỉ hiển thị những người đã có quyền; việc mời thêm và đổi vai làm ở phần cài đặt dự án';
 
 /** Nhãn vai tiếng Việt, viết thường kiểu câu (A6). */
 export const SHARE_ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.freeze({
-  admin: 'quản trị viên',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  admin: 'Quản trị viên',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 });
 
 /** Số chữ cái một `Avatar` không ảnh hiện được. */
@@ -295,7 +295,7 @@ const WIDE_EMBED_HEIGHT_PX = 720;
 export const EMBED_SIZE_PRESETS: readonly EmbedSizePreset[] = Object.freeze([
   {
     id: 'compact',
-    label: 'gọn',
+    label: 'Gọn',
     widthPx: COMPACT_EMBED_WIDTH_PX,
     heightPx: COMPACT_EMBED_HEIGHT_PX,
   },
@@ -307,7 +307,7 @@ export const EMBED_SIZE_PRESETS: readonly EmbedSizePreset[] = Object.freeze([
   },
   {
     id: 'wide',
-    label: 'rộng',
+    label: 'Rộng',
     widthPx: WIDE_EMBED_WIDTH_PX,
     heightPx: WIDE_EMBED_HEIGHT_PX,
   },

@@ -19,6 +19,13 @@
  * Trang PDF được chọn (từ 0) đi qua `CreateFloorUploadInput` xuống thân #5, và
  * qua `EnqueueOfflineUploadInput` vào lệnh hàng đợi. Vắng thì khoá không xuất hiện.
  *
+ * ## Lệnh `uploadDrawing` trong hàng đợi ngoại tuyến
+ *
+ * Lệnh chỉ là **dấu đếm** cho ConnectionStates ("chờ đồng bộ"): nó không mang
+ * được `File`, nên màn — nơi giữ tệp — tự tải khi mạng về và tự gỡ lệnh. Tệp
+ * không sống qua lượt tải lại trang, nên lệnh còn lại lúc mở màn là lệnh mồ côi
+ * và bị gỡ (`clearOrphanUploads`).
+ *
  * ## Bốn việc file này KHÔNG làm
  *
  * 1. **Không tự chia khúc, không tự đếm song song, không tự viết trần dung
@@ -42,7 +49,7 @@ import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import { createNetworkMonitor } from '@/lib/offline/networkMonitor';
 import type { NetworkMonitor } from '@/lib/offline/networkMonitor';
-import { addPendingCommand } from '@/lib/offline/queueStore';
+import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/lib/offline/queueStore';
 import {
   createUploadTask,
   guessFloorFromFileName,
@@ -64,7 +71,7 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 const CAD_NOT_SUPPORTED_CODE = 'CAD_NOT_SUPPORTED';
-const CAD_NOT_SUPPORTED_SENTENCE = 'bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.';
+const CAD_NOT_SUPPORTED_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.';
 
 export interface ReadProjectFloorsInput {
   readonly projectId: string;
@@ -126,8 +133,15 @@ export interface FloorUploadGateway {
   readonly guessFloor: (name: string) => FloorGuess;
   /** Một lượt tải: `initUpload` → các khúc → `complete`, kèm huỷ và trạng thái. */
   readonly createUpload: (input: CreateFloorUploadInput) => UploadTask;
-  /** Ghi ý định tải vào hàng đợi ngoại tuyến. `false` khi hàng đợi từ chối. */
-  readonly enqueueOffline: (input: EnqueueOfflineUploadInput) => Promise<boolean>;
+  /** Ghi ý định tải vào hàng đợi ngoại tuyến. Mã lệnh, hoặc `null` khi hàng đợi từ chối. */
+  readonly enqueueOffline: (input: EnqueueOfflineUploadInput) => Promise<number | null>;
+  /** Gỡ một lệnh đã ghi — màn đã tự tải tệp ấy, hoặc tệp không còn đi tầng ấy (NO-392). */
+  readonly dropOffline: (commandId: number) => Promise<void>;
+  /**
+   * Gỡ mọi lệnh `uploadDrawing` của dự án còn nằm trong hàng đợi — lệnh của một
+   * phiên trước, mà tệp đã mất cùng lượt tải lại trang. Lệnh loại khác giữ nguyên.
+   */
+  readonly clearOrphanUploads: (projectId: string) => Promise<void>;
   /**
    * Theo dõi mạng. Bắt đầu ngay, trả hàm dọn dẹp.
    *
@@ -148,6 +162,15 @@ export interface FloorUploadGateway {
 export interface CreateFloorUploadGatewayOptions {
   /** Bộ theo dõi mạng tiêm được — test cắm bản giả để khỏi ping thật. */
   readonly networkMonitor?: NetworkMonitor;
+}
+
+/** Lệnh `uploadDrawing` do chính cổng này ghi (`command: unknown` trong hàng đợi). */
+function isUploadDrawingCommand(command: unknown): boolean {
+  return (
+    typeof command === 'object' &&
+    command !== null &&
+    (command as { readonly kind?: unknown }).kind === 'uploadDrawing'
+  );
 }
 
 /** Cửa sổ hoàn tác, tái xuất để hook và test không viết lại con số (R-71). */
@@ -210,6 +233,9 @@ export function createFloorUploadGateway(
         projectId,
         command: {
           kind: 'uploadDrawing',
+          // Dòng ConnectionStates đọc `label` (`toPendingRow`); thiếu nó thì hiện
+          // "Thay đổi chưa đặt tên".
+          label: `Tải bản vẽ ${fileName} khi có mạng`,
           fileName,
           floorId,
           projectId,
@@ -218,7 +244,25 @@ export function createFloorUploadGateway(
         },
       });
 
-      return result.ok;
+      return result.ok ? result.data.id : null;
+    },
+
+    dropOffline: async (commandId) => {
+      await deletePendingCommand(commandId);
+    },
+
+    clearOrphanUploads: async (projectId) => {
+      const listed = await listPendingCommands(projectId);
+
+      if (!listed.ok) {
+        return;
+      }
+
+      for (const pending of listed.data) {
+        if (isUploadDrawingCommand(pending.command)) {
+          await deletePendingCommand(pending.id);
+        }
+      }
     },
 
     watchNetwork: (listener) => {

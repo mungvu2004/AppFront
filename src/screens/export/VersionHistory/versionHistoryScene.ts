@@ -28,14 +28,14 @@ import { changedEntityIdsOf } from './versionHistoryModel';
 /* -------------------------------------------------------------------------- */
 
 /** Nơi ráp không cấp đường dựng cảnh nào. */
-export const NO_SCENE_REASON = 'màn này chưa nối được vào bộ dựng cảnh 3D';
+export const NO_SCENE_REASON = 'Màn này chưa nối được vào bộ dựng cảnh 3D';
 
 /** Chưa có đồ thị không gian trong kho — chưa tầng nào để dựng. */
-export const NO_MODEL_REASON = 'chưa có mô hình không gian nào được nạp, nên chưa dựng được cảnh';
+export const NO_MODEL_REASON = 'Chưa có mô hình không gian nào được nạp, nên chưa dựng được cảnh';
 
 /** Có đồ thị nhưng nó không thành hình được. */
 export const BROKEN_MODEL_REASON =
-  'mô hình hiện tại chưa dựng được thành cảnh, nên tab này để trống';
+  'Mô hình hiện tại chưa dựng được thành cảnh, nên tab này để trống';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Đồ thị thành đầu vào dựng sàn                                          */
@@ -238,8 +238,8 @@ export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
     isBuilding: isAvailable && input.isFetchingDiff,
     caption:
       leftVersionLabel === null
-        ? `đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`
-        : `đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
+        ? `Đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`
+        : `Đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
     sceneLevels: scene.levels,
     sceneFrame,
     changedEntityIds,

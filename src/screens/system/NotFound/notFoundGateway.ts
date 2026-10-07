@@ -12,11 +12,26 @@
  * (nó tự chọn client thật hay client giả theo môi trường), `now` mặc định
  * `Date.now` để bài kiểm cắm được đồng hồ giả.
  *
- * ## Tầng dữ liệu dùng chung, không phải tầng thứ hai (R-64)
+ * ## Khoá RIÊNG, và vì sao lượt trước dùng chung là sai
  *
- * Khoá bộ đệm là {@link NOT_FOUND_RECENT_QUERY_KEY} = `queryKeys.project.list()`
- * — CÙNG khoá mà `useProjectDashboard` dùng, nên hai màn dùng chung một lượt
- * đọc thay vì mỗi màn nuôi một bản sao. Chính sách bộ đệm là
+ * Khoá bộ đệm là {@link NOT_FOUND_RECENT_QUERY_KEY} = `queryKeys.project.recent()`.
+ * Trước 02-10-2026 nó là `queryKeys.project.list()` — CÙNG khoá mà
+ * `useProjectDashboard` dùng — với lý do "hai màn dùng chung một lượt đọc thay vì
+ * mỗi màn nuôi một bản sao". Lý do ấy nghe đúng và nó **đổ**, vì hai cổng ghi hai
+ * HÌNH DẠNG khác nhau vào cùng một khoá:
+ *
+ * - cổng này đọc `client.projects.list()` ⇒ ghi hình dạng `Project` của API;
+ * - `projectsGateway.fetchProjectList()` **không gọi API nào**, nó trả
+ *   `SAMPLE_PROJECTS` ⇒ hình dạng `DashboardProject`, có thêm `members`.
+ *
+ * Nên lợi ích đã nêu chỉ có theo chiều bảng-điều-khiển → 404. Chiều ngược thì đổ:
+ * vào 404 trước rồi bấm "về danh sách dự án", bảng điều khiển đọc lại bộ đệm của
+ * màn này và `ProjectCardTile.tsx:149` ném
+ * `Cannot read properties of undefined (reading 'length')` ở `project.members`.
+ * Đo được bằng trình duyệt thật, và mở `/` thẳng thì KHÔNG vỡ — chỉ vỡ khi điều
+ * hướng trong ứng dụng, nên nó sống được khá lâu.
+ *
+ * Chính sách bộ đệm là
  * {@link NOT_FOUND_RECENT_CACHE_POLICY}, HỎI `resolveCachePolicy(khoá)` chứ
  * không gõ lại con số nào: miền `project` không có mục trong `TIER_BY_DOMAIN`
  * nên nó nhận bậc `'default'`, và viết `staleTime: 30_000` ở đây sẽ là dựng
@@ -51,11 +66,13 @@ import { RECENT_PROJECT_LIMIT, type NotFoundGateway, type RecentProjectVm } from
 /**
  * Khoá bộ đệm của lượt đọc gợi ý — lấy từ `queryKeys`, không gõ tay.
  *
- * Cùng khoá với danh sách dự án của bảng điều khiển: một người mở bảng điều
- * khiển rồi gõ nhầm một đường dẫn sẽ thấy gợi ý hiện ra ngay từ bộ đệm, không
- * phải chờ một lượt đọc thứ hai cho cùng dữ liệu.
+ * **Một khoá một hình dạng.** Đây là khoá riêng của màn này, không phải
+ * `project.list` của bảng điều khiển — xem mục "Khoá RIÊNG" ở đầu tệp để biết
+ * việc dùng chung đã đổ ra sao. Cái giá phải trả là màn này không còn đọc nóng từ
+ * bộ đệm của bảng điều khiển; đổi lại bảng điều khiển không còn đọc được một hình
+ * dạng nó không hiểu.
  */
-export const NOT_FOUND_RECENT_QUERY_KEY: QueryKey = queryKeys.project.list();
+export const NOT_FOUND_RECENT_QUERY_KEY: QueryKey = queryKeys.project.recent();
 
 /**
  * Chính sách bộ đệm của khoá trên — HỎI, không khai lại.
@@ -70,7 +87,7 @@ export const NOT_FOUND_RECENT_CACHE_POLICY: ResolvedCachePolicy = resolveCachePo
 );
 
 /** Tiền tố của `recencyLabel`. Xem khoản 2 của hợp đồng. */
-export const RECENCY_LABEL_PREFIX = 'cập nhật ';
+export const RECENCY_LABEL_PREFIX = 'Cập nhật ';
 
 /* -------------------------------------------------------------------------- */
 /* 2 — Ánh xạ                                                                  */

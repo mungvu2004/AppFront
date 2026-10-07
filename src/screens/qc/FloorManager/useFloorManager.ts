@@ -173,28 +173,28 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 export const FLOOR_MANAGER_TEXT = {
-  emptyTitle: 'chưa có tầng nào',
-  emptyNotice: 'thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
-  forbiddenNotice: 'vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.',
-  drawingsMissing: 'chưa có bản vẽ',
-  persistFailedTitle: 'chưa lưu được thay đổi tầng',
+  emptyTitle: 'Chưa có tầng nào',
+  emptyNotice: 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
+  forbiddenNotice: 'Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.',
+  drawingsMissing: 'Chưa có bản vẽ',
+  persistFailedTitle: 'Chưa lưu được thay đổi tầng',
   shortcutUndo: 'Hoàn tác thay đổi tầng gần nhất',
   uploadDrawingHint:
-    'tải bản vẽ lên ở màn hình bản vẽ của tầng này; danh sách tầng chỉ cho biết tầng nào còn thiếu.',
+    'Tải bản vẽ lên ở màn hình bản vẽ của tầng này; danh sách tầng chỉ cho biết tầng nào còn thiếu.',
   duplicateSuffix: 'bản sao',
   newFloorPrefix: 'Tầng',
-  addRefusedTitle: 'chưa thêm được tầng',
-  renameRefusedTitle: 'chưa đổi được tên tầng',
-  undoRefusedTitle: 'chưa hoàn tác được thay đổi tầng',
-  idTaken: 'mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.',
-  limitReached: 'dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.',
-  listChangedElsewhere: 'danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.',
+  addRefusedTitle: 'Chưa thêm được tầng',
+  renameRefusedTitle: 'Chưa đổi được tên tầng',
+  undoRefusedTitle: 'Chưa hoàn tác được thay đổi tầng',
+  idTaken: 'Mã tầng đã có trong dự án, thao tác vừa rồi đã được huỷ.',
+  limitReached: 'Dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.',
+  listChangedElsewhere: 'Danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.',
   idAmbiguous:
-    'mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.',
-  floorGone: 'tầng này không còn trên máy chủ.',
-  undoExpired: 'đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.',
+    'Mã tầng này trùng với một tầng ở dự án khác của bạn nên máy chủ chưa xử lý được; thao tác vừa rồi đã được huỷ.',
+  floorGone: 'Tầng này không còn trên máy chủ.',
+  undoExpired: 'Đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.',
   undoNotLatest:
-    'thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.',
+    'Thay đổi này không còn là thay đổi gần nhất nên không hoàn tác được từ thông báo.',
 } as const;
 
 /**
@@ -557,9 +557,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   /* Nạp đồ thị của dự án vào kho một lần, nếu kho còn trống. */
   useEffect(() => {
     if (storeGraph === null && loadedGraph !== null) {
-      setSpatial(loadedGraph, null);
+      setSpatial(loadedGraph, null, {
+        floorRevisions: floorListQuery.data?.floorRevisions ?? {},
+        projectId,
+      });
     }
-  }, [loadedGraph, setSpatial, storeGraph]);
+  }, [floorListQuery.data?.floorRevisions, loadedGraph, projectId, setSpatial, storeGraph]);
 
   /*
    * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn

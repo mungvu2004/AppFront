@@ -146,10 +146,13 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         />
       </header>
 
-      <div className="flex shrink-0 items-center gap-2 px-5 pb-3">
-        <ValidityDot isValid={model.validity.isValid} />
-        <p className="text-[13px] leading-[18px] text-text-secondary">{model.validity.summary}</p>
-      </div>
+      {/* Chưa có dữ liệu thì chưa có gì để kiểm: "hợp lệ — 0 lỗi" lúc ấy là nói thừa (B-V12-07). */}
+      {model.state === 'empty' || model.state === 'loading' ? null : (
+        <div className="flex shrink-0 items-center gap-2 px-5 pb-3">
+          <ValidityDot isValid={model.validity.isValid} />
+          <p className="text-[13px] leading-[18px] text-text-secondary">{model.validity.summary}</p>
+        </div>
+      )}
 
       {model.validity.issues.length > 0 ? (
         <ul className="mb-3 flex shrink-0 flex-col gap-1 px-5">
@@ -168,7 +171,7 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         </div>
       ) : null}
 
-      <main className="flex min-h-0 flex-1 gap-3 px-3 pb-3">
+      <div className="flex min-h-0 flex-1 gap-3 px-3 pb-3">
         <section
           aria-label="Cấu trúc dự án"
           className={`min-h-0 overflow-auto rounded-[12px] bg-bg-surface ${
@@ -205,7 +208,7 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
             selectedNode={selectedNode}
           />
         )}
-      </main>
+      </div>
 
       <footer className="flex h-8 shrink-0 items-center gap-4 px-5 pb-3">
         <span className="font-mono text-[13px] leading-5 text-text-secondary">{model.sizeLabel}</span>

@@ -88,11 +88,11 @@ const FILTER_KEYS: readonly WallLayerFilterKey[] = [
 const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
 const FLOOR_NAV_ARIA_LABEL = 'Tầng của bản vẽ';
 const CENTRELINES_LABEL = 'Hiện tim tường';
-const SHOW_WALL_LAYER_LABEL = 'Hiện lớp Tường';
-const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp Tường';
+const SHOW_WALL_LAYER_LABEL = 'Hiện lớp tường';
+const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp tường';
 const REVIEWED_SUFFIX = ' tường đã duyệt';
-/** Cùng hành động với mục cây lớp "Cửa và nội thất" — xem `onNavigateLayer`. */
-const SUCCESS_CONTINUE_LABEL = 'Sang lớp Cửa và nội thất';
+/** Cùng hành động với mục cây lớp "cửa và nội thất" — xem `onNavigateLayer`. */
+const SUCCESS_CONTINUE_LABEL = 'Sang lớp cửa và nội thất';
 
 /**
  * Một hàng cây lớp — dựng tại chỗ thay vì gọi `TreeItem` dùng chung.
@@ -112,7 +112,7 @@ const SUCCESS_CONTINUE_LABEL = 'Sang lớp Cửa và nội thất';
  * màn dùng hàng của riêng nó: một `<button role="treeitem">` thật, bàn phím tới
  * được, nhãn tiếng Việt có dấu, không có nút phụ nào chết bên trong.
  *
- * Cờ hiện/ẩn lớp Tường KHÔNG mất đi — nó sống ở cây lớp của kho
+ * Cờ hiện/ẩn lớp tường KHÔNG mất đi — nó sống ở cây lớp của kho
  * (`hiddenLayers`), và chú giải độ dày đọc thẳng cờ đó.
  */
 function WallLayerTreeRow({

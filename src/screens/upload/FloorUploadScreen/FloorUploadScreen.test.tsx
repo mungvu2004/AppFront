@@ -32,10 +32,11 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import type { DrawingsApi } from '@/api/client';
 import { formatFileSize } from '@/lib/format/bytes';
 import { durationMs, REDUCED_MOTION_QUERY } from '@/lib/motion';
-import type {
-  NetworkMonitor,
-  NetworkMonitorStatus,
-  NetworkStatusListener,
+import {
+  createNetworkMonitor,
+  type NetworkMonitor,
+  type NetworkMonitorStatus,
+  type NetworkStatusListener,
 } from '@/lib/offline/networkMonitor';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -178,6 +179,32 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('FloorUploadScreenView — khả năng tiếp cận và tiếng Việt (R-72)', () => {
+  it('nút tuỳ chọn của thẻ nói bảng đang mở hay đóng, và chỉ có mặt khi có mục để chọn (B-V4-07)', () => {
+    const scenario = scenarioFor('partial');
+    renderWithProviders(<FloorUploadScreenView {...scenario} />);
+
+    const menuButtons = screen.queryAllByRole('button', { name: /^Tùy chọn của tầng / });
+    const rowsWithActions = scenario.floors.filter(
+      (row) =>
+        row.file !== null &&
+        (row.canCancelUpload || row.canRetryUpload || (row.canRemoveFile && row.removeLabel !== null)),
+    );
+
+    expect(menuButtons).toHaveLength(rowsWithActions.length);
+
+    const first = menuButtons[0];
+
+    if (first === undefined) {
+      throw new Error('kịch bản partial phải có ít nhất một thẻ có tuỳ chọn');
+    }
+
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(first);
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(first, { key: 'Escape' });
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('đi qua expectAccessible ở trạng thái đầy đủ nhất', () => {
     const { container } = renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
 
@@ -559,11 +586,104 @@ describe('FloorUploadScreen — tốc độ cập nhật tiến trình (tiêu ch
     });
 
     // Bộ tiết chế bỏ bớt các nhịp giữa chừng, không được bỏ nhịp cuối: đúng
-    // thẻ tầng vừa nhận tệp phải kết thúc ở "đã gắn kèm".
+    // thẻ tầng vừa nhận tệp phải kết thúc ở "Đã gắn kèm".
     const uploadedCard = document.querySelector('[data-floor-id="L2"]');
 
     expect(uploadedCard, 'thẻ của Tầng 2 phải còn trên trang').not.toBeNull();
-    expect(uploadedCard?.textContent).toContain('đã gắn kèm');
+    expect(uploadedCard?.textContent).toContain('Đã gắn kèm');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Lượt kiểm mạng đầu tiên chưa xong (NO-381).                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('FloorUploadScreen — tệp chọn trước lượt kiểm mạng đầu tiên vẫn được tải (NO-381)', () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
+  it('bộ giám sát thật chưa ping xong thì màn không coi là mất mạng: tệp tải lên, bộ đếm lên 2 / 4', async () => {
+    // Bộ giám sát THẬT, chỉ thay lượt ping bằng một lượt chưa trả lời — đúng
+    // khoảnh khắc máy chủ dev còn bận và `HEAD /` chưa về. Trước NO-390 bộ giám
+    // sát báo "mất mạng" ở khoảng này; nay nó tin trình duyệt tới lượt ping đầu.
+    const gateway = createFloorUploadGateway(createMockApiClient(), {
+      networkMonitor: createNetworkMonitor({ ping: () => new Promise<boolean>(() => undefined) }),
+    });
+
+    renderWithProviders(<FloorUploadScreenContainer gateway={gateway} projectId={PROJECT_ID} />);
+
+    await act(async () => {
+      await clock.advance(SETTLE_STEP_MS);
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    expect(counterStatusText()).toBe('1 / 4 tầng đã có bản vẽ');
+
+    const file = new File(['x'], 'mat-bang-tang-2.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId(FILE_INPUT_TEST_ID), { target: { files: [file] } });
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    // Một giây mô phỏng, mỗi nhịp một `act`: đủ cho bộ tiết chế 250 ms nhả mốc
+    // cuối. Không `runAllTimers` — nhịp ping 20 s của bộ giám sát lặp mãi.
+    for (let elapsed = 0; elapsed < MEASURE_WINDOW_MS; elapsed += SETTLE_STEP_MS * 10) {
+      await act(async () => {
+        await clock.advance(SETTLE_STEP_MS * 10);
+      });
+    }
+
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
+    expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
+  });
+
+  it('tệp chọn lúc ngoại tuyến thật tự tải khi mạng về, bộ đếm lên 2 / 4 (NO-389)', async () => {
+    let reachable = false;
+    const monitor = createNetworkMonitor({
+      navigatorObject: { onLine: true },
+      ping: async () => reachable,
+    });
+    const gateway = createFloorUploadGateway(createMockApiClient(), { networkMonitor: monitor });
+
+    renderWithProviders(<FloorUploadScreenContainer gateway={gateway} projectId={PROJECT_ID} />);
+
+    await act(async () => {
+      await clock.advance(SETTLE_STEP_MS);
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    const file = new File(['x'], 'mat-bang-tang-2.png', { type: 'image/png' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId(FILE_INPUT_TEST_ID), { target: { files: [file] } });
+      await clock.advance(SETTLE_STEP_MS);
+    });
+
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Chờ xử lý');
+    expect(counterStatusText()).toBe('1 / 4 tầng đã có bản vẽ');
+
+    reachable = true;
+
+    await act(async () => {
+      await monitor.checkNow();
+    });
+
+    for (let elapsed = 0; elapsed < MEASURE_WINDOW_MS; elapsed += SETTLE_STEP_MS * 10) {
+      await act(async () => {
+        await clock.advance(SETTLE_STEP_MS * 10);
+      });
+    }
+
+    expect(document.querySelector('[data-floor-id="L2"]')?.textContent).toContain('Đã gắn kèm');
+    expect(counterStatusText()).toBe('2 / 4 tầng đã có bản vẽ');
   });
 });
 
@@ -578,8 +698,8 @@ describe('FloorUploadScreen — tốc độ cập nhật tiến trình (tiêu ch
  * `requestAnimationFrame`, mà `useCountUp` chạy trên đúng hai thứ đó. Để nguyên
  * thì mọi khung hình mang cùng một dấu thời gian đông cứng, con số không nhích
  * bước nào, và bài kiểm "bộ đếm chạy số" sẽ xanh mà không khẳng định gì — đúng
- * thứ E.10 tồn tại để chặn. Cùng cách làm với `BillingScreen.test.tsx`, vẫn neo
- * vào `FAKE_CLOCK_START` để hai file định dạng cùng một mốc ra cùng một chuỗi.
+ * thứ E.10 tồn tại để chặn. Đồng hồ giả vẫn neo vào `FAKE_CLOCK_START` để mọi
+ * file định dạng cùng một mốc ra cùng một chuỗi.
  */
 function installCountUpClock(): void {
   vi.useFakeTimers({
@@ -624,7 +744,9 @@ function counterNumberText(): string {
 
 /** Chuỗi vùng sống: luôn phải là giá trị CUỐI, không phải khung giữa chừng. */
 function counterStatusText(): string {
-  return screen.getByRole('status').textContent ?? '';
+  // Lọc theo chữ: bộ thông báo toàn cục (`data-announcer`) cũng là `role="status"`
+  // và sống qua các bài, nên một câu báo của bài trước không được làm lệch bài này.
+  return screen.getByText(/tầng đã có bản vẽ$/u, { selector: '[role="status"]' }).textContent ?? '';
 }
 
 /** Bắt `matchMedia` trả lời "có, tôi muốn giảm chuyển động". */

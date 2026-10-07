@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   ApiResult,
   CompleteDrawingUploadInput,
-  DrawingsApi,
   InitDrawingUploadInput,
   Progress,
   SendDrawingChunkInput,
@@ -22,6 +21,7 @@ import {
   PROGRESS_MIN_GAP_MS,
   runUploadQueue,
   systemUploadClock,
+  type CreateUploadTaskOptions,
   type UploadClock,
   type UploadFile,
   type UploadTaskState,
@@ -136,7 +136,7 @@ const httpError = (status: number): HttpError => ({
 const failWith = (status: number): ApiResult<Progress> => ({ error: httpError(status), ok: false });
 
 interface RecordingApi {
-  readonly api: DrawingsApi;
+  readonly api: CreateUploadTaskOptions['api'];
   readonly chunkBodies: Array<{ chunk: string; chunkIndex: number }>;
   readonly completed: string[];
   readonly initialised: InitDrawingUploadInput['body'][];

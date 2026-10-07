@@ -1,6 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ConnectedSaveIndicator } from './SaveIndicator';
+import { ConnectedSaveIndicator, SaveIndicator } from './SaveIndicator';
 import { useStore } from '../../store';
 import { normalizeSpatial } from '../../domain/spatial/normalize';
 import { CLEAN_BUILDING_SCENARIO } from '../../lib/testing/fixtures';
@@ -57,5 +57,17 @@ describe('SaveIndicator', () => {
 
     // Should now show saved
     expect(screen.getByText(/Đã lưu lúc/)).toBeInTheDocument();
+  });
+});
+
+describe('SaveIndicator — một nguồn chữ (B-V1-47)', () => {
+  it('nhãn của hook thắng ở trạng thái chờ và đang lưu, không bị chữ cố định đè', () => {
+    const { rerender } = render(<SaveIndicator saveState="pending" label="Ngoại tuyến — sẽ lưu khi có mạng" />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Ngoại tuyến — sẽ lưu khi có mạng');
+
+    rerender(<SaveIndicator saveState="saving" label="Đang lưu…" />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Đang lưu…');
   });
 });

@@ -25,8 +25,8 @@
  * `createUuid` from it.)
  */
 
-import type { ReactElement } from 'react';
-import { AlertCircle, Bell, FolderPlus, Lock, Plus, Search } from 'lucide-react';
+import type { ReactElement, ReactNode } from 'react';
+import { AlertCircle, FolderPlus, Lock, Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -45,9 +45,11 @@ import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
+import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
 import { DashboardSidebar } from './DashboardSidebar';
+import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import {
   PROJECT_SORT_OPTIONS,
@@ -61,41 +63,49 @@ import {
 } from './useProjectDashboard';
 
 const SKELETON_CARD_COUNT = 6;
+
+/**
+ * What the `sr-only` status line says — the screen reader's only way to learn
+ * which of the seven states the dashboard is in. It used to print the raw
+ * `SevenState` key ("success", "forbidden"), English in a Vietnamese product
+ * (A6). Its own copy, like `ProjectSettings.tsx` and `CreateProjectModal.tsx`:
+ * `SEVEN_STATE_LABELS` lives in test infrastructure that never ships.
+ */
+const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
+  empty: 'rỗng',
+  loading: 'đang tải',
+  partial: 'một phần',
+  error: 'lỗi',
+  success: 'thành công',
+  forbidden: 'Không có quyền',
+  collapsed: 'thu gọn',
+};
 const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
-export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {}
+export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
+  /**
+   * Chuông thông báo đã nối, do container cắm vào — view không nhập gì từ
+   * NotificationCenter. Khe trống thì không vẽ chuông nào: một nút không làm gì
+   * mà vẫn nằm trong thứ tự Tab là thứ A2 chặn (B-V3-08).
+   */
+  readonly notificationBell?: ReactNode | undefined;
+}
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
 export function ProjectDashboardView(props: ProjectDashboardViewProps) {
-  const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, shouldStagger, statusCounts } = props;
+  const { state, rows, errorMessage, pendingDeleteId, pendingDeleteName, shouldStagger, statusCounts, unreadNotice, deleteErrorMessage } = props;
   const contextMenu = useContextMenu();
   const isCollapsed = state === 'collapsed';
   const showSidebar = !isCollapsed && state !== 'loading' && state !== 'error';
 
-  const openMenuFor = (project: ProjectCardModel, x: number, y: number): void => {
-    contextMenu.openMenu(x, y, [
-      {
-        id: 'project-actions',
-        items: [
-          { id: 'open', label: 'Mở', action: () => props.openProject(project.id, 'card') },
-          { id: 'duplicate', label: 'Nhân bản', action: () => props.duplicateProject(project.id) },
-          { id: 'rename', label: 'Đổi tên', action: () => props.startRename(project.id) },
-          {
-            id: 'delete',
-            label: 'Xoá',
-            isDestructive: true,
-            isDisabled: !props.canDelete,
-            action: () => props.requestDelete(project.id),
-          },
-        ],
-      },
-    ]);
-  };
+  const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
+    contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
 
   const nameField = (project: ProjectCardModel, className: string) =>
     props.renamingId === project.id ? (
       <input
         autoFocus
+        aria-label={`Đổi tên ${project.name}`}
         value={props.renameDraft}
         onChange={(event) => props.setRenameDraft(event.target.value)}
         onBlur={props.commitRename}
@@ -122,8 +132,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       renameDraft={props.renameDraft}
       onOpen={(id) => props.openProject(id, 'card')}
       onMenu={openMenuFor}
-      onPointerEnter={props.onCardPointerEnter}
-      onPointerLeave={props.onCardPointerLeave}
       onRenameChange={props.setRenameDraft}
       onRenameCommit={props.commitRename}
       onRenameCancel={props.cancelRename}
@@ -172,9 +180,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           wrapperClassName="w-[320px] max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
-          <button type="button" aria-label="Thông báo" className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary">
-            <Bell size={18} aria-hidden="true" />
-          </button>
+          {props.notificationBell}
           <Avatar alt="Tài khoản của bạn" />
           {props.canCreate && (
             <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
@@ -233,6 +239,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           )}
 
           <main className="flex min-w-0 flex-1 flex-col gap-5">
+            {unreadNotice !== null && <InlineAlert level="attention" message={unreadNotice} />}
             {state === 'loading' ? (
               <div className={GRID_COLUMNS_CLASS}>
                 {Array.from({ length: SKELETON_CARD_COUNT }, (_unused, index) => (
@@ -268,11 +275,11 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                   <Table.Root>
                     <Table.Header>
                       <tr>
-                        <Table.Head>tên dự án</Table.Head>
-                        <Table.Head>trạng thái</Table.Head>
-                        <Table.Head>chi tiết</Table.Head>
-                        <Table.Head>tiến độ duyệt</Table.Head>
-                        <Table.Head>cập nhật</Table.Head>
+                        <Table.Head>Tên dự án</Table.Head>
+                        <Table.Head>Trạng thái</Table.Head>
+                        <Table.Head>Chi tiết</Table.Head>
+                        <Table.Head>Tiến độ duyệt</Table.Head>
+                        <Table.Head>Cập nhật</Table.Head>
                       </tr>
                     </Table.Header>
                     <Table.Body>
@@ -289,8 +296,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                             event.preventDefault();
                             openMenuFor(project, event.clientX, event.clientY);
                           }}
-                          onPointerEnter={() => props.onCardPointerEnter(project.id)}
-                          onPointerLeave={() => props.onCardPointerLeave(project.id)}
                         >
                           <Table.Cell className="font-medium">{nameField(project, 'text-[14px] font-medium text-text-primary')}</Table.Cell>
                           <Table.Cell>
@@ -313,8 +318,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       <ContextMenu isVisible={contextMenu.isVisible} position={contextMenu.position} groups={contextMenu.groups} onClose={contextMenu.closeMenu} />
 
       {/* A9: xoá là hành động duy nhất trên màn này A8 không phủ được, nên đây
-          là chỗ duy nhất được phép hỏi trước. Nhân bản và đổi tên hoàn tác được
-          bằng toast (xem `duplicateProject`/`commitRename`) nên không hỏi. */}
+          là chỗ duy nhất được phép hỏi trước. Đổi tên hoàn tác được
+          bằng toast (xem `commitRename`) nên không hỏi. */}
       <Modal.Root isOpen={pendingDeleteId !== null} onClose={props.cancelDelete} width={480} titleId="project-delete-title">
         <Modal.Header>
           <span id="project-delete-title">Xoá dự án?</span>
@@ -328,6 +333,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               Không hoàn tác được.
             </p>
+            {deleteErrorMessage !== null && <InlineAlert level="violation" message={deleteErrorMessage} />}
           </div>
         </Modal.Body>
         <Modal.Footer>
@@ -341,13 +347,16 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       </Modal.Root>
 
       <span className="sr-only" role="status">
-        {state}
+        {STATE_ANNOUNCEMENT[state]}
       </span>
     </div>
   );
 }
 
-export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {}
+export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {
+  /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.notificationBell}. */
+  readonly notificationBell?: ReactNode | undefined;
+}
 
 /**
  * Wires the hook to the router and whichever `Toast.Provider` is nearest, then
@@ -359,7 +368,7 @@ export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 
  * two lines down. Two independent `Toast.Provider`s would each draw their own
  * fixed-position stack in the same corner (R-73's container/props boundary).
  */
-export function ProjectDashboardConnected(options: ProjectDashboardProps) {
+export function ProjectDashboardConnected({ notificationBell, ...options }: ProjectDashboardProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -369,7 +378,7 @@ export function ProjectDashboardConnected(options: ProjectDashboardProps) {
     onToast: addToast,
   });
 
-  return <ProjectDashboardView {...model} {...actions} />;
+  return <ProjectDashboardView {...model} {...actions} notificationBell={notificationBell} />;
 }
 
 /** `ProjectDashboard`, standalone — its own `Toast.Provider`. For stories, tests and the demo picker; the real route is `ProjectDashboardRoute` (`./ProjectDashboard.container`). */

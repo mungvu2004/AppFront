@@ -50,7 +50,7 @@ import { placeOnWall } from '@/domain/openings/attach';
 import { reflowOpenings, reflowOpeningsAcrossSplit } from '@/domain/openings/reflow';
 import type { AttachedOpening } from '@/domain/openings/types';
 import { checkDanglingWallEnds, checkWallOverlap } from '@/domain/rules/geometry';
-import { createId, isIdOfKind } from '@/domain/spatial/ids';
+import { createId, displayCodesOf, isIdOfKind } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId, Point, Wall as GraphWall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
@@ -370,23 +370,15 @@ export function wallEndOfVertexId(vertexId: string): WallEnd | null {
 export const wallIdOfPartId = (partId: string): string =>
   partId.slice(0, Math.max(partId.indexOf(PART_SEPARATOR), 0));
 
-/** Số chữ số của nhãn người đọc: "W-014", không phải "W-14". */
-const DISPLAY_CODE_DIGITS = 3;
-
-/** Số chữ số bộ đếm mà `createId` sinh ra. */
-const ID_COUNTER_LENGTH = 6;
-
 /**
- * Nhãn người đọc của một mã tường: `W-000014WALL` → `W-014`.
- *
- * Thuần cắt chuỗi, không một phép hình học nào — cùng cách màn S-12 rút nhãn
- * từ mã máy, chép lại ở đây vì màn không được nhập màn (ranh giới mục 0.4).
+ * Nhãn người đọc (`W-014`, không có `#`) của mọi tường trên một tầng, tính trên CẢ tầng
+ * để mã BE / bộ mẫu A14 không có số đếm đứng đầu vẫn ra nhãn không trùng (B-V6-09).
  */
-export function wallDisplayCode(id: string): string {
-  const counter = id.slice(2).slice(0, ID_COUNTER_LENGTH).replace(/^0+/u, '');
-
-  return `${id.slice(0, 1)}-${(counter === '' ? '0' : counter).padStart(DISPLAY_CODE_DIGITS, '0')}`;
-}
+export const wallCodesOnLevel = (
+  graph: NormalizedSpatial,
+  levelId: LevelId,
+): ReadonlyMap<string, string> =>
+  displayCodesOf(wallsOnLevel(graph, levelId).map((wall) => wall.id));
 
 /** Số chữ số của mã đỉnh: "V-01". */
 const VERTEX_CODE_DIGITS = 2;
@@ -1143,7 +1135,7 @@ export function createWallGeometryEditorGateway(
     ...(options.history === undefined ? {} : { history: options.history }),
   });
 
-  /** Đồ thị và bức tường đang sửa, hoặc câu "chưa có nơi để lưu". */
+  /** Đồ thị và bức tường đang sửa, hoặc câu "bức tường không có trong dữ liệu của dự án". */
   const targetOf = (
     wallId: string,
   ):
@@ -1153,7 +1145,7 @@ export function createWallGeometryEditorGateway(
     const target = readWallTarget(graph, wallId);
 
     if (graph === null || target === null) {
-      return { ok: false, refusal: { explanation: TEXT.refusal.noSaveTarget, offendingEdgeIds: [] } };
+      return { ok: false, refusal: { explanation: TEXT.refusal.wallMissing, offendingEdgeIds: [] } };
     }
 
     return { ok: true, graph, target };

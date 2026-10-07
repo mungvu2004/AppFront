@@ -15,6 +15,7 @@
  *
  * ## "Không bao giờ ép" nghĩa là gì ở đây, cụ thể
  *
+ * - Ngoại lệ duy nhất: tên rỗng/chỉ khoảng trắng bị chặn ở ô (báo lỗi, giữ tên cũ).
  * - Chữ gõ vào KHÔNG bị chặn, KHÔNG bị tự sửa, KHÔNG bị so với danh sách gợi
  *   ý; ô nhập không bao giờ nhận một `error` nào vì tên nằm ngoài vựng chuẩn.
  * - Bấm/chọn một gợi ý chỉ ĐIỀN vào ô rồi trả tiêu điểm về ô — người dùng sửa
@@ -33,6 +34,7 @@ import { cn } from '@/lib/utils';
 const NAME_LABEL = 'Tên phòng';
 const NAME_PLACEHOLDER = 'Gõ tên phòng';
 const NAME_HINT = 'Gợi ý bên dưới chỉ để chọn nhanh — tên tự gõ luôn được giữ nguyên.';
+const NAME_EMPTY_ERROR = 'Tên phòng không được để trống.';
 const SUGGESTIONS_ARIA_LABEL = 'Gợi ý tên phòng';
 
 export interface RoomLabelNameFieldProps {
@@ -48,13 +50,38 @@ export interface RoomLabelNameFieldProps {
 
 export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: RoomLabelNameFieldProps) {
   const [draft, setDraft] = useState(name);
+  const [savedName, setSavedName] = useState(name);
+  const [error, setError] = useState<string | null>(null);
+  /* Tên vừa cam kết mà tên đang lưu chưa kịp theo (lượt lưu còn bay): Enter rồi
+     blur ngay không được cam kết lần hai (review DEBT-03 P3-5e). Chốt chỉ chặn
+     blur; Enter là yêu cầu tường minh nên luôn cam kết — lệnh bị từ chối (tên
+     đang lưu không đổi) thì Enter lại vẫn tới `onCommit`, câu từ chối hiện lại (R2-5). */
+  const [committed, setCommitted] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const commit = () => {
-    if (draft === name) {
+  /* Tên đổi từ ngoài ô (hoàn tác giữ phòng đang chọn, B-V7-09) thì ô theo tên ấy —
+     không giữ chữ cũ. Chỉnh state ngay lúc vẽ, không `useEffect`: tiêu điểm không mất. */
+  if (name !== savedName) {
+    setSavedName(name);
+    setDraft(name);
+    setError(null);
+    setCommitted(null);
+  }
+
+  const commit = (isExplicit: boolean) => {
+    // Tên rỗng bị chặn tại ô (BE từ chối `min(1)`): giữ tên đang lưu, báo lỗi, không cam kết.
+    if (draft.trim() === '' && draft !== name) {
+      setError(NAME_EMPTY_ERROR);
+      setDraft(name);
+
       return;
     }
 
+    if (draft === name || (!isExplicit && draft === committed)) {
+      return;
+    }
+
+    setCommitted(draft);
     onCommit(draft);
   };
 
@@ -67,17 +94,22 @@ export function RoomLabelNameField({ name, suggestions, onCommit, isReadOnly }: 
       <Input
         hint={NAME_HINT}
         label={NAME_LABEL}
-        onBlur={commit}
-        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => commit(false)}
+        error={error ?? undefined}
+        onChange={(event) => {
+          setError(null);
+          setDraft(event.target.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
-            commit();
+            commit(true);
 
             return;
           }
 
           if (event.key === 'Escape') {
+            setError(null);
             setDraft(name);
           }
         }}

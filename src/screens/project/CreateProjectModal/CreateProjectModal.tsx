@@ -38,7 +38,7 @@
  * computation — legal in a view (mục D).
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
@@ -78,7 +78,7 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   partial: 'một phần',
   error: 'lỗi',
   success: 'thành công',
-  forbidden: 'không có quyền',
+  forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
 
@@ -98,20 +98,20 @@ function StepInfo(props: CreateProjectModalViewProps) {
     <div className="flex flex-col gap-4">
       <div className={gridClassName}>
         <Input
-          label="tên dự án"
+          label="Tên dự án"
           value={props.name}
           onChange={(event) => props.setName(event.target.value)}
           maxLength={PROJECT_LIMITS.nameMaxLength}
           error={props.problems.name}
           disabled={props.isSubmitting}
-          placeholder="ví dụ: Chung cư Bình Minh"
+          placeholder="Ví dụ: Chung cư Bình Minh"
         />
         <Input
-          label="mã dự án"
+          label="Mã dự án"
           value={props.code}
           onChange={(event) => props.setCode(event.target.value)}
           disabled={props.isSubmitting}
-          hint="tự tạo từ tên, sửa được"
+          hint="Tự tạo từ tên, sửa được"
         />
       </div>
       <div className={gridClassName}>
@@ -129,7 +129,7 @@ function StepInfo(props: CreateProjectModalViewProps) {
           onOpenChange={props.setSelectOpen}
           disabled={props.isSubmitting}
         >
-          <Select.Label>loại công trình</Select.Label>
+          <Select.Label>Loại công trình</Select.Label>
           <Select.Trigger options={props.buildingTypeOptions} />
           <Select.Content>
             {props.buildingTypeOptions.map((option, index) => (
@@ -141,11 +141,11 @@ function StepInfo(props: CreateProjectModalViewProps) {
         </Select.Root>
       </div>
       <Textarea
-        label="ghi chú"
+        label="Ghi chú"
         value={props.notes}
         onChange={(event) => props.setNotes(event.target.value)}
         disabled={props.isSubmitting}
-        placeholder="không bắt buộc"
+        placeholder="Không bắt buộc"
       />
     </div>
   );
@@ -171,11 +171,11 @@ function StepReview(props: CreateProjectModalViewProps) {
           <InlineAlert level={props.notice.level} message={props.notice.message} />
         </div>
       )}
-      <FieldRow label="tên dự án">{props.name}</FieldRow>
-      <FieldRow label="mã dự án">{props.code === '' ? '—' : props.code}</FieldRow>
+      <FieldRow label="Tên dự án">{props.name}</FieldRow>
+      <FieldRow label="Mã dự án">{props.code === '' ? '—' : props.code}</FieldRow>
       <FieldRow label="địa chỉ">{props.address === '' ? '—' : props.address}</FieldRow>
-      <FieldRow label="loại công trình">{buildingTypeLabel}</FieldRow>
-      <FieldRow label="ghi chú">{props.notes === '' ? '—' : props.notes}</FieldRow>
+      <FieldRow label="Loại công trình">{buildingTypeLabel}</FieldRow>
+      <FieldRow label="Ghi chú">{props.notes === '' ? '—' : props.notes}</FieldRow>
       <FieldRow label="số tầng" isLast>
         {props.floorRows.length}
       </FieldRow>
@@ -215,12 +215,12 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
     return (
       <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
         <Modal.Header>
-          <span id={TITLE_ID}>tạo dự án mới</span>
+          <span id={TITLE_ID}>Tạo dự án mới</span>
         </Modal.Header>
         <Modal.Body className="px-6 py-6 min-h-[320px]">
           <InlineAlert
             level="attention"
-            title="không có quyền tạo dự án"
+            title="Không có quyền tạo dự án"
             message="Vai trò hiện tại chỉ được xem, không thể tạo dự án mới. Liên hệ quản trị dự án nếu cần."
           />
         </Modal.Body>
@@ -228,7 +228,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           <div />
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={props.requestClose}>
-              đóng
+              Đóng
             </Button>
           </div>
         </Modal.Footer>
@@ -242,16 +242,16 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
       <Modal.Header>
-        <span id={TITLE_ID}>tạo dự án mới</span>
+        <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
       <Modal.Body className="px-6 py-6 min-h-[320px]">
         {props.isConfirmingDiscard && (
           <div className="mb-4">
             <InlineAlert
               level="attention"
-              title="đóng và bỏ các thay đổi chưa lưu?"
+              title="Đóng và bỏ các thay đổi chưa lưu?"
               message="Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng."
-              action={{ label: 'đóng, bỏ thay đổi', onClick: props.confirmDiscard, variant: 'danger' }}
+              action={{ label: 'Đóng, bỏ thay đổi', onClick: props.confirmDiscard, variant: 'danger' }}
             />
           </div>
         )}
@@ -276,21 +276,21 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         <div>
           {step > 1 && (
             <Button variant="ghost" onClick={props.goBack} disabled={isSubmitting}>
-              quay lại
+              Quay lại
             </Button>
           )}
         </div>
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
-            huỷ
+            Huỷ
           </Button>
           {step < 3 ? (
             <Button variant="primary" onClick={props.goNext} disabled={!props.canGoNext || isSubmitting}>
-              tiếp tục
+              Tiếp tục
             </Button>
           ) : (
             <Button variant="primary" loading={isSubmitting} disabled={!props.canSubmit} onClick={props.submit}>
-              tạo dự án
+              Tạo dự án
             </Button>
           )}
         </div>
@@ -306,8 +306,28 @@ export interface CreateProjectModalProps extends UseCreateProjectModalOptions {
   readonly isOpen: boolean;
 }
 
-/** The dialog, wired to its hook. */
+/**
+ * The dialog, wired to its hook — and a fresh form on every opening.
+ *
+ * Both callers keep this mounted and only flip `isOpen`, so the hook's state
+ * outlived each close: reopening after "tạo dự án" landed on step 3 with the
+ * project just made (one click from a duplicate), and "đóng, bỏ thay đổi"
+ * discarded nothing (B-V3-02). A new `key` per opening resets every field in
+ * one place; the close itself keeps the old key, so its exit animation plays.
+ */
 export function CreateProjectModal({ isOpen, ...options }: CreateProjectModalProps) {
+  const [openingCount, setOpeningCount] = useState(0);
+  const [wasOpen, setWasOpen] = useState(isOpen);
+
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setOpeningCount((count) => count + 1);
+  }
+
+  return <WiredCreateProjectModal key={openingCount} isOpen={isOpen} {...options} />;
+}
+
+function WiredCreateProjectModal({ isOpen, ...options }: CreateProjectModalProps) {
   const { model, actions } = useCreateProjectModal(options);
 
   return <CreateProjectModalView isOpen={isOpen} {...model} {...actions} />;

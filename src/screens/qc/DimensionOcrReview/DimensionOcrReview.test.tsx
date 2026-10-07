@@ -71,7 +71,6 @@ import {
 } from './dimensionOcrFixture';
 import {
   deviationOf,
-  dimensionDisplayCode,
   dimensionEntityIdOf,
   dimensionProgressLabel,
   formatDeviation,
@@ -85,26 +84,16 @@ const TOTAL_DIMENSIONS = DIMENSION_OCR_FIXTURE_TOTAL;
 const REVIEWED_DIMENSIONS = DIMENSION_OCR_FIXTURE_REVIEWED;
 
 /**
- * Hai ví dụ nghiệm thu độ lệch, lấy MÃ HIỂN THỊ ra khỏi chính bộ mẫu.
+ * Hai ví dụ nghiệm thu độ lệch, lấy MÃ THỰC THỂ ra khỏi chính bộ mẫu.
  *
- * `Dimension.id` là định danh thực thể (`M-000018DIMS`); thứ màn hình vẽ là mã
- * hiển thị `M-018`, và `dimensionDisplayCode` của cổng là hàm đổi giữa hai
- * dạng — bài kiểm không tự cắt chuỗi.
+ * Khoá của hàng (`data-dimension-id`) là `Dimension.id` (`M-000018DIMS`), không phải
+ * nhãn `#M-018` — nhãn chỉ để đọc, và mã BE / mã A14 có thể cho nhãn khác.
  */
-const MINOR_ID = dimensionDisplayCode(DIMENSION_OCR_FIXTURE_MINOR_DEVIATION.id);
-const SIGNIFICANT_ID = dimensionDisplayCode(DIMENSION_OCR_FIXTURE_SIGNIFICANT_DEVIATION.id);
+const MINOR_ID = DIMENSION_OCR_FIXTURE_MINOR_DEVIATION.id;
+const SIGNIFICANT_ID = DIMENSION_OCR_FIXTURE_SIGNIFICANT_DEVIATION.id;
 
-/**
- * `zoom` — chữ tiếng Anh DUY NHẤT được phép, và nó không phải chuỗi của màn này.
- *
- * Nó là `aria-label` của `src/components/canvas/ZoomCluster.tsx`, component dùng
- * chung mà `DimensionOcrCanvas` tái sử dụng. Sửa nó là sửa `src/components/**`,
- * ngoài phạm vi R-68 của lượt dựng màn, nên chỗ này ghi nhận nó thành văn thay
- * vì im lặng cho qua. Đây là NỢ ĐÃ GHI, không phải một chữ được duyệt: nó thuộc
- * về lượt dọn `ZoomCluster`, và danh sách này chỉ được ngắn đi. Tiền lệ nguyên
- * văn: `ScaleCalibration.test.tsx:136-150`.
- */
-const ALLOWED_WORDS = ['zoom'];
+/** Không chữ tiếng Anh nào được nới — nợ "zoom" của `ZoomCluster` đã trả (B-V1-48). */
+const ALLOWED_WORDS: readonly string[] = [];
 
 /** Số giá trị mà phép đo bàn phím phải sửa xong trong một lượt. */
 const KEYBOARD_EDIT_TARGET = 5;
@@ -337,6 +326,41 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     expect(rendered).toBe(7);
   });
 
+  it('chữ trên nút duyệt là phần đầu tên truy cập của nó (WCAG 2.5.3, B-V6-46)', async () => {
+    renderState('partial');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    await waitFor(() => {
+      expect(approveButtons().length).toBeGreaterThan(0);
+    });
+    for (const button of approveButtons()) {
+      expect(button.getAttribute('aria-label') ?? '').toMatch(new RegExp(`^${button.textContent?.trim() ?? '∅'} #`, 'u'));
+    }
+  });
+
+  it('trạng thái lỗi có nút "Thử lại", bấm thì đọc lại lớp kích thước (B-V6-45, A11)', async () => {
+    emptyStore();
+    const args = scenarioArgsFor('error');
+    const base = args.gateway;
+    if (base === undefined) throw new Error('kịch bản lỗi phải mang cổng giả');
+    const readDimensionLayer = vi.fn(base.readDimensionLayer);
+
+    renderWithProviders(
+      <MemoryRouter>
+        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readDimensionLayer }} />
+      </MemoryRouter>,
+    );
+
+    const retry = await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.states.error.actionLabel });
+    const callsBefore = readDimensionLayer.mock.calls.length;
+
+    fireEvent.click(retry);
+
+    await waitFor(() => {
+      expect(readDimensionLayer.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
+  });
+
   it('trạng thái lỗi và thu gọn vẫn còn canvas — không màn trắng', async () => {
     renderState('error');
 
@@ -467,7 +491,7 @@ describe('[NGHIEM-3] chế độ duyệt bàn phím', () => {
     const displayId = (approveButtons()[0]?.getAttribute('aria-label') ?? '')
       .replace(DIMENSION_OCR_TEXT.row.approveButtonAriaLabelPrefix, '')
       .replace('#', '');
-    const row = rowOf(displayId);
+    const row = rowOf(dimensionEntityIdOf(displayId));
 
     expect(row).not.toBeNull();
 

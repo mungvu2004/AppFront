@@ -11,9 +11,12 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
+import { ROUTES } from '@/routes/paths';
+
 import { AuthScreen, AuthScreenView, type AuthScreenViewProps } from './AuthScreen';
-import { AuthRoute, createHttpAuthGateway } from './AuthScreen.container';
-import { LOCKOUT_SECONDS, MIN_PASSWORD_LENGTH, type AuthGateway } from './useAuthScreen';
+import { AuthRoute, createHttpAuthGateway, safeDestination } from './AuthScreen.container';
+import { MIN_PASSWORD_LENGTH, type AuthGateway } from './useAuthScreen';
+import type { ForgotPasswordModel } from './useForgotPassword';
 
 const AUTH_MESSAGES = viMessages.auth;
 
@@ -27,6 +30,33 @@ const PASSWORD = 'khong-doan-duoc';
 const UNAUTHORIZED_STATUS = 401;
 const FORBIDDEN_STATUS = 403;
 const TOO_MANY_REQUESTS_STATUS = 429;
+
+/** A wire failure the way `src/lib/http` shapes it: status and `code` at the top, the body under `raw`. */
+function httpFailure(status: number, code?: string, extra: Record<string, unknown> = {}) {
+  return {
+    ok: false as const,
+    error: {
+      kind: 'http',
+      status,
+      ...(code !== undefined ? { code } : {}),
+      retryable: false,
+      requestId: 'req-test',
+      raw: null,
+      ...extra,
+    },
+  };
+}
+
+const forgotBase: ForgotPasswordModel = {
+  email: '',
+  problem: undefined,
+  notice: null,
+  sentMessage: null,
+  isSending: false,
+  isSent: false,
+  hasFailure: false,
+  canSubmit: true,
+};
 
 afterEach(() => {
   cleanup();
@@ -45,38 +75,43 @@ const noop = (): void => undefined;
 function baseProps(): AuthScreenViewProps {
   return {
     state: 'empty',
-    tab: 'signIn',
+    panel: 'signIn',
+    forgot: forgotBase,
     isCollapsed: false,
     isSubmitting: false,
-    values: { email: '', password: '', fullName: '', rememberMe: false },
+    values: { email: '', password: '', rememberMe: false },
     problems: {},
     notice: null,
     canSubmit: true,
     submitLabel: AUTH_MESSAGES.actions.signIn,
     isBlocked: false,
-    setTab: noop,
     setEmail: noop,
     setPassword: noop,
-    setFullName: noop,
     setRememberMe: noop,
     blurField: noop,
     setCollapsed: noop,
     submit: noop,
     ssoSignIn: noop,
     forgotPassword: noop,
+    closeForgotPassword: noop,
+    forgotActions: { setEmail: noop, submit: noop, reset: noop },
   };
 }
 
 /** A gateway whose two calls are spies, refusing by default in the way asked for. */
 function stubGateway(reply: Awaited<ReturnType<AuthGateway['signIn']>> = { ok: true, data: undefined }): {
   readonly gateway: AuthGateway;
-  readonly signIn: ReturnType<typeof vi.fn>;
-  readonly register: ReturnType<typeof vi.fn>;
+  readonly signIn: ReturnType<typeof vi.fn<AuthGateway['signIn']>>;
+  readonly requestPasswordReset: ReturnType<typeof vi.fn<AuthGateway['requestPasswordReset']>>;
 } {
-  const signIn = vi.fn(async () => reply);
-  const register = vi.fn(async () => reply);
+  const signIn = vi.fn<AuthGateway['signIn']>(async () => reply);
+  const requestPasswordReset = vi.fn<AuthGateway['requestPasswordReset']>(async () => reply);
 
-  return { gateway: { signIn, register } as unknown as AuthGateway, signIn, register };
+  return {
+    gateway: { signIn, requestPasswordReset },
+    signIn,
+    requestPasswordReset,
+  };
 }
 
 /** The screen with its logic attached, over a stub transport. */
@@ -85,7 +120,7 @@ function renderScreen(
     readonly gateway?: AuthGateway;
     readonly onAuthenticated?: () => void;
     readonly onSsoSignIn?: () => void;
-    readonly onForgotPassword?: () => void;
+    readonly initialNotice?: 'passwordReset' | 'sessionEnded';
     readonly reducedMotion?: boolean;
   } = {},
 ) {
@@ -96,9 +131,7 @@ function renderScreen(
       gateway={options.gateway ?? fallback.gateway}
       onAuthenticated={options.onAuthenticated ?? noop}
       {...(options.onSsoSignIn !== undefined ? { onSsoSignIn: options.onSsoSignIn } : {})}
-      {...(options.onForgotPassword !== undefined
-        ? { onForgotPassword: options.onForgotPassword }
-        : {})}
+      {...(options.initialNotice !== undefined ? { initialNotice: options.initialNotice } : {})}
       reducedMotion={options.reducedMotion ?? true}
     />,
   );
@@ -133,17 +166,17 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => AuthScreenViewProps>> = 
     state: 'loading',
     isSubmitting: true,
     canSubmit: false,
-    values: { email: EMAIL, password: PASSWORD, fullName: '', rememberMe: false },
+    values: { email: EMAIL, password: PASSWORD, rememberMe: false },
   }),
   partial: () => ({
     ...baseProps(),
     state: 'partial',
-    values: { email: EMAIL, password: '', fullName: '', rememberMe: false },
+    values: { email: EMAIL, password: '', rememberMe: false },
   }),
   error: () => ({
     ...baseProps(),
     state: 'error',
-    values: { email: EMAIL, password: PASSWORD, fullName: '', rememberMe: false },
+    values: { email: EMAIL, password: PASSWORD, rememberMe: false },
     notice: {
       tone: 'violation',
       title: AUTH_MESSAGES.errors.invalidCredentials.title,
@@ -219,6 +252,15 @@ describe('AuthScreenView — wording and colour', () => {
       }).not.toThrow();
       unmount();
     }
+  });
+
+  it('capitalises the first letter of every label (A6), typed out rather than read back from vi.json', () => {
+    renderScreen();
+
+    expect(screen.getByRole('heading', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Thư điện tử')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument();
   });
 
   it('holds no raw colour in any of the three source files', () => {
@@ -374,22 +416,18 @@ describe('AuthScreen — SSO and password reset', () => {
     expect(onSsoSignIn).toHaveBeenCalledTimes(1);
   });
 
-  it('calls the host callback when "Quên mật khẩu" is pressed', () => {
-    const onForgotPassword = vi.fn();
-    renderScreen({ onForgotPassword });
+  it('opens the forgot-password panel when "Quên mật khẩu" is pressed', () => {
+    renderScreen();
 
     fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }));
 
-    expect(onForgotPassword).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.sendResetLink })).toBeInTheDocument();
+    expect(screen.queryByLabelText(AUTH_MESSAGES.fields.password)).toBeNull();
   });
 
-  it('offers a reset action inside the wrong-password strip, wired to the same callback', async () => {
-    const onForgotPassword = vi.fn();
-    const { gateway } = stubGateway({
-      ok: false,
-      error: { kind: 'http', status: UNAUTHORIZED_STATUS, retryable: false, requestId: 'req-5', raw: null },
-    });
-    renderScreen({ gateway, onForgotPassword });
+  it('offers the same panel from inside the wrong-password strip', async () => {
+    const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
+    renderScreen({ gateway });
 
     type(emailField(), EMAIL);
     type(passwordField(), PASSWORD);
@@ -398,21 +436,7 @@ describe('AuthScreen — SSO and password reset', () => {
     const action = await screen.findByRole('button', { name: AUTH_MESSAGES.actions.resetPassword });
     fireEvent.click(action);
 
-    expect(onForgotPassword).toHaveBeenCalledTimes(1);
-  });
-
-  it('is absent from the register tab, which has no account to reset or federate yet', async () => {
-    renderScreen();
-
-    fireEvent.click(screen.getByRole('tab', { name: AUTH_MESSAGES.tabs.register }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: AUTH_MESSAGES.actions.register }),
-      ).toBeInTheDocument();
-    });
-    expect(screen.queryByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn })).toBeNull();
-    expect(screen.queryByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword })).toBeNull();
+    expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.sendResetLink })).toBeInTheDocument();
   });
 });
 
@@ -473,8 +497,8 @@ describe('AuthScreen — field validation', () => {
 
 describe('AuthScreen — submitting', () => {
   it('refuses a second submit while the first is still in flight', () => {
-    const signIn = vi.fn(() => new Promise<never>(() => undefined));
-    const gateway = { signIn, register: vi.fn() } as unknown as AuthGateway;
+    const signIn = vi.fn<AuthGateway['signIn']>(() => new Promise(() => undefined));
+    const gateway: AuthGateway = { signIn, requestPasswordReset: vi.fn() };
     renderScreen({ gateway });
 
     type(emailField(), EMAIL);
@@ -488,8 +512,8 @@ describe('AuthScreen — submitting', () => {
   });
 
   it('keeps the button width and swaps only its label while sending', async () => {
-    const signIn = vi.fn(() => new Promise<never>(() => undefined));
-    const gateway = { signIn, register: vi.fn() } as unknown as AuthGateway;
+    const signIn = vi.fn<AuthGateway['signIn']>(() => new Promise(() => undefined));
+    const gateway: AuthGateway = { signIn, requestPasswordReset: vi.fn() };
     renderScreen({ gateway });
 
     const widthBefore = submitButton().className.includes('w-full');
@@ -506,10 +530,7 @@ describe('AuthScreen — submitting', () => {
   });
 
   it('shows a strip inside the form on a wrong password, and keeps what was typed', async () => {
-    const { gateway } = stubGateway({
-      ok: false,
-      error: { kind: 'http', status: UNAUTHORIZED_STATUS, retryable: false, requestId: 'req-1', raw: null },
-    });
+    const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
     renderScreen({ gateway });
 
     type(emailField(), EMAIL);
@@ -526,38 +547,24 @@ describe('AuthScreen — submitting', () => {
   });
 
   it('counts the lockout down and shuts the submit button', async () => {
-    const { gateway } = stubGateway({
-      ok: false,
-      error: {
-        kind: 'http',
-        status: TOO_MANY_REQUESTS_STATUS,
-        retryable: true,
-        requestId: 'req-2',
-        raw: null,
-      },
-    });
+    const { gateway } = stubGateway(
+      httpFailure(TOO_MANY_REQUESTS_STATUS, undefined, { retryAfterSeconds: 5 }),
+    );
     renderScreen({ gateway });
 
     type(emailField(), EMAIL);
     type(passwordField(), PASSWORD);
     fireEvent.keyDown(passwordField(), { key: 'Enter' });
 
-    expect(
-      await screen.findByText(
-        AUTH_MESSAGES.errors.tooManyAttempts.description.replace(
-          '{{seconds}}',
-          String(LOCKOUT_SECONDS),
-        ),
-      ),
-    ).toBeInTheDocument();
+    const sentence = await screen.findByText(AUTH_MESSAGES.errors.tooManyAttempts.description);
+
+    // The lockout is a fixed 60 s whatever `Retry-After` says, and no number is promised.
+    expect(sentence.textContent).not.toMatch(/\d/u);
     expect(submitButton()).toBeDisabled();
   });
 
   it('moves to the forbidden state when the account is disabled', async () => {
-    const { gateway } = stubGateway({
-      ok: false,
-      error: { kind: 'http', status: FORBIDDEN_STATUS, retryable: false, requestId: 'req-3', raw: null },
-    });
+    const { gateway } = stubGateway(httpFailure(FORBIDDEN_STATUS, 'ACCOUNT_DISABLED'));
     const { container } = renderScreen({ gateway });
 
     type(emailField(), EMAIL);
@@ -620,40 +627,6 @@ describe('AuthScreen — submitting', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Tabs.                                                                       */
-/* -------------------------------------------------------------------------- */
-
-describe('AuthScreen — changing tab', () => {
-  it('keeps the typed address when the register tab opens', async () => {
-    renderScreen();
-
-    type(emailField(), EMAIL);
-    fireEvent.click(screen.getByRole('tab', { name: AUTH_MESSAGES.tabs.register }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: AUTH_MESSAGES.actions.register }),
-      ).toBeInTheDocument();
-    });
-    expect(emailField().value).toBe(EMAIL);
-  });
-
-  it('drops the outgoing tab complaints when the tab changes', async () => {
-    renderScreen();
-
-    type(emailField(), 'thu.ha');
-    fireEvent.blur(emailField());
-    expect(screen.getByText(AUTH_MESSAGES.problems.emailInvalid)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: AUTH_MESSAGES.tabs.register }));
-
-    await waitFor(() => {
-      expect(screen.queryByText(AUTH_MESSAGES.problems.emailInvalid)).toBeNull();
-    });
-  });
-});
-
-/* -------------------------------------------------------------------------- */
 /* Boundaries.                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -681,7 +654,51 @@ describe('AuthRoute — the form is never withheld', () => {
     expect(container.querySelector('main')).toHaveAttribute('data-auth-state', 'empty');
     expect(screen.getByLabelText(AUTH_MESSAGES.fields.email)).toBeInTheDocument();
     expect(screen.getByLabelText(AUTH_MESSAGES.fields.password)).toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Where a successful sign-in lands.                                           */
+/* -------------------------------------------------------------------------- */
+
+describe('safeDestination — never off this origin, never back onto the sign-in page', () => {
+  /** Every row lands on the dashboard; the second column says why it must. */
+  const REJECTED = [
+    ['//evil.example', 'two leading slashes name another host'],
+    ['https://evil.example', 'an absolute address'],
+    ['evil', 'no leading slash'],
+    ['', 'empty'],
+    [`/${String.fromCharCode(92)}evil.example`, 'the browser reads a backslash as a slash'],
+    ['/\\evil.example', 'the same, typed as an escaped literal'],
+    ['/tai-khoan\\x', 'a backslash anywhere in the path'],
+    [`/tai-khoan${String.fromCharCode(10)}`, 'a control character'],
+    [`/${String.fromCharCode(9)}/evil.example`, 'the browser drops a tab, leaving two slashes'],
+    ['//evil.example:99999', 'a host that does not even parse'],
+    ['/login', 'the sign-in page itself (B-V1-02)'],
+    ['/LOGIN/', 'the same page: routes match case-insensitively and ignore a trailing slash'],
+    ['/tai-khoan/../login', 'the same page once the dots resolve'],
+  ] as const;
+
+  for (const [candidate, why] of REJECTED) {
+    it(`rejects ${JSON.stringify(candidate)} — ${why}`, () => {
+      expect(safeDestination(candidate)).toBe(ROUTES.dashboard);
+    });
+  }
+
+  it('rejects anything that is not a string', () => {
+    expect(safeDestination(undefined)).toBe(ROUTES.dashboard);
+    expect(safeDestination({ pathname: '/tai-khoan' })).toBe(ROUTES.dashboard);
+  });
+
+  it('keeps a path on this site whole — query and hash included', () => {
+    expect(safeDestination('/tai-khoan?x=1#h')).toBe('/tai-khoan?x=1#h');
+    expect(safeDestination('/m/du-an/project-1')).toBe('/m/du-an/project-1');
+  });
+
+  it('lets a page under the sign-in prefix through — only the sign-in page itself is refused', () => {
+    expect(safeDestination('/login/invitation/abc')).toBe('/login/invitation/abc');
   });
 });
 
@@ -762,7 +779,6 @@ describe('createHttpAuthGateway — vai chảy được sau lượt đăng nhậ
 
     const refused: AuthGateway = createHttpAuthGateway({
       auth: {
-        register: async () => ({ ok: false, error: { status: 401 } }),
         signIn: async () => ({ ok: false, error: { status: 401 } }),
       },
     } as unknown as Parameters<typeof createHttpAuthGateway>[0]);

@@ -44,8 +44,9 @@
  *    bước 4 của nó; hook đọc `selectViolations` rồi lọc theo id đối tượng đang
  *    xem và gắn cảnh báo VÀO ĐÚNG DÒNG gây ra nó. Hook KHÔNG tự tính lại hình học
  *    và KHÔNG tự kiểm luật.
- * 6. **Tự lưu (D-07) và chỉ báo (D-08).** `useAutosave` giữ bộ đếm 800 ms của A7 —
- *    hằng số nằm trong chính hook đó, không viết lại ở đây. Không có nút Lưu (A7).
+ * 6. **Tự lưu (D-07) và chỉ báo (D-08).** Panel không tự lưu: saver lớp tầng dùng chung
+ *    (`useFloorLayerAutosave`, F-04x-1) bắt mọi lượt ghi kho; màn chủ truyền nhãn của nó
+ *    qua `saveLabel`. Không có nút Lưu (A7).
  * 7. **Bảy trạng thái (A11/R-63).** {@link derivePropertyInspectorState} là một hàm
  *    thuần, kiểm được không cần dựng hook, và nó là nơi DUY NHẤT quyết định trạng
  *    thái — không có nhánh hiển thị rời rạc nào ở nơi khác.
@@ -93,7 +94,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ROOM_USAGE_LABELS } from '@/domain/rules/registry';
 import type { Violation } from '@/domain/rules/registry';
 import { applyPatch, readEntity } from '@/domain/spatial/applyPatch';
-import { isEntityOfKind } from '@/domain/spatial/normalize';
+import { displayCodeIn, displayLabelIn, isEntityOfKind } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
   Furniture,
@@ -105,7 +106,6 @@ import type {
   Wall,
   WallKind,
 } from '@/domain/spatial/types';
-import { useAutosave } from '@/hooks/useAutosave';
 import { useCommitFlash } from '@/hooks/useCommitFlash';
 import {
   createChangeWallHeightCommand,
@@ -245,6 +245,9 @@ export const PROPERTY_INSPECTOR_TEXT = {
   },
   empty: {
     message: 'Chưa chọn đối tượng nào để xem thuộc tính.',
+    missing: 'Đối tượng đang chọn không có trong dữ liệu của dự án này nên chưa xem được thuộc tính.',
+    unsupported:
+      'Trục, tầng và kích thước chưa có bảng thuộc tính. Bảng này dành cho tường, ô mở, phòng và nội thất.',
     tabHint: 'Nhấn Tab để duyệt vòng qua các đối tượng trên mô hình.',
   },
   partial: {
@@ -284,13 +287,15 @@ const TEXT = PROPERTY_INSPECTOR_TEXT;
 const selectionSummaryLabel = (count: number): string => `Đang chọn ${formatNumber(count)} đối tượng`;
 
 /** Mẫu `relations.onWall` của T4. */
-const onWallLabel = (wallId: string): string => `Nằm trên #${wallId}`;
+const onWallLabel = (graph: NormalizedSpatial, wallId: string): string =>
+  `Nằm trên ${displayCodeIn(graph, wallId)}`;
 
 /** Bộ đếm duyệt toàn cục, ghép vào caption chân panel để nó là con số NHÌN THẤY được. */
 const approvedCountLabel = (count: number): string => `Đã duyệt ${formatNumber(count)} đối tượng`;
 
 /** Mẫu `relations.inRoom` của T4. */
-const inRoomLabel = (roomId: string): string => `Thuộc phòng #${roomId}`;
+const inRoomLabel = (graph: NormalizedSpatial, roomId: string): string =>
+  `Thuộc phòng ${displayCodeIn(graph, roomId)}`;
 
 /** Nhãn tóm tắt của thẻ phụ khi panel thu gọn, ví dụ "Tường W-014". */
 const collapsedSummaryLabel = (kind: ObjectKind, entityId: string): string =>
@@ -475,7 +480,7 @@ function wallRows(wall: Wall): readonly RowDraft[] {
 }
 
 /** Ô mở — năm trường mặc định, dòng cuối là liên kết tới tường chủ (P7). */
-function openingRows(opening: Opening): readonly RowDraft[] {
+function openingRows(opening: Opening, graph: NormalizedSpatial): readonly RowDraft[] {
   return [
     numericRow('width', TEXT.fields.opening.width, 'geometry', opening.widthMm),
     numericRow('height', TEXT.fields.opening.height, 'geometry', opening.heightMm),
@@ -499,7 +504,7 @@ function openingRows(opening: Opening): readonly RowDraft[] {
         id: 'hostWallId',
         label: TEXT.fields.opening.hostWallId,
         controlType: 'link',
-        value: singleValue(onWallLabel(opening.wallId)),
+        value: singleValue(onWallLabel(graph, opening.wallId)),
         isLocked: true,
         linkedEntityId: opening.wallId,
       },
@@ -555,7 +560,7 @@ function roomRows(room: Room, graph: NormalizedSpatial): readonly RowDraft[] {
  * Bề rộng và bề sâu đọc thẳng hai đầu hộp bao đã lưu — đọc kích thước của một
  * hộp có sẵn, không dựng lại hình học nào.
  */
-function furnitureRows(furniture: Furniture): readonly RowDraft[] {
+function furnitureRows(furniture: Furniture, graph: NormalizedSpatial): readonly RowDraft[] {
   const { max, min } = furniture.boundingBox;
   const roomId = furniture.roomId;
 
@@ -594,7 +599,7 @@ function furnitureRows(furniture: Furniture): readonly RowDraft[] {
         id: 'roomId',
         label: TEXT.fields.furniture.roomId,
         controlType: roomId === undefined ? 'readonly' : 'link',
-        value: roomId === undefined ? unavailableValue() : singleValue(inRoomLabel(roomId)),
+        value: roomId === undefined ? unavailableValue() : singleValue(inRoomLabel(graph, roomId)),
         isLocked: true,
         linkedEntityId: roomId,
       },
@@ -718,10 +723,10 @@ function draftsOf(entity: InspectableEntity, graph: NormalizedSpatial): readonly
   const own = isEntityOfKind('wall', entity)
     ? wallRows(entity)
     : isEntityOfKind('opening', entity)
-      ? openingRows(entity)
+      ? openingRows(entity, graph)
       : isEntityOfKind('room', entity)
         ? roomRows(entity, graph)
-        : furnitureRows(entity);
+        : furnitureRows(entity, graph);
 
   return [...own, ...advancedRows(entity, graph)];
 }
@@ -1013,6 +1018,7 @@ export function usePropertyInspector(
   injectedGateway?: PropertyInspectorGateway,
 ): UsePropertyInspectorResult {
   const graph = useStore((state) => state.spatial);
+  const spatialLoading = useStore((state) => state.spatialLoading);
   const activeFloorId = useStore((state) => state.activeFloorId);
   const isPanelOpen = useStore((state) => state.rightPanelOpen);
   const setPanelOpen = useStore((state) => state.setPanelOpen);
@@ -1075,7 +1081,7 @@ export function usePropertyInspector(
       selectionBefore: () => ({ selectedIds: useStore.getState().selectedIds }),
       selectionAfter: () => ({ selectedIds: useStore.getState().selectedIds }),
       onSynced: () => {
-        /* Bước `sync` của `dispatch`: `useAutosave` đã theo dõi `state.spatial`
+        /* Bước `sync` của `dispatch`: saver lớp tầng đã theo dõi `state.spatial`
          * nên không có hàng đợi thứ hai nào ở đây — bản vẽ bẩn được chính lượt
          * ghi vào store thông báo. */
       },
@@ -1086,37 +1092,8 @@ export function usePropertyInspector(
   /* Tự lưu (D-07) và chỉ báo (D-08).                                        */
   /* ---------------------------------------------------------------------- */
 
-  /**
-   * Lượt lưu THẬT — nay có đích để gửi tới (lỗ hổng #5).
-   *
-   * `SpatialApi.writeLayer` nhận đủ bốn danh sách của một tầng, nên cổng gửi
-   * thẳng lớp không gian của tầng đang mở lên máy chủ và chỉ báo nói được "Đã
-   * lưu lúc…" mà không nói dối. Vẫn NÉM khi lượt gửi hỏng: `createAutosave` bắt
-   * cái ném đó làm tín hiệu để chạy lịch thử lại 5s/15s/45s của nó, và chỉ sau
-   * khi lịch ấy cạn mới đổi nhãn thành "Lưu thất bại". Bộ đếm 800 ms của A7 nằm
-   * trong chính `useAutosave`, không viết lại ở đây.
-   *
-   * Đồ thị đi vào bằng THAM SỐ, không đọc lại kho: đây là đúng ảnh chụp
-   * `state.spatial` mà bộ đếm giờ đã quyết định lưu, còn một lượt đọc lại có
-   * thể bắt được một thay đổi mới hơn và làm lượt lưu này báo xong cho một thứ
-   * chưa ai hẹn giờ.
-   */
-  const persist = useCallback(
-    async (current: NormalizedSpatial | null): Promise<void> => {
-      if (current === null) {
-        return;
-      }
-
-      const result = await gateway.persistProperties(current);
-
-      if (!result.ok) {
-        throw new Error(result.reason);
-      }
-    },
-    [gateway],
-  );
-
-  const saveLabel = useAutosave(persist);
+  /** Nhãn tự lưu của màn chủ (saver lớp tầng dùng chung, F-04x-1) — panel không lưu riêng. */
+  const saveLabel = options.saveLabel ?? null;
 
   /* ---------------------------------------------------------------------- */
   /* Ghi — build lệnh, dispatch, rồi nhớ dòng vừa ghi.                       */
@@ -1365,6 +1342,10 @@ export function usePropertyInspector(
   }, [graph, options.selectedEntityIds, primaryId]);
 
   const primaryEntity = entities.find((entity) => entity.id === primaryId) ?? entities[0] ?? null;
+  const primaryLabel = useMemo(
+    () => (primaryEntity === null || graph === null ? null : displayLabelIn(graph, primaryEntity.id)),
+    [graph, primaryEntity],
+  );
   const entityViolations = violationsOfEntity(violations, primaryEntity?.id ?? null);
 
   /* Nút "khuôn" đọc đối tượng qua ref chứ không qua danh sách phụ thuộc: nó là
@@ -1636,15 +1617,17 @@ export function usePropertyInspector(
 
   const hasIncompleteValue = drafts.some((draft) => draft.row.value.kind !== 'single');
 
+  const hasSelection = primaryId !== null || options.selectedEntityIds.length > 0;
+
   const stateName = derivePropertyInspectorState({
     canEdit: options.canEdit,
     hasBlockingRow,
     hasEntity: primaryEntity !== null,
     hasIncompleteValue,
-    hasSelection: primaryId !== null || options.selectedEntityIds.length > 0,
+    hasSelection,
     isMultiple,
     isPanelCollapsed: !isPanelOpen,
-    isPending: spatialQuery.isPending || graph === null,
+    isPending: spatialQuery.isPending || graph === null || spatialLoading,
   });
 
   /* Lượt đọc lớp không gian hỏng: nói ra ngay tại dòng đầu tiên, và nút "Thử
@@ -1666,6 +1649,15 @@ export function usePropertyInspector(
     }
   }, [hasReadFailed, readFailedRowId, refetchSpatial]);
 
+  /* Ba ca "rỗng" nói ba câu khác nhau (B-V8-42): chưa chọn gì; chọn thứ không có
+   * trong đồ thị (nhà mẫu của mock); hay chỉ chọn loại không có bảng (trục, tầng…). */
+  const selectedIds = [primaryId, ...options.selectedEntityIds].filter((id) => id !== null);
+  const emptyMessage = !hasSelection
+    ? TEXT.empty.message
+    : selectedIds.every((id) => graph?.byId[id] !== undefined)
+      ? TEXT.empty.unsupported
+      : TEXT.empty.missing;
+
   const state = useMemo((): PropertyInspectorState => {
     if (stateName === 'collapsed') {
       return {
@@ -1675,9 +1667,9 @@ export function usePropertyInspector(
          * ngưỡng bằng tay (R-71). Tấm trượt là quyết định của tầng view. */
         variant: 'chip',
         summaryLabel:
-          primaryEntity === null || primaryKind === null
+          primaryLabel === null || primaryKind === null
             ? TEXT.collapsed.expandChip
-            : collapsedSummaryLabel(primaryKind, primaryEntity.id),
+            : collapsedSummaryLabel(primaryKind, primaryLabel),
         onExpand: (): void => {
           setPanelOpen('right', true);
         },
@@ -1685,7 +1677,7 @@ export function usePropertyInspector(
     }
 
     if (stateName === 'empty') {
-      return { kind: 'empty', message: TEXT.empty.message, tabHint: TEXT.empty.tabHint };
+      return { kind: 'empty', message: emptyMessage, tabHint: TEXT.empty.tabHint };
     }
 
     if (stateName === 'loading') {
@@ -1693,7 +1685,7 @@ export function usePropertyInspector(
     }
 
     if (primaryEntity === null || primaryKind === null) {
-      return { kind: 'empty', message: TEXT.empty.message, tabHint: TEXT.empty.tabHint };
+      return { kind: 'empty', message: emptyMessage, tabHint: TEXT.empty.tabHint };
     }
 
     const content = {
@@ -1702,7 +1694,8 @@ export function usePropertyInspector(
         objectKindLabel: isMultiple
           ? selectionSummaryLabel(entities.length)
           : capitalise(TEXT.objectKind[primaryKind]),
-        objectCode: primaryEntity.id,
+        objectCode: primaryLabel ?? primaryEntity.id,
+        entityId: primaryEntity.id,
         statusBadge,
         selectionCount: entities.length,
         onCopyAsTemplate: copyAsTemplate,
@@ -1746,12 +1739,14 @@ export function usePropertyInspector(
     approve,
     approvedCount,
     copyAsTemplate,
+    emptyMessage,
     entities.length,
     groups,
     isMultiple,
     options.onDismiss,
     primaryEntity,
     primaryKind,
+    primaryLabel,
     readFailedRowId,
     refusal,
     saveLabel,

@@ -14,14 +14,112 @@ describe('invalidationMap', () => {
     expect(Object.keys(invalidationMap).sort()).toEqual([...WRITE_OPERATIONS].sort());
   });
 
+  it('appends persistFloorScale at the end and scopes it to drawing, floor, graph and that floor layer', () => {
+    expect(WRITE_OPERATIONS[WRITE_OPERATIONS.length - 1]).toBe('persistFloorScale');
+    expect(invalidationMap.persistFloorScale({ floorId, projectId })).toEqual([
+      queryKeys.drawing.byFloor(floorId),
+      queryKeys.floor.detail(floorId),
+      queryKeys.layer.graph(projectId),
+      queryKeys.layer.byFloor(projectId, floorId),
+    ]);
+  });
+
+  it('makes the floor layer stale on editFloor, but not on persistSpatialLayer (own save, R14)', () => {
+    expect(invalidationMap.editFloor({ floorId, projectId })).toEqual([
+      queryKeys.floor.detail(floorId),
+      queryKeys.floor.list(projectId),
+      queryKeys.layer.byFloor(projectId, floorId),
+    ]);
+    expect(invalidationMap.persistSpatialLayer({ floorId, projectId })).not.toContainEqual(
+      queryKeys.layer.byFloor(projectId, floorId),
+    );
+  });
+
   it('is pure data: same input always returns equal keys, no side effects', () => {
     const params = { floorId, projectId };
 
     expect(invalidationMap.editWall(params)).toEqual(invalidationMap.editWall(params));
   });
 
-  it('scopes createProject to the project list only', () => {
-    expect(invalidationMap.createProject({})).toEqual([queryKeys.project.list()]);
+  it('scopes createProject to the project list and the dashboard summaries', () => {
+    expect(invalidationMap.createProject({})).toEqual([queryKeys.project.list(), queryKeys.project.summaries()]);
+  });
+
+  it('scopes renameProject and deleteProject to summaries, list and that project detail', () => {
+    const expected = [queryKeys.project.summaries(), queryKeys.project.list(), queryKeys.project.detail(projectId)];
+
+    expect(invalidationMap.renameProject({ projectId })).toEqual(expected);
+    expect(invalidationMap.deleteProject({ projectId })).toEqual(expected);
+  });
+
+  it('invalidates detail, members and summaries for addProjectMember and removeProjectMember', () => {
+    const expected = [
+      queryKeys.project.detail(projectId),
+      queryKeys.project.members(projectId),
+      queryKeys.project.summaries(),
+    ];
+
+    expect(invalidationMap.addProjectMember({ projectId })).toEqual(expected);
+    expect(invalidationMap.removeProjectMember({ projectId })).toEqual(expected);
+  });
+
+  it("scopes activateModelVersion to the family list and that family's versions only", () => {
+    expect(invalidationMap.activateModelVersion({ family: 'wallSegmentation' })).toEqual([
+      queryKeys.adminMl.families(),
+      queryKeys.adminMl.versions('wallSegmentation'),
+    ]);
+  });
+
+  it('scopes createTrainingJob to every filter of the job list', () => {
+    expect(invalidationMap.createTrainingJob({})).toEqual([queryKeys.adminMl.jobs.root()]);
+  });
+
+  it('scopes cancelTrainingJob to that job and every filter of the job list', () => {
+    expect(invalidationMap.cancelTrainingJob({ jobId: 'job_1' })).toEqual([
+      queryKeys.adminMl.job('job_1'),
+      queryKeys.adminMl.jobs.root(),
+    ]);
+  });
+
+  it('cancelTrainingJob marks every job filter and that job stale, not another job', () => {
+    const queryClient = new QueryClient();
+
+    queryClient.setQueryData(queryKeys.adminMl.jobs({}), { pages: [] });
+    queryClient.setQueryData(queryKeys.adminMl.jobs({ status: 'running' }), { pages: [] });
+    queryClient.setQueryData(queryKeys.adminMl.job('job_1'), {});
+    queryClient.setQueryData(queryKeys.adminMl.job('job_2'), {});
+
+    applyInvalidation(queryClient, 'cancelTrainingJob', { jobId: 'job_1' });
+
+    expect(queryClient.getQueryState(queryKeys.adminMl.jobs({}))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.jobs({ status: 'running' }))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.job('job_1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.job('job_2'))?.isInvalidated).toBeFalsy();
+  });
+
+  it("leaves another family's versions and every single-version read fresh on activateModelVersion", () => {
+    const queryClient = new QueryClient();
+    const versionKey = queryKeys.adminMl.version('mdl_01JA0000000000000000000001');
+
+    queryClient.setQueryData(queryKeys.adminMl.families(), { items: [] });
+    queryClient.setQueryData(queryKeys.adminMl.versions('wallSegmentation'), { pages: [] });
+    queryClient.setQueryData(queryKeys.adminMl.versions('dimensionReading'), { pages: [] });
+    queryClient.setQueryData(versionKey, {});
+    applyInvalidation(queryClient, 'activateModelVersion', { family: 'wallSegmentation' });
+
+    expect(queryClient.getQueryState(queryKeys.adminMl.families())?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.versions('wallSegmentation'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.adminMl.versions('dimensionReading'))?.isInvalidated).toBeFalsy();
+    expect(queryClient.getQueryState(versionKey)?.isInvalidated).toBeFalsy();
+  });
+
+  it('marks the summaries query stale through applyInvalidation(renameProject)', () => {
+    const queryClient = new QueryClient();
+
+    queryClient.setQueryData(queryKeys.project.summaries(), { items: [] });
+    applyInvalidation(queryClient, 'renameProject', { projectId });
+
+    expect(queryClient.getQueryState(queryKeys.project.summaries())?.isInvalidated).toBe(true);
   });
 
   it('scopes editWall to the space, room, and violation keys of that floor/project', () => {
@@ -56,14 +154,15 @@ describe('invalidationMap', () => {
     ]);
   });
 
-  it('scopes straightenDrawing to the quality reading and the drawing of that floor', () => {
+  it('scopes straightenDrawing to the quality reading, the drawing and the pipeline progress of that floor', () => {
     expect(invalidationMap.straightenDrawing({ floorId, projectId })).toEqual([
       queryKeys.quality.assessment(floorId),
       queryKeys.drawing.byFloor(floorId),
+      queryKeys.progress.byFloor(floorId),
     ]);
   });
 
-  it('scopes setDrawingCorners to the same two keys as straightenDrawing', () => {
+  it('scopes setDrawingCorners to the same three keys as straightenDrawing', () => {
     expect(invalidationMap.setDrawingCorners({ floorId, projectId })).toEqual(
       invalidationMap.straightenDrawing({ floorId, projectId }),
     );
@@ -85,6 +184,8 @@ describe('invalidationMap', () => {
       queryKeys.room.byFloor(floorId),
       queryKeys.violation.byProject(projectId),
       queryKeys.version.byFloor(floorId),
+      queryKeys.layer.byFloor(projectId, floorId),
+      queryKeys.layer.graph(projectId),
     ]);
   });
 
