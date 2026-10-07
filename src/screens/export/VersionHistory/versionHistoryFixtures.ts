@@ -265,6 +265,18 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
+/** Đếm của một hàng = diff thật của ảnh chụp nó so với bản ngay trước; bản cũ nhất không có gì để so. */
+function countsAgainstPrevious(entry: VersionHistoryEntry): DiffCountsModel {
+  const versions = [V15, V14, V13, V12, V11];
+  const index = versions.findIndex((candidate) => candidate.id === entry.version.id);
+  const row = versions[index];
+  const previous = versions[index + 1];
+
+  if (row === undefined || previous === undefined) return EMPTY_DIFF_COUNTS;
+
+  return buildDiffCounts(diffVersions(previous.snapshot, row.snapshot));
+}
+
 function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionRowModel> = {}): VersionRowModel {
   const version = entry.version;
   const authorName = AUTHOR_NAMES[version.id] ?? 'Phạm An';
@@ -279,7 +291,7 @@ function buildVersionRow(entry: VersionHistoryEntry, overrides: Partial<VersionR
     avatarUrl: null,
     relativeTimeLabel: formatTimestamp(new Date(version.createdAt), FAKE_CLOCK_START),
     absoluteTimeLabel: `${formatCalendarDate(new Date(version.createdAt))} ${formatClockTime(new Date(version.createdAt))}`,
-    counts: isOldest ? EMPTY_DIFF_COUNTS : SAMPLE_DIFF_COUNTS,
+    counts: countsAgainstPrevious(entry),
     // Bản hiện tại luôn là bản mới nhất của lịch sử mẫu (`v15`).
     isCurrent: version.id === 'v15',
     tagLabel: version.id === 'v13' ? 'Duyệt với chủ đầu tư' : null,

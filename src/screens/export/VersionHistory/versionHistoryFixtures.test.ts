@@ -26,4 +26,23 @@ describe('VersionHistory fixtures', () => {
       row?.counts.changed,
     ]);
   });
+
+  it('every row counts the real diff from the version before it (NO-398)', () => {
+    // v15/v14: một thêm, một bớt, một đổi; v13 cùng snapshot với v12 nên rỗng; v12 so v11 rỗng là hai bản thêm.
+    const expected = {
+      v15: [1, 1, 1],
+      v14: [1, 1, 1],
+      v13: [0, 0, 0],
+      v12: [2, 0, 0],
+      v11: [0, 0, 0],
+    };
+    const actual = Object.fromEntries(
+      SAMPLE_ROWS.map((row) => [
+        row.id,
+        [row.counts.added, row.counts.removed, row.counts.changed],
+      ]),
+    );
+
+    expect(actual).toEqual(expected);
+  });
 });
