@@ -68,9 +68,11 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
   const emailRef = useRef(email);
   emailRef.current = email;
 
+  /** A new address after a send is a new request: the "sent" result belonged to the old one. */
   const setEmail = useCallback((next: string) => {
     setEmailState(next);
     setProblem(undefined);
+    setPhase((current) => (current === 'sent' ? 'idle' : current));
   }, []);
 
   const reset = useCallback((next: string) => {
@@ -81,7 +83,8 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
   }, []);
 
   const submit = useCallback(() => {
-    if (inFlight.current || isLocked) {
+    // `sent`: the same address again would only send a second identical letter (BUG-022).
+    if (inFlight.current || isLocked || phase === 'sent') {
       return;
     }
 
@@ -129,7 +132,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
         setPhase('idle');
         setFailure({ kind: 'other', cause: thrown });
       });
-  }, [isLocked, lock, request]);
+  }, [isLocked, lock, phase, request]);
 
   // Hết khoá thì dải 429 đi theo; không cần effect riêng.
   const shownFailure = failure?.kind === 'rateLimited' && !isLocked ? null : failure;
@@ -142,7 +145,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
     isSending: phase === 'sending',
     isSent: phase === 'sent',
     hasFailure: shownFailure !== null,
-    canSubmit: phase !== 'sending' && !isLocked,
+    canSubmit: phase === 'idle' && !isLocked,
   };
 
   const actions = useMemo(() => ({ setEmail, submit, reset }), [reset, setEmail, submit]);
