@@ -88,7 +88,6 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           {/* Ngoài `<form>`: dải nói về phiên, không phải về biểu mẫu — bấm "Thử lại" không dính gì tới lượt gửi. */}
           {isSessionUnavailable && (
             <InlineAlert
-              className="mb-6"
               level="attention"
               title={ERROR_MESSAGES.network.title}
               message={ERROR_MESSAGES.network.description}
