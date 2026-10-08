@@ -200,7 +200,13 @@ export function SessionGate({
       <Navigate
         replace
         to={loginHref}
-        {...(sessionEnded ? { state: { notice: 'sessionEnded' } } : {})}
+        // Lý do đi cùng lượt chuyển hướng, không để `/login` đoán từ `?next=` (link thư cũng mang
+        // nó); khách chỉ mở trang chủ thì không có gì để giải thích (BUG-007).
+        {...(sessionEnded
+          ? { state: { notice: 'sessionEnded' } }
+          : new URLSearchParams(loginHref.split('?')[1]).get('next') === ROUTES.dashboard
+            ? {}
+            : { state: { notice: 'signInRequired' } })}
       />
     );
   }

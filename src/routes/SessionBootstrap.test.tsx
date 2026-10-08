@@ -295,6 +295,14 @@ describe('SessionGate — năm nhánh', () => {
     renderGate({ status: 'anonymous' });
 
     expect(screen.getByTestId('man-dang-nhap')).toHaveTextContent('/login?next=%2Fbat-ky');
+    // Lý do đi cùng lượt chuyển hướng, không để màn đăng nhập đoán từ `?next=` (BUG-007).
+    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', 'signInRequired');
+  });
+
+  it('không nói "hãy đăng nhập để tiếp tục" khi khách chỉ mở trang chủ (BUG-007)', () => {
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F' });
+
+    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
   });
 
   it('vẽ màn con khi đã đăng nhập', () => {
