@@ -173,6 +173,7 @@
       "incomplete": "Liên kết lời mời chưa đầy đủ, có thể đã bị cắt mất một phần khi sao chép. Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
       "sessionNotOpened": "Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.",
+      "retryFailed": "Đã thử lại nhưng vẫn chưa kết nối được máy chủ.",
       "success": "Đã nhận lời mời. Đang mở tài khoản của bạn."
     },
     "passwordReset": {

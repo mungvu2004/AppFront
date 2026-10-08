@@ -452,7 +452,9 @@ describe('InvitationAccept — the session around it', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole('status')).toHaveTextContent(viMessages.errors.network.description);
+    // Says something new, not the strip's sentence a second time (BUG-024).
+    expect(screen.getByRole('status')).toHaveTextContent(AUTH.invitation.retryFailed);
+    expect(screen.getByRole('status')).not.toHaveTextContent(viMessages.errors.network.description);
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(retry).toHaveFocus();
 

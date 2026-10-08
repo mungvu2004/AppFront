@@ -16,11 +16,7 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
-import {
-  auth as AUTH_MESSAGES,
-  connectionStates as CONNECTION_MESSAGES,
-  errors as ERROR_MESSAGES,
-} from '@/i18n/vi.json';
+import { auth as AUTH_MESSAGES, connectionStates as CONNECTION_MESSAGES } from '@/i18n/vi.json';
 
 import { consumeFragmentToken } from '../fragmentToken';
 import {
@@ -347,7 +343,8 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
       : retryPhase === 'pending'
         ? CONNECTION_MESSAGES.checking
         : retryPhase === 'failed'
-          ? ERROR_MESSAGES.network.description
+          ? // Không chép câu của dải ngay trên: nói điều mới — vừa thử lại, vẫn hỏng (BUG-024).
+            AUTH_MESSAGES.invitation.retryFailed
           : null,
   };
 
