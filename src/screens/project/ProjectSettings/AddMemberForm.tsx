@@ -36,7 +36,9 @@ export function AddMemberForm(props: AddMemberFormProps) {
       <Button
         type="submit"
         variant="secondary"
-        className="mt-[30px]"
+        // Nhãn ô cao 28 px (20 + mb-2); nút cao đúng bằng khung ô (46/38 px) nên đỉnh và đáy
+        // thẳng hàng ở mọi khổ. Không `items-end`: khi có câu lỗi dưới ô, nút sẽ tụt theo nó.
+        className="mt-7 h-[46px] min-h-[46px] sm:h-[38px] sm:min-h-[38px]"
         loading={props.isAddingMember}
         disabled={props.isAddMemberLocked}
       >
