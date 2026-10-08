@@ -588,7 +588,7 @@
   "onboarding": {
     "greeting": "Chào {{name}}, bắt đầu trong ba bước",
     "greetingFallback": "Chào bạn, bắt đầu trong ba bước",
-    "intro": "AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
+    "intro": "Ứng dụng đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
     "step1": {
       "title": "Tạo dự án",
       "sentence": "Khai báo tên công trình và danh sách tầng.",

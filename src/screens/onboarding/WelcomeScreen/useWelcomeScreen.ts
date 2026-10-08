@@ -124,7 +124,7 @@ export const STRINGS = Object.freeze({
   greetingSuffix: ', bắt đầu trong ba bước',
   greetingFallback: 'Chào bạn, bắt đầu trong ba bước',
   intro:
-    'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
+    'Ứng dụng đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
   step1Title: 'Tạo dự án',
   step1Sentence: 'Khai báo tên công trình và danh sách tầng.',
   step1Action: 'Tạo dự án',

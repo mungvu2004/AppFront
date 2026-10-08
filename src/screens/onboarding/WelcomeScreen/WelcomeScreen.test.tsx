@@ -240,7 +240,7 @@ function propsFor(scenario: SevenStateScenario): WelcomeScreenProps {
     isCollapsed: scenario.isCollapsed,
     greeting: 'Chào Minh, bắt đầu trong ba bước',
     intro:
-      'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
+      'Ứng dụng đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.',
     cards,
     sampleProjectLink: { label: 'Xem dự án mẫu', disabledReason: null, onActivate: noop },
     tutorialLink: {
@@ -356,9 +356,7 @@ describe('cả màn: tiếng Việt có dấu, tiếp cận được, không mã
   it('expectVietnamese và expectAccessible chạy trên cây render của trạng thái đầy đủ', () => {
     const { container } = render(<WelcomeScreen {...propsFor(scenarioOf('success'))} />);
 
-    // Tên sản phẩm là tên riêng, không phải câu chữ của giao diện — cùng ngoại lệ
-    // mà `expectVietnamese` mở sẵn cho `allowWords`.
-    expectVietnamese(container, { ignore: ['AppFront'] });
+    expectVietnamese(container);
     expectAccessible(container);
   });
 
@@ -413,6 +411,8 @@ describe('useWelcomeScreen suy ra ba bước từ dữ liệu truy vấn', () =>
 
     expect(vm().cards.map((card) => card.state)).toEqual(['open', 'locked', 'locked']);
     expect(vm().cards[1]?.lockedReason).toBe('Cần tạo dự án trước.');
+    // Tên nội bộ của dự án không hiện cho người dùng (BUG-004).
+    expect(vm().intro).not.toMatch(/AppFront/u);
     expect(vm().cards[2]?.lockedReason).toBe('Cần tải bản vẽ trước.');
   });
 
