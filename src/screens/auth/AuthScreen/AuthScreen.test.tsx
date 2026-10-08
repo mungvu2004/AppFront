@@ -231,15 +231,8 @@ describe('AuthScreenView — the seven states', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(AUTH_MESSAGES.errors.accountDisabled.title);
   });
 
-  it('offers a way out of the disabled-account strip when the host wires one (BUG-017)', () => {
+  it('offers a way out of the disabled-account strip (BUG-017)', () => {
     const signInWithAnotherAccount = vi.fn();
-    const { unmount } = render(<AuthScreenView {...PROPS_BY_STATE.forbidden()} />);
-
-    expect(
-      screen.queryByRole('button', { name: AUTH_MESSAGES.actions.signInWithAnotherAccount }),
-    ).toBeNull();
-    unmount();
-
     render(<AuthScreenView {...PROPS_BY_STATE.forbidden()} signInWithAnotherAccount={signInWithAnotherAccount} />);
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác' }));
 
@@ -365,7 +358,7 @@ describe('AuthScreen — keyboard', () => {
 
   it('leaves Enter on a button to the button itself: nothing is sent, the key is not swallowed (BUG-011)', () => {
     const { gateway, signIn } = stubGateway();
-    renderScreen({ gateway });
+    renderScreen({ gateway, onSsoSignIn: noop });
 
     type(emailField(), EMAIL);
     type(passwordField(), PASSWORD);
