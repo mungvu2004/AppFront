@@ -502,7 +502,15 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   }, []);
 
   const blurField = useCallback((field: AuthField) => {
-    const problem = firstProblem(field, valueOf(valuesRef.current, field));
+    const value = valueOf(valuesRef.current, field);
+
+    // An empty box is "chưa nhập" only at submit (BUG-009): the page focuses the email box on
+    // load, so complaining on blur pushed the links below down under the visitor's first click.
+    if (value.length === 0) {
+      return;
+    }
+
+    const problem = firstProblem(field, value);
 
     setProblems((current) => {
       if (problem === undefined) {

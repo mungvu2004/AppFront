@@ -48,3 +48,38 @@ describe('useAuthScreen — partial (BUG-001)', () => {
     expect(result.current.model.state).toBe('partial');
   });
 });
+
+describe('useAuthScreen — leaving an empty box (BUG-009)', () => {
+  it('says nothing on blur of a box never typed in, and still says "chưa nhập" on submit', () => {
+    const { result } = setup();
+
+    act(() => {
+      result.current.actions.blurField('email');
+      result.current.actions.blurField('password');
+    });
+
+    expect(result.current.model.problems).toEqual({});
+
+    act(() => {
+      result.current.actions.submit();
+    });
+
+    expect(result.current.model.problems).toEqual({
+      email: AUTH.problems.emailRequired,
+      password: AUTH.problems.passwordRequired,
+    });
+  });
+
+  it('keeps the complaint submit left behind when the empty box is left again', () => {
+    const { result } = setup();
+
+    act(() => {
+      result.current.actions.submit();
+    });
+    act(() => {
+      result.current.actions.blurField('email');
+    });
+
+    expect(result.current.model.problems.email).toBe(AUTH.problems.emailRequired);
+  });
+});
