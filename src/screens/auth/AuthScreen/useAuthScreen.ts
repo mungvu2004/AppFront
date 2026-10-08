@@ -180,8 +180,11 @@ export interface AuthScreenActions {
   readonly blurField: (field: AuthField) => void;
   readonly setCollapsed: (isCollapsed: boolean) => void;
   readonly submit: () => void;
-  /** The SSO button. A no-op until a host supplies {@link UseAuthScreenOptions.onSsoSignIn}. */
-  readonly ssoSignIn: () => void;
+  /**
+   * The SSO button. Absent — and the button with it — until a host supplies
+   * {@link UseAuthScreenOptions.onSsoSignIn}: a button that does nothing is a dead end (BUG-002).
+   */
+  readonly ssoSignIn?: () => void;
   /** "Quên mật khẩu": opens the panel, carrying the address typed so far. */
   readonly forgotPassword: () => void;
   /** Back to the sign-in form. */
@@ -193,7 +196,7 @@ export interface UseAuthScreenOptions {
   readonly gateway: AuthGateway;
   /** Called after the success flash, to send the visitor back where they came from. */
   readonly onAuthenticated: () => void;
-  /** There is no SSO flow yet — the button renders and does nothing until a host wires one in. */
+  /** There is no SSO flow yet — without this the screen shows no SSO button at all. */
   readonly onSsoSignIn?: () => void;
   /** A sentence to open the strip with — what the last screen wants this one to say. */
   readonly initialNotice?: AuthInitialNotice;
@@ -568,10 +571,6 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     setCollapsedState(next);
   }, []);
 
-  const ssoSignIn = useCallback(() => {
-    onSsoSignIn?.();
-  }, [onSsoSignIn]);
-
   /** Opening the panel carries the address typed so far; closing it keeps that address. */
   const forgotPassword = useCallback(() => {
     forgotActions.reset(valuesRef.current.email);
@@ -744,7 +743,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     blurField,
     setCollapsed,
     submit,
-    ssoSignIn,
+    ...(onSsoSignIn !== undefined ? { ssoSignIn: onSsoSignIn } : {}),
     forgotPassword,
     closeForgotPassword,
     forgotActions,

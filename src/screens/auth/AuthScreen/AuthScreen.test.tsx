@@ -349,7 +349,7 @@ describe('AuthScreen — keyboard', () => {
 
   it('signs in with Tab and Enter alone: first field focused, the rest in order, Enter sends', () => {
     const { gateway, signIn } = stubGateway();
-    const { container } = renderScreen({ gateway });
+    const { container } = renderScreen({ gateway, onSsoSignIn: noop });
 
     const form = container.querySelector('form');
     expect(form).not.toBeNull();
@@ -407,13 +407,20 @@ describe('AuthScreen — password visibility', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('AuthScreen — SSO and password reset', () => {
-  it('calls the host callback when the SSO button is pressed, and does nothing when none was given', () => {
+  it('calls the host callback when the SSO button is pressed, and shows no button when none was given', () => {
     const onSsoSignIn = vi.fn();
     renderScreen({ onSsoSignIn });
 
     fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn }));
 
     expect(onSsoSignIn).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    renderScreen();
+
+    // BUG-002: no flow, no button — and no "Hoặc" divider leading to nothing.
+    expect(screen.queryByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn })).toBeNull();
+    expect(screen.queryByText(AUTH_MESSAGES.actions.or)).toBeNull();
   });
 
   it('opens the forgot-password panel when "Quên mật khẩu" is pressed', () => {
