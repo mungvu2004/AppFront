@@ -41,10 +41,12 @@ export function PasswordField({ disabled, hint, error, id, ...props }: PasswordF
         disabled={disabled}
         suffix={
           // `type="button"`: Enter hay bấm trên nút chỉ đổi hiện/ẩn, không bao giờ gửi biểu mẫu (BUG-011).
+          // Trạng thái nói bằng NHÃN đổi Hiện/Ẩn, không thêm `aria-pressed`: nhãn đổi cộng nút bật là
+          // nói hai lần, mâu thuẫn nhau (APG "Button": nhãn đổi thì không dùng `aria-pressed`).
           <button
             type="button"
             disabled={disabled}
-            aria-pressed={isVisible}
+            aria-controls={inputId}
             aria-label={
               isVisible ? AUTH_MESSAGES.actions.hidePassword : AUTH_MESSAGES.actions.showPassword
             }
