@@ -21,7 +21,9 @@ import {
   errors as ERROR_MESSAGES,
 } from '@/i18n/vi.json';
 
+import { PasswordField } from '../PasswordField';
 import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { passwordTooShort } from '../recoveryShared';
 import {
   useInvitationAccept,
   type InvitationAcceptActions,
@@ -124,9 +126,9 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                   setFullName(event.target.value);
                 }}
               />
-              <Input
-                type="password"
+              <PasswordField
                 label={AUTH_MESSAGES.fields.password}
+                hint={passwordTooShort()}
                 autoComplete="new-password"
                 value={values.password}
                 disabled={fieldsDisabled}
@@ -135,8 +137,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                   setPassword(event.target.value);
                 }}
               />
-              <Input
-                type="password"
+              <PasswordField
                 label={AUTH_MESSAGES.fields.confirmPassword}
                 autoComplete="new-password"
                 value={values.confirmPassword}

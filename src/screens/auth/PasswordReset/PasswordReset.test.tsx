@@ -153,6 +153,35 @@ describe('PasswordResetView — the seven states', () => {
     expect(button.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('gives both boxes their own eye button, as on /login (BUG-051)', () => {
+    render(<PasswordResetView {...baseProps()} />);
+
+    const toggles = screen.getAllByRole('button', { name: AUTH.actions.showPassword });
+    expect(toggles).toHaveLength(2);
+
+    fireEvent.click(toggles[0] as HTMLElement);
+
+    expect(field(AUTH.fields.newPassword)).toHaveAttribute('type', 'text');
+    expect(field(AUTH.fields.confirmPassword)).toHaveAttribute('type', 'password');
+  });
+
+  it('states the length rule under the new password before anything is sent (BUG-049)', () => {
+    render(<PasswordResetView {...baseProps()} />);
+
+    expect(field(AUTH.fields.newPassword)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
+  it('offers the way back to /login from the form too, not only from the dead end (BUG-050)', () => {
+    const goToSignIn = vi.fn();
+    render(<PasswordResetView {...baseProps()} goToSignIn={goToSignIn} />);
+
+    const link = screen.getByRole('link', { name: AUTH.actions.goToSignIn });
+    expect(link).toHaveAttribute('href', '/login');
+
+    fireEvent.click(link);
+    expect(goToSignIn).toHaveBeenCalledTimes(1);
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/PasswordReset/PasswordReset.tsx');
@@ -266,7 +295,8 @@ describe('PasswordReset — what the server answers', () => {
 
     fillAndSubmit(container);
 
-    expect(await screen.findByText(/Mật khẩu cần ít nhất 8 ký tự/u)).toBeInTheDocument();
+    // Câu lỗi, không phải gợi ý cùng chữ đứng sẵn dưới ô (BUG-049).
+    expect(await screen.findByText(/Mật khẩu cần ít nhất 8 ký tự/u, { selector: '[role="alert"]' })).toBeInTheDocument();
     expect(field(AUTH.fields.newPassword).value).toBe(NEW_PASSWORD);
   });
 

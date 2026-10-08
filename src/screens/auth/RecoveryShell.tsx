@@ -19,15 +19,17 @@ export interface RecoveryShellProps {
 export function RecoveryShell({ title, subtitle, state, children }: RecoveryShellProps) {
   return (
     // Neo từ trên, không căn giữa dọc: căn giữa thì dải lỗi chèn vào đẩy cả khối, ô nhập trôi khỏi con trỏ (BUG-008).
+    // Lề 24 px dưới 640, 48 px từ đó: ở 375 lề 48 px chỉ để lại cột ~279 px (BUG-052).
     <main
-      className="flex min-h-screen w-full items-start justify-center bg-bg-app p-12 pt-[15vh]"
+      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[15vh] sm:px-12 sm:pb-12"
       data-auth-state={state}
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
         <div className="flex flex-col gap-1">
           <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">{title}</h1>
           {subtitle !== undefined && (
-            <p className="text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
+            // `text-balance` (không `pretty`: Firefox chưa hỗ trợ): không để "bạn." một mình ở dòng cuối (BUG-052).
+            <p className="text-balance text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
           )}
         </div>
         {children}

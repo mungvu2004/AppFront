@@ -125,7 +125,8 @@ export function fillTemplate(template: string, values: Readonly<Record<string, s
   return template.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => values[key] ?? whole);
 }
 
-const passwordTooShort = (): string =>
+/** Luật độ dài mật khẩu thành câu — vừa là lỗi, vừa là gợi ý dưới ô trước khi gửi (BUG-049). */
+export const passwordTooShort = (): string =>
   fillTemplate(AUTH_MESSAGES.problems.passwordTooShort, { count: String(MIN_PASSWORD_LENGTH) });
 
 /**

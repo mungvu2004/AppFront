@@ -9,13 +9,14 @@
 import { useCallback } from 'react';
 
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
-import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { PasswordField } from '../PasswordField';
+import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { passwordTooShort } from '../recoveryShared';
 import {
   usePasswordReset,
   type PasswordResetActions,
@@ -76,9 +77,9 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           </p>
 
           <div className="flex flex-col gap-4">
-            <Input
-              type="password"
+            <PasswordField
               label={AUTH_MESSAGES.fields.newPassword}
+              hint={passwordTooShort()}
               autoComplete="new-password"
               autoFocus
               value={values.newPassword}
@@ -88,8 +89,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
                 setNewPassword(event.target.value);
               }}
             />
-            <Input
-              type="password"
+            <PasswordField
               label={AUTH_MESSAGES.fields.confirmPassword}
               autoComplete="new-password"
               value={values.confirmPassword}
@@ -106,6 +106,8 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           </Button>
           {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
           <RecoveryNoticeStrip notice={notice} />
+          {/* Lối về `/login` cả khi biểu mẫu còn dùng được, không chỉ ở ngõ cụt (BUG-050). */}
+          <RecoveryLink label={AUTH_MESSAGES.actions.goToSignIn} href={ROUTES.login} onClick={goToSignIn} />
         </form>
       )}
     </RecoveryShell>
