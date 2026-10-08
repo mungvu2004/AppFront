@@ -130,9 +130,10 @@ export function ValuePanel() {
 
         <div className="flex max-w-[420px] flex-col gap-4 animate-panel-rise motion-reduce:animate-none">
           {/* `text-balance`: ở 1024 cột chữ ~364 px, không cân thì "trường." đứng một mình ở dòng ba (BUG-046). */}
-          <h1 className="text-balance text-[28px] font-semibold leading-[36px] text-text-primary">
+          {/* `<p>`, không `<h1>`: h1 duy nhất của màn là tên biểu mẫu, khẩu hiệu không chen trước nó (BUG-047). */}
+          <p className="text-balance text-[28px] font-semibold leading-[36px] text-text-primary">
             {AUTH_MESSAGES.hero.headline}
-          </h1>
+          </p>
           <p className="text-[15px] leading-[24px] text-text-secondary">
             {AUTH_MESSAGES.hero.support}
           </p>

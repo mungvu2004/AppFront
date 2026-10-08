@@ -355,6 +355,22 @@ describe('AuthScreenView — accessibility', () => {
       unmount();
     }
   });
+
+  it('has one h1, the name of the panel, and the hero is not a heading (BUG-047)', () => {
+    for (const [panel, name] of [
+      ['signIn', AUTH_MESSAGES.tabs.signIn],
+      ['forgotPassword', AUTH_MESSAGES.forgotPassword.title],
+    ] as const) {
+      const { unmount } = render(<AuthScreenView {...baseProps()} panel={panel} />);
+
+      const headings = screen.getAllByRole('heading', { level: 1 });
+      expect(headings, panel).toHaveLength(1);
+      expect(headings[0], panel).toHaveTextContent(name);
+      expect(screen.queryByRole('heading', { name: AUTH_MESSAGES.hero.headline }), panel).toBeNull();
+      expect(screen.getByText(AUTH_MESSAGES.hero.headline), panel).toBeInTheDocument();
+      unmount();
+    }
+  });
 });
 
 /* -------------------------------------------------------------------------- */
