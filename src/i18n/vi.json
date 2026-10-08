@@ -187,6 +187,7 @@
       "passwordReset": "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.",
       "sessionEnded": "Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.",
       "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ, đang thử lại.",
+      "sessionNotOpened": "Mật khẩu đúng nhưng chưa mở được phiên làm việc. Kiểm tra trình duyệt có cho phép cookie của trang này rồi đăng nhập lại.",
       "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
       "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",
       "collapsedRecovery": "Biểu mẫu đang thu gọn. Mở lại để nhập mật khẩu.",

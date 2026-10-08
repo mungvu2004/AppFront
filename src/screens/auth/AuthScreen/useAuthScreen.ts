@@ -102,6 +102,18 @@ export class SignedInOfflineError extends Error {
   }
 }
 
+/**
+ * Máy chủ nhận mật khẩu nhưng lượt gia hạn ngay sau đó không mở được phiên (vd. trình
+ * duyệt chặn cookie). Một lớp riêng để hook nói đúng chuyện, thay vì để `toAppError` đoán
+ * theo chữ tiếng Anh trong `message` và ra "Phiên làm việc đã hết hạn" (BUG-014).
+ */
+export class SessionNotOpenedError extends Error {
+  constructor() {
+    super('Sign-in succeeded but no session was established.');
+    this.name = 'SessionNotOpenedError';
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Shapes the view reads.                                                      */
 /* -------------------------------------------------------------------------- */
@@ -205,6 +217,7 @@ type AuthFailure =
   | { readonly kind: 'validation' }
   | { readonly kind: 'validationOther' }
   | { readonly kind: 'signedInOffline' }
+  | { readonly kind: 'sessionNotOpened' }
   | { readonly kind: 'transport'; readonly cause: unknown };
 
 /**
@@ -219,6 +232,10 @@ type AuthFailure =
 function classifyFailure(error: unknown): { failure: AuthFailure; field?: AuthField } {
   if (error instanceof SignedInOfflineError) {
     return { failure: { kind: 'signedInOffline' } };
+  }
+
+  if (error instanceof SessionNotOpenedError) {
+    return { failure: { kind: 'sessionNotOpened' } };
   }
 
   const wire = readWireError(error);
@@ -284,6 +301,8 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
       };
     case 'signedInOffline':
       return { tone: 'attention', message: AUTH_MESSAGES.notices.signedInOffline };
+    case 'sessionNotOpened':
+      return { tone: 'attention', message: AUTH_MESSAGES.notices.sessionNotOpened };
     case 'validationOther':
       return {
         tone: 'violation',

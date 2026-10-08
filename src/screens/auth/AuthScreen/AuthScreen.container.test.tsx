@@ -172,6 +172,9 @@ describe('AuthRoute — a session that opens by itself', () => {
       expect(mocks.bootstrap).toHaveBeenCalledTimes(1);
     });
     expect(screen.queryByText(AUTH.notices.signedInOffline)).toBeNull();
+    // Its own sentence, not "Phiên làm việc đã hết hạn" guessed from the English message (BUG-014).
+    expect(await screen.findByText(AUTH.notices.sessionNotOpened)).toBeInTheDocument();
+    expect(screen.queryByText(viMessages.errors.unauthenticated.description)).toBeNull();
 
     act(() => {
       setAuthenticatedSession(SESSION);
