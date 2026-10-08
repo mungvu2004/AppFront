@@ -89,6 +89,8 @@ export interface ProjectDashboardViewProps extends ProjectDashboardModel, Projec
    * mà vẫn nằm trong thứ tự Tab là thứ A2 chặn (B-V3-08).
    */
   readonly notificationBell?: ReactNode | undefined;
+  /** Chữ viết tắt của người đang đăng nhập, cho avatar tài khoản; thiếu thì vòng tròn để trống. */
+  readonly accountInitials?: string | undefined;
 }
 
 /** The dashboard as a function of its props — rendered directly by tests and stories. */
@@ -181,7 +183,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         />
         <div className="ml-auto flex items-center gap-3">
           {props.notificationBell}
-          <Avatar alt="Tài khoản của bạn" />
+          <Avatar alt="Tài khoản của bạn" {...(props.accountInitials ? { initials: props.accountInitials } : {})} />
           {props.canCreate && (
             <Button variant="primary" size="sm" iconBefore={<Plus size={16} aria-hidden="true" />} onClick={props.createProject} shortcut="N">
               Dự án mới
@@ -356,6 +358,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 'onOpenProject' | 'onToast'> {
   /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.notificationBell}. */
   readonly notificationBell?: ReactNode | undefined;
+  /** Chuyển thẳng xuống view — xem {@link ProjectDashboardViewProps.accountInitials}. */
+  readonly accountInitials?: string | undefined;
 }
 
 /**
@@ -368,7 +372,7 @@ export interface ProjectDashboardProps extends Omit<UseProjectDashboardOptions, 
  * two lines down. Two independent `Toast.Provider`s would each draw their own
  * fixed-position stack in the same corner (R-73's container/props boundary).
  */
-export function ProjectDashboardConnected({ notificationBell, ...options }: ProjectDashboardProps) {
+export function ProjectDashboardConnected({ notificationBell, accountInitials, ...options }: ProjectDashboardProps) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
@@ -378,7 +382,7 @@ export function ProjectDashboardConnected({ notificationBell, ...options }: Proj
     onToast: addToast,
   });
 
-  return <ProjectDashboardView {...model} {...actions} notificationBell={notificationBell} />;
+  return <ProjectDashboardView {...model} {...actions} notificationBell={notificationBell} accountInitials={accountInitials} />;
 }
 
 /** `ProjectDashboard`, standalone — its own `Toast.Provider`. For stories, tests and the demo picker; the real route is `ProjectDashboardRoute` (`./ProjectDashboard.container`). */
