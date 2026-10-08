@@ -92,7 +92,6 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           {isSessionUnavailable && (
             <InlineAlert
               level="attention"
-              title={ERROR_MESSAGES.network.title}
               message={ERROR_MESSAGES.network.description}
               action={{ label: COMMON_MESSAGES.retry, onClick: retrySession }}
             />

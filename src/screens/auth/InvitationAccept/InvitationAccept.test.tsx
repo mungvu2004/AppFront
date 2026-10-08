@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -417,6 +417,8 @@ describe('InvitationAccept — the session around it', () => {
     render(<InvitationAccept port={port} />);
 
     expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
+    // The sentence already opens with the incident: no heading repeating it (BUG-021).
+    expect(within(screen.getByRole('alert')).queryByRole('heading')).toBeNull();
     expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
   });
 

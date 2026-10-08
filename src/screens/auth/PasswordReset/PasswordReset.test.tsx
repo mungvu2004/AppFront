@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -346,6 +346,21 @@ describe('PasswordReset — what the server answers', () => {
       expect(stateOf(container)).toBe('error');
     });
     expect(screen.getByLabelText(AUTH.fields.newPassword)).toBeInTheDocument();
+    // The sentence already opens with the incident: no heading repeating it (BUG-021).
+    expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
+    expect(within(screen.getByRole('alert')).queryByRole('heading')).toBeNull();
+  });
+
+  it('names a 429 once, in the heading, not again in the sentence (BUG-021)', async () => {
+    const { port } = makePort(wireFailure(429, { retryAfterSeconds: 7 }));
+    const { container } = render(<PasswordReset port={port} />);
+
+    fillAndSubmit(container);
+
+    const alert = await screen.findByRole('alert');
+
+    expect(within(alert).getByRole('heading')).toHaveTextContent(AUTH.errors.tooManyAttempts.title);
+    expect(alert.textContent?.split(AUTH.errors.tooManyAttempts.title)).toHaveLength(2);
   });
 });
 

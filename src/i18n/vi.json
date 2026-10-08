@@ -153,7 +153,7 @@
         "title": "Máy chủ từ chối yêu cầu",
         "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
-      "tooManyRecovery": "Đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
       "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
       "accountDisabled": {
         "title": "Tài khoản đã bị vô hiệu",
