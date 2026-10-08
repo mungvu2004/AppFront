@@ -9,7 +9,7 @@
      [CẤM TUYỆT ĐỐI] nói "chủ đề tối dùng đúng bộ token tối, không tự làm tối
      màu bằng bộ lọc". Nên ở đây không có `filter: invert()`, không có
      `opacity`, không có lớp phủ đen: chỉ 37 custom property được khai lại.
-     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 44 mục, không
+     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 39 mục màu (cộng 5 shadow), không
      một mã màu thô nào — nên khai lại thuộc tính DƯỚI selector này CHÍNH LÀ cả
      cơ chế. Không thêm `darkMode: 'class'` vào Tailwind: cái đó bật biến thể
      `dark:`, thứ repo này dùng đúng 0 lần.
@@ -63,6 +63,9 @@
      3,45:1 trên `--bg-app`, 3,10:1 trên `--bg-surface`; sáng: 3,17:1 và 3,48:1.
      Hover viền lên `--text-primary`: 4,11:1 (tối) và 3,69:1 (sáng) so với viền
      thường, nên vẫn thấy rõ.
+     Biên an toàn dựa vào nền `--bg-surface` BÊN TRONG control: trên nền hàng
+     `bg-hover`/`bg-selected` (tối) phía ngoài chỉ ~2,6–2,7:1, sáng trên
+     `--bg-sunken` ~3,0:1 — đừng hạ token này thêm.
 
      ## Hai mươi thuộc tính KHÔNG khai lại, và vì sao
 
