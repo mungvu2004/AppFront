@@ -3,12 +3,14 @@
  *
  * Thay chỗ biểu mẫu đăng nhập chứ không mở lớp phủ: Esc ở đây là "quay lại đăng
  * nhập" (A12), và nút quay lại trả tiêu điểm về ô thư điện tử của biểu mẫu đăng nhập.
- * Câu thành công là câu trung tính, chữ phụ, không màu trạng thái: N8 luôn trả 204 nên
- * nó không được nói địa chỉ có tài khoản hay không.
+ * Câu thành công giữ lời trung tính (N8 luôn trả 204 nên nó không được nói địa chỉ có tài
+ * khoản hay không) nhưng nằm trong khối thành công có sẵn (`InlineAlert` "verified") để
+ * người dùng nhận ra yêu cầu đã đi (BUG-022).
  */
 
 import { useCallback } from 'react';
 
+import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -50,14 +52,13 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
 
   return (
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-      <p className="text-[14px] leading-[20px] text-text-secondary">{AUTH_MESSAGES.forgotPassword.subtitle}</p>
-
       <RecoveryNoticeStrip notice={notice} />
 
-      {/* Always mounted, filled later: a region inserted together with its text is often not read. */}
-      <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
-        {sentMessage}
-      </p>
+      {/* Always mounted, filled later: a region inserted together with its text is often not read.
+          `role="none"` drops the block's own `alert` role, so it is announced politely, once. */}
+      <div role="status" className="empty:sr-only">
+        {sentMessage !== null && <InlineAlert role="none" level="verified" message={sentMessage} />}
+      </div>
 
       <Input
         ref={registerEmailField}

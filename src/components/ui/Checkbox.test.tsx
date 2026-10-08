@@ -45,4 +45,10 @@ describe('Checkbox', () => {
     const { container } = render(<Checkbox />);
     expect(container.querySelector('.peer-focus-visible\\:ring-2')).toBeInTheDocument();
   });
+
+  it('is one Tab stop: only the input can take focus, never the drawn box (BUG-012)', () => {
+    const { container } = render(<Checkbox label="Ghi nhớ" />);
+    const focusable = container.querySelectorAll('input, [tabindex]:not([tabindex="-1"])');
+    expect(Array.from(focusable)).toEqual([screen.getByRole('checkbox')]);
+  });
 });

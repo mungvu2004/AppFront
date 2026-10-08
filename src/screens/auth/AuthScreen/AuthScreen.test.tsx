@@ -230,6 +230,21 @@ describe('AuthScreenView — the seven states', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(AUTH_MESSAGES.errors.accountDisabled.title);
   });
 
+  it('offers a way out of the disabled-account strip when the host wires one (BUG-017)', () => {
+    const signInWithAnotherAccount = vi.fn();
+    const { unmount } = render(<AuthScreenView {...PROPS_BY_STATE.forbidden()} />);
+
+    expect(
+      screen.queryByRole('button', { name: AUTH_MESSAGES.actions.signInWithAnotherAccount }),
+    ).toBeNull();
+    unmount();
+
+    render(<AuthScreenView {...PROPS_BY_STATE.forbidden()} signInWithAnotherAccount={signInWithAnotherAccount} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác' }));
+
+    expect(signInWithAnotherAccount).toHaveBeenCalledTimes(1);
+  });
+
   it('collapses to one sentence and a button that opens it again', () => {
     render(<AuthScreenView {...PROPS_BY_STATE.collapsed()} />);
 
@@ -347,6 +362,25 @@ describe('AuthScreen — keyboard', () => {
     expect(third.signIn).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves Enter on a button to the button itself: nothing is sent, the key is not swallowed (BUG-011)', () => {
+    const { gateway, signIn } = stubGateway();
+    renderScreen({ gateway });
+
+    type(emailField(), EMAIL);
+    type(passwordField(), PASSWORD);
+
+    for (const name of [
+      AUTH_MESSAGES.actions.forgotPassword,
+      AUTH_MESSAGES.actions.ssoSignIn,
+      AUTH_MESSAGES.actions.showPassword,
+    ]) {
+      // `fireEvent` returns false when a handler called `preventDefault`, which is what kills the native click.
+      expect(fireEvent.keyDown(screen.getByRole('button', { name }), { key: 'Enter' }), name).toBe(true);
+    }
+
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it('signs in with Tab and Enter alone: first field focused, the rest in order, Enter sends', () => {
     const { gateway, signIn } = stubGateway();
     const { container } = renderScreen({ gateway });
@@ -425,7 +459,7 @@ describe('AuthScreen — SSO and password reset', () => {
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.password)).toBeNull();
   });
 
-  it('offers the same panel from inside the wrong-password strip', async () => {
+  it('offers the same panel from under the wrong-password strip', async () => {
     const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
     renderScreen({ gateway });
 

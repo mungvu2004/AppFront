@@ -127,7 +127,8 @@
       "forgotPassword": "Quên mật khẩu",
       "resetPassword": "Đặt lại mật khẩu",
       "showPassword": "Hiện mật khẩu",
-      "hidePassword": "Ẩn mật khẩu"
+      "hidePassword": "Ẩn mật khẩu",
+      "signInWithAnotherAccount": "Đăng nhập bằng tài khoản khác"
     },
     "problems": {
       "confirmMismatch": "Hai mật khẩu chưa giống nhau.",

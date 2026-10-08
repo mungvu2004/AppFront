@@ -40,7 +40,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     <label
       htmlFor={internalId}
       className={cn(
-        'flex items-center min-h-[32px] cursor-pointer outline-none',
+        'group/checkbox flex items-center min-h-[32px] cursor-pointer outline-none',
         disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
@@ -59,15 +59,16 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           {...props}
         />
         
-        <motion.div
+        {/* Nhấn bằng CSS (`group-active`), không `whileTap`: framer gắn `tabindex="0"` cho phần tử có
+            cử chỉ nhấn, khung vẽ thành điểm dừng Tab thứ hai không tên (BUG-012). Ô input ẩn đã nhận focus. */}
+        <div
           className={cn(
-            'w-[18px] h-[18px] rounded-[6px] border-[1.5px] flex items-center justify-center transition-colors duration-120',
+            'w-[18px] h-[18px] rounded-[6px] border-[1.5px] flex items-center justify-center transition duration-120 motion-reduce:transition-none',
             'peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2',
             checked || indeterminate ? 'bg-accent border-accent' : 'border-border-default bg-bg-surface',
-            error && 'border-state-violation'
+            error && 'border-state-violation',
+            !disabled && !readOnly && 'motion-safe:group-active/checkbox:scale-[0.94]'
           )}
-          whileTap={!disabled && !readOnly ? { scale: 0.94 } : {}}
-          transition={{ duration: durationSeconds('instant') }}
         >
           {indeterminate ? (
             <div className="w-[10px] h-[2px] bg-white rounded-full" />
@@ -91,7 +92,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
               />
             </svg>
           )}
-        </motion.div>
+        </div>
       </div>
       
       {label && (
