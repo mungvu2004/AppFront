@@ -336,7 +336,7 @@ export function WelcomeScreen({
             <QuietLink
               id="onboarding-skip"
               link={skipLink}
-              toneClass="text-text-muted hover:text-text-secondary"
+              toneClass="text-text-muted hover:text-text-primary"
               note={skipNotice}
             />
           </div>

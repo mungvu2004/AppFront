@@ -63,7 +63,7 @@ export function PasswordField({
               setVisible((visible) => !visible);
             }}
             // Vùng bấm 24 px, 44 px dưới 640, icon vẫn 16 px; `-mr-*` ăn vào lề khối suffix để icon gần như không dời (BUG-040).
-            className="-mr-3 inline-flex h-11 w-11 items-center justify-center sm:-mr-1 sm:h-6 sm:w-6 text-text-muted transition-colors duration-120 hover:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            className="-mr-3 inline-flex h-11 w-11 items-center justify-center sm:-mr-1 sm:h-6 sm:w-6 text-text-muted transition-colors duration-120 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isVisible ? (
               <EyeOff aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
