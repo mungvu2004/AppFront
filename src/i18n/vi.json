@@ -170,7 +170,8 @@
     "forgotPassword": {
       "title": "Quên mật khẩu",
       "subtitle": "Nhập thư điện tử của tài khoản. Thư đặt lại mật khẩu sẽ được gửi tới đó.",
-      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút."
+      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút.",
+      "sentHint": "Đổi địa chỉ nếu muốn gửi tới thư khác."
     },
     "invitation": {
       "title": "Nhận lời mời",
