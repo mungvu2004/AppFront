@@ -160,6 +160,12 @@ describe('InvitationAcceptView — the seven states', () => {
     expect(screen.getByLabelText(AUTH.fields.confirmPassword)).toHaveAttribute('type', 'text');
   });
 
+  it('states the length rule under the password before anything is sent (BUG-049)', () => {
+    render(<InvitationAcceptView {...baseProps()} />);
+
+    expect(screen.getByLabelText(AUTH.fields.password)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/InvitationAccept/InvitationAccept.tsx');
@@ -318,7 +324,8 @@ describe('InvitationAccept — what the server answers', () => {
 
     fillAndSubmit(container);
 
-    expect(await screen.findByText(sentence)).toBeInTheDocument();
+    // Câu lỗi, không phải gợi ý cùng chữ đứng sẵn dưới ô mật khẩu (BUG-049).
+    expect(await screen.findByText(sentence, { selector: '[role="alert"]' })).toBeInTheDocument();
   });
 
   it.each([

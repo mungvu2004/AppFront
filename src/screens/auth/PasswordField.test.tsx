@@ -57,3 +57,20 @@ describe('PasswordField — the eye button (BUG-051)', () => {
     expect(screen.getByRole('button', { name: AUTH.actions.showPassword })).toBeDisabled();
   });
 });
+
+describe('PasswordField — the rule said up front (BUG-049)', () => {
+  const HINT = 'Mật khẩu cần ít nhất 8 ký tự.';
+
+  it('shows the hint under the box and ties it to the box', () => {
+    render(<PasswordField label={LABEL} hint={HINT} />);
+
+    expect(box()).toHaveAccessibleDescription(HINT);
+  });
+
+  it('gives way to the error, which then describes the box', () => {
+    render(<PasswordField label={LABEL} hint={HINT} error={AUTH.problems.passwordRequired} />);
+
+    expect(screen.queryByText(HINT)).toBeNull();
+    expect(box()).toHaveAccessibleDescription(AUTH.problems.passwordRequired);
+  });
+});

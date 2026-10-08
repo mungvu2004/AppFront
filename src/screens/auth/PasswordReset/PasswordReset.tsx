@@ -16,6 +16,7 @@ import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import { PasswordField } from '../PasswordField';
 import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { passwordTooShort } from '../recoveryShared';
 import {
   usePasswordReset,
   type PasswordResetActions,
@@ -78,6 +79,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           <div className="flex flex-col gap-4">
             <PasswordField
               label={AUTH_MESSAGES.fields.newPassword}
+              hint={passwordTooShort()}
               autoComplete="new-password"
               autoFocus
               value={values.newPassword}

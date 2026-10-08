@@ -165,6 +165,12 @@ describe('PasswordResetView — the seven states', () => {
     expect(field(AUTH.fields.confirmPassword)).toHaveAttribute('type', 'password');
   });
 
+  it('states the length rule under the new password before anything is sent (BUG-049)', () => {
+    render(<PasswordResetView {...baseProps()} />);
+
+    expect(field(AUTH.fields.newPassword)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/PasswordReset/PasswordReset.tsx');
@@ -278,7 +284,8 @@ describe('PasswordReset — what the server answers', () => {
 
     fillAndSubmit(container);
 
-    expect(await screen.findByText(/Mật khẩu cần ít nhất 8 ký tự/u)).toBeInTheDocument();
+    // Câu lỗi, không phải gợi ý cùng chữ đứng sẵn dưới ô (BUG-049).
+    expect(await screen.findByText(/Mật khẩu cần ít nhất 8 ký tự/u, { selector: '[role="alert"]' })).toBeInTheDocument();
     expect(field(AUTH.fields.newPassword).value).toBe(NEW_PASSWORD);
   });
 

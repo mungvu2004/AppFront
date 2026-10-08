@@ -23,6 +23,7 @@ import {
 
 import { PasswordField } from '../PasswordField';
 import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { passwordTooShort } from '../recoveryShared';
 import {
   useInvitationAccept,
   type InvitationAcceptActions,
@@ -127,6 +128,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
               />
               <PasswordField
                 label={AUTH_MESSAGES.fields.password}
+                hint={passwordTooShort()}
                 autoComplete="new-password"
                 value={values.password}
                 disabled={fieldsDisabled}
