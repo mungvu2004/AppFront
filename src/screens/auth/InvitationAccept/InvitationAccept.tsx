@@ -21,6 +21,7 @@ import {
   errors as ERROR_MESSAGES,
 } from '@/i18n/vi.json';
 
+import { PasswordField } from '../PasswordField';
 import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import {
   useInvitationAccept,
@@ -124,8 +125,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                   setFullName(event.target.value);
                 }}
               />
-              <Input
-                type="password"
+              <PasswordField
                 label={AUTH_MESSAGES.fields.password}
                 autoComplete="new-password"
                 value={values.password}
@@ -135,8 +135,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                   setPassword(event.target.value);
                 }}
               />
-              <Input
-                type="password"
+              <PasswordField
                 label={AUTH_MESSAGES.fields.confirmPassword}
                 autoComplete="new-password"
                 value={values.confirmPassword}

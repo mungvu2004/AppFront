@@ -148,6 +148,18 @@ describe('InvitationAcceptView — the seven states', () => {
     }
   });
 
+  it('gives both password boxes their own eye button, as on /login (BUG-051)', () => {
+    render(<InvitationAcceptView {...baseProps()} />);
+
+    const toggles = screen.getAllByRole('button', { name: AUTH.actions.showPassword });
+    expect(toggles).toHaveLength(2);
+
+    fireEvent.click(toggles[1] as HTMLElement);
+
+    expect(screen.getByLabelText(AUTH.fields.password)).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText(AUTH.fields.confirmPassword)).toHaveAttribute('type', 'text');
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/InvitationAccept/InvitationAccept.tsx');

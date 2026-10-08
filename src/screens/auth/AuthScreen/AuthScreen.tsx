@@ -29,8 +29,8 @@
  * of them through `expectSevenStates`.
  */
 
-import { useCallback, useRef, useState } from 'react';
-import { Eye, EyeOff, PanelsTopLeft } from 'lucide-react';
+import { useCallback, useRef } from 'react';
+import { PanelsTopLeft } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -48,6 +48,7 @@ import {
   type AuthScreenModel,
   type UseAuthScreenOptions,
 } from './useAuthScreen';
+import { PasswordField } from '../PasswordField';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
 import { ValuePanel } from './ValuePanel';
 
@@ -66,9 +67,6 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   const { values, problems, isSubmitting, canSubmit, submitLabel, notice, state } = model;
   const isDone = state === 'success';
   const fieldsDisabled = isSubmitting || isDone;
-
-  /** Ephemeral display state, not part of the model: it changes nothing about what gets submitted. */
-  const [isPasswordVisible, setPasswordVisible] = useState(false);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -151,8 +149,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           onBlur={blur('email')}
         />
 
-        <Input
-          type={isPasswordVisible ? 'text' : 'password'}
+        <PasswordField
           label={AUTH_MESSAGES.fields.password}
           autoComplete="current-password"
           value={values.password}
@@ -162,28 +159,6 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
             actions.setPassword(event.target.value);
           }}
           onBlur={blur('password')}
-          suffix={
-            <button
-              type="button"
-              disabled={fieldsDisabled}
-              onClick={() => {
-                setPasswordVisible((visible) => !visible);
-              }}
-              aria-label={
-                isPasswordVisible
-                  ? AUTH_MESSAGES.actions.hidePassword
-                  : AUTH_MESSAGES.actions.showPassword
-              }
-              // Vùng bấm 24 px, 44 px dưới 640, icon vẫn 16 px; `-mr-*` ăn vào lề khối suffix để icon gần như không dời (BUG-040).
-              className="-mr-3 inline-flex h-11 w-11 items-center justify-center sm:-mr-1 sm:h-6 sm:w-6 text-text-muted transition-colors duration-120 hover:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPasswordVisible ? (
-                <EyeOff aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
-              ) : (
-                <Eye aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
-              )}
-            </button>
-          }
         />
       </div>
 

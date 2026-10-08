@@ -9,12 +9,12 @@
 import { useCallback } from 'react';
 
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
+import { PasswordField } from '../PasswordField';
 import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import {
   usePasswordReset,
@@ -76,8 +76,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           </p>
 
           <div className="flex flex-col gap-4">
-            <Input
-              type="password"
+            <PasswordField
               label={AUTH_MESSAGES.fields.newPassword}
               autoComplete="new-password"
               autoFocus
@@ -88,8 +87,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
                 setNewPassword(event.target.value);
               }}
             />
-            <Input
-              type="password"
+            <PasswordField
               label={AUTH_MESSAGES.fields.confirmPassword}
               autoComplete="new-password"
               value={values.confirmPassword}

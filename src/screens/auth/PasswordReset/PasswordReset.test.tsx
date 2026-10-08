@@ -153,6 +153,18 @@ describe('PasswordResetView — the seven states', () => {
     expect(button.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('gives both boxes their own eye button, as on /login (BUG-051)', () => {
+    render(<PasswordResetView {...baseProps()} />);
+
+    const toggles = screen.getAllByRole('button', { name: AUTH.actions.showPassword });
+    expect(toggles).toHaveLength(2);
+
+    fireEvent.click(toggles[0] as HTMLElement);
+
+    expect(field(AUTH.fields.newPassword)).toHaveAttribute('type', 'text');
+    expect(field(AUTH.fields.confirmPassword)).toHaveAttribute('type', 'password');
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/PasswordReset/PasswordReset.tsx');
