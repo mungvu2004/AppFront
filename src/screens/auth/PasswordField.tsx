@@ -22,13 +22,22 @@ export interface PasswordFieldProps extends Omit<InputProps, 'type' | 'suffix' |
   readonly hint?: string;
 }
 
-export function PasswordField({ disabled, hint, error, id, ...props }: PasswordFieldProps) {
+export function PasswordField({
+  disabled,
+  hint,
+  error,
+  id,
+  'aria-describedby': callerDescribedBy,
+  ...props
+}: PasswordFieldProps) {
   const [isVisible, setVisible] = useState(false);
   const fallbackId = useId();
   const inputId = id ?? fallbackId;
   const hasError = error !== undefined && error !== null && error !== '';
   const showHint = hint !== undefined && !hasError;
-  const describedBy = hasError ? `${inputId}-error` : showHint ? `${inputId}-hint` : undefined;
+  const ownDescribedBy = hasError ? `${inputId}-error` : showHint ? `${inputId}-hint` : undefined;
+  // Ghép, không đè: mô tả nơi gọi đưa vào vẫn còn bên cạnh câu lỗi/gợi ý của chính ô.
+  const describedBy = [callerDescribedBy, ownDescribedBy].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="flex flex-col">

@@ -86,4 +86,15 @@ describe('PasswordField — the rule said up front (BUG-049)', () => {
     expect(screen.queryByText(HINT)).toBeNull();
     expect(box()).toHaveAccessibleDescription(AUTH.problems.passwordRequired);
   });
+
+  it('keeps a description the caller ties on, next to its own', () => {
+    render(
+      <>
+        <p id="caller-note">Mật khẩu do quản trị cấp.</p>
+        <PasswordField label={LABEL} hint={HINT} aria-describedby="caller-note" />
+      </>,
+    );
+
+    expect(box()).toHaveAccessibleDescription(`Mật khẩu do quản trị cấp. ${HINT}`);
+  });
 });
