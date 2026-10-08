@@ -13,7 +13,8 @@ export const buttonVariants = {
 export const buttonSizes = {
   sm: 'h-8 min-h-8 text-sm px-3',
   md: 'h-9 min-h-9 text-sm px-4',
-  lg: 'h-10 min-h-10 text-base px-5',
+  // 44 px under `sm` (640 px): the touch-target size for phones (BUG-048).
+  lg: 'h-11 min-h-11 sm:h-10 sm:min-h-10 text-base px-5',
 };
 
 export const buttonIconOnlySizes = {

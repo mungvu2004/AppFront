@@ -50,17 +50,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative flex items-center group">
           {isLoading ? (
-            <div className="h-[38px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+            <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
           ) : isReadOnly ? (
-            <div className="flex h-[38px] w-full items-center px-3 text-text-primary">
+            <div className="flex h-[46px] sm:h-[38px] w-full items-center px-3 text-text-primary">
               {prefix && <span className="mr-2 flex-shrink-0 text-text-muted">{prefix}</span>}
               <span className="flex-1 truncate">{props.value as React.ReactNode}</span>
               {suffix && <span className="ml-2 flex-shrink-0 text-text-muted">{suffix}</span>}
             </div>
           ) : (
+            /* 46 px under `sm`: the field inside the 1 px border is a 44 px touch target (BUG-048). */
             <div
               className={cn(
-                'relative flex h-[38px] w-full items-center rounded-lg bg-bg-surface',
+                'relative flex h-[46px] sm:h-[38px] w-full items-center rounded-lg bg-bg-surface',
                 'border border-border-control transition-colors duration-120',
                 isError && 'border-state-violation',
                 !disabled && !isError && 'hover:border-text-primary',
