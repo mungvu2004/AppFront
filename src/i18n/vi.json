@@ -1963,7 +1963,7 @@
     "capability": {
       "sessionOnlyHeading": "Những thay đổi chỉ sống trong phiên làm việc này",
       "persistFloorContents": "Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
-      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
     },
     "caption": {
       "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
