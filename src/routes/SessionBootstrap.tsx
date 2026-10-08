@@ -135,10 +135,16 @@ export function PendingShell({ label }: { label: string }) {
     <div
       aria-busy="true"
       aria-label={label}
-      className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6"
+      className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-bg-app p-6"
       role="status"
     >
-      <Skeleton preset="canvas" className="w-full max-w-3xl" />
+      {/* Nền mặt (không phải nền ứng dụng) để khung xương thấy được trên nền trang, và câu
+          hiện ra bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
+          `aria-hidden`: câu đã là tên của vùng `status`, không đọc hai lần. */}
+      <Skeleton preset="canvas" className="w-full max-w-3xl bg-bg-surface" />
+      <p aria-hidden="true" className="text-[14px] leading-[20px] text-text-secondary">
+        {label}…
+      </p>
     </div>
   );
 }

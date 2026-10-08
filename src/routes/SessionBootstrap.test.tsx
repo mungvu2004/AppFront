@@ -283,6 +283,8 @@ describe('SessionGate — năm nhánh', () => {
       'aria-busy',
       'true',
     );
+    // Câu chờ hiện bằng chữ, không chỉ nằm trong aria-label (BUG-027).
+    expect(screen.getByText('Đang mở phiên…')).toBeVisible();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
     expect(container.querySelectorAll('main')).toHaveLength(1);
