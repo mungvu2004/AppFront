@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_EMAIL_LENGTH } from './auth';
+
 const idSchema = z.string().min(1);
 const isoDateTimeSchema = z.string().datetime({ offset: true });
 const mmIntegerSchema = z.number().int();
@@ -55,8 +57,7 @@ const wireProjectStatusSchema = z.enum(['draft', 'processing', 'approved', 'erro
 /** Shortest password the form will send. Anything shorter is a typo, not an attempt. */
 export const MIN_PASSWORD_LENGTH = 8;
 
-/** Longest address the server accepts (RFC 5321 path limit; AppBack `apps/api/auth/emails.py`). */
-export const MAX_EMAIL_LENGTH = 254;
+export { MAX_EMAIL_LENGTH };
 
 /**
  * `.min(1)` before `.email()` on purpose. `.max()` comes last, so an address that is

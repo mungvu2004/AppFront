@@ -64,6 +64,16 @@ describe('PasswordResetRequestSchema', () => {
       ['invalid_string', ['email']],
     ]);
   });
+
+  it('nhận đúng 254 ký tự, từ chối 255 bằng too_big — cùng trần với EmailSchema (BUG-010)', () => {
+    const at254 = `${'a'.repeat(64)}@${'b'.repeat(186)}.vn`;
+
+    expect(at254).toHaveLength(254);
+    expect(accepts(PasswordResetRequestSchema, { email: at254 })).toBe(true);
+    expect(
+      PasswordResetRequestSchema.safeParse({ email: `a${at254}` }).error?.issues.map((issue) => issue.code),
+    ).toStrictEqual(['too_big']);
+  });
 });
 
 describe('PasswordResetConfirmSchema', () => {

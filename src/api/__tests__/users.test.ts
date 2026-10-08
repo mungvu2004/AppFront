@@ -273,6 +273,14 @@ describe('InviteUsersSchema', () => {
   it('rejects a role outside the three', () => {
     expect(InviteUsersSchema.safeParse({ emails: ['a@example.com'], role: 'qc' }).success).toBe(false);
   });
+
+  it('caps each address at 254 characters, like EmailSchema (BUG-010)', () => {
+    const at254 = `${'a'.repeat(64)}@${'b'.repeat(186)}.vn`;
+
+    expect(InviteUsersSchema.safeParse({ emails: [at254], role: 'viewer' }).success).toBe(true);
+    expect(InviteUsersSchema.safeParse({ emails: [`a${at254}`], role: 'viewer' }).success).toBe(false);
+    expect(RemoveUserSchema.safeParse({ confirmEmail: `a${at254}`, userId: 'user-3' }).success).toBe(false);
+  });
 });
 
 describe('RoleChangeSchema and RemoveUserSchema', () => {
