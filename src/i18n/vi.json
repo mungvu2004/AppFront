@@ -391,6 +391,14 @@
     "graphReloadFailed": "Không tải lại được mô hình.",
     "graphReloadRetry": "Thử lại"
   },
+  "dashboard": {
+    "stats": {
+      "all": "Tổng dự án",
+      "done": "Hoàn thành",
+      "qc": "Cần QC",
+      "processing": "Đang xử lý"
+    }
+  },
   "account": {
     "title": "Cài đặt tài khoản",
     "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
