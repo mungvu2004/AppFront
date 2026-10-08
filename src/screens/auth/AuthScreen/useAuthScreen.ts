@@ -191,6 +191,11 @@ export interface AuthScreenActions {
   readonly forgotPassword: () => void;
   /** Back to the sign-in form. */
   readonly closeForgotPassword: () => void;
+  /**
+   * "Đăng nhập bằng tài khoản khác" on the disabled-account strip: clears the failure and the
+   * password, keeps the address, and the form comes back (BUG-017).
+   */
+  readonly signInWithAnotherAccount: () => void;
   readonly forgotActions: ForgotPasswordActions;
 }
 
@@ -590,6 +595,12 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     setPanel('signIn');
   }, []);
 
+  const signInWithAnotherAccount = useCallback(() => {
+    setFailure(null);
+    setValues((current) => ({ ...current, password: '' }));
+    setProblems({});
+  }, []);
+
   /* ---- submitting --------------------------------------------------------- */
 
   const isBlocked = failure?.kind === 'accountDisabled';
@@ -763,6 +774,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     ...(onSsoSignIn !== undefined ? { ssoSignIn: onSsoSignIn } : {}),
     forgotPassword,
     closeForgotPassword,
+    signInWithAnotherAccount,
     forgotActions,
   };
 

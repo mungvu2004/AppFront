@@ -94,6 +94,7 @@ function baseProps(): AuthScreenViewProps {
     ssoSignIn: noop,
     forgotPassword: noop,
     closeForgotPassword: noop,
+    signInWithAnotherAccount: noop,
     forgotActions: { setEmail: noop, submit: noop, reset: noop },
   };
 }

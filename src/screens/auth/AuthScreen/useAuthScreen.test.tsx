@@ -127,3 +127,31 @@ describe('useAuthScreen — 422 VALIDATION on a field the form does not have (BU
     expect(result.current.model.notice?.message).not.toBe(viMessages.errors.validation.description);
   });
 });
+
+describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () => {
+  it('brings the form back with the address kept and the password cleared', async () => {
+    const gateway = gatewayReplying(wireFailure(403, { code: 'ACCOUNT_DISABLED' }));
+    const { result } = setup({ gateway });
+
+    act(() => {
+      result.current.actions.setEmail(EMAIL);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    await act(async () => {
+      result.current.actions.submit();
+    });
+
+    expect(result.current.model.isBlocked).toBe(true);
+    expect(result.current.model.canSubmit).toBe(false);
+
+    act(() => {
+      result.current.actions.signInWithAnotherAccount();
+    });
+
+    expect(result.current.model.isBlocked).toBe(false);
+    expect(result.current.model.notice).toBeNull();
+    expect(result.current.model.canSubmit).toBe(true);
+    expect(result.current.model.values).toEqual({ email: EMAIL, password: '', rememberMe: false });
+    expect(result.current.model.state).toBe('partial');
+  });
+});
