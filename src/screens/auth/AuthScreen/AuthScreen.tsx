@@ -230,7 +230,14 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
 /* The view.                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export type AuthScreenViewProps = AuthScreenModel & AuthScreenActions;
+export type AuthScreenViewProps = AuthScreenModel &
+  AuthScreenActions & {
+    /**
+     * Leaves the disabled-account strip for an empty sign-in form (BUG-017). Optional until
+     * `useAuthScreen` owns the reset (it has to clear `failure`); no button without it.
+     */
+    readonly signInWithAnotherAccount?: () => void;
+  };
 
 /**
  * The screen as a function of its props.
@@ -240,7 +247,7 @@ export type AuthScreenViewProps = AuthScreenModel & AuthScreenActions;
  */
 export function AuthScreenView(props: AuthScreenViewProps) {
   const { state, panel, isCollapsed, notice, isBlocked, forgot, forgotActions } = props;
-  const { setCollapsed, forgotPassword, closeForgotPassword } = props;
+  const { setCollapsed, forgotPassword, closeForgotPassword, signInWithAnotherAccount } = props;
 
   const model: AuthScreenModel = props;
   const actions: AuthScreenActions = props;
@@ -276,6 +283,11 @@ export function AuthScreenView(props: AuthScreenViewProps) {
     wantsFocus.current = true;
     setCollapsed(false);
   }, [setCollapsed]);
+
+  const reopenForm = useCallback(() => {
+    wantsFocus.current = true;
+    signInWithAnotherAccount?.();
+  }, [signInWithAnotherAccount]);
 
   const isForgot = panel === 'forgotPassword';
 
@@ -330,11 +342,18 @@ export function AuthScreenView(props: AuthScreenViewProps) {
               />
             </div>
           ) : isBlocked ? (
-            <InlineAlert
-              level={notice?.tone ?? 'attention'}
-              title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
-              message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
-            />
+            <div className="flex flex-col gap-4">
+              <InlineAlert
+                level={notice?.tone ?? 'attention'}
+                title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
+                message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
+              />
+              {signInWithAnotherAccount !== undefined && (
+                <Button type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
+                  {AUTH_MESSAGES.actions.signInWithAnotherAccount}
+                </Button>
+              )}
+            </div>
           ) : (
             <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
               <CredentialForm
