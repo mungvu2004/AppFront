@@ -114,8 +114,8 @@ export const ComboboxTrigger = forwardRef<HTMLButtonElement, ComboboxTriggerProp
         onKeyDown={handleKeyDown}
         className={cn(
           'flex h-[38px] w-full items-center justify-between rounded-lg bg-bg-surface px-3',
-          'border border-border-default transition-all duration-120',
-          !disabled && 'hover:border-text-secondary',
+          'border border-border-control transition-all duration-120',
+          !disabled && 'hover:border-text-primary',
           disabled && 'opacity-50 cursor-not-allowed bg-bg-sunken',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
           className

@@ -61,9 +61,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <div
               className={cn(
                 'relative flex h-[38px] w-full items-center rounded-lg bg-bg-surface',
-                'border border-border-default transition-colors duration-120',
+                'border border-border-control transition-colors duration-120',
                 isError && 'border-state-violation',
-                !disabled && !isError && 'hover:border-text-secondary',
+                !disabled && !isError && 'hover:border-text-primary',
                 disabled && 'opacity-50 cursor-not-allowed bg-bg-sunken',
                 flash && 'bg-bg-flash',
                 'focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 focus-within:ring-offset-bg-surface focus-within:animate-focus-ring'

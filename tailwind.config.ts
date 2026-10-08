@@ -41,6 +41,11 @@ const config: Config = {
       },
       border: {
         default: 'var(--border-default)',
+        // Viền control (ô nhập, checkbox, radio, ô chọn): `--border-default` chỉ
+        // 1,34:1 trên nền ô, dưới 3:1 của WCAG 1.4.11 (BUG-045). `--text-muted` đạt
+        // ≥ 4,5:1 ở cả hai chủ đề. Mượn token chữ vì token mới phải khai thêm vào
+        // `COLOR_TOKEN_NAMES` (`src/lib/coloring/scales.ts`).
+        control: 'var(--text-muted)',
       },
       text: {
         primary: 'var(--text-primary)',

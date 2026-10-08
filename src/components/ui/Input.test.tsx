@@ -50,4 +50,12 @@ describe('Input', () => {
     const wrapper = container.querySelector('.focus-within\\:ring-2');
     expect(wrapper).toBeInTheDocument();
   });
+
+  // BUG-045: the edge has to reach 3:1 against the field and the page.
+  it('draws its edge with the control border, not the divider token', () => {
+    const { container } = render(<Input />);
+    const wrapper = container.querySelector('.focus-within\\:ring-2');
+    expect(wrapper).toHaveClass('border-border-control');
+    expect(wrapper).not.toHaveClass('border-border-default');
+  });
 });

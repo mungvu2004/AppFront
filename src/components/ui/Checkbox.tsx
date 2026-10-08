@@ -65,7 +65,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           className={cn(
             'w-[18px] h-[18px] rounded-[6px] border-[1.5px] flex items-center justify-center transition duration-120 motion-reduce:transition-none',
             'peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2',
-            checked || indeterminate ? 'bg-accent border-accent' : 'border-border-default bg-bg-surface',
+            checked || indeterminate ? 'bg-accent border-accent' : 'border-border-control bg-bg-surface',
             error && 'border-state-violation',
             !disabled && !readOnly && 'motion-safe:group-active/checkbox:scale-[0.94]'
           )}

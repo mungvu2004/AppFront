@@ -93,8 +93,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
               'transition-[height,border-color,box-shadow] duration-180',
               error
                 ? 'border-state-violation focus-visible:ring-2 focus-visible:ring-state-violation focus-visible:ring-offset-2'
-                : 'border-border-default focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-              !effectiveReadOnly && !disabled && !error && 'hover:border-text-secondary',
+                : 'border-border-control focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+              !effectiveReadOnly && !disabled && !error && 'hover:border-text-primary',
               disabled && 'opacity-50 cursor-not-allowed bg-bg-sunken',
               effectiveReadOnly && 'bg-bg-sunken focus-visible:ring-0 cursor-default'
             )}
