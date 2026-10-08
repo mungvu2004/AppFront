@@ -283,6 +283,26 @@ describe('ProjectDashboardRoute', () => {
       setUnknownSession();
     }
   });
+
+  it('tên rỗng thì lấy chữ viết tắt từ email, không để avatar trống', async () => {
+    setAuthenticatedSession({
+      accessToken: 't',
+      expiresAt: Date.now() + 3_600_000,
+      roles: [],
+      user: { id: 'u', name: '', email: 'thuha@example.com' },
+    });
+    try {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+          <ProjectDashboardRoute />
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByLabelText('Tài khoản của bạn')).toHaveTextContent('TH');
+    } finally {
+      setUnknownSession();
+    }
+  });
 });
 
 describe('ProjectDashboardView — F-07', () => {

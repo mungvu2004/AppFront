@@ -59,7 +59,8 @@ function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
 function DashboardWithCreateModal() {
   const session = useSession();
   const role = session.roles[0];
-  const accountInitials = initialsOf(session.user?.name ?? session.user?.email?.split('@')[0] ?? '');
+  // `||`, không `??`: tên rỗng (máy chủ trả `name: ''`) cũng phải rơi về email (BUG-031).
+  const accountInitials = initialsOf(session.user?.name?.trim() || session.user?.email?.split('@')[0] || '');
   const { addToast } = useToast();
   const [isCreateOpen, setCreateOpen] = useState(false);
 
