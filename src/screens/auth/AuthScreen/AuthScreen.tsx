@@ -306,7 +306,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
                 {isForgot ? AUTH_MESSAGES.forgotPassword.title : AUTH_MESSAGES.tabs.signIn}
               </h1>
               <p className="text-[15px] leading-[24px] text-text-secondary">
-                {AUTH_MESSAGES.brand.subtitle}
+                {isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : AUTH_MESSAGES.brand.subtitle}
               </p>
             </div>
           </div>

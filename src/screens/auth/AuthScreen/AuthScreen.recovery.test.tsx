@@ -175,6 +175,16 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     expect(document.activeElement).toBe(email);
   });
 
+  it('swaps the tagline under the title for the panel instruction, said once (BUG-023)', () => {
+    setup();
+
+    expect(screen.getByText(AUTH.brand.subtitle)).toBeInTheDocument();
+    openPanel();
+
+    expect(screen.queryByText(AUTH.brand.subtitle)).toBeNull();
+    expect(screen.getAllByText(AUTH.forgotPassword.subtitle)).toHaveLength(1);
+  });
+
   it('opens from the wrong-password strip too', async () => {
     setup({ signIn: wireFailure(401, { code: 'INVALID_CREDENTIALS' }) });
 

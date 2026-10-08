@@ -50,8 +50,6 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
 
   return (
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-      <p className="text-[14px] leading-[20px] text-text-secondary">{AUTH_MESSAGES.forgotPassword.subtitle}</p>
-
       <RecoveryNoticeStrip notice={notice} />
 
       {/* Always mounted, filled later: a region inserted together with its text is often not read. */}
