@@ -211,7 +211,7 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     expect(document.activeElement).toBe(screen.getByLabelText(AUTH.fields.email));
   });
 
-  it('on 204 says one neutral sentence: a status line, secondary text, no alert, no state colour', async () => {
+  it('on 204 says one neutral sentence in the success block, through the status region, not as an alert (BUG-022)', async () => {
     const { container, requestPasswordReset } = setup();
 
     type(AUTH.fields.email, EMAIL);
@@ -221,9 +221,8 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     const sentence = await screen.findByText(AUTH.forgotPassword.sent);
 
     expect(requestPasswordReset).toHaveBeenCalledWith({ email: EMAIL });
-    expect(sentence).toHaveAttribute('role', 'status');
-    expect(sentence.className).toContain('text-text-secondary');
-    expect(sentence.className).not.toMatch(/state-|verified|violation|attention/u);
+    expect(screen.getByRole('status')).toContainElement(sentence);
+    expect(sentence.closest('.bg-state-verified-tint')).not.toBeNull();
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(stateOf(container)).toBe('success');
   });
