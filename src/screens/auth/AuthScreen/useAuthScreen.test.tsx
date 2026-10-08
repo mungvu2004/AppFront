@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import viMessages from '@/i18n/vi.json';
 
-import { wireFailure } from '../authTestKit';
+import { networkFailure, wireFailure } from '../authTestKit';
 
 import { useAuthScreen, type AuthGateway, type UseAuthScreenOptions } from './useAuthScreen';
 
@@ -190,5 +190,25 @@ describe('useAuthScreen — a session that opens during this attempt (BUG-006)',
     });
 
     expect(result.current.model.notice?.message).toBe(AUTH.notices.success);
+  });
+});
+
+describe('useAuthScreen — a lost connection (BUG-020/021)', () => {
+  it('uses the warning tone and does not repeat the heading inside the sentence', async () => {
+    const { result } = setup({ gateway: gatewayReplying(networkFailure()) });
+
+    act(() => {
+      result.current.actions.setEmail(EMAIL);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    await act(async () => {
+      result.current.actions.submit();
+    });
+
+    // Same tone and shape as the recovery screens and the session gate: one sentence, no title.
+    expect(result.current.model.notice).toEqual({
+      tone: 'attention',
+      message: viMessages.errors.network.description,
+    });
   });
 });

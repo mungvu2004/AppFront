@@ -329,9 +329,14 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
     case 'validation':
       return null;
     default: {
-      const described = describeError(toAppError(failure.cause));
+      const appError = toAppError(failure.cause);
+      const described = describeError(appError);
 
-      return { tone: 'violation', title: described.title, message: described.description };
+      // Same as `noticeForRecovery` and the session gate: the network sentence already opens with
+      // its heading (BUG-021), and a lost server is a warning there, so it is one here (BUG-020).
+      return appError.kind === 'network'
+        ? { tone: 'attention', message: described.description }
+        : { tone: 'violation', title: described.title, message: described.description };
     }
   }
 }
