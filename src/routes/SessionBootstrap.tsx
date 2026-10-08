@@ -65,28 +65,25 @@ export interface SessionGateProps {
 }
 
 /**
- * Dải báo chiếm cả bề ngang, dùng cho cả ba tình huống hỏng của cổng.
+ * Dải mất kết nối giữa phiên, đứng trên màn con vốn có `main` của mình — nên nó là một
+ * `region` có tên chứ không bọc `main` (FIX-381, axe `region`).
  *
- * `main` do NƠI GỌI quyết định (FIX-381): ở hai nhánh `unknown` dải thay cả cây
- * route nên tự bọc `ScreenMain`; ở nhánh mất kết nối giữa chừng nó đứng TRÊN màn
- * con vốn có `main` của mình, bọc ở đó là hai `main`.
+ * Phủ lên trên (`fixed`), không nằm trong luồng trang: nằm trong luồng thì cả màn tụt
+ * xuống và hiện thanh cuộn, đúng lúc người dùng được dặn đừng tải lại (BUG-019). Hẹp và
+ * ở giữa mép trên: thanh trên của các màn để trống phần giữa, nút chính nằm ở hai góc.
  */
-function GateStrip({
-  action,
-  landmarkLabel,
-  message,
-}: {
-  action: { label: string; onClick: () => void };
-  /** Có thì dải là một `region` có tên — cho dải đứng ngoài mọi `main` (axe `region`). */
-  landmarkLabel?: string;
-  message: string;
-}) {
+function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   return (
     <div
-      className="w-full p-4"
-      {...(landmarkLabel !== undefined ? { role: 'region', 'aria-label': landmarkLabel } : {})}
+      role="region"
+      aria-label="Trạng thái kết nối"
+      className="fixed left-1/2 top-2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 rounded-[8px] shadow-float"
     >
-      <InlineAlert level="attention" message={message} action={action} />
+      <InlineAlert
+        level="attention"
+        message="Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi."
+        action={{ label: 'Thử lại ngay', onClick: onRetry }}
+      />
     </div>
   );
 }
@@ -215,13 +212,7 @@ export function SessionGate({
    */
   return (
     <>
-      {serverUnreachable === true ? (
-        <GateStrip
-          landmarkLabel="Trạng thái kết nối"
-          message="Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
-          action={{ label: 'Thử lại', onClick: onRetry }}
-        />
-      ) : null}
+      {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
       <Fragment key={userId ?? ''}>{children}</Fragment>
     </>
   );

@@ -313,12 +313,14 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
     expect(
-      screen.getByText('Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi'),
+      screen.getByText('Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi.'),
     ).toBeInTheDocument();
+    // Phủ lên trên, không chen vào luồng trang đẩy màn con xuống (BUG-019).
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed');
     expectVietnamese(container);
     expectAccessible(container);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại ngay' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
     update({ onRetry, serverUnreachable: false });
