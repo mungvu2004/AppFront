@@ -345,12 +345,16 @@ function AuthRouteContent() {
     }
   }, [isAwaitingSession, onAuthenticated, session.status]);
 
-  const initialNotice = useMemo(() => noticeOf(location.state), [location.state]);
+  const stateNotice = useMemo(() => noticeOf(location.state), [location.state]);
+  // `?next=` is what the session gate adds when it bounces a visitor here from a page that
+  // needs a session (`SessionBootstrap.tsx`): say why the form is in their way (BUG-007).
+  const initialNotice: AuthInitialNotice | undefined =
+    stateNotice ?? (new URLSearchParams(location.search).has('next') ? 'signInRequired' : undefined);
 
   // `state.notice` lives in the history entry and would come back after F5: read once, then drop
   // it, keeping every other key (e.g. `from`).
   useEffect(() => {
-    if (initialNotice === undefined) {
+    if (stateNotice === undefined) {
       return;
     }
 
@@ -359,7 +363,7 @@ function AuthRouteContent() {
     delete rest.notice;
 
     navigate(`${location.pathname}${location.search}`, { replace: true, state: rest });
-  }, [initialNotice, location.pathname, location.search, location.state, navigate]);
+  }, [stateNotice, location.pathname, location.search, location.state, navigate]);
 
   return (
     <AuthScreen

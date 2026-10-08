@@ -124,7 +124,7 @@ export class SessionNotOpenedError extends Error {
 export type AuthPanel = 'signIn' | 'forgotPassword';
 
 /** A sentence the host asks the strip to open with. */
-export type AuthInitialNotice = 'passwordReset' | 'sessionEnded';
+export type AuthInitialNotice = 'passwordReset' | 'sessionEnded' | 'signInRequired';
 
 /** The two fields, by the name the view labels them under. */
 export type AuthField = 'email' | 'password';
@@ -328,6 +328,7 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
 const INITIAL_NOTICES: Readonly<Record<AuthInitialNotice, AuthNotice>> = {
   passwordReset: { tone: 'verified', message: AUTH_MESSAGES.notices.passwordReset },
   sessionEnded: { tone: 'attention', message: AUTH_MESSAGES.notices.sessionEnded },
+  signInRequired: { tone: 'attention', message: AUTH_MESSAGES.notices.signInRequired },
 };
 
 /* -------------------------------------------------------------------------- */

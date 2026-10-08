@@ -47,7 +47,9 @@ const SESSION: RefreshSessionPayload = {
   roles: ['engineer'],
 };
 
-function renderRoute(entry: string | { pathname: string; state: unknown } = '/login?next=/tai-khoan') {
+function renderRoute(
+  entry: string | { pathname: string; search?: string; state: unknown } = '/login?next=/tai-khoan',
+) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
@@ -86,6 +88,25 @@ describe('AuthRoute — location.state.notice', () => {
     renderRoute({ pathname: '/login', state: { notice: 'sessionEnded' } });
 
     expect(screen.getByText(AUTH.notices.sessionEnded)).toBeInTheDocument();
+  });
+
+  it('asks to sign in to continue when bounced here with ?next= (BUG-007)', () => {
+    renderRoute('/login?next=/tai-khoan');
+
+    expect(screen.getByText(AUTH.notices.signInRequired)).toBeInTheDocument();
+  });
+
+  it('prefers the session-ended sentence over the ?next= one', () => {
+    renderRoute({ pathname: '/login', search: '?next=/tai-khoan', state: { notice: 'sessionEnded' } });
+
+    expect(screen.getByText(AUTH.notices.sessionEnded)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.notices.signInRequired)).toBeNull();
+  });
+
+  it('says nothing on a plain visit to /login', () => {
+    renderRoute('/login');
+
+    expect(screen.queryByText(AUTH.notices.signInRequired)).toBeNull();
   });
 
   it('ignores a notice it does not know', () => {

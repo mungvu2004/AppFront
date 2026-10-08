@@ -186,6 +186,7 @@
       "partial": "Đã có thư điện tử, còn thiếu mật khẩu.",
       "passwordReset": "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.",
       "sessionEnded": "Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.",
+      "signInRequired": "Hãy đăng nhập để tiếp tục.",
       "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ để mở phiên. Bấm Đăng nhập để thử lại.",
       "sessionNotOpened": "Mật khẩu đúng nhưng chưa mở được phiên làm việc. Kiểm tra trình duyệt có cho phép cookie của trang này rồi đăng nhập lại.",
       "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
