@@ -21,7 +21,7 @@ import {
   errors as ERROR_MESSAGES,
 } from '@/i18n/vi.json';
 
-import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import {
   useInvitationAccept,
   type InvitationAcceptActions,
@@ -33,7 +33,7 @@ export type InvitationAcceptViewProps = InvitationAcceptModel & InvitationAccept
 
 export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   const { state, values, problems, notice, warning, canSubmit, isSubmitting, isDone } = props;
-  const { needsSignIn, isSessionPending, isSessionUnavailable, retryNotice } = props;
+  const { needsSignIn, isSessionPending, isSessionUnavailable, retryNotice, isLinkIncomplete } = props;
   const { setFullName, setPassword, setConfirmPassword, submit, goToSignIn, expand, retrySession } =
     props;
   const fullNameRef = useRef<HTMLInputElement>(null);
@@ -64,7 +64,10 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   return (
     <RecoveryShell
       title={AUTH_MESSAGES.invitation.title}
-      subtitle={AUTH_MESSAGES.invitation.subtitle}
+      // Ngõ cụt không còn ô nhập: phụ đề "đặt họ tên và mật khẩu" thành lời mời làm việc không làm được (BUG-005).
+      subtitle={
+        state === 'forbidden' ? AUTH_MESSAGES.invitation.deadEndSubtitle : AUTH_MESSAGES.invitation.subtitle
+      }
       state={state}
     >
       {state === 'collapsed' ? (
@@ -78,7 +81,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
         </div>
       ) : state === 'forbidden' ? (
         <RecoveryDeadEnd
-          message={AUTH_MESSAGES.invitation.expired}
+          message={isLinkIncomplete ? AUTH_MESSAGES.invitation.incomplete : AUTH_MESSAGES.invitation.expired}
           linkLabel={AUTH_MESSAGES.actions.goToSignIn}
           href={ROUTES.login}
           onLinkClick={goToSignIn}
@@ -88,9 +91,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           {/* Ngoài `<form>`: dải nói về phiên, không phải về biểu mẫu — bấm "Thử lại" không dính gì tới lượt gửi. */}
           {isSessionUnavailable && (
             <InlineAlert
-              className="mb-6"
               level="attention"
-              title={ERROR_MESSAGES.network.title}
               message={ERROR_MESSAGES.network.description}
               action={{ label: COMMON_MESSAGES.retry, onClick: retrySession }}
             />
@@ -102,7 +103,6 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
             onSubmit={handleSubmit}
           >
             <RecoveryNoticeStrip notice={warning} />
-            <RecoveryNoticeStrip notice={notice} />
             {/* Always mounted, filled later, so a screen reader announces the text. */}
             <p
               role="status"
@@ -155,18 +155,15 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                 ? AUTH_MESSAGES.actions.submitting
                 : AUTH_MESSAGES.actions.acceptInvitation}
             </Button>
+            {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
+            <RecoveryNoticeStrip notice={notice} />
 
             {needsSignIn && (
-              <a
+              <RecoveryLink
+                label={AUTH_MESSAGES.actions.goToSignIn}
                 href={ROUTES.login}
-                onClick={(event) => {
-                  event.preventDefault();
-                  goToSignIn();
-                }}
-                className="self-center text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
-              >
-                {AUTH_MESSAGES.actions.goToSignIn}
-              </a>
+                onClick={goToSignIn}
+              />
             )}
           </form>
         </>

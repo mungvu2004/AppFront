@@ -16,11 +16,7 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
-import {
-  auth as AUTH_MESSAGES,
-  connectionStates as CONNECTION_MESSAGES,
-  errors as ERROR_MESSAGES,
-} from '@/i18n/vi.json';
+import { auth as AUTH_MESSAGES, connectionStates as CONNECTION_MESSAGES } from '@/i18n/vi.json';
 
 import { consumeFragmentToken } from '../fragmentToken';
 import {
@@ -87,6 +83,11 @@ export interface InvitationAcceptModel {
   readonly isSessionUnavailable: boolean;
   /** Câu cho vùng `role="status"`: đang thử lại, hoặc thử lại vẫn hỏng. */
   readonly retryNotice: string | null;
+  /**
+   * Ngõ cụt vì chính đường dẫn thiếu hoặc hỏng mã (không có `#token=`, mã sai dạng, mã đặt
+   * nhầm vào `?token=`), khác với mã đủ mà máy chủ từ chối (hết hạn, đã dùng) — BUG-005.
+   */
+  readonly isLinkIncomplete: boolean;
 }
 
 export interface InvitationAcceptActions {
@@ -336,12 +337,14 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     needsSignIn,
     isSessionPending: port.isSessionPending,
     isSessionUnavailable: sessionUnavailable,
+    isLinkIncomplete: !hasUsableToken,
     retryNotice: !sessionUnavailable
       ? null
       : retryPhase === 'pending'
         ? CONNECTION_MESSAGES.checking
         : retryPhase === 'failed'
-          ? ERROR_MESSAGES.network.description
+          ? // Không chép câu của dải ngay trên: nói điều mới — vừa thử lại, vẫn hỏng (BUG-024).
+            AUTH_MESSAGES.invitation.retryFailed
           : null,
   };
 

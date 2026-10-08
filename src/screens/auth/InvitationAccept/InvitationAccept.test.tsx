@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -96,6 +96,7 @@ function baseProps(): InvitationAcceptViewProps {
     isSessionPending: false,
     isSessionUnavailable: false,
     retryNotice: null,
+    isLinkIncomplete: false,
     setFullName: noop,
     setPassword: noop,
     setConfirmPassword: noop,
@@ -211,10 +212,26 @@ describe('InvitationAccept — the fragment token', () => {
     const link = screen.getByRole('link', { name: AUTH.actions.goToSignIn });
 
     expect(link).toHaveAttribute('href', '/login');
-    expect(screen.getByText(AUTH.invitation.expired)).toBeInTheDocument();
+    expect(screen.getByText(AUTH.invitation.incomplete)).toBeInTheDocument();
 
     fireEvent.click(link);
     expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
+  it.each([
+    ['no token at all', ''],
+    ['the token in the query instead of the fragment', '?token=abc'],
+  ])('says the link is incomplete, not expired, with %s (BUG-005)', (_label, suffix) => {
+    setUrl(suffix);
+
+    const { port } = makePort();
+
+    render(<InvitationAccept port={port} />);
+
+    expect(screen.getByText(AUTH.invitation.incomplete)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.expired)).toBeNull();
+    expect(screen.getByText(AUTH.invitation.deadEndSubtitle)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.subtitle)).toBeNull();
   });
 });
 
@@ -275,11 +292,13 @@ describe('InvitationAccept — what the server answers', () => {
       expect(stateOf(container)).toBe('forbidden');
     });
     expect(screen.getByText(AUTH.invitation.expired)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.incomplete)).toBeNull();
+    expect(screen.getByText(AUTH.invitation.deadEndSubtitle)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
   });
 
   it.each([
-    ['fullName', 'fullName', AUTH.problems.fullNameRequired],
+    ['fullName', 'fullName', AUTH.problems.fullNameInvalid],
     ['password', 'password', 'Mật khẩu cần ít nhất 8 ký tự.'],
   ])('puts a %s complaint under its own box', async (_label, field, sentence) => {
     const { port } = makePort({ reply: wireFailure(422, { code: 'VALIDATION', field }) });
@@ -346,6 +365,9 @@ describe('InvitationAccept — what the server answers', () => {
       expect(stateOf(container)).toBe('error');
     });
     expect(container.textContent).not.toContain('FOO_BAR');
+    // Reloading would drop the fragment token: the sentence asks for a resend, never a reload (BUG-015).
+    expect(screen.getByRole('alert')).toHaveTextContent(AUTH.errors.recoveryFailed);
+    expect(screen.getByRole('alert').textContent).not.toMatch(/tải lại/iu);
     expect((screen.getByLabelText(AUTH.fields.fullName) as HTMLInputElement).value).toBe(FULL_NAME);
   });
 
@@ -395,6 +417,8 @@ describe('InvitationAccept — the session around it', () => {
     render(<InvitationAccept port={port} />);
 
     expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
+    // The sentence already opens with the incident: no heading repeating it (BUG-021).
+    expect(within(screen.getByRole('alert')).queryByRole('heading')).toBeNull();
     expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation })).toBeEnabled();
   });
 
@@ -428,7 +452,9 @@ describe('InvitationAccept — the session around it', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole('status')).toHaveTextContent(viMessages.errors.network.description);
+    // Says something new, not the strip's sentence a second time (BUG-024).
+    expect(screen.getByRole('status')).toHaveTextContent(AUTH.invitation.retryFailed);
+    expect(screen.getByRole('status')).not.toHaveTextContent(viMessages.errors.network.description);
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(retry).toHaveFocus();
 

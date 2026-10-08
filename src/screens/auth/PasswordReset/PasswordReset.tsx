@@ -26,7 +26,7 @@ import {
 export type PasswordResetViewProps = PasswordResetModel & PasswordResetActions;
 
 export function PasswordResetView(props: PasswordResetViewProps) {
-  const { state, values, problems, notice, canSubmit, isSubmitting, isDone } = props;
+  const { state, values, problems, notice, canSubmit, isSubmitting, isDone, isLinkIncomplete } = props;
   const { setNewPassword, setConfirmPassword, submit, goToSignIn, expand } = props;
 
   const handleSubmit = useCallback(
@@ -42,7 +42,12 @@ export function PasswordResetView(props: PasswordResetViewProps) {
   return (
     <RecoveryShell
       title={AUTH_MESSAGES.passwordReset.title}
-      subtitle={AUTH_MESSAGES.passwordReset.subtitle}
+      // Ngõ cụt không còn ô nhập: phụ đề "nhập mật khẩu mới" thành lời mời làm việc không làm được (BUG-005).
+      subtitle={
+        state === 'forbidden'
+          ? AUTH_MESSAGES.passwordReset.deadEndSubtitle
+          : AUTH_MESSAGES.passwordReset.subtitle
+      }
       state={state}
     >
       {state === 'collapsed' ? (
@@ -56,14 +61,15 @@ export function PasswordResetView(props: PasswordResetViewProps) {
         </div>
       ) : state === 'forbidden' ? (
         <RecoveryDeadEnd
-          message={AUTH_MESSAGES.passwordReset.expired}
+          message={
+            isLinkIncomplete ? AUTH_MESSAGES.passwordReset.incomplete : AUTH_MESSAGES.passwordReset.expired
+          }
           linkLabel={AUTH_MESSAGES.actions.goToSignIn}
           href={ROUTES.login}
           onLinkClick={goToSignIn}
         />
       ) : (
         <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
-          <RecoveryNoticeStrip notice={notice} />
           {/* Always mounted, filled later, so a screen reader announces the text. */}
           <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
             {isDone ? AUTH_MESSAGES.passwordReset.success : null}
@@ -98,6 +104,8 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
             {isSubmitting ? AUTH_MESSAGES.actions.submitting : AUTH_MESSAGES.actions.setNewPassword}
           </Button>
+          {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
+          <RecoveryNoticeStrip notice={notice} />
         </form>
       )}
     </RecoveryShell>

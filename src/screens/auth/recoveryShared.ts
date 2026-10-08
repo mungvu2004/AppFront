@@ -12,7 +12,7 @@ import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 
 /* Nhập THEO TÊN, không default — xem ghi chú ở `AuthScreen/useAuthScreen.ts`. */
-import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
+import { auth as AUTH_MESSAGES, errors as ERROR_MESSAGES } from '@/i18n/vi.json';
 
 /**
  * Số giây tối thiểu khoá nút sau một 429. `Retry-After` của BE bị kẹp ≤ 10 s
@@ -97,9 +97,25 @@ export function noticeForRecovery(failure: RecoveryFailure | null): RecoveryNoti
         message: AUTH_MESSAGES.errors.originMismatch.description,
       };
     default: {
-      const described = describeError(toAppError(failure.cause));
+      const appError = toAppError(failure.cause);
 
-      return { tone: 'violation', title: described.title, message: described.description };
+      // Câu chung của mọi loại khác mạng/chậm khuyên tải lại trang, mà tải lại làm mất mã
+      // của đường dẫn trong thư (`fragmentToken.ts`): ở đây chỉ khuyên gửi lại (BUG-015).
+      if (appError.kind !== 'network' && appError.kind !== 'timeout') {
+        return {
+          tone: 'violation',
+          title: ERROR_MESSAGES.unknown.title,
+          message: AUTH_MESSAGES.errors.recoveryFailed,
+        };
+      }
+
+      const described = describeError(appError);
+
+      // Câu mất mạng đã mở bằng chính tiêu đề ("Mất kết nối máy chủ. …"): không lặp tiêu đề (BUG-021).
+      // Tông cảnh báo như dải mất kết nối của màn và của cổng phiên: cùng sự cố, cùng màu (BUG-020).
+      return appError.kind === 'network'
+        ? { tone: 'attention', message: described.description }
+        : { tone: 'violation', title: described.title, message: described.description };
     }
   }
 }
@@ -136,7 +152,10 @@ export function confirmProblem(password: string, confirm: string): string | unde
   return confirm === password ? undefined : AUTH_MESSAGES.problems.confirmMismatch;
 }
 
-/** Câu gắn vào ô khi máy chủ nói `VALIDATION` kèm `field`. */
+/**
+ * Câu gắn vào ô khi máy chủ nói `VALIDATION` kèm `field`. FE đã chặn họ tên trống và quá
+ * dài trước khi gửi, nên `fullName` bị máy chủ từ chối chỉ còn là ký tự cấm (BUG-016).
+ */
 export function serverFieldProblem(field: string): string {
-  return field === 'fullName' ? AUTH_MESSAGES.problems.fullNameRequired : passwordTooShort();
+  return field === 'fullName' ? AUTH_MESSAGES.problems.fullNameInvalid : passwordTooShort();
 }

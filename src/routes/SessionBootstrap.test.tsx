@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModuleNamespace from '@/api/appClient';
 
+import viMessages from '@/i18n/vi.json';
 import { __resetAuthForTests, bootstrapSession, getSession, signOut } from '@/lib/auth';
 import { __resetLastKnownUserForTests } from '@/lib/auth/bootstrap';
 import { getOptionalAuthConfig } from '@/lib/auth/state';
@@ -230,7 +231,7 @@ describe('SessionGate — năm nhánh', () => {
     const { container } = renderGate({ setupFailed: true, status: 'unknown' });
 
     const button = screen.getByRole('button', { name: 'Tải lại trang' });
-    expect(screen.getByText('Chưa mở được ứng dụng, hãy tải lại trang')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chưa mở được ứng dụng' })).toBeInTheDocument();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);
@@ -243,6 +244,11 @@ describe('SessionGate — năm nhánh', () => {
   it('báo không kết nối được máy chủ khi phiên còn chưa biết, và thử lại gọi onRetry', async () => {
     const onRetry = vi.fn();
     const { container } = renderGate({ onRetry, serverUnreachable: true, status: 'unknown' });
+
+    // Một khối nói chuyện gì xảy ra và cần làm gì, cùng câu với `errors.network` (BUG-020).
+    expect(screen.getByRole('heading', { name: 'Mất kết nối máy chủ' })).toBeInTheDocument();
+    expect(screen.getByText('Kiểm tra mạng rồi thử lại.')).toBeInTheDocument();
+    expect(`Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.`).toBe(viMessages.errors.network.description);
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
@@ -277,6 +283,8 @@ describe('SessionGate — năm nhánh', () => {
       'aria-busy',
       'true',
     );
+    // Câu chờ hiện bằng chữ, không chỉ nằm trong aria-label (BUG-027).
+    expect(screen.getByText('Đang mở phiên…')).toBeVisible();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
     expect(container.querySelectorAll('main')).toHaveLength(1);
@@ -307,12 +315,14 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
     expect(
-      screen.getByText('Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi'),
+      screen.getByText('Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi.'),
     ).toBeInTheDocument();
+    // Phủ lên trên, không chen vào luồng trang đẩy màn con xuống (BUG-019).
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed');
     expectVietnamese(container);
     expectAccessible(container);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại ngay' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
     update({ onRetry, serverUnreachable: false });

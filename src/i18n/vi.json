@@ -140,7 +140,8 @@
       "passwordRequired": "Chưa nhập mật khẩu.",
       "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
       "fullNameRequired": "Chưa nhập họ và tên.",
-      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự."
+      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự.",
+      "fullNameInvalid": "Họ và tên có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Gõ lại họ tên rồi thử lại."
     },
     "errors": {
       "invalidCredentials": {
@@ -155,7 +156,8 @@
         "title": "Máy chủ từ chối yêu cầu",
         "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
-      "tooManyRecovery": "Đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
+      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
       "validationOther": {
         "title": "Dữ liệu chưa phù hợp",
         "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
@@ -172,16 +174,21 @@
     },
     "invitation": {
       "title": "Nhận lời mời",
-      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu dùng AppFront.",
+      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
+      "deadEndSubtitle": "Liên kết này không mở được lời mời.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
+      "incomplete": "Liên kết lời mời chưa đầy đủ, có thể đã bị cắt mất một phần khi sao chép. Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
       "sessionNotOpened": "Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.",
+      "retryFailed": "Đã thử lại nhưng vẫn chưa kết nối được máy chủ.",
       "success": "Đã nhận lời mời. Đang mở tài khoản của bạn."
     },
     "passwordReset": {
       "title": "Đặt lại mật khẩu",
       "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
+      "deadEndSubtitle": "Liên kết này không đặt lại được mật khẩu.",
       "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
+      "incomplete": "Liên kết đặt lại mật khẩu chưa đầy đủ, có thể đã bị cắt mất một phần khi sao chép. Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.",
       "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."
     },
     "notices": {
@@ -599,7 +606,7 @@
   "onboarding": {
     "greeting": "Chào {{name}}, bắt đầu trong ba bước",
     "greetingFallback": "Chào bạn, bắt đầu trong ba bước",
-    "intro": "AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
+    "intro": "Ứng dụng đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
     "step1": {
       "title": "Tạo dự án",
       "sentence": "Khai báo tên công trình và danh sách tầng.",

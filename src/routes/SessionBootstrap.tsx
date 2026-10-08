@@ -27,6 +27,9 @@ import {
 } from 'react';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
+import { AlertCircle, WifiOff } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
@@ -62,29 +65,50 @@ export interface SessionGateProps {
 }
 
 /**
- * Dải báo chiếm cả bề ngang, dùng cho cả ba tình huống hỏng của cổng.
+ * Dải mất kết nối giữa phiên, đứng trên màn con vốn có `main` của mình — nên nó là một
+ * `region` có tên chứ không bọc `main` (FIX-381, axe `region`).
  *
- * `main` do NƠI GỌI quyết định (FIX-381): ở hai nhánh `unknown` dải thay cả cây
- * route nên tự bọc `ScreenMain`; ở nhánh mất kết nối giữa chừng nó đứng TRÊN màn
- * con vốn có `main` của mình, bọc ở đó là hai `main`.
+ * Phủ lên trên (`fixed`), không nằm trong luồng trang: nằm trong luồng thì cả màn tụt
+ * xuống và hiện thanh cuộn, đúng lúc người dùng được dặn đừng tải lại (BUG-019). Hẹp và
+ * ở giữa mép trên: thanh trên của các màn để trống phần giữa, nút chính nằm ở hai góc.
  */
-function GateStrip({
-  action,
-  landmarkLabel,
-  message,
-}: {
-  action: { label: string; onClick: () => void };
-  /** Có thì dải là một `region` có tên — cho dải đứng ngoài mọi `main` (axe `region`). */
-  landmarkLabel?: string;
-  message: string;
-}) {
+function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   return (
     <div
-      className="w-full p-4"
-      {...(landmarkLabel !== undefined ? { role: 'region', 'aria-label': landmarkLabel } : {})}
+      role="region"
+      aria-label="Trạng thái kết nối"
+      className="fixed left-1/2 top-2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 rounded-[8px] shadow-float"
     >
-      <InlineAlert level="attention" message={message} action={action} />
+      <InlineAlert
+        level="attention"
+        message="Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi."
+        action={{ label: 'Thử lại ngay', onClick: onRetry }}
+      />
     </div>
+  );
+}
+
+/**
+ * Màn chặn lúc mở app, khi chưa có màn con nào để giữ: một khối giữa màn nói chuyện gì
+ * xảy ra và cần làm gì, thay cho một dải nhỏ trên màn trống (BUG-020).
+ */
+function GateScreen({
+  action,
+  description,
+  icon,
+  title,
+}: {
+  action: { label: string; onClick: () => void };
+  description: string;
+  icon: ReactNode;
+  title: string;
+}) {
+  return (
+    <ScreenMain>
+      <div className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6">
+        <EmptyState icon={icon} title={title} description={description} action={action} />
+      </div>
+    </ScreenMain>
   );
 }
 
@@ -111,10 +135,16 @@ export function PendingShell({ label }: { label: string }) {
     <div
       aria-busy="true"
       aria-label={label}
-      className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6"
+      className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-bg-app p-6"
       role="status"
     >
-      <Skeleton preset="canvas" className="w-full max-w-3xl" />
+      {/* Nền mặt (không phải nền ứng dụng) để khung xương thấy được trên nền trang, và câu
+          hiện ra bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
+          `aria-hidden`: câu đã là tên của vùng `status`, không đọc hai lần. */}
+      <Skeleton preset="canvas" className="w-full max-w-3xl bg-bg-surface" />
+      <p aria-hidden="true" className="text-[14px] leading-[20px] text-text-secondary">
+        {label}…
+      </p>
     </div>
   );
 }
@@ -137,23 +167,24 @@ export function SessionGate({
   if (status === 'unknown') {
     if (setupFailed) {
       return (
-        <ScreenMain>
-          <GateStrip
-            message="Chưa mở được ứng dụng, hãy tải lại trang"
-            action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
-          />
-        </ScreenMain>
+        <GateScreen
+          icon={<AlertCircle />}
+          title="Chưa mở được ứng dụng"
+          description="Tải lại trang để thử mở lại."
+          action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
+        />
       );
     }
 
     if (serverUnreachable === true) {
+      // Cùng câu với `errors.network` của `vi.json` ("Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.").
       return (
-        <ScreenMain>
-          <GateStrip
-            message="Không kết nối được máy chủ"
-            action={{ label: 'Thử lại', onClick: onRetry }}
-          />
-        </ScreenMain>
+        <GateScreen
+          icon={<WifiOff />}
+          title="Mất kết nối máy chủ"
+          description="Kiểm tra mạng rồi thử lại."
+          action={{ label: 'Thử lại', onClick: onRetry }}
+        />
       );
     }
 
@@ -187,13 +218,7 @@ export function SessionGate({
    */
   return (
     <>
-      {serverUnreachable === true ? (
-        <GateStrip
-          landmarkLabel="Trạng thái kết nối"
-          message="Mất kết nối tới máy chủ, đang thử lại — đừng tải lại trang kẻo mất thay đổi"
-          action={{ label: 'Thử lại', onClick: onRetry }}
-        />
-      ) : null}
+      {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
       <Fragment key={userId ?? ''}>{children}</Fragment>
     </>
   );
