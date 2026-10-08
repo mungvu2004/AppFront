@@ -12,7 +12,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { PasswordResetRequestSchema } from '@/api/schemas/auth';
+import { MAX_EMAIL_LENGTH, PasswordResetRequestSchema } from '@/api/schemas/auth';
 import type { Result } from '@/lib/http';
 
 /* Nhập THEO TÊN, không default — xem ghi chú ở `useAuthScreen.ts`. */
@@ -20,6 +20,7 @@ import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import {
   classifyRecoveryFailure,
+  fillTemplate,
   noticeForRecovery,
   type RecoveryFailure,
   type RecoveryNotice,
@@ -90,8 +91,17 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
 
     const current = emailRef.current;
 
-    if (!PasswordResetRequestSchema.shape.email.safeParse(current).success) {
-      setProblem(current.length === 0 ? AUTH_MESSAGES.problems.emailRequired : AUTH_MESSAGES.problems.emailInvalid);
+    const checked = PasswordResetRequestSchema.shape.email.safeParse(current);
+
+    if (!checked.success) {
+      // An address past the cap is too long, not malformed — the sign-in form says the same (BUG-010).
+      setProblem(
+        current.length === 0
+          ? AUTH_MESSAGES.problems.emailRequired
+          : checked.error.issues[0]?.code === 'too_big'
+            ? fillTemplate(AUTH_MESSAGES.problems.emailTooLong, { count: String(MAX_EMAIL_LENGTH) })
+            : AUTH_MESSAGES.problems.emailInvalid,
+      );
 
       return;
     }

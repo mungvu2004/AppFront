@@ -90,16 +90,15 @@ describe('AuthRoute — location.state.notice', () => {
     expect(screen.getByText(AUTH.notices.sessionEnded)).toBeInTheDocument();
   });
 
-  it('asks to sign in to continue when bounced here with ?next= (BUG-007)', () => {
-    renderRoute('/login?next=/tai-khoan');
+  it('asks to sign in to continue when the session gate bounced the visitor here (BUG-007)', () => {
+    renderRoute({ pathname: '/login', search: '?next=/tai-khoan', state: { notice: 'signInRequired' } });
 
     expect(screen.getByText(AUTH.notices.signInRequired)).toBeInTheDocument();
   });
 
-  it('prefers the session-ended sentence over the ?next= one', () => {
-    renderRoute({ pathname: '/login', search: '?next=/tai-khoan', state: { notice: 'sessionEnded' } });
+  it('does not read ?next= alone as a bounce: an email link carries it too (BUG-007)', () => {
+    renderRoute('/login?next=/tai-khoan');
 
-    expect(screen.getByText(AUTH.notices.sessionEnded)).toBeInTheDocument();
     expect(screen.queryByText(AUTH.notices.signInRequired)).toBeNull();
   });
 

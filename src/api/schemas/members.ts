@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_EMAIL_LENGTH } from './auth';
+
 /**
  * N3, N4 — thêm và gỡ thành viên dự án (HOP-DONG-MOI §2).
  *
@@ -8,8 +10,8 @@ import { z } from 'zod';
  * (danh sách thành viên riêng) để v2 — F-07 đọc thành viên từ `Project.members`.
  */
 
-/** `.min(1)` trước `.email()`: ô trống báo "chưa nhập" trước "sai dạng" (`./index.ts`, `EmailSchema`). */
-const emailSchema = z.string().min(1).email();
+/** `.min(1)` trước `.email()`: ô trống báo "chưa nhập" trước "sai dạng"; trần dài như `EmailSchema` (`./index.ts`). */
+const emailSchema = z.string().min(1).email().max(MAX_EMAIL_LENGTH);
 
 /** N3. Người `pending` vẫn thêm được; tài khoản không có hoặc bị vô hiệu → 422 `MEMBER_USER_UNAVAILABLE`. */
 export const AddProjectMemberSchema = z

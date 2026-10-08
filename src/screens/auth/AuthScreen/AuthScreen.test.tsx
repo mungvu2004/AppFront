@@ -251,6 +251,53 @@ describe('AuthScreenView — the seven states', () => {
 /* Wording and tokens.                                                         */
 /* -------------------------------------------------------------------------- */
 
+describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () => {
+  const follows = (first: Element, second: Element): boolean =>
+    (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
+  it.each(['error', 'success'] as const)('puts the %s strip under the sign-in button', (state) => {
+    render(<AuthScreenView {...PROPS_BY_STATE[state]()} />);
+
+    const button = screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn });
+
+    expect(follows(button, screen.getByRole('alert'))).toBe(true);
+    expect(follows(screen.getByLabelText(AUTH_MESSAGES.fields.email), button)).toBe(true);
+  });
+
+  it('keeps the reset action with the error strip, under the button', () => {
+    render(<AuthScreenView {...PROPS_BY_STATE.error()} />);
+
+    expect(
+      follows(
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn }),
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.resetPassword }),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps an opening sentence above the fields', () => {
+    render(
+      <AuthScreenView
+        {...baseProps()}
+        notice={{ tone: 'attention', message: AUTH_MESSAGES.notices.sessionEnded }}
+      />,
+    );
+
+    expect(follows(screen.getByRole('alert'), screen.getByLabelText(AUTH_MESSAGES.fields.email))).toBe(true);
+  });
+
+  it('says "còn thiếu mật khẩu" under the button, not over the field being typed in', () => {
+    render(<AuthScreenView {...PROPS_BY_STATE.partial()} />);
+
+    expect(
+      follows(
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn }),
+        screen.getByText(AUTH_MESSAGES.notices.partial),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe('AuthScreenView — wording and colour', () => {
   it('writes every visible string in Vietnamese, diacritics and all', () => {
     for (const state of Object.keys(PROPS_BY_STATE) as SevenState[]) {

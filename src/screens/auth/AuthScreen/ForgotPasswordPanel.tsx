@@ -3,14 +3,14 @@
  *
  * Thay chỗ biểu mẫu đăng nhập chứ không mở lớp phủ: Esc ở đây là "quay lại đăng
  * nhập" (A12), và nút quay lại trả tiêu điểm về ô thư điện tử của biểu mẫu đăng nhập.
- * Câu thành công giữ lời trung tính (N8 luôn trả 204 nên nó không được nói địa chỉ có tài
- * khoản hay không) nhưng nằm trong khối thành công có sẵn (`InlineAlert` "verified") để
- * người dùng nhận ra yêu cầu đã đi (BUG-022).
+ * Câu "đã gửi" nằm trong một khối trung tính có viền và biểu tượng thư để người dùng nhận ra
+ * yêu cầu đã đi (BUG-022) — KHÔNG phải xanh "verified": N8 luôn trả 204 nên chẳng có gì được
+ * xác minh, và A5 giữ màu ấy cho việc người duyệt làm. Câu chữ vốn cũng không khẳng định chắc.
  */
 
 import { useCallback } from 'react';
+import { Mail } from 'lucide-react';
 
-import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -29,7 +29,7 @@ export interface ForgotPasswordPanelProps {
 }
 
 export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField }: ForgotPasswordPanelProps) {
-  const { email, problem, notice, sentMessage, isSending, canSubmit } = model;
+  const { email, problem, notice, sentMessage, isSending, isSent, canSubmit } = model;
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -54,10 +54,14 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
       <RecoveryNoticeStrip notice={notice} />
 
-      {/* Always mounted, filled later: a region inserted together with its text is often not read.
-          `role="none"` drops the block's own `alert` role, so it is announced politely, once. */}
+      {/* Always mounted, filled later: a region inserted together with its text is often not read. */}
       <div role="status" className="empty:sr-only">
-        {sentMessage !== null && <InlineAlert role="none" level="verified" message={sentMessage} />}
+        {sentMessage !== null && (
+          <div className="flex items-start gap-3 rounded-[8px] border border-border-default p-3">
+            <Mail aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
+            <p className="text-[14px] leading-relaxed text-text-primary">{sentMessage}</p>
+          </div>
+        )}
       </div>
 
       <Input
@@ -77,6 +81,12 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
         <Button type="submit" size="lg" fullWidth loading={isSending} disabled={!canSubmit}>
           {isSending ? AUTH_MESSAGES.actions.submitting : AUTH_MESSAGES.actions.sendResetLink}
         </Button>
+        {/* The button is locked after a send (a second identical letter helps no one): say how to unlock it. */}
+        {isSent && (
+          <p className="text-center text-[13px] leading-[18px] text-text-secondary">
+            {AUTH_MESSAGES.forgotPassword.sentHint}
+          </p>
+        )}
         <button
           type="button"
           onClick={onBack}

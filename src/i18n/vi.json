@@ -170,7 +170,8 @@
     "forgotPassword": {
       "title": "Quên mật khẩu",
       "subtitle": "Nhập thư điện tử của tài khoản. Thư đặt lại mật khẩu sẽ được gửi tới đó.",
-      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút."
+      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút.",
+      "sentHint": "Đổi địa chỉ nếu muốn gửi tới thư khác."
     },
     "invitation": {
       "title": "Nhận lời mời",
@@ -197,7 +198,7 @@
       "sessionEnded": "Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.",
       "signInRequired": "Hãy đăng nhập để tiếp tục.",
       "signedIn": "Bạn đang đăng nhập. Đăng nhập ở đây sẽ thay cho phiên hiện tại.",
-      "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ để mở phiên. Bấm Đăng nhập để thử lại.",
+      "signedInOffline": "Mật khẩu đúng nhưng chưa kết nối được máy chủ để mở phiên. Bấm Đăng nhập để thử lại.",
       "sessionNotOpened": "Mật khẩu đúng nhưng chưa mở được phiên làm việc. Kiểm tra trình duyệt có cho phép cookie của trang này rồi đăng nhập lại.",
       "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
       "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",

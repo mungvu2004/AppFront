@@ -192,8 +192,8 @@ export interface AuthScreenActions {
   /** Back to the sign-in form. */
   readonly closeForgotPassword: () => void;
   /**
-   * "Đăng nhập bằng tài khoản khác" on the disabled-account strip: clears the failure and the
-   * password, keeps the address, and the form comes back (BUG-017).
+   * "Đăng nhập bằng tài khoản khác" on the disabled-account strip: clears the failure, the
+   * address and the password — another account is another address — and the form comes back (BUG-017).
    */
   readonly signInWithAnotherAccount: () => void;
   readonly forgotActions: ForgotPasswordActions;
@@ -329,9 +329,14 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
     case 'validation':
       return null;
     default: {
-      const described = describeError(toAppError(failure.cause));
+      const appError = toAppError(failure.cause);
+      const described = describeError(appError);
 
-      return { tone: 'violation', title: described.title, message: described.description };
+      // Same as `noticeForRecovery` and the session gate: the network sentence already opens with
+      // its heading (BUG-021), and a lost server is a warning there, so it is one here (BUG-020).
+      return appError.kind === 'network'
+        ? { tone: 'attention', message: described.description }
+        : { tone: 'violation', title: described.title, message: described.description };
     }
   }
 }
@@ -597,7 +602,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
 
   const signInWithAnotherAccount = useCallback(() => {
     setFailure(null);
-    setValues((current) => ({ ...current, password: '' }));
+    setValues((current) => ({ ...current, email: '', password: '' }));
     setProblems({});
   }, []);
 
@@ -701,7 +706,9 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
       return noticeFor(failure);
     }
 
-    if (onReturnToApp !== undefined) {
+    // Only at rest: the session THIS attempt opens turns `onReturnToApp` on before the reply
+    // lands, and the strip would flash between "đang gửi" and "đã đăng nhập" (BUG-006).
+    if (onReturnToApp !== undefined && phase === 'idle') {
       return {
         tone: 'attention',
         message: AUTH_MESSAGES.notices.signedIn,

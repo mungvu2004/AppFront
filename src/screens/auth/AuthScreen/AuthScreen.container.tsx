@@ -274,12 +274,14 @@ function AuthCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
-/** `location.state.notice`, if it is one of the two sentences this screen knows. */
+/** `location.state.notice`, if it is one of the sentences this screen knows. */
 function noticeOf(state: unknown): AuthInitialNotice | undefined {
   const notice =
     typeof state === 'object' && state !== null ? (state as { readonly notice?: unknown }).notice : undefined;
 
-  return notice === 'passwordReset' || notice === 'sessionEnded' ? notice : undefined;
+  return notice === 'passwordReset' || notice === 'sessionEnded' || notice === 'signInRequired'
+    ? notice
+    : undefined;
 }
 
 /**
@@ -349,16 +351,14 @@ function AuthRouteContent() {
     }
   }, [isAwaitingSession, onAuthenticated, session.status]);
 
-  const stateNotice = useMemo(() => noticeOf(location.state), [location.state]);
-  // `?next=` is what the session gate adds when it bounces a visitor here from a page that
-  // needs a session (`SessionBootstrap.tsx`): say why the form is in their way (BUG-007).
-  const initialNotice: AuthInitialNotice | undefined =
-    stateNotice ?? (new URLSearchParams(location.search).has('next') ? 'signInRequired' : undefined);
+  // `signInRequired` comes in `state` from the session gate itself (`SessionBootstrap.tsx`), not
+  // from `?next=`: an email link carries `?next=` too, and so does a guest's plain visit to `/` (BUG-007).
+  const initialNotice = useMemo(() => noticeOf(location.state), [location.state]);
 
   // `state.notice` lives in the history entry and would come back after F5: read once, then drop
   // it, keeping every other key (e.g. `from`).
   useEffect(() => {
-    if (stateNotice === undefined) {
+    if (initialNotice === undefined) {
       return;
     }
 
@@ -367,7 +367,7 @@ function AuthRouteContent() {
     delete rest.notice;
 
     navigate(`${location.pathname}${location.search}`, { replace: true, state: rest });
-  }, [stateNotice, location.pathname, location.search, location.state, navigate]);
+  }, [initialNotice, location.pathname, location.search, location.state, navigate]);
 
   return (
     <AuthScreen

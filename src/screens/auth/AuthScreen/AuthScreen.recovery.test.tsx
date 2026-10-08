@@ -211,7 +211,7 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     expect(document.activeElement).toBe(screen.getByLabelText(AUTH.fields.email));
   });
 
-  it('on 204 says one neutral sentence in the success block, through the status region, not as an alert (BUG-022)', async () => {
+  it('on 204 says one neutral sentence in a neutral block, through the status region, not as an alert (BUG-022)', async () => {
     const { container, requestPasswordReset } = setup();
 
     type(AUTH.fields.email, EMAIL);
@@ -222,9 +222,14 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
 
     expect(requestPasswordReset).toHaveBeenCalledWith({ email: EMAIL });
     expect(screen.getByRole('status')).toContainElement(sentence);
-    expect(sentence.closest('.bg-state-verified-tint')).not.toBeNull();
+    // Neutral, not "verified" green: N8 answers 204 for any address, so nothing was verified (A5).
+    expect(sentence.closest('.border-border-default')).not.toBeNull();
+    expect(container.querySelector('[class*="state-verified"]')).toBeNull();
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(stateOf(container)).toBe('success');
+    // The send button is locked now; say how to send again.
+    expect(screen.getByRole('button', { name: AUTH.actions.sendResetLink })).toBeDisabled();
+    expect(screen.getByText(AUTH.forgotPassword.sentHint)).toBeInTheDocument();
   });
 
   it('keeps the status region mounted and empty before anything is sent', () => {

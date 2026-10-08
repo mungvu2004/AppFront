@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import viMessages from '@/i18n/vi.json';
 
-import { wireFailure } from '../authTestKit';
+import { networkFailure, wireFailure } from '../authTestKit';
 
 import { useAuthScreen, type AuthGateway, type UseAuthScreenOptions } from './useAuthScreen';
 
@@ -129,7 +129,7 @@ describe('useAuthScreen — 422 VALIDATION on a field the form does not have (BU
 });
 
 describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () => {
-  it('brings the form back with the address kept and the password cleared', async () => {
+  it('brings the form back empty: another account means another address too', async () => {
     const gateway = gatewayReplying(wireFailure(403, { code: 'ACCOUNT_DISABLED' }));
     const { result } = setup({ gateway });
 
@@ -151,7 +151,64 @@ describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () 
     expect(result.current.model.isBlocked).toBe(false);
     expect(result.current.model.notice).toBeNull();
     expect(result.current.model.canSubmit).toBe(true);
-    expect(result.current.model.values).toEqual({ email: EMAIL, password: '', rememberMe: false });
-    expect(result.current.model.state).toBe('partial');
+    expect(result.current.model.values).toEqual({ email: '', password: '', rememberMe: false });
+    expect(result.current.model.state).toBe('empty');
+  });
+});
+
+describe('useAuthScreen — a session that opens during this attempt (BUG-006)', () => {
+  it('does not flash "Bạn đang đăng nhập…" between the session opening and the success strip', async () => {
+    let finish: (reply: Awaited<ReturnType<AuthGateway['signIn']>>) => void = () => undefined;
+    const gateway: AuthGateway = {
+      signIn: vi.fn<AuthGateway['signIn']>(
+        async () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+      requestPasswordReset: vi.fn<AuthGateway['requestPasswordReset']>(async () => ({ ok: true, data: undefined })),
+    };
+    const { result, rerender } = renderHook((props: Partial<UseAuthScreenOptions>) =>
+      useAuthScreen({ gateway, onAuthenticated: () => undefined, reducedMotion: false, ...props }),
+    );
+
+    act(() => {
+      result.current.actions.setEmail(EMAIL);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    act(() => {
+      result.current.actions.submit();
+    });
+
+    // The container passes `onReturnToApp` as soon as the session it is opening turns authenticated.
+    rerender({ onReturnToApp: () => undefined });
+
+    expect(result.current.model.notice).toBeNull();
+
+    await act(async () => {
+      finish({ ok: true, data: undefined });
+    });
+
+    expect(result.current.model.notice?.message).toBe(AUTH.notices.success);
+  });
+});
+
+describe('useAuthScreen — a lost connection (BUG-020/021)', () => {
+  it('uses the warning tone and does not repeat the heading inside the sentence', async () => {
+    const { result } = setup({ gateway: gatewayReplying(networkFailure()) });
+
+    act(() => {
+      result.current.actions.setEmail(EMAIL);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    await act(async () => {
+      result.current.actions.submit();
+    });
+
+    // Same tone and shape as the recovery screens and the session gate: one sentence, no title.
+    expect(result.current.model.notice).toEqual({
+      tone: 'attention',
+      message: viMessages.errors.network.description,
+    });
   });
 });
