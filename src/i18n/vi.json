@@ -165,7 +165,7 @@
     },
     "invitation": {
       "title": "Nhận lời mời",
-      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu dùng AppFront.",
+      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
       "sessionNotOpened": "Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.",
