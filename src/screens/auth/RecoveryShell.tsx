@@ -65,7 +65,7 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
         event.preventDefault();
         onClick();
       }}
-      className="self-start text-[14px] leading-[20px] text-accent-hover transition-colors duration-120 hover:text-accent-active"
+      className="self-start py-1 text-[14px] leading-[20px] text-accent-hover transition-colors duration-120 hover:text-accent-active"
     >
       {label}
     </a>
