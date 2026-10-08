@@ -50,6 +50,28 @@ export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotic
   );
 }
 
+export interface RecoveryLinkProps {
+  readonly label: string;
+  readonly href: string;
+  readonly onClick: () => void;
+}
+
+/** Đường về `/login` của nhóm màn này — một chỗ, để ngõ cụt và màn lời mời căn như nhau (BUG-026). */
+export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
+  return (
+    <a
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick();
+      }}
+      className="self-start text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
+    >
+      {label}
+    </a>
+  );
+}
+
 export interface RecoveryDeadEndProps {
   readonly message: string;
   readonly linkLabel: string;
@@ -62,16 +84,7 @@ export function RecoveryDeadEnd({ message, linkLabel, href, onLinkClick }: Recov
   return (
     <div className="flex flex-col gap-4">
       <InlineAlert level="attention" message={message} />
-      <a
-        href={href}
-        onClick={(event) => {
-          event.preventDefault();
-          onLinkClick();
-        }}
-        className="self-start text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
-      >
-        {linkLabel}
-      </a>
+      <RecoveryLink label={linkLabel} href={href} onClick={onLinkClick} />
     </div>
   );
 }

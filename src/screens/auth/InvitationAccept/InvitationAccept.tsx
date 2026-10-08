@@ -21,7 +21,7 @@ import {
   errors as ERROR_MESSAGES,
 } from '@/i18n/vi.json';
 
-import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import {
   useInvitationAccept,
   type InvitationAcceptActions,
@@ -158,16 +158,11 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
             <RecoveryNoticeStrip notice={notice} />
 
             {needsSignIn && (
-              <a
+              <RecoveryLink
+                label={AUTH_MESSAGES.actions.goToSignIn}
                 href={ROUTES.login}
-                onClick={(event) => {
-                  event.preventDefault();
-                  goToSignIn();
-                }}
-                className="self-center text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
-              >
-                {AUTH_MESSAGES.actions.goToSignIn}
-              </a>
+                onClick={goToSignIn}
+              />
             )}
           </form>
         </>
