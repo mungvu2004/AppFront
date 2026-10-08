@@ -536,3 +536,18 @@ describe('màu lấy từ token (A1)', () => {
     expectNoRawColor('src/screens/qc/FloorManager');
   });
 });
+
+describe('dự án không tồn tại (BUG-032)', () => {
+  it('nói không tìm thấy dự án và đưa lối về danh sách, không đưa "Thử lại"', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('error')} isProjectMissing onBackToProjects={onBackToProjects} />,
+    );
+
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+});

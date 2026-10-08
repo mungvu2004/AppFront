@@ -87,7 +87,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<MonitorOff aria-hidden="true" />}
-          title="Máy này chưa dựng được mô hình 3d"
+          title="Máy này chưa dựng được mô hình 3D"
           description={
             'trình duyệt không bật được tăng tốc phần cứng, nên không có gì vẽ ' +
             'ra hình được. bật tăng tốc phần cứng trong cài đặt trình duyệt rồi ' +
@@ -152,7 +152,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
           <div
             ref={canvasRef}
             data-testid="pascal-canvas"
-            aria-label="Khung dựng mô hình 3d"
+            aria-label="Khung dựng mô hình 3D"
             className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
           />
           {isBooting && (

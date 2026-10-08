@@ -100,7 +100,7 @@
       "support": "Tải bản vẽ lên, chạy chuỗi xử lý, rồi đối chiếu tường, trục, phòng và ô mở theo bộ quy tắc của đội bạn."
     },
     "brand": {
-      "subtitle": "Số hóa bản vẽ 2D thành mô hình 3D tương tác."
+      "subtitle": "Số hoá bản vẽ 2D thành mô hình 3D tương tác."
     },
     "tabs": {
       "signIn": "Đăng nhập"
@@ -400,6 +400,14 @@
     },
     "graphReloadFailed": "Không tải lại được mô hình.",
     "graphReloadRetry": "Thử lại"
+  },
+  "dashboard": {
+    "stats": {
+      "all": "Tổng dự án",
+      "done": "Hoàn thành",
+      "qc": "Cần QC",
+      "processing": "Đang xử lý"
+    }
   },
   "account": {
     "title": "Cài đặt tài khoản",
@@ -1401,7 +1409,7 @@
       "corruptedFile": "Tệp bản vẽ bị hỏng hoặc định dạng không hợp lệ. Hãy kiểm tra tệp trong AutoCAD rồi lưu lại dưới tên khác.",
       "emptyFile": "Tệp bản vẽ không chứa bất kỳ đối tượng hình học nào. Kiểm tra lại file được tải lên có đúng không.",
       "fileTooLarge": "Tệp bản vẽ quá lớn ({sizeMb} MB). Vui lòng tải lên tệp dưới 100 MB hoặc tách tệp thành các phần nhỏ hơn.",
-      "encodingNotSupported": "Tệu bản vẽ chứa mã hóa không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hóa tiêu chuẩn."
+      "encodingNotSupported": "Tệp bản vẽ chứa mã hoá không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hoá tiêu chuẩn."
     },
     "screen": {
       "ariaLabel": "Màn phát hiện tệp CAD",
@@ -1965,7 +1973,7 @@
     "capability": {
       "sessionOnlyHeading": "Những thay đổi chỉ sống trong phiên làm việc này",
       "persistFloorContents": "Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
-      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
     },
     "caption": {
       "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."

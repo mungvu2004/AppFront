@@ -242,7 +242,7 @@ export const phase2PartialState = (unsupportedTypes?: string[]): DialogStateText
   title: 'Một số loại đối tượng không hỗ trợ',
   description: unsupportedTypes && unsupportedTypes.length > 0
     ? `Tệp CAD chứa các loại đối tượng không được hỗ trợ: ${unsupportedTypes.join(', ')}. Các loại này sẽ bị bỏ qua. Chỉ polyline, đường tròn, arc, text, và các loại hình học cơ bản khác được nhập.`
-    : 'Tệu CAD chứa các loại đối tượng mà hệ thống chưa hỗ trợ. Các loại này sẽ bị bỏ qua. Chỉ polyline, đường tròn, arc, và text được nhập.',
+    : 'Tệp CAD chứa các loại đối tượng mà hệ thống chưa hỗ trợ. Các loại này sẽ bị bỏ qua. Chỉ polyline, đường tròn, arc, và text được nhập.',
 });
 
 /** Hàm tạo state "error" với tham số phiên bản AutoCAD nếu có. */
@@ -314,7 +314,7 @@ export const CAD_SPECIFIC_ERRORS = {
 
   /** Khi tệp chứa mã hóa không được hỗ trợ. */
   encodingNotSupported:
-    'Tệp bản vẽ chứa mã hóa không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hóa tiêu chuẩn.',
+    'Tệp bản vẽ chứa mã hoá không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hoá tiêu chuẩn.',
 } as const;
 
 /**

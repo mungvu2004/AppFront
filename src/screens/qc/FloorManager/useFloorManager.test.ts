@@ -676,6 +676,22 @@ describe('bảng tầng', () => {
     expect(mounted.result.current.rows).toHaveLength(0);
   });
 
+  // BUG-032: 404 của danh sách tầng là dự án không tồn tại — tải lại không cứu được.
+  it('404 của danh sách tầng nói không tìm thấy dự án, không khuyên tải lại', async () => {
+    const notFound: HttpError = { kind: 'http', status: 404, requestId: 'REQ-404', retryable: false, raw: null };
+    const gateway: FloorManagerGateway = {
+      ...createMockFloorManagerGateway(),
+      readFloorList: () => Promise.reject(notFound),
+    };
+    const mounted = await mountSettled({ gateway });
+
+    expect(mounted.result.current.state).toBe('error');
+    expect(mounted.result.current.isProjectMissing).toBe(true);
+    expect(mounted.result.current.errorMessage).toBe(
+      'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.',
+    );
+  });
+
   it('dự án chưa có tầng nào là trạng thái Rỗng, không phải màn trắng', async () => {
     const gateway = createMockFloorManagerGateway({
       graph: createFloorManagerSampleGraph({ levels: [] }),

@@ -227,6 +227,10 @@ export function floorErrorSentence(error: unknown): string {
   return describeError(toAppError(error)).description;
 }
 
+/** Câu cho 404 của danh sách tầng — cùng chữ `ProjectNotFound` ở `ProjectSpatialGate.tsx` (BUG-032). */
+const PROJECT_MISSING_MESSAGE =
+  'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.';
+
 /** Đơn vị của cột "Cao độ (m)" và "Chiều cao (m)": một chữ số sau dấu phẩy. */
 const METRE_FRACTION_DIGITS = 1;
 
@@ -1610,13 +1614,19 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     needsDrawingCount,
   });
 
+  const isProjectMissing = hasError && toAppError(floorListQuery.error).kind === 'notFound';
+
   const errorMessage = useMemo(() => {
     if (!hasError) {
       return null;
     }
 
+    if (isProjectMissing) {
+      return PROJECT_MISSING_MESSAGE;
+    }
+
     return describeError(toAppError(floorListQuery.error)).description;
-  }, [floorListQuery.error, hasError]);
+  }, [floorListQuery.error, hasError, isProjectMissing]);
 
   const unsupportedNotices = useMemo(
     () =>
@@ -1642,6 +1652,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
 
     emptyNotice: state === 'empty' ? FLOOR_MANAGER_TEXT.emptyNotice : null,
     errorMessage,
+    isProjectMissing,
     forbiddenNotice: isViewerRole ? FLOOR_MANAGER_TEXT.forbiddenNotice : null,
     duplicateElevationMessage: duplicateElevation?.message ?? null,
     duplicateElevationViolation: duplicateElevation?.violation ?? null,

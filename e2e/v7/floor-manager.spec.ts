@@ -27,7 +27,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
 const DEBT_CONTENT =
   'Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.';
 const DEBT_HIDE =
-  'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
+  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
 
 /** Hàng tầng: `<tr>` mang tên truy cập "<tên>, cao độ …" (`FloorTableRow.tsx`). */
 function floorRows(page: Page) {
