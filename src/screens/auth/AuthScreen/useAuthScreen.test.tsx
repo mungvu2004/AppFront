@@ -83,3 +83,22 @@ describe('useAuthScreen — leaving an empty box (BUG-009)', () => {
     expect(result.current.model.problems.email).toBe(AUTH.problems.emailRequired);
   });
 });
+
+describe('useAuthScreen — an address past 254 characters (BUG-010)', () => {
+  it('stops it before sending and says it is too long, not malformed', () => {
+    const gateway = gatewayReplying({ ok: true, data: undefined });
+    const { result } = setup({ gateway });
+    const longEmail = `${'a'.repeat(64)}@${'b'.repeat(240)}.vn`;
+
+    act(() => {
+      result.current.actions.setEmail(longEmail);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    act(() => {
+      result.current.actions.submit();
+    });
+
+    expect(gateway.signIn).not.toHaveBeenCalled();
+    expect(result.current.model.problems.email).toBe(AUTH.problems.emailTooLong.replace('{{count}}', '254'));
+  });
+});

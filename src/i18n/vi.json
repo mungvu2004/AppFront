@@ -134,6 +134,7 @@
       "confirmRequired": "Chưa nhập lại mật khẩu.",
       "emailRequired": "Chưa nhập thư điện tử.",
       "emailInvalid": "Thư điện tử chưa đúng dạng. Kiểm tra lại phần trước và sau dấu a còng.",
+      "emailTooLong": "Thư điện tử dài quá {{count}} ký tự. Kiểm tra lại địa chỉ.",
       "passwordRequired": "Chưa nhập mật khẩu.",
       "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
       "fullNameRequired": "Chưa nhập họ và tên.",

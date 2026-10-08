@@ -39,6 +39,7 @@ import type { z } from 'zod';
 
 import {
   EmailSchema,
+  MAX_EMAIL_LENGTH,
   MIN_PASSWORD_LENGTH,
   PasswordSchema,
   SignInSchema,
@@ -314,11 +315,13 @@ const MISSING_BY_FIELD: Readonly<Record<AuthField, string>> = {
  *
  * The schemas in `src/api/schemas` carry no messages — they describe a shape,
  * and a shape has no language. This is where a shape that did not hold becomes
- * something a person can act on, and the two cases worth telling apart from
- * "chưa nhập" are the only two the schemas can produce:
+ * something a person can act on, and the three cases worth telling apart from
+ * "chưa nhập" are the only three the schemas can produce:
  *
  * - `invalid_string`, which only `EmailSchema` can raise, and only for the
  *   address format.
+ * - `too_big`, which only `EmailSchema` can raise: an address past
+ *   {@link MAX_EMAIL_LENGTH}, which the server would refuse as "invalid".
  * - `too_small` at exactly {@link MIN_PASSWORD_LENGTH}, which is the password
  *   being short rather than absent. An empty box raises `too_small` too, at a
  *   minimum of one, and falls through to the missing sentence — which is why
@@ -327,6 +330,10 @@ const MISSING_BY_FIELD: Readonly<Record<AuthField, string>> = {
 function sentenceFor(field: AuthField, issue: z.ZodIssue): string {
   if (issue.code === 'invalid_string') {
     return AUTH_MESSAGES.problems.emailInvalid;
+  }
+
+  if (issue.code === 'too_big') {
+    return fillTemplate(AUTH_MESSAGES.problems.emailTooLong, { count: String(MAX_EMAIL_LENGTH) });
   }
 
   if (issue.code === 'too_small' && issue.minimum === MIN_PASSWORD_LENGTH) {
