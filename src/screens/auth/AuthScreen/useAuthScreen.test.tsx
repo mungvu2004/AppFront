@@ -155,3 +155,40 @@ describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () 
     expect(result.current.model.state).toBe('partial');
   });
 });
+
+describe('useAuthScreen — a session that opens during this attempt (BUG-006)', () => {
+  it('does not flash "Bạn đang đăng nhập…" between the session opening and the success strip', async () => {
+    let finish: (reply: Awaited<ReturnType<AuthGateway['signIn']>>) => void = () => undefined;
+    const gateway: AuthGateway = {
+      signIn: vi.fn<AuthGateway['signIn']>(
+        async () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+      requestPasswordReset: vi.fn<AuthGateway['requestPasswordReset']>(async () => ({ ok: true, data: undefined })),
+    };
+    const { result, rerender } = renderHook((props: Partial<UseAuthScreenOptions>) =>
+      useAuthScreen({ gateway, onAuthenticated: () => undefined, reducedMotion: false, ...props }),
+    );
+
+    act(() => {
+      result.current.actions.setEmail(EMAIL);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    act(() => {
+      result.current.actions.submit();
+    });
+
+    // The container passes `onReturnToApp` as soon as the session it is opening turns authenticated.
+    rerender({ onReturnToApp: () => undefined });
+
+    expect(result.current.model.notice).toBeNull();
+
+    await act(async () => {
+      finish({ ok: true, data: undefined });
+    });
+
+    expect(result.current.model.notice?.message).toBe(AUTH.notices.success);
+  });
+});

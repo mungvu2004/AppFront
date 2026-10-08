@@ -701,7 +701,9 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
       return noticeFor(failure);
     }
 
-    if (onReturnToApp !== undefined) {
+    // Only at rest: the session THIS attempt opens turns `onReturnToApp` on before the reply
+    // lands, and the strip would flash between "đang gửi" and "đã đăng nhập" (BUG-006).
+    if (onReturnToApp !== undefined && phase === 'idle') {
       return {
         tone: 'attention',
         message: AUTH_MESSAGES.notices.signedIn,
