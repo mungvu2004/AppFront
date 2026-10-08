@@ -121,6 +121,11 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
               {AUTH_MESSAGES.actions.resetPassword}
             </Button>
           )}
+          {notice.showResetAction !== true && notice.action !== undefined && (
+            <Button type="button" variant="secondary" size="sm" className="self-start" onClick={notice.action.onClick}>
+              {notice.action.label}
+            </Button>
+          )}
         </div>
       )}
 
@@ -196,6 +201,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
       </div>
 
       <div className="flex flex-col gap-4">
+        {actions.ssoSignIn !== undefined && (<>
         <div className="flex items-center gap-3">
           <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
           <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
@@ -212,6 +218,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
         >
           {AUTH_MESSAGES.actions.ssoSignIn}
         </Button>
+        </>)}
 
         <button
           type="button"

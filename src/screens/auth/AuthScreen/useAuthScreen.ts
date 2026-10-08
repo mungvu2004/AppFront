@@ -39,6 +39,7 @@ import type { z } from 'zod';
 
 import {
   EmailSchema,
+  MAX_EMAIL_LENGTH,
   MIN_PASSWORD_LENGTH,
   PasswordSchema,
   SignInSchema,
@@ -92,12 +93,26 @@ export interface AuthGateway {
 /**
  * Đăng nhập xong, cookie đã nhận, nhưng phiên chưa mở vì máy chủ không trả lời lượt
  * gia hạn (`serverUnreachable`). Không phải sai mật khẩu và không phải lỗi mạng của
- * lượt gửi: tầng phiên tự thử lại. Container ném nó để hook nói đúng câu.
+ * lượt gửi. Tầng phiên KHÔNG chắc tự thử lại (phiên đang `anonymous` thì nó đứng im,
+ * `refresh.ts` `handleTransientFailure`), nên nút Đăng nhập vẫn bấm được để người dùng
+ * tự thử lại (BUG-013). Container ném nó để hook nói đúng câu.
  */
 export class SignedInOfflineError extends Error {
   constructor() {
     super('Signed in, but the server could not be reached to open the session.');
     this.name = 'SignedInOfflineError';
+  }
+}
+
+/**
+ * Máy chủ nhận mật khẩu nhưng lượt gia hạn ngay sau đó không mở được phiên (vd. trình
+ * duyệt chặn cookie). Một lớp riêng để hook nói đúng chuyện, thay vì để `toAppError` đoán
+ * theo chữ tiếng Anh trong `message` và ra "Phiên làm việc đã hết hạn" (BUG-014).
+ */
+export class SessionNotOpenedError extends Error {
+  constructor() {
+    super('Sign-in succeeded but no session was established.');
+    this.name = 'SessionNotOpenedError';
   }
 }
 
@@ -109,7 +124,7 @@ export class SignedInOfflineError extends Error {
 export type AuthPanel = 'signIn' | 'forgotPassword';
 
 /** A sentence the host asks the strip to open with. */
-export type AuthInitialNotice = 'passwordReset' | 'sessionEnded';
+export type AuthInitialNotice = 'passwordReset' | 'sessionEnded' | 'signInRequired';
 
 /** The two fields, by the name the view labels them under. */
 export type AuthField = 'email' | 'password';
@@ -125,6 +140,8 @@ export interface AuthNotice {
   readonly message: string;
   /** True only for a wrong password: the one failure a person can act on right away. */
   readonly showResetAction?: boolean;
+  /** A way out the strip offers on its own — today only "already signed in" (BUG-006). */
+  readonly action?: { readonly label: string; readonly onClick: () => void };
 }
 
 /** A complaint under one field, or nothing when the field is fine. */
@@ -165,12 +182,20 @@ export interface AuthScreenActions {
   readonly blurField: (field: AuthField) => void;
   readonly setCollapsed: (isCollapsed: boolean) => void;
   readonly submit: () => void;
-  /** The SSO button. A no-op until a host supplies {@link UseAuthScreenOptions.onSsoSignIn}. */
-  readonly ssoSignIn: () => void;
+  /**
+   * The SSO button. Absent — and the button with it — until a host supplies
+   * {@link UseAuthScreenOptions.onSsoSignIn}: a button that does nothing is a dead end (BUG-002).
+   */
+  readonly ssoSignIn?: () => void;
   /** "Quên mật khẩu": opens the panel, carrying the address typed so far. */
   readonly forgotPassword: () => void;
   /** Back to the sign-in form. */
   readonly closeForgotPassword: () => void;
+  /**
+   * "Đăng nhập bằng tài khoản khác" on the disabled-account strip: clears the failure and the
+   * password, keeps the address, and the form comes back (BUG-017).
+   */
+  readonly signInWithAnotherAccount: () => void;
   readonly forgotActions: ForgotPasswordActions;
 }
 
@@ -178,10 +203,15 @@ export interface UseAuthScreenOptions {
   readonly gateway: AuthGateway;
   /** Called after the success flash, to send the visitor back where they came from. */
   readonly onAuthenticated: () => void;
-  /** There is no SSO flow yet — the button renders and does nothing until a host wires one in. */
+  /** There is no SSO flow yet — without this the screen shows no SSO button at all. */
   readonly onSsoSignIn?: () => void;
   /** A sentence to open the strip with — what the last screen wants this one to say. */
   readonly initialNotice?: AuthInitialNotice;
+  /**
+   * Present when a session is already open: the strip says so — signing in again replaces
+   * it — and offers this as the way back (BUG-006). The form stays usable.
+   */
+  readonly onReturnToApp?: () => void;
   /** Skips the success flash, so a person who asked for less motion waits for nothing. */
   readonly reducedMotion?: boolean;
 }
@@ -202,7 +232,9 @@ type AuthFailure =
   | { readonly kind: 'originMismatch' }
   | { readonly kind: 'tooManyAttempts' }
   | { readonly kind: 'validation' }
+  | { readonly kind: 'validationOther' }
   | { readonly kind: 'signedInOffline' }
+  | { readonly kind: 'sessionNotOpened' }
   | { readonly kind: 'transport'; readonly cause: unknown };
 
 /**
@@ -217,6 +249,10 @@ type AuthFailure =
 function classifyFailure(error: unknown): { failure: AuthFailure; field?: AuthField } {
   if (error instanceof SignedInOfflineError) {
     return { failure: { kind: 'signedInOffline' } };
+  }
+
+  if (error instanceof SessionNotOpenedError) {
+    return { failure: { kind: 'sessionNotOpened' } };
   }
 
   const wire = readWireError(error);
@@ -237,7 +273,8 @@ function classifyFailure(error: unknown): { failure: AuthFailure; field?: AuthFi
         return { failure: { kind: 'validation' }, field: wire.field };
       }
 
-      return { failure: { kind: 'transport', cause: error } };
+      // No box to mark, so not the generic "các trường được đánh dấu" (BUG-018).
+      return { failure: { kind: 'validationOther' } };
     default:
       return { failure: { kind: 'transport', cause: error } };
   }
@@ -281,6 +318,14 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
       };
     case 'signedInOffline':
       return { tone: 'attention', message: AUTH_MESSAGES.notices.signedInOffline };
+    case 'sessionNotOpened':
+      return { tone: 'attention', message: AUTH_MESSAGES.notices.sessionNotOpened };
+    case 'validationOther':
+      return {
+        tone: 'violation',
+        title: AUTH_MESSAGES.errors.validationOther.title,
+        message: AUTH_MESSAGES.errors.validationOther.description,
+      };
     case 'validation':
       return null;
     default: {
@@ -295,6 +340,7 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
 const INITIAL_NOTICES: Readonly<Record<AuthInitialNotice, AuthNotice>> = {
   passwordReset: { tone: 'verified', message: AUTH_MESSAGES.notices.passwordReset },
   sessionEnded: { tone: 'attention', message: AUTH_MESSAGES.notices.sessionEnded },
+  signInRequired: { tone: 'attention', message: AUTH_MESSAGES.notices.signInRequired },
 };
 
 /* -------------------------------------------------------------------------- */
@@ -314,11 +360,13 @@ const MISSING_BY_FIELD: Readonly<Record<AuthField, string>> = {
  *
  * The schemas in `src/api/schemas` carry no messages — they describe a shape,
  * and a shape has no language. This is where a shape that did not hold becomes
- * something a person can act on, and the two cases worth telling apart from
- * "chưa nhập" are the only two the schemas can produce:
+ * something a person can act on, and the three cases worth telling apart from
+ * "chưa nhập" are the only three the schemas can produce:
  *
  * - `invalid_string`, which only `EmailSchema` can raise, and only for the
  *   address format.
+ * - `too_big`, which only `EmailSchema` can raise: an address past
+ *   {@link MAX_EMAIL_LENGTH}, which the server would refuse as "invalid".
  * - `too_small` at exactly {@link MIN_PASSWORD_LENGTH}, which is the password
  *   being short rather than absent. An empty box raises `too_small` too, at a
  *   minimum of one, and falls through to the missing sentence — which is why
@@ -327,6 +375,10 @@ const MISSING_BY_FIELD: Readonly<Record<AuthField, string>> = {
 function sentenceFor(field: AuthField, issue: z.ZodIssue): string {
   if (issue.code === 'invalid_string') {
     return AUTH_MESSAGES.problems.emailInvalid;
+  }
+
+  if (issue.code === 'too_big') {
+    return fillTemplate(AUTH_MESSAGES.problems.emailTooLong, { count: String(MAX_EMAIL_LENGTH) });
   }
 
   if (issue.code === 'too_small' && issue.minimum === MIN_PASSWORD_LENGTH) {
@@ -403,6 +455,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     onAuthenticated,
     onSsoSignIn,
     initialNotice,
+    onReturnToApp,
     reducedMotion = false,
   } = options;
 
@@ -502,7 +555,15 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   }, []);
 
   const blurField = useCallback((field: AuthField) => {
-    const problem = firstProblem(field, valueOf(valuesRef.current, field));
+    const value = valueOf(valuesRef.current, field);
+
+    // An empty box is "chưa nhập" only at submit (BUG-009): the page focuses the email box on
+    // load, so complaining on blur pushed the links below down under the visitor's first click.
+    if (value.length === 0) {
+      return;
+    }
+
+    const problem = firstProblem(field, value);
 
     setProblems((current) => {
       if (problem === undefined) {
@@ -524,10 +585,6 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     setCollapsedState(next);
   }, []);
 
-  const ssoSignIn = useCallback(() => {
-    onSsoSignIn?.();
-  }, [onSsoSignIn]);
-
   /** Opening the panel carries the address typed so far; closing it keeps that address. */
   const forgotPassword = useCallback(() => {
     forgotActions.reset(valuesRef.current.email);
@@ -538,13 +595,18 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     setPanel('signIn');
   }, []);
 
+  const signInWithAnotherAccount = useCallback(() => {
+    setFailure(null);
+    setValues((current) => ({ ...current, password: '' }));
+    setProblems({});
+  }, []);
+
   /* ---- submitting --------------------------------------------------------- */
 
   const isBlocked = failure?.kind === 'accountDisabled';
-  const isWaitingForSession = failure?.kind === 'signedInOffline';
 
   const submit = useCallback(() => {
-    if (inFlight.current || isBlocked || isLockedOut || isWaitingForSession) {
+    if (inFlight.current || isBlocked || isLockedOut) {
       return;
     }
 
@@ -624,7 +686,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
         setPhase('idle');
         setFailure({ kind: 'transport', cause: thrown });
       });
-  }, [gateway, isBlocked, isLockedOut, isWaitingForSession, lock, reducedMotion]);
+  }, [gateway, isBlocked, isLockedOut, lock, reducedMotion]);
 
   /* ---- what the view sees -------------------------------------------------- */
 
@@ -639,8 +701,16 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
       return noticeFor(failure);
     }
 
+    if (onReturnToApp !== undefined) {
+      return {
+        tone: 'attention',
+        message: AUTH_MESSAGES.notices.signedIn,
+        action: { label: AUTH_MESSAGES.actions.goToProjects, onClick: onReturnToApp },
+      };
+    }
+
     return openingNotice === undefined ? null : INITIAL_NOTICES[openingNotice];
-  }, [failure, openingNotice, phase]);
+  }, [failure, onReturnToApp, openingNotice, phase]);
 
   const isSubmitting = phase === 'submitting';
 
@@ -672,7 +742,8 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     if (failure !== null) {
       return 'error';
     }
-    if (values.email.length > 0 && values.password.length === 0) {
+    // "Đã có thư điện tử" only when the address is one: a malformed one already has its own complaint.
+    if (firstProblem('email', values.email) === undefined && values.password.length === 0) {
       return 'partial';
     }
 
@@ -688,7 +759,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     values,
     problems,
     notice,
-    canSubmit: !isSubmitting && !isBlocked && !isLockedOut && !isWaitingForSession,
+    canSubmit: !isSubmitting && !isBlocked && !isLockedOut,
     submitLabel: AUTH_MESSAGES.actions.signIn,
     isBlocked,
   };
@@ -700,9 +771,10 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     blurField,
     setCollapsed,
     submit,
-    ssoSignIn,
+    ...(onSsoSignIn !== undefined ? { ssoSignIn: onSsoSignIn } : {}),
     forgotPassword,
     closeForgotPassword,
+    signInWithAnotherAccount,
     forgotActions,
   };
 

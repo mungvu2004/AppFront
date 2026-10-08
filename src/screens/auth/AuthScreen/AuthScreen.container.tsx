@@ -88,6 +88,7 @@ import { bootstrapAfterNewCookie, configureAppSession } from '@/routes/sessionSe
 
 import { AuthScreen } from './AuthScreen';
 import {
+  SessionNotOpenedError,
   SignedInOfflineError,
   type AuthGateway,
   type AuthInitialNotice,
@@ -158,8 +159,9 @@ export function safeDestination(candidate: unknown): string {
  *
  * `bootstrapAfterNewCookie()` returning false means the cookie did not become a
  * session. There is no server error to classify in that case, so the failure is
- * an ordinary `Error` and `useAuthScreen` hands it to `describeError` — which is
- * the module that owns wording for anything the screen cannot explain itself.
+ * a {@link SessionNotOpenedError}, which `useAuthScreen` words itself — handing a
+ * plain `Error` to `describeError` read "sign-in" in its message and said the
+ * session had expired (BUG-014).
  */
 async function withSession(
   posted: Result<void, unknown>,
@@ -181,7 +183,7 @@ async function withSession(
       error:
         getSession().serverUnreachable === true
           ? new SignedInOfflineError()
-          : new Error('Sign-in succeeded but no session was established.'),
+          : new SessionNotOpenedError(),
     };
   }
 
@@ -337,18 +339,26 @@ function AuthRouteContent() {
     navigate(destination, { replace: true });
   }, [destination, navigate]);
 
+  const returnToApp = useCallback(() => {
+    navigate(ROUTES.dashboard);
+  }, [navigate]);
+
   useEffect(() => {
     if (isAwaitingSession && session.status === 'authenticated') {
       onAuthenticated();
     }
   }, [isAwaitingSession, onAuthenticated, session.status]);
 
-  const initialNotice = useMemo(() => noticeOf(location.state), [location.state]);
+  const stateNotice = useMemo(() => noticeOf(location.state), [location.state]);
+  // `?next=` is what the session gate adds when it bounces a visitor here from a page that
+  // needs a session (`SessionBootstrap.tsx`): say why the form is in their way (BUG-007).
+  const initialNotice: AuthInitialNotice | undefined =
+    stateNotice ?? (new URLSearchParams(location.search).has('next') ? 'signInRequired' : undefined);
 
   // `state.notice` lives in the history entry and would come back after F5: read once, then drop
   // it, keeping every other key (e.g. `from`).
   useEffect(() => {
-    if (initialNotice === undefined) {
+    if (stateNotice === undefined) {
       return;
     }
 
@@ -357,7 +367,7 @@ function AuthRouteContent() {
     delete rest.notice;
 
     navigate(`${location.pathname}${location.search}`, { replace: true, state: rest });
-  }, [initialNotice, location.pathname, location.search, location.state, navigate]);
+  }, [stateNotice, location.pathname, location.search, location.state, navigate]);
 
   return (
     <AuthScreen
@@ -365,6 +375,7 @@ function AuthRouteContent() {
       onAuthenticated={onAuthenticated}
       reducedMotion={reducedMotion}
       {...(initialNotice !== undefined ? { initialNotice } : {})}
+      {...(session.status === 'authenticated' ? { onReturnToApp: returnToApp } : {})}
     />
   );
 }

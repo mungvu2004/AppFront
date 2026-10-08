@@ -117,6 +117,7 @@
       "acceptInvitation": "Nhận lời mời",
       "backToSignIn": "Quay lại đăng nhập",
       "goToSignIn": "Về trang đăng nhập",
+      "goToProjects": "Về danh sách dự án",
       "sendResetLink": "Gửi thư đặt lại mật khẩu",
       "setNewPassword": "Đổi mật khẩu",
       "signIn": "Đăng nhập",
@@ -135,6 +136,7 @@
       "confirmRequired": "Chưa nhập lại mật khẩu.",
       "emailRequired": "Chưa nhập thư điện tử.",
       "emailInvalid": "Thư điện tử chưa đúng dạng. Kiểm tra lại phần trước và sau dấu a còng.",
+      "emailTooLong": "Thư điện tử dài quá {{count}} ký tự. Kiểm tra lại địa chỉ.",
       "passwordRequired": "Chưa nhập mật khẩu.",
       "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
       "fullNameRequired": "Chưa nhập họ và tên.",
@@ -154,6 +156,10 @@
         "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
       "tooManyRecovery": "Đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "validationOther": {
+        "title": "Dữ liệu chưa phù hợp",
+        "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
+      },
       "accountDisabled": {
         "title": "Tài khoản đã bị vô hiệu",
         "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."
@@ -182,7 +188,10 @@
       "partial": "Đã có thư điện tử, còn thiếu mật khẩu.",
       "passwordReset": "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.",
       "sessionEnded": "Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.",
-      "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ, đang thử lại.",
+      "signInRequired": "Hãy đăng nhập để tiếp tục.",
+      "signedIn": "Bạn đang đăng nhập. Đăng nhập ở đây sẽ thay cho phiên hiện tại.",
+      "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ để mở phiên. Bấm Đăng nhập để thử lại.",
+      "sessionNotOpened": "Mật khẩu đúng nhưng chưa mở được phiên làm việc. Kiểm tra trình duyệt có cho phép cookie của trang này rồi đăng nhập lại.",
       "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
       "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",
       "collapsedRecovery": "Biểu mẫu đang thu gọn. Mở lại để nhập mật khẩu.",
