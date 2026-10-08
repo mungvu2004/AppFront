@@ -141,7 +141,7 @@ function controlFor(row: PropertyRowData, groupId: PropertyGroupId): ReactNode {
 
       if (isReadOnly) {
         return (
-          <div className="flex h-[38px] w-full items-center px-3 text-[14px] text-text-primary">
+          <div className="flex h-[46px] sm:h-[38px] w-full items-center px-3 text-[14px] text-text-primary">
             {readOnlyOptionText(row, options)}
           </div>
         );
