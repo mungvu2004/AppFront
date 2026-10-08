@@ -29,6 +29,7 @@ import viMessages from '@/i18n/vi.json';
 import { __resetAuthForTests, bootstrapSession, getSession, signOut } from '@/lib/auth';
 import { __resetLastKnownUserForTests } from '@/lib/auth/bootstrap';
 import { getOptionalAuthConfig } from '@/lib/auth/state';
+import { cssDurationMs } from '@/lib/motion/tokens';
 import { queryClient } from '@/lib/query/queryClient';
 import { backgroundWatchRegistry } from '@/lib/realtime/backgroundWatch';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -286,7 +287,7 @@ describe('SessionGate — năm nhánh', () => {
     // Câu chờ hiện bằng chữ, không chỉ nằm trong aria-label (BUG-027).
     expect(screen.getByText('Đang mở phiên…')).toBeVisible();
     // …nhưng trễ một nhịp, để fallback Suspense chớp qua không nháy chữ (BUG-027).
-    expect(screen.getByText('Đang mở phiên…')).toHaveStyle({ animationDelay: '180ms' });
+    expect(screen.getByText('Đang mở phiên…')).toHaveStyle({ animationDelay: cssDurationMs('fast') });
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
     expect(container.querySelectorAll('main')).toHaveLength(1);
