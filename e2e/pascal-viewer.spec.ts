@@ -78,8 +78,8 @@ const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewerPascal.replace(':projectI
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 
 
-/** Tên khung ngoài cùng của màn — `<section aria-label="Mô hình 3d">`, `PascalViewer.tsx:25`. */
-const SCREEN_REGION_NAME = 'Mô hình 3d';
+/** Tên khung ngoài cùng của màn — `<section aria-label={PASCAL_VIEWER_TITLE}>`, `PascalViewer.tsx:25`. */
+const SCREEN_REGION_NAME = 'Mô hình 3D';
 
 /** Khung nhìn của mọi bài — cùng cỡ các số đo trong tệp này. */
 const VIEWPORT = { width: 1440, height: 900 } as const;

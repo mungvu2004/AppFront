@@ -32,6 +32,12 @@ export interface ProjectSpatialGateProps {
   readonly wrapFallbackInMain?: boolean;
 }
 
+/** Chữ của 404 dự án — một nguồn, `FloorManager` dùng lại cho 404 của danh sách tầng (BUG-032). */
+export const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này';
+export const PROJECT_NOT_FOUND_DESCRIPTION =
+  'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.';
+export const BACK_TO_PROJECTS_LABEL = 'Về danh sách dự án';
+
 /**
  * 404 của dự án — B-V1-43. Một câu cố định cho mọi 404 (K08: không tiết lộ là
  * "không có" hay "không có quyền") và một lối ra. Nhãn nút cố ý trùng
@@ -45,9 +51,9 @@ function ProjectNotFound() {
     <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
       <EmptyState
         icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
-        title="Không tìm thấy dự án này"
-        description="Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án."
-        action={{ label: 'Về danh sách dự án', onClick: () => navigate(ROUTES.dashboard) }}
+        title={PROJECT_NOT_FOUND_TITLE}
+        description={PROJECT_NOT_FOUND_DESCRIPTION}
+        action={{ label: BACK_TO_PROJECTS_LABEL, onClick: () => navigate(ROUTES.dashboard) }}
       />
     </div>
   );

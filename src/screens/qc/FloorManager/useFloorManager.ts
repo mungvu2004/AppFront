@@ -96,6 +96,7 @@ import type { UndoEntryId } from '@/lib/commands/dispatch';
 import type { HistoryStep } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatLength } from '@/lib/format/measure';
@@ -226,10 +227,6 @@ export function floorErrorSentence(error: unknown): string {
 
   return describeError(toAppError(error)).description;
 }
-
-/** Câu cho 404 của danh sách tầng — cùng chữ `ProjectNotFound` ở `ProjectSpatialGate.tsx` (BUG-032). */
-const PROJECT_MISSING_MESSAGE =
-  'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.';
 
 /** Đơn vị của cột "Cao độ (m)" và "Chiều cao (m)": một chữ số sau dấu phẩy. */
 const METRE_FRACTION_DIGITS = 1;
@@ -1622,7 +1619,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     }
 
     if (isProjectMissing) {
-      return PROJECT_MISSING_MESSAGE;
+      // Cùng câu với 404 của `ProjectSpatialGate` — nhập, không chép (BUG-032).
+      return PROJECT_NOT_FOUND_DESCRIPTION;
     }
 
     return describeError(toAppError(floorListQuery.error)).description;
