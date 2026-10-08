@@ -50,4 +50,19 @@ describe('Input', () => {
     const wrapper = container.querySelector('.focus-within\\:ring-2');
     expect(wrapper).toBeInTheDocument();
   });
+
+  // BUG-048: the field inside the 1px border is 44px under `sm`, 36px from `sm` up.
+  it('is a 44px touch target on phones and keeps 38px from sm up', () => {
+    const { container } = render(<Input />);
+    const wrapper = container.querySelector('.focus-within\\:ring-2');
+    expect(wrapper).toHaveClass('h-[46px]', 'sm:h-[38px]');
+  });
+
+  // BUG-045: the edge has to reach 3:1 against the field and the page.
+  it('draws its edge with the control border, not the divider token', () => {
+    const { container } = render(<Input />);
+    const wrapper = container.querySelector('.focus-within\\:ring-2');
+    expect(wrapper).toHaveClass('border-border-control');
+    expect(wrapper).not.toHaveClass('border-border-default');
+  });
 });

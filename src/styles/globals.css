@@ -51,9 +51,10 @@
      | `--text-secondary` | `--bg-app`     |  7,71:1 |
      | `--text-secondary` | `--bg-surface` |  6,93:1 |
 
-     `--text-muted` đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface` —
-     cao hơn chính bản sáng của nó (2,95:1 trên nền trắng), nên chủ đề tối không
-     mang theo khoản nợ tương phản nào mới.
+     `--text-muted` đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface`;
+     bản sáng (#726f6c) đạt 4,55:1 và 4,99:1. Nó còn là màu viền control
+     (`border-control` trong `tailwind.config.ts`), nên ≥ 3:1 (WCAG 1.4.11) ở cả
+     hai chủ đề là điều kiện phải giữ khi đổi giá trị.
 
      ## Hai mươi thuộc tính KHÔNG khai lại, và vì sao
 
@@ -157,7 +158,10 @@
 
     --text-primary: #33322f;
     --text-secondary: #6b6862;
-    --text-muted: #999691; /* Used for shortcut kbd */
+    /* #999691 cũ chỉ 2,68:1 trên `--bg-app` mà đa số chỗ dùng là chữ thật (BUG-042).
+       #726f6c: 4,55:1 trên `--bg-app`, 4,99:1 trên `--bg-surface`. Cũng là màu viền
+       control (`border-control`, ≥ 3:1 — BUG-045) và icon trong ô (BUG-044). */
+    --text-muted: #726f6c;
 
     --danger-tint: #f9efed;
     --danger-border: #e8cfc9;

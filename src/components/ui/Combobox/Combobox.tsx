@@ -69,7 +69,7 @@ export const Combobox = Object.assign(
       return (
         <div className="flex flex-col">
           {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
-          <div className="flex h-[38px] w-full items-center px-3 text-text-primary">
+          <div className="flex h-[46px] sm:h-[38px] w-full items-center px-3 text-text-primary">
             {selectedOption ? selectedOption.label : placeholder}
           </div>
         </div>

@@ -89,4 +89,10 @@ describe('Button', () => {
 
     expect(screen.getByRole('button', { name: 'Thêm tường ⌘K' })).toBeInTheDocument();
   });
+
+  // BUG-048: 44px under `sm` (640px), the 40px of the design system from there up.
+  it('is 44px tall on phones at size lg and 40px from sm up', () => {
+    render(<Button size="lg">Đăng nhập</Button>);
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-10', 'sm:min-h-10');
+  });
 });
