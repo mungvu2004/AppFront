@@ -224,7 +224,7 @@ export function FloorTableRow({
         {canEdit ? (
           <Input
             aria-label={`Tên tầng ${row.name}`}
-            className="h-8 text-[13px]"
+            className="text-[13px]"
             onBlur={() => onFloorFieldCommit(row.id, 'name')}
             onChange={(event) => onFloorFieldChange(row.id, 'name', event.target.value)}
             onClick={(event) => event.stopPropagation()}
@@ -250,7 +250,7 @@ export function FloorTableRow({
         {canEdit && !isAutoElevation ? (
           <NumericField
             aria-label={`Cao độ tầng ${row.name}`}
-            className="h-8 w-24 text-[13px]"
+            className="w-24 text-[13px]"
             onChange={(value) =>
               commitNumericField(row.id, 'elevation', value, onFloorFieldChange, onFloorFieldCommit)
             }
@@ -267,7 +267,7 @@ export function FloorTableRow({
         {canEdit ? (
           <NumericField
             aria-label={`Chiều cao tầng ${row.name}`}
-            className="h-8 w-24 text-[13px]"
+            className="w-24 text-[13px]"
             onChange={(value) => commitNumericField(row.id, 'height', value, onFloorFieldChange, onFloorFieldCommit)}
             onClick={(event) => event.stopPropagation()}
             unit="m"

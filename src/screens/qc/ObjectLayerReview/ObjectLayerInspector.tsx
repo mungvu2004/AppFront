@@ -247,13 +247,13 @@ function ObjectInspectorBody({
       <div className="flex items-center gap-2 px-5 pb-4">
         <span
           aria-hidden="true"
-          className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-bg-sunken text-text-secondary"
+          className="flex h-[46px] w-[46px] sm:h-[38px] sm:w-[38px] shrink-0 items-center justify-center rounded-lg bg-bg-sunken text-text-secondary"
         >
           <CurrentTypeIcon className="h-[18px] w-[18px]" />
         </span>
 
         {isViewerRole ? (
-          <div className="flex h-[38px] flex-1 items-center px-3 text-[14px] text-text-primary">
+          <div className="flex h-[46px] sm:h-[38px] flex-1 items-center px-3 text-[14px] text-text-primary">
             {OBJECT_SUBTYPE_LABELS[inspector.subtype]}
           </div>
         ) : (

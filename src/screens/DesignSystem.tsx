@@ -80,7 +80,7 @@ export function DesignSystem() {
             <div className="flex items-center gap-6">
               <Button size="sm">Small (32px)</Button>
               <Button size="md">Medium (36px)</Button>
-              <Button size="lg">Large (40px)</Button>
+              <Button size="lg">Large (44px / 40px from 640px)</Button>
               
               <div className="h-8 w-px bg-border-default mx-4" />
               

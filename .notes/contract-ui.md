@@ -207,7 +207,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 **Sizes (from `buttonVariants.ts`):**
 - `'sm'`: h-8, text-sm, px-3
 - `'md'`: h-9, text-sm, px-4 (default)
-- `'lg'`: h-10, text-base, px-5
+- `'lg'`: h-11 dưới 640 px, sm:h-10 từ 640 px, text-base, px-5
 
 **Accessibility:** `aria-label` required for `iconOnly` buttons.
 
@@ -497,6 +497,7 @@ addToast({
 | Purpose | Light | Dark | Tailwind class |
 |---------|-------|------|-----------------|
 | **Default border** | `#e3ded6` | `#3a3733` | `border-border-default` |
+| **Control border** (ô nhập, ô chọn, checkbox, radio; ≥ 3:1) | `#8c8986` | `#746f67` | `border-border-control` |
 
 ### Text Colors
 
@@ -504,7 +505,7 @@ addToast({
 |---------|-------|------|-----------------|
 | **Primary text** | `#33322f` | `#ece9e3` | `text-text-primary` |
 | **Secondary text** | `#6b6862` | `#b2ada4` | `text-text-secondary` |
-| **Muted text** | `#999691` | `#969189` | `text-text-muted` |
+| **Muted text** | `#726f6c` | `#969189` | `text-text-muted` |
 
 ### Three State Colors (A4: exactly three, never four)
 
