@@ -288,7 +288,10 @@ export function AuthScreenView(props: AuthScreenViewProps) {
     <main className="flex min-h-screen w-full bg-bg-app" data-auth-state={state}>
       <ValuePanel />
 
-      <div className="flex w-full flex-col items-center justify-center p-12 lg:w-[55%]">
+      {/* Anchored from the top, not centred: centred, every strip that appears lifts the whole form
+          and the field being typed in slides out from under the caret (BUG-008). The top padding
+          puts the empty form where centring used to — 17.5rem is about half its height. */}
+      <div className="flex w-full flex-col items-center p-12 pt-[max(3rem,calc(50vh_-_17.5rem))] lg:w-[55%]">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
           {/* The mark, and the screen's own name beside it. There is deliberately
               no "thu gọn" button: `isCollapsed` is set by whoever mounts the
