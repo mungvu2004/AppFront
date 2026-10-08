@@ -98,6 +98,8 @@ export interface FloorManagerContainerProps {
    * lên, chứ không giả vờ đã làm gì.
    */
   readonly onNavigateToDrawings?: (floorId: string) => void;
+  /** Lối về danh sách dự án khi dự án không tồn tại (404); {@link FloorManagerRoute} nối vào `useNavigate`. */
+  readonly onBackToProjects?: (() => void) | undefined;
   /** Cổng dữ liệu tiêm được. Vắng mặt thì hook dựng bản thật, đúng một lần. */
   readonly gateway?: FloorManagerGateway;
   /** Sổ phím tiêm được — bài kiểm dựng sổ riêng để không đụng sổ dùng chung. */
@@ -160,6 +162,8 @@ function WiredFloorManager(props: FloorManagerContainerProps) {
       emptyNotice={result.emptyNotice}
       errorMessage={result.errorMessage}
       footer={result.footer}
+      isProjectMissing={result.isProjectMissing}
+      onBackToProjects={props.onBackToProjects}
       forbiddenNotice={result.forbiddenNotice}
       isAutoElevation={result.isAutoElevation}
       isCollapsed={result.isCollapsed}
@@ -222,8 +226,13 @@ function FloorManagerRouteBody({
     navigate(ROUTES.project.upload(projectId));
   }, [navigate, projectId]);
 
+  const handleBackToProjects = useCallback(() => {
+    navigate(ROUTES.dashboard);
+  }, [navigate]);
+
   return (
     <FloorManagerContainer
+      onBackToProjects={handleBackToProjects}
       onNavigateToDrawings={handleNavigateToDrawings}
       projectId={projectId}
       roles={roles}

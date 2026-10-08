@@ -59,6 +59,8 @@ export interface FloorTableProps
     | 'onToggleAutoElevation'
     | 'onUploadDrawing'
     | 'onRetry'
+    | 'isProjectMissing'
+    | 'onBackToProjects'
   > {
   readonly state: FloorManagerScreenState;
 }
@@ -68,6 +70,8 @@ const ERROR_TITLE = 'Không đọc được danh sách tầng';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const DUPLICATE_SELECTED_LABEL = 'Nhân bản tầng';
 const RETRY_LABEL = 'Thử lại';
+const PROJECT_MISSING_TITLE = 'Không tìm thấy dự án này';
+const BACK_TO_PROJECTS_LABEL = 'Về danh sách dự án';
 const CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
 const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
 
@@ -105,6 +109,8 @@ export function FloorTable({
   onToggleAutoElevation,
   onUploadDrawing,
   onRetry,
+  isProjectMissing,
+  onBackToProjects,
 }: FloorTableProps) {
   const menu = useContextMenu();
   const [duplicatingFloorId, setDuplicatingFloorId] = useState<string | null>(null);
@@ -189,6 +195,19 @@ export function FloorTable({
         description={emptyNotice ?? ''}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
         title={EMPTY_TITLE}
+      />
+    );
+  }
+
+  if (state === 'error' && isProjectMissing === true) {
+    return (
+      <InlineAlert
+        {...(onBackToProjects !== undefined
+          ? { action: { label: BACK_TO_PROJECTS_LABEL, onClick: onBackToProjects } }
+          : {})}
+        level="violation"
+        message={errorMessage ?? ''}
+        title={PROJECT_MISSING_TITLE}
       />
     );
   }

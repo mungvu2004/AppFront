@@ -146,6 +146,8 @@ export function FloorManager(props: FloorManagerViewProps) {
               emptyNotice={props.emptyNotice}
               errorMessage={props.errorMessage}
               footer={props.footer}
+              isProjectMissing={props.isProjectMissing}
+              onBackToProjects={props.onBackToProjects}
               isAutoElevation={props.isAutoElevation}
               onAddFloor={props.onAddFloor}
               onDuplicateFloor={props.onDuplicateFloor}
