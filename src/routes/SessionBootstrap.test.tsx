@@ -314,20 +314,38 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
     update({ onRetry, serverUnreachable: true });
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
-    expect(
-      screen.getByText('Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi.'),
-    ).toBeInTheDocument();
-    // Phủ lên trên, không chen vào luồng trang đẩy màn con xuống (BUG-019).
-    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed');
+    // Không hứa "đang tự thử lại": lượt gia hạn có trần số lần rồi dừng hẳn (BUG-019).
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.',
+    );
+    expect(screen.queryByText(/tự thử lại/)).not.toBeInTheDocument();
+    // Phủ lên trên ở mép dưới, không chen vào luồng trang và không đè thanh trên (BUG-019).
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed', 'bottom-4');
     expectVietnamese(container);
     expectAccessible(container);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thử lại ngay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
     update({ onRetry, serverUnreachable: false });
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
+    expect(screenMounts).toBe(1);
+  });
+
+  it('ẩn được dải; ẩn không gắn lại màn, và lượt mất kết nối sau dải hiện lại', () => {
+    const { update } = renderGate({ serverUnreachable: true });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn thông báo kết nối' }));
+
+    expect(screen.queryByRole('region', { name: 'Trạng thái kết nối' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('man-con')).toBeInTheDocument();
+    expect(screenMounts).toBe(1);
+
+    update({ serverUnreachable: false });
+    update({ serverUnreachable: true });
+
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toBeInTheDocument();
     expect(screenMounts).toBe(1);
   });
 

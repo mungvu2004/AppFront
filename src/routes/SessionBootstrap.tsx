@@ -27,12 +27,12 @@ import {
 } from 'react';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
-import { AlertCircle, WifiOff } from 'lucide-react';
+import { AlertCircle, WifiOff, X } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
+import { Button } from '@/components/ui/Button';
 import { getOptionalAuthConfig, getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
 
@@ -69,20 +69,46 @@ export interface SessionGateProps {
  * `region` có tên chứ không bọc `main` (FIX-381, axe `region`).
  *
  * Phủ lên trên (`fixed`), không nằm trong luồng trang: nằm trong luồng thì cả màn tụt
- * xuống và hiện thanh cuộn, đúng lúc người dùng được dặn đừng tải lại (BUG-019). Hẹp và
- * ở giữa mép trên: thanh trên của các màn để trống phần giữa, nút chính nằm ở hai góc.
+ * xuống và hiện thanh cuộn, đúng lúc người dùng được dặn đừng tải lại (BUG-019).
+ *
+ * Ở giữa mép DƯỚI, một dòng gọn: mép trên là chỗ của thanh trên mọi màn (chuông, avatar,
+ * "Dự án mới", ô tìm dự án, `SegmentedControl` và `MeasurementTool` của viewer) — dải cũ
+ * ở đó che chúng ở 375–1100 px. Mép dưới cũng có người ở (toast góc phải, cụm thu phóng
+ * và chú giải viewer ở hai góc, thanh tầng của `ExplodedView`, tấm đáy di động của vài
+ * màn), nên dải có nút "Ẩn": không gì bị che mãi. Ẩn chỉ trong lượt mất kết nối này —
+ * dải tắt rồi bật lại là trạng thái mới, nó hiện lại.
+ *
+ * Câu không hứa "đang tự thử lại": lượt gia hạn dừng hẳn sau
+ * `REFRESH_MAX_TRANSIENT_ATTEMPTS` lần (`lib/auth/refresh.ts`), nên chỉ nói điều luôn đúng.
  */
 function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) {
+    return null;
+  }
+
   return (
     <div
       role="region"
       aria-label="Trạng thái kết nối"
-      className="fixed left-1/2 top-2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 rounded-[8px] shadow-float"
+      className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-[8px] border border-state-attention bg-state-attention-tint py-1 pl-3 pr-1 shadow-float"
     >
-      <InlineAlert
-        level="attention"
-        message="Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi."
-        action={{ label: 'Thử lại ngay', onClick: onRetry }}
+      <WifiOff aria-hidden="true" className="shrink-0 text-state-attention" size={16} />
+      <p role="alert" className="min-w-0 flex-1 text-[13px] leading-[18px] text-state-attention-text">
+        Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.
+      </p>
+      <Button type="button" size="sm" variant="secondary" onClick={onRetry} className="shrink-0">
+        Thử lại
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        iconOnly
+        icon={<X aria-hidden="true" size={16} />}
+        aria-label="Ẩn thông báo kết nối"
+        onClick={() => setDismissed(true)}
       />
     </div>
   );
