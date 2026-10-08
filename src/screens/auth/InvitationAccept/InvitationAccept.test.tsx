@@ -96,6 +96,7 @@ function baseProps(): InvitationAcceptViewProps {
     isSessionPending: false,
     isSessionUnavailable: false,
     retryNotice: null,
+    isLinkIncomplete: false,
     setFullName: noop,
     setPassword: noop,
     setConfirmPassword: noop,
@@ -211,10 +212,26 @@ describe('InvitationAccept — the fragment token', () => {
     const link = screen.getByRole('link', { name: AUTH.actions.goToSignIn });
 
     expect(link).toHaveAttribute('href', '/login');
-    expect(screen.getByText(AUTH.invitation.expired)).toBeInTheDocument();
+    expect(screen.getByText(AUTH.invitation.incomplete)).toBeInTheDocument();
 
     fireEvent.click(link);
     expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
+  it.each([
+    ['no token at all', ''],
+    ['the token in the query instead of the fragment', '?token=abc'],
+  ])('says the link is incomplete, not expired, with %s (BUG-005)', (_label, suffix) => {
+    setUrl(suffix);
+
+    const { port } = makePort();
+
+    render(<InvitationAccept port={port} />);
+
+    expect(screen.getByText(AUTH.invitation.incomplete)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.expired)).toBeNull();
+    expect(screen.getByText(AUTH.invitation.deadEndSubtitle)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.subtitle)).toBeNull();
   });
 });
 
@@ -275,6 +292,8 @@ describe('InvitationAccept — what the server answers', () => {
       expect(stateOf(container)).toBe('forbidden');
     });
     expect(screen.getByText(AUTH.invitation.expired)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.incomplete)).toBeNull();
+    expect(screen.getByText(AUTH.invitation.deadEndSubtitle)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
   });
 

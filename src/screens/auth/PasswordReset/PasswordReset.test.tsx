@@ -88,6 +88,7 @@ function baseProps(): PasswordResetViewProps {
     canSubmit: true,
     isSubmitting: false,
     isDone: false,
+    isLinkIncomplete: false,
     setNewPassword: noop,
     setConfirmPassword: noop,
     submit: noop,
@@ -207,6 +208,22 @@ describe('PasswordReset — the fragment token', () => {
     expect(screen.queryByLabelText(AUTH.fields.newPassword)).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['no token at all', ''],
+    ['the token in the query instead of the fragment', '?token=abc'],
+  ])('says the link is incomplete, not expired, with %s (BUG-005)', (_label, suffix) => {
+    setUrl(suffix);
+
+    const { port } = makePort();
+
+    render(<PasswordReset port={port} />);
+
+    expect(screen.getByText(AUTH.passwordReset.incomplete)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.expired)).toBeNull();
+    expect(screen.getByText(AUTH.passwordReset.deadEndSubtitle)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.subtitle)).toBeNull();
+  });
 });
 
 /* ---- answers -------------------------------------------------------------- */
@@ -239,6 +256,8 @@ describe('PasswordReset — what the server answers', () => {
       expect(stateOf(container)).toBe('forbidden');
     });
     expect(screen.getByText(AUTH.passwordReset.expired)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.incomplete)).toBeNull();
+    expect(screen.getByText(AUTH.passwordReset.deadEndSubtitle)).toBeInTheDocument();
   });
 
   it('puts a newPassword complaint under its own box', async () => {

@@ -166,7 +166,9 @@
     "invitation": {
       "title": "Nhận lời mời",
       "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
+      "deadEndSubtitle": "Liên kết này không mở được lời mời.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
+      "incomplete": "Liên kết lời mời chưa đầy đủ, có thể đã bị cắt mất một phần khi sao chép. Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
       "sessionNotOpened": "Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.",
       "success": "Đã nhận lời mời. Đang mở tài khoản của bạn."
@@ -174,7 +176,9 @@
     "passwordReset": {
       "title": "Đặt lại mật khẩu",
       "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
+      "deadEndSubtitle": "Liên kết này không đặt lại được mật khẩu.",
       "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
+      "incomplete": "Liên kết đặt lại mật khẩu chưa đầy đủ, có thể đã bị cắt mất một phần khi sao chép. Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.",
       "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."
     },
     "notices": {

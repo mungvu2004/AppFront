@@ -87,6 +87,11 @@ export interface InvitationAcceptModel {
   readonly isSessionUnavailable: boolean;
   /** Câu cho vùng `role="status"`: đang thử lại, hoặc thử lại vẫn hỏng. */
   readonly retryNotice: string | null;
+  /**
+   * Ngõ cụt vì chính đường dẫn thiếu hoặc hỏng mã (không có `#token=`, mã sai dạng, mã đặt
+   * nhầm vào `?token=`), khác với mã đủ mà máy chủ từ chối (hết hạn, đã dùng) — BUG-005.
+   */
+  readonly isLinkIncomplete: boolean;
 }
 
 export interface InvitationAcceptActions {
@@ -336,6 +341,7 @@ export function useInvitationAccept(options: UseInvitationAcceptOptions): {
     needsSignIn,
     isSessionPending: port.isSessionPending,
     isSessionUnavailable: sessionUnavailable,
+    isLinkIncomplete: !hasUsableToken,
     retryNotice: !sessionUnavailable
       ? null
       : retryPhase === 'pending'
