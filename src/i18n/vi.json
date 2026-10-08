@@ -154,6 +154,10 @@
         "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
       "tooManyRecovery": "Đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "validationOther": {
+        "title": "Dữ liệu chưa phù hợp",
+        "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
+      },
       "accountDisabled": {
         "title": "Tài khoản đã bị vô hiệu",
         "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."

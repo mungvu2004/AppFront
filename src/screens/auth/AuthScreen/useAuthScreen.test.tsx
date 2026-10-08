@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import viMessages from '@/i18n/vi.json';
 
+import { wireFailure } from '../authTestKit';
+
 import { useAuthScreen, type AuthGateway, type UseAuthScreenOptions } from './useAuthScreen';
 
 const AUTH = viMessages.auth;
@@ -100,5 +102,28 @@ describe('useAuthScreen — an address past 254 characters (BUG-010)', () => {
 
     expect(gateway.signIn).not.toHaveBeenCalled();
     expect(result.current.model.problems.email).toBe(AUTH.problems.emailTooLong.replace('{{count}}', '254'));
+  });
+});
+
+describe('useAuthScreen — 422 VALIDATION on a field the form does not have (BUG-018)', () => {
+  it('says the request was refused without pointing at marked fields', async () => {
+    const gateway = gatewayReplying(wireFailure(422, { code: 'VALIDATION', field: 'rememberMe' }));
+    const { result } = setup({ gateway });
+
+    act(() => {
+      result.current.actions.setEmail(EMAIL);
+      result.current.actions.setPassword(PASSWORD);
+    });
+    await act(async () => {
+      result.current.actions.submit();
+    });
+
+    expect(result.current.model.problems).toEqual({});
+    expect(result.current.model.notice).toEqual({
+      tone: 'violation',
+      title: AUTH.errors.validationOther.title,
+      message: AUTH.errors.validationOther.description,
+    });
+    expect(result.current.model.notice?.message).not.toBe(viMessages.errors.validation.description);
   });
 });

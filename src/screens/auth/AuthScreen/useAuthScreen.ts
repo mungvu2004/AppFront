@@ -203,6 +203,7 @@ type AuthFailure =
   | { readonly kind: 'originMismatch' }
   | { readonly kind: 'tooManyAttempts' }
   | { readonly kind: 'validation' }
+  | { readonly kind: 'validationOther' }
   | { readonly kind: 'signedInOffline' }
   | { readonly kind: 'transport'; readonly cause: unknown };
 
@@ -238,7 +239,8 @@ function classifyFailure(error: unknown): { failure: AuthFailure; field?: AuthFi
         return { failure: { kind: 'validation' }, field: wire.field };
       }
 
-      return { failure: { kind: 'transport', cause: error } };
+      // No box to mark, so not the generic "các trường được đánh dấu" (BUG-018).
+      return { failure: { kind: 'validationOther' } };
     default:
       return { failure: { kind: 'transport', cause: error } };
   }
@@ -282,6 +284,12 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
       };
     case 'signedInOffline':
       return { tone: 'attention', message: AUTH_MESSAGES.notices.signedInOffline };
+    case 'validationOther':
+      return {
+        tone: 'violation',
+        title: AUTH_MESSAGES.errors.validationOther.title,
+        message: AUTH_MESSAGES.errors.validationOther.description,
+      };
     case 'validation':
       return null;
     default: {
