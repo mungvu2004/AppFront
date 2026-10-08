@@ -1391,7 +1391,7 @@
       "corruptedFile": "Tệp bản vẽ bị hỏng hoặc định dạng không hợp lệ. Hãy kiểm tra tệp trong AutoCAD rồi lưu lại dưới tên khác.",
       "emptyFile": "Tệp bản vẽ không chứa bất kỳ đối tượng hình học nào. Kiểm tra lại file được tải lên có đúng không.",
       "fileTooLarge": "Tệp bản vẽ quá lớn ({sizeMb} MB). Vui lòng tải lên tệp dưới 100 MB hoặc tách tệp thành các phần nhỏ hơn.",
-      "encodingNotSupported": "Tệu bản vẽ chứa mã hóa không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hóa tiêu chuẩn."
+      "encodingNotSupported": "Tệp bản vẽ chứa mã hóa không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hóa tiêu chuẩn."
     },
     "screen": {
       "ariaLabel": "Màn phát hiện tệp CAD",
