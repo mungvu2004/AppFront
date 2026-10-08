@@ -125,7 +125,7 @@ describe('AuthRoute — the notice does not survive a reload', () => {
 });
 
 describe('AuthRoute — a session that opens by itself', () => {
-  it('says "đang thử lại" when the cookie was accepted but the server cannot be reached, then moves on once the session opens', async () => {
+  it('says so when the cookie was accepted but the server cannot be reached, then moves on once the session opens', async () => {
     renderRoute();
     act(() => {
       setServerUnreachable(true);
@@ -135,8 +135,14 @@ describe('AuthRoute — a session that opens by itself', () => {
 
     expect(await screen.findByText(AUTH.notices.signedInOffline)).toBeInTheDocument();
     expect(screen.queryByText('trang-dich')).toBeNull();
-    // Waiting for the session: a second press would only send a second sign-in.
-    expect(screen.getByRole('button', { name: AUTH.actions.signIn })).toBeDisabled();
+    // Nothing guarantees a retry behind the scenes (BUG-013): the button stays usable, and a
+    // second press really tries again.
+    const button = screen.getByRole('button', { name: AUTH.actions.signIn });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(mocks.signIn).toHaveBeenCalledTimes(2);
+    });
 
     act(() => {
       setAuthenticatedSession(SESSION);

@@ -93,7 +93,9 @@ export interface AuthGateway {
 /**
  * Đăng nhập xong, cookie đã nhận, nhưng phiên chưa mở vì máy chủ không trả lời lượt
  * gia hạn (`serverUnreachable`). Không phải sai mật khẩu và không phải lỗi mạng của
- * lượt gửi: tầng phiên tự thử lại. Container ném nó để hook nói đúng câu.
+ * lượt gửi. Tầng phiên KHÔNG chắc tự thử lại (phiên đang `anonymous` thì nó đứng im,
+ * `refresh.ts` `handleTransientFailure`), nên nút Đăng nhập vẫn bấm được để người dùng
+ * tự thử lại (BUG-013). Container ném nó để hook nói đúng câu.
  */
 export class SignedInOfflineError extends Error {
   constructor() {
@@ -583,10 +585,9 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
   /* ---- submitting --------------------------------------------------------- */
 
   const isBlocked = failure?.kind === 'accountDisabled';
-  const isWaitingForSession = failure?.kind === 'signedInOffline';
 
   const submit = useCallback(() => {
-    if (inFlight.current || isBlocked || isLockedOut || isWaitingForSession) {
+    if (inFlight.current || isBlocked || isLockedOut) {
       return;
     }
 
@@ -666,7 +667,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
         setPhase('idle');
         setFailure({ kind: 'transport', cause: thrown });
       });
-  }, [gateway, isBlocked, isLockedOut, isWaitingForSession, lock, reducedMotion]);
+  }, [gateway, isBlocked, isLockedOut, lock, reducedMotion]);
 
   /* ---- what the view sees -------------------------------------------------- */
 
@@ -731,7 +732,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     values,
     problems,
     notice,
-    canSubmit: !isSubmitting && !isBlocked && !isLockedOut && !isWaitingForSession,
+    canSubmit: !isSubmitting && !isBlocked && !isLockedOut,
     submitLabel: AUTH_MESSAGES.actions.signIn,
     isBlocked,
   };
