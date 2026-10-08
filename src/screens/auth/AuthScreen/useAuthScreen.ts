@@ -672,7 +672,8 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     if (failure !== null) {
       return 'error';
     }
-    if (values.email.length > 0 && values.password.length === 0) {
+    // "Đã có thư điện tử" only when the address is one: a malformed one already has its own complaint.
+    if (firstProblem('email', values.email) === undefined && values.password.length === 0) {
       return 'partial';
     }
 
