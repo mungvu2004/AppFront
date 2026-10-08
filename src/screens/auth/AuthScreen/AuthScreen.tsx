@@ -211,24 +211,26 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
       )}
 
       <div className="flex flex-col gap-4">
-        {actions.ssoSignIn !== undefined && (<>
-        <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
-          <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
-          <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
-        </div>
+        {actions.ssoSignIn !== undefined && (
+          <>
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
+              <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
+              <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
+            </div>
 
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          fullWidth
-          disabled={fieldsDisabled}
-          onClick={actions.ssoSignIn}
-        >
-          {AUTH_MESSAGES.actions.ssoSignIn}
-        </Button>
-        </>)}
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              disabled={fieldsDisabled}
+              onClick={actions.ssoSignIn}
+            >
+              {AUTH_MESSAGES.actions.ssoSignIn}
+            </Button>
+          </>
+        )}
 
         <button
           type="button"
@@ -247,14 +249,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
 /* The view.                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export type AuthScreenViewProps = AuthScreenModel &
-  AuthScreenActions & {
-    /**
-     * Leaves the disabled-account strip for an empty sign-in form (BUG-017). Optional until
-     * `useAuthScreen` owns the reset (it has to clear `failure`); no button without it.
-     */
-    readonly signInWithAnotherAccount?: () => void;
-  };
+export type AuthScreenViewProps = AuthScreenModel & AuthScreenActions;
 
 /**
  * The screen as a function of its props.
@@ -303,7 +298,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
 
   const reopenForm = useCallback(() => {
     wantsFocus.current = true;
-    signInWithAnotherAccount?.();
+    signInWithAnotherAccount();
   }, [signInWithAnotherAccount]);
 
   const isForgot = panel === 'forgotPassword';
@@ -366,11 +361,9 @@ export function AuthScreenView(props: AuthScreenViewProps) {
                 title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
                 message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
               />
-              {signInWithAnotherAccount !== undefined && (
-                <Button type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
-                  {AUTH_MESSAGES.actions.signInWithAnotherAccount}
-                </Button>
-              )}
+              <Button type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
+                {AUTH_MESSAGES.actions.signInWithAnotherAccount}
+              </Button>
             </div>
           ) : (
             <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
