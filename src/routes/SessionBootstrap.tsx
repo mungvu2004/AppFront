@@ -27,6 +27,9 @@ import {
 } from 'react';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
+import { AlertCircle, WifiOff } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
@@ -89,6 +92,30 @@ function GateStrip({
 }
 
 /**
+ * Màn chặn lúc mở app, khi chưa có màn con nào để giữ: một khối giữa màn nói chuyện gì
+ * xảy ra và cần làm gì, thay cho một dải nhỏ trên màn trống (BUG-020).
+ */
+function GateScreen({
+  action,
+  description,
+  icon,
+  title,
+}: {
+  action: { label: string; onClick: () => void };
+  description: string;
+  icon: ReactNode;
+  title: string;
+}) {
+  return (
+    <ScreenMain>
+      <div className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6">
+        <EmptyState icon={icon} title={title} description={description} action={action} />
+      </div>
+    </ScreenMain>
+  );
+}
+
+/**
  * Năm nhánh, theo đúng thứ tự này — thứ tự là một phần của hợp đồng.
  *
  * `isPublic` đứng trước mọi thứ khác vì màn đăng nhập phải vẽ được kể cả khi
@@ -137,23 +164,24 @@ export function SessionGate({
   if (status === 'unknown') {
     if (setupFailed) {
       return (
-        <ScreenMain>
-          <GateStrip
-            message="Chưa mở được ứng dụng, hãy tải lại trang"
-            action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
-          />
-        </ScreenMain>
+        <GateScreen
+          icon={<AlertCircle />}
+          title="Chưa mở được ứng dụng"
+          description="Tải lại trang để thử mở lại."
+          action={{ label: 'Tải lại trang', onClick: () => globalThis.location.reload() }}
+        />
       );
     }
 
     if (serverUnreachable === true) {
+      // Cùng câu với `errors.network` của `vi.json` ("Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.").
       return (
-        <ScreenMain>
-          <GateStrip
-            message="Không kết nối được máy chủ"
-            action={{ label: 'Thử lại', onClick: onRetry }}
-          />
-        </ScreenMain>
+        <GateScreen
+          icon={<WifiOff />}
+          title="Mất kết nối máy chủ"
+          description="Kiểm tra mạng rồi thử lại."
+          action={{ label: 'Thử lại', onClick: onRetry }}
+        />
       );
     }
 

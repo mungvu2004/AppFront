@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModuleNamespace from '@/api/appClient';
 
+import viMessages from '@/i18n/vi.json';
 import { __resetAuthForTests, bootstrapSession, getSession, signOut } from '@/lib/auth';
 import { __resetLastKnownUserForTests } from '@/lib/auth/bootstrap';
 import { getOptionalAuthConfig } from '@/lib/auth/state';
@@ -230,7 +231,7 @@ describe('SessionGate — năm nhánh', () => {
     const { container } = renderGate({ setupFailed: true, status: 'unknown' });
 
     const button = screen.getByRole('button', { name: 'Tải lại trang' });
-    expect(screen.getByText('Chưa mở được ứng dụng, hãy tải lại trang')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chưa mở được ứng dụng' })).toBeInTheDocument();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);
@@ -243,6 +244,11 @@ describe('SessionGate — năm nhánh', () => {
   it('báo không kết nối được máy chủ khi phiên còn chưa biết, và thử lại gọi onRetry', async () => {
     const onRetry = vi.fn();
     const { container } = renderGate({ onRetry, serverUnreachable: true, status: 'unknown' });
+
+    // Một khối nói chuyện gì xảy ra và cần làm gì, cùng câu với `errors.network` (BUG-020).
+    expect(screen.getByRole('heading', { name: 'Mất kết nối máy chủ' })).toBeInTheDocument();
+    expect(screen.getByText('Kiểm tra mạng rồi thử lại.')).toBeInTheDocument();
+    expect(`Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.`).toBe(viMessages.errors.network.description);
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 

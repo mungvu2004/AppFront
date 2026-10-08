@@ -349,6 +349,8 @@ describe('PasswordReset — what the server answers', () => {
     // The sentence already opens with the incident: no heading repeating it (BUG-021).
     expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
     expect(within(screen.getByRole('alert')).queryByRole('heading')).toBeNull();
+    // Same tone as the connection strips of the gate and the invitation screen (BUG-020).
+    expect(screen.getByRole('alert').className).toMatch(/state-attention/u);
   });
 
   it('names a 429 once, in the heading, not again in the sentence (BUG-021)', async () => {
