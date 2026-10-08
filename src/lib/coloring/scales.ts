@@ -72,6 +72,7 @@ export const COLOR_TOKEN_NAMES = [
   '--bg-selected',
   '--bg-flash',
   '--border-default',
+  '--border-control',
   '--text-primary',
   '--text-secondary',
   '--text-muted',

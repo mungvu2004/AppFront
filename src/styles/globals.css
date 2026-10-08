@@ -8,8 +8,8 @@
 
      [CẤM TUYỆT ĐỐI] nói "chủ đề tối dùng đúng bộ token tối, không tự làm tối
      màu bằng bộ lọc". Nên ở đây không có `filter: invert()`, không có
-     `opacity`, không có lớp phủ đen: chỉ 36 custom property được khai lại.
-     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 43 mục, không
+     `opacity`, không có lớp phủ đen: chỉ 37 custom property được khai lại.
+     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 44 mục, không
      một mã màu thô nào — nên khai lại thuộc tính DƯỚI selector này CHÍNH LÀ cả
      cơ chế. Không thêm `darkMode: 'class'` vào Tailwind: cái đó bật biến thể
      `dark:`, thứ repo này dùng đúng 0 lần.
@@ -52,9 +52,14 @@
      | `--text-secondary` | `--bg-surface` |  6,93:1 |
 
      `--text-muted` đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface`;
-     bản sáng (#726f6c) đạt 4,55:1 và 4,99:1. Nó còn là màu viền control
-     (`border-control` trong `tailwind.config.ts`), nên ≥ 3:1 (WCAG 1.4.11) ở cả
-     hai chủ đề là điều kiện phải giữ khi đổi giá trị.
+     bản sáng (#726f6c) đạt 4,55:1 và 4,99:1.
+
+     `--border-control` là viền của ô nhập, ô chọn, checkbox, radio (WCAG 1.4.11,
+     ≥ 3:1 — BUG-045). Token RIÊNG, không mượn `--text-muted`: viền cần ~3:1 chứ
+     không cần 4,5:1 của chữ, và đổi màu chữ không được kéo theo viền. Tối:
+     3,45:1 trên `--bg-app`, 3,10:1 trên `--bg-surface`; sáng: 3,17:1 và 3,48:1.
+     Hover viền lên `--text-primary`: 4,11:1 (tối) và 3,69:1 (sáng) so với viền
+     thường, nên vẫn thấy rõ.
 
      ## Hai mươi thuộc tính KHÔNG khai lại, và vì sao
 
@@ -95,6 +100,7 @@
     --bg-overlay: rgba(10, 9, 8, 0.6);
 
     --border-default: #3a3733;
+    --border-control: #746f67;
 
     --text-primary: #ece9e3;
     --text-secondary: #b2ada4;
@@ -155,12 +161,14 @@
     --bg-overlay: rgba(43, 42, 40, 0.28);
 
     --border-default: #e3ded6;
+    /* Viền control ≥ 3:1 trên cả `--bg-app` (3,17:1) và `--bg-surface` (3,48:1) — BUG-045. */
+    --border-control: #8c8986;
 
     --text-primary: #33322f;
     --text-secondary: #6b6862;
     /* #999691 cũ chỉ 2,68:1 trên `--bg-app` mà đa số chỗ dùng là chữ thật (BUG-042).
-       #726f6c: 4,55:1 trên `--bg-app`, 4,99:1 trên `--bg-surface`. Cũng là màu viền
-       control (`border-control`, ≥ 3:1 — BUG-045) và icon trong ô (BUG-044). */
+       #726f6c: 4,55:1 trên `--bg-app`, 4,99:1 trên `--bg-surface`. Cũng là màu icon
+       trong ô (BUG-044); viền control nay có token riêng `--border-control`. */
     --text-muted: #726f6c;
 
     --danger-tint: #f9efed;
