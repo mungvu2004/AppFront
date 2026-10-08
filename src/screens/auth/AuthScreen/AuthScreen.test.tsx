@@ -444,7 +444,7 @@ describe('AuthScreen — SSO and password reset', () => {
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.password)).toBeNull();
   });
 
-  it('offers the same panel from inside the wrong-password strip', async () => {
+  it('offers the same panel from under the wrong-password strip', async () => {
     const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
     renderScreen({ gateway });
 

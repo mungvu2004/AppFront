@@ -107,15 +107,21 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
 
   return (
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+      {/* The reset button goes under the strip, not into its `action` slot: beside the text it
+          squeezes the sentence into a ~100 px column at 360 px and below (BUG-003). */}
       {notice !== null && (
-        <InlineAlert
-          level={notice.tone}
-          {...(notice.title !== undefined ? { title: notice.title } : {})}
-          message={notice.message}
-          {...(notice.showResetAction
-            ? { action: { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword } }
-            : {})}
-        />
+        <div className="flex flex-col gap-3">
+          <InlineAlert
+            level={notice.tone}
+            {...(notice.title !== undefined ? { title: notice.title } : {})}
+            message={notice.message}
+          />
+          {notice.showResetAction === true && (
+            <Button type="button" variant="secondary" size="sm" className="self-start" onClick={actions.forgotPassword}>
+              {AUTH_MESSAGES.actions.resetPassword}
+            </Button>
+          )}
+        </div>
       )}
 
       {state === 'partial' && (
