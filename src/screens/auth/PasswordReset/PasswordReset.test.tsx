@@ -171,6 +171,17 @@ describe('PasswordResetView — the seven states', () => {
     expect(field(AUTH.fields.newPassword)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
   });
 
+  it('offers the way back to /login from the form too, not only from the dead end (BUG-050)', () => {
+    const goToSignIn = vi.fn();
+    render(<PasswordResetView {...baseProps()} goToSignIn={goToSignIn} />);
+
+    const link = screen.getByRole('link', { name: AUTH.actions.goToSignIn });
+    expect(link).toHaveAttribute('href', '/login');
+
+    fireEvent.click(link);
+    expect(goToSignIn).toHaveBeenCalledTimes(1);
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/PasswordReset/PasswordReset.tsx');

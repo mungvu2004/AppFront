@@ -15,7 +15,7 @@ import { ROUTES } from '@/routes/paths';
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import { PasswordField } from '../PasswordField';
-import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import { passwordTooShort } from '../recoveryShared';
 import {
   usePasswordReset,
@@ -106,6 +106,8 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           </Button>
           {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
           <RecoveryNoticeStrip notice={notice} />
+          {/* Lối về `/login` cả khi biểu mẫu còn dùng được, không chỉ ở ngõ cụt (BUG-050). */}
+          <RecoveryLink label={AUTH_MESSAGES.actions.goToSignIn} href={ROUTES.login} onClick={goToSignIn} />
         </form>
       )}
     </RecoveryShell>
