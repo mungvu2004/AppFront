@@ -298,7 +298,7 @@ describe('InvitationAccept — what the server answers', () => {
   });
 
   it.each([
-    ['fullName', 'fullName', AUTH.problems.fullNameRequired],
+    ['fullName', 'fullName', AUTH.problems.fullNameInvalid],
     ['password', 'password', 'Mật khẩu cần ít nhất 8 ký tự.'],
   ])('puts a %s complaint under its own box', async (_label, field, sentence) => {
     const { port } = makePort({ reply: wireFailure(422, { code: 'VALIDATION', field }) });

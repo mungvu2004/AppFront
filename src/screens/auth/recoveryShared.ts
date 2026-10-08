@@ -136,7 +136,10 @@ export function confirmProblem(password: string, confirm: string): string | unde
   return confirm === password ? undefined : AUTH_MESSAGES.problems.confirmMismatch;
 }
 
-/** Câu gắn vào ô khi máy chủ nói `VALIDATION` kèm `field`. */
+/**
+ * Câu gắn vào ô khi máy chủ nói `VALIDATION` kèm `field`. FE đã chặn họ tên trống và quá
+ * dài trước khi gửi, nên `fullName` bị máy chủ từ chối chỉ còn là ký tự cấm (BUG-016).
+ */
 export function serverFieldProblem(field: string): string {
-  return field === 'fullName' ? AUTH_MESSAGES.problems.fullNameRequired : passwordTooShort();
+  return field === 'fullName' ? AUTH_MESSAGES.problems.fullNameInvalid : passwordTooShort();
 }

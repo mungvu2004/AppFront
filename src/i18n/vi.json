@@ -137,7 +137,8 @@
       "passwordRequired": "Chưa nhập mật khẩu.",
       "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
       "fullNameRequired": "Chưa nhập họ và tên.",
-      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự."
+      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự.",
+      "fullNameInvalid": "Họ và tên có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Gõ lại họ tên rồi thử lại."
     },
     "errors": {
       "invalidCredentials": {
