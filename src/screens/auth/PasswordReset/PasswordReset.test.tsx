@@ -330,6 +330,9 @@ describe('PasswordReset — what the server answers', () => {
       expect(stateOf(container)).toBe('error');
     });
     expect(container.textContent).not.toContain('FOO_BAR');
+    // Reloading would drop the fragment token: the sentence asks for a resend, never a reload (BUG-015).
+    expect(screen.getByRole('alert')).toHaveTextContent(AUTH.errors.recoveryFailed);
+    expect(screen.getByRole('alert').textContent).not.toMatch(/tải lại/iu);
     expect(field(AUTH.fields.newPassword).value).toBe(NEW_PASSWORD);
   });
 

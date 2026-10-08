@@ -12,7 +12,7 @@ import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 
 /* Nhập THEO TÊN, không default — xem ghi chú ở `AuthScreen/useAuthScreen.ts`. */
-import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
+import { auth as AUTH_MESSAGES, errors as ERROR_MESSAGES } from '@/i18n/vi.json';
 
 /**
  * Số giây tối thiểu khoá nút sau một 429. `Retry-After` của BE bị kẹp ≤ 10 s
@@ -97,7 +97,19 @@ export function noticeForRecovery(failure: RecoveryFailure | null): RecoveryNoti
         message: AUTH_MESSAGES.errors.originMismatch.description,
       };
     default: {
-      const described = describeError(toAppError(failure.cause));
+      const appError = toAppError(failure.cause);
+
+      // Câu chung của mọi loại khác mạng/chậm khuyên tải lại trang, mà tải lại làm mất mã
+      // của đường dẫn trong thư (`fragmentToken.ts`): ở đây chỉ khuyên gửi lại (BUG-015).
+      if (appError.kind !== 'network' && appError.kind !== 'timeout') {
+        return {
+          tone: 'violation',
+          title: ERROR_MESSAGES.unknown.title,
+          message: AUTH_MESSAGES.errors.recoveryFailed,
+        };
+      }
+
+      const described = describeError(appError);
 
       return { tone: 'violation', title: described.title, message: described.description };
     }
