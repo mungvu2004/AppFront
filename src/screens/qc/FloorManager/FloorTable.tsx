@@ -29,6 +29,7 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
@@ -70,8 +71,6 @@ const ERROR_TITLE = 'Không đọc được danh sách tầng';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const DUPLICATE_SELECTED_LABEL = 'Nhân bản tầng';
 const RETRY_LABEL = 'Thử lại';
-const PROJECT_MISSING_TITLE = 'Không tìm thấy dự án này';
-const BACK_TO_PROJECTS_LABEL = 'Về danh sách dự án';
 const CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
 const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
 
@@ -207,7 +206,7 @@ export function FloorTable({
           : {})}
         level="violation"
         message={errorMessage ?? ''}
-        title={PROJECT_MISSING_TITLE}
+        title={PROJECT_NOT_FOUND_TITLE}
       />
     );
   }

@@ -29,6 +29,7 @@ import viMessages from '@/i18n/vi.json';
 import { __resetAuthForTests, bootstrapSession, getSession, signOut } from '@/lib/auth';
 import { __resetLastKnownUserForTests } from '@/lib/auth/bootstrap';
 import { getOptionalAuthConfig } from '@/lib/auth/state';
+import { cssDurationMs } from '@/lib/motion/tokens';
 import { queryClient } from '@/lib/query/queryClient';
 import { backgroundWatchRegistry } from '@/lib/realtime/backgroundWatch';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -231,7 +232,7 @@ describe('SessionGate — năm nhánh', () => {
     const { container } = renderGate({ setupFailed: true, status: 'unknown' });
 
     const button = screen.getByRole('button', { name: 'Tải lại trang' });
-    expect(screen.getByRole('heading', { name: 'Chưa mở được ứng dụng' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Chưa mở được ứng dụng' })).toBeInTheDocument();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
     expectTabbable(button);
@@ -246,7 +247,7 @@ describe('SessionGate — năm nhánh', () => {
     const { container } = renderGate({ onRetry, serverUnreachable: true, status: 'unknown' });
 
     // Một khối nói chuyện gì xảy ra và cần làm gì, cùng câu với `errors.network` (BUG-020).
-    expect(screen.getByRole('heading', { name: 'Mất kết nối máy chủ' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Mất kết nối máy chủ' })).toBeInTheDocument();
     expect(screen.getByText('Kiểm tra mạng rồi thử lại.')).toBeInTheDocument();
     expect(`Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.`).toBe(viMessages.errors.network.description);
 
@@ -285,6 +286,8 @@ describe('SessionGate — năm nhánh', () => {
     );
     // Câu chờ hiện bằng chữ, không chỉ nằm trong aria-label (BUG-027).
     expect(screen.getByText('Đang mở phiên…')).toBeVisible();
+    // …nhưng trễ một nhịp, để fallback Suspense chớp qua không nháy chữ (BUG-027).
+    expect(screen.getByText('Đang mở phiên…')).toHaveStyle({ animationDelay: cssDurationMs('fast') });
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
     expect(container.querySelectorAll('main')).toHaveLength(1);
@@ -314,20 +317,38 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
     update({ onRetry, serverUnreachable: true });
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
-    expect(
-      screen.getByText('Mất kết nối máy chủ. Hệ thống đang tự thử lại — đừng tải lại trang kẻo mất thay đổi.'),
-    ).toBeInTheDocument();
-    // Phủ lên trên, không chen vào luồng trang đẩy màn con xuống (BUG-019).
-    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed');
+    // Không hứa "đang tự thử lại": lượt gia hạn có trần số lần rồi dừng hẳn (BUG-019).
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.',
+    );
+    expect(screen.queryByText(/tự thử lại/)).not.toBeInTheDocument();
+    // Phủ lên trên ở mép dưới, không chen vào luồng trang và không đè thanh trên (BUG-019).
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed', 'bottom-4');
     expectVietnamese(container);
     expectAccessible(container);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thử lại ngay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
     update({ onRetry, serverUnreachable: false });
 
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
+    expect(screenMounts).toBe(1);
+  });
+
+  it('ẩn được dải; ẩn không gắn lại màn, và lượt mất kết nối sau dải hiện lại', () => {
+    const { update } = renderGate({ serverUnreachable: true });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn thông báo kết nối' }));
+
+    expect(screen.queryByRole('region', { name: 'Trạng thái kết nối' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('man-con')).toBeInTheDocument();
+    expect(screenMounts).toBe(1);
+
+    update({ serverUnreachable: false });
+    update({ serverUnreachable: true });
+
+    expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toBeInTheDocument();
     expect(screenMounts).toBe(1);
   });
 
