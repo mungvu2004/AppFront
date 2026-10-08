@@ -285,6 +285,8 @@ describe('SessionGate — năm nhánh', () => {
     );
     // Câu chờ hiện bằng chữ, không chỉ nằm trong aria-label (BUG-027).
     expect(screen.getByText('Đang mở phiên…')).toBeVisible();
+    // …nhưng trễ một nhịp, để fallback Suspense chớp qua không nháy chữ (BUG-027).
+    expect(screen.getByText('Đang mở phiên…')).toHaveStyle({ animationDelay: '180ms' });
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
     expect(screenMounts).toBe(0);
     expect(container.querySelectorAll('main')).toHaveLength(1);

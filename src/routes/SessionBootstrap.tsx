@@ -35,6 +35,7 @@ import { ScreenMain } from '@/components/shell/ScreenMain';
 import { Button } from '@/components/ui/Button';
 import { getOptionalAuthConfig, getSessionSnapshot, subscribeSession } from '@/lib/auth/state';
 import type { SessionStatus } from '@/lib/auth/types';
+import { cssDurationMs } from '@/lib/motion/tokens';
 
 import { DEV_PUBLIC_ROUTE_PATTERNS, PUBLIC_ROUTE_PATTERNS, ROUTES } from './paths';
 
@@ -156,6 +157,9 @@ function GateScreen({
  * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
  * biểu mẫu sau khi đã đăng nhập thành công.
  */
+/** Chữ của vỏ chờ ẩn trong lúc trễ (`both`), rồi mới hiện — xem chú thích trong {@link PendingShell}. */
+const LABEL_REVEAL_STYLE = { animationDelay: cssDurationMs('fast'), animationFillMode: 'both' } as const;
+
 /**
  * Vỏ chờ toàn màn: khung xương cùng nền ứng dụng, và một câu nói ra thành lời
  * cho trình đọc màn hình (A11 — chờ không phải màn trắng).
@@ -173,9 +177,17 @@ export function PendingShell({ label }: { label: string }) {
     >
       {/* Nền mặt (không phải nền ứng dụng) để khung xương thấy được trên nền trang, và câu
           hiện ra bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
-          `aria-hidden`: câu đã là tên của vùng `status`, không đọc hai lần. */}
+          `aria-hidden`: câu đã là tên của vùng `status`, không đọc hai lần.
+          Câu hiện trễ một nhịp `fast`: vỏ này cũng là fallback Suspense của mọi route lười,
+          và chunk đã có sẵn thì Suspense chỉ chớp qua — không trễ thì mỗi lần chuyển màn
+          nháy chữ "Đang tải…". Giảm chuyển động: vẫn trễ, nhưng hiện bật ra (`step-start`),
+          không mờ dần, không trồi. */}
       <Skeleton preset="canvas" className="w-full max-w-3xl bg-bg-surface" />
-      <p aria-hidden="true" className="text-[14px] leading-[20px] text-text-secondary">
+      <p
+        aria-hidden="true"
+        className="animate-dropdown-open text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
+        style={LABEL_REVEAL_STYLE}
+      >
         {label}…
       </p>
     </div>
