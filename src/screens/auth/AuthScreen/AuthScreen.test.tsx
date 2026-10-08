@@ -347,6 +347,25 @@ describe('AuthScreen — keyboard', () => {
     expect(third.signIn).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves Enter on a button to the button itself: nothing is sent, the key is not swallowed (BUG-011)', () => {
+    const { gateway, signIn } = stubGateway();
+    renderScreen({ gateway });
+
+    type(emailField(), EMAIL);
+    type(passwordField(), PASSWORD);
+
+    for (const name of [
+      AUTH_MESSAGES.actions.forgotPassword,
+      AUTH_MESSAGES.actions.ssoSignIn,
+      AUTH_MESSAGES.actions.showPassword,
+    ]) {
+      // `fireEvent` returns false when a handler called `preventDefault`, which is what kills the native click.
+      expect(fireEvent.keyDown(screen.getByRole('button', { name }), { key: 'Enter' }), name).toBe(true);
+    }
+
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it('signs in with Tab and Enter alone: first field focused, the rest in order, Enter sends', () => {
     const { gateway, signIn } = stubGateway();
     const { container } = renderScreen({ gateway });

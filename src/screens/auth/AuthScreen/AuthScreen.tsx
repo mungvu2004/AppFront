@@ -78,16 +78,17 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   );
 
   /**
-   * Enter sends from every field, including the checkbox.
+   * Enter sends from every field, including the checkbox — and only from a field.
    *
    * Implicit form submission already covers the text inputs, but not a focused
    * checkbox, and it is not something jsdom guarantees either. Handling the key
    * here makes the behaviour the same in a browser and in a test, and
    * `preventDefault` is what stops the native submission firing a second time.
+   * Enter on a button is that button's own (WCAG 2.1.1), so it is left alone.
    */
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLFormElement>) => {
-      if (event.key !== 'Enter' || event.defaultPrevented) {
+      if (event.key !== 'Enter' || event.defaultPrevented || !(event.target instanceof HTMLInputElement)) {
         return;
       }
 
