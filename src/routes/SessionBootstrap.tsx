@@ -132,7 +132,14 @@ function GateScreen({
   return (
     <ScreenMain>
       <div className="flex min-h-screen w-full items-center justify-center bg-bg-app p-6">
-        <EmptyState icon={icon} title={title} description={description} action={action} />
+        <EmptyState
+          icon={icon}
+          title={title}
+          description={description}
+          action={action}
+          // Khối này là cả màn: `main` phải có tiêu đề cấp 1 (BUG-020).
+          headingLevel="h1"
+        />
       </div>
     </ScreenMain>
   );
