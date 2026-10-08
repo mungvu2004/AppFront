@@ -192,8 +192,8 @@ export interface AuthScreenActions {
   /** Back to the sign-in form. */
   readonly closeForgotPassword: () => void;
   /**
-   * "Đăng nhập bằng tài khoản khác" on the disabled-account strip: clears the failure and the
-   * password, keeps the address, and the form comes back (BUG-017).
+   * "Đăng nhập bằng tài khoản khác" on the disabled-account strip: clears the failure, the
+   * address and the password — another account is another address — and the form comes back (BUG-017).
    */
   readonly signInWithAnotherAccount: () => void;
   readonly forgotActions: ForgotPasswordActions;
@@ -602,7 +602,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
 
   const signInWithAnotherAccount = useCallback(() => {
     setFailure(null);
-    setValues((current) => ({ ...current, password: '' }));
+    setValues((current) => ({ ...current, email: '', password: '' }));
     setProblems({});
   }, []);
 

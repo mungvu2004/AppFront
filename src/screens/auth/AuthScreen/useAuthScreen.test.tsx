@@ -129,7 +129,7 @@ describe('useAuthScreen — 422 VALIDATION on a field the form does not have (BU
 });
 
 describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () => {
-  it('brings the form back with the address kept and the password cleared', async () => {
+  it('brings the form back empty: another account means another address too', async () => {
     const gateway = gatewayReplying(wireFailure(403, { code: 'ACCOUNT_DISABLED' }));
     const { result } = setup({ gateway });
 
@@ -151,8 +151,8 @@ describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () 
     expect(result.current.model.isBlocked).toBe(false);
     expect(result.current.model.notice).toBeNull();
     expect(result.current.model.canSubmit).toBe(true);
-    expect(result.current.model.values).toEqual({ email: EMAIL, password: '', rememberMe: false });
-    expect(result.current.model.state).toBe('partial');
+    expect(result.current.model.values).toEqual({ email: '', password: '', rememberMe: false });
+    expect(result.current.model.state).toBe('empty');
   });
 });
 
