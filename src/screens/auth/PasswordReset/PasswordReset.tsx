@@ -63,7 +63,6 @@ export function PasswordResetView(props: PasswordResetViewProps) {
         />
       ) : (
         <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
-          <RecoveryNoticeStrip notice={notice} />
           {/* Always mounted, filled later, so a screen reader announces the text. */}
           <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
             {isDone ? AUTH_MESSAGES.passwordReset.success : null}
@@ -98,6 +97,8 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
             {isSubmitting ? AUTH_MESSAGES.actions.submitting : AUTH_MESSAGES.actions.setNewPassword}
           </Button>
+          {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
+          <RecoveryNoticeStrip notice={notice} />
         </form>
       )}
     </RecoveryShell>

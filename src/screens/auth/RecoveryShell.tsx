@@ -18,8 +18,9 @@ export interface RecoveryShellProps {
 
 export function RecoveryShell({ title, subtitle, state, children }: RecoveryShellProps) {
   return (
+    // Neo từ trên, không căn giữa dọc: căn giữa thì dải lỗi chèn vào đẩy cả khối, ô nhập trôi khỏi con trỏ (BUG-008).
     <main
-      className="flex min-h-screen w-full items-center justify-center bg-bg-app p-12"
+      className="flex min-h-screen w-full items-start justify-center bg-bg-app p-12 pt-[15vh]"
       data-auth-state={state}
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">

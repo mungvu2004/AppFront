@@ -143,6 +143,15 @@ describe('PasswordResetView — the seven states', () => {
     expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
   });
 
+  it('puts the failure strip under the submit button, so it never pushes the button (BUG-008)', () => {
+    render(<PasswordResetView {...PROPS_BY_STATE.error()} />);
+
+    const button = screen.getByRole('button', { name: AUTH.actions.setNewPassword });
+    const strip = screen.getByRole('alert');
+
+    expect(button.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/PasswordReset/PasswordReset.tsx');

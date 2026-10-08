@@ -102,7 +102,6 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
             onSubmit={handleSubmit}
           >
             <RecoveryNoticeStrip notice={warning} />
-            <RecoveryNoticeStrip notice={notice} />
             {/* Always mounted, filled later, so a screen reader announces the text. */}
             <p
               role="status"
@@ -155,6 +154,8 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                 ? AUTH_MESSAGES.actions.submitting
                 : AUTH_MESSAGES.actions.acceptInvitation}
             </Button>
+            {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
+            <RecoveryNoticeStrip notice={notice} />
 
             {needsSignIn && (
               <a
