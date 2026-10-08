@@ -188,6 +188,32 @@ describe('AuthRoute — a session that opens by itself', () => {
     expect(screen.queryByText('trang-dich')).toBeNull();
     expect(screen.getByLabelText(AUTH.fields.email)).toBeInTheDocument();
     expect(mocks.signIn).not.toHaveBeenCalled();
+    // BUG-006: the form stays, but says a session is already open and offers the way back.
+    expect(screen.getByText(AUTH.notices.signedIn)).toBeInTheDocument();
+  });
+
+  it('takes a visitor who is already signed in back to the project list from the strip', () => {
+    act(() => {
+      setAuthenticatedSession(SESSION);
+    });
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<AuthRoute />} />
+          <Route path="/" element={<div>danh-sach-du-an</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH.actions.goToProjects }));
+
+    expect(screen.getByText('danh-sach-du-an')).toBeInTheDocument();
+  });
+
+  it('says nothing about a session to a visitor who has none', () => {
+    renderRoute('/login');
+
+    expect(screen.queryByText(AUTH.notices.signedIn)).toBeNull();
   });
 
   it('does not treat a plain failed session open as "offline"', async () => {

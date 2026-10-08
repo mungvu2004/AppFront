@@ -140,6 +140,8 @@ export interface AuthNotice {
   readonly message: string;
   /** True only for a wrong password: the one failure a person can act on right away. */
   readonly showResetAction?: boolean;
+  /** A way out the strip offers on its own — today only "already signed in" (BUG-006). */
+  readonly action?: { readonly label: string; readonly onClick: () => void };
 }
 
 /** A complaint under one field, or nothing when the field is fine. */
@@ -200,6 +202,11 @@ export interface UseAuthScreenOptions {
   readonly onSsoSignIn?: () => void;
   /** A sentence to open the strip with — what the last screen wants this one to say. */
   readonly initialNotice?: AuthInitialNotice;
+  /**
+   * Present when a session is already open: the strip says so — signing in again replaces
+   * it — and offers this as the way back (BUG-006). The form stays usable.
+   */
+  readonly onReturnToApp?: () => void;
   /** Skips the success flash, so a person who asked for less motion waits for nothing. */
   readonly reducedMotion?: boolean;
 }
@@ -443,6 +450,7 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
     onAuthenticated,
     onSsoSignIn,
     initialNotice,
+    onReturnToApp,
     reducedMotion = false,
   } = options;
 
@@ -682,8 +690,16 @@ export function useAuthScreen(options: UseAuthScreenOptions): {
       return noticeFor(failure);
     }
 
+    if (onReturnToApp !== undefined) {
+      return {
+        tone: 'attention',
+        message: AUTH_MESSAGES.notices.signedIn,
+        action: { label: AUTH_MESSAGES.actions.goToProjects, onClick: onReturnToApp },
+      };
+    }
+
     return openingNotice === undefined ? null : INITIAL_NOTICES[openingNotice];
-  }, [failure, openingNotice, phase]);
+  }, [failure, onReturnToApp, openingNotice, phase]);
 
   const isSubmitting = phase === 'submitting';
 

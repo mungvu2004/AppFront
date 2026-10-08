@@ -113,7 +113,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           message={notice.message}
           {...(notice.showResetAction
             ? { action: { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword } }
-            : {})}
+            : notice.action !== undefined ? { action: notice.action } : {})}
         />
       )}
 

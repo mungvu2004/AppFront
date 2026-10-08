@@ -339,6 +339,10 @@ function AuthRouteContent() {
     navigate(destination, { replace: true });
   }, [destination, navigate]);
 
+  const returnToApp = useCallback(() => {
+    navigate(ROUTES.dashboard);
+  }, [navigate]);
+
   useEffect(() => {
     if (isAwaitingSession && session.status === 'authenticated') {
       onAuthenticated();
@@ -371,6 +375,7 @@ function AuthRouteContent() {
       onAuthenticated={onAuthenticated}
       reducedMotion={reducedMotion}
       {...(initialNotice !== undefined ? { initialNotice } : {})}
+      {...(session.status === 'authenticated' ? { onReturnToApp: returnToApp } : {})}
     />
   );
 }
