@@ -257,7 +257,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               <EmptyState
                 icon={<FolderPlus aria-hidden="true" />}
                 title="Chưa có dự án nào"
-                description="Chưa có dự án nào. Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ."
+                description="Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ."
                 {...(props.canCreate ? { action: { label: 'Tạo dự án mới', onClick: props.createProject } } : {})}
               />
             ) : rows.length === 0 ? (

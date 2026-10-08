@@ -164,7 +164,7 @@ describe('ProjectDashboardView, seven states', () => {
   it('teaches, with a create button, when there has never been a project', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} />);
 
-    expect(screen.getByText('Chưa có dự án nào. Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).toBeInTheDocument();
+    expect(screen.getByText('Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tạo dự án mới' })).toBeInTheDocument();
   });
 
