@@ -90,7 +90,7 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
         <button
           type="button"
           onClick={onBack}
-          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active"
+          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
         >
           {AUTH_MESSAGES.actions.backToSignIn}
         </button>
