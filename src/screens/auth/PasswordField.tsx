@@ -73,7 +73,9 @@ export function PasswordField({
           </button>
         }
       />
-      {/* `text-secondary`, không `text-muted` của gợi ý trong `Input`: chữ ấy dưới 4.5:1 trên nền trang (BUG-042). */}
+      {/* `text-secondary`, không `text-muted` của gợi ý trong `Input`: muted nay đạt 4,5:1 nhưng chỉ sát
+          ngưỡng (4,55:1 trên `--bg-app` sáng, sau BUG-042); luật mật khẩu phải đọc được trước khi gửi nên
+          lấy chữ phụ, dư biên hơn (5,06:1 sáng, 7,71:1 tối trên `--bg-app`). */}
       {showHint && (
         <p id={`${inputId}-hint`} className="mt-1.5 text-[13px] leading-[18px] text-text-secondary">
           {hint}
