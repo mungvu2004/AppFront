@@ -431,6 +431,9 @@ describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng,
         rawEmails: 'an@vi-du.vn, khong-hop-le',
         validEmails: ['an@vi-du.vn'],
         invalidEmails: ['khong-hop-le'],
+        canSubmit: false,
+        errorLabel: 'Chưa đúng dạng địa chỉ thư: khong-hop-le. Viết theo dạng ten@congty.vn',
+        submitBlockedReason: 'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
       },
     };
 
@@ -451,6 +454,33 @@ describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng,
 
       expect(shown.length, 'địa chỉ hỏng phải hiện ngoài ô nhập').toBeGreaterThan(0);
     });
+  });
+
+  it('BUG-083: địa chỉ hỏng nói đúng một lần kèm dạng đúng; chip ẩn khi 0; nút khoá có lý do', async () => {
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      invite: {
+        ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite,
+        isOpen: true,
+        rawEmails: 'khong-hop-le',
+        validEmails: [],
+        invalidEmails: ['khong-hop-le'],
+        canSubmit: false,
+        errorLabel: 'Chưa đúng dạng địa chỉ thư: khong-hop-le. Viết theo dạng ten@congty.vn',
+        submitBlockedReason: 'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
+      },
+    };
+
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
+
+    const shown = (await screen.findAllByText(/khong-hop-le/iu)).filter((node) => node.tagName !== 'TEXTAREA');
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toHaveTextContent('ten@congty.vn');
+    expect(screen.queryByText(/hợp lệ$/iu)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toHaveAccessibleDescription(
+      'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
+    );
   });
 });
 

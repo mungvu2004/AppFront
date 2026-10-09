@@ -3734,9 +3734,11 @@
       "submitLabel": "Gửi lời mời",
       "cancelLabel": "Huỷ",
       "hint": "Ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
-      "invalidEmailsPrefix": "Không hợp lệ:",
-      "invalidEmailsErrorPrefix": "Chưa đọc được các địa chỉ sau:",
-      "validEmailCountSuffix": "Địa chỉ hợp lệ"
+      "invalidEmailsErrorPrefix": "Chưa đúng dạng địa chỉ thư:",
+      "formatExample": "Viết theo dạng ten@congty.vn",
+      "validEmailCountSuffix": "địa chỉ hợp lệ",
+      "needsEmail": "Nhập ít nhất một địa chỉ thư để gửi lời mời",
+      "fixInvalid": "Sửa địa chỉ chưa đúng dạng rồi mới gửi được"
     },
     "table": {
       "headerUser": "Họ tên",

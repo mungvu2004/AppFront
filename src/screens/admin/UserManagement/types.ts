@@ -193,6 +193,8 @@ export interface InviteFormModel {
   readonly canSubmit: boolean;
   readonly hintLabel: string;
   readonly errorLabel: string | null;
+  /** Vì sao "Gửi lời mời" đang khoá; `null` khi gửi được. Đặc tả cấm nút vô hiệu không lý do. */
+  readonly submitBlockedReason: string | null;
   readonly isSubmitting: boolean;
 }
 

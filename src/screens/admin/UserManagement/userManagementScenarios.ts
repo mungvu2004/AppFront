@@ -429,6 +429,7 @@ function buildInvite(overrides: Partial<InviteFormModel> = {}): InviteFormModel 
     canSubmit: false,
     hintLabel: INVITE_HINT_LABEL,
     errorLabel: null,
+    submitBlockedReason: 'Nhập ít nhất một địa chỉ thư để gửi lời mời',
     isSubmitting: false,
     ...overrides,
   };

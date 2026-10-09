@@ -142,7 +142,10 @@ export const USER_MANAGEMENT_TEXT = {
   emptyTeaching:
     'Mới chỉ có mình bạn ở đây; mời đồng đội bằng nút mời người dùng, ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng',
   inviteHint: 'Ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng',
-  inviteInvalidPrefix: 'Chưa đọc được các địa chỉ sau:',
+  inviteInvalidPrefix: 'Chưa đúng dạng địa chỉ thư:',
+  inviteFormatExample: 'Viết theo dạng ten@congty.vn',
+  inviteNeedsEmail: 'Nhập ít nhất một địa chỉ thư để gửi lời mời',
+  inviteFixInvalid: 'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
   inviteBlocked: 'Vai của bạn chưa mời được người dùng',
   removeWarning:
     'Xoá hẳn gỡ luôn phần ghi công của người này trong lịch sử và không hoàn tác được; gõ đúng địa chỉ thư của họ để xác nhận',
@@ -205,6 +208,26 @@ export const ACTIVITY_KIND_LABELS: Readonly<Record<string, string>> = Object.fre
   'training.create': 'Tạo lượt huấn luyện',
   'training.cancel': 'Huỷ lượt huấn luyện',
 });
+
+/**
+ * Lời nhắn của ô mời (BUG-083): địa chỉ sai nói MỘT lần, kèm dạng đúng; nút "Gửi lời mời"
+ * khoá thì luôn có lý do.
+ */
+export function inviteFeedback(parsed: {
+  readonly validEmails: readonly string[];
+  readonly invalidEmails: readonly string[];
+}): { readonly errorLabel: string | null; readonly submitBlockedReason: string | null } {
+  const { inviteFixInvalid, inviteFormatExample, inviteInvalidPrefix, inviteNeedsEmail } = USER_MANAGEMENT_TEXT;
+
+  if (parsed.invalidEmails.length > 0) {
+    return {
+      errorLabel: `${inviteInvalidPrefix} ${parsed.invalidEmails.join(', ')}. ${inviteFormatExample}`,
+      submitBlockedReason: inviteFixInvalid,
+    };
+  }
+
+  return { errorLabel: null, submitBlockedReason: parsed.validEmails.length === 0 ? inviteNeedsEmail : null };
+}
 
 export function activityKindLabel(kind: string): string {
   return ACTIVITY_KIND_LABELS[kind] ?? USER_MANAGEMENT_TEXT.activityFallback;
@@ -899,10 +922,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
         parsedEmails.validEmails.length > 0 &&
         parsedEmails.invalidEmails.length === 0,
       hintLabel: USER_MANAGEMENT_TEXT.inviteHint,
-      errorLabel:
-        parsedEmails.invalidEmails.length === 0
-          ? null
-          : `${USER_MANAGEMENT_TEXT.inviteInvalidPrefix} ${parsedEmails.invalidEmails.join(', ')}`,
+      ...inviteFeedback(parsedEmails),
       isSubmitting: inviteMutation.isPending,
     }),
     [isInviteOpen, rawEmails, parsedEmails, inviteRole, canManage, inviteMutation.isPending],
