@@ -13,7 +13,7 @@
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import {
   MemoryRouter,
   Route,
@@ -35,6 +35,8 @@ import { queryClient } from '@/lib/query/queryClient';
 import { backgroundWatchRegistry } from '@/lib/realtime/backgroundWatch';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
+import { PasswordResetView, type PasswordResetViewProps } from '@/screens/auth/PasswordReset';
+import { Empty as ResetEmpty } from '@/screens/auth/PasswordReset/PasswordReset.stories';
 import { useStore } from '@/store';
 
 import { SessionBootstrap, SessionGate, type SessionGateProps } from './SessionBootstrap';
@@ -417,6 +419,49 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
     fireEvent.click(hide);
 
     expect(document.activeElement).toBe(screen.getByRole('main'));
+  });
+
+  it('dải đứng SAU màn con trong DOM: Tab đi hết màn rồi mới tới dải (review QA-01c #1)', () => {
+    renderGate({ serverUnreachable: true });
+
+    const strip = screen.getByRole('region', { name: 'Trạng thái kết nối' });
+
+    expect(screen.getByTestId('man-con').compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  /** Màn thật không có `main[tabindex]` — `/login/reset-password` (`RecoveryShell`). */
+  const realScreen = (): ReactElement => <PasswordResetView {...(ResetEmpty.args as PasswordResetViewProps)} />;
+
+  it('ẩn dải không có chỗ đến, trên màn thật không có `main[tabindex]`: về ô đầu của màn (review QA-01c #1)', () => {
+    renderGate({ children: realScreen(), serverUnreachable: true });
+
+    const hide = screen.getByRole('button', { name: 'Ẩn thông báo kết nối' });
+
+    act(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
+    hide.focus();
+    fireEvent.click(hide);
+
+    expect(document.activeElement).toBe(screen.getByLabelText(viMessages.auth.fields.newPassword));
+  });
+
+  it('vào dải lần sau "không từ đâu" thì quên chỗ đến cũ (review QA-01c #1)', () => {
+    renderGate({ children: realScreen(), serverUnreachable: true });
+
+    const confirm = screen.getByLabelText(viMessages.auth.fields.confirmPassword);
+    const hide = screen.getByRole('button', { name: 'Ẩn thông báo kết nối' });
+
+    confirm.focus();
+    hide.focus();
+    act(() => {
+      hide.blur();
+    });
+    hide.focus();
+    fireEvent.click(hide);
+
+    expect(document.activeElement).not.toBe(confirm);
+    expect(document.activeElement).toBe(screen.getByLabelText(viMessages.auth.fields.newPassword));
   });
 
   it('gắn lại màn con khi đổi người', () => {
