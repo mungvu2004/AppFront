@@ -101,8 +101,8 @@ function LoadingFrames() {
     <div aria-label={LOADING_LABEL} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status">
       {LOADING_FRAME_IDS.map((frameId) => (
         <div className="flex flex-col gap-1.5" key={frameId}>
-          <div className="h-4 w-24 rounded-[4px] bg-bg-sunken animate-pulse motion-reduce:animate-none" />
-          <div className="h-[148px] rounded-[8px] bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 w-24 rounded-[4px] bg-border-default animate-pulse motion-reduce:animate-none" />
+          <div className="h-[148px] rounded-[8px] bg-border-default animate-pulse motion-reduce:animate-none" />
         </div>
       ))}
     </div>

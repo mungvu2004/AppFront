@@ -257,7 +257,7 @@ export function ThicknessHistogram({
       <section aria-busy="true" aria-label={LOADING_LABEL} className="flex w-full flex-col gap-2">
         <div className="h-4 w-full" />
         <div
-          className="w-full animate-pulse bg-bg-sunken motion-reduce:animate-none"
+          className="w-full animate-pulse bg-border-default motion-reduce:animate-none"
           style={{ height: HISTOGRAM_HEIGHT_PX }}
         />
         <div className="h-4 w-full" />

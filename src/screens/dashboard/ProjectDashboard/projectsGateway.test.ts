@@ -5,7 +5,7 @@ import { ProjectSummarySchema, type ProjectSummary } from '@/api/schemas/project
 import { createApiClient } from '@/api/client';
 import type { HttpClient, HttpError } from '@/lib/http';
 
-import { createProjectsGateway, initialsOf, planVariantOf } from './projectsGateway';
+import { createProjectsGateway, planVariantOf } from './projectsGateway';
 
 const ID_A = `prj_${'0'.repeat(25)}A`;
 const ID_B = `prj_${'0'.repeat(25)}B`;
@@ -109,7 +109,7 @@ describe('createProjectsGateway.listSummaries', () => {
   });
 
   it('builds initials and omits defaultFloorId for a project with no floor', async () => {
-    const withFloor = summary(ID_A, 'Tòa nhà HQ', '2026-01-01T00:00:00.000Z', [{ id: USER_ID, name: 'Phạm An' }]);
+    const withFloor = summary(ID_A, 'Toà nhà HQ', '2026-01-01T00:00:00.000Z', [{ id: USER_ID, name: 'Phạm An' }]);
     const noFloor = ProjectSummarySchema.parse({
       areaM2: 0,
       floorCount: 0,
@@ -193,13 +193,8 @@ describe('createProjectsGateway rename / remove', () => {
   });
 });
 
-describe('initialsOf / planVariantOf', () => {
-  it('takes first and last word, or two letters of one word', () => {
-    expect(initialsOf('Nguyễn Văn Bình')).toBe('NB');
-    expect(initialsOf('  Hà  ')).toBe('HÀ');
-    expect(initialsOf('')).toBe('');
-  });
-
+// `initialsOf` sống ở `@/lib/format/initials` — test của nó ở `lib/format/__tests__/initials.test.ts`.
+describe('planVariantOf', () => {
   it('is deterministic and stays within the four outlines', () => {
     expect(planVariantOf(ID_A)).toBe(planVariantOf(ID_A));
     for (const id of [ID_A, ID_B, USER_ID, 'x']) expect([0, 1, 2, 3]).toContain(planVariantOf(id));

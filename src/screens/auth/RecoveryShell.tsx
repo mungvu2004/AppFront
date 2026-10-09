@@ -47,6 +47,12 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
  */
 export const FIELD_ERROR_SLOT = 'min-h-[120px] sm:min-h-[112px]';
 
+/**
+ * Như {@link FIELD_ERROR_SLOT} nhưng cho câu lỗi BA dòng: thêm một dòng 18. Dành cho ô họ tên của
+ * lời mời — `fullNameInvalid` (109 ký tự) xuống ba dòng ở cột 375 px (QA-01c nợ #10).
+ */
+export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[138px] sm:min-h-[130px]';
+
 export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotice | null }) {
   if (notice === null) {
     return null;
@@ -73,9 +79,9 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
     <a
       href={href}
       onClick={(event) => {
-        // Chỉ cú bấm trái trơn đi trong ứng dụng; Ctrl/Cmd/Shift/Alt hay nút giữa là trình duyệt
-        // mở tab/cửa sổ mới hoặc tải xuống — để nó làm (nợ QA-01b #10).
-        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+        // Chỉ cú bấm trơn đi trong ứng dụng; Ctrl/Cmd/Shift/Alt là trình duyệt mở tab/cửa sổ mới hoặc
+        // tải xuống — để nó làm (nợ QA-01b #10). Nút giữa không tới đây: nó phát `auxclick`, không `click`.
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
           return;
         }
 

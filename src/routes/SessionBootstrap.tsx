@@ -84,15 +84,30 @@ export interface SessionGateProps {
  * Câu không hứa "đang tự thử lại": lượt gia hạn dừng hẳn sau
  * `REFRESH_MAX_TRANSIENT_ATTEMPTS` lần (`lib/auth/refresh.ts`), nên chỉ nói điều luôn đúng.
  */
+/** Phần tử Tab dừng được — để tìm chỗ đầu tiên của màn con khi tiêu điểm không có chỗ về. */
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Chỗ tiêu điểm về khi gỡ dải mà không biết nó từ đâu tới: `main` nhận tiêu điểm của màn con
+ * nếu có, không thì phần tử Tab dừng được đầu tiên của trang ngoài dải (nợ QA-01 #20, review QA-01c #1).
+ */
+function pageFocusTarget(strip: HTMLElement | null): HTMLElement | null {
+  const main = document.querySelector<HTMLElement>('main[tabindex]');
+  if (main !== null) return main;
+
+  return Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).find((element) => strip?.contains(element) !== true) ?? null;
+}
+
 function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   const [dismissed, setDismissed] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
   /** Chỗ tiêu điểm đứng trước khi vào dải — nút "Ẩn" gỡ cả dải, nên trả tiêu điểm về đó. */
   const cameFrom = useRef<HTMLElement | null>(null);
 
   const dismiss = useCallback(() => {
-    // Không có chỗ đến (Tab thẳng vào dải, đứng đầu trang) thì về `main` của màn con nếu nó nhận
-    // tiêu điểm; không thì thôi. Trước đây tiêu điểm luôn rơi về `body` (nợ QA-01 #20).
-    const target = cameFrom.current?.isConnected === true ? cameFrom.current : document.querySelector<HTMLElement>('main[tabindex]');
+    // Không có chỗ đến (Tab thẳng vào dải từ thanh trình duyệt) thì về màn con, không để rơi về `body`.
+    const target = cameFrom.current?.isConnected === true ? cameFrom.current : pageFocusTarget(stripRef.current);
 
     setDismissed(true);
     target?.focus();
@@ -104,12 +119,14 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
 
   return (
     <div
+      ref={stripRef}
       role="region"
       aria-label="Trạng thái kết nối"
       onFocus={(event) => {
-        if (event.relatedTarget instanceof HTMLElement && !event.currentTarget.contains(event.relatedTarget)) {
-          cameFrom.current = event.relatedTarget;
-        }
+        // Đi giữa hai nút trong dải thì giữ chỗ đến cũ; vào từ ngoài thì ghi lại — kể cả "không từ đâu"
+        // (`relatedTarget` rỗng), để một chỗ đến cũ từ lượt trước không bị dùng lại.
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+        cameFrom.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
       }}
       className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-[8px] border border-state-attention bg-state-attention-tint py-1 pl-3 pr-1 shadow-float"
     >
@@ -289,8 +306,10 @@ export function SessionGate({
    */
   return (
     <>
-      {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
       <Fragment key={userId ?? ''}>{children}</Fragment>
+      {/* SAU màn con trong DOM (dải là `fixed`, nhìn không đổi): Tab đi hết màn rồi mới tới dải,
+          không chặn đầu mọi lượt Tab (review QA-01c #1). */}
+      {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
     </>
   );
 }

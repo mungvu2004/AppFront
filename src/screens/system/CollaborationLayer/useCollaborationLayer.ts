@@ -57,6 +57,7 @@ import type { Object3D } from 'three';
 
 import { getSession, subscribeToSession } from '@/lib/auth';
 import type { SessionSnapshot } from '@/lib/auth';
+import { initialsOf } from '@/lib/format/initials';
 import { formatNumber } from '@/lib/format/number';
 import type { NetworkMonitor, NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
 import { createNetworkMonitor } from '@/lib/offline/networkMonitor';
@@ -73,7 +74,7 @@ import type {
 } from '@/lib/versioning/mergeStrategies';
 import { useStore } from '@/store';
 
-import { createCollaborationGateway, initialsOf, readSelfName } from './collaborationGateway';
+import { createCollaborationGateway, readSelfName } from './collaborationGateway';
 import type {
   CollaborationGateway,
   CollaborationLayerProps,

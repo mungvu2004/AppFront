@@ -38,7 +38,7 @@ const DEFAULT_COMMANDS: CommandItem[] = [
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface CommandPaletteProps {
-  /** Danh sách lệnh tùy chỉnh — mặc định dùng DEFAULT_COMMANDS */
+  /** Danh sách lệnh tuỳ chỉnh — mặc định dùng DEFAULT_COMMANDS */
   commands?: CommandItem[];
 }
 

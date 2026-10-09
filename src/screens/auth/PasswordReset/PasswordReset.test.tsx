@@ -12,6 +12,7 @@ import { createSevenStateScenarios, SEVEN_STATES, type SevenState } from '@/lib/
 
 import { dropFocus, networkFailure, okVoid, wireFailure } from '../authTestKit';
 import { __resetFragmentTokenForTests } from '../fragmentToken';
+import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { PasswordReset, PasswordResetView, type PasswordResetViewProps } from './PasswordReset';
 import type { PasswordResetPort } from './usePasswordReset';
 
@@ -169,6 +170,25 @@ describe('PasswordResetView — the seven states', () => {
     render(<PasswordResetView {...baseProps()} />);
 
     expect(field(AUTH.fields.newPassword)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
+  it('keeps room for a two-line complaint under each box, so one appearing pushes nothing (QA-01c nợ #10)', () => {
+    const slotOf = (name: string): HTMLElement | null => screen.getByText(name, { selector: 'label' }).parentElement;
+    const names = [AUTH.fields.newPassword, AUTH.fields.confirmPassword];
+    const { rerender } = render(<PasswordResetView {...baseProps()} />);
+
+    for (const name of names) expect(slotOf(name)).toHaveClass(FIELD_ERROR_SLOT);
+
+    rerender(
+      <PasswordResetView
+        {...baseProps()}
+        problems={{ newPassword: AUTH.problems.passwordRequired, confirmPassword: AUTH.problems.confirmMismatch }}
+      />,
+    );
+
+    for (const name of names) expect(slotOf(name)).toHaveClass(FIELD_ERROR_SLOT);
+    // The reserved room is the spacing, so it is not paid for twice.
+    expect(slotOf(AUTH.fields.newPassword)?.parentElement).not.toHaveClass('gap-4');
   });
 
   it('offers the way back to /login from the form too, not only from the dead end (BUG-050)', () => {
@@ -452,7 +472,6 @@ describe('PasswordReset — checks before sending', () => {
     ['Cmd', { metaKey: true }],
     ['Shift', { shiftKey: true }],
     ['Alt', { altKey: true }],
-    ['the middle button', { button: 1 }],
   ])('leaves a click with %s to the browser — new tab or window, no in-app jump (nợ QA-01b #10)', (_name, init) => {
     setUrl('');
 

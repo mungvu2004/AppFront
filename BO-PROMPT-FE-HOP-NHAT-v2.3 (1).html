@@ -12,8 +12,8 @@
   --bg-app:#F6F4F0; --bg-surface:#FFFFFF; --bg-sunken:#F1EEE8;
   --bg-hover:rgba(43,42,40,.035); --bg-active:rgba(43,42,40,.06); --bg-selected:#EAF0F5;
   --hairline:#EFEBE4; --border-default:#E3DED6;
-  --text-primary:#33322F; --text-secondary:#6B6862; --text-muted:#97928A;
-  --accent:#567A96; --accent-hover:#4A6B85; --accent-active:#3F5D74;
+  --text-primary:#33322F; --text-secondary:#605D58; --text-muted:#6D6A67;
+  --accent:#4D6E87; --accent-hover:#436078; --accent-active:#395468;
   --accent-wash:#EDF2F6; --accent-border:#B9CBD9;
   --verified:#6B9A79; --attention:#BE9B4F; --violation:#C0685A;
   --sh-1:0 1px 2px rgba(43,42,40,.04);
@@ -1506,11 +1506,12 @@ Absolute prohibitions: no gradients of any kind; no glow, neon, or coloured shad
 Colour tokens (exact values, never invent):
 --bg-app #F6F4F0, --bg-surface #FFFFFF, --bg-sunken #F1EEE8, --bg-hover rgba(43,42,40,0.035), --bg-active rgba(43,42,40,0.06), --bg-selected #EAF0F5.
 Only two borders exist: --border-hairline #EFEBE4, --border-default #E3DED6.
---text-primary #33322F, --text-secondary #6B6862, --text-muted #97928A.
-Single accent: --accent #567A96, --accent-hover #4A6B85, --accent-active #3F5D74, --accent-wash #EDF2F6, --accent-border #B9CBD9; focus ring 2px --accent offset 2px.
+--text-primary #33322F, --text-secondary #605D58, --text-muted #6D6A67.
+Single accent: --accent #4D6E87, --accent-hover #436078, --accent-active #395468, --accent-wash #EDF2F6, --accent-border #B9CBD9; focus ring 2px --accent offset 2px.
+(Đính chính QA-01c: hex chữ/nhấn ở hai dòng trên đã đổi theo src/styles/globals.css để đạt WCAG AA 4,5:1 cho chữ trên MỌI nền — muted #97928A → #6D6A67 (BUG-042, FIX-580/653), secondary #6B6862 → #605D58 (tách bậc với muted ≥ 1,2:1, QA-01c nợ #5), accent #567A96/#4A6B85/#3F5D74 → #4D6E87/#436078/#395468 (FIX-654). --wall-centerline giữ #567A96: đó là màu vật liệu trên canvas, không phải chữ.)
 Canvas: --canvas-2d #FFFFFF, --canvas-2d-grid #F2EFEA, --canvas-3d #EDEBE6, --canvas-3d-ground #E4E1DA, --canvas-3d-horizon #D9D5CD (1px solid, not a gradient).
 Materials: --wall-idle #CFCAC1, --wall-110 #B3ACA1, --wall-220 #8A8377, --wall-330 #5C564D, --wall-centerline #567A96 at 55%, --data-door #B98055, --data-window #7C9EA9, --data-furniture #8E9C87, --data-dimension #A99B76, --data-axis #A19C93, --data-room #6B6862 at 5%.
-Exactly three states. Dot, border and icon use --state-verified #6B9A79, --state-attention #BE9B4F, --state-violation #C0685A on the tints --state-verified-tint #EEF4EF, --state-attention-tint #F8F3E8, --state-violation-tint #F9EFED. Text on those tints must use the darker text tokens --state-verified-text #3E6B4C, --state-attention-text #7A5F16, --state-violation-text #9A4034, because the base hues only reach 2.4-3.5:1 and fail WCAG AA. Never use --accent for 13px text; use --accent-active #3F5D74 for small accent text and links.
+Exactly three states. Dot, border and icon use --state-verified #6B9A79, --state-attention #BE9B4F, --state-violation #C0685A on the tints --state-verified-tint #EEF4EF, --state-attention-tint #F8F3E8, --state-violation-tint #F9EFED. Text on those tints must use the darker text tokens --state-verified-text #3E6B4C, --state-attention-text #7A5F16, --state-violation-text #9A4034, because the base hues only reach 2.4-3.5:1 and fail WCAG AA. Never use --accent for 13px text; use --accent-active #395468 for small accent text and links.
 
 Colour logic: geometry is grey by default; a material colour appears only while its data layer is active; wall thickness 110/220/330 mm is three grey lightness steps with a permanent on-screen legend; low-confidence and auto-fixed share --state-attention, separated by a 45 degree hatch, never by a new colour.
 

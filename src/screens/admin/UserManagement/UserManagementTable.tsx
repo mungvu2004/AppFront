@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { initialsOf } from '@/lib/format/initials';
 import { cn } from '@/lib/utils';
 import type { ProjectRole } from '@/types/project';
 
@@ -40,32 +41,8 @@ const ENABLE_LABEL = 'bật lại';
 const REMOVE_LABEL = 'xoá';
 const COLUMN_COUNT = 7;
 const ROW_HEIGHT = 'h-12';
-const INITIALS_LENGTH = 2;
-
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
-
-/**
- * Tên → chữ đầu của từ đầu và từ cuối. `UserRowModel` (types.ts, đông cứng) không có
- * trường initials sẵn — khác các màn anh em (`ShareDialog`, `VersionHistory`, …) vốn tính
- * nó trong tầng gateway; ở đây phải tính tại view vì hợp đồng không có chỗ nào khác.
- */
-function initialsOf(name: string): string {
-  const words = name
-    .trim()
-    .split(/\s+/u)
-    .filter((word) => word.length > 0);
-
-  if (words.length === 0) {
-    return '';
-  }
-
-  const first = words[0] ?? '';
-  const last = words[words.length - 1] ?? '';
-  const letters = words.length === 1 ? first.slice(0, 1) : `${first.slice(0, 1)}${last.slice(0, 1)}`;
-
-  return letters.slice(0, INITIALS_LENGTH).toUpperCase();
-}
 
 const roleSelectLabel = (name: string): string => `Vai của ${name}`;
 
@@ -193,7 +170,7 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
           key={row.id}
         >
           <div className="flex items-center gap-3">
-            <Avatar alt={row.name} initials={initialsOf(row.name)} size="default" {...avatarSrcProp(row.avatarUrl)} />
+            <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
             <button
               className={cn('min-w-0 flex-1 text-left', FOCUS_RING)}
               onClick={() => actions.onSelectUser(row.id)}
@@ -295,7 +272,7 @@ export function UserManagementTable({
             >
               <Table.Cell className={ROW_HEIGHT}>
                 <div className="flex items-center gap-3">
-                  <Avatar alt={row.name} initials={initialsOf(row.name)} size="default" {...avatarSrcProp(row.avatarUrl)} />
+                  <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
                   <button
                     className={cn('truncate text-left font-medium text-text-primary', FOCUS_RING)}
                     onClick={() => actions.onSelectUser(row.id)}

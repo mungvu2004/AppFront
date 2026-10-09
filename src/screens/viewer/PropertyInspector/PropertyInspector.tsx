@@ -142,7 +142,7 @@ function LoadingSkeleton(): ReactNode {
       {Array.from({ length: DEFAULT_VISIBLE_FIELD_COUNT }, (_, index) => (
         <div
           key={index}
-          className="rounded bg-bg-sunken animate-pulse motion-reduce:animate-none"
+          className="rounded bg-border-default animate-pulse motion-reduce:animate-none"
           style={{ height: PROPERTY_INSPECTOR_LAYOUT.loadingSkeletonRowHeightPx }}
           aria-hidden="true"
         />

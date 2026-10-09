@@ -68,7 +68,7 @@ export function SkeletonText({ className }: { readonly className: string }) {
   return (
     <span
       aria-hidden="true"
-      className={cn('inline-block animate-pulse rounded bg-bg-sunken motion-reduce:animate-none', className)}
+      className={cn('inline-block animate-pulse rounded bg-border-default motion-reduce:animate-none', className)}
     />
   );
 }

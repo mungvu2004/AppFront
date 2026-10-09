@@ -60,7 +60,6 @@ export {
   COLLABORATION_CAPABILITIES,
   SELF_FALLBACK_NAME,
   createCollaborationGateway,
-  initialsOf,
   readActorName,
   readSelfName,
   toFieldLabel,

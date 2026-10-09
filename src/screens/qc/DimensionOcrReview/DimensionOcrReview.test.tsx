@@ -14,12 +14,10 @@
  * | `[NGHIEM-4]` | lệch 1,5% và 2,5% — CHỈ cái thứ hai được tô màu | 1 trong 2 |
  * | `[NGHIEM-5]` | bộ đếm 18/34, và 34/34 sau khi duyệt hết | 18/34 → 34/34 |
  *
- * ## Vì sao `[NGHIEM-2]` không dùng `userEvent`
+ * ## Lượt gõ phím của `[NGHIEM-2]`/`[NGHIEM-3]`
  *
- * `@testing-library/user-event` KHÔNG có trong `package.json` của repo này, và
- * thêm một dependency nằm ngoài phạm vi file của lượt này (R-68). Nên lượt gõ
- * phím dựng bằng `fireEvent.keyDown` cộng {@link pressTab} — một bản mô phỏng
- * Tab đi đúng thứ tự DOM của trình duyệt, bỏ qua phần tử `tabIndex={-1}` (hai
+ * Đi bằng `userEvent` (`user.tab()`, `user.keyboard`): nó dựng đúng chuỗi sự kiện
+ * trình duyệt phát — `keydown`, `focusout`/`focusin`, bỏ qua `tabIndex={-1}` (hai
  * nút stepper của `NumericField`). Con số "0 lần dùng chuột" KHÔNG phải một lời
  * khai: ba trình nghe `click` / `mousedown` / `pointerdown` gắn ở pha bắt trên
  * `document` ĐẾM THẬT mọi sự kiện chuột xảy ra trong lượt đo, và số in ra là số
@@ -42,6 +40,7 @@
  */
 
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -211,39 +210,12 @@ function focusableElements(): readonly HTMLElement[] {
   );
 }
 
-/**
- * Một lần gõ Tab: báo phím cho phần tử đang giữ tiêu điểm, phát `focusout` cho
- * nó, rồi chuyển tiêu điểm sang phần tử kế tiếp trong thứ tự DOM — đúng ba việc
- * trình duyệt làm khi người dùng gõ Tab.
- *
- * `focusout` phải phát TAY: `HTMLElement.focus()` của jsdom phát `focusin` cho
- * phần tử nhận tiêu điểm nhưng KHÔNG phát `focusout` cho phần tử mất nó, mà
- * `focusout` mới là sự kiện React gắn `onBlur` vào. Thiếu nó thì
- * `useNumericField.handleBlur` không chạy, con số vừa gõ không được chốt, và
- * bài kiểm sẽ đo nhầm một lỗi của jsdom thành một lỗi của màn. Đây là một sự
- * kiện BÀN PHÍM sinh ra, không phải sự kiện chuột — bộ đếm chuột vẫn là 0.
- */
-function pressTab(): void {
-  const list = focusableElements();
-  const current = document.activeElement as HTMLElement | null;
-  const index = current === null ? -1 : list.indexOf(current);
-  const next = list[(index + 1) % Math.max(list.length, 1)];
-
-  fireEvent.keyDown(current ?? document.body, { key: 'Tab' });
-
-  if (current !== null && current !== document.body) {
-    fireEvent.focusOut(current);
-  }
-
-  next?.focus();
-}
-
-/** Gõ Tab cho tới khi tiêu điểm nằm trên phần tử mong muốn. */
-function tabUntilFocused(target: HTMLElement): number {
+/** Gõ Tab cho tới khi tiêu điểm nằm trên phần tử mong muốn; trả số lần đã gõ. */
+async function tabUntilFocused(user: UserEvent, target: HTMLElement): Promise<number> {
   const budget = focusableElements().length + 1;
 
   for (let pressed = 1; pressed <= budget; pressed += 1) {
-    pressTab();
+    await user.tab();
 
     if (document.activeElement === target) {
       return pressed;
@@ -399,11 +371,11 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
  * `@/lib/format/number`; bài kiểm không tự cộng bước nhảy của `NumericField`
  * vào (R-61, R-71).
  */
-function editByKeyboard(field: HTMLElement): { taps: number; value: number } {
-  const toField = tabUntilFocused(field);
+async function editByKeyboard(user: UserEvent, field: HTMLElement): Promise<{ taps: number; value: number }> {
+  const toField = await tabUntilFocused(user, field);
 
   /* Phím sửa số: mũi tên lên của chính `NumericField`. */
-  fireEvent.keyDown(field, { key: 'ArrowUp' });
+  await user.keyboard('{ArrowUp}');
 
   const typed = parseNumber((field as HTMLInputElement).value);
 
@@ -412,18 +384,20 @@ function editByKeyboard(field: HTMLElement): { taps: number; value: number } {
   }
 
   /* Tab ra: `NumericField` chốt con số. Tab về: ô nhập lại giữ tiêu điểm. */
-  pressTab();
+  await user.tab();
 
-  const back = tabUntilFocused(field);
+  const back = await tabUntilFocused(user, field);
 
   /* Enter: lưu và duyệt, rồi hook nhảy sang chuỗi chưa duyệt kế tiếp. */
-  fireEvent.keyDown(field, { key: 'Enter' });
+  await user.keyboard('{Enter}');
 
   return { taps: toField + 1 + back, value: typed };
 }
 
 describe('[NGHIEM-2] sửa 5 giá trị chỉ bằng bàn phím', () => {
   it('đi hết 5 chuỗi bằng Tab / ArrowUp / Enter, số lần dùng chuột bằng 0', async () => {
+    const user = userEvent.setup();
+
     renderState('partial');
 
     await screen.findByRole('group', { name: LIST_LABEL });
@@ -448,7 +422,7 @@ describe('[NGHIEM-2] sửa 5 giá trị chỉ bằng bàn phím', () => {
       const field = screen.getByLabelText(
         `${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}#${displayId}`,
       );
-      const edited = editByKeyboard(field);
+      const edited = await editByKeyboard(user, field);
 
       expectedValues.push(edited.value);
       tabPresses.push(edited.taps);
@@ -481,6 +455,7 @@ describe('[NGHIEM-2] sửa 5 giá trị chỉ bằng bàn phím', () => {
 
 describe('[NGHIEM-3] chế độ duyệt bàn phím', () => {
   it('gõ số rồi Enter là XONG một chuỗi — đúng 2 lần gõ phím', async () => {
+    const user = userEvent.setup();
     const registry = createShortcutRegistry();
 
     renderState('partial', registry);
@@ -497,8 +472,8 @@ describe('[NGHIEM-3] chế độ duyệt bàn phím', () => {
 
     const target = row as HTMLElement;
 
-    tabUntilFocused(target);
-    fireEvent.keyDown(target, { key: 'Enter' });
+    await tabUntilFocused(user, target);
+    await user.keyboard('{Enter}');
 
     /* Bật chế độ bằng chính phím R của sổ phím, không bằng một cờ đặt tay. */
     registry.handleKeyDown({ key: 'R', ctrlKey: false }, null);
@@ -516,7 +491,7 @@ describe('[NGHIEM-3] chế độ duyệt bàn phím', () => {
     /* Phím thứ nhất: con số. Phím thứ hai: Enter. Không bước xác nhận nào chen vào. */
     keystrokes.push('ArrowUp', 'Enter');
 
-    const edited = editByKeyboard(field);
+    const edited = await editByKeyboard(user, field);
 
     await waitFor(() => {
       expect(entityInStore(displayId)?.reviewed).toBe(true);

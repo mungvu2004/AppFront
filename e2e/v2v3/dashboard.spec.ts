@@ -26,7 +26,7 @@ const FIRST_PAINT_TIMEOUT_MS = 15_000;
  * Ba dự án của client giả N1 (`src/api/__mocks__/client.ts` `MOCK_PROJECT_SUMMARIES`). Id là ULID
  * vì `ProjectSummarySchema` (HOP-DONG-MOI §0.1, N1) bắt `prj_` + 26 ký tự Crockford — F-07.
  */
-const HQ = 'Tòa nhà HQ Renovation';
+const HQ = 'Toà nhà HQ Renovation';
 const SUNRISE = 'Chung cư Sunrise Block B';
 const BAC_NINH = 'Nhà máy Bắc Ninh';
 

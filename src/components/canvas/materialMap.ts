@@ -101,7 +101,7 @@ export function gridMajorToken(): string {
 }
 
 // ─── Transform Gizmo Axes ──────────────────────────────────────────────────
-// Dùng thang xám ấm — KHÔNG dùng màu bão hòa (đỏ/xanh/vàng).
+// Dùng thang xám ấm — KHÔNG dùng màu bão hoà (đỏ/xanh/vàng).
 
 export function axisStrokeToken(axis: 'x' | 'y' | 'z'): string {
   switch (axis) {

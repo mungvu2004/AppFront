@@ -26,6 +26,7 @@ import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
+import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { renderWithProviders } from '@/lib/testing/render';
 import {
   SEVEN_STATES,
@@ -267,14 +268,29 @@ describe('mối nối tự lưu (D-07)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác ghi lại giá trị cũ', () => {
-  /** Lượt tự lưu 800 ms cộng lượt render — đồng hồ thật, không đồng hồ giả. */
-  const SAVE_WAIT = { timeout: 3000 };
+  /*
+   * Cả khối chạy trên đồng hồ giả: lượt đọc đầu, lượt tự lưu 800 ms và cửa sổ hoàn tác 5 giây đều
+   * do bài đẩy tay, và mọi lượt chờ là chờ ĐIỀU KIỆN trên đồng hồ giả — không phụ thuộc máy nhanh
+   * hay chậm. Trước đây cả khối chờ bằng `waitFor` 3 s trên đồng hồ thật, máy tải nặng là hết
+   * 5 000 ms của bài (QA-01c nợ #12).
+   */
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
 
   async function mountWithName(fullName: string) {
     const { gateway, saves } = createRecordingGateway();
     const read = (): Promise<AccountDraft> =>
       Promise.resolve({ ...EMPTY_ACCOUNT_DRAFT, profile: { fullName } });
-    const bus = createNotificationBus();
+    // Đọc `Date.now` MỖI lần (không giữ hàm lúc dựng) — hạn phiếu hoàn tác và giờ của kênh cùng
+    // một đồng hồ giả.
+    const bus = createNotificationBus({ now: () => Date.now() });
 
     renderWithProviders(
       <>
@@ -283,12 +299,26 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
       </>,
     );
 
-    const field = await screen.findByLabelText('Họ tên');
-    await waitFor(() => {
-      expect(field).toHaveValue(fullName);
-    });
+    await advanceUntil(() => (screen.queryByLabelText('Họ tên') as HTMLInputElement | null)?.value === fullName);
 
-    return { bus, field, saves };
+    return { bus, field: screen.getByLabelText('Họ tên'), saves };
+  }
+
+  /** Đẩy đồng hồ giả rồi vét microtask: lượt lưu là hẹn giờ, lượt ghi sau nó là promise. */
+  async function advance(durationMs: number): Promise<void> {
+    await act(async () => {
+      await clock.advance(durationMs);
+      await clock.flushMicrotasks();
+    });
+  }
+
+  /** Đẩy đồng hồ giả từng nhịp nhỏ tới khi điều kiện đúng — chờ điều kiện, không chờ giờ thật. */
+  async function advanceUntil(isReady: () => boolean): Promise<void> {
+    for (let step = 0; step < 50 && !isReady(); step += 1) {
+      await advance(10);
+    }
+
+    expect(isReady()).toBe(true);
   }
 
   const undoButtons = () => screen.queryAllByRole('button', { name: 'Hoàn tác' });
@@ -297,10 +327,11 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
     const { field, saves } = await mountWithName('An');
 
     fireEvent.change(field, { target: { value: 'Bình' } });
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS - 1);
+    expect(saves).toHaveLength(0);
+    await advance(1);
 
-    await waitFor(() => {
-      expect(undoButtons()).toHaveLength(1);
-    }, SAVE_WAIT);
+    expect(undoButtons()).toHaveLength(1);
     expect(saves).toHaveLength(1);
     expect(saves[0]?.profile['fullName']).toBe('Bình');
     // Lưu xong không được xoá chữ đang có trong ô.
@@ -311,18 +342,15 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
     const { bus, field, saves } = await mountWithName('An');
 
     fireEvent.change(field, { target: { value: 'Bình' } });
-    await waitFor(() => {
-      expect(undoButtons()).toHaveLength(1);
-    }, SAVE_WAIT);
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    expect(undoButtons()).toHaveLength(1);
 
     fireEvent.click(undoButtons()[0] as HTMLElement);
+    await advance(0);
+    expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
-    });
-    await waitFor(() => {
-      expect(saves).toHaveLength(2);
-    }, SAVE_WAIT);
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    expect(saves).toHaveLength(2);
     expect(saves[1]?.profile['fullName']).toBe('An');
     expect(bus.list()).toHaveLength(1);
     expect(undoButtons()).toHaveLength(0);
@@ -332,19 +360,15 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
     const { field } = await mountWithName('An');
 
     fireEvent.change(field, { target: { value: 'Bình' } });
-    await waitFor(() => {
-      expect(undoButtons()).toHaveLength(1);
-    }, SAVE_WAIT);
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
     fireEvent.click(undoButtons()[0] as HTMLElement);
-    await waitFor(() => {
-      expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
-    });
+    await advance(0);
+    expect(screen.getByLabelText('Họ tên')).toHaveValue('An');
 
     fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'Châu' } });
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
 
-    await waitFor(() => {
-      expect(undoButtons()).toHaveLength(1);
-    }, SAVE_WAIT);
+    expect(undoButtons()).toHaveLength(1);
   });
 });
 

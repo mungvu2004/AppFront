@@ -40,22 +40,28 @@
      tham số. Cả hai đều ở `src/lib/**`, thư mục lượt làm này không được sửa.
 
      Không sửa giá trị nào của `:root` bên dưới nếu không có lý do tương phản AA
-     đo được — chín màn đã xong đang đọc chúng. Ngoại lệ đã có: `--text-muted`
-     sáng #999691 → #726f6c (FIX-580, BUG-042, 2,68:1 → 4,55:1 trên `--bg-app`)
-     → #6d6a67, và tối #969189 → #9d9891 (FIX-653: muted phải đạt 4,5:1 trên MỌI
-     nền nó nằm lên — sunken, selected/accent-wash, flash, tint trạng thái, hover —
-     không chỉ trên app/surface; bảng đủ ở dưới).
-     Hệ quả phải biết: muted và secondary sáng nay gần như một (1,03:1; tối 1,28:1),
-     nên hover từ muted lên secondary không thấy — dùng `text-primary`.
+     đo được — chín màn đã xong đang đọc chúng. Ngoại lệ đã có, đều vì AA:
+     - `--text-muted`: sáng #999691 → #726f6c (FIX-580, BUG-042, 2,68:1 → 4,55:1 trên
+       `--bg-app`) → #6d6a67, tối #969189 → #9d9891 (FIX-653: muted phải đạt 4,5:1 trên
+       MỌI nền nó nằm lên — sunken, selected/accent-wash, flash, tint trạng thái, hover —
+       không chỉ trên app/surface; bảng đủ ở dưới).
+     - `--accent`: sáng #567a96 → #4d6e87, hover/active #4a6b85/#3f5d74 → #436078/#395468
+       (FIX-654: chữ `text-accent` đạt 4,5:1 trên mọi nền; số ở mục A2 cuối khối này).
+     - `--text-secondary`: sáng #6b6862 → #605d58 (QA-01c nợ #5) để giữ phân cấp chữ:
+       muted/secondary 1,03:1 → 1,22:1 (tối 1,28:1), secondary/primary 1,96:1 (tối
+       1,84:1). Ngưỡng phân cấp 1,2:1 được `themeContrast.test.ts` khoá. Hover từ muted
+       lên secondary vẫn nhẹ — muốn thấy rõ thì dùng `text-primary`.
 
-     ## Đo tương phản (A11y, ngưỡng 4,5:1)
+     ## Đo tương phản (A11y, ngưỡng 4,5:1) — mọi bảng: cột sáng trước, tối sau
 
-     | chữ | trên | tối | sáng |
+     | chữ | trên | sáng | tối |
      |---|---|---|---|
-     | `--text-primary`   | `--bg-app`     | 14,20:1 | 11,67:1 |
-     | `--text-primary`   | `--bg-surface` | 12,77:1 | 12,82:1 |
-     | `--text-secondary` | `--bg-app`     |  7,71:1 |  5,06:1 |
-     | `--text-secondary` | `--bg-surface` |  6,93:1 |  5,55:1 |
+     | `--text-primary`   | `--bg-app`     | 11,67:1 | 14,20:1 |
+     | `--text-primary`   | `--bg-surface` | 12,82:1 | 12,77:1 |
+     | `--text-secondary` | `--bg-app`     |  5,97:1 |  7,71:1 |
+     | `--text-secondary` | `--bg-surface` |  6,55:1 |  6,93:1 |
+     | `--text-secondary` | `--bg-sunken`  |  5,66:1 |  8,24:1 |
+     | `--text-secondary` | `--bg-selected`|  5,82:1 |  6,05:1 |
 
      `--text-muted` (sáng #6d6a67, tối #9d9891) trên mọi nền chữ muted nằm lên:
 
@@ -76,9 +82,9 @@
 
      `--border-control` là viền của ô nhập, ô chọn, checkbox, radio (WCAG 1.4.11,
      ≥ 3:1 — BUG-045). Token RIÊNG, không mượn `--text-muted`: viền cần ~3:1 chứ
-     không cần 4,5:1 của chữ, và đổi màu chữ không được kéo theo viền. Tối:
-     3,45:1 trên `--bg-app`, 3,10:1 trên `--bg-surface`; sáng: 3,17:1 và 3,48:1.
-     Hover viền lên `--text-primary`: 4,11:1 (tối) và 3,69:1 (sáng) so với viền
+     không cần 4,5:1 của chữ, và đổi màu chữ không được kéo theo viền. Sáng:
+     3,17:1 trên `--bg-app`, 3,48:1 trên `--bg-surface`; tối: 3,45:1 và 3,10:1.
+     Hover viền lên `--text-primary`: 3,69:1 (sáng) và 4,11:1 (tối) so với viền
      thường, nên vẫn thấy rõ.
      Biên an toàn dựa vào nền `--bg-surface` BÊN TRONG control: trên nền hàng
      `bg-hover`/`bg-selected` (tối) phía ngoài chỉ ~2,6–2,7:1, sáng trên
@@ -193,7 +199,8 @@
     --border-control: #8c8986;
 
     --text-primary: #33322f;
-    --text-secondary: #6b6862;
+    /* #6b6862 cũ chỉ cách muted 1,03:1 — hai bậc chữ đọc ra là một (QA-01c nợ #5). */
+    --text-secondary: #605d58;
     /* #999691 cũ chỉ 2,68:1 trên `--bg-app` mà đa số chỗ dùng là chữ thật (BUG-042).
        #6d6a67: ≥ 4,59:1 trên mọi nền chữ muted nằm lên (bảng ở đầu file; #726f6c trước
        đó hỏng trên sunken/selected/flash). Cũng là màu icon trong ô (BUG-044); viền

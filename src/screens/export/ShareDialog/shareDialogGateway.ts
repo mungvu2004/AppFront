@@ -52,6 +52,7 @@ import {
   type SharePermission,
   type ShareLinkGateway,
 } from '@/lib/export/shareLink';
+import { initialsOf } from '@/lib/format/initials';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ProjectRole } from '@/types/project';
 
@@ -136,29 +137,6 @@ export const SHARE_ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.f
   viewer: 'Người xem',
 });
 
-/** Số chữ cái một `Avatar` không ảnh hiện được. */
-const INITIALS_LENGTH = 2;
-
-/**
- * Chữ cái đầu cho `Avatar` khi không có ảnh.
- *
- * Chữ đầu của từ đầu và của từ cuối — với "Nguyễn Thị Mai" là "NM". Một từ duy
- * nhất thì lấy chữ đầu của nó. Không có chữ nào đọc được thì trả chuỗi rỗng, và
- * view vẽ ô trống thay vì một dấu hỏi giả vờ là tên.
- */
-export function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/u).filter((word) => word.length > 0);
-  if (words.length === 0) {
-    return '';
-  }
-
-  const first = words[0] ?? '';
-  const last = words[words.length - 1] ?? '';
-  const letters = words.length === 1 ? first.slice(0, 1) : `${first.slice(0, 1)}${last.slice(0, 1)}`;
-
-  return letters.slice(0, INITIALS_LENGTH).toLocaleUpperCase('vi-VN');
-}
-
 /**
  * `User[]` của máy chủ → `MemberRowModel[]` của màn.
  *
@@ -174,7 +152,7 @@ export function toMemberRows(users: readonly User[]): readonly MemberRowModel[] 
     id: user.id,
     name: user.name,
     email: user.email,
-    initials: initialsOf(user.name),
+    initials: initialsOf(user.name, user.email),
     avatarUrl: user.avatarUrl ?? null,
     roleLabel: SHARE_ROLE_LABELS[user.role],
     isOwner: user.role === 'admin',

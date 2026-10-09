@@ -14,7 +14,7 @@
  *    `components/feedback/Skeleton.tsx` đóng cứng kích thước cho bảng, thẻ dự
  *    án, panel thuộc tính và canvas; không preset nào là ô vuông `cardSizePx`.
  *    Thêm preset thứ năm là sửa `src/components/**`, thứ phạm vi của task này
- *    cấm. Nên khung xương ở đây là `div` thuần cộng token (`bg-bg-sunken` +
+ *    cấm. Nên khung xương ở đây là `div` thuần cộng token (`bg-border-default` +
  *    `animate-pulse`, đã nằm trên thang nhịp hợp lệ trong `tailwind.config.ts`).
  * 2. **Hoạt ảnh vào lưới nằm ở LỚP BỌC, không nằm trên nút.** `panel-rise`
  *    chạy `forwards` nên nó giữ `transform` cuối cùng, và một animation thắng
@@ -176,7 +176,7 @@ export function FurnitureLibrarySkeletonGrid(): ReactNode {
       {Array.from({ length: loadingSkeletonCount }, (_, index) => (
         <div
           key={index}
-          className="animate-pulse bg-bg-sunken motion-reduce:animate-none"
+          className="animate-pulse bg-border-default motion-reduce:animate-none"
           style={{ height: cardSizePx, borderRadius: cardRadiusPx }}
           aria-hidden="true"
         />

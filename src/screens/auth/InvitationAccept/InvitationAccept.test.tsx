@@ -12,6 +12,7 @@ import { createSevenStateScenarios, SEVEN_STATES, type SevenState } from '@/lib/
 
 import { dropFocus, networkFailure, okVoid, wireFailure } from '../authTestKit';
 import { __resetFragmentTokenForTests } from '../fragmentToken';
+import { FIELD_ERROR_SLOT, FIELD_ERROR_SLOT_THREE_LINES } from '../RecoveryShell';
 import { InvitationAccept, InvitationAcceptView, type InvitationAcceptViewProps } from './InvitationAccept';
 import type { InvitationAcceptPort } from './useInvitationAccept';
 
@@ -164,6 +165,51 @@ describe('InvitationAcceptView — the seven states', () => {
     render(<InvitationAcceptView {...baseProps()} />);
 
     expect(screen.getByLabelText(AUTH.fields.password)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
+  it('keeps room under each box for its longest complaint, so one appearing pushes nothing (QA-01c nợ #10)', () => {
+    const slotOf = (name: string): HTMLElement | null => screen.getByText(name, { selector: 'label' }).parentElement;
+    const expectSlots = (): void => {
+      // Họ tên: `fullNameInvalid` xuống ba dòng ở 375 px, nên chỗ ba dòng.
+      expect(slotOf(AUTH.fields.fullName)).toHaveClass(FIELD_ERROR_SLOT_THREE_LINES);
+      expect(slotOf(AUTH.fields.password)).toHaveClass(FIELD_ERROR_SLOT);
+      expect(slotOf(AUTH.fields.confirmPassword)).toHaveClass(FIELD_ERROR_SLOT);
+    };
+    const { rerender } = render(<InvitationAcceptView {...baseProps()} />);
+
+    expectSlots();
+
+    rerender(
+      <InvitationAcceptView
+        {...baseProps()}
+        problems={{
+          fullName: AUTH.problems.fullNameInvalid,
+          password: AUTH.problems.passwordRequired,
+          confirmPassword: AUTH.problems.confirmMismatch,
+        }}
+      />,
+    );
+
+    expectSlots();
+    // The reserved room is the spacing, so it is not paid for twice.
+    expect(slotOf(AUTH.fields.fullName)?.parentElement).not.toHaveClass('gap-4');
+  });
+
+  it('puts the warning strip and the retry line under the submit button, never above the boxes (QA-01c nợ #11)', () => {
+    const WARNING = 'Bạn đang đăng nhập bằng một tài khoản khác.';
+    const RETRY = 'Đang thử lại.';
+    render(
+      <InvitationAcceptView {...baseProps()} warning={{ tone: 'attention', message: WARNING }} retryNotice={RETRY} />,
+    );
+
+    const button = screen.getByRole('button', { name: AUTH.actions.acceptInvitation });
+    const lastBox = screen.getByLabelText(AUTH.fields.confirmPassword);
+
+    for (const text of [WARNING, RETRY]) {
+      const node = screen.getByText(text);
+      expect(button.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING, text).toBeTruthy();
+      expect(lastBox.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING, text).toBeTruthy();
+    }
   });
 
   it('holds no raw colour', () => {

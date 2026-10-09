@@ -58,7 +58,7 @@ const noop = (): void => undefined;
 
 const SAMPLE_ROW: ProjectCardModel = {
   id: 'p-hq-renovation',
-  name: 'Tòa nhà HQ Renovation',
+  name: 'Toà nhà HQ Renovation',
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
@@ -197,7 +197,7 @@ describe('ProjectDashboardView, seven states', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.forbidden()} />);
 
     expect(screen.queryByRole('button', { name: /Dự án mới/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Tòa nhà HQ Renovation')).toBeInTheDocument();
+    expect(screen.getByText('Toà nhà HQ Renovation')).toBeInTheDocument();
   });
 
   it('never colours a card verified unless the caller already resolved that (A5/A-constraint)', () => {

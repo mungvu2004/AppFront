@@ -17,9 +17,6 @@ import type { ProjectSummary } from '@/api/schemas/projectSummaries';
 import { readWireError } from '@/lib/errors/wireError';
 import { initialsOf } from '@/lib/format/initials';
 
-/** Chữ viết tắt đã chuyển xuống `@/lib/format/initials` để màn khác dùng chung (QA-01 nợ #8). */
-export { initialsOf };
-
 export type ProjectPipelineStatus = 'processing' | 'qc' | 'done';
 
 export interface DashboardProjectMember {

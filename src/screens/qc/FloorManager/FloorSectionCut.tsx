@@ -156,7 +156,7 @@ export function FloorSectionCut({
       </header>
 
       {state === 'loading' ? (
-        <div aria-hidden="true" className="min-h-0 flex-1 animate-pulse motion-reduce:animate-none rounded-[8px] bg-bg-sunken" />
+        <div aria-hidden="true" className="min-h-0 flex-1 animate-pulse motion-reduce:animate-none rounded-[8px] bg-border-default" />
       ) : (
         <div className="flex min-h-0 flex-1 gap-1">
           <ElevationScale ticks={elevationTicks} />

@@ -332,7 +332,8 @@ describe('avatar chủ dự án', () => {
         owner: { name: '', email: 'mai.tran@chuduan.vn' },
       }),
     );
-    expect(document.body.textContent ?? '').toContain('MA');
+    // Theo chính phần tử avatar (tên trống thì nhãn của nó là chữ tắt), không qua cả trang.
+    expect(screen.getByLabelText('MA')).toHaveTextContent(/^MA$/u);
   });
 });
 
