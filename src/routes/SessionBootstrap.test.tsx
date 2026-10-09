@@ -330,6 +330,15 @@ describe('SessionGate — năm nhánh', () => {
     expect(frame).not.toHaveClass('border-border-default');
   });
 
+  it('chờ có vòng quay màu chữ phụ cạnh câu, đứng yên khi giảm chuyển động (BUG-027)', () => {
+    renderGate({ status: 'unknown' });
+
+    const spinner = screen.getByText('Đang mở phiên…').querySelector('svg');
+
+    expect(spinner).toHaveClass('animate-spin', 'motion-reduce:animate-none');
+    expect(screen.getByText('Đang mở phiên…')).toHaveClass('text-text-secondary');
+  });
+
   it('vẽ màn con khi đã đăng nhập', () => {
     renderGate({ status: 'authenticated' });
 

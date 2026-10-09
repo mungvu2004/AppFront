@@ -27,7 +27,7 @@ import {
 } from 'react';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
-import { AlertCircle, WifiOff, X } from 'lucide-react';
+import { AlertCircle, Loader2, WifiOff, X } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -214,13 +214,16 @@ export function PendingShell({ label }: { label: string }) {
           Câu hiện trễ một nhịp `fast`: vỏ này cũng là fallback Suspense của mọi route lười,
           và chunk đã có sẵn thì Suspense chỉ chớp qua — không trễ thì mỗi lần chuyển màn
           nháy chữ "Đang tải…". Giảm chuyển động: vẫn trễ, nhưng hiện bật ra (`step-start`),
-          không mờ dần, không trồi. */}
+          không mờ dần, không trồi. Vòng quay cùng màu chữ phụ (≥ 4,5:1 trên nền): khung trắng và
+          vài khối xám nhạt vẫn đọc ra như "trang trống", vòng quay mới nói "đang chạy" (BUG-027);
+          giảm chuyển động thì nó đứng yên, câu vẫn nói thay. */}
       <Skeleton preset="canvas" className="w-full max-w-3xl border-border-control bg-bg-surface" />
       <p
         aria-hidden="true"
-        className="animate-dropdown-open text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
+        className="flex animate-dropdown-open items-center gap-2 text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
         style={LABEL_REVEAL_STYLE}
       >
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" strokeWidth={2} />
         {label}…
       </p>
     </div>
