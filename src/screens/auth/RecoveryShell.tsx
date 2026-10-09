@@ -32,7 +32,8 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
         <div className="flex flex-col gap-1">
           <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">{title}</h1>
           {subtitle !== undefined && (
-            // `text-balance` (không `pretty`: Firefox chưa hỗ trợ): không để "bạn." một mình ở dòng cuối (BUG-052).
+            // `text-balance`, không `pretty` như ô nhập và dải báo: phụ đề chỉ một–hai dòng ngắn, chia đều hai
+            // dòng đọc dễ hơn lấp đầy dòng đầu; vẫn không để "bạn." một mình ở dòng cuối (BUG-052).
             <p className="text-balance text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
           )}
         </div>
