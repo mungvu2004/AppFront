@@ -176,6 +176,7 @@
       "title": "Nhận lời mời",
       "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
       "deadEndSubtitle": "Liên kết này không mở được lời mời.",
+      "doneSubtitle": "Tài khoản của bạn đã sẵn sàng.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
       "incomplete": "Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
@@ -187,6 +188,7 @@
       "title": "Đặt lại mật khẩu",
       "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
       "deadEndSubtitle": "Liên kết này không đặt lại được mật khẩu.",
+      "doneSubtitle": "Mật khẩu mới đã có hiệu lực.",
       "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
       "incomplete": "Trang này không còn mã của liên kết đặt lại mật khẩu (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.",
       "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."

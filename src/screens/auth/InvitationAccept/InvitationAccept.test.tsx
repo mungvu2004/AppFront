@@ -493,6 +493,17 @@ describe('InvitationAccept — the session around it', () => {
     expect(screen.getByText(AUTH.invitation.signedInWarning)).toBeInTheDocument();
   });
 
+  it('says it is done in a bordered block right under the button, and stops asking for input (BUG-097)', () => {
+    render(<InvitationAcceptView {...PROPS_BY_STATE.success()} />);
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent(AUTH.invitation.success);
+    expect(status.firstElementChild).toHaveClass('border', 'border-border-default');
+    expect(screen.getByRole('button', { name: AUTH.actions.acceptInvitation }).nextElementSibling).toBe(status);
+    expect(screen.getByText(AUTH.invitation.doneSubtitle)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.invitation.subtitle)).toBeNull();
+  });
+
   it('puts the lost-session strip under the submit button: appearing, it moves no box (BUG-008)', () => {
     render(<InvitationAcceptView {...baseProps()} isSessionUnavailable />);
 

@@ -137,6 +137,17 @@ describe('PasswordResetView — the seven states', () => {
     }
   });
 
+  it('says it is done in a bordered block right under the button, and stops asking for input (BUG-097)', () => {
+    render(<PasswordResetView {...PROPS_BY_STATE.success()} />);
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent(AUTH.passwordReset.success);
+    expect(status.firstElementChild).toHaveClass('border', 'border-border-default');
+    expect(screen.getByRole('button', { name: AUTH.actions.setNewPassword }).nextElementSibling).toBe(status);
+    expect(screen.getByText(AUTH.passwordReset.doneSubtitle)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.subtitle)).toBeNull();
+  });
+
   it('drops the form when the link is dead, leaving a sentence and a link to /login', () => {
     render(<PasswordResetView {...PROPS_BY_STATE.forbidden()} />);
 

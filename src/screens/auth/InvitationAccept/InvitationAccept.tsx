@@ -29,6 +29,7 @@ import {
   RecoveryLink,
   RecoveryNoticeStrip,
   RecoveryShell,
+  RecoveryStatus,
 } from '../RecoveryShell';
 import { passwordTooShort } from '../recoveryShared';
 import { useReturnFocus } from '../useReturnFocus';
@@ -75,9 +76,14 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   return (
     <RecoveryShell
       title={AUTH_MESSAGES.invitation.title}
-      // Ngõ cụt không còn ô nhập: phụ đề "đặt họ tên và mật khẩu" thành lời mời làm việc không làm được (BUG-005).
+      // Ngõ cụt không còn ô nhập, và xong rồi thì ô đã khoá: phụ đề "đặt họ tên và mật khẩu" thành lời mời
+      // làm việc không làm được nữa (BUG-005, BUG-097).
       subtitle={
-        state === 'forbidden' ? AUTH_MESSAGES.invitation.deadEndSubtitle : AUTH_MESSAGES.invitation.subtitle
+        state === 'forbidden'
+          ? AUTH_MESSAGES.invitation.deadEndSubtitle
+          : isDone
+            ? AUTH_MESSAGES.invitation.doneSubtitle
+            : AUTH_MESSAGES.invitation.subtitle
       }
       state={state}
     >
@@ -166,12 +172,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm
               (BUG-008) — cả dải cảnh báo lẫn câu thử lại (QA-01c nợ #11). Câu trạng thái luôn gắn sẵn,
               điền sau, để trình đọc màn hình đọc ra. */}
-          <p
-            role="status"
-            className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
-          >
-            {isDone ? AUTH_MESSAGES.invitation.success : retryNotice}
-          </p>
+          <RecoveryStatus success={isDone ? AUTH_MESSAGES.invitation.success : null} note={retryNotice} />
           <RecoveryNoticeStrip notice={warning} />
           <RecoveryNoticeStrip notice={notice} />
 
