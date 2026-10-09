@@ -99,7 +99,6 @@ export const WrongPassword: Story = {
       tone: 'violation',
       title: AUTH_MESSAGES.errors.invalidCredentials.title,
       message: AUTH_MESSAGES.errors.invalidCredentials.description,
-      showResetAction: true,
     },
   },
 };

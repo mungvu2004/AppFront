@@ -330,6 +330,15 @@ describe('SessionGate — năm nhánh', () => {
     expect(frame).not.toHaveClass('border-border-default');
   });
 
+  it('chờ có vòng quay màu chữ phụ cạnh câu, đứng yên khi giảm chuyển động (BUG-027)', () => {
+    renderGate({ status: 'unknown' });
+
+    const spinner = screen.getByText('Đang mở phiên…').querySelector('svg');
+
+    expect(spinner).toHaveClass('animate-spin', 'motion-reduce:animate-none');
+    expect(screen.getByText('Đang mở phiên…')).toHaveClass('text-text-secondary');
+  });
+
   it('vẽ màn con khi đã đăng nhập', () => {
     renderGate({ status: 'authenticated' });
 
@@ -349,9 +358,11 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
     expect(screen.getByTestId('man-con')).toBeInTheDocument();
     // Không hứa "đang tự thử lại": lượt gia hạn có trần số lần rồi dừng hẳn (BUG-019).
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.',
+      'Mất kết nối máy chủ. Kiểm tra mạng rồi bấm Thử lại.',
     );
     expect(screen.queryByText(/tự thử lại/)).not.toBeInTheDocument();
+    // Dải đứng trên mọi màn, kể cả màn không có gì để lưu: không nói tới thay đổi chưa lưu (BUG-093).
+    expect(screen.queryByText(/chưa lưu/)).not.toBeInTheDocument();
     // Phủ lên trên ở mép dưới, không chen vào luồng trang và không đè thanh trên (BUG-019).
     expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toHaveClass('fixed', 'bottom-4');
     expectVietnamese(container);

@@ -126,7 +126,6 @@
       "or": "Hoặc",
       "ssoSignIn": "Đăng nhập bằng SSO công ty",
       "forgotPassword": "Quên mật khẩu",
-      "resetPassword": "Đặt lại mật khẩu",
       "showPassword": "Hiện mật khẩu",
       "hidePassword": "Ẩn mật khẩu",
       "signInWithAnotherAccount": "Đăng nhập bằng tài khoản khác"
@@ -146,7 +145,7 @@
     "errors": {
       "invalidCredentials": {
         "title": "Sai thư điện tử hoặc mật khẩu",
-        "description": "Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên."
+        "description": "Kiểm tra lại thư điện tử và mật khẩu rồi thử lại. Thông tin bạn đã nhập vẫn được giữ."
       },
       "tooManyAttempts": {
         "title": "Đã thử quá nhiều lần",
@@ -154,10 +153,10 @@
       },
       "originMismatch": {
         "title": "Máy chủ từ chối yêu cầu",
-        "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
+        "description": "Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
       "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
-      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
+      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.",
       "validationOther": {
         "title": "Dữ liệu chưa phù hợp",
         "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
@@ -177,6 +176,7 @@
       "title": "Nhận lời mời",
       "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
       "deadEndSubtitle": "Liên kết này không mở được lời mời.",
+      "doneSubtitle": "Tài khoản của bạn đã sẵn sàng.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
       "incomplete": "Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
@@ -188,6 +188,7 @@
       "title": "Đặt lại mật khẩu",
       "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
       "deadEndSubtitle": "Liên kết này không đặt lại được mật khẩu.",
+      "doneSubtitle": "Mật khẩu mới đã có hiệu lực.",
       "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
       "incomplete": "Trang này không còn mã của liên kết đặt lại mật khẩu (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.",
       "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."

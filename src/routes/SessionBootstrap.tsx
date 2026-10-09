@@ -27,7 +27,7 @@ import {
 } from 'react';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 
-import { AlertCircle, WifiOff, X } from 'lucide-react';
+import { AlertCircle, Loader2, WifiOff, X } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -95,7 +95,7 @@ function pageFocusTarget(strip: HTMLElement | null): HTMLElement | null {
  * `region` có tên chứ không bọc `main` (FIX-381, axe `region`).
  *
  * Phủ lên trên (`fixed`), không nằm trong luồng trang: nằm trong luồng thì cả màn tụt
- * xuống và hiện thanh cuộn, đúng lúc người dùng được dặn đừng tải lại (BUG-019).
+ * xuống và hiện thanh cuộn, đúng lúc màn con có thể đang giữ phần sửa chưa lưu (BUG-019).
  *
  * Ở giữa mép DƯỚI, một dòng gọn: mép trên là chỗ của thanh trên mọi màn (chuông, avatar,
  * "Dự án mới", ô tìm dự án, `SegmentedControl` và `MeasurementTool` của viewer) — dải cũ
@@ -105,7 +105,9 @@ function pageFocusTarget(strip: HTMLElement | null): HTMLElement | null {
  * dải tắt rồi bật lại là trạng thái mới, nó hiện lại.
  *
  * Câu không hứa "đang tự thử lại": lượt gia hạn dừng hẳn sau
- * `REFRESH_MAX_TRANSIENT_ATTEMPTS` lần (`lib/auth/refresh.ts`), nên chỉ nói điều luôn đúng.
+ * `REFRESH_MAX_TRANSIENT_ATTEMPTS` lần (`lib/auth/refresh.ts`), nên chỉ nói điều luôn đúng. Cũng
+ * không nói "thay đổi chưa lưu": dải đứng trên mọi màn, kể cả màn chẳng có gì để lưu, và cổng không
+ * có cờ "đang có dữ liệu chưa lưu" nào đọc được mà không kéo store vào chunk vào (BUG-093).
  */
 function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   const [dismissed, setDismissed] = useState(false);
@@ -140,7 +142,7 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
     >
       <WifiOff aria-hidden="true" className="shrink-0 text-state-attention" size={16} />
       <p role="alert" className="min-w-0 flex-1 text-[13px] leading-[18px] text-state-attention-text">
-        Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.
+        Mất kết nối máy chủ. Kiểm tra mạng rồi bấm Thử lại.
       </p>
       <Button type="button" size="sm" variant="secondary" onClick={onRetry} className="shrink-0">
         Thử lại
@@ -214,13 +216,16 @@ export function PendingShell({ label }: { label: string }) {
           Câu hiện trễ một nhịp `fast`: vỏ này cũng là fallback Suspense của mọi route lười,
           và chunk đã có sẵn thì Suspense chỉ chớp qua — không trễ thì mỗi lần chuyển màn
           nháy chữ "Đang tải…". Giảm chuyển động: vẫn trễ, nhưng hiện bật ra (`step-start`),
-          không mờ dần, không trồi. */}
+          không mờ dần, không trồi. Vòng quay cùng màu chữ phụ (≥ 4,5:1 trên nền): khung trắng và
+          vài khối xám nhạt vẫn đọc ra như "trang trống", vòng quay mới nói "đang chạy" (BUG-027);
+          giảm chuyển động thì nó đứng yên, câu vẫn nói thay. */}
       <Skeleton preset="canvas" className="w-full max-w-3xl border-border-control bg-bg-surface" />
       <p
         aria-hidden="true"
-        className="animate-dropdown-open text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
+        className="flex animate-dropdown-open items-center gap-2 text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
         style={LABEL_REVEAL_STYLE}
       >
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" strokeWidth={2} />
         {label}…
       </p>
     </div>
@@ -310,7 +315,7 @@ export function SessionGate({
    * là chỗ đổi người thì màn con gắn lại, để dữ liệu người cũ không theo sang.
    * Và nó đứng ở **cùng một vị trí** trong cây dù dải có hiện hay không — bọc
    * thêm một `div` lúc có dải là gắn lại cả màn, làm mất phần sửa chưa lưu,
-   * đúng lúc người dùng vừa được dặn là đừng tải lại trang.
+   * đúng lúc mất kết nối nên chưa lưu lên được.
    */
   return (
     <>

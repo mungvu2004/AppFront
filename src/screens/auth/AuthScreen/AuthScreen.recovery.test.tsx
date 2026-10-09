@@ -185,11 +185,12 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     expect(screen.getAllByText(AUTH.forgotPassword.subtitle)).toHaveLength(1);
   });
 
-  it('opens from the wrong-password strip too', async () => {
+  it('opens from "Quên mật khẩu" after a wrong password, carrying the address', async () => {
     setup({ signIn: wireFailure(401, { code: 'INVALID_CREDENTIALS' }) });
 
     signInWith();
-    fireEvent.click(await screen.findByRole('button', { name: AUTH.actions.resetPassword }));
+    await screen.findByText(AUTH.errors.invalidCredentials.title);
+    fireEvent.click(screen.getByRole('button', { name: AUTH.actions.forgotPassword }));
 
     expect(screen.getByRole('button', { name: AUTH.actions.sendResetLink })).toBeInTheDocument();
     expect((screen.getByLabelText(AUTH.fields.email) as HTMLInputElement).value).toBe(EMAIL);

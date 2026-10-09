@@ -109,11 +109,9 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   );
 
   /* A strip's way out goes under it, full width and the height of "Đăng nhập" (BUG-059), not into
-     its `action` slot: beside the text it squeezes the sentence into a ~100 px column at 360 px (BUG-003). */
-  const stripAction =
-    notice?.showResetAction === true
-      ? { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword }
-      : notice?.action;
+     its `action` slot: beside the text it squeezes the sentence into a ~100 px column at 360 px (BUG-003).
+     A wrong password has none of its own: "Quên mật khẩu" below is the one way to recover (BUG-090). */
+  const stripAction = notice?.action;
 
   return (
     <form
@@ -222,7 +220,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           type="button"
           disabled={fieldsDisabled}
           onClick={actions.forgotPassword}
-          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
         >
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>

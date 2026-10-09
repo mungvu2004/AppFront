@@ -4,6 +4,8 @@
  * `src/components`: nó chỉ có hai nơi dùng và cả hai là màn của nhóm này.
  */
 
+import { CheckCircle2 } from 'lucide-react';
+
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 
 import type { RecoveryNotice } from './recoveryShared';
@@ -20,8 +22,10 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
   return (
     // Neo từ trên, không căn giữa dọc: căn giữa thì dải lỗi chèn vào đẩy cả khối, ô nhập trôi khỏi con trỏ (BUG-008).
     // Lề 24 px dưới 640, 48 px từ đó: ở 375 lề 48 px chỉ để lại cột ~279 px (BUG-052).
+    // Lề trên 12vh (không 15vh): chỗ giữ câu lỗi cao thêm 12 px mỗi ô (BUG-073), ba ô của lời mời cộng dải lỗi
+    // dưới nút vẫn vừa 1024×768.
     <main
-      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[15vh] sm:px-12 sm:pb-12"
+      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[12vh] sm:px-12 sm:pb-12"
       data-auth-state={state}
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
@@ -41,17 +45,17 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
 /**
  * Chỗ dành sẵn cho câu lỗi hai dòng dưới một ô (`wrapperClassName` của `Input`): câu hiện ra hay
  * biến mất không đẩy ô dưới và nút gửi khỏi chỗ con trỏ (BUG-008). Cộng từ `Input`: nhãn 20 + 8,
- * ô 46 (38 từ `sm`), dòng lỗi 6 + 2 × 18, thêm 4 để câu hai dòng không dính nhãn ô dưới. Câu lỗi
- * dài nhất của `/login` vừa hai dòng ở cột từ ~258 px (màn 320 trừ lề 24 px mỗi bên). Chỗ này đã là
- * khoảng cách giữa hai ô — đừng thêm `gap`.
+ * ô 46 (38 từ `sm`), dòng lỗi 6 + 2 × 18, thêm 16 để câu hai dòng vẫn cách nhãn/nút kế 16 px — 4 px
+ * cũ làm câu dính nhãn ô dưới (BUG-073). Câu lỗi dài nhất của `/login` vừa hai dòng ở cột từ ~258 px
+ * (màn 320 trừ lề 24 px mỗi bên). Chỗ này đã là khoảng cách giữa hai ô — đừng thêm `gap`.
  */
-export const FIELD_ERROR_SLOT = 'min-h-[120px] sm:min-h-[112px]';
+export const FIELD_ERROR_SLOT = 'min-h-[132px] sm:min-h-[124px]';
 
 /**
  * Như {@link FIELD_ERROR_SLOT} nhưng cho câu lỗi BA dòng: thêm một dòng 18. Dành cho ô họ tên của
  * lời mời — `fullNameInvalid` (109 ký tự) xuống ba dòng ở cột 375 px (QA-01c nợ #10).
  */
-export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[138px] sm:min-h-[130px]';
+export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[150px] sm:min-h-[142px]';
 
 export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotice | null }) {
   if (notice === null) {
@@ -64,6 +68,32 @@ export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotic
       {...(notice.title !== undefined ? { title: notice.title } : {})}
       message={notice.message}
     />
+  );
+}
+
+/**
+ * Vùng trạng thái ngay dưới nút gửi, ở cả hai màn (BUG-097): câu "đã xong" trong một khối có viền và
+ * dấu kiểm như câu "đã gửi" của quên mật khẩu (BUG-022) — trung tính, không xanh "verified" (A5) —
+ * hoặc một dòng ghi chú nhỏ. Luôn gắn sẵn, điền sau: vùng chèn cùng lúc với chữ thường không được đọc.
+ */
+export function RecoveryStatus({
+  success,
+  note = null,
+}: {
+  readonly success: string | null;
+  readonly note?: string | null;
+}) {
+  return (
+    <div role="status" className="empty:sr-only">
+      {success !== null ? (
+        <div className="flex items-start gap-3 rounded-[8px] border border-border-default p-3">
+          <CheckCircle2 aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
+          <p className="text-[14px] leading-relaxed text-text-primary">{success}</p>
+        </div>
+      ) : note !== null ? (
+        <p className="text-[13px] leading-[18px] text-text-secondary">{note}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -88,7 +118,8 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
         event.preventDefault();
         onClick();
       }}
-      className="self-start py-1 text-[14px] leading-[20px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+      // Vùng chạm 44 px dưới 640, 24 px từ `sm` — giữ cỡ chữ (BUG-041); ở ngõ cụt đây là lối đi duy nhất.
+      className="inline-flex min-h-[44px] items-center self-start py-1 text-[14px] sm:min-h-6 leading-[20px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
     >
       {label}
     </a>
