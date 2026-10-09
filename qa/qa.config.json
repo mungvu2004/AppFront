@@ -1,0 +1,86 @@
+{
+  "$comment": "Cấu hình dự án cho skill/workflow chung e2e-qa-run. Đường dẫn tương đối tính từ suiteDir. Kết quả mỗi lượt: {resultsDir}/{runId}/{tag}/ (results.json, run.log, report/, artifacts/); ảnh: {resultsDir}/{runId}/evidence/.",
+  "project": "AppFront",
+  "suiteDir": "C:/Users/mxuan/orca/workspaces/AppFront/qa-e2e/qa",
+  "sourceRoots": [
+    "C:/Users/mxuan/orca/workspaces/AppFront/qa-e2e/src",
+    "C:/Users/mxuan/orca/workspaces/AppFront/qa-e2e/e2e"
+  ],
+  "backendSourceRoot": "C:/Users/mxuan/orca/workspaces/AppBack/qa-main",
+  "planFile": "E2E-TEST-PLAN.md",
+  "specPattern": "tests/phase{NN}_*.spec.ts",
+  "edgeSpecPattern": "tests/phase{NN}_{name}_edge.spec.ts",
+  "edgeEvidencePrefix": "E{NN}_",
+  "evidenceDir": "{resultsDir}/{runId}/evidence",
+  "logsDir": "{resultsDir}/{runId}/{tag}",
+  "bugLog": "{resultsDir}/BUG-LOG.md",
+  "statefile": "tests/.state/runtime-session.json",
+  "evidenceChecker": "node tools/check-evidence.mjs",
+  "typecheck": "npx tsc -p qa/tsconfig.json --noEmit",
+  "typecheckCwd": "..",
+  "runCommand": "npx playwright test {spec}",
+  "env": {
+    "secretsFile": "F:/App/AppBack/backend/dieu-phoi/chay/F-14/.secrets.env",
+    "vars": {
+      "E2E_FULLSTACK_BASE_URL": "http://localhost:18080",
+      "E2E_DRAWING_PNG": "F:/App/AppBack/backend/dieu-phoi/chay/F-14/drawing.png",
+      "E2E_MAILPIT_URL": "http://localhost:8025"
+    },
+    "healthUrl": "http://localhost:18080/api/health",
+    "mockBaseUrl": "http://127.0.0.1:5173",
+    "mockTracks": [
+      "09"
+    ],
+    "bringUp": "cd F:/App/AppBack/backend/dieu-phoi/chay/F-14 && bash chuoi.sh up seed",
+    "mailpitUrl": "http://localhost:8025",
+    "stackOverride": "F:/App/AppBack/backend/dieu-phoi/chay/F-14/qa-limits.override.yml",
+    "apiContainer": "f14-api-1"
+  },
+  "defaults": {
+    "runId": "run-01",
+    "slowMoMs": 400,
+    "$comment": "watch=true (người dùng yêu cầu luôn bật): headed + slowMoMs; --no-watch / watch:false → headless, slowMo 0.",
+    "watch": true
+  },
+  "resultsDir": "F:/App/qa-results",
+  "runEnv": {
+    "E2E_RESULTS_DIR": "{resultsDir}",
+    "E2E_RUN_ID": "{runId}",
+    "E2E_TAG": "{tag}"
+  },
+  "apiSpecPattern": "tests/phase{NN}_{name}_api.spec.ts",
+  "apiEvidencePrefix": "A{NN}_",
+  "backend": {
+    "$comment": "Lớp backend (skill qa-api-test). pytest của AppBack chỉ chạy trên Linux (pyproject: environments linux x86_64, Python 3.12) → chạy trong container verify của AppBack (tools/verify/run.sh shell, Testcontainers qua docker.sock). Không song song với lượt E2E.",
+    "routesGlob": "apps/api/*/router.py",
+    "schemasGlob": "apps/api/*/{schemas,router,services}.py",
+    "testCommand": "bash tools/verify/run.sh shell <<< 'pytest {paths} -q -p no:cacheprovider'",
+    "testCwd": "{backendSourceRoot}",
+    "testTimeoutMin": 20
+  },
+  "versionCheck": {
+    "$comment": "Bản đang chạy phải khớp bản đang test. FE: nhãn ảnh web phải = HEAD worktree QA (lệch → BLOCKED). BE: backendSourceRoot là worktree QA bám origin/main (cập nhật: git -C <root> fetch && git -C <root> checkout --detach origin/main); ảnh api dựng từ apiBuiltCommit — git diff apiBuiltCommit HEAD -- apps packages deploy (bỏ tests) phải rỗng, khác → cảnh báo + liệt kê file (cần dựng lại ảnh api/worker).",
+    "webImage": "appback-web:f14",
+    "webRevisionLabel": "org.opencontainers.image.revision.appfront",
+    "apiImage": "appback-api:f14",
+    "apiBuiltFrom": "C:/Users/mxuan/orca/workspaces/AppBack/fix378-x",
+    "apiBuiltCommit": "b1704f7"
+  },
+  "rules": {
+    "$comment": "Ngưỡng do e2e-qa-run kiểm; vượt → ghi finding loại Test.",
+    "maxMockedShare": 0.35,
+    "mockedNeedsApiPair": true,
+    "testDataPrefix": "qa-{runId}-",
+    "testEmailDomain": "example.test"
+  },
+  "runner": "node tools/run-phase.mjs --phase {NN} --run-id {runId} --tag {tag} [--layers main,ui,api,edge] [--grep re] [--no-watch]",
+  "coverageFiles": {
+    "$comment": "Dòng đầu là dấu nguồn; nguồn không đổi từ dấu đó → workflow bỏ bước kiểm kê/viết spec, chỉ chạy.",
+    "fe": "coverage/{tag}.md",
+    "be": "coverage/{tag}-be.md",
+    "feStamp": "<!-- qa-sources fe={sha} -->",
+    "beStamp": "<!-- qa-sources be={sha} -->"
+  },
+  "uiSpecPattern": "tests/phase{NN}_{name}_ui.spec.ts",
+  "uiEvidencePrefix": "U{NN}_"
+}
