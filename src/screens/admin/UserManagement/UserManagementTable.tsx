@@ -189,11 +189,12 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
               onClick={() => actions.onSelectUser(row.id)}
               type="button"
             >
-              <p className="truncate font-medium text-text-primary">{row.name}</p>
-              <p className="truncate text-[13px] text-text-secondary">{row.email}</p>
+              <p className="font-medium text-text-primary [overflow-wrap:anywhere]">{row.name}</p>
+              <p className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{row.email}</p>
             </button>
-            <StatusCell actions={actions} row={row} />
           </div>
+          {/* Dưới dòng tên, không cạnh nó: cạnh nhau thì email chỉ còn ~110 px và bị cắt (BUG-075). */}
+          <StatusCell actions={actions} row={row} />
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
             <div className="flex flex-col gap-1">
               <dt className="text-text-secondary">{HEADER_ROLE}</dt>

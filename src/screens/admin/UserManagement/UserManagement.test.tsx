@@ -369,6 +369,17 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     expect(actions.onClearSearch).toHaveBeenCalledTimes(1);
   });
 
+  it('BUG-075: thẻ ở khổ hẹp không cắt email bằng "…"', async () => {
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: true };
+    const row = model.rows[0];
+    if (row === undefined) throw new Error('kịch bản thành công phải có ít nhất một hàng');
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const email = await screen.findByText(row.email);
+    expect(email).not.toHaveClass('truncate');
+  });
+
   it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);
