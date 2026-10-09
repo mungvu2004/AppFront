@@ -53,10 +53,9 @@ const FULL_NAME_LABEL = 'Họ và tên';
 const LOGIN_API = '/api/auth/login';
 const STRIP_VIEWPORT = { width: 1024, height: 768 } as const;
 const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu'; // vi:148
-const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu'; // vi:129
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // vi:156
 const ORIGIN_MISMATCH_DESCRIPTION =
-  'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157
+  'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157 (BUG-021)
 /** 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). */
 const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
 
@@ -183,11 +182,11 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
       await p.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
     };
 
-    // (a) wrong password + "Đặt lại mật khẩu" under the strip.
+    // (a) wrong password: the strip, and the "Quên mật khẩu" text button stays the one way to recovery (BUG-090).
     await checkStrip(page, 'wrong', async (p) => {
       await submitWithMock(p);
       await expect(p.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
-      await expect(p.getByRole('button', { name: RESET_PASSWORD_ACTION, exact: true })).toBeVisible();
+      await expect(p.getByRole('button', { name: FORGOT_PASSWORD, exact: true })).toBeVisible();
     });
 
     // (b) originMismatch: the longest strip sentence, no action.

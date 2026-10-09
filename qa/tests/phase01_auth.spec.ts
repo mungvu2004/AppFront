@@ -49,7 +49,6 @@ const PARTIAL_NOTICE = 'Đã có thư điện tử, còn thiếu mật khẩu.';
 const SHOW_PASSWORD = 'Hiện mật khẩu';
 const HIDE_PASSWORD = 'Ẩn mật khẩu';
 const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu';
-const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu';
 const FORGOT_PASSWORD = 'Quên mật khẩu';
 const BACK_TO_SIGN_IN = 'Quay lại đăng nhập';
 const SSO_SIGN_IN = 'Đăng nhập bằng SSO công ty'; // vi.json:127 — asserted ABSENT (BUG-002)
@@ -302,7 +301,7 @@ test.describe('SCR-02 Login', () => {
     await expect(button(page, SHOW_PASSWORD)).toBeVisible();
   });
 
-  test('SCR-02 · ONE wrong password → "Sai thư điện tử hoặc mật khẩu" + "Đặt lại mật khẩu"', async () => {
+  test('SCR-02 · ONE wrong password → "Sai thư điện tử hoặc mật khẩu" + "Quên mật khẩu" (BUG-090)', async () => {
     // Exactly one attempt: the server locks the address out with a 429 after repeated failures.
     const { email, password } = readAdminCredentials();
 
@@ -318,7 +317,8 @@ test.describe('SCR-02 Login', () => {
     // `AuthScreen.container.tsx`: "on ENDPOINTS.auth.login a 401 *is* the answer".
     expect((await login).status(), `POST ${LOGIN_API} with a wrong password`).toBe(401);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
-    await expect(button(page, RESET_PASSWORD_ACTION)).toBeVisible();
+    // BUG-090: no recovery button inside the strip; the form's "Quên mật khẩu" stays the one route.
+    await expect(button(page, FORGOT_PASSWORD)).toBeVisible();
     await expect(authMain(page, 'error')).toBeVisible();
     await captureEvidence(page, '02_login_wrong.png');
   });

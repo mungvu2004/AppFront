@@ -59,10 +59,10 @@ const FULL_NAME_INVALID =
 const TOO_MANY_TITLE = 'Đã thử quá nhiều lần'; // :152
 const TOO_MANY_RECOVERY = 'Hãy đợi vài phút rồi thử lại.'; // auth.errors.tooManyRecovery :159 (title no longer repeated)
 const RECOVERY_FAILED =
-  'Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.'; // :160 (BUG-015)
+  'Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.'; // :160 (BUG-015, BUG-091)
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // :156
 const ORIGIN_MISMATCH_DESCRIPTION =
-  'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157
+  'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157 (BUG-021)
 const INVITATION_EXPIRED =
   'Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.'; // :180
 const INVITATION_INCOMPLETE =

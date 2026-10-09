@@ -103,7 +103,8 @@ const SUBMITTING = 'Đang gửi…'; // :124
 const OR_DIVIDER = 'Hoặc'; // :126
 const SSO_SIGN_IN = 'Đăng nhập bằng SSO công ty'; // :127
 const FORGOT_PASSWORD = 'Quên mật khẩu'; // :128 (also the panel title :171)
-const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu'; // :129
+// Removed by BUG-090 (80a0ea95): no strip shows it any more; kept only for the `toHaveCount(0)` checks.
+const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu';
 const SHOW_PASSWORD = 'Hiện mật khẩu'; // :130
 const HIDE_PASSWORD = 'Ẩn mật khẩu'; // :131
 const SIGN_IN_ANOTHER_ACCOUNT = 'Đăng nhập bằng tài khoản khác'; // :132
@@ -116,15 +117,15 @@ const FULL_NAME_INVALID =
   'Họ và tên có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Gõ lại họ tên rồi thử lại.'; // :144
 const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu'; // :148
 const INVALID_CREDENTIALS_DESCRIPTION =
-  'Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên.'; // :149
+  'Kiểm tra lại thư điện tử và mật khẩu rồi thử lại. Thông tin bạn đã nhập vẫn được giữ.'; // :149 (BUG-091)
 const TOO_MANY_TITLE = 'Đã thử quá nhiều lần'; // :152
 const TOO_MANY_LOGIN = 'Hãy đợi vài phút rồi đăng nhập lại.'; // :153
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // :156
 const ORIGIN_MISMATCH_DESCRIPTION =
-  'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157
+  'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157 (BUG-021)
 const TOO_MANY_RECOVERY = 'Hãy đợi vài phút rồi thử lại.'; // :159
 const RECOVERY_FAILED =
-  'Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.'; // :160
+  'Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.'; // :160 (BUG-091)
 const VALIDATION_OTHER_TITLE = 'Dữ liệu chưa phù hợp'; // :162
 const VALIDATION_OTHER_DESCRIPTION =
   'Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại.'; // :163
@@ -169,7 +170,7 @@ const GATE_UNREACHABLE_DESCRIPTION = 'Kiểm tra mạng rồi thử lại.'; // 
 const RETRY = 'Thử lại'; // :231, :103
 const OPENING_SESSION = 'Đang mở phiên'; // :238 → PendingShell aria-label :174, visible "…" line :186-192
 const CONNECTION_REGION = 'Trạng thái kết nối'; // :95
-const MID_SESSION_LOST = 'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.'; // :100
+const MID_SESSION_LOST = 'Mất kết nối máy chủ. Kiểm tra mạng rồi bấm Thử lại.'; // :145 (BUG-093)
 const HIDE_CONNECTION_STRIP = 'Ẩn thông báo kết nối'; // :111
 
 /** BE:apps/api/auth/sessions.py:61 REMEMBER_IDLE = 7 days → cookie Max-Age (sessions.py:189). */
@@ -749,12 +750,13 @@ test.describe('E01 SCR-02 Login form', () => {
         caption: `Enter in "Mật khẩu" → POST ${LOGIN_API} × ${posts(requests.sent, LOGIN_API).length} (${status}); focus back in "Mật khẩu"`,
       }); // BUG-034
 
-      await button(page, RESET_PASSWORD_ACTION).focus();
+      // BUG-090: the strip has no reset button; "Quên mật khẩu" (type="button") is the one route.
+      await button(page, FORGOT_PASSWORD).focus();
       await page.keyboard.press('Enter');
       await expect(h1(page, FORGOT_PASSWORD)).toBeVisible();
       await expect(emailBox(page)).toHaveValue(address);
       await nextFrame(page);
-      expect(posts(requests.sent, LOGIN_API), 'Enter on the reset button is not a sign-in').toHaveLength(1);
+      expect(posts(requests.sent, LOGIN_API), 'Enter on "Quên mật khẩu" is not a sign-in').toHaveLength(1);
       await attachJson('E01_enter_submits.json', {
         status,
         loginRequestsAfterEnterInPassword: 1,
@@ -817,16 +819,15 @@ test.describe('E01 SCR-02 Login form', () => {
     }); // BUG-034
   });
 
-  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip and its reset button sit UNDER "Đăng nhập", fields do not move; the reset button is as wide and as tall as "Đăng nhập" (BUG-059)', async ({ page }) => {
-    // f748afb0: the strip's way out is a `size="lg" fullWidth` button under it (AuthScreen.tsx:111-116, 184-188,
-    // BUG-059), the same box as the submit button (:168).
+  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip sits UNDER "Đăng nhập" with no button of its own, fields do not move; "Quên mật khẩu" stays the way out (BUG-090)', async ({ page }) => {
+    // BUG-090 (80a0ea95): a wrong password no longer gets a "Đặt lại mật khẩu" button under the strip;
+    // the form's "Quên mật khẩu" text button is the one way to recover (AuthScreen.tsx stripAction comment).
     // BE:router.py:6-8,173-177: unknown email, `pending` user and wrong password share one path and
     // raise the same INVALID_CREDENTIALS (401, BE:packages/core/error_codes.py:19). The known-address
-    // half is Phase 1 ("ONE wrong password", same title + reset action) — not repeated here so the admin
+    // half is Phase 1 ("ONE wrong password", same title, no reset action) — not repeated here so the admin
     // address spends no failed attempt. FE: useAuthScreen.ts:265-266, 294-300; typed values are kept.
     // An attempt result (state error/success) renders the strip AFTER the submit button (AuthScreen.tsx:129-131,
-    // 180, BUG-008) and the reset action is its own button under the strip (:107-120, BUG-003); the form is
-    // anchored from the top (:291-295), so the email box keeps its place.
+    // 180, BUG-008); the form is anchored from the top, so the email box keeps its place.
     // The 401 body (code) is unreadable in Chromium, so the code itself is asserted from source only.
     const address = nobody('enum');
 
@@ -840,21 +841,20 @@ test.describe('E01 SCR-02 Login form', () => {
     const strip = alertWith(page, INVALID_CREDENTIALS_TITLE);
     await expect(strip).toBeVisible();
     await expect(page.getByText(INVALID_CREDENTIALS_DESCRIPTION, { exact: true })).toBeVisible();
-    await expect(button(page, RESET_PASSWORD_ACTION)).toBeVisible();
-    await expect(strip.getByRole('button'), 'the action is not inside the strip').toHaveCount(0);
+    await expect(button(page, RESET_PASSWORD_ACTION), 'no reset button under the strip (BUG-090)').toHaveCount(0);
+    await expect(strip.getByRole('button'), 'no action inside the strip').toHaveCount(0);
+    await expect(button(page, FORGOT_PASSWORD)).toBeVisible();
     await expect(authMain(page, 'error')).toBeVisible();
     await expect(emailBox(page)).toHaveValue(address);
     await expect(passwordBox(page)).toHaveValue(PROBE_PASSWORD);
 
     const submitBox = await button(page, SIGN_IN_LABEL).boundingBox();
     const stripBox = await strip.boundingBox();
-    const resetBox = await button(page, RESET_PASSWORD_ACTION).boundingBox();
+    const forgotBox = await button(page, FORGOT_PASSWORD).boundingBox();
     const emailTopAfter = (await emailBox(page).boundingBox())?.y;
-    expect(submitBox && stripBox && resetBox, 'boxes').toBeTruthy();
+    expect(submitBox && stripBox && forgotBox, 'boxes').toBeTruthy();
     expect(stripBox!.y, 'strip below the submit button').toBeGreaterThanOrEqual(submitBox!.y + submitBox!.height);
-    expect(resetBox!.y, 'reset button below the strip').toBeGreaterThanOrEqual(stripBox!.y + stripBox!.height);
-    expect(Math.abs(resetBox!.width - submitBox!.width), 'reset button full width like "Đăng nhập", px').toBeLessThanOrEqual(1);
-    expect(Math.abs(resetBox!.height - submitBox!.height), 'reset button as tall as "Đăng nhập", px').toBeLessThanOrEqual(1);
+    expect(forgotBox!.y, '"Quên mật khẩu" below the strip').toBeGreaterThanOrEqual(stripBox!.y + stripBox!.height);
     expect(
       Math.abs((emailTopAfter ?? Number.NaN) - (emailTopBefore ?? Number.NaN)),
       'email box did not move (BUG-008), px',
@@ -863,8 +863,7 @@ test.describe('E01 SCR-02 Login form', () => {
       status,
       submitBottom: submitBox!.y + submitBox!.height,
       stripTop: stripBox!.y,
-      resetTop: resetBox!.y,
-      resetSize: { width: resetBox!.width, height: resetBox!.height },
+      forgotTop: forgotBox!.y,
       submitSize: { width: submitBox!.width, height: submitBox!.height },
       emailTopBefore,
       emailTopAfter,
@@ -1543,9 +1542,10 @@ test.describe('E01 SCR-02 compact 375×812', () => {
     await captureEvidence(page, 'E01_compact_login_375.png', { fullPage: true });
   });
 
-  test('E01 · 375×812: wrong-credentials strip and its "Đặt lại mật khẩu" fit; the action opens the panel with the typed address', async ({ page }) => {
-    // Real 401 (budget: "375 wrong"). The reset button under the strip (AuthScreen.tsx:107-120, BUG-003) →
-    // openForgot (:260-263, 348) → address carried (useAuthScreen.ts:594-597), focus in the panel box.
+  test('E01 · 375×812: wrong-credentials strip and "Quên mật khẩu" fit; the link opens the panel with the typed address', async ({ page }) => {
+    // Real 401 (budget: "375 wrong"). BUG-090: no reset button under the strip any more; "Quên mật khẩu" →
+    // openForgot → address carried (useAuthScreen.ts), focus in the panel box. Below 640 px the text button is
+    // a 44 px touch target (BUG-041, `min-h-[44px] sm:min-h-6`).
     const address = nobody('compact');
 
     await openAnonymousLogin(page);
@@ -1555,13 +1555,15 @@ test.describe('E01 SCR-02 compact 375×812', () => {
 
     expect(status, `POST ${LOGIN_API}`).toBe(401);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
-    const action = await button(page, RESET_PASSWORD_ACTION).boundingBox();
-    expect(action, '"Đặt lại mật khẩu" box').not.toBeNull();
+    await expect(button(page, RESET_PASSWORD_ACTION), 'no reset button under the strip (BUG-090)').toHaveCount(0);
+    const action = await button(page, FORGOT_PASSWORD).boundingBox();
+    expect(action, '"Quên mật khẩu" box').not.toBeNull();
     expect(action!.x + action!.width).toBeLessThanOrEqual(COMPACT.width);
+    expect(action!.height, '"Quên mật khẩu" touch target below 640 px (BUG-041), px').toBeGreaterThanOrEqual(44);
     expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
     await captureEvidence(page, 'E01_compact_wrong_375.png', { fullPage: true });
 
-    await button(page, RESET_PASSWORD_ACTION).click();
+    await button(page, FORGOT_PASSWORD).click();
     await expect(h1(page, FORGOT_PASSWORD)).toBeVisible();
     await expect(emailBox(page)).toHaveValue(address);
     await expect(emailBox(page)).toBeFocused();
