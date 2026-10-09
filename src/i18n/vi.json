@@ -154,7 +154,7 @@
       },
       "originMismatch": {
         "title": "Máy chủ từ chối yêu cầu",
-        "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
+        "description": "Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
       "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
       "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
