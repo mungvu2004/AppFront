@@ -233,6 +233,8 @@ async function queuedCommands(projectId = PROJECT_ID): Promise<QueuedUpload[]> {
  * `waitFor` hụt khi máy tải nặng (verify QA-01c, NO-392 (b)) — nới trần, dưới 5 000 ms của bài.
  */
 const QUEUE_WAIT = { timeout: 4000 };
+// Một bài có thể chờ hàng đợi 2 lần + một waitFor mặc định (≤ 9 s) — trần bài phải trên tổng đó.
+vi.setConfig({ testTimeout: 15_000 });
 const waitForQueue = (check: () => Promise<void>): Promise<void> => waitFor(check, QUEUE_WAIT);
 
 /** Chỉ lệnh `uploadDrawing` của dự án. */

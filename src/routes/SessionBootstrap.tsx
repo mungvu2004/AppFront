@@ -67,6 +67,29 @@ export interface SessionGateProps {
   userId: string | null;
 }
 
+/** Phần tử Tab dừng được — để tìm chỗ đầu tiên của màn con khi tiêu điểm không có chỗ về. */
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Chỗ tiêu điểm về khi gỡ dải mà không biết nó từ đâu tới: `main` nhận tiêu điểm của màn con
+ * nếu có, không thì phần tử Tab dừng được đầu tiên của trang ngoài dải (nợ QA-01 #20, review QA-01c #1).
+ */
+function pageFocusTarget(strip: HTMLElement | null): HTMLElement | null {
+  const main = document.querySelector<HTMLElement>('main[tabindex]');
+  if (main !== null) return main;
+
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).find(
+      // Bỏ phần tử ẩn/`inert`/tabIndex âm: focus() vào đó không ăn, tiêu điểm lại rơi về `body`.
+      (element) =>
+        strip?.contains(element) !== true &&
+        element.tabIndex >= 0 &&
+        element.closest('[hidden], [inert], [aria-hidden="true"]') === null,
+    ) ?? null
+  );
+}
+
 /**
  * Dải mất kết nối giữa phiên, đứng trên màn con vốn có `main` của mình — nên nó là một
  * `region` có tên chứ không bọc `main` (FIX-381, axe `region`).
@@ -84,21 +107,6 @@ export interface SessionGateProps {
  * Câu không hứa "đang tự thử lại": lượt gia hạn dừng hẳn sau
  * `REFRESH_MAX_TRANSIENT_ATTEMPTS` lần (`lib/auth/refresh.ts`), nên chỉ nói điều luôn đúng.
  */
-/** Phần tử Tab dừng được — để tìm chỗ đầu tiên của màn con khi tiêu điểm không có chỗ về. */
-const TABBABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-/**
- * Chỗ tiêu điểm về khi gỡ dải mà không biết nó từ đâu tới: `main` nhận tiêu điểm của màn con
- * nếu có, không thì phần tử Tab dừng được đầu tiên của trang ngoài dải (nợ QA-01 #20, review QA-01c #1).
- */
-function pageFocusTarget(strip: HTMLElement | null): HTMLElement | null {
-  const main = document.querySelector<HTMLElement>('main[tabindex]');
-  if (main !== null) return main;
-
-  return Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).find((element) => strip?.contains(element) !== true) ?? null;
-}
-
 function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   const [dismissed, setDismissed] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);

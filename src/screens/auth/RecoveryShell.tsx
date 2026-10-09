@@ -80,8 +80,8 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
       href={href}
       onClick={(event) => {
         // Chỉ cú bấm trơn đi trong ứng dụng; Ctrl/Cmd/Shift/Alt là trình duyệt mở tab/cửa sổ mới hoặc
-        // tải xuống — để nó làm (nợ QA-01b #10). Nút giữa không tới đây: nó phát `auxclick`, không `click`.
-        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+        // tải xuống — để nó làm (nợ QA-01b #10). Nút giữa thường phát `auxclick`, vẫn chặn phòng xa.
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
           return;
         }
 
