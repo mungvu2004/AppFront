@@ -40,7 +40,7 @@ export function UserManagementPermissionMatrix({
 }: UserManagementPermissionMatrixProps) {
   return (
     <div className="w-full text-[13px]">
-      <p className="mb-2 font-medium text-text-secondary">{captionLabel}</p>
+      {captionLabel !== undefined && <p className="mb-2 font-medium text-text-secondary">{captionLabel}</p>}
 
       <div
         aria-hidden="true"

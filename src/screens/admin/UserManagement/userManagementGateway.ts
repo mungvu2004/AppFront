@@ -117,7 +117,8 @@ export function userActivityKey(userId: string): UserActivityQueryKey {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Nhãn tiếng Việt của ba vai (A6: viết thường, kiểu câu).
+ * Nhãn tiếng Việt của ba vai (A6: viết hoa chữ đầu khi đứng làm nhãn; chèn giữa câu thì
+ * qua `lowerFirst` — xem {@link permissionCellSrLabel}).
  *
  * `Record<ProjectRole, string>` chứ không một đối tượng trần: thêm một vai vào miền thì
  * bảng này KHÔNG biên dịch được nữa, nên không có cách nào để một vai lạ đi qua màn mà
@@ -125,9 +126,9 @@ export function userActivityKey(userId: string): UserActivityQueryKey {
  * (`src/api/schemas/users.ts`).
  */
 export const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.freeze({
-  admin: 'quản trị',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  admin: 'Quản trị',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 });
 
 /** Nhãn tiếng Việt của ba trạng thái tài khoản. */
@@ -170,7 +171,7 @@ interface PermissionRowSpec {
 export const PERMISSION_MATRIX_ROWS = [
   { key: 'floor.upload', label: 'Tải bản vẽ' },
   { key: 'layer.edit', label: 'Sửa hình học' },
-  { key: 'qc.approve', label: 'duyệt QC' },
+  { key: 'qc.approve', label: 'Duyệt QC' },
   { key: 'ruleset.edit', label: 'Đổi bộ luật' },
   { key: 'model.export', label: 'Xuất' },
   { key: 'share.create', label: 'Chia sẻ' },
@@ -189,7 +190,7 @@ export function permissionCellSrLabel(
   rowLabel: string,
   allowed: boolean,
 ): string {
-  return `${ROLE_LABELS[role]}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(rowLabel)}`;
+  return `${lowerFirst(ROLE_LABELS[role])}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(rowLabel)}`;
 }
 
 /**

@@ -17,9 +17,9 @@
  *
  * ## Hai nút, hai tên khác nhau — “mở hộp” không được đọc như “xác nhận” (lớp gộp T9 sửa)
  *
- * Nút mở hộp tên là “gỡ người dùng khỏi hệ thống”, nút trong hộp tên là “xác nhận xoá
- * vĩnh viễn”. Bộ kiểm quét MỌI nút mang tên “xoá hẳn” hoặc “xác nhận xoá” và đòi chúng
- * phải tắt khi email gõ chưa khớp — một nút chỉ để MỞ hộp thì không được tắt, nên nó không
+ * Nút mở hộp tên là “Xoá” — cùng tên với nút trên hàng của bảng, vì hai nút mở cùng một
+ * hộp (BUG-076) — còn nút trong hộp tên là “xác nhận xoá vĩnh viễn”. Bộ kiểm quét MỌI nút
+ * mang tên “xoá hẳn” hoặc “xác nhận xoá” và đòi chúng phải tắt khi email gõ chưa khớp — một nút chỉ để MỞ hộp thì không được tắt, nên nó không
  * được mang cái tên ấy. Đây không phải nới bài kiểm: hành động không đảo được vẫn chỉ xảy
  * ra sau khi gõ đúng email (A9/Đ-8), chỉ có nhãn là nói đúng hơn việc từng nút làm.
  *
@@ -42,7 +42,6 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Tooltip } from '@/components/ui/Tooltip';
 import { initialsOf } from '@/lib/format/initials';
 import { cn } from '@/lib/utils';
 import type { ProjectRole } from '@/types/project';
@@ -95,8 +94,8 @@ function DetailProfile({ user, onClose }: ProfileProps) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="truncate text-[16px] font-semibold text-text-primary">{user.name}</h2>
-        <p className="truncate text-[13px] text-text-secondary">{user.email}</p>
+        <h2 className="text-[16px] font-semibold text-text-primary [overflow-wrap:anywhere]">{user.name}</h2>
+        <p className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{user.email}</p>
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <Badge variant="neutral">{user.roleLabel}</Badge>
           <Badge variant="neutral">{user.statusLabel}</Badge>
@@ -177,20 +176,15 @@ function DetailMemberships({
 
 function ActivityObjectLink({ activity }: { readonly activity: UserActivityRowModel }) {
   if (activity.objectHref === null) {
-    return (
-      <span aria-label={activity.objectLabel} className="w-fit font-mono text-[13px] text-text-muted">
-        {activity.objectCode}
-      </span>
-    );
+    return <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{activity.objectLabel}</span>;
   }
 
   return (
     <a
-      aria-label={activity.objectLabel}
-      className="w-fit font-mono text-[13px] text-accent no-underline hover:underline"
+      className="w-fit text-[13px] text-accent no-underline [overflow-wrap:anywhere] hover:underline"
       href={activity.objectHref}
     >
-      {activity.objectCode}
+      {activity.objectLabel}
     </a>
   );
 }
@@ -212,9 +206,7 @@ function DetailActivities({ activities }: ActivitiesProps) {
             <li className="flex flex-col gap-1" key={activity.id}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-[13px] text-text-primary">{activity.kindLabel}</span>
-                <Tooltip label={activity.atExactLabel}>
-                  <span className="text-[12px] text-text-muted">{activity.atLabel}</span>
-                </Tooltip>
+                <span className="text-[12px] text-text-muted">{activity.atLabel}</span>
               </div>
               <ActivityObjectLink activity={activity} />
             </li>
@@ -241,7 +233,7 @@ function DetailRemoveSection({ onOpenRemove }: RemoveSectionProps) {
     >
       <p className="text-[13px] text-text-secondary">Xoá hẳn người dùng này khỏi hệ thống.</p>
       <Button onClick={onOpenRemove} size="sm" variant="danger">
-        Gỡ người dùng khỏi hệ thống
+        Xoá
       </Button>
     </section>
   );
@@ -259,7 +251,7 @@ export function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProp
     <Modal.Root isOpen={user !== null} onClose={actions.onCloseRemove} width={480}>
       {user !== null && (
         <>
-          <Modal.Header>xoá hẳn {user.name}?</Modal.Header>
+          <Modal.Header>Xoá hẳn {user.name}?</Modal.Header>
           <Modal.Body>
             <div className="flex flex-col gap-4 pb-2">
               <p>{removeConfirm.warningLabel}</p>

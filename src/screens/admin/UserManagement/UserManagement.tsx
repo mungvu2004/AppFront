@@ -193,7 +193,8 @@ export function UserManagement({ model, actions }: UserManagementProps) {
         title={PERMISSION_REFERENCE_MODAL_TITLE}
         width={MODAL_WIDTH}
       >
-        <UserManagementPermissionMatrix captionLabel={PERMISSION_MATRIX_CAPTION} matrix={model.permissionMatrix} />
+        {/* Tiêu đề hộp đã nói đúng câu này — không lặp làm chú thích (BUG-080). */}
+        <UserManagementPermissionMatrix matrix={model.permissionMatrix} />
       </Modal>
     </div>
   );
