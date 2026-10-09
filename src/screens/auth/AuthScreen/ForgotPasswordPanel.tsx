@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input';
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import { FIELD_ERROR_SLOT, RecoveryNoticeStrip } from '../RecoveryShell';
+import { useReturnFocus } from '../useReturnFocus';
 import type { ForgotPasswordActions, ForgotPasswordModel } from './useForgotPassword';
 
 export interface ForgotPasswordPanelProps {
@@ -30,6 +31,7 @@ export interface ForgotPasswordPanelProps {
 
 export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField }: ForgotPasswordPanelProps) {
   const { email, problem, notice, sentMessage, isSending, isSent, canSubmit } = model;
+  const focusReturn = useReturnFocus(isSending);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -51,7 +53,14 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
   );
 
   return (
-    <form className="flex flex-col" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+    <form
+      ref={focusReturn.ref}
+      className="flex flex-col"
+      noValidate
+      onSubmit={handleSubmit}
+      onKeyDown={handleKeyDown}
+      onFocus={focusReturn.onFocus}
+    >
       <Input
         ref={registerEmailField}
         type="email"

@@ -10,7 +10,7 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { networkFailure, okVoid, wireFailure } from '../authTestKit';
+import { dropFocus, networkFailure, okVoid, wireFailure } from '../authTestKit';
 import { __resetFragmentTokenForTests } from '../fragmentToken';
 import { PasswordReset, PasswordResetView, type PasswordResetViewProps } from './PasswordReset';
 import type { PasswordResetPort } from './usePasswordReset';
@@ -381,6 +381,23 @@ describe('PasswordReset — what the server answers', () => {
     expect(within(screen.getByRole('alert')).queryByRole('heading')).toBeNull();
     // Same tone as the connection strips of the gate and the invitation screen (BUG-020).
     expect(screen.getByRole('alert').className).toMatch(/state-attention/u);
+  });
+
+  it('gives focus back to the box it was in once a failure unlocks the form, not body (nợ QA-01 #21)', async () => {
+    const { port } = makePort(networkFailure());
+    const { container } = render(<PasswordReset port={port} />);
+    const confirm = field(AUTH.fields.confirmPassword);
+
+    confirm.focus();
+    fillAndSubmit(container);
+    dropFocus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('error');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(confirm);
+    });
   });
 
   it('names a 429 once, in the heading, not again in the sentence (BUG-021)', async () => {

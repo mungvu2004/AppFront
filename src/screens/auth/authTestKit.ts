@@ -42,3 +42,15 @@ export const networkFailure = (): Result<never, HttpError> => ({
 });
 
 export const okVoid = (): Result<void, never> => ({ ok: true, data: undefined });
+
+/**
+ * Thả tiêu điểm về `body` như trình duyệt làm với phần tử vừa bị `disabled` lúc gửi. jsdom không
+ * làm thế (và `blur()` trên phần tử đã khoá không làm gì), nên đi vòng qua một nút tạm (nợ QA-01 #21).
+ */
+export function dropFocus(): void {
+  const sink = document.createElement('button');
+
+  document.body.append(sink);
+  sink.focus();
+  sink.remove();
+}

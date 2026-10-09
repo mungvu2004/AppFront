@@ -51,6 +51,7 @@ import {
 } from './useAuthScreen';
 import { PasswordField } from '../PasswordField';
 import { FIELD_ERROR_SLOT } from '../RecoveryShell';
+import { useReturnFocus } from '../useReturnFocus';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
 import { ValuePanel } from './ValuePanel';
 
@@ -69,6 +70,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   const { values, problems, isSubmitting, canSubmit, submitLabel, notice, state } = model;
   const isDone = state === 'success';
   const fieldsDisabled = isSubmitting || isDone;
+  const focusReturn = useReturnFocus(isSubmitting);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -114,7 +116,14 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
       : notice?.action;
 
   return (
-    <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+    <form
+      ref={focusReturn.ref}
+      className="flex flex-col gap-6"
+      noValidate
+      onSubmit={handleSubmit}
+      onKeyDown={handleKeyDown}
+      onFocus={focusReturn.onFocus}
+    >
       {/* No gap here: each field keeps room for a two-line complaint, and that room is the spacing,
           so a complaint appearing or going moves nothing under the cursor (BUG-008). */}
       <div className="flex flex-col">

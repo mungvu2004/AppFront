@@ -10,7 +10,7 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { networkFailure, okVoid, wireFailure } from '../authTestKit';
+import { dropFocus, networkFailure, okVoid, wireFailure } from '../authTestKit';
 import { __resetFragmentTokenForTests } from '../fragmentToken';
 import { InvitationAccept, InvitationAcceptView, type InvitationAcceptViewProps } from './InvitationAccept';
 import type { InvitationAcceptPort } from './useInvitationAccept';
@@ -398,6 +398,23 @@ describe('InvitationAccept — what the server answers', () => {
 
     await waitFor(() => {
       expect(stateOf(container)).toBe('error');
+    });
+  });
+
+  it('gives focus back to the box it was in once a failure unlocks the form, not body (nợ QA-01 #21)', async () => {
+    const { port } = makePort({ reply: networkFailure() });
+    const { container } = render(<InvitationAccept port={port} />);
+    const confirm = screen.getByLabelText(AUTH.fields.confirmPassword);
+
+    confirm.focus();
+    fillAndSubmit(container);
+    dropFocus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('error');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(confirm);
     });
   });
 });
