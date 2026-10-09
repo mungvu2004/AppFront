@@ -97,7 +97,7 @@ test('B-V4-03: xoá một bản vẽ đã gắn rồi bấm "Hoàn tác" trả n
   await attach(page, THREE_FLOORS);
   await expect(counter(page)).toHaveText(/4 \/ 4 tầng đã có bản vẽ/);
 
-  await page.getByRole('button', { name: 'Tùy chọn của tầng Tầng 2' }).click();
+  await page.getByRole('button', { name: 'Tuỳ chọn của tầng Tầng 2' }).click();
   await page.getByRole('button', { name: 'Xoá bản vẽ tang-2.png' }).click();
 
   // Không hộp thoại — xoá ngay, đường về là toast (A8).
@@ -127,9 +127,9 @@ test('B-V4-07: nút tuỳ chọn của thẻ nói nó mở hay đóng, Esc đón
   await attach(page, [pngFile('tang-2.png')]);
 
   // Tầng 1 chỉ có bản vẽ sẵn trên máy chủ: không huỷ, không thử lại, không xoá.
-  await expect(page.getByRole('button', { name: 'Tùy chọn của tầng Tầng 1' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tuỳ chọn của tầng Tầng 1' })).toHaveCount(0);
 
-  const options = page.getByRole('button', { name: 'Tùy chọn của tầng Tầng 2' });
+  const options = page.getByRole('button', { name: 'Tuỳ chọn của tầng Tầng 2' });
   await expect(options).toHaveAttribute('aria-expanded', 'false');
 
   await options.click();

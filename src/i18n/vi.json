@@ -652,7 +652,7 @@
       "fileInfo": "{{fileName}} · {{fileSize}} · {{pageCount}} trang",
       "reassignLabel": "Gán cho tầng khác",
       "pagePickerLabel": "Chọn trang",
-      "menuButton": "Tùy chọn của tầng {{floorName}}"
+      "menuButton": "Tuỳ chọn của tầng {{floorName}}"
     },
     "status": {
       "waiting": "Chờ xử lý",

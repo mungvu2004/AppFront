@@ -190,7 +190,7 @@ export const ADVANCED_OPTIONS_LABEL = 'Tuỳ chọn nhập';
 /** Nhãn select "Đơn vị bản vẽ" trong phần tuỳ chọn. */
 export const DRAWING_UNIT_LABEL = 'Đơn vị bản vẽ';
 
-/** Các tùy chọn đơn vị. */
+/** Các tuỳ chọn đơn vị. */
 export const DRAWING_UNITS: Readonly<Record<string, string>> = {
   mm: 'Milimét (mm)',
   cm: 'Centimét (cm)',
@@ -312,7 +312,7 @@ export const CAD_SPECIFIC_ERRORS = {
   fileTooLarge: (sizeMb: string): string =>
     `Tệp bản vẽ quá lớn (${sizeMb} MB). Vui lòng tải lên tệp dưới 100 MB hoặc tách tệp thành các phần nhỏ hơn.`,
 
-  /** Khi tệp chứa mã hóa không được hỗ trợ. */
+  /** Khi tệp chứa mã hoá không được hỗ trợ. */
   encodingNotSupported:
     'Tệp bản vẽ chứa mã hoá không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hoá tiêu chuẩn.',
 } as const;
