@@ -306,7 +306,7 @@ export interface UserManagementToolbarProps {
   readonly summary: SummaryModel;
   readonly invite: InviteFormModel;
   readonly actions: UserManagementActions;
-  /** Ô "Tìm người dùng" — view đưa tiêu điểm về đây sau "Xoá tìm kiếm" (BUG-082, A12). */
+  /** Ô "Tìm người dùng" — view đưa tiêu điểm về đây sau "Xoá tìm kiếm và bộ lọc" (BUG-082, A12). */
   readonly searchRef?: Ref<HTMLInputElement> | undefined;
 }
 

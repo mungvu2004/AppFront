@@ -3754,7 +3754,7 @@
       "headerActions": "Hành động",
       "noMatchTitle": "Không tìm thấy người dùng",
       "noMatchDescription": "Không ai khớp với từ khoá hoặc bộ lọc đang chọn.",
-      "clearSearch": "Xoá tìm kiếm",
+      "clearSearch": "Xoá tìm kiếm và bộ lọc",
       "inviteExpiredLabel": "Lời mời đã hết hạn",
       "resendInviteLabel": "Gửi lại",
       "disableUserLabel": "Vô hiệu hoá",

@@ -38,7 +38,8 @@ const HEADER_STATUS = 'Trạng thái';
 const HEADER_ACTIONS = 'Hành động';
 const NO_MATCH_TITLE = 'Không tìm thấy người dùng';
 const NO_MATCH_DESCRIPTION = 'Không ai khớp với từ khoá hoặc bộ lọc đang chọn.';
-const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm';
+// Nút đặt lại cả ô tìm lẫn hai bộ lọc (`onClearSearch`), nên nhãn nói đủ cả hai.
+const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm và bộ lọc';
 const INVITE_EXPIRED_LABEL = 'Lời mời đã hết hạn';
 const RESEND_INVITE_LABEL = 'Gửi lại';
 const DISABLE_LABEL = 'Vô hiệu hoá';

@@ -125,7 +125,7 @@ function renderContent(model: UserManagementViewModel, actions: UserManagementAc
 }
 
 export function UserManagement({ model, actions }: UserManagementProps) {
-  // "Xoá tìm kiếm" nằm trong khối không-khớp, khối ấy biến mất ngay khi bấm: đưa tiêu điểm về ô
+  // "Xoá tìm kiếm và bộ lọc" nằm trong khối không-khớp, khối ấy biến mất ngay khi bấm: đưa tiêu điểm về ô
   // tìm, đừng để nó rơi về `body` (BUG-082, A12).
   const searchRef = useRef<HTMLInputElement>(null);
   const contentActions: UserManagementActions = {

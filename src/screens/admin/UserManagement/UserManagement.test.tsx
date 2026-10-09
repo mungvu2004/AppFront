@@ -366,7 +366,7 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
 
     expect(await screen.findByRole('heading', { name: 'Không tìm thấy người dùng' })).toBeInTheDocument();
     expect(screen.queryByText('Không có dữ liệu')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Xoá tìm kiếm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá tìm kiếm và bộ lọc' }));
     expect(actions.onClearSearch).toHaveBeenCalledTimes(1);
     // Khối không-khớp biến mất cùng nút: tiêu điểm về ô tìm, không rơi về `body` (A12).
     expect(document.activeElement).toBe(screen.getByLabelText('Tìm người dùng'));
