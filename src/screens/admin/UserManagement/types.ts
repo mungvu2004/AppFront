@@ -44,6 +44,8 @@
  * phải một thứ đã được ai đó duyệt.
  */
 
+import type { Ref } from 'react';
+
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { ProjectRole } from '@/types/project';
 
@@ -304,6 +306,8 @@ export interface UserManagementToolbarProps {
   readonly summary: SummaryModel;
   readonly invite: InviteFormModel;
   readonly actions: UserManagementActions;
+  /** Ô "Tìm người dùng" — view đưa tiêu điểm về đây sau "Xoá tìm kiếm" (BUG-082, A12). */
+  readonly searchRef?: Ref<HTMLInputElement> | undefined;
 }
 
 export interface UserManagementTableProps {
