@@ -13,8 +13,8 @@
  * - Settings: "Ghi chú"/units → `PUT /api/projects/:id/settings` `{baseVersion, body}` only
  *   (`projectSettingsGateway.ts` `writeUnits`); name/code/address → `PATCH /api/projects/:id` with
  *   only those keys (`toWireBody`). Autosave 800 ms (`createAutosave`). Toast "Đã lưu cài đặt dự án.".
- *   Labels: address input is "địa chỉ" (lower case, `GeneralTab.tsx`); unit options are
- *   "Milimét (mm)" / "mét (m)" (lower case m, `useProjectSettings.ts` LENGTH_UNIT_OPTIONS).
+ *   Labels: address input is "Địa chỉ" (`GeneralTab.tsx`); unit options are
+ *   "Milimét (mm)" / "Mét (m)" (`useProjectSettings.ts` LENGTH_UNIT_OPTIONS; capitalised by BUG-099, A6).
  * - Floors: `POST /api/projects/:id/floors` → `FloorSchema` (`id`, `name`, `heightMm`, `elevationMm`);
  *   field edits → `PATCH /api/projects/:id/floors/:fid/spatial` (→ `FloorSchema`); reorder →
  *   `PATCH /api/floors/reorder` `{floorIds}`. Row `<tr aria-label="{name}, cao độ …">`; section band
@@ -182,8 +182,8 @@ test.describe('SCR-08 Project Settings', () => {
   });
 
   test('SCR-08 "Địa chỉ" edit → PATCH /projects/:id (name/code/address only)', async () => {
-    // Source label is lower case "địa chỉ" (GeneralTab.tsx).
-    const address = page.getByRole('textbox', { name: 'địa chỉ', exact: true });
+    // GeneralTab.tsx label "Địa chỉ" (A6, BUG-099).
+    const address = page.getByRole('textbox', { name: 'Địa chỉ', exact: true });
     const value = `e2e địa chỉ ${String(Date.now())}`;
     const patch = waitForApi(page, 'PATCH', projectPath(), [200]);
 
@@ -195,13 +195,13 @@ test.describe('SCR-08 Project Settings', () => {
     await captureEvidence(page, '08_settings_address_patch.png');
   });
 
-  test('SCR-08 "Đơn vị chiều dài" → "mét (m)" then back to "Milimét (mm)" → PUT settings ×2', async () => {
+  test('SCR-08 "Đơn vị chiều dài" → "Mét (m)" then back to "Milimét (mm)" → PUT settings ×2', async () => {
     await page.getByRole('tablist', { name: 'Nhóm cài đặt', exact: true }).getByRole('tab', { name: 'Đơn vị đo', exact: true }).click();
     const unit = page.getByRole('combobox', { name: 'Đơn vị chiều dài', exact: true });
     await expect(unit).toContainText('Milimét (mm)');
 
     for (const [label, wire] of [
-      ['mét (m)', 'm'],
+      ['Mét (m)', 'm'],
       ['Milimét (mm)', 'mm'],
     ] as const) {
       const put = waitForApi(page, 'PUT', settingsPath(), [200]);
