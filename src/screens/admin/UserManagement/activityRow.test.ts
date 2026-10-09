@@ -1,4 +1,4 @@
-/** BUG-084 â€” dÃ²ng "Hoáº¡t Ä‘á»™ng gáº§n Ä‘Ã¢y": khÃ´ng mÃ£ ná»™i bá»™, má»‘c cÃ³ cáº£ ngÃ y láº«n giá». */
+/** BUG-084 — dòng "Hoạt động gần đây": không mã nội bộ, mốc có cả ngày lẫn giờ. */
 import { describe, expect, it } from 'vitest';
 
 import { formatCalendarDate, formatClockTime } from '@/lib/format/datetime';
@@ -15,12 +15,12 @@ describe('toActivityRow (BUG-084)', () => {
     objectLabel: 'e2e-admin@example.test',
   });
 
-  it('hiá»‡n nhÃ£n Ä‘á»c Ä‘Æ°á»£c (email), khÃ´ng hiá»‡n mÃ£ ULID', () => {
+  it('hiện nhãn đọc được (email), không hiện mã ULID', () => {
     expect(row.objectLabel).toBe('e2e-admin@example.test');
     expect(JSON.stringify(row)).not.toContain('usr_01M4FC');
   });
 
-  it('má»‘c thá»i gian cÃ³ ngÃ y vÃ  giá»', () => {
+  it('mốc thời gian có ngày và giờ', () => {
     expect(row.atLabel).toBe(`${formatCalendarDate(new Date(at))} ${formatClockTime(new Date(at))}`);
     expect(row.atLabel).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/u);
   });
