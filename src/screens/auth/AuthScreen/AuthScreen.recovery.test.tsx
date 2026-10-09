@@ -401,6 +401,24 @@ describe('AuthScreen — focus survives a send (nợ QA-01 #21)', () => {
     elsewhere.remove();
   });
 
+  it('a disabled account takes the form away: focus lands on the way out, not body', async () => {
+    const { container } = setup({ signIn: wireFailure(403, { code: 'ACCOUNT_DISABLED' }) });
+    const password = screen.getByLabelText(AUTH.fields.password);
+
+    type(AUTH.fields.email, EMAIL);
+    type(AUTH.fields.password, PASSWORD);
+    password.focus();
+    fireEvent.keyDown(password, { key: 'Enter' });
+    dropFocus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('forbidden');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: AUTH.actions.signInWithAnotherAccount }));
+    });
+  });
+
   it('forgot panel: the send button stays locked after a send, so focus lands on the email box', async () => {
     const { container } = setup();
 

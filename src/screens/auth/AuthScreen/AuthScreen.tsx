@@ -282,6 +282,14 @@ export function AuthScreenView(props: AuthScreenViewProps) {
     setCollapsed(false);
   }, [setCollapsed]);
 
+  /* The disabled-account strip replaces the form that held focus: catch it on the way out of the
+     strip rather than leave it on `body` — only when it is there, not to pull it from anyone. */
+  const catchDroppedFocus = useCallback((element: HTMLButtonElement | null) => {
+    if (element !== null && (document.activeElement === null || document.activeElement === document.body)) {
+      element.focus();
+    }
+  }, []);
+
   const reopenForm = useCallback(() => {
     wantsFocus.current = true;
     signInWithAnotherAccount();
@@ -348,7 +356,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
                 title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
                 message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
               />
-              <Button type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
+              <Button ref={catchDroppedFocus} type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
                 {AUTH_MESSAGES.actions.signInWithAnotherAccount}
               </Button>
             </div>
