@@ -12,6 +12,7 @@ import {
   CONTRAST_MINIMUM_BODY,
   CONTRAST_MINIMUM_LARGE,
   contrastRatio,
+  parseColor,
   parsePalette,
   type Palette,
 } from '../legend';
@@ -38,13 +39,23 @@ const SURFACES: ColorTokenName[] = [
   '--accent-wash',
 ];
 
+const TINTS: ColorTokenName[] = [
+  '--state-violation-tint',
+  '--state-attention-tint',
+  '--state-verified-tint',
+  '--danger-tint',
+];
+
 const TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
   ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--text-primary', bg]),
   ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--text-secondary', bg]),
   ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--text-muted', bg]),
   ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--accent', bg]),
-  ['--text-muted', '--state-violation-tint'],
-  ['--text-muted', '--state-attention-tint'],
+  // Nền tint trạng thái: chữ muted và chữ accent (liên kết trong dải báo) sát ngưỡng ~4,8:1.
+  ...TINTS.flatMap((bg): [ColorTokenName, ColorTokenName][] => [
+    ['--text-muted', bg],
+    ['--accent', bg],
+  ]),
   ['--bg-surface', '--accent'],
   ['--bg-surface', '--accent-hover'],
 ];
@@ -70,9 +81,33 @@ function ratio(palette: Palette, first: ColorTokenName, second: ColorTokenName):
   return contrastRatio(palette[first] ?? '', palette[second] ?? '');
 }
 
+/** `--bg-hover` là rgba: trộn lên nền bên dưới thành một màu đặc rồi mới đo. */
+function hoverOver(palette: Palette, base: ColorTokenName): string {
+  const hover = parseColor(palette['--bg-hover'] ?? '');
+  const under = parseColor(palette[base] ?? '');
+  if (hover === null || under === null) return '';
+  const mix = (top: number, bottom: number): number => top * hover.alpha + bottom * (1 - hover.alpha);
+  return `rgb(${String(mix(hover.red, under.red))}, ${String(mix(hover.green, under.green))}, ${String(mix(hover.blue, under.blue))})`;
+}
+
+/** Hàng đang trỏ chuột: chữ muted và accent trên `--bg-hover` trộn lên app/surface (sáng 4,59–4,61:1 trên app). */
+const HOVER_PAIRS: [ColorTokenName, ColorTokenName][] = [
+  ['--text-muted', '--bg-app'],
+  ['--text-muted', '--bg-surface'],
+  ['--accent', '--bg-app'],
+  ['--accent', '--bg-surface'],
+];
+
 describe.each(Object.entries(THEMES))('chủ đề %s', (_name, palette) => {
   it.each(TEXT_PAIRS)('chữ %s trên %s đạt 4,5:1', (text, bg) => {
     expect(ratio(palette, text, bg)).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
+  });
+
+  it.each(HOVER_PAIRS)('chữ %s trên `--bg-hover` trộn lên %s đạt 4,5:1', (text, base) => {
+    const surface = hoverOver(palette, base);
+
+    expect(surface).not.toBe('');
+    expect(contrastRatio(palette[text] ?? '', surface)).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
   });
 
   it.each(HIERARCHY_PAIRS)('bậc chữ %s tách khỏi %s ít nhất 1,2:1', (first, second) => {
