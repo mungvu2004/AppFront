@@ -917,6 +917,17 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     expect(onNavigate).toHaveBeenCalledWith('/');
   });
 
+  it('cấp "Dự án" của breadcrumb về danh sách dự án (review-1)', async () => {
+    const onNavigate = vi.fn();
+
+    await mountScreen(clock, { onNavigate });
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
+    expect(onNavigate).toHaveBeenCalledWith('/');
+  });
+
   it('có bản vẽ thì nút bấm được', async () => {
     await mountScreen(clock, {});
     await selectMeasuredFloor(clock);

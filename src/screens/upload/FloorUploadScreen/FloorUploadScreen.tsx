@@ -193,7 +193,11 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
       <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8">
         <Breadcrumb
           items={[
-            { id: 'projects', label: BREADCRUMB_PROJECTS },
+            {
+              id: 'projects',
+              label: BREADCRUMB_PROJECTS,
+              ...(props.onBackToProjects ? { onClick: props.onBackToProjects } : {}),
+            },
             { id: 'current', label: BREADCRUMB_UPLOAD },
           ]}
         />

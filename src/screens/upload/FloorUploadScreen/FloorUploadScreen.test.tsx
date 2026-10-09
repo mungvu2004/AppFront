@@ -186,6 +186,18 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
 /* Bộ khẳng định dùng chung (R-72).                                            */
 /* -------------------------------------------------------------------------- */
 
+describe('FloorUploadScreenView — breadcrumb', () => {
+  it('cấp "Dự án" về danh sách dự án khi có lối về (review-1)', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('success')} onBackToProjects={onBackToProjects} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('FloorUploadScreenView — khả năng tiếp cận và tiếng Việt (R-72)', () => {
   it('nút tuỳ chọn của thẻ nói bảng đang mở hay đóng, và chỉ có mặt khi có mục để chọn (B-V4-07)', () => {
     const scenario = scenarioFor('partial');

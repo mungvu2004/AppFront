@@ -548,6 +548,16 @@ describe('breadcrumb chung (BUG-079)', () => {
     expect(nav.textContent).not.toContain('>');
     expect(within(nav).queryByRole('button')).toBeNull();
   });
+
+  it('có lối về thì cấp "Dự án" là nút về danh sách dự án (review-1)', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onBackToProjects={onBackToProjects} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('dự án không tồn tại (BUG-032)', () => {

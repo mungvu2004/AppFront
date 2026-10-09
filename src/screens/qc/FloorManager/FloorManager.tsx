@@ -65,10 +65,7 @@ import type { FloorManagerViewProps } from './floorManagerTypes';
 
 const SCREEN_TITLE = 'Quản lý tầng';
 /** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
-const SCREEN_BREADCRUMB = [
-  { id: 'projects', label: 'Dự án' },
-  { id: 'floors', label: SCREEN_TITLE },
-] as const;
+const BREADCRUMB_PROJECTS = 'Dự án';
 const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -98,7 +95,17 @@ export function FloorManager(props: FloorManagerViewProps) {
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
       <header className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-1 px-8 pb-1 pt-8">
-        <Breadcrumb items={SCREEN_BREADCRUMB} />
+        <Breadcrumb
+          items={[
+            // Cấp "Dự án" về được danh sách dự án khi nơi gọi cho lối về.
+            {
+              id: 'projects',
+              label: BREADCRUMB_PROJECTS,
+              ...(props.onBackToProjects ? { onClick: props.onBackToProjects } : {}),
+            },
+            { id: 'floors', label: SCREEN_TITLE },
+          ]}
+        />
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>

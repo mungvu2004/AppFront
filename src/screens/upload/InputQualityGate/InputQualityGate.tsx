@@ -202,7 +202,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <Breadcrumb
           items={[
-            { id: 'projects', label: BREADCRUMB_PROJECTS },
+            { id: 'projects', label: BREADCRUMB_PROJECTS, onClick: actions.onBackToProjects },
             { id: 'current', label: BREADCRUMB_QUALITY },
           ]}
         />

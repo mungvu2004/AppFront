@@ -394,7 +394,7 @@ export interface FloorManagerViewProps {
   readonly onUploadDrawing: (floorId: string) => void;
   readonly onToggleCollapsed: () => void;
   readonly onRetry: () => void;
-  /** Lối về danh sách dự án khi {@link FloorManagerViewProps.isProjectMissing}; vắng thì không vẽ nút. */
+  /** Lối về danh sách dự án: nút khi {@link FloorManagerViewProps.isProjectMissing} và cấp "Dự án" của breadcrumb; vắng thì không vẽ nút, cấp ấy là chữ trơn. */
   readonly onBackToProjects?: (() => void) | undefined;
   readonly onUndo: () => void;
 }
