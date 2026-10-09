@@ -33,6 +33,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApiClient } from '@/api/client';
+// Nạp TĨNH, ở pha collect: `VersionVisualDiff` `import()` lười module này mỗi lần view vẽ. Không nạp
+// trước thì lượt nhập (three.js, ~600 ms lúc máy rảnh) còn treo sang bài sau, và
+// `vi.dynamicImportSettled()` của `requestAndConfirm` — chờ MỌI lượt nhập đang dở — chờ luôn nó:
+// máy tải nặng là bài F-08 đầu tiên hết 5 000 ms rồi kéo đổ cả khối (QA-01c nợ #12).
+import '@/screens/viewer/Viewer3D';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { queryKeys } from '@/lib/query/queryKeys';
