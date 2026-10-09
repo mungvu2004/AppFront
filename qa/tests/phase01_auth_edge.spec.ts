@@ -2650,7 +2650,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   test.describe('375×812', () => {
     test.use({ viewport: COMPACT });
 
-    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu" ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052)', async ({ page }) => {
+    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu", "Ghi nhớ máy này" and "Về trang đăng nhập" on the reset form ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
       // Input.tsx:61-64 `h-[46px] sm:h-[38px]`; buttonVariants.ts:16-17 lg `h-11 … sm:h-10`; PasswordField.tsx:65-66
       // `h-11 w-11 … sm:h-6 sm:w-6`; AuthScreen.tsx:211-215 `py-1` text button; RecoveryShell.tsx:21-24 `px-6 … sm:px-12`.
       // Run-06 measured 44 for the 46 px box: the panel was still in `animate-panel-rise` (a transform scale,
@@ -2672,8 +2672,17 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(eye.width, 'eye width').toBe(44);
       expect(eye.height, 'eye height').toBe(44);
       expect(forgot.height, '"Quên mật khẩu"').toBeGreaterThanOrEqual(24);
+      // BUG-098: every control on the shot is measured. The checkbox input is `sr-only` inside its label
+      // (Checkbox.tsx:40-57, label `min-h-[32px]`), so the touch target is the label; the drawn box is 18 px.
+      // Bug threshold 24 px (WCAG 2.5.8, soft so the shot is still taken); 44 px is the recommendation, recorded.
+      const remember = await layoutSize(rememberBox(page).locator('xpath=ancestor::label[1]'));
+      expect.soft(remember.height, `"${REMEMBER_ME}" label (touch target) height`).toBeGreaterThanOrEqual(24);
+      expect.soft(remember.width, `"${REMEMBER_ME}" label (touch target) width`).toBeGreaterThanOrEqual(24);
       expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
-      await captureEvidence(page, 'E01_touch_targets_login_375.png', { fullPage: true });
+      await captureEvidence(page, 'E01_touch_targets_login_375.png', {
+        fullPage: true,
+        caption: `field ${field.height} · "Đăng nhập" ${submit.height} · eye ${eye.width}×${eye.height} · "Quên mật khẩu" ${forgot.width}×${forgot.height} · "${REMEMBER_ME}" ${remember.width}×${remember.height} (bug < 24, recommended 44)`,
+      });
 
       await openRecoveryForm(page, recoveryForm('reset'), 'touch');
       await animationsSettled(page);
@@ -2686,17 +2695,28 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(padding, 'recovery side margins below 640').toEqual({ left: '24px', right: '24px' });
       expect(titleBox, 'title box').not.toBeNull();
       expect(Math.round(titleBox!.x), 'title starts at the 24 px margin').toBe(24);
+      // BUG-098: the reset form's "Về trang đăng nhập" (RecoveryLink, PasswordReset.tsx:104-110) is measured too.
+      const backLink = await layoutSize(page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }));
+      expect.soft(backLink.height, `"${GO_TO_SIGN_IN}" height`).toBeGreaterThanOrEqual(24);
       expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
       await attachJson('E01_touch_targets_375.json', {
         measuredWith: 'offsetWidth/offsetHeight, reducedMotion=reduce, animations settled',
+        thresholds: { bugBelowPx: 24, recommendedPx: 44 },
         fieldBoxHeight: field.height,
         inputHeight: input.height,
         submitHeight: submit.height,
         eye,
         forgot,
+        rememberLabel: remember,
+        rememberMeets44: remember.width >= 44 && remember.height >= 44,
+        resetBackLink: backLink,
+        resetBackLinkMeets44: backLink.width >= 44 && backLink.height >= 44,
         recoveryPadding: padding,
       });
-      await captureEvidence(page, 'E01_touch_targets_reset_375.png', { fullPage: true });
+      await captureEvidence(page, 'E01_touch_targets_reset_375.png', {
+        fullPage: true,
+        caption: `side margins ${padding.left}/${padding.right} · "${GO_TO_SIGN_IN}" ${backLink.width}×${backLink.height} (bug < 24, recommended 44)`,
+      });
     });
   });
 });
