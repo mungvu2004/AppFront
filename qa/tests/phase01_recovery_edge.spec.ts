@@ -31,7 +31,7 @@ import type { Page, Request, Response, Route } from '@playwright/test';
 
 import { ROUTES, pathOf } from '../../e2e/fixtures/routes';
 import { PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
-import { signInAdmin } from './support/auth';
+import { BE_SHORT_PASSWORD, signInAdmin } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 
 /** `src/api/endpoints.ts:86-91` under the `/api` base; logout = `src/lib/auth/session.ts:42,200`. */
@@ -527,10 +527,15 @@ test.describe('SCR-03 InvitationAccept edges', () => {
     await expect(page.getByText(FULL_NAME_REQUIRED, { exact: true }), 'not "chưa nhập" under a typed name').toHaveCount(0);
     await expect(authMain(page, 'partial')).toBeVisible();
 
+    // BUG-094: the password half with a password the real BE answers 422 for (4 code points, 8 UTF-16 units).
+    await field(page, PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
+    await field(page, CONFIRM_PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
     await button(page, ACCEPT_INVITATION).click();
     await expect(field(page, PASSWORD_LABEL)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
     await expect(field(page, FULL_NAME_LABEL)).toHaveValue('E2E QA');
-    await captureEvidence(page, 'E01_rec_invite_server_field.png');
+    await captureEvidence(page, 'E01_rec_invite_server_field.png', {
+      caption: '[mocked response] 422 VALIDATION field "password"; boxes: 4 astral chars (BE counts 4 < 8) — real pair A01_accept_422_password',
+    });
   });
 
   test('SCR-03 · real BE: name with U+202E (bidi override) → 422 field fullName → "Họ và tên có ký tự không dùng được…" under the typed name (BUG-016)', async ({ page }) => {
@@ -746,13 +751,17 @@ test.describe('SCR-04 PasswordReset edges', () => {
     await mockPost(page, PASSWORD_RESET_CONFIRM_API, wire(422, { code: 'VALIDATION', field: 'newPassword', count: 1 }));
 
     await openForm(page, RESET, fakeToken('reset-vfield'));
-    await RESET.fillValid(page);
+    // BUG-094: a new password the real BE answers 422 for (4 code points) and the FE still sends (8 UTF-16 units).
+    await field(page, NEW_PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
+    await field(page, CONFIRM_PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
     await button(page, SET_NEW_PASSWORD).click();
 
     await expect(field(page, NEW_PASSWORD_LABEL)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
     await expect(authMain(page, 'partial')).toBeVisible();
     await expect(button(page, SET_NEW_PASSWORD)).toBeEnabled();
-    await captureEvidence(page, 'E01_rec_reset_server_field.png');
+    await captureEvidence(page, 'E01_rec_reset_server_field.png', {
+      caption: '[mocked response] 422 VALIDATION field "newPassword"; boxes: 4 astral chars (BE counts 4 < 8) — real pair A01_confirm_422_new_password',
+    });
   });
 
   test('SCR-04 · [mocked response] 204 → success line → signOut (POST logout) → /login with "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới."; F5 drops the notice', async ({ page }) => {

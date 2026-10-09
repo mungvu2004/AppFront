@@ -71,7 +71,7 @@ import { ROUTES, UNKNOWN_PATH, loginUrl, pathOf } from '../../e2e/fixtures/route
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl, newApiContext, signedInApi } from './support/api';
-import { DASHBOARD_TITLE, dashboardLoaded, readAdminCredentials, signInAdmin } from './support/auth';
+import { BE_SHORT_PASSWORD, DASHBOARD_TITLE, dashboardLoaded, readAdminCredentials, signInAdmin } from './support/auth';
 import { TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
 
@@ -1144,14 +1144,17 @@ test.describe('E01 SCR-02 Login failures', () => {
 
     await openAnonymousLogin(page);
     await emailBox(page).fill(nobody('m422'));
-    await passwordBox(page).fill(PROBE_PASSWORD);
+    // BUG-094: a password the real BE answers 422 for (4 code points) and the FE still sends (8 UTF-16 units).
+    await passwordBox(page).fill(BE_SHORT_PASSWORD);
     await button(page, SIGN_IN_LABEL).click();
 
     await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
     await expect(page.getByText(VALIDATION_OTHER_TITLE, { exact: true })).toHaveCount(0);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toHaveCount(0);
     await expect(authMain(page, 'error')).toBeVisible();
-    await captureEvidence(page, 'E01_login_validation_password.png');
+    await captureEvidence(page, 'E01_login_validation_password.png', {
+      caption: `[mocked response] 422 VALIDATION field "password"; box: 4 astral chars (FE 8 UTF-16 units ≥ 8, BE 4 code points < 8) — real pair A01_login_422_password`,
+    });
 
     await button(page, SIGN_IN_LABEL).click();
     await expect(page.getByText(VALIDATION_OTHER_TITLE, { exact: true })).toBeVisible();

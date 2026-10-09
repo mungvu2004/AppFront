@@ -59,3 +59,12 @@ export async function dashboardLoaded(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: DASHBOARD_TITLE, exact: true })).toBeVisible();
   await expect(page.locator('main .animate-pulse'), 'project list loaded (no skeleton card left)').toHaveCount(0);
 }
+
+/**
+ * BUG-094: a password the FE lets through but the BE rejects as too short. Four astral characters are 8 UTF-16
+ * units for zod `.min(8)` (`src/api/schemas/index.ts:74`, `schemas/auth.ts:21` measure `.length`) and 4 code
+ * points for pydantic `min_length=8` (BE:apps/api/auth/router.py:72, auth_recovery/router.py:88,96), so the real
+ * stack answers 422 VALIDATION on the password field. A mocked password 422 shows THIS value in the box — a state
+ * a person can reach — and `phase01_auth_api.spec.ts` proves the real 422 with the same value.
+ */
+export const BE_SHORT_PASSWORD = '\u{1F511}'.repeat(4);
