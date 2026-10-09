@@ -71,8 +71,8 @@ import { ROUTES, UNKNOWN_PATH, loginUrl, pathOf } from '../../e2e/fixtures/route
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl, newApiContext, signedInApi } from './support/api';
-import { readAdminCredentials, signInAdmin } from './support/auth';
-import { RUN_ID, attachJson, captureEvidence } from './support/evidence';
+import { BE_SHORT_PASSWORD, DASHBOARD_TITLE, dashboardLoaded, readAdminCredentials, signInAdmin } from './support/auth';
+import { TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
 
 /** BE:apps/api/auth/cookies.py:13 */
@@ -172,9 +172,6 @@ const CONNECTION_REGION = 'Trạng thái kết nối'; // :95
 const MID_SESSION_LOST = 'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.'; // :100
 const HIDE_CONNECTION_STRIP = 'Ẩn thông báo kết nối'; // :111
 
-/** `ProjectDashboard.tsx:196` h1 — proof the destination painted (as in Phase 1). */
-const DASHBOARD_TITLE = 'Dự án của tôi';
-
 /** BE:apps/api/auth/sessions.py:61 REMEMBER_IDLE = 7 days → cookie Max-Age (sessions.py:189). */
 const REMEMBER_IDLE_S = 7 * 24 * 60 * 60;
 /** Host ↔ container clock slack accepted on the persistent cookie's expiry. */
@@ -182,9 +179,12 @@ const CLOCK_SLACK_S = 60 * 60;
 
 /** ≥ 8 chars (`src/api/schemas/index.ts:69`) so it reaches the server. Never a real password. */
 const PROBE_PASSWORD = 'sai-mat-khau-e2e-edge';
-/** Run-unique tag: each non-existent address is used for exactly ONE attempt (see budget). */
+/** Run-unique tag for fake tokens and project ids. */
 const RUN_TAG = Date.now().toString(36);
-const nobody = (slug: string): string => `e01-${RUN_TAG}-${slug}@example.test`;
+/** A non-existent address, unique per call: each is used for exactly ONE attempt (see budget). BUG-064: rules prefix. */
+const nobody = (slug: string): string => testEmail(`e01-${slug}`);
+/** 64-char local part (the RFC maximum) starting with the run prefix; with the domain below the address is > 254. */
+const LONG_LOCAL = `${TEST_DATA_PREFIX}e01-long-`.padEnd(64, 'a');
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const h1 = (page: Page, name: string) => page.getByRole('heading', { level: 1, name, exact: true });
@@ -305,6 +305,7 @@ async function landsOnDashboard(page: Page, message: string): Promise<void> {
   await expect.poll(() => pathOf(page.url()), { message }).toBe(ROUTES.dashboard);
   expect(new URL(page.url()).origin, message).toBe(new URL(readBaseUrl()).origin);
   await expect(h1(page, DASHBOARD_TITLE), message).toBeVisible();
+  await dashboardLoaded(page); // the shot that follows shows the list, not skeleton cards (BUG-089)
 }
 
 async function refreshCookie(page: Page) {
@@ -407,8 +408,8 @@ test.describe('E01 SCR-01 Session gate', () => {
     expect(loginUrl(gated)).toBe('/login?next=%2Fthong-bao%3Fe01%3Dgate');
     await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
     await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE)).toBeVisible();
-    await attachJson('E01_gate_redirect_query.json', { gated, landedUrl: pathOf(page.url()) }); // BUG-034: URL not in the shot
-    await captureEvidence(page, 'E01_gate_redirect_query.png');
+    await attachJson('E01_gate_redirect_query.json', { gated, landedUrl: pathOf(page.url()) });
+    await captureEvidence(page, 'E01_gate_redirect_query.png', { caption: `requested ${gated} → next keeps path AND query` }); // BUG-034
     await refresh.stop();
   });
 
@@ -494,7 +495,8 @@ test.describe('E01 SCR-01 Session gate', () => {
       await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
       await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true }), 'next = / → no notice').toHaveCount(0);
       await attachJson('E01_gate_setup_reloaded.json', { landedUrl: pathOf(page.url()) }); // BUG-034
-      await captureEvidence(page, 'E01_gate_setup_reloaded.png');
+      // captureEvidence waits for the hero canvas's first frame (waitForHeroFrame, BUG-061).
+      await captureEvidence(page, 'E01_gate_setup_reloaded.png', { caption: `"${RELOAD_PAGE}" → app recovered, gated / → /login?next=%2F, no notice` });
     } finally {
       requests.stop();
     }
@@ -701,6 +703,9 @@ test.describe('E01 SCR-02 Login form', () => {
       await passwordBox(page).fill('1234567');
       await passwordBox(page).blur();
       await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
+      await expect(page.getByText(PASSWORD_TOO_SHORT, { exact: true })).toBeVisible();
+      // BUG-092: the 8-character rule gets its own shot (the last shot below is the EMPTY-box state).
+      await captureEvidence(page, 'E01_login_password_too_short.png', { caption: '"Mật khẩu" holds 7 characters, blurred → min-8 rule; no request' });
 
       await passwordBox(page).fill('12345678');
       await expect(passwordBox(page), 'typing clears the problem').not.toHaveAttribute('aria-invalid', 'true');
@@ -740,7 +745,9 @@ test.describe('E01 SCR-02 Login form', () => {
       await expect(passwordBox(page), 'focus returned to "Mật khẩu" after the attempt').toBeFocused();
       await nextFrame(page);
       expect(posts(requests.sent, LOGIN_API)).toHaveLength(1);
-      await captureEvidence(page, 'E01_enter_submits.png');
+      await captureEvidence(page, 'E01_enter_submits.png', {
+        caption: `Enter in "Mật khẩu" → POST ${LOGIN_API} × ${posts(requests.sent, LOGIN_API).length} (${status}); focus back in "Mật khẩu"`,
+      }); // BUG-034
 
       await button(page, RESET_PASSWORD_ACTION).focus();
       await page.keyboard.press('Enter');
@@ -781,7 +788,9 @@ test.describe('E01 SCR-02 Login form', () => {
       await nextFrame(page);
       expect(posts(requests.sent, LOGIN_API), 'login requests after a double submit').toHaveLength(1);
       await attachJson('E01_double_submit.json', { status, loginRequests: posts(requests.sent, LOGIN_API).length });
-      await captureEvidence(page, 'E01_double_submit.png');
+      await captureEvidence(page, 'E01_double_submit.png', {
+        caption: `two clicks on "Đăng nhập" in one tick → POST ${LOGIN_API} × ${posts(requests.sent, LOGIN_API).length} (${status})`,
+      }); // BUG-034
     } finally {
       requests.stop();
     }
@@ -803,7 +812,9 @@ test.describe('E01 SCR-02 Login form', () => {
     expect(status, `POST ${LOGIN_API}`).toBe(401);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
     await attachJson('E01_email_spaces_case.json', { typed: `  ${address}  `, sentEmail: sent.email, status });
-    await captureEvidence(page, 'E01_email_spaces_case.png');
+    await captureEvidence(page, 'E01_email_spaces_case.png', {
+      caption: [`typed: "  ${address}  "`, `sent:  "${String(sent.email)}" → ${status}`],
+    }); // BUG-034
   });
 
   test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip and its reset button sit UNDER "Đăng nhập", fields do not move; the reset button is as wide and as tall as "Đăng nhập" (BUG-059)', async ({ page }) => {
@@ -864,7 +875,7 @@ test.describe('E01 SCR-02 Login form', () => {
   test('E01 · <script>-like email → format problem, value shown as text, no request, no dialog', async ({ page }) => {
     // zod `.email()` rejects `<`, `>`, `(`, `)`, `/` (schemas/index.ts:71) → `invalid_string` → emailInvalid
     // (useAuthScreen.ts:381-383); submit returns before the gateway (useAuthScreen.ts:631-635).
-    const hostile = '<script>alert(1)</script>@example.test';
+    const hostile = `${TEST_DATA_PREFIX}<script>alert(1)</script>@${TEST_EMAIL_DOMAIN}`;
     const dialogs = collectDialogs(page);
 
     await openAnonymousLogin(page);
@@ -892,8 +903,7 @@ test.describe('E01 SCR-02 Login form', () => {
     // schemas/auth.ts:13-20) → `too_big` → emailTooLong (useAuthScreen.ts:385-387); blur flags a non-empty box
     // (:562-586); submit returns before the gateway (:631-635). Same cap as BE validate_wire_email
     // (BE:apps/api/auth/emails.py:20,37-39), so no 422 round trip (was the old behaviour on c4978eb4).
-    const local = 'e01-long-' + 'a'.repeat(55);
-    const longAddress = `${local}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.example.test`;
+    const longAddress = `${LONG_LOCAL}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.${TEST_EMAIL_DOMAIN}`;
 
     expect(longAddress.length, 'probe length').toBeGreaterThan(254);
     await openAnonymousLogin(page);
@@ -953,12 +963,12 @@ test.describe('E01 SCR-02 Login form', () => {
     await attachJson('E01_notice_session_ended.json', { // BUG-034: history state is not in the shot
       historyNoticeAfterRead: await page.evaluate(() => (history.state as { usr?: { notice?: unknown } | null } | null)?.usr?.notice ?? null),
     });
-    await captureEvidence(page, 'E01_notice_session_ended.png');
+    await captureEvidence(page, 'E01_notice_session_ended.png', { caption: 'history.state.usr.notice = "sessionEnded" → strip shown, entry dropped once read' }); // BUG-034
 
     await emailBox(page).press('Enter');
     await expect(emailBox(page)).toHaveAccessibleDescription(EMAIL_REQUIRED);
     await expect(page.getByText(SESSION_ENDED_NOTICE, { exact: true })).toBeVisible();
-    await captureEvidence(page, 'E01_notice_after_empty_submit.png'); // BUG-034: the "survives a submit" half
+    await captureEvidence(page, 'E01_notice_after_empty_submit.png', { caption: 'after an EMPTY submit (Enter): notice still shown, no request' }); // BUG-034: the "survives a submit" half
 
     await emailBox(page).fill(nobody('notice'));
     await passwordBox(page).fill(PROBE_PASSWORD);
@@ -1134,14 +1144,17 @@ test.describe('E01 SCR-02 Login failures', () => {
 
     await openAnonymousLogin(page);
     await emailBox(page).fill(nobody('m422'));
-    await passwordBox(page).fill(PROBE_PASSWORD);
+    // BUG-094: a password the real BE answers 422 for (4 code points) and the FE still sends (8 UTF-16 units).
+    await passwordBox(page).fill(BE_SHORT_PASSWORD);
     await button(page, SIGN_IN_LABEL).click();
 
     await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
     await expect(page.getByText(VALIDATION_OTHER_TITLE, { exact: true })).toHaveCount(0);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toHaveCount(0);
     await expect(authMain(page, 'error')).toBeVisible();
-    await captureEvidence(page, 'E01_login_validation_password.png');
+    await captureEvidence(page, 'E01_login_validation_password.png', {
+      caption: `[mocked response] 422 VALIDATION field "password"; box: 4 astral chars (FE 8 UTF-16 units ≥ 8, BE 4 code points < 8) — real pair A01_login_422_password`,
+    });
 
     await button(page, SIGN_IN_LABEL).click();
     await expect(page.getByText(VALIDATION_OTHER_TITLE, { exact: true })).toBeVisible();
@@ -1175,7 +1188,9 @@ test.describe('E01 SCR-02 Login failures', () => {
     expect(login.seen).toHaveLength(1);
     expect(refresh.seen.length, `POST ${REFRESH_PATH} after the 204`).toBeGreaterThan(0);
     expect(pathOf(page.url())).toBe(ROUTES.login);
-    await captureEvidence(page, 'E01_login_signed_in_offline.png');
+    await captureEvidence(page, 'E01_login_signed_in_offline.png', {
+      caption: `[mocked response] press 1: POST ${LOGIN_API} × ${login.seen.length} (204), POST ${REFRESH_PATH} × ${refresh.seen.length} (network failed)`,
+    });
 
     const refreshesBefore = refresh.seen.length;
     await button(page, SIGN_IN_LABEL).click();
@@ -1189,7 +1204,11 @@ test.describe('E01 SCR-02 Login failures', () => {
       refreshRequests: refresh.seen.length,
       landed: pathOf(page.url()),
     });
-    await captureEvidence(page, 'E01_login_signed_in_offline_retry.png');
+    // BUG-095: same screen by design (BUG-013: the strip stays, the button stays enabled) — the counts on the shot
+    // are what shows the second attempt really went out.
+    await captureEvidence(page, 'E01_login_signed_in_offline_retry.png', {
+      caption: `[mocked response] press 2 (retry): POST ${LOGIN_API} × ${login.seen.length} (204 each), POST ${REFRESH_PATH} × ${refresh.seen.length} (was ${refreshesBefore}); still /login, "Đăng nhập" enabled`,
+    });
     await refresh.stop();
     await login.stop();
   });
@@ -1307,6 +1326,8 @@ test.describe('E01 SCR-02 Forgot password', () => {
       await emailBox(page).fill('khong-hop-le');
       await button(page, SEND_RESET_LINK).click();
       await expect(page.getByText(EMAIL_INVALID, { exact: true })).toBeVisible();
+      // BUG-096: the malformed-address state, before the box is emptied for the "required" half.
+      await captureEvidence(page, 'E01_forgot_invalid_format.png', { caption: `"khong-hop-le" sent → format problem; POST ${PASSWORD_RESET_API} × ${posts(requests.sent, PASSWORD_RESET_API).length}` });
 
       await emailBox(page).fill('');
       await button(page, SEND_RESET_LINK).click();
@@ -1774,7 +1795,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     expect(status, `POST ${LOGIN_API}`).toBe(204);
     await landsOnDashboard(page, 'uppercase sign-in');
     await attachJson('E01_email_uppercase_admin.json', { sentEmailIsUppercase: sent.email === upper, status, landed: pathOf(page.url()) });
-    await captureEvidence(page, 'E01_email_uppercase_admin.png');
+    await captureEvidence(page, 'E01_email_uppercase_admin.png', {
+      caption: `admin address sent in UPPERCASE (${sent.email === upper ? 'verbatim' : 'CHANGED'}) → POST ${LOGIN_API} ${status} → signed in`,
+    }); // BUG-034
 
     const requests = recordApiRequests(page);
     try {
@@ -1825,7 +1848,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
       status: off.status,
       refreshCookieExpires: (await refreshCookie(page))?.expires,
     });
-    await captureEvidence(page, 'E01_remember_off.png');
+    await captureEvidence(page, 'E01_remember_off.png', {
+      caption: `"${REMEMBER_ME}" off → rememberMe=${String(off.sent.rememberMe)}, ${off.status}; ${REFRESH_COOKIE} expires=-1 (session cookie)`,
+    }); // BUG-034
 
     // Signed in now: a signed-in /login still shows the form (main "signed in, /login shows the form"),
     // with the "already signed in" strip and its way back.
@@ -1890,7 +1915,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
       status: on.status,
       refreshCookieExpiresInDays: Number(((expires - Date.now() / 1000) / 86_400).toFixed(3)),
     });
-    await captureEvidence(page, 'E01_remember_on.png');
+    await captureEvidence(page, 'E01_remember_on.png', {
+      caption: `"${REMEMBER_ME}" on → rememberMe=${String(on.sent.rememberMe)}, ${on.status}; ${REFRESH_COOKIE} persistent, ${((expires - Date.now() / 1000) / 86_400).toFixed(2)} days`,
+    }); // BUG-034
   });
 
   /*
@@ -1924,7 +1951,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
       expect(status, `POST ${LOGIN_API} (next=${next})`).toBe(204);
       await landsOnDashboard(page, `next=${next}`);
       landed[next] = page.url();
-      await captureEvidence(page, `E01_next_${slug}.png`);
+      await captureEvidence(page, `E01_next_${slug}.png`, { caption: `opened ${loginUrl(next)} → signed in (${status}) → landed in-app at /` }); // BUG-034
     }
     expect(dialogs, 'no script ran from ?next=').toEqual([]);
     await attachJson('E01_next_cases.json', { landedUrlByNext: landed, dialogs });
@@ -1940,7 +1967,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
  * Setup calls are the ones `phase01_auth_api.spec.ts` proved this run: invite (BE:apps/api/users/router.py:55),
  * accept (BE:apps/api/auth_recovery/router.py:337-365), delete (BE:apps/api/users/router.py:111-123).
  */
-const TEST_PREFIX = `qa-${RUN_ID}-`;
+const TEST_PREFIX = TEST_DATA_PREFIX;
 const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:apps/api/auth_recovery/messages.py:31
 const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppBack'; // BE:apps/api/auth_recovery/messages.py:36
 const INVITATION_SUCCESS = 'Đã nhận lời mời. Đang mở tài khoản của bạn.'; // vi.json:185
@@ -1948,8 +1975,7 @@ const RESET_SUCCESS = 'Đã đổi mật khẩu. Đang chuyển tới trang đă
 const PASSWORD_RESET_NOTICE = 'Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.'; // vi.json:197
 const LOGOUT_PATH = '/api/auth/logout'; // lib/auth/session.ts:42,200 under the /api base
 
-const suiteEmail = (slug: string): string =>
-  `${TEST_PREFIX}e01-${slug}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}@example.test`;
+const suiteEmail = (slug: string): string => testEmail(`e01-${slug}`);
 const suitePassword = (): string => `Qa-e01-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
 
 /** Newest mail to `address` with `subject` (an earlier mail to the same address may still be listed). */
@@ -2355,7 +2381,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   test('E01 · SCR-02 forgot panel · address longer than 254 chars → "Thư điện tử dài quá 254 ký tự…" (not "chưa đúng dạng"), NO POST /api/auth/password-reset', async ({ page }) => {
     // useForgotPassword.ts:94-107: PasswordResetRequestSchema email = min(1).email().max(254) (schemas/auth.ts:
     // 13-20) → issue `too_big` → emailTooLong (BUG-010), returned before the request (:106).
-    const longAddress = `e01-long-${'a'.repeat(55)}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.example.test`;
+    const longAddress = `${LONG_LOCAL}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.${TEST_EMAIL_DOMAIN}`;
 
     expect(longAddress.length, 'probe length').toBeGreaterThan(254);
     await openAnonymousLogin(page);
@@ -2624,7 +2650,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   test.describe('375×812', () => {
     test.use({ viewport: COMPACT });
 
-    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu" ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052)', async ({ page }) => {
+    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu", "Ghi nhớ máy này" and "Về trang đăng nhập" on the reset form ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
       // Input.tsx:61-64 `h-[46px] sm:h-[38px]`; buttonVariants.ts:16-17 lg `h-11 … sm:h-10`; PasswordField.tsx:65-66
       // `h-11 w-11 … sm:h-6 sm:w-6`; AuthScreen.tsx:211-215 `py-1` text button; RecoveryShell.tsx:21-24 `px-6 … sm:px-12`.
       // Run-06 measured 44 for the 46 px box: the panel was still in `animate-panel-rise` (a transform scale,
@@ -2646,8 +2672,17 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(eye.width, 'eye width').toBe(44);
       expect(eye.height, 'eye height').toBe(44);
       expect(forgot.height, '"Quên mật khẩu"').toBeGreaterThanOrEqual(24);
+      // BUG-098: every control on the shot is measured. The checkbox input is `sr-only` inside its label
+      // (Checkbox.tsx:40-57, label `min-h-[32px]`), so the touch target is the label; the drawn box is 18 px.
+      // Bug threshold 24 px (WCAG 2.5.8, soft so the shot is still taken); 44 px is the recommendation, recorded.
+      const remember = await layoutSize(rememberBox(page).locator('xpath=ancestor::label[1]'));
+      expect.soft(remember.height, `"${REMEMBER_ME}" label (touch target) height`).toBeGreaterThanOrEqual(24);
+      expect.soft(remember.width, `"${REMEMBER_ME}" label (touch target) width`).toBeGreaterThanOrEqual(24);
       expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
-      await captureEvidence(page, 'E01_touch_targets_login_375.png', { fullPage: true });
+      await captureEvidence(page, 'E01_touch_targets_login_375.png', {
+        fullPage: true,
+        caption: `field ${field.height} · "Đăng nhập" ${submit.height} · eye ${eye.width}×${eye.height} · "Quên mật khẩu" ${forgot.width}×${forgot.height} · "${REMEMBER_ME}" ${remember.width}×${remember.height} (bug < 24, recommended 44)`,
+      });
 
       await openRecoveryForm(page, recoveryForm('reset'), 'touch');
       await animationsSettled(page);
@@ -2660,17 +2695,28 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(padding, 'recovery side margins below 640').toEqual({ left: '24px', right: '24px' });
       expect(titleBox, 'title box').not.toBeNull();
       expect(Math.round(titleBox!.x), 'title starts at the 24 px margin').toBe(24);
+      // BUG-098: the reset form's "Về trang đăng nhập" (RecoveryLink, PasswordReset.tsx:104-110) is measured too.
+      const backLink = await layoutSize(page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }));
+      expect.soft(backLink.height, `"${GO_TO_SIGN_IN}" height`).toBeGreaterThanOrEqual(24);
       expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
       await attachJson('E01_touch_targets_375.json', {
         measuredWith: 'offsetWidth/offsetHeight, reducedMotion=reduce, animations settled',
+        thresholds: { bugBelowPx: 24, recommendedPx: 44 },
         fieldBoxHeight: field.height,
         inputHeight: input.height,
         submitHeight: submit.height,
         eye,
         forgot,
+        rememberLabel: remember,
+        rememberMeets44: remember.width >= 44 && remember.height >= 44,
+        resetBackLink: backLink,
+        resetBackLinkMeets44: backLink.width >= 44 && backLink.height >= 44,
         recoveryPadding: padding,
       });
-      await captureEvidence(page, 'E01_touch_targets_reset_375.png', { fullPage: true });
+      await captureEvidence(page, 'E01_touch_targets_reset_375.png', {
+        fullPage: true,
+        caption: `side margins ${padding.left}/${padding.right} · "${GO_TO_SIGN_IN}" ${backLink.width}×${backLink.height} (bug < 24, recommended 44)`,
+      });
     });
   });
 });
@@ -2742,7 +2788,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE), slug).toBeVisible();
       await expect(page.getByRole('heading', { level: 1 }), `${slug}: the sign-in title is the only h1`).toHaveCount(1);
       landed[slug] = pathOf(page.url());
-      await captureEvidence(page, `E01_gate_family_${slug}.png`);
+      await captureEvidence(page, `E01_gate_family_${slug}.png`, { caption: `requested ${path} → ${landed[slug]}` }); // BUG-102
     }
     await attachJson('E01_gate_family.json', landed);
   });
@@ -2792,7 +2838,12 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await page.clock.resume(); // time flows again (screenshots, the /login hero); nothing is scheduled any more
       await expect(h1(page, GATE_UNREACHABLE_TITLE)).toBeVisible();
       await attachJson('E01_gate_ladder_spent.json', { refreshes, fakeSecondsAfterLast: 200 });
-      await captureEvidence(page, 'E01_gate_ladder_spent.png');
+      await captureEvidence(page, 'E01_gate_ladder_spent.png', {
+        caption: [
+          `POST ${REFRESH_PATH} attempts: ${refreshes} / ${REFRESH_MAX_TRANSIENT_ATTEMPTS} (all failed: network) — ladder spent`,
+          '"online" mid-ladder: no extra attempt; 200 s (fake clock) after the last: nothing scheduled',
+        ],
+      }); // BUG-102
       expect(refreshes, 'still spent after resuming the clock').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS);
 
       mode = 'pass';
@@ -2803,7 +2854,9 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
       expect(refreshes, '"online" after the ladder → exactly one fresh attempt').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS + 1);
       await attachJson('E01_gate_online_recovers.json', { refreshes, landedUrl: pathOf(page.url()) });
-      await captureEvidence(page, 'E01_gate_online_recovers.png');
+      await captureEvidence(page, 'E01_gate_online_recovers.png', {
+        caption: `"online" after the spent ladder → attempt ${refreshes} → real 401 → /login`,
+      });
     } finally {
       await page.unroute(matcher, handler);
     }

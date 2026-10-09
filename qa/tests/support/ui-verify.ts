@@ -24,6 +24,8 @@ const TOUCH_TARGET_PX = 44;
 
 export interface UiMetrics {
   readonly viewport: string;
+  /** Set when `open` failed at this width: the shot and metrics are of whatever the page showed instead. */
+  readonly openError?: string;
   readonly horizontalOverflowPx: number;
   readonly offscreen: readonly string[];
   readonly brokenImages: readonly string[];
@@ -98,16 +100,30 @@ function measure(touchTargetPx: number): Omit<UiMetrics, 'viewport'> {
 /**
  * `open` must bring the page to the state AND wait for a visible marker of it (heading, copy, data-*),
  * never just the URL. `name` = `<prefix>_<slug>` (e.g. `U01_login_empty`).
+ * BUG-101: a width where `open` fails does not end the case — that width is still measured and shot (what the
+ * page showed instead), `openError` goes into `<name>.json`, every width runs, and the case fails softly at the
+ * end. A `test.skip()` inside `open` still skips.
  */
 export async function verifyUi(page: Page, name: string, open: (page: Page) => Promise<void>, viewports: readonly { readonly width: number; readonly height: number }[] = UI_VIEWPORTS): Promise<UiMetrics[]> {
   const all: UiMetrics[] = [];
   for (const vp of viewports) {
     await page.setViewportSize(vp);
     await page.goto('about:blank');
-    await open(page);
+    let openError: string | undefined;
+    try {
+      await open(page);
+    } catch (error) {
+      if (test.info().expectedStatus === 'skipped') throw error;
+      // First line of the message, without the ANSI colours Playwright puts in it.
+      openError = (error instanceof Error ? error.message : String(error)).replace(/\u001b\[[0-9;]*m/gu, '').split('\n')[0];
+    }
     // Web fonts change line breaks; measure after they settle.
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    all.push({ viewport: `${vp.width}x${vp.height}`, ...(await page.evaluate(measure, TOUCH_TARGET_PX)) });
+    all.push({
+      viewport: `${vp.width}x${vp.height}`,
+      ...(openError === undefined ? {} : { openError }),
+      ...(await page.evaluate(measure, TOUCH_TARGET_PX)),
+    });
     await captureEvidence(page, `${name}_${vp.width}.png`, { fullPage: true });
   }
   // Next to the images, so the reviewer reads one small file instead of decoding results.json.
@@ -115,6 +131,7 @@ export async function verifyUi(page: Page, name: string, open: (page: Page) => P
   writeFileSync(join(EVIDENCE_DIR, `${name}.json`), JSON.stringify(all, null, 2));
   await test.info().attach(`${name}.json`, { body: JSON.stringify(all, null, 2), contentType: 'application/json' });
   for (const m of all) {
+    expect.soft(m.openError, `${m.viewport}: the state did not open`).toBeUndefined();
     expect.soft(m.horizontalOverflowPx, `${m.viewport}: page scrolls horizontally`).toBe(0);
     expect.soft(m.offscreen, `${m.viewport}: controls outside the viewport`).toEqual([]);
     expect.soft(m.brokenImages, `${m.viewport}: broken images`).toEqual([]);

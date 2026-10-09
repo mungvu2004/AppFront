@@ -44,18 +44,17 @@ import { randomUUID } from 'node:crypto';
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
 import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from './support/api';
-import { readAdminCredentials } from './support/auth';
-import { RUN_ID } from './support/evidence';
+import { BE_SHORT_PASSWORD, readAdminCredentials } from './support/auth';
+import { TEST_DATA_PREFIX, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
 
-const PREFIX = `qa-${RUN_ID}-`;
+const PREFIX = TEST_DATA_PREFIX;
 const REFRESH = 'appback_refresh'; // BE:apps/api/auth/cookies.py:9-12
 const STREAM = 'appback_stream';
 const FOREIGN_ORIGIN = 'http://evil.example.test';
 const GRACE_S = 30; // BE:apps/api/auth/settings.py:29 refresh_grace_s
 
 const uniq = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-const testEmail = (slug: string): string => `${PREFIX}${slug}-${uniq()}@example.test`;
 const testPassword = (): string => `Qa-${randomUUID()}`;
 
 /* ------------------------------------------------------------------ phase-local helpers */
@@ -250,14 +249,15 @@ async function mailedResetToken(api: APIRequestContext, email: string, evidence:
 /* ------------------------------------------------------------------ login: body rules */
 
 test.describe('A01 POST /api/auth/login — body rules (SignInBody, BE:apps/api/auth/router.py:68-79)', () => {
-  test('A01 · login 422 VALIDATION field "password" for a 7-character password (pairs E01 mocked 422 password)', async () => {
-    // router.py:72 `Field(min_length=MIN_PASSWORD_LENGTH)` (passwords.py:34 = 8); errors.py:170-180 → field.
+  test('A01 · login 422 VALIDATION field "password" for a password of 4 code points that the FE sends (8 UTF-16 units) (pairs E01 mocked 422 password)', async () => {
+    // router.py:72 `Field(min_length=MIN_PASSWORD_LENGTH)` (passwords.py:34 = 8) counts code points; errors.py:170-180
+    // → field. BUG-094: the very value the mocked UI test types, so the mocked state is one a person can reach.
     const api = await newApiContext();
     try {
-      const body = { email: testEmail('short'), password: 'Qa-1234', rememberMe: false };
+      const body = { email: testEmail('short'), password: BE_SHORT_PASSWORD, rememberMe: false };
       const res = await post(api, '/api/auth/login', body);
       await captureExchange('A01_login_422_password.json', { method: 'POST', path: '/api/auth/login', body }, res, [
-        '422 code VALIDATION field "password" (min 8 chars, router.py:72)',
+        '422 code VALIDATION field "password" (4 code points < min 8, router.py:72; the FE counts 8 UTF-16 units and sends it)',
       ]);
       await expectError(res, 422, 'VALIDATION', 'password');
     } finally {
@@ -978,17 +978,17 @@ const RECOVERY_422_PAIRS: ReadonlyArray<{ slug: string; path: string; body: Json
   {
     slug: 'accept_422_password',
     path: '/api/auth/invitations/accept',
-    body: { token: `qa-bogus-${uniq()}`, fullName: `${PREFIX}vpass`, password: 'Qa-1234' },
+    body: { token: `qa-bogus-${uniq()}`, fullName: `${PREFIX}vpass`, password: BE_SHORT_PASSWORD },
     field: 'password',
-    title: 'accept with a 7-character password → 422 VALIDATION field "password" (pairs recovery_edge SCR-03 mocked 422 field password)',
+    title: 'accept with a password of 4 code points (8 UTF-16 units, sent by the FE) → 422 VALIDATION field "password" (pairs recovery_edge SCR-03 mocked 422 field password)',
     why: 'router.py:96 password min_length MIN_PASSWORD_LENGTH 8 (auth/passwords.py:34); BE test test_router_accept_invitation.py:53-56',
   },
   {
     slug: 'confirm_422_new_password',
     path: '/api/auth/password-reset/confirm',
-    body: { token: `qa-bogus-${uniq()}`, newPassword: 'Qa-1234' },
+    body: { token: `qa-bogus-${uniq()}`, newPassword: BE_SHORT_PASSWORD },
     field: 'newPassword',
-    title: 'confirm with a 7-character newPassword → 422 VALIDATION field "newPassword" (pairs recovery_edge SCR-04 mocked 422 field newPassword)',
+    title: 'confirm with a newPassword of 4 code points (8 UTF-16 units, sent by the FE) → 422 VALIDATION field "newPassword" (pairs recovery_edge SCR-04 mocked 422 field newPassword)',
     why: 'router.py:88 new_password min_length 8, wire alias camelCase (core/wire.py:46, core/errors.py:136-158); BE test test_router_confirm_reset.py:51-55',
   },
   {

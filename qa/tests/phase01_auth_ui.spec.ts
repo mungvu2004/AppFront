@@ -3,7 +3,7 @@
  * SCR-01..SCR-04, each at 1440 / 1024 / 768 / 375 (`support/ui-verify.ts`), evidence `U01_<state>_<width>.png`
  * + `U01_<state>.json` (layout metrics). Reviewed by the "verify ui" step with the qa-review-ui checklist.
  *
- * Budget 0 real login, 0 recovery calls. Anonymous loads send one bootstrap `POST /api/auth/refresh` without a
+ * Budget 1 real login (the SCR-37 group's `signedInApi`, BUG-105: + 1 invitation, 1 delete), 0 recovery calls. Anonymous loads send one bootstrap `POST /api/auth/refresh` without a
  * cookie → 401 (no limited bucket). The only submits are of EMPTY recovery forms, which FE validation stops
  * before any request (`usePasswordReset.ts` / `useInvitationAccept.ts` `submit`), plus 2 login submits in
  * `U01_login_strips_1024` answered by `page.route` ([mocked response] 401 INVALID_CREDENTIALS, 403 ORIGIN_MISMATCH):
@@ -21,13 +21,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
+import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { EVIDENCE_DIR, attachJson } from './support/evidence';
+import { EVIDENCE_DIR, TEST_DATA_PREFIX, attachJson, testEmail } from './support/evidence';
+import { deleteMails, waitForMail } from './support/mailpit';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { verifyUi } from './support/ui-verify';
 
@@ -56,7 +58,7 @@ const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // vi:156
 const ORIGIN_MISMATCH_DESCRIPTION =
   'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157
 /** 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). */
-const EMAIL_255 = `${'a'.repeat(64)}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
+const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const email = (page: Page) => page.getByLabel(EMAIL_LABEL, { exact: true });
@@ -109,9 +111,10 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
   });
 
   test('U01 · SCR-02 sign-in, partial state (e-mail only)', async ({ page }) => {
+    const address = testEmail('u01-partial'); // one address for all four widths
     await verifyUi(page, 'U01_login_partial', async (p) => {
       await openLogin(p);
-      await email(p).fill('qa-ui@example.test');
+      await email(p).fill(address);
       await email(p).blur();
       await expect(p.getByText(PARTIAL_NOTICE)).toBeVisible();
     });
@@ -172,9 +175,10 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
       },
     );
 
+    const address = testEmail('u01-strip');
     const submitWithMock = async (p: Page): Promise<void> => {
       await openLogin(p);
-      await email(p).fill('qa-ui-strip@example.test');
+      await email(p).fill(address);
       await p.getByLabel(PASSWORD_LABEL, { exact: true }).fill('qa-ui-not-a-password');
       await p.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
     };
@@ -255,7 +259,7 @@ const NOT_FOUND_TITLE = 'Không tìm thấy trang này';
 const SHORTCUT_HELP_TITLE = 'Phím tắt';
 const CLOSE_SHORTCUT_HELP = 'Đóng bảng phím tắt';
 /** testDataPrefix `qa-{runId}-` (qa.config.json): a search term no real user can match. */
-const NO_MATCH_TERM = `qa-${process.env.E2E_RUN_ID ?? 'run-01'}-khong-co-nguoi-dung`;
+const NO_MATCH_TERM = `${TEST_DATA_PREFIX}khong-co-nguoi-dung`;
 
 const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 });
 
@@ -309,47 +313,85 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
     });
   });
 
-  test('U01 · SCR-37 users, list (or "empty" when only the admin exists)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U01_users_list', async (p) => {
-      await openUsers(p);
-    });
-  });
+  /*
+   * BUG-105: SCR-37 lays out differently with a second user (row actions, detail panel), so the result must not
+   * depend on who already exists: one run-unique viewer is invited here through the API and deleted after the group.
+   * Costs 1 admin API login (`signedInApi`), 1 invitation (30 / h per admin) and 1 delete; its mail is removed too.
+   */
+  test.describe('SCR-37 with a second user this file creates', () => {
+    let admin: APIRequestContext | undefined;
+    let second: { id: string; email: string } | undefined;
+    let since = new Date();
 
-  test('U01 · SCR-37 users, search with no match', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U01_users_no_match', async (p) => {
-      await openUsers(p);
-      await p.getByLabel(USERS_SEARCH_LABEL, { exact: true }).fill(NO_MATCH_TERM);
-      // Empty state stays as is when nobody else exists (UserManagement.tsx renderContent).
-      await expect(
-        p.getByText(USERS_NO_MATCH, { exact: true }).or(p.getByText(USERS_EMPTY_TITLE, { exact: true })),
-      ).toBeVisible();
+    test.beforeAll(async () => {
+      const { email, password } = readAdminCredentials();
+      admin = await signedInApi(email, password);
+      since = new Date(Date.now() - 5_000);
+      const address = testEmail('u01-second-user');
+      const res = await admin.post('/api/users/invitations', { data: { emails: [address], role: 'viewer' } });
+      expect(res.status(), 'setup: POST /api/users/invitations').toBe(201);
+      const created = ((await res.json()) as { id: unknown; email: unknown }[]).find((u) => u.email === address);
+      expect(created, 'setup: the invited user is in the answer').toBeDefined();
+      second = { id: String(created!.id), email: address };
     });
-  });
 
-  test('U01 · SCR-37 users, permission matrix modal', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U01_users_permission_matrix', async (p) => {
-      await openUsers(p);
-      await p.getByRole('button', { name: PERMISSION_MATRIX_BUTTON, exact: true }).click();
-      await expect(p.getByRole('dialog', { name: PERMISSION_MATRIX_TITLE })).toBeVisible();
+    test.afterAll(async () => {
+      try {
+        if (admin && second) {
+          // BE:apps/api/users/router.py:111-123 soft delete (as phase01_auth_api.spec.ts cleanup).
+          const res = await admin.delete(`/api/users/${second.id}`, { data: { userId: second.id, confirmEmail: second.email } });
+          if (res.status() !== 200) test.info().annotations.push({ type: 'cleanup', description: `DELETE user → ${res.status()}` });
+          await deleteMails([(await waitForMail(second.email, since, 10_000)).id]);
+        }
+      } catch (error) {
+        test.info().annotations.push({ type: 'cleanup', description: String(error) });
+      } finally {
+        await admin?.dispose();
+      }
     });
-  });
 
-  test('U01 · SCR-37 users, invite block with an invalid address (nothing sent)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U01_users_invite_invalid', async (p) => {
-      await openUsers(p);
-      // `.first()`: the empty state repeats "Mời người dùng" as its action.
-      await p.getByRole('button', { name: INVITE_LABEL, exact: true }).first().click();
-      // Parsed live (useUserManagement.ts:894-905); "Gửi lời mời" is never clicked.
-      await p.getByLabel(INVITE_EMAILS_LABEL, { exact: true }).fill('khong-hop-le');
-      await expect(p.getByText(INVITE_INVALID_PREFIX)).toBeVisible();
+    test('U01 · SCR-37 users, list (the admin + the viewer this file invited)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U01_users_list', async (p) => {
+        await openUsers(p);
+      });
     });
-  });
 
-  test('U01 · SCR-37 users, own row → user detail (panel ≥1024, drawer <1024)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U01_users_detail', async (p) => {
-      test.skip(await openUsers(p), 'environment: only the signed-in admin exists, no row to open');
-      await ownUserRow(p).getByRole('button').first().click();
-      await expect(p.getByRole('button', { name: CLOSE_USER_DETAIL, exact: true })).toBeVisible();
+    test('U01 · SCR-37 users, search with no match', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U01_users_no_match', async (p) => {
+        await openUsers(p);
+        await p.getByLabel(USERS_SEARCH_LABEL, { exact: true }).fill(NO_MATCH_TERM);
+        // Empty state stays as is when nobody else exists (UserManagement.tsx renderContent).
+        await expect(
+          p.getByText(USERS_NO_MATCH, { exact: true }).or(p.getByText(USERS_EMPTY_TITLE, { exact: true })),
+        ).toBeVisible();
+      });
+    });
+
+    test('U01 · SCR-37 users, permission matrix modal', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U01_users_permission_matrix', async (p) => {
+        await openUsers(p);
+        await p.getByRole('button', { name: PERMISSION_MATRIX_BUTTON, exact: true }).click();
+        await expect(p.getByRole('dialog', { name: PERMISSION_MATRIX_TITLE })).toBeVisible();
+      });
+    });
+
+    test('U01 · SCR-37 users, invite block with an invalid address (nothing sent)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U01_users_invite_invalid', async (p) => {
+        await openUsers(p);
+        // `.first()`: the empty state repeats "Mời người dùng" as its action.
+        await p.getByRole('button', { name: INVITE_LABEL, exact: true }).first().click();
+        // Parsed live (useUserManagement.ts:894-905); "Gửi lời mời" is never clicked.
+        await p.getByLabel(INVITE_EMAILS_LABEL, { exact: true }).fill('khong-hop-le');
+        await expect(p.getByText(INVITE_INVALID_PREFIX)).toBeVisible();
+      });
+    });
+
+    test('U01 · SCR-37 users, own row → user detail (panel ≥1024, drawer <1024)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U01_users_detail', async (p) => {
+        test.skip(await openUsers(p), 'environment: only the signed-in admin exists, no row to open');
+        await ownUserRow(p).getByRole('button').first().click();
+        await expect(p.getByRole('button', { name: CLOSE_USER_DETAIL, exact: true })).toBeVisible();
+      });
     });
   });
 
