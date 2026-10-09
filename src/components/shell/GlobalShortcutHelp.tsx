@@ -35,7 +35,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { matchPath } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router-dom';
 
 import { AnimatePresence, motion } from '@/components/motion';
 import { IconButton } from '@/components/ui/IconButton';
@@ -87,8 +87,8 @@ const isInProject = (pathname: string): boolean =>
   PROJECT_PATTERNS.some((pattern) => matchPath(pattern, pathname) !== null);
 
 /** Đọc registry sống — không có bản chép nào của danh sách này ở nơi khác. */
-function buildGroups(): readonly ShortcutHelpGroup[] {
-  const inProject = isInProject(window.location.pathname);
+function buildGroups(pathname: string): readonly ShortcutHelpGroup[] {
+  const inProject = isInProject(pathname);
   const rows = appShortcutRegistry
     .listShortcuts()
     .filter(hasDescription)
@@ -109,6 +109,8 @@ export function GlobalShortcutHelp({ isOpen, onClose }: GlobalShortcutHelpProps)
   const prefersReducedMotion = useReducedMotion();
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = React.useId();
+  // Theo route của router, không đọc `window.location` lúc vẽ (review-1).
+  const { pathname } = useLocation();
 
   // Việc MỞ bảng bằng phím `?` thuộc về vỏ (`routes/router.tsx` đăng ký `?`
   // phạm vi `global`). Ở đây chỉ đăng ký các phím ĐÓNG khi bảng đang mở; hai
@@ -148,7 +150,7 @@ export function GlobalShortcutHelp({ isOpen, onClose }: GlobalShortcutHelpProps)
     };
   }, [isOpen, onClose]);
 
-  const groups = isOpen ? buildGroups() : [];
+  const groups = isOpen ? buildGroups(pathname) : [];
 
   const overlayVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
   const dialogVariants = prefersReducedMotion

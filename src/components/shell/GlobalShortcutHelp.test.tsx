@@ -8,6 +8,7 @@
  */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -22,7 +23,9 @@ afterEach(() => {
 
 describe('[GlobalShortcutHelp] không mở', () => {
   it('không vẽ gì — không lớp phủ nào đứng chắn màn', () => {
-    const { container } = render(<GlobalShortcutHelp isOpen={false} onClose={() => {}} />);
+    const { container } = render(<GlobalShortcutHelp isOpen={false} onClose={() => {}} />, {
+      wrapper: MemoryRouter,
+    });
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -61,7 +64,7 @@ describe('[GlobalShortcutHelp] đang mở', () => {
     ];
 
     try {
-      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />, { wrapper: MemoryRouter });
 
       expect(screen.getByText('Toàn cục')).toBeInTheDocument();
       expect(screen.getByText('Khung nhìn 3D')).toBeInTheDocument();
@@ -94,7 +97,7 @@ describe('[GlobalShortcutHelp] đang mở', () => {
     ];
 
     try {
-      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />, { wrapper: MemoryRouter });
 
       const chips = screen.getAllByText(/^(Mod|Ctrl|ESCAPE|Esc)$/u).map((node) => node.textContent);
       expect(chips).toContain('Ctrl');
@@ -117,16 +120,22 @@ describe('[GlobalShortcutHelp] đang mở', () => {
     });
 
     try {
-      window.history.pushState({}, '', '/login');
-      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      // Route của router, không phải `window.location`: hai thứ lệch nhau trong MemoryRouter.
+      render(
+        <MemoryRouter initialEntries={['/login']}>
+          <GlobalShortcutHelp isOpen onClose={() => {}} />
+        </MemoryRouter>,
+      );
       expect(screen.queryByText('Hoàn tác thao tác gần nhất')).not.toBeInTheDocument();
       cleanup();
 
-      window.history.pushState({}, '', '/projects/project-1/floors');
-      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      render(
+        <MemoryRouter initialEntries={['/projects/project-1/floors']}>
+          <GlobalShortcutHelp isOpen onClose={() => {}} />
+        </MemoryRouter>,
+      );
       expect(screen.getByText('Hoàn tác thao tác gần nhất')).toBeInTheDocument();
     } finally {
-      window.history.pushState({}, '', '/');
       dispose();
     }
   });
@@ -134,7 +143,7 @@ describe('[GlobalShortcutHelp] đang mở', () => {
   it('đóng bằng một cú Esc thật, nổi bọt lên registry dùng chung', () => {
     const onClose = vi.fn();
 
-    render(<GlobalShortcutHelp isOpen onClose={onClose} />);
+    render(<GlobalShortcutHelp isOpen onClose={onClose} />, { wrapper: MemoryRouter });
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
@@ -142,7 +151,9 @@ describe('[GlobalShortcutHelp] đang mở', () => {
   });
 
   it('qua được expectAccessible và expectVietnamese', () => {
-    const rendered = render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+    const rendered = render(<GlobalShortcutHelp isOpen onClose={() => {}} />, {
+      wrapper: MemoryRouter,
+    });
 
     expectAccessible(rendered);
     expectVietnamese(rendered);
