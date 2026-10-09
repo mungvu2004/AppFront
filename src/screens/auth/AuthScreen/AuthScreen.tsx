@@ -222,7 +222,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           type="button"
           disabled={fieldsDisabled}
           onClick={actions.forgotPassword}
-          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
         >
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>

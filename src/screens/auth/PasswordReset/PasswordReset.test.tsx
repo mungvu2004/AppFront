@@ -143,6 +143,8 @@ describe('PasswordResetView — the seven states', () => {
     expect(screen.queryByLabelText(AUTH.fields.newPassword)).toBeNull();
     expect(screen.getByText(AUTH.passwordReset.expired)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
+    // The only way on from the dead end: a 44 px target under 640, 24 px from sm (BUG-041).
+    expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveClass('min-h-[44px]', 'sm:min-h-6');
   });
 
   it('puts the failure strip under the submit button, so it never pushes the button (BUG-008)', () => {
