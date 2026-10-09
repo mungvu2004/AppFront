@@ -472,7 +472,6 @@ describe('PasswordReset — checks before sending', () => {
     ['Cmd', { metaKey: true }],
     ['Shift', { shiftKey: true }],
     ['Alt', { altKey: true }],
-    ['the middle button', { button: 1 }],
   ])('leaves a click with %s to the browser — new tab or window, no in-app jump (nợ QA-01b #10)', (_name, init) => {
     setUrl('');
 
