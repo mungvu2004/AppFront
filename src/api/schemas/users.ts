@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import type { ProjectRole } from '@/types/project';
 
+import { MAX_EMAIL_LENGTH } from './auth';
+
 /**
  * Hợp đồng dây của phần quản trị người dùng — T-04.
  *
@@ -88,7 +90,7 @@ const isoDateTimeSchema = z.string().datetime({ offset: true });
  *
  * `.min(1)` đứng trước `.email()` có chủ đích — xem docblock đầu file.
  */
-const emailSchema = z.string().min(1).email();
+const emailSchema = z.string().min(1).email().max(MAX_EMAIL_LENGTH);
 
 /** Số nguyên không âm — dùng cho số dự án một người đang tham gia. */
 const nonNegativeIntegerSchema = z.number().int().nonnegative();

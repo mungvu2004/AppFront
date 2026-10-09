@@ -7,6 +7,11 @@ export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   icon: React.ReactNode;
   title: string;
   description: string;
+  /**
+   * Cấp của tiêu đề. Mặc định `h3` — khối này thường nằm trong một màn đã có tiêu đề.
+   * Màn mà khối này là TOÀN BỘ nội dung (vd cổng phiên) truyền `h1` (BUG-020).
+   */
+  headingLevel?: 'h1' | 'h2' | 'h3';
   action?: {
     label: string;
     onClick: () => void;
@@ -18,6 +23,7 @@ export function EmptyState({
   icon,
   title,
   description,
+  headingLevel: Heading = 'h3',
   action,
   className,
   ...props
@@ -40,7 +46,7 @@ export function EmptyState({
             })
           : icon}
       </div>
-      <h3 className="text-[16px] font-semibold text-text-primary mb-2">{title}</h3>
+      <Heading className="text-[16px] font-semibold text-text-primary mb-2">{title}</Heading>
       <p className="text-[14px] text-text-secondary max-w-sm mb-6 leading-relaxed">
         {description}
       </p>

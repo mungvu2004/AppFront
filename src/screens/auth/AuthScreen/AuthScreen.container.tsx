@@ -88,6 +88,7 @@ import { bootstrapAfterNewCookie, configureAppSession } from '@/routes/sessionSe
 
 import { AuthScreen } from './AuthScreen';
 import {
+  SessionNotOpenedError,
   SignedInOfflineError,
   type AuthGateway,
   type AuthInitialNotice,
@@ -158,8 +159,9 @@ export function safeDestination(candidate: unknown): string {
  *
  * `bootstrapAfterNewCookie()` returning false means the cookie did not become a
  * session. There is no server error to classify in that case, so the failure is
- * an ordinary `Error` and `useAuthScreen` hands it to `describeError` — which is
- * the module that owns wording for anything the screen cannot explain itself.
+ * a {@link SessionNotOpenedError}, which `useAuthScreen` words itself — handing a
+ * plain `Error` to `describeError` read "sign-in" in its message and said the
+ * session had expired (BUG-014).
  */
 async function withSession(
   posted: Result<void, unknown>,
@@ -181,7 +183,7 @@ async function withSession(
       error:
         getSession().serverUnreachable === true
           ? new SignedInOfflineError()
-          : new Error('Sign-in succeeded but no session was established.'),
+          : new SessionNotOpenedError(),
     };
   }
 
@@ -272,12 +274,14 @@ function AuthCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
-/** `location.state.notice`, if it is one of the two sentences this screen knows. */
+/** `location.state.notice`, if it is one of the sentences this screen knows. */
 function noticeOf(state: unknown): AuthInitialNotice | undefined {
   const notice =
     typeof state === 'object' && state !== null ? (state as { readonly notice?: unknown }).notice : undefined;
 
-  return notice === 'passwordReset' || notice === 'sessionEnded' ? notice : undefined;
+  return notice === 'passwordReset' || notice === 'sessionEnded' || notice === 'signInRequired'
+    ? notice
+    : undefined;
 }
 
 /**
@@ -337,12 +341,18 @@ function AuthRouteContent() {
     navigate(destination, { replace: true });
   }, [destination, navigate]);
 
+  const returnToApp = useCallback(() => {
+    navigate(ROUTES.dashboard);
+  }, [navigate]);
+
   useEffect(() => {
     if (isAwaitingSession && session.status === 'authenticated') {
       onAuthenticated();
     }
   }, [isAwaitingSession, onAuthenticated, session.status]);
 
+  // `signInRequired` comes in `state` from the session gate itself (`SessionBootstrap.tsx`), not
+  // from `?next=`: an email link carries `?next=` too, and so does a guest's plain visit to `/` (BUG-007).
   const initialNotice = useMemo(() => noticeOf(location.state), [location.state]);
 
   // `state.notice` lives in the history entry and would come back after F5: read once, then drop
@@ -365,6 +375,7 @@ function AuthRouteContent() {
       onAuthenticated={onAuthenticated}
       reducedMotion={reducedMotion}
       {...(initialNotice !== undefined ? { initialNotice } : {})}
+      {...(session.status === 'authenticated' ? { onReturnToApp: returnToApp } : {})}
     />
   );
 }

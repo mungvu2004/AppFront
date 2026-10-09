@@ -18,15 +18,18 @@ export interface RecoveryShellProps {
 
 export function RecoveryShell({ title, subtitle, state, children }: RecoveryShellProps) {
   return (
+    // Neo từ trên, không căn giữa dọc: căn giữa thì dải lỗi chèn vào đẩy cả khối, ô nhập trôi khỏi con trỏ (BUG-008).
+    // Lề 24 px dưới 640, 48 px từ đó: ở 375 lề 48 px chỉ để lại cột ~279 px (BUG-052).
     <main
-      className="flex min-h-screen w-full items-center justify-center bg-bg-app p-12"
+      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[15vh] sm:px-12 sm:pb-12"
       data-auth-state={state}
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
         <div className="flex flex-col gap-1">
           <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">{title}</h1>
           {subtitle !== undefined && (
-            <p className="text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
+            // `text-balance` (không `pretty`: Firefox chưa hỗ trợ): không để "bạn." một mình ở dòng cuối (BUG-052).
+            <p className="text-balance text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
           )}
         </div>
         {children}
@@ -49,6 +52,28 @@ export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotic
   );
 }
 
+export interface RecoveryLinkProps {
+  readonly label: string;
+  readonly href: string;
+  readonly onClick: () => void;
+}
+
+/** Đường về `/login` của nhóm màn này — một chỗ, để ngõ cụt và màn lời mời căn như nhau (BUG-026). */
+export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
+  return (
+    <a
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick();
+      }}
+      className="self-start py-1 text-[14px] leading-[20px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+    >
+      {label}
+    </a>
+  );
+}
+
 export interface RecoveryDeadEndProps {
   readonly message: string;
   readonly linkLabel: string;
@@ -61,16 +86,7 @@ export function RecoveryDeadEnd({ message, linkLabel, href, onLinkClick }: Recov
   return (
     <div className="flex flex-col gap-4">
       <InlineAlert level="attention" message={message} />
-      <a
-        href={href}
-        onClick={(event) => {
-          event.preventDefault();
-          onLinkClick();
-        }}
-        className="self-start text-[14px] leading-[20px] text-accent transition-colors duration-120 hover:text-accent-hover"
-      >
-        {linkLabel}
-      </a>
+      <RecoveryLink label={linkLabel} href={href} onClick={onLinkClick} />
     </div>
   );
 }

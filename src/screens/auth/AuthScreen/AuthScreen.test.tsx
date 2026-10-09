@@ -94,6 +94,7 @@ function baseProps(): AuthScreenViewProps {
     ssoSignIn: noop,
     forgotPassword: noop,
     closeForgotPassword: noop,
+    signInWithAnotherAccount: noop,
     forgotActions: { setEmail: noop, submit: noop, reset: noop },
   };
 }
@@ -230,6 +231,14 @@ describe('AuthScreenView — the seven states', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(AUTH_MESSAGES.errors.accountDisabled.title);
   });
 
+  it('offers a way out of the disabled-account strip (BUG-017)', () => {
+    const signInWithAnotherAccount = vi.fn();
+    render(<AuthScreenView {...PROPS_BY_STATE.forbidden()} signInWithAnotherAccount={signInWithAnotherAccount} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác' }));
+
+    expect(signInWithAnotherAccount).toHaveBeenCalledTimes(1);
+  });
+
   it('collapses to one sentence and a button that opens it again', () => {
     render(<AuthScreenView {...PROPS_BY_STATE.collapsed()} />);
 
@@ -241,6 +250,53 @@ describe('AuthScreenView — the seven states', () => {
 /* -------------------------------------------------------------------------- */
 /* Wording and tokens.                                                         */
 /* -------------------------------------------------------------------------- */
+
+describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () => {
+  const follows = (first: Element, second: Element): boolean =>
+    (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
+  it.each(['error', 'success'] as const)('puts the %s strip under the sign-in button', (state) => {
+    render(<AuthScreenView {...PROPS_BY_STATE[state]()} />);
+
+    const button = screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn });
+
+    expect(follows(button, screen.getByRole('alert'))).toBe(true);
+    expect(follows(screen.getByLabelText(AUTH_MESSAGES.fields.email), button)).toBe(true);
+  });
+
+  it('keeps the reset action with the error strip, under the button', () => {
+    render(<AuthScreenView {...PROPS_BY_STATE.error()} />);
+
+    expect(
+      follows(
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn }),
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.resetPassword }),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps an opening sentence above the fields', () => {
+    render(
+      <AuthScreenView
+        {...baseProps()}
+        notice={{ tone: 'attention', message: AUTH_MESSAGES.notices.sessionEnded }}
+      />,
+    );
+
+    expect(follows(screen.getByRole('alert'), screen.getByLabelText(AUTH_MESSAGES.fields.email))).toBe(true);
+  });
+
+  it('says "còn thiếu mật khẩu" under the button, not over the field being typed in', () => {
+    render(<AuthScreenView {...PROPS_BY_STATE.partial()} />);
+
+    expect(
+      follows(
+        screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn }),
+        screen.getByText(AUTH_MESSAGES.notices.partial),
+      ),
+    ).toBe(true);
+  });
+});
 
 describe('AuthScreenView — wording and colour', () => {
   it('writes every visible string in Vietnamese, diacritics and all', () => {
@@ -299,6 +355,22 @@ describe('AuthScreenView — accessibility', () => {
       unmount();
     }
   });
+
+  it('has one h1, the name of the panel, and the hero is not a heading (BUG-047)', () => {
+    for (const [panel, name] of [
+      ['signIn', AUTH_MESSAGES.tabs.signIn],
+      ['forgotPassword', AUTH_MESSAGES.forgotPassword.title],
+    ] as const) {
+      const { unmount } = render(<AuthScreenView {...baseProps()} panel={panel} />);
+
+      const headings = screen.getAllByRole('heading', { level: 1 });
+      expect(headings, panel).toHaveLength(1);
+      expect(headings[0], panel).toHaveTextContent(name);
+      expect(screen.queryByRole('heading', { name: AUTH_MESSAGES.hero.headline }), panel).toBeNull();
+      expect(screen.getByText(AUTH_MESSAGES.hero.headline), panel).toBeInTheDocument();
+      unmount();
+    }
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -347,9 +419,28 @@ describe('AuthScreen — keyboard', () => {
     expect(third.signIn).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves Enter on a button to the button itself: nothing is sent, the key is not swallowed (BUG-011)', () => {
+    const { gateway, signIn } = stubGateway();
+    renderScreen({ gateway, onSsoSignIn: noop });
+
+    type(emailField(), EMAIL);
+    type(passwordField(), PASSWORD);
+
+    for (const name of [
+      AUTH_MESSAGES.actions.forgotPassword,
+      AUTH_MESSAGES.actions.ssoSignIn,
+      AUTH_MESSAGES.actions.showPassword,
+    ]) {
+      // `fireEvent` returns false when a handler called `preventDefault`, which is what kills the native click.
+      expect(fireEvent.keyDown(screen.getByRole('button', { name }), { key: 'Enter' }), name).toBe(true);
+    }
+
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it('signs in with Tab and Enter alone: first field focused, the rest in order, Enter sends', () => {
     const { gateway, signIn } = stubGateway();
-    const { container } = renderScreen({ gateway });
+    const { container } = renderScreen({ gateway, onSsoSignIn: noop });
 
     const form = container.querySelector('form');
     expect(form).not.toBeNull();
@@ -407,13 +498,20 @@ describe('AuthScreen — password visibility', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('AuthScreen — SSO and password reset', () => {
-  it('calls the host callback when the SSO button is pressed, and does nothing when none was given', () => {
+  it('calls the host callback when the SSO button is pressed, and shows no button when none was given', () => {
     const onSsoSignIn = vi.fn();
     renderScreen({ onSsoSignIn });
 
     fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn }));
 
     expect(onSsoSignIn).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    renderScreen();
+
+    // BUG-002: no flow, no button — and no "Hoặc" divider leading to nothing.
+    expect(screen.queryByRole('button', { name: AUTH_MESSAGES.actions.ssoSignIn })).toBeNull();
+    expect(screen.queryByText(AUTH_MESSAGES.actions.or)).toBeNull();
   });
 
   it('opens the forgot-password panel when "Quên mật khẩu" is pressed', () => {
@@ -425,7 +523,7 @@ describe('AuthScreen — SSO and password reset', () => {
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.password)).toBeNull();
   });
 
-  it('offers the same panel from inside the wrong-password strip', async () => {
+  it('offers the same panel from under the wrong-password strip', async () => {
     const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
     renderScreen({ gateway });
 

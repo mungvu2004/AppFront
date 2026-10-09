@@ -47,7 +47,9 @@ const SESSION: RefreshSessionPayload = {
   roles: ['engineer'],
 };
 
-function renderRoute(entry: string | { pathname: string; state: unknown } = '/login?next=/tai-khoan') {
+function renderRoute(
+  entry: string | { pathname: string; search?: string; state: unknown } = '/login?next=/tai-khoan',
+) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
@@ -88,6 +90,24 @@ describe('AuthRoute — location.state.notice', () => {
     expect(screen.getByText(AUTH.notices.sessionEnded)).toBeInTheDocument();
   });
 
+  it('asks to sign in to continue when the session gate bounced the visitor here (BUG-007)', () => {
+    renderRoute({ pathname: '/login', search: '?next=/tai-khoan', state: { notice: 'signInRequired' } });
+
+    expect(screen.getByText(AUTH.notices.signInRequired)).toBeInTheDocument();
+  });
+
+  it('does not read ?next= alone as a bounce: an email link carries it too (BUG-007)', () => {
+    renderRoute('/login?next=/tai-khoan');
+
+    expect(screen.queryByText(AUTH.notices.signInRequired)).toBeNull();
+  });
+
+  it('says nothing on a plain visit to /login', () => {
+    renderRoute('/login');
+
+    expect(screen.queryByText(AUTH.notices.signInRequired)).toBeNull();
+  });
+
   it('ignores a notice it does not know', () => {
     renderRoute({ pathname: '/login', state: { notice: 'whatever' } });
 
@@ -125,7 +145,7 @@ describe('AuthRoute — the notice does not survive a reload', () => {
 });
 
 describe('AuthRoute — a session that opens by itself', () => {
-  it('says "đang thử lại" when the cookie was accepted but the server cannot be reached, then moves on once the session opens', async () => {
+  it('says so when the cookie was accepted but the server cannot be reached, then moves on once the session opens', async () => {
     renderRoute();
     act(() => {
       setServerUnreachable(true);
@@ -135,8 +155,14 @@ describe('AuthRoute — a session that opens by itself', () => {
 
     expect(await screen.findByText(AUTH.notices.signedInOffline)).toBeInTheDocument();
     expect(screen.queryByText('trang-dich')).toBeNull();
-    // Waiting for the session: a second press would only send a second sign-in.
-    expect(screen.getByRole('button', { name: AUTH.actions.signIn })).toBeDisabled();
+    // Nothing guarantees a retry behind the scenes (BUG-013): the button stays usable, and a
+    // second press really tries again.
+    const button = screen.getByRole('button', { name: AUTH.actions.signIn });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(mocks.signIn).toHaveBeenCalledTimes(2);
+    });
 
     act(() => {
       setAuthenticatedSession(SESSION);
@@ -161,6 +187,32 @@ describe('AuthRoute — a session that opens by itself', () => {
     expect(screen.queryByText('trang-dich')).toBeNull();
     expect(screen.getByLabelText(AUTH.fields.email)).toBeInTheDocument();
     expect(mocks.signIn).not.toHaveBeenCalled();
+    // BUG-006: the form stays, but says a session is already open and offers the way back.
+    expect(screen.getByText(AUTH.notices.signedIn)).toBeInTheDocument();
+  });
+
+  it('takes a visitor who is already signed in back to the project list from the strip', () => {
+    act(() => {
+      setAuthenticatedSession(SESSION);
+    });
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<AuthRoute />} />
+          <Route path="/" element={<div>danh-sach-du-an</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: AUTH.actions.goToProjects }));
+
+    expect(screen.getByText('danh-sach-du-an')).toBeInTheDocument();
+  });
+
+  it('says nothing about a session to a visitor who has none', () => {
+    renderRoute('/login');
+
+    expect(screen.queryByText(AUTH.notices.signedIn)).toBeNull();
   });
 
   it('does not treat a plain failed session open as "offline"', async () => {
@@ -172,6 +224,9 @@ describe('AuthRoute — a session that opens by itself', () => {
       expect(mocks.bootstrap).toHaveBeenCalledTimes(1);
     });
     expect(screen.queryByText(AUTH.notices.signedInOffline)).toBeNull();
+    // Its own sentence, not "Phiên làm việc đã hết hạn" guessed from the English message (BUG-014).
+    expect(await screen.findByText(AUTH.notices.sessionNotOpened)).toBeInTheDocument();
+    expect(screen.queryByText(viMessages.errors.unauthenticated.description)).toBeNull();
 
     act(() => {
       setAuthenticatedSession(SESSION);

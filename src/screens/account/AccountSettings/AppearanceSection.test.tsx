@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CONTRAST_MINIMUM_BODY,
+  CONTRAST_MINIMUM_LARGE,
   checkContrast,
   parsePalette,
 } from '@/lib/coloring/legend';
@@ -377,6 +378,22 @@ describe('bộ token tối trong globals.css', () => {
     expect(ratio('--text-primary', '--bg-surface')).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
     expect(ratio('--text-secondary', '--bg-app')).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
     expect(ratio('--text-secondary', '--bg-surface')).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
+  });
+
+  it('viền control đạt 3:1 (WCAG 1.4.11) trên nền trang lẫn nền thẻ, ở cả hai chủ đề (BUG-045)', () => {
+    const themes = {
+      dark: parsePalette(css.slice(0, css.indexOf('  :root {'))),
+      light: parsePalette(css.slice(css.indexOf('  :root {'))),
+    };
+
+    // 1.4.11 dùng cùng ngưỡng 3:1 với chữ lớn.
+    for (const palette of Object.values(themes)) {
+      for (const bg of ['--bg-app', '--bg-surface'] as const) {
+        expect(checkContrast(bg, '--border-control', palette).ratio).toBeGreaterThanOrEqual(
+          CONTRAST_MINIMUM_LARGE,
+        );
+      }
+    }
   });
 });
 

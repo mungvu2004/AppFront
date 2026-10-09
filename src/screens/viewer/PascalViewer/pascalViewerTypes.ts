@@ -98,4 +98,4 @@ export const PASCAL_VIEWER_CAPTIONS: Readonly<Record<PascalViewerState, string>>
 };
 
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */
-export const PASCAL_VIEWER_TITLE = 'Mô hình 3d';
+export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';

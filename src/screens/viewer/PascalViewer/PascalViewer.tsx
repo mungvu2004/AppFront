@@ -16,13 +16,13 @@ import { AlertTriangle, Box, EyeOff, Lock, MonitorOff } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 
-import type { PascalViewerProps } from './pascalViewerTypes';
+import { PASCAL_VIEWER_TITLE, type PascalViewerProps } from './pascalViewerTypes';
 
 /** Khung chứa, dùng chung cho cả bảy nhánh để không nhánh nào lạc ra ngoài bố cục. */
 function Frame({ caption, children }: { caption: string; children: React.ReactNode }) {
   return (
     <section
-      aria-label="Mô hình 3d"
+      aria-label={PASCAL_VIEWER_TITLE}
       className="flex h-full min-h-[24rem] flex-col gap-3 bg-bg-app p-4"
     >
       <p className="text-sm text-text-muted" role="status">
@@ -87,7 +87,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
       <Frame caption={caption}>
         <EmptyState
           icon={<MonitorOff aria-hidden="true" />}
-          title="Máy này chưa dựng được mô hình 3d"
+          title="Máy này chưa dựng được mô hình 3D"
           description={
             'trình duyệt không bật được tăng tốc phần cứng, nên không có gì vẽ ' +
             'ra hình được. bật tăng tốc phần cứng trong cài đặt trình duyệt rồi ' +
@@ -152,7 +152,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
           <div
             ref={canvasRef}
             data-testid="pascal-canvas"
-            aria-label="Khung dựng mô hình 3d"
+            aria-label="Khung dựng mô hình 3D"
             className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
           />
           {isBooting && (

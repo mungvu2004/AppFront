@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_EMAIL_LENGTH } from './auth';
+
 const idSchema = z.string().min(1);
 const isoDateTimeSchema = z.string().datetime({ offset: true });
 const mmIntegerSchema = z.number().int();
@@ -55,15 +57,18 @@ const wireProjectStatusSchema = z.enum(['draft', 'processing', 'approved', 'erro
 /** Shortest password the form will send. Anything shorter is a typo, not an attempt. */
 export const MIN_PASSWORD_LENGTH = 8;
 
+export { MAX_EMAIL_LENGTH };
+
 /**
- * `.min(1)` before `.email()` on purpose.
+ * `.min(1)` before `.email()` on purpose. `.max()` comes last, so an address that is
+ * both malformed and long is reported as malformed — the thing to fix first.
  *
  * zod collects every failing check on a string rather than stopping at the
  * first, and reports them in declaration order — so an empty box yields
  * "chưa nhập" ahead of "sai dạng", which is the complaint worth showing. The
  * order of these two lines is load-bearing.
  */
-export const EmailSchema = z.string().min(1).email();
+export const EmailSchema = z.string().min(1).email().max(MAX_EMAIL_LENGTH);
 
 /** Same ordering, same reason: empty reads as missing, four characters reads as short. */
 export const PasswordSchema = z.string().min(1).min(MIN_PASSWORD_LENGTH);

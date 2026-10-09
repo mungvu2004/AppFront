@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -88,6 +88,7 @@ function baseProps(): PasswordResetViewProps {
     canSubmit: true,
     isSubmitting: false,
     isDone: false,
+    isLinkIncomplete: false,
     setNewPassword: noop,
     setConfirmPassword: noop,
     submit: noop,
@@ -141,6 +142,44 @@ describe('PasswordResetView — the seven states', () => {
     expect(screen.queryByLabelText(AUTH.fields.newPassword)).toBeNull();
     expect(screen.getByText(AUTH.passwordReset.expired)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: AUTH.actions.goToSignIn })).toHaveAttribute('href', '/login');
+  });
+
+  it('puts the failure strip under the submit button, so it never pushes the button (BUG-008)', () => {
+    render(<PasswordResetView {...PROPS_BY_STATE.error()} />);
+
+    const button = screen.getByRole('button', { name: AUTH.actions.setNewPassword });
+    const strip = screen.getByRole('alert');
+
+    expect(button.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('gives both boxes their own eye button, as on /login (BUG-051)', () => {
+    render(<PasswordResetView {...baseProps()} />);
+
+    const toggles = screen.getAllByRole('button', { name: AUTH.actions.showPassword });
+    expect(toggles).toHaveLength(2);
+
+    fireEvent.click(toggles[0] as HTMLElement);
+
+    expect(field(AUTH.fields.newPassword)).toHaveAttribute('type', 'text');
+    expect(field(AUTH.fields.confirmPassword)).toHaveAttribute('type', 'password');
+  });
+
+  it('states the length rule under the new password before anything is sent (BUG-049)', () => {
+    render(<PasswordResetView {...baseProps()} />);
+
+    expect(field(AUTH.fields.newPassword)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
+  it('offers the way back to /login from the form too, not only from the dead end (BUG-050)', () => {
+    const goToSignIn = vi.fn();
+    render(<PasswordResetView {...baseProps()} goToSignIn={goToSignIn} />);
+
+    const link = screen.getByRole('link', { name: AUTH.actions.goToSignIn });
+    expect(link).toHaveAttribute('href', '/login');
+
+    fireEvent.click(link);
+    expect(goToSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('holds no raw colour', () => {
@@ -198,6 +237,22 @@ describe('PasswordReset — the fragment token', () => {
     expect(screen.queryByLabelText(AUTH.fields.newPassword)).toBeNull();
     expect(confirm).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['no token at all', ''],
+    ['the token in the query instead of the fragment', '?token=abc'],
+  ])('says the link is incomplete, not expired, with %s (BUG-005)', (_label, suffix) => {
+    setUrl(suffix);
+
+    const { port } = makePort();
+
+    render(<PasswordReset port={port} />);
+
+    expect(screen.getByText(AUTH.passwordReset.incomplete)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.expired)).toBeNull();
+    expect(screen.getByText(AUTH.passwordReset.deadEndSubtitle)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.subtitle)).toBeNull();
+  });
 });
 
 /* ---- answers -------------------------------------------------------------- */
@@ -230,6 +285,8 @@ describe('PasswordReset — what the server answers', () => {
       expect(stateOf(container)).toBe('forbidden');
     });
     expect(screen.getByText(AUTH.passwordReset.expired)).toBeInTheDocument();
+    expect(screen.queryByText(AUTH.passwordReset.incomplete)).toBeNull();
+    expect(screen.getByText(AUTH.passwordReset.deadEndSubtitle)).toBeInTheDocument();
   });
 
   it('puts a newPassword complaint under its own box', async () => {
@@ -238,7 +295,8 @@ describe('PasswordReset — what the server answers', () => {
 
     fillAndSubmit(container);
 
-    expect(await screen.findByText(/Mật khẩu cần ít nhất 8 ký tự/u)).toBeInTheDocument();
+    // Câu lỗi, không phải gợi ý cùng chữ đứng sẵn dưới ô (BUG-049).
+    expect(await screen.findByText(/Mật khẩu cần ít nhất 8 ký tự/u, { selector: '[role="alert"]' })).toBeInTheDocument();
     expect(field(AUTH.fields.newPassword).value).toBe(NEW_PASSWORD);
   });
 
@@ -302,6 +360,9 @@ describe('PasswordReset — what the server answers', () => {
       expect(stateOf(container)).toBe('error');
     });
     expect(container.textContent).not.toContain('FOO_BAR');
+    // Reloading would drop the fragment token: the sentence asks for a resend, never a reload (BUG-015).
+    expect(screen.getByRole('alert')).toHaveTextContent(AUTH.errors.recoveryFailed);
+    expect(screen.getByRole('alert').textContent).not.toMatch(/tải lại/iu);
     expect(field(AUTH.fields.newPassword).value).toBe(NEW_PASSWORD);
   });
 
@@ -315,6 +376,23 @@ describe('PasswordReset — what the server answers', () => {
       expect(stateOf(container)).toBe('error');
     });
     expect(screen.getByLabelText(AUTH.fields.newPassword)).toBeInTheDocument();
+    // The sentence already opens with the incident: no heading repeating it (BUG-021).
+    expect(screen.getByRole('alert')).toHaveTextContent(viMessages.errors.network.description);
+    expect(within(screen.getByRole('alert')).queryByRole('heading')).toBeNull();
+    // Same tone as the connection strips of the gate and the invitation screen (BUG-020).
+    expect(screen.getByRole('alert').className).toMatch(/state-attention/u);
+  });
+
+  it('names a 429 once, in the heading, not again in the sentence (BUG-021)', async () => {
+    const { port } = makePort(wireFailure(429, { retryAfterSeconds: 7 }));
+    const { container } = render(<PasswordReset port={port} />);
+
+    fillAndSubmit(container);
+
+    const alert = await screen.findByRole('alert');
+
+    expect(within(alert).getByRole('heading')).toHaveTextContent(AUTH.errors.tooManyAttempts.title);
+    expect(alert.textContent?.split(AUTH.errors.tooManyAttempts.title)).toHaveLength(2);
   });
 });
 

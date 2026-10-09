@@ -8,8 +8,8 @@
 
      [CẤM TUYỆT ĐỐI] nói "chủ đề tối dùng đúng bộ token tối, không tự làm tối
      màu bằng bộ lọc". Nên ở đây không có `filter: invert()`, không có
-     `opacity`, không có lớp phủ đen: chỉ 36 custom property được khai lại.
-     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 43 mục, không
+     `opacity`, không có lớp phủ đen: chỉ 37 custom property được khai lại.
+     Mọi mục màu trong `tailwind.config.ts` đã là `var(--token)` — 39 mục màu (cộng 5 shadow), không
      một mã màu thô nào — nên khai lại thuộc tính DƯỚI selector này CHÍNH LÀ cả
      cơ chế. Không thêm `darkMode: 'class'` vào Tailwind: cái đó bật biến thể
      `dark:`, thứ repo này dùng đúng 0 lần.
@@ -39,21 +39,33 @@
      khoanh vùng theo khối selector, hoặc `checkContrast` cần nhận chủ đề làm
      tham số. Cả hai đều ở `src/lib/**`, thư mục lượt làm này không được sửa.
 
-     Không được sửa một giá trị nào của `:root` bên dưới — chín màn đã xong đang
-     đọc chúng.
+     Không sửa giá trị nào của `:root` bên dưới nếu không có lý do tương phản AA
+     đo được — chín màn đã xong đang đọc chúng. Ngoại lệ đã có: `--text-muted`
+     sáng #999691 → #726f6c (FIX-580, BUG-042, 2,68:1 → 4,55:1 trên `--bg-app`).
+     Hệ quả phải biết: muted và secondary sáng nay gần nhau (1,11:1; tối 1,40:1),
+     nên hover từ muted lên secondary gần như không thấy — dùng `text-primary`.
 
      ## Đo tương phản (A11y, ngưỡng 4,5:1)
 
-     | chữ | trên | tỉ số |
-     |---|---|---|
-     | `--text-primary`   | `--bg-app`     | 14,20:1 |
-     | `--text-primary`   | `--bg-surface` | 12,77:1 |
-     | `--text-secondary` | `--bg-app`     |  7,71:1 |
-     | `--text-secondary` | `--bg-surface` |  6,93:1 |
+     | chữ | trên | tối | sáng |
+     |---|---|---|---|
+     | `--text-primary`   | `--bg-app`     | 14,20:1 | 11,67:1 |
+     | `--text-primary`   | `--bg-surface` | 12,77:1 | 12,82:1 |
+     | `--text-secondary` | `--bg-app`     |  7,71:1 |  5,06:1 |
+     | `--text-secondary` | `--bg-surface` |  6,93:1 |  5,55:1 |
 
-     `--text-muted` đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface` —
-     cao hơn chính bản sáng của nó (2,95:1 trên nền trắng), nên chủ đề tối không
-     mang theo khoản nợ tương phản nào mới.
+     `--text-muted` tối đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface`;
+     bản sáng (#726f6c) đạt 4,55:1 và 4,99:1.
+
+     `--border-control` là viền của ô nhập, ô chọn, checkbox, radio (WCAG 1.4.11,
+     ≥ 3:1 — BUG-045). Token RIÊNG, không mượn `--text-muted`: viền cần ~3:1 chứ
+     không cần 4,5:1 của chữ, và đổi màu chữ không được kéo theo viền. Tối:
+     3,45:1 trên `--bg-app`, 3,10:1 trên `--bg-surface`; sáng: 3,17:1 và 3,48:1.
+     Hover viền lên `--text-primary`: 4,11:1 (tối) và 3,69:1 (sáng) so với viền
+     thường, nên vẫn thấy rõ.
+     Biên an toàn dựa vào nền `--bg-surface` BÊN TRONG control: trên nền hàng
+     `bg-hover`/`bg-selected` (tối) phía ngoài chỉ ~2,6–2,7:1, sáng trên
+     `--bg-sunken` ~3,0:1 — đừng hạ token này thêm.
 
      ## Hai mươi thuộc tính KHÔNG khai lại, và vì sao
 
@@ -94,6 +106,7 @@
     --bg-overlay: rgba(10, 9, 8, 0.6);
 
     --border-default: #3a3733;
+    --border-control: #746f67;
 
     --text-primary: #ece9e3;
     --text-secondary: #b2ada4;
@@ -154,10 +167,15 @@
     --bg-overlay: rgba(43, 42, 40, 0.28);
 
     --border-default: #e3ded6;
+    /* Viền control ≥ 3:1 trên cả `--bg-app` (3,17:1) và `--bg-surface` (3,48:1) — BUG-045. */
+    --border-control: #8c8986;
 
     --text-primary: #33322f;
     --text-secondary: #6b6862;
-    --text-muted: #999691; /* Used for shortcut kbd */
+    /* #999691 cũ chỉ 2,68:1 trên `--bg-app` mà đa số chỗ dùng là chữ thật (BUG-042).
+       #726f6c: 4,55:1 trên `--bg-app`, 4,99:1 trên `--bg-surface`. Cũng là màu icon
+       trong ô (BUG-044); viền control nay có token riêng `--border-control`. */
+    --text-muted: #726f6c;
 
     --danger-tint: #f9efed;
     --danger-border: #e8cfc9;

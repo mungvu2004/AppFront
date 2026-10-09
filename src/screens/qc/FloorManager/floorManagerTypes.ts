@@ -296,6 +296,11 @@ export interface FloorManagerViewProps {
   readonly emptyNotice: string | null;
   /** Câu của trạng thái Lỗi. `null` ở mọi trạng thái khác. */
   readonly errorMessage: string | null;
+  /**
+   * Lỗi là 404 của dự án: tải lại không cứu được, nên view nói "không tìm thấy
+   * dự án" và đưa lối về danh sách dự án thay vì "Thử lại" (BUG-032).
+   */
+  readonly isProjectMissing?: boolean | undefined;
   /** Câu của vai Người xem. `null` ở mọi trạng thái khác. */
   readonly forbiddenNotice: string | null;
   /**
@@ -389,6 +394,8 @@ export interface FloorManagerViewProps {
   readonly onUploadDrawing: (floorId: string) => void;
   readonly onToggleCollapsed: () => void;
   readonly onRetry: () => void;
+  /** Lối về danh sách dự án khi {@link FloorManagerViewProps.isProjectMissing}; vắng thì không vẽ nút. */
+  readonly onBackToProjects?: (() => void) | undefined;
   readonly onUndo: () => void;
 }
 

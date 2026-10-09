@@ -175,6 +175,16 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     expect(document.activeElement).toBe(email);
   });
 
+  it('swaps the tagline under the title for the panel instruction, said once (BUG-023)', () => {
+    setup();
+
+    expect(screen.getByText(AUTH.brand.subtitle)).toBeInTheDocument();
+    openPanel();
+
+    expect(screen.queryByText(AUTH.brand.subtitle)).toBeNull();
+    expect(screen.getAllByText(AUTH.forgotPassword.subtitle)).toHaveLength(1);
+  });
+
   it('opens from the wrong-password strip too', async () => {
     setup({ signIn: wireFailure(401, { code: 'INVALID_CREDENTIALS' }) });
 
@@ -201,7 +211,7 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     expect(document.activeElement).toBe(screen.getByLabelText(AUTH.fields.email));
   });
 
-  it('on 204 says one neutral sentence: a status line, secondary text, no alert, no state colour', async () => {
+  it('on 204 says one neutral sentence in a neutral block, through the status region, not as an alert (BUG-022)', async () => {
     const { container, requestPasswordReset } = setup();
 
     type(AUTH.fields.email, EMAIL);
@@ -211,11 +221,15 @@ describe('AuthScreen — the forgot-password panel (N8)', () => {
     const sentence = await screen.findByText(AUTH.forgotPassword.sent);
 
     expect(requestPasswordReset).toHaveBeenCalledWith({ email: EMAIL });
-    expect(sentence).toHaveAttribute('role', 'status');
-    expect(sentence.className).toContain('text-text-secondary');
-    expect(sentence.className).not.toMatch(/state-|verified|violation|attention/u);
+    expect(screen.getByRole('status')).toContainElement(sentence);
+    // Neutral, not "verified" green: N8 answers 204 for any address, so nothing was verified (A5).
+    expect(sentence.closest('.border-border-default')).not.toBeNull();
+    expect(container.querySelector('[class*="state-verified"]')).toBeNull();
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(stateOf(container)).toBe('success');
+    // The send button is locked now; say how to send again.
+    expect(screen.getByRole('button', { name: AUTH.actions.sendResetLink })).toBeDisabled();
+    expect(screen.getByText(AUTH.forgotPassword.sentHint)).toBeInTheDocument();
   });
 
   it('keeps the status region mounted and empty before anything is sent', () => {

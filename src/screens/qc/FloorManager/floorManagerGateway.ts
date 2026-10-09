@@ -210,7 +210,7 @@ export const FLOOR_MANAGER_UNSUPPORTED_NOTICES: Readonly<
   persistFloorContents:
     'Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.',
   hideFloorFrom3d:
-    'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.',
+    'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.',
 };
 
 /** Một khả năng chưa tồn tại. `supported: false` là câu trả lời thật, không phải lỗi. */

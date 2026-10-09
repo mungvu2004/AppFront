@@ -10,7 +10,14 @@ import { z } from 'zod';
  * dạng" hay "quá ngắn".
  */
 
-const emailSchema = z.string().min(1).email();
+/**
+ * Longest address the server accepts (RFC 5321 path limit; AppBack `apps/api/auth/emails.py`).
+ * Declared in this leaf so `./index.ts`, `./users.ts` and `./members.ts` share one figure
+ * without importing `./index` (BUG-010).
+ */
+export const MAX_EMAIL_LENGTH = 254;
+
+const emailSchema = z.string().min(1).email().max(MAX_EMAIL_LENGTH);
 const passwordSchema = z.string().min(1).min(8);
 const tokenSchema = z.string().min(1).max(512);
 

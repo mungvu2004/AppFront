@@ -3,11 +3,13 @@
  *
  * Thay chỗ biểu mẫu đăng nhập chứ không mở lớp phủ: Esc ở đây là "quay lại đăng
  * nhập" (A12), và nút quay lại trả tiêu điểm về ô thư điện tử của biểu mẫu đăng nhập.
- * Câu thành công là câu trung tính, chữ phụ, không màu trạng thái: N8 luôn trả 204 nên
- * nó không được nói địa chỉ có tài khoản hay không.
+ * Câu "đã gửi" nằm trong một khối trung tính có viền và biểu tượng thư để người dùng nhận ra
+ * yêu cầu đã đi (BUG-022) — KHÔNG phải xanh "verified": N8 luôn trả 204 nên chẳng có gì được
+ * xác minh, và A5 giữ màu ấy cho việc người duyệt làm. Câu chữ vốn cũng không khẳng định chắc.
  */
 
 import { useCallback } from 'react';
+import { Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -27,7 +29,7 @@ export interface ForgotPasswordPanelProps {
 }
 
 export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField }: ForgotPasswordPanelProps) {
-  const { email, problem, notice, sentMessage, isSending, canSubmit } = model;
+  const { email, problem, notice, sentMessage, isSending, isSent, canSubmit } = model;
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -50,14 +52,17 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
 
   return (
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-      <p className="text-[14px] leading-[20px] text-text-secondary">{AUTH_MESSAGES.forgotPassword.subtitle}</p>
-
       <RecoveryNoticeStrip notice={notice} />
 
       {/* Always mounted, filled later: a region inserted together with its text is often not read. */}
-      <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
-        {sentMessage}
-      </p>
+      <div role="status" className="empty:sr-only">
+        {sentMessage !== null && (
+          <div className="flex items-start gap-3 rounded-[8px] border border-border-default p-3">
+            <Mail aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
+            <p className="text-[14px] leading-relaxed text-text-primary">{sentMessage}</p>
+          </div>
+        )}
+      </div>
 
       <Input
         ref={registerEmailField}
@@ -76,10 +81,16 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
         <Button type="submit" size="lg" fullWidth loading={isSending} disabled={!canSubmit}>
           {isSending ? AUTH_MESSAGES.actions.submitting : AUTH_MESSAGES.actions.sendResetLink}
         </Button>
+        {/* The button is locked after a send (a second identical letter helps no one): say how to unlock it. */}
+        {isSent && (
+          <p className="text-center text-[13px] leading-[18px] text-text-secondary">
+            {AUTH_MESSAGES.forgotPassword.sentHint}
+          </p>
+        )}
         <button
           type="button"
           onClick={onBack}
-          className="self-center text-[13px] leading-[18px] text-accent transition-colors duration-120 hover:text-accent-hover"
+          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
         >
           {AUTH_MESSAGES.actions.backToSignIn}
         </button>

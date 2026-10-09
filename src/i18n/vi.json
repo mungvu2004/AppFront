@@ -100,7 +100,7 @@
       "support": "Tải bản vẽ lên, chạy chuỗi xử lý, rồi đối chiếu tường, trục, phòng và ô mở theo bộ quy tắc của đội bạn."
     },
     "brand": {
-      "subtitle": "Số hóa bản vẽ 2D thành mô hình 3D tương tác."
+      "subtitle": "Số hoá bản vẽ 2D thành mô hình 3D tương tác."
     },
     "tabs": {
       "signIn": "Đăng nhập"
@@ -117,6 +117,7 @@
       "acceptInvitation": "Nhận lời mời",
       "backToSignIn": "Quay lại đăng nhập",
       "goToSignIn": "Về trang đăng nhập",
+      "goToProjects": "Về danh sách dự án",
       "sendResetLink": "Gửi thư đặt lại mật khẩu",
       "setNewPassword": "Đổi mật khẩu",
       "signIn": "Đăng nhập",
@@ -127,17 +128,20 @@
       "forgotPassword": "Quên mật khẩu",
       "resetPassword": "Đặt lại mật khẩu",
       "showPassword": "Hiện mật khẩu",
-      "hidePassword": "Ẩn mật khẩu"
+      "hidePassword": "Ẩn mật khẩu",
+      "signInWithAnotherAccount": "Đăng nhập bằng tài khoản khác"
     },
     "problems": {
       "confirmMismatch": "Hai mật khẩu chưa giống nhau.",
       "confirmRequired": "Chưa nhập lại mật khẩu.",
       "emailRequired": "Chưa nhập thư điện tử.",
       "emailInvalid": "Thư điện tử chưa đúng dạng. Kiểm tra lại phần trước và sau dấu a còng.",
+      "emailTooLong": "Thư điện tử dài quá {{count}} ký tự. Kiểm tra lại địa chỉ.",
       "passwordRequired": "Chưa nhập mật khẩu.",
       "passwordTooShort": "Mật khẩu cần ít nhất {{count}} ký tự.",
       "fullNameRequired": "Chưa nhập họ và tên.",
-      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự."
+      "fullNameTooLong": "Họ và tên tối đa {{count}} ký tự.",
+      "fullNameInvalid": "Họ và tên có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Gõ lại họ tên rồi thử lại."
     },
     "errors": {
       "invalidCredentials": {
@@ -152,7 +156,12 @@
         "title": "Máy chủ từ chối yêu cầu",
         "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
-      "tooManyRecovery": "Đã thử quá nhiều lần. Hãy đợi vài phút rồi thử lại.",
+      "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
+      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
+      "validationOther": {
+        "title": "Dữ liệu chưa phù hợp",
+        "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
+      },
       "accountDisabled": {
         "title": "Tài khoản đã bị vô hiệu",
         "description": "Tài khoản này không còn được phép đăng nhập. Liên hệ quản trị dự án để mở lại."
@@ -161,27 +170,36 @@
     "forgotPassword": {
       "title": "Quên mật khẩu",
       "subtitle": "Nhập thư điện tử của tài khoản. Thư đặt lại mật khẩu sẽ được gửi tới đó.",
-      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút."
+      "sent": "Nếu địa chỉ này có tài khoản, thư đặt lại mật khẩu sẽ tới trong vài phút.",
+      "sentHint": "Đổi địa chỉ nếu muốn gửi tới thư khác."
     },
     "invitation": {
       "title": "Nhận lời mời",
-      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu dùng AppFront.",
+      "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
+      "deadEndSubtitle": "Liên kết này không mở được lời mời.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
+      "incomplete": "Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
       "sessionNotOpened": "Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.",
+      "retryFailed": "Đã thử lại nhưng vẫn chưa kết nối được máy chủ.",
       "success": "Đã nhận lời mời. Đang mở tài khoản của bạn."
     },
     "passwordReset": {
       "title": "Đặt lại mật khẩu",
       "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
+      "deadEndSubtitle": "Liên kết này không đặt lại được mật khẩu.",
       "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
+      "incomplete": "Trang này không còn mã của liên kết đặt lại mật khẩu (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.",
       "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."
     },
     "notices": {
       "partial": "Đã có thư điện tử, còn thiếu mật khẩu.",
       "passwordReset": "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.",
       "sessionEnded": "Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.",
-      "signedInOffline": "Đã đăng nhập nhưng chưa kết nối được máy chủ, đang thử lại.",
+      "signInRequired": "Hãy đăng nhập để tiếp tục.",
+      "signedIn": "Bạn đang đăng nhập. Đăng nhập ở đây sẽ thay cho phiên hiện tại.",
+      "signedInOffline": "Mật khẩu đúng nhưng chưa kết nối được máy chủ để mở phiên. Bấm Đăng nhập để thử lại.",
+      "sessionNotOpened": "Mật khẩu đúng nhưng chưa mở được phiên làm việc. Kiểm tra trình duyệt có cho phép cookie của trang này rồi đăng nhập lại.",
       "success": "Đã đăng nhập. Đang mở lại trang bạn đang xem.",
       "collapsed": "Biểu mẫu đang thu gọn. Mở lại để nhập thư điện tử và mật khẩu.",
       "collapsedRecovery": "Biểu mẫu đang thu gọn. Mở lại để nhập mật khẩu.",
@@ -391,6 +409,14 @@
     "graphReloadFailed": "Không tải lại được mô hình.",
     "graphReloadRetry": "Thử lại"
   },
+  "dashboard": {
+    "stats": {
+      "all": "Tổng dự án",
+      "done": "Hoàn thành",
+      "qc": "Cần QC",
+      "processing": "Đang xử lý"
+    }
+  },
   "account": {
     "title": "Cài đặt tài khoản",
     "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
@@ -581,7 +607,7 @@
   "onboarding": {
     "greeting": "Chào {{name}}, bắt đầu trong ba bước",
     "greetingFallback": "Chào bạn, bắt đầu trong ba bước",
-    "intro": "AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
+    "intro": "Ứng dụng đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.",
     "step1": {
       "title": "Tạo dự án",
       "sentence": "Khai báo tên công trình và danh sách tầng.",
@@ -1391,7 +1417,7 @@
       "corruptedFile": "Tệp bản vẽ bị hỏng hoặc định dạng không hợp lệ. Hãy kiểm tra tệp trong AutoCAD rồi lưu lại dưới tên khác.",
       "emptyFile": "Tệp bản vẽ không chứa bất kỳ đối tượng hình học nào. Kiểm tra lại file được tải lên có đúng không.",
       "fileTooLarge": "Tệp bản vẽ quá lớn ({sizeMb} MB). Vui lòng tải lên tệp dưới 100 MB hoặc tách tệp thành các phần nhỏ hơn.",
-      "encodingNotSupported": "Tệu bản vẽ chứa mã hóa không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hóa tiêu chuẩn."
+      "encodingNotSupported": "Tệp bản vẽ chứa mã hoá không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hoá tiêu chuẩn."
     },
     "screen": {
       "ariaLabel": "Màn phát hiện tệp CAD",
@@ -1955,7 +1981,7 @@
     "capability": {
       "sessionOnlyHeading": "Những thay đổi chỉ sống trong phiên làm việc này",
       "persistFloorContents": "Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
-      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
     },
     "caption": {
       "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."

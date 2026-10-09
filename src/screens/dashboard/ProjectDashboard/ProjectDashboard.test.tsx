@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 import { MOCK_NOTIFICATIONS } from '@/api/__mocks__/client';
+import { setAuthenticatedSession, setUnknownSession } from '@/lib/auth/state';
 import { renderWithProviders } from '@/lib/testing/render';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -164,7 +165,7 @@ describe('ProjectDashboardView, seven states', () => {
   it('teaches, with a create button, when there has never been a project', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} />);
 
-    expect(screen.getByText('Chưa có dự án nào. Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).toBeInTheDocument();
+    expect(screen.getByText('Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tạo dự án mới' })).toBeInTheDocument();
   });
 
@@ -265,6 +266,42 @@ describe('ProjectDashboardRoute', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Thông báo' })).toBeInTheDocument();
     expect(bell).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  // BUG-031: the account avatar was an empty circle — nothing said who is signed in.
+  it('vẽ chữ viết tắt của người đang đăng nhập lên avatar tài khoản', async () => {
+    setAuthenticatedSession({ accessToken: 't', expiresAt: Date.now() + 3_600_000, roles: [], user: { id: 'u', name: 'Nguyễn Thu Hà' } });
+    try {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+          <ProjectDashboardRoute />
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByLabelText('Tài khoản của bạn')).toHaveTextContent('NH');
+    } finally {
+      setUnknownSession();
+    }
+  });
+
+  it('tên rỗng thì lấy chữ viết tắt từ email, không để avatar trống', async () => {
+    setAuthenticatedSession({
+      accessToken: 't',
+      expiresAt: Date.now() + 3_600_000,
+      roles: [],
+      user: { id: 'u', name: '', email: 'thuha@example.com' },
+    });
+    try {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+          <ProjectDashboardRoute />
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByLabelText('Tài khoản của bạn')).toHaveTextContent('TH');
+    } finally {
+      setUnknownSession();
+    }
   });
 });
 

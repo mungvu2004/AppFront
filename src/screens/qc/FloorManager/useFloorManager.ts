@@ -96,6 +96,7 @@ import type { UndoEntryId } from '@/lib/commands/dispatch';
 import type { HistoryStep } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatLength } from '@/lib/format/measure';
@@ -1610,13 +1611,20 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     needsDrawingCount,
   });
 
+  const isProjectMissing = hasError && toAppError(floorListQuery.error).kind === 'notFound';
+
   const errorMessage = useMemo(() => {
     if (!hasError) {
       return null;
     }
 
+    if (isProjectMissing) {
+      // Cùng câu với 404 của `ProjectSpatialGate` — nhập, không chép (BUG-032).
+      return PROJECT_NOT_FOUND_DESCRIPTION;
+    }
+
     return describeError(toAppError(floorListQuery.error)).description;
-  }, [floorListQuery.error, hasError]);
+  }, [floorListQuery.error, hasError, isProjectMissing]);
 
   const unsupportedNotices = useMemo(
     () =>
@@ -1642,6 +1650,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
 
     emptyNotice: state === 'empty' ? FLOOR_MANAGER_TEXT.emptyNotice : null,
     errorMessage,
+    isProjectMissing,
     forbiddenNotice: isViewerRole ? FLOOR_MANAGER_TEXT.forbiddenNotice : null,
     duplicateElevationMessage: duplicateElevation?.message ?? null,
     duplicateElevationViolation: duplicateElevation?.violation ?? null,

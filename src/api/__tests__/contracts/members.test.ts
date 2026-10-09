@@ -38,4 +38,11 @@ describe('AddProjectMemberSchema', () => {
       'invalid_string',
     ]);
   });
+
+  it('từ chối địa chỉ dài quá 254 ký tự, cùng trần với EmailSchema (BUG-010)', () => {
+    const at254 = `${'a'.repeat(64)}@${'b'.repeat(186)}.vn`;
+
+    expect(AddProjectMemberSchema.safeParse({ email: at254 }).success).toBe(true);
+    expect(issuePaths(AddProjectMemberSchema, { email: `a${at254}` })).toStrictEqual([['email']]);
+  });
 });

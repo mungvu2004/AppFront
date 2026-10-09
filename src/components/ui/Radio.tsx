@@ -98,7 +98,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
             className={cn(
               'w-[18px] h-[18px] rounded-full border-[1.5px] flex items-center justify-center transition-colors duration-120',
               'peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2',
-              isChecked ? 'border-accent' : 'border-border-default bg-bg-surface'
+              isChecked ? 'border-accent' : 'border-border-control bg-bg-surface'
             )}
             whileTap={!isDisabled ? { scale: 0.94 } : {}}
             transition={{ duration: durationSeconds('instant') }}

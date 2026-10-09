@@ -29,6 +29,7 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Button } from '@/components/ui/Button';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
@@ -59,6 +60,8 @@ export interface FloorTableProps
     | 'onToggleAutoElevation'
     | 'onUploadDrawing'
     | 'onRetry'
+    | 'isProjectMissing'
+    | 'onBackToProjects'
   > {
   readonly state: FloorManagerScreenState;
 }
@@ -105,6 +108,8 @@ export function FloorTable({
   onToggleAutoElevation,
   onUploadDrawing,
   onRetry,
+  isProjectMissing,
+  onBackToProjects,
 }: FloorTableProps) {
   const menu = useContextMenu();
   const [duplicatingFloorId, setDuplicatingFloorId] = useState<string | null>(null);
@@ -189,6 +194,19 @@ export function FloorTable({
         description={emptyNotice ?? ''}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
         title={EMPTY_TITLE}
+      />
+    );
+  }
+
+  if (state === 'error' && isProjectMissing === true) {
+    return (
+      <InlineAlert
+        {...(onBackToProjects !== undefined
+          ? { action: { label: BACK_TO_PROJECTS_LABEL, onClick: onBackToProjects } }
+          : {})}
+        level="violation"
+        message={errorMessage ?? ''}
+        title={PROJECT_NOT_FOUND_TITLE}
       />
     );
   }

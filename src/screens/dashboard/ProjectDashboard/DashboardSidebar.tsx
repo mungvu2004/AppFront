@@ -7,6 +7,7 @@
 
 import { CheckCircle2, Clock, Folder, RotateCw } from 'lucide-react';
 
+import { dashboard as DASHBOARD_MESSAGES } from '@/i18n/vi.json';
 import { cn } from '@/lib/utils';
 
 import { PROJECT_STATUS_FILTER_OPTIONS, type ProjectStatusCounts, type ProjectStatusFilter } from './useProjectDashboard';
@@ -19,31 +20,37 @@ export interface DashboardSidebarProps {
 
 export function DashboardSidebar({ statusCounts, statusFilter, onStatusFilterChange }: DashboardSidebarProps) {
   const stats = [
-    { icon: <Folder size={18} aria-hidden="true" />, count: statusCounts.all, label: 'Tổng dự án', tint: 'bg-accent-wash text-accent' },
+    { icon: <Folder size={18} aria-hidden="true" />, count: statusCounts.all, label: DASHBOARD_MESSAGES.stats.all, tint: 'bg-accent-wash text-accent' },
     {
       icon: <CheckCircle2 size={18} aria-hidden="true" />,
       count: statusCounts.done,
-      label: 'Hoàn thành',
+      label: DASHBOARD_MESSAGES.stats.done,
       tint: 'bg-state-verified-tint text-state-verified-text',
     },
     {
       icon: <Clock size={18} aria-hidden="true" />,
       count: statusCounts.qc,
-      label: 'Cần QC',
+      label: DASHBOARD_MESSAGES.stats.qc,
       tint: 'bg-state-attention-tint text-state-attention-text',
     },
-    { icon: <RotateCw size={18} aria-hidden="true" />, count: statusCounts.processing, label: 'Đang xử lý', tint: 'bg-bg-sunken text-text-secondary' },
+    {
+      icon: <RotateCw size={18} aria-hidden="true" />,
+      count: statusCounts.processing,
+      label: DASHBOARD_MESSAGES.stats.processing,
+      tint: 'bg-bg-sunken text-text-secondary',
+    },
   ];
 
   return (
     <aside className="flex w-full shrink-0 flex-col gap-4 lg:w-[260px]">
-      <div className="grid grid-cols-2 gap-3">
+      {/* One column in the 260 px rail: two columns left ~50 px per label and broke "Tổng dự / án" mid-phrase. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
         {stats.map((stat) => (
           <div key={stat.label} className="flex items-center gap-3 rounded-xl border border-border-default bg-bg-surface p-3">
             <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', stat.tint)}>{stat.icon}</span>
             <span className="flex flex-col">
               <span className="text-[18px] font-semibold leading-none text-text-primary">{stat.count}</span>
-              <span className="text-[12px] text-text-secondary">{stat.label}</span>
+              <span className="whitespace-nowrap text-[12px] text-text-secondary">{stat.label}</span>
             </span>
           </div>
         ))}

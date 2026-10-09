@@ -34,6 +34,7 @@ const base: PasswordResetViewProps = {
   canSubmit: true,
   isSubmitting: false,
   isDone: false,
+  isLinkIncomplete: false,
   setNewPassword: noop,
   setConfirmPassword: noop,
   submit: noop,

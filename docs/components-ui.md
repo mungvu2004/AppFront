@@ -11,7 +11,7 @@
 | Prop | Kiểu | Mặc định | Mô tả |
 |---|---|---|---|
 | `variant` | `'primary' \| 'secondary' \| 'ghost' \| 'danger'` | `'primary'` | Biến thể nút |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | 32 / 36 / 40 px |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | 32 / 36 / 40 px (lg: 44 px dưới 640 px) |
 | `iconBefore` | `ReactNode` | — | Icon trước nhãn |
 | `iconAfter` | `ReactNode` | — | Icon sau nhãn |
 | `loading` | `boolean` | `false` | Spinner, giữ chiều rộng |
@@ -85,7 +85,7 @@ Phím: ArrowLeft/Right. Con trượt trượt 180ms.
 | `flash` | `boolean` | `false` | bg-flash sau ghi |
 | `disabled` | `boolean` | `false` | Vô hiệu hoá |
 
-Cao 38px, bo 8px, focus-within ring-2 accent offset-2.
+Cao 46px dưới 640px, 38px từ 640px; viền `border-control`; bo 8px, focus-within ring-2 accent offset-2.
 
 ---
 

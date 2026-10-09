@@ -41,6 +41,11 @@ const config: Config = {
       },
       border: {
         default: 'var(--border-default)',
+        // Viền control (ô nhập, checkbox, radio, ô chọn): `--border-default` chỉ
+        // 1,34:1 trên nền ô, dưới 3:1 của WCAG 1.4.11 (BUG-045). `--border-control`
+        // đạt 3,1–3,5:1 trên cả `--bg-app` và `--bg-surface`, ở cả hai chủ đề
+        // (bảng số ở `globals.css`).
+        control: 'var(--border-control)',
       },
       text: {
         primary: 'var(--text-primary)',

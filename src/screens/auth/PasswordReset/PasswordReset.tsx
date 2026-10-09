@@ -9,13 +9,14 @@
 import { useCallback } from 'react';
 
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { ROUTES } from '@/routes/paths';
 
 /* Nhập THEO TÊN, không default — lý do ở `../recoveryShared.ts`. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
-import { RecoveryDeadEnd, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { PasswordField } from '../PasswordField';
+import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import { passwordTooShort } from '../recoveryShared';
 import {
   usePasswordReset,
   type PasswordResetActions,
@@ -26,7 +27,7 @@ import {
 export type PasswordResetViewProps = PasswordResetModel & PasswordResetActions;
 
 export function PasswordResetView(props: PasswordResetViewProps) {
-  const { state, values, problems, notice, canSubmit, isSubmitting, isDone } = props;
+  const { state, values, problems, notice, canSubmit, isSubmitting, isDone, isLinkIncomplete } = props;
   const { setNewPassword, setConfirmPassword, submit, goToSignIn, expand } = props;
 
   const handleSubmit = useCallback(
@@ -42,7 +43,12 @@ export function PasswordResetView(props: PasswordResetViewProps) {
   return (
     <RecoveryShell
       title={AUTH_MESSAGES.passwordReset.title}
-      subtitle={AUTH_MESSAGES.passwordReset.subtitle}
+      // Ngõ cụt không còn ô nhập: phụ đề "nhập mật khẩu mới" thành lời mời làm việc không làm được (BUG-005).
+      subtitle={
+        state === 'forbidden'
+          ? AUTH_MESSAGES.passwordReset.deadEndSubtitle
+          : AUTH_MESSAGES.passwordReset.subtitle
+      }
       state={state}
     >
       {state === 'collapsed' ? (
@@ -56,23 +62,24 @@ export function PasswordResetView(props: PasswordResetViewProps) {
         </div>
       ) : state === 'forbidden' ? (
         <RecoveryDeadEnd
-          message={AUTH_MESSAGES.passwordReset.expired}
+          message={
+            isLinkIncomplete ? AUTH_MESSAGES.passwordReset.incomplete : AUTH_MESSAGES.passwordReset.expired
+          }
           linkLabel={AUTH_MESSAGES.actions.goToSignIn}
           href={ROUTES.login}
           onLinkClick={goToSignIn}
         />
       ) : (
         <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
-          <RecoveryNoticeStrip notice={notice} />
           {/* Always mounted, filled later, so a screen reader announces the text. */}
           <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
             {isDone ? AUTH_MESSAGES.passwordReset.success : null}
           </p>
 
           <div className="flex flex-col gap-4">
-            <Input
-              type="password"
+            <PasswordField
               label={AUTH_MESSAGES.fields.newPassword}
+              hint={passwordTooShort()}
               autoComplete="new-password"
               autoFocus
               value={values.newPassword}
@@ -82,8 +89,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
                 setNewPassword(event.target.value);
               }}
             />
-            <Input
-              type="password"
+            <PasswordField
               label={AUTH_MESSAGES.fields.confirmPassword}
               autoComplete="new-password"
               value={values.confirmPassword}
@@ -98,6 +104,10 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
             {isSubmitting ? AUTH_MESSAGES.actions.submitting : AUTH_MESSAGES.actions.setNewPassword}
           </Button>
+          {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
+          <RecoveryNoticeStrip notice={notice} />
+          {/* Lối về `/login` cả khi biểu mẫu còn dùng được, không chỉ ở ngõ cụt (BUG-050). */}
+          <RecoveryLink label={AUTH_MESSAGES.actions.goToSignIn} href={ROUTES.login} onClick={goToSignIn} />
         </form>
       )}
     </RecoveryShell>

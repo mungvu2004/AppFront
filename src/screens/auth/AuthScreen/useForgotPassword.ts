@@ -12,7 +12,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { PasswordResetRequestSchema } from '@/api/schemas/auth';
+import { MAX_EMAIL_LENGTH, PasswordResetRequestSchema } from '@/api/schemas/auth';
 import type { Result } from '@/lib/http';
 
 /* Nhập THEO TÊN, không default — xem ghi chú ở `useAuthScreen.ts`. */
@@ -20,6 +20,7 @@ import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import {
   classifyRecoveryFailure,
+  fillTemplate,
   noticeForRecovery,
   type RecoveryFailure,
   type RecoveryNotice,
@@ -68,9 +69,11 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
   const emailRef = useRef(email);
   emailRef.current = email;
 
+  /** A new address after a send is a new request: the "sent" result belonged to the old one. */
   const setEmail = useCallback((next: string) => {
     setEmailState(next);
     setProblem(undefined);
+    setPhase((current) => (current === 'sent' ? 'idle' : current));
   }, []);
 
   const reset = useCallback((next: string) => {
@@ -81,14 +84,24 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
   }, []);
 
   const submit = useCallback(() => {
-    if (inFlight.current || isLocked) {
+    // `sent`: the same address again would only send a second identical letter (BUG-022).
+    if (inFlight.current || isLocked || phase === 'sent') {
       return;
     }
 
     const current = emailRef.current;
 
-    if (!PasswordResetRequestSchema.shape.email.safeParse(current).success) {
-      setProblem(current.length === 0 ? AUTH_MESSAGES.problems.emailRequired : AUTH_MESSAGES.problems.emailInvalid);
+    const checked = PasswordResetRequestSchema.shape.email.safeParse(current);
+
+    if (!checked.success) {
+      // An address past the cap is too long, not malformed — the sign-in form says the same (BUG-010).
+      setProblem(
+        current.length === 0
+          ? AUTH_MESSAGES.problems.emailRequired
+          : checked.error.issues[0]?.code === 'too_big'
+            ? fillTemplate(AUTH_MESSAGES.problems.emailTooLong, { count: String(MAX_EMAIL_LENGTH) })
+            : AUTH_MESSAGES.problems.emailInvalid,
+      );
 
       return;
     }
@@ -129,7 +142,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
         setPhase('idle');
         setFailure({ kind: 'other', cause: thrown });
       });
-  }, [isLocked, lock, request]);
+  }, [isLocked, lock, phase, request]);
 
   // Hết khoá thì dải 429 đi theo; không cần effect riêng.
   const shownFailure = failure?.kind === 'rateLimited' && !isLocked ? null : failure;
@@ -142,7 +155,7 @@ export function useForgotPassword(options: UseForgotPasswordOptions): {
     isSending: phase === 'sending',
     isSent: phase === 'sent',
     hasFailure: shownFailure !== null,
-    canSubmit: phase !== 'sending' && !isLocked,
+    canSubmit: phase === 'idle' && !isLocked,
   };
 
   const actions = useMemo(() => ({ setEmail, submit, reset }), [reset, setEmail, submit]);

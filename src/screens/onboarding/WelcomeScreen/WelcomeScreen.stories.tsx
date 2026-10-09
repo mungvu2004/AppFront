@@ -38,7 +38,7 @@ const noop = (): void => undefined;
 const GREETING = 'Chào Minh, bắt đầu trong ba bước';
 
 const INTRO =
-  'AppFront đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.';
+  'Ứng dụng đọc bản vẽ kiến trúc của bạn và dò ra trục, tường, phòng, ô mở. Ba bước dưới đây đưa bạn từ tệp bản vẽ tới mô hình không gian xem được.';
 
 const SAMPLE_LINK: OnboardingLink = {
   label: 'Xem dự án mẫu',

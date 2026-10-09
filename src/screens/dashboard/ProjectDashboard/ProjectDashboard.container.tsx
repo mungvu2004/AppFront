@@ -35,6 +35,7 @@ import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModa
 import { NotificationBellContainer } from '@/screens/system/NotificationCenter';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
+import { initialsOf } from './projectsGateway';
 
 /** Names this screen to the error boundary, and to anything reading its report. */
 const SCREEN_ID = 'dashboard';
@@ -58,6 +59,8 @@ function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
 function DashboardWithCreateModal() {
   const session = useSession();
   const role = session.roles[0];
+  // `||`, không `??`: tên rỗng (máy chủ trả `name: ''`) cũng phải rơi về email (BUG-031).
+  const accountInitials = initialsOf(session.user?.name?.trim() || session.user?.email?.split('@')[0] || '');
   const { addToast } = useToast();
   const [isCreateOpen, setCreateOpen] = useState(false);
 
@@ -67,6 +70,7 @@ function DashboardWithCreateModal() {
         {...(role !== undefined ? { role } : {})}
         onCreateProject={() => setCreateOpen(true)}
         notificationBell={<NotificationBellContainer />}
+        accountInitials={accountInitials}
       />
       <CreateProjectModalContainer
         isOpen={isCreateOpen}

@@ -12,8 +12,9 @@
  * - **The failure is a strip inside the form, not a toast and not a modal.**
  *   Invariant A9 keeps blocking modals for create, delete and publish, and a
  *   toast for a wrong password would take the message away on a timer while the
- *   person is still reading it. The strip sits above the fields, next to the
- *   thing it is about, and stays until the attempt changes.
+ *   person is still reading it. An opening sentence sits above the fields;
+ *   what an attempt answered sits under the button that was pressed, so it
+ *   pushes nothing under the cursor (BUG-008). Both stay until the attempt changes.
  * - **The left column is decoration that costs nothing.** It is a flat sunken
  *   panel with seven hairlines on it — no gradient, no image, no canvas (rule
  *   B). Below 1024 it is gone entirely rather than stacked, because a value
@@ -28,8 +29,8 @@
  * of them through `expectSevenStates`.
  */
 
-import { useCallback, useRef, useState } from 'react';
-import { Eye, EyeOff, PanelsTopLeft } from 'lucide-react';
+import { useCallback, useRef } from 'react';
+import { PanelsTopLeft } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -47,6 +48,7 @@ import {
   type AuthScreenModel,
   type UseAuthScreenOptions,
 } from './useAuthScreen';
+import { PasswordField } from '../PasswordField';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
 import { ValuePanel } from './ValuePanel';
 
@@ -66,9 +68,6 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   const isDone = state === 'success';
   const fieldsDisabled = isSubmitting || isDone;
 
-  /** Ephemeral display state, not part of the model: it changes nothing about what gets submitted. */
-  const [isPasswordVisible, setPasswordVisible] = useState(false);
-
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -78,16 +77,17 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   );
 
   /**
-   * Enter sends from every field, including the checkbox.
+   * Enter sends from every field, including the checkbox — and only from a field.
    *
    * Implicit form submission already covers the text inputs, but not a focused
    * checkbox, and it is not something jsdom guarantees either. Handling the key
    * here makes the behaviour the same in a browser and in a test, and
    * `preventDefault` is what stops the native submission firing a second time.
+   * Enter on a button is that button's own (WCAG 2.1.1), so it is left alone.
    */
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLFormElement>) => {
-      if (event.key !== 'Enter' || event.defaultPrevented) {
+      if (event.key !== 'Enter' || event.defaultPrevented || !(event.target instanceof HTMLInputElement)) {
         return;
       }
 
@@ -104,24 +104,35 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
     [actions],
   );
 
+  /* The reset button goes under the strip, not into its `action` slot: beside the text it
+     squeezes the sentence into a ~100 px column at 360 px and below (BUG-003). */
+  const strip = notice !== null && (
+    <div className="flex flex-col gap-3">
+      <InlineAlert
+        level={notice.tone}
+        {...(notice.title !== undefined ? { title: notice.title } : {})}
+        message={notice.message}
+      />
+      {notice.showResetAction === true && (
+        <Button type="button" variant="secondary" size="sm" className="self-start" onClick={actions.forgotPassword}>
+          {AUTH_MESSAGES.actions.resetPassword}
+        </Button>
+      )}
+      {notice.showResetAction !== true && notice.action !== undefined && (
+        <Button type="button" variant="secondary" size="sm" className="self-start" onClick={notice.action.onClick}>
+          {notice.action.label}
+        </Button>
+      )}
+    </div>
+  );
+
+  /* What the last press said goes under the button that was pressed: above the fields it pushed
+     them and the button 80–130 px down from under the cursor (BUG-008). Opening sentences stay on top. */
+  const isAttemptResult = state === 'error' || state === 'success';
+
   return (
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-      {notice !== null && (
-        <InlineAlert
-          level={notice.tone}
-          {...(notice.title !== undefined ? { title: notice.title } : {})}
-          message={notice.message}
-          {...(notice.showResetAction
-            ? { action: { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword } }
-            : {})}
-        />
-      )}
-
-      {state === 'partial' && (
-        <p className="text-[13px] leading-[18px] text-text-secondary">
-          {AUTH_MESSAGES.notices.partial}
-        </p>
-      )}
+      {!isAttemptResult && strip}
 
       <div className="flex flex-col gap-4">
         <Input
@@ -138,8 +149,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           onBlur={blur('email')}
         />
 
-        <Input
-          type={isPasswordVisible ? 'text' : 'password'}
+        <PasswordField
           label={AUTH_MESSAGES.fields.password}
           autoComplete="current-password"
           value={values.password}
@@ -149,27 +159,6 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
             actions.setPassword(event.target.value);
           }}
           onBlur={blur('password')}
-          suffix={
-            <button
-              type="button"
-              disabled={fieldsDisabled}
-              onClick={() => {
-                setPasswordVisible((visible) => !visible);
-              }}
-              aria-label={
-                isPasswordVisible
-                  ? AUTH_MESSAGES.actions.hidePassword
-                  : AUTH_MESSAGES.actions.showPassword
-              }
-              className="text-text-muted transition-colors duration-120 hover:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPasswordVisible ? (
-                <EyeOff aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
-              ) : (
-                <Eye aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
-              )}
-            </button>
-          }
         />
       </div>
 
@@ -188,29 +177,42 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
-          <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
-          <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
-        </div>
+      {isAttemptResult && strip}
 
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          fullWidth
-          disabled={fieldsDisabled}
-          onClick={actions.ssoSignIn}
-        >
-          {AUTH_MESSAGES.actions.ssoSignIn}
-        </Button>
+      {/* Under the button too: it appears while the address is being typed (BUG-008). */}
+      {state === 'partial' && (
+        <p className="text-[13px] leading-[18px] text-text-secondary">
+          {AUTH_MESSAGES.notices.partial}
+        </p>
+      )}
+
+      <div className="flex flex-col gap-4">
+        {actions.ssoSignIn !== undefined && (
+          <>
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
+              <span className="text-[13px] leading-[18px] text-text-muted">{AUTH_MESSAGES.actions.or}</span>
+              <span aria-hidden="true" className="h-px flex-1 bg-border-default" />
+            </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              disabled={fieldsDisabled}
+              onClick={actions.ssoSignIn}
+            >
+              {AUTH_MESSAGES.actions.ssoSignIn}
+            </Button>
+          </>
+        )}
 
         <button
           type="button"
           disabled={fieldsDisabled}
           onClick={actions.forgotPassword}
-          className="self-center text-[13px] leading-[18px] text-accent transition-colors duration-120 hover:text-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app disabled:cursor-not-allowed disabled:opacity-50"
         >
           {AUTH_MESSAGES.actions.forgotPassword}
         </button>
@@ -233,7 +235,7 @@ export type AuthScreenViewProps = AuthScreenModel & AuthScreenActions;
  */
 export function AuthScreenView(props: AuthScreenViewProps) {
   const { state, panel, isCollapsed, notice, isBlocked, forgot, forgotActions } = props;
-  const { setCollapsed, forgotPassword, closeForgotPassword } = props;
+  const { setCollapsed, forgotPassword, closeForgotPassword, signInWithAnotherAccount } = props;
 
   const model: AuthScreenModel = props;
   const actions: AuthScreenActions = props;
@@ -270,6 +272,11 @@ export function AuthScreenView(props: AuthScreenViewProps) {
     setCollapsed(false);
   }, [setCollapsed]);
 
+  const reopenForm = useCallback(() => {
+    wantsFocus.current = true;
+    signInWithAnotherAccount();
+  }, [signInWithAnotherAccount]);
+
   const isForgot = panel === 'forgotPassword';
 
   return (
@@ -281,7 +288,11 @@ export function AuthScreenView(props: AuthScreenViewProps) {
     <main className="flex min-h-screen w-full bg-bg-app" data-auth-state={state}>
       <ValuePanel />
 
-      <div className="flex w-full flex-col items-center justify-center p-12 lg:w-[55%]">
+      {/* Anchored from the top, not centred: centred, every strip that appears lifts the whole form
+          and the field being typed in slides out from under the caret (BUG-008). The top padding
+          puts the empty form where centring used to — 13.75rem is about half its height (~438 px with
+          no SSO button). */}
+      <div className="flex w-full flex-col items-center p-12 pt-[max(3rem,calc(50vh_-_13.75rem))] lg:w-[55%]">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
           {/* The mark, and the screen's own name beside it. There is deliberately
               no "thu gọn" button: `isCollapsed` is set by whoever mounts the
@@ -296,7 +307,7 @@ export function AuthScreenView(props: AuthScreenViewProps) {
                 {isForgot ? AUTH_MESSAGES.forgotPassword.title : AUTH_MESSAGES.tabs.signIn}
               </h1>
               <p className="text-[15px] leading-[24px] text-text-secondary">
-                {AUTH_MESSAGES.brand.subtitle}
+                {isForgot ? AUTH_MESSAGES.forgotPassword.subtitle : AUTH_MESSAGES.brand.subtitle}
               </p>
             </div>
           </div>
@@ -320,11 +331,16 @@ export function AuthScreenView(props: AuthScreenViewProps) {
               />
             </div>
           ) : isBlocked ? (
-            <InlineAlert
-              level={notice?.tone ?? 'attention'}
-              title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
-              message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
-            />
+            <div className="flex flex-col gap-4">
+              <InlineAlert
+                level={notice?.tone ?? 'attention'}
+                title={notice?.title ?? AUTH_MESSAGES.errors.accountDisabled.title}
+                message={notice?.message ?? AUTH_MESSAGES.errors.accountDisabled.description}
+              />
+              <Button type="button" variant="secondary" size="lg" fullWidth onClick={reopenForm}>
+                {AUTH_MESSAGES.actions.signInWithAnotherAccount}
+              </Button>
+            </div>
           ) : (
             <div key={panel} className="animate-dropdown-open motion-reduce:animate-none">
               <CredentialForm
