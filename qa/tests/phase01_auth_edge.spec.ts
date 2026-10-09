@@ -703,6 +703,9 @@ test.describe('E01 SCR-02 Login form', () => {
       await passwordBox(page).fill('1234567');
       await passwordBox(page).blur();
       await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
+      await expect(page.getByText(PASSWORD_TOO_SHORT, { exact: true })).toBeVisible();
+      // BUG-092: the 8-character rule gets its own shot (the last shot below is the EMPTY-box state).
+      await captureEvidence(page, 'E01_login_password_too_short.png', { caption: '"Mật khẩu" holds 7 characters, blurred → min-8 rule; no request' });
 
       await passwordBox(page).fill('12345678');
       await expect(passwordBox(page), 'typing clears the problem').not.toHaveAttribute('aria-invalid', 'true');
