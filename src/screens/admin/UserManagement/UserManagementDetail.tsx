@@ -42,7 +42,6 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Tooltip } from '@/components/ui/Tooltip';
 import { initialsOf } from '@/lib/format/initials';
 import { cn } from '@/lib/utils';
 import type { ProjectRole } from '@/types/project';
@@ -177,20 +176,15 @@ function DetailMemberships({
 
 function ActivityObjectLink({ activity }: { readonly activity: UserActivityRowModel }) {
   if (activity.objectHref === null) {
-    return (
-      <span aria-label={activity.objectLabel} className="w-fit font-mono text-[13px] text-text-muted">
-        {activity.objectCode}
-      </span>
-    );
+    return <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{activity.objectLabel}</span>;
   }
 
   return (
     <a
-      aria-label={activity.objectLabel}
-      className="w-fit font-mono text-[13px] text-accent no-underline hover:underline"
+      className="w-fit text-[13px] text-accent no-underline [overflow-wrap:anywhere] hover:underline"
       href={activity.objectHref}
     >
-      {activity.objectCode}
+      {activity.objectLabel}
     </a>
   );
 }
@@ -212,9 +206,7 @@ function DetailActivities({ activities }: ActivitiesProps) {
             <li className="flex flex-col gap-1" key={activity.id}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-[13px] text-text-primary">{activity.kindLabel}</span>
-                <Tooltip label={activity.atExactLabel}>
-                  <span className="text-[12px] text-text-muted">{activity.atLabel}</span>
-                </Tooltip>
+                <span className="text-[12px] text-text-muted">{activity.atLabel}</span>
               </div>
               <ActivityObjectLink activity={activity} />
             </li>

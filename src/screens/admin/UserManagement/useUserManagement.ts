@@ -229,6 +229,24 @@ export function inviteFeedback(parsed: {
   return { errorLabel: null, submitBlockedReason: parsed.validEmails.length === 0 ? inviteNeedsEmail : null };
 }
 
+/**
+ * Một dòng "Hoạt động gần đây" (BUG-084). Hiện `objectLabel` — nhãn đọc được máy chủ ghi
+ * (email người bị tác động, tên tầng, tên dự án…) — chứ không hiện `objectCode`, vốn là mã
+ * nội bộ (ULID) người đọc không dùng được. Mốc luôn có cả ngày lẫn giờ: danh sách trải nhiều
+ * ngày, "10:57" một mình không nói là hôm nào.
+ */
+export function toActivityRow(activity: UserActivity): UserActivityRowModel {
+  const at = new Date(activity.at);
+
+  return {
+    id: activity.id,
+    kindLabel: activityKindLabel(activity.kind),
+    atLabel: `${formatCalendarDate(at)} ${formatClockTime(at)}`,
+    objectLabel: activity.objectLabel,
+    objectHref: activityHref(activity.kind),
+  };
+}
+
 export function activityKindLabel(kind: string): string {
   return ACTIVITY_KIND_LABELS[kind] ?? USER_MANAGEMENT_TEXT.activityFallback;
 }
@@ -879,20 +897,8 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       [...(activityQuery.data ?? [])]
         .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
         .slice(0, ACTIVITY_LIMIT)
-        .map((activity): UserActivityRowModel => {
-          const at = new Date(activity.at);
-
-          return {
-            id: activity.id,
-            kindLabel: activityKindLabel(activity.kind),
-            atLabel: formatTimestamp(at, nowMs),
-            atExactLabel: `${formatCalendarDate(at)} ${formatClockTime(at)}`,
-            objectCode: activity.objectCode,
-            objectLabel: activity.objectLabel,
-            objectHref: activityHref(activity.kind),
-          };
-        }),
-    [activityQuery.data, nowMs],
+        .map(toActivityRow),
+    [activityQuery.data],
   );
 
   const detail = useMemo((): UserDetailModel | null => {

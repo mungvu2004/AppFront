@@ -143,10 +143,9 @@ export interface UserActivityRowModel {
   readonly id: string;
   /** Việc đã làm, tiếng Việt viết thường. */
   readonly kindLabel: string;
+  /** Ngày và giờ, luôn đủ cả hai (BUG-084). */
   readonly atLabel: string;
-  readonly atExactLabel: string;
-  /** Mã đối tượng, hiện bằng chữ đều khi trỏ vào dòng. */
-  readonly objectCode: string;
+  /** Nhãn đọc được của đối tượng (email, tên tầng…). Mã nội bộ `objectCode` không lên màn. */
   readonly objectLabel: string;
   /** Dựng từ `@/routes/paths`. `null` khi đối tượng không còn mở được. R-65 cấm chuỗi thô. */
   readonly objectHref: string | null;

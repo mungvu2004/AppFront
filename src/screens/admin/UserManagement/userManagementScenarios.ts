@@ -87,9 +87,8 @@ function momentLabels(at: Date | null): { readonly label: string; readonly exact
   };
 }
 
-function activityMoment(at: Date): { readonly atLabel: string; readonly atExactLabel: string } {
-  const moment = momentLabels(at);
-  return { atLabel: moment.label, atExactLabel: moment.exactLabel };
+function activityMoment(at: Date): { readonly atLabel: string } {
+  return { atLabel: momentLabels(at).exactLabel };
 }
 
 /* ==========================================================================
@@ -374,7 +373,6 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
     id: 'activity-1',
     kindLabel: 'Tải bản vẽ lên dự án',
     ...activityMoment(TWELVE_MINUTES_AGO),
-    objectCode: 'P-014',
     objectLabel: 'Tháp hà nội',
     objectHref: ROUTES.project.floors('project-hanoi-tower'),
   },
@@ -382,7 +380,6 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
     id: 'activity-2',
     kindLabel: 'Duyệt qc cho tầng ba',
     ...activityMoment(SAME_DAY_EARLIER),
-    objectCode: 'P-014',
     objectLabel: 'Tháp hà nội',
     objectHref: ROUTES.project.quality('project-hanoi-tower'),
   },
@@ -390,7 +387,6 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
     id: 'activity-3',
     kindLabel: 'Mời người dùng mới',
     ...activityMoment(THREE_DAYS_AGO),
-    objectCode: 'P-021',
     objectLabel: 'Trung tâm thương mại đà nẵng',
     objectHref: null,
   },
