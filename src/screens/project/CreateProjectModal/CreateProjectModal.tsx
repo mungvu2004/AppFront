@@ -116,7 +116,7 @@ function StepInfo(props: CreateProjectModalViewProps) {
       </div>
       <div className={gridClassName}>
         <Input
-          label="địa chỉ"
+          label="Địa chỉ"
           value={props.address}
           onChange={(event) => props.setAddress(event.target.value)}
           disabled={props.isSubmitting}
@@ -173,10 +173,10 @@ function StepReview(props: CreateProjectModalViewProps) {
       )}
       <FieldRow label="Tên dự án">{props.name}</FieldRow>
       <FieldRow label="Mã dự án">{props.code === '' ? '—' : props.code}</FieldRow>
-      <FieldRow label="địa chỉ">{props.address === '' ? '—' : props.address}</FieldRow>
+      <FieldRow label="Địa chỉ">{props.address === '' ? '—' : props.address}</FieldRow>
       <FieldRow label="Loại công trình">{buildingTypeLabel}</FieldRow>
       <FieldRow label="Ghi chú">{props.notes === '' ? '—' : props.notes}</FieldRow>
-      <FieldRow label="số tầng" isLast>
+      <FieldRow label="Số tầng" isLast>
         {props.floorRows.length}
       </FieldRow>
 

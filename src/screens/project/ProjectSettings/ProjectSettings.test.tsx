@@ -110,8 +110,8 @@ function baseProps(): ProjectSettingsViewProps {
     address: '12 Nguyễn Trãi, Hà Nội',
     buildingType: 'residential',
     buildingTypeOptions: [
-      { value: 'residential', label: 'nhà ở' },
-      { value: 'commercial', label: 'thương mại' },
+      { value: 'residential', label: 'Nhà ở' },
+      { value: 'commercial', label: 'Thương mại' },
     ],
     notes: 'Bản vẽ do nhà thầu gửi.',
     notesCountLabel: '22 / 500 ký tự',
@@ -402,7 +402,7 @@ describe('ProjectSettings', () => {
     renderWithProviders(<ProjectSettings gateway={gateway} projectId="project-1" roles={['admin']} />);
 
     expect(await screen.findByLabelText('Tên dự án')).toHaveValue('Chung cư Hoàng Anh');
-    expect(screen.getByLabelText('địa chỉ')).toHaveValue('12 Nguyễn Huệ, Quận 1');
+    expect(screen.getByLabelText('Địa chỉ')).toHaveValue('12 Nguyễn Huệ, Quận 1');
   });
 });
 

@@ -23,9 +23,9 @@ type Story = StoryObj<typeof meta>;
 const noop = (): void => undefined;
 
 const MEMBERS = [
-  { id: 'm-an', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
-  { id: 'm-binh', name: 'Nguyễn Bình', roleLabel: 'kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
-  { id: 'm-chi', name: 'Trần Chi', roleLabel: 'người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi' },
+  { id: 'm-an', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
+  { id: 'm-binh', name: 'Nguyễn Bình', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
+  { id: 'm-chi', name: 'Trần Chi', roleLabel: 'Người xem', initials: 'TC', removeLabel: 'Gỡ Trần Chi' },
 ];
 
 const NO_PROBLEMS = {
@@ -68,8 +68,8 @@ const base: ProjectSettingsViewProps = {
   address: '12 Nguyễn Trãi, Hà Nội',
   buildingType: 'residential',
   buildingTypeOptions: [
-    { value: 'residential', label: 'nhà ở' },
-    { value: 'commercial', label: 'thương mại' },
+    { value: 'residential', label: 'Nhà ở' },
+    { value: 'commercial', label: 'Thương mại' },
   ],
   notes: 'Bản vẽ do nhà thầu gửi, đã soát tầng hầm.',
   notesCountLabel: '38 / 500 ký tự',
@@ -77,7 +77,7 @@ const base: ProjectSettingsViewProps = {
   lengthUnit: 'mm',
   lengthUnitOptions: [
     { value: 'mm', label: 'Milimét (mm)' },
-    { value: 'm', label: 'mét (m)' },
+    { value: 'm', label: 'Mét (m)' },
   ],
   areaUnitLabel: 'mét vuông — ví dụ 248,60 m²',
   snapToleranceMm: 50,

@@ -492,16 +492,16 @@ function scaleProblemFor(value: number | null): string | null {
 /* -------------------------------------------------------------------------- */
 
 const BUILDING_TYPE_OPTIONS: readonly SelectOption[] = [
-  { value: 'residential', label: 'nhà ở' },
-  { value: 'commercial', label: 'thương mại' },
-  { value: 'industrial', label: 'công nghiệp' },
-  { value: 'mixed', label: 'hỗn hợp' },
-  { value: 'other', label: 'khác' },
+  { value: 'residential', label: 'Nhà ở' },
+  { value: 'commercial', label: 'Thương mại' },
+  { value: 'industrial', label: 'Công nghiệp' },
+  { value: 'mixed', label: 'Hỗn hợp' },
+  { value: 'other', label: 'Khác' },
 ];
 
 const LENGTH_UNIT_OPTIONS: readonly SelectOption[] = [
   { value: 'mm', label: 'Milimét (mm)' },
-  { value: 'm', label: 'mét (m)' },
+  { value: 'm', label: 'Mét (m)' },
 ];
 
 const TAB_LABELS: Readonly<Record<ProjectSettingsTabId, string>> = {
@@ -512,9 +512,9 @@ const TAB_LABELS: Readonly<Record<ProjectSettingsTabId, string>> = {
 };
 
 const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = {
-  admin: 'quản trị',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  admin: 'Quản trị',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 };
 
 const DANGER_TITLES: Readonly<Record<ProjectSettingsDangerAction, string>> = {

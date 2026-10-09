@@ -26,11 +26,11 @@ type Story = StoryObj<typeof meta>;
 const noop = (): void => undefined;
 
 const BUILDING_TYPE_OPTIONS: SelectOption[] = [
-  { value: 'residential', label: 'nhà ở' },
-  { value: 'commercial', label: 'thương mại' },
-  { value: 'industrial', label: 'công nghiệp' },
-  { value: 'mixed', label: 'hỗn hợp' },
-  { value: 'other', label: 'khác' },
+  { value: 'residential', label: 'Nhà ở' },
+  { value: 'commercial', label: 'Thương mại' },
+  { value: 'industrial', label: 'Công nghiệp' },
+  { value: 'mixed', label: 'Hỗn hợp' },
+  { value: 'other', label: 'Khác' },
 ];
 
 /** The acceptance case: a basement plus three floors, stacked from the ground floor's 0,0. */

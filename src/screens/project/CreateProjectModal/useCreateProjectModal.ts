@@ -69,11 +69,11 @@ const CODE_SLUG_MAX_LENGTH = 24;
 const LEVEL_ID_PREFIX_LENGTH = 2;
 
 const BUILDING_TYPE_OPTIONS: SelectOption[] = [
-  { value: 'residential', label: 'nhà ở' },
-  { value: 'commercial', label: 'thương mại' },
-  { value: 'industrial', label: 'công nghiệp' },
-  { value: 'mixed', label: 'hỗn hợp' },
-  { value: 'other', label: 'khác' },
+  { value: 'residential', label: 'Nhà ở' },
+  { value: 'commercial', label: 'Thương mại' },
+  { value: 'industrial', label: 'Công nghiệp' },
+  { value: 'mixed', label: 'Hỗn hợp' },
+  { value: 'other', label: 'Khác' },
 ];
 
 const DEFAULT_BUILDING_TYPE = 'residential';

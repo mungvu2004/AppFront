@@ -47,8 +47,8 @@ afterEach(() => {
 const noop = (): void => undefined;
 
 const BUILDING_TYPE_OPTIONS = [
-  { value: 'residential', label: 'nhà ở' },
-  { value: 'commercial', label: 'thương mại' },
+  { value: 'residential', label: 'Nhà ở' },
+  { value: 'commercial', label: 'Thương mại' },
 ];
 
 /** The acceptance case this task's own verification names: a basement plus three floors. */
@@ -245,7 +245,7 @@ describe('CreateProjectModalView', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'xem tầng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem tầng' }));
 
     expect(focusFloor).toHaveBeenCalledWith('row-1');
   });
@@ -326,7 +326,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     // Default is four floors above ground; this acceptance case is exactly one
     // basement plus three, so the extra default floor is removed first.
     fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
-    fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 3' }));
 
     setHeight('Chiều cao thông thuỷ tầng Tầng hầm', '3');
     setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '3,9');
@@ -391,9 +391,9 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     goToStep2('Chung cư Một Tầng');
     // A single, fully-specified floor is enough to reach step 3.
-    fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 3' }));
-    fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'xoá Tầng 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 1' }));
     setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '3,9');
 
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
