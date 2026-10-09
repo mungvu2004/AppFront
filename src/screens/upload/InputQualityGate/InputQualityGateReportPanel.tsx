@@ -49,11 +49,11 @@ import type {
   QualityLevel,
 } from './types';
 
-/** Ba mức, tra tên hiển thị — viết thường kiểu câu (A6), cùng khuôn `Badge` nội bộ. */
+/** Ba mức, tra tên hiển thị — viết hoa chữ đầu (A6), cùng khuôn `Badge` nội bộ. */
 const QUALITY_LEVEL_LABELS: Record<QualityLevel, string> = {
-  good: 'tốt',
-  attention: 'cần chú ý',
-  poor: 'kém',
+  good: 'Tốt',
+  attention: 'Cần chú ý',
+  poor: 'Kém',
 };
 
 /** `'good'` → `'neutral'`, không bao giờ `'verified'` — bằng chứng A5 nhắc ở đầu file. */
@@ -80,9 +80,9 @@ const STATUS_TEXT_TOKEN: Record<ViewStatusCode, string> = {
 
 const FINDINGS_HEADING = 'Phát hiện';
 const FLOORS_HEADING = 'Các tầng đã đo';
-const COLUMN_FLOOR = 'tầng';
-const COLUMN_SUMMARY = 'kết quả đo';
-const COLUMN_LEVEL = 'mức';
+const COLUMN_FLOOR = 'Tầng';
+const COLUMN_SUMMARY = 'Kết quả đo';
+const COLUMN_LEVEL = 'Mức';
 const NOT_MEASURED_TEXT = 'chưa đo';
 const REMAINING_SUFFIX = ' phát hiện còn lại';
 const RESOLVED_SUFFIX = 'đã xử lý';

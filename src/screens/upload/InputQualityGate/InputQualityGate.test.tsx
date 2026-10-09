@@ -533,7 +533,7 @@ describe('InputQualityGate — liên kết hai chiều báo cáo ↔ ảnh', () 
     await mountScreen(clock);
     await selectMeasuredFloor(clock);
 
-    const metricRow = screen.getByText('độ nghiêng').closest('div[tabindex]');
+    const metricRow = screen.getByText('Độ nghiêng').closest('div[tabindex]');
 
     expect(metricRow).not.toBeNull();
 

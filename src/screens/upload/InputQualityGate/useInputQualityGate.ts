@@ -172,12 +172,12 @@ const COPY = Object.freeze({
   regionLabelPrefix: 'Vùng ảnh có vấn đề:',
 });
 
-/** Nhãn bốn phép kiểm — tiếng Việt, viết thường kiểu câu (A6). */
+/** Nhãn bốn phép kiểm — tiếng Việt, viết hoa chữ đầu (A6). */
 const METRIC_LABELS: Readonly<Record<QualityMetricId, string>> = {
-  contrast: 'độ tương phản',
-  noise: 'nhiễu',
-  resolution: 'độ phân giải',
-  skew: 'độ nghiêng',
+  contrast: 'Độ tương phản',
+  noise: 'Nhiễu',
+  resolution: 'Độ phân giải',
+  skew: 'Độ nghiêng',
 };
 
 /**

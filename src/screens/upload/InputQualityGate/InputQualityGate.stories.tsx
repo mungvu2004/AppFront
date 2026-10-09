@@ -196,7 +196,7 @@ function metricsOf(m: SampleMeasurement): readonly InputQualityMetricModel[] {
   const rows = [
     {
       id: 'resolution' as const,
-      label: 'độ phân giải',
+      label: 'Độ phân giải',
       valueText: resolutionText(m),
       level: classifyResolution(shortEdgeOf(m)),
       recommendation: `Nên dùng ảnh có cạnh ngắn từ ${pixels(RESOLUTION_GOOD_SHORT_EDGE_PX)} px trở lên.`,
@@ -204,7 +204,7 @@ function metricsOf(m: SampleMeasurement): readonly InputQualityMetricModel[] {
     },
     {
       id: 'skew' as const,
-      label: 'độ nghiêng',
+      label: 'Độ nghiêng',
       valueText: formatAngle(m.skewDeg),
       level: classifySkew(m.skewDeg),
       recommendation: 'Bấm nút tự động nắn để hệ thống xoay ảnh về phương ngang.',
@@ -212,7 +212,7 @@ function metricsOf(m: SampleMeasurement): readonly InputQualityMetricModel[] {
     },
     {
       id: 'contrast' as const,
-      label: 'độ tương phản',
+      label: 'Độ tương phản',
       valueText: score(m.contrastScore),
       level: classifyContrast(m.contrastScore),
       recommendation: 'Quét lại với nền sáng đều hơn để nét mảnh không rụng khỏi ảnh.',
@@ -220,7 +220,7 @@ function metricsOf(m: SampleMeasurement): readonly InputQualityMetricModel[] {
     },
     {
       id: 'noise' as const,
-      label: 'nhiễu',
+      label: 'Nhiễu',
       valueText: score(m.noiseScore),
       level: classifyNoise(m.noiseScore),
       recommendation: 'Quét lại ở chế độ ảnh nét và không nén mạnh để bớt đốm giả.',
