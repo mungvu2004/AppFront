@@ -90,6 +90,34 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Thêm tường ⌘K' })).toBeInTheDocument();
   });
 
+  // BUG-088: the hint must stay readable on the accent fill, and the tooltip never reads "(N)".
+  it('draws the shortcut in the label colour on primary and muted elsewhere', () => {
+    render(
+      <>
+        <Button shortcut="N">Dự án mới</Button>
+        <Button variant="secondary" shortcut="E">Xuất</Button>
+      </>,
+    );
+    const primaryKbd = screen.getByRole('button', { name: /Dự án mới/u }).querySelector('span.absolute kbd');
+    const secondaryKbd = screen.getByRole('button', { name: /Xuất/u }).querySelector('span.absolute kbd');
+
+    expect(primaryKbd).toHaveClass('text-current');
+    expect(primaryKbd).not.toHaveClass('text-text-muted');
+    expect(secondaryKbd).toHaveClass('text-text-muted');
+  });
+
+  it('builds the tooltip from the label when no title is given, and keeps a given title', () => {
+    render(
+      <>
+        <Button shortcut="N">Dự án mới</Button>
+        <Button shortcut="E" title="Xuất mô hình">Xuất</Button>
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: /Dự án mới/u })).toHaveAttribute('title', 'Dự án mới (N)');
+    expect(screen.getByRole('button', { name: /Xuất/u })).toHaveAttribute('title', 'Xuất mô hình (E)');
+  });
+
   // BUG-048: 44px under `sm` (640px), the 40px of the design system from there up.
   it('is 44px tall on phones at size lg and 40px from sm up', () => {
     render(<Button size="lg">Đăng nhập</Button>);
@@ -102,14 +130,14 @@ describe('Button', () => {
     expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-9', 'sm:min-h-9');
   });
 
-  it('keeps sm and icon-only md buttons at their size on phones', () => {
-    render(
-      <>
-        <Button size="sm">Lọc</Button>
-        <Button iconOnly aria-label="Đóng" icon={<span />} />
-      </>
-    );
-    expect(screen.getByRole('button', { name: 'Lọc' })).toHaveClass('h-8');
+  // BUG-077: sm is the size of toolbar, table-row and alert actions — thumb targets on a phone too.
+  it('is 44px tall on phones at size sm and 32px from sm up', () => {
+    render(<Button size="sm">Lọc</Button>);
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-8', 'sm:min-h-8');
+  });
+
+  it('keeps icon-only md buttons at their size on phones', () => {
+    render(<Button iconOnly aria-label="Đóng" icon={<span />} />);
     expect(screen.getByRole('button', { name: 'Đóng' })).toHaveClass('h-9', 'w-9');
     expect(screen.getByRole('button', { name: 'Đóng' })).not.toHaveClass('h-11');
   });

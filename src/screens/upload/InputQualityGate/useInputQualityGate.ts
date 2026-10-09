@@ -110,6 +110,7 @@ import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutati
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
@@ -171,12 +172,12 @@ const COPY = Object.freeze({
   regionLabelPrefix: 'Vùng ảnh có vấn đề:',
 });
 
-/** Nhãn bốn phép kiểm — tiếng Việt, viết thường kiểu câu (A6). */
+/** Nhãn bốn phép kiểm — tiếng Việt, viết hoa chữ đầu (A6). */
 const METRIC_LABELS: Readonly<Record<QualityMetricId, string>> = {
-  contrast: 'độ tương phản',
-  noise: 'nhiễu',
-  resolution: 'độ phân giải',
-  skew: 'độ nghiêng',
+  contrast: 'Độ tương phản',
+  noise: 'Nhiễu',
+  resolution: 'Độ phân giải',
+  skew: 'Độ nghiêng',
 };
 
 /**
@@ -850,10 +851,12 @@ export function useInputQualityGate(
   /* ---------------------------------------------------------------------- */
 
   const failedRead = floorsQuery.error ?? assessmentQuery.error;
-  const failureSentence =
-    failedRead === null
-      ? COPY.loadFailureFallback
-      : gateway.describeApiFailure(failedRead).sentence || COPY.loadFailureFallback;
+  const failure = failedRead === null ? null : gateway.describeApiFailure(failedRead);
+  // Danh sách tầng trả 404 = dự án không có: một câu "không tìm thấy" như màn Tầng (BUG-074).
+  const isProjectMissing = floorsQuery.error !== null && failure?.kind === 'notFound';
+  const failureSentence = isProjectMissing
+    ? PROJECT_NOT_FOUND_DESCRIPTION
+    : failure?.sentence || COPY.loadFailureFallback;
 
   // 404 `upload` (đọc trả `null`), hoặc dự án không có tầng nào để làm mồi.
   const hasNoDrawing =
@@ -1031,7 +1034,8 @@ export function useInputQualityGate(
     acknowledgementLabel: COPY.acknowledgement,
     primaryLabel: COPY.primary,
     secondaryLabel: COPY.secondary,
-    areActionsHidden: status === 'forbidden' || (hasNoDrawing && !canEdit),
+    // Lỗi đọc: lối ra nằm ngay trong dải lỗi; nhắc lại ở chân trang là nói lỗi lần nữa (BUG-074).
+    areActionsHidden: status === 'forbidden' || status === 'error' || (hasNoDrawing && !canEdit),
   };
 
   /* ---------------------------------------------------------------------- */
@@ -1264,6 +1268,10 @@ export function useInputQualityGate(
       options.onNavigate?.(ROUTES.project.pipeline(projectId));
     },
     onUploadAnother: () => options.onNavigate?.(ROUTES.project.upload(projectId)),
+    onRetryLoad: () => {
+      void (floorsQuery.isError ? floorsQuery.refetch() : assessmentQuery.refetch());
+    },
+    onBackToProjects: () => options.onNavigate?.(ROUTES.dashboard),
     onConfirmWrite,
     onCancelWrite,
   };
@@ -1292,6 +1300,8 @@ export function useInputQualityGate(
     floors: visibleFloors,
     footer,
     errorMessage: status === 'error' ? failureSentence : null,
+    isProjectMissing: status === 'error' && isProjectMissing,
+    canRetryLoad: status === 'error' && (failure?.isRetryable ?? false),
     partialNotice,
     remainingFindingCount,
     passNotice,

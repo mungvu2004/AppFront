@@ -157,12 +157,12 @@ export function FloorTable({
         items: [
           {
             id: 'rename',
-            label: 'đổi tên',
+            label: 'Đổi tên',
             action: () => nameInputRefs.current[row.id]?.focus(),
           },
           {
             id: 'duplicate',
-            label: 'nhân bản',
+            label: 'Nhân bản',
             action: () => {
               setCopyFurniture(false);
               setDuplicatingFloorId(row.id);

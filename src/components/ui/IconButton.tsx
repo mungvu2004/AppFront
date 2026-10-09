@@ -16,7 +16,8 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 }
 
 const sizeMap = {
-  sm: 'h-8 w-8',
+  // 40 + the 2 px `p-0.5` ring on each side = 44 px under 640 px (BUG-077, BUG-086); 36 px from 640 px up.
+  sm: 'h-10 w-10 sm:h-8 sm:w-8',
   md: 'h-9 w-9',
   lg: 'h-10 w-10',
 };

@@ -54,7 +54,7 @@ export function GeneralTab(props: GeneralTabProps) {
         isReadOnly={isReadOnly}
       />
       <Input
-        label="địa chỉ"
+        label="Địa chỉ"
         value={props.address}
         onChange={(event) => props.setAddress(event.target.value)}
         maxLength={PROJECT_SETTINGS_LIMITS.addressMaxLength}

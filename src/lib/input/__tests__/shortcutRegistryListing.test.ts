@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createShortcutRegistry, type ShortcutRegistry } from '../shortcutRegistry';
+import { createShortcutRegistry, keyCapLabels, type ShortcutRegistry } from '../shortcutRegistry';
 
 /**
  * `listShortcuts()` — the read side K1 needed and the registry did not have.
@@ -89,5 +89,17 @@ describe('subscribe', () => {
     unsubscribe();
     registry.register({ id: 'test.sub2', combo: 'L', scope: 'canvas', onTrigger: () => {} });
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('keyCapLabels (BUG-085)', () => {
+  it('prints Mod as Ctrl off Apple and as ⌘ on Apple', () => {
+    expect(keyCapLabels('Mod+Shift+Z', false)).toEqual(['Ctrl', 'Shift', 'Z']);
+    expect(keyCapLabels('Mod+Shift+Z', true)).toEqual(['⌘', 'Shift', 'Z']);
+  });
+
+  it('prints ESCAPE as Esc, like the footer of the help dialog', () => {
+    expect(keyCapLabels('Escape'.toUpperCase(), false)).toEqual(['Esc']);
+    expect(keyCapLabels('?', false)).toEqual(['?']);
   });
 });

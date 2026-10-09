@@ -46,7 +46,7 @@ export function StepFloors(props: StepFloorsProps) {
           {...(collisionRowId !== null
             ? {
                 action: {
-                  label: 'xem tầng',
+                  label: 'Xem tầng',
                   onClick: () => props.focusFloor(collisionRowId),
                   variant: 'secondary' as const,
                 },
@@ -70,7 +70,7 @@ export function StepFloors(props: StepFloorsProps) {
                 <Table.Head>Tầng</Table.Head>
                 <Table.Head>Chiều cao thông thuỷ</Table.Head>
                 <Table.Head>Cao độ</Table.Head>
-                <Table.Head aria-label="xoá tầng" />
+                <Table.Head aria-label="Xoá tầng" />
               </tr>
             </Table.Header>
             <Table.Body>
@@ -107,7 +107,7 @@ export function StepFloors(props: StepFloorsProps) {
                   <Table.Cell>
                     <IconButton
                       icon={<Trash2 size={16} aria-hidden="true" />}
-                      aria-label={`xoá ${row.name}`}
+                      aria-label={`Xoá ${row.name}`}
                       onClick={() => props.removeFloor(row.id)}
                       disabled={isSubmitting}
                     />

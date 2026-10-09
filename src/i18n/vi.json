@@ -665,6 +665,10 @@
     "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
     "unassignedTray": "Tệp chưa gán tầng",
     "emptyState": "Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.",
+    "noFloors": {
+      "title": "Dự án chưa có tầng nào",
+      "description": "Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng; tệp thả vào trước đó chờ ở mục “Tệp chưa gán tầng”."
+    },
     "offlineBanner": "Đang làm việc ngoại tuyến",
     "footer": {
       "counter": "{{done}} / {{total}} tầng đã có bản vẽ",

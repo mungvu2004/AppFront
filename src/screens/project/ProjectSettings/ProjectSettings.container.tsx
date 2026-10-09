@@ -47,6 +47,8 @@ export interface ProjectSettingsContainerProps {
   readonly currentUserId?: string;
   /** Gọi khi chính người dùng vừa bị gỡ khỏi dự án (sau đó #24 trả 404, nên phải rời màn). */
   readonly onSelfRemoved?: () => void;
+  /** Lối về danh sách dự án khi dự án không tồn tại (BUG-078). */
+  readonly onBackToProjects?: () => void;
   /** Ép cách xếp thu gọn — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
 }
@@ -85,6 +87,7 @@ function WiredProjectSettings(props: ProjectSettingsContainerProps) {
     ...(props.onProjectDeleted !== undefined ? { onProjectDeleted: props.onProjectDeleted } : {}),
     ...(props.currentUserId !== undefined ? { currentUserId: props.currentUserId } : {}),
     ...(props.onSelfRemoved !== undefined ? { onSelfRemoved: props.onSelfRemoved } : {}),
+    ...(props.onBackToProjects !== undefined ? { onBackToProjects: props.onBackToProjects } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
   });
 
@@ -127,6 +130,9 @@ function ProjectSettingsRouteBody({
       {...(currentUserId !== undefined ? { currentUserId } : {})}
       onToast={addToast}
       onSelfRemoved={() => {
+        navigate(ROUTES.dashboard);
+      }}
+      onBackToProjects={() => {
         navigate(ROUTES.dashboard);
       }}
       onProjectDeleted={(notice) => {

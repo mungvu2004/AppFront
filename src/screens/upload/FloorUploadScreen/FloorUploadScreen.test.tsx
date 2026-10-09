@@ -166,6 +166,14 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: /bắt đầu xử lý/iu })).toBeEnabled();
   });
 
+  it('dự án chưa có tầng: trạng thái rỗng có chữ riêng, tiêu đề vùng thả chỉ hiện một lần (BUG-100)', () => {
+    const props = scenarioFor('empty');
+    renderWithProviders(<FloorUploadScreenView {...props} floors={[]} />);
+
+    expect(screen.getAllByText(props.dropZone.title)).toHaveLength(1);
+    expect(screen.getByText('Dự án chưa có tầng nào')).toBeInTheDocument();
+  });
+
   it('màn chỉ đọc không vẽ vùng kéo thả, nhưng vẫn nói ra vì sao', () => {
     renderWithProviders(<FloorUploadScreenView {...scenarioFor('forbidden')} />);
 

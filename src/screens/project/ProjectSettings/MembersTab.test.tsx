@@ -38,8 +38,8 @@ function tabProps(overrides: Partial<MembersTabProps> = {}): MembersTabProps {
     state: 'success',
     canEdit: true,
     members: [
-      { id: 'usr_admin', name: 'Phạm An', roleLabel: 'quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
-      { id: 'usr_eng', name: 'Nguyễn Bình', roleLabel: 'kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
+      { id: 'usr_admin', name: 'Phạm An', roleLabel: 'Quản trị', initials: 'PA', removeLabel: 'Gỡ Phạm An' },
+      { id: 'usr_eng', name: 'Nguyễn Bình', roleLabel: 'Kỹ sư', initials: 'NB', removeLabel: 'Gỡ Nguyễn Bình' },
     ],
     memberCountLabel: '2 thành viên',
     memberEmail: '',

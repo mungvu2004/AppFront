@@ -56,14 +56,19 @@
  */
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { cn } from '@/lib/utils';
 
 import { FloorSectionCut } from './FloorSectionCut';
 import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
 
-const SCREEN_BREADCRUMB = 'Dự án > Quản lý tầng';
 const SCREEN_TITLE = 'Quản lý tầng';
+/** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
+const SCREEN_BREADCRUMB = [
+  { id: 'projects', label: 'Dự án' },
+  { id: 'floors', label: SCREEN_TITLE },
+] as const;
 const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -92,8 +97,8 @@ export function FloorManager(props: FloorManagerViewProps) {
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
-      <header className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-1 pt-6">
-        <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
+      <header className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-1 px-8 pb-1 pt-8">
+        <Breadcrumb items={SCREEN_BREADCRUMB} />
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
