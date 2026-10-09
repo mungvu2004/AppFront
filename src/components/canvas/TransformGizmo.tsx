@@ -31,7 +31,7 @@ const HANDLE_SIZE = 8;
 /**
  * TransformGizmo — tay kéo 3 trục.
  * - Handle: 8×8, bo 6, nền bg-surface, viền accent
- * - Trục X/Y/Z: thang xám ấm từ materialMap (không đỏ/xanh bão hòa)
+ * - Trục X/Y/Z: thang xám ấm từ materialMap (không đỏ/xanh bão hoà)
  * - Nhãn trục font-mono
  * - Số delta mm khi kéo dùng formatLength(…, { unit: 'mm' })
  */

@@ -23,7 +23,7 @@ import { TOUR_CHIP_NAME, TOUR_SKIP_NAME, TOUR_TITLES } from '../fixtures/tour';
  * ## Vì sao sinh bài từ bảng
  *
  * Một bảng `HOSTS × VIEWPORTS`: thêm một màn chủ cho tour là thêm một dòng. Mỗi bài đo
- * hộp bao thật của chip và của mọi điều khiển tương tác đang hiển thị, không bám tọa độ
+ * hộp bao thật của chip và của mọi điều khiển tương tác đang hiển thị, không bám toạ độ
  * cứng — chỗ chip đứng có đổi nữa thì bài vẫn đúng nghĩa.
  *
  * ## KHÔNG kiểm ở đây, và vì sao

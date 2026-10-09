@@ -118,7 +118,7 @@ const SAMPLE_WALL_COUNT = 48;
 function sampleProject(patch: Partial<DashboardProject> = {}): DashboardProject {
   return {
     id: 'p-hq',
-    name: 'Tòa nhà HQ',
+    name: 'Toà nhà HQ',
     floorCount: 3,
     areaM2: 248.6,
     status: 'processing',

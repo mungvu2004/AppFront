@@ -608,7 +608,7 @@ describe('CURSOR_INVALID — đọc lại từ trang đầu đúng một lần',
     });
     await screen.findByRole('button', { name: 'Xem thêm' });
     observer.disconnect();
-    expect(flashed, 'CURSOR_INVALID lần đầu không được lóe câu lỗi').toBe(false);
+    expect(flashed, 'CURSOR_INVALID lần đầu không được loé câu lỗi').toBe(false);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Xem thêm' }));
     expect(await screen.findByText(MODEL_REGISTRY_ERROR_TEXT.readFallback)).toBeInTheDocument();

@@ -109,7 +109,7 @@ describe('createProjectsGateway.listSummaries', () => {
   });
 
   it('builds initials and omits defaultFloorId for a project with no floor', async () => {
-    const withFloor = summary(ID_A, 'Tòa nhà HQ', '2026-01-01T00:00:00.000Z', [{ id: USER_ID, name: 'Phạm An' }]);
+    const withFloor = summary(ID_A, 'Toà nhà HQ', '2026-01-01T00:00:00.000Z', [{ id: USER_ID, name: 'Phạm An' }]);
     const noFloor = ProjectSummarySchema.parse({
       areaM2: 0,
       floorCount: 0,

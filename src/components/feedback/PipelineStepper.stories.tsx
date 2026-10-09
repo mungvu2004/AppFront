@@ -24,7 +24,7 @@ const mockSteps: PipelineStepData[] = [
   { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'running', progress: 45, eta_seconds: 120 },
   { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'queued', progress: 0 },
   { id: '4', name: 'Đọc kích thước (PaddleOCR)', status: 'queued', progress: 0 },
-  { id: '5', name: 'Chuẩn hóa độ dày tường', status: 'queued', progress: 0 },
+  { id: '5', name: 'Chuẩn hoá độ dày tường', status: 'queued', progress: 0 },
   { id: '6', name: 'Dựng Spatial JSON', status: 'queued', progress: 0 },
 ];
 
@@ -47,7 +47,7 @@ const mockStepsError: PipelineStepData[] = [
     onRetry: () => console.log('Retrying...')
   },
   { id: '4', name: 'Đọc kích thước (PaddleOCR)', status: 'queued', progress: 0 },
-  { id: '5', name: 'Chuẩn hóa độ dày tường', status: 'queued', progress: 0 },
+  { id: '5', name: 'Chuẩn hoá độ dày tường', status: 'queued', progress: 0 },
   { id: '6', name: 'Dựng Spatial JSON', status: 'queued', progress: 0 },
 ];
 
@@ -62,7 +62,7 @@ const mockStepsDone: PipelineStepData[] = [
   { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'done', progress: 100 },
   { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'done', progress: 100 },
   { id: '4', name: 'Đọc kích thước (PaddleOCR)', status: 'done', progress: 100 },
-  { id: '5', name: 'Chuẩn hóa độ dày tường', status: 'done', progress: 100 },
+  { id: '5', name: 'Chuẩn hoá độ dày tường', status: 'done', progress: 100 },
   { id: '6', name: 'Dựng Spatial JSON', status: 'done', progress: 100 },
 ];
 

@@ -113,7 +113,7 @@ const formatIssue = (
   }
 
   if (issue.code === 'unrecognized_keys') {
-    return `Trường '${field}' có khóa ngoài hợp đồng: ${issue.keys.join(', ')}.`;
+    return `Trường '${field}' có khoá ngoài hợp đồng: ${issue.keys.join(', ')}.`;
   }
 
   return `Trường '${field}' không đúng hợp đồng.`;
