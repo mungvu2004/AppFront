@@ -69,6 +69,33 @@ describe('PasswordField — the eye button (BUG-051)', () => {
 
     expect(screen.getByRole('button', { name: AUTH.actions.showPassword })).toBeDisabled();
   });
+
+  it('shows its own accent focus ring, apart from the box ring around it (nợ QA-01b #8, như BUG-036)', () => {
+    render(<PasswordField label={LABEL} />);
+
+    expect(screen.getByRole('button', { name: AUTH.actions.showPassword })).toHaveClass(
+      'outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-accent',
+      'focus-visible:ring-offset-2',
+    );
+  });
+
+  it('is dimmed once, by the locked box around it, not twice (nợ QA-01b #9)', () => {
+    render(<PasswordField label={LABEL} disabled />);
+
+    const button = screen.getByRole('button', { name: AUTH.actions.showPassword });
+    const dimmedAncestors = [];
+
+    for (let node = button.parentElement; node !== null; node = node.parentElement) {
+      if (node.classList.contains('opacity-50')) {
+        dimmedAncestors.push(node);
+      }
+    }
+
+    expect(dimmedAncestors).toHaveLength(1);
+    expect(button.className).not.toMatch(/opacity/u);
+  });
 });
 
 describe('PasswordField — the rule said up front (BUG-049)', () => {
