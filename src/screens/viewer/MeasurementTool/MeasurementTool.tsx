@@ -85,7 +85,7 @@ const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai đ
 const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
 
 /** Nền chung của mọi mảnh chữ trôi trên canvas: đủ mờ để đọc được trên mọi nền. */
-const FLOATING_SURFACE = 'rounded-full bg-bg-surface/90 shadow-float';
+const FLOATING_SURFACE = 'rounded-full bg-bg-surface-90 shadow-float';
 
 interface KeyActionProps {
   readonly icon: ReactNode;

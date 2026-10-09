@@ -68,7 +68,7 @@ function LoadingContent({
       className="relative z-10 flex h-full w-full items-center justify-center"
       role="status"
     >
-      <div className="flex items-center gap-2 rounded-[8px] bg-bg-surface/90 px-4 py-2 text-[13px] text-text-secondary shadow-float">
+      <div className="flex items-center gap-2 rounded-[8px] bg-bg-surface-90 px-4 py-2 text-[13px] text-text-secondary shadow-float">
         <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
         <span>
           Đang dựng mô hình {storeyCount} tầng
@@ -93,7 +93,7 @@ function StoreyBlock({
   if (isReady) {
     return (
       <div
-        className="rounded-[8px] bg-bg-surface/80 px-3 py-1.5 text-[13px] text-text-secondary transition-opacity duration-standard motion-reduce:transition-none"
+        className="rounded-[8px] bg-bg-surface-80 px-3 py-1.5 text-[13px] text-text-secondary transition-opacity duration-standard motion-reduce:transition-none"
         onMouseEnter={() => {
           onHover(storeyId);
         }}
@@ -108,7 +108,7 @@ function StoreyBlock({
 
   return (
     <div
-      className="rounded-[8px] border-2 border-dashed border-border-default bg-bg-surface/60 px-3 py-1.5 text-[13px] text-text-secondary transition-opacity duration-standard motion-reduce:transition-none"
+      className="rounded-[8px] border-2 border-dashed border-border-default bg-bg-surface-60 px-3 py-1.5 text-[13px] text-text-secondary transition-opacity duration-standard motion-reduce:transition-none"
       onMouseEnter={() => {
         onHover(storeyId);
       }}

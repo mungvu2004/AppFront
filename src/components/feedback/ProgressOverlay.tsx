@@ -26,7 +26,7 @@ export function ProgressOverlay({
       aria-modal="true"
       aria-label={title}
       className={cn(
-        'absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-app/88 backdrop-blur-sm transition-opacity duration-340',
+        'absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-app-88 backdrop-blur-sm transition-opacity duration-340',
         className
       )}
       {...props}

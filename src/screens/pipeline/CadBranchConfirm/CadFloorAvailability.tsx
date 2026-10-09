@@ -32,7 +32,7 @@ export function CadFloorAvailabilityTable({ floors }: CadFloorAvailabilityTableP
         </Table.Header>
         <Table.Body>
           {floors.map((floor) => (
-            <tr key={floor.floorId} className="border-b border-border-default/50 last:border-0">
+            <tr key={floor.floorId} className="border-b border-border-default-50 last:border-0">
               <Table.Cell>{floor.floorName}</Table.Cell>
               <Table.Cell>
                 <Badge variant={floor.hasCadFile ? 'neutral' : 'attention'}>

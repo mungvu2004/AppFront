@@ -45,7 +45,7 @@ function DemoContent() {
             key={s}
             onClick={() => setViewState(s)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ${
-              viewState === s ? 'bg-accent text-white' : 'bg-bg-sunken text-text-primary hover:bg-black/5'
+              viewState === s ? 'bg-accent text-white' : 'bg-bg-sunken text-text-primary hover:bg-black-5'
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -56,9 +56,9 @@ function DemoContent() {
       <div className="space-y-8">
         {/* Toasts Demo */}
         <div className="flex gap-4">
-          <button onClick={() => handleTriggerToast('verified', 'Đã xoá 1 đối tượng.', true)} className="px-4 py-2 bg-state-verified text-white rounded-lg hover:bg-state-verified/90 font-medium">Test Undo Toast</button>
-          <button onClick={() => handleTriggerToast('attention', 'Mạng chập chờn, đang thử lại.')} className="px-4 py-2 bg-state-attention text-white rounded-lg hover:bg-state-attention/90 font-medium">Test Warning Toast</button>
-          <button onClick={() => handleTriggerToast('violation', 'Không thể kết nối đến máy chủ AI.')} className="px-4 py-2 bg-state-violation text-white rounded-lg hover:bg-state-violation/90 font-medium">Test Error Toast</button>
+          <button onClick={() => handleTriggerToast('verified', 'Đã xoá 1 đối tượng.', true)} className="px-4 py-2 bg-state-verified text-white rounded-lg hover:bg-state-verified-90 font-medium">Test Undo Toast</button>
+          <button onClick={() => handleTriggerToast('attention', 'Mạng chập chờn, đang thử lại.')} className="px-4 py-2 bg-state-attention text-white rounded-lg hover:bg-state-attention-90 font-medium">Test Warning Toast</button>
+          <button onClick={() => handleTriggerToast('violation', 'Không thể kết nối đến máy chủ AI.')} className="px-4 py-2 bg-state-violation text-white rounded-lg hover:bg-state-violation-90 font-medium">Test Error Toast</button>
         </div>
 
         {/* View States */}

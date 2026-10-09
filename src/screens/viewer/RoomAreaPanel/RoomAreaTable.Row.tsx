@@ -44,7 +44,7 @@ const RENAME_INPUT_CLASS_NAME = cn(
 );
 
 const ROW_CLASS_NAME = cn(
-  'h-10 cursor-pointer border-b border-border-default/50 outline-none',
+  'h-10 cursor-pointer border-b border-border-default-50 outline-none',
   'transition-colors duration-180 hover:bg-bg-hover focus-visible:bg-bg-hover',
   'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
   'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',

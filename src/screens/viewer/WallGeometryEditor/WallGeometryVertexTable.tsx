@@ -101,7 +101,7 @@ export function WallGeometryVertexTable({ table }: WallGeometryVertexTableProps)
           ) : (
             table.rows.map((row: WallGeometryVertexRow) => (
               <tr
-                className={cn('border-b border-border-default/50 last:border-0', row.isSelected && 'bg-bg-selected')}
+                className={cn('border-b border-border-default-50 last:border-0', row.isSelected && 'bg-bg-selected')}
                 key={row.id}
               >
                 <td className="h-11 px-3 align-middle">

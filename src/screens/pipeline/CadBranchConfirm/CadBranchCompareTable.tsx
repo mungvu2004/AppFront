@@ -30,7 +30,7 @@ export function CadBranchCompareTable({ rows }: CadBranchCompareTableProps) {
       </Table.Header>
       <Table.Body>
         {rows.map((row) => (
-          <tr key={row.rowId} className="border-b border-border-default/50 last:border-0">
+          <tr key={row.rowId} className="border-b border-border-default-50 last:border-0">
             <Table.Cell className="font-medium text-text-secondary whitespace-nowrap">
               {row.rowLabel}
             </Table.Cell>

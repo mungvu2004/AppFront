@@ -220,7 +220,7 @@ export function RoomAreaTable(props: RoomAreaTableProps) {
           {showGroups &&
             groups.map((group) => (
               <tbody key={group.key}>
-                <tr className="bg-bg-sunken/60">
+                <tr className="bg-bg-sunken-60">
                   <Table.Cell
                     className="h-8 text-[13px] font-medium text-text-secondary"
                     colSpan={COLUMN_COUNT}

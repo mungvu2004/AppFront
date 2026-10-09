@@ -112,7 +112,7 @@ export const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>((
       {/* Legacy colorChip (only shown when no typeIcon) */}
       {!typeIcon && colorChip && (
         <div
-          className="w-3 h-3 rounded-sm mr-2 shrink-0 border border-border-default/50"
+          className="w-3 h-3 rounded-sm mr-2 shrink-0 border border-border-default-50"
           style={{ backgroundColor: colorChip }}
           aria-hidden="true"
         />
