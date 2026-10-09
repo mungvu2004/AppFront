@@ -550,4 +550,21 @@ describe('dự án không tồn tại (BUG-032)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
     expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
+
+  it('BUG-060: không vẽ câu "chỉ sống trong phiên" và khung lát cắt trống cạnh 404', () => {
+    renderWithProviders(
+      <FloorManager
+        {...scenarioArgsFor('error')}
+        isProjectMissing
+        unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES}
+      />,
+    );
+
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
+      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
+  });
 });

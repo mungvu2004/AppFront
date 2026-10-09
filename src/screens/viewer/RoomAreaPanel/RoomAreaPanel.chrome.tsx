@@ -205,11 +205,11 @@ export function RoomAreaPanelHeader({
           value={activeLevelId ?? NO_ACTIVE_LEVEL_VALUE}
         />
       </div>
-      {/* Dưới 640 ô chọn cao 46 px: nút khớp đúng chiều cao ấy để hai đáy (`items-end`) và hai
-          đỉnh cùng thẳng hàng; từ 640 trở lại 36 px như cũ. */}
+      {/* Nút khớp đúng chiều cao ô chọn (46 px dưới 640, 38 px từ 640) để hai đáy (`items-end`) và
+          hai đỉnh cùng thẳng hàng ở mọi bề rộng. */}
       <IconButton
         aria-label={TABLE_MODE_LABEL}
-        className="h-[46px] w-[46px] sm:h-9 sm:w-9"
+        className="h-[46px] w-[46px] sm:h-[38px] sm:w-[38px]"
         icon={<LayoutGrid />}
         onClick={() => onModeChange('table')}
       />
@@ -276,8 +276,8 @@ export function RoomAreaPanelSkeleton() {
   return (
     <div aria-busy="true" aria-label={LOADING_LABEL} className="flex min-h-0 flex-1 flex-col">
       <div className="px-4 pb-3 pt-4">
-        <div className="h-6 w-32 animate-pulse rounded-lg bg-bg-sunken motion-reduce:animate-none" />
-        <div className="mt-2 h-4 w-48 animate-pulse rounded bg-bg-sunken motion-reduce:animate-none" />
+        <div className="h-6 w-32 animate-pulse rounded-lg bg-border-default motion-reduce:animate-none" />
+        <div className="mt-2 h-4 w-48 animate-pulse rounded bg-border-default motion-reduce:animate-none" />
       </div>
       <div className="flex flex-col gap-1 px-2">
         {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (

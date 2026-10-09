@@ -65,4 +65,31 @@ describe('Input', () => {
     expect(wrapper).toHaveClass('border-border-control');
     expect(wrapper).not.toHaveClass('border-border-default');
   });
+
+  // QA-01b nợ #7: the hint is read with the field, not only seen.
+  it('ties the hint to the field', () => {
+    render(<Input label="Tên" hint="Tối đa 80 ký tự" />);
+    expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Tối đa 80 ký tự');
+  });
+
+  it('describes the field by the error instead of the hint once there is one', () => {
+    render(<Input label="Tên" hint="Tối đa 80 ký tự" error="Trường bắt buộc" />);
+    expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Trường bắt buộc');
+  });
+
+  // QA-01b nợ #15: a caller's own description joins the field's, it does not replace it.
+  it('merges a caller aria-describedby with its own error', () => {
+    render(
+      <>
+        <p id="note">Ghi chú</p>
+        <Input id="f" label="Tên" error="Trường bắt buộc" aria-describedby="note" />
+      </>
+    );
+    expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Ghi chú Trường bắt buộc');
+  });
+
+  it('does not repeat an id the caller already joined (as PasswordField does)', () => {
+    render(<Input id="f" label="Tên" error="Trường bắt buộc" aria-describedby="f-error" />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('aria-describedby', 'f-error');
+  });
 });

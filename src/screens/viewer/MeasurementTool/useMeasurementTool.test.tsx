@@ -39,6 +39,9 @@ import type {
   MountMeasurementScene,
 } from './measurementToolScene';
 import { viewerStateOf } from './measurementToolViewModel';
+// Nạp tĩnh, ở pha collect, module cảnh mà `useMeasurementToolScene` `import()` lười: không thì bài
+// đầu tiên chạm nó biên dịch three.js BÊN TRONG `waitFor` 1 s của mình (QA-01c nợ #12).
+import './measurementToolScene';
 import { useMeasurementTool, type UseMeasurementToolOptions } from './useMeasurementTool';
 
 import type { ReactElement } from 'react';
@@ -705,6 +708,10 @@ describe('useMeasurementTool — cảnh chưa sẵn sàng thì không bỏ cú c
     renderHook({ pick: pickAtPointer });
 
     expect(viewportSkeleton()).not.toBeNull();
+    // Chờ chính lượt `import()` của cảnh xong (điều kiện), không chờ một khoảng giờ thật.
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
     // jsdom không có WebGL: lượt lắp ra `unavailable` — không lỗi, không kẹt skeleton.
     await waitFor(() => {
       expect(viewportSkeleton()).toBeNull();

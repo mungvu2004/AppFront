@@ -73,4 +73,21 @@ describe('consumeFragmentToken', () => {
     expect(consumeFragmentToken(target)).toBeNull();
     expect(target.history.replaceState).toHaveBeenCalledTimes(1);
   });
+
+  it('strips a stray ?token= from the URL without ever reading it (QA-01 debt #4)', () => {
+    const state = { key: 'k1' };
+    const target = makeTarget({ hash: '', state, search: '?token=leak&x=1' });
+
+    expect(consumeFragmentToken(target)).toBeNull();
+    expect(target.history.replaceState).toHaveBeenCalledTimes(1);
+    expect(target.history.replaceState).toHaveBeenCalledWith(state, '', '/login/reset-password?x=1');
+  });
+
+  it('strips both a #token= and a stray ?token= in one replace, and reads only the fragment', () => {
+    const target = makeTarget({ hash: '#token=abc', search: '?token=leak' });
+
+    expect(consumeFragmentToken(target)).toBe('abc');
+    expect(target.history.replaceState).toHaveBeenCalledTimes(1);
+    expect(target.history.replaceState).toHaveBeenCalledWith(null, '', '/login/reset-password');
+  });
 });

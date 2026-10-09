@@ -454,7 +454,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
       />,
     );
 
-    const button = screen.getByRole('button', { name: /xoá|xóa/iu });
+    const button = screen.getByRole('button', { name: /xoá/iu });
 
     fireEvent.click(button);
 

@@ -12,7 +12,14 @@ export function Skeleton({ preset, className, ...props }: SkeletonProps) {
   // beats so it sits on the duration ladder. (A comment here once described a
   // 1400ms shimmer; no such animation was ever wired up.)
   // motion-reduce:animate-none ensures it stops on reduced motion preference
-  const baseClass = 'bg-bg-sunken rounded-[8px] animate-pulse motion-reduce:animate-none';
+  //
+  // Khối tô `border-default` (sáng 1,22:1 trên app, 1,34:1 trên surface; tối 1,45 và 1,31), không
+  // `bg-sunken` (1,05 và 1,16 — gần như vô hình). Không lên 3:1: khung xương là chỗ giữ trang trí,
+  // không phải thành phần giao diện hay đồ hoạ mang nghĩa nên WCAG 1.4.11 không áp; thông tin
+  // "đang tải" phải nói bằng chữ/ARIA ở nơi gọi (`role="status"`, `aria-busy`). Một khối xám 3:1
+  // (`border-control`) đọc ra như nội dung bị vô hiệu hoá. Ngưỡng ở đây: ngang đường kẻ hairline
+  // của hệ thống, tức nhận ra được nhưng lùi sau nội dung thật.
+  const baseClass = 'bg-border-default rounded-[8px] animate-pulse motion-reduce:animate-none';
 
   switch (preset) {
     case 'table-row':
@@ -47,8 +54,6 @@ export function Skeleton({ preset, className, ...props }: SkeletonProps) {
     case 'canvas':
       return (
         <div className={cn('relative w-full h-full min-h-[400px] bg-bg-app border border-border-default overflow-hidden', className)} {...props}>
-          {/* Skeleton overlay simulating grid or loading space */}
-          <div className={cn(baseClass, 'absolute inset-0 bg-bg-sunken opacity-50')} />
           <div className={cn(baseClass, 'absolute top-4 left-4 w-48 h-12')} />
           <div className={cn(baseClass, 'absolute top-4 right-4 w-12 h-12')} />
           <div className={cn(baseClass, 'absolute bottom-4 left-4 w-64 h-8')} />

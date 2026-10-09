@@ -38,4 +38,13 @@ describe('errors/describeError.ts', () => {
     expect(geometry.description).toContain('tầng 2');
     expect(forbidden.primaryButtonLabel).toBe('Liên hệ quản trị');
   });
+
+  it('404 không khuyên tải lại — tải lại không đem nội dung đã mất về (QA-01 nợ #7)', () => {
+    const notFound = describeError(
+      toAppError({ kind: 'http', raw: {}, requestId: 'req-404', retryable: false, status: 404 }),
+    );
+
+    expect(notFound.description).not.toMatch(/tải lại/i);
+    expect(notFound.primaryButtonLabel).not.toBe('Tải lại');
+  });
 });

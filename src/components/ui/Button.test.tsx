@@ -95,4 +95,22 @@ describe('Button', () => {
     render(<Button size="lg">Đăng nhập</Button>);
     expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-10', 'sm:min-h-10');
   });
+
+  // QA-01b nợ #14: md is the default size, so it is the dialog/form button on a phone.
+  it('is 44px tall on phones at the default md size and 36px from sm up', () => {
+    render(<Button>Lưu thay đổi</Button>);
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-9', 'sm:min-h-9');
+  });
+
+  it('keeps sm and icon-only md buttons at their size on phones', () => {
+    render(
+      <>
+        <Button size="sm">Lọc</Button>
+        <Button iconOnly aria-label="Đóng" icon={<span />} />
+      </>
+    );
+    expect(screen.getByRole('button', { name: 'Lọc' })).toHaveClass('h-8');
+    expect(screen.getByRole('button', { name: 'Đóng' })).toHaveClass('h-9', 'w-9');
+    expect(screen.getByRole('button', { name: 'Đóng' })).not.toHaveClass('h-11');
+  });
 });

@@ -73,6 +73,7 @@ import { AVATAR_MIME_TYPES, type Me, type UploadAvatar } from '@/api/schemas/me'
 import { getSession, subscribeToSession } from '@/lib/auth';
 import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
+import { initialsOf } from '@/lib/format/initials';
 import { MISSING_VALUE } from '@/lib/format/number';
 import { durationMs } from '@/lib/motion';
 import { useStore } from '@/store';
@@ -282,28 +283,6 @@ function readChoice<T extends string>(
   return typeof value === 'string' && (allowed as readonly string[]).includes(value)
     ? (value as T)
     : fallback;
-}
-
-/**
- * Chữ cái đầu cho `Avatar` khi chưa có ảnh — trạng thái 1.
- *
- * Không viết hoa: `Avatar` ghi rõ trong mã rằng chữ cái đầu giữ nguyên như người
- * ta viết tên mình. Tên Việt đặt họ trước tên sau, nên lấy chữ đầu của từ đầu và
- * chữ đầu của từ cuối: "Nguyễn Thu Hà" ra "NH".
- */
-export function initialsOf(fullName: string, email: string): string {
-  const words = fullName.split(/\s+/).filter((word) => word.length > 0);
-  const first = words[0];
-  const last = words[words.length - 1];
-
-  if (first !== undefined && last !== undefined) {
-    return words.length === 1 ? first.slice(0, 1) : `${first.slice(0, 1)}${last.slice(0, 1)}`;
-  }
-
-  // Chưa có tên: chữ đầu của phần trước dấu a còng còn nói được điều gì đó.
-  const localPart = email.split('@')[0] ?? '';
-
-  return localPart.slice(0, 1);
 }
 
 /* -------------------------------------------------------------------------- */

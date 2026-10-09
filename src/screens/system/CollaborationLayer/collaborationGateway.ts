@@ -32,9 +32,8 @@
  * `VersionHistory/versionHistoryGateway.ts:255` đã có một hàm cùng tên và cùng
  * bảy dòng. Nhập nó về sẽ kéo cả bộ lịch sử phiên bản vào phần gói của tuyến
  * nào dựng lớp này — cổng kích thước gói đo theo TỪNG tuyến. Bảy dòng thuần rẻ
- * hơn một phụ thuộc chéo màn; đây đúng là tiền lệ mà
- * `versionHistoryGateway.ts:230-240` đã ghi lại khi nó chép `initialsOf` từ
- * `ShareDialog` thay vì nhập.
+ * hơn một phụ thuộc chéo màn. (Chữ tắt thì khác: `initialsOf` sống ở
+ * `@/lib/format/initials`, tầng thuần, nên mọi màn nhập chung một bản — QA-01c nợ #1.)
  */
 
 import { getSession } from '@/lib/auth';
@@ -130,35 +129,8 @@ export function readSelfName(session: SessionSnapshot): string {
     return SELF_FALLBACK_NAME;
   }
 
-  const named = user.name ?? user.email ?? user.id;
-
-  return named === '' ? SELF_FALLBACK_NAME : named;
-}
-
-/** Số chữ cái một ô đại diện không ảnh hiện được. */
-const INITIALS_LENGTH = 2;
-
-/**
- * Chữ cái đầu của một cái tên, cho ô đại diện không ảnh.
- *
- * Dựng ở đây chứ không để ô đại diện tự cắt: cắt hai ký tự đầu của "Nguyễn Thị
- * Mai" cho ra "Ng", còn thứ người đọc chờ là "NM". Không có chữ nào đọc được
- * thì trả chuỗi rỗng, và view vẽ ô trống thay vì một dấu hỏi giả vờ là tên.
- */
-export function initialsOf(name: string): string {
-  const words = name
-    .trim()
-    .split(/\s+/u)
-    .filter((word) => word.length > 0);
-  if (words.length === 0) {
-    return '';
-  }
-
-  const first = words[0] ?? '';
-  const last = words[words.length - 1] ?? '';
-  const letters = words.length === 1 ? first.slice(0, 1) : `${first.slice(0, 1)}${last.slice(0, 1)}`;
-
-  return letters.slice(0, INITIALS_LENGTH).toLocaleUpperCase('vi-VN');
+  // `||`, không `??`: `name: ''` của máy chủ phải rơi về email (cùng mẫu BUG-031).
+  return user.name?.trim() || user.email?.trim() || user.id || SELF_FALLBACK_NAME;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -233,7 +233,7 @@ export function ListReviewDemo() {
             Duyệt danh sách
           </Button>
           <Button variant="ghost" size="sm" onClick={review.handleDeleteSelected} className="text-state-violation-text hover:bg-danger-tint">
-            Xóa
+            Xoá
           </Button>
         </div>
       )}

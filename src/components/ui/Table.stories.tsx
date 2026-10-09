@@ -218,7 +218,7 @@ export const WallsTable: Story = {
 // ── 5. Virtualized: 500 rows ──────────────────────────────────────────────────
 
 export const Virtualized500: Story = {
-  name: 'Ảo hóa 500 dòng',
+  name: 'Ảo hoá 500 dòng',
   render: function VirtualStory() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
 

@@ -31,11 +31,11 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
+import { initialsOf } from '@/lib/format/initials';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
 import { NotificationBellContainer } from '@/screens/system/NotificationCenter';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
-import { initialsOf } from './projectsGateway';
 
 /** Names this screen to the error boundary, and to anything reading its report. */
 const SCREEN_ID = 'dashboard';
@@ -59,8 +59,8 @@ function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
 function DashboardWithCreateModal() {
   const session = useSession();
   const role = session.roles[0];
-  // `||`, không `??`: tên rỗng (máy chủ trả `name: ''`) cũng phải rơi về email (BUG-031).
-  const accountInitials = initialsOf(session.user?.name?.trim() || session.user?.email?.split('@')[0] || '');
+  // Tên rỗng (máy chủ trả `name: ''`) rơi về email ngay trong `initialsOf` (BUG-031).
+  const accountInitials = initialsOf(session.user?.name ?? '', session.user?.email ?? '');
   const { addToast } = useToast();
   const [isCreateOpen, setCreateOpen] = useState(false);
 

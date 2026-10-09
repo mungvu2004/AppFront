@@ -168,3 +168,10 @@ tương phản.
 `--text-secondary` (4,80:1, đạt).** Vẫn đúng ba tông, vẫn đúng tinh thần "không chủ đề bảy
 màu" của DS-00, nhưng đọc được. Đây là trường hợp luật thắng prompt (`LUAT_MAN_HINH.md:10`):
 sửa đặc tả S-36 để đổi hai token, không sửa ngưỡng tương phản.
+
+> **Ghi chú đính chính (QA-01c, giữ nguyên đoạn trên làm lịch sử).** Số ở đoạn trên đo trên
+> bảng màu lúc ấy. Bảng màu sáng nay đã đổi vì AA: `--accent` #567A96 → #4D6E87 (FIX-654, nay
+> 4,66:1 trên sunken — đạt, nhưng A2 vẫn giữ màu nhấn cho thứ bấm được nên chuỗi không dùng nó),
+> `--accent-active` #3F5D74 → #395468 (6,86:1), `--text-secondary` #6B6862 → #605D58 (5,66:1;
+> QA-01c nợ #5, tách bậc với `--text-muted` #6D6A67). Chốt ba tông không đổi; số hiện hành ở
+> `SpatialJsonViewer/types.ts` và `src/styles/globals.css`.

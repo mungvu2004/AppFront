@@ -27,7 +27,7 @@ const noop = (): void => undefined;
 
 const hqRenovation: ProjectCardModel = {
   id: 'p-hq-renovation',
-  name: 'Tòa nhà HQ Renovation',
+  name: 'Toà nhà HQ Renovation',
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
@@ -150,7 +150,7 @@ export const Collapsed: Story = { args: { ...base, state: 'collapsed' } };
 
 /** Đang đổi tên một dự án ngay trên thẻ. */
 export const Renaming: Story = {
-  args: { ...base, renamingId: hqRenovation.id, renameDraft: 'Tòa nhà HQ Renovation (Q3)' },
+  args: { ...base, renamingId: hqRenovation.id, renameDraft: 'Toà nhà HQ Renovation (Q3)' },
 };
 
 /** Hộp thoại xác nhận xoá — nơi duy nhất A9 cho phép chặn bằng hộp thoại trên màn này. */

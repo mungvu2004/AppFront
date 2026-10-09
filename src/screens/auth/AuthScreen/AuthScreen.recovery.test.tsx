@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import viMessages from '@/i18n/vi.json';
 import type { Result } from '@/lib/http';
 
-import { networkFailure, okVoid, wireFailure } from '../authTestKit';
+import { dropFocus, networkFailure, okVoid, wireFailure } from '../authTestKit';
 import { AuthScreen } from './AuthScreen';
 import type { AuthGateway } from './useAuthScreen';
 
@@ -336,5 +336,105 @@ describe('AuthScreen — opening sentences', () => {
 
     await screen.findByText(AUTH.errors.invalidCredentials.description);
     expect(screen.queryByText(AUTH.notices.sessionEnded)).toBeNull();
+  });
+});
+
+/** Lúc gửi, ô và nút bị khoá và trình duyệt thả tiêu điểm về `body`; nó phải quay lại (nợ QA-01 #21). */
+describe('AuthScreen — focus survives a send (nợ QA-01 #21)', () => {
+  it('gives focus back to the field Enter was pressed in, once a failed attempt unlocks the form', async () => {
+    const { container } = setup({ signIn: wireFailure(401, { code: 'INVALID_CREDENTIALS' }) });
+    const password = screen.getByLabelText(AUTH.fields.password);
+
+    type(AUTH.fields.email, EMAIL);
+    type(AUTH.fields.password, PASSWORD);
+    password.focus();
+    fireEvent.keyDown(password, { key: 'Enter' });
+    dropFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('error');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(password);
+    });
+  });
+
+  it('gives focus back to the button that was pressed', async () => {
+    const { container } = setup({ signIn: networkFailure() });
+    const button = screen.getByRole('button', { name: AUTH.actions.signIn });
+
+    type(AUTH.fields.email, EMAIL);
+    type(AUTH.fields.password, PASSWORD);
+    button.focus();
+    fireEvent.click(button);
+    dropFocus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('error');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(button);
+    });
+  });
+
+  it('does not steal focus the person moved elsewhere while waiting', async () => {
+    const { container } = setup({ signIn: networkFailure() });
+    const password = screen.getByLabelText(AUTH.fields.password);
+    const elsewhere = document.createElement('button');
+
+    document.body.append(elsewhere);
+    type(AUTH.fields.email, EMAIL);
+    type(AUTH.fields.password, PASSWORD);
+    password.focus();
+    fireEvent.keyDown(password, { key: 'Enter' });
+    elsewhere.focus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('error');
+    });
+    // Let the effects of the reply run before looking.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(document.activeElement).toBe(elsewhere);
+    elsewhere.remove();
+  });
+
+  it('a disabled account takes the form away: focus lands on the way out, not body', async () => {
+    const { container } = setup({ signIn: wireFailure(403, { code: 'ACCOUNT_DISABLED' }) });
+    const password = screen.getByLabelText(AUTH.fields.password);
+
+    type(AUTH.fields.email, EMAIL);
+    type(AUTH.fields.password, PASSWORD);
+    password.focus();
+    fireEvent.keyDown(password, { key: 'Enter' });
+    dropFocus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('forbidden');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: AUTH.actions.signInWithAnotherAccount }));
+    });
+  });
+
+  it('forgot panel: the send button stays locked after a send, so focus lands on the email box', async () => {
+    const { container } = setup();
+
+    type(AUTH.fields.email, EMAIL);
+    fireEvent.click(screen.getByRole('button', { name: AUTH.actions.forgotPassword }));
+
+    const send = screen.getByRole('button', { name: AUTH.actions.sendResetLink });
+
+    send.focus();
+    fireEvent.click(send);
+    dropFocus();
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('success');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByLabelText(AUTH.fields.email));
+    });
   });
 });

@@ -4,18 +4,7 @@
  * Không phải bảng dịch lúc chạy — `src/i18n/vi.json` cũng không phải (xem CLAUDE.md).
  * Đây là chỗ hook lấy chuỗi để ghép vào view model, và là bản đối chiếu một-một với
  * khoá `cadBranchConfirm` của `vi.json` mà `expectVietnamese` dùng làm từ điển (R-67).
- *
- * Lưu ý: Các câu lỗi CAD được tự viết dựa trên ngữ cảnh sử dụng (chưa có L-03 trong
- * src/lib/errors/**), được tích hợp vào màn này để thông báo cho người dùng về
- * những vấn đề khi đọc tệp CAD.
  */
-
-/** Tiêu đề và mô tả để kích hoạt mỗi trạng thái của hộp thoại. */
-export interface DialogStateText {
-  readonly title: string;
-  readonly description: string;
-  readonly buttonLabel?: string;
-}
 
 /** Các thành phần của bảng so sánh hai nhánh. */
 export interface ComparisonRowText {
@@ -34,57 +23,13 @@ export interface LayerRoleText {
  * GIAI ĐOẠN 1 — Hộp thoại lựa chọn nhánh
  */
 
-/** Hàm tạo state "error" với tham số phiên bản AutoCAD nếu có. */
-export const phase1ErrorState = (version?: string): DialogStateText => ({
-  title: 'Không thể đọc tệp CAD',
-  description: version
-    ? `Tệp được lưu bằng AutoCAD phiên bản ${version}, mà hệ thống chỉ hỗ trợ đến AutoCAD 2023. Vui lòng mở tệp lại trong AutoCAD 2023 hoặc phiên bản cũ hơn, lưu lại, rồi tải lên. Bạn vẫn có thể tiếp tục dùng nhánh nhận dạng ảnh.`
-    : 'Tệp bản vẽ bị hỏng hoặc dùng phiên bản AutoCAD mới hơn mức mà hệ thống hỗ trợ (hỗ trợ đến AutoCAD 2023). Vui lòng thiết lập lại tệp rồi tải lên. Bạn vẫn có thể tiếp tục dùng nhánh nhận dạng ảnh.',
-  buttonLabel: 'Tiếp tục với ảnh',
-});
-
-/** Hàm tạo state "partial" với tham số danh sách loại không hỗ trợ nếu có. */
-export const phase1PartialState = (unsupportedTypes?: string[]): DialogStateText => ({
-  title: 'Chỉ một số tầng có CAD',
-  description: unsupportedTypes && unsupportedTypes.length > 0
-    ? `Tệp bản vẽ chỉ có dữ liệu cho một số tầng của hồ sơ, hoặc chứa các loại đối tượng không hỗ trợ: ${unsupportedTypes.join(', ')}. Các tầng và loại này sẽ bị bỏ qua hoặc xử lý qua nhánh nhận dạng ảnh.`
-    : 'Tệp bản vẽ chỉ có dữ liệu cho một số tầng của hồ sơ. Các tầng khác sẽ chạy qua nhánh nhận dạng ảnh. Bạn có thể lựa chọn cách xử lý từng loại dữ liệu riêng biệt ở bước tiếp theo.',
-});
-
-/** Các state tĩnh của giai đoạn 1. */
+/** Câu của hộp thoại giai đoạn 1 — màn chỉ đọc trạng thái `normal`. */
 export const PHASE_1_DIALOG_STATES = {
   /** Trạng thái bình thường: hộp thoại đầy đủ với lựa chọn hai nhánh. */
   normal: {
     title: 'Phát hiện tệp CAD',
     description:
       'Hồ sơ này có tệp bản vẽ gốc từ AutoCAD hoặc các phần mềm thiết kế khác. Bạn có thể sử dụng đường hình học chính xác từ tệp, hoặc tiếp tục dùng nhánh nhận dạng ảnh để kiểm soát từng bước.',
-  },
-
-  /** Trạng thái đang tải: tệp đang được đọc. */
-  loading: {
-    title: 'Đang đọc tệp CAD…',
-    description: 'Hệ thống đang phân tích tệp bản vẽ. Vui lòng đợi.',
-  },
-
-  /** Trạng thái thành công: hộp thoại sẵn sàng. */
-  ready: {
-    title: 'Phát hiện tệp CAD',
-    description:
-      'Hồ sơ này có tệp bản vẽ gốc từ AutoCAD hoặc các phần mềm thiết kế khác. Bạn có thể sử dụng đường hình học chính xác từ tệp, hoặc tiếp tục dùng nhánh nhận dạng ảnh để kiểm soát từng bước.',
-  },
-
-  /** Trạng thái không có quyền: người dùng không được phép xử lý tệp CAD. */
-  forbidden: {
-    title: 'Không có quyền xử lý CAD',
-    description:
-      'Tài khoản hiện tại không được phép sử dụng tính năng xử lý tệp CAD. Bạn chỉ có thể tiếp tục với nhánh nhận dạng ảnh. Liên hệ quản trị dự án để nâng cấp quyền truy cập.',
-  },
-
-  /** Trạng thái thu gọn: hộp thoại đã đóng/thu gọn. */
-  collapsed: {
-    title: 'Phát hiện tệp CAD',
-    description:
-      'Hộp thoại đã được đóng. Mở lại để lựa chọn nhánh xử lý hoặc tiếp tục với các cài đặt hiện tại.',
   },
 } as const;
 
@@ -190,7 +135,7 @@ export const ADVANCED_OPTIONS_LABEL = 'Tuỳ chọn nhập';
 /** Nhãn select "Đơn vị bản vẽ" trong phần tuỳ chọn. */
 export const DRAWING_UNIT_LABEL = 'Đơn vị bản vẽ';
 
-/** Các tùy chọn đơn vị. */
+/** Các tuỳ chọn đơn vị. */
 export const DRAWING_UNITS: Readonly<Record<string, string>> = {
   mm: 'Milimét (mm)',
   cm: 'Centimét (cm)',
@@ -207,21 +152,6 @@ export const ORIGIN_KEEP_CAD = 'Giữ nguyên gốc CAD';
 /** Lựa chọn: đặt gốc tại giao trục A-1. */
 export const ORIGIN_GRID_A1 = 'Đặt tại giao trục A-1';
 
-/**
- * Dòng tóm tắt chân màn — hàm nhận các số ĐÃ ĐỊNH DẠNG SẴN.
- * A15: view/text không tự định dạng số, không gọi toFixed/toLocaleString.
- *
- * @param mappedCount số lớp đã ánh xạ (định dạng sẵn, ví dụ "12")
- * @param totalCount tổng số lớp (định dạng sẵn, ví dụ "18")
- * @param objectCount số đối tượng sẽ được nhập (định dạng sẵn, ví dụ "245")
- * @returns dòng tóm tắt
- */
-export const formatSummaryLine = (
-  mappedCount: string,
-  totalCount: string,
-  objectCount: string,
-): string => `Đã ánh xạ ${mappedCount}/${totalCount} lớp · ${objectCount} đối tượng sẽ được nhập`;
-
 /** Nút chính: bắt đầu nhập hình học. */
 export const IMPORT_BUTTON_LABEL = 'Nhập hình học';
 
@@ -234,98 +164,12 @@ export const AI_BRANCH_NOTICE =
   'Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học.';
 
 /**
- * BẢY TRẠNG THÁI của giai đoạn 2 — mỗi trạng thái một tiêu đề + một câu mô tả.
- */
-
-/** Hàm tạo state "partial" với tham số danh sách loại không hỗ trợ nếu có. */
-export const phase2PartialState = (unsupportedTypes?: string[]): DialogStateText => ({
-  title: 'Một số loại đối tượng không hỗ trợ',
-  description: unsupportedTypes && unsupportedTypes.length > 0
-    ? `Tệp CAD chứa các loại đối tượng không được hỗ trợ: ${unsupportedTypes.join(', ')}. Các loại này sẽ bị bỏ qua. Chỉ polyline, đường tròn, arc, text, và các loại hình học cơ bản khác được nhập.`
-    : 'Tệp CAD chứa các loại đối tượng mà hệ thống chưa hỗ trợ. Các loại này sẽ bị bỏ qua. Chỉ polyline, đường tròn, arc, và text được nhập.',
-});
-
-/** Hàm tạo state "error" với tham số phiên bản AutoCAD nếu có. */
-export const phase2ErrorState = (version?: string): DialogStateText => ({
-  title: 'Không thể phân tích tệp CAD',
-  description: version
-    ? `Tệp bản vẽ được lưu bằng AutoCAD phiên bản ${version}, mà hệ thống chỉ hỗ trợ đến AutoCAD 2023. Vui lòng mở tệp lại trong AutoCAD 2023 hoặc phiên bản cũ hơn, lưu lại, rồi tải lên.`
-    : 'Tệp bản vẽ bị hỏng hoặc dùng phiên bản AutoCAD mới hơn mức mà hệ thống hỗ trợ (hỗ trợ đến AutoCAD 2023). Vui lòng thiết lập lại tệp trong AutoCAD (Lưu thành phiên bản 2023 hoặc cũ hơn) rồi tải lên lại.',
-});
-
-/** Các state tĩnh của giai đoạn 2. */
-export const PHASE_2_DIALOG_STATES = {
-  /** Trạng thái rỗng: tệp không có lớp đặt tên, hệ thống chuyển sang ánh xạ theo loại hình học. */
-  empty: {
-    title: 'Tệp CAD không có lớp được đặt tên',
-    description:
-      'Hệ thống sẽ tự động ánh xạ các đối tượng dựa trên loại hình học (polyline cho tường, circle/arc cho cửa sổ, v.v.). Bạn có thể điều chỉnh kết quả này ở bước tiếp theo.',
-  },
-
-  /** Trạng thái đang tải: đang đọc tệp .dwg. */
-  loading: {
-    title: 'Đang phân tích tệp…',
-    description: 'Hệ thống đang trích xuất danh sách lớp và đối tượng. Vui lòng đợi.',
-  },
-
-  /** Trạng thái thành công: bảng lớp sẵn sàng. */
-  ready: {
-    title: 'Ánh xạ lớp từ tệp CAD',
-    description: 'Gán mỗi lớp một vai trò để xác định cách xử lý hình học. Bạn có thể bỏ qua lớp không cần thiết.',
-  },
-
-  /** Trạng thái không có quyền: người dùng không được phép xử lý tệp CAD. */
-  forbidden: {
-    title: 'Không có quyền xử lý CAD',
-    description:
-      'Tài khoản hiện tại không được phép sử dụng tính năng xử lý tệp CAD. Liên hệ quản trị dự án để nâng cấp quyền truy cập.',
-  },
-
-  /** Trạng thái thu gọn: bảng đã đóng/thu gọn. */
-  collapsed: {
-    title: 'Ánh xạ lớp từ tệp CAD',
-    description: 'Bảng đã được đóng. Mở lại để điều chỉnh ánh xạ lớp hoặc tiếp tục nhập hình học.',
-  },
-} as const;
-
-/**
- * Các câu lỗi cụ thể khi tệp CAD gặp vấn đề (tự viết, chưa có L-03 trong src/lib/errors/**).
- * Những câu này được tích hợp vào màn để thông báo tình trạng chi tiết cho người dùng.
- */
-export const CAD_SPECIFIC_ERRORS = {
-  /**
-   * Khi tệp có phiên bản AutoCAD mới hơn mức hỗ trợ.
-   * Hàm nhận số phiên bản, nêu rõ số đó, và gợi ý thiết lập khi xuất lại.
-   */
-  unsupportedVersion: (version: string): string =>
-    `Tệp được lưu bằng AutoCAD phiên bản ${version}, mà hệ thống chỉ hỗ trợ đến 2023. Vui lòng mở tệp lại trong AutoCAD 2023 hoặc phiên bản cũ hơn, lưu lại, rồi tải lên.`,
-
-  /** Khi tệp bị hỏng hoặc không đọc được. */
-  corruptedFile:
-    'Tệp bản vẽ bị hỏng hoặc định dạng không hợp lệ. Hãy kiểm tra tệp trong AutoCAD rồi lưu lại dưới tên khác.',
-
-  /** Khi tệp rỗng hoặc không có dữ liệu hình học. */
-  emptyFile:
-    'Tệp bản vẽ không chứa bất kỳ đối tượng hình học nào. Kiểm tra lại file được tải lên có đúng không.',
-
-  /** Khi tệp quá lớn để xử lý. */
-  fileTooLarge: (sizeMb: string): string =>
-    `Tệp bản vẽ quá lớn (${sizeMb} MB). Vui lòng tải lên tệp dưới 100 MB hoặc tách tệp thành các phần nhỏ hơn.`,
-
-  /** Khi tệp chứa mã hóa không được hỗ trợ. */
-  encodingNotSupported:
-    'Tệp bản vẽ chứa mã hoá không được hỗ trợ. Vui lòng kiểm tra tệp trong AutoCAD và lưu dưới dạng UTF-8 hoặc mã hoá tiêu chuẩn.',
-} as const;
-
-/**
  * Xuất toàn bộ cấu trúc dưới dạng một module duy nhất cho dễ nhập vào view model.
  * Pattern này tuân theo mục B của CLAUDE.md: định danh tiếng Anh, chuỗi tiếng Việt có dấu.
  */
 export const CAD_BRANCH_CONFIRM_TEXT = {
   phase1: {
     dialogStates: PHASE_1_DIALOG_STATES,
-    dialogStateError: phase1ErrorState,
-    dialogStatePartial: phase1PartialState,
     comparisonTable: COMPARISON_TABLE,
     floorTableCaption: FLOOR_TABLE_CAPTION,
     floorColumnLabel: FLOOR_COLUMN_LABEL,
@@ -363,9 +207,6 @@ export const CAD_BRANCH_CONFIRM_TEXT = {
         gridA1: ORIGIN_GRID_A1,
       },
     },
-    summaryLine: {
-      format: formatSummaryLine,
-    },
     buttons: {
       import: IMPORT_BUTTON_LABEL,
     },
@@ -373,11 +214,7 @@ export const CAD_BRANCH_CONFIRM_TEXT = {
       unassignedLayer: UNASSIGNED_LAYER_HINT,
       aiBranchNotice: AI_BRANCH_NOTICE,
     },
-    dialogStates: PHASE_2_DIALOG_STATES,
-    dialogStateError: phase2ErrorState,
-    dialogStatePartial: phase2PartialState,
   },
-  errors: CAD_SPECIFIC_ERRORS,
 } as const;
 
 /* -------------------------------------------------------------------------- */

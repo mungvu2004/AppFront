@@ -99,7 +99,7 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
       <div
         ref={menuRef}
         role="menu"
-        aria-label="Tùy chọn"
+        aria-label="Tuỳ chọn"
         tabIndex={-1}
         className={cn(
           'fixed z-[9999] bg-bg-surface py-1 outline-none',

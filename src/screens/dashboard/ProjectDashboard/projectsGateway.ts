@@ -15,6 +15,7 @@
 import type { ApiClient } from '@/api/client';
 import type { ProjectSummary } from '@/api/schemas/projectSummaries';
 import { readWireError } from '@/lib/errors/wireError';
+import { initialsOf } from '@/lib/format/initials';
 
 export type ProjectPipelineStatus = 'processing' | 'qc' | 'done';
 
@@ -58,16 +59,6 @@ export const DASHBOARD_CAPABILITIES = { supportsDuplicate: false } as const;
 
 const PAGE_LIMIT = 500;
 const PLAN_VARIANT_COUNT = 4;
-
-/** "Tòa nhà HQ" -> "TH"; one word -> its first two letters. */
-export function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/).filter((word) => word !== '');
-  const first = words[0];
-  const last = words[words.length - 1];
-  if (first === undefined || last === undefined) return '';
-  const letters = words.length === 1 ? Array.from(first).slice(0, 2) : [Array.from(first)[0], Array.from(last)[0]];
-  return letters.join('').toLocaleUpperCase('vi');
-}
 
 /** Deterministic: the same id always draws the same outline. */
 export function planVariantOf(id: string): 0 | 1 | 2 | 3 {

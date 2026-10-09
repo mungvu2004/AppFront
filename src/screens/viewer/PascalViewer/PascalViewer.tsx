@@ -38,7 +38,7 @@ function Skeleton() {
   return (
     <div
       aria-hidden="true"
-      className="h-full w-full animate-pulse rounded-md bg-bg-sunken"
+      className="h-full w-full animate-pulse rounded-md motion-reduce:animate-none bg-border-default"
     />
   );
 }
@@ -52,7 +52,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
         <EmptyState
           icon={<Lock aria-hidden="true" />}
           title="Chưa bật cho tài khoản này"
-          description="Màn xem 3D mới đang chạy thử theo nhóm. người trực có thể bật nó cho bạn."
+          description="Màn xem 3D mới đang chạy thử theo nhóm. Người trực có thể bật nó cho bạn."
         />
       </Frame>
     );
@@ -64,7 +64,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
         <EmptyState
           icon={<Box aria-hidden="true" />}
           title="Chưa có gì để dựng"
-          description="Bản vẽ này chưa có tường, phòng hay ô mở nào. dò lại bản vẽ rồi quay lại đây."
+          description="Bản vẽ này chưa có tường, phòng hay ô mở nào. Dò lại bản vẽ rồi quay lại đây."
         />
       </Frame>
     );
@@ -89,9 +89,9 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
           icon={<MonitorOff aria-hidden="true" />}
           title="Máy này chưa dựng được mô hình 3D"
           description={
-            'trình duyệt không bật được tăng tốc phần cứng, nên không có gì vẽ ' +
-            'ra hình được. bật tăng tốc phần cứng trong cài đặt trình duyệt rồi ' +
-            'tải lại trang; nếu vẫn vậy thì mở bằng máy khác. mã PASCAL-03.'
+            'Trình duyệt không bật được tăng tốc phần cứng, nên không có gì vẽ ' +
+            'ra hình được. Bật tăng tốc phần cứng trong cài đặt trình duyệt rồi ' +
+            'tải lại trang; nếu vẫn vậy thì mở bằng máy khác. Mã PASCAL-03.'
           }
         />
       </Frame>
@@ -109,7 +109,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
               ? 'Thử lại một lần; nếu vẫn vậy thì báo người trực.'
               : `Thử lại một lần; nếu vẫn vậy thì báo người trực kèm mã ${errorCode}.`
           }
-          action={{ label: 'thử lại', onClick: onRetry }}
+          action={{ label: 'Thử lại', onClick: onRetry }}
         />
       </Frame>
     );

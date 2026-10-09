@@ -58,7 +58,7 @@ const noop = (): void => undefined;
 
 const SAMPLE_ROW: ProjectCardModel = {
   id: 'p-hq-renovation',
-  name: 'Tòa nhà HQ Renovation',
+  name: 'Toà nhà HQ Renovation',
   statsLabel: '4 tầng · 1.860,00 m²',
   updatedLabel: '2 giờ trước',
   statusVariant: 'attention',
@@ -169,6 +169,15 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.getByRole('button', { name: 'Tạo dự án mới' })).toBeInTheDocument();
   });
 
+  // QA-01 debt #10: a viewer cannot create, so the empty state must not tell them to.
+  it('tells a role without create rights to wait for an invitation, not to create', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} canCreate={false} />);
+
+    expect(screen.queryByText('Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.')).not.toBeInTheDocument();
+    expect(screen.getByText('Bạn chưa được thêm vào dự án nào. Khi được mời, dự án sẽ hiện ở đây.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tạo dự án mới' })).not.toBeInTheDocument();
+  });
+
   it('offers to clear filters when a search matches nothing', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} />);
 
@@ -188,7 +197,7 @@ describe('ProjectDashboardView, seven states', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.forbidden()} />);
 
     expect(screen.queryByRole('button', { name: /Dự án mới/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Tòa nhà HQ Renovation')).toBeInTheDocument();
+    expect(screen.getByText('Toà nhà HQ Renovation')).toBeInTheDocument();
   });
 
   it('never colours a card verified unless the caller already resolved that (A5/A-constraint)', () => {

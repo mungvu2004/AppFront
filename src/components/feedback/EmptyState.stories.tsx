@@ -35,9 +35,9 @@ export const NoResults: Story = {
   args: {
     icon: <Search />,
     title: 'Không tìm thấy kết quả',
-    description: 'Thử kiểm tra lại từ khóa hoặc xóa bộ lọc để xem toàn bộ danh sách dự án.',
+    description: 'Thử kiểm tra lại từ khoá hoặc xoá bộ lọc để xem toàn bộ danh sách dự án.',
     action: {
-      label: 'Xóa bộ lọc',
+      label: 'Xoá bộ lọc',
       variant: 'secondary',
       onClick: () => console.log('Clear filters'),
     },

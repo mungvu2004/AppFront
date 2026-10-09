@@ -11,7 +11,7 @@
 | Prop | Kiểu | Mặc định | Mô tả |
 |---|---|---|---|
 | `variant` | `'primary' \| 'secondary' \| 'ghost' \| 'danger'` | `'primary'` | Biến thể nút |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | 32 / 36 / 40 px (lg: 44 px dưới 640 px) |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | 32 / 36 / 40 px (md, lg: 44 px dưới 640 px; nút chỉ icon giữ nguyên) |
 | `iconBefore` | `ReactNode` | — | Icon trước nhãn |
 | `iconAfter` | `ReactNode` | — | Icon sau nhãn |
 | `loading` | `boolean` | `false` | Spinner, giữ chiều rộng |
@@ -67,7 +67,7 @@ Phím: ArrowLeft/Right. Con trượt trượt 180ms.
 | `description` | `ReactNode` | — | Mô tả phụ |
 | `aria-label` | `string` | — | Nhãn khi không có label |
 
-36×20 px track, núm 16 px, trượt 180ms, bật = nền accent.
+36×20 px track, núm 16 px, trượt 180ms, bật = nền accent, tắt = nền `border-control` (≥ 3:1 với nền và núm).
 
 ---
 
@@ -76,8 +76,9 @@ Phím: ArrowLeft/Right. Con trượt trượt 180ms.
 | Prop | Kiểu | Mặc định | Mô tả |
 |---|---|---|---|
 | `label` | `ReactNode` | — | Nhãn trên ô |
-| `error` | `ReactNode` | — | Lỗi (viền violation, caption) |
-| `hint` | `ReactNode` | — | Gợi ý bên dưới |
+| `error` | `ReactNode` | — | Lỗi (viền violation, caption, `id` `<id>-error`) |
+| `hint` | `ReactNode` | — | Gợi ý bên dưới (`id` `<id>-hint`, ẩn khi có lỗi) |
+| `aria-describedby` | `string` | — | Ghép (không đè) với id lỗi/gợi ý của ô, bỏ id trùng |
 | `prefix` | `ReactNode` | — | Bên trái |
 | `suffix` | `ReactNode` | — | Bên phải |
 | `isLoading` | `boolean` | `false` | Skeleton |

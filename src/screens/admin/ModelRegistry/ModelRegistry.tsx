@@ -111,7 +111,7 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
   if (model.state === 'loading') {
     return (
       <div className="flex flex-col gap-4" aria-busy="true">
-        <div className={cn(PANEL, 'h-24 animate-pulse bg-bg-sunken motion-reduce:animate-none')} />
+        <div className={cn(PANEL, 'h-24 animate-pulse bg-border-default motion-reduce:animate-none')} />
         <div className={PANEL}>
           {Array.from({ length: model.skeletonRowCount }, (_unused, index) => (
             <Skeleton key={index} preset="table-row" />

@@ -58,6 +58,7 @@ import {
   METRE_THRESHOLD_MM,
   type LengthDisplayUnit,
 } from '@/lib/format/measure';
+import { initialsOf } from '@/lib/format/initials';
 import { isFormattable } from '@/lib/format/number';
 
 import {
@@ -196,21 +197,16 @@ export function categoryOfStep(step: HistoryStep): HistoryCategory {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Chữ tắt VIẾT HOA, tối đa hai ký tự, dựng từ chính `actorId`.
+ * Chữ tắt VIẾT HOA, tối đa hai ký tự (chữ đầu phần đầu + phần cuối), dựng từ chính `actorId`.
  *
  * **Không hiển thị được.** Viết hoa KHÔNG cứu được nó: `expectVietnamese` bỏ
  * hoa/thường trước khi so, nên `"AN"` trượt y hệt `"An"`. View đã bỏ hẳn chữ
  * tắt khỏi `Avatar`; trường này còn lại vì hợp đồng khai nó, và vì một nơi gọi
  * KHÔNG vẽ ra màn (nhật ký, xuất tệp) vẫn dùng được. Xem `historyPanelTypes.ts`.
  */
-export function initialsOf(actorId: string): string {
-  const parts = actorId.split(/[^0-9A-Za-z]+/u).filter((part) => part !== '');
-  const first = parts[0] ?? '';
-  const second = parts[1];
-  const letters =
-    second === undefined ? first.slice(0, 2) : `${first.slice(0, 1)}${second.slice(0, 1)}`;
-
-  return letters === '' ? UNKNOWN_INITIALS : letters.toUpperCase();
+export function actorInitialsOf(actorId: string): string {
+  // Dấu nối/gạch dưới của id là ranh giới từ; phần còn lại đi qua bản chung (QA-01c nợ #1).
+  return initialsOf(actorId.replace(/[^0-9A-Za-z]+/gu, ' ')) || UNKNOWN_INITIALS;
 }
 
 /**
@@ -269,7 +265,7 @@ export function actorOf(
 
   return {
     id: actorId,
-    initials: initialsOf(actorId),
+    initials: actorInitialsOf(actorId),
     label: isSelf ? SELF_ACTOR_LABEL : otherLabel,
     isAnonymised: !isSelf,
   };

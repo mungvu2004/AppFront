@@ -14,7 +14,7 @@ const INITIAL_STEPS: PipelineStep[] = [
   { id: '2', name: 'Nhận diện tường (SegFormer)', status: 'queued', progress: 0 },
   { id: '3', name: 'Nhận diện cửa và nội thất (YOLOv8)', status: 'queued', progress: 0 },
   { id: '4', name: 'Đọc kích thước (PaddleOCR)', status: 'queued', progress: 0 },
-  { id: '5', name: 'Chuẩn hóa độ dày tường', status: 'queued', progress: 0 },
+  { id: '5', name: 'Chuẩn hoá độ dày tường', status: 'queued', progress: 0 },
   { id: '6', name: 'Dựng Spatial JSON', status: 'queued', progress: 0 },
 ];
 

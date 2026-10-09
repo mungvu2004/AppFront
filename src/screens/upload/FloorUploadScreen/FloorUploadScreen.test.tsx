@@ -183,7 +183,7 @@ describe('FloorUploadScreenView — khả năng tiếp cận và tiếng Việt 
     const scenario = scenarioFor('partial');
     renderWithProviders(<FloorUploadScreenView {...scenario} />);
 
-    const menuButtons = screen.queryAllByRole('button', { name: /^Tùy chọn của tầng / });
+    const menuButtons = screen.queryAllByRole('button', { name: /^Tuỳ chọn của tầng / });
     const rowsWithActions = scenario.floors.filter(
       (row) =>
         row.file !== null &&

@@ -707,7 +707,7 @@ for (const [variant, response, retryBy] of [
     await page.unroute(PASCAL_BUNDLE_GLOB, breakBundle);
 
     if (retryBy === 'nút') {
-      await page.getByRole('button', { name: 'thử lại', exact: true }).click();
+      await page.getByRole('button', { name: 'Thử lại', exact: true }).click();
     } else {
       await page.keyboard.press('r');
     }
@@ -750,7 +750,7 @@ test('bộ đổi dữ liệu nạp hỏng thì báo PASCAL-01, và thử lại 
       if (log.at(-1) !== caption) log.push(caption);
     }).observe(document.body, { childList: true, subtree: true, characterData: true });
   });
-  await page.getByRole('button', { name: 'thử lại', exact: true }).click();
+  await page.getByRole('button', { name: 'Thử lại', exact: true }).click();
 
   const statusLog = (): Promise<string[]> =>
     page.evaluate(() => (window as unknown as { __statusLog: string[] }).__statusLog);
@@ -772,6 +772,6 @@ test('bộ đổi dữ liệu nạp hỏng thì báo PASCAL-01, và thử lại 
   const settled = (await statusLog()).at(-1);
   expect([SUCCESS_CAPTION, 'Không nạp được khung dựng hình.']).toContain(settled);
   if (settled !== SUCCESS_CAPTION) {
-    await expect(page.getByRole('button', { name: 'thử lại', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Thử lại', exact: true })).toBeVisible();
   }
 });

@@ -227,6 +227,16 @@ async function queuedCommands(projectId = PROJECT_ID): Promise<QueuedUpload[]> {
   return listed.ok ? listed.data.map((pending) => pending.command as QueuedUpload) : [];
 }
 
+/**
+ * Chờ hàng đợi IndexedDB tới trạng thái mong đợi. Vẫn là chờ ĐIỀU KIỆN (về ngay khi đúng), nhưng
+ * IndexedDB giả chạy trên hẹn giờ THẬT nên đồng hồ giả không đẩy được nó; trần 1 s mặc định của
+ * `waitFor` hụt khi máy tải nặng (verify QA-01c, NO-392 (b)) — nới trần, dưới 5 000 ms của bài.
+ */
+const QUEUE_WAIT = { timeout: 4000 };
+// Một bài có thể chờ hàng đợi 2 lần + một waitFor mặc định (≤ 9 s) — trần bài phải trên tổng đó.
+vi.setConfig({ testTimeout: 15_000 });
+const waitForQueue = (check: () => Promise<void>): Promise<void> => waitFor(check, QUEUE_WAIT);
+
 /** Chỉ lệnh `uploadDrawing` của dự án. */
 async function queuedUploads(projectId = PROJECT_ID): Promise<QueuedUpload[]> {
   return (await queuedCommands(projectId)).filter((command) => command.kind === 'uploadDrawing');
@@ -234,7 +244,7 @@ async function queuedUploads(projectId = PROJECT_ID): Promise<QueuedUpload[]> {
 
 /** Chờ hàng đợi có đúng những tệp này (theo tên), thứ tự không quan trọng. */
 async function expectQueuedFiles(names: readonly string[]): Promise<void> {
-  await waitFor(async () => {
+  await waitForQueue(async () => {
     expect((await queuedUploads()).map((command) => command.fileName).sort()).toEqual([...names].sort());
   });
 }
@@ -725,6 +735,14 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
     });
 
     await expectQueuedFiles(names);
+    // Hàng đợi (IndexedDB) và lượt vẽ của hook là hai đường riêng: hàng đợi đủ chưa có nghĩa lượt
+    // vẽ gắn tệp vào tầng đã tới. Máy tải nặng, `fileIdOn` đọc phải lượt vẽ cũ, ra '' và các thao
+    // tác sau thành không làm gì (verify QA-01c, NO-392 (b)) — chờ cả điều kiện này.
+    await waitFor(() => {
+      const shown = view.result.current.floors.flatMap((floor) => (floor.file === null ? [] : [floor.file.name]));
+
+      expect(shown).toEqual(expect.arrayContaining([...names]));
+    });
 
     return { harness, ...view };
   }
@@ -816,7 +834,7 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
     act(() => {
       result.current.onReassign(fileId, 'L2');
     });
-    await waitFor(async () => {
+    await waitForQueue(async () => {
       expect((await queuedUploads()).map((command) => command.floorId)).toEqual(['L2']);
     });
   });
@@ -828,7 +846,7 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
       result.current.onReassign(fileIdOn(result, 2), 'L3');
     });
 
-    await waitFor(async () => {
+    await waitForQueue(async () => {
       expect(await queuedUploads()).toEqual([
         expect.objectContaining({ fileName: 'mat-bang-tang-2.png', floorId: 'L3' }),
       ]);
@@ -844,7 +862,7 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
     act(() => {
       result.current.onReassign(fileIdOn(result, 2), 'L3');
     });
-    await waitFor(async () => {
+    await waitForQueue(async () => {
       expect(await queuedUploads()).toEqual([
         expect.objectContaining({ fileName: 'mat-bang-tang-2.png', floorId: 'L3' }),
       ]);
@@ -1588,7 +1606,7 @@ describe('useFloorUploadScreen — trang PDF', () => {
     });
 
     // F-03.md:110 — lệnh hàng đợi mang theo trang đã chọn.
-    await waitFor(async () => {
+    await waitForQueue(async () => {
       expect((await queuedUploads()).map((command) => command.pageIndex)).toEqual([1]);
     });
 

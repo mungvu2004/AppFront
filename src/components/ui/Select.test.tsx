@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { Select } from './Select';
 
@@ -48,12 +49,13 @@ describe('Select', () => {
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('closes on Escape key', () => {
+  it('closes on Escape key', async () => {
+    const user = userEvent.setup();
     render(<Select options={options} />);
     const trigger = screen.getByRole('combobox');
-    fireEvent.click(trigger);
+    await user.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.keyDown(trigger, { key: 'Escape' });
+    await user.keyboard('{Escape}');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 });

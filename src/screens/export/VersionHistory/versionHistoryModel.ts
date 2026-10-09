@@ -25,6 +25,7 @@ import {
   formatTimestamp,
   isSameCalendarDay,
 } from '@/lib/format/datetime';
+import { initialsOf } from '@/lib/format/initials';
 import { formatNumber } from '@/lib/format/number';
 import { formatChange } from '@/lib/format/semantic';
 import {
@@ -47,7 +48,7 @@ import type {
   VersionGroupModel,
   VersionRowModel,
 } from './types';
-import { initialsOf, RETENTION_NOTICE } from './versionHistoryGateway';
+import { RETENTION_NOTICE } from './versionHistoryGateway';
 
 /* -------------------------------------------------------------------------- */
 /* 1 — Từ vựng                                                                */

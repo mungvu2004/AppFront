@@ -43,6 +43,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { initialsOf } from '@/lib/format/initials';
 import { cn } from '@/lib/utils';
 import type { ProjectRole } from '@/types/project';
 
@@ -88,6 +89,7 @@ function DetailProfile({ user, onClose }: ProfileProps) {
     <header className="flex items-start gap-3">
       <Avatar
         alt={user.name}
+        initials={initialsOf(user.name, user.email)}
         size="profile"
         {...(user.avatarUrl !== undefined ? { src: user.avatarUrl } : {})}
       />

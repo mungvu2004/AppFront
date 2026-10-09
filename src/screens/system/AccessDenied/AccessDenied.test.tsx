@@ -313,3 +313,27 @@ describe('bộ mẫu theo đúng chữ của hook (B-V1-44, mục D)', () => {
     expect(fromScenario.backToProjects.label).toBe(fromHook.backToProjects.label);
   });
 });
+
+/* QA-01 nợ #8 — vòng tròn chủ dự án có chữ viết tắt, không trống. */
+describe('avatar chủ dự án', () => {
+  it('vẽ chữ viết tắt của tên, tên trống thì lấy từ email', () => {
+    const named = renderAccessDenied(
+      createAccessDeniedVm('forbidden', {
+        capabilities: ACCESS_DENIED_CAPABILITIES_FULL,
+        owner: { name: 'Trần Thị Mai', email: 'mai.tran@chuduan.vn' },
+      }),
+    );
+    expect(screen.getByLabelText('Trần Thị Mai')).toHaveTextContent('TM');
+    named.unmount();
+
+    renderAccessDenied(
+      createAccessDeniedVm('forbidden', {
+        capabilities: ACCESS_DENIED_CAPABILITIES_FULL,
+        owner: { name: '', email: 'mai.tran@chuduan.vn' },
+      }),
+    );
+    // Theo chính phần tử avatar (tên trống thì nhãn của nó là chữ tắt), không qua cả trang.
+    expect(screen.getByLabelText('MA')).toHaveTextContent(/^MA$/u);
+  });
+});
+

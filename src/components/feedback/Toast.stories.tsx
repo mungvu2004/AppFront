@@ -36,7 +36,7 @@ function ToastTrigger() {
         Show Attention
       </Button>
       <Button
-        onClick={() => addToast({ message: 'Không thể xóa dầm', state: 'violation' })}
+        onClick={() => addToast({ message: 'Không thể xoá dầm', state: 'violation' })}
       >
         Show Violation (No Undo)
       </Button>

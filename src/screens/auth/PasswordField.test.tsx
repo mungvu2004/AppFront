@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import viMessages from '@/i18n/vi.json';
@@ -37,13 +38,11 @@ describe('PasswordField — the eye button (BUG-051)', () => {
 
   /**
    * Enter trên một nút đang giữ tiêu điểm, trình duyệt làm đúng một việc: kích hoạt nút, tức
-   * phát `click`. `@testing-library/user-event` không có trong repo (xem
-   * `DimensionOcrReview.test.tsx`) và jsdom không tự đổi `keydown` thành `click`, nên bài kiểm
-   * dựng đúng chuỗi ấy: tiêu điểm lên nút, `keydown` Enter, rồi lượt kích hoạt. Lượt kích hoạt
-   * KHÔNG rỗng: jsdom có cài hành vi kích hoạt của nút gửi, nên nếu nút là `type="submit"` thì
-   * `click` này gửi biểu mẫu và `onSubmit` bị gọi.
+   * phát `click`. `user-event` dựng đúng chuỗi ấy (keydown Enter → click → keyup), và lượt kích
+   * hoạt KHÔNG rỗng: nếu nút là `type="submit"` thì nó gửi biểu mẫu và `onSubmit` bị gọi.
    */
-  it('never sends the form it sits in when Enter activates it (BUG-011)', () => {
+  it('never sends the form it sits in when Enter activates it (BUG-011)', async () => {
+    const user = userEvent.setup();
     const onSubmit = vi.fn((event: React.FormEvent) => {
       event.preventDefault();
     });
@@ -54,11 +53,10 @@ describe('PasswordField — the eye button (BUG-051)', () => {
     );
 
     const button = screen.getByRole('button', { name: AUTH.actions.showPassword });
-    button.focus();
+    act(() => button.focus());
     expect(document.activeElement).toBe(button);
 
-    fireEvent.keyDown(button, { key: 'Enter' });
-    fireEvent.click(button);
+    await user.keyboard('{Enter}');
 
     expect(box()).toHaveAttribute('type', 'text');
     expect(onSubmit).not.toHaveBeenCalled();
@@ -68,6 +66,33 @@ describe('PasswordField — the eye button (BUG-051)', () => {
     render(<PasswordField label={LABEL} disabled />);
 
     expect(screen.getByRole('button', { name: AUTH.actions.showPassword })).toBeDisabled();
+  });
+
+  it('shows its own accent focus ring, apart from the box ring around it (nợ QA-01b #8, như BUG-036)', () => {
+    render(<PasswordField label={LABEL} />);
+
+    expect(screen.getByRole('button', { name: AUTH.actions.showPassword })).toHaveClass(
+      'outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-accent',
+      'focus-visible:ring-offset-2',
+    );
+  });
+
+  it('is dimmed once, by the locked box around it, not twice (nợ QA-01b #9)', () => {
+    render(<PasswordField label={LABEL} disabled />);
+
+    const button = screen.getByRole('button', { name: AUTH.actions.showPassword });
+    const dimmedAncestors = [];
+
+    for (let node = button.parentElement; node !== null; node = node.parentElement) {
+      if (node.classList.contains('opacity-50')) {
+        dimmedAncestors.push(node);
+      }
+    }
+
+    expect(dimmedAncestors).toHaveLength(1);
+    expect(button.className).not.toMatch(/opacity/u);
   });
 });
 

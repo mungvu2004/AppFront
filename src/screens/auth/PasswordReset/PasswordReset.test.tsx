@@ -10,8 +10,9 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { networkFailure, okVoid, wireFailure } from '../authTestKit';
+import { dropFocus, networkFailure, okVoid, wireFailure } from '../authTestKit';
 import { __resetFragmentTokenForTests } from '../fragmentToken';
+import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { PasswordReset, PasswordResetView, type PasswordResetViewProps } from './PasswordReset';
 import type { PasswordResetPort } from './usePasswordReset';
 
@@ -169,6 +170,25 @@ describe('PasswordResetView — the seven states', () => {
     render(<PasswordResetView {...baseProps()} />);
 
     expect(field(AUTH.fields.newPassword)).toHaveAccessibleDescription('Mật khẩu cần ít nhất 8 ký tự.');
+  });
+
+  it('keeps room for a two-line complaint under each box, so one appearing pushes nothing (QA-01c nợ #10)', () => {
+    const slotOf = (name: string): HTMLElement | null => screen.getByText(name, { selector: 'label' }).parentElement;
+    const names = [AUTH.fields.newPassword, AUTH.fields.confirmPassword];
+    const { rerender } = render(<PasswordResetView {...baseProps()} />);
+
+    for (const name of names) expect(slotOf(name)).toHaveClass(FIELD_ERROR_SLOT);
+
+    rerender(
+      <PasswordResetView
+        {...baseProps()}
+        problems={{ newPassword: AUTH.problems.passwordRequired, confirmPassword: AUTH.problems.confirmMismatch }}
+      />,
+    );
+
+    for (const name of names) expect(slotOf(name)).toHaveClass(FIELD_ERROR_SLOT);
+    // The reserved room is the spacing, so it is not paid for twice.
+    expect(slotOf(AUTH.fields.newPassword)?.parentElement).not.toHaveClass('gap-4');
   });
 
   it('offers the way back to /login from the form too, not only from the dead end (BUG-050)', () => {
@@ -383,6 +403,23 @@ describe('PasswordReset — what the server answers', () => {
     expect(screen.getByRole('alert').className).toMatch(/state-attention/u);
   });
 
+  it('gives focus back to the box it was in once a failure unlocks the form, not body (nợ QA-01 #21)', async () => {
+    const { port } = makePort(networkFailure());
+    const { container } = render(<PasswordReset port={port} />);
+    const confirm = field(AUTH.fields.confirmPassword);
+
+    confirm.focus();
+    fillAndSubmit(container);
+    dropFocus();
+
+    await waitFor(() => {
+      expect(stateOf(container)).toBe('error');
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(confirm);
+    });
+  });
+
   it('names a 429 once, in the heading, not again in the sentence (BUG-021)', async () => {
     const { port } = makePort(wireFailure(429, { retryAfterSeconds: 7 }));
     const { container } = render(<PasswordReset port={port} />);
@@ -428,5 +465,32 @@ describe('PasswordReset — checks before sending', () => {
     fireEvent.click(screen.getByRole('link', { name: AUTH.actions.goToSignIn }));
 
     expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
+  it.each([
+    ['Ctrl', { ctrlKey: true }],
+    ['Cmd', { metaKey: true }],
+    ['Shift', { shiftKey: true }],
+    ['Alt', { altKey: true }],
+  ])('leaves a click with %s to the browser — new tab or window, no in-app jump (nợ QA-01b #10)', (_name, init) => {
+    setUrl('');
+
+    const { navigate, port } = makePort();
+
+    let cancelledByApp: boolean | undefined;
+    // Runs after React's root listener: read what the screen did, then stop jsdom's own
+    // navigation, which it does not implement and would only print an error.
+    const stopJsdom = (event: MouseEvent): void => {
+      cancelledByApp = event.defaultPrevented;
+      event.preventDefault();
+    };
+
+    window.addEventListener('click', stopJsdom);
+    render(<PasswordReset port={port} />);
+    fireEvent.click(screen.getByRole('link', { name: AUTH.actions.goToSignIn }), init);
+    window.removeEventListener('click', stopJsdom);
+
+    expect(cancelledByApp).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

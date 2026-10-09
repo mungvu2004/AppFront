@@ -15,7 +15,14 @@ import { ROUTES } from '@/routes/paths';
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
 import { PasswordField } from '../PasswordField';
-import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
+import {
+  FIELD_ERROR_SLOT,
+  RecoveryDeadEnd,
+  RecoveryLink,
+  RecoveryNoticeStrip,
+  RecoveryShell,
+} from '../RecoveryShell';
+import { useReturnFocus } from '../useReturnFocus';
 import { passwordTooShort } from '../recoveryShared';
 import {
   usePasswordReset,
@@ -39,6 +46,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
   );
 
   const fieldsDisabled = isSubmitting || isDone;
+  const focusReturn = useReturnFocus(isSubmitting);
 
   return (
     <RecoveryShell
@@ -70,17 +78,26 @@ export function PasswordResetView(props: PasswordResetViewProps) {
           onLinkClick={goToSignIn}
         />
       ) : (
-        <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
+        <form
+          ref={focusReturn.ref}
+          className="flex flex-col gap-6"
+          noValidate
+          onSubmit={handleSubmit}
+          onFocus={focusReturn.onFocus}
+        >
           {/* Always mounted, filled later, so a screen reader announces the text. */}
           <p role="status" className="text-[13px] leading-[18px] text-text-secondary empty:sr-only">
             {isDone ? AUTH_MESSAGES.passwordReset.success : null}
           </p>
 
-          <div className="flex flex-col gap-4">
+          {/* Không `gap`: mỗi ô giữ sẵn chỗ cho câu lỗi hai dòng, chỗ ấy là khoảng cách — câu lỗi hiện
+              hay mất không đẩy ô dưới và nút gửi (BUG-008, QA-01c nợ #10). */}
+          <div className="flex flex-col">
             <PasswordField
               label={AUTH_MESSAGES.fields.newPassword}
               hint={passwordTooShort()}
               autoComplete="new-password"
+              wrapperClassName={FIELD_ERROR_SLOT}
               autoFocus
               value={values.newPassword}
               disabled={fieldsDisabled}
@@ -92,6 +109,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
             <PasswordField
               label={AUTH_MESSAGES.fields.confirmPassword}
               autoComplete="new-password"
+              wrapperClassName={FIELD_ERROR_SLOT}
               value={values.confirmPassword}
               disabled={fieldsDisabled}
               {...(problems.confirmPassword !== undefined ? { error: problems.confirmPassword } : {})}

@@ -48,6 +48,8 @@ export interface SessionGateProps {
   isPublic: boolean;
   /** Người dùng bấm "thử lại". */
   onRetry: () => void;
+  /** Đường hiện tại (không kèm tham số): khách chỉ mở trang chủ thì không có gì để giải thích (BUG-007). */
+  pathname: string;
   /** Phiên vừa đi từ đã-đăng-nhập sang ẩn danh (F-09a đọc để nói vì sao). */
   sessionEnded: boolean;
   /**
@@ -63,6 +65,29 @@ export interface SessionGateProps {
   status: SessionStatus;
   /** Ai đang đăng nhập; đổi giá trị này là gắn lại toàn bộ màn con. */
   userId: string | null;
+}
+
+/** Phần tử Tab dừng được — để tìm chỗ đầu tiên của màn con khi tiêu điểm không có chỗ về. */
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Chỗ tiêu điểm về khi gỡ dải mà không biết nó từ đâu tới: `main` nhận tiêu điểm của màn con
+ * nếu có, không thì phần tử Tab dừng được đầu tiên của trang ngoài dải (nợ QA-01 #20, review QA-01c #1).
+ */
+function pageFocusTarget(strip: HTMLElement | null): HTMLElement | null {
+  const main = document.querySelector<HTMLElement>('main[tabindex]');
+  if (main !== null) return main;
+
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).find(
+      // Bỏ phần tử ẩn/`inert`/tabIndex âm: focus() vào đó không ăn, tiêu điểm lại rơi về `body`.
+      (element) =>
+        strip?.contains(element) !== true &&
+        element.tabIndex >= 0 &&
+        element.closest('[hidden], [inert], [aria-hidden="true"]') === null,
+    ) ?? null
+  );
 }
 
 /**
@@ -84,6 +109,17 @@ export interface SessionGateProps {
  */
 function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   const [dismissed, setDismissed] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
+  /** Chỗ tiêu điểm đứng trước khi vào dải — nút "Ẩn" gỡ cả dải, nên trả tiêu điểm về đó. */
+  const cameFrom = useRef<HTMLElement | null>(null);
+
+  const dismiss = useCallback(() => {
+    // Không có chỗ đến (Tab thẳng vào dải từ thanh trình duyệt) thì về màn con, không để rơi về `body`.
+    const target = cameFrom.current?.isConnected === true ? cameFrom.current : pageFocusTarget(stripRef.current);
+
+    setDismissed(true);
+    target?.focus();
+  }, []);
 
   if (dismissed) {
     return null;
@@ -91,8 +127,15 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
 
   return (
     <div
+      ref={stripRef}
       role="region"
       aria-label="Trạng thái kết nối"
+      onFocus={(event) => {
+        // Đi giữa hai nút trong dải thì giữ chỗ đến cũ; vào từ ngoài thì ghi lại — kể cả "không từ đâu"
+        // (`relatedTarget` rỗng), để một chỗ đến cũ từ lượt trước không bị dùng lại.
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+        cameFrom.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
+      }}
       className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-[8px] border border-state-attention bg-state-attention-tint py-1 pl-3 pr-1 shadow-float"
     >
       <WifiOff aria-hidden="true" className="shrink-0 text-state-attention" size={16} />
@@ -109,7 +152,7 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
         iconOnly
         icon={<X aria-hidden="true" size={16} />}
         aria-label="Ẩn thông báo kết nối"
-        onClick={() => setDismissed(true)}
+        onClick={dismiss}
       />
     </div>
   );
@@ -146,17 +189,6 @@ function GateScreen({
   );
 }
 
-/**
- * Năm nhánh, theo đúng thứ tự này — thứ tự là một phần của hợp đồng.
- *
- * `isPublic` đứng trước mọi thứ khác vì màn đăng nhập phải vẽ được kể cả khi
- * phiên đang hỏng, và phải vẽ được **kể cả khi đã đăng nhập**: người vừa đăng
- * nhập xong còn đang đứng trên `/login` trong lúc màn ấy hẹn giờ chuyển trang.
- *
- * Nhánh công khai cố ý **không** bọc `key` quanh màn con. Một lần gắn lại ở đây
- * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
- * biểu mẫu sau khi đã đăng nhập thành công.
- */
 /** Chữ của vỏ chờ ẩn trong lúc trễ (`both`), rồi mới hiện — xem chú thích trong {@link PendingShell}. */
 const LABEL_REVEAL_STYLE = { animationDelay: cssDurationMs('fast'), animationFillMode: 'both' } as const;
 
@@ -175,14 +207,15 @@ export function PendingShell({ label }: { label: string }) {
       className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-bg-app p-6"
       role="status"
     >
-      {/* Nền mặt (không phải nền ứng dụng) để khung xương thấy được trên nền trang, và câu
-          hiện ra bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
+      {/* Khung thấy được trên nền trang: nền mặt và viền `border-control` (≥ 3:1 trên `--bg-app`,
+          WCAG 1.4.11) — viền `border-default` cũ chỉ ~1,2:1 nên khung lẫn vào nền. Câu hiện ra
+          bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
           `aria-hidden`: câu đã là tên của vùng `status`, không đọc hai lần.
           Câu hiện trễ một nhịp `fast`: vỏ này cũng là fallback Suspense của mọi route lười,
           và chunk đã có sẵn thì Suspense chỉ chớp qua — không trễ thì mỗi lần chuyển màn
           nháy chữ "Đang tải…". Giảm chuyển động: vẫn trễ, nhưng hiện bật ra (`step-start`),
           không mờ dần, không trồi. */}
-      <Skeleton preset="canvas" className="w-full max-w-3xl bg-bg-surface" />
+      <Skeleton preset="canvas" className="w-full max-w-3xl border-border-control bg-bg-surface" />
       <p
         aria-hidden="true"
         className="animate-dropdown-open text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
@@ -194,11 +227,23 @@ export function PendingShell({ label }: { label: string }) {
   );
 }
 
+/**
+ * Năm nhánh, theo đúng thứ tự này — thứ tự là một phần của hợp đồng.
+ *
+ * `isPublic` đứng trước mọi thứ khác vì màn đăng nhập phải vẽ được kể cả khi
+ * phiên đang hỏng, và phải vẽ được **kể cả khi đã đăng nhập**: người vừa đăng
+ * nhập xong còn đang đứng trên `/login` trong lúc màn ấy hẹn giờ chuyển trang.
+ *
+ * Nhánh công khai cố ý **không** bọc `key` quanh màn con. Một lần gắn lại ở đây
+ * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
+ * biểu mẫu sau khi đã đăng nhập thành công.
+ */
 export function SessionGate({
   children,
   isPublic,
   loginHref,
   onRetry,
+  pathname,
   serverUnreachable,
   sessionEnded,
   setupFailed,
@@ -249,7 +294,7 @@ export function SessionGate({
         // nó); khách chỉ mở trang chủ thì không có gì để giải thích (BUG-007).
         {...(sessionEnded
           ? { state: { notice: 'sessionEnded' } }
-          : new URLSearchParams(loginHref.split('?')[1]).get('next') === ROUTES.dashboard
+          : pathname === ROUTES.dashboard
             ? {}
             : { state: { notice: 'signInRequired' } })}
       />
@@ -269,8 +314,10 @@ export function SessionGate({
    */
   return (
     <>
-      {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
       <Fragment key={userId ?? ''}>{children}</Fragment>
+      {/* SAU màn con trong DOM (dải là `fixed`, nhìn không đổi): Tab đi hết màn rồi mới tới dải,
+          không chặn đầu mọi lượt Tab (review QA-01c #1). */}
+      {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
     </>
   );
 }
@@ -353,6 +400,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
       isPublic={matchesPublicRoute(location.pathname)}
       loginHref={`${ROUTES.login}?next=${encodeURIComponent(location.pathname + location.search)}`}
       onRetry={onRetry}
+      pathname={location.pathname}
       sessionEnded={sessionEnded.current}
       serverUnreachable={session.serverUnreachable}
       // "Chưa mở được ứng dụng" chỉ đúng khi tầng phiên vẫn chưa cấu hình: màn khác thử lại

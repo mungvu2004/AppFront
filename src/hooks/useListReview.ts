@@ -124,7 +124,7 @@ export function useListReview(
     undoBackup.current = backup;
 
     onToast?.({
-      message: `Đã xóa ${count > 0 ? count : 'các'} cấu kiện`,
+      message: `Đã xoá ${count > 0 ? count : 'các'} cấu kiện`,
       onUndo: () => {
         if (undoBackup.current) {
           setData(undoBackup.current);

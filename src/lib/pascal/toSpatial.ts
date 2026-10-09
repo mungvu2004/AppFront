@@ -313,7 +313,7 @@ const collectWallChildren = (
       collector.skip(
         child.id,
         child.type,
-        `Loại node "${child.type}" gắn trên tường chưa có đối tượng tương ứng trong bản vẽ AppFront.`,
+        `Loại node "${child.type}" gắn trên tường chưa có đối tượng tương ứng trong bản vẽ.`,
       );
       continue;
     }
@@ -457,7 +457,7 @@ const collectLevelChildren = (
           collector.skip(
             child.id,
             'sàn',
-            'Tấm sàn vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ AppFront.',
+            'Tấm sàn vẽ trong Pascal chưa có đối tượng tương ứng trong bản vẽ.',
           );
         }
         break;
@@ -467,7 +467,7 @@ const collectLevelChildren = (
         collector.skip(
           child.id,
           child.type,
-          `Loại node "${child.type}" chưa có đối tượng tương ứng trong bản vẽ AppFront.`,
+          `Loại node "${child.type}" chưa có đối tượng tương ứng trong bản vẽ.`,
         );
     }
   }

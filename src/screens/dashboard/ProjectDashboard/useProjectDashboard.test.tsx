@@ -33,7 +33,7 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-const NAME_HQ = 'Tòa nhà HQ';
+const NAME_HQ = 'Toà nhà HQ';
 
 function project(patch: Partial<DashboardProject> = {}): DashboardProject {
   return {

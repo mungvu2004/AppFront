@@ -23,6 +23,7 @@
 
 import { formatCalendarDate, formatClockTime, formatTimestamp } from '@/lib/format/datetime';
 import { createApiClient } from '@/api/client';
+import { initialsOf } from '@/lib/format/initials';
 import { formatChange } from '@/lib/format/semantic';
 import type { HttpClient, HttpError, Result } from '@/lib/http';
 import { FAKE_CLOCK_START } from '@/lib/testing/fakeClock';
@@ -256,14 +257,6 @@ const AUTHOR_NAMES: Readonly<Record<string, string>> = {
   v12: 'Nguyễn Bình',
   v11: 'Phạm An',
 };
-
-function initialsOf(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part.charAt(0))
-    .join('')
-    .toUpperCase();
-}
 
 /** Ảnh chụp của một mục lịch sử; mục `metadataOnly` của bộ mẫu vẫn mang ảnh chụp rỗng (`V11`). */
 function snapshotOf(entry: VersionHistoryEntry | undefined): VersionSnapshot | undefined {

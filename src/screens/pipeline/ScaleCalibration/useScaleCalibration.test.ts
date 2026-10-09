@@ -39,6 +39,10 @@ import {
 } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
 import { RETRY_SCHEDULE_MS } from '@/lib/autosave/retrySchedule';
+// Nạp tĩnh các module còn lại mà ống lưu theo tầng `import()` lười (`useAutosave.ts`; `spatialLayerSave`
+// đã nhập ở trên), để `settleAsync` chỉ cần chờ chúng một lần.
+import '@/lib/query/invalidation';
+import '@/api/appClient';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { formatCombo, parseCombo } from '@/lib/input/shortcutRegistry';
@@ -395,11 +399,21 @@ async function typeReference(mounted: Mounted, length = REFERENCE_REAL_LENGTH): 
   });
 }
 
-/** Đẩy đồng hồ giả và chờ `import()` lười của bộ lưu cho tới khi lượt gửi về. */
+/**
+ * Chờ `import()` lười của bộ lưu MỘT lần, rồi đẩy đồng hồ giả cho tới khi lượt gửi về.
+ *
+ * `vi.dynamicImportSettled()` đắt — mỗi lần quét cả bộ đệm module và chờ một nhịp hẹn giờ THẬT.
+ * Gọi nó trong từng nhịp (20 × mỗi lượt chờ, ~1,4 s mỗi bài lúc máy rảnh) là thứ đẩy các bài P2-4
+ * quá 5 000 ms khi máy tải nặng (QA-01c nợ #12). Các module nó chờ đã được nạp tĩnh ở đầu tệp, nên
+ * một lần là đủ; phần còn lại chỉ là đồng hồ giả.
+ */
 async function settleAsync(): Promise<void> {
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
+
   for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
     await act(async () => {
-      await vi.dynamicImportSettled();
       await clock.advance(1);
     });
   }

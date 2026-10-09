@@ -88,7 +88,7 @@ export function Slider({
   if (isLoading) {
     return (
       <div className="relative flex items-center w-full h-8">
-        <div className="flex-1 h-1 rounded-full bg-bg-sunken animate-pulse" />
+        <div className="flex-1 h-1 rounded-full bg-border-default animate-pulse" />
       </div>
     );
   }
