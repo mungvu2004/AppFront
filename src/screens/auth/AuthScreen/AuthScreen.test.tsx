@@ -337,10 +337,12 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
     expect(slotOf(AUTH_MESSAGES.fields.email)?.parentElement).not.toHaveClass('gap-4');
   });
 
-  it('balances a two-line complaint, so no word is left alone on the second line at 375 (BUG-057)', () => {
+  it('wraps a complaint across the full field, no lone last word, not balanced into a narrow column (BUG-057, BUG-073)', () => {
     render(<AuthScreenView {...baseProps()} problems={{ email: AUTH_MESSAGES.problems.emailTooLong }} />);
 
-    expect(screen.getByText(AUTH_MESSAGES.problems.emailTooLong)).toHaveClass('text-balance');
+    const complaint = screen.getByText(AUTH_MESSAGES.problems.emailTooLong);
+    expect(complaint).toHaveClass('text-pretty');
+    expect(complaint).not.toHaveClass('text-balance');
   });
 
   it('puts the forgot panel\'s strip and "đã gửi" block under its send button (nợ #18)', () => {

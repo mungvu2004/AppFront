@@ -41,17 +41,17 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
 /**
  * Chỗ dành sẵn cho câu lỗi hai dòng dưới một ô (`wrapperClassName` của `Input`): câu hiện ra hay
  * biến mất không đẩy ô dưới và nút gửi khỏi chỗ con trỏ (BUG-008). Cộng từ `Input`: nhãn 20 + 8,
- * ô 46 (38 từ `sm`), dòng lỗi 6 + 2 × 18, thêm 4 để câu hai dòng không dính nhãn ô dưới. Câu lỗi
- * dài nhất của `/login` vừa hai dòng ở cột từ ~258 px (màn 320 trừ lề 24 px mỗi bên). Chỗ này đã là
- * khoảng cách giữa hai ô — đừng thêm `gap`.
+ * ô 46 (38 từ `sm`), dòng lỗi 6 + 2 × 18, thêm 16 để câu hai dòng vẫn cách nhãn/nút kế 16 px — 4 px
+ * cũ làm câu dính nhãn ô dưới (BUG-073). Câu lỗi dài nhất của `/login` vừa hai dòng ở cột từ ~258 px
+ * (màn 320 trừ lề 24 px mỗi bên). Chỗ này đã là khoảng cách giữa hai ô — đừng thêm `gap`.
  */
-export const FIELD_ERROR_SLOT = 'min-h-[120px] sm:min-h-[112px]';
+export const FIELD_ERROR_SLOT = 'min-h-[132px] sm:min-h-[124px]';
 
 /**
  * Như {@link FIELD_ERROR_SLOT} nhưng cho câu lỗi BA dòng: thêm một dòng 18. Dành cho ô họ tên của
  * lời mời — `fullNameInvalid` (109 ký tự) xuống ba dòng ở cột 375 px (QA-01c nợ #10).
  */
-export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[138px] sm:min-h-[130px]';
+export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[150px] sm:min-h-[142px]';
 
 export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotice | null }) {
   if (notice === null) {
