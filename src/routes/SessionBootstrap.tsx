@@ -175,14 +175,15 @@ export function PendingShell({ label }: { label: string }) {
       className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-bg-app p-6"
       role="status"
     >
-      {/* Nền mặt (không phải nền ứng dụng) để khung xương thấy được trên nền trang, và câu
-          hiện ra bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
+      {/* Khung thấy được trên nền trang: nền mặt và viền `border-control` (≥ 3:1 trên `--bg-app`,
+          WCAG 1.4.11) — viền `border-default` cũ chỉ ~1,2:1 nên khung lẫn vào nền. Câu hiện ra
+          bằng chữ — trước đây chỉ trình đọc màn hình biết đang chờ gì (BUG-027).
           `aria-hidden`: câu đã là tên của vùng `status`, không đọc hai lần.
           Câu hiện trễ một nhịp `fast`: vỏ này cũng là fallback Suspense của mọi route lười,
           và chunk đã có sẵn thì Suspense chỉ chớp qua — không trễ thì mỗi lần chuyển màn
           nháy chữ "Đang tải…". Giảm chuyển động: vẫn trễ, nhưng hiện bật ra (`step-start`),
           không mờ dần, không trồi. */}
-      <Skeleton preset="canvas" className="w-full max-w-3xl bg-bg-surface" />
+      <Skeleton preset="canvas" className="w-full max-w-3xl border-border-control bg-bg-surface" />
       <p
         aria-hidden="true"
         className="animate-dropdown-open text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"

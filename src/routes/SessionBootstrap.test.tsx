@@ -308,6 +308,15 @@ describe('SessionGate — năm nhánh', () => {
     expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
   });
 
+  it('khung chờ thấy được trên nền trang: viền điều khiển (≥ 3:1), nền mặt (BUG-027)', () => {
+    renderGate({ status: 'unknown' });
+
+    const frame = screen.getByRole('status', { name: 'Đang mở phiên' }).firstElementChild;
+
+    expect(frame).toHaveClass('border-border-control', 'bg-bg-surface');
+    expect(frame).not.toHaveClass('border-border-default');
+  });
+
   it('vẽ màn con khi đã đăng nhập', () => {
     renderGate({ status: 'authenticated' });
 
