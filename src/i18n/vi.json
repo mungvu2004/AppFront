@@ -704,9 +704,7 @@
       "current": "Kiểm tra chất lượng đầu vào"
     },
     "loadError": {
-      "title": "Không đọc được kết quả kiểm tra chất lượng",
-      "emptyTitle": "Chưa có kết quả để xem",
-      "emptyDescription": "Thử tải lại bản vẽ để hệ thống đo lại chất lượng đầu vào."
+      "title": "Không đọc được kết quả kiểm tra chất lượng"
     },
     "missingProjectTitle": "Không xác định được dự án",
     "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở màn kiểm tra chất lượng của dự án nào.",
