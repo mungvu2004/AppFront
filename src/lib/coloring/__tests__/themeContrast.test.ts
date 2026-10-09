@@ -14,6 +14,7 @@ import {
   contrastRatio,
   parseColor,
   parsePalette,
+  relativeLuminance,
   type Palette,
 } from '../legend';
 import type { ColorTokenName } from '../scales';
@@ -81,13 +82,24 @@ function ratio(palette: Palette, first: ColorTokenName, second: ColorTokenName):
   return contrastRatio(palette[first] ?? '', palette[second] ?? '');
 }
 
-/** `--bg-hover` là rgba: trộn lên nền bên dưới thành một màu đặc rồi mới đo. */
-function hoverOver(palette: Palette, base: ColorTokenName): string {
+/**
+ * Tương phản của chữ `text` trên `--bg-hover` (rgba) trộn lên nền `base`: trộn từng kênh thành một
+ * màu đặc rồi đo — đo thẳng trên kênh, không dựng chuỗi màu (luật `noRawColor`).
+ */
+function ratioOnHover(palette: Palette, text: ColorTokenName, base: ColorTokenName): number {
   const hover = parseColor(palette['--bg-hover'] ?? '');
   const under = parseColor(palette[base] ?? '');
-  if (hover === null || under === null) return '';
+  const ink = parseColor(palette[text] ?? '');
+  if (hover === null || under === null || ink === null) return 0;
   const mix = (top: number, bottom: number): number => top * hover.alpha + bottom * (1 - hover.alpha);
-  return `rgb(${String(mix(hover.red, under.red))}, ${String(mix(hover.green, under.green))}, ${String(mix(hover.blue, under.blue))})`;
+  const surface = {
+    red: mix(hover.red, under.red),
+    green: mix(hover.green, under.green),
+    blue: mix(hover.blue, under.blue),
+    alpha: 1,
+  };
+  const [lighter, darker] = [relativeLuminance(ink), relativeLuminance(surface)].sort((a, b) => b - a);
+  return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05);
 }
 
 /** Hàng đang trỏ chuột: chữ muted và accent trên `--bg-hover` trộn lên app/surface (sáng 4,59–4,61:1 trên app). */
@@ -104,10 +116,7 @@ describe.each(Object.entries(THEMES))('chủ đề %s', (_name, palette) => {
   });
 
   it.each(HOVER_PAIRS)('chữ %s trên `--bg-hover` trộn lên %s đạt 4,5:1', (text, base) => {
-    const surface = hoverOver(palette, base);
-
-    expect(surface).not.toBe('');
-    expect(contrastRatio(palette[text] ?? '', surface)).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
+    expect(ratioOnHover(palette, text, base)).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
   });
 
   it.each(HIERARCHY_PAIRS)('bậc chữ %s tách khỏi %s ít nhất 1,2:1', (first, second) => {
