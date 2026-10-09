@@ -95,6 +95,27 @@ export default defineConfig({
       ['src/lib/pascal/**', 'node'],
     ],
 
+    /**
+     * Trần của một bài và của một hook: 30 s, không phải 5 s / 10 s mặc định.
+     *
+     * Trần mặc định đo trên máy rảnh; `pnpm verify` thì chạy 439 tệp trên mọi
+     * lõi cùng lúc, có độ phủ v8, và thường có agent khác chạy song song. Số đo
+     * 2026-10-09 (QA-01c nợ #12) trên 14 tệp màn đỏ ở verify:
+     *
+     *     chạy từng tệp một:      414/414 xanh, bài async chậm nhất ~2,3 s
+     *     14 tệp cùng lúc, 5 s:   25 đỏ — 13 "Test timed out in 5000ms", phần còn
+     *                             lại là bài sau trong cùng tệp dựng ra cây rỗng
+     *     14 tệp cùng lúc, 60 s:  22/25 xanh lại, cùng bài chạy 8–11 s (×4–5)
+     *
+     * Cùng một bài, cùng phép kiểm, chỉ chậm theo tải: không bài nào treo. Và một
+     * bài hết giờ giữa chừng một `await act(...)` bỏ lại phạm vi `act` của React
+     * mở, nên mọi `render` sau nó trong cùng tệp ra `<div />` rỗng — một lần hết
+     * giờ thành tám dòng đỏ. 30 s là ~12 lần bài async chậm nhất lúc rảnh; bài
+     * treo thật vẫn đỏ, chỉ đỏ muộn hơn.
+     */
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
+
     globals: true,
     setupFiles: './vitest.setup.ts',
     // `vendor/**` giữ mã Pascal đã chép vào (`vendor/pascal/NGUON.md`). Bài

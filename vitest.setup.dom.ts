@@ -18,6 +18,8 @@
 
 import '@testing-library/jest-dom/vitest';
 
+import { configure } from '@testing-library/react';
+
 import { configureTestProviders, createStoreReset } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
@@ -49,3 +51,18 @@ configureTestProviders({ resetStore: createStoreReset(useStore) });
  * motion element hits it — `SessionsSection.test.tsx` was only the first.
  */
 window.scrollTo = () => undefined;
+
+/**
+ * Trần của `waitFor`/`findBy*`: 10 s thay cho 1 s mặc định.
+ *
+ * Hai thứ ăn vào một giây ấy khi cả bộ chạy song song: nhịp render của cả màn
+ * chậm ×4–5, và chunk `lazy(() => import(...))` được biên dịch lần đầu NGAY
+ * TRONG bài (luồng chính của vitest biên dịch hộ mọi worker, nên nó xếp hàng).
+ * Đo 2026-10-09: hộp thoại lazy của `FloorLayerSaveBanner` không kịp hiện trong
+ * 5 s dù bài kéo dài 10 s. Các tệp đã tự vá bằng trần riêng (3 s, 5 s) — chính
+ * những trần ấy là chỗ đỏ tiếp theo. `waitFor` trả về ngay khi điều kiện đúng,
+ * nên bài xanh không chậm thêm; chỉ bài đỏ thật báo muộn hơn, và vẫn trước trần
+ * 30 s của cả bài (`vitest.config.ts`), để lỗi là "Unable to find…" có nghĩa
+ * chứ không phải "Test timed out".
+ */
+configure({ asyncUtilTimeout: 10_000 });
