@@ -21,6 +21,9 @@
  * | `forbidden` | vẽ đầy đủ, mất viền chọn/nút                            | bảng chỉ đọc, ẩn mọi hành động sửa      |
  * | `collapsed` | ẨN HẲN, thay bằng nút "hiện lát cắt"                    | chiếm cả bề ngang khung                 |
  *
+ * `error` vì 404 của dự án (`isProjectMissing`): ẩn cả lát cắt lẫn câu "chỉ sống
+ * trong phiên", bảng chiếm cả bề ngang và chỉ nói "không tìm thấy dự án" (BUG-060).
+ *
  * Không nhánh nào trả `null` cho cả màn — canh đúng A11: màn trắng là thất bại
  * duy nhất bất biến này tồn tại để chặn.
  *
@@ -83,6 +86,9 @@ export function FloorManager(props: FloorManagerViewProps) {
     unsupportedNotices,
     onToggleCollapsed,
   } = props;
+  /* 404 của dự án: chỉ còn câu "không tìm thấy" và lối về — câu "chỉ sống trong phiên" và
+     lát cắt trống cạnh nó là nói về một dự án không có (BUG-060). */
+  const isProjectMissing = state === 'error' && props.isProjectMissing === true;
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
@@ -103,7 +109,7 @@ export function FloorManager(props: FloorManagerViewProps) {
         </div>
       )}
 
-      {unsupportedNotices.length === 0 ? null : (
+      {isProjectMissing || unsupportedNotices.length === 0 ? null : (
         <div className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-2 px-8 pb-2">
           <h3 className="text-[13px] font-semibold text-text-secondary">
             {UNSUPPORTED_NOTICES_HEADING}
@@ -122,7 +128,7 @@ export function FloorManager(props: FloorManagerViewProps) {
 
       <div className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-8">
         <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact ? 'flex-col' : 'flex-row')}>
-          {isCollapsed ? (
+          {isProjectMissing ? null : isCollapsed ? (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
             </button>
