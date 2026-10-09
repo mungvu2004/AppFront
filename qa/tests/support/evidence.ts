@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /** `<E2E_RESULTS_DIR>/<E2E_RUN_ID>/evidence/` — same root as the reports in `playwright.config.ts`. */
 export const RUN_ID = process.env.E2E_RUN_ID ?? 'run-01';
@@ -31,7 +31,7 @@ const EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.png$/u;
 const JSON_EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.json$/u;
 const takenThisProcess = new Set<string>();
 
-/** Hero canvas wait budget; after one miss (no WebGL in this browser) later captures stop waiting. */
+/** Hero canvas wait budget. Only a browser WITHOUT WebGL stops later captures from waiting (review-1). */
 const HERO_FRAME_TIMEOUT_MS = 10_000;
 let heroUnavailable = false;
 
@@ -44,20 +44,26 @@ let heroUnavailable = false;
  */
 async function waitForHeroFrame(page: Page): Promise<void> {
   if (heroUnavailable) return;
-  const drawn = await page.evaluate(async (timeoutMs) => {
+  const outcome = await page.evaluate(async (timeoutMs) => {
     const canvas = document.querySelector<HTMLCanvasElement>('.bg-scene-backdrop > canvas');
-    if (canvas === null || canvas.clientHeight === 0) return true;
+    if (canvas === null || canvas.clientHeight === 0) return 'drawn';
+    const probe = document.createElement('canvas');
+    if ((probe.getContext('webgl2') ?? probe.getContext('webgl')) === null) return 'no-webgl';
     const deadline = performance.now() + timeoutMs;
     while (canvas.width === 300 && canvas.height === 150) {
-      if (performance.now() > deadline) return false;
+      if (performance.now() > deadline) return 'timeout';
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    return true;
+    return 'drawn';
   }, HERO_FRAME_TIMEOUT_MS);
-  if (!drawn) {
+  if (outcome === 'no-webgl') {
+    // This browser cannot draw the hero at all: no later capture in this process can wait it out.
     heroUnavailable = true;
-    test.info().annotations.push({ type: 'evidence', description: 'login hero canvas never mounted (no WebGL?)' });
+    test.info().annotations.push({ type: 'evidence', description: 'login hero: no WebGL in this browser' });
+  } else if (outcome === 'timeout') {
+    // WebGL is there but the hero did not draw in time: a soft failure on THIS shot; the next shot waits again.
+    expect.soft(outcome, `login hero canvas not drawn within ${HERO_FRAME_TIMEOUT_MS} ms`).toBe('drawn');
   }
 }
 
@@ -78,7 +84,9 @@ const CAPTION_ID = 'qa-evidence-caption';
  * BUG-034 / BUG-102: a claim the screen cannot show (URL, request count, cookie) is written ON the shot — a fixed
  * strip at the bottom edge with the page URL first (token values masked), then `lines`. Added just before the screenshot and removed
  * right after (also on failure), so it never takes part in the test. Inline styles: the app's tokens are not
- * guaranteed on every page this runs on.
+ * guaranteed on every page this runs on. While the strip is up, `body` gets a bottom padding of the strip's height,
+ * so the strip covers that padding instead of the page's last element (review-1); the old padding is put back after.
+ * ponytail: something the app itself pins `position: fixed` near the bottom can still sit under the strip.
  */
 async function withCaption(page: Page, lines: readonly string[], shoot: () => Promise<void>): Promise<void> {
   await page.evaluate(
@@ -95,13 +103,22 @@ async function withCaption(page: Page, lines: readonly string[], shoot: () => Pr
         'background:rgba(0,0,0,0.85)', 'color:#fff',
       ].join(';');
       document.body.append(strip);
+      strip.dataset.bodyPaddingBottom = document.body.style.paddingBottom;
+      document.body.style.paddingBottom = `${strip.offsetHeight}px`;
     },
     [CAPTION_ID, lines.join('\n')] as const,
   );
   try {
     await shoot();
   } finally {
-    await page.evaluate((id) => document.getElementById(id)?.remove(), CAPTION_ID).catch(() => undefined);
+    await page
+      .evaluate((id) => {
+        const strip = document.getElementById(id);
+        if (strip === null) return;
+        document.body.style.paddingBottom = strip.dataset.bodyPaddingBottom ?? '';
+        strip.remove();
+      }, CAPTION_ID)
+      .catch(() => undefined);
   }
 }
 
