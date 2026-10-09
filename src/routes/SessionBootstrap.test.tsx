@@ -196,6 +196,7 @@ const gateProps = (overrides: Partial<SessionGateProps> = {}): SessionGateProps 
   isPublic: false,
   loginHref: '/login?next=%2Fbat-ky',
   onRetry: () => undefined,
+  pathname: '/bat-ky',
   sessionEnded: false,
   setupFailed: false,
   status: 'authenticated',
@@ -303,8 +304,15 @@ describe('SessionGate — năm nhánh', () => {
   });
 
   it('không nói "hãy đăng nhập để tiếp tục" khi khách chỉ mở trang chủ (BUG-007)', () => {
-    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F' });
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F', pathname: '/' });
 
+    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
+  });
+
+  it('trang chủ kèm tham số vẫn là trang chủ: đọc đường hiện tại, không tách lại loginHref (nợ QA-01 #23)', () => {
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F%3Fx%3D1', pathname: '/' });
+
+    expect(screen.getByTestId('man-dang-nhap')).toHaveTextContent('/login?next=%2F%3Fx%3D1');
     expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
   });
 

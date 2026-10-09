@@ -48,6 +48,8 @@ export interface SessionGateProps {
   isPublic: boolean;
   /** Người dùng bấm "thử lại". */
   onRetry: () => void;
+  /** Đường hiện tại (không kèm tham số): khách chỉ mở trang chủ thì không có gì để giải thích (BUG-007). */
+  pathname: string;
   /** Phiên vừa đi từ đã-đăng-nhập sang ẩn danh (F-09a đọc để nói vì sao). */
   sessionEnded: boolean;
   /**
@@ -146,17 +148,6 @@ function GateScreen({
   );
 }
 
-/**
- * Năm nhánh, theo đúng thứ tự này — thứ tự là một phần của hợp đồng.
- *
- * `isPublic` đứng trước mọi thứ khác vì màn đăng nhập phải vẽ được kể cả khi
- * phiên đang hỏng, và phải vẽ được **kể cả khi đã đăng nhập**: người vừa đăng
- * nhập xong còn đang đứng trên `/login` trong lúc màn ấy hẹn giờ chuyển trang.
- *
- * Nhánh công khai cố ý **không** bọc `key` quanh màn con. Một lần gắn lại ở đây
- * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
- * biểu mẫu sau khi đã đăng nhập thành công.
- */
 /** Chữ của vỏ chờ ẩn trong lúc trễ (`both`), rồi mới hiện — xem chú thích trong {@link PendingShell}. */
 const LABEL_REVEAL_STYLE = { animationDelay: cssDurationMs('fast'), animationFillMode: 'both' } as const;
 
@@ -195,11 +186,23 @@ export function PendingShell({ label }: { label: string }) {
   );
 }
 
+/**
+ * Năm nhánh, theo đúng thứ tự này — thứ tự là một phần của hợp đồng.
+ *
+ * `isPublic` đứng trước mọi thứ khác vì màn đăng nhập phải vẽ được kể cả khi
+ * phiên đang hỏng, và phải vẽ được **kể cả khi đã đăng nhập**: người vừa đăng
+ * nhập xong còn đang đứng trên `/login` trong lúc màn ấy hẹn giờ chuyển trang.
+ *
+ * Nhánh công khai cố ý **không** bọc `key` quanh màn con. Một lần gắn lại ở đây
+ * huỷ đúng cái hẹn giờ vừa nói (`useAuthScreen.ts`), và người dùng kẹt lại ở
+ * biểu mẫu sau khi đã đăng nhập thành công.
+ */
 export function SessionGate({
   children,
   isPublic,
   loginHref,
   onRetry,
+  pathname,
   serverUnreachable,
   sessionEnded,
   setupFailed,
@@ -250,7 +253,7 @@ export function SessionGate({
         // nó); khách chỉ mở trang chủ thì không có gì để giải thích (BUG-007).
         {...(sessionEnded
           ? { state: { notice: 'sessionEnded' } }
-          : new URLSearchParams(loginHref.split('?')[1]).get('next') === ROUTES.dashboard
+          : pathname === ROUTES.dashboard
             ? {}
             : { state: { notice: 'signInRequired' } })}
       />
@@ -354,6 +357,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
       isPublic={matchesPublicRoute(location.pathname)}
       loginHref={`${ROUTES.login}?next=${encodeURIComponent(location.pathname + location.search)}`}
       onRetry={onRetry}
+      pathname={location.pathname}
       sessionEnded={sessionEnded.current}
       serverUnreachable={session.serverUnreachable}
       // "Chưa mở được ứng dụng" chỉ đúng khi tầng phiên vẫn chưa cấu hình: màn khác thử lại
