@@ -104,7 +104,7 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
             {node.isExpandable ? (
               <span
                 aria-hidden="true"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-text-muted hover:bg-bg-hover"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-text-muted"
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle(node.id);
