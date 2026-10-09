@@ -1205,7 +1205,17 @@ describe('[N8] bốn phím tắt', () => {
      * `requestAnimationFrame` THẬT: tệp này có những bài trước dùng đồng hồ
      * giả, và vòng lặp khung hình của framer-motion không sống lại sau khi
      * `vi.useFakeTimers()` đi qua nó. Bám vào nút DOM ở đây là bám vào thứ
-     * tự chạy của cả tệp; bám vào sổ đăng ký là bám vào chính cơ chế A12. */
+     * tự chạy của cả tệp; bám vào sổ đăng ký là bám vào chính cơ chế A12.
+     *
+     * Và ĐỢI hai binding ấy có mặt trước khi gõ Escape. `findByRole` trả về ngay khi hộp thoại
+     * vào DOM, còn binding đăng ký trong `useEffect` thụ động, chạy SAU lượt commit ấy. Dưới tải
+     * khe giữa hai việc đủ rộng để Escape rơi vào lúc phạm vi `dialog` còn trống: nó xuống
+     * `closeTopLayer` toàn cục, bảng không đóng, rồi binding mới đăng ký và sổ đứng ở 2 mãi
+     * ("expected 2 to be +0", QA-01c nợ #12). */
+    await waitFor(() => {
+      expect(dialogScopeBindingCount()).toBeGreaterThan(0);
+    });
+
     const dialogBindingsBefore = dialogScopeBindingCount();
 
     await act(async () => {
