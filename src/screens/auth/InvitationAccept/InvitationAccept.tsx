@@ -115,15 +115,6 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
             onSubmit={handleSubmit}
             onFocus={focusReturn.onFocus}
           >
-            <RecoveryNoticeStrip notice={warning} />
-            {/* Always mounted, filled later, so a screen reader announces the text. */}
-            <p
-              role="status"
-              className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
-            >
-              {isDone ? AUTH_MESSAGES.invitation.success : retryNotice}
-            </p>
-
             {/* Không `gap`: mỗi ô giữ sẵn chỗ cho câu lỗi dài nhất của nó, chỗ ấy là khoảng cách — câu
                 lỗi hiện hay mất không đẩy ô dưới và nút gửi (BUG-008, QA-01c nợ #10). */}
             <div className="flex flex-col">
@@ -172,7 +163,16 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
                 ? AUTH_MESSAGES.actions.submitting
                 : AUTH_MESSAGES.actions.acceptInvitation}
             </Button>
-            {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm (BUG-008). */}
+            {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm
+                (BUG-008) — cả dải cảnh báo lẫn câu thử lại (QA-01c nợ #11). Câu trạng thái luôn gắn sẵn,
+                điền sau, để trình đọc màn hình đọc ra. */}
+            <p
+              role="status"
+              className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
+            >
+              {isDone ? AUTH_MESSAGES.invitation.success : retryNotice}
+            </p>
+            <RecoveryNoticeStrip notice={warning} />
             <RecoveryNoticeStrip notice={notice} />
 
             {needsSignIn && (

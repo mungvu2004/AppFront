@@ -195,6 +195,23 @@ describe('InvitationAcceptView — the seven states', () => {
     expect(slotOf(AUTH.fields.fullName)?.parentElement).not.toHaveClass('gap-4');
   });
 
+  it('puts the warning strip and the retry line under the submit button, never above the boxes (QA-01c nợ #11)', () => {
+    const WARNING = 'Bạn đang đăng nhập bằng một tài khoản khác.';
+    const RETRY = 'Đang thử lại.';
+    render(
+      <InvitationAcceptView {...baseProps()} warning={{ tone: 'attention', message: WARNING }} retryNotice={RETRY} />,
+    );
+
+    const button = screen.getByRole('button', { name: AUTH.actions.acceptInvitation });
+    const lastBox = screen.getByLabelText(AUTH.fields.confirmPassword);
+
+    for (const text of [WARNING, RETRY]) {
+      const node = screen.getByText(text);
+      expect(button.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING, text).toBeTruthy();
+      expect(lastBox.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING, text).toBeTruthy();
+    }
+  });
+
   it('holds no raw colour', () => {
     expect(() => {
       expectNoRawColor('src/screens/auth/InvitationAccept/InvitationAccept.tsx');
