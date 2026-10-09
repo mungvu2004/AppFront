@@ -12,12 +12,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { initialsOf } from '@/lib/format/initials';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 
 import { ProfileSection, type ProfileSectionProps } from './ProfileSection';
-import { DENSITY_ROW_CLASS, LANGUAGE_OPTIONS, initialsOf } from './useAccountPreferences';
+import { DENSITY_ROW_CLASS, LANGUAGE_OPTIONS } from './useAccountPreferences';
 
 afterEach(() => {
   cleanup();
@@ -104,10 +105,10 @@ describe('trạng thái 1 — rỗng', () => {
     expect(screen.getByText('Chức danh')).toBeTruthy();
   });
 
-  it('chưa có tên lẫn ảnh thì lấy chữ đầu của phần trước dấu a còng', () => {
-    expect(initialsOf('', 'thu.ha@congty.vn')).toBe('t');
+  it('chưa có tên lẫn ảnh thì lấy hai chữ đầu của phần trước dấu a còng, viết hoa', () => {
+    expect(initialsOf('', 'thu.ha@congty.vn')).toBe('TH');
     expect(initialsOf('Nguyễn Thu Hà', '')).toBe('NH');
-    expect(initialsOf('Hà', '')).toBe('H');
+    expect(initialsOf('Hà', '')).toBe('HÀ');
     expect(initialsOf('', '')).toBe('');
   });
 });

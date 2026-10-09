@@ -45,6 +45,7 @@ import type { AutosaveState } from '@/lib/autosave/createAutosave';
 import { createAutosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
+import { initialsOf } from '@/lib/format/initials';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
 import type { Announcer } from '@/lib/input/announcer';
@@ -516,13 +517,6 @@ const DANGER_CONFIRM_LABELS: Readonly<Record<ProjectSettingsDangerAction, string
   deleteAllFloors: 'Xoá mọi tầng',
   deleteProject: 'Xoá dự án',
 };
-
-/** Hai chữ cái đầu của hai từ cuối trong tên — cùng cách `ProjectDashboard` dựng chữ tắt. */
-function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/u).filter((word) => word.length > 0);
-  const tail = words.slice(-2);
-  return tail.map((word) => word.charAt(0)).join('');
-}
 
 function scalePreviewLabelFor(scaleMmPerPx: number | null): string {
   if (scaleMmPerPx === null || scaleMmPerPx <= 0) {
@@ -1251,7 +1245,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         id: member.id,
         name: member.name,
         roleLabel: ROLE_LABELS[member.role],
-        initials: initialsOf(member.name),
+        initials: initialsOf(member.name, member.email),
         removeLabel: `Gỡ ${member.name}`,
       })),
     [snapshot],

@@ -63,23 +63,6 @@ const PURGED_CODES: ReadonlySet<string> = new Set(['VERSION_SNAPSHOT_PURGED', 'V
 /* 2 — Phép chuyển thuần                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Số chữ cái một `Avatar` không ảnh hiện được. */
-const INITIALS_LENGTH = 2;
-
-/** Chữ cái đầu của một cái tên, cho ô đại diện không ảnh; không chữ nào thì chuỗi rỗng. */
-export function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/u).filter((word) => word.length > 0);
-  if (words.length === 0) {
-    return '';
-  }
-
-  const first = words[0] ?? '';
-  const last = words[words.length - 1] ?? '';
-  const letters = words.length === 1 ? first.slice(0, 1) : `${first.slice(0, 1)}${last.slice(0, 1)}`;
-
-  return letters.slice(0, INITIALS_LENGTH).toLocaleUpperCase('vi-VN');
-}
-
 /** Bản tóm tắt N17 thành siêu dữ liệu phiên bản của `@/lib/versioning`. */
 export function toVersionMetadata(summary: FloorVersionSummary): VersionMetadata {
   return {
