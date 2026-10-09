@@ -1301,7 +1301,8 @@ export function useInputQualityGate(
     footer,
     errorMessage: status === 'error' ? failureSentence : null,
     isProjectMissing: status === 'error' && isProjectMissing,
-    canRetryLoad: status === 'error' && (failure?.isRetryable ?? false),
+    // Không rõ thì cho thử lại, như `useProjectSettings`: nút thừa rẻ hơn ngõ cụt.
+    canRetryLoad: status === 'error' && (failure?.isRetryable ?? true),
     partialNotice,
     remainingFindingCount,
     passNotice,
