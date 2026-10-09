@@ -324,9 +324,9 @@ function floorRowsOf(activeId: string): readonly InputQualityFloorRow[] {
   return SAMPLE_FLOORS.map((floor) => {
     const findingCount = floor.id === ACTIVE.id ? SAMPLE_FINDINGS.length : 0;
     const summaryText = !floor.isMeasured
-      ? 'chưa đo'
+      ? 'Chưa đo'
       : findingCount === 0
-        ? 'không có phát hiện'
+        ? 'Không có phát hiện'
         : `${count(findingCount)} phát hiện cần chú ý`;
 
     return {

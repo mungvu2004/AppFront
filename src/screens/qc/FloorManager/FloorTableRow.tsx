@@ -202,7 +202,7 @@ export function FloorTableRow({
       tabIndex={0}
     >
       {canEdit && (
-        <Table.Cell className="w-8">
+        <Table.Cell className="w-10 sm:w-8">
           <IconButton
             aria-label={`Đổi thứ tự tầng ${row.name}`}
             className="cursor-grab active:cursor-grabbing"

@@ -235,9 +235,11 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
         `trạng thái ${state} mất vỏ màn`,
       ).toBeInTheDocument();
 
-      /* Thu gọn là trạng thái DUY NHẤT không có lát cắt — và nó phải còn đường bung lại. */
+      /* Thu gọn còn đường bung lại; lỗi đọc không có tầng nào để cắt (BUG-060). Mọi trạng thái khác có lát cắt. */
       if (state === 'collapsed') {
         expect(screen.getByRole('button', { name: EXPAND_SECTION_LABEL })).toBeInTheDocument();
+      } else if (state === 'error') {
+        expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
       } else {
         expect(
           screen.getAllByLabelText(SECTION_ARIA_LABEL).length,
@@ -546,6 +548,16 @@ describe('breadcrumb chung (BUG-079)', () => {
     expect(nav.textContent).not.toContain('>');
     expect(within(nav).queryByRole('button')).toBeNull();
   });
+
+  it('có lối về thì cấp "Dự án" là nút về danh sách dự án (review-1)', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onBackToProjects={onBackToProjects} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('dự án không tồn tại (BUG-032)', () => {
@@ -572,6 +584,18 @@ describe('dự án không tồn tại (BUG-032)', () => {
     );
 
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
+      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
+  });
+
+  it('BUG-060: lỗi đọc khác 404 (mạng/5xx) cũng không vẽ câu "chỉ sống trong phiên" lẫn lát cắt', () => {
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('error')} unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES} />,
+    );
+
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
       expect(screen.queryByText(notice)).not.toBeInTheDocument();
     }

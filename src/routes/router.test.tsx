@@ -25,7 +25,7 @@
  */
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
@@ -74,6 +74,7 @@ describe('[UndoShortcuts] phím ?', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     expect(screen.queryByRole('dialog', { name: 'Phím tắt' })).not.toBeInTheDocument();
@@ -90,6 +91,7 @@ describe('[UndoShortcuts] phím ?', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     pressHelp();
@@ -114,6 +116,7 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     pressHelp();
@@ -140,6 +143,7 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     expect(useStore.getState().openDialog).toBe('createProject');

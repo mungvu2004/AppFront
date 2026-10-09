@@ -860,8 +860,35 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     expect(screen.getByText('Không đọc được kết quả kiểm tra chất lượng')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tiếp tục xử lý' })).toBeNull();
     expect(screen.queryByText(/chưa đọc được kết quả kiểm tra/iu)).toBeNull();
-    expect(screen.getAllByRole('button', { name: /Thử lại|Tải bản vẽ khác/u })).toHaveLength(1);
+    // Không thử lại được: lối ra duy nhất là tải bản vẽ khác.
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Tải bản vẽ khác' })).toHaveLength(1);
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('đọc kết quả hỏng nhưng thử lại được: "Thử lại" gọi lại API (review-1)', async () => {
+    const client = createMockApiClient();
+    const assess = vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'INTERNAL_ERROR',
+        kind: 'http',
+        raw: { code: 'INTERNAL_ERROR', requestId: 'req-read-2' },
+        requestId: 'req-read-2',
+        retryable: true,
+        status: 503,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client });
+
+    const callsBefore = assess.mock.calls.length;
+
+    expect(screen.queryByRole('button', { name: 'Tải bản vẽ khác' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await settle(clock);
+
+    expect(assess.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
   it('dự án không tồn tại: "Không tìm thấy dự án này" và lối về danh sách dự án (BUG-074)', async () => {
@@ -887,6 +914,17 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     expect(screen.queryByRole('button', { name: 'Tiếp tục xử lý' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('cấp "Dự án" của breadcrumb về danh sách dự án (review-1)', async () => {
+    const onNavigate = vi.fn();
+
+    await mountScreen(clock, { onNavigate });
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
     expect(onNavigate).toHaveBeenCalledWith('/');
   });
 

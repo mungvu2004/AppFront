@@ -326,6 +326,8 @@ export interface FloorUploadActions {
   /** Xoá ngay, có toast hoàn tác (A8, D-05). Không hộp thoại xác nhận. */
   readonly onRemoveFile: (fileId: string) => void;
   readonly onSubmit: () => void;
+  /** Cấp "Dự án" của breadcrumb: về danh sách dự án. Vắng thì cấp ấy là chữ trơn. */
+  readonly onBackToProjects?: (() => void) | undefined;
   /** Đóng lỗi trong thẻ của một tệp. Không đụng tới tệp khác. */
   readonly onDismissError: (fileId: string) => void;
 }

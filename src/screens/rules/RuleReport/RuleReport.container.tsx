@@ -66,7 +66,7 @@ const SCREEN_ID = 'rule-report';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án';
 const MISSING_PARAMS_MESSAGE =
-  'Đường dẫn thiếu mã dự án, nên chưa mở được báo cáo kiểm tra luật. Quay lại danh sách dự án rồi chọn lại dự án cần xem.';
+  'Đường dẫn không mang mã dự án, nên chưa mở được báo cáo kiểm tra luật. Quay lại danh sách dự án rồi chọn lại dự án cần xem.';
 
 /** Props thật của container — mọi thứ một màn khác cần để mở màn này (R-73). */
 export interface RuleReportContainerProps {

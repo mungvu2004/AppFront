@@ -160,22 +160,22 @@ function buildIndustrialConfig(): RuleConfig {
 export const RULE_PRESETS: readonly RulePreset[] = [
   {
     kind: 'residential',
-    label: 'nhà ở',
-    caption: 'giữ nguyên mọi luật và ngưỡng mặc định vì bộ mặc định vốn được hiệu chỉnh cho nhà ở.',
+    label: 'Nhà ở',
+    caption: 'Giữ nguyên mọi luật và ngưỡng mặc định vì bộ mặc định vốn được hiệu chỉnh cho nhà ở.',
     config: RESIDENTIAL_CONFIG,
   },
   {
     kind: 'commercial',
-    label: 'văn phòng',
+    label: 'Văn phòng',
     caption:
-      'hạ mức phòng không cửa sổ xuống gợi ý, siết bề rộng hành lang và khoảng trống trước cửa cho mật độ người văn phòng.',
+      'Hạ mức phòng không cửa sổ xuống gợi ý, siết bề rộng hành lang và khoảng trống trước cửa cho mật độ người văn phòng.',
     config: buildCommercialConfig(),
   },
   {
     kind: 'industrial',
-    label: 'nhà xưởng',
+    label: 'Nhà xưởng',
     caption:
-      'tắt các luật về phòng ở (diện tích, cửa sổ, đồ đạc), siết ngưỡng thoát nạn, bề rộng cửa/lối đi và bề dày tường chịu lực.',
+      'Tắt các luật về phòng ở (diện tích, cửa sổ, đồ đạc), siết ngưỡng thoát nạn, bề rộng cửa/lối đi và bề dày tường chịu lực.',
     config: buildIndustrialConfig(),
   },
 ];

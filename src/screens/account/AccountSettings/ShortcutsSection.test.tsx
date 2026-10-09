@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildGlobalShortcuts,
   formatCombo,
+  keyCapLabels,
   parseCombo,
   type GlobalShortcutHandlers,
 } from '@/lib/input/shortcutRegistry';
@@ -108,7 +109,7 @@ describe('đối chiếu số phím tắt', () => {
     // Mỗi tổ hợp in ra đúng cách `formatCombo(parseCombo(...))` in.
     for (const [index, definition] of definitions.entries()) {
       expect(rows[index]?.combo).toBe(formatCombo(parseCombo(definition.combo)));
-      expect(rows[index]?.keys.join('+')).toBe(rows[index]?.combo);
+      expect(rows[index]?.keys).toEqual(keyCapLabels(rows[index]?.combo ?? ''));
       expect(rows[index]?.description).toBe(definition.description);
     }
   });
@@ -151,6 +152,30 @@ describe('bảng phím tắt', () => {
 
     expect(redo).toBeDefined();
     expect(redo?.keys.length).toBeGreaterThan(1);
+  });
+
+  it('in mặt phím người ta bấm, không in cách registry lưu tổ hợp', () => {
+    render(<ShortcutsSection {...viewProps()} />);
+
+    const caps = Array.from(document.querySelectorAll('kbd'), (kbd) => kbd.textContent);
+
+    expect(caps).not.toContain('Mod');
+    expect(caps).not.toContain('ESCAPE');
+    expect(caps).toContain('Esc');
+    expect(caps.some((cap) => cap === 'Ctrl' || cap === '⌘')).toBe(true);
+  });
+
+  it('ô tìm khớp cả mặt phím in ra ("Ctrl"), không chỉ tổ hợp gốc', () => {
+    const { result } = renderHook(() => useAccountTables(port));
+    const redo = buildShortcutRows().find((row) => row.id === 'global.redo');
+    const printed = redo?.keys.join('+') ?? '';
+
+    act(() => {
+      result.current.shortcuts.onQueryChange(printed);
+    });
+
+    expect(printed).not.toContain('Mod');
+    expect(result.current.shortcuts.rows.map((row) => row.id)).toContain('global.redo');
   });
 
   it('gõ vào ô tìm báo lên ngay từng ký tự, không đợi Enter', () => {

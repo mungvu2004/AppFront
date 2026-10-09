@@ -272,7 +272,7 @@ export function SessionGate({
     }
 
     if (serverUnreachable === true) {
-      // Cùng câu với `errors.network` của `vi.json` ("Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.").
+      // Cùng lời khuyên với `errors.network` của `vi.json` ("… Kiểm tra mạng rồi thử lại.").
       return (
         <GateScreen
           icon={<WifiOff />}

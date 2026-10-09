@@ -211,7 +211,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => ProjectSettingsViewProps
   error: () => ({
     ...baseProps(),
     state: 'error',
-    errorMessage: 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.',
+    errorMessage: 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.',
     canRetryLoad: true,
   }),
   success: () => baseProps(),

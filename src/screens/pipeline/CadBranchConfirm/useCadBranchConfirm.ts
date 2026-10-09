@@ -168,10 +168,10 @@ const ROLE_ORDER: readonly CadLayerRole[] = [
 ];
 
 const UNIT_LABELS: Readonly<Record<CadDrawingUnit, string>> = {
-  mm: 'mi-li-mét (mm)',
-  cm: 'xen-ti-mét (cm)',
-  m: 'mét (m)',
-  inch: 'inch (in)',
+  mm: 'Mi-li-mét (mm)',
+  cm: 'Xen-ti-mét (cm)',
+  m: 'Mét (m)',
+  inch: 'Inch (in)',
 };
 
 const UNIT_ORDER: readonly CadDrawingUnit[] = ['mm', 'cm', 'm', 'inch'];
@@ -205,7 +205,7 @@ const COMPARISON_ROWS: readonly CadBranchComparisonCell[] = [
   },
   {
     rowId: 'time',
-    rowLabel: 'thời gian',
+    rowLabel: 'Thời gian',
     cadValueLabel: 'Nhập hình học xong ngay sau khi gán lớp',
     aiValueLabel: 'Chờ máy chạy hết các bước xử lý',
   },

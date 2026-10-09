@@ -4,7 +4,7 @@
  * `src/components`: nó chỉ có hai nơi dùng và cả hai là màn của nhóm này.
  */
 
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, type LucideIcon } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 
@@ -32,7 +32,8 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
         <div className="flex flex-col gap-1">
           <h1 className="text-[30px] font-semibold leading-[40px] text-text-primary">{title}</h1>
           {subtitle !== undefined && (
-            // `text-balance` (không `pretty`: Firefox chưa hỗ trợ): không để "bạn." một mình ở dòng cuối (BUG-052).
+            // `text-balance`, không `pretty` như ô nhập và dải báo: phụ đề chỉ một–hai dòng ngắn, chia đều hai
+            // dòng đọc dễ hơn lấp đầy dòng đầu; vẫn không để "bạn." một mình ở dòng cuối (BUG-052).
             <p className="text-balance text-[15px] leading-[24px] text-text-secondary">{subtitle}</p>
           )}
         </div>
@@ -75,19 +76,22 @@ export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotic
  * Vùng trạng thái ngay dưới nút gửi, ở cả hai màn (BUG-097): câu "đã xong" trong một khối có viền và
  * dấu kiểm như câu "đã gửi" của quên mật khẩu (BUG-022) — trung tính, không xanh "verified" (A5) —
  * hoặc một dòng ghi chú nhỏ. Luôn gắn sẵn, điền sau: vùng chèn cùng lúc với chữ thường không được đọc.
+ * Quên mật khẩu dùng chung khối này với biểu tượng thư (`icon={Mail}`).
  */
 export function RecoveryStatus({
   success,
   note = null,
+  icon: Icon = CheckCircle2,
 }: {
   readonly success: string | null;
   readonly note?: string | null;
+  readonly icon?: LucideIcon;
 }) {
   return (
     <div role="status" className="empty:sr-only">
       {success !== null ? (
         <div className="flex items-start gap-3 rounded-[8px] border border-border-default p-3">
-          <CheckCircle2 aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
+          <Icon aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
           <p className="text-[14px] leading-relaxed text-text-primary">{success}</p>
         </div>
       ) : note !== null ? (

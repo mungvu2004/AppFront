@@ -45,7 +45,6 @@ import '@/lib/query/invalidation';
 import '@/api/appClient';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
-import { formatCombo, parseCombo } from '@/lib/input/shortcutRegistry';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
@@ -1048,7 +1047,7 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
     expect(draft?.end.y).toBeCloseTo(draft?.start.y ?? 0, 6);
   });
 
-  it('nêu đủ sáu dòng nhắc phím tắt, tổ hợp do `formatCombo` viết', async () => {
+  it('nêu đủ sáu dòng nhắc phím tắt, tổ hợp in bằng mặt phím (`keyCapLabels`)', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);
     await settle(mounted);
@@ -1056,9 +1055,11 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
     const hints = mounted.result.current.model.panel.shortcutHints;
 
     expect(hints).toHaveLength(6);
-    expect(hints.map((hint) => hint.comboLabel)).toContain(
-      formatCombo(parseCombo('Shift+ArrowLeft')),
-    );
+    const labels = hints.map((hint) => hint.comboLabel);
+
+    expect(labels).toContain('Shift + ←');
+    expect(labels).toContain('Esc');
+    expect(labels.join(' ')).not.toMatch(/ESCAPE|ARROW|ENTER/u);
     expect(hints.every((hint) => hint.description.length > 0)).toBe(true);
   });
 });

@@ -1229,6 +1229,8 @@ export function useFloorUploadScreen(
     },
     onRemoveFile: removeFile,
     onSubmit: submit,
+    onBackToProjects:
+      options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
     onDismissError: (fileId) => patchAttachment(fileId, { problem: null }),
   };

@@ -320,7 +320,7 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
     });
 
     expect(result.current.errorMessage).not.toBeNull();
-    expect(result.current.errorMessage).toContain('kết nối');
+    expect(result.current.errorMessage).toContain('máy chủ');
   });
 
   it('khổ hẹp: lỗi đọc danh sách tầng vẫn thắng thu gọn (BUG-072)', async () => {

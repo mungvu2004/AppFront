@@ -59,6 +59,7 @@ import { formatNumber } from '@/lib/format/number';
 import {
   buildGlobalShortcuts,
   formatCombo,
+  keyCapLabels,
   parseCombo,
   type GlobalShortcutHandlers,
 } from '@/lib/input/shortcutRegistry';
@@ -238,10 +239,11 @@ export function buildShortcutRows(): readonly ShortcutRowModel[] {
     return {
       id: definition.id,
       combo,
-      // `formatCombo` in ra đúng một cách: các phần nối bằng dấu cộng. Tách ở
+      // Mặt phím người ta thật sự bấm ("Ctrl"/"⌘", "Esc"), không phải cách registry
+      // lưu ("Mod", "ESCAPE") — cùng helper với hộp phím tắt toàn cục (BUG-085). Tách ở
       // đây chứ không ở view, vì view không được biết cách một tổ hợp được
       // đánh vần (mục D).
-      keys: combo.split('+'),
+      keys: keyCapLabels(combo),
       description: definition.description ?? MISSING_DESCRIPTION,
     };
   });
@@ -368,7 +370,9 @@ export function useAccountTables(port: AccountDraftPort): AccountTablesModel {
 
     return allRows.filter(
       (row) =>
-        foldForSearch(row.description).includes(needle) || foldForSearch(row.combo).includes(needle),
+        foldForSearch(row.description).includes(needle) ||
+        foldForSearch(row.combo).includes(needle) ||
+        foldForSearch(row.keys.join('+')).includes(needle),
     );
   }, [allRows, query]);
 

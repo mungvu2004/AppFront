@@ -179,7 +179,7 @@ export const ErrorState: Story = {
   args: {
     ...base,
     state: 'error',
-    errorMessage: 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.',
+    errorMessage: 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.',
     canRetryLoad: true,
   },
 };
