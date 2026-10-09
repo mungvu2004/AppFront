@@ -17,8 +17,13 @@ const KNOWN_HTTP_STATUS_KIND: Partial<Record<number, AppErrorKind>> = {
   429: 'rateLimited',
 };
 
+/**
+ * Đoán kind từ chữ của lỗi. CỐ Ý không có `unauthenticated`: đoán "phiên hết hạn" từ
+ * chữ như `login`/`auth` biến mọi lỗi trơn nhắc tới màn đăng nhập thành lời mời đăng
+ * nhập lại. Kind ấy chỉ đến từ dữ liệu có cấu trúc — {@link isStructuredUnauthenticated}
+ * (QA-01 nợ #2).
+ */
 const KEYWORD_KIND_PATTERNS: Array<[AppErrorKind, RegExp]> = [
-  ['unauthenticated', /\b(401|unauth|auth(?:entication)?|login|sign[- ]?in)\b/i],
   ['forbidden', /\b(403|forbidden|permission|not allowed|denied)\b/i],
   ['notFound', /\b(404|not found|missing)\b/i],
   ['conflict', /\b(409|conflict|version mismatch|stale|updated by someone else)\b/i],
@@ -151,6 +156,13 @@ const isWorkerError = (value: unknown): boolean => {
   return /\b(worker|thread)\b/i.test(text);
 };
 
+const UNAUTHENTICATED_CODE = APP_ERROR_KIND_CONFIG.unauthenticated.code;
+
+/** Lỗi xác thực theo cấu trúc: trạng thái 401 hoặc mã `UNAUTHENTICATED`, không theo chữ. */
+const isStructuredUnauthenticated = (value: unknown): boolean =>
+  isRecord(value) &&
+  (value.status === 401 || value.code === UNAUTHENTICATED_CODE || value.errorCode === UNAUTHENTICATED_CODE);
+
 const resolveKindFromText = (text: string): AppErrorKind | undefined => {
   for (const [kind, pattern] of KEYWORD_KIND_PATTERNS) {
     if (pattern.test(text)) {
@@ -183,6 +195,10 @@ const resolveHttpKind = (error: HttpError): AppErrorKind => {
     return statusKind;
   }
 
+  if (isStructuredUnauthenticated(error)) {
+    return 'unauthenticated';
+  }
+
   const codeText = [error.code, readErrorText(error.raw), String(error.status ?? '')]
     .filter(Boolean)
     .join(' ');
@@ -196,6 +212,10 @@ const resolveHttpKind = (error: HttpError): AppErrorKind => {
 };
 
 const resolveKindFromUnknown = (value: unknown): AppErrorKind => {
+  if (isStructuredUnauthenticated(value)) {
+    return 'unauthenticated';
+  }
+
   const text = readErrorText(value);
   const keywordKind = resolveKindFromText(text);
   if (keywordKind) {

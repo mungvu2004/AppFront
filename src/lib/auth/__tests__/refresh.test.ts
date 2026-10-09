@@ -404,6 +404,49 @@ describe('src/lib/auth/refresh', () => {
     expect(server.refreshCalls()).toBe(1 + REFRESH_MAX_TRANSIENT_ATTEMPTS * 2);
   });
 
+  /* QA-01 nợ #12 — thang đã cạn thì mạng trở lại hoặc quay về cửa sổ cho một thang mới. */
+  it('restarts a spent ladder when the network comes back online', async () => {
+    const server = createAuthServer([ok('u1', 'token-1'), failWith(503, 'DEPENDENCY_UNAVAILABLE')]);
+    configure(server.fetchImpl);
+
+    await bootstrapSession();
+    await refreshSingleFlight({ source: 'local' });
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(server.refreshCalls()).toBe(1 + REFRESH_MAX_TRANSIENT_ATTEMPTS);
+
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(600_000);
+
+    expect(server.refreshCalls()).toBe(1 + REFRESH_MAX_TRANSIENT_ATTEMPTS * 2);
+  });
+
+  it('restarts a spent ladder on window focus even with no session yet (guest on /login)', async () => {
+    const server = createAuthServer([failWith(503, 'DEPENDENCY_UNAVAILABLE')]);
+    configure(server.fetchImpl);
+
+    await refreshSingleFlight({ source: 'local' });
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(server.refreshCalls()).toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS);
+    expect(getSession().status).toBe('unknown');
+
+    window.dispatchEvent(new Event('focus'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(server.refreshCalls()).toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS + 1);
+  });
+
+  it('adds no extra request when the network blinks while the ladder is still running', async () => {
+    const server = createAuthServer([failWith(503, 'DEPENDENCY_UNAVAILABLE')]);
+    configure(server.fetchImpl);
+
+    await refreshSingleFlight({ source: 'local' });
+    window.dispatchEvent(new Event('online'));
+    window.dispatchEvent(new Event('focus'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(server.refreshCalls()).toBe(1);
+  });
+
   it('does not sign out on a 401 request while the server is unreachable', async () => {
     const server = createAuthServer([ok(), failWith(503, 'DEPENDENCY_UNAVAILABLE')]);
     const fetchImpl: AuthFetch = async (input, init) => {

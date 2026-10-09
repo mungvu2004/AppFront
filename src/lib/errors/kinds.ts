@@ -90,8 +90,9 @@ export const APP_ERROR_KIND_CONFIG = {
   notFound: {
     code: 'NOT_FOUND',
     messageKey: 'errors.notFound.description',
-    primaryButtonKey: 'common.reload',
-    recovery: 'tải lại',
+    // Tải lại không đem thứ đã xoá hay đường dẫn sai về được (QA-01 nợ #7).
+    primaryButtonKey: 'common.close',
+    recovery: 'không',
     secondaryButtonKey: 'common.close',
     severity: 'cảnh báo',
     titleKey: 'errors.notFound.title',

@@ -6,7 +6,8 @@
  * `Referer`. Đổi lại màn phải tự dọn: để nó lại thì nó vào lịch sử, vào ô sao chép
  * đường dẫn và vào ảnh chụp màn hình. Vì thế hàm này xoá fragment **ngay trong
  * lượt gọi**, trước mọi `await` — và không bao giờ ghi mã ra log, store,
- * `sessionStorage` hay URL.
+ * `sessionStorage` hay URL. Một `?token=` đặt nhầm chỗ cũng bị xoá khỏi URL nhưng
+ * KHÔNG được đọc.
  *
  * ## Vì sao còn một bộ nhớ
  *
@@ -37,13 +38,23 @@ const keyOf = (target: FragmentTarget): string => {
 export function consumeFragmentToken(target: FragmentTarget = window): string | null {
   const { history, location } = target;
   const key = keyOf(target);
+  const hasFragment = location.hash.length > 1;
+  const token = hasFragment ? new URLSearchParams(location.hash.slice(1)).get('token') : null;
+  // `?token=` (đặt nhầm chỗ) KHÔNG được đọc — máy chủ và `Referer` đã thấy nó — nhưng vẫn
+  // phải xoá khỏi thanh địa chỉ và lịch sử như fragment (QA-01 nợ #4).
+  const query = new URLSearchParams(location.search);
+  const hasStrayQueryToken = query.has('token');
 
-  if (location.hash.length > 1) {
-    const token = new URLSearchParams(location.hash.slice(1)).get('token');
+  if (hasFragment || hasStrayQueryToken) {
+    query.delete('token');
+    const rest = query.toString();
+    const search = hasStrayQueryToken ? (rest === '' ? '' : `?${rest}`) : location.search;
 
     // Giữ `history.state`: React Router đọc `key` và `idx` ở đó.
-    history.replaceState(history.state, '', location.pathname + location.search);
+    history.replaceState(history.state, '', location.pathname + search);
+  }
 
+  if (hasFragment) {
     if (token !== null && token !== '') {
       remembered.set(key, token);
 

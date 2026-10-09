@@ -130,9 +130,8 @@ export function readSelfName(session: SessionSnapshot): string {
     return SELF_FALLBACK_NAME;
   }
 
-  const named = user.name ?? user.email ?? user.id;
-
-  return named === '' ? SELF_FALLBACK_NAME : named;
+  // `||`, không `??`: `name: ''` của máy chủ phải rơi về email (cùng mẫu BUG-031).
+  return user.name?.trim() || user.email?.trim() || user.id || SELF_FALLBACK_NAME;
 }
 
 /** Số chữ cái một ô đại diện không ảnh hiện được. */

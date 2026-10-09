@@ -25,7 +25,7 @@
  * kịch bản không được nhập `vitest` (Storybook không đóng gói được nó).
  */
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -436,3 +436,20 @@ describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng,
     });
   });
 });
+
+/* QA-01 nợ #8 — avatar ở tấm chi tiết có chữ viết tắt như ở bảng, không trống. */
+describe('avatar ở tấm chi tiết', () => {
+  it('vẽ chữ viết tắt của người đang chọn', async () => {
+    const model = USER_MANAGEMENT_SCENARIO_SUCCESS;
+    const detail = model.detail;
+    if (detail === null) throw new Error('kịch bản success cần một người đang được chọn');
+
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const header = screen.getByRole('heading', { name: detail.user.name }).closest('header');
+    expect(header).not.toBeNull();
+    expect(within(header as HTMLElement).getByLabelText(detail.user.name).textContent).not.toBe('');
+  });
+});
+

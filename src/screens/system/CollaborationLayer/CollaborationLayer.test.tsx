@@ -39,6 +39,7 @@ import { SEVEN_STATES, createSevenStateScenarios } from '@/lib/testing/sevenStat
 import type { SevenStateRow, SevenStateScenario } from '@/lib/testing/sevenStateScenarios';
 
 import { CollaborationLayer } from './CollaborationLayer';
+import { readSelfName, SELF_FALLBACK_NAME } from './collaborationGateway';
 import type {
   CollaborationLayerProps,
   CollaboratorVm,
@@ -321,3 +322,21 @@ describe('isCollapsed === true — con trỏ người khác biến mất, ghim b
     expect(screen.queryByText(MAI.name)).not.toBeNull();
   });
 });
+
+/* QA-01 nợ #22 — tên rỗng (máy chủ trả `name: ''`) phải rơi về email, như BUG-031. */
+describe('readSelfName', () => {
+  const sessionWith = (user: { id: string; name?: string; email?: string }) => ({
+    status: 'authenticated' as const,
+    roles: [],
+    user,
+  });
+
+  it('tên rỗng hoặc chỉ khoảng trắng thì lấy email, rồi mã người dùng', () => {
+    expect(readSelfName(sessionWith({ id: 'u1', name: '', email: 'ha@x.vn' }))).toBe('ha@x.vn');
+    expect(readSelfName(sessionWith({ id: 'u1', name: '   ', email: 'ha@x.vn' }))).toBe('ha@x.vn');
+    expect(readSelfName(sessionWith({ id: 'u1', name: '', email: '' }))).toBe('u1');
+    expect(readSelfName(sessionWith({ id: 'u1', name: 'Thu Hà', email: 'ha@x.vn' }))).toBe('Thu Hà');
+    expect(readSelfName({ status: 'anonymous', roles: [], user: null })).toBe(SELF_FALLBACK_NAME);
+  });
+});
+

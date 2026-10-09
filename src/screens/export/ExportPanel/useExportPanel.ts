@@ -359,7 +359,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   /* Số trang PDF — đếm lại mỗi khi bốn mục đổi                              */
   /* ---------------------------------------------------------------------- */
 
-  const preparerName = session.user?.name ?? session.user?.email ?? '';
+  const preparerName = session.user?.name?.trim() || session.user?.email || '';
 
   // Mốc giờ chỉ đi vào bìa hồ sơ, không đi vào phép đếm trang; dựng một lần cho
   // mỗi cổng để phép đếm không bị bỏ nhớ lại sau mỗi lượt vẽ.

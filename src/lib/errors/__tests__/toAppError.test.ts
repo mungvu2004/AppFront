@@ -95,4 +95,19 @@ describe('errors/toAppError.ts', () => {
     expect(actual.params.floor).toBe('2');
     expect(actual.params.step).toBe('Bước 4');
   });
+
+  it('không đoán "phiên hết hạn" từ chữ tiếng Anh trong lỗi trơn (QA-01 nợ #2)', () => {
+    for (const message of ['Login widget failed to render', 'OAuth popup closed', 'Sign-in button missing handler', 'auth state mismatch']) {
+      expect(toAppError(new Error(message)).kind, message).not.toBe('unauthenticated');
+    }
+    expect(
+      toAppError(makeHttpError({ kind: 'http', raw: { message: 'login service down' }, status: 500 })).kind,
+    ).not.toBe('unauthenticated');
+  });
+
+  it('vẫn nhận kind auth từ dữ liệu có cấu trúc: số 401 hoặc mã UNAUTHENTICATED', () => {
+    expect(toAppError({ status: 401, message: 'x' }).kind).toBe('unauthenticated');
+    expect(toAppError({ code: 'UNAUTHENTICATED' }).kind).toBe('unauthenticated');
+    expect(toAppError(makeHttpError({ code: 'UNAUTHENTICATED', kind: 'http', status: 400 })).kind).toBe('unauthenticated');
+  });
 });

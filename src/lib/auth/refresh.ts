@@ -35,10 +35,11 @@ export const REFRESH_TIMEOUT_MS = 15_000;
  * "thử lại" mà là một thẻ trình duyệt đập vào chính máy chủ đang hồi phục, và
  * nhân với số người đang mở trang thì chuỗi ấy tự nó thành một sự cố thứ hai.
  *
- * Đứng im không phải bỏ cuộc: còn HAI đường khởi động lại, và cả hai đều do
- * người dùng hoặc trình duyệt chủ động — `visibilitychange` (quay lại thẻ thì
+ * Đứng im không phải bỏ cuộc: còn các đường khởi động lại, và tất cả đều do
+ * người dùng hoặc trình duyệt chủ động — `online`/`focus` khi thang đã cạn,
+ * `visibilitychange` (quay lại thẻ thì
  * `scheduleRefreshFromSession` chạy lại) và nút "thử lại" của `SessionGate`
- * (`retryAppSession()` → `bootstrapSession()` khi đã cấu hình). Cả hai đặt `transientAttempt`
+ * (`retryAppSession()` → `bootstrapSession()` khi đã cấu hình). Mọi đường đều đặt `transientAttempt`
  * về 0, nên chúng cho một THANG MỚI đầy đủ chứ không phải đúng một lượt lẻ —
  * một người quay lại thẻ sau bữa trưa xứng đáng được thử lại tử tế.
  */
@@ -264,9 +265,30 @@ const ensureVisibilityHandler = (): void => {
     scheduleRefreshFromSession();
   };
 
+  /*
+   * Thang đã cạn thì `online` (mạng trở lại) và `focus` (người dùng quay về cửa sổ)
+   * cho một thang mới — kể cả khi phiên còn `unknown`, đường mà `visibilitychange`
+   * không với tới (QA-01 nợ #12). Đang giữa thang thì im: lịch hẹn của thang lo.
+   */
+  const onRecoverySignal = (): void => {
+    if (
+      transientAttempt < REFRESH_MAX_TRANSIENT_ATTEMPTS ||
+      getSessionState().status === 'anonymous'
+    ) {
+      return;
+    }
+
+    transientAttempt = 0;
+    void refreshSingleFlight({ source: 'local' });
+  };
+
   document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('online', onRecoverySignal);
+  window.addEventListener('focus', onRecoverySignal);
   removeVisibilityHandler = () => {
     document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('online', onRecoverySignal);
+    window.removeEventListener('focus', onRecoverySignal);
     removeVisibilityHandler = null;
   };
 };
