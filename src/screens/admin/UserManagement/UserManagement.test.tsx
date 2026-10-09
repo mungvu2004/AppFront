@@ -380,6 +380,22 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     expect(email).not.toHaveClass('truncate');
   });
 
+  it('BUG-071: panel chi tiết mở thì bảng bỏ cột phụ, gộp trạng thái vào ô người dùng', async () => {
+    const row = USER_MANAGEMENT_SCENARIO_SUCCESS.rows[0];
+    if (row === undefined) throw new Error('kịch bản thành công phải có ít nhất một hàng');
+    const UserManagementView = await loadUserManagementView();
+    const closed: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: false, selectedUserId: null };
+    const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={closed} />);
+    expect(await screen.findAllByRole('columnheader')).toHaveLength(6);
+    unmount();
+
+    renderWithProviders(
+      <UserManagementView actions={buildActions()} model={{ ...closed, selectedUserId: row.id }} />,
+    );
+    const headers = await screen.findAllByRole('columnheader');
+    expect(headers.map((header) => header.textContent)).toEqual(['Người dùng', 'Vai', 'Hành động']);
+  });
+
   it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);

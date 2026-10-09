@@ -1,6 +1,7 @@
 /**
- * Bảng người dùng: bảy cột — ảnh đại diện + họ tên · email · vai · số dự án · lần hoạt động
- * cuối · trạng thái · hành động. `isCollapsed === true` đổi bảng thành thẻ xếp chồng, không
+ * Bảng người dùng: sáu cột — ảnh đại diện + họ tên + email · vai · số dự án · lần hoạt động
+ * cuối · trạng thái · hành động; panel chi tiết mở thì còn ba (BUG-071: bảng phải vừa
+ * khung, không cuộn ngang). `isCollapsed === true` đổi bảng thành thẻ xếp chồng, không
  * phải bảng thu nhỏ (Đ-7 trạng thái 7).
  *
  * `Table.Row`/`Table.Cell` hard-code `h-10` (40px); 48px của đặc tả đạt được bằng cách
@@ -29,8 +30,7 @@ import type { ProjectRole } from '@/types/project';
 
 import type { RoleOption, UserManagementActions, UserManagementTableProps, UserRowModel } from './types';
 
-const HEADER_USER = 'Họ tên';
-const HEADER_EMAIL = 'Email';
+const HEADER_USER = 'Người dùng';
 const HEADER_ROLE = 'Vai';
 const HEADER_PROJECTS = 'Số dự án';
 const HEADER_LAST_ACTIVE = 'Lần hoạt động cuối';
@@ -44,8 +44,13 @@ const RESEND_INVITE_LABEL = 'Gửi lại';
 const DISABLE_LABEL = 'Vô hiệu hoá';
 const ENABLE_LABEL = 'Bật lại';
 const REMOVE_LABEL = 'Xoá';
-const COLUMN_COUNT = 7;
 const ROW_HEIGHT = 'h-12';
+/**
+ * `Table.Cell` cấm xuống dòng (`whitespace-nowrap`); ở bảng này thì ngược lại: câu lý do
+ * dài ("Bạn không thể tự…") và email dài phải xuống dòng để bảng vừa khung (BUG-071).
+ */
+const WRAP_CELL = cn(ROW_HEIGHT, 'whitespace-normal');
+const BLOCKED_REASON_CLASS = 'max-w-[160px] text-[13px] text-text-secondary';
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
@@ -75,7 +80,7 @@ function RoleCell({ actions, roleOptions, row }: RoleCellProps) {
 
   return (
     <Select.Root
-      className="w-[160px]"
+      className="w-[140px]"
       onChange={(value) => actions.onChangeRole(row.id, value as ProjectRole)}
       options={options}
       value={row.role}
@@ -101,7 +106,9 @@ interface StatusCellProps {
 function StatusCell({ actions, row }: StatusCellProps) {
   return (
     <div className="flex flex-col items-start gap-1">
-      <Badge variant="neutral">{row.statusLabel}</Badge>
+      <Badge className="whitespace-nowrap" variant="neutral">
+        {row.statusLabel}
+      </Badge>
       {row.inviteExpired && (
         <div className="flex items-center gap-1.5 text-[13px] text-state-attention-text">
           <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-state-attention" />
@@ -128,13 +135,13 @@ interface RowActionsProps {
 
 function RowActions({ actions, row }: RowActionsProps) {
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {row.status === 'disabled' ? (
         <Button onClick={() => actions.onEnableUser(row.id)} size="sm" variant="ghost">
           {ENABLE_LABEL}
         </Button>
       ) : row.disableBlockedReason !== null ? (
-        <span className="text-[13px] text-text-secondary">{row.disableBlockedReason}</span>
+        <span className={BLOCKED_REASON_CLASS}>{row.disableBlockedReason}</span>
       ) : (
         <Button onClick={() => actions.onDisableUser(row.id)} size="sm" variant="ghost">
           {DISABLE_LABEL}
@@ -142,7 +149,7 @@ function RowActions({ actions, row }: RowActionsProps) {
       )}
 
       {row.removeBlockedReason !== null ? (
-        <span className="text-[13px] text-text-secondary">{row.removeBlockedReason}</span>
+        <span className={BLOCKED_REASON_CLASS}>{row.removeBlockedReason}</span>
       ) : (
         <Button onClick={() => actions.onOpenRemove(row.id)} size="sm" variant="ghost">
           {REMOVE_LABEL}
@@ -222,6 +229,28 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
   );
 }
 
+/**
+ * Cột của bảng rộng. Panel chi tiết mở thì bảng chỉ còn 560–616 px, nên hai cột phụ (số dự
+ * án, lần hoạt động cuối) nhường chỗ — người đang mở panel đã có chi tiết bên cạnh — và
+ * trạng thái gộp vào ô người dùng, dưới email (BUG-071).
+ */
+function TableHeaderRow({ withSecondary }: { readonly withSecondary: boolean }) {
+  return (
+    <Table.Header>
+      <Table.Row>
+        <Table.Head>{HEADER_USER}</Table.Head>
+        <Table.Head>{HEADER_ROLE}</Table.Head>
+        {withSecondary && <Table.Head>{HEADER_PROJECTS}</Table.Head>}
+        {withSecondary && <Table.Head>{HEADER_LAST_ACTIVE}</Table.Head>}
+        {withSecondary && <Table.Head>{HEADER_STATUS}</Table.Head>}
+        <Table.Head>
+          <span className="sr-only">{HEADER_ACTIONS}</span>
+        </Table.Head>
+      </Table.Row>
+    </Table.Header>
+  );
+}
+
 export function UserManagementTable({
   actions,
   isCollapsed,
@@ -231,24 +260,14 @@ export function UserManagementTable({
   skeletonRowCount,
   state,
 }: UserManagementTableProps) {
+  const withSecondary = selectedUserId === null;
+
   if (state === 'loading') {
     return (
       <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.Head>{HEADER_USER}</Table.Head>
-            <Table.Head>{HEADER_EMAIL}</Table.Head>
-            <Table.Head>{HEADER_ROLE}</Table.Head>
-            <Table.Head>{HEADER_PROJECTS}</Table.Head>
-            <Table.Head>{HEADER_LAST_ACTIVE}</Table.Head>
-            <Table.Head>{HEADER_STATUS}</Table.Head>
-            <Table.Head>
-              <span className="sr-only">{HEADER_ACTIONS}</span>
-            </Table.Head>
-          </Table.Row>
-        </Table.Header>
+        <TableHeaderRow withSecondary={withSecondary} />
         <Table.Body>
-          <Table.Skeleton columns={COLUMN_COUNT} rows={skeletonRowCount} />
+          <Table.Skeleton columns={withSecondary ? 6 : 3} rows={skeletonRowCount} />
         </Table.Body>
       </Table.Root>
     );
@@ -264,19 +283,7 @@ export function UserManagementTable({
 
   return (
     <Table.Root>
-      <Table.Header>
-        <Table.Row>
-          <Table.Head>{HEADER_USER}</Table.Head>
-          <Table.Head>{HEADER_EMAIL}</Table.Head>
-          <Table.Head>{HEADER_ROLE}</Table.Head>
-          <Table.Head>{HEADER_PROJECTS}</Table.Head>
-          <Table.Head>{HEADER_LAST_ACTIVE}</Table.Head>
-          <Table.Head>{HEADER_STATUS}</Table.Head>
-          <Table.Head>
-            <span className="sr-only">{HEADER_ACTIONS}</span>
-          </Table.Head>
-        </Table.Row>
-      </Table.Header>
+      <TableHeaderRow withSecondary={withSecondary} />
       <Table.Body>
         {rows.map((row) => (
           <Table.Row
@@ -285,32 +292,45 @@ export function UserManagementTable({
             key={row.id}
             selected={row.id === selectedUserId}
           >
-            <Table.Cell className={ROW_HEIGHT}>
+            <Table.Cell className={WRAP_CELL}>
               <div className="flex items-center gap-3">
                 <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
-                <button
-                  className={cn('truncate text-left font-medium text-text-primary', FOCUS_RING)}
-                  onClick={() => actions.onSelectUser(row.id)}
-                  type="button"
-                >
-                  {row.name}
-                </button>
+                <div className="flex min-w-0 flex-col">
+                  <button
+                    className={cn('text-left font-medium text-text-primary [overflow-wrap:anywhere]', FOCUS_RING)}
+                    onClick={() => actions.onSelectUser(row.id)}
+                    type="button"
+                  >
+                    {row.name}
+                  </button>
+                  <span className="text-[13px] text-text-secondary [overflow-wrap:anywhere]">{row.email}</span>
+                  {!withSecondary && (
+                    <div className="pt-1">
+                      <StatusCell actions={actions} row={row} />
+                    </div>
+                  )}
+                </div>
               </div>
             </Table.Cell>
-            <Table.Cell className={cn(ROW_HEIGHT, 'text-text-secondary')}>{row.email}</Table.Cell>
-            <Table.Cell className={ROW_HEIGHT}>
+            <Table.Cell className={WRAP_CELL}>
               <RoleCell actions={actions} roleOptions={roleOptions} row={row} />
             </Table.Cell>
-            <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.projectCountLabel}</Table.Cell>
-            <Table.Cell className={ROW_HEIGHT}>
-              <Tooltip label={row.lastActiveExactLabel}>
-                <span>{row.lastActiveLabel}</span>
-              </Tooltip>
-            </Table.Cell>
-            <Table.Cell className={ROW_HEIGHT}>
-              <StatusCell actions={actions} row={row} />
-            </Table.Cell>
-            <Table.Cell className={ROW_HEIGHT}>
+            {withSecondary && (
+              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.projectCountLabel}</Table.Cell>
+            )}
+            {withSecondary && (
+              <Table.Cell className={WRAP_CELL}>
+                <Tooltip label={row.lastActiveExactLabel}>
+                  <span>{row.lastActiveLabel}</span>
+                </Tooltip>
+              </Table.Cell>
+            )}
+            {withSecondary && (
+              <Table.Cell className={WRAP_CELL}>
+                <StatusCell actions={actions} row={row} />
+              </Table.Cell>
+            )}
+            <Table.Cell className={WRAP_CELL}>
               <RowActions actions={actions} row={row} />
             </Table.Cell>
           </Table.Row>
