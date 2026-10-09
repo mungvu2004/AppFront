@@ -56,7 +56,7 @@ import {
 import type { SpatialGraph } from '@/domain/spatial/types';
 import { __resetFloorLayerSavers, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
-import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
+import { installFakeClock, withFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -1234,25 +1234,36 @@ describe('[N8] bốn phím tắt', () => {
 
     /* ---- 4. Ctrl+S xả bộ tự lưu — một lượt ghi THẬT ra endpoint ---------- */
 
-    /* Không đổi gì thì không có gì để gửi (B-V8-41) — một lượt sửa trước đã. */
-    await act(async () => {
-      fireEvent.click(
-        within(view.container).getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }),
-      );
-      await Promise.resolve();
-    });
+    /* Đồng hồ giả từ lượt sửa tới hết Ctrl+S. Trên đồng hồ thật, lượt sửa hẹn bộ đếm 800 ms của
+     * A7, và dưới tải chính `act` của cú bấm dài hơn 800 ms: bộ tự lưu tự xả TRƯỚC Ctrl+S, Ctrl+S
+     * không còn gì để gửi, và bài đỏ "expected 1 to be greater than 1" (QA-01c nợ #12). Đồng hồ
+     * đứng yên thì lượt ghi chỉ có thể đến từ Ctrl+S. */
+    const writesBefore = await withFakeClock(async (clock) => {
+      /* Không đổi gì thì không có gì để gửi (B-V8-41) — một lượt sửa trước đã. */
+      await act(async () => {
+        fireEvent.click(
+          within(view.container).getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }),
+        );
+        await clock.flushMicrotasks();
+      });
 
-    const writesBefore = spied.layerWrites.length;
+      const before = spied.layerWrites.length;
 
-    await act(async () => {
-      fireEvent.keyDown(document.body, { key: 's', ctrlKey: true });
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+      await act(async () => {
+        fireEvent.keyDown(document.body, { key: 's', ctrlKey: true });
+        await clock.flushMicrotasks();
+      });
 
-    await waitFor(() => {
-      expect(spied.layerWrites.length).toBeGreaterThan(writesBefore);
+      /* Ống lưu nạp lười bằng `import()` (`useAutosave.ts`): chờ chính lượt nạp ấy — điều kiện,
+       * không phải giờ. `dynamicImportSettled` dùng bộ hẹn giờ thật vitest giữ riêng. */
+      for (let turn = 0; turn < 50 && spied.layerWrites.length <= before; turn += 1) {
+        await act(async () => {
+          await vi.dynamicImportSettled();
+          await clock.flushMicrotasks();
+        });
+      }
+
+      return before;
     });
 
     const flushed = spied.layerWrites.length - writesBefore;
