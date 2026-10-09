@@ -19,6 +19,7 @@ import { SEVEN_STATES, type SevenState } from '@/lib/testing/sevenStateScenarios
 
 import { ProjectSettings, ProjectSettingsView } from './ProjectSettings';
 import { createProjectSettingsGateway, type ProjectSettingsGateway } from './projectSettingsGateway';
+import { httpError } from './settingsTestKit';
 import {
   toSaveState,
   useProjectSettings,
@@ -571,6 +572,17 @@ describe('ProjectSettings đã nối dây', () => {
 
   const nameField = (): HTMLInputElement =>
     screen.getByRole('textbox', { name: 'Tên dự án' }) as HTMLInputElement;
+
+  it('đọc hỏng ở khổ hẹp: lỗi tải thắng thu gọn, không vẽ biểu mẫu trống (BUG-072)', async () => {
+    const gateway = spyGateway({
+      read: async () => ({ ok: false, error: httpError(404, 'PROJECT_NOT_FOUND') }),
+    });
+    await mountSettings({ gateway, projectId: 'project-missing', roles: ['admin'], forceCollapsed: true });
+
+    expect(screen.getByText('Không tải được cài đặt dự án')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Tên dự án' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Nhóm cài đặt' })).toBeNull();
+  });
 
   it('gửi thay đổi đi 800 ms sau thao tác cuối, không cần ai bấm gì (D-07, A7)', async () => {
     const gateway = spyGateway();

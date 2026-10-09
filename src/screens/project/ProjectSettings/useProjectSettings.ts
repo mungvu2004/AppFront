@@ -137,17 +137,18 @@ export interface ProjectSettingsProblems {
  *
  * **Bất biến, và bậc thang quyết định.** Điều (11) chạy trước: `state` lấy
  * giá trị đầu tiên khớp trong dãy
- * `collapsed → forbidden → loading → error → empty → partial → success`.
+ * `loading → error → collapsed → forbidden → empty → partial → success`.
  * Mười điều còn lại đọc *ở bậc mà chúng thắng* — hai lớp phủ `collapsed` và
  * `forbidden` không bao giờ làm dữ liệu biến mất, chúng chỉ đổi cách xếp và
- * quyền sửa.
+ * quyền sửa; nên khi chưa có dữ liệu (đang tải, tải hỏng) chúng đứng sau
+ * (BUG-072).
  *
  * 1. `errorMessage !== null` ⟺ `state === 'error'`. Đây là lỗi ĐỌC, và
  *    `errorMessage` được đặt sau khi bậc thang chạy xong nên hai vế khớp đúng.
  * 2. `state === 'loading'` ⇒ mọi ô dữ liệu mang mặc định rỗng, và view vẽ
  *    khung xương thay cho biểu mẫu.
- * 3. `canEdit === false` ⟺ `isReadOnly === true`, và khi màn không thu gọn thì
- *    cả hai ⟺ `state === 'forbidden'`. Dữ liệu vẫn hiện đầy đủ; chỉ mất quyền
+ * 3. `canEdit === false` ⟺ `isReadOnly === true`, và khi màn đã tải xong, không
+ *    thu gọn thì cả hai ⟺ `state === 'forbidden'`. Dữ liệu vẫn hiện đầy đủ; chỉ mất quyền
  *    sửa. (Người xem trên màn hẹp rơi vào `collapsed` theo điều 11, `canEdit`
  *    vẫn `false`.)
  * 4. `state === 'collapsed'` không đổi dữ liệu, chỉ đổi cách xếp: dải thẻ thành
@@ -1219,10 +1220,12 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     : null;
 
   const state = useMemo<SevenState>(() => {
-    if (isCollapsed) return 'collapsed';
-    if (!canEdit) return 'forbidden';
+    // Chưa có dữ liệu thì không có gì để xếp lại hay khoá: tải và lỗi tải thắng hai
+    // lớp phủ, nếu không màn hẹp vẽ biểu mẫu trống thay cho lỗi (BUG-072).
     if (settingsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
+    if (isCollapsed) return 'collapsed';
+    if (!canEdit) return 'forbidden';
     if (floorCount === 0) return 'empty';
     if (saveState === 'saving' || saveState === 'pending' || hasProblem || saveFailureMessage !== null) {
       return 'partial';
