@@ -11,7 +11,7 @@
 | Prop | Kiểu | Mặc định | Mô tả |
 |---|---|---|---|
 | `variant` | `'primary' \| 'secondary' \| 'ghost' \| 'danger'` | `'primary'` | Biến thể nút |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | 32 / 36 / 40 px (lg: 44 px dưới 640 px) |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | 32 / 36 / 40 px (md, lg: 44 px dưới 640 px; nút chỉ icon giữ nguyên) |
 | `iconBefore` | `ReactNode` | — | Icon trước nhãn |
 | `iconAfter` | `ReactNode` | — | Icon sau nhãn |
 | `loading` | `boolean` | `false` | Spinner, giữ chiều rộng |
