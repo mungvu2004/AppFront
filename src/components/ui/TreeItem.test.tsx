@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { TreeItem } from './TreeItem';
 
@@ -21,19 +22,23 @@ describe('TreeItem', () => {
     expect(item).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('calls onClick when Enter key is pressed', () => {
+  it('calls onClick when Enter key is pressed', async () => {
+    const user = userEvent.setup();
     const onClick = vi.fn();
     render(<TreeItem label="Item" onClick={onClick} />);
     const item = screen.getByRole('treeitem');
-    fireEvent.keyDown(item, { key: 'Enter' });
+    act(() => item.focus());
+    await user.keyboard('{Enter}');
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('calls onClick when Space key is pressed', () => {
+  it('calls onClick when Space key is pressed', async () => {
+    const user = userEvent.setup();
     const onClick = vi.fn();
     render(<TreeItem label="Item" onClick={onClick} />);
     const item = screen.getByRole('treeitem');
-    fireEvent.keyDown(item, { key: ' ' });
+    act(() => item.focus());
+    await user.keyboard('[Space]');
     expect(onClick).toHaveBeenCalledOnce();
   });
 

@@ -20,6 +20,7 @@ Sử dụng qua Context / Provider `useToast()` hoặc hook `useUndoableToast` (
 ## 4. InlineAlert
 - Dùng để hiển thị thông báo ngay tại chỗ thay vì Modal chặn.
 - Có 3 level: `verified`, `attention`, `violation`.
+- `action` đứng cùng hàng chữ khi đủ chỗ; khung hẹp hơn ~240 px chữ + nút thì nút xuống hàng dưới, sát phải (không ép chữ thành cột).
 
 ## 5. PipelineStepper
 - Hiển thị quy trình 6 bước của hệ thống.

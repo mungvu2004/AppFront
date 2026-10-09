@@ -41,9 +41,12 @@
 
      Không sửa giá trị nào của `:root` bên dưới nếu không có lý do tương phản AA
      đo được — chín màn đã xong đang đọc chúng. Ngoại lệ đã có: `--text-muted`
-     sáng #999691 → #726f6c (FIX-580, BUG-042, 2,68:1 → 4,55:1 trên `--bg-app`).
-     Hệ quả phải biết: muted và secondary sáng nay gần nhau (1,11:1; tối 1,40:1),
-     nên hover từ muted lên secondary gần như không thấy — dùng `text-primary`.
+     sáng #999691 → #726f6c (FIX-580, BUG-042, 2,68:1 → 4,55:1 trên `--bg-app`)
+     → #6d6a67, và tối #969189 → #9d9891 (FIX-653: muted phải đạt 4,5:1 trên MỌI
+     nền nó nằm lên — sunken, selected/accent-wash, flash, tint trạng thái, hover —
+     không chỉ trên app/surface; bảng đủ ở dưới).
+     Hệ quả phải biết: muted và secondary sáng nay gần như một (1,03:1; tối 1,28:1),
+     nên hover từ muted lên secondary không thấy — dùng `text-primary`.
 
      ## Đo tương phản (A11y, ngưỡng 4,5:1)
 
@@ -54,8 +57,22 @@
      | `--text-secondary` | `--bg-app`     |  7,71:1 |  5,06:1 |
      | `--text-secondary` | `--bg-surface` |  6,93:1 |  5,55:1 |
 
-     `--text-muted` tối đạt 5,50:1 trên `--bg-app` và 4,94:1 trên `--bg-surface`;
-     bản sáng (#726f6c) đạt 4,55:1 và 4,99:1.
+     `--text-muted` (sáng #6d6a67, tối #9d9891) trên mọi nền chữ muted nằm lên:
+
+     | nền | sáng | tối |
+     |---|---|---|
+     | `--bg-app`                 | 4,89:1 | 6,01:1 |
+     | `--bg-surface`             | 5,37:1 | 5,41:1 |
+     | `--bg-sunken`              | 4,64:1 | 6,43:1 |
+     | `--bg-selected`/`--accent-wash` | 4,77:1 | 4,72:1 |
+     | `--bg-flash`               | 4,82:1 | 5,14:1 |
+     | `--state-violation-tint`/`--danger-tint` | 4,76:1 | 5,52:1 |
+     | `--state-attention-tint`   | 4,98:1 | 5,25:1 |
+     | `--bg-hover` trên app      | 4,59:1 | 5,19:1 |
+     | `--bg-hover` trên surface  | 5,04:1 | 4,61:1 |
+
+     Trước FIX-653 sáng hỏng ở sunken 4,31, selected 4,43, flash 4,48, tint đỏ 4,42,
+     hover/app 4,27; tối hỏng ở selected 4,31, hover/surface 4,21.
 
      `--border-control` là viền của ô nhập, ô chọn, checkbox, radio (WCAG 1.4.11,
      ≥ 3:1 — BUG-045). Token RIÊNG, không mượn `--text-muted`: viền cần ~3:1 chứ
@@ -80,7 +97,11 @@
      ## A2 và A4 vẫn nguyên
 
      `--accent` sáng lên để đọc được trên nền tối (6,01:1 trên `--bg-surface`)
-     nhưng vẫn là màu DUY NHẤT dành cho thứ tương tác được. Và đúng BA màu trạng
+     và ở chủ đề sáng tối đi một nấc (#567a96 → #4d6e87, FIX-654) để chữ `text-accent`
+     đạt 4,5:1 trên mọi nền: app 4,91, surface 5,39, sunken 4,66, accent-wash/selected
+     4,78, flash 4,83, hover/app 4,61 (trước: 4,14 · 4,55 · 3,93 · 4,03 · 4,07 · 3,89).
+     Hover/active tối theo cùng tỉ lệ (#436078, #395468), nấc giữa chúng vẫn ~1,2:1.
+     Chữ trên nút chính (`--bg-surface` trên `--accent`) nay 5,39:1. Vẫn là màu DUY NHẤT dành cho thứ tương tác được. Và đúng BA màu trạng
      thái — verified, attention, violation. Màu thứ tư là thứ A4 tồn tại để chặn.
      ------------------------------------------------------------------------ */
   html.dark {
@@ -110,7 +131,7 @@
 
     --text-primary: #ece9e3;
     --text-secondary: #b2ada4;
-    --text-muted: #969189;
+    --text-muted: #9d9891;
 
     --danger-tint: #2e1f1c;
     --danger-border: #5a3a33;
@@ -155,9 +176,10 @@
     --shadow-color-panel: rgba(43, 42, 40, 0.04);
     --shadow-color-modal: rgba(0, 0, 0, 0.15);
 
-    --accent: #567a96;
-    --accent-hover: #4a6b85;
-    --accent-active: #3f5d74;
+    /* #567a96 cũ chỉ 3,93–4,14:1 với chữ trên sunken/wash/app (bảng ở mục A2). */
+    --accent: #4d6e87;
+    --accent-hover: #436078;
+    --accent-active: #395468;
     --accent-wash: #edf2f6;
 
     --bg-app: #f6f4f0;
@@ -173,9 +195,10 @@
     --text-primary: #33322f;
     --text-secondary: #6b6862;
     /* #999691 cũ chỉ 2,68:1 trên `--bg-app` mà đa số chỗ dùng là chữ thật (BUG-042).
-       #726f6c: 4,55:1 trên `--bg-app`, 4,99:1 trên `--bg-surface`. Cũng là màu icon
-       trong ô (BUG-044); viền control nay có token riêng `--border-control`. */
-    --text-muted: #726f6c;
+       #6d6a67: ≥ 4,59:1 trên mọi nền chữ muted nằm lên (bảng ở đầu file; #726f6c trước
+       đó hỏng trên sunken/selected/flash). Cũng là màu icon trong ô (BUG-044); viền
+       control có token riêng `--border-control`. */
+    --text-muted: #6d6a67;
 
     --danger-tint: #f9efed;
     --danger-border: #e8cfc9;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { TableActionBar } from './TableActionBar';
 
@@ -65,14 +66,15 @@ describe('TableActionBar', () => {
     expect(onDeselect).toHaveBeenCalledOnce();
   });
 
-  it('calls onDeselect when Escape is pressed', () => {
+  it('calls onDeselect when Escape is pressed', async () => {
+    const user = userEvent.setup();
     const onDeselect = vi.fn();
     render(
       <div className="relative">
         <TableActionBar selectedCount={3} onDeselect={onDeselect} />
       </div>
     );
-    fireEvent.keyDown(document, { key: 'Escape' });
+    await user.keyboard('{Escape}');
     expect(onDeselect).toHaveBeenCalledOnce();
   });
 

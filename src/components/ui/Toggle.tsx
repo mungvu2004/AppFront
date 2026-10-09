@@ -69,8 +69,8 @@ export function Toggle(props: ToggleProps) {
   if (isLoading) {
     return (
       <div className={cn('flex items-center gap-3', className)}>
-        <div className="h-5 w-9 rounded-full bg-bg-sunken animate-pulse" />
-        {label && <div className="h-4 w-20 rounded bg-bg-sunken animate-pulse" />}
+        <div className="h-5 w-9 rounded-full bg-border-default animate-pulse" />
+        {label && <div className="h-4 w-20 rounded bg-border-default animate-pulse" />}
       </div>
     );
   }
@@ -91,7 +91,9 @@ export function Toggle(props: ToggleProps) {
       className={cn(
         'relative flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 outline-none transition-colors duration-180',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
-        currentChecked ? 'bg-accent' : 'bg-bg-sunken',
+        // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
+        // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.
+        currentChecked ? 'bg-accent' : 'bg-border-control',
         (disabled || isReadOnly) && 'cursor-not-allowed opacity-40',
       )}
     >

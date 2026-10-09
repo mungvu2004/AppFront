@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { SegmentedControl } from './SegmentedControl';
 
@@ -46,19 +47,21 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radiogroup')).toBeInTheDocument();
   });
 
-  it('navigates with ArrowRight key', () => {
+  it('navigates with ArrowRight key', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<SegmentedControl options={options} defaultValue="2d" onChange={onChange} aria-label="Nav" />);
-    const radiogroup = screen.getByRole('radiogroup');
-    fireEvent.keyDown(radiogroup, { key: 'ArrowRight' });
+    act(() => screen.getByRole('radio', { checked: true }).focus());
+    await user.keyboard('{ArrowRight}');
     expect(onChange).toHaveBeenCalledWith('3d');
   });
 
-  it('navigates with ArrowLeft key', () => {
+  it('navigates with ArrowLeft key', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<SegmentedControl options={options} defaultValue="3d" onChange={onChange} aria-label="Nav" />);
-    const radiogroup = screen.getByRole('radiogroup');
-    fireEvent.keyDown(radiogroup, { key: 'ArrowLeft' });
+    act(() => screen.getByRole('radio', { checked: true }).focus());
+    await user.keyboard('{ArrowLeft}');
     expect(onChange).toHaveBeenCalledWith('2d');
   });
 });

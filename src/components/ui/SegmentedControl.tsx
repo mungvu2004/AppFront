@@ -142,7 +142,7 @@ export const SegmentedControl = Object.assign(
     };
 
     if (isLoading) {
-      return <div className={cn('h-9 w-full rounded-lg bg-bg-sunken animate-pulse', className)} />;
+      return <div className={cn('h-9 w-full rounded-lg bg-border-default animate-pulse', className)} />;
     }
 
     return (

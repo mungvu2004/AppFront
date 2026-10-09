@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { Tabs } from './Tabs';
 
@@ -33,19 +34,23 @@ describe('Tabs', () => {
     expect(onChange).toHaveBeenCalledWith('objects');
   });
 
-  it('navigates with ArrowRight key', () => {
+  it('navigates with ArrowRight key', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Tabs tabs={tabs} activeId="walls" onChange={onChange} />);
     const tab = screen.getByRole('tab', { name: 'Tường' });
-    fireEvent.keyDown(tab, { key: 'ArrowRight' });
+    act(() => tab.focus());
+    await user.keyboard('{ArrowRight}');
     expect(onChange).toHaveBeenCalledWith('objects');
   });
 
-  it('navigates with ArrowLeft key', () => {
+  it('navigates with ArrowLeft key', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Tabs tabs={tabs} activeId="objects" onChange={onChange} />);
     const tab = screen.getByRole('tab', { name: 'Đối tượng' });
-    fireEvent.keyDown(tab, { key: 'ArrowLeft' });
+    act(() => tab.focus());
+    await user.keyboard('{ArrowLeft}');
     expect(onChange).toHaveBeenCalledWith('walls');
   });
 

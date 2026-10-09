@@ -51,4 +51,11 @@ describe('Toggle', () => {
     render(<Toggle aria-label="Focus" />);
     expect(screen.getByRole('switch').className).toMatch(/focus-visible:ring-2/);
   });
+
+  // QA-01b nợ #3: the off track must stand 3:1 off the page, not melt into it.
+  it('draws the off track with the control border token', () => {
+    render(<Toggle aria-label="Bật/tắt" />);
+    expect(screen.getByRole('switch')).toHaveClass('bg-border-control');
+    expect(screen.getByRole('switch')).not.toHaveClass('bg-bg-sunken');
+  });
 });
