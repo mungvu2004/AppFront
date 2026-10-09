@@ -46,3 +46,16 @@ export async function signInAdmin(page: Page, destination: string = ROUTES.dashb
   expect((await login).status(), 'POST /api/auth/login').toBe(204);
   await expect.poll(() => pathOf(page.url())).toBe(destination);
 }
+
+/** `ProjectDashboard.tsx` h1 — the dashboard screen has painted. */
+export const DASHBOARD_TITLE = 'Dự án của tôi';
+
+/**
+ * BUG-089: the h1 paints before the project list; while `state === 'loading'` the list is six `Skeleton` cards
+ * (`animate-pulse`, ProjectDashboard.tsx:245-250). Evidence of "signed in, on the dashboard" waits for them to go
+ * (grid, list, empty state or error — whichever the account has).
+ */
+export async function dashboardLoaded(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: DASHBOARD_TITLE, exact: true })).toBeVisible();
+  await expect(page.locator('main .animate-pulse'), 'project list loaded (no skeleton card left)').toHaveCount(0);
+}

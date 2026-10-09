@@ -28,7 +28,7 @@ import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/s
 import { waitForApiWhere, watchApi } from '../../e2e/fullstack/apiWatch';
 import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
-import { readAdminCredentials } from './support/auth';
+import { dashboardLoaded, readAdminCredentials } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE, resetState, updateState } from './support/state';
 
@@ -370,8 +370,9 @@ test.describe('SCR-02 Login', () => {
     await submitAdminCredentials(page, api);
 
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.dashboard);
-    // The URL flips before the lazy screen paints; capture the dashboard, not the "Đang tải màn hình" shell.
-    await expect(h1(page, DASHBOARD_TITLE)).toBeVisible();
+    // The URL flips before the lazy screen paints, and the h1 before the list: capture the loaded dashboard,
+    // not the "Đang tải màn hình" shell nor the skeleton cards (BUG-089).
+    await dashboardLoaded(page);
     await captureEvidence(page, '02_login_submitted.png');
 
     const cookie = await refreshCookie(context);
