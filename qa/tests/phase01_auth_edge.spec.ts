@@ -197,7 +197,8 @@ const rememberBox = (page: Page) => page.getByRole('checkbox', { name: REMEMBER_
 /** The panel's always-mounted live region, a `div` since 7735bcda (ForgotPasswordPanel.tsx:57-65). */
 const forgotStatus = (page: Page) => page.locator('form [role="status"]');
 /** The recovery forms' always-mounted live line (InvitationAccept.tsx:109-114, PasswordReset.tsx:75-77). */
-const recoveryStatus = (page: Page) => page.locator('form p[role="status"]');
+// RecoveryStatus (RecoveryShell.tsx) is a `div[role=status]` since BUG-097.
+const recoveryStatus = (page: Page) => page.locator('form [role="status"]');
 /** An InlineAlert carrying `text`; its title, when there is one, is an `h4` (InlineAlert.tsx:40-61). */
 const alertWith = (page: Page, text: string) => page.getByRole('alert').filter({ hasText: text });
 
