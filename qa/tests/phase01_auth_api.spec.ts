@@ -2,7 +2,9 @@
  * Phase 1 — Auth BACKEND through the real API (skill `qa-api-test`), no browser, NO mocks.
  * Endpoints: POST /api/auth/login, /refresh, /logout (BE `apps/api/auth/router.py`), POST
  * /api/auth/password-reset, /password-reset/confirm, /invitations/accept (BE `apps/api/auth_recovery/router.py`).
- * Inventory + mock-pairing table: `qa/coverage/phase01-be.md`. `BE:` = `AppBack/fix378-x`.
+ * Inventory + mock-pairing table: `qa/coverage/phase01-be.md`. `BE:` = `AppBack/fix378-x`; the gap tests marked
+ * "(gap)" cite `F:/App/AppBack` (qa.config backendSourceRoot) line numbers — some older citations above differ
+ * from that tree (e.g. login_guard.py:403-414 there = :41-53 + :100-119 here), see the coverage file.
  *
  * ## Non-serial, own data
  * Every test opens its own request contexts; nothing is shared between tests. Users are invited by the
@@ -16,20 +18,26 @@
  * ## Real-backend budget per run (BE defaults; the QA stack is meant to add qa-limits.override.yml, see below)
  * - recovery routes (`recovery_ip`, BE:apps/api/auth_recovery/settings.py:24-25 = 10 / 900 s per IP by default,
  *   shared by all three routes, counted BEFORE body validation — BE:apps/api/core/ratelimit.py:115-117):
- *   THIS file 11 = invitation 2 (accept, reuse) + reset flow 4 (setup accept, request, confirm, reuse) +
- *   token-too-long 1 + body-rule 422 pairs 4 (accept token, accept password, confirm newPassword, request email).
- *   UI specs of the phase: 7 = `phase01_auth_edge` 6 (forgot unknown address, invitation bogus token, real
- *   invitation accept 1, real reset 3) + `phase01_recovery_edge` 1 (bidi name). Phase sum 18 in one window.
- *   11 > 10 already for THIS file alone, so the stack MUST run with `qa.config.json` env.stackOverride
- *   (`qa-limits.override.yml`: RECOVERY_IP_LIMIT=60 → 18 ≤ 60). Without it (BUG-053) the last body-rule
- *   pair gets 429 and says so; the edge step then needs a fresh 900 s window.
+ *   THIS file 24 = invitation 2 (accept, reuse) + reset flow 4 (setup accept, request, confirm, reuse) +
+ *   token-too-long 1 + purpose/boundary 2 (confirm with an invitation token, accept) + cooldown 5 (setup accept,
+ *   request x2, accept with a reset token, confirm) + disabled 3 (setup accept, request, confirm) + body-rule
+ *   422 pairs 7 (accept token, accept password, confirm newPassword, request email, fullName blank/121/Cc).
+ *   UI specs of the phase: 8 = `phase01_auth_edge` 7 (its header: forgot unknown address, invitation bogus
+ *   token, bidi name, Mailpit pair 4) + `phase01_recovery_edge` 1 (bidi name). Phase sum 32 in one window.
+ *   24 > 10 already for THIS file alone, so the stack MUST run with `qa.config.json` env.stackOverride
+ *   (`qa-limits.override.yml`: RECOVERY_IP_LIMIT=60 → 32 ≤ 60). Without it (BUG-053) the later recovery
+ *   tests get 429 and the body-rule pairs say so; the edge step then needs a fresh 900 s window.
  *   403 ORIGIN_MISMATCH costs nothing: `require_origin` runs before the limiter (router.py:232,280,342).
- * - `POST /api/auth/login` per IP 30 / 60 s (BE:apps/api/auth/settings.py:36-37), every attempt incl. 422:
- *   THIS file 20 (validation 4, lock 7, refresh 1, logout 1, invitation 4, reset 3). Admin FAILED attempts = 0.
+ * - `POST /api/auth/login` per IP 30 / 60 s (F:/App/AppBack apps/api/auth/settings.py:36-37), every attempt
+ *   incl. 422: THIS file 28 = validation 5 (incl. malformed JSON, which FastAPI may reject before the limiter
+ *   dependency: counted anyway) + lock 7 + rotation 1 + logout 1 + replace 2 + invitation 4 + reset 3 +
+ *   purpose 3 (signedInApi, carried admin session, NFC sign-in) + cooldown 1 + disabled 1. 28 <= 30 even if
+ *   every one fell in one 60 s window. The UI layer spends 28 of its own (edge 20 + main 6 + recovery 2), so
+ *   the runner keeps the layers sequential: they must not share a 60 s window. Admin FAILED attempts = 0.
  * - per (email, IP): lock after 5 attempts / 900 s (settings.py:38-40): only on a run-unique address.
- * - `POST /api/users/invitations`: 30 / h per admin (BE:apps/api/users/router.py:32-43): THIS file 2.
+ * - `POST /api/users/invitations`: 30 / h per admin (BE:apps/api/users/router.py:32-43): THIS file 5 (+ edge 2).
  * - `POST /api/auth/refresh`: fail bucket 20 / 60 s per (sid, token) — exhausted on purpose only for a
- *   random, non-existent sid; total 300 / 60 s per sid (settings.py:43-46).
+ *   random, non-existent sid (+ 1 forged token on this file's own sid); total 300 / 60 s per sid (settings.py:43-46).
  */
 import { randomUUID } from 'node:crypto';
 
@@ -212,6 +220,33 @@ async function adminApi(): Promise<APIRequestContext> {
   return signedInApi(email, password);
 }
 
+const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppBack'; // F:/App/AppBack apps/api/auth_recovery/messages.py:36
+
+/** Setup (1 recovery request): the invitee accepts with the mailed token → active user + live session cookie. */
+async function acceptInvite(api: APIRequestContext, invited: Invited, evidence: string): Promise<{ password: string; session: string }> {
+  const password = testPassword();
+  const body = { token: invited.token, fullName: `${PREFIX}accept`, password };
+  const res = await post(api, '/api/auth/invitations/accept', body);
+  await captureExchange(evidence, { method: 'POST', path: '/api/auth/invitations/accept', body }, res, [
+    'setup: invitee accepts with the real mailed token → 204, active user with a live session',
+  ]);
+  expect(res.status()).toBe(204);
+  return { password, session: cookieValue(res, REFRESH) };
+}
+
+/** 1 recovery request: `POST /password-reset` for an active user → 204 + the real mailed token. */
+async function mailedResetToken(api: APIRequestContext, email: string, evidence: string): Promise<{ token: string; mailId: string }> {
+  const since = new Date(Date.now() - 5_000);
+  const body = { email };
+  const res = await post(api, '/api/auth/password-reset', body);
+  await captureExchange(evidence, { method: 'POST', path: '/api/auth/password-reset', body }, res, [
+    '204 for an active user with no live reset token → a token is issued and mailed (auth_recovery/router.py:186-198,215-245)',
+  ]);
+  expect(res.status()).toBe(204);
+  const mail = await waitForMail(email, since, 30_000, RESET_SUBJECT);
+  return { token: tokenFrom(mail, '/login/reset-password'), mailId: mail.id };
+}
+
 /* ------------------------------------------------------------------ login: body rules */
 
 test.describe('A01 POST /api/auth/login — body rules (SignInBody, BE:apps/api/auth/router.py:68-79)', () => {
@@ -270,6 +305,23 @@ test.describe('A01 POST /api/auth/login — body rules (SignInBody, BE:apps/api/
         '422 code VALIDATION field "email" (emails.py:40-41)',
       ]);
       await expectError(res, 422, 'VALIDATION', 'email');
+    } finally {
+      await api.dispose();
+    }
+  });
+
+  test('A01 · (gap) login 400 MALFORMED_JSON for a body that is not JSON — only code + requestId, no field', async () => {
+    // F:/App/AppBack apps/api/core/errors.py:47,170-174: a `json_invalid` error → AppError(MALFORMED_JSON)
+    // (error_codes.py:8, 400) with no params → W7 body {code, requestId} (errors.py:82-88).
+    const api = await newApiContext();
+    try {
+      const raw = '{"email":';
+      const res = await api.post('/api/auth/login', { data: raw, headers: { 'Content-Type': 'application/json' } });
+      await captureExchange('A01_login_400_malformed_json.json', { method: 'POST', path: '/api/auth/login', body: raw }, res, [
+        'truncated JSON body → 400 code MALFORMED_JSON, body keys exactly {code, requestId}',
+      ]);
+      const body = await expectError(res, 400, 'MALFORMED_JSON');
+      expect(Object.keys(body).sort()).toEqual(['code', 'requestId']);
     } finally {
       await api.dispose();
     }
@@ -519,6 +571,66 @@ test.describe('A01 POST /api/auth/logout (BE:apps/api/auth/router.py:285-296)', 
   });
 });
 
+/* ------------------------------------------------------------------ login over an existing session (gap) */
+
+test.describe('A01 POST /api/auth/login over an existing session (F:/App/AppBack apps/api/auth/sessions.py:195-263)', () => {
+  test('A01 · (gap) a second login carrying the first refresh cookie, address padded + upper-case → 204 new sid; the first session is revoked "replaced" → 401 SESSION_REVOKED; a forged token on the new sid → 401 UNAUTHENTICATED and the new session survives', async () => {
+    // router.py:166-191: validate_wire_email trims (emails.py:37), lookup by normalize_email = NFC + strip +
+    // casefold (packages/core/text.py:17-19; router.py:142-151); start_session(replaced_cookie=…) revokes the
+    // carried session (sessions.py:210-211 → revoke_by_cookie :239-263). Forged token: not current/previous and
+    // not on the chain → "unknown" → UNAUTHENTICATED, nothing revoked (sessions.py:435-436,455-456).
+    const { email, password } = readAdminCredentials();
+    const api = await newApiContext();
+    let live: string | undefined;
+    try {
+      const first = await login(api, email, password);
+      expect(first.status()).toBe(204);
+      const c0 = cookieValue(first, REFRESH);
+      live = c0;
+
+      const body = { email: `  ${email.toUpperCase()}  `, password, rememberMe: false };
+      const second = await post(api, '/api/auth/login', body, asCookie(c0));
+      await captureExchange('A01_login_replaces_session.json', { method: 'POST', path: '/api/auth/login', body }, second, [
+        'address with surrounding spaces and upper case → 204 (trim + casefold lookup)',
+        'the request carries the first session cookie → new session with another sid + both cookies',
+        cookieShape(second, REFRESH),
+      ]);
+      expect(second.status()).toBe(204);
+      expectSessionCookies(second, false);
+      const c1 = cookieValue(second, REFRESH);
+      live = c1;
+      expect(c1.split('.')[0]).not.toBe(c0.split('.')[0]);
+
+      const replaced = await refresh(api, c0);
+      await captureExchange('A01_login_replaced_session_revoked.json', { method: 'POST', path: '/api/auth/refresh' }, replaced, [
+        'the first (carried) session → 401 code SESSION_REVOKED (reason "replaced")',
+      ]);
+      await expectError(replaced, 401, 'SESSION_REVOKED');
+
+      const forged = await refresh(api, `${c1.split('.')[0]}.${'Q'.repeat(43)}`);
+      await captureExchange('A01_refresh_forged_token.json', { method: 'POST', path: '/api/auth/refresh' }, forged, [
+        'well-formed cookie, real live sid, forged token → 401 code UNAUTHENTICATED (not SESSION_REVOKED)',
+      ]);
+      await expectError(forged, 401, 'UNAUTHENTICATED');
+
+      const alive = await refresh(api, c1);
+      await captureExchange('A01_refresh_after_forged.json', { method: 'POST', path: '/api/auth/refresh' }, alive, [
+        'the real cookie of that sid after the forged attempt → 200 W16 roles ["admin"] (the session was not revoked)',
+        `refresh re-issues the stream cookie: ${cookieShape(alive, STREAM)} (router.py:266-275)`,
+      ]);
+      await expectW16(alive, 'admin');
+      expect(setCookie(alive, STREAM), 'appback_stream re-issued on refresh').toMatch(/Path=\/api\/streams/u);
+      const wireUser = ((await alive.json()) as Json).user as Json;
+      expect(String(wireUser.email).toLowerCase()).toBe(email.toLowerCase());
+      live = cookieValue(alive, REFRESH);
+    } finally {
+      // Cleanup: revoke the admin session this test opened (logout is not rate-limited).
+      if (live) await post(api, '/api/auth/logout', undefined, asCookie(live)).catch(() => undefined);
+      await api.dispose();
+    }
+  });
+});
+
 /* ------------------------------------------------------------------ invitation (real token) */
 
 test.describe('A01 POST /api/auth/invitations/accept — real Mailpit token (BE:apps/api/auth_recovery/router.py:337-365)', () => {
@@ -688,6 +800,164 @@ test.describe('A01 POST /api/auth/password-reset + /confirm — real Mailpit tok
   });
 });
 
+/* ------------------------------------------------------------------ one-time tokens: purpose, cooldown, disable (gaps) */
+
+test.describe('A01 one-time tokens — purpose, boundaries, cooldown, disable (real Mailpit tokens; F:/App/AppBack apps/api/auth_recovery)', () => {
+  test('A01 · (gap) an invitation token on /password-reset/confirm → 422 PASSWORD_RESET_TOKEN_INVALID and is NOT consumed; accept then works with a 120-character name + an NFD password while carrying another session cookie → 204 and that session is revoked "replaced"; the NFC form of the password signs in (pairs recovery_edge SCR-03 mocked "signed in, 204")', async () => {
+    // find_active_token filters by purpose (tokens.py:200-207) → confirm 422 (router.py:286-287), nothing consumed.
+    // fullName: clean_text NFC + trim, 1..120 (router.py:59,64-69,98-102). Accept opens a session with
+    // replaced_cookie (router.py:356-364 → sessions.py:210-211). Passwords: NFC before hash and verify
+    // (auth/passwords.py:120-129).
+    let admin: APIRequestContext | undefined;
+    let invited: Invited | undefined;
+    let adminSession: string | undefined;
+    const mails: string[] = [];
+    const api = await newApiContext();
+    try {
+      admin = await adminApi();
+      invited = await invite(admin, testEmail('purpose'), 'A01_purpose_invite_setup.json');
+      mails.push(invited.mailId);
+      const { email: adminEmail, password: adminPassword } = readAdminCredentials();
+      const adminLogin = await login(api, adminEmail, adminPassword);
+      expect(adminLogin.status()).toBe(204);
+      adminSession = cookieValue(adminLogin, REFRESH);
+
+      const wrongBody = { token: invited.token, newPassword: testPassword() };
+      const wrong = await post(api, '/api/auth/password-reset/confirm', wrongBody);
+      await captureExchange('A01_purpose_invite_on_confirm_422.json', { method: 'POST', path: '/api/auth/password-reset/confirm', body: wrongBody }, wrong, [
+        'a real, unused INVITATION token on the reset confirm → 422 code PASSWORD_RESET_TOKEN_INVALID (purpose filter)',
+      ]);
+      await expectError(wrong, 422, 'PASSWORD_RESET_TOKEN_INVALID');
+
+      const fullName = `${PREFIX}${'\u1EC5'.repeat(120 - PREFIX.length)}`; // precomposed "ễ": 120 code points in NFC
+      expect(fullName.length).toBe(120);
+      const nfdPassword = `Qa-${randomUUID()}-Nguye\u0302\u0303n`;
+      const nfcPassword = nfdPassword.normalize('NFC');
+      expect(nfcPassword).not.toBe(nfdPassword);
+      const body = { token: invited.token, fullName, password: nfdPassword };
+      const accepted = await post(api, '/api/auth/invitations/accept', body, asCookie(adminSession));
+      await captureExchange('A01_purpose_accept_204.json', { method: 'POST', path: '/api/auth/invitations/accept', body }, accepted, [
+        'the SAME invitation token after the wrong-purpose call → 204 (it was not consumed)',
+        'fullName of exactly 120 characters is accepted (upper bound); password sent in NFD',
+        'request carried an admin session cookie → a new invitee session is opened',
+        `${cookieShape(accepted, REFRESH)} | ${cookieShape(accepted, STREAM)}`,
+      ]);
+      expect(accepted.status()).toBe(204);
+      expectSessionCookies(accepted, false);
+      const session = cookieValue(accepted, REFRESH);
+
+      const replaced = await refresh(api, adminSession);
+      await captureExchange('A01_purpose_accept_replaced_session.json', { method: 'POST', path: '/api/auth/refresh' }, replaced, [
+        'the admin session carried by the accept → 401 code SESSION_REVOKED (reason "replaced")',
+      ]);
+      await expectError(replaced, 401, 'SESSION_REVOKED');
+      adminSession = undefined;
+
+      const w16 = await refresh(api, session);
+      await captureExchange('A01_purpose_accept_w16.json', { method: 'POST', path: '/api/auth/refresh' }, w16, [
+        '200 W16: roles ["viewer"], user.id = invited id, user.name = the 120-character name unchanged',
+      ]);
+      await expectW16(w16, 'viewer', { id: invited.id, email: invited.email, name: fullName });
+
+      const signIn = await login(api, invited.email, nfcPassword);
+      await captureExchange('A01_purpose_nfc_login_204.json', { method: 'POST', path: '/api/auth/login', body: { email: invited.email, password: nfcPassword, rememberMe: false } }, signIn, [
+        'login with the NFC form of the password set in NFD → 204 + session cookies',
+      ]);
+      expect(signIn.status()).toBe(204);
+      expectSessionCookies(signIn, false);
+    } finally {
+      if (adminSession) await post(api, '/api/auth/logout', undefined, asCookie(adminSession)).catch(() => undefined);
+      await api.dispose();
+      await cleanup(admin, invited, mails);
+    }
+  });
+
+  test('A01 · (gap) reset cooldown (C28): a second request within 15 min → 204 but issues nothing, so the first mailed token is not superseded; a reset token on /invitations/accept → 422 INVITATION_TOKEN_INVALID and is NOT consumed; that first token then confirms → 204', async () => {
+    // router.py:165-175 (_reset_eligible: existing live token younger than password_reset_cooldown_min = 15,
+    // settings.py:23) → plan "noop" (:186-198,215-224). A new token would supersede the old one
+    // (tokens.py:118-122), so a successful confirm with token #1 proves nothing was issued. Purpose filter:
+    // tokens.py:200-207 → accept 422 (router.py:348-349).
+    let admin: APIRequestContext | undefined;
+    let invited: Invited | undefined;
+    const mails: string[] = [];
+    const api = await newApiContext();
+    try {
+      admin = await adminApi();
+      invited = await invite(admin, testEmail('cooldown'), 'A01_cooldown_invite_setup.json');
+      mails.push(invited.mailId);
+      await acceptInvite(api, invited, 'A01_cooldown_accept_setup.json');
+
+      const first = await mailedResetToken(api, invited.email, 'A01_cooldown_request_first.json');
+      mails.push(first.mailId);
+
+      const againBody = { email: invited.email };
+      const again = await post(api, '/api/auth/password-reset', againBody);
+      await captureExchange('A01_cooldown_request_second.json', { method: 'POST', path: '/api/auth/password-reset', body: againBody }, again, [
+        'second request inside the 15 min cooldown → 204 with an empty body (same answer, C27) and no new token (C28)',
+      ]);
+      expect(again.status()).toBe(204);
+      expect(await again.text()).toBe('');
+
+      const wrongBody = { token: first.token, fullName: `${PREFIX}wrong-purpose`, password: testPassword() };
+      const wrong = await post(api, '/api/auth/invitations/accept', wrongBody);
+      await captureExchange('A01_cooldown_reset_token_on_accept_422.json', { method: 'POST', path: '/api/auth/invitations/accept', body: wrongBody }, wrong, [
+        'a real, live RESET token on the invitation accept → 422 code INVITATION_TOKEN_INVALID, no Set-Cookie',
+      ]);
+      await expectError(wrong, 422, 'INVITATION_TOKEN_INVALID');
+      expect(setCookie(wrong, REFRESH)).toBeUndefined();
+
+      const confirmBody = { token: first.token, newPassword: testPassword() };
+      const confirmed = await post(api, '/api/auth/password-reset/confirm', confirmBody);
+      await captureExchange('A01_cooldown_first_token_confirms.json', { method: 'POST', path: '/api/auth/password-reset/confirm', body: confirmBody }, confirmed, [
+        'the FIRST mailed token still confirms → 204: not superseded by the second request, not consumed by the wrong-purpose call',
+      ]);
+      expect(confirmed.status()).toBe(204);
+      expectCleared(confirmed);
+    } finally {
+      await api.dispose();
+      await cleanup(admin, invited, mails);
+    }
+  });
+
+  test('A01 · (gap) disabling a user voids a reset link already mailed: confirm → 422 PASSWORD_RESET_TOKEN_INVALID, no cookies set', async () => {
+    // users/service.py:297-309 disable_user → revoke_tokens(all purposes) (:307, auth_recovery/tokens.py:191-197)
+    // → find_active_token None → 422 (auth_recovery/router.py:286-287). The later "UPDATE … status active"
+    // guard (router.py:255-265) is only reachable in a race: BE pytest
+    // test_auth_confirm_password_reset__disabled_mid_hash_stays_disabled, not via this API.
+    let admin: APIRequestContext | undefined;
+    let invited: Invited | undefined;
+    const mails: string[] = [];
+    const api = await newApiContext();
+    try {
+      admin = await adminApi();
+      invited = await invite(admin, testEmail('disabled-reset'), 'A01_disabled_reset_invite_setup.json');
+      mails.push(invited.mailId);
+      await acceptInvite(api, invited, 'A01_disabled_reset_accept_setup.json');
+      const mailed = await mailedResetToken(api, invited.email, 'A01_disabled_reset_request.json');
+      mails.push(mailed.mailId);
+
+      const disabled = await post(admin, `/api/users/${invited.id}/disable`, {});
+      await captureExchange('A01_disabled_reset_disable.json', { method: 'POST', path: `/api/users/${invited.id}/disable`, body: {} }, disabled, [
+        'setup: admin disables the user after the reset mail went out → 200 status "disabled"',
+      ]);
+      expect(disabled.status()).toBe(200);
+      expect(((await disabled.json()) as Json).status).toBe('disabled');
+
+      const body = { token: mailed.token, newPassword: testPassword() };
+      const res = await post(api, '/api/auth/password-reset/confirm', body);
+      await captureExchange('A01_disabled_reset_confirm_422.json', { method: 'POST', path: '/api/auth/password-reset/confirm', body }, res, [
+        'the reset token mailed before the disable → 422 code PASSWORD_RESET_TOKEN_INVALID (tokens revoked on disable)',
+        'no appback_refresh Set-Cookie',
+      ]);
+      await expectError(res, 422, 'PASSWORD_RESET_TOKEN_INVALID');
+      expect(setCookie(res, REFRESH)).toBeUndefined();
+    } finally {
+      await api.dispose();
+      await cleanup(admin, invited, mails);
+    }
+  });
+});
+
 /* ------------------------------------------------------------------ recovery body rules (mock pairs) */
 
 /**
@@ -728,6 +998,30 @@ const RECOVERY_422_PAIRS: ReadonlyArray<{ slug: string; path: string; body: Json
     field: 'email',
     title: 'password-reset with an address zod .email() rejects → 422 VALIDATION field "email", no mail (pairs auth_edge mocked forgot 422 VALIDATION(email))',
     why: 'router.py:72-81 validate_wire_email (auth/emails.py:31-42); BE test test_router_request_reset.py:68-72',
+  },
+  {
+    slug: 'accept_422_full_name_blank',
+    path: '/api/auth/invitations/accept',
+    body: { token: `qa-bogus-${uniq()}`, fullName: '   ', password: 'Qa-full-name-1' },
+    field: 'fullName',
+    title: '(gap) accept with a whitespace-only fullName → 422 VALIDATION field "fullName" (pairs recovery_edge SCR-03 mocked 422 field fullName)',
+    why: 'F:/App/AppBack auth_recovery/router.py:64-69,98-102: clean_text trims (packages/core/text.py:42) → length 0 < 1',
+  },
+  {
+    slug: 'accept_422_full_name_121',
+    path: '/api/auth/invitations/accept',
+    body: { token: `qa-bogus-${uniq()}`, fullName: `${PREFIX}${'n'.repeat(121 - PREFIX.length)}`, password: 'Qa-full-name-1' },
+    field: 'fullName',
+    title: '(gap) accept with a 121-character fullName → 422 VALIDATION field "fullName" (FULL_NAME_MAX 120)',
+    why: 'F:/App/AppBack auth_recovery/router.py:59,64-69: 1 <= len <= 120',
+  },
+  {
+    slug: 'accept_422_full_name_control',
+    path: '/api/auth/invitations/accept',
+    body: { token: `qa-bogus-${uniq()}`, fullName: `${PREFIX}bell\u0007name`, password: 'Qa-full-name-1' },
+    field: 'fullName',
+    title: '(gap) accept with a control character (U+0007) in fullName → 422 VALIDATION field "fullName"',
+    why: 'F:/App/AppBack packages/core/text.py:22-46: category Cc rejected (bidi overrides: real UI tests in both edge specs)',
   },
 ];
 

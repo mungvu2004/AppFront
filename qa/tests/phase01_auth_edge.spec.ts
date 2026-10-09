@@ -1,7 +1,15 @@
 /**
  * Phase 1 — Auth EDGE CASES, Track A: SCR-01 session gate + SCR-02 login (incl. the "Quên mật khẩu"
  * panel), plus the SCR-03/04 token cases kept from the first edge pass. Gaps left by
- * `phase01_auth.spec.ts`; inventory in `qa/coverage/phase01.md` (FE stamp 7735bcda).
+ * `phase01_auth.spec.ts`; inventory in `qa/coverage/phase01.md` (FE stamp f748afb0).
+ *
+ * FE refresh 7735bcda → f748afb0 (QA-01c): stale expectations rewritten in place — the gate notice is decided by
+ * the pathname (a "/?query" gets none), every /login strip incl. the opening ones sits UNDER "Đăng nhập", a stray
+ * `?token=` is stripped from the URL; assertions added to existing tests for the new focus return
+ * (useReturnFocus / catchDroppedFocus / connection-strip "Ẩn"), BUG-059 full-width strip actions, strips and the
+ * "sent" block under the panel button, the invitation warning + retry line under "Nhận lời mời". New tests are in
+ * the "E01 FE refresh f748afb0" describe (field room, retry ladder + `online`, gate in front of SCR-08…40,
+ * RecoveryLink modifier click, SCR-41 on /login, recovery Retry-After > 60 s, 24 px /login margins at 375).
  *
  * FE refresh c4978eb4 → 7735bcda (QA-01/QA-01b fixes): expectations re-cited to HEAD; every test whose copy
  * or behaviour moved was rewritten in place, and the "E01 FE refresh 7735bcda" describe holds the gaps the
@@ -37,7 +45,8 @@
  *   6 failures on fresh `@example.test` addresses (Enter, double, spaces, enum, notice, 375 wrong) + 11 admin
  *   successes (back 1, uppercase 1, remember 2, next 5, signing-in 1, mid-session 1) — the too-long address
  *   no longer reaches the BE (FE cap, schemas/index.ts:71) — plus the Mailpit pair's 2 API + 1 UI login = 20.
- *   With Phase 1 main (6) and the recovery spec (2): 28 ≤ 30 even inside one window.
+ *   With Phase 1 main (6) and the recovery spec (2): 28 ≤ 30 even inside one window. The f748afb0 additions spend
+ *   NO login: the signed-in invitation warning reuses the "uppercase" test's session.
  * - per (email, IP): lock after 5 failures / 900 s. Admin FAILED attempts = 0; every failure address is
  *   run-unique and used for exactly ONE attempt.
  * - recovery routes share 10 / 900 s per IP (window opens at the FIRST hit: INCR + EXPIRE,
@@ -50,12 +59,15 @@
  * - Mailpit pair ("E01 real one-time tokens"): 2 admin API logins (`signedInApi`) + 1 UI login with the new
  *   password; 2 invitations (`POST /api/users/invitations`, 30 / h per admin, BE:apps/api/users/router.py:32-43).
  *   Their users are `qa-<runId>-…@example.test` viewers, deleted in `finally` with their mails.
- * - `POST /api/auth/refresh`: 300 / 60 s per IP (`refresh_total_limit`) — page loads only.
+ * - `POST /api/auth/refresh`: 300 / 60 s per IP (`refresh_total_limit`) — page loads only (f748afb0 block: ~16
+ *   loads + 1 real refresh after the retry ladder; the ladder's 8 attempts are aborted in the browser, never sent).
+ * - The f748afb0 block makes NO real recovery request (field-room / link / shortcut tests send nothing; the long
+ *   Retry-After case is mocked), so the recovery count above is unchanged.
  */
 import { expect, test } from '@playwright/test';
 import type { APIRequestContext, Locator, Page, Request, Response, Route } from '@playwright/test';
 
-import { ROUTES, loginUrl, pathOf } from '../../e2e/fixtures/routes';
+import { ROUTES, UNKNOWN_PATH, loginUrl, pathOf } from '../../e2e/fixtures/routes';
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl, newApiContext, signedInApi } from './support/api';
@@ -128,6 +140,7 @@ const INVITATION_EXPIRED =
 const INVITATION_INCOMPLETE =
   'Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.'; // :181
 const INVITATION_RETRY_FAILED = 'Đã thử lại nhưng vẫn chưa kết nối được máy chủ.'; // :184
+const INVITATION_SIGNED_IN_WARNING = 'Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.'; // auth.invitation.signedInWarning
 const RESET_DEAD_END_SUBTITLE = 'Liên kết này không đặt lại được mật khẩu.'; // :190
 const RESET_LINK_EXPIRED =
   'Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.'; // :191
@@ -363,13 +376,14 @@ async function animationsSettled(page: Page): Promise<void> {
 /* ------------------------------------------------------------ SCR-01 gate */
 
 test.describe('E01 SCR-01 Session gate', () => {
-  test('E01 · SCR-01 · [held response] gated URL with a query: "Đang mở phiên" shell (named + visible line) while the bootstrap refresh is pending, then /login?next= keeps path AND query, with the "Hãy đăng nhập để tiếp tục." notice', async ({ page }) => {
+  test('E01 · SCR-01 · [held response] gated non-root URL with a query: "Đang mở phiên" shell (named + visible line) while the bootstrap refresh is pending, then /login?next= keeps path AND query, with the "Hãy đăng nhập để tiếp tục." notice', async ({ page }) => {
     // status `unknown` → PendingShell role=status aria-label "Đang mở phiên", aria-busy, and since BUG-027 a
-    // visible aria-hidden line "Đang mở phiên…" (SessionBootstrap.tsx:170-195, 236-240): no child mounted.
-    // 401 → anonymous → <Navigate replace to=loginHref> (:243-256), loginHref = pathname + search encoded (:354).
-    // next = "/?e01=gate" ≠ ROUTES.dashboard → state.notice 'signInRequired' (:250-254) → noticeOf
-    // (AuthScreen.container.tsx:278-285) → INITIAL_NOTICES.signInRequired (useAuthScreen.ts:345-349).
-    const gated = `${ROUTES.dashboard}?e01=gate`;
+    // visible aria-hidden line "Đang mở phiên…" (SessionBootstrap.tsx:202-228, 281-285): no child mounted.
+    // 401 → anonymous → <Navigate replace to=loginHref> (:288-301), loginHref = pathname + search encoded (:401).
+    // f748afb0: the notice is decided by the PATHNAME, not by ?next= (:297, :403) — "/thong-bao" ≠ ROUTES.dashboard →
+    // state.notice 'signInRequired' (:299) → noticeOf (AuthScreen.container.tsx:278-285) → INITIAL_NOTICES.signInRequired
+    // (useAuthScreen.ts:345-349). The root with a query is "E01 · SCR-01 · anonymous /?query" below (no notice).
+    const gated = `${ROUTES.notifications}?e01=gate`;
     const hold = deferred();
     const refresh = await mockPost(page, REFRESH_PATH, async (route) => {
       await hold.promise;
@@ -390,7 +404,7 @@ test.describe('E01 SCR-01 Session gate', () => {
     hold.open();
     await answered;
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(gated));
-    expect(loginUrl(gated)).toBe('/login?next=%2F%3Fe01%3Dgate');
+    expect(loginUrl(gated)).toBe('/login?next=%2Fthong-bao%3Fe01%3Dgate');
     await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
     await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE)).toBeVisible();
     await attachJson('E01_gate_redirect_query.json', { gated, landedUrl: pathOf(page.url()) }); // BUG-034: URL not in the shot
@@ -486,7 +500,10 @@ test.describe('E01 SCR-01 Session gate', () => {
     }
   });
 
-  test('E01 · SCR-01 · [mocked response] signed in, a refresh fails mid-session → "Mất kết nối máy chủ…" strip floating at the bottom edge, screen stays in place; "Thử lại" → strip gone; a second loss → "Ẩn thông báo kết nối" hides it', async ({ page }) => {
+  test('E01 · SCR-01 · [mocked response] signed in, a refresh fails mid-session → "Mất kết nối máy chủ…" strip floating at the bottom edge, screen stays in place; "Thử lại" → strip gone; a second loss → the strip comes AFTER the screen in DOM/Tab order and "Ẩn thông báo kết nối" hides it without dropping focus on <body>', async ({ page }) => {
+    // f748afb0: the strip is rendered after the screen (SessionBootstrap.tsx:315-321, review QA-01c #1), and "Ẩn"
+    // hands focus back to where it came from, else to `main[tabindex]` or the first visible tabbable outside the
+    // strip (:70-91, 116-122, 133-138), never <body>.
     // Login (real, budget: mid-session 1). Tab B's bootstrap broadcasts "signed-in" (refresh.ts:484) and
     // tab A answers with its own refresh (lib/auth/session.ts:239-241) — A's alone is aborted →
     // handleTransientFailure keeps status `authenticated` + serverUnreachable (refresh.ts:305-308) →
@@ -559,8 +576,19 @@ test.describe('E01 SCR-01 Session gate', () => {
         await openWithBootstrap(tabC, ROUTES.dashboard, [200]);
         await page.bringToFront();
         await expect(region).toBeVisible();
+        const stripAfterScreen = await region.evaluate((strip) => {
+          const title = document.querySelector('h1');
+          return title !== null && (title.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+        });
+        expect(stripAfterScreen, 'strip follows the screen in DOM (and Tab) order').toBe(true);
         await region.getByRole('button', { name: HIDE_CONNECTION_STRIP, exact: true }).click();
         await expect(region).toHaveCount(0);
+        const focusAfterHide = await page.evaluate(() => ({
+          onBody: document.activeElement === null || document.activeElement === document.body,
+          tag: document.activeElement?.tagName ?? null,
+        }));
+        expect(focusAfterHide.onBody, '"Ẩn" does not drop focus on <body>').toBe(false);
+        await attachJson('E01_gate_mid_session_dismiss_focus.json', { stripAfterScreen, focusAfterHide });
         await expect(h1(page, DASHBOARD_TITLE), 'the screen stays after hiding the strip').toBeVisible();
         expect(pathOf(page.url())).toBe(ROUTES.dashboard);
         await captureEvidence(page, 'E01_gate_mid_session_dismissed.png');
@@ -689,7 +717,10 @@ test.describe('E01 SCR-02 Login form', () => {
     }
   });
 
-  test('E01 · Enter in "Mật khẩu" submits exactly once; then Enter on the focused "Đặt lại mật khẩu" opens the panel (no second login)', async ({ page }) => {
+  test('E01 · Enter in "Mật khẩu" submits exactly once; focus is back in "Mật khẩu" after the answer; then Enter on the focused "Đặt lại mật khẩu" opens the panel (no second login)', async ({ page }) => {
+    // f748afb0: the fields are disabled while sending (AuthScreen.tsx:72, 137, 150), which can drop focus on <body>;
+    // useReturnFocus puts it back on the last focused field once the attempt ends (useReturnFocus.ts:16-46,
+    // AuthScreen.tsx:73, 119-125) — either way the keyboard user is still in "Mật khẩu".
     // AuthScreen.tsx:88-98: the form's onKeyDown handles Enter from an INPUT and preventDefaults the native
     // implicit submission (one `submit()`); non-existent address → 401 (BE:router.py:175-177). Since BUG-011 an
     // Enter on a button is left to the button: the reset button under the strip (AuthScreen.tsx:116-120) →
@@ -706,6 +737,7 @@ test.describe('E01 SCR-02 Login form', () => {
 
       expect(status, `POST ${LOGIN_API}`).toBe(401);
       await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
+      await expect(passwordBox(page), 'focus returned to "Mật khẩu" after the attempt').toBeFocused();
       await nextFrame(page);
       expect(posts(requests.sent, LOGIN_API)).toHaveLength(1);
       await captureEvidence(page, 'E01_enter_submits.png');
@@ -719,6 +751,7 @@ test.describe('E01 SCR-02 Login form', () => {
       await attachJson('E01_enter_submits.json', {
         status,
         loginRequestsAfterEnterInPassword: 1,
+        focusAfterAttempt: 'Mật khẩu',
         loginRequestsAfterEnterOnResetButton: posts(requests.sent, LOGIN_API).length,
       });
       await captureEvidence(page, 'E01_enter_reset_action.png');
@@ -773,7 +806,9 @@ test.describe('E01 SCR-02 Login form', () => {
     await captureEvidence(page, 'E01_email_spaces_case.png');
   });
 
-  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip and its reset button sit UNDER "Đăng nhập", fields do not move', async ({ page }) => {
+  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip and its reset button sit UNDER "Đăng nhập", fields do not move; the reset button is as wide and as tall as "Đăng nhập" (BUG-059)', async ({ page }) => {
+    // f748afb0: the strip's way out is a `size="lg" fullWidth` button under it (AuthScreen.tsx:111-116, 184-188,
+    // BUG-059), the same box as the submit button (:168).
     // BE:router.py:6-8,173-177: unknown email, `pending` user and wrong password share one path and
     // raise the same INVALID_CREDENTIALS (401, BE:packages/core/error_codes.py:19). The known-address
     // half is Phase 1 ("ONE wrong password", same title + reset action) — not repeated here so the admin
@@ -807,6 +842,8 @@ test.describe('E01 SCR-02 Login form', () => {
     expect(submitBox && stripBox && resetBox, 'boxes').toBeTruthy();
     expect(stripBox!.y, 'strip below the submit button').toBeGreaterThanOrEqual(submitBox!.y + submitBox!.height);
     expect(resetBox!.y, 'reset button below the strip').toBeGreaterThanOrEqual(stripBox!.y + stripBox!.height);
+    expect(Math.abs(resetBox!.width - submitBox!.width), 'reset button full width like "Đăng nhập", px').toBeLessThanOrEqual(1);
+    expect(Math.abs(resetBox!.height - submitBox!.height), 'reset button as tall as "Đăng nhập", px').toBeLessThanOrEqual(1);
     expect(
       Math.abs((emailTopAfter ?? Number.NaN) - (emailTopBefore ?? Number.NaN)),
       'email box did not move (BUG-008), px',
@@ -816,6 +853,8 @@ test.describe('E01 SCR-02 Login form', () => {
       submitBottom: submitBox!.y + submitBox!.height,
       stripTop: stripBox!.y,
       resetTop: resetBox!.y,
+      resetSize: { width: resetBox!.width, height: resetBox!.height },
+      submitSize: { width: submitBox!.width, height: submitBox!.height },
       emailTopBefore,
       emailTopAfter,
     });
@@ -879,11 +918,12 @@ test.describe('E01 SCR-02 Login form', () => {
     }
   });
 
-  test('E01 · [history state] opening notice: unknown `notice` ignored; "sessionEnded" strip ABOVE the fields, read once, survives an empty submit, replaced by the first real attempt', async ({ page }) => {
+  test('E01 · [history state] opening notice: unknown `notice` ignored; "sessionEnded" strip UNDER "Đăng nhập" (not above the fields since f748afb0), read once, survives an empty submit, replaced by the first real attempt', async ({ page }) => {
     // noticeOf accepts only passwordReset | sessionEnded | signInRequired (AuthScreen.container.tsx:278-285) →
     // INITIAL_NOTICES.sessionEnded (useAuthScreen.ts:345-349, 719); the entry is dropped from history once
-    // read (container :358-370). An opening sentence is not an attempt result, so it renders before the
-    // fields (AuthScreen.tsx:129-135). A submit that fails validation returns BEFORE setOpeningNotice(undefined)
+    // read (container :358-370). f748afb0: EVERY strip, the opening ones too, renders after the submit button
+    // (AuthScreen.tsx:174-190, BUG-008), so neither the email box nor the button moves when it comes or goes.
+    // A submit that fails validation returns BEFORE setOpeningNotice(undefined)
     // (useAuthScreen.ts:631-639); a sent attempt clears it and its failure takes the strip (:637-639, 705-707).
     // The entry is written the way react-router's navigate(…, {state}) writes it (`history.state.usr`) —
     // what SessionBootstrap.tsx:250-251 does on a real session end (that path: main "refresh cookie gone").
@@ -904,9 +944,9 @@ test.describe('E01 SCR-02 Login form', () => {
     await reloadWithNotice('sessionEnded');
     await expect(alertWith(page, SESSION_ENDED_NOTICE)).toBeVisible();
     const noticeBox = await alertWith(page, SESSION_ENDED_NOTICE).boundingBox();
-    const emailTop = (await emailBox(page).boundingBox())?.y ?? Number.NaN;
-    expect(noticeBox, 'notice box').not.toBeNull();
-    expect(noticeBox!.y + noticeBox!.height, 'opening notice sits above the email box').toBeLessThanOrEqual(emailTop);
+    const submitBox = await button(page, SIGN_IN_LABEL).boundingBox();
+    expect(noticeBox && submitBox, 'notice and submit boxes').toBeTruthy();
+    expect(noticeBox!.y, 'opening notice sits under "Đăng nhập"').toBeGreaterThanOrEqual(submitBox!.y + submitBox!.height);
     await expect
       .poll(() => page.evaluate(() => (history.state as { usr?: { notice?: unknown } | null } | null)?.usr?.notice))
       .toBeUndefined();
@@ -1018,7 +1058,9 @@ test.describe('E01 SCR-02 Login failures', () => {
     await login.stop();
   });
 
-  test('E01 · [mocked response] 403 ACCOUNT_DISABLED → the form is gone, the "Tài khoản đã bị vô hiệu" alert + "Đăng nhập bằng tài khoản khác" (state forbidden); that button brings back an EMPTY form, focus in "Thư điện tử"', async ({ page }) => {
+  test('E01 · [mocked response] 403 ACCOUNT_DISABLED → the form is gone, the "Tài khoản đã bị vô hiệu" alert + "Đăng nhập bằng tài khoản khác" (state forbidden) which TAKES the dropped focus; Enter on it brings back an EMPTY form, focus in "Thư điện tử"', async ({ page }) => {
+    // f748afb0 (b3f76fef): the form that held focus is replaced, so focus would fall on <body>; catchDroppedFocus
+    // focuses the way out only when focus was dropped (AuthScreen.tsx:285-291, 359).
     // BE:packages/core/error_codes.py:21 (403), raised only after a correct password (BE:router.py:178-179).
     // accountDisabled → isBlocked (useAuthScreen.ts:267-268, 611) → state forbidden (:740-742); the view
     // renders the alert + the way out, no form, no forgot link (AuthScreen.tsx:333-343, BUG-017).
@@ -1042,9 +1084,10 @@ test.describe('E01 SCR-02 Login failures', () => {
     await expect(button(page, FORGOT_PASSWORD)).toHaveCount(0);
     await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
     expect(login.seen).toHaveLength(1);
+    await expect(button(page, SIGN_IN_ANOTHER_ACCOUNT), 'dropped focus caught by the way out').toBeFocused();
     await captureEvidence(page, 'E01_login_account_disabled.png');
 
-    await button(page, SIGN_IN_ANOTHER_ACCOUNT).click();
+    await page.keyboard.press('Enter');
     await expect(emailBox(page)).toBeFocused();
     await expect(emailBox(page)).toHaveValue('');
     await expect(passwordBox(page)).toHaveValue('');
@@ -1278,7 +1321,10 @@ test.describe('E01 SCR-02 Forgot password', () => {
     }
   });
 
-  test('E01 · address with no account → 204 and the neutral "sent" block (no enumeration); send locked with "Đổi địa chỉ nếu muốn gửi tới thư khác."; Enter does not resend; editing the address unlocks it and clears the block', async ({ page }) => {
+  test('E01 · address with no account → 204 and the neutral "sent" block UNDER the send button (no enumeration); focus not dropped; send locked with "Đổi địa chỉ nếu muốn gửi tới thư khác."; Enter does not resend; editing the address unlocks it and clears the block', async ({ page }) => {
+    // f748afb0: the strip and the "sent" block moved under the send button (ForgotPasswordPanel.tsx:79-99, BUG-008),
+    // and useReturnFocus (:34, 57-63; useReturnFocus.ts:16-46) keeps focus off <body> after the send (the
+    // clicked button stays disabled once sent, so focus goes to the first enabled control of the panel).
     // REAL recovery request #1. BE:apps/api/auth_recovery/router.py:6-11,186-198,234-245: always 204; an
     // unknown address only PINGs redis (no token, no mail). FE shows the same constant sentence for every
     // 204 (useForgotPassword.ts:154, vi.json:173) in a bordered block inside the live region
@@ -1301,6 +1347,11 @@ test.describe('E01 SCR-02 Forgot password', () => {
       await expect(authMain(page, 'success')).toBeVisible();
       await expect(button(page, SEND_RESET_LINK), 'locked after a send').toBeDisabled();
       await expect(page.getByText(FORGOT_SENT_HINT, { exact: true })).toBeVisible();
+      const sendBox = await button(page, SEND_RESET_LINK).boundingBox();
+      const sentBox = await page.getByText(FORGOT_SENT, { exact: true }).boundingBox();
+      expect(sendBox && sentBox, 'send button and sent block boxes').toBeTruthy();
+      expect(sentBox!.y, '"sent" block under the send button').toBeGreaterThanOrEqual(sendBox!.y + sendBox!.height);
+      expect(await page.evaluate(() => document.activeElement === document.body), 'focus not dropped on <body>').toBe(false);
       await captureEvidence(page, 'E01_forgot_unknown_sent.png');
 
       await emailBox(page).press('Enter');
@@ -1417,6 +1468,12 @@ test.describe('E01 SCR-02 Forgot password', () => {
       await expect(page.getByText(UNKNOWN_DESCRIPTION, { exact: true }), `${slug}: no reload advice`).toHaveCount(0);
       await expect(authMain(page, 'error'), slug).toBeVisible();
       await expect(button(page, SEND_RESET_LINK), slug).toBeEnabled();
+      // f748afb0: strip under the send button (ForgotPasswordPanel.tsx:79-84, BUG-008); focus back on the
+      // clicked button once sending ends (useReturnFocus.ts:16-46).
+      const stripTop = (await strip.boundingBox())?.y ?? Number.NaN;
+      const send = await button(page, SEND_RESET_LINK).boundingBox();
+      expect(stripTop, `${slug}: strip under the send button`).toBeGreaterThanOrEqual(send!.y + send!.height);
+      await expect(button(page, SEND_RESET_LINK), `${slug}: focus back on the send button`).toBeFocused();
       await captureEvidence(page, `E01_forgot_strip_${slug}.png`);
     }
 
@@ -1543,12 +1600,12 @@ test.describe('E01 anonymous — SCR-03 / SCR-04 recovery tokens', () => {
     await captureEvidence(page, 'E01_invite_bogus_token.png');
   });
 
-  test('E01 · invitation ?token= in the QUERY (not the hash) → "incomplete link" dead-end (not "expired"), no request, URL untouched', async ({ page }) => {
-    // fragmentToken.ts:37-54 reads ONLY `location.hash` and rewrites the URL only when a hash exists,
-    // so a query token is ignored: token null → hasUsableToken false (useInvitationAccept.ts:131-135) →
-    // `forbidden` (:182, 302-303) with isLinkIncomplete (:340) → invitation.incomplete + deadEndSubtitle
-    // (InvitationAccept.tsx:70-72, 86; BUG-005).
-    const url = `${ROUTES.invitationAccept}?token=e01-query-${RUN_TAG}`;
+  test('E01 · invitation ?token= in the QUERY (not the hash) → "incomplete link" dead-end (not "expired"), no request; the stray token is stripped from the URL, other query keys kept', async ({ page }) => {
+    // fragmentToken.ts:81-108 reads the token ONLY from `location.hash`; since f748afb0 a stray `?token=` is
+    // NOT read but IS removed from the address bar/history, every other query key kept (:86-98, QA-01 debt #4).
+    // token null → hasUsableToken false (useInvitationAccept.ts:131-135) → `forbidden` (:182, 302-303) with
+    // isLinkIncomplete (:340) → invitation.incomplete + deadEndSubtitle (InvitationAccept.tsx:80-99; BUG-005).
+    const url = `${ROUTES.invitationAccept}?e01=keep&token=e01-query-${RUN_TAG}`;
     const requests = recordApiRequests(page);
 
     try {
@@ -1558,7 +1615,7 @@ test.describe('E01 anonymous — SCR-03 / SCR-04 recovery tokens', () => {
       await expect(page.getByText(INVITATION_DEAD_END_SUBTITLE, { exact: true })).toBeVisible();
       await expect(page.getByText(INVITATION_EXPIRED, { exact: true })).toHaveCount(0);
       await expect(page.getByLabel(FULL_NAME_LABEL, { exact: true })).toHaveCount(0);
-      expect(pathOf(page.url())).toBe(url);
+      await expect.poll(() => pathOf(page.url()), { message: 'stray ?token= stripped' }).toBe(`${ROUTES.invitationAccept}?e01=keep`);
       expect(posts(requests.sent, INVITATION_ACCEPT_API)).toEqual([]);
       await attachJson('E01_invite_query_token.json', { url: pathOf(page.url()), acceptRequests: posts(requests.sent, INVITATION_ACCEPT_API).length }); // BUG-034
       await captureEvidence(page, 'E01_invite_query_token.png');
@@ -1594,9 +1651,10 @@ test.describe('E01 anonymous — SCR-03 / SCR-04 recovery tokens', () => {
     await confirm.stop();
   });
 
-  test('E01 · reset ?token= in the QUERY → "incomplete link" dead-end (not "expired"), no request, URL untouched', async ({ page }) => {
-    // Same reader (fragmentToken.ts:37-54) → token null → hasUsableToken false (usePasswordReset.ts:97-101) →
-    // `forbidden` (:141, 228-229) with isLinkIncomplete (:252) → passwordReset.incomplete (PasswordReset.tsx:64-67).
+  test('E01 · reset ?token= in the QUERY → "incomplete link" dead-end (not "expired"), no request; the stray token is stripped from the URL', async ({ page }) => {
+    // Same reader (fragmentToken.ts:81-108; strip :86-98 since f748afb0) → token null → hasUsableToken false
+    // (usePasswordReset.ts:97-101) → `forbidden` (:141, 228-229) with isLinkIncomplete (:252) →
+    // passwordReset.incomplete (PasswordReset.tsx:71-79). `token` was the only key → no `?` left at all.
     const url = `${ROUTES.passwordReset}?token=e01-query-${RUN_TAG}`;
     const requests = recordApiRequests(page);
 
@@ -1607,7 +1665,7 @@ test.describe('E01 anonymous — SCR-03 / SCR-04 recovery tokens', () => {
       await expect(page.getByText(RESET_DEAD_END_SUBTITLE, { exact: true })).toBeVisible();
       await expect(page.getByText(RESET_LINK_EXPIRED, { exact: true })).toHaveCount(0);
       await expect(page.getByLabel(NEW_PASSWORD_LABEL, { exact: true })).toHaveCount(0);
-      expect(pathOf(page.url())).toBe(url);
+      await expect.poll(() => pathOf(page.url()), { message: 'stray ?token= stripped' }).toBe(ROUTES.passwordReset);
       expect(posts(requests.sent, PASSWORD_RESET_CONFIRM_API)).toEqual([]);
       await attachJson('E01_reset_query_token.json', { url: pathOf(page.url()), confirmRequests: posts(requests.sent, PASSWORD_RESET_CONFIRM_API).length }); // BUG-034
       await captureEvidence(page, 'E01_reset_query_token.png');
@@ -1696,10 +1754,13 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     await captureEvidence(page, 'E01_back_after_login.png');
   });
 
-  test('E01 · admin email in UPPERCASE → sent verbatim, BE normalises → 204', async ({ page }) => {
+  test('E01 · admin email in UPPERCASE → sent verbatim, BE normalises → 204; then, signed in, an invitation link shows "Nhận lời mời sẽ đăng xuất…" UNDER "Nhận lời mời", nothing sent', async ({ page }) => {
     // FE sends the typed case (useAuthScreen.ts:643-648). BE looks the user up by
     // `normalize_email` = NFC + strip + casefold (BE:router.py:142-151, BE:packages/core/text.py:17-19)
     // and keys the throttle the same way (BE:apps/api/auth/emails.py:45-48), so this is the admin, and a success.
+    // Second half reuses THIS session (no extra login, see budget): signed in + session known → warning
+    // invitation.signedInWarning (useInvitationAccept.ts:330-333), drawn under the submit button since f748afb0
+    // (InvitationAccept.tsx:161-175, 67e23fac). The form stays usable; only typing happens, no POST.
     const { email, password } = readAdminCredentials();
     const upper = email.toUpperCase();
 
@@ -1714,6 +1775,27 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     await landsOnDashboard(page, 'uppercase sign-in');
     await attachJson('E01_email_uppercase_admin.json', { sentEmailIsUppercase: sent.email === upper, status, landed: pathOf(page.url()) });
     await captureEvidence(page, 'E01_email_uppercase_admin.png');
+
+    const requests = recordApiRequests(page);
+    try {
+      await openWithBootstrap(page, `${ROUTES.invitationAccept}#token=e01-signed-in-${RUN_TAG}`, [200]);
+      const warning = alertWith(page, INVITATION_SIGNED_IN_WARNING);
+      await expect(warning).toBeVisible();
+      await expect(button(page, ACCEPT_INVITATION)).toBeEnabled();
+      const warningTop = (await warning.boundingBox())?.y ?? Number.NaN;
+      const acceptBox = await button(page, ACCEPT_INVITATION).boundingBox();
+      expect(warningTop, 'warning under "Nhận lời mời"').toBeGreaterThanOrEqual(acceptBox!.y + acceptBox!.height);
+      await nextFrame(page);
+      expect(posts(requests.sent, INVITATION_ACCEPT_API), 'nothing accepted').toEqual([]);
+      await attachJson('E01_invite_signed_in_warning.json', {
+        warningTop,
+        acceptBottom: acceptBox!.y + acceptBox!.height,
+        acceptRequests: posts(requests.sent, INVITATION_ACCEPT_API).length,
+      });
+      await captureEvidence(page, 'E01_invite_signed_in_warning.png');
+    } finally {
+      requests.stop();
+    }
   });
 
   test('E01 · "Ghi nhớ máy này" off → session refresh cookie; signed-in /login says "Bạn đang đăng nhập…" + "Về danh sách dự án" (→ /, Back → /login); on → persistent ~7 days', async ({ page }) => {
@@ -1722,8 +1804,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     // (BE:apps/api/auth/sessions.py:61-64,187-190; cookies.py:24-26). The follow-up refresh re-issues it
     // with the session's own `remember` (sessions.py:476-477, router.py:266-275).
     // Signed-in /login (BUG-006): container passes onReturnToApp while authenticated (AuthScreen.container.tsx:
-    // 344-346, 378) → at rest the strip says notices.signedIn with action goToProjects (useAuthScreen.ts:709-717),
-    // drawn as a button under it, above the fields (AuthScreen.tsx:121-126, 135); the form stays usable.
+    // 344-346, 378) → at rest the strip says notices.signedIn with action goToProjects (useAuthScreen.ts:709-717).
+    // f748afb0: strip UNDER "Đăng nhập" like every strip, its action a full-width lg button under it
+    // (AuthScreen.tsx:111-116, 174-190, BUG-008/059); the form stays usable.
     // navigate(ROUTES.dashboard) WITHOUT replace (container :345) → Back returns to /login.
     const { email, password } = readAdminCredentials();
 
@@ -1752,6 +1835,17 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     await expect(button(page, GO_TO_PROJECTS)).toBeVisible();
     await expect(emailBox(page)).toBeEnabled();
     await expect(button(page, SIGN_IN_LABEL)).toBeEnabled();
+    const signInBox = await button(page, SIGN_IN_LABEL).boundingBox();
+    const signedInStripTop = (await signedInStrip.boundingBox())?.y ?? Number.NaN;
+    const goBox = await button(page, GO_TO_PROJECTS).boundingBox();
+    expect(signedInStripTop, '"already signed in" strip under "Đăng nhập"').toBeGreaterThanOrEqual(signInBox!.y + signInBox!.height);
+    expect(goBox!.y, '"Về danh sách dự án" under the strip').toBeGreaterThan(signedInStripTop);
+    expect(Math.abs(goBox!.width - signInBox!.width), '"Về danh sách dự án" full width, px').toBeLessThanOrEqual(1);
+    await attachJson('E01_login_signed_in_strip.json', {
+      stripTop: signedInStripTop,
+      submitBottom: signInBox!.y + signInBox!.height,
+      actionSize: { width: goBox!.width, height: goBox!.height },
+    });
     await captureEvidence(page, 'E01_login_signed_in_strip.png');
 
     await button(page, GO_TO_PROJECTS).click();
@@ -2432,6 +2526,9 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
             await expect(button(page, form.submit), 'locked after a 429').toBeDisabled();
           } else {
             await expect(button(page, form.submit)).toBeEnabled();
+            // f748afb0: useReturnFocus (InvitationAccept.tsx:73, 111-116; PasswordReset.tsx:49, 82-86) — the
+            // clicked button has focus again once the attempt ends.
+            await expect(button(page, form.submit), `${form.slug} ${kind}: focus back on the submit button`).toBeFocused();
           }
           await captureEvidence(page, `E01_recovery_strip_${form.slug}_${kind}.png`);
         }
@@ -2476,6 +2573,11 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       await Promise.all(held.splice(0).map((route) => route.abort('failed')));
       await expect(recoveryStatus(page)).toHaveText(INVITATION_RETRY_FAILED);
       await expect(strip).toBeVisible();
+      // f748afb0 (67e23fac): the retry line sits UNDER "Nhận lời mời" (InvitationAccept.tsx:161-174, QA-01c debt #11).
+      const retryLineTop = (await recoveryStatus(page).boundingBox())?.y ?? Number.NaN;
+      const acceptBox = await button(page, ACCEPT_INVITATION).boundingBox();
+      expect(retryLineTop, 'retry line under "Nhận lời mời"').toBeGreaterThanOrEqual(acceptBox!.y + acceptBox!.height);
+      await attachJson('E01_invite_offline_retry_line.json', { retryLineTop, acceptBottom: acceptBox!.y + acceptBox!.height });
       await captureEvidence(page, 'E01_invite_offline_retry_failed.png');
 
       mode = 'pass';
@@ -2569,6 +2671,410 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
         recoveryPadding: padding,
       });
       await captureEvidence(page, 'E01_touch_targets_reset_375.png', { fullPage: true });
+    });
+  });
+});
+
+/* ------------------------------- gaps opened by the FE refresh 7735bcda → f748afb0 */
+
+/** `GlobalShortcutHelp.tsx:160-182`: role=dialog labelled by the h2 "Phím tắt". */
+const SHORTCUT_HELP_TITLE = 'Phím tắt';
+/** `vi.json` auth.actions.expand — only rendered in the `collapsed` state, which no host can reach. */
+const EXPAND_FORM = 'Mở lại biểu mẫu';
+/** `lib/auth/refresh.ts:46` REFRESH_MAX_TRANSIENT_ATTEMPTS. */
+const REFRESH_MAX_TRANSIENT_ATTEMPTS = 8;
+
+/** Top edge of every locator, in px (layout must not move: compare before/after). */
+async function tops(entries: readonly (readonly [string, Locator])[]): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  for (const [name, locator] of entries) {
+    out[name] = (await locator.boundingBox())?.y ?? Number.NaN;
+  }
+  return out;
+}
+
+function expectSameTops(before: Record<string, number>, after: Record<string, number>, what: string): void {
+  for (const name of Object.keys(before)) {
+    expect(
+      Math.abs((after[name] ?? Number.NaN) - (before[name] ?? Number.NaN)),
+      `${what}: "${name}" did not move (BUG-008), px`,
+    ).toBeLessThanOrEqual(1);
+  }
+}
+
+test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front of SCR-08…40, SCR-41 on /login)', () => {
+  test('E01 · SCR-01 · anonymous /?query (the home page with a query) → /login?next= keeps the query but shows NO notice (the rule reads the pathname now)', async ({ page }) => {
+    // SessionBootstrap.tsx:288-301: not sessionEnded and pathname === ROUTES.dashboard → no state at all (BUG-007);
+    // f748afb0 compares `pathname` (:297, passed at :403) instead of the decoded ?next= — "/?e01=root" used to get
+    // 'signInRequired'. loginHref still carries pathname + search (:401).
+    const gated = `${ROUTES.dashboard}?e01=root`;
+
+    await openWithBootstrap(page, gated);
+    await expect.poll(() => pathOf(page.url())).toBe(loginUrl(gated));
+    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await expect(page.getByRole('alert'), 'no opening notice for the home page').toHaveCount(0);
+    await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true })).toHaveCount(0);
+    await attachJson('E01_gate_root_query_no_notice.json', { gated, landedUrl: pathOf(page.url()) });
+    await captureEvidence(page, 'E01_gate_root_query_no_notice.png');
+  });
+
+  test('E01 · SCR-01 · anonymous on the routes of SCR-08/10/11/37/38/39/40 → each /login?next=<path> with "Hãy đăng nhập để tiếp tục."; prod build: no NotFound, no dev screen, no AccessDenied without a session', async ({ page }) => {
+    // Only `/login`, `/login/invitation/*`, `/login/reset-password/*` are public in a prod build; the 8 dev
+    // patterns join them only under import.meta.env.DEV (paths.ts:203-230, SessionBootstrap.tsx:326-332). Every
+    // other path — a project screen, an admin screen, /khong-co-quyen, an unknown path (the `*` NotFound) — is
+    // gated BEFORE the router picks a screen (router.tsx: SessionBootstrap wraps every route) → <Navigate> with
+    // state.notice 'signInRequired' (SessionBootstrap.tsx:288-301). One bootstrap refresh per load (300/60 s budget).
+    const cases = [
+      { slug: 'scr08_settings', path: ROUTES.project.settings(`e01-${RUN_TAG}`) },
+      { slug: 'scr10_upload', path: ROUTES.project.upload(`e01-${RUN_TAG}`) },
+      { slug: 'scr11_quality', path: ROUTES.project.quality(`e01-${RUN_TAG}`) },
+      { slug: 'scr37_users', path: ROUTES.adminUsers },
+      { slug: 'scr38_denied', path: ROUTES.accessDenied },
+      { slug: 'scr39_unknown', path: UNKNOWN_PATH },
+      { slug: 'scr40_demo', path: ROUTES.demoGallery },
+    ] as const;
+    const landed: Record<string, string> = {};
+
+    for (const { slug, path } of cases) {
+      await openWithBootstrap(page, path);
+      await expect.poll(() => pathOf(page.url()), { message: slug }).toBe(loginUrl(path));
+      await expect(h1(page, SIGN_IN_LABEL), slug).toBeVisible();
+      await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE), slug).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 }), `${slug}: the sign-in title is the only h1`).toHaveCount(1);
+      landed[slug] = pathOf(page.url());
+      await captureEvidence(page, `E01_gate_family_${slug}.png`);
+    }
+    await attachJson('E01_gate_family.json', landed);
+  });
+
+  test('E01 · SCR-01 · [mocked response] server unreachable at the gate: the retry ladder stops after 8 attempts; "online" mid-ladder adds nothing, "online" after it gives a fresh attempt → real 401 → /login', async ({ page }) => {
+    // lib/auth/refresh.ts:325-357: each transient failure sets serverUnreachable and schedules the next try after
+    // resolveRetryDelayMs (bootstrap.ts:88-109: 1, 2, 4 … s, capped 60 s) until transientAttempt reaches
+    // REFRESH_MAX_TRANSIENT_ATTEMPTS = 8 (:46, 348-353); then nothing more is scheduled. f748afb0 (QA-01 debt #12):
+    // window `online` / `focus` after the ladder is spent resets it and refreshes once — also while the status is
+    // still `unknown`; mid-ladder they are ignored (:268-287). Network loss = mocked (unpairable: network loss);
+    // page.clock runs the backoff. The gate shows "Mất kết nối máy chủ" meanwhile (SessionBootstrap.tsx:269-279).
+    await page.clock.install();
+    let mode: 'abort' | 'pass' = 'abort';
+    let refreshes = 0;
+    const matcher = (url: URL): boolean => url.pathname === REFRESH_PATH;
+    const handler = async (route: Route): Promise<void> => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      refreshes += 1;
+      if (mode === 'abort') return route.abort('failed');
+      return route.fallback();
+    };
+    await page.route(matcher, handler);
+
+    try {
+      await page.goto(ROUTES.dashboard, { waitUntil: 'commit' });
+      await expect(h1(page, GATE_UNREACHABLE_TITLE)).toBeVisible();
+      await expect.poll(() => refreshes, { message: 'bootstrap refresh' }).toBe(1);
+      // The installed clock still flows in real time: freeze it before the 1 s retry is due, so only the
+      // `online` path could send during the real wait below.
+      await page.clock.pauseAt(await page.evaluate(() => Date.now() + 50));
+
+      await page.evaluate(() => window.dispatchEvent(new Event('online')));
+      await page.waitForTimeout(500);
+      expect(refreshes, '"online" mid-ladder sends nothing').toBe(1);
+
+      const deadline = Date.now() + 60_000;
+      while (refreshes < REFRESH_MAX_TRANSIENT_ATTEMPTS && Date.now() < deadline) {
+        await page.clock.runFor(2_000);
+        await page.waitForTimeout(50);
+      }
+      expect(refreshes, 'attempts until the ladder is spent').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS);
+      for (let step = 0; step < 10; step += 1) {
+        await page.clock.runFor(20_000);
+        await page.waitForTimeout(50);
+      }
+      expect(refreshes, 'no attempt scheduled after the 8th (200 s later)').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS);
+      await page.clock.resume(); // time flows again (screenshots, the /login hero); nothing is scheduled any more
+      await expect(h1(page, GATE_UNREACHABLE_TITLE)).toBeVisible();
+      await attachJson('E01_gate_ladder_spent.json', { refreshes, fakeSecondsAfterLast: 200 });
+      await captureEvidence(page, 'E01_gate_ladder_spent.png');
+      expect(refreshes, 'still spent after resuming the clock').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS);
+
+      mode = 'pass';
+      const answered = waitForStatus(page, 'POST', REFRESH_API, [401]);
+      await page.evaluate(() => window.dispatchEvent(new Event('online')));
+      await answered;
+      await expect.poll(() => pathOf(page.url())).toBe(loginUrl(ROUTES.dashboard));
+      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      expect(refreshes, '"online" after the ladder → exactly one fresh attempt').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS + 1);
+      await attachJson('E01_gate_online_recovers.json', { refreshes, landedUrl: pathOf(page.url()) });
+      await captureEvidence(page, 'E01_gate_online_recovers.png');
+    } finally {
+      await page.unroute(matcher, handler);
+    }
+  });
+
+  test('E01 · SCR-02 · every field keeps room for its complaint: an empty submit and an invalid address in the forgot panel move neither the next field nor the buttons; no collapsed-state control; no request', async ({ page }) => {
+    // f748afb0: FIELD_ERROR_SLOT (RecoveryShell.tsx:41-48, min-h 112 px from sm) on both sign-in boxes and on the
+    // panel box (AuthScreen.tsx:127-157; ForgotPasswordPanel.tsx:65-70), no `gap` between them — the reserved room is
+    // the spacing, so a complaint appearing moves nothing (BUG-008). Empty submit → both "chưa nhập"
+    // (useAuthScreen.ts:613-635); panel submit → emailInvalid (useForgotPassword.ts:94-106). `collapsed` needs a host
+    // calling setCollapsed — none does (AuthScreen.tsx:316-321, 334-342) → "Mở lại biểu mẫu" never rendered.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openAnonymousLogin(page);
+    await animationsSettled(page);
+    const requests = recordApiRequests(page);
+
+    try {
+      await expect(button(page, EXPAND_FORM), 'collapsed state unreachable').toHaveCount(0);
+      const signInParts = [
+        ['Mật khẩu', passwordBox(page)],
+        ['Ghi nhớ máy này', rememberBox(page)],
+        ['Đăng nhập', button(page, SIGN_IN_LABEL)],
+        ['Quên mật khẩu', button(page, FORGOT_PASSWORD)],
+      ] as const;
+      const before = await tops(signInParts);
+      await emailBox(page).press('Enter');
+      await expect(emailBox(page)).toHaveAccessibleDescription(EMAIL_REQUIRED);
+      await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_REQUIRED);
+      const after = await tops(signInParts);
+      expectSameTops(before, after, 'sign-in empty submit');
+      await captureEvidence(page, 'E01_field_room_login.png');
+
+      await openForgotByKeyboard(page);
+      await animationsSettled(page);
+      const panelParts = [
+        ['Gửi thư đặt lại mật khẩu', button(page, SEND_RESET_LINK)],
+        ['Quay lại đăng nhập', button(page, BACK_TO_SIGN_IN)],
+      ] as const;
+      const panelBefore = await tops(panelParts);
+      await emailBox(page).fill('khong-hop-le');
+      await emailBox(page).press('Enter');
+      await expect(emailBox(page)).toHaveAccessibleDescription(EMAIL_INVALID);
+      const panelAfter = await tops(panelParts);
+      expectSameTops(panelBefore, panelAfter, 'forgot panel invalid address');
+      await nextFrame(page);
+      expect(posts(requests.sent, LOGIN_API)).toEqual([]);
+      expect(posts(requests.sent, PASSWORD_RESET_API)).toEqual([]);
+      await attachJson('E01_field_room_login.json', { before, after, panelBefore, panelAfter, requests: requests.sent.length });
+      await captureEvidence(page, 'E01_field_room_forgot.png');
+    } finally {
+      requests.stop();
+    }
+  });
+
+  test('E01 · SCR-03 / SCR-04 · Enter on the empty recovery form → every "chưa nhập" complaint, the submit button (and the reset form\'s "Về trang đăng nhập") do not move; no collapsed-state control; no request', async ({ page }) => {
+    // f748afb0 (4b714af4): FIELD_ERROR_SLOT / _THREE_LINES on every box, no gap (InvitationAccept.tsx:118-158,
+    // PasswordReset.tsx:93-120, RecoveryShell.tsx:41-54). Submit validates before the port
+    // (useInvitationAccept.ts:187-211, usePasswordReset.ts:145-165). `collapsed` only with a host's isCollapsed —
+    // the routes pass none (InvitationAccept.container.tsx:51, PasswordReset.container.tsx:37).
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const requests = recordApiRequests(page);
+
+    try {
+      for (const form of RECOVERY_FORMS) {
+        await openRecoveryForm(page, form, `room-${form.slug}`);
+        await animationsSettled(page);
+        await expect(button(page, EXPAND_FORM), `${form.slug}: collapsed state unreachable`).toHaveCount(0);
+        const parts: (readonly [string, Locator])[] = [[form.submit, button(page, form.submit)]];
+        if (form.slug === 'reset') parts.push([GO_TO_SIGN_IN, page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true })]);
+        const before = await tops(parts);
+
+        await page.keyboard.press('Enter'); // the first box is autofocused (InvitationAccept.tsx:126, PasswordReset.tsx:101)
+        await expect(page.getByLabel(CONFIRM_PASSWORD_LABEL, { exact: true })).toHaveAccessibleDescription('Chưa nhập lại mật khẩu.');
+        await expect(page.getByLabel(form.passwordLabel, { exact: true })).toHaveAccessibleDescription(PASSWORD_REQUIRED);
+        const after = await tops(parts);
+        expectSameTops(before, after, `${form.slug} empty submit`);
+        await attachJson(`E01_field_room_${form.slug}.json`, { before, after });
+        await captureEvidence(page, `E01_field_room_${form.slug}.png`);
+      }
+      await nextFrame(page);
+      expect(posts(requests.sent, INVITATION_ACCEPT_API)).toEqual([]);
+      expect(posts(requests.sent, PASSWORD_RESET_CONFIRM_API)).toEqual([]);
+    } finally {
+      requests.stop();
+    }
+  });
+
+  test('E01 · SCR-03 / SCR-04 · Ctrl+click on "Về trang đăng nhập" is left to the browser (new tab on /login), the page itself stays; a plain click is the in-app navigation', async ({ page }) => {
+    // f748afb0: RecoveryLink handles only a plain primary click; with Ctrl/Meta/Shift/Alt it does not
+    // preventDefault, so the browser opens the href itself (RecoveryShell.tsx:77-96, QA-01b debt #10).
+    const opened: Record<string, string> = {};
+
+    for (const [slug, path] of [['invite', ROUTES.invitationAccept], ['reset', ROUTES.passwordReset]] as const) {
+      await openWithBootstrap(page, path);
+      await expect(authMain(page, 'forbidden')).toBeVisible();
+      const link = page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true });
+      const popup = page.context().waitForEvent('page');
+      await link.click({ modifiers: ['Control'] });
+      const tab = await popup;
+      try {
+        await expect.poll(() => pathOf(tab.url()), { message: `${slug}: new tab` }).toBe(ROUTES.login);
+        await expect(h1(tab, SIGN_IN_LABEL)).toBeVisible();
+        opened[slug] = pathOf(tab.url());
+      } finally {
+        await tab.close();
+      }
+      expect(pathOf(page.url()), `${slug}: this tab did not navigate`).toBe(path);
+      await expect(authMain(page, 'forbidden')).toBeVisible();
+      await captureEvidence(page, `E01_recovery_link_ctrl_${slug}.png`);
+    }
+
+    await page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }).click();
+    await expect.poll(() => pathOf(page.url())).toBe(ROUTES.login);
+    await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+    await attachJson('E01_recovery_link_ctrl.json', { newTabs: opened, plainClickLanded: pathOf(page.url()) });
+  });
+
+  test('E01 · SCR-02 × SCR-41 · "?" typed in "Thư điện tử" stays text; "?" on the focused "Quay lại đăng nhập" opens "Phím tắt" over the forgot panel; Esc closes ONLY the help (focus back), the next Esc goes back to sign-in; no request', async ({ page }) => {
+    // router.tsx UndoShortcuts wraps EVERY route, /login included, and binds `?` → GlobalShortcutHelp (lazy) and
+    // Escape → closeTopLayer. Nothing fires while focus is in an INPUT (shortcutRegistry.ts:23-26;
+    // lib/tools/shortcuts.ts:189-209). The open help is a `dialog`-scope layer with a focus trap
+    // (GlobalShortcutHelp.tsx:98-131) that hands focus back to its opener (focusTrap.ts:137-143, 184-193) — so the
+    // first Esc closes the top layer only (A12); the second reaches the panel's own Esc = back (ForgotPasswordPanel.tsx:44-53).
+    await openAnonymousLogin(page);
+    const requests = recordApiRequests(page);
+    const help = page.getByRole('dialog', { name: SHORTCUT_HELP_TITLE, exact: true });
+
+    try {
+      await emailBox(page).focus();
+      await page.keyboard.press('?');
+      await expect(emailBox(page)).toHaveValue('?');
+      await expect(help, '"?" while typing is text').toHaveCount(0);
+      await emailBox(page).fill('');
+
+      await openForgotByKeyboard(page);
+      await button(page, BACK_TO_SIGN_IN).focus();
+      await page.keyboard.press('?');
+      await expect(help).toBeVisible();
+      await expect(h1(page, FORGOT_PASSWORD)).toBeVisible();
+      await captureEvidence(page, 'E01_login_shortcut_help.png');
+
+      await page.keyboard.press('Escape');
+      await expect(help).toBeHidden();
+      await expect(h1(page, FORGOT_PASSWORD), 'the panel under the help stays').toBeVisible();
+      await expect(button(page, BACK_TO_SIGN_IN), 'focus back on the opener').toBeFocused();
+      await captureEvidence(page, 'E01_login_shortcut_help_closed.png');
+
+      await page.keyboard.press('Escape');
+      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      await nextFrame(page);
+      const writes = requests.sent.filter((line) => line.startsWith('POST ') && line !== `POST ${REFRESH_PATH}`);
+      expect(writes, 'no POST besides session refreshes').toEqual([]);
+      await attachJson('E01_login_shortcut_help.json', { apiRequests: requests.sent });
+    } finally {
+      requests.stop();
+    }
+  });
+
+  test('E01 · SCR-02 forgot panel · [mocked response] 429 with Retry-After 120 → send stays locked past 60 s (recovery honours a LONGER Retry-After, unlike sign-in), unlocks after 120 s and the strip goes', async ({ page }) => {
+    // lib/http/client.ts:495-503 reads Retry-After (capped at MAX_RETRY_AFTER_DELAY_MS 120 s, retry.ts:7, 28-31 — so
+    // 120 is the longest a server can ask for); classifyRecoveryFailure: rateLimited seconds = max(Retry-After,
+    // RECOVERY_LOCKOUT_SECONDS 60) (recoveryShared.ts:136, 158-163) → lock (useForgotPassword.ts:136-138) → canSubmit false (:158), submit()
+    // returns while locked (:88); the 429 strip goes when the lock ends (:148). Sign-in ignores Retry-After (60 s
+    // flat, useAuthScreen.ts:685-687 — "429 → … whatever Retry-After says" above). IP-wide 429 = mocked
+    // (unpairable on the shared stack: the recovery limit is per IP, 10 / 900 s).
+    await page.clock.install();
+    const reset = await mockPost(page, PASSWORD_RESET_API, wire(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '120' }));
+
+    try {
+      await openAnonymousLogin(page);
+      await openForgotByKeyboard(page);
+      await emailBox(page).fill(nobody('f429long'));
+      await button(page, SEND_RESET_LINK).click();
+      await expect(page.getByText(TOO_MANY_RECOVERY, { exact: true })).toBeVisible();
+      await expect(button(page, SEND_RESET_LINK)).toBeDisabled();
+
+      await page.clock.runFor(70_000);
+      await expect(button(page, SEND_RESET_LINK), 'still locked 70 s later').toBeDisabled();
+      await expect(page.getByText(TOO_MANY_RECOVERY, { exact: true })).toBeVisible();
+      await emailBox(page).press('Enter');
+      expect(reset.seen, 'nothing sent while locked').toHaveLength(1);
+      await captureEvidence(page, 'E01_forgot_429_long_locked.png');
+
+      await page.clock.runFor(52_000);
+      await expect(button(page, SEND_RESET_LINK)).toBeEnabled();
+      await expect(page.getByText(TOO_MANY_RECOVERY, { exact: true })).toHaveCount(0);
+      expect(reset.seen).toHaveLength(1);
+      await attachJson('E01_forgot_429_long.json', { retryAfter: 120, lockedAt70s: true, requests: reset.seen.length });
+      await captureEvidence(page, 'E01_forgot_429_long_unlocked.png');
+    } finally {
+      await reset.stop();
+    }
+  });
+
+  test('E01 · SCR-04 → SCR-02 · [mocked response] reset 204 but the logout cannot reach the server → still /login with "Đã đổi mật khẩu…" UNDER "Đăng nhập" (local sign-out is enough)', async ({ page }) => {
+    // usePasswordReset.ts:172-185: on 204 → `try { await port.endLocalSession() } finally { navigate('/login',
+    // {replace, state:{notice:'passwordReset'}}) }`; endLocalSession = signOut (PasswordReset.container.tsx:30),
+    // whose revoke POST swallows a network failure (lib/auth/session.ts:199-208). /login: noticeOf →
+    // INITIAL_NOTICES.passwordReset (AuthScreen.container.tsx:278-285, useAuthScreen.ts:345-349), drawn under the
+    // submit button since f748afb0 (AuthScreen.tsx:174-190). Confirm 204 mocked (paired: A01 real Mailpit reset
+    // 204); logout network loss mocked (unpairable: network loss). The admin is never touched.
+    const confirm = await mockPost(page, PASSWORD_RESET_CONFIRM_API, noContent);
+    const logout = await mockPost(page, LOGOUT_PATH, networkDown);
+
+    try {
+      await openRecoveryForm(page, recoveryForm('reset'), 'logout-offline');
+      await recoveryForm('reset').fillValid(page);
+      await button(page, SET_NEW_PASSWORD).click();
+
+      await expect.poll(() => pathOf(page.url()), { message: 'lands on /login despite the failed logout' }).toBe(ROUTES.login);
+      await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
+      const notice = alertWith(page, PASSWORD_RESET_NOTICE);
+      await expect(notice).toBeVisible();
+      const noticeTop = (await notice.boundingBox())?.y ?? Number.NaN;
+      const submitBox = await button(page, SIGN_IN_LABEL).boundingBox();
+      expect(noticeTop, '"Đã đổi mật khẩu…" under "Đăng nhập"').toBeGreaterThanOrEqual(submitBox!.y + submitBox!.height);
+      expect(confirm.seen).toHaveLength(1);
+      expect(logout.seen.length, 'the revoke was attempted').toBeGreaterThanOrEqual(1);
+      await attachJson('E01_reset_logout_offline.json', {
+        confirmRequests: confirm.seen.length,
+        logoutAttempts: logout.seen.length,
+        landed: pathOf(page.url()),
+      });
+      await captureEvidence(page, 'E01_reset_logout_offline.png');
+    } finally {
+      await confirm.stop();
+      await logout.stop();
+    }
+  });
+
+  test.describe('375×812', () => {
+    test.use({ viewport: COMPACT });
+
+    test('E01 · 375×812 · /login uses 24 px side margins (BUG-052); the longest two-line complaint (bad address) + "Chưa nhập mật khẩu." move neither the password box nor "Đăng nhập"; no request', async ({ page }) => {
+      // AuthScreen.tsx:309-314: column `px-6 … sm:px-12` (24 px below 640, like RecoveryShell); FIELD_ERROR_SLOT is
+      // `min-h-[120px]` below 640 = room for a two-line complaint in a ~258 px column (RecoveryShell.tsx:41-48).
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await openAnonymousLogin(page);
+      await animationsSettled(page);
+      const requests = recordApiRequests(page);
+
+      try {
+        const column = page.locator('main[data-auth-state] > div');
+        const padding = await column.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return { left: style.paddingLeft, right: style.paddingRight };
+        });
+        expect(padding, '/login side margins below 640').toEqual({ left: '24px', right: '24px' });
+        const titleBox = await h1(page, SIGN_IN_LABEL).boundingBox();
+        expect(titleBox, 'title box').not.toBeNull();
+        expect(Math.round(titleBox!.x), 'title starts at the 24 px margin').toBe(24);
+
+        const parts = [
+          ['Mật khẩu', passwordBox(page)],
+          ['Đăng nhập', button(page, SIGN_IN_LABEL)],
+        ] as const;
+        const before = await tops(parts);
+        await emailBox(page).fill('khong-hop-le');
+        await emailBox(page).press('Enter');
+        await expect(emailBox(page)).toHaveAccessibleDescription(EMAIL_INVALID);
+        await expect(passwordBox(page)).toHaveAccessibleDescription(PASSWORD_REQUIRED);
+        const after = await tops(parts);
+        expectSameTops(before, after, '375 complaints');
+        expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
+        await nextFrame(page);
+        expect(posts(requests.sent, LOGIN_API)).toEqual([]);
+        await attachJson('E01_compact_login_margins_375.json', { padding, before, after });
+        await captureEvidence(page, 'E01_compact_login_margins_375.png', { fullPage: true });
+      } finally {
+        requests.stop();
+      }
     });
   });
 });

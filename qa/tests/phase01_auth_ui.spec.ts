@@ -8,10 +8,12 @@
  * before any request (`usePasswordReset.ts` / `useInvitationAccept.ts` `submit`), plus 2 login submits in
  * `U01_login_strips_1024` answered by `page.route` ([mocked response] 401 INVALID_CREDENTIALS, 403 ORIGIN_MISMATCH):
  * they never reach the backend, so no failed attempt is counted against any address.
- * Two cases read Phase 1's admin storage state (`support/state.ts`), no new login: `U01_login_strips_1024`
- * (strip c, 1 load) then `U01_login_signed_in` (4 loads). Each load rotates the refresh cookie (AppBack
- * `apps/api/auth/sessions.py`, reuse after the grace window revokes the session), so the first reader writes
- * its rotated state back to the file before the second opens it — keep that order in the file.
+ * Signed-in cases read Phase 1's admin storage state (`support/state.ts`), no new login: `U01_login_strips_1024`
+ * (strip c, 1 load), then the 13 signed-in screen cases (SCR-08..11, SCR-37..41; 4 loads each, own context,
+ * no write request: no submit, "Gửi lời mời" never clicked), then `U01_login_signed_in` (4 loads). Each load
+ * rotates the refresh cookie (AppBack `apps/api/auth/sessions.py`, reuse after the grace window revokes the
+ * session; `auth_refresh_total` 300/60 s per sid), so every reader but the last writes its rotated state back
+ * to the file before the next opens it — keep that order in the file.
  * Non-serial: each test uses its own fresh `page`.
  * Copy from `src/i18n/vi.json` (`auth.*`), as in `phase01_auth.spec.ts`; the strip case is checked against
  * `fix/qa01c-fe-master` (`/login` strips all under "Đăng nhập", fields keep room for their complaint).
@@ -19,11 +21,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
+import { readAdminCredentials } from './support/auth';
 import { EVIDENCE_DIR, attachJson } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { verifyUi } from './support/ui-verify';
@@ -205,6 +208,184 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
       await signedIn.storageState({ path: ADMIN_STORAGE_STATE_FILE });
       await signedIn.close();
     }
+  });
+});
+
+/**
+ * Signed-in screens the run reaches in Phase 1 without any project data (preflight scope: SCR-08..11, SCR-37..41).
+ * Each test opens its OWN context from the admin storage state and writes the rotated cookie back in `finally`
+ * (same chain as strip (c) above), so the next reader — and `U01_login_signed_in` below — gets a live cookie.
+ * SCR-08/09/10/11 are shown for an unknown project id (`x`, as GATED_PATH and the main spec's `?next=` case):
+ * their data states need CP-2..CP-4 (Phase 2/3), which Phase 1 never produces.
+ */
+async function verifyAsAdmin(browser: Browser, name: string, open: (page: Page) => Promise<void>): Promise<void> {
+  const context = await browser.newContext({ baseURL: readBaseUrl(), storageState: ADMIN_STORAGE_STATE_FILE });
+  try {
+    await verifyUi(await context.newPage(), name, open);
+  } finally {
+    await context.storageState({ path: ADMIN_STORAGE_STATE_FILE });
+    await context.close();
+  }
+}
+
+const UNKNOWN_PROJECT_ID = 'x';
+// SCR-08..11 copy for a project the API answers 404 (verified in source, file:line in each test).
+const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:36
+const SETTINGS_LOAD_ERROR = 'Không tải được cài đặt dự án'; // ProjectSettings.tsx:113
+const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FloorUploadScreen.tsx:67
+const QUALITY_LOAD_ERROR = 'Không đọc được kết quả kiểm tra chất lượng'; // InputQualityGate.tsx:59
+const QUALITY_EMPTY_TITLE = 'Chưa có kết quả để xem'; // InputQualityGate.tsx:60
+// SCR-37 copy: UserManagement.tsx:49-53, UserManagementToolbar.tsx:26-37, UserManagementTable.tsx:36, UserManagementDetail.tsx:107.
+const USERS_LIST_PATH = /^\/api\/users$/u;
+const USERS_SEARCH_LABEL = 'Tìm người dùng';
+const USERS_EMPTY_TITLE = 'Chưa có người dùng nào khác';
+const USERS_NO_MATCH = 'Không tìm thấy người dùng phù hợp.';
+const PERMISSION_MATRIX_BUTTON = 'Xem ma trận quyền';
+const PERMISSION_MATRIX_TITLE = 'Ma trận quyền theo vai trò';
+const INVITE_LABEL = 'Mời người dùng';
+const INVITE_EMAILS_LABEL = 'Email người được mời';
+const INVITE_INVALID_PREFIX = /^Không hợp lệ:/u;
+const CLOSE_USER_DETAIL = 'Đóng chi tiết người dùng';
+// SCR-38 copy: AccessDenied/useAccessDenied.ts:98,109-110.
+const ACCESS_DENIED_TITLE = 'Bạn chưa có quyền truy cập';
+const SWITCH_ACCOUNT = 'Đăng nhập bằng tài khoản khác';
+// SCR-39/40/41 copy: as phase10_system_routes.spec.ts (useNotFound.ts, GlobalShortcutHelp.tsx:181,186).
+const NOT_FOUND_PATH = '/khong-ton-tai';
+const NOT_FOUND_TITLE = 'Không tìm thấy trang này';
+const SHORTCUT_HELP_TITLE = 'Phím tắt';
+const CLOSE_SHORTCUT_HELP = 'Đóng bảng phím tắt';
+/** testDataPrefix `qa-{runId}-` (qa.config.json): a search term no real user can match. */
+const NO_MATCH_TERM = `qa-${process.env.E2E_RUN_ID ?? 'run-01'}-khong-co-nguoi-dung`;
+
+const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 });
+
+/** /admin/users after `GET /api/users` 200, list or "empty" state rendered. Returns whether it is the empty state. */
+async function openUsers(page: Page): Promise<boolean> {
+  const listed = page.waitForResponse(
+    (r) => r.request().method() === 'GET' && USERS_LIST_PATH.test(new URL(r.url()).pathname),
+  );
+  await page.goto(ROUTES.adminUsers);
+  expect((await listed).status(), 'GET /api/users').toBe(200);
+  await expect(page.getByLabel(USERS_SEARCH_LABEL, { exact: true })).toBeVisible();
+  const empty = page.getByText(USERS_EMPTY_TITLE, { exact: true });
+  // Table (≥1024) and card list (<1024) both carry the admin's own row when anyone else exists (phase08 SCR-37).
+  await expect(empty.or(ownUserRow(page))).toBeVisible();
+  return empty.isVisible();
+}
+
+const ownUserRow = (page: Page) =>
+  page.locator('tbody tr, main li').filter({ hasText: readAdminCredentials().email }).first();
+
+test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', () => {
+  test('U01 · SCR-08 settings, unknown project → load error', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_settings_unknown_project', async (p) => {
+      await p.goto(ROUTES.project.settings(UNKNOWN_PROJECT_ID));
+      await expect(p.getByText(SETTINGS_LOAD_ERROR, { exact: true })).toBeVisible({ timeout: 15_000 });
+    });
+  });
+
+  test('U01 · SCR-09 floors, unknown project → "Không tìm thấy dự án này"', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_floors_unknown_project', async (p) => {
+      await p.goto(ROUTES.project.floors(UNKNOWN_PROJECT_ID));
+      // Seen in run-07 `02_login_next.png` (FloorTable reuses PROJECT_NOT_FOUND_TITLE, BUG-032).
+      await expect(p.getByText(PROJECT_NOT_FOUND_TITLE, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('button', { name: GO_TO_PROJECTS, exact: true })).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-10 upload, unknown project → load error', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_upload_unknown_project', async (p) => {
+      await p.goto(ROUTES.project.upload(UNKNOWN_PROJECT_ID));
+      await expect(p.getByText(UPLOAD_LOAD_ERROR, { exact: true })).toBeVisible({ timeout: 15_000 });
+    });
+  });
+
+  test('U01 · SCR-11 quality gate, unknown project → load error', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_quality_unknown_project', async (p) => {
+      await p.goto(ROUTES.project.quality(UNKNOWN_PROJECT_ID));
+      // useInputQualityGate.ts:856-871: the floors read fails → 'error' (alert + empty state with "upload another").
+      await expect(p.getByText(QUALITY_LOAD_ERROR, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByText(QUALITY_EMPTY_TITLE, { exact: true })).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-37 users, list (or "empty" when only the admin exists)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_users_list', async (p) => {
+      await openUsers(p);
+    });
+  });
+
+  test('U01 · SCR-37 users, search with no match', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_users_no_match', async (p) => {
+      await openUsers(p);
+      await p.getByLabel(USERS_SEARCH_LABEL, { exact: true }).fill(NO_MATCH_TERM);
+      // Empty state stays as is when nobody else exists (UserManagement.tsx renderContent).
+      await expect(
+        p.getByText(USERS_NO_MATCH, { exact: true }).or(p.getByText(USERS_EMPTY_TITLE, { exact: true })),
+      ).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-37 users, permission matrix modal', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_users_permission_matrix', async (p) => {
+      await openUsers(p);
+      await p.getByRole('button', { name: PERMISSION_MATRIX_BUTTON, exact: true }).click();
+      await expect(p.getByRole('dialog', { name: PERMISSION_MATRIX_TITLE })).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-37 users, invite block with an invalid address (nothing sent)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_users_invite_invalid', async (p) => {
+      await openUsers(p);
+      // `.first()`: the empty state repeats "Mời người dùng" as its action.
+      await p.getByRole('button', { name: INVITE_LABEL, exact: true }).first().click();
+      // Parsed live (useUserManagement.ts:894-905); "Gửi lời mời" is never clicked.
+      await p.getByLabel(INVITE_EMAILS_LABEL, { exact: true }).fill('khong-hop-le');
+      await expect(p.getByText(INVITE_INVALID_PREFIX)).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-37 users, own row → user detail (panel ≥1024, drawer <1024)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_users_detail', async (p) => {
+      test.skip(await openUsers(p), 'environment: only the signed-in admin exists, no row to open');
+      await ownUserRow(p).getByRole('button').first().click();
+      await expect(p.getByRole('button', { name: CLOSE_USER_DETAIL, exact: true })).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-38 access denied', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_access_denied', async (p) => {
+      await p.goto(ROUTES.accessDenied);
+      await expect(p.getByRole('heading', { name: ACCESS_DENIED_TITLE, exact: true })).toBeVisible();
+      await expect(p.getByRole('button', { name: SWITCH_ACCOUNT, exact: true })).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-39 not found (recent projects when any exist)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_not_found', async (p) => {
+      await p.goto(NOT_FOUND_PATH);
+      await expect(notFoundHeading(p)).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-40 dev URL on the prod build → not found', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_dev_route_prod', async (p) => {
+      // Track A is the compose prod build: DEV_ONLY_ROUTES is [] (router.tsx:126), so `*` answers.
+      await p.goto(ROUTES.designSystem);
+      await expect(notFoundHeading(p)).toBeVisible();
+    });
+  });
+
+  test('U01 · SCR-41 shortcut help dialog', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U01_shortcut_help', async (p) => {
+      // `?` is inert in text fields; NotFound has none (phase10 SCR-41).
+      await p.goto(NOT_FOUND_PATH);
+      await expect(notFoundHeading(p)).toBeVisible();
+      await p.keyboard.press('?');
+      const help = p.getByRole('dialog', { name: SHORTCUT_HELP_TITLE, exact: true });
+      await expect(help).toBeVisible();
+      await expect(help.getByRole('button', { name: CLOSE_SHORTCUT_HELP, exact: true })).toBeVisible();
+    });
   });
 });
 
