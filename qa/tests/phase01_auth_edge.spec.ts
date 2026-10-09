@@ -156,7 +156,7 @@ const SIGNED_IN_OFFLINE =
 const SESSION_NOT_OPENED =
   'Mật khẩu đúng nhưng chưa mở được phiên làm việc. Kiểm tra trình duyệt có cho phép cookie của trang này rồi đăng nhập lại.'; // :202
 const SIGNED_IN_SUCCESS = 'Đã đăng nhập. Đang mở lại trang bạn đang xem.'; // :203
-const NETWORK_DESCRIPTION = 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.'; // errors.network :15 (title :14 no longer shown)
+const NETWORK_DESCRIPTION = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // errors.network :15 (title :14 no longer shown)
 const UNKNOWN_TITLE = 'Có trục trặc'; // errors.unknown :62
 const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.'; // :63
 const CHECKING_CONNECTION = 'Đang kiểm tra kết nối.'; // connectionStates.checking :4197
