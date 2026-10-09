@@ -102,14 +102,14 @@ describe('Button', () => {
     expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-9', 'sm:min-h-9');
   });
 
-  it('keeps sm and icon-only md buttons at their size on phones', () => {
-    render(
-      <>
-        <Button size="sm">Lọc</Button>
-        <Button iconOnly aria-label="Đóng" icon={<span />} />
-      </>
-    );
-    expect(screen.getByRole('button', { name: 'Lọc' })).toHaveClass('h-8');
+  // BUG-077: sm is the size of toolbar, table-row and alert actions — thumb targets on a phone too.
+  it('is 44px tall on phones at size sm and 32px from sm up', () => {
+    render(<Button size="sm">Lọc</Button>);
+    expect(screen.getByRole('button')).toHaveClass('h-11', 'min-h-11', 'sm:h-8', 'sm:min-h-8');
+  });
+
+  it('keeps icon-only md buttons at their size on phones', () => {
+    render(<Button iconOnly aria-label="Đóng" icon={<span />} />);
     expect(screen.getByRole('button', { name: 'Đóng' })).toHaveClass('h-9', 'w-9');
     expect(screen.getByRole('button', { name: 'Đóng' })).not.toHaveClass('h-11');
   });
