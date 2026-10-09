@@ -236,18 +236,17 @@ const UNKNOWN_PROJECT_ID = 'x';
 const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:36
 const SETTINGS_LOAD_ERROR = 'Không tải được cài đặt dự án'; // ProjectSettings.tsx:113
 const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FloorUploadScreen.tsx:67
-const QUALITY_LOAD_ERROR = 'Không đọc được kết quả kiểm tra chất lượng'; // InputQualityGate.tsx:59
-const QUALITY_EMPTY_TITLE = 'Chưa có kết quả để xem'; // InputQualityGate.tsx:60
 // SCR-37 copy: UserManagement.tsx:49-53, UserManagementToolbar.tsx:26-37, UserManagementTable.tsx:36, UserManagementDetail.tsx:107.
 const USERS_LIST_PATH = /^\/api\/users$/u;
 const USERS_SEARCH_LABEL = 'Tìm người dùng';
 const USERS_EMPTY_TITLE = 'Chưa có người dùng nào khác';
-const USERS_NO_MATCH = 'Không tìm thấy người dùng phù hợp.';
+const USERS_NO_MATCH = 'Không tìm thấy người dùng'; // UserManagementTable.tsx NO_MATCH_TITLE (BUG-082)
 const PERMISSION_MATRIX_BUTTON = 'Xem ma trận quyền';
 const PERMISSION_MATRIX_TITLE = 'Ma trận quyền theo vai trò';
 const INVITE_LABEL = 'Mời người dùng';
 const INVITE_EMAILS_LABEL = 'Email người được mời';
-const INVITE_INVALID_PREFIX = /^Không hợp lệ:/u;
+// useUserManagement.ts inviteFeedback (BUG-083): one sentence, with the right form.
+const INVITE_INVALID_ERROR = 'Chưa đúng dạng địa chỉ thư: khong-hop-le. Viết theo dạng ten@congty.vn';
 const CLOSE_USER_DETAIL = 'Đóng chi tiết người dùng';
 // SCR-38 copy: AccessDenied/useAccessDenied.ts:98,109-110.
 const ACCESS_DENIED_TITLE = 'Bạn chưa có quyền truy cập';
@@ -303,12 +302,12 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
     });
   });
 
-  test('U01 · SCR-11 quality gate, unknown project → load error', async ({ browser }) => {
+  test('U01 · SCR-11 quality gate, unknown project → "Không tìm thấy dự án này"', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U01_quality_unknown_project', async (p) => {
       await p.goto(ROUTES.project.quality(UNKNOWN_PROJECT_ID));
-      // useInputQualityGate.ts:856-871: the floors read fails → 'error' (alert + empty state with "upload another").
-      await expect(p.getByText(QUALITY_LOAD_ERROR, { exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect(p.getByText(QUALITY_EMPTY_TITLE, { exact: true })).toBeVisible();
+      // BUG-074: floors read 404 → one alert titled PROJECT_NOT_FOUND_TITLE with one way out (InputQualityGate.tsx).
+      await expect(p.getByText(PROJECT_NOT_FOUND_TITLE, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('button', { name: GO_TO_PROJECTS, exact: true })).toBeVisible();
     });
   });
 
@@ -381,7 +380,7 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
         await p.getByRole('button', { name: INVITE_LABEL, exact: true }).first().click();
         // Parsed live (useUserManagement.ts:894-905); "Gửi lời mời" is never clicked.
         await p.getByLabel(INVITE_EMAILS_LABEL, { exact: true }).fill('khong-hop-le');
-        await expect(p.getByText(INVITE_INVALID_PREFIX)).toBeVisible();
+        await expect(p.getByText(INVITE_INVALID_ERROR, { exact: true })).toBeVisible();
       });
     });
 
