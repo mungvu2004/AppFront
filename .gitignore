@@ -45,6 +45,7 @@ public/assets/pascal/
 
 # Test and coverage
 coverage/
+!qa/coverage/
 playwright-report/
 test-results/
 blob-report/
