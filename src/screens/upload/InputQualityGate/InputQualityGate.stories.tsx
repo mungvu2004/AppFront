@@ -382,6 +382,8 @@ const NO_ACTIONS: InputQualityGateActions = {
   onToggleAcknowledgement: () => undefined,
   onContinue: () => undefined,
   onUploadAnother: () => undefined,
+  onRetryLoad: () => undefined,
+  onBackToProjects: () => undefined,
   onConfirmWrite: () => undefined,
   onCancelWrite: () => undefined,
 };
@@ -396,6 +398,8 @@ interface ModelOptions {
   readonly findings?: readonly InputQualityFindingModel[];
   readonly floors?: readonly InputQualityFloorRow[];
   readonly errorMessage?: string | null;
+  readonly isProjectMissing?: boolean;
+  readonly canRetryLoad?: boolean;
   readonly partialNotice?: string | null;
   readonly passNotice?: string | null;
   readonly isAcknowledged?: boolean;
@@ -439,6 +443,8 @@ function modelOf(
         areActionsHidden: options.areActionsHidden ?? false,
       },
       errorMessage: options.errorMessage ?? null,
+      isProjectMissing: options.isProjectMissing ?? false,
+      canRetryLoad: options.canRetryLoad ?? false,
       partialNotice: options.partialNotice ?? null,
       remainingFindingCount: findings.filter((finding) => !finding.isResolved).length,
       passNotice: options.passNotice ?? null,
@@ -494,6 +500,7 @@ export function scenarioFor(state: SevenState): InputQualityGateViewProps {
         findings: [],
         floors: [],
         errorMessage: 'Không đọc được kết quả kiểm tra chất lượng của bản vẽ này.',
+        areActionsHidden: true,
       });
 
     case 'success':

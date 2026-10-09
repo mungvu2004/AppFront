@@ -14,7 +14,7 @@
  * | `status`    | thân màn                                                    |
  * |-------------|--------------------------------------------------------------|
  * | `loading`   | khung xương bốn dòng + vạch quét, chưa gọi ba phần con        |
- * | `error`     | `InlineAlert` cho lượt đo hỏng, kèm `EmptyState` mời thử lại  |
+ * | `error`     | một `InlineAlert` kèm một lối ra (404 dự án: về danh sách)    |
  * | `empty`     | hai cột đầy đủ; `InputQualityGateReportPanel` tự thu về đúng một thẻ đạt, đọc `passNotice` |
  * | `partial`   | hai cột đầy đủ; báo cáo tự nêu còn bao nhiêu tầng chưa đo, đọc `partialNotice` |
  * | `ready`     | hai cột đầy đủ                                                |
@@ -44,6 +44,7 @@ import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
 import { InputQualityGateConfirmDialog } from './InputQualityGateConfirmDialog';
@@ -57,9 +58,7 @@ const BREADCRUMB_QUALITY = 'Kiểm tra chất lượng đầu vào';
 
 /** Tiêu đề của lượt đo chất lượng hỏng — `status === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không đọc được kết quả kiểm tra chất lượng';
-const LOAD_ERROR_EMPTY_TITLE = 'Chưa có kết quả để xem';
-const LOAD_ERROR_EMPTY_DESCRIPTION =
-  'Thử tải lại bản vẽ để hệ thống đo lại chất lượng đầu vào.';
+const RETRY_LABEL = 'Thử lại';
 
 /** Dự án chưa có bản vẽ nào (404 `upload`): trạng thái rỗng, không phải lỗi. */
 const NO_DRAWING_TITLE = 'Chưa có bản vẽ để kiểm tra';
@@ -129,15 +128,19 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
         ))}
       </div>
     ) : model.status === 'error' ? (
-      <div className="flex flex-col gap-4">
-        <InlineAlert level="violation" message={model.errorMessage ?? ''} title={LOAD_ERROR_TITLE} />
-        <EmptyState
-          action={{ label: model.footer.secondaryLabel, onClick: actions.onUploadAnother }}
-          description={LOAD_ERROR_EMPTY_DESCRIPTION}
-          icon={<ImageOff aria-hidden="true" />}
-          title={LOAD_ERROR_EMPTY_TITLE}
-        />
-      </div>
+      // Một dải lỗi, một lối ra — chân trang ẩn hai nút ở trạng thái này (BUG-074).
+      <InlineAlert
+        action={
+          model.isProjectMissing
+            ? { label: BACK_TO_PROJECTS_LABEL, onClick: actions.onBackToProjects }
+            : model.canRetryLoad
+              ? { label: RETRY_LABEL, onClick: actions.onRetryLoad }
+              : { label: model.footer.secondaryLabel, onClick: actions.onUploadAnother }
+        }
+        level="violation"
+        message={model.errorMessage ?? ''}
+        title={model.isProjectMissing ? PROJECT_NOT_FOUND_TITLE : LOAD_ERROR_TITLE}
+      />
     ) : model.noDrawingNotice !== null ? (
       <EmptyState
         {...(model.footer.areActionsHidden

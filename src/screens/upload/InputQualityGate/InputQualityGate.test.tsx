@@ -839,7 +839,7 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     expect(button).toHaveFocus();
   });
 
-  it('đọc kết quả hỏng: nút vô hiệu kèm lý do, bấm không điều hướng', async () => {
+  it('đọc kết quả hỏng: một dải lỗi, một lối ra, chân trang không nhắc lại (BUG-074)', async () => {
     const client = createMockApiClient();
     const onNavigate = vi.fn();
 
@@ -857,13 +857,37 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     await mountScreen(clock, { client, onNavigate });
 
-    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
-
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-    expect(button).toHaveAccessibleDescription(/chưa đọc được kết quả/iu);
-
-    fireEvent.click(button);
+    expect(screen.getByText('Không đọc được kết quả kiểm tra chất lượng')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục xử lý' })).toBeNull();
+    expect(screen.queryByText(/chưa đọc được kết quả kiểm tra/iu)).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Thử lại|Tải bản vẽ khác/u })).toHaveLength(1);
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('dự án không tồn tại: "Không tìm thấy dự án này" và lối về danh sách dự án (BUG-074)', async () => {
+    const client = createMockApiClient();
+    const onNavigate = vi.fn();
+
+    vi.spyOn(client.projects, 'read').mockResolvedValue({
+      error: {
+        code: 'PROJECT_NOT_FOUND',
+        kind: 'http',
+        raw: { code: 'PROJECT_NOT_FOUND', requestId: 'req-404' },
+        requestId: 'req-404',
+        retryable: false,
+        status: 404,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client, onNavigate });
+
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải bản vẽ khác' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục xử lý' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
   });
 
   it('có bản vẽ thì nút bấm được', async () => {
