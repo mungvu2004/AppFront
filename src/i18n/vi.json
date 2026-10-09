@@ -28,7 +28,7 @@
     },
     "notFound": {
       "title": "Không tìm thấy",
-      "description": "Nội dung này không còn ở vị trí hiện tại. Tải lại để xem phiên bản mới nhất."
+      "description": "Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng."
     },
     "conflict": {
       "title": "Bản vẽ đã đổi",
