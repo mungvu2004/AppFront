@@ -733,6 +733,14 @@ describe('useFloorUploadScreen — lệnh "chờ đồng bộ" của tệp chờ
     });
 
     await expectQueuedFiles(names);
+    // Hàng đợi (IndexedDB) và lượt vẽ của hook là hai đường riêng: hàng đợi đủ chưa có nghĩa lượt
+    // vẽ gắn tệp vào tầng đã tới. Máy tải nặng, `fileIdOn` đọc phải lượt vẽ cũ, ra '' và các thao
+    // tác sau thành không làm gì (verify QA-01c, NO-392 (b)) — chờ cả điều kiện này.
+    await waitFor(() => {
+      const shown = view.result.current.floors.flatMap((floor) => (floor.file === null ? [] : [floor.file.name]));
+
+      expect(shown).toEqual(expect.arrayContaining([...names]));
+    });
 
     return { harness, ...view };
   }
