@@ -33,12 +33,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       shortcut,
       fullWidth = false,
       children,
+      title,
       ...props
     },
     ref
   ) => {
     const isDisabled = disabled || loading;
     const leadIcon = iconBefore ?? icon;
+    // Không có `title` thì gợi ý lấy chính nhãn chữ — không bao giờ còn trơ "(N)" (BUG-088).
+    const hintBase = title ?? (typeof children === 'string' ? children : undefined);
+    const hint = shortcut && hintBase ? `${hintBase} (${shortcut})` : title;
 
     return (
       <button
@@ -51,7 +55,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           disabled: isDisabled,
           className: `${fullWidth ? 'w-full' : ''} ${className ?? ''}`.trim(),
         })}
-        title={shortcut ? `${props.title || ''} (${shortcut})`.trim() : props.title}
+        title={hint}
         {...props}
       >
         {iconOnly ? (
@@ -96,7 +100,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 </span>
               )}
               {shortcut && !loading && (
-                <kbd className="text-[13px] font-mono text-text-muted">{shortcut}</kbd>
+                // Trên nền nhấn, chữ muted gần như vô hình: theo màu chữ của nút (BUG-088).
+                <kbd className={`text-[13px] font-mono ${variant === 'primary' ? 'text-current' : 'text-text-muted'}`}>
+                  {shortcut}
+                </kbd>
               )}
             </span>
           </span>
