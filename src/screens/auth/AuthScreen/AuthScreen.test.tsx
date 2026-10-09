@@ -183,7 +183,6 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => AuthScreenViewProps>> = 
       tone: 'violation',
       title: AUTH_MESSAGES.errors.invalidCredentials.title,
       message: AUTH_MESSAGES.errors.invalidCredentials.description,
-      showResetAction: true,
     },
   }),
   success: () => ({
@@ -265,15 +264,11 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
     expect(follows(screen.getByLabelText(AUTH_MESSAGES.fields.email), button)).toBe(true);
   });
 
-  it('keeps the reset action with the error strip, under the button', () => {
+  it('offers one way to recover from a wrong password: the "Quên mật khẩu" link, no second button (BUG-090)', () => {
     render(<AuthScreenView {...PROPS_BY_STATE.error()} />);
 
-    expect(
-      follows(
-        screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn }),
-        screen.getByRole('button', { name: AUTH_MESSAGES.actions.resetPassword }),
-      ),
-    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Đặt lại mật khẩu' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword })).toHaveLength(1);
   });
 
   it('puts an opening sentence under the button too, so it going away on submit moves nothing (nợ #19)', () => {
@@ -615,7 +610,7 @@ describe('AuthScreen — SSO and password reset', () => {
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.password)).toBeNull();
   });
 
-  it('offers the same panel from under the wrong-password strip', async () => {
+  it('opens the same panel from "Quên mật khẩu" after a wrong password', async () => {
     const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
     renderScreen({ gateway });
 
@@ -623,8 +618,8 @@ describe('AuthScreen — SSO and password reset', () => {
     type(passwordField(), PASSWORD);
     fireEvent.keyDown(passwordField(), { key: 'Enter' });
 
-    const action = await screen.findByRole('button', { name: AUTH_MESSAGES.actions.resetPassword });
-    fireEvent.click(action);
+    await screen.findByText(AUTH_MESSAGES.errors.invalidCredentials.title);
+    fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }));
 
     expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.sendResetLink })).toBeInTheDocument();
   });

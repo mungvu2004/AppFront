@@ -109,11 +109,9 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
   );
 
   /* A strip's way out goes under it, full width and the height of "Đăng nhập" (BUG-059), not into
-     its `action` slot: beside the text it squeezes the sentence into a ~100 px column at 360 px (BUG-003). */
-  const stripAction =
-    notice?.showResetAction === true
-      ? { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword }
-      : notice?.action;
+     its `action` slot: beside the text it squeezes the sentence into a ~100 px column at 360 px (BUG-003).
+     A wrong password has none of its own: "Quên mật khẩu" below is the one way to recover (BUG-090). */
+  const stripAction = notice?.action;
 
   return (
     <form

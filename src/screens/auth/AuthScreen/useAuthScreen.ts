@@ -138,8 +138,6 @@ export interface AuthNotice {
   /** Absent when the message says the whole thing on its own. */
   readonly title?: string;
   readonly message: string;
-  /** True only for a wrong password: the one failure a person can act on right away. */
-  readonly showResetAction?: boolean;
   /** A way out the strip offers on its own — today only "already signed in" (BUG-006). */
   readonly action?: { readonly label: string; readonly onClick: () => void };
 }
@@ -296,7 +294,6 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
         tone: 'violation',
         title: AUTH_MESSAGES.errors.invalidCredentials.title,
         message: AUTH_MESSAGES.errors.invalidCredentials.description,
-        showResetAction: true,
       };
     case 'accountDisabled':
       return {
