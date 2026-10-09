@@ -99,7 +99,7 @@ export function MiniMap({
       >
         {/* Lưới nền nhỏ (không dùng inline style màu — dùng CSS var) */}
         <div 
-          className="absolute inset-0 pointer-events-none border border-border-default/50" 
+          className="absolute inset-0 pointer-events-none border border-border-default-50" 
           aria-hidden="true" />
 
         {/* Nội dung bản vẽ (tuỳ chọn) */}
@@ -115,7 +115,7 @@ export function MiniMap({
             'absolute',
             'border border-accent',
             // Nền nhạt accent-wash với opacity rất thấp
-            'bg-accent-wash/20',
+            'bg-accent-wash-20',
             isDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
           style={{

@@ -605,7 +605,7 @@ describe('tấm trượt không phải hộp thoại', () => {
 
     // Thứ phải vắng mặt là một phần tử TRẢI KÍN và TÔ NỀN — đúng hai thứ mà
     // `Drawer.Root` làm (`absolute inset-0 bg-bg-overlay`, Drawer.tsx:132) và
-    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app/88 backdrop-blur-sm`).
+    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app-88 backdrop-blur-sm`).
     //
     // Bắt theo chuỗi con "overlay" thì `shadow-overlay` — token ĐỔ BÓNG mà chín tấm
     // nổi khác trong repo cùng dùng — dính oan; bắt theo `inset-0` một mình thì con

@@ -75,7 +75,7 @@ export function RoomLabelNormalizePreview({ preview, onApply, onCancel }: RoomLa
                 </thead>
                 <tbody>
                   {preview.rows.map((row) => (
-                    <tr className="border-b border-border-default/60" key={row.roomId}>
+                    <tr className="border-b border-border-default-60" key={row.roomId}>
                       <td className="py-1.5 pr-3 font-mono text-text-secondary">{row.codeLabel}</td>
                       <td className="py-1.5 pr-3 text-text-secondary">
                         {row.from === '' ? EMPTY_NAME_PLACEHOLDER : row.from}

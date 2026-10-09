@@ -120,7 +120,7 @@ export function ViewerLegend({ legend }: ViewerLegendProps) {
       aria-label="Chú giải"
       className={cn(
         'flex flex-col gap-1 rounded-[10px] px-3 py-2',
-        'border border-border-default bg-bg-surface/90 shadow-panel',
+        'border border-border-default bg-bg-surface-90 shadow-panel',
       )}
     >
       {legend.map((item) => (
@@ -162,7 +162,7 @@ export function ViewerPerfChip({ perf }: ViewerPerfChipProps) {
   return (
     <span
       className={cn(
-        'rounded-[6px] border border-border-default bg-bg-surface/90 px-2 py-1',
+        'rounded-[6px] border border-border-default bg-bg-surface-90 px-2 py-1',
         'text-[10px] tabular-nums leading-none text-text-muted',
       )}
     >

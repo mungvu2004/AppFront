@@ -128,7 +128,9 @@ function CommentPin({ comment, isOpen, onToggle, onRegisterRef }: CommentPinProp
         'rounded-full border border-border-default bg-bg-surface font-mono text-[13px] leading-none',
         'text-text-primary shadow-float',
         ROW_FOCUS_STYLES,
-        isOpen && 'bg-bg-selected',
+        // Ghim nổi trên canvas: `hover:bg-bg-hover` trong suốt sẽ làm lộ canvas.
+        'hover:bg-hover-over-surface',
+        isOpen && 'bg-bg-selected hover:bg-bg-selected',
         comment.isResolved && 'text-text-muted',
       )}
       style={{ left: comment.at.x, top: comment.at.y, width: PIN_SIZE_PX, height: PIN_SIZE_PX }}

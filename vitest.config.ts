@@ -100,8 +100,8 @@ export default defineConfig({
     // `vendor/**` giữ mã Pascal đã chép vào (`vendor/pascal/NGUON.md`). Bài
     // kiểm của họ chạy bằng `bun test`, không bằng vitest, và chúng cần bộ
     // công cụ riêng — để vitest tự nhặt chúng là chuốc lấy một rừng đỏ không
-    // liên quan tới AppFront.
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/vendor/**'],
+    // liên quan tới AppFront. `qa/**` là bộ Playwright QA (`qa/tsconfig.json` riêng).
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/vendor/**', 'qa/**'],
     coverage: {
       provider: 'v8',
       // `text` để đọc ngay trên terminal, `json-summary` để script đọc máy được,

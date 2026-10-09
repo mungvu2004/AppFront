@@ -340,3 +340,13 @@ describe('readSelfName', () => {
   });
 });
 
+
+describe('ghim bình luận — rê chuột không làm nền trong suốt (QA-01c #13)', () => {
+  it('phủ --bg-hover lên nền surface thay vì đặt nền trong suốt', () => {
+    render(<CollaborationLayer {...baseProps({ comments: [COMMENT_OPEN] })} />);
+
+    const pin = screen.getByRole('button', { name: /2 trả lời/i });
+    expect(pin).toHaveClass('hover:bg-hover-over-surface');
+    expect(pin).not.toHaveClass('hover:bg-bg-hover');
+  });
+});

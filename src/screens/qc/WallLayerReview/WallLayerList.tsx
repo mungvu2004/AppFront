@@ -175,7 +175,7 @@ function WallLayerListRow({
       <Badge className="relative shrink-0 gap-1.5 font-mono" noDot variant="neutral">
         <span
           aria-hidden="true"
-          className="h-3 w-3 rounded-sm border border-border-default/50"
+          className="h-3 w-3 rounded-sm border border-border-default-50"
           style={{ backgroundColor: wallStrokeToken(row.thicknessMm as WallThickness) }}
         />
         {row.thicknessLabel}

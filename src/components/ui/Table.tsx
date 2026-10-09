@@ -81,7 +81,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
   ref
 ) => {
   const rowClassName = twMerge(
-    'group h-10 border-b border-border-default/50 last:border-0 outline-none transition-colors duration-120',
+    'group h-10 border-b border-border-default-50 last:border-0 outline-none transition-colors duration-120',
     'hover:bg-bg-hover focus-visible:bg-bg-hover',
     'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',
     selected && 'bg-bg-selected hover:bg-bg-selected',
@@ -168,7 +168,7 @@ function TableHead({
       className={twMerge(
         // "section-label" style: normal sentence case, NOT uppercase
         'h-10 px-3 align-middle font-semibold text-[13px] leading-[18px] text-text-secondary whitespace-nowrap bg-bg-sunken',
-        isSortable && 'cursor-pointer select-none hover:bg-bg-hover/50 group',
+        isSortable && 'cursor-pointer select-none hover:bg-bg-hover-50 group',
         sticky && 'sticky left-0 z-20',
         className
       )}
@@ -225,7 +225,7 @@ function TableSkeleton({ columns, rows = 8 }: TableSkeletonProps) {
   return (
     <>
       {Array.from({ length: rows }, (_, r) => (
-        <tr key={r} className="border-b border-border-default/50">
+        <tr key={r} className="border-b border-border-default-50">
           <td colSpan={columns} className="p-0">
             <Skeleton preset="table-row" className="h-10" />
           </td>

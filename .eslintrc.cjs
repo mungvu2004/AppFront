@@ -24,7 +24,7 @@ module.exports = {
   // bảy luật nội bộ ở `eslint-rules/`, nên để `eslint .` quét nó là biến cổng
   // lint thành hàng nghìn lỗi không ai định sửa. Ba cổng còn lại — độ dài,
   // typecheck, import vòng — vốn đã chỉ nhìn `src/**` nên không cần dòng nào.
-  ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs', 'vendor'],
+  ignorePatterns: ['dist', 'coverage', '.eslintrc.cjs', 'vendor', 'qa'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh', 'local', 'import'],
   settings: {

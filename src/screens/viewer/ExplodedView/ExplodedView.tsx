@@ -52,7 +52,7 @@ function EmptyMessage() {
 function LoadingMessage() {
   return (
     <div className="relative flex h-full w-full items-center justify-center" role="status">
-      <div className="flex items-center gap-2 rounded-[8px] bg-bg-surface/90 px-4 py-2 text-[13px] text-text-secondary shadow-float">
+      <div className="flex items-center gap-2 rounded-[8px] bg-bg-surface-90 px-4 py-2 text-[13px] text-text-secondary shadow-float">
         <span>Đang tách các tầng...</span>
       </div>
     </div>

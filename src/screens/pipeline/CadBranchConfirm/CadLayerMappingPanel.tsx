@@ -120,7 +120,7 @@ function CadLayerRow({
     <>
       <tr
         className={cn(
-          'h-10 border-b border-border-default/50 transition-colors duration-180 motion-reduce:transition-none',
+          'h-10 border-b border-border-default-50 transition-colors duration-180 motion-reduce:transition-none',
           isHighlighted ? 'bg-bg-hover' : 'hover:bg-bg-hover',
         )}
         onBlur={handleBlur}
@@ -158,7 +158,7 @@ function CadLayerRow({
       </tr>
 
       {hasUnassignedHint ? (
-        <tr className="border-b border-border-default/50">
+        <tr className="border-b border-border-default-50">
           <Table.Cell className="h-auto whitespace-normal pb-2 pt-0" colSpan={TABLE_COLUMN_COUNT}>
             <p className="text-[12px] leading-snug text-text-muted">
               {UNASSIGNED_LAYER_HINT}
