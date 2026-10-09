@@ -196,6 +196,7 @@ const gateProps = (overrides: Partial<SessionGateProps> = {}): SessionGateProps 
   isPublic: false,
   loginHref: '/login?next=%2Fbat-ky',
   onRetry: () => undefined,
+  pathname: '/bat-ky',
   sessionEnded: false,
   setupFailed: false,
   status: 'authenticated',
@@ -303,9 +304,25 @@ describe('SessionGate — năm nhánh', () => {
   });
 
   it('không nói "hãy đăng nhập để tiếp tục" khi khách chỉ mở trang chủ (BUG-007)', () => {
-    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F' });
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F', pathname: '/' });
 
     expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
+  });
+
+  it('trang chủ kèm tham số vẫn là trang chủ: đọc đường hiện tại, không tách lại loginHref (nợ QA-01 #23)', () => {
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F%3Fx%3D1', pathname: '/' });
+
+    expect(screen.getByTestId('man-dang-nhap')).toHaveTextContent('/login?next=%2F%3Fx%3D1');
+    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
+  });
+
+  it('khung chờ thấy được trên nền trang: viền điều khiển (≥ 3:1), nền mặt (BUG-027)', () => {
+    renderGate({ status: 'unknown' });
+
+    const frame = screen.getByRole('status', { name: 'Đang mở phiên' }).firstElementChild;
+
+    expect(frame).toHaveClass('border-border-control', 'bg-bg-surface');
+    expect(frame).not.toHaveClass('border-border-default');
   });
 
   it('vẽ màn con khi đã đăng nhập', () => {
@@ -358,6 +375,45 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
 
     expect(screen.getByRole('region', { name: 'Trạng thái kết nối' })).toBeInTheDocument();
     expect(screenMounts).toBe(1);
+  });
+
+  it('ẩn dải trả tiêu điểm về chỗ nó đến, không để rơi về body (nợ QA-01 #20)', () => {
+    renderGate({
+      children: (
+        <main>
+          <button type="button">Nút của màn con</button>
+        </main>
+      ),
+      serverUnreachable: true,
+    });
+
+    const origin = screen.getByRole('button', { name: 'Nút của màn con' });
+    const hide = screen.getByRole('button', { name: 'Ẩn thông báo kết nối' });
+
+    origin.focus();
+    hide.focus();
+    fireEvent.click(hide);
+
+    expect(screen.queryByRole('region', { name: 'Trạng thái kết nối' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(origin);
+  });
+
+  it('ẩn dải khi tiêu điểm vào thẳng nó (không có chỗ đến): về `main` nhận tiêu điểm của màn con (nợ QA-01 #20)', () => {
+    renderGate({
+      children: (
+        <main tabIndex={-1} aria-label="màn con">
+          <ProbeScreen />
+        </main>
+      ),
+      serverUnreachable: true,
+    });
+
+    const hide = screen.getByRole('button', { name: 'Ẩn thông báo kết nối' });
+
+    hide.focus();
+    fireEvent.click(hide);
+
+    expect(document.activeElement).toBe(screen.getByRole('main'));
   });
 
   it('gắn lại màn con khi đổi người', () => {

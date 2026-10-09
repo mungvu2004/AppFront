@@ -24,6 +24,7 @@ import {
 import { PasswordField } from '../PasswordField';
 import { RecoveryDeadEnd, RecoveryLink, RecoveryNoticeStrip, RecoveryShell } from '../RecoveryShell';
 import { passwordTooShort } from '../recoveryShared';
+import { useReturnFocus } from '../useReturnFocus';
 import {
   useInvitationAccept,
   type InvitationAcceptActions,
@@ -62,6 +63,7 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
   );
 
   const fieldsDisabled = isSubmitting || isDone || needsSignIn;
+  const focusReturn = useReturnFocus(isSubmitting);
 
   return (
     <RecoveryShell
@@ -99,10 +101,12 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
             />
           )}
           <form
+            ref={focusReturn.ref}
             className="flex flex-col gap-6"
             noValidate
             aria-busy={isSessionPending}
             onSubmit={handleSubmit}
+            onFocus={focusReturn.onFocus}
           >
             <RecoveryNoticeStrip notice={warning} />
             {/* Always mounted, filled later, so a screen reader announces the text. */}
