@@ -69,8 +69,8 @@ export function Toggle(props: ToggleProps) {
   if (isLoading) {
     return (
       <div className={cn('flex items-center gap-3', className)}>
-        <div className="h-5 w-9 rounded-full bg-bg-sunken animate-pulse" />
-        {label && <div className="h-4 w-20 rounded bg-bg-sunken animate-pulse" />}
+        <div className="h-5 w-9 rounded-full bg-border-default animate-pulse" />
+        {label && <div className="h-4 w-20 rounded bg-border-default animate-pulse" />}
       </div>
     );
   }

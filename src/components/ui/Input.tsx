@@ -59,7 +59,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative flex items-center group">
           {isLoading ? (
-            <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+            <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
           ) : isReadOnly ? (
             <div className="flex h-[46px] sm:h-[38px] w-full items-center px-3 text-text-primary">
               {prefix && <span className="mr-2 flex-shrink-0 text-text-muted">{prefix}</span>}

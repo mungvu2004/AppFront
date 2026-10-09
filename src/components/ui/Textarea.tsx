@@ -80,7 +80,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       )}
       <div className="relative">
         {isLoading ? (
-          <div className="h-[72px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+          <div className="h-[72px] w-full rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
         ) : (
           <textarea
             ref={setRef}

@@ -43,10 +43,10 @@ export function FieldRow({
         {...props}
       >
         <div className="flex-1 flex flex-col justify-center">
-          <div className="h-4 w-24 rounded bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 w-24 rounded bg-border-default animate-pulse motion-reduce:animate-none" />
         </div>
         <div className="flex-1">
-          <div className="h-4 w-full rounded bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 w-full rounded bg-border-default animate-pulse motion-reduce:animate-none" />
         </div>
       </div>
     );

@@ -143,7 +143,7 @@ export const ComboboxSkeleton = forwardRef<HTMLDivElement, { label?: React.React
   ({ label, className }, ref) => (
     <div ref={ref} className={cn('flex flex-col', className)}>
       {label && <span className="mb-2 text-[14px] font-medium text-text-secondary">{label}</span>}
-      <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-bg-sunken animate-pulse motion-reduce:animate-none" />
+      <div className="h-[46px] sm:h-[38px] w-full rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
     </div>
   )
 );
