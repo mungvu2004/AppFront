@@ -344,7 +344,15 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
 
-    expect(await screen.findByRole('dialog', { name: `xoá hẳn ${target.name}?` })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: `Xoá hẳn ${target.name}?` })).toBeInTheDocument();
+  });
+
+  it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);
+
+    expect((await screen.findAllByRole('button', { name: 'Xoá' })).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'xoá' })).toBeNull();
   });
 
   it('Esc đóng khối mời khi nó đang mở', async () => {

@@ -17,9 +17,9 @@
  *
  * ## Hai nút, hai tên khác nhau — “mở hộp” không được đọc như “xác nhận” (lớp gộp T9 sửa)
  *
- * Nút mở hộp tên là “gỡ người dùng khỏi hệ thống”, nút trong hộp tên là “xác nhận xoá
- * vĩnh viễn”. Bộ kiểm quét MỌI nút mang tên “xoá hẳn” hoặc “xác nhận xoá” và đòi chúng
- * phải tắt khi email gõ chưa khớp — một nút chỉ để MỞ hộp thì không được tắt, nên nó không
+ * Nút mở hộp tên là “Xoá” — cùng tên với nút trên hàng của bảng, vì hai nút mở cùng một
+ * hộp (BUG-076) — còn nút trong hộp tên là “xác nhận xoá vĩnh viễn”. Bộ kiểm quét MỌI nút
+ * mang tên “xoá hẳn” hoặc “xác nhận xoá” và đòi chúng phải tắt khi email gõ chưa khớp — một nút chỉ để MỞ hộp thì không được tắt, nên nó không
  * được mang cái tên ấy. Đây không phải nới bài kiểm: hành động không đảo được vẫn chỉ xảy
  * ra sau khi gõ đúng email (A9/Đ-8), chỉ có nhãn là nói đúng hơn việc từng nút làm.
  *
@@ -241,7 +241,7 @@ function DetailRemoveSection({ onOpenRemove }: RemoveSectionProps) {
     >
       <p className="text-[13px] text-text-secondary">Xoá hẳn người dùng này khỏi hệ thống.</p>
       <Button onClick={onOpenRemove} size="sm" variant="danger">
-        Gỡ người dùng khỏi hệ thống
+        Xoá
       </Button>
     </section>
   );
@@ -259,7 +259,7 @@ export function RemoveConfirmDialog({ actions, removeConfirm }: RemoveDialogProp
     <Modal.Root isOpen={user !== null} onClose={actions.onCloseRemove} width={480}>
       {user !== null && (
         <>
-          <Modal.Header>xoá hẳn {user.name}?</Modal.Header>
+          <Modal.Header>Xoá hẳn {user.name}?</Modal.Header>
           <Modal.Body>
             <div className="flex flex-col gap-4 pb-2">
               <p>{removeConfirm.warningLabel}</p>

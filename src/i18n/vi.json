@@ -3763,7 +3763,7 @@
       "activitiesEmpty": "Chưa có hoạt động nào",
       "removeSectionLabel": "Xoá người dùng",
       "removeDescription": "Xoá hẳn người dùng này khỏi hệ thống.",
-      "removeButton": "Gỡ người dùng khỏi hệ thống",
+      "removeButton": "Xoá",
       "removeDialogTitle": "Xoá hẳn {{name}}?",
       "removeConfirmPrefix": "Gõ lại {{email}} để xác nhận.",
       "removeInputLabel": "Địa chỉ thư",
