@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { test, type Page } from '@playwright/test';
@@ -6,6 +6,26 @@ import { test, type Page } from '@playwright/test';
 /** `<E2E_RESULTS_DIR>/<E2E_RUN_ID>/evidence/` — same root as the reports in `playwright.config.ts`. */
 export const RUN_ID = process.env.E2E_RUN_ID ?? 'run-01';
 export const EVIDENCE_DIR = join(process.env.E2E_RESULTS_DIR ?? 'F:/App/qa-results', RUN_ID, 'evidence');
+
+/** `qa.config.json` `rules` — the run's test-data prefix and mail domain (Mailpit catches that domain). */
+const RULES = (
+  JSON.parse(readFileSync(new URL('../../qa.config.json', import.meta.url), 'utf8')) as {
+    rules: { testDataPrefix: string; testEmailDomain: string };
+  }
+).rules;
+/** `rules.testDataPrefix` with this run's id (`qa-run-08-`): cleanup and Mailpit sweeps match on it. */
+export const TEST_DATA_PREFIX = RULES.testDataPrefix.replace('{runId}', RUN_ID);
+/** `rules.testEmailDomain` (`example.test`). */
+export const TEST_EMAIL_DOMAIN = RULES.testEmailDomain;
+
+/**
+ * BUG-064: the ONE place a test address is made — `qa-<runId>-<slug>-<unique>@<testEmailDomain>`, unique per call,
+ * so an address that must take exactly one attempt never collides with another test or an earlier run.
+ */
+export function testEmail(slug: string): string {
+  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  return `${TEST_DATA_PREFIX}${slug}-${unique}@${TEST_EMAIL_DOMAIN}`;
+}
 
 const EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.png$/u;
 const JSON_EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.json$/u;

@@ -72,7 +72,7 @@ import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/s
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl, newApiContext, signedInApi } from './support/api';
 import { readAdminCredentials, signInAdmin } from './support/auth';
-import { RUN_ID, attachJson, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
 
 /** BE:apps/api/auth/cookies.py:13 */
@@ -182,9 +182,12 @@ const CLOCK_SLACK_S = 60 * 60;
 
 /** ≥ 8 chars (`src/api/schemas/index.ts:69`) so it reaches the server. Never a real password. */
 const PROBE_PASSWORD = 'sai-mat-khau-e2e-edge';
-/** Run-unique tag: each non-existent address is used for exactly ONE attempt (see budget). */
+/** Run-unique tag for fake tokens and project ids. */
 const RUN_TAG = Date.now().toString(36);
-const nobody = (slug: string): string => `e01-${RUN_TAG}-${slug}@example.test`;
+/** A non-existent address, unique per call: each is used for exactly ONE attempt (see budget). BUG-064: rules prefix. */
+const nobody = (slug: string): string => testEmail(`e01-${slug}`);
+/** 64-char local part (the RFC maximum) starting with the run prefix; with the domain below the address is > 254. */
+const LONG_LOCAL = `${TEST_DATA_PREFIX}e01-long-`.padEnd(64, 'a');
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const h1 = (page: Page, name: string) => page.getByRole('heading', { level: 1, name, exact: true });
@@ -864,7 +867,7 @@ test.describe('E01 SCR-02 Login form', () => {
   test('E01 · <script>-like email → format problem, value shown as text, no request, no dialog', async ({ page }) => {
     // zod `.email()` rejects `<`, `>`, `(`, `)`, `/` (schemas/index.ts:71) → `invalid_string` → emailInvalid
     // (useAuthScreen.ts:381-383); submit returns before the gateway (useAuthScreen.ts:631-635).
-    const hostile = '<script>alert(1)</script>@example.test';
+    const hostile = `${TEST_DATA_PREFIX}<script>alert(1)</script>@${TEST_EMAIL_DOMAIN}`;
     const dialogs = collectDialogs(page);
 
     await openAnonymousLogin(page);
@@ -892,8 +895,7 @@ test.describe('E01 SCR-02 Login form', () => {
     // schemas/auth.ts:13-20) → `too_big` → emailTooLong (useAuthScreen.ts:385-387); blur flags a non-empty box
     // (:562-586); submit returns before the gateway (:631-635). Same cap as BE validate_wire_email
     // (BE:apps/api/auth/emails.py:20,37-39), so no 422 round trip (was the old behaviour on c4978eb4).
-    const local = 'e01-long-' + 'a'.repeat(55);
-    const longAddress = `${local}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.example.test`;
+    const longAddress = `${LONG_LOCAL}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.${TEST_EMAIL_DOMAIN}`;
 
     expect(longAddress.length, 'probe length').toBeGreaterThan(254);
     await openAnonymousLogin(page);
@@ -1940,7 +1942,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
  * Setup calls are the ones `phase01_auth_api.spec.ts` proved this run: invite (BE:apps/api/users/router.py:55),
  * accept (BE:apps/api/auth_recovery/router.py:337-365), delete (BE:apps/api/users/router.py:111-123).
  */
-const TEST_PREFIX = `qa-${RUN_ID}-`;
+const TEST_PREFIX = TEST_DATA_PREFIX;
 const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:apps/api/auth_recovery/messages.py:31
 const RESET_SUBJECT = 'Yêu cầu đặt lại mật khẩu AppBack'; // BE:apps/api/auth_recovery/messages.py:36
 const INVITATION_SUCCESS = 'Đã nhận lời mời. Đang mở tài khoản của bạn.'; // vi.json:185
@@ -1948,8 +1950,7 @@ const RESET_SUCCESS = 'Đã đổi mật khẩu. Đang chuyển tới trang đă
 const PASSWORD_RESET_NOTICE = 'Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.'; // vi.json:197
 const LOGOUT_PATH = '/api/auth/logout'; // lib/auth/session.ts:42,200 under the /api base
 
-const suiteEmail = (slug: string): string =>
-  `${TEST_PREFIX}e01-${slug}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}@example.test`;
+const suiteEmail = (slug: string): string => testEmail(`e01-${slug}`);
 const suitePassword = (): string => `Qa-e01-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
 
 /** Newest mail to `address` with `subject` (an earlier mail to the same address may still be listed). */
@@ -2355,7 +2356,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   test('E01 · SCR-02 forgot panel · address longer than 254 chars → "Thư điện tử dài quá 254 ký tự…" (not "chưa đúng dạng"), NO POST /api/auth/password-reset', async ({ page }) => {
     // useForgotPassword.ts:94-107: PasswordResetRequestSchema email = min(1).email().max(254) (schemas/auth.ts:
     // 13-20) → issue `too_big` → emailTooLong (BUG-010), returned before the request (:106).
-    const longAddress = `e01-long-${'a'.repeat(55)}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.example.test`;
+    const longAddress = `${LONG_LOCAL}@${'b'.repeat(60)}.${'c'.repeat(60)}.${'d'.repeat(60)}.${TEST_EMAIL_DOMAIN}`;
 
     expect(longAddress.length, 'probe length').toBeGreaterThan(254);
     await openAnonymousLogin(page);

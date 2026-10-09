@@ -45,17 +45,16 @@ import { expect, request, test, type APIRequestContext, type APIResponse } from 
 
 import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { RUN_ID } from './support/evidence';
+import { TEST_DATA_PREFIX, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
 
-const PREFIX = `qa-${RUN_ID}-`;
+const PREFIX = TEST_DATA_PREFIX;
 const REFRESH = 'appback_refresh'; // BE:apps/api/auth/cookies.py:9-12
 const STREAM = 'appback_stream';
 const FOREIGN_ORIGIN = 'http://evil.example.test';
 const GRACE_S = 30; // BE:apps/api/auth/settings.py:29 refresh_grace_s
 
 const uniq = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-const testEmail = (slug: string): string => `${PREFIX}${slug}-${uniq()}@example.test`;
 const testPassword = (): string => `Qa-${randomUUID()}`;
 
 /* ------------------------------------------------------------------ phase-local helpers */

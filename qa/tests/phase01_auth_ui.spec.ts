@@ -27,7 +27,7 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { readAdminCredentials } from './support/auth';
-import { EVIDENCE_DIR, attachJson } from './support/evidence';
+import { EVIDENCE_DIR, TEST_DATA_PREFIX, attachJson, testEmail } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { verifyUi } from './support/ui-verify';
 
@@ -56,7 +56,7 @@ const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // vi:156
 const ORIGIN_MISMATCH_DESCRIPTION =
   'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157
 /** 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). */
-const EMAIL_255 = `${'a'.repeat(64)}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
+const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const email = (page: Page) => page.getByLabel(EMAIL_LABEL, { exact: true });
@@ -109,9 +109,10 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
   });
 
   test('U01 · SCR-02 sign-in, partial state (e-mail only)', async ({ page }) => {
+    const address = testEmail('u01-partial'); // one address for all four widths
     await verifyUi(page, 'U01_login_partial', async (p) => {
       await openLogin(p);
-      await email(p).fill('qa-ui@example.test');
+      await email(p).fill(address);
       await email(p).blur();
       await expect(p.getByText(PARTIAL_NOTICE)).toBeVisible();
     });
@@ -172,9 +173,10 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
       },
     );
 
+    const address = testEmail('u01-strip');
     const submitWithMock = async (p: Page): Promise<void> => {
       await openLogin(p);
-      await email(p).fill('qa-ui-strip@example.test');
+      await email(p).fill(address);
       await p.getByLabel(PASSWORD_LABEL, { exact: true }).fill('qa-ui-not-a-password');
       await p.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
     };
@@ -255,7 +257,7 @@ const NOT_FOUND_TITLE = 'Không tìm thấy trang này';
 const SHORTCUT_HELP_TITLE = 'Phím tắt';
 const CLOSE_SHORTCUT_HELP = 'Đóng bảng phím tắt';
 /** testDataPrefix `qa-{runId}-` (qa.config.json): a search term no real user can match. */
-const NO_MATCH_TERM = `qa-${process.env.E2E_RUN_ID ?? 'run-01'}-khong-co-nguoi-dung`;
+const NO_MATCH_TERM = `${TEST_DATA_PREFIX}khong-co-nguoi-dung`;
 
 const notFoundHeading = (page: Page) => page.getByRole('heading', { name: NOT_FOUND_TITLE, exact: true, level: 2 });
 
