@@ -103,7 +103,7 @@ function MeasurementRow({
   return (
     <li
       className={cn(
-        'flex h-10 items-center gap-2 rounded-md px-2',
+        'flex min-h-10 items-center gap-2 rounded-md px-2',
         'transition-colors duration-fast motion-reduce:transition-none',
         isHighlighted && 'bg-bg-hover',
       )}
