@@ -20,10 +20,12 @@
  * | Token | Tương phản | |
  * |---|---:|---|
  * | `--text-primary` #33322F | 11,07:1 | đạt |
- * | `--accent` #567A96 | 3,93:1 | **trượt** — và chính DS-00 đã cấm dùng `--accent` cho chữ 13px |
+ * | `--accent` #4D6E87 | 4,66:1 | đạt từ FIX-654 (#567A96 cũ 3,93:1 trượt) — nhưng A2 giữ màu nhấn cho thứ bấm được, nên chuỗi vẫn không dùng nó |
  * | `--data-dimension` #A99B76 | 2,37:1 | **trượt** — nó là màu TÔ lớp dữ liệu trên canvas, không phải màu chữ |
- * | `--accent-active` #3F5D74 | 5,99:1 | đạt |
- * | `--text-secondary` #6B6862 | 4,80:1 | đạt |
+ * | `--accent-active` #395468 | 6,86:1 | đạt (#3F5D74 cũ 5,99:1) |
+ * | `--text-secondary` #605D58 | 5,66:1 | đạt (#6B6862 cũ 4,80:1; QA-01c nợ #5) |
+ *
+ * Số trong bảng đo lại theo `globals.css` hiện hành (chủ đề sáng, QA-01c).
  *
  * Nên ba tông ở đây là `--text-primary` · `--accent-active` · `--text-secondary`.
  * Vẫn **đúng ba**, vẫn đúng tinh thần "không chủ đề bảy màu", và đọc được. Đây

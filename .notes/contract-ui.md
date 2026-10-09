@@ -499,12 +499,21 @@ addToast({
 | **Default border** | `#e3ded6` | `#3a3733` | `border-border-default` |
 | **Control border** (ô nhập, ô chọn, checkbox, radio; ≥ 3:1) | `#8c8986` | `#746f67` | `border-border-control` |
 
+### Accent (A2: chỉ thứ tương tác được)
+
+| Purpose | Light | Dark | Tailwind class |
+|---------|-------|------|-----------------|
+| **Accent** (sáng #567a96 → #4d6e87, FIX-654: chữ `text-accent` ≥ 4,5:1 trên mọi nền) | `#4d6e87` | `#7fa6c4` | `bg-accent`, `text-accent`, `ring-accent` |
+| **Accent hover** | `#436078` | `#93b5cf` | `hover:bg-accent-hover` |
+| **Accent active** | `#395468` | `#a7c4d9` | `active:bg-accent-active` |
+| **Accent wash** | `#edf2f6` | `#23303a` | `bg-accent-wash` |
+
 ### Text Colors
 
 | Purpose | Light | Dark | Tailwind class |
 |---------|-------|------|-----------------|
 | **Primary text** | `#33322f` | `#ece9e3` | `text-text-primary` |
-| **Secondary text** | `#6b6862` | `#b2ada4` | `text-text-secondary` |
+| **Secondary text** (sáng #6b6862 → #605d58, QA-01c: cách muted ≥ 1,2:1) | `#605d58` | `#b2ada4` | `text-text-secondary` |
 | **Muted text** (≥ 4,5:1 trên mọi nền, bảng ở `globals.css`) | `#6d6a67` | `#9d9891` | `text-text-muted` |
 
 ### Three State Colors (A4: exactly three, never four)
