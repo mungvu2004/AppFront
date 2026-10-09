@@ -59,7 +59,8 @@ export function InlineAlert({
               {title}
             </h4>
           )}
-          <p className={cn('text-[14px] leading-relaxed', textClass, !title && 'mt-[1px]')}>
+          {/* `text-pretty`: không để một từ ("nhập.") đứng riêng ở dòng cuối khi khung hẹp (BUG-087). Chỉ đổi chỗ ngắt dòng. */}
+          <p className={cn('text-pretty text-[14px] leading-relaxed', textClass, !title && 'mt-[1px]')}>
             {message}
           </p>
         </div>
