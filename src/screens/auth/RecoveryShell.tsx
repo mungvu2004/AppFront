@@ -22,8 +22,10 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
   return (
     // Neo từ trên, không căn giữa dọc: căn giữa thì dải lỗi chèn vào đẩy cả khối, ô nhập trôi khỏi con trỏ (BUG-008).
     // Lề 24 px dưới 640, 48 px từ đó: ở 375 lề 48 px chỉ để lại cột ~279 px (BUG-052).
+    // Lề trên 12vh (không 15vh): chỗ giữ câu lỗi cao thêm 12 px mỗi ô (BUG-073), ba ô của lời mời cộng dải lỗi
+    // dưới nút vẫn vừa 1024×768.
     <main
-      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[15vh] sm:px-12 sm:pb-12"
+      className="flex min-h-screen w-full items-start justify-center bg-bg-app px-6 pb-6 pt-[12vh] sm:px-12 sm:pb-12"
       data-auth-state={state}
     >
       <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
