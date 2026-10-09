@@ -41,6 +41,7 @@ import {
   USER_MANAGEMENT_ACTIONS,
   USER_MANAGEMENT_SCENARIOS,
   USER_MANAGEMENT_SCENARIO_FORBIDDEN,
+  USER_MANAGEMENT_SCENARIO_PARTIAL,
   USER_MANAGEMENT_SCENARIO_SUCCESS,
   userManagementScenarioFor,
 } from './userManagementScenarios';
@@ -402,6 +403,18 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
 
     expect((await screen.findAllByRole('button', { name: 'Xoá' })).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'xoá' })).toBeNull();
+  });
+
+  it('BUG-077: link "Gửi lại" lời mời có vùng chạm 44 px dưới 640, 24 px từ đó, ở cả bảng lẫn thẻ', async () => {
+    const UserManagementView = await loadUserManagementView();
+    for (const isCollapsed of [false, true]) {
+      const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_PARTIAL, detail: null, isCollapsed };
+      const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+      const links = await screen.findAllByRole('button', { name: 'Gửi lại' });
+      for (const link of links) expect(link).toHaveClass('inline-flex', 'min-h-[44px]', 'sm:min-h-6');
+      expect(screen.queryByRole('button', { name: 'gửi lại' })).toBeNull();
+      unmount();
+    }
   });
 
   it('Esc đóng khối mời khi nó đang mở', async () => {

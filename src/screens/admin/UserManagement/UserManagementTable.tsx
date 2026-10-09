@@ -116,8 +116,12 @@ function StatusCell({ actions, row }: StatusCellProps) {
         </div>
       )}
       {row.inviteExpired && row.canResendInvite && (
+        // Link chữ, nhưng vùng chạm 44 px dưới 640 và 24 px từ đó — như link chữ của màn đăng nhập (BUG-077, BUG-041).
         <button
-          className={cn('text-left text-[13px] font-medium text-accent hover:underline', FOCUS_RING)}
+          className={cn(
+            'inline-flex min-h-[44px] items-center text-left text-[13px] font-medium text-accent hover:underline sm:min-h-6',
+            FOCUS_RING,
+          )}
           onClick={() => actions.onResendInvite(row.id)}
           type="button"
         >
