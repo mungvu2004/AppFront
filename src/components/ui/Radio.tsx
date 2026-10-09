@@ -73,7 +73,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
       <label
         htmlFor={internalId}
         className={cn(
-          'flex items-start min-h-[32px] cursor-pointer outline-none',
+          'group/radio flex items-start min-h-[32px] cursor-pointer outline-none',
           isDisabled && 'opacity-50 cursor-not-allowed',
           className
         )}
@@ -94,14 +94,15 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
             {...props}
           />
 
-          <motion.div
+          {/* Nhấn bằng CSS (`group-active`), không `whileTap`: framer gắn `tabindex="0"` cho phần tử có
+              cử chỉ nhấn, vòng vẽ thành điểm dừng Tab thứ hai không tên (như BUG-012 của Checkbox). */}
+          <div
             className={cn(
-              'w-[18px] h-[18px] rounded-full border-[1.5px] flex items-center justify-center transition-colors duration-120',
+              'w-[18px] h-[18px] rounded-full border-[1.5px] flex items-center justify-center transition duration-120 motion-reduce:transition-none',
               'peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2',
-              isChecked ? 'border-accent' : 'border-border-control bg-bg-surface'
+              isChecked ? 'border-accent' : 'border-border-control bg-bg-surface',
+              !isDisabled && 'motion-safe:group-active/radio:scale-[0.94]'
             )}
-            whileTap={!isDisabled ? { scale: 0.94 } : {}}
-            transition={{ duration: durationSeconds('instant') }}
           >
             <motion.div
               className="w-[6px] h-[6px] rounded-full bg-accent"
@@ -109,7 +110,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
               animate={{ scale: isChecked ? 1 : 0 }}
               transition={{ duration: durationSeconds('instant'), ease: 'easeOut' }}
             />
-          </motion.div>
+          </div>
         </div>
 
         {(label || description) && (

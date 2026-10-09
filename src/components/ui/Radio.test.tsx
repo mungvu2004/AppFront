@@ -63,4 +63,15 @@ describe('Radio', () => {
     );
     expect(screen.getByRole('radiogroup')).toBeInTheDocument();
   });
+
+  it('is one Tab stop per item: only the input can take focus, never the drawn ring', () => {
+    const { container } = render(
+      <RadioGroup value="a" onChange={() => {}}>
+        <Radio.Item value="a" label="A" />
+        <Radio.Item value="b" label="B" />
+      </RadioGroup>
+    );
+    const focusable = container.querySelectorAll('input, [tabindex]:not([tabindex="-1"])');
+    expect(Array.from(focusable)).toEqual(screen.getAllByRole('radio'));
+  });
 });
