@@ -39,6 +39,8 @@ const SURFACES: ColorTokenName[] = [
 ];
 
 const TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
+  ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--text-primary', bg]),
+  ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--text-secondary', bg]),
   ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--text-muted', bg]),
   ...SURFACES.map((bg): [ColorTokenName, ColorTokenName] => ['--accent', bg]),
   ['--text-muted', '--state-violation-tint'],
@@ -54,6 +56,16 @@ const NON_TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
   ['--bg-surface', '--border-control'],
 ];
 
+/**
+ * Ba bậc chữ phải còn phân biệt được với nhau (QA-01c nợ #5): sáng từng có muted và
+ * secondary cách nhau 1,03:1 — hai bậc đọc ra là một.
+ */
+const HIERARCHY_MINIMUM = 1.2;
+const HIERARCHY_PAIRS: [ColorTokenName, ColorTokenName][] = [
+  ['--text-secondary', '--text-muted'],
+  ['--text-primary', '--text-secondary'],
+];
+
 function ratio(palette: Palette, first: ColorTokenName, second: ColorTokenName): number {
   return contrastRatio(palette[first] ?? '', palette[second] ?? '');
 }
@@ -61,6 +73,10 @@ function ratio(palette: Palette, first: ColorTokenName, second: ColorTokenName):
 describe.each(Object.entries(THEMES))('chủ đề %s', (_name, palette) => {
   it.each(TEXT_PAIRS)('chữ %s trên %s đạt 4,5:1', (text, bg) => {
     expect(ratio(palette, text, bg)).toBeGreaterThanOrEqual(CONTRAST_MINIMUM_BODY);
+  });
+
+  it.each(HIERARCHY_PAIRS)('bậc chữ %s tách khỏi %s ít nhất 1,2:1', (first, second) => {
+    expect(ratio(palette, first, second)).toBeGreaterThanOrEqual(HIERARCHY_MINIMUM);
   });
 
   it.each(NON_TEXT_PAIRS)('%s cạnh %s đạt 3:1', (first, second) => {
